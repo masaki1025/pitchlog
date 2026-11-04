@@ -357,6 +357,119 @@ def _asset_policy_expressions() -> dict[tuple[str, str], tuple[object, object]]:
     }
 
 
+def _play_prefix_trigger_rows() -> list[tuple[object, ...]]:
+    """正式DDLの5triggerを実装の期待値関数から独立した観測fixtureにする。"""
+    # 各行はtable/name/tgtype/enabled/schema/function/owner/definer/columnsと
+    # constraintの有限8属性。旧3triggerも同じqueryが観測するため明示する。
+    return [
+        (
+            [
+                "play_rows",
+                "trg_first_ball_10_lock",
+                7,
+                "O",
+                "sync_right_api",
+                "guard_first_ball_projection_lock",
+                "pitchlog_sync_right_fn_owner",
+                False,
+                [],
+                False,
+                False,
+                True,
+                True,
+                0,
+                "",
+                None,
+                None,
+            ],
+        ),
+        (
+            [
+                "play_rows",
+                "trg_first_ball_20_admit",
+                7,
+                "O",
+                "sync_right_api",
+                "guard_first_ball_projection_admission",
+                "pitchlog_sync_right_fn_owner",
+                True,
+                [],
+                False,
+                False,
+                True,
+                True,
+                0,
+                "",
+                None,
+                None,
+            ],
+        ),
+        (
+            [
+                "play_rows",
+                "trg_play_prefix_30_project_after",
+                5,
+                "O",
+                "sync_right_api",
+                "finish_play_prefix_projection",
+                "pitchlog_sync_right_fn_owner",
+                True,
+                [],
+                False,
+                False,
+                True,
+                True,
+                0,
+                "",
+                None,
+                None,
+            ],
+        ),
+        (
+            [
+                "play_runners",
+                "trg_play_prefix_runner_10_admit",
+                7,
+                "O",
+                "sync_right_api",
+                "guard_play_prefix_runner_insert",
+                "pitchlog_sync_right_fn_owner",
+                True,
+                [],
+                False,
+                False,
+                True,
+                True,
+                0,
+                "",
+                None,
+                None,
+            ],
+        ),
+        (
+            [
+                "play_rows",
+                "trg_play_rows_projection_identity_immutable",
+                19,
+                "O",
+                "public",
+                "prevent_play_rows_projection_identity_update",
+                "pitchlog_owner",
+                False,
+                ["id", "source_event_id", "legacy_row_identifier"],
+                False,
+                False,
+                True,
+                True,
+                0,
+                "",
+                None,
+                None,
+            ],
+        ),
+    ]
+
+
 def _raw_catalog_rows(
     privileged_role_oid: int,
 ) -> dict[CatalogQueryId, list[tuple[object, ...]]]:
@@ -416,6 +529,7 @@ def _raw_catalog_rows(
         CatalogQueryId.FIRST_BALL_TRIGGERS: [
             (list(row),) for row in stamp_trigger_expectations()
         ],
+        CatalogQueryId.PLAY_PREFIX_TRIGGERS: _play_prefix_trigger_rows(),
         CatalogQueryId.LIFECYCLE_FUNCTION_DETAILS: [
             tuple(row) for row in product_catalog._expected_lifecycle_function_details()
         ],
@@ -490,8 +604,20 @@ def test_product_expectations_cover_every_catalog_surface() -> None:
     assert len(expectations.roles) == len(asset_roles)
     assert expectations.roles == expectations.semantic_roles
     assert len(expectations.tables) == 56
-    # 旧70policyを保持し、同期writer/初球の12policyを加える。
-    assert len(expectations.policies) == 91
+    # 旧91policyを保持し、終端runnerのSELECT/INSERTだけを追加する。
+    terminal_policies = {
+        row[2]
+        for row in expectations.policies
+        if row[1] == "play_runners"
+        and row[2]
+        in {"play_prefix_select_play_runners", "play_prefix_insert_play_runners"}
+    }
+    assert terminal_policies == {
+        "play_prefix_select_play_runners",
+        "play_prefix_insert_play_runners",
+    }
+    assert len(expectations.policies) - len(terminal_policies) == 91
+    assert len(expectations.policies) == 93
     assert {
         row[2]
         for row in expectations.policies
@@ -1011,11 +1137,14 @@ def test_public_inspection_is_green_for_asset_exact_rows(
         CatalogQueryId.BUILTIN_FUNCTION_ACL,
         CatalogQueryId.LIFECYCLE_FUNCTION_DETAILS,
         CatalogQueryId.FIRST_BALL_TRIGGERS,
+        CatalogQueryId.PLAY_PREFIX_TRIGGERS,
         CatalogQueryId.MEMBERSHIPS,
         CatalogQueryId.DANGEROUS_LOGIN_ROLES,
         CatalogQueryId.UNAUTHORIZED_LOGIN_BYPASSRLS,
     ]
-    assert len(report.checked_ids) == 32
+    assert report.checked_ids.count("PRODUCT-CATALOG:PLAY-PREFIX-TRIGGERS") == 1
+    assert len(report.checked_ids) - 1 == 32
+    assert len(report.checked_ids) == 33
 
 
 def test_unqualified_public_relation_in_policy_is_red(
@@ -1672,5 +1801,49 @@ def test_first_ball_trigger_set_and_order_are_bound(
         privileged_role_oids=frozenset({900}),
     )
     assert "PRODUCT-CATALOG:FIRST-BALL-TRIGGERS" in {
+        row.check_id for row in report.violations
+    }
+
+
+@pytest.mark.parametrize("trigger", (2, 3))
+@pytest.mark.parametrize("field", tuple(range(17)))
+def test_play_prefix_trigger_all_fields_are_bound(
+    trigger: int, field: int, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """新2triggerのtableを含む全属性を公開検査で閉じる。"""
+    rows = _raw_catalog_rows(900)
+    attributes = rows[CatalogQueryId.PLAY_PREFIX_TRIGGERS][trigger][0]
+    assert isinstance(attributes, list)
+    original = attributes[field]
+    attributes[field] = not original if type(original) is bool else "unregistered"
+    _install_catalog_rows(monkeypatch, rows)
+    report = inspect_product_authz_catalog(
+        cast(psycopg.Connection[Any], object()),
+        privileged_role_oids=frozenset({900}),
+    )
+    assert "PRODUCT-CATALOG:PLAY-PREFIX-TRIGGERS" in {
+        row.check_id for row in report.violations
+    }
+
+
+@pytest.mark.parametrize("mutation", ("missing", "extra", "order"))
+def test_play_prefix_trigger_set_and_order_are_bound(
+    mutation: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """新queryの欠落/重複/順序変異を所期のtrigger比較で拒否する。"""
+    rows = _raw_catalog_rows(900)
+    values = rows[CatalogQueryId.PLAY_PREFIX_TRIGGERS]
+    if mutation == "missing":
+        values.pop(2)
+    elif mutation == "extra":
+        values.append(values[2])
+    else:
+        values.reverse()
+    _install_catalog_rows(monkeypatch, rows)
+    report = inspect_product_authz_catalog(
+        cast(psycopg.Connection[Any], object()),
+        privileged_role_oids=frozenset({900}),
+    )
+    assert "PRODUCT-CATALOG:PLAY-PREFIX-TRIGGERS" in {
         row.check_id for row in report.violations
     }

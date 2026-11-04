@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "contract_revision": 36,
+  "contract_revision": 37,
   "baseline_control": {
     "identity": {
       "scheme": "integer_revision_field",
       "field": "contract_revision",
       "current_identifiers": [
-        "contract_revision:36"
+        "contract_revision:37"
       ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
@@ -267,7 +267,8 @@
     "SYNC_PLAY_PREFIX:read_play_prefix_checkpoint",
     "SYNC_PLAY_PREFIX:lock_play_prefix_checkpoint",
     "SYNC_PLAY_PREFIX:read_play_prefix_history_page",
-    "SYNC_PLAY_PREFIX:prepare_play_prefix_projection"
+    "SYNC_PLAY_PREFIX:prepare_play_prefix_projection",
+    "SYNC_LINEUP_PREFIX:read_lineup_started_origin"
   ],
-  "source_digest": "6a1e1d1d19e102efb0daa652028e3d59ddbb8a2c4cdcf4aef876a8acd7eb0f51"
+  "source_digest": "6175311f0e27d7229036798ab22670de3d90a65219e0f5e1b23880492566a41d"
 }

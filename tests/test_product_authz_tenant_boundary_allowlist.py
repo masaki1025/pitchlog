@@ -141,7 +141,22 @@ def _initialize_repository(tmp_path: Path) -> tuple[Path, str]:
     )
 
     _run_git(repository, ["init"])
-    return repository, _commit(repository, "baseline")
+    # 正式固定原典を実objectのまま保持し、合成baselineにも本来の祖先を与える。
+    # 現在木から別の原典を作ったり、検査器の祖先確認を省いたりしない。
+    frozen_inputs = assets["contracts/tenant_boundary/frozen-inputs.json"]["frozen_inputs"]
+    source_revision = frozen_inputs["pr191_source_registration_revision"]["value"]
+    _run_git(
+        repository,
+        [
+            "-c", "protocol.file.allow=always", "fetch", "--quiet", "--no-tags",
+            "--depth=1", str(_REPOSITORY_ROOT), source_revision,
+        ],
+    )
+    assert _run_git(repository, ["rev-parse", "FETCH_HEAD"]).strip() == source_revision
+    _run_git(repository, ["update-ref", "HEAD", source_revision])
+    baseline = _commit(repository, "baseline")
+    _run_git(repository, ["merge-base", "--is-ancestor", source_revision, baseline])
+    return repository, baseline
 
 
 def _function_signature(source: str, function_name: str) -> str:

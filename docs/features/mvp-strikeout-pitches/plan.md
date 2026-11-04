@@ -208,3 +208,35 @@ PO委任によるCodex主担当/root判断。原WT `feature-mvp-strikeout-pitche
 次に保全38patch+native test1を有限適用し、追加3競合（started route/operation registry/terminal stamp test）を解消する。テキスト適用可能でもv3 DTOには既#191のrecovery alias/共有assert_prefix_matchesを伝播し、routerは直接3reader分岐を保持。旧SQL比較pinの正式登録を旧literalへ戻さない。原native修復a15578f…の独立P2採用3efa74db…はexact1に限り、全source受理へ広げない。
 
 SQL22候補は12新規/10既存before/全after SHAが新基線と一致する。既backport済BigIntegerは重ねて実装せず、既20関数/拒否と新LINEUP origin1の正式登録・ACL/CAPを実物から照合する。既ステップ4の固定登録/3層/全同TX/故障対向/真正source・同artifactの順で完了し、独立レビュー後にowned PGの9SO→反対側通常球/再送/全取消/越境を通す。coreの次lineup有限層は#191の最小修復を継承して宣言・負例を先行し、未登録のままpushしない。ステップ5画面は4の採用後に開始する。新たな野球意味/仮成功/認可や耐久保証の弱化を許可するものではない。
+
+### 2026-11-05 統合候補のartifact再生成と実行pin接合
+
+702948fcの実sourceで唯一artifactを再buildしcda0b594…/57468bytesとなった。既ステップ2/3/4で許可済みの実行pin13と既first_ball_payload_vectors_v1.jsonをrootが専有追随する。execution/hashと明示first-ball artifactSha256だけを新実byteへ更新し、旧prior/互換の全既行は不変。v3の同一chain内だけは前行で実際に生成するcheckpoint/prior artifactへ連結し、v2/v3自己echoは既正式wire-head規則から再導出する。T1/T2/履歴/参加者/走者の数学期待を実装出力で生成せず全値保持する。sourceSha/sourceCasesShaは実byteから導出し、旧Gitとの完全応答比較証拠が成立した組だけ新互換行を追記する。全前後と後発差分を非作者へ渡し、固定候補/局所比較と実保存/画面/正式受理を分離する。
+
+### 2026-11-05 実PG初回の制約停止診断
+
+owned PGの既BB/HBP2系列は成功、新v3系列は初球のafter_t4_projection故障注入より前にIntegrityErrorとなった（全2pass1fail222.80秒）。assert/故障要求を保持し、backend/tests/db/test_terminal_pitch_storage.py exact1だけでSQLSTATEと固定schema/table/column/constraint名の診断を保全し、失敗時の構造化結果をJSON文字列で出力する。SQL本文/原値/資格は出さず、例外を成功へ変えない。既test/共有base scriptは変更しない。主担当のPO委任で本step4原因確認を進め、同じ失敗を無根拠に再実行せず新診断版の新v3対向だけをowned環境で再現する。
+
+診断版43.04秒の実再現でSQLSTATE23503・fk_play_rows_batting_resultを特定した。旧ordinaryテスト関数自身はcalled-pitch語彙をowned DBへ登録するが、新v3テストは同準備を呼ばず、参照先がないまま見逃し9球を送っていた。FK/認可/保存処理を緩めず、新v3テストexact1のowned admin準備へ同じ固定called-pitch語彙1件だけを追加する。試合や保存済みプレイは投入せず実POST作成を維持。診断版の制約名出力も残し、新候補固定後に同v3対向のみ再実証する。
+
+語彙修復後のowned実測は初回保存/全取消/次球まで進み、3球目の数学で停止した（56.43秒）。試験がcalled-pitchを9回送っていたが、正式V3-STARTED-CHAIN-03/06/09はcalled-strikeoutを明示要求する。固定artifactでS2のcalled-pitch拒否と正式called-strikeout成功を実再現した。核のscopeを広げず、test入力列を既正式契約どおり[called-pitch,called-pitch,called-strikeout]×3へ修復し、参照語彙にcalled-strikeout1件を追加する。10球目ball、故障/再送/越境/保存後全assertは不変。これは既採用操作の検証入力修復であり新たな意味裁定ではない。
+
+### 2026-11-05 ステップ5：v3実画面接続の有限単位（PO委任で主担当採用）
+
+候補基線は隔離HEAD3ca52e24。#191候補224を含むが正式develop統合済みとは扱わない。rootのowned実API検証は新規POST作成/開始→[called-pitch,called-pitch,called-strikeout]×3→反対側ball、同D5、T2/T4故障全取消、越境、有界GET再読込が1pass126.84秒。旧BB/HBP2系列と併せ、実source9b76・source80の非作者e0829693/試験入力f5ac387aの成立範囲を継承する。実画面の証拠には読み替えない。
+
+本単位は、既controller/single-writer/耐久queue/attempt/ACK/原要求再送を共有し、明示的なv3 read/要求/response/wire/source型を追加して三振3PA・攻守交代・反対側1球・reloadを実画面へ通す。次打者/両cursor/outs/相手側投捕/T2は唯一artifact `deriveLineupPlayPrefixWithContinuation` の全応答から採り、UI/providerに野球算式・期待lookupを加えない。旧v1/v2復元/既BB/HBP保存・再送を保持する。v3 GETは `projection=play-prefix-v3` / `read_kind=lineup-prefix` を閉検証する。実readerはzero/native v3限定で旧保存を返さないため、既内部queryへ `recording=play-prefix-v3` を閉追加した明示モード/画面入口で選択する。既v1/v2の入口・読取・復元はそのまま保持する。未知/欠測/破損v3をv2へ降格、旧保存を初期cursor1/1でv3へ補完、通信失敗を旧成功へfallbackすることは禁止。
+
+実装移管のexact19（本planは先行追補のみ、採否後に製品変更）:
+
+- 新規 `frontend/src/api/lineupPrefixWire.ts`、`lineupPrefixWire.spec.ts`、`lineupPrefixGame.ts`、`lineupPrefixGame.spec.ts`、`fixtures/lineupPrefixGame.v3.json`。
+- 既 `frontend/src/api/terminalPitchWire.ts`、`terminalPitchWire.spec.ts`。v2の閉判定を維持し、v3でも同じ構造検証・正準JSON/hash primitiveを共有するための有限公開helper追補だけ。
+- 既 `frontend/src/screens/GameScreenOrdinaryPitchProvider.ts`、`GameScreenOrdinaryPitchProvider.spec.ts`、`GameScreenOrdinaryPitchController.ts`、`GameScreenOrdinaryPitchController.spec.ts`、`GameScreenOrdinaryPitch.lifecycle.spec.ts`。新v3 discriminantを明示し、pending/ACK喪失・元attempt/D5/body再送・認証世代/記録権の再確認を既経路へ接続する。
+- 既 `frontend/src/screens/GameScreenRecordedRestore.ts`、`GameScreenRecordedRestore.spec.ts`、`GameScreenRecordedRestore.vue`、`GameScreenOrdinaryPitch.vue`。有界v3 GET、認証epoch/要求世代に束縛した復元、実after参加者と新三振選択肢・状態表示を接続する。
+- 新規 `frontend/src/screens/GameScreenLineupPrefix.e2e.ts`、`GameScreenLineupPrefix.playwright.config.ts`、`backend/tests/db/test_lineup_screen_e2e.py`。既owned screen環境/実HTTPS/app/broker/権限fixtureをimport再利用し、試合・プレイの事前投入/固定成功応答を使わず実画面新規作成から通す。必要な既called-pitch/called-strikeout語彙のowned admin準備だけを許す。
+
+上記は異なるpath19件。generic durableQueue/ACK parser/HTTP client/source/artifact/contracts/共有manifest/台帳は変更しない。閉型の不可分な受け口が別pathにあると判明した場合はその根拠とexact追加をrootへ先に返す。新JSONはAPI形の独立structural fixtureであり、T1/T2/参加者/履歴の数学期待は正式契約の固定例を使う。成功出力から数学期待を生成しない。
+
+型codec→GET/provider→controller/耐久/復元→component→Playwright/owned補助の順に進める。Vitestの実artifact対向と旧v1/v2/BB/HBP回帰、未知/欠測/余剰・scope/tenant/game/ref/roster/participant/position/hash不一致、元要求再送/ACK異常/epoch変更/停止・再起動をpure局所で確認し、対象prettier/eslint/vue-tsc/buildを行う。PG/ブラウザ実行・共有DSN/鍵・app起動はrootが直列所有し、作者は起動しない。rootの採否後に実装し、通常非作者review後、root管理の実画面9球→反対側球・reload/同D5/ACK喪失の実測を完了条件とする。新PO裁定・本人署名・正式#191統合/必須CI/全MVP成立を代記しない。
+
+ステップ5開始判断: rootが追補SHA6ea1153b…と現v3 reader・既controller/queue・操作単位契約を照合し、実PG3ca52e24の1成功126.84秒/非作者e0829693とf5ac387aを根拠にPO委任採用する。exact19をpr191_integration_auditへ移管し、既backend/正式資産の最終受理はroot直列で並行する。内部URLqueryによる閉モード指定は可、利用者へv1/v2/v3/codec等の実装語を選ばせず、入口は記録できる操作を示す日本語とする。旧入口と復元/再送は保持し、旧ゲームを自動v3変換やHTTP失敗から無条件fallbackしない。authorは新コード開始前にrootの191最終候補C4追随完了の通知を受け、同branchの新固定点を使う。

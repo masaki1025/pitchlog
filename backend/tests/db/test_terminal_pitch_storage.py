@@ -426,7 +426,11 @@ _LINEUP_EXTRA = r"""
         assert current["prefix_ref"]["checkpoint"]["revision"] == "1"
         assert current["prefix_ref"]["historyVersion"] == "0"
         assert current["last_source"] is None
-        results = ["batting-result.called-pitch"] * 9 + ["batting-result.ball"]
+        results = [
+            "batting-result.called-pitch",
+            "batting-result.called-pitch",
+            "batting-result.called-strikeout",
+        ] * 3 + ["batting-result.ball"]
         for index, result in enumerate(results, 1):
             d5 = str(uuid4())
             identity = {"eventId": str(uuid4()), "d5": d5, "playId": str(uuid4())}
@@ -684,6 +688,18 @@ def _lineup_script():
     setup = _ORDINARY_SCRIPT.replace(
         "projection=ordinary-prefix-v1&limit=2", "projection=play-prefix-v3&limit=100"
     )
+    # 制約名等の固定DB識別子だけを診断へ加え、原値/SQL/資格は記録しない。
+    diagnostic_anchor = "            sqlstate=code,"
+    assert setup.count(diagnostic_anchor) == 1
+    setup = setup.replace(
+        diagnostic_anchor,
+        diagnostic_anchor
+        + "\n            database_constraint="
+        + 'getattr(diagnostic, "constraint_name", None),'
+        + '\n            database_table=getattr(diagnostic, "table_name", None),'
+        + '\n            database_column=getattr(diagnostic, "column_name", None),',
+        1,
+    )
     marker = "        previous_d5 = []"
     assert setup.count(marker) == 1
     start = setup.index(marker)
@@ -708,6 +724,18 @@ def test_actual_owned_lineup_three_strikeouts_then_opposite_ordinary(
 ):
     """実create/start/初期権から9投球SO3→裏ordinary/再送/取消/有限GETを通す。"""
     db = vertical_database
+    # 旧ordinary試験と同じ固定語彙だけを用意し、game/playは実APIで作成する。
+    with psycopg.connect(db.authority.database.business_admin) as admin:
+        admin.execute(
+            "INSERT INTO public.admin_vocabularies(key,category,display_name) "
+            "VALUES ('batting-result.called-pitch','batting_result','見逃し') "
+            "ON CONFLICT(key) DO NOTHING"
+        )
+        admin.execute(
+            "INSERT INTO public.admin_vocabularies(key,category,display_name) "
+            "VALUES ('batting-result.called-strikeout','batting_result','見逃し三振') "
+            "ON CONFLICT(key) DO NOTHING"
+        )
     case = {
         "tenant": str(db.tenant_id),
         "game": str(db.game_id),
@@ -728,7 +756,7 @@ def test_actual_owned_lineup_three_strikeouts_then_opposite_ordinary(
         )
     assert process.returncode == 0, (process.stdout[-1000:], process.stderr[-1000:])
     result = json.loads(process.stdout)
-    assert "exception" not in result, result
+    assert "exception" not in result, json.dumps(result, ensure_ascii=False)
     assert result["prefix"] == "10" and result["history"] == 10
     with psycopg.connect(db.authority.database.business_admin) as admin:
         for table in ("operation_events", "play_rows"):

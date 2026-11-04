@@ -649,6 +649,10 @@ def test_void_adapter_preserves_every_other_registered_function():
         {
             key: _EXPECTED_SOURCE_PINS[key]
             for key in (
+                "SYNC_PLAY_PREFIX:read_play_prefix_checkpoint",
+                "SYNC_PLAY_PREFIX:lock_play_prefix_checkpoint",
+                "SYNC_PLAY_PREFIX:read_play_prefix_history_page",
+                "SYNC_PLAY_PREFIX:prepare_play_prefix_projection",
                 "SYNC_ORDINARY_PITCH:read_ordinary_order_summary",
                 "SYNC_ORDINARY_PITCH:bind_ordinary_device",
                 "SYNC_ORDINARY_PITCH:check_ordinary_right",

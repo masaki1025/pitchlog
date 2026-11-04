@@ -213,7 +213,7 @@
       "generatedCaseSelector": {
         "sourcePath": "contracts/state-transition/state_transition_contract_v1.json",
         "rowOwnerGapId": "GAP-07",
-        "caseCount": 39
+        "caseCount": 54
       }
     },
     {

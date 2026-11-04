@@ -50,14 +50,19 @@ test('記録済み1球を再読込でサーバーから復元し、取得失敗�
         apiPath(res.url()) === `/api/games/${game}/started`,
     )
     await page.getByRole('button', { name: 'サーバーから復元' }).click()
-    const view = (await (await started).json()) as {
+    const response = await started
+    expect(new URL(response.url()).searchParams.get('projection')).toBe(
+      'play-prefix-v2',
+    )
+    expect(response.status()).toBe(200)
+    const view = (await response.json()) as {
       read_kind: string
       after: { stateFields: Record<string, string> }
       state: { stateFields: Record<string, string> }
       history: unknown[]
       play_rows: unknown[]
     }
-    expect(view.read_kind).toBe('recorded-prefix')
+    expect(view.read_kind).toBe('play-prefix')
     expect(view.after.stateFields['state.count.balls']).toBe('1')
     // 現在状態はafter（1ボール）、開始前のbeforeは0のまま。
     await expect(page.getByTestId('restore-balls')).toHaveText('1')
@@ -68,7 +73,7 @@ test('記録済み1球を再読込でサーバーから復元し、取得失敗�
     await expect(page.getByTestId('restore-history')).toHaveText('1件')
     await expect(page.getByTestId('restore-plays')).toHaveText('1件')
     await expect(
-      page.getByText('通常投球の確認済みprefix（表示履歴は有限ページ）'),
+      page.getByText('保存済みの記録（表示履歴は有限ページ）'),
     ).toBeVisible()
     // 明示再取得でも同じサーバー値を得る。
     const again = page.waitForResponse(
@@ -77,7 +82,12 @@ test('記録済み1球を再読込でサーバーから復元し、取得失敗�
         apiPath(res.url()) === `/api/games/${game}/started`,
     )
     await page.getByRole('button', { name: 'サーバーから再取得' }).click()
-    expect((await again).status()).toBe(200)
+    const refreshed = await again
+    expect(refreshed.status()).toBe(200)
+    expect(new URL(refreshed.url()).searchParams.get('projection')).toBe(
+      'play-prefix-v2',
+    )
+    expect(await refreshed.json()).toStrictEqual(view)
   } catch (error) {
     const text = await page
       .locator('body')

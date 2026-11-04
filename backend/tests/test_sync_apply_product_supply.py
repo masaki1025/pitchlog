@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import copy
 import json
+import re
 from pathlib import Path
 
 import pytest
@@ -13,6 +14,51 @@ from pitchlog.authz import product_catalog as cat
 from pitchlog.authz import product_provisioning as prov
 from pitchlog.authz.asset_spec import PRODUCT_SPEC, load_product_application_steps
 from pitchlog.authz.first_ball_product import ADDITIONS, IDS, legacy_asset, validate
+
+# 終端prefixの正式7関数・2policy・runner有限10列（旧集合は維持）。
+_TERMINAL_FUNCTION_IDS = frozenset(
+    {
+        "FUNCTION:sync_right_api:assert_play_prefix_projection(jsonb)",
+        "FUNCTION:sync_right_api:finish_play_prefix_projection()",
+        "FUNCTION:sync_right_api:guard_play_prefix_runner_insert()",
+        (
+            "FUNCTION:sync_right_api:lock_play_prefix_checkpoint(uuid, uuid, "
+            "uuid, bytea, uuid, uuid, bigint)"
+        ),
+        (
+            "FUNCTION:sync_right_api:prepare_play_prefix_projection(uuid, "
+            "uuid, uuid, bytea, uuid, uuid, text)"
+        ),
+        "FUNCTION:sync_right_api:read_play_prefix_checkpoint(uuid, uuid, bigint)",
+        (
+            "FUNCTION:sync_right_api:read_play_prefix_history_page(uuid, "
+            "uuid, bigint, bigint, uuid, bigint, bigint, bigint, bigint, "
+            "bigint, uuid, integer)"
+        ),
+    }
+)
+_TERMINAL_POLICY_IDS = frozenset(
+    {
+        "POLICY:play_runners:play_prefix_insert_play_runners",
+        "POLICY:play_runners:play_prefix_select_play_runners",
+    }
+)
+_TERMINAL_COLUMN_ACL_IDS = frozenset(
+    f"COLUMN-ACL:public:play_runners:{column}:pitchlog_sync_right_fn_owner"
+    for column in (
+        "tenant_id",
+        "id",
+        "play_id",
+        "base",
+        "runner_id",
+        "status",
+        "status_source",
+        "responsible_pitcher_id",
+        "import_batch_id",
+        "retired_at",
+    )
+)
+
 
 _EXPECTED_SOURCE_PINS = read_expected_source_pins("test_sync_apply_product_supply.py")
 
@@ -99,7 +145,34 @@ def test_catalog_keeps_added_objects_and_actual_bodies():
         for r in cat._expected_lifecycle_function_details()
         if r[0] in {"sync_fence_api", "sync_right_api"}
     ]
-    assert len(rows) == 20
+    old_names = {
+        "observe_writer_binding",
+        "guard_first_ball_projection_admission",
+        "read_ordinary_order_summary",
+        "read_device_state",
+        "read_ordinary_checkpoint",
+        "assert_writer_binding",
+        "prepare_ordinary_projection",
+        "guard_writer_records",
+        "guard_first_ball_projection_lock",
+        "read_writer_database_identity",
+        "bind_device",
+        "check_ordinary_right",
+        "bind_ordinary_device",
+        "consume_ordinary_projection",
+        "close_writer_binding",
+        "check_current_right",
+        "read_ordinary_history_page",
+        "lock_ordinary_checkpoint",
+        "read_writer_identity",
+        "publish_writer_binding",
+    }
+    assert {r[1] for r in rows} == old_names | {
+        value.split(":")[-1].split("(")[0] for value in _TERMINAL_FUNCTION_IDS
+    }
+    assert len(old_names) == 20
+    assert len(rows) - len(_TERMINAL_FUNCTION_IDS) == 20
+    assert len(rows) == 27
     assert sum(r[4] is False for r in rows) == 2
     assert all(r[9] and r[8] == ("search_path=pg_catalog, pg_temp",) for r in rows)
 
@@ -119,7 +192,11 @@ def test_full_apply_has_nine_definitions_and_four_guards_without_execution():
     _, s = prov._build_operation_statements(prov.ProductOperation.APPLY)
     sql = "\n".join(r.sql for r in s)
     assert sql.count("CREATE FUNCTION sync_fence_api.") == 7
-    assert sql.count("CREATE FUNCTION sync_right_api.") == 13
+    assert (
+        sql.count("CREATE FUNCTION sync_right_api.") - len(_TERMINAL_FUNCTION_IDS) == 13
+    )
+    assert sql.count("CREATE FUNCTION sync_right_api.") == 20
+    assert sql.count("CREATE TRIGGER trg_play_prefix_") == 2
     assert sql.count("CREATE TRIGGER sync_writer_") == 4
     assert sql.count("CREATE TRIGGER trg_first_ball_") == 2
 
@@ -246,17 +323,42 @@ def test_reapply_guard_retains_exact_four_triggers_and_refuses_collisions():
 
 
 def test_reapply_keeps_all_other_generated_statements_exact():
-    """正式文のうち関数reapply 20文以外を全byteへ束縛する。"""
+    """旧637文の全byteを保持し、有限追加19文も独立固定値へ束縛する。"""
     import hashlib
 
     _, rows = prov._build_operation_statements(prov.ProductOperation.APPLY)
     wrappers = [r for r in rows if r.sql.startswith("DO $first_ball_reapply$")]
+    terminal_ids = (
+        _TERMINAL_FUNCTION_IDS | _TERMINAL_POLICY_IDS | _TERMINAL_COLUMN_ACL_IDS
+    )
+    terminal = []
+    previous = []
+    found = []
+    for row in rows:
+        marker = re.search(r"-- ELEMENT-ID: ([^\n]+)", row.sql)
+        element_id = marker[1] if marker else None
+        if element_id in terminal_ids:
+            terminal.append({"sequence": row.sequence, "sql": row.sql})
+            found.append(element_id)
+        else:
+            previous.append(row)
+    assert frozenset(found) == terminal_ids
+    assert len(found) == len(terminal_ids) == 19
+    assert len(rows) == 676 and len(wrappers) == 27
+    assert len(previous) == 657
+    assert sum(row.sql.startswith("DO $first_ball_reapply$") for row in previous) == 20
     keep = [
-        {"sequence": r.sequence, "sql": r.sql}
-        for r in rows
-        if not r.sql.startswith("DO $first_ball_reapply$")
+        {"sequence": row.sequence, "sql": row.sql}
+        for row in previous
+        if not row.sql.startswith("DO $first_ball_reapply$")
     ]
-    assert len(rows) == 657 and len(wrappers) == 20 and len(keep) == 637
+    assert len(keep) == 637
+    assert (
+        hashlib.sha256(
+            json.dumps(terminal, ensure_ascii=False, separators=(",", ":")).encode()
+        ).hexdigest()
+        == _EXPECTED_SOURCE_PINS["terminal_generated_statements_sha256"]
+    )
     digest = hashlib.sha256(
         json.dumps(keep, ensure_ascii=False, separators=(",", ":")).encode()
     ).hexdigest()
@@ -358,10 +460,23 @@ def test_device_state_overload_guard_only_extends_new_wrapper():
 
 
 def test_expected_source_pin_fixture_has_all_thirty_independent_values():
-    """独立fixtureの全37期待を閉readerと全file/keyで照合する。"""
+    """独立fixtureの旧37期待と終端追加5期待を閉readerで照合する。"""
     fixture = Path(__file__).parent / "fixtures/first_ball_expected_source_pins_v1.json"
     raw = json.loads(fixture.read_text())
-    assert sum(len(values) for values in raw["pins"].values()) == 37
+    terminal_keys = {
+        "test_sync_apply_product_supply.py": {"terminal_generated_statements_sha256"},
+        "test_sync_apply_writer_binding.py": {
+            "SYNC_PLAY_PREFIX:read_play_prefix_checkpoint",
+            "SYNC_PLAY_PREFIX:lock_play_prefix_checkpoint",
+            "SYNC_PLAY_PREFIX:read_play_prefix_history_page",
+            "SYNC_PLAY_PREFIX:prepare_play_prefix_projection",
+        },
+    }
+    assert sum(len(keys) for keys in terminal_keys.values()) == 5
+    for name, keys in terminal_keys.items():
+        assert keys <= raw["pins"][name].keys()
+    assert sum(len(values) for values in raw["pins"].values()) - 5 == 37
+    assert sum(len(values) for values in raw["pins"].values()) == 42
     assert {name: read_expected_source_pins(name) for name in raw["pins"]} == raw[
         "pins"
     ]

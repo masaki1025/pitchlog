@@ -309,7 +309,14 @@ def _register(monkeypatch: pytest.MonkeyPatch, port_type: type[object]) -> None:
 
 def test_unregistered_port_is_rejected_before_call() -> None:
     """未登録のポートは実装呼び出し前に失敗する。"""
-    assert ports.PORT_IMPLEMENTATIONS == frozenset(
+    terminal_ports = frozenset(
+        {
+            ("pitchlog.sync.ordinary_pitch_ports", "PlayPrefixContentValidationPort"),
+            ("pitchlog.sync.ordinary_pitch_ports", "PlayPrefixProjectionPort"),
+        }
+    )
+    assert terminal_ports <= ports.PORT_IMPLEMENTATIONS
+    assert ports.PORT_IMPLEMENTATIONS - terminal_ports == frozenset(
         {
             ("pitchlog.sync.first_ball_ports", "FirstBallContentValidationPort"),
             (
@@ -602,6 +609,8 @@ def test_port_signatures_do_not_expose_context_handle_or_session() -> None:
         ("pitchlog.sync.first_ball_ports", "FirstBallContentValidationPort"),
         ("pitchlog.sync.ordinary_pitch_ports", "OrdinaryPitchContentValidationPort"),
         ("pitchlog.sync.ordinary_pitch_ports", "OrdinaryPitchProjectionPort"),
+        ("pitchlog.sync.ordinary_pitch_ports", "PlayPrefixContentValidationPort"),
+        ("pitchlog.sync.ordinary_pitch_ports", "PlayPrefixProjectionPort"),
         ("pitchlog.sync.first_ball_projection", "FirstBallProjectionPort"),
         ("pitchlog.sync.first_ball_recording_rights", "FirstBallRecordingRightsPort"),
     ],

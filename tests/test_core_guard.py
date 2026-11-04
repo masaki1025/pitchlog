@@ -1121,7 +1121,7 @@ def load_actual_core_areas() -> dict[str, Any]:
     """
     value = json.loads(CORE_AREAS_PATH.read_text(encoding="utf-8"))
     assert isinstance(value, dict)
-    return _first_ball_historical_fixture(value)
+    return _first_ball_historical_fixture(_terminal_historical_fixture(value))
 
 
 def _require_reference_discovery_policy(
@@ -5877,6 +5877,100 @@ FIRST_BALL_EXPECTED_ORDERS = (
 )
 
 
+# 新層の期待は現木でなく、今回の固定Git前後から独立に読む。
+def _terminal_reference_revision(key: str) -> str:
+    """正式固定入力の旧参照値を、任意の別原典へ置き換えず読む。"""
+    consumers = {
+        "terminal_core_reference_base_revision": "tests/test_core_guard.py:TERMINAL_REFERENCE_BASE",
+        "terminal_core_reference_head_revision": "tests/test_core_guard.py:TERMINAL_REFERENCE_HEAD",
+    }
+    assert key in consumers
+    frozen = json.loads((REPO / "contracts/tenant_boundary/frozen-inputs.json").read_text())
+    entry = frozen["frozen_inputs"][key]
+    assert set(entry) == {"value", "purpose", "sources"}
+    assert type(entry["purpose"]) is str and entry["purpose"]
+    assert entry["sources"] == [consumers[key]]
+    value = entry["value"]
+    assert type(value) is str and len(value) == 40
+    assert all(char in "0123456789abcdef" for char in value)
+    return value
+
+
+TERMINAL_REFERENCE_BASE = _terminal_reference_revision("terminal_core_reference_base_revision")
+TERMINAL_REFERENCE_HEAD = _terminal_reference_revision("terminal_core_reference_head_revision")
+TERMINAL_REFERENCE_REPOSITORY = Path(__file__).resolve().parents[1]
+
+
+@cache
+def _terminal_reference_documents() -> tuple[dict[str, Any], dict[str, Any]]:
+    """root指定の不変Gitから旧JSONと既登録terminal JSONを読む。"""
+    before, after = [
+        json.loads(run_git(TERMINAL_REFERENCE_REPOSITORY, "show",
+                           revision + ":.claude/core-areas.json").stdout)
+        for revision in (TERMINAL_REFERENCE_BASE, TERMINAL_REFERENCE_HEAD)
+    ]
+    return before, after
+
+
+def _terminal_expected_additions() -> dict[str, tuple[str, ...]]:
+    """固定原典が完全追記であることを検査して全5領域78pairを得る。"""
+    before, after = _terminal_reference_documents()
+    old = {a["id"]: a["paths"] for a in before["areas"]}
+    result = {}
+    assert [a["id"] for a in after["areas"]] == list(old)
+    for area in after["areas"]:
+        prefix = old[area["id"]]
+        assert area["paths"][:len(prefix)] == prefix
+        result[area["id"]] = tuple(area["paths"][len(prefix):])
+    assert tuple(map(len, result.values())) == (22, 12, 19, 17, 8)
+    return result
+
+
+def _terminal_historical_fixture(document: dict[str, Any]) -> dict[str, Any]:
+    """旧fixtureの入口だけで完全terminal suffixを外し、旧7状態を維持する。"""
+    expected = _terminal_expected_additions()
+    pairs = {(a, p) for a, paths in expected.items() for p in paths}
+    known = {p for _, p in pairs}
+    observed = {(a["id"], p) for a in document["areas"] for p in a["paths"] if p in known}
+    reused = {("sync-protocol", "backend/tests/test_first_ball_write_stamp.py")}
+    assert not observed - pairs - reused, "terminal fixtureの領域pairが不一致"
+    projected = json.loads(json.dumps(document))
+    if not observed & pairs:
+        return projected
+    assert [a["id"] for a in document["areas"]] == list(expected)
+    for area in projected["areas"]:
+        paths, suffix = area["paths"], expected[area["id"]]
+        assert len(paths) == len(set(paths))
+        assert tuple(paths[-len(suffix):]) == suffix, "terminal fixtureの完全suffixが不一致"
+        prefix = paths[:-len(suffix)]
+        assert not any((area["id"], p) in pairs for p in prefix)
+        area["paths"] = prefix
+    return projected
+
+
+def _terminal_legacy_guard_source(source: str) -> str:
+    """外側の既知helper/callだけを旧初球入口へ戻す歴史証拠adapter。"""
+    tree = ast.parse(source)
+    names = {"_project_terminal_pitch_layer", "validate_terminal_pitch_area_path_layers"}
+    found = {n.name for n in tree.body if isinstance(n, ast.FunctionDef) and n.name in names}
+    assert found in (set(), names)
+    verify = next(n for n in tree.body if isinstance(n, ast.FunctionDef)
+                  and n.name == "verify_area_path_baseline")
+    calls = [n for n in ast.walk(verify) if isinstance(n, ast.Call)
+             and isinstance(n.func, ast.Name)
+             and n.func.id == "validate_terminal_pitch_area_path_layers"]
+    assert len(calls) == int(bool(found))
+    for call in calls:
+        assert ast.dump(call, include_attributes=False) == ast.dump(ast.parse(
+            "validate_terminal_pitch_area_path_layers(baseline, candidate)", mode="eval",
+        ).body, include_attributes=False)
+        assert isinstance(call.func, ast.Name)
+        call.func.id = "validate_first_ball_area_path_layers"
+    tree.body = [n for n in tree.body
+                 if not (isinstance(n, ast.FunctionDef) and n.name in names)]
+    return ast.unparse(tree)
+
+
 def _first_ball_historical_fixture(document: dict[str, Any]) -> dict[str, Any]:
     """旧試験の入力へ新suffixだけを全field保持で投影する。"""
     known = {
@@ -5914,12 +6008,12 @@ def _first_ball_raw_core_areas() -> dict[str, Any]:
     """新規捕捉検証は歴史投影を通さずraw実JSONを読む。"""
     value = json.loads(CORE_AREAS_PATH.read_text(encoding="utf-8"))
     assert isinstance(value, dict)
-    return value
+    return _terminal_historical_fixture(value)
 
 
 def _first_ball_legacy_guard_source(source: str) -> str:
     """旧HTTP predicate照合の入力だけを閉じた既知差分で旧関数形へ戻す。"""
-    tree = ast.parse(source)
+    tree = ast.parse(_terminal_legacy_guard_source(source))
     helper_names = {"_project_first_ball_layers", "validate_first_ball_area_path_layers"}
     helpers = {n.name for n in tree.body if isinstance(n, ast.FunctionDef)
                and n.name in helper_names}
@@ -6280,3 +6374,180 @@ def test_first_ball_all_states_pass_actual_raw_capture_entry(
     _, observed = load_core_guard_module()._project_first_ball_layers(raw, "実raw入口")
     assert observed == order
     test_first_ball_raw_configuration_has_all_declared_sources_captured()
+
+
+def test_terminal_fixed_layer_matches_normative_git_and_preserves_old_7_states() -> None:
+    """224の既登録78pairだけを宣言し、旧7状態/24遷移をそのまま保つ。"""
+    guard = load_core_guard_module()
+    assert dict(guard.TERMINAL_PITCH_CORE_ADDITIONS) == _terminal_expected_additions()
+    assert tuple(map(len, guard.TERMINAL_PITCH_CORE_ADDITIONS.values())) == (22, 12, 19, 17, 8)
+    assert tuple(guard._FIRST_BALL_LAYER_ORDERS) == FIRST_BALL_EXPECTED_ORDERS
+    assert len(FIRST_BALL_ALLOWED_TRANSITIONS) == 24
+    reference = ast.parse(run_git(REPO, "show",
+                                  TERMINAL_REFERENCE_BASE + ":scripts/core_guard.py").stdout)
+    current = ast.parse(SCRIPT.read_text())
+    for name in ("validate_area_path_layers", "_project_first_ball_layers",
+                 "validate_first_ball_area_path_layers"):
+        old = next(n for n in reference.body if isinstance(n, ast.FunctionDef) and n.name == name)
+        new = next(n for n in current.body if isinstance(n, ast.FunctionDef) and n.name == name)
+        assert ast.dump(old, include_attributes=False) == ast.dump(new, include_attributes=False)
+
+
+def test_terminal_real_40ce_and_224_blobs_pass_actual_verifier() -> None:
+    """正規の旧基線と224の実履歴/同commit検査を実入口へ通す。"""
+    guard = load_core_guard_module()
+    assert guard.verify_area_path_baseline(REPO, TERMINAL_REFERENCE_BASE,
+                                          TERMINAL_REFERENCE_BASE) == TERMINAL_REFERENCE_BASE
+    assert guard.verify_area_path_baseline(REPO, TERMINAL_REFERENCE_BASE,
+                                          TERMINAL_REFERENCE_HEAD) == TERMINAL_REFERENCE_BASE
+    assert guard.verify_area_path_baseline(REPO, TERMINAL_REFERENCE_HEAD,
+                                          TERMINAL_REFERENCE_HEAD) == TERMINAL_REFERENCE_HEAD
+
+
+@pytest.mark.parametrize(("before_present", "after_present"), [
+    (False, False), (False, True), (True, True), (True, False),
+])
+def test_terminal_complete_presence_is_monotone_in_real_git(
+    tmp_path: Path, before_present: bool, after_present: bool,
+) -> None:
+    """全tupleの一括消失も旧WB再利用pathと区別して拒否する。"""
+    guard = load_core_guard_module()
+    before, after = _terminal_reference_documents()
+    root, base = _first_ball_git_repo(tmp_path, after if before_present else before)
+    _, head = commit_change(root, "README.md", "terminal candidate\n")
+    if before_present != after_present:
+        _, head = commit_change(root, ".claude/core-areas.json",
+                                json.dumps(after if after_present else before))
+    if before_present and not after_present:
+        with pytest.raises(guard.GuardError, match="terminal core層の削除"):
+            guard.verify_area_path_baseline(root, base, head)
+    else:
+        assert guard.verify_area_path_baseline(root, base, head) == base
+
+
+@pytest.mark.parametrize(("area_id", "missing_path"), [
+    (area_id, path) for area_id, paths in _terminal_expected_additions().items() for path in paths
+])
+def test_terminal_each_normative_pair_is_required_in_real_git(
+    tmp_path: Path, area_id: str, missing_path: str,
+) -> None:
+    """78pairのどの一件でも欠ける部分suffixを実Gitで拒否する。"""
+    guard = load_core_guard_module()
+    before, after = _terminal_reference_documents()
+    candidate = json.loads(json.dumps(after))
+    next(a for a in candidate["areas"] if a["id"] == area_id)["paths"].remove(missing_path)
+    root, base = _first_ball_git_repo(tmp_path, before)
+    _, head = commit_change(root, ".claude/core-areas.json", json.dumps(candidate))
+    with pytest.raises(guard.GuardError):
+        guard.verify_area_path_baseline(root, base, head)
+
+
+@pytest.mark.parametrize("mutation", [
+    "one-area", "middle", "reverse", "unknown-tail", "unknown-prefix", "duplicate",
+    "cross-area", "reused-cross-area", "old-prefix", "area-order", "missing-area",
+])
+def test_terminal_rejects_partial_order_cross_area_and_prefix_changes_in_real_git(
+    tmp_path: Path, mutation: str,
+) -> None:
+    """新層の完全性に加え、旧prefixと全領域順序を維持する。"""
+    guard = load_core_guard_module()
+    before, after = _terminal_reference_documents()
+    candidate = json.loads(json.dumps(after))
+    maps = {a["id"]: a["paths"] for a in candidate["areas"]}
+    expected = _terminal_expected_additions()
+    paths, suffix = maps["sync-protocol"], expected["sync-protocol"]
+    if mutation == "one-area":
+        for area_id in tuple(expected)[1:]:
+            del maps[area_id][-len(expected[area_id]):]
+    elif mutation == "middle":
+        del paths[-len(suffix):]
+        paths[1:1] = suffix
+    elif mutation == "reverse":
+        paths[-len(suffix):] = reversed(suffix)
+    elif mutation == "unknown-tail":
+        paths.append("backend/tests/undeclared_terminal.py")
+    elif mutation == "unknown-prefix":
+        paths.insert(0, "backend/tests/undeclared_terminal.py")
+    elif mutation == "duplicate":
+        paths.append(suffix[0])
+    elif mutation == "cross-area":
+        paths.remove(suffix[0])
+        maps["data-migration"].insert(0, suffix[0])
+    elif mutation == "reused-cross-area":
+        path = "backend/tests/test_first_ball_write_stamp.py"
+        paths.remove(path)
+        maps["game-state"].insert(0, path)
+    elif mutation == "old-prefix":
+        paths[0] = "backend/src/replaced_old_core.py"
+    elif mutation == "area-order":
+        candidate["areas"].reverse()
+    else:
+        candidate["areas"].pop()
+    root, base = _first_ball_git_repo(tmp_path, before)
+    _, head = commit_change(root, ".claude/core-areas.json", json.dumps(candidate))
+    with pytest.raises(guard.GuardError):
+        guard.verify_area_path_baseline(root, base, head)
+
+
+@pytest.mark.parametrize("definition", ["scripts/core_guard.py", "tests/test_core_guard.py"])
+def test_terminal_keeps_definition_and_json_same_commit_rejection(
+    tmp_path: Path, definition: str,
+) -> None:
+    """外側新層でも既宣言/JSONの同commit拒否を保持する。"""
+    guard = load_core_guard_module()
+    before, after = _terminal_reference_documents()
+    root, base = _first_ball_git_repo(tmp_path, before)
+    write_json(root, ".claude/core-areas.json", after)
+    prior = (root / definition).read_text() if (root / definition).exists() else ""
+    write_text(root, definition, prior + "\n# terminal candidate\n")
+    run_git(root, "add", definition, ".claude/core-areas.json")
+    run_git(root, "-c", "user.email=test@example.com", "-c", "user.name=test",
+            "commit", "-qm", "same commit is forbidden")
+    head = run_git(root, "rev-parse", "HEAD").stdout.strip()
+    with pytest.raises(guard.GuardError, match="同一コミット"):
+        guard.verify_area_path_baseline(root, base, head)
+
+
+def test_terminal_projection_preserves_all_fields_and_reused_wb_pair() -> None:
+    """非破壊射影は既WBのsync pairを消さず、全metadataを保持する。"""
+    guard = load_core_guard_module()
+    before, after = _terminal_reference_documents()
+    raw = json.loads(json.dumps(after))
+    raw["other"] = {"metadata": ["kept", True]}
+    raw["areas"][0]["description"] = "保持する"
+    saved = json.loads(json.dumps(raw))
+    projected, present = guard._project_terminal_pitch_layer(raw, "test")
+    assert present is True and raw == saved
+    assert projected == _terminal_historical_fixture(raw)
+    for area, original in zip(projected["areas"], before["areas"], strict=True):
+        assert area["paths"] == original["paths"]
+    assert "backend/tests/test_first_ball_write_stamp.py" in projected["areas"][0]["paths"]
+    restored = json.loads(json.dumps(projected))
+    for area in restored["areas"]:
+        area["paths"].extend(_terminal_expected_additions()[area["id"]])
+    assert restored == raw
+    legacy, present = guard._project_terminal_pitch_layer(before, "test")
+    assert present is False and legacy == before
+
+
+def test_terminal_removing_monotonic_rejection_is_caught_by_real_git(tmp_path: Path) -> None:
+    """新拒否の削除変異は全tuple消失の反例で区別できる。"""
+    import types
+
+    before, after = _terminal_reference_documents()
+    root, base = _first_ball_git_repo(tmp_path, after)
+    _, head = commit_change(root, ".claude/core-areas.json", json.dumps(before))
+    guard = load_core_guard_module()
+    with pytest.raises(guard.GuardError, match="terminal core層の削除"):
+        guard.verify_area_path_baseline(root, base, head)
+    tree = ast.parse(SCRIPT.read_text())
+    wrapper = next(n for n in tree.body if isinstance(n, ast.FunctionDef)
+                   and n.name == "validate_terminal_pitch_area_path_layers")
+    condition = next(n for n in wrapper.body if isinstance(n, ast.If))
+    condition.test = ast.Constant(value=False)
+    ast.fix_missing_locations(tree)
+    mutant = types.ModuleType("terminal_monotonicity_mutant")
+    mutant.__file__ = str(SCRIPT)
+    sys.modules[mutant.__name__] = mutant
+    exec(compile(tree, str(SCRIPT), "exec"), mutant.__dict__)
+    assert mutant.verify_area_path_baseline(root, base, head) == base
