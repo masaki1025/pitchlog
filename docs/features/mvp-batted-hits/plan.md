@@ -139,3 +139,5 @@ historyContextは新entryを先頭に一つ追加し旧stackの全entry/順序�
 ### ステップ2の編集指示（2026-11-05）
 
 主担当rootが追補SHA03032d44af9282a9c010712bd203fbc1d6a4845cbfeb01499013edf8b83d5359をstep1非作者確認済みの数学/16手例・既codecへ照合し、要求exact9/応答exact8/4拒否の閉ABIをPO委任採用する。作者pr192_resume_auditへ専用WT内exact7の編集を許可。新閉契約3fileは作者がcache候補を先に固定しrootへ渡し、rootが直列照合・適用する。既正式契約/旧期待/descriptor/共有manifestは作者編集不可。候補契約の規範からの全値を先に固定してから公開ABIを書き、実出力採取で期待を埋めない。API/source/実hostを結んだ後、コードと閉契約一単位の非作者レビューで採否する。新タグを保存APIの認可/原本証明として流用しない。正式D11/7.7・保存・画面は後続。
+
+公開集合の既試験追随（2026-11-05、PO委任による主担当root判断）: 唯一artifactの新deriveBattedHit公開により旧exact11期待の3試験が停止した。frontend/src/domain/{firstPitchContinuationArtifact.spec.ts,ordinaryPitchContinuationArtifact.spec.ts,strikeoutPitchArtifact.spec.ts}を作者へ追加許可する。旧11名/順序のliteral期待を全保持して新1名だけを明示追加し、実artifactから期待集合を生成しない。旧ABI/全応答・拒否条件は不変更。基点38失敗とは別の後発3件として根拠と全前後を固定し非作者へ渡す。
