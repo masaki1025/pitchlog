@@ -329,6 +329,7 @@ export function prepareLineupContinuation(raw: string): Prepared {
   if (read(fields, 'state.half') === 'bottom') active = cursors.home
   const cp = ref.checkpoint as Json
   const revision = unsigned(cp.revision)
+  const applied = unsigned(pos.appliedWatermark)
   if (
     !sameContinuationValue(s.prefixRef, ref) ||
     !sameContinuationValue(s.rules, r.rules) ||
@@ -341,8 +342,9 @@ export function prepareLineupContinuation(raw: string): Prepared {
     ) ||
     s.historyDepth !== ref.length ||
     s.playCount !== ref.length ||
-    pos.d1 !== pos.d2 ||
-    pos.d1 !== pos.appliedWatermark ||
+    applied === null ||
+    unsigned(pos.d1) !== applied + 1n ||
+    unsigned(pos.d2) === 0n ||
     s.rosterDigest !== s.layoutDigest ||
     revision === null ||
     unsigned(next.revision) !== revision + 1n ||
@@ -365,7 +367,9 @@ export function prepareLineupContinuation(raw: string): Prepared {
       ref.historyVersion !== '0' ||
       s.t2 !== null ||
       s.lastSource !== null ||
-      pos.d1 !== '0' ||
+      pos.d1 !== '1' ||
+      pos.d2 !== '1' ||
+      pos.appliedWatermark !== '0' ||
       cursors.away !== '1' ||
       cursors.home !== '1' ||
       read(fields, 'state.inning') !== '1' ||

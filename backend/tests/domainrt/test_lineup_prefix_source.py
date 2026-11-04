@@ -62,9 +62,9 @@ def _evidence(chain, count):
         {
             "identity": c["request"]["playIdentity"],
             "position_after": {
-                "d1": str(i + 1),
-                "d2": str(i + 1),
-                "appliedWatermark": str(i + 1),
+                "d1": c["request"]["source"]["position"]["d1"],
+                "d2": c["request"]["source"]["position"]["d2"],
+                "appliedWatermark": c["request"]["source"]["position"]["d1"],
             },
             "request": c["request"],
             "response": c["expected"],

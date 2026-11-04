@@ -14,6 +14,17 @@ from pitchlog.domainrt.first_ball_projection import _canonical_json
 from pitchlog.domainrt.first_pitch import _Frozen, _invalid_constant, _unique_object
 from pitchlog.domainrt.first_pitch_continuation import SavedRuleWire
 from pitchlog.domainrt.initial_game_roster import InitialRosterProjection
+from pitchlog.domainrt.lineup_play_prefix_continuation import (
+    T2,
+    Lineup,
+    Origin,
+    PaStart,
+    PrefixRef,
+    Runner,
+)
+from pitchlog.domainrt.lineup_play_prefix_continuation import (
+    Participants as LineupParticipants,
+)
 from pitchlog.domainrt.play_prefix_continuation import (
     BridgeEvidence,
     Participants,
@@ -23,6 +34,7 @@ from pitchlog.domainrt.play_prefix_continuation import (
     PlayT2,
     RunnerSnapshot,
 )
+from pitchlog.domainrt.strikeout_pitch import StrikeoutSnapshot
 from pitchlog.domainrt.terminal_pitch import TerminalSnapshot
 from pitchlog.repositories.ordinary_prefix import (
     Digest,
@@ -577,5 +589,481 @@ def _verify_source_evidence(row, *, bridge):
         raise OrdinaryPrefixError
     if bridge and (
         e["non_play_count"] != 0 or e["ordinary_play_count"] != e["all_play_count"]
+    ):
+        raise OrdinaryPrefixError
+
+
+class LineupPrefixDocument(_Frozen):
+    """private version3。両cursor/実配置とwire/物理anchorを別々に保持する。"""
+
+    version: Literal["3"]
+    id: str
+    revision: Positive
+    history_version: Positive
+    storage_anchor: StorageAnchor
+    prefix_ref: PrefixRef
+    wire_d4: str
+    internal_generation: Positive
+    recovery_generation: Positive
+    confirmed_watermark: Nonnegative
+    applied_watermark: Nonnegative
+    last_source: PrefixSource | None
+    history_depth: Nonnegative
+    after: StrikeoutSnapshot
+    rules: SavedRuleWire
+    t2: T2 | None
+    runners: tuple[Runner, ...]
+    participants: LineupParticipants
+    pa_start_source: PaStart
+    lineup: Lineup
+    roster_digest: Digest
+    roster_source_digest: Digest
+    source_origin: Origin
+    previous_prefix_ref: PrefixRef | None
+    content_digest: Digest
+    artifact_sha256: Digest
+    state: Literal["current", "invalidated"]
+    projection_snapshot: ProjectionSnapshot | None
+
+    @model_validator(mode="after")
+    def _native_binding(self):
+        """JSON全内容と位置だけを検査し、野球値は再計算しない。"""
+        if (
+            str(UUID(self.id)) != self.id
+            or self.storage_anchor.id != self.id
+            or self.history_version != self.storage_anchor.history_epoch
+            or self.prefix_ref.checkpoint.revision != self.revision
+            or self.wire_d4 != self.prefix_ref.generation
+            or self.prefix_ref.origin != self.source_origin
+            or self.confirmed_watermark != self.applied_watermark
+            or self.prefix_ref.length != self.history_depth
+        ):
+            raise ValueError("v3 private位置が不一致")
+        if self.last_source is None:
+            if (
+                self.confirmed_watermark != "0"
+                or self.projection_snapshot is not None
+                or self.t2 is not None
+                or self.previous_prefix_ref is not None
+            ):
+                raise ValueError("v3初期原本が不一致")
+        elif (
+            self.last_source.d1 != self.confirmed_watermark
+            or self.last_source.game_id != self.prefix_ref.game_id
+            or self.last_source.tenant_id != self.prefix_ref.tenant_id
+            or self.last_source.generation != self.internal_generation
+            or self.projection_snapshot is None
+            or self.previous_prefix_ref is None
+        ):
+            raise ValueError("v3 head原本が不一致")
+        raw = self.model_dump(mode="json", by_alias=True, exclude_unset=True)
+        if (
+            source_fingerprint({k: v for k, v in raw.items() if k != "content_digest"})
+            != self.content_digest
+        ):
+            raise ValueError("v3 full content digest不一致")
+        return self
+
+
+def read_lineup_prefix_document(raw):
+    """Private v3も余剰/重複/非有限/型変更を拒否する。"""
+    try:
+        wire = json.loads(
+            raw, object_pairs_hook=_unique_object, parse_constant=_invalid_constant
+        )
+        doc = LineupPrefixDocument.model_validate_json(raw)
+        if _canonical_json(wire) != _canonical_json(
+            doc.model_dump(mode="json", by_alias=True, exclude_unset=True)
+        ):
+            raise ValueError
+        return doc
+    except (ValueError, TypeError, KeyError):
+        raise OrdinaryPrefixError from None
+
+
+@dataclass(frozen=True, slots=True)
+class ConfirmedLineupPrefix:
+    """取得済み実source。単体ではwrite frame/記録権を発行しない。"""
+
+    checkpoint: LineupPrefixDocument
+    source: object
+    roster: InitialRosterProjection
+    bootstrap: bool
+    next_play_number: int
+    previous_payload: object = None
+
+
+def _lineup_started_origin(handle, game, generation):
+    """旧deviceの現在状態は参照せず、実成功logical原本だけを読む。"""
+    from pitchlog.repositories.ordinary_prefix_read import _function_one
+    from pitchlog.sync.terminal_pitch_tokens import LineupStartedOriginReadToken
+
+    origin = _function_one(handle, LineupStartedOriginReadToken(game, generation))
+    if (
+        type(origin) is not dict
+        or set(origin) != {"start_request_id", "device_id"}
+        or any(type(v) is not str or str(UUID(v)) != v for v in origin.values())
+    ):
+        raise OrdinaryPrefixError
+    return origin["start_request_id"]
+
+
+def _initial_lineup_document(initial, origin, d4, epoch, artifact_sha256, position):
+    """初期logical refをactual start_request_idへ固定する。物理rowは作らない。"""
+    from pitchlog.domainrt.lineup_prefix_source import initial_lineup_source
+
+    source = initial_lineup_source(
+        tenant_id=initial.tenant_id,
+        game_id=initial.game_id,
+        generation=d4,
+        origin_id=origin,
+        initial=initial.before,
+        roster=initial.roster,
+        rules=initial.rules,
+        position=position,
+        artifact_sha256=artifact_sha256,
+    )
+    doc = {
+        "version": "3",
+        "id": origin,
+        "revision": "1",
+        "history_version": "1",
+        "storage_anchor": {"id": origin, "history_epoch": "1"},
+        "prefix_ref": source.prefix_ref.model_dump(mode="json", by_alias=True),
+        "wire_d4": d4,
+        "internal_generation": str(initial.generation),
+        "recovery_generation": str(epoch),
+        "confirmed_watermark": "0",
+        "applied_watermark": "0",
+        "last_source": None,
+        "history_depth": "0",
+        "after": source.after.model_dump(mode="json", by_alias=True),
+        "rules": source.rules.model_dump(mode="json", by_alias=True),
+        "t2": None,
+        "runners": [],
+        "participants": source.participants.model_dump(mode="json", by_alias=True),
+        "pa_start_source": source.responsibility.pa_start_source.model_dump(
+            mode="json", by_alias=True
+        ),
+        "lineup": source.lineup.model_dump(mode="json", by_alias=True),
+        "roster_digest": source.roster_digest,
+        "roster_source_digest": source_fingerprint(
+            initial.roster.model_dump(mode="json")
+        ),
+        "source_origin": source.prefix_ref.origin.model_dump(
+            mode="json", by_alias=True
+        ),
+        "previous_prefix_ref": None,
+        "artifact_sha256": artifact_sha256,
+        "state": "current",
+        "projection_snapshot": None,
+    }
+    doc["content_digest"] = source_fingerprint(doc)
+    return read_lineup_prefix_document(_canonical_json(doc)), source
+
+
+def _source_from_lineup_document(doc, position, artifact_sha256, last_identity):
+    """Actual native headを写す。cursor/次投捕を再計算しない。"""
+    from pitchlog.domainrt.lineup_play_prefix_continuation import Source
+
+    kind = "evaluated-prefix-v3"
+    if doc.t2.decision.lock_further_play_input or doc.t2.tiebreak_start_required:
+        kind = "locked-prefix-v3"
+    source = {
+        "kind": kind,
+        "prefixRef": doc.prefix_ref.model_dump(mode="json", by_alias=True),
+        "rules": doc.rules.model_dump(mode="json", by_alias=True),
+        "after": doc.after.model_dump(mode="json", by_alias=True),
+        "t2": doc.t2.model_dump(mode="json", by_alias=True),
+        "historyDepth": doc.history_depth,
+        "playCount": doc.prefix_ref.length,
+        "lastSource": last_identity.model_dump(mode="json", by_alias=True),
+        "position": position.model_dump(mode="json", by_alias=True),
+        "priorArtifactSha256": doc.artifact_sha256,
+        "executionArtifactSha256": artifact_sha256,
+        "rulesDigest": source_fingerprint(
+            doc.rules.model_dump(mode="json", by_alias=True)
+        ),
+        "layoutDigest": doc.roster_digest,
+        "rosterDigest": doc.roster_digest,
+        "lineup": doc.lineup.model_dump(mode="json", by_alias=True),
+        "runners": [r.model_dump(mode="json", by_alias=True) for r in doc.runners],
+        "participants": doc.participants.model_dump(mode="json", by_alias=True),
+        "responsibility": {
+            "kind": "no-change",
+            "paStartSource": doc.pa_start_source.model_dump(mode="json", by_alias=True),
+            "previousPitcherId": None,
+            "strikesAtChange": None,
+            "ballsAtChange": None,
+        },
+        "provenance": {
+            "kind": "confirmed-prefix",
+            "checkpoint": doc.prefix_ref.checkpoint.model_dump(
+                mode="json", by_alias=True
+            ),
+            "sourceIdentity": last_identity.model_dump(mode="json", by_alias=True),
+            "historyDepth": doc.history_depth,
+        },
+    }
+    return Source.model_validate_json(
+        _canonical_json(source), by_alias=True, by_name=False
+    )
+
+
+def read_confirmed_lineup_prefix(handle, event, source, *, proposal, artifact_sha256):
+    """既live writer/lock下でactual zero又はnative CPへ結合し、旧v2を補完しない。"""
+    from pitchlog.authz.terminal_pitch_product import require_registered_product
+    from pitchlog.domainrt.lineup_play_prefix_continuation import SourcePosition
+    from pitchlog.repositories.ordinary_prefix_read import _function_one
+    from pitchlog.repositories.started_snapshot import read_initial_started_snapshot
+
+    require_registered_product(
+        artifact_sha256=artifact_sha256, mode="play-prefix-play-v3"
+    )
+    run, live, tenant, game, generation, epoch, watermark, lease = (
+        _locked_prefix_context(handle, event, source)
+    )
+    row = _function_one(
+        handle,
+        PlayPrefixCheckpointLockToken(
+            lease.attempt_id,
+            lease.phase_id,
+            lease.nonce,
+            lease.device_id,
+            game,
+            generation,
+        ),
+    )
+    live()
+    origin = _lineup_started_origin(handle, game, generation)
+    live()
+    position = SourcePosition(
+        d1=str(event.d1),
+        d2=proposal.source.position.d2,
+        appliedWatermark=str(watermark),
+    )
+    if event.d1 != watermark + 1 or proposal.play_identity.d5 != event.d5:
+        raise OrdinaryPrefixError
+    if row is None:
+        if watermark != 0:
+            raise OrdinaryPrefixError
+        initial = read_initial_started_snapshot(handle, game)
+        doc, actual_source = _initial_lineup_document(
+            initial, origin, event.d4, epoch, artifact_sha256, position
+        )
+        live()
+        if (
+            proposal.source != actual_source
+            or proposal.prefix_ref != doc.prefix_ref
+            or proposal.t1.before != doc.after
+            or proposal.rules != doc.rules
+        ):
+            raise OrdinaryPrefixError
+        return ConfirmedLineupPrefix(doc, actual_source, initial.roster, True, 1)
+    if row.get("content", {}).get("version") != "3":
+        raise OrdinaryPrefixError
+    doc = read_lineup_prefix_document(_canonical_json(row["content"]))
+    _check_native_lineup_row(
+        row,
+        doc,
+        tenant=tenant,
+        game=game,
+        generation=generation,
+        epoch=epoch,
+        watermark=watermark,
+    )
+    if (
+        doc.source_origin.event_id != origin
+        or doc.prefix_ref.generation != event.d4
+        or doc.internal_generation != str(generation)
+        or doc.recovery_generation != str(epoch)
+        or doc.confirmed_watermark != str(watermark)
+    ):
+        raise OrdinaryPrefixError
+    roster = InitialRosterProjection.model_validate_json(_canonical_json(row["roster"]))
+    if source_fingerprint(row["roster"]) != doc.roster_source_digest:
+        raise OrdinaryPrefixError
+    payload, play_number = _read_native_lineup_head(handle, game, tenant, row, doc)
+    actual_source = _source_from_lineup_document(
+        doc, position, artifact_sha256, payload.calculation.request.play_identity
+    )
+    live()
+    if (
+        proposal.source != actual_source
+        or proposal.prefix_ref != doc.prefix_ref
+        or proposal.t1.before != doc.after
+        or proposal.rules != doc.rules
+    ):
+        raise OrdinaryPrefixError
+    return ConfirmedLineupPrefix(
+        doc, actual_source, roster, False, play_number + 1, payload
+    )
+
+
+def _read_native_lineup_head_bound(handle, game, tenant, row, doc):
+    """直近event/ledger/物理41+10列/history1をpointで全照合する。"""
+    from pitchlog.db.sync_protocol.models import IdempotencyLedger, OperationEvent
+    from pitchlog.repositories.first_ball_operations import PLAY_ROW_COLUMNS, _one
+    from pitchlog.sync.first_ball_tokens import FirstBallPlayRowReadToken
+    from pitchlog.sync.idempotency import _json_value
+    from pitchlog.sync.terminal_pitch_payload import (
+        LineupPitchPlayPayload,
+        read_lineup_pitch_payload,
+    )
+    from pitchlog.sync.tokens import IdempotencyLedgerReadToken, OperationEventReadToken
+
+    _verify_source_evidence(row, bridge=False)
+    if row["source_evidence"]["non_play_count"] != 0:
+        raise OrdinaryPrefixError
+    last = doc.last_source
+    if last is None or doc.projection_snapshot is None:
+        raise OrdinaryPrefixError
+    event = _one(
+        handle.run(
+            OperationEventReadToken(game, int(doc.internal_generation), int(last.d1))
+        ),
+        tuple(OperationEvent.__table__.c.keys()),
+    )
+    ledger = _one(
+        handle.run(IdempotencyLedgerReadToken(UUID(last.d5))),
+        tuple(IdempotencyLedger.__table__.c.keys()),
+    )
+    play = _one(
+        handle.run(FirstBallPlayRowReadToken(game, UUID(last.id))), PLAY_ROW_COLUMNS
+    )
+    if (
+        event["tenant_id"] != tenant
+        or event["game_id"] != game
+        or event["id"] != UUID(last.id)
+        or event["d5"] != UUID(last.d5)
+        or event["d2"] != int(last.d2)
+        or event["ledger_kind"] != "accepted"
+        or event["event_kind"] != "play_input"
+        or event["is_tombstone"]
+        or event["migration_unverified"]
+        or any(
+            event[k] is not None
+            for k in (
+                "replaced_at",
+                "retired_at",
+                "import_batch_id",
+                "legacy_row_identifier",
+            )
+        )
+        or ledger["tenant_id"] != tenant
+        or ledger["kind"] != "accepted"
+        or ledger["source_fingerprint"] != last.source_fingerprint
+        or ledger["retired_at"] is not None
+        or ledger["import_batch_id"] is not None
+    ):
+        raise OrdinaryPrefixError
+    payload = LineupPitchPlayPayload.model_validate_json(
+        _canonical_json(_json_value(event["payload"]))
+    )
+    payload = read_lineup_pitch_payload(
+        _canonical_json(_json_value(event["payload"])),
+        _canonical_json(_json_value(event["state_diff"])),
+        expected_calculation=payload.calculation,
+    )
+    from pitchlog.sync.ordinary_pitch_physical import pitch_physical_row
+    from pitchlog.sync.terminal_pitch_projection import runner_physical_rows
+
+    request = payload.calculation.request
+    value = payload.calculation.response.value
+    expected_row = pitch_physical_row(
+        payload.observations,
+        payload.participants,
+        request.t1.result_id,
+        tenant_id=tenant,
+        game_id=game,
+        source_event_id=event["id"],
+        row_id=UUID(request.play_identity.play_id),
+        play_number=play["play_number"],
+    )
+    expected_runners = runner_physical_rows(
+        request.source.runners,
+        t1=value.t1,
+        tenant_id=tenant,
+        play_id=UUID(request.play_identity.play_id),
+    )
+    if (
+        request.play_identity.event_id != last.id
+        or request.play_identity.d5 != last.d5
+        or request.source.position.d1 != last.d1
+        or request.source.position.d2 != last.d2
+        or request.prefix_ref.tenant_id != str(tenant)
+        or request.prefix_ref.game_id != str(game)
+        or request.rules != doc.rules
+        or last.event_fingerprint != last.source_fingerprint
+    ):
+        raise OrdinaryPrefixError
+    if (
+        value.next_prefix_ref != doc.prefix_ref
+        or value.previous_prefix_ref != doc.previous_prefix_ref
+        or value.t1.after != doc.after
+        or value.t2 != doc.t2
+        or value.runners != doc.runners
+        or value.participants != doc.participants
+        or value.lineup != doc.lineup
+        or value.next_responsibility.pa_start_source != doc.pa_start_source
+        or value.roster_digest != doc.roster_digest
+        or payload.calculation.artifact_sha256 != doc.artifact_sha256
+    ):
+        raise OrdinaryPrefixError
+    actual = {k: str(v) if type(v) is UUID else v for k, v in play.items()}
+    history = row.get("last_history")
+    if (
+        actual != expected_row
+        or list(doc.projection_snapshot.play_runners) != expected_runners
+        or actual != doc.projection_snapshot.play_row
+        or row.get("last_play_row") != actual
+        or row.get("last_play_runners") != list(doc.projection_snapshot.play_runners)
+        or type(history) is not dict
+        or history.get("tenant_id") != str(tenant)
+        or history.get("game_id") != str(game)
+        or history.get("internal_generation") != int(doc.internal_generation)
+        or history.get("d1") != int(last.d1)
+        or history.get("d2") != int(last.d2)
+        or history.get("source_event_id") != last.id
+        or history.get("entry")
+        != value.new_history_entry.model_dump(
+            mode="json", by_alias=True, exclude_unset=True
+        )
+        or history.get("history_version") != int(doc.history_version)
+    ):
+        raise OrdinaryPrefixError
+    return payload, play["play_number"]
+
+
+def _read_native_lineup_head(handle, game, tenant, row, doc):
+    """保存原本破損を要求内容の恒久拒否へ混同しない。"""
+    try:
+        return _read_native_lineup_head_bound(handle, game, tenant, row, doc)
+    except (ValueError, TypeError, KeyError, AttributeError):
+        raise OrdinaryPrefixError from None
+
+
+def _check_native_lineup_row(row, doc, *, tenant, game, generation, epoch, watermark):
+    """CP外側の実列を内容全hashと結合し、ready前にも別版/別scopeを拒否する。"""
+    expected = {
+        "tenant_id": str(tenant),
+        "game_id": str(game),
+        "internal_generation": generation,
+        "id": doc.id,
+        "revision": int(doc.revision),
+        "history_version": int(doc.history_version),
+        "recovery_generation": epoch,
+        "confirmed_watermark": watermark,
+        "applied_watermark": watermark,
+        "content_digest": doc.content_digest,
+        "state": "current",
+    }
+    if (
+        type(row) is not dict
+        or any(
+            type(row.get(key)) is not type(value) or row[key] != value
+            for key, value in expected.items()
+        )
+        or row.get("saved_at") is None
     ):
         raise OrdinaryPrefixError

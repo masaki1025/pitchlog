@@ -117,7 +117,9 @@ def _cursor(value):
     return _json(raw)
 
 
-def read_ordinary_prefix(handle, game_id, *, limit=25, cursor=None, _play_prefix=False):
+def read_ordinary_prefix(
+    handle, game_id, *, limit=25, cursor=None, _play_prefix=False, _lineup_prefix=False
+):
     """現在世代の実point原本と有限pageだけを返す。0/旧1も暗黙書込しない。"""
     if (
         type(handle) is not _TenantTransaction
@@ -197,11 +199,13 @@ def read_ordinary_prefix(handle, game_id, *, limit=25, cursor=None, _play_prefix
     # DB bigintの範囲を維持。FE能力外はDTOcodecが閉じる。丸め/再採番しない。
     if next_d2 >= 2**63 or n + 1 >= 2**63:
         raise OrdinaryPrefixError
-    if _play_prefix:
+    if _play_prefix or _lineup_prefix:
         from pitchlog.authz.terminal_pitch_product import require_registered_product
         from pitchlog.sync.terminal_pitch_tokens import PlayPrefixCheckpointReadToken
 
-        require_registered_product()
+        require_registered_product(
+            mode="play-prefix-play-v3" if _lineup_prefix else "play-prefix-play-v2"
+        )
         read_token = PlayPrefixCheckpointReadToken(game_id, generation)
     else:
         read_token = OrdinaryCheckpointReadToken(game_id, generation)
@@ -217,6 +221,21 @@ def read_ordinary_prefix(handle, game_id, *, limit=25, cursor=None, _play_prefix
         "recovery_generation": str(epoch),
         "append_policy": policy,
     }
+    if _lineup_prefix:
+        return _read_lineup_projection(
+            handle,
+            game_id,
+            tenant,
+            game,
+            generation,
+            epoch,
+            n,
+            d4,
+            stored,
+            projection,
+            limit,
+            cursor,
+        )
     if stored is None or stored.get("kind") == "first-ball-save":
         if cursor is not None or n > 1:
             return StartedReadRecorded()
@@ -631,13 +650,17 @@ def _evaluate_v2_payload(raw):
     return payload
 
 
-def _verify_v2_read_packet(item, tenant, game_id):
+def _verify_v2_read_packet(item, tenant, game_id, *, lineup=False):
     """独立再評価/取消差分/41列/runner10列を全値比較する。"""
     from pitchlog.sync.ordinary_pitch_physical import pitch_physical_row
     from pitchlog.sync.terminal_pitch_projection import runner_physical_rows
 
     h, e, p = item["history"], item["event"], item["play_row"]
-    payload = _evaluate_v2_payload(e["payload"])
+    payload = (
+        _evaluate_lineup_payload(e["payload"])
+        if lineup
+        else _evaluate_v2_payload(e["payload"])
+    )
     q, value = payload.calculation.request, payload.calculation.response.value
     expected = pitch_physical_row(
         payload.observations,
@@ -837,3 +860,278 @@ def _prefix_metadata(game, game_id, d4, sides, roster):
         before=_initial_before(),
         current_d4=d4,
     )
+
+
+def read_lineup_prefix(handle, game_id, *, limit=25, cursor=None):
+    """旧DTO/旧readerを拡張せず、実v3だけを別projectionで読む。"""
+    return read_ordinary_prefix(
+        handle, game_id, limit=limit, cursor=cursor, _lineup_prefix=True
+    )
+
+
+def _evaluate_lineup_payload(raw):
+    """実保存要求を一回評価し、自己seal/V7/V8全値と照合する。"""
+    from pitchlog.domainrt.lineup_play_prefix_continuation import (
+        evaluate_lineup_prefix_continuation,
+    )
+    from pitchlog.sync.terminal_pitch_payload import (
+        LineupPitchPlayPayload,
+        read_lineup_pitch_payload,
+    )
+
+    payload = LineupPitchPlayPayload.model_validate_json(_canonical_json(raw))
+    actual = evaluate_lineup_prefix_continuation(payload.calculation.request)
+    if _canonical_json(
+        actual.model_dump(mode="json", by_alias=True, exclude_unset=True)
+    ) != _canonical_json(
+        payload.calculation.response.model_dump(
+            mode="json", by_alias=True, exclude_unset=True
+        )
+    ):
+        raise OrdinaryPrefixError
+    difference = payload.calculation.response.value.new_history_entry.difference
+    return read_lineup_pitch_payload(
+        _canonical_json(raw),
+        difference.model_dump_json(by_alias=True, exclude_unset=True),
+        expected_calculation=payload.calculation,
+    )
+
+
+def _read_lineup_projection(
+    handle,
+    game_id,
+    tenant,
+    game,
+    generation,
+    epoch,
+    n,
+    d4,
+    stored,
+    projection,
+    limit,
+    cursor,
+):
+    """Actual zero/native v3に限定し、最後の原本と有界pageを別々に確認する。"""
+    from pitchlog.domainrt.host import open_domain_host
+    from pitchlog.domainrt.lineup_play_prefix_continuation import SourcePosition
+    from pitchlog.domainrt.lineup_prefix_source import lineup_from_actual_roster
+    from pitchlog.repositories.play_prefix import (
+        _initial_lineup_document,
+        _lineup_started_origin,
+        _read_native_lineup_head,
+        read_lineup_prefix_document,
+    )
+    from pitchlog.repositories.started_snapshot import read_initial_started_snapshot
+    from pitchlog.sync.terminal_pitch_tokens import PlayPrefixHistoryPageToken
+
+    origin = _lineup_started_origin(handle, game_id, generation)
+    position = SourcePosition(
+        d1=projection["next_position"]["d1"],
+        d2=projection["next_position"]["d2"],
+        appliedWatermark=str(n),
+    )
+    if n == 0:
+        if stored is not None or cursor is not None:
+            raise OrdinaryPrefixError
+        initial = read_initial_started_snapshot(handle, game_id)
+        with open_domain_host() as host:
+            doc, source = _initial_lineup_document(
+                initial, origin, d4, epoch, host.artifact_sha256, position
+            )
+        metadata = read_started_game(handle, game_id)
+        if type(metadata) is not StartedGameView:
+            raise OrdinaryPrefixError
+        projection.update(
+            after=doc.after,
+            prefix_ref=doc.prefix_ref,
+            rules=doc.rules,
+            t2=None,
+            last_entry=None,
+            last_source=None,
+            prior_artifact_sha256=doc.artifact_sha256,
+            pa_start_source=doc.pa_start_source,
+            lineup=doc.lineup,
+            roster_digest=doc.roster_digest,
+            runners=doc.runners,
+            participants=doc.participants,
+            checkpoint_anchor=None,
+            storage_anchor=None,
+            last_saved_at=initial.started_at,
+            page={"items": [], "next_cursor": None},
+        )
+        return OrdinaryPrefixView(metadata, projection)
+    if (
+        type(stored) is not dict
+        or set(stored) != {"kind", "row"}
+        or stored["kind"] != "checkpoint"
+        or type(stored["row"]) is not dict
+        or stored["row"].get("content", {}).get("version") != "3"
+    ):
+        raise OrdinaryPrefixError
+    row = stored["row"]
+    doc = read_lineup_prefix_document(_canonical_json(row["content"]))
+    for key, expected in {
+        "tenant_id": str(tenant),
+        "game_id": str(game_id),
+        "internal_generation": generation,
+        "id": doc.id,
+        "revision": int(doc.revision),
+        "history_version": int(doc.history_version),
+        "recovery_generation": epoch,
+        "confirmed_watermark": n,
+        "applied_watermark": n,
+        "content_digest": doc.content_digest,
+        "state": "current",
+    }.items():
+        if type(row.get(key)) is not type(expected) or row[key] != expected:
+            raise OrdinaryPrefixError
+    if (
+        doc.source_origin.event_id != origin
+        or doc.wire_d4 != d4
+        or doc.prefix_ref.tenant_id != str(tenant)
+        or doc.prefix_ref.game_id != str(game_id)
+        or row.get("saved_at") is None
+        or source_fingerprint(row["roster"]) != doc.roster_source_digest
+    ):
+        raise OrdinaryPrefixError
+    roster = InitialRosterProjection.model_validate_json(_canonical_json(row["roster"]))
+    if lineup_from_actual_roster(roster) != doc.lineup:
+        raise OrdinaryPrefixError
+    last_payload, _ = _read_native_lineup_head(handle, game_id, tenant, row, doc)
+    _evaluate_lineup_payload(
+        last_payload.model_dump(mode="json", by_alias=True, exclude_unset=True)
+    )
+    saved = _rows(handle.run(StartedLineupsReadToken(game_id)), LINEUP_COLUMNS)
+    if len(saved) != 2 or any(
+        item["tenant_id"] != tenant or item["game_id"] != game_id for item in saved
+    ):
+        raise OrdinaryPrefixError
+    lineups = tuple(_saved_lineup(item) for item in saved)
+    sides = tuple(
+        next(item for item in lineups if item.team_id == game[key])
+        for key in ("away_team_record_id", "home_team_record_id")
+    )
+    metadata = _prefix_metadata(game, game_id, d4, sides, roster)
+    anchor = {
+        "id": doc.id,
+        "revision": doc.revision,
+        "history_version": doc.history_version,
+    }
+    scope = {
+        "version": "3",
+        "tenant": str(tenant),
+        "game": str(game_id),
+        "anchor": anchor,
+        "wire_head": doc.prefix_ref.model_dump(mode="json", by_alias=True),
+        "watermark": str(n),
+        "recovery_generation": str(epoch),
+    }
+    point = (0, 0, UUID(int=0))
+    if cursor is not None:
+        supplied = _cursor(cursor)
+        if (
+            type(supplied) is not dict
+            or set(supplied) != {*scope, "position"}
+            or any(
+                _canonical_json(supplied[key]) != _canonical_json(value)
+                for key, value in scope.items()
+            )
+        ):
+            raise OrdinaryPrefixError
+        raw = supplied["position"]
+        if (
+            type(raw) is not list
+            or len(raw) != 3
+            or any(type(x) is not str for x in raw)
+        ):
+            raise OrdinaryPrefixError
+        point = (int(raw[0]), int(raw[1]), UUID(raw[2]))
+        if [str(x) for x in point] != raw:
+            raise OrdinaryPrefixError
+    token = PlayPrefixHistoryPageToken(
+        game_id,
+        generation,
+        int(doc.history_version),
+        UUID(doc.prefix_ref.checkpoint.id),
+        int(doc.revision),
+        int(doc.prefix_ref.history_version),
+        n,
+        *point,
+        limit,
+    )
+    packets = handle.run_function(token).rows
+    if len(packets) > limit + 1:
+        raise OrdinaryPrefixError
+    items = []
+    last_point = None
+    for packet in packets[:limit]:
+        if len(packet) != 1:
+            raise OrdinaryPrefixError
+        item = _json(packet[0])
+        if type(item) is not dict or set(item) != {
+            "history",
+            "event",
+            "play_row",
+            "expected_play_row",
+            "play_runners",
+            "expected_play_runners",
+        }:
+            raise OrdinaryPrefixError
+        h, e, p = item["history"], item["event"], item["play_row"]
+        if (
+            h["tenant_id"] != str(tenant)
+            or h["game_id"] != str(game_id)
+            or h["internal_generation"] != generation
+            or h["history_version"] != int(doc.history_version)
+            or e["id"] != h["source_event_id"]
+            or p["source_event_id"] != e["id"]
+            or e["d1"] != h["d1"]
+            or e["d2"] != h["d2"]
+            or e["payload"].get("formatVersion") != "play-prefix-play-v3"
+        ):
+            raise OrdinaryPrefixError
+        payload = _verify_v2_read_packet(item, tenant, game_id, lineup=True)
+        current = (h["d1"], h["d2"], UUID(h["source_event_id"]))
+        if current <= point or last_point is not None and current <= last_point:
+            raise OrdinaryPrefixError
+        last_point = current
+        items.append(
+            {
+                "play_row": _public_play(p, payload.observations.course),
+                "history_entry": h["entry"],
+                "play_runners": item["play_runners"],
+            }
+        )
+    next_cursor = None
+    if len(packets) > limit:
+        if last_point is None:
+            raise OrdinaryPrefixError
+        next_cursor = (
+            base64.urlsafe_b64encode(
+                _canonical_json(
+                    {**scope, "position": [str(x) for x in last_point]}
+                ).encode()
+            )
+            .decode()
+            .rstrip("=")
+        )
+    value = last_payload.calculation.response.value
+    projection.update(
+        after=doc.after,
+        prefix_ref=doc.prefix_ref,
+        rules=doc.rules,
+        t2=doc.t2,
+        last_entry=value.new_history_entry,
+        last_source=value.play_identity,
+        prior_artifact_sha256=doc.artifact_sha256,
+        pa_start_source=doc.pa_start_source,
+        lineup=doc.lineup,
+        roster_digest=doc.roster_digest,
+        runners=doc.runners,
+        participants=doc.participants,
+        checkpoint_anchor=anchor,
+        storage_anchor=doc.storage_anchor,
+        last_saved_at=row["saved_at"],
+        page={"items": items, "next_cursor": next_cursor},
+    )
+    return OrdinaryPrefixView(metadata, projection)

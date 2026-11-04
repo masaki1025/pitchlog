@@ -139,6 +139,7 @@ def test_product_function_registry_keeps_rg1_and_adds_one_rule_operation() -> No
         _ReadWriterIdentityToken,
     )
     from pitchlog.sync.terminal_pitch_tokens import (
+        LineupStartedOriginReadToken,
         PlayPrefixCheckpointLockToken,
         PlayPrefixCheckpointReadToken,
         PlayPrefixHistoryPageToken,
@@ -168,6 +169,7 @@ def test_product_function_registry_keeps_rg1_and_adds_one_rule_operation() -> No
         "SYNC_PLAY_PREFIX:lock_play_prefix_checkpoint",
         "SYNC_PLAY_PREFIX:read_play_prefix_history_page",
         "SYNC_PLAY_PREFIX:prepare_play_prefix_projection",
+        "SYNC_LINEUP_PREFIX:read_lineup_started_origin",
     )
     assert set(operation_registry.FUNCTION_OPERATION_REGISTRY) == {
         RG1PrecheckToken,
@@ -187,9 +189,11 @@ def test_product_function_registry_keeps_rg1_and_adds_one_rule_operation() -> No
         OrdinaryHistoryPageToken,
         OrdinaryOrderSummaryToken,
         PlayPrefixCheckpointReadToken,
+        LineupStartedOriginReadToken,
         PlayPrefixCheckpointLockToken,
         PlayPrefixHistoryPageToken,
         PreparePlayPrefixProjectionToken,
+        LineupStartedOriginReadToken,
     }
     assert operation_registry.PRODUCT_OPERATIONS
 
@@ -2031,6 +2035,7 @@ def test_literal_product_function_bindings_preserve_original_objects() -> None:
         ORDINARY_QUALIFICATION_OPERATIONS,
     )
     from pitchlog.repositories.ordinary_prefix_operations import (
+        LINEUP_START_ORIGIN_OPERATIONS,
         ORDINARY_PREFIX_OPERATIONS,
         PLAY_PREFIX_OPERATIONS,
     )
@@ -2040,9 +2045,10 @@ def test_literal_product_function_bindings_preserve_original_objects() -> None:
         *ORDINARY_PREFIX_OPERATIONS,
         *ORDINARY_ORDER_OPERATIONS,
         *PLAY_PREFIX_OPERATIONS,
+        *LINEUP_START_ORIGIN_OPERATIONS,
     )
     registered = operation_registry.PRODUCT_FUNCTION_OPERATIONS[-len(original) :]
-    assert len(original) == len(registered) == 11
+    assert len(original) == len(registered) == 12
     assert all(
         actual is expected
         for actual, expected in zip(registered, original, strict=True)
@@ -2359,3 +2365,28 @@ def test_play_prefix_fix_does_not_allow_bigint_for_unknown_function_or_page_size
     registry = build_function_registry(PLAY_PREFIX_OPERATIONS, frozenset())
     with pytest.raises(FunctionOperationError, match="未登録"):
         prepare_function_operation(_UnregisteredToken(), _TENANT_ID, registry)
+
+
+@pytest.mark.parametrize("generation", [2**31 - 1, 2**31, 2**63 - 1])
+def test_lineup_origin_exact_bigint_and_row_bound(generation):
+    """origin唯一登録は3引数/一行、generationをINTEGERへ狭めない。"""
+    from sqlalchemy.dialects.postgresql.psycopg import PGDialect_psycopg
+
+    from pitchlog.sync.terminal_pitch_tokens import LineupStartedOriginReadToken
+
+    token = LineupStartedOriginReadToken(UUID(int=2), generation)
+    spec, params = prepare_function_operation(
+        token, _TENANT_ID, operation_registry.FUNCTION_OPERATION_REGISTRY
+    )
+    assert spec.operation_id == "SYNC_LINEUP_PREFIX:read_lineup_started_origin"
+    assert spec.capability_id == "CAP:sync_lineup_prefix:read_started_origin"
+    assert spec.min_rows == spec.max_rows == 1
+    assert spec.result_fields == (("record_json", str),)
+    assert params == {
+        "tenant_id": _TENANT_ID,
+        "game_id": UUID(int=2),
+        "generation": generation,
+    }
+    sql = str(spec.statement.compile(dialect=PGDialect_psycopg()))
+    assert "%(generation)s::BIGINT" in sql
+    assert "read_lineup_started_origin" in sql

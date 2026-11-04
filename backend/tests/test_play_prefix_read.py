@@ -77,3 +77,91 @@ def test_owned_db_witness_script_is_syntax_checked_without_pg():
 
     for result in ("batting-result.walk", "batting-result.hit-by-pitch"):
         compile(_script(result), "terminal-owned-candidate.py", "exec")
+
+
+def test_lineup_zero_dto_is_separate_and_cannot_issue_recorded_or_writer_values():
+    """v3初期の両cursor/名簿を保ち、未保存head/秘密/余剰を拒否する。"""
+    import copy
+    import json
+
+    from pydantic import ValidationError
+    from test_ordinary_prefix_dto import POSITIVES
+    from test_play_prefix import _lineup_initial_from_fixture
+
+    from pitchlog.api.schemas.started_games import (
+        StartedGameRead,
+        StartedLineupPrefixGameRead,
+    )
+    from pitchlog.domainrt.host import open_domain_host
+    from pitchlog.domainrt.lineup_play_prefix_continuation import SourcePosition
+    from pitchlog.repositories.play_prefix import _initial_lineup_document
+    from pitchlog.sync.d4_reference import encode_d4_reference
+
+    initial, _ = _lineup_initial_from_fixture()
+    d4 = encode_d4_reference(initial.tenant_id, initial.game_id, initial.generation)
+    with open_domain_host() as host:
+        doc, _ = _initial_lineup_document(
+            initial,
+            str(UUID(int=9001)),
+            d4,
+            1,
+            host.artifact_sha256,
+            SourcePosition(d1="1", d2="1", appliedWatermark="0"),
+        )
+    original = POSITIVES[0]["value"]
+    raw = {k: copy.deepcopy(original[k]) for k in StartedGameRead.model_fields}
+    raw.update(
+        read_kind="lineup-prefix",
+        id=str(initial.game_id),
+        current_d4=d4,
+        after=doc.after.model_dump(mode="json", by_alias=True),
+        state=initial.before.model_dump(mode="json", by_alias=True),
+        prefix_ref=doc.prefix_ref.model_dump(mode="json", by_alias=True),
+        rules=doc.rules.model_dump(mode="json", by_alias=True),
+        t2=None,
+        last_entry=None,
+        last_source=None,
+        prior_artifact_sha256=doc.artifact_sha256,
+        pa_start_source=doc.pa_start_source.model_dump(mode="json", by_alias=True),
+        lineup=doc.lineup.model_dump(mode="json", by_alias=True),
+        roster_digest=doc.roster_digest,
+        runners=[],
+        participants=doc.participants.model_dump(mode="json", by_alias=True),
+        next_position={"d1": "1", "d2": "1"},
+        checkpoint_anchor=None,
+        storage_anchor=None,
+        recovery_generation="1",
+        page={"items": [], "next_cursor": None},
+        append_policy={
+            "version": "ordinary-append-v1",
+            "first_d2": "1",
+            "d2_gap": "1000",
+            "max_d2": "9007199254740991",
+        },
+        last_saved_at="2026-10-31T00:00:00Z",
+    )
+    value = StartedLineupPrefixGameRead.model_validate_json(json.dumps(raw))
+    assert json.loads(value.model_dump_json(by_alias=True, exclude_unset=True)) == raw
+    for key, bad in [
+        ("credential", "secret"),
+        ("prefix_ref", None),
+        ("participants", None),
+        ("next_position", {"d1": "0", "d2": "1"}),
+        (
+            "checkpoint_anchor",
+            {"id": str(UUID(int=9)), "revision": "1", "history_version": "1"},
+        ),
+        ("storage_anchor", {"id": str(UUID(int=9)), "history_epoch": "1"}),
+        (
+            "last_source",
+            {
+                "eventId": str(UUID(int=9)),
+                "d5": str(UUID(int=10)),
+                "playId": str(UUID(int=11)),
+            },
+        ),
+    ]:
+        changed = copy.deepcopy(raw)
+        changed[key] = bad
+        with pytest.raises((ValidationError, ValueError)):
+            StartedLineupPrefixGameRead.model_validate_json(json.dumps(changed))

@@ -16,12 +16,25 @@ from pitchlog.repositories.ordinary_prefix import OrdinaryPrefixError
 def test_exact_product_surface_and_no_direct_runner_app_grant():
     """私有3関数をappへ開かず、全列と新2triggerだけを描画する。"""
     declarations, bodies = candidate_declarations()
-    assert len(declarations["functions"]) == 7
-    assert len(declarations["policies"]) == 2
-    assert len(declarations["column_acl_expectations"]) == 10
-    assert {r["column_id"] for r in declarations["column_acl_expectations"]} == set(
-        RUNNER_COLUMNS
-    )
+    assert len(declarations["functions"]) == 8
+    assert len(declarations["policies"]) == 4
+    assert len(declarations["column_acl_expectations"]) == 19
+    assert {
+        r["column_id"]
+        for r in declarations["column_acl_expectations"]
+        if r["object_id"] == "play_runners"
+    } == set(RUNNER_COLUMNS)
+    assert {
+        (r["object_id"], r["column_id"])
+        for r in declarations["column_acl_expectations"]
+        if r["object_id"] != "play_runners"
+    } == {
+        ("game_start_requests", c)
+        for c in ("tenant_id", "game_id", "start_request_id", "device_id")
+    } | {
+        ("game_start_attempts", c)
+        for c in ("tenant_id", "game_id", "start_request_id", "device_id", "outcome")
+    }
     for row in declarations["functions"]:
         name = row["function_name"]
         args, returns, app = FUNCTIONS[name]
@@ -43,7 +56,9 @@ def test_exact_product_surface_and_no_direct_runner_app_grant():
     assert sum(sql.count("CREATE TRIGGER ") for sql in bodies.values()) == 2
     for row in declarations["column_acl_expectations"]:
         assert row["grantee_role_id"] == "pitchlog_sync_right_fn_owner"
-        assert row["privilege_ids"] == ["SELECT", "INSERT"]
+        assert row["privilege_ids"] == (
+            ["SELECT", "INSERT"] if row["object_id"] == "play_runners" else ["SELECT"]
+        )
 
 
 @pytest.mark.parametrize(
@@ -108,7 +123,17 @@ def test_missing_formal_registration_stays_closed(monkeypatch, section):
     monkeypatch.setattr(Path, "read_text", read)
     require_registered_product(artifact_sha256="a" * 64)
     declarations = copy.deepcopy(declarations)
-    declarations[section].pop()
+    index = next(
+        i
+        for i, r in enumerate(declarations[section])
+        if (
+            section == "functions"
+            and r["function_name"] == "read_play_prefix_checkpoint"
+        )
+        or (section == "policies" and r["table_id"] == "play_runners")
+        or (section == "column_acl_expectations" and r["object_id"] == "play_runners")
+    )
+    declarations[section].pop(index)
     with pytest.raises(OrdinaryPrefixError):
         require_registered_product(artifact_sha256="a" * 64)
 
@@ -122,7 +147,7 @@ def test_all_eight_function_bodies_pass_actual_installer_without_parser_relaxati
     identifiers.append(
         "FUNCTION:sync_right_api:guard_first_ball_projection_admission()"
     )
-    assert len(identifiers) == 8
+    assert len(identifiers) == 9
     for identifier in identifiers:
         canonical = body("function", identifier)
         assert canonical is not None

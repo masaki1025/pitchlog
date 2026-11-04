@@ -26,6 +26,7 @@ from pitchlog.repositories.ordinary_pitch_qualification import (
     ORDINARY_QUALIFICATION_OPERATIONS,
 )
 from pitchlog.repositories.ordinary_prefix_operations import (
+    LINEUP_START_ORIGIN_OPERATIONS,
     ORDINARY_PREFIX_OPERATIONS,
     PLAY_PREFIX_OPERATIONS,
 )
@@ -93,6 +94,7 @@ _STATIC_PRODUCT_FUNCTION_BINDING_IDS = frozenset(
         "SYNC_PLAY_PREFIX:lock_play_prefix_checkpoint",
         "SYNC_PLAY_PREFIX:read_play_prefix_history_page",
         "SYNC_PLAY_PREFIX:prepare_play_prefix_projection",
+        "SYNC_LINEUP_PREFIX:read_lineup_started_origin",
     }
 )
 
@@ -227,6 +229,10 @@ PRODUCT_FUNCTION_OPERATIONS: tuple[FunctionOperationRegistration, ...] = (
     _registered_product_function(
         PLAY_PREFIX_OPERATIONS[3],
         operation_id="SYNC_PLAY_PREFIX:prepare_play_prefix_projection",
+    ),
+    _registered_product_function(
+        LINEUP_START_ORIGIN_OPERATIONS[0],
+        operation_id="SYNC_LINEUP_PREFIX:read_lineup_started_origin",
     ),
 )
 FUNCTION_OPERATION_REGISTRY = build_function_registry(

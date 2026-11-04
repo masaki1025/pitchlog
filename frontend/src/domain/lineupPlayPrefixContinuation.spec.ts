@@ -199,3 +199,18 @@ it('prior factsのPositive inning0を実公開口が拒否する', () => {
     error: { code: 'PREFIX_SOURCE_MISMATCH' },
   })
 })
+
+it('D1/D2/適用水位を同じcounterへ潰さず正規要求へ束縛する', () => {
+  const fixture = structuredClone(vectors.cases[0]!.request) as Mutable<Request>
+  fixture.source.position = { d1: '101', d2: '100001', appliedWatermark: '100' }
+  const result = invoke(fixture)
+  expect(result.ok).toBe(true)
+  expect(result.value.sourcePosition).toStrictEqual(fixture.source.position)
+  for (const position of [
+    { d1: '100', d2: '100001', appliedWatermark: '100' },
+    { d1: '101', d2: '0', appliedWatermark: '100' },
+  ]) {
+    fixture.source.position = position
+    expect(invoke(fixture).ok).toBe(false)
+  }
+})

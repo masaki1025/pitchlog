@@ -22,6 +22,7 @@ from pitchlog.domainrt.lineup_play_prefix_continuation import (
     LineupPrefixRequest,
     LineupPrefixResponse,
     LineupPrefixSuccess,
+    Source,
     SourcePosition,
     decode_lineup_prefix_response,
     verify_lineup_wire_seal,
@@ -174,7 +175,8 @@ def verify_and_evaluate_lineup_source(
         raise LineupPrefixProtocolError("不完全/未対応sourceを資格へ補完できません")
     actual = lineup_from_actual_roster(evidence.started.roster)
     previous: LineupPrefixSuccess | None = None
-    expected_position = SourcePosition(d1="0", d2="0", appliedWatermark="0")
+    watermark = 0
+    last_d2 = 0
     seen_events: set[str] = set()
     seen_d5: set[str] = set()
     seen_plays: set[str] = set()
@@ -192,18 +194,24 @@ def verify_and_evaluate_lineup_source(
             seen_events.add(persisted.identity.event_id)
             seen_d5.add(persisted.identity.d5)
             seen_plays.add(persisted.identity.play_id)
-            if prior.source.position != expected_position:
+            actual_position = prior.source.position
+            if (
+                int(actual_position.d1) != watermark + 1
+                or int(actual_position.applied_watermark) != watermark
+                or int(actual_position.d2) <= last_d2
+                or watermark == 0
+                and actual_position.d2 != "1"
+            ):
                 raise LineupPrefixProtocolError("原本順序に欠落があります")
-            # 同期のevent順序だけを検査し、野球cursor/半回は計算しない。
-            next_sequence = str(int(expected_position.d1) + 1)
-            if any(
-                value != next_sequence
-                for value in persisted.position_after.model_dump(
-                    mode="json", by_alias=True
-                ).values()
+            # 実event位置と適用後水位。D2の間隔や野球値を推測しない。
+            if persisted.position_after != SourcePosition(
+                d1=actual_position.d1,
+                d2=actual_position.d2,
+                appliedWatermark=actual_position.d1,
             ):
                 raise LineupPrefixProtocolError("原本のevent水位が一致しません")
-            expected_position = persisted.position_after
+            watermark = int(actual_position.d1)
+            last_d2 = int(actual_position.d2)
             _previous_binding(prior, previous, evidence.started)
             if prior.source.execution_artifact_sha256 != host.artifact_sha256:
                 raise LineupPrefixProtocolError("未知実行artifactの再生はできません")
@@ -224,8 +232,12 @@ def verify_and_evaluate_lineup_source(
         _bound(request, evidence.started, actual)
         _previous_binding(request, previous, evidence.started)
         if (
-            request.source.position != expected_position
-            or evidence.position != expected_position
+            int(request.source.position.d1) != watermark + 1
+            or int(request.source.position.applied_watermark) != watermark
+            or int(request.source.position.d2) <= last_d2
+            or watermark == 0
+            and request.source.position.d2 != "1"
+            or evidence.position != request.source.position
             or request.play_identity.event_id in seen_events
             or request.play_identity.d5 in seen_d5
             or request.play_identity.play_id in seen_plays
@@ -293,3 +305,153 @@ def decode_lineup_source_evidence(raw: str) -> LineupSourceEvidence:
         return value
     except (ValueError, TypeError, ValidationError):
         raise LineupPrefixProtocolError("原本frameが閉境界に適合しません") from None
+
+
+class NativeLineupEvidence(_Frozen):
+    """private v3の直近原本。DB取得/tenant/epoch/全物理投影は専用reader責任。"""
+
+    expected_source: Source
+    roster: InitialRosterProjection
+    previous_request: LineupPrefixRequest
+    previous_response: LineupPrefixSuccess
+
+
+def verify_native_lineup_source(request, evidence, host):
+    """全履歴を再取得せず、実checkpoint headの直近一回を独立再生する。"""
+    from pitchlog.domainrt.host import NodeDomainHost
+
+    if (
+        type(request) is not LineupPrefixRequest
+        or type(evidence) is not NativeLineupEvidence
+        or type(host) is not NodeDomainHost
+    ):
+        raise TypeError("固定実型/native evidence/実hostが必要です")
+    _check_frozen_members(request)
+    _check_frozen_members(evidence)
+    actual = lineup_from_actual_roster(evidence.roster)
+    if (
+        request.source != evidence.expected_source
+        or request.source.lineup != actual
+        or request.t1.before != request.source.after
+        or request.prefix_ref != request.source.prefix_ref
+    ):
+        raise LineupPrefixProtocolError("native source全値が一致しません")
+    if (
+        request.source.roster_digest != _fingerprint(_dump(actual))
+        or request.source.layout_digest != _fingerprint(_dump(actual))
+        or request.source.rules_digest != _fingerprint(_dump(request.rules))
+    ):
+        raise LineupPrefixProtocolError("native source内容参照が一致しません")
+    prior = evidence.previous_request
+    if (
+        prior.source.execution_artifact_sha256 != host.artifact_sha256
+        or request.source.execution_artifact_sha256 != host.artifact_sha256
+    ):
+        raise LineupPrefixProtocolError("未登録v3保存互換は利用できません")
+    verify_lineup_wire_seal(prior, evidence.previous_response)
+    replayed = decode_lineup_prefix_response(
+        host.call(
+            "deriveLineupPlayPrefixWithContinuation",
+            prior.model_dump_json(by_alias=True, exclude_unset=True),
+        )
+    )
+    if not replayed.ok or _canonical(_dump(replayed)) != _canonical(
+        _dump(evidence.previous_response)
+    ):
+        raise LineupPrefixProtocolError("native headの独立全応答が一致しません")
+    value = replayed.value
+    source = request.source
+    if (
+        source.prefix_ref != value.next_prefix_ref
+        or source.last_source != value.play_identity
+        or source.after != value.t1.after
+        or source.t2 != value.t2
+        or source.runners != value.runners
+        or source.participants != value.participants
+        or source.responsibility != value.next_responsibility
+        or source.lineup != value.lineup
+    ):
+        raise LineupPrefixProtocolError("native checkpointと実headの全値が一致しません")
+
+
+def initial_lineup_source(
+    *,
+    tenant_id,
+    game_id,
+    generation,
+    origin_id,
+    initial,
+    roster,
+    rules,
+    position,
+    artifact_sha256,
+):
+    """実startedだけの未信頼初期profileを構成し、初回実artifactの検証へ渡す。"""
+    from pitchlog.domainrt.lineup_play_prefix_continuation import Source
+
+    lineup = lineup_from_actual_roster(roster)
+    lineup_wire = _dump(lineup)
+    after = initial.model_dump(mode="json", by_alias=True)
+    after["battingOrderBySide"] = {"away": "1", "home": "1"}
+    ref = {
+        "version": "3",
+        "scope": "play-prefix-v3",
+        "tenantId": str(tenant_id),
+        "gameId": str(game_id),
+        "generation": generation,
+        "length": "0",
+        "checkpoint": {"id": str(origin_id), "revision": "1", "digest": "0" * 64},
+        "historyVersion": "0",
+        "origin": {"kind": "started-game", "eventId": str(origin_id)},
+    }
+    source = {
+        "kind": "started-initial-v3",
+        "prefixRef": ref,
+        "rules": _dump(rules),
+        "after": after,
+        "t2": None,
+        "historyDepth": "0",
+        "playCount": "0",
+        "lastSource": None,
+        "position": position.model_dump(mode="json", by_alias=True),
+        "priorArtifactSha256": artifact_sha256,
+        "executionArtifactSha256": artifact_sha256,
+        "rulesDigest": _fingerprint(_dump(rules)),
+        "layoutDigest": _fingerprint(lineup_wire),
+        "rosterDigest": _fingerprint(lineup_wire),
+        "lineup": lineup_wire,
+        "runners": [],
+        "participants": {
+            "batterId": lineup.away.batting_order.one,
+            "pitcherId": lineup.home.pitcher_id,
+            "catcherId": lineup.home.catcher_id,
+            "battingOrder": "1",
+        },
+        "responsibility": {
+            "kind": "no-change",
+            "paStartSource": {"kind": "started-game", "id": str(origin_id)},
+            "previousPitcherId": None,
+            "strikesAtChange": None,
+            "ballsAtChange": None,
+        },
+        "provenance": {"kind": "started-game", "eventId": str(origin_id)},
+    }
+    header = {k: v for k, v in ref.items() if k != "checkpoint"}
+    header["checkpoint"] = {"id": str(origin_id), "revision": "1"}
+    head = {
+        "formatVersion": "lineup-prefix-initial-wire-head-v1",
+        "prefix": header,
+        "rules": source["rules"],
+        "rulesDigest": source["rulesDigest"],
+        "layoutDigest": source["layoutDigest"],
+        "rosterDigest": source["rosterDigest"],
+        "lineup": source["lineup"],
+        "before": after,
+        "participants": source["participants"],
+        "responsibility": source["responsibility"],
+        "provenance": source["provenance"],
+        "priorArtifactSha256": artifact_sha256,
+        "executionArtifactSha256": artifact_sha256,
+    }
+    ref["checkpoint"]["digest"] = _fingerprint(head)
+    return Source.model_validate_json(_canonical(source), by_alias=True, by_name=False)

@@ -1166,7 +1166,9 @@ def _is_port_command(operation):
         ValidateOrdinaryPitchToken,
     )
     from pitchlog.sync.terminal_pitch_tokens import (
+        ProjectLineupPrefixToken,
         ProjectPlayPrefixToken,
+        ValidateLineupPrefixToken,
         ValidatePlayPrefixToken,
     )
     from pitchlog.sync.tokens import (
@@ -1185,7 +1187,9 @@ def _is_port_command(operation):
             ValidateOrdinaryPitchToken,
             ProjectOrdinaryPitchToken,
             ValidatePlayPrefixToken,
+            ValidateLineupPrefixToken,
             ProjectPlayPrefixToken,
+            ProjectLineupPrefixToken,
             PortBindCurrentDeviceToken,
             PortCheckCurrentRightToken,
             PortCheckPresentedRightToken,
@@ -1256,7 +1260,9 @@ def _execute_port_command(handle, operation):
         ValidateOrdinaryPitchToken,
     )
     from pitchlog.sync.terminal_pitch_tokens import (
+        ProjectLineupPrefixToken,
         ProjectPlayPrefixToken,
+        ValidateLineupPrefixToken,
         ValidatePlayPrefixToken,
     )
     from pitchlog.sync.tokens import (
@@ -1270,19 +1276,24 @@ def _execute_port_command(handle, operation):
     )
 
     phase = _port_phase(handle)
-    if type(operation) is ProjectPlayPrefixToken:
+    if type(operation) in {ProjectPlayPrefixToken, ProjectLineupPrefixToken}:
         if phase is not None:
             raise TenantBindingError("v2投影命令は判定phase外だけで使う")
         operation.__post_init__()
         from pitchlog.sync.terminal_pitch_projection import apply_play_prefix_projection
 
         return apply_play_prefix_projection(handle, operation)
-    if type(operation) is ValidatePlayPrefixToken:
+    if type(operation) in {ValidatePlayPrefixToken, ValidateLineupPrefixToken}:
         operation.__post_init__()
         from pitchlog.sync.ordinary_pitch_execution import _ordinary_content_result
 
         accepted = _ordinary_content_result(
-            handle, operation.event, operation.writer, mode="play-prefix-play-v2"
+            handle,
+            operation.event,
+            operation.writer,
+            mode="play-prefix-play-v3"
+            if type(operation) is ValidateLineupPrefixToken
+            else "play-prefix-play-v2",
         )
         return TenantOperationResult(
             ((accepted, None if accepted else "v2投球の実評価値と不一致"),)
