@@ -277,3 +277,30 @@ PR191のCI書式修復（2026-10-31、PO委任によるCodex /root判断）: run
 
 
 最終保存後の書式・手動入口追随（2026-10-31、PO委任によるCodex /root判断）: CI7646daabは次段ruff formatで既test_durable_rights_ledger_contract.pyのtuple並び1箇所だけ停止した。同test exact1をformatterで整形し全module AST不変、backend全ruff/format（587file）と明示既venvの全ty成功。既manual-check.mdを成功版の四球/死球と1caseだけのhold入口へ追随、実画面/実DB成功・有限prefix長と表示ページ件数・自己署名loopback/実機未実施・TLS期限/秘密内容非共有を区別した。command bash構文/DSN unset/専用temp/既venvを確認、manual holdや実機を実施したとは記録しない。rootcache pr191-ci-triage-20261031へAST/command証拠を保存。frontend/runtime/契約/認可/保存意味に変更0、全画面とfrontendは反復せず既同一機能版の証拠を保持する。
+
+
+## 正式190統合後の接合追補（2026-11-04、PO委任によるCodex主担当判断）
+
+#195承認済みpost-189-integration計画を本step5へ適用する。基線はorigin/develop `40ce2e312bc46435239f2a6d0ea0f1fb919a5de0`（#190）、本候補 `19c1c12535b0fe7febc46b76f46ab9440ee72de5`、merge-base `320f196b6a6b08cb74bf52877d8a30601baa87d5`。固定Git調査REPORT `~/.cache/pitchlog/pr191-integration-audit-20261104/REPORT.md`とchecks.jsonにより競合13件を照合。新しい野球意味/既決事項の再裁定はしない。rootが計画/実source/共有資産/台帳の唯一writerで、独立調査・レビューはread-onlyとする。
+
+| パス | 統合方針 |
+| --- | --- |
+| .claude/core-areas.json | develop全登録を保持し本候補追加だけunion、対象除外0 |
+| backend/src/pitchlog/api/schemas/started_games.py | developのordinary_wire共有検証/recovery aliasを保持しPlayPrefix DTOを追加 |
+| backend/src/pitchlog/authz/runtime_contract.py | 実資産から既公式renderで再導出 |
+| backend/src/pitchlog/authz/runtime_contract_state.py | 既両側処理を保持しliteral実escape幅で分割する本候補rendererを接合、値不変を検証 |
+| backend/src/pitchlog/repositories/operation_registry.py | develop既登録に本候補token1/function4をunion、未知登録拒否維持 |
+| backend/tests/db/test_first_ball_projection_atomic.py | 同一childコードのdevelop整形版を保持 |
+| backend/tests/test_first_ball_write_stamp.py | develop独立pin reader保持、SQL変更の実固定値だけtracked fixtureへ追随 |
+| contracts/state-transition/appendix_e_consumer_handoff_v1.json | 他全値保持、統合契約の実SHA参照だけ追随 |
+| contracts/state-transition/game_end_coverage_declaration_v1.json | 他全値保持、統合実case数へ追随 |
+| contracts/state-transition/state_transition_contract_v1.json | develop119全caseを保持しterminal15を追加=134、共通117全JSON同値を確認 |
+| contracts/tenant_boundary/runtime-authz-contract.json | develop受理済み値/履歴を基礎に既公式rederive |
+| scripts/check_required_set_coverage.py | develop既coverage3例全値と本候補terminal15例全値の両検査を保持、単なる件数緩和禁止 |
+| tests/test_required_set_coverage.py | 両側全正負対向を保持してunion |
+
+非競合の共有資産も正式190の履歴/識別値を基礎に増分だけ結合する。旧191未受理recordを正式履歴へ混ぜない。repository-contract token1/function4・実登録、runtime/schema/認可分類、sourcepin/censusの実前後を照合し、不足があれば本操作単位の不可分な実装追随として範囲を明記する。実PGの正式migration起動・最小権限・原子性・元要求再送・越境拒否を省略しない。
+
+検査中は影響範囲中心、同原因の既失敗は修復なしに反復しない。重いDB検査は共有DSN2変数をunsetし所有確認済み隔離DB/port/SSD一時領域だけで直列実施する。source/全external入力を固定後、既190の再導出CLI・公式acceptance helperで単一#191の全前後/履歴/snapshot/corpusをまとめ、候補に関与していない最終review/必須CI/公開委任証拠を揃えて通常mergeする。固定値を期待へ自己反映して拒否を無効化しない。本人署名/逐行確認/P6blind成立を代記しない。
+
+合格条件は同一候補で実画面新規作成→開始→BB/HBP→次打者の通常球→server再取得/reload/元要求再送と既原子性・越境対向の成立、正式developへ統合。三振/打球/交代/取消/訂正/終了再開/全offline・成績/両CSV/実機復旧等MVP全体の義務は残す。
