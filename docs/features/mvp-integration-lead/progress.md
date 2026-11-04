@@ -1,5 +1,17 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 続き：2026-11-05（191の全CI残差を分解、192実sourceと成績生成を並行実装）
+
+- **正式提供と実画面の到達点**: developは40ce/#190のまま。#191候補224370867458e79266946d85406804b76d278d42で実画面→新規作成→開始→通常継続/四球/死球→次打者→実GET→reload→元要求再送の3系列が3pass/0skip/200.25秒。全source-before HEAD一致/終了後clean。cache `mvp-resume-20261104/pr191-ui-result-r2.json` と `ui191-proof-r2/`へ6証拠SHAを保全。旧871でも3pass203秒だが最終224と分離。既期限切れTLSをignoreHTTPSの隔離技術検証で、実機/運用HTTPSではない。
+- **公開/CI実測**: #191をdevelopへretargetし224を1回push。委任証拠comment6632530330を掲載。実CI41843104389は完走failure（backend59/harness601、計660nodeを全数分類）、body41843104444はcore有限suffix未登録でfailure。未成功をgreen/mergeへ読み替えない。fullログ/全nodeは `pr191-ci-failure-census-20261104/`、REPORT8c09c325…/manifest68fe130e…。新source固定前に同入力のCIを反復しない。
+- **191保存/採用済み修復**: cf83fa53=census exact3採用、8712866d=9資産単一191受理（旧35履歴・base277/pinned83保持）、22437086=旧SQL SHA同値正式移設。実PR同tree二親previewでtenant/frozen/inputaxes成功。新CI是正はa491527d（core外側78pairの閉層、旧7状態/24遷移/既167test AST保持、rawrefs2の正式化、正例合成repo実693親保持、backend4旧208+新47、product-only既7fn+2policyのexact9）。非作者03636890…でsource9採用、本人署名/P6blindではない。後発計画96da75d2まで保存、正式record再導出/再CIはまだ。
+- **191現在writer/残根因**: root=正式全値/台帳/合成Git/実UI再現/最終統合。共通synthetic helperは原典693の実objectをread-only alternatesで共有し真正parentへ（元repo refs不変）、archiveとtenant負例を旧条件で回復する。旧recordの新source target/corpus digest追随は公式helperで最後にまとめる。backend残9はpr192_resume_audit停止packet7eb4faa…（whole4035pass1fail後、最終2fileは99/920pass。DB1未実、最終CI別）。rootが独立固定224から4statement+19DDLの計5pinだけを既helper/fixtureへ加え旧37値保持、proof fixed224-source-pins.json。harness exact6はpr191_integration_audit停止packet552917ba…（159+42局所pass、旧名/旧human84/P8 AST保持）。source metadata3はrootがGAP07selector39+terminal15=54、mcdc/failureのGitblob参照だけ追随し状態/P6受理を拡大しない。
+- **ordinary carryの正確な残り**: 本人crypto署名待ちではなく、既PO委任ordinary33の後続PR変更なし検査に#191の有限差分接合がない。30f=40ceの旧fixed11/record/schema/旧math9を保持し、現6pathの2row15case/参照・descriptor派生差分だけをPR191・固定原典・公開委任証拠へ閉じる最小案がread-only REPORT529289e4…に固定。旧49row/119case全値は保持。旧本人署名/record/schemaを更新せず、例外自体の独立レビュー/無効証拠拒否を要する。実current carryはまだ赤で統合しない。
+- **192の新たな実装保存**: 原WT feature-mvp-strikeout-pitches/421621c9+dirty39は全SHAを照合し未変更。隔離WT/branch feature-mvp-strikeout-integrationを作成、計画8560ebb0→merge58405f8a（191候補224を接合、旧134+SO24=158、matrix67）→702948fc（保全38+native a155…、direct3reader/既wire alias/共有検証を保持した3競合解消）。局所API/登録/SQL境界384pass4.94秒。契約接合exact6は5020dc11…で45+16局所成功、正式manualfreeze残2をrootが閉じる。既r2レビュー済SQL22は全before/afterSHA再照合し隔離WTに適用（12新規/10既存、共有DB適用なし）。次は同artifact再build/13pin・origin1正式登録/同版source独立レビュー→owned PGの9SO→反対側投球→step5画面。#191正式base後の差分だけ再照合する。
+- **CSV/成績の製品コード**: 毎球CSV計画261b08b4/実装14b96546を専用branchへpush済み（PR未提出）。完成保存値88列/9sidecarの閉検証・既writer・有限ZIP/hash/cleanup、P1無限Mapping修復、pure124pass/非作者90681f9a…採用。DB/HTTP/DL/全列source供給は未接続。成績専用WT feature-mvp-stats-primitivesで計画f8654475、契約fe9d6a1b（55ケース、旧50期待保持・無効RBI適用域修復、非作者60ec4fde…）を採用。作者stats_csv_next_unitが1(b) D-1実生成を実装中、同modelからPython/TS/実表SQL・typed receiver/formatterを生成し共通T5 facts→T6 DB集計へ。正例一致/Node動作と新101+既61/FE6の作者検査報告あり、全体source/DB/正式受理はまだ。
+- **未回答/全MVP**: 既成績D02〜05は判断票990026c7へ現基線で再照合しasync提示、回答は未受領としてpending。記録lock D02=Aとは別。JST暦年自体は再裁定しない。打球/走者/交代/取消/訂正/終了再開、全操作offline/担当交代/閲覧10秒、全27/両CSV、実機/負荷/復旧の全MVP義務を保持。Goalはactive、完成判定しない。
+
+
 ## 続き：2026-11-04（191の実DB接合成功、認可追随を確定）
 
 - **新たに実証した操作**: #191候補で無走者の四球/死球を原子的に保存し、次打者の通常球へ継続する実API→owned PGの2系列が成功（2件/178.69秒、product source固定6939271、実行時metadata差分あり）。元D5再送・途中故障の全取消・越境拒否を含む。事前投入試合を画面作成実証へ読み替えず、正式develop・最終同版画面の成功とも区別する。正式develop40ceは#190、develop CI41822464555もsuccessを確認。
