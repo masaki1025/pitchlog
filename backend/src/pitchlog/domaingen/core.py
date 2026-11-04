@@ -794,8 +794,20 @@ def typed_expression(
         path = str(node["path"])
         owner = "item" if path.startswith("item.") else "event"
         key = path.removeprefix("item.") if owner == "item" else path
-        value = f"_p({owner}, {json.dumps(key, ensure_ascii=False)})"
         descriptor = (items or {})[key] if owner == "item" else fields[key]
+        args = [
+            descriptor["type"],
+            descriptor["nullable"],
+            str(descriptor["minimum"]) if "minimum" in descriptor else None,
+            str(descriptor["maximum"]) if "maximum" in descriptor else None,
+            descriptor.get("enum"),
+        ]
+        arguments = ", ".join(
+            json.dumps(v, ensure_ascii=False) if js else repr(v) for v in args
+        )
+        value = (
+            f"_checked_ref({owner}, {json.dumps(key, ensure_ascii=False)}, {arguments})"
+        )
         return f"_n({value})" if descriptor["type"] == "integer" else value
     if op in {"and", "or", "add"}:
         token = {

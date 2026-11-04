@@ -810,3 +810,11 @@ class PlayRunner(TenantMixin, ImportBatchMixin, RetirementMixin, LifecycleMixin,
         coverage=ImmutabilityCoverage.PARTIAL,
         unclassified_handoff="TSK-372",
     )
+
+
+# models走査の公開契約へ専用T5表を登録する。既存表の定義は変更しない。
+from pitchlog.db.game_state import stats as _stats  # noqa: E402
+
+stats_fact_versions = _stats.StatsFactVersion.__table__
+stats_primitive_sources = _stats.StatsPrimitiveSource.__table__
+stats_primitive_facts = _stats.StatsPrimitiveFact.__table__

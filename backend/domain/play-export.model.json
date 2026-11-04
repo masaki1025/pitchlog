@@ -1536,14 +1536,21 @@
           "operator": "add"
         },
         "sql": {
-          "facts": "public.stats_primitive_facts",
-          "versions": "public.stats_fact_versions",
+          "facts": "sync_fence.stats_primitive_facts",
+          "versions": "sync_fence.stats_fact_versions",
           "games": "public.games",
           "events": "public.operation_events",
           "plays": "public.play_rows",
           "amountColumn": "amount",
           "metricColumn": "metric_id",
-          "slots": "public.event_slots"
+          "slots": "public.event_slots",
+          "sources": "sync_fence.stats_primitive_sources",
+          "generations": "public.recording_generations",
+          "ledger": "public.idempotency_ledger",
+          "canonicalSelection": {
+            "version": 1,
+            "kind": "accepted-play-slot-v1"
+          }
         },
         "pendingDecisions": {
           "named_category": {

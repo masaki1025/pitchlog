@@ -138,12 +138,13 @@ def test_sql_consumes_canonical_facts_not_raw_t1_or_json_rows(generated):
     grouped = generated["backend/src/pitchlog/stats/generated/stats.sql"]
     window = generated["backend/src/pitchlog/exports/generated/play_primitives.sql"]
     for sql in [grouped, window]:
-        assert "FROM public.stats_primitive_facts f" in sql
+        assert "LEFT JOIN sync_fence.stats_primitive_facts f" in sql
+        assert "FROM sync_fence.stats_primitive_sources s" in sql
         assert "JOIN public.operation_events e" in sql
         assert "JOIN public.play_rows p" in sql
-        assert "JOIN public.event_slots slot" in sql
-        assert "confirmed_version=f.slot_version" in sql
-        assert "f.tenant_id=:tenant_id" in sql
+        assert "FROM public.event_slots slot" in sql
+        assert "c.slot_version=s.slot_version" in sql
+        assert "v.tenant_id=:tenant_id" in sql
         assert "v.model_sha256=:model_sha256" in sql
         assert "SUM(amount)" in sql
         assert "jsonb_array_elements" not in sql
@@ -164,7 +165,8 @@ def test_generated_event_api_has_no_full_game_collection_entry(generated):
     assert "_pitchlog_generated" in api and "aggregate_games" not in api
     assert "events" not in api
     source = generated["frontend/src/lib/generated/statsPrimitives.ts"]
-    assert "eventFacts(event: unknown)" in source
+    assert "event: unknown" in source
+    assert "requestedMetrics?: readonly string[]" in source
     assert "for (const event" not in source
 
 
@@ -301,7 +303,7 @@ def test_existing_public_dispatcher_generates_alpha_facts():
         ("python", "python"),
         ("python", "typescript"),
     ]
-    assert "_pitchlog_generated(event)" in artifacts[0].content
+    assert "def _pitchlog_generated(" in artifacts[0].content
     assert "dict(context)" not in artifacts[0].content
     assert "eventFacts" in artifacts[1].content
     assert all("receive_fact_row" not in a.content for a in artifacts)
@@ -322,7 +324,7 @@ def test_existing_public_dispatcher_generates_beta_receiver_not_event_kernel():
     assert "stats_primitive_facts" in sql.content
     assert ":pitchlog_value" not in sql.content
     assert "receive_fact_row" in receiver.content
-    assert "_pitchlog_generated(event)" not in receiver.content
+    assert "def _pitchlog_generated(" not in receiver.content
     api = _load_python(receiver.content)
     assert (
         api["receive_fact_row"](
@@ -436,3 +438,388 @@ def test_known_finite_field_rejects_long_input_before_integer_conversion(generat
     api["_n"] = forbidden
     with pytest.raises(ValueError):
         api["_pitchlog_generated"](event)
+
+
+def test_native_no_change_copy_supplies_pa_k_and_out_without_future_participants():
+    """v3型のbefore/責任をコピーする数学試験。真正provider成功の証明ではない。"""
+    from uuid import UUID
+
+    from pitchlog.stats.facts import evaluate_native_projection
+
+    case = next(
+        c
+        for c in json.loads(
+            (
+                ROOT
+                / "docs/features/mvp-stats-primitives/primitive-cases.candidate.json"
+            ).read_text()
+        )["cases"]
+        if c["case_id"] == "strikeout-out"
+    )
+    event = case["input"]["events"][0]
+    pitcher = event["participants"]["actual_pitcher_id"]
+    batter = event["participants"]["actual_batter_id"]
+    people = {
+        "pitcherId": pitcher,
+        "batterId": batter,
+        "catcherId": "00000000-0000-0000-0000-000000000001",
+        "battingOrder": "1",
+    }
+    responsibility = {
+        "kind": "no-change",
+        "paStartSource": {
+            "kind": "started-game",
+            "id": "00000000-0000-0000-0000-000000000002",
+        },
+    }
+    payload = {
+        "formatVersion": "play-prefix-play-v3",
+        "participants": people,
+        "calculation": {
+            "request": {
+                "t1": {
+                    "pitchEventKind": "pitch-event",
+                    "before": {
+                        "stateFields": {"state.inning": "1", "state.half": "top"}
+                    },
+                },
+                "source": {"responsibility": responsibility},
+            },
+            "response": {
+                "ok": True,
+                "value": {
+                    "t1": {
+                        "statFlags": event["stat_flags"],
+                        "plateAppearanceEnded": True,
+                        "outEffect": {"count": "1"},
+                    },
+                    "beforeParticipants": people,
+                    "participants": {
+                        **people,
+                        "batterId": "00000000-0000-0000-0000-000000000003",
+                    },
+                    "responsibility": responsibility,
+                },
+            },
+        },
+    }
+    result = evaluate_native_projection(
+        payload, source_event_id=UUID(event["source"]["source_event_id"])
+    )
+    for key in ("pitch_count", "pa", "ab", "k", "pitcher_k", "pitching_outs"):
+        assert result["metrics"][key]["value"] == "1"
+    assert result["metrics"]["pa"]["credits"][0]["player_id"] == batter
+    assert result["metrics"]["pitcher_k"]["credits"][0]["player_id"] == pitcher
+    for key in ("runs", "rbi", "runs_allowed", "stolen_bases"):
+        assert result["metrics"][key]["state"] == "source_unavailable"
+    assert result["metrics"]["doubles"]["value"] == "0"
+    assert result["pa_row"] is None
+
+
+def test_sole_reader_rejects_fake_handle_and_page_overflow():
+    """型の合う自由handle/rowを認可や無制限pageへ昇格させない。"""
+    from uuid import UUID
+
+    from pitchlog.repositories.play_export_primitives import (
+        PrimitiveReadError,
+        ReadPlayExportPrimitives,
+        _decode_page,
+    )
+
+    with pytest.raises(PrimitiveReadError):
+        ReadPlayExportPrimitives(object(), maximum_integer_chars=100)
+    event = UUID("00000000-0000-0000-0000-000000000001")
+    rows = (("pa", "available", Decimal(0), 1, event),)
+    page = _decode_page(rows, None, 1, 100)
+    assert page.rows[0]["value"] == "0"
+    with pytest.raises(PrimitiveReadError):
+        _decode_page(rows * 2, None, 1, 100)
+    with pytest.raises(PrimitiveReadError):
+        _decode_page(rows, page.next_cursor, 1, 100)
+    with pytest.raises(ValueError):
+        _decode_page((("pa", "available", 1.5, 1, event),), None, 1, 100)
+
+
+@pytest.mark.parametrize(
+    "revision,digest",
+    [
+        (True, None),
+        (-1, None),
+        (0, "a" * 64),
+        (1, None),
+        (1, "wire-v1:" + "a" * 64),
+        (1, "A" * 64),
+    ],
+)
+def test_native_save_cas_never_treats_bool_or_wire_fingerprint_as_series_revision(
+    revision, digest
+):
+    """CAS型検査は資格を発行せず、S型をwire指紋/false0と区別する。"""
+    from uuid import uuid4
+
+    from pitchlog.stats.facts import prepare_native_evaluation
+
+    with pytest.raises(ValueError):
+        prepare_native_evaluation(
+            {},
+            attempt_id=uuid4(),
+            phase_id=uuid4(),
+            source_event_id=uuid4(),
+            expected_revision=revision,
+            expected_source_set_sha256=digest,
+        )
+
+
+def test_generated_canonical_s_is_independent_and_preserves_unsupported_sources(
+    generated,
+):
+    """実原本Sの宣言をroot/COUNT/window共通sectionへ固定する。"""
+    raw = generated["backend/src/pitchlog/exports/generated/play_primitives.sql"]
+    sections = {
+        part.split("\n", 1)[0]: part.split("\n", 1)[1]
+        for part in raw.split("-- pitchlog-query: ")[1:]
+    }
+    assert set(sections) == {
+        "window",
+        "count",
+        "current_totals",
+        "canonical_members",
+        "canonical_health",
+    }
+    canonical = sections["canonical_members"]
+    assert (
+        "stats_primitive_sources" not in canonical
+        and "stats_fact_versions" not in canonical
+    )
+    for physical in (
+        "public.event_slots",
+        "public.operation_events",
+        "public.play_rows",
+        "public.idempotency_ledger",
+        "public.recording_generations",
+    ):
+        assert physical in canonical
+    assert "change.target_generation=slot.generation" in canonical
+    assert "change.expected_version=slot.confirmed_version-1" in canonical
+    assert "source_unavailable" in canonical and "native_variant" in canonical
+    assert "LIMIT :canonical_page_size" in canonical
+    assert "base_event_id" in canonical and "source_fingerprint" in canonical
+    assert "canonical_source_set_sha256" in sections["count"]
+    assert "c.source_fingerprint=s.source_fingerprint" in sections["count"]
+    assert "f.source_set_sha256" not in raw
+    assert "v.revision=:revision" in raw
+
+
+def _generated_cte(sql, name):
+    """生成済みSQLのCTE本文を括弧境界で取り出す検査補助。"""
+    start = sql.index(name + " AS (") + len(name + " AS (")
+    depth, quoted = 1, False
+    for pos in range(start, len(sql)):
+        char = sql[pos]
+        if char == "'":
+            quoted = not quoted
+        elif not quoted:
+            depth += (char == "(") - (char == ")")
+            if depth == 0:
+                return sql[start:pos]
+    raise AssertionError("生成CTEが閉じていない")
+
+
+def _execute_generated_season_health(sql, mode):
+    """実生成JOIN/健康/SUMを有限SQLite面で実行。PG/認可の証明ではない。"""
+    import sqlite3
+
+    metrics = [
+        m["id"] for m in _models()[0]["calculations"][0]["typedProgram"]["metrics"]
+    ]
+    # 非作者の独立反例に固定されたゲーム別S。期待2球は人手の2入力から定める。
+    digests = {
+        "game-a": "83d90fee5ed5ea852feb8dbd42001a0986bae0eb4fb6f439e78d5c96700d4bcf",
+        "game-b": "09c315e9312b3a8a259227641ee7600a6e62ccfd33832ef755fd885395ce0bcc",
+    }
+    conn = sqlite3.connect(":memory:")
+    conn.execute("ATTACH DATABASE ':memory:' AS public")
+    conn.execute("ATTACH DATABASE ':memory:' AS sync_fence")
+    conn.create_function(
+        "array_has", 2, lambda key, encoded: key in json.loads(encoded)
+    )
+
+    class BoolAnd:
+        """汎用SQL BOOL_ANDだけをSQLiteへ適合する。計数式は生成物を使う。"""
+
+        def __init__(self):
+            self.value = True
+
+        def step(self, value):
+            self.value = self.value and bool(value)
+
+        def finalize(self):
+            return self.value
+
+    conn.create_aggregate("BOOL_AND", 1, BoolAnd)
+    conn.executescript("""
+CREATE TABLE public.games(tenant_id,id,scheduled_at,game_type_key,status,hidden_at,trashed_at);
+CREATE TABLE sync_fence.stats_fact_versions(tenant_id,game_id,id,source_count,
+ model_sha256,is_current,invalidated_at,completion_state,completion_receipt_id,
+ public_pointer_receipt_id,source_set_sha256,computed_metric_keys);
+CREATE TABLE canonical_scope(tenant_id,game_id);
+CREATE TABLE canonical_health(tenant_id,game_id,game_count,canonical_source_count,
+ unavailable_count,canonical_source_set_sha256);
+CREATE TABLE canonical_s(tenant_id,game_id,source_event_id,recording_generation,d1,d2,
+ slot_version,play_row_id,play_row_version,source_fingerprint,artifact_sha256,source_state);
+CREATE TABLE sync_fence.stats_primitive_sources(tenant_id,game_id,fact_version_id,
+ source_event_id,recording_generation,d1,d2,slot_version,play_row_id,play_row_version,
+ source_fingerprint,artifact_sha256,computed_metric_keys);
+CREATE TABLE sync_fence.stats_primitive_facts(tenant_id,game_id,fact_version_id,
+ source_event_id,metric_id,player_id,state,amount);
+""")  # noqa: E501 — 固定SQL literal
+    games = ["game-a"] if mode == "single" else ["game-a", "game-b"]
+    if mode == "foreign-extra":
+        games += ["foreign-game"]
+    for game in games:
+        tenant = "foreign-tenant" if game == "foreign-game" else "tenant"
+        digest = digests.get(game, "f" * 64)
+        version = "version-" + game
+        event = "event-" + game
+        conn.execute(
+            "INSERT INTO public.games VALUES(?,?,1,'raw-key','finished',NULL,NULL)",
+            (tenant, game),
+        )
+        model = "old-model" if mode == "wrong-model" and game == "game-b" else "model"
+        version_digest = (
+            "0" * 64 if mode == "wrong-digest" and game == "game-b" else digest
+        )
+        if not (mode == "missing-version" and game == "game-b"):
+            conn.execute(
+                "INSERT INTO sync_fence.stats_fact_versions VALUES(?,?,?,1,?,true,NULL,'confirmed_ended','receipt','pointer',?,?)",  # noqa: E501 — 固定SQL literal
+                (tenant, game, version, model, version_digest, json.dumps(metrics)),
+            )
+        if tenant == "tenant":
+            conn.execute("INSERT INTO canonical_scope VALUES(?,?)", (tenant, game))
+            conn.execute(
+                "INSERT INTO canonical_health VALUES(?,?,1,1,0,?)",
+                (tenant, game, digest),
+            )
+        row = (
+            tenant,
+            game,
+            event,
+            1,
+            1,
+            1000,
+            1,
+            "play-" + game,
+            1,
+            "fp-" + game,
+            "artifact",
+            "included",
+        )
+        conn.execute("INSERT INTO canonical_s VALUES(?,?,?,?,?,?,?,?,?,?,?,?)", row)
+        if not (mode == "missing-source" and game == "game-b"):
+            saved_event = event
+            if mode == "same-count-swapped":
+                saved_event = "event-game-b" if game == "game-a" else "event-game-a"
+            source = (
+                tenant,
+                game,
+                version,
+                saved_event,
+                *row[3:11],
+                json.dumps(metrics),
+            )
+            conn.execute(
+                "INSERT INTO sync_fence.stats_primitive_sources VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",  # noqa: E501 — 固定SQL literal
+                source,
+            )
+        # 各試合の真正値を模した閉じたT5入力: 1球、他の寄与なし。期待を生成物から写さない。  # noqa: E501 — 固定SQL literal
+        conn.execute(
+            "INSERT INTO sync_fence.stats_primitive_facts VALUES(?,?,?,?,?,'player','available',1)",  # noqa: E501 — 固定SQL literal
+            (tenant, game, version, event, "pitch_count"),
+        )
+    ctes = [
+        "version_scope",
+        "source_members",
+        "scope_health",
+        "binding_health",
+        "selected",
+        "aggregate_facts",
+    ]
+    body = (
+        "WITH requested_metrics(metric_id) AS (VALUES "
+        + ",".join("('" + m + "')" for m in metrics)
+        + "),"
+    )
+    body += ",".join(
+        name + " AS (" + _generated_cte(sql, name) + ")"
+        for name in ctes
+        if name + " AS (" in sql
+    )
+    body += sql[sql.index("SELECT m.metric_id,") :]
+    # 型/arrayの汎用適合のみ。predicate/JOIN/CASE/SUMは実生成SQLのまま実行する。
+    import re
+
+    body = body.replace("CAST(:player_id AS uuid)", "CAST(:player_id AS text)")
+    body = body.replace(
+        "g.game_type_key=ANY(:raw_game_type_keys)",
+        "array_has(g.game_type_key,:raw_game_type_keys)",
+    )  # noqa: E501 — 固定SQL literal
+    body = re.sub(
+        r"m\.metric_id=ANY\((\w+\.computed_metric_keys)\)",
+        r"array_has(m.metric_id,\1)",
+        body,
+    )
+    try:
+        return conn.execute(
+            body,
+            {
+                "tenant_id": "tenant",
+                "player_id": "player",
+                "model_sha256": "model",
+                "year_start_jst": 0,
+                "year_end_jst": 10,
+                "raw_game_type_keys": json.dumps(["raw-key"]),
+            },
+        ).fetchall()
+    finally:
+        conn.close()
+
+
+@pytest.mark.parametrize(
+    "mode,expected_pitch", [("single", 1), ("two", 2), ("foreign-extra", 2)]
+)
+def test_generated_season_joins_each_game_health_to_its_own_version(
+    generated, mode, expected_pitch
+):
+    """単一/正常2試合/越境追加で別ゲームのSを比較しない。"""
+    sql = generated["backend/src/pitchlog/stats/generated/stats.sql"]
+    health = _generated_cte(sql, "canonical_health")
+    assert "GROUP BY g.tenant_id,g.game_id" in health
+    assert "FROM canonical_scope g LEFT JOIN canonical_s c" in health
+    rows = _execute_generated_season_health(sql, mode)
+    assert len(rows) == 26
+    assert all(state == "available" for _, state, _ in rows)
+    assert (
+        next(value for metric, _, value in rows if metric == "pitch_count")
+        == expected_pitch
+    )
+
+
+@pytest.mark.parametrize(
+    "mode",
+    [
+        "missing-source",
+        "missing-version",
+        "wrong-model",
+        "wrong-digest",
+        "same-count-swapped",
+    ],
+)
+def test_generated_season_rejects_one_game_health_gap(generated, mode):
+    """片側欠測/モデル/版/同件数入替は全体を完全な0へしない。"""
+    rows = _execute_generated_season_health(
+        generated["backend/src/pitchlog/stats/generated/stats.sql"], mode
+    )
+    assert len(rows) == 26
+    assert all(
+        state == "source_unavailable" and value is None for _, state, value in rows
+    )

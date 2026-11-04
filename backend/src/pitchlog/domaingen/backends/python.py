@@ -82,12 +82,18 @@ def generate_typed_facts(program, source_hash: str) -> str:
         integer_target("python", source_hash),
         '''
 
+class MissingProjectionField(ValueError):
+    """有限射影で真正観測がまだ供給されないfield。"""
+
+
 def _p(owner, path):
     for part in path.split('.'):
         if owner is None:
             return None
-        if type(owner) is not dict or part not in owner:
-            raise ValueError("閉入力のfieldが不足しています")
+        if type(owner) is not dict:
+            raise ValueError("閉入力の親型が不正です")
+        if part not in owner:
+            raise MissingProjectionField("閉入力のfieldが不足しています")
         owner = owner[part]
     return owner
 
@@ -119,6 +125,12 @@ def _check(value, kind, nullable, minimum=None, maximum=None, allowed=None):
         raise ValueError("未知の入力型です")
 
 
+def _checked_ref(owner, path, kind, nullable, minimum, maximum, allowed):
+    value = _p(owner, path)
+    _check(value, kind, nullable, minimum, maximum, allowed)
+    return value
+
+
 def _append_credit(credits, player, amount):
     for credit in credits:
         if credit["player_id"] == player:
@@ -140,10 +152,23 @@ def add_counts(left, right):
     return format_count(_n(left) + _n(right))
 
 
-def _pitchlog_generated(event):
+def _pitchlog_generated(event, requested_metrics=None):
     """正規providerが検証した単一遷移を受ける。認可を代行しない。"""
 ''',  # noqa: E501 — 生成targetのliteral
     ]
+    names = [m["id"] for m in program["metrics"]]
+    lines.extend(
+        [
+            f"    known_metrics = {names!r}",
+            "    if requested_metrics is not None:",
+            "        if type(requested_metrics) not in (list, tuple) or len(requested_metrics)>26:",  # noqa: E501 — 生成targetのliteral
+            "            raise ValueError('primitive射影の有限型違い')",
+            "        if any(type(x) is not str or x not in known_metrics for x in requested_metrics):",  # noqa: E501 — 生成targetのliteral
+            "            raise ValueError('未知primitive射影')",
+            "        if len(set(requested_metrics)) != len(requested_metrics):",
+            "            raise ValueError('primitive射影の重複')",
+        ]
+    )
     for record in program["closedRecords"]:
         names = [
             path[len(record) + 1 :]
@@ -158,6 +183,7 @@ def _pitchlog_generated(event):
                 '        raise ValueError("閉recordの未知/不足fieldです")',
             ]
         )
+    validation_start = len(lines)
     for path, kind in program["fields"].items():
         lines.append(
             f"    _check(_p(event, {path!r}), {kind['type']!r}, {kind['nullable']!r}, {str(kind['minimum']) if 'minimum' in kind else None!r}, {str(kind['maximum']) if 'maximum' in kind else None!r}, {kind.get('enum')!r})"  # noqa: E501 — 生成targetのliteral
@@ -176,15 +202,20 @@ def _pitchlog_generated(event):
             lines.append(
                 f"            _check(_p(item, {path!r}), {kind['type']!r}, {kind['nullable']!r})"  # noqa: E501 — 生成targetのliteral
             )
+    eager = lines[validation_start:]
+    lines[validation_start:] = ["    if requested_metrics is None:"] + [
+        "    " + line for line in eager
+    ]
     names = [m["id"] for m in program["metrics"]]
     lines.extend(
         [
-            f"    metrics = {{name: _zero() for name in {names!r}}}",
+            f"    metrics = {{name: _zero() for name in {names!r} if requested_metrics is None or name in requested_metrics}}",  # noqa: E501 — 生成targetのliteral
             f"    selected = {expr(program['selection'])}",
             "    if selected:",
         ]
     )
     for metric in program["metrics"]:
+        metric_start = len(lines)
         mid, relation = metric["id"], metric["relation"]
         items = (
             program["collections"][relation]["fields"]
@@ -211,6 +242,8 @@ def _pitchlog_generated(event):
                     "            if collection is None:",
                     "                missing = True",
                     "            else:",
+                    f"                if type(collection) is not list or len(collection) > {program['collections'].get(relation, {}).get('maximumItems', 0)}:",  # noqa: E501 — 生成targetのliteral
+                    "                    raise ValueError('遷移内collectionの有限上限違反')",  # noqa: E501 — 生成targetのliteral
                     "                for item in collection:",
                     f"                    if {guard}:",
                 ]
@@ -231,11 +264,25 @@ def _pitchlog_generated(event):
                 f"            metrics[{mid!r}] = _missing('MISSING_ATTRIBUTION') if missing else {{'state': 'available', 'value': format_count(quantity), 'display': format_count(quantity), 'reason': None, 'credits': credits}}",  # noqa: E501 — 生成targetのliteral
             ]
         )
+        body = lines[metric_start:]
+        lines[metric_start:] = (
+            [
+                f"        if requested_metrics is None or {mid!r} in requested_metrics:",  # noqa: E501 — 生成targetのliteral
+                "            try:",
+            ]
+            + ["        " + line for line in body]
+            + [
+                "            except MissingProjectionField:",
+                "                if requested_metrics is None:",
+                "                    raise",
+                f"                metrics[{mid!r}] = _missing()",
+            ]
+        )
     pa = program["paProjection"]
     lines.extend(
         [
             "    pa_row = None",
-            f"    if selected and {expr(pa['guard'])}:",
+            f"    if requested_metrics is None and selected and {expr(pa['guard'])}:",
             "        pa_row = {",
         ]
     )

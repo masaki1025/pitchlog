@@ -920,16 +920,20 @@
                     "plays",
                     "slots",
                     "amountColumn",
-                    "metricColumn"
+                    "metricColumn",
+                    "sources",
+                    "generations",
+                    "ledger",
+                    "canonicalSelection"
                   ],
                   "properties": {
                     "facts": {
                       "type": "string",
-                      "pattern": "^public\\.[a-z][a-z0-9_]*$"
+                      "pattern": "^sync_fence\\.[a-z][a-z0-9_]*$"
                     },
                     "versions": {
                       "type": "string",
-                      "pattern": "^public\\.[a-z][a-z0-9_]*$"
+                      "pattern": "^sync_fence\\.[a-z][a-z0-9_]*$"
                     },
                     "games": {
                       "type": "string",
@@ -954,6 +958,34 @@
                     "metricColumn": {
                       "type": "string",
                       "pattern": "^[a-z][a-z0-9_]*$"
+                    },
+                    "sources": {
+                      "type": "string",
+                      "pattern": "^sync_fence\\.[a-z][a-z0-9_]*$"
+                    },
+                    "generations": {
+                      "type": "string",
+                      "pattern": "^public\\.[a-z][a-z0-9_]*$"
+                    },
+                    "ledger": {
+                      "type": "string",
+                      "pattern": "^public\\.[a-z][a-z0-9_]*$"
+                    },
+                    "canonicalSelection": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "version",
+                        "kind"
+                      ],
+                      "properties": {
+                        "version": {
+                          "const": 1
+                        },
+                        "kind": {
+                          "const": "accepted-play-slot-v1"
+                        }
+                      }
                     }
                   }
                 },

@@ -1,12 +1,12 @@
 /** 自動生成。単一遷移だけを計算し、認可/全game集計を行わない。 */
 export const SOURCE_MODEL_HASH =
-  'sha256:db0c52f2df92ddd76a9681a940e1bae83f29fb7ff7f9e988b23a76cd5b52b40d'
+  'sha256:f358df32f54bedfecb2866436e718c7bd6ece514798fe4de2325022d38a09422'
 if (
   (globalThis as { __PITCHLOG_GENERATED_WRAPPER__?: boolean })
     .__PITCHLOG_GENERATED_WRAPPER__ !== true
 )
   throw new Error('登録wrapperが必要です')
-// generated=sha256:db0c52f2df92ddd76a9681a940e1bae83f29fb7ff7f9e988b23a76cd5b52b40d
+// generated=sha256:f358df32f54bedfecb2866436e718c7bd6ece514798fe4de2325022d38a09422
 export function parseCount(value: unknown): bigint {
   if (typeof value === 'bigint' && value >= 0n) return value
   if (typeof value === 'number' && Number.isSafeInteger(value) && value >= 0)
@@ -22,15 +22,14 @@ export function formatCount(value: unknown): string | null {
   throw new Error('正準非負整数が必要です')
 }
 
+class MissingProjectionField extends Error {}
 function _p(owner: unknown, path: string): unknown {
   for (const part of path.split('.')) {
     if (owner === null) return null
-    if (
-      typeof owner !== 'object' ||
-      Array.isArray(owner) ||
-      !Object.hasOwn(owner, part)
-    )
-      throw new Error('閉入力のfield不足')
+    if (typeof owner !== 'object' || Array.isArray(owner))
+      throw new Error('閉入力の親型違い')
+    if (!Object.hasOwn(owner, part))
+      throw new MissingProjectionField('閉入力のfield不足')
     owner = (owner as Record<string, unknown>)[part]
   }
   return owner
@@ -64,6 +63,19 @@ function _check(
   if (kind === 'boolean' && typeof value === 'boolean') return
   if (kind === 'string' && typeof value === 'string') return
   throw new Error('閉入力の型違い')
+}
+function _checked_ref(
+  owner: unknown,
+  path: string,
+  kind: string,
+  nullable: boolean,
+  minimum: string | null,
+  maximum: string | null,
+  allowed: readonly unknown[] | null,
+): unknown {
+  const value = _p(owner, path)
+  _check(value, kind, nullable, minimum, maximum, allowed)
+  return value
 }
 function _lookup(
   values: Readonly<Record<string, bigint>>,
@@ -117,7 +129,48 @@ function _missing(
 export function addCounts(left: unknown, right: unknown): string {
   return formatCount(_n(left) + _n(right))!
 }
-export function eventFacts(event: unknown) {
+export function eventFacts(
+  event: unknown,
+  requestedMetrics?: readonly string[],
+) {
+  const knownMetrics = [
+    'pitch_count',
+    'pa',
+    'ab',
+    'h',
+    'hr',
+    'bb',
+    'hbp',
+    'k',
+    'sh',
+    'sf',
+    'catcher_interference_reached',
+    'runner_interference_reached',
+    'doubles',
+    'triples',
+    'total_bases',
+    'runs',
+    'rbi',
+    'stolen_bases',
+    'pitching_outs',
+    'pitcher_k',
+    'pitcher_bb',
+    'pitcher_hbp',
+    'hits_allowed',
+    'home_runs_allowed',
+    'fielding_errors',
+    'runs_allowed',
+  ]
+  if (
+    requestedMetrics !== undefined &&
+    (!Array.isArray(requestedMetrics) ||
+      requestedMetrics.length > 26 ||
+      requestedMetrics.some(
+        (x) => typeof x !== 'string' || !knownMetrics.includes(x),
+      ) ||
+      new Set(requestedMetrics).size !== requestedMetrics.length)
+  )
+    throw new Error('primitive射影の有限型違い')
   {
     const record = _p(event, 'stat_flags')
     if (record === null || typeof record !== 'object' || Array.isArray(record))
@@ -157,209 +210,222 @@ export function eventFacts(event: unknown) {
     }
     if (seen !== 23) throw new Error('不足field')
   }
-  _check(_p(event, 'event_kind'), 'string', false, null, null, [
-    'pitch',
-    'non_pitch',
-    'control',
-  ])
-  _check(_p(event, 'source.lifecycle'), 'string', false, null, null, [
-    'effective',
-    'replaced',
-    'retired',
-    'tombstone',
-    'audit_control',
-  ])
-  _check(_p(event, 'source.source_event_id'), 'string', false, null, null, null)
-  _check(_p(event, 'pa.ended_here'), 'boolean', false, null, null, null)
-  _check(_p(event, 'pa.pa_id'), 'string', true, null, null, null)
-  _check(_p(event, 'pa.ordinal_for_batter'), 'string', true, null, null, null)
-  _check(_p(event, 'pa.hit_kind'), 'string', false, null, null, [
-    'none',
-    'single',
-    'double',
-    'triple',
-    'home_run',
-  ])
-  _check(_p(event, 'pa.result_display'), 'string', true, null, null, null)
-  _check(_p(event, 'pa.reached_by'), 'string', false, null, null, null)
-  _check(_p(event, 'before.inning'), 'string', false, null, null, null)
-  _check(_p(event, 'before.half'), 'string', false, null, null, null)
-  _check(
-    _p(event, 'out_effect.effective_count'),
-    'integer',
-    true,
-    '0',
-    '3',
-    null,
-  )
-  _check(
-    _p(event, 'stat_flags.投球回算入アウト'),
-    'boolean',
-    false,
-    null,
-    null,
-    null,
-  )
-  _check(_p(event, 'stat_flags.投球数'), 'boolean', false, null, null, null)
-  _check(_p(event, 'stat_flags.奪三振'), 'boolean', false, null, null, null)
-  _check(_p(event, 'stat_flags.与四球'), 'boolean', false, null, null, null)
-  _check(_p(event, 'stat_flags.与死球'), 'boolean', false, null, null, null)
-  _check(_p(event, 'stat_flags.被安打'), 'boolean', false, null, null, null)
-  _check(_p(event, 'stat_flags.被本塁打'), 'boolean', false, null, null, null)
-  _check(_p(event, 'stat_flags.失点'), 'boolean', false, null, null, null)
-  _check(_p(event, 'stat_flags.失策'), 'boolean', false, null, null, null)
-  _check(_p(event, 'stat_flags.打席'), 'boolean', false, null, null, null)
-  _check(_p(event, 'stat_flags.打数'), 'boolean', false, null, null, null)
-  _check(_p(event, 'stat_flags.安打'), 'boolean', false, null, null, null)
-  _check(_p(event, 'stat_flags.本塁打'), 'boolean', false, null, null, null)
-  _check(_p(event, 'stat_flags.塁打'), 'boolean', false, null, null, null)
-  _check(_p(event, 'stat_flags.犠打'), 'boolean', false, null, null, null)
-  _check(_p(event, 'stat_flags.犠飛'), 'boolean', false, null, null, null)
-  _check(_p(event, 'stat_flags.四球'), 'boolean', false, null, null, null)
-  _check(_p(event, 'stat_flags.死球'), 'boolean', false, null, null, null)
-  _check(_p(event, 'stat_flags.三振'), 'boolean', false, null, null, null)
-  _check(
-    _p(event, 'stat_flags.打撃妨害出塁'),
-    'boolean',
-    false,
-    null,
-    null,
-    null,
-  )
-  _check(
-    _p(event, 'stat_flags.走塁妨害出塁'),
-    'boolean',
-    false,
-    null,
-    null,
-    null,
-  )
-  _check(_p(event, 'stat_flags.得点'), 'boolean', false, null, null, null)
-  _check(_p(event, 'stat_flags.打点'), 'boolean', false, null, null, null)
-  _check(_p(event, 'completeness.pa'), 'string', false, null, null, [
-    'complete',
-    'unavailable',
-  ])
-  _check(_p(event, 'completeness.participants'), 'string', false, null, null, [
-    'complete',
-    'unavailable',
-  ])
-  _check(_p(event, 'completeness.outs'), 'string', false, null, null, [
-    'complete',
-    'unavailable',
-  ])
-  _check(_p(event, 'completeness.runs_rbi'), 'string', false, null, null, [
-    'complete',
-    'unavailable',
-  ])
-  _check(_p(event, 'completeness.steals'), 'string', false, null, null, [
-    'complete',
-    'unavailable',
-  ])
-  _check(
-    _p(event, 'participants.actual_pitcher_id'),
-    'string',
-    false,
-    null,
-    null,
-    null,
-  )
-  _check(
-    _p(event, 'participants.actual_batter_id'),
-    'string',
-    false,
-    null,
-    null,
-    null,
-  )
-  _check(
-    _p(event, 'participants.credited_batter_id'),
-    'string',
-    true,
-    null,
-    null,
-    null,
-  )
-  _check(
-    _p(event, 'participants.strikeout_pitcher_id'),
-    'string',
-    true,
-    null,
-    null,
-    null,
-  )
-  _check(
-    _p(event, 'participants.walk_pitcher_id'),
-    'string',
-    true,
-    null,
-    null,
-    null,
-  )
-  _check(
-    _p(event, 'participants.hbp_pitcher_id'),
-    'string',
-    true,
-    null,
-    null,
-    null,
-  )
-  _check(
-    _p(event, 'participants.hit_pitcher_id'),
-    'string',
-    true,
-    null,
-    null,
-    null,
-  )
-  _check(
-    _p(event, 'participants.home_run_pitcher_id'),
-    'string',
-    true,
-    null,
-    null,
-    null,
-  )
-  _check(
-    _p(event, 'participants.outs_pitcher_id'),
-    'string',
-    true,
-    null,
-    null,
-    null,
-  )
-  _check(
-    _p(event, 'participants.error_fielder_id'),
-    'string',
-    true,
-    null,
-    null,
-    null,
-  )
-  {
-    const collection = _p(event, 'runner_scores')
-    if (collection !== null) {
-      if (!Array.isArray(collection) || collection.length > 4)
-        throw new Error('有限collection上限')
-      for (const item of collection) {
-        _check(_p(item, 'runner_id'), 'string', false)
-        _check(_p(item, 'responsible_pitcher_id'), 'string', false)
-        _check(_p(item, 'valid_run'), 'boolean', false)
-        _check(_p(item, 'rbi_credited'), 'boolean', false)
-        _check(_p(item, 'rbi_batter_id'), 'string', true)
-        _check(_p(item, 'rbi_branch'), 'string', true)
+  if (requestedMetrics === undefined) {
+    _check(_p(event, 'event_kind'), 'string', false, null, null, [
+      'pitch',
+      'non_pitch',
+      'control',
+    ])
+    _check(_p(event, 'source.lifecycle'), 'string', false, null, null, [
+      'effective',
+      'replaced',
+      'retired',
+      'tombstone',
+      'audit_control',
+    ])
+    _check(
+      _p(event, 'source.source_event_id'),
+      'string',
+      false,
+      null,
+      null,
+      null,
+    )
+    _check(_p(event, 'pa.ended_here'), 'boolean', false, null, null, null)
+    _check(_p(event, 'pa.pa_id'), 'string', true, null, null, null)
+    _check(_p(event, 'pa.ordinal_for_batter'), 'string', true, null, null, null)
+    _check(_p(event, 'pa.hit_kind'), 'string', false, null, null, [
+      'none',
+      'single',
+      'double',
+      'triple',
+      'home_run',
+    ])
+    _check(_p(event, 'pa.result_display'), 'string', true, null, null, null)
+    _check(_p(event, 'pa.reached_by'), 'string', false, null, null, null)
+    _check(_p(event, 'before.inning'), 'string', false, null, null, null)
+    _check(_p(event, 'before.half'), 'string', false, null, null, null)
+    _check(
+      _p(event, 'out_effect.effective_count'),
+      'integer',
+      true,
+      '0',
+      '3',
+      null,
+    )
+    _check(
+      _p(event, 'stat_flags.投球回算入アウト'),
+      'boolean',
+      false,
+      null,
+      null,
+      null,
+    )
+    _check(_p(event, 'stat_flags.投球数'), 'boolean', false, null, null, null)
+    _check(_p(event, 'stat_flags.奪三振'), 'boolean', false, null, null, null)
+    _check(_p(event, 'stat_flags.与四球'), 'boolean', false, null, null, null)
+    _check(_p(event, 'stat_flags.与死球'), 'boolean', false, null, null, null)
+    _check(_p(event, 'stat_flags.被安打'), 'boolean', false, null, null, null)
+    _check(_p(event, 'stat_flags.被本塁打'), 'boolean', false, null, null, null)
+    _check(_p(event, 'stat_flags.失点'), 'boolean', false, null, null, null)
+    _check(_p(event, 'stat_flags.失策'), 'boolean', false, null, null, null)
+    _check(_p(event, 'stat_flags.打席'), 'boolean', false, null, null, null)
+    _check(_p(event, 'stat_flags.打数'), 'boolean', false, null, null, null)
+    _check(_p(event, 'stat_flags.安打'), 'boolean', false, null, null, null)
+    _check(_p(event, 'stat_flags.本塁打'), 'boolean', false, null, null, null)
+    _check(_p(event, 'stat_flags.塁打'), 'boolean', false, null, null, null)
+    _check(_p(event, 'stat_flags.犠打'), 'boolean', false, null, null, null)
+    _check(_p(event, 'stat_flags.犠飛'), 'boolean', false, null, null, null)
+    _check(_p(event, 'stat_flags.四球'), 'boolean', false, null, null, null)
+    _check(_p(event, 'stat_flags.死球'), 'boolean', false, null, null, null)
+    _check(_p(event, 'stat_flags.三振'), 'boolean', false, null, null, null)
+    _check(
+      _p(event, 'stat_flags.打撃妨害出塁'),
+      'boolean',
+      false,
+      null,
+      null,
+      null,
+    )
+    _check(
+      _p(event, 'stat_flags.走塁妨害出塁'),
+      'boolean',
+      false,
+      null,
+      null,
+      null,
+    )
+    _check(_p(event, 'stat_flags.得点'), 'boolean', false, null, null, null)
+    _check(_p(event, 'stat_flags.打点'), 'boolean', false, null, null, null)
+    _check(_p(event, 'completeness.pa'), 'string', false, null, null, [
+      'complete',
+      'unavailable',
+    ])
+    _check(
+      _p(event, 'completeness.participants'),
+      'string',
+      false,
+      null,
+      null,
+      ['complete', 'unavailable'],
+    )
+    _check(_p(event, 'completeness.outs'), 'string', false, null, null, [
+      'complete',
+      'unavailable',
+    ])
+    _check(_p(event, 'completeness.runs_rbi'), 'string', false, null, null, [
+      'complete',
+      'unavailable',
+    ])
+    _check(_p(event, 'completeness.steals'), 'string', false, null, null, [
+      'complete',
+      'unavailable',
+    ])
+    _check(
+      _p(event, 'participants.actual_pitcher_id'),
+      'string',
+      false,
+      null,
+      null,
+      null,
+    )
+    _check(
+      _p(event, 'participants.actual_batter_id'),
+      'string',
+      false,
+      null,
+      null,
+      null,
+    )
+    _check(
+      _p(event, 'participants.credited_batter_id'),
+      'string',
+      true,
+      null,
+      null,
+      null,
+    )
+    _check(
+      _p(event, 'participants.strikeout_pitcher_id'),
+      'string',
+      true,
+      null,
+      null,
+      null,
+    )
+    _check(
+      _p(event, 'participants.walk_pitcher_id'),
+      'string',
+      true,
+      null,
+      null,
+      null,
+    )
+    _check(
+      _p(event, 'participants.hbp_pitcher_id'),
+      'string',
+      true,
+      null,
+      null,
+      null,
+    )
+    _check(
+      _p(event, 'participants.hit_pitcher_id'),
+      'string',
+      true,
+      null,
+      null,
+      null,
+    )
+    _check(
+      _p(event, 'participants.home_run_pitcher_id'),
+      'string',
+      true,
+      null,
+      null,
+      null,
+    )
+    _check(
+      _p(event, 'participants.outs_pitcher_id'),
+      'string',
+      true,
+      null,
+      null,
+      null,
+    )
+    _check(
+      _p(event, 'participants.error_fielder_id'),
+      'string',
+      true,
+      null,
+      null,
+      null,
+    )
+    {
+      const collection = _p(event, 'runner_scores')
+      if (collection !== null) {
+        if (!Array.isArray(collection) || collection.length > 4)
+          throw new Error('有限collection上限')
+        for (const item of collection) {
+          _check(_p(item, 'runner_id'), 'string', false)
+          _check(_p(item, 'responsible_pitcher_id'), 'string', false)
+          _check(_p(item, 'valid_run'), 'boolean', false)
+          _check(_p(item, 'rbi_credited'), 'boolean', false)
+          _check(_p(item, 'rbi_batter_id'), 'string', true)
+          _check(_p(item, 'rbi_branch'), 'string', true)
+        }
       }
     }
-  }
-  {
-    const collection = _p(event, 'steal_attempts')
-    if (collection !== null) {
-      if (!Array.isArray(collection) || collection.length > 3)
-        throw new Error('有限collection上限')
-      for (const item of collection) {
-        _check(_p(item, 'runner_id'), 'string', false)
-        _check(_p(item, 'attempted'), 'boolean', false)
-        _check(_p(item, 'successful'), 'boolean', false)
+    {
+      const collection = _p(event, 'steal_attempts')
+      if (collection !== null) {
+        if (!Array.isArray(collection) || collection.length > 3)
+          throw new Error('有限collection上限')
+        for (const item of collection) {
+          _check(_p(item, 'runner_id'), 'string', false)
+          _check(_p(item, 'attempted'), 'boolean', false)
+          _check(_p(item, 'successful'), 'boolean', false)
+        }
       }
     }
   }
@@ -392,827 +458,2145 @@ export function eventFacts(event: unknown) {
     'fielding_errors',
     'runs_allowed',
   ])
-    metrics[name] = _zero()
-  const selected = _p(event, 'source.lifecycle') === 'effective'
+    if (requestedMetrics === undefined || requestedMetrics.includes(name))
+      metrics[name] = _zero()
+  const selected =
+    _checked_ref(event, 'source.lifecycle', 'string', false, null, null, [
+      'effective',
+      'replaced',
+      'retired',
+      'tombstone',
+      'audit_control',
+    ]) === 'effective'
   if (selected) {
-    {
-      if (!(_p(event, 'completeness.participants') === 'complete'))
-        metrics['pitch_count'] = _missing()
-      else {
-        let quantity = 0n
-        const credits: Credit[] = []
-        let missing = false
+    try {
+      if (
+        requestedMetrics === undefined ||
+        requestedMetrics.includes('pitch_count')
+      ) {
         if (
-          _p(event, 'event_kind') === 'pitch' &&
-          _p(event, 'stat_flags.投球数')
-        ) {
-          const amount = _n(1n)
-          const player = _p(event, 'participants.actual_pitcher_id')
-          if (amount > 0n && typeof player !== 'string') missing = true
-          else if (amount > 0n && typeof player === 'string') {
-            quantity += amount
-            _appendCredit(credits, player, amount)
-          }
-        }
-        metrics['pitch_count'] = missing
-          ? _missing('MISSING_ATTRIBUTION')
-          : {
-              state: 'available',
-              value: formatCount(quantity),
-              display: formatCount(quantity),
-              reason: null,
-              credits,
-            }
-      }
-    }
-    {
-      if (!(
-        _p(event, 'completeness.pa') === 'complete' &&
-        _p(event, 'completeness.participants') === 'complete'
-      ))
-        metrics['pa'] = _missing()
-      else {
-        let quantity = 0n
-        const credits: Credit[] = []
-        let missing = false
-        if (_p(event, 'pa.ended_here') && _p(event, 'stat_flags.打席')) {
-          const amount = _n(1n)
-          const player = _p(event, 'participants.credited_batter_id')
-          if (amount > 0n && typeof player !== 'string') missing = true
-          else if (amount > 0n && typeof player === 'string') {
-            quantity += amount
-            _appendCredit(credits, player, amount)
-          }
-        }
-        metrics['pa'] = missing
-          ? _missing('MISSING_ATTRIBUTION')
-          : {
-              state: 'available',
-              value: formatCount(quantity),
-              display: formatCount(quantity),
-              reason: null,
-              credits,
-            }
-      }
-    }
-    {
-      if (!(
-        _p(event, 'completeness.pa') === 'complete' &&
-        _p(event, 'completeness.participants') === 'complete'
-      ))
-        metrics['ab'] = _missing()
-      else {
-        let quantity = 0n
-        const credits: Credit[] = []
-        let missing = false
-        if (_p(event, 'pa.ended_here') && _p(event, 'stat_flags.打数')) {
-          const amount = _n(1n)
-          const player = _p(event, 'participants.credited_batter_id')
-          if (amount > 0n && typeof player !== 'string') missing = true
-          else if (amount > 0n && typeof player === 'string') {
-            quantity += amount
-            _appendCredit(credits, player, amount)
-          }
-        }
-        metrics['ab'] = missing
-          ? _missing('MISSING_ATTRIBUTION')
-          : {
-              state: 'available',
-              value: formatCount(quantity),
-              display: formatCount(quantity),
-              reason: null,
-              credits,
-            }
-      }
-    }
-    {
-      if (!(
-        _p(event, 'completeness.pa') === 'complete' &&
-        _p(event, 'completeness.participants') === 'complete'
-      ))
-        metrics['h'] = _missing()
-      else {
-        let quantity = 0n
-        const credits: Credit[] = []
-        let missing = false
-        if (_p(event, 'pa.ended_here') && _p(event, 'stat_flags.安打')) {
-          const amount = _n(1n)
-          const player = _p(event, 'participants.credited_batter_id')
-          if (amount > 0n && typeof player !== 'string') missing = true
-          else if (amount > 0n && typeof player === 'string') {
-            quantity += amount
-            _appendCredit(credits, player, amount)
-          }
-        }
-        metrics['h'] = missing
-          ? _missing('MISSING_ATTRIBUTION')
-          : {
-              state: 'available',
-              value: formatCount(quantity),
-              display: formatCount(quantity),
-              reason: null,
-              credits,
-            }
-      }
-    }
-    {
-      if (!(
-        _p(event, 'completeness.pa') === 'complete' &&
-        _p(event, 'completeness.participants') === 'complete'
-      ))
-        metrics['hr'] = _missing()
-      else {
-        let quantity = 0n
-        const credits: Credit[] = []
-        let missing = false
-        if (_p(event, 'pa.ended_here') && _p(event, 'stat_flags.本塁打')) {
-          const amount = _n(1n)
-          const player = _p(event, 'participants.credited_batter_id')
-          if (amount > 0n && typeof player !== 'string') missing = true
-          else if (amount > 0n && typeof player === 'string') {
-            quantity += amount
-            _appendCredit(credits, player, amount)
-          }
-        }
-        metrics['hr'] = missing
-          ? _missing('MISSING_ATTRIBUTION')
-          : {
-              state: 'available',
-              value: formatCount(quantity),
-              display: formatCount(quantity),
-              reason: null,
-              credits,
-            }
-      }
-    }
-    {
-      if (!(
-        _p(event, 'completeness.pa') === 'complete' &&
-        _p(event, 'completeness.participants') === 'complete'
-      ))
-        metrics['bb'] = _missing()
-      else {
-        let quantity = 0n
-        const credits: Credit[] = []
-        let missing = false
-        if (_p(event, 'pa.ended_here') && _p(event, 'stat_flags.四球')) {
-          const amount = _n(1n)
-          const player = _p(event, 'participants.credited_batter_id')
-          if (amount > 0n && typeof player !== 'string') missing = true
-          else if (amount > 0n && typeof player === 'string') {
-            quantity += amount
-            _appendCredit(credits, player, amount)
-          }
-        }
-        metrics['bb'] = missing
-          ? _missing('MISSING_ATTRIBUTION')
-          : {
-              state: 'available',
-              value: formatCount(quantity),
-              display: formatCount(quantity),
-              reason: null,
-              credits,
-            }
-      }
-    }
-    {
-      if (!(
-        _p(event, 'completeness.pa') === 'complete' &&
-        _p(event, 'completeness.participants') === 'complete'
-      ))
-        metrics['hbp'] = _missing()
-      else {
-        let quantity = 0n
-        const credits: Credit[] = []
-        let missing = false
-        if (_p(event, 'pa.ended_here') && _p(event, 'stat_flags.死球')) {
-          const amount = _n(1n)
-          const player = _p(event, 'participants.credited_batter_id')
-          if (amount > 0n && typeof player !== 'string') missing = true
-          else if (amount > 0n && typeof player === 'string') {
-            quantity += amount
-            _appendCredit(credits, player, amount)
-          }
-        }
-        metrics['hbp'] = missing
-          ? _missing('MISSING_ATTRIBUTION')
-          : {
-              state: 'available',
-              value: formatCount(quantity),
-              display: formatCount(quantity),
-              reason: null,
-              credits,
-            }
-      }
-    }
-    {
-      if (!(
-        _p(event, 'completeness.pa') === 'complete' &&
-        _p(event, 'completeness.participants') === 'complete'
-      ))
-        metrics['k'] = _missing()
-      else {
-        let quantity = 0n
-        const credits: Credit[] = []
-        let missing = false
-        if (_p(event, 'pa.ended_here') && _p(event, 'stat_flags.三振')) {
-          const amount = _n(1n)
-          const player = _p(event, 'participants.credited_batter_id')
-          if (amount > 0n && typeof player !== 'string') missing = true
-          else if (amount > 0n && typeof player === 'string') {
-            quantity += amount
-            _appendCredit(credits, player, amount)
-          }
-        }
-        metrics['k'] = missing
-          ? _missing('MISSING_ATTRIBUTION')
-          : {
-              state: 'available',
-              value: formatCount(quantity),
-              display: formatCount(quantity),
-              reason: null,
-              credits,
-            }
-      }
-    }
-    {
-      if (!(
-        _p(event, 'completeness.pa') === 'complete' &&
-        _p(event, 'completeness.participants') === 'complete'
-      ))
-        metrics['sh'] = _missing()
-      else {
-        let quantity = 0n
-        const credits: Credit[] = []
-        let missing = false
-        if (_p(event, 'pa.ended_here') && _p(event, 'stat_flags.犠打')) {
-          const amount = _n(1n)
-          const player = _p(event, 'participants.credited_batter_id')
-          if (amount > 0n && typeof player !== 'string') missing = true
-          else if (amount > 0n && typeof player === 'string') {
-            quantity += amount
-            _appendCredit(credits, player, amount)
-          }
-        }
-        metrics['sh'] = missing
-          ? _missing('MISSING_ATTRIBUTION')
-          : {
-              state: 'available',
-              value: formatCount(quantity),
-              display: formatCount(quantity),
-              reason: null,
-              credits,
-            }
-      }
-    }
-    {
-      if (!(
-        _p(event, 'completeness.pa') === 'complete' &&
-        _p(event, 'completeness.participants') === 'complete'
-      ))
-        metrics['sf'] = _missing()
-      else {
-        let quantity = 0n
-        const credits: Credit[] = []
-        let missing = false
-        if (_p(event, 'pa.ended_here') && _p(event, 'stat_flags.犠飛')) {
-          const amount = _n(1n)
-          const player = _p(event, 'participants.credited_batter_id')
-          if (amount > 0n && typeof player !== 'string') missing = true
-          else if (amount > 0n && typeof player === 'string') {
-            quantity += amount
-            _appendCredit(credits, player, amount)
-          }
-        }
-        metrics['sf'] = missing
-          ? _missing('MISSING_ATTRIBUTION')
-          : {
-              state: 'available',
-              value: formatCount(quantity),
-              display: formatCount(quantity),
-              reason: null,
-              credits,
-            }
-      }
-    }
-    {
-      if (!(
-        _p(event, 'completeness.pa') === 'complete' &&
-        _p(event, 'completeness.participants') === 'complete'
-      ))
-        metrics['catcher_interference_reached'] = _missing()
-      else {
-        let quantity = 0n
-        const credits: Credit[] = []
-        let missing = false
-        if (
-          _p(event, 'pa.ended_here') &&
-          _p(event, 'stat_flags.打撃妨害出塁')
-        ) {
-          const amount = _n(1n)
-          const player = _p(event, 'participants.credited_batter_id')
-          if (amount > 0n && typeof player !== 'string') missing = true
-          else if (amount > 0n && typeof player === 'string') {
-            quantity += amount
-            _appendCredit(credits, player, amount)
-          }
-        }
-        metrics['catcher_interference_reached'] = missing
-          ? _missing('MISSING_ATTRIBUTION')
-          : {
-              state: 'available',
-              value: formatCount(quantity),
-              display: formatCount(quantity),
-              reason: null,
-              credits,
-            }
-      }
-    }
-    {
-      if (!(
-        _p(event, 'completeness.pa') === 'complete' &&
-        _p(event, 'completeness.participants') === 'complete'
-      ))
-        metrics['runner_interference_reached'] = _missing()
-      else {
-        let quantity = 0n
-        const credits: Credit[] = []
-        let missing = false
-        if (
-          _p(event, 'pa.ended_here') &&
-          _p(event, 'stat_flags.走塁妨害出塁')
-        ) {
-          const amount = _n(1n)
-          const player = _p(event, 'participants.credited_batter_id')
-          if (amount > 0n && typeof player !== 'string') missing = true
-          else if (amount > 0n && typeof player === 'string') {
-            quantity += amount
-            _appendCredit(credits, player, amount)
-          }
-        }
-        metrics['runner_interference_reached'] = missing
-          ? _missing('MISSING_ATTRIBUTION')
-          : {
-              state: 'available',
-              value: formatCount(quantity),
-              display: formatCount(quantity),
-              reason: null,
-              credits,
-            }
-      }
-    }
-    {
-      if (!(
-        _p(event, 'completeness.pa') === 'complete' &&
-        _p(event, 'completeness.participants') === 'complete'
-      ))
-        metrics['doubles'] = _missing()
-      else {
-        let quantity = 0n
-        const credits: Credit[] = []
-        let missing = false
-        if (
-          _p(event, 'pa.ended_here') &&
-          _p(event, 'stat_flags.安打') &&
-          _p(event, 'pa.hit_kind') === 'double'
-        ) {
-          const amount = _n(1n)
-          const player = _p(event, 'participants.credited_batter_id')
-          if (amount > 0n && typeof player !== 'string') missing = true
-          else if (amount > 0n && typeof player === 'string') {
-            quantity += amount
-            _appendCredit(credits, player, amount)
-          }
-        }
-        metrics['doubles'] = missing
-          ? _missing('MISSING_ATTRIBUTION')
-          : {
-              state: 'available',
-              value: formatCount(quantity),
-              display: formatCount(quantity),
-              reason: null,
-              credits,
-            }
-      }
-    }
-    {
-      if (!(
-        _p(event, 'completeness.pa') === 'complete' &&
-        _p(event, 'completeness.participants') === 'complete'
-      ))
-        metrics['triples'] = _missing()
-      else {
-        let quantity = 0n
-        const credits: Credit[] = []
-        let missing = false
-        if (
-          _p(event, 'pa.ended_here') &&
-          _p(event, 'stat_flags.安打') &&
-          _p(event, 'pa.hit_kind') === 'triple'
-        ) {
-          const amount = _n(1n)
-          const player = _p(event, 'participants.credited_batter_id')
-          if (amount > 0n && typeof player !== 'string') missing = true
-          else if (amount > 0n && typeof player === 'string') {
-            quantity += amount
-            _appendCredit(credits, player, amount)
-          }
-        }
-        metrics['triples'] = missing
-          ? _missing('MISSING_ATTRIBUTION')
-          : {
-              state: 'available',
-              value: formatCount(quantity),
-              display: formatCount(quantity),
-              reason: null,
-              credits,
-            }
-      }
-    }
-    {
-      if (!(
-        _p(event, 'completeness.pa') === 'complete' &&
-        _p(event, 'completeness.participants') === 'complete'
-      ))
-        metrics['total_bases'] = _missing()
-      else {
-        let quantity = 0n
-        const credits: Credit[] = []
-        let missing = false
-        if (_p(event, 'pa.ended_here') && _p(event, 'stat_flags.塁打')) {
-          const amount = _n(
-            _lookup(
-              { none: 0n, single: 1n, double: 2n, triple: 3n, home_run: 4n },
-              _p(event, 'pa.hit_kind'),
-            ),
+          !(
+            _checked_ref(
+              event,
+              'completeness.participants',
+              'string',
+              false,
+              null,
+              null,
+              ['complete', 'unavailable'],
+            ) === 'complete'
           )
-          const player = _p(event, 'participants.credited_batter_id')
-          if (amount > 0n && typeof player !== 'string') missing = true
-          else if (amount > 0n && typeof player === 'string') {
-            quantity += amount
-            _appendCredit(credits, player, amount)
-          }
-        }
-        metrics['total_bases'] = missing
-          ? _missing('MISSING_ATTRIBUTION')
-          : {
-              state: 'available',
-              value: formatCount(quantity),
-              display: formatCount(quantity),
-              reason: null,
-              credits,
-            }
-      }
-    }
-    {
-      if (!(_p(event, 'completeness.runs_rbi') === 'complete'))
-        metrics['runs'] = _missing()
-      else {
-        let quantity = 0n
-        const credits: Credit[] = []
-        let missing = false
-        const collection = _p(event, 'runner_scores')
-        if (collection === null) missing = true
+        )
+          metrics['pitch_count'] = _missing()
         else {
-          if (!Array.isArray(collection)) throw new Error('collection型違い')
-          for (const item of collection) {
-            if (_p(event, 'stat_flags.得点') && _p(item, 'valid_run')) {
-              const amount = _n(1n)
-              const player = _p(item, 'runner_id')
-              if (amount > 0n && typeof player !== 'string') missing = true
-              else if (amount > 0n && typeof player === 'string') {
-                quantity += amount
-                _appendCredit(credits, player, amount)
+          let quantity = 0n
+          const credits: Credit[] = []
+          let missing = false
+          if (
+            _checked_ref(event, 'event_kind', 'string', false, null, null, [
+              'pitch',
+              'non_pitch',
+              'control',
+            ]) === 'pitch' &&
+            _checked_ref(
+              event,
+              'stat_flags.投球数',
+              'boolean',
+              false,
+              null,
+              null,
+              null,
+            )
+          ) {
+            const amount = _n(1n)
+            const player = _checked_ref(
+              event,
+              'participants.actual_pitcher_id',
+              'string',
+              false,
+              null,
+              null,
+              null,
+            )
+            if (amount > 0n && typeof player !== 'string') missing = true
+            else if (amount > 0n && typeof player === 'string') {
+              quantity += amount
+              _appendCredit(credits, player, amount)
+            }
+          }
+          metrics['pitch_count'] = missing
+            ? _missing('MISSING_ATTRIBUTION')
+            : {
+                state: 'available',
+                value: formatCount(quantity),
+                display: formatCount(quantity),
+                reason: null,
+                credits,
+              }
+        }
+      }
+    } catch (error) {
+      if (
+        requestedMetrics === undefined ||
+        !(error instanceof MissingProjectionField)
+      )
+        throw error
+      metrics['pitch_count'] = _missing()
+    }
+    try {
+      if (requestedMetrics === undefined || requestedMetrics.includes('pa')) {
+        if (!(
+          _checked_ref(event, 'completeness.pa', 'string', false, null, null, [
+            'complete',
+            'unavailable',
+          ]) === 'complete' &&
+          _checked_ref(
+            event,
+            'completeness.participants',
+            'string',
+            false,
+            null,
+            null,
+            ['complete', 'unavailable'],
+          ) === 'complete'
+        ))
+          metrics['pa'] = _missing()
+        else {
+          let quantity = 0n
+          const credits: Credit[] = []
+          let missing = false
+          if (
+            _checked_ref(
+              event,
+              'pa.ended_here',
+              'boolean',
+              false,
+              null,
+              null,
+              null,
+            ) &&
+            _checked_ref(
+              event,
+              'stat_flags.打席',
+              'boolean',
+              false,
+              null,
+              null,
+              null,
+            )
+          ) {
+            const amount = _n(1n)
+            const player = _checked_ref(
+              event,
+              'participants.credited_batter_id',
+              'string',
+              true,
+              null,
+              null,
+              null,
+            )
+            if (amount > 0n && typeof player !== 'string') missing = true
+            else if (amount > 0n && typeof player === 'string') {
+              quantity += amount
+              _appendCredit(credits, player, amount)
+            }
+          }
+          metrics['pa'] = missing
+            ? _missing('MISSING_ATTRIBUTION')
+            : {
+                state: 'available',
+                value: formatCount(quantity),
+                display: formatCount(quantity),
+                reason: null,
+                credits,
+              }
+        }
+      }
+    } catch (error) {
+      if (
+        requestedMetrics === undefined ||
+        !(error instanceof MissingProjectionField)
+      )
+        throw error
+      metrics['pa'] = _missing()
+    }
+    try {
+      if (requestedMetrics === undefined || requestedMetrics.includes('ab')) {
+        if (!(
+          _checked_ref(event, 'completeness.pa', 'string', false, null, null, [
+            'complete',
+            'unavailable',
+          ]) === 'complete' &&
+          _checked_ref(
+            event,
+            'completeness.participants',
+            'string',
+            false,
+            null,
+            null,
+            ['complete', 'unavailable'],
+          ) === 'complete'
+        ))
+          metrics['ab'] = _missing()
+        else {
+          let quantity = 0n
+          const credits: Credit[] = []
+          let missing = false
+          if (
+            _checked_ref(
+              event,
+              'pa.ended_here',
+              'boolean',
+              false,
+              null,
+              null,
+              null,
+            ) &&
+            _checked_ref(
+              event,
+              'stat_flags.打数',
+              'boolean',
+              false,
+              null,
+              null,
+              null,
+            )
+          ) {
+            const amount = _n(1n)
+            const player = _checked_ref(
+              event,
+              'participants.credited_batter_id',
+              'string',
+              true,
+              null,
+              null,
+              null,
+            )
+            if (amount > 0n && typeof player !== 'string') missing = true
+            else if (amount > 0n && typeof player === 'string') {
+              quantity += amount
+              _appendCredit(credits, player, amount)
+            }
+          }
+          metrics['ab'] = missing
+            ? _missing('MISSING_ATTRIBUTION')
+            : {
+                state: 'available',
+                value: formatCount(quantity),
+                display: formatCount(quantity),
+                reason: null,
+                credits,
+              }
+        }
+      }
+    } catch (error) {
+      if (
+        requestedMetrics === undefined ||
+        !(error instanceof MissingProjectionField)
+      )
+        throw error
+      metrics['ab'] = _missing()
+    }
+    try {
+      if (requestedMetrics === undefined || requestedMetrics.includes('h')) {
+        if (!(
+          _checked_ref(event, 'completeness.pa', 'string', false, null, null, [
+            'complete',
+            'unavailable',
+          ]) === 'complete' &&
+          _checked_ref(
+            event,
+            'completeness.participants',
+            'string',
+            false,
+            null,
+            null,
+            ['complete', 'unavailable'],
+          ) === 'complete'
+        ))
+          metrics['h'] = _missing()
+        else {
+          let quantity = 0n
+          const credits: Credit[] = []
+          let missing = false
+          if (
+            _checked_ref(
+              event,
+              'pa.ended_here',
+              'boolean',
+              false,
+              null,
+              null,
+              null,
+            ) &&
+            _checked_ref(
+              event,
+              'stat_flags.安打',
+              'boolean',
+              false,
+              null,
+              null,
+              null,
+            )
+          ) {
+            const amount = _n(1n)
+            const player = _checked_ref(
+              event,
+              'participants.credited_batter_id',
+              'string',
+              true,
+              null,
+              null,
+              null,
+            )
+            if (amount > 0n && typeof player !== 'string') missing = true
+            else if (amount > 0n && typeof player === 'string') {
+              quantity += amount
+              _appendCredit(credits, player, amount)
+            }
+          }
+          metrics['h'] = missing
+            ? _missing('MISSING_ATTRIBUTION')
+            : {
+                state: 'available',
+                value: formatCount(quantity),
+                display: formatCount(quantity),
+                reason: null,
+                credits,
+              }
+        }
+      }
+    } catch (error) {
+      if (
+        requestedMetrics === undefined ||
+        !(error instanceof MissingProjectionField)
+      )
+        throw error
+      metrics['h'] = _missing()
+    }
+    try {
+      if (requestedMetrics === undefined || requestedMetrics.includes('hr')) {
+        if (!(
+          _checked_ref(event, 'completeness.pa', 'string', false, null, null, [
+            'complete',
+            'unavailable',
+          ]) === 'complete' &&
+          _checked_ref(
+            event,
+            'completeness.participants',
+            'string',
+            false,
+            null,
+            null,
+            ['complete', 'unavailable'],
+          ) === 'complete'
+        ))
+          metrics['hr'] = _missing()
+        else {
+          let quantity = 0n
+          const credits: Credit[] = []
+          let missing = false
+          if (
+            _checked_ref(
+              event,
+              'pa.ended_here',
+              'boolean',
+              false,
+              null,
+              null,
+              null,
+            ) &&
+            _checked_ref(
+              event,
+              'stat_flags.本塁打',
+              'boolean',
+              false,
+              null,
+              null,
+              null,
+            )
+          ) {
+            const amount = _n(1n)
+            const player = _checked_ref(
+              event,
+              'participants.credited_batter_id',
+              'string',
+              true,
+              null,
+              null,
+              null,
+            )
+            if (amount > 0n && typeof player !== 'string') missing = true
+            else if (amount > 0n && typeof player === 'string') {
+              quantity += amount
+              _appendCredit(credits, player, amount)
+            }
+          }
+          metrics['hr'] = missing
+            ? _missing('MISSING_ATTRIBUTION')
+            : {
+                state: 'available',
+                value: formatCount(quantity),
+                display: formatCount(quantity),
+                reason: null,
+                credits,
+              }
+        }
+      }
+    } catch (error) {
+      if (
+        requestedMetrics === undefined ||
+        !(error instanceof MissingProjectionField)
+      )
+        throw error
+      metrics['hr'] = _missing()
+    }
+    try {
+      if (requestedMetrics === undefined || requestedMetrics.includes('bb')) {
+        if (!(
+          _checked_ref(event, 'completeness.pa', 'string', false, null, null, [
+            'complete',
+            'unavailable',
+          ]) === 'complete' &&
+          _checked_ref(
+            event,
+            'completeness.participants',
+            'string',
+            false,
+            null,
+            null,
+            ['complete', 'unavailable'],
+          ) === 'complete'
+        ))
+          metrics['bb'] = _missing()
+        else {
+          let quantity = 0n
+          const credits: Credit[] = []
+          let missing = false
+          if (
+            _checked_ref(
+              event,
+              'pa.ended_here',
+              'boolean',
+              false,
+              null,
+              null,
+              null,
+            ) &&
+            _checked_ref(
+              event,
+              'stat_flags.四球',
+              'boolean',
+              false,
+              null,
+              null,
+              null,
+            )
+          ) {
+            const amount = _n(1n)
+            const player = _checked_ref(
+              event,
+              'participants.credited_batter_id',
+              'string',
+              true,
+              null,
+              null,
+              null,
+            )
+            if (amount > 0n && typeof player !== 'string') missing = true
+            else if (amount > 0n && typeof player === 'string') {
+              quantity += amount
+              _appendCredit(credits, player, amount)
+            }
+          }
+          metrics['bb'] = missing
+            ? _missing('MISSING_ATTRIBUTION')
+            : {
+                state: 'available',
+                value: formatCount(quantity),
+                display: formatCount(quantity),
+                reason: null,
+                credits,
+              }
+        }
+      }
+    } catch (error) {
+      if (
+        requestedMetrics === undefined ||
+        !(error instanceof MissingProjectionField)
+      )
+        throw error
+      metrics['bb'] = _missing()
+    }
+    try {
+      if (requestedMetrics === undefined || requestedMetrics.includes('hbp')) {
+        if (!(
+          _checked_ref(event, 'completeness.pa', 'string', false, null, null, [
+            'complete',
+            'unavailable',
+          ]) === 'complete' &&
+          _checked_ref(
+            event,
+            'completeness.participants',
+            'string',
+            false,
+            null,
+            null,
+            ['complete', 'unavailable'],
+          ) === 'complete'
+        ))
+          metrics['hbp'] = _missing()
+        else {
+          let quantity = 0n
+          const credits: Credit[] = []
+          let missing = false
+          if (
+            _checked_ref(
+              event,
+              'pa.ended_here',
+              'boolean',
+              false,
+              null,
+              null,
+              null,
+            ) &&
+            _checked_ref(
+              event,
+              'stat_flags.死球',
+              'boolean',
+              false,
+              null,
+              null,
+              null,
+            )
+          ) {
+            const amount = _n(1n)
+            const player = _checked_ref(
+              event,
+              'participants.credited_batter_id',
+              'string',
+              true,
+              null,
+              null,
+              null,
+            )
+            if (amount > 0n && typeof player !== 'string') missing = true
+            else if (amount > 0n && typeof player === 'string') {
+              quantity += amount
+              _appendCredit(credits, player, amount)
+            }
+          }
+          metrics['hbp'] = missing
+            ? _missing('MISSING_ATTRIBUTION')
+            : {
+                state: 'available',
+                value: formatCount(quantity),
+                display: formatCount(quantity),
+                reason: null,
+                credits,
+              }
+        }
+      }
+    } catch (error) {
+      if (
+        requestedMetrics === undefined ||
+        !(error instanceof MissingProjectionField)
+      )
+        throw error
+      metrics['hbp'] = _missing()
+    }
+    try {
+      if (requestedMetrics === undefined || requestedMetrics.includes('k')) {
+        if (!(
+          _checked_ref(event, 'completeness.pa', 'string', false, null, null, [
+            'complete',
+            'unavailable',
+          ]) === 'complete' &&
+          _checked_ref(
+            event,
+            'completeness.participants',
+            'string',
+            false,
+            null,
+            null,
+            ['complete', 'unavailable'],
+          ) === 'complete'
+        ))
+          metrics['k'] = _missing()
+        else {
+          let quantity = 0n
+          const credits: Credit[] = []
+          let missing = false
+          if (
+            _checked_ref(
+              event,
+              'pa.ended_here',
+              'boolean',
+              false,
+              null,
+              null,
+              null,
+            ) &&
+            _checked_ref(
+              event,
+              'stat_flags.三振',
+              'boolean',
+              false,
+              null,
+              null,
+              null,
+            )
+          ) {
+            const amount = _n(1n)
+            const player = _checked_ref(
+              event,
+              'participants.credited_batter_id',
+              'string',
+              true,
+              null,
+              null,
+              null,
+            )
+            if (amount > 0n && typeof player !== 'string') missing = true
+            else if (amount > 0n && typeof player === 'string') {
+              quantity += amount
+              _appendCredit(credits, player, amount)
+            }
+          }
+          metrics['k'] = missing
+            ? _missing('MISSING_ATTRIBUTION')
+            : {
+                state: 'available',
+                value: formatCount(quantity),
+                display: formatCount(quantity),
+                reason: null,
+                credits,
+              }
+        }
+      }
+    } catch (error) {
+      if (
+        requestedMetrics === undefined ||
+        !(error instanceof MissingProjectionField)
+      )
+        throw error
+      metrics['k'] = _missing()
+    }
+    try {
+      if (requestedMetrics === undefined || requestedMetrics.includes('sh')) {
+        if (!(
+          _checked_ref(event, 'completeness.pa', 'string', false, null, null, [
+            'complete',
+            'unavailable',
+          ]) === 'complete' &&
+          _checked_ref(
+            event,
+            'completeness.participants',
+            'string',
+            false,
+            null,
+            null,
+            ['complete', 'unavailable'],
+          ) === 'complete'
+        ))
+          metrics['sh'] = _missing()
+        else {
+          let quantity = 0n
+          const credits: Credit[] = []
+          let missing = false
+          if (
+            _checked_ref(
+              event,
+              'pa.ended_here',
+              'boolean',
+              false,
+              null,
+              null,
+              null,
+            ) &&
+            _checked_ref(
+              event,
+              'stat_flags.犠打',
+              'boolean',
+              false,
+              null,
+              null,
+              null,
+            )
+          ) {
+            const amount = _n(1n)
+            const player = _checked_ref(
+              event,
+              'participants.credited_batter_id',
+              'string',
+              true,
+              null,
+              null,
+              null,
+            )
+            if (amount > 0n && typeof player !== 'string') missing = true
+            else if (amount > 0n && typeof player === 'string') {
+              quantity += amount
+              _appendCredit(credits, player, amount)
+            }
+          }
+          metrics['sh'] = missing
+            ? _missing('MISSING_ATTRIBUTION')
+            : {
+                state: 'available',
+                value: formatCount(quantity),
+                display: formatCount(quantity),
+                reason: null,
+                credits,
+              }
+        }
+      }
+    } catch (error) {
+      if (
+        requestedMetrics === undefined ||
+        !(error instanceof MissingProjectionField)
+      )
+        throw error
+      metrics['sh'] = _missing()
+    }
+    try {
+      if (requestedMetrics === undefined || requestedMetrics.includes('sf')) {
+        if (!(
+          _checked_ref(event, 'completeness.pa', 'string', false, null, null, [
+            'complete',
+            'unavailable',
+          ]) === 'complete' &&
+          _checked_ref(
+            event,
+            'completeness.participants',
+            'string',
+            false,
+            null,
+            null,
+            ['complete', 'unavailable'],
+          ) === 'complete'
+        ))
+          metrics['sf'] = _missing()
+        else {
+          let quantity = 0n
+          const credits: Credit[] = []
+          let missing = false
+          if (
+            _checked_ref(
+              event,
+              'pa.ended_here',
+              'boolean',
+              false,
+              null,
+              null,
+              null,
+            ) &&
+            _checked_ref(
+              event,
+              'stat_flags.犠飛',
+              'boolean',
+              false,
+              null,
+              null,
+              null,
+            )
+          ) {
+            const amount = _n(1n)
+            const player = _checked_ref(
+              event,
+              'participants.credited_batter_id',
+              'string',
+              true,
+              null,
+              null,
+              null,
+            )
+            if (amount > 0n && typeof player !== 'string') missing = true
+            else if (amount > 0n && typeof player === 'string') {
+              quantity += amount
+              _appendCredit(credits, player, amount)
+            }
+          }
+          metrics['sf'] = missing
+            ? _missing('MISSING_ATTRIBUTION')
+            : {
+                state: 'available',
+                value: formatCount(quantity),
+                display: formatCount(quantity),
+                reason: null,
+                credits,
+              }
+        }
+      }
+    } catch (error) {
+      if (
+        requestedMetrics === undefined ||
+        !(error instanceof MissingProjectionField)
+      )
+        throw error
+      metrics['sf'] = _missing()
+    }
+    try {
+      if (
+        requestedMetrics === undefined ||
+        requestedMetrics.includes('catcher_interference_reached')
+      ) {
+        if (!(
+          _checked_ref(event, 'completeness.pa', 'string', false, null, null, [
+            'complete',
+            'unavailable',
+          ]) === 'complete' &&
+          _checked_ref(
+            event,
+            'completeness.participants',
+            'string',
+            false,
+            null,
+            null,
+            ['complete', 'unavailable'],
+          ) === 'complete'
+        ))
+          metrics['catcher_interference_reached'] = _missing()
+        else {
+          let quantity = 0n
+          const credits: Credit[] = []
+          let missing = false
+          if (
+            _checked_ref(
+              event,
+              'pa.ended_here',
+              'boolean',
+              false,
+              null,
+              null,
+              null,
+            ) &&
+            _checked_ref(
+              event,
+              'stat_flags.打撃妨害出塁',
+              'boolean',
+              false,
+              null,
+              null,
+              null,
+            )
+          ) {
+            const amount = _n(1n)
+            const player = _checked_ref(
+              event,
+              'participants.credited_batter_id',
+              'string',
+              true,
+              null,
+              null,
+              null,
+            )
+            if (amount > 0n && typeof player !== 'string') missing = true
+            else if (amount > 0n && typeof player === 'string') {
+              quantity += amount
+              _appendCredit(credits, player, amount)
+            }
+          }
+          metrics['catcher_interference_reached'] = missing
+            ? _missing('MISSING_ATTRIBUTION')
+            : {
+                state: 'available',
+                value: formatCount(quantity),
+                display: formatCount(quantity),
+                reason: null,
+                credits,
+              }
+        }
+      }
+    } catch (error) {
+      if (
+        requestedMetrics === undefined ||
+        !(error instanceof MissingProjectionField)
+      )
+        throw error
+      metrics['catcher_interference_reached'] = _missing()
+    }
+    try {
+      if (
+        requestedMetrics === undefined ||
+        requestedMetrics.includes('runner_interference_reached')
+      ) {
+        if (!(
+          _checked_ref(event, 'completeness.pa', 'string', false, null, null, [
+            'complete',
+            'unavailable',
+          ]) === 'complete' &&
+          _checked_ref(
+            event,
+            'completeness.participants',
+            'string',
+            false,
+            null,
+            null,
+            ['complete', 'unavailable'],
+          ) === 'complete'
+        ))
+          metrics['runner_interference_reached'] = _missing()
+        else {
+          let quantity = 0n
+          const credits: Credit[] = []
+          let missing = false
+          if (
+            _checked_ref(
+              event,
+              'pa.ended_here',
+              'boolean',
+              false,
+              null,
+              null,
+              null,
+            ) &&
+            _checked_ref(
+              event,
+              'stat_flags.走塁妨害出塁',
+              'boolean',
+              false,
+              null,
+              null,
+              null,
+            )
+          ) {
+            const amount = _n(1n)
+            const player = _checked_ref(
+              event,
+              'participants.credited_batter_id',
+              'string',
+              true,
+              null,
+              null,
+              null,
+            )
+            if (amount > 0n && typeof player !== 'string') missing = true
+            else if (amount > 0n && typeof player === 'string') {
+              quantity += amount
+              _appendCredit(credits, player, amount)
+            }
+          }
+          metrics['runner_interference_reached'] = missing
+            ? _missing('MISSING_ATTRIBUTION')
+            : {
+                state: 'available',
+                value: formatCount(quantity),
+                display: formatCount(quantity),
+                reason: null,
+                credits,
+              }
+        }
+      }
+    } catch (error) {
+      if (
+        requestedMetrics === undefined ||
+        !(error instanceof MissingProjectionField)
+      )
+        throw error
+      metrics['runner_interference_reached'] = _missing()
+    }
+    try {
+      if (
+        requestedMetrics === undefined ||
+        requestedMetrics.includes('doubles')
+      ) {
+        if (!(
+          _checked_ref(event, 'completeness.pa', 'string', false, null, null, [
+            'complete',
+            'unavailable',
+          ]) === 'complete' &&
+          _checked_ref(
+            event,
+            'completeness.participants',
+            'string',
+            false,
+            null,
+            null,
+            ['complete', 'unavailable'],
+          ) === 'complete'
+        ))
+          metrics['doubles'] = _missing()
+        else {
+          let quantity = 0n
+          const credits: Credit[] = []
+          let missing = false
+          if (
+            _checked_ref(
+              event,
+              'pa.ended_here',
+              'boolean',
+              false,
+              null,
+              null,
+              null,
+            ) &&
+            _checked_ref(
+              event,
+              'stat_flags.安打',
+              'boolean',
+              false,
+              null,
+              null,
+              null,
+            ) &&
+            _checked_ref(event, 'pa.hit_kind', 'string', false, null, null, [
+              'none',
+              'single',
+              'double',
+              'triple',
+              'home_run',
+            ]) === 'double'
+          ) {
+            const amount = _n(1n)
+            const player = _checked_ref(
+              event,
+              'participants.credited_batter_id',
+              'string',
+              true,
+              null,
+              null,
+              null,
+            )
+            if (amount > 0n && typeof player !== 'string') missing = true
+            else if (amount > 0n && typeof player === 'string') {
+              quantity += amount
+              _appendCredit(credits, player, amount)
+            }
+          }
+          metrics['doubles'] = missing
+            ? _missing('MISSING_ATTRIBUTION')
+            : {
+                state: 'available',
+                value: formatCount(quantity),
+                display: formatCount(quantity),
+                reason: null,
+                credits,
+              }
+        }
+      }
+    } catch (error) {
+      if (
+        requestedMetrics === undefined ||
+        !(error instanceof MissingProjectionField)
+      )
+        throw error
+      metrics['doubles'] = _missing()
+    }
+    try {
+      if (
+        requestedMetrics === undefined ||
+        requestedMetrics.includes('triples')
+      ) {
+        if (!(
+          _checked_ref(event, 'completeness.pa', 'string', false, null, null, [
+            'complete',
+            'unavailable',
+          ]) === 'complete' &&
+          _checked_ref(
+            event,
+            'completeness.participants',
+            'string',
+            false,
+            null,
+            null,
+            ['complete', 'unavailable'],
+          ) === 'complete'
+        ))
+          metrics['triples'] = _missing()
+        else {
+          let quantity = 0n
+          const credits: Credit[] = []
+          let missing = false
+          if (
+            _checked_ref(
+              event,
+              'pa.ended_here',
+              'boolean',
+              false,
+              null,
+              null,
+              null,
+            ) &&
+            _checked_ref(
+              event,
+              'stat_flags.安打',
+              'boolean',
+              false,
+              null,
+              null,
+              null,
+            ) &&
+            _checked_ref(event, 'pa.hit_kind', 'string', false, null, null, [
+              'none',
+              'single',
+              'double',
+              'triple',
+              'home_run',
+            ]) === 'triple'
+          ) {
+            const amount = _n(1n)
+            const player = _checked_ref(
+              event,
+              'participants.credited_batter_id',
+              'string',
+              true,
+              null,
+              null,
+              null,
+            )
+            if (amount > 0n && typeof player !== 'string') missing = true
+            else if (amount > 0n && typeof player === 'string') {
+              quantity += amount
+              _appendCredit(credits, player, amount)
+            }
+          }
+          metrics['triples'] = missing
+            ? _missing('MISSING_ATTRIBUTION')
+            : {
+                state: 'available',
+                value: formatCount(quantity),
+                display: formatCount(quantity),
+                reason: null,
+                credits,
+              }
+        }
+      }
+    } catch (error) {
+      if (
+        requestedMetrics === undefined ||
+        !(error instanceof MissingProjectionField)
+      )
+        throw error
+      metrics['triples'] = _missing()
+    }
+    try {
+      if (
+        requestedMetrics === undefined ||
+        requestedMetrics.includes('total_bases')
+      ) {
+        if (!(
+          _checked_ref(event, 'completeness.pa', 'string', false, null, null, [
+            'complete',
+            'unavailable',
+          ]) === 'complete' &&
+          _checked_ref(
+            event,
+            'completeness.participants',
+            'string',
+            false,
+            null,
+            null,
+            ['complete', 'unavailable'],
+          ) === 'complete'
+        ))
+          metrics['total_bases'] = _missing()
+        else {
+          let quantity = 0n
+          const credits: Credit[] = []
+          let missing = false
+          if (
+            _checked_ref(
+              event,
+              'pa.ended_here',
+              'boolean',
+              false,
+              null,
+              null,
+              null,
+            ) &&
+            _checked_ref(
+              event,
+              'stat_flags.塁打',
+              'boolean',
+              false,
+              null,
+              null,
+              null,
+            )
+          ) {
+            const amount = _n(
+              _lookup(
+                { none: 0n, single: 1n, double: 2n, triple: 3n, home_run: 4n },
+                _checked_ref(
+                  event,
+                  'pa.hit_kind',
+                  'string',
+                  false,
+                  null,
+                  null,
+                  ['none', 'single', 'double', 'triple', 'home_run'],
+                ),
+              ),
+            )
+            const player = _checked_ref(
+              event,
+              'participants.credited_batter_id',
+              'string',
+              true,
+              null,
+              null,
+              null,
+            )
+            if (amount > 0n && typeof player !== 'string') missing = true
+            else if (amount > 0n && typeof player === 'string') {
+              quantity += amount
+              _appendCredit(credits, player, amount)
+            }
+          }
+          metrics['total_bases'] = missing
+            ? _missing('MISSING_ATTRIBUTION')
+            : {
+                state: 'available',
+                value: formatCount(quantity),
+                display: formatCount(quantity),
+                reason: null,
+                credits,
+              }
+        }
+      }
+    } catch (error) {
+      if (
+        requestedMetrics === undefined ||
+        !(error instanceof MissingProjectionField)
+      )
+        throw error
+      metrics['total_bases'] = _missing()
+    }
+    try {
+      if (requestedMetrics === undefined || requestedMetrics.includes('runs')) {
+        if (
+          !(
+            _checked_ref(
+              event,
+              'completeness.runs_rbi',
+              'string',
+              false,
+              null,
+              null,
+              ['complete', 'unavailable'],
+            ) === 'complete'
+          )
+        )
+          metrics['runs'] = _missing()
+        else {
+          let quantity = 0n
+          const credits: Credit[] = []
+          let missing = false
+          const collection = _p(event, 'runner_scores')
+          if (collection === null) missing = true
+          else {
+            if (!Array.isArray(collection) || collection.length > 4)
+              throw new Error('collection型違い')
+            for (const item of collection) {
+              if (
+                _checked_ref(
+                  event,
+                  'stat_flags.得点',
+                  'boolean',
+                  false,
+                  null,
+                  null,
+                  null,
+                ) &&
+                _checked_ref(
+                  item,
+                  'valid_run',
+                  'boolean',
+                  false,
+                  null,
+                  null,
+                  null,
+                )
+              ) {
+                const amount = _n(1n)
+                const player = _checked_ref(
+                  item,
+                  'runner_id',
+                  'string',
+                  false,
+                  null,
+                  null,
+                  null,
+                )
+                if (amount > 0n && typeof player !== 'string') missing = true
+                else if (amount > 0n && typeof player === 'string') {
+                  quantity += amount
+                  _appendCredit(credits, player, amount)
+                }
               }
             }
           }
+          metrics['runs'] = missing
+            ? _missing('MISSING_ATTRIBUTION')
+            : {
+                state: 'available',
+                value: formatCount(quantity),
+                display: formatCount(quantity),
+                reason: null,
+                credits,
+              }
         }
-        metrics['runs'] = missing
-          ? _missing('MISSING_ATTRIBUTION')
-          : {
-              state: 'available',
-              value: formatCount(quantity),
-              display: formatCount(quantity),
-              reason: null,
-              credits,
-            }
       }
+    } catch (error) {
+      if (
+        requestedMetrics === undefined ||
+        !(error instanceof MissingProjectionField)
+      )
+        throw error
+      metrics['runs'] = _missing()
     }
-    {
-      if (!(_p(event, 'completeness.runs_rbi') === 'complete'))
-        metrics['rbi'] = _missing()
-      else {
-        let quantity = 0n
-        const credits: Credit[] = []
-        let missing = false
-        const collection = _p(event, 'runner_scores')
-        if (collection === null) missing = true
+    try {
+      if (requestedMetrics === undefined || requestedMetrics.includes('rbi')) {
+        if (
+          !(
+            _checked_ref(
+              event,
+              'completeness.runs_rbi',
+              'string',
+              false,
+              null,
+              null,
+              ['complete', 'unavailable'],
+            ) === 'complete'
+          )
+        )
+          metrics['rbi'] = _missing()
         else {
-          if (!Array.isArray(collection)) throw new Error('collection型違い')
-          for (const item of collection) {
-            if (
-              _p(event, 'stat_flags.打点') &&
-              _p(item, 'valid_run') &&
-              _p(item, 'rbi_credited')
-            ) {
-              const amount = _n(1n)
-              const player = _p(item, 'rbi_batter_id')
-              if (amount > 0n && typeof player !== 'string') missing = true
-              else if (amount > 0n && typeof player === 'string') {
-                quantity += amount
-                _appendCredit(credits, player, amount)
+          let quantity = 0n
+          const credits: Credit[] = []
+          let missing = false
+          const collection = _p(event, 'runner_scores')
+          if (collection === null) missing = true
+          else {
+            if (!Array.isArray(collection) || collection.length > 4)
+              throw new Error('collection型違い')
+            for (const item of collection) {
+              if (
+                _checked_ref(
+                  event,
+                  'stat_flags.打点',
+                  'boolean',
+                  false,
+                  null,
+                  null,
+                  null,
+                ) &&
+                _checked_ref(
+                  item,
+                  'valid_run',
+                  'boolean',
+                  false,
+                  null,
+                  null,
+                  null,
+                ) &&
+                _checked_ref(
+                  item,
+                  'rbi_credited',
+                  'boolean',
+                  false,
+                  null,
+                  null,
+                  null,
+                )
+              ) {
+                const amount = _n(1n)
+                const player = _checked_ref(
+                  item,
+                  'rbi_batter_id',
+                  'string',
+                  true,
+                  null,
+                  null,
+                  null,
+                )
+                if (amount > 0n && typeof player !== 'string') missing = true
+                else if (amount > 0n && typeof player === 'string') {
+                  quantity += amount
+                  _appendCredit(credits, player, amount)
+                }
               }
             }
           }
+          metrics['rbi'] = missing
+            ? _missing('MISSING_ATTRIBUTION')
+            : {
+                state: 'available',
+                value: formatCount(quantity),
+                display: formatCount(quantity),
+                reason: null,
+                credits,
+              }
         }
-        metrics['rbi'] = missing
-          ? _missing('MISSING_ATTRIBUTION')
-          : {
-              state: 'available',
-              value: formatCount(quantity),
-              display: formatCount(quantity),
-              reason: null,
-              credits,
-            }
       }
+    } catch (error) {
+      if (
+        requestedMetrics === undefined ||
+        !(error instanceof MissingProjectionField)
+      )
+        throw error
+      metrics['rbi'] = _missing()
     }
-    {
-      if (!(_p(event, 'completeness.steals') === 'complete'))
-        metrics['stolen_bases'] = _missing()
-      else {
-        let quantity = 0n
-        const credits: Credit[] = []
-        let missing = false
-        const collection = _p(event, 'steal_attempts')
-        if (collection === null) missing = true
+    try {
+      if (
+        requestedMetrics === undefined ||
+        requestedMetrics.includes('stolen_bases')
+      ) {
+        if (
+          !(
+            _checked_ref(
+              event,
+              'completeness.steals',
+              'string',
+              false,
+              null,
+              null,
+              ['complete', 'unavailable'],
+            ) === 'complete'
+          )
+        )
+          metrics['stolen_bases'] = _missing()
         else {
-          if (!Array.isArray(collection)) throw new Error('collection型違い')
-          for (const item of collection) {
-            if (_p(item, 'attempted') && _p(item, 'successful')) {
-              const amount = _n(1n)
-              const player = _p(item, 'runner_id')
-              if (amount > 0n && typeof player !== 'string') missing = true
-              else if (amount > 0n && typeof player === 'string') {
-                quantity += amount
-                _appendCredit(credits, player, amount)
+          let quantity = 0n
+          const credits: Credit[] = []
+          let missing = false
+          const collection = _p(event, 'steal_attempts')
+          if (collection === null) missing = true
+          else {
+            if (!Array.isArray(collection) || collection.length > 3)
+              throw new Error('collection型違い')
+            for (const item of collection) {
+              if (
+                _checked_ref(
+                  item,
+                  'attempted',
+                  'boolean',
+                  false,
+                  null,
+                  null,
+                  null,
+                ) &&
+                _checked_ref(
+                  item,
+                  'successful',
+                  'boolean',
+                  false,
+                  null,
+                  null,
+                  null,
+                )
+              ) {
+                const amount = _n(1n)
+                const player = _checked_ref(
+                  item,
+                  'runner_id',
+                  'string',
+                  false,
+                  null,
+                  null,
+                  null,
+                )
+                if (amount > 0n && typeof player !== 'string') missing = true
+                else if (amount > 0n && typeof player === 'string') {
+                  quantity += amount
+                  _appendCredit(credits, player, amount)
+                }
               }
             }
           }
+          metrics['stolen_bases'] = missing
+            ? _missing('MISSING_ATTRIBUTION')
+            : {
+                state: 'available',
+                value: formatCount(quantity),
+                display: formatCount(quantity),
+                reason: null,
+                credits,
+              }
         }
-        metrics['stolen_bases'] = missing
-          ? _missing('MISSING_ATTRIBUTION')
-          : {
-              state: 'available',
-              value: formatCount(quantity),
-              display: formatCount(quantity),
-              reason: null,
-              credits,
-            }
       }
+    } catch (error) {
+      if (
+        requestedMetrics === undefined ||
+        !(error instanceof MissingProjectionField)
+      )
+        throw error
+      metrics['stolen_bases'] = _missing()
     }
-    {
-      if (!(
-        _p(event, 'completeness.outs') === 'complete' &&
-        _p(event, 'completeness.participants') === 'complete'
-      ))
-        metrics['pitching_outs'] = _missing()
-      else {
-        let quantity = 0n
-        const credits: Credit[] = []
-        let missing = false
-        if (_p(event, 'stat_flags.投球回算入アウト')) {
-          const amount = _n(_n(_p(event, 'out_effect.effective_count')))
-          const player = _p(event, 'participants.outs_pitcher_id')
-          if (amount > 0n && typeof player !== 'string') missing = true
-          else if (amount > 0n && typeof player === 'string') {
-            quantity += amount
-            _appendCredit(credits, player, amount)
-          }
-        }
-        metrics['pitching_outs'] = missing
-          ? _missing('MISSING_ATTRIBUTION')
-          : {
-              state: 'available',
-              value: formatCount(quantity),
-              display: formatCount(quantity),
-              reason: null,
-              credits,
-            }
-      }
-    }
-    {
-      if (!(_p(event, 'completeness.participants') === 'complete'))
-        metrics['pitcher_k'] = _missing()
-      else {
-        let quantity = 0n
-        const credits: Credit[] = []
-        let missing = false
-        if (_p(event, 'stat_flags.奪三振')) {
-          const amount = _n(1n)
-          const player = _p(event, 'participants.strikeout_pitcher_id')
-          if (amount > 0n && typeof player !== 'string') missing = true
-          else if (amount > 0n && typeof player === 'string') {
-            quantity += amount
-            _appendCredit(credits, player, amount)
-          }
-        }
-        metrics['pitcher_k'] = missing
-          ? _missing('MISSING_ATTRIBUTION')
-          : {
-              state: 'available',
-              value: formatCount(quantity),
-              display: formatCount(quantity),
-              reason: null,
-              credits,
-            }
-      }
-    }
-    {
-      if (!(_p(event, 'completeness.participants') === 'complete'))
-        metrics['pitcher_bb'] = _missing()
-      else {
-        let quantity = 0n
-        const credits: Credit[] = []
-        let missing = false
-        if (_p(event, 'stat_flags.与四球')) {
-          const amount = _n(1n)
-          const player = _p(event, 'participants.walk_pitcher_id')
-          if (amount > 0n && typeof player !== 'string') missing = true
-          else if (amount > 0n && typeof player === 'string') {
-            quantity += amount
-            _appendCredit(credits, player, amount)
-          }
-        }
-        metrics['pitcher_bb'] = missing
-          ? _missing('MISSING_ATTRIBUTION')
-          : {
-              state: 'available',
-              value: formatCount(quantity),
-              display: formatCount(quantity),
-              reason: null,
-              credits,
-            }
-      }
-    }
-    {
-      if (!(_p(event, 'completeness.participants') === 'complete'))
-        metrics['pitcher_hbp'] = _missing()
-      else {
-        let quantity = 0n
-        const credits: Credit[] = []
-        let missing = false
-        if (_p(event, 'stat_flags.与死球')) {
-          const amount = _n(1n)
-          const player = _p(event, 'participants.hbp_pitcher_id')
-          if (amount > 0n && typeof player !== 'string') missing = true
-          else if (amount > 0n && typeof player === 'string') {
-            quantity += amount
-            _appendCredit(credits, player, amount)
-          }
-        }
-        metrics['pitcher_hbp'] = missing
-          ? _missing('MISSING_ATTRIBUTION')
-          : {
-              state: 'available',
-              value: formatCount(quantity),
-              display: formatCount(quantity),
-              reason: null,
-              credits,
-            }
-      }
-    }
-    {
-      if (!(_p(event, 'completeness.participants') === 'complete'))
-        metrics['hits_allowed'] = _missing()
-      else {
-        let quantity = 0n
-        const credits: Credit[] = []
-        let missing = false
-        if (_p(event, 'stat_flags.被安打')) {
-          const amount = _n(1n)
-          const player = _p(event, 'participants.hit_pitcher_id')
-          if (amount > 0n && typeof player !== 'string') missing = true
-          else if (amount > 0n && typeof player === 'string') {
-            quantity += amount
-            _appendCredit(credits, player, amount)
-          }
-        }
-        metrics['hits_allowed'] = missing
-          ? _missing('MISSING_ATTRIBUTION')
-          : {
-              state: 'available',
-              value: formatCount(quantity),
-              display: formatCount(quantity),
-              reason: null,
-              credits,
-            }
-      }
-    }
-    {
-      if (!(_p(event, 'completeness.participants') === 'complete'))
-        metrics['home_runs_allowed'] = _missing()
-      else {
-        let quantity = 0n
-        const credits: Credit[] = []
-        let missing = false
-        if (_p(event, 'stat_flags.被本塁打')) {
-          const amount = _n(1n)
-          const player = _p(event, 'participants.home_run_pitcher_id')
-          if (amount > 0n && typeof player !== 'string') missing = true
-          else if (amount > 0n && typeof player === 'string') {
-            quantity += amount
-            _appendCredit(credits, player, amount)
-          }
-        }
-        metrics['home_runs_allowed'] = missing
-          ? _missing('MISSING_ATTRIBUTION')
-          : {
-              state: 'available',
-              value: formatCount(quantity),
-              display: formatCount(quantity),
-              reason: null,
-              credits,
-            }
-      }
-    }
-    {
-      if (!(_p(event, 'completeness.participants') === 'complete'))
-        metrics['fielding_errors'] = _missing()
-      else {
-        let quantity = 0n
-        const credits: Credit[] = []
-        let missing = false
-        if (_p(event, 'stat_flags.失策')) {
-          const amount = _n(1n)
-          const player = _p(event, 'participants.error_fielder_id')
-          if (amount > 0n && typeof player !== 'string') missing = true
-          else if (amount > 0n && typeof player === 'string') {
-            quantity += amount
-            _appendCredit(credits, player, amount)
-          }
-        }
-        metrics['fielding_errors'] = missing
-          ? _missing('MISSING_ATTRIBUTION')
-          : {
-              state: 'available',
-              value: formatCount(quantity),
-              display: formatCount(quantity),
-              reason: null,
-              credits,
-            }
-      }
-    }
-    {
-      if (!(_p(event, 'completeness.runs_rbi') === 'complete'))
-        metrics['runs_allowed'] = _missing()
-      else {
-        let quantity = 0n
-        const credits: Credit[] = []
-        let missing = false
-        const collection = _p(event, 'runner_scores')
-        if (collection === null) missing = true
+    try {
+      if (
+        requestedMetrics === undefined ||
+        requestedMetrics.includes('pitching_outs')
+      ) {
+        if (!(
+          _checked_ref(
+            event,
+            'completeness.outs',
+            'string',
+            false,
+            null,
+            null,
+            ['complete', 'unavailable'],
+          ) === 'complete' &&
+          _checked_ref(
+            event,
+            'completeness.participants',
+            'string',
+            false,
+            null,
+            null,
+            ['complete', 'unavailable'],
+          ) === 'complete'
+        ))
+          metrics['pitching_outs'] = _missing()
         else {
-          if (!Array.isArray(collection)) throw new Error('collection型違い')
-          for (const item of collection) {
-            if (_p(event, 'stat_flags.失点') && _p(item, 'valid_run')) {
-              const amount = _n(1n)
-              const player = _p(item, 'responsible_pitcher_id')
-              if (amount > 0n && typeof player !== 'string') missing = true
-              else if (amount > 0n && typeof player === 'string') {
-                quantity += amount
-                _appendCredit(credits, player, amount)
+          let quantity = 0n
+          const credits: Credit[] = []
+          let missing = false
+          if (
+            _checked_ref(
+              event,
+              'stat_flags.投球回算入アウト',
+              'boolean',
+              false,
+              null,
+              null,
+              null,
+            )
+          ) {
+            const amount = _n(
+              _n(
+                _checked_ref(
+                  event,
+                  'out_effect.effective_count',
+                  'integer',
+                  true,
+                  '0',
+                  '3',
+                  null,
+                ),
+              ),
+            )
+            const player = _checked_ref(
+              event,
+              'participants.outs_pitcher_id',
+              'string',
+              true,
+              null,
+              null,
+              null,
+            )
+            if (amount > 0n && typeof player !== 'string') missing = true
+            else if (amount > 0n && typeof player === 'string') {
+              quantity += amount
+              _appendCredit(credits, player, amount)
+            }
+          }
+          metrics['pitching_outs'] = missing
+            ? _missing('MISSING_ATTRIBUTION')
+            : {
+                state: 'available',
+                value: formatCount(quantity),
+                display: formatCount(quantity),
+                reason: null,
+                credits,
+              }
+        }
+      }
+    } catch (error) {
+      if (
+        requestedMetrics === undefined ||
+        !(error instanceof MissingProjectionField)
+      )
+        throw error
+      metrics['pitching_outs'] = _missing()
+    }
+    try {
+      if (
+        requestedMetrics === undefined ||
+        requestedMetrics.includes('pitcher_k')
+      ) {
+        if (
+          !(
+            _checked_ref(
+              event,
+              'completeness.participants',
+              'string',
+              false,
+              null,
+              null,
+              ['complete', 'unavailable'],
+            ) === 'complete'
+          )
+        )
+          metrics['pitcher_k'] = _missing()
+        else {
+          let quantity = 0n
+          const credits: Credit[] = []
+          let missing = false
+          if (
+            _checked_ref(
+              event,
+              'stat_flags.奪三振',
+              'boolean',
+              false,
+              null,
+              null,
+              null,
+            )
+          ) {
+            const amount = _n(1n)
+            const player = _checked_ref(
+              event,
+              'participants.strikeout_pitcher_id',
+              'string',
+              true,
+              null,
+              null,
+              null,
+            )
+            if (amount > 0n && typeof player !== 'string') missing = true
+            else if (amount > 0n && typeof player === 'string') {
+              quantity += amount
+              _appendCredit(credits, player, amount)
+            }
+          }
+          metrics['pitcher_k'] = missing
+            ? _missing('MISSING_ATTRIBUTION')
+            : {
+                state: 'available',
+                value: formatCount(quantity),
+                display: formatCount(quantity),
+                reason: null,
+                credits,
+              }
+        }
+      }
+    } catch (error) {
+      if (
+        requestedMetrics === undefined ||
+        !(error instanceof MissingProjectionField)
+      )
+        throw error
+      metrics['pitcher_k'] = _missing()
+    }
+    try {
+      if (
+        requestedMetrics === undefined ||
+        requestedMetrics.includes('pitcher_bb')
+      ) {
+        if (
+          !(
+            _checked_ref(
+              event,
+              'completeness.participants',
+              'string',
+              false,
+              null,
+              null,
+              ['complete', 'unavailable'],
+            ) === 'complete'
+          )
+        )
+          metrics['pitcher_bb'] = _missing()
+        else {
+          let quantity = 0n
+          const credits: Credit[] = []
+          let missing = false
+          if (
+            _checked_ref(
+              event,
+              'stat_flags.与四球',
+              'boolean',
+              false,
+              null,
+              null,
+              null,
+            )
+          ) {
+            const amount = _n(1n)
+            const player = _checked_ref(
+              event,
+              'participants.walk_pitcher_id',
+              'string',
+              true,
+              null,
+              null,
+              null,
+            )
+            if (amount > 0n && typeof player !== 'string') missing = true
+            else if (amount > 0n && typeof player === 'string') {
+              quantity += amount
+              _appendCredit(credits, player, amount)
+            }
+          }
+          metrics['pitcher_bb'] = missing
+            ? _missing('MISSING_ATTRIBUTION')
+            : {
+                state: 'available',
+                value: formatCount(quantity),
+                display: formatCount(quantity),
+                reason: null,
+                credits,
+              }
+        }
+      }
+    } catch (error) {
+      if (
+        requestedMetrics === undefined ||
+        !(error instanceof MissingProjectionField)
+      )
+        throw error
+      metrics['pitcher_bb'] = _missing()
+    }
+    try {
+      if (
+        requestedMetrics === undefined ||
+        requestedMetrics.includes('pitcher_hbp')
+      ) {
+        if (
+          !(
+            _checked_ref(
+              event,
+              'completeness.participants',
+              'string',
+              false,
+              null,
+              null,
+              ['complete', 'unavailable'],
+            ) === 'complete'
+          )
+        )
+          metrics['pitcher_hbp'] = _missing()
+        else {
+          let quantity = 0n
+          const credits: Credit[] = []
+          let missing = false
+          if (
+            _checked_ref(
+              event,
+              'stat_flags.与死球',
+              'boolean',
+              false,
+              null,
+              null,
+              null,
+            )
+          ) {
+            const amount = _n(1n)
+            const player = _checked_ref(
+              event,
+              'participants.hbp_pitcher_id',
+              'string',
+              true,
+              null,
+              null,
+              null,
+            )
+            if (amount > 0n && typeof player !== 'string') missing = true
+            else if (amount > 0n && typeof player === 'string') {
+              quantity += amount
+              _appendCredit(credits, player, amount)
+            }
+          }
+          metrics['pitcher_hbp'] = missing
+            ? _missing('MISSING_ATTRIBUTION')
+            : {
+                state: 'available',
+                value: formatCount(quantity),
+                display: formatCount(quantity),
+                reason: null,
+                credits,
+              }
+        }
+      }
+    } catch (error) {
+      if (
+        requestedMetrics === undefined ||
+        !(error instanceof MissingProjectionField)
+      )
+        throw error
+      metrics['pitcher_hbp'] = _missing()
+    }
+    try {
+      if (
+        requestedMetrics === undefined ||
+        requestedMetrics.includes('hits_allowed')
+      ) {
+        if (
+          !(
+            _checked_ref(
+              event,
+              'completeness.participants',
+              'string',
+              false,
+              null,
+              null,
+              ['complete', 'unavailable'],
+            ) === 'complete'
+          )
+        )
+          metrics['hits_allowed'] = _missing()
+        else {
+          let quantity = 0n
+          const credits: Credit[] = []
+          let missing = false
+          if (
+            _checked_ref(
+              event,
+              'stat_flags.被安打',
+              'boolean',
+              false,
+              null,
+              null,
+              null,
+            )
+          ) {
+            const amount = _n(1n)
+            const player = _checked_ref(
+              event,
+              'participants.hit_pitcher_id',
+              'string',
+              true,
+              null,
+              null,
+              null,
+            )
+            if (amount > 0n && typeof player !== 'string') missing = true
+            else if (amount > 0n && typeof player === 'string') {
+              quantity += amount
+              _appendCredit(credits, player, amount)
+            }
+          }
+          metrics['hits_allowed'] = missing
+            ? _missing('MISSING_ATTRIBUTION')
+            : {
+                state: 'available',
+                value: formatCount(quantity),
+                display: formatCount(quantity),
+                reason: null,
+                credits,
+              }
+        }
+      }
+    } catch (error) {
+      if (
+        requestedMetrics === undefined ||
+        !(error instanceof MissingProjectionField)
+      )
+        throw error
+      metrics['hits_allowed'] = _missing()
+    }
+    try {
+      if (
+        requestedMetrics === undefined ||
+        requestedMetrics.includes('home_runs_allowed')
+      ) {
+        if (
+          !(
+            _checked_ref(
+              event,
+              'completeness.participants',
+              'string',
+              false,
+              null,
+              null,
+              ['complete', 'unavailable'],
+            ) === 'complete'
+          )
+        )
+          metrics['home_runs_allowed'] = _missing()
+        else {
+          let quantity = 0n
+          const credits: Credit[] = []
+          let missing = false
+          if (
+            _checked_ref(
+              event,
+              'stat_flags.被本塁打',
+              'boolean',
+              false,
+              null,
+              null,
+              null,
+            )
+          ) {
+            const amount = _n(1n)
+            const player = _checked_ref(
+              event,
+              'participants.home_run_pitcher_id',
+              'string',
+              true,
+              null,
+              null,
+              null,
+            )
+            if (amount > 0n && typeof player !== 'string') missing = true
+            else if (amount > 0n && typeof player === 'string') {
+              quantity += amount
+              _appendCredit(credits, player, amount)
+            }
+          }
+          metrics['home_runs_allowed'] = missing
+            ? _missing('MISSING_ATTRIBUTION')
+            : {
+                state: 'available',
+                value: formatCount(quantity),
+                display: formatCount(quantity),
+                reason: null,
+                credits,
+              }
+        }
+      }
+    } catch (error) {
+      if (
+        requestedMetrics === undefined ||
+        !(error instanceof MissingProjectionField)
+      )
+        throw error
+      metrics['home_runs_allowed'] = _missing()
+    }
+    try {
+      if (
+        requestedMetrics === undefined ||
+        requestedMetrics.includes('fielding_errors')
+      ) {
+        if (
+          !(
+            _checked_ref(
+              event,
+              'completeness.participants',
+              'string',
+              false,
+              null,
+              null,
+              ['complete', 'unavailable'],
+            ) === 'complete'
+          )
+        )
+          metrics['fielding_errors'] = _missing()
+        else {
+          let quantity = 0n
+          const credits: Credit[] = []
+          let missing = false
+          if (
+            _checked_ref(
+              event,
+              'stat_flags.失策',
+              'boolean',
+              false,
+              null,
+              null,
+              null,
+            )
+          ) {
+            const amount = _n(1n)
+            const player = _checked_ref(
+              event,
+              'participants.error_fielder_id',
+              'string',
+              true,
+              null,
+              null,
+              null,
+            )
+            if (amount > 0n && typeof player !== 'string') missing = true
+            else if (amount > 0n && typeof player === 'string') {
+              quantity += amount
+              _appendCredit(credits, player, amount)
+            }
+          }
+          metrics['fielding_errors'] = missing
+            ? _missing('MISSING_ATTRIBUTION')
+            : {
+                state: 'available',
+                value: formatCount(quantity),
+                display: formatCount(quantity),
+                reason: null,
+                credits,
+              }
+        }
+      }
+    } catch (error) {
+      if (
+        requestedMetrics === undefined ||
+        !(error instanceof MissingProjectionField)
+      )
+        throw error
+      metrics['fielding_errors'] = _missing()
+    }
+    try {
+      if (
+        requestedMetrics === undefined ||
+        requestedMetrics.includes('runs_allowed')
+      ) {
+        if (
+          !(
+            _checked_ref(
+              event,
+              'completeness.runs_rbi',
+              'string',
+              false,
+              null,
+              null,
+              ['complete', 'unavailable'],
+            ) === 'complete'
+          )
+        )
+          metrics['runs_allowed'] = _missing()
+        else {
+          let quantity = 0n
+          const credits: Credit[] = []
+          let missing = false
+          const collection = _p(event, 'runner_scores')
+          if (collection === null) missing = true
+          else {
+            if (!Array.isArray(collection) || collection.length > 4)
+              throw new Error('collection型違い')
+            for (const item of collection) {
+              if (
+                _checked_ref(
+                  event,
+                  'stat_flags.失点',
+                  'boolean',
+                  false,
+                  null,
+                  null,
+                  null,
+                ) &&
+                _checked_ref(
+                  item,
+                  'valid_run',
+                  'boolean',
+                  false,
+                  null,
+                  null,
+                  null,
+                )
+              ) {
+                const amount = _n(1n)
+                const player = _checked_ref(
+                  item,
+                  'responsible_pitcher_id',
+                  'string',
+                  false,
+                  null,
+                  null,
+                  null,
+                )
+                if (amount > 0n && typeof player !== 'string') missing = true
+                else if (amount > 0n && typeof player === 'string') {
+                  quantity += amount
+                  _appendCredit(credits, player, amount)
+                }
               }
             }
           }
+          metrics['runs_allowed'] = missing
+            ? _missing('MISSING_ATTRIBUTION')
+            : {
+                state: 'available',
+                value: formatCount(quantity),
+                display: formatCount(quantity),
+                reason: null,
+                credits,
+              }
         }
-        metrics['runs_allowed'] = missing
-          ? _missing('MISSING_ATTRIBUTION')
-          : {
-              state: 'available',
-              value: formatCount(quantity),
-              display: formatCount(quantity),
-              reason: null,
-              credits,
-            }
       }
+    } catch (error) {
+      if (
+        requestedMetrics === undefined ||
+        !(error instanceof MissingProjectionField)
+      )
+        throw error
+      metrics['runs_allowed'] = _missing()
     }
   }
   let paRow: Record<string, unknown> | null = null
   if (
+    requestedMetrics === undefined &&
     selected &&
-    _p(event, 'pa.ended_here') &&
-    _p(event, 'completeness.pa') === 'complete'
+    _checked_ref(event, 'pa.ended_here', 'boolean', false, null, null, null) &&
+    _checked_ref(event, 'completeness.pa', 'string', false, null, null, [
+      'complete',
+      'unavailable',
+    ]) === 'complete'
   ) {
     paRow = {
-      pa_id: _p(event, 'pa.pa_id'),
-      batter_id: _p(event, 'participants.credited_batter_id'),
-      ordinal_for_batter: _p(event, 'pa.ordinal_for_batter'),
-      inning: _p(event, 'before.inning'),
-      half: _p(event, 'before.half'),
-      result_display: _p(event, 'pa.result_display'),
-      counts_as_ab: _p(event, 'stat_flags.打数'),
-      hit_kind: _p(event, 'pa.hit_kind'),
-      reached_by: _p(event, 'pa.reached_by'),
+      pa_id: _checked_ref(event, 'pa.pa_id', 'string', true, null, null, null),
+      batter_id: _checked_ref(
+        event,
+        'participants.credited_batter_id',
+        'string',
+        true,
+        null,
+        null,
+        null,
+      ),
+      ordinal_for_batter: _checked_ref(
+        event,
+        'pa.ordinal_for_batter',
+        'string',
+        true,
+        null,
+        null,
+        null,
+      ),
+      inning: _checked_ref(
+        event,
+        'before.inning',
+        'string',
+        false,
+        null,
+        null,
+        null,
+      ),
+      half: _checked_ref(
+        event,
+        'before.half',
+        'string',
+        false,
+        null,
+        null,
+        null,
+      ),
+      result_display: _checked_ref(
+        event,
+        'pa.result_display',
+        'string',
+        true,
+        null,
+        null,
+        null,
+      ),
+      counts_as_ab: _checked_ref(
+        event,
+        'stat_flags.打数',
+        'boolean',
+        false,
+        null,
+        null,
+        null,
+      ),
+      hit_kind: _checked_ref(
+        event,
+        'pa.hit_kind',
+        'string',
+        false,
+        null,
+        null,
+        ['none', 'single', 'double', 'triple', 'home_run'],
+      ),
+      reached_by: _checked_ref(
+        event,
+        'pa.reached_by',
+        'string',
+        false,
+        null,
+        null,
+        null,
+      ),
     }
     paRow['rbi'] = metrics['rbi']!.value
     paRow['rbi_state'] = metrics['rbi']!.state

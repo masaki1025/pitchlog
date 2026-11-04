@@ -125,6 +125,36 @@
         "t6-year-and-raw-type-filters-before-grouping",
         "t6-partial-canonical-fact-not-zero"
       ]
+    },
+    {
+      "id": "stats.canonical-s-membership",
+      "scope": "sql-generation-now-db-execution-pending",
+      "invariant": "independent event/slot/ledger/PlayRow S, exact membership/version/fingerprint; unknown source never becomes empty zero",
+      "caseIds": [
+        "confirmed-before-apply",
+        "correction-replaces-old-contribution",
+        "cancelled-play-excluded"
+      ]
+    },
+    {
+      "id": "stats.projection-missing-not-default",
+      "scope": "actual-python-node-pure",
+      "invariant": "same generated formula, only demanded typed refs; missing field -> source_unavailable, malformed types reject, 23 flags stay closed",
+      "caseIds": [
+        "incomplete-pa-one-pitch",
+        "walk",
+        "strikeout-out"
+      ]
+    },
+    {
+      "id": "stats.series-cas-snapshot",
+      "scope": "code-preparation-formal-scope-db-pending",
+      "invariant": "same-handle game/model/S/revision, COUNT and finite keyset, source/credit append without O(n²) copies; ended content frozen",
+      "caseIds": [
+        "retry-duplicate-source",
+        "two-generations-retain-effective-pitches",
+        "t6-partial-canonical-fact-not-zero"
+      ]
     }
   ],
   "metricIds": [

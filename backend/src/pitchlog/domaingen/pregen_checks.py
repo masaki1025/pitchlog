@@ -678,6 +678,7 @@ def validate_typed_program(program: Mapping[str, Any]) -> None:
         or program.get("kind") != "event-facts"
     ):
         raise ValueError("typed-programの閉キーまたは版が不正")
+    validate_primitive_sql_binding(program["sql"])
     envelope = program["numericEnvelope"]
     if (
         envelope != {"minimum": 0, "maximum": None}
@@ -880,3 +881,47 @@ def validate_typed_program(program: Mapping[str, Any]) -> None:
         infer(expr, {})
     if any(metric not in identifiers for metric in projection["metricFields"].values()):
         raise ValueError("未知のPA共通metric参照")
+
+
+def validate_primitive_sql_binding(binding):
+    """共通Sの固定role/版とSQL識別子を全targetの生成前に閉検査する。"""
+    import re
+
+    roles = {
+        "facts",
+        "versions",
+        "sources",
+        "games",
+        "events",
+        "plays",
+        "slots",
+        "generations",
+        "ledger",
+    }
+    if type(binding) is not dict or set(binding) != roles | {
+        "amountColumn",
+        "metricColumn",
+        "canonicalSelection",
+    }:
+        raise ValueError("SQL bindingの閉キー違反")
+    selector = binding["canonicalSelection"]
+    if (
+        type(selector) is not dict
+        or set(selector) != {"version", "kind"}
+        or type(selector["version"]) is not int
+        or selector != {"version": 1, "kind": "accepted-play-slot-v1"}
+    ):
+        raise ValueError("未登録canonical S選択です")
+    for role in roles:
+        schema = "sync_fence" if role in {"facts", "versions", "sources"} else "public"
+        if (
+            type(binding[role]) is not str
+            or re.fullmatch(schema + r"\.[a-z][a-z0-9_]*", binding[role]) is None
+        ):
+            raise ValueError("SQL relation bindingが不正です")
+    for role in ("amountColumn", "metricColumn"):
+        if (
+            type(binding[role]) is not str
+            or re.fullmatch(r"[a-z][a-z0-9_]*", binding[role]) is None
+        ):
+            raise ValueError("SQL column bindingが不正です")

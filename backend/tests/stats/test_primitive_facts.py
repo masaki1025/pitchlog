@@ -78,7 +78,7 @@ globalThis.__PITCHLOG_GENERATED_WRAPPER__=true;
 const api=require('./target.cjs');
 const fs=require('fs');const input=JSON.parse(fs.readFileSync(0,'utf8'));
 const result=input.map(x=>x.kind==='add'
-  ? api.addCounts(x.left,x.right) : api.eventFacts(x.event));
+  ? api.addCounts(x.left,x.right) : api.eventFacts(x.event,x.requested));
 process.stdout.write(JSON.stringify(result));
 """)
 
@@ -311,3 +311,86 @@ def test_generated_closed_flag_record_rejects_24th_field(py_api, node_api):
         py_api["_pitchlog_generated"](event)
     with pytest.raises(subprocess.CalledProcessError):
         node_api([{"kind": "event", "event": event}])
+
+
+def test_projection_uses_only_demanded_fields_and_preserves_independent_counts(
+    py_api, node_api
+):
+    """同じmodelの有限射影は不要PA値を捏造せず球数を返す。"""
+    source = copy.deepcopy(
+        next(c for c in CASES if c["case_id"] == "incomplete-pa-one-pitch")["input"][
+            "events"
+        ][0]
+    )
+    projected = {
+        k: source[k]
+        for k in ("event_kind", "source", "stat_flags", "participants", "completeness")
+    }
+    projected["participants"] = {
+        "actual_pitcher_id": source["participants"]["actual_pitcher_id"]
+    }
+    projected["completeness"] = {"participants": "complete"}
+    expected = {
+        "state": "available",
+        "value": "1",
+        "display": "1",
+        "reason": None,
+        "credits": [
+            {"player_id": source["participants"]["actual_pitcher_id"], "quantity": "1"}
+        ],
+    }
+    actual = py_api["_pitchlog_generated"](projected, ["pitch_count"])
+    assert actual["metrics"] == {"pitch_count": expected}
+    assert actual["pa_row"] is None
+    assert (
+        node_api([{"kind": "event", "event": projected, "requested": ["pitch_count"]}])[
+            0
+        ]
+        == actual
+    )
+    with pytest.raises(ValueError):
+        py_api["_pitchlog_generated"](projected)
+
+
+def test_projection_matches_full_entrypoint_on_existing_case_inputs(py_api, node_api):
+    """既case入力で全field入口と有限射影の同値を補助比較する。"""
+    commands = []
+    expected = []
+    for case in CASES:
+        if case["input"]["scope"] != "confirmed_game" or case.get(
+            "expected_error"
+        ):
+            continue
+        if (
+            len(case["input"]["events"]) != 1
+            or _provider_fixture_gate(case) is not None
+        ):
+            continue
+        event = case["input"]["events"][0]
+        # 既caseの期待は変更せず、旧比較関数と同じ単遷移算入面を照合する。
+        full = py_api["_pitchlog_generated"](event)
+        for metric, value in full["metrics"].items():
+            actual = py_api["_pitchlog_generated"](event, [metric])
+            assert actual["metrics"] == {metric: value}
+            commands.append({"kind": "event", "event": event, "requested": [metric]})
+            expected.append(actual)
+    assert commands
+    assert node_api(commands) == expected
+
+
+@pytest.mark.parametrize(
+    "requested", [["unknown"], ["pa", "pa"], [False], ["pa"] * 27, "pa"]
+)
+def test_projection_rejects_unknown_duplicate_or_unbounded_ids(
+    py_api, node_api, requested
+):
+    """有限ID射影を未知演算や任意iteratorの入口にしない。"""
+    source = copy.deepcopy(
+        next(c for c in CASES if c["case_id"] == "incomplete-pa-one-pitch")["input"][
+            "events"
+        ][0]
+    )
+    with pytest.raises(ValueError):
+        py_api["_pitchlog_generated"](source, requested)
+    with pytest.raises(subprocess.CalledProcessError):
+        node_api([{"kind": "event", "event": source, "requested": requested}])
