@@ -1,0 +1,2253 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:pitchlog:candidate:primitive-output-v1",
+  "title": "共通T5 count事実/T6十分統計出力候補",
+  "oneOf": [
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "source_snapshot_sha256",
+        "model_sha256",
+        "included_source_event_ids",
+        "totals",
+        "credits",
+        "completed_pa_rows",
+        "pending"
+      ],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": [
+            "available",
+            "partial",
+            "provisional"
+          ]
+        },
+        "source_snapshot_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "model_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "included_source_event_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+          },
+          "maxItems": 150000
+        },
+        "totals": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "pitch_count",
+            "pa",
+            "ab",
+            "h",
+            "doubles",
+            "triples",
+            "hr",
+            "total_bases",
+            "bb",
+            "hbp",
+            "k",
+            "sh",
+            "sf",
+            "catcher_interference_reached",
+            "runner_interference_reached",
+            "runs",
+            "rbi",
+            "stolen_bases",
+            "pitching_outs",
+            "pitcher_k",
+            "pitcher_bb",
+            "pitcher_hbp",
+            "hits_allowed",
+            "home_runs_allowed",
+            "runs_allowed",
+            "fielding_errors"
+          ],
+          "properties": {
+            "pitch_count": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "state",
+                    "value",
+                    "display",
+                    "reason"
+                  ],
+                  "properties": {
+                    "state": {
+                      "const": "available"
+                    },
+                    "value": {
+                      "type": "string",
+                      "pattern": "^(0|[1-9][0-9]*)$",
+                      "maxLength": 128
+                    },
+                    "display": {
+                      "type": "string",
+                      "pattern": "^(0|[1-9][0-9]*)$"
+                    },
+                    "reason": {
+                      "type": "null"
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "state",
+                    "value",
+                    "display",
+                    "reason"
+                  ],
+                  "properties": {
+                    "state": {
+                      "const": "source_unavailable"
+                    },
+                    "value": {
+                      "type": "null"
+                    },
+                    "display": {
+                      "type": "null"
+                    },
+                    "reason": {
+                      "type": "string",
+                      "enum": [
+                        "MISSING_OBSERVATION",
+                        "MISSING_ATTRIBUTION",
+                        "UNSUPPORTED_SOURCE_VARIANT"
+                      ]
+                    }
+                  }
+                }
+              ]
+            },
+            "pa": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "state",
+                    "value",
+                    "display",
+                    "reason"
+                  ],
+                  "properties": {
+                    "state": {
+                      "const": "available"
+                    },
+                    "value": {
+                      "type": "string",
+                      "pattern": "^(0|[1-9][0-9]*)$",
+                      "maxLength": 128
+                    },
+                    "display": {
+                      "type": "string",
+                      "pattern": "^(0|[1-9][0-9]*)$"
+                    },
+                    "reason": {
+                      "type": "null"
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "state",
+                    "value",
+                    "display",
+                    "reason"
+                  ],
+                  "properties": {
+                    "state": {
+                      "const": "source_unavailable"
+                    },
+                    "value": {
+                      "type": "null"
+                    },
+                    "display": {
+                      "type": "null"
+                    },
+                    "reason": {
+                      "type": "string",
+                      "enum": [
+                        "MISSING_OBSERVATION",
+                        "MISSING_ATTRIBUTION",
+                        "UNSUPPORTED_SOURCE_VARIANT"
+                      ]
+                    }
+                  }
+                }
+              ]
+            },
+            "ab": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "state",
+                    "value",
+                    "display",
+                    "reason"
+                  ],
+                  "properties": {
+                    "state": {
+                      "const": "available"
+                    },
+                    "value": {
+                      "type": "string",
+                      "pattern": "^(0|[1-9][0-9]*)$",
+                      "maxLength": 128
+                    },
+                    "display": {
+                      "type": "string",
+                      "pattern": "^(0|[1-9][0-9]*)$"
+                    },
+                    "reason": {
+                      "type": "null"
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "state",
+                    "value",
+                    "display",
+                    "reason"
+                  ],
+                  "properties": {
+                    "state": {
+                      "const": "source_unavailable"
+                    },
+                    "value": {
+                      "type": "null"
+                    },
+                    "display": {
+                      "type": "null"
+                    },
+                    "reason": {
+                      "type": "string",
+                      "enum": [
+                        "MISSING_OBSERVATION",
+                        "MISSING_ATTRIBUTION",
+                        "UNSUPPORTED_SOURCE_VARIANT"
+                      ]
+                    }
+                  }
+                }
+              ]
+            },
+            "h": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "state",
+                    "value",
+                    "display",
+                    "reason"
+                  ],
+                  "properties": {
+                    "state": {
+                      "const": "available"
+                    },
+                    "value": {
+                      "type": "string",
+                      "pattern": "^(0|[1-9][0-9]*)$",
+                      "maxLength": 128
+                    },
+                    "display": {
+                      "type": "string",
+                      "pattern": "^(0|[1-9][0-9]*)$"
+                    },
+                    "reason": {
+                      "type": "null"
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "state",
+                    "value",
+                    "display",
+                    "reason"
+                  ],
+                  "properties": {
+                    "state": {
+                      "const": "source_unavailable"
+                    },
+                    "value": {
+                      "type": "null"
+                    },
+                    "display": {
+                      "type": "null"
+                    },
+                    "reason": {
+                      "type": "string",
+                      "enum": [
+                        "MISSING_OBSERVATION",
+                        "MISSING_ATTRIBUTION",
+                        "UNSUPPORTED_SOURCE_VARIANT"
+                      ]
+                    }
+                  }
+                }
+              ]
+            },
+            "doubles": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "state",
+                    "value",
+                    "display",
+                    "reason"
+                  ],
+                  "properties": {
+                    "state": {
+                      "const": "available"
+                    },
+                    "value": {
+                      "type": "string",
+                      "pattern": "^(0|[1-9][0-9]*)$",
+                      "maxLength": 128
+                    },
+                    "display": {
+                      "type": "string",
+                      "pattern": "^(0|[1-9][0-9]*)$"
+                    },
+                    "reason": {
+                      "type": "null"
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "state",
+                    "value",
+                    "display",
+                    "reason"
+                  ],
+                  "properties": {
+                    "state": {
+                      "const": "source_unavailable"
+                    },
+                    "value": {
+                      "type": "null"
+                    },
+                    "display": {
+                      "type": "null"
+                    },
+                    "reason": {
+                      "type": "string",
+                      "enum": [
+                        "MISSING_OBSERVATION",
+                        "MISSING_ATTRIBUTION",
+                        "UNSUPPORTED_SOURCE_VARIANT"
+                      ]
+                    }
+                  }
+                }
+              ]
+            },
+            "triples": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "state",
+                    "value",
+                    "display",
+                    "reason"
+                  ],
+                  "properties": {
+                    "state": {
+                      "const": "available"
+                    },
+                    "value": {
+                      "type": "string",
+                      "pattern": "^(0|[1-9][0-9]*)$",
+                      "maxLength": 128
+                    },
+                    "display": {
+                      "type": "string",
+                      "pattern": "^(0|[1-9][0-9]*)$"
+                    },
+                    "reason": {
+                      "type": "null"
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "state",
+                    "value",
+                    "display",
+                    "reason"
+                  ],
+                  "properties": {
+                    "state": {
+                      "const": "source_unavailable"
+                    },
+                    "value": {
+                      "type": "null"
+                    },
+                    "display": {
+                      "type": "null"
+                    },
+                    "reason": {
+                      "type": "string",
+                      "enum": [
+                        "MISSING_OBSERVATION",
+                        "MISSING_ATTRIBUTION",
+                        "UNSUPPORTED_SOURCE_VARIANT"
+                      ]
+                    }
+                  }
+                }
+              ]
+            },
+            "hr": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "state",
+                    "value",
+                    "display",
+                    "reason"
+                  ],
+                  "properties": {
+                    "state": {
+                      "const": "available"
+                    },
+                    "value": {
+                      "type": "string",
+                      "pattern": "^(0|[1-9][0-9]*)$",
+                      "maxLength": 128
+                    },
+                    "display": {
+                      "type": "string",
+                      "pattern": "^(0|[1-9][0-9]*)$"
+                    },
+                    "reason": {
+                      "type": "null"
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "state",
+                    "value",
+                    "display",
+                    "reason"
+                  ],
+                  "properties": {
+                    "state": {
+                      "const": "source_unavailable"
+                    },
+                    "value": {
+                      "type": "null"
+                    },
+                    "display": {
+                      "type": "null"
+                    },
+                    "reason": {
+                      "type": "string",
+                      "enum": [
+                        "MISSING_OBSERVATION",
+                        "MISSING_ATTRIBUTION",
+                        "UNSUPPORTED_SOURCE_VARIANT"
+                      ]
+                    }
+                  }
+                }
+              ]
+            },
+            "total_bases": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "state",
+                    "value",
+                    "display",
+                    "reason"
+                  ],
+                  "properties": {
+                    "state": {
+                      "const": "available"
+                    },
+                    "value": {
+                      "type": "string",
+                      "pattern": "^(0|[1-9][0-9]*)$",
+                      "maxLength": 128
+                    },
+                    "display": {
+                      "type": "string",
+                      "pattern": "^(0|[1-9][0-9]*)$"
+                    },
+                    "reason": {
+                      "type": "null"
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "state",
+                    "value",
+                    "display",
+                    "reason"
+                  ],
+                  "properties": {
+                    "state": {
+                      "const": "source_unavailable"
+                    },
+                    "value": {
+                      "type": "null"
+                    },
+                    "display": {
+                      "type": "null"
+                    },
+                    "reason": {
+                      "type": "string",
+                      "enum": [
+                        "MISSING_OBSERVATION",
+                        "MISSING_ATTRIBUTION",
+                        "UNSUPPORTED_SOURCE_VARIANT"
+                      ]
+                    }
+                  }
+                }
+              ]
+            },
+            "bb": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "state",
+                    "value",
+                    "display",
+                    "reason"
+                  ],
+                  "properties": {
+                    "state": {
+                      "const": "available"
+                    },
+                    "value": {
+                      "type": "string",
+                      "pattern": "^(0|[1-9][0-9]*)$",
+                      "maxLength": 128
+                    },
+                    "display": {
+                      "type": "string",
+                      "pattern": "^(0|[1-9][0-9]*)$"
+                    },
+                    "reason": {
+                      "type": "null"
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "state",
+                    "value",
+                    "display",
+                    "reason"
+                  ],
+                  "properties": {
+                    "state": {
+                      "const": "source_unavailable"
+                    },
+                    "value": {
+                      "type": "null"
+                    },
+                    "display": {
+                      "type": "null"
+                    },
+                    "reason": {
+                      "type": "string",
+                      "enum": [
+                        "MISSING_OBSERVATION",
+                        "MISSING_ATTRIBUTION",
+                        "UNSUPPORTED_SOURCE_VARIANT"
+                      ]
+                    }
+                  }
+                }
+              ]
+            },
+            "hbp": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "state",
+                    "value",
+                    "display",
+                    "reason"
+                  ],
+                  "properties": {
+                    "state": {
+                      "const": "available"
+                    },
+                    "value": {
+                      "type": "string",
+                      "pattern": "^(0|[1-9][0-9]*)$",
+                      "maxLength": 128
+                    },
+                    "display": {
+                      "type": "string",
+                      "pattern": "^(0|[1-9][0-9]*)$"
+                    },
+                    "reason": {
+                      "type": "null"
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "state",
+                    "value",
+                    "display",
+                    "reason"
+                  ],
+                  "properties": {
+                    "state": {
+                      "const": "source_unavailable"
+                    },
+                    "value": {
+                      "type": "null"
+                    },
+                    "display": {
+                      "type": "null"
+                    },
+                    "reason": {
+                      "type": "string",
+                      "enum": [
+                        "MISSING_OBSERVATION",
+                        "MISSING_ATTRIBUTION",
+                        "UNSUPPORTED_SOURCE_VARIANT"
+                      ]
+                    }
+                  }
+                }
+              ]
+            },
+            "k": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "state",
+                    "value",
+                    "display",
+                    "reason"
+                  ],
+                  "properties": {
+                    "state": {
+                      "const": "available"
+                    },
+                    "value": {
+                      "type": "string",
+                      "pattern": "^(0|[1-9][0-9]*)$",
+                      "maxLength": 128
+                    },
+                    "display": {
+                      "type": "string",
+                      "pattern": "^(0|[1-9][0-9]*)$"
+                    },
+                    "reason": {
+                      "type": "null"
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "state",
+                    "value",
+                    "display",
+                    "reason"
+                  ],
+                  "properties": {
+                    "state": {
+                      "const": "source_unavailable"
+                    },
+                    "value": {
+                      "type": "null"
+                    },
+                    "display": {
+                      "type": "null"
+                    },
+                    "reason": {
+                      "type": "string",
+                      "enum": [
+                        "MISSING_OBSERVATION",
+                        "MISSING_ATTRIBUTION",
+                        "UNSUPPORTED_SOURCE_VARIANT"
+                      ]
+                    }
+                  }
+                }
+              ]
+            },
+            "sh": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "state",
+                    "value",
+                    "display",
+                    "reason"
+                  ],
+                  "properties": {
+                    "state": {
+                      "const": "available"
+                    },
+                    "value": {
+                      "type": "string",
+                      "pattern": "^(0|[1-9][0-9]*)$",
+                      "maxLength": 128
+                    },
+                    "display": {
+                      "type": "string",
+                      "pattern": "^(0|[1-9][0-9]*)$"
+                    },
+                    "reason": {
+                      "type": "null"
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "state",
+                    "value",
+                    "display",
+                    "reason"
+                  ],
+                  "properties": {
+                    "state": {
+                      "const": "source_unavailable"
+                    },
+                    "value": {
+                      "type": "null"
+                    },
+                    "display": {
+                      "type": "null"
+                    },
+                    "reason": {
+                      "type": "string",
+                      "enum": [
+                        "MISSING_OBSERVATION",
+                        "MISSING_ATTRIBUTION",
+                        "UNSUPPORTED_SOURCE_VARIANT"
+                      ]
+                    }
+                  }
+                }
+              ]
+            },
+            "sf": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "state",
+                    "value",
+                    "display",
+                    "reason"
+                  ],
+                  "properties": {
+                    "state": {
+                      "const": "available"
+                    },
+                    "value": {
+                      "type": "string",
+                      "pattern": "^(0|[1-9][0-9]*)$",
+                      "maxLength": 128
+                    },
+                    "display": {
+                      "type": "string",
+                      "pattern": "^(0|[1-9][0-9]*)$"
+                    },
+                    "reason": {
+                      "type": "null"
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "state",
+                    "value",
+                    "display",
+                    "reason"
+                  ],
+                  "properties": {
+                    "state": {
+                      "const": "source_unavailable"
+                    },
+                    "value": {
+                      "type": "null"
+                    },
+                    "display": {
+                      "type": "null"
+                    },
+                    "reason": {
+                      "type": "string",
+                      "enum": [
+                        "MISSING_OBSERVATION",
+                        "MISSING_ATTRIBUTION",
+                        "UNSUPPORTED_SOURCE_VARIANT"
+                      ]
+                    }
+                  }
+                }
+              ]
+            },
+            "catcher_interference_reached": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "state",
+                    "value",
+                    "display",
+                    "reason"
+                  ],
+                  "properties": {
+                    "state": {
+                      "const": "available"
+                    },
+                    "value": {
+                      "type": "string",
+                      "pattern": "^(0|[1-9][0-9]*)$",
+                      "maxLength": 128
+                    },
+                    "display": {
+                      "type": "string",
+                      "pattern": "^(0|[1-9][0-9]*)$"
+                    },
+                    "reason": {
+                      "type": "null"
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "state",
+                    "value",
+                    "display",
+                    "reason"
+                  ],
+                  "properties": {
+                    "state": {
+                      "const": "source_unavailable"
+                    },
+                    "value": {
+                      "type": "null"
+                    },
+                    "display": {
+                      "type": "null"
+                    },
+                    "reason": {
+                      "type": "string",
+                      "enum": [
+                        "MISSING_OBSERVATION",
+                        "MISSING_ATTRIBUTION",
+                        "UNSUPPORTED_SOURCE_VARIANT"
+                      ]
+                    }
+                  }
+                }
+              ]
+            },
+            "runner_interference_reached": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "state",
+                    "value",
+                    "display",
+                    "reason"
+                  ],
+                  "properties": {
+                    "state": {
+                      "const": "available"
+                    },
+                    "value": {
+                      "type": "string",
+                      "pattern": "^(0|[1-9][0-9]*)$",
+                      "maxLength": 128
+                    },
+                    "display": {
+                      "type": "string",
+                      "pattern": "^(0|[1-9][0-9]*)$"
+                    },
+                    "reason": {
+                      "type": "null"
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "state",
+                    "value",
+                    "display",
+                    "reason"
+                  ],
+                  "properties": {
+                    "state": {
+                      "const": "source_unavailable"
+                    },
+                    "value": {
+                      "type": "null"
+                    },
+                    "display": {
+                      "type": "null"
+                    },
+                    "reason": {
+                      "type": "string",
+                      "enum": [
+                        "MISSING_OBSERVATION",
+                        "MISSING_ATTRIBUTION",
+                        "UNSUPPORTED_SOURCE_VARIANT"
+                      ]
+                    }
+                  }
+                }
+              ]
+            },
+            "runs": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "state",
+                    "value",
+                    "display",
+                    "reason"
+                  ],
+                  "properties": {
+                    "state": {
+                      "const": "available"
+                    },
+                    "value": {
+                      "type": "string",
+                      "pattern": "^(0|[1-9][0-9]*)$",
+                      "maxLength": 128
+                    },
+                    "display": {
+                      "type": "string",
+                      "pattern": "^(0|[1-9][0-9]*)$"
+                    },
+                    "reason": {
+                      "type": "null"
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "state",
+                    "value",
+                    "display",
+                    "reason"
+                  ],
+                  "properties": {
+                    "state": {
+                      "const": "source_unavailable"
+                    },
+                    "value": {
+                      "type": "null"
+                    },
+                    "display": {
+                      "type": "null"
+                    },
+                    "reason": {
+                      "type": "string",
+                      "enum": [
+                        "MISSING_OBSERVATION",
+                        "MISSING_ATTRIBUTION",
+                        "UNSUPPORTED_SOURCE_VARIANT"
+                      ]
+                    }
+                  }
+                }
+              ]
+            },
+            "rbi": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "state",
+                    "value",
+                    "display",
+                    "reason"
+                  ],
+                  "properties": {
+                    "state": {
+                      "const": "available"
+                    },
+                    "value": {
+                      "type": "string",
+                      "pattern": "^(0|[1-9][0-9]*)$",
+                      "maxLength": 128
+                    },
+                    "display": {
+                      "type": "string",
+                      "pattern": "^(0|[1-9][0-9]*)$"
+                    },
+                    "reason": {
+                      "type": "null"
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "state",
+                    "value",
+                    "display",
+                    "reason"
+                  ],
+                  "properties": {
+                    "state": {
+                      "const": "source_unavailable"
+                    },
+                    "value": {
+                      "type": "null"
+                    },
+                    "display": {
+                      "type": "null"
+                    },
+                    "reason": {
+                      "type": "string",
+                      "enum": [
+                        "MISSING_OBSERVATION",
+                        "MISSING_ATTRIBUTION",
+                        "UNSUPPORTED_SOURCE_VARIANT"
+                      ]
+                    }
+                  }
+                }
+              ]
+            },
+            "stolen_bases": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "state",
+                    "value",
+                    "display",
+                    "reason"
+                  ],
+                  "properties": {
+                    "state": {
+                      "const": "available"
+                    },
+                    "value": {
+                      "type": "string",
+                      "pattern": "^(0|[1-9][0-9]*)$",
+                      "maxLength": 128
+                    },
+                    "display": {
+                      "type": "string",
+                      "pattern": "^(0|[1-9][0-9]*)$"
+                    },
+                    "reason": {
+                      "type": "null"
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "state",
+                    "value",
+                    "display",
+                    "reason"
+                  ],
+                  "properties": {
+                    "state": {
+                      "const": "source_unavailable"
+                    },
+                    "value": {
+                      "type": "null"
+                    },
+                    "display": {
+                      "type": "null"
+                    },
+                    "reason": {
+                      "type": "string",
+                      "enum": [
+                        "MISSING_OBSERVATION",
+                        "MISSING_ATTRIBUTION",
+                        "UNSUPPORTED_SOURCE_VARIANT"
+                      ]
+                    }
+                  }
+                }
+              ]
+            },
+            "pitching_outs": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "state",
+                    "value",
+                    "display",
+                    "reason"
+                  ],
+                  "properties": {
+                    "state": {
+                      "const": "available"
+                    },
+                    "value": {
+                      "type": "string",
+                      "pattern": "^(0|[1-9][0-9]*)$",
+                      "maxLength": 128
+                    },
+                    "display": {
+                      "type": "string",
+                      "pattern": "^(0|[1-9][0-9]*)$"
+                    },
+                    "reason": {
+                      "type": "null"
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "state",
+                    "value",
+                    "display",
+                    "reason"
+                  ],
+                  "properties": {
+                    "state": {
+                      "const": "source_unavailable"
+                    },
+                    "value": {
+                      "type": "null"
+                    },
+                    "display": {
+                      "type": "null"
+                    },
+                    "reason": {
+                      "type": "string",
+                      "enum": [
+                        "MISSING_OBSERVATION",
+                        "MISSING_ATTRIBUTION",
+                        "UNSUPPORTED_SOURCE_VARIANT"
+                      ]
+                    }
+                  }
+                }
+              ]
+            },
+            "pitcher_k": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "state",
+                    "value",
+                    "display",
+                    "reason"
+                  ],
+                  "properties": {
+                    "state": {
+                      "const": "available"
+                    },
+                    "value": {
+                      "type": "string",
+                      "pattern": "^(0|[1-9][0-9]*)$",
+                      "maxLength": 128
+                    },
+                    "display": {
+                      "type": "string",
+                      "pattern": "^(0|[1-9][0-9]*)$"
+                    },
+                    "reason": {
+                      "type": "null"
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "state",
+                    "value",
+                    "display",
+                    "reason"
+                  ],
+                  "properties": {
+                    "state": {
+                      "const": "source_unavailable"
+                    },
+                    "value": {
+                      "type": "null"
+                    },
+                    "display": {
+                      "type": "null"
+                    },
+                    "reason": {
+                      "type": "string",
+                      "enum": [
+                        "MISSING_OBSERVATION",
+                        "MISSING_ATTRIBUTION",
+                        "UNSUPPORTED_SOURCE_VARIANT"
+                      ]
+                    }
+                  }
+                }
+              ]
+            },
+            "pitcher_bb": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "state",
+                    "value",
+                    "display",
+                    "reason"
+                  ],
+                  "properties": {
+                    "state": {
+                      "const": "available"
+                    },
+                    "value": {
+                      "type": "string",
+                      "pattern": "^(0|[1-9][0-9]*)$",
+                      "maxLength": 128
+                    },
+                    "display": {
+                      "type": "string",
+                      "pattern": "^(0|[1-9][0-9]*)$"
+                    },
+                    "reason": {
+                      "type": "null"
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "state",
+                    "value",
+                    "display",
+                    "reason"
+                  ],
+                  "properties": {
+                    "state": {
+                      "const": "source_unavailable"
+                    },
+                    "value": {
+                      "type": "null"
+                    },
+                    "display": {
+                      "type": "null"
+                    },
+                    "reason": {
+                      "type": "string",
+                      "enum": [
+                        "MISSING_OBSERVATION",
+                        "MISSING_ATTRIBUTION",
+                        "UNSUPPORTED_SOURCE_VARIANT"
+                      ]
+                    }
+                  }
+                }
+              ]
+            },
+            "pitcher_hbp": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "state",
+                    "value",
+                    "display",
+                    "reason"
+                  ],
+                  "properties": {
+                    "state": {
+                      "const": "available"
+                    },
+                    "value": {
+                      "type": "string",
+                      "pattern": "^(0|[1-9][0-9]*)$",
+                      "maxLength": 128
+                    },
+                    "display": {
+                      "type": "string",
+                      "pattern": "^(0|[1-9][0-9]*)$"
+                    },
+                    "reason": {
+                      "type": "null"
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "state",
+                    "value",
+                    "display",
+                    "reason"
+                  ],
+                  "properties": {
+                    "state": {
+                      "const": "source_unavailable"
+                    },
+                    "value": {
+                      "type": "null"
+                    },
+                    "display": {
+                      "type": "null"
+                    },
+                    "reason": {
+                      "type": "string",
+                      "enum": [
+                        "MISSING_OBSERVATION",
+                        "MISSING_ATTRIBUTION",
+                        "UNSUPPORTED_SOURCE_VARIANT"
+                      ]
+                    }
+                  }
+                }
+              ]
+            },
+            "hits_allowed": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "state",
+                    "value",
+                    "display",
+                    "reason"
+                  ],
+                  "properties": {
+                    "state": {
+                      "const": "available"
+                    },
+                    "value": {
+                      "type": "string",
+                      "pattern": "^(0|[1-9][0-9]*)$",
+                      "maxLength": 128
+                    },
+                    "display": {
+                      "type": "string",
+                      "pattern": "^(0|[1-9][0-9]*)$"
+                    },
+                    "reason": {
+                      "type": "null"
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "state",
+                    "value",
+                    "display",
+                    "reason"
+                  ],
+                  "properties": {
+                    "state": {
+                      "const": "source_unavailable"
+                    },
+                    "value": {
+                      "type": "null"
+                    },
+                    "display": {
+                      "type": "null"
+                    },
+                    "reason": {
+                      "type": "string",
+                      "enum": [
+                        "MISSING_OBSERVATION",
+                        "MISSING_ATTRIBUTION",
+                        "UNSUPPORTED_SOURCE_VARIANT"
+                      ]
+                    }
+                  }
+                }
+              ]
+            },
+            "home_runs_allowed": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "state",
+                    "value",
+                    "display",
+                    "reason"
+                  ],
+                  "properties": {
+                    "state": {
+                      "const": "available"
+                    },
+                    "value": {
+                      "type": "string",
+                      "pattern": "^(0|[1-9][0-9]*)$",
+                      "maxLength": 128
+                    },
+                    "display": {
+                      "type": "string",
+                      "pattern": "^(0|[1-9][0-9]*)$"
+                    },
+                    "reason": {
+                      "type": "null"
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "state",
+                    "value",
+                    "display",
+                    "reason"
+                  ],
+                  "properties": {
+                    "state": {
+                      "const": "source_unavailable"
+                    },
+                    "value": {
+                      "type": "null"
+                    },
+                    "display": {
+                      "type": "null"
+                    },
+                    "reason": {
+                      "type": "string",
+                      "enum": [
+                        "MISSING_OBSERVATION",
+                        "MISSING_ATTRIBUTION",
+                        "UNSUPPORTED_SOURCE_VARIANT"
+                      ]
+                    }
+                  }
+                }
+              ]
+            },
+            "runs_allowed": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "state",
+                    "value",
+                    "display",
+                    "reason"
+                  ],
+                  "properties": {
+                    "state": {
+                      "const": "available"
+                    },
+                    "value": {
+                      "type": "string",
+                      "pattern": "^(0|[1-9][0-9]*)$",
+                      "maxLength": 128
+                    },
+                    "display": {
+                      "type": "string",
+                      "pattern": "^(0|[1-9][0-9]*)$"
+                    },
+                    "reason": {
+                      "type": "null"
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "state",
+                    "value",
+                    "display",
+                    "reason"
+                  ],
+                  "properties": {
+                    "state": {
+                      "const": "source_unavailable"
+                    },
+                    "value": {
+                      "type": "null"
+                    },
+                    "display": {
+                      "type": "null"
+                    },
+                    "reason": {
+                      "type": "string",
+                      "enum": [
+                        "MISSING_OBSERVATION",
+                        "MISSING_ATTRIBUTION",
+                        "UNSUPPORTED_SOURCE_VARIANT"
+                      ]
+                    }
+                  }
+                }
+              ]
+            },
+            "fielding_errors": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "state",
+                    "value",
+                    "display",
+                    "reason"
+                  ],
+                  "properties": {
+                    "state": {
+                      "const": "available"
+                    },
+                    "value": {
+                      "type": "string",
+                      "pattern": "^(0|[1-9][0-9]*)$",
+                      "maxLength": 128
+                    },
+                    "display": {
+                      "type": "string",
+                      "pattern": "^(0|[1-9][0-9]*)$"
+                    },
+                    "reason": {
+                      "type": "null"
+                    }
+                  }
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "state",
+                    "value",
+                    "display",
+                    "reason"
+                  ],
+                  "properties": {
+                    "state": {
+                      "const": "source_unavailable"
+                    },
+                    "value": {
+                      "type": "null"
+                    },
+                    "display": {
+                      "type": "null"
+                    },
+                    "reason": {
+                      "type": "string",
+                      "enum": [
+                        "MISSING_OBSERVATION",
+                        "MISSING_ATTRIBUTION",
+                        "UNSUPPORTED_SOURCE_VARIANT"
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "credits": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "player_id",
+              "metric",
+              "quantity",
+              "source_event_id",
+              "source_fact_snapshot_sha256"
+            ],
+            "properties": {
+              "player_id": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+              },
+              "metric": {
+                "type": "string",
+                "enum": [
+                  "pitch_count",
+                  "pa",
+                  "ab",
+                  "h",
+                  "doubles",
+                  "triples",
+                  "hr",
+                  "total_bases",
+                  "bb",
+                  "hbp",
+                  "k",
+                  "sh",
+                  "sf",
+                  "catcher_interference_reached",
+                  "runner_interference_reached",
+                  "runs",
+                  "rbi",
+                  "stolen_bases",
+                  "pitching_outs",
+                  "pitcher_k",
+                  "pitcher_bb",
+                  "pitcher_hbp",
+                  "hits_allowed",
+                  "home_runs_allowed",
+                  "runs_allowed",
+                  "fielding_errors"
+                ]
+              },
+              "quantity": {
+                "type": "string",
+                "pattern": "^(0|[1-9][0-9]*)$",
+                "maxLength": 128
+              },
+              "source_event_id": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "source_fact_snapshot_sha256": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{64}$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "oneOf": [
+              {
+                "properties": {
+                  "source_event_id": {
+                    "type": "string"
+                  },
+                  "source_fact_snapshot_sha256": {
+                    "type": "null"
+                  }
+                }
+              },
+              {
+                "properties": {
+                  "source_event_id": {
+                    "type": "null"
+                  },
+                  "source_fact_snapshot_sha256": {
+                    "type": "string"
+                  }
+                }
+              }
+            ]
+          },
+          "maxItems": 150000
+        },
+        "completed_pa_rows": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "pa_id",
+              "batter_id",
+              "ordinal_for_batter",
+              "inning",
+              "half",
+              "result_display",
+              "counts_as_ab",
+              "hit_kind",
+              "rbi",
+              "reached_by",
+              "rbi_state"
+            ],
+            "properties": {
+              "pa_id": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+              },
+              "batter_id": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+              },
+              "ordinal_for_batter": {
+                "type": "string",
+                "pattern": "^[1-9][0-9]*$",
+                "maxLength": 20
+              },
+              "inning": {
+                "type": "string",
+                "pattern": "^[1-9][0-9]*$",
+                "maxLength": 20
+              },
+              "half": {
+                "type": "string",
+                "enum": [
+                  "top",
+                  "bottom"
+                ]
+              },
+              "result_display": {
+                "type": "string"
+              },
+              "counts_as_ab": {
+                "type": "boolean"
+              },
+              "hit_kind": {
+                "type": "string",
+                "enum": [
+                  "none",
+                  "single",
+                  "double",
+                  "triple",
+                  "home_run"
+                ]
+              },
+              "rbi": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^(0|[1-9][0-9]*)$",
+                    "maxLength": 128
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "reached_by": {
+                "type": "string",
+                "enum": [
+                  "none",
+                  "hit",
+                  "walk",
+                  "hit_by_pitch",
+                  "error",
+                  "fielders_choice",
+                  "catcher_interference",
+                  "runner_interference"
+                ]
+              },
+              "rbi_state": {
+                "type": "string",
+                "enum": [
+                  "available",
+                  "source_unavailable"
+                ]
+              }
+            },
+            "allOf": [
+              {
+                "if": {
+                  "properties": {
+                    "rbi_state": {
+                      "const": "available"
+                    }
+                  }
+                },
+                "then": {
+                  "properties": {
+                    "rbi": {
+                      "type": "string",
+                      "pattern": "^(0|[1-9][0-9]*)$"
+                    }
+                  }
+                },
+                "else": {
+                  "properties": {
+                    "rbi": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          "maxItems": 150000
+        },
+        "pending": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "named_category",
+            "appearances",
+            "batters_faced",
+            "ops"
+          ],
+          "properties": {
+            "named_category": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "state",
+                "decision_id",
+                "value"
+              ],
+              "properties": {
+                "state": {
+                  "const": "decision_pending"
+                },
+                "decision_id": {
+                  "const": "D02"
+                },
+                "value": {
+                  "type": "null"
+                }
+              }
+            },
+            "appearances": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "state",
+                "decision_id",
+                "value"
+              ],
+              "properties": {
+                "state": {
+                  "const": "decision_pending"
+                },
+                "decision_id": {
+                  "const": "D03"
+                },
+                "value": {
+                  "type": "null"
+                }
+              }
+            },
+            "batters_faced": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "state",
+                "decision_id",
+                "value"
+              ],
+              "properties": {
+                "state": {
+                  "const": "decision_pending"
+                },
+                "decision_id": {
+                  "const": "D04"
+                },
+                "value": {
+                  "type": "null"
+                }
+              }
+            },
+            "ops": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "state",
+                "decision_id",
+                "value"
+              ],
+              "properties": {
+                "state": {
+                  "const": "decision_pending"
+                },
+                "decision_id": {
+                  "const": "D05"
+                },
+                "value": {
+                  "type": "null"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "code"
+      ],
+      "properties": {
+        "status": {
+          "const": "rejected"
+        },
+        "code": {
+          "type": "string",
+          "enum": [
+            "SOURCE_UNVERIFIED",
+            "SOURCE_TENANT_MISMATCH",
+            "SOURCE_GAME_MISMATCH",
+            "SOURCE_LEDGER_MISMATCH",
+            "SOURCE_VERSION_MISMATCH",
+            "SOURCE_MODEL_MISMATCH",
+            "SOURCE_ARTIFACT_MISMATCH",
+            "SOURCE_DUPLICATE",
+            "SOURCE_CHECKPOINT_MISMATCH",
+            "SOURCE_NOT_APPLIED",
+            "T1_QUANTITY_MISMATCH",
+            "T1_FLAG_KIND_MISMATCH",
+            "PA_SOURCE_MISMATCH",
+            "INPUT_SCHEMA_INVALID"
+          ]
+        }
+      }
+    }
+  ],
+  "x-status": "candidate-not-accepted",
+  "x-primitive_definitions": [
+    {
+      "metric": "pitch_count",
+      "source_and_credit": "event_kind=pitch and verified 投球数; actual pitcher",
+      "authority": "A-2 投球数/4.0-2/E-1",
+      "unit": "integer count (outs separately from innings)",
+      "reducer": "finite typed integer add; DB grouped/window sum of same primitive",
+      "display": "fixed-decimal(scale=0); null on unavailable; no implicit 0"
+    },
+    {
+      "metric": "pa",
+      "source_and_credit": "one completed canonical PA row with 打席; credited batter",
+      "authority": "FR-022/E-1/E-2",
+      "unit": "integer count (outs separately from innings)",
+      "reducer": "finite typed integer add; DB grouped/window sum of same primitive",
+      "display": "fixed-decimal(scale=0); null on unavailable; no implicit 0"
+    },
+    {
+      "metric": "ab",
+      "source_and_credit": "completed PA 打数 contribution; same PA exclusion facts",
+      "authority": "A-3 打数/FR-022",
+      "unit": "integer count (outs separately from innings)",
+      "reducer": "finite typed integer add; DB grouped/window sum of same primitive",
+      "display": "fixed-decimal(scale=0); null on unavailable; no implicit 0"
+    },
+    {
+      "metric": "h",
+      "source_and_credit": "completed PA 安打; hit kind single/double/triple/home_run",
+      "authority": "FR-022 安打種別/A-2/A-3",
+      "unit": "integer count (outs separately from innings)",
+      "reducer": "finite typed integer add; DB grouped/window sum of same primitive",
+      "display": "fixed-decimal(scale=0); null on unavailable; no implicit 0"
+    },
+    {
+      "metric": "doubles",
+      "source_and_credit": "completed PA hit_kind=double and 安打",
+      "authority": "FR-022 安打種別",
+      "unit": "integer count (outs separately from innings)",
+      "reducer": "finite typed integer add; DB grouped/window sum of same primitive",
+      "display": "fixed-decimal(scale=0); null on unavailable; no implicit 0"
+    },
+    {
+      "metric": "triples",
+      "source_and_credit": "completed PA hit_kind=triple and 安打",
+      "authority": "FR-022 安打種別",
+      "unit": "integer count (outs separately from innings)",
+      "reducer": "finite typed integer add; DB grouped/window sum of same primitive",
+      "display": "fixed-decimal(scale=0); null on unavailable; no implicit 0"
+    },
+    {
+      "metric": "hr",
+      "source_and_credit": "completed PA 本塁打",
+      "authority": "A-3 本塁打",
+      "unit": "integer count (outs separately from innings)",
+      "reducer": "finite typed integer add; DB grouped/window sum of same primitive",
+      "display": "fixed-decimal(scale=0); null on unavailable; no implicit 0"
+    },
+    {
+      "metric": "total_bases",
+      "source_and_credit": "塁打=true: declared hit kind maps 1,2,3,4; not boolean value1",
+      "authority": "A-3 長打率/E-1 塁打",
+      "unit": "integer count (outs separately from innings)",
+      "reducer": "finite typed integer add; DB grouped/window sum of same primitive",
+      "display": "fixed-decimal(scale=0); null on unavailable; no implicit 0"
+    },
+    {
+      "metric": "bb",
+      "source_and_credit": "completed PA 四球 incl intentional",
+      "authority": "A-3/FR-022/E-1",
+      "unit": "integer count (outs separately from innings)",
+      "reducer": "finite typed integer add; DB grouped/window sum of same primitive",
+      "display": "fixed-decimal(scale=0); null on unavailable; no implicit 0"
+    },
+    {
+      "metric": "hbp",
+      "source_and_credit": "completed PA 死球",
+      "authority": "A-3/FR-022/E-1",
+      "unit": "integer count (outs separately from innings)",
+      "reducer": "finite typed integer add; DB grouped/window sum of same primitive",
+      "display": "fixed-decimal(scale=0); null on unavailable; no implicit 0"
+    },
+    {
+      "metric": "k",
+      "source_and_credit": "completed PA 三振 independent of batter out",
+      "authority": "FR-022/E-2 SO-01..05",
+      "unit": "integer count (outs separately from innings)",
+      "reducer": "finite typed integer add; DB grouped/window sum of same primitive",
+      "display": "fixed-decimal(scale=0); null on unavailable; no implicit 0"
+    },
+    {
+      "metric": "sh",
+      "source_and_credit": "completed PA 犠打",
+      "authority": "A-3/FR-022",
+      "unit": "integer count (outs separately from innings)",
+      "reducer": "finite typed integer add; DB grouped/window sum of same primitive",
+      "display": "fixed-decimal(scale=0); null on unavailable; no implicit 0"
+    },
+    {
+      "metric": "sf",
+      "source_and_credit": "completed PA 犠飛",
+      "authority": "A-3/FR-022",
+      "unit": "integer count (outs separately from innings)",
+      "reducer": "finite typed integer add; DB grouped/window sum of same primitive",
+      "display": "fixed-decimal(scale=0); null on unavailable; no implicit 0"
+    },
+    {
+      "metric": "catcher_interference_reached",
+      "source_and_credit": "completed PA 打撃妨害出塁",
+      "authority": "A-3/E-1",
+      "unit": "integer count (outs separately from innings)",
+      "reducer": "finite typed integer add; DB grouped/window sum of same primitive",
+      "display": "fixed-decimal(scale=0); null on unavailable; no implicit 0"
+    },
+    {
+      "metric": "runner_interference_reached",
+      "source_and_credit": "completed PA 走塁妨害出塁",
+      "authority": "A-3/E-1",
+      "unit": "integer count (outs separately from innings)",
+      "reducer": "finite typed integer add; DB grouped/window sum of same primitive",
+      "display": "fixed-decimal(scale=0); null on unavailable; no implicit 0"
+    },
+    {
+      "metric": "runs",
+      "source_and_credit": "each valid scoring runner/batter credited to self; not flags count",
+      "authority": "A-1 OUT3/A-5/E-1 得点",
+      "unit": "integer count (outs separately from innings)",
+      "reducer": "finite typed integer add; DB grouped/window sum of same primitive",
+      "display": "fixed-decimal(scale=0); null on unavailable; no implicit 0"
+    },
+    {
+      "metric": "rbi",
+      "source_and_credit": "each valid RBI-credited scoring participant credits rbi_batter",
+      "authority": "A-3 RBI-01..09",
+      "unit": "integer count (outs separately from innings)",
+      "reducer": "finite typed integer add; DB grouped/window sum of same primitive",
+      "display": "fixed-decimal(scale=0); null on unavailable; no implicit 0"
+    },
+    {
+      "metric": "stolen_bases",
+      "source_and_credit": "verified runner attempt successful; no 23-flag substitute",
+      "authority": "A-4/FR-027",
+      "unit": "integer count (outs separately from innings)",
+      "reducer": "finite typed integer add; DB grouped/window sum of same primitive",
+      "display": "fixed-decimal(scale=0); null on unavailable; no implicit 0"
+    },
+    {
+      "metric": "pitching_outs",
+      "source_and_credit": "投球回算入アウト: accepted out_effect.effective_count/credit pitcher",
+      "authority": "A-2 投球回/E-1",
+      "unit": "integer count (outs separately from innings)",
+      "reducer": "finite typed integer add; DB grouped/window sum of same primitive",
+      "display": "fixed-decimal(scale=0); null on unavailable; no implicit 0"
+    },
+    {
+      "metric": "pitcher_k",
+      "source_and_credit": "奪三振 per completed result including reach on strikeout",
+      "authority": "A-2/E-2 SO-01..05",
+      "unit": "integer count (outs separately from innings)",
+      "reducer": "finite typed integer add; DB grouped/window sum of same primitive",
+      "display": "fixed-decimal(scale=0); null on unavailable; no implicit 0"
+    },
+    {
+      "metric": "pitcher_bb",
+      "source_and_credit": "与四球 to A-2 responsibility including inherited/intentional",
+      "authority": "A-2 責任投手/E-1",
+      "unit": "integer count (outs separately from innings)",
+      "reducer": "finite typed integer add; DB grouped/window sum of same primitive",
+      "display": "fixed-decimal(scale=0); null on unavailable; no implicit 0"
+    },
+    {
+      "metric": "pitcher_hbp",
+      "source_and_credit": "与死球 to supplied actual responsible pitcher",
+      "authority": "A-2/E-1",
+      "unit": "integer count (outs separately from innings)",
+      "reducer": "finite typed integer add; DB grouped/window sum of same primitive",
+      "display": "fixed-decimal(scale=0); null on unavailable; no implicit 0"
+    },
+    {
+      "metric": "hits_allowed",
+      "source_and_credit": "被安打 to verified hit pitcher",
+      "authority": "A-2 被安打",
+      "unit": "integer count (outs separately from innings)",
+      "reducer": "finite typed integer add; DB grouped/window sum of same primitive",
+      "display": "fixed-decimal(scale=0); null on unavailable; no implicit 0"
+    },
+    {
+      "metric": "home_runs_allowed",
+      "source_and_credit": "被本塁打 to verified HR pitcher",
+      "authority": "A-2 被本塁打",
+      "unit": "integer count (outs separately from innings)",
+      "reducer": "finite typed integer add; DB grouped/window sum of same primitive",
+      "display": "fixed-decimal(scale=0); null on unavailable; no implicit 0"
+    },
+    {
+      "metric": "runs_allowed",
+      "source_and_credit": "each valid runner to their responsible pitcher",
+      "authority": "A-2 失点/責任投手",
+      "unit": "integer count (outs separately from innings)",
+      "reducer": "finite typed integer add; DB grouped/window sum of same primitive",
+      "display": "fixed-decimal(scale=0); null on unavailable; no implicit 0"
+    },
+    {
+      "metric": "fielding_errors",
+      "source_and_credit": "失策 flag to source-identified fielder; no new error adjudication",
+      "authority": "FR-020 E/E-1",
+      "unit": "integer count (outs separately from innings)",
+      "reducer": "finite typed integer add; DB grouped/window sum of same primitive",
+      "display": "fixed-decimal(scale=0); null on unavailable; no implicit 0"
+    }
+  ],
+  "x-single_source": {
+    "owner_model": "backend/domain/play-export.model.json",
+    "consumer_model": "backend/domain/stats.model.json refs primitive ID/hash/type only",
+    "provider": "ReadPlayExportPrimitives",
+    "method": "current ADR D-1/D-1-d; generated Python/TS/SQL/typed receiver/formatter; no copied arithmetic",
+    "t6": "sum canonical fact sufficient statistics in DB; raw category and closed year filters; no rate averaging"
+  },
+  "x-comparison_surfaces": [
+    "exact structural arbitrary-precision integer strings",
+    "per-player/source/metric responsibility and quantities",
+    "all 23 input flag identities/types",
+    "actual before/after/out quantities and completed PA 7 columns",
+    "available genuine zero vs source_unavailable null; provisional vs committed",
+    "snapshot/model/source identities",
+    "integer display generated from same declaration",
+    "pending D02..05 remains value null"
+  ],
+  "x-future_rate_inputs_only": {
+    "batting_average": [
+      "h",
+      "ab"
+    ],
+    "obp": [
+      "h",
+      "bb",
+      "hbp",
+      "ab",
+      "sf"
+    ],
+    "slugging": [
+      "total_bases",
+      "ab"
+    ],
+    "whip": [
+      "hits_allowed",
+      "pitcher_bb",
+      "pitching_outs"
+    ],
+    "innings": [
+      "pitching_outs"
+    ],
+    "rates_generated_in_step3": true,
+    "ops_not_declared": true
+  },
+  "x-state_invariants": [
+    "available: value/display both canonical integer strings; reason null",
+    "source_unavailable: value/display null; reason required; no supplied false→null coercion",
+    "event credit: source_event_id required and source_fact_snapshot_sha256 null",
+    "T6 credit: source_event_id null and externally verified source-set digest required",
+    "status provisional cannot publish to confirmed public pointer",
+    "PA rows exactly seven FR-022 columns plus stable identifiers; counts derive from same PA rows not alternate event re-count",
+    "completed PA row with missing RBI observation retains explicit rbi=null/rbi_state=source_unavailable; does not invent RBI0 or drop known PA count",
+    "invalid home arrival contributes neither runs nor RBI and carries no RBI branch; valid-run false is not RBI-09. Existing RBI branches apply only to valid_run=true, as verified by provider."
+  ]
+}
