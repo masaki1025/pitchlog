@@ -1,5 +1,15 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 続き：2026-11-05（三振の実画面10球・復旧が成立、安打v3接続を保存）
+
+- **新たにできた操作/実証**: 候補**32f68a1cef27d5fd256f401fdc832fe5350cb7c2**の同一owned HTTPS/PGで、画面新規作成→開始/初期権→三振3PA9球→攻守交代→反対側ボール→実ACK喪失→既認証の安全な無効化→明示「状態を再確認」/実session GET→同記録入口復帰→reload→元body/attempt再送まで成功。実DB play_rows/operation_events/event_slots/ledger各10、二重保存なし。pytest **1pass0skip236.796秒**、前後1282path SHA同値/HEAD一致。cache mvp-resume-20261104/pr192-ui-r8-result.json・log/xml・playwright/app/vite logへ固定。これは候補で3PA/1半回＋相手側1球、正式develop/1試合全体/全offline/実機/信頼済HTTPSではない。正式developは#191 eb8b31cdの通常/四球/死球まで。
+- **実画面で是正した根因と留保**: 1球目のwire checkpoint ID対private anchor、2球目の毎球historyVersion対private epochの混同を既native doc/投影/旧v2に合わせ修復（acf3b19a/14b9efe8、独立1af7e700…/67pure）。ACK結果不明時はCookie更新も不明なので認証を無効化する既動作を維持、旧認証でretryを要求する試験を実session再確認へ改訂（独立8892d59b…）。既pathname-only戻り先がrecording queryを/teamへ落とす不足を、正準UUID+既mode3の完全一致だけへ修復（32f68a1c、独立5e14f9a1…/116pure/75対向）。r7のloop待ち360秒失敗は隠さず保存、30秒単位と球番号診断を追加しr8で成功。r4のcreate503は閉診断r5/r6/r7/r8で再現せず原因未確定のまま残す。安全条件を緩めて成功へしない。
+- **#192正式統合の残り/所有**: source登録exact6はcfc2627aへ保存、独立a879545c…/213+60/旧51保持・新90・raw131→0を採用（正式7.7とは別）。route引用/派生hash2は非作者880a80db…の250決定/認可不変を確認しc3a3589dへ固定。OracleはそのGit基線を入力8に用いる6context/seal/ledger20候補をcache pr192-oracle-candidate-20261105へ準備、旧19履歴/6意味本文を保持、まだ独立採否前。censusは新固定fixtureのcounterfactual欠落/旧191source現物同値前提で拒否し、既digest/51歴史view/現旧6site+新90を分離するexact3をpr191_residual_independentへ委任（plan d3e5d935）。rootはOracle/正式9資産単一受理/最終CI/統合と台帳のみ直列担当。未完資産を途中pushしてCI反復しない。
+- **安打の後半成果**: 専用branchでstep3契約19をb9981293へ先置き（非作者38c3b4cf…、rootschema19成功）、payload型/schema直積P1を新閉unionへ修復（初回1a59ffda…→3872201b…、旧反例拒否）。root payload2+pin16をee74adaa、実source13を**f93c46c1**へ保存。唯一artifact**51d4d0f3…/60923bytes**再現、独立source6c964c35…がBE242/FE353/実artifact不正32拒否を確認。T1一回委譲/実base2・3/既採用D01=B mid-bottom限定を既唯一終了核へ反映し、旧normal/cold/X/OUT3境界を保持。旧34/56・新19の数学/履歴/選手/位置不変をpin独立1656ab31…で確認。実DB/語彙/野手所属/UI/正式受理はまだ。物理PlayRunnerは既before投影、afterCP runner1と区別しplan ad79d570へ明確化。作者batted_prefix_connectionがstep4最小scopeを調査し、承認後実装へ進める。
+- **成績の並行成果/未解消**: root実RR/RO scopeは40eebf0e＋353929d1へ保存。owned PGで設定/同handle/更新権限があっても25006拒否/通常writableと失効後のreader拒否を**2pass10.92秒**で確認、非作者902a6101…/203pure/偽token等拒否を採用。成績4fn/同frame保存/HTTPの成功ではない。作者30pathはpacket e8697ba7…/集合c23fab23…（3表54列・canonical S・唯一reader・生成SQL）、非作者9c05f992…が健康な2gameのS_iと全season Sを混同して全26群unavailableとなるP1を検出し**不採用**。同作者stats_csv_next_unitがgameごとの健康比較へ同scopeで修復中、未回答D02〜05や55数学期待は変更しない。root4正式operation/同frame評価をprefix水位更新後commit前flushする接合は後続。CSV14b96546の88列/sidecar候補はDB/HTTP未接続。
+- **全MVP/次の進め方**: #192正式資産→最終固定版レビュー/CI/通常統合を進めながら安打保存と成績S修復を並行。共通v3・唯一計算・既キュー/認証を再利用し、新API/保存方式を操作ごとに増殖させない。在塁・走塁/打球アウト/交代/取消/過去訂正/終了再開/全操作offline・担当交代/閲覧10秒/27成績・毎球と成績CSV/負荷・復旧・実機・運用HTTPSの義務を保持。エミュレーションと運用受入、未回答と承認を混同せず、Goal active。
+
+
 ## 続き：2026-11-05（#192画面の実停止点を是正、後半を並行実装）
 
 - **利用者操作/実証の現在地**: 正式developは#191 eb8b31cd。通常/四球/死球の実画面3系列保存・再読込/再送まで成立。#192の三振3PA→攻守交代→相手側ボール10球はAPI owned PGで3ca52e24/1pass126.84秒を保持し、実画面へ拡張中。
