@@ -32,7 +32,7 @@ BEGIN
  AND c.internal_generation=p_generation AND (c.content->'prefix_ref'->'checkpoint'->>'id')::uuid=p_wire_checkpoint_id
  AND c.revision=p_wire_checkpoint_revision AND c.history_version=p_storage_history_epoch
  AND c.confirmed_watermark=p_upper_watermark AND c.applied_watermark=p_upper_watermark
- AND c.content->>'version'='2' AND (c.content->'prefix_ref'->>'historyVersion')::bigint=p_wire_history_version AND c.state='current' FOR SHARE;
+ AND c.content->>'version' IN ('2','3') AND (c.content->'prefix_ref'->>'historyVersion')::bigint=p_wire_history_version AND c.state='current' FOR SHARE;
  IF NOT FOUND THEN
  RAISE EXCEPTION 'ordinary prefix page anchor rejected' USING ERRCODE='42501';
  END IF;
@@ -90,7 +90,7 @@ BEGIN
  IF (item.history->>'d1')::bigint-next_d1<>1
  OR item.event_count<>1 OR item.play_count<>1
  OR NOT COALESCE((item.admission_count=1 AND item.first_count=0
- AND item.events->0->'payload'->>'formatVersion' IN ('ordinary-pitch-play-v1','play-prefix-play-v2')
+ AND item.events->0->'payload'->>'formatVersion' IN ('ordinary-pitch-play-v1','play-prefix-play-v2','play-prefix-play-v3')
  AND item.admissions->0=item.plays->0)
  OR (item.admission_count=0 AND item.first_count=1
  AND (item.history->>'d1')::bigint=1

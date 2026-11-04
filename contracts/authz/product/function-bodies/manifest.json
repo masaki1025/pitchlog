@@ -3386,6 +3386,66 @@
       "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:play_runners:retired_at:pitchlog_sync_right_fn_owner.sql",
       "element_type": "column_acl_expectation",
       "element_id": "COLUMN-ACL:public:play_runners:retired_at:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/functions/FUNCTION:sync_right_api:read_lineup_started_origin(uuid, uuid, bigint).sql",
+      "element_type": "function",
+      "element_id": "FUNCTION:sync_right_api:read_lineup_started_origin(uuid, uuid, bigint)"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/policies/POLICY:game_start_requests:lineup_prefix_game_start_requests_select.sql",
+      "element_type": "policy",
+      "element_id": "POLICY:game_start_requests:lineup_prefix_game_start_requests_select"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:game_start_requests:tenant_id:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:game_start_requests:tenant_id:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:game_start_requests:game_id:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:game_start_requests:game_id:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:game_start_requests:start_request_id:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:game_start_requests:start_request_id:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:game_start_requests:device_id:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:game_start_requests:device_id:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/policies/POLICY:game_start_attempts:lineup_prefix_game_start_attempts_select.sql",
+      "element_type": "policy",
+      "element_id": "POLICY:game_start_attempts:lineup_prefix_game_start_attempts_select"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:game_start_attempts:tenant_id:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:game_start_attempts:tenant_id:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:game_start_attempts:game_id:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:game_start_attempts:game_id:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:game_start_attempts:start_request_id:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:game_start_attempts:start_request_id:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:game_start_attempts:device_id:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:game_start_attempts:device_id:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:game_start_attempts:outcome:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:game_start_attempts:outcome:pitchlog_sync_right_fn_owner"
     }
   ]
 }

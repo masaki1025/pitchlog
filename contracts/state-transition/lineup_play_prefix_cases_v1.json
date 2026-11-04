@@ -237,12 +237,12 @@
             "playId": "10000000-0000-0000-0000-000000000032"
           },
           "position": {
-            "d1": "100",
-            "d2": "100",
+            "d1": "101",
+            "d2": "101",
             "appliedWatermark": "100"
           },
           "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-          "executionArtifactSha256": "4cf1eceb377c202fede67f42110ccad16777d494f5aa90139679f64b2aeecd6a",
+          "executionArtifactSha256": "cda0b594ff70f31bde90372b84a23f210ae24b8f0c7fb19991fb6ecb89123070",
           "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
           "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
           "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -320,7 +320,7 @@
         "nextCheckpoint": {
           "id": "10000000-0000-0000-0000-000000000021",
           "revision": "2",
-          "digest": "d59a0100e58d0dd0b80f5c85bd72f60179d0cadb89844847b9251374e6d50fe9"
+          "digest": "cc30d5a66b4faca7814da2e219c307f1c2937e6288fffa009f8178f333031a02"
         }
       },
       "expected": {
@@ -526,7 +526,7 @@
             "checkpoint": {
               "id": "10000000-0000-0000-0000-000000000021",
               "revision": "2",
-              "digest": "d59a0100e58d0dd0b80f5c85bd72f60179d0cadb89844847b9251374e6d50fe9"
+              "digest": "cc30d5a66b4faca7814da2e219c307f1c2937e6288fffa009f8178f333031a02"
             },
             "historyVersion": "101",
             "origin": {
@@ -608,11 +608,11 @@
             "playId": "10000000-0000-0000-0000-000000000402"
           },
           "sourcePosition": {
-            "d1": "100",
-            "d2": "100",
+            "d1": "101",
+            "d2": "101",
             "appliedWatermark": "100"
           },
-          "executionArtifactSha256": "4cf1eceb377c202fede67f42110ccad16777d494f5aa90139679f64b2aeecd6a"
+          "executionArtifactSha256": "cda0b594ff70f31bde90372b84a23f210ae24b8f0c7fb19991fb6ecb89123070"
         }
       }
     },
@@ -789,12 +789,12 @@
             "playId": "10000000-0000-0000-0000-000000000032"
           },
           "position": {
-            "d1": "100",
-            "d2": "100",
+            "d1": "101",
+            "d2": "101",
             "appliedWatermark": "100"
           },
           "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-          "executionArtifactSha256": "4cf1eceb377c202fede67f42110ccad16777d494f5aa90139679f64b2aeecd6a",
+          "executionArtifactSha256": "cda0b594ff70f31bde90372b84a23f210ae24b8f0c7fb19991fb6ecb89123070",
           "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
           "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
           "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -880,7 +880,7 @@
         "nextCheckpoint": {
           "id": "10000000-0000-0000-0000-000000000021",
           "revision": "2",
-          "digest": "2659590aa502e6ed2fa66962e4c3e49f8633229e610fe49a533d6d933c16695f"
+          "digest": "478cdf6629ff58a720b460b7583ab1035afd2409abb182479218abc0c18ba654"
         }
       },
       "expected": {
@@ -1086,7 +1086,7 @@
             "checkpoint": {
               "id": "10000000-0000-0000-0000-000000000021",
               "revision": "2",
-              "digest": "2659590aa502e6ed2fa66962e4c3e49f8633229e610fe49a533d6d933c16695f"
+              "digest": "478cdf6629ff58a720b460b7583ab1035afd2409abb182479218abc0c18ba654"
             },
             "historyVersion": "101",
             "origin": {
@@ -1176,11 +1176,11 @@
             "playId": "10000000-0000-0000-0000-000000000405"
           },
           "sourcePosition": {
-            "d1": "100",
-            "d2": "100",
+            "d1": "101",
+            "d2": "101",
             "appliedWatermark": "100"
           },
-          "executionArtifactSha256": "4cf1eceb377c202fede67f42110ccad16777d494f5aa90139679f64b2aeecd6a"
+          "executionArtifactSha256": "cda0b594ff70f31bde90372b84a23f210ae24b8f0c7fb19991fb6ecb89123070"
         }
       }
     },
@@ -1357,12 +1357,12 @@
             "playId": "10000000-0000-0000-0000-000000000032"
           },
           "position": {
-            "d1": "100",
-            "d2": "100",
+            "d1": "101",
+            "d2": "101",
             "appliedWatermark": "100"
           },
           "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-          "executionArtifactSha256": "4cf1eceb377c202fede67f42110ccad16777d494f5aa90139679f64b2aeecd6a",
+          "executionArtifactSha256": "cda0b594ff70f31bde90372b84a23f210ae24b8f0c7fb19991fb6ecb89123070",
           "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
           "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
           "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -1448,7 +1448,7 @@
         "nextCheckpoint": {
           "id": "10000000-0000-0000-0000-000000000021",
           "revision": "2",
-          "digest": "a127af9592677ea56ffa5485de44843401dd40859801cd601793a1ba2c37df5d"
+          "digest": "446fbfc2130850e9f43f2979188edb70b3d2dafee941d40921f73c9fd2a7963c"
         }
       },
       "expected": {
@@ -1662,7 +1662,7 @@
             "checkpoint": {
               "id": "10000000-0000-0000-0000-000000000021",
               "revision": "2",
-              "digest": "a127af9592677ea56ffa5485de44843401dd40859801cd601793a1ba2c37df5d"
+              "digest": "446fbfc2130850e9f43f2979188edb70b3d2dafee941d40921f73c9fd2a7963c"
             },
             "historyVersion": "101",
             "origin": {
@@ -1744,11 +1744,11 @@
             "playId": "10000000-0000-0000-0000-000000000408"
           },
           "sourcePosition": {
-            "d1": "100",
-            "d2": "100",
+            "d1": "101",
+            "d2": "101",
             "appliedWatermark": "100"
           },
-          "executionArtifactSha256": "4cf1eceb377c202fede67f42110ccad16777d494f5aa90139679f64b2aeecd6a"
+          "executionArtifactSha256": "cda0b594ff70f31bde90372b84a23f210ae24b8f0c7fb19991fb6ecb89123070"
         }
       }
     },
@@ -1925,12 +1925,12 @@
             "playId": "10000000-0000-0000-0000-000000000032"
           },
           "position": {
-            "d1": "100",
-            "d2": "100",
+            "d1": "101",
+            "d2": "101",
             "appliedWatermark": "100"
           },
           "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-          "executionArtifactSha256": "4cf1eceb377c202fede67f42110ccad16777d494f5aa90139679f64b2aeecd6a",
+          "executionArtifactSha256": "cda0b594ff70f31bde90372b84a23f210ae24b8f0c7fb19991fb6ecb89123070",
           "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
           "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
           "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -2016,7 +2016,7 @@
         "nextCheckpoint": {
           "id": "10000000-0000-0000-0000-000000000021",
           "revision": "2",
-          "digest": "e47ef90b43c3160a113d4d9c3b579030ff8694b0f01e3b498de9c105274792d3"
+          "digest": "5ce2e48bfd6a3203a771584ef487b1aaecdee5428eb5b73986a9b69266daba0b"
         }
       },
       "expected": {
@@ -2226,7 +2226,7 @@
             "checkpoint": {
               "id": "10000000-0000-0000-0000-000000000021",
               "revision": "2",
-              "digest": "e47ef90b43c3160a113d4d9c3b579030ff8694b0f01e3b498de9c105274792d3"
+              "digest": "5ce2e48bfd6a3203a771584ef487b1aaecdee5428eb5b73986a9b69266daba0b"
             },
             "historyVersion": "101",
             "origin": {
@@ -2316,11 +2316,11 @@
             "playId": "10000000-0000-0000-0000-000000000411"
           },
           "sourcePosition": {
-            "d1": "100",
-            "d2": "100",
+            "d1": "101",
+            "d2": "101",
             "appliedWatermark": "100"
           },
-          "executionArtifactSha256": "4cf1eceb377c202fede67f42110ccad16777d494f5aa90139679f64b2aeecd6a"
+          "executionArtifactSha256": "cda0b594ff70f31bde90372b84a23f210ae24b8f0c7fb19991fb6ecb89123070"
         }
       }
     },
@@ -2497,12 +2497,12 @@
             "playId": "10000000-0000-0000-0000-000000000032"
           },
           "position": {
-            "d1": "100",
-            "d2": "100",
+            "d1": "101",
+            "d2": "101",
             "appliedWatermark": "100"
           },
           "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-          "executionArtifactSha256": "4cf1eceb377c202fede67f42110ccad16777d494f5aa90139679f64b2aeecd6a",
+          "executionArtifactSha256": "cda0b594ff70f31bde90372b84a23f210ae24b8f0c7fb19991fb6ecb89123070",
           "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
           "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
           "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -2595,7 +2595,7 @@
         "nextCheckpoint": {
           "id": "10000000-0000-0000-0000-000000000021",
           "revision": "2",
-          "digest": "1c18181e95326c40b469c6a1bb9d73a10bb71046bc23fb3cbacc1e593903966e"
+          "digest": "c3f925d68f3137d3d6785476dac2a1f6944dceb16bc6ac109974e00119562945"
         }
       },
       "expected": {
@@ -2805,7 +2805,7 @@
             "checkpoint": {
               "id": "10000000-0000-0000-0000-000000000021",
               "revision": "2",
-              "digest": "1c18181e95326c40b469c6a1bb9d73a10bb71046bc23fb3cbacc1e593903966e"
+              "digest": "c3f925d68f3137d3d6785476dac2a1f6944dceb16bc6ac109974e00119562945"
             },
             "historyVersion": "101",
             "origin": {
@@ -2902,11 +2902,11 @@
             "playId": "10000000-0000-0000-0000-000000000414"
           },
           "sourcePosition": {
-            "d1": "100",
-            "d2": "100",
+            "d1": "101",
+            "d2": "101",
             "appliedWatermark": "100"
           },
-          "executionArtifactSha256": "4cf1eceb377c202fede67f42110ccad16777d494f5aa90139679f64b2aeecd6a"
+          "executionArtifactSha256": "cda0b594ff70f31bde90372b84a23f210ae24b8f0c7fb19991fb6ecb89123070"
         }
       }
     },
@@ -3083,12 +3083,12 @@
             "playId": "10000000-0000-0000-0000-000000000032"
           },
           "position": {
-            "d1": "100",
-            "d2": "100",
+            "d1": "101",
+            "d2": "101",
             "appliedWatermark": "100"
           },
           "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-          "executionArtifactSha256": "4cf1eceb377c202fede67f42110ccad16777d494f5aa90139679f64b2aeecd6a",
+          "executionArtifactSha256": "cda0b594ff70f31bde90372b84a23f210ae24b8f0c7fb19991fb6ecb89123070",
           "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
           "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
           "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -3181,7 +3181,7 @@
         "nextCheckpoint": {
           "id": "10000000-0000-0000-0000-000000000021",
           "revision": "2",
-          "digest": "6673e37dc2cb15b4678a7d2a214fc5b04dc64a6410aa3d8eafe063862e0d27ee"
+          "digest": "0ffaf8edb1a67df1dc004f6de7decdccd43f1f52d89fa5f0c2e0dd38da3c91e8"
         }
       },
       "expected": {
@@ -3399,7 +3399,7 @@
             "checkpoint": {
               "id": "10000000-0000-0000-0000-000000000021",
               "revision": "2",
-              "digest": "6673e37dc2cb15b4678a7d2a214fc5b04dc64a6410aa3d8eafe063862e0d27ee"
+              "digest": "0ffaf8edb1a67df1dc004f6de7decdccd43f1f52d89fa5f0c2e0dd38da3c91e8"
             },
             "historyVersion": "101",
             "origin": {
@@ -3481,11 +3481,11 @@
             "playId": "10000000-0000-0000-0000-000000000417"
           },
           "sourcePosition": {
-            "d1": "100",
-            "d2": "100",
+            "d1": "101",
+            "d2": "101",
             "appliedWatermark": "100"
           },
-          "executionArtifactSha256": "4cf1eceb377c202fede67f42110ccad16777d494f5aa90139679f64b2aeecd6a"
+          "executionArtifactSha256": "cda0b594ff70f31bde90372b84a23f210ae24b8f0c7fb19991fb6ecb89123070"
         }
       }
     },
@@ -3662,12 +3662,12 @@
             "playId": "10000000-0000-0000-0000-000000000032"
           },
           "position": {
-            "d1": "100",
-            "d2": "100",
+            "d1": "101",
+            "d2": "101",
             "appliedWatermark": "100"
           },
           "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-          "executionArtifactSha256": "4cf1eceb377c202fede67f42110ccad16777d494f5aa90139679f64b2aeecd6a",
+          "executionArtifactSha256": "cda0b594ff70f31bde90372b84a23f210ae24b8f0c7fb19991fb6ecb89123070",
           "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
           "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
           "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -3760,7 +3760,7 @@
         "nextCheckpoint": {
           "id": "10000000-0000-0000-0000-000000000021",
           "revision": "2",
-          "digest": "fd3dda0da448747088a3c0887f5c32dad9bc8f7d03a978a07455e1c00295305d"
+          "digest": "82f740d46c75ad10b267491bbeed81831809fd99e6cd788b24afebf68043497d"
         }
       },
       "expected": {
@@ -3970,7 +3970,7 @@
             "checkpoint": {
               "id": "10000000-0000-0000-0000-000000000021",
               "revision": "2",
-              "digest": "fd3dda0da448747088a3c0887f5c32dad9bc8f7d03a978a07455e1c00295305d"
+              "digest": "82f740d46c75ad10b267491bbeed81831809fd99e6cd788b24afebf68043497d"
             },
             "historyVersion": "101",
             "origin": {
@@ -4067,11 +4067,11 @@
             "playId": "10000000-0000-0000-0000-000000000420"
           },
           "sourcePosition": {
-            "d1": "100",
-            "d2": "100",
+            "d1": "101",
+            "d2": "101",
             "appliedWatermark": "100"
           },
-          "executionArtifactSha256": "4cf1eceb377c202fede67f42110ccad16777d494f5aa90139679f64b2aeecd6a"
+          "executionArtifactSha256": "cda0b594ff70f31bde90372b84a23f210ae24b8f0c7fb19991fb6ecb89123070"
         }
       }
     },
@@ -4248,12 +4248,12 @@
             "playId": "10000000-0000-0000-0000-000000000032"
           },
           "position": {
-            "d1": "100",
-            "d2": "100",
+            "d1": "101",
+            "d2": "101",
             "appliedWatermark": "100"
           },
           "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-          "executionArtifactSha256": "4cf1eceb377c202fede67f42110ccad16777d494f5aa90139679f64b2aeecd6a",
+          "executionArtifactSha256": "cda0b594ff70f31bde90372b84a23f210ae24b8f0c7fb19991fb6ecb89123070",
           "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
           "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
           "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -4353,7 +4353,7 @@
         "nextCheckpoint": {
           "id": "10000000-0000-0000-0000-000000000021",
           "revision": "2",
-          "digest": "ba325437dc54c41227f9addbc93ec795c426b3b9a4c21fa413ab9fbaa1023949"
+          "digest": "4fb29703154418630d7a542727a74d8a33574d8765d6c74ad32a1b829e917b98"
         }
       },
       "expected": {
@@ -4563,7 +4563,7 @@
             "checkpoint": {
               "id": "10000000-0000-0000-0000-000000000021",
               "revision": "2",
-              "digest": "ba325437dc54c41227f9addbc93ec795c426b3b9a4c21fa413ab9fbaa1023949"
+              "digest": "4fb29703154418630d7a542727a74d8a33574d8765d6c74ad32a1b829e917b98"
             },
             "historyVersion": "101",
             "origin": {
@@ -4667,11 +4667,11 @@
             "playId": "10000000-0000-0000-0000-000000000423"
           },
           "sourcePosition": {
-            "d1": "100",
-            "d2": "100",
+            "d1": "101",
+            "d2": "101",
             "appliedWatermark": "100"
           },
-          "executionArtifactSha256": "4cf1eceb377c202fede67f42110ccad16777d494f5aa90139679f64b2aeecd6a"
+          "executionArtifactSha256": "cda0b594ff70f31bde90372b84a23f210ae24b8f0c7fb19991fb6ecb89123070"
         }
       }
     },
@@ -4848,12 +4848,12 @@
             "playId": "10000000-0000-0000-0000-000000000032"
           },
           "position": {
-            "d1": "100",
-            "d2": "100",
+            "d1": "101",
+            "d2": "101",
             "appliedWatermark": "100"
           },
           "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-          "executionArtifactSha256": "4cf1eceb377c202fede67f42110ccad16777d494f5aa90139679f64b2aeecd6a",
+          "executionArtifactSha256": "cda0b594ff70f31bde90372b84a23f210ae24b8f0c7fb19991fb6ecb89123070",
           "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
           "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
           "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -4931,7 +4931,7 @@
         "nextCheckpoint": {
           "id": "10000000-0000-0000-0000-000000000021",
           "revision": "2",
-          "digest": "8436faa5226f65bd2f1550183dab1c83d68db3a1f924e52fbe24fc9e30a4f73f"
+          "digest": "004dfe0961c56fcbdf8f862b608a293b43528e482ba9276da8637eebe03f5e9c"
         }
       },
       "expected": {
@@ -5141,7 +5141,7 @@
             "checkpoint": {
               "id": "10000000-0000-0000-0000-000000000021",
               "revision": "2",
-              "digest": "8436faa5226f65bd2f1550183dab1c83d68db3a1f924e52fbe24fc9e30a4f73f"
+              "digest": "004dfe0961c56fcbdf8f862b608a293b43528e482ba9276da8637eebe03f5e9c"
             },
             "historyVersion": "101",
             "origin": {
@@ -5223,11 +5223,11 @@
             "playId": "10000000-0000-0000-0000-000000000426"
           },
           "sourcePosition": {
-            "d1": "100",
-            "d2": "100",
+            "d1": "101",
+            "d2": "101",
             "appliedWatermark": "100"
           },
-          "executionArtifactSha256": "4cf1eceb377c202fede67f42110ccad16777d494f5aa90139679f64b2aeecd6a"
+          "executionArtifactSha256": "cda0b594ff70f31bde90372b84a23f210ae24b8f0c7fb19991fb6ecb89123070"
         }
       }
     },
@@ -5404,12 +5404,12 @@
             "playId": "10000000-0000-0000-0000-000000000032"
           },
           "position": {
-            "d1": "100",
-            "d2": "100",
+            "d1": "101",
+            "d2": "101",
             "appliedWatermark": "100"
           },
           "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-          "executionArtifactSha256": "4cf1eceb377c202fede67f42110ccad16777d494f5aa90139679f64b2aeecd6a",
+          "executionArtifactSha256": "cda0b594ff70f31bde90372b84a23f210ae24b8f0c7fb19991fb6ecb89123070",
           "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
           "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
           "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -5495,7 +5495,7 @@
         "nextCheckpoint": {
           "id": "10000000-0000-0000-0000-000000000021",
           "revision": "2",
-          "digest": "617a4bbecbd0f3586ad8f6db315baed86e5841769ab8a91c720ed78af426b880"
+          "digest": "0d518ca25712198e10e57f84287b56d98fc0ae7eaca86e5cb57eee94fccde6fa"
         }
       },
       "expected": {
@@ -5705,7 +5705,7 @@
             "checkpoint": {
               "id": "10000000-0000-0000-0000-000000000021",
               "revision": "2",
-              "digest": "617a4bbecbd0f3586ad8f6db315baed86e5841769ab8a91c720ed78af426b880"
+              "digest": "0d518ca25712198e10e57f84287b56d98fc0ae7eaca86e5cb57eee94fccde6fa"
             },
             "historyVersion": "101",
             "origin": {
@@ -5795,11 +5795,11 @@
             "playId": "10000000-0000-0000-0000-000000000429"
           },
           "sourcePosition": {
-            "d1": "100",
-            "d2": "100",
+            "d1": "101",
+            "d2": "101",
             "appliedWatermark": "100"
           },
-          "executionArtifactSha256": "4cf1eceb377c202fede67f42110ccad16777d494f5aa90139679f64b2aeecd6a"
+          "executionArtifactSha256": "cda0b594ff70f31bde90372b84a23f210ae24b8f0c7fb19991fb6ecb89123070"
         }
       }
     },
@@ -5976,12 +5976,12 @@
             "playId": "10000000-0000-0000-0000-000000000032"
           },
           "position": {
-            "d1": "100",
-            "d2": "100",
+            "d1": "101",
+            "d2": "101",
             "appliedWatermark": "100"
           },
           "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-          "executionArtifactSha256": "4cf1eceb377c202fede67f42110ccad16777d494f5aa90139679f64b2aeecd6a",
+          "executionArtifactSha256": "cda0b594ff70f31bde90372b84a23f210ae24b8f0c7fb19991fb6ecb89123070",
           "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
           "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
           "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -6067,7 +6067,7 @@
         "nextCheckpoint": {
           "id": "10000000-0000-0000-0000-000000000021",
           "revision": "2",
-          "digest": "437286599cee161b9fe1d9d770dff8c52a82cba5c49fbef4e8cc8036995f1da7"
+          "digest": "9a59b13204022117888def3ad2bfd46b6f7f1289df570ac3a7bb69922bf2499e"
         }
       },
       "expected": {
@@ -6277,7 +6277,7 @@
             "checkpoint": {
               "id": "10000000-0000-0000-0000-000000000021",
               "revision": "2",
-              "digest": "437286599cee161b9fe1d9d770dff8c52a82cba5c49fbef4e8cc8036995f1da7"
+              "digest": "9a59b13204022117888def3ad2bfd46b6f7f1289df570ac3a7bb69922bf2499e"
             },
             "historyVersion": "101",
             "origin": {
@@ -6367,11 +6367,11 @@
             "playId": "10000000-0000-0000-0000-000000000432"
           },
           "sourcePosition": {
-            "d1": "100",
-            "d2": "100",
+            "d1": "101",
+            "d2": "101",
             "appliedWatermark": "100"
           },
-          "executionArtifactSha256": "4cf1eceb377c202fede67f42110ccad16777d494f5aa90139679f64b2aeecd6a"
+          "executionArtifactSha256": "cda0b594ff70f31bde90372b84a23f210ae24b8f0c7fb19991fb6ecb89123070"
         }
       }
     },
@@ -6548,12 +6548,12 @@
             "playId": "10000000-0000-0000-0000-000000000032"
           },
           "position": {
-            "d1": "100",
-            "d2": "100",
+            "d1": "101",
+            "d2": "101",
             "appliedWatermark": "100"
           },
           "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-          "executionArtifactSha256": "4cf1eceb377c202fede67f42110ccad16777d494f5aa90139679f64b2aeecd6a",
+          "executionArtifactSha256": "cda0b594ff70f31bde90372b84a23f210ae24b8f0c7fb19991fb6ecb89123070",
           "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
           "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
           "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -6639,7 +6639,7 @@
         "nextCheckpoint": {
           "id": "10000000-0000-0000-0000-000000000021",
           "revision": "2",
-          "digest": "6566e9645184bed1e68692395946195cd2e838a78fde1db77d10b9595d6237b1"
+          "digest": "75f65c2c62be600654892d1ff16b3f444d742daf76e03a4bcf6ad3e999668d7c"
         }
       },
       "expected": {
@@ -6857,7 +6857,7 @@
             "checkpoint": {
               "id": "10000000-0000-0000-0000-000000000021",
               "revision": "2",
-              "digest": "6566e9645184bed1e68692395946195cd2e838a78fde1db77d10b9595d6237b1"
+              "digest": "75f65c2c62be600654892d1ff16b3f444d742daf76e03a4bcf6ad3e999668d7c"
             },
             "historyVersion": "101",
             "origin": {
@@ -6939,11 +6939,11 @@
             "playId": "10000000-0000-0000-0000-000000000435"
           },
           "sourcePosition": {
-            "d1": "100",
-            "d2": "100",
+            "d1": "101",
+            "d2": "101",
             "appliedWatermark": "100"
           },
-          "executionArtifactSha256": "4cf1eceb377c202fede67f42110ccad16777d494f5aa90139679f64b2aeecd6a"
+          "executionArtifactSha256": "cda0b594ff70f31bde90372b84a23f210ae24b8f0c7fb19991fb6ecb89123070"
         }
       }
     },
@@ -7120,12 +7120,12 @@
             "playId": "10000000-0000-0000-0000-000000000032"
           },
           "position": {
-            "d1": "100",
-            "d2": "100",
+            "d1": "101",
+            "d2": "101",
             "appliedWatermark": "100"
           },
           "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-          "executionArtifactSha256": "4cf1eceb377c202fede67f42110ccad16777d494f5aa90139679f64b2aeecd6a",
+          "executionArtifactSha256": "cda0b594ff70f31bde90372b84a23f210ae24b8f0c7fb19991fb6ecb89123070",
           "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
           "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
           "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -7203,7 +7203,7 @@
         "nextCheckpoint": {
           "id": "10000000-0000-0000-0000-000000000021",
           "revision": "2",
-          "digest": "13788be08d73a55bba5eb2b9df9925b3b456db44e51e7b7b442cf64917e48fed"
+          "digest": "54a2276db982c2acf7db94842098c3d9601c8182254ac1906c7d691a85119184"
         }
       },
       "expected": {
@@ -7409,7 +7409,7 @@
             "checkpoint": {
               "id": "10000000-0000-0000-0000-000000000021",
               "revision": "2",
-              "digest": "13788be08d73a55bba5eb2b9df9925b3b456db44e51e7b7b442cf64917e48fed"
+              "digest": "54a2276db982c2acf7db94842098c3d9601c8182254ac1906c7d691a85119184"
             },
             "historyVersion": "101",
             "origin": {
@@ -7491,11 +7491,11 @@
             "playId": "10000000-0000-0000-0000-000000000438"
           },
           "sourcePosition": {
-            "d1": "100",
-            "d2": "100",
+            "d1": "101",
+            "d2": "101",
             "appliedWatermark": "100"
           },
-          "executionArtifactSha256": "4cf1eceb377c202fede67f42110ccad16777d494f5aa90139679f64b2aeecd6a"
+          "executionArtifactSha256": "cda0b594ff70f31bde90372b84a23f210ae24b8f0c7fb19991fb6ecb89123070"
         }
       }
     },
@@ -7672,12 +7672,12 @@
             "playId": "10000000-0000-0000-0000-000000000032"
           },
           "position": {
-            "d1": "100",
-            "d2": "100",
+            "d1": "101",
+            "d2": "101",
             "appliedWatermark": "100"
           },
           "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-          "executionArtifactSha256": "4cf1eceb377c202fede67f42110ccad16777d494f5aa90139679f64b2aeecd6a",
+          "executionArtifactSha256": "cda0b594ff70f31bde90372b84a23f210ae24b8f0c7fb19991fb6ecb89123070",
           "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
           "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
           "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -7763,7 +7763,7 @@
         "nextCheckpoint": {
           "id": "10000000-0000-0000-0000-000000000021",
           "revision": "2",
-          "digest": "88cd587180c8af3f59d100749f4dee2f208ab10184c3959687c210169405cc68"
+          "digest": "ce179892052a6761ef0cbb4458815a95dae0162536305e188f902db1ede159f7"
         }
       },
       "expected": {
@@ -7969,7 +7969,7 @@
             "checkpoint": {
               "id": "10000000-0000-0000-0000-000000000021",
               "revision": "2",
-              "digest": "88cd587180c8af3f59d100749f4dee2f208ab10184c3959687c210169405cc68"
+              "digest": "ce179892052a6761ef0cbb4458815a95dae0162536305e188f902db1ede159f7"
             },
             "historyVersion": "101",
             "origin": {
@@ -8059,11 +8059,11 @@
             "playId": "10000000-0000-0000-0000-000000000441"
           },
           "sourcePosition": {
-            "d1": "100",
-            "d2": "100",
+            "d1": "101",
+            "d2": "101",
             "appliedWatermark": "100"
           },
-          "executionArtifactSha256": "4cf1eceb377c202fede67f42110ccad16777d494f5aa90139679f64b2aeecd6a"
+          "executionArtifactSha256": "cda0b594ff70f31bde90372b84a23f210ae24b8f0c7fb19991fb6ecb89123070"
         }
       }
     },
@@ -8240,12 +8240,12 @@
             "playId": "10000000-0000-0000-0000-000000000032"
           },
           "position": {
-            "d1": "100",
-            "d2": "100",
+            "d1": "101",
+            "d2": "101",
             "appliedWatermark": "100"
           },
           "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-          "executionArtifactSha256": "4cf1eceb377c202fede67f42110ccad16777d494f5aa90139679f64b2aeecd6a",
+          "executionArtifactSha256": "cda0b594ff70f31bde90372b84a23f210ae24b8f0c7fb19991fb6ecb89123070",
           "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
           "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
           "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -8331,7 +8331,7 @@
         "nextCheckpoint": {
           "id": "10000000-0000-0000-0000-000000000021",
           "revision": "2",
-          "digest": "0a02080c4f14f8b4f616a0203a2e2ca5ee54fae5e7748bb6c56412e4f5b75c7d"
+          "digest": "1a5cd7b83d855c535e482c78ce083ee269c4b1659f911a83af5f47ee5eeee20e"
         }
       },
       "expected": {
@@ -8545,7 +8545,7 @@
             "checkpoint": {
               "id": "10000000-0000-0000-0000-000000000021",
               "revision": "2",
-              "digest": "0a02080c4f14f8b4f616a0203a2e2ca5ee54fae5e7748bb6c56412e4f5b75c7d"
+              "digest": "1a5cd7b83d855c535e482c78ce083ee269c4b1659f911a83af5f47ee5eeee20e"
             },
             "historyVersion": "101",
             "origin": {
@@ -8627,11 +8627,11 @@
             "playId": "10000000-0000-0000-0000-000000000444"
           },
           "sourcePosition": {
-            "d1": "100",
-            "d2": "100",
+            "d1": "101",
+            "d2": "101",
             "appliedWatermark": "100"
           },
-          "executionArtifactSha256": "4cf1eceb377c202fede67f42110ccad16777d494f5aa90139679f64b2aeecd6a"
+          "executionArtifactSha256": "cda0b594ff70f31bde90372b84a23f210ae24b8f0c7fb19991fb6ecb89123070"
         }
       }
     },
@@ -8808,12 +8808,12 @@
             "playId": "10000000-0000-0000-0000-000000000032"
           },
           "position": {
-            "d1": "100",
-            "d2": "100",
+            "d1": "101",
+            "d2": "101",
             "appliedWatermark": "100"
           },
           "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-          "executionArtifactSha256": "4cf1eceb377c202fede67f42110ccad16777d494f5aa90139679f64b2aeecd6a",
+          "executionArtifactSha256": "cda0b594ff70f31bde90372b84a23f210ae24b8f0c7fb19991fb6ecb89123070",
           "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
           "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
           "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -8899,7 +8899,7 @@
         "nextCheckpoint": {
           "id": "10000000-0000-0000-0000-000000000021",
           "revision": "2",
-          "digest": "ba2f09e2ab58062b3c6e93ca95eb2b03f1f25cf261dedb5d0bccf87ff17f0796"
+          "digest": "651fd7f488a10dd90eca815cb3e23b9ed2bc6b4964d8ccd1b8f01859e86480be"
         }
       },
       "expected": {
@@ -9109,7 +9109,7 @@
             "checkpoint": {
               "id": "10000000-0000-0000-0000-000000000021",
               "revision": "2",
-              "digest": "ba2f09e2ab58062b3c6e93ca95eb2b03f1f25cf261dedb5d0bccf87ff17f0796"
+              "digest": "651fd7f488a10dd90eca815cb3e23b9ed2bc6b4964d8ccd1b8f01859e86480be"
             },
             "historyVersion": "101",
             "origin": {
@@ -9199,11 +9199,11 @@
             "playId": "10000000-0000-0000-0000-000000000447"
           },
           "sourcePosition": {
-            "d1": "100",
-            "d2": "100",
+            "d1": "101",
+            "d2": "101",
             "appliedWatermark": "100"
           },
-          "executionArtifactSha256": "4cf1eceb377c202fede67f42110ccad16777d494f5aa90139679f64b2aeecd6a"
+          "executionArtifactSha256": "cda0b594ff70f31bde90372b84a23f210ae24b8f0c7fb19991fb6ecb89123070"
         }
       }
     },
@@ -9380,12 +9380,12 @@
             "playId": "10000000-0000-0000-0000-000000000032"
           },
           "position": {
-            "d1": "100",
-            "d2": "100",
+            "d1": "101",
+            "d2": "101",
             "appliedWatermark": "100"
           },
           "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-          "executionArtifactSha256": "4cf1eceb377c202fede67f42110ccad16777d494f5aa90139679f64b2aeecd6a",
+          "executionArtifactSha256": "cda0b594ff70f31bde90372b84a23f210ae24b8f0c7fb19991fb6ecb89123070",
           "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
           "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
           "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -9478,7 +9478,7 @@
         "nextCheckpoint": {
           "id": "10000000-0000-0000-0000-000000000021",
           "revision": "2",
-          "digest": "a1225cb43a249d46b180aef0bcaa84c58c0a2516f1e480dd1d9c74fca9c38e2f"
+          "digest": "ceeb3cc8d976e4e575921b53158775401845162476e39fbc6d48d685a2870d68"
         }
       },
       "expected": {
@@ -9688,7 +9688,7 @@
             "checkpoint": {
               "id": "10000000-0000-0000-0000-000000000021",
               "revision": "2",
-              "digest": "a1225cb43a249d46b180aef0bcaa84c58c0a2516f1e480dd1d9c74fca9c38e2f"
+              "digest": "ceeb3cc8d976e4e575921b53158775401845162476e39fbc6d48d685a2870d68"
             },
             "historyVersion": "101",
             "origin": {
@@ -9785,11 +9785,11 @@
             "playId": "10000000-0000-0000-0000-000000000450"
           },
           "sourcePosition": {
-            "d1": "100",
-            "d2": "100",
+            "d1": "101",
+            "d2": "101",
             "appliedWatermark": "100"
           },
-          "executionArtifactSha256": "4cf1eceb377c202fede67f42110ccad16777d494f5aa90139679f64b2aeecd6a"
+          "executionArtifactSha256": "cda0b594ff70f31bde90372b84a23f210ae24b8f0c7fb19991fb6ecb89123070"
         }
       }
     },
@@ -9966,12 +9966,12 @@
             "playId": "10000000-0000-0000-0000-000000000032"
           },
           "position": {
-            "d1": "100",
-            "d2": "100",
+            "d1": "101",
+            "d2": "101",
             "appliedWatermark": "100"
           },
           "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-          "executionArtifactSha256": "4cf1eceb377c202fede67f42110ccad16777d494f5aa90139679f64b2aeecd6a",
+          "executionArtifactSha256": "cda0b594ff70f31bde90372b84a23f210ae24b8f0c7fb19991fb6ecb89123070",
           "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
           "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
           "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -10064,7 +10064,7 @@
         "nextCheckpoint": {
           "id": "10000000-0000-0000-0000-000000000021",
           "revision": "2",
-          "digest": "cc9e6d8b0962ec2464e38346b745198e5217b77920b0053d0ffa5f80970cb14a"
+          "digest": "c1b046ed43521d480f17bdbc50aee9c151ae4015d2dadded7b0b8cf8cc22aca7"
         }
       },
       "expected": {
@@ -10282,7 +10282,7 @@
             "checkpoint": {
               "id": "10000000-0000-0000-0000-000000000021",
               "revision": "2",
-              "digest": "cc9e6d8b0962ec2464e38346b745198e5217b77920b0053d0ffa5f80970cb14a"
+              "digest": "c1b046ed43521d480f17bdbc50aee9c151ae4015d2dadded7b0b8cf8cc22aca7"
             },
             "historyVersion": "101",
             "origin": {
@@ -10364,11 +10364,11 @@
             "playId": "10000000-0000-0000-0000-000000000453"
           },
           "sourcePosition": {
-            "d1": "100",
-            "d2": "100",
+            "d1": "101",
+            "d2": "101",
             "appliedWatermark": "100"
           },
-          "executionArtifactSha256": "4cf1eceb377c202fede67f42110ccad16777d494f5aa90139679f64b2aeecd6a"
+          "executionArtifactSha256": "cda0b594ff70f31bde90372b84a23f210ae24b8f0c7fb19991fb6ecb89123070"
         }
       }
     },
@@ -10545,12 +10545,12 @@
             "playId": "10000000-0000-0000-0000-000000000032"
           },
           "position": {
-            "d1": "100",
-            "d2": "100",
+            "d1": "101",
+            "d2": "101",
             "appliedWatermark": "100"
           },
           "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-          "executionArtifactSha256": "4cf1eceb377c202fede67f42110ccad16777d494f5aa90139679f64b2aeecd6a",
+          "executionArtifactSha256": "cda0b594ff70f31bde90372b84a23f210ae24b8f0c7fb19991fb6ecb89123070",
           "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
           "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
           "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -10643,7 +10643,7 @@
         "nextCheckpoint": {
           "id": "10000000-0000-0000-0000-000000000021",
           "revision": "2",
-          "digest": "3af675a53a3ca8fab6347c081c42ae583c395d53f4f5110d685da884a6c392dc"
+          "digest": "4e43e58a71dd3a69112c3c6884a6ce744bf1432c6e31f549b3819ec25e6657c9"
         }
       },
       "expected": {
@@ -10853,7 +10853,7 @@
             "checkpoint": {
               "id": "10000000-0000-0000-0000-000000000021",
               "revision": "2",
-              "digest": "3af675a53a3ca8fab6347c081c42ae583c395d53f4f5110d685da884a6c392dc"
+              "digest": "4e43e58a71dd3a69112c3c6884a6ce744bf1432c6e31f549b3819ec25e6657c9"
             },
             "historyVersion": "101",
             "origin": {
@@ -10950,11 +10950,11 @@
             "playId": "10000000-0000-0000-0000-000000000456"
           },
           "sourcePosition": {
-            "d1": "100",
-            "d2": "100",
+            "d1": "101",
+            "d2": "101",
             "appliedWatermark": "100"
           },
-          "executionArtifactSha256": "4cf1eceb377c202fede67f42110ccad16777d494f5aa90139679f64b2aeecd6a"
+          "executionArtifactSha256": "cda0b594ff70f31bde90372b84a23f210ae24b8f0c7fb19991fb6ecb89123070"
         }
       }
     },
@@ -11131,12 +11131,12 @@
             "playId": "10000000-0000-0000-0000-000000000032"
           },
           "position": {
-            "d1": "100",
-            "d2": "100",
+            "d1": "101",
+            "d2": "101",
             "appliedWatermark": "100"
           },
           "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-          "executionArtifactSha256": "4cf1eceb377c202fede67f42110ccad16777d494f5aa90139679f64b2aeecd6a",
+          "executionArtifactSha256": "cda0b594ff70f31bde90372b84a23f210ae24b8f0c7fb19991fb6ecb89123070",
           "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
           "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
           "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -11236,7 +11236,7 @@
         "nextCheckpoint": {
           "id": "10000000-0000-0000-0000-000000000021",
           "revision": "2",
-          "digest": "dca1eeb0a284a7aa77317c88db124cab8ec22a023d678d9859b3f0add7a77553"
+          "digest": "f6f9f3674f18b53200626e39def98df55605093418bdfda7ab8decb12a192ae5"
         }
       },
       "expected": {
@@ -11446,7 +11446,7 @@
             "checkpoint": {
               "id": "10000000-0000-0000-0000-000000000021",
               "revision": "2",
-              "digest": "dca1eeb0a284a7aa77317c88db124cab8ec22a023d678d9859b3f0add7a77553"
+              "digest": "f6f9f3674f18b53200626e39def98df55605093418bdfda7ab8decb12a192ae5"
             },
             "historyVersion": "101",
             "origin": {
@@ -11550,11 +11550,11 @@
             "playId": "10000000-0000-0000-0000-000000000459"
           },
           "sourcePosition": {
-            "d1": "100",
-            "d2": "100",
+            "d1": "101",
+            "d2": "101",
             "appliedWatermark": "100"
           },
-          "executionArtifactSha256": "4cf1eceb377c202fede67f42110ccad16777d494f5aa90139679f64b2aeecd6a"
+          "executionArtifactSha256": "cda0b594ff70f31bde90372b84a23f210ae24b8f0c7fb19991fb6ecb89123070"
         }
       }
     },
@@ -11731,12 +11731,12 @@
             "playId": "10000000-0000-0000-0000-000000000032"
           },
           "position": {
-            "d1": "100",
-            "d2": "100",
+            "d1": "101",
+            "d2": "101",
             "appliedWatermark": "100"
           },
           "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-          "executionArtifactSha256": "4cf1eceb377c202fede67f42110ccad16777d494f5aa90139679f64b2aeecd6a",
+          "executionArtifactSha256": "cda0b594ff70f31bde90372b84a23f210ae24b8f0c7fb19991fb6ecb89123070",
           "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
           "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
           "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -11814,7 +11814,7 @@
         "nextCheckpoint": {
           "id": "10000000-0000-0000-0000-000000000021",
           "revision": "2",
-          "digest": "723095e1e275d674c5e7f7b9d009088a5f5b79f4eab10741fb623e3a2ad00427"
+          "digest": "4ea424a3f438ac398e1321dd36d04719e816ca4f57cd878865427e69814bcf87"
         }
       },
       "expected": {
@@ -12024,7 +12024,7 @@
             "checkpoint": {
               "id": "10000000-0000-0000-0000-000000000021",
               "revision": "2",
-              "digest": "723095e1e275d674c5e7f7b9d009088a5f5b79f4eab10741fb623e3a2ad00427"
+              "digest": "4ea424a3f438ac398e1321dd36d04719e816ca4f57cd878865427e69814bcf87"
             },
             "historyVersion": "101",
             "origin": {
@@ -12106,11 +12106,11 @@
             "playId": "10000000-0000-0000-0000-000000000462"
           },
           "sourcePosition": {
-            "d1": "100",
-            "d2": "100",
+            "d1": "101",
+            "d2": "101",
             "appliedWatermark": "100"
           },
-          "executionArtifactSha256": "4cf1eceb377c202fede67f42110ccad16777d494f5aa90139679f64b2aeecd6a"
+          "executionArtifactSha256": "cda0b594ff70f31bde90372b84a23f210ae24b8f0c7fb19991fb6ecb89123070"
         }
       }
     },
@@ -12287,12 +12287,12 @@
             "playId": "10000000-0000-0000-0000-000000000032"
           },
           "position": {
-            "d1": "100",
-            "d2": "100",
+            "d1": "101",
+            "d2": "101",
             "appliedWatermark": "100"
           },
           "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-          "executionArtifactSha256": "4cf1eceb377c202fede67f42110ccad16777d494f5aa90139679f64b2aeecd6a",
+          "executionArtifactSha256": "cda0b594ff70f31bde90372b84a23f210ae24b8f0c7fb19991fb6ecb89123070",
           "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
           "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
           "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -12378,7 +12378,7 @@
         "nextCheckpoint": {
           "id": "10000000-0000-0000-0000-000000000021",
           "revision": "2",
-          "digest": "149d0920506465135a8b00abff897dda9d3251d51d19a913df9dd8e6253e8d64"
+          "digest": "406cf4d7c8acb2d8f71dd97275ea754b699de2066299e67c5cfb0ea56b8ca9f3"
         }
       },
       "expected": {
@@ -12588,7 +12588,7 @@
             "checkpoint": {
               "id": "10000000-0000-0000-0000-000000000021",
               "revision": "2",
-              "digest": "149d0920506465135a8b00abff897dda9d3251d51d19a913df9dd8e6253e8d64"
+              "digest": "406cf4d7c8acb2d8f71dd97275ea754b699de2066299e67c5cfb0ea56b8ca9f3"
             },
             "historyVersion": "101",
             "origin": {
@@ -12678,11 +12678,11 @@
             "playId": "10000000-0000-0000-0000-000000000465"
           },
           "sourcePosition": {
-            "d1": "100",
-            "d2": "100",
+            "d1": "101",
+            "d2": "101",
             "appliedWatermark": "100"
           },
-          "executionArtifactSha256": "4cf1eceb377c202fede67f42110ccad16777d494f5aa90139679f64b2aeecd6a"
+          "executionArtifactSha256": "cda0b594ff70f31bde90372b84a23f210ae24b8f0c7fb19991fb6ecb89123070"
         }
       }
     },
@@ -12859,12 +12859,12 @@
             "playId": "10000000-0000-0000-0000-000000000032"
           },
           "position": {
-            "d1": "100",
-            "d2": "100",
+            "d1": "101",
+            "d2": "101",
             "appliedWatermark": "100"
           },
           "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-          "executionArtifactSha256": "4cf1eceb377c202fede67f42110ccad16777d494f5aa90139679f64b2aeecd6a",
+          "executionArtifactSha256": "cda0b594ff70f31bde90372b84a23f210ae24b8f0c7fb19991fb6ecb89123070",
           "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
           "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
           "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -12950,7 +12950,7 @@
         "nextCheckpoint": {
           "id": "10000000-0000-0000-0000-000000000021",
           "revision": "2",
-          "digest": "19b64227870f50065673296c6987cf1b2619620c79c77aeecb0fc1f9b8a39e9b"
+          "digest": "bfdac1ceb0e6713ae8ebc8744777f71e57cace390ec6bc3ef7305bc91e4b88b7"
         }
       },
       "expected": {
@@ -13160,7 +13160,7 @@
             "checkpoint": {
               "id": "10000000-0000-0000-0000-000000000021",
               "revision": "2",
-              "digest": "19b64227870f50065673296c6987cf1b2619620c79c77aeecb0fc1f9b8a39e9b"
+              "digest": "bfdac1ceb0e6713ae8ebc8744777f71e57cace390ec6bc3ef7305bc91e4b88b7"
             },
             "historyVersion": "101",
             "origin": {
@@ -13250,11 +13250,11 @@
             "playId": "10000000-0000-0000-0000-000000000468"
           },
           "sourcePosition": {
-            "d1": "100",
-            "d2": "100",
+            "d1": "101",
+            "d2": "101",
             "appliedWatermark": "100"
           },
-          "executionArtifactSha256": "4cf1eceb377c202fede67f42110ccad16777d494f5aa90139679f64b2aeecd6a"
+          "executionArtifactSha256": "cda0b594ff70f31bde90372b84a23f210ae24b8f0c7fb19991fb6ecb89123070"
         }
       }
     },
@@ -13431,12 +13431,12 @@
             "playId": "10000000-0000-0000-0000-000000000032"
           },
           "position": {
-            "d1": "100",
-            "d2": "100",
+            "d1": "101",
+            "d2": "101",
             "appliedWatermark": "100"
           },
           "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-          "executionArtifactSha256": "4cf1eceb377c202fede67f42110ccad16777d494f5aa90139679f64b2aeecd6a",
+          "executionArtifactSha256": "cda0b594ff70f31bde90372b84a23f210ae24b8f0c7fb19991fb6ecb89123070",
           "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
           "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
           "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -13522,7 +13522,7 @@
         "nextCheckpoint": {
           "id": "10000000-0000-0000-0000-000000000021",
           "revision": "2",
-          "digest": "e096037bb1e508a7d1e9165a2685d8bc341a75bb067d39758e77ae81175224a4"
+          "digest": "04babafbc3af96461122e94988461ea45491b9207446b2bb6e7cda406efc6597"
         }
       },
       "expected": {
@@ -13740,7 +13740,7 @@
             "checkpoint": {
               "id": "10000000-0000-0000-0000-000000000021",
               "revision": "2",
-              "digest": "e096037bb1e508a7d1e9165a2685d8bc341a75bb067d39758e77ae81175224a4"
+              "digest": "04babafbc3af96461122e94988461ea45491b9207446b2bb6e7cda406efc6597"
             },
             "historyVersion": "101",
             "origin": {
@@ -13822,11 +13822,11 @@
             "playId": "10000000-0000-0000-0000-000000000471"
           },
           "sourcePosition": {
-            "d1": "100",
-            "d2": "100",
+            "d1": "101",
+            "d2": "101",
             "appliedWatermark": "100"
           },
-          "executionArtifactSha256": "4cf1eceb377c202fede67f42110ccad16777d494f5aa90139679f64b2aeecd6a"
+          "executionArtifactSha256": "cda0b594ff70f31bde90372b84a23f210ae24b8f0c7fb19991fb6ecb89123070"
         }
       }
     },
@@ -13967,12 +13967,12 @@
           "playCount": "0",
           "lastSource": null,
           "position": {
-            "d1": "0",
-            "d2": "0",
+            "d1": "1",
+            "d2": "1",
             "appliedWatermark": "0"
           },
           "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-          "executionArtifactSha256": "4cf1eceb377c202fede67f42110ccad16777d494f5aa90139679f64b2aeecd6a",
+          "executionArtifactSha256": "cda0b594ff70f31bde90372b84a23f210ae24b8f0c7fb19991fb6ecb89123070",
           "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
           "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
           "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -14040,7 +14040,7 @@
         "nextCheckpoint": {
           "id": "10000000-0000-0000-0000-000000000601",
           "revision": "2",
-          "digest": "23fe41966bd8b367d93c1bdb67a88dcd3fe8ba9709fc36e329cb4bf44a203af6"
+          "digest": "3e1fadbf76c9441bb04903d23239b8732c028735a45d9beb658dbb12d0016275"
         }
       },
       "expected": {
@@ -14227,7 +14227,7 @@
             "checkpoint": {
               "id": "10000000-0000-0000-0000-000000000601",
               "revision": "2",
-              "digest": "23fe41966bd8b367d93c1bdb67a88dcd3fe8ba9709fc36e329cb4bf44a203af6"
+              "digest": "3e1fadbf76c9441bb04903d23239b8732c028735a45d9beb658dbb12d0016275"
             },
             "historyVersion": "1",
             "origin": {
@@ -14309,11 +14309,11 @@
             "playId": "10000000-0000-0000-0000-000000000702"
           },
           "sourcePosition": {
-            "d1": "0",
-            "d2": "0",
+            "d1": "1",
+            "d2": "1",
             "appliedWatermark": "0"
           },
-          "executionArtifactSha256": "4cf1eceb377c202fede67f42110ccad16777d494f5aa90139679f64b2aeecd6a"
+          "executionArtifactSha256": "cda0b594ff70f31bde90372b84a23f210ae24b8f0c7fb19991fb6ecb89123070"
         }
       }
     },
@@ -14340,7 +14340,7 @@
           "checkpoint": {
             "id": "10000000-0000-0000-0000-000000000601",
             "revision": "2",
-            "digest": "23fe41966bd8b367d93c1bdb67a88dcd3fe8ba9709fc36e329cb4bf44a203af6"
+            "digest": "3e1fadbf76c9441bb04903d23239b8732c028735a45d9beb658dbb12d0016275"
           },
           "historyVersion": "1",
           "origin": {
@@ -14403,7 +14403,7 @@
             "checkpoint": {
               "id": "10000000-0000-0000-0000-000000000601",
               "revision": "2",
-              "digest": "23fe41966bd8b367d93c1bdb67a88dcd3fe8ba9709fc36e329cb4bf44a203af6"
+              "digest": "3e1fadbf76c9441bb04903d23239b8732c028735a45d9beb658dbb12d0016275"
             },
             "historyVersion": "1",
             "origin": {
@@ -14483,12 +14483,12 @@
             "playId": "10000000-0000-0000-0000-000000000702"
           },
           "position": {
-            "d1": "1",
-            "d2": "1",
+            "d1": "2",
+            "d2": "2",
             "appliedWatermark": "1"
           },
-          "priorArtifactSha256": "4cf1eceb377c202fede67f42110ccad16777d494f5aa90139679f64b2aeecd6a",
-          "executionArtifactSha256": "4cf1eceb377c202fede67f42110ccad16777d494f5aa90139679f64b2aeecd6a",
+          "priorArtifactSha256": "cda0b594ff70f31bde90372b84a23f210ae24b8f0c7fb19991fb6ecb89123070",
+          "executionArtifactSha256": "cda0b594ff70f31bde90372b84a23f210ae24b8f0c7fb19991fb6ecb89123070",
           "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
           "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
           "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -14548,7 +14548,7 @@
             "checkpoint": {
               "id": "10000000-0000-0000-0000-000000000601",
               "revision": "2",
-              "digest": "23fe41966bd8b367d93c1bdb67a88dcd3fe8ba9709fc36e329cb4bf44a203af6"
+              "digest": "3e1fadbf76c9441bb04903d23239b8732c028735a45d9beb658dbb12d0016275"
             },
             "sourceIdentity": {
               "eventId": "10000000-0000-0000-0000-000000000700",
@@ -14566,7 +14566,7 @@
         "nextCheckpoint": {
           "id": "10000000-0000-0000-0000-000000000602",
           "revision": "3",
-          "digest": "584fc8a05f50222f06108a49b87589cc05683268834166e389ad577becc74a93"
+          "digest": "3b4baa30f2676a1c2dd0a382fcdb7d9c9008540cb01635f04fe3e465393a226b"
         }
       },
       "expected": {
@@ -14735,7 +14735,7 @@
             "checkpoint": {
               "id": "10000000-0000-0000-0000-000000000601",
               "revision": "2",
-              "digest": "23fe41966bd8b367d93c1bdb67a88dcd3fe8ba9709fc36e329cb4bf44a203af6"
+              "digest": "3e1fadbf76c9441bb04903d23239b8732c028735a45d9beb658dbb12d0016275"
             },
             "historyVersion": "1",
             "origin": {
@@ -14753,7 +14753,7 @@
             "checkpoint": {
               "id": "10000000-0000-0000-0000-000000000602",
               "revision": "3",
-              "digest": "584fc8a05f50222f06108a49b87589cc05683268834166e389ad577becc74a93"
+              "digest": "3b4baa30f2676a1c2dd0a382fcdb7d9c9008540cb01635f04fe3e465393a226b"
             },
             "historyVersion": "2",
             "origin": {
@@ -14835,11 +14835,11 @@
             "playId": "10000000-0000-0000-0000-000000000705"
           },
           "sourcePosition": {
-            "d1": "1",
-            "d2": "1",
+            "d1": "2",
+            "d2": "2",
             "appliedWatermark": "1"
           },
-          "executionArtifactSha256": "4cf1eceb377c202fede67f42110ccad16777d494f5aa90139679f64b2aeecd6a"
+          "executionArtifactSha256": "cda0b594ff70f31bde90372b84a23f210ae24b8f0c7fb19991fb6ecb89123070"
         }
       }
     },
@@ -14866,7 +14866,7 @@
           "checkpoint": {
             "id": "10000000-0000-0000-0000-000000000602",
             "revision": "3",
-            "digest": "584fc8a05f50222f06108a49b87589cc05683268834166e389ad577becc74a93"
+            "digest": "3b4baa30f2676a1c2dd0a382fcdb7d9c9008540cb01635f04fe3e465393a226b"
           },
           "historyVersion": "2",
           "origin": {
@@ -14929,7 +14929,7 @@
             "checkpoint": {
               "id": "10000000-0000-0000-0000-000000000602",
               "revision": "3",
-              "digest": "584fc8a05f50222f06108a49b87589cc05683268834166e389ad577becc74a93"
+              "digest": "3b4baa30f2676a1c2dd0a382fcdb7d9c9008540cb01635f04fe3e465393a226b"
             },
             "historyVersion": "2",
             "origin": {
@@ -15009,12 +15009,12 @@
             "playId": "10000000-0000-0000-0000-000000000705"
           },
           "position": {
-            "d1": "2",
-            "d2": "2",
+            "d1": "3",
+            "d2": "3",
             "appliedWatermark": "2"
           },
-          "priorArtifactSha256": "4cf1eceb377c202fede67f42110ccad16777d494f5aa90139679f64b2aeecd6a",
-          "executionArtifactSha256": "4cf1eceb377c202fede67f42110ccad16777d494f5aa90139679f64b2aeecd6a",
+          "priorArtifactSha256": "cda0b594ff70f31bde90372b84a23f210ae24b8f0c7fb19991fb6ecb89123070",
+          "executionArtifactSha256": "cda0b594ff70f31bde90372b84a23f210ae24b8f0c7fb19991fb6ecb89123070",
           "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
           "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
           "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -15074,7 +15074,7 @@
             "checkpoint": {
               "id": "10000000-0000-0000-0000-000000000602",
               "revision": "3",
-              "digest": "584fc8a05f50222f06108a49b87589cc05683268834166e389ad577becc74a93"
+              "digest": "3b4baa30f2676a1c2dd0a382fcdb7d9c9008540cb01635f04fe3e465393a226b"
             },
             "sourceIdentity": {
               "eventId": "10000000-0000-0000-0000-000000000703",
@@ -15092,7 +15092,7 @@
         "nextCheckpoint": {
           "id": "10000000-0000-0000-0000-000000000603",
           "revision": "4",
-          "digest": "7ff0ea9fc1c334228d21a6e0338182f69c29c24125a8f2c72630630a1a355abd"
+          "digest": "5e1d38243e99b291d4316b2dd814a698d37f7dfd7180e19a6097f35248879b9b"
         }
       },
       "expected": {
@@ -15280,7 +15280,7 @@
             "checkpoint": {
               "id": "10000000-0000-0000-0000-000000000602",
               "revision": "3",
-              "digest": "584fc8a05f50222f06108a49b87589cc05683268834166e389ad577becc74a93"
+              "digest": "3b4baa30f2676a1c2dd0a382fcdb7d9c9008540cb01635f04fe3e465393a226b"
             },
             "historyVersion": "2",
             "origin": {
@@ -15298,7 +15298,7 @@
             "checkpoint": {
               "id": "10000000-0000-0000-0000-000000000603",
               "revision": "4",
-              "digest": "7ff0ea9fc1c334228d21a6e0338182f69c29c24125a8f2c72630630a1a355abd"
+              "digest": "5e1d38243e99b291d4316b2dd814a698d37f7dfd7180e19a6097f35248879b9b"
             },
             "historyVersion": "3",
             "origin": {
@@ -15380,11 +15380,11 @@
             "playId": "10000000-0000-0000-0000-000000000708"
           },
           "sourcePosition": {
-            "d1": "2",
-            "d2": "2",
+            "d1": "3",
+            "d2": "3",
             "appliedWatermark": "2"
           },
-          "executionArtifactSha256": "4cf1eceb377c202fede67f42110ccad16777d494f5aa90139679f64b2aeecd6a"
+          "executionArtifactSha256": "cda0b594ff70f31bde90372b84a23f210ae24b8f0c7fb19991fb6ecb89123070"
         }
       }
     },
@@ -15411,7 +15411,7 @@
           "checkpoint": {
             "id": "10000000-0000-0000-0000-000000000603",
             "revision": "4",
-            "digest": "7ff0ea9fc1c334228d21a6e0338182f69c29c24125a8f2c72630630a1a355abd"
+            "digest": "5e1d38243e99b291d4316b2dd814a698d37f7dfd7180e19a6097f35248879b9b"
           },
           "historyVersion": "3",
           "origin": {
@@ -15474,7 +15474,7 @@
             "checkpoint": {
               "id": "10000000-0000-0000-0000-000000000603",
               "revision": "4",
-              "digest": "7ff0ea9fc1c334228d21a6e0338182f69c29c24125a8f2c72630630a1a355abd"
+              "digest": "5e1d38243e99b291d4316b2dd814a698d37f7dfd7180e19a6097f35248879b9b"
             },
             "historyVersion": "3",
             "origin": {
@@ -15554,12 +15554,12 @@
             "playId": "10000000-0000-0000-0000-000000000708"
           },
           "position": {
-            "d1": "3",
-            "d2": "3",
+            "d1": "4",
+            "d2": "4",
             "appliedWatermark": "3"
           },
-          "priorArtifactSha256": "4cf1eceb377c202fede67f42110ccad16777d494f5aa90139679f64b2aeecd6a",
-          "executionArtifactSha256": "4cf1eceb377c202fede67f42110ccad16777d494f5aa90139679f64b2aeecd6a",
+          "priorArtifactSha256": "cda0b594ff70f31bde90372b84a23f210ae24b8f0c7fb19991fb6ecb89123070",
+          "executionArtifactSha256": "cda0b594ff70f31bde90372b84a23f210ae24b8f0c7fb19991fb6ecb89123070",
           "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
           "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
           "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -15619,7 +15619,7 @@
             "checkpoint": {
               "id": "10000000-0000-0000-0000-000000000603",
               "revision": "4",
-              "digest": "7ff0ea9fc1c334228d21a6e0338182f69c29c24125a8f2c72630630a1a355abd"
+              "digest": "5e1d38243e99b291d4316b2dd814a698d37f7dfd7180e19a6097f35248879b9b"
             },
             "sourceIdentity": {
               "eventId": "10000000-0000-0000-0000-000000000706",
@@ -15637,7 +15637,7 @@
         "nextCheckpoint": {
           "id": "10000000-0000-0000-0000-000000000604",
           "revision": "5",
-          "digest": "7ff55f933aa32919d51b6b94cbabc1bde0e5faf833d624f06c117a53a5fed870"
+          "digest": "ba9eafbc9fc7525d529cef351bc5645f3c56a89ac1a8424d48479eb5d23e5ec2"
         }
       },
       "expected": {
@@ -15806,7 +15806,7 @@
             "checkpoint": {
               "id": "10000000-0000-0000-0000-000000000603",
               "revision": "4",
-              "digest": "7ff0ea9fc1c334228d21a6e0338182f69c29c24125a8f2c72630630a1a355abd"
+              "digest": "5e1d38243e99b291d4316b2dd814a698d37f7dfd7180e19a6097f35248879b9b"
             },
             "historyVersion": "3",
             "origin": {
@@ -15824,7 +15824,7 @@
             "checkpoint": {
               "id": "10000000-0000-0000-0000-000000000604",
               "revision": "5",
-              "digest": "7ff55f933aa32919d51b6b94cbabc1bde0e5faf833d624f06c117a53a5fed870"
+              "digest": "ba9eafbc9fc7525d529cef351bc5645f3c56a89ac1a8424d48479eb5d23e5ec2"
             },
             "historyVersion": "4",
             "origin": {
@@ -15906,11 +15906,11 @@
             "playId": "10000000-0000-0000-0000-000000000711"
           },
           "sourcePosition": {
-            "d1": "3",
-            "d2": "3",
+            "d1": "4",
+            "d2": "4",
             "appliedWatermark": "3"
           },
-          "executionArtifactSha256": "4cf1eceb377c202fede67f42110ccad16777d494f5aa90139679f64b2aeecd6a"
+          "executionArtifactSha256": "cda0b594ff70f31bde90372b84a23f210ae24b8f0c7fb19991fb6ecb89123070"
         }
       }
     },
@@ -15937,7 +15937,7 @@
           "checkpoint": {
             "id": "10000000-0000-0000-0000-000000000604",
             "revision": "5",
-            "digest": "7ff55f933aa32919d51b6b94cbabc1bde0e5faf833d624f06c117a53a5fed870"
+            "digest": "ba9eafbc9fc7525d529cef351bc5645f3c56a89ac1a8424d48479eb5d23e5ec2"
           },
           "historyVersion": "4",
           "origin": {
@@ -16000,7 +16000,7 @@
             "checkpoint": {
               "id": "10000000-0000-0000-0000-000000000604",
               "revision": "5",
-              "digest": "7ff55f933aa32919d51b6b94cbabc1bde0e5faf833d624f06c117a53a5fed870"
+              "digest": "ba9eafbc9fc7525d529cef351bc5645f3c56a89ac1a8424d48479eb5d23e5ec2"
             },
             "historyVersion": "4",
             "origin": {
@@ -16080,12 +16080,12 @@
             "playId": "10000000-0000-0000-0000-000000000711"
           },
           "position": {
-            "d1": "4",
-            "d2": "4",
+            "d1": "5",
+            "d2": "5",
             "appliedWatermark": "4"
           },
-          "priorArtifactSha256": "4cf1eceb377c202fede67f42110ccad16777d494f5aa90139679f64b2aeecd6a",
-          "executionArtifactSha256": "4cf1eceb377c202fede67f42110ccad16777d494f5aa90139679f64b2aeecd6a",
+          "priorArtifactSha256": "cda0b594ff70f31bde90372b84a23f210ae24b8f0c7fb19991fb6ecb89123070",
+          "executionArtifactSha256": "cda0b594ff70f31bde90372b84a23f210ae24b8f0c7fb19991fb6ecb89123070",
           "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
           "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
           "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -16145,7 +16145,7 @@
             "checkpoint": {
               "id": "10000000-0000-0000-0000-000000000604",
               "revision": "5",
-              "digest": "7ff55f933aa32919d51b6b94cbabc1bde0e5faf833d624f06c117a53a5fed870"
+              "digest": "ba9eafbc9fc7525d529cef351bc5645f3c56a89ac1a8424d48479eb5d23e5ec2"
             },
             "sourceIdentity": {
               "eventId": "10000000-0000-0000-0000-000000000709",
@@ -16163,7 +16163,7 @@
         "nextCheckpoint": {
           "id": "10000000-0000-0000-0000-000000000605",
           "revision": "6",
-          "digest": "47ac244edbbb7b7ba4918f7fe18ecce7ab3ebfc1e5632c654896c7f7fea4623f"
+          "digest": "d22559af6b51af3eaccf9f2e4c63c06e181622d64ba9af43eae74b87d1d9b49b"
         }
       },
       "expected": {
@@ -16332,7 +16332,7 @@
             "checkpoint": {
               "id": "10000000-0000-0000-0000-000000000604",
               "revision": "5",
-              "digest": "7ff55f933aa32919d51b6b94cbabc1bde0e5faf833d624f06c117a53a5fed870"
+              "digest": "ba9eafbc9fc7525d529cef351bc5645f3c56a89ac1a8424d48479eb5d23e5ec2"
             },
             "historyVersion": "4",
             "origin": {
@@ -16350,7 +16350,7 @@
             "checkpoint": {
               "id": "10000000-0000-0000-0000-000000000605",
               "revision": "6",
-              "digest": "47ac244edbbb7b7ba4918f7fe18ecce7ab3ebfc1e5632c654896c7f7fea4623f"
+              "digest": "d22559af6b51af3eaccf9f2e4c63c06e181622d64ba9af43eae74b87d1d9b49b"
             },
             "historyVersion": "5",
             "origin": {
@@ -16432,11 +16432,11 @@
             "playId": "10000000-0000-0000-0000-000000000714"
           },
           "sourcePosition": {
-            "d1": "4",
-            "d2": "4",
+            "d1": "5",
+            "d2": "5",
             "appliedWatermark": "4"
           },
-          "executionArtifactSha256": "4cf1eceb377c202fede67f42110ccad16777d494f5aa90139679f64b2aeecd6a"
+          "executionArtifactSha256": "cda0b594ff70f31bde90372b84a23f210ae24b8f0c7fb19991fb6ecb89123070"
         }
       }
     },
@@ -16463,7 +16463,7 @@
           "checkpoint": {
             "id": "10000000-0000-0000-0000-000000000605",
             "revision": "6",
-            "digest": "47ac244edbbb7b7ba4918f7fe18ecce7ab3ebfc1e5632c654896c7f7fea4623f"
+            "digest": "d22559af6b51af3eaccf9f2e4c63c06e181622d64ba9af43eae74b87d1d9b49b"
           },
           "historyVersion": "5",
           "origin": {
@@ -16526,7 +16526,7 @@
             "checkpoint": {
               "id": "10000000-0000-0000-0000-000000000605",
               "revision": "6",
-              "digest": "47ac244edbbb7b7ba4918f7fe18ecce7ab3ebfc1e5632c654896c7f7fea4623f"
+              "digest": "d22559af6b51af3eaccf9f2e4c63c06e181622d64ba9af43eae74b87d1d9b49b"
             },
             "historyVersion": "5",
             "origin": {
@@ -16606,12 +16606,12 @@
             "playId": "10000000-0000-0000-0000-000000000714"
           },
           "position": {
-            "d1": "5",
-            "d2": "5",
+            "d1": "6",
+            "d2": "6",
             "appliedWatermark": "5"
           },
-          "priorArtifactSha256": "4cf1eceb377c202fede67f42110ccad16777d494f5aa90139679f64b2aeecd6a",
-          "executionArtifactSha256": "4cf1eceb377c202fede67f42110ccad16777d494f5aa90139679f64b2aeecd6a",
+          "priorArtifactSha256": "cda0b594ff70f31bde90372b84a23f210ae24b8f0c7fb19991fb6ecb89123070",
+          "executionArtifactSha256": "cda0b594ff70f31bde90372b84a23f210ae24b8f0c7fb19991fb6ecb89123070",
           "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
           "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
           "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -16671,7 +16671,7 @@
             "checkpoint": {
               "id": "10000000-0000-0000-0000-000000000605",
               "revision": "6",
-              "digest": "47ac244edbbb7b7ba4918f7fe18ecce7ab3ebfc1e5632c654896c7f7fea4623f"
+              "digest": "d22559af6b51af3eaccf9f2e4c63c06e181622d64ba9af43eae74b87d1d9b49b"
             },
             "sourceIdentity": {
               "eventId": "10000000-0000-0000-0000-000000000712",
@@ -16689,7 +16689,7 @@
         "nextCheckpoint": {
           "id": "10000000-0000-0000-0000-000000000606",
           "revision": "7",
-          "digest": "3c0dd73eb1f0f5e2d4faad6b476f00da804eb9d0b5d2cb10fd422278e867ce4a"
+          "digest": "944beab4d2ece9ceb2d1a0a8c1170279b5e2f9b10af42cee26ef3889d4418254"
         }
       },
       "expected": {
@@ -16877,7 +16877,7 @@
             "checkpoint": {
               "id": "10000000-0000-0000-0000-000000000605",
               "revision": "6",
-              "digest": "47ac244edbbb7b7ba4918f7fe18ecce7ab3ebfc1e5632c654896c7f7fea4623f"
+              "digest": "d22559af6b51af3eaccf9f2e4c63c06e181622d64ba9af43eae74b87d1d9b49b"
             },
             "historyVersion": "5",
             "origin": {
@@ -16895,7 +16895,7 @@
             "checkpoint": {
               "id": "10000000-0000-0000-0000-000000000606",
               "revision": "7",
-              "digest": "3c0dd73eb1f0f5e2d4faad6b476f00da804eb9d0b5d2cb10fd422278e867ce4a"
+              "digest": "944beab4d2ece9ceb2d1a0a8c1170279b5e2f9b10af42cee26ef3889d4418254"
             },
             "historyVersion": "6",
             "origin": {
@@ -16977,11 +16977,11 @@
             "playId": "10000000-0000-0000-0000-000000000717"
           },
           "sourcePosition": {
-            "d1": "5",
-            "d2": "5",
+            "d1": "6",
+            "d2": "6",
             "appliedWatermark": "5"
           },
-          "executionArtifactSha256": "4cf1eceb377c202fede67f42110ccad16777d494f5aa90139679f64b2aeecd6a"
+          "executionArtifactSha256": "cda0b594ff70f31bde90372b84a23f210ae24b8f0c7fb19991fb6ecb89123070"
         }
       }
     },
@@ -17008,7 +17008,7 @@
           "checkpoint": {
             "id": "10000000-0000-0000-0000-000000000606",
             "revision": "7",
-            "digest": "3c0dd73eb1f0f5e2d4faad6b476f00da804eb9d0b5d2cb10fd422278e867ce4a"
+            "digest": "944beab4d2ece9ceb2d1a0a8c1170279b5e2f9b10af42cee26ef3889d4418254"
           },
           "historyVersion": "6",
           "origin": {
@@ -17071,7 +17071,7 @@
             "checkpoint": {
               "id": "10000000-0000-0000-0000-000000000606",
               "revision": "7",
-              "digest": "3c0dd73eb1f0f5e2d4faad6b476f00da804eb9d0b5d2cb10fd422278e867ce4a"
+              "digest": "944beab4d2ece9ceb2d1a0a8c1170279b5e2f9b10af42cee26ef3889d4418254"
             },
             "historyVersion": "6",
             "origin": {
@@ -17151,12 +17151,12 @@
             "playId": "10000000-0000-0000-0000-000000000717"
           },
           "position": {
-            "d1": "6",
-            "d2": "6",
+            "d1": "7",
+            "d2": "7",
             "appliedWatermark": "6"
           },
-          "priorArtifactSha256": "4cf1eceb377c202fede67f42110ccad16777d494f5aa90139679f64b2aeecd6a",
-          "executionArtifactSha256": "4cf1eceb377c202fede67f42110ccad16777d494f5aa90139679f64b2aeecd6a",
+          "priorArtifactSha256": "cda0b594ff70f31bde90372b84a23f210ae24b8f0c7fb19991fb6ecb89123070",
+          "executionArtifactSha256": "cda0b594ff70f31bde90372b84a23f210ae24b8f0c7fb19991fb6ecb89123070",
           "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
           "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
           "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -17216,7 +17216,7 @@
             "checkpoint": {
               "id": "10000000-0000-0000-0000-000000000606",
               "revision": "7",
-              "digest": "3c0dd73eb1f0f5e2d4faad6b476f00da804eb9d0b5d2cb10fd422278e867ce4a"
+              "digest": "944beab4d2ece9ceb2d1a0a8c1170279b5e2f9b10af42cee26ef3889d4418254"
             },
             "sourceIdentity": {
               "eventId": "10000000-0000-0000-0000-000000000715",
@@ -17234,7 +17234,7 @@
         "nextCheckpoint": {
           "id": "10000000-0000-0000-0000-000000000607",
           "revision": "8",
-          "digest": "b5baafeb9cb9bc425369c00836eccd7b7a850bcf401f0da77567e159701cc106"
+          "digest": "5774f20587e09786983307e10749ff0a5eac6d8f917fe7521772b0e357d77619"
         }
       },
       "expected": {
@@ -17403,7 +17403,7 @@
             "checkpoint": {
               "id": "10000000-0000-0000-0000-000000000606",
               "revision": "7",
-              "digest": "3c0dd73eb1f0f5e2d4faad6b476f00da804eb9d0b5d2cb10fd422278e867ce4a"
+              "digest": "944beab4d2ece9ceb2d1a0a8c1170279b5e2f9b10af42cee26ef3889d4418254"
             },
             "historyVersion": "6",
             "origin": {
@@ -17421,7 +17421,7 @@
             "checkpoint": {
               "id": "10000000-0000-0000-0000-000000000607",
               "revision": "8",
-              "digest": "b5baafeb9cb9bc425369c00836eccd7b7a850bcf401f0da77567e159701cc106"
+              "digest": "5774f20587e09786983307e10749ff0a5eac6d8f917fe7521772b0e357d77619"
             },
             "historyVersion": "7",
             "origin": {
@@ -17503,11 +17503,11 @@
             "playId": "10000000-0000-0000-0000-000000000720"
           },
           "sourcePosition": {
-            "d1": "6",
-            "d2": "6",
+            "d1": "7",
+            "d2": "7",
             "appliedWatermark": "6"
           },
-          "executionArtifactSha256": "4cf1eceb377c202fede67f42110ccad16777d494f5aa90139679f64b2aeecd6a"
+          "executionArtifactSha256": "cda0b594ff70f31bde90372b84a23f210ae24b8f0c7fb19991fb6ecb89123070"
         }
       }
     },
@@ -17534,7 +17534,7 @@
           "checkpoint": {
             "id": "10000000-0000-0000-0000-000000000607",
             "revision": "8",
-            "digest": "b5baafeb9cb9bc425369c00836eccd7b7a850bcf401f0da77567e159701cc106"
+            "digest": "5774f20587e09786983307e10749ff0a5eac6d8f917fe7521772b0e357d77619"
           },
           "historyVersion": "7",
           "origin": {
@@ -17597,7 +17597,7 @@
             "checkpoint": {
               "id": "10000000-0000-0000-0000-000000000607",
               "revision": "8",
-              "digest": "b5baafeb9cb9bc425369c00836eccd7b7a850bcf401f0da77567e159701cc106"
+              "digest": "5774f20587e09786983307e10749ff0a5eac6d8f917fe7521772b0e357d77619"
             },
             "historyVersion": "7",
             "origin": {
@@ -17677,12 +17677,12 @@
             "playId": "10000000-0000-0000-0000-000000000720"
           },
           "position": {
-            "d1": "7",
-            "d2": "7",
+            "d1": "8",
+            "d2": "8",
             "appliedWatermark": "7"
           },
-          "priorArtifactSha256": "4cf1eceb377c202fede67f42110ccad16777d494f5aa90139679f64b2aeecd6a",
-          "executionArtifactSha256": "4cf1eceb377c202fede67f42110ccad16777d494f5aa90139679f64b2aeecd6a",
+          "priorArtifactSha256": "cda0b594ff70f31bde90372b84a23f210ae24b8f0c7fb19991fb6ecb89123070",
+          "executionArtifactSha256": "cda0b594ff70f31bde90372b84a23f210ae24b8f0c7fb19991fb6ecb89123070",
           "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
           "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
           "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -17742,7 +17742,7 @@
             "checkpoint": {
               "id": "10000000-0000-0000-0000-000000000607",
               "revision": "8",
-              "digest": "b5baafeb9cb9bc425369c00836eccd7b7a850bcf401f0da77567e159701cc106"
+              "digest": "5774f20587e09786983307e10749ff0a5eac6d8f917fe7521772b0e357d77619"
             },
             "sourceIdentity": {
               "eventId": "10000000-0000-0000-0000-000000000718",
@@ -17760,7 +17760,7 @@
         "nextCheckpoint": {
           "id": "10000000-0000-0000-0000-000000000608",
           "revision": "9",
-          "digest": "52d92e0112e722156bc3ae6411df21e75fa2924aa6bf8e662118ada2c1d33c70"
+          "digest": "0e67724337c02a62715d9e869252a5ebf0ff8b28a2724acad00ac134ec3e420d"
         }
       },
       "expected": {
@@ -17929,7 +17929,7 @@
             "checkpoint": {
               "id": "10000000-0000-0000-0000-000000000607",
               "revision": "8",
-              "digest": "b5baafeb9cb9bc425369c00836eccd7b7a850bcf401f0da77567e159701cc106"
+              "digest": "5774f20587e09786983307e10749ff0a5eac6d8f917fe7521772b0e357d77619"
             },
             "historyVersion": "7",
             "origin": {
@@ -17947,7 +17947,7 @@
             "checkpoint": {
               "id": "10000000-0000-0000-0000-000000000608",
               "revision": "9",
-              "digest": "52d92e0112e722156bc3ae6411df21e75fa2924aa6bf8e662118ada2c1d33c70"
+              "digest": "0e67724337c02a62715d9e869252a5ebf0ff8b28a2724acad00ac134ec3e420d"
             },
             "historyVersion": "8",
             "origin": {
@@ -18029,11 +18029,11 @@
             "playId": "10000000-0000-0000-0000-000000000723"
           },
           "sourcePosition": {
-            "d1": "7",
-            "d2": "7",
+            "d1": "8",
+            "d2": "8",
             "appliedWatermark": "7"
           },
-          "executionArtifactSha256": "4cf1eceb377c202fede67f42110ccad16777d494f5aa90139679f64b2aeecd6a"
+          "executionArtifactSha256": "cda0b594ff70f31bde90372b84a23f210ae24b8f0c7fb19991fb6ecb89123070"
         }
       }
     },
@@ -18060,7 +18060,7 @@
           "checkpoint": {
             "id": "10000000-0000-0000-0000-000000000608",
             "revision": "9",
-            "digest": "52d92e0112e722156bc3ae6411df21e75fa2924aa6bf8e662118ada2c1d33c70"
+            "digest": "0e67724337c02a62715d9e869252a5ebf0ff8b28a2724acad00ac134ec3e420d"
           },
           "historyVersion": "8",
           "origin": {
@@ -18123,7 +18123,7 @@
             "checkpoint": {
               "id": "10000000-0000-0000-0000-000000000608",
               "revision": "9",
-              "digest": "52d92e0112e722156bc3ae6411df21e75fa2924aa6bf8e662118ada2c1d33c70"
+              "digest": "0e67724337c02a62715d9e869252a5ebf0ff8b28a2724acad00ac134ec3e420d"
             },
             "historyVersion": "8",
             "origin": {
@@ -18203,12 +18203,12 @@
             "playId": "10000000-0000-0000-0000-000000000723"
           },
           "position": {
-            "d1": "8",
-            "d2": "8",
+            "d1": "9",
+            "d2": "9",
             "appliedWatermark": "8"
           },
-          "priorArtifactSha256": "4cf1eceb377c202fede67f42110ccad16777d494f5aa90139679f64b2aeecd6a",
-          "executionArtifactSha256": "4cf1eceb377c202fede67f42110ccad16777d494f5aa90139679f64b2aeecd6a",
+          "priorArtifactSha256": "cda0b594ff70f31bde90372b84a23f210ae24b8f0c7fb19991fb6ecb89123070",
+          "executionArtifactSha256": "cda0b594ff70f31bde90372b84a23f210ae24b8f0c7fb19991fb6ecb89123070",
           "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
           "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
           "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -18268,7 +18268,7 @@
             "checkpoint": {
               "id": "10000000-0000-0000-0000-000000000608",
               "revision": "9",
-              "digest": "52d92e0112e722156bc3ae6411df21e75fa2924aa6bf8e662118ada2c1d33c70"
+              "digest": "0e67724337c02a62715d9e869252a5ebf0ff8b28a2724acad00ac134ec3e420d"
             },
             "sourceIdentity": {
               "eventId": "10000000-0000-0000-0000-000000000721",
@@ -18286,7 +18286,7 @@
         "nextCheckpoint": {
           "id": "10000000-0000-0000-0000-000000000609",
           "revision": "10",
-          "digest": "b44e74b83068b03b9cde93e6321f59fa069549b51ea2f3d4d6dd19d123879536"
+          "digest": "0c666aa72b7db7b491d892a15e473187126179f71a7bfe7916b95fc311b5e42e"
         }
       },
       "expected": {
@@ -18478,7 +18478,7 @@
             "checkpoint": {
               "id": "10000000-0000-0000-0000-000000000608",
               "revision": "9",
-              "digest": "52d92e0112e722156bc3ae6411df21e75fa2924aa6bf8e662118ada2c1d33c70"
+              "digest": "0e67724337c02a62715d9e869252a5ebf0ff8b28a2724acad00ac134ec3e420d"
             },
             "historyVersion": "8",
             "origin": {
@@ -18496,7 +18496,7 @@
             "checkpoint": {
               "id": "10000000-0000-0000-0000-000000000609",
               "revision": "10",
-              "digest": "b44e74b83068b03b9cde93e6321f59fa069549b51ea2f3d4d6dd19d123879536"
+              "digest": "0c666aa72b7db7b491d892a15e473187126179f71a7bfe7916b95fc311b5e42e"
             },
             "historyVersion": "9",
             "origin": {
@@ -18578,11 +18578,11 @@
             "playId": "10000000-0000-0000-0000-000000000726"
           },
           "sourcePosition": {
-            "d1": "8",
-            "d2": "8",
+            "d1": "9",
+            "d2": "9",
             "appliedWatermark": "8"
           },
-          "executionArtifactSha256": "4cf1eceb377c202fede67f42110ccad16777d494f5aa90139679f64b2aeecd6a"
+          "executionArtifactSha256": "cda0b594ff70f31bde90372b84a23f210ae24b8f0c7fb19991fb6ecb89123070"
         }
       }
     },
@@ -18609,7 +18609,7 @@
           "checkpoint": {
             "id": "10000000-0000-0000-0000-000000000609",
             "revision": "10",
-            "digest": "b44e74b83068b03b9cde93e6321f59fa069549b51ea2f3d4d6dd19d123879536"
+            "digest": "0c666aa72b7db7b491d892a15e473187126179f71a7bfe7916b95fc311b5e42e"
           },
           "historyVersion": "9",
           "origin": {
@@ -18672,7 +18672,7 @@
             "checkpoint": {
               "id": "10000000-0000-0000-0000-000000000609",
               "revision": "10",
-              "digest": "b44e74b83068b03b9cde93e6321f59fa069549b51ea2f3d4d6dd19d123879536"
+              "digest": "0c666aa72b7db7b491d892a15e473187126179f71a7bfe7916b95fc311b5e42e"
             },
             "historyVersion": "9",
             "origin": {
@@ -18752,12 +18752,12 @@
             "playId": "10000000-0000-0000-0000-000000000726"
           },
           "position": {
-            "d1": "9",
-            "d2": "9",
+            "d1": "10",
+            "d2": "10",
             "appliedWatermark": "9"
           },
-          "priorArtifactSha256": "4cf1eceb377c202fede67f42110ccad16777d494f5aa90139679f64b2aeecd6a",
-          "executionArtifactSha256": "4cf1eceb377c202fede67f42110ccad16777d494f5aa90139679f64b2aeecd6a",
+          "priorArtifactSha256": "cda0b594ff70f31bde90372b84a23f210ae24b8f0c7fb19991fb6ecb89123070",
+          "executionArtifactSha256": "cda0b594ff70f31bde90372b84a23f210ae24b8f0c7fb19991fb6ecb89123070",
           "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
           "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
           "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -18817,7 +18817,7 @@
             "checkpoint": {
               "id": "10000000-0000-0000-0000-000000000609",
               "revision": "10",
-              "digest": "b44e74b83068b03b9cde93e6321f59fa069549b51ea2f3d4d6dd19d123879536"
+              "digest": "0c666aa72b7db7b491d892a15e473187126179f71a7bfe7916b95fc311b5e42e"
             },
             "sourceIdentity": {
               "eventId": "10000000-0000-0000-0000-000000000724",
@@ -18835,7 +18835,7 @@
         "nextCheckpoint": {
           "id": "10000000-0000-0000-0000-000000000610",
           "revision": "11",
-          "digest": "1f5d1ae6cc81ea04fe9f462e670d191268ee1f564050c0edf47c54259f9fe9ba"
+          "digest": "82a0f7fc0e6a6efe1869b986c162cefff31f545ec1bf3aef5637da6f72f814a2"
         }
       },
       "expected": {
@@ -19004,7 +19004,7 @@
             "checkpoint": {
               "id": "10000000-0000-0000-0000-000000000609",
               "revision": "10",
-              "digest": "b44e74b83068b03b9cde93e6321f59fa069549b51ea2f3d4d6dd19d123879536"
+              "digest": "0c666aa72b7db7b491d892a15e473187126179f71a7bfe7916b95fc311b5e42e"
             },
             "historyVersion": "9",
             "origin": {
@@ -19022,7 +19022,7 @@
             "checkpoint": {
               "id": "10000000-0000-0000-0000-000000000610",
               "revision": "11",
-              "digest": "1f5d1ae6cc81ea04fe9f462e670d191268ee1f564050c0edf47c54259f9fe9ba"
+              "digest": "82a0f7fc0e6a6efe1869b986c162cefff31f545ec1bf3aef5637da6f72f814a2"
             },
             "historyVersion": "10",
             "origin": {
@@ -19104,11 +19104,11 @@
             "playId": "10000000-0000-0000-0000-000000000729"
           },
           "sourcePosition": {
-            "d1": "9",
-            "d2": "9",
+            "d1": "10",
+            "d2": "10",
             "appliedWatermark": "9"
           },
-          "executionArtifactSha256": "4cf1eceb377c202fede67f42110ccad16777d494f5aa90139679f64b2aeecd6a"
+          "executionArtifactSha256": "cda0b594ff70f31bde90372b84a23f210ae24b8f0c7fb19991fb6ecb89123070"
         }
       }
     }
