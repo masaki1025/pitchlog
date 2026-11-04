@@ -100,6 +100,9 @@ _EXPECTED_PRIVATE_TABLES = (
     "writer_bindings",
     "writer_admissions",
     "first_ball_write_admissions",
+    "ordinary_pitch_checkpoints",
+    "ordinary_pitch_write_admissions",
+    "ordinary_pitch_history",
 )
 
 

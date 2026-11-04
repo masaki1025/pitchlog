@@ -41,6 +41,24 @@ _EXPECTED_PRIVATE_TABLES = [
         "enable_row_level_security": True,
         "force_row_level_security": True,
     },
+    {
+        "table_id": "ordinary_pitch_checkpoints",
+        "schema_name": "sync_fence",
+        "enable_row_level_security": True,
+        "force_row_level_security": True,
+    },
+    {
+        "table_id": "ordinary_pitch_write_admissions",
+        "schema_name": "sync_fence",
+        "enable_row_level_security": True,
+        "force_row_level_security": True,
+    },
+    {
+        "table_id": "ordinary_pitch_history",
+        "schema_name": "sync_fence",
+        "enable_row_level_security": True,
+        "force_row_level_security": True,
+    },
 ]
 
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[2]

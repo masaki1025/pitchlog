@@ -1073,8 +1073,11 @@ def _metadata_for_schema_revision(revision: str) -> MetaData:
     if revision == "0037_sync_writer_binding":
         historical = MetaData(naming_convention=Base.metadata.naming_convention)
         for name, source in Base.metadata.tables.items():
-            if name != "sync_fence.first_ball_write_admissions":
-                source.to_metadata(historical)
+            if name == "sync_fence.first_ball_write_admissions":
+                continue
+            if name in _ORDINARY_PITCH_TABLES:
+                continue
+            source.to_metadata(historical)
         return historical
     if revision not in {
         "0032_rg1_restore_gate",
