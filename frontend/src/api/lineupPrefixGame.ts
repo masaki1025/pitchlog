@@ -169,7 +169,7 @@ export function isLineupPrefixGame(v: unknown): v is LineupPrefixGame {
       !positive(v.storage_anchor.history_epoch) ||
       v.storage_anchor.id !== v.checkpoint_anchor.id ||
       v.storage_anchor.history_epoch !== v.checkpoint_anchor.history_version ||
-      v.prefix_ref.checkpoint.id !== v.checkpoint_anchor.id ||
+      v.prefix_ref.origin.eventId !== v.checkpoint_anchor.id ||
       v.prefix_ref.checkpoint.revision !== v.checkpoint_anchor.revision ||
       v.prefix_ref.historyVersion !== v.checkpoint_anchor.history_version)
   )

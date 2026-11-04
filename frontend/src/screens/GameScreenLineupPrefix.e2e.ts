@@ -231,6 +231,12 @@ test('実HTTPS画面で三振3PA・攻守交代・相手側球・元D5・ACK喪�
         : 'batting-result.called-pitch',
     )
     const head = await (await read).json()
+    const accepted = await page.evaluate(async (value) => {
+      const modulePath = '/src/api/lineupPrefixGame.ts'
+      const { isLineupPrefixGame } = await import(modulePath)
+      return isLineupPrefixGame(value)
+    }, head)
+    expect(accepted, JSON.stringify(head)).toBe(true)
     expect(head.page.items).toHaveLength(n)
     await expect(page.getByTestId('restore-history')).toHaveText(`${n}件`)
     if (n === 9) {

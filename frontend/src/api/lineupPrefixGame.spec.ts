@@ -1,6 +1,7 @@
 import { beforeEach, afterEach, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia, disposePinia, type Pinia } from 'pinia'
 import fixture from './fixtures/lineupPrefixGame.v3.json'
+import recordedFixture from './fixtures/lineupPrefixGame.recorded.v3.json'
 import { isLineupPrefixGame, readLineupPrefixGame } from './lineupPrefixGame'
 import { setVerifiedAuthForTest } from './auth.test-support'
 import { useAuthStore } from '../stores/authStore'
@@ -98,3 +99,35 @@ it.each([0, 101, 1.5])('不正page上限%sは送らない', async (limit) => {
   ).rejects.toThrow()
   expect(fetch).not.toHaveBeenCalled()
 })
+
+it('実画面GETの保存headと開始原本anchorを混同せず復元する', async () => {
+  const value = structuredClone(recordedFixture.value)
+  expect(value.prefix_ref.checkpoint.id).not.toBe(value.checkpoint_anchor.id)
+  expect(value.checkpoint_anchor.id).toBe(value.prefix_ref.origin.eventId)
+  expect(isLineupPrefixGame(value)).toBe(true)
+  setVerifiedAuthForTest(useAuthStore(), {
+    teamId: value.prefix_ref.tenantId,
+    teamName: '隔離実GET',
+  })
+  body = value
+  expect(await readLineupPrefixGame(value.id)).toEqual({
+    kind: 'found',
+    game: value,
+  })
+})
+it.each(['logical-id', 'storage-id', 'revision', 'history', 'storage-history'])(
+  '保存headの%s不一致を表示成功へ上げない',
+  async (field) => {
+    const v = structuredClone(recordedFixture.value)
+    if (field === 'logical-id')
+      v.checkpoint_anchor.id = v.prefix_ref.checkpoint.id
+    if (field === 'storage-id') v.storage_anchor.id = v.prefix_ref.checkpoint.id
+    if (field === 'revision') v.checkpoint_anchor.revision = '999'
+    if (field === 'history') v.checkpoint_anchor.history_version = '999'
+    if (field === 'storage-history') v.storage_anchor.history_epoch = '999'
+    expect(isLineupPrefixGame(v)).toBe(false)
+    body = v
+    await expect(readLineupPrefixGame(v.id)).rejects.toThrow()
+    expect(fetch).toHaveBeenCalledTimes(1)
+  },
+)
