@@ -24,7 +24,9 @@
           "backend/tests/test_api_conventions.py",
           "tests/test_check_authz_catalog.py",
           "scripts/check_tenant_boundary_bypass.py",
-          "tests/test_census_baseline_check.py"
+          "tests/test_census_baseline_check.py",
+          "tests/test_pr191_tenant_source_registration.py",
+          "tests/fixtures/pr191_tenant_source_expected_v1.json"
         ]
       }
     },
@@ -91,6 +93,14 @@
         "tests/test_census_baseline_check.py:_validated_pure_fingerprint_decrements",
         "scripts/check_tenant_boundary_bypass.py:_initial_population_evidence",
         "tests/test_census_baseline_check.py:_validated_initial_population_suppression"
+      ]
+    },
+    "pr191_source_registration_revision": {
+      "value": "6939271e9edbe8c4b6bc2fcd69af59e3fcbe4d3a",
+      "purpose": "PR191の旧owner位置追随と新v2有限siteを、用途別の固定Git全byteへ束縛する。現在木から期待を生成しない。",
+      "sources": [
+        "scripts/check_tenant_boundary_bypass.py:_load_pr191_source_owners",
+        "tests/test_pr191_tenant_source_registration.py:immutable_source"
       ]
     }
   }
