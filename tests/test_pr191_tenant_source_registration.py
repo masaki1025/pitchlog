@@ -35,14 +35,29 @@ def immutable_source(path: str) -> str:
 @pytest.fixture(scope="module")
 def contract():
     """正式loaderが原典と独立fixtureを突合した契約を返す。"""
-    return checker.load_contract(ROOT)
+    current = checker.load_contract(ROOT)
+    base = checker._pr192_read_fixed_expectations(ROOT)["formal_base_revision"]
+    historical = json.loads(subprocess.check_output(
+        ["git", "show", base + ":" + str(checker.DEFAULT_ALLOWLIST)], cwd=ROOT,
+    ))
+    return replace(current, pr192_source_registration=None,
+        ordinary_condition2_owners=checker._load_ordinary_condition2_owners(
+            historical["condition_2_ordinary_scoped_findings"]),
+        ordinary_condition5_owners=checker._load_ordinary_condition5_owners(
+            historical["condition_5_ordinary_scoped_findings"]),
+        resolution_owner=checker._load_resolution_owner(
+            historical["condition_1_resolve_scoped_finding"]))
 
 
 @pytest.mark.parametrize("path", list(EXPECTED["owners"]))
 def test_v2_source_has_only_independently_fixed_sites(contract, path):
     """新枠を外すと独立期待のsiteだけが赤になり、他ownerへ移らない。"""
     source = immutable_source(path)
-    assert source == (ROOT / path).read_text()
+    # 旧6ownerの検証は正式191の歴史view。現v3は新専用試験で別検証する。
+    base = checker._pr192_read_fixed_expectations(ROOT)["formal_base_revision"]
+    assert source == subprocess.check_output(
+        ["git", "show", base + ":" + path], cwd=ROOT,
+    ).decode()
     relative = path.removeprefix("backend/src/")
     raw = checker.scan_source(source, path=relative,
                               contract=replace(contract, pr191_source_owners=()))

@@ -971,6 +971,15 @@ class Pr191SourceOwner:
 
 
 @dataclass(frozen=True)
+class Pr192SourceRegistration:
+    """前置Git期待・固定source8・旧4owner後継を持つ今回限定の閉登録。"""
+
+    owners: tuple[Pr191SourceOwner, ...]
+    source_files: tuple[tuple[str, bytes], ...]
+    superseded_pr191_owners: frozenset[str]
+
+
+@dataclass(frozen=True)
 class Contract:
     """検査に必要な資産を読み合わせた契約を表す。"""
 
@@ -1001,6 +1010,7 @@ class Contract:
     diff_command: tuple[str, ...]
     resolution_owner: ResolutionOwnershipRegistration | None = None
     pr191_source_owners: tuple[Pr191SourceOwner, ...] = ()
+    pr192_source_registration: Pr192SourceRegistration | None = None
 
 
 @dataclass(frozen=True, order=True)
@@ -1689,7 +1699,8 @@ def _load_ordinary_condition2_owners(
                     "通常条件2登録は正の行と一意の記号/scopeが必要"
                 )
             findings.add((line, symbol, scope))
-        if frozenset(findings) != ORDINARY_CONDITION2_SCOPES[full_path]:
+        if (frozenset(findings) != ORDINARY_CONDITION2_SCOPES[full_path]
+                and frozenset(findings) != _pr192_scope_variant(full_path, condition=2)):
             raise ContractError("通常条件2登録は審査対象7path/86出現のexact-setが必要")
         owners.append(
             OrdinaryCondition2Owner(full_path, digest, frozenset(findings))
@@ -1793,7 +1804,7 @@ def _load_allowlist(
             "rg1_deployment_assets",
             "writer_binding_deployment_assets",
             "baseline_control",
-        },
+        } | ({"pr192_source_registration"} if "pr192_source_registration" in value else set()),
         "base-allowlist.json",
     )
     if _integer(value["schema_version"], "allowlist.schema_version") != 1:
@@ -2746,6 +2757,12 @@ def load_contract(repository_root: Path) -> Contract:
         resolution_owner=_load_resolution_owner(allowlist_value["condition_1_resolve_scoped_finding"]),
         pr191_source_owners=_load_pr191_source_owners(
             repository_root, allowlist_value["pr191_source_registration"],
+        ),
+        pr192_source_registration=(
+            _load_pr192_source_owners(
+                repository_root, allowlist_value["pr192_source_registration"], allowlist_value,
+            )
+            if "pr192_source_registration" in allowlist_value else None
         ),
     )
 
@@ -8053,6 +8070,11 @@ def scan_source(
                 if violation.code != "TB002"
                 or (violation.line, violation.symbol) not in owner.findings
             ]
+    pr192_active = _pr192_registration_is_trusted(contract)
+    ordinary_scope2 = (
+        {path: _pr192_scope_variant(path, condition=2) for path in ORDINARY_CONDITION2_SCOPES}
+        if pr192_active else ORDINARY_CONDITION2_SCOPES
+    )
     ordinary_owners = contract.ordinary_condition2_owners
     # 合成Contractでも固定2path・固定出現以外の所有境界を認めない。
     valid_ordinary_owners = (
@@ -8061,7 +8083,7 @@ def scan_source(
         == set(ORDINARY_CONDITION2_SCOPES)
         and all(
             re.fullmatch(r"[0-9a-f]{64}", owner.source_sha256) is not None
-            and owner.findings == ORDINARY_CONDITION2_SCOPES[owner.path]
+            and owner.findings == ordinary_scope2[owner.path]
             for owner in ordinary_owners
         )
     )
@@ -8124,6 +8146,10 @@ def scan_source(
                 if (item.line, item.code, item.symbol, item.scope)
                 not in owner.findings
             ]
+    ordinary_scope5 = (
+        {path: _pr192_scope_variant(path, condition=5) for path in ORDINARY_CONDITION5_SCOPES}
+        if pr192_active else ORDINARY_CONDITION5_SCOPES
+    )
     ordinary_condition5 = contract.ordinary_condition5_owners
     valid_ordinary_condition5 = (
         len(ordinary_condition5) == len(ORDINARY_CONDITION5_SCOPES)
@@ -8131,7 +8157,7 @@ def scan_source(
         == set(ORDINARY_CONDITION5_SCOPES)
         and all(
             re.fullmatch(r"[0-9a-f]{64}", owner.source_sha256) is not None
-            and owner.findings == ORDINARY_CONDITION5_SCOPES[owner.path]
+            and owner.findings == ordinary_scope5[owner.path]
             for owner in ordinary_condition5
         )
     )
@@ -8154,7 +8180,8 @@ def scan_source(
             if path != owner.path.removeprefix("backend/src/"):
                 continue
             if (contract.pr191_source_owners != _pr191_trusted_source_owners()
-                    or source.encode() != owner.immutable_source):
+                    or source.encode() != owner.immutable_source) and not _pr192_successor_matches(
+                        source, path, contract):
                 line, code, symbol, scope = min(owner.findings)
                 violation = Violation(
                     path, line, int(code.removeprefix("TB")), code, symbol,
@@ -8162,6 +8189,16 @@ def scan_source(
                 )
                 if violation not in violations:
                     violations.append(violation)
+    pr192_evidence = _pr192_source_evidence(source, path, contract)
+    violations = [item for item in violations
+                  if (item.line, item.code, item.symbol, item.scope) not in pr192_evidence]
+    if contract.pr192_source_registration is not None:
+        trusted192 = _pr192_trusted_source_registration()
+        for full_path, raw in trusted192.source_files:
+            if path == full_path.removeprefix("backend/src/") and (
+                    not pr192_active or source.encode() != raw):
+                violations.append(Violation(path, 1, 2, "TB002", "pr192-source-identity",
+                    "pr192の固定source8/完全ownerと不一致", scope=_module_name(path) + ".<module>"))
     return sorted(violations)
 
 
@@ -9035,7 +9072,8 @@ def _load_ordinary_condition5_owners(
             ):
                 raise ContractError("通常条件5登録は条件5の一意な完全出現が必要")
             findings.add(identity)
-        if frozenset(findings) != ORDINARY_CONDITION5_SCOPES[full_path]:
+        if (frozenset(findings) != ORDINARY_CONDITION5_SCOPES[full_path]
+                and frozenset(findings) != _pr192_scope_variant(full_path, condition=5)):
             raise ContractError(
                 "通常条件5登録は審査済み1path/1出現のexact-setが必要"
             )
@@ -9955,6 +9993,265 @@ def _pr191_source_evidence(
             return owner.findings
     return frozenset()
 
+
+
+# v3は既ownerの歴史を消さず、別固定期待と固定製品sourceの両方へ束縛する。
+_PR192_EXPECTED_FIXTURE = "tests/fixtures/pr192_tenant_source_expected_v1.json"
+_PR192_OWNER_PATHS = frozenset({
+    "backend/src/pitchlog/domainrt/lineup_play_prefix_continuation.py",
+    "backend/src/pitchlog/domainrt/lineup_prefix_source.py",
+    "backend/src/pitchlog/repositories/ordinary_prefix_read.py",
+    "backend/src/pitchlog/repositories/play_prefix.py",
+    "backend/src/pitchlog/sync/ordinary_pitch_execution.py",
+    "backend/src/pitchlog/sync/terminal_pitch_projection.py",
+})
+_PR192_SOURCE_PURPOSE = (
+    "PR192審査済み実source8pathを固定Git全byteへ束縛。"
+    "旧v2用途保持と新v3有限90site以外を許可しない。"
+)
+_PR192_EXPECTATION_PURPOSE = (
+    "PR192独立分類の6owner90tuple/旧37metadata/旧4supersession期待を"
+    "実装前置fixtureの固定Git全byteへ束縛。現在declとfixture同時改変では更新できない。"
+)
+
+
+@functools.lru_cache(maxsize=128)
+def _pr192_git_bytes(root: Path, revision: str, path: str) -> bytes:
+    """不変Git blobだけを再利用し、現fixture/宣言の読取りはcacheしない。"""
+    _git_regular_blob(root, revision, Path(path))
+    return subprocess.check_output(["git", "show", revision + ":" + path], cwd=root)
+
+
+def _pr192_read_fixed_expectations(root: Path) -> dict[str, Any]:
+    """取得不能/不正JSONも閉じた契約違反として拒否する。"""
+    try:
+        return _pr192_read_fixed_expectations_unchecked(root)
+    except (OSError, ValueError, UnicodeError, subprocess.CalledProcessError) as error:
+        raise ContractError("pr192固定期待を取得/検証できない") from error
+
+
+def _pr192_read_fixed_expectations_unchecked(root: Path) -> dict[str, Any]:
+    """現fixtureや宣言の自己期待ではなく、前置Gitの全byteから期待を読む。"""
+    frozen, _ = _read_json(root / "contracts/tenant_boundary/frozen-inputs.json")
+    inputs = _object(frozen.get("frozen_inputs"), "pr192 frozen inputs")
+    revisions = []
+    for name, purpose, consumer in (
+        ("pr192_source_registration_revision", _PR192_SOURCE_PURPOSE, "immutable_source"),
+        ("pr192_source_expectation_revision", _PR192_EXPECTATION_PURPOSE, "immutable_expectations"),
+    ):
+        entry = _object(inputs.get(name), name)
+        _strict_keys(entry, {"value", "purpose", "sources"}, name)
+        if entry["purpose"] != purpose or entry["sources"] != [
+            "scripts/check_tenant_boundary_bypass.py:_load_pr192_source_owners",
+            "tests/test_pr192_tenant_source_registration.py:" + consumer,
+        ]:
+            raise ContractError("pr192固定入力の用途/consumer不一致")
+        revision = _string(entry["value"], name)
+        if re.fullmatch(r"[0-9a-f]{40}", revision) is None:
+            raise ContractError("pr192原典は直接のfull commitが必要")
+        if _run_git(root, ["rev-parse", "--verify", revision + "^{commit}"]).strip() != revision:
+            raise ContractError("pr192原典のcommit不一致")
+        _run_git(root, ["merge-base", "--is-ancestor", revision, "HEAD"])
+        revisions.append(revision)
+    source_revision, expectation_revision = revisions
+    _run_git(root, ["merge-base", "--is-ancestor", source_revision, expectation_revision])
+    raw = _pr192_git_bytes(root, expectation_revision, _PR192_EXPECTED_FIXTURE)
+    if ((root / _PR192_EXPECTED_FIXTURE).is_symlink()
+            or (root / _PR192_EXPECTED_FIXTURE).read_bytes() != raw):
+        raise ContractError("pr192期待fixtureは固定前置Git全byteとの一致が必要")
+    expected = _object(json.loads(raw, object_pairs_hook=_unique_json_object), "pr192固定期待")
+    _strict_keys(expected, {
+        "schema_version", "source_revision", "formal_base_revision", "frozen_input",
+        "expectation_frozen_input", "owners", "existing_owner_followups",
+        "superseded_pr191_owners", "preserved_pr191_source_revision",
+        "preserved_pr191_fixture_sha256", "unchanged_pr191_owners",
+    }, "pr192固定期待")
+    if (type(expected["schema_version"]) is not int or expected["schema_version"] != 1
+            or expected["source_revision"] != source_revision
+            or expected["frozen_input"] != "pr192_source_registration_revision"
+            or expected["expectation_frozen_input"] != "pr192_source_expectation_revision"):
+        raise ContractError("pr192固定期待の版/原典が不一致")
+    return expected
+
+
+def _pr192_expected_metadata(root: Path, expected: Mapping[str, Any]) -> dict[str, Any]:
+    """旧37siteだけを固定前後表で追随し、旧全体の未知変更を許さない。"""
+    revision = _string(expected["formal_base_revision"], "pr192正式base")
+    if re.fullmatch(r"[0-9a-f]{40}", revision) is None:
+        raise ContractError("pr192正式baseが不正")
+    _run_git(root, ["merge-base", "--is-ancestor", revision, "HEAD"])
+    before = _object(json.loads(_pr192_git_bytes(root, revision, str(DEFAULT_ALLOWLIST)),
+        object_pairs_hook=_unique_json_object), "pr192正式base asset")
+    keys = ("condition_2_ordinary_scoped_findings", "condition_5_ordinary_scoped_findings",
+            "condition_1_resolve_scoped_finding")
+    after = copy.deepcopy({key: before[key] for key in keys})
+    followups = _array(expected["existing_owner_followups"], "pr192旧site")
+    if len(followups) != 37:
+        raise ContractError("pr192旧siteは固定37だけが必要")
+    for raw_followup in followups:
+        followup = _object(raw_followup, "pr192旧site追随")
+        owner = followup["owner_key"]
+        if owner not in keys:
+            raise ContractError("pr192未知の旧owner")
+        path = followup["path"]
+        if owner == "condition_1_resolve_scoped_finding":
+            original, changed = before[owner], after[owner]
+            if original["path"] != path:
+                raise ContractError("pr192再交付owner path不一致")
+        else:
+            original, changed = before[owner][path], after[owner][path]
+            matches = [i for i, item in enumerate(original["findings"])
+                       if all(item[k] == followup["before"][k] for k in item)]
+            if len(matches) != 1:
+                raise ContractError("pr192旧site前値が不一致")
+            i = matches[0]
+            changed["findings"][i] = {
+                key: followup["after"][key] for key in original["findings"][i]
+            }
+        if original["source_sha256"] != followup["before"]["source_sha256"]:
+            raise ContractError("pr192旧source前値が不一致")
+        raw = _pr192_git_bytes(root, expected["source_revision"], path)
+        if hashlib.sha256(raw).hexdigest() != followup["after_source_sha256"]:
+            raise ContractError("pr192旧owner後値は固定製品Gitへの束縛が必要")
+        changed["source_sha256"] = followup["after_source_sha256"]
+    return after
+
+
+@functools.lru_cache(maxsize=1)
+def _pr192_trusted_materials() -> tuple[dict[str, Any], dict[str, Any]]:
+    """実行repoから独立原典を取得し、合成Contractの自己申告と分離する。"""
+    root = Path(__file__).resolve().parents[1]
+    expected = _pr192_read_fixed_expectations(root)
+    return expected, _pr192_expected_metadata(root, expected)
+
+
+def _pr192_scope_variant(path: str, *, condition: int) -> frozenset[tuple[Any, ...]]:
+    """旧scope以外は前置Gitの単一後継だけを候補とする。"""
+    _, metadata = _pr192_trusted_materials()
+    key = ("condition_2_ordinary_scoped_findings" if condition == 2
+           else "condition_5_ordinary_scoped_findings")
+    fields = ("line", "symbol", "scope") if condition == 2 else ("line", "code", "symbol", "scope")
+    return frozenset(tuple(row[k] for k in fields) for row in metadata[key][path]["findings"])
+
+
+def _load_pr192_source_owners(
+    root: Path, declaration: object, asset: Mapping[str, Any],
+) -> Pr192SourceRegistration:
+    """旧owner・90tuple・固定source8・別固定期待を不可分に検証する。"""
+    expected = _pr192_read_fixed_expectations(root)
+    value = _object(declaration, "pr192 source registration")
+    _strict_keys(value, {"expected_fixture", "owners"}, "pr192 source registration")
+    if (value["expected_fixture"] != _PR192_EXPECTED_FIXTURE
+            or value["owners"] != expected["owners"]):
+        raise ContractError("pr192は前置Gitの全owner/全siteとの一致が必要")
+    _strict_keys(_object(value["owners"], "pr192 owners"), set(_PR192_OWNER_PATHS), "pr192 owners")
+    metadata = _pr192_expected_metadata(root, expected)
+    if any(asset[key] != val for key, val in metadata.items()):
+        raise ContractError("pr192旧37metadataの全前後が不一致")
+    prior_fixture = root / _PR191_EXPECTED_FIXTURE
+    if (prior_fixture.is_symlink() or hashlib.sha256(prior_fixture.read_bytes()).hexdigest()
+            != expected["preserved_pr191_fixture_sha256"]):
+        raise ContractError("pr192は旧pr191 fixture全byteを保持する必要がある")
+    prior = _load_pr191_source_owners(root, asset["pr191_source_registration"])
+    prior_by_path = {owner.path: owner for owner in prior}
+    if (set(expected["superseded_pr191_owners"]) | set(expected["unchanged_pr191_owners"])
+            != set(prior_by_path)
+            or len(expected["superseded_pr191_owners"]) != 4
+            or len(expected["unchanged_pr191_owners"]) != 2):
+        raise ContractError("pr192旧ownerの後継4/不変2が不一致")
+    old_expected, _ = _read_json(prior_fixture)
+    if old_expected["source_revision"] != expected["preserved_pr191_source_revision"]:
+        raise ContractError("pr192は旧693原典を保持する必要がある")
+    owners = []
+    source_files: dict[str, bytes] = {}
+    for path, row in sorted(value["owners"].items()):
+        _strict_keys(_object(row, "pr192 owner"),
+                     {"purpose", "source_sha256", "findings"}, "pr192 owner")
+        raw = _pr192_git_bytes(root, expected["source_revision"], path)
+        if hashlib.sha256(raw).hexdigest() != row["source_sha256"] or not row["purpose"]:
+            raise ContractError("pr192 sourceは固定Git全byteとの一致が必要")
+        findings = []
+        for finding in row["findings"]:
+            _strict_keys(finding, {"line", "condition", "code", "symbol", "scope"}, "pr192 site")
+            if (type(finding["line"]) is not int or finding["line"] <= 0
+                    or type(finding["condition"]) is not int
+                    or {2: "TB002", 3: "TB003", 5: "TB007"}.get(finding["condition"])
+                    != finding["code"]
+                    or not finding["symbol"] or not finding["scope"]):
+                raise ContractError("pr192は条件2/3/5の明示siteだけを許す")
+            findings.append(tuple(finding[k] for k in ("line", "code", "symbol", "scope")))
+        if not findings or len(findings) != len(set(findings)):
+            raise ContractError("pr192 siteの欠落/重複")
+        owners.append(Pr191SourceOwner(
+            path, row["purpose"], row["source_sha256"], frozenset(findings), raw,
+        ))
+        source_files[path] = raw
+    if sum(len(owner.findings) for owner in owners) != 90:
+        raise ContractError("pr192は旧45/新45の全90siteが必要")
+    for followup in expected["existing_owner_followups"]:
+        path = followup["path"]
+        source_files[path] = _pr192_git_bytes(root, expected["source_revision"], path)
+    return Pr192SourceRegistration(tuple(owners), tuple(sorted(source_files.items())),
+        frozenset(expected["superseded_pr191_owners"]))
+
+
+@functools.lru_cache(maxsize=1)
+def _pr192_trusted_source_registration() -> Pr192SourceRegistration:
+    """現実行repoの閉登録を合成Contractから分離して読む。"""
+    root = Path(__file__).resolve().parents[1]
+    asset, _ = _read_json(root / DEFAULT_ALLOWLIST)
+    return _load_pr192_source_owners(root, asset["pr192_source_registration"], asset)
+
+
+def _pr192_registration_is_trusted(contract: Contract) -> bool:
+    """偽の等値比較や一部ownerで自己申告を成立させない。"""
+    registration = contract.pr192_source_registration
+    if (type(registration) is not Pr192SourceRegistration
+            or type(registration.owners) is not tuple
+            or type(registration.source_files) is not tuple
+            or type(registration.superseded_pr191_owners) is not frozenset
+            or any(type(path) is not str for path in registration.superseded_pr191_owners)):
+        return False
+    for owner in registration.owners:
+        if (type(owner) is not Pr191SourceOwner
+                or any(type(value) is not str
+                       for value in (owner.path, owner.purpose, owner.source_sha256))
+                or type(owner.immutable_source) is not bytes
+                or type(owner.findings) is not frozenset):
+            return False
+        for site in owner.findings:
+            if (type(site) is not tuple or len(site) != 4 or type(site[0]) is not int
+                    or any(type(value) is not str for value in site[1:])):
+                return False
+    if any(type(row) is not tuple or len(row) != 2
+           or type(row[0]) is not str or type(row[1]) is not bytes
+           for row in registration.source_files):
+        return False
+    return registration == _pr192_trusted_source_registration()
+
+
+def _pr192_source_evidence(
+    source: str, path: str, contract: Contract,
+) -> frozenset[tuple[int, str, str, str]]:
+    """固定全byteが一致する90siteだけを既検査へ接合する。"""
+    if not _pr192_registration_is_trusted(contract):
+        return frozenset()
+    registration = _pr192_trusted_source_registration()
+    for owner in registration.owners:
+        if (owner.path.removeprefix("backend/src/") == path
+                and source.encode() == owner.immutable_source):
+            return owner.findings
+    return frozenset()
+
+
+def _pr192_successor_matches(source: str, path: str, contract: Contract) -> bool:
+    """旧4owner guardを全検証済みの後継だけで接合する。"""
+    if not _pr192_registration_is_trusted(contract):
+        return False
+    registration = _pr192_trusted_source_registration()
+    return any(owner.path in registration.superseded_pr191_owners
+               and owner.path.removeprefix("backend/src/") == path
+               and source.encode() == owner.immutable_source for owner in registration.owners)
 
 
 if __name__ == "__main__":
