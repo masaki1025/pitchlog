@@ -1,5 +1,16 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 続き：2026-11-05（#191正式統合、三振10球の実保存成立・後半を並行実装）
+
+- **正式develop到達点**: #191は全CI41864867904の21jobと本文41864867901のcore-guardがsuccess（全22check）。最終C4の同版実画面3系列（通常/四球/死球、画面新規作成→開始→保存→server GET→reload→元要求再送）は3pass0skip185.93秒、全source-before HEAD一致/終了後clean、6証拠をui191-final-c4-proof/へ退避しSHA固定。非作者最終HEAD review486964cf…・公開委任comment6635610074・正式191単一受理を根拠にPO委任によるroot判断でDraft解除/通常merge。**merge eb8b31cdaa052d0a05b2d2d07b25e224accb769a、2026-11-05 01:50:14JST**。main/develop直接push/admin bypassなし。実Rulesetは10必須、引継ぎの12表記との差は確認したが追加mutation/consistencyも含む全22成功、条件を除外/変更していない。legacy branch-protection404を非保護とは解釈せずRuleset APIを確認した。develop後続CI41871502390は実行中として分離。
+- **三振の新しい実操作/証拠**: 隔離実APIの画面以外の経路で新規POST作成→開始/初期権→見逃し2+見逃し三振を3PA（9球）→裏の実投捕/打者へ交代→10球目ボール→再送/GET/ページング/再取得が**1pass126.84秒**（固定3ca52e247f92911241f49047fe7c7708f043ca83）。T2/T4途中故障の全取消と越境拒否も同試験内で成功。lineup192-contract-input-result.jsonはowned container削除true。事前投入gameや実画面検証と混同しない。既BB/HBP2系列は先行222.80秒runで成功している。
+- **三振で直した停止点**: 初回は新fixtureのcalled-pitch語彙欠落（SQLSTATE23503/fk_play_rows_batting_result）を43.04秒診断で確認。FK/SQL/認可はそのまま、旧ordinary同等の固定語彙準備を追加。次はS2へcalled-pitchを送る試験入力不整合を実artifactで再現（UNSUPPORTED_T1_SCOPE）。正式chain03/06/09どおりcalled-strikeoutへ修復し、10thball/既全assertを保持した。非作者追補1f3b1441…/f5ac387a…、旧79source全byte不変。source80本体/SQL22/pin13/compat1/生成5はe0829693…により独立567pass・数学90/互換11,292応答一致。
+- **三振の現在地/次**: 候補97d39c50019695cdf03a33e7d0d119a8245b1e8dは191正式eb8へファイル差分0で履歴追随。rootはroute原文1field/公式derived lockを追随しderived1429成功、default Oracle seal参照の再受理は未了。RAW診断は131siteを検出し正式gate成功とはしない。pr191_residual_independentが旧191原典supersessionと新v3用途を有限分類中。UI writer=pr191_integration_audit、既plan6ea1153b…採用/exact19+唯一wrapper2を追加、v3内部queryで新記録入口/GET/typed wire/provider/既耐久queue/controller/reload/Playwrightを実装中。pure局所群は作者成功、実GUIは未実施。保存/認可/source/正式資産root、UI21pathは同担当と分離。
+- **打球の後半成果**: 専用branchでstep1 cdcc7ec3（4安打共有核・23,328交差）、step2 **11b3acd2**（唯一artifact07554cf7…60122bytes/閉ABI/固定host/新3契約）を保存。非作者8886e822…が全13SHA・BE117/FE65/実host交差・型・実委譲後破壊拒否を確認。新head flagsがvalue flagsと不一致でも通る反例を候補段で検出し6/11literal+相関へ修復、golden16/旧tail不変。D11/既pinの大域接合/保存/UIはまだ。三振97dを競合0で取り込み現在c05033b4、未commit GUIを持ち込まず実v3保存基盤を再利用。rootが共有pin13/新互換15（13,170実旧新応答比較）のcache候補を準備、stage3と同じ固定点でまとめて採否する。
+- **成績/CSVの並行成果**: T5/T6実生成の23pathはb204e876を通常push済み。初回公開βreceiver P1を修復し同非作者cf25d10c…採用、207pytest/7生成再現/数学55期待不変。現在stats_csv_next_unitがstep1(c)(d)の有限requested projection・26群native source写像・生成SQLのcanonical S/500跨ぎ・唯一readerとprivate3table/migration0040候補を実装。型/CAS/同snapshot/不足源拒否を明示し、current_openのみ有限S revision更新で毎球全fact複製を避け、確定版不変/再開新版を維持。新table/4正式operation/同frame保存/readonly RR scopeの正式接合はroot後続、DB/provider成功は未主張。毎球CSV14b96546はDB/HTTP未接続、T5共通Sを二重実装しない。
+- **全MVP残件/再開**: 三振実GUIと#192正式統合、打球の残接続・在塁/アウト/走塁/交代/取消/訂正/終了再開、全操作の耐久offline/担当交代/閲覧10秒、全27成績/両CSV/負荷/復旧/実機リハーサルを保持。成績D02〜05は未回答のまま、暦年既決は戻さない。期限切れ試験TLS+ignoreHTTPSは隔離技術実証のみ、実機/運用公開ではない。Goal active、MVP完成としない。キャッシュ入口はmvp-resume-20261104/各result/logと本節に挙げたreview。
+
+
 ## 続き：2026-11-05（191残差sourceと最終受理を保存、三振・打球・成績を実装中）
 
 - **利用者ができる操作と証拠**: 正式develop40ceの提供範囲は不変。候補224の四球/死球を含む実画面3系列200.25秒成功を保持。本日旧記録済み復元E2Eを実PGで再現し、実値は復元済みだが旧read_kind/文言期待で停止していたことを非作者3a339ad6…と照合。7e205d9cでv2 query/read_kind=play-prefix・現文言へ追随し元状態assert保持/再GET全JSON一致を追加、実ブラウザ1pass45.91秒。事前保存データの復元回帰であり新規作成縦断の新実証へ読み替えない。
