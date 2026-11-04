@@ -40,6 +40,7 @@ async function login(page: Page): Promise<string> {
 test('実HTTPS画面で三振3PA・攻守交代・相手側球・元D5・ACK喪失reloadを通す', async ({
   page,
 }) => {
+  page.setDefaultTimeout(30_000)
   if (new URL(baseURL!).protocol !== 'https:')
     throw new Error('初球縦断には実HTTPS originが必要です')
   await page.addInitScript(() => {
@@ -220,6 +221,7 @@ test('実HTTPS画面で三振3PA・攻守交代・相手側球・元D5・ACK喪�
         res.request().method() === 'POST' &&
         apiPath(res.url()) === `/api/games/${saved.id}/sync/events`,
     )
+    await expect(page.getByTestId('first-ball-save')).toBeEnabled()
     await page.getByTestId('first-ball-save').click()
     expect((await posted).status()).toBe(200)
   }
@@ -233,6 +235,7 @@ test('実HTTPS画面で三振3PA・攻守交代・相手側球・元D5・ACK喪�
     const head = await (await read).json()
     expect(head.page.items).toHaveLength(n)
     await expect(page.getByTestId('restore-history')).toHaveText(`${n}件`)
+    console.log('PITCHLOG_LINEUP_CONFIRMED_PITCH=' + n)
     if (n === 9) {
       expect(head.after.stateFields['state.half']).toBe('bottom')
       expect(head.after.stateFields['state.outs']).toBe('0')

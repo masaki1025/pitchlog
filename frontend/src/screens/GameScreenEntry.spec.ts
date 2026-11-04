@@ -183,6 +183,34 @@ describe('登録済みrouteと認証境界', () => {
     expect(router.currentRoute.value.query.redirect).toBe(expected)
   })
 
+  it.each(['ordinary-prefix-v1', 'play-prefix-v2', 'play-prefix-v3'])(
+    '認証不確実時も有限な%s入口だけを保持し保護画面は描画しない',
+    async (mode) => {
+      const path = `/games/${gameId}/record?recording=${mode}`
+      expect(resolveGameEntryReturnPath(path)).toBe(path)
+      useAuthStore(pinia).signOut()
+      const router = createAppRouter(createMemoryHistory())
+      await router.push(path)
+      expect(router.currentRoute.value.name).toBe('login')
+      expect(router.currentRoute.value.query.redirect).toBe(path)
+    },
+  )
+  it.each([
+    '?recording=unknown',
+    '?recording=play-prefix-v3&x=1',
+    '?recording=play-prefix-v3&recording=play-prefix-v3',
+    '?recording=play-prefix-v3#part',
+    '?recording=%70lay-prefix-v3',
+    '?recording=play-prefix-v3%00',
+    '?recording=//outside.invalid',
+    '?recording=play-prefix-v3/../',
+    '?recording=',
+  ])('未知/重複/追加/符号化の記録入口%sを採用しない', (suffix) => {
+    expect(resolveGameEntryReturnPath(`/games/${gameId}/record${suffix}`)).toBe(
+      '/team',
+    )
+  })
+
   it.each([
     'https://outside.invalid/games',
     '//outside.invalid',
