@@ -240,3 +240,13 @@ owned PGの既BB/HBP2系列は成功、新v3系列は初球のafter_t4_projectio
 型codec→GET/provider→controller/耐久/復元→component→Playwright/owned補助の順に進める。Vitestの実artifact対向と旧v1/v2/BB/HBP回帰、未知/欠測/余剰・scope/tenant/game/ref/roster/participant/position/hash不一致、元要求再送/ACK異常/epoch変更/停止・再起動をpure局所で確認し、対象prettier/eslint/vue-tsc/buildを行う。PG/ブラウザ実行・共有DSN/鍵・app起動はrootが直列所有し、作者は起動しない。rootの採否後に実装し、通常非作者review後、root管理の実画面9球→反対側球・reload/同D5/ACK喪失の実測を完了条件とする。新PO裁定・本人署名・正式#191統合/必須CI/全MVP成立を代記しない。
 
 ステップ5開始判断: rootが追補SHA6ea1153b…と現v3 reader・既controller/queue・操作単位契約を照合し、実PG3ca52e24の1成功126.84秒/非作者e0829693とf5ac387aを根拠にPO委任採用する。exact19をpr191_integration_auditへ移管し、既backend/正式資産の最終受理はroot直列で並行する。内部URLqueryによる閉モード指定は可、利用者へv1/v2/v3/codec等の実装語を選ばせず、入口は記録できる操作を示す日本語とする。旧入口と復元/再送は保持し、旧ゲームを自動v3変換やHTTP失敗から無条件fallbackしない。authorは新コード開始前にrootの191最終候補C4追随完了の通知を受け、同branchの新固定点を使う。
+
+正式route原文の実装追随（2026-11-05、PO委任による主担当判断）: 認可CLIがdesign_provenance[6]の旧started reader原文不一致を検出。既非作者e0829693で審査済みAPI reader全原文だけをAST範囲から抜粋し、contracts/authz/route-registry.jsonの同1fieldと公式build_derived_lock由来route-registry.lock.jsonをroot専有で追随する。HTTP53操作/既認可/C2/claim/decision/entry250を変えず、他provenance全値不変。最終正式差分の非作者照合を保持し、Oracle新受理/全7.7成立へ読み替えない。
+
+実artifact呼出しのexact2追補（2026-11-05、PO委任による主担当判断）: frontend/src/lib/generated/wrappers/domainArtifact.tsと同domainArtifact.spec.tsを画面writerへ追加許可する。既唯一wrapperのFirstBallDomainOperation閉unionへ既配布済みderiveLineupPlayPrefixWithContinuation一名だけを明示追加し、実artifact呼出しを検証する。未知操作拒否・旧全operation/順序・型境界を維持し、string cast/別invoke実装/数学複製は不可。artifact/数学source変更は不要。
+
+### v3 sourceの有限登録（2026-11-05、PO委任による主担当判断）
+
+RAW131は非作者調査dcf27b60…で旧site再浮上82/新v3site45/旧原典不一致sentinel4と分類。実製品sourceは非作者e0829693で採用済み固定9b76全byteと同一。新6owner90tupleは旧v2移設45+新v345だけ、旧37site metadataの前後と旧4ownerの検証済supersessionを登録し、旧693/6ownerfixture全値・旧不変2owner・全拒否を保持する。131全免除・path除外・現在木から期待自己生成は不可。
+
+rootが独立分類由来の新fixture tests/fixtures/pr192_tenant_source_expected_v1.jsonを先行commitし、その固定Git全byteへ期待を束縛する。実source9b76と期待fixtureの別固定原典を名前付きfrozen inputへ登録し、宣言+fixture+sourceの同時改変でも不変Gitとの比較を残す。作者pr191_residual_independentへscripts/check_tenant_boundary_bypass.py・contracts/tenant_boundary/base-allowlist.json・新tests/test_pr192_tenant_source_registration.py・既tests/test_check_tenant_boundary_bypass.pyのexact4だけを許可する。新fixture/frozen-inputs/plan/census/受理historyはroot所有で作者非編集。C1旧AST/残るC2/C5/全未知source拒否を保持し、異owner/余剰site/行移動/source+declSHA偽造/原典非祖先/旧fixture改変/不完全supersessionを対向へ含む。新登録自身は作者以外の別非作者がレビューし、正式tenant9受理は最終source固定後にrootが直列再導出する。
