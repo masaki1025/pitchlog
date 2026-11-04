@@ -928,6 +928,49 @@
       "series": "oracle_input",
       "approved_by": "PO委任による主担当判断（本人直接確認・署名の代記ではない）",
       "approved_at": "2026-11-04"
+    },
+    {
+      "acceptance_id": "masaki1025/pitchlog#191",
+      "changes": [],
+      "moved": false,
+      "new_identity": {
+        "present": true,
+        "values": [
+          {
+            "kind": "literal_commit_string",
+            "value": "e1ca5d2a70b1d187312a1b38fab62ed79128a4f8"
+          }
+        ]
+      },
+      "placement_change": {
+        "after": [
+          {
+            "kind": "ledger_series",
+            "path": "contracts/authz/frozen-baselines.json",
+            "series": "oracle_input"
+          }
+        ],
+        "before": [
+          {
+            "kind": "ledger_series",
+            "path": "contracts/authz/frozen-baselines.json",
+            "series": "oracle_input"
+          }
+        ]
+      },
+      "prior_identity": {
+        "present": true,
+        "values": [
+          {
+            "kind": "literal_commit_string",
+            "value": "17124756e95f96ce84c2d5600c78b29660418dc0"
+          }
+        ]
+      },
+      "reason": "四球・死球v2の実GET原文を保持した固定8入力e1ca5d2aへoracle_inputを前進する。入力exact4は非作者REPORTb1db203cf1dc6c9fa973e52c76a7e870add28f1e60ff6bc8cf861baf8b49f3c7で公式derive/renderと全前後を照合済み。旧18履歴・規範状態5つ・placementは全保持（movedは規範状態移動なし）。6oracleの意味本文/期待/拒否を変えずcommit参照だけ伝播することを主担当が確認。専用再封印後の差分確認/正式tenant7.7/実CIは別証拠。PO本人の直接確認/署名・P6blind・実機/全MVP完了を代記しない。",
+      "series": "oracle_input",
+      "approved_by": "PO委任によるCodex主担当/root判断（本人署名ではない）",
+      "approved_at": "2026-11-04"
     }
   ]
 }
