@@ -213,3 +213,6 @@ FE14と分離しstats_csv_next_unitへ新exact4: backend/src/pitchlog/api/schema
 
 
 実PGカタログ診断によるexact2接合追補（2026-11-05、PO委任Codex /root判断）: 3633f95dのowned実migration0040/製品DDLは適用できるがfullprofile照合で新recording_vocab_api関数1件がactual集合に欠落する。診断reportでは旧全lifecycle関数値は一致し、新schemaがproduct_catalog.pyの固定読取SQL対象外だった。backend/src/pitchlog/authz/product_catalog.pyの_LIFECYCLE_FUNCTION_DETAILS_QUERYへ既新schema一名だけを追加し、backend/tests/test_recording_vocabulary_product.pyへ新schemaが実queryで読まれ旧schema全保持する回帰を追加する。期待を削除せず、DBで既関数と同じowner/SECDEF/volatility/body/search_path/EXECUTE照合を受けるための読取範囲追加。実PG診断の原report/拒否は保持し、通常検査のskip/結果差替え・権限追加は行わない。exact2を独立確認後、同版の非診断owned PGで再実証する。
+
+
+実語彙HTTP/索引の検証単位（2026-11-05、PO委任Codex /root判断）: 新backend/tests/db/test_batted_ball_options_http.py exact1をrootへ追加する。既真正owned vertical fixture/実認証app UID/実PGを再利用し、参照語彙だけを準備する。実GETのページ境界/重複欠落なし/無効と異category除外/未認証拒否/認証tenant不一致拒否/改竄cursor拒否、app直接table SELECT拒否、新SECDEF資格と既fullprofile再適用/partial index実在を検証する。固定成功/仮Port/共有DB/新secretは使わず、global admin語彙にtenant別owned dataがあるとは仮定しない。新索引EXPLAINは有界keysetとplanner条件を区別して記録する。製品関数/認可失敗を試験で補わず、失敗時は同版診断→新差分を確認する。実HTTP成功は画面保存の実証や正式7.7へ読み替えない。
