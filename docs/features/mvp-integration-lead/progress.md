@@ -1,5 +1,15 @@
 # 初回MVP 主担当引受・進捗台帳
 
+
+## 続き：2026-11-05（#192正式値を固定、develop赤の修復と後半の実DB接続）
+
+- **利用者操作と実証**: 前節の三振3PA→攻守交代→相手側1球→ACK結果不明からの認証再確認・reload・二重保存なしは32f68a1c/r8の実測を保持。正式develop eb8b31cdは通常/四球/死球まで。新最終候補37e298594e76c77af43c44f9581a837162d6a3fcで、診断bootstrap無しの同一owned HTTPS/PG実画面r9を実行中。未完を成功へ数えない。
+- **developの赤と解除条件**: postmerge run41871502390はharness-shard2の歴史版checker試験1件で失敗。歴史checkerの__file__由来rootと契約配置rootの分離が原因。真正Git原典/契約を同じ隔離rootへmaterializeするexact2修復を286a2d46へ保存、非作者279295ad…が旧失敗再現・7正例/3旧anchorを確認。検査/拒否を緩めない。develop自体は未修復の赤、#192最終全CI/通常統合が必要。
+- **#192正式受理候補**: source/census/Oracleの独立採否を継承し、CIhelper2だけの後発差分を公式helperで単一#192の最終値へ再導出。非作者d24bc86e…が全9/外部25/生成2/旧36履歴完全保持→37単一record、base300/pin83保持・現316snapshot/必要47全byte・誤値等4拒否を確認。rootが全審査SHA一致を検算し、PO委任によるCodex主担当判断として37e29859へ保存。本人署名/P6blindではない。tenant公式CLI r2成功、履歴関連全件・frontend lint/type/全Vitest・最終GUIは走行中。全CI・公開証拠・マージはまだ。
+- **安打保存**: producer35abaa06とsource5+正式SQL12を95f50f41へ保存。独立4ce200f2…/79pureがT1一回/観測codec/語彙・所属/同frame/ACLを確認。実PG r1は参照他tenant選手不在で製品要求前に2失敗、保存成功ではない。対象試合等を事前投入せず参照team/player各1だけ追加するfixture修復をroot非作者確認しc74e00c7へ保存、同HEAD owned PG exact2のr2を実行中。語彙/野手/原子的保存/再読込・元D5再送の実証後に画面/正式受理へ進む。
+- **成績の実接続**: 2game健康S比較P1は同作者反映1と別非作者a0549d29…で解消、source30をdca7f79fへ保存。native三振候補2e121101を通常mergeした79d834bdは競合0/source30全SHAとroot RR/RO helper AST保持、174pure成功。現在は実SQL4関数候補をpr191_residual_independentへ委任、rootが正式registry/ACL/RLS/同frame保存hookを一本化する。cacheのみのSQL候補は正式登録/実保存/成績表示ではない。既4意味判断は未回答、唯一モデル/55期待を維持。
+- **次の依存/全体**: 最終GUI/履歴試験とHEAD独立照合→公開委任証拠/最終1push/必須CI→#192通常統合。待機中も安打とT5実保存を継続。打球走者/交代/取消/訂正/終了再開/全操作offline・担当交代/閲覧10秒/全27・両CSV/負荷・復旧/ユーザー実機・運用HTTPSは未完のまま維持。Goal active。
+
 ## 続き：2026-11-05（三振の実画面10球・復旧が成立、安打v3接続を保存）
 
 - **新たにできた操作/実証**: 候補**32f68a1cef27d5fd256f401fdc832fe5350cb7c2**の同一owned HTTPS/PGで、画面新規作成→開始/初期権→三振3PA9球→攻守交代→反対側ボール→実ACK喪失→既認証の安全な無効化→明示「状態を再確認」/実session GET→同記録入口復帰→reload→元body/attempt再送まで成功。実DB play_rows/operation_events/event_slots/ledger各10、二重保存なし。pytest **1pass0skip236.796秒**、前後1282path SHA同値/HEAD一致。cache mvp-resume-20261104/pr192-ui-r8-result.json・log/xml・playwright/app/vite logへ固定。これは候補で3PA/1半回＋相手側1球、正式develop/1試合全体/全offline/実機/信頼済HTTPSではない。正式developは#191 eb8b31cdの通常/四球/死球まで。
