@@ -147,3 +147,14 @@ historyContextは新entryを先頭に一つ追加し旧stackの全entry/順序�
 公開ABI13pathは非作者8886e822…の全SHA/実host23,328交差/型・故障対向を根拠に11b3acd2へ保存した。正式D11/現在pin接合とstep3 source/T2は残る。重複配線を避けるためrootが三振候補97d39c5（実DB成功3caを含み、正式191/eb8履歴へ追随）を本枝へ取り込み、既v3の参加者/両cursor/責任/一回frame/保存境界を再利用する。三振の実画面sourceは別WTで実装中で、この追随には未commit GUIを含めない。source/既数学値が同じことを照合し、配布物は唯一builderで再確認、実行pinと既wire自己echoだけを正式規則からrootが後続追随する。候補の数学成功を打球保存/画面の成功にしない。
 
 D11の最小正式登録（2026-11-05、PO委任による主担当root判断）: root所有で新backend/domain/batted-hit-manifest.json・batted-hit-property-catalog.json・batted-hit-property-catalog.schema.json、contracts/state-transition/batted_hit_d11_vectors_v1.json、backend/tests/domainrt/test_batted_hit_d11.pyのexact5を作成する。計算ID batted-hit-empty-v1、唯一state.ts/battedHit.ts依存・公開deriveBattedHit・固定evaluate_batted_hit・実単一IIFEへ、先行採用16の全request/expectedを包絡する。既manifest schema/collectorと同じ実factory/direct比較traceを用い、期待を実装出力から作らない。現artifact07554…の新旧34+56応答と既互換40保持/新15組は別cacheで実証して同時に現在pin13へ追随する。mutation profileは必要対象を宣言し、未計測を成功にしない。新equivalenceの測定だけで全D11/BOOT/正式7.7/実保存を完成扱いしない。最終差分は別非作者へ渡す。
+
+
+## ステップ3のv3接合指示（2026-11-05、PO委任によるCodex /root判断）
+
+基点b52547ac、step2の新D11/pin19は非作者0a8cdfa9…の全SHA/旧90数学/互換13,170全応答を照合し採用保存済み。未実mutation/全D11/BOOT/保存/UIは残す。次は既v3に無走者4安打を閉variantとして接続する。旧exact4のT1入力を全保持し、新batted-hit exact8（既4入力+既採用4確定観測タグ）だけを追加、未知/未確認/在塁等は拒否する。新v4/別artifact/重複算式は作らない。
+
+作者batted_prefix_connectionのexact9 source: frontend/src/domain/lineupPlayPrefixContinuation.ts、publicApi.ts、新battedHitPrefixContinuation.spec.ts、backend/src/pitchlog/domainrt/lineup_play_prefix_continuation.py、lineup_prefix_source.py、新backend/tests/domainrt/test_batted_hit_prefix.py、既test_lineup_prefix_source.py、backend/src/pitchlog/sync/terminal_pitch_payload.py、新backend/tests/test_batted_hit_prefix_payload.py。唯一builderのfrontend/public/domain/pitchlog-domain.js/.jsonの再生成2を加え計11。rootはこの11を並行編集しない。
+
+公開deriveLineupPlayPrefixWithContinuationから既唯一evaluatePitchのbattedHit入口へ委譲し、T2は既終了核へ。到達baseは実T1 batterDestinationから取り、double/tripleをbase1に固定しない。HRは既確定score/RBI事実と保存観測を比較、サヨナラ/コールド等を未評価noendへしない。旧FirstBallObservations variantを保持し、新打球だけ明示観測/打球情報/result IDとT1を全比較。利用者観測を4タグから推測/生成しない。
+
+契約schema/d.ts/新cases候補は作者が承認済batted規範と既v3からcacheへ先置き（runtime生成期待不可）、rootが実path/SHAを照合して直列反映する。新意味を増やさない型接合をroot委任で具体化し、不足があれば閉拒否・対象外理由を記録する。共有pin/manifest/正式受理/DB/UIはroot後続。非作者の全応答/旧回帰/入力欠測拒否/元source確認を必要とし、step3候補を保存成功やMVP完成へ昇格しない。
