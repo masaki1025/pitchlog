@@ -455,3 +455,31 @@ def initial_lineup_source(
     }
     ref["checkpoint"]["digest"] = _fingerprint(head)
     return Source.model_validate_json(_canonical(source), by_alias=True, by_name=False)
+
+
+def require_batted_hit_observations(t1, observations) -> None:
+    """原本V7の全打球観測と数学入力のタグを照合する。DB資格は発行しない。"""
+    from pitchlog.domainrt.lineup_play_prefix_continuation import BattedHitT1Input
+    from pitchlog.sync.first_ball_payload import FirstBallObservations
+    from pitchlog.sync.terminal_pitch_payload import BattedHitPlayObservations
+
+    if type(t1) is not BattedHitT1Input:
+        if type(observations) is not FirstBallObservations:
+            raise ValueError("旧投球へ打球観測を混在できません")
+        return
+    if type(observations) is not BattedHitPlayObservations:
+        raise ValueError("安打には記録者の全明示観測が必要です")
+    _check_frozen_members(t1)
+    _check_frozen_members(observations)
+    checked = BattedHitPlayObservations.model_validate_json(
+        _canonical(_dump(observations))
+    )
+    if (
+        _canonical(_dump(checked)) != _canonical(_dump(observations))
+        or t1.result_id != checked.result_id
+        or t1.official_scoring_payload != checked.official_scoring_payload.kind
+        or t1.interference_ruling != checked.interference_ruling.kind
+        or t1.runner_advance_overrides != checked.runner_advance_overrides.kind
+        or t1.third_out_observation != checked.third_out_observation.kind
+    ):
+        raise ValueError("記録者の観測と今回安打計算が一致しません")

@@ -284,16 +284,51 @@ class T1Input(_LineupWire):
     before: StrikeoutSnapshot
 
 
+class BattedHitT1Input(_LineupWire):
+    """結果から補完しない4つの明示観測を要求する無走者安打入力。"""
+
+    event_kind: Literal["batting-result"] = Field(alias="eventKind")
+    result_id: Literal[
+        "batting-result.single",
+        "batting-result.double",
+        "batting-result.triple",
+        "batting-result.home-run",
+    ] = Field(alias="resultId")
+    pitch_event_kind: Literal["pitch-event"] = Field(alias="pitchEventKind")
+    before: StrikeoutSnapshot
+    official_scoring_payload: Literal["no-error"] = Field(
+        alias="officialScoringPayload"
+    )
+    interference_ruling: Literal["not-required"] = Field(alias="interferenceRuling")
+    runner_advance_overrides: Literal["not-applied"] = Field(
+        alias="runnerAdvanceOverrides"
+    )
+    third_out_observation: Literal["none"] = Field(alias="thirdOutObservation")
+
+
 class LineupPrefixRequest(_LineupWire):
     """旧ABIへ追加せず独立した閉要求。"""
 
     version: Literal["3"]
     prefix_ref: PrefixRef = Field(alias="prefixRef")
     rules: SavedRuleWire
-    t1: T1Input
+    t1: T1Input | BattedHitT1Input
     source: Source
     play_identity: PlayIdentity = Field(alias="playIdentity")
     next_checkpoint: Checkpoint = Field(alias="nextCheckpoint")
+
+
+class _BattedReach(_LineupWire):
+    """実T1が返した一/二/三塁到達。到達塁を結果から再計算しない。"""
+
+    kind: Literal["reach"]
+    base: Literal["1", "2", "3"]
+
+
+class _BattedScore(_LineupWire):
+    """本塁打で帰還した打者。baseを補わない。"""
+
+    kind: Literal["score"]
 
 
 class T1(_LineupWire):
@@ -301,9 +336,9 @@ class T1(_LineupWire):
 
     count_effect: _CountEffects = Field(alias="countEffect")
     plate_appearance_ended: bool = Field(alias="plateAppearanceEnded")
-    batter_destination: _Out | _Reach | BatterDestination = Field(
-        alias="batterDestination"
-    )
+    batter_destination: (
+        _Out | _Reach | _BattedReach | _BattedScore | BatterDestination
+    ) = Field(alias="batterDestination")
     runner_default_advance: _RunnerHolds = Field(alias="runnerDefaultAdvance")
     out_effect: _OneOut | _ZeroOut = Field(alias="outEffect")
     stat_flags: StatFlags = Field(alias="statFlags")

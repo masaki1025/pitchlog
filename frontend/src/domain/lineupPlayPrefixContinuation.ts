@@ -9,7 +9,8 @@ import {
 
 type Json = Record<string, unknown>
 type Prepared =
-  { ok: true; request: Json; t1: Json } | { ok: false; response: string }
+  | { ok: true; request: Json; t1: Json; battedHit: boolean }
+  | { ok: false; response: string }
 /** 閉shapeを再検証し、余剰/欠落を補完しない。 */
 function object(value: unknown, keys: Array<string>): Json | null {
   if (value === null || typeof value !== 'object' || Array.isArray(value))
@@ -253,12 +254,35 @@ export function prepareLineupContinuation(raw: string): Prepared {
   if (r === null || r.version !== '3') return reject('INVALID_REQUEST')
   const ref = prefix(r.prefixRef)
   const next = checkpoint(r.nextCheckpoint)
-  const input = object(r.t1, [
+  const ordinaryInput = object(r.t1, [
     'eventKind',
     'resultId',
     'pitchEventKind',
     'before',
   ])
+  const battedInput = object(r.t1, [
+    'eventKind',
+    'resultId',
+    'pitchEventKind',
+    'before',
+    'officialScoringPayload',
+    'interferenceRuling',
+    'runnerAdvanceOverrides',
+    'thirdOutObservation',
+  ])
+  const input = ordinaryInput ?? battedInput
+  // 安打結果に観測を補わず、旧4fieldのまま受け入れない。
+  if (
+    ordinaryInput !== null &&
+    typeof ordinaryInput.resultId === 'string' &&
+    [
+      'batting-result.single',
+      'batting-result.double',
+      'batting-result.triple',
+      'batting-result.home-run',
+    ].includes(ordinaryInput.resultId)
+  )
+    return reject('INVALID_REQUEST')
   const s = object(r.source, [
     'kind',
     'prefixRef',
@@ -516,17 +540,21 @@ export function prepareLineupContinuation(raw: string): Prepared {
     expectedTB = true
   if (read(fields, 'state.tiebreakActive') !== expectedTB)
     return reject('T2_NOT_EVALUATED')
-  return {
-    ok: true,
-    request: r,
-    t1: {
-      eventKind: input.eventKind,
-      resultId: input.resultId,
-      pitchEventKind: input.pitchEventKind,
-      before: before,
-      history: { stack: [] },
-    },
+  let t1: Json = {
+    eventKind: input.eventKind,
+    resultId: input.resultId,
+    pitchEventKind: input.pitchEventKind,
+    before: before,
+    history: { stack: [] },
   }
+  if (battedInput !== null)
+    t1 = Object.assign(t1, {
+      officialScoringPayload: battedInput.officialScoringPayload,
+      interferenceRuling: battedInput.interferenceRuling,
+      runnerAdvanceOverrides: battedInput.runnerAdvanceOverrides,
+      thirdOutObservation: battedInput.thirdOutObservation,
+    })
+  return { ok: true, request: r, battedHit: battedInput !== null, t1: t1 }
 }
 /** 実一回T1をT2/runner/次sourceへ射影する。入力提案からT1結果をlookupしない。 */
 export function finishLineupContinuation(r: Json, raw: string): string {
@@ -621,7 +649,7 @@ export function finishLineupContinuation(r: Json, raw: string): string {
       {
         runnerId: (source.participants as Json).batterId,
         responsiblePitcherId: (source.participants as Json).pitcherId,
-        base: '1',
+        base: (value.batterDestination as Json).base,
         status: '継続',
         statusSource: 'auto',
       },

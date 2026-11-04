@@ -1027,7 +1027,8 @@ function deriveLineupPlayPrefixWithContinuation(requestJson: string): string {
       false,
       false,
       false,
-      true,
+      !prepared.battedHit,
+      prepared.battedHit,
     )
     return finishLineupContinuation(prepared.request, response)
   } catch {
