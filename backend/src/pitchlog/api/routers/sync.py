@@ -11,7 +11,6 @@ from uuid import UUID, uuid5
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from fastapi.responses import JSONResponse
-from sqlalchemy.exc import SQLAlchemyError
 
 from pitchlog.api.request_presentation import require_presented_token
 from pitchlog.api.schemas.recording_ack import RecordingAckResponse
@@ -24,6 +23,7 @@ from pitchlog.repositories.initial_recording_right import (
 )
 from pitchlog.repositories.ordinary_pitch_operations import OrdinaryPlayRowError
 from pitchlog.repositories.ordinary_prefix import OrdinaryPrefixError
+from pitchlog.repositories.transaction import DATABASE_ERRORS
 from pitchlog.sync.apply import (
     _apply_e1_f1,
     _E1OutOfScope,
@@ -160,7 +160,7 @@ def sync_events(
         replayed = _replay_e1_without_binding(
             context, sync_request, source.event_fingerprints
         )
-    except SQLAlchemyError:
+    except DATABASE_ERRORS:
         raise HTTPException(status_code=503) from None
     if replayed == "B6":
         raise HTTPException(status_code=404)
@@ -248,7 +248,7 @@ def sync_events(
         OrdinaryPrefixError,
         OrdinaryPitchExecutionError,
         OrdinaryPlayRowError,
-        SQLAlchemyError,
+        *DATABASE_ERRORS,
     ):
         # 同TXのprefix/frame/投影不成立にACKや新要求置換可否を付与しない。
         raise HTTPException(status_code=503) from None

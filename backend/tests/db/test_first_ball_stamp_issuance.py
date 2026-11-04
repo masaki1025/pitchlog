@@ -349,6 +349,7 @@ def test_v8_savepoint_rules(db1: Env) -> None:
     """V8: savepoint内・ROLLBACK TOのみの後は42501、RELEASE後は通り消費される。"""
     env = db1
     out: dict[str, Any] = {}
+    env.ctx.rotate_game()
     with peer(env.db, APP) as w:
         ev, b = _new_attempt(env, w)
         w.run("SAVEPOINT s1")
@@ -369,6 +370,7 @@ def test_v8_savepoint_rules(db1: Env) -> None:
     assert ins[1] == "00000"
     assert env.ctx.stamp_row(b) == [["consumed", str(ev["id"]), str(row), True]]
     # (d) savepoint内のINSERT(Aの外側照合)は42501。
+    env.ctx.rotate_game()
     with peer(env.db, APP) as w:
         ev, b = _new_attempt(env, w)
         _bind(w, env, b)
@@ -386,6 +388,7 @@ def test_v8_savepoint_rules(db1: Env) -> None:
 def test_v9_consumed_is_stable_and_second_insert_is_rejected(db1: Env) -> None:
     """V9: consumedの後のbind/rightは据え置き(23514なし)。2行目のINSERTは42501。"""
     env = db1
+    env.ctx.rotate_game()
     with peer(env.db, APP) as w:
         ev, b = _new_attempt(env, w)
         _bind(w, env, b)
@@ -399,6 +402,7 @@ def test_v9_consumed_is_stable_and_second_insert_is_rejected(db1: Env) -> None:
     assert again_b[:2] == (("t",), "00000") and again_r[:2] == (("t|t",), "00000")
     # 2行目の拒否でTXをrollbackしたので、consumedはcommitされない。
     # consumedの据え置きをcommitして観測する。
+    env.ctx.rotate_game()
     with peer(env.db, APP) as w:
         ev, b = _new_attempt(env, w)
         _bind(w, env, b)
@@ -460,6 +464,7 @@ def test_m1_transition_matrix_20_cells(db1: Env) -> None:
 
     for state in _STATES:
         for event in _EVENTS:
+            env.ctx.rotate_game()
             with peer(env.db, APP) as w:
                 ev, b = _new_attempt(env, w)
                 for step in pre[state]:
@@ -1063,6 +1068,7 @@ def test_c8_mutation_without_bind_stamp_turns_the_vertical_red(db2: Env) -> None
     _ensure_applied(env)
     assert env.applied
     stamped = render_stamped_function_sql()
+    env.ctx.rotate_game()
     with psycopg.connect(env.ctx.admin_dsn) as conn:
         exec_text(conn, _old_bind_replace_sql())
         conn.commit()
@@ -1081,6 +1087,7 @@ def test_c8_mutation_without_bind_stamp_turns_the_vertical_red(db2: Env) -> None
             exec_text(conn, stamped["bind_device"])
             conn.commit()
     # 元の本文へ戻すとV1相当が再び成立する。
+    env.ctx.rotate_game()
     with peer(env.db, APP) as w:
         ev, b = _new_attempt(env, w)
         _bind(w, env, b)

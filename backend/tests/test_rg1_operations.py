@@ -20,6 +20,17 @@ from pitchlog.repositories.function_operations import (
     prepare_function_operation,
 )
 from pitchlog.repositories.operation_registry import FUNCTION_OPERATION_REGISTRY
+from pitchlog.repositories.ordinary_order import OrdinaryOrderSummaryToken
+from pitchlog.repositories.ordinary_pitch_qualification import (
+    BindOrdinaryDeviceToken,
+    CheckOrdinaryRightToken,
+    PrepareOrdinaryProjectionToken,
+)
+from pitchlog.repositories.ordinary_prefix_operations import (
+    OrdinaryCheckpointLockToken,
+    OrdinaryCheckpointReadToken,
+    OrdinaryHistoryPageToken,
+)
 from pitchlog.repositories.rg1 import (
     RG1CommitCheckToken,
     RG1PrecheckToken,
@@ -62,6 +73,13 @@ def test_rg1_keeps_two_fixed_functions_with_one_registered_rule_resolver() -> No
         _ReadWriterIdentityToken,
         _AssertWriterBindingToken,
         _ReadFirstBallDeviceStateToken,
+        BindOrdinaryDeviceToken,
+        CheckOrdinaryRightToken,
+        PrepareOrdinaryProjectionToken,
+        OrdinaryCheckpointReadToken,
+        OrdinaryCheckpointLockToken,
+        OrdinaryHistoryPageToken,
+        OrdinaryOrderSummaryToken,
     }
     for token, function_name in (
         (RG1PrecheckToken(), "rg1_read_open"),

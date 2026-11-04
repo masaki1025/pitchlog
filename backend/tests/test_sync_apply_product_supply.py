@@ -358,10 +358,10 @@ def test_device_state_overload_guard_only_extends_new_wrapper():
 
 
 def test_expected_source_pin_fixture_has_all_thirty_independent_values():
-    """独立fixtureの全30期待を閉readerと全file/keyで照合する。"""
+    """独立fixtureの全37期待を閉readerと全file/keyで照合する。"""
     fixture = Path(__file__).parent / "fixtures/first_ball_expected_source_pins_v1.json"
     raw = json.loads(fixture.read_text())
-    assert sum(len(values) for values in raw["pins"].values()) == 30
+    assert sum(len(values) for values in raw["pins"].values()) == 37
     assert {name: read_expected_source_pins(name) for name in raw["pins"]} == raw[
         "pins"
     ]

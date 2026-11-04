@@ -52,6 +52,10 @@ CanonicalUuid: TypeAlias = Annotated[str, AfterValidator(_canonical_uuid)]
 PositiveInteger: TypeAlias = Annotated[DecimalInteger, Field(pattern=r"^[1-9][0-9]*$")]
 
 
+# 初期応答と同じ凍結wire名。API層はこの定数を参照し、語彙を再宣言しない。
+RECOVERY_WIRE_FIELD = "recovery_generation"
+
+
 class PrefixRef(_WireFrozen):
     """通常投球専用の確認水位。D4と一般履歴長を同一視しない。"""
 
@@ -60,6 +64,19 @@ class PrefixRef(_WireFrozen):
     game_id: CanonicalUuid = Field(alias="gameId")
     generation: Annotated[str, Field(min_length=1, max_length=128)]
     length: DecimalInteger
+
+    def assert_matches(self, game_id: str, current_d4: str | None) -> None:
+        """prefixの試合とD4が現在値へ一致することを検査する。
+
+        Args:
+            game_id: 応答が表す試合ID。
+            current_d4: 応答が表す現在D4。
+
+        Raises:
+            ValueError: prefixと試合またはD4が不一致。
+        """
+        if self.game_id != game_id or self.generation != current_d4:
+            raise ValueError("prefixと試合/現在D4が不一致")
 
 
 class OrdinaryT2Basis(_WireFrozen):

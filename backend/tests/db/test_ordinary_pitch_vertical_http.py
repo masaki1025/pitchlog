@@ -2,6 +2,7 @@
 
 import json
 import subprocess
+import tempfile
 from pathlib import Path
 from uuid import UUID, uuid4
 
@@ -313,8 +314,8 @@ def test_actual_http_create_start_three_pitches_replay_and_prefix_reload(
         )
     assert process.returncode == 0, (process.stdout[-1000:], process.stderr[-1000:])
     result = json.loads(process.stdout)
-    report = Path(
-        "/home/ymdms/.cache/pitchlog/ordinary37-runtime-source-candidate-20261030/newAPI-last-result.json"
+    report = Path(tempfile.gettempdir()) / (
+        "pitchlog/ordinary37-runtime-source-candidate-20261030/newAPI-last-result.json"
     )
     report.parent.mkdir(parents=True, exist_ok=True)
     report.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n")

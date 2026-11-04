@@ -364,6 +364,9 @@ def test_force_rls_applies_to_owner_with_unbound_context(
                     "writer_bindings",
                     "writer_admissions",
                     "first_ball_write_admissions",
+                    "ordinary_pitch_checkpoints",
+                    "ordinary_pitch_write_admissions",
+                    "ordinary_pitch_history",
                 }:
                     continue
                 cursor.execute(

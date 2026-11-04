@@ -12,6 +12,7 @@ from types import TracebackType
 from typing import TYPE_CHECKING, Any, Literal, cast, final
 from uuid import UUID
 
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from pitchlog.db.engine import create_database_engine
@@ -52,6 +53,10 @@ _INITIAL_ACTOR_STATES: dict[
     object, tuple[object, Literal["intent", "business", "enroll"]]
 ] = {}
 _RG1_LOANS: dict[object, _GateLoan] = {}
+
+
+# API層がDB例外の型名を持たずに503へ閉じるための閉じた例外集合。
+DATABASE_ERRORS: tuple[type[Exception], ...] = (SQLAlchemyError,)
 
 
 @dataclass(slots=True)
