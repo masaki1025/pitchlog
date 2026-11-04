@@ -184,3 +184,8 @@ owned PGはrootと調整し、実ASGI新規POST作成/開始→4結果各安打�
 ### ステップ4の実保存境界追補（2026-11-05、PO委任Codex /root判断）
 
 owned PG r2/HEAD c74e00c7は対象game作成/開始後、最初の安打投影でrepositories/ordinary_pitch_operations.py::_rowの旧first-ball全nullable常時None条件によりOrdinaryPlayRowErrorを返した。実安打6観測を保存へ渡す契約と実SQLは既採用済みであり、新しい意味判断ではない。exact2をbackend/src/pitchlog/repositories/ordinary_pitch_operations.pyと新backend/tests/test_batted_hit_play_row_operations.pyへ追加し、PlayPrefixPlayRowInsertTokenかつ既閉4安打の原観測6列だけを許容する。旧Ordinary token/旧投球は既NULL条件を全保持、全41列実型/UUID/finite/範囲/既原本・ledger・nonce・同frame照合は保持する。未知結果/他nullable/負値・範囲外/不正tokenを拒否する対向を付ける。作者はこのexact2だけ、SQL/正式資産/台帳はroot所有。非作者確認後に保存し同owned PGを再検証する。r2の第2fixture authority起動45秒timeoutは別の環境失敗であり成功へ読替えず製品timeoutを緩めない。
+
+
+### ステップ4採用と画面基線の接合（2026-11-05、PO委任Codex /root判断）
+
+同86f720b9のowned PG r4は2pass357.59秒、実新規作成4安打＋次球/再送/GET・再取得/途中T2T4全取消と6拒否（全0/水位0）を最終世代照合まで確認。runtime22全SHA/HEAD不変・owner除去をcache db-r4-diagnostic.json（700d2e47…f3c37f）へ固定し本保存単位を採用。画面/正式7.7/全MVPの受入ではない。rootは#192実画面候補37e29859を通常mergeして既v3入力画面/queue/ACK/復元/認証を再利用する。merge-treeで競合0を確認、既batted唯一artifact/数学/実保存source/producerを保持し、sourceの後発差分だけを検証する。#192の最終GUI再現性block/positive fixture/全CI未了を引き継ぎ、正式統合済みとは扱わない。次担当はstep5の最小UI閉型/原観測入力/既provider接合のexact scopeを提示し、root指定後その範囲だけ実装する。共有台帳/正式資産/refsのwriterはrootのまま。
