@@ -1,0 +1,85 @@
+{
+  "propertyCatalog": {
+    "path": "backend/domain/batted-hit-property-catalog.json",
+    "schema": "backend/domain/batted-hit-property-catalog.schema.json",
+    "provenance": "ADR-003 D-11 3 層表 プロパティ層"
+  },
+  "calculations": [
+    {
+      "calculation": "batted-hit-empty-v1",
+      "source": {
+        "path": "frontend/src/domain/state.ts",
+        "provenance": "NFR-018 (b)② 差分の検出可能性"
+      },
+      "generated": [
+        {
+          "generatedId": "battedHitArtifact",
+          "path": "frontend/public/domain/pitchlog-domain.js",
+          "artifactKind": "js-artifact"
+        }
+      ],
+      "entrypoints": [
+        {
+          "entrypointId": "battedHitPublic",
+          "module": "frontend/src/domain/publicApi.ts",
+          "symbol": "domainOperations.deriveBattedHit",
+          "adapter": "frontend/src/domain/publicApi.ts"
+        },
+        {
+          "entrypointId": "battedHitServer",
+          "module": "backend/src/pitchlog/domainrt/batted_hit.py",
+          "symbol": "evaluate_batted_hit",
+          "adapter": "backend/src/pitchlog/domainrt/batted_hit.py"
+        }
+      ],
+      "directTargets": [
+        {
+          "directTargetId": "battedHitDirect",
+          "targetClass": "alpha",
+          "kind": "single",
+          "generated": "battedHitArtifact",
+          "hash": "sha256:07554cf786c32bd1b5a034c3b197eb5d35bafb9b0cce2eb7518cb00493424a56",
+          "invocation": {
+            "adapter": "backend/src/pitchlog/domainrt/host.py",
+            "operation": "deriveBattedHit"
+          }
+        }
+      ],
+      "comparison": {
+        "mode": "lossless"
+      },
+      "normalization": [],
+      "vectors": [
+        {
+          "vectorId": "battedHitVectors",
+          "calculation": "batted-hit-empty-v1",
+          "path": "contracts/state-transition/batted_hit_d11_vectors_v1.json",
+          "runner": "pytest",
+          "expectedValueSchema": "#/$defs/ExpectedValue",
+          "provenance": "NFR-018 (b)② 差分の検出可能性"
+        }
+      ],
+      "properties": [
+        {
+          "propertyId": "battedHitHostParity",
+          "propertyKind": "equivalence",
+          "path": "backend/tests/domainrt/test_batted_hit_d11.py",
+          "provenance": "NFR-018 (b)② 差分の検出可能性"
+        }
+      ],
+      "mutation": [
+        {
+          "mutationId": "battedHitMutations",
+          "target": "frontend/src/domain/state.ts",
+          "operators": [
+            "retain-batting-order",
+            "replace-hit-destination",
+            "remove-hit-stat-flag",
+            "remove-home-run-score"
+          ]
+        }
+      ]
+    }
+  ],
+  "displayBindings": []
+}

@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "catalogId": "batted-hit-properties",
+  "scope": "batted-hit-empty-v1",
+  "predicates": [
+    {
+      "propertyId": "battedHitHostParity",
+      "propertyKind": "equivalence",
+      "authorityId": "NFR-018 (b)② 差分の検出可能性"
+    }
+  ]
+}
