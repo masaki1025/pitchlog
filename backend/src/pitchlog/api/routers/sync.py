@@ -17,10 +17,13 @@ from pitchlog.api.schemas.recording_ack import RecordingAckResponse
 from pitchlog.api.tenant_access import TenantMatchedRoute, require_tenant_access
 from pitchlog.durable_rights_ledger.adapter import LedgerUnavailable
 from pitchlog.repositories.context import TenantContext
+from pitchlog.repositories.database_errors import DATABASE_ERRORS
 from pitchlog.repositories.initial_recording_right import (
     InitialGrantUnavailable,
     _credential_digest,
 )
+from pitchlog.repositories.ordinary_pitch_operations import OrdinaryPlayRowError
+from pitchlog.repositories.ordinary_prefix import OrdinaryPrefixError
 from pitchlog.sync.apply import (
     _apply_e1_f1,
     _E1OutOfScope,
@@ -46,6 +49,11 @@ from pitchlog.sync.first_ball_projection import FirstBallProjectionPort
 from pitchlog.sync.first_ball_recording_rights import FirstBallRecordingRightsPort
 from pitchlog.sync.http_recording_key import _decode_recording_key
 from pitchlog.sync.model import AckResult, RequestShapeError, SyncRequest
+from pitchlog.sync.ordinary_pitch_execution import OrdinaryPitchExecutionError
+from pitchlog.sync.ordinary_pitch_ports import (
+    OrdinaryPitchContentValidationPort,
+    OrdinaryPitchProjectionPort,
+)
 from pitchlog.sync.source_binding import (
     SourceBindingError,
     _e1_receipt_scope,
@@ -133,12 +141,14 @@ def sync_events(
     try:
         path = _request_path(payload)
         sync_request = SyncRequest.from_payload(path, str(game_id), payload)
+        raw_events = payload["events"]
+        if not isinstance(raw_events, list):
+            raise RequestShapeError("S-1: イベント列が必要")
         source = freeze_wire_source(
             game_id=sync_request.game_id,
             d4=str(sync_request.d4),
             raw_events=tuple(
-                dict(event)
-                for event in cast(list[Mapping[str, object]], payload["events"])
+                dict(event) for event in cast(list[Mapping[str, object]], raw_events)
             ),
         )
     except (_E1OutOfScope, RequestShapeError, WireSourceError, KeyError, TypeError):
@@ -146,9 +156,12 @@ def sync_events(
     if sync_request.v12 is None:
         raise HTTPException(status_code=422)
     # DI1/DI2/DI3: ③認可後・V12前に D5 を分類し、保存済み結果だけを再掲する。
-    replayed = _replay_e1_without_binding(
-        context, sync_request, source.event_fingerprints
-    )
+    try:
+        replayed = _replay_e1_without_binding(
+            context, sync_request, source.event_fingerprints
+        )
+    except DATABASE_ERRORS:
+        raise HTTPException(status_code=503) from None
     if replayed == "B6":
         raise HTTPException(status_code=404)
     if replayed == "B7":
@@ -196,13 +209,19 @@ def sync_events(
                 source.request_fingerprint,
                 1,
             )
+            if type(event.d1) is not int:
+                raise SourceBindingError("D1付き同期イベントが必要")
             phase = EventPhaseBinding(
                 attempt_binding,
                 _phase_id(attempt, source.request_fingerprint),
                 1,
-                1,
+                event.d1,
                 UUID(event.d5),
                 selected_event_fingerprint(binding, event),
+            )
+            ordinary = (
+                isinstance(event.v7, Mapping)
+                and event.v7.get("formatVersion") == "ordinary-pitch-play-v1"
             )
             result = _apply_e1_f1(
                 receipt,
@@ -214,13 +233,25 @@ def sync_events(
                 reference_device=device_id,
                 control=BindingControl(configuration.broker_endpoint),
                 rights=rights,
-                projection=FirstBallProjectionPort(),
-                validator=FirstBallContentValidationPort(),
+                projection=OrdinaryPitchProjectionPort()
+                if ordinary
+                else FirstBallProjectionPort(),
+                validator=OrdinaryPitchContentValidationPort()
+                if ordinary
+                else FirstBallContentValidationPort(),
             )
     except _E1OutOfScope:
         raise HTTPException(status_code=501) from None
     except (SourceBindingError, ValueError):
         raise HTTPException(status_code=422) from None
+    except (
+        OrdinaryPrefixError,
+        OrdinaryPitchExecutionError,
+        OrdinaryPlayRowError,
+        *DATABASE_ERRORS,
+    ):
+        # 同TXのprefix/frame/投影不成立にACKや新要求置換可否を付与しない。
+        raise HTTPException(status_code=503) from None
     except WriterBindingUnavailable:
         # 実端末提示/実writer/実leaseの不成立は値を返さず閉じる。
         raise HTTPException(status_code=503) from None

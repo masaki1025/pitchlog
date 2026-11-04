@@ -211,3 +211,26 @@ REVOKE ALL ON FUNCTION sync_right_api.read_device_state(uuid,uuid) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION sync_right_api.read_device_state(uuid,uuid) TO pitchlog_app;
 """
     )
+
+
+def render_ordinary_stamped_function_sql() -> dict[str, str]:
+    """同じ実device/right述語から独立ordinary資格の2関数だけを描画する。
+
+    初球資格をordinary投影資格として使う処理ではない。ここで作るのは
+    device/rightの順序付き確認だけで、実frame/checkpointへの追加束縛と消費が
+    なければordinaryのINSERTを許可しない。初球側の本文は変更しない。
+    """
+    names = {
+        "bind_device": "bind_ordinary_device",
+        "check_current_right": "check_ordinary_right",
+    }
+    result = {}
+    for name, sql in render_stamped_function_sql().items():
+        ordinary_name = names[name]
+        result[ordinary_name] = sql.replace(
+            f"sync_right_api.{name}(", f"sync_right_api.{ordinary_name}(", 1
+        ).replace(
+            "sync_fence.first_ball_write_admissions",
+            "sync_fence.ordinary_pitch_write_admissions",
+        )
+    return result

@@ -645,6 +645,20 @@ def test_void_adapter_preserves_every_other_registered_function():
             _EXPECTED_SOURCE_PINS["SYNC_WRITER_BINDING:read_writer_identity"]
         ),
     }
+    expected.update(
+        {
+            key: _EXPECTED_SOURCE_PINS[key]
+            for key in (
+                "SYNC_ORDINARY_PITCH:read_ordinary_order_summary",
+                "SYNC_ORDINARY_PITCH:bind_ordinary_device",
+                "SYNC_ORDINARY_PITCH:check_ordinary_right",
+                "SYNC_ORDINARY_PITCH:prepare_ordinary_projection",
+                "SYNC_ORDINARY_PITCH:read_ordinary_checkpoint",
+                "SYNC_ORDINARY_PITCH:lock_ordinary_checkpoint",
+                "SYNC_ORDINARY_PITCH:read_ordinary_history_page",
+            )
+        }
+    )
     dialect = postgresql.dialect()
     actual = {}
     registrations = (

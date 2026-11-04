@@ -150,16 +150,16 @@ describe('通常33投球の単一TS計算', () => {
       input.before.stateFields['state.count.balls'] = '3'
     },
     (input: ReturnType<typeof request>) => {
-      input.before.stateFields['state.runners'] = 'first'
+      input.before.stateFields['state.runners'] = 'unknown'
     },
     (input: ReturnType<typeof request>) => {
-      input.before.stateFields['state.half'] = 'bottom'
+      input.before.stateFields['state.inning'] = '0'
     },
     (input: ReturnType<typeof request>) => {
-      input.before.scoreboard.hits = '1'
+      input.before.scoreboard.hits = '-1'
     },
     (input: ReturnType<typeof request>) => {
-      input.before.stateFields['state.outs'] = '1'
+      input.before.stateFields['state.outs'] = '3'
     },
   ])('未対応状態・PA終端を成功扱いしない %#', (mutate) => {
     const input = request()

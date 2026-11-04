@@ -4592,7 +4592,15 @@ def _product_table_universe(root: Path) -> frozenset[str]:
     binding = manifest_set & binding_ids
     if binding and binding != binding_ids:
         raise CatalogError('同期binding表はexact3表が必要')
-    expected_tables = baseline_tables | present | binding
+    ordinary_ids = {
+        'ordinary_pitch_checkpoints',
+        'ordinary_pitch_write_admissions',
+        'ordinary_pitch_history',
+    }
+    ordinary = manifest_set & ordinary_ids
+    if ordinary and ordinary != ordinary_ids:
+        raise CatalogError('通常投球保存表はexact3表が必要')
+    expected_tables = baseline_tables | present | binding | ordinary
     if "rg1_restore_gate" in manifest_set:
         expected_tables |= {'rg1_restore_gate'}
     if manifest_set != classification_set or manifest_set != expected_tables:
@@ -4782,6 +4790,9 @@ def _validate_product_table_expectations(value: object, root: Path) -> None:
                     'writer_bindings',
                     'writer_admissions',
                     'first_ball_write_admissions',
+                    'ordinary_pitch_checkpoints',
+                    'ordinary_pitch_write_admissions',
+                    'ordinary_pitch_history',
                 }
                 else 'public'
             )

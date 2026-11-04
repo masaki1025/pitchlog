@@ -3,11 +3,11 @@
 from dataclasses import dataclass
 
 SCHEMA_VERSION = 1
-RUNTIME_CONTRACT_REVISION = 25
+RUNTIME_CONTRACT_REVISION = 29
 PROVISIONAL = False
 SUPERSEDED_BY = None
 SOURCE_ASSET = "contracts/tenant_boundary/runtime-authz-contract.json"
-SOURCE_DIGEST = "130e3ea6ac79ae882527704db23cca8b25c09c2fcd5d85b7c3a938598fa67161"
+SOURCE_DIGEST = "2b136e66fe821bdaa0359a8676b3f8abefee936191a38d1fc1332696f6380d95"
 DERIVED_FROM = "contracts/authz/product/ddl-elements.json"
 
 
@@ -100,6 +100,9 @@ PROTECTED_TABLES = (
     ("public", "tournament_rule_assignments"),
     ("public", "trusted_devices"),
     ("sync_fence", "first_ball_write_admissions"),
+    ("sync_fence", "ordinary_pitch_checkpoints"),
+    ("sync_fence", "ordinary_pitch_history"),
+    ("sync_fence", "ordinary_pitch_write_admissions"),
     ("sync_fence", "writer_admissions"),
     ("sync_fence", "writer_bindings"),
 )
@@ -209,12 +212,43 @@ PROTECTED_FUNCTIONS = (
     ("sync_right_api", "bind_device", "uuid, uuid, uuid, bytea, uuid, uuid, bytea"),
     (
         "sync_right_api",
+        "bind_ordinary_device",
+        "uuid, uuid, uuid, bytea, uuid, uuid, bytea",
+    ),
+    (
+        "sync_right_api",
         "check_current_right",
         "uuid, uuid, uuid, bytea, uuid, uuid, bigint, bigint, bytea",
     ),
+    (
+        "sync_right_api",
+        "check_ordinary_right",
+        "uuid, uuid, uuid, bytea, uuid, uuid, bigint, bigint, bytea",
+    ),
+    ("sync_right_api", "consume_ordinary_projection", "jsonb"),
     ("sync_right_api", "guard_first_ball_projection_admission", ""),
     ("sync_right_api", "guard_first_ball_projection_lock", ""),
+    (
+        "sync_right_api",
+        "lock_ordinary_checkpoint",
+        "uuid, uuid, uuid, bytea, uuid, uuid, bigint",
+    ),
+    (
+        "sync_right_api",
+        "prepare_ordinary_projection",
+        "uuid, uuid, uuid, bytea, uuid, uuid, text",
+    ),
     ("sync_right_api", "read_device_state", "uuid, uuid"),
+    ("sync_right_api", "read_ordinary_checkpoint", "uuid, uuid, bigint"),
+    (
+        "sync_right_api",
+        "read_ordinary_history_page",
+        (
+            "uuid, uuid, bigint, bigint, uuid, bigint, bigint, bigint, bigint, uuid, "
+            "integer"
+        ),
+    ),
+    ("sync_right_api", "read_ordinary_order_summary", "uuid, uuid"),
 )
 
 DANGEROUS_ENDPOINT_FIXTURES = (

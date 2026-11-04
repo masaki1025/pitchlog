@@ -465,6 +465,7 @@ def _start_initial_game(
 # Aは通信の型・表現だけ。実Cookie再検証/SQL/workerは後続Bで接続する。
 _BROKER_MAX_FRAME = 131072
 _BROKER_TIMEOUT = 2.0
+_BROKER_START_TIMEOUT = 10.0
 _BROKER_SERVER_UID = 20002
 _BROKER_SERVER_GID = 20002
 _BROKER_ENDPOINT_PATH = Path("/run/pitchlog/initial-broker-endpoint.json")
@@ -1115,7 +1116,14 @@ class _InitialBrokerClient:
         try:
             frame = _encode_initial_command(command)
             _check_broker_socket(self._endpoint)
-            deadline = monotonic() + _BROKER_TIMEOUT
+            # 開始は短intent・業務保存・Node評価・postcommit応答を直列に待つ。
+            # 閉codecを通った開始実型だけ総期限を分け、部分受信では延長しない。
+            timeout = (
+                _BROKER_START_TIMEOUT
+                if type(command) is _StartInitialGameCommand
+                else _BROKER_TIMEOUT
+            )
+            deadline = monotonic() + timeout
             with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as channel:
                 _broker_remaining(channel, deadline)
                 channel.connect(str(self._endpoint.path))

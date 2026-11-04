@@ -35,6 +35,7 @@ _FUNCTION_ONLY_FACT_KINDS = frozenset(
         "rg1_control",
         "initial_right_storage",
         "sync_writer_binding_storage",
+        "ordinary_pitch_storage",
     }
 )
 

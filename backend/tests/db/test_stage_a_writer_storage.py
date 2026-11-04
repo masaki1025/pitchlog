@@ -101,6 +101,7 @@ def test_placement_fault_rolls_back(
         "0036_initial_right_storage",
         "0037_sync_writer_binding",
         "0038_first_ball_write_admission",
+        "0039_ordinary_pitch_storage",
     ],
 )
 def test_finite_resume(
@@ -308,7 +309,7 @@ def test_installer_fault_rollback_and_resume(
         monkeypatch.setattr(startup, "apply_product_authz_ddl", fail)
         with pytest.raises(RuntimeError, match="installer fault"):
             startup.advance_stage_a_from_s0(owner_dsn=owner, applicator_dsn=admin)
-        assert _revision(admin) == "0038_first_ball_write_admission"
+        assert _revision(admin) == "0039_ordinary_pitch_storage"
         assert len(snapshots) == 1
         assert _full_catalog_snapshot(admin) == snapshots[0]
         with psycopg.connect(admin) as connection:

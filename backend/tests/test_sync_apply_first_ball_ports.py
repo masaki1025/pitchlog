@@ -21,6 +21,11 @@ def test_port_real_guard_and_original_event_command():
     assert PORT_IMPLEMENTATIONS == frozenset(
         {
             ("pitchlog.sync.first_ball_ports", "FirstBallContentValidationPort"),
+            (
+                "pitchlog.sync.ordinary_pitch_ports",
+                "OrdinaryPitchContentValidationPort",
+            ),
+            ("pitchlog.sync.ordinary_pitch_ports", "OrdinaryPitchProjectionPort"),
             ("pitchlog.sync.first_ball_projection", "FirstBallProjectionPort"),
             (
                 "pitchlog.sync.first_ball_recording_rights",

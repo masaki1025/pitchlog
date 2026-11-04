@@ -1043,24 +1043,41 @@ _INITIAL_RIGHT_STORAGE_TABLES = frozenset(
         "recording_right_deliveries",
     }
 )
+_ORDINARY_PITCH_TABLES = frozenset(
+    {
+        "sync_fence.ordinary_pitch_checkpoints",
+        "sync_fence.ordinary_pitch_write_admissions",
+        "sync_fence.ordinary_pitch_history",
+    }
+)
 _WRITER_BINDING_TABLES = frozenset(
     {
         "sync_fence.writer_bindings",
         "sync_fence.writer_admissions",
         "sync_fence.first_ball_write_admissions",
     }
+    | set(_ORDINARY_PITCH_TABLES)
 )
 
 
 def _metadata_for_schema_revision(revision: str) -> MetaData:
     """0035/0036/0037/0038の実migration差だけを逆射影し、他の差は保持する。"""
-    if revision == "0038_first_ball_write_admission":
+    if revision == "0039_ordinary_pitch_storage":
         return Base.metadata
+    if revision == "0038_first_ball_write_admission":
+        historical = MetaData(naming_convention=Base.metadata.naming_convention)
+        for name, source in Base.metadata.tables.items():
+            if name not in _ORDINARY_PITCH_TABLES:
+                source.to_metadata(historical)
+        return historical
     if revision == "0037_sync_writer_binding":
         historical = MetaData(naming_convention=Base.metadata.naming_convention)
         for name, source in Base.metadata.tables.items():
-            if name != "sync_fence.first_ball_write_admissions":
-                source.to_metadata(historical)
+            if name == "sync_fence.first_ball_write_admissions":
+                continue
+            if name in _ORDINARY_PITCH_TABLES:
+                continue
+            source.to_metadata(historical)
         return historical
     if revision not in {
         "0032_rg1_restore_gate",
@@ -8739,7 +8756,7 @@ def test_historical_metadata_copy_retains_all_other_tables(revision: str) -> Non
 def test_current_metadata_epoch_column_loss_is_detected(
     provisioned_product_catalog: ProvisionedProductCatalog,
 ) -> None:
-    """正規0038は完全モデルで比較し、epoch欠落を必ず検出する。"""
+    """正規0039は完全モデルで比較し、epoch欠落を必ず検出する。"""
     engine = create_engine(
         normalize_postgresql_url(_sqlalchemy_url(provisioned_product_catalog.owner_dsn))
     )
@@ -8751,7 +8768,7 @@ def test_current_metadata_epoch_column_loss_is_detected(
                     connection.exec_driver_sql(
                         "SELECT version_num FROM public.alembic_version"
                     ).scalar_one()
-                    == "0038_first_ball_write_admission"
+                    == "0039_ordinary_pitch_storage"
                 )
                 assert (
                     compare_metadata(

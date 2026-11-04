@@ -97,7 +97,7 @@ def _install_product_business(dsn: str) -> None:
     with psycopg.connect(dsn) as connection:
         assert connection.execute(
             "SELECT version_num FROM public.alembic_version"
-        ).fetchall() == [("0038_first_ball_write_admission",)]
+        ).fetchall() == [("0039_ordinary_pitch_storage",)]
         assert connection.execute(
             "SELECT p.proowner::regrole::text,p.prosecdef "
             "FROM pg_catalog.pg_proc p WHERE p.oid = "

@@ -302,6 +302,35 @@ class Ctx:
                 self.scaffold.append(label)
             return cur.fetchall() if fetch else None
 
+    def rotate_game(self) -> None:
+        """初球を新しい試合のd1=1へ載せ替え、実issuerで現世代を発行する。
+
+        初球triggerはd1=1だけを受理する。同一試合で複数の独立した初球scenarioを
+        観測するため、scenario境界でgameと記録権を実issuerから作り直す。
+        """
+        new_game = uuid4()
+        self.admin(
+            "INSERT INTO public.games "
+            "SELECT (pg_catalog.jsonb_populate_record(NULL::public.games, "
+            "pg_catalog.to_jsonb(g) || pg_catalog.jsonb_build_object('id', %s))).* "
+            "FROM public.games g WHERE g.tenant_id=%s AND g.id=%s",
+            (new_game, self.tenant, self.game),
+            label="games 1行(初球の新game)",
+        )
+        issued = self.db.owner.actor(
+            "selected=replace(owner,game_id=UUID('"
+            + str(new_game)
+            + "'),start_request_id=uuid4(),attempt_id=uuid4())\n"
+            "grant=issue(selected=selected,selected_context="
+            "make_tenant_context(selected.tenant_id))\n"
+            "print(json.dumps(receipt(grant)))"
+        )
+        self.game = new_game
+        self.generation = int(issued["generation"])
+        self.epoch = int(issued["epoch"])
+        self.proof = bytes.fromhex(issued["proof_digest"])
+        self.slot = 0
+
     def event(
         self, *, legacy: str | None = None, fingerprint: str = "public-event-fp"
     ) -> dict[str, Any]:
@@ -327,7 +356,8 @@ class Ctx:
         self.admin(
             "INSERT INTO public.operation_events(tenant_id,id,game_id,generation,d1,"
             "d2,d5,ledger_kind,event_kind,payload,state_diff,legacy_row_identifier)"
-            " VALUES (%s,%s,%s,%s,%s,%s,%s,'accepted','play_input','{}'::jsonb,"
+            " VALUES (%s,%s,%s,%s,%s,%s,%s,'accepted','play_input',"
+            '\'{"formatVersion":"first-ball-play-v1"}\'::jsonb,'
             "'{}'::jsonb,%s)",
             (self.tenant, event_id, self.game, self.generation, d1, d1, d5, legacy),
             label="operation_events accepted/play_input 1行",

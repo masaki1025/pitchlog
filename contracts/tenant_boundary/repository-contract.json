@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "contract_revision": 31,
+  "contract_revision": 35,
   "baseline_control": {
     "identity": {
       "scheme": "integer_revision_field",
       "field": "contract_revision",
       "current_identifiers": [
-        "contract_revision:31"
+        "contract_revision:35"
       ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
@@ -238,7 +238,8 @@
     "pitchlog.repositories.preparing_game_creation.PreparingTournamentParentToken",
     "pitchlog.repositories.preparing_game_creation.PreparingSelfTeamLockToken",
     "pitchlog.repositories.preparing_game_creation.PreparingOpponentTeamLockToken",
-    "pitchlog.repositories.pitch_type_options.PitchTypeOptionsToken"
+    "pitchlog.repositories.pitch_type_options.PitchTypeOptionsToken",
+    "pitchlog.sync.ordinary_pitch_tokens.OrdinaryPlayRowInsertToken"
   ],
   "cross_tenant_functions": [],
   "function_executor": {
@@ -254,7 +255,14 @@
     "SYNC_FIRST_BALL:check_current_right",
     "SYNC_WRITER_BINDING:read_writer_identity",
     "SYNC_WRITER_BINDING:assert_writer_binding",
-    "SYNC_FIRST_BALL:read_device_state"
+    "SYNC_FIRST_BALL:read_device_state",
+    "SYNC_ORDINARY_PITCH:bind_ordinary_device",
+    "SYNC_ORDINARY_PITCH:check_ordinary_right",
+    "SYNC_ORDINARY_PITCH:prepare_ordinary_projection",
+    "SYNC_ORDINARY_PITCH:read_ordinary_checkpoint",
+    "SYNC_ORDINARY_PITCH:lock_ordinary_checkpoint",
+    "SYNC_ORDINARY_PITCH:read_ordinary_history_page",
+    "SYNC_ORDINARY_PITCH:read_ordinary_order_summary"
   ],
-  "source_digest": "b90ab2b656ad08adc98944a7794f9da201d184b056963c40edfe59b4cfca2b74"
+  "source_digest": "27f41deef37f99711b4597a1bba87234eb63b66c9f3144afdf70a46e8b3e4558"
 }

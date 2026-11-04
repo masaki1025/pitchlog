@@ -280,3 +280,9 @@ export class FirstBallAttemptPersistence {
     }
   }
 }
+
+/** 新しいslot単位storeでも同じ非資格eventsの正準化を使う。旧storeは変更しない。 */
+export function canonicalAttemptEvents(events: readonly unknown[]): string {
+  if (!Array.isArray(events) || events.length !== 1) return invalid()
+  return canonical(events)
+}

@@ -27,6 +27,7 @@ FACT_KINDS = frozenset(
         "rg1_control",
         "initial_right_storage",
         "sync_writer_binding_storage",
+        "ordinary_pitch_storage",
         "secret_column",
     }
 )
@@ -39,6 +40,7 @@ FUNCTION_ONLY_FACT_KINDS = frozenset(
         "rg1_control",
         "initial_right_storage",
         "sync_writer_binding_storage",
+        "ordinary_pitch_storage",
     }
 )
 FUNCTION_OWNER_UNITS = frozenset({"U-A1", "U-A2", "U-X1", "U-R1", "migration_batch"})
@@ -390,12 +392,22 @@ def _exposure_fact_sets(
                     f"{table_name}.{column_name}"
                 )
 
-    required_kinds = (
-        FACT_KINDS
-        if set(manifest_columns)
-        & {"writer_bindings", "writer_admissions", "first_ball_write_admissions"}
-        else FACT_KINDS - {"sync_writer_binding_storage"}
-    )
+    ordinary_tables = {
+        "ordinary_pitch_checkpoints",
+        "ordinary_pitch_write_admissions",
+        "ordinary_pitch_history",
+    }
+    manifest_names = set(manifest_columns)
+    optional_kinds = set()
+    if not manifest_names & {
+        "writer_bindings",
+        "writer_admissions",
+        "first_ball_write_admissions",
+    }:
+        optional_kinds.add("sync_writer_binding_storage")
+    if not manifest_names & ordinary_tables:
+        optional_kinds.add("ordinary_pitch_storage")
+    required_kinds = FACT_KINDS - optional_kinds
     if seen_kinds != required_kinds:
         violations.append(
             "露出の事実の種類が不一致: "
@@ -456,6 +468,15 @@ def _validate_assignment_conditions(
         {"writer_bindings", "writer_admissions", "first_ball_write_admissions"}
     ):
         violations.append("同期binding保存資源はexact3表が必要")
+    ordinary_tables = table_facts.get("ordinary_pitch_storage", frozenset())
+    if ordinary_tables and ordinary_tables != frozenset(
+        {
+            "ordinary_pitch_checkpoints",
+            "ordinary_pitch_write_admissions",
+            "ordinary_pitch_history",
+        }
+    ):
+        violations.append("通常投球保存資源はexact3表が必要")
     for table_name, profile in profiles.items():
         columns = manifest_columns.get(table_name, frozenset())
         if table_name in special_tables and profile != "function_only":

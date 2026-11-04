@@ -170,6 +170,377 @@ def legacy_product_profile(
         yield
 
 
+_EXPECTED_DEFERRED_ORDINARY_IDS = frozenset(
+    {
+        "COLUMN-ACL:public:operation_events:change_order:pitchlog_sync_right_fn_owner",
+        (
+            "COLUMN-ACL:public:operation_events:expected_version:pitchlog"
+            "_sync_right_fn_owner"
+        ),
+        "COLUMN-ACL:public:operation_events:payload:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:public:operation_events:state_diff:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:public:operation_events:target_d1:pitchlog_sync_right_fn_owner",
+        (
+            "COLUMN-ACL:public:operation_events:target_generation:pitchlo"
+            "g_sync_right_fn_owner"
+        ),
+        (
+            "COLUMN-ACL:public:play_rows:batted_ball_strength:pitchlog_sy"
+            "nc_right_fn_owner"
+        ),
+        "COLUMN-ACL:public:play_rows:batted_ball_type:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:public:play_rows:batter_id:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:public:play_rows:batter_status:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:public:play_rows:batting_order:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:public:play_rows:batting_result_key:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:public:play_rows:batting_side:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:public:play_rows:catcher_id:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:public:play_rows:comment:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:public:play_rows:course_x:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:public:play_rows:course_y:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:public:play_rows:error_type:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:public:play_rows:event_kind:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:public:play_rows:fake_run:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:public:play_rows:game_id:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:public:play_rows:hidden_at:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:public:play_rows:hit_x:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:public:play_rows:hit_y:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:public:play_rows:id:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:public:play_rows:import_batch_id:pitchlog_sync_right_fn_owner",
+        (
+            "COLUMN-ACL:public:play_rows:legacy_row_identifier:pitchlog_s"
+            "ync_right_fn_owner"
+        ),
+        (
+            "COLUMN-ACL:public:play_rows:migration_unverified:pitchlog_sy"
+            "nc_right_fn_owner"
+        ),
+        "COLUMN-ACL:public:play_rows:pickoff_detail:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:public:play_rows:pickoff_type:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:public:play_rows:pitch_speed:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:public:play_rows:pitch_type_key:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:public:play_rows:pitcher_id:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:public:play_rows:play_number:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:public:play_rows:press:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:public:play_rows:raw_error_position:pitchlog_sync_right_fn_owner",
+        (
+            "COLUMN-ACL:public:play_rows:raw_fielder_position:pitchlog_sy"
+            "nc_right_fn_owner"
+        ),
+        (
+            "COLUMN-ACL:public:play_rows:resolved_error_player_id:pitchlo"
+            "g_sync_right_fn_owner"
+        ),
+        "COLUMN-ACL:public:play_rows:resolved_fielder_id:pitchlog_sync_right_fn_owner",
+        (
+            "COLUMN-ACL:public:play_rows:secondary_batting_result_key:pit"
+            "chlog_sync_right_fn_owner"
+        ),
+        "COLUMN-ACL:public:play_rows:source_event_id:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:public:play_rows:stance:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:public:play_rows:strategy_detail_key:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:public:play_rows:strategy_key:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:public:play_rows:strategy_result_key:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:public:play_rows:tenant_id:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:public:play_rows:version:pitchlog_sync_right_fn_owner",
+        (
+            "COLUMN-ACL:public:recording_generations:applied_prefix:pitch"
+            "log_sync_right_fn_owner"
+        ),
+        (
+            "COLUMN-ACL:public:recording_generations:confirmed_watermark:"
+            "pitchlog_sync_right_fn_owner"
+        ),
+        (
+            "COLUMN-ACL:sync_fence:ordinary_pitch_checkpoints:applied_wat"
+            "ermark:pitchlog_sync_right_fn_owner"
+        ),
+        (
+            "COLUMN-ACL:sync_fence:ordinary_pitch_checkpoints:confirmed_w"
+            "atermark:pitchlog_sync_right_fn_owner"
+        ),
+        (
+            "COLUMN-ACL:sync_fence:ordinary_pitch_checkpoints:content:pit"
+            "chlog_sync_right_fn_owner"
+        ),
+        (
+            "COLUMN-ACL:sync_fence:ordinary_pitch_checkpoints:content_dig"
+            "est:pitchlog_sync_right_fn_owner"
+        ),
+        (
+            "COLUMN-ACL:sync_fence:ordinary_pitch_checkpoints:game_id:pit"
+            "chlog_sync_right_fn_owner"
+        ),
+        (
+            "COLUMN-ACL:sync_fence:ordinary_pitch_checkpoints:history_ver"
+            "sion:pitchlog_sync_right_fn_owner"
+        ),
+        (
+            "COLUMN-ACL:sync_fence:ordinary_pitch_checkpoints:id:pitchlog"
+            "_sync_right_fn_owner"
+        ),
+        (
+            "COLUMN-ACL:sync_fence:ordinary_pitch_checkpoints:internal_ge"
+            "neration:pitchlog_sync_right_fn_owner"
+        ),
+        (
+            "COLUMN-ACL:sync_fence:ordinary_pitch_checkpoints:recovery_ge"
+            "neration:pitchlog_sync_right_fn_owner"
+        ),
+        (
+            "COLUMN-ACL:sync_fence:ordinary_pitch_checkpoints:revision:pi"
+            "tchlog_sync_right_fn_owner"
+        ),
+        (
+            "COLUMN-ACL:sync_fence:ordinary_pitch_checkpoints:roster:pitc"
+            "hlog_sync_right_fn_owner"
+        ),
+        (
+            "COLUMN-ACL:sync_fence:ordinary_pitch_checkpoints:saved_at:pi"
+            "tchlog_sync_right_fn_owner"
+        ),
+        (
+            "COLUMN-ACL:sync_fence:ordinary_pitch_checkpoints:state:pitch"
+            "log_sync_right_fn_owner"
+        ),
+        (
+            "COLUMN-ACL:sync_fence:ordinary_pitch_checkpoints:tenant_id:p"
+            "itchlog_sync_right_fn_owner"
+        ),
+        "COLUMN-ACL:sync_fence:ordinary_pitch_history:d1:pitchlog_sync_right_fn_owner",
+        "COLUMN-ACL:sync_fence:ordinary_pitch_history:d2:pitchlog_sync_right_fn_owner",
+        (
+            "COLUMN-ACL:sync_fence:ordinary_pitch_history:entry:pitchlog_"
+            "sync_right_fn_owner"
+        ),
+        (
+            "COLUMN-ACL:sync_fence:ordinary_pitch_history:game_id:pitchlo"
+            "g_sync_right_fn_owner"
+        ),
+        (
+            "COLUMN-ACL:sync_fence:ordinary_pitch_history:history_version"
+            ":pitchlog_sync_right_fn_owner"
+        ),
+        (
+            "COLUMN-ACL:sync_fence:ordinary_pitch_history:internal_genera"
+            "tion:pitchlog_sync_right_fn_owner"
+        ),
+        (
+            "COLUMN-ACL:sync_fence:ordinary_pitch_history:source_event_id"
+            ":pitchlog_sync_right_fn_owner"
+        ),
+        (
+            "COLUMN-ACL:sync_fence:ordinary_pitch_history:tenant_id:pitch"
+            "log_sync_right_fn_owner"
+        ),
+        (
+            "COLUMN-ACL:sync_fence:ordinary_pitch_write_admissions:artifa"
+            "ct_sha256:pitchlog_sync_right_fn_owner"
+        ),
+        (
+            "COLUMN-ACL:sync_fence:ordinary_pitch_write_admissions:attemp"
+            "t_id:pitchlog_sync_right_fn_owner"
+        ),
+        (
+            "COLUMN-ACL:sync_fence:ordinary_pitch_write_admissions:author"
+            "ity_id:pitchlog_sync_right_fn_owner"
+        ),
+        (
+            "COLUMN-ACL:sync_fence:ordinary_pitch_write_admissions:backen"
+            "d_pid:pitchlog_sync_right_fn_owner"
+        ),
+        (
+            "COLUMN-ACL:sync_fence:ordinary_pitch_write_admissions:backen"
+            "d_start:pitchlog_sync_right_fn_owner"
+        ),
+        (
+            "COLUMN-ACL:sync_fence:ordinary_pitch_write_admissions:busine"
+            "ss_instance:pitchlog_sync_right_fn_owner"
+        ),
+        (
+            "COLUMN-ACL:sync_fence:ordinary_pitch_write_admissions:checkp"
+            "oint_content:pitchlog_sync_right_fn_owner"
+        ),
+        (
+            "COLUMN-ACL:sync_fence:ordinary_pitch_write_admissions:checkp"
+            "oint_digest:pitchlog_sync_right_fn_owner"
+        ),
+        (
+            "COLUMN-ACL:sync_fence:ordinary_pitch_write_admissions:checkp"
+            "oint_id:pitchlog_sync_right_fn_owner"
+        ),
+        (
+            "COLUMN-ACL:sync_fence:ordinary_pitch_write_admissions:checkp"
+            "oint_revision:pitchlog_sync_right_fn_owner"
+        ),
+        (
+            "COLUMN-ACL:sync_fence:ordinary_pitch_write_admissions:codec_"
+            "version:pitchlog_sync_right_fn_owner"
+        ),
+        (
+            "COLUMN-ACL:sync_fence:ordinary_pitch_write_admissions:consum"
+            "ed_at:pitchlog_sync_right_fn_owner"
+        ),
+        (
+            "COLUMN-ACL:sync_fence:ordinary_pitch_write_admissions:contro"
+            "l_instance:pitchlog_sync_right_fn_owner"
+        ),
+        (
+            "COLUMN-ACL:sync_fence:ordinary_pitch_write_admissions:contro"
+            "l_version:pitchlog_sync_right_fn_owner"
+        ),
+        (
+            "COLUMN-ACL:sync_fence:ordinary_pitch_write_admissions:d5:pit"
+            "chlog_sync_right_fn_owner"
+        ),
+        (
+            "COLUMN-ACL:sync_fence:ordinary_pitch_write_admissions:databa"
+            "se_oid:pitchlog_sync_right_fn_owner"
+        ),
+        (
+            "COLUMN-ACL:sync_fence:ordinary_pitch_write_admissions:device"
+            "_id:pitchlog_sync_right_fn_owner"
+        ),
+        (
+            "COLUMN-ACL:sync_fence:ordinary_pitch_write_admissions:event_"
+            "fingerprint:pitchlog_sync_right_fn_owner"
+        ),
+        (
+            "COLUMN-ACL:sync_fence:ordinary_pitch_write_admissions:expect"
+            "ed_play_row:pitchlog_sync_right_fn_owner"
+        ),
+        (
+            "COLUMN-ACL:sync_fence:ordinary_pitch_write_admissions:expire"
+            "s_at:pitchlog_sync_right_fn_owner"
+        ),
+        (
+            "COLUMN-ACL:sync_fence:ordinary_pitch_write_admissions:frame_"
+            "digest:pitchlog_sync_right_fn_owner"
+        ),
+        (
+            "COLUMN-ACL:sync_fence:ordinary_pitch_write_admissions:frame_"
+            "id:pitchlog_sync_right_fn_owner"
+        ),
+        (
+            "COLUMN-ACL:sync_fence:ordinary_pitch_write_admissions:game_i"
+            "d:pitchlog_sync_right_fn_owner"
+        ),
+        (
+            "COLUMN-ACL:sync_fence:ordinary_pitch_write_admissions:histor"
+            "y_entry:pitchlog_sync_right_fn_owner"
+        ),
+        (
+            "COLUMN-ACL:sync_fence:ordinary_pitch_write_admissions:intern"
+            "al_generation:pitchlog_sync_right_fn_owner"
+        ),
+        (
+            "COLUMN-ACL:sync_fence:ordinary_pitch_write_admissions:issuer"
+            ":pitchlog_sync_right_fn_owner"
+        ),
+        (
+            "COLUMN-ACL:sync_fence:ordinary_pitch_write_admissions:lease_"
+            "id:pitchlog_sync_right_fn_owner"
+        ),
+        (
+            "COLUMN-ACL:sync_fence:ordinary_pitch_write_admissions:next_c"
+            "heckpoint_content:pitchlog_sync_right_fn_owner"
+        ),
+        (
+            "COLUMN-ACL:sync_fence:ordinary_pitch_write_admissions:nonce_"
+            "digest:pitchlog_sync_right_fn_owner"
+        ),
+        (
+            "COLUMN-ACL:sync_fence:ordinary_pitch_write_admissions:phase_"
+            "id:pitchlog_sync_right_fn_owner"
+        ),
+        (
+            "COLUMN-ACL:sync_fence:ordinary_pitch_write_admissions:play_r"
+            "ow_id:pitchlog_sync_right_fn_owner"
+        ),
+        (
+            "COLUMN-ACL:sync_fence:ordinary_pitch_write_admissions:postma"
+            "ster_started_at:pitchlog_sync_right_fn_owner"
+        ),
+        (
+            "COLUMN-ACL:sync_fence:ordinary_pitch_write_admissions:prefix"
+            "_length:pitchlog_sync_right_fn_owner"
+        ),
+        (
+            "COLUMN-ACL:sync_fence:ordinary_pitch_write_admissions:recove"
+            "ry_generation:pitchlog_sync_right_fn_owner"
+        ),
+        (
+            "COLUMN-ACL:sync_fence:ordinary_pitch_write_admissions:reques"
+            "t_fingerprint:pitchlog_sync_right_fn_owner"
+        ),
+        (
+            "COLUMN-ACL:sync_fence:ordinary_pitch_write_admissions:restor"
+            "e_epoch:pitchlog_sync_right_fn_owner"
+        ),
+        (
+            "COLUMN-ACL:sync_fence:ordinary_pitch_write_admissions:roster"
+            "_snapshot:pitchlog_sync_right_fn_owner"
+        ),
+        (
+            "COLUMN-ACL:sync_fence:ordinary_pitch_write_admissions:source"
+            "_d1:pitchlog_sync_right_fn_owner"
+        ),
+        (
+            "COLUMN-ACL:sync_fence:ordinary_pitch_write_admissions:source"
+            "_d2:pitchlog_sync_right_fn_owner"
+        ),
+        (
+            "COLUMN-ACL:sync_fence:ordinary_pitch_write_admissions:source"
+            "_event_id:pitchlog_sync_right_fn_owner"
+        ),
+        (
+            "COLUMN-ACL:sync_fence:ordinary_pitch_write_admissions:state:"
+            "pitchlog_sync_right_fn_owner"
+        ),
+        (
+            "COLUMN-ACL:sync_fence:ordinary_pitch_write_admissions:system"
+            "_identifier:pitchlog_sync_right_fn_owner"
+        ),
+        (
+            "COLUMN-ACL:sync_fence:ordinary_pitch_write_admissions:tenant"
+            "_id:pitchlog_sync_right_fn_owner"
+        ),
+        (
+            "COLUMN-ACL:sync_fence:ordinary_pitch_write_admissions:transa"
+            "ction_id:pitchlog_sync_right_fn_owner"
+        ),
+        (
+            "COLUMN-ACL:sync_fence:ordinary_pitch_write_admissions:wire_d"
+            "4:pitchlog_sync_right_fn_owner"
+        ),
+        (
+            "FUNCTION:sync_right_api:bind_ordinary_device(uuid, uuid, uui"
+            "d, bytea, uuid, uuid, bytea)"
+        ),
+        (
+            "FUNCTION:sync_right_api:check_ordinary_right(uuid, uuid, uui"
+            "d, bytea, uuid, uuid, bigint, bigint, bytea)"
+        ),
+        "FUNCTION:sync_right_api:consume_ordinary_projection(jsonb)",
+        (
+            "FUNCTION:sync_right_api:lock_ordinary_checkpoint(uuid, uuid,"
+            " uuid, bytea, uuid, uuid, bigint)"
+        ),
+        (
+            "FUNCTION:sync_right_api:prepare_ordinary_projection(uuid, uu"
+            "id, uuid, bytea, uuid, uuid, text)"
+        ),
+        "FUNCTION:sync_right_api:read_ordinary_checkpoint(uuid, uuid, bigint)",
+        (
+            "FUNCTION:sync_right_api:read_ordinary_history_page(uuid, uui"
+            "d, bigint, bigint, uuid, bigint, bigint, bigint, bigint, uui"
+            "d, integer)"
+        ),
+        "FUNCTION:sync_right_api:read_ordinary_order_summary(uuid, uuid)",
+    }
+)
+
+
 _EXPECTED_DEFERRED_FIRST_BALL_IDS = frozenset(
     {
         "COLUMN-ACL:public:idempotency_ledger:d5:pitchlog_sync_right_fn_owner",
@@ -1599,6 +1970,7 @@ def test_pre_rule_preserves_old16_and_defers_exact_epoch_acl() -> None:
         }
         | _EXPECTED_DEFERRED_INITIAL_IDS
         | _EXPECTED_DEFERRED_FIRST_BALL_IDS
+        | _EXPECTED_DEFERRED_ORDINARY_IDS
     )
     assert {row.element_id for row in withheld} - {
         row.element_id for row in old
@@ -2126,7 +2498,7 @@ def test_current_and_legacy_owned_baselines_do_not_forge_stage(
     import db_fixtures
 
     trace = []
-    revision = "0038_first_ball_write_admission"
+    revision = "0039_ordinary_pitch_storage"
 
     @contextmanager
     def cursor():
@@ -2215,7 +2587,7 @@ def test_current_and_legacy_owned_baselines_do_not_forge_stage(
 def test_product_snapshot_uses_closed_current_schema_and_private_tables(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """公開全行を保つsnapshotのschema/私有3母集合だけを有限追加する。"""
+    """公開全行を保つsnapshotのschema/私有6表だけを有限追加する。"""
     import copy
     from contextlib import contextmanager
     from types import SimpleNamespace
@@ -2246,7 +2618,14 @@ def test_product_snapshot_uses_closed_current_schema_and_private_tables(
     )
     assert all(
         set(p[0])
-        == {"writer_bindings", "writer_admissions", "first_ball_write_admissions"}
+        == {
+            "writer_bindings",
+            "writer_admissions",
+            "first_ball_write_admissions",
+            "ordinary_pitch_checkpoints",
+            "ordinary_pitch_write_admissions",
+            "ordinary_pitch_history",
+        }
         for _, p in private_queries
     )
     assert all("namespace.nspname = 'public'" in q for q, _ in private_queries)
@@ -2493,7 +2872,7 @@ def test_owned_seed_runs_only_after_real_initial_storage(
             fetchone=lambda: next(responses),
             fetchall=lambda: [
                 (
-                    "0038_first_ball_write_admission"
+                    "0039_ordinary_pitch_storage"
                     if fault == "revision"
                     else "0036_initial_right_storage",
                 )

@@ -163,6 +163,18 @@ def test_product_code_has_no_field_sentinel_conversion(tmp_path: Path) -> None:
     assert sentinel_conversion_hits(tmp_path) == [
         "legacy_value.py:2:センチネル比較から NULL を生成"
     ]
+    statement_source = tmp_path / "legacy_statement.py"
+    statement_source.write_text(
+        "def convert(value):\n"
+        "    if value == 0:\n"
+        "        return None\n"
+        "    return value\n",
+        encoding="utf-8",
+    )
+    assert sentinel_conversion_hits(tmp_path) == [
+        "legacy_statement.py:2:センチネル比較から NULL を生成",
+        "legacy_value.py:2:センチネル比較から NULL を生成",
+    ]
 
 
 def test_raw_payload_negative_cases_are_detected_by_pure_functions() -> None:

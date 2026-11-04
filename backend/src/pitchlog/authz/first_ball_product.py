@@ -1882,8 +1882,56 @@ def _activate_stamp_profile() -> None:
 
 _activate_stamp_profile()
 
+
+def _activate_ordinary_profile() -> None:
+    """承認対象の有限ordinary宣言だけを同じ正式installerへ接合する。"""
+    from pitchlog.authz.ordinary_pitch_product import candidate_declarations
+
+    declarations, bodies = candidate_declarations()
+    for section, rows in declarations.items():
+        identifier = IDS[section]
+        existing = {row[identifier]: row for row in ADDITIONS[section]}
+        for row in rows:
+            old = existing.get(row[identifier])
+            if old is None:
+                ADDITIONS[section].append(row)
+                existing[row[identifier]] = row
+            elif old == row:
+                continue
+            elif section == "column_acl_expectations":
+                if {k: v for k, v in old.items() if k != "privilege_ids"} != {
+                    k: v for k, v in row.items() if k != "privilege_ids"
+                }:
+                    raise ValueError("通常投球列ACLの有限追加が既宣言と衝突")
+                old["privilege_ids"] = list(
+                    dict.fromkeys(old["privilege_ids"] + row["privilege_ids"])
+                )
+                privileges = ",".join(
+                    f"{value} ({old['column_id']})" for value in old["privilege_ids"]
+                )
+                bodies["column_acl_expectation|" + row[identifier]] = (
+                    f"GRANT {privileges} ON TABLE "
+                    f"{old['object_schema']}.{old['object_id']} "
+                    f"TO {old['grantee_role_id']};\n"
+                )
+            else:
+                raise ValueError("通常投球宣言の既IDが不一致")
+    for key, sql in bodies.items():
+        kind, identifier = key.split("|", 1)
+        BODIES[key] = f"-- ELEMENT-TYPE: {kind}\n-- ELEMENT-ID: {identifier}\n\n" + sql
+
+
+_activate_ordinary_profile()
+
 TABLES = frozenset(
-    {"writer_bindings", "writer_admissions", "first_ball_write_admissions"}
+    {
+        "writer_bindings",
+        "writer_admissions",
+        "first_ball_write_admissions",
+        "ordinary_pitch_checkpoints",
+        "ordinary_pitch_write_admissions",
+        "ordinary_pitch_history",
+    }
 )
 SCHEMAS = frozenset(row["schema_name"] for row in ADDITIONS["schemas"])
 BINDING_OWNER = "pitchlog_sync_binding_fn_owner"

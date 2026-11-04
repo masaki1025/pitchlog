@@ -1,5 +1,7 @@
+import { ordinaryStateSupported, ordinaryRunnerHold } from './ordinaryState'
 import { FIRST_BALL_RULE, ORDINARY_STRIKE_RULE } from './stateRules'
 import type {
+  CountEffectKind,
   Derived,
   Rule,
   Scoreboard,
@@ -83,7 +85,10 @@ export function deriveOrdinary(
   resultId: string,
   pitchEventKind: string,
 ): Derived | null {
-  if (pitchEventKind !== 'pitch-event' || !supportedState(before, board))
+  if (
+    pitchEventKind !== 'pitch-event' ||
+    !ordinaryStateSupported(before, board)
+  )
     return null
   if (before.strikes < 0n || before.balls < 0n) return null
   if (resultId === 'batting-result.ball') {
@@ -96,6 +101,18 @@ export function deriveOrdinary(
     resultId !== 'batting-result.foul'
   )
     return null
+  if (
+    resultId === 'batting-result.foul' &&
+    before.strikes === 2n &&
+    before.balls <= 3n
+  ) {
+    // 通常非バントの明示結果だけ。K3/SO-04の三振結果へ読み替えない。
+    const holdRule: Rule = Object.assign({}, ORDINARY_STRIKE_RULE, {
+      strikeEffect: 'unchanged' as CountEffectKind,
+      strikeDelta: 0n,
+    })
+    return applyCountRule(before, board, holdRule)
+  }
   if (before.strikes > 1n || before.balls > 3n) return null
   return applyCountRule(before, board, ORDINARY_STRIKE_RULE)
 }
@@ -111,7 +128,7 @@ function applyCountRule(
   flags.投球数 = true
   flags.投球回算入アウト = rule.outs > 0n
   flags.打席 = rule.pa === true
-  // 打席続行・無走者・無失策の通常投球だけを上で受け、残る計数を発生させない。
+  // 同時の走者/特殊効果を含まない非終端投球。回・得点・在塁者の状態を保持する。
   return {
     countEffect: {
       strikes: { kind: rule.strikeEffect, value: rule.strikeDelta },
@@ -120,9 +137,9 @@ function applyCountRule(
     plateAppearanceEnded: rule.pa,
     batterDestination: { kind: rule.batter },
     runnerDefaultAdvance: {
-      first: { modality: 'not-applicable', destination: null },
-      second: { modality: 'not-applicable', destination: null },
-      third: { modality: 'not-applicable', destination: null },
+      first: ordinaryRunnerHold(before.runners, 'first'),
+      second: ordinaryRunnerHold(before.runners, 'second'),
+      third: ordinaryRunnerHold(before.runners, 'third'),
     },
     outEffect: { count: rule.outs, targets: [] },
     statFlags: flags,

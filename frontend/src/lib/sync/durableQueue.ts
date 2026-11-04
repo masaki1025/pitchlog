@@ -104,6 +104,12 @@ export type DurableQueueSlot = Readonly<{
   actionRequiredLabel?: QueueActionRequiredLabel['id']
 }>
 
+/** 主複合キーによる有限ページ。cursorは最後に返したD1で、採番値ではない。 */
+export type DurableQueuePage = Readonly<{
+  items: readonly DurableQueueSlot[]
+  nextCursorD1: number | null
+}>
+
 export type DurableI6Slot = Readonly<
   I6AcceptedResult & {
     source: 'p3-acceptance'
@@ -1155,6 +1161,75 @@ export class DurableQueue {
     return slot
   }
 
+  /** 同じgame/D4をPKのD1順に有限読取する。状態やcounterは書き換えない。 */
+  async readSlotsPage(
+    scope: DurableQueueScope,
+    afterD1: number | null = null,
+    limit = 100,
+  ): Promise<DurableQueuePage> {
+    if (
+      !Number.isSafeInteger(limit) ||
+      limit < 1 ||
+      limit > 100 ||
+      (afterD1 !== null && (!Number.isSafeInteger(afterD1) || afterD1 < 0))
+    )
+      throw new Error('キューのページ条件が不正です')
+    if (afterD1 === Number.MAX_SAFE_INTEGER)
+      return { items: [], nextCursorD1: null }
+    const range = IDBKeyRange.bound(
+      indexedDbKey([scope.game, scope.d4, afterD1 ?? 0]),
+      indexedDbKey([scope.game, scope.d4, Number.MAX_SAFE_INTEGER]),
+      true,
+      false,
+    )
+    const transaction = this.#database.transaction(QUEUE_STORE_NAME, 'readonly')
+    const completion = transactionCompletion(transaction)
+    try {
+      const page = await new Promise<DurableQueuePage>((resolve, reject) => {
+        const items: DurableQueueSlot[] = []
+        const request = transaction
+          .objectStore(QUEUE_STORE_NAME)
+          .openCursor(range)
+        request.onerror = () =>
+          reject(new Error('キューのページを取得できません'))
+        request.onsuccess = () => {
+          const cursor = request.result
+          if (cursor === null) {
+            resolve({ items, nextCursorD1: null })
+            return
+          }
+          const slot = cursor.value as DurableQueueSlot
+          if (
+            !Number.isSafeInteger(slot.d1) ||
+            slot.d1 < 1 ||
+            ![
+              UNSENT_STATE,
+              ACTION_REQUIRED_STATE,
+              SYNCED_STATE,
+              EVACUATED_STATE,
+            ].includes(slot.state)
+          ) {
+            reject(new Error('キューのページ値が不正です'))
+            return
+          }
+          // limit+1の余分1行は返さず、最後の返却keyから続ける。
+          if (items.length === limit) {
+            resolve({ items, nextCursorD1: items[items.length - 1]!.d1 })
+            return
+          }
+          items.push(slot)
+          cursor.continue()
+        }
+      })
+      await completion
+      return page
+    } catch (error) {
+      abortTransaction(transaction)
+      await completion.catch(() => undefined)
+      throw error
+    }
+  }
+
   async countSlots(): Promise<number> {
     const transaction = this.#database.transaction(QUEUE_STORE_NAME, 'readonly')
     const completion = transactionCompletion(transaction)
@@ -1221,6 +1296,7 @@ export const DURABLE_QUEUE_PUBLIC_METHOD_RULES = {
   prepareTombstoneReplacement: { effect: 'prepare' },
   replaceWithTombstone: { effect: 'mutation', boundary: 'preparation' },
   readSlot: { effect: 'read' },
+  readSlotsPage: { effect: 'read' },
   countSlots: { effect: 'read' },
   countUnsentSlots: { effect: 'read' },
   readNextD1: { effect: 'read' },

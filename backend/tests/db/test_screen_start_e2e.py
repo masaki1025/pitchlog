@@ -52,6 +52,95 @@ _PITCH_TYPE = "u06-first-ball-fastball"
 _LOGS = Path("/tmp/opencode/pitchlog-screen-e2e")
 
 
+# 明示opt-inの試験容器だけに入れる。原値や例外本文は観測しない。
+_CREATE_DIAGNOSTIC_BOOTSTRAP = r"""
+
+from pitchlog.services import game_creation as _create_service
+from pitchlog.repositories.rule_resolution import RuleResolutionError
+from pitchlog.repositories.transaction import _TenantTransactionScope
+
+_CREATE_STAGES = frozenset((
+    'service', 'rg1-precheck', 'tournament', 'teams', 'resolver',
+    'rule-codec', 'insert-result', 'rg1-final', 'scope-enter', 'scope-exit',
+))
+_CREATE_EXCEPTIONS = frozenset((
+    'PreparingGameCreationError', 'RuleResolutionError', 'RG1Unavailable',
+    'RG1ControlUnavailable', 'TenantBindingError', 'FunctionOperationError',
+    'ValidationError', 'OperationalError', 'InterfaceError', 'DBAPIError',
+    'StatementError', 'IntegrityError', 'ResourceClosedError',
+    'PendingRollbackError', 'InvalidRequestError', 'TimeoutError',
+    'PermissionError', 'FileNotFoundError', 'ConnectionError', 'OSError',
+    'TypeError', 'ValueError', 'RuntimeError', 'QueryCanceled',
+    'LockNotAvailable',
+))
+_CREATE_CODES = frozenset((
+    'not_available', 'tournament_name_conflict', 'outcome_unconfirmed',
+    'stage_a_unsupported', 'rule_not_available', 'invalid_rule',
+))
+
+def _create_class(error):
+    name = type(error).__name__ if error is not None else None
+    return name if name in _CREATE_EXCEPTIONS else 'none-or-other'
+
+def _emit_create(stage, status, error):
+    try:
+        if stage not in _CREATE_STAGES or status not in ('returned', 'raised'):
+            return
+        code = None
+        if type(error) in (
+            _create_service.PreparingGameCreationError, RuleResolutionError,
+        ):
+            code = error.code
+        cause = error.__cause__ if error is not None else None
+        print('PITCHLOG_CREATE_DIAGNOSTIC ' + json.dumps({
+            'stage': stage,
+            'status': status,
+            'exception': _create_class(error),
+            'cause_exception': _create_class(cause),
+            'code': code if type(code) is str and code in _CREATE_CODES
+                else 'none-or-other',
+        }), flush=True)
+    except BaseException:
+        pass
+
+def _wrap_create(original, stage):
+    def observed(*args, **kwargs):
+        try:
+            result = original(*args, **kwargs)
+        except BaseException as error:
+            try:
+                _emit_create(stage, 'raised', error)
+            except BaseException:
+                pass
+            raise
+        try:
+            _emit_create(stage, 'returned', None)
+        except BaseException:
+            pass
+        return result
+    return observed
+
+for _name, _stage in (
+    ('read_rg1_open', 'rg1-precheck'),
+    ('_select_tournament', 'tournament'),
+    ('_lock_teams', 'teams'),
+    ('resolve_stage_a_rule', 'resolver'),
+    ('encode_applied_rules', 'rule-codec'),
+    ('_require_inserted', 'insert-result'),
+    ('assert_rg1_open_before_commit', 'rg1-final'),
+):
+    setattr(_create_service, _name,
+            _wrap_create(getattr(_create_service, _name), _stage))
+games.create_preparing_game = _wrap_create(games.create_preparing_game, 'service')
+# 元managerの型・self・引数・抑制値・cleanupを変えず実methodを一度呼ぶ。
+_TenantTransactionScope.__enter__ = _wrap_create(
+    _TenantTransactionScope.__enter__, 'scope-enter')
+_TenantTransactionScope.__exit__ = _wrap_create(
+    _TenantTransactionScope.__exit__, 'scope-exit')
+
+"""
+
+
 def _free_port() -> int:
     """ホストの空きloopbackポートを予約して返す。"""
     with socket.socket() as reservation:
@@ -106,6 +195,89 @@ def _app_container(db, app_port: int, origin: str) -> list[str]:
         "--env",
         "PITCHLOG_BINDING_CLIENT_CONFIG=/run/pitchlog/public/binding-client.json",
     ]
+    if (
+        os.environ.get("PITCHLOG_E2E_INITIAL_DIAGNOSTIC") == "1"
+        or os.environ.get("PITCHLOG_E2E_CREATE_DIAGNOSTIC") == "1"
+    ):
+        # 試験だけの透過観測。原要求・資格・例外本文は一切出力しない。
+        bootstrap = r"""
+import json,sys,time
+import uvicorn
+from pitchlog.api.routers import games
+
+def observe(stage, command, result, error, started):
+    try:
+        operation = {
+            '_EnrollDeviceCommand': 'enroll',
+            '_StartInitialGameCommand': 'start',
+            '_ResolveStartCommand': 'resolve',
+        }.get(type(command).__name__, 'other')
+        statuses = (
+            'enrolled', 'started', 'denied', 'conflict', 'unavailable', 'unresolved',
+        )
+        status = getattr(result, 'status', None) if stage == 'call' else None
+        if type(status) is not str or status not in statuses:
+            status = 'none-or-other'
+        names = (
+            'InitialBrokerUnavailable', 'DomainRuntimeError', 'TimeoutError',
+            'PermissionError', 'FileNotFoundError', 'ConnectionError', 'OSError',
+            'TypeError', 'ValueError', 'RuntimeError', 'OperationalError',
+            'InterfaceError', 'DBAPIError', 'StatementError', 'IntegrityError',
+            'QueryCanceled', 'LockNotAvailable',
+        )
+        name = type(error).__name__ if error is not None else None
+        elapsed = max(0, min(3600000, int((time.monotonic() - started) * 1000)))
+        print('PITCHLOG_INITIAL_DIAGNOSTIC ' + json.dumps({
+            'stage': stage,
+            'operation': operation,
+            'outcome': 'returned' if error is None else 'raised',
+            'status': status,
+            'exception': name if name in names else 'none-or-other',
+            'elapsed_ms': elapsed,
+        }), flush=True)
+    except BaseException:
+        pass
+
+def wrap(original, stage, command_index):
+    def observed(*args, **kwargs):
+        try:
+            started = time.monotonic()
+            command = args[command_index]
+        except BaseException:
+            started = None
+            command = None
+        try:
+            result = original(*args, **kwargs)
+        except BaseException as error:
+            observe(stage, command, None, error, started)
+            raise
+        observe(stage, command, result, None, started)
+        return result
+    return observed
+
+games._InitialBrokerClient.call = wrap(games._InitialBrokerClient.call, 'call', 1)
+games._encode_initial_reply = wrap(games._encode_initial_reply, 'encode', 0)
+games._initial_reply_source = wrap(games._initial_reply_source, 'source', 0)
+uvicorn.run('pitchlog.api.app:create_app', factory=True, host='0.0.0.0',
+            port=int(sys.argv[1]), log_level='warning')
+"""
+        if os.environ.get("PITCHLOG_E2E_INITIAL_DIAGNOSTIC") != "1":
+            for registration in (
+                "games._InitialBrokerClient.call = "
+                "wrap(games._InitialBrokerClient.call, 'call', 1)",
+                "games._encode_initial_reply = "
+                "wrap(games._encode_initial_reply, 'encode', 0)",
+                "games._initial_reply_source = "
+                "wrap(games._initial_reply_source, 'source', 0)",
+            ):
+                bootstrap = bootstrap.replace(registration + "\n", "")
+        if os.environ.get("PITCHLOG_E2E_CREATE_DIAGNOSTIC") == "1":
+            bootstrap = bootstrap.replace(
+                "\nuvicorn.run(",
+                "\n" + _CREATE_DIAGNOSTIC_BOOTSTRAP + "\nuvicorn.run(",
+                1,
+            )
+        return [*args, "-c", bootstrap, str(app_port)]
     return [
         *args,
         "-m",

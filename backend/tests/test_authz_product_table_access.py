@@ -817,6 +817,27 @@ def test_product_policies_and_table_acls_match_all_five_profiles() -> None:
         ("policy", key): value for key, value in _EXPECTED_FIRST_BALL_POLICY_SQL.items()
     }
     owner_policy_ids |= first_ball_ids
+    ordinary_pitch_ids = {
+        "POLICY:ordinary_pitch_checkpoints:ordinary_pitch_insert_ordinary_pitch_checkpoints",
+        "POLICY:ordinary_pitch_checkpoints:ordinary_pitch_select_ordinary_pitch_checkpoints",
+        "POLICY:ordinary_pitch_checkpoints:ordinary_pitch_update_ordinary_pitch_checkpoints",
+        "POLICY:ordinary_pitch_history:ordinary_pitch_insert_ordinary_pitch_history",
+        "POLICY:ordinary_pitch_history:ordinary_pitch_select_ordinary_pitch_history",
+        (
+            "POLICY:ordinary_pitch_write_admissions:"
+            "ordinary_pitch_insert_ordinary_pitch_write_admissions"
+        ),
+        (
+            "POLICY:ordinary_pitch_write_admissions:"
+            "ordinary_pitch_select_ordinary_pitch_write_admissions"
+        ),
+        (
+            "POLICY:ordinary_pitch_write_admissions:"
+            "ordinary_pitch_update_ordinary_pitch_write_admissions"
+        ),
+        "POLICY:play_rows:ordinary_pitch_select_play_rows",
+    }
+    owner_policy_ids |= ordinary_pitch_ids
     assert {
         element_id
         for element_type, element_id in actual_sql

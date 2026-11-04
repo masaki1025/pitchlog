@@ -262,11 +262,18 @@ def test_generation_secret_columns_are_separate_and_closed(monkeypatch) -> None:
 
 
 def test_private_function_only_fact_is_exact_and_never_seeded() -> None:
-    """新露出事実3表だけを関数限定へ加え、既public seedを保つ。"""
-    expected = {"writer_bindings", "writer_admissions", "first_ball_write_admissions"}
+    """新露出事実6表だけを関数限定へ加え、既public seedを保つ。"""
+    binding = {"writer_bindings", "writer_admissions", "first_ball_write_admissions"}
+    ordinary = {
+        "ordinary_pitch_checkpoints",
+        "ordinary_pitch_write_admissions",
+        "ordinary_pitch_history",
+    }
+    expected = binding | ordinary
     assert (
-        set(cases.exposure_fact_table_names("sync_writer_binding_storage")) == expected
+        set(cases.exposure_fact_table_names("sync_writer_binding_storage")) == binding
     )
+    assert set(cases.exposure_fact_table_names("ordinary_pitch_storage")) == ordinary
     assert set(private_function_only_table_names()) == expected
     assert expected <= set(cases.function_only_table_names())
     assert expected.isdisjoint(cases.profile_table_names()["tenant_owned"])

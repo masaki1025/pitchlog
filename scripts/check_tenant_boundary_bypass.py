@@ -171,14 +171,475 @@ FIRST_BALL_CONDITION2_SCOPES: dict[str, frozenset[tuple[int, str]]] = {
         (267, 'dict'),
         (351, 'dict'),
     }),
+}
+
+
+# 通常投球接合の条件2登録は、承認済み2path/16出現のexact-setだけを許す。
+ORDINARY_CONDITION2_SCOPES: dict[str, frozenset[tuple[int, str, str]]] = {
+    "backend/src/pitchlog/api/schemas/started_games.py": frozenset({
+        (
+            249,
+            'typing.Annotated',
+            'pitchlog.api.schemas.started_games.StartedRecordedPrefixGameRead.<module>',
+        ),
+        (
+            260,
+            'pitchlog.api.schemas.started_games.StartedRecordedPrefixGameRead.prefix_ref.generation',
+            'pitchlog.api.schemas.started_games.StartedRecordedPrefixGameRead._prefix_correlations',
+        ),
+    }),
+    "backend/src/pitchlog/domainrt/ordinary_pitch_continuation.py": frozenset({
+        (
+            61,
+            'typing.Annotated',
+            'pitchlog.domainrt.ordinary_pitch_continuation.PrefixRef.<module>',
+        ),
+    }),
+    "backend/src/pitchlog/repositories/ordinary_pitch_operations.py": frozenset({
+        (
+            15,
+            'IdempotencyLedger',
+            'pitchlog.repositories.ordinary_pitch_operations.<module>',
+        ),
+        (
+            25,
+            'IdempotencyLedgerReadToken',
+            'pitchlog.repositories.ordinary_pitch_operations.<module>',
+        ),
+        (
+            78,
+            'token.generation',
+            'pitchlog.repositories.ordinary_pitch_operations._row',
+        ),
+        (
+            139,
+            'pitchlog.db.sync_protocol.models.IdempotencyLedger',
+            'pitchlog.repositories.ordinary_pitch_operations._preflight.validate',
+        ),
+        (
+            139,
+            'pitchlog.db.sync_protocol.models.IdempotencyLedger.__table__.c.keys',
+            'pitchlog.repositories.ordinary_pitch_operations._preflight.validate',
+        ),
+        (
+            147,
+            'token.generation',
+            'pitchlog.repositories.ordinary_pitch_operations._preflight.validate',
+        ),
+        (
+            190,
+            'token.generation',
+            'pitchlog.repositories.ordinary_pitch_operations._preflight',
+        ),
+        (
+            191,
+            'pitchlog.sync.tokens.IdempotencyLedgerReadToken',
+            'pitchlog.repositories.ordinary_pitch_operations._preflight',
+        ),
+    }),
+    "backend/src/pitchlog/repositories/ordinary_pitch_qualification.py": frozenset({
+        (
+            29,
+            'int',
+            'pitchlog.repositories.ordinary_pitch_qualification.CheckOrdinaryRightToken.<module>',
+        ),
+        (
+            30,
+            'int',
+            'pitchlog.repositories.ordinary_pitch_qualification.CheckOrdinaryRightToken.<module>',
+        ),
+    }),
+    "backend/src/pitchlog/repositories/ordinary_prefix.py": frozenset({
+        (
+            21,
+            'pitchlog.sync.idempotency',
+            'pitchlog.repositories.ordinary_prefix.<module>',
+        ),
+        (74, 'current', 'pitchlog.repositories.ordinary_prefix.PrefixSource.<module>'),
+        (
+            91,
+            'typing.Annotated',
+            'pitchlog.repositories.ordinary_prefix.CheckpointDocument.<module>',
+        ),
+        (
+            92,
+            'typing.Annotated',
+            'pitchlog.repositories.ordinary_prefix.CheckpointDocument.<module>',
+        ),
+        (
+            110,
+            'pitchlog.repositories.ordinary_prefix.CheckpointDocument.prefix_ref.generation',
+            'pitchlog.repositories.ordinary_prefix.CheckpointDocument._positions_and_digest',
+        ),
+        (
+            128,
+            'pitchlog.repositories.ordinary_prefix.CheckpointDocument.internal_generation',
+            'pitchlog.repositories.ordinary_prefix.CheckpointDocument._positions_and_digest',
+        ),
+        (
+            128,
+            'pitchlog.repositories.ordinary_prefix.CheckpointDocument.last_source.generation',
+            'pitchlog.repositories.ordinary_prefix.CheckpointDocument._positions_and_digest',
+        ),
+        (
+            181,
+            '_GENERATION_READ_COLUMNS',
+            'pitchlog.repositories.ordinary_prefix.read_confirmed_ordinary_prefix',
+        ),
+        (
+            184,
+            'IdempotencyLedgerReadToken',
+            'pitchlog.repositories.ordinary_prefix.read_confirmed_ordinary_prefix',
+        ),
+        (
+            184,
+            'RecordingGenerationLockToken',
+            'pitchlog.repositories.ordinary_prefix.read_confirmed_ordinary_prefix',
+        ),
+        (
+            184,
+            'RecordingGenerationReadToken',
+            'pitchlog.repositories.ordinary_prefix.read_confirmed_ordinary_prefix',
+        ),
+        (
+            234,
+            'pitchlog.repositories.sync_apply._GENERATION_READ_COLUMNS',
+            'pitchlog.repositories.ordinary_prefix.read_confirmed_ordinary_prefix',
+        ),
+        (
+            234,
+            'pitchlog.sync.tokens.RecordingGenerationReadToken',
+            'pitchlog.repositories.ordinary_prefix.read_confirmed_ordinary_prefix',
+        ),
+        (
+            235,
+            'current',
+            'pitchlog.repositories.ordinary_prefix.read_confirmed_ordinary_prefix',
+        ),
+        (
+            237,
+            'current',
+            'pitchlog.repositories.ordinary_prefix.read_confirmed_ordinary_prefix',
+        ),
+        (
+            237,
+            'pitchlog.repositories.sync_apply._GENERATION_READ_COLUMNS',
+            'pitchlog.repositories.ordinary_prefix.read_confirmed_ordinary_prefix',
+        ),
+        (
+            237,
+            'pitchlog.sync.tokens.RecordingGenerationLockToken',
+            'pitchlog.repositories.ordinary_prefix.read_confirmed_ordinary_prefix',
+        ),
+        (
+            241,
+            'current',
+            'pitchlog.repositories.ordinary_prefix.read_confirmed_ordinary_prefix',
+        ),
+        (
+            242,
+            'current',
+            'pitchlog.repositories.ordinary_prefix.read_confirmed_ordinary_prefix',
+        ),
+        (
+            244,
+            'current',
+            'pitchlog.repositories.ordinary_prefix.read_confirmed_ordinary_prefix',
+        ),
+        (
+            284,
+            'current',
+            'pitchlog.repositories.ordinary_prefix.read_confirmed_ordinary_prefix',
+        ),
+        (
+            310,
+            'current',
+            'pitchlog.repositories.ordinary_prefix.read_confirmed_ordinary_prefix',
+        ),
+        (
+            324,
+            'current',
+            'pitchlog.repositories.ordinary_prefix.read_confirmed_ordinary_prefix',
+        ),
+        (
+            324,
+            'pitchlog.repositories.ordinary_prefix.CheckpointDocument.internal_generation',
+            'pitchlog.repositories.ordinary_prefix.read_confirmed_ordinary_prefix',
+        ),
+        (
+            325,
+            'pitchlog.repositories.ordinary_prefix.CheckpointDocument.recovery_generation',
+            'pitchlog.repositories.ordinary_prefix.read_confirmed_ordinary_prefix',
+        ),
+        (
+            377,
+            'current',
+            'pitchlog.repositories.ordinary_prefix.read_confirmed_ordinary_prefix',
+        ),
+        (
+            380,
+            'pitchlog.sync.tokens.IdempotencyLedgerReadToken',
+            'pitchlog.repositories.ordinary_prefix.read_confirmed_ordinary_prefix',
+        ),
+        (
+            381,
+            'IdempotencyLedger',
+            'pitchlog.repositories.ordinary_prefix.read_confirmed_ordinary_prefix',
+        ),
+        (
+            383,
+            'pitchlog.db.sync_protocol.models.IdempotencyLedger',
+            'pitchlog.repositories.ordinary_prefix.read_confirmed_ordinary_prefix',
+        ),
+        (
+            383,
+            'pitchlog.db.sync_protocol.models.IdempotencyLedger.__table__.c.keys',
+            'pitchlog.repositories.ordinary_prefix.read_confirmed_ordinary_prefix',
+        ),
+        (
+            400,
+            'current',
+            'pitchlog.repositories.ordinary_prefix.read_confirmed_ordinary_prefix',
+        ),
+        (
+            431,
+            'current',
+            'pitchlog.repositories.ordinary_prefix.read_confirmed_ordinary_prefix',
+        ),
+        (
+            460,
+            'IdempotencyLedger',
+            'pitchlog.repositories.ordinary_prefix._verify_persisted_last_source',
+        ),
+        (
+            462,
+            'pitchlog.sync.idempotency',
+            'pitchlog.repositories.ordinary_prefix._verify_persisted_last_source',
+        ),
+        (
+            468,
+            'IdempotencyLedgerReadToken',
+            'pitchlog.repositories.ordinary_prefix._verify_persisted_last_source',
+        ),
+        (
+            476,
+            'pitchlog.repositories.ordinary_prefix.CheckpointDocument.internal_generation',
+            'pitchlog.repositories.ordinary_prefix._verify_persisted_last_source',
+        ),
+        (
+            482,
+            'pitchlog.sync.tokens.IdempotencyLedgerReadToken',
+            'pitchlog.repositories.ordinary_prefix._verify_persisted_last_source',
+        ),
+        (
+            483,
+            'pitchlog.db.sync_protocol.models.IdempotencyLedger',
+            'pitchlog.repositories.ordinary_prefix._verify_persisted_last_source',
+        ),
+        (
+            483,
+            'pitchlog.db.sync_protocol.models.IdempotencyLedger.__table__.c.keys',
+            'pitchlog.repositories.ordinary_prefix._verify_persisted_last_source',
+        ),
+        (
+            489,
+            'pitchlog.repositories.ordinary_prefix.CheckpointDocument.last_source.generation',
+            'pitchlog.repositories.ordinary_prefix._verify_persisted_last_source',
+        ),
+    }),
+    "backend/src/pitchlog/repositories/ordinary_prefix_operations.py": frozenset({
+        (
+            22,
+            'int',
+            'pitchlog.repositories.ordinary_prefix_operations.OrdinaryCheckpointReadToken.<module>',
+        ),
+        (
+            28,
+            'pitchlog.repositories.ordinary_prefix_operations.OrdinaryHistoryPageToken.generation',
+            'pitchlog.repositories.ordinary_prefix_operations.OrdinaryCheckpointReadToken.__post_init__',
+        ),
+        (
+            29,
+            'pitchlog.repositories.ordinary_prefix_operations.OrdinaryHistoryPageToken.generation',
+            'pitchlog.repositories.ordinary_prefix_operations.OrdinaryCheckpointReadToken.__post_init__',
+        ),
+        (
+            43,
+            'int',
+            'pitchlog.repositories.ordinary_prefix_operations.OrdinaryCheckpointLockToken.<module>',
+        ),
+        (
+            56,
+            'int',
+            'pitchlog.repositories.ordinary_prefix_operations.OrdinaryHistoryPageToken.<module>',
+        ),
+        (
+            75,
+            'pitchlog.repositories.ordinary_prefix_operations.OrdinaryHistoryPageToken.generation',
+            'pitchlog.repositories.ordinary_prefix_operations.OrdinaryHistoryPageToken.__post_init__',
+        ),
+    }),
+    "backend/src/pitchlog/repositories/ordinary_prefix_read.py": frozenset({
+        (
+            52,
+            '_GENERATION_READ_COLUMNS',
+            'pitchlog.repositories.ordinary_prefix_read.<module>',
+        ),
+        (
+            56,
+            'pitchlog.sync.idempotency',
+            'pitchlog.repositories.ordinary_prefix_read.<module>',
+        ),
+        (
+            58,
+            'RecordingGenerationLockToken',
+            'pitchlog.repositories.ordinary_prefix_read.<module>',
+        ),
+        (
+            58,
+            'RecordingGenerationReadToken',
+            'pitchlog.repositories.ordinary_prefix_read.<module>',
+        ),
+        (
+            148,
+            'pitchlog.repositories.sync_apply._GENERATION_READ_COLUMNS',
+            'pitchlog.repositories.ordinary_prefix_read.read_ordinary_prefix',
+        ),
+        (
+            148,
+            'pitchlog.sync.tokens.RecordingGenerationReadToken',
+            'pitchlog.repositories.ordinary_prefix_read.read_ordinary_prefix',
+        ),
+        (
+            149,
+            'current',
+            'pitchlog.repositories.ordinary_prefix_read.read_ordinary_prefix',
+        ),
+        (
+            150,
+            'current',
+            'pitchlog.repositories.ordinary_prefix_read.read_ordinary_prefix',
+        ),
+        (
+            152,
+            'locked_generation',
+            'pitchlog.repositories.ordinary_prefix_read.read_ordinary_prefix',
+        ),
+        (
+            153,
+            'current',
+            'pitchlog.repositories.ordinary_prefix_read.read_ordinary_prefix',
+        ),
+        (
+            153,
+            'pitchlog.repositories.sync_apply._GENERATION_READ_COLUMNS',
+            'pitchlog.repositories.ordinary_prefix_read.read_ordinary_prefix',
+        ),
+        (
+            153,
+            'pitchlog.sync.tokens.RecordingGenerationLockToken',
+            'pitchlog.repositories.ordinary_prefix_read.read_ordinary_prefix',
+        ),
+        (
+            157,
+            'locked_generation',
+            'pitchlog.repositories.ordinary_prefix_read.read_ordinary_prefix',
+        ),
+        (
+            170,
+            'current',
+            'pitchlog.repositories.ordinary_prefix_read.read_ordinary_prefix',
+        ),
+        (
+            188,
+            'current',
+            'pitchlog.repositories.ordinary_prefix_read.read_ordinary_prefix',
+        ),
+        (
+            200,
+            'current',
+            'pitchlog.repositories.ordinary_prefix_read.read_ordinary_prefix',
+        ),
+        (
+            297,
+            'current',
+            'pitchlog.repositories.ordinary_prefix_read.read_ordinary_prefix',
+        ),
+        (
+            403,
+            'current',
+            'pitchlog.repositories.ordinary_prefix_read.read_ordinary_prefix',
+        ),
+        (
+            431,
+            'current',
+            'pitchlog.repositories.ordinary_prefix_read.read_ordinary_prefix',
+        ),
+        (
+            490,
+            'current',
+            'pitchlog.repositories.ordinary_prefix_read.read_ordinary_prefix',
+        ),
+        (
+            493,
+            'pitchlog.sync.idempotency',
+            'pitchlog.repositories.ordinary_prefix_read.read_ordinary_prefix',
+        ),
+    }),
     "backend/src/pitchlog/repositories/transaction.py": frozenset({
-        (1069, 'RecordingGenerationByNumberReadToken'),
-        (1069, 'RecordingGenerationReadToken'),
-        (1081, 'pitchlog.sync.tokens.RecordingGenerationByNumberReadToken'),
-        (1081, 'pitchlog.sync.tokens.RecordingGenerationReadToken'),
-        (1309, 'pitchlog.repositories.tokens.TenantOperationToken.recovery_generation'),
-        (1310, 'pitchlog.repositories.tokens.TenantOperationToken.recovery_generation'),
-        (1322, 'pitchlog.repositories.tokens.TenantOperationToken.recovery_generation'),
+        (
+            1079,
+            'RecordingGenerationByNumberReadToken',
+            'pitchlog.repositories.transaction._port_read_types',
+        ),
+        (
+            1079,
+            'RecordingGenerationReadToken',
+            'pitchlog.repositories.transaction._port_read_types',
+        ),
+        (
+            1091,
+            'pitchlog.sync.tokens.RecordingGenerationByNumberReadToken',
+            'pitchlog.repositories.transaction._port_read_types',
+        ),
+        (
+            1091,
+            'pitchlog.sync.tokens.RecordingGenerationReadToken',
+            'pitchlog.repositories.transaction._port_read_types',
+        ),
+        (
+            1376,
+            'pitchlog.repositories.tokens.TenantOperationToken.recovery_generation',
+            'pitchlog.repositories.transaction._execute_port_command',
+        ),
+        (
+            1377,
+            'pitchlog.repositories.tokens.TenantOperationToken.recovery_generation',
+            'pitchlog.repositories.transaction._execute_port_command',
+        ),
+        (
+            1397,
+            'pitchlog.repositories.tokens.TenantOperationToken.recovery_generation',
+            'pitchlog.repositories.transaction._execute_port_command',
+        ),
+        (
+            1408,
+            'pitchlog.repositories.tokens.TenantOperationToken.recovery_generation',
+            'pitchlog.repositories.transaction._execute_port_command',
+        ),
+    }),
+}
+
+
+# 通常投球接合で承認した条件5出現（DB到達APIと生成迂回）だけを許す。
+ORDINARY_CONDITION5_SCOPES: dict[str, frozenset[tuple[int, str, str, str]]] = {
+    "backend/src/pitchlog/sync/ordinary_pitch_execution.py": frozenset({
+        (
+            183,
+            'TB007',
+            'builtins.object.__new__',
+            'pitchlog.sync.ordinary_pitch_execution._bind_ordinary_pitch_execution',
+        ),
     }),
 }
 
@@ -242,7 +703,7 @@ FIRST_BALL_CONDITION5_SCOPES: dict[str, frozenset[tuple[int, str, str, str]]] = 
     }),
     "backend/src/pitchlog/sync/control_provider/writer_binding.py": frozenset({
         (
-            262,
+            264,
             'TB007',
             'builtins.object.__new__',
             'pitchlog.sync.control_provider.writer_binding._issue_device_presentation',
@@ -480,6 +941,15 @@ class ScopedCondition2Owner:
 
 
 @dataclass(frozen=True)
+class OrdinaryCondition2Owner:
+    """通常投球接合で承認された物理所有境界の出現と実sourceを束縛する。"""
+
+    path: str
+    source_sha256: str
+    findings: frozenset[tuple[int, str, str]]
+
+
+@dataclass(frozen=True)
 class ScopedCondition5Owner:
     """承認された条件5 siteの完全出現と実sourceを束縛する。"""
 
@@ -518,7 +988,9 @@ class Contract:
     ledger_condition2_source_sha256: str
     rg1_condition2_owners: tuple[ScopedCondition2Owner, ...]
     first_ball_condition2_owners: tuple[ScopedCondition2Owner, ...]
+    ordinary_condition2_owners: tuple[OrdinaryCondition2Owner, ...]
     first_ball_condition5_owners: tuple[ScopedCondition5Owner, ...]
+    ordinary_condition5_owners: tuple[ScopedCondition5Owner, ...]
     ledger_deployment_assets: tuple[tuple[str, str], ...]
     rg1_deployment_assets: tuple[tuple[str, str], ...]
     writer_binding_deployment_assets: tuple[tuple[str, str], ...]
@@ -1132,7 +1604,7 @@ def _resolution_owner_shape_is_exact(registration: ResolutionOwnershipRegistrati
             "pitchlog.repositories.transaction._assert_existing_resolution_owner"
         )
         and registration.scope == "pitchlog.repositories.transaction.<module>"
-        and type(registration.line) is int and registration.line == 935
+        and type(registration.line) is int and registration.line == 945
         and registration.symbol == "_assert_existing_resolution_owner"
         and type(registration.source_sha256) is str
         and re.fullmatch(r"[0-9a-f]{64}", registration.source_sha256) is not None
@@ -1174,9 +1646,53 @@ def _load_first_ball_condition2_owners(
             findings.add((line, symbol))
         if frozenset(findings) != FIRST_BALL_CONDITION2_SCOPES[full_path]:
             raise ContractError(
-                "初球条件2登録は審査済み6path/66出現のexact-setが必要"
+                "初球条件2登録は審査済み5path/59出現のexact-setが必要"
             )
         owners.append(ScopedCondition2Owner(full_path, digest, frozenset(findings)))
+    return tuple(owners)
+
+
+def _load_ordinary_condition2_owners(
+    value: object,
+) -> tuple[OrdinaryCondition2Owner, ...]:
+    """通常投球接合の条件2登録を審査済みpath/hash/行/記号/scopeのexact-setへ閉じる。
+
+    Args:
+        value: allowlist の ``condition_2_ordinary_scoped_findings``。
+
+    Returns:
+        固定8pathと実source SHA・出現集合を持つ所有者。
+
+    Raises:
+        ContractError: path・SHA・出現が固定投影と一致しない場合。
+    """
+    location = "allowlist.condition_2_ordinary_scoped_findings"
+    scopes = _object(value, location)
+    _strict_keys(scopes, frozenset(ORDINARY_CONDITION2_SCOPES), location)
+    owners: list[OrdinaryCondition2Owner] = []
+    for full_path in sorted(ORDINARY_CONDITION2_SCOPES):
+        entry = _object(scopes[full_path], f"{location}.{full_path}")
+        _strict_keys(entry, {"source_sha256", "findings"}, location)
+        digest = _string(entry["source_sha256"], f"{location}.{full_path}")
+        if re.fullmatch(r"[0-9a-f]{64}", digest) is None:
+            raise ContractError("通常条件2登録には実source SHA-256が必要")
+        findings: set[tuple[int, str, str]] = set()
+        for raw in _array(entry["findings"], location):
+            finding = _object(raw, location)
+            _strict_keys(finding, {"line", "symbol", "scope"}, location)
+            line = _integer(finding["line"], location)
+            symbol = _string(finding["symbol"], location)
+            scope = _string(finding["scope"], location)
+            if line < 1 or not symbol or not scope or (line, symbol, scope) in findings:
+                raise ContractError(
+                    "通常条件2登録は正の行と一意の記号/scopeが必要"
+                )
+            findings.add((line, symbol, scope))
+        if frozenset(findings) != ORDINARY_CONDITION2_SCOPES[full_path]:
+            raise ContractError("通常条件2登録は審査対象8path/88出現のexact-setが必要")
+        owners.append(
+            OrdinaryCondition2Owner(full_path, digest, frozenset(findings))
+        )
     return tuple(owners)
 
 
@@ -1224,7 +1740,7 @@ def _load_first_ball_condition5_owners(
             findings.add(identity)
         if frozenset(findings) != FIRST_BALL_CONDITION5_SCOPES[full_path]:
             raise ContractError(
-                "初球条件5登録は審査済み9path/24出現のexact-setが必要"
+                "初球条件5登録は審査済み9path/25出現のexact-setが必要"
             )
         owners.append(ScopedCondition5Owner(full_path, digest, frozenset(findings)))
     return tuple(owners)
@@ -1243,6 +1759,8 @@ def _load_allowlist(
     str,
     tuple[ScopedCondition2Owner, ...],
     tuple[ScopedCondition2Owner, ...],
+    tuple[OrdinaryCondition2Owner, ...],
+    tuple[ScopedCondition5Owner, ...],
     tuple[ScopedCondition5Owner, ...],
     tuple[tuple[str, str], ...],
     tuple[tuple[str, str], ...],
@@ -1265,7 +1783,9 @@ def _load_allowlist(
             "condition_2_ledger_scoped_findings",
             "condition_2_rg1_scoped_findings",
             "condition_2_first_ball_scoped_findings",
+            "condition_2_ordinary_scoped_findings",
             "condition_5_first_ball_scoped_findings",
+            "condition_5_ordinary_scoped_findings",
             "condition_1_resolve_scoped_finding",
             "ledger_deployment_assets",
             "rg1_deployment_assets",
@@ -1547,8 +2067,14 @@ def _load_allowlist(
         _load_first_ball_condition2_owners(
             value["condition_2_first_ball_scoped_findings"]
         ),
+        _load_ordinary_condition2_owners(
+            value["condition_2_ordinary_scoped_findings"]
+        ),
         _load_first_ball_condition5_owners(
             value["condition_5_first_ball_scoped_findings"]
+        ),
+        _load_ordinary_condition5_owners(
+            value["condition_5_ordinary_scoped_findings"]
         ),
         _load_ledger_deployment_assets(value["ledger_deployment_assets"]),
         _load_rg1_deployment_assets(value["rg1_deployment_assets"]),
@@ -2150,7 +2676,9 @@ def load_contract(repository_root: Path) -> Contract:
         ledger_condition2_source_sha256,
         rg1_condition2_owners,
         first_ball_condition2_owners,
+        ordinary_condition2_owners,
         first_ball_condition5_owners,
+        ordinary_condition5_owners,
         ledger_deployment_assets,
         rg1_deployment_assets,
         writer_binding_deployment_assets,
@@ -2202,7 +2730,9 @@ def load_contract(repository_root: Path) -> Contract:
         ledger_condition2_source_sha256=ledger_condition2_source_sha256,
         rg1_condition2_owners=rg1_condition2_owners,
         first_ball_condition2_owners=first_ball_condition2_owners,
+        ordinary_condition2_owners=ordinary_condition2_owners,
         first_ball_condition5_owners=first_ball_condition5_owners,
+        ordinary_condition5_owners=ordinary_condition5_owners,
         ledger_deployment_assets=ledger_deployment_assets,
         rg1_deployment_assets=rg1_deployment_assets,
         writer_binding_deployment_assets=writer_binding_deployment_assets,
@@ -2800,6 +3330,56 @@ _FIXED_FIRST_BALL_BUILDER_BODY = _expected_function_body(
 )
 
 
+# 通常投球の有限BigInteger枝と限定prefix型だけを別の完全形として保持する。
+_FIXED_ORDINARY_BUILDER_BODY = _expected_function_body(
+    """def expected():
+    safe_arguments = (
+        _canonical_bind("tenant_id", UUID),
+        *(
+            bindparam(name, type_=BigInteger())
+            if (
+                schema == "sync_right_api"
+                and (
+                    (
+                        function_name in {"check_current_right", "check_ordinary_right"}
+                        and name in ("internal_generation", "recovery_generation")
+                    )
+                    or (
+                        f"{schema}.{function_name}"
+                        in _SYNC_ORDINARY_PREFIX_FUNCTION_TYPES
+                        and name
+                        in (
+                            "generation",
+                            "checkpoint_revision",
+                            "history_version",
+                            "upper_watermark",
+                            "after_d1",
+                            "after_d2",
+                        )
+                    )
+                )
+                and field_type is int
+            )
+            else _canonical_bind(name, field_type)
+            for name, field_type in input_fields
+        ),
+    )
+    safe_function = Function(function_name, *safe_arguments, packagenames=(schema,))
+    if (
+        schema == "sync_fence_api"
+        and function_name == "assert_writer_binding"
+        and not table_valued
+        and result_names == ("asserted",)
+    ):
+        safe_function.type = _WriterAssertVoidResult()
+    if not table_valued:
+        return select(safe_function.label(result_names[0]))
+    safe_table = safe_function.table_valued(*result_names)
+    return select(*(safe_table.c[name] for name in result_names))
+"""
+)
+
+
 def _is_fixed_builder_body(
     node: ast.FunctionDef | ast.AsyncFunctionDef, expected: list[ast.stmt]
 ) -> bool:
@@ -2810,7 +3390,11 @@ def _is_fixed_builder_body(
     ) and isinstance(body[0].value.value, str):
         body = body[1:]
     expected_bodies = (
-        (expected, _FIXED_FIRST_BALL_BUILDER_BODY)
+        (
+            expected,
+            _FIXED_FIRST_BALL_BUILDER_BODY,
+            _FIXED_ORDINARY_BUILDER_BODY,
+        )
         if expected is _FIXED_BUILDER_BODY
         else (expected,)
     )
@@ -6465,101 +7049,68 @@ _INITIAL_POPULATION_POLICY: dict[str, tuple[str, tuple[tuple[int, str, str, str]
         (567, "TB002", "sqlalchemy.orm.Mapped", "RecordingRightDelivery.<module>"),
         (576, "TB005", "sqlalchemy.text", "RecordingRightDelivery.<module>"),
     )),
-    "pitchlog/recording_rights/initial_grant_broker.py": ("initial_grant_broker_caller", (
-        (35, 'TB002', 'DurableGenerationSource', '<module>'),
-        (35, 'TB002', 'assert_write_recovery_generation', '<module>'),
-        (165, 'TB005', 'psycopg.Connection.cursor', '_verify_initial_actor_checkout'),
-        (166, 'TB005', 'psycopg.Cursor.execute', '_verify_initial_actor_checkout'),
-        (185, 'TB005', 'psycopg.Connection.rollback', '_verify_initial_actor_checkout'),
-        (188, 'TB005', 'psycopg.Connection.rollback', '_verify_initial_actor_checkout'),
-        (255, 'TB005', 'sqlalchemy.create_engine', '_load_initial_actor_runtime'),
-        (
-            327,
-            'TB002',
-            'pitchlog.recording_rights.initial_grant.DurableGenerationSource',
-            '<module>',
-        ),
-        (
-            406,
-            'TB002',
-            'pitchlog.recording_rights.initial_grant.assert_write_recovery_generation',
-            '_issue_initial_grant_impl',
-        ),
-        (
-            407,
-            'TB002',
-            'pitchlog.recording_rights.initial_grant.InitialGrant.recovery_generation',
-            '_issue_initial_grant_impl',
-        ),
-        (
-            431,
-            'TB002',
-            'pitchlog.recording_rights.initial_grant.DurableGenerationSource',
-            '<module>',
-        ),
-        (
-            446,
-            'TB002',
-            'pitchlog.recording_rights.initial_grant.DurableGenerationSource',
-            '<module>',
-        ),
-        (486, 'TB002', 'generation', '<module>'),
-        (493, 'TB002', 'int', '_broker_d4'),
-        (498, 'TB002', '_broker_generation', '<module>'),
-        (512, 'TB002', 'int', '_broker_generation'),
-        (516, 'TB002', 'int', '_broker_generation'),
-        (522, 'TB002', 'int', '_broker_generation'),
-        (
-            806,
-            'TB002',
-            'pitchlog.recording_rights.initial_grant.InitialGrant.generation',
-            '_postcommit_start_response',
-        ),
-        (
-            807,
-            'TB002',
-            'pitchlog.recording_rights.initial_grant.InitialGrant.recovery_generation',
-            '_postcommit_start_response',
-        ),
-        (807, 'TB002', 'recovery_generation', '_postcommit_start_response'),
-        (
-            931,
-            'TB002',
-            'pitchlog.recording_rights.initial_grant_broker._broker_generation',
-            '_decode_initial_reply',
-        ),
-        (
-            1121,
-            'TB005',
-            'sqlalchemy.engine.Engine.connect|sqlalchemy.ext.asyncio.AsyncEngine.connect',
-            '_InitialBrokerClient.call',
-        ),
-        (1212, 'TB005', 'psycopg.Connection.cursor', '_verify_auth_verifier_checkout'),
-        (1213, 'TB005', 'psycopg.Cursor.execute', '_verify_auth_verifier_checkout'),
-        (1218, 'TB005', 'psycopg.Connection.rollback', '_verify_auth_verifier_checkout'),
-        (1221, 'TB005', 'psycopg.Connection.rollback', '_verify_auth_verifier_checkout'),
-        (1281, 'TB005', 'sqlalchemy.create_engine', '_load_initial_auth_verifier_runtime'),
-        (1462, 'TB002', 'pitchlog.sync.idempotency', '_worker_resolve_start'),
-        (
-            1519,
-            'TB002',
-            'pitchlog.recording_rights.initial_grant.assert_write_recovery_generation',
-            '_worker_resolve_start',
-        ),
-        (
-            1520,
-            'TB002',
-            'pitchlog.recording_rights.initial_grant.InitialGrant.recovery_generation',
-            '_worker_resolve_start',
-        ),
-        (
-            1747,
-            'TB005',
-            'sqlalchemy.ext.asyncio.AsyncSession.flush|sqlalchemy.orm.Session.flush',
-            'serve_initial_broker',
-        ),
-        (1760, 'TB007', 'pitchlog.durable_rights_ledger.DurableLedger', 'serve_initial_broker'),
-    )),
+    "pitchlog/recording_rights/initial_grant_broker.py": (
+        "initial_grant_broker_caller",
+        ((35, 'TB002', 'DurableGenerationSource', '<module>'),
+         (35, 'TB002', 'assert_write_recovery_generation', '<module>'),
+         (165, 'TB005', 'psycopg.Connection.cursor', '_verify_initial_actor_checkout'),
+         (166, 'TB005', 'psycopg.Cursor.execute', '_verify_initial_actor_checkout'),
+         (185,
+          'TB005',
+          'psycopg.Connection.rollback',
+          '_verify_initial_actor_checkout'),
+         (188,
+          'TB005',
+          'psycopg.Connection.rollback',
+          '_verify_initial_actor_checkout'),
+         (255, 'TB005', 'sqlalchemy.create_engine', '_load_initial_actor_runtime'),
+         (327,
+          'TB002',
+          'pitchlog.recording_rights.initial_grant.DurableGenerationSource',
+          '<module>'),
+         (406,
+          'TB002',
+          'pitchlog.recording_rights.initial_grant.assert_write_recovery_generation',
+          '_issue_initial_grant_impl'),
+         (407,
+          'TB002',
+          'pitchlog.recording_rights.initial_grant.InitialGrant.recovery_generation',
+          '_issue_initial_grant_impl'),
+         (431,
+          'TB002',
+          'pitchlog.recording_rights.initial_grant.DurableGenerationSource',
+          '<module>'),
+         (446,
+          'TB002',
+          'pitchlog.recording_rights.initial_grant.DurableGenerationSource',
+          '<module>'),
+         (487, 'TB002', 'generation', '<module>'),
+         (494, 'TB002', 'int', '_broker_d4'),
+         (499, 'TB002', '_broker_generation', '<module>'),
+         (513, 'TB002', 'int', '_broker_generation'),
+         (517, 'TB002', 'int', '_broker_generation'),
+         (523, 'TB002', 'int', '_broker_generation'),
+         (808, 'TB002', 'recovery_generation', '_postcommit_start_response'),
+         (1220, 'TB005', 'psycopg.Connection.cursor', '_verify_auth_verifier_checkout'),
+         (1221, 'TB005', 'psycopg.Cursor.execute', '_verify_auth_verifier_checkout'),
+         (1226,
+          'TB005',
+          'psycopg.Connection.rollback',
+          '_verify_auth_verifier_checkout'),
+         (1229,
+          'TB005',
+          'psycopg.Connection.rollback',
+          '_verify_auth_verifier_checkout'),
+         (1289,
+          'TB005',
+          'sqlalchemy.create_engine',
+          '_load_initial_auth_verifier_runtime'),
+         (1470, 'TB002', 'pitchlog.sync.idempotency', '_worker_resolve_start'),
+         (1768,
+          'TB007',
+          'pitchlog.durable_rights_ledger.DurableLedger',
+          'serve_initial_broker')),
+    ),
     "pitchlog/repositories/game_start.py": ("game_start_caller", (
         (23, "TB002", "pitchlog.sync.idempotency", "<module>"),
         (340, "TB007", "cls", "_start_token"),
@@ -7475,6 +8026,31 @@ def scan_source(
                 if violation.code != "TB002"
                 or (violation.line, violation.symbol) not in owner.findings
             ]
+    ordinary_owners = contract.ordinary_condition2_owners
+    # 合成Contractでも固定2path・固定出現以外の所有境界を認めない。
+    valid_ordinary_owners = (
+        len(ordinary_owners) == len(ORDINARY_CONDITION2_SCOPES)
+        and {owner.path for owner in ordinary_owners}
+        == set(ORDINARY_CONDITION2_SCOPES)
+        and all(
+            re.fullmatch(r"[0-9a-f]{64}", owner.source_sha256) is not None
+            and owner.findings == ORDINARY_CONDITION2_SCOPES[owner.path]
+            for owner in ordinary_owners
+        )
+    )
+    for owner in ordinary_owners if valid_ordinary_owners else ():
+        if (
+            path == owner.path.removeprefix("backend/src/")
+            and hashlib.sha256(source.encode("utf-8")).hexdigest()
+            == owner.source_sha256
+        ):
+            violations = [
+                violation
+                for violation in violations
+                if violation.code != "TB002"
+                or (violation.line, violation.symbol, violation.scope)
+                not in owner.findings
+            ]
     resolution = contract.resolution_owner
     if (
         resolution is not None
@@ -7511,6 +8087,28 @@ def scan_source(
         )
     )
     for owner in condition5_owners if valid_condition5_owners else ():
+        if (
+            path == owner.path.removeprefix("backend/src/")
+            and hashlib.sha256(source.encode("utf-8")).hexdigest()
+            == owner.source_sha256
+        ):
+            violations = [
+                item for item in violations
+                if (item.line, item.code, item.symbol, item.scope)
+                not in owner.findings
+            ]
+    ordinary_condition5 = contract.ordinary_condition5_owners
+    valid_ordinary_condition5 = (
+        len(ordinary_condition5) == len(ORDINARY_CONDITION5_SCOPES)
+        and {owner.path for owner in ordinary_condition5}
+        == set(ORDINARY_CONDITION5_SCOPES)
+        and all(
+            re.fullmatch(r"[0-9a-f]{64}", owner.source_sha256) is not None
+            and owner.findings == ORDINARY_CONDITION5_SCOPES[owner.path]
+            for owner in ordinary_condition5
+        )
+    )
+    for owner in ordinary_condition5 if valid_ordinary_condition5 else ():
         if (
             path == owner.path.removeprefix("backend/src/")
             and hashlib.sha256(source.encode("utf-8")).hexdigest()
@@ -8350,6 +8948,56 @@ _LEDGER_DEPLOYMENT_ASSETS = (
     "pitchlog/durable_rights_ledger/manifest.json",
     "pitchlog/durable_rights_ledger/schema.sql",
 )
+
+
+def _load_ordinary_condition5_owners(
+    value: object,
+) -> tuple[ScopedCondition5Owner, ...]:
+    """通常投球接合の条件5登録を審査済みpath/hash/出現のexact-setへ閉じる。
+
+    Args:
+        value: allowlist の ``condition_5_ordinary_scoped_findings``。
+
+    Returns:
+        固定1pathと実source SHA・出現集合を持つ所有者。
+
+    Raises:
+        ContractError: path・SHA・出現が固定投影と一致しない場合。
+    """
+    location = "allowlist.condition_5_ordinary_scoped_findings"
+    scopes = _object(value, location)
+    _strict_keys(scopes, frozenset(ORDINARY_CONDITION5_SCOPES), location)
+    owners: list[ScopedCondition5Owner] = []
+    for full_path in sorted(ORDINARY_CONDITION5_SCOPES):
+        entry = _object(scopes[full_path], f"{location}.{full_path}")
+        _strict_keys(entry, {"source_sha256", "findings"}, location)
+        digest = _string(entry["source_sha256"], f"{location}.{full_path}")
+        if re.fullmatch(r"[0-9a-f]{64}", digest) is None:
+            raise ContractError("通常条件5登録には実source SHA-256が必要")
+        findings: set[tuple[int, str, str, str]] = set()
+        for raw in _array(entry["findings"], location):
+            finding = _object(raw, location)
+            _strict_keys(finding, {"line", "code", "symbol", "scope"}, location)
+            line = _integer(finding["line"], location)
+            code = _string(finding["code"], location)
+            symbol = _string(finding["symbol"], location)
+            scope = _string(finding["scope"], location)
+            identity = (line, code, symbol, scope)
+            if (
+                line < 1
+                or code not in {"TB005", "TB007"}
+                or not symbol
+                or not scope
+                or identity in findings
+            ):
+                raise ContractError("通常条件5登録は条件5の一意な完全出現が必要")
+            findings.add(identity)
+        if frozenset(findings) != ORDINARY_CONDITION5_SCOPES[full_path]:
+            raise ContractError(
+                "通常条件5登録は審査済み1path/1出現のexact-setが必要"
+            )
+        owners.append(ScopedCondition5Owner(full_path, digest, frozenset(findings)))
+    return tuple(owners)
 
 
 def _load_ledger_deployment_assets(value: object) -> tuple[tuple[str, str], ...]:

@@ -428,7 +428,7 @@ def test_rg1_fresh_open_invariant_is_captured_in_n3() -> None:
     ]
     assert len(fresh) == 1
     assert sentence in fresh[0].canonical
-    assert fresh[0].target == "出現 031: 不変"
+    assert fresh[0].target == "出現 032: 不変"
     assert fresh[0].implementation == (
         "rg1_restore_gate: protected=['singleton_id']; allowed=['state']; "
         "conditional=['recovery_generation']; coverage=exhaustive; "
@@ -444,9 +444,9 @@ def test_generated_row_counts_match_all_current_source_rows() -> None:
         filename: len(generator.parse_sheet_rows(expected[filename]))
         for filename in generator.SHEET_FILENAMES
     } == {
-        "N1-table-completeness.md": 105,
-        "N3-immutability-completeness.md": 121,
-        "N4-deletion-lifecycle.md": 62,
+        "N1-table-completeness.md": 106,
+        "N3-immutability-completeness.md": 127,
+        "N4-deletion-lifecycle.md": 65,
         "N7-required-attributes.md": 105,
     }
 

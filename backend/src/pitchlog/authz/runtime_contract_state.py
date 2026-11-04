@@ -5,6 +5,7 @@ from __future__ import annotations
 import ast
 import hashlib
 import json
+import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
@@ -921,6 +922,35 @@ def _python_string_or_none(value: str | None) -> str:
     return "None" if value is None else _python_string(value)
 
 
+def _split_string_literal(value: str, *, limit: int = 76) -> list[str]:
+    """長い文字列を暗黙連結用の断片へ分割する。
+
+    Args:
+        value: 分割する文字列。
+        limit: 1 断片の最大長。
+
+    Returns:
+        連結すると元の文字列になる断片列。
+    """
+    tokens = [part for part in re.split(r"(?<= )|(?<=\.)", value) if part]
+    chunks: list[str] = []
+    current = ""
+    for token in tokens:
+        while len(token) > limit:
+            head, token = token[:limit], token[limit:]
+            if current:
+                chunks.append(current)
+                current = ""
+            chunks.append(head)
+        if current and len(current) + len(token) > limit:
+            chunks.append(current)
+            current = ""
+        current += token
+    if current:
+        chunks.append(current)
+    return chunks
+
+
 def _render_row(row: tuple[str, ...]) -> str:
     """短い tuple は 1 行、長い tuple は値ごとの行で描画する。"""
     values = tuple(_python_string(value) for value in row)
@@ -928,7 +958,16 @@ def _render_row(row: tuple[str, ...]) -> str:
     # 呼出側のインデント4文字と末尾commaも行長へ含める。
     if len(compact) + 5 <= 88:
         return compact
-    return "(\n" + "".join(f"        {value},\n" for value in values) + "    )"
+    rendered: list[str] = []
+    for value in row:
+        literal = _python_string(value)
+        if len(literal) + 9 <= 88:
+            rendered.append(f"        {literal},\n")
+            continue
+        chunks = _split_string_literal(value, limit=76)
+        body = "".join(f"            {_python_string(chunk)}\n" for chunk in chunks)
+        rendered.append("        (\n" + body + "        ),\n")
+    return "(\n" + "".join(rendered) + "    )"
 
 
 def _render_string_tuple(values: list[str]) -> str:

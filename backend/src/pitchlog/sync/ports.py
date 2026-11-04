@@ -134,6 +134,8 @@ class InvalidationSinkPort(Protocol):
 PORT_IMPLEMENTATIONS: frozenset[tuple[str, str]] = frozenset(
     {
         ("pitchlog.sync.first_ball_ports", "FirstBallContentValidationPort"),
+        ("pitchlog.sync.ordinary_pitch_ports", "OrdinaryPitchContentValidationPort"),
+        ("pitchlog.sync.ordinary_pitch_ports", "OrdinaryPitchProjectionPort"),
         ("pitchlog.sync.first_ball_projection", "FirstBallProjectionPort"),
         ("pitchlog.sync.first_ball_recording_rights", "FirstBallRecordingRightsPort"),
     }

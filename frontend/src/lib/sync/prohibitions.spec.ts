@@ -390,6 +390,7 @@ const EXPECTED_TYPE_EXPORTS = {
     'DurableI6Slot',
     'DurableQueueAppend',
     'DurableQueueOptions',
+    'DurableQueuePage',
     'DurableQueueRevisionReplacement',
     'DurableQueueScope',
     'DurableQueueSlot',

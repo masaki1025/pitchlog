@@ -113,12 +113,18 @@ _SYNC_BINDING_TABLES = {
     "writer_admissions",
     "first_ball_write_admissions",
 }
+_ORDINARY_PRIVATE_TABLES = {
+    "ordinary_pitch_checkpoints",
+    "ordinary_pitch_write_admissions",
+    "ordinary_pitch_history",
+}
 # 旧46表と初期権4表を保ち、私有3表だけをfunction_onlyへ加える。
 _EXPECTED_PROFILES = {
     **_EXPECTED_LEGACY_PROFILES,
     "function_only": _EXPECTED_LEGACY_PROFILES["function_only"]
     | _INITIAL_RIGHT_STORAGE_TABLES
-    | _SYNC_BINDING_TABLES,
+    | _SYNC_BINDING_TABLES
+    | _ORDINARY_PRIVATE_TABLES,
 }
 _EXPECTED_LEGACY_FACT_TABLES = {
     "rg1_control": {"rg1_restore_gate"},
@@ -160,6 +166,7 @@ _EXPECTED_FACT_TABLES = {
     **_EXPECTED_LEGACY_FACT_TABLES,
     "initial_right_storage": _INITIAL_RIGHT_STORAGE_TABLES,
     "sync_writer_binding_storage": _SYNC_BINDING_TABLES,
+    "ordinary_pitch_storage": _ORDINARY_PRIVATE_TABLES,
 }
 _EXPECTED_LEGACY_SECRET_COLUMNS = {
     ("tenant_credentials", "password_hash"),
@@ -175,6 +182,9 @@ _PROFILE_MUTATIONS = (
     ("writer_bindings", "tenant_owned"),
     ("writer_admissions", "tenant_owned"),
     ("first_ball_write_admissions", "tenant_owned"),
+    ("ordinary_pitch_checkpoints", "tenant_owned"),
+    ("ordinary_pitch_write_admissions", "tenant_owned"),
+    ("ordinary_pitch_history", "tenant_owned"),
     ("admin_credentials", "global_read_only"),
     ("tenant_credentials", "tenant_owned"),
     ("analysis_groups", "tenant_owned"),
@@ -337,7 +347,7 @@ def test_design_assignment_satisfies_all_classification_conditions(
         "self_tenant_row": 1,
         "effective_group_control": 4,
         "global_read_only": 4,
-        "function_only": 18 + len(_SYNC_BINDING_TABLES),
+        "function_only": 18 + len(_SYNC_BINDING_TABLES) + len(_ORDINARY_PRIVATE_TABLES),
     }
     assert (
         _row_for_table(classification, "rule_sets")["access_path"]["owner_unit"]
@@ -368,7 +378,11 @@ def test_manifest_models_and_classification_have_the_same_population(
         row["table"] for row in _classification_rows(classification)
     }
 
-    assert len(manifest_tables) == len(model_tables) == 50 + len(_SYNC_BINDING_TABLES)
+    assert (
+        len(manifest_tables)
+        == len(model_tables)
+        == 50 + len(_SYNC_BINDING_TABLES) + len(_ORDINARY_PRIVATE_TABLES)
+    )
     assert manifest_tables == model_tables == classification_tables
 
 

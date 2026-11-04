@@ -7,7 +7,7 @@ S-1 の SyncRequest を受ける。保存処理は P1〜P5 の局所経路を再
 from __future__ import annotations
 
 from collections.abc import Mapping
-from contextlib import nullcontext
+from contextlib import ExitStack, nullcontext
 from dataclasses import dataclass
 from typing import Literal, cast
 from uuid import UUID
@@ -359,7 +359,7 @@ def _replay_e1_without_binding(
 ) -> AckResult | Literal["B6", "B7"] | None:
     """③認可後・V12前の D5 先行分類を writer binding 前に一度だけ行う。
 
-    正本 sync-protocol DI1〜DI3 と 7-3 の再掲を、単球F1入口（1要求1イベント）
+    正本 sync-protocol DI1〜DI3 と 7-3 の再掲を、単球入口（1要求1イベント）
     の範囲で実装する。同一内容の保存済み D5 は再適用せず、受理→A5「重複」・
     拒否→同理由・退避→同退避として返し、異内容は B3b とする。未使用 D5 を
     含む要求は通常の段階順（⑤以降）へ戻すため ``None`` を返す。
@@ -394,7 +394,11 @@ def _replay_e1_without_binding(
         # 単球F1入口の範囲外は流儀どおり後段（_E1OutOfScope）へ委ねる。
         return None
     event = request.events[0]
-    if type(event.d1) is not int or event.d1 != 1 or type(event.d4) is not str:
+    if (
+        type(event.d1) is not int
+        or not 0 < event.d1 <= 2**53 - 1
+        or type(event.d4) is not str
+    ):
         return None
     game_id = UUID(request.game_id)
     if not game_accessible(context, game_id, tenant_transaction_scope):
@@ -697,7 +701,10 @@ def _apply_e1_f1(
         return "B5"
     if not game_accessible(context, UUID(request.game_id), tenant_transaction_scope):
         return "B6"
-    if len(request.events) != 1 or request.events[0].d1 != 1:
+    from pitchlog.sync.ordinary_pitch_ports import OrdinaryPitchContentValidationPort
+
+    ordinary = type(validator) is OrdinaryPitchContentValidationPort
+    if len(request.events) != 1 or (not ordinary and request.events[0].d1 != 1):
         raise _E1OutOfScope("E1要求はF1の範囲外")
     event = request.events[0]
     registrations = registrations or {}
@@ -709,7 +716,10 @@ def _apply_e1_f1(
     preflight = None
 
     try:
-        with tenant_transaction_scope(context) as scope:
+        with (
+            tenant_transaction_scope(context) as scope,
+            ExitStack() as qualification_stack,
+        ):
             with _sync_apply_active():
                 # この呼出点だけB7へ写し、bind_writer内部の例外は伝播。
                 try:
@@ -718,15 +728,6 @@ def _apply_e1_f1(
                     return "B7"
                 bound = control.bind_writer(scope, context, phase, cookie=cookie)
                 with gated_e1_writer(scope, rights) as gated:
-                    device = _verify_bound_device(
-                        bound,
-                        reference_device,
-                        request.game_id,
-                        presentation=state.device_presentation,
-                    )
-                    if device != "match":
-                        rejected_boundary = "B6" if device == "different_game" else "B5"
-                        raise rollback_marker
                     source = _E1CoreSource(
                         binding,
                         scope=scope,
@@ -736,6 +737,23 @@ def _apply_e1_f1(
                         phase=phase,
                         bound=bound,
                     )
+                    if ordinary:
+                        from pitchlog.sync.ordinary_pitch_execution import (
+                            _ordinary_qualification_scope,
+                        )
+
+                        qualification_stack.enter_context(
+                            _ordinary_qualification_scope(scope, source)
+                        )
+                    device = _verify_bound_device(
+                        bound,
+                        reference_device,
+                        request.game_id,
+                        presentation=state.device_presentation,
+                    )
+                    if device != "match":
+                        rejected_boundary = "B6" if device == "different_game" else "B5"
+                        raise rollback_marker
                     preflight = _preflight_in_scope(
                         scope,
                         context,
@@ -776,7 +794,10 @@ def _apply_e1_f1(
                         try:
                             if path == "P4":
                                 return reject_one(ctx, req, current, port, registration)
-                            from pitchlog.sync.ordering import _assign_d2
+                            from pitchlog.sync.ordering import (
+                                _assign_d2,
+                                _assign_ordinary_append_d2,
+                            )
 
                             return _apply_locked_in_scope(
                                 scope,
@@ -789,7 +810,13 @@ def _apply_e1_f1(
                                 target,
                                 source=source,
                                 path=path,
-                                order_resolver=_assign_d2 if path == "P2" else None,
+                                order_resolver=(
+                                    _assign_ordinary_append_d2
+                                    if ordinary
+                                    else _assign_d2
+                                )
+                                if path == "P2"
+                                else None,
                                 writer=gated.writer,
                             )
                         except P1PreconditionError as error:

@@ -17,6 +17,12 @@ from pitchlog.repositories.games import PREPARING_GAME_READ_OPERATIONS
 from pitchlog.repositories.invalidation_intents import INVALIDATION_INTENT_OPERATIONS
 from pitchlog.repositories.lineup_memory import LINEUP_MEMORY_OPERATIONS
 from pitchlog.repositories.operation_registration import OperationRegistration
+from pitchlog.repositories.ordinary_order import ORDINARY_ORDER_OPERATIONS
+from pitchlog.repositories.ordinary_pitch_operations import ORDINARY_PLAY_OPERATIONS
+from pitchlog.repositories.ordinary_pitch_qualification import (
+    ORDINARY_QUALIFICATION_OPERATIONS,
+)
+from pitchlog.repositories.ordinary_prefix_operations import ORDINARY_PREFIX_OPERATIONS
 from pitchlog.repositories.pitch_type_options import PITCH_TYPE_OPTIONS_OPERATIONS
 from pitchlog.repositories.preparing_game_creation import (
     PREPARING_GAME_CREATE_OPERATIONS,
@@ -59,6 +65,7 @@ PRODUCT_OPERATIONS: tuple[OperationRegistration, ...] = (
     *RECORDED_SNAPSHOT_OPERATIONS,
     *PREPARING_GAME_CREATE_OPERATIONS,
     *PITCH_TYPE_OPTIONS_OPERATIONS,
+    *ORDINARY_PLAY_OPERATIONS,
 )
 
 _STATIC_PRODUCT_FUNCTION_BINDING_IDS = frozenset(
@@ -68,6 +75,13 @@ _STATIC_PRODUCT_FUNCTION_BINDING_IDS = frozenset(
         "SYNC_WRITER_BINDING:read_writer_identity",
         "SYNC_WRITER_BINDING:assert_writer_binding",
         "SYNC_FIRST_BALL:read_device_state",
+        "SYNC_ORDINARY_PITCH:bind_ordinary_device",
+        "SYNC_ORDINARY_PITCH:check_ordinary_right",
+        "SYNC_ORDINARY_PITCH:prepare_ordinary_projection",
+        "SYNC_ORDINARY_PITCH:read_ordinary_checkpoint",
+        "SYNC_ORDINARY_PITCH:lock_ordinary_checkpoint",
+        "SYNC_ORDINARY_PITCH:read_ordinary_history_page",
+        "SYNC_ORDINARY_PITCH:read_ordinary_order_summary",
     }
 )
 
@@ -75,14 +89,14 @@ _STATIC_PRODUCT_FUNCTION_BINDING_IDS = frozenset(
 def _registered_product_function(
     registration: FunctionOperationRegistration, *, operation_id: str
 ) -> FunctionOperationRegistration:
-    """既実宣言とliteral IDの一致だけを検証し同objectを返す。"""
+    """単一源の実registrationと静的IDを完全照合し、同じobjectだけを登録する。"""
     if (
         type(registration) is not FunctionOperationRegistration
         or type(operation_id) is not str
         or operation_id not in _STATIC_PRODUCT_FUNCTION_BINDING_IDS
         or registration.operation_id != operation_id
     ):
-        raise ValueError("製品関数の有限登録が不一致")
+        raise ValueError("製品固定関数の実参照と静的IDが不一致")
     return registration
 
 
@@ -158,6 +172,34 @@ PRODUCT_FUNCTION_OPERATIONS: tuple[FunctionOperationRegistration, ...] = (
     ),
     _registered_product_function(
         DEVICE_STATE_READ_OPERATION, operation_id="SYNC_FIRST_BALL:read_device_state"
+    ),
+    _registered_product_function(
+        ORDINARY_QUALIFICATION_OPERATIONS[0],
+        operation_id="SYNC_ORDINARY_PITCH:bind_ordinary_device",
+    ),
+    _registered_product_function(
+        ORDINARY_QUALIFICATION_OPERATIONS[1],
+        operation_id="SYNC_ORDINARY_PITCH:check_ordinary_right",
+    ),
+    _registered_product_function(
+        ORDINARY_QUALIFICATION_OPERATIONS[2],
+        operation_id="SYNC_ORDINARY_PITCH:prepare_ordinary_projection",
+    ),
+    _registered_product_function(
+        ORDINARY_PREFIX_OPERATIONS[0],
+        operation_id="SYNC_ORDINARY_PITCH:read_ordinary_checkpoint",
+    ),
+    _registered_product_function(
+        ORDINARY_PREFIX_OPERATIONS[1],
+        operation_id="SYNC_ORDINARY_PITCH:lock_ordinary_checkpoint",
+    ),
+    _registered_product_function(
+        ORDINARY_PREFIX_OPERATIONS[2],
+        operation_id="SYNC_ORDINARY_PITCH:read_ordinary_history_page",
+    ),
+    _registered_product_function(
+        ORDINARY_ORDER_OPERATIONS[0],
+        operation_id="SYNC_ORDINARY_PITCH:read_ordinary_order_summary",
     ),
 )
 FUNCTION_OPERATION_REGISTRY = build_function_registry(

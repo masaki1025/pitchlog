@@ -420,7 +420,7 @@ def test_formal_metadata_has_exact_column_and_table_acl_union() -> None:
         "functions": 2,
         "policies": 5,
         "acl_expectations": 2,
-        "column_acl_expectations": 82,
+        "column_acl_expectations": 83,
     }
     assert all(row["column_id"] != "xmin" for row in rows["column_acl_expectations"])
     state = [

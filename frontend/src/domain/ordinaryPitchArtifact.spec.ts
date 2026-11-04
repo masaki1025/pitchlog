@@ -19,6 +19,8 @@ const source = readFileSync(
 const context = createContext({})
 new Script(source).runInContext(context, { timeout: 1000 })
 const api = context.PitchlogDomain as {
+  deriveState: (request: string) => string
+  deriveFirstPitchWithContinuation: (request: string) => string
   deriveOrdinaryPitch: (request: string) => string
 }
 const invoke = (request: unknown) =>
@@ -57,4 +59,69 @@ describe('ビルド済み通常投球artifact', () => {
       })
     },
   )
+})
+
+const continuation = JSON.parse(
+  readFileSync(
+    resolve(
+      process.cwd(),
+      '../contracts/state-transition/recording_continuation_scope_v1.json',
+    ),
+    'utf8',
+  ),
+)
+const foul = JSON.parse(
+  readFileSync(
+    resolve(
+      process.cwd(),
+      '../contracts/state-transition/ordinary_two_strike_foul_candidate_v1.json',
+    ),
+    'utf8',
+  ),
+)
+it('再生成した配布物が一般792＋S2foul96と追加4の完全封筒を返す', () => {
+  expect(continuation.generalStateCases).toHaveLength(792)
+  expect(foul.generalStateCases).toHaveLength(96)
+  for (const row of [
+    ...continuation.generalStateCases,
+    ...foul.generalStateCases,
+  ])
+    expect(
+      invoke({ ...row.event, before: row.before, history: { stack: [] } }),
+      row.caseId,
+    ).toEqual({ ok: true, value: row.expectedT1 })
+  for (const row of foul.cases)
+    expect(invoke(row.request), row.caseId).toEqual(row.expected)
+})
+it('配布物でも旧初球は一般状態を拒否し、ordinaryだけを一般化する', () => {
+  const row = continuation.generalStateCases.find(
+    (x: {
+      event: { resultId: string }
+      before: { stateFields: Record<string, unknown> }
+    }) =>
+      x.event.resultId === 'batting-result.ball' &&
+      x.before.stateFields['state.count.balls'] === '0' &&
+      x.before.stateFields['state.count.strikes'] === '0',
+  )
+  const request = { ...row.event, before: row.before }
+  expect(JSON.parse(api.deriveState(JSON.stringify(request)))).toEqual({
+    ok: false,
+    error: { code: 'UNSUPPORTED_T1_SCOPE' },
+  })
+  expect(
+    JSON.parse(
+      api.deriveFirstPitchWithContinuation(
+        JSON.stringify({
+          t1: request,
+          rules: {
+            regulationInnings: '9',
+            coldConditions: [],
+            extensionLimit: '9',
+            tiebreak: null,
+            dh: true,
+          },
+        }),
+      ),
+    ).ok,
+  ).toBe(false)
 })

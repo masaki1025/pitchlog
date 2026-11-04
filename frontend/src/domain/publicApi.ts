@@ -1,3 +1,7 @@
+import {
+  prepareOrdinaryContinuation,
+  finishOrdinaryContinuation,
+} from './ordinaryPitchContinuation'
 import { quantizeCourse } from './courseQuantization'
 import { validateInitialGameRoster } from './initialGameRoster'
 import {
@@ -670,12 +674,30 @@ function deriveFirstPitchWithContinuation(requestJson: string): string {
   return JSON.stringify({ ok: true, value: { t1: t1, t2: t2 } })
 }
 
+/** 確認済prefixの参照と今回1entryを、単一T1/T2から導出する。 */
+function deriveOrdinaryPitchWithContinuation(requestJson: string): string {
+  const prepared = prepareOrdinaryContinuation(requestJson)
+  if (!prepared.ok) return prepared.response
+  const t1 = prepared.t1
+  const response = deriveOrdinaryPitch(
+    JSON.stringify({
+      eventKind: t1.eventKind,
+      resultId: t1.resultId,
+      pitchEventKind: t1.pitchEventKind,
+      before: t1.before,
+      history: { stack: [] },
+    }),
+  )
+  return finishOrdinaryContinuation(prepared.request, response)
+}
+
 /** JSON文字列だけの公開表。未実装の取消/訂正/他結果は公開しない。 */
 export const domainOperations = Object.freeze({
   ping,
   deriveState,
   deriveOrdinaryPitch,
   deriveFirstPitchWithContinuation,
+  deriveOrdinaryPitchWithContinuation,
   validateInitialGameRoster,
   quantizeCourse,
 })

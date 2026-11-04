@@ -97,6 +97,52 @@ def _assign_d2(scope: _TenantTransaction, game_id: UUID, desired: int) -> int | 
     raise P1PreconditionError("D2 の局所再採番に必要な隙間がない")
 
 
+def _assign_ordinary_append_d2(scope: _TenantTransaction, game_id: UUID, desired: int):
+    """既O4の全試合重複判定を維持し、実末尾後のappendだけ全頁走査を省く。"""
+    import json
+
+    from pitchlog.domainrt.first_pitch import _invalid_constant, _unique_object
+    from pitchlog.repositories.ordinary_order import OrdinaryOrderSummaryToken
+
+    if type(desired) is not int or not 0 <= desired <= _MAX_D2:
+        raise P1PreconditionError("P2 の V6 は非負の bigint が必要")
+    rows = scope.run_function(OrdinaryOrderSummaryToken(game_id)).rows
+    if len(rows) != 1 or len(rows[0]) != 1 or type(rows[0][0]) is not str:
+        raise RuntimeError("D2実末尾readの型が不正")
+    value = json.loads(
+        rows[0][0], object_pairs_hook=_unique_object, parse_constant=_invalid_constant
+    )
+    if (
+        type(value) is not dict
+        or set(value) != {"tail", "duplicate", "recovery_generation"}
+        or type(value["duplicate"]) is not bool
+        or type(value["recovery_generation"]) is not int
+        or not 0 < value["recovery_generation"] < 2**63
+    ):
+        raise RuntimeError("D2実末尾readの封筒が不正")
+    if value["duplicate"]:
+        return None
+    tail = value["tail"]
+    if tail is None:
+        return desired
+    if (
+        type(tail) is not dict
+        or set(tail) != set(_EVENT_COLUMNS)
+        or tail["game_id"] != str(game_id)
+        or tail["tenant_id"] != str(scope._bound_tenant_id)
+        or tail["replaced_at"] is not None
+        or tail["retired_at"] is not None
+        or type(tail["d2"]) is not int
+        or not 0 <= tail["d2"] <= _MAX_D2
+    ):
+        raise RuntimeError("D2実末尾原本の型が不正")
+    if desired > tail["d2"]:
+        return desired
+
+    # 過去位置のO1/O2は既唯一核へ委ね、順序・D5消費の意味を変えない。
+    return _assign_d2(scope, game_id, desired)
+
+
 def apply_p2_event(
     context: TenantContext,
     event: SyncEvent,

@@ -9339,8 +9339,8 @@ def test_fixed_first_ball_builder_keeps_current_and_legacy_complete_shapes() -> 
          'name in ("internal_generation",)'),
         ('name in ("internal_generation", "recovery_generation")',
          'name in ("internal_generation", "recovery_generation", "other")'),
-        ('function_name == "check_current_right"',
-         'function_name == "unapproved"'),
+        ('function_name in {"check_current_right", "check_ordinary_right"}',
+         'function_name in {"unapproved"}'),
         ('schema == "sync_right_api"', 'schema == "other_api"'),
         ('and field_type is int', 'and field_type is bool'),
         ('_canonical_bind("tenant_id", UUID)', '_canonical_bind("tenant_id", str)'),
@@ -9388,7 +9388,7 @@ def test_fixed_first_ball_builder_rejects_each_finite_shape_change(
     ),
 )
 def test_first_ball_condition2_shape_is_closed(mutation: str) -> None:
-    """初球6pathの条件2登録を欠落・余剰・別記号へ広げられない。"""
+    """初球5pathの条件2登録を欠落・余剰・別記号へ広げられない。"""
     value = _read_contract_asset(checker.DEFAULT_ALLOWLIST)
     key = "condition_2_first_ball_scoped_findings"
     groups = value[key]
@@ -9429,7 +9429,7 @@ def test_first_ball_condition2_requires_each_source_path_and_occurrence() -> Non
     )
     assert sum(
         len(owner.findings) for owner in contract.first_ball_condition2_owners
-    ) == 66
+    ) == 59
     for owner in contract.first_ball_condition2_owners:
         relative = owner.path.removeprefix("backend/src/")
         source = (REPOSITORY_ROOT / owner.path).read_text()

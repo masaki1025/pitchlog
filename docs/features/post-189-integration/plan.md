@@ -90,7 +90,7 @@ created: 2026-11-03
 | 9 | `backend/tests/test_sync_route_shape.py` | union | develop 243行 + #190 84行 |
 | 10 | `contracts/tenant_boundary/base-allowlist.json` | union+再導出 | 宣言はunion、historyは受理template出力 |
 | 11 | `contracts/tenant_boundary/cache-invalidation-contract.json` | develop採用 | 本文はdevelopと一致（revisionのみ差） |
-| 12 | `contracts/tenant_boundary/census-baseline.json` | develop採用 | `initial_population_proof` と `contract_revision: 21` を保持 |
+| 12 | `contracts/tenant_boundary/census-baseline.json` | develop採用+再導出 | `initial_population_proof` を基礎に、brokerのsite行を統合後ASTへ再導出（`contract_revision` は実測値へ） |
 | 13 | `contracts/tenant_boundary/db-api-inventory.json` | develop採用 | 本文はdevelopと一致（revisionのみ差） |
 | 14 | `contracts/tenant_boundary/negative-fixtures.json` | develop採用 | 本文はdevelopと一致（revisionのみ差） |
 | 15 | `contracts/tenant_boundary/repository-contract.json` | develop採用+追記 | develop基礎 + #190の関数operation 7件 + token 1件を追加しrevision再採番、`source_digest` を再計算 |

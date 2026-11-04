@@ -1,11 +1,11 @@
 """リポジトリ基底の公開面と不変戻り値規約を提供する生成モジュール。"""
 
 SCHEMA_VERSION = 1
-CONTRACT_REVISION = 31
+CONTRACT_REVISION = 35
 ASSET_KIND = "tenant_repository_contract"
 CANONICALIZATION = "json-sort-keys-utf8-v1"
 SOURCE_ASSET = "contracts/tenant_boundary/repository-contract.json"
-SOURCE_DIGEST = "b90ab2b656ad08adc98944a7794f9da201d184b056963c40edfe59b4cfca2b74"
+SOURCE_DIGEST = "27f41deef37f99711b4597a1bba87234eb63b66c9f3144afdf70a46e8b3e4558"
 
 REPOSITORY_TYPE = "pitchlog.repositories.base.TenantRepositoryBase"
 CONTEXT_BINDING_ENTRY = "pitchlog.repositories.base.TenantRepositoryBase.execute"
@@ -25,14 +25,16 @@ FUNCTION_TRANSACTION_ENTRY = (
 FUNCTION_OPERATION_REGISTRY = (
     "pitchlog.repositories.operation_registry.PRODUCT_FUNCTION_OPERATIONS"
 )
-FUNCTION_EXECUTOR_SYMBOL = FUNCTION_TRANSACTION_ENTRY
+FUNCTION_EXECUTOR_SYMBOL = (
+    "pitchlog.repositories.transaction._TenantTransaction.run_function"
+)
 FUNCTION_EXECUTOR_SIGNATURE = (
     "run_function(self, operation: TenantOperationToken) -> TenantOperationResult"
 )
 EXECUTOR_SYMBOL = "pitchlog.repositories.base.TenantRepositoryBase._execute_operation"
 EXECUTOR_SIGNATURE = (
-    "_execute_operation(self, context: TenantContext, "
-    "operation: TenantOperationToken) -> TenantOperationResult"
+    "_execute_operation(self, context: TenantContext, operation: "
+    "TenantOperationToken) -> TenantOperationResult"
 )
 
 ALLOWED_DTOS = ("pitchlog.repositories.tokens.TenantOperationResult",)
@@ -51,11 +53,7 @@ IMMUTABLE_SCALAR_TYPES = (
     "datetime.datetime",
     "datetime.time",
 )
-IMMUTABLE_CONTAINER_GRAMMAR = (
-    "tuple[T, ...]",
-    "frozenset[T]",
-    "mappingproxy[str, T]",
-)
+IMMUTABLE_CONTAINER_GRAMMAR = ("tuple[T, ...]", "frozenset[T]", "mappingproxy[str, T]")
 CANONICAL_TABLE = "orm_metadata_table_identity_for_registration_and_statement"
 UPDATE_IDENTITY = "actual_complete_primary_key_equalities_for_all_updates"
 UPDATE_BIND_NAMES = "primary_key_disjoint_from_target_columns_and_set_bindings"
@@ -81,7 +79,7 @@ FORBIDDEN_TYPES = (
     "non_frozen_dataclass",
 )
 
-PRODUCT_CAPABILITY_IDS: tuple[str, ...] = (
+PRODUCT_CAPABILITY_IDS = (
     "CAP:players:read",
     "CAP:players:insert",
     "CAP:players:update",
@@ -119,7 +117,7 @@ PRODUCT_CAPABILITY_IDS: tuple[str, ...] = (
     "CAP:tenant_vocabularies:insert",
     "CAP:tenant_vocabularies:read",
 )
-PRODUCT_OPERATION_TOKEN_TYPES: tuple[str, ...] = (
+PRODUCT_OPERATION_TOKEN_TYPES = (
     "pitchlog.repositories.roster.PlayerReadToken",
     "pitchlog.repositories.roster.PlayerCreateToken",
     "pitchlog.repositories.roster.PlayerUpdateToken",
@@ -184,9 +182,10 @@ PRODUCT_OPERATION_TOKEN_TYPES: tuple[str, ...] = (
     "pitchlog.repositories.preparing_game_creation.PreparingSelfTeamLockToken",
     "pitchlog.repositories.preparing_game_creation.PreparingOpponentTeamLockToken",
     "pitchlog.repositories.pitch_type_options.PitchTypeOptionsToken",
+    "pitchlog.sync.ordinary_pitch_tokens.OrdinaryPlayRowInsertToken",
 )
-CROSS_TENANT_FUNCTIONS: tuple[str, ...] = ()
-PRODUCT_FUNCTION_OPERATION_IDS: tuple[str, ...] = (
+CROSS_TENANT_FUNCTIONS = ()
+PRODUCT_FUNCTION_OPERATION_IDS = (
     "RG1:precheck",
     "RG1:commit_check",
     "RG1:scope_binding",
@@ -196,4 +195,11 @@ PRODUCT_FUNCTION_OPERATION_IDS: tuple[str, ...] = (
     "SYNC_WRITER_BINDING:read_writer_identity",
     "SYNC_WRITER_BINDING:assert_writer_binding",
     "SYNC_FIRST_BALL:read_device_state",
+    "SYNC_ORDINARY_PITCH:bind_ordinary_device",
+    "SYNC_ORDINARY_PITCH:check_ordinary_right",
+    "SYNC_ORDINARY_PITCH:prepare_ordinary_projection",
+    "SYNC_ORDINARY_PITCH:read_ordinary_checkpoint",
+    "SYNC_ORDINARY_PITCH:lock_ordinary_checkpoint",
+    "SYNC_ORDINARY_PITCH:read_ordinary_history_page",
+    "SYNC_ORDINARY_PITCH:read_ordinary_order_summary",
 )

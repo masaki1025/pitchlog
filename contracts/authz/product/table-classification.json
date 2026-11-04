@@ -296,6 +296,30 @@
         "reason": "sync_writer_binding_storage",
         "owner_unit": "U-R1"
       }
+    },
+    {
+      "table": "ordinary_pitch_checkpoints",
+      "profile": "function_only",
+      "access_path": {
+        "reason": "ordinary_pitch_storage",
+        "owner_unit": "U-R1"
+      }
+    },
+    {
+      "table": "ordinary_pitch_write_admissions",
+      "profile": "function_only",
+      "access_path": {
+        "reason": "ordinary_pitch_storage",
+        "owner_unit": "U-R1"
+      }
+    },
+    {
+      "table": "ordinary_pitch_history",
+      "profile": "function_only",
+      "access_path": {
+        "reason": "ordinary_pitch_storage",
+        "owner_unit": "U-R1"
+      }
     }
   ]
 }
