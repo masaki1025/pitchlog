@@ -171,7 +171,7 @@ def _v2_candidate_declarations():
 
 
 def candidate_declarations():
-    """新源泉2表9列/SELECT policyだけを追加し、app直接許可は増やさない。"""
+    """開始原本2表と打球語彙7列/2policyを閉登録し、app権限を増やさない。"""
     declarations, bodies = _v2_candidate_declarations()
     for table, columns in (
         (
@@ -227,7 +227,64 @@ def candidate_declarations():
             bodies["column_acl_expectation|" + key] = (
                 f"GRANT SELECT ({column}) ON public.{table} TO {OWNER};\n"
             )
+    _append_batted_hit_vocabularies(declarations, bodies)
     return declarations, bodies
+
+
+def _append_batted_hit_vocabularies(declarations, bodies):
+    """審査済み7列/2policyだけを静的に加え、任意grant入力を受けない。"""
+    tenant = (
+        "tenant_id = NULLIF(pg_catalog.current_setting('app.tenant_id',true),'')::uuid "
+        "AND session_user = 'pitchlog_app'"
+    )
+    for table, columns, predicate in (
+        (
+            "admin_vocabularies",
+            ("key", "category", "disabled"),
+            "session_user = 'pitchlog_app'",
+        ),
+        ("tenant_vocabularies", ("tenant_id", "key", "category", "disabled"), tenant),
+    ):
+        name = "batted_hit_select_" + table
+        identifier = f"POLICY:{table}:{name}"
+        declarations["policies"].append(
+            {
+                "policy_id": identifier,
+                "table_id": table,
+                "profile": "function_only",
+                "policy_name": name,
+                "command": "SELECT",
+                "policy_mode": "permissive",
+                "role_ids": [OWNER],
+                "using_predicate_id": None,
+                "using_column": None,
+                "using_expression": predicate,
+                "with_check_predicate_id": None,
+                "with_check_column": None,
+                "with_check_expression": None,
+            }
+        )
+        bodies["policy|" + identifier] = (
+            f"CREATE POLICY {name} ON public.{table} AS PERMISSIVE FOR SELECT "
+            f"TO {OWNER} USING ({predicate});\n"
+        )
+        for column in columns:
+            identifier = f"COLUMN-ACL:public:{table}:{column}:{OWNER}"
+            declarations["column_acl_expectations"].append(
+                {
+                    "expectation_id": identifier,
+                    "object_kind": "column",
+                    "object_schema": "public",
+                    "object_id": table,
+                    "column_id": column,
+                    "grantee_role_id": OWNER,
+                    "privilege_ids": ["SELECT"],
+                    "grant_option": False,
+                }
+            )
+            bodies["column_acl_expectation|" + identifier] = (
+                f"GRANT SELECT ({column}) ON public.{table} TO {OWNER};\n"
+            )
 
 
 def require_registered_product(*, artifact_sha256=None, mode="play-prefix-play-v2"):

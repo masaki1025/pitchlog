@@ -17,8 +17,8 @@ def test_exact_product_surface_and_no_direct_runner_app_grant():
     """私有3関数をappへ開かず、全列と新2triggerだけを描画する。"""
     declarations, bodies = candidate_declarations()
     assert len(declarations["functions"]) == 8
-    assert len(declarations["policies"]) == 4
-    assert len(declarations["column_acl_expectations"]) == 19
+    assert len(declarations["policies"]) == 6
+    assert len(declarations["column_acl_expectations"]) == 26
     assert {
         r["column_id"]
         for r in declarations["column_acl_expectations"]
@@ -34,6 +34,16 @@ def test_exact_product_surface_and_no_direct_runner_app_grant():
     } | {
         ("game_start_attempts", c)
         for c in ("tenant_id", "game_id", "start_request_id", "device_id", "outcome")
+    } | {("admin_vocabularies", c) for c in ("key", "category", "disabled")} | {
+        ("tenant_vocabularies", c) for c in ("tenant_id", "key", "category", "disabled")
+    }
+    assert {(r["table_id"], r["policy_name"]) for r in declarations["policies"]} == {
+        ("play_runners", "play_prefix_select_play_runners"),
+        ("play_runners", "play_prefix_insert_play_runners"),
+        ("game_start_requests", "lineup_prefix_game_start_requests_select"),
+        ("game_start_attempts", "lineup_prefix_game_start_attempts_select"),
+        ("admin_vocabularies", "batted_hit_select_admin_vocabularies"),
+        ("tenant_vocabularies", "batted_hit_select_tenant_vocabularies"),
     }
     for row in declarations["functions"]:
         name = row["function_name"]
