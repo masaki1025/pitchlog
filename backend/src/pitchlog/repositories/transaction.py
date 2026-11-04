@@ -771,6 +771,12 @@ def tenant_transaction_scope(
 
 def _stats_read_operation(operation: TenantOperationToken) -> bool:
     """共通readerの3種の実型だけを識別し、派生型/同名偽tokenを拒否する。"""
+    # 既存operationは未導入の成績moduleへ依存させない。名前は許可根拠にしない。
+    if type(operation).__module__ not in {
+        "pitchlog.repositories.play_export_primitives",
+        "pitchlog.repositories.stats",
+    }:
+        return False
     from pitchlog.repositories.play_export_primitives import (
         OpenPrimitiveSnapshotToken,
         ReadPrimitivePageToken,
