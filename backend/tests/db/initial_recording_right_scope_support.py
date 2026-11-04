@@ -36,7 +36,7 @@ from .durable_rights_ledger_support import (
 from .rg1_lifecycle_support import observed_identity
 
 _BACKEND = Path(__file__).resolve().parents[2]
-_INITIAL_REVISION = "0038_first_ball_write_admission"
+_INITIAL_REVISION = "0039_ordinary_pitch_storage"
 _ACTOR_UID = 20002
 _CONTROLLER_UID = 20004
 # 既initial候補の公開vector。運用資格/鍵を新発行しない。

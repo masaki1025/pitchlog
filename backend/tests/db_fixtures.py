@@ -1136,6 +1136,9 @@ def _snapshot_product_catalog(
                 "writer_bindings",
                 "writer_admissions",
                 "first_ball_write_admissions",
+                "ordinary_pitch_checkpoints",
+                "ordinary_pitch_write_admissions",
+                "ordinary_pitch_history",
             )
         }
         if set(schema_names) == legacy_schemas | private_schemas
@@ -1483,7 +1486,7 @@ def _prepare_current_product_baseline(
     assert result.completed_stage == "S3" and result.publishable is False
     with applicator.cursor() as cursor:
         cursor.execute("SELECT version_num FROM public.alembic_version")
-        assert cursor.fetchall() == [("0038_first_ball_write_admission",)]
+        assert cursor.fetchall() == [("0039_ordinary_pitch_storage",)]
     applicator.rollback()
 
 
