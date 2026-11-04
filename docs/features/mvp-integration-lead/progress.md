@@ -1,6 +1,14 @@
 # 初回MVP 主担当引受・進捗台帳
 
 
+## 続き：2026-11-05（最終再検証の失敗を分離、安打の保存境界を修復）
+
+- **#192最終検査**: 固定37e29859でfrontend eslint/vue-tsc成功、Vitest138file/3241pass289.52秒、backend ruff/ty成功。最終HEAD非作者8b4ca6f3…はbase eb8との差191path/diff db8ba933…を束縛しcode未解消0を確認したが、**NOT_MERGE_READY**。r9の診断bootstrap無し実画面は新規POST503で失敗165.07秒。製品methodをwrapせずcold CLIを起動し例外型/行のみ観測するcache診断r10は作成/開始/初球保存後、2球目POST待ち30秒で失敗109.92秒。両方全3627追跡path SHA/HEAD不変、log/xml/resultをmvp-resume-20261104へ保全。r8成功は消さないが再現性未成立、原因調査中でpush/統合を保留する。実機/信頼済HTTPSでもない。
+- **履歴試験の限定不整合**: full影響suiteは走行中でpositive fixture関連に失敗。旧transaction正例にcurrent pr192全byte identityを当てたもの。cache実検査で旧全fixtureが真正eb8 Git byteと一致し、current checker＋真正eb8 contractで旧正例は成功、current contractは同fixtureをidentity拒否、copy treeのtransactionだけ真正current sourceへ置換すれば成功。この3面とreject-all mutantを保持したtest-only修復を準備する。製品guardを無効化・除外してgreenにしない。正式値を最終sourceへ再導出する前に後発修復をまとめる。
+- **安打の新しい保存接合**: 実r2は作成/開始後のPlayRow検証で打球6列を旧常時NULL条件が拒否。source1+新純対向1をplan0371a7cfのexact2で修復し、非作者25f14ac0…の43pass/登録経由20対向・旧token/非安打/他nullable/41型/原本preflight保持を確認、**2bf2c0b7**へ保存。owned PG r3は同HEAD/runtime22SHAで走行中。r2第二fixtureのauthority起動45秒timeoutも別失敗として残す。旧失敗から実保存成功を推定しない。
+- **後半と次の依存**: 成績は同frame nonce資格を再利用するsaveの8引数候補とsame-handle RR/ROを保つread関数候補の実SQLを並行実装。正式採用/登録/DB成功はまだ。#192再現性とfixture資格を閉じ、安打実保存の残差を是正しながら、同TX T5/共通S→CSVへ進む。既全MVP・未回答4意味判断・ユーザー実機の義務を保持。Goal active。
+
+
 ## 続き：2026-11-05（#192正式値を固定、develop赤の修復と後半の実DB接続）
 
 - **利用者操作と実証**: 前節の三振3PA→攻守交代→相手側1球→ACK結果不明からの認証再確認・reload・二重保存なしは32f68a1c/r8の実測を保持。正式develop eb8b31cdは通常/四球/死球まで。新最終候補37e298594e76c77af43c44f9581a837162d6a3fcで、診断bootstrap無しの同一owned HTTPS/PG実画面r9を実行中。未完を成功へ数えない。
