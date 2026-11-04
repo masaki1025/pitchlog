@@ -216,3 +216,5 @@ SQL22候補は12新規/10既存before/全after SHAが新基線と一致する。
 ### 2026-11-05 実PG初回の制約停止診断
 
 owned PGの既BB/HBP2系列は成功、新v3系列は初球のafter_t4_projection故障注入より前にIntegrityErrorとなった（全2pass1fail222.80秒）。assert/故障要求を保持し、backend/tests/db/test_terminal_pitch_storage.py exact1だけでSQLSTATEと固定schema/table/column/constraint名の診断を保全し、失敗時の構造化結果をJSON文字列で出力する。SQL本文/原値/資格は出さず、例外を成功へ変えない。既test/共有base scriptは変更しない。主担当のPO委任で本step4原因確認を進め、同じ失敗を無根拠に再実行せず新診断版の新v3対向だけをowned環境で再現する。
+
+診断版43.04秒の実再現でSQLSTATE23503・fk_play_rows_batting_resultを特定した。旧ordinaryテスト関数自身はcalled-pitch語彙をowned DBへ登録するが、新v3テストは同準備を呼ばず、参照先がないまま見逃し9球を送っていた。FK/認可/保存処理を緩めず、新v3テストexact1のowned admin準備へ同じ固定called-pitch語彙1件だけを追加する。試合や保存済みプレイは投入せず実POST作成を維持。診断版の制約名出力も残し、新候補固定後に同v3対向のみ再実証する。
