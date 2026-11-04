@@ -208,3 +208,7 @@ PO委任によるCodex主担当/root判断。原WT `feature-mvp-strikeout-pitche
 次に保全38patch+native test1を有限適用し、追加3競合（started route/operation registry/terminal stamp test）を解消する。テキスト適用可能でもv3 DTOには既#191のrecovery alias/共有assert_prefix_matchesを伝播し、routerは直接3reader分岐を保持。旧SQL比較pinの正式登録を旧literalへ戻さない。原native修復a15578f…の独立P2採用3efa74db…はexact1に限り、全source受理へ広げない。
 
 SQL22候補は12新規/10既存before/全after SHAが新基線と一致する。既backport済BigIntegerは重ねて実装せず、既20関数/拒否と新LINEUP origin1の正式登録・ACL/CAPを実物から照合する。既ステップ4の固定登録/3層/全同TX/故障対向/真正source・同artifactの順で完了し、独立レビュー後にowned PGの9SO→反対側通常球/再送/全取消/越境を通す。coreの次lineup有限層は#191の最小修復を継承して宣言・負例を先行し、未登録のままpushしない。ステップ5画面は4の採用後に開始する。新たな野球意味/仮成功/認可や耐久保証の弱化を許可するものではない。
+
+### 2026-11-05 統合候補のartifact再生成と実行pin接合
+
+702948fcの実sourceで唯一artifactを再buildしcda0b594…/57468bytesとなった。既ステップ2/3/4で許可済みの実行pin13と既first_ball_payload_vectors_v1.jsonをrootが専有追随する。execution/hashと明示first-ball artifactSha256だけを新実byteへ更新し、旧prior/互換の全既行は不変。v3の同一chain内だけは前行で実際に生成するcheckpoint/prior artifactへ連結し、v2/v3自己echoは既正式wire-head規則から再導出する。T1/T2/履歴/参加者/走者の数学期待を実装出力で生成せず全値保持する。sourceSha/sourceCasesShaは実byteから導出し、旧Gitとの完全応答比較証拠が成立した組だけ新互換行を追記する。全前後と後発差分を非作者へ渡し、固定候補/局所比較と実保存/画面/正式受理を分離する。
