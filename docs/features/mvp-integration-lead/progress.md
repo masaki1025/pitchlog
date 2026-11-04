@@ -1,5 +1,15 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 続き：2026-11-04（191の実DB接合成功、認可追随を確定）
+
+- **新たに実証した操作**: #191候補で無走者の四球/死球を原子的に保存し、次打者の通常球へ継続する実API→owned PGの2系列が成功（2件/178.69秒、product source固定6939271、実行時metadata差分あり）。元D5再送・途中故障の全取消・越境拒否を含む。事前投入試合を画面作成実証へ読み替えず、正式develop・最終同版画面の成功とも区別する。正式develop40ceは#190、develop CI41822464555もsuccessを確認。
+- **保存した是正**: 契約/履歴参照混在修復c70d01d2、BigInteger既成果3関数9bind再利用24922b31、実source固定6939271、派生入力e1ca5d2a、source登録332eaee0、Oracle追随5a79898e。旧119契約+15新契約=134、旧49行ID不変/新2修飾、旧反例・旧18封印履歴を保持。manual fixtureの暫定bootstrapは正式P-6受理へ昇格していない。
+- **検査**: 契約3module707成功、backend関連429成功、API等166成功、実PG正式startup20成功+fresh startup1成功。frontend133file/2857成功、vue-tsc・eslint成功。default authz検査1429件ok。ログはcache `mvp-resume-20261104/` の各pr191-*.log、startup191/fresh191/terminal191のresult.json。実DBは全て自己所有loopback PG、共有DSN未継承、自己container削除済み。
+- **独立採否**: 契約63419492・BigInt32ccdfd6・派生入力b1db203c・source6c1dee55・Oracle6e7c29b8の各REPORT SHAでP0/P1未解消0を確認、PO委任によるCodex主担当判断で有限採用。本人の逐行確認/署名/P-6 blindとは記録しない。source登録の実抑止効果をcensusへ接合するexact3の作者はpr192_resume_audit、code固定後の旧回帰を継続中。非作者native_p2_nonauthorは最終packet待ち、rootは同3pathを書かない。
+- **次の依存/実行順**: census exact3の非作者採否→実前後値からtenant単一#191受理record/snapshot/corpus再導出→同一固定HEADの画面3系列（通常/四球/死球、作成→開始→保存→再取得→reload/再送）→最終差分レビュー/委任証拠/1回push/必須CI→通常統合。Census成功/チェック通過だけで正式受理やMVP完了としない。
+- **並行作業**: #192の保全39pathと新9反例の独立採用を維持。毎球CSVの反映1は非作者P1=2（JS全件集計/計算方式の例外拡張）で未採用、同作者がexact6docsを反映2中。全件アプリ集計をDB側へ移し既D-1方式/最小正式化を明記する。成績27項目・成績CSV・全試合操作・offline/交代/閲覧/負荷/復旧・実機/運用HTTPSは未完成のまま残す。既存試験用TLSは期限切れのため隔離browserの技術実証に限り、信頼済みHTTPS/実機受入としない。
+
+
 ## 続き：2026-11-04（191の実接合を保存、192・毎球CSVを並行準備）
 
 - **正式提供/利用者操作**: 正式develop40ce（#190）の通常投球連続保存まで。#191のBB/HBP/次打者は本再開の正式統合・同版画面実証がまだで、提供済みへ拡張しない。#190成功CIとdevelop後続CIは別に追跡する。
