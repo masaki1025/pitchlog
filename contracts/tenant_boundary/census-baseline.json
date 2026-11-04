@@ -559,7 +559,13 @@
     "pr191_source_proof.identity_fields",
     "pr191_source_proof.meanings.TB002",
     "pr191_source_proof.meanings.TB003",
-    "pr191_source_proof.meanings.TB007"
+    "pr191_source_proof.meanings.TB007",
+    "pr192_source_proof.kind",
+    "pr192_source_proof.source_revision",
+    "pr192_source_proof.expectation_revision",
+    "pr192_source_proof.expected_fixture",
+    "pr192_source_proof.identity_fields",
+    "pr192_source_proof.meaning"
   ],
   "initial_population_proof": {
     "kind": "immutable_git_sites_and_counterfactual",
@@ -1098,5 +1104,21 @@
       "TB003": "one before-runner scalar copy after hold/no-destination validation",
       "TB007": "one locked-context liveness callback and one sealed OrdinaryPitchFrame site"
     }
+  },
+  "pr192_source_proof": {
+    "kind": "immutable_v3_sites_and_counterfactual",
+    "source_revision": "contracts/tenant_boundary/frozen-inputs.json#/frozen_inputs/pr192_source_registration_revision/value",
+    "expectation_revision": "contracts/tenant_boundary/frozen-inputs.json#/frozen_inputs/pr192_source_expectation_revision/value",
+    "expected_fixture": "tests/fixtures/pr192_tenant_source_expected_v1.json",
+    "identity_fields": [
+      "path",
+      "line",
+      "end_line",
+      "scope",
+      "code",
+      "symbol",
+      "message"
+    ],
+    "meaning": "6 fixed v3 owners/90 sites; old37 metadata and four supersession guards are separate"
   }
 }

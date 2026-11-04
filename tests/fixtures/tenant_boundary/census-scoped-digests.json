@@ -5,5 +5,6 @@
   "ledger_removed_checker": "cc9e8a25aa059103ecc354d3597e10a0603644518bdc195226f2cd25480679ec",
   "ledger_added_independent_ast": "0dbd512ac5095251e3391de5d4e33cca080ee3e4450c2a3a6921c01b758c8972",
   "first_ball_owned_suppression": "38bfad606be66cc42a63cb4423a562a04b13ec0839ff6211586c94973790c913",
-  "pr191_source_suppression": "a73fc7be8e49122cbefa39c08beec6d4a1abaf72f68df450237c8788903e59ac"
+  "pr191_source_suppression": "a73fc7be8e49122cbefa39c08beec6d4a1abaf72f68df450237c8788903e59ac",
+  "pr192_source_suppression": "64ded8d5cbd6682009c1b10ac6ec1f3fcf4e2fdb0b5792ed79a0fab19bcfdc69"
 }
