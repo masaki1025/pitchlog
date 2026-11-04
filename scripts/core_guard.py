@@ -197,6 +197,102 @@ _FIRST_BALL_LAYER_ORDERS = (
     ("N1_U1", "N2_A", "WRITER_BINDING"),
     ("N1_U1", "N2_A", "WRITER_BINDING", "ORDINARY_PITCH"),
 )
+# 22437086の既登録terminal suffixだけを外側の有限層として扱う。
+TERMINAL_PITCH_CORE_ADDITIONS: Mapping[str, tuple[str, ...]] = {
+    "sync-protocol": (
+        "frontend/src/domain/playPrefixContinuation.ts",
+        "frontend/src/domain/playPrefixContinuation.spec.ts",
+        "backend/src/pitchlog/domainrt/play_prefix_continuation.py",
+        "backend/tests/domainrt/test_play_prefix_continuation.py",
+        "backend/src/pitchlog/repositories/play_prefix.py",
+        "backend/src/pitchlog/sync/terminal_pitch_payload.py",
+        "backend/src/pitchlog/sync/terminal_pitch_projection.py",
+        "backend/src/pitchlog/sync/terminal_pitch_tokens.py",
+        "backend/src/pitchlog/authz/terminal_pitch_product.py",
+        "backend/src/pitchlog/authz/terminal_pitch_write_stamp.py",
+        "backend/tests/test_play_prefix.py",
+        "backend/tests/test_terminal_pitch_payload.py",
+        "backend/tests/test_terminal_pitch_projection.py",
+        "backend/tests/test_terminal_pitch_product.py",
+        "backend/tests/test_terminal_pitch_write_stamp.py",
+        "backend/tests/test_play_prefix_read.py",
+        "backend/tests/db/test_terminal_pitch_storage.py",
+        "backend/src/pitchlog/api/routers/sync.py",
+        "backend/src/pitchlog/sync/port_guard.py",
+        "backend/src/pitchlog/repositories/recorded_snapshot.py",
+        "frontend/src/api/terminalPitchWire.ts",
+        "frontend/src/api/terminalPitchWire.spec.ts",
+    ),
+    "game-state": (
+        "backend/src/pitchlog/repositories/play_prefix.py",
+        "backend/src/pitchlog/sync/terminal_pitch_payload.py",
+        "backend/src/pitchlog/sync/terminal_pitch_projection.py",
+        "backend/src/pitchlog/sync/terminal_pitch_tokens.py",
+        "backend/tests/test_play_prefix.py",
+        "backend/tests/test_terminal_pitch_payload.py",
+        "backend/tests/test_terminal_pitch_projection.py",
+        "backend/tests/test_play_prefix_read.py",
+        "backend/tests/db/test_terminal_pitch_storage.py",
+        "backend/src/pitchlog/repositories/recorded_snapshot.py",
+        "frontend/src/api/terminalPitchWire.ts",
+        "frontend/src/api/terminalPitchWire.spec.ts",
+    ),
+    "recording-rights": (
+        "backend/src/pitchlog/repositories/play_prefix.py",
+        "backend/src/pitchlog/sync/terminal_pitch_payload.py",
+        "backend/src/pitchlog/sync/terminal_pitch_projection.py",
+        "backend/src/pitchlog/sync/terminal_pitch_tokens.py",
+        "backend/src/pitchlog/authz/terminal_pitch_product.py",
+        "backend/src/pitchlog/authz/terminal_pitch_write_stamp.py",
+        "backend/tests/test_play_prefix.py",
+        "backend/tests/test_terminal_pitch_payload.py",
+        "backend/tests/test_terminal_pitch_projection.py",
+        "backend/tests/test_terminal_pitch_product.py",
+        "backend/tests/test_terminal_pitch_write_stamp.py",
+        "backend/tests/test_play_prefix_read.py",
+        "backend/tests/test_first_ball_write_stamp.py",
+        "backend/tests/db/test_terminal_pitch_storage.py",
+        "backend/src/pitchlog/api/routers/sync.py",
+        "backend/src/pitchlog/sync/port_guard.py",
+        "backend/src/pitchlog/repositories/recorded_snapshot.py",
+        "frontend/src/api/terminalPitchWire.ts",
+        "frontend/src/api/terminalPitchWire.spec.ts",
+    ),
+    "tenant-isolation": (
+        "backend/src/pitchlog/repositories/play_prefix.py",
+        "backend/src/pitchlog/sync/terminal_pitch_payload.py",
+        "backend/src/pitchlog/sync/terminal_pitch_projection.py",
+        "backend/src/pitchlog/sync/terminal_pitch_tokens.py",
+        "backend/src/pitchlog/authz/terminal_pitch_product.py",
+        "backend/src/pitchlog/authz/terminal_pitch_write_stamp.py",
+        "backend/tests/test_play_prefix.py",
+        "backend/tests/test_terminal_pitch_payload.py",
+        "backend/tests/test_terminal_pitch_projection.py",
+        "backend/tests/test_terminal_pitch_product.py",
+        "backend/tests/test_terminal_pitch_write_stamp.py",
+        "backend/tests/test_play_prefix_read.py",
+        "backend/tests/test_first_ball_write_stamp.py",
+        "backend/tests/db/test_terminal_pitch_storage.py",
+        "backend/src/pitchlog/api/routers/sync.py",
+        "backend/src/pitchlog/sync/port_guard.py",
+        "backend/src/pitchlog/repositories/recorded_snapshot.py",
+    ),
+    "data-migration": (
+        "backend/src/pitchlog/authz/terminal_pitch_product.py",
+        "backend/src/pitchlog/authz/terminal_pitch_write_stamp.py",
+        "backend/tests/test_terminal_pitch_product.py",
+        "backend/tests/test_terminal_pitch_write_stamp.py",
+        "backend/tests/test_first_ball_write_stamp.py",
+        "backend/tests/db/test_terminal_pitch_storage.py",
+        "frontend/src/api/terminalPitchWire.ts",
+        "frontend/src/api/terminalPitchWire.spec.ts",
+    ),
+}
+# 同じliteralが旧WB層に存在するのは、この領域pairだけ。新層とは数えない。
+_TERMINAL_HISTORICAL_REUSE_PAIRS = frozenset({
+    ("sync-protocol", "backend/tests/test_first_ball_write_stamp.py"),
+})
+
 REQUIRED_CHECK_RE = re.compile(
     rf"(?m)^[ \t]*-[ \t]*\[x\][ \t]+{re.escape(REQUIRED_CHECK_TEXT)}[ \t\r]*$"
 )
@@ -521,6 +617,52 @@ def validate_first_ball_area_path_layers(
         raise GuardError("初球core層の削除・前挿入・順序変更は許可しない")
 
 
+def _project_terminal_pitch_layer(
+    document: Mapping[str, Any], label: str,
+) -> tuple[dict[str, Any], bool]:
+    """全領域の完全suffixだけを非破壊で外し、旧層の登録を保持する。"""
+    paths_by_id = _area_paths_by_id(document, label)
+    expected_pairs = {
+        (area_id, path) for area_id, paths in TERMINAL_PITCH_CORE_ADDITIONS.items()
+        for path in paths
+    }
+    known_paths = {path for _, path in expected_pairs}
+    observed_pairs = {
+        (area_id, path) for area_id, paths in paths_by_id.items()
+        for path in paths if path in known_paths
+    }
+    if observed_pairs - expected_pairs - _TERMINAL_HISTORICAL_REUSE_PAIRS:
+        raise GuardError(f"{label} のterminal core層に領域を跨ぐliteralがある")
+    present = bool(observed_pairs & expected_pairs)
+    projected = copy.deepcopy(dict(document))
+    if not present:
+        return projected, False
+    if tuple(paths_by_id) != tuple(TERMINAL_PITCH_CORE_ADDITIONS):
+        raise GuardError(f"{label} のterminal core層の全領域/順序が不一致")
+    for area in projected["areas"]:
+        area_id = area["id"]
+        suffix = TERMINAL_PITCH_CORE_ADDITIONS[area_id]
+        paths = paths_by_id[area_id]
+        if paths[-len(suffix):] != suffix:
+            raise GuardError(f"{label} のterminal core層が全領域の完全suffixに不一致")
+        prefix = paths[:-len(suffix)]
+        if any((area_id, path) in expected_pairs for path in prefix):
+            raise GuardError(f"{label} のterminal core層が旧prefixへ混入している")
+        area["paths"] = list(prefix)
+    return projected, True
+
+
+def validate_terminal_pitch_area_path_layers(
+    baseline: Mapping[str, Any], candidate: Mapping[str, Any],
+) -> None:
+    """外側terminalの完全性/単調追加を検査し、旧7状態の判定へ委譲する。"""
+    old_baseline, baseline_present = _project_terminal_pitch_layer(baseline, "merge-base")
+    old_candidate, candidate_present = _project_terminal_pitch_layer(candidate, "PR head")
+    validate_first_ball_area_path_layers(old_baseline, old_candidate)
+    if baseline_present and not candidate_present:
+        raise GuardError("terminal core層の削除は許可しない")
+
+
 def _commits_between(root: Path, base_revision: str, head_sha: str) -> tuple[str, ...]:
     """基線より後から head までのコミットを古い順で返す。"""
     output = _run_git(
@@ -590,7 +732,7 @@ def verify_area_path_baseline(root: Path, base_sha: str, head_sha: str) -> str:
     baseline_revision = merge_base_revision(root, base_sha, head_sha)
     baseline = load_core_areas_at_revision(root, baseline_revision)
     candidate = load_core_areas_at_revision(root, head_sha)
-    validate_first_ball_area_path_layers(baseline, candidate)
+    validate_terminal_pitch_area_path_layers(baseline, candidate)
 
     for revision in _commits_between(root, baseline_revision, head_sha):
         changed = _changed_paths_in_commit(root, revision)

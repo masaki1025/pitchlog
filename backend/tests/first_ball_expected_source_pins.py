@@ -15,7 +15,7 @@ _EXPECTED_KEYS = {
         ["type_target_sha256", "type_fields_sha256"]
     ),
     "test_sync_apply_product_supply.py": frozenset(
-        ["other_generated_statements_sha256"]
+        ["other_generated_statements_sha256", "terminal_generated_statements_sha256"]
     ),
     "test_sync_apply_writer_binding.py": frozenset(
         [
@@ -47,6 +47,10 @@ _EXPECTED_KEYS = {
             "SYNC_ORDINARY_PITCH:read_ordinary_checkpoint",
             "SYNC_ORDINARY_PITCH:lock_ordinary_checkpoint",
             "SYNC_ORDINARY_PITCH:read_ordinary_history_page",
+            "SYNC_PLAY_PREFIX:lock_play_prefix_checkpoint",
+            "SYNC_PLAY_PREFIX:prepare_play_prefix_projection",
+            "SYNC_PLAY_PREFIX:read_play_prefix_checkpoint",
+            "SYNC_PLAY_PREFIX:read_play_prefix_history_page",
         ]
     ),
     "test_sync_right_sql.py": frozenset(

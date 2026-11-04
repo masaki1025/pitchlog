@@ -47,6 +47,12 @@ from pitchlog.repositories.writer_binding import (
     _AssertWriterBindingToken,
     _ReadWriterIdentityToken,
 )
+from pitchlog.sync.terminal_pitch_tokens import (
+    PlayPrefixCheckpointLockToken,
+    PlayPrefixCheckpointReadToken,
+    PlayPrefixHistoryPageToken,
+    PreparePlayPrefixProjectionToken,
+)
 
 _TENANT_ID = UUID("00000000-0000-0000-0000-000000000392")
 
@@ -80,6 +86,11 @@ def test_rg1_keeps_two_fixed_functions_with_one_registered_rule_resolver() -> No
         OrdinaryCheckpointLockToken,
         OrdinaryHistoryPageToken,
         OrdinaryOrderSummaryToken,
+        # 正式repository契約のSYNC_PLAY_PREFIX固定4操作。
+        PlayPrefixCheckpointReadToken,
+        PlayPrefixCheckpointLockToken,
+        PlayPrefixHistoryPageToken,
+        PreparePlayPrefixProjectionToken,
     }
     for token, function_name in (
         (RG1PrecheckToken(), "rg1_read_open"),
