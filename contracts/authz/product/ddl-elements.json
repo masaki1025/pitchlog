@@ -2765,6 +2765,40 @@
       "with_check_predicate_id": null,
       "with_check_column": null,
       "with_check_expression": null
+    },
+    {
+      "policy_id": "POLICY:admin_vocabularies:batted_hit_select_admin_vocabularies",
+      "table_id": "admin_vocabularies",
+      "profile": "function_only",
+      "policy_name": "batted_hit_select_admin_vocabularies",
+      "command": "SELECT",
+      "policy_mode": "permissive",
+      "role_ids": [
+        "pitchlog_sync_right_fn_owner"
+      ],
+      "using_predicate_id": null,
+      "using_column": null,
+      "using_expression": "session_user = 'pitchlog_app'",
+      "with_check_predicate_id": null,
+      "with_check_column": null,
+      "with_check_expression": null
+    },
+    {
+      "policy_id": "POLICY:tenant_vocabularies:batted_hit_select_tenant_vocabularies",
+      "table_id": "tenant_vocabularies",
+      "profile": "function_only",
+      "policy_name": "batted_hit_select_tenant_vocabularies",
+      "command": "SELECT",
+      "policy_mode": "permissive",
+      "role_ids": [
+        "pitchlog_sync_right_fn_owner"
+      ],
+      "using_predicate_id": null,
+      "using_column": null,
+      "using_expression": "tenant_id = NULLIF(pg_catalog.current_setting('app.tenant_id',true),'')::uuid AND session_user = 'pitchlog_app'",
+      "with_check_predicate_id": null,
+      "with_check_column": null,
+      "with_check_expression": null
     }
   ],
   "functions": [
@@ -10705,6 +10739,90 @@
       "object_schema": "public",
       "object_id": "game_start_attempts",
       "column_id": "outcome",
+      "grantee_role_id": "pitchlog_sync_right_fn_owner",
+      "privilege_ids": [
+        "SELECT"
+      ],
+      "grant_option": false
+    },
+    {
+      "expectation_id": "COLUMN-ACL:public:admin_vocabularies:key:pitchlog_sync_right_fn_owner",
+      "object_kind": "column",
+      "object_schema": "public",
+      "object_id": "admin_vocabularies",
+      "column_id": "key",
+      "grantee_role_id": "pitchlog_sync_right_fn_owner",
+      "privilege_ids": [
+        "SELECT"
+      ],
+      "grant_option": false
+    },
+    {
+      "expectation_id": "COLUMN-ACL:public:admin_vocabularies:category:pitchlog_sync_right_fn_owner",
+      "object_kind": "column",
+      "object_schema": "public",
+      "object_id": "admin_vocabularies",
+      "column_id": "category",
+      "grantee_role_id": "pitchlog_sync_right_fn_owner",
+      "privilege_ids": [
+        "SELECT"
+      ],
+      "grant_option": false
+    },
+    {
+      "expectation_id": "COLUMN-ACL:public:admin_vocabularies:disabled:pitchlog_sync_right_fn_owner",
+      "object_kind": "column",
+      "object_schema": "public",
+      "object_id": "admin_vocabularies",
+      "column_id": "disabled",
+      "grantee_role_id": "pitchlog_sync_right_fn_owner",
+      "privilege_ids": [
+        "SELECT"
+      ],
+      "grant_option": false
+    },
+    {
+      "expectation_id": "COLUMN-ACL:public:tenant_vocabularies:tenant_id:pitchlog_sync_right_fn_owner",
+      "object_kind": "column",
+      "object_schema": "public",
+      "object_id": "tenant_vocabularies",
+      "column_id": "tenant_id",
+      "grantee_role_id": "pitchlog_sync_right_fn_owner",
+      "privilege_ids": [
+        "SELECT"
+      ],
+      "grant_option": false
+    },
+    {
+      "expectation_id": "COLUMN-ACL:public:tenant_vocabularies:key:pitchlog_sync_right_fn_owner",
+      "object_kind": "column",
+      "object_schema": "public",
+      "object_id": "tenant_vocabularies",
+      "column_id": "key",
+      "grantee_role_id": "pitchlog_sync_right_fn_owner",
+      "privilege_ids": [
+        "SELECT"
+      ],
+      "grant_option": false
+    },
+    {
+      "expectation_id": "COLUMN-ACL:public:tenant_vocabularies:category:pitchlog_sync_right_fn_owner",
+      "object_kind": "column",
+      "object_schema": "public",
+      "object_id": "tenant_vocabularies",
+      "column_id": "category",
+      "grantee_role_id": "pitchlog_sync_right_fn_owner",
+      "privilege_ids": [
+        "SELECT"
+      ],
+      "grant_option": false
+    },
+    {
+      "expectation_id": "COLUMN-ACL:public:tenant_vocabularies:disabled:pitchlog_sync_right_fn_owner",
+      "object_kind": "column",
+      "object_schema": "public",
+      "object_id": "tenant_vocabularies",
+      "column_id": "disabled",
       "grantee_role_id": "pitchlog_sync_right_fn_owner",
       "privilege_ids": [
         "SELECT"
