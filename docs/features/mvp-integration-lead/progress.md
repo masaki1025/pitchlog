@@ -1,6 +1,14 @@
 # 初回MVP 主担当引受・進捗台帳
 
 
+## 続き：2026-11-05（4安打の実API保存・再取得・拒否と全取消が成立）
+
+- **新たな実操作/証拠**: batted固定**86f720b91211d4e47b4f3aab90f2f284c6ee82a4**のowned PG r4は**2pass357.59秒**。対象game/play等を事前投入せず実POST新規作成/開始した正4試合で単打/二塁打/三塁打/本塁打→次球→元D5/新attempt再送→GET/再取得・履歴ページングを実証。各event/play/slot/history2・水位2/2、到達base1/2/3/HRempty・責任投手・次球before走者・T2/T4途中全取消を確認。負6試合の語彙区分/無効/越境・野手越境/攻撃側/DHは42501で拒否、記録/CP/元D5台帳0・水位0/0。runtime22SHA/HEAD前後一致・所有container削除済み。cache batted-storage-step4-20261105/db-r4-diagnostic.json **700d2e47e425c4572f457e07380923421bb42aeb946e94c774e9194d27f3c37f** とlog/xml/result/owner/source-beforeへ固定。これはAPI候補の実証で画面/正式提供/全試合/全MVPではない。
+- **失敗を閉じた変更**: r3は製品4正/6負処理後、外側のgeneration=1固定で2失敗。開始D4を既唯一_broker_generationで実世代へ解き各prefix/GETと同値assert、WHEREへその実値をbindするfixture1を非作者root確認し86f720b9へ保存。固定値/DBfallback/skipなし、期待2/2・0/0と全assert不変。r3を成功に変更せず、修復後r4の成功として記録する。
+- **次の画面接続/所有**: root plan465b318cに従い三振画面候補37e29859を通常mergeし**d6f16ab402ef5024519696cca4ced9fd51aee939**、競合0・r4 source22全SHA保持（ui-base-merge-proof.json）。既v3画面/queue/ACK/認証/復元を再利用する最小step5 scope照合をbatted_prefix_connectionへ委任。rootは正式資産/登録/共有台帳のみ直列writer、作者はscope提示後root指示で実装へ進む。merge後のGUI/実DB成功はまだで、既#192再現性blockと正式受理未了を保持する。
+- **同時進行**: #192は最終37で旧fixture資格2件の限定修復をcache準備し、全履歴影響suiteを継続中。GUIr9新規作成503/r10第2球POST待ちは未解消、最終CI/通常統合前に是正。T5は生成selector/Sを再利用する実4関数SQL候補と8arg nonce/同snapshot/完全評価原本保存の接合を作成中、まだ正式登録/実DB成績ではない。全MVP・未回答4意味判断・ユーザー実機/運用受入は維持、Goal active。
+
+
 ## 続き：2026-11-05（最終再検証の失敗を分離、安打の保存境界を修復）
 
 - **#192最終検査**: 固定37e29859でfrontend eslint/vue-tsc成功、Vitest138file/3241pass289.52秒、backend ruff/ty成功。最終HEAD非作者8b4ca6f3…はbase eb8との差191path/diff db8ba933…を束縛しcode未解消0を確認したが、**NOT_MERGE_READY**。r9の診断bootstrap無し実画面は新規POST503で失敗165.07秒。製品methodをwrapせずcold CLIを起動し例外型/行のみ観測するcache診断r10は作成/開始/初球保存後、2球目POST待ち30秒で失敗109.92秒。両方全3627追跡path SHA/HEAD不変、log/xml/resultをmvp-resume-20261104へ保全。r8成功は消さないが再現性未成立、原因調査中でpush/統合を保留する。実機/信頼済HTTPSでもない。
