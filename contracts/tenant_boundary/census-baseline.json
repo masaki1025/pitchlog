@@ -357,13 +357,13 @@
             },
             {
               "path": "pitchlog/sync/ordinary_pitch_execution.py",
-              "line": 183,
-              "end_line": 183,
+              "line": 198,
+              "end_line": 198,
               "scope": "pitchlog.sync.ordinary_pitch_execution._bind_ordinary_pitch_execution",
               "code": "TB007",
               "symbol": "builtins.object.__new__",
               "message": "型を解決できない object.__new__ も TenantContext 生成迂回として拒否",
-              "source_sha256": "26e378d878482e4b52ef04e26ebf0070bc856eb6bd87b483502c9a3eded64aff"
+              "source_sha256": "18f134daacffae1521cbc1f7a0456feb08888e6dae4479c4a67cf15ff984eb56"
             }
           ]
         }
@@ -552,7 +552,14 @@
     "initial_population_proof.sites[].code",
     "initial_population_proof.sites[].symbol",
     "initial_population_proof.sites[].owner",
-    "initial_population_proof.identity_fields"
+    "initial_population_proof.identity_fields",
+    "pr191_source_proof.kind",
+    "pr191_source_proof.revision",
+    "pr191_source_proof.expected_fixture",
+    "pr191_source_proof.identity_fields",
+    "pr191_source_proof.meanings.TB002",
+    "pr191_source_proof.meanings.TB003",
+    "pr191_source_proof.meanings.TB007"
   ],
   "initial_population_proof": {
     "kind": "immutable_git_sites_and_counterfactual",
@@ -1072,5 +1079,24 @@
       "symbol",
       "message"
     ]
+  },
+  "pr191_source_proof": {
+    "kind": "immutable_v2_sites_and_counterfactual",
+    "revision": "contracts/tenant_boundary/frozen-inputs.json#/frozen_inputs/pr191_source_registration_revision/value",
+    "expected_fixture": "tests/fixtures/pr191_tenant_source_expected_v1.json",
+    "identity_fields": [
+      "path",
+      "line",
+      "end_line",
+      "scope",
+      "code",
+      "symbol",
+      "message"
+    ],
+    "meanings": {
+      "TB002": "48 tenant/game/generation owned sites; no other condition ownership",
+      "TB003": "one before-runner scalar copy after hold/no-destination validation",
+      "TB007": "one locked-context liveness callback and one sealed OrdinaryPitchFrame site"
+    }
   }
 }
