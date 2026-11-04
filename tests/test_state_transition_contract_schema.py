@@ -2072,7 +2072,7 @@ def test_repository_contract_step51_to_step60_rows_satisfy_constraints() -> None
     _validate_vocabulary_axis_coverage(contract)
 
     rows = contract["matrixRows"]
-    assert len(rows) == 49
+    assert len(rows) == 51
     assert {row["resultId"] for row in rows[:4]} == step51_result_ids
     assert {row["resultId"] for row in rows[4:9]} == step52_result_ids
     assert {row["resultId"] for row in rows[9:12]} == step53_result_ids
@@ -2614,7 +2614,7 @@ def test_repository_batting_result_rows_exactly_cover_the_vocabulary_axis() -> N
     batting_rows = [
         row for row in contract["matrixRows"] if row["eventKind"] == "batting-result"
     ]
-    assert len(batting_rows) == 33
+    assert len(batting_rows) == 35
     assert len({row["resultId"] for row in batting_rows}) == 26
 
 
@@ -2717,7 +2717,7 @@ def test_repository_per_pitch_mapping_covers_all_materialized_matrix_rows() -> N
     }
 
     assert actual == expected
-    assert len(mapping["rowRefs"]) == len(contract["matrixRows"]) == 49
+    assert len(mapping["rowRefs"]) == len(contract["matrixRows"]) == 51
 
 
 def test_so03_deferred_partition_difference_remains_declared_and_open() -> None:
@@ -3486,7 +3486,7 @@ def test_repository_step65_empty_history_row_and_mapping() -> None:
     _validate_undo_rows(contract, frozenset())
     _validate_references(contract, vocabulary_checker.validate_manifest(REPOSITORY_ROOT))
 
-    assert len(contract["matrixRows"]) == 49
+    assert len(contract["matrixRows"]) == 51
     assert len(contract["operationRows"]) == 10
     assert len(contract["undoRows"]) == 10
     row = contract["undoRows"][0]
@@ -4399,7 +4399,7 @@ def test_repository_contract_step60_pickoff_rows_satisfy_constraints() -> None:
     _validate_cross_constraints(contract)
     _validate_vocabulary_axis_coverage(contract)
 
-    assert len(contract["matrixRows"]) == 49
+    assert len(contract["matrixRows"]) == 51
     assert len(rows) == 6
     assert {row["resultId"] for row in rows} == expected_result_ids
     assert all(row["eventKind"] == "runner-event" for row in rows)
@@ -4622,7 +4622,7 @@ def test_repository_contract_step61_substitution_rows_and_mapping() -> None:
     assert mappings["per-pitch-input"] == [
         _row_reference("matrixRows", row) for row in contract["matrixRows"]
     ]
-    assert len(contract["matrixRows"]) == 49
+    assert len(contract["matrixRows"]) == 51
     sources = {source["sourceId"] for source in contract["provenance"]["sources"]}
     assert {"req:FR-011", "req:FR-006"} <= sources
     assert not any(source.startswith("adr:") for source in sources)
@@ -4855,7 +4855,7 @@ def test_repository_contract_step63_game_end_rows_and_mapping() -> None:
         _row_reference("matrixRows", row) for row in contract["matrixRows"]
     ]
     assert len(mappings["tiebreak-start"]) == 3
-    assert len(contract["matrixRows"]) == 49
+    assert len(contract["matrixRows"]) == 51
     sources = {source["sourceId"] for source in contract["provenance"]["sources"]}
     assert {"req:FR-010", "req:FR-005", "req:FR-006", "req:4.0-1"} <= sources
     assert not any(source.startswith("adr:") for source in sources)
@@ -5015,7 +5015,7 @@ def test_repository_contract_step64_registration_rows_and_mapping() -> None:
         _row_reference("matrixRows", row) for row in contract["matrixRows"]
     ]
     assert len(mappings["tiebreak-start"]) == 3
-    assert len(contract["matrixRows"]) == 49
+    assert len(contract["matrixRows"]) == 51
     assert len(contract["operationRows"]) == 10
     sources = {source["sourceId"] for source in contract["provenance"]["sources"]}
     assert "req:FR-015" in sources
@@ -5803,7 +5803,7 @@ def test_step90_existing_cases_have_normalization_triples_and_seed_mapping() -> 
     assert declaration["inputCoordinateMapping"]["semanticOrigin"] == (
         "step-90-task-implementation-convention"
     )
-    assert len(cases) == 119
+    assert len(cases) == 134
     changed = []
     for case in cases:
         assert {"raw", "normalizationRuleId", "normalized"} <= set(case)
@@ -5819,7 +5819,7 @@ def test_step90_existing_cases_have_normalization_triples_and_seed_mapping() -> 
             assert case["raw"]["resultId"] in result_axis["values"]
             assert case["raw"] != case["normalized"]
             changed.append(case)
-    assert len(changed) == 74
+    assert len(changed) == 89
     assert "existing-cases-have-normalization-triple" not in declaration[
         "claimBoundary"
     ]["notGuaranteed"]
@@ -5863,7 +5863,9 @@ def test_legacy_committed_cases_match_history_expansion() -> None:
         capture_output=True,
         text=True,
     )
-    legacy_cases = [case for case in _repository_contract()["cases"] if "inputPayload" not in case]
+    terminal_ids = _terminal_formal_ids()
+    legacy_cases = [case for case in _repository_contract()["cases"]
+                    if "inputPayload" not in case and case["caseId"] not in terminal_ids]
     assert len(legacy_cases) == 112
     assert json.loads(result.stdout) == legacy_cases
 
@@ -6399,7 +6401,13 @@ def test_t1_assembly_explicit_observation_unknown_remains_unknown() -> None:
         case["inputCoordinate"]["event.perPitch.rbi.cause_by_runner.third." + field] = "unobserved"
     _validate_t1_observation_binding(case)
     # 構造・射影の一致だけ。unknown座標はfalseを要求する採用二行へ束縛できない。
-    for row in _repository_contract()["matrixRows"][-2:]:
+    rows = [row for row in _repository_contract()["matrixRows"]
+            if row["resultId"] == "batting-result.single" and any(
+                _row_matches_coordinate(row, reference["inputCoordinate"])
+                for reference in _out3_observed_cases()
+            )]
+    assert len(rows) == 2
+    for row in rows:
         assert case["inputCoordinate"] != _manual_fixture_coordinate(row)
 
 
@@ -6549,7 +6557,13 @@ def _t1_assembly_row_requirements(rules: dict[str, Any]) -> tuple[Any, ...]:
 
 def test_t1_assembly_old_row_requirement_identities_are_preserved() -> None:
     """旧47・後続2区分を保ち、RBIの追加5区分だけを現在値へ結ぶ。"""
-    rules = _load_object(REQUIRED_SET_ROW_RULES_PATH)
+    current_rules = _load_object(REQUIRED_SET_ROW_RULES_PATH)
+    assert len(_t1_assembly_row_requirements(current_rules)) == 56
+    rules = copy.deepcopy(current_rules)
+    rules["partitionRules"][0]["additionalPartitions"] = [
+        item for item in rules["partitionRules"][0]["additionalPartitions"]
+        if item["vocabularyId"] == "batting-result.single"
+    ]
     prior = copy.deepcopy(rules)
     addition = prior["partitionRules"][0].pop("additionalPartitions")
     assert [item["vocabularyId"] for item in addition] == ["batting-result.single"]
@@ -6610,7 +6624,13 @@ def test_t1_assembly_row_id_qualification_preserves_all_legacy_ids(monkeypatch: 
     unqualified = {key: value for key, value in layer.items() if key != "qualifyWhenPredicateAxes"}
     rows = _repository_contract()["matrixRows"]
     ids = [module._normative_row_id(layer, row) for row in rows]
-    assert len(set(ids)) == 49
+    assert len(set(ids[:49])) == 49
+    assert len(set(ids)) == 51
+    baseline_layer = json.loads(subprocess.check_output([
+        "git", "show", _formal_ordinary_baseline_commit() + ":"
+        "contracts/state-transition/input_axes_descriptor_v1.json",
+    ], cwd=REPOSITORY_ROOT))["freezeBaseline"]["criteria"]["gapRegister"]["rowLayers"][0]
+    assert ids[:49] == [module._normative_row_id(baseline_layer, row) for row in rows[:49]]
     assert ids[:42] == [module._normative_row_id(unqualified, row) for row in rows[:42]]
     assert all(":compound:" in value for value in ids[42:])
     modified = copy.deepcopy(rows[-1])
@@ -7368,7 +7388,7 @@ def test_g6_s02_reference_definitions_and_formal_cases_are_unchanged() -> None:
         for case in author["cases"] if case["existing_positive_reference"] is not None
     )
     assert [len(contract[k]) for k in ("matrixRows", "operationRows", "undoRows", "cases")] == [
-        49, 10, 10, 119,
+        51, 10, 10, 134,
     ]
 
 
@@ -7652,3 +7672,133 @@ def test_terminal_rejection_corpus_is_closed_and_raw_duplicates_are_not_lost() -
         with pytest.raises(ValueError):
             json.loads(case["requestJson"], object_pairs_hook=unique, parse_constant=finite)
         assert case["expected"] == {"ok": False, "error": {"code": "INVALID_JSON"}}
+
+
+def _terminal_formal_ids() -> set[str]:
+    """承認済み追加15例のIDを資産から逆算せず閉じる。"""
+    return {
+        f"ST-TERMINAL-{kind}-S{strikes}-B{balls}"
+        for kind, counts in (("BB", [(s, 3) for s in range(3)]),
+                             ("HBP", [(s, b) for s in range(3) for b in range(4)]))
+        for strikes, balls in counts
+    }
+
+
+def test_terminal_integration_preserves_formal_190_full_values() -> None:
+    """正式190の49行119例の全値を保存し、追加15例を分離する。"""
+    baseline = json.loads(subprocess.check_output([
+        "git", "show",
+        _formal_ordinary_baseline_commit() + ":"
+        "contracts/state-transition/state_transition_contract_v1.json",
+    ], cwd=REPOSITORY_ROOT))
+    current = _repository_contract()
+    assert len(baseline["matrixRows"]) == 49
+    assert len(baseline["cases"]) == 119
+    assert current["matrixRows"][:49] == baseline["matrixRows"]
+    terminal_ids = _terminal_formal_ids()
+    assert [case for case in current["cases"] if case["caseId"] not in terminal_ids] == (
+        baseline["cases"]
+    )
+    assert {case["caseId"] for case in current["cases"]
+            if case["caseId"] in terminal_ids} == terminal_ids
+    assert len(current["cases"]) == 134
+
+
+@pytest.mark.parametrize("mutation", [
+    "ended", "unknown", "runner", "wrong-result", "ball-two", "missing-ended",
+])
+def test_terminal_manual_coordinate_rejects_outside_closed_branch(mutation: str) -> None:
+    """新BB/HBP専用座標で未知・終了済み・走者ありを許さない。"""
+    _, schema = _manual_fixture_assets()
+    coordinate = {
+        "eventKind": "batting-result", "resultId": "batting-result.walk",
+        "state.outs": 0, "state.runners": "empty", "state.count.strikes": 0,
+        "state.count.balls": 3, "state.gameEnded": False,
+        "event.perPitch.pitchEventKind": "pitch-event",
+    }
+    if mutation == "missing-ended":
+        del coordinate["state.gameEnded"]
+        # 旧座標としての許可と、新terminal専用分岐の必須値を区別する。
+        target = schema["$defs"]["terminalInputCoordinate"]
+    else:
+        target = schema["$defs"]["inputCoordinate"]
+        key, value = {
+            "ended": ("state.gameEnded", True), "unknown": ("unknown", False),
+            "runner": ("state.runners", "first"),
+            "wrong-result": ("resultId", "batting-result.single"),
+            "ball-two": ("state.count.balls", 2),
+        }[mutation]
+        coordinate[key] = value
+    with pytest.raises(schema_checker.DescriptorCheckError):
+        schema_checker._validate_instance(coordinate, target, schema, "$")
+
+
+def test_terminal_manual_coordinate_accepts_exact_fifteen_formal_inputs() -> None:
+    """追加15例は専用閉分岐で認め、旧定義は変更しない。"""
+    _, schema = _manual_fixture_assets()
+    ids = _terminal_formal_ids()
+    cases = [case for case in _repository_contract()["cases"] if case["caseId"] in ids]
+    assert len(cases) == 15
+    for case in cases:
+        schema_checker._validate_instance(
+            case["inputCoordinate"], schema["$defs"]["terminalInputCoordinate"], schema, "$"
+        )
+
+
+def _formal_ordinary_baseline_commit(path: Path | None = None) -> str:
+    """独立fixtureを欠落・重複・未知キー・型・桁で閉拒否する。"""
+    def unique(pairs: list[tuple[str, object]]) -> dict[str, object]:
+        result: dict[str, object] = {}
+        for key, value in pairs:
+            if key in result:
+                raise ValueError("正式基線fixtureのkeyが重複")
+            result[key] = value
+        return result
+
+    if path is None:
+        path = REPOSITORY_ROOT / "tests/fixtures/pr191_formal_ordinary_baseline_v1.json"
+    raw = json.loads(path.read_text(encoding="utf-8"), object_pairs_hook=unique)
+    if type(raw) is not dict or set(raw) != {"schema_version", "baseline_commit"}:
+        raise ValueError("正式基線fixtureのキーが不正")
+    if type(raw["schema_version"]) is not int or raw["schema_version"] != 1:
+        raise ValueError("正式基線fixtureの版が不正")
+    commit = raw["baseline_commit"]
+    if (type(commit) is not str or len(commit) != 40
+            or any(char not in "0123456789abcdef" for char in commit)):
+        raise ValueError("正式基線fixtureのcommitが不正")
+    return commit
+
+
+@pytest.mark.parametrize("mutation", [
+    "missing-file", "missing-key", "extra", "version", "type", "short", "uppercase", "duplicate",
+])
+def test_formal_ordinary_baseline_pin_rejects_invalid_input(
+    mutation: str, tmp_path: Path,
+) -> None:
+    """固定Gitの独立基線を壊してもHEADや現行値へfallbackしない。"""
+    path = tmp_path / "pin.json"
+    raw: dict[str, object] = {
+        "schema_version": 1, "baseline_commit": _formal_ordinary_baseline_commit(),
+    }
+    if mutation == "missing-file":
+        with pytest.raises(OSError):
+            _formal_ordinary_baseline_commit(path)
+        return
+    if mutation == "missing-key":
+        del raw["baseline_commit"]
+    elif mutation == "extra":
+        raw["extra"] = None
+    elif mutation == "version":
+        raw["schema_version"] = True
+    elif mutation == "type":
+        raw["baseline_commit"] = False
+    elif mutation == "short":
+        raw["baseline_commit"] = _formal_ordinary_baseline_commit()[:-1]
+    elif mutation == "uppercase":
+        raw["baseline_commit"] = _formal_ordinary_baseline_commit().upper()
+    text = json.dumps(raw)
+    if mutation == "duplicate":
+        text = text.replace('"schema_version": 1', '"schema_version": 1, "schema_version": 1')
+    path.write_text(text, encoding="utf-8")
+    with pytest.raises(ValueError):
+        _formal_ordinary_baseline_commit(path)

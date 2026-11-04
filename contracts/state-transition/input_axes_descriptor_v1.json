@@ -1,7 +1,7 @@
 {
   "descriptorId": "pitchlog.input-axes",
   "version": "input_axes_descriptor_v1",
-  "digest": "sha256:f4792581f0879790da1853b3d279649d0f2f6a23cd068fc40f5064b23638e85f",
+  "digest": "sha256:7249affb740621ee5d0eba25b3d9f42f704e7823962c8fb572e6be8ef370e14c",
   "digestSpec": {
     "excludedJsonPointers": [
       "/digest"
@@ -1565,7 +1565,8 @@
               "event.perPitch.runnerAdvanceOverridesByRunner.third.kind",
               "event.perPitch.runnerAdvanceOverridesByRunner.third.destination",
               "event.perPitch.rbi.cause_by_runner.third.held_too_long",
-              "event.perPitch.rbi.cause_by_runner.third.unnecessary_throw"
+              "event.perPitch.rbi.cause_by_runner.third.unnecessary_throw",
+              "state.gameEnded"
             ]
           },
           {
@@ -13049,6 +13050,273 @@
         "reason": "新RBI観測葉・row/case/正逆対応と現descriptor比較基準を同値にし、旧#183履歴を改変せず接合するため。",
         "approvedBy": "PO委任によるCodex判断（Codex /root）",
         "approvedDate": "2026-10-26"
+      },
+      {
+        "acceptanceId": "masaki1025/pitchlog#191",
+        "series": "state-transition-contract-checks",
+        "priorIdentity": {
+          "present": true,
+          "values": [
+            {
+              "criterionId": "freezeDefinition",
+              "identity": "sha256:3be3115309aff638c49b2e26febed903d50ded3308bb6114a424b6dcc6f276be"
+            },
+            {
+              "criterionId": "threeWayParity",
+              "identity": "sha256:b3abb02ed1bb7e4974ca1d8745b995ac1a50b40ef74ac379addca64efdc881de"
+            },
+            {
+              "criterionId": "inputAxesDescriptor",
+              "identity": "sha256:c1dd2cfe54053e4e56e0ba031a81a521b0debcf219ec853c5d3060e204b6dff5"
+            },
+            {
+              "criterionId": "gapRegister",
+              "identity": "sha256:d0c5534cdf212912fe8714721336d1ab63b91c6df26b392750a0682c66f6ca31"
+            }
+          ]
+        },
+        "newIdentity": {
+          "present": true,
+          "values": [
+            {
+              "criterionId": "freezeDefinition",
+              "identity": "sha256:3be3115309aff638c49b2e26febed903d50ded3308bb6114a424b6dcc6f276be"
+            },
+            {
+              "criterionId": "threeWayParity",
+              "identity": "sha256:b3abb02ed1bb7e4974ca1d8745b995ac1a50b40ef74ac379addca64efdc881de"
+            },
+            {
+              "criterionId": "inputAxesDescriptor",
+              "identity": "sha256:c1dd2cfe54053e4e56e0ba031a81a521b0debcf219ec853c5d3060e204b6dff5"
+            },
+            {
+              "criterionId": "gapRegister",
+              "identity": "sha256:cf9070da3b8350cfeeb024f48d273f43f067451d09e38514fe11145f4cbe6a8c"
+            }
+          ]
+        },
+        "changes": [
+          {
+            "criterionId": "gapRegister",
+            "before": {
+              "present": true,
+              "value": {
+                "topLevelFields": [
+                  "gaps",
+                  "schemaVersion",
+                  "version"
+                ],
+                "gapFields": [
+                  "branchIds",
+                  "clauseIds",
+                  "fixtureCaseIds",
+                  "gapId",
+                  "generatedCaseSelector",
+                  "rowIds",
+                  "state"
+                ],
+                "gapIds": [
+                  "GAP-01",
+                  "GAP-02",
+                  "GAP-03",
+                  "GAP-04",
+                  "GAP-05",
+                  "GAP-06",
+                  "GAP-07",
+                  "GAP-08",
+                  "GAP-09"
+                ],
+                "listStageFields": [
+                  "clauseIds",
+                  "branchIds",
+                  "rowIds",
+                  "fixtureCaseIds"
+                ],
+                "stageFields": [
+                  "clauseIds",
+                  "branchIds",
+                  "rowIds",
+                  "fixtureCaseIds",
+                  "generatedCaseSelector"
+                ],
+                "states": [
+                  "open",
+                  "resolved"
+                ],
+                "initialState": "open",
+                "terminalState": "resolved",
+                "checkerExpectedValues": {
+                  "schemaVersion": 1
+                },
+                "rowLayers": [
+                  {
+                    "layer": "matrixRows",
+                    "sourcePath": "contracts/state-transition/state_transition_contract_v1.json",
+                    "keyPaths": [
+                      "eventKind",
+                      "resultId"
+                    ],
+                    "ownershipPath": "remarks",
+                    "qualifyWhenPredicateAxes": [
+                      "event.perPitch.thirdOutObservation.kind",
+                      "event.perPitch.thirdOutTimingByRunner.third",
+                      "event.perPitch.runnerAdvanceOverridesByRunner.second.kind",
+                      "event.perPitch.runnerAdvanceOverridesByRunner.second.attempted_base",
+                      "event.perPitch.runnerAdvanceOverridesByRunner.second.out_kind",
+                      "event.perPitch.runnerAdvanceOverridesByRunner.third.kind",
+                      "event.perPitch.runnerAdvanceOverridesByRunner.third.destination",
+                      "event.perPitch.rbi.cause_by_runner.third.held_too_long",
+                      "event.perPitch.rbi.cause_by_runner.third.unnecessary_throw"
+                    ]
+                  },
+                  {
+                    "layer": "operationRows",
+                    "sourcePath": "contracts/state-transition/state_transition_contract_v1.json",
+                    "keyPaths": [
+                      "operationKind",
+                      "precondition.axisId",
+                      "precondition.value"
+                    ],
+                    "ownershipPath": "remarks"
+                  },
+                  {
+                    "layer": "undoRows",
+                    "sourcePath": "contracts/state-transition/state_transition_contract_v1.json",
+                    "keyPaths": [
+                      "targetKind",
+                      "precondition.axisId",
+                      "precondition.value"
+                    ],
+                    "ownershipPath": "remarks"
+                  },
+                  {
+                    "layer": "decisionRows",
+                    "sourcePath": "contracts/state-transition/game_end_contract_v1.json",
+                    "keyPaths": [
+                      "branchId"
+                    ],
+                    "ownershipPath": "branchId"
+                  }
+                ]
+              }
+            },
+            "after": {
+              "present": true,
+              "value": {
+                "topLevelFields": [
+                  "gaps",
+                  "schemaVersion",
+                  "version"
+                ],
+                "gapFields": [
+                  "branchIds",
+                  "clauseIds",
+                  "fixtureCaseIds",
+                  "gapId",
+                  "generatedCaseSelector",
+                  "rowIds",
+                  "state"
+                ],
+                "gapIds": [
+                  "GAP-01",
+                  "GAP-02",
+                  "GAP-03",
+                  "GAP-04",
+                  "GAP-05",
+                  "GAP-06",
+                  "GAP-07",
+                  "GAP-08",
+                  "GAP-09"
+                ],
+                "listStageFields": [
+                  "clauseIds",
+                  "branchIds",
+                  "rowIds",
+                  "fixtureCaseIds"
+                ],
+                "stageFields": [
+                  "clauseIds",
+                  "branchIds",
+                  "rowIds",
+                  "fixtureCaseIds",
+                  "generatedCaseSelector"
+                ],
+                "states": [
+                  "open",
+                  "resolved"
+                ],
+                "initialState": "open",
+                "terminalState": "resolved",
+                "checkerExpectedValues": {
+                  "schemaVersion": 1
+                },
+                "rowLayers": [
+                  {
+                    "layer": "matrixRows",
+                    "sourcePath": "contracts/state-transition/state_transition_contract_v1.json",
+                    "keyPaths": [
+                      "eventKind",
+                      "resultId"
+                    ],
+                    "ownershipPath": "remarks",
+                    "qualifyWhenPredicateAxes": [
+                      "event.perPitch.thirdOutObservation.kind",
+                      "event.perPitch.thirdOutTimingByRunner.third",
+                      "event.perPitch.runnerAdvanceOverridesByRunner.second.kind",
+                      "event.perPitch.runnerAdvanceOverridesByRunner.second.attempted_base",
+                      "event.perPitch.runnerAdvanceOverridesByRunner.second.out_kind",
+                      "event.perPitch.runnerAdvanceOverridesByRunner.third.kind",
+                      "event.perPitch.runnerAdvanceOverridesByRunner.third.destination",
+                      "event.perPitch.rbi.cause_by_runner.third.held_too_long",
+                      "event.perPitch.rbi.cause_by_runner.third.unnecessary_throw",
+                      "state.gameEnded"
+                    ]
+                  },
+                  {
+                    "layer": "operationRows",
+                    "sourcePath": "contracts/state-transition/state_transition_contract_v1.json",
+                    "keyPaths": [
+                      "operationKind",
+                      "precondition.axisId",
+                      "precondition.value"
+                    ],
+                    "ownershipPath": "remarks"
+                  },
+                  {
+                    "layer": "undoRows",
+                    "sourcePath": "contracts/state-transition/state_transition_contract_v1.json",
+                    "keyPaths": [
+                      "targetKind",
+                      "precondition.axisId",
+                      "precondition.value"
+                    ],
+                    "ownershipPath": "remarks"
+                  },
+                  {
+                    "layer": "decisionRows",
+                    "sourcePath": "contracts/state-transition/game_end_contract_v1.json",
+                    "keyPaths": [
+                      "branchId"
+                    ],
+                    "ownershipPath": "branchId"
+                  }
+                ]
+              }
+            },
+            "changedAspects": [
+              "set",
+              "value",
+              "placement",
+              "frozen-target-correspondence",
+              "identity-granularity-and-interpretation"
+            ]
+          }
+        ],
+        "fact": "2026-11-04 JST、Codex主担当/rootが旧49行全値/自然ID不変・新2行のみ修飾・51uniqueと完全前後値を確認し、非作者REPORT d91b6109c7ebbdbaa59b13cc48c9464e5500bf0d911f13d970552ddcd2d4a509（P0/P1/P2=0）の公式helper独立再計算に基づき単一PR191の有限追随を受理。旧9履歴とscopeを保持。全P6/P7/T1/MVP・実DB/実機・必須CIの成立を意味しない。",
+        "reason": "既承認BB/HBPの有限2行と旧行の自然ID衝突を、既機構の明示軸1追加で解消する。新野球意味・旧49の変更・一般的count軸追加はしない。",
+        "approvedBy": "PO委任によるCodex主担当 /root 判断（本人逐行確認・署名の代記ではない）",
+        "approvedDate": "2026-11-04"
       }
     ]
   },

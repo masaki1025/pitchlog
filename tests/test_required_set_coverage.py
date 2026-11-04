@@ -119,6 +119,9 @@ def historical_coverage_root(tmp_path_factory: pytest.TempPathFactory) -> Path:
     for name in (
         "state_transition_contract_v1.json", "required_set_input_coverage_v1.json",
         "branch_row_mapping_v1.json", "game_end_coverage_declaration_v1.json",
+        "required_set_row_rules_v1.json", "required_set_coverage_declaration_v1.json",
+        "input_axes_descriptor_v1.json", "state_transition_contract_schema_v1.json",
+        "game_end_contract_schema_v1.json", "game_end_contract_v1.json",
     ):
         relative = "contracts/state-transition/" + name
         (root / relative).write_bytes(subprocess.check_output(
@@ -1096,7 +1099,7 @@ def test_prior_step_coverage_matches_its_matrix_expansion(
 
 def test_step79_row_gap_is_exact_and_sourced() -> None:
     """①の49要求・44規範行の差分5件は宣言で全件説明される。"""
-    assert checker.check_row_requirements(ROOT) == (54, 49, 0)
+    assert checker.check_row_requirements(ROOT) == (56, 51, 0)
 
 
 def test_row_gap_rejects_stale_and_new_missing_entries() -> None:
@@ -1140,7 +1143,7 @@ def test_row_gap_accepts_resolved_gap_with_intersecting_source(
         return document
 
     monkeypatch.setattr(checker, "_document", changed_document)
-    assert checker.check_row_requirements(ROOT) == (54, 49, 0)
+    assert checker.check_row_requirements(ROOT) == (56, 51, 0)
 
 
 def test_row_gap_declaration_is_fail_closed(tmp_path: Path) -> None:
@@ -2032,7 +2035,7 @@ def test_step103_coverage_count_changed_by_one_is_red() -> None:
 
 def test_step102_both_required_set_differences_are_empty() -> None:
     """①の宣言除外と②の規則除外を実資産で共に検査する。"""
-    assert checker.check_row_requirements(ROOT) == (54, 49, 0)
+    assert checker.check_row_requirements(ROOT) == (56, 51, 0)
     assert checker.check_input_coverage_exact(ROOT) == _current_exact_input_counts()
 
 
@@ -2146,7 +2149,14 @@ def test_row_partition_refinement_preserves_old44_and_unique_new5() -> None:
     contract = _asset("state_transition_contract_v1.json")
     declaration = _asset("required_set_coverage_declaration_v1.json")
     observations = declaration["rowPartitionObservations"]
-    assert len(observations) == 7
+    assert len(observations[:7]) == 7
+    assert len(observations) == 11
+    assert observations[-4:] == [
+        {"vocabularyId": result, "partitionRuleId": "identity", "partitionId": partition,
+         "signal": {"location": "precondition", "axisId": "state.runners", "value": runner}}
+        for result in ("batting-result.walk", "batting-result.hit-by-pitch")
+        for partition, runner in (("identity", "first-third"), ("empty-runners", "empty"))
+    ]
     special = {item["vocabularyId"] for item in observations}
     old_identities = [checker._observed_partition(row, observations)
                       if row["resultId"] in special
@@ -2155,12 +2165,17 @@ def test_row_partition_refinement_preserves_old44_and_unique_new5() -> None:
     actual = _row_refinement_identities(contract, declaration)
     assert actual[:44] == old_identities
     assert actual[42] == ("batting-result.single", "identity", "out3-explicit-home-before")
-    assert [identity[2] for identity in actual[44:]] == [
+    assert [identity[2] for identity in actual[44:49]] == [
         item["partitionId"] for item in declaration["rowPartitionRefinements"]
     ]
-    assert len(actual) == len(set(actual)) == 49
+    assert actual[49:] == [
+        (result, "identity", "empty-runners")
+        for result in ("batting-result.walk", "batting-result.hit-by-pitch")
+    ]
+    assert len(actual[:49]) == len(set(actual[:49])) == 49
+    assert len(actual) == len(set(actual)) == 51
     assert len(declaration["uncoveredRowRequirements"]) == 5
-    assert checker.check_row_requirements(ROOT) == (54, 49, 0)
+    assert checker.check_row_requirements(ROOT) == (56, 51, 0)
 
 
 @pytest.mark.parametrize("mutation", [
