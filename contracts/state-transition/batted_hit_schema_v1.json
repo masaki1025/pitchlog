@@ -1,0 +1,2628 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "batted_hit_schema_v1.json",
+  "title": "無走者4安打の閉操作ABI候補",
+  "$ref": "#/$defs/BattedHitResponse",
+  "$defs": {
+    "CanonicalUnsigned": {
+      "type": "string",
+      "pattern": "^(?:0|[1-9][0-9]*)(?![\\s\\S])"
+    },
+    "CanonicalPositive": {
+      "type": "string",
+      "pattern": "^[1-9][0-9]*(?![\\s\\S])"
+    },
+    "Score": {
+      "type": "object",
+      "properties": {
+        "home": {
+          "$ref": "#/$defs/CanonicalUnsigned"
+        },
+        "away": {
+          "$ref": "#/$defs/CanonicalUnsigned"
+        }
+      },
+      "required": [
+        "home",
+        "away"
+      ],
+      "additionalProperties": false
+    },
+    "StateFields": {
+      "type": "object",
+      "properties": {
+        "state.half": {
+          "enum": [
+            "top",
+            "bottom"
+          ]
+        },
+        "state.count.strikes": {
+          "$ref": "#/$defs/CanonicalUnsigned"
+        },
+        "state.count.balls": {
+          "$ref": "#/$defs/CanonicalUnsigned"
+        },
+        "state.outs": {
+          "$ref": "#/$defs/CanonicalUnsigned"
+        },
+        "state.runners": {
+          "enum": [
+            "empty",
+            "first",
+            "second",
+            "third",
+            "first-second",
+            "first-third",
+            "second-third",
+            "first-second-third"
+          ]
+        },
+        "state.battingOrder": {
+          "$ref": "#/$defs/CanonicalUnsigned"
+        },
+        "state.tiebreakActive": {
+          "type": "boolean"
+        },
+        "state.gameEnded": {
+          "type": "boolean"
+        },
+        "state.inning": {
+          "$ref": "#/$defs/CanonicalPositive"
+        },
+        "state.score": {
+          "$ref": "#/$defs/Score"
+        }
+      },
+      "required": [
+        "state.half",
+        "state.count.strikes",
+        "state.count.balls",
+        "state.outs",
+        "state.runners",
+        "state.battingOrder",
+        "state.tiebreakActive",
+        "state.gameEnded",
+        "state.inning",
+        "state.score"
+      ],
+      "additionalProperties": false
+    },
+    "Scoreboard": {
+      "type": "object",
+      "properties": {
+        "inningScores": {
+          "$ref": "#/$defs/Score"
+        },
+        "hits": {
+          "$ref": "#/$defs/CanonicalUnsigned"
+        },
+        "errors": {
+          "$ref": "#/$defs/CanonicalUnsigned"
+        },
+        "strikeouts": {
+          "$ref": "#/$defs/CanonicalUnsigned"
+        },
+        "walks": {
+          "$ref": "#/$defs/CanonicalUnsigned"
+        }
+      },
+      "required": [
+        "inningScores",
+        "hits",
+        "errors",
+        "strikeouts",
+        "walks"
+      ],
+      "additionalProperties": false
+    },
+    "Snapshot": {
+      "type": "object",
+      "properties": {
+        "stateFields": {
+          "$ref": "#/$defs/StateFields"
+        },
+        "scoreboard": {
+          "$ref": "#/$defs/Scoreboard"
+        },
+        "battingOrderBySide": {
+          "$ref": "#/$defs/BattingOrderBySide"
+        }
+      },
+      "required": [
+        "stateFields",
+        "scoreboard",
+        "battingOrderBySide"
+      ],
+      "additionalProperties": false
+    },
+    "StatFlags": {
+      "type": "object",
+      "properties": {
+        "投球回算入アウト": {
+          "type": "boolean"
+        },
+        "投球数": {
+          "type": "boolean"
+        },
+        "奪三振": {
+          "type": "boolean"
+        },
+        "与四球": {
+          "type": "boolean"
+        },
+        "与死球": {
+          "type": "boolean"
+        },
+        "被安打": {
+          "type": "boolean"
+        },
+        "被本塁打": {
+          "type": "boolean"
+        },
+        "失点": {
+          "type": "boolean"
+        },
+        "失策": {
+          "type": "boolean"
+        },
+        "打席": {
+          "type": "boolean"
+        },
+        "打数": {
+          "type": "boolean"
+        },
+        "安打": {
+          "type": "boolean"
+        },
+        "本塁打": {
+          "type": "boolean"
+        },
+        "塁打": {
+          "type": "boolean"
+        },
+        "犠打": {
+          "type": "boolean"
+        },
+        "犠飛": {
+          "type": "boolean"
+        },
+        "四球": {
+          "type": "boolean"
+        },
+        "死球": {
+          "type": "boolean"
+        },
+        "三振": {
+          "type": "boolean"
+        },
+        "打撃妨害出塁": {
+          "type": "boolean"
+        },
+        "走塁妨害出塁": {
+          "type": "boolean"
+        },
+        "得点": {
+          "type": "boolean"
+        },
+        "打点": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "投球回算入アウト",
+        "投球数",
+        "奪三振",
+        "与四球",
+        "与死球",
+        "被安打",
+        "被本塁打",
+        "失点",
+        "失策",
+        "打席",
+        "打数",
+        "安打",
+        "本塁打",
+        "塁打",
+        "犠打",
+        "犠飛",
+        "四球",
+        "死球",
+        "三振",
+        "打撃妨害出塁",
+        "走塁妨害出塁",
+        "得点",
+        "打点"
+      ],
+      "additionalProperties": false
+    },
+    "StateDifference": {
+      "type": "object",
+      "properties": {
+        "state.half": {
+          "type": "object",
+          "properties": {
+            "before": {
+              "enum": [
+                "top",
+                "bottom"
+              ]
+            },
+            "after": {
+              "enum": [
+                "top",
+                "bottom"
+              ]
+            }
+          },
+          "required": [
+            "before",
+            "after"
+          ],
+          "additionalProperties": false
+        },
+        "state.count.strikes": {
+          "type": "object",
+          "properties": {
+            "before": {
+              "$ref": "#/$defs/CanonicalUnsigned"
+            },
+            "after": {
+              "$ref": "#/$defs/CanonicalUnsigned"
+            }
+          },
+          "required": [
+            "before",
+            "after"
+          ],
+          "additionalProperties": false
+        },
+        "state.count.balls": {
+          "type": "object",
+          "properties": {
+            "before": {
+              "$ref": "#/$defs/CanonicalUnsigned"
+            },
+            "after": {
+              "$ref": "#/$defs/CanonicalUnsigned"
+            }
+          },
+          "required": [
+            "before",
+            "after"
+          ],
+          "additionalProperties": false
+        },
+        "state.outs": {
+          "type": "object",
+          "properties": {
+            "before": {
+              "$ref": "#/$defs/CanonicalUnsigned"
+            },
+            "after": {
+              "$ref": "#/$defs/CanonicalUnsigned"
+            }
+          },
+          "required": [
+            "before",
+            "after"
+          ],
+          "additionalProperties": false
+        },
+        "state.runners": {
+          "type": "object",
+          "properties": {
+            "before": {
+              "enum": [
+                "empty",
+                "first",
+                "second",
+                "third",
+                "first-second",
+                "first-third",
+                "second-third",
+                "first-second-third"
+              ]
+            },
+            "after": {
+              "enum": [
+                "empty",
+                "first",
+                "second",
+                "third",
+                "first-second",
+                "first-third",
+                "second-third",
+                "first-second-third"
+              ]
+            }
+          },
+          "required": [
+            "before",
+            "after"
+          ],
+          "additionalProperties": false
+        },
+        "state.battingOrder": {
+          "type": "object",
+          "properties": {
+            "before": {
+              "$ref": "#/$defs/CanonicalUnsigned"
+            },
+            "after": {
+              "$ref": "#/$defs/CanonicalUnsigned"
+            }
+          },
+          "required": [
+            "before",
+            "after"
+          ],
+          "additionalProperties": false
+        },
+        "state.tiebreakActive": {
+          "type": "object",
+          "properties": {
+            "before": {
+              "type": "boolean"
+            },
+            "after": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "before",
+            "after"
+          ],
+          "additionalProperties": false
+        },
+        "state.gameEnded": {
+          "type": "object",
+          "properties": {
+            "before": {
+              "type": "boolean"
+            },
+            "after": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "before",
+            "after"
+          ],
+          "additionalProperties": false
+        },
+        "state.inning": {
+          "type": "object",
+          "properties": {
+            "before": {
+              "$ref": "#/$defs/CanonicalPositive"
+            },
+            "after": {
+              "$ref": "#/$defs/CanonicalPositive"
+            }
+          },
+          "required": [
+            "before",
+            "after"
+          ],
+          "additionalProperties": false
+        },
+        "state.score": {
+          "type": "object",
+          "properties": {
+            "before": {
+              "$ref": "#/$defs/Score"
+            },
+            "after": {
+              "$ref": "#/$defs/Score"
+            }
+          },
+          "required": [
+            "before",
+            "after"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "ScoreboardDifference": {
+      "type": "object",
+      "properties": {
+        "inningScores": {
+          "type": "object",
+          "properties": {
+            "before": {
+              "$ref": "#/$defs/Score"
+            },
+            "after": {
+              "$ref": "#/$defs/Score"
+            }
+          },
+          "required": [
+            "before",
+            "after"
+          ],
+          "additionalProperties": false
+        },
+        "hits": {
+          "type": "object",
+          "properties": {
+            "before": {
+              "$ref": "#/$defs/CanonicalUnsigned"
+            },
+            "after": {
+              "$ref": "#/$defs/CanonicalUnsigned"
+            }
+          },
+          "required": [
+            "before",
+            "after"
+          ],
+          "additionalProperties": false
+        },
+        "errors": {
+          "type": "object",
+          "properties": {
+            "before": {
+              "$ref": "#/$defs/CanonicalUnsigned"
+            },
+            "after": {
+              "$ref": "#/$defs/CanonicalUnsigned"
+            }
+          },
+          "required": [
+            "before",
+            "after"
+          ],
+          "additionalProperties": false
+        },
+        "strikeouts": {
+          "type": "object",
+          "properties": {
+            "before": {
+              "$ref": "#/$defs/CanonicalUnsigned"
+            },
+            "after": {
+              "$ref": "#/$defs/CanonicalUnsigned"
+            }
+          },
+          "required": [
+            "before",
+            "after"
+          ],
+          "additionalProperties": false
+        },
+        "walks": {
+          "type": "object",
+          "properties": {
+            "before": {
+              "$ref": "#/$defs/CanonicalUnsigned"
+            },
+            "after": {
+              "$ref": "#/$defs/CanonicalUnsigned"
+            }
+          },
+          "required": [
+            "before",
+            "after"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "HistoryEntry": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "confirmed-play"
+        },
+        "difference": {
+          "type": "object",
+          "properties": {
+            "stateFields": {
+              "$ref": "#/$defs/StateDifference"
+            },
+            "scoreboard": {
+              "$ref": "#/$defs/ScoreboardDifference"
+            },
+            "statFlags": {
+              "$ref": "#/$defs/StatFlags"
+            },
+            "battingOrderBySide": {
+              "$ref": "#/$defs/CursorDifference"
+            }
+          },
+          "required": [
+            "stateFields",
+            "scoreboard",
+            "statFlags"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "kind",
+        "difference"
+      ],
+      "additionalProperties": false
+    },
+    "BattingOrderBySide": {
+      "type": "object",
+      "properties": {
+        "away": {
+          "enum": [
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9"
+          ],
+          "x-pitchlog-axis-id": "state.battingOrder",
+          "$comment": "既descriptor同軸の独立context写像。active値一致・inactive独立性は相関検査。"
+        },
+        "home": {
+          "enum": [
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9"
+          ],
+          "x-pitchlog-axis-id": "state.battingOrder",
+          "$comment": "既descriptor同軸の独立context写像。active値一致・inactive独立性は相関検査。"
+        }
+      },
+      "required": [
+        "away",
+        "home"
+      ],
+      "additionalProperties": false
+    },
+    "CursorDifference": {
+      "type": "object",
+      "properties": {
+        "away": {
+          "type": "object",
+          "properties": {
+            "before": {
+              "enum": [
+                "1",
+                "2",
+                "3",
+                "4",
+                "5",
+                "6",
+                "7",
+                "8",
+                "9"
+              ]
+            },
+            "after": {
+              "enum": [
+                "1",
+                "2",
+                "3",
+                "4",
+                "5",
+                "6",
+                "7",
+                "8",
+                "9"
+              ]
+            }
+          },
+          "required": [
+            "before",
+            "after"
+          ],
+          "additionalProperties": false
+        },
+        "home": {
+          "type": "object",
+          "properties": {
+            "before": {
+              "enum": [
+                "1",
+                "2",
+                "3",
+                "4",
+                "5",
+                "6",
+                "7",
+                "8",
+                "9"
+              ]
+            },
+            "after": {
+              "enum": [
+                "1",
+                "2",
+                "3",
+                "4",
+                "5",
+                "6",
+                "7",
+                "8",
+                "9"
+              ]
+            }
+          },
+          "required": [
+            "before",
+            "after"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "BattedHitHeadEntry": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "confirmed-play"
+        },
+        "difference": {
+          "type": "object",
+          "properties": {
+            "stateFields": {
+              "$ref": "#/$defs/StateDifference"
+            },
+            "scoreboard": {
+              "$ref": "#/$defs/ScoreboardDifference"
+            },
+            "statFlags": {
+              "type": "object",
+              "properties": {
+                "投球回算入アウト": {
+                  "const": false
+                },
+                "投球数": {
+                  "const": true
+                },
+                "奪三振": {
+                  "const": false
+                },
+                "与四球": {
+                  "const": false
+                },
+                "与死球": {
+                  "const": false
+                },
+                "被安打": {
+                  "const": true
+                },
+                "被本塁打": {
+                  "const": false
+                },
+                "失点": {
+                  "const": false
+                },
+                "失策": {
+                  "const": false
+                },
+                "打席": {
+                  "const": true
+                },
+                "打数": {
+                  "const": true
+                },
+                "安打": {
+                  "const": true
+                },
+                "本塁打": {
+                  "const": false
+                },
+                "塁打": {
+                  "const": true
+                },
+                "犠打": {
+                  "const": false
+                },
+                "犠飛": {
+                  "const": false
+                },
+                "四球": {
+                  "const": false
+                },
+                "死球": {
+                  "const": false
+                },
+                "三振": {
+                  "const": false
+                },
+                "打撃妨害出塁": {
+                  "const": false
+                },
+                "走塁妨害出塁": {
+                  "const": false
+                },
+                "得点": {
+                  "const": false
+                },
+                "打点": {
+                  "const": false
+                }
+              },
+              "required": [
+                "投球回算入アウト",
+                "投球数",
+                "奪三振",
+                "与四球",
+                "与死球",
+                "被安打",
+                "被本塁打",
+                "失点",
+                "失策",
+                "打席",
+                "打数",
+                "安打",
+                "本塁打",
+                "塁打",
+                "犠打",
+                "犠飛",
+                "四球",
+                "死球",
+                "三振",
+                "打撃妨害出塁",
+                "走塁妨害出塁",
+                "得点",
+                "打点"
+              ],
+              "additionalProperties": false
+            },
+            "battingOrderBySide": {
+              "type": "object",
+              "properties": {
+                "away": {
+                  "type": "object",
+                  "properties": {
+                    "before": {
+                      "enum": [
+                        "1",
+                        "2",
+                        "3",
+                        "4",
+                        "5",
+                        "6",
+                        "7",
+                        "8",
+                        "9"
+                      ]
+                    },
+                    "after": {
+                      "enum": [
+                        "1",
+                        "2",
+                        "3",
+                        "4",
+                        "5",
+                        "6",
+                        "7",
+                        "8",
+                        "9"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "before",
+                    "after"
+                  ],
+                  "additionalProperties": false
+                },
+                "home": {
+                  "type": "object",
+                  "properties": {
+                    "before": {
+                      "enum": [
+                        "1",
+                        "2",
+                        "3",
+                        "4",
+                        "5",
+                        "6",
+                        "7",
+                        "8",
+                        "9"
+                      ]
+                    },
+                    "after": {
+                      "enum": [
+                        "1",
+                        "2",
+                        "3",
+                        "4",
+                        "5",
+                        "6",
+                        "7",
+                        "8",
+                        "9"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "before",
+                    "after"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [],
+              "additionalProperties": false,
+              "minProperties": 1
+            }
+          },
+          "required": [
+            "stateFields",
+            "scoreboard",
+            "statFlags",
+            "battingOrderBySide"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "kind",
+        "difference"
+      ],
+      "additionalProperties": false
+    },
+    "BattedHitResultId": {
+      "enum": [
+        "batting-result.single",
+        "batting-result.double",
+        "batting-result.triple",
+        "batting-result.home-run"
+      ]
+    },
+    "BattedHitRequest": {
+      "type": "object",
+      "properties": {
+        "eventKind": {
+          "const": "batting-result"
+        },
+        "resultId": {
+          "$ref": "#/$defs/BattedHitResultId"
+        },
+        "pitchEventKind": {
+          "const": "pitch-event"
+        },
+        "officialScoringPayload": {
+          "const": "no-error"
+        },
+        "interferenceRuling": {
+          "const": "not-required"
+        },
+        "runnerAdvanceOverrides": {
+          "const": "not-applied"
+        },
+        "thirdOutObservation": {
+          "const": "none"
+        },
+        "before": {
+          "$ref": "#/$defs/Snapshot"
+        },
+        "history": {
+          "type": "object",
+          "properties": {
+            "stack": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/HistoryEntry"
+              }
+            }
+          },
+          "required": [
+            "stack"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "eventKind",
+        "resultId",
+        "pitchEventKind",
+        "officialScoringPayload",
+        "interferenceRuling",
+        "runnerAdvanceOverrides",
+        "thirdOutObservation",
+        "before",
+        "history"
+      ],
+      "additionalProperties": false
+    },
+    "HomeRunHeadEntry": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "confirmed-play"
+        },
+        "difference": {
+          "type": "object",
+          "properties": {
+            "stateFields": {
+              "$ref": "#/$defs/StateDifference"
+            },
+            "scoreboard": {
+              "$ref": "#/$defs/ScoreboardDifference"
+            },
+            "statFlags": {
+              "type": "object",
+              "properties": {
+                "投球回算入アウト": {
+                  "const": false
+                },
+                "投球数": {
+                  "const": true
+                },
+                "奪三振": {
+                  "const": false
+                },
+                "与四球": {
+                  "const": false
+                },
+                "与死球": {
+                  "const": false
+                },
+                "被安打": {
+                  "const": true
+                },
+                "被本塁打": {
+                  "const": true
+                },
+                "失点": {
+                  "const": true
+                },
+                "失策": {
+                  "const": false
+                },
+                "打席": {
+                  "const": true
+                },
+                "打数": {
+                  "const": true
+                },
+                "安打": {
+                  "const": true
+                },
+                "本塁打": {
+                  "const": true
+                },
+                "塁打": {
+                  "const": true
+                },
+                "犠打": {
+                  "const": false
+                },
+                "犠飛": {
+                  "const": false
+                },
+                "四球": {
+                  "const": false
+                },
+                "死球": {
+                  "const": false
+                },
+                "三振": {
+                  "const": false
+                },
+                "打撃妨害出塁": {
+                  "const": false
+                },
+                "走塁妨害出塁": {
+                  "const": false
+                },
+                "得点": {
+                  "const": true
+                },
+                "打点": {
+                  "const": true
+                }
+              },
+              "required": [
+                "投球回算入アウト",
+                "投球数",
+                "奪三振",
+                "与四球",
+                "与死球",
+                "被安打",
+                "被本塁打",
+                "失点",
+                "失策",
+                "打席",
+                "打数",
+                "安打",
+                "本塁打",
+                "塁打",
+                "犠打",
+                "犠飛",
+                "四球",
+                "死球",
+                "三振",
+                "打撃妨害出塁",
+                "走塁妨害出塁",
+                "得点",
+                "打点"
+              ],
+              "additionalProperties": false
+            },
+            "battingOrderBySide": {
+              "type": "object",
+              "properties": {
+                "away": {
+                  "type": "object",
+                  "properties": {
+                    "before": {
+                      "enum": [
+                        "1",
+                        "2",
+                        "3",
+                        "4",
+                        "5",
+                        "6",
+                        "7",
+                        "8",
+                        "9"
+                      ]
+                    },
+                    "after": {
+                      "enum": [
+                        "1",
+                        "2",
+                        "3",
+                        "4",
+                        "5",
+                        "6",
+                        "7",
+                        "8",
+                        "9"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "before",
+                    "after"
+                  ],
+                  "additionalProperties": false
+                },
+                "home": {
+                  "type": "object",
+                  "properties": {
+                    "before": {
+                      "enum": [
+                        "1",
+                        "2",
+                        "3",
+                        "4",
+                        "5",
+                        "6",
+                        "7",
+                        "8",
+                        "9"
+                      ]
+                    },
+                    "after": {
+                      "enum": [
+                        "1",
+                        "2",
+                        "3",
+                        "4",
+                        "5",
+                        "6",
+                        "7",
+                        "8",
+                        "9"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "before",
+                    "after"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [],
+              "additionalProperties": false,
+              "minProperties": 1
+            }
+          },
+          "required": [
+            "stateFields",
+            "scoreboard",
+            "statFlags",
+            "battingOrderBySide"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "kind",
+        "difference"
+      ],
+      "additionalProperties": false
+    },
+    "SingleValue": {
+      "type": "object",
+      "properties": {
+        "countEffect": {
+          "type": "object",
+          "properties": {
+            "strikes": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "reset"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            "balls": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "reset"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "strikes",
+            "balls"
+          ],
+          "additionalProperties": false
+        },
+        "plateAppearanceEnded": {
+          "const": true
+        },
+        "batterDestination": {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "reach"
+            },
+            "base": {
+              "const": "1"
+            }
+          },
+          "required": [
+            "kind",
+            "base"
+          ],
+          "additionalProperties": false
+        },
+        "runnerDefaultAdvance": {
+          "type": "object",
+          "properties": {
+            "first": {
+              "type": "object",
+              "properties": {
+                "modality": {
+                  "const": "not-applicable"
+                },
+                "destination": {
+                  "const": null
+                }
+              },
+              "required": [
+                "modality",
+                "destination"
+              ],
+              "additionalProperties": false
+            },
+            "second": {
+              "type": "object",
+              "properties": {
+                "modality": {
+                  "const": "not-applicable"
+                },
+                "destination": {
+                  "const": null
+                }
+              },
+              "required": [
+                "modality",
+                "destination"
+              ],
+              "additionalProperties": false
+            },
+            "third": {
+              "type": "object",
+              "properties": {
+                "modality": {
+                  "const": "not-applicable"
+                },
+                "destination": {
+                  "const": null
+                }
+              },
+              "required": [
+                "modality",
+                "destination"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "first",
+            "second",
+            "third"
+          ],
+          "additionalProperties": false
+        },
+        "outEffect": {
+          "type": "object",
+          "properties": {
+            "count": {
+              "const": "0"
+            },
+            "targets": {
+              "type": "array",
+              "maxItems": 0,
+              "items": false
+            }
+          },
+          "required": [
+            "count",
+            "targets"
+          ],
+          "additionalProperties": false
+        },
+        "statFlags": {
+          "type": "object",
+          "properties": {
+            "投球回算入アウト": {
+              "const": false
+            },
+            "投球数": {
+              "const": true
+            },
+            "奪三振": {
+              "const": false
+            },
+            "与四球": {
+              "const": false
+            },
+            "与死球": {
+              "const": false
+            },
+            "被安打": {
+              "const": true
+            },
+            "被本塁打": {
+              "const": false
+            },
+            "失点": {
+              "const": false
+            },
+            "失策": {
+              "const": false
+            },
+            "打席": {
+              "const": true
+            },
+            "打数": {
+              "const": true
+            },
+            "安打": {
+              "const": true
+            },
+            "本塁打": {
+              "const": false
+            },
+            "塁打": {
+              "const": true
+            },
+            "犠打": {
+              "const": false
+            },
+            "犠飛": {
+              "const": false
+            },
+            "四球": {
+              "const": false
+            },
+            "死球": {
+              "const": false
+            },
+            "三振": {
+              "const": false
+            },
+            "打撃妨害出塁": {
+              "const": false
+            },
+            "走塁妨害出塁": {
+              "const": false
+            },
+            "得点": {
+              "const": false
+            },
+            "打点": {
+              "const": false
+            }
+          },
+          "required": [
+            "投球回算入アウト",
+            "投球数",
+            "奪三振",
+            "与四球",
+            "与死球",
+            "被安打",
+            "被本塁打",
+            "失点",
+            "失策",
+            "打席",
+            "打数",
+            "安打",
+            "本塁打",
+            "塁打",
+            "犠打",
+            "犠飛",
+            "四球",
+            "死球",
+            "三振",
+            "打撃妨害出塁",
+            "走塁妨害出塁",
+            "得点",
+            "打点"
+          ],
+          "additionalProperties": false
+        },
+        "after": {
+          "type": "object",
+          "properties": {
+            "stateFields": {
+              "type": "object",
+              "properties": {
+                "state.half": {
+                  "enum": [
+                    "top",
+                    "bottom"
+                  ]
+                },
+                "state.count.strikes": {
+                  "const": "0"
+                },
+                "state.count.balls": {
+                  "const": "0"
+                },
+                "state.outs": {
+                  "enum": [
+                    "0",
+                    "1",
+                    "2"
+                  ]
+                },
+                "state.runners": {
+                  "const": "first"
+                },
+                "state.battingOrder": {
+                  "enum": [
+                    "1",
+                    "2",
+                    "3",
+                    "4",
+                    "5",
+                    "6",
+                    "7",
+                    "8",
+                    "9"
+                  ]
+                },
+                "state.tiebreakActive": {
+                  "const": false
+                },
+                "state.gameEnded": {
+                  "const": false
+                },
+                "state.inning": {
+                  "$ref": "#/$defs/CanonicalPositive"
+                },
+                "state.score": {
+                  "$ref": "#/$defs/Score"
+                }
+              },
+              "required": [
+                "state.half",
+                "state.count.strikes",
+                "state.count.balls",
+                "state.outs",
+                "state.runners",
+                "state.battingOrder",
+                "state.tiebreakActive",
+                "state.gameEnded",
+                "state.inning",
+                "state.score"
+              ],
+              "additionalProperties": false
+            },
+            "scoreboard": {
+              "$ref": "#/$defs/Scoreboard"
+            },
+            "battingOrderBySide": {
+              "$ref": "#/$defs/BattingOrderBySide"
+            }
+          },
+          "required": [
+            "stateFields",
+            "scoreboard",
+            "battingOrderBySide"
+          ],
+          "additionalProperties": false
+        },
+        "historyContext": {
+          "type": "array",
+          "minItems": 1,
+          "prefixItems": [
+            {
+              "$ref": "#/$defs/BattedHitHeadEntry"
+            }
+          ],
+          "items": {
+            "$ref": "#/$defs/HistoryEntry"
+          }
+        }
+      },
+      "required": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "after",
+        "historyContext"
+      ],
+      "additionalProperties": false
+    },
+    "SingleSuccess": {
+      "type": "object",
+      "properties": {
+        "ok": {
+          "const": true
+        },
+        "value": {
+          "$ref": "#/$defs/SingleValue"
+        }
+      },
+      "required": [
+        "ok",
+        "value"
+      ],
+      "additionalProperties": false
+    },
+    "DoubleValue": {
+      "type": "object",
+      "properties": {
+        "countEffect": {
+          "type": "object",
+          "properties": {
+            "strikes": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "reset"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            "balls": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "reset"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "strikes",
+            "balls"
+          ],
+          "additionalProperties": false
+        },
+        "plateAppearanceEnded": {
+          "const": true
+        },
+        "batterDestination": {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "reach"
+            },
+            "base": {
+              "const": "2"
+            }
+          },
+          "required": [
+            "kind",
+            "base"
+          ],
+          "additionalProperties": false
+        },
+        "runnerDefaultAdvance": {
+          "type": "object",
+          "properties": {
+            "first": {
+              "type": "object",
+              "properties": {
+                "modality": {
+                  "const": "not-applicable"
+                },
+                "destination": {
+                  "const": null
+                }
+              },
+              "required": [
+                "modality",
+                "destination"
+              ],
+              "additionalProperties": false
+            },
+            "second": {
+              "type": "object",
+              "properties": {
+                "modality": {
+                  "const": "not-applicable"
+                },
+                "destination": {
+                  "const": null
+                }
+              },
+              "required": [
+                "modality",
+                "destination"
+              ],
+              "additionalProperties": false
+            },
+            "third": {
+              "type": "object",
+              "properties": {
+                "modality": {
+                  "const": "not-applicable"
+                },
+                "destination": {
+                  "const": null
+                }
+              },
+              "required": [
+                "modality",
+                "destination"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "first",
+            "second",
+            "third"
+          ],
+          "additionalProperties": false
+        },
+        "outEffect": {
+          "type": "object",
+          "properties": {
+            "count": {
+              "const": "0"
+            },
+            "targets": {
+              "type": "array",
+              "maxItems": 0,
+              "items": false
+            }
+          },
+          "required": [
+            "count",
+            "targets"
+          ],
+          "additionalProperties": false
+        },
+        "statFlags": {
+          "type": "object",
+          "properties": {
+            "投球回算入アウト": {
+              "const": false
+            },
+            "投球数": {
+              "const": true
+            },
+            "奪三振": {
+              "const": false
+            },
+            "与四球": {
+              "const": false
+            },
+            "与死球": {
+              "const": false
+            },
+            "被安打": {
+              "const": true
+            },
+            "被本塁打": {
+              "const": false
+            },
+            "失点": {
+              "const": false
+            },
+            "失策": {
+              "const": false
+            },
+            "打席": {
+              "const": true
+            },
+            "打数": {
+              "const": true
+            },
+            "安打": {
+              "const": true
+            },
+            "本塁打": {
+              "const": false
+            },
+            "塁打": {
+              "const": true
+            },
+            "犠打": {
+              "const": false
+            },
+            "犠飛": {
+              "const": false
+            },
+            "四球": {
+              "const": false
+            },
+            "死球": {
+              "const": false
+            },
+            "三振": {
+              "const": false
+            },
+            "打撃妨害出塁": {
+              "const": false
+            },
+            "走塁妨害出塁": {
+              "const": false
+            },
+            "得点": {
+              "const": false
+            },
+            "打点": {
+              "const": false
+            }
+          },
+          "required": [
+            "投球回算入アウト",
+            "投球数",
+            "奪三振",
+            "与四球",
+            "与死球",
+            "被安打",
+            "被本塁打",
+            "失点",
+            "失策",
+            "打席",
+            "打数",
+            "安打",
+            "本塁打",
+            "塁打",
+            "犠打",
+            "犠飛",
+            "四球",
+            "死球",
+            "三振",
+            "打撃妨害出塁",
+            "走塁妨害出塁",
+            "得点",
+            "打点"
+          ],
+          "additionalProperties": false
+        },
+        "after": {
+          "type": "object",
+          "properties": {
+            "stateFields": {
+              "type": "object",
+              "properties": {
+                "state.half": {
+                  "enum": [
+                    "top",
+                    "bottom"
+                  ]
+                },
+                "state.count.strikes": {
+                  "const": "0"
+                },
+                "state.count.balls": {
+                  "const": "0"
+                },
+                "state.outs": {
+                  "enum": [
+                    "0",
+                    "1",
+                    "2"
+                  ]
+                },
+                "state.runners": {
+                  "const": "second"
+                },
+                "state.battingOrder": {
+                  "enum": [
+                    "1",
+                    "2",
+                    "3",
+                    "4",
+                    "5",
+                    "6",
+                    "7",
+                    "8",
+                    "9"
+                  ]
+                },
+                "state.tiebreakActive": {
+                  "const": false
+                },
+                "state.gameEnded": {
+                  "const": false
+                },
+                "state.inning": {
+                  "$ref": "#/$defs/CanonicalPositive"
+                },
+                "state.score": {
+                  "$ref": "#/$defs/Score"
+                }
+              },
+              "required": [
+                "state.half",
+                "state.count.strikes",
+                "state.count.balls",
+                "state.outs",
+                "state.runners",
+                "state.battingOrder",
+                "state.tiebreakActive",
+                "state.gameEnded",
+                "state.inning",
+                "state.score"
+              ],
+              "additionalProperties": false
+            },
+            "scoreboard": {
+              "$ref": "#/$defs/Scoreboard"
+            },
+            "battingOrderBySide": {
+              "$ref": "#/$defs/BattingOrderBySide"
+            }
+          },
+          "required": [
+            "stateFields",
+            "scoreboard",
+            "battingOrderBySide"
+          ],
+          "additionalProperties": false
+        },
+        "historyContext": {
+          "type": "array",
+          "minItems": 1,
+          "prefixItems": [
+            {
+              "$ref": "#/$defs/BattedHitHeadEntry"
+            }
+          ],
+          "items": {
+            "$ref": "#/$defs/HistoryEntry"
+          }
+        }
+      },
+      "required": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "after",
+        "historyContext"
+      ],
+      "additionalProperties": false
+    },
+    "DoubleSuccess": {
+      "type": "object",
+      "properties": {
+        "ok": {
+          "const": true
+        },
+        "value": {
+          "$ref": "#/$defs/DoubleValue"
+        }
+      },
+      "required": [
+        "ok",
+        "value"
+      ],
+      "additionalProperties": false
+    },
+    "TripleValue": {
+      "type": "object",
+      "properties": {
+        "countEffect": {
+          "type": "object",
+          "properties": {
+            "strikes": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "reset"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            "balls": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "reset"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "strikes",
+            "balls"
+          ],
+          "additionalProperties": false
+        },
+        "plateAppearanceEnded": {
+          "const": true
+        },
+        "batterDestination": {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "reach"
+            },
+            "base": {
+              "const": "3"
+            }
+          },
+          "required": [
+            "kind",
+            "base"
+          ],
+          "additionalProperties": false
+        },
+        "runnerDefaultAdvance": {
+          "type": "object",
+          "properties": {
+            "first": {
+              "type": "object",
+              "properties": {
+                "modality": {
+                  "const": "not-applicable"
+                },
+                "destination": {
+                  "const": null
+                }
+              },
+              "required": [
+                "modality",
+                "destination"
+              ],
+              "additionalProperties": false
+            },
+            "second": {
+              "type": "object",
+              "properties": {
+                "modality": {
+                  "const": "not-applicable"
+                },
+                "destination": {
+                  "const": null
+                }
+              },
+              "required": [
+                "modality",
+                "destination"
+              ],
+              "additionalProperties": false
+            },
+            "third": {
+              "type": "object",
+              "properties": {
+                "modality": {
+                  "const": "not-applicable"
+                },
+                "destination": {
+                  "const": null
+                }
+              },
+              "required": [
+                "modality",
+                "destination"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "first",
+            "second",
+            "third"
+          ],
+          "additionalProperties": false
+        },
+        "outEffect": {
+          "type": "object",
+          "properties": {
+            "count": {
+              "const": "0"
+            },
+            "targets": {
+              "type": "array",
+              "maxItems": 0,
+              "items": false
+            }
+          },
+          "required": [
+            "count",
+            "targets"
+          ],
+          "additionalProperties": false
+        },
+        "statFlags": {
+          "type": "object",
+          "properties": {
+            "投球回算入アウト": {
+              "const": false
+            },
+            "投球数": {
+              "const": true
+            },
+            "奪三振": {
+              "const": false
+            },
+            "与四球": {
+              "const": false
+            },
+            "与死球": {
+              "const": false
+            },
+            "被安打": {
+              "const": true
+            },
+            "被本塁打": {
+              "const": false
+            },
+            "失点": {
+              "const": false
+            },
+            "失策": {
+              "const": false
+            },
+            "打席": {
+              "const": true
+            },
+            "打数": {
+              "const": true
+            },
+            "安打": {
+              "const": true
+            },
+            "本塁打": {
+              "const": false
+            },
+            "塁打": {
+              "const": true
+            },
+            "犠打": {
+              "const": false
+            },
+            "犠飛": {
+              "const": false
+            },
+            "四球": {
+              "const": false
+            },
+            "死球": {
+              "const": false
+            },
+            "三振": {
+              "const": false
+            },
+            "打撃妨害出塁": {
+              "const": false
+            },
+            "走塁妨害出塁": {
+              "const": false
+            },
+            "得点": {
+              "const": false
+            },
+            "打点": {
+              "const": false
+            }
+          },
+          "required": [
+            "投球回算入アウト",
+            "投球数",
+            "奪三振",
+            "与四球",
+            "与死球",
+            "被安打",
+            "被本塁打",
+            "失点",
+            "失策",
+            "打席",
+            "打数",
+            "安打",
+            "本塁打",
+            "塁打",
+            "犠打",
+            "犠飛",
+            "四球",
+            "死球",
+            "三振",
+            "打撃妨害出塁",
+            "走塁妨害出塁",
+            "得点",
+            "打点"
+          ],
+          "additionalProperties": false
+        },
+        "after": {
+          "type": "object",
+          "properties": {
+            "stateFields": {
+              "type": "object",
+              "properties": {
+                "state.half": {
+                  "enum": [
+                    "top",
+                    "bottom"
+                  ]
+                },
+                "state.count.strikes": {
+                  "const": "0"
+                },
+                "state.count.balls": {
+                  "const": "0"
+                },
+                "state.outs": {
+                  "enum": [
+                    "0",
+                    "1",
+                    "2"
+                  ]
+                },
+                "state.runners": {
+                  "const": "third"
+                },
+                "state.battingOrder": {
+                  "enum": [
+                    "1",
+                    "2",
+                    "3",
+                    "4",
+                    "5",
+                    "6",
+                    "7",
+                    "8",
+                    "9"
+                  ]
+                },
+                "state.tiebreakActive": {
+                  "const": false
+                },
+                "state.gameEnded": {
+                  "const": false
+                },
+                "state.inning": {
+                  "$ref": "#/$defs/CanonicalPositive"
+                },
+                "state.score": {
+                  "$ref": "#/$defs/Score"
+                }
+              },
+              "required": [
+                "state.half",
+                "state.count.strikes",
+                "state.count.balls",
+                "state.outs",
+                "state.runners",
+                "state.battingOrder",
+                "state.tiebreakActive",
+                "state.gameEnded",
+                "state.inning",
+                "state.score"
+              ],
+              "additionalProperties": false
+            },
+            "scoreboard": {
+              "$ref": "#/$defs/Scoreboard"
+            },
+            "battingOrderBySide": {
+              "$ref": "#/$defs/BattingOrderBySide"
+            }
+          },
+          "required": [
+            "stateFields",
+            "scoreboard",
+            "battingOrderBySide"
+          ],
+          "additionalProperties": false
+        },
+        "historyContext": {
+          "type": "array",
+          "minItems": 1,
+          "prefixItems": [
+            {
+              "$ref": "#/$defs/BattedHitHeadEntry"
+            }
+          ],
+          "items": {
+            "$ref": "#/$defs/HistoryEntry"
+          }
+        }
+      },
+      "required": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "after",
+        "historyContext"
+      ],
+      "additionalProperties": false
+    },
+    "TripleSuccess": {
+      "type": "object",
+      "properties": {
+        "ok": {
+          "const": true
+        },
+        "value": {
+          "$ref": "#/$defs/TripleValue"
+        }
+      },
+      "required": [
+        "ok",
+        "value"
+      ],
+      "additionalProperties": false
+    },
+    "HomeRunValue": {
+      "type": "object",
+      "properties": {
+        "countEffect": {
+          "type": "object",
+          "properties": {
+            "strikes": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "reset"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            "balls": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "reset"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "strikes",
+            "balls"
+          ],
+          "additionalProperties": false
+        },
+        "plateAppearanceEnded": {
+          "const": true
+        },
+        "batterDestination": {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "score"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false
+        },
+        "runnerDefaultAdvance": {
+          "type": "object",
+          "properties": {
+            "first": {
+              "type": "object",
+              "properties": {
+                "modality": {
+                  "const": "not-applicable"
+                },
+                "destination": {
+                  "const": null
+                }
+              },
+              "required": [
+                "modality",
+                "destination"
+              ],
+              "additionalProperties": false
+            },
+            "second": {
+              "type": "object",
+              "properties": {
+                "modality": {
+                  "const": "not-applicable"
+                },
+                "destination": {
+                  "const": null
+                }
+              },
+              "required": [
+                "modality",
+                "destination"
+              ],
+              "additionalProperties": false
+            },
+            "third": {
+              "type": "object",
+              "properties": {
+                "modality": {
+                  "const": "not-applicable"
+                },
+                "destination": {
+                  "const": null
+                }
+              },
+              "required": [
+                "modality",
+                "destination"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "first",
+            "second",
+            "third"
+          ],
+          "additionalProperties": false
+        },
+        "outEffect": {
+          "type": "object",
+          "properties": {
+            "count": {
+              "const": "0"
+            },
+            "targets": {
+              "type": "array",
+              "maxItems": 0,
+              "items": false
+            }
+          },
+          "required": [
+            "count",
+            "targets"
+          ],
+          "additionalProperties": false
+        },
+        "statFlags": {
+          "type": "object",
+          "properties": {
+            "投球回算入アウト": {
+              "const": false
+            },
+            "投球数": {
+              "const": true
+            },
+            "奪三振": {
+              "const": false
+            },
+            "与四球": {
+              "const": false
+            },
+            "与死球": {
+              "const": false
+            },
+            "被安打": {
+              "const": true
+            },
+            "被本塁打": {
+              "const": true
+            },
+            "失点": {
+              "const": true
+            },
+            "失策": {
+              "const": false
+            },
+            "打席": {
+              "const": true
+            },
+            "打数": {
+              "const": true
+            },
+            "安打": {
+              "const": true
+            },
+            "本塁打": {
+              "const": true
+            },
+            "塁打": {
+              "const": true
+            },
+            "犠打": {
+              "const": false
+            },
+            "犠飛": {
+              "const": false
+            },
+            "四球": {
+              "const": false
+            },
+            "死球": {
+              "const": false
+            },
+            "三振": {
+              "const": false
+            },
+            "打撃妨害出塁": {
+              "const": false
+            },
+            "走塁妨害出塁": {
+              "const": false
+            },
+            "得点": {
+              "const": true
+            },
+            "打点": {
+              "const": true
+            }
+          },
+          "required": [
+            "投球回算入アウト",
+            "投球数",
+            "奪三振",
+            "与四球",
+            "与死球",
+            "被安打",
+            "被本塁打",
+            "失点",
+            "失策",
+            "打席",
+            "打数",
+            "安打",
+            "本塁打",
+            "塁打",
+            "犠打",
+            "犠飛",
+            "四球",
+            "死球",
+            "三振",
+            "打撃妨害出塁",
+            "走塁妨害出塁",
+            "得点",
+            "打点"
+          ],
+          "additionalProperties": false
+        },
+        "after": {
+          "type": "object",
+          "properties": {
+            "stateFields": {
+              "type": "object",
+              "properties": {
+                "state.half": {
+                  "enum": [
+                    "top",
+                    "bottom"
+                  ]
+                },
+                "state.count.strikes": {
+                  "const": "0"
+                },
+                "state.count.balls": {
+                  "const": "0"
+                },
+                "state.outs": {
+                  "enum": [
+                    "0",
+                    "1",
+                    "2"
+                  ]
+                },
+                "state.runners": {
+                  "const": "empty"
+                },
+                "state.battingOrder": {
+                  "enum": [
+                    "1",
+                    "2",
+                    "3",
+                    "4",
+                    "5",
+                    "6",
+                    "7",
+                    "8",
+                    "9"
+                  ]
+                },
+                "state.tiebreakActive": {
+                  "const": false
+                },
+                "state.gameEnded": {
+                  "const": false
+                },
+                "state.inning": {
+                  "$ref": "#/$defs/CanonicalPositive"
+                },
+                "state.score": {
+                  "$ref": "#/$defs/Score"
+                }
+              },
+              "required": [
+                "state.half",
+                "state.count.strikes",
+                "state.count.balls",
+                "state.outs",
+                "state.runners",
+                "state.battingOrder",
+                "state.tiebreakActive",
+                "state.gameEnded",
+                "state.inning",
+                "state.score"
+              ],
+              "additionalProperties": false
+            },
+            "scoreboard": {
+              "$ref": "#/$defs/Scoreboard"
+            },
+            "battingOrderBySide": {
+              "$ref": "#/$defs/BattingOrderBySide"
+            }
+          },
+          "required": [
+            "stateFields",
+            "scoreboard",
+            "battingOrderBySide"
+          ],
+          "additionalProperties": false
+        },
+        "historyContext": {
+          "type": "array",
+          "minItems": 1,
+          "prefixItems": [
+            {
+              "$ref": "#/$defs/HomeRunHeadEntry"
+            }
+          ],
+          "items": {
+            "$ref": "#/$defs/HistoryEntry"
+          }
+        }
+      },
+      "required": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "after",
+        "historyContext"
+      ],
+      "additionalProperties": false
+    },
+    "HomeRunSuccess": {
+      "type": "object",
+      "properties": {
+        "ok": {
+          "const": true
+        },
+        "value": {
+          "$ref": "#/$defs/HomeRunValue"
+        }
+      },
+      "required": [
+        "ok",
+        "value"
+      ],
+      "additionalProperties": false
+    },
+    "FailureResponse": {
+      "type": "object",
+      "properties": {
+        "ok": {
+          "const": false
+        },
+        "error": {
+          "type": "object",
+          "properties": {
+            "code": {
+              "enum": [
+                "INVALID_JSON",
+                "INVALID_REQUEST",
+                "INVALID_DECIMAL_INTEGER",
+                "UNSUPPORTED_T1_SCOPE"
+              ]
+            }
+          },
+          "required": [
+            "code"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "ok",
+        "error"
+      ],
+      "additionalProperties": false
+    },
+    "BattedHitResponse": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/SingleSuccess"
+        },
+        {
+          "$ref": "#/$defs/DoubleSuccess"
+        },
+        {
+          "$ref": "#/$defs/TripleSuccess"
+        },
+        {
+          "$ref": "#/$defs/HomeRunSuccess"
+        },
+        {
+          "$ref": "#/$defs/FailureResponse"
+        }
+      ]
+    }
+  }
+}

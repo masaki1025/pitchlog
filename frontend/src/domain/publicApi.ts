@@ -1,3 +1,4 @@
+import type { BattedHitObservation } from './battedHit'
 import {
   prepareLineupContinuation,
   finishLineupContinuation,
@@ -22,6 +23,7 @@ import {
   deriveOrdinary,
   deriveTerminal,
   deriveStrikeout,
+  deriveBattedHit as calculateBattedHit,
   deriveLineupPitch,
   emptyFlags,
 } from './state'
@@ -605,8 +607,9 @@ function evaluatePitch(
   terminal: boolean = false,
   strikeout: boolean = false,
   lineup: boolean = false,
+  battedHit: boolean = false,
 ): string {
-  const cursorMode = strikeout || lineup
+  const cursorMode = strikeout || lineup || battedHit
   if (typeof requestJson !== 'string') return errorResponse('INVALID_REQUEST')
   let parsed: unknown
   try {
@@ -620,6 +623,13 @@ function evaluatePitch(
   let requestKeys = ['eventKind', 'resultId', 'pitchEventKind', 'before']
   if (ordinary || terminal || cursorMode)
     requestKeys = requestKeys.concat(['history'])
+  if (battedHit)
+    requestKeys = requestKeys.concat([
+      'officialScoringPayload',
+      'interferenceRuling',
+      'runnerAdvanceOverrides',
+      'thirdOutObservation',
+    ])
   if (request === null || !exactKeys(request, requestKeys)) {
     return errorResponse('INVALID_REQUEST')
   }
@@ -627,6 +637,14 @@ function evaluatePitch(
     typeof request.eventKind !== 'string' ||
     typeof request.resultId !== 'string' ||
     typeof request.pitchEventKind !== 'string'
+  )
+    return errorResponse('INVALID_REQUEST')
+  if (
+    battedHit &&
+    (typeof request.officialScoringPayload !== 'string' ||
+      typeof request.interferenceRuling !== 'string' ||
+      typeof request.runnerAdvanceOverrides !== 'string' ||
+      typeof request.thirdOutObservation !== 'string')
   )
     return errorResponse('INVALID_REQUEST')
   let stack: Array<unknown> = []
@@ -746,13 +764,30 @@ function evaluatePitch(
     cursors = Object.freeze({ away: away, home: home })
     let cursorCalculator = deriveStrikeout
     if (lineup) cursorCalculator = deriveLineupPitch
-    const result = cursorCalculator(
-      state,
-      scoreboard,
-      request.resultId,
-      request.pitchEventKind,
-      cursors,
-    )
+    let result
+    if (battedHit)
+      result = calculateBattedHit(
+        state,
+        scoreboard,
+        {
+          eventKind: request.eventKind,
+          resultId: request.resultId,
+          pitchEventKind: request.pitchEventKind,
+          officialScoringPayload: request.officialScoringPayload,
+          interferenceRuling: request.interferenceRuling,
+          runnerAdvanceOverrides: request.runnerAdvanceOverrides,
+          thirdOutObservation: request.thirdOutObservation,
+        } as BattedHitObservation,
+        cursors,
+      )
+    else
+      result = cursorCalculator(
+        state,
+        scoreboard,
+        request.resultId,
+        request.pitchEventKind,
+        cursors,
+      )
     derived = result
     if (result !== null) afterCursors = result.after.battingOrderBySide
   } else
@@ -796,6 +831,11 @@ function deriveTerminalPitch(requestJson: string): string {
 /** 正規捕球三振の両cursor variant。旧入口の要求形を広げない。 */
 function deriveStrikeoutPitch(requestJson: string): string {
   return evaluatePitch(requestJson, false, false, true)
+}
+
+/** 無走者4安打の独立した閉入口。既投球ABIの成功範囲を広げない。 */
+function deriveBattedHit(requestJson: string): string {
+  return evaluatePitch(requestJson, false, false, false, false, true)
 }
 
 type T1Evaluation =
@@ -1002,6 +1042,7 @@ export const domainOperations = Object.freeze({
   deriveOrdinaryPitch,
   deriveTerminalPitch,
   deriveStrikeoutPitch,
+  deriveBattedHit,
   derivePlayPrefixWithContinuation,
   deriveLineupPlayPrefixWithContinuation,
   deriveFirstPitchWithContinuation,

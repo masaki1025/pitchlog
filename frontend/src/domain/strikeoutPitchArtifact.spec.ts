@@ -19,7 +19,7 @@ const assets = (name: string) =>
   )
 
 describe('三振を追加した単一artifact', () => {
-  it('旧9口を全保持し、SO一名だけを追加した完全集合を凍結する', () => {
+  it('旧11口を全保持し打球1名だけ追加した完全集合を凍結する', () => {
     expect(Object.isFrozen(api)).toBe(true)
     expect(Object.keys(api)).toEqual([
       'ping',
@@ -27,6 +27,7 @@ describe('三振を追加した単一artifact', () => {
       'deriveOrdinaryPitch',
       'deriveTerminalPitch',
       'deriveStrikeoutPitch',
+      'deriveBattedHit',
       'derivePlayPrefixWithContinuation',
       'deriveLineupPlayPrefixWithContinuation',
       'deriveFirstPitchWithContinuation',

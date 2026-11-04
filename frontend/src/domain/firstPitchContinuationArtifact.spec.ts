@@ -51,13 +51,14 @@ const expectedFirst = first.expected as {
   value: { t1: unknown; t2: unknown }
 }
 
-it('単一artifactが承認済み11口を保持する', () => {
+it('単一artifactが旧11口を全保持し打球1口だけ追加する', () => {
   expect(Object.keys(built)).toEqual([
     'ping',
     'deriveState',
     'deriveOrdinaryPitch',
     'deriveTerminalPitch',
     'deriveStrikeoutPitch',
+    'deriveBattedHit',
     'derivePlayPrefixWithContinuation',
     'deriveLineupPlayPrefixWithContinuation',
     'deriveFirstPitchWithContinuation',
