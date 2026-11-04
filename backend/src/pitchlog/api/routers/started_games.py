@@ -152,12 +152,14 @@ def read_started_game_detail(
     try:
         with tenant_transaction_scope(context) as scope:
             if projection in {"ordinary-prefix-v1", "play-prefix-v2"}:
-                reader = (
-                    read_play_prefix
-                    if projection == "play-prefix-v2"
-                    else read_ordinary_prefix
-                )
-                prefix = reader(scope, game_id, limit=limit, cursor=cursor)
+                if projection == "play-prefix-v2":
+                    prefix = read_play_prefix(
+                        scope, game_id, limit=limit, cursor=cursor
+                    )
+                else:
+                    prefix = read_ordinary_prefix(
+                        scope, game_id, limit=limit, cursor=cursor
+                    )
                 if type(prefix) is OrdinaryPrefixView:
                     metadata = _read(prefix.metadata).model_dump(
                         mode="python", by_alias=True
