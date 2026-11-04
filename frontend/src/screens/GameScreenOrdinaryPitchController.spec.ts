@@ -878,3 +878,92 @@ it.each(['batting-result.walk', 'batting-result.hit-by-pitch'] as const)(
     }
   },
 )
+
+import lineupFixture from '../api/fixtures/lineupPrefixGame.v3.json'
+import {
+  lineupContextFromRead,
+  isLineupRecordingContext,
+} from './GameScreenOrdinaryPitchProvider'
+import { isLineupPrefixGame } from '../api/lineupPrefixGame'
+async function lineupController() {
+  const raw = structuredClone(lineupFixture.value)
+  if (!isLineupPrefixGame(raw)) throw new Error('独立DTO不正')
+  const c = new GameScreenOrdinaryPitchController(
+    await lineupContextFromRead(raw, tenant),
+    () => identity,
+    writer,
+  )
+  controllers.push(c)
+  return c
+}
+it('同じ耐久経路で三振3PA→反対側球を唯一artifactから進める', async () => {
+  const post = accepted(),
+    c = await lineupController()
+  expect(await c.inspect()).toBe('ready')
+  for (const resultId of [
+    'batting-result.called-pitch',
+    'batting-result.called-pitch',
+    'batting-result.called-strikeout',
+    'batting-result.called-pitch',
+    'batting-result.called-pitch',
+    'batting-result.called-strikeout',
+    'batting-result.called-pitch',
+    'batting-result.called-pitch',
+    'batting-result.called-strikeout',
+    'batting-result.ball',
+  ] as const)
+    expect(await c.submit({ ...observation, resultId }, vocabulary)).toBe(
+      'saved',
+    )
+  const now = c.context
+  if (!isLineupRecordingContext(now)) throw new Error('記録variant消失')
+  expect(now.after.stateFields['state.half']).toBe('bottom')
+  expect(now.after.stateFields['state.outs']).toBe('0')
+  expect(now.after.stateFields['state.count.balls']).toBe('1')
+  expect(now.after.battingOrderBySide).toEqual({ away: '4', home: '1' })
+  expect(now.lineupSource.participants).toEqual({
+    batterId: lineupFixture.value.lineup.home.battingOrder['1'],
+    pitcherId: lineupFixture.value.lineup.away.pitcherId,
+    catcherId: lineupFixture.value.lineup.away.catcherId,
+    battingOrder: '1',
+  })
+  expect(post).toHaveBeenCalledTimes(10)
+  expect(await slots()).toBe(10)
+})
+it('ACK喪失・再起動でも元v3body/D5/attemptを変えず再送する', async () => {
+  const post = vi
+    .spyOn(transport, 'postSyncEvents')
+    .mockResolvedValue({ sent: false, reason: 'no-response' })
+  const c = await lineupController()
+  expect(await c.inspect()).toBe('ready')
+  expect(
+    await c.submit(
+      { ...observation, resultId: 'batting-result.called-pitch' },
+      vocabulary,
+    ),
+  ).toBe('pending')
+  const first = post.mock.calls[0]![0],
+    body = transport.buildSyncEventRequestBody(first)
+  c.dispose()
+  const restarted = await lineupController()
+  expect(await restarted.inspect()).toBe('pending')
+  expect(await restarted.retry()).toBe('pending')
+  const repeated = post.mock.calls[1]![0]
+  expect(transport.buildSyncEventRequestBody(repeated)).toEqual(body)
+  expect(repeated.syncCredentials?.attempt).toBe(first.syncCredentials?.attempt)
+  expect(repeated.slots[0]!.d5).toBe(first.slots[0]!.d5)
+  expect(restarted.context.prefixRef.length).toBe('1')
+  post.mockRestore()
+  accepted('重複')
+  expect(await restarted.retry()).toBe('saved')
+  expect(await slots()).toBe(1)
+})
+it('新読取もauth epoch変更後の保存を許さない', async () => {
+  const post = accepted(),
+    c = await lineupController()
+  expect(await c.inspect()).toBe('ready')
+  identity = { ...identity, epoch: 2 }
+  expect(await c.submit(observation, vocabulary)).toBe('blocked')
+  expect(post).not.toHaveBeenCalled()
+  expect(await slots()).toBe(0)
+})

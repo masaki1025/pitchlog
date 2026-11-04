@@ -311,3 +311,68 @@ it('通常結果欄の初回死球は実roster確認を要求し、artifactの�
     wrapper.unmount()
   }
 })
+
+import lineupFixture from '../api/fixtures/lineupPrefixGame.v3.json'
+import { isLineupPrefixGame } from '../api/lineupPrefixGame'
+import { lineupContextFromRead } from './GameScreenOrdinaryPitchProvider'
+it('新打席画面の三振選択を実artifactへ通し、次打者は応答から表示する', async () => {
+  const raw = structuredClone(lineupFixture.value)
+  if (!isLineupPrefixGame(raw)) throw new Error('構造fixture不正')
+  const post = vi
+    .spyOn(transport, 'postSyncEvents')
+    .mockImplementation(async (request) => {
+      const body = transport.buildSyncEventRequestBody(request),
+        slot = request.slots[0]!
+      if (!('events' in body)) throw new Error('要求不正')
+      return {
+        sent: true,
+        requestBody: body,
+        response: {
+          advancedD3: slot.d1,
+          eventResults: [
+            { d4: slot.d4, d1: slot.d1, d5: slot.d5, a5Result: '受理' },
+          ],
+        },
+      }
+    })
+  const wrapper = mount(GameScreenOrdinaryPitch, {
+    props: { context: await lineupContextFromRead(raw, tenant) },
+    global: { plugins: [pinia] },
+  })
+  try {
+    await vi.waitFor(() =>
+      expect(
+        wrapper.find('[data-testid="ordinary-pitch-result"]').exists(),
+      ).toBe(true),
+    )
+    expect(wrapper.text()).toContain('見逃し三振')
+    expect(wrapper.text()).not.toContain('play-prefix-v3')
+    for (const name of ['profile', 'mode', 'bucket', 'lockdown'])
+      await wrapper.get(`[data-testid="first-ball-env-${name}"]`).setValue(true)
+    await wrapper
+      .get('[data-testid="first-ball-pitch-type"]')
+      .setValue('tenant.pitch.straight')
+    for (const [n, result] of [
+      'batting-result.called-pitch',
+      'batting-result.called-pitch',
+      'batting-result.called-strikeout',
+    ].entries()) {
+      await wrapper
+        .get('[data-testid="ordinary-pitch-result"]')
+        .setValue(result)
+      wrapper.getComponent(StrikeZone).vm.$emit('tap', 131.5, 124)
+      await flushPromises()
+      await wrapper.get('[data-testid="first-ball-save"]').trigger('click')
+      await vi.waitFor(() => expect(post).toHaveBeenCalledTimes(n + 1))
+      await flushPromises()
+    }
+    expect(wrapper.get('[data-testid="lineup-local-state"]').text()).toContain(
+      '1アウト・2番',
+    )
+    expect(wrapper.find('[data-testid="terminal-next-batter"]').exists()).toBe(
+      false,
+    )
+  } finally {
+    wrapper.unmount()
+  }
+})

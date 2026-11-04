@@ -29,6 +29,7 @@ export type FirstBallDomainOperation =
   | 'deriveFirstPitchWithContinuation'
   | 'deriveOrdinaryPitchWithContinuation'
   | 'derivePlayPrefixWithContinuation'
+  | 'deriveLineupPlayPrefixWithContinuation'
   | 'quantizeCourse'
 
 /** 計算を複製せず、配布物の閉じた操作へJSONを渡す。 */

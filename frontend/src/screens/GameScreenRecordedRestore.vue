@@ -6,10 +6,11 @@ import { ordinaryContextFromRead } from '../api/recordedPrefixGame'
 import { sameOrdinaryWire } from '../api/ordinaryPitchWire'
 import {
   playContextFromRead,
+  lineupContextFromRead,
   type RecordingContext,
 } from './GameScreenOrdinaryPitchProvider'
 import { useAuthStore } from '../stores/authStore'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import {
   beforeState,
   currentState,
@@ -24,6 +25,7 @@ const props = withDefaults(defineProps<{ auto?: boolean }>(), {
   auto: undefined,
 })
 const route = useRoute()
+const router = useRouter()
 const auth = useAuthStore()
 const gameId = computed(() =>
   typeof route.params.gameId === 'string' ? route.params.gameId : undefined,
@@ -31,7 +33,30 @@ const gameId = computed(() =>
 const auto = computed(() => props.auto)
 // 旧版で保存した要求の復旧入口だけを閉じた内部queryで保持する。
 const legacy = computed(() => route.query.recording === 'ordinary-prefix-v1')
-const restore = useRecordedRestore(gameId, auto, legacy)
+const projection = computed(() => {
+  const value = route.query.recording
+  if (value === 'play-prefix-v3') return 'play-prefix-v3' as const
+  if (
+    value === undefined ||
+    value === 'ordinary-prefix-v1' ||
+    value === 'play-prefix-v2'
+  )
+    return null
+  return 'invalid' as const
+})
+const restore = useRecordedRestore(gameId, auto, legacy, projection)
+async function enterLineup() {
+  await router.replace({
+    query: { ...route.query, recording: 'play-prefix-v3' },
+  })
+  await restore.reload()
+}
+async function enterPreviousRecording() {
+  const query = { ...route.query }
+  delete query.recording
+  await router.replace({ query })
+  await restore.reload()
+}
 const current = computed(() =>
   restore.game.value ? currentState(restore.game.value) : null,
 )
@@ -42,7 +67,8 @@ const recorded = computed(
   () =>
     restore.game.value?.read_kind === 'recorded' ||
     ((restore.game.value?.read_kind === 'recorded-prefix' ||
-      restore.game.value?.read_kind === 'play-prefix') &&
+      restore.game.value?.read_kind === 'play-prefix' ||
+      restore.game.value?.read_kind === 'lineup-prefix') &&
       BigInt(restore.game.value.prefix_ref.length) > 0n),
 )
 const prefixContext = ref<RecordingContext | null>(null)
@@ -108,7 +134,10 @@ watch(
     watchedContextInput = input
     try {
       const source = input.game
-      if (source.read_kind === 'play-prefix') {
+      if (source.read_kind === 'lineup-prefix') {
+        const context = await lineupContextFromRead(source, input.tenant)
+        if (own === contextSequence) prefixContext.value = context
+      } else if (source.read_kind === 'play-prefix') {
         const context = await playContextFromRead(source, input.tenant)
         if (own === contextSequence) prefixContext.value = context
       } else if (source.read_kind === 'recorded-prefix') {
@@ -152,7 +181,8 @@ const history = computed(() =>
       v-else-if="
         restore.game.value &&
         restore.game.value.read_kind !== 'recorded-prefix' &&
-        restore.game.value.read_kind !== 'play-prefix'
+        restore.game.value.read_kind !== 'play-prefix' &&
+        restore.game.value.read_kind !== 'lineup-prefix'
       "
       :key="restore.game.value.id"
       :game="restore.game.value"
@@ -180,7 +210,8 @@ const history = computed(() =>
         <dd>
           {{
             restore.game.value.read_kind === 'recorded-prefix' ||
-            restore.game.value.read_kind === 'play-prefix'
+            restore.game.value.read_kind === 'play-prefix' ||
+            restore.game.value.read_kind === 'lineup-prefix'
               ? '保存済みの記録（表示履歴は有限ページ）'
               : recorded
                 ? '記録済み（保存初球1件）'
@@ -191,7 +222,8 @@ const history = computed(() =>
       <div
         v-if="
           restore.game.value.read_kind === 'recorded-prefix' ||
-          restore.game.value.read_kind === 'play-prefix'
+          restore.game.value.read_kind === 'play-prefix' ||
+          restore.game.value.read_kind === 'lineup-prefix'
         "
       >
         <dt>サーバーの最終保存日時</dt>
@@ -251,7 +283,8 @@ const history = computed(() =>
         <dt>
           {{
             restore.game.value.read_kind === 'recorded-prefix' ||
-            restore.game.value.read_kind === 'play-prefix'
+            restore.game.value.read_kind === 'play-prefix' ||
+            restore.game.value.read_kind === 'lineup-prefix'
               ? restore.game.value.read_kind === 'recorded-prefix'
                 ? '通常投球の確定水位（一般履歴長とは別）'
                 : '保存済みの履歴'
@@ -266,8 +299,11 @@ const history = computed(() =>
         <dt>
           {{
             restore.game.value.read_kind === 'recorded-prefix' ||
-            restore.game.value.read_kind === 'play-prefix'
-              ? '表示ページのPlayRow件数'
+            restore.game.value.read_kind === 'play-prefix' ||
+            restore.game.value.read_kind === 'lineup-prefix'
+              ? restore.game.value.read_kind === 'lineup-prefix'
+                ? '表示中のプレイ数'
+                : '表示ページのPlayRow件数'
               : '保存初球'
           }}
         </dt>
@@ -279,7 +315,8 @@ const history = computed(() =>
         <dt>
           {{
             restore.game.value.read_kind === 'recorded-prefix' ||
-            restore.game.value.read_kind === 'play-prefix'
+            restore.game.value.read_kind === 'play-prefix' ||
+            restore.game.value.read_kind === 'lineup-prefix'
               ? '最後の記録1件の差分（全履歴ではありません）'
               : '履歴1件の差分'
           }}
@@ -293,5 +330,21 @@ const history = computed(() =>
         </dd>
       </div>
     </dl>
+    <button
+      v-if="projection === 'play-prefix-v3'"
+      type="button"
+      :disabled="restore.status.value === 'loading'"
+      @click="enterPreviousRecording"
+    >
+      従来の投球記録を表示
+    </button>
+    <button
+      v-if="projection === null"
+      type="button"
+      :disabled="restore.status.value === 'loading'"
+      @click="enterLineup"
+    >
+      三振・攻守交代を含む投球の記録へ
+    </button>
   </section>
 </template>

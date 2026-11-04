@@ -87,3 +87,20 @@ it('既配布artifactの新v2口へ入力を無変換で渡し既契約の全応
     ),
   }).toEqual(row.expected)
 })
+
+import lineupCases from '../../../../../contracts/state-transition/lineup_play_prefix_cases_v1.json'
+it('三振3PAと反対側球の全固定要求を同じ配布artifactの閉口へ渡す', () => {
+  const context: Record<string, unknown> = {}
+  runInNewContext(readFileSync(artifactPath, 'utf8'), context)
+  vi.stubGlobal('PitchlogDomain', Reflect.get(context, 'PitchlogDomain'))
+  for (const row of lineupCases.cases.filter((c) =>
+    c.caseId.startsWith('V3-STARTED-CHAIN-'),
+  ))
+    expect({
+      ok: true,
+      value: invokeFirstBallDomain(
+        'deriveLineupPlayPrefixWithContinuation',
+        row.request,
+      ),
+    }).toEqual(row.expected)
+})

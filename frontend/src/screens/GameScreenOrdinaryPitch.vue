@@ -2,6 +2,7 @@
 import { computed, onScopeDispose, ref, toRaw, watch } from 'vue'
 import {
   isPlayRecordingContext,
+  isLineupRecordingContext,
   type RecordingContext,
   type PlayScreenObservation,
 } from './GameScreenOrdinaryPitchProvider'
@@ -26,8 +27,9 @@ const resultId = ref<PlayScreenObservation['resultId']>('batting-result.ball')
 const nextBatterId = ref('')
 const terminal = computed(
   () =>
-    resultId.value === 'batting-result.walk' ||
-    resultId.value === 'batting-result.hit-by-pitch',
+    !isLineupRecordingContext(displayed.value) &&
+    (resultId.value === 'batting-result.walk' ||
+      resultId.value === 'batting-result.hit-by-pitch'),
 )
 const nextBatters = computed(() => {
   const c = displayed.value,
@@ -325,7 +327,11 @@ onScopeDispose(() => {
     </p>
     <p role="status" data-testid="first-ball-status">{{ message }}</p>
     <p>
-      ボール・見逃し・空振り・通常のファウル、無走者の四球・死球を記録できます。四球・死球では次の打者を確認してください。
+      {{
+        isLineupRecordingContext(displayed)
+          ? 'ボール・ストライク・ファウル、四球・死球、見逃し三振・空振り三振を記録できます。次の打者と攻守は保存された打順から引き継ぎます。'
+          : 'ボール・見逃し・空振り・通常のファウル、無走者の四球・死球を記録できます。四球・死球では次の打者を確認してください。'
+      }}
     </p>
     <p data-testid="ordinary-state-source">
       {{
@@ -344,6 +350,16 @@ onScopeDispose(() => {
       }}</span
       >ストライク
     </p>
+    <p
+      v-if="isLineupRecordingContext(displayed)"
+      data-testid="lineup-local-state"
+    >
+      {{ displayed.after.stateFields['state.inning'] }}回{{
+        displayed.after.stateFields['state.half'] === 'top' ? '表' : '裏'
+      }}・{{ displayed.after.stateFields['state.outs'] }}アウト・{{
+        displayed.lineupSource.participants.battingOrder
+      }}番
+    </p>
     <template v-if="canAppend">
       <label class="block"
         >結果<select
@@ -357,16 +373,34 @@ onScopeDispose(() => {
             空振りストライク
           </option>
           <option
-            v-if="isPlayRecordingContext(displayed)"
+            v-if="
+              isPlayRecordingContext(displayed) ||
+              isLineupRecordingContext(displayed)
+            "
             value="batting-result.walk"
           >
             四球
           </option>
           <option
-            v-if="isPlayRecordingContext(displayed)"
+            v-if="
+              isPlayRecordingContext(displayed) ||
+              isLineupRecordingContext(displayed)
+            "
             value="batting-result.hit-by-pitch"
           >
             死球
+          </option>
+          <option
+            v-if="isLineupRecordingContext(displayed)"
+            value="batting-result.called-strikeout"
+          >
+            見逃し三振
+          </option>
+          <option
+            v-if="isLineupRecordingContext(displayed)"
+            value="batting-result.swinging-strikeout"
+          >
+            空振り三振
           </option>
           <option value="batting-result.foul">
             ファウル（通常・非バント）

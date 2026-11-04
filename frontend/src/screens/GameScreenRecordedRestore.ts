@@ -1,3 +1,7 @@
+import {
+  readLineupPrefixGame,
+  type LineupPrefixGame,
+} from '../api/lineupPrefixGame'
 import { ApiError } from '../api/client'
 import {
   readRecordedPrefixGame,
@@ -17,7 +21,7 @@ import { GameStartPersistence } from '../lib/gameStartPersistence'
 import { useAuthStore } from '../stores/authStore'
 
 export type RecordingGameRead =
-  StartedGameRead | RecordedPrefixGame | PlayPrefixGame
+  StartedGameRead | RecordedPrefixGame | PlayPrefixGame | LineupPrefixGame
 
 export type RecordedRestoreStatus =
   'idle' | 'loading' | 'ready' | 'not-found' | 'unavailable' | 'failed'
@@ -27,6 +31,7 @@ export function useRecordedRestore(
   gameId: Ref<string | undefined>,
   auto: Ref<boolean | undefined>,
   legacy: Ref<boolean> = ref(false),
+  projection: Ref<'play-prefix-v3' | null | 'invalid'> = ref(null),
 ) {
   const auth = useAuthStore()
   const status = ref<RecordedRestoreStatus>('idle')
@@ -62,11 +67,22 @@ export function useRecordedRestore(
       message.value = ''
       return
     }
+    if (projection.value === 'invalid') {
+      ++sequence
+      game.value = null
+      status.value = 'failed'
+      message.value = '記録の入口を確認してください'
+      return
+    }
     const retained =
       confirmedEpoch === epoch &&
       (game.value?.read_kind === 'recorded-prefix' ||
-        game.value?.read_kind === 'play-prefix') &&
+        game.value?.read_kind === 'play-prefix' ||
+        game.value?.read_kind === 'lineup-prefix') &&
       game.value.id === id &&
+      (projection.value === 'play-prefix-v3'
+        ? game.value.read_kind === 'lineup-prefix'
+        : game.value.read_kind !== 'lineup-prefix') &&
       game.value.prefix_ref.tenantId === auth.teamId
         ? game.value
         : null
@@ -75,6 +91,23 @@ export function useRecordedRestore(
     game.value = retained
     message.value = 'サーバーの記録を取得しています'
     try {
+      if (projection.value === 'play-prefix-v3') {
+        const read = await readLineupPrefixGame(id)
+        if (request !== sequence || auth.authEpoch !== epoch) return
+        if (read.kind === 'found') {
+          if (read.game.prefix_ref.tenantId !== auth.teamId)
+            throw new Error('記録のtenantを確認できません')
+          confirmedEpoch = epoch
+          game.value = read.game
+          status.value = 'ready'
+          message.value = `サーバーの記録を取得しました。最終保存: ${read.game.last_saved_at}`
+        } else {
+          game.value = null
+          status.value = read.kind === 'not-found' ? 'not-found' : 'unavailable'
+          message.value = 'この記録入口ではサーバーの記録を取得できません'
+        }
+        return
+      }
       // 通常記録の読取を旧初球専用readerの成功に従属させない。
       // 明示unsupportedだけ旧ABIへ戻し、拒否/故障/破損は代替成功にしない。
       const play = legacy.value
@@ -156,6 +189,15 @@ export function useRecordedRestore(
     }
   }
 
+  // 明示入口を変えた時は、auto=falseでも旧要求/所有者を引き継がない。
+  watch(projection, () => {
+    ++sequence
+    confirmedEpoch = null
+    game.value = null
+    status.value = 'idle'
+    message.value = ''
+  })
+
   watch(
     [
       auto,
@@ -165,6 +207,7 @@ export function useRecordedRestore(
       () => auth.isAuthenticated,
       () => auth.hasHydrated,
       () => auth.teamId,
+      () => projection.value,
     ] as const,
     () => {
       // 端末がこの試合を開始した記録（保存開始応答）がある時だけ自動復元する。
@@ -210,14 +253,22 @@ export function beforeState(
 
 /** 保存済み履歴の件数。開始済み（記録前）は0。 */
 export function historyCount(game: RecordingGameRead): number | string {
-  if (game.read_kind === 'recorded-prefix' || game.read_kind === 'play-prefix')
+  if (
+    game.read_kind === 'recorded-prefix' ||
+    game.read_kind === 'play-prefix' ||
+    game.read_kind === 'lineup-prefix'
+  )
     return game.prefix_ref.length
   return game.read_kind === 'recorded' ? game.history.length : 0
 }
 
 /** 保存済みPlayRowの件数。開始済み（記録前）は0。 */
 export function playCount(game: RecordingGameRead): number {
-  if (game.read_kind === 'recorded-prefix' || game.read_kind === 'play-prefix')
+  if (
+    game.read_kind === 'recorded-prefix' ||
+    game.read_kind === 'play-prefix' ||
+    game.read_kind === 'lineup-prefix'
+  )
     return game.page.items.length
   return game.read_kind === 'recorded' ? game.play_rows.length : 0
 }
@@ -229,8 +280,13 @@ export function firstHistory(
   | StartedHistoryEntry
   | OrdinaryHistoryEntry
   | PlayPrefixGame['last_entry']
+  | LineupPrefixGame['last_entry']
   | null {
-  if (game.read_kind === 'recorded-prefix' || game.read_kind === 'play-prefix')
+  if (
+    game.read_kind === 'recorded-prefix' ||
+    game.read_kind === 'play-prefix' ||
+    game.read_kind === 'lineup-prefix'
+  )
     return game.last_entry
   return game.read_kind === 'recorded' ? (game.history[0] ?? null) : null
 }
