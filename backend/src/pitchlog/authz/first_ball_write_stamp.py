@@ -101,7 +101,8 @@ BEGIN
  AND e.generation IS NOT NULL AND e.d1>0 AND e.d2 IS NOT NULL
  AND e.replaced_at IS NULL AND e.retired_at IS NULL AND e.import_batch_id IS NULL
  AND e.legacy_row_identifier IS NULL AND NOT e.migration_unverified;
- ordinary:=event_row.payload->>'formatVersion'='ordinary-pitch-play-v1';
+ ordinary:=event_row.payload->>'formatVersion' IN
+ ('ordinary-pitch-play-v1','play-prefix-play-v2');
  IF ordinary IS DISTINCT FROM true THEN
  IF event_row.payload->>'formatVersion' IS DISTINCT FROM 'first-ball-play-v1'
  OR event_row.d1 IS DISTINCT FROM 1
@@ -161,6 +162,10 @@ BEGIN
  EXCEPTION WHEN no_data_found OR too_many_rows OR invalid_text_representation THEN
   RAISE EXCEPTION 'first ball write admission rejected' USING ERRCODE='42501';
  END;
+ IF event_row.payload->>'formatVersion'='play-prefix-play-v2' THEN
+ PERFORM sync_right_api.assert_play_prefix_projection(pg_catalog.to_jsonb(NEW));
+ RETURN NEW;
+ END IF;
  IF ordinary THEN
  PERFORM sync_right_api.consume_ordinary_projection(pg_catalog.to_jsonb(NEW));
  RETURN NEW;
@@ -554,6 +559,7 @@ JOIN pg_catalog.pg_proc p ON p.oid=t.tgfoid
 JOIN pg_catalog.pg_namespace n ON n.oid=p.pronamespace
 JOIN pg_catalog.pg_roles o ON o.oid=p.proowner
 WHERE t.tgrelid='public.play_rows'::pg_catalog.regclass AND NOT t.tgisinternal
+AND t.tgname<>'trg_play_prefix_30_project_after'
 ORDER BY t.tgname
 """
 

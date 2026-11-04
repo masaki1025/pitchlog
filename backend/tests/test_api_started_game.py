@@ -34,6 +34,7 @@ from pitchlog.api.routers import games, started_games
 from pitchlog.api.schemas.started_games import (
     StartedGameRead,
     StartedGameReadResponse,
+    StartedPlayPrefixGameRead,
     StartedPlayRow,
     StartedRecordedGameRead,
     StartedRecordedPrefixGameRead,
@@ -132,6 +133,7 @@ def test_route_is_registered_as_a_tenant_matched_get() -> None:
         StartedGameRead,
         StartedRecordedGameRead,
         StartedRecordedPrefixGameRead,
+        StartedPlayPrefixGameRead,
     }
     assert discriminator.discriminator == "read_kind"
 

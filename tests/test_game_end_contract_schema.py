@@ -5,6 +5,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import re
+import subprocess
 import sys
 from collections.abc import Mapping
 from copy import deepcopy
@@ -2063,3 +2064,63 @@ def test_p8_display_candidate_binds_all_approved_inputs(mutation: str, tmp_path:
         p8_coverage_checker.RequiredSetCoverageError, match="display-approved-input",
     ):
         _check_p8_candidate(bundle, tmp_path)
+
+
+def _formal_190_revision() -> str:
+    """既存の独立基線JSONを閉じて読み、現物へのfallbackを許さない。"""
+    path = (Path(__file__).resolve().parents[1]
+            / "tests/fixtures/pr191_formal_ordinary_baseline_v1.json")
+    def unique(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+        value: dict[str, Any] = {}
+        for key, item in pairs:
+            if key in value:
+                raise ValueError("基線pinの重複key")
+            value[key] = item
+        return value
+    pin = json.loads(path.read_text(encoding="utf-8"), object_pairs_hook=unique)
+    assert type(pin) is dict and set(pin) == {"schema_version", "baseline_commit"}
+    assert type(pin["schema_version"]) is int and pin["schema_version"] == 1
+    revision = pin["baseline_commit"]
+    assert type(revision) is str and len(revision) == 40
+    assert all(char in "0123456789abcdef" for char in revision)
+    return revision
+
+
+@pytest.fixture(autouse=True)
+def historical_p8_candidate_inputs(
+    request: pytest.FixtureRequest, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """未昇格P8候補の回帰だけを同じ旧T2全入力へ固定する。"""
+    if request.node.originalname not in {
+        "test_p8_candidate_checks_correlations_without_claiming_formal_acceptance",
+        "test_p8_candidate_mutations_fail_closed",
+        "test_e06_candidate_rejects_inputs_without_one_satisfied_tier",
+        "test_p8_candidate_cli_marks_unaccepted_scope",
+        "test_p8_display_candidate_binds_all_approved_inputs",
+    }:
+        return
+    root = tmp_path / "historical-p8"
+    revision = _formal_190_revision()
+    paths = {
+        "contracts/state-transition/game_end_contract_v1.json",
+        "contracts/state-transition/game_end_contract_schema_v1.json",
+        "contracts/state-transition/input_axes_descriptor_v1.json",
+        "contracts/state-transition/human_review_signature_schema_v1.json",
+        "docs/features/t2-provenance-checker/candidates/p8_candidate_v1.json",
+        "docs/features/t2-provenance-checker/candidates/p8_candidate_schema_v1.json",
+        "docs/features/t2-provenance-checker/candidates/p8_boundary_evidence_v1.json",
+    }
+    for path in paths:
+        target = root / path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        raw = subprocess.check_output(
+            ["git", "show", revision + ":" + path], cwd=REPOSITORY_ROOT,
+        )
+        if path.startswith("docs/features/t2-provenance-checker/candidates/"):
+            assert (REPOSITORY_ROOT / path).read_bytes() == raw
+        target.write_bytes(raw)
+    monkeypatch.setattr(sys.modules[__name__], "REPOSITORY_ROOT", root)
+    monkeypatch.setattr(sys.modules[__name__], "P8_CANDIDATE_PATH", root / (
+        "docs/features/t2-provenance-checker/candidates/p8_candidate_v1.json"
+    ))
+    monkeypatch.setattr(p8_coverage_checker, "ROOT", root)

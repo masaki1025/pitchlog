@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "runtime_contract_revision": 29,
+  "runtime_contract_revision": 30,
   "baseline_control": {
     "identity": {
       "scheme": "integer_revision_field",
       "field": "runtime_contract_revision",
       "current_identifiers": [
-        "runtime_contract_revision:29"
+        "runtime_contract_revision:30"
       ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
@@ -757,6 +757,11 @@
       ],
       [
         "sync_right_api",
+        "assert_play_prefix_projection",
+        "jsonb"
+      ],
+      [
+        "sync_right_api",
         "bind_device",
         "uuid, uuid, uuid, bytea, uuid, uuid, bytea"
       ],
@@ -782,6 +787,11 @@
       ],
       [
         "sync_right_api",
+        "finish_play_prefix_projection",
+        ""
+      ],
+      [
+        "sync_right_api",
         "guard_first_ball_projection_admission",
         ""
       ],
@@ -792,12 +802,27 @@
       ],
       [
         "sync_right_api",
+        "guard_play_prefix_runner_insert",
+        ""
+      ],
+      [
+        "sync_right_api",
         "lock_ordinary_checkpoint",
         "uuid, uuid, uuid, bytea, uuid, uuid, bigint"
       ],
       [
         "sync_right_api",
+        "lock_play_prefix_checkpoint",
+        "uuid, uuid, uuid, bytea, uuid, uuid, bigint"
+      ],
+      [
+        "sync_right_api",
         "prepare_ordinary_projection",
+        "uuid, uuid, uuid, bytea, uuid, uuid, text"
+      ],
+      [
+        "sync_right_api",
+        "prepare_play_prefix_projection",
         "uuid, uuid, uuid, bytea, uuid, uuid, text"
       ],
       [
@@ -819,6 +844,16 @@
         "sync_right_api",
         "read_ordinary_order_summary",
         "uuid, uuid"
+      ],
+      [
+        "sync_right_api",
+        "read_play_prefix_checkpoint",
+        "uuid, uuid, bigint"
+      ],
+      [
+        "sync_right_api",
+        "read_play_prefix_history_page",
+        "uuid, uuid, bigint, bigint, uuid, bigint, bigint, bigint, bigint, bigint, uuid, integer"
       ]
     ]
   },
@@ -845,5 +880,5 @@
     }
   ],
   "derived_from": "contracts/authz/product/ddl-elements.json",
-  "source_digest": "2b136e66fe821bdaa0359a8676b3f8abefee936191a38d1fc1332696f6380d95"
+  "source_digest": "14982229483fe64eaf91d7d9e240ac9a0455eedf7d6d9106a64d34d2f113a11c"
 }

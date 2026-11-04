@@ -421,7 +421,7 @@ def test_generated_selector_selects_cases_by_normative_row_ownership() -> None:
     _, selected = checker.generated_case_reference_index(
         _criteria(), row_index, rows, document["gaps"]
     )
-    expected = {"GAP-03": 102, "GAP-04": 136, "GAP-07": 39,
+    expected = {"GAP-03": 102, "GAP-04": 136, "GAP-07": 54,
                 "GAP-08": 12, "GAP-09": 6}
 
     assert {
@@ -588,18 +588,18 @@ def test_open_skipping_fixture_stage_for_generated_selector_is_red() -> None:
 
 
 def test_normative_row_natural_keys_are_unique_in_all_four_layers() -> None:
-    """操作種別の重複も前提軸と値で分離し全77行を識別する。"""
+    """操作種別の重複も前提軸と値で分離し旧77行と新2行を識別する。"""
     document = _register()
     index = _real_indexes(document)["rowIds"]
 
-    assert len(index.existing_references) == 77
+    assert len(index.existing_references) == 79
     assert len([row for row in index.existing_references if row.startswith("operationRows:")]) == 10
     assert "operationRows:substitution:state.gameEnded:false" in index.existing_references
     assert "operationRows:substitution:state.gameEnded:true" in index.existing_references
 
 
 def test_step99_no_orphan_normative_rows() -> None:
-    """4層77行すべてが分岐または要件条文に辿れることを確認する。"""
+    """4層79行すべてが分岐または要件条文に辿れることを確認する。"""
     orphans = checker.orphan_normative_row_ids(
         _criteria(), _row_documents(), _clause_branch_register(),
         checker.load_requirement_clause_ids(REPOSITORY_ROOT), _row_rules(),
@@ -629,7 +629,7 @@ def test_step99_all_row_ids_resolve() -> None:
     """gapのrowIdsと364件のcase参照が一意な規範行へ解決する。"""
     rows = _row_documents()
     index = checker.row_reference_index(_criteria(), _register()["gaps"], rows)
-    assert len(index.existing_references) == 77
+    assert len(index.existing_references) == 79
     assert checker.unresolved_row_references(
         _criteria(), _register()["gaps"], rows, index
     ) == []
@@ -951,3 +951,63 @@ def test_unresolved_report_human_and_stage2_sources_resolve() -> None:
     assert "39件" in stage2["S25"][1]
     assert "2817件" in stage2["S28"][1]
     assert "12件" in stage2["S29"][1]
+
+
+def _formal_190_revision() -> str:
+    """既存の独立基線JSONを閉じて読み、現物へのfallbackを許さない。"""
+    path = REPOSITORY_ROOT / "tests/fixtures/pr191_formal_ordinary_baseline_v1.json"
+    def unique(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+        value: dict[str, Any] = {}
+        for key, item in pairs:
+            if key in value:
+                raise ValueError("基線pinの重複key")
+            value[key] = item
+        return value
+    pin = json.loads(path.read_text(encoding="utf-8"), object_pairs_hook=unique)
+    assert type(pin) is dict and set(pin) == {"schema_version", "baseline_commit"}
+    assert type(pin["schema_version"]) is int and pin["schema_version"] == 1
+    revision = pin["baseline_commit"]
+    assert type(revision) is str and len(revision) == 40
+    assert all(char in "0123456789abcdef" for char in revision)
+    return revision
+
+
+def test_terminal_gap_scope_preserves_old_rows_and_selected_cases() -> None:
+    """旧77行とGAP07旧39例を全値保持し、terminal2行15例だけを加える。"""
+    revision = _formal_190_revision()
+    def old(path: str) -> dict[str, Any]:
+        return json.loads(subprocess.check_output(
+            ["git", "show", revision + ":" + path], cwd=REPOSITORY_ROOT,
+        ))
+    register = _register()
+    prior_register = old(checker.REGISTER_PATH.as_posix())
+    rows = _row_documents()
+    prior_rows = {path: old(path) for path in rows}
+    criteria = _criteria()
+    index = checker.row_reference_index(criteria, register["gaps"], rows)
+    prior_index = checker.row_reference_index(criteria, prior_register["gaps"], prior_rows)
+    assert len(prior_index.existing_references) == 77
+    assert prior_index.existing_references <= index.existing_references
+    assert index.existing_references - prior_index.existing_references == {
+        "matrixRows:batting-result:batting-result.hit-by-pitch:compound:0161bab1bfab470f",
+        "matrixRows:batting-result:batting-result.walk:compound:deff5d19870a1396",
+    }
+    for path, before in prior_rows.items():
+        for layer in ("matrixRows", "operationRows", "decisionRows", "displayRows"):
+            if layer in before:
+                assert rows[path][layer][:len(before[layer])] == before[layer]
+    _, selected = checker.generated_case_reference_index(criteria, index, rows, register["gaps"])
+    _, prior = checker.generated_case_reference_index(
+        criteria, prior_index, prior_rows, prior_register["gaps"],
+    )
+    current_cases = next(value for key, value in selected.items() if '"GAP-07"' in key)
+    prior_cases = next(value for key, value in prior.items() if '"GAP-07"' in key)
+    terminal_ids = {f"ST-TERMINAL-BB-S{s}-B3" for s in range(3)} | {
+        f"ST-TERMINAL-HBP-S{s}-B{b}" for s in range(3) for b in range(4)
+    }
+    assert len(prior_cases) == 39
+    assert current_cases == prior_cases | terminal_ids
+    path = "contracts/state-transition/state_transition_contract_v1.json"
+    assert [case for case in rows[path]["cases"]
+            if case["caseId"] in prior_cases] == [case for case in prior_rows[path]["cases"]
+                                                if case["caseId"] in prior_cases]

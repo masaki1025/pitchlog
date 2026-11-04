@@ -860,3 +860,7 @@ insert前の同handle preflightで現行1行、id/game/generation/D1/D5/kind=`pl
 2026-10-28、PO委任によるCodex主担当判断。先行②read登録後の既 `backend/tests/test_sync_apply_writer_binding.py` 関数SQL/bind/selected型完全pinで旧20件と新actualの差を確認。実登録 `SYNC_FIRST_BALL:read_device_state` の導出hash 281792f9b426c1fdc7eba3305c069f5fd3afcde268a367fc06583bc006652e71 の1行だけを同test exact1へ追記する。旧20値・全件比較・実SQL/認可を保持し、正式資産受理やU09成功とは扱わない。
 
 2026-10-28、PO委任によるCodex主担当判断。U09登録後、fresh processで正規Port moduleの一方が未読込の場合に既guardが閉拒否することをpureとowned開始後stage2で確認。`backend/src/pitchlog/sync/port_guard.py` exact1をscopeへ追加し、既ports読込後に採用済Contentと新Rightsの2 moduleだけを明示importしてから既verifierを設定する。登録集合から任意moduleを動的importせず、未知登録・削除済moduleの拒否と全import閉包検査を維持。既test_sync_apply_model_ports.py内で旧/新Portそれぞれのfresh process起動・循環・未知拒否を対向し、最終非作者source reviewの対象とする。
+
+### 無走者BB/HBPの次操作単位候補（2026-10-30）
+
+ユーザーの操作単位契約成立→本体着手・MVP継続・spike再利用指示を、[mvp-terminal-pitches子計画](../mvp-terminal-pitches/plan.md)へ具体化した作者候補。無走者の四球S0..2/B3と死球S0..2/B0..3を、0..2out/表裏/打順1..9/任意有効回・得点の数学範囲で扱う。既P-1〜P-9の本操作分を有限に確認してからT1本体へ進み、T2のv2 prefix/実runner/同TX保存は別の後続依存とする。旧全操作条件・レビュー通算・未検証・正式7.7/全P6/全MVP義務を削除せず、旧ordinary-only v1の意味も変えない。root・別非作者の固定版採否/段階指示前に製品や正式契約を編集する許可ではなく、本人署名を代記しない。

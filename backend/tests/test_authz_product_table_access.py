@@ -838,6 +838,46 @@ def test_product_policies_and_table_acls_match_all_five_profiles() -> None:
         "POLICY:play_rows:ordinary_pitch_select_play_rows",
     }
     owner_policy_ids |= ordinary_pitch_ids
+    terminal_policy_ids = {
+        "POLICY:play_runners:play_prefix_insert_play_runners",
+        "POLICY:play_runners:play_prefix_select_play_runners",
+    }
+    assert {
+        r["policy_id"] for r in asset["policies"]
+    } & terminal_policy_ids == terminal_policy_ids
+    # 正式manifestの新2policyはowner/tenant/session_userとSQL全文も固定する。
+    terminal_predicate = (
+        "tenant_id = NULLIF(pg_catalog.current_setting('app.tenant_id',true),'')::uuid "
+        "AND session_user = 'pitchlog_app'"
+    )
+    for command, clause in (("SELECT", "USING"), ("INSERT", "WITH CHECK")):
+        name = f"play_prefix_{command.lower()}_play_runners"
+        policy_id = f"POLICY:play_runners:{name}"
+        assert [r for r in asset["policies"] if r["policy_id"] == policy_id] == [
+            {
+                "policy_id": policy_id,
+                "table_id": "play_runners",
+                "profile": "function_only",
+                "policy_name": name,
+                "command": command,
+                "policy_mode": "permissive",
+                "role_ids": ["pitchlog_sync_right_fn_owner"],
+                "using_predicate_id": None,
+                "using_column": None,
+                "using_expression": terminal_predicate if command == "SELECT" else None,
+                "with_check_predicate_id": None,
+                "with_check_column": None,
+                "with_check_expression": terminal_predicate
+                if command == "INSERT"
+                else None,
+            }
+        ]
+        assert actual_sql[("policy", policy_id)] == (
+            f"-- ELEMENT-TYPE: policy\n-- ELEMENT-ID: {policy_id}\n\n"
+            f"CREATE POLICY {name} ON public.play_runners FOR {command} "
+            f"TO pitchlog_sync_right_fn_owner {clause} ({terminal_predicate});\n"
+        )
+    owner_policy_ids |= terminal_policy_ids
     assert {
         element_id
         for element_type, element_id in actual_sql

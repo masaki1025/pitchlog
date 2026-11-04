@@ -31,3 +31,19 @@ export const ORDINARY_STRIKE_RULE: Rule = {
   ballEffect: 'unchanged',
   ballDelta: 0n,
 }
+
+/** 無走者の四球・死球に共通の打席終了/出塁規則。 */
+export const TERMINAL_REACH_RULE: Rule = {
+  pa: true,
+  batter: 'reach',
+  batterBase: 1n,
+  outs: 0n,
+  targets: [],
+  advance: 'force',
+  step: 0n,
+  explicit: {},
+  strikeEffect: 'reset',
+  strikeDelta: 0n,
+  ballEffect: 'reset',
+  ballDelta: 0n,
+}

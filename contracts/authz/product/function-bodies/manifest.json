@@ -3291,6 +3291,101 @@
       "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:recording_generations:applied_prefix:pitchlog_sync_right_fn_owner.sql",
       "element_type": "column_acl_expectation",
       "element_id": "COLUMN-ACL:public:recording_generations:applied_prefix:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/functions/FUNCTION:sync_right_api:read_play_prefix_checkpoint(uuid, uuid, bigint).sql",
+      "element_type": "function",
+      "element_id": "FUNCTION:sync_right_api:read_play_prefix_checkpoint(uuid, uuid, bigint)"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/functions/FUNCTION:sync_right_api:lock_play_prefix_checkpoint(uuid, uuid, uuid, bytea, uuid, uuid, bigint).sql",
+      "element_type": "function",
+      "element_id": "FUNCTION:sync_right_api:lock_play_prefix_checkpoint(uuid, uuid, uuid, bytea, uuid, uuid, bigint)"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/functions/FUNCTION:sync_right_api:read_play_prefix_history_page(uuid, uuid, bigint, bigint, uuid, bigint, bigint, bigint, bigint, bigint, uuid, integer).sql",
+      "element_type": "function",
+      "element_id": "FUNCTION:sync_right_api:read_play_prefix_history_page(uuid, uuid, bigint, bigint, uuid, bigint, bigint, bigint, bigint, bigint, uuid, integer)"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/functions/FUNCTION:sync_right_api:prepare_play_prefix_projection(uuid, uuid, uuid, bytea, uuid, uuid, text).sql",
+      "element_type": "function",
+      "element_id": "FUNCTION:sync_right_api:prepare_play_prefix_projection(uuid, uuid, uuid, bytea, uuid, uuid, text)"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/functions/FUNCTION:sync_right_api:assert_play_prefix_projection(jsonb).sql",
+      "element_type": "function",
+      "element_id": "FUNCTION:sync_right_api:assert_play_prefix_projection(jsonb)"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/functions/FUNCTION:sync_right_api:finish_play_prefix_projection().sql",
+      "element_type": "function",
+      "element_id": "FUNCTION:sync_right_api:finish_play_prefix_projection()"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/functions/FUNCTION:sync_right_api:guard_play_prefix_runner_insert().sql",
+      "element_type": "function",
+      "element_id": "FUNCTION:sync_right_api:guard_play_prefix_runner_insert()"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/policies/POLICY:play_runners:play_prefix_select_play_runners.sql",
+      "element_type": "policy",
+      "element_id": "POLICY:play_runners:play_prefix_select_play_runners"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/policies/POLICY:play_runners:play_prefix_insert_play_runners.sql",
+      "element_type": "policy",
+      "element_id": "POLICY:play_runners:play_prefix_insert_play_runners"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:play_runners:tenant_id:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:play_runners:tenant_id:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:play_runners:id:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:play_runners:id:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:play_runners:play_id:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:play_runners:play_id:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:play_runners:base:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:play_runners:base:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:play_runners:runner_id:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:play_runners:runner_id:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:play_runners:status:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:play_runners:status:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:play_runners:status_source:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:play_runners:status_source:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:play_runners:responsible_pitcher_id:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:play_runners:responsible_pitcher_id:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:play_runners:import_batch_id:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:play_runners:import_batch_id:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:play_runners:retired_at:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:play_runners:retired_at:pitchlog_sync_right_fn_owner"
     }
   ]
 }

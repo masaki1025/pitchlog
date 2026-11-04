@@ -30,6 +30,7 @@ import copy
 import difflib
 import dis
 import fnmatch
+import functools
 import hashlib
 import json
 import re
@@ -124,24 +125,24 @@ FIRST_BALL_CONDITION2_SCOPES: dict[str, frozenset[tuple[int, str]]] = {
         (73, 'RecordingGenerationLockToken'),
         (73, 'RecordingGenerationReadToken'),
         (110, 'int'),
-        (246, 'pitchlog.repositories.sync_apply._GENERATION_READ_COLUMNS'),
-        (246, 'pitchlog.sync.tokens.RecordingGenerationReadToken'),
-        (248, 'int'),
-        (249, 'locked_generation'),
+        (248, 'pitchlog.repositories.sync_apply._GENERATION_READ_COLUMNS'),
+        (248, 'pitchlog.sync.tokens.RecordingGenerationReadToken'),
         (250, 'int'),
-        (250, 'pitchlog.sync.tokens.RecordingGenerationLockToken'),
-        (251, 'pitchlog.repositories.sync_apply._GENERATION_READ_COLUMNS'),
-        (253, 'locked_generation'),
-        (280, 'generation'),
-        (280, 'int'),
-        (284, 'is_tombstone'),
-        (290, 'target_generation'),
-        (303, 'generation'),
-        (303, 'int'),
-        (326, 'pitchlog.sync.tokens.IdempotencyLedgerReadToken'),
-        (327, 'pitchlog.db.sync_protocol.models.IdempotencyLedger'),
-        (327, 'pitchlog.db.sync_protocol.models.IdempotencyLedger.__table__.c.keys'),
-        (438, 'int'),
+        (251, 'locked_generation'),
+        (252, 'int'),
+        (252, 'pitchlog.sync.tokens.RecordingGenerationLockToken'),
+        (253, 'pitchlog.repositories.sync_apply._GENERATION_READ_COLUMNS'),
+        (255, 'locked_generation'),
+        (282, 'generation'),
+        (282, 'int'),
+        (286, 'is_tombstone'),
+        (292, 'target_generation'),
+        (305, 'generation'),
+        (305, 'int'),
+        (328, 'pitchlog.sync.tokens.IdempotencyLedgerReadToken'),
+        (329, 'pitchlog.db.sync_protocol.models.IdempotencyLedger'),
+        (329, 'pitchlog.db.sync_protocol.models.IdempotencyLedger.__table__.c.keys'),
+        (456, 'int'),
     }),
     "backend/src/pitchlog/repositories/started_read.py": frozenset({
         (41, '_GENERATION_READ_COLUMNS'),
@@ -176,18 +177,6 @@ FIRST_BALL_CONDITION2_SCOPES: dict[str, frozenset[tuple[int, str]]] = {
 
 # 通常投球接合の条件2登録は、承認済み2path/16出現のexact-setだけを許す。
 ORDINARY_CONDITION2_SCOPES: dict[str, frozenset[tuple[int, str, str]]] = {
-    "backend/src/pitchlog/api/schemas/started_games.py": frozenset({
-        (
-            249,
-            'typing.Annotated',
-            'pitchlog.api.schemas.started_games.StartedRecordedPrefixGameRead.<module>',
-        ),
-        (
-            260,
-            'pitchlog.api.schemas.started_games.StartedRecordedPrefixGameRead.prefix_ref.generation',
-            'pitchlog.api.schemas.started_games.StartedRecordedPrefixGameRead._prefix_correlations',
-        ),
-    }),
     "backend/src/pitchlog/domainrt/ordinary_pitch_continuation.py": frozenset({
         (
             61,
@@ -202,37 +191,37 @@ ORDINARY_CONDITION2_SCOPES: dict[str, frozenset[tuple[int, str, str]]] = {
             'pitchlog.repositories.ordinary_pitch_operations.<module>',
         ),
         (
-            25,
+            26,
             'IdempotencyLedgerReadToken',
             'pitchlog.repositories.ordinary_pitch_operations.<module>',
         ),
         (
-            78,
+            82,
             'token.generation',
             'pitchlog.repositories.ordinary_pitch_operations._row',
         ),
         (
-            139,
+            143,
             'pitchlog.db.sync_protocol.models.IdempotencyLedger',
             'pitchlog.repositories.ordinary_pitch_operations._preflight.validate',
         ),
         (
-            139,
+            143,
             'pitchlog.db.sync_protocol.models.IdempotencyLedger.__table__.c.keys',
             'pitchlog.repositories.ordinary_pitch_operations._preflight.validate',
         ),
         (
-            147,
+            151,
             'token.generation',
             'pitchlog.repositories.ordinary_pitch_operations._preflight.validate',
         ),
         (
-            190,
+            194,
             'token.generation',
             'pitchlog.repositories.ordinary_pitch_operations._preflight',
         ),
         (
-            191,
+            195,
             'pitchlog.sync.tokens.IdempotencyLedgerReadToken',
             'pitchlog.repositories.ordinary_pitch_operations._preflight',
         ),
@@ -282,167 +271,167 @@ ORDINARY_CONDITION2_SCOPES: dict[str, frozenset[tuple[int, str, str]]] = {
             'pitchlog.repositories.ordinary_prefix.CheckpointDocument._positions_and_digest',
         ),
         (
-            181,
+            168,
             '_GENERATION_READ_COLUMNS',
-            'pitchlog.repositories.ordinary_prefix.read_confirmed_ordinary_prefix',
+            'pitchlog.repositories.ordinary_prefix._locked_prefix_context',
         ),
         (
-            184,
+            276,
             'IdempotencyLedgerReadToken',
             'pitchlog.repositories.ordinary_prefix.read_confirmed_ordinary_prefix',
         ),
         (
-            184,
+            171,
             'RecordingGenerationLockToken',
-            'pitchlog.repositories.ordinary_prefix.read_confirmed_ordinary_prefix',
+            'pitchlog.repositories.ordinary_prefix._locked_prefix_context',
         ),
         (
-            184,
+            171,
             'RecordingGenerationReadToken',
-            'pitchlog.repositories.ordinary_prefix.read_confirmed_ordinary_prefix',
+            'pitchlog.repositories.ordinary_prefix._locked_prefix_context',
         ),
         (
-            234,
+            213,
             'pitchlog.repositories.sync_apply._GENERATION_READ_COLUMNS',
-            'pitchlog.repositories.ordinary_prefix.read_confirmed_ordinary_prefix',
+            'pitchlog.repositories.ordinary_prefix._locked_prefix_context',
         ),
         (
-            234,
+            210,
             'pitchlog.sync.tokens.RecordingGenerationReadToken',
-            'pitchlog.repositories.ordinary_prefix.read_confirmed_ordinary_prefix',
+            'pitchlog.repositories.ordinary_prefix._locked_prefix_context',
         ),
         (
-            235,
+            290,
             'current',
             'pitchlog.repositories.ordinary_prefix.read_confirmed_ordinary_prefix',
         ),
         (
-            237,
+            300,
             'current',
             'pitchlog.repositories.ordinary_prefix.read_confirmed_ordinary_prefix',
         ),
         (
-            237,
+            210,
             'pitchlog.repositories.sync_apply._GENERATION_READ_COLUMNS',
-            'pitchlog.repositories.ordinary_prefix.read_confirmed_ordinary_prefix',
+            'pitchlog.repositories.ordinary_prefix._locked_prefix_context',
         ),
         (
-            237,
+            213,
             'pitchlog.sync.tokens.RecordingGenerationLockToken',
-            'pitchlog.repositories.ordinary_prefix.read_confirmed_ordinary_prefix',
+            'pitchlog.repositories.ordinary_prefix._locked_prefix_context',
         ),
         (
-            241,
+            326,
             'current',
             'pitchlog.repositories.ordinary_prefix.read_confirmed_ordinary_prefix',
         ),
         (
-            242,
+            340,
             'current',
             'pitchlog.repositories.ordinary_prefix.read_confirmed_ordinary_prefix',
         ),
         (
-            244,
+            397,
             'current',
             'pitchlog.repositories.ordinary_prefix.read_confirmed_ordinary_prefix',
         ),
         (
-            284,
+            420,
             'current',
             'pitchlog.repositories.ordinary_prefix.read_confirmed_ordinary_prefix',
         ),
         (
-            310,
+            442,
             'current',
             'pitchlog.repositories.ordinary_prefix.read_confirmed_ordinary_prefix',
         ),
         (
-            324,
+            253,
             'current',
-            'pitchlog.repositories.ordinary_prefix.read_confirmed_ordinary_prefix',
+            'pitchlog.repositories.ordinary_prefix._locked_prefix_context',
         ),
         (
-            324,
+            340,
             'pitchlog.repositories.ordinary_prefix.CheckpointDocument.internal_generation',
             'pitchlog.repositories.ordinary_prefix.read_confirmed_ordinary_prefix',
         ),
         (
-            325,
+            341,
             'pitchlog.repositories.ordinary_prefix.CheckpointDocument.recovery_generation',
             'pitchlog.repositories.ordinary_prefix.read_confirmed_ordinary_prefix',
         ),
         (
-            377,
+            220,
             'current',
-            'pitchlog.repositories.ordinary_prefix.read_confirmed_ordinary_prefix',
+            'pitchlog.repositories.ordinary_prefix._locked_prefix_context',
         ),
         (
-            380,
+            400,
             'pitchlog.sync.tokens.IdempotencyLedgerReadToken',
             'pitchlog.repositories.ordinary_prefix.read_confirmed_ordinary_prefix',
         ),
         (
-            381,
+            401,
             'IdempotencyLedger',
             'pitchlog.repositories.ordinary_prefix.read_confirmed_ordinary_prefix',
         ),
         (
-            383,
+            403,
             'pitchlog.db.sync_protocol.models.IdempotencyLedger',
             'pitchlog.repositories.ordinary_prefix.read_confirmed_ordinary_prefix',
         ),
         (
-            383,
+            403,
             'pitchlog.db.sync_protocol.models.IdempotencyLedger.__table__.c.keys',
             'pitchlog.repositories.ordinary_prefix.read_confirmed_ordinary_prefix',
         ),
         (
-            400,
+            218,
             'current',
-            'pitchlog.repositories.ordinary_prefix.read_confirmed_ordinary_prefix',
+            'pitchlog.repositories.ordinary_prefix._locked_prefix_context',
         ),
         (
-            431,
+            217,
             'current',
-            'pitchlog.repositories.ordinary_prefix.read_confirmed_ordinary_prefix',
+            'pitchlog.repositories.ordinary_prefix._locked_prefix_context',
         ),
         (
-            460,
+            465,
             'IdempotencyLedger',
             'pitchlog.repositories.ordinary_prefix._verify_persisted_last_source',
         ),
         (
-            462,
+            467,
             'pitchlog.sync.idempotency',
             'pitchlog.repositories.ordinary_prefix._verify_persisted_last_source',
         ),
         (
-            468,
+            473,
             'IdempotencyLedgerReadToken',
             'pitchlog.repositories.ordinary_prefix._verify_persisted_last_source',
         ),
         (
-            476,
+            481,
             'pitchlog.repositories.ordinary_prefix.CheckpointDocument.internal_generation',
             'pitchlog.repositories.ordinary_prefix._verify_persisted_last_source',
         ),
         (
-            482,
+            487,
             'pitchlog.sync.tokens.IdempotencyLedgerReadToken',
             'pitchlog.repositories.ordinary_prefix._verify_persisted_last_source',
         ),
         (
-            483,
+            488,
             'pitchlog.db.sync_protocol.models.IdempotencyLedger',
             'pitchlog.repositories.ordinary_prefix._verify_persisted_last_source',
         ),
         (
-            483,
+            488,
             'pitchlog.db.sync_protocol.models.IdempotencyLedger.__table__.c.keys',
             'pitchlog.repositories.ordinary_prefix._verify_persisted_last_source',
         ),
         (
-            489,
+            494,
             'pitchlog.repositories.ordinary_prefix.CheckpointDocument.last_source.generation',
             'pitchlog.repositories.ordinary_prefix._verify_persisted_last_source',
         ),
@@ -556,74 +545,74 @@ ORDINARY_CONDITION2_SCOPES: dict[str, frozenset[tuple[int, str, str]]] = {
             'pitchlog.repositories.ordinary_prefix_read.read_ordinary_prefix',
         ),
         (
-            200,
+            205,
             'current',
             'pitchlog.repositories.ordinary_prefix_read.read_ordinary_prefix',
         ),
         (
-            297,
+            320,
             'current',
             'pitchlog.repositories.ordinary_prefix_read.read_ordinary_prefix',
         ),
         (
-            403,
+            443,
             'current',
             'pitchlog.repositories.ordinary_prefix_read.read_ordinary_prefix',
         ),
         (
-            431,
+            457,
             'current',
             'pitchlog.repositories.ordinary_prefix_read.read_ordinary_prefix',
         ),
         (
-            490,
+            486,
             'current',
             'pitchlog.repositories.ordinary_prefix_read.read_ordinary_prefix',
         ),
         (
-            493,
+            554,
             'pitchlog.sync.idempotency',
             'pitchlog.repositories.ordinary_prefix_read.read_ordinary_prefix',
         ),
     }),
     "backend/src/pitchlog/repositories/transaction.py": frozenset({
         (
-            1079,
+            1083,
             'RecordingGenerationByNumberReadToken',
             'pitchlog.repositories.transaction._port_read_types',
         ),
         (
-            1079,
+            1083,
             'RecordingGenerationReadToken',
             'pitchlog.repositories.transaction._port_read_types',
         ),
         (
-            1091,
+            1095,
             'pitchlog.sync.tokens.RecordingGenerationByNumberReadToken',
             'pitchlog.repositories.transaction._port_read_types',
         ),
         (
-            1091,
+            1095,
             'pitchlog.sync.tokens.RecordingGenerationReadToken',
             'pitchlog.repositories.transaction._port_read_types',
         ),
         (
-            1376,
-            'pitchlog.repositories.tokens.TenantOperationToken.recovery_generation',
-            'pitchlog.repositories.transaction._execute_port_command',
-        ),
-        (
-            1377,
-            'pitchlog.repositories.tokens.TenantOperationToken.recovery_generation',
-            'pitchlog.repositories.transaction._execute_port_command',
-        ),
-        (
-            1397,
+            1407,
             'pitchlog.repositories.tokens.TenantOperationToken.recovery_generation',
             'pitchlog.repositories.transaction._execute_port_command',
         ),
         (
             1408,
+            'pitchlog.repositories.tokens.TenantOperationToken.recovery_generation',
+            'pitchlog.repositories.transaction._execute_port_command',
+        ),
+        (
+            1428,
+            'pitchlog.repositories.tokens.TenantOperationToken.recovery_generation',
+            'pitchlog.repositories.transaction._execute_port_command',
+        ),
+        (
+            1439,
             'pitchlog.repositories.tokens.TenantOperationToken.recovery_generation',
             'pitchlog.repositories.transaction._execute_port_command',
         ),
@@ -635,7 +624,7 @@ ORDINARY_CONDITION2_SCOPES: dict[str, frozenset[tuple[int, str, str]]] = {
 ORDINARY_CONDITION5_SCOPES: dict[str, frozenset[tuple[int, str, str, str]]] = {
     "backend/src/pitchlog/sync/ordinary_pitch_execution.py": frozenset({
         (
-            183,
+            198,
             'TB007',
             'builtins.object.__new__',
             'pitchlog.sync.ordinary_pitch_execution._bind_ordinary_pitch_execution',
@@ -971,6 +960,17 @@ class ResolutionOwnershipRegistration:
 
 
 @dataclass(frozen=True)
+class Pr191SourceOwner:
+    """v2用途の固定Git全byteと閉site集合を持つ不変所有者。"""
+
+    path: str
+    purpose: str
+    source_sha256: str
+    findings: frozenset[tuple[int, str, str, str]]
+    immutable_source: bytes
+
+
+@dataclass(frozen=True)
 class Contract:
     """検査に必要な資産を読み合わせた契約を表す。"""
 
@@ -1000,6 +1000,7 @@ class Contract:
     cache_invalidation: CacheInvalidationBypassContract
     diff_command: tuple[str, ...]
     resolution_owner: ResolutionOwnershipRegistration | None = None
+    pr191_source_owners: tuple[Pr191SourceOwner, ...] = ()
 
 
 @dataclass(frozen=True, order=True)
@@ -1604,7 +1605,7 @@ def _resolution_owner_shape_is_exact(registration: ResolutionOwnershipRegistrati
             "pitchlog.repositories.transaction._assert_existing_resolution_owner"
         )
         and registration.scope == "pitchlog.repositories.transaction.<module>"
-        and type(registration.line) is int and registration.line == 945
+        and type(registration.line) is int and registration.line == 949
         and registration.symbol == "_assert_existing_resolution_owner"
         and type(registration.source_sha256) is str
         and re.fullmatch(r"[0-9a-f]{64}", registration.source_sha256) is not None
@@ -1661,7 +1662,7 @@ def _load_ordinary_condition2_owners(
         value: allowlist の ``condition_2_ordinary_scoped_findings``。
 
     Returns:
-        固定8pathと実source SHA・出現集合を持つ所有者。
+        固定7pathと実source SHA・出現集合を持つ所有者。
 
     Raises:
         ContractError: path・SHA・出現が固定投影と一致しない場合。
@@ -1689,7 +1690,7 @@ def _load_ordinary_condition2_owners(
                 )
             findings.add((line, symbol, scope))
         if frozenset(findings) != ORDINARY_CONDITION2_SCOPES[full_path]:
-            raise ContractError("通常条件2登録は審査対象8path/88出現のexact-setが必要")
+            raise ContractError("通常条件2登録は審査対象7path/86出現のexact-setが必要")
         owners.append(
             OrdinaryCondition2Owner(full_path, digest, frozenset(findings))
         )
@@ -1787,6 +1788,7 @@ def _load_allowlist(
             "condition_5_first_ball_scoped_findings",
             "condition_5_ordinary_scoped_findings",
             "condition_1_resolve_scoped_finding",
+            "pr191_source_registration",
             "ledger_deployment_assets",
             "rg1_deployment_assets",
             "writer_binding_deployment_assets",
@@ -2742,6 +2744,9 @@ def load_contract(repository_root: Path) -> Contract:
         cache_invalidation=cache_invalidation,
         diff_command=diff_command,
         resolution_owner=_load_resolution_owner(allowlist_value["condition_1_resolve_scoped_finding"]),
+        pr191_source_owners=_load_pr191_source_owners(
+            repository_root, allowlist_value["pr191_source_registration"],
+        ),
     )
 
 
@@ -3380,6 +3385,27 @@ _FIXED_ORDINARY_BUILDER_BODY = _expected_function_body(
 )
 
 
+_FIXED_PLAY_PREFIX_BUILDER_BODY = _expected_function_body(
+    "def expected():\n    safe_arguments = (_canonical_bind('tenant_id', UUID)"
+    ", *(bindparam(name, type_=BigInteger()) if schema == 'sync_right_api' an"
+    "d (function_name in {'check_current_right', 'check_ordinary_right'} and "
+    "name in ('internal_generation', 'recovery_generation') or ((f'{schema}.{"
+    "function_name}' in _SYNC_ORDINARY_PREFIX_FUNCTION_TYPES or f'{schema}.{f"
+    "unction_name}' in _SYNC_PLAY_PREFIX_FUNCTION_TYPES) and name in ('genera"
+    "tion', 'checkpoint_revision', 'storage_history_epoch', 'wire_checkpoint_"
+    "revision', 'wire_history_version', 'history_version', 'upper_watermark',"
+    " 'after_d1', 'after_d2'))) and (field_type is int) else _canonical_bind("
+    'name, field_type) for name, field_type in input_fields))\n    safe_functi'
+    'on = Function(function_name, *safe_arguments, packagenames=(schema,))\n  '
+    "  if schema == 'sync_fence_api' and function_name == 'assert_writer_bind"
+    "ing' and (not table_valued) and (result_names == ('asserted',)):\n       "
+    ' safe_function.type = _WriterAssertVoidResult()\n    if not table_valued:'
+    '\n        return select(safe_function.label(result_names[0]))\n    safe_ta'
+    'ble = safe_function.table_valued(*result_names)\n    return select(*(safe'
+    '_table.c[name] for name in result_names))\n'
+)
+
+
 def _is_fixed_builder_body(
     node: ast.FunctionDef | ast.AsyncFunctionDef, expected: list[ast.stmt]
 ) -> bool:
@@ -3394,6 +3420,7 @@ def _is_fixed_builder_body(
             expected,
             _FIXED_FIRST_BALL_BUILDER_BODY,
             _FIXED_ORDINARY_BUILDER_BODY,
+            _FIXED_PLAY_PREFIX_BUILDER_BODY,
         )
         if expected is _FIXED_BUILDER_BODY
         else (expected,)
@@ -8119,6 +8146,22 @@ def scan_source(
                 if (item.line, item.code, item.symbol, item.scope)
                 not in owner.findings
             ]
+    pr191_evidence = _pr191_source_evidence(source, path, contract)
+    violations = [item for item in violations
+                  if (item.line, item.code, item.symbol, item.scope) not in pr191_evidence]
+    if contract.pr191_source_owners:
+        for owner in _pr191_trusted_source_owners():
+            if path != owner.path.removeprefix("backend/src/"):
+                continue
+            if (contract.pr191_source_owners != _pr191_trusted_source_owners()
+                    or source.encode() != owner.immutable_source):
+                line, code, symbol, scope = min(owner.findings)
+                violation = Violation(
+                    path, line, int(code.removeprefix("TB")), code, symbol,
+                    "用途付き原典の全byte/全ownerと不一致", scope=scope,
+                )
+                if violation not in violations:
+                    violations.append(violation)
     return sorted(violations)
 
 
@@ -9800,6 +9843,118 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 1
     print("tenant-boundary bypass check: ok")
     return 0
+
+
+
+
+# 旧ownerに残せないv2 siteだけを用途と不変原典へ束縛する。
+_PR191_SOURCE_PURPOSES = {
+    "backend/src/pitchlog/domainrt/play_prefix_continuation.py":
+        "play-prefix-v2 immutable UInt64 reference model",
+    "backend/src/pitchlog/repositories/ordinary_prefix.py":
+        "same writer tenant/game/generation lock context extraction and persisted source binding",
+    "backend/src/pitchlog/repositories/ordinary_prefix_read.py":
+        "bounded v2 read source verification and v1 bridge preview",
+    "backend/src/pitchlog/repositories/play_prefix.py":
+        ("v2 immutable checkpoint binding, same-context token reader, "
+         "authenticated liveness callback"),
+    "backend/src/pitchlog/sync/ordinary_pitch_execution.py":
+        "sealed OrdinaryPitchFrame construction at the sole v2 binding site",
+    "backend/src/pitchlog/sync/terminal_pitch_projection.py":
+        "before runner hold validation and unchanged responsible-pitcher scalar projection",
+}
+_PR191_EXPECTED_FIXTURE = "tests/fixtures/pr191_tenant_source_expected_v1.json"
+_PR191_SOURCE_CONSUMERS = (
+    "scripts/check_tenant_boundary_bypass.py:_load_pr191_source_owners",
+    "tests/test_pr191_tenant_source_registration.py:immutable_source",
+)
+
+
+def _load_pr191_source_owners(
+    root: Path, declaration: object,
+) -> tuple[Pr191SourceOwner, ...]:
+    """v2の用途・全site・全byteを固定Gitだけから読み合わせる。"""
+    value = _object(declaration, "pr191 source registration")
+    _strict_keys(value, {"expected_fixture", "owners"}, "pr191 source registration")
+    if value["expected_fixture"] != _PR191_EXPECTED_FIXTURE:
+        raise ContractError("pr191の期待fixtureは固定pathだけを許す")
+    expected, _ = _read_json(root / _PR191_EXPECTED_FIXTURE)
+    _strict_keys(expected, {"schema_version", "source_revision", "frozen_input", "owners"},
+                 "pr191 expected fixture")
+    if (type(expected["schema_version"]) is not int or expected["schema_version"] != 1
+            or expected["frozen_input"] != "pr191_source_registration_revision"):
+        raise ContractError("pr191原典fixtureの版/用途が不一致")
+    frozen, _ = _read_json(root / "contracts/tenant_boundary/frozen-inputs.json")
+    inputs = _object(frozen.get("frozen_inputs"), "pr191 frozen inputs")
+    anchor = _object(inputs.get(expected["frozen_input"]), "pr191 source revision")
+    _strict_keys(anchor, {"value", "purpose", "sources"}, "pr191 source revision")
+    if (not _string(anchor["purpose"], "pr191 purpose")
+            or _string_array(anchor["sources"], "pr191 consumers") != _PR191_SOURCE_CONSUMERS):
+        raise ContractError("pr191原典の用途/consumerが不一致")
+    revision = _string(anchor["value"], "pr191 source revision")
+    if re.fullmatch(r"[0-9a-f]{40}", revision) is None or revision != expected["source_revision"]:
+        raise ContractError("pr191原典は独立fixtureと同じfull commitだけを許す")
+    if _run_git(root, ["rev-parse", "--verify", f"{revision}^{{commit}}"] ).strip() != revision:
+        raise ContractError("pr191原典commitを解決できない")
+    _run_git(root, ["merge-base", "--is-ancestor", revision, "HEAD"])
+    owners = _object(value["owners"], "pr191 owners")
+    wanted = _object(expected["owners"], "pr191 expected owners")
+    _strict_keys(owners, set(_PR191_SOURCE_PURPOSES), "pr191 owners")
+    _strict_keys(wanted, set(_PR191_SOURCE_PURPOSES), "pr191 expected owners")
+    if owners != wanted:
+        raise ContractError("pr191宣言は独立期待の全owner/siteと一致する必要がある")
+    result = []
+    for path, purpose in _PR191_SOURCE_PURPOSES.items():
+        row = _object(owners[path], "pr191 owner")
+        _strict_keys(row, {"purpose", "source_sha256", "findings"}, "pr191 owner")
+        if row["purpose"] != purpose:
+            raise ContractError("pr191 owner用途を変更できない")
+        _git_regular_blob(root, revision, Path(path))
+        original = subprocess.check_output(["git", "show", f"{revision}:{path}"], cwd=root)
+        if hashlib.sha256(original).hexdigest() != row["source_sha256"]:
+            raise ContractError("pr191 source SHAは現在木でなく固定Git全byteと一致する必要がある")
+        findings = []
+        for raw in _array(row["findings"], "pr191 findings"):
+            site = _object(raw, "pr191 finding")
+            _strict_keys(site, {"line", "code", "symbol", "scope"}, "pr191 finding")
+            line = _integer(site["line"], "pr191 line")
+            code = _string(site["code"], "pr191 code")
+            symbol = _string(site["symbol"], "pr191 symbol")
+            scope = _string(site["scope"], "pr191 scope")
+            if line < 1 or code not in {"TB002", "TB003", "TB007"} or not symbol or not scope:
+                raise ContractError("pr191は条件2/3/5の明示siteだけを許す")
+            findings.append((line, code, symbol, scope))
+        if not findings or len(findings) != len(set(findings)):
+            raise ContractError("pr191 siteの空集合/重複を認めない")
+        result.append(Pr191SourceOwner(path, purpose, row["source_sha256"],
+                                       frozenset(findings), original))
+    return tuple(result)
+
+
+@functools.lru_cache(maxsize=1)
+def _pr191_trusted_source_owners() -> tuple[Pr191SourceOwner, ...]:
+    """合成Contractの自己申告から独立した固定原典を取得する。"""
+    root = Path(__file__).resolve().parents[1]
+    asset, _ = _read_json(root / DEFAULT_ALLOWLIST)
+    return _load_pr191_source_owners(root, asset.get("pr191_source_registration"))
+
+
+def _pr191_source_evidence(
+    source: str, path: str, contract: Contract,
+) -> frozenset[tuple[int, str, str, str]]:
+    """不変原典の全byteと全所有者が揃う有限siteだけを返す。"""
+    if not contract.pr191_source_owners:
+        return frozenset()
+    expected = _pr191_trusted_source_owners()
+    # 欠落/余剰/別owner/登録SHA同時変更でも免除を作らせない。
+    if contract.pr191_source_owners != expected:
+        return frozenset()
+    for owner in expected:
+        if (path == owner.path.removeprefix("backend/src/")
+                and source.encode() == owner.immutable_source):
+            return owner.findings
+    return frozenset()
+
 
 
 if __name__ == "__main__":

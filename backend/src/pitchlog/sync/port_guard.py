@@ -505,6 +505,8 @@ def _load_first_ball_port_classes() -> tuple[type[object], ...]:
     from pitchlog.sync.ordinary_pitch_ports import (
         OrdinaryPitchContentValidationPort,
         OrdinaryPitchProjectionPort,
+        PlayPrefixContentValidationPort,
+        PlayPrefixProjectionPort,
     )
 
     return (
@@ -513,6 +515,8 @@ def _load_first_ball_port_classes() -> tuple[type[object], ...]:
         FirstBallRecordingRightsPort,
         OrdinaryPitchContentValidationPort,
         OrdinaryPitchProjectionPort,
+        PlayPrefixContentValidationPort,
+        PlayPrefixProjectionPort,
     )
 
 

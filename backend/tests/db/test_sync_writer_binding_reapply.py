@@ -1,4 +1,4 @@
-"""Owned PGだけで製品認可の再適用と新9関数・4trigger衝突を検査する。"""
+"""Owned PGだけで製品認可の再適用と旧20+終端7関数・writer4trigger衝突を検査する。"""
 
 from __future__ import annotations
 
@@ -45,6 +45,18 @@ _NAMES = frozenset(
         "read_ordinary_history_page",
     }
 )
+_TERMINAL_NAMES = frozenset(
+    {
+        "read_play_prefix_history_page",
+        "guard_play_prefix_runner_insert",
+        "prepare_play_prefix_projection",
+        "finish_play_prefix_projection",
+        "assert_play_prefix_projection",
+        "read_play_prefix_checkpoint",
+        "lock_play_prefix_checkpoint",
+    }
+)
+
 _TRIGGERS = (
     ("writer_bindings", "sync_writer_binding_immutable", 27),
     ("writer_bindings", "sync_writer_binding_no_truncate", 34),
@@ -188,10 +200,11 @@ def _subject(applicator: psycopg.Connection[Any], expected: str) -> None:
 def test_owned_full_apply_repeats_and_rejects_nine_functions_four_triggers(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """単一所有clusterで正常1・本文20・writer無効化4を直列に実証する。"""
+    """単一所有clusterで正常1・本文27（旧20+終端7）・writer無効化4を直列に実証する。"""
     functions = ADDITIONS["functions"]
-    assert len(functions) == 20
-    assert {row["function_name"] for row in functions} == _NAMES
+    assert len(_NAMES) == 20 and len(_TERMINAL_NAMES) == 7
+    assert {row["function_name"] for row in functions} == _NAMES | _TERMINAL_NAMES
+    assert len(functions) == 27
     visited_functions: set[str] = set()
     visited_triggers: set[str] = set()
     with owned_binding_database(monkeypatch) as owner:

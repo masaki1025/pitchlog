@@ -159,45 +159,21 @@ def read_checkpoint_document(raw: str) -> CheckpointDocument:
         raise OrdinaryPrefixError from None
 
 
-def read_confirmed_ordinary_prefix(handle, event, source, *, artifact_sha256: str):
-    """同TX原本からだけprefix/配置を取得し、自由recordを資格にしない。"""
-    from dataclasses import dataclass
-    from uuid import UUID, uuid4
+def _locked_prefix_context(handle, event, source):
+    """v1/v2で同じ実game/generation/source/leaseを確認する共有核。"""
+    from uuid import UUID
 
     from pitchlog.db.game_state.models import Game
-    from pitchlog.db.sync_protocol.models import OperationEvent
-    from pitchlog.domainrt.initial_game_roster import InitialRosterProjection
-    from pitchlog.repositories.ordinary_prefix_operations import (
-        OrdinaryCheckpointLockToken,
-    )
-    from pitchlog.repositories.recorded_snapshot import (
-        RecordedCalculationCandidate,
-        try_read_recorded_snapshot,
-    )
-    from pitchlog.repositories.started_snapshot import (
-        _one,
-        read_initial_started_snapshot,
-    )
+    from pitchlog.repositories.started_snapshot import _one
     from pitchlog.repositories.sync_apply import _GENERATION_READ_COLUMNS
     from pitchlog.repositories.transaction import _TenantTransaction
     from pitchlog.sync.source_binding import _E1CoreSource
     from pitchlog.sync.tokens import (
         GameLockToken,
         GameReadToken,
-        IdempotencyLedgerReadToken,
-        OperationEventReadToken,
         RecordingGenerationLockToken,
         RecordingGenerationReadToken,
     )
-
-    @dataclass(frozen=True, slots=True)
-    class ReadValue:
-        """原本由来の内部読取結果。単体でframe/DB資格ではない。"""
-
-        checkpoint: CheckpointDocument
-        roster: InitialRosterProjection
-        bootstrap: bool
-        next_play_number: int
 
     if type(handle) is not _TenantTransaction or type(source) is not _E1CoreSource:
         raise OrdinaryPrefixError
@@ -274,6 +250,46 @@ def read_confirmed_ordinary_prefix(handle, event, source, *, artifact_sha256: st
         raise OrdinaryPrefixError
     live()
     lease = source.bound._lease
+    return run, live, tenant, game_id, generation, epoch, watermark, lease
+
+
+def read_confirmed_ordinary_prefix(
+    handle, event, source, *, artifact_sha256: str, play_prefix_compat=False
+):
+    """同TX原本からだけprefix/配置を取得し、自由recordを資格にしない。"""
+    from dataclasses import dataclass
+    from uuid import UUID, uuid4
+
+    from pitchlog.db.sync_protocol.models import OperationEvent
+    from pitchlog.domainrt.initial_game_roster import InitialRosterProjection
+    from pitchlog.repositories.ordinary_prefix_operations import (
+        OrdinaryCheckpointLockToken,
+    )
+    from pitchlog.repositories.recorded_snapshot import (
+        RecordedCalculationCandidate,
+        try_read_recorded_snapshot,
+    )
+    from pitchlog.repositories.started_snapshot import (
+        _one,
+        read_initial_started_snapshot,
+    )
+    from pitchlog.sync.tokens import (
+        IdempotencyLedgerReadToken,
+        OperationEventReadToken,
+    )
+
+    @dataclass(frozen=True, slots=True)
+    class ReadValue:
+        """原本由来の内部読取結果。単体でframe/DB資格ではない。"""
+
+        checkpoint: CheckpointDocument
+        roster: InitialRosterProjection
+        bootstrap: bool
+        next_play_number: int
+
+    run, live, tenant, game_id, generation, epoch, watermark, lease = (
+        _locked_prefix_context(handle, event, source)
+    )
     result = handle.run_function(
         OrdinaryCheckpointLockToken(
             lease.attempt_id,
@@ -370,7 +386,11 @@ def read_confirmed_ordinary_prefix(handle, event, source, *, artifact_sha256: st
             "0",
         )
     elif watermark == 1:
-        recorded = try_read_recorded_snapshot(handle, game_id)
+        recorded = (
+            try_read_recorded_snapshot(handle, game_id, play_prefix_compat=True)
+            if play_prefix_compat
+            else try_read_recorded_snapshot(handle, game_id)
+        )
         if type(recorded) is not RecordedCalculationCandidate:
             raise OrdinaryPrefixError
         event_row = _one(
@@ -415,38 +435,23 @@ def read_confirmed_ordinary_prefix(handle, event, source, *, artifact_sha256: st
     else:
         # 過去全件を読み直してcheckpointを捏造しない。
         raise OrdinaryPrefixError
-    content = {
-        "version": "1",
-        "id": str(uuid4()),
-        "revision": "1",
-        "history_version": "1",
-        "prefix_ref": {
-            "version": "1",
-            "tenantId": str(tenant),
-            "gameId": str(game_id),
-            "generation": event.d4,
-            "length": length,
-        },
-        "wire_d4": event.d4,
-        "internal_generation": str(generation),
-        "recovery_generation": str(epoch),
-        "confirmed_watermark": str(watermark),
-        "applied_watermark": str(watermark),
-        "last_source": last,
-        "history_depth": depth,
-        "after": after.model_dump(mode="json", by_alias=True),
-        "rules": rules.model_dump(mode="json", by_alias=True),
-        "t2": None
-        if t2 is None
-        else t2.model_dump(mode="json", by_alias=True, exclude_unset=True),
-        "roster_digest": source_fingerprint(
-            roster.model_dump(mode="json", by_alias=True)
-        ),
-        "artifact_sha256": artifact_sha256,
-        "state": "current",
-    }
-    content["content_digest"] = source_fingerprint(content)
-    doc = read_checkpoint_document(_canonical_json(content))
+    doc = bootstrap_checkpoint_document(
+        tenant=tenant,
+        game_id=game_id,
+        d4=event.d4,
+        generation=generation,
+        epoch=epoch,
+        watermark=watermark,
+        last=last,
+        length=length,
+        depth=depth,
+        after=after,
+        rules=rules,
+        roster=roster,
+        t2=t2,
+        artifact_sha256=artifact_sha256,
+        anchor_id=uuid4(),
+    )
     live()
     return ReadValue(doc, roster, True, next_play_number)
 
@@ -559,3 +564,56 @@ def _verify_persisted_last_source(
         )
     ):
         raise OrdinaryPrefixError
+
+
+def bootstrap_checkpoint_document(
+    *,
+    tenant,
+    game_id,
+    d4,
+    generation,
+    epoch,
+    watermark,
+    last,
+    length,
+    depth,
+    after,
+    rules,
+    roster,
+    t2,
+    artifact_sha256,
+    anchor_id,
+):
+    """未保存の候補documentを共通描画する。GETもwriter資格を発行しない。"""
+    content = {
+        "version": "1",
+        "id": str(anchor_id),
+        "revision": "1",
+        "history_version": "1",
+        "prefix_ref": {
+            "version": "1",
+            "tenantId": str(tenant),
+            "gameId": str(game_id),
+            "generation": d4,
+            "length": length,
+        },
+        "wire_d4": d4,
+        "internal_generation": str(generation),
+        "recovery_generation": str(epoch),
+        "confirmed_watermark": str(watermark),
+        "applied_watermark": str(watermark),
+        "last_source": last,
+        "history_depth": depth,
+        "after": after.model_dump(mode="json", by_alias=True),
+        "rules": rules.model_dump(mode="json", by_alias=True),
+        "t2": None
+        if t2 is None
+        else t2.model_dump(mode="json", by_alias=True, exclude_unset=True),
+        "roster_digest": source_fingerprint(
+            roster.model_dump(mode="json", by_alias=True)
+        ),
+        "artifact_sha256": artifact_sha256,
+        "state": "current",
+    }
+    content["content_digest"] = source_fingerprint(content)
+    return read_checkpoint_document(_canonical_json(content))

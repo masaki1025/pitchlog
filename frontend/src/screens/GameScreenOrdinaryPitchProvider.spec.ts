@@ -262,3 +262,117 @@ it('支持37全入力を実artifactへ渡し、終端球は成功へ補完しな
     prepareOrdinaryPitch(seed, observation, vocabulary, tenant),
   ).toThrow()
 })
+
+import {
+  playContextFromRead,
+  preparePlayPrefix,
+  playPrefixEvent,
+} from './GameScreenOrdinaryPitchProvider'
+import {
+  isPlayPrefixGame,
+  type PlayPrefixGame,
+} from '../api/recordedPrefixGame'
+const prefixFixture = JSON.parse(
+  readFileSync(
+    resolve(process.cwd(), 'src/api/fixtures/recordedPrefixGame.v1.json'),
+    'utf8',
+  ),
+).positive[0].value
+function initialPlayRead(): PlayPrefixGame {
+  const old = structuredClone(prefixFixture)
+  return {
+    ...old,
+    read_kind: 'play-prefix',
+    last_source: null,
+    prior_artifact_sha256:
+      '052f5c0a61d861176a2de5ae06055e16c9a0b2a192cfdc861a740cde4d5bedc4',
+    pa_start_source: { kind: 'started-game', id: old.id },
+    bridge_checkpoint: {
+      id: '10000000-0000-4000-8000-000000000099',
+      revision: '1',
+      digest: 'a'.repeat(64),
+    },
+    storage_anchor: null,
+    bridge_origin: null,
+    runners: [],
+    participants: null,
+  }
+}
+it('開始直後0球の実GET形からHBPを唯一artifactへ渡し、元予約IDと次打者runnerを保持する', async () => {
+  const read = initialPlayRead()
+  expect(isPlayPrefixGame(read)).toBe(true)
+  const c = await playContextFromRead(read, read.prefix_ref.tenantId)
+  const team = read.roster.teams.find((t) => t.side === 'away')!
+  const candidate = team.participants.find(
+    (p) => p.batting_slot.kind === 'slot' && p.batting_slot.slot === '2',
+  )!
+  const nextBatter = {
+    batterId: candidate.player.player_id,
+    battingOrder: '2' as const,
+  }
+  const ids = {
+    d5: crypto.randomUUID(),
+    eventId: crypto.randomUUID(),
+    playId: crypto.randomUUID(),
+  }
+  const wire = await preparePlayPrefix(
+    c,
+    { ...observation, resultId: 'batting-result.hit-by-pitch', nextBatter },
+    {
+      tenantId: read.prefix_ref.tenantId,
+      pitchTypeKeys: [observation.pitchTypeKey],
+    },
+    read.prefix_ref.tenantId,
+    ids,
+    crypto.randomUUID(),
+  )
+  const q = wire.payload.calculation.request,
+    r = wire.payload.calculation.response.value
+  expect(q.source.bridge?.kind).toBe('started-initial')
+  expect(q.source.lastSource).toBeNull()
+  expect(q.source.position).toEqual({ d1: '1', d2: '1', appliedWatermark: '0' })
+  expect(r.t1.after.stateFields['state.count.balls']).toBe('0')
+  expect(r.t1.after.stateFields['state.battingOrder']).toBe('2')
+  expect(r.t1.after.scoreboard.walks).toBe('0')
+  expect(r.runners).toEqual([
+    {
+      runnerId: q.source.participants.batterId,
+      responsiblePitcherId: q.source.participants.pitcherId,
+      base: '1',
+      status: '継続',
+      statusSource: 'auto',
+    },
+  ])
+  expect(playPrefixEvent(wire, ids.d5).fields.V1).toBe(ids.d5)
+  expect(() => playPrefixEvent(wire, crypto.randomUUID())).toThrow()
+  await expect(
+    preparePlayPrefix(
+      c,
+      {
+        ...observation,
+        resultId: 'batting-result.hit-by-pitch',
+        nextBatter: { ...nextBatter, battingOrder: '3' },
+      },
+      {
+        tenantId: read.prefix_ref.tenantId,
+        pitchTypeKeys: [observation.pitchTypeKey],
+      },
+      read.prefix_ref.tenantId,
+      ids,
+      crypto.randomUUID(),
+    ),
+  ).rejects.toThrow()
+  await expect(
+    preparePlayPrefix(
+      c,
+      { ...observation, resultId: 'batting-result.walk', nextBatter },
+      {
+        tenantId: read.prefix_ref.tenantId,
+        pitchTypeKeys: [observation.pitchTypeKey],
+      },
+      read.prefix_ref.tenantId,
+      ids,
+      crypto.randomUUID(),
+    ),
+  ).rejects.toThrow()
+})

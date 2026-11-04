@@ -1,0 +1,81 @@
+{
+  "version": "1",
+  "cases": [
+    {
+      "priorArtifactSha256": "1a415cbf4ff6b986fefec281005c84b5acf6a4e622178684aed2c02387f515f7",
+      "executionArtifactSha256": "052f5c0a61d861176a2de5ae06055e16c9a0b2a192cfdc861a740cde4d5bedc4",
+      "compatibleOperations": [
+        "deriveState",
+        "deriveFirstPitchWithContinuation"
+      ],
+      "witnessSha256": "0e0d3ba44cf0984752d16f4e685602e1d415a0f89592eb4de804c935b9ca19a8",
+      "sourceFormat": "first-ball-play-v1"
+    },
+    {
+      "priorArtifactSha256": "f0ac1ee02c8baa18d72c68418e899b4264b2e2b9e7a152b483d1464c6724cb80",
+      "executionArtifactSha256": "052f5c0a61d861176a2de5ae06055e16c9a0b2a192cfdc861a740cde4d5bedc4",
+      "compatibleOperations": [
+        "deriveState",
+        "deriveFirstPitchWithContinuation"
+      ],
+      "witnessSha256": "7fcd0167edc933c1abf2cb88bf28e2f0eda9c0eceb19c2205e720e4d96c5fb30",
+      "sourceFormat": "first-ball-play-v1"
+    },
+    {
+      "priorArtifactSha256": "f0ac1ee02c8baa18d72c68418e899b4264b2e2b9e7a152b483d1464c6724cb80",
+      "executionArtifactSha256": "052f5c0a61d861176a2de5ae06055e16c9a0b2a192cfdc861a740cde4d5bedc4",
+      "compatibleOperations": [
+        "deriveState",
+        "deriveFirstPitchWithContinuation",
+        "deriveOrdinaryPitch",
+        "deriveOrdinaryPitchWithContinuation"
+      ],
+      "witnessSha256": "5fda126e6b64d01f4477e790771832a3a4f82bfd615ddb24500f51b30df1051f",
+      "sourceFormat": "ordinary-pitch-play-v1"
+    },
+    {
+      "priorArtifactSha256": "0eb0fa99fc3fac4e3dfc13e3cb33be2d452e52bd1c6908ceb41925e442f0a08a",
+      "executionArtifactSha256": "052f5c0a61d861176a2de5ae06055e16c9a0b2a192cfdc861a740cde4d5bedc4",
+      "compatibleOperations": [
+        "deriveState",
+        "deriveFirstPitchWithContinuation"
+      ],
+      "witnessSha256": "1d703b3ff5f174cf3dc76a065fdde31f4c92b5f44c1bc1a1c0c407c275a29e03",
+      "sourceFormat": "first-ball-play-v1"
+    },
+    {
+      "priorArtifactSha256": "0eb0fa99fc3fac4e3dfc13e3cb33be2d452e52bd1c6908ceb41925e442f0a08a",
+      "executionArtifactSha256": "052f5c0a61d861176a2de5ae06055e16c9a0b2a192cfdc861a740cde4d5bedc4",
+      "compatibleOperations": [
+        "deriveState",
+        "deriveFirstPitchWithContinuation",
+        "deriveOrdinaryPitch",
+        "deriveOrdinaryPitchWithContinuation"
+      ],
+      "witnessSha256": "ae1091dbe6f67ad6bae6ed7d74c67ab4f5cd3a76b43b54280c53353eb0ec04e4",
+      "sourceFormat": "ordinary-pitch-play-v1"
+    },
+    {
+      "priorArtifactSha256": "052f5c0a61d861176a2de5ae06055e16c9a0b2a192cfdc861a740cde4d5bedc4",
+      "executionArtifactSha256": "052f5c0a61d861176a2de5ae06055e16c9a0b2a192cfdc861a740cde4d5bedc4",
+      "compatibleOperations": [
+        "deriveState",
+        "deriveFirstPitchWithContinuation"
+      ],
+      "witnessSha256": "89bfaba5a95f5c471b8cafad6c997c3a2932c36f145b658f9b00cc4236b5f2d2",
+      "sourceFormat": "first-ball-play-v1"
+    },
+    {
+      "priorArtifactSha256": "052f5c0a61d861176a2de5ae06055e16c9a0b2a192cfdc861a740cde4d5bedc4",
+      "executionArtifactSha256": "052f5c0a61d861176a2de5ae06055e16c9a0b2a192cfdc861a740cde4d5bedc4",
+      "compatibleOperations": [
+        "deriveState",
+        "deriveFirstPitchWithContinuation",
+        "deriveOrdinaryPitch",
+        "deriveOrdinaryPitchWithContinuation"
+      ],
+      "witnessSha256": "261cd4981b0d2e2c297806ce1caa7d387c318243e8ae7bc4ab57196313473b93",
+      "sourceFormat": "ordinary-pitch-play-v1"
+    }
+  ]
+}

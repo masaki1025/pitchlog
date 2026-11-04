@@ -423,12 +423,24 @@ def _event_insert_token(
     replacement: ReplacementKind,
     payload_json: str,
     target: P1Target | None,
+    *,
+    scope=None,
 ) -> OperationEventInsertToken:
     """C12 の種別条件に合わせて確定イベント行の列を組み立てる。"""
     _validate_v11(event)
     _validate_v10(event, replacement, target)
+    from pitchlog.sync.ordinary_pitch_execution import _reserved_play_event_id
+
+    reserved = None
+    if (
+        isinstance(event.v7, Mapping)
+        and event.v7.get("formatVersion") == "play-prefix-play-v2"
+    ):
+        reserved = _reserved_play_event_id(scope, event)
+        if reserved is None:
+            raise P1PreconditionError("v2元原本の予約frameがありません")
     return OperationEventInsertToken(
-        uuid4(),
+        reserved if reserved is not None else uuid4(),
         game_id,
         UUID(event.d5),
         _event_kind(event),
@@ -745,6 +757,7 @@ def _apply_locked_in_scope(
         from pitchlog.sync.first_ball_ports import FirstBallContentValidationPort
         from pitchlog.sync.ordinary_pitch_ports import (
             OrdinaryPitchContentValidationPort,
+            PlayPrefixContentValidationPort,
         )
 
         if type(validator) is FirstBallContentValidationPort:
@@ -753,13 +766,24 @@ def _apply_locked_in_scope(
             first_ball_stack.enter_context(
                 _bind_first_ball_execution(scope, writer, event, source)
             )
-        if type(validator) is OrdinaryPitchContentValidationPort:
+        if type(validator) in {
+            OrdinaryPitchContentValidationPort,
+            PlayPrefixContentValidationPort,
+        }:
             from pitchlog.sync.ordinary_pitch_execution import (
                 _bind_ordinary_pitch_execution,
             )
 
             first_ball_stack.enter_context(
-                _bind_ordinary_pitch_execution(scope, writer, event, source)
+                _bind_ordinary_pitch_execution(
+                    scope,
+                    writer,
+                    event,
+                    source,
+                    mode="play-prefix-play-v2"
+                    if type(validator) is PlayPrefixContentValidationPort
+                    else "ordinary-pitch-play-v1",
+                )
             )
         with (
             nullcontext()
@@ -850,7 +874,13 @@ def _apply_locked_in_scope(
         scope.run(EventSlotInsertToken(game_id, generation, event.d1))
         scope.run(
             _event_insert_token(
-                projected_event, game_id, generation, replacement, payload_json, target
+                projected_event,
+                game_id,
+                generation,
+                replacement,
+                payload_json,
+                target,
+                scope=scope,
             )
         )
         reach("after_t2_event")
@@ -866,7 +896,10 @@ def _apply_locked_in_scope(
 
             with _bind_first_ball_projection(scope, writer, event, projected_event):
                 projection.apply(projected_event, writer)
-        elif type(validator) is OrdinaryPitchContentValidationPort:
+        elif type(validator) in {
+            OrdinaryPitchContentValidationPort,
+            PlayPrefixContentValidationPort,
+        }:
             from pitchlog.sync.ordinary_pitch_execution import (
                 _bind_ordinary_pitch_projection,
             )
@@ -875,7 +908,10 @@ def _apply_locked_in_scope(
                 projection.apply(projected_event, writer)
         else:
             projection.apply(projected_event, writer)
-        if type(validator) is OrdinaryPitchContentValidationPort:
+        if type(validator) in {
+            OrdinaryPitchContentValidationPort,
+            PlayPrefixContentValidationPort,
+        }:
             from pitchlog.sync.ordinary_pitch_execution import (
                 _require_ordinary_projection_completed,
             )

@@ -1,0 +1,349 @@
+{
+  "schema_version": 1,
+  "source_revision": "6939271e9edbe8c4b6bc2fcd69af59e3fcbe4d3a",
+  "frozen_input": "pr191_source_registration_revision",
+  "owners": {
+    "backend/src/pitchlog/domainrt/play_prefix_continuation.py": {
+      "purpose": "play-prefix-v2 immutable UInt64 reference model",
+      "source_sha256": "81e0fb1a159b2a87d9458329746cf0e5c3ed6fa494f46f59e6c0e2d6466d1eeb",
+      "findings": [
+        {
+          "line": 67,
+          "code": "TB002",
+          "symbol": "typing.Annotated",
+          "scope": "pitchlog.domainrt.play_prefix_continuation.PlayPrefixRef.<module>"
+        }
+      ]
+    },
+    "backend/src/pitchlog/repositories/ordinary_prefix.py": {
+      "purpose": "same writer tenant/game/generation lock context extraction and persisted source binding",
+      "source_sha256": "99b07bc51322892e3d2c05ae6f8440f3ed48d599a4c3e7b28bd142d68edd5592",
+      "findings": [
+        {
+          "line": 211,
+          "code": "TB002",
+          "symbol": "current",
+          "scope": "pitchlog.repositories.ordinary_prefix._locked_prefix_context"
+        },
+        {
+          "line": 213,
+          "code": "TB002",
+          "symbol": "current",
+          "scope": "pitchlog.repositories.ordinary_prefix._locked_prefix_context"
+        },
+        {
+          "line": 442,
+          "code": "TB002",
+          "symbol": "generation",
+          "scope": "pitchlog.repositories.ordinary_prefix.read_confirmed_ordinary_prefix"
+        },
+        {
+          "line": 574,
+          "code": "TB002",
+          "symbol": "generation",
+          "scope": "pitchlog.repositories.ordinary_prefix.<module>"
+        },
+        {
+          "line": 601,
+          "code": "TB002",
+          "symbol": "current",
+          "scope": "pitchlog.repositories.ordinary_prefix.bootstrap_checkpoint_document"
+        }
+      ]
+    },
+    "backend/src/pitchlog/repositories/ordinary_prefix_read.py": {
+      "purpose": "bounded v2 read source verification and v1 bridge preview",
+      "source_sha256": "487b7518a5a745c60084e1ba025ae1e518f8dd418fbe4277b0c9d085d0dd79d5",
+      "findings": [
+        {
+          "line": 207,
+          "code": "TB002",
+          "symbol": "current",
+          "scope": "pitchlog.repositories.ordinary_prefix_read.read_ordinary_prefix"
+        },
+        {
+          "line": 250,
+          "code": "TB002",
+          "symbol": "current",
+          "scope": "pitchlog.repositories.ordinary_prefix_read.read_ordinary_prefix"
+        },
+        {
+          "line": 350,
+          "code": "TB002",
+          "symbol": "current",
+          "scope": "pitchlog.repositories.ordinary_prefix_read.read_ordinary_prefix"
+        },
+        {
+          "line": 551,
+          "code": "TB002",
+          "symbol": "current",
+          "scope": "pitchlog.repositories.ordinary_prefix_read.read_ordinary_prefix"
+        },
+        {
+          "line": 678,
+          "code": "TB002",
+          "symbol": "IdempotencyLedger",
+          "scope": "pitchlog.repositories.ordinary_prefix_read._verify_v2_read_last"
+        },
+        {
+          "line": 679,
+          "code": "TB002",
+          "symbol": "IdempotencyLedgerReadToken",
+          "scope": "pitchlog.repositories.ordinary_prefix_read._verify_v2_read_last"
+        },
+        {
+          "line": 684,
+          "code": "TB002",
+          "symbol": "doc.internal_generation",
+          "scope": "pitchlog.repositories.ordinary_prefix_read._verify_v2_read_last"
+        },
+        {
+          "line": 690,
+          "code": "TB002",
+          "symbol": "pitchlog.sync.tokens.IdempotencyLedgerReadToken",
+          "scope": "pitchlog.repositories.ordinary_prefix_read._verify_v2_read_last"
+        },
+        {
+          "line": 691,
+          "code": "TB002",
+          "symbol": "pitchlog.db.sync_protocol.models.IdempotencyLedger",
+          "scope": "pitchlog.repositories.ordinary_prefix_read._verify_v2_read_last"
+        },
+        {
+          "line": 691,
+          "code": "TB002",
+          "symbol": "pitchlog.db.sync_protocol.models.IdempotencyLedger.__table__.c.keys",
+          "scope": "pitchlog.repositories.ordinary_prefix_read._verify_v2_read_last"
+        },
+        {
+          "line": 693,
+          "code": "TB002",
+          "symbol": "pitchlog.sync.idempotency",
+          "scope": "pitchlog.repositories.ordinary_prefix_read._verify_v2_read_last"
+        },
+        {
+          "line": 730,
+          "code": "TB002",
+          "symbol": "generation",
+          "scope": "pitchlog.repositories.ordinary_prefix_read.<module>"
+        },
+        {
+          "line": 735,
+          "code": "TB002",
+          "symbol": "IdempotencyLedger",
+          "scope": "pitchlog.repositories.ordinary_prefix_read._add_bridge_preview"
+        },
+        {
+          "line": 739,
+          "code": "TB002",
+          "symbol": "IdempotencyLedgerReadToken",
+          "scope": "pitchlog.repositories.ordinary_prefix_read._add_bridge_preview"
+        },
+        {
+          "line": 744,
+          "code": "TB002",
+          "symbol": "current",
+          "scope": "pitchlog.repositories.ordinary_prefix_read._add_bridge_preview"
+        },
+        {
+          "line": 748,
+          "code": "TB002",
+          "symbol": "pitchlog.sync.tokens.IdempotencyLedgerReadToken",
+          "scope": "pitchlog.repositories.ordinary_prefix_read._add_bridge_preview"
+        },
+        {
+          "line": 749,
+          "code": "TB002",
+          "symbol": "pitchlog.db.sync_protocol.models.IdempotencyLedger",
+          "scope": "pitchlog.repositories.ordinary_prefix_read._add_bridge_preview"
+        },
+        {
+          "line": 749,
+          "code": "TB002",
+          "symbol": "pitchlog.db.sync_protocol.models.IdempotencyLedger.__table__.c.keys",
+          "scope": "pitchlog.repositories.ordinary_prefix_read._add_bridge_preview"
+        },
+        {
+          "line": 755,
+          "code": "TB002",
+          "symbol": "current",
+          "scope": "pitchlog.repositories.ordinary_prefix_read._add_bridge_preview"
+        },
+        {
+          "line": 773,
+          "code": "TB002",
+          "symbol": "current",
+          "scope": "pitchlog.repositories.ordinary_prefix_read._add_bridge_preview"
+        },
+        {
+          "line": 773,
+          "code": "TB002",
+          "symbol": "generation",
+          "scope": "pitchlog.repositories.ordinary_prefix_read._add_bridge_preview"
+        }
+      ]
+    },
+    "backend/src/pitchlog/repositories/play_prefix.py": {
+      "purpose": "v2 immutable checkpoint binding, same-context token reader, authenticated liveness callback",
+      "source_sha256": "78d24fdc8fcaa8a119cdd080d5ef00bb8f2c76ad6dc7832651ae7e3e2168f0f2",
+      "findings": [
+        {
+          "line": 36,
+          "code": "TB002",
+          "symbol": "pitchlog.sync.idempotency",
+          "scope": "pitchlog.repositories.play_prefix.<module>"
+        },
+        {
+          "line": 64,
+          "code": "TB002",
+          "symbol": "pitchlog.repositories.ordinary_prefix.Positive",
+          "scope": "pitchlog.repositories.play_prefix.PlayPrefixDocument.<module>"
+        },
+        {
+          "line": 65,
+          "code": "TB002",
+          "symbol": "pitchlog.repositories.ordinary_prefix.Positive",
+          "scope": "pitchlog.repositories.play_prefix.PlayPrefixDocument.<module>"
+        },
+        {
+          "line": 91,
+          "code": "TB002",
+          "symbol": "pitchlog.repositories.play_prefix.PlayPrefixDocument.prefix_ref.generation",
+          "scope": "pitchlog.repositories.play_prefix.PlayPrefixDocument._binding"
+        },
+        {
+          "line": 96,
+          "code": "TB002",
+          "symbol": "pitchlog.repositories.play_prefix.PlayPrefixDocument.internal_generation",
+          "scope": "pitchlog.repositories.play_prefix.PlayPrefixDocument._binding"
+        },
+        {
+          "line": 96,
+          "code": "TB002",
+          "symbol": "pitchlog.repositories.play_prefix.PlayPrefixDocument.last_source.generation",
+          "scope": "pitchlog.repositories.play_prefix.PlayPrefixDocument._binding"
+        },
+        {
+          "line": 185,
+          "code": "TB002",
+          "symbol": "generation",
+          "scope": "pitchlog.repositories.play_prefix.read_confirmed_play_prefix"
+        },
+        {
+          "line": 196,
+          "code": "TB002",
+          "symbol": "generation",
+          "scope": "pitchlog.repositories.play_prefix.read_confirmed_play_prefix"
+        },
+        {
+          "line": 199,
+          "code": "TB007",
+          "symbol": "live",
+          "scope": "pitchlog.repositories.play_prefix.read_confirmed_play_prefix"
+        },
+        {
+          "line": 210,
+          "code": "TB002",
+          "symbol": "generation",
+          "scope": "pitchlog.repositories.play_prefix.read_confirmed_play_prefix"
+        },
+        {
+          "line": 388,
+          "code": "TB002",
+          "symbol": "generation",
+          "scope": "pitchlog.repositories.play_prefix.<module>"
+        },
+        {
+          "line": 394,
+          "code": "TB002",
+          "symbol": "IdempotencyLedger",
+          "scope": "pitchlog.repositories.play_prefix._verified_v2"
+        },
+        {
+          "line": 401,
+          "code": "TB002",
+          "symbol": "IdempotencyLedgerReadToken",
+          "scope": "pitchlog.repositories.play_prefix._verified_v2"
+        },
+        {
+          "line": 408,
+          "code": "TB002",
+          "symbol": "generation",
+          "scope": "pitchlog.repositories.play_prefix._verified_v2"
+        },
+        {
+          "line": 424,
+          "code": "TB002",
+          "symbol": "generation",
+          "scope": "pitchlog.repositories.play_prefix._verified_v2"
+        },
+        {
+          "line": 424,
+          "code": "TB002",
+          "symbol": "legacy.checkpoint.internal_generation",
+          "scope": "pitchlog.repositories.play_prefix._verified_v2"
+        },
+        {
+          "line": 425,
+          "code": "TB002",
+          "symbol": "legacy.checkpoint.recovery_generation",
+          "scope": "pitchlog.repositories.play_prefix._verified_v2"
+        },
+        {
+          "line": 436,
+          "code": "TB002",
+          "symbol": "generation",
+          "scope": "pitchlog.repositories.play_prefix._verified_v2"
+        },
+        {
+          "line": 442,
+          "code": "TB002",
+          "symbol": "pitchlog.sync.tokens.IdempotencyLedgerReadToken",
+          "scope": "pitchlog.repositories.play_prefix._verified_v2"
+        },
+        {
+          "line": 443,
+          "code": "TB002",
+          "symbol": "pitchlog.db.sync_protocol.models.IdempotencyLedger",
+          "scope": "pitchlog.repositories.play_prefix._verified_v2"
+        },
+        {
+          "line": 443,
+          "code": "TB002",
+          "symbol": "pitchlog.db.sync_protocol.models.IdempotencyLedger.__table__.c.keys",
+          "scope": "pitchlog.repositories.play_prefix._verified_v2"
+        },
+        {
+          "line": 476,
+          "code": "TB002",
+          "symbol": "pitchlog.sync.idempotency",
+          "scope": "pitchlog.repositories.play_prefix._verified_v2"
+        }
+      ]
+    },
+    "backend/src/pitchlog/sync/ordinary_pitch_execution.py": {
+      "purpose": "sealed OrdinaryPitchFrame construction at the sole v2 binding site",
+      "source_sha256": "18f134daacffae1521cbc1f7a0456feb08888e6dae4479c4a67cf15ff984eb56",
+      "findings": [
+        {
+          "line": 614,
+          "code": "TB007",
+          "symbol": "builtins.object.__new__",
+          "scope": "pitchlog.sync.ordinary_pitch_execution._evaluate_play_prefix"
+        }
+      ]
+    },
+    "backend/src/pitchlog/sync/terminal_pitch_projection.py": {
+      "purpose": "before runner hold validation and unchanged responsible-pitcher scalar projection",
+      "source_sha256": "4f2aa44b10fe10c346bfd6e98c1d5d3da687dd45f85ff8e650449b6870f20fc7",
+      "findings": [
+        {
+          "line": 46,
+          "code": "TB003",
+          "symbol": "runner.responsible_pitcher_id",
+          "scope": "pitchlog.sync.terminal_pitch_projection.runner_physical_rows"
+        }
+      ]
+    }
+  }
+}

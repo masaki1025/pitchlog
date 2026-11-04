@@ -70,3 +70,20 @@ describe('初球の単一artifact操作呼出', () => {
     }
   })
 })
+
+import prefixCases from '../../../../../contracts/state-transition/play_prefix_v2_cases.json'
+it('既配布artifactの新v2口へ入力を無変換で渡し既契約の全応答を返す', () => {
+  const context: Record<string, unknown> = {}
+  runInNewContext(readFileSync(artifactPath, 'utf8'), context)
+  vi.stubGlobal('PitchlogDomain', Reflect.get(context, 'PitchlogDomain'))
+  const row = prefixCases.cases.find(
+    (c) => c.caseId === 'V2-TERMINAL-BB-S0-B3',
+  )!
+  expect({
+    ok: true,
+    value: invokeFirstBallDomain(
+      'derivePlayPrefixWithContinuation',
+      row.request,
+    ),
+  }).toEqual(row.expected)
+})

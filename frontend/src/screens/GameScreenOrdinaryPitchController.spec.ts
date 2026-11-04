@@ -653,3 +653,228 @@ it('commit後ACK喪失のreloadはserver1/未ACKslot1から元attemptで重複�
     queue.close()
   }
 })
+
+import {
+  playContextFromRead,
+  isPlayRecordingContext,
+} from './GameScreenOrdinaryPitchProvider'
+import type { PlayPrefixGame } from '../api/recordedPrefixGame'
+async function playController() {
+  const read: PlayPrefixGame = {
+    ...structuredClone(raw),
+    read_kind: 'play-prefix',
+    last_source: null,
+    prior_artifact_sha256:
+      '052f5c0a61d861176a2de5ae06055e16c9a0b2a192cfdc861a740cde4d5bedc4',
+    pa_start_source: { kind: 'started-game', id: raw.id },
+    bridge_checkpoint: {
+      id: '10000000-0000-4000-8000-000000000099',
+      revision: '1',
+      digest: 'a'.repeat(64),
+    },
+    storage_anchor: null,
+    bridge_origin: null,
+    runners: [],
+    participants: null,
+  }
+  const c = new GameScreenOrdinaryPitchController(
+    await playContextFromRead(read, tenant),
+    () => identity,
+    writer,
+  )
+  controllers.push(c)
+  return c
+}
+function nextBatter() {
+  const p = raw.roster.teams[0].participants.find(
+    (p: { batting_slot: { kind: string; slot?: string } }) =>
+      p.batting_slot.kind === 'slot' && p.batting_slot.slot === '2',
+  )
+  return { batterId: p.player.player_id, battingOrder: '2' as const }
+}
+it('v2初回HBP→次ordinaryを同耐久queueへ積み、reload/元D5/予約ID/attemptを変えず再送する', async () => {
+  const post = vi
+    .spyOn(transport, 'postSyncEvents')
+    .mockResolvedValue({ sent: false, reason: 'no-response' })
+  const c = await playController()
+  expect(await c.inspect()).toBe('ready')
+  expect(
+    await c.submit(
+      {
+        ...observation,
+        resultId: 'batting-result.hit-by-pitch',
+        nextBatter: nextBatter(),
+      },
+      vocabulary,
+    ),
+  ).toBe('pending')
+  expect(await c.submit(observation, vocabulary)).toBe('pending')
+  expect(await slots()).toBe(2)
+  expect(post).toHaveBeenCalledOnce()
+  expect(c.context.after.stateFields['state.battingOrder']).toBe('2')
+  expect(c.context.after.stateFields['state.count.balls']).toBe('1')
+  const first = post.mock.calls[0]![0],
+    original = transport.buildSyncEventRequestBody(first)
+  c.dispose()
+  const restored = await playController()
+  expect(await restored.inspect()).toBe('pending')
+  expect(restored.context.prefixRef.length).toBe('2')
+  expect(restored.canAppend).toBe(true)
+  expect(isPlayRecordingContext(restored.context)).toBe(true)
+  expect(await restored.retry()).toBe('pending')
+  expect(transport.buildSyncEventRequestBody(post.mock.calls[1]![0])).toEqual(
+    original,
+  )
+  expect(post.mock.calls[1]![0].syncCredentials?.attempt).toBe(
+    first.syncCredentials?.attempt,
+  )
+  post.mockRestore()
+  const online = accepted()
+  expect(await restored.retry()).toBe('saved')
+  expect(await restored.retry()).toBe('saved')
+  expect(online.mock.calls.map((c) => c[0].slots[0]!.d1)).toEqual([1, 2])
+})
+it('v2四球B0/誤nextBatterはD1/HTTPを消費しない', async () => {
+  const post = accepted(),
+    c = await playController()
+  expect(
+    await c.submit(
+      {
+        ...observation,
+        resultId: 'batting-result.walk',
+        nextBatter: nextBatter(),
+      },
+      vocabulary,
+    ),
+  ).toBe('blocked')
+  expect(
+    await c.submit(
+      {
+        ...observation,
+        resultId: 'batting-result.hit-by-pitch',
+        nextBatter: { ...nextBatter(), batterId: tenant },
+      },
+      vocabulary,
+    ),
+  ).toBe('blocked')
+  expect(await slots()).toBe(0)
+  expect(post).not.toHaveBeenCalled()
+})
+it('未確認V1suffixは捏造v2bridgeせず元V1body/attemptの再送だけを保持する', async () => {
+  const post = vi
+    .spyOn(transport, 'postSyncEvents')
+    .mockResolvedValue({ sent: false, reason: 'no-response' })
+  const legacy = controller()
+  expect(await legacy.submit(observation, vocabulary)).toBe('pending')
+  const original = post.mock.calls[0]![0]
+  legacy.dispose()
+  const c = await playController()
+  expect(await c.inspect()).toBe('pending')
+  expect(c.canAppend).toBe(false)
+  expect(
+    await c.submit(
+      {
+        ...observation,
+        resultId: 'batting-result.hit-by-pitch',
+        nextBatter: nextBatter(),
+      },
+      vocabulary,
+    ),
+  ).toBe('blocked')
+  expect(await c.retry()).toBe('pending')
+  expect(transport.buildSyncEventRequestBody(post.mock.calls[1]![0])).toEqual(
+    transport.buildSyncEventRequestBody(original),
+  )
+  expect(post.mock.calls[1]![0].syncCredentials?.attempt).toBe(
+    original.syncCredentials?.attempt,
+  )
+})
+
+import type { PlayPrefixV7 } from '../api/terminalPitchWire'
+it.each(['batting-result.walk', 'batting-result.hit-by-pitch'] as const)(
+  '%s: 未確認終端→次ordinaryのsource全値はserverのeventId起点PAに一致する',
+  async (resultId) => {
+    vi.spyOn(transport, 'postSyncEvents').mockResolvedValue({
+      sent: false,
+      reason: 'no-response',
+    })
+    const c = await playController()
+    const walk = resultId === 'batting-result.walk'
+    if (walk)
+      for (let i = 0; i < 3; i++)
+        expect(await c.submit(observation, vocabulary)).toBe('pending')
+    const d5 = '99999999-9999-4999-8999-000000000001',
+      eventId = '99999999-9999-4999-8999-000000000002',
+      playId = '99999999-9999-4999-8999-000000000003',
+      checkpointId = '99999999-9999-4999-8999-000000000004'
+    vi.spyOn(crypto, 'randomUUID')
+      .mockReturnValueOnce(d5)
+      .mockReturnValueOnce(eventId)
+      .mockReturnValueOnce(playId)
+      .mockReturnValueOnce(checkpointId)
+    expect(eventId).not.toBe(playId)
+    expect(
+      await c.submit(
+        { ...observation, resultId, nextBatter: nextBatter() },
+        vocabulary,
+      ),
+    ).toBe('pending')
+    expect(await c.submit(observation, vocabulary)).toBe('pending')
+    const terminalD1 = walk ? 4 : 1
+    const queue = await openDurableQueue({
+      databaseName: 'pitchlog-first-ball-queue-' + tenant,
+    })
+    try {
+      const terminal = await queue.readSlot(
+        { game: raw.id, d4: raw.current_d4 },
+        terminalD1,
+      )
+      const next = await queue.readSlot(
+        { game: raw.id, d4: raw.current_d4 },
+        terminalD1 + 1,
+      )
+      expect(terminal).not.toBeNull()
+      expect(next).not.toBeNull()
+      const first = terminal!.event.fields.V7 as PlayPrefixV7,
+        second = next!.event.fields.V7 as PlayPrefixV7,
+        q = first.calculation.request,
+        r = first.calculation.response.value
+      expect(q.playIdentity).toStrictEqual({ d5, eventId, playId })
+      expect(q.nextCheckpoint.id).toBe(checkpointId)
+      // server terminal_pitch_projection.pyはPA開始をOperationEvent IDへ束縛する。
+      // 全Source比較を保ち、問題fieldだけの部分一致へ落とさない。
+      expect(second.calculation.request.source).toStrictEqual({
+        kind: 'evaluated-prefix-v2',
+        prefixRef: r.nextPrefixRef,
+        rules: q.rules,
+        after: r.t1.after,
+        t2: r.t2,
+        historyDepth: String(terminalD1),
+        playCount: String(terminalD1),
+        lastSource: { d5, eventId, playId },
+        position: {
+          d1: String(terminalD1 + 1),
+          d2: walk ? '4001' : '1001',
+          appliedWatermark: String(terminalD1),
+        },
+        priorArtifactSha256: r.executionArtifactSha256,
+        executionArtifactSha256: r.executionArtifactSha256,
+        rulesDigest: q.source.rulesDigest,
+        layoutDigest: q.source.layoutDigest,
+        runners: r.runners,
+        participants: r.participants,
+        nextBatter: null,
+        bridge: null,
+        responsibility: {
+          kind: 'no-change',
+          paStartSource: { kind: 'confirmed-play', id: eventId },
+          previousPitcherId: null,
+          strikesAtChange: null,
+          ballsAtChange: null,
+        },
+      })
+    } finally {
+      queue.close()
+    }
+  },
+)

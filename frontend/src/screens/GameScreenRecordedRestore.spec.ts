@@ -93,6 +93,9 @@ async function mountRestore(
 }
 
 beforeEach(() => {
+  vi.spyOn(ordinaryRead, 'readPlayPrefixGame').mockResolvedValue({
+    kind: 'unsupported',
+  })
   vi.spyOn(ordinaryRead, 'readRecordedPrefixGame').mockResolvedValue({
     kind: 'unsupported',
   })
@@ -369,4 +372,311 @@ it('新prefix取得中の認証世代変更後は旧応答を表示せず旧ABI�
   await flushPromises()
   expect(wrapper.find('[data-testid="restore-balls"]').exists()).toBe(false)
   expect(readStartedGame).not.toHaveBeenCalled()
+})
+it('通常画面の既定はv2 GETで、欠落/拒否を旧成功へfallbackしない', async () => {
+  vi.mocked(ordinaryRead.readPlayPrefixGame).mockResolvedValue({
+    kind: 'unavailable',
+  })
+  const wrapper = await mountRestore()
+  expect(ordinaryRead.readPlayPrefixGame).toHaveBeenCalledWith(game)
+  expect(ordinaryRead.readRecordedPrefixGame).not.toHaveBeenCalled()
+  expect(readStartedGame).not.toHaveBeenCalled()
+  expect(wrapper.text()).toContain('サーバーの記録を取得できません')
+})
+
+import * as recordingProvider from './GameScreenOrdinaryPitchProvider'
+import * as pitchOptions from '../api/pitchTypeOptions'
+import { GameScreenOrdinaryPitchController } from './GameScreenOrdinaryPitchController'
+import StrikeZone from '../components/zone/StrikeZone.vue'
+function initialV2Read(): ordinaryRead.PlayPrefixGame {
+  const value = prefixFixture(0)
+  return {
+    ...value,
+    read_kind: 'play-prefix',
+    last_source: null,
+    prior_artifact_sha256:
+      '052f5c0a61d861176a2de5ae06055e16c9a0b2a192cfdc861a740cde4d5bedc4',
+    pa_start_source: { kind: 'started-game', id: value.id },
+    bridge_checkpoint: {
+      id: '10000000-0000-4000-8000-000000000099',
+      revision: '1',
+      digest: 'a'.repeat(64),
+    },
+    storage_anchor: null,
+    bridge_origin: null,
+    runners: [],
+    participants: null,
+  }
+}
+function setupParentInput(read = initialV2Read()) {
+  useAuthStore().hasHydrated = true
+  // ここではHTTP/記録権/queueの成功を主張せず、実子componentの入力寿命だけを検査する。
+  vi.spyOn(
+    GameScreenOrdinaryPitchController.prototype,
+    'inspect',
+  ).mockResolvedValue('ready')
+  vi.spyOn(
+    GameScreenOrdinaryPitchController.prototype,
+    'canAppend',
+    'get',
+  ).mockReturnValue(true)
+  vi.spyOn(pitchOptions, 'readPitchTypeOptions').mockResolvedValue({
+    items: [{ key: 'unit.straight', display_name: '直球' }],
+    next_cursor: null,
+  })
+  vi.mocked(ordinaryRead.readPlayPrefixGame).mockImplementation(async () => ({
+    kind: 'found',
+    game: structuredClone(read),
+  }))
+  return read
+}
+async function filledParent() {
+  const read = setupParentInput(),
+    wrapper = await mountRestore()
+  await vi.waitFor(() =>
+    expect(wrapper.findComponent(GameScreenOrdinaryPitch).exists()).toBe(true),
+  )
+  await vi.waitFor(() =>
+    expect(wrapper.find('[data-testid="first-ball-pitch-type"]').exists()).toBe(
+      true,
+    ),
+  )
+  for (const key of ['profile', 'mode', 'bucket', 'lockdown'])
+    await wrapper.get(`[data-testid="first-ball-env-${key}"]`).setValue(true)
+  await wrapper
+    .get('[data-testid="ordinary-pitch-result"]')
+    .setValue('batting-result.hit-by-pitch')
+  const candidate = read.roster.teams[0].participants.find(
+    (p) => p.batting_slot.kind === 'slot' && p.batting_slot.slot === '2',
+  )!
+  await wrapper
+    .get('[data-testid="terminal-next-batter"]')
+    .setValue(candidate.player.player_id)
+  await wrapper
+    .get('[data-testid="first-ball-pitch-type"]')
+    .setValue('unit.straight')
+  wrapper.getComponent(StrikeZone).vm.$emit('tap', 131.5, 124)
+  await flushPromises()
+  return {
+    read,
+    wrapper,
+    candidate,
+    child: wrapper.getComponent(GameScreenOrdinaryPitch).vm,
+  }
+}
+function reloadParent(wrapper: VueWrapper) {
+  return wrapper
+    .findAll('button')
+    .find((b) => b.text() === 'サーバーから再取得')!
+    .trigger('click')
+}
+it('同値v2全DTO再供給は親で子を作り直さず四確認/result/次打者/球種/pointを保持する', async () => {
+  const { wrapper, child, candidate } = await filledParent()
+  await reloadParent(wrapper)
+  await flushPromises()
+  await vi.waitFor(() =>
+    expect(wrapper.findComponent(GameScreenOrdinaryPitch).exists()).toBe(true),
+  )
+  expect(wrapper.getComponent(GameScreenOrdinaryPitch).vm.$ === child.$).toBe(
+    true,
+  )
+  for (const key of ['profile', 'mode', 'bucket', 'lockdown'])
+    expect(
+      (
+        wrapper.get(`[data-testid="first-ball-env-${key}"]`)
+          .element as HTMLInputElement
+      ).checked,
+    ).toBe(true)
+  expect(
+    (
+      wrapper.get('[data-testid="ordinary-pitch-result"]')
+        .element as HTMLSelectElement
+    ).value,
+  ).toBe('batting-result.hit-by-pitch')
+  expect(
+    (
+      wrapper.get('[data-testid="terminal-next-batter"]')
+        .element as HTMLSelectElement
+    ).value,
+  ).toBe(candidate.player.player_id)
+  expect(
+    (
+      wrapper.get('[data-testid="first-ball-pitch-type"]')
+        .element as HTMLSelectElement
+    ).value,
+  ).toBe('unit.straight')
+  expect(wrapper.getComponent(StrikeZone).props('point')).toEqual({
+    x: 131.5,
+    y: 124,
+  })
+})
+it.each([
+  'snapshot',
+  'bridge',
+  'epoch',
+  'tenant',
+  'hydration',
+  'authentication',
+  'error',
+  'corrupt',
+] as const)('%s真正変更/失敗は親の旧入力ownerを失効させる', async (kind) => {
+  const { wrapper, read, child } = await filledParent()
+  if (kind === 'epoch') useAuthStore().authEpoch += 1
+  else if (kind === 'tenant')
+    setVerifiedAuthForTest(useAuthStore(), {
+      teamId: '20000000-0000-4000-8000-000000000001',
+      teamName: '別の単体fixture',
+    })
+  else if (kind === 'hydration') useAuthStore().hasHydrated = false
+  else if (kind === 'authentication') useAuthStore().expireSession()
+  else {
+    if (kind === 'error')
+      vi.mocked(ordinaryRead.readPlayPrefixGame).mockRejectedValueOnce(
+        new TypeError('unit network'),
+      )
+    else {
+      const base = structuredClone(read)
+      const changed =
+        kind === 'snapshot'
+          ? {
+              ...base,
+              after: {
+                ...base.after,
+                scoreboard: { ...base.after.scoreboard, walks: '1' },
+              },
+              state: {
+                ...base.state,
+                scoreboard: { ...base.state.scoreboard, walks: '1' },
+              },
+            }
+          : kind === 'bridge'
+            ? {
+                ...base,
+                bridge_checkpoint: {
+                  ...base.bridge_checkpoint!,
+                  digest: 'b'.repeat(64),
+                },
+              }
+            : kind === 'corrupt'
+              ? { ...base, bridge_checkpoint: null }
+              : base
+      vi.mocked(ordinaryRead.readPlayPrefixGame).mockResolvedValueOnce({
+        kind: 'found',
+        game: changed,
+      })
+    }
+    await reloadParent(wrapper)
+  }
+  await flushPromises()
+  await vi.waitFor(() => expect(child.$.isUnmounted).toBe(true))
+  if (wrapper.findComponent(GameScreenOrdinaryPitch).exists()) {
+    expect(wrapper.getComponent(GameScreenOrdinaryPitch).vm.$ === child.$).toBe(
+      false,
+    )
+    expect(wrapper.getComponent(StrikeZone).props('point')).toBeNull()
+    expect(
+      (
+        wrapper.get('[data-testid="first-ball-env-profile"]')
+          .element as HTMLInputElement
+      ).checked,
+    ).toBe(false)
+  } else
+    expect(wrapper.findComponent(GameScreenOrdinaryPitch).exists()).toBe(false)
+})
+it('同値DTOがpending中は同じasyncを保ち、derive失敗後の同値再取得は再試行する', async () => {
+  const read = setupParentInput(),
+    actual = recordingProvider.playContextFromRead
+  let finish!: (v: recordingProvider.PlayRecordingContext) => void
+  const derive = vi
+    .spyOn(recordingProvider, 'playContextFromRead')
+    .mockReturnValueOnce(
+      new Promise((r) => {
+        finish = r
+      }),
+    )
+    .mockRejectedValueOnce(new Error('unit derive failure'))
+    .mockImplementation(actual)
+  const wrapper = await mountRestore()
+  expect(derive).toHaveBeenCalledTimes(1)
+  await reloadParent(wrapper)
+  await flushPromises()
+  expect(derive).toHaveBeenCalledTimes(1)
+  finish(await actual(read, tenant))
+  await flushPromises()
+  await vi.waitFor(() =>
+    expect(wrapper.findComponent(GameScreenOrdinaryPitch).exists()).toBe(true),
+  )
+  const changed = {
+    ...structuredClone(read),
+    bridge_checkpoint: { ...read.bridge_checkpoint!, digest: 'b'.repeat(64) },
+  }
+  vi.mocked(ordinaryRead.readPlayPrefixGame).mockImplementation(async () => ({
+    kind: 'found',
+    game: structuredClone(changed),
+  }))
+  await reloadParent(wrapper)
+  await flushPromises()
+  expect(derive).toHaveBeenCalledTimes(2)
+  expect(wrapper.findComponent(GameScreenOrdinaryPitch).exists()).toBe(false)
+  await reloadParent(wrapper)
+  await flushPromises()
+  await vi.waitFor(() =>
+    expect(wrapper.findComponent(GameScreenOrdinaryPitch).exists()).toBe(true),
+  )
+  expect(derive).toHaveBeenCalledTimes(3)
+})
+it('新context計算中の認証変更後に完了した旧asyncを親へ再採用しない', async () => {
+  const read = setupParentInput(),
+    actual = recordingProvider.playContextFromRead
+  let finish!: (v: recordingProvider.PlayRecordingContext) => void
+  vi.spyOn(recordingProvider, 'playContextFromRead').mockReturnValueOnce(
+    new Promise((r) => {
+      finish = r
+    }),
+  )
+  const wrapper = await mountRestore()
+  useAuthStore().expireSession()
+  await flushPromises()
+  finish(await actual(read, tenant))
+  await flushPromises()
+  expect(wrapper.findComponent(GameScreenOrdinaryPitch).exists()).toBe(false)
+})
+
+it('真正DTO変更後に遅れて完了した旧contextを新ownerへ戻さない', async () => {
+  const read = setupParentInput(),
+    actual = recordingProvider.playContextFromRead
+  let finish!: (v: recordingProvider.PlayRecordingContext) => void
+  vi.spyOn(recordingProvider, 'playContextFromRead')
+    .mockReturnValueOnce(
+      new Promise((r) => {
+        finish = r
+      }),
+    )
+    .mockImplementation(actual)
+  const wrapper = await mountRestore()
+  const changed = {
+    ...structuredClone(read),
+    bridge_checkpoint: { ...read.bridge_checkpoint!, digest: 'b'.repeat(64) },
+  }
+  vi.mocked(ordinaryRead.readPlayPrefixGame).mockResolvedValueOnce({
+    kind: 'found',
+    game: changed,
+  })
+  await reloadParent(wrapper)
+  await flushPromises()
+  await vi.waitFor(() =>
+    expect(wrapper.findComponent(GameScreenOrdinaryPitch).exists()).toBe(true),
+  )
+  const owner = wrapper.getComponent(GameScreenOrdinaryPitch).vm.$
+  finish(await actual(read, tenant))
+  await flushPromises()
+  expect(wrapper.getComponent(GameScreenOrdinaryPitch).vm.$ === owner).toBe(
+    true,
+  )
+  const ref = wrapper
+    .getComponent(GameScreenOrdinaryPitch)
+    .props('context').prefixRef
+  expect(ref.version).toBe('2')
+  if (ref.version !== '2') throw new Error('v2 contextが失われました')
+  expect(ref.checkpoint.digest).toBe('b'.repeat(64))
 })

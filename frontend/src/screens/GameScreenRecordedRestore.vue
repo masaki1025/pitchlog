@@ -1,8 +1,13 @@
 <script setup lang="ts">
-import { computed, toRaw } from 'vue'
+import { computed, toRaw, ref, watch } from 'vue'
 import GameScreenFirstBall from './GameScreenFirstBall.vue'
 import GameScreenOrdinaryPitch from './GameScreenOrdinaryPitch.vue'
 import { ordinaryContextFromRead } from '../api/recordedPrefixGame'
+import { sameOrdinaryWire } from '../api/ordinaryPitchWire'
+import {
+  playContextFromRead,
+  type RecordingContext,
+} from './GameScreenOrdinaryPitchProvider'
 import { useAuthStore } from '../stores/authStore'
 import { useRoute } from 'vue-router'
 import {
@@ -12,6 +17,7 @@ import {
   historyCount,
   playCount,
   useRecordedRestore,
+  type RecordingGameRead,
 } from './GameScreenRecordedRestore'
 
 const props = withDefaults(defineProps<{ auto?: boolean }>(), {
@@ -23,7 +29,9 @@ const gameId = computed(() =>
   typeof route.params.gameId === 'string' ? route.params.gameId : undefined,
 )
 const auto = computed(() => props.auto)
-const restore = useRecordedRestore(gameId, auto)
+// 旧版で保存した要求の復旧入口だけを閉じた内部queryで保持する。
+const legacy = computed(() => route.query.recording === 'ordinary-prefix-v1')
+const restore = useRecordedRestore(gameId, auto, legacy)
 const current = computed(() =>
   restore.game.value ? currentState(restore.game.value) : null,
 )
@@ -33,27 +41,96 @@ const before = computed(() =>
 const recorded = computed(
   () =>
     restore.game.value?.read_kind === 'recorded' ||
-    (restore.game.value?.read_kind === 'recorded-prefix' &&
+    ((restore.game.value?.read_kind === 'recorded-prefix' ||
+      restore.game.value?.read_kind === 'play-prefix') &&
       BigInt(restore.game.value.prefix_ref.length) > 0n),
 )
-const prefixContext = computed(() => {
-  const game = restore.game.value
-  if (game?.read_kind !== 'recorded-prefix' || auth.teamId === null) return null
-  try {
-    // API codecにはVue proxyを渡さず、同じ受信原値のsnapshotだけを渡す。
-    const source = toRaw(game)
-    return {
-      ...ordinaryContextFromRead(source, auth.teamId),
-      serverStamp: {
-        recoveryGeneration: source.recovery_generation,
-        checkpointAnchor: structuredClone(source.checkpoint_anchor),
-        lastSavedAt: source.last_saved_at,
-      },
+const prefixContext = ref<RecordingContext | null>(null)
+let contextSequence = 0
+// pending/確認済みの同値入力だけを保持し、失敗値を再利用しない。
+let watchedContextInput: unknown = null
+watch(
+  [
+    () => restore.game.value,
+    () => restore.status.value,
+    () => auth.teamId,
+    () => auth.authEpoch,
+    () => auth.hasHydrated,
+    () => auth.isAuthenticated,
+  ],
+  async () => {
+    let input: {
+      game: RecordingGameRead | null
+      tenant: typeof auth.teamId
+      epoch: number
+      hydrated: boolean
+      authenticated: boolean
+      readFailed: boolean
     }
-  } catch {
-    return null
-  }
-})
+    try {
+      input = {
+        game:
+          restore.game.value === null
+            ? null
+            : structuredClone(toRaw(restore.game.value)),
+        tenant: auth.teamId,
+        epoch: auth.authEpoch,
+        hydrated: auth.hasHydrated,
+        authenticated: auth.isAuthenticated,
+        readFailed: ['failed', 'not-found', 'unavailable'].includes(
+          restore.status.value,
+        ),
+      }
+    } catch {
+      contextSequence++
+      watchedContextInput = null
+      prefixContext.value = null
+      return
+    }
+    // 全受信値と認証scopeが同じなら、進行中のasync/子の入力を失効させない。
+    if (
+      watchedContextInput !== null &&
+      sameOrdinaryWire(watchedContextInput, input)
+    )
+      return
+    const own = ++contextSequence
+    watchedContextInput = null
+    prefixContext.value = null
+    if (
+      restore.status.value !== 'ready' ||
+      input.readFailed ||
+      !input.game ||
+      !input.tenant ||
+      !input.hydrated ||
+      !input.authenticated
+    )
+      return
+    watchedContextInput = input
+    try {
+      const source = input.game
+      if (source.read_kind === 'play-prefix') {
+        const context = await playContextFromRead(source, input.tenant)
+        if (own === contextSequence) prefixContext.value = context
+      } else if (source.read_kind === 'recorded-prefix') {
+        prefixContext.value = {
+          ...ordinaryContextFromRead(source, input.tenant),
+          serverStamp: {
+            recoveryGeneration: source.recovery_generation,
+            checkpointAnchor: source.checkpoint_anchor,
+            lastSavedAt: source.last_saved_at,
+          },
+        }
+      }
+    } catch {
+      if (own === contextSequence) {
+        prefixContext.value = null
+        // 同値再取得でも再試行できる。pending同値の二重開始とは区別する。
+        watchedContextInput = null
+      }
+    }
+  },
+  { immediate: true },
+)
 const history = computed(() =>
   restore.game.value ? firstHistory(restore.game.value) : null,
 )
@@ -73,7 +150,9 @@ const history = computed(() =>
     />
     <GameScreenFirstBall
       v-else-if="
-        restore.game.value && restore.game.value.read_kind !== 'recorded-prefix'
+        restore.game.value &&
+        restore.game.value.read_kind !== 'recorded-prefix' &&
+        restore.game.value.read_kind !== 'play-prefix'
       "
       :key="restore.game.value.id"
       :game="restore.game.value"
@@ -100,15 +179,21 @@ const history = computed(() =>
         <dt>取得種別</dt>
         <dd>
           {{
-            restore.game.value.read_kind === 'recorded-prefix'
-              ? '通常投球の確認済みprefix（表示履歴は有限ページ）'
+            restore.game.value.read_kind === 'recorded-prefix' ||
+            restore.game.value.read_kind === 'play-prefix'
+              ? '保存済みの記録（表示履歴は有限ページ）'
               : recorded
                 ? '記録済み（保存初球1件）'
                 : '開始済み（記録前）'
           }}
         </dd>
       </div>
-      <div v-if="restore.game.value.read_kind === 'recorded-prefix'">
+      <div
+        v-if="
+          restore.game.value.read_kind === 'recorded-prefix' ||
+          restore.game.value.read_kind === 'play-prefix'
+        "
+      >
         <dt>サーバーの最終保存日時</dt>
         <dd data-testid="restore-last-saved-at">
           {{ restore.game.value.last_saved_at }}
@@ -165,8 +250,11 @@ const history = computed(() =>
       <div>
         <dt>
           {{
-            restore.game.value.read_kind === 'recorded-prefix'
-              ? '通常投球の確定水位（一般履歴長とは別）'
+            restore.game.value.read_kind === 'recorded-prefix' ||
+            restore.game.value.read_kind === 'play-prefix'
+              ? restore.game.value.read_kind === 'recorded-prefix'
+                ? '通常投球の確定水位（一般履歴長とは別）'
+                : '保存済みの履歴'
               : '履歴'
           }}
         </dt>
@@ -177,7 +265,8 @@ const history = computed(() =>
       <div>
         <dt>
           {{
-            restore.game.value.read_kind === 'recorded-prefix'
+            restore.game.value.read_kind === 'recorded-prefix' ||
+            restore.game.value.read_kind === 'play-prefix'
               ? '表示ページのPlayRow件数'
               : '保存初球'
           }}
@@ -189,7 +278,8 @@ const history = computed(() =>
       <div v-if="history">
         <dt>
           {{
-            restore.game.value.read_kind === 'recorded-prefix'
+            restore.game.value.read_kind === 'recorded-prefix' ||
+            restore.game.value.read_kind === 'play-prefix'
               ? '最後の記録1件の差分（全履歴ではありません）'
               : '履歴1件の差分'
           }}

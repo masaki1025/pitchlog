@@ -26,6 +26,8 @@ def test_port_real_guard_and_original_event_command():
                 "OrdinaryPitchContentValidationPort",
             ),
             ("pitchlog.sync.ordinary_pitch_ports", "OrdinaryPitchProjectionPort"),
+            ("pitchlog.sync.ordinary_pitch_ports", "PlayPrefixContentValidationPort"),
+            ("pitchlog.sync.ordinary_pitch_ports", "PlayPrefixProjectionPort"),
             ("pitchlog.sync.first_ball_projection", "FirstBallProjectionPort"),
             (
                 "pitchlog.sync.first_ball_recording_rights",
