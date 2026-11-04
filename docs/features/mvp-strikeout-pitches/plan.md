@@ -212,3 +212,7 @@ SQL22候補は12新規/10既存before/全after SHAが新基線と一致する。
 ### 2026-11-05 統合候補のartifact再生成と実行pin接合
 
 702948fcの実sourceで唯一artifactを再buildしcda0b594…/57468bytesとなった。既ステップ2/3/4で許可済みの実行pin13と既first_ball_payload_vectors_v1.jsonをrootが専有追随する。execution/hashと明示first-ball artifactSha256だけを新実byteへ更新し、旧prior/互換の全既行は不変。v3の同一chain内だけは前行で実際に生成するcheckpoint/prior artifactへ連結し、v2/v3自己echoは既正式wire-head規則から再導出する。T1/T2/履歴/参加者/走者の数学期待を実装出力で生成せず全値保持する。sourceSha/sourceCasesShaは実byteから導出し、旧Gitとの完全応答比較証拠が成立した組だけ新互換行を追記する。全前後と後発差分を非作者へ渡し、固定候補/局所比較と実保存/画面/正式受理を分離する。
+
+### 2026-11-05 実PG初回の制約停止診断
+
+owned PGの既BB/HBP2系列は成功、新v3系列は初球のafter_t4_projection故障注入より前にIntegrityErrorとなった（全2pass1fail222.80秒）。assert/故障要求を保持し、backend/tests/db/test_terminal_pitch_storage.py exact1だけでSQLSTATEと固定schema/table/column/constraint名の診断を保全し、失敗時の構造化結果をJSON文字列で出力する。SQL本文/原値/資格は出さず、例外を成功へ変えない。既test/共有base scriptは変更しない。主担当のPO委任で本step4原因確認を進め、同じ失敗を無根拠に再実行せず新診断版の新v3対向だけをowned環境で再現する。
