@@ -150,3 +150,22 @@ it('2球目以降のwire履歴版と保存epochを混同せず復元する', asy
     game: value,
   })
 })
+
+it('既記録後DTOの打球6 nullable列/実座標を構造検証し、非有限を拒否する', () => {
+  const value = structuredClone(recordedFixture.value)
+  const row: Record<string, unknown> = value.page.items[0]!.play_row
+  Object.assign(row, {
+    batting_result_key: 'batting-result.double',
+    raw_fielder_position: '9',
+    resolved_fielder_id: value.lineup.home.pitcherId,
+    batted_ball_type: 'observed.line',
+    batted_ball_strength: 'observed.hard',
+    hit_x: 0.25,
+    hit_y: 0.75,
+  })
+  expect(isLineupPrefixGame(value)).toBe(true)
+  for (const bad of [Number.NaN, Number.POSITIVE_INFINITY, -0.001, 1.001]) {
+    row.hit_x = bad
+    expect(isLineupPrefixGame(value)).toBe(false)
+  }
+})

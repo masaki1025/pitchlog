@@ -11,6 +11,8 @@ import {
   readPitchTypeOptions,
   type PitchTypeOption,
 } from '../api/pitchTypeOptions'
+import GameScreenBattedHitObservation from './GameScreenBattedHitObservation.vue'
+import type { BattedHitResult } from '../../../contracts/state-transition/lineup_play_prefix_payload_v1'
 import StrikeZone from '../components/zone/StrikeZone.vue'
 import { useAuthStore } from '../stores/authStore'
 import {
@@ -25,6 +27,56 @@ const viewpoint = ref<'catcher' | 'pitcher'>('catcher')
 const selected = ref('')
 const resultId = ref<PlayScreenObservation['resultId']>('batting-result.ball')
 const nextBatterId = ref('')
+const hitResults: readonly string[] = [
+  'batting-result.single',
+  'batting-result.double',
+  'batting-result.triple',
+  'batting-result.home-run',
+]
+const batted = computed(() => hitResults.includes(resultId.value))
+const battedHit = ref<PlayScreenObservation['battedHit']>(null)
+const hitAvailable = computed(
+  () =>
+    isLineupRecordingContext(displayed.value) &&
+    displayed.value.after.stateFields['state.runners'] === 'empty' &&
+    !displayed.value.after.stateFields['state.tiebreakActive'] &&
+    !displayed.value.after.stateFields['state.gameEnded'],
+)
+const battedContextKey = computed(() => {
+  const c = displayed.value
+  return isLineupRecordingContext(c)
+    ? c.game.id +
+        ':' +
+        c.prefixRef.checkpoint.id +
+        ':' +
+        c.prefixRef.checkpoint.revision +
+        ':' +
+        resultId.value
+    : ''
+})
+const fielders = computed(
+  () =>
+    displayed.value.game.roster.teams
+      .find(
+        (t) =>
+          t.side ===
+          (displayed.value.after.stateFields['state.half'] === 'top'
+            ? 'home'
+            : 'away'),
+      )
+      ?.participants.filter((p) => p.roles.some((r) => r.kind === 'fielding'))
+      .map((p) => ({
+        id: p.player.player_id,
+        label:
+          '守備位置 ' +
+          p.roles
+            .filter((r) => r.kind === 'fielding')
+            .map((r) => r.position)
+            .join('/') +
+          ' の選手',
+      })) ?? [],
+)
+
 const terminal = computed(
   () =>
     !isLineupRecordingContext(displayed.value) &&
@@ -43,6 +95,10 @@ const nextBatters = computed(() => {
 const canAppend = ref(false)
 const retryEvidenceUnavailable = ref(false)
 const displayed = ref<RecordingContext>(structuredClone(toRaw(props.context)))
+watch([resultId, battedContextKey], () => {
+  battedHit.value = null
+})
+
 watch(
   [resultId, () => displayed.value.after.stateFields['state.battingOrder']],
   () => {
@@ -152,6 +208,7 @@ async function save() {
     !canAppend.value ||
     !confirmed.value ||
     !point.value ||
+    (batted.value && (!hitAvailable.value || !battedHit.value)) ||
     !items.value.some((i) => i.key === selected.value)
   )
     return
@@ -161,6 +218,9 @@ async function save() {
     const result = await current.submit(
       {
         resultId: resultId.value,
+        battedHit: batted.value
+          ? structuredClone(toRaw(battedHit.value))
+          : null,
         nextBatter: terminal.value
           ? (() => {
               const p = nextBatters.value.find(
@@ -329,7 +389,7 @@ onScopeDispose(() => {
     <p>
       {{
         isLineupRecordingContext(displayed)
-          ? 'ボール・ストライク・ファウル、四球・死球、見逃し三振・空振り三振を記録できます。次の打者と攻守は保存された打順から引き継ぎます。'
+          ? 'ボール・ストライク・ファウル、四球・死球、見逃し三振・空振り三振を記録できます。無走者では単打・二塁打・三塁打・本塁打にも対応します。次の打者と攻守は保存された打順から引き継ぎます。'
           : 'ボール・見逃し・空振り・通常のファウル、無走者の四球・死球を記録できます。四球・死球では次の打者を確認してください。'
       }}
     </p>
@@ -402,11 +462,28 @@ onScopeDispose(() => {
           >
             空振り三振
           </option>
+          <template v-if="hitAvailable">
+            <option value="batting-result.single">単打</option>
+            <option value="batting-result.double">二塁打</option>
+            <option value="batting-result.triple">三塁打</option>
+            <option value="batting-result.home-run">本塁打</option>
+          </template>
           <option value="batting-result.foul">
             ファウル（通常・非バント）
           </option>
         </select></label
       >
+      <GameScreenBattedHitObservation
+        v-if="batted && hitAvailable"
+        :context-key="battedContextKey"
+        :result-id="resultId as BattedHitResult"
+        :fielders="fielders"
+        :disabled="busy"
+        @change="(value) => (battedHit = value)"
+      />
+      <p v-else-if="batted" role="alert">
+        この安打入力は無走者・タイブレークなし・試合継続中のみ対応しています。
+      </p>
       <label v-if="terminal" class="block"
         >次の打者を確認
         <select
@@ -495,6 +572,7 @@ onScopeDispose(() => {
           loading ||
           failed ||
           (terminal && nextBatterId === '') ||
+          (batted && (!hitAvailable || battedHit == null)) ||
           selected === '' ||
           point === null
         "

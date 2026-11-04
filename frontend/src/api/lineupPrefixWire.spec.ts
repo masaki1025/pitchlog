@@ -105,3 +105,90 @@ it.each([
     ),
   ).rejects.toThrow()
 })
+
+import hitVectors from '../../../contracts/state-transition/batted_hit_prefix_cases_v1.json'
+import { sealLineupMetadata } from './lineupPrefixWire'
+import type { BattedHitObservations } from '../../../contracts/state-transition/lineup_play_prefix_payload_v1'
+it('先置き19手例を全12観測と対応結果へ束縛し、相関違反を拒否する', async () => {
+  expect(hitVectors.cases).toHaveLength(19)
+  for (const row of hitVectors.cases) {
+    const q = row.request as Request,
+      r = row.expected as unknown as Success
+    const sealed = await sealLineupMetadata(q, r)
+    const observations: BattedHitObservations = {
+      pitchTypeKey: 'observed.pitch',
+      course: { unit: '1/263', x: '1', y: '263' },
+      pitchSpeed: { kmh: null, outsideRangeConfirmed: false },
+      stance: null,
+      battingSide: null,
+      resultId: q.t1.resultId as BattedHitObservations['resultId'],
+      battedBall: {
+        typeKey: null,
+        strengthKey: null,
+        hitX: null,
+        hitY: null,
+        rawFielderPosition: null,
+        resolvedFielderId: null,
+      },
+      officialScoringPayload: {
+        kind: 'no-error',
+        errorCount: '0',
+        fielders: [],
+      },
+      interferenceRuling: { kind: 'not-required' },
+      runnerAdvanceOverridesByRunner: { kind: 'not-applied', overrides: [] },
+      thirdOutObservation: { kind: 'none' },
+      thirdOutTimingByRunner: {},
+    }
+    const actual = await formatLineupPrefixWire(
+      sealed.request,
+      sealed.response,
+      observations,
+      q.source.participants,
+    )
+    expect(actual.payload.observations).toEqual(observations)
+    expect(actual.payload.calculation.request).toEqual(sealed.request)
+    expect(actual.payload.calculation.response).toEqual(sealed.response)
+    expect(actual.stateDiff).toEqual(r.value.newHistoryEntry.difference)
+    await expect(
+      formatLineupPrefixWire(
+        sealed.request,
+        sealed.response,
+        {
+          ...observations,
+          resultId:
+            q.t1.resultId === 'batting-result.single'
+              ? 'batting-result.home-run'
+              : 'batting-result.single',
+        },
+        q.source.participants,
+      ),
+    ).rejects.toThrow()
+    await expect(
+      formatLineupPrefixWire(
+        sealed.request,
+        sealed.response,
+        {
+          ...observations,
+          battedBall: { ...observations.battedBall, hitX: '-0.00001' },
+        },
+        q.source.participants,
+      ),
+    ).rejects.toThrow()
+    const old = {
+      pitchTypeKey: observations.pitchTypeKey,
+      course: observations.course,
+      pitchSpeed: observations.pitchSpeed,
+      stance: null,
+      battingSide: null,
+    }
+    await expect(
+      formatLineupPrefixWire(
+        sealed.request,
+        sealed.response,
+        old,
+        q.source.participants,
+      ),
+    ).rejects.toThrow()
+  }
+})

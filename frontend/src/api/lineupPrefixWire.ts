@@ -6,6 +6,7 @@ import type {
 import type {
   LineupPlayPrefixV7,
   LineupPlayPrefixV8,
+  BattedHitObservations,
 } from '../../../contracts/state-transition/lineup_play_prefix_payload_v1'
 import type {
   Observations,
@@ -103,11 +104,11 @@ export async function sealLineupMetadata(request: Request, response: Success) {
 export async function formatLineupPrefixWire(
   request: Request,
   response: Success,
-  observations: Observations,
+  observations: Observations | BattedHitObservations,
   participants: Participants,
 ): Promise<{ payload: LineupPlayPrefixV7; stateDiff: LineupPlayPrefixV8 }> {
   const digest = await playHash(lineupWireHead(request, response))
-  const payload: LineupPlayPrefixV7 = {
+  const payload = {
     formatVersion: 'play-prefix-play-v3',
     observations,
     participants,
@@ -119,8 +120,20 @@ export async function formatLineupPrefixWire(
     },
   }
   if (
-    !isClosedPlaySchema(payload, schema) ||
-    !observationsValid(observations) ||
+    !isClosedPlaySchema<LineupPlayPrefixV7>(payload, schema) ||
+    !observationsValid({
+      pitchTypeKey: observations.pitchTypeKey,
+      course: observations.course,
+      pitchSpeed: observations.pitchSpeed,
+      stance: observations.stance,
+      battingSide: observations.battingSide,
+    }) ||
+    ('battedBall' in observations &&
+      [observations.battedBall.hitX, observations.battedBall.hitY].some(
+        (value) =>
+          value !== null &&
+          !/^(?:0(?:\.[0-9]+)?|1(?:\.0+)?|-0(?:\.0+)?)$/.test(value),
+      )) ||
     request.nextCheckpoint.digest !== digest ||
     response.value.nextPrefixRef.checkpoint.digest !== digest ||
     request.source.executionArtifactSha256 !== identity.sha256 ||

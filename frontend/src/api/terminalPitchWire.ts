@@ -20,6 +20,7 @@ type Schema = {
   const?: unknown
   enum?: unknown[]
   type?: string
+  allOf?: Schema[]
   oneOf?: Schema[]
   anyOf?: Schema[]
   properties?: Record<string, Schema>
@@ -52,6 +53,7 @@ const schemaKeywords = new Set([
   '$schema',
   'additionalProperties',
   'anyOf',
+  'allOf',
   'const',
   'enum',
   'items',
@@ -92,6 +94,8 @@ function matches(
     return false
   if (rule.enum && !rule.enum.some((v) => sameOrdinaryWire(v, value)))
     return false
+  if (rule.allOf && !rule.allOf.every((v) => matches(value, v, defs)))
+    return false
   if (
     rule.oneOf &&
     rule.oneOf.filter((v) => matches(value, v, defs)).length !== 1
@@ -117,7 +121,15 @@ function matches(
       (rule.maxItems === undefined || value.length <= rule.maxItems) &&
       (!rule.items || value.every((v) => matches(v, rule.items!, defs)))
     )
-  if (rule.type === 'object') {
+  if (
+    rule.type === 'object' ||
+    (value !== null &&
+      typeof value === 'object' &&
+      !Array.isArray(value) &&
+      (rule.properties !== undefined ||
+        rule.required !== undefined ||
+        rule.additionalProperties !== undefined))
+  ) {
     if (value === null || typeof value !== 'object' || Array.isArray(value))
       return false
     const row = value as Record<string, unknown>,
