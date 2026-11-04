@@ -2,7 +2,7 @@
 
 PO委任によるCodex /root判断、2026-11-05。既採用計画step1とstep1-db-reader-addendumのroot所有RR/READ ONLY scopeを具体化する。新意味判断・新成功応答を作らない。
 
-root編集exact2: backend/src/pitchlog/repositories/transaction.py、新backend/tests/test_stats_primitive_read_scope.py。必要な実PG確認は別の既owned fixtureで実施し、pure試験でDB設定を実証したとは扱わない。
+root編集exact2: backend/src/pitchlog/repositories/transaction.py、新backend/tests/db/test_stats_primitive_read_scope.py。必要な実PG確認は別の既owned fixtureで実施し、pure試験でDB設定を実証したとは扱わない。
 
 stats_primitive_read_scope(context)は既TenantContext真正性を検査し、同じ既実handleを返す。Sessionを作る前に内部engineへREPEATABLE READとpostgresql_readonly=Trueを設定し、最初のtenant binding SQLから同snapshotへ置く。外部からSession/SQL/isolation値や成功boolを受けない。Open/Page/Totals exact3 tokenだけを既正式function registryへ渡し、それ以外のrun/run_function・port/writeはSQL前拒否。scope終了でmarkerと既handleを同時失効させる。
 
