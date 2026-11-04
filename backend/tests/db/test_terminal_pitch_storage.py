@@ -426,7 +426,11 @@ _LINEUP_EXTRA = r"""
         assert current["prefix_ref"]["checkpoint"]["revision"] == "1"
         assert current["prefix_ref"]["historyVersion"] == "0"
         assert current["last_source"] is None
-        results = ["batting-result.called-pitch"] * 9 + ["batting-result.ball"]
+        results = [
+            "batting-result.called-pitch",
+            "batting-result.called-pitch",
+            "batting-result.called-strikeout",
+        ] * 3 + ["batting-result.ball"]
         for index, result in enumerate(results, 1):
             d5 = str(uuid4())
             identity = {"eventId": str(uuid4()), "d5": d5, "playId": str(uuid4())}
@@ -690,7 +694,7 @@ def _lineup_script():
     setup = setup.replace(
         diagnostic_anchor,
         diagnostic_anchor
-        + '\n            database_constraint='
+        + "\n            database_constraint="
         + 'getattr(diagnostic, "constraint_name", None),'
         + '\n            database_table=getattr(diagnostic, "table_name", None),'
         + '\n            database_column=getattr(diagnostic, "column_name", None),',
@@ -725,6 +729,11 @@ def test_actual_owned_lineup_three_strikeouts_then_opposite_ordinary(
         admin.execute(
             "INSERT INTO public.admin_vocabularies(key,category,display_name) "
             "VALUES ('batting-result.called-pitch','batting_result','見逃し') "
+            "ON CONFLICT(key) DO NOTHING"
+        )
+        admin.execute(
+            "INSERT INTO public.admin_vocabularies(key,category,display_name) "
+            "VALUES ('batting-result.called-strikeout','batting_result','見逃し三振') "
             "ON CONFLICT(key) DO NOTHING"
         )
     case = {
