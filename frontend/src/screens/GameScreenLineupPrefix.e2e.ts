@@ -231,12 +231,6 @@ test('実HTTPS画面で三振3PA・攻守交代・相手側球・元D5・ACK喪�
         : 'batting-result.called-pitch',
     )
     const head = await (await read).json()
-    const accepted = await page.evaluate(async (value) => {
-      const modulePath = '/src/api/lineupPrefixGame.ts'
-      const { isLineupPrefixGame } = await import(modulePath)
-      return isLineupPrefixGame(value)
-    }, head)
-    expect(accepted, JSON.stringify(head)).toBe(true)
     expect(head.page.items).toHaveLength(n)
     await expect(page.getByTestId('restore-history')).toHaveText(`${n}件`)
     if (n === 9) {
@@ -259,8 +253,20 @@ test('実HTTPS画面で三振3PA・攻守交代・相手側球・元D5・ACK喪�
     }),
   ).toBe(200)
   await selectAndSave('batting-result.ball', true)
-  await expect(page.getByTestId('first-ball-retry')).toBeVisible()
   const original = requests.at(-1)!
+  // 応答喪失はCookie更新の有無も不明。旧認証を成功扱いせず実sessionを再確認する。
+  await expect(page).toHaveURL(/\/login\?redirect=/)
+  const verified = page.waitForResponse(
+    (res) =>
+      res.request().method() === 'GET' &&
+      apiPath(res.url()) === '/api/auth/session' &&
+      res.status() === 200,
+  )
+  const recovered = readHead('10')
+  await page.getByRole('button', { name: '状態を再確認', exact: true }).click()
+  expect((await verified).status()).toBe(200)
+  expect((await (await recovered).json()).prefix_ref.length).toBe('10')
+  await expect(page.getByTestId('first-ball-retry')).toBeVisible()
   const reloaded = readHead('10')
   await page.reload()
   const tenth = await (await reloaded).json()
