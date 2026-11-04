@@ -371,3 +371,7 @@ read-only全差分529289e4…で、30f署名原典と正式40ceの旧fixed11/rec
 `scripts/check_human_review_signature.py`と同test、必要なら独立固定原典JSON1を最小変更し、既ordinaryのbase-first・旧record/schema/旧9hash・全HEAD依存・policy/公開委任証拠検査を保持してPR191/feature-mvp-terminal-pitchesだけのextensionを追加する。既descriptor freeze受理record/schema/append-onlyと既terminal15全値検査を再利用し、重複した新しい人間署名recordを作らない。固定原典は実審査済み22437086を名前付きfrozen inputへ登録し、現在木から期待を生成しない。現headの未知差分、旧33/旧119の改変、他target/branch/fork/base、非祖先、record欠落/改変、自己申告approved、未解消・同作者・非独立・証拠API失敗は拒否する。technical/旧署名scope保持と現追加の委任受理を出力で区別し、後者を本人署名/全T1/P6成立と表示しない。
 
 現行の旧不変経路は一般緩和しない。コードと全前後値を固定し、例外手続き自体の独立レビュー・無効証拠拒否試験と実PR CLIを通してから通常統合へ進む。rootの今回限定PO委任判断で着手し、新しいPO本人承認待ちを作らない。
+
+### 2026-11-05 記録済み復元E2Eの実wire追随
+
+同版owned PG再現で実GET200とDOMの1ボール/0ストライク/0アウト/走者なし/履歴1を確認し、停止は旧E2Eのread_kind=recorded-prefixと表示文言であると判明した。非作者診断REPORT3a339ad6…に基づき、frontend/src/screens/GameScreenRestore.e2e.tsだけを正式play-prefix-v2要求とplay-prefix応答・現行表示文言へ追随する。元のbefore/after・カウント・アウト・走者・履歴/保存行・再取得の全検査を保持し、要求queryの検査を追加する。製品sourceや応答を迂回せず、既ステップ5のPO委任による主担当判断で実施し、owned環境で再実証する。
