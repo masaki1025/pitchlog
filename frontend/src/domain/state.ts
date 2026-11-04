@@ -1,3 +1,8 @@
+import {
+  battedHitRule,
+  type BattedHitObservation,
+  type BattedHitDerived,
+} from './battedHit'
 import { ordinaryStateSupported, ordinaryRunnerHold } from './ordinaryState'
 import {
   FIRST_BALL_RULE,
@@ -244,6 +249,18 @@ export function deriveStrikeout(
   return applyCountRule(before, board, TERMINAL_OUT_RULE, resultId, cursors)
 }
 
+/** 無走者4安打を、確定観測と両cursorを検証して唯一核へ渡す。 */
+export function deriveBattedHit(
+  before: StateFields,
+  board: Scoreboard,
+  observation: BattedHitObservation,
+  cursors: BattingOrderBySide,
+): BattedHitDerived | null {
+  const rule = battedHitRule(before, board, observation, cursors)
+  if (rule === null) return null
+  return applyCountRule(before, board, rule, rule.resultId, cursors)
+}
+
 function applyCountRule(
   before: StateFields,
   board: Scoreboard,
@@ -281,6 +298,12 @@ function applyCountRule(
   const strikeout =
     resultId === 'batting-result.called-strikeout' ||
     resultId === 'batting-result.swinging-strikeout'
+  const hit =
+    resultId === 'batting-result.single' ||
+    resultId === 'batting-result.double' ||
+    resultId === 'batting-result.triple' ||
+    resultId === 'batting-result.home-run'
+  const homeRun = resultId === 'batting-result.home-run'
   const flags = emptyFlags()
   flags.投球数 = true
   flags.投球回算入アウト = rule.outs > 0n
@@ -298,6 +321,19 @@ function applyCountRule(
     flags.三振 = true
     flags.打数 = true
   }
+  if (hit) {
+    flags.被安打 = true
+    flags.安打 = true
+    flags.打数 = true
+    flags.塁打 = true
+  }
+  if (homeRun) {
+    flags.被本塁打 = true
+    flags.本塁打 = true
+    flags.失点 = true
+    flags.得点 = true
+    flags.打点 = true
+  }
   // 出塁は無走者の受理済み操作に限定。走者の帰属/保存は補完しない。
   const destination: { kind: BatterKind; base?: bigint } = { kind: rule.batter }
   let runners = before.runners
@@ -305,7 +341,9 @@ function applyCountRule(
   let walks = board.walks
   if (rule.batter === 'reach') {
     destination.base = rule.batterBase
-    runners = 'first'
+    if (rule.batterBase === 1n) runners = 'first'
+    else if (rule.batterBase === 2n) runners = 'second'
+    else if (rule.batterBase === 3n) runners = 'third'
   }
   if (rule.pa === true) battingOrder = (before.battingOrder % 9n) + 1n
   if (walk) walks = board.walks + 1n
@@ -339,6 +377,21 @@ function applyCountRule(
   let targets: Array<Target> = []
   if (rule.targets.includes('batter'))
     targets = targets.concat([{ kind: 'batter' }])
+  // 無走者HRの得点側はbeforeで決める。終了判定はこの核で仮定しない。
+  let home = before.home
+  let away = before.away
+  if (homeRun) {
+    if (before.half === 'top') away = away + 1n
+    else home = home + 1n
+  }
+  let boardHome = board.home
+  let boardAway = board.away
+  let hits = board.hits
+  if (homeRun) {
+    boardHome = home
+    boardAway = away
+  }
+  if (hit) hits = hits + 1n
   const after = {
     stateFields: {
       half: half,
@@ -350,13 +403,13 @@ function applyCountRule(
       battingOrder: battingOrder,
       tiebreakActive: before.tiebreakActive,
       gameEnded: before.gameEnded,
-      home: before.home,
-      away: before.away,
+      home: home,
+      away: away,
     },
     scoreboard: {
-      home: board.home,
-      away: board.away,
-      hits: board.hits,
+      home: boardHome,
+      away: boardAway,
+      hits: hits,
       errors: board.errors,
       strikeouts: strikeouts,
       walks: walks,
