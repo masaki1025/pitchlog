@@ -345,3 +345,9 @@ v2 source登録のcensus説明追随（同日）: 非作者6c1dee55…がexact5�
 run41843104444は`PR head の初球core層が完全suffixの7状態に不一致`で拒否された。`.claude/core-areas.json`の既登録を除外/削除せず、`scripts/core_guard.py`と`tests/test_core_guard.py`だけで、#190の完全な初球/通常層の外側に本操作単位の有限terminal追加層を厳密登録する。旧7状態/旧領域定義/既24遷移・人間/委任証拠検査・同一commitでのJSON/基線定義変更拒否を保持する。現在の40ce→224 core JSONの領域別追加tupleだけを固定し、完全suffixか未登録かを閉判定する。部分/削除/移動/順序変更/未知追加/偽造prefixを拒否し、旧検査は外側の完全有限層を取り除いた文書へそのまま適用する。core JSON自身と正本の変更は行わない。
 
 PO委任によるCodex主担当/root判断でこの最小是正を開始する。固定tuple/原典・実Git対向/旧検査保持を非作者に確認し、最終HEAD/必要な正式値/委任証拠を更新してCIへ再提出する。検査を緩めて既CIを成功へ読み替えない。224の画面成功は保存し、後発検査コードのみの差分を明記する。
+
+### 2026-11-04 全件CIの合成repo原典保持と有限層の固定期待
+
+harness shardのcoreguard同根失敗に加え、`tests/test_product_authz_tenant_boundary_allowlist.py`の正例欠落対向1件は、合成Gitが#191の固定原典commitを持たずsetup時に拒否された。checkerの原典/祖先照合を緩めず、この試験fixtureだけが実リポジトリから名前付き固定原典をローカルfetchし、その実commitを親に持つ独立baselineを作るよう追随する。成功基線を確認した後で正例を1件削除し同じ本番検査で拒否する既assertは保持する。原典値やGit来歴を捏造しない。対象追加は同test1のみ、共有DB/製品sourceは触れない。
+
+非作者レビューがcoreguard候補の新raw参照2件を検出したため、同値の名前付き固定入力（terminal core基線/候補の完全commit）へ移し、検査器/対向試験を凍結外部入力として単一#191受理へ収める。未登録literalの分割/allowlist追加はしない。全件CIで発見した実失敗をまとめて是正し、全CLI・公開委任証拠を使うcore_guardのローカルPR検査まで通してから再提出する。
