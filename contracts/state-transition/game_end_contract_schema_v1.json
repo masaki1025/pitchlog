@@ -47,12 +47,28 @@
       "XMARK-02": "normal-end"
     },
     "outcomeSourceClauseIds": {
-      "normal-end": ["req:FR-005", "req:F-1"],
-      "extra-continue": ["req:F-1"],
-      "limit-draw": ["req:F-1"],
-      "tiebreak-continue": ["req:FR-009", "req:F-1"],
-      "cold-end": ["req:FR-005", "req:F-1"],
-      "walk-off": ["req:FR-005", "req:FR-020"]
+      "normal-end": [
+        "req:FR-005",
+        "req:F-1"
+      ],
+      "extra-continue": [
+        "req:F-1"
+      ],
+      "limit-draw": [
+        "req:F-1"
+      ],
+      "tiebreak-continue": [
+        "req:FR-009",
+        "req:F-1"
+      ],
+      "cold-end": [
+        "req:FR-005",
+        "req:F-1"
+      ],
+      "walk-off": [
+        "req:FR-005",
+        "req:FR-020"
+      ]
     },
     "axisDescriptorPath": "contracts/state-transition/input_axes_descriptor_v1.json",
     "evaluationPoint": "post-confirmed-play-and-after-switch-if-third-out",
@@ -246,49 +262,119 @@
   "$defs": {
     "normalizedCase": {
       "type": "object",
-      "required": ["caseId", "branchId", "rowRef", "inputCoordinate", "decision", "raw", "normalizationRuleId", "normalized", "derivedSourceInput"],
+      "required": [
+        "caseId",
+        "branchId",
+        "rowRef",
+        "inputCoordinate",
+        "decision",
+        "raw",
+        "normalizationRuleId",
+        "normalized",
+        "derivedSourceInput"
+      ],
       "additionalProperties": true,
       "properties": {
-        "caseId": {"type": "string", "minLength": 1},
-        "branchId": {"type": "string", "minLength": 1},
-        "rowRef": {"type": "object"},
+        "caseId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "branchId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "rowRef": {
+          "type": "object"
+        },
         "inputCoordinate": {
           "type": "object",
-          "required": ["gameEnd.satisfiedColdTierCount"],
+          "required": [
+            "gameEnd.satisfiedColdTierCount"
+          ],
           "properties": {
             "gameEnd.satisfiedColdTierCount": {
               "description": "F-1 COLD-07〜09。確定プレイ後に成立したコールド段の件数。規則設定の段数と区別する。",
               "x-pitchlog-axis-id": "gameEnd.satisfiedColdTierCount",
               "x-pitchlog-axis-classification": "boundary-partition",
-              "x-pitchlog-coverage-bounds": [{"dimension": "satisfiedTierCount", "minimum": 0, "maximum": 16}],
-              "x-pitchlog-boundary-values": [0, 1, 2, 16],
+              "x-pitchlog-coverage-bounds": [
+                {
+                  "dimension": "satisfiedTierCount",
+                  "minimum": 0,
+                  "maximum": 16
+                }
+              ],
+              "x-pitchlog-boundary-values": [
+                0,
+                1,
+                2,
+                16
+              ],
               "type": "integer",
               "minimum": 0,
               "maximum": 16
             }
           }
         },
-        "decision": {"$ref": "#/$defs/gameEndDecision"},
-        "raw": {"type": "object"},
-        "normalizationRuleId": {"enum": ["identity", "game-end-result-display-name-to-id"]},
-        "normalized": {"type": "object"},
+        "decision": {
+          "$ref": "#/$defs/gameEndDecision"
+        },
+        "raw": {
+          "type": "object"
+        },
+        "normalizationRuleId": {
+          "enum": [
+            "identity",
+            "game-end-result-display-name-to-id"
+          ]
+        },
+        "normalized": {
+          "type": "object"
+        },
         "derivedSourceInput": {
           "description": "派生値の関数性を比較する具体入力。代表ラベルではなく各段の点差・開始回と状態の実値を持つ。",
           "type": "object",
-          "required": ["gameEnd.coldConditions", "state.inning", "state.half", "state.score"],
+          "required": [
+            "gameEnd.coldConditions",
+            "state.inning",
+            "state.half",
+            "state.score"
+          ],
           "additionalProperties": false,
           "properties": {
             "gameEnd.coldConditions": {
-              "type": "array", "maxItems": 16,
-              "items": {"$ref": "#/$defs/coldConditionTier"}
+              "type": "array",
+              "maxItems": 16,
+              "items": {
+                "$ref": "#/$defs/coldConditionTier"
+              }
             },
-            "state.inning": {"type": "integer", "minimum": 1, "maximum": 99},
-            "state.half": {"enum": ["top", "bottom"]},
+            "state.inning": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 99
+            },
+            "state.half": {
+              "enum": [
+                "top",
+                "bottom"
+              ]
+            },
             "state.score": {
-              "type": "object", "required": ["home", "away"], "additionalProperties": false,
+              "type": "object",
+              "required": [
+                "home",
+                "away"
+              ],
+              "additionalProperties": false,
               "properties": {
-                "home": {"type": "integer", "minimum": 0},
-                "away": {"type": "integer", "minimum": 0}
+                "home": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "away": {
+                  "type": "integer",
+                  "minimum": 0
+                }
               }
             }
           }
@@ -297,24 +383,62 @@
     },
     "validationError": {
       "type": "object",
-      "required": ["axisId", "invalidValue", "valueIdentity", "sourceClauseIds", "expected", "claimBoundary"],
+      "required": [
+        "axisId",
+        "invalidValue",
+        "valueIdentity",
+        "sourceClauseIds",
+        "expected",
+        "claimBoundary"
+      ],
       "additionalProperties": false,
       "properties": {
-        "axisId": {"type": "string", "pattern": "^gameEnd\\."},
-        "invalidValue": {"oneOf": [{"type": "integer"}, {"type": "string"}]},
-        "valueIdentity": {"type": "string", "minLength": 1},
-        "sourceClauseIds": {
-          "type": "array", "minItems": 1, "uniqueItems": true,
-          "items": {"type": "string", "minLength": 1}
+        "axisId": {
+          "type": "string",
+          "pattern": "^gameEnd\\."
         },
-        "expected": {"const": "reject-invalid-rule-setting"},
+        "invalidValue": {
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "string"
+            }
+          ]
+        },
+        "valueIdentity": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sourceClauseIds": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "expected": {
+          "const": "reject-invalid-rule-setting"
+        },
         "claimBoundary": {
           "type": "object",
-          "required": ["guaranteed", "notGuaranteed"],
+          "required": [
+            "guaranteed",
+            "notGuaranteed"
+          ],
           "additionalProperties": false,
           "properties": {
-            "guaranteed": {"type": "string", "minLength": 1},
-            "notGuaranteed": {"type": "string", "pattern": "保証範囲外"}
+            "guaranteed": {
+              "type": "string",
+              "minLength": 1
+            },
+            "notGuaranteed": {
+              "type": "string",
+              "pattern": "保証範囲外"
+            }
           }
         }
       }
@@ -358,39 +482,77 @@
       "oneOf": [
         {
           "type": "object",
-          "required": ["op", "args"],
+          "required": [
+            "op",
+            "args"
+          ],
           "additionalProperties": false,
           "properties": {
-            "op": {"enum": ["and", "or"]},
+            "op": {
+              "enum": [
+                "and",
+                "or"
+              ]
+            },
             "args": {
               "type": "array",
               "minItems": 2,
-              "items": {"$ref": "#/$defs/decisionPredicate"}
+              "items": {
+                "$ref": "#/$defs/decisionPredicate"
+              }
             }
           }
         },
         {
           "type": "object",
-          "required": ["op", "args"],
+          "required": [
+            "op",
+            "args"
+          ],
           "additionalProperties": false,
           "properties": {
-            "op": {"const": "not"},
+            "op": {
+              "const": "not"
+            },
             "args": {
               "type": "array",
               "minItems": 1,
               "maxItems": 1,
-              "items": {"$ref": "#/$defs/decisionPredicate"}
+              "items": {
+                "$ref": "#/$defs/decisionPredicate"
+              }
             }
           }
         },
         {
           "type": "object",
-          "required": ["op", "axisId", "value"],
+          "required": [
+            "op",
+            "axisId",
+            "value"
+          ],
           "additionalProperties": false,
           "properties": {
-            "op": {"const": "eq"},
-            "axisId": {"type": "string", "minLength": 1},
-            "value": {"oneOf": [{"type": "integer"}, {"type": "boolean"}, {"type": "string"}]}
+            "op": {
+              "const": "eq"
+            },
+            "axisId": {
+              "type": "string",
+              "minLength": 1
+            },
+            "value": {
+              "oneOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "string"
+                }
+              ]
+            }
           }
         }
       ]
@@ -407,14 +569,35 @@
       ],
       "additionalProperties": false,
       "properties": {
-        "outcome": {"enum": ["normal-end", "extra-continue", "limit-draw", "tiebreak-continue", "cold-end", "walk-off"]},
-        "endConditionDetected": {"type": "boolean"},
-        "lockFurtherPlayInput": {"type": "boolean"},
-        "promptEndDeclaration": {"type": "boolean"},
-        "automaticallyEndsGame": {"type": "boolean"},
+        "outcome": {
+          "enum": [
+            "normal-end",
+            "extra-continue",
+            "limit-draw",
+            "tiebreak-continue",
+            "cold-end",
+            "walk-off"
+          ]
+        },
+        "endConditionDetected": {
+          "type": "boolean"
+        },
+        "lockFurtherPlayInput": {
+          "type": "boolean"
+        },
+        "promptEndDeclaration": {
+          "type": "boolean"
+        },
+        "automaticallyEndsGame": {
+          "type": "boolean"
+        },
         "xMark": {
           "description": "直近に完了した表と対になる裏の得点セルの表示種別。recorded-scoreは別途集計した非負整数、x-markは未開始の裏に適用するX、blankはそれ以外の未開始セルを写像①で表示する。表示文字列や得点値はこの欄に含めない。FR-020 XMARK-01〜03。",
-          "enum": ["recorded-score", "x-mark", "blank"]
+          "enum": [
+            "recorded-score",
+            "x-mark",
+            "blank"
+          ]
         }
       }
     },
@@ -434,7 +617,7 @@
           "const": "input_axes_descriptor_v1"
         },
         "digest": {
-          "const": "sha256:f4792581f0879790da1853b3d279649d0f2f6a23cd068fc40f5064b23638e85f"
+          "const": "sha256:7249affb740621ee5d0eba25b3d9f42f704e7823962c8fb572e6be8ef370e14c"
         }
       }
     },

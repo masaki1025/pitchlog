@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "base_revision": "40ce2e312bc46435239f2a6d0ea0f1fb919a5de0",
+  "candidate_revision": "224370867458e79266946d85406804b76d278d42",
+  "files": {
+    "contracts/state-transition/input_axes_descriptor_v1.json": {
+      "before_sha256": "336b2f687bc7551cbb65f4752b525043b9712b32a5f8d6a29678db6ece1fa72a",
+      "after_sha256": "b659000c39934a74efcbf819b5977a25c99bd4b39f495f557435cc916d5b094b"
+    },
+    "contracts/state-transition/game_end_contract_v1.json": {
+      "before_sha256": "ecd67ffd080ea9f04ee1dff73724262d4728e5d61de9a4c73f814b67c22e3fa9",
+      "after_sha256": "09e6849a5552431eded51f55ce0e3a396b29b3f35da613d18316ee179557b1e4"
+    },
+    "contracts/state-transition/state_transition_contract_v1.json": {
+      "before_sha256": "3c88a2ec22bf150916b616e33ea97585d08970c2addd665feda72ba53f530642",
+      "after_sha256": "7a5e83013909337028bd4b787a31b99df3b73cf4e03ddf02b091fbcb7552e63b"
+    },
+    "contracts/state-transition/branch_row_mapping_v1.json": {
+      "before_sha256": "46c131215e753d56fe856ba6c5a42e09ecbdb4648efecbe98c13d742194f79d3",
+      "after_sha256": "c5210ccfcacf90e4b13785b258997a96383beaef51e795327de8ab7fa97c6018"
+    },
+    "contracts/state-transition/game_end_coverage_declaration_v1.json": {
+      "before_sha256": "43e8e71103a471becb81b5dd8b8696dd03ec73d85733f71351bf38dfa036ceb4",
+      "after_sha256": "595bf287d6bdd5ef8df9728664e8133396fa31f0bc6822768691eb20319e6ffc"
+    },
+    "contracts/state-transition/appendix_e_consumer_handoff_v1.json": {
+      "before_sha256": "1fd8ac26dce45766976cf72098c24f70c77da6b18dbe8ba7fdba004185a634c0",
+      "after_sha256": "bc6cdda1b6c8098ffb5032f779f583fea9274b91ab60d25c1eef5d2f726e9384"
+    }
+  }
+}

@@ -1198,6 +1198,29 @@ def _initialize_test_repository(
         shutil.copy2(REPOSITORY_ROOT / relative_path, destination)
     _write_test_repository_sources(repository, sources)
     checker._run_git(repository, ["init"])
+    if "pr191_source_registration" in allowlist or "pr192_source_registration" in allowlist:
+        # 合成repoも実原典のobject/祖先を保持する。元repoのrefsやobjectは変更しない。
+        if "pr192_source_registration" in allowlist:
+            frozen = json.loads(
+                (REPOSITORY_ROOT / "contracts/tenant_boundary/frozen-inputs.json").read_text()
+            )
+            revision = frozen["frozen_inputs"]["pr192_source_expectation_revision"]["value"]
+        else:
+            expected = json.loads(
+                (REPOSITORY_ROOT / "tests/fixtures/pr191_tenant_source_expected_v1.json")
+                .read_text(encoding="utf-8")
+            )
+            revision = expected["source_revision"]
+        assert checker._run_git(
+            REPOSITORY_ROOT, ["rev-parse", "--verify", f"{revision}^{{commit}}"]
+        ).strip() == revision
+        objects = checker._run_git(
+            REPOSITORY_ROOT, ["rev-parse", "--path-format=absolute", "--git-path", "objects"]
+        ).strip()
+        alternates = repository / ".git/objects/info/alternates"
+        assert not alternates.exists()
+        alternates.write_text(str(Path(objects).resolve()) + "\n", encoding="utf-8")
+        checker._run_git(repository, ["update-ref", "HEAD", revision])
     return repository, _commit_test_repository(repository, "baseline")
 
 
@@ -2968,6 +2991,21 @@ def test_all_assets_freeze_mode_wiring_and_declare_single_authority() -> None:
             "tests/test_check_authz_catalog.py",
             "scripts/check_tenant_boundary_bypass.py",
             "tests/test_census_baseline_check.py",
+            "tests/test_pr191_tenant_source_registration.py",
+            "tests/fixtures/pr191_tenant_source_expected_v1.json",
+            "backend/tests/test_terminal_pitch_write_stamp.py",
+            "scripts/core_guard.py",
+            "tests/test_core_guard.py",
+            "tests/test_product_authz_tenant_boundary_allowlist.py",
+            "contracts/authz/product/probe-product-map.json",
+            "backend/tests/first_ball_expected_source_pins.py",
+            "backend/tests/fixtures/first_ball_expected_source_pins_v1.json",
+            "scripts/check_human_review_signature.py",
+            "tests/test_human_review_signature.py",
+            "tests/fixtures/pr191_ordinary_extension_reference_v1.json",
+            "tests/fixtures/pr192_tenant_source_expected_v1.json",
+            "tests/test_pr192_tenant_source_registration.py",
+            "tests/test_check_tenant_boundary_bypass.py",
         ],
         Path("contracts/tenant_boundary/negative-fixtures.json"): shared_external_files,
         Path("contracts/tenant_boundary/repository-contract.json"): shared_external_files,

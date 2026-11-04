@@ -64,7 +64,7 @@ function failure(code: string): string {
 }
 
 /** UUIDをホスト正規表現なしで正準の小文字8-4-4-4-12形に制限する。 */
-function uuid(value: unknown): boolean {
+export function canonicalContinuationUuid(value: unknown): boolean {
   if (typeof value !== 'string') return false
   let offset = 0n
   for (const character of value) {
@@ -81,7 +81,7 @@ function uuid(value: unknown): boolean {
 }
 
 /** D4は整数に変換しないopaque記録世代である。 */
-function generation(value: unknown): boolean {
+export function canonicalContinuationGeneration(value: unknown): boolean {
   if (typeof value !== 'string') return false
   let size = 0n
   for (const character of value) {
@@ -93,7 +93,7 @@ function generation(value: unknown): boolean {
 }
 
 /** ordinary-only水位とD4を混同せず参照を読む。真正性は接続側で確認する。 */
-function prefix(value: unknown): JsonObject | null {
+export function readOrdinaryPrefixRef(value: unknown): JsonObject | null {
   const result = object(value, [
     'version',
     'tenantId',
@@ -104,9 +104,9 @@ function prefix(value: unknown): JsonObject | null {
   if (
     result === null ||
     result.version !== '1' ||
-    !uuid(result.tenantId) ||
-    !uuid(result.gameId) ||
-    !generation(result.generation)
+    !canonicalContinuationUuid(result.tenantId) ||
+    !canonicalContinuationUuid(result.gameId) ||
+    !canonicalContinuationGeneration(result.generation)
   )
     return null
   const length = parseDecimalInteger(result.length)
@@ -115,7 +115,7 @@ function prefix(value: unknown): JsonObject | null {
 }
 
 /** 同じ攻撃中の非終端stateから、実規則の非成立根拠を評価する。 */
-function ordinaryBasis(
+export function evaluateOpenPrefixBasis(
   snapshot: unknown,
   rules: ContinuationRules,
 ): JsonObject | null {
@@ -183,7 +183,10 @@ function ordinaryBasis(
 }
 
 /** 始点/旧初球の限定stateを値全体から検査する。 */
-function initialSnapshot(snapshot: unknown, balls: string): boolean {
+export function isInitialPrefixSnapshot(
+  snapshot: unknown,
+  balls: string,
+): boolean {
   return sameContinuationValue(snapshot, {
     stateFields: {
       'state.half': 'top',
@@ -208,11 +211,11 @@ function initialSnapshot(snapshot: unknown, balls: string): boolean {
 }
 
 /** 前回T2を現在rules/afterへ結合し、合法封筒の移植も拒否する。 */
-function previousEvaluation(
+export function ordinaryPreviousEvaluation(
   prior: JsonObject,
   rules: ContinuationRules,
 ): boolean {
-  const nextBasis = ordinaryBasis(prior.after, rules)
+  const nextBasis = evaluateOpenPrefixBasis(prior.after, rules)
   if (nextBasis === null) return false
   const t2 = object(prior.t2, ['kind', 'scope', 'evaluation_point', 'basis'])
   if (t2 !== null)
@@ -223,7 +226,7 @@ function previousEvaluation(
       basis: nextBasis,
     })
   if (
-    !initialSnapshot(prior.after, '1') ||
+    !isInitialPrefixSnapshot(prior.after, '1') ||
     rules.coldConditions.some(() => true) ||
     rules.tiebreak !== null ||
     (rules.regulationInnings !== 7n && rules.regulationInnings !== 9n) ||
@@ -274,7 +277,7 @@ export function prepareOrdinaryContinuation(requestJson: string): Prepared {
   if (
     request === null ||
     request.version !== '1' ||
-    prefix(request.prefixRef) === null
+    readOrdinaryPrefixRef(request.prefixRef) === null
   )
     return { ok: false, response: failure('INVALID_REQUEST') }
   const t1 = object(request.t1, [
@@ -293,7 +296,7 @@ export function prepareOrdinaryContinuation(requestJson: string): Prepared {
   if (
     t1 === null ||
     prior === null ||
-    prefix(prior.prefixRef) === null ||
+    readOrdinaryPrefixRef(prior.prefixRef) === null ||
     !['started-initial', 'evaluated-prefix', 'locked-prefix'].includes(
       prior.kind as string,
     )
@@ -311,14 +314,14 @@ export function prepareOrdinaryContinuation(requestJson: string): Prepared {
     prior.kind === 'locked-prefix'
   )
     return { ok: false, response: failure('T2_NOT_EVALUATED') }
-  const ref = prefix(request.prefixRef)
+  const ref = readOrdinaryPrefixRef(request.prefixRef)
   if (ref === null) return { ok: false, response: failure('INVALID_REQUEST') }
   const length = parseDecimalInteger(ref.length)
   if (prior.kind === 'started-initial') {
     if (
       length !== 0n ||
       prior.t2 !== null ||
-      !initialSnapshot(prior.after, '0')
+      !isInitialPrefixSnapshot(prior.after, '0')
     )
       return { ok: false, response: failure('T2_NOT_EVALUATED') }
   } else if (length === null || length < 1n)
@@ -340,7 +343,7 @@ export function finishOrdinaryContinuation(
   if (!rules.ok) return failure('T2_NOT_EVALUATED')
   if (
     prior.kind === 'evaluated-prefix' &&
-    !previousEvaluation(prior, rules.value)
+    !ordinaryPreviousEvaluation(prior, rules.value)
   )
     return failure('T2_NOT_EVALUATED')
   const t1 = request.t1 as JsonObject
@@ -370,7 +373,7 @@ export function finishOrdinaryContinuation(
     value.plateAppearanceEnded !== false
   )
     return failure('T2_NOT_EVALUATED')
-  const basis = ordinaryBasis(before, rules.value)
+  const basis = evaluateOpenPrefixBasis(before, rules.value)
   if (basis === null) return failure('T2_NOT_EVALUATED')
   const stack = value.historyContext
   if (!Array.isArray(stack)) return failure('T2_NOT_EVALUATED')
@@ -387,7 +390,7 @@ export function finishOrdinaryContinuation(
     statFlags: value.statFlags,
     after: value.after,
   }
-  const ref = prefix(request.prefixRef)
+  const ref = readOrdinaryPrefixRef(request.prefixRef)
   if (ref === null) return failure('T2_NOT_EVALUATED')
   const length = parseDecimalInteger(ref.length)
   if (length === null) return failure('T2_NOT_EVALUATED')

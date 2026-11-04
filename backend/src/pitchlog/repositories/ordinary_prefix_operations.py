@@ -126,3 +126,83 @@ def _declarations():
 
 
 ORDINARY_PREFIX_OPERATIONS = _declarations()
+
+
+def _play_prefix_declarations():
+    """v2の新4関数を旧3関数と別能力へ登録する。"""
+    from pitchlog.repositories.function_operations import (
+        _SYNC_PLAY_PREFIX_FUNCTION_TYPES,
+    )
+    from pitchlog.sync.terminal_pitch_tokens import (
+        PlayPrefixCheckpointLockToken,
+        PlayPrefixCheckpointReadToken,
+        PlayPrefixHistoryPageToken,
+        PreparePlayPrefixProjectionToken,
+    )
+
+    result = []
+    for name, token in [
+        ("read_play_prefix_checkpoint", PlayPrefixCheckpointReadToken),
+        ("lock_play_prefix_checkpoint", PlayPrefixCheckpointLockToken),
+        ("read_play_prefix_history_page", PlayPrefixHistoryPageToken),
+        ("prepare_play_prefix_projection", PreparePlayPrefixProjectionToken),
+    ]:
+        inputs, outputs, nullable, aware, minimum, maximum = (
+            _SYNC_PLAY_PREFIX_FUNCTION_TYPES["sync_right_api." + name]
+        )
+        result.append(
+            FunctionOperationRegistration(
+                operation_id="SYNC_PLAY_PREFIX:" + name,
+                capability_id="CAP:sync_play_prefix:" + name,
+                token_type=token,
+                function_id="sync_right_api." + name,
+                statement=_build_fixed_function_statement(
+                    "sync_right_api", name, inputs, tuple(n for n, _ in outputs), True
+                ),
+                input_fields=inputs,
+                result_fields=outputs,
+                decoder=_identity,
+                min_rows=minimum,
+                max_rows=maximum,
+                nullable_results=nullable,
+                aware_datetime_results=aware,
+            )
+        )
+    return tuple(result)
+
+
+PLAY_PREFIX_OPERATIONS = _play_prefix_declarations()
+
+
+def _lineup_origin_declarations():
+    """開始原本の一行関数だけを有限登録する。"""
+    from pitchlog.repositories.function_operations import (
+        _SYNC_PLAY_PREFIX_FUNCTION_TYPES,
+    )
+    from pitchlog.sync.terminal_pitch_tokens import LineupStartedOriginReadToken
+
+    name = "read_lineup_started_origin"
+    inputs, outputs, nullable, aware, minimum, maximum = (
+        _SYNC_PLAY_PREFIX_FUNCTION_TYPES["sync_right_api." + name]
+    )
+    return (
+        FunctionOperationRegistration(
+            operation_id="SYNC_LINEUP_PREFIX:" + name,
+            capability_id="CAP:sync_lineup_prefix:read_started_origin",
+            token_type=LineupStartedOriginReadToken,
+            function_id="sync_right_api." + name,
+            statement=_build_fixed_function_statement(
+                "sync_right_api", name, inputs, ("record_json",), True
+            ),
+            input_fields=inputs,
+            result_fields=outputs,
+            decoder=_identity,
+            nullable_results=nullable,
+            aware_datetime_results=aware,
+            min_rows=minimum,
+            max_rows=maximum,
+        ),
+    )
+
+
+LINEUP_START_ORIGIN_OPERATIONS = _lineup_origin_declarations()

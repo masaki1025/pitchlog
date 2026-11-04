@@ -1,11 +1,11 @@
 """リポジトリ基底の公開面と不変戻り値規約を提供する生成モジュール。"""
 
 SCHEMA_VERSION = 1
-CONTRACT_REVISION = 35
+CONTRACT_REVISION = 37
 ASSET_KIND = "tenant_repository_contract"
 CANONICALIZATION = "json-sort-keys-utf8-v1"
 SOURCE_ASSET = "contracts/tenant_boundary/repository-contract.json"
-SOURCE_DIGEST = "27f41deef37f99711b4597a1bba87234eb63b66c9f3144afdf70a46e8b3e4558"
+SOURCE_DIGEST = "6175311f0e27d7229036798ab22670de3d90a65219e0f5e1b23880492566a41d"
 
 REPOSITORY_TYPE = "pitchlog.repositories.base.TenantRepositoryBase"
 CONTEXT_BINDING_ENTRY = "pitchlog.repositories.base.TenantRepositoryBase.execute"
@@ -183,6 +183,7 @@ PRODUCT_OPERATION_TOKEN_TYPES = (
     "pitchlog.repositories.preparing_game_creation.PreparingOpponentTeamLockToken",
     "pitchlog.repositories.pitch_type_options.PitchTypeOptionsToken",
     "pitchlog.sync.ordinary_pitch_tokens.OrdinaryPlayRowInsertToken",
+    "pitchlog.sync.terminal_pitch_tokens.PlayPrefixPlayRowInsertToken",
 )
 CROSS_TENANT_FUNCTIONS = ()
 PRODUCT_FUNCTION_OPERATION_IDS = (
@@ -202,4 +203,9 @@ PRODUCT_FUNCTION_OPERATION_IDS = (
     "SYNC_ORDINARY_PITCH:lock_ordinary_checkpoint",
     "SYNC_ORDINARY_PITCH:read_ordinary_history_page",
     "SYNC_ORDINARY_PITCH:read_ordinary_order_summary",
+    "SYNC_PLAY_PREFIX:read_play_prefix_checkpoint",
+    "SYNC_PLAY_PREFIX:lock_play_prefix_checkpoint",
+    "SYNC_PLAY_PREFIX:read_play_prefix_history_page",
+    "SYNC_PLAY_PREFIX:prepare_play_prefix_projection",
+    "SYNC_LINEUP_PREFIX:read_lineup_started_origin",
 )

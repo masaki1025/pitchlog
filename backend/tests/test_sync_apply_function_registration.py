@@ -150,8 +150,30 @@ def test_device_state_read_exact_registration_and_fixed_sql(active, monkeypatch)
     token = _ReadFirstBallDeviceStateToken(_IDS[3])
     handle, context, seen = _handle(monkeypatch, ((active,),))
     spec = FUNCTION_OPERATION_REGISTRY[type(token)]
-    # 通常投球の7登録は初球の後にappendされる。初球の位置自体は不変。
-    assert PRODUCT_FUNCTION_OPERATIONS.index(spec) == 8
+    assert tuple(entry.operation_id for entry in PRODUCT_FUNCTION_OPERATIONS) == (
+        "RG1:precheck",
+        "RG1:commit_check",
+        "RG1:scope_binding",
+        "RULE:resolve_stage_a",
+        "SYNC_FIRST_BALL:bind_device",
+        "SYNC_FIRST_BALL:check_current_right",
+        "SYNC_WRITER_BINDING:read_writer_identity",
+        "SYNC_WRITER_BINDING:assert_writer_binding",
+        "SYNC_FIRST_BALL:read_device_state",
+        "SYNC_ORDINARY_PITCH:bind_ordinary_device",
+        "SYNC_ORDINARY_PITCH:check_ordinary_right",
+        "SYNC_ORDINARY_PITCH:prepare_ordinary_projection",
+        "SYNC_ORDINARY_PITCH:read_ordinary_checkpoint",
+        "SYNC_ORDINARY_PITCH:lock_ordinary_checkpoint",
+        "SYNC_ORDINARY_PITCH:read_ordinary_history_page",
+        "SYNC_ORDINARY_PITCH:read_ordinary_order_summary",
+        "SYNC_PLAY_PREFIX:read_play_prefix_checkpoint",
+        "SYNC_PLAY_PREFIX:lock_play_prefix_checkpoint",
+        "SYNC_PLAY_PREFIX:read_play_prefix_history_page",
+        "SYNC_PLAY_PREFIX:prepare_play_prefix_projection",
+        "SYNC_LINEUP_PREFIX:read_lineup_started_origin",
+    )
+    assert PRODUCT_FUNCTION_OPERATIONS[8] is spec
     assert spec.operation_id == "SYNC_FIRST_BALL:read_device_state"
     assert spec.function_id == "sync_right_api.read_device_state"
     assert spec.input_fields == (("device_id", UUID),)

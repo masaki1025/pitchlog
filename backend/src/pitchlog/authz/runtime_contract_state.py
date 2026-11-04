@@ -958,16 +958,23 @@ def _render_row(row: tuple[str, ...]) -> str:
     # 呼出側のインデント4文字と末尾commaも行長へ含める。
     if len(compact) + 5 <= 88:
         return compact
-    rendered: list[str] = []
-    for value in row:
-        literal = _python_string(value)
-        if len(literal) + 9 <= 88:
-            rendered.append(f"        {literal},\n")
+    lines = ["(\n"]
+    for original, value in zip(row, values, strict=True):
+        if len(value) + 9 <= 88:
+            lines.append(f"        {value},\n")
             continue
-        chunks = _split_string_literal(value, limit=76)
-        body = "".join(f"            {_python_string(chunk)}\n" for chunk in chunks)
-        rendered.append("        (\n" + body + "        ),\n")
-    return "(\n" + "".join(rendered) + "    )"
+        # 引数署名が一項だけで長くても、escapeを含む実literal幅で分割する。
+        lines.append("        (\n")
+        chunk = ""
+        for char in original:
+            if len(_python_string(chunk + char)) + 12 > 88:
+                lines.append(f"            {_python_string(chunk)}\n")
+                chunk = ""
+            chunk += char
+        if chunk:
+            lines.append(f"            {_python_string(chunk)}\n")
+        lines.append("        ),\n")
+    return "".join(lines) + "    )"
 
 
 def _render_string_tuple(values: list[str]) -> str:

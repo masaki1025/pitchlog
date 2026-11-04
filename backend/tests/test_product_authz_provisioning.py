@@ -31,6 +31,45 @@ from pitchlog.authz.product_provisioning import (
     apply_product_authz_ddl,
 )
 
+# 終端prefixの正式7関数・runner有限10列（旧集合は維持）。
+_TERMINAL_FUNCTION_IDS = frozenset(
+    {
+        "FUNCTION:sync_right_api:assert_play_prefix_projection(jsonb)",
+        "FUNCTION:sync_right_api:finish_play_prefix_projection()",
+        "FUNCTION:sync_right_api:guard_play_prefix_runner_insert()",
+        (
+            "FUNCTION:sync_right_api:lock_play_prefix_checkpoint(uuid, uuid, "
+            "uuid, bytea, uuid, uuid, bigint)"
+        ),
+        (
+            "FUNCTION:sync_right_api:prepare_play_prefix_projection(uuid, "
+            "uuid, uuid, bytea, uuid, uuid, text)"
+        ),
+        "FUNCTION:sync_right_api:read_play_prefix_checkpoint(uuid, uuid, bigint)",
+        (
+            "FUNCTION:sync_right_api:read_play_prefix_history_page(uuid, "
+            "uuid, bigint, bigint, uuid, bigint, bigint, bigint, bigint, "
+            "bigint, uuid, integer)"
+        ),
+    }
+)
+_TERMINAL_COLUMN_ACL_IDS = frozenset(
+    f"COLUMN-ACL:public:play_runners:{column}:pitchlog_sync_right_fn_owner"
+    for column in (
+        "tenant_id",
+        "id",
+        "play_id",
+        "base",
+        "runner_id",
+        "status",
+        "status_source",
+        "responsible_pitcher_id",
+        "import_batch_id",
+        "retired_at",
+    )
+)
+
+
 _LEGACY_CONTACT_SQL = {
     "current_database": "-- ELEMENT-TYPE: database\n"
     "-- ELEMENT-ID: current_database\n"
@@ -1971,6 +2010,8 @@ def test_pre_rule_preserves_old16_and_defers_exact_epoch_acl() -> None:
         | _EXPECTED_DEFERRED_INITIAL_IDS
         | _EXPECTED_DEFERRED_FIRST_BALL_IDS
         | _EXPECTED_DEFERRED_ORDINARY_IDS
+        | _TERMINAL_FUNCTION_IDS
+        | _TERMINAL_COLUMN_ACL_IDS
     )
     assert {row.element_id for row in withheld} - {
         row.element_id for row in old

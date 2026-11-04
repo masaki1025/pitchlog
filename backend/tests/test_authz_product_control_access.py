@@ -36,6 +36,29 @@ from pitchlog.authz.runtime_contract_state import (
     evaluate_repository,
 )
 
+_EXPECTED_TERMINAL_FUNCTIONS = [
+    ("sync_right_api", "assert_play_prefix_projection", "jsonb"),
+    ("sync_right_api", "finish_play_prefix_projection", ""),
+    ("sync_right_api", "guard_play_prefix_runner_insert", ""),
+    (
+        "sync_right_api",
+        "lock_play_prefix_checkpoint",
+        "uuid, uuid, uuid, bytea, uuid, uuid, bigint",
+    ),
+    (
+        "sync_right_api",
+        "prepare_play_prefix_projection",
+        "uuid, uuid, uuid, bytea, uuid, uuid, text",
+    ),
+    ("sync_right_api", "read_play_prefix_checkpoint", "uuid, uuid, bigint"),
+    (
+        "sync_right_api",
+        "read_play_prefix_history_page",
+        "uuid, uuid, bigint, bigint, uuid, bigint, bigint, bigint, "
+        "bigint, bigint, uuid, integer",
+    ),
+]
+
 _EXPECTED_ORDINARY_FUNCTIONS = [
     (
         "sync_right_api",
@@ -1560,14 +1583,49 @@ def test_runtime_entry_normal_profile_remains_accepted() -> None:
         "sync_fence_api",
         "sync_right_api",
     } == set(result.schema_names)
-    assert len(result.functions) == 79 + len(_EXPECTED_FIRST_BALL_FUNCTIONS) + 8
+    assert len(_EXPECTED_TERMINAL_FUNCTIONS) == 7
+    assert (
+        len(result.functions) - len(_EXPECTED_TERMINAL_FUNCTIONS)
+        == 79 + len(_EXPECTED_FIRST_BALL_FUNCTIONS) + 8
+    )
     assert (
         set(_EXPECTED_LEGACY_FUNCTION_KEYS)
         | set(_EXPECTED_FIRST_BALL_FUNCTIONS)
         | set(_EXPECTED_ORDINARY_FUNCTIONS)
+        | set(_EXPECTED_TERMINAL_FUNCTIONS)
     ) == {tuple(r[:3]) for r in result.functions}
-    assert len(result.policies) == 91
-    assert len(_product_asset()["column_acl_expectations"]) == 342
+    assert {
+        r[2]
+        for r in result.policies
+        if isinstance(r[2], str) and r[2].startswith("play_prefix_")
+    } == {
+        "play_prefix_select_play_runners",
+        "play_prefix_insert_play_runners",
+    }
+    assert len(result.policies) - 2 == 91
+    assert len(result.policies) == 93
+    terminal_columns = {
+        "id",
+        "status",
+        "status_source",
+        "import_batch_id",
+        "play_id",
+        "responsible_pitcher_id",
+        "tenant_id",
+        "runner_id",
+        "base",
+        "retired_at",
+    }
+    acls = _product_asset()["column_acl_expectations"]
+    terminal_acls = [
+        r
+        for r in acls
+        if r["object_id"] == "play_runners"
+        and r["grantee_role_id"] == "pitchlog_sync_right_fn_owner"
+    ]
+    assert {r["column_id"] for r in terminal_acls} == terminal_columns
+    assert len(terminal_acls) == 10
+    assert len(acls) - len(terminal_acls) == 342
 
 
 @pytest.mark.parametrize(

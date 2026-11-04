@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "catalogId": "terminal-pitch-properties",
+  "scope": "terminal-empty-bb-hbp-v1",
+  "predicates": [
+    {
+      "propertyId": "terminalStateAxes",
+      "propertyKind": "invariant",
+      "authorityId": "付録E 打撃結果・状態遷移マトリクス"
+    },
+    {
+      "propertyId": "terminalHostParity",
+      "propertyKind": "equivalence",
+      "authorityId": "NFR-018 (b)② 差分の検出可能性"
+    }
+  ]
+}

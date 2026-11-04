@@ -364,7 +364,17 @@ def _expected_positive_integer(criteria: DescriptorCriteria, key: str) -> int:
 
 def _json_equal(left: object, right: object) -> bool:
     """booleanとintegerを混同せずJSON値を比較する。"""
-    return type(left) is type(right) and left == right
+    if type(left) is not type(right):
+        return False
+    if isinstance(left, dict) and isinstance(right, dict):
+        return left.keys() == right.keys() and all(
+            _json_equal(value, right[key]) for key, value in left.items()
+        )
+    if isinstance(left, list) and isinstance(right, list):
+        return len(left) == len(right) and all(
+            _json_equal(a, b) for a, b in zip(left, right, strict=True)
+        )
+    return left == right
 
 
 def _json_type_matches(value: object, type_name: str) -> bool:

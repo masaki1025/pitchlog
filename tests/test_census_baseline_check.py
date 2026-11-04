@@ -896,7 +896,11 @@ def _condition2_owned_path(path: str, contract: Any) -> bool:
         owner.path
         for owner in getattr(contract, "ordinary_condition2_owners", ())
     }
-    if source_path in ordinary_owned:
+    pr191_condition2_owned = {
+        owner.path for owner in getattr(contract, "pr191_source_owners", ())
+        if any(code == "TB002" for _, code, _, _ in owner.findings)
+    }
+    if source_path in ordinary_owned | pr191_condition2_owned:
         return True
     return any(
         fnmatch.fnmatchcase(source_path, pattern)
@@ -1856,6 +1860,7 @@ def _measured_allowlist_suppression(
         core_context = Path(".claude/core-areas.json")
         (counterfactual_root / core_context).parent.mkdir(parents=True)
         shutil.copy2(REPOSITORY_ROOT / core_context, counterfactual_root / core_context)
+        _copy_pr191_proof_inputs(counterfactual_root)
         counterfactual_source = counterfactual_root / "backend/src"
         shutil.copytree(source_root, counterfactual_source)
         asset_path, _, _ = substituted_field.partition("#")
@@ -5279,6 +5284,158 @@ def _validated_initial_population_suppression(
     return frozenset(result)
 
 
+def _validated_pr191_source_suppression(
+    declaration: dict[str, Any], *, source_root: Path, current_contract: Any,
+) -> frozenset[CensusIdentity]:
+    """693原典と独立51siteから期待を作り、新枠だけを外す実効果と照合する。"""
+    proof = _object(declaration.get("pr191_source_proof"), "pr191_source_proof")
+    _exact_keys(proof, {"kind", "revision", "expected_fixture", "identity_fields", "meanings"},
+                "pr191_source_proof")
+    assert _string(proof.get("kind"), "pr191.kind") == "immutable_v2_sites_and_counterfactual"
+    assert _string(proof.get("revision"), "pr191.revision") == (
+        "contracts/tenant_boundary/frozen-inputs.json#/frozen_inputs/"
+        "pr191_source_registration_revision/value"
+    )
+    fixture = _string(proof.get("expected_fixture"), "pr191.expected_fixture")
+    assert fixture == "tests/fixtures/pr191_tenant_source_expected_v1.json"
+    assert _string_array(proof.get("identity_fields"), "pr191.identity_fields") == (
+        "path", "line", "end_line", "scope", "code", "symbol", "message",
+    )
+    meanings = _object(proof.get("meanings"), "pr191.meanings")
+    expected_meanings = {
+        "TB002": "48 tenant/game/generation owned sites; no other condition ownership",
+        "TB003": "one before-runner scalar copy after hold/no-destination validation",
+        "TB007": "one locked-context liveness callback and one sealed OrdinaryPitchFrame site",
+    }
+    _exact_keys(meanings, set(expected_meanings), "pr191.meanings")
+    for code, meaning in expected_meanings.items():
+        assert _string(meanings.get(code), "pr191.meanings." + code) == meaning
+    # fixtureをscannerの実出力から生成せず、別担当が固定した全tupleを消費する。
+    expected = _object(json.loads((REPOSITORY_ROOT / fixture).read_text()), "pr191.fixture")
+    _exact_keys(expected, {"schema_version", "source_revision", "frozen_input", "owners"},
+                "pr191.fixture")
+    assert type(expected["schema_version"]) is int and expected["schema_version"] == 1
+    assert expected["frozen_input"] == "pr191_source_registration_revision"
+    revision = _load_json_pointer(proof["revision"])
+    assert isinstance(revision, str) and re.fullmatch(r"[0-9a-f]{40}", revision)
+    assert revision == expected["source_revision"]
+    owners = _object(expected["owners"], "pr191.fixture.owners")
+    assert len(owners) == 6
+    registered = {owner.path: owner for owner in current_contract.pr191_source_owners}
+    assert set(registered) == set(owners)
+    messages = {
+        "TB002": "条件 2 の禁止シンボルを検出",
+        "TB003": "条件 3 の禁止シンボルを検出",
+        "live": "由来を完全修飾名へ解決できない callable は TenantContext の生成経路として拒否",
+        "builtins.object.__new__": (
+            "型を解決できない object.__new__ も TenantContext 生成迂回として拒否"
+        ),
+    }
+    expected_all: set[CensusIdentity] = set()
+    measured_all: set[CensusIdentity] = set()
+    sources = {p.relative_to(source_root).as_posix(): p.read_text(encoding="utf-8")
+               for p in source_root.rglob("*.py")}
+    reexports = checker._build_reexport_map(sources)
+    for full_path, raw in owners.items():
+        row = _object(raw, "pr191.fixture.owner")
+        _exact_keys(row, {"purpose", "source_sha256", "findings"}, "pr191.fixture.owner")
+        relative = full_path.removeprefix("backend/src/")
+        assert full_path == "backend/src/" + relative
+        original = subprocess.check_output(
+            ["git", "show", f"{revision}:{full_path}"], cwd=REPOSITORY_ROOT,
+        )
+        assert hashlib.sha256(original).hexdigest() == row["source_sha256"]
+        owner = registered[full_path]
+        assert owner.purpose == row["purpose"] and owner.source_sha256 == row["source_sha256"]
+        assert owner.immutable_source == original
+        wanted = set()
+        tree = ast.parse(original.decode(), filename=relative)
+        for value in _array(row["findings"], "pr191.fixture.findings"):
+            site = _object(value, "pr191.fixture.site")
+            _exact_keys(site, {"line", "code", "symbol", "scope"}, "pr191.fixture.site")
+            line = site["line"]
+            assert type(line) is int and line > 0
+            code, symbol, scope = (site[k] for k in ("code", "symbol", "scope"))
+            assert code in {"TB002", "TB003", "TB007"}
+            assert all(isinstance(x, str) and x for x in (symbol, scope))
+            # 独立fixtureの全siteは単一行の識別子/呼出。実ASTでも終端を確認する。
+            assert any(getattr(n, "lineno", None) == line
+                       and getattr(n, "end_lineno", None) == line for n in ast.walk(tree))
+            message = messages[code if code != "TB007" else symbol]
+            identity = (relative, line, line, scope, code, symbol, message)
+            assert identity not in wanted
+            wanted.add(identity)
+        assert owner.findings == frozenset((i[1], i[4], i[5], i[3]) for i in wanted)
+        expected_all.update(wanted)
+        target = source_root / relative
+        if not target.is_file():
+            continue
+        source = target.read_text(encoding="utf-8")
+        assert source.encode() == original, "pr191原典と現source全byteが一致しない"
+        _assert_pr191_closed_meaning(source, relative)
+        def scan(contract: Any) -> frozenset[CensusIdentity]:
+            return frozenset(
+                (v.path, v.line, v.end_line, v.scope, v.code, v.symbol, v.message)
+                for v in checker.scan_source(source, path=relative, contract=contract,
+                                             reexport_map=reexports)
+            )
+        after = scan(current_contract)
+        before = scan(replace(current_contract, pr191_source_owners=()))
+        assert not after - before, "pr191枠は別の所見を生成できない"
+        assert before - after == frozenset(wanted), "pr191独立tupleと実抑止が不一致"
+        measured_all.update(wanted)
+    assert len(expected_all) == 51
+    assert {code: sum(i[4] == code for i in expected_all)
+            for code in ("TB002", "TB003", "TB007")} == {
+                "TB002": 48, "TB003": 1, "TB007": 2,
+            }
+    if len(measured_all) == 51:
+        _assert_scoped_identity_digest(frozenset(measured_all), "pr191_source_suppression")
+    return frozenset(measured_all)
+
+
+def _assert_pr191_closed_meaning(source: str, path: str) -> None:
+    """C3のbefore-copyとC5の同source callback/既封印型を個別に確認する。"""
+    tree = ast.parse(source)
+    if path == "pitchlog/sync/terminal_pitch_projection.py":
+        function = next(n for n in tree.body if isinstance(n, ast.FunctionDef)
+                        and n.name == "runner_physical_rows")
+        segment = ast.get_source_segment(source, function)
+        assert segment is not None
+        assert 'effect.modality != "hold" or effect.destination is not None' in segment
+        assert '"responsible_pitcher_id": runner.responsible_pitcher_id' in segment
+        assert segment.count("for runner in before_runners") == 2
+        assert "after_runners" not in segment
+    elif path == "pitchlog/repositories/play_prefix.py":
+        function = next(n for n in tree.body if isinstance(n, ast.FunctionDef)
+                        and n.name == "read_confirmed_play_prefix")
+        binding = next(n for n in function.body if isinstance(n, ast.Assign)
+                       and isinstance(n.value, ast.Call)
+                       and isinstance(n.value.func, ast.Name)
+                       and n.value.func.id == "_locked_prefix_context")
+        assert ast.dump(binding.value, include_attributes=False) == ast.dump(
+            ast.parse("_locked_prefix_context(handle, event, source)", mode="eval").body,
+            include_attributes=False,
+        )
+        assert isinstance(binding.targets[0], ast.Tuple)
+        assert isinstance(binding.targets[0].elts[1], ast.Name)
+        assert binding.targets[0].elts[1].id == "live"
+        calls = [n for n in ast.walk(function) if isinstance(n, ast.Call)
+                 and isinstance(n.func, ast.Name) and n.func.id == "live"]
+        assert len(calls) == 1 and not calls[0].args and not calls[0].keywords
+        assert calls[0].lineno > binding.lineno
+    elif path == "pitchlog/sync/ordinary_pitch_execution.py":
+        function = next(n for n in tree.body if isinstance(n, ast.FunctionDef)
+                        and n.name == "_evaluate_play_prefix")
+        calls = [n for n in ast.walk(function) if isinstance(n, ast.Call)
+                 and isinstance(n.func, ast.Attribute) and n.func.attr == "__new__"]
+        assert len(calls) == 1
+        assert ast.dump(calls[0], include_attributes=False) == ast.dump(
+            ast.parse("object.__new__(OrdinaryPitchFrame)", mode="eval").body,
+            include_attributes=False,
+        )
+
+
 def _assert_removed_equals_measured_allowlist_suppression(
     predicate: dict[str, Any],
     *,
@@ -5378,6 +5535,9 @@ def _assert_removed_equals_measured_allowlist_suppression(
     suppression |= _validated_initial_population_suppression(
         declaration, source_root=source_root, current_contract=current_contract,
     )
+    suppression |= _validated_pr191_source_suppression(
+        declaration, source_root=source_root, current_contract=current_contract,
+    )
     code_index = identity_indexes["code"]
     for identity in data_sets[set_name]:
         code = identity[code_index]
@@ -5389,6 +5549,8 @@ def _assert_removed_equals_measured_allowlist_suppression(
 def _assert_removed_matches_declared_relaxations(
     predicate: dict[str, Any],
     *,
+    declaration: dict[str, Any],
+    current_contract: Any,
     data_sets: dict[str, frozenset[CensusIdentity]],
     identity_indexes: dict[str, int],
     source_root: Path,
@@ -5409,8 +5571,11 @@ def _assert_removed_matches_declared_relaxations(
         for identity in data_sets[set_name]
         if identity[identity_indexes["code"]] == code
     )
+    proof = _validated_pr191_source_suppression(
+        declaration, source_root=source_root, current_contract=current_contract,
+    )
     _assert_removed_tb007_matches_declared_relaxations(
-        selected,
+        selected - proof,
         expected_code=code,
         declared=_declared_relaxation_identities(predicate, source_root=source_root),
     )
@@ -5551,6 +5716,8 @@ def _validated_first_ball_condition2_identities(
         assert {(i[1], i[5]) for i in difference} == owner.findings
         assert all(i[4] == "TB002" for i in difference)
         result.update(difference)
+    if len(result) == sum(len(owner.findings) for owner in owners):
+        _assert_scoped_identity_digest(frozenset(result), "first_ball_owned_suppression")
     return frozenset(result)
 
 
@@ -5595,7 +5762,8 @@ _SCOPED_DIGEST_FIXTURE = (
 )
 _SCOPED_DIGEST_KEYS = frozenset(
     {"removed_checker_43", "added_independent_ast_18",
-     "ledger_removed_checker", "ledger_added_independent_ast"}
+     "ledger_removed_checker", "ledger_added_independent_ast",
+     "first_ball_owned_suppression", "pr191_source_suppression"}
 )
 
 
@@ -5648,8 +5816,10 @@ def _assert_scoped_identity_digest(
         if key == "removed_checker_43"
         else "独立AST由来の限定18 identityが一致しない"
     )
-    if key.startswith("ledger_"):
-        label = "台帳限定identityが一致しない: " + key
+    if key.startswith("ledger_") or key in {
+        "first_ball_owned_suppression", "pr191_source_suppression",
+    }:
+        label = "限定identityが一致しない: " + key
     assert actual == expected, label
 
 
@@ -5696,6 +5866,11 @@ def test_scoped_digest_fixture_rejects_invalid_content(
             ",\"ledger_removed_checker\":\"" + "0" * 64 + "\","
             "\"ledger_added_independent_ast\":\"" + "0" * 64 + "\"}"
         )
+    if message in {"schema_versionが不正", "値が不正"}:
+        content = content[:-1] + "," + ",".join(
+            json.dumps(key) + ":" + json.dumps("0" * 64)
+            for key in ("first_ball_owned_suppression", "pr191_source_suppression")
+        ) + "}"
     fixture_path.write_text(content, encoding="utf-8")
     with pytest.raises(AssertionError, match=message):
         _load_scoped_digest_fixture(fixture_path)
@@ -5734,6 +5909,15 @@ def test_scoped_digest_fixture_rejects_changed_valid_value(
                 anchor_contract=context["anchor_contract"],
             )
             if identity[0] == scoped_path
+        )
+    if key == "first_ball_owned_suppression":
+        identities = _validated_first_ball_condition2_identities(
+            source_root=context["source_root"], current_contract=context["current_contract"],
+        )
+    elif key == "pr191_source_suppression":
+        identities = _validated_pr191_source_suppression(
+            context["declaration"], source_root=context["source_root"],
+            current_contract=context["current_contract"],
         )
     _assert_scoped_identity_digest(identities, key)
     changed = _load_scoped_digest_fixture()
@@ -6065,9 +6249,13 @@ def _assert_unadjudicated_removed_remains(
     initial_removed = _validated_initial_population_suppression(
         declaration, source_root=source_root, current_contract=current_contract,
     )
+    pr191_removed = _validated_pr191_source_suppression(
+        declaration, source_root=source_root, current_contract=current_contract,
+    )
     for identity in data_sets[set_name]:
         if (
-            identity in initial_removed or identity in scoped_removed or identity in ledger_removed
+            identity in pr191_removed or identity in initial_removed
+            or identity in scoped_removed or identity in ledger_removed
             or identity in rg1_removed or identity in first_ball_removed
             or identity in pure_decrements
             or _first_ball_registration_explains(
@@ -6235,6 +6423,11 @@ def _assert_added_equals_independently_derived_candidates(
         identity for identity in expected
         if (identity[0], identity[1], identity[4]) not in suppressed_sites
     )
+    pr191_suppressed = _validated_pr191_source_suppression(
+        declaration, source_root=source_root, current_contract=current_contract,
+    )
+    pr191_sites = {(i[0], i[1], i[4]) for i in pr191_suppressed if i[4] == "TB002"}
+    expected = frozenset(i for i in expected if (i[0], i[1], i[4]) not in pr191_sites)
     actual = _canonical_proven_builtin_identities(data_sets[set_name], source_root)
     expected = _canonical_proven_builtin_identities(expected, source_root)
     assert actual == expected, (
@@ -6621,6 +6814,17 @@ def _run_with_extra_removed(
             _run_declared_census_check(reference_root)
 
 
+def _copy_pr191_proof_inputs(destination: Path) -> None:
+    """反実ツリーへ独立fixtureと固定Git読取の文脈を明示供給する。"""
+    fixture = Path("tests/fixtures/pr191_tenant_source_expected_v1.json")
+    (destination / fixture).parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(REPOSITORY_ROOT / fixture, destination / fixture)
+    git_directory = subprocess.check_output(
+        ["git", "rev-parse", "--absolute-git-dir"], cwd=REPOSITORY_ROOT, text=True,
+    ).strip()
+    (destination / ".git").write_text("gitdir: " + git_directory + "\n")
+
+
 def _copy_current_contract_tree(destination: Path) -> None:
     """一時の現在ツリーへ、契約読取りに必要な資産と fixture を複写する。"""
     for relative in (
@@ -6632,6 +6836,7 @@ def _copy_current_contract_tree(destination: Path) -> None:
     core_areas = destination / ".claude" / "core-areas.json"
     core_areas.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(REPOSITORY_ROOT / ".claude" / "core-areas.json", core_areas)
+    _copy_pr191_proof_inputs(destination)
 
 
 def _set_temporary_allowed_symbols(
@@ -9069,4 +9274,94 @@ def test_initial_population_census_closes_all_control_frames(
         _validated_initial_population_suppression(
             _load_census_baseline_declaration(), source_root=tmp_path,
             current_contract=checker.load_contract(REPOSITORY_ROOT),
+        )
+
+
+def test_pr191_census_proof_matches_independent_51_and_condition2_ownership() -> None:
+    """51全tupleの実効果とC2専用の所有判定を別々に確認する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    identities = _validated_pr191_source_suppression(
+        _load_census_baseline_declaration(),
+        source_root=REPOSITORY_ROOT / "backend/src", current_contract=contract,
+    )
+    assert len(identities) == 51
+    assert {code: sum(i[4] == code for i in identities)
+            for code in ("TB002", "TB003", "TB007")} == {
+                "TB002": 48, "TB003": 1, "TB007": 2,
+            }
+    without = replace(contract, pr191_source_owners=())
+    for owner in contract.pr191_source_owners:
+        path = owner.path.removeprefix("backend/src/")
+        assert _condition2_owned_path(path, contract) == (
+            _condition2_owned_path(path, without)
+            or any(code == "TB002" for _, code, _, _ in owner.findings)
+        )
+
+
+@pytest.mark.parametrize("field", [
+    "kind", "revision", "expected_fixture", "identity_fields", "meanings",
+])
+def test_pr191_census_proof_rejects_changed_declaration(field: str) -> None:
+    """由来・意味・field inventoryを変えた宣言を受理しない。"""
+    declaration = _load_census_baseline_declaration()
+    declaration["pr191_source_proof"][field] = "unapproved"
+    with pytest.raises(AssertionError):
+        _validated_pr191_source_suppression(
+            declaration, source_root=REPOSITORY_ROOT / "backend/src",
+            current_contract=checker.load_contract(REPOSITORY_ROOT),
+        )
+
+
+@pytest.mark.parametrize("field", [
+    "path", "line", "end_line", "scope", "code", "symbol", "message",
+])
+def test_pr191_census_proof_rejects_changed_measured_identity(
+    monkeypatch: pytest.MonkeyPatch, field: str,
+) -> None:
+    """新枠を外した実効果の7fieldを一つでも変えると赤にする。"""
+    original = checker.scan_source
+
+    def changed(source: str, **kwargs: Any) -> list[Any]:
+        violations = original(source, **kwargs)
+        if not kwargs["contract"].pr191_source_owners and violations:
+            value = getattr(violations[0], field)
+            violations[0] = replace(violations[0], **{
+                field: value + 1 if type(value) is int else str(value) + "-other",
+            })
+        return violations
+
+    monkeypatch.setattr(checker, "scan_source", changed)
+    with pytest.raises(AssertionError, match="独立tupleと実抑止が不一致"):
+        _validated_pr191_source_suppression(
+            _load_census_baseline_declaration(), source_root=REPOSITORY_ROOT / "backend/src",
+            current_contract=checker.load_contract(REPOSITORY_ROOT),
+        )
+
+
+@pytest.mark.parametrize("mutation", [
+    "source-and-sha", "immutable-body", "other-owner", "extra-site",
+])
+def test_pr191_census_proof_cannot_authorize_mutated_source(
+    tmp_path: Path, mutation: str,
+) -> None:
+    """source+宣言SHA・別owner・追加siteを不変Gitとの比較で拒否する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    owner = contract.pr191_source_owners[0]
+    relative = owner.path.removeprefix("backend/src/")
+    target = tmp_path / relative
+    target.parent.mkdir(parents=True)
+    changed = owner.immutable_source + b"\ndef extra_site(generation):\n    return generation\n"
+    target.write_bytes(changed)
+    forged = owner
+    if mutation == "source-and-sha":
+        forged = replace(owner, source_sha256=hashlib.sha256(changed).hexdigest())
+    elif mutation == "immutable-body":
+        forged = replace(owner, immutable_source=changed)
+    elif mutation == "other-owner":
+        forged = replace(owner, path="backend/src/pitchlog/foreign_owner.py")
+    owners = tuple(forged if row is owner else row for row in contract.pr191_source_owners)
+    with pytest.raises(AssertionError):
+        _validated_pr191_source_suppression(
+            _load_census_baseline_declaration(), source_root=tmp_path,
+            current_contract=replace(contract, pr191_source_owners=owners),
         )

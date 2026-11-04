@@ -5,6 +5,7 @@ from __future__ import annotations
 import copy
 import importlib.util
 import json
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any
@@ -55,8 +56,21 @@ def _rules_for_schema(schema: dict[str, Any]) -> Any:
 
 
 def test_all_cases_match_declared_normalization_rules() -> None:
-    """状況判定116件と終了判定248件で宣言規則の適用結果が一致する。"""
-    assert checker.check_repository(ROOT) == 367
+    """旧状況119件とterminal15件・終了248件の規則適用を分けて保持する。"""
+    baseline = json.loads(subprocess.check_output([
+        "git", "show", _formal_190_revision() + ":contracts/state-transition/"
+        "state_transition_contract_v1.json",
+    ], cwd=ROOT))
+    current = _asset("state_transition_contract_v1.json")
+    terminal_ids = {f"ST-TERMINAL-BB-S{s}-B3" for s in range(3)} | {
+        f"ST-TERMINAL-HBP-S{s}-B{b}" for s in range(3) for b in range(4)
+    }
+    assert len(baseline["cases"]) == 119
+    assert [case for case in current["cases"]
+            if case["caseId"] not in terminal_ids] == baseline["cases"]
+    assert {case["caseId"] for case in current["cases"]
+            if case["caseId"] in terminal_ids} == terminal_ids
+    assert checker.check_repository(ROOT) == 119 + 15 + 248
 
 
 def test_game_end_cases_have_triples_and_display_names_are_resolved() -> None:
@@ -177,3 +191,22 @@ def test_new_rule_id_with_existing_transform_is_followed() -> None:
     changed = copy.deepcopy(case)
     changed["normalizationRuleId"] = "display-alias"
     assert checker.check_cases([changed], rules) == 1
+
+
+def _formal_190_revision() -> str:
+    """既存の独立基線JSONを閉じて読み、現物へのfallbackを許さない。"""
+    path = ROOT / "tests/fixtures/pr191_formal_ordinary_baseline_v1.json"
+    def unique(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+        value: dict[str, Any] = {}
+        for key, item in pairs:
+            if key in value:
+                raise ValueError("基線pinの重複key")
+            value[key] = item
+        return value
+    pin = json.loads(path.read_text(encoding="utf-8"), object_pairs_hook=unique)
+    assert type(pin) is dict and set(pin) == {"schema_version", "baseline_commit"}
+    assert type(pin["schema_version"]) is int and pin["schema_version"] == 1
+    revision = pin["baseline_commit"]
+    assert type(revision) is str and len(revision) == 40
+    assert all(char in "0123456789abcdef" for char in revision)
+    return revision

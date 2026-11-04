@@ -180,6 +180,8 @@ def _participants(roster: InitialRosterProjection) -> FirstBallParticipants:
 def _read_recorded_calculation(
     handle: _TenantTransaction,
     game_id: UUID,
+    *,
+    play_prefix_compat: bool = False,
 ) -> RecordedCalculationCandidate:
     """同handleの開始原典と唯一の保存初球を照合する。実登録はR3が担う。"""
     try:
@@ -420,6 +422,22 @@ def _read_recorded_calculation(
             live()
             if type(response) is not CombinedSuccess or host._source != source:
                 raise RecordedSnapshotUnavailable
+        if play_prefix_compat:
+            # v2接続だけの有限互換性。旧callerは現在hashを要求したままにする。
+            # 数学期待は直上の実loaded artifactで独立評価済み。期待lookupはしない。
+            from pitchlog.repositories.play_prefix import _require_legacy_compatibility
+
+            raw_payload = _plain(event["payload"])
+            if (
+                not isinstance(raw_payload, dict)
+                or raw_payload.get("formatVersion") != "first-ball-play-v1"
+            ):
+                raise RecordedSnapshotUnavailable
+            prior_digest = raw_payload["calculation"]["artifactSha256"]
+            _require_legacy_compatibility(
+                prior_digest, digest, source_format="first-ball-play-v1"
+            )
+            digest = prior_digest
         _check_frozen_members(response)
         expected = read_first_ball_calculation(
             format_first_ball_calculation(request, response, artifact_sha256=digest),
@@ -538,6 +556,8 @@ def _assert_play_row_matches_payload(
 def try_read_recorded_snapshot(
     handle: _TenantTransaction,
     game_id: UUID,
+    *,
+    play_prefix_compat: bool = False,
 ) -> RecordedCalculationCandidate | RecordedSnapshotNotAvailable:
     """保存初球の再評価を試み、前提不成立だけを閉じた値で返す。
 
@@ -548,6 +568,7 @@ def try_read_recorded_snapshot(
     Args:
         handle: 呼出元が所有する生存中の同一TX。
         game_id: 対象試合のUUID。
+        play_prefix_compat: v2専用の有限旧artifact証拠を必要とする読取。
 
     Returns:
         候補、または前提不成立を表す閉じた値。
@@ -556,6 +577,8 @@ def try_read_recorded_snapshot(
         RecordedSnapshotCorrupt: 保存値と独立再評価値が一致しない場合。
     """
     try:
+        if play_prefix_compat:
+            return _read_recorded_calculation(handle, game_id, play_prefix_compat=True)
         return _read_recorded_calculation(handle, game_id)
     except RecordedSnapshotUnavailable:
         return RecordedSnapshotNotAvailable()

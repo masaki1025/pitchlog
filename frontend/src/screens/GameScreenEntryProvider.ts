@@ -40,24 +40,20 @@ export function usePreparingEntryProvider(kind: 'list' | 'detail') {
   const preparing = shallowRef<EntrySupply<PreparingReadDetail> | null>(null)
   let sequence = 0
   let disposed = false
-  let activeKey: readonly unknown[] | null = null
   let loading = false
   let cursor: string | null = null
   let history: (string | null)[] = [null]
   let historyIndex = 0
   // 同じ認証世代で複数hostが生きても他hostのqueryをcancelしない。
   const owner = crypto.randomUUID()
-  function cancel(): void {
+  function invalidateOwner(): void {
     sequence += 1
     loading = false
-    if (activeKey) {
-      void queryClient.cancelQueries({ queryKey: activeKey, exact: true })
-      queryClient.removeQueries({ queryKey: activeKey, exact: true })
-      activeKey = null
-    }
+    // Cookie更新可能GETを中断せず、認証/tenant/epochの応答観測まで続ける。
+    // 旧UIへの採用はcurrent()で拒否し、queryの掃除は完了後のfinallyだけで行う。
   }
   async function load(key: string | null): Promise<void> {
-    cancel()
+    invalidateOwner()
     const request = sequence
     const tenantId = auth.teamId
     const authEpoch = auth.authEpoch
@@ -109,7 +105,6 @@ export function usePreparingEntryProvider(kind: 'list' | 'detail') {
       requestKey,
       request,
     ] as const
-    activeKey = queryKey
     try {
       // fetchQueryはobserver/refetchを持たず、再実行は明示操作だけに限定する。
       const result = await queryClient.fetchQuery({
@@ -165,7 +160,6 @@ export function usePreparingEntryProvider(kind: 'list' | 'detail') {
       queryClient.removeQueries({ queryKey, exact: true })
       if (sequence === request) {
         loading = false
-        activeKey = null
       }
     }
   }
@@ -193,7 +187,7 @@ export function usePreparingEntryProvider(kind: 'list' | 'detail') {
       route.params.gameId,
     ],
     () => {
-      cancel()
+      invalidateOwner()
       page.value = null
       preparing.value = null
       cursor = null
@@ -209,7 +203,7 @@ export function usePreparingEntryProvider(kind: 'list' | 'detail') {
   )
   onScopeDispose(() => {
     disposed = true
-    cancel()
+    invalidateOwner()
     page.value = null
     preparing.value = null
   })

@@ -689,11 +689,12 @@ def test_roster_capabilities_tokens_and_registry_are_exact() -> None:
         "pitchlog.repositories.preparing_game_creation.PreparingOpponentTeamLockToken",
         "pitchlog.repositories.pitch_type_options.PitchTypeOptionsToken",
         "pitchlog.sync.ordinary_pitch_tokens.OrdinaryPlayRowInsertToken",
+        "pitchlog.sync.terminal_pitch_tokens.PlayPrefixPlayRowInsertToken",
     )
     assert len(expected_capabilities) == 36
     assert repository_contract.PRODUCT_CAPABILITY_IDS == expected_capabilities
     assert repository_contract.PRODUCT_OPERATION_TOKEN_TYPES == expected_token_types
-    assert len(expected_token_types) == 65
+    assert len(expected_token_types) == 66
     assert (
         repository_contract.CROSS_TENANT_FUNCTION_ENTRY
         == repository_contract.CONTEXT_BINDING_ENTRY
@@ -739,6 +740,7 @@ def test_roster_capabilities_tokens_and_registry_are_exact() -> None:
                 "CAP:team_records:read",
                 "CAP:team_records:read",
                 "CAP:tenant_vocabularies:read",
+                "CAP:play_rows:insert",
                 "CAP:play_rows:insert",
             ),
             strict=True,
@@ -1112,8 +1114,13 @@ def test_stage_a_function_registration_matches_exact_asset_and_retains_rg1() -> 
         "SYNC_ORDINARY_PITCH:lock_ordinary_checkpoint",
         "SYNC_ORDINARY_PITCH:read_ordinary_history_page",
         "SYNC_ORDINARY_PITCH:read_ordinary_order_summary",
+        "SYNC_PLAY_PREFIX:read_play_prefix_checkpoint",
+        "SYNC_PLAY_PREFIX:lock_play_prefix_checkpoint",
+        "SYNC_PLAY_PREFIX:read_play_prefix_history_page",
+        "SYNC_PLAY_PREFIX:prepare_play_prefix_projection",
+        "SYNC_LINEUP_PREFIX:read_lineup_started_origin",
     )
-    assert len(expected) == 16
+    assert len(expected) == 21
     assert tuple(asset["product_function_operation_ids"]) == expected
     assert repository_contract.PRODUCT_FUNCTION_OPERATION_IDS == expected
     assert tuple(row.operation_id for row in PRODUCT_FUNCTION_OPERATIONS) == expected
@@ -1134,6 +1141,11 @@ def test_stage_a_function_registration_matches_exact_asset_and_retains_rg1() -> 
         "sync_right_api.lock_ordinary_checkpoint",
         "sync_right_api.read_ordinary_history_page",
         "sync_right_api.read_ordinary_order_summary",
+        "sync_right_api.read_play_prefix_checkpoint",
+        "sync_right_api.lock_play_prefix_checkpoint",
+        "sync_right_api.read_play_prefix_history_page",
+        "sync_right_api.prepare_play_prefix_projection",
+        "sync_right_api.read_lineup_started_origin",
     )
     from pitchlog.repositories.rg1 import (
         RG1CommitCheckToken,

@@ -85,7 +85,885 @@
             "sourceId": "req:E-2"
           }
         ]
-      }
+      },
+      "additionalCases": [
+        {
+          "caseId": "ST-STRIKEOUT-1-B0-O0",
+          "branchId": "SO-01",
+          "inputCoordinate": {
+            "eventKind": "batting-result",
+            "resultId": "batting-result.called-strikeout",
+            "state.outs": 0,
+            "state.runners": "empty",
+            "state.count.strikes": 2,
+            "state.count.balls": 0,
+            "event.perPitch.pitchEventKind": "pitch-event",
+            "state.gameEnded": false
+          },
+          "expected": {
+            "countEffect": {
+              "strikes": {
+                "kind": "reset"
+              },
+              "balls": {
+                "kind": "reset"
+              }
+            },
+            "plateAppearanceEnded": true,
+            "batterDestination": {
+              "kind": "out"
+            },
+            "runnerDefaultAdvance": {
+              "first": {
+                "modality": "not-applicable",
+                "destination": null
+              },
+              "second": {
+                "modality": "not-applicable",
+                "destination": null
+              },
+              "third": {
+                "modality": "not-applicable",
+                "destination": null
+              }
+            },
+            "outEffect": {
+              "count": 1,
+              "targets": [
+                "batter"
+              ]
+            },
+            "statFlags": {
+              "投球回算入アウト": true,
+              "投球数": true,
+              "奪三振": true,
+              "与四球": false,
+              "与死球": false,
+              "被安打": false,
+              "被本塁打": false,
+              "失点": false,
+              "失策": false,
+              "打席": true,
+              "打数": true,
+              "安打": false,
+              "本塁打": false,
+              "塁打": false,
+              "犠打": false,
+              "犠飛": false,
+              "四球": false,
+              "死球": false,
+              "三振": true,
+              "打撃妨害出塁": false,
+              "走塁妨害出塁": false,
+              "得点": false,
+              "打点": false
+            }
+          }
+        },
+        {
+          "caseId": "ST-STRIKEOUT-1-B0-O1",
+          "branchId": "SO-01",
+          "inputCoordinate": {
+            "eventKind": "batting-result",
+            "resultId": "batting-result.called-strikeout",
+            "state.outs": 1,
+            "state.runners": "first",
+            "state.count.strikes": 2,
+            "state.count.balls": 0,
+            "event.perPitch.pitchEventKind": "pitch-event",
+            "state.gameEnded": false
+          },
+          "expected": {
+            "countEffect": {
+              "strikes": {
+                "kind": "reset"
+              },
+              "balls": {
+                "kind": "reset"
+              }
+            },
+            "plateAppearanceEnded": true,
+            "batterDestination": {
+              "kind": "out"
+            },
+            "runnerDefaultAdvance": {
+              "first": {
+                "modality": "hold",
+                "destination": null
+              },
+              "second": {
+                "modality": "not-applicable",
+                "destination": null
+              },
+              "third": {
+                "modality": "not-applicable",
+                "destination": null
+              }
+            },
+            "outEffect": {
+              "count": 1,
+              "targets": [
+                "batter"
+              ]
+            },
+            "statFlags": {
+              "投球回算入アウト": true,
+              "投球数": true,
+              "奪三振": true,
+              "与四球": false,
+              "与死球": false,
+              "被安打": false,
+              "被本塁打": false,
+              "失点": false,
+              "失策": false,
+              "打席": true,
+              "打数": true,
+              "安打": false,
+              "本塁打": false,
+              "塁打": false,
+              "犠打": false,
+              "犠飛": false,
+              "四球": false,
+              "死球": false,
+              "三振": true,
+              "打撃妨害出塁": false,
+              "走塁妨害出塁": false,
+              "得点": false,
+              "打点": false
+            }
+          }
+        },
+        {
+          "caseId": "ST-STRIKEOUT-1-B0-O2",
+          "branchId": "SO-01",
+          "inputCoordinate": {
+            "eventKind": "batting-result",
+            "resultId": "batting-result.called-strikeout",
+            "state.outs": 2,
+            "state.runners": "second",
+            "state.count.strikes": 2,
+            "state.count.balls": 0,
+            "event.perPitch.pitchEventKind": "pitch-event",
+            "state.gameEnded": false
+          },
+          "expected": {
+            "countEffect": {
+              "strikes": {
+                "kind": "reset"
+              },
+              "balls": {
+                "kind": "reset"
+              }
+            },
+            "plateAppearanceEnded": true,
+            "batterDestination": {
+              "kind": "out"
+            },
+            "runnerDefaultAdvance": {
+              "first": {
+                "modality": "not-applicable",
+                "destination": null
+              },
+              "second": {
+                "modality": "hold",
+                "destination": null
+              },
+              "third": {
+                "modality": "not-applicable",
+                "destination": null
+              }
+            },
+            "outEffect": {
+              "count": 1,
+              "targets": [
+                "batter"
+              ]
+            },
+            "statFlags": {
+              "投球回算入アウト": true,
+              "投球数": true,
+              "奪三振": true,
+              "与四球": false,
+              "与死球": false,
+              "被安打": false,
+              "被本塁打": false,
+              "失点": false,
+              "失策": false,
+              "打席": true,
+              "打数": true,
+              "安打": false,
+              "本塁打": false,
+              "塁打": false,
+              "犠打": false,
+              "犠飛": false,
+              "四球": false,
+              "死球": false,
+              "三振": true,
+              "打撃妨害出塁": false,
+              "走塁妨害出塁": false,
+              "得点": false,
+              "打点": false
+            }
+          }
+        },
+        {
+          "caseId": "ST-STRIKEOUT-1-B1-O0",
+          "branchId": "SO-01",
+          "inputCoordinate": {
+            "eventKind": "batting-result",
+            "resultId": "batting-result.called-strikeout",
+            "state.outs": 0,
+            "state.runners": "third",
+            "state.count.strikes": 2,
+            "state.count.balls": 1,
+            "event.perPitch.pitchEventKind": "pitch-event",
+            "state.gameEnded": false
+          },
+          "expected": {
+            "countEffect": {
+              "strikes": {
+                "kind": "reset"
+              },
+              "balls": {
+                "kind": "reset"
+              }
+            },
+            "plateAppearanceEnded": true,
+            "batterDestination": {
+              "kind": "out"
+            },
+            "runnerDefaultAdvance": {
+              "first": {
+                "modality": "not-applicable",
+                "destination": null
+              },
+              "second": {
+                "modality": "not-applicable",
+                "destination": null
+              },
+              "third": {
+                "modality": "hold",
+                "destination": null
+              }
+            },
+            "outEffect": {
+              "count": 1,
+              "targets": [
+                "batter"
+              ]
+            },
+            "statFlags": {
+              "投球回算入アウト": true,
+              "投球数": true,
+              "奪三振": true,
+              "与四球": false,
+              "与死球": false,
+              "被安打": false,
+              "被本塁打": false,
+              "失点": false,
+              "失策": false,
+              "打席": true,
+              "打数": true,
+              "安打": false,
+              "本塁打": false,
+              "塁打": false,
+              "犠打": false,
+              "犠飛": false,
+              "四球": false,
+              "死球": false,
+              "三振": true,
+              "打撃妨害出塁": false,
+              "走塁妨害出塁": false,
+              "得点": false,
+              "打点": false
+            }
+          }
+        },
+        {
+          "caseId": "ST-STRIKEOUT-1-B1-O1",
+          "branchId": "SO-01",
+          "inputCoordinate": {
+            "eventKind": "batting-result",
+            "resultId": "batting-result.called-strikeout",
+            "state.outs": 1,
+            "state.runners": "first-second",
+            "state.count.strikes": 2,
+            "state.count.balls": 1,
+            "event.perPitch.pitchEventKind": "pitch-event",
+            "state.gameEnded": false
+          },
+          "expected": {
+            "countEffect": {
+              "strikes": {
+                "kind": "reset"
+              },
+              "balls": {
+                "kind": "reset"
+              }
+            },
+            "plateAppearanceEnded": true,
+            "batterDestination": {
+              "kind": "out"
+            },
+            "runnerDefaultAdvance": {
+              "first": {
+                "modality": "hold",
+                "destination": null
+              },
+              "second": {
+                "modality": "hold",
+                "destination": null
+              },
+              "third": {
+                "modality": "not-applicable",
+                "destination": null
+              }
+            },
+            "outEffect": {
+              "count": 1,
+              "targets": [
+                "batter"
+              ]
+            },
+            "statFlags": {
+              "投球回算入アウト": true,
+              "投球数": true,
+              "奪三振": true,
+              "与四球": false,
+              "与死球": false,
+              "被安打": false,
+              "被本塁打": false,
+              "失点": false,
+              "失策": false,
+              "打席": true,
+              "打数": true,
+              "安打": false,
+              "本塁打": false,
+              "塁打": false,
+              "犠打": false,
+              "犠飛": false,
+              "四球": false,
+              "死球": false,
+              "三振": true,
+              "打撃妨害出塁": false,
+              "走塁妨害出塁": false,
+              "得点": false,
+              "打点": false
+            }
+          }
+        },
+        {
+          "caseId": "ST-STRIKEOUT-1-B1-O2",
+          "branchId": "SO-01",
+          "inputCoordinate": {
+            "eventKind": "batting-result",
+            "resultId": "batting-result.called-strikeout",
+            "state.outs": 2,
+            "state.runners": "first-third",
+            "state.count.strikes": 2,
+            "state.count.balls": 1,
+            "event.perPitch.pitchEventKind": "pitch-event",
+            "state.gameEnded": false
+          },
+          "expected": {
+            "countEffect": {
+              "strikes": {
+                "kind": "reset"
+              },
+              "balls": {
+                "kind": "reset"
+              }
+            },
+            "plateAppearanceEnded": true,
+            "batterDestination": {
+              "kind": "out"
+            },
+            "runnerDefaultAdvance": {
+              "first": {
+                "modality": "hold",
+                "destination": null
+              },
+              "second": {
+                "modality": "not-applicable",
+                "destination": null
+              },
+              "third": {
+                "modality": "hold",
+                "destination": null
+              }
+            },
+            "outEffect": {
+              "count": 1,
+              "targets": [
+                "batter"
+              ]
+            },
+            "statFlags": {
+              "投球回算入アウト": true,
+              "投球数": true,
+              "奪三振": true,
+              "与四球": false,
+              "与死球": false,
+              "被安打": false,
+              "被本塁打": false,
+              "失点": false,
+              "失策": false,
+              "打席": true,
+              "打数": true,
+              "安打": false,
+              "本塁打": false,
+              "塁打": false,
+              "犠打": false,
+              "犠飛": false,
+              "四球": false,
+              "死球": false,
+              "三振": true,
+              "打撃妨害出塁": false,
+              "走塁妨害出塁": false,
+              "得点": false,
+              "打点": false
+            }
+          }
+        },
+        {
+          "caseId": "ST-STRIKEOUT-1-B2-O0",
+          "branchId": "SO-01",
+          "inputCoordinate": {
+            "eventKind": "batting-result",
+            "resultId": "batting-result.called-strikeout",
+            "state.outs": 0,
+            "state.runners": "second-third",
+            "state.count.strikes": 2,
+            "state.count.balls": 2,
+            "event.perPitch.pitchEventKind": "pitch-event",
+            "state.gameEnded": false
+          },
+          "expected": {
+            "countEffect": {
+              "strikes": {
+                "kind": "reset"
+              },
+              "balls": {
+                "kind": "reset"
+              }
+            },
+            "plateAppearanceEnded": true,
+            "batterDestination": {
+              "kind": "out"
+            },
+            "runnerDefaultAdvance": {
+              "first": {
+                "modality": "not-applicable",
+                "destination": null
+              },
+              "second": {
+                "modality": "hold",
+                "destination": null
+              },
+              "third": {
+                "modality": "hold",
+                "destination": null
+              }
+            },
+            "outEffect": {
+              "count": 1,
+              "targets": [
+                "batter"
+              ]
+            },
+            "statFlags": {
+              "投球回算入アウト": true,
+              "投球数": true,
+              "奪三振": true,
+              "与四球": false,
+              "与死球": false,
+              "被安打": false,
+              "被本塁打": false,
+              "失点": false,
+              "失策": false,
+              "打席": true,
+              "打数": true,
+              "安打": false,
+              "本塁打": false,
+              "塁打": false,
+              "犠打": false,
+              "犠飛": false,
+              "四球": false,
+              "死球": false,
+              "三振": true,
+              "打撃妨害出塁": false,
+              "走塁妨害出塁": false,
+              "得点": false,
+              "打点": false
+            }
+          }
+        },
+        {
+          "caseId": "ST-STRIKEOUT-1-B2-O1",
+          "branchId": "SO-01",
+          "inputCoordinate": {
+            "eventKind": "batting-result",
+            "resultId": "batting-result.called-strikeout",
+            "state.outs": 1,
+            "state.runners": "loaded",
+            "state.count.strikes": 2,
+            "state.count.balls": 2,
+            "event.perPitch.pitchEventKind": "pitch-event",
+            "state.gameEnded": false
+          },
+          "expected": {
+            "countEffect": {
+              "strikes": {
+                "kind": "reset"
+              },
+              "balls": {
+                "kind": "reset"
+              }
+            },
+            "plateAppearanceEnded": true,
+            "batterDestination": {
+              "kind": "out"
+            },
+            "runnerDefaultAdvance": {
+              "first": {
+                "modality": "hold",
+                "destination": null
+              },
+              "second": {
+                "modality": "hold",
+                "destination": null
+              },
+              "third": {
+                "modality": "hold",
+                "destination": null
+              }
+            },
+            "outEffect": {
+              "count": 1,
+              "targets": [
+                "batter"
+              ]
+            },
+            "statFlags": {
+              "投球回算入アウト": true,
+              "投球数": true,
+              "奪三振": true,
+              "与四球": false,
+              "与死球": false,
+              "被安打": false,
+              "被本塁打": false,
+              "失点": false,
+              "失策": false,
+              "打席": true,
+              "打数": true,
+              "安打": false,
+              "本塁打": false,
+              "塁打": false,
+              "犠打": false,
+              "犠飛": false,
+              "四球": false,
+              "死球": false,
+              "三振": true,
+              "打撃妨害出塁": false,
+              "走塁妨害出塁": false,
+              "得点": false,
+              "打点": false
+            }
+          }
+        },
+        {
+          "caseId": "ST-STRIKEOUT-1-B2-O2",
+          "branchId": "SO-01",
+          "inputCoordinate": {
+            "eventKind": "batting-result",
+            "resultId": "batting-result.called-strikeout",
+            "state.outs": 2,
+            "state.runners": "empty",
+            "state.count.strikes": 2,
+            "state.count.balls": 2,
+            "event.perPitch.pitchEventKind": "pitch-event",
+            "state.gameEnded": false
+          },
+          "expected": {
+            "countEffect": {
+              "strikes": {
+                "kind": "reset"
+              },
+              "balls": {
+                "kind": "reset"
+              }
+            },
+            "plateAppearanceEnded": true,
+            "batterDestination": {
+              "kind": "out"
+            },
+            "runnerDefaultAdvance": {
+              "first": {
+                "modality": "not-applicable",
+                "destination": null
+              },
+              "second": {
+                "modality": "not-applicable",
+                "destination": null
+              },
+              "third": {
+                "modality": "not-applicable",
+                "destination": null
+              }
+            },
+            "outEffect": {
+              "count": 1,
+              "targets": [
+                "batter"
+              ]
+            },
+            "statFlags": {
+              "投球回算入アウト": true,
+              "投球数": true,
+              "奪三振": true,
+              "与四球": false,
+              "与死球": false,
+              "被安打": false,
+              "被本塁打": false,
+              "失点": false,
+              "失策": false,
+              "打席": true,
+              "打数": true,
+              "安打": false,
+              "本塁打": false,
+              "塁打": false,
+              "犠打": false,
+              "犠飛": false,
+              "四球": false,
+              "死球": false,
+              "三振": true,
+              "打撃妨害出塁": false,
+              "走塁妨害出塁": false,
+              "得点": false,
+              "打点": false
+            }
+          }
+        },
+        {
+          "caseId": "ST-STRIKEOUT-1-B3-O0",
+          "branchId": "SO-01",
+          "inputCoordinate": {
+            "eventKind": "batting-result",
+            "resultId": "batting-result.called-strikeout",
+            "state.outs": 0,
+            "state.runners": "first",
+            "state.count.strikes": 2,
+            "state.count.balls": 3,
+            "event.perPitch.pitchEventKind": "pitch-event",
+            "state.gameEnded": false
+          },
+          "expected": {
+            "countEffect": {
+              "strikes": {
+                "kind": "reset"
+              },
+              "balls": {
+                "kind": "reset"
+              }
+            },
+            "plateAppearanceEnded": true,
+            "batterDestination": {
+              "kind": "out"
+            },
+            "runnerDefaultAdvance": {
+              "first": {
+                "modality": "hold",
+                "destination": null
+              },
+              "second": {
+                "modality": "not-applicable",
+                "destination": null
+              },
+              "third": {
+                "modality": "not-applicable",
+                "destination": null
+              }
+            },
+            "outEffect": {
+              "count": 1,
+              "targets": [
+                "batter"
+              ]
+            },
+            "statFlags": {
+              "投球回算入アウト": true,
+              "投球数": true,
+              "奪三振": true,
+              "与四球": false,
+              "与死球": false,
+              "被安打": false,
+              "被本塁打": false,
+              "失点": false,
+              "失策": false,
+              "打席": true,
+              "打数": true,
+              "安打": false,
+              "本塁打": false,
+              "塁打": false,
+              "犠打": false,
+              "犠飛": false,
+              "四球": false,
+              "死球": false,
+              "三振": true,
+              "打撃妨害出塁": false,
+              "走塁妨害出塁": false,
+              "得点": false,
+              "打点": false
+            }
+          }
+        },
+        {
+          "caseId": "ST-STRIKEOUT-1-B3-O1",
+          "branchId": "SO-01",
+          "inputCoordinate": {
+            "eventKind": "batting-result",
+            "resultId": "batting-result.called-strikeout",
+            "state.outs": 1,
+            "state.runners": "second",
+            "state.count.strikes": 2,
+            "state.count.balls": 3,
+            "event.perPitch.pitchEventKind": "pitch-event",
+            "state.gameEnded": false
+          },
+          "expected": {
+            "countEffect": {
+              "strikes": {
+                "kind": "reset"
+              },
+              "balls": {
+                "kind": "reset"
+              }
+            },
+            "plateAppearanceEnded": true,
+            "batterDestination": {
+              "kind": "out"
+            },
+            "runnerDefaultAdvance": {
+              "first": {
+                "modality": "not-applicable",
+                "destination": null
+              },
+              "second": {
+                "modality": "hold",
+                "destination": null
+              },
+              "third": {
+                "modality": "not-applicable",
+                "destination": null
+              }
+            },
+            "outEffect": {
+              "count": 1,
+              "targets": [
+                "batter"
+              ]
+            },
+            "statFlags": {
+              "投球回算入アウト": true,
+              "投球数": true,
+              "奪三振": true,
+              "与四球": false,
+              "与死球": false,
+              "被安打": false,
+              "被本塁打": false,
+              "失点": false,
+              "失策": false,
+              "打席": true,
+              "打数": true,
+              "安打": false,
+              "本塁打": false,
+              "塁打": false,
+              "犠打": false,
+              "犠飛": false,
+              "四球": false,
+              "死球": false,
+              "三振": true,
+              "打撃妨害出塁": false,
+              "走塁妨害出塁": false,
+              "得点": false,
+              "打点": false
+            }
+          }
+        },
+        {
+          "caseId": "ST-STRIKEOUT-1-B3-O2",
+          "branchId": "SO-01",
+          "inputCoordinate": {
+            "eventKind": "batting-result",
+            "resultId": "batting-result.called-strikeout",
+            "state.outs": 2,
+            "state.runners": "third",
+            "state.count.strikes": 2,
+            "state.count.balls": 3,
+            "event.perPitch.pitchEventKind": "pitch-event",
+            "state.gameEnded": false
+          },
+          "expected": {
+            "countEffect": {
+              "strikes": {
+                "kind": "reset"
+              },
+              "balls": {
+                "kind": "reset"
+              }
+            },
+            "plateAppearanceEnded": true,
+            "batterDestination": {
+              "kind": "out"
+            },
+            "runnerDefaultAdvance": {
+              "first": {
+                "modality": "not-applicable",
+                "destination": null
+              },
+              "second": {
+                "modality": "not-applicable",
+                "destination": null
+              },
+              "third": {
+                "modality": "hold",
+                "destination": null
+              }
+            },
+            "outEffect": {
+              "count": 1,
+              "targets": [
+                "batter"
+              ]
+            },
+            "statFlags": {
+              "投球回算入アウト": true,
+              "投球数": true,
+              "奪三振": true,
+              "与四球": false,
+              "与死球": false,
+              "被安打": false,
+              "被本塁打": false,
+              "失点": false,
+              "失策": false,
+              "打席": true,
+              "打数": true,
+              "安打": false,
+              "本塁打": false,
+              "塁打": false,
+              "犠打": false,
+              "犠飛": false,
+              "四球": false,
+              "死球": false,
+              "三振": true,
+              "打撃妨害出塁": false,
+              "走塁妨害出塁": false,
+              "得点": false,
+              "打点": false
+            }
+          }
+        }
+      ]
     },
     {
       "case": {
@@ -169,7 +1047,885 @@
             "sourceId": "req:E-2"
           }
         ]
-      }
+      },
+      "additionalCases": [
+        {
+          "caseId": "ST-STRIKEOUT-2-B0-O0",
+          "branchId": "SO-02",
+          "inputCoordinate": {
+            "eventKind": "batting-result",
+            "resultId": "batting-result.swinging-strikeout",
+            "state.outs": 0,
+            "state.runners": "empty",
+            "state.count.strikes": 2,
+            "state.count.balls": 0,
+            "event.perPitch.pitchEventKind": "pitch-event",
+            "state.gameEnded": false
+          },
+          "expected": {
+            "countEffect": {
+              "strikes": {
+                "kind": "reset"
+              },
+              "balls": {
+                "kind": "reset"
+              }
+            },
+            "plateAppearanceEnded": true,
+            "batterDestination": {
+              "kind": "out"
+            },
+            "runnerDefaultAdvance": {
+              "first": {
+                "modality": "not-applicable",
+                "destination": null
+              },
+              "second": {
+                "modality": "not-applicable",
+                "destination": null
+              },
+              "third": {
+                "modality": "not-applicable",
+                "destination": null
+              }
+            },
+            "outEffect": {
+              "count": 1,
+              "targets": [
+                "batter"
+              ]
+            },
+            "statFlags": {
+              "投球回算入アウト": true,
+              "投球数": true,
+              "奪三振": true,
+              "与四球": false,
+              "与死球": false,
+              "被安打": false,
+              "被本塁打": false,
+              "失点": false,
+              "失策": false,
+              "打席": true,
+              "打数": true,
+              "安打": false,
+              "本塁打": false,
+              "塁打": false,
+              "犠打": false,
+              "犠飛": false,
+              "四球": false,
+              "死球": false,
+              "三振": true,
+              "打撃妨害出塁": false,
+              "走塁妨害出塁": false,
+              "得点": false,
+              "打点": false
+            }
+          }
+        },
+        {
+          "caseId": "ST-STRIKEOUT-2-B0-O1",
+          "branchId": "SO-02",
+          "inputCoordinate": {
+            "eventKind": "batting-result",
+            "resultId": "batting-result.swinging-strikeout",
+            "state.outs": 1,
+            "state.runners": "first",
+            "state.count.strikes": 2,
+            "state.count.balls": 0,
+            "event.perPitch.pitchEventKind": "pitch-event",
+            "state.gameEnded": false
+          },
+          "expected": {
+            "countEffect": {
+              "strikes": {
+                "kind": "reset"
+              },
+              "balls": {
+                "kind": "reset"
+              }
+            },
+            "plateAppearanceEnded": true,
+            "batterDestination": {
+              "kind": "out"
+            },
+            "runnerDefaultAdvance": {
+              "first": {
+                "modality": "hold",
+                "destination": null
+              },
+              "second": {
+                "modality": "not-applicable",
+                "destination": null
+              },
+              "third": {
+                "modality": "not-applicable",
+                "destination": null
+              }
+            },
+            "outEffect": {
+              "count": 1,
+              "targets": [
+                "batter"
+              ]
+            },
+            "statFlags": {
+              "投球回算入アウト": true,
+              "投球数": true,
+              "奪三振": true,
+              "与四球": false,
+              "与死球": false,
+              "被安打": false,
+              "被本塁打": false,
+              "失点": false,
+              "失策": false,
+              "打席": true,
+              "打数": true,
+              "安打": false,
+              "本塁打": false,
+              "塁打": false,
+              "犠打": false,
+              "犠飛": false,
+              "四球": false,
+              "死球": false,
+              "三振": true,
+              "打撃妨害出塁": false,
+              "走塁妨害出塁": false,
+              "得点": false,
+              "打点": false
+            }
+          }
+        },
+        {
+          "caseId": "ST-STRIKEOUT-2-B0-O2",
+          "branchId": "SO-02",
+          "inputCoordinate": {
+            "eventKind": "batting-result",
+            "resultId": "batting-result.swinging-strikeout",
+            "state.outs": 2,
+            "state.runners": "second",
+            "state.count.strikes": 2,
+            "state.count.balls": 0,
+            "event.perPitch.pitchEventKind": "pitch-event",
+            "state.gameEnded": false
+          },
+          "expected": {
+            "countEffect": {
+              "strikes": {
+                "kind": "reset"
+              },
+              "balls": {
+                "kind": "reset"
+              }
+            },
+            "plateAppearanceEnded": true,
+            "batterDestination": {
+              "kind": "out"
+            },
+            "runnerDefaultAdvance": {
+              "first": {
+                "modality": "not-applicable",
+                "destination": null
+              },
+              "second": {
+                "modality": "hold",
+                "destination": null
+              },
+              "third": {
+                "modality": "not-applicable",
+                "destination": null
+              }
+            },
+            "outEffect": {
+              "count": 1,
+              "targets": [
+                "batter"
+              ]
+            },
+            "statFlags": {
+              "投球回算入アウト": true,
+              "投球数": true,
+              "奪三振": true,
+              "与四球": false,
+              "与死球": false,
+              "被安打": false,
+              "被本塁打": false,
+              "失点": false,
+              "失策": false,
+              "打席": true,
+              "打数": true,
+              "安打": false,
+              "本塁打": false,
+              "塁打": false,
+              "犠打": false,
+              "犠飛": false,
+              "四球": false,
+              "死球": false,
+              "三振": true,
+              "打撃妨害出塁": false,
+              "走塁妨害出塁": false,
+              "得点": false,
+              "打点": false
+            }
+          }
+        },
+        {
+          "caseId": "ST-STRIKEOUT-2-B1-O0",
+          "branchId": "SO-02",
+          "inputCoordinate": {
+            "eventKind": "batting-result",
+            "resultId": "batting-result.swinging-strikeout",
+            "state.outs": 0,
+            "state.runners": "third",
+            "state.count.strikes": 2,
+            "state.count.balls": 1,
+            "event.perPitch.pitchEventKind": "pitch-event",
+            "state.gameEnded": false
+          },
+          "expected": {
+            "countEffect": {
+              "strikes": {
+                "kind": "reset"
+              },
+              "balls": {
+                "kind": "reset"
+              }
+            },
+            "plateAppearanceEnded": true,
+            "batterDestination": {
+              "kind": "out"
+            },
+            "runnerDefaultAdvance": {
+              "first": {
+                "modality": "not-applicable",
+                "destination": null
+              },
+              "second": {
+                "modality": "not-applicable",
+                "destination": null
+              },
+              "third": {
+                "modality": "hold",
+                "destination": null
+              }
+            },
+            "outEffect": {
+              "count": 1,
+              "targets": [
+                "batter"
+              ]
+            },
+            "statFlags": {
+              "投球回算入アウト": true,
+              "投球数": true,
+              "奪三振": true,
+              "与四球": false,
+              "与死球": false,
+              "被安打": false,
+              "被本塁打": false,
+              "失点": false,
+              "失策": false,
+              "打席": true,
+              "打数": true,
+              "安打": false,
+              "本塁打": false,
+              "塁打": false,
+              "犠打": false,
+              "犠飛": false,
+              "四球": false,
+              "死球": false,
+              "三振": true,
+              "打撃妨害出塁": false,
+              "走塁妨害出塁": false,
+              "得点": false,
+              "打点": false
+            }
+          }
+        },
+        {
+          "caseId": "ST-STRIKEOUT-2-B1-O1",
+          "branchId": "SO-02",
+          "inputCoordinate": {
+            "eventKind": "batting-result",
+            "resultId": "batting-result.swinging-strikeout",
+            "state.outs": 1,
+            "state.runners": "first-second",
+            "state.count.strikes": 2,
+            "state.count.balls": 1,
+            "event.perPitch.pitchEventKind": "pitch-event",
+            "state.gameEnded": false
+          },
+          "expected": {
+            "countEffect": {
+              "strikes": {
+                "kind": "reset"
+              },
+              "balls": {
+                "kind": "reset"
+              }
+            },
+            "plateAppearanceEnded": true,
+            "batterDestination": {
+              "kind": "out"
+            },
+            "runnerDefaultAdvance": {
+              "first": {
+                "modality": "hold",
+                "destination": null
+              },
+              "second": {
+                "modality": "hold",
+                "destination": null
+              },
+              "third": {
+                "modality": "not-applicable",
+                "destination": null
+              }
+            },
+            "outEffect": {
+              "count": 1,
+              "targets": [
+                "batter"
+              ]
+            },
+            "statFlags": {
+              "投球回算入アウト": true,
+              "投球数": true,
+              "奪三振": true,
+              "与四球": false,
+              "与死球": false,
+              "被安打": false,
+              "被本塁打": false,
+              "失点": false,
+              "失策": false,
+              "打席": true,
+              "打数": true,
+              "安打": false,
+              "本塁打": false,
+              "塁打": false,
+              "犠打": false,
+              "犠飛": false,
+              "四球": false,
+              "死球": false,
+              "三振": true,
+              "打撃妨害出塁": false,
+              "走塁妨害出塁": false,
+              "得点": false,
+              "打点": false
+            }
+          }
+        },
+        {
+          "caseId": "ST-STRIKEOUT-2-B1-O2",
+          "branchId": "SO-02",
+          "inputCoordinate": {
+            "eventKind": "batting-result",
+            "resultId": "batting-result.swinging-strikeout",
+            "state.outs": 2,
+            "state.runners": "first-third",
+            "state.count.strikes": 2,
+            "state.count.balls": 1,
+            "event.perPitch.pitchEventKind": "pitch-event",
+            "state.gameEnded": false
+          },
+          "expected": {
+            "countEffect": {
+              "strikes": {
+                "kind": "reset"
+              },
+              "balls": {
+                "kind": "reset"
+              }
+            },
+            "plateAppearanceEnded": true,
+            "batterDestination": {
+              "kind": "out"
+            },
+            "runnerDefaultAdvance": {
+              "first": {
+                "modality": "hold",
+                "destination": null
+              },
+              "second": {
+                "modality": "not-applicable",
+                "destination": null
+              },
+              "third": {
+                "modality": "hold",
+                "destination": null
+              }
+            },
+            "outEffect": {
+              "count": 1,
+              "targets": [
+                "batter"
+              ]
+            },
+            "statFlags": {
+              "投球回算入アウト": true,
+              "投球数": true,
+              "奪三振": true,
+              "与四球": false,
+              "与死球": false,
+              "被安打": false,
+              "被本塁打": false,
+              "失点": false,
+              "失策": false,
+              "打席": true,
+              "打数": true,
+              "安打": false,
+              "本塁打": false,
+              "塁打": false,
+              "犠打": false,
+              "犠飛": false,
+              "四球": false,
+              "死球": false,
+              "三振": true,
+              "打撃妨害出塁": false,
+              "走塁妨害出塁": false,
+              "得点": false,
+              "打点": false
+            }
+          }
+        },
+        {
+          "caseId": "ST-STRIKEOUT-2-B2-O0",
+          "branchId": "SO-02",
+          "inputCoordinate": {
+            "eventKind": "batting-result",
+            "resultId": "batting-result.swinging-strikeout",
+            "state.outs": 0,
+            "state.runners": "second-third",
+            "state.count.strikes": 2,
+            "state.count.balls": 2,
+            "event.perPitch.pitchEventKind": "pitch-event",
+            "state.gameEnded": false
+          },
+          "expected": {
+            "countEffect": {
+              "strikes": {
+                "kind": "reset"
+              },
+              "balls": {
+                "kind": "reset"
+              }
+            },
+            "plateAppearanceEnded": true,
+            "batterDestination": {
+              "kind": "out"
+            },
+            "runnerDefaultAdvance": {
+              "first": {
+                "modality": "not-applicable",
+                "destination": null
+              },
+              "second": {
+                "modality": "hold",
+                "destination": null
+              },
+              "third": {
+                "modality": "hold",
+                "destination": null
+              }
+            },
+            "outEffect": {
+              "count": 1,
+              "targets": [
+                "batter"
+              ]
+            },
+            "statFlags": {
+              "投球回算入アウト": true,
+              "投球数": true,
+              "奪三振": true,
+              "与四球": false,
+              "与死球": false,
+              "被安打": false,
+              "被本塁打": false,
+              "失点": false,
+              "失策": false,
+              "打席": true,
+              "打数": true,
+              "安打": false,
+              "本塁打": false,
+              "塁打": false,
+              "犠打": false,
+              "犠飛": false,
+              "四球": false,
+              "死球": false,
+              "三振": true,
+              "打撃妨害出塁": false,
+              "走塁妨害出塁": false,
+              "得点": false,
+              "打点": false
+            }
+          }
+        },
+        {
+          "caseId": "ST-STRIKEOUT-2-B2-O1",
+          "branchId": "SO-02",
+          "inputCoordinate": {
+            "eventKind": "batting-result",
+            "resultId": "batting-result.swinging-strikeout",
+            "state.outs": 1,
+            "state.runners": "loaded",
+            "state.count.strikes": 2,
+            "state.count.balls": 2,
+            "event.perPitch.pitchEventKind": "pitch-event",
+            "state.gameEnded": false
+          },
+          "expected": {
+            "countEffect": {
+              "strikes": {
+                "kind": "reset"
+              },
+              "balls": {
+                "kind": "reset"
+              }
+            },
+            "plateAppearanceEnded": true,
+            "batterDestination": {
+              "kind": "out"
+            },
+            "runnerDefaultAdvance": {
+              "first": {
+                "modality": "hold",
+                "destination": null
+              },
+              "second": {
+                "modality": "hold",
+                "destination": null
+              },
+              "third": {
+                "modality": "hold",
+                "destination": null
+              }
+            },
+            "outEffect": {
+              "count": 1,
+              "targets": [
+                "batter"
+              ]
+            },
+            "statFlags": {
+              "投球回算入アウト": true,
+              "投球数": true,
+              "奪三振": true,
+              "与四球": false,
+              "与死球": false,
+              "被安打": false,
+              "被本塁打": false,
+              "失点": false,
+              "失策": false,
+              "打席": true,
+              "打数": true,
+              "安打": false,
+              "本塁打": false,
+              "塁打": false,
+              "犠打": false,
+              "犠飛": false,
+              "四球": false,
+              "死球": false,
+              "三振": true,
+              "打撃妨害出塁": false,
+              "走塁妨害出塁": false,
+              "得点": false,
+              "打点": false
+            }
+          }
+        },
+        {
+          "caseId": "ST-STRIKEOUT-2-B2-O2",
+          "branchId": "SO-02",
+          "inputCoordinate": {
+            "eventKind": "batting-result",
+            "resultId": "batting-result.swinging-strikeout",
+            "state.outs": 2,
+            "state.runners": "empty",
+            "state.count.strikes": 2,
+            "state.count.balls": 2,
+            "event.perPitch.pitchEventKind": "pitch-event",
+            "state.gameEnded": false
+          },
+          "expected": {
+            "countEffect": {
+              "strikes": {
+                "kind": "reset"
+              },
+              "balls": {
+                "kind": "reset"
+              }
+            },
+            "plateAppearanceEnded": true,
+            "batterDestination": {
+              "kind": "out"
+            },
+            "runnerDefaultAdvance": {
+              "first": {
+                "modality": "not-applicable",
+                "destination": null
+              },
+              "second": {
+                "modality": "not-applicable",
+                "destination": null
+              },
+              "third": {
+                "modality": "not-applicable",
+                "destination": null
+              }
+            },
+            "outEffect": {
+              "count": 1,
+              "targets": [
+                "batter"
+              ]
+            },
+            "statFlags": {
+              "投球回算入アウト": true,
+              "投球数": true,
+              "奪三振": true,
+              "与四球": false,
+              "与死球": false,
+              "被安打": false,
+              "被本塁打": false,
+              "失点": false,
+              "失策": false,
+              "打席": true,
+              "打数": true,
+              "安打": false,
+              "本塁打": false,
+              "塁打": false,
+              "犠打": false,
+              "犠飛": false,
+              "四球": false,
+              "死球": false,
+              "三振": true,
+              "打撃妨害出塁": false,
+              "走塁妨害出塁": false,
+              "得点": false,
+              "打点": false
+            }
+          }
+        },
+        {
+          "caseId": "ST-STRIKEOUT-2-B3-O0",
+          "branchId": "SO-02",
+          "inputCoordinate": {
+            "eventKind": "batting-result",
+            "resultId": "batting-result.swinging-strikeout",
+            "state.outs": 0,
+            "state.runners": "first",
+            "state.count.strikes": 2,
+            "state.count.balls": 3,
+            "event.perPitch.pitchEventKind": "pitch-event",
+            "state.gameEnded": false
+          },
+          "expected": {
+            "countEffect": {
+              "strikes": {
+                "kind": "reset"
+              },
+              "balls": {
+                "kind": "reset"
+              }
+            },
+            "plateAppearanceEnded": true,
+            "batterDestination": {
+              "kind": "out"
+            },
+            "runnerDefaultAdvance": {
+              "first": {
+                "modality": "hold",
+                "destination": null
+              },
+              "second": {
+                "modality": "not-applicable",
+                "destination": null
+              },
+              "third": {
+                "modality": "not-applicable",
+                "destination": null
+              }
+            },
+            "outEffect": {
+              "count": 1,
+              "targets": [
+                "batter"
+              ]
+            },
+            "statFlags": {
+              "投球回算入アウト": true,
+              "投球数": true,
+              "奪三振": true,
+              "与四球": false,
+              "与死球": false,
+              "被安打": false,
+              "被本塁打": false,
+              "失点": false,
+              "失策": false,
+              "打席": true,
+              "打数": true,
+              "安打": false,
+              "本塁打": false,
+              "塁打": false,
+              "犠打": false,
+              "犠飛": false,
+              "四球": false,
+              "死球": false,
+              "三振": true,
+              "打撃妨害出塁": false,
+              "走塁妨害出塁": false,
+              "得点": false,
+              "打点": false
+            }
+          }
+        },
+        {
+          "caseId": "ST-STRIKEOUT-2-B3-O1",
+          "branchId": "SO-02",
+          "inputCoordinate": {
+            "eventKind": "batting-result",
+            "resultId": "batting-result.swinging-strikeout",
+            "state.outs": 1,
+            "state.runners": "second",
+            "state.count.strikes": 2,
+            "state.count.balls": 3,
+            "event.perPitch.pitchEventKind": "pitch-event",
+            "state.gameEnded": false
+          },
+          "expected": {
+            "countEffect": {
+              "strikes": {
+                "kind": "reset"
+              },
+              "balls": {
+                "kind": "reset"
+              }
+            },
+            "plateAppearanceEnded": true,
+            "batterDestination": {
+              "kind": "out"
+            },
+            "runnerDefaultAdvance": {
+              "first": {
+                "modality": "not-applicable",
+                "destination": null
+              },
+              "second": {
+                "modality": "hold",
+                "destination": null
+              },
+              "third": {
+                "modality": "not-applicable",
+                "destination": null
+              }
+            },
+            "outEffect": {
+              "count": 1,
+              "targets": [
+                "batter"
+              ]
+            },
+            "statFlags": {
+              "投球回算入アウト": true,
+              "投球数": true,
+              "奪三振": true,
+              "与四球": false,
+              "与死球": false,
+              "被安打": false,
+              "被本塁打": false,
+              "失点": false,
+              "失策": false,
+              "打席": true,
+              "打数": true,
+              "安打": false,
+              "本塁打": false,
+              "塁打": false,
+              "犠打": false,
+              "犠飛": false,
+              "四球": false,
+              "死球": false,
+              "三振": true,
+              "打撃妨害出塁": false,
+              "走塁妨害出塁": false,
+              "得点": false,
+              "打点": false
+            }
+          }
+        },
+        {
+          "caseId": "ST-STRIKEOUT-2-B3-O2",
+          "branchId": "SO-02",
+          "inputCoordinate": {
+            "eventKind": "batting-result",
+            "resultId": "batting-result.swinging-strikeout",
+            "state.outs": 2,
+            "state.runners": "third",
+            "state.count.strikes": 2,
+            "state.count.balls": 3,
+            "event.perPitch.pitchEventKind": "pitch-event",
+            "state.gameEnded": false
+          },
+          "expected": {
+            "countEffect": {
+              "strikes": {
+                "kind": "reset"
+              },
+              "balls": {
+                "kind": "reset"
+              }
+            },
+            "plateAppearanceEnded": true,
+            "batterDestination": {
+              "kind": "out"
+            },
+            "runnerDefaultAdvance": {
+              "first": {
+                "modality": "not-applicable",
+                "destination": null
+              },
+              "second": {
+                "modality": "not-applicable",
+                "destination": null
+              },
+              "third": {
+                "modality": "hold",
+                "destination": null
+              }
+            },
+            "outEffect": {
+              "count": 1,
+              "targets": [
+                "batter"
+              ]
+            },
+            "statFlags": {
+              "投球回算入アウト": true,
+              "投球数": true,
+              "奪三振": true,
+              "与四球": false,
+              "与死球": false,
+              "被安打": false,
+              "被本塁打": false,
+              "失点": false,
+              "失策": false,
+              "打席": true,
+              "打数": true,
+              "安打": false,
+              "本塁打": false,
+              "塁打": false,
+              "犠打": false,
+              "犠飛": false,
+              "四球": false,
+              "死球": false,
+              "三振": true,
+              "打撃妨害出塁": false,
+              "走塁妨害出塁": false,
+              "得点": false,
+              "打点": false
+            }
+          }
+        }
+      ]
     },
     {
       "case": {
@@ -1616,7 +3372,1089 @@
             "sourceId": "req:E-1"
           }
         ]
-      }
+      },
+      "additionalCases": [
+        {
+          "caseId": "ST-TERMINAL-BB-S0-B3",
+          "branchId": "ADV-01",
+          "inputCoordinate": {
+            "eventKind": "batting-result",
+            "resultId": "batting-result.walk",
+            "state.count.strikes": 0,
+            "state.count.balls": 3,
+            "state.outs": 0,
+            "state.runners": "empty",
+            "state.gameEnded": false,
+            "event.perPitch.pitchEventKind": "pitch-event"
+          },
+          "expected": {
+            "countEffect": {
+              "strikes": {
+                "kind": "reset"
+              },
+              "balls": {
+                "kind": "reset"
+              }
+            },
+            "plateAppearanceEnded": true,
+            "batterDestination": {
+              "kind": "reach",
+              "base": 1
+            },
+            "runnerDefaultAdvance": {
+              "first": {
+                "modality": "not-applicable",
+                "destination": null
+              },
+              "second": {
+                "modality": "not-applicable",
+                "destination": null
+              },
+              "third": {
+                "modality": "not-applicable",
+                "destination": null
+              }
+            },
+            "outEffect": {
+              "count": 0,
+              "targets": []
+            },
+            "statFlags": {
+              "投球回算入アウト": false,
+              "投球数": true,
+              "奪三振": false,
+              "与四球": true,
+              "与死球": false,
+              "被安打": false,
+              "被本塁打": false,
+              "失点": false,
+              "失策": false,
+              "打席": true,
+              "打数": false,
+              "安打": false,
+              "本塁打": false,
+              "塁打": false,
+              "犠打": false,
+              "犠飛": false,
+              "四球": true,
+              "死球": false,
+              "三振": false,
+              "打撃妨害出塁": false,
+              "走塁妨害出塁": false,
+              "得点": false,
+              "打点": false
+            }
+          }
+        },
+        {
+          "caseId": "ST-TERMINAL-BB-S1-B3",
+          "branchId": "ADV-01",
+          "inputCoordinate": {
+            "eventKind": "batting-result",
+            "resultId": "batting-result.walk",
+            "state.count.strikes": 1,
+            "state.count.balls": 3,
+            "state.outs": 0,
+            "state.runners": "empty",
+            "state.gameEnded": false,
+            "event.perPitch.pitchEventKind": "pitch-event"
+          },
+          "expected": {
+            "countEffect": {
+              "strikes": {
+                "kind": "reset"
+              },
+              "balls": {
+                "kind": "reset"
+              }
+            },
+            "plateAppearanceEnded": true,
+            "batterDestination": {
+              "kind": "reach",
+              "base": 1
+            },
+            "runnerDefaultAdvance": {
+              "first": {
+                "modality": "not-applicable",
+                "destination": null
+              },
+              "second": {
+                "modality": "not-applicable",
+                "destination": null
+              },
+              "third": {
+                "modality": "not-applicable",
+                "destination": null
+              }
+            },
+            "outEffect": {
+              "count": 0,
+              "targets": []
+            },
+            "statFlags": {
+              "投球回算入アウト": false,
+              "投球数": true,
+              "奪三振": false,
+              "与四球": true,
+              "与死球": false,
+              "被安打": false,
+              "被本塁打": false,
+              "失点": false,
+              "失策": false,
+              "打席": true,
+              "打数": false,
+              "安打": false,
+              "本塁打": false,
+              "塁打": false,
+              "犠打": false,
+              "犠飛": false,
+              "四球": true,
+              "死球": false,
+              "三振": false,
+              "打撃妨害出塁": false,
+              "走塁妨害出塁": false,
+              "得点": false,
+              "打点": false
+            }
+          }
+        },
+        {
+          "caseId": "ST-TERMINAL-BB-S2-B3",
+          "branchId": "ADV-01",
+          "inputCoordinate": {
+            "eventKind": "batting-result",
+            "resultId": "batting-result.walk",
+            "state.count.strikes": 2,
+            "state.count.balls": 3,
+            "state.outs": 0,
+            "state.runners": "empty",
+            "state.gameEnded": false,
+            "event.perPitch.pitchEventKind": "pitch-event"
+          },
+          "expected": {
+            "countEffect": {
+              "strikes": {
+                "kind": "reset"
+              },
+              "balls": {
+                "kind": "reset"
+              }
+            },
+            "plateAppearanceEnded": true,
+            "batterDestination": {
+              "kind": "reach",
+              "base": 1
+            },
+            "runnerDefaultAdvance": {
+              "first": {
+                "modality": "not-applicable",
+                "destination": null
+              },
+              "second": {
+                "modality": "not-applicable",
+                "destination": null
+              },
+              "third": {
+                "modality": "not-applicable",
+                "destination": null
+              }
+            },
+            "outEffect": {
+              "count": 0,
+              "targets": []
+            },
+            "statFlags": {
+              "投球回算入アウト": false,
+              "投球数": true,
+              "奪三振": false,
+              "与四球": true,
+              "与死球": false,
+              "被安打": false,
+              "被本塁打": false,
+              "失点": false,
+              "失策": false,
+              "打席": true,
+              "打数": false,
+              "安打": false,
+              "本塁打": false,
+              "塁打": false,
+              "犠打": false,
+              "犠飛": false,
+              "四球": true,
+              "死球": false,
+              "三振": false,
+              "打撃妨害出塁": false,
+              "走塁妨害出塁": false,
+              "得点": false,
+              "打点": false
+            }
+          }
+        },
+        {
+          "caseId": "ST-TERMINAL-HBP-S0-B0",
+          "branchId": "ADV-01",
+          "inputCoordinate": {
+            "eventKind": "batting-result",
+            "resultId": "batting-result.hit-by-pitch",
+            "state.count.strikes": 0,
+            "state.count.balls": 0,
+            "state.outs": 0,
+            "state.runners": "empty",
+            "state.gameEnded": false,
+            "event.perPitch.pitchEventKind": "pitch-event"
+          },
+          "expected": {
+            "countEffect": {
+              "strikes": {
+                "kind": "reset"
+              },
+              "balls": {
+                "kind": "reset"
+              }
+            },
+            "plateAppearanceEnded": true,
+            "batterDestination": {
+              "kind": "reach",
+              "base": 1
+            },
+            "runnerDefaultAdvance": {
+              "first": {
+                "modality": "not-applicable",
+                "destination": null
+              },
+              "second": {
+                "modality": "not-applicable",
+                "destination": null
+              },
+              "third": {
+                "modality": "not-applicable",
+                "destination": null
+              }
+            },
+            "outEffect": {
+              "count": 0,
+              "targets": []
+            },
+            "statFlags": {
+              "投球回算入アウト": false,
+              "投球数": true,
+              "奪三振": false,
+              "与四球": false,
+              "与死球": true,
+              "被安打": false,
+              "被本塁打": false,
+              "失点": false,
+              "失策": false,
+              "打席": true,
+              "打数": false,
+              "安打": false,
+              "本塁打": false,
+              "塁打": false,
+              "犠打": false,
+              "犠飛": false,
+              "四球": false,
+              "死球": true,
+              "三振": false,
+              "打撃妨害出塁": false,
+              "走塁妨害出塁": false,
+              "得点": false,
+              "打点": false
+            }
+          }
+        },
+        {
+          "caseId": "ST-TERMINAL-HBP-S0-B1",
+          "branchId": "ADV-01",
+          "inputCoordinate": {
+            "eventKind": "batting-result",
+            "resultId": "batting-result.hit-by-pitch",
+            "state.count.strikes": 0,
+            "state.count.balls": 1,
+            "state.outs": 0,
+            "state.runners": "empty",
+            "state.gameEnded": false,
+            "event.perPitch.pitchEventKind": "pitch-event"
+          },
+          "expected": {
+            "countEffect": {
+              "strikes": {
+                "kind": "reset"
+              },
+              "balls": {
+                "kind": "reset"
+              }
+            },
+            "plateAppearanceEnded": true,
+            "batterDestination": {
+              "kind": "reach",
+              "base": 1
+            },
+            "runnerDefaultAdvance": {
+              "first": {
+                "modality": "not-applicable",
+                "destination": null
+              },
+              "second": {
+                "modality": "not-applicable",
+                "destination": null
+              },
+              "third": {
+                "modality": "not-applicable",
+                "destination": null
+              }
+            },
+            "outEffect": {
+              "count": 0,
+              "targets": []
+            },
+            "statFlags": {
+              "投球回算入アウト": false,
+              "投球数": true,
+              "奪三振": false,
+              "与四球": false,
+              "与死球": true,
+              "被安打": false,
+              "被本塁打": false,
+              "失点": false,
+              "失策": false,
+              "打席": true,
+              "打数": false,
+              "安打": false,
+              "本塁打": false,
+              "塁打": false,
+              "犠打": false,
+              "犠飛": false,
+              "四球": false,
+              "死球": true,
+              "三振": false,
+              "打撃妨害出塁": false,
+              "走塁妨害出塁": false,
+              "得点": false,
+              "打点": false
+            }
+          }
+        },
+        {
+          "caseId": "ST-TERMINAL-HBP-S0-B2",
+          "branchId": "ADV-01",
+          "inputCoordinate": {
+            "eventKind": "batting-result",
+            "resultId": "batting-result.hit-by-pitch",
+            "state.count.strikes": 0,
+            "state.count.balls": 2,
+            "state.outs": 0,
+            "state.runners": "empty",
+            "state.gameEnded": false,
+            "event.perPitch.pitchEventKind": "pitch-event"
+          },
+          "expected": {
+            "countEffect": {
+              "strikes": {
+                "kind": "reset"
+              },
+              "balls": {
+                "kind": "reset"
+              }
+            },
+            "plateAppearanceEnded": true,
+            "batterDestination": {
+              "kind": "reach",
+              "base": 1
+            },
+            "runnerDefaultAdvance": {
+              "first": {
+                "modality": "not-applicable",
+                "destination": null
+              },
+              "second": {
+                "modality": "not-applicable",
+                "destination": null
+              },
+              "third": {
+                "modality": "not-applicable",
+                "destination": null
+              }
+            },
+            "outEffect": {
+              "count": 0,
+              "targets": []
+            },
+            "statFlags": {
+              "投球回算入アウト": false,
+              "投球数": true,
+              "奪三振": false,
+              "与四球": false,
+              "与死球": true,
+              "被安打": false,
+              "被本塁打": false,
+              "失点": false,
+              "失策": false,
+              "打席": true,
+              "打数": false,
+              "安打": false,
+              "本塁打": false,
+              "塁打": false,
+              "犠打": false,
+              "犠飛": false,
+              "四球": false,
+              "死球": true,
+              "三振": false,
+              "打撃妨害出塁": false,
+              "走塁妨害出塁": false,
+              "得点": false,
+              "打点": false
+            }
+          }
+        },
+        {
+          "caseId": "ST-TERMINAL-HBP-S0-B3",
+          "branchId": "ADV-01",
+          "inputCoordinate": {
+            "eventKind": "batting-result",
+            "resultId": "batting-result.hit-by-pitch",
+            "state.count.strikes": 0,
+            "state.count.balls": 3,
+            "state.outs": 0,
+            "state.runners": "empty",
+            "state.gameEnded": false,
+            "event.perPitch.pitchEventKind": "pitch-event"
+          },
+          "expected": {
+            "countEffect": {
+              "strikes": {
+                "kind": "reset"
+              },
+              "balls": {
+                "kind": "reset"
+              }
+            },
+            "plateAppearanceEnded": true,
+            "batterDestination": {
+              "kind": "reach",
+              "base": 1
+            },
+            "runnerDefaultAdvance": {
+              "first": {
+                "modality": "not-applicable",
+                "destination": null
+              },
+              "second": {
+                "modality": "not-applicable",
+                "destination": null
+              },
+              "third": {
+                "modality": "not-applicable",
+                "destination": null
+              }
+            },
+            "outEffect": {
+              "count": 0,
+              "targets": []
+            },
+            "statFlags": {
+              "投球回算入アウト": false,
+              "投球数": true,
+              "奪三振": false,
+              "与四球": false,
+              "与死球": true,
+              "被安打": false,
+              "被本塁打": false,
+              "失点": false,
+              "失策": false,
+              "打席": true,
+              "打数": false,
+              "安打": false,
+              "本塁打": false,
+              "塁打": false,
+              "犠打": false,
+              "犠飛": false,
+              "四球": false,
+              "死球": true,
+              "三振": false,
+              "打撃妨害出塁": false,
+              "走塁妨害出塁": false,
+              "得点": false,
+              "打点": false
+            }
+          }
+        },
+        {
+          "caseId": "ST-TERMINAL-HBP-S1-B0",
+          "branchId": "ADV-01",
+          "inputCoordinate": {
+            "eventKind": "batting-result",
+            "resultId": "batting-result.hit-by-pitch",
+            "state.count.strikes": 1,
+            "state.count.balls": 0,
+            "state.outs": 0,
+            "state.runners": "empty",
+            "state.gameEnded": false,
+            "event.perPitch.pitchEventKind": "pitch-event"
+          },
+          "expected": {
+            "countEffect": {
+              "strikes": {
+                "kind": "reset"
+              },
+              "balls": {
+                "kind": "reset"
+              }
+            },
+            "plateAppearanceEnded": true,
+            "batterDestination": {
+              "kind": "reach",
+              "base": 1
+            },
+            "runnerDefaultAdvance": {
+              "first": {
+                "modality": "not-applicable",
+                "destination": null
+              },
+              "second": {
+                "modality": "not-applicable",
+                "destination": null
+              },
+              "third": {
+                "modality": "not-applicable",
+                "destination": null
+              }
+            },
+            "outEffect": {
+              "count": 0,
+              "targets": []
+            },
+            "statFlags": {
+              "投球回算入アウト": false,
+              "投球数": true,
+              "奪三振": false,
+              "与四球": false,
+              "与死球": true,
+              "被安打": false,
+              "被本塁打": false,
+              "失点": false,
+              "失策": false,
+              "打席": true,
+              "打数": false,
+              "安打": false,
+              "本塁打": false,
+              "塁打": false,
+              "犠打": false,
+              "犠飛": false,
+              "四球": false,
+              "死球": true,
+              "三振": false,
+              "打撃妨害出塁": false,
+              "走塁妨害出塁": false,
+              "得点": false,
+              "打点": false
+            }
+          }
+        },
+        {
+          "caseId": "ST-TERMINAL-HBP-S1-B1",
+          "branchId": "ADV-01",
+          "inputCoordinate": {
+            "eventKind": "batting-result",
+            "resultId": "batting-result.hit-by-pitch",
+            "state.count.strikes": 1,
+            "state.count.balls": 1,
+            "state.outs": 0,
+            "state.runners": "empty",
+            "state.gameEnded": false,
+            "event.perPitch.pitchEventKind": "pitch-event"
+          },
+          "expected": {
+            "countEffect": {
+              "strikes": {
+                "kind": "reset"
+              },
+              "balls": {
+                "kind": "reset"
+              }
+            },
+            "plateAppearanceEnded": true,
+            "batterDestination": {
+              "kind": "reach",
+              "base": 1
+            },
+            "runnerDefaultAdvance": {
+              "first": {
+                "modality": "not-applicable",
+                "destination": null
+              },
+              "second": {
+                "modality": "not-applicable",
+                "destination": null
+              },
+              "third": {
+                "modality": "not-applicable",
+                "destination": null
+              }
+            },
+            "outEffect": {
+              "count": 0,
+              "targets": []
+            },
+            "statFlags": {
+              "投球回算入アウト": false,
+              "投球数": true,
+              "奪三振": false,
+              "与四球": false,
+              "与死球": true,
+              "被安打": false,
+              "被本塁打": false,
+              "失点": false,
+              "失策": false,
+              "打席": true,
+              "打数": false,
+              "安打": false,
+              "本塁打": false,
+              "塁打": false,
+              "犠打": false,
+              "犠飛": false,
+              "四球": false,
+              "死球": true,
+              "三振": false,
+              "打撃妨害出塁": false,
+              "走塁妨害出塁": false,
+              "得点": false,
+              "打点": false
+            }
+          }
+        },
+        {
+          "caseId": "ST-TERMINAL-HBP-S1-B2",
+          "branchId": "ADV-01",
+          "inputCoordinate": {
+            "eventKind": "batting-result",
+            "resultId": "batting-result.hit-by-pitch",
+            "state.count.strikes": 1,
+            "state.count.balls": 2,
+            "state.outs": 0,
+            "state.runners": "empty",
+            "state.gameEnded": false,
+            "event.perPitch.pitchEventKind": "pitch-event"
+          },
+          "expected": {
+            "countEffect": {
+              "strikes": {
+                "kind": "reset"
+              },
+              "balls": {
+                "kind": "reset"
+              }
+            },
+            "plateAppearanceEnded": true,
+            "batterDestination": {
+              "kind": "reach",
+              "base": 1
+            },
+            "runnerDefaultAdvance": {
+              "first": {
+                "modality": "not-applicable",
+                "destination": null
+              },
+              "second": {
+                "modality": "not-applicable",
+                "destination": null
+              },
+              "third": {
+                "modality": "not-applicable",
+                "destination": null
+              }
+            },
+            "outEffect": {
+              "count": 0,
+              "targets": []
+            },
+            "statFlags": {
+              "投球回算入アウト": false,
+              "投球数": true,
+              "奪三振": false,
+              "与四球": false,
+              "与死球": true,
+              "被安打": false,
+              "被本塁打": false,
+              "失点": false,
+              "失策": false,
+              "打席": true,
+              "打数": false,
+              "安打": false,
+              "本塁打": false,
+              "塁打": false,
+              "犠打": false,
+              "犠飛": false,
+              "四球": false,
+              "死球": true,
+              "三振": false,
+              "打撃妨害出塁": false,
+              "走塁妨害出塁": false,
+              "得点": false,
+              "打点": false
+            }
+          }
+        },
+        {
+          "caseId": "ST-TERMINAL-HBP-S1-B3",
+          "branchId": "ADV-01",
+          "inputCoordinate": {
+            "eventKind": "batting-result",
+            "resultId": "batting-result.hit-by-pitch",
+            "state.count.strikes": 1,
+            "state.count.balls": 3,
+            "state.outs": 0,
+            "state.runners": "empty",
+            "state.gameEnded": false,
+            "event.perPitch.pitchEventKind": "pitch-event"
+          },
+          "expected": {
+            "countEffect": {
+              "strikes": {
+                "kind": "reset"
+              },
+              "balls": {
+                "kind": "reset"
+              }
+            },
+            "plateAppearanceEnded": true,
+            "batterDestination": {
+              "kind": "reach",
+              "base": 1
+            },
+            "runnerDefaultAdvance": {
+              "first": {
+                "modality": "not-applicable",
+                "destination": null
+              },
+              "second": {
+                "modality": "not-applicable",
+                "destination": null
+              },
+              "third": {
+                "modality": "not-applicable",
+                "destination": null
+              }
+            },
+            "outEffect": {
+              "count": 0,
+              "targets": []
+            },
+            "statFlags": {
+              "投球回算入アウト": false,
+              "投球数": true,
+              "奪三振": false,
+              "与四球": false,
+              "与死球": true,
+              "被安打": false,
+              "被本塁打": false,
+              "失点": false,
+              "失策": false,
+              "打席": true,
+              "打数": false,
+              "安打": false,
+              "本塁打": false,
+              "塁打": false,
+              "犠打": false,
+              "犠飛": false,
+              "四球": false,
+              "死球": true,
+              "三振": false,
+              "打撃妨害出塁": false,
+              "走塁妨害出塁": false,
+              "得点": false,
+              "打点": false
+            }
+          }
+        },
+        {
+          "caseId": "ST-TERMINAL-HBP-S2-B0",
+          "branchId": "ADV-01",
+          "inputCoordinate": {
+            "eventKind": "batting-result",
+            "resultId": "batting-result.hit-by-pitch",
+            "state.count.strikes": 2,
+            "state.count.balls": 0,
+            "state.outs": 0,
+            "state.runners": "empty",
+            "state.gameEnded": false,
+            "event.perPitch.pitchEventKind": "pitch-event"
+          },
+          "expected": {
+            "countEffect": {
+              "strikes": {
+                "kind": "reset"
+              },
+              "balls": {
+                "kind": "reset"
+              }
+            },
+            "plateAppearanceEnded": true,
+            "batterDestination": {
+              "kind": "reach",
+              "base": 1
+            },
+            "runnerDefaultAdvance": {
+              "first": {
+                "modality": "not-applicable",
+                "destination": null
+              },
+              "second": {
+                "modality": "not-applicable",
+                "destination": null
+              },
+              "third": {
+                "modality": "not-applicable",
+                "destination": null
+              }
+            },
+            "outEffect": {
+              "count": 0,
+              "targets": []
+            },
+            "statFlags": {
+              "投球回算入アウト": false,
+              "投球数": true,
+              "奪三振": false,
+              "与四球": false,
+              "与死球": true,
+              "被安打": false,
+              "被本塁打": false,
+              "失点": false,
+              "失策": false,
+              "打席": true,
+              "打数": false,
+              "安打": false,
+              "本塁打": false,
+              "塁打": false,
+              "犠打": false,
+              "犠飛": false,
+              "四球": false,
+              "死球": true,
+              "三振": false,
+              "打撃妨害出塁": false,
+              "走塁妨害出塁": false,
+              "得点": false,
+              "打点": false
+            }
+          }
+        },
+        {
+          "caseId": "ST-TERMINAL-HBP-S2-B1",
+          "branchId": "ADV-01",
+          "inputCoordinate": {
+            "eventKind": "batting-result",
+            "resultId": "batting-result.hit-by-pitch",
+            "state.count.strikes": 2,
+            "state.count.balls": 1,
+            "state.outs": 0,
+            "state.runners": "empty",
+            "state.gameEnded": false,
+            "event.perPitch.pitchEventKind": "pitch-event"
+          },
+          "expected": {
+            "countEffect": {
+              "strikes": {
+                "kind": "reset"
+              },
+              "balls": {
+                "kind": "reset"
+              }
+            },
+            "plateAppearanceEnded": true,
+            "batterDestination": {
+              "kind": "reach",
+              "base": 1
+            },
+            "runnerDefaultAdvance": {
+              "first": {
+                "modality": "not-applicable",
+                "destination": null
+              },
+              "second": {
+                "modality": "not-applicable",
+                "destination": null
+              },
+              "third": {
+                "modality": "not-applicable",
+                "destination": null
+              }
+            },
+            "outEffect": {
+              "count": 0,
+              "targets": []
+            },
+            "statFlags": {
+              "投球回算入アウト": false,
+              "投球数": true,
+              "奪三振": false,
+              "与四球": false,
+              "与死球": true,
+              "被安打": false,
+              "被本塁打": false,
+              "失点": false,
+              "失策": false,
+              "打席": true,
+              "打数": false,
+              "安打": false,
+              "本塁打": false,
+              "塁打": false,
+              "犠打": false,
+              "犠飛": false,
+              "四球": false,
+              "死球": true,
+              "三振": false,
+              "打撃妨害出塁": false,
+              "走塁妨害出塁": false,
+              "得点": false,
+              "打点": false
+            }
+          }
+        },
+        {
+          "caseId": "ST-TERMINAL-HBP-S2-B2",
+          "branchId": "ADV-01",
+          "inputCoordinate": {
+            "eventKind": "batting-result",
+            "resultId": "batting-result.hit-by-pitch",
+            "state.count.strikes": 2,
+            "state.count.balls": 2,
+            "state.outs": 0,
+            "state.runners": "empty",
+            "state.gameEnded": false,
+            "event.perPitch.pitchEventKind": "pitch-event"
+          },
+          "expected": {
+            "countEffect": {
+              "strikes": {
+                "kind": "reset"
+              },
+              "balls": {
+                "kind": "reset"
+              }
+            },
+            "plateAppearanceEnded": true,
+            "batterDestination": {
+              "kind": "reach",
+              "base": 1
+            },
+            "runnerDefaultAdvance": {
+              "first": {
+                "modality": "not-applicable",
+                "destination": null
+              },
+              "second": {
+                "modality": "not-applicable",
+                "destination": null
+              },
+              "third": {
+                "modality": "not-applicable",
+                "destination": null
+              }
+            },
+            "outEffect": {
+              "count": 0,
+              "targets": []
+            },
+            "statFlags": {
+              "投球回算入アウト": false,
+              "投球数": true,
+              "奪三振": false,
+              "与四球": false,
+              "与死球": true,
+              "被安打": false,
+              "被本塁打": false,
+              "失点": false,
+              "失策": false,
+              "打席": true,
+              "打数": false,
+              "安打": false,
+              "本塁打": false,
+              "塁打": false,
+              "犠打": false,
+              "犠飛": false,
+              "四球": false,
+              "死球": true,
+              "三振": false,
+              "打撃妨害出塁": false,
+              "走塁妨害出塁": false,
+              "得点": false,
+              "打点": false
+            }
+          }
+        },
+        {
+          "caseId": "ST-TERMINAL-HBP-S2-B3",
+          "branchId": "ADV-01",
+          "inputCoordinate": {
+            "eventKind": "batting-result",
+            "resultId": "batting-result.hit-by-pitch",
+            "state.count.strikes": 2,
+            "state.count.balls": 3,
+            "state.outs": 0,
+            "state.runners": "empty",
+            "state.gameEnded": false,
+            "event.perPitch.pitchEventKind": "pitch-event"
+          },
+          "expected": {
+            "countEffect": {
+              "strikes": {
+                "kind": "reset"
+              },
+              "balls": {
+                "kind": "reset"
+              }
+            },
+            "plateAppearanceEnded": true,
+            "batterDestination": {
+              "kind": "reach",
+              "base": 1
+            },
+            "runnerDefaultAdvance": {
+              "first": {
+                "modality": "not-applicable",
+                "destination": null
+              },
+              "second": {
+                "modality": "not-applicable",
+                "destination": null
+              },
+              "third": {
+                "modality": "not-applicable",
+                "destination": null
+              }
+            },
+            "outEffect": {
+              "count": 0,
+              "targets": []
+            },
+            "statFlags": {
+              "投球回算入アウト": false,
+              "投球数": true,
+              "奪三振": false,
+              "与四球": false,
+              "与死球": true,
+              "被安打": false,
+              "被本塁打": false,
+              "失点": false,
+              "失策": false,
+              "打席": true,
+              "打数": false,
+              "安打": false,
+              "本塁打": false,
+              "塁打": false,
+              "犠打": false,
+              "犠飛": false,
+              "四球": false,
+              "死球": true,
+              "三振": false,
+              "打撃妨害出塁": false,
+              "走塁妨害出塁": false,
+              "得点": false,
+              "打点": false
+            }
+          }
+        }
+      ]
     },
     {
       "case": {
@@ -5480,7 +8318,7 @@
       "scheme": "sha256_frozen_projection",
       "identifier_prefix": "fixture-sha256:",
       "current_identifiers": [
-        "fixture-sha256:548f614047eb3fb1b327576b123f2030fcba85418f5104560ce0b569b8f446de"
+        "fixture-sha256:48f0b2d3a590472165ceb54ca08246935097ae333d9c3b08bd0260dbaa774766"
       ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
@@ -5521,7 +8359,7 @@
       {
         "source_commit": "PENDING_ACCEPTANCE",
         "new_baseline_identifiers": [
-          "fixture-sha256:548f614047eb3fb1b327576b123f2030fcba85418f5104560ce0b569b8f446de"
+          "fixture-sha256:48f0b2d3a590472165ceb54ca08246935097ae333d9c3b08bd0260dbaa774766"
         ],
         "previous_baseline_identifiers": [
           "NO_BASELINE"
@@ -5534,10 +8372,10 @@
           },
           "after": {
             "state": "PRESENT",
-            "frozen_projection_sha256": "548f614047eb3fb1b327576b123f2030fcba85418f5104560ce0b569b8f446de"
+            "frozen_projection_sha256": "48f0b2d3a590472165ceb54ca08246935097ae333d9c3b08bd0260dbaa774766"
           }
         },
-        "movement_fact": "DRAW-05の状況判定操作行への結び付けにより、手作業fixtureの暫定基準を27件へ更新する。D06/B・D07/A限定接合による候補射影値へ追随（未承認bootstrap状態を保持）。",
+        "movement_fact": "DRAW-05の状況判定操作行への結び付けにより、手作業fixtureの暫定基準を27件へ更新する。D06/B・D07/A限定接合による候補射影値へ追随（未承認bootstrap状態を保持）。 PR191の既承認terminal観測と閉schema・descriptor参照の候補射影へ公式helperで追随。未承認bootstrapの状態は維持し、正式受理/P6blind完了とはしない。",
         "reason": "付録F-1の途中終了宣言を付録A-5の最終スコア比較へ結び付け、未収容分岐と凍結射影の整合を維持するため。",
         "approved_by": "未承認(PR のレビュー待ち)",
         "approved_on": "未承認(PR のレビュー待ち)"

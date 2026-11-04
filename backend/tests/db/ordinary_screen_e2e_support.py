@@ -46,6 +46,68 @@ async function login(page: Page): Promise<string> {
   return body.tenant_id
 }
 
+/** 失敗時にも利用者入力・原要求・資格・自由textを返さない。 */
+async function safeUi(page: Page, index: number, resultId: string) {
+  const allowed = ['batting-result.ball','batting-result.called-pitch',
+    'batting-result.swinging-strike','batting-result.foul',
+    'batting-result.walk','batting-result.hit-by-pitch']
+  return page.evaluate(({index,resultId}) => {
+    const button=document.querySelector('[data-testid="first-ball-save"]')
+    type Component={parent?:Component;type?:{__name?:string};uid?:number;
+      setupState?:Record<string,unknown>}
+    let owner=(button as (Element & {__vueParentComponent?:Component})|null)
+      ?.__vueParentComponent
+    while(owner && owner.type?.__name!=='GameScreenOrdinaryPitch') owner=owner.parent
+    const setup=owner?.setupState??{}
+    const read=(key:string):unknown=>{
+      const v=setup[key]
+      return v!==null&&typeof v==='object'&&'value' in v
+        ?(v as {value:unknown}).value:v
+    }
+    const bool=(key:string)=>typeof read(key)==='boolean'?read(key):null
+    const field=(id:string)=>document.querySelector(`[data-testid="${id}"]`)
+    const checked=(id:string)=>{
+      const v=field(`first-ball-env-${id}`)
+      return v instanceof HTMLInputElement?v.checked:null
+    }
+    const selected=(id:string)=>{
+      const v=field(id)
+      return v instanceof HTMLSelectElement?v.value.length>0:null
+    }
+    const stamp=read('watchedInput') as {
+      identity?:{epoch?:unknown;tenantId?:unknown}
+    }|null
+    const auth=read('auth') as {authEpoch?:unknown;teamId?:unknown}|null
+    const raw=(window as unknown as {__ordinarySafeDiagnostic?:Record<string,unknown>})
+      .__ordinarySafeDiagnostic
+    const status=read('status')
+    const marker=field('first-ball-course')?.querySelector('svg')
+      ?.getAttribute('aria-label')
+    return {index,resultId,ownerPresent:!!owner,
+      ownerUid:Number.isSafeInteger(owner?.uid)&&owner!.uid!>=0&&owner!.uid!<=1000000
+        ?owner!.uid:null,
+      disabled:button instanceof HTMLButtonElement?button.disabled:null,
+      busy:bool('busy'),confirmed:bool('confirmed'),loading:bool('loading'),
+      failed:bool('failed'),terminal:bool('terminal'),
+      nextBatterSelected:selected('terminal-next-batter'),
+      pitchTypeSelected:selected('first-ball-pitch-type'),
+      pointPresent:typeof marker==='string'?!marker.includes('未入力'):null,
+      checkboxProfile:checked('profile'),checkboxMode:checked('mode'),
+      checkboxBucket:checked('bucket'),checkboxLockdown:checked('lockdown'),
+      httpsTopLevel:window.isSecureContext&&location.protocol==='https:'&&window.top===window,
+      status:typeof status==='string'
+        &&['ready','saved','pending','blocked'].includes(status)
+        ?status:'unavailable',
+      tenantMatches:stamp?.identity&&auth
+        ?stamp.identity.tenantId===auth.teamId:null,
+      epochMatches:stamp?.identity&&auth?stamp.identity.epoch===auth.authEpoch:null,
+      observerPresent:!!raw,bodyReadStarted:raw?.bodyReadStarted===true,
+      bodyReadSucceeded:raw?.bodyReadSucceeded===true,
+      disposedDuringSubmit:raw?.disposedDuringSubmit===true}
+  },{index:Number.isInteger(index)&&index>=0&&index<=4?index:-1,
+    resultId:allowed.includes(resultId)?resultId:'other'})
+}
+
 test('実HTTPSの新規試合で通常3球を保存・同要求再送・reloadする', async ({
   page,
 }) => {
@@ -131,7 +193,7 @@ test('実HTTPSの新規試合で通常3球を保存・同要求再送・reload�
             window as unknown as {
               __ordinarySafeDiagnostic: Record<string, string | boolean>
             }
-          ).__ordinarySafeDiagnostic
+          ).__ordinarySafeDiagnostic ?? {}
           diag.contentTypeJson = (
             response.headers.get('content-type') ?? ''
           )
@@ -322,6 +384,10 @@ test('実HTTPSの新規試合で通常3球を保存・同要求再送・reload�
       })
       .click()
     await expect(page).toHaveURL(`${baseURL}/games/${saved.id}/record`)
+    await page.evaluate(async () => {
+      const { router } = await import('/src/router.ts')
+      await router.replace({query:{recording:'ordinary-prefix-v1'}})
+    })
     await expect(
       page.getByRole('heading', { name: 'スタメンと試合開始' }),
     ).toBeVisible()
@@ -395,6 +461,7 @@ test('実HTTPSの新規試合で通常3球を保存・同要求再送・reload�
     for (let index = 0; index < results.length; index++) {
       expectedPrefixLength = String(index + 1)
       prefixReads.length = 0
+      const inputStart=await safeUi(page,index,results[index]!)
       for (const id of ['profile', 'mode', 'bucket', 'lockdown'])
         await page.getByTestId(`first-ball-env-${id}`).check()
       await page
@@ -418,11 +485,28 @@ test('実HTTPSの新規試合で通常3球を保存・同要求再送・reload�
       )
       // 診断による早期fail後も待機Promiseの二次unhandledを出さない。
       void restored.catch(() => undefined)
-      await expect(page.getByTestId('first-ball-save')).toBeEnabled()
+      try {
+        await expect(page.getByTestId('first-ball-save')).toBeEnabled()
+      } catch {
+        throw new Error(JSON.stringify({stage:'save-disabled',inputStart,
+          current:await safeUi(page,index,results[index]!),
+          cdpStages:stageMonitor.snapshot()}))
+      }
       await page.getByTestId('first-ball-save').click()
       const acknowledged = await synchronized
       expect(acknowledged.status()).toBe(200)
-      const ack = await acknowledged.json()
+      let ack: Awaited<ReturnType<typeof acknowledged.json>>
+      try {
+        ack = await Promise.race([
+          acknowledged.json(),
+          new Promise<never>((_resolve,reject)=>setTimeout(
+            ()=>reject(new Error('ack-body-not-finished')),10000)),
+        ])
+      }catch{
+        throw new Error(JSON.stringify({stage:'ack-body-read-failed',inputStart,
+          current:await safeUi(page,index,results[index]!),
+          cdpStages:stageMonitor.snapshot()}))
+      }
       const sent = acknowledged.request().postDataJSON().events[0]
       // 失敗時も原本文や資格をexpect差分へ表示しない。
       expect(
@@ -752,11 +836,181 @@ export async function startOrdinaryStageMonitor(page) {
 """
 
 
-def write_browser_assets(directory: Path, frontend: Path) -> Path:
+def _terminal_spec(terminal: str) -> str:
+    """旧3球specを保持し、同じ実UI手順の有限BB/HBP系列だけを追加する。"""
+    if terminal not in {"walk", "hit-by-pitch"}:
+        raise ValueError("未対応の画面系列")
+    walk = terminal == "walk"
+    results = (["batting-result.ball"] * 3 if walk else []) + [
+        f"batting-result.{terminal}",
+        "batting-result.ball",
+    ]
+    balls = ["1", "2", "3", "0", "1"] if walk else ["0", "1"]
+    count = len(results)
+    spec = _SPEC.replace("ordinary-prefix-v1", "play-prefix-v2")
+    spec = spec.replace("recorded-prefix", "play-prefix")
+    # v2は通常画面の既定。旧legacy query切替を新系列へ持ち込まない。
+    spec = spec.replace(
+        "    await page.evaluate(async () => {\n"
+        "      const { router } = await import('/src/router.ts')\n"
+        "      await router.replace({query:{recording:'play-prefix-v2'}})\n"
+        "    })\n",
+        "",
+    )
+    start = spec.index("    const results = [")
+    end = spec.index("    for (let index = 0; index < results.length; index++)", start)
+    spec = (
+        spec[:start]
+        + (
+            f"    const results = {json.dumps(results)}\n"
+            f"    const balls = {json.dumps(balls)}, "
+            f"strikes = {json.dumps(['0'] * count)}\n"
+        )
+        + spec[end:]
+    )
+    spec = spec.replace(
+        "        .selectOption(results[index]!)",
+        "        .selectOption(results[index]!)\n"
+        "      if (results[index] === 'batting-result.walk' || "
+        "results[index] === 'batting-result.hit-by-pitch')\n"
+        "        await page.getByTestId('terminal-next-batter')"
+        ".selectOption({label:'2番の打者'})",
+    )
+    # 新系列は元ACKと真正GETを直接比較。旧3球のCDP診断/assertは削除しない。
+    start = spec.index("      await page.waitForFunction(")
+    end = spec.index("      try {\n        latest =", start)
+    spec = spec[:start] + spec[end:]
+    spec = spec.replace(
+        ").__ordinarySafeDiagnostic\n          diag.contentTypeJson",
+        ").__ordinarySafeDiagnostic ?? {}\n          diag.contentTypeJson",
+    )
+    spec = spec.replace(
+        "        'state.count.strikes': strikes[index],",
+        "        'state.count.strikes': strikes[index],\n"
+        f"        'state.battingOrder': index >= {3 if walk else 0} ? '2' : '1',\n"
+        f"        'state.runners': index >= {3 if walk else 0} ? 'first' : 'empty',",
+    )
+    spec = spec.replace(
+        "        initial.after.scoreboard,",
+        "        {...initial.after.scoreboard,walks: "
+        + ("index >= 3 ? '1' : '0'" if walk else "'0'")
+        + "},",
+    )
+    # 終端の確認済GETからreloadし、その実応答を次打者の通常球へ使う。
+    boundary = "    }\n    const replay = await page.evaluate"
+    insertion = """      if (index === results.length - 2) {
+        const terminalRetry = await page.evaluate(async expected =>
+          (window as unknown as {
+            __ordinaryReplayFirst:(n:number)=>Promise<{
+              sameSlot:boolean;duplicate:boolean;status:number
+            }>
+          }).__ordinaryReplayFirst(expected),index+1)
+        expect(terminalRetry.status).toBe(200)
+        expect(terminalRetry.sameSlot && terminalRetry.duplicate).toBe(true)
+        const reloadRead=page.waitForResponse(isPrefix)
+        await page.reload()
+        const restored=await (await reloadRead).json()
+        expect(restored.prefix_ref).toStrictEqual(latest.prefix_ref)
+        expect(restored.runners).toStrictEqual(latest.runners)
+        expect(restored.participants).toStrictEqual(latest.participants)
+        expect(restored.after).toStrictEqual(latest.after)
+        await expect(page.getByTestId('ordinary-pitch-result')).toBeVisible()
+      }
+    }
+    const replay = await page.evaluate"""
+    assert boundary in spec
+    spec = spec.replace(boundary, insertion, 1)
+    spec = spec.replace(
+        "value: async () => {\n          if (originals.length !== 3)",
+        "value: async (expected = 1) => {\n"
+        "          if (originals.length !== expected)",
+    )
+    spec = spec.replace(
+        "advanced: ack.advancedD3 === 3", "advanced: ack.advancedD3 >= event.d1"
+    )
+    spec = spec.replace("      count: 3,", "      count: 1,")
+    spec = spec.replace("toHaveText('2')", "toHaveText('1')")
+    spec = spec.replace(
+        "toHaveText('1')\n    await expect(page.getByTestId('restore-history'))",
+        "toHaveText('0')\n    await expect(page.getByTestId('restore-history'))",
+    )
+    spec = spec.replace("toHaveText('3件')", f"toHaveText('{count}件')")
+    spec = spec.replace(
+        "    let latest = initial",
+        "    let latest = initial\n    let terminalRunners: unknown = null",
+    )
+    spec = spec.replace(
+        "    expect(initial.prefix_ref.length).toBe('0')",
+        "    expect(initial.prefix_ref.length).toBe('0')\n"
+        "    expect(initial.last_source).toBeNull()",
+    )
+    terminal_index = 3 if walk else 0
+    spec = spec.replace(
+        "      await expect(page.getByTestId('restore-balls')).toHaveText(",
+        f"      if(index === {terminal_index}) {{\n"
+        "        const people=sent.payload.participants\n"
+        "        terminalRunners=[{runnerId:people.batterId,\n"
+        "          responsiblePitcherId:people.pitcherId,base:'1',\n"
+        "          status:'継続',statusSource:'auto'}]\n"
+        "        expect(latest.runners).toStrictEqual(terminalRunners)\n"
+        "      }\n"
+        f"      if(index >= {terminal_index}) {{\n"
+        "        expect(latest.runners).toStrictEqual(terminalRunners)\n"
+        "        const current=latest.page.items.find((item: {\n"
+        "          play_row:{play_number:number}\n"
+        "        })=>item.play_row.play_number===index+1)\n"
+        "        expect(!!current).toBe(true)\n"
+        "        expect(current.play_runners.length)"
+        f".toBe(index==={terminal_index}?0:1)\n"
+        "      }\n"
+        "      await expect(page.getByTestId('restore-balls')).toHaveText(",
+    )
+    # 新terminal系列だけは終端自身を選ぶ。旧_SPECの初球再送は不変。
+    spec = spec.replace(
+        "const original = originals[0]!",
+        "const original = originals[expected - 1]!",
+    )
+    spec = spec.replace(
+        "count: originals.length,",
+        "count: originals.length,\n"
+        "            selectedD1: Number.isSafeInteger(event.d1)\n"
+        "              && event.d1 >= 1 && event.d1 <= 5 ? event.d1 : null,\n"
+        "            selectedResult: [\n"
+        "              'batting-result.ball','batting-result.walk',\n"
+        "              'batting-result.hit-by-pitch'\n"
+        "            ].includes(event.payload?.calculation?.request?.t1?.resultId)\n"
+        "              ? event.payload.calculation.request.t1.resultId : 'other',",
+    )
+    spec = spec.replace(
+        "sameSlot:boolean;duplicate:boolean;status:number",
+        "sameSlot:boolean;duplicate:boolean;status:number;\n"
+        "              selectedD1:number|null;selectedResult:string",
+    )
+    spec = spec.replace(
+        "expect(terminalRetry.status).toBe(200)",
+        "expect(terminalRetry.status).toBe(200)\n"
+        f"        expect(terminalRetry.selectedD1).toBe({4 if walk else 1})\n"
+        "        expect(terminalRetry.selectedResult)"
+        f".toBe('batting-result.{terminal}')",
+    )
+    spec = spec.replace(
+        "      count: 1,",
+        f"      count: 1, selectedD1: {count},\n"
+        "      selectedResult:'batting-result.ball',",
+    )
+    spec = spec.replace("通常3球を保存", f"{terminal}と次打者通常球を保存")
+    return spec
+
+
+def write_browser_assets(
+    directory: Path, frontend: Path, *, terminal: str | None = None
+) -> Path:
     """実Playwrightを使うspec/configを書き、configの絶対PATHを返す。"""
     directory.mkdir(parents=True, exist_ok=False)
     module = (frontend / "node_modules/@playwright/test/index.mjs").as_posix()
-    spec = _SPEC.replace("__PLAYWRIGHT_MODULE__", module)
+    spec = (_SPEC if terminal is None else _terminal_spec(terminal)).replace(
+        "__PLAYWRIGHT_MODULE__", module
+    )
     (directory / "ordinary-screen.spec.ts").write_text(spec, encoding="utf-8")
     (directory / "ordinary-stage-monitor.mjs").write_text(_MONITOR, encoding="utf-8")
     config = directory / "playwright.config.mjs"

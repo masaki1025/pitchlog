@@ -1,12 +1,21 @@
 import { ordinaryStateSupported, ordinaryRunnerHold } from './ordinaryState'
-import { FIRST_BALL_RULE, ORDINARY_STRIKE_RULE } from './stateRules'
+import {
+  FIRST_BALL_RULE,
+  ORDINARY_STRIKE_RULE,
+  TERMINAL_REACH_RULE,
+  TERMINAL_OUT_RULE,
+} from './stateRules'
 import type {
+  BatterKind,
+  BattingOrderBySide,
   CountEffectKind,
   Derived,
   Rule,
   Scoreboard,
   StateFields,
   StatFlags,
+  StrikeoutDerived,
+  Target,
 } from './stateTypes'
 
 /** spikeの既23フラグ初期化を再利用し、閉じた型で余分なキーを拒否する。 */
@@ -79,12 +88,74 @@ export function derive(
 }
 
 /** 契約が成立した通常33座標だけを同じカウント核へ渡す。 */
+/** 旧通常ABIはcursorなしで同一scope/返値を保持する。 */
 export function deriveOrdinary(
   before: StateFields,
   board: Scoreboard,
   resultId: string,
   pitchEventKind: string,
 ): Derived | null {
+  return deriveOrdinaryCore(before, board, resultId, pitchEventKind)
+}
+/** 旧終端ABIはcursorなしで同一scope/返値を保持する。 */
+export function deriveTerminal(
+  before: StateFields,
+  board: Scoreboard,
+  resultId: string,
+  pitchEventKind: string,
+): Derived | null {
+  return deriveTerminalCore(before, board, resultId, pitchEventKind)
+}
+/** v3の全投球は両cursorを同じ唯一核へ渡す。旧入口のshapeを広げない。 */
+export function deriveLineupPitch(
+  before: StateFields,
+  board: Scoreboard,
+  resultId: string,
+  pitchEventKind: string,
+  cursors: BattingOrderBySide,
+): StrikeoutDerived | null {
+  let active = cursors.away
+  if (before.half === 'bottom') active = cursors.home
+  if (
+    cursors.away < 1n ||
+    cursors.away > 9n ||
+    cursors.home < 1n ||
+    cursors.home > 9n ||
+    active !== before.battingOrder
+  )
+    return null
+  if (
+    resultId === 'batting-result.called-strikeout' ||
+    resultId === 'batting-result.swinging-strikeout'
+  )
+    return deriveStrikeout(before, board, resultId, pitchEventKind, cursors)
+  if (
+    resultId === 'batting-result.walk' ||
+    resultId === 'batting-result.hit-by-pitch'
+  )
+    return deriveTerminalCore(
+      before,
+      board,
+      resultId,
+      pitchEventKind,
+      cursors,
+    ) as StrikeoutDerived | null
+  return deriveOrdinaryCore(
+    before,
+    board,
+    resultId,
+    pitchEventKind,
+    cursors,
+  ) as StrikeoutDerived | null
+}
+
+function deriveOrdinaryCore(
+  before: StateFields,
+  board: Scoreboard,
+  resultId: string,
+  pitchEventKind: string,
+  cursors?: BattingOrderBySide,
+): Derived | StrikeoutDerived | null {
   if (
     pitchEventKind !== 'pitch-event' ||
     !ordinaryStateSupported(before, board)
@@ -93,7 +164,7 @@ export function deriveOrdinary(
   if (before.strikes < 0n || before.balls < 0n) return null
   if (resultId === 'batting-result.ball') {
     if (before.strikes > 2n || before.balls > 2n) return null
-    return applyCountRule(before, board, FIRST_BALL_RULE)
+    return applyCountRule(before, board, FIRST_BALL_RULE, resultId, cursors)
   }
   if (
     resultId !== 'batting-result.called-pitch' &&
@@ -111,66 +182,211 @@ export function deriveOrdinary(
       strikeEffect: 'unchanged' as CountEffectKind,
       strikeDelta: 0n,
     })
-    return applyCountRule(before, board, holdRule)
+    return applyCountRule(before, board, holdRule, resultId, cursors)
   }
   if (before.strikes > 1n || before.balls > 3n) return null
-  return applyCountRule(before, board, ORDINARY_STRIKE_RULE)
+  return applyCountRule(before, board, ORDINARY_STRIKE_RULE, resultId, cursors)
 }
 
-/** 初球・通常投球で共有する単一のカウント計算。 */
+/** 受理済みの無走者BB/HBPだけを共有核へ渡す。 */
+function deriveTerminalCore(
+  before: StateFields,
+  board: Scoreboard,
+  resultId: string,
+  pitchEventKind: string,
+  cursors?: BattingOrderBySide,
+): Derived | StrikeoutDerived | null {
+  if (
+    pitchEventKind !== 'pitch-event' ||
+    !ordinaryStateSupported(before, board) ||
+    before.runners !== 'empty' ||
+    before.strikes < 0n ||
+    before.strikes > 2n ||
+    before.balls < 0n ||
+    before.balls > 3n ||
+    before.home !== board.home ||
+    before.away !== board.away
+  )
+    return null
+  if (resultId === 'batting-result.walk') {
+    if (before.balls !== 3n) return null
+  } else if (resultId !== 'batting-result.hit-by-pitch') return null
+  return applyCountRule(before, board, TERMINAL_REACH_RULE, resultId, cursors)
+}
+
+/** 正規捕球の三振だけを、両cursorを検証して同じ核へ渡す。 */
+export function deriveStrikeout(
+  before: StateFields,
+  board: Scoreboard,
+  resultId: string,
+  pitchEventKind: string,
+  cursors: BattingOrderBySide,
+): StrikeoutDerived | null {
+  let activeOrder = cursors.away
+  if (before.half === 'bottom') activeOrder = cursors.home
+  if (
+    pitchEventKind !== 'pitch-event' ||
+    !ordinaryStateSupported(before, board) ||
+    before.strikes !== 2n ||
+    before.balls < 0n ||
+    before.balls > 3n ||
+    before.home !== board.home ||
+    before.away !== board.away ||
+    (resultId !== 'batting-result.called-strikeout' &&
+      resultId !== 'batting-result.swinging-strikeout') ||
+    cursors.away < 1n ||
+    cursors.away > 9n ||
+    cursors.home < 1n ||
+    cursors.home > 9n ||
+    activeOrder !== before.battingOrder
+  )
+    return null
+  return applyCountRule(before, board, TERMINAL_OUT_RULE, resultId, cursors)
+}
+
 function applyCountRule(
   before: StateFields,
   board: Scoreboard,
   rule: Rule,
-): Derived {
-  const balls = before.balls + rule.ballDelta
+  resultId: string,
+  cursors: BattingOrderBySide,
+): StrikeoutDerived
+function applyCountRule(
+  before: StateFields,
+  board: Scoreboard,
+  rule: Rule,
+  resultId?: string,
+): Derived
+function applyCountRule(
+  before: StateFields,
+  board: Scoreboard,
+  rule: Rule,
+  resultId: string,
+  cursors?: BattingOrderBySide,
+): Derived | StrikeoutDerived
+/** 初球・通常投球・打席終了で共有する単一の遷移計算。 */
+function applyCountRule(
+  before: StateFields,
+  board: Scoreboard,
+  rule: Rule,
+  resultId: string = '',
+  cursors?: BattingOrderBySide,
+): Derived | StrikeoutDerived {
+  let balls = before.balls + rule.ballDelta
+  let strikes = before.strikes + rule.strikeDelta
+  if (rule.ballEffect === 'reset') balls = 0n
+  if (rule.strikeEffect === 'reset') strikes = 0n
+  const walk = resultId === 'batting-result.walk'
+  const hitByPitch = resultId === 'batting-result.hit-by-pitch'
+  const strikeout =
+    resultId === 'batting-result.called-strikeout' ||
+    resultId === 'batting-result.swinging-strikeout'
   const flags = emptyFlags()
   flags.投球数 = true
   flags.投球回算入アウト = rule.outs > 0n
   flags.打席 = rule.pa === true
-  // 同時の走者/特殊効果を含まない非終端投球。回・得点・在塁者の状態を保持する。
+  if (walk) {
+    flags.与四球 = true
+    flags.四球 = true
+  }
+  if (hitByPitch) {
+    flags.与死球 = true
+    flags.死球 = true
+  }
+  if (strikeout) {
+    flags.奪三振 = true
+    flags.三振 = true
+    flags.打数 = true
+  }
+  // 出塁は無走者の受理済み操作に限定。走者の帰属/保存は補完しない。
+  const destination: { kind: BatterKind; base?: bigint } = { kind: rule.batter }
+  let runners = before.runners
+  let battingOrder = before.battingOrder
+  let walks = board.walks
+  if (rule.batter === 'reach') {
+    destination.base = rule.batterBase
+    runners = 'first'
+  }
+  if (rule.pa === true) battingOrder = (before.battingOrder % 9n) + 1n
+  if (walk) walks = board.walks + 1n
+  let outs = before.outs + rule.outs
+  let half = before.half
+  let inning = before.inning
+  let orders: { away: bigint; home: bigint } | null = null
+  if (typeof cursors !== 'undefined')
+    orders = { away: cursors.away, home: cursors.home }
+  if (orders !== null) {
+    if (before.half === 'top') orders.away = battingOrder
+    else orders.home = battingOrder
+  }
+  if (outs === 3n) {
+    outs = 0n
+    strikes = 0n
+    balls = 0n
+    runners = 'empty'
+    if (half === 'top') half = 'bottom'
+    else {
+      half = 'top'
+      inning = inning + 1n
+    }
+    if (orders !== null) {
+      if (half === 'top') battingOrder = orders.away
+      else battingOrder = orders.home
+    }
+  }
+  let strikeouts = board.strikeouts
+  if (strikeout) strikeouts = strikeouts + 1n
+  let targets: Array<Target> = []
+  if (rule.targets.includes('batter'))
+    targets = targets.concat([{ kind: 'batter' }])
+  const after = {
+    stateFields: {
+      half: half,
+      inning: inning,
+      outs: outs,
+      strikes: strikes,
+      balls: balls,
+      runners: runners,
+      battingOrder: battingOrder,
+      tiebreakActive: before.tiebreakActive,
+      gameEnded: before.gameEnded,
+      home: before.home,
+      away: before.away,
+    },
+    scoreboard: {
+      home: board.home,
+      away: board.away,
+      hits: board.hits,
+      errors: board.errors,
+      strikeouts: strikeouts,
+      walks: walks,
+    },
+  }
+  if (orders !== null)
+    Object.assign(after, { battingOrderBySide: Object.freeze(orders) })
   return {
     countEffect: {
       strikes: { kind: rule.strikeEffect, value: rule.strikeDelta },
       balls: { kind: rule.ballEffect, value: rule.ballDelta },
     },
     plateAppearanceEnded: rule.pa,
-    batterDestination: { kind: rule.batter },
+    batterDestination: destination,
     runnerDefaultAdvance: {
       first: ordinaryRunnerHold(before.runners, 'first'),
       second: ordinaryRunnerHold(before.runners, 'second'),
       third: ordinaryRunnerHold(before.runners, 'third'),
     },
-    outEffect: { count: rule.outs, targets: [] },
+    outEffect: {
+      count: rule.outs,
+      targets: targets,
+    },
     statFlags: flags,
     history: {
       ballsBefore: before.balls,
       ballsAfter: balls,
       strikesBefore: before.strikes,
-      strikesAfter: before.strikes + rule.strikeDelta,
+      strikesAfter: strikes,
     },
-    after: {
-      stateFields: {
-        half: before.half,
-        inning: before.inning,
-        outs: before.outs + rule.outs,
-        strikes: before.strikes + rule.strikeDelta,
-        balls: balls,
-        runners: before.runners,
-        battingOrder: before.battingOrder,
-        tiebreakActive: before.tiebreakActive,
-        gameEnded: before.gameEnded,
-        home: before.home,
-        away: before.away,
-      },
-      scoreboard: {
-        home: board.home,
-        away: board.away,
-        hits: board.hits,
-        errors: board.errors,
-        strikeouts: board.strikeouts,
-        walks: board.walks,
-      },
-    },
+    after: after,
   }
 }

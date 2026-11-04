@@ -59,6 +59,78 @@ _CATALOG_PATH = (
 )
 
 
+# 正式190基線の65token。現registryから期待を生成せず、終端1件を別途照合する。
+_EXPECTED_PRE_TERMINAL_TOKEN_TYPES = frozenset(
+    {
+        "pitchlog.repositories.roster.PlayerReadToken",
+        "pitchlog.repositories.roster.PlayerCreateToken",
+        "pitchlog.repositories.roster.PlayerUpdateToken",
+        "pitchlog.repositories.roster.PlayerRosterStatusUpdateToken",
+        "pitchlog.repositories.roster.PlayerRosterLabelUpdateToken",
+        "pitchlog.repositories.roster.TeamRecordReadToken",
+        "pitchlog.repositories.roster.SelfTeamRecordReadToken",
+        "pitchlog.repositories.roster.TeamRecordCreateToken",
+        "pitchlog.repositories.roster.TeamRecordUpdateToken",
+        "pitchlog.repositories.roster.TeamRecordDeleteToken",
+        "pitchlog.repositories.roster.GameTeamLinkReadToken",
+        "pitchlog.repositories.invalidation_intents.InvalidationIntentInsertToken",
+        "pitchlog.repositories.lineup_memory._SelfTeamLockToken",
+        "pitchlog.repositories.lineup_memory._ActiveLineupPlayerLockToken",
+        "pitchlog.repositories.lineup_memory.LineupMemoryReadToken",
+        "pitchlog.repositories.lineup_memory._LineupMemoryInsertToken",
+        "pitchlog.repositories.lineup_memory._LineupMemoryUpdateToken",
+        "pitchlog.sync.tokens.GameReadToken",
+        "pitchlog.sync.tokens.GameLockToken",
+        "pitchlog.sync.tokens.RecordingGenerationReadToken",
+        "pitchlog.sync.tokens.RecordingGenerationByNumberReadToken",
+        "pitchlog.sync.tokens.RecordingGenerationLockToken",
+        "pitchlog.sync.tokens.RecordingPrefixUpdateToken",
+        "pitchlog.sync.tokens.EventSlotReadToken",
+        "pitchlog.sync.tokens.EventSlotInsertToken",
+        "pitchlog.sync.tokens.EventSlotVersionUpdateToken",
+        "pitchlog.sync.tokens.OperationEventReadToken",
+        "pitchlog.sync.tokens.OperationEventOrderReadToken",
+        "pitchlog.sync.tokens.OperationEventInsertToken",
+        "pitchlog.sync.tokens.OperationEventOrderUpdateToken",
+        "pitchlog.sync.tokens.OperationEventReplaceToken",
+        "pitchlog.sync.tokens.TemporaryPlayerMappingReadToken",
+        "pitchlog.sync.tokens.TemporaryPlayerMappingInsertToken",
+        "pitchlog.sync.tokens.IdempotencyLedgerReadToken",
+        "pitchlog.sync.tokens.IdempotencyLedgerInsertToken",
+        "pitchlog.sync.tokens.RejectedOriginalReadToken",
+        "pitchlog.sync.tokens.RejectedOriginalInsertToken",
+        "pitchlog.sync.tokens.InvalidationIntentReadToken",
+        "pitchlog.sync.tokens.InvalidationIntentPendingToken",
+        "pitchlog.sync.tokens.SyncInvalidationIntentInsertToken",
+        "pitchlog.sync.tokens.SyncSharedInvalidationIntentInsertToken",
+        "pitchlog.sync.tokens.InvalidationIntentDeliveredToken",
+        "pitchlog.sync.tokens.EvacuatedOriginalReadToken",
+        "pitchlog.sync.tokens.EvacuatedOriginalInsertToken",
+        "pitchlog.repositories.tenant_profile.TenantProfileReadToken",
+        "pitchlog.repositories.games.PreparingGameListToken",
+        "pitchlog.repositories.games.PreparingGameDetailToken",
+        "pitchlog.repositories.started_snapshot_operations.StartedLineupsReadToken",
+        "pitchlog.repositories.started_snapshot_operations.StartedEventSlotsExistenceToken",
+        "pitchlog.repositories.started_snapshot_operations.StartedOperationEventsExistenceToken",
+        "pitchlog.repositories.started_snapshot_operations.StartedPlayRowsExistenceToken",
+        "pitchlog.sync.first_ball_tokens.FirstBallPlayRowInsertToken",
+        "pitchlog.sync.first_ball_tokens.FirstBallPlayRowReadToken",
+        "pitchlog.repositories.recorded_snapshot_operations.RecordedEventRowsReadToken",
+        "pitchlog.repositories.recorded_snapshot_operations.RecordedEventSlotsReadToken",
+        "pitchlog.repositories.recorded_snapshot_operations.RecordedPlayRowsReadToken",
+        "pitchlog.repositories.preparing_game_creation.PreparingGameInsertToken",
+        "pitchlog.repositories.preparing_game_creation.PreparingTournamentInsertToken",
+        "pitchlog.repositories.preparing_game_creation.PreparingTournamentOptionsToken",
+        "pitchlog.repositories.preparing_game_creation.PreparingTournamentNameExistsToken",
+        "pitchlog.repositories.preparing_game_creation.PreparingTournamentParentToken",
+        "pitchlog.repositories.preparing_game_creation.PreparingSelfTeamLockToken",
+        "pitchlog.repositories.preparing_game_creation.PreparingOpponentTeamLockToken",
+        "pitchlog.repositories.pitch_type_options.PitchTypeOptionsToken",
+        "pitchlog.sync.ordinary_pitch_tokens.OrdinaryPlayRowInsertToken",
+    }
+)
+
+
 @dataclass(frozen=True, slots=True)
 class _Registration:
     """試験内だけで使う仮の capability 登録。"""
@@ -1132,7 +1204,20 @@ def test_roster_product_registries_match_catalog(catalog: dict[str, Any]) -> Non
     assert {
         spec.capability_id for spec in repository_base._OPERATION_REGISTRY.values()
     } == expected
-    assert len(repository_base._OPERATION_REGISTRY) == 65
+    from pitchlog.sync.terminal_pitch_tokens import PlayPrefixPlayRowInsertToken
+
+    terminal = repository_base._OPERATION_REGISTRY[PlayPrefixPlayRowInsertToken]
+    assert terminal.capability_id == "CAP:play_rows:insert"
+    assert (
+        len(set(repository_base._OPERATION_REGISTRY) - {PlayPrefixPlayRowInsertToken})
+        == 65
+    )
+    assert {
+        f"{token.__module__}.{token.__qualname__}"
+        for token in repository_base._OPERATION_REGISTRY
+        if token is not PlayPrefixPlayRowInsertToken
+    } == _EXPECTED_PRE_TERMINAL_TOKEN_TYPES
+    assert len(repository_base._OPERATION_REGISTRY) == 66
     assert (
         repository_base._OPERATION_REGISTRY[SelfTeamRecordReadToken].capability_id
         == "CAP:team_records:read"

@@ -1,0 +1,713 @@
+{
+  "provenance": "手指定zero DTO。既metadataを共有し、数学期待/実DB真正性をこのfixtureから作らない。",
+  "value": {
+    "id": "22222222-2222-4222-8222-222222222222",
+    "scheduled_at": "2026-10-30T10:00:00+09:00",
+    "game_type_key": "game_open",
+    "tournament_key": "practice",
+    "away_team_record_id": "00000000-0000-4000-8000-000000000199",
+    "home_team_record_id": "00000000-0000-4000-8000-000000000299",
+    "plate_umpire": null,
+    "section_label": null,
+    "week_label": null,
+    "day_label": null,
+    "game_number_label": null,
+    "status": "in_progress",
+    "started_at": "2026-10-30T01:00:00Z",
+    "applied_rules": {
+      "ruleSetId": "11111111-1111-4111-8111-111111111111",
+      "regulationInnings": 7,
+      "coldConditions": [],
+      "extensionLimit": null,
+      "tiebreak": null,
+      "dh": false
+    },
+    "lineups": {
+      "away": {
+        "lineup_id": "11111111-1111-4111-8111-111111111111",
+        "team_record_id": "00000000-0000-4000-8000-000000000199",
+        "entries": [
+          {
+            "player_id": "00000000-0000-4000-8000-000000000101",
+            "batting_order": "1",
+            "fielding_position": {
+              "kind": "fielding",
+              "position": "1"
+            },
+            "uniform_number_snapshot": null
+          },
+          {
+            "player_id": "00000000-0000-4000-8000-000000000102",
+            "batting_order": "2",
+            "fielding_position": {
+              "kind": "fielding",
+              "position": "2"
+            },
+            "uniform_number_snapshot": null
+          },
+          {
+            "player_id": "00000000-0000-4000-8000-000000000103",
+            "batting_order": "3",
+            "fielding_position": {
+              "kind": "fielding",
+              "position": "3"
+            },
+            "uniform_number_snapshot": null
+          },
+          {
+            "player_id": "00000000-0000-4000-8000-000000000104",
+            "batting_order": "4",
+            "fielding_position": {
+              "kind": "fielding",
+              "position": "4"
+            },
+            "uniform_number_snapshot": null
+          },
+          {
+            "player_id": "00000000-0000-4000-8000-000000000105",
+            "batting_order": "5",
+            "fielding_position": {
+              "kind": "fielding",
+              "position": "5"
+            },
+            "uniform_number_snapshot": null
+          },
+          {
+            "player_id": "00000000-0000-4000-8000-000000000106",
+            "batting_order": "6",
+            "fielding_position": {
+              "kind": "fielding",
+              "position": "6"
+            },
+            "uniform_number_snapshot": null
+          },
+          {
+            "player_id": "00000000-0000-4000-8000-000000000107",
+            "batting_order": "7",
+            "fielding_position": {
+              "kind": "fielding",
+              "position": "7"
+            },
+            "uniform_number_snapshot": null
+          },
+          {
+            "player_id": "00000000-0000-4000-8000-000000000108",
+            "batting_order": "8",
+            "fielding_position": {
+              "kind": "fielding",
+              "position": "8"
+            },
+            "uniform_number_snapshot": null
+          },
+          {
+            "player_id": "00000000-0000-4000-8000-000000000109",
+            "batting_order": "9",
+            "fielding_position": {
+              "kind": "fielding",
+              "position": "9"
+            },
+            "uniform_number_snapshot": null
+          }
+        ]
+      },
+      "home": {
+        "lineup_id": "33333333-3333-4333-8333-333333333333",
+        "team_record_id": "00000000-0000-4000-8000-000000000299",
+        "entries": [
+          {
+            "player_id": "00000000-0000-4000-8000-000000000201",
+            "batting_order": "1",
+            "fielding_position": {
+              "kind": "fielding",
+              "position": "1"
+            },
+            "uniform_number_snapshot": null
+          },
+          {
+            "player_id": "00000000-0000-4000-8000-000000000202",
+            "batting_order": "2",
+            "fielding_position": {
+              "kind": "fielding",
+              "position": "2"
+            },
+            "uniform_number_snapshot": null
+          },
+          {
+            "player_id": "00000000-0000-4000-8000-000000000203",
+            "batting_order": "3",
+            "fielding_position": {
+              "kind": "fielding",
+              "position": "3"
+            },
+            "uniform_number_snapshot": null
+          },
+          {
+            "player_id": "00000000-0000-4000-8000-000000000204",
+            "batting_order": "4",
+            "fielding_position": {
+              "kind": "fielding",
+              "position": "4"
+            },
+            "uniform_number_snapshot": null
+          },
+          {
+            "player_id": "00000000-0000-4000-8000-000000000205",
+            "batting_order": "5",
+            "fielding_position": {
+              "kind": "fielding",
+              "position": "5"
+            },
+            "uniform_number_snapshot": null
+          },
+          {
+            "player_id": "00000000-0000-4000-8000-000000000206",
+            "batting_order": "6",
+            "fielding_position": {
+              "kind": "fielding",
+              "position": "6"
+            },
+            "uniform_number_snapshot": null
+          },
+          {
+            "player_id": "00000000-0000-4000-8000-000000000207",
+            "batting_order": "7",
+            "fielding_position": {
+              "kind": "fielding",
+              "position": "7"
+            },
+            "uniform_number_snapshot": null
+          },
+          {
+            "player_id": "00000000-0000-4000-8000-000000000208",
+            "batting_order": "8",
+            "fielding_position": {
+              "kind": "fielding",
+              "position": "8"
+            },
+            "uniform_number_snapshot": null
+          },
+          {
+            "player_id": "00000000-0000-4000-8000-000000000209",
+            "batting_order": "9",
+            "fielding_position": {
+              "kind": "fielding",
+              "position": "9"
+            },
+            "uniform_number_snapshot": null
+          }
+        ]
+      }
+    },
+    "roster": {
+      "teams": [
+        {
+          "team_id": "00000000-0000-4000-8000-000000000199",
+          "side": "away",
+          "participants": [
+            {
+              "player": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000101"
+              },
+              "batting_slot": {
+                "kind": "slot",
+                "slot": "1"
+              },
+              "roles": [
+                {
+                  "kind": "fielding",
+                  "position": "1"
+                }
+              ],
+              "entry_origin": {
+                "kind": "initial"
+              }
+            },
+            {
+              "player": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000102"
+              },
+              "batting_slot": {
+                "kind": "slot",
+                "slot": "2"
+              },
+              "roles": [
+                {
+                  "kind": "fielding",
+                  "position": "2"
+                }
+              ],
+              "entry_origin": {
+                "kind": "initial"
+              }
+            },
+            {
+              "player": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000103"
+              },
+              "batting_slot": {
+                "kind": "slot",
+                "slot": "3"
+              },
+              "roles": [
+                {
+                  "kind": "fielding",
+                  "position": "3"
+                }
+              ],
+              "entry_origin": {
+                "kind": "initial"
+              }
+            },
+            {
+              "player": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000104"
+              },
+              "batting_slot": {
+                "kind": "slot",
+                "slot": "4"
+              },
+              "roles": [
+                {
+                  "kind": "fielding",
+                  "position": "4"
+                }
+              ],
+              "entry_origin": {
+                "kind": "initial"
+              }
+            },
+            {
+              "player": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000105"
+              },
+              "batting_slot": {
+                "kind": "slot",
+                "slot": "5"
+              },
+              "roles": [
+                {
+                  "kind": "fielding",
+                  "position": "5"
+                }
+              ],
+              "entry_origin": {
+                "kind": "initial"
+              }
+            },
+            {
+              "player": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000106"
+              },
+              "batting_slot": {
+                "kind": "slot",
+                "slot": "6"
+              },
+              "roles": [
+                {
+                  "kind": "fielding",
+                  "position": "6"
+                }
+              ],
+              "entry_origin": {
+                "kind": "initial"
+              }
+            },
+            {
+              "player": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000107"
+              },
+              "batting_slot": {
+                "kind": "slot",
+                "slot": "7"
+              },
+              "roles": [
+                {
+                  "kind": "fielding",
+                  "position": "7"
+                }
+              ],
+              "entry_origin": {
+                "kind": "initial"
+              }
+            },
+            {
+              "player": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000108"
+              },
+              "batting_slot": {
+                "kind": "slot",
+                "slot": "8"
+              },
+              "roles": [
+                {
+                  "kind": "fielding",
+                  "position": "8"
+                }
+              ],
+              "entry_origin": {
+                "kind": "initial"
+              }
+            },
+            {
+              "player": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000109"
+              },
+              "batting_slot": {
+                "kind": "slot",
+                "slot": "9"
+              },
+              "roles": [
+                {
+                  "kind": "fielding",
+                  "position": "9"
+                }
+              ],
+              "entry_origin": {
+                "kind": "initial"
+              }
+            }
+          ]
+        },
+        {
+          "team_id": "00000000-0000-4000-8000-000000000299",
+          "side": "home",
+          "participants": [
+            {
+              "player": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000201"
+              },
+              "batting_slot": {
+                "kind": "slot",
+                "slot": "1"
+              },
+              "roles": [
+                {
+                  "kind": "fielding",
+                  "position": "1"
+                }
+              ],
+              "entry_origin": {
+                "kind": "initial"
+              }
+            },
+            {
+              "player": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000202"
+              },
+              "batting_slot": {
+                "kind": "slot",
+                "slot": "2"
+              },
+              "roles": [
+                {
+                  "kind": "fielding",
+                  "position": "2"
+                }
+              ],
+              "entry_origin": {
+                "kind": "initial"
+              }
+            },
+            {
+              "player": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000203"
+              },
+              "batting_slot": {
+                "kind": "slot",
+                "slot": "3"
+              },
+              "roles": [
+                {
+                  "kind": "fielding",
+                  "position": "3"
+                }
+              ],
+              "entry_origin": {
+                "kind": "initial"
+              }
+            },
+            {
+              "player": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000204"
+              },
+              "batting_slot": {
+                "kind": "slot",
+                "slot": "4"
+              },
+              "roles": [
+                {
+                  "kind": "fielding",
+                  "position": "4"
+                }
+              ],
+              "entry_origin": {
+                "kind": "initial"
+              }
+            },
+            {
+              "player": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000205"
+              },
+              "batting_slot": {
+                "kind": "slot",
+                "slot": "5"
+              },
+              "roles": [
+                {
+                  "kind": "fielding",
+                  "position": "5"
+                }
+              ],
+              "entry_origin": {
+                "kind": "initial"
+              }
+            },
+            {
+              "player": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000206"
+              },
+              "batting_slot": {
+                "kind": "slot",
+                "slot": "6"
+              },
+              "roles": [
+                {
+                  "kind": "fielding",
+                  "position": "6"
+                }
+              ],
+              "entry_origin": {
+                "kind": "initial"
+              }
+            },
+            {
+              "player": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000207"
+              },
+              "batting_slot": {
+                "kind": "slot",
+                "slot": "7"
+              },
+              "roles": [
+                {
+                  "kind": "fielding",
+                  "position": "7"
+                }
+              ],
+              "entry_origin": {
+                "kind": "initial"
+              }
+            },
+            {
+              "player": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000208"
+              },
+              "batting_slot": {
+                "kind": "slot",
+                "slot": "8"
+              },
+              "roles": [
+                {
+                  "kind": "fielding",
+                  "position": "8"
+                }
+              ],
+              "entry_origin": {
+                "kind": "initial"
+              }
+            },
+            {
+              "player": {
+                "kind": "official",
+                "player_id": "00000000-0000-4000-8000-000000000209"
+              },
+              "batting_slot": {
+                "kind": "slot",
+                "slot": "9"
+              },
+              "roles": [
+                {
+                  "kind": "fielding",
+                  "position": "9"
+                }
+              ],
+              "entry_origin": {
+                "kind": "initial"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "state": {
+      "stateFields": {
+        "state.half": "top",
+        "state.count.strikes": "0",
+        "state.count.balls": "0",
+        "state.outs": "0",
+        "state.runners": "empty",
+        "state.battingOrder": "1",
+        "state.tiebreakActive": false,
+        "state.gameEnded": false,
+        "state.inning": "1",
+        "state.score": {
+          "home": "0",
+          "away": "0"
+        }
+      },
+      "scoreboard": {
+        "inningScores": {
+          "home": "0",
+          "away": "0"
+        },
+        "hits": "0",
+        "errors": "0",
+        "strikeouts": "0",
+        "walks": "0"
+      }
+    },
+    "current_d4": "d4.1.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+    "read_kind": "lineup-prefix",
+    "after": {
+      "stateFields": {
+        "state.half": "top",
+        "state.count.strikes": "0",
+        "state.count.balls": "0",
+        "state.outs": "0",
+        "state.runners": "empty",
+        "state.battingOrder": "1",
+        "state.tiebreakActive": false,
+        "state.gameEnded": false,
+        "state.inning": "1",
+        "state.score": {
+          "home": "0",
+          "away": "0"
+        }
+      },
+      "scoreboard": {
+        "inningScores": {
+          "home": "0",
+          "away": "0"
+        },
+        "hits": "0",
+        "errors": "0",
+        "strikeouts": "0",
+        "walks": "0"
+      },
+      "battingOrderBySide": {
+        "away": "1",
+        "home": "1"
+      }
+    },
+    "prefix_ref": {
+      "version": "3",
+      "tenantId": "11111111-1111-4111-8111-111111111111",
+      "gameId": "22222222-2222-4222-8222-222222222222",
+      "generation": "d4.1.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+      "length": "0",
+      "scope": "play-prefix-v3",
+      "checkpoint": {
+        "id": "33333333-3333-4333-8333-333333333333",
+        "revision": "1",
+        "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "historyVersion": "0",
+      "origin": {
+        "kind": "started-game",
+        "eventId": "33333333-3333-4333-8333-333333333333"
+      }
+    },
+    "rules": {
+      "regulationInnings": "7",
+      "coldConditions": [],
+      "extensionLimit": null,
+      "tiebreak": null,
+      "dh": false
+    },
+    "t2": null,
+    "last_entry": null,
+    "last_source": null,
+    "prior_artifact_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "pa_start_source": {
+      "kind": "started-game",
+      "id": "33333333-3333-4333-8333-333333333333"
+    },
+    "lineup": {
+      "away": {
+        "teamId": "00000000-0000-4000-8000-000000000199",
+        "battingOrder": {
+          "1": "00000000-0000-4000-8000-000000000101",
+          "2": "00000000-0000-4000-8000-000000000102",
+          "3": "00000000-0000-4000-8000-000000000103",
+          "4": "00000000-0000-4000-8000-000000000104",
+          "5": "00000000-0000-4000-8000-000000000105",
+          "6": "00000000-0000-4000-8000-000000000106",
+          "7": "00000000-0000-4000-8000-000000000107",
+          "8": "00000000-0000-4000-8000-000000000108",
+          "9": "00000000-0000-4000-8000-000000000109"
+        },
+        "pitcherId": "00000000-0000-4000-8000-000000000101",
+        "catcherId": "00000000-0000-4000-8000-000000000102"
+      },
+      "home": {
+        "teamId": "00000000-0000-4000-8000-000000000299",
+        "battingOrder": {
+          "1": "00000000-0000-4000-8000-000000000201",
+          "2": "00000000-0000-4000-8000-000000000202",
+          "3": "00000000-0000-4000-8000-000000000203",
+          "4": "00000000-0000-4000-8000-000000000204",
+          "5": "00000000-0000-4000-8000-000000000205",
+          "6": "00000000-0000-4000-8000-000000000206",
+          "7": "00000000-0000-4000-8000-000000000207",
+          "8": "00000000-0000-4000-8000-000000000208",
+          "9": "00000000-0000-4000-8000-000000000209"
+        },
+        "pitcherId": "00000000-0000-4000-8000-000000000201",
+        "catcherId": "00000000-0000-4000-8000-000000000202"
+      }
+    },
+    "roster_digest": "c0dc705571b09701ab0fc65ffdaa410e4092e940adaf62f5eb75627d399625ac",
+    "runners": [],
+    "participants": {
+      "batterId": "00000000-0000-4000-8000-000000000101",
+      "pitcherId": "00000000-0000-4000-8000-000000000201",
+      "catcherId": "00000000-0000-4000-8000-000000000202",
+      "battingOrder": "1"
+    },
+    "next_position": {
+      "d1": "1",
+      "d2": "1"
+    },
+    "checkpoint_anchor": null,
+    "storage_anchor": null,
+    "recovery_generation": "1",
+    "page": {
+      "items": [],
+      "next_cursor": null
+    },
+    "append_policy": {
+      "version": "ordinary-append-v1",
+      "first_d2": "1",
+      "d2_gap": "1000",
+      "max_d2": "9007199254740991"
+    },
+    "last_saved_at": "2026-10-30T01:00:00Z"
+  }
+}
