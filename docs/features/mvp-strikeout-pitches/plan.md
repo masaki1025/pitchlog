@@ -255,3 +255,5 @@ rootが独立分類由来の新fixture tests/fixtures/pr192_tenant_source_expect
 
 
 ステップ5の実画面追随（2026-11-05、PO委任によるCodex /root判断）: 同版32b7a035の実POST/GET200後に画面の履歴が消える反例を実測。read validatorがprefix_ref.checkpoint.id（保存wire headのID）をcheckpoint_anchor.id（開始原本由来の保存anchor）と混同している。既planのzero論理ref/物理history区別、play_prefix.pyの初期原本/同doc整合、旧v2 validatorのrevision照合を根拠に、frontend/src/api/lineupPrefixGame.ts/spec.tsと新fixtures/lineupPrefixGame.recorded.v3.json、既GameScreenLineupPrefix.e2e.tsのexact4を修復する。anchorはstorage_anchor/開始originと照合、prefix checkpointはrevision/historyを照合し、無関係IDの同一強制だけを是正する。拒否の削除や応答補完をしない。実GETcaptureは型接合回帰であり数学の期待値原典ではない。新正常・anchor不一致/版不一致の負対向/既旧test保持、非作者確認と同版実画面を要する。
+
+同じステップ5実接合追補: r5では作成201/初球画面復元を通過し2球目GET200で別の拒否を再現した。wire prefix historyVersionは毎球増分、private storage/history epochは同世代のまま（実値2対1）。既native documentとterminal_pitch_projection.pyの保持、旧v2 readerと同じ区別に合わせ、この無関係な同値強制を除き、anchor/storage相互epochとcheckpoint revisionの一致は全保持する。実2球GETを同capture fixtureのlaterValueへ保存し陽性回帰を追加、既負対向を削らない。r4の作成503はr5閉診断で再現せず原因未確定として残す。

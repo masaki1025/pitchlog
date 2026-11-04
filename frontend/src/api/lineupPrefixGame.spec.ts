@@ -131,3 +131,22 @@ it.each(['logical-id', 'storage-id', 'revision', 'history', 'storage-history'])(
     expect(fetch).toHaveBeenCalledTimes(1)
   },
 )
+
+it('2球目以降のwire履歴版と保存epochを混同せず復元する', async () => {
+  const value = structuredClone(recordedFixture.laterValue)
+  expect(value.prefix_ref.historyVersion).toBe('2')
+  expect(value.storage_anchor.history_epoch).toBe('1')
+  expect(value.checkpoint_anchor.history_version).toBe(
+    value.storage_anchor.history_epoch,
+  )
+  expect(isLineupPrefixGame(value)).toBe(true)
+  setVerifiedAuthForTest(useAuthStore(), {
+    teamId: value.prefix_ref.tenantId,
+    teamName: '隔離実GET',
+  })
+  body = value
+  expect(await readLineupPrefixGame(value.id)).toEqual({
+    kind: 'found',
+    game: value,
+  })
+})
