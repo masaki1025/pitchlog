@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "contract_revision": 27,
+  "contract_revision": 28,
   "baseline_control": {
     "identity": {
       "scheme": "integer_revision_field",
       "field": "contract_revision",
       "current_identifiers": [
-        "contract_revision:27"
+        "contract_revision:28"
       ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
@@ -654,5 +654,5 @@
     "downstream_owners": "U-D1 and the units that own each triggering operation"
   },
   "preaggregation_independent": true,
-  "source_digest": "1c0b1a5bd74cb8653f702c3d025bf10a115052e3df2d557c33b98469ac2a86b3"
+  "source_digest": "e638cba1593f2b75539d8daa9bf403bfff67b98869774b14908eefe8ef968442"
 }

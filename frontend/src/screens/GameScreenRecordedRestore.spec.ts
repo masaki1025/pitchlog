@@ -680,3 +680,85 @@ it('真正DTO変更後に遅れて完了した旧contextを新ownerへ戻さな�
   if (ref.version !== '2') throw new Error('v2 contextが失われました')
   expect(ref.checkpoint.digest).toBe('b'.repeat(64))
 })
+
+import * as lineupRead from '../api/lineupPrefixGame'
+import lineupFixture from '../api/fixtures/lineupPrefixGame.v3.json'
+function lineupReadFixture() {
+  const value = structuredClone(lineupFixture.value)
+  value.id = game
+  value.prefix_ref.gameId = game
+  value.prefix_ref.tenantId = tenant
+  if (!lineupRead.isLineupPrefixGame(value)) throw new Error('構造fixture不正')
+  return value
+}
+it('明示入口から新projectionを読み、query保持で再取得しても旧GETへ戻らない', async () => {
+  const read = vi
+    .spyOn(lineupRead, 'readLineupPrefixGame')
+    .mockResolvedValue({ kind: 'found', game: lineupReadFixture() })
+  const wrapper = await mountRestore({ auto: false })
+  await wrapper.get('button').trigger('click')
+  await flushPromises()
+  const oldCalls = vi.mocked(ordinaryRead.readPlayPrefixGame).mock.calls.length
+  await wrapper.vm.$router.replace({ query: { recording: 'play-prefix-v3' } })
+  await wrapper
+    .findAll('button')
+    .find((b) => /^サーバーから(?:復元|再取得)$/.test(b.text()))!
+    .trigger('click')
+  await flushPromises()
+  await vi.waitFor(() => expect(read).toHaveBeenCalledTimes(1))
+  expect(wrapper.get('[data-testid="restore-balls"]').text()).toBe('0')
+  expect(ordinaryRead.readPlayPrefixGame).toHaveBeenCalledTimes(oldCalls)
+  expect(wrapper.text()).not.toContain('play-prefix-v3')
+})
+it.each(['unavailable', 'unsupported'] as const)(
+  '新入口%sを旧記録成功へfallbackしない',
+  async (kind) => {
+    const read = vi
+      .spyOn(lineupRead, 'readLineupPrefixGame')
+      .mockResolvedValue({ kind })
+    const wrapper = await mountRestore({ auto: false })
+    await wrapper.vm.$router.replace({ query: { recording: 'play-prefix-v3' } })
+    await wrapper.get('button').trigger('click')
+    await flushPromises()
+    expect(read).toHaveBeenCalledOnce()
+    expect(ordinaryRead.readPlayPrefixGame).not.toHaveBeenCalled()
+    expect(readStartedGame).not.toHaveBeenCalled()
+    expect(wrapper.find('[data-testid="restore-balls"]').exists()).toBe(false)
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === '従来の投球記録を表示')!
+      .trigger('click')
+    await flushPromises()
+    expect(ordinaryRead.readPlayPrefixGame).toHaveBeenCalledTimes(1)
+  },
+)
+it('未知内部queryは別モードへ解釈せず送信前に拒否する', async () => {
+  const read = vi.spyOn(lineupRead, 'readLineupPrefixGame')
+  const wrapper = await mountRestore({ auto: false })
+  await wrapper.vm.$router.replace({ query: { recording: 'future-mode' } })
+  await wrapper.get('button').trigger('click')
+  await flushPromises()
+  expect(read).not.toHaveBeenCalled()
+  expect(ordinaryRead.readPlayPrefixGame).not.toHaveBeenCalled()
+  expect(wrapper.text()).toContain('記録の入口を確認してください')
+})
+it('読取途中の入口変更はauto=falseでも旧v3応答を採用しない', async () => {
+  let resolveRead!: (
+    result: Awaited<ReturnType<typeof lineupRead.readLineupPrefixGame>>,
+  ) => void
+  vi.spyOn(lineupRead, 'readLineupPrefixGame').mockImplementation(
+    () =>
+      new Promise((resolve) => {
+        resolveRead = resolve
+      }),
+  )
+  const wrapper = await mountRestore({ auto: false })
+  await wrapper.vm.$router.replace({ query: { recording: 'play-prefix-v3' } })
+  await wrapper.get('button').trigger('click')
+  await flushPromises()
+  await wrapper.vm.$router.replace({ query: {} })
+  resolveRead({ kind: 'found', game: lineupReadFixture() })
+  await flushPromises()
+  expect(wrapper.find('[data-testid="restore-balls"]').exists()).toBe(false)
+  expect(wrapper.text()).not.toContain('を取得しました')
+})

@@ -376,3 +376,64 @@ it('開始直後0球の実GET形からHBPを唯一artifactへ渡し、元予約I
     ),
   ).rejects.toThrow()
 })
+
+import lineupFixture from '../api/fixtures/lineupPrefixGame.v3.json'
+import {
+  lineupContextFromRead,
+  prepareLineupPrefix,
+  type PlayScreenObservation,
+} from './GameScreenOrdinaryPitchProvider'
+import { isLineupPrefixGame } from '../api/lineupPrefixGame'
+it('両9枠と実投捕の読取を唯一artifactへ渡し、三振・攻守を計算しない', async () => {
+  const value = lineupFixture.value
+  if (!isLineupPrefixGame(value)) throw new Error('独立DTO不正')
+  const context = await lineupContextFromRead(value, value.prefix_ref.tenantId)
+  const observation: PlayScreenObservation = {
+    resultId: 'batting-result.called-pitch',
+    pitchTypeKey: 'tenant.pitch.straight',
+    screenX: 131.5,
+    screenY: 124,
+    view: 'catcher',
+    pitchSpeed: { kmh: null, outsideRangeConfirmed: false },
+    stance: null,
+    battingSide: null,
+  }
+  const prepared = await prepareLineupPrefix(
+    context,
+    observation,
+    {
+      tenantId: value.prefix_ref.tenantId,
+      pitchTypeKeys: ['tenant.pitch.straight'],
+    },
+    value.prefix_ref.tenantId,
+    {
+      d5: '44444444-4444-4444-8444-444444444444',
+      eventId: '55555555-5555-4555-8555-555555555555',
+      playId: '66666666-6666-4666-8666-666666666666',
+    },
+    '77777777-7777-4777-8777-777777777777',
+  )
+  expect(
+    prepared.payload.calculation.response.value.t1.after.stateFields[
+      'state.count.strikes'
+    ],
+  ).toBe('1')
+  expect(
+    prepared.payload.calculation.response.value.t1.after.battingOrderBySide,
+  ).toEqual({ away: '1', home: '1' })
+  expect(prepared.payload.participants).toEqual(value.participants)
+  expect(context.after).toEqual(value.after)
+})
+it('別tenant・破損roster hashを真正sourceにしない', async () => {
+  const value = structuredClone(lineupFixture.value)
+  if (!isLineupPrefixGame(value)) throw new Error('独立DTO不正')
+  await expect(
+    lineupContextFromRead(value, 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'),
+  ).rejects.toThrow()
+  await expect(
+    lineupContextFromRead(
+      { ...value, roster_digest: '0'.repeat(64) },
+      value.prefix_ref.tenantId,
+    ),
+  ).rejects.toThrow()
+})

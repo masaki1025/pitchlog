@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "contract_revision": 50,
+  "contract_revision": 51,
   "writer_binding_deployment_assets": {
     "backend/src/pitchlog/sync/control_provider/sql/control-phase-schema.sql": "02596049a61ff542d7c0ed176a828054f280acccdbb846870947251022145954",
     "backend/src/pitchlog/sync/control_provider/sql/writer-binding-control.sql": "0981420767021ae781d620c72222d62864b8f1fc1fd732671d677d774c155b1e",
@@ -12,7 +12,7 @@
       "scheme": "integer_revision_field",
       "field": "contract_revision",
       "current_identifiers": [
-        "contract_revision:50"
+        "contract_revision:51"
       ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
@@ -34755,6 +34755,1218 @@
         "reason": "#190統合済み実基線からBB/HBP・真正v2 prefix・同TX runner保存と有限source拒否/censusを接合。既認可・再送・全取消・越境拒否を保持。全CI残差の有限core層・旧ordinary33歴史scopeを保つ191限定委任接合・固定Git pin・合成repo原典保持を非作者c1615790で追加確認し、実前後値を単一受理する。",
         "approved_by": "PO委任によるCodex主担当/root判断（本人署名・逐行確認の代記ではない）",
         "approved_on": "2026-11-05"
+      },
+      {
+        "record_schema_version": 2,
+        "acceptance_id": "masaki1025/pitchlog#192",
+        "previous_baseline_identifiers": {
+          "contracts/tenant_boundary/base-allowlist.json": [
+            "contract_revision:50"
+          ],
+          "contracts/tenant_boundary/cache-invalidation-contract.json": [
+            "contract_revision:27"
+          ],
+          "contracts/tenant_boundary/census-baseline.json": [
+            "contract_revision:27"
+          ],
+          "contracts/tenant_boundary/db-api-inventory.json": [
+            "inventory_revision:27"
+          ],
+          "contracts/tenant_boundary/frozen-inputs.json": [
+            "contract_revision:15"
+          ],
+          "contracts/tenant_boundary/negative-fixtures.json": [
+            "fixture_set_revision:29"
+          ],
+          "contracts/tenant_boundary/repository-contract.json": [
+            "contract_revision:36"
+          ],
+          "contracts/tenant_boundary/runtime-authz-contract.json": [
+            "runtime_contract_revision:30"
+          ],
+          "contracts/tenant_boundary/tenant-context-allowlist.json": [
+            "contract_revision:28"
+          ]
+        },
+        "new_baseline_identifiers": {
+          "contracts/tenant_boundary/base-allowlist.json": [
+            "contract_revision:51"
+          ],
+          "contracts/tenant_boundary/cache-invalidation-contract.json": [
+            "contract_revision:28"
+          ],
+          "contracts/tenant_boundary/census-baseline.json": [
+            "contract_revision:28"
+          ],
+          "contracts/tenant_boundary/db-api-inventory.json": [
+            "inventory_revision:28"
+          ],
+          "contracts/tenant_boundary/frozen-inputs.json": [
+            "contract_revision:16"
+          ],
+          "contracts/tenant_boundary/negative-fixtures.json": [
+            "fixture_set_revision:30"
+          ],
+          "contracts/tenant_boundary/repository-contract.json": [
+            "contract_revision:37"
+          ],
+          "contracts/tenant_boundary/runtime-authz-contract.json": [
+            "runtime_contract_revision:31"
+          ],
+          "contracts/tenant_boundary/tenant-context-allowlist.json": [
+            "contract_revision:29"
+          ]
+        },
+        "change": {
+          "subject": "masaki1025/pitchlog#192 の製品認可契約の受理",
+          "aspect": [
+            "asset_snapshots",
+            "declaration",
+            "external_snapshots"
+          ],
+          "before": {
+            "declaration": {
+              "contracts/tenant_boundary/base-allowlist.json": {
+                "identity": {
+                  "scheme": "integer_revision_field",
+                  "field": "contract_revision",
+                  "current_identifiers": [
+                    "contract_revision:50"
+                  ],
+                  "no_baseline_marker": "NO_BASELINE",
+                  "frozen_projection": {
+                    "algorithm": "sha256-canonical-json-and-external-files-v1",
+                    "included": "all_top_level_fields",
+                    "excluded": [
+                      "baseline_control",
+                      "source_digest"
+                    ],
+                    "external_files": [
+                      "scripts/check_tenant_boundary_bypass.py",
+                      "scripts/frozen_history.py",
+                      "scripts/frozen_archive.py",
+                      ".github/workflows/ci.yml"
+                    ]
+                  }
+                },
+                "history_authority": true
+              },
+              "contracts/tenant_boundary/cache-invalidation-contract.json": {
+                "identity": {
+                  "scheme": "integer_revision_field",
+                  "field": "contract_revision",
+                  "current_identifiers": [
+                    "contract_revision:27"
+                  ],
+                  "no_baseline_marker": "NO_BASELINE",
+                  "frozen_projection": {
+                    "algorithm": "sha256-canonical-json-and-external-files-v1",
+                    "included": "all_top_level_fields",
+                    "excluded": [
+                      "baseline_control",
+                      "source_digest"
+                    ],
+                    "external_files": [
+                      "scripts/check_tenant_boundary_bypass.py",
+                      "scripts/frozen_history.py",
+                      "scripts/frozen_archive.py",
+                      ".github/workflows/ci.yml"
+                    ]
+                  }
+                },
+                "history_authority": false
+              },
+              "contracts/tenant_boundary/census-baseline.json": {
+                "identity": {
+                  "scheme": "integer_revision_field",
+                  "field": "contract_revision",
+                  "current_identifiers": [
+                    "contract_revision:27"
+                  ],
+                  "no_baseline_marker": "NO_BASELINE",
+                  "frozen_projection": {
+                    "algorithm": "sha256-canonical-json-and-external-files-v1",
+                    "included": "all_top_level_fields",
+                    "excluded": [
+                      "baseline_control",
+                      "source_digest"
+                    ],
+                    "external_files": [
+                      "scripts/check_tenant_boundary_bypass.py",
+                      "scripts/frozen_history.py",
+                      "scripts/frozen_archive.py",
+                      ".github/workflows/ci.yml",
+                      "tests/test_census_baseline_check.py"
+                    ]
+                  }
+                },
+                "history_authority": false
+              },
+              "contracts/tenant_boundary/db-api-inventory.json": {
+                "identity": {
+                  "scheme": "integer_revision_field",
+                  "field": "inventory_revision",
+                  "current_identifiers": [
+                    "inventory_revision:27"
+                  ],
+                  "no_baseline_marker": "NO_BASELINE",
+                  "frozen_projection": {
+                    "algorithm": "sha256-canonical-json-and-external-files-v1",
+                    "included": "all_top_level_fields",
+                    "excluded": [
+                      "baseline_control",
+                      "source_digest"
+                    ],
+                    "external_files": [
+                      "scripts/check_tenant_boundary_bypass.py",
+                      "scripts/frozen_history.py",
+                      "scripts/frozen_archive.py",
+                      ".github/workflows/ci.yml"
+                    ]
+                  }
+                },
+                "history_authority": false
+              },
+              "contracts/tenant_boundary/frozen-inputs.json": {
+                "identity": {
+                  "scheme": "integer_revision_field",
+                  "field": "contract_revision",
+                  "current_identifiers": [
+                    "contract_revision:15"
+                  ],
+                  "no_baseline_marker": "NO_BASELINE",
+                  "frozen_projection": {
+                    "algorithm": "sha256-canonical-json-and-external-files-v1",
+                    "included": "all_top_level_fields",
+                    "excluded": [
+                      "baseline_control",
+                      "source_digest"
+                    ],
+                    "external_files": [
+                      "scripts/frozen_archive.py",
+                      "tests/domain/test_boot_seal.py",
+                      "tests/test_ci_wiring.py",
+                      "tests/test_plan_generation.py",
+                      "backend/tests/test_api_conventions.py",
+                      "tests/test_check_authz_catalog.py",
+                      "scripts/check_tenant_boundary_bypass.py",
+                      "tests/test_census_baseline_check.py",
+                      "tests/test_pr191_tenant_source_registration.py",
+                      "tests/fixtures/pr191_tenant_source_expected_v1.json",
+                      "backend/tests/test_terminal_pitch_write_stamp.py",
+                      "scripts/core_guard.py",
+                      "tests/test_core_guard.py",
+                      "tests/test_product_authz_tenant_boundary_allowlist.py",
+                      "contracts/authz/product/probe-product-map.json",
+                      "backend/tests/first_ball_expected_source_pins.py",
+                      "backend/tests/fixtures/first_ball_expected_source_pins_v1.json",
+                      "scripts/check_human_review_signature.py",
+                      "tests/test_human_review_signature.py",
+                      "tests/fixtures/pr191_ordinary_extension_reference_v1.json"
+                    ]
+                  }
+                },
+                "history_authority": false
+              },
+              "contracts/tenant_boundary/negative-fixtures.json": {
+                "identity": {
+                  "scheme": "integer_revision_field",
+                  "field": "fixture_set_revision",
+                  "current_identifiers": [
+                    "fixture_set_revision:29"
+                  ],
+                  "no_baseline_marker": "NO_BASELINE",
+                  "frozen_projection": {
+                    "algorithm": "sha256-canonical-json-and-external-files-v1",
+                    "included": "all_top_level_fields",
+                    "excluded": [
+                      "baseline_control",
+                      "source_digest"
+                    ],
+                    "external_files": [
+                      "scripts/check_tenant_boundary_bypass.py",
+                      "scripts/frozen_history.py",
+                      "scripts/frozen_archive.py",
+                      ".github/workflows/ci.yml"
+                    ]
+                  }
+                },
+                "history_authority": false
+              },
+              "contracts/tenant_boundary/repository-contract.json": {
+                "identity": {
+                  "scheme": "integer_revision_field",
+                  "field": "contract_revision",
+                  "current_identifiers": [
+                    "contract_revision:36"
+                  ],
+                  "no_baseline_marker": "NO_BASELINE",
+                  "frozen_projection": {
+                    "algorithm": "sha256-canonical-json-and-external-files-v1",
+                    "included": "all_top_level_fields",
+                    "excluded": [
+                      "baseline_control",
+                      "source_digest"
+                    ],
+                    "external_files": [
+                      "scripts/check_tenant_boundary_bypass.py",
+                      "scripts/frozen_history.py",
+                      "scripts/frozen_archive.py",
+                      ".github/workflows/ci.yml"
+                    ]
+                  }
+                },
+                "history_authority": false
+              },
+              "contracts/tenant_boundary/runtime-authz-contract.json": {
+                "identity": {
+                  "scheme": "integer_revision_field",
+                  "field": "runtime_contract_revision",
+                  "current_identifiers": [
+                    "runtime_contract_revision:30"
+                  ],
+                  "no_baseline_marker": "NO_BASELINE",
+                  "frozen_projection": {
+                    "algorithm": "sha256-canonical-json-and-external-files-v1",
+                    "included": "all_top_level_fields",
+                    "excluded": [
+                      "baseline_control",
+                      "source_digest"
+                    ],
+                    "external_files": [
+                      "scripts/check_tenant_boundary_bypass.py",
+                      "scripts/frozen_history.py",
+                      "scripts/frozen_archive.py",
+                      ".github/workflows/ci.yml"
+                    ]
+                  }
+                },
+                "history_authority": false
+              },
+              "contracts/tenant_boundary/tenant-context-allowlist.json": {
+                "identity": {
+                  "scheme": "integer_revision_field",
+                  "field": "contract_revision",
+                  "current_identifiers": [
+                    "contract_revision:28"
+                  ],
+                  "no_baseline_marker": "NO_BASELINE",
+                  "frozen_projection": {
+                    "algorithm": "sha256-canonical-json-and-external-files-v1",
+                    "included": "all_top_level_fields",
+                    "excluded": [
+                      "baseline_control",
+                      "source_digest"
+                    ],
+                    "external_files": [
+                      "scripts/check_tenant_boundary_bypass.py",
+                      "scripts/frozen_history.py",
+                      "scripts/frozen_archive.py",
+                      ".github/workflows/ci.yml"
+                    ]
+                  }
+                },
+                "history_authority": false
+              }
+            },
+            "movement_policy": {
+              "contracts/tenant_boundary/base-allowlist.json": {
+                "acceptance_unit": "single_review_acceptance",
+                "previous_state": "state_immediately_before_review_acceptance",
+                "new_state": "state_immediately_after_review_acceptance",
+                "intermediate_commits_are_records": false,
+                "movement_triggers": [
+                  "baseline_set",
+                  "baseline_value",
+                  "declaration_location",
+                  "frozen_target_mapping",
+                  "identity_granularity",
+                  "identifier_interpretation",
+                  "pass_fail_mapping"
+                ],
+                "affected_baselines": "all_baselines_matching_any_declared_trigger",
+                "history_append_only": true
+              },
+              "contracts/tenant_boundary/cache-invalidation-contract.json": {
+                "acceptance_unit": "single_review_acceptance",
+                "previous_state": "state_immediately_before_review_acceptance",
+                "new_state": "state_immediately_after_review_acceptance",
+                "intermediate_commits_are_records": false,
+                "movement_triggers": [
+                  "baseline_set",
+                  "baseline_value",
+                  "declaration_location",
+                  "frozen_target_mapping",
+                  "identity_granularity",
+                  "identifier_interpretation",
+                  "pass_fail_mapping"
+                ],
+                "affected_baselines": "all_baselines_matching_any_declared_trigger",
+                "history_append_only": true
+              },
+              "contracts/tenant_boundary/census-baseline.json": {
+                "acceptance_unit": "single_review_acceptance",
+                "previous_state": "state_immediately_before_review_acceptance",
+                "new_state": "state_immediately_after_review_acceptance",
+                "intermediate_commits_are_records": false,
+                "movement_triggers": [
+                  "baseline_set",
+                  "baseline_value",
+                  "declaration_location",
+                  "frozen_target_mapping",
+                  "identity_granularity",
+                  "identifier_interpretation",
+                  "pass_fail_mapping"
+                ],
+                "affected_baselines": "all_baselines_matching_any_declared_trigger",
+                "history_append_only": true
+              },
+              "contracts/tenant_boundary/db-api-inventory.json": {
+                "acceptance_unit": "single_review_acceptance",
+                "previous_state": "state_immediately_before_review_acceptance",
+                "new_state": "state_immediately_after_review_acceptance",
+                "intermediate_commits_are_records": false,
+                "movement_triggers": [
+                  "baseline_set",
+                  "baseline_value",
+                  "declaration_location",
+                  "frozen_target_mapping",
+                  "identity_granularity",
+                  "identifier_interpretation",
+                  "pass_fail_mapping"
+                ],
+                "affected_baselines": "all_baselines_matching_any_declared_trigger",
+                "history_append_only": true
+              },
+              "contracts/tenant_boundary/frozen-inputs.json": {
+                "acceptance_unit": "single_review_acceptance",
+                "previous_state": "state_immediately_before_review_acceptance",
+                "new_state": "state_immediately_after_review_acceptance",
+                "intermediate_commits_are_records": false,
+                "movement_triggers": [
+                  "baseline_set",
+                  "baseline_value",
+                  "declaration_location",
+                  "frozen_target_mapping",
+                  "identity_granularity",
+                  "identifier_interpretation",
+                  "pass_fail_mapping"
+                ],
+                "affected_baselines": "all_baselines_matching_any_declared_trigger",
+                "history_append_only": true
+              },
+              "contracts/tenant_boundary/negative-fixtures.json": {
+                "acceptance_unit": "single_review_acceptance",
+                "previous_state": "state_immediately_before_review_acceptance",
+                "new_state": "state_immediately_after_review_acceptance",
+                "intermediate_commits_are_records": false,
+                "movement_triggers": [
+                  "baseline_set",
+                  "baseline_value",
+                  "declaration_location",
+                  "frozen_target_mapping",
+                  "identity_granularity",
+                  "identifier_interpretation",
+                  "pass_fail_mapping"
+                ],
+                "affected_baselines": "all_baselines_matching_any_declared_trigger",
+                "history_append_only": true
+              },
+              "contracts/tenant_boundary/repository-contract.json": {
+                "acceptance_unit": "single_review_acceptance",
+                "previous_state": "state_immediately_before_review_acceptance",
+                "new_state": "state_immediately_after_review_acceptance",
+                "intermediate_commits_are_records": false,
+                "movement_triggers": [
+                  "baseline_set",
+                  "baseline_value",
+                  "declaration_location",
+                  "frozen_target_mapping",
+                  "identity_granularity",
+                  "identifier_interpretation",
+                  "pass_fail_mapping"
+                ],
+                "affected_baselines": "all_baselines_matching_any_declared_trigger",
+                "history_append_only": true
+              },
+              "contracts/tenant_boundary/runtime-authz-contract.json": {
+                "acceptance_unit": "single_review_acceptance",
+                "previous_state": "state_immediately_before_review_acceptance",
+                "new_state": "state_immediately_after_review_acceptance",
+                "intermediate_commits_are_records": false,
+                "movement_triggers": [
+                  "baseline_set",
+                  "baseline_value",
+                  "declaration_location",
+                  "frozen_target_mapping",
+                  "identity_granularity",
+                  "identifier_interpretation",
+                  "pass_fail_mapping"
+                ],
+                "affected_baselines": "all_baselines_matching_any_declared_trigger",
+                "history_append_only": true
+              },
+              "contracts/tenant_boundary/tenant-context-allowlist.json": {
+                "acceptance_unit": "single_review_acceptance",
+                "previous_state": "state_immediately_before_review_acceptance",
+                "new_state": "state_immediately_after_review_acceptance",
+                "intermediate_commits_are_records": false,
+                "movement_triggers": [
+                  "baseline_set",
+                  "baseline_value",
+                  "declaration_location",
+                  "frozen_target_mapping",
+                  "identity_granularity",
+                  "identifier_interpretation",
+                  "pass_fail_mapping"
+                ],
+                "affected_baselines": "all_baselines_matching_any_declared_trigger",
+                "history_append_only": true
+              }
+            },
+            "external_snapshots": [
+              {
+                "path": ".github/workflows/ci.yml",
+                "sha256": "05a724f36925332d3f5f3c43903dd5c23a963b1813480330ed12819d39f70c43",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/05a724f36925332d3f5f3c43903dd5c23a963b1813480330ed12819d39f70c43"
+              },
+              {
+                "path": "backend/tests/first_ball_expected_source_pins.py",
+                "sha256": "cb672ec9c25b6075f7fcda882ec0c382597bfe2f2827dd4f8f06563a26e530c1",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/cb672ec9c25b6075f7fcda882ec0c382597bfe2f2827dd4f8f06563a26e530c1"
+              },
+              {
+                "path": "backend/tests/fixtures/first_ball_expected_source_pins_v1.json",
+                "sha256": "a55fb5726ac3c57aa95d01e4b46b7a4081715f484a9df2e2c8f040d60fc662c1",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/a55fb5726ac3c57aa95d01e4b46b7a4081715f484a9df2e2c8f040d60fc662c1"
+              },
+              {
+                "path": "backend/tests/test_api_conventions.py",
+                "sha256": "8ad8f18c379c96e2473857119c620cff3016d732b6cf39536b00c58a758a8621",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/8ad8f18c379c96e2473857119c620cff3016d732b6cf39536b00c58a758a8621"
+              },
+              {
+                "path": "backend/tests/test_terminal_pitch_write_stamp.py",
+                "sha256": "df97726f451b558a0b6504935c749cc645824d3e0308127a22ce23b35a8e6c96",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/df97726f451b558a0b6504935c749cc645824d3e0308127a22ce23b35a8e6c96"
+              },
+              {
+                "path": "contracts/authz/product/probe-product-map.json",
+                "sha256": "3a4d2b6129f00d38a5e3fabff1948b929dca614180e220b38d433c791b22f650",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/3a4d2b6129f00d38a5e3fabff1948b929dca614180e220b38d433c791b22f650"
+              },
+              {
+                "path": "scripts/check_human_review_signature.py",
+                "sha256": "d70de104a2913d43add66750c979bbb2075a94a14cf4fd1d8a434cf1382b0dca",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/d70de104a2913d43add66750c979bbb2075a94a14cf4fd1d8a434cf1382b0dca"
+              },
+              {
+                "path": "scripts/check_tenant_boundary_bypass.py",
+                "sha256": "dbf236a642fbdf6551afdb23bdb031f2bb9c661e3bc939d8d8a85387a56b2cea",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/dbf236a642fbdf6551afdb23bdb031f2bb9c661e3bc939d8d8a85387a56b2cea"
+              },
+              {
+                "path": "scripts/core_guard.py",
+                "sha256": "acf670a66f93a25a9157a3b982a5abc5c6dfcd04e7308f4b55d7931da8aaf120",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/acf670a66f93a25a9157a3b982a5abc5c6dfcd04e7308f4b55d7931da8aaf120"
+              },
+              {
+                "path": "scripts/frozen_archive.py",
+                "sha256": "66e198f6c8ba13d213efe9a3d69c7f259ef67ed5f5be9e948934da44a1e81ca6",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/66e198f6c8ba13d213efe9a3d69c7f259ef67ed5f5be9e948934da44a1e81ca6"
+              },
+              {
+                "path": "scripts/frozen_history.py",
+                "sha256": "0bd319d2118948d288d338bc80dcb3885d0ee5834f7dea6d9d0ef33ecb5d40e8",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/0bd319d2118948d288d338bc80dcb3885d0ee5834f7dea6d9d0ef33ecb5d40e8"
+              },
+              {
+                "path": "tests/domain/test_boot_seal.py",
+                "sha256": "bb7b51691559bd2c0be6c802c8b15f509b592cb41862787700f178358f74aea2",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/bb7b51691559bd2c0be6c802c8b15f509b592cb41862787700f178358f74aea2"
+              },
+              {
+                "path": "tests/fixtures/pr191_ordinary_extension_reference_v1.json",
+                "sha256": "f8612103f697a474e0551785dc7079d1e957f54f94e5a827844cc7df42f708b0",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/f8612103f697a474e0551785dc7079d1e957f54f94e5a827844cc7df42f708b0"
+              },
+              {
+                "path": "tests/fixtures/pr191_tenant_source_expected_v1.json",
+                "sha256": "6b3015f26e7096a10fc8a3d53e15d81428cde31c6389f5c1d190221e36489b0e",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/6b3015f26e7096a10fc8a3d53e15d81428cde31c6389f5c1d190221e36489b0e"
+              },
+              {
+                "path": "tests/test_census_baseline_check.py",
+                "sha256": "d70ba0495336f908eb3cf54a894c3c3ff337b10c19fd9c4a3790d5122eac55b5",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/d70ba0495336f908eb3cf54a894c3c3ff337b10c19fd9c4a3790d5122eac55b5"
+              },
+              {
+                "path": "tests/test_check_authz_catalog.py",
+                "sha256": "8a4fb41e2d0ad09748d71367e6e9537a9a38deadd14f64d655da281353545427",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/8a4fb41e2d0ad09748d71367e6e9537a9a38deadd14f64d655da281353545427"
+              },
+              {
+                "path": "tests/test_ci_wiring.py",
+                "sha256": "3b77aa4dea76778623424fbd0df1e26c7b1b64409155fb2b9d9261db4ac93762",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/3b77aa4dea76778623424fbd0df1e26c7b1b64409155fb2b9d9261db4ac93762"
+              },
+              {
+                "path": "tests/test_core_guard.py",
+                "sha256": "8c7b8a3b72bf7926d7231b1d375ae05396171ba13cad8eb03beab88b6f534408",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/8c7b8a3b72bf7926d7231b1d375ae05396171ba13cad8eb03beab88b6f534408"
+              },
+              {
+                "path": "tests/test_human_review_signature.py",
+                "sha256": "f1ae7242a3dad107ed859c9182350926bdb315b4cf1bb54fb02fbad8278f4a09",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/f1ae7242a3dad107ed859c9182350926bdb315b4cf1bb54fb02fbad8278f4a09"
+              },
+              {
+                "path": "tests/test_plan_generation.py",
+                "sha256": "9f3c40956cbc50890e2a2b8dc8f5a17a85a80db5ecaf7f79becad8e9f88151fe",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/9f3c40956cbc50890e2a2b8dc8f5a17a85a80db5ecaf7f79becad8e9f88151fe"
+              },
+              {
+                "path": "tests/test_pr191_tenant_source_registration.py",
+                "sha256": "46897d2ed044acd7dfd111f2cfcd1646d9b74d1aa36d9ad1f95c131fa21f3aa3",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/46897d2ed044acd7dfd111f2cfcd1646d9b74d1aa36d9ad1f95c131fa21f3aa3"
+              },
+              {
+                "path": "tests/test_product_authz_tenant_boundary_allowlist.py",
+                "sha256": "9c5c2d798ff3b4ccf109f5c7abd97b2d07171727d39a4158e5dfaf0ee65c36a6",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/9c5c2d798ff3b4ccf109f5c7abd97b2d07171727d39a4158e5dfaf0ee65c36a6"
+              }
+            ],
+            "asset_snapshots": [
+              {
+                "path": "contracts/tenant_boundary/base-allowlist.json",
+                "sha256": "4445555952eeddf393c3151c1d28d625c78f34a156b0ad3320311f616b62146b",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/4445555952eeddf393c3151c1d28d625c78f34a156b0ad3320311f616b62146b"
+              },
+              {
+                "path": "contracts/tenant_boundary/cache-invalidation-contract.json",
+                "sha256": "cf2df104e46f3848efd899c9af64fc5d8f9a3e8819fce46559c4b78654d22407",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/cf2df104e46f3848efd899c9af64fc5d8f9a3e8819fce46559c4b78654d22407"
+              },
+              {
+                "path": "contracts/tenant_boundary/census-baseline.json",
+                "sha256": "e2b7c1b6eaca3abcb3d2bf8fa5f6be8255b63a0fe620674e67c79d6000424857",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/e2b7c1b6eaca3abcb3d2bf8fa5f6be8255b63a0fe620674e67c79d6000424857"
+              },
+              {
+                "path": "contracts/tenant_boundary/db-api-inventory.json",
+                "sha256": "f7d4ecd7d03696dca3461c228ad8dcc0c3afc68e7b16112f347733d8b4bac828",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/f7d4ecd7d03696dca3461c228ad8dcc0c3afc68e7b16112f347733d8b4bac828"
+              },
+              {
+                "path": "contracts/tenant_boundary/frozen-inputs.json",
+                "sha256": "d1aa343a35f02319013dea9ede8d55b724c192842270deb9fad2b8816c544931",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/d1aa343a35f02319013dea9ede8d55b724c192842270deb9fad2b8816c544931"
+              },
+              {
+                "path": "contracts/tenant_boundary/negative-fixtures.json",
+                "sha256": "eeb38a69e2e498db7bb4b2b9dc221f04540cba88a6e945e92a757ab810d47e88",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/eeb38a69e2e498db7bb4b2b9dc221f04540cba88a6e945e92a757ab810d47e88"
+              },
+              {
+                "path": "contracts/tenant_boundary/repository-contract.json",
+                "sha256": "ad4612e2a8bdccc732f08fc07fa4bae7032458f25a850ee45fbf1ed8c0ed6b45",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/ad4612e2a8bdccc732f08fc07fa4bae7032458f25a850ee45fbf1ed8c0ed6b45"
+              },
+              {
+                "path": "contracts/tenant_boundary/runtime-authz-contract.json",
+                "sha256": "197b7f3f1584ce136d7ba6ed65e80a67f41bdc5bf55deef8402be8e357ef395a",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/197b7f3f1584ce136d7ba6ed65e80a67f41bdc5bf55deef8402be8e357ef395a"
+              },
+              {
+                "path": "contracts/tenant_boundary/tenant-context-allowlist.json",
+                "sha256": "97206124b9e6480191aa03ea1eb271abc67b1f3256d02973f7e75ead82ae27d9",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/97206124b9e6480191aa03ea1eb271abc67b1f3256d02973f7e75ead82ae27d9"
+              }
+            ]
+          },
+          "after": {
+            "declaration": {
+              "contracts/tenant_boundary/base-allowlist.json": {
+                "identity": {
+                  "scheme": "integer_revision_field",
+                  "field": "contract_revision",
+                  "current_identifiers": [
+                    "contract_revision:51"
+                  ],
+                  "no_baseline_marker": "NO_BASELINE",
+                  "frozen_projection": {
+                    "algorithm": "sha256-canonical-json-and-external-files-v1",
+                    "included": "all_top_level_fields",
+                    "excluded": [
+                      "baseline_control",
+                      "source_digest"
+                    ],
+                    "external_files": [
+                      "scripts/check_tenant_boundary_bypass.py",
+                      "scripts/frozen_history.py",
+                      "scripts/frozen_archive.py",
+                      ".github/workflows/ci.yml"
+                    ]
+                  }
+                },
+                "history_authority": true
+              },
+              "contracts/tenant_boundary/cache-invalidation-contract.json": {
+                "identity": {
+                  "scheme": "integer_revision_field",
+                  "field": "contract_revision",
+                  "current_identifiers": [
+                    "contract_revision:28"
+                  ],
+                  "no_baseline_marker": "NO_BASELINE",
+                  "frozen_projection": {
+                    "algorithm": "sha256-canonical-json-and-external-files-v1",
+                    "included": "all_top_level_fields",
+                    "excluded": [
+                      "baseline_control",
+                      "source_digest"
+                    ],
+                    "external_files": [
+                      "scripts/check_tenant_boundary_bypass.py",
+                      "scripts/frozen_history.py",
+                      "scripts/frozen_archive.py",
+                      ".github/workflows/ci.yml"
+                    ]
+                  }
+                },
+                "history_authority": false
+              },
+              "contracts/tenant_boundary/census-baseline.json": {
+                "identity": {
+                  "scheme": "integer_revision_field",
+                  "field": "contract_revision",
+                  "current_identifiers": [
+                    "contract_revision:28"
+                  ],
+                  "no_baseline_marker": "NO_BASELINE",
+                  "frozen_projection": {
+                    "algorithm": "sha256-canonical-json-and-external-files-v1",
+                    "included": "all_top_level_fields",
+                    "excluded": [
+                      "baseline_control",
+                      "source_digest"
+                    ],
+                    "external_files": [
+                      "scripts/check_tenant_boundary_bypass.py",
+                      "scripts/frozen_history.py",
+                      "scripts/frozen_archive.py",
+                      ".github/workflows/ci.yml",
+                      "tests/test_census_baseline_check.py"
+                    ]
+                  }
+                },
+                "history_authority": false
+              },
+              "contracts/tenant_boundary/db-api-inventory.json": {
+                "identity": {
+                  "scheme": "integer_revision_field",
+                  "field": "inventory_revision",
+                  "current_identifiers": [
+                    "inventory_revision:28"
+                  ],
+                  "no_baseline_marker": "NO_BASELINE",
+                  "frozen_projection": {
+                    "algorithm": "sha256-canonical-json-and-external-files-v1",
+                    "included": "all_top_level_fields",
+                    "excluded": [
+                      "baseline_control",
+                      "source_digest"
+                    ],
+                    "external_files": [
+                      "scripts/check_tenant_boundary_bypass.py",
+                      "scripts/frozen_history.py",
+                      "scripts/frozen_archive.py",
+                      ".github/workflows/ci.yml"
+                    ]
+                  }
+                },
+                "history_authority": false
+              },
+              "contracts/tenant_boundary/frozen-inputs.json": {
+                "identity": {
+                  "scheme": "integer_revision_field",
+                  "field": "contract_revision",
+                  "current_identifiers": [
+                    "contract_revision:16"
+                  ],
+                  "no_baseline_marker": "NO_BASELINE",
+                  "frozen_projection": {
+                    "algorithm": "sha256-canonical-json-and-external-files-v1",
+                    "included": "all_top_level_fields",
+                    "excluded": [
+                      "baseline_control",
+                      "source_digest"
+                    ],
+                    "external_files": [
+                      "scripts/frozen_archive.py",
+                      "tests/domain/test_boot_seal.py",
+                      "tests/test_ci_wiring.py",
+                      "tests/test_plan_generation.py",
+                      "backend/tests/test_api_conventions.py",
+                      "tests/test_check_authz_catalog.py",
+                      "scripts/check_tenant_boundary_bypass.py",
+                      "tests/test_census_baseline_check.py",
+                      "tests/test_pr191_tenant_source_registration.py",
+                      "tests/fixtures/pr191_tenant_source_expected_v1.json",
+                      "backend/tests/test_terminal_pitch_write_stamp.py",
+                      "scripts/core_guard.py",
+                      "tests/test_core_guard.py",
+                      "tests/test_product_authz_tenant_boundary_allowlist.py",
+                      "contracts/authz/product/probe-product-map.json",
+                      "backend/tests/first_ball_expected_source_pins.py",
+                      "backend/tests/fixtures/first_ball_expected_source_pins_v1.json",
+                      "scripts/check_human_review_signature.py",
+                      "tests/test_human_review_signature.py",
+                      "tests/fixtures/pr191_ordinary_extension_reference_v1.json",
+                      "tests/fixtures/pr192_tenant_source_expected_v1.json",
+                      "tests/test_pr192_tenant_source_registration.py",
+                      "tests/test_check_tenant_boundary_bypass.py"
+                    ]
+                  }
+                },
+                "history_authority": false
+              },
+              "contracts/tenant_boundary/negative-fixtures.json": {
+                "identity": {
+                  "scheme": "integer_revision_field",
+                  "field": "fixture_set_revision",
+                  "current_identifiers": [
+                    "fixture_set_revision:30"
+                  ],
+                  "no_baseline_marker": "NO_BASELINE",
+                  "frozen_projection": {
+                    "algorithm": "sha256-canonical-json-and-external-files-v1",
+                    "included": "all_top_level_fields",
+                    "excluded": [
+                      "baseline_control",
+                      "source_digest"
+                    ],
+                    "external_files": [
+                      "scripts/check_tenant_boundary_bypass.py",
+                      "scripts/frozen_history.py",
+                      "scripts/frozen_archive.py",
+                      ".github/workflows/ci.yml"
+                    ]
+                  }
+                },
+                "history_authority": false
+              },
+              "contracts/tenant_boundary/repository-contract.json": {
+                "identity": {
+                  "scheme": "integer_revision_field",
+                  "field": "contract_revision",
+                  "current_identifiers": [
+                    "contract_revision:37"
+                  ],
+                  "no_baseline_marker": "NO_BASELINE",
+                  "frozen_projection": {
+                    "algorithm": "sha256-canonical-json-and-external-files-v1",
+                    "included": "all_top_level_fields",
+                    "excluded": [
+                      "baseline_control",
+                      "source_digest"
+                    ],
+                    "external_files": [
+                      "scripts/check_tenant_boundary_bypass.py",
+                      "scripts/frozen_history.py",
+                      "scripts/frozen_archive.py",
+                      ".github/workflows/ci.yml"
+                    ]
+                  }
+                },
+                "history_authority": false
+              },
+              "contracts/tenant_boundary/runtime-authz-contract.json": {
+                "identity": {
+                  "scheme": "integer_revision_field",
+                  "field": "runtime_contract_revision",
+                  "current_identifiers": [
+                    "runtime_contract_revision:31"
+                  ],
+                  "no_baseline_marker": "NO_BASELINE",
+                  "frozen_projection": {
+                    "algorithm": "sha256-canonical-json-and-external-files-v1",
+                    "included": "all_top_level_fields",
+                    "excluded": [
+                      "baseline_control",
+                      "source_digest"
+                    ],
+                    "external_files": [
+                      "scripts/check_tenant_boundary_bypass.py",
+                      "scripts/frozen_history.py",
+                      "scripts/frozen_archive.py",
+                      ".github/workflows/ci.yml"
+                    ]
+                  }
+                },
+                "history_authority": false
+              },
+              "contracts/tenant_boundary/tenant-context-allowlist.json": {
+                "identity": {
+                  "scheme": "integer_revision_field",
+                  "field": "contract_revision",
+                  "current_identifiers": [
+                    "contract_revision:29"
+                  ],
+                  "no_baseline_marker": "NO_BASELINE",
+                  "frozen_projection": {
+                    "algorithm": "sha256-canonical-json-and-external-files-v1",
+                    "included": "all_top_level_fields",
+                    "excluded": [
+                      "baseline_control",
+                      "source_digest"
+                    ],
+                    "external_files": [
+                      "scripts/check_tenant_boundary_bypass.py",
+                      "scripts/frozen_history.py",
+                      "scripts/frozen_archive.py",
+                      ".github/workflows/ci.yml"
+                    ]
+                  }
+                },
+                "history_authority": false
+              }
+            },
+            "movement_policy": {
+              "contracts/tenant_boundary/base-allowlist.json": {
+                "acceptance_unit": "single_review_acceptance",
+                "previous_state": "state_immediately_before_review_acceptance",
+                "new_state": "state_immediately_after_review_acceptance",
+                "intermediate_commits_are_records": false,
+                "movement_triggers": [
+                  "baseline_set",
+                  "baseline_value",
+                  "declaration_location",
+                  "frozen_target_mapping",
+                  "identity_granularity",
+                  "identifier_interpretation",
+                  "pass_fail_mapping"
+                ],
+                "affected_baselines": "all_baselines_matching_any_declared_trigger",
+                "history_append_only": true
+              },
+              "contracts/tenant_boundary/cache-invalidation-contract.json": {
+                "acceptance_unit": "single_review_acceptance",
+                "previous_state": "state_immediately_before_review_acceptance",
+                "new_state": "state_immediately_after_review_acceptance",
+                "intermediate_commits_are_records": false,
+                "movement_triggers": [
+                  "baseline_set",
+                  "baseline_value",
+                  "declaration_location",
+                  "frozen_target_mapping",
+                  "identity_granularity",
+                  "identifier_interpretation",
+                  "pass_fail_mapping"
+                ],
+                "affected_baselines": "all_baselines_matching_any_declared_trigger",
+                "history_append_only": true
+              },
+              "contracts/tenant_boundary/census-baseline.json": {
+                "acceptance_unit": "single_review_acceptance",
+                "previous_state": "state_immediately_before_review_acceptance",
+                "new_state": "state_immediately_after_review_acceptance",
+                "intermediate_commits_are_records": false,
+                "movement_triggers": [
+                  "baseline_set",
+                  "baseline_value",
+                  "declaration_location",
+                  "frozen_target_mapping",
+                  "identity_granularity",
+                  "identifier_interpretation",
+                  "pass_fail_mapping"
+                ],
+                "affected_baselines": "all_baselines_matching_any_declared_trigger",
+                "history_append_only": true
+              },
+              "contracts/tenant_boundary/db-api-inventory.json": {
+                "acceptance_unit": "single_review_acceptance",
+                "previous_state": "state_immediately_before_review_acceptance",
+                "new_state": "state_immediately_after_review_acceptance",
+                "intermediate_commits_are_records": false,
+                "movement_triggers": [
+                  "baseline_set",
+                  "baseline_value",
+                  "declaration_location",
+                  "frozen_target_mapping",
+                  "identity_granularity",
+                  "identifier_interpretation",
+                  "pass_fail_mapping"
+                ],
+                "affected_baselines": "all_baselines_matching_any_declared_trigger",
+                "history_append_only": true
+              },
+              "contracts/tenant_boundary/frozen-inputs.json": {
+                "acceptance_unit": "single_review_acceptance",
+                "previous_state": "state_immediately_before_review_acceptance",
+                "new_state": "state_immediately_after_review_acceptance",
+                "intermediate_commits_are_records": false,
+                "movement_triggers": [
+                  "baseline_set",
+                  "baseline_value",
+                  "declaration_location",
+                  "frozen_target_mapping",
+                  "identity_granularity",
+                  "identifier_interpretation",
+                  "pass_fail_mapping"
+                ],
+                "affected_baselines": "all_baselines_matching_any_declared_trigger",
+                "history_append_only": true
+              },
+              "contracts/tenant_boundary/negative-fixtures.json": {
+                "acceptance_unit": "single_review_acceptance",
+                "previous_state": "state_immediately_before_review_acceptance",
+                "new_state": "state_immediately_after_review_acceptance",
+                "intermediate_commits_are_records": false,
+                "movement_triggers": [
+                  "baseline_set",
+                  "baseline_value",
+                  "declaration_location",
+                  "frozen_target_mapping",
+                  "identity_granularity",
+                  "identifier_interpretation",
+                  "pass_fail_mapping"
+                ],
+                "affected_baselines": "all_baselines_matching_any_declared_trigger",
+                "history_append_only": true
+              },
+              "contracts/tenant_boundary/repository-contract.json": {
+                "acceptance_unit": "single_review_acceptance",
+                "previous_state": "state_immediately_before_review_acceptance",
+                "new_state": "state_immediately_after_review_acceptance",
+                "intermediate_commits_are_records": false,
+                "movement_triggers": [
+                  "baseline_set",
+                  "baseline_value",
+                  "declaration_location",
+                  "frozen_target_mapping",
+                  "identity_granularity",
+                  "identifier_interpretation",
+                  "pass_fail_mapping"
+                ],
+                "affected_baselines": "all_baselines_matching_any_declared_trigger",
+                "history_append_only": true
+              },
+              "contracts/tenant_boundary/runtime-authz-contract.json": {
+                "acceptance_unit": "single_review_acceptance",
+                "previous_state": "state_immediately_before_review_acceptance",
+                "new_state": "state_immediately_after_review_acceptance",
+                "intermediate_commits_are_records": false,
+                "movement_triggers": [
+                  "baseline_set",
+                  "baseline_value",
+                  "declaration_location",
+                  "frozen_target_mapping",
+                  "identity_granularity",
+                  "identifier_interpretation",
+                  "pass_fail_mapping"
+                ],
+                "affected_baselines": "all_baselines_matching_any_declared_trigger",
+                "history_append_only": true
+              },
+              "contracts/tenant_boundary/tenant-context-allowlist.json": {
+                "acceptance_unit": "single_review_acceptance",
+                "previous_state": "state_immediately_before_review_acceptance",
+                "new_state": "state_immediately_after_review_acceptance",
+                "intermediate_commits_are_records": false,
+                "movement_triggers": [
+                  "baseline_set",
+                  "baseline_value",
+                  "declaration_location",
+                  "frozen_target_mapping",
+                  "identity_granularity",
+                  "identifier_interpretation",
+                  "pass_fail_mapping"
+                ],
+                "affected_baselines": "all_baselines_matching_any_declared_trigger",
+                "history_append_only": true
+              }
+            },
+            "external_snapshots": [
+              {
+                "path": ".github/workflows/ci.yml",
+                "sha256": "05a724f36925332d3f5f3c43903dd5c23a963b1813480330ed12819d39f70c43",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/05a724f36925332d3f5f3c43903dd5c23a963b1813480330ed12819d39f70c43"
+              },
+              {
+                "path": "backend/tests/first_ball_expected_source_pins.py",
+                "sha256": "cb672ec9c25b6075f7fcda882ec0c382597bfe2f2827dd4f8f06563a26e530c1",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/cb672ec9c25b6075f7fcda882ec0c382597bfe2f2827dd4f8f06563a26e530c1"
+              },
+              {
+                "path": "backend/tests/fixtures/first_ball_expected_source_pins_v1.json",
+                "sha256": "a55fb5726ac3c57aa95d01e4b46b7a4081715f484a9df2e2c8f040d60fc662c1",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/a55fb5726ac3c57aa95d01e4b46b7a4081715f484a9df2e2c8f040d60fc662c1"
+              },
+              {
+                "path": "backend/tests/test_api_conventions.py",
+                "sha256": "8ad8f18c379c96e2473857119c620cff3016d732b6cf39536b00c58a758a8621",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/8ad8f18c379c96e2473857119c620cff3016d732b6cf39536b00c58a758a8621"
+              },
+              {
+                "path": "backend/tests/test_terminal_pitch_write_stamp.py",
+                "sha256": "7d82adc8fc3f2e49a4ce0f5c15a2946f7979b8fd62bd9d8064bb2c891cc013da",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/7d82adc8fc3f2e49a4ce0f5c15a2946f7979b8fd62bd9d8064bb2c891cc013da"
+              },
+              {
+                "path": "contracts/authz/product/probe-product-map.json",
+                "sha256": "3a4d2b6129f00d38a5e3fabff1948b929dca614180e220b38d433c791b22f650",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/3a4d2b6129f00d38a5e3fabff1948b929dca614180e220b38d433c791b22f650"
+              },
+              {
+                "path": "scripts/check_human_review_signature.py",
+                "sha256": "d70de104a2913d43add66750c979bbb2075a94a14cf4fd1d8a434cf1382b0dca",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/d70de104a2913d43add66750c979bbb2075a94a14cf4fd1d8a434cf1382b0dca"
+              },
+              {
+                "path": "scripts/check_tenant_boundary_bypass.py",
+                "sha256": "04a7aa8a77ddbd44dc1827b31c95b3a3889174897734983568741f6168d8a8bb",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/04a7aa8a77ddbd44dc1827b31c95b3a3889174897734983568741f6168d8a8bb"
+              },
+              {
+                "path": "scripts/core_guard.py",
+                "sha256": "acf670a66f93a25a9157a3b982a5abc5c6dfcd04e7308f4b55d7931da8aaf120",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/acf670a66f93a25a9157a3b982a5abc5c6dfcd04e7308f4b55d7931da8aaf120"
+              },
+              {
+                "path": "scripts/frozen_archive.py",
+                "sha256": "66e198f6c8ba13d213efe9a3d69c7f259ef67ed5f5be9e948934da44a1e81ca6",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/66e198f6c8ba13d213efe9a3d69c7f259ef67ed5f5be9e948934da44a1e81ca6"
+              },
+              {
+                "path": "scripts/frozen_history.py",
+                "sha256": "0bd319d2118948d288d338bc80dcb3885d0ee5834f7dea6d9d0ef33ecb5d40e8",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/0bd319d2118948d288d338bc80dcb3885d0ee5834f7dea6d9d0ef33ecb5d40e8"
+              },
+              {
+                "path": "tests/domain/test_boot_seal.py",
+                "sha256": "bb7b51691559bd2c0be6c802c8b15f509b592cb41862787700f178358f74aea2",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/bb7b51691559bd2c0be6c802c8b15f509b592cb41862787700f178358f74aea2"
+              },
+              {
+                "path": "tests/fixtures/pr191_ordinary_extension_reference_v1.json",
+                "sha256": "f8612103f697a474e0551785dc7079d1e957f54f94e5a827844cc7df42f708b0",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/f8612103f697a474e0551785dc7079d1e957f54f94e5a827844cc7df42f708b0"
+              },
+              {
+                "path": "tests/fixtures/pr191_tenant_source_expected_v1.json",
+                "sha256": "6b3015f26e7096a10fc8a3d53e15d81428cde31c6389f5c1d190221e36489b0e",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/6b3015f26e7096a10fc8a3d53e15d81428cde31c6389f5c1d190221e36489b0e"
+              },
+              {
+                "path": "tests/fixtures/pr192_tenant_source_expected_v1.json",
+                "sha256": "38cc10884524df9277df979d3d4b8a0095728b76bac581fad54f41cb8ca793f5",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/38cc10884524df9277df979d3d4b8a0095728b76bac581fad54f41cb8ca793f5"
+              },
+              {
+                "path": "tests/test_census_baseline_check.py",
+                "sha256": "e866ba0bb2b15e23b1fd6cae524d23e1d9727ff61f04014c80306d04a17548a6",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/e866ba0bb2b15e23b1fd6cae524d23e1d9727ff61f04014c80306d04a17548a6"
+              },
+              {
+                "path": "tests/test_check_authz_catalog.py",
+                "sha256": "8a4fb41e2d0ad09748d71367e6e9537a9a38deadd14f64d655da281353545427",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/8a4fb41e2d0ad09748d71367e6e9537a9a38deadd14f64d655da281353545427"
+              },
+              {
+                "path": "tests/test_check_tenant_boundary_bypass.py",
+                "sha256": "ae98cf63c4b3be325558d1a7d60a1d277f88da02ed6e37b49c5aa6e0d60681b2",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/ae98cf63c4b3be325558d1a7d60a1d277f88da02ed6e37b49c5aa6e0d60681b2"
+              },
+              {
+                "path": "tests/test_ci_wiring.py",
+                "sha256": "3b77aa4dea76778623424fbd0df1e26c7b1b64409155fb2b9d9261db4ac93762",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/3b77aa4dea76778623424fbd0df1e26c7b1b64409155fb2b9d9261db4ac93762"
+              },
+              {
+                "path": "tests/test_core_guard.py",
+                "sha256": "8c7b8a3b72bf7926d7231b1d375ae05396171ba13cad8eb03beab88b6f534408",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/8c7b8a3b72bf7926d7231b1d375ae05396171ba13cad8eb03beab88b6f534408"
+              },
+              {
+                "path": "tests/test_human_review_signature.py",
+                "sha256": "f1ae7242a3dad107ed859c9182350926bdb315b4cf1bb54fb02fbad8278f4a09",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/f1ae7242a3dad107ed859c9182350926bdb315b4cf1bb54fb02fbad8278f4a09"
+              },
+              {
+                "path": "tests/test_plan_generation.py",
+                "sha256": "9f3c40956cbc50890e2a2b8dc8f5a17a85a80db5ecaf7f79becad8e9f88151fe",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/9f3c40956cbc50890e2a2b8dc8f5a17a85a80db5ecaf7f79becad8e9f88151fe"
+              },
+              {
+                "path": "tests/test_pr191_tenant_source_registration.py",
+                "sha256": "620a32bad933e5d6c76668121aa4442877f94d7be4c1cee21be9a78419d59c8c",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/620a32bad933e5d6c76668121aa4442877f94d7be4c1cee21be9a78419d59c8c"
+              },
+              {
+                "path": "tests/test_pr192_tenant_source_registration.py",
+                "sha256": "28c9b68bc708e2325401394b470c66274f802d2a6f6ed03763e4fa83eee33c8c",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/28c9b68bc708e2325401394b470c66274f802d2a6f6ed03763e4fa83eee33c8c"
+              },
+              {
+                "path": "tests/test_product_authz_tenant_boundary_allowlist.py",
+                "sha256": "9c5c2d798ff3b4ccf109f5c7abd97b2d07171727d39a4158e5dfaf0ee65c36a6",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/9c5c2d798ff3b4ccf109f5c7abd97b2d07171727d39a4158e5dfaf0ee65c36a6"
+              }
+            ],
+            "asset_snapshots": [
+              {
+                "path": "contracts/tenant_boundary/base-allowlist.json",
+                "sha256": "48093145aed9a9088201dcc06fac7c4237b028c6e144dd75196bc5917e780839",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/48093145aed9a9088201dcc06fac7c4237b028c6e144dd75196bc5917e780839"
+              },
+              {
+                "path": "contracts/tenant_boundary/cache-invalidation-contract.json",
+                "sha256": "f009b64641b09ee21b763cfe6beea1b263df1ce1928538886f0c6474406bacb6",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/f009b64641b09ee21b763cfe6beea1b263df1ce1928538886f0c6474406bacb6"
+              },
+              {
+                "path": "contracts/tenant_boundary/census-baseline.json",
+                "sha256": "ff102a9d7cf942674d666ce6c172db5330afdc5cd20a917e495e020928de95f9",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/ff102a9d7cf942674d666ce6c172db5330afdc5cd20a917e495e020928de95f9"
+              },
+              {
+                "path": "contracts/tenant_boundary/db-api-inventory.json",
+                "sha256": "1689e5f2e2fae7b98f901cf1c0067eb7ab68808589a74164a6674d9cb10008af",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/1689e5f2e2fae7b98f901cf1c0067eb7ab68808589a74164a6674d9cb10008af"
+              },
+              {
+                "path": "contracts/tenant_boundary/frozen-inputs.json",
+                "sha256": "ac001e6022ba0c112689ce9e592d912ec5345ce42ae3a1f9af1c557f80f508d0",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/ac001e6022ba0c112689ce9e592d912ec5345ce42ae3a1f9af1c557f80f508d0"
+              },
+              {
+                "path": "contracts/tenant_boundary/negative-fixtures.json",
+                "sha256": "fdbd28cfdfaaab6cac539d6175b5d765fdd0d2209c239c8ff381e2b9ec990667",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/fdbd28cfdfaaab6cac539d6175b5d765fdd0d2209c239c8ff381e2b9ec990667"
+              },
+              {
+                "path": "contracts/tenant_boundary/repository-contract.json",
+                "sha256": "40c11c5da6016184731f931f9b480128f05b38c8fddd8fd2dd8001e90023cb38",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/40c11c5da6016184731f931f9b480128f05b38c8fddd8fd2dd8001e90023cb38"
+              },
+              {
+                "path": "contracts/tenant_boundary/runtime-authz-contract.json",
+                "sha256": "410df4114a838663b24b9d225ba4b05537655b3325858bb76760608c10068041",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/410df4114a838663b24b9d225ba4b05537655b3325858bb76760608c10068041"
+              },
+              {
+                "path": "contracts/tenant_boundary/tenant-context-allowlist.json",
+                "sha256": "c9e2eac42074ebbd51b81e7f2498380b2e4feffb25064489f1cb475a8bdd6069",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/c9e2eac42074ebbd51b81e7f2498380b2e4feffb25064489f1cb475a8bdd6069"
+              }
+            ]
+          }
+        },
+        "movement_fact": "旧191source資格/6digest/51歴史viewを保持し、現unchanged6と新90を固定9b76/9407原典・用途・AST全値から測定。metadata37/guard4/旧普通frameの移動追随を別測定。公式census current188/add13/remove3467。共有検査器と凍結入力の実移動による全9資産の識別値を公式helperで追随し、無関係な本人署名/P6blind/全MVP完成を主張しない。",
+        "reason": "#191正式eb8の実基線から三振v3/両cursor/攻守交代/真正originの実Port・同TX保存とfinite source/censusを接合。元D5/原子性/越境拒否を保持し、32f68a1cの同版実画面10球と実session再確認/reload/元bodyattempt再送を1pass236.796秒で実証。source a879545c、census0fd824d5、Oracle54f63c6dの非作者全前後を根拠に単一受理候補を導出する。",
+        "approved_by": "PO委任によるCodex主担当/root判断（本人署名・逐行確認の代記ではない）",
+        "approved_on": "2026-11-05"
       }
     ]
   },
@@ -34775,7 +35987,7 @@
   "inventory": {
     "path": "contracts/tenant_boundary/db-api-inventory.json",
     "schema_version": 1,
-    "sha256": "adcb729a7fb3cb558b3072e07a56f811394711af6496f7d43525de34ef79b5a2"
+    "sha256": "2993bcd65dbbda81d1ad6e94627a24f572ded61e10d90c3b1d6e220bf3cf23dc"
   },
   "allowed_symbols": [
     {
@@ -36187,7 +37399,7 @@
     "scope": "pitchlog.repositories.transaction.<module>",
     "line": 949,
     "symbol": "_assert_existing_resolution_owner",
-    "source_sha256": "08cd9f35d61e65427c0de9aca47669f859e07b6a7677d08784d3d1a094d847ec"
+    "source_sha256": "bc511d12f0cc0ac66bb24da1c9014f04b37e5dd02d9e0d2b51df5ebf7c35cb9a"
   },
   "condition_2_ordinary_scoped_findings": {
     "backend/src/pitchlog/repositories/ordinary_pitch_operations.py": {
@@ -36236,7 +37448,7 @@
       ]
     },
     "backend/src/pitchlog/repositories/transaction.py": {
-      "source_sha256": "08cd9f35d61e65427c0de9aca47669f859e07b6a7677d08784d3d1a094d847ec",
+      "source_sha256": "bc511d12f0cc0ac66bb24da1c9014f04b37e5dd02d9e0d2b51df5ebf7c35cb9a",
       "findings": [
         {
           "line": 1083,
@@ -36259,22 +37471,22 @@
           "scope": "pitchlog.repositories.transaction._port_read_types"
         },
         {
-          "line": 1407,
+          "line": 1418,
           "symbol": "pitchlog.repositories.tokens.TenantOperationToken.recovery_generation",
           "scope": "pitchlog.repositories.transaction._execute_port_command"
         },
         {
-          "line": 1408,
-          "symbol": "pitchlog.repositories.tokens.TenantOperationToken.recovery_generation",
-          "scope": "pitchlog.repositories.transaction._execute_port_command"
-        },
-        {
-          "line": 1428,
+          "line": 1419,
           "symbol": "pitchlog.repositories.tokens.TenantOperationToken.recovery_generation",
           "scope": "pitchlog.repositories.transaction._execute_port_command"
         },
         {
           "line": 1439,
+          "symbol": "pitchlog.repositories.tokens.TenantOperationToken.recovery_generation",
+          "scope": "pitchlog.repositories.transaction._execute_port_command"
+        },
+        {
+          "line": 1450,
           "symbol": "pitchlog.repositories.tokens.TenantOperationToken.recovery_generation",
           "scope": "pitchlog.repositories.transaction._execute_port_command"
         }
@@ -36543,7 +37755,7 @@
           "scope": "pitchlog.repositories.ordinary_prefix_operations.OrdinaryHistoryPageToken.__post_init__"
         }
       ],
-      "source_sha256": "f38848b9149bdbee37e013d6356979af00c683e632b8b439ce99187840e61771"
+      "source_sha256": "2d87803d82a3287435dfbca236941cdfe783dbaeb8b0f6bcd65719d494b5d94c"
     },
     "backend/src/pitchlog/repositories/ordinary_prefix_read.py": {
       "findings": [
@@ -36568,100 +37780,100 @@
           "scope": "pitchlog.repositories.ordinary_prefix_read.<module>"
         },
         {
-          "line": 148,
+          "line": 150,
           "symbol": "pitchlog.repositories.sync_apply._GENERATION_READ_COLUMNS",
           "scope": "pitchlog.repositories.ordinary_prefix_read.read_ordinary_prefix"
         },
         {
-          "line": 148,
+          "line": 150,
           "symbol": "pitchlog.sync.tokens.RecordingGenerationReadToken",
           "scope": "pitchlog.repositories.ordinary_prefix_read.read_ordinary_prefix"
         },
         {
-          "line": 149,
-          "symbol": "current",
-          "scope": "pitchlog.repositories.ordinary_prefix_read.read_ordinary_prefix"
-        },
-        {
-          "line": 150,
+          "line": 151,
           "symbol": "current",
           "scope": "pitchlog.repositories.ordinary_prefix_read.read_ordinary_prefix"
         },
         {
           "line": 152,
-          "symbol": "locked_generation",
-          "scope": "pitchlog.repositories.ordinary_prefix_read.read_ordinary_prefix"
-        },
-        {
-          "line": 153,
           "symbol": "current",
           "scope": "pitchlog.repositories.ordinary_prefix_read.read_ordinary_prefix"
         },
         {
-          "line": 153,
+          "line": 154,
+          "symbol": "locked_generation",
+          "scope": "pitchlog.repositories.ordinary_prefix_read.read_ordinary_prefix"
+        },
+        {
+          "line": 155,
+          "symbol": "current",
+          "scope": "pitchlog.repositories.ordinary_prefix_read.read_ordinary_prefix"
+        },
+        {
+          "line": 155,
           "symbol": "pitchlog.repositories.sync_apply._GENERATION_READ_COLUMNS",
           "scope": "pitchlog.repositories.ordinary_prefix_read.read_ordinary_prefix"
         },
         {
-          "line": 153,
+          "line": 155,
           "symbol": "pitchlog.sync.tokens.RecordingGenerationLockToken",
           "scope": "pitchlog.repositories.ordinary_prefix_read.read_ordinary_prefix"
         },
         {
-          "line": 157,
+          "line": 159,
           "symbol": "locked_generation",
           "scope": "pitchlog.repositories.ordinary_prefix_read.read_ordinary_prefix"
         },
         {
-          "line": 170,
+          "line": 172,
           "symbol": "current",
           "scope": "pitchlog.repositories.ordinary_prefix_read.read_ordinary_prefix"
         },
         {
-          "line": 188,
+          "line": 190,
           "symbol": "current",
           "scope": "pitchlog.repositories.ordinary_prefix_read.read_ordinary_prefix"
         },
         {
-          "line": 205,
+          "line": 209,
           "symbol": "current",
           "scope": "pitchlog.repositories.ordinary_prefix_read.read_ordinary_prefix"
         },
         {
-          "line": 320,
+          "line": 339,
           "symbol": "current",
           "scope": "pitchlog.repositories.ordinary_prefix_read.read_ordinary_prefix"
         },
         {
-          "line": 443,
+          "line": 462,
           "symbol": "current",
           "scope": "pitchlog.repositories.ordinary_prefix_read.read_ordinary_prefix"
         },
         {
-          "line": 457,
+          "line": 476,
           "symbol": "current",
           "scope": "pitchlog.repositories.ordinary_prefix_read.read_ordinary_prefix"
         },
         {
-          "line": 486,
+          "line": 505,
           "symbol": "current",
           "scope": "pitchlog.repositories.ordinary_prefix_read.read_ordinary_prefix"
         },
         {
-          "line": 554,
+          "line": 573,
           "symbol": "pitchlog.sync.idempotency",
           "scope": "pitchlog.repositories.ordinary_prefix_read.read_ordinary_prefix"
         }
       ],
-      "source_sha256": "487b7518a5a745c60084e1ba025ae1e518f8dd418fbe4277b0c9d085d0dd79d5"
+      "source_sha256": "60b26dcc3c6b35f894b10c57a4850e3401251ff82a8032d11ef19490c660c093"
     }
   },
   "condition_5_ordinary_scoped_findings": {
     "backend/src/pitchlog/sync/ordinary_pitch_execution.py": {
-      "source_sha256": "18f134daacffae1521cbc1f7a0456feb08888e6dae4479c4a67cf15ff984eb56",
+      "source_sha256": "da6dac01ee85f908f0cbbaf9e900493fde0dd91ae84d9e470c1eb168af276b05",
       "findings": [
         {
-          "line": 198,
+          "line": 212,
           "code": "TB007",
           "symbol": "builtins.object.__new__",
           "scope": "pitchlog.sync.ordinary_pitch_execution._bind_ordinary_pitch_execution"
@@ -37011,6 +38223,677 @@
             "code": "TB003",
             "symbol": "runner.responsible_pitcher_id",
             "scope": "pitchlog.sync.terminal_pitch_projection.runner_physical_rows"
+          }
+        ]
+      }
+    }
+  },
+  "pr192_source_registration": {
+    "expected_fixture": "tests/fixtures/pr192_tenant_source_expected_v1.json",
+    "owners": {
+      "backend/src/pitchlog/domainrt/lineup_play_prefix_continuation.py": {
+        "purpose": "v3の閉じた不変wire参照モデル（generationは非空参照文字列、権限を発行しない）",
+        "source_sha256": "b96552911749ff309dd51ed41249569e220a70c148eb6b0bbd53ffec4fbcc46e",
+        "findings": [
+          {
+            "line": 132,
+            "condition": 2,
+            "code": "TB002",
+            "symbol": "typing.Annotated",
+            "scope": "pitchlog.domainrt.lineup_play_prefix_continuation.PrefixRef.<module>"
+          }
+        ]
+      },
+      "backend/src/pitchlog/domainrt/lineup_prefix_source.py": {
+        "purpose": "実startedとnative checkpointへのscope比較・実host全応答再生へ渡す参照値（任意世代の資格を生成しない）",
+        "source_sha256": "f41e803a9f582caa33d66cbe6dbb696beb7a7066a4c12e9b635990deb338c687",
+        "findings": [
+          {
+            "line": 39,
+            "condition": 2,
+            "code": "TB002",
+            "symbol": "str",
+            "scope": "pitchlog.domainrt.lineup_prefix_source.StartedLineupEvidence.<module>"
+          },
+          {
+            "line": 132,
+            "condition": 2,
+            "code": "TB002",
+            "symbol": "pitchlog.domainrt.lineup_play_prefix_continuation.LineupPrefixRequest.prefix_ref.generation",
+            "scope": "pitchlog.domainrt.lineup_prefix_source._bound"
+          },
+          {
+            "line": 132,
+            "condition": 2,
+            "code": "TB002",
+            "symbol": "pitchlog.domainrt.lineup_prefix_source.StartedLineupEvidence.generation",
+            "scope": "pitchlog.domainrt.lineup_prefix_source._bound"
+          },
+          {
+            "line": 381,
+            "condition": 2,
+            "code": "TB002",
+            "symbol": "generation",
+            "scope": "pitchlog.domainrt.lineup_prefix_source.<module>"
+          },
+          {
+            "line": 401,
+            "condition": 2,
+            "code": "TB002",
+            "symbol": "str",
+            "scope": "pitchlog.domainrt.lineup_prefix_source.initial_lineup_source"
+          }
+        ]
+      },
+      "backend/src/pitchlog/repositories/ordinary_prefix_read.py": {
+        "purpose": "旧v1/v2の有限readを保持したv3 zero/native・同tenant水位/epoch・有界page読取",
+        "source_sha256": "60b26dcc3c6b35f894b10c57a4850e3401251ff82a8032d11ef19490c660c093",
+        "findings": [
+          {
+            "line": 211,
+            "condition": 2,
+            "code": "TB002",
+            "symbol": "current",
+            "scope": "pitchlog.repositories.ordinary_prefix_read.read_ordinary_prefix"
+          },
+          {
+            "line": 269,
+            "condition": 2,
+            "code": "TB002",
+            "symbol": "current",
+            "scope": "pitchlog.repositories.ordinary_prefix_read.read_ordinary_prefix"
+          },
+          {
+            "line": 369,
+            "condition": 2,
+            "code": "TB002",
+            "symbol": "current",
+            "scope": "pitchlog.repositories.ordinary_prefix_read.read_ordinary_prefix"
+          },
+          {
+            "line": 570,
+            "condition": 2,
+            "code": "TB002",
+            "symbol": "current",
+            "scope": "pitchlog.repositories.ordinary_prefix_read.read_ordinary_prefix"
+          },
+          {
+            "line": 701,
+            "condition": 2,
+            "code": "TB002",
+            "symbol": "IdempotencyLedger",
+            "scope": "pitchlog.repositories.ordinary_prefix_read._verify_v2_read_last"
+          },
+          {
+            "line": 702,
+            "condition": 2,
+            "code": "TB002",
+            "symbol": "IdempotencyLedgerReadToken",
+            "scope": "pitchlog.repositories.ordinary_prefix_read._verify_v2_read_last"
+          },
+          {
+            "line": 707,
+            "condition": 2,
+            "code": "TB002",
+            "symbol": "doc.internal_generation",
+            "scope": "pitchlog.repositories.ordinary_prefix_read._verify_v2_read_last"
+          },
+          {
+            "line": 713,
+            "condition": 2,
+            "code": "TB002",
+            "symbol": "pitchlog.sync.tokens.IdempotencyLedgerReadToken",
+            "scope": "pitchlog.repositories.ordinary_prefix_read._verify_v2_read_last"
+          },
+          {
+            "line": 714,
+            "condition": 2,
+            "code": "TB002",
+            "symbol": "pitchlog.db.sync_protocol.models.IdempotencyLedger",
+            "scope": "pitchlog.repositories.ordinary_prefix_read._verify_v2_read_last"
+          },
+          {
+            "line": 714,
+            "condition": 2,
+            "code": "TB002",
+            "symbol": "pitchlog.db.sync_protocol.models.IdempotencyLedger.__table__.c.keys",
+            "scope": "pitchlog.repositories.ordinary_prefix_read._verify_v2_read_last"
+          },
+          {
+            "line": 716,
+            "condition": 2,
+            "code": "TB002",
+            "symbol": "pitchlog.sync.idempotency",
+            "scope": "pitchlog.repositories.ordinary_prefix_read._verify_v2_read_last"
+          },
+          {
+            "line": 753,
+            "condition": 2,
+            "code": "TB002",
+            "symbol": "generation",
+            "scope": "pitchlog.repositories.ordinary_prefix_read.<module>"
+          },
+          {
+            "line": 758,
+            "condition": 2,
+            "code": "TB002",
+            "symbol": "IdempotencyLedger",
+            "scope": "pitchlog.repositories.ordinary_prefix_read._add_bridge_preview"
+          },
+          {
+            "line": 762,
+            "condition": 2,
+            "code": "TB002",
+            "symbol": "IdempotencyLedgerReadToken",
+            "scope": "pitchlog.repositories.ordinary_prefix_read._add_bridge_preview"
+          },
+          {
+            "line": 767,
+            "condition": 2,
+            "code": "TB002",
+            "symbol": "current",
+            "scope": "pitchlog.repositories.ordinary_prefix_read._add_bridge_preview"
+          },
+          {
+            "line": 771,
+            "condition": 2,
+            "code": "TB002",
+            "symbol": "pitchlog.sync.tokens.IdempotencyLedgerReadToken",
+            "scope": "pitchlog.repositories.ordinary_prefix_read._add_bridge_preview"
+          },
+          {
+            "line": 772,
+            "condition": 2,
+            "code": "TB002",
+            "symbol": "pitchlog.db.sync_protocol.models.IdempotencyLedger",
+            "scope": "pitchlog.repositories.ordinary_prefix_read._add_bridge_preview"
+          },
+          {
+            "line": 772,
+            "condition": 2,
+            "code": "TB002",
+            "symbol": "pitchlog.db.sync_protocol.models.IdempotencyLedger.__table__.c.keys",
+            "scope": "pitchlog.repositories.ordinary_prefix_read._add_bridge_preview"
+          },
+          {
+            "line": 778,
+            "condition": 2,
+            "code": "TB002",
+            "symbol": "current",
+            "scope": "pitchlog.repositories.ordinary_prefix_read._add_bridge_preview"
+          },
+          {
+            "line": 796,
+            "condition": 2,
+            "code": "TB002",
+            "symbol": "current",
+            "scope": "pitchlog.repositories.ordinary_prefix_read._add_bridge_preview"
+          },
+          {
+            "line": 796,
+            "condition": 2,
+            "code": "TB002",
+            "symbol": "generation",
+            "scope": "pitchlog.repositories.ordinary_prefix_read._add_bridge_preview"
+          },
+          {
+            "line": 230,
+            "condition": 2,
+            "code": "TB002",
+            "symbol": "current",
+            "scope": "pitchlog.repositories.ordinary_prefix_read.read_ordinary_prefix"
+          },
+          {
+            "line": 905,
+            "condition": 2,
+            "code": "TB002",
+            "symbol": "generation",
+            "scope": "pitchlog.repositories.ordinary_prefix_read.<module>"
+          },
+          {
+            "line": 927,
+            "condition": 2,
+            "code": "TB002",
+            "symbol": "current",
+            "scope": "pitchlog.repositories.ordinary_prefix_read._read_lineup_projection"
+          },
+          {
+            "line": 976,
+            "condition": 2,
+            "code": "TB002",
+            "symbol": "current",
+            "scope": "pitchlog.repositories.ordinary_prefix_read._read_lineup_projection"
+          },
+          {
+            "line": 1053,
+            "condition": 2,
+            "code": "TB002",
+            "symbol": "current",
+            "scope": "pitchlog.repositories.ordinary_prefix_read._read_lineup_projection"
+          },
+          {
+            "line": 1084,
+            "condition": 2,
+            "code": "TB002",
+            "symbol": "current",
+            "scope": "pitchlog.repositories.ordinary_prefix_read._read_lineup_projection"
+          }
+        ]
+      },
+      "backend/src/pitchlog/repositories/play_prefix.py": {
+        "purpose": "旧v2とv3の不変checkpoint/同writer lock/実開始origin・直近accepted ledger/event/全投影/historyの検証と真正liveness closure",
+        "source_sha256": "b6469442414c0d3c8494ab0e09ea0b4f3d4ab169a83def66247bd469a7ccb98e",
+        "findings": [
+          {
+            "line": 48,
+            "condition": 2,
+            "code": "TB002",
+            "symbol": "pitchlog.sync.idempotency",
+            "scope": "pitchlog.repositories.play_prefix.<module>"
+          },
+          {
+            "line": 76,
+            "condition": 2,
+            "code": "TB002",
+            "symbol": "pitchlog.repositories.ordinary_prefix.Positive",
+            "scope": "pitchlog.repositories.play_prefix.PlayPrefixDocument.<module>"
+          },
+          {
+            "line": 77,
+            "condition": 2,
+            "code": "TB002",
+            "symbol": "pitchlog.repositories.ordinary_prefix.Positive",
+            "scope": "pitchlog.repositories.play_prefix.PlayPrefixDocument.<module>"
+          },
+          {
+            "line": 103,
+            "condition": 2,
+            "code": "TB002",
+            "symbol": "pitchlog.repositories.play_prefix.LineupPrefixDocument.prefix_ref.generation",
+            "scope": "pitchlog.repositories.play_prefix.PlayPrefixDocument._binding"
+          },
+          {
+            "line": 108,
+            "condition": 2,
+            "code": "TB002",
+            "symbol": "pitchlog.repositories.play_prefix.LineupPrefixDocument.internal_generation",
+            "scope": "pitchlog.repositories.play_prefix.PlayPrefixDocument._binding"
+          },
+          {
+            "line": 108,
+            "condition": 2,
+            "code": "TB002",
+            "symbol": "pitchlog.repositories.play_prefix.LineupPrefixDocument.last_source.generation",
+            "scope": "pitchlog.repositories.play_prefix.PlayPrefixDocument._binding"
+          },
+          {
+            "line": 197,
+            "condition": 2,
+            "code": "TB002",
+            "symbol": "generation",
+            "scope": "pitchlog.repositories.play_prefix.read_confirmed_play_prefix"
+          },
+          {
+            "line": 208,
+            "condition": 2,
+            "code": "TB002",
+            "symbol": "generation",
+            "scope": "pitchlog.repositories.play_prefix.read_confirmed_play_prefix"
+          },
+          {
+            "line": 211,
+            "condition": 5,
+            "code": "TB007",
+            "symbol": "live",
+            "scope": "pitchlog.repositories.play_prefix.read_confirmed_play_prefix"
+          },
+          {
+            "line": 222,
+            "condition": 2,
+            "code": "TB002",
+            "symbol": "generation",
+            "scope": "pitchlog.repositories.play_prefix.read_confirmed_play_prefix"
+          },
+          {
+            "line": 400,
+            "condition": 2,
+            "code": "TB002",
+            "symbol": "generation",
+            "scope": "pitchlog.repositories.play_prefix.<module>"
+          },
+          {
+            "line": 406,
+            "condition": 2,
+            "code": "TB002",
+            "symbol": "IdempotencyLedger",
+            "scope": "pitchlog.repositories.play_prefix._verified_v2"
+          },
+          {
+            "line": 413,
+            "condition": 2,
+            "code": "TB002",
+            "symbol": "IdempotencyLedgerReadToken",
+            "scope": "pitchlog.repositories.play_prefix._verified_v2"
+          },
+          {
+            "line": 420,
+            "condition": 2,
+            "code": "TB002",
+            "symbol": "generation",
+            "scope": "pitchlog.repositories.play_prefix._verified_v2"
+          },
+          {
+            "line": 436,
+            "condition": 2,
+            "code": "TB002",
+            "symbol": "builtins.dict.internal_generation",
+            "scope": "pitchlog.repositories.play_prefix._verified_v2"
+          },
+          {
+            "line": 436,
+            "condition": 2,
+            "code": "TB002",
+            "symbol": "generation",
+            "scope": "pitchlog.repositories.play_prefix._verified_v2"
+          },
+          {
+            "line": 437,
+            "condition": 2,
+            "code": "TB002",
+            "symbol": "builtins.dict.recovery_generation",
+            "scope": "pitchlog.repositories.play_prefix._verified_v2"
+          },
+          {
+            "line": 448,
+            "condition": 2,
+            "code": "TB002",
+            "symbol": "generation",
+            "scope": "pitchlog.repositories.play_prefix._verified_v2"
+          },
+          {
+            "line": 454,
+            "condition": 2,
+            "code": "TB002",
+            "symbol": "pitchlog.sync.tokens.IdempotencyLedgerReadToken",
+            "scope": "pitchlog.repositories.play_prefix._verified_v2"
+          },
+          {
+            "line": 455,
+            "condition": 2,
+            "code": "TB002",
+            "symbol": "pitchlog.db.sync_protocol.models.IdempotencyLedger",
+            "scope": "pitchlog.repositories.play_prefix._verified_v2"
+          },
+          {
+            "line": 455,
+            "condition": 2,
+            "code": "TB002",
+            "symbol": "pitchlog.db.sync_protocol.models.IdempotencyLedger.__table__.c.keys",
+            "scope": "pitchlog.repositories.play_prefix._verified_v2"
+          },
+          {
+            "line": 488,
+            "condition": 2,
+            "code": "TB002",
+            "symbol": "pitchlog.sync.idempotency",
+            "scope": "pitchlog.repositories.play_prefix._verified_v2"
+          },
+          {
+            "line": 606,
+            "condition": 2,
+            "code": "TB002",
+            "symbol": "pitchlog.repositories.ordinary_prefix.Positive",
+            "scope": "pitchlog.repositories.play_prefix.LineupPrefixDocument.<module>"
+          },
+          {
+            "line": 607,
+            "condition": 2,
+            "code": "TB002",
+            "symbol": "pitchlog.repositories.ordinary_prefix.Positive",
+            "scope": "pitchlog.repositories.play_prefix.LineupPrefixDocument.<module>"
+          },
+          {
+            "line": 636,
+            "condition": 2,
+            "code": "TB002",
+            "symbol": "pitchlog.repositories.play_prefix.LineupPrefixDocument.prefix_ref.generation",
+            "scope": "pitchlog.repositories.play_prefix.LineupPrefixDocument._native_binding"
+          },
+          {
+            "line": 654,
+            "condition": 2,
+            "code": "TB002",
+            "symbol": "pitchlog.repositories.play_prefix.LineupPrefixDocument.internal_generation",
+            "scope": "pitchlog.repositories.play_prefix.LineupPrefixDocument._native_binding"
+          },
+          {
+            "line": 654,
+            "condition": 2,
+            "code": "TB002",
+            "symbol": "pitchlog.repositories.play_prefix.LineupPrefixDocument.last_source.generation",
+            "scope": "pitchlog.repositories.play_prefix.LineupPrefixDocument._native_binding"
+          },
+          {
+            "line": 696,
+            "condition": 2,
+            "code": "TB002",
+            "symbol": "generation",
+            "scope": "pitchlog.repositories.play_prefix.<module>"
+          },
+          {
+            "line": 701,
+            "condition": 2,
+            "code": "TB002",
+            "symbol": "generation",
+            "scope": "pitchlog.repositories.play_prefix._lineup_started_origin"
+          },
+          {
+            "line": 718,
+            "condition": 2,
+            "code": "TB002",
+            "symbol": "generation",
+            "scope": "pitchlog.repositories.play_prefix._initial_lineup_document"
+          },
+          {
+            "line": 734,
+            "condition": 2,
+            "code": "TB002",
+            "symbol": "initial.generation",
+            "scope": "pitchlog.repositories.play_prefix._initial_lineup_document"
+          },
+          {
+            "line": 823,
+            "condition": 2,
+            "code": "TB002",
+            "symbol": "generation",
+            "scope": "pitchlog.repositories.play_prefix.read_confirmed_lineup_prefix"
+          },
+          {
+            "line": 834,
+            "condition": 2,
+            "code": "TB002",
+            "symbol": "generation",
+            "scope": "pitchlog.repositories.play_prefix.read_confirmed_lineup_prefix"
+          },
+          {
+            "line": 837,
+            "condition": 5,
+            "code": "TB007",
+            "symbol": "live",
+            "scope": "pitchlog.repositories.play_prefix.read_confirmed_lineup_prefix"
+          },
+          {
+            "line": 838,
+            "condition": 2,
+            "code": "TB002",
+            "symbol": "generation",
+            "scope": "pitchlog.repositories.play_prefix.read_confirmed_lineup_prefix"
+          },
+          {
+            "line": 839,
+            "condition": 5,
+            "code": "TB007",
+            "symbol": "live",
+            "scope": "pitchlog.repositories.play_prefix.read_confirmed_lineup_prefix"
+          },
+          {
+            "line": 854,
+            "condition": 5,
+            "code": "TB007",
+            "symbol": "live",
+            "scope": "pitchlog.repositories.play_prefix.read_confirmed_lineup_prefix"
+          },
+          {
+            "line": 871,
+            "condition": 2,
+            "code": "TB002",
+            "symbol": "generation",
+            "scope": "pitchlog.repositories.play_prefix.read_confirmed_lineup_prefix"
+          },
+          {
+            "line": 877,
+            "condition": 2,
+            "code": "TB002",
+            "symbol": "builtins.dict.prefix_ref.generation",
+            "scope": "pitchlog.repositories.play_prefix.read_confirmed_lineup_prefix"
+          },
+          {
+            "line": 878,
+            "condition": 2,
+            "code": "TB002",
+            "symbol": "builtins.dict.internal_generation",
+            "scope": "pitchlog.repositories.play_prefix.read_confirmed_lineup_prefix"
+          },
+          {
+            "line": 878,
+            "condition": 2,
+            "code": "TB002",
+            "symbol": "generation",
+            "scope": "pitchlog.repositories.play_prefix.read_confirmed_lineup_prefix"
+          },
+          {
+            "line": 879,
+            "condition": 2,
+            "code": "TB002",
+            "symbol": "builtins.dict.recovery_generation",
+            "scope": "pitchlog.repositories.play_prefix.read_confirmed_lineup_prefix"
+          },
+          {
+            "line": 890,
+            "condition": 5,
+            "code": "TB007",
+            "symbol": "live",
+            "scope": "pitchlog.repositories.play_prefix.read_confirmed_lineup_prefix"
+          },
+          {
+            "line": 905,
+            "condition": 2,
+            "code": "TB002",
+            "symbol": "IdempotencyLedger",
+            "scope": "pitchlog.repositories.play_prefix._read_native_lineup_head_bound"
+          },
+          {
+            "line": 908,
+            "condition": 2,
+            "code": "TB002",
+            "symbol": "pitchlog.sync.idempotency",
+            "scope": "pitchlog.repositories.play_prefix._read_native_lineup_head_bound"
+          },
+          {
+            "line": 913,
+            "condition": 2,
+            "code": "TB002",
+            "symbol": "IdempotencyLedgerReadToken",
+            "scope": "pitchlog.repositories.play_prefix._read_native_lineup_head_bound"
+          },
+          {
+            "line": 923,
+            "condition": 2,
+            "code": "TB002",
+            "symbol": "builtins.dict.internal_generation",
+            "scope": "pitchlog.repositories.play_prefix._read_native_lineup_head_bound"
+          },
+          {
+            "line": 928,
+            "condition": 2,
+            "code": "TB002",
+            "symbol": "pitchlog.sync.tokens.IdempotencyLedgerReadToken",
+            "scope": "pitchlog.repositories.play_prefix._read_native_lineup_head_bound"
+          },
+          {
+            "line": 929,
+            "condition": 2,
+            "code": "TB002",
+            "symbol": "pitchlog.db.sync_protocol.models.IdempotencyLedger",
+            "scope": "pitchlog.repositories.play_prefix._read_native_lineup_head_bound"
+          },
+          {
+            "line": 929,
+            "condition": 2,
+            "code": "TB002",
+            "symbol": "pitchlog.db.sync_protocol.models.IdempotencyLedger.__table__.c.keys",
+            "scope": "pitchlog.repositories.play_prefix._read_native_lineup_head_bound"
+          },
+          {
+            "line": 1024,
+            "condition": 2,
+            "code": "TB002",
+            "symbol": "builtins.dict.internal_generation",
+            "scope": "pitchlog.repositories.play_prefix._read_native_lineup_head_bound"
+          },
+          {
+            "line": 1046,
+            "condition": 2,
+            "code": "TB002",
+            "symbol": "generation",
+            "scope": "pitchlog.repositories.play_prefix.<module>"
+          },
+          {
+            "line": 1051,
+            "condition": 2,
+            "code": "TB002",
+            "symbol": "generation",
+            "scope": "pitchlog.repositories.play_prefix._check_native_lineup_row"
+          }
+        ]
+      },
+      "backend/src/pitchlog/sync/ordinary_pitch_execution.py": {
+        "purpose": "旧v2/v3に閉じたOrdinaryPitchFrameの唯一生成。TenantContext生成・自由frame公開ではない",
+        "source_sha256": "da6dac01ee85f908f0cbbaf9e900493fde0dd91ae84d9e470c1eb168af276b05",
+        "findings": [
+          {
+            "line": 628,
+            "condition": 5,
+            "code": "TB007",
+            "symbol": "builtins.object.__new__",
+            "scope": "pitchlog.sync.ordinary_pitch_execution._evaluate_play_prefix"
+          },
+          {
+            "line": 752,
+            "condition": 5,
+            "code": "TB007",
+            "symbol": "builtins.object.__new__",
+            "scope": "pitchlog.sync.ordinary_pitch_execution._evaluate_lineup_prefix_bound"
+          }
+        ]
+      },
+      "backend/src/pitchlog/sync/terminal_pitch_projection.py": {
+        "purpose": "旧before runner責任の同値写像と、実token型が選ぶ既v2/v3 preparation builderのみの有限呼出",
+        "source_sha256": "08679eb41b75f3cebea032edf99f6488db6c2fb13004912fb7e676e456b383f1",
+        "findings": [
+          {
+            "line": 47,
+            "condition": 3,
+            "code": "TB003",
+            "symbol": "runner.responsible_pitcher_id",
+            "scope": "pitchlog.sync.terminal_pitch_projection.runner_physical_rows"
+          },
+          {
+            "line": 222,
+            "condition": 5,
+            "code": "TB007",
+            "symbol": "builder",
+            "scope": "pitchlog.sync.terminal_pitch_projection.apply_play_prefix_projection"
           }
         ]
       }

@@ -1,4 +1,21 @@
 import type {
+  Source as LineupSource,
+  PrefixRef as LineupRef,
+  Snapshot as LineupSnapshot,
+  Request as LineupRequest,
+  Success as LineupSuccess,
+  PlayIdentity as LineupIdentity,
+} from '../../../contracts/state-transition/lineup_play_prefix_v1'
+import {
+  isLineupPrefixGame,
+  type LineupPrefixGame,
+} from '../api/lineupPrefixGame'
+import {
+  isLineupDefinition,
+  sealLineupMetadata,
+  formatLineupPrefixWire,
+} from '../api/lineupPrefixWire'
+import type {
   Source,
   PrefixRef,
   PlayRequest,
@@ -227,7 +244,8 @@ export type PlayRecordingContext = Omit<
     t2: Source['t2']
     playSource: Source
   }>
-export type RecordingContext = OrdinaryRecordingContext | PlayRecordingContext
+export type RecordingContext =
+  OrdinaryRecordingContext | PlayRecordingContext | LineupRecordingContext
 export function isPlayRecordingContext(
   c: RecordingContext,
 ): c is PlayRecordingContext {
@@ -239,7 +257,11 @@ export type PlayScreenObservation = Omit<
 > &
   Readonly<{
     resultId:
-      OrdinaryResultId | 'batting-result.walk' | 'batting-result.hit-by-pitch'
+      | OrdinaryResultId
+      | 'batting-result.walk'
+      | 'batting-result.hit-by-pitch'
+      | 'batting-result.called-strikeout'
+      | 'batting-result.swinging-strikeout'
     nextBatter?: NextBatter | null
   }>
 /** 同じ保存roster/lineup照合を旧v1とv2で共有する。 */
@@ -431,6 +453,11 @@ export async function preparePlayPrefix(
     !isStartedGameMetadata(context.game)
   )
     return invalid()
+  if (
+    observation.resultId === 'batting-result.called-strikeout' ||
+    observation.resultId === 'batting-result.swinging-strikeout'
+  )
+    return invalid()
   const participants = selectPitchParticipants(context.game, context.after)
   if (
     !sameOrdinaryWire(
@@ -520,6 +547,209 @@ export async function preparePlayPrefix(
 export type PreparedPlayPrefix = Awaited<ReturnType<typeof preparePlayPrefix>>
 export function playPrefixEvent(
   prepared: PreparedPlayPrefix,
+  d5: string,
+): SyncEvent {
+  if (
+    d5 !== prepared.payload.calculation.request.playIdentity.d5 ||
+    !sequence(prepared.nextPosition.d2)
+  )
+    return invalid()
+  return {
+    fields: {
+      V1: d5,
+      V3: prepared.d4,
+      V4: prepared.gameId,
+      V5: '1',
+      V6: Number(prepared.nextPosition.d2),
+      V7: structuredClone(prepared.payload),
+      V8: structuredClone(prepared.stateDiff),
+    },
+  }
+}
+
+export type LineupRecordingContext = Omit<
+  OrdinaryRecordingContext,
+  'prefixRef' | 'after' | 't2' | 'priorKind'
+> &
+  Readonly<{
+    mode: 'play-prefix-v3'
+    prefixRef: LineupRef
+    after: LineupSnapshot
+    t2: LineupSource['t2']
+    lineupSource: LineupSource
+  }>
+export function isLineupRecordingContext(
+  c: RecordingContext,
+): c is LineupRecordingContext {
+  return 'mode' in c && c.mode === 'play-prefix-v3'
+}
+/** 保存headの既供給参加者と両cursorを保持し、打順を新規導出しない。 */
+export async function lineupContextFromRead(
+  value: LineupPrefixGame,
+  tenantId: string,
+): Promise<LineupRecordingContext> {
+  if (!isLineupPrefixGame(value) || value.prefix_ref.tenantId !== tenantId)
+    return invalid()
+  const metadata = Object.fromEntries(
+    STARTED_GAME_BASE_KEYS.filter((k) => k !== 'read_kind').map((k) => [
+      k,
+      value[k],
+    ]),
+  ) as StartedGameMetadata
+  if (
+    !isStartedGameMetadata(metadata) ||
+    (await playHash(value.lineup)) !== value.roster_digest
+  )
+    return invalid()
+  const common = {
+    prefixRef: value.prefix_ref,
+    rules: value.rules,
+    after: value.after,
+    historyDepth: value.prefix_ref.length,
+    playCount: value.prefix_ref.length,
+    position: {
+      ...value.next_position,
+      appliedWatermark: String(BigInt(value.next_position.d1) - 1n),
+    },
+    priorArtifactSha256: value.prior_artifact_sha256,
+    executionArtifactSha256: artifactIdentity.sha256,
+    rulesDigest: await playHash(value.rules),
+    layoutDigest: value.roster_digest,
+    rosterDigest: value.roster_digest,
+    lineup: value.lineup,
+    runners: value.runners,
+    participants: value.participants,
+    responsibility: {
+      kind: 'no-change' as const,
+      paStartSource: value.pa_start_source,
+      previousPitcherId: null,
+      strikesAtChange: null,
+      ballsAtChange: null,
+    },
+  }
+  const source: LineupSource =
+    value.prefix_ref.length === '0'
+      ? {
+          ...common,
+          kind: 'started-initial-v3',
+          historyDepth: '0',
+          playCount: '0',
+          lastSource: null,
+          t2: null,
+          provenance: value.prefix_ref.origin,
+        }
+      : {
+          ...common,
+          kind:
+            value.t2!.decision.lockFurtherPlayInput ||
+            value.t2!.tiebreakStartRequired
+              ? 'locked-prefix-v3'
+              : 'evaluated-prefix-v3',
+          lastSource: value.last_source!,
+          t2: value.t2!,
+          provenance: {
+            kind: 'confirmed-prefix',
+            checkpoint: value.prefix_ref.checkpoint,
+            sourceIdentity: value.last_source!,
+            historyDepth: value.prefix_ref.length,
+          },
+        }
+  if (!isLineupDefinition(source, 'Source')) return invalid()
+  return structuredClone({
+    mode: 'play-prefix-v3',
+    game: metadata,
+    serverStamp: {
+      recoveryGeneration: value.recovery_generation,
+      checkpointAnchor: value.checkpoint_anchor,
+      lastSavedAt: value.last_saved_at,
+    },
+    prefixRef: value.prefix_ref,
+    rules: value.rules,
+    after: value.after,
+    t2: value.t2,
+    lineupSource: source,
+    nextPosition: value.next_position,
+    appendPolicy: value.append_policy,
+    source: 'server-confirmed',
+  })
+}
+export async function prepareLineupPrefix(
+  context: LineupRecordingContext,
+  observation: PlayScreenObservation,
+  vocabulary: Readonly<{ tenantId: string; pitchTypeKeys: readonly string[] }>,
+  tenantId: string,
+  playIdentity: LineupIdentity,
+  checkpointId: string,
+) {
+  if (
+    context.prefixRef.tenantId !== tenantId ||
+    vocabulary.tenantId !== tenantId ||
+    !vocabulary.pitchTypeKeys.includes(observation.pitchTypeKey) ||
+    !Number.isFinite(observation.screenX) ||
+    !Number.isFinite(observation.screenY) ||
+    !isStartedGameMetadata(context.game) ||
+    !isLineupDefinition(context.lineupSource, 'Source') ||
+    !sameOrdinaryWire(context.lineupSource.after, context.after) ||
+    !sameOrdinaryWire(context.lineupSource.prefixRef, context.prefixRef)
+  )
+    return invalid()
+  const request: LineupRequest = {
+    version: '3',
+    prefixRef: context.prefixRef,
+    rules: context.rules,
+    t1: {
+      eventKind: 'batting-result',
+      resultId: observation.resultId,
+      pitchEventKind: 'pitch-event',
+      before: context.after,
+    },
+    source: context.lineupSource,
+    playIdentity,
+    nextCheckpoint: {
+      id: checkpointId,
+      revision: String(BigInt(context.prefixRef.checkpoint.revision) + 1n),
+      digest: '0'.repeat(64),
+    },
+  }
+  const response: LineupSuccess = {
+    ok: true,
+    value: invokeFirstBallDomain(
+      'deriveLineupPlayPrefixWithContinuation',
+      request,
+    ) as LineupSuccess['value'],
+  }
+  const sealed = await sealLineupMetadata(request, response)
+  const course = invokeFirstBallDomain('quantizeCourse', {
+    x: String(observation.screenX),
+    y: String(observation.screenY),
+    view: observation.view,
+    size: String(geometry.size),
+  }) as FirstBallObservations['course']
+  const wire = await formatLineupPrefixWire(
+    sealed.request,
+    sealed.response,
+    {
+      pitchTypeKey: observation.pitchTypeKey,
+      course,
+      pitchSpeed: observation.pitchSpeed,
+      stance: observation.stance,
+      battingSide: observation.battingSide,
+    },
+    context.lineupSource.participants,
+  )
+  return {
+    ...wire,
+    gameId: context.game.id,
+    d4: context.game.current_d4,
+    nextPosition: context.nextPosition,
+    source: context.source,
+  }
+}
+export type PreparedLineupPrefix = Awaited<
+  ReturnType<typeof prepareLineupPrefix>
+>
+export function lineupPrefixEvent(
+  prepared: PreparedLineupPrefix,
   d5: string,
 ): SyncEvent {
   if (
