@@ -144,15 +144,17 @@ def _initialize_repository(tmp_path: Path) -> tuple[Path, str]:
     # 正式固定原典を実objectのまま保持し、合成baselineにも本来の祖先を与える。
     # 現在木から別の原典を作ったり、検査器の祖先確認を省いたりしない。
     frozen_inputs = assets["contracts/tenant_boundary/frozen-inputs.json"]["frozen_inputs"]
-    source_revision = frozen_inputs["pr191_source_registration_revision"]["value"]
-    _run_git(
-        repository,
-        [
-            "-c", "protocol.file.allow=always", "fetch", "--quiet", "--no-tags",
-            "--depth=1", str(_REPOSITORY_ROOT), source_revision,
-        ],
-    )
-    assert _run_git(repository, ["rev-parse", "FETCH_HEAD"]).strip() == source_revision
+    source_revision = frozen_inputs["pr192_source_expectation_revision"]["value"]
+    assert _run_git(
+        _REPOSITORY_ROOT, ["rev-parse", "--verify", source_revision + "^{commit}"]
+    ).strip() == source_revision
+    objects = _run_git(
+        _REPOSITORY_ROOT,
+        ["rev-parse", "--path-format=absolute", "--git-path", "objects"],
+    ).strip()
+    alternates = repository / ".git/objects/info/alternates"
+    assert not alternates.exists()
+    alternates.write_text(str(Path(objects).resolve()) + "\n", encoding="utf-8")
     _run_git(repository, ["update-ref", "HEAD", source_revision])
     baseline = _commit(repository, "baseline")
     _run_git(repository, ["merge-base", "--is-ancestor", source_revision, baseline])
