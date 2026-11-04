@@ -1119,7 +1119,7 @@ def test_stage_a_function_registration_matches_exact_asset_and_retains_rg1() -> 
         "SYNC_PLAY_PREFIX:read_play_prefix_history_page",
         "SYNC_PLAY_PREFIX:prepare_play_prefix_projection",
     )
-    assert len(expected) == 16
+    assert len(expected) == 20
     assert tuple(asset["product_function_operation_ids"]) == expected
     assert repository_contract.PRODUCT_FUNCTION_OPERATION_IDS == expected
     assert tuple(row.operation_id for row in PRODUCT_FUNCTION_OPERATIONS) == expected

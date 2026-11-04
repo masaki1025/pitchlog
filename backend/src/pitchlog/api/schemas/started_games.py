@@ -342,7 +342,7 @@ class StartedPlayPrefixGameRead(StartedGameRead):
     last_entry: TerminalHistoryEntry | NewHistoryEntry | None
     next_position: PrefixNextPosition
     checkpoint_anchor: PrefixCheckpointAnchor | None
-    recovery_generation: PositivePrefixInteger
+    recovery: PositivePrefixInteger = Field(alias=RECOVERY_WIRE_FIELD)
     page: PlayPrefixPage
     append_policy: OrdinaryAppendPolicy
     last_saved_at: Timestamp
@@ -355,11 +355,7 @@ class StartedPlayPrefixGameRead(StartedGameRead):
     @model_validator(mode="after")
     def _head_binding(self):
         """実persist済v2か未保存移行候補のどちらか一方に閉じる。"""
-        if (
-            self.prefix_ref.game_id != str(self.id)
-            or self.prefix_ref.generation != self.current_d4
-        ):
-            raise ValueError("試合/世代不一致")
+        assert_prefix_matches(self.prefix_ref, str(self.id), self.current_d4)
         n = int(self.prefix_ref.length)
         if n == 0:
             if (
