@@ -624,6 +624,8 @@ def test_run_signature_has_no_second_tenant_context() -> None:
         "_expire",
         "_ensure_rg1_lease",
         "_assert_rg1_lease",
+        "_writer_lifetime",
+        "_assert_writer_lifetime",
         "run",
         "run_function",
         "run_in_savepoint",

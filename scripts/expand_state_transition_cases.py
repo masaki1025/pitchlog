@@ -57,6 +57,63 @@ def _document_by_key(
     return matches[0]
 
 
+def _contains_in(node: Any) -> bool:
+    """述語の部分木にin葉があるかを返す。"""
+    if isinstance(node, dict):
+        if node.get("op") == "in":
+            return True
+        return any(_contains_in(value) for value in node.values())
+    if isinstance(node, list):
+        return any(_contains_in(value) for value in node)
+    return False
+
+
+def _canonical_guard_predicate(predicate: dict[str, Any]) -> dict[str, Any]:
+    """in guardを宣言順の先頭値のeqとして扱う。
+
+    代表順序の計算にだけ使い、caseの受理は元の述語で判定する
+    （正準述語は元述語の十分条件）。最上位andの直下または裸のinだけを
+    対象とし、入れ子のinは黙って無視せず拒否する。
+
+    Args:
+        predicate: 規範行の事前条件。
+
+    Returns:
+        正準化した事前条件。
+
+    Raises:
+        CaseExpansionError: in葉の階層または値集合が未対応の場合。
+    """
+    clone = copy.deepcopy(predicate)
+    if clone.get("op") == "in":
+        leaves = [clone]
+    elif clone.get("op") == "and":
+        args = clone.get("args", [])
+        if any(
+            isinstance(leaf, dict) and leaf.get("op") != "in" and _contains_in(leaf)
+            for leaf in args
+        ):
+            raise CaseExpansionError("in guardの階層が未対応")
+        leaves = [leaf for leaf in args if isinstance(leaf, dict) and leaf.get("op") == "in"]
+    else:
+        if _contains_in(clone):
+            raise CaseExpansionError("in guardの階層が未対応")
+        leaves = []
+    for leaf in leaves:
+        values = leaf.get("values")
+        if not isinstance(values, list) or not values:
+            raise CaseExpansionError("in guardの値集合が不正")
+        axis = leaf.get("axisId")
+        leaf.clear()
+        leaf.update(op="eq", axisId=axis, value=values[0])
+    return clone
+
+
+def _same_literal(left: Any, right: Any) -> bool:
+    """JSON literalを型込みで比較する（boolとintを同一視しない）。"""
+    return type(left) is type(right) and left == right
+
+
 def _row_bound_value_exceptions(
     policy: dict[str, Any],
     descriptor: dict[str, Any],
@@ -349,7 +406,24 @@ def _expand_from_declared_inputs(
                 )
             ):
                 continue
-            for value in values_by_axis[axis_id]:
+            # 正準化述語で通る値（従来の割当）を先に、guard拡張で新たに通る値を後に回す。
+            canonical_values = [
+                value for value in values_by_axis[axis_id]
+                if any(
+                    representative_selection.predicate_holds(
+                        _canonical_guard_predicate(
+                            base["rowRef"]["coordinate"]["precondition"]
+                        ),
+                        {**copy.deepcopy(base["inputCoordinate"]), axis_id: value},
+                    )
+                    for base in cases[:limit]
+                )
+            ]
+            ordered_values = canonical_values + [
+                value for value in values_by_axis[axis_id]
+                if not any(_same_literal(value, item) for item in canonical_values)
+            ]
+            for value in ordered_values:
                 permitted_rows = value_row_bindings.get(axis_id, {}).get(
                     json.dumps(value, sort_keys=True, ensure_ascii=False)
                 )
@@ -380,8 +454,16 @@ def _expand_from_declared_inputs(
                         continue
                     coordinate = copy.deepcopy(base["inputCoordinate"])
                     coordinate[axis_id] = copy.deepcopy(value)
-                    if representative_selection.predicate_holds(
-                        base["rowRef"]["coordinate"]["precondition"], coordinate
+                    if (
+                        representative_selection.predicate_holds(
+                            _canonical_guard_predicate(
+                                base["rowRef"]["coordinate"]["precondition"]
+                            ),
+                            coordinate,
+                        )
+                        or representative_selection.predicate_holds(
+                            base["rowRef"]["coordinate"]["precondition"], coordinate
+                        )
                     ):
                         identity = json.dumps(
                             [base["caseId"], axis_id, value],
@@ -397,7 +479,9 @@ def _expand_from_declared_inputs(
                                 "inputCoordinate": coordinate,
                             }
                         )
-                        next_row = (next_row + offset + 1) % limit
+                        # 従来の割当を保つため、拡張で新たに通る値では回転を進めない。
+                        if any(_same_literal(value, item) for item in canonical_values):
+                            next_row = (next_row + offset + 1) % limit
                         break
     if operation_limit:
         operation_rows = contract.get("operationRows")

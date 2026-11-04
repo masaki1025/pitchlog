@@ -24,9 +24,10 @@ from product_authz_tenant_owned_cases import (
 from psycopg import sql
 from psycopg.conninfo import make_conninfo
 
-from .conftest import ProvisionedProductCatalog
+from .conftest import ProvisionedProductCatalog, first_ball_guard_disabled
 
 pytestmark = pytest.mark.requires_db
+
 
 _POLICY_NAME = "pitchlog_app_tenant_owned"
 _APP_ROLE = "pitchlog_app"
@@ -39,11 +40,12 @@ _TENANT_UPDATE_GUARDS = {guard.table: guard for guard in tenant_update_guards()}
 
 def _seed_two_tenants(catalog: ProvisionedProductCatalog) -> None:
     """Superuser で FK 順の A/B 行を投入する。"""
-    with catalog.applicator.cursor() as cursor:
-        for row in seed_rows():
-            statement, params = insert_statement(row)
-            cursor.execute(statement, params)
-    catalog.applicator.commit()
+    with first_ball_guard_disabled(catalog.owner_dsn):
+        with catalog.applicator.cursor() as cursor:
+            for row in seed_rows():
+                statement, params = insert_statement(row)
+                cursor.execute(statement, params)
+        catalog.applicator.commit()
 
 
 @contextmanager

@@ -5,13 +5,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 from runpy import run_path
-from typing import Any
+from typing import Any, cast
 
 import psycopg
 from alembic import command
 from alembic.config import Config
 from psycopg.conninfo import conninfo_to_dict
-from sqlalchemy import create_engine
+from sqlalchemy import Table, create_engine
 from sqlalchemy.engine import URL
 
 from pitchlog.authz.product_catalog import inspect_product_authz_catalog
@@ -26,8 +26,14 @@ _PLACEMENT_REVISION = "0034_stage_a_rule_defaults"
 _EPOCH_REVISION = "0035_rg1_initial_fresh_epoch"
 _INITIAL_REVISION = "0036_initial_right_storage"
 _BINDING_REVISION = "0037_sync_writer_binding"
-_WRITER_REVISION = "0038_first_ball_write_admission"
-_POST_INITIAL_REVISIONS = (_INITIAL_REVISION, _BINDING_REVISION, _WRITER_REVISION)
+_FIRST_BALL_REVISION = "0038_first_ball_write_admission"
+_WRITER_REVISION = "0039_ordinary_pitch_storage"
+_POST_INITIAL_REVISIONS = (
+    _INITIAL_REVISION,
+    _BINDING_REVISION,
+    _FIRST_BALL_REVISION,
+    _WRITER_REVISION,
+)
 _PLACEMENT_SOURCE = _BACKEND_ROOT / "migrations/versions/0034_stage_a_rule_defaults.py"
 
 
@@ -249,7 +255,7 @@ def _require_placed_state(applicator_dsn: str) -> str:
 def resume_stage_a_after_placement(
     *, owner_dsn: str, applicator_dsn: str
 ) -> StageAStartupResult:
-    """既配置を検査し、必要な0035〜0038とS3を適用して非公開で戻る。"""
+    """既配置を検査し、必要な0035〜0039とS3を適用して非公開で戻る。"""
     _require_same_database(owner_dsn, applicator_dsn)
     with psycopg.connect(owner_dsn) as owner, owner.cursor() as cursor:
         cursor.execute("SELECT current_user, session_user")
@@ -446,176 +452,450 @@ _WRITER_CONSTRAINTS = (
     (
         "first_ball_write_admissions",
         "ck_first_ball_write_nonce",
-        "CHECK ((octet_length(nonce_digest) = 32))",
+        ("CHECK ((octet_length(nonce_digest) = 32))"),
         True,
         False,
     ),
     (
         "first_ball_write_admissions",
         "ck_first_ball_write_positive",
-        "CHECK (((control_version > 0) AND (internal_generation > 0) AND "
-        "(recovery_generation > 0) AND (codec_version > 0) AND (backend_pid > 0)))",
+        (
+            "CHECK (((control_version > 0) AND (internal_generation > 0) AND (recov"
+            "ery_generation > 0) AND (codec_version > 0) AND (backend_pid > 0)))"
+        ),
         True,
         False,
     ),
     (
         "first_ball_write_admissions",
         "ck_first_ball_write_state",
-        "CHECK (((state = ANY (ARRAY['device_verified'::text, 'right_verified'::text, "
-        "'invalid'::text, 'consumed'::text])) AND (((state = 'consumed'::text) AND "
-        "(source_event_id IS NOT NULL) AND (play_row_id IS NOT NULL) "
-        "AND (consumed_at IS NOT "
-        "NULL)) OR ((state <> 'consumed'::text) AND (source_event_id IS NULL) AND "
-        "(play_row_id IS NULL) AND (consumed_at IS NULL)))))",
+        (
+            "CHECK (((state = ANY (ARRAY['device_verified'::text, 'right_verified':"
+            ":text, 'invalid'::text, 'consumed'::text])) AND (((state = 'consumed':"
+            ":text) AND (source_event_id IS NOT NULL) AND (play_row_id IS NOT NULL)"
+            " AND (consumed_at IS NOT NULL)) OR ((state <> 'consumed'::text) AND (s"
+            "ource_event_id IS NULL) AND (play_row_id IS NULL) AND (consumed_at IS "
+            "NULL)))))"
+        ),
         True,
         False,
     ),
     (
         "first_ball_write_admissions",
         "ck_first_ball_write_text",
-        "CHECK (((wire_d4 <> ''::text) AND (request_fingerprint <> ''::text) AND "
-        "(event_fingerprint <> ''::text) AND (system_identifier <> ''::text) AND "
-        "(database_oid <> ''::text)))",
+        (
+            "CHECK (((wire_d4 <> ''::text) AND (request_fingerprint <> ''::text) AN"
+            "D (event_fingerprint <> ''::text) AND (system_identifier <> ''::text) "
+            "AND (database_oid <> ''::text)))"
+        ),
         True,
         False,
     ),
     (
         "first_ball_write_admissions",
         "ck_first_ball_write_xid8",
-        "CHECK (((transaction_id ~ '^[1-9][0-9]{0,19}$'::text) AND "
-        "((transaction_id)::numeric <= '18446744073709551615'::numeric)))",
+        (
+            "CHECK (((transaction_id ~ '^[1-9][0-9]{0,19}$'::text) AND ((transactio"
+            "n_id)::numeric <= '18446744073709551615'::numeric)))"
+        ),
         True,
         False,
     ),
     (
         "first_ball_write_admissions",
         "fk_first_ball_write_admission_binding",
-        "FOREIGN KEY (tenant_id, attempt_id, phase_id) REFERENCES "
-        "sync_fence.writer_bindings(tenant_id, attempt_id, phase_id) MATCH FULL",
+        (
+            "FOREIGN KEY (tenant_id, attempt_id, phase_id) REFERENCES sync_fence.wr"
+            "iter_bindings(tenant_id, attempt_id, phase_id) MATCH FULL"
+        ),
         True,
         True,
     ),
     (
         "first_ball_write_admissions",
         "fk_first_ball_write_admission_event",
-        "FOREIGN KEY (tenant_id, source_event_id) REFERENCES operatio"
-        "n_events(tenant_id, id)",
+        (
+            "FOREIGN KEY (tenant_id, source_event_id) REFERENCES operation_events(t"
+            "enant_id, id)"
+        ),
         True,
         True,
     ),
     (
         "first_ball_write_admissions",
         "fk_first_ball_write_admission_projection",
-        "FOREIGN KEY (tenant_id, play_row_id) REFERENCES play_rows(te"
-        "nant_id, id) DEFERRABLE "
-        "INITIALLY DEFERRED",
+        (
+            "FOREIGN KEY (tenant_id, play_row_id) REFERENCES play_rows(tenant_id, i"
+            "d) DEFERRABLE INITIALLY DEFERRED"
+        ),
         True,
         True,
     ),
     (
         "first_ball_write_admissions",
         "pk_first_ball_write_admissions",
-        "PRIMARY KEY (tenant_id, attempt_id, phase_id)",
+        ("PRIMARY KEY (tenant_id, attempt_id, phase_id)"),
+        True,
+        True,
+    ),
+    (
+        "ordinary_pitch_checkpoints",
+        "ck_ordinary_checkpoint_digest",
+        (
+            "CHECK (((content_digest ~ '^[a-f0-9]{64}$'::text) AND (octet_length(co"
+            "ntent_digest) = 64)))"
+        ),
+        True,
+        False,
+    ),
+    (
+        "ordinary_pitch_checkpoints",
+        "ck_ordinary_checkpoint_json",
+        (
+            "CHECK (((jsonb_typeof(content) = 'object'::text) AND (jsonb_typeof(ros"
+            "ter) = 'object'::text)))"
+        ),
+        True,
+        False,
+    ),
+    (
+        "ordinary_pitch_checkpoints",
+        "ck_ordinary_checkpoint_positions",
+        (
+            "CHECK (((internal_generation > 0) AND (revision > 0) AND (history_vers"
+            "ion > 0) AND (recovery_generation > 0) AND (confirmed_watermark >= 0) "
+            "AND (confirmed_watermark = applied_watermark)))"
+        ),
+        True,
+        False,
+    ),
+    (
+        "ordinary_pitch_checkpoints",
+        "ck_ordinary_checkpoint_state",
+        ("CHECK ((state = ANY (ARRAY['current'::text, 'invalidated'::text])))"),
+        True,
+        False,
+    ),
+    (
+        "ordinary_pitch_checkpoints",
+        "fk_ordinary_checkpoint_game",
+        ("FOREIGN KEY (tenant_id, game_id) REFERENCES games(tenant_id, id)"),
+        True,
+        True,
+    ),
+    (
+        "ordinary_pitch_checkpoints",
+        "ordinary_pitch_checkpoints_pkey",
+        ("PRIMARY KEY (tenant_id, game_id, internal_generation)"),
+        True,
+        True,
+    ),
+    (
+        "ordinary_pitch_checkpoints",
+        "ordinary_pitch_checkpoints_tenant_id_id_key",
+        ("UNIQUE (tenant_id, id)"),
+        True,
+        True,
+    ),
+    (
+        "ordinary_pitch_history",
+        "ck_ordinary_history_entry",
+        ("CHECK ((jsonb_typeof(entry) = 'object'::text))"),
+        True,
+        False,
+    ),
+    (
+        "ordinary_pitch_history",
+        "ck_ordinary_history_positive",
+        (
+            "CHECK (((internal_generation > 0) AND (history_version > 0) AND (d1 > "
+            "0) AND (d2 >= 0)))"
+        ),
+        True,
+        False,
+    ),
+    (
+        "ordinary_pitch_history",
+        "fk_ordinary_history_event",
+        (
+            "FOREIGN KEY (tenant_id, source_event_id) REFERENCES operation_events(t"
+            "enant_id, id) DEFERRABLE INITIALLY DEFERRED"
+        ),
+        True,
+        True,
+    ),
+    (
+        "ordinary_pitch_history",
+        "ordinary_pitch_history_pkey",
+        ("PRIMARY KEY (tenant_id, source_event_id, history_version)"),
+        True,
+        True,
+    ),
+    (
+        "ordinary_pitch_history",
+        "ordinary_pitch_history_tenant_id_game_id_internal_generatio_key",
+        ("UNIQUE (tenant_id, game_id, internal_generation, history_version, d1)"),
+        True,
+        True,
+    ),
+    (
+        "ordinary_pitch_write_admissions",
+        "ck_ordinary_admission_consumed",
+        ("CHECK (((state = 'consumed'::text) = (consumed_at IS NOT NULL)))"),
+        True,
+        False,
+    ),
+    (
+        "ordinary_pitch_write_admissions",
+        "ck_ordinary_admission_evaluated",
+        (
+            "CHECK (((state <> ALL (ARRAY['evaluated'::text, 'consumed'::text])) OR"
+            " ((checkpoint_id IS NOT NULL) AND (checkpoint_revision IS NOT NULL) AN"
+            "D (checkpoint_revision > 0) AND (prefix_length IS NOT NULL) AND (prefi"
+            "x_length >= 0) AND (frame_id IS NOT NULL) AND (frame_digest IS NOT NUL"
+            "L) AND (checkpoint_digest IS NOT NULL) AND (artifact_sha256 IS NOT NUL"
+            "L) AND (source_event_id IS NOT NULL) AND (source_d1 IS NOT NULL) AND ("
+            "source_d1 > 0) AND (source_d2 IS NOT NULL) AND (source_d2 >= 0) AND (p"
+            "lay_row_id IS NOT NULL) AND (checkpoint_content IS NOT NULL) AND (next"
+            "_checkpoint_content IS NOT NULL) AND (roster_snapshot IS NOT NULL) AND"
+            " (history_entry IS NOT NULL) AND (expected_play_row IS NOT NULL))))"
+        ),
+        True,
+        False,
+    ),
+    (
+        "ordinary_pitch_write_admissions",
+        "ck_ordinary_admission_fingerprints",
+        (
+            "CHECK (((request_fingerprint ~ '^(wire-request-v1:)?[a-f0-9]{64}$'::te"
+            "xt) AND (octet_length(request_fingerprint) = ANY (ARRAY[64, 80])) AND "
+            "(event_fingerprint ~ '^(wire-v1:)?[a-f0-9]{64}$'::text) AND (octet_len"
+            "gth(event_fingerprint) = ANY (ARRAY[64, 72]))))"
+        ),
+        True,
+        False,
+    ),
+    (
+        "ordinary_pitch_write_admissions",
+        "ck_ordinary_admission_nonce",
+        ("CHECK ((octet_length(nonce_digest) = 32))"),
+        True,
+        False,
+    ),
+    (
+        "ordinary_pitch_write_admissions",
+        "ck_ordinary_admission_state",
+        (
+            "CHECK ((state = ANY (ARRAY['device_verified'::text, 'right_verified'::"
+            "text, 'evaluated'::text, 'consumed'::text, 'invalid'::text])))"
+        ),
+        True,
+        False,
+    ),
+    (
+        "ordinary_pitch_write_admissions",
+        "ck_ordinary_admission_values",
+        (
+            "CHECK (((state <> ALL (ARRAY['evaluated'::text, 'consumed'::text])) OR"
+            " ((checkpoint_digest ~ '^[a-f0-9]{64}$'::text) AND (octet_length(check"
+            "point_digest) = 64) AND (frame_digest ~ '^[a-f0-9]{64}$'::text) AND (o"
+            "ctet_length(frame_digest) = 64) AND (artifact_sha256 ~ '^[a-f0-9]{64}$"
+            "'::text) AND (octet_length(artifact_sha256) = 64) AND (jsonb_typeof(ch"
+            "eckpoint_content) = 'object'::text) AND (jsonb_typeof(next_checkpoint_"
+            "content) = 'object'::text) AND (jsonb_typeof(roster_snapshot) = 'objec"
+            "t'::text) AND (jsonb_typeof(history_entry) = 'object'::text) AND (json"
+            "b_typeof(expected_play_row) = 'object'::text))))"
+        ),
+        True,
+        False,
+    ),
+    (
+        "ordinary_pitch_write_admissions",
+        "ck_ordinary_admission_xid8",
+        (
+            "CHECK (((transaction_id ~ '^[1-9][0-9]{0,19}$'::text) AND (transaction"
+            "_id !~ '[^0-9]'::text) AND ((transaction_id)::numeric <= '184467440737"
+            "09551615'::numeric)))"
+        ),
+        True,
+        False,
+    ),
+    (
+        "ordinary_pitch_write_admissions",
+        "fk_ordinary_admission_binding",
+        (
+            "FOREIGN KEY (tenant_id, attempt_id, phase_id) REFERENCES sync_fence.wr"
+            "iter_bindings(tenant_id, attempt_id, phase_id) MATCH FULL"
+        ),
+        True,
+        True,
+    ),
+    (
+        "ordinary_pitch_write_admissions",
+        "fk_ordinary_admission_checkpoint",
+        (
+            "FOREIGN KEY (tenant_id, checkpoint_id) REFERENCES sync_fence.ordinary_"
+            "pitch_checkpoints(tenant_id, id) DEFERRABLE INITIALLY DEFERRED"
+        ),
+        True,
+        True,
+    ),
+    (
+        "ordinary_pitch_write_admissions",
+        "fk_ordinary_admission_event",
+        (
+            "FOREIGN KEY (tenant_id, source_event_id) REFERENCES operation_events(t"
+            "enant_id, id) DEFERRABLE INITIALLY DEFERRED"
+        ),
+        True,
+        True,
+    ),
+    (
+        "ordinary_pitch_write_admissions",
+        "fk_ordinary_admission_projection",
+        (
+            "FOREIGN KEY (tenant_id, play_row_id) REFERENCES play_rows(tenant_id, i"
+            "d) DEFERRABLE INITIALLY DEFERRED"
+        ),
+        True,
+        True,
+    ),
+    (
+        "ordinary_pitch_write_admissions",
+        "ordinary_pitch_write_admissions_pkey",
+        ("PRIMARY KEY (tenant_id, attempt_id, phase_id)"),
+        True,
+        True,
+    ),
+    (
+        "ordinary_pitch_write_admissions",
+        "ordinary_pitch_write_admissions_tenant_id_frame_id_key",
+        ("UNIQUE (tenant_id, frame_id)"),
+        True,
+        True,
+    ),
+    (
+        "ordinary_pitch_write_admissions",
+        "ordinary_pitch_write_admissions_tenant_id_play_row_id_key",
+        ("UNIQUE (tenant_id, play_row_id)"),
+        True,
+        True,
+    ),
+    (
+        "ordinary_pitch_write_admissions",
+        "ordinary_pitch_write_admissions_tenant_id_source_event_id_key",
+        ("UNIQUE (tenant_id, source_event_id)"),
         True,
         True,
     ),
     (
         "writer_admissions",
         "ck_sync_writer_admission_xid8",
-        "CHECK (((transaction_id ~ '^[1-9][0-9]{0,19}$'::text) AND "
-        "((transaction_id)::numeric <= '18446744073709551615'::numeric)))",
+        (
+            "CHECK (((transaction_id ~ '^[1-9][0-9]{0,19}$'::text) AND ((transactio"
+            "n_id)::numeric <= '18446744073709551615'::numeric)))"
+        ),
         True,
         False,
     ),
     (
         "writer_admissions",
         "fk_sync_writer_admission_binding",
-        "FOREIGN KEY (tenant_id, attempt_id, phase_id) REFERENCES "
-        "sync_fence.writer_bindings(tenant_id, attempt_id, phase_id) MATCH FULL",
+        (
+            "FOREIGN KEY (tenant_id, attempt_id, phase_id) REFERENCES sync_fence.wr"
+            "iter_bindings(tenant_id, attempt_id, phase_id) MATCH FULL"
+        ),
         True,
         True,
     ),
     (
         "writer_admissions",
         "pk_sync_writer_admissions",
-        "PRIMARY KEY (tenant_id, attempt_id, phase_id)",
+        ("PRIMARY KEY (tenant_id, attempt_id, phase_id)"),
         True,
         True,
     ),
     (
         "writer_bindings",
         "ck_sync_writer_binding_nonce",
-        "CHECK ((octet_length(nonce_digest) = 32))",
+        ("CHECK ((octet_length(nonce_digest) = 32))"),
         True,
         False,
     ),
     (
         "writer_bindings",
         "ck_sync_writer_binding_positive",
-        "CHECK (((control_version > 0) AND (internal_generation > 0) AND "
-        "(recovery_generation > 0) AND (codec_version > 0) AND (backend_pid > 0)))",
+        (
+            "CHECK (((control_version > 0) AND (internal_generation > 0) AND (recov"
+            "ery_generation > 0) AND (codec_version > 0) AND (backend_pid > 0)))"
+        ),
         True,
         False,
     ),
     (
         "writer_bindings",
         "ck_sync_writer_binding_state",
-        "CHECK (((state = ANY (ARRAY['open'::text, 'closed'::text])) AND (((state = "
-        "'open'::text) AND (close_id IS NULL)) OR ((state = 'closed':"
-        ":text) AND (close_id IS "
-        "NOT NULL)))))",
+        (
+            "CHECK (((state = ANY (ARRAY['open'::text, 'closed'::text])) AND (((sta"
+            "te = 'open'::text) AND (close_id IS NULL)) OR ((state = 'closed'::text"
+            ") AND (close_id IS NOT NULL)))))"
+        ),
         True,
         False,
     ),
     (
         "writer_bindings",
         "ck_sync_writer_binding_text",
-        "CHECK (((wire_d4 <> ''::text) AND (request_fingerprint <> ''::text) AND "
-        "(event_fingerprint <> ''::text) AND (system_identifier <> ''::text) AND "
-        "(database_oid <> ''::text)))",
+        (
+            "CHECK (((wire_d4 <> ''::text) AND (request_fingerprint <> ''::text) AN"
+            "D (event_fingerprint <> ''::text) AND (system_identifier <> ''::text) "
+            "AND (database_oid <> ''::text)))"
+        ),
         True,
         False,
     ),
     (
         "writer_bindings",
         "ck_sync_writer_binding_xid8",
-        "CHECK (((transaction_id ~ '^[1-9][0-9]{0,19}$'::text) AND "
-        "((transaction_id)::numeric <= '18446744073709551615'::numeric)))",
+        (
+            "CHECK (((transaction_id ~ '^[1-9][0-9]{0,19}$'::text) AND ((transactio"
+            "n_id)::numeric <= '18446744073709551615'::numeric)))"
+        ),
         True,
         False,
     ),
     (
         "writer_bindings",
         "fk_sync_writer_binding_game",
-        "FOREIGN KEY (tenant_id, game_id) REFERENCES games(tenant_id, id) MATCH FULL",
+        ("FOREIGN KEY (tenant_id, game_id) REFERENCES games(tenant_id, id) MATCH FULL"),
         True,
         True,
     ),
     (
         "writer_bindings",
         "fk_sync_writer_binding_tenant",
-        "FOREIGN KEY (tenant_id) REFERENCES tenants(id) MATCH FULL",
+        ("FOREIGN KEY (tenant_id) REFERENCES tenants(id) MATCH FULL"),
         True,
         True,
     ),
     (
         "writer_bindings",
         "pk_sync_writer_bindings",
-        "PRIMARY KEY (tenant_id, attempt_id, phase_id)",
+        ("PRIMARY KEY (tenant_id, attempt_id, phase_id)"),
         True,
         True,
     ),
     (
         "writer_bindings",
         "uq_sync_writer_binding_lease",
-        "UNIQUE (lease_id)",
+        ("UNIQUE (lease_id)"),
         True,
         True,
     ),
     (
         "writer_bindings",
         "uq_sync_writer_binding_nonce",
-        "UNIQUE (nonce_digest)",
+        ("UNIQUE (nonce_digest)"),
         True,
         True,
     ),
@@ -626,6 +906,11 @@ def _check_writer_storage(connection: Any, revision: str) -> None:
     """同transactionでwriter原本のowner/RLS/全列・全制約を厳密照合する。"""
     from sqlalchemy.dialects.postgresql import dialect
 
+    from pitchlog.db.writer_binding.ordinary_models import (
+        OrdinaryPitchCheckpoint,
+        OrdinaryPitchHistory,
+        OrdinaryPitchWriteAdmission,
+    )
     from pitchlog.sync.control_provider.writer_binding_models import (
         FirstBallWriteAdmission,
         WriterAdmission,
@@ -633,11 +918,17 @@ def _check_writer_storage(connection: Any, revision: str) -> None:
     )
 
     models = (WriterBinding, WriterAdmission)
-    if revision == _WRITER_REVISION:
+    if revision in (_FIRST_BALL_REVISION, _WRITER_REVISION):
         models += (FirstBallWriteAdmission,)
-    elif revision != _BINDING_REVISION:
+    if revision == _WRITER_REVISION:
+        models += (
+            OrdinaryPitchCheckpoint,
+            OrdinaryPitchWriteAdmission,
+            OrdinaryPitchHistory,
+        )
+    if revision not in (_BINDING_REVISION, _FIRST_BALL_REVISION, _WRITER_REVISION):
         raise StageAStartupError("writer storage revisionが不一致です")
-    names = sorted(model.__tablename__ for model in models)
+    names = sorted(cast(Table, model.__table__).name for model in models)
     with connection.cursor() as cursor:
         cursor.execute(
             "SELECT n.nspname,r.rolname FROM pg_namespace n "
@@ -663,7 +954,7 @@ def _check_writer_storage(connection: Any, revision: str) -> None:
                 "ON d.adrelid=a.attrelid AND d.adnum=a.attnum "
                 "WHERE a.attrelid=to_regclass(%s) AND a.attnum>0 "
                 "AND NOT a.attisdropped ORDER BY a.attnum",
-                ("sync_fence." + model.__tablename__,),
+                ("sync_fence." + cast(Table, model.__table__).name,),
             )
             expected = [
                 (
@@ -690,7 +981,7 @@ def _check_writer_storage(connection: Any, revision: str) -> None:
 
 
 def _apply_writer_storage(owner_dsn: str) -> None:
-    """承認済み0037/0038だけを同owner transactionで配置・検証する。"""
+    """承認済み0037〜0039だけを同owner transactionで配置・検証する。"""
     engine = create_engine(_owner_url(owner_dsn))
     try:
         with engine.begin() as connection:
@@ -715,7 +1006,7 @@ def _apply_writer_storage(owner_dsn: str) -> None:
 
 
 def _require_writer_state(applicator_dsn: str) -> None:
-    """full認可適用の前後で0038実構造を再検証する。"""
+    """full認可適用の前後で0039実構造を再検証する。"""
     with psycopg.connect(applicator_dsn) as connection:
         with connection.cursor() as cursor:
             cursor.execute("SELECT version_num FROM public.alembic_version")

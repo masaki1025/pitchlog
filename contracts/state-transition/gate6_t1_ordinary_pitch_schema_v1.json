@@ -73,7 +73,7 @@
       "properties": {
         "contracts/state-transition/state_transition_contract_v1.json": {
           "type": "string",
-          "const": "c93f0cc7336bebba5a336a2c74233b290301f67a093bcce7ffd5948727d3cf2d"
+          "const": "3c88a2ec22bf150916b616e33ea97585d08970c2addd665feda72ba53f530642"
         },
         "contracts/state-transition/required_set_input_coverage_v1.json": {
           "type": "string",
@@ -85,11 +85,11 @@
         },
         "contracts/state-transition/game_end_coverage_declaration_v1.json": {
           "type": "string",
-          "const": "941c470bb14e1b27aecacfed1049b504df2d070751af3d1eeb19a46576c0cfda"
+          "const": "43e8e71103a471becb81b5dd8b8696dd03ec73d85733f71351bf38dfa036ceb4"
         },
         "contracts/state-transition/appendix_e_consumer_handoff_v1.json": {
           "type": "string",
-          "const": "bf0c0827044d1c5daebb4ec9c25eaacbc24f7899bea836c68f386328daa94510"
+          "const": "1fd8ac26dce45766976cf72098c24f70c77da6b18dbe8ba7fdba004185a634c0"
         },
         "contracts/state-transition/ordinary_pitch_request_schema_v1.json": {
           "type": "string",

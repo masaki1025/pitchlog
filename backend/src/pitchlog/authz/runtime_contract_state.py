@@ -5,6 +5,7 @@ from __future__ import annotations
 import ast
 import hashlib
 import json
+import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
@@ -919,6 +920,35 @@ def _python_string(value: str) -> str:
 def _python_string_or_none(value: str | None) -> str:
     """Python の文字列または ``None`` を返す。"""
     return "None" if value is None else _python_string(value)
+
+
+def _split_string_literal(value: str, *, limit: int = 76) -> list[str]:
+    """長い文字列を暗黙連結用の断片へ分割する。
+
+    Args:
+        value: 分割する文字列。
+        limit: 1 断片の最大長。
+
+    Returns:
+        連結すると元の文字列になる断片列。
+    """
+    tokens = [part for part in re.split(r"(?<= )|(?<=\.)", value) if part]
+    chunks: list[str] = []
+    current = ""
+    for token in tokens:
+        while len(token) > limit:
+            head, token = token[:limit], token[limit:]
+            if current:
+                chunks.append(current)
+                current = ""
+            chunks.append(head)
+        if current and len(current) + len(token) > limit:
+            chunks.append(current)
+            current = ""
+        current += token
+    if current:
+        chunks.append(current)
+    return chunks
 
 
 def _render_row(row: tuple[str, ...]) -> str:

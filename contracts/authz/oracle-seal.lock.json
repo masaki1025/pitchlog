@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "asset_kind": "authz_oracle_seal",
-  "oracle_commit": "e4f53dab05715977bdec846f3b2ba155832622e9",
+  "oracle_commit": "17124756e95f96ce84c2d5600c78b29660418dc0",
   "oracle_commit_semantics": "last_committed_step_4_input_baseline",
   "input_assets": [
     {
@@ -14,11 +14,11 @@
     },
     {
       "path": "contracts/authz/route-registry.json",
-      "git_blob_digest": "6aabdd842986ddc70cfcf576f84a05f2b50daa76"
+      "git_blob_digest": "1e0f8cabebb59bd9069f2b885638a7d3f15d7e51"
     },
     {
       "path": "contracts/authz/route-registry.lock.json",
-      "git_blob_digest": "cb3e92735a4d008c52393fc39aa2b10089a5bd83"
+      "git_blob_digest": "0f83f684d3f33a0ea73cb0c7a957179aa7580e97"
     },
     {
       "path": "contracts/authz/auth-catalog.json",
@@ -42,37 +42,37 @@
       "path": "contracts/authz/ddl-elements.json",
       "asset_role": "expectation",
       "asset_kind": "authz_candidate_ddl_manifest",
-      "canonical_sha256": "3f09f8f54b8b155f3e86c96b4f75afc1989745f537692729206429302feee6c1"
+      "canonical_sha256": "7904e70cfb3fbce63fb2b6f09ed0e2d328c727a1fcd96eb4e85ade695c044d85"
     },
     {
       "path": "contracts/authz/rejected-configs.json",
       "asset_role": "evidence",
       "asset_kind": "authz_rejected_configurations",
-      "canonical_sha256": "47aa486c184b47434fa2f63133eb48bc1b1fcfe75debfdec093568d701e9d9d6"
+      "canonical_sha256": "a871b4dc9c4ca4065e6b11916a47cd45dc579a91ea0e46f11b64b1de6f1bf747"
     },
     {
       "path": "contracts/authz/claim-mutant-map.json",
       "asset_role": "expectation",
       "asset_kind": "authz_claim_mutant_map",
-      "canonical_sha256": "6577d416042587616f6e3b8772d62a637d05d00134352ad3fe7cf5bf13979146"
+      "canonical_sha256": "56c61cc68717479679cfaca7c57eab1fe1b942b01a20d1e8d0d1f5b4ca9d83dd"
     },
     {
       "path": "contracts/authz/attack-tree.json",
       "asset_role": "expectation",
       "asset_kind": "authz_attack_tree",
-      "canonical_sha256": "5a58b468833f2e93e93f903c26c738f9acbb772e37665ca41eb4499191110c2c"
+      "canonical_sha256": "81395ccb3829a0635ffba15b2a77f2351fc432e41e45425419e833c79fa6eb1f"
     },
     {
       "path": "contracts/authz/boundary-proposal.json",
       "asset_role": "expectation",
       "asset_kind": "authz_boundary_proposal",
-      "canonical_sha256": "2b0eea7e245abb4bb42303fe0310d3beb12b13dda43209e76d7315998122f5bd"
+      "canonical_sha256": "57d9a5b6a45fafabe688639972474c4063d70bd5232732db126b9a83776a209e"
     },
     {
       "path": "contracts/authz/verification-evidence.json",
       "asset_role": "evidence",
       "asset_kind": "authz_verification_evidence",
-      "canonical_sha256": "ba05be8c2b4013103f82ac0d1602bd9425d5069c5332b0983b57b4619e915ac6"
+      "canonical_sha256": "36af556edac21c892eccd5151b45698a1d15a59c8bafa2bb029a003b55d1897a"
     }
   ],
   "review_policy": {

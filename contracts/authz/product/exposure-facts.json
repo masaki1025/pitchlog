@@ -415,6 +415,41 @@
           ]
         }
       ]
+    },
+    {
+      "kind": "ordinary_pitch_storage",
+      "entries": [
+        {
+          "table": "ordinary_pitch_checkpoints",
+          "reason": "通常投球のprivate原本。汎用app/control DMLを与えず固定関数から利用する。",
+          "evidence": [
+            {
+              "section": "6-1-b",
+              "quote": "3表とも業務オブジェクトの削除系統では対象外で、物理DELETE/TRUNCATEを許可せず、退役述語を持たず、履歴を失うdowngradeを拒否する。"
+            }
+          ]
+        },
+        {
+          "table": "ordinary_pitch_write_admissions",
+          "reason": "通常投球のprivate原本。汎用app/control DMLを与えず固定関数から利用する。",
+          "evidence": [
+            {
+              "section": "6-1-b",
+              "quote": "3表とも業務オブジェクトの削除系統では対象外で、物理DELETE/TRUNCATEを許可せず、退役述語を持たず、履歴を失うdowngradeを拒否する。"
+            }
+          ]
+        },
+        {
+          "table": "ordinary_pitch_history",
+          "reason": "通常投球のprivate原本。汎用app/control DMLを与えず固定関数から利用する。",
+          "evidence": [
+            {
+              "section": "6-1-b",
+              "quote": "3表とも業務オブジェクトの削除系統では対象外で、物理DELETE/TRUNCATEを許可せず、退役述語を持たず、履歴を失うdowngradeを拒否する。"
+            }
+          ]
+        }
+      ]
     }
   ]
 }

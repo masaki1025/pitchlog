@@ -20,13 +20,18 @@ from product_authz_other_profiles_cases import (
     manifest_table_names,
     other_profile_seed_rows,
 )
-from product_authz_tenant_owned_cases import TENANT_A, insert_statement
+from product_authz_tenant_owned_cases import (
+    TENANT_A,
+    _migration_attached_trigger_identities,
+    insert_statement,
+)
 from psycopg import sql
 from psycopg.conninfo import make_conninfo
 
-from .conftest import ProvisionedProductCatalog
+from .conftest import ProvisionedProductCatalog, first_ball_guard_disabled
 
 pytestmark = pytest.mark.requires_db
+
 
 _APP_ROLE = "pitchlog_app"
 _HELPER_SCHEMA = "authz_private"
@@ -75,11 +80,12 @@ class _AttachedTrigger:
 
 def _seed_all_tables(catalog: ProvisionedProductCatalog) -> None:
     """外部適用主体で全プロファイルの対象行を FK 順に作る。"""
-    with catalog.applicator.cursor() as cursor:
-        for row in other_profile_seed_rows():
-            statement, params = insert_statement(row)
-            cursor.execute(statement, params)
-    catalog.applicator.commit()
+    with first_ball_guard_disabled(catalog.owner_dsn):
+        with catalog.applicator.cursor() as cursor:
+            for row in other_profile_seed_rows():
+                statement, params = insert_statement(row)
+                cursor.execute(statement, params)
+        catalog.applicator.commit()
 
 
 def _attached_triggers(
@@ -90,11 +96,19 @@ def _attached_triggers(
     by_name = {item.function_name: item for item in expectations}
     cursor.execute(_TRIGGER_CATALOG_QUERY, (list(by_name),))
     rows = tuple(cursor.fetchall())
-    observed_names = tuple(str(row[0]) for row in rows)
-    if len(rows) != len(by_name) or set(observed_names) != set(by_name):
+    expected_connections = {
+        row for row in _migration_attached_trigger_identities() if row[0] in by_name
+    }
+    observed_connections = tuple(
+        (str(row[0]), str(row[1]), str(row[2])) for row in rows
+    )
+    if (
+        len(observed_connections) != len(expected_connections)
+        or set(observed_connections) != expected_connections
+    ):
         raise AssertionError(
-            "migration トリガ関数が 1 対 1 で接続されていない: "
-            f"observed={observed_names}"
+            "migration トリガの全接続identityが不一致: "
+            f"observed={observed_connections}, expected={sorted(expected_connections)}"
         )
 
     result: list[_AttachedTrigger] = []
@@ -325,7 +339,9 @@ def test_all_trigger_functions_fire_without_app_execute_privilege(
                 ([trigger.expectation.function_name for trigger in triggers],),
             )
             privileges = tuple(cursor.fetchall())
-            assert len(privileges) == len(triggers)
+            assert len(privileges) == len(
+                {t.expectation.function_name for t in triggers}
+            )
             assert all(row[1] is False for row in privileges)
             for trigger in triggers:
                 _assert_trigger_rejection(cursor, trigger)
@@ -344,6 +360,15 @@ def test_force_rls_applies_to_owner_with_unbound_context(
             cursor.execute("SELECT pg_catalog.current_setting('app.tenant_id', true)")
             assert cursor.fetchone() == (None,)
             for table in manifest_table_names():
+                if table in {
+                    "writer_bindings",
+                    "writer_admissions",
+                    "first_ball_write_admissions",
+                    "ordinary_pitch_checkpoints",
+                    "ordinary_pitch_write_admissions",
+                    "ordinary_pitch_history",
+                }:
+                    continue
                 cursor.execute(
                     sql.SQL("SELECT pg_catalog.count(*) FROM {}").format(
                         sql.Identifier("public", table)

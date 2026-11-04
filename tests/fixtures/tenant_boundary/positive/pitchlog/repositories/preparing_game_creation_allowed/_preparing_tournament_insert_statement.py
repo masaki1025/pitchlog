@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from sqlalchemy import Column, Integer, MetaData, Table, insert  # ty: ignore[unresolved-import]
-from sqlalchemy.sql.dml import Insert  # ty: ignore[unresolved-import]
+from sqlalchemy import Column, Integer, MetaData, Table, insert
+from sqlalchemy.sql.dml import Insert
 
 _TABLE = Table("probe", MetaData(), Column("id", Integer))
 

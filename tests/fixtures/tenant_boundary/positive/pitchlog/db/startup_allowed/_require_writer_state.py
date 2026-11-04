@@ -1,7 +1,7 @@
 """段階起動の既実装に対応する有限DB API正例。"""
 
 
-import psycopg  # ty: ignore
+import psycopg  # ty: ignore[unresolved-import] # AST走査専用fixture
 
 
 class stage_a_startup:

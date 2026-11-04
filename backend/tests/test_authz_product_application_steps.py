@@ -206,6 +206,7 @@ def test_definer_group_follows_helper_group(
     assert validated.application_steps[2].element_groups == (
         "functions:rls_helper",
         "functions:definer",
+        "functions:invoker",
     )
     groups.reverse()
     _assert_rejected(steps_asset, elements, "固定順序")

@@ -455,11 +455,7 @@ class _SentinelConversionVisitor(ast.NodeVisitor):
         """条件がセンチネルを比較し分岐が NULL を作る場合だけ記録する。"""
         if not _contains_sentinel_literal(condition):
             return
-        if any(
-            isinstance(candidate, ast.Constant) and candidate.value is None
-            for branch in branches
-            for candidate in ast.walk(branch)
-        ):
+        if any(_branch_returns_null(branch) for branch in branches):
             self.hits.append((line, "センチネル比較から NULL を生成"))
 
     def _record_function_name(self, name: str, line: int) -> None:
@@ -469,10 +465,32 @@ class _SentinelConversionVisitor(ast.NodeVisitor):
             self.hits.append((line, f"変換関数名 {name}"))
 
 
+def _branch_returns_null(branch: ast.AST) -> bool:
+    """分岐の直下が NULL の return/代入/式そのものかを返す。
+
+    `x is not None` のような無関係な比較を変換と誤認しないため、入れ子の
+    None は走査せず分岐の直下だけを見る。
+    """
+    if isinstance(branch, ast.Constant):
+        return branch.value is None
+    if isinstance(branch, ast.Return):
+        return isinstance(branch.value, ast.Constant) and branch.value.value is None
+    if isinstance(branch, ast.Assign):
+        return isinstance(branch.value, ast.Constant) and branch.value.value is None
+    if isinstance(branch, ast.AnnAssign):
+        return isinstance(branch.value, ast.Constant) and branch.value.value is None
+    return False
+
+
 def _contains_sentinel_literal(node: ast.AST) -> bool:
     """条件式が旧データの代表的なセンチネル値を含むか返す。"""
     for comparison in ast.walk(node):
         if not isinstance(comparison, ast.Compare):
+            continue
+        if not any(
+            isinstance(operator, (ast.Eq, ast.NotEq, ast.In, ast.NotIn))
+            for operator in comparison.ops
+        ):
             continue
         if any(
             _is_sentinel_operand(operand)

@@ -6,6 +6,7 @@ from typing import Any, cast
 from uuid import UUID
 
 import pytest
+from first_ball_expected_source_pins import read_expected_source_pins
 
 from pitchlog.durable_rights_ledger.adapter import (
     LedgerUnavailable,
@@ -38,6 +39,8 @@ from pitchlog.sync.control_provider.writer_binding import (
     _issue_live_writer_binding,
     _LiveWriterBinding,
 )
+
+_EXPECTED_SOURCE_PINS = read_expected_source_pins("test_sync_apply_writer_binding.py")
 
 # 反映1の21対向候補172c8501を固定。実DB結果ではない。
 _CASES = [
@@ -586,93 +589,74 @@ def test_void_adapter_preserves_every_other_registered_function():
     from pitchlog.repositories.operation_registry import PRODUCT_FUNCTION_OPERATIONS
 
     expected = {
-        "RG1:precheck": (
-            "cd36c04857da91f506e29414e5bf0bb07d4b7c6b2826ccf97be1bb123823051c"
-        ),
-        "RG1:commit_check": (
-            "c6a149e5bce9efc167b60642f4dc536445f711e0a537dde3f49fd03b2a1f0c75"
-        ),
-        "RG1:scope_binding": (
-            "0f4af18080ce42056c5f7d66fa7c9bbac42179d5c410e5613377d7be37a5e5db"
-        ),
-        "RULE:resolve_stage_a": (
-            "d3a2465260b7380558ee8f362866c69207b35d5556118242610f41039f56eef5"
-        ),
+        "RG1:precheck": (_EXPECTED_SOURCE_PINS["RG1:precheck"]),
+        "RG1:commit_check": (_EXPECTED_SOURCE_PINS["RG1:commit_check"]),
+        "RG1:scope_binding": (_EXPECTED_SOURCE_PINS["RG1:scope_binding"]),
+        "RULE:resolve_stage_a": (_EXPECTED_SOURCE_PINS["RULE:resolve_stage_a"]),
         "INITIAL_RIGHT:lock_device": (
-            "aced3e0bc2fd3095caa500564e95d49e1b09f0e1a64d4e09477f09e1e69850e6"
+            _EXPECTED_SOURCE_PINS["INITIAL_RIGHT:lock_device"]
         ),
         "INITIAL_RIGHT:read_existing_start": (
-            "ce6742722c0572b1a158f97c8840baec9cb1398ac3bfa7c9273ff0ac7b2ab9eb"
+            _EXPECTED_SOURCE_PINS["INITIAL_RIGHT:read_existing_start"]
         ),
         "INITIAL_RIGHT:read_start_game": (
-            "fe9fd82c90394114e326b54234ee8a176883eafbed9b708f51efcf4132a31171"
+            _EXPECTED_SOURCE_PINS["INITIAL_RIGHT:read_start_game"]
         ),
         "INITIAL_RIGHT:lock_preparing_game": (
-            "a608825e1ba4981cf0f59698410fb3d81efb4ce7acaae4cb81446fbbf24b9c6d"
+            _EXPECTED_SOURCE_PINS["INITIAL_RIGHT:lock_preparing_game"]
         ),
         "INITIAL_RIGHT:lock_current_start": (
-            "71948d14b70b2d85d5b49329dfad22f3edd4bb4ac164ff15182c15b3e7bb89a9"
+            _EXPECTED_SOURCE_PINS["INITIAL_RIGHT:lock_current_start"]
         ),
         "INITIAL_RIGHT:check_business_epoch": (
-            "b298e0d985736f4230d6d55d9d1454b59dcaa7f75411c1ad0daeb3639fda09b2"
+            _EXPECTED_SOURCE_PINS["INITIAL_RIGHT:check_business_epoch"]
         ),
         "INITIAL_RIGHT:insert_initial_grant": (
-            "df0403f96f7adb136977cbb4463a0e04aa4cf71ac010bbfec8954eda389dc0a4"
+            _EXPECTED_SOURCE_PINS["INITIAL_RIGHT:insert_initial_grant"]
         ),
         "INITIAL_RIGHT:begin_start_attempt": (
-            "958edd7069e0055f9908016186c4aa142f9fbe3f98d214fb6795338eb4b7202c"
+            _EXPECTED_SOURCE_PINS["INITIAL_RIGHT:begin_start_attempt"]
         ),
         "INITIAL_RIGHT:resolve_start_attempt": (
-            "8112937671d5c575b4cb091708d734e425ebada4ca4e3ecf5b11f0de20f0b88f"
+            _EXPECTED_SOURCE_PINS["INITIAL_RIGHT:resolve_start_attempt"]
         ),
         "INITIAL_RIGHT:read_initial_start_context": (
-            "2bcb2a0d5f9849a258a9c190170f83cb1b2eaa12b6c9f1ccddf337138b5e712b"
+            _EXPECTED_SOURCE_PINS["INITIAL_RIGHT:read_initial_start_context"]
         ),
         "INITIAL_RIGHT:persist_initial_start": (
-            "bdf1d6879538fd537913bc371e44059ac8eb9f389ed2489a24b89af2d8bc27bb"
+            _EXPECTED_SOURCE_PINS["INITIAL_RIGHT:persist_initial_start"]
         ),
         "INITIAL_RIGHT:enroll_device": (
-            "0ff335f54a8dc6d749432ca057d707c8873d7434f9d8f06daa57577d4481fc49"
+            _EXPECTED_SOURCE_PINS["INITIAL_RIGHT:enroll_device"]
         ),
         "INITIAL_RIGHT:lookup_existing_start_attempt": (
-            "fc58b83f41a47046d7ae690198d51998e28b20afe739c51126b7109cdaa9a6a4"
+            _EXPECTED_SOURCE_PINS["INITIAL_RIGHT:lookup_existing_start_attempt"]
         ),
         "SYNC_FIRST_BALL:bind_device": (
-            "15c3702e4e5390b856669ea1ffd49343b9a1769e324f501daec593c876a2e96e"
+            _EXPECTED_SOURCE_PINS["SYNC_FIRST_BALL:bind_device"]
         ),
         "SYNC_FIRST_BALL:check_current_right": (
-            "d0790dd944798534a8df3d2079aa438e7d3307d0de9acb654c2fd7e874ae8704"
+            _EXPECTED_SOURCE_PINS["SYNC_FIRST_BALL:check_current_right"]
         ),
         "SYNC_FIRST_BALL:read_device_state": (
-            "281792f9b426c1fdc7eba3305c069f5fd3afcde268a367fc06583bc006652e71"
+            _EXPECTED_SOURCE_PINS["SYNC_FIRST_BALL:read_device_state"]
         ),
         "SYNC_WRITER_BINDING:read_writer_identity": (
-            "4122d688347d16207dbe0129eee860404763b4c2f3fa6dd4ef52d3a20fa74169"
+            _EXPECTED_SOURCE_PINS["SYNC_WRITER_BINDING:read_writer_identity"]
         ),
     }
     expected.update(
         {
-            "SYNC_ORDINARY_PITCH:read_ordinary_order_summary": (
-                "9fe964ac9acdc55affd49aeec9af7e5bfdf9d7423cb7f40e05964ce04901ae0a"
-            ),
-            "SYNC_ORDINARY_PITCH:bind_ordinary_device": (
-                "62979ada626c6a44ba564a67b172c82592939c0add19aa32c5c9b9aa1f71ba8f"
-            ),
-            "SYNC_ORDINARY_PITCH:check_ordinary_right": (
-                "81a812e044a95a1da0ec1032e269f6bd9a8748a0267376577629790a5362d901"
-            ),
-            "SYNC_ORDINARY_PITCH:prepare_ordinary_projection": (
-                "8fea7cdc1033a5db6bce8b5e4a96b8d5b4ddddba57b76b6709c3520c88bcc313"
-            ),
-            "SYNC_ORDINARY_PITCH:read_ordinary_checkpoint": (
-                "fe353fa7741a11b5654f7a0ddab87faf1138fc45ea67c527c591202221fb7d2c"
-            ),
-            "SYNC_ORDINARY_PITCH:lock_ordinary_checkpoint": (
-                "9109e453e8aa0cc6011444c735d5d59a4b73a3abfce6725558d298abf797fdee"
-            ),
-            "SYNC_ORDINARY_PITCH:read_ordinary_history_page": (
-                "3e80687f6ebbf0f09c830534fa40e5a78ccb3fea4cd5d1b0396a2ab59a05494d"
-            ),
+            key: _EXPECTED_SOURCE_PINS[key]
+            for key in (
+                "SYNC_ORDINARY_PITCH:read_ordinary_order_summary",
+                "SYNC_ORDINARY_PITCH:bind_ordinary_device",
+                "SYNC_ORDINARY_PITCH:check_ordinary_right",
+                "SYNC_ORDINARY_PITCH:prepare_ordinary_projection",
+                "SYNC_ORDINARY_PITCH:read_ordinary_checkpoint",
+                "SYNC_ORDINARY_PITCH:lock_ordinary_checkpoint",
+                "SYNC_ORDINARY_PITCH:read_ordinary_history_page",
+            )
         }
     )
     dialect = postgresql.dialect()

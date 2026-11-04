@@ -29,6 +29,10 @@ from pitchlog.domainrt.ordinary_pitch_continuation import (
     OrdinaryT2,
     PrefixRef,
 )
+from pitchlog.domainrt.ordinary_wire import (
+    RECOVERY_WIRE_FIELD,
+    assert_prefix_matches,
+)
 from pitchlog.domainrt.play_prefix_continuation import (
     BridgeEvidence,
     Checkpoint,
@@ -259,7 +263,7 @@ class StartedRecordedPrefixGameRead(StartedGameRead):
     last_entry: NewHistoryEntry | None
     next_position: PrefixNextPosition
     checkpoint_anchor: PrefixCheckpointAnchor | None
-    recovery_generation: PositivePrefixInteger
+    recovery: PositivePrefixInteger = Field(alias=RECOVERY_WIRE_FIELD)
     page: PrefixPage
     append_policy: OrdinaryAppendPolicy
     last_saved_at: Timestamp
@@ -268,11 +272,7 @@ class StartedRecordedPrefixGameRead(StartedGameRead):
     def _prefix_correlations(self):
         """空prefix/実anchor/今回entryの相関だけを検査する。"""
         n = int(self.prefix_ref.length)
-        if (
-            self.prefix_ref.game_id != str(self.id)
-            or self.prefix_ref.generation != self.current_d4
-        ):
-            raise ValueError("prefixと試合/現在D4が不一致")
+        assert_prefix_matches(self.prefix_ref, str(self.id), self.current_d4)
         if n == 0:
             if (
                 self.t2 is not None

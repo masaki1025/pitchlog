@@ -150,7 +150,8 @@ def test_device_state_read_exact_registration_and_fixed_sql(active, monkeypatch)
     token = _ReadFirstBallDeviceStateToken(_IDS[3])
     handle, context, seen = _handle(monkeypatch, ((active,),))
     spec = FUNCTION_OPERATION_REGISTRY[type(token)]
-    assert PRODUCT_FUNCTION_OPERATIONS[-1] is spec
+    # 通常投球の7登録は初球の後にappendされる。初球の位置自体は不変。
+    assert PRODUCT_FUNCTION_OPERATIONS.index(spec) == 8
     assert spec.operation_id == "SYNC_FIRST_BALL:read_device_state"
     assert spec.function_id == "sync_right_api.read_device_state"
     assert spec.input_fields == (("device_id", UUID),)

@@ -1,7 +1,7 @@
 """段階起動の既実装に対応する有限DB API正例。"""
 
 
-from sqlalchemy import create_engine  # ty: ignore
+from sqlalchemy import create_engine
 
 
 class stage_a_startup:

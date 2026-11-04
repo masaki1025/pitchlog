@@ -24,6 +24,7 @@ mkdir -p /home/ymdms/.cache/pitchlog/pytest-tmp-manual-terminal \
   /home/ymdms/.cache/pitchlog/browser-tmp-manual-terminal \
   /home/ymdms/.cache/pitchlog/frontend-tmp-manual-terminal
 env -u PITCHLOG_TEST_ADMIN_DSN -u PITCHLOG_TEST_ROLE_DSN \
+  TMPDIR=/home/ymdms/.cache/pitchlog/pr189-integration-20261101/tmp \
   PYTHONPATH=tests:src \
   TMPDIR=/home/ymdms/.cache/pitchlog/frontend-tmp-manual-terminal \
   PITCHLOG_PYTEST_TMPDIR=/home/ymdms/.cache/pitchlog/pytest-tmp-manual-terminal \

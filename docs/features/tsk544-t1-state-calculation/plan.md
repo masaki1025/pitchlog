@@ -166,11 +166,11 @@ ballはS0..2×B0..2の9、called/swinging/foulはS0..1×B0..3の各8、合計33�
 
 ### 2. 最初の閉包：正式norm・参照・ABI（製品核着手前）
 
-(1) 既matrix4行のB/S eq葉を上記finite inへ変更し、natural row ID/49行/効果/remarksを保持。mustOperationCoverageとbranch mapping4参照を追随。29norm行や29正式caseの重複追加はしない。既104caseは全object同値、残12caseはcase-id-mapによりID/rowRefだけ明示移行しinputCoordinate/expected/historyInput/raw/normalized等を全値保持。coverageのB1一件だけ追加して116→117、新caseはST-COVERAGE-8d5c59594f90b5bd。history lookup脱落をmain4-exact-bindingで閉じる。
+(1) 既matrix4行のB/S eq葉を上記finite inへ変更し、natural row ID/49行/効果/remarksを保持。mustOperationCoverageとbranch mapping4参照を追随。29norm行や29正式caseの重複追加はしない。既104caseは全object同値、残12caseはcase-id-mapによりID/rowRefだけ明示移行しinputCoordinate/expected/historyInput/raw/normalized等を全値保持。coverageのB1一件だけ追加して116→117、新caseはST-COVERAGE-8d5c59594f90b5bd。history lookup脱落をmain4-exact-bindingで閉じる。（2026-11-03 単位I追補（PO判断・PO承認済み）により、前段の『coverageのB1一件だけ…新caseは…』は「coverageの新規3 case（B1 = `ST-COVERAGE-8d5c59594f90b5bd`、strikes=1 = `ST-COVERAGE-05a89716e39b67b0`、balls=2 = `ST-COVERAGE-1ea6f651c912d341`）を追加して116→119」へ置き換わる — [mvp-first-ball-screen-vertical/plan.md 単位I](../mvp-first-ball-screen-vertical/plan.md)）
 
-(2) authorに許すsourceは既check_required_set_coverage.pyと既testだけ。既eq意味を保持し、finite inで陽に束縛されたstate値の到達可能性を既predicate評価で導く。in値setの等値扱い、無関係operationの自由値、入力expectedから不足を埋める処理は拒否。旧history/baselineCaseIdsのbyteを書換えず、下記派生vector資産の明示12ID移行情報を使って旧→現caseの同値/一意な到達を検証する（欠落/重複/別row/入力・期待・history片側変更を拒否）。これは履歴参照の移行であり、旧承認を新subjectの承認へ流用しない。
+(2) authorに許すsourceは、既 `check_required_set_coverage.py`・既test、および単位Iのexact列挙にある expander / checker / tests に限る（単位I追補により旧『…だけ』を置換）。製品sourceは不可。既eq意味を保持し、finite inで陽に束縛されたstate値の到達可能性を既predicate評価で導く。in値setの等値扱い、無関係operationの自由値、入力expectedから不足を埋める処理は拒否。旧history/baselineCaseIdsのbyteを書換えず、下記派生vector資産の明示12ID移行情報を使って旧→現caseの同値/一意な到達を検証する（欠落/重複/別row/入力・期待・history片側変更を拒否）。これは履歴参照の移行であり、旧承認を新subjectの承認へ流用しない。編集は §4 の writer 割当に従い、本単位の expander / checker / tests は root が書き、author は参照と候補作成までとする。対象行・置換範囲の詳細は [mvp-first-ball-screen-vertical/plan.md 単位I](../mvp-first-ball-screen-vertical/plan.md) を参照（2026-11-03 PO判断・PO承認済み）。
 
-(3) required-set coverage実集合176→177、追加(state.count.balls,1)だけ・削除0を実consumerから再導出。旧history/currentStep95までをprefix同値保持し、最終全値と新step96候補をrootが実値で受理後appendする。根拠値はacceptance-delta.json/元candidateに保持。実受理日時/承認欄はrootだけが埋め、仮承認でgreenにしない。game_end宣言件数116→117、handoffのraw SHA、checker変更で実際に影響する派生値だけを同batchで追随する。
+(3) required-set coverage実集合176→177、追加(state.count.balls,1)だけ・削除0を実consumerから再導出。旧history/currentStep95までをprefix同値保持し、最終全値と新step96候補をrootが実値で受理後appendする。根拠値はacceptance-delta.json/元candidateに保持。実受理日時/承認欄はrootだけが埋め、仮承認でgreenにしない。game_end宣言件数116→117、handoffのraw SHA、checker変更で実際に影響する派生値だけを同batchで追随する。（2026-11-03 単位I追補（PO判断・PO承認済み）により、game_end宣言件数は **119** へ読み替え — [mvp-first-ball-screen-vertical/plan.md 単位I](../mvp-first-ball-screen-vertical/plan.md)）
 
 (4) contracts配下へordinary専用request/response schema・readonly d.ts・33全値vectorsを新設。vectorsは4正式rowへのexact binding、旧4代表の全値一致、12ID移行情報、33空stack全値＋履歴tail保持1対向を含む。正式規範は(1)の4行であり、vectorを規範の代用品としない。既history型のkind/差分閉構造/十進整数を参照して実ABIを確定し、旧作者schemaのhistory欠落/request exact4/response singletonをそのまま採用しない。
 
@@ -190,11 +190,11 @@ T2 continuation候補ed07と198組は本WTに無く今回依存merge/実装し�
 
 ### 4. exact編集と最小順序
 
-exactpaths.jsonが唯一の許可候補。rootはparent plan/contracts/append/正式参照/Git/台帳のみwriter。authorは隔離WTのchecker2と数学12pathだけを指示された段階で編集する。新schema/vecをauthorが正式共有へ直接書かず、shadow/cache候補をrootへ渡す。
+exactpaths.jsonが唯一の許可候補。rootはparent plan/contracts/append/正式参照/Git/台帳、および単位Iのexact列挙にある expander / checker / tests のwriter。authorは隔離WTのchecker2と数学12pathだけを指示された段階で編集する。新schema/vecをauthorが正式共有へ直接書かず、shadow/cache候補をrootへ渡す。
 
 | 単位 | 実装/受理 | 解除条件 |
 | --- | --- | --- |
-| A | shadow4guard/12ID/117case/coverage177、checker finite-in・履歴移行、ordinary ABI/33vec | 既4全値保持・有限規範とABIの非作者確認、実全前後集合/subject/必要consumer値のroot受理。旧P6比較は数学射影だけとして資格受理 |
+| A | shadow4guard/12ID/117case/coverage177（2026-11-03 単位I追補（PO判断・PO承認済み）により **119case**（coverage case数 50）／required-set coverage **177** は不変 — [mvp-first-ball-screen-vertical/plan.md 単位I](../mvp-first-ball-screen-vertical/plan.md)）、checker finite-in・履歴移行、ordinary ABI/33vec | 既4全値保持・有限規範とABIの非作者確認、実全前後集合/subject/必要consumer値のroot受理。旧P6比較は数学射影だけとして資格受理 |
 | B | 単一TS/privatecount/public/同artifact＋Python固定caller/両runner | Aの成立範囲からsource着手。33全値＋tail1/反例、旧ABI全回帰、再現hash/実Node・同artifactブラウザ、型lint、別非作者source確認 |
 
 履歴tail対向は初球calledの実entry Hと実after(S1B0)を使い、ballへhistory.stack=[H]を渡してS1B1/history=[Eball,H]を完全比較。H欠落/切捨て/逆順/flag差替え/後発入力変更混入、history欠落/unknownkey/非canonical、B3ball/S2strikes/S2foul/PA/走者/未知/他before、旧firstballが新たに成功しない負例を含む。33数学と旧代表4/新tailの比較資格を記録し、新blind/fullP6・wire/auth/save成立へ昇格しない。

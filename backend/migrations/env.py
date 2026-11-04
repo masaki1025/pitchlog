@@ -36,6 +36,13 @@ def _migration_database_url() -> str:
     return normalize_postgresql_url(database_url)
 
 
+def _include_name(name, type_, parent_names):
+    """autogenerateの対象schemaを製品が所有するpublic/sync_fenceへ限定する。"""
+    if type_ == "schema":
+        return name in (None, "public", "sync_fence")
+    return True
+
+
 def run_migrations_offline() -> None:
     """接続せずに migration SQL を生成する。"""
     context.configure(
@@ -43,6 +50,8 @@ def run_migrations_offline() -> None:
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
+        include_schemas=True,
+        include_name=_include_name,
     )
 
     with context.begin_transaction():
@@ -54,7 +63,10 @@ def run_migrations_online() -> None:
     supplied_connection = config.attributes.get("connection")
     if supplied_connection is not None:
         context.configure(
-            connection=supplied_connection, target_metadata=target_metadata
+            connection=supplied_connection,
+            target_metadata=target_metadata,
+            include_schemas=True,
+            include_name=_include_name,
         )
         with context.begin_transaction():
             context.run_migrations()
@@ -68,7 +80,12 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
-        context.configure(connection=connection, target_metadata=target_metadata)
+        context.configure(
+            connection=connection,
+            target_metadata=target_metadata,
+            include_schemas=True,
+            include_name=_include_name,
+        )
 
         with context.begin_transaction():
             context.run_migrations()

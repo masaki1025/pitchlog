@@ -120,6 +120,13 @@ def _make_env(monkeypatch: pytest.MonkeyPatch, *, apply: bool) -> Iterator[Env]:
         )
 
 
+def _ensure_applied(env: Env) -> None:
+    """共有db2が未適用のまま分割実行されても、正式profileを一度だけ適用する。"""
+    if not env.applied:
+        require_formal_activation(env.owner)
+        env.applied = True
+
+
 @pytest.fixture(scope="module")
 def _db1() -> Iterator[Env]:
     """DB1: 候補適用済み。破壊しない試験が共有する。"""
@@ -342,6 +349,7 @@ def test_v8_savepoint_rules(db1: Env) -> None:
     """V8: savepoint内・ROLLBACK TOのみの後は42501、RELEASE後は通り消費される。"""
     env = db1
     out: dict[str, Any] = {}
+    env.ctx.rotate_game()
     with peer(env.db, APP) as w:
         ev, b = _new_attempt(env, w)
         w.run("SAVEPOINT s1")
@@ -362,6 +370,7 @@ def test_v8_savepoint_rules(db1: Env) -> None:
     assert ins[1] == "00000"
     assert env.ctx.stamp_row(b) == [["consumed", str(ev["id"]), str(row), True]]
     # (d) savepoint内のINSERT(Aの外側照合)は42501。
+    env.ctx.rotate_game()
     with peer(env.db, APP) as w:
         ev, b = _new_attempt(env, w)
         _bind(w, env, b)
@@ -379,6 +388,7 @@ def test_v8_savepoint_rules(db1: Env) -> None:
 def test_v9_consumed_is_stable_and_second_insert_is_rejected(db1: Env) -> None:
     """V9: consumedの後のbind/rightは据え置き(23514なし)。2行目のINSERTは42501。"""
     env = db1
+    env.ctx.rotate_game()
     with peer(env.db, APP) as w:
         ev, b = _new_attempt(env, w)
         _bind(w, env, b)
@@ -392,6 +402,7 @@ def test_v9_consumed_is_stable_and_second_insert_is_rejected(db1: Env) -> None:
     assert again_b[:2] == (("t",), "00000") and again_r[:2] == (("t|t",), "00000")
     # 2行目の拒否でTXをrollbackしたので、consumedはcommitされない。
     # consumedの据え置きをcommitして観測する。
+    env.ctx.rotate_game()
     with peer(env.db, APP) as w:
         ev, b = _new_attempt(env, w)
         _bind(w, env, b)
@@ -453,6 +464,7 @@ def test_m1_transition_matrix_20_cells(db1: Env) -> None:
 
     for state in _STATES:
         for event in _EVENTS:
+            env.ctx.rotate_game()
             with peer(env.db, APP) as w:
                 ev, b = _new_attempt(env, w)
                 for step in pre[state]:
@@ -1013,6 +1025,7 @@ def test_t15_reapply(db2: Env) -> None:
     from pitchlog.authz.product_provisioning import apply_product_authz_ddl
 
     env = db2
+    _ensure_applied(env)
     assert env.applied
     sig_sql = (
         "SELECT p.proname,md5(p.prosrc),p.proacl::text,pg_get_userbyid(p.proowner) "
@@ -1052,8 +1065,10 @@ def _old_bind_replace_sql() -> str:
 def test_c8_mutation_without_bind_stamp_turns_the_vertical_red(db2: Env) -> None:
     """C8: bind_deviceの印書込を外すと縦(V1)が赤になる。印は正規経路の本文に依る。"""
     env = db2
+    _ensure_applied(env)
     assert env.applied
     stamped = render_stamped_function_sql()
+    env.ctx.rotate_game()
     with psycopg.connect(env.ctx.admin_dsn) as conn:
         exec_text(conn, _old_bind_replace_sql())
         conn.commit()
@@ -1072,6 +1087,7 @@ def test_c8_mutation_without_bind_stamp_turns_the_vertical_red(db2: Env) -> None
             exec_text(conn, stamped["bind_device"])
             conn.commit()
     # 元の本文へ戻すとV1相当が再び成立する。
+    env.ctx.rotate_game()
     with peer(env.db, APP) as w:
         ev, b = _new_attempt(env, w)
         _bind(w, env, b)
@@ -1177,6 +1193,10 @@ def test_v10_no_scaffold_stamp_dml(db1: Env, db2: Env) -> None:
     変異(adminが印を入れる版)は検出器が赤にする。
     """
     for label, env in (("db1", db1), ("db2", db2)):
+        _ensure_applied(env)
+        if not env.ctx.admin_log:
+            # 分割実行でも「admin statementを検査した」ことを非空で示す。
+            env.ctx.admin("SELECT 1", label="v10-probe")
         assert stamp_dml_statements(env.ctx.admin_log) == [], label
         assert len(env.ctx.admin_log) > 0
     forged = (

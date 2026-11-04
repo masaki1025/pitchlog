@@ -3,9 +3,107 @@
 from __future__ import annotations
 
 import inspect
+from typing import cast
 
 import product_authz_tenant_owned_cases as cases
-from psycopg import sql
+import pytest
+from psycopg import Connection, sql
+
+# c2e5e4ddの旧public50/tenant32を全順序付きで固定する。
+_EXPECTED_PUBLIC_TABLES = (
+    "tenants",
+    "team_records",
+    "players",
+    "games",
+    "lineup_memories",
+    "game_lineups",
+    "participation_intervals",
+    "rule_sets",
+    "game_type_rule_defaults",
+    "tournament_rule_assignments",
+    "event_slots",
+    "operation_events",
+    "play_rows",
+    "play_runners",
+    "temporary_player_id_mappings",
+    "idempotency_ledger",
+    "rejected_event_originals",
+    "evacuated_event_originals",
+    "recording_generations",
+    "medical_notes",
+    "medical_note_versions",
+    "pdf_export_records",
+    "system_vocabularies",
+    "admin_vocabularies",
+    "tenant_vocabularies",
+    "system_settings",
+    "tenant_auth_subjects",
+    "tenant_credentials",
+    "admin_credentials",
+    "admin_sessions",
+    "tenant_tokens",
+    "admin_operation_logs",
+    "player_merge_events",
+    "player_move_records",
+    "rate_limit_counters",
+    "analysis_groups",
+    "group_memberships",
+    "sharing_grants",
+    "group_invitations",
+    "invalidation_intents",
+    "migration_quarantine",
+    "migrated_final_lineups",
+    "migration_runs",
+    "migration_resolution_reports",
+    "migration_warning_reports",
+    "rg1_restore_gate",
+    "trusted_devices",
+    "game_start_requests",
+    "game_start_attempts",
+    "recording_right_deliveries",
+)
+_EXPECTED_PUBLIC_TENANT_TABLES = (
+    "team_records",
+    "players",
+    "games",
+    "lineup_memories",
+    "game_lineups",
+    "participation_intervals",
+    "tournament_rule_assignments",
+    "event_slots",
+    "operation_events",
+    "play_rows",
+    "play_runners",
+    "temporary_player_id_mappings",
+    "idempotency_ledger",
+    "rejected_event_originals",
+    "evacuated_event_originals",
+    "recording_generations",
+    "medical_notes",
+    "medical_note_versions",
+    "pdf_export_records",
+    "tenant_vocabularies",
+    "tenant_auth_subjects",
+    "tenant_tokens",
+    "admin_operation_logs",
+    "player_merge_events",
+    "player_move_records",
+    "group_memberships",
+    "invalidation_intents",
+    "migrated_final_lineups",
+    "trusted_devices",
+    "game_start_requests",
+    "game_start_attempts",
+    "recording_right_deliveries",
+)
+_EXPECTED_PRIVATE_TABLES = (
+    "writer_bindings",
+    "writer_admissions",
+    "first_ball_write_admissions",
+    "ordinary_pitch_checkpoints",
+    "ordinary_pitch_write_admissions",
+    "ordinary_pitch_history",
+)
 
 
 def _manifest_by_name() -> dict[str, dict[str, object]]:
@@ -93,13 +191,13 @@ def _assert_fk_targets_precede(
 
 
 def test_table_sets_are_derived_without_the_profile_assignment_asset() -> None:
-    """23 表と 28 表を manifest・露出事実だけから導く。"""
+    """22 表と 32 表を manifest・露出事実だけから導く。"""
     tenant_id_tables = cases.tenant_id_table_names()
     tenant_owned_tables = cases.tenant_owned_table_names()
     helper_source = inspect.getsource(cases)
 
-    assert len(tenant_id_tables) == 28
-    assert len(tenant_owned_tables) == 23
+    assert len(tenant_id_tables) == 32
+    assert len(tenant_owned_tables) == 22
     assert set(tenant_owned_tables) < set(tenant_id_tables)
     assert all(
         "tenant_id" in _column_names(_manifest_by_name()[table])
@@ -133,7 +231,7 @@ def test_tenant_reassignment_guards_are_derived_from_manifest_and_migrations() -
 
 
 def test_seed_plan_covers_both_tenants_in_fk_dependency_order() -> None:
-    """28 表すべてに A/B 行があり、必須列と FK の投入順を満たす。"""
+    """32 表すべてに A/B 行があり、必須列と FK の投入順を満たす。"""
     rows = cases.seed_rows()
     for index, row in enumerate(rows):
         _assert_required_columns_are_present(row)
@@ -180,3 +278,397 @@ def test_every_tenant_owned_insert_candidate_is_constraint_complete() -> None:
                 == candidate_key
                 for row in seed
             ), (table, columns)
+
+
+def test_initial_storage_seeds_preserve_nonowned_denial_and_closed_values() -> None:
+    """初期権4表の制約用seedでapp権限や製品成功を成立させない。"""
+    initial = {
+        "trusted_devices",
+        "game_start_requests",
+        "game_start_attempts",
+        "recording_right_deliveries",
+    }
+    assert initial.isdisjoint(cases.tenant_owned_table_names())
+    assert "recording_generations" not in cases.tenant_owned_table_names()
+    for table in initial:
+        rows = [row for row in cases.seed_rows() if row.table == table]
+        assert len(rows) == 2
+        assert {row.values["tenant_id"] for row in rows} == {
+            cases.TENANT_A,
+            cases.TENANT_B,
+        }
+        for row in rows:
+            if table == "trusted_devices":
+                assert isinstance(row.values["credential_digest"], bytes)
+                assert len(row.values["credential_digest"]) == 32
+            elif table == "game_start_requests":
+                assert isinstance(row.values["request_digest"], bytes)
+                assert len(row.values["request_digest"]) == 32
+            elif table == "game_start_attempts":
+                assert row.values["outcome"] == "pending"
+                assert row.values.get("resolved_at") is None
+            else:
+                assert row.values["generation"] == 1
+                assert row.values["key_id"] == "public-fixture-only"
+                assert (
+                    isinstance(row.values["nonce"], bytes)
+                    and len(row.values["nonce"]) == 12
+                )
+                assert (
+                    isinstance(row.values["ciphertext"], bytes)
+                    and len(row.values["ciphertext"]) == 48
+                )
+
+
+def test_static_migration_sql_expands_only_literal_tuple_loops(tmp_path) -> None:
+    """SQL定数と有限tupleを順序通り読み、任意実行・動的loopを許さない。"""
+    import pytest
+
+    path = tmp_path / "0001.py"
+    path.write_text(
+        "SQL = 'first'\nTABLES = ('one', 'two')\n"
+        "def upgrade():\n"
+        "    op.execute(SQL)\n"
+        "    for table in TABLES:\n"
+        "        op.execute(f'next {table}')\n"
+    )
+    assert cases._upgrade_sql(path) == ("first", "next one", "next two")
+    for source in (
+        "def upgrade():\n    op.execute(unknown())\n",
+        "def upgrade():\n    for table in unknown():\n        op.execute(f'{table}')\n",
+        "def upgrade():\n    op.execute(f'{unknown}')\n",
+        "def upgrade():\n    if unknown:\n        op.execute('hidden')\n",
+    ):
+        path.write_text(source)
+        with pytest.raises(AssertionError, match="静的|定数tuple|未対応"):
+            cases._upgrade_sql(path)
+
+
+def test_initial_guard_has_exact_four_connections_and_delete_expectation(
+    monkeypatch,
+) -> None:
+    """共有guardの正規4接続とSQL由来のDELETE拒否を欠落・余剰から守る。"""
+    from pathlib import Path
+
+    import product_authz_cross_cutting_cases as cross
+    import pytest
+
+    name = "protect_initial_right_storage"
+    expected = {
+        (name, table, f"trg_{table}_initial_right_guard")
+        for table in (
+            "trusted_devices",
+            "game_start_requests",
+            "game_start_attempts",
+            "recording_right_deliveries",
+        )
+    }
+    identities = cases._migration_attached_trigger_identities()
+    assert len(identities) == 43
+    assert len(set(identities)) == 43
+    assert {row for row in identities if row[0] == name} == expected
+    expectation = next(
+        e for e in cross.trigger_expectations() if e.function_name == name
+    )
+    assert (expectation.sqlstate, expectation.message) == (
+        "23514",
+        "initial right storage cannot be physically deleted",
+    )
+    migration = Path(cases._MIGRATIONS_PATH) / "0036_initial_recording_right_storage.py"
+    sql = "\n".join(cases._upgrade_sql(migration))
+    assert "NEW.proof_digest" in sql and "NEW.recovery_generation" in sql
+    assert f"RAISE EXCEPTION '{expectation.message}' USING ERRCODE = '23514'" in sql
+    for row in expected:
+        monkeypatch.setattr(
+            cross,
+            "_migration_attached_trigger_identities",
+            lambda row=row: tuple(item for item in identities if item != row),
+        )
+        with pytest.raises(AssertionError, match="4接続identity"):
+            cross.trigger_expectations()
+    for changed in (
+        (*identities, next(iter(expected))),
+        (*identities, (name, "games", "unexpected")),
+    ):
+        monkeypatch.setattr(
+            cross,
+            "_migration_attached_trigger_identities",
+            lambda changed=changed: changed,
+        )
+        with pytest.raises(AssertionError, match="4接続identity"):
+            cross.trigger_expectations()
+
+
+def test_schema_audit_accepts_exact_canonical_and_quote_sources() -> None:
+    """DBなしで旧29＋新quote2の全横断auditと不正原典拒否を確認する。"""
+    import copy
+
+    import pytest
+    from db import test_schema_audit as audit
+
+    manifest = audit._load_manifest()
+    columns = audit._manifest_columns(manifest)
+    uniques = audit._manifest_unique_constraints(manifest)
+    foreign_keys = audit._manifest_foreign_keys(manifest)
+    violations = audit._cross_table_audit_violations(
+        manifest, columns, uniques, foreign_keys
+    )
+    assert audit._nonempty_violations(violations) == {}
+    for mode in ("unknown_quote", "missing_scope"):
+        changed = copy.deepcopy(manifest)
+        constraints = [
+            c
+            for t in changed["tables"]
+            for c in t["unique_constraints"]
+            if "business_unique" in c["roles"]
+        ]
+        if mode == "unknown_quote":
+            next(c for c in constraints if "quote" in c["source_row"])["source_row"][
+                "section"
+            ] = "unknown"
+        else:
+            del next(c for c in constraints if "scope" in c["source_row"])[
+                "source_row"
+            ]["scope"]
+        with pytest.raises(ValueError):
+            audit._cross_table_audit_violations(changed, columns, uniques, foreign_keys)
+
+
+def test_owned_seed_database_closure_rejects_foreign_or_wrong_database(
+    monkeypatch,
+) -> None:
+    """所有factoryの固定seedだけへ閉鎖SQLを発行し、外部供給へ転用しない。"""
+    from contextlib import contextmanager
+    from types import SimpleNamespace
+
+    import db_fixtures
+    import pytest
+
+    cluster = db_fixtures.DisposablePostgres("owned-container", "owned-seed", "unused")
+    executed = []
+    connected = []
+    database_name = "pitchlog_disposable"
+
+    @contextmanager
+    def connect(dsn):
+        connected.append(dsn)
+        yield SimpleNamespace(
+            info=SimpleNamespace(dbname=database_name),
+            execute=lambda query: executed.append(query.as_string()),
+        )
+
+    monkeypatch.setattr(db_fixtures.psycopg, "connect", connect)
+    with pytest.raises(AssertionError):
+        db_fixtures._close_owned_seed_database_access(cluster)
+    assert connected == executed == []
+    monkeypatch.setitem(db_fixtures._DISPOSABLE_CLUSTER_OWNERS, id(cluster), cluster)
+    db_fixtures._close_owned_seed_database_access(cluster)
+    assert connected == ["owned-seed"]
+    assert executed == [
+        'REVOKE CONNECT, TEMPORARY ON DATABASE "pitchlog_disposable" FROM PUBLIC'
+    ]
+    executed.clear()
+    database_name = "foreign_database"
+    with pytest.raises(AssertionError):
+        db_fixtures._close_owned_seed_database_access(cluster)
+    assert executed == []
+
+
+def test_public_seed_population_and_private_function_only_population_are_exact() -> (
+    None
+):
+    """旧public50/tenant32全表を保ち、私有3表をseed/DMLから分ける。"""
+    assert (
+        tuple(
+            row["name"]
+            for row in cases.manifest_tables()
+            if cases.table_schema(str(row["name"])) == "public"
+        )
+        == _EXPECTED_PUBLIC_TABLES
+    )
+    assert cases.tenant_id_table_names() == _EXPECTED_PUBLIC_TENANT_TABLES
+    assert cases.private_function_only_table_names() == _EXPECTED_PRIVATE_TABLES
+    assert {row.table for row in cases.seed_rows()}.isdisjoint(_EXPECTED_PRIVATE_TABLES)
+    for table in _EXPECTED_PRIVATE_TABLES:
+        assert cases.table_schema(table) == "sync_fence"
+        with pytest.raises(AssertionError, match="汎用INSERTは禁止"):
+            cases.insert_statement(cases.SeedRow(table, {}))
+        with pytest.raises(AssertionError, match="未定義"):
+            cases.insert_candidate(table, cases.TENANT_A)
+    with pytest.raises(AssertionError, match="manifest外"):
+        cases.table_schema("unregistered")
+
+
+@pytest.mark.parametrize("schema", ("unknown", "", "sync_fence"))
+def test_table_schema_rejects_wrong_public_namespace(monkeypatch, schema: str) -> None:
+    """既public表を誤namespaceへ移したモデルを正規fixtureへ使わない。"""
+    from types import SimpleNamespace
+
+    from sqlalchemy import Column, Integer, MetaData, Table
+
+    metadata = MetaData()
+    Table("games", metadata, Column("id", Integer), schema=schema)
+    monkeypatch.setattr(cases, "Base", SimpleNamespace(metadata=metadata))
+    with pytest.raises(AssertionError, match="未登録"):
+        cases.table_schema("games")
+
+
+def test_table_schema_rejects_name_collision_and_private_downgrade(monkeypatch) -> None:
+    """同名衝突と私有表のpublic降格をSQL生成前に拒否する。"""
+    from types import SimpleNamespace
+
+    from sqlalchemy import Column, Integer, MetaData, Table
+
+    metadata = MetaData()
+    Table("games", metadata, Column("id", Integer))
+    Table("games", metadata, Column("id", Integer), schema="sync_fence")
+    Table("writer_bindings", metadata, Column("id", Integer), schema="public")
+    monkeypatch.setattr(cases, "Base", SimpleNamespace(metadata=metadata))
+    with pytest.raises(AssertionError, match="同名衝突"):
+        cases.table_schema("games")
+    with pytest.raises(AssertionError, match="未登録"):
+        cases.table_schema("writer_bindings")
+
+
+@pytest.mark.parametrize("schema", ("public", "sync_fence"))
+def test_index_catalog_lookup_binds_schema_and_preserves_five_values(
+    schema: str,
+) -> None:
+    """同名索引をschemaで分け、既定public呼出と5返却値を保持する。"""
+    from contextlib import contextmanager
+    from types import SimpleNamespace
+
+    from db.test_alembic_migrations import _index_catalog_contract
+
+    calls = []
+    rows = {
+        ("same_index", "public"): ("public sql", "games", ["id"], None, True),
+        ("same_index", "sync_fence"): (
+            "private sql",
+            "writer_bindings",
+            ["lease_id"],
+            None,
+            True,
+        ),
+    }
+
+    @contextmanager
+    def cursor():
+        def execute(query, params):
+            assert "namespace.nspname = %s" in query
+            assert "namespace.oid = index_relation.relnamespace" in query
+            calls.append(params)
+
+        yield SimpleNamespace(execute=execute, fetchone=lambda: rows.get(calls[-1]))
+
+    connection = cast(Connection[tuple[object, ...]], SimpleNamespace(cursor=cursor))
+    result = (
+        _index_catalog_contract(connection, "same_index")
+        if schema == "public"
+        else _index_catalog_contract(connection, "same_index", schema=schema)
+    )
+    assert result == rows[("same_index", schema)]
+    assert calls == [("same_index", schema)]
+    with pytest.raises(AssertionError, match="存在しない"):
+        _index_catalog_contract(connection, "missing", schema=schema)
+    before = list(calls)
+    with pytest.raises(AssertionError, match="未登録"):
+        _index_catalog_contract(connection, "same_index", schema="unknown")
+    assert calls == before
+
+
+@pytest.mark.parametrize(
+    "table_name,constraint",
+    (
+        ("writer_bindings", "uq_sync_writer_binding_lease"),
+        ("writer_bindings", "uq_sync_writer_binding_nonce"),
+        (
+            "ordinary_pitch_write_admissions",
+            "ordinary_pitch_write_admissions_tenant_id_frame_id_key",
+        ),
+        (
+            "ordinary_pitch_write_admissions",
+            "ordinary_pitch_write_admissions_tenant_id_source_event_id_key",
+        ),
+        (
+            "ordinary_pitch_write_admissions",
+            "ordinary_pitch_write_admissions_tenant_id_play_row_id_key",
+        ),
+        (
+            "ordinary_pitch_history",
+            "ordinary_pitch_history_tenant_id_game_id_internal_generatio_key",
+        ),
+    ),
+)
+@pytest.mark.parametrize("field", ("columns", "source_row", "roles", "predicate"))
+def test_schema_audit_private_unique_exception_is_exact(
+    table_name: str, constraint: str, field: str
+) -> None:
+    """旧31/対象外5を保ち、私有6制約だけへ全field例外を閉じる。"""
+    import copy
+
+    from db import test_schema_audit as audit
+
+    manifest = audit._load_manifest()
+    rows = [
+        c
+        for t in manifest["tables"]
+        for c in t["unique_constraints"]
+        if "business_unique" in c["roles"]
+    ]
+    assert len(rows) == 31 + 6
+    assert len([c for c in rows if c["source_row"].get("scope") == "outside"]) == 5 + 2
+    changed = copy.deepcopy(manifest)
+    table = next(t for t in changed["tables"] if t["name"] == table_name)
+    row = next(c for c in table["unique_constraints"] if c["name"] == constraint)
+    row[field] = (
+        [] if field in ("columns", "roles") else {} if field == "source_row" else "true"
+    )
+    # rolesを外す改変も、有限2件の欠落として拒否する。
+    with pytest.raises(ValueError, match="閉集合"):
+        audit._cross_table_audit_violations(
+            changed,
+            audit._manifest_columns(changed),
+            audit._manifest_unique_constraints(changed),
+            audit._manifest_foreign_keys(changed),
+        )
+
+
+@pytest.mark.parametrize(
+    "mode", ("extra", "wrong_table", "unknown_source", "duplicate")
+)
+def test_schema_audit_unique_exception_cannot_expand(mode: str) -> None:
+    """例外の余剰・別表への移動・原典の付替えを拒否する。"""
+    import copy
+
+    from db import test_schema_audit as audit
+
+    changed = copy.deepcopy(audit._load_manifest())
+    table = next(t for t in changed["tables"] if t["name"] == "writer_bindings")
+    row = next(
+        c
+        for c in table["unique_constraints"]
+        if c["name"] == "uq_sync_writer_binding_lease"
+    )
+    if mode == "extra":
+        table["unique_constraints"].append(
+            {**copy.deepcopy(row), "name": "unknown_unique"}
+        )
+    elif mode == "duplicate":
+        next(t for t in changed["tables"] if t["name"] == "games")[
+            "unique_constraints"
+        ].append(copy.deepcopy(row))
+    elif mode == "wrong_table":
+        table["unique_constraints"].remove(row)
+        next(t for t in changed["tables"] if t["name"] == "games")[
+            "unique_constraints"
+        ].append(row)
+    else:
+        row["source_row"]["section"] = "unknown"
+    with pytest.raises(ValueError, match="閉集合"):
+        audit._cross_table_audit_violations(
+            changed,
+            audit._manifest_columns(changed),
+            audit._manifest_unique_constraints(changed),
+            audit._manifest_foreign_keys(changed),
+        )

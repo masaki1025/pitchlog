@@ -757,11 +757,6 @@
       ],
       [
         "sync_right_api",
-        "assert_play_prefix_projection",
-        "jsonb"
-      ],
-      [
-        "sync_right_api",
         "bind_device",
         "uuid, uuid, uuid, bytea, uuid, uuid, bytea"
       ],
@@ -787,11 +782,6 @@
       ],
       [
         "sync_right_api",
-        "finish_play_prefix_projection",
-        ""
-      ],
-      [
-        "sync_right_api",
         "guard_first_ball_projection_admission",
         ""
       ],
@@ -802,27 +792,12 @@
       ],
       [
         "sync_right_api",
-        "guard_play_prefix_runner_insert",
-        ""
-      ],
-      [
-        "sync_right_api",
         "lock_ordinary_checkpoint",
         "uuid, uuid, uuid, bytea, uuid, uuid, bigint"
       ],
       [
         "sync_right_api",
-        "lock_play_prefix_checkpoint",
-        "uuid, uuid, uuid, bytea, uuid, uuid, bigint"
-      ],
-      [
-        "sync_right_api",
         "prepare_ordinary_projection",
-        "uuid, uuid, uuid, bytea, uuid, uuid, text"
-      ],
-      [
-        "sync_right_api",
-        "prepare_play_prefix_projection",
         "uuid, uuid, uuid, bytea, uuid, uuid, text"
       ],
       [
@@ -844,16 +819,6 @@
         "sync_right_api",
         "read_ordinary_order_summary",
         "uuid, uuid"
-      ],
-      [
-        "sync_right_api",
-        "read_play_prefix_checkpoint",
-        "uuid, uuid, bigint"
-      ],
-      [
-        "sync_right_api",
-        "read_play_prefix_history_page",
-        "uuid, uuid, bigint, bigint, uuid, bigint, bigint, bigint, bigint, bigint, uuid, integer"
       ]
     ]
   },
@@ -880,5 +845,5 @@
     }
   ],
   "derived_from": "contracts/authz/product/ddl-elements.json",
-  "source_digest": "fea92004627062253ccd6dd860ea607e8cf849a0813876e9c482a41c590584bf"
+  "source_digest": "2b136e66fe821bdaa0359a8676b3f8abefee936191a38d1fc1332696f6380d95"
 }

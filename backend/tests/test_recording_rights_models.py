@@ -11,6 +11,7 @@ from sqlalchemy import (
     CheckConstraint,
     Column,
     DateTime,
+    LargeBinary,
     Text,
     UniqueConstraint,
     Uuid,
@@ -69,6 +70,8 @@ def _column_type_name(column: Column[Any]) -> str:
         return "uuid"
     if isinstance(column.type, JSONB):
         return "jsonb"
+    if isinstance(column.type, LargeBinary):
+        return "bytea"
     if isinstance(column.type, BigInteger):
         return "bigint"
     if isinstance(column.type, Text):

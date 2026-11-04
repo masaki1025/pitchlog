@@ -801,7 +801,7 @@
       "approved_at": "2026-10-24"
     },
     {
-      "acceptance_id": "masaki1025/pitchlog#189",
+      "acceptance_id": "masaki1025/pitchlog#188",
       "changes": [],
       "moved": false,
       "new_identity": {
@@ -809,7 +809,7 @@
         "values": [
           {
             "kind": "literal_commit_string",
-            "value": "e4f53dab05715977bdec846f3b2ba155832622e9"
+            "value": "706846283aca477b338d29352ac6323fdf3b9684"
           }
         ]
       },
@@ -838,10 +838,96 @@
           }
         ]
       },
-      "reason": "初球実画面保存・再読込の統合候補PR #189に伴い、作成と球種readの正式登録、承認済み座標仕様の出典追随を含む固定step4入力8資産e4f53dabへoracle_inputを前進する。旧AUTH187件の意味本文・既承認履歴・6oracleのoracle_commit以外は不変。非作者REPORT680f1009…/11a1e613…と8blobの現物/固定commit一致に基づくPO委任の主担当判断であり、本人署名・人間逐行確認・P6 blind・MVP完成ではない。",
+      "reason": "採用済初期HTTPのlogical2routeに伴い、旧49全順prefix/既分類・期待・物理probe・歴史実測を保持した8入力commit70684628へoracle_inputを前進する。非作者REPORTdbd6e736cd3bdc9a8443044b530bb5ed9eb85e84eb609c9ade3b673a3d03040dで8Gitblob/7context全byte/局所正負14を確認しPO委任のCodex主担当が実対象を採用。専用再封印とflagなし検査は別証拠、develop統合・本人直接確認/署名・新規Supabase実測を代記しない。",
       "series": "oracle_input",
-      "approved_by": "PO委任によるCodex判断（Codex主担当/root）",
-      "approved_at": "2026-10-30"
+      "approved_by": "PO委任によるCodex主担当判断（Codex /root）",
+      "approved_at": "2026-10-31"
+    },
+    {
+      "acceptance_id": "masaki1025/pitchlog#189",
+      "changes": [],
+      "moved": false,
+      "new_identity": {
+        "present": true,
+        "values": [
+          {
+            "kind": "literal_commit_string",
+            "value": "6a214c9dc33c7f6e54530510d6d625f25a39348f"
+          }
+        ]
+      },
+      "placement_change": {
+        "after": [
+          {
+            "kind": "ledger_series",
+            "path": "contracts/authz/frozen-baselines.json",
+            "series": "oracle_input"
+          }
+        ],
+        "before": [
+          {
+            "kind": "ledger_series",
+            "path": "contracts/authz/frozen-baselines.json",
+            "series": "oracle_input"
+          }
+        ]
+      },
+      "prior_identity": {
+        "present": true,
+        "values": [
+          {
+            "kind": "literal_commit_string",
+            "value": "706846283aca477b338d29352ac6323fdf3b9684"
+          }
+        ]
+      },
+      "reason": "採用済み初球・試合作成・球種供給の8入力を3dd1bfa1へ固定。非作者REPORT9edd03ecbcadf299e7e2677bdb1299480ad009f08f9bc357638d64208bb406acで旧AUTH187全field/digest・旧全正負cell・4lock・実HTTP3/C2/CAPを照合し採用。旧全履歴と規範状態を保持し、6oracleの意味本文・期待/拒否を変えずcommit参照だけ伝播する。専用再封印後の差分レビュー・正式7.7/全件CIは別証拠。PO本人の直接確認/署名・新規実機/運用実測を代記しない。 固定8入力のbyteを変えず、旧ordinary4pinの独立JSON（非作者REPORTd6980069…で旧ad658値完全一致）を含むcc0e87a8へ最終参照を更新する。未正式受理の#189末尾1recordのみを最終実値へ揃え、旧16履歴は変更しない。\n\n2026-11-03 追記: 状態遷移coverageの代表割当を、in guardを宣言順の先頭値のeqとみなして従来割当を先に、拡張で新たに通る値を後段に回す方式へ安定化し、契約119件・GAP-07 39件・通常33受理record/schema/pinsの9資産digestを実値へ追随した。派生caseの履歴は代表caseのbefore→after差分を新値へ適用する。固定8入力のbyte・旧16履歴・個人レビュー/署名・実機/運用実測を代記しない。",
+      "series": "oracle_input",
+      "approved_by": "PO委任によるCodex主担当判断（Codex /root）",
+      "approved_at": "2026-11-02"
+    },
+    {
+      "acceptance_id": "masaki1025/pitchlog#190",
+      "changes": [],
+      "moved": false,
+      "new_identity": {
+        "present": true,
+        "values": [
+          {
+            "kind": "literal_commit_string",
+            "value": "17124756e95f96ce84c2d5600c78b29660418dc0"
+          }
+        ]
+      },
+      "placement_change": {
+        "after": [
+          {
+            "kind": "ledger_series",
+            "path": "contracts/authz/frozen-baselines.json",
+            "series": "oracle_input"
+          }
+        ],
+        "before": [
+          {
+            "kind": "ledger_series",
+            "path": "contracts/authz/frozen-baselines.json",
+            "series": "oracle_input"
+          }
+        ]
+      },
+      "prior_identity": {
+        "present": true,
+        "values": [
+          {
+            "kind": "literal_commit_string",
+            "value": "6a214c9dc33c7f6e54530510d6d625f25a39348f"
+          }
+        ]
+      },
+      "reason": "通常投球の連続保存・prefix再読込の統合に伴い、started_game_detailの設計来歴を現行sourceへ一致させたroute-registryと、通常投球3表の認可DDL・schema manifestを8入力の実byteへ固定する。旧全履歴・規範状態・拒否対向を保持し、6oracleの意味本文と期待を変えずcommit参照だけを伝播する。PO委任による主担当判断であり、本人の直接確認・署名・実機/運用実測を代記しない。",
+      "series": "oracle_input",
+      "approved_by": "PO委任による主担当判断（本人直接確認・署名の代記ではない）",
+      "approved_at": "2026-11-04"
     }
   ]
 }

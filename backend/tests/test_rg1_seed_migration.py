@@ -21,6 +21,7 @@ if TYPE_CHECKING:
     from db_fixtures import DisposablePostgres
 
 pytest_plugins = ("db_fixtures",)
+pytestmark = pytest.mark.requires_db
 _MIGRATION_PATH = (
     Path(__file__).resolve().parents[1] / "migrations/versions/0032_rg1_restore_gate.py"
 )

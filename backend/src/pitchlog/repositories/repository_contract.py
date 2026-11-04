@@ -25,14 +25,16 @@ FUNCTION_TRANSACTION_ENTRY = (
 FUNCTION_OPERATION_REGISTRY = (
     "pitchlog.repositories.operation_registry.PRODUCT_FUNCTION_OPERATIONS"
 )
-FUNCTION_EXECUTOR_SYMBOL = FUNCTION_TRANSACTION_ENTRY
+FUNCTION_EXECUTOR_SYMBOL = (
+    "pitchlog.repositories.transaction._TenantTransaction.run_function"
+)
 FUNCTION_EXECUTOR_SIGNATURE = (
     "run_function(self, operation: TenantOperationToken) -> TenantOperationResult"
 )
 EXECUTOR_SYMBOL = "pitchlog.repositories.base.TenantRepositoryBase._execute_operation"
 EXECUTOR_SIGNATURE = (
-    "_execute_operation(self, context: TenantContext, "
-    "operation: TenantOperationToken) -> TenantOperationResult"
+    "_execute_operation(self, context: TenantContext, operation: "
+    "TenantOperationToken) -> TenantOperationResult"
 )
 
 ALLOWED_DTOS = ("pitchlog.repositories.tokens.TenantOperationResult",)
@@ -51,11 +53,7 @@ IMMUTABLE_SCALAR_TYPES = (
     "datetime.datetime",
     "datetime.time",
 )
-IMMUTABLE_CONTAINER_GRAMMAR = (
-    "tuple[T, ...]",
-    "frozenset[T]",
-    "mappingproxy[str, T]",
-)
+IMMUTABLE_CONTAINER_GRAMMAR = ("tuple[T, ...]", "frozenset[T]", "mappingproxy[str, T]")
 CANONICAL_TABLE = "orm_metadata_table_identity_for_registration_and_statement"
 UPDATE_IDENTITY = "actual_complete_primary_key_equalities_for_all_updates"
 UPDATE_BIND_NAMES = "primary_key_disjoint_from_target_columns_and_set_bindings"
@@ -81,7 +79,7 @@ FORBIDDEN_TYPES = (
     "non_frozen_dataclass",
 )
 
-PRODUCT_CAPABILITY_IDS: tuple[str, ...] = (
+PRODUCT_CAPABILITY_IDS = (
     "CAP:players:read",
     "CAP:players:insert",
     "CAP:players:update",
@@ -119,7 +117,7 @@ PRODUCT_CAPABILITY_IDS: tuple[str, ...] = (
     "CAP:tenant_vocabularies:insert",
     "CAP:tenant_vocabularies:read",
 )
-PRODUCT_OPERATION_TOKEN_TYPES: tuple[str, ...] = (
+PRODUCT_OPERATION_TOKEN_TYPES = (
     "pitchlog.repositories.roster.PlayerReadToken",
     "pitchlog.repositories.roster.PlayerCreateToken",
     "pitchlog.repositories.roster.PlayerUpdateToken",
@@ -187,8 +185,8 @@ PRODUCT_OPERATION_TOKEN_TYPES: tuple[str, ...] = (
     "pitchlog.sync.ordinary_pitch_tokens.OrdinaryPlayRowInsertToken",
     "pitchlog.sync.terminal_pitch_tokens.PlayPrefixPlayRowInsertToken",
 )
-CROSS_TENANT_FUNCTIONS: tuple[str, ...] = ()
-PRODUCT_FUNCTION_OPERATION_IDS: tuple[str, ...] = (
+CROSS_TENANT_FUNCTIONS = ()
+PRODUCT_FUNCTION_OPERATION_IDS = (
     "RG1:precheck",
     "RG1:commit_check",
     "RG1:scope_binding",

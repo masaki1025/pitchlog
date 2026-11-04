@@ -11,13 +11,13 @@ from uuid import UUID, uuid5
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from fastapi.responses import JSONResponse
-from sqlalchemy.exc import SQLAlchemyError
 
 from pitchlog.api.request_presentation import require_presented_token
+from pitchlog.api.schemas.recording_ack import RecordingAckResponse
 from pitchlog.api.tenant_access import TenantMatchedRoute, require_tenant_access
 from pitchlog.durable_rights_ledger.adapter import LedgerUnavailable
-from pitchlog.recording_rights.initial_grant_broker import _broker_generation
 from pitchlog.repositories.context import TenantContext
+from pitchlog.repositories.database_errors import DATABASE_ERRORS
 from pitchlog.repositories.initial_recording_right import (
     InitialGrantUnavailable,
     _credential_digest,
@@ -47,6 +47,7 @@ from pitchlog.sync.control_provider.writer_binding import (
 from pitchlog.sync.first_ball_ports import FirstBallContentValidationPort
 from pitchlog.sync.first_ball_projection import FirstBallProjectionPort
 from pitchlog.sync.first_ball_recording_rights import FirstBallRecordingRightsPort
+from pitchlog.sync.http_recording_key import _decode_recording_key
 from pitchlog.sync.model import AckResult, RequestShapeError, SyncRequest
 from pitchlog.sync.ordinary_pitch_execution import OrdinaryPitchExecutionError
 from pitchlog.sync.ordinary_pitch_ports import (
@@ -117,10 +118,16 @@ def _ack_body(result: AckResult) -> dict[str, object]:
             {"temporaryId": temporary, "officialId": official}
             for temporary, official in result.temporary_id_mapping.items()
         ]
-    return body
+    return RecordingAckResponse.model_validate(body).model_dump(
+        by_alias=True, exclude_unset=True
+    )
 
 
-@router.post("/games/{game_id}/sync/events", operation_id="sync_events")
+@router.post(
+    "/games/{game_id}/sync/events",
+    operation_id="sync_events",
+    response_model=RecordingAckResponse,
+)
 def sync_events(
     game_id: UUID,
     payload: dict[str, object],
@@ -155,7 +162,7 @@ def sync_events(
         replayed = _replay_e1_without_binding(
             context, sync_request, source.event_fingerprints
         )
-    except SQLAlchemyError:
+    except DATABASE_ERRORS:
         raise HTTPException(status_code=503) from None
     if replayed == "B6":
         raise HTTPException(status_code=404)
@@ -185,7 +192,7 @@ def sync_events(
                 reference_device=device_id,
                 credential_digest=credential_digest,
             )
-            internal_generation = _broker_generation(
+            internal_key = _decode_recording_key(
                 str(sync_request.d4), context.tenant_id, game_id
             )
             attempt_binding = AttemptBinding(
@@ -198,7 +205,7 @@ def sync_events(
                 device_id,
                 game_id,
                 str(sync_request.d4),
-                internal_generation,
+                internal_key,
                 attempt,
                 1,
                 source.request_fingerprint,
@@ -261,7 +268,7 @@ def sync_events(
         OrdinaryPrefixError,
         OrdinaryPitchExecutionError,
         OrdinaryPlayRowError,
-        SQLAlchemyError,
+        *DATABASE_ERRORS,
     ):
         # 同TXのprefix/frame/投影不成立にACKや新要求置換可否を付与しない。
         raise HTTPException(status_code=503) from None
