@@ -198,3 +198,13 @@ zero論理refはid=実start_request_id/rev1/history0、自己循環なしinitial
 
 
 ステップ4再開時のnative再生負例是正（2026-11-04、PO委任によるCodex主担当判断）: 最新HEAD9457099bとdirty39をcache pr192-resume-audit-20261104/manifest.json（SHA26975f040c94ca660497c7c588657084f646827a0c5c439babf43ddcbb46f44a）で保全照合し、旧後発2fileは11/1監査と同byteと確認した。まず既native修復の試験としてbackend/tests/test_ordinary_pitch_native_evidence.py exact1のみを担当pr192_resume_auditへ移管する。旧test_host_replay_mismatch_rejectedは前段wire sealで停止しhost再生の比較を検証できないP2があるため、元のseal拒否対向は保持し、正常Evidenceから実host.callへ到達した回数/要求を明示確認したうえで再生結果の不一致を閉拒否する対向へ是正する。必要なfault injectionは試験内だけで実artifactの呼出を保持し、成功応答/仮Portを製品へ供給しない。実DB/HTTP成功とは扱わない。他38path/source/契約/artifact/refs/共有台帳は変更禁止。両共有DSN unsetのpure試験/型lint、候補作成に関与していないレビュー後に採否し、本体reader/正式SQL/全pin/owned PGの既step4を継続する。
+
+## 2026-11-04 主担当再開：191接合候補でステップ4を完了する
+
+PO委任によるCodex主担当/root判断。原WT `feature-mvp-strikeout-pitches`のHEAD421621c9と保全dirty39（38追跡+native1）を変更せず、隔離WT `feature-mvp-strikeout-integration`/同名feature branchを作り接合する。旧候補を巨大な別成果集約へ移植せず本#192の履歴・操作範囲を維持し、最終PRは#192へ通常統合する。候補基線22437086は#191の画面3系列成功/非作者95c025d3通過版だが、実CIのcore有限層修復と正式mergeは未了。正式#191が統合されたらその差分だけ追随し、候補成功と正式developを区別する。
+
+既再開調査packet `pr192-step4-integration-preparation-20261104/REPORT.md` SHA256 `2f94ce6c4a19a20df91004f69b3cfad0b5418a8553130131b1feaaa4f82070f7`の実4競合（consumer handoff/coverage件数/required set/schema試験）を解消し、#191の全旧119+terminal15=134へSO24を加えた158case/67matrix行を保持する。旧49ID/自然ID/3coverage負例/履歴原典/閉schemaを落とさない。必要なmanual fixture schemaにはSOだけの閉分岐を加え、全操作の既定値を一般許可しない。
+
+次に保全38patch+native test1を有限適用し、追加3競合（started route/operation registry/terminal stamp test）を解消する。テキスト適用可能でもv3 DTOには既#191のrecovery alias/共有assert_prefix_matchesを伝播し、routerは直接3reader分岐を保持。旧SQL比較pinの正式登録を旧literalへ戻さない。原native修復a15578f…の独立P2採用3efa74db…はexact1に限り、全source受理へ広げない。
+
+SQL22候補は12新規/10既存before/全after SHAが新基線と一致する。既backport済BigIntegerは重ねて実装せず、既20関数/拒否と新LINEUP origin1の正式登録・ACL/CAPを実物から照合する。既ステップ4の固定登録/3層/全同TX/故障対向/真正source・同artifactの順で完了し、独立レビュー後にowned PGの9SO→反対側通常球/再送/全取消/越境を通す。coreの次lineup有限層は#191の最小修復を継承して宣言・負例を先行し、未登録のままpushしない。ステップ5画面は4の採用後に開始する。新たな野球意味/仮成功/認可や耐久保証の弱化を許可するものではない。
