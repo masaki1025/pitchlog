@@ -1,5 +1,13 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 続き：2026-11-05（#192画面の実停止点を是正、後半を並行実装）
+
+- **利用者操作/実証の現在地**: 正式developは#191 eb8b31cd。通常/四球/死球の実画面3系列保存・再読込/再送まで成立。#192の三振3PA→攻守交代→相手側ボール10球はAPI owned PGで3ca52e24/1pass126.84秒を保持し、実画面へ拡張中。
+- **実画面で発見/是正した障害**: 同版32b7a035のowned HTTPS実画面r1は最初の保存POST200/GET200後に履歴DOM欠落で失敗。r2はNodeのJSON import属性で試験起動前停止（製品障害と分離）。r3は実GETをbrowser側製品validatorへ通しfalseを再現。保存wire headのprefix checkpoint IDと開始原本anchor IDを同一強制していた。既play_prefix.py初期原本/同doc相関・planのzero論理refと物理history区別に合わせ、anchorはstorage/開始originへ、revision/historyはwire headへ照合する修復をacf3b19aに保存。実GETは型接合fixtureで数学の期待原典ではない。負対向5+既回帰の66pure成功。実画面r4は同HEAD/1282製品path SHA固定で実行中、結果未成立として扱う。正式資産はdirty、正式#192受理/統合は未了。
+- **後半の並行成果**: 三振source登録は別担当が旧source/旧拒否を保持した有限6owner/90siteの接合を実装、局所210pass/raw131→0は正式7.7と区別。rootが凍結原典fixture9407dd2bを先置きした。安打4種のD11 16期待/新manifestと13共有pin+互換15を接合中、20pure/59FE成功、公式collect_pytest_junitがbatted1証跡の5比較/hash/chain成立を採取。全D11/BOOTではない。非作者レビュー中。成績担当は26群facts/生成SQL/唯一reader/3private table/0040を実装中、実DBとroot正式4operation/same-TX/RR readonly scope接合は未了。
+- **次**: #192実画面r4の結果→実値を崩さない是正/独立確認、source登録の別人レビューとcensus/Oracle/tenant単一受理を閉じて正式統合。安打の保存prefix/T2・成績DB/毎球CSVを並行する。全MVPの在塁/走塁/交代/取消/訂正/終了再開/全操作offline/担当交代/閲覧更新/27成績/両CSV/負荷復旧/実機は維持。既成績4判断は未回答。試験用期限切れTLS+ignoreHTTPSは隔離技術実証だけで実機/運用HTTPSではない。
+
+
 ## 続き：2026-11-05（#191正式統合、三振10球の実保存成立・後半を並行実装）
 
 - **正式develop到達点**: #191は全CI41864867904の21jobと本文41864867901のcore-guardがsuccess（全22check）。最終C4の同版実画面3系列（通常/四球/死球、画面新規作成→開始→保存→server GET→reload→元要求再送）は3pass0skip185.93秒、全source-before HEAD一致/終了後clean、6証拠をui191-final-c4-proof/へ退避しSHA固定。非作者最終HEAD review486964cf…・公開委任comment6635610074・正式191単一受理を根拠にPO委任によるroot判断でDraft解除/通常merge。**merge eb8b31cdaa052d0a05b2d2d07b25e224accb769a、2026-11-05 01:50:14JST**。main/develop直接push/admin bypassなし。実Rulesetは10必須、引継ぎの12表記との差は確認したが追加mutation/consistencyも含む全22成功、条件を除外/変更していない。legacy branch-protection404を非保護とは解釈せずRuleset APIを確認した。develop後続CI41871502390は実行中として分離。
