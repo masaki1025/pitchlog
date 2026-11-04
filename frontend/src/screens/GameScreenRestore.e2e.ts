@@ -57,7 +57,7 @@ test('記録済み1球を再読込でサーバーから復元し、取得失敗�
       history: unknown[]
       play_rows: unknown[]
     }
-    expect(view.read_kind).toBe('recorded')
+    expect(view.read_kind).toBe('recorded-prefix')
     expect(view.after.stateFields['state.count.balls']).toBe('1')
     // 現在状態はafter（1ボール）、開始前のbeforeは0のまま。
     await expect(page.getByTestId('restore-balls')).toHaveText('1')
@@ -67,7 +67,9 @@ test('記録済み1球を再読込でサーバーから復元し、取得失敗�
     await expect(page.getByTestId('restore-before-balls')).toHaveText('0')
     await expect(page.getByTestId('restore-history')).toHaveText('1件')
     await expect(page.getByTestId('restore-plays')).toHaveText('1件')
-    await expect(page.getByText('記録済み（保存初球1件）')).toBeVisible()
+    await expect(
+      page.getByText('通常投球の確認済みprefix（表示履歴は有限ページ）'),
+    ).toBeVisible()
     // 明示再取得でも同じサーバー値を得る。
     const again = page.waitForResponse(
       (res) =>

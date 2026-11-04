@@ -167,12 +167,35 @@ FIRST_BALL_SNAPSHOT_CORE_ADDITIONS: Mapping[str, tuple[str, ...]] = {
         "backend/tests/test_started_snapshot_operations.py",
     ),
 }
+FIRST_BALL_WRITER_BINDING_CORE_ADDITIONS: dict[str, tuple[str, ...]] = {
+    "sync-protocol": (
+        "backend/src/pitchlog/db/writer_binding/__init__.py",
+        "backend/src/pitchlog/db/writer_binding/models.py",
+        "backend/tests/first_ball_expected_source_pins.py",
+        "backend/tests/test_first_ball_operations.py",
+        "backend/tests/test_first_ball_vocabulary_operations.py",
+        "backend/tests/test_first_ball_write_stamp.py",
+        "backend/tests/test_recorded_snapshot.py",
+    ),
+}
+FIRST_BALL_ORDINARY_PITCH_CORE_ADDITIONS: dict[str, tuple[str, ...]] = {
+    "sync-protocol": (
+        "backend/src/pitchlog/db/writer_binding/ordinary_models.py",
+        "backend/tests/manual_e2e_hold_support.py",
+        "backend/tests/test_ordinary_order.py",
+        "backend/tests/test_ordinary_pitch_operations.py",
+    ),
+}
 _FIRST_BALL_LAYER_MAPS = {
     "N1_U1": FIRST_BALL_RIGHT_CORE_ADDITIONS,
     "N2_A": FIRST_BALL_SNAPSHOT_CORE_ADDITIONS,
+    "WRITER_BINDING": FIRST_BALL_WRITER_BINDING_CORE_ADDITIONS,
+    "ORDINARY_PITCH": FIRST_BALL_ORDINARY_PITCH_CORE_ADDITIONS,
 }
 _FIRST_BALL_LAYER_ORDERS = (
     (), ("N1_U1",), ("N2_A",), ("N1_U1", "N2_A"), ("N2_A", "N1_U1"),
+    ("N1_U1", "N2_A", "WRITER_BINDING"),
+    ("N1_U1", "N2_A", "WRITER_BINDING", "ORDINARY_PITCH"),
 )
 REQUIRED_CHECK_RE = re.compile(
     rf"(?m)^[ \t]*-[ \t]*\[x\][ \t]+{re.escape(REQUIRED_CHECK_TEXT)}[ \t\r]*$"
@@ -483,7 +506,7 @@ def _project_first_ball_layers(
                 area["paths"] = list(prefixes[area["id"]])
             matches.append((projected, order))
     if len(matches) != 1:
-        raise GuardError(f"{label} の初球core層が完全suffixの5状態に不一致")
+        raise GuardError(f"{label} の初球core層が完全suffixの7状態に不一致")
     return matches[0]
 
 

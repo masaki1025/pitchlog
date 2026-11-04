@@ -31,6 +31,9 @@ _RESOLUTION_SUFFIXES = (
     ".json",
     ".css",
 )
+# 型宣言(.d.ts)と、拡張子に見えるが実体は名前の一部（client.syncEvents 等）を解決する。
+_APPEND_SUFFIXES = (".d.ts", *_RESOLUTION_SUFFIXES)
+_KNOWN_SUFFIXES = frozenset(_APPEND_SUFFIXES) | {".d.ts"}
 _IGNORED_DIRECTORIES = frozenset({".git", "node_modules", "dist", "coverage"})
 _FROM_IMPORT = re.compile(
     r"\b(?:import|export)\s+(?:type\s+)?[^;]*?\s+from\s*"
@@ -473,16 +476,25 @@ def _resolve_file(base: Path, specifier: str, frontend: Path) -> Path | None:
     expanded: list[Path] = []
     for candidate in candidates:
         expanded.append(candidate)
-        if not candidate.suffix:
-            expanded.extend(
-                Path(f"{candidate}{suffix}") for suffix in _RESOLUTION_SUFFIXES
-            )
-            expanded.extend(
-                candidate / f"index{suffix}" for suffix in _RESOLUTION_SUFFIXES
-            )
+        if candidate.suffix not in _KNOWN_SUFFIXES:
+            expanded.extend(Path(f"{candidate}{suffix}") for suffix in _APPEND_SUFFIXES)
+            expanded.extend(candidate / f"index{suffix}" for suffix in _APPEND_SUFFIXES)
     matches = [candidate.resolve() for candidate in expanded if candidate.is_file()]
     unique = list(dict.fromkeys(matches))
-    return unique[0] if len(unique) == 1 else None
+    if len(unique) == 1:
+        return unique[0]
+    if len(unique) > 1 and not Path(clean).suffix:
+        # TS/Vite と同じ優先順で同一stemの複数候補だけを一意化する。
+        def rank(path: Path) -> int:
+            for index, suffix in enumerate(_APPEND_SUFFIXES):
+                if path.name.endswith(suffix):
+                    return index
+            return len(_APPEND_SUFFIXES)
+
+        ordered = sorted(unique, key=lambda path: (rank(path), str(path)))
+        if rank(ordered[0]) != rank(ordered[1]):
+            return ordered[0]
+    return None
 
 
 def _resolve_reference(
@@ -519,6 +531,9 @@ def _resolve_reference(
     try:
         resolved.relative_to(state.frontend)
     except ValueError:
+        # 型宣言とJSONデータは実行時入口ではないため、入口グラフに含めない。
+        if resolved.name.endswith(".d.ts") or resolved.suffix == ".json":
+            return None
         state.add_unresolved(source, construct, specifier, "frontend 外を指している")
         return None
     return resolved

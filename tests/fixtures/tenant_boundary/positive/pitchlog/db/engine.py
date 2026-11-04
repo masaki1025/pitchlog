@@ -1,6 +1,6 @@
 """アプリ用 engine 生成の許可シンボル正例。"""
 
-from sqlalchemy import Engine, create_engine  # ty: ignore
+from sqlalchemy import Engine, create_engine
 
 
 def create_database_engine() -> Engine:

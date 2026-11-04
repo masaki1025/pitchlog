@@ -1,8 +1,8 @@
 """署名済み ID のパスワード変更に必要な DB API だけを使う正例。"""
 
 from pitchlog.authz.token_presentation import TokenPresentation as _TokenPresentation  # ty: ignore
-from sqlalchemy import Engine as _Engine  # ty: ignore
-from sqlalchemy import text as _text  # ty: ignore
+from sqlalchemy import Engine as _Engine
+from sqlalchemy import text as _text
 
 
 def change_password_token(

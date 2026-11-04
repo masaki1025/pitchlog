@@ -21,6 +21,166 @@ from pitchlog.authz.product_role_contract import (
     generate_lifecycle_role_sql,
 )
 
+_EXPECTED_FIRST_BALL_ROLES = [
+    {
+        "role_id": "pitchlog_sync_binding_fn_owner",
+        "creation": "product_ddl",
+        "superuser": False,
+        "bypass_rls": False,
+        "login": False,
+        "create_role": False,
+        "create_db": False,
+        "replication": False,
+        "inherit": False,
+    },
+    {
+        "role_id": "pitchlog_sync_binding_actor",
+        "creation": "product_ddl",
+        "superuser": False,
+        "bypass_rls": False,
+        "login": True,
+        "create_role": False,
+        "create_db": False,
+        "replication": False,
+        "inherit": False,
+    },
+    {
+        "role_id": "pitchlog_sync_right_fn_owner",
+        "creation": "product_ddl",
+        "superuser": False,
+        "bypass_rls": False,
+        "login": False,
+        "create_role": False,
+        "create_db": False,
+        "replication": False,
+        "inherit": False,
+    },
+]
+
+_EXPECTED_FIRST_BALL_ROLE_SQL = {
+    "pitchlog_sync_binding_fn_owner": "-- ELEMENT-TYPE: role\n"
+    "-- ELEMENT-ID: "
+    "pitchlog_sync_binding_fn_owner\n"
+    "\n"
+    "DO $authz$\n"
+    "BEGIN\n"
+    " IF EXISTS (SELECT 1 FROM "
+    "pg_catalog.pg_roles WHERE "
+    "rolname='pitchlog_sync_binding_fn_owner') "
+    "THEN\n"
+    "  IF NOT EXISTS(SELECT 1 "
+    "FROM pg_catalog.pg_roles r "
+    "WHERE "
+    "r.rolname='pitchlog_sync_binding_fn_owner'\n"
+    "   AND r.rolcanlogin IS "
+    "FALSE AND NOT r.rolsuper "
+    "AND NOT r.rolbypassrls AND "
+    "NOT r.rolinherit\n"
+    "   AND NOT r.rolcreaterole "
+    "AND NOT r.rolcreatedb AND "
+    "NOT r.rolreplication\n"
+    "   AND r.rolconnlimit=-1 "
+    "AND r.rolvaliduntil IS "
+    "NULL\n"
+    "   AND NOT EXISTS(SELECT 1 "
+    "FROM "
+    "pg_catalog.pg_auth_members "
+    "m WHERE m.roleid=r.oid OR "
+    "m.member=r.oid)) THEN\n"
+    "    RAISE EXCEPTION 'sync "
+    "role collision: "
+    "pitchlog_sync_binding_fn_owner';\n"
+    "  END IF;\n"
+    " ELSE\n"
+    "  CREATE ROLE "
+    "pitchlog_sync_binding_fn_owner "
+    "NOLOGIN NOSUPERUSER "
+    "NOBYPASSRLS NOINHERIT "
+    "NOCREATEROLE NOCREATEDB "
+    "NOREPLICATION;\n"
+    " END IF;\n"
+    "END;$authz$;\n",
+    "pitchlog_sync_binding_actor": "-- ELEMENT-TYPE: role\n"
+    "-- ELEMENT-ID: "
+    "pitchlog_sync_binding_actor\n"
+    "\n"
+    "DO $authz$\n"
+    "BEGIN\n"
+    " IF EXISTS (SELECT 1 FROM "
+    "pg_catalog.pg_roles WHERE "
+    "rolname='pitchlog_sync_binding_actor') "
+    "THEN\n"
+    "  IF NOT EXISTS(SELECT 1 FROM "
+    "pg_catalog.pg_roles r WHERE "
+    "r.rolname='pitchlog_sync_binding_actor'\n"
+    "   AND r.rolcanlogin IS TRUE "
+    "AND NOT r.rolsuper AND NOT "
+    "r.rolbypassrls AND NOT "
+    "r.rolinherit\n"
+    "   AND NOT r.rolcreaterole AND "
+    "NOT r.rolcreatedb AND NOT "
+    "r.rolreplication\n"
+    "   AND r.rolconnlimit=-1 AND "
+    "r.rolvaliduntil IS NULL\n"
+    "   AND NOT EXISTS(SELECT 1 "
+    "FROM "
+    "pg_catalog.pg_auth_members m "
+    "WHERE m.roleid=r.oid OR "
+    "m.member=r.oid)) THEN\n"
+    "    RAISE EXCEPTION 'sync role "
+    "collision: "
+    "pitchlog_sync_binding_actor';\n"
+    "  END IF;\n"
+    " ELSE\n"
+    "  CREATE ROLE "
+    "pitchlog_sync_binding_actor "
+    "LOGIN NOSUPERUSER NOBYPASSRLS "
+    "NOINHERIT NOCREATEROLE "
+    "NOCREATEDB NOREPLICATION;\n"
+    " END IF;\n"
+    "END;$authz$;\n",
+    "pitchlog_sync_right_fn_owner": "-- ELEMENT-TYPE: role\n"
+    "-- ELEMENT-ID: "
+    "pitchlog_sync_right_fn_owner\n"
+    "\n"
+    "DO $authz$\n"
+    "BEGIN\n"
+    " IF EXISTS (SELECT 1 FROM "
+    "pg_catalog.pg_roles WHERE "
+    "rolname='pitchlog_sync_right_fn_owner') "
+    "THEN\n"
+    "  IF NOT EXISTS(SELECT 1 FROM "
+    "pg_catalog.pg_roles r WHERE "
+    "r.rolname='pitchlog_sync_right_fn_owner'\n"
+    "   AND r.rolcanlogin IS FALSE "
+    "AND NOT r.rolsuper AND NOT "
+    "r.rolbypassrls AND NOT "
+    "r.rolinherit\n"
+    "   AND NOT r.rolcreaterole "
+    "AND NOT r.rolcreatedb AND NOT "
+    "r.rolreplication\n"
+    "   AND r.rolconnlimit=-1 AND "
+    "r.rolvaliduntil IS NULL\n"
+    "   AND NOT EXISTS(SELECT 1 "
+    "FROM "
+    "pg_catalog.pg_auth_members m "
+    "WHERE m.roleid=r.oid OR "
+    "m.member=r.oid)) THEN\n"
+    "    RAISE EXCEPTION 'sync "
+    "role collision: "
+    "pitchlog_sync_right_fn_owner';\n"
+    "  END IF;\n"
+    " ELSE\n"
+    "  CREATE ROLE "
+    "pitchlog_sync_right_fn_owner "
+    "NOLOGIN NOSUPERUSER "
+    "NOBYPASSRLS NOINHERIT "
+    "NOCREATEROLE NOCREATEDB "
+    "NOREPLICATION;\n"
+    " END IF;\n"
+    "END;$authz$;\n",
+}
+
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 _BODY_CHECKER = _REPOSITORY_ROOT / "scripts/check_authz_function_bodies.py"
 _CATALOG_CHECKER = _REPOSITORY_ROOT / "scripts/check_authz_catalog.py"
@@ -156,6 +316,11 @@ def test_product_role_assets_match_design_and_all_readers_accept_them() -> None:
     }
     expected_roles = expected_product_roles(asset)
     assert actual_roles == expected_roles
+    assert [
+        row
+        for row in role_rows
+        if row["role_id"] in {r["role_id"] for r in _EXPECTED_FIRST_BALL_ROLES}
+    ] == _EXPECTED_FIRST_BALL_ROLES
     assert asset["permanent_privileged_role_ids"] == ["pitchlog_owner"]
     assert asset["membership_edges"] == []
 
@@ -164,6 +329,9 @@ def test_product_role_assets_match_design_and_all_readers_accept_them() -> None:
     assert set(statements_by_role) == set(expected_roles)
     for role_id, expected in expected_roles.items():
         sql = statements_by_role[role_id].sql
+        if role_id in _EXPECTED_FIRST_BALL_ROLE_SQL:
+            assert sql == _EXPECTED_FIRST_BALL_ROLE_SQL[role_id]
+            continue
         attribute_statement = (
             rf"CREATE ROLE {re.escape(role_id)} WITH\s+([^;]+);"
             if role_id
@@ -171,6 +339,7 @@ def test_product_role_assets_match_design_and_all_readers_accept_them() -> None:
                 "pitchlog_rule_resolution_fn_owner",
                 "pitchlog_initial_auth_verifier",
                 *_LIFECYCLE_ROLE_EXPECTATIONS,
+                *(r["role_id"] for r in _EXPECTED_FIRST_BALL_ROLES),
             }
             else rf"ALTER ROLE {re.escape(role_id)} WITH\s+([^;]+);"
         )
@@ -193,6 +362,7 @@ def test_product_role_assets_match_design_and_all_readers_accept_them() -> None:
                 "pitchlog_rule_resolution_fn_owner",
                 "pitchlog_initial_auth_verifier",
                 *_LIFECYCLE_ROLE_EXPECTATIONS,
+                *(r["role_id"] for r in _EXPECTED_FIRST_BALL_ROLES),
             }
             else 1
         )
@@ -234,6 +404,7 @@ def test_product_state_requires_authn_role_even_when_role_is_missing() -> None:
         "pitchlog_rule_resolution_fn_owner",
         "pitchlog_initial_auth_verifier",
         *_LIFECYCLE_ROLE_EXPECTATIONS,
+        *(r["role_id"] for r in _EXPECTED_FIRST_BALL_ROLES),
     }
     assert "pitchlog_auth_fn_owner" not in {row["role_id"] for row in asset["roles"]}
 
@@ -253,7 +424,7 @@ def test_whole_authn_bundle_removal_is_rejected() -> None:
     asset["functions"] = [
         row for row in asset["functions"] if row["schema_name"] != "authn"
     ]
-    assert len(expected_product_roles(asset)) == 14
+    assert len(expected_product_roles(asset)) == 14 + len(_EXPECTED_FIRST_BALL_ROLES)
     with pytest.raises(ValueError, match="署名"):
         validate_authn_asset(asset)
     with pytest.raises(_catalog_checker.CatalogError):
@@ -456,3 +627,32 @@ def test_b1_verifier_role_exact_and_strict_collision_sql_keeps_old_six() -> None
             "rolinherit",
         )
     )
+
+
+@pytest.mark.parametrize("role", [r["role_id"] for r in _EXPECTED_FIRST_BALL_ROLES])
+@pytest.mark.parametrize("attribute", _ATTRIBUTE_ORDER)
+def test_first_ball_role_attribute_flip_is_rejected(role: str, attribute: str) -> None:
+    """追加3主体も全7属性の独立した1bit変異を拒否する。"""
+    asset = _read_product_asset()
+    row = next(r for r in asset["roles"] if r["role_id"] == role)
+    row[attribute] = not row[attribute]
+    with pytest.raises(_catalog_checker.CatalogError):
+        _validate_product_asset(asset)
+
+
+@pytest.mark.parametrize("role", [r["role_id"] for r in _EXPECTED_FIRST_BALL_ROLES])
+@pytest.mark.parametrize("reverse", [False, True])
+def test_first_ball_role_membership_is_rejected(role: str, reverse: bool) -> None:
+    """追加3主体の両向membershipも許可しない。"""
+    asset = _read_product_asset()
+    asset["membership_edges"] = [
+        dict(
+            role_id="pitchlog_app" if reverse else role,
+            member_id=role if reverse else "pitchlog_app",
+            admin_option=False,
+            set_option=True,
+            inherit_option=False,
+        )
+    ]
+    with pytest.raises(_catalog_checker.CatalogError):
+        _validate_product_asset(asset)

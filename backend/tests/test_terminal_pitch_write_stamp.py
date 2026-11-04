@@ -57,7 +57,9 @@ def test_physical_runner_uses_before_slots_and_actual_hold_not_after_occupancy()
 def test_prepare_parenthesizes_five_case_expressions_without_other_sql_changes():
     """実PGの42601を閉じ、追加括弧以外の全byte/述語/拒否を固定する。"""
     import hashlib
+    import json
     import re
+    from pathlib import Path
 
     sql = candidate_function_bodies()["prepare_play_prefix_projection"]
     removed = []
@@ -72,7 +74,13 @@ def test_prepare_parenthesizes_five_case_expressions_without_other_sql_changes()
     previous = re.sub(r"\(CASE\b[\s\S]*?\bEND\)", original_case, sql)
     assert len(removed) == 5
     assert not re.search(r"IS DISTINCT FROM\s+CASE\b|>\s*CASE\b", sql)
-    assert (
-        hashlib.sha256(previous.encode()).hexdigest()
-        == "18fb89b0d4065b536a726bc5f17ccfcb5b3577825a42990387e08e07c891712d"
+    # 製品SQLから期待を再生成せず、正式な固定入力の旧全byte値を比較する。
+    frozen = json.loads(
+        (
+            Path(__file__).resolve().parents[2]
+            / "contracts/tenant_boundary/frozen-inputs.json"
+        ).read_text(encoding="utf-8")
     )
+    expected = frozen["frozen_inputs"]["terminal_prepare_original_sql_sha256"]["value"]
+    assert type(expected) is str and re.fullmatch(r"[0-9a-f]{64}", expected)
+    assert hashlib.sha256(previous.encode()).hexdigest() == expected

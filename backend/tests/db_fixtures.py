@@ -18,6 +18,11 @@ import pytest
 from alembic import command
 from alembic.config import Config
 from db.environment_contract import load_expectations
+from product_authz_legacy_profile import (
+    legacy_profile_context,
+    require_bound_profile,
+    verify_legacy_migration_sources,
+)
 from psycopg import sql
 from psycopg.conninfo import conninfo_to_dict, make_conninfo
 from psycopg.types.json import Jsonb
@@ -35,8 +40,10 @@ from pitchlog.authz.product_catalog import inspect_product_authz_catalog
 from pitchlog.authz.product_provisioning import (
     apply_product_authz_before_rule_placement,
     apply_product_authz_ddl,
+    unapply_product_authz_ddl,
 )
 from pitchlog.authz.provisioning import ProvisioningResult, apply_authz_ddl
+from pitchlog.db import stage_a_startup
 from pitchlog.db.stage_a_startup import advance_stage_a_from_s0
 
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
@@ -180,8 +187,11 @@ def _role_id(asset: dict[str, object], role_kind: str) -> str:
     return role_id
 
 
+_SESSION_DSN_CACHE: dict[str, str] = {}
+
+
 def _required_dsn(variable_name: str) -> str:
-    """必須 DSN を環境変数だけから取得する。
+    """必須 DSN を環境変数から取得し、セッション開始時の値を保持する。
 
     Args:
         variable_name: 期待値資産が定める環境変数名。
@@ -191,7 +201,12 @@ def _required_dsn(variable_name: str) -> str:
     """
     value = os.environ.get(variable_name)
     if not value:
+        # 一部の試験が monkeypatch で env を消した後も、開始時の必須値を
+        # 使い続ける（未設定のまま開始した場合は下で fail する）。
+        value = _SESSION_DSN_CACHE.get(variable_name)
+    if not value:
         pytest.fail(f"必須 DSN 環境変数が未設定: {variable_name}")
+    _SESSION_DSN_CACHE.setdefault(variable_name, value)
     return value
 
 
@@ -1085,8 +1100,87 @@ def _fetch_snapshot_rows(
 def _snapshot_product_catalog(
     connection: psycopg.Connection[Any],
     role_ids: tuple[str, ...],
+    *,
+    asset: dict[str, object] | None = None,
 ) -> ProductCatalogSnapshot:
     """製品 DDL が変更し得るカタログを安定した順序で記録する。"""
+    selected = _load_ddl_asset(PRODUCT_SPEC) if asset is None else asset
+    schema_names = tuple(
+        str(row["schema_name"]) for row in _asset_rows(selected, "schemas")
+    )
+    legacy_schemas = {
+        "public",
+        "authz_private",
+        "authn",
+        "authn_crypto",
+        "rg1_api",
+        "rg1_control",
+        "pitchlog_ledger_observer",
+        "initial_right_api",
+    }
+    private_schemas = {"sync_fence", "sync_fence_api", "sync_right_api"}
+    if len(set(schema_names)) != len(schema_names) or set(schema_names) not in (
+        legacy_schemas,
+        legacy_schemas | private_schemas,
+    ):
+        raise AssertionError("snapshotのschema閉集合が不一致")
+    private_rows = [
+        (str(row["table_id"]), str(row["schema_name"]))
+        for row in _asset_rows(selected, "tables")
+        if row["schema_name"] != "public"
+    ]
+    expected_private = (
+        {
+            (table, "sync_fence")
+            for table in (
+                "writer_bindings",
+                "writer_admissions",
+                "first_ball_write_admissions",
+                "ordinary_pitch_checkpoints",
+                "ordinary_pitch_write_admissions",
+                "ordinary_pitch_history",
+            )
+        }
+        if set(schema_names) == legacy_schemas | private_schemas
+        else set()
+    )
+    if (
+        len(set(private_rows)) != len(private_rows)
+        or set(private_rows) != expected_private
+    ):
+        raise AssertionError("snapshotのprivate表閉集合が不一致")
+    private_tables = tuple(table for table, _ in private_rows)
+    builtin_owners = {"pitchlog_rg1_control_owner", "pitchlog_ledger_identity_owner"}
+    if private_rows:
+        builtin_owners.add("pitchlog_sync_binding_fn_owner")
+    builtin_rows = [
+        row
+        for row in _asset_rows(selected, "acl_expectations")
+        if row["object_kind"] == "builtin_function"
+    ]
+    expected_builtin = [
+        {
+            "acl_id": f"ACL:pg_catalog:pg_control_system():{owner}",
+            "object_kind": "builtin_function",
+            "object_schema": "pg_catalog",
+            "object_id": "pg_control_system",
+            "profile": "additional_builtin_execute",
+            "grantee_role_id": owner,
+            "privilege_ids": ["EXECUTE"],
+            "grant_option": False,
+        }
+        for owner in sorted(builtin_owners)
+    ]
+    if (
+        len(builtin_rows) != len(expected_builtin)
+        or any(
+            row not in expected_builtin or type(row["grant_option"]) is not bool
+            for row in builtin_rows
+        )
+        or {row["grantee_role_id"] for row in builtin_rows} != builtin_owners
+    ):
+        raise AssertionError("snapshotのbuiltin exact宣言が不一致")
+    builtin_names = sorted({str(row["object_id"]) for row in builtin_rows})
     with connection.cursor() as cursor:
         roles = _fetch_snapshot_rows(
             cursor,
@@ -1133,9 +1227,10 @@ def _snapshot_product_catalog(
             SELECT namespace.nspname, owner.rolname
             FROM pg_catalog.pg_namespace AS namespace
             JOIN pg_catalog.pg_roles AS owner ON owner.oid = namespace.nspowner
-            WHERE namespace.nspname IN ('public', 'authz_private')
+            WHERE namespace.nspname = ANY(%s)
             ORDER BY namespace.nspname
             """,
+            (list(schema_names),),
         )
         schema_acl = _fetch_snapshot_rows(
             cursor,
@@ -1152,28 +1247,38 @@ def _snapshot_product_catalog(
             ) AS privilege
             LEFT JOIN pg_catalog.pg_roles AS grantee
               ON grantee.oid = privilege.grantee
-            WHERE namespace.nspname IN ('public', 'authz_private')
+            WHERE namespace.nspname = ANY(%s)
             ORDER BY 1, 2, 3, 4
             """,
+            (list(schema_names),),
         )
         relations = _fetch_snapshot_rows(
             cursor,
             """
-            SELECT relation.relname, relation.relkind, owner.rolname,
+            SELECT CASE WHEN namespace.nspname = 'public'
+                        THEN relation.relname
+                        ELSE namespace.nspname || '.' || relation.relname END,
+                   relation.relkind, owner.rolname,
                    relation.relrowsecurity, relation.relforcerowsecurity
             FROM pg_catalog.pg_class AS relation
             JOIN pg_catalog.pg_namespace AS namespace
               ON namespace.oid = relation.relnamespace
             JOIN pg_catalog.pg_roles AS owner ON owner.oid = relation.relowner
-            WHERE namespace.nspname = 'public'
+            WHERE (namespace.nspname = 'public'
+                OR (namespace.nspname = 'sync_fence'
+                    AND relation.relname = ANY(%s)))
               AND relation.relkind IN ('r', 'p', 'v', 'm', 'S')
             ORDER BY relation.relname, relation.relkind
             """,
+            (list(private_tables),),
         )
         relation_acl = _fetch_snapshot_rows(
             cursor,
             """
-            SELECT DISTINCT relation.relname, relation.relkind,
+            SELECT DISTINCT CASE WHEN namespace.nspname = 'public'
+                                 THEN relation.relname
+                                 ELSE namespace.nspname || '.' || relation.relname END,
+                   relation.relkind,
                    COALESCE(grantee.rolname, 'PUBLIC'),
                    privilege.privilege_type, privilege.is_grantable
             FROM pg_catalog.pg_class AS relation
@@ -1187,10 +1292,13 @@ def _snapshot_product_catalog(
             ) AS privilege
             LEFT JOIN pg_catalog.pg_roles AS grantee
               ON grantee.oid = privilege.grantee
-            WHERE namespace.nspname = 'public'
+            WHERE (namespace.nspname = 'public'
+                OR (namespace.nspname = 'sync_fence'
+                    AND relation.relname = ANY(%s)))
               AND relation.relkind IN ('r', 'p')
             ORDER BY 1, 2, 3, 4, 5
             """,
+            (list(private_tables),),
         )
         policies = _fetch_snapshot_rows(
             cursor,
@@ -1203,9 +1311,10 @@ def _snapshot_product_catalog(
             JOIN pg_catalog.pg_class AS relation ON relation.oid = policy.polrelid
             JOIN pg_catalog.pg_namespace AS namespace
               ON namespace.oid = relation.relnamespace
-            WHERE namespace.nspname IN ('public', 'authz_private')
+            WHERE namespace.nspname = ANY(%s)
             ORDER BY namespace.nspname, relation.relname, policy.polname
             """,
+            (list(schema_names),),
         )
         functions = _fetch_snapshot_rows(
             cursor,
@@ -1217,10 +1326,11 @@ def _snapshot_product_catalog(
             JOIN pg_catalog.pg_namespace AS namespace
               ON namespace.oid = procedure.pronamespace
             JOIN pg_catalog.pg_roles AS owner ON owner.oid = procedure.proowner
-            WHERE namespace.nspname IN ('public', 'authz_private')
+            WHERE namespace.nspname = ANY(%s)
             ORDER BY namespace.nspname, procedure.proname,
                      pg_catalog.pg_get_function_identity_arguments(procedure.oid)
             """,
+            (list(schema_names),),
         )
         function_acl = _fetch_snapshot_rows(
             cursor,
@@ -1240,11 +1350,14 @@ def _snapshot_product_catalog(
             ) AS privilege
             LEFT JOIN pg_catalog.pg_roles AS grantee
               ON grantee.oid = privilege.grantee
-            WHERE namespace.nspname IN ('public', 'authz_private')
+            WHERE (namespace.nspname = ANY(%s)
+               OR (namespace.nspname = 'pg_catalog'
+                   AND procedure.proname = ANY(%s) AND procedure.pronargs = 0))
             ORDER BY 1, 2,
                      pg_catalog.pg_get_function_identity_arguments(procedure.oid),
                      4, 5, 6
             """,
+            (list(schema_names), builtin_names),
         )
         memberships = _fetch_snapshot_rows(
             cursor,
@@ -1263,22 +1376,31 @@ def _snapshot_product_catalog(
         columns = _fetch_snapshot_rows(
             cursor,
             """
-            SELECT relation.relname, attribute.attname
+            SELECT CASE WHEN namespace.nspname = 'public'
+                        THEN relation.relname
+                        ELSE namespace.nspname || '.' || relation.relname END,
+                   attribute.attname
             FROM pg_catalog.pg_attribute AS attribute
             JOIN pg_catalog.pg_class AS relation
               ON relation.oid = attribute.attrelid
             JOIN pg_catalog.pg_namespace AS namespace
               ON namespace.oid = relation.relnamespace
-            WHERE namespace.nspname = 'public'
+            WHERE (namespace.nspname = 'public'
+                OR (namespace.nspname = 'sync_fence'
+                    AND relation.relname = ANY(%s)))
               AND attribute.attnum > 0
               AND NOT attribute.attisdropped
             ORDER BY relation.relname, attribute.attnum
             """,
+            (list(private_tables),),
         )
         column_acl = _fetch_snapshot_rows(
             cursor,
             """
-            SELECT DISTINCT relation.relname, attribute.attname,
+            SELECT DISTINCT CASE WHEN namespace.nspname = 'public'
+                                 THEN relation.relname
+                                 ELSE namespace.nspname || '.' || relation.relname END,
+                   attribute.attname,
                    COALESCE(grantee.rolname, 'PUBLIC'),
                    privilege.privilege_type, privilege.is_grantable
             FROM pg_catalog.pg_attribute AS attribute
@@ -1289,11 +1411,14 @@ def _snapshot_product_catalog(
             CROSS JOIN LATERAL pg_catalog.aclexplode(attribute.attacl) AS privilege
             LEFT JOIN pg_catalog.pg_roles AS grantee
               ON grantee.oid = privilege.grantee
-            WHERE namespace.nspname = 'public'
+            WHERE (namespace.nspname = 'public'
+                OR (namespace.nspname = 'sync_fence'
+                    AND relation.relname = ANY(%s)))
               AND attribute.attnum > 0
               AND NOT attribute.attisdropped
             ORDER BY 1, 2, 3, 4, 5
             """,
+            (list(private_tables),),
         )
     return ProductCatalogSnapshot(
         roles=roles,
@@ -1329,18 +1454,8 @@ def _product_migration_url(dsn: str) -> str:
     ).render_as_string(hide_password=False)
 
 
-def _prepare_current_product_baseline(
-    *,
-    cluster: DisposablePostgres,
-    owner_dsn: str,
-    applicator_dsn: str,
-    applicator: psycopg.Connection[Any],
-) -> None:
-    """所有seed DBの余剰公開権限を閉じ、0038の未適用基準を用意する。
-
-    準備はS1と明示配置までに限定し、この基準からfull DDLを1回適用する。
-    保護履歴の取り外しは行わず、旧取り外し基準の試験とは区別する。
-    """
+def _close_owned_seed_database_access(cluster: DisposablePostgres) -> None:
+    """同factoryの実所有seedだけのPUBLIC接続・一時表権限を閉じる。"""
     # 外部供給経路では呼ばない。同factoryの実所有clusterだけへ適用する。
     assert _DISPOSABLE_CLUSTER_OWNERS.get(id(cluster)) is cluster
     with psycopg.connect(cluster.admin_dsn) as seed_admin:
@@ -1350,25 +1465,28 @@ def _prepare_current_product_baseline(
                 sql.Identifier(seed_admin.info.dbname)
             )
         )
-    # 現binding履歴は取り外せない。full→unapplyを行わず正規S1から配置だけ進める。
-    apply_product_authz_before_rule_placement(applicator)
-    command.upgrade(
-        Config(str(_BACKEND_ROOT / "alembic.ini")), "0038_first_ball_write_admission"
-    )
-    from pitchlog.db.stage_a_startup import (
-        _require_epoch_state,
-        _require_initial_state,
-        _require_placed_state,
-        _require_writer_state,
-    )
 
-    _require_placed_state(applicator_dsn)
-    _require_epoch_state(applicator_dsn)
-    _require_initial_state(applicator_dsn)
-    _require_writer_state(applicator_dsn)
+
+def _prepare_current_product_baseline(
+    *,
+    cluster: DisposablePostgres,
+    owner_dsn: str,
+    applicator_dsn: str,
+    applicator: psycopg.Connection[Any],
+) -> None:
+    """所有seed DBを正規0038/S3へ進め、次の再適用前基準を用意する。
+
+    準備時のS3適用と、この基準からの独立DDL試験を区別する。
+    """
+    _close_owned_seed_database_access(cluster)
+    result = advance_stage_a_from_s0(
+        owner_dsn=owner_dsn,
+        applicator_dsn=applicator_dsn,
+    )
+    assert result.completed_stage == "S3" and result.publishable is False
     with applicator.cursor() as cursor:
         cursor.execute("SELECT version_num FROM public.alembic_version")
-        assert cursor.fetchall() == [("0038_first_ball_write_admission",)]
+        assert cursor.fetchall() == [("0039_ordinary_pitch_storage",)]
     applicator.rollback()
 
 
@@ -1418,10 +1536,30 @@ def provisioned_product_catalog(
             )
         return
 
+    with _owned_product_catalog(disposable_postgres_cluster, monkeypatch) as catalog:
+        yield catalog
+
+
+@contextmanager
+def _owned_product_catalog(
+    disposable_postgres_cluster: Callable[
+        [], AbstractContextManager[DisposablePostgres]
+    ],
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    legacy: bool = False,
+    profile_root: Path = _REPOSITORY_ROOT,
+) -> Iterator[ProvisionedProductCatalog]:
+    """current/旧0036を別owned clusterと明示profileで供給する。"""
+    if type(legacy) is not bool or (not legacy and profile_root != _REPOSITORY_ROOT):
+        raise ValueError("未知のowned profile選択")
+    if legacy and profile_root == _REPOSITORY_ROOT:
+        raise ValueError("legacyには独立データrootが必要")
+    require_bound_profile(profile_root)
     spec = PRODUCT_SPEC
-    asset = _load_ddl_asset(spec)
-    statements = generate_authz_ddl(_REPOSITORY_ROOT, spec)
-    application_steps = load_product_application_steps(_REPOSITORY_ROOT, spec)
+    asset = json.loads((profile_root / spec.ddl_elements_path).read_text())
+    statements = generate_authz_ddl(profile_root, spec)
+    application_steps = load_product_application_steps(profile_root, spec)
     role_ids = _product_role_ids(asset)
     with disposable_postgres_cluster() as cluster:
         owner_password = secrets.token_urlsafe(24)
@@ -1465,13 +1603,20 @@ def provisioned_product_catalog(
             psycopg.connect(applicator_dsn) as applicator,
             psycopg.connect(applicator_dsn) as observer,
         ):
-            _prepare_current_product_baseline(
+            prepare = (
+                _prepare_legacy_product_baseline
+                if legacy
+                else _prepare_current_product_baseline
+            )
+            prepare(
                 cluster=cluster,
                 owner_dsn=owner_dsn,
                 applicator_dsn=applicator_dsn,
                 applicator=applicator,
             )
-            pre_application_catalog = _snapshot_product_catalog(observer, role_ids)
+            pre_application_catalog = _snapshot_product_catalog(
+                observer, role_ids, asset=asset
+            )
             observer.rollback()
             apply_product_authz_ddl(applicator)
             yield ProvisionedProductCatalog(
@@ -1484,6 +1629,143 @@ def provisioned_product_catalog(
                 application_steps=application_steps,
                 pre_application_catalog=pre_application_catalog,
             )
+
+
+@contextmanager
+def _seed_after_real_initial_storage(
+    cluster: DisposablePostgres,
+    monkeypatch: pytest.MonkeyPatch,
+    seed: Callable[[psycopg.Connection[Any]], None],
+    completed: list[bool],
+) -> Iterator[None]:
+    """実0036直後・writer配置前だけへowned fixtureのデータ供給を閉じる。"""
+    if _external_product_catalog is not None or completed:
+        raise AssertionError("外部供給/再使用へのpre-writer seedは禁止")
+    _require_historical_cluster(cluster)
+    admin_parts = conninfo_to_dict(cluster.admin_dsn)
+    original = stage_a_startup._apply_initial_storage
+    called = False
+
+    def real_then_seed(owner_dsn: str) -> None:
+        nonlocal called
+        if called:
+            raise AssertionError("pre-writer seedの再実行は禁止")
+        owner = conninfo_to_dict(owner_dsn)
+        if (
+            owner.get("user") != "pitchlog_owner"
+            or owner.get("dbname") != "pitchlog_product"
+            or any(owner.get(k) != admin_parts.get(k) for k in ("host", "port"))
+        ):
+            raise AssertionError("owned seedのowner/DB座標が不一致")
+        called = True
+        original(owner_dsn)
+        dsn = make_conninfo(cluster.admin_dsn, dbname=owner["dbname"])
+        with psycopg.connect(dsn) as connection, connection.cursor() as cursor:
+            cursor.execute("""
+                SELECT current_user::text, session_user::text, current_database(),
+                       owner.rolname, subject.rolsuper
+                FROM pg_catalog.pg_database database
+                JOIN pg_catalog.pg_roles owner ON owner.oid=database.datdba
+                JOIN pg_catalog.pg_roles subject ON subject.rolname=session_user
+                WHERE database.datname=current_database()
+            """)
+            identity = cursor.fetchone()
+            if (
+                identity
+                != (
+                    admin_parts["user"],
+                    admin_parts["user"],
+                    owner["dbname"],
+                    "pitchlog_owner",
+                    True,
+                )
+                or type(identity[4]) is not bool
+            ):
+                raise AssertionError("owned seedの実主体/DBowner/superuserが不一致")
+            cursor.execute("SELECT version_num FROM public.alembic_version")
+            if cursor.fetchall() != [("0036_initial_right_storage",)]:
+                raise AssertionError("seedは実0036直後だけ許可")
+            cursor.execute("""
+                SELECT count(*) FROM pg_catalog.pg_trigger AS trigger_row
+                JOIN pg_catalog.pg_proc AS procedure ON procedure.oid=trigger_row.tgfoid
+                WHERE procedure.proname IN (
+                    'guard_first_ball_projection_lock',
+                    'guard_first_ball_projection_admission'
+                ) AND NOT trigger_row.tgisinternal
+            """)
+            if cursor.fetchone() != (0,):
+                raise AssertionError("writer guard配置後のseedは禁止")
+            seed(connection)
+            connection.commit()
+        completed.append(True)
+
+    with monkeypatch.context() as context:
+        context.setattr(stage_a_startup, "_apply_initial_storage", real_then_seed)
+        yield
+
+
+@contextmanager
+def _seeded_owned_product_catalog(
+    factory: Callable[[], AbstractContextManager[DisposablePostgres]],
+    monkeypatch: pytest.MonkeyPatch,
+    seed: Callable[[psycopg.Connection[Any]], None],
+) -> Iterator[ProvisionedProductCatalog]:
+    """旧データを0036後へ供給し、実advanceS0の全検証で現S3へ進める。"""
+    if _external_product_catalog is not None:
+        raise AssertionError("外部供給へpre-writer seedを追加しない")
+    completed: list[bool] = []
+
+    @contextmanager
+    def owned_factory() -> Iterator[DisposablePostgres]:
+        with factory() as cluster:
+            with _seed_after_real_initial_storage(
+                cluster, monkeypatch, seed, completed
+            ):
+                yield cluster
+
+    with _owned_product_catalog(owned_factory, monkeypatch) as catalog:
+        assert completed == [True]
+        yield catalog
+
+
+def _prepare_legacy_product_baseline(
+    *,
+    cluster: DisposablePostgres,
+    owner_dsn: str,
+    applicator_dsn: str,
+    applicator: psycopg.Connection[Any],
+) -> None:
+    """0033→旧pre-rule→正規0036→旧fullapply→unapplyの基準を作る。"""
+    verify_legacy_migration_sources()
+    _close_owned_seed_database_access(cluster)
+    apply_product_authz_before_rule_placement(applicator)
+    command.upgrade(
+        Config(str(_BACKEND_ROOT / "alembic.ini")), "0036_initial_right_storage"
+    )
+    with applicator.cursor() as cursor:
+        cursor.execute("SELECT version_num FROM public.alembic_version")
+        assert cursor.fetchall() == [("0036_initial_right_storage",)]
+    applicator.rollback()
+    apply_product_authz_ddl(applicator)
+    unapply_product_authz_ddl(applicator)
+
+
+@pytest.fixture
+def legacy_initial_product_catalog(
+    disposable_postgres_cluster: Callable[
+        [], AbstractContextManager[DisposablePostgres]
+    ],
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> Iterator[ProvisionedProductCatalog]:
+    """旧7故障点と往復用の忠実0036 profileを別owned DBへ適用する。"""
+    with legacy_profile_context(
+        monkeypatch, tmp_path / "legacy-initial-profile"
+    ) as root:
+        with _owned_product_catalog(
+            disposable_postgres_cluster, monkeypatch, legacy=True, profile_root=root
+        ) as catalog:
+            yield catalog
 
 
 @pytest.fixture
@@ -1775,6 +2057,7 @@ def _historical_product_catalog(
     try:
         with factory() as cluster:
             _require_historical_cluster(cluster)
+            _close_owned_seed_database_access(cluster)
             container_name = cluster.container_name
             published = _run_docker("port", container_name, "5432/tcp").stdout.strip()
             assert (

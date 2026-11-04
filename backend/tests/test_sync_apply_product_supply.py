@@ -7,11 +7,14 @@ import json
 from pathlib import Path
 
 import pytest
+from first_ball_expected_source_pins import read_expected_source_pins
 
 from pitchlog.authz import product_catalog as cat
 from pitchlog.authz import product_provisioning as prov
 from pitchlog.authz.asset_spec import PRODUCT_SPEC, load_product_application_steps
 from pitchlog.authz.first_ball_product import ADDITIONS, IDS, legacy_asset, validate
+
+_EXPECTED_SOURCE_PINS = read_expected_source_pins("test_sync_apply_product_supply.py")
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -96,7 +99,7 @@ def test_catalog_keeps_added_objects_and_actual_bodies():
         for r in cat._expected_lifecycle_function_details()
         if r[0] in {"sync_fence_api", "sync_right_api"}
     ]
-    assert len(rows) == 12
+    assert len(rows) == 20
     assert sum(r[4] is False for r in rows) == 2
     assert all(r[9] and r[8] == ("search_path=pg_catalog, pg_temp",) for r in rows)
 
@@ -116,7 +119,7 @@ def test_full_apply_has_nine_definitions_and_four_guards_without_execution():
     _, s = prov._build_operation_statements(prov.ProductOperation.APPLY)
     sql = "\n".join(r.sql for r in s)
     assert sql.count("CREATE FUNCTION sync_fence_api.") == 7
-    assert sql.count("CREATE FUNCTION sync_right_api.") == 5
+    assert sql.count("CREATE FUNCTION sync_right_api.") == 13
     assert sql.count("CREATE TRIGGER sync_writer_") == 4
     assert sql.count("CREATE TRIGGER trg_first_ball_") == 2
 
@@ -243,7 +246,7 @@ def test_reapply_guard_retains_exact_four_triggers_and_refuses_collisions():
 
 
 def test_reapply_keeps_all_other_generated_statements_exact():
-    """正式520文のうち関数12以外508文を全byteへ束縛する。"""
+    """正式文のうち関数reapply 20文以外を全byteへ束縛する。"""
     import hashlib
 
     _, rows = prov._build_operation_statements(prov.ProductOperation.APPLY)
@@ -253,11 +256,11 @@ def test_reapply_keeps_all_other_generated_statements_exact():
         for r in rows
         if not r.sql.startswith("DO $first_ball_reapply$")
     ]
-    assert len(rows) == 520 and len(wrappers) == 12 and len(keep) == 508
+    assert len(rows) == 657 and len(wrappers) == 20 and len(keep) == 637
     digest = hashlib.sha256(
         json.dumps(keep, ensure_ascii=False, separators=(",", ":")).encode()
     ).hexdigest()
-    assert digest == "4fd030d3ac2118c8a11624860dc83dcefdf23a2123ebfe7903180b49b505e527"
+    assert digest == _EXPECTED_SOURCE_PINS["other_generated_statements_sha256"]
 
 
 def test_reapply_is_per_function_and_normalizes_only_new_table_spacing():
@@ -352,3 +355,74 @@ def test_device_state_overload_guard_only_extends_new_wrapper():
                 "IF existing IS NULL THEN"
             )
             assert "AND other.proname='read_device_state'" in wrapped
+
+
+def test_expected_source_pin_fixture_has_all_thirty_independent_values():
+    """独立fixtureの全37期待を閉readerと全file/keyで照合する。"""
+    fixture = Path(__file__).parent / "fixtures/first_ball_expected_source_pins_v1.json"
+    raw = json.loads(fixture.read_text())
+    assert sum(len(values) for values in raw["pins"].values()) == 37
+    assert {name: read_expected_source_pins(name) for name in raw["pins"]} == raw[
+        "pins"
+    ]
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        "version",
+        "top-extra",
+        "file-missing",
+        "file-extra",
+        "pin-missing",
+        "pin-extra",
+        "value-type",
+        "value-shape",
+        "duplicate",
+    ],
+)
+def test_expected_source_pin_reader_rejects_invalid_fixture(mutation, tmp_path):
+    """欠落/未知/重複/型/不正桁から固定比較を失わせない。"""
+    from first_ball_expected_source_pins import SourcePinError
+
+    fixture = Path(__file__).parent / "fixtures/first_ball_expected_source_pins_v1.json"
+    raw = json.loads(fixture.read_text())
+    name = "test_sync_apply_product_supply.py"
+    key = "other_generated_statements_sha256"
+    if mutation == "version":
+        raw["schema_version"] = True
+    elif mutation == "top-extra":
+        raw["extra"] = None
+    elif mutation == "file-missing":
+        del raw["pins"][name]
+    elif mutation == "file-extra":
+        raw["pins"]["unknown.py"] = {}
+    elif mutation == "pin-missing":
+        del raw["pins"][name][key]
+    elif mutation == "pin-extra":
+        raw["pins"][name]["unknown"] = raw["pins"][name][key]
+    elif mutation == "value-type":
+        raw["pins"][name][key] = False
+    elif mutation == "value-shape":
+        raw["pins"][name][key] = "g" * 64
+    text = json.dumps(raw)
+    if mutation == "duplicate":
+        text = text.replace(
+            '"schema_version": 1', '"schema_version": 1, "schema_version": 1'
+        )
+    target = tmp_path / "pins.json"
+    target.write_text(text)
+    with pytest.raises(SourcePinError):
+        read_expected_source_pins(name, path=target)
+
+
+def test_expected_source_pin_reader_rejects_missing_file_and_unknown_request(tmp_path):
+    """fixture欠落と未登録要求は製品から補完せず拒否する。"""
+    from first_ball_expected_source_pins import SourcePinError
+
+    with pytest.raises(SourcePinError):
+        read_expected_source_pins(
+            "test_sync_apply_product_supply.py", path=tmp_path / "missing.json"
+        )
+    with pytest.raises(SourcePinError):
+        read_expected_source_pins("unknown.py")

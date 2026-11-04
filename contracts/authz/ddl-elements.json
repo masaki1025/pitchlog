@@ -2,7 +2,7 @@
   "schema_version": 1,
   "asset_kind": "authz_candidate_ddl_manifest",
   "oracle_context": {
-    "oracle_commit": "e4f53dab05715977bdec846f3b2ba155832622e9",
+    "oracle_commit": "e1ca5d2a70b1d187312a1b38fab62ed79128a4f8",
     "oracle_change_policy_id": "ORACLE_STEP5_REREVIEW"
   },
   "scope": {

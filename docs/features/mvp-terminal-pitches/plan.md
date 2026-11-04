@@ -280,3 +280,65 @@ PR191のCI書式修復（2026-10-31、PO委任によるCodex /root判断）: run
 
 
 最終保存後の書式・手動入口追随（2026-10-31、PO委任によるCodex /root判断）: CI7646daabは次段ruff formatで既test_durable_rights_ledger_contract.pyのtuple並び1箇所だけ停止した。同test exact1をformatterで整形し全module AST不変、backend全ruff/format（587file）と明示既venvの全ty成功。既manual-check.mdを成功版の四球/死球と1caseだけのhold入口へ追随、実画面/実DB成功・有限prefix長と表示ページ件数・自己署名loopback/実機未実施・TLS期限/秘密内容非共有を区別した。command bash構文/DSN unset/専用temp/既venvを確認、manual holdや実機を実施したとは記録しない。rootcache pr191-ci-triage-20261031へAST/command証拠を保存。frontend/runtime/契約/認可/保存意味に変更0、全画面とfrontendは反復せず既同一機能版の証拠を保持する。
+
+
+## 正式190統合後の接合追補（2026-11-04、PO委任によるCodex主担当判断）
+
+#195承認済みpost-189-integration計画を本step5へ適用する。基線はorigin/develop `40ce2e312bc46435239f2a6d0ea0f1fb919a5de0`（#190）、本候補 `19c1c12535b0fe7febc46b76f46ab9440ee72de5`、merge-base `320f196b6a6b08cb74bf52877d8a30601baa87d5`。固定Git調査REPORT `~/.cache/pitchlog/pr191-integration-audit-20261104/REPORT.md`とchecks.jsonにより競合13件を照合。新しい野球意味/既決事項の再裁定はしない。rootが計画/実source/共有資産/台帳の唯一writerで、独立調査・レビューはread-onlyとする。
+
+| パス | 統合方針 |
+| --- | --- |
+| .claude/core-areas.json | develop全登録を保持し本候補追加だけunion、対象除外0 |
+| backend/src/pitchlog/api/schemas/started_games.py | developのordinary_wire共有検証/recovery aliasを保持しPlayPrefix DTOを追加 |
+| backend/src/pitchlog/authz/runtime_contract.py | 実資産から既公式renderで再導出 |
+| backend/src/pitchlog/authz/runtime_contract_state.py | 既両側処理を保持しliteral実escape幅で分割する本候補rendererを接合、値不変を検証 |
+| backend/src/pitchlog/repositories/operation_registry.py | develop既登録に本候補token1/function4をunion、未知登録拒否維持 |
+| backend/tests/db/test_first_ball_projection_atomic.py | 同一childコードのdevelop整形版を保持 |
+| backend/tests/test_first_ball_write_stamp.py | develop独立pin reader保持、SQL変更の実固定値だけtracked fixtureへ追随 |
+| contracts/state-transition/appendix_e_consumer_handoff_v1.json | 他全値保持、統合契約の実SHA参照だけ追随 |
+| contracts/state-transition/game_end_coverage_declaration_v1.json | 他全値保持、統合実case数へ追随 |
+| contracts/state-transition/state_transition_contract_v1.json | develop119全caseを保持しterminal15を追加=134、共通117全JSON同値を確認 |
+| contracts/tenant_boundary/runtime-authz-contract.json | develop受理済み値/履歴を基礎に既公式rederive |
+| scripts/check_required_set_coverage.py | develop既coverage3例全値と本候補terminal15例全値の両検査を保持、単なる件数緩和禁止 |
+| tests/test_required_set_coverage.py | 両側全正負対向を保持してunion |
+
+非競合の共有資産も正式190の履歴/識別値を基礎に増分だけ結合する。旧191未受理recordを正式履歴へ混ぜない。repository-contract token1/function4・実登録、runtime/schema/認可分類、sourcepin/censusの実前後を照合し、不足があれば本操作単位の不可分な実装追随として範囲を明記する。実PGの正式migration起動・最小権限・原子性・元要求再送・越境拒否を省略しない。
+
+検査中は影響範囲中心、同原因の既失敗は修復なしに反復しない。重いDB検査は共有DSN2変数をunsetし所有確認済み隔離DB/port/SSD一時領域だけで直列実施する。source/全external入力を固定後、既190の再導出CLI・公式acceptance helperで単一#191の全前後/履歴/snapshot/corpusをまとめ、候補に関与していない最終review/必須CI/公開委任証拠を揃えて通常mergeする。固定値を期待へ自己反映して拒否を無効化しない。本人署名/逐行確認/P6blind成立を代記しない。
+
+合格条件は同一候補で実画面新規作成→開始→BB/HBP→次打者の通常球→server再取得/reload/元要求再送と既原子性・越境対向の成立、正式developへ統合。三振/打球/交代/取消/訂正/終了再開/全offline・成績/両CSV/実機復旧等MVP全体の義務は残す。
+
+
+### 接合後の既検査・識別値追随（2026-11-04、PO委任によるCodex主担当判断）
+
+651c69d4の局所契約試験は659成功/32失敗。正式119とterminal15の実値union自体を縮小せず、旧suiteの現在集合/歴史集合の混在とschema/射影未追随を是正する。担当pr191_integration_auditへtests/test_required_set_coverage.py・tests/test_state_transition_contract_schema.py・contracts/state-transition/state_transition_manual_fixture_schema_v1.jsonのexact3を移管、rootは同期間これらを編集しない。旧正負全assertは保持。歴史viewのrequired_set_row_rules/coverage_declarationは他4JSONと同じ固定Git原典から読み、現在のterminal区分を過去へ混入しない。現在51/134などは実集合へ有限追随し、旧49/119の全値・terminal15の全値を別に保持する。末尾[-2:]選択は旧OUT3の自然キーで一意に選択する。manual schemaの新state.gameEnded=falseはBB/HBP emptyの明示分岐に閉じ、未知field/ended per-pitch/旧負例を一般許可しない。
+
+新terminal2rowの自然ID衝突は既qualifyWhenPredicateAxes機構を再利用してstate.gameEndedを追記する方針。正式40ceの旧49rowに当該軸は一件も無く、651cの新2rowだけが言及することを実測した。既49の全ID不変と新2の一意性、別axis/未知範囲の拒否を独立対向で証明し、一般的なcount軸の追加や旧行のID変更はしない。対象はinput_axes_descriptor_v1.jsonのlive criteriaのみで過去historyは変更禁止。既state_transition_freeze公式経路で射影/履歴を単一単位として追随し、manual fixtures本体の値は保持して同schema修復後の公式凍結値だけをrootが導出する。root専有はdescriptor・manual_fixtures・appendix_e_consumer_handoff、必要な既gap/凍結試験、台帳/正式受理である。専用writerの無い派生値は候補全前後をcacheへ固定し非作者照合前に受理済み扱いしない。
+
+これは操作の新しい意味裁定ではなく、既承認のBB/HBP契約を既検査へ接合する追随。候補全体の非作者レビュー、正式全前後値/必要受理、必須CI、owned DB/画面実証は別途揃える。テストをskip/部分一致へ変えたり、履歴の期待値を現コードから自動作成して通したりしない。
+
+既49/119の独立全値比較の原典pinはtests/fixtures/pr191_formal_ordinary_baseline_v1.json（schema_version=1、baseline_commit=正式40ce）へ固定し、実装担当の対象を追加exact1で総4とする。既閉readerを再利用し未知/欠落/重複/非正規40桁を拒否、raw Python pinやscan除外を追加しない。期待JSON自体を現契約から作らず、固定Git原典の全値を読む。旧歴史pinは不変。この追随は検査の期待原典配置だけで受理対象の実意味は変えない。
+
+実DB前のBigInteger接合修復（2026-11-04、PO委任によるCodex主担当判断）: source監査でPlayPrefixの既3関数9bindがIntegerへ落ちる不足を検出した。既#192先行修復c743c229と非作者REPORT341c878b…を再利用し、backend/src/pitchlog/repositories/function_operations.py・backend/tests/test_function_operations_boundary.py・backend/tests/test_sync_apply_function_registration.pyのexact3へ有限backportする。対象は既_SYNC_PLAY_PREFIX_FUNCTION_TYPES3件のgeneration/有界page等9bindだけ、他16関数の型/全prepare/SQL/拒否条件は保持。過去の作者342/非作者309成功を現候補へ読み替えず、新候補局所検査と別非作者reviewで確認する。担当pr192_resume_auditが同3pathの唯一writer、rootは同期間編集しない。既scope/sourcepin/tenant宣言の更新は実source固定後に他の新v2登録不足と一括して行う。検査を抑止して本不具合を隠さない。新SQL/migration/野球意味は増やさず、正式受理/実DB/画面の成功は別途確認する。
+
+
+### v2 source登録の一括接合（2026-11-04、PO委任によるCodex主担当判断）
+
+load_contract/公式surface/continuityは成立したが、固定source監査で164件（既owner漂流101/新v2別owner63）を確認。新raw DB到達/未登録SQLは0。実BigInteger不具合は先に既修復で是正し、検査抑止で隠さない。APIの可変readerは既2分岐を同2関数への直接callへ意味不変refactorし、任意callableを検査で許可せず解消する（既API23成功）。
+
+checker/base-allowlist/必要な用途付きfrozen-inputs宣言と専用新test/独立期待fixtureを同一単位で接合する。実装担当pr191_integration_auditがそのexact5（scripts/check_tenant_boundary_bypass.py、contracts/tenant_boundary/base-allowlist.json、contracts/tenant_boundary/frozen-inputs.json、tests/test_pr191_tenant_source_registration.py、tests/fixtures/pr191_tenant_source_expected_v1.json）の唯一writer、rootは実装中これらを編集しない。旧C2/C5/C1の閉loader/全旧scope/全正負を再利用する。既ownerのline/hash追随と新v2の追加siteを区別し、旧ordinary2owner/8site等の意味・境界を無関係に広げず、新専用v2枠へ残siteを分離する。既first_ball ownerのrecorded_snapshot等を別所有へ移さない。固定builderはreview済みc743の完全形へ追随し旧simple/ordinary形・他期待へ非一般化を保持する。
+
+新v2条件2はexactpath/owner/line/symbol/fullsourceSHAと用途別の不変Git原典/閉意味に束縛する。現在のsourceを読んで期待を生成するfallbackは作らない。条件3の新runner_physical_rows一siteは実T1 hold/destinationなしを前置し同じbefore runnerのresponsible_pitcher_idをコピーする完全形だけを認め、責任投手の再選択/計算や全条件3免除をしない。新C5 live一siteは_locked_prefix_contextの第2値と実source/lifetime再確認へ、frameのobject.__new__は既型1移動＋新封印型1だけへ束縛し、任意callback/class/第三siteを拒否する。同source+declaredSHA同時変更でも、不変原典と意味検査から拒否できることを対向で示す。
+
+rootは必要な製品sourceを先に固定commitとし、この明示用途の実版をimmutable原典として許可する。原典/宣言/期待tupleの全前後と旧scope保持を別非作者へ渡して採否する。censusの説明/参照値が動く場合は同scopeの実効果を独立再計算して必要箇所を追随し、全path除外・汎用許可・旧拒否削除・基準自己導出で通さない。作者はcensus/他共有asset/refs/commit/DB/台帳へ書かず、必要な追加pathをrootへ返す。最終9資産/全source/全source-proof入力とcorpusはrootが最後に公式helperで単一191受理へ導出する。候補の局所成功を正式tenantゲートや実画面/全MVP完成としない。
+
+source登録の消滅site追随: 正式190で旧StartedRecordedPrefixGameReadのgeneration語彙2siteは既wire alias/共有検証へ移され現sourceから消滅しているため、現宣言/constantの当該2だけを除去する許可縮小を採用する。過去history/snapshotは不変、新ownerへ流用しない。v2 DTOも同じ既wire alias/共有assertへ意味不変に整合しAPI/相関の既166試験を確認済み。消滅site再導入は未登録として拒否する対向を保ち、他既ownerのsite/意味を新枠へ移動しない。登録全tupleは最新の明示Git原典で再照合する。
+
+
+v2 source登録のcensus説明追随（同日）: 非作者6c1dee55…がexact5の旧所有/拒否/不変原典/51効果を独立確認した。sourceの局所採用とcensus成立は別に扱う。残るtests/test_census_baseline_check.py・tests/fixtures/tenant_boundary/census-scoped-digests.json・contracts/tenant_boundary/census-baseline.jsonのexact3を担当pr192_resume_auditへ移管、他source/正式値/refsは編集しない。新枠を外す反実scanとの差分は固定693原典・独立fixture全51tupleへ突合し、C2所有判定は48siteだけ、C3 before-copy1/C5 liveness・封印frame2はそれぞれ閉じた意味/実効果として説明する。全codeを単にallowedへ加えず、別owner/追加site/意味改変/source+declSHA改変は拒否する。旧pass/fail・全負対向・歴史期待を保持、必要な新説明/field inventory/digestの実前後を独立再計算して明示する。削除obsolete2は許可縮小として事実を保ち、rootが最後に全9資産/全参照の単一191受理へ導出する。新source枠の存在だけでcensusを成功にしない。
+
+### 2026-11-04 最終CLIで検出した旧SQL比較pinの正式登録
+
+`check_frozen_baselines.py --ci`の同版PR previewで、既`backend/tests/test_terminal_pitch_write_stamp.py`の「CASE括弧追加前SQLの全byte比較」固定SHAが未登録として拒否された。値・比較対象・対向を変更せず、`contracts/tenant_boundary/frozen-inputs.json`の名前付き固定入力へ移し、同試験から直接読んで64桁型検査後に従来と同じ全byte SHA比較を行う。固定入力の外部対象にも同試験を登録し、受理履歴でconsumer差分を追跡する。Python文字列の分割/検出除外/allowlist増設/期待値の再計算で回避しない。
+
+これは既ステップ5の凍結入力正式化と生成値追随に含む最小是正。PO委任によるCodex主担当/root判断で開始し、最終HEADの非作者差分確認・単一#191受理の再導出・必須CLI/CIを維持する。8712866dで成立した同版画面3件を保存し、後発は試験/正式登録/派生物のみで製品計算を変えない。既レビュー回数・暫定bootstrap/未実施事項を維持する。

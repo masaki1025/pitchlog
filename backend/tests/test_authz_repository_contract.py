@@ -691,6 +691,7 @@ def test_roster_capabilities_tokens_and_registry_are_exact() -> None:
         "pitchlog.sync.ordinary_pitch_tokens.OrdinaryPlayRowInsertToken",
         "pitchlog.sync.terminal_pitch_tokens.PlayPrefixPlayRowInsertToken",
     )
+    assert len(expected_capabilities) == 36
     assert repository_contract.PRODUCT_CAPABILITY_IDS == expected_capabilities
     assert repository_contract.PRODUCT_OPERATION_TOKEN_TYPES == expected_token_types
     assert len(expected_token_types) == 66
@@ -1118,6 +1119,7 @@ def test_stage_a_function_registration_matches_exact_asset_and_retains_rg1() -> 
         "SYNC_PLAY_PREFIX:read_play_prefix_history_page",
         "SYNC_PLAY_PREFIX:prepare_play_prefix_projection",
     )
+    assert len(expected) == 20
     assert tuple(asset["product_function_operation_ids"]) == expected
     assert repository_contract.PRODUCT_FUNCTION_OPERATION_IDS == expected
     assert tuple(row.operation_id for row in PRODUCT_FUNCTION_OPERATIONS) == expected

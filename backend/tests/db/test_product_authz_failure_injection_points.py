@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pytest
 from db_fixtures import _product_role_ids, _snapshot_product_catalog
+from product_authz_legacy_profile import legacy_file
 from psycopg.pq import TransactionStatus
 
 from pitchlog.authz import product_provisioning
@@ -35,7 +36,9 @@ class _InjectedProductCheckpointFailure(RuntimeError):
 
 def _injection_points() -> tuple[dict[str, object], ...]:
     """故障注入点資産の行を型確認して返す。"""
-    document = json.loads(_FAILURE_INJECTION_POINTS_PATH.read_text(encoding="utf-8"))
+    document = json.loads(
+        legacy_file("contracts/authz/product/failure-injection-points.json")
+    )
     assert isinstance(document, dict)
     points = document.get("injection_points")
     assert isinstance(points, list)
@@ -102,6 +105,7 @@ def _snapshot_catalog(
         return _snapshot_product_catalog(
             catalog.observer,
             _product_role_ids(catalog.asset),
+            asset=catalog.asset,
         )
     finally:
         catalog.observer.rollback()
@@ -124,12 +128,12 @@ def _assert_subject_restored_after_rollback(
 
 @pytest.mark.parametrize("injection_point", _injection_points(), ids=_point_id)
 def test_operation_failure_rolls_back_the_complete_product_catalog(
-    provisioned_product_catalog: ProvisionedProductCatalog,
+    legacy_initial_product_catalog: ProvisionedProductCatalog,
     monkeypatch: pytest.MonkeyPatch,
     injection_point: dict[str, object],
 ) -> None:
     """適用5点・取り外し2点の A・rollback 後 B・再適用後 C が一致する。"""
-    catalog = provisioned_product_catalog
+    catalog = legacy_initial_product_catalog
     privileged_role_oid = _bootstrap_superuser_oid(catalog)
     state_a = _observe_product_catalog(catalog, privileged_role_oid)
     snapshot_a = _snapshot_catalog(catalog)
@@ -180,3 +184,46 @@ def test_operation_failure_rolls_back_the_complete_product_catalog(
     assert state_c.ok
     assert state_c == state_a
     assert snapshot_c == snapshot_a
+
+
+def _current_apply_points() -> tuple[dict[str, object], ...]:
+    """currentの正式5apply記録点だけを別試験へ供給する。"""
+    document = json.loads(_FAILURE_INJECTION_POINTS_PATH.read_text())
+    result = tuple(
+        point for point in document["injection_points"] if point["operation"] == "apply"
+    )
+    assert len(result) == 5
+    return result
+
+
+@pytest.mark.parametrize("injection_point", _current_apply_points(), ids=_point_id)
+def test_current_apply_failure_rolls_back_complete_catalog(
+    provisioned_product_catalog: ProvisionedProductCatalog,
+    monkeypatch: pytest.MonkeyPatch,
+    injection_point: dict[str, object],
+) -> None:
+    """Current APPLY5点も同じ実A-B-C全snapshot比較を通す。"""
+    assert injection_point["operation"] == "apply"
+    test_operation_failure_rolls_back_the_complete_product_catalog(
+        provisioned_product_catalog, monkeypatch, injection_point
+    )
+
+
+def test_current_unapply_is_rejected_before_sql(
+    provisioned_product_catalog: ProvisionedProductCatalog,
+) -> None:
+    """未提供のcurrent UNAPPLYをSQL前に拒否し全snapshotを保つ。"""
+    from typing import Any, cast
+
+    from pitchlog.authz.product_provisioning import ProductProvisioningError
+
+    from .test_product_authz_provisioning import _CountingConnection
+
+    catalog = provisioned_product_catalog
+    before = _snapshot_catalog(catalog)
+    counting = _CountingConnection(catalog.applicator)
+    with pytest.raises(ProductProvisioningError, match="退役は未提供"):
+        unapply_product_authz_ddl(cast(Any, counting))
+    assert counting.execute_count == 0
+    _assert_subject_restored_after_rollback(catalog)
+    assert _snapshot_catalog(catalog) == before

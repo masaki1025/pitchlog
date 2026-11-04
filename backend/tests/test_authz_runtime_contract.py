@@ -147,7 +147,20 @@ def test_role_attributes_and_protected_identifiers_are_closed_sets() -> None:
     if not isinstance(manifest_tables, list):
         raise AssertionError("schema manifest の tables が配列でない")
     expected_tables = {
-        ("public", str(row["name"]))
+        (
+            "sync_fence"
+            if row["name"]
+            in {
+                "writer_bindings",
+                "writer_admissions",
+                "first_ball_write_admissions",
+                "ordinary_pitch_checkpoints",
+                "ordinary_pitch_write_admissions",
+                "ordinary_pitch_history",
+            }
+            else "public",
+            str(row["name"]),
+        )
         for row in manifest_tables
         if isinstance(row, dict) and "name" in row
     }

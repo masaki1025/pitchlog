@@ -5,10 +5,10 @@ from __future__ import annotations
 import math
 import re
 from dataclasses import fields, replace
-from typing import cast
+from typing import Any, cast
 from uuid import UUID
 
-from sqlalchemy import Table, bindparam, insert, select
+from sqlalchemy import Insert, Select, Table, bindparam, insert, select
 
 from pitchlog.db.game_state.models import PlayRow
 from pitchlog.db.sync_protocol.models import IdempotencyLedger, OperationEvent
@@ -82,20 +82,33 @@ if set(_INSERT_COLUMNS) != set(PLAY_ROW_COLUMNS) or len(_INSERT_COLUMNS) != len(
     PLAY_ROW_COLUMNS
 ):
     raise RuntimeError("初球PlayRowの固定全列宣言がmodelと不一致")
-_INSERT = insert(_PLAYS).values({name: bindparam(name) for name in _INSERT_COLUMNS})
-_READ = (
-    select(*_PLAYS.c)
-    .where(
-        _PLAYS.c.tenant_id == bindparam("tenant_id"),
-        _PLAYS.c.game_id == bindparam("game_id"),
-        _PLAYS.c.source_event_id == bindparam("source_event_id"),
-        _PLAYS.c.hidden_at.is_(None),
-        _PLAYS.c.import_batch_id.is_(None),
-        _PLAYS.c.legacy_row_identifier.is_(None),
-        _PLAYS.c.migration_unverified == bindparam("migration_unverified"),
+
+
+def _insert_statement() -> Insert:
+    """固定全列のINSERT文を組み立てる。"""
+    return insert(_PLAYS).values({name: bindparam(name) for name in _INSERT_COLUMNS})
+
+
+def _read_statement() -> Select[Any]:
+    """初球PlayRowの固定条件SELECTを組み立てる。"""
+    return (
+        select(*_PLAYS.c)
+        .where(
+            _PLAYS.c.tenant_id == bindparam("tenant_id"),
+            _PLAYS.c.game_id == bindparam("game_id"),
+            _PLAYS.c.source_event_id == bindparam("source_event_id"),
+            _PLAYS.c.hidden_at.is_(None),
+            _PLAYS.c.import_batch_id.is_(None),
+            _PLAYS.c.legacy_row_identifier.is_(None),
+            _PLAYS.c.migration_unverified == bindparam("migration_unverified"),
+        )
+        .limit(bindparam("limit"))
     )
-    .limit(bindparam("limit"))
-)
+
+
+# 登録と実行で同一文objectを共有するため、import時に一度だけ組み立てる。
+_INSERT = _insert_statement()
+_READ = _read_statement()
 
 
 class FirstBallOperationError(ValueError):

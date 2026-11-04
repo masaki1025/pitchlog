@@ -279,179 +279,17 @@
       }
     },
     "inputCoordinate": {
-      "type": "object",
-      "required": [
-        "eventKind",
-        "resultId",
-        "state.outs",
-        "state.runners",
-        "state.count.strikes",
-        "state.count.balls",
-        "event.perPitch.pitchEventKind"
-      ],
-      "additionalProperties": false,
-      "properties": {
-        "eventKind": {
-          "enum": [
-            "batting-result",
-            "secondary-result",
-            "runner-event"
-          ]
+      "oneOf": [
+        {
+          "$ref": "#/$defs/legacyInputCoordinate"
         },
-        "resultId": {
-          "type": "string",
-          "minLength": 1
+        {
+          "$ref": "#/$defs/terminalInputCoordinate"
         },
-        "state.outs": {
-          "enum": [
-            0,
-            1,
-            2
-          ]
-        },
-        "state.runners": {
-          "enum": [
-            "empty",
-            "first",
-            "second",
-            "third",
-            "first-second",
-            "first-third",
-            "second-third",
-            "loaded"
-          ]
-        },
-        "state.count.strikes": {
-          "enum": [
-            0,
-            1,
-            2
-          ]
-        },
-        "state.count.balls": {
-          "enum": [
-            0,
-            1,
-            2,
-            3
-          ]
-        },
-        "event.perPitch.pitchEventKind": {
-          "enum": [
-            "pitch-event",
-            "non-pitch-event"
-          ]
-        },
-        "event.perPitch.interferenceRuling": {
-          "type": "string",
-          "minLength": 1
-        },
-        "event.perPitch.thirdOutObservation.kind": {
-          "enum": [
-            "not-required",
-            "none",
-            "batter-before-first",
-            "force",
-            "missed-base-appeal",
-            "other-third-out"
-          ]
-        },
-        "event.perPitch.thirdOutTimingByRunner.third": {
-          "enum": [
-            "home-before-third-out",
-            "not-before-third-out"
-          ]
-        },
-        "event.perPitch.runnerAdvanceOverridesByRunner.second.kind": {
-          "enum": [
-            "hold",
-            "safe-advance",
-            "out"
-          ]
-        },
-        "event.perPitch.runnerAdvanceOverridesByRunner.second.attempted_base": {
-          "enum": [
-            "first",
-            "second",
-            "third",
-            "home"
-          ]
-        },
-        "event.perPitch.runnerAdvanceOverridesByRunner.second.out_kind": {
-          "enum": [
-            "force-out",
-            "pitcher-pickoff-out",
-            "catcher-pickoff-out",
-            "caught-stealing",
-            "running-out"
-          ]
-        },
-        "event.perPitch.runnerAdvanceOverridesByRunner.third.kind": {
-          "enum": [
-            "hold",
-            "safe-advance",
-            "out"
-          ]
-        },
-        "event.perPitch.runnerAdvanceOverridesByRunner.third.destination": {
-          "enum": [
-            "first",
-            "second",
-            "third",
-            "home"
-          ]
-        },
-        "event.perPitch.rbi.cause_by_runner.third.held_too_long": {
-          "enum": [
-            "unobserved",
-            false,
-            true
-          ]
-        },
-        "event.perPitch.rbi.cause_by_runner.third.unnecessary_throw": {
-          "enum": [
-            "unobserved",
-            false,
-            true
-          ]
-        },
-        "event.perPitch.officialScoringPayload": {
-          "enum": [
-            "no-error",
-            "single-error",
-            "multiple-errors"
-          ]
-        },
-        "event.perPitch.runnerAdvanceOverridesByRunner": {
-          "enum": [
-            "not-applied",
-            "single-runner-stop",
-            "single-runner-out",
-            "single-runner-destination-base",
-            "single-runner-destination-home",
-            "multiple-runners-mixed"
-          ]
-        },
-        "event.perPitch.thirdOutTimingByRunner": {
-          "enum": [
-            "not-required",
-            "single-runner-home-before-third-out",
-            "single-runner-not-before-third-out",
-            "multiple-runners-mixed-timing"
-          ]
-        },
-        "event.perPitch.rbi.runnerContinuityByRunner": {
-          "enum": [
-            "not-required",
-            "single-runner-kept-running",
-            "single-runner-stopped-and-restarted",
-            "multiple-runners-mixed-continuity"
-          ]
-        },
-        "event.perPitch.rbi.restart_by_runner.third.after_observing_misplay": {
-          "type": "boolean"
+        {
+          "$ref": "#/$defs/strikeoutInputCoordinate"
         }
-      }
+      ]
     },
     "negativeInputCoordinate": {
       "type": "object",
@@ -2844,6 +2682,347 @@
           "x-pitchlog-schema-retention": "required-by-projection",
           "type": "string",
           "minLength": 1
+        }
+      }
+    },
+    "legacyInputCoordinate": {
+      "type": "object",
+      "required": [
+        "eventKind",
+        "resultId",
+        "state.outs",
+        "state.runners",
+        "state.count.strikes",
+        "state.count.balls",
+        "event.perPitch.pitchEventKind"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "eventKind": {
+          "enum": [
+            "batting-result",
+            "secondary-result",
+            "runner-event"
+          ]
+        },
+        "resultId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "state.outs": {
+          "enum": [
+            0,
+            1,
+            2
+          ]
+        },
+        "state.runners": {
+          "enum": [
+            "empty",
+            "first",
+            "second",
+            "third",
+            "first-second",
+            "first-third",
+            "second-third",
+            "loaded"
+          ]
+        },
+        "state.count.strikes": {
+          "enum": [
+            0,
+            1,
+            2
+          ]
+        },
+        "state.count.balls": {
+          "enum": [
+            0,
+            1,
+            2,
+            3
+          ]
+        },
+        "event.perPitch.pitchEventKind": {
+          "enum": [
+            "pitch-event",
+            "non-pitch-event"
+          ]
+        },
+        "event.perPitch.interferenceRuling": {
+          "type": "string",
+          "minLength": 1
+        },
+        "event.perPitch.thirdOutObservation.kind": {
+          "enum": [
+            "not-required",
+            "none",
+            "batter-before-first",
+            "force",
+            "missed-base-appeal",
+            "other-third-out"
+          ]
+        },
+        "event.perPitch.thirdOutTimingByRunner.third": {
+          "enum": [
+            "home-before-third-out",
+            "not-before-third-out"
+          ]
+        },
+        "event.perPitch.runnerAdvanceOverridesByRunner.second.kind": {
+          "enum": [
+            "hold",
+            "safe-advance",
+            "out"
+          ]
+        },
+        "event.perPitch.runnerAdvanceOverridesByRunner.second.attempted_base": {
+          "enum": [
+            "first",
+            "second",
+            "third",
+            "home"
+          ]
+        },
+        "event.perPitch.runnerAdvanceOverridesByRunner.second.out_kind": {
+          "enum": [
+            "force-out",
+            "pitcher-pickoff-out",
+            "catcher-pickoff-out",
+            "caught-stealing",
+            "running-out"
+          ]
+        },
+        "event.perPitch.runnerAdvanceOverridesByRunner.third.kind": {
+          "enum": [
+            "hold",
+            "safe-advance",
+            "out"
+          ]
+        },
+        "event.perPitch.runnerAdvanceOverridesByRunner.third.destination": {
+          "enum": [
+            "first",
+            "second",
+            "third",
+            "home"
+          ]
+        },
+        "event.perPitch.rbi.cause_by_runner.third.held_too_long": {
+          "enum": [
+            "unobserved",
+            false,
+            true
+          ]
+        },
+        "event.perPitch.rbi.cause_by_runner.third.unnecessary_throw": {
+          "enum": [
+            "unobserved",
+            false,
+            true
+          ]
+        },
+        "event.perPitch.officialScoringPayload": {
+          "enum": [
+            "no-error",
+            "single-error",
+            "multiple-errors"
+          ]
+        },
+        "event.perPitch.runnerAdvanceOverridesByRunner": {
+          "enum": [
+            "not-applied",
+            "single-runner-stop",
+            "single-runner-out",
+            "single-runner-destination-base",
+            "single-runner-destination-home",
+            "multiple-runners-mixed"
+          ]
+        },
+        "event.perPitch.thirdOutTimingByRunner": {
+          "enum": [
+            "not-required",
+            "single-runner-home-before-third-out",
+            "single-runner-not-before-third-out",
+            "multiple-runners-mixed-timing"
+          ]
+        },
+        "event.perPitch.rbi.runnerContinuityByRunner": {
+          "enum": [
+            "not-required",
+            "single-runner-kept-running",
+            "single-runner-stopped-and-restarted",
+            "multiple-runners-mixed-continuity"
+          ]
+        },
+        "event.perPitch.rbi.restart_by_runner.third.after_observing_misplay": {
+          "type": "boolean"
+        }
+      }
+    },
+    "terminalInputCoordinate": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "eventKind",
+            "resultId",
+            "state.outs",
+            "state.runners",
+            "state.count.strikes",
+            "state.count.balls",
+            "event.perPitch.pitchEventKind",
+            "state.gameEnded"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "eventKind": {
+              "const": "batting-result"
+            },
+            "resultId": {
+              "const": "batting-result.walk"
+            },
+            "state.outs": {
+              "enum": [
+                0,
+                1,
+                2
+              ]
+            },
+            "state.runners": {
+              "const": "empty"
+            },
+            "state.count.strikes": {
+              "enum": [
+                0,
+                1,
+                2
+              ]
+            },
+            "state.count.balls": {
+              "const": 3
+            },
+            "event.perPitch.pitchEventKind": {
+              "const": "pitch-event"
+            },
+            "state.gameEnded": {
+              "const": false
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "eventKind",
+            "resultId",
+            "state.outs",
+            "state.runners",
+            "state.count.strikes",
+            "state.count.balls",
+            "event.perPitch.pitchEventKind",
+            "state.gameEnded"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "eventKind": {
+              "const": "batting-result"
+            },
+            "resultId": {
+              "const": "batting-result.hit-by-pitch"
+            },
+            "state.outs": {
+              "enum": [
+                0,
+                1,
+                2
+              ]
+            },
+            "state.runners": {
+              "const": "empty"
+            },
+            "state.count.strikes": {
+              "enum": [
+                0,
+                1,
+                2
+              ]
+            },
+            "state.count.balls": {
+              "enum": [
+                0,
+                1,
+                2,
+                3
+              ]
+            },
+            "event.perPitch.pitchEventKind": {
+              "const": "pitch-event"
+            },
+            "state.gameEnded": {
+              "const": false
+            }
+          }
+        }
+      ]
+    },
+    "strikeoutInputCoordinate": {
+      "type": "object",
+      "required": [
+        "eventKind",
+        "resultId",
+        "state.outs",
+        "state.runners",
+        "state.count.strikes",
+        "state.count.balls",
+        "event.perPitch.pitchEventKind",
+        "state.gameEnded"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "eventKind": {
+          "const": "batting-result"
+        },
+        "resultId": {
+          "enum": [
+            "batting-result.called-strikeout",
+            "batting-result.swinging-strikeout"
+          ]
+        },
+        "state.outs": {
+          "enum": [
+            0,
+            1,
+            2
+          ]
+        },
+        "state.runners": {
+          "enum": [
+            "empty",
+            "first",
+            "second",
+            "third",
+            "first-second",
+            "first-third",
+            "second-third",
+            "loaded"
+          ]
+        },
+        "state.count.strikes": {
+          "const": 2
+        },
+        "state.count.balls": {
+          "enum": [
+            0,
+            1,
+            2,
+            3
+          ]
+        },
+        "event.perPitch.pitchEventKind": {
+          "const": "pitch-event"
+        },
+        "state.gameEnded": {
+          "const": false
         }
       }
     }

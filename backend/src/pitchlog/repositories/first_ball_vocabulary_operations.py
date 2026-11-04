@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import ClassVar, cast
+from typing import Any, ClassVar, cast
 
-from sqlalchemy import Integer, Table, Text, Uuid, bindparam, select
+from sqlalchemy import Integer, Select, Table, Text, Uuid, bindparam, select
 
 from pitchlog.db.tenant_isolation.models import TenantVocabulary
 from pitchlog.repositories.operation_registration import (
@@ -17,12 +17,20 @@ from pitchlog.repositories.tokens import TenantOperationResult, TenantOperationT
 _ERROR = "初球球種の読取入力又は結果が不正です"
 _TABLE = cast(Table, TenantVocabulary.__table__)
 _COLUMNS = ("key", "category", "disabled")
-_READ = (
-    select(*(_TABLE.c[name] for name in _COLUMNS))
-    .where(_TABLE.c.tenant_id == bindparam("tenant_id", type_=Uuid(as_uuid=True)))
-    .where(_TABLE.c.key == bindparam("pitch_type_key", type_=Text))
-    .limit(bindparam("limit", type_=Integer))
-)
+
+
+def _read_statement() -> Select[Any]:
+    """球種一覧の固定条件SELECTを組み立てる。"""
+    return (
+        select(*(_TABLE.c[name] for name in _COLUMNS))
+        .where(_TABLE.c.tenant_id == bindparam("tenant_id", type_=Uuid(as_uuid=True)))
+        .where(_TABLE.c.key == bindparam("pitch_type_key", type_=Text))
+        .limit(bindparam("limit", type_=Integer))
+    )
+
+
+# 登録と実行で同一文objectを共有するため、import時に一度だけ組み立てる。
+_READ = _read_statement()
 
 
 class FirstBallVocabularyError(ValueError):

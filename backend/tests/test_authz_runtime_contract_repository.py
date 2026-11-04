@@ -43,33 +43,36 @@ def provisional_reference_revision(repository_root: Path) -> str:
     Returns:
         staged 製品資産が存在した比較元の commit SHA。
     """
-    history = subprocess.run(
-        [
-            "git",
-            "rev-list",
-            "HEAD",
-            "--",
-            STAGED_PRODUCT_ASSET.as_posix(),
-        ],
-        cwd=repository_root,
-        check=True,
-        capture_output=True,
-        text=True,
-    )
-    for revision in history.stdout.splitlines():
-        exists = subprocess.run(
+    # PRのmerge-ref checkoutではhead履歴が直接見えない場合があるため、
+    # HEADで見つからなければ全refの履歴から同じ資産を持つ版を探す。
+    for revspec in ("HEAD", "--all"):
+        history = subprocess.run(
             [
                 "git",
-                "cat-file",
-                "-e",
-                f"{revision}:{STAGED_PRODUCT_ASSET.as_posix()}",
+                "rev-list",
+                revspec,
+                "--",
+                STAGED_PRODUCT_ASSET.as_posix(),
             ],
             cwd=repository_root,
-            check=False,
+            check=True,
             capture_output=True,
+            text=True,
         )
-        if exists.returncode == 0:
-            return revision
+        for revision in history.stdout.splitlines():
+            exists = subprocess.run(
+                [
+                    "git",
+                    "cat-file",
+                    "-e",
+                    f"{revision}:{STAGED_PRODUCT_ASSET.as_posix()}",
+                ],
+                cwd=repository_root,
+                check=False,
+                capture_output=True,
+            )
+            if exists.returncode == 0:
+                return revision
     raise AssertionError("HEAD の履歴に staged 製品資産がありません")
 
 
@@ -186,6 +189,8 @@ def copy_product_test_repository(
     for relative_path in (
         Path("backend/tests/conftest.py"),
         Path("backend/tests/test_authz_runtime_contract_repository.py"),
+        Path("backend/tests/test_schema_manifest.py"),
+        Path("backend/tests/type_boundary_contract.py"),
         *PRODUCT_STATE_TEST_FILES,
     ):
         target = destination_root / relative_path

@@ -12,8 +12,8 @@ from pitchlog.repositories.tokens import (  # ty: ignore
     TenantOperationResult,
     TenantOperationToken,
 )
-from sqlalchemy.orm import Session  # ty: ignore
-from sqlalchemy.sql import Select  # ty: ignore
+from sqlalchemy.orm import Session
+from sqlalchemy.sql import Select
 
 
 @final

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import inspect
+from typing import cast
 
 import product_authz_other_profiles_cases as cases
 from product_authz_tenant_owned_cases import (
@@ -10,8 +11,9 @@ from product_authz_tenant_owned_cases import (
     TENANT_B,
     SeedRow,
     insert_statement,
+    private_function_only_table_names,
 )
-from psycopg import sql
+from psycopg import Connection, sql
 
 
 def _manifest_by_name() -> dict[str, dict[str, object]]:
@@ -92,19 +94,24 @@ def _assert_fk_targets_precede(
 
 
 def test_other_profile_sets_are_derived_without_classification_asset() -> None:
-    """Manifest と露出事実だけで 1・4・4・14 表を exact に導く。"""
+    """Manifest と露出事実だけで 1・4・4・18表と列限定1表を exact に導く。"""
     profiles = cases.profile_table_names()
     helper_source = inspect.getsource(cases)
 
     assert {name: len(tables) for name, tables in profiles.items()} == {
-        "tenant_owned": 23,
+        "tenant_owned": 22,
         "self_tenant_row": 1,
         "effective_group_control": 4,
         "global_read_only": 4,
-        "function_only": 14,
+        "function_only": 18 + len(private_function_only_table_names()),
+        "column_restricted": 1,
     }
     assigned = tuple(table for tables in profiles.values() for table in tables)
-    assert len(assigned) == len(set(assigned)) == 46
+    assert (
+        len(assigned)
+        == len(set(assigned))
+        == 50 + len(private_function_only_table_names())
+    )
     assert set(assigned) == set(cases.manifest_table_names())
     assert "table-classification.json" not in helper_source
 
@@ -127,7 +134,12 @@ def test_other_profile_seed_plan_is_nonempty_and_in_fk_order() -> None:
     assert set(profiles["global_read_only"]) <= seeded_tables
     assert "rg1_restore_gate" in profiles["function_only"]
     assert "rg1_restore_gate" not in seeded_tables
-    assert set(profiles["function_only"]) - {"rg1_restore_gate"} <= seeded_tables
+    assert (
+        set(profiles["function_only"])
+        - {"rg1_restore_gate", *private_function_only_table_names()}
+        <= seeded_tables
+    )
+    assert set(private_function_only_table_names()).isdisjoint(seeded_tables)
 
     tenant_rows = {
         row.values["id"]
@@ -217,3 +229,193 @@ def test_each_helper_mutation_removes_one_condition_and_changes_exact_cells() ->
             or mutation.nonexistent_general_visible
             or mutation.nonexistent_invitation_visible
         )
+
+
+def test_generation_secret_columns_are_separate_and_closed(monkeypatch) -> None:
+    """既列の読取を保ち、秘密列母集団の欠落・余剰・重複を拒否する。"""
+    import copy
+
+    import pytest
+
+    assert cases.generation_secret_columns() == ("proof_digest", "recovery_generation")
+    assert cases.profile_table_names()["column_restricted"] == (
+        "recording_generations",
+    )
+    assert "recording_generations" not in cases.function_only_table_names()
+    asset = cases._load_object(cases._EXPOSURE_FACTS_PATH)
+    original = copy.deepcopy(asset)
+    for mode in ("missing", "extra", "duplicate"):
+        changed = copy.deepcopy(original)
+        entries = next(
+            f["entries"] for f in changed["facts"] if f["kind"] == "secret_column"
+        )
+        target = next(r for r in entries if r["table"] == "recording_generations")
+        if mode == "missing":
+            entries.remove(target)
+        else:
+            entries.append(
+                {**target, "column": "unknown"} if mode == "extra" else dict(target)
+            )
+        monkeypatch.setattr(cases, "_load_object", lambda path, asset=changed: asset)
+        with pytest.raises(AssertionError, match="exact2"):
+            cases.generation_secret_columns()
+
+
+def test_private_function_only_fact_is_exact_and_never_seeded() -> None:
+    """新露出事実6表だけを関数限定へ加え、既public seedを保つ。"""
+    binding = {"writer_bindings", "writer_admissions", "first_ball_write_admissions"}
+    ordinary = {
+        "ordinary_pitch_checkpoints",
+        "ordinary_pitch_write_admissions",
+        "ordinary_pitch_history",
+    }
+    expected = binding | ordinary
+    assert (
+        set(cases.exposure_fact_table_names("sync_writer_binding_storage")) == binding
+    )
+    assert set(cases.exposure_fact_table_names("ordinary_pitch_storage")) == ordinary
+    assert set(private_function_only_table_names()) == expected
+    assert expected <= set(cases.function_only_table_names())
+    assert expected.isdisjoint(cases.profile_table_names()["tenant_owned"])
+    assert expected.isdisjoint(row.table for row in cases.other_profile_seed_rows())
+
+
+def test_schema_audit_catalog_preserves_namespace_and_fk_endpoints() -> None:
+    """実DBなしで観測schemaを失わず、同名/未知/私有降格を閉じる。"""
+    from contextlib import contextmanager
+    from types import SimpleNamespace
+
+    import pytest
+    from db import test_schema_audit as audit
+
+    rows = [
+        ("public", "alembic_version"),
+        ("public", "games"),
+        ("sync_fence", "writer_bindings"),
+    ]
+    statements = []
+
+    @contextmanager
+    def cursor():
+        def execute(query, params=None):
+            statements.append((query, params))
+
+        yield SimpleNamespace(execute=execute, fetchall=lambda: rows)
+
+    connection = cast(Connection[tuple[object, ...]], SimpleNamespace(cursor=cursor))
+    assert audit._table_catalog(connection) == {"games", "writer_bindings"}
+    assert "namespace.nspname IN ('public', 'sync_fence')" in statements[-1][0]
+    rows = [("sync_fence", "unexpected")]
+    with pytest.raises(AssertionError, match="未登録"):
+        audit._table_catalog(connection)
+    rows = [("public", "writer_bindings")]
+    with pytest.raises(AssertionError, match="未登録"):
+        audit._table_catalog(connection)
+    rows = [
+        (
+            "sync_fence",
+            "public",
+            "writer_bindings",
+            "fk_test",
+            ["tenant_id", "game_id"],
+            "games",
+            ["tenant_id", "id"],
+            "f",
+            "r",
+        )
+    ]
+    expected = audit._ForeignKeyContract(
+        "writer_bindings",
+        "fk_test",
+        ("tenant_id", "game_id"),
+        "games",
+        ("tenant_id", "id"),
+        "FULL",
+        "RESTRICT",
+    )
+    assert audit._foreign_key_catalog(connection) == {expected}
+    assert "target_namespace.nspname," in statements[-1][0]
+    rows = [
+        (
+            "sync_fence",
+            "unknown",
+            "writer_bindings",
+            "fk_test",
+            ["tenant_id"],
+            "games",
+            ["id"],
+            "s",
+            "a",
+        )
+    ]
+    with pytest.raises(AssertionError, match="未登録"):
+        audit._foreign_key_catalog(connection)
+
+
+def test_schema_audit_private_catalog_paths_keep_schema(monkeypatch) -> None:
+    """列/CHECK/索引/生成式の各観測も有限schemaを保持する。"""
+    from contextlib import contextmanager
+    from types import SimpleNamespace
+
+    from db import test_schema_audit as audit
+
+    rows = [("sync_fence", "writer_bindings", "lease_id", "uuid", False, None)]
+    statements = []
+
+    @contextmanager
+    def cursor():
+        def execute(query, params=None):
+            rendered = query if isinstance(query, str) else query.as_string()
+            statements.append((rendered, params))
+
+        yield SimpleNamespace(execute=execute, fetchall=lambda: rows)
+
+    connection = cast(Connection[tuple[object, ...]], SimpleNamespace(cursor=cursor))
+    assert audit._column_catalog(connection) == {
+        audit._ColumnContract("writer_bindings", "lease_id", "uuid", False, None)
+    }
+    rows = [("sync_fence", "writer_bindings", "lease_id IS NOT NULL", True)]
+    assert audit._check_catalog(connection) == [
+        audit._CheckContract("writer_bindings", "lease_id IS NOT NULL", True)
+    ]
+    rows = [("sync_fence", "writer_bindings", "lease_index", "u")]
+    assert audit._index_kinds(connection) == {("sync_fence", "lease_index"): "u"}
+    calls = []
+    is_unique = True
+
+    def index_contract(actual, name, *, schema):
+        assert actual is connection
+        calls.append((name, schema))
+        return "index SQL", "writer_bindings", ["lease_id"], None, is_unique
+
+    monkeypatch.setattr(audit, "_index_catalog_contract", index_contract)
+    assert audit._unique_catalog(connection) == {
+        audit._UniqueContract(
+            "writer_bindings", "lease_index", "UNIQUE", ("lease_id",), None
+        )
+    }
+    is_unique = False
+    assert audit._index_catalog(connection) == {
+        audit._IndexContract("writer_bindings", "lease_index", ("lease_id",), None)
+    }
+    assert calls == [("lease_index", "sync_fence"), ("lease_index", "sync_fence")]
+    rows = [("sync_fence", "writer_bindings", "derived", "1 + 2")]
+    manifest = {
+        "tables": [
+            {
+                "name": "writer_bindings",
+                "columns": [{"name": "derived", "generated_expression": "1 + 2"}],
+            }
+        ]
+    }
+    assert audit._generated_expression_violations(connection, manifest) == []
+    rows = [("lease_id IS NOT NULL", True)]
+    manifest = {
+        "tables": [{"name": "writer_bindings", "checks": ["lease_id IS NOT NULL"]}]
+    }
+    assert audit._manifest_checks(connection, manifest) == [
+        audit._CheckContract("writer_bindings", "lease_id IS NOT NULL", True)
+    ]
+    assert any(
+        'LIKE "sync_fence"."writer_bindings"' in query for query, _ in statements
+    )

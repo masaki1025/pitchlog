@@ -1,0 +1,5 @@
+{
+  "schema_version": 1,
+  "fixture": "frontend/src/api/fixtures/recordedPrefixGame.v1.json",
+  "sha256": "5c0bfa1a21839dace0c5f24a627981bad6387de6cc407d7135694a87b9c9b43e"
+}

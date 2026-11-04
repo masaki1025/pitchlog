@@ -58,8 +58,10 @@ def _decision(snapshot):
 
 
 @pytest.mark.parametrize("case", CASES, ids=lambda case: case["id"])
-def test_all_binding_candidate_cases(case, tmp_path):
+def test_all_binding_candidate_cases(case, tmp_path, monkeypatch):
     """候補15対向を省略せず実製品関数で消費する。"""
+    # 一時fixtureはPR checkoutではないため、CIのbase解決を引き継がない。
+    monkeypatch.delenv("GITHUB_BASE_REF", raising=False)
     identifier = case["id"]
     assert len(CASES) == 15
     if identifier in {"BIND-03", "BIND-04", "BIND-05", "BIND-06", "BIND-07", "BIND-09"}:

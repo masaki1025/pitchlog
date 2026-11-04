@@ -9,12 +9,28 @@ from uuid import UUID
 import pytest
 from sqlalchemy.dialects import postgresql
 
+from pitchlog.repositories.first_ball import (
+    _BindFirstBallDeviceToken,
+    _CheckFirstBallRightToken,
+    _ReadFirstBallDeviceStateToken,
+)
 from pitchlog.repositories.function_operations import (
     FunctionOperationError,
     decode_function_result,
     prepare_function_operation,
 )
 from pitchlog.repositories.operation_registry import FUNCTION_OPERATION_REGISTRY
+from pitchlog.repositories.ordinary_order import OrdinaryOrderSummaryToken
+from pitchlog.repositories.ordinary_pitch_qualification import (
+    BindOrdinaryDeviceToken,
+    CheckOrdinaryRightToken,
+    PrepareOrdinaryProjectionToken,
+)
+from pitchlog.repositories.ordinary_prefix_operations import (
+    OrdinaryCheckpointLockToken,
+    OrdinaryCheckpointReadToken,
+    OrdinaryHistoryPageToken,
+)
 from pitchlog.repositories.rg1 import (
     RG1CommitCheckToken,
     RG1PrecheckToken,
@@ -27,6 +43,10 @@ from pitchlog.repositories.rg1 import (
 from pitchlog.repositories.rule_resolution import StageAResolveRuleToken
 from pitchlog.repositories.tokens import TenantOperationResult, TenantOperationToken
 from pitchlog.repositories.transaction import _TenantTransaction
+from pitchlog.repositories.writer_binding import (
+    _AssertWriterBindingToken,
+    _ReadWriterIdentityToken,
+)
 
 _TENANT_ID = UUID("00000000-0000-0000-0000-000000000392")
 
@@ -48,6 +68,18 @@ def test_rg1_keeps_two_fixed_functions_with_one_registered_rule_resolver() -> No
         RG1ScopeBindingToken,
         RG1CommitCheckToken,
         StageAResolveRuleToken,
+        _BindFirstBallDeviceToken,
+        _CheckFirstBallRightToken,
+        _ReadWriterIdentityToken,
+        _AssertWriterBindingToken,
+        _ReadFirstBallDeviceStateToken,
+        BindOrdinaryDeviceToken,
+        CheckOrdinaryRightToken,
+        PrepareOrdinaryProjectionToken,
+        OrdinaryCheckpointReadToken,
+        OrdinaryCheckpointLockToken,
+        OrdinaryHistoryPageToken,
+        OrdinaryOrderSummaryToken,
     }
     for token, function_name in (
         (RG1PrecheckToken(), "rg1_read_open"),

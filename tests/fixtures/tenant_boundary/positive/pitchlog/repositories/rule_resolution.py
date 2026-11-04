@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from sqlalchemy import (  # ty: ignore[unresolved-import]
+from sqlalchemy import (
     Boolean,
     String,
     Uuid,
@@ -12,7 +12,7 @@ from sqlalchemy import (  # ty: ignore[unresolved-import]
     func,
     select,
 )
-from sqlalchemy.sql.selectable import Select  # ty: ignore[unresolved-import]
+from sqlalchemy.sql.selectable import Select
 
 
 def _build_stage_a_rule_statement() -> Select[Any]:

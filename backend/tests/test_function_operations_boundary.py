@@ -2074,6 +2074,67 @@ def test_literal_binding_rejects_other_group_and_extra_real_registration() -> No
             typing_cast(Any, SimpleNamespace(operation_id=actual.operation_id)),
             operation_id=actual.operation_id,
         )
+
+
+def test_parent_literal_function_bindings_keep_same_objects() -> None:
+    """親9関数の既SQL/IOを複製せず、元の5objectだけを束縛する。"""
+    from pitchlog.repositories.first_ball import (
+        _UNREGISTERED_DECLARATIONS as first_ball,
+    )
+    from pitchlog.repositories.first_ball import (
+        DEVICE_STATE_READ_OPERATION,
+    )
+    from pitchlog.repositories.operation_registry import _registered_product_function
+    from pitchlog.repositories.writer_binding import (
+        _UNREGISTERED_DECLARATIONS as writer,
+    )
+
+    original = (*first_ball, *writer, DEVICE_STATE_READ_OPERATION)
+    assert len(original) == 5
+    assert all(
+        actual is expected
+        for actual, expected in zip(
+            operation_registry.PRODUCT_FUNCTION_OPERATIONS[4:9],
+            original,
+            strict=True,
+        )
+    )
+    for registration in original:
+        assert (
+            _registered_product_function(
+                registration,
+                operation_id=registration.operation_id,
+            )
+            is registration
+        )
+    with pytest.raises(ValueError):
+        _registered_product_function(
+            original[0], operation_id="SYNC_FIRST_BALL:unknown"
+        )
+    with pytest.raises(ValueError):
+        _registered_product_function(original[0], operation_id=original[1].operation_id)
+    with pytest.raises(ValueError):
+        _registered_product_function(writer[0], operation_id=first_ball[0].operation_id)
+    with pytest.raises(ValueError):
+        _registered_product_function(
+            original[0],
+            operation_id=typing_cast(str, True),
+        )
+
+
+def test_parent_literal_binding_rejects_fake_and_extra_registrations() -> None:
+    """偽reg/別group/余剰の実regをfinite登録へ入れない。"""
+    from types import SimpleNamespace
+
+    from pitchlog.repositories.operation_registry import _registered_product_function
+
+    actual = operation_registry.PRODUCT_FUNCTION_OPERATIONS[4]
+    for fake in (object(), SimpleNamespace(operation_id=actual.operation_id)):
+        with pytest.raises(ValueError):
+            _registered_product_function(
+                typing_cast(FunctionOperationRegistration, fake),
+                operation_id=actual.operation_id,
+            )
     extra = _registration()
     with pytest.raises(ValueError):
         _registered_product_function(extra, operation_id=extra.operation_id)

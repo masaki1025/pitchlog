@@ -1035,43 +1035,120 @@ def _alembic_config() -> Config:
     return Config(str(_BACKEND_ROOT / "alembic.ini"))
 
 
+_INITIAL_RIGHT_STORAGE_TABLES = frozenset(
+    {
+        "trusted_devices",
+        "game_start_requests",
+        "game_start_attempts",
+        "recording_right_deliveries",
+    }
+)
+_ORDINARY_PITCH_TABLES = frozenset(
+    {
+        "sync_fence.ordinary_pitch_checkpoints",
+        "sync_fence.ordinary_pitch_write_admissions",
+        "sync_fence.ordinary_pitch_history",
+    }
+)
+_WRITER_BINDING_TABLES = frozenset(
+    {
+        "sync_fence.writer_bindings",
+        "sync_fence.writer_admissions",
+        "sync_fence.first_ball_write_admissions",
+    }
+    | set(_ORDINARY_PITCH_TABLES)
+)
+
+
 def _metadata_for_schema_revision(revision: str) -> MetaData:
-    """採用済みrevisionだけを対応するモデル構造へ射影する。"""
-    if revision == "0035_rg1_initial_fresh_epoch":
+    """0035/0036/0037/0038の実migration差だけを逆射影し、他の差は保持する。"""
+    if revision == "0039_ordinary_pitch_storage":
         return Base.metadata
-    if revision not in {"0032_rg1_restore_gate", "0033_game_rules_immutable"}:
+    if revision == "0038_first_ball_write_admission":
+        historical = MetaData(naming_convention=Base.metadata.naming_convention)
+        for name, source in Base.metadata.tables.items():
+            if name not in _ORDINARY_PITCH_TABLES:
+                source.to_metadata(historical)
+        return historical
+    if revision == "0037_sync_writer_binding":
+        historical = MetaData(naming_convention=Base.metadata.naming_convention)
+        for name, source in Base.metadata.tables.items():
+            if name == "sync_fence.first_ball_write_admissions":
+                continue
+            if name in _ORDINARY_PITCH_TABLES:
+                continue
+            source.to_metadata(historical)
+        return historical
+    if revision not in {
+        "0032_rg1_restore_gate",
+        "0033_game_rules_immutable",
+        "0035_rg1_initial_fresh_epoch",
+        "0036_initial_right_storage",
+    }:
         raise AssertionError("未対応revisionのモデル比較を補完しない")
-    table = Base.metadata.tables.get("rg1_restore_gate")
-    if table is None:
-        # 部分metadataも元のまま比較し、余剰・欠落表を実diffとして検出する。
-        return Base.metadata
-    epoch = table.c.recovery_generation
-    checks = [
-        constraint
-        for constraint in table.constraints
-        if isinstance(constraint, CheckConstraint)
-        and constraint.name == "ck_rg1_restore_gate_recovery_generation"
-    ]
-    assert isinstance(epoch.type, BigInteger) and epoch.nullable
-    assert epoch.default is None and epoch.server_default is None
-    assert not epoch.primary_key and not epoch.foreign_keys
-    assert len(checks) == 1
-    assert str(checks[0].sqltext) == (
-        "recovery_generation IS NULL OR recovery_generation > 0"
-    )
     historical = MetaData(naming_convention=Base.metadata.naming_convention)
-    for source in Base.metadata.tables.values():
+    # 0037/0038のwriter binding 3表は後続migrationの新設なので除外する。
+    # 0036の4表は0036より前のrevisionだけ除外する。
+    for name, source in Base.metadata.tables.items():
+        if name in _WRITER_BINDING_TABLES:
+            continue
+        if (
+            revision != "0036_initial_right_storage"
+            and name in _INITIAL_RIGHT_STORAGE_TABLES
+        ):
+            continue
         source.to_metadata(historical)
-    copied = historical.tables["rg1_restore_gate"]
-    copied_check = next(
-        constraint
-        for constraint in copied.constraints
-        if isinstance(constraint, CheckConstraint)
-        and constraint.name == "ck_rg1_restore_gate_recovery_generation"
+    generations = (
+        historical.tables.get("recording_generations")
+        if revision != "0036_initial_right_storage"
+        else None
     )
-    copied.constraints.remove(copied_check)
-    # 比較用copyの一列だけを除く。元のORMや比較結果を加工しない。
-    copied._columns.remove(copied.c.recovery_generation)
+    if generations is not None:
+        # 0036 upgradeのadd_column/create_check_constraint exact2組だけを戻す。
+        for column_name, check_name, expression in (
+            (
+                "proof_digest",
+                "ck_recording_generations_proof_digest",
+                "proof_digest IS NULL OR octet_length(proof_digest) = 32",
+            ),
+            (
+                "recovery_generation",
+                "ck_recording_generations_recovery_generation",
+                "recovery_generation IS NULL OR recovery_generation > 0",
+            ),
+        ):
+            column = generations.c[column_name]
+            checks = [
+                constraint
+                for constraint in generations.constraints
+                if isinstance(constraint, CheckConstraint)
+                and constraint.name == check_name
+            ]
+            assert column.nullable and not column.primary_key
+            assert column.default is None and column.server_default is None
+            assert not column.foreign_keys and len(checks) == 1
+            assert str(checks[0].sqltext) == expression
+            generations.constraints.remove(checks[0])
+            generations._columns.remove(column)
+    if revision in {"0032_rg1_restore_gate", "0033_game_rules_immutable"}:
+        copied = historical.tables.get("rg1_restore_gate")
+        if copied is not None:
+            epoch = copied.c.recovery_generation
+            checks = [
+                constraint
+                for constraint in copied.constraints
+                if isinstance(constraint, CheckConstraint)
+                and constraint.name == "ck_rg1_restore_gate_recovery_generation"
+            ]
+            assert isinstance(epoch.type, BigInteger) and epoch.nullable
+            assert epoch.default is None and epoch.server_default is None
+            assert not epoch.primary_key and not epoch.foreign_keys
+            assert len(checks) == 1
+            assert str(checks[0].sqltext) == (
+                "recovery_generation IS NULL OR recovery_generation > 0"
+            )
+            copied.constraints.remove(checks[0])
+            copied._columns.remove(epoch)
     return historical
 
 
@@ -1451,9 +1528,11 @@ def _normalized_predicate(predicate: str | None) -> str | None:
 
 
 def _index_catalog_contract(
-    connection: psycopg.Connection[Any], index_name: str
+    connection: psycopg.Connection[Any], index_name: str, *, schema: str = "public"
 ) -> tuple[str, str, list[str], str | None, bool]:
     """索引定義・対象表・列順・述語・一意性をカタログから取得する。"""
+    if schema not in {"public", "sync_fence"}:
+        raise AssertionError(f"未登録の索引schema: {schema}")
     with connection.cursor() as cursor:
         cursor.execute(
             """
@@ -1485,9 +1564,11 @@ def _index_catalog_contract(
               ON index_relation.oid = index_row.indexrelid
             JOIN pg_class AS table_relation
               ON table_relation.oid = index_row.indrelid
-            WHERE index_relation.relname = %s
+            JOIN pg_namespace AS namespace
+              ON namespace.oid = index_relation.relnamespace
+            WHERE index_relation.relname = %s AND namespace.nspname = %s
             """,
-            (index_name,),
+            (index_name, schema),
         )
         row = cursor.fetchone()
     if row is None:
@@ -8633,26 +8714,40 @@ def test_0028_generated_name_normalization_and_limits(
 
 
 @pytest.mark.parametrize(
-    "revision", ["0032_rg1_restore_gate", "0033_game_rules_immutable"]
+    "revision",
+    [
+        "0032_rg1_restore_gate",
+        "0033_game_rules_immutable",
+        "0035_rg1_initial_fresh_epoch",
+    ],
 )
 def test_historical_metadata_copy_retains_all_other_tables(revision: str) -> None:
-    """歴史モデルcopyの差をepoch列とCHECKにだけ限定する。"""
+    """0036の4表/2列と0035のepoch以外の全構造を保持する。"""
     current = Base.metadata.tables["rg1_restore_gate"]
     projected = _metadata_for_schema_revision(revision)
     assert projected is not Base.metadata
-    assert set(projected.tables) == set(Base.metadata.tables)
-    assert set(current.c.keys()) == {"singleton_id", "state", "recovery_generation"}
+    assert (
+        set(projected.tables)
+        == set(Base.metadata.tables)
+        - (_INITIAL_RIGHT_STORAGE_TABLES)
+        - _WRITER_BINDING_TABLES
+    )
     for name, table in Base.metadata.tables.items():
+        if name in _INITIAL_RIGHT_STORAGE_TABLES or name in _WRITER_BINDING_TABLES:
+            continue
         expected = set(table.c.keys())
-        if name == "rg1_restore_gate":
+        if name == "rg1_restore_gate" and revision != "0035_rg1_initial_fresh_epoch":
             expected.remove("recovery_generation")
+        if name == "recording_generations":
+            expected -= {"proof_digest", "recovery_generation"}
         assert set(projected.tables[name].c.keys()) == expected
-    assert "recovery_generation" in current.c
-    assert any(
-        c.name == "ck_rg1_restore_gate_recovery_generation" for c in current.constraints
+    assert set(current.c.keys()) == {"singleton_id", "state", "recovery_generation"}
+    assert {"proof_digest", "recovery_generation"} <= set(
+        Base.metadata.tables["recording_generations"].c.keys()
     )
     assert (
-        _metadata_for_schema_revision("0035_rg1_initial_fresh_epoch") is Base.metadata
+        set(_metadata_for_schema_revision("0036_initial_right_storage").tables)
+        == set(Base.metadata.tables) - _WRITER_BINDING_TABLES
     )
     with pytest.raises(AssertionError, match="未対応revision"):
         _metadata_for_schema_revision("unknown")
@@ -8661,7 +8756,7 @@ def test_historical_metadata_copy_retains_all_other_tables(revision: str) -> Non
 def test_current_metadata_epoch_column_loss_is_detected(
     provisioned_product_catalog: ProvisionedProductCatalog,
 ) -> None:
-    """正規0035は完全モデルで比較し、epoch欠落を必ず検出する。"""
+    """正規0039は完全モデルで比較し、epoch欠落を必ず検出する。"""
     engine = create_engine(
         normalize_postgresql_url(_sqlalchemy_url(provisioned_product_catalog.owner_dsn))
     )
@@ -8673,11 +8768,12 @@ def test_current_metadata_epoch_column_loss_is_detected(
                     connection.exec_driver_sql(
                         "SELECT version_num FROM public.alembic_version"
                     ).scalar_one()
-                    == "0035_rg1_initial_fresh_epoch"
+                    == "0039_ordinary_pitch_storage"
                 )
                 assert (
                     compare_metadata(
-                        MigrationContext.configure(connection), Base.metadata
+                        MigrationContext.configure(connection),
+                        _metadata_for_schema_revision("0036_initial_right_storage"),
                     )
                     == []
                 )
@@ -8686,7 +8782,8 @@ def test_current_metadata_epoch_column_loss_is_detected(
                     "DROP COLUMN recovery_generation"
                 )
                 diffs = compare_metadata(
-                    MigrationContext.configure(connection), Base.metadata
+                    MigrationContext.configure(connection),
+                    _metadata_for_schema_revision("0036_initial_right_storage"),
                 )
                 assert any(
                     difference[0] == "add_column"
@@ -8697,7 +8794,10 @@ def test_current_metadata_epoch_column_loss_is_detected(
             finally:
                 transaction.rollback()
             assert (
-                compare_metadata(MigrationContext.configure(connection), Base.metadata)
+                compare_metadata(
+                    MigrationContext.configure(connection),
+                    _metadata_for_schema_revision("0036_initial_right_storage"),
+                )
                 == []
             )
     finally:

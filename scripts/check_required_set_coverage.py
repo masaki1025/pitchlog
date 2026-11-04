@@ -1021,8 +1021,8 @@ def _ordinary_case_id_migrations(
     }
     extension = _terminal_case_extension(root, contract) | _strikeout_case_extension(root, contract)
     if (set(representatives) != set(guards) or len(old) != 116
-            or len(new) != 117 + len(extension)):
-        raise RequiredSetCoverageError("通常投球の4代表・116→117移行が不一致")
+            or len(new) != 119 + len(extension)):
+        raise RequiredSetCoverageError("通常投球の4代表・116→119移行が不一致")
 
     def matrix_id(coordinate: dict[str, Any]) -> str:
         encoded = json.dumps(coordinate, sort_keys=True, ensure_ascii=False,
@@ -1083,17 +1083,31 @@ def _ordinary_case_id_migrations(
         raise RequiredSetCoverageError("通常投球の4代表移行が不足")
     ordinary_ids = {mapping.get(identifier, identifier) for identifier in old}
     remaining = set(new) - ordinary_ids - extension
-    foul = json.loads(json.dumps(new[mapping[representatives["batting-result.foul"]["caseId"]]]))
-    encoded = json.dumps([foul["caseId"], "state.count.balls", 1],
-                         sort_keys=True, ensure_ascii=False, separators=(",", ":"))
-    foul["caseId"] = "ST-COVERAGE-" + hashlib.sha256(encoded.encode()).hexdigest()[:16]
-    for field in ("inputCoordinate", "raw", "normalized"):
-        foul[field]["state.count.balls"] = 1
-    for field in ("before", "after"):
-        foul["historyInput"][field]["stateFields"]["state.count.balls"] = 1
-    if (remaining != {foul["caseId"]}
-            or not deriver.descriptor_checker._json_equal(new[foul["caseId"]], foul)):
-        raise RequiredSetCoverageError("通常投球の117番目の既正例が変更/欠落/置換された")
+    expected_extensions = {}
+    for axis, value in (("state.count.strikes", 1), ("state.count.balls", 1),
+                        ("state.count.balls", 2)):
+        foul = json.loads(json.dumps(
+            new[mapping[representatives["batting-result.foul"]["caseId"]]]
+        ))
+        encoded = json.dumps([foul["caseId"], axis, value], sort_keys=True,
+                             ensure_ascii=False, separators=(",", ":"))
+        foul["caseId"] = "ST-COVERAGE-" + hashlib.sha256(encoded.encode()).hexdigest()[:16]
+        for field in ("inputCoordinate", "raw", "normalized"):
+            foul[field][axis] = value
+        foul["historyInput"]["before"]["stateFields"][axis] = value
+        foul["historyInput"]["after"]["stateFields"][axis] = (
+            value + 1 if axis == "state.count.strikes" else value
+        )
+        if axis == "state.count.strikes":
+            foul["expected"]["historyContext"][0]["difference"]["stateFields"][axis] = {
+                "before": value, "after": value + 1,
+            }
+        expected_extensions[foul["caseId"]] = foul
+    if (remaining != set(expected_extensions) or any(
+        not deriver.descriptor_checker._json_equal(new[key], value)
+        for key, value in expected_extensions.items()
+    )):
+        raise RequiredSetCoverageError("通常投球の既coverage3正例が変更/欠落/置換された")
     return mapping
 
 
