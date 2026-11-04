@@ -1,5 +1,15 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 続き：2026-11-04（191の実接合を保存、192・毎球CSVを並行準備）
+
+- **正式提供/利用者操作**: 正式develop40ce（#190）の通常投球連続保存まで。#191のBB/HBP/次打者は本再開の正式統合・同版画面実証がまだで、提供済みへ拡張しない。#190成功CIとdevelop後続CIは別に追跡する。
+- **191保存**: WT feature-mvp-terminal-pitches、計画56115f53→40ce merge651c69d4で13競合解消。旧119case全値保持＋terminal15=134、旧共通117全JSON同値。develop独立pin reader/ordinary共有検証と既安全条件を保持。f8422408まで追補保存。runtime資産/生成moduleは公式rederive/render済み（まだ未commit）。backend関連8file429成功5.37秒・型lint成功。正式7.7/全CI/同版PG・画面は未了。
+- **現在の依存**: 局所契約32失敗/659成功15.08秒を根因分類し、pr191_integration_auditが既試験2+manual schema+原典pin fixtureのexact4を専有修復中。旧case全値・旧対向/新root12負対向を保持し、歴史viewへの現partition混入を解消。rootはdescriptorの既qualifierにstate.gameEnded1項追加し旧49ID全保持/新2だけ修飾→全51uniqueとなるcache候補を公式freeze helperで導出し、非作者レビュー中。manualfixture凍結/全前後/参照/corpusを最後にまとめる。sourceplate/期待を削って緑にしない。
+- **192並行成果**: HEAD9457099b/dirty39を11/1と全SHA照合、37旧source一致と後発2source一致を確認。planだけ421621c9へ先行保存。新test1を同作者が修復し旧seal拒否＋実artifact/host呼出後の全値比較拒否3例を追加、pure9成功2.07秒・型lint成功。他38SHA不変、非作者REPORT3efa74db…はP0P1P2=0。cache pr192-native-p2-repair-20261104/と同-reviewに全証拠。まだ全dirtyの採用/保存/正式SQL22candidate反映/DB/画面を成立扱いにしない。次は既step4の原子的保存へ接合する。
+- **CSV並行成果**: 成績27項目/成績CSVは未完成、既共通writerは再利用。新WT feature-mvp-play-csv-connectionは40ce起点、ud2-csv-exportの既88列/sidecar候補を再利用して実DB→実HTTP ZIP→画面DL→往復/越境/故障を閉じる5step計画を作成。非作者review P0=0/P1=1/P2=1（既B7逆変換を新判断扱いしない、具体的供給matrixの不足）を同作者が反映中。新PO裁定待ちや過去原字面往復をMVPへ上乗せしない。製品コードは計画採用後に着手する。
+- **再開用cache**: pr191-integration-audit-20261104/、pr191-row-id-proposal-20261104/、mvp-resume-20261104/の実検査log、pr192-resume-audit-20261104/manifest.json、stats-csv-next-unit-20261104/。担当パスは分離、台帳/正式tenant受理はrootに一本化。main/develop直接変更・共有DB適用・新鍵/有料/運用公開は行わない。
+
+
 ## 再開：2026-11-04 20:44 JST（別LLMの#190統合を照合、#191から継続）
 
 - **正式統合の実値**: GitHubで#189（head29c1e45e、merge fd1bb20a、11/3）・#195統合計画・#190（head22da3146、merge40ce2e312bc46435239f2a6d0ea0f1fb919a5de0、11/4 20:37JST）を確認。origin/developをfetchし40ceを照合。#190実CI41818653416と本文最終41822350870はsuccess。develop実CI41822464555は実行中（tenant等成功、全完走未了）。旧台帳冒頭の#189未push/tenant149残件は歴史記録で、現未成立へ戻さない。
