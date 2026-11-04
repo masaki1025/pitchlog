@@ -1,11 +1,11 @@
 {
-  "contract_revision": 27,
+  "contract_revision": 28,
   "baseline_control": {
     "identity": {
       "scheme": "integer_revision_field",
       "field": "contract_revision",
       "current_identifiers": [
-        "contract_revision:27"
+        "contract_revision:28"
       ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
