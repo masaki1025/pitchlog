@@ -31,7 +31,12 @@
           "scripts/core_guard.py",
           "tests/test_core_guard.py",
           "tests/test_product_authz_tenant_boundary_allowlist.py",
-          "contracts/authz/product/probe-product-map.json"
+          "contracts/authz/product/probe-product-map.json",
+          "backend/tests/first_ball_expected_source_pins.py",
+          "backend/tests/fixtures/first_ball_expected_source_pins_v1.json",
+          "scripts/check_human_review_signature.py",
+          "tests/test_human_review_signature.py",
+          "tests/fixtures/pr191_ordinary_extension_reference_v1.json"
         ]
       }
     },
@@ -127,6 +132,23 @@
       "purpose": "PR191 terminalコア有限層の独立固定原典（審査済み#191候補）。旧raw参照と同値で、現木から期待path集合を導出しない。",
       "sources": [
         "tests/test_core_guard.py:TERMINAL_REFERENCE_HEAD"
+      ]
+    },
+    "terminal_source_regression_pins_revision": {
+      "value": "224370867458e79266946d85406804b76d278d42",
+      "purpose": "PR191審査済み固定Gitの追加4function statementと正式19DDL statementの回帰全byte期待。現作業木から再生成せず、数学独立導出/署名と区別する。",
+      "sources": [
+        "backend/tests/first_ball_expected_source_pins.py:read_expected_source_pins",
+        "backend/tests/test_sync_apply_writer_binding.py:test_void_adapter_preserves_every_other_registered_function",
+        "backend/tests/test_sync_apply_product_supply.py:test_reapply_keeps_all_other_generated_statements_exact"
+      ]
+    },
+    "terminal_ordinary_extension_revision": {
+      "value": "224370867458e79266946d85406804b76d278d42",
+      "purpose": "PR191 ordinary33の歴史scopeとterminal有限extensionの全前後を審査済み固定Gitへ束縛する。旧署名subject・現木自己期待・任意PRの受理に流用しない。",
+      "sources": [
+        "scripts/check_human_review_signature.py:_terminal_extension_reference",
+        "tests/test_human_review_signature.py:terminal_extension_fixture"
       ]
     }
   }
