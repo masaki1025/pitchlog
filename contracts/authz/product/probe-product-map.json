@@ -1337,6 +1337,42 @@
     {
       "product": "table:ordinary_pitch_write_admissions",
       "reason": "product_only"
+    },
+    {
+      "product": "function:FUNCTION:sync_right_api:assert_play_prefix_projection(jsonb)",
+      "reason": "product_only"
+    },
+    {
+      "product": "function:FUNCTION:sync_right_api:finish_play_prefix_projection()",
+      "reason": "product_only"
+    },
+    {
+      "product": "function:FUNCTION:sync_right_api:guard_play_prefix_runner_insert()",
+      "reason": "product_only"
+    },
+    {
+      "product": "function:FUNCTION:sync_right_api:lock_play_prefix_checkpoint(uuid, uuid, uuid, bytea, uuid, uuid, bigint)",
+      "reason": "product_only"
+    },
+    {
+      "product": "function:FUNCTION:sync_right_api:prepare_play_prefix_projection(uuid, uuid, uuid, bytea, uuid, uuid, text)",
+      "reason": "product_only"
+    },
+    {
+      "product": "function:FUNCTION:sync_right_api:read_play_prefix_checkpoint(uuid, uuid, bigint)",
+      "reason": "product_only"
+    },
+    {
+      "product": "function:FUNCTION:sync_right_api:read_play_prefix_history_page(uuid, uuid, bigint, bigint, uuid, bigint, bigint, bigint, bigint, bigint, uuid, integer)",
+      "reason": "product_only"
+    },
+    {
+      "product": "policy:POLICY:play_runners:play_prefix_insert_play_runners",
+      "reason": "product_only"
+    },
+    {
+      "product": "policy:POLICY:play_runners:play_prefix_select_play_runners",
+      "reason": "product_only"
     }
   ]
 }

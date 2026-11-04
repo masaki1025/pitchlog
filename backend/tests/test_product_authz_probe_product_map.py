@@ -183,6 +183,35 @@ _INITIAL_START_PRODUCT_ATOMS = frozenset(
 )
 
 
+# 正式terminal DDLの固定7関数・2policy。旧原子集合とは別の有限追加。
+_TERMINAL_PRODUCT_ATOMS = frozenset(
+    {
+        "function:FUNCTION:sync_right_api:assert_play_prefix_projection(jsonb)",
+        "function:FUNCTION:sync_right_api:finish_play_prefix_projection()",
+        "function:FUNCTION:sync_right_api:guard_play_prefix_runner_insert()",
+        (
+            "function:FUNCTION:sync_right_api:lock_play_prefix_checkpoint("
+            "uuid, uuid, uuid, bytea, uuid, uuid, bigint)"
+        ),
+        (
+            "function:FUNCTION:sync_right_api:prepare_play_prefix_projection("
+            "uuid, uuid, uuid, bytea, uuid, uuid, text)"
+        ),
+        (
+            "function:FUNCTION:sync_right_api:read_play_prefix_checkpoint("
+            "uuid, uuid, bigint)"
+        ),
+        (
+            "function:FUNCTION:sync_right_api:read_play_prefix_history_page("
+            "uuid, uuid, bigint, bigint, uuid, bigint, bigint, bigint, "
+            "bigint, bigint, uuid, integer)"
+        ),
+        "policy:POLICY:play_runners:play_prefix_insert_play_runners",
+        "policy:POLICY:play_runners:play_prefix_select_play_runners",
+    }
+)
+
+
 def _product_path() -> Path:
     """共有 API が判定した状態の製品資産パスを返す。"""
     state, violations = evaluate_repository(_REPOSITORY_ROOT)
@@ -456,4 +485,32 @@ def test_each_first_ball_product_only_atom_is_required(atom: str) -> None:
         next(row for row in rows if isinstance(row, dict) and row["product"] == atom)
     )
     with pytest.raises(ProbeProductMapError, match="双方向 exact-set"):
+        validate_probe_product_map(mapping, probe, product)
+
+
+def test_terminal_product_only_atoms_are_exact() -> None:
+    """terminal追加9原子が理由付きの正式写像にあり旧写像を横取りしない。"""
+    mapping, probe, product = _documents()
+    summary = validate_probe_product_map(mapping, probe, product)
+    assert len(_TERMINAL_PRODUCT_ATOMS) == 9
+    assert {
+        row["product"]
+        for row in _rows(mapping, "product_only")
+        if isinstance(row, dict)
+        and row.get("product") in _TERMINAL_PRODUCT_ATOMS
+        and row.get("reason") == "product_only"
+    } == _TERMINAL_PRODUCT_ATOMS
+    assert not _TERMINAL_PRODUCT_ATOMS & summary.mapped_product_atoms
+
+
+@pytest.mark.parametrize("atom", sorted(_TERMINAL_PRODUCT_ATOMS))
+def test_each_terminal_product_only_atom_is_required(atom: str) -> None:
+    """正常基線成立後に追加9原子の個別欠落を双方向exact-setで拒否する。"""
+    mapping, probe, product = _documents()
+    validate_probe_product_map(mapping, probe, product)
+    rows = _rows(mapping, "product_only")
+    rows.remove(_row_by_value(rows, key="product", value=atom))
+    with pytest.raises(
+        ProbeProductMapError, match="製品原子要素が双方向 exact-set でない"
+    ):
         validate_probe_product_map(mapping, probe, product)
