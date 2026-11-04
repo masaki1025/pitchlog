@@ -332,7 +332,7 @@ def _batted_script():
 
 
 def _setup(db):
-    """固定語彙だけを投入する。対象game/play/event/権利は実APIで生成する。"""
+    """参照語彙/他tenant選手を投入し、対象game/play/event/権利は実APIで生成する。"""
     with psycopg.connect(db.authority.database.business_admin) as admin:
         for result in _RESULTS:
             admin.execute(
@@ -358,6 +358,19 @@ def _setup(db):
             "'pitch_type','他tenantの球種','fastball') "
             "ON CONFLICT(tenant_id,key) DO NOTHING",
             (db.other_tenant_id,),
+        )
+        # 越境拒否は実在する他tenant選手で検査する。対象試合には登録しない。
+        foreign_team = UUID("00000000-0000-4000-8000-00000000b401")
+        foreign_player = UUID("00000000-0000-4000-8000-00000000b402")
+        admin.execute(
+            "INSERT INTO public.team_records(tenant_id,id,kind,name) "
+            "VALUES (%s,%s,'self','打球保存試験の他tenantチーム')",
+            (db.other_tenant_id, foreign_team),
+        )
+        admin.execute(
+            "INSERT INTO public.players(tenant_id,id,team_record_id,name,"
+            "roster_status_key) VALUES (%s,%s,%s,'他tenantの実在選手','active')",
+            (db.other_tenant_id, foreign_player, foreign_team),
         )
         player = admin.execute(
             "SELECT id FROM public.players WHERE tenant_id=%s LIMIT 1",
