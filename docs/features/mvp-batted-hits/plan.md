@@ -45,7 +45,7 @@ T2は真正before/after/有効得点と本塁打事実を既終了規範へ渡�
 | 1 | 4安打の実前進計算を完成。新frontend/src/domain/battedHit.ts・battedHit.spec.ts、既frontend/src/domain/state.tsのexact3 | root計画採用後に開始。全before/after/23flags/history/board/両cursor/拒否、独立手例と交差、既ordinary/BB/HBP/K回帰、重複0を固定して停止 |
 | 2 | 閉JSON ABI/唯一artifact/固定Python caller・独立操作契約 | 下記共有path候補をrootが直列採否。型/十進数/全出力/旧ABI拒否不変、実hostを使った全入力出力比較と独立期待。数学の複製なし |
 | 3 | prefix/T2/真正source・入力観測/責任帰属/物理投影を接合 | 契約/観測fieldの完全性・保存payloadの唯一producerをrootが確定。T2未評価成功禁止、旧variant/再送識別/真正artifact証拠保持 |
-| 4 | 同TX保存/GET/再送/原子性/越境 | rootとownedPG時間調整。event/PlayRow/PlayRunner/history/checkpoint/ledger/両cursor・責任投手を不可分保存。単打等は打者到達塁へ1runner、HRはempty。元D5再送/ACK喪失/故障rollback/別tenant拒否と実GET完全値 |
+| 4 | 同TX保存/GET/再送/原子性/越境 | rootとownedPG時間調整。event/PlayRow/PlayRunner/history/checkpoint/ledger/両cursor・責任投手を不可分保存。単打等のafter checkpointは打者到達塁へ1runner、HRはempty。物理PlayRunnerは既方式どおりbefore各塁（本単位の初期無走者では0行）で、次球のbeforeで新走者を記録する。元D5再送/ACK喪失/故障rollback/別tenant拒否と実GET完全値 |
 | 5 | 実画面の打球入力→保存→復元と最終統合 | 4結果を各新規試合で実入力しbefore/after/得点/安打/次打順・reloadを照合。HTTPS/実app/認証/実DB/実artifact。最終正式値/CLI/CI/非作者確認はrootが所有 |
 
 **初回writerは専用WTのexact3だけ**。共有state.tsの小差分はrootから計画採用後の担当許可を受けて行う。各ステップで止まり、次段のexact scope採用を受ける。新moduleの純計算成功を保存/画面成功へ読み替えない。
@@ -162,3 +162,5 @@ D11の最小正式登録（2026-11-05、PO委任による主担当root判断）:
 ステップ3の既決D01=B整合追補: decision-sheet（2026-10-29採用記録、主担当台帳の現記録）により9回裏サヨナラ/コールド同時成立はwalk-offで既決。既endConditionCore.tsにcold先行が残るため、作者scopeへ同fileとendConditionCore.spec.tsのexact2を追加する（計13）。新規裁定ではなく既採用方針への最小修復。単独walk-off/単独cold/同時の3対向を規範から先置きし、E08の通常終了対cold、表完了のx-mark、OUT3有効得点先行、非本塁打余剰得点切捨て、正式終了を自動成立させない条件を保持。境界.completedHalf=top等の既通常終了を単なるafter.half=bottomでwalk-offへ誤変換しない。契約/coverage差分が不可分なら先にrootへ列挙し正式資産を勝手に書かない。新artifactに意味差が生じる1競合は互換全同値扱いせず適用範囲/既決根拠と新旧差を明記し、独立確認を要する。
 
 ステップ3の不可分root正式資産追随: payload math定義と新full観測の連動に必要なcontracts/state-transition/lineup_play_prefix_payload_schema_v1.jsonと同payload_v1.d.tsをroot所有candidateで採否する。旧観測5/旧34全値を保持し、新12観測と新T1/resultをschema/型の両方で閉相関させる。初回型/schema直積P1は独立反例を保全して反映周を重ねる。唯一artifact51d4d0f…60923bytesへの既execution pin/正準自己echoはroot cache batted-prefix-shared-pins-20261105/files.jsonのexact16（旧13+新battedmanifest/D11包絡/prefix19）で明示849fieldだけ追随する。旧34/56と新19の数学/終了/履歴/選手/責任/positions期待を変えない。D01競合の新旧実行差は適用根拠を別記し、全旧入力互換を仮定しない。compat追加/正式7.7/全D11/DB/UI成立とは分離する。
+
+ステップ4の走者保存表現の明確化（2026-11-05、PO委任Codex /root判断）: 既正式191のrunner_physical_rowsはbefore各塁のhold結果を保存し、after占有はcheckpoint/sourceへ別保存する。data-model5-2の(プレイ,塁)行・進塁状況・責任投手と整合する既方式を維持し、上表の1runnerはafter checkpointを指すと明記した。打者到達塁/責任投手を欠落させたり物理before表へafter行を混入させない。初期無走者安打の物理0/after1、次通常球の物理before1/after継続1と帰属投手、HRのafter emptyを同版実DB/GETで検証し、既BB/HBP/三振の保存結果は不変とする。新意味の裁定やMVP機能削減ではない。
