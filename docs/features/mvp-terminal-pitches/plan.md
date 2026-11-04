@@ -339,3 +339,9 @@ v2 source登録のcensus説明追随（同日）: 非作者6c1dee55…がexact5�
 `check_frozen_baselines.py --ci`の同版PR previewで、既`backend/tests/test_terminal_pitch_write_stamp.py`の「CASE括弧追加前SQLの全byte比較」固定SHAが未登録として拒否された。値・比較対象・対向を変更せず、`contracts/tenant_boundary/frozen-inputs.json`の名前付き固定入力へ移し、同試験から直接読んで64桁型検査後に従来と同じ全byte SHA比較を行う。固定入力の外部対象にも同試験を登録し、受理履歴でconsumer差分を追跡する。Python文字列の分割/検出除外/allowlist増設/期待値の再計算で回避しない。
 
 これは既ステップ5の凍結入力正式化と生成値追随に含む最小是正。PO委任によるCodex主担当/root判断で開始し、最終HEADの非作者差分確認・単一#191受理の再導出・必須CLI/CIを維持する。8712866dで成立した同版画面3件を保存し、後発は試験/正式登録/派生物のみで製品計算を変えない。既レビュー回数・暫定bootstrap/未実施事項を維持する。
+
+### 2026-11-04 実CI coreパス有限層の接合修復
+
+run41843104444は`PR head の初球core層が完全suffixの7状態に不一致`で拒否された。`.claude/core-areas.json`の既登録を除外/削除せず、`scripts/core_guard.py`と`tests/test_core_guard.py`だけで、#190の完全な初球/通常層の外側に本操作単位の有限terminal追加層を厳密登録する。旧7状態/旧領域定義/既24遷移・人間/委任証拠検査・同一commitでのJSON/基線定義変更拒否を保持する。現在の40ce→224 core JSONの領域別追加tupleだけを固定し、完全suffixか未登録かを閉判定する。部分/削除/移動/順序変更/未知追加/偽造prefixを拒否し、旧検査は外側の完全有限層を取り除いた文書へそのまま適用する。core JSON自身と正本の変更は行わない。
+
+PO委任によるCodex主担当/root判断でこの最小是正を開始する。固定tuple/原典・実Git対向/旧検査保持を非作者に確認し、最終HEAD/必要な正式値/委任証拠を更新してCIへ再提出する。検査を緩めて既CIを成功へ読み替えない。224の画面成功は保存し、後発検査コードのみの差分を明記する。
