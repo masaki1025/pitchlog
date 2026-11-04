@@ -17,13 +17,13 @@ from pitchlog.api.schemas.recording_ack import RecordingAckResponse
 from pitchlog.api.tenant_access import TenantMatchedRoute, require_tenant_access
 from pitchlog.durable_rights_ledger.adapter import LedgerUnavailable
 from pitchlog.repositories.context import TenantContext
+from pitchlog.repositories.database_errors import DATABASE_ERRORS
 from pitchlog.repositories.initial_recording_right import (
     InitialGrantUnavailable,
     _credential_digest,
 )
 from pitchlog.repositories.ordinary_pitch_operations import OrdinaryPlayRowError
 from pitchlog.repositories.ordinary_prefix import OrdinaryPrefixError
-from pitchlog.repositories.transaction import DATABASE_ERRORS
 from pitchlog.sync.apply import (
     _apply_e1_f1,
     _E1OutOfScope,
