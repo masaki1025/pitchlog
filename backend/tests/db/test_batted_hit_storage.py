@@ -328,6 +328,46 @@ def _batted_script():
             assert replay_new_attempt.json()["eventResults"][0]["a5Result"] == "重複"
             previous_d5.append(d5)""",
     )
+    script = _replace_once(
+        script,
+        "        started = start.json()",
+        """        started = start.json()
+        from pitchlog.recording_rights.initial_grant_broker import (
+            _broker_generation,
+        )
+        internal_generation = _broker_generation(
+            started["d4"], UUID(case["tenant"]), UUID(game)
+        )""",
+    )
+    script = _replace_once(
+        script,
+        "        current = read.json()",
+        """        current = read.json()
+        assert current["prefix_ref"]["generation"] == started["d4"]""",
+    )
+    script = _replace_once(
+        script,
+        '            sf = current["after"]["stateFields"]',
+        """            assert current["prefix_ref"]["generation"] == started["d4"]
+            sf = current["after"]["stateFields"]""",
+    )
+    script = _replace_once(
+        script,
+        '        pages = first_page.json()["page"]["items"]',
+        """        assert first_page.json()["prefix_ref"]["generation"] == started["d4"]
+        pages = first_page.json()["page"]["items"]""",
+    )
+    script = _replace_once(
+        script,
+        '            pages += page.json()["page"]["items"]',
+        """            assert page.json()["prefix_ref"]["generation"] == started["d4"]
+            pages += page.json()["page"]["items"]""",
+    )
+    assert script.count('"game": game,') == 2
+    script = script.replace(
+        '"game": game,',
+        '"game": game, "internal_generation": internal_generation,',
+    )
     return script
 
 
@@ -441,8 +481,8 @@ def test_owned_four_hits_next_pitch_replay_atomicity_reload_and_foreign_rejectio
             assert admin.execute(
                 "SELECT confirmed_watermark,applied_prefix "
                 "FROM public.recording_generations "
-                "WHERE tenant_id=%s AND game_id=%s AND generation=1",
-                (db.tenant_id, UUID(result["game"])),
+                "WHERE tenant_id=%s AND game_id=%s AND generation=%s",
+                (db.tenant_id, UUID(result["game"]), result["internal_generation"]),
             ).fetchone() == (2, 2)
 
 
@@ -488,8 +528,8 @@ def test_owned_bad_vocabulary_and_fielding_membership_rollback_without_success(
             assert admin.execute(
                 "SELECT confirmed_watermark,applied_prefix "
                 "FROM public.recording_generations "
-                "WHERE tenant_id=%s AND game_id=%s AND generation=1",
-                (db.tenant_id, UUID(result["game"])),
+                "WHERE tenant_id=%s AND game_id=%s AND generation=%s",
+                (db.tenant_id, UUID(result["game"]), result["internal_generation"]),
             ).fetchone() == (0, 0)
             for d5 in result["d5s"]:
                 assert admin.execute(
