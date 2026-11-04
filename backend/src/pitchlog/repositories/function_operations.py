@@ -717,8 +717,12 @@ def _build_fixed_function_statement(
                         and name in ("internal_generation", "recovery_generation")
                     )
                     or (
-                        f"{schema}.{function_name}"
-                        in _SYNC_ORDINARY_PREFIX_FUNCTION_TYPES
+                        (
+                            f"{schema}.{function_name}"
+                            in _SYNC_ORDINARY_PREFIX_FUNCTION_TYPES
+                            or f"{schema}.{function_name}"
+                            in _SYNC_PLAY_PREFIX_FUNCTION_TYPES
+                        )
                         and name
                         in (
                             "generation",
