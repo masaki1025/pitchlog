@@ -1,5 +1,14 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 再開：2026-11-04 20:44 JST（別LLMの#190統合を照合、#191から継続）
+
+- **正式統合の実値**: GitHubで#189（head29c1e45e、merge fd1bb20a、11/3）・#195統合計画・#190（head22da3146、merge40ce2e312bc46435239f2a6d0ea0f1fb919a5de0、11/4 20:37JST）を確認。origin/developをfetchし40ceを照合。#190実CI41818653416と本文最終41822350870はsuccess。develop実CI41822464555は実行中（tenant等成功、全完走未了）。旧台帳冒頭の#189未push/tenant149残件は歴史記録で、現未成立へ戻さない。
+- **利用者の到達点**: 正式候補#190は初球から通常投球の連続保存/prefix再読込を提供する版。旧実画面3球/ACK喪失復旧の証拠は各計画/PRに参照。本再開後の正式developで実画面を再実証したわけではなく、次の接合時に同版のowned環境で確認する。全T1/1試合/MVP/実機・運用TLS受入は未成立。
+- **引受と固定点**: 主担当rootは#191 WT feature-mvp-terminal-pitches/HEAD19c1c125 cleanの計画・統合・正式値・検査/PR操作と本台帳の唯一writer。#191はDraft、baseは既merge190branchのまま。#192 WT HEAD9457099b/remote f38b7673のdirty39は保全、後発2fileのSHAは11/1保全値と一致/mtime10/31のまま。新編集証拠は無く、未完step4の再開内容をread-only別担当が確認。main/develop/worktree原状/stashは変更しない。
+- **直近の作業**: 承認済み#195 post-189-integration計画を再利用する。#191対40ceのmerge-tree実競合は旧31でなく13path、merge-base320f196b。developの修復済み共有型・安全検査・受理履歴を保持し、BB/HBP・次打者の増分だけunionし、公式helperで最後に全値を再導出する。新規全体計画/既承認再取得は作らない。#191閉じたら#192三振/攻守交代の実接続へ進む。
+- **並行/重複防止**: pr191_integration_audit=Git固定値/分類、pr192_resume_audit=dirty保全/未完単位、stats_csv_next_unit=成績/両CSVの現コードと着手可能単位、いずれもread-only（共有台帳rootのみ）。agmsgは本リポの登録が無く別project todoappの候補だけで、無関係teamへ加入/送信しない。担当間中継が必要なら本節を入口に追記する。環境は/tmp23%使用/SSD757GB空き、重検査はSSD一時領域・共有DSNをunsetしowned DB/portだけを使う。
+
+
 ## 続き：2026-11-02 14:40 JST（統合枝の既存赤 18→1件、残りはcoverage再凍結のみ）
 
 - **ORM sheet を全緑化（19件）**: `generate_orm_acceptance_sheets.py` の `_NUMBERED_SECTION_RE`/`_REFERENCE_RE` が小文字サブ節（`6-1-a`）を認識せず、writer-binding 3表が `recording_generations` に誤対応していたのを修正。`--carry-judgments-from HEAD` 後、未判定13行へ判定を記帳（N1 2＝§6見出し対象外/§6-1-a一致、N3 8＝変更履歴対象外/§6-1-a一致、N4 3＝削除ライフサイクル対象外）。判定はPO委任による主担当判断と明記し、根拠は `docs/design/data-model.md:6 / :10 / :1285 / :11-1` と manifest の実在に限定（架空REPORT SHAなし）。pin追随は `030→031`、行数 N1 104→105 / N3 113→121 / N4 59→62。`bc1cc4f1`
