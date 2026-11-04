@@ -145,3 +145,5 @@ historyContextは新entryを先頭に一つ追加し旧stackの全entry/順序�
 ### 三振の保存成立候補へ追随する（2026-11-05）
 
 公開ABI13pathは非作者8886e822…の全SHA/実host23,328交差/型・故障対向を根拠に11b3acd2へ保存した。正式D11/現在pin接合とstep3 source/T2は残る。重複配線を避けるためrootが三振候補97d39c5（実DB成功3caを含み、正式191/eb8履歴へ追随）を本枝へ取り込み、既v3の参加者/両cursor/責任/一回frame/保存境界を再利用する。三振の実画面sourceは別WTで実装中で、この追随には未commit GUIを含めない。source/既数学値が同じことを照合し、配布物は唯一builderで再確認、実行pinと既wire自己echoだけを正式規則からrootが後続追随する。候補の数学成功を打球保存/画面の成功にしない。
+
+D11の最小正式登録（2026-11-05、PO委任による主担当root判断）: root所有で新backend/domain/batted-hit-manifest.json・batted-hit-property-catalog.json・batted-hit-property-catalog.schema.json、contracts/state-transition/batted_hit_d11_vectors_v1.json、backend/tests/domainrt/test_batted_hit_d11.pyのexact5を作成する。計算ID batted-hit-empty-v1、唯一state.ts/battedHit.ts依存・公開deriveBattedHit・固定evaluate_batted_hit・実単一IIFEへ、先行採用16の全request/expectedを包絡する。既manifest schema/collectorと同じ実factory/direct比較traceを用い、期待を実装出力から作らない。現artifact07554…の新旧34+56応答と既互換40保持/新15組は別cacheで実証して同時に現在pin13へ追随する。mutation profileは必要対象を宣言し、未計測を成功にしない。新equivalenceの測定だけで全D11/BOOT/正式7.7/実保存を完成扱いしない。最終差分は別非作者へ渡す。
