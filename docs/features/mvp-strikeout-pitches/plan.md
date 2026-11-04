@@ -280,3 +280,8 @@ CI41908083319/PRbody41908083238の実失敗修復（2026-11-05、PO委任Codex /
 
 
 CI残差の参照連鎖・合成fixture追随（2026-11-05、PO委任Codex /root判断）: contracts/authz/failure-injection-points.jsonのsource_asset.git_blob_digest、mcdc-map.jsonのsources.claim_mutant_map.blob_digestだけを公式git_blob_digestで再導出し、対象源本文・既全injection/decision/caseを保持する。新認可や故障判定の変更ではなく採用済み資産更新に伴う参照整合。rootが完全前後とdiffを保存し別非作者確認を受ける。tests/test_product_authz_tenant_boundary_allowlist.pyの合成repoは旧191だけのshallow objectから現192固定原典を照合できないため、既他試験と同じ実Git objectのread-only alternates・名前付き期待原典を親にする。正例fixture欠落の実拒否/現検査器/固定fixture全byte/祖先確認を維持し、例外握り潰し・検査器変更・skip・未知許可はしない。上記exact3以外は本追補で編集しない。最終正式7.7/公開proofは全修復固定後に一括更新する。
+
+
+三振追加の検査対象追随/不正wire復元（2026-11-05、PO委任Codex /root判断）: cache pr192-harness-repair-20261105 の非作者検証対象exact4（gap_register_v1.json/state_transition_manual_fixtures_v1.json/tests/test_gap_register.py/tests/test_state_transition_normalization.py）に限り、旧79row/134case全値保持と追加16row/24caseの公式逆参照を追記する。GAP08所有row5→21/selector12→36、normalization406とidentity69を新旧集合分離で検証し、未承認manual bootstrapの公式射影3値だけを同期する。意味期待/既負対向/承認状態を緩めず、別非作者確認後rootが適用する。
+
+backend/tests/fixtures/first_ball_payload_vectors_v1.jsonのduplicate-v7-key一例はpin追随時の再serialiseにより重複が消えたことを確認（現重複0、正式eb8はformatVersion重複1、parsed前後差はartifactSha256のみ/v8全byte不変）。同fixture exact1で真正eb8のraw v7Jsonを取得し、artifact SHA文字列だけ現pinへ置換して不正wireを復元する。102caseの期待を変えず、duplicate自身の閉拒否・既codec全caseを検査する。入力を正規化して不正性を消さず、拒否期待削除/codec寛容化をしない。完全前後・重複検出・独立確認を保存しR4前の一括修復へ含める。
