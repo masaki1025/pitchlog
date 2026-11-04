@@ -333,3 +333,9 @@ source登録の消滅site追随: 正式190で旧StartedRecordedPrefixGameReadの
 
 
 v2 source登録のcensus説明追随（同日）: 非作者6c1dee55…がexact5の旧所有/拒否/不変原典/51効果を独立確認した。sourceの局所採用とcensus成立は別に扱う。残るtests/test_census_baseline_check.py・tests/fixtures/tenant_boundary/census-scoped-digests.json・contracts/tenant_boundary/census-baseline.jsonのexact3を担当pr192_resume_auditへ移管、他source/正式値/refsは編集しない。新枠を外す反実scanとの差分は固定693原典・独立fixture全51tupleへ突合し、C2所有判定は48siteだけ、C3 before-copy1/C5 liveness・封印frame2はそれぞれ閉じた意味/実効果として説明する。全codeを単にallowedへ加えず、別owner/追加site/意味改変/source+declSHA改変は拒否する。旧pass/fail・全負対向・歴史期待を保持、必要な新説明/field inventory/digestの実前後を独立再計算して明示する。削除obsolete2は許可縮小として事実を保ち、rootが最後に全9資産/全参照の単一191受理へ導出する。新source枠の存在だけでcensusを成功にしない。
+
+### 2026-11-04 最終CLIで検出した旧SQL比較pinの正式登録
+
+`check_frozen_baselines.py --ci`の同版PR previewで、既`backend/tests/test_terminal_pitch_write_stamp.py`の「CASE括弧追加前SQLの全byte比較」固定SHAが未登録として拒否された。値・比較対象・対向を変更せず、`contracts/tenant_boundary/frozen-inputs.json`の名前付き固定入力へ移し、同試験から直接読んで64桁型検査後に従来と同じ全byte SHA比較を行う。固定入力の外部対象にも同試験を登録し、受理履歴でconsumer差分を追跡する。Python文字列の分割/検出除外/allowlist増設/期待値の再計算で回避しない。
+
+これは既ステップ5の凍結入力正式化と生成値追随に含む最小是正。PO委任によるCodex主担当/root判断で開始し、最終HEADの非作者差分確認・単一#191受理の再導出・必須CLI/CIを維持する。8712866dで成立した同版画面3件を保存し、後発は試験/正式登録/派生物のみで製品計算を変えない。既レビュー回数・暫定bootstrap/未実施事項を維持する。
