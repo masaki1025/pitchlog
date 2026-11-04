@@ -57,3 +57,85 @@ T2は真正before/after/有効得点と本塁打事実を既終了規範へ渡�
 手例は4結果×両half×打順境界1/9を中心に全応答を独立に固定。O0..2/S0..2/B0..3/両half/active9/inactive9/4結果の23,328交差、2^53超の得点/inning/hits、counterfactualな在塁・観測欠落/矛盾・未知ID・cursor/board不整合を確認する。期待を実装出力から生成しない。正式契約の無走者single/double/triple各代表とHRのRBI-06規範を根拠にし、既正式HR代表が満塁であることを無走者手例の正式登録済みと偽らない。追加契約/正式値は次段rootの採否で追随する。
 
 frontend Vitestと型/lint、既計算全回帰を範囲相応に実行し、packetへ候補全SHA/差分/旧結果保持/未検証を固定。両共有DSNはunset、SSDtmpだけを使う。DBは事前時間調整した自己所有PGだけ。元署名/期待値の緩和/仮成功/無制限許可なし。本人署名/P6blind/全NFR完成を主張しない。基点の未統合#191/#192候補との正式接合はrootが保持する。
+
+## ステップ2の閉ABI・唯一artifact・型caller追補候補（2026-11-05）
+
+ステップ1 cdcc7ec3は非作者REPORT1d2c154500a0a6c3939c5a0793b2f101f4a9f31d8b42f2b54157cd3db75c4e96の独立72/23,328交差・正式23flags・重複0確認を根拠にrootがPO委任採用。次の追補は**PO委任による主担当/root採用済み**（2026-11-05、対象SHA03032d44…）。新全体計画/数学の作り直しを行わず、既新module/state核を公開境界へ接続する。基点由来38failのSourcePosition/実行pin修復はrootの別#192成果であり、この単位へ混ぜない。
+
+### exactpath・所有
+
+実装候補exact7（作者はroot採否後に担当）:
+
+1. frontend/src/domain/publicApi.ts — 新deriveBattedHit操作。既evaluatePitchの閉before/history/codec/derivedJsonを再利用する有限variant。旧入口のkey/型/成功/拒否は不変。
+2. frontend/src/domain/publicApi.spec.ts — 旧11操作の順序/全値を保ち、新1操作だけを登録するexact-set追随。
+3. frontend/src/domain/battedHitAbi.spec.ts（新）— 独立契約全応答をsource/Node VM/ブラウザ同一artifactへ渡す比較、旧ABI不変、型/重複/閉拒否。
+4. frontend/public/domain/pitchlog-domain.js — 既build.mjsが生成する唯一IIFE。手編集/別打球artifact禁止。
+5. frontend/public/domain/pitchlog-domain.json — 同builder生成の唯一artifact宣言、実byte/SHA/再現一致。
+6. backend/src/pitchlog/domainrt/batted_hit.py（新）— 不変Pydantic DTO・厳密decode・evaluate_batted_hit。既open_domain_hostの固定製品pathとhost.call('deriveBattedHit', JSON)を一回だけ使用する。別計算/expected lookup/任意artifact path/API設定を公開しない。
+7. backend/tests/domainrt/test_batted_hit.py（新）— 正式候補の全応答/交差/型/読取専用/実host到達・一回call・未知/壊れた応答拒否。実成功を固定戻り値に差し替えない。
+
+閉操作契約候補exact3は**rootが直列採否・正式ゲート/編集所有を決める**:
+
+- contracts/state-transition/batted_hit_v1.d.ts
+- contracts/state-transition/batted_hit_schema_v1.json
+- contracts/state-transition/batted_hit_cases_v1.json
+
+この3契約は現実装/実host/生成artifact出力から期待を採取して作らない。要件E-1/E-2・RBI-06と既schema/型の十進数/履歴表現を再利用し、独立16手例の全expectedと負例を先に固定する。d.ts/schemaは閉キー・必須/optional・unknown拒否の同じ形を持たせる。必要な7.7受理・既state_transition_contract/descriptor/branch-map/required-setの正式登録はrootが基準/手順を確認して所有する。新3fileを置いただけで正式発効/全NFR成立とはしない。
+
+既state.ts/battedHit.ts/battedHit.spec.ts、host.py、既contract/schema、builder/checkerをこの候補では変更しない。追加が不可分なら先に根拠/exactpathをrootへ返す。
+
+### 要求JSONと応答JSON
+
+新操作名は `PitchlogDomain.deriveBattedHit(requestJson: string): string`。数学入力はstep1のものだけ。全整数は正準十進**文字列**、JS Number/浮動小数/指数/先頭0/+符号/-0を受理しない。既parseDecimalInteger/formatDecimalInteger・readState/readBoard/orderJson/derivedJson/validateHistoryEntryを共有する。
+
+要求のトップキーは次の9個だけで、全必須:
+
+```json
+{
+  "eventKind": "batting-result",
+  "resultId": "batting-result.single",
+  "pitchEventKind": "pitch-event",
+  "officialScoringPayload": "no-error",
+  "interferenceRuling": "not-required",
+  "runnerAdvanceOverrides": "not-applied",
+  "thirdOutObservation": "none",
+  "before": {
+    "stateFields": {
+      "state.half": "top", "state.count.strikes": "2", "state.count.balls": "3",
+      "state.outs": "2", "state.runners": "empty", "state.battingOrder": "9",
+      "state.tiebreakActive": false, "state.gameEnded": false, "state.inning": "7",
+      "state.score": {"home": "3", "away": "5"}
+    },
+    "scoreboard": {
+      "inningScores": {"home": "3", "away": "5"}, "hits": "12", "errors": "2",
+      "strikeouts": "4", "walks": "3"
+    },
+    "battingOrderBySide": {"away": "9", "home": "6"}
+  },
+  "history": {"stack": []}
+}
+```
+
+4観測タグはstep1の**確定済み有限観測**の写しで、完全なFR-004公式記録payloadや保存sourceを代替する型ではない。producerが事実を確認しないままno-error等を補完してはならない。完全payload/原本との照合はstep3が所有し、任意タグを送れば保存できるAPIをこの段階で増やさない。
+
+resultIdだけ4安打へ閉じ、before/historyは旧codecの表現を保持。stackは必須・有限配列、過去entryは既差分外形を全field検査し、後方tailを全値保持。両cursorは必須でactiveとbeforeの一致を唯一核で検査する。DTOが数学を再計算せず型/形だけを保証し、型の正しい範囲外は実artifactの非成功へ渡す。
+
+成功は `{"ok":true,"value":{...}}`、valueのexact8キーはcountEffect/plateAppearanceEnded/batterDestination/runnerDefaultAdvance/outEffect/statFlags/after/historyContextとする。countEffectは両方`{"kind":"reset"}`でvalue数値を残さない。打者destinationはreach/base"1".."3"またはscore（baseなし）。runnerDefaultAdvance3塁はnot-applicable/null、outEffectはcount"0"/targets[]、flagsは全23boolean、afterはstateFields/scoreboard/battingOrderBySideのexact3。afterでcount0・active cursorだけ次打順、HRはbefore攻撃側得点+1、hits+1を返す。
+
+historyContextは新entryを先頭に一つ追加し旧stackの全entry/順序を保持する。entryは既`{kind:"confirmed-play",difference}`を使い、differenceはstateFields/scoreboard/statFlagsと任意のbattingOrderBySideを持つ。変化した値だけbefore/afterを記載し、変化しないcount/cursorをnullや同値pairで補完しない。HR得点・hits・塁・打順・countを既derivedJsonの比較で出力し、APIで差分を別再計算しない。数値RBI/塁打やT2/保存/成功ACKを新fieldとして足さない。
+
+失敗は既exact `{"ok":false,"error":{"code":...}}` の4語彙だけ。壊れたJSON/重複key=INVALID_JSON、必須/未知key/構造/Number/boolean不正=INVALID_REQUEST、非正準/負の整数文字列=INVALID_DECIMAL_INTEGER、型の正しい在塁/TB/終了/観測矛盾/結果範囲外/cursor不一致=UNSUPPORTED_T1_SCOPE。既入口の分類を動かさず新variantだけへ適用する。
+
+### 独立比較・実host・旧保持
+
+契約16全expectedを先に固定してから実装し、source/Node VM/ブラウザartifact/固定Python hostの全応答を比較する。O/S/B/両half/独立cursorの23,328交差は既手例の規範効果・独立NEXT表から展開し、生成物をoracleにしない。huge integers・空/非空history・入力不変・閉拒否を比較。型decoderは余剰/欠落/重複/非有限/型変換/省略差分→null補完を拒否する。応答4結果のshape/6または11true/after runner/count/out型を完全に検査し、壊れた応答を成功へしない。
+
+実評価はopen_domain_hostを使う正常ケースでactual artifactへ到達し要求operation/JSONとcall回数1を確認する。故障注入はその実callへ先に委譲した後で応答を試験内だけ改変する。製品hostには例外逃がし・固定成功・二重計算を入れない。旧ordinary/BB/HBP/Kと旧host/runtime対向を同artifactで再実行し、root別修復中の38caseは基点既失敗として対応集合を保存する。builderの同source再buildでartifact全byte/SHA一致を検査する。新公開口だけを除いた旧operation集合・順序を完全保持する。
+
+### root専有D-11/sharedmanifestへの要求（作者編集なし）
+
+新計算ID候補`batted-hit-empty-v1`を、唯一source（state.ts共通核+battedHit.tsの静的依存）・単一IIFE・公開deriveBattedHit・Python固定caller・root採用契約の全期待へ束縛する。新backend/domain/batted-hit-manifest.jsonとproperty-catalog/schemaが必要ならroot所有で作成/採否し、既manifest/check-sets/required-cases・入力descriptor/branch-map・core/tenant/frozen登録への影響はrootが有限scopeに閉じる。元全計算・旧契約ID/期待/署名/履歴を保持する。public-source、artifact、Python呼出し、正負vectors、差分検出、未知caller/任意artifact拒否の各役割をD-11の該当層へ登録する。step2局所比較をD-11/7.7全体成立に読み替えない。
+
+### ステップ2の編集指示（2026-11-05）
+
+主担当rootが追補SHA03032d44af9282a9c010712bd203fbc1d6a4845cbfeb01499013edf8b83d5359をstep1非作者確認済みの数学/16手例・既codecへ照合し、要求exact9/応答exact8/4拒否の閉ABIをPO委任採用する。作者pr192_resume_auditへ専用WT内exact7の編集を許可。新閉契約3fileは作者がcache候補を先に固定しrootへ渡し、rootが直列照合・適用する。既正式契約/旧期待/descriptor/共有manifestは作者編集不可。候補契約の規範からの全値を先に固定してから公開ABIを書き、実出力採取で期待を埋めない。API/source/実hostを結んだ後、コードと閉契約一単位の非作者レビューで採否する。新タグを保存APIの認可/原本証明として流用しない。正式D11/7.7・保存・画面は後続。
