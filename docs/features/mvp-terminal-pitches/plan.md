@@ -357,3 +357,9 @@ harness shardのcoreguard同根失敗に加え、`tests/test_product_authz_tenan
 backend shard1の12失敗は、新規2公開moduleの未追記、PLAY_PREFIX_TRIGGERS読取fixture欠落で既security対向がsetup例外になること、probe診断1件とRG1周辺の有限登録集合追随に分類された。`backend/tests/{test_authz_app_layer_surface,test_product_authz_catalog,test_product_authz_probe_product_map,test_rg1_operations}.py`のexact4だけを実物/正本/正式manifestから追随し、旧反例・故障・owner/ACL拒否・既expectedを保持する。新queryの正例は独立に固定し、実装結果から期待を生成しない。regexは実診断のどの保証を検査するか確認し、無関係な例外を合格にしない。all集合化/skip/any例外受理/製品認可変更で通さない。
 
 本追随も既ステップ5・PO委任によるCodex主担当/root判断。非作者確認後、同じ全件CI入力に対する全失敗を回収した固定版をまとめて再提出する。
+
+### 2026-11-04 全CIの残差を根因別に閉じる範囲
+
+read-only全失敗台帳8c09c325…は660nodeを重複根因へ分解した。旧sourceの検査条件を保ち、未登録の現操作を有限追加する試験追随は、追加backend9ファイル（writer reapply/製品table ACL/model ports/product supply/first-ball登録/writer binding/capability登録/control access/provisioning）へ限定する。stagingの子検査は本来のcontrol access是正を通して確認し、試験自体を弱めない。実画面の旧記録復元1件は主担当が同版owned環境で再現して原因を確認するまで期待変更しない。
+
+harnessは、合成Gitの原典実object/祖先保持を既正例だけでなく共通fixture/凍結archive runnerへ同じ実証条件で伝播し、checkerの祖先拒否を弱めない。原典固定selector/集計件数・T2/MC/DC/failure注入の連鎖は実前後値と公式導出から追随する。人間署名/既封印は変更・代記せず、現在追加を歴史署名へ含めない。新たな鍵発行・本人署名・skip・反例削除・許可集合の無制限化は不可。必要な追加pathは担当前に固定し、正式資産/全再導出はrootが直列で管理する。
