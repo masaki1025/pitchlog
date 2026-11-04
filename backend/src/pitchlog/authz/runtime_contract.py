@@ -3,11 +3,11 @@
 from dataclasses import dataclass
 
 SCHEMA_VERSION = 1
-RUNTIME_CONTRACT_REVISION = 29
+RUNTIME_CONTRACT_REVISION = 30
 PROVISIONAL = False
 SUPERSEDED_BY = None
 SOURCE_ASSET = "contracts/tenant_boundary/runtime-authz-contract.json"
-SOURCE_DIGEST = "2b136e66fe821bdaa0359a8676b3f8abefee936191a38d1fc1332696f6380d95"
+SOURCE_DIGEST = "14982229483fe64eaf91d7d9e240ac9a0455eedf7d6d9106a64d34d2f113a11c"
 DERIVED_FROM = "contracts/authz/product/ddl-elements.json"
 
 
@@ -209,6 +209,7 @@ PROTECTED_FUNCTIONS = (
     ("sync_fence_api", "publish_writer_binding", "uuid, uuid, uuid, jsonb, bytea"),
     ("sync_fence_api", "read_writer_database_identity", "uuid"),
     ("sync_fence_api", "read_writer_identity", "uuid"),
+    ("sync_right_api", "assert_play_prefix_projection", "jsonb"),
     ("sync_right_api", "bind_device", "uuid, uuid, uuid, bytea, uuid, uuid, bytea"),
     (
         "sync_right_api",
@@ -226,8 +227,10 @@ PROTECTED_FUNCTIONS = (
         "uuid, uuid, uuid, bytea, uuid, uuid, bigint, bigint, bytea",
     ),
     ("sync_right_api", "consume_ordinary_projection", "jsonb"),
+    ("sync_right_api", "finish_play_prefix_projection", ""),
     ("sync_right_api", "guard_first_ball_projection_admission", ""),
     ("sync_right_api", "guard_first_ball_projection_lock", ""),
+    ("sync_right_api", "guard_play_prefix_runner_insert", ""),
     (
         "sync_right_api",
         "lock_ordinary_checkpoint",
@@ -235,7 +238,17 @@ PROTECTED_FUNCTIONS = (
     ),
     (
         "sync_right_api",
+        "lock_play_prefix_checkpoint",
+        "uuid, uuid, uuid, bytea, uuid, uuid, bigint",
+    ),
+    (
+        "sync_right_api",
         "prepare_ordinary_projection",
+        "uuid, uuid, uuid, bytea, uuid, uuid, text",
+    ),
+    (
+        "sync_right_api",
+        "prepare_play_prefix_projection",
         "uuid, uuid, uuid, bytea, uuid, uuid, text",
     ),
     ("sync_right_api", "read_device_state", "uuid, uuid"),
@@ -244,11 +257,20 @@ PROTECTED_FUNCTIONS = (
         "sync_right_api",
         "read_ordinary_history_page",
         (
-            "uuid, uuid, bigint, bigint, uuid, bigint, bigint, bigint, bigint, uuid, "
-            "integer"
+            "uuid, uuid, bigint, bigint, uuid, bigint, bigint, bigint, bigint, uuid, in"
+            "teger"
         ),
     ),
     ("sync_right_api", "read_ordinary_order_summary", "uuid, uuid"),
+    ("sync_right_api", "read_play_prefix_checkpoint", "uuid, uuid, bigint"),
+    (
+        "sync_right_api",
+        "read_play_prefix_history_page",
+        (
+            "uuid, uuid, bigint, bigint, uuid, bigint, bigint, bigint, bigint, bigint, "
+            "uuid, integer"
+        ),
+    ),
 )
 
 DANGEROUS_ENDPOINT_FIXTURES = (
