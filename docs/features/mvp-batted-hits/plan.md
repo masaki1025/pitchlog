@@ -203,3 +203,10 @@ cache step5-scope-proposal.json c9f7a6ef…を基に、作者batted_prefix_conne
 ### ステップ5実語彙readの担当分離（2026-11-05、PO委任Codex /root判断）
 
 FE14と分離しstats_csv_next_unitへ新exact4: backend/src/pitchlog/api/schemas/batted_ball_options.py、同routers/batted_ball_options.py、repositories/batted_ball_options.py、backend/tests/test_batted_ball_options.pyを許可。前節endpoint/閉Page/実認証C2/tenant scope/keysetを満たす実callerを実装する。既SQLが受理するglobal admin_vocabulariesのcategory=batted_ball・disabled=falseだけの固定function readを候補にし、tokenはCAP:recording_vocabularies:read、関数はrecording_vocab_api.read_batted_ball_options。外部category/tenant/任意SQL/固定選択肢を受けず、上限101・正準cursor・key順/表示名・未知/改竄・越境を閉検証する。SECURITY DEFINERのsession_user/current_user・app.tenant_id一致/最小column ACL/EXECUTE・SQLbodyと共有app/registry/正式producerへの登録差分はcacheだけへ候補提示しrootが別途直列採否・反映する。作者は上記4だけを編集し、FE14/正式資産/共有code/台帳/refs/DBを変更しない。独立確認と正式登録前の純成功を製品read提供済みへ拡張しない。
+
+
+### root共有登録/索引の最小接合（2026-11-05、PO委任Codex /root判断）
+
+語彙readは非作者8b7f1019…によりauthor4/shared候補採用可、生成repository_contract.py手編集は除外し正式JSONから公式再導出する。root共有writerはapi/app.py・tenant_access.py、repositories/function_operations.py・operation_registry.py、authz/first_ball_product.py・新recording_vocabulary_product.pyと新tests/test_recording_vocabulary_product.py。既role/schema/fn再適用規約へ新role collision guard/schema所有者guard/function owner+ACLをcanonical producerに補い、public USAGEを既全文保持で派生する。stable readのメタデータを旧一律volatileと誤照合しないよう、正式volatility宣言からs/v/iを導出し旧全行不変を検査する。正式assets/生成moduleは公式publisher/deriveのみ、通常push前に後発差分も独立確認する。
+
+実keyset queryのC比較順を支える非一意partial indexだけを、既db/tenant_isolation/models.py・新migrations/versions/0040_batted_vocabulary_index.py・contracts/db/schema-manifest.jsonに追加する。category=batted_ball/disabled=false・key COLLATE C、既列/PK/FK/role/RLSは不変。既design11-3の「実クエリに基づく索引」の実装で新意味仕様なし。実PGで索引/EXPLAINを別途検証し、sharedDBへ適用しない。develop0039の次は本0040を使い、別stats枝の未公開/隔離のみ0040_stats_fact_versionsは本0040採用後の正常基線追随で0041へ再採番しdown_revisionを直列接合する。旧stats隔離PG成功を新採番の適用成功へ読み替えず、30候補のうち変更したmigration境界だけを改めて照合する。
