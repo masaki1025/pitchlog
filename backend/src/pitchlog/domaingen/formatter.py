@@ -787,3 +787,66 @@ __all__ = [
     "generate_display_artifacts",
     "verify_generated_provenance",
 ]
+
+
+def integer_target(language: str, source_hash: str) -> str:
+    """scale=0の任意精度非負整数codec/formatterを生成する。"""
+    header = (
+        f"# generated={source_hash}\n"
+        if language == "python"
+        else f"// generated={source_hash}\n"
+    )
+    if language == "python":
+        return (
+            header
+            + '''import re
+
+
+def parse_count(value):
+    """globalの整数桁上限を変えず、正準整数を有限chunkで読む。"""
+    if type(value) is int and value >= 0:
+        return value
+    if type(value) is not str or re.fullmatch(r"0|[1-9][0-9]*", value) is None:
+        raise ValueError("正準非負整数が必要です")
+    number = 0
+    for offset in range(0, len(value), 9):
+        chunk = value[offset:offset + 9]
+        number = number * (10 ** len(chunk)) + int(chunk)
+    return number
+
+
+def format_count(value):
+    """任意精度整数を表示し、NULLを0へ変換しない。"""
+    if value is None:
+        return None
+    if type(value) is str and re.fullmatch(r"0|[1-9][0-9]*", value):
+        return value
+    if type(value) is not int or value < 0:
+        raise ValueError("正準非負整数が必要です")
+    if value == 0:
+        return "0"
+    groups = []
+    while value:
+        value, remainder = divmod(value, 1000000000)
+        groups.append(str(remainder))
+    return groups[-1] + "".join(group.zfill(9) for group in reversed(groups[:-1]))
+'''
+        )
+    if language == "typescript":
+        return (
+            header
+            + """export function parseCount(value: unknown): bigint {
+  if (typeof value === "bigint" && value >= 0n) return value;
+  if (typeof value === "number" && Number.isSafeInteger(value) && value >= 0) return BigInt(value);
+  if (typeof value === "string" && /^(0|[1-9][0-9]*)$/.test(value)) return BigInt(value);
+  throw new Error("正準非負整数が必要です");
+}
+export function formatCount(value: unknown): string | null {
+  if (value === null) return null;
+  if (typeof value === "bigint" && value >= 0n) return value.toString();
+  if (typeof value === "string" && /^(0|[1-9][0-9]*)$/.test(value)) return value;
+  throw new Error("正準非負整数が必要です");
+}
+"""  # noqa: E501 — 生成targetのliteral
+        )
+    raise FormatterGenerationError("未知の整数target言語")

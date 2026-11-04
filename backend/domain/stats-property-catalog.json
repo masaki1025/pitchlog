@@ -1,0 +1,165 @@
+{
+  "schemaVersion": 1,
+  "status": "candidate-property-test-plan",
+  "expectationsAreGeneratorInputs": false,
+  "properties": [
+    {
+      "id": "stats.integer-exact",
+      "scope": "alpha-and-typed-receiver",
+      "invariant": "canonical integers/BigInt; no bool/float/unsafe Number; known0 distinct from null",
+      "caseIds": [
+        "t6-exact-bigint-no-reopened-or-old-version",
+        "t6-partial-canonical-fact-not-zero"
+      ]
+    },
+    {
+      "id": "stats.source-boundary",
+      "scope": "fixture-resolver-only",
+      "invariant": "closed schema and external bound source differ; caller UUID/hash is not permission",
+      "caseIds": [
+        "confirmed-before-apply",
+        "wrong-source-tenant",
+        "wrong-source-game",
+        "unresolved-receipt",
+        "wrong-slot-version",
+        "wrong-artifact",
+        "wrong-model",
+        "wrong-checkpoint",
+        "wrong-ledger",
+        "retry-duplicate-source",
+        "false-flag-is-not-null",
+        "missing-one-of-23-flags",
+        "extra-24th-flag",
+        "nonpitch-flag-contradiction",
+        "t6-model-mismatch-reject",
+        "t6-duplicate-effective-fact-reject",
+        "reject-original-walk-from-b0",
+        "reject-original-steal-absent-runner",
+        "reject-invalid-run-rbi09-original",
+        "reject-invalid-run-rbi-credited",
+        "reject-valid-run-missing-rbi-branch"
+      ]
+    },
+    {
+      "id": "stats.outs-k-independent",
+      "scope": "alpha",
+      "invariant": "K/out quantities separate; no after-before out reset subtraction",
+      "caseIds": [
+        "dropped-third-strike-reach",
+        "dropped-third-strike-thrown-out",
+        "strikeout-double-play",
+        "third-out-reset-preserves-one-out"
+      ]
+    },
+    {
+      "id": "stats.runner-quantity-credit",
+      "scope": "alpha",
+      "invariant": "finite scoring/RBI quantities; responsibility by verified participant, invalid outside RBI domain",
+      "caseIds": [
+        "home-run-3-effective-runs",
+        "multiple-runs-mixed-rbi-responsibility",
+        "inherited-ball-dominant-walk"
+      ]
+    },
+    {
+      "id": "stats.pa-once",
+      "scope": "alpha",
+      "invariant": "one completed PA, pitches do not recount PA; PA record and metric share declarations",
+      "caseIds": [
+        "pa-completed-once-after-incomplete-pitch",
+        "incomplete-pa-one-pitch"
+      ]
+    },
+    {
+      "id": "stats.window-after-selection",
+      "scope": "sql-shape-db-execution-pending",
+      "invariant": "canonical stored T5 fact amounts; WHERE then GROUP BY/window; keyset outside window",
+      "caseIds": [
+        "two-generations-retain-effective-pitches",
+        "correction-replaces-old-contribution"
+      ]
+    },
+    {
+      "id": "stats.model-ref-single",
+      "scope": "generation",
+      "invariant": "consumer only ID/hash/type refs; unknown/cycle/hash/type fail closed; expectations not generation input",
+      "caseIds": []
+    },
+    {
+      "id": "stats.metric-quantity-mutations",
+      "scope": "independent-expected-comparison",
+      "invariant": "each of26 quantity+1 non-equivalent mutations killed by fixed normative positive witness; not a claim all possible mutations were covered",
+      "caseIds": [
+        "empty-confirmed-set",
+        "incomplete-pa-one-pitch",
+        "completed-single",
+        "completed-double",
+        "completed-triple",
+        "home-run-1-effective-runs",
+        "home-run-3-effective-runs",
+        "walk",
+        "intentional-walk",
+        "hit-by-pitch",
+        "strikeout-out",
+        "dropped-third-strike-reach",
+        "dropped-third-strike-thrown-out",
+        "strikeout-double-play",
+        "third-out-reset-preserves-one-out",
+        "sacrifice-bunt",
+        "sacrifice-fly",
+        "catcher-interference",
+        "runner-interference",
+        "inherited-ball-dominant-walk",
+        "multiple-runs-mixed-rbi-responsibility",
+        "nonpitch-steal-incomplete-pa",
+        "missing-run-quantities-not-boolean-one",
+        "correction-replaces-old-contribution",
+        "cancelled-play-excluded",
+        "two-generations-retain-effective-pitches",
+        "device-before-apply-is-provisional",
+        "t6-exact-bigint-no-reopened-or-old-version",
+        "fielder-error-not-a-hit",
+        "k3-strikeout-counts-once",
+        "missing-outs-not-after-minus-before",
+        "pa-completed-once-after-incomplete-pitch",
+        "t6-year-and-raw-type-filters-before-grouping",
+        "t6-partial-canonical-fact-not-zero"
+      ]
+    }
+  ],
+  "metricIds": [
+    "pitch_count",
+    "pa",
+    "ab",
+    "h",
+    "hr",
+    "bb",
+    "hbp",
+    "k",
+    "sh",
+    "sf",
+    "catcher_interference_reached",
+    "runner_interference_reached",
+    "doubles",
+    "triples",
+    "total_bases",
+    "runs",
+    "rbi",
+    "stolen_bases",
+    "pitching_outs",
+    "pitcher_k",
+    "pitcher_bb",
+    "pitcher_hbp",
+    "hits_allowed",
+    "home_runs_allowed",
+    "fielding_errors",
+    "runs_allowed"
+  ],
+  "unestablished": [
+    "real DB SQL execution/EXPLAIN",
+    "real provider/receipt/RLS binding",
+    "full native variant adequacy",
+    "shared registry/CI registration",
+    "release/step1 full acceptance"
+  ]
+}

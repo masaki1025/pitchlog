@@ -11,7 +11,7 @@ import sys
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import NoReturn, cast
+from typing import Any, NoReturn, cast
 
 GENERATOR_VERSION = "1.0.0"
 EXIT_GENERATED = 0
@@ -273,14 +273,18 @@ def _validate_instance(
     branches = schema.get("oneOf")
     if isinstance(branches, list):
         matches = 0
+        failures: list[str] = []
         for branch in branches:
             try:
                 _validate_instance(value, branch, current_name, schemas, path)
-            except GenerationError:
+            except GenerationError as error:
+                failures.append(str(error))
                 continue
             matches += 1
         if matches != 1:
-            raise GenerationError(f"{path}の oneOf 適合数が {matches} である")
+            raise GenerationError(
+                f"{path}の oneOf 適合数が {matches} である: " + "; ".join(failures)
+            )
         return
 
     if "const" in schema and value != schema["const"]:
@@ -770,6 +774,219 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(f"生成失敗: {error}", file=sys.stderr)
         return EXIT_GENERATION_FAILED
     return EXIT_GENERATED
+
+
+def typed_expression(
+    node: Mapping[str, Any],
+    language: str,
+    fields: Mapping[str, Any],
+    items: Mapping[str, Any] | None = None,
+) -> str:
+    """検査済み閉式を直接実行式へ下げ、runtime interpreterを作らない。"""
+    js = language == "typescript"
+    op = node["op"]
+    if op == "literal":
+        value = node["value"]
+        if type(value) is int:
+            return f"{value}n" if js else str(value)
+        return json.dumps(value, ensure_ascii=False) if js else repr(value)
+    if op == "ref":
+        path = str(node["path"])
+        owner = "item" if path.startswith("item.") else "event"
+        key = path.removeprefix("item.") if owner == "item" else path
+        value = f"_p({owner}, {json.dumps(key, ensure_ascii=False)})"
+        descriptor = (items or {})[key] if owner == "item" else fields[key]
+        return f"_n({value})" if descriptor["type"] == "integer" else value
+    if op in {"and", "or", "add"}:
+        token = {
+            "and": " && " if js else " and ",
+            "or": " || " if js else " or ",
+            "add": " + ",
+        }[str(op)]
+        return (
+            "("
+            + token.join(
+                typed_expression(n, language, fields, items) for n in node["args"]
+            )
+            + ")"
+        )
+    if op in {"eq", "ne"}:
+        token = (
+            (" === " if op == "eq" else " !== ")
+            if js
+            else (" == " if op == "eq" else " != ")
+        )
+        return (
+            "("
+            + typed_expression(node["left"], language, fields, items)
+            + token
+            + typed_expression(node["right"], language, fields, items)
+            + ")"
+        )
+    if op == "lookup":
+        value = typed_expression(node["value"], language, fields, items)
+        pairs = [(str(k), v) for k, v in node["cases"].items()]
+        if js:
+            literal = (
+                "{"
+                + ",".join(json.dumps(k) + ":" + str(v) + "n" for k, v in pairs)
+                + "}"
+            )
+            return f"_lookup({literal}, {value})"
+        return f"{dict(pairs)!r}[{value}]"
+    raise GenerationError("未対応のtyped式")
+
+
+def generate_primitive_bundle(
+    common_model: Mapping[str, Any], consumer_model: Mapping[str, Any]
+) -> dict[str, str]:
+    """D-1共通式とhash付き参照だけから実行可能な三言語targetを生成する。
+
+    Args:
+        common_model: 唯一の人手式を持つ共通model。
+        consumer_model: 同じprimitive ID/type/hashだけを参照するstats model。
+
+    Returns:
+        固定された生成先と生成内容。
+
+    Raises:
+        GenerationError: 未知/型違い/循環参照や宣言違反がある場合。
+    """
+    from pitchlog.domaingen.backends import python as py_backend
+    from pitchlog.domaingen.backends import sql as sql_backend
+    from pitchlog.domaingen.backends import typescript as ts_backend
+    from pitchlog.domaingen.formatter import integer_target
+    from pitchlog.domaingen.pregen_checks import validate_typed_program
+
+    try:
+        from jsonschema import Draft202012Validator
+        from jsonschema.exceptions import ValidationError
+
+        schema_path = Path(__file__).resolve().parents[3] / "domain/model.schema.json"
+        validator = Draft202012Validator(json.loads(schema_path.read_text()))
+        for document in (common_model, consumer_model):
+            try:
+                validator.validate(document)
+            except ValidationError as error:
+                raise ValueError("typed modelのschema違反") from error
+        for model in (common_model, consumer_model):
+            if set(model) != {"schemaVersion", "calculations", "displayRules"}:
+                raise ValueError("modelの生成入力は閉集合が必要")
+            if model["schemaVersion"] != 1 or model["displayRules"] != []:
+                raise ValueError("typed modelの版/表示宣言が不正")
+            if (
+                not isinstance(model["calculations"], list)
+                or len(model["calculations"]) != 1
+            ):
+                raise ValueError("typed modelは単一計算が必要")
+            if set(model["calculations"][0]) != {"calculationId", "typedProgram"}:
+                raise ValueError("計算宣言の閉キーが不正")
+        calculation = common_model["calculations"][0]
+        program = calculation["typedProgram"]
+        validate_typed_program(program)
+        reference = consumer_model["calculations"][0]["typedProgram"]
+        if set(reference) != {
+            "kind",
+            "version",
+            "commonCalculationId",
+            "commonModelHash",
+            "refs",
+        }:
+            raise ValueError("consumerはID/hash/type参照だけが必要")
+        source_hash = _canonical_hash(common_model)
+        if (
+            reference["kind"] != "primitive-refs"
+            or reference["version"] != 1
+            or reference["commonCalculationId"] != calculation["calculationId"]
+            or reference["commonModelHash"] != source_hash
+            or consumer_model["calculations"][0]["calculationId"]
+            == calculation["calculationId"]
+        ):
+            raise ValueError("未知/循環/版不一致の共通model参照")
+        expected = [{"id": m["id"], "type": "integer"} for m in program["metrics"]]
+        if reference["refs"] != expected:
+            raise ValueError("primitive ID/型/順序の参照不一致")
+        py = py_backend.generate_typed_facts(program, source_hash)
+        ts = ts_backend.generate_typed_facts(program, source_hash)
+        queries = sql_backend.generate_typed_queries(program, source_hash)
+        raw_bundle = {
+            "backend/src/pitchlog/stats/generated/facts.py": py,
+            "frontend/src/lib/generated/statsPrimitives.ts": ts,
+            "backend/src/pitchlog/exports/generated/play_primitives.sql": queries[
+                "window"
+            ],
+            "backend/src/pitchlog/stats/generated/stats.sql": queries["grouped"],
+            "backend/src/pitchlog/stats/generated/receiver.py": py_backend.generate_typed_receiver(  # noqa: E501 — 生成targetのliteral
+                program, source_hash
+            ),
+            "backend/src/pitchlog/stats/generated/formatter.py": integer_target(
+                "python", source_hash
+            ),
+            "frontend/src/lib/generated/statsFormatter.ts": integer_target(
+                "typescript", source_hash
+            ),
+        }
+        return {
+            path: _format_typed_target(path, content)
+            for path, content in raw_bundle.items()
+        }  # noqa: E501 — 生成targetのliteral
+    except (KeyError, TypeError, ValueError) as error:
+        raise GenerationError(f"typed primitiveを生成できない: {error}") from error
+
+
+def _format_typed_target(path: str, content: str) -> str:
+    """固定toolchainで生成bytesを整形し、日本語docstringを補う。"""
+    import ast
+    import subprocess
+
+    root = Path(__file__).resolve().parents[4]
+    if path.endswith(".py"):
+        tree = ast.parse(content)
+        if ast.get_docstring(tree) is None:
+            tree.body.insert(
+                0, ast.Expr(value=ast.Constant("自動生成された整数表示・型検証。"))
+            )
+        imports = [
+            node for node in tree.body if isinstance(node, (ast.Import, ast.ImportFrom))
+        ]
+        tree.body = [node for node in tree.body if node not in imports]
+        imports.sort(
+            key=lambda node: (not isinstance(node, ast.Import), ast.unparse(node))
+        )
+        tree.body[1:1] = imports
+        for node in ast.walk(tree):
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                if ast.get_docstring(node) is None:
+                    node.body.insert(
+                        0,
+                        ast.Expr(
+                            value=ast.Constant("生成された型検証・有限寄与処理。")
+                        ),
+                    )  # noqa: E501 — 生成targetのliteral
+        prefix = content.splitlines()[0] + "\n" if content.startswith("#") else ""
+        raw = prefix + ast.unparse(ast.fix_missing_locations(tree)) + "\n"
+        command = [
+            sys.executable,
+            "-m",
+            "ruff",
+            "format",
+            "--stdin-filename",
+            str(root / path),
+            "-",
+        ]  # noqa: E501 — 生成targetのliteral
+    elif path.endswith(".ts"):
+        raw = content
+        command = [
+            str(root / "frontend/node_modules/.bin/prettier"),
+            "--stdin-filepath",
+            str(root / path),
+        ]  # noqa: E501 — 生成targetのliteral
+    else:
+        return content
+    process = subprocess.run(
+        command, input=raw, text=True, capture_output=True, check=True
+    )  # noqa: E501 — 生成targetのliteral
+    return process.stdout
 
 
 if __name__ == "__main__":

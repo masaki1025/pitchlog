@@ -1,0 +1,1581 @@
+{
+  "schemaVersion": 1,
+  "calculations": [
+    {
+      "calculationId": "canonicalEventFacts",
+      "typedProgram": {
+        "version": 1,
+        "kind": "event-facts",
+        "fields": {
+          "event_kind": {
+            "type": "string",
+            "nullable": false,
+            "enum": [
+              "pitch",
+              "non_pitch",
+              "control"
+            ]
+          },
+          "source.lifecycle": {
+            "type": "string",
+            "nullable": false,
+            "enum": [
+              "effective",
+              "replaced",
+              "retired",
+              "tombstone",
+              "audit_control"
+            ]
+          },
+          "source.source_event_id": {
+            "type": "string",
+            "nullable": false
+          },
+          "pa.ended_here": {
+            "type": "boolean",
+            "nullable": false
+          },
+          "pa.pa_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "pa.ordinal_for_batter": {
+            "type": "string",
+            "nullable": true
+          },
+          "pa.hit_kind": {
+            "type": "string",
+            "nullable": false,
+            "enum": [
+              "none",
+              "single",
+              "double",
+              "triple",
+              "home_run"
+            ]
+          },
+          "pa.result_display": {
+            "type": "string",
+            "nullable": true
+          },
+          "pa.reached_by": {
+            "type": "string",
+            "nullable": false
+          },
+          "before.inning": {
+            "type": "string",
+            "nullable": false
+          },
+          "before.half": {
+            "type": "string",
+            "nullable": false
+          },
+          "out_effect.effective_count": {
+            "type": "integer",
+            "nullable": true,
+            "minimum": 0,
+            "maximum": 3
+          },
+          "stat_flags.投球回算入アウト": {
+            "type": "boolean",
+            "nullable": false
+          },
+          "stat_flags.投球数": {
+            "type": "boolean",
+            "nullable": false
+          },
+          "stat_flags.奪三振": {
+            "type": "boolean",
+            "nullable": false
+          },
+          "stat_flags.与四球": {
+            "type": "boolean",
+            "nullable": false
+          },
+          "stat_flags.与死球": {
+            "type": "boolean",
+            "nullable": false
+          },
+          "stat_flags.被安打": {
+            "type": "boolean",
+            "nullable": false
+          },
+          "stat_flags.被本塁打": {
+            "type": "boolean",
+            "nullable": false
+          },
+          "stat_flags.失点": {
+            "type": "boolean",
+            "nullable": false
+          },
+          "stat_flags.失策": {
+            "type": "boolean",
+            "nullable": false
+          },
+          "stat_flags.打席": {
+            "type": "boolean",
+            "nullable": false
+          },
+          "stat_flags.打数": {
+            "type": "boolean",
+            "nullable": false
+          },
+          "stat_flags.安打": {
+            "type": "boolean",
+            "nullable": false
+          },
+          "stat_flags.本塁打": {
+            "type": "boolean",
+            "nullable": false
+          },
+          "stat_flags.塁打": {
+            "type": "boolean",
+            "nullable": false
+          },
+          "stat_flags.犠打": {
+            "type": "boolean",
+            "nullable": false
+          },
+          "stat_flags.犠飛": {
+            "type": "boolean",
+            "nullable": false
+          },
+          "stat_flags.四球": {
+            "type": "boolean",
+            "nullable": false
+          },
+          "stat_flags.死球": {
+            "type": "boolean",
+            "nullable": false
+          },
+          "stat_flags.三振": {
+            "type": "boolean",
+            "nullable": false
+          },
+          "stat_flags.打撃妨害出塁": {
+            "type": "boolean",
+            "nullable": false
+          },
+          "stat_flags.走塁妨害出塁": {
+            "type": "boolean",
+            "nullable": false
+          },
+          "stat_flags.得点": {
+            "type": "boolean",
+            "nullable": false
+          },
+          "stat_flags.打点": {
+            "type": "boolean",
+            "nullable": false
+          },
+          "completeness.pa": {
+            "type": "string",
+            "nullable": false,
+            "enum": [
+              "complete",
+              "unavailable"
+            ]
+          },
+          "completeness.participants": {
+            "type": "string",
+            "nullable": false,
+            "enum": [
+              "complete",
+              "unavailable"
+            ]
+          },
+          "completeness.outs": {
+            "type": "string",
+            "nullable": false,
+            "enum": [
+              "complete",
+              "unavailable"
+            ]
+          },
+          "completeness.runs_rbi": {
+            "type": "string",
+            "nullable": false,
+            "enum": [
+              "complete",
+              "unavailable"
+            ]
+          },
+          "completeness.steals": {
+            "type": "string",
+            "nullable": false,
+            "enum": [
+              "complete",
+              "unavailable"
+            ]
+          },
+          "participants.actual_pitcher_id": {
+            "type": "string",
+            "nullable": false
+          },
+          "participants.actual_batter_id": {
+            "type": "string",
+            "nullable": false
+          },
+          "participants.credited_batter_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "participants.strikeout_pitcher_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "participants.walk_pitcher_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "participants.hbp_pitcher_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "participants.hit_pitcher_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "participants.home_run_pitcher_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "participants.outs_pitcher_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "participants.error_fielder_id": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "collections": {
+          "runner_scores": {
+            "maximumItems": 4,
+            "fields": {
+              "runner_id": {
+                "type": "string",
+                "nullable": false
+              },
+              "responsible_pitcher_id": {
+                "type": "string",
+                "nullable": false
+              },
+              "valid_run": {
+                "type": "boolean",
+                "nullable": false
+              },
+              "rbi_credited": {
+                "type": "boolean",
+                "nullable": false
+              },
+              "rbi_batter_id": {
+                "type": "string",
+                "nullable": true
+              },
+              "rbi_branch": {
+                "type": "string",
+                "nullable": true
+              }
+            }
+          },
+          "steal_attempts": {
+            "maximumItems": 3,
+            "fields": {
+              "runner_id": {
+                "type": "string",
+                "nullable": false
+              },
+              "attempted": {
+                "type": "boolean",
+                "nullable": false
+              },
+              "successful": {
+                "type": "boolean",
+                "nullable": false
+              }
+            }
+          }
+        },
+        "metrics": [
+          {
+            "id": "pitch_count",
+            "relation": "event",
+            "guard": {
+              "op": "and",
+              "args": [
+                {
+                  "op": "eq",
+                  "left": {
+                    "op": "ref",
+                    "path": "event_kind"
+                  },
+                  "right": {
+                    "op": "literal",
+                    "value": "pitch"
+                  }
+                },
+                {
+                  "op": "ref",
+                  "path": "stat_flags.投球数"
+                }
+              ]
+            },
+            "available": {
+              "op": "eq",
+              "left": {
+                "op": "ref",
+                "path": "completeness.participants"
+              },
+              "right": {
+                "op": "literal",
+                "value": "complete"
+              }
+            },
+            "quantity": {
+              "op": "literal",
+              "value": 1
+            },
+            "credit": {
+              "op": "ref",
+              "path": "participants.actual_pitcher_id"
+            }
+          },
+          {
+            "id": "pa",
+            "relation": "completed_pa",
+            "guard": {
+              "op": "and",
+              "args": [
+                {
+                  "op": "ref",
+                  "path": "pa.ended_here"
+                },
+                {
+                  "op": "ref",
+                  "path": "stat_flags.打席"
+                }
+              ]
+            },
+            "available": {
+              "op": "and",
+              "args": [
+                {
+                  "op": "eq",
+                  "left": {
+                    "op": "ref",
+                    "path": "completeness.pa"
+                  },
+                  "right": {
+                    "op": "literal",
+                    "value": "complete"
+                  }
+                },
+                {
+                  "op": "eq",
+                  "left": {
+                    "op": "ref",
+                    "path": "completeness.participants"
+                  },
+                  "right": {
+                    "op": "literal",
+                    "value": "complete"
+                  }
+                }
+              ]
+            },
+            "quantity": {
+              "op": "literal",
+              "value": 1
+            },
+            "credit": {
+              "op": "ref",
+              "path": "participants.credited_batter_id"
+            }
+          },
+          {
+            "id": "ab",
+            "relation": "completed_pa",
+            "guard": {
+              "op": "and",
+              "args": [
+                {
+                  "op": "ref",
+                  "path": "pa.ended_here"
+                },
+                {
+                  "op": "ref",
+                  "path": "stat_flags.打数"
+                }
+              ]
+            },
+            "available": {
+              "op": "and",
+              "args": [
+                {
+                  "op": "eq",
+                  "left": {
+                    "op": "ref",
+                    "path": "completeness.pa"
+                  },
+                  "right": {
+                    "op": "literal",
+                    "value": "complete"
+                  }
+                },
+                {
+                  "op": "eq",
+                  "left": {
+                    "op": "ref",
+                    "path": "completeness.participants"
+                  },
+                  "right": {
+                    "op": "literal",
+                    "value": "complete"
+                  }
+                }
+              ]
+            },
+            "quantity": {
+              "op": "literal",
+              "value": 1
+            },
+            "credit": {
+              "op": "ref",
+              "path": "participants.credited_batter_id"
+            }
+          },
+          {
+            "id": "h",
+            "relation": "completed_pa",
+            "guard": {
+              "op": "and",
+              "args": [
+                {
+                  "op": "ref",
+                  "path": "pa.ended_here"
+                },
+                {
+                  "op": "ref",
+                  "path": "stat_flags.安打"
+                }
+              ]
+            },
+            "available": {
+              "op": "and",
+              "args": [
+                {
+                  "op": "eq",
+                  "left": {
+                    "op": "ref",
+                    "path": "completeness.pa"
+                  },
+                  "right": {
+                    "op": "literal",
+                    "value": "complete"
+                  }
+                },
+                {
+                  "op": "eq",
+                  "left": {
+                    "op": "ref",
+                    "path": "completeness.participants"
+                  },
+                  "right": {
+                    "op": "literal",
+                    "value": "complete"
+                  }
+                }
+              ]
+            },
+            "quantity": {
+              "op": "literal",
+              "value": 1
+            },
+            "credit": {
+              "op": "ref",
+              "path": "participants.credited_batter_id"
+            }
+          },
+          {
+            "id": "hr",
+            "relation": "completed_pa",
+            "guard": {
+              "op": "and",
+              "args": [
+                {
+                  "op": "ref",
+                  "path": "pa.ended_here"
+                },
+                {
+                  "op": "ref",
+                  "path": "stat_flags.本塁打"
+                }
+              ]
+            },
+            "available": {
+              "op": "and",
+              "args": [
+                {
+                  "op": "eq",
+                  "left": {
+                    "op": "ref",
+                    "path": "completeness.pa"
+                  },
+                  "right": {
+                    "op": "literal",
+                    "value": "complete"
+                  }
+                },
+                {
+                  "op": "eq",
+                  "left": {
+                    "op": "ref",
+                    "path": "completeness.participants"
+                  },
+                  "right": {
+                    "op": "literal",
+                    "value": "complete"
+                  }
+                }
+              ]
+            },
+            "quantity": {
+              "op": "literal",
+              "value": 1
+            },
+            "credit": {
+              "op": "ref",
+              "path": "participants.credited_batter_id"
+            }
+          },
+          {
+            "id": "bb",
+            "relation": "completed_pa",
+            "guard": {
+              "op": "and",
+              "args": [
+                {
+                  "op": "ref",
+                  "path": "pa.ended_here"
+                },
+                {
+                  "op": "ref",
+                  "path": "stat_flags.四球"
+                }
+              ]
+            },
+            "available": {
+              "op": "and",
+              "args": [
+                {
+                  "op": "eq",
+                  "left": {
+                    "op": "ref",
+                    "path": "completeness.pa"
+                  },
+                  "right": {
+                    "op": "literal",
+                    "value": "complete"
+                  }
+                },
+                {
+                  "op": "eq",
+                  "left": {
+                    "op": "ref",
+                    "path": "completeness.participants"
+                  },
+                  "right": {
+                    "op": "literal",
+                    "value": "complete"
+                  }
+                }
+              ]
+            },
+            "quantity": {
+              "op": "literal",
+              "value": 1
+            },
+            "credit": {
+              "op": "ref",
+              "path": "participants.credited_batter_id"
+            }
+          },
+          {
+            "id": "hbp",
+            "relation": "completed_pa",
+            "guard": {
+              "op": "and",
+              "args": [
+                {
+                  "op": "ref",
+                  "path": "pa.ended_here"
+                },
+                {
+                  "op": "ref",
+                  "path": "stat_flags.死球"
+                }
+              ]
+            },
+            "available": {
+              "op": "and",
+              "args": [
+                {
+                  "op": "eq",
+                  "left": {
+                    "op": "ref",
+                    "path": "completeness.pa"
+                  },
+                  "right": {
+                    "op": "literal",
+                    "value": "complete"
+                  }
+                },
+                {
+                  "op": "eq",
+                  "left": {
+                    "op": "ref",
+                    "path": "completeness.participants"
+                  },
+                  "right": {
+                    "op": "literal",
+                    "value": "complete"
+                  }
+                }
+              ]
+            },
+            "quantity": {
+              "op": "literal",
+              "value": 1
+            },
+            "credit": {
+              "op": "ref",
+              "path": "participants.credited_batter_id"
+            }
+          },
+          {
+            "id": "k",
+            "relation": "completed_pa",
+            "guard": {
+              "op": "and",
+              "args": [
+                {
+                  "op": "ref",
+                  "path": "pa.ended_here"
+                },
+                {
+                  "op": "ref",
+                  "path": "stat_flags.三振"
+                }
+              ]
+            },
+            "available": {
+              "op": "and",
+              "args": [
+                {
+                  "op": "eq",
+                  "left": {
+                    "op": "ref",
+                    "path": "completeness.pa"
+                  },
+                  "right": {
+                    "op": "literal",
+                    "value": "complete"
+                  }
+                },
+                {
+                  "op": "eq",
+                  "left": {
+                    "op": "ref",
+                    "path": "completeness.participants"
+                  },
+                  "right": {
+                    "op": "literal",
+                    "value": "complete"
+                  }
+                }
+              ]
+            },
+            "quantity": {
+              "op": "literal",
+              "value": 1
+            },
+            "credit": {
+              "op": "ref",
+              "path": "participants.credited_batter_id"
+            }
+          },
+          {
+            "id": "sh",
+            "relation": "completed_pa",
+            "guard": {
+              "op": "and",
+              "args": [
+                {
+                  "op": "ref",
+                  "path": "pa.ended_here"
+                },
+                {
+                  "op": "ref",
+                  "path": "stat_flags.犠打"
+                }
+              ]
+            },
+            "available": {
+              "op": "and",
+              "args": [
+                {
+                  "op": "eq",
+                  "left": {
+                    "op": "ref",
+                    "path": "completeness.pa"
+                  },
+                  "right": {
+                    "op": "literal",
+                    "value": "complete"
+                  }
+                },
+                {
+                  "op": "eq",
+                  "left": {
+                    "op": "ref",
+                    "path": "completeness.participants"
+                  },
+                  "right": {
+                    "op": "literal",
+                    "value": "complete"
+                  }
+                }
+              ]
+            },
+            "quantity": {
+              "op": "literal",
+              "value": 1
+            },
+            "credit": {
+              "op": "ref",
+              "path": "participants.credited_batter_id"
+            }
+          },
+          {
+            "id": "sf",
+            "relation": "completed_pa",
+            "guard": {
+              "op": "and",
+              "args": [
+                {
+                  "op": "ref",
+                  "path": "pa.ended_here"
+                },
+                {
+                  "op": "ref",
+                  "path": "stat_flags.犠飛"
+                }
+              ]
+            },
+            "available": {
+              "op": "and",
+              "args": [
+                {
+                  "op": "eq",
+                  "left": {
+                    "op": "ref",
+                    "path": "completeness.pa"
+                  },
+                  "right": {
+                    "op": "literal",
+                    "value": "complete"
+                  }
+                },
+                {
+                  "op": "eq",
+                  "left": {
+                    "op": "ref",
+                    "path": "completeness.participants"
+                  },
+                  "right": {
+                    "op": "literal",
+                    "value": "complete"
+                  }
+                }
+              ]
+            },
+            "quantity": {
+              "op": "literal",
+              "value": 1
+            },
+            "credit": {
+              "op": "ref",
+              "path": "participants.credited_batter_id"
+            }
+          },
+          {
+            "id": "catcher_interference_reached",
+            "relation": "completed_pa",
+            "guard": {
+              "op": "and",
+              "args": [
+                {
+                  "op": "ref",
+                  "path": "pa.ended_here"
+                },
+                {
+                  "op": "ref",
+                  "path": "stat_flags.打撃妨害出塁"
+                }
+              ]
+            },
+            "available": {
+              "op": "and",
+              "args": [
+                {
+                  "op": "eq",
+                  "left": {
+                    "op": "ref",
+                    "path": "completeness.pa"
+                  },
+                  "right": {
+                    "op": "literal",
+                    "value": "complete"
+                  }
+                },
+                {
+                  "op": "eq",
+                  "left": {
+                    "op": "ref",
+                    "path": "completeness.participants"
+                  },
+                  "right": {
+                    "op": "literal",
+                    "value": "complete"
+                  }
+                }
+              ]
+            },
+            "quantity": {
+              "op": "literal",
+              "value": 1
+            },
+            "credit": {
+              "op": "ref",
+              "path": "participants.credited_batter_id"
+            }
+          },
+          {
+            "id": "runner_interference_reached",
+            "relation": "completed_pa",
+            "guard": {
+              "op": "and",
+              "args": [
+                {
+                  "op": "ref",
+                  "path": "pa.ended_here"
+                },
+                {
+                  "op": "ref",
+                  "path": "stat_flags.走塁妨害出塁"
+                }
+              ]
+            },
+            "available": {
+              "op": "and",
+              "args": [
+                {
+                  "op": "eq",
+                  "left": {
+                    "op": "ref",
+                    "path": "completeness.pa"
+                  },
+                  "right": {
+                    "op": "literal",
+                    "value": "complete"
+                  }
+                },
+                {
+                  "op": "eq",
+                  "left": {
+                    "op": "ref",
+                    "path": "completeness.participants"
+                  },
+                  "right": {
+                    "op": "literal",
+                    "value": "complete"
+                  }
+                }
+              ]
+            },
+            "quantity": {
+              "op": "literal",
+              "value": 1
+            },
+            "credit": {
+              "op": "ref",
+              "path": "participants.credited_batter_id"
+            }
+          },
+          {
+            "id": "doubles",
+            "relation": "completed_pa",
+            "guard": {
+              "op": "and",
+              "args": [
+                {
+                  "op": "ref",
+                  "path": "pa.ended_here"
+                },
+                {
+                  "op": "ref",
+                  "path": "stat_flags.安打"
+                },
+                {
+                  "op": "eq",
+                  "left": {
+                    "op": "ref",
+                    "path": "pa.hit_kind"
+                  },
+                  "right": {
+                    "op": "literal",
+                    "value": "double"
+                  }
+                }
+              ]
+            },
+            "available": {
+              "op": "and",
+              "args": [
+                {
+                  "op": "eq",
+                  "left": {
+                    "op": "ref",
+                    "path": "completeness.pa"
+                  },
+                  "right": {
+                    "op": "literal",
+                    "value": "complete"
+                  }
+                },
+                {
+                  "op": "eq",
+                  "left": {
+                    "op": "ref",
+                    "path": "completeness.participants"
+                  },
+                  "right": {
+                    "op": "literal",
+                    "value": "complete"
+                  }
+                }
+              ]
+            },
+            "quantity": {
+              "op": "literal",
+              "value": 1
+            },
+            "credit": {
+              "op": "ref",
+              "path": "participants.credited_batter_id"
+            }
+          },
+          {
+            "id": "triples",
+            "relation": "completed_pa",
+            "guard": {
+              "op": "and",
+              "args": [
+                {
+                  "op": "ref",
+                  "path": "pa.ended_here"
+                },
+                {
+                  "op": "ref",
+                  "path": "stat_flags.安打"
+                },
+                {
+                  "op": "eq",
+                  "left": {
+                    "op": "ref",
+                    "path": "pa.hit_kind"
+                  },
+                  "right": {
+                    "op": "literal",
+                    "value": "triple"
+                  }
+                }
+              ]
+            },
+            "available": {
+              "op": "and",
+              "args": [
+                {
+                  "op": "eq",
+                  "left": {
+                    "op": "ref",
+                    "path": "completeness.pa"
+                  },
+                  "right": {
+                    "op": "literal",
+                    "value": "complete"
+                  }
+                },
+                {
+                  "op": "eq",
+                  "left": {
+                    "op": "ref",
+                    "path": "completeness.participants"
+                  },
+                  "right": {
+                    "op": "literal",
+                    "value": "complete"
+                  }
+                }
+              ]
+            },
+            "quantity": {
+              "op": "literal",
+              "value": 1
+            },
+            "credit": {
+              "op": "ref",
+              "path": "participants.credited_batter_id"
+            }
+          },
+          {
+            "id": "total_bases",
+            "relation": "completed_pa",
+            "guard": {
+              "op": "and",
+              "args": [
+                {
+                  "op": "ref",
+                  "path": "pa.ended_here"
+                },
+                {
+                  "op": "ref",
+                  "path": "stat_flags.塁打"
+                }
+              ]
+            },
+            "available": {
+              "op": "and",
+              "args": [
+                {
+                  "op": "eq",
+                  "left": {
+                    "op": "ref",
+                    "path": "completeness.pa"
+                  },
+                  "right": {
+                    "op": "literal",
+                    "value": "complete"
+                  }
+                },
+                {
+                  "op": "eq",
+                  "left": {
+                    "op": "ref",
+                    "path": "completeness.participants"
+                  },
+                  "right": {
+                    "op": "literal",
+                    "value": "complete"
+                  }
+                }
+              ]
+            },
+            "quantity": {
+              "op": "lookup",
+              "value": {
+                "op": "ref",
+                "path": "pa.hit_kind"
+              },
+              "cases": {
+                "none": 0,
+                "single": 1,
+                "double": 2,
+                "triple": 3,
+                "home_run": 4
+              }
+            },
+            "credit": {
+              "op": "ref",
+              "path": "participants.credited_batter_id"
+            }
+          },
+          {
+            "id": "runs",
+            "relation": "runner_scores",
+            "guard": {
+              "op": "and",
+              "args": [
+                {
+                  "op": "ref",
+                  "path": "stat_flags.得点"
+                },
+                {
+                  "op": "ref",
+                  "path": "item.valid_run"
+                }
+              ]
+            },
+            "available": {
+              "op": "eq",
+              "left": {
+                "op": "ref",
+                "path": "completeness.runs_rbi"
+              },
+              "right": {
+                "op": "literal",
+                "value": "complete"
+              }
+            },
+            "quantity": {
+              "op": "literal",
+              "value": 1
+            },
+            "credit": {
+              "op": "ref",
+              "path": "item.runner_id"
+            }
+          },
+          {
+            "id": "rbi",
+            "relation": "runner_scores",
+            "guard": {
+              "op": "and",
+              "args": [
+                {
+                  "op": "ref",
+                  "path": "stat_flags.打点"
+                },
+                {
+                  "op": "ref",
+                  "path": "item.valid_run"
+                },
+                {
+                  "op": "ref",
+                  "path": "item.rbi_credited"
+                }
+              ]
+            },
+            "available": {
+              "op": "eq",
+              "left": {
+                "op": "ref",
+                "path": "completeness.runs_rbi"
+              },
+              "right": {
+                "op": "literal",
+                "value": "complete"
+              }
+            },
+            "quantity": {
+              "op": "literal",
+              "value": 1
+            },
+            "credit": {
+              "op": "ref",
+              "path": "item.rbi_batter_id"
+            }
+          },
+          {
+            "id": "stolen_bases",
+            "relation": "steal_attempts",
+            "guard": {
+              "op": "and",
+              "args": [
+                {
+                  "op": "ref",
+                  "path": "item.attempted"
+                },
+                {
+                  "op": "ref",
+                  "path": "item.successful"
+                }
+              ]
+            },
+            "available": {
+              "op": "eq",
+              "left": {
+                "op": "ref",
+                "path": "completeness.steals"
+              },
+              "right": {
+                "op": "literal",
+                "value": "complete"
+              }
+            },
+            "quantity": {
+              "op": "literal",
+              "value": 1
+            },
+            "credit": {
+              "op": "ref",
+              "path": "item.runner_id"
+            }
+          },
+          {
+            "id": "pitching_outs",
+            "relation": "event",
+            "guard": {
+              "op": "ref",
+              "path": "stat_flags.投球回算入アウト"
+            },
+            "available": {
+              "op": "and",
+              "args": [
+                {
+                  "op": "eq",
+                  "left": {
+                    "op": "ref",
+                    "path": "completeness.outs"
+                  },
+                  "right": {
+                    "op": "literal",
+                    "value": "complete"
+                  }
+                },
+                {
+                  "op": "eq",
+                  "left": {
+                    "op": "ref",
+                    "path": "completeness.participants"
+                  },
+                  "right": {
+                    "op": "literal",
+                    "value": "complete"
+                  }
+                }
+              ]
+            },
+            "quantity": {
+              "op": "ref",
+              "path": "out_effect.effective_count"
+            },
+            "credit": {
+              "op": "ref",
+              "path": "participants.outs_pitcher_id"
+            }
+          },
+          {
+            "id": "pitcher_k",
+            "relation": "event",
+            "guard": {
+              "op": "ref",
+              "path": "stat_flags.奪三振"
+            },
+            "available": {
+              "op": "eq",
+              "left": {
+                "op": "ref",
+                "path": "completeness.participants"
+              },
+              "right": {
+                "op": "literal",
+                "value": "complete"
+              }
+            },
+            "quantity": {
+              "op": "literal",
+              "value": 1
+            },
+            "credit": {
+              "op": "ref",
+              "path": "participants.strikeout_pitcher_id"
+            }
+          },
+          {
+            "id": "pitcher_bb",
+            "relation": "event",
+            "guard": {
+              "op": "ref",
+              "path": "stat_flags.与四球"
+            },
+            "available": {
+              "op": "eq",
+              "left": {
+                "op": "ref",
+                "path": "completeness.participants"
+              },
+              "right": {
+                "op": "literal",
+                "value": "complete"
+              }
+            },
+            "quantity": {
+              "op": "literal",
+              "value": 1
+            },
+            "credit": {
+              "op": "ref",
+              "path": "participants.walk_pitcher_id"
+            }
+          },
+          {
+            "id": "pitcher_hbp",
+            "relation": "event",
+            "guard": {
+              "op": "ref",
+              "path": "stat_flags.与死球"
+            },
+            "available": {
+              "op": "eq",
+              "left": {
+                "op": "ref",
+                "path": "completeness.participants"
+              },
+              "right": {
+                "op": "literal",
+                "value": "complete"
+              }
+            },
+            "quantity": {
+              "op": "literal",
+              "value": 1
+            },
+            "credit": {
+              "op": "ref",
+              "path": "participants.hbp_pitcher_id"
+            }
+          },
+          {
+            "id": "hits_allowed",
+            "relation": "event",
+            "guard": {
+              "op": "ref",
+              "path": "stat_flags.被安打"
+            },
+            "available": {
+              "op": "eq",
+              "left": {
+                "op": "ref",
+                "path": "completeness.participants"
+              },
+              "right": {
+                "op": "literal",
+                "value": "complete"
+              }
+            },
+            "quantity": {
+              "op": "literal",
+              "value": 1
+            },
+            "credit": {
+              "op": "ref",
+              "path": "participants.hit_pitcher_id"
+            }
+          },
+          {
+            "id": "home_runs_allowed",
+            "relation": "event",
+            "guard": {
+              "op": "ref",
+              "path": "stat_flags.被本塁打"
+            },
+            "available": {
+              "op": "eq",
+              "left": {
+                "op": "ref",
+                "path": "completeness.participants"
+              },
+              "right": {
+                "op": "literal",
+                "value": "complete"
+              }
+            },
+            "quantity": {
+              "op": "literal",
+              "value": 1
+            },
+            "credit": {
+              "op": "ref",
+              "path": "participants.home_run_pitcher_id"
+            }
+          },
+          {
+            "id": "fielding_errors",
+            "relation": "event",
+            "guard": {
+              "op": "ref",
+              "path": "stat_flags.失策"
+            },
+            "available": {
+              "op": "eq",
+              "left": {
+                "op": "ref",
+                "path": "completeness.participants"
+              },
+              "right": {
+                "op": "literal",
+                "value": "complete"
+              }
+            },
+            "quantity": {
+              "op": "literal",
+              "value": 1
+            },
+            "credit": {
+              "op": "ref",
+              "path": "participants.error_fielder_id"
+            }
+          },
+          {
+            "id": "runs_allowed",
+            "relation": "runner_scores",
+            "guard": {
+              "op": "and",
+              "args": [
+                {
+                  "op": "ref",
+                  "path": "stat_flags.失点"
+                },
+                {
+                  "op": "ref",
+                  "path": "item.valid_run"
+                }
+              ]
+            },
+            "available": {
+              "op": "eq",
+              "left": {
+                "op": "ref",
+                "path": "completeness.runs_rbi"
+              },
+              "right": {
+                "op": "literal",
+                "value": "complete"
+              }
+            },
+            "quantity": {
+              "op": "literal",
+              "value": 1
+            },
+            "credit": {
+              "op": "ref",
+              "path": "item.responsible_pitcher_id"
+            }
+          }
+        ],
+        "selection": {
+          "op": "eq",
+          "left": {
+            "op": "ref",
+            "path": "source.lifecycle"
+          },
+          "right": {
+            "op": "literal",
+            "value": "effective"
+          }
+        },
+        "paProjection": {
+          "guard": {
+            "op": "and",
+            "args": [
+              {
+                "op": "ref",
+                "path": "pa.ended_here"
+              },
+              {
+                "op": "eq",
+                "left": {
+                  "op": "ref",
+                  "path": "completeness.pa"
+                },
+                "right": {
+                  "op": "literal",
+                  "value": "complete"
+                }
+              }
+            ]
+          },
+          "fields": {
+            "pa_id": {
+              "op": "ref",
+              "path": "pa.pa_id"
+            },
+            "batter_id": {
+              "op": "ref",
+              "path": "participants.credited_batter_id"
+            },
+            "ordinal_for_batter": {
+              "op": "ref",
+              "path": "pa.ordinal_for_batter"
+            },
+            "inning": {
+              "op": "ref",
+              "path": "before.inning"
+            },
+            "half": {
+              "op": "ref",
+              "path": "before.half"
+            },
+            "result_display": {
+              "op": "ref",
+              "path": "pa.result_display"
+            },
+            "counts_as_ab": {
+              "op": "ref",
+              "path": "stat_flags.打数"
+            },
+            "hit_kind": {
+              "op": "ref",
+              "path": "pa.hit_kind"
+            },
+            "reached_by": {
+              "op": "ref",
+              "path": "pa.reached_by"
+            }
+          },
+          "metricFields": {
+            "rbi": "rbi"
+          }
+        },
+        "reducer": {
+          "id": "integer_add",
+          "type": "integer",
+          "initial": 0,
+          "operator": "add"
+        },
+        "sql": {
+          "facts": "public.stats_primitive_facts",
+          "versions": "public.stats_fact_versions",
+          "games": "public.games",
+          "events": "public.operation_events",
+          "plays": "public.play_rows",
+          "amountColumn": "amount",
+          "metricColumn": "metric_id",
+          "slots": "public.event_slots"
+        },
+        "pendingDecisions": {
+          "named_category": {
+            "state": "decision_pending",
+            "decision_id": "D02",
+            "value": null
+          },
+          "appearances": {
+            "state": "decision_pending",
+            "decision_id": "D03",
+            "value": null
+          },
+          "batters_faced": {
+            "state": "decision_pending",
+            "decision_id": "D04",
+            "value": null
+          },
+          "ops": {
+            "state": "decision_pending",
+            "decision_id": "D05",
+            "value": null
+          }
+        },
+        "numericEnvelope": {
+          "minimum": 0,
+          "maximum": null
+        },
+        "closedRecords": [
+          "stat_flags"
+        ]
+      }
+    }
+  ],
+  "displayRules": []
+}
