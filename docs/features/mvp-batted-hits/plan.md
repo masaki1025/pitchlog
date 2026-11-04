@@ -164,3 +164,14 @@ D11の最小正式登録（2026-11-05、PO委任による主担当root判断）:
 ステップ3の不可分root正式資産追随: payload math定義と新full観測の連動に必要なcontracts/state-transition/lineup_play_prefix_payload_schema_v1.jsonと同payload_v1.d.tsをroot所有candidateで採否する。旧観測5/旧34全値を保持し、新12観測と新T1/resultをschema/型の両方で閉相関させる。初回型/schema直積P1は独立反例を保全して反映周を重ねる。唯一artifact51d4d0f…60923bytesへの既execution pin/正準自己echoはroot cache batted-prefix-shared-pins-20261105/files.jsonのexact16（旧13+新battedmanifest/D11包絡/prefix19）で明示849fieldだけ追随する。旧34/56と新19の数学/終了/履歴/選手/責任/positions期待を変えない。D01競合の新旧実行差は適用根拠を別記し、全旧入力互換を仮定しない。compat追加/正式7.7/全D11/DB/UI成立とは分離する。
 
 ステップ4の走者保存表現の明確化（2026-11-05、PO委任Codex /root判断）: 既正式191のrunner_physical_rowsはbefore各塁のhold結果を保存し、after占有はcheckpoint/sourceへ別保存する。data-model5-2の(プレイ,塁)行・進塁状況・責任投手と整合する既方式を維持し、上表の1runnerはafter checkpointを指すと明記した。打者到達塁/責任投手を欠落させたり物理before表へafter行を混入させない。初期無走者安打の物理0/after1、次通常球の物理before1/after継続1と帰属投手、HRのafter emptyを同版実DB/GETで検証し、既BB/HBP/三振の保存結果は不変とする。新意味の裁定やMVP機能削減ではない。
+
+
+## ステップ4の同TX保存指示（2026-11-05、PO委任Codex /root判断）
+
+step3source13はf93c46c1、非作者6c964c35…を根拠に採用済み、DB成功にはしない。作者batted_prefix_connectionへexact5を委任する: backend/src/pitchlog/sync/ordinary_pitch_physical.py、backend/src/pitchlog/authz/terminal_pitch_write_stamp.py、新backend/tests/test_batted_hit_physical.py、新backend/tests/test_batted_hit_storage_boundaries.py、新backend/tests/db/test_batted_hit_storage.py。rootはこの5を並行編集しない。既v3/frame/Port/token/署名/HTTP/reader/41列mapperを再利用し、余分な新公開operation/CAP/table/app grantを作らない。
+
+新full観測のbatted6列を既物理列へ保存し、event_kindは既正本/DB制約どおりpitchを維持、数学eventKindのbatting-resultと混同しない。hitX/Yは既保存の正規化0..1と正準十進/Doubleの形式変換だけ（非有限/範囲外拒否）、既採用codecがあれば再利用し、計算/座標推定をPythonへ複製しない。新NFR-018例外が不可分なら既検出を緩めずexact追加根拠をrootへ返す。
+
+既署名prepare_play_prefix_projection本文1の新安打branchだけで元V7/V8/全41値/4結果/12観測/真正守備側fielding参加者・語彙category/disabledを同TXで比較する。DH/相手/別tenant野手や無効語彙を拒否し、既成功/全取消/記録権/元D5/水位/履歴/責任/reader再計算を保持。SQL資産はcache候補としてrootへ返す（本文1、FnOwner限定7列SELECT、既FORCE RLSを維持するSELECT policy2）。rootが有限ACL/生成モジュール/正式入力を直列採否する。推測nullable/結果からの観測補完/固定資格は禁止。
+
+owned PGはrootと調整し、実ASGI新規POST作成/開始→4結果各安打→可能な次通常球→GET/再取得/元D5再送/途中故障全取消/越境/語彙/野手拒否を実測する。物理before0→次球before1とafter checkpointの到達塁/責任投手、HR得点/RBI/empty/終了検知lockを区別して検査。端末実画面/正式統合/1試合/MVP全体をこのAPI候補の成功へ拡張しない。
