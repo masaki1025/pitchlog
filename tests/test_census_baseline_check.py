@@ -50,31 +50,64 @@ def _load_checker() -> ModuleType:
     )
 
 
-def _load_checker_from_revision(revision: str, destination: Path) -> ModuleType:
-    """VCS 上の検査器と同 revision の依存を別モジュールとして読む。"""
-    relative_script = SCRIPT.relative_to(REPOSITORY_ROOT).as_posix()
-    result = subprocess.run(
-        ["git", "show", f"{revision}:{relative_script}"],
-        cwd=REPOSITORY_ROOT,
-        check=True,
-        capture_output=True,
+def _materialize_checker_revision_root(revision: str, destination: Path) -> Path:
+    """checker/契約/source/固定fixtureを真正な同revisionの一つのrootへ展開する。"""
+    resolved = subprocess.check_output(
+        ["git", "-C", str(REPOSITORY_ROOT), "rev-parse", "--verify", revision + "^{commit}"],
+        text=True,
+    ).strip()
+    assert re.fullmatch(r"[0-9a-f]{40}", resolved), "真正commitのfull SHAが必要"
+    destination.mkdir(parents=True)
+    selected = (
+        "scripts/check_tenant_boundary_bypass.py", "scripts/frozen_history.py",
+        "contracts/tenant_boundary", "tests/fixtures/tenant_boundary",
+        "tests/fixtures/pr191_tenant_source_expected_v1.json",
+        "tests/fixtures/pr192_tenant_source_expected_v1.json",
+        ".claude/core-areas.json", "backend/src",
     )
-    scripts_directory = destination.parent / f"{destination.stem}_scripts"
-    scripts_directory.mkdir()
-    extracted_checker = scripts_directory / SCRIPT.name
-    extracted_checker.write_bytes(result.stdout)
-    dependency = "scripts/frozen_history.py"
-    dependency_result = subprocess.run(
-        ["git", "show", f"{revision}:{dependency}"],
-        cwd=REPOSITORY_ROOT,
-        check=False,
-        capture_output=True,
-    )
-    if dependency_result.returncode == 0:
-        (scripts_directory / "frozen_history.py").write_bytes(
-            dependency_result.stdout
+    entries = subprocess.check_output([
+        "git", "-C", str(REPOSITORY_ROOT), "ls-tree", "-r", "-z", resolved, "--", *selected,
+    ])
+    for entry in entries.split(b"\0"):
+        if not entry:
+            continue
+        metadata, name = entry.split(b"\t", 1)
+        mode, kind, _oid = metadata.decode().split()
+        relative = Path(name.decode())
+        assert not relative.is_absolute() and ".." not in relative.parts
+        assert kind == "blob" and mode in {"100644", "100755"}, (
+            "歴史checkerの依存はregular Git blobが必要", relative, mode,
         )
-    digest = hashlib.sha256(result.stdout).hexdigest()
+        target = destination / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(subprocess.check_output([
+            "git", "-C", str(REPOSITORY_ROOT), "show", resolved + ":" + relative.as_posix(),
+        ]))
+    assert (destination / "scripts/check_tenant_boundary_bypass.py").is_file()
+    # 元repoのHEAD/refsを変更しない。一時repoのHEADも同じ真正revisionへ固定する。
+    subprocess.run(["git", "-C", str(destination), "init", "--quiet"], check=True)
+    objects = subprocess.check_output([
+        "git", "-C", str(REPOSITORY_ROOT), "rev-parse", "--path-format=absolute",
+        "--git-path", "objects",
+    ], text=True).strip()
+    (destination / ".git/objects/info/alternates").write_text(
+        str(Path(objects).resolve()) + "\n", encoding="utf-8",
+    )
+    (destination / ".git/HEAD").write_text(resolved + "\n", encoding="utf-8")
+    assert subprocess.check_output([
+        "git", "-C", str(destination), "rev-parse", "HEAD",
+    ], text=True).strip() == resolved
+    return destination
+
+
+def _load_checker_from_revision(revision: str, destination: Path) -> ModuleType:
+    """VCS上のcheckerと同版の真正な契約/Git文脈を一体で隔離する。"""
+    root = _materialize_checker_revision_root(
+        revision, destination.parent / f"{destination.stem}_root",
+    )
+    scripts_directory = root / "scripts"
+    extracted_checker = scripts_directory / SCRIPT.name
+    digest = hashlib.sha256(extracted_checker.read_bytes()).hexdigest()
     previous_dependency = sys.modules.pop("frozen_history", None)
     previous_path = list(sys.path)
     try:
