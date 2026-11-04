@@ -5,7 +5,7 @@ CONTRACT_REVISION = 37
 ASSET_KIND = "tenant_repository_contract"
 CANONICALIZATION = "json-sort-keys-utf8-v1"
 SOURCE_ASSET = "contracts/tenant_boundary/repository-contract.json"
-SOURCE_DIGEST = "6175311f0e27d7229036798ab22670de3d90a65219e0f5e1b23880492566a41d"
+SOURCE_DIGEST = "501f5fcb72f847f0ddc2d95640256d8dcc6a6d636e6bbe00773d1b8b9cc93113"
 
 REPOSITORY_TYPE = "pitchlog.repositories.base.TenantRepositoryBase"
 CONTEXT_BINDING_ENTRY = "pitchlog.repositories.base.TenantRepositoryBase.execute"
@@ -116,6 +116,7 @@ PRODUCT_CAPABILITY_IDS = (
     "CAP:games:insert",
     "CAP:tenant_vocabularies:insert",
     "CAP:tenant_vocabularies:read",
+    "CAP:recording_vocabularies:read",
 )
 PRODUCT_OPERATION_TOKEN_TYPES = (
     "pitchlog.repositories.roster.PlayerReadToken",
@@ -184,9 +185,11 @@ PRODUCT_OPERATION_TOKEN_TYPES = (
     "pitchlog.repositories.pitch_type_options.PitchTypeOptionsToken",
     "pitchlog.sync.ordinary_pitch_tokens.OrdinaryPlayRowInsertToken",
     "pitchlog.sync.terminal_pitch_tokens.PlayPrefixPlayRowInsertToken",
+    "pitchlog.repositories.batted_ball_options.BattedBallOptionsToken",
 )
 CROSS_TENANT_FUNCTIONS = ()
 PRODUCT_FUNCTION_OPERATION_IDS = (
+    "RECORDING_VOCABULARIES:read_batted_ball_options",
     "RG1:precheck",
     "RG1:commit_check",
     "RG1:scope_binding",

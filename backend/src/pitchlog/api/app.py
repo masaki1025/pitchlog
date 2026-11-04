@@ -9,6 +9,7 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 from pitchlog.api.errors import register_exception_handlers
 from pitchlog.api.routers import (
     auth,
+    batted_ball_options,
     games,
     lineup_memory,
     meta,
@@ -33,6 +34,7 @@ ROUTERS: tuple[APIRouter, ...] = (
     lineup_memory.router,
     games.router,
     pitch_type_options.router,
+    batted_ball_options.router,
     started_games.router,
     sync.router,
 )

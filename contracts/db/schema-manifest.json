@@ -4578,7 +4578,16 @@
           }
         }
       ],
-      "indexes": [],
+      "indexes": [
+        {
+          "name": "ix_admin_vocabularies_batted_ball_key_c",
+          "columns": [
+            "key COLLATE \"C\""
+          ],
+          "predicate": "category = 'batted_ball' AND disabled = false",
+          "purpose": "range_sort"
+        }
+      ],
       "forbidden_columns": [
         "tenant_id",
         "v12",

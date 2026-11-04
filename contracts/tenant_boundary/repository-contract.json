@@ -172,7 +172,8 @@
     "CAP:play_rows:insert",
     "CAP:games:insert",
     "CAP:tenant_vocabularies:insert",
-    "CAP:tenant_vocabularies:read"
+    "CAP:tenant_vocabularies:read",
+    "CAP:recording_vocabularies:read"
   ],
   "product_operation_token_types": [
     "pitchlog.repositories.roster.PlayerReadToken",
@@ -240,7 +241,8 @@
     "pitchlog.repositories.preparing_game_creation.PreparingOpponentTeamLockToken",
     "pitchlog.repositories.pitch_type_options.PitchTypeOptionsToken",
     "pitchlog.sync.ordinary_pitch_tokens.OrdinaryPlayRowInsertToken",
-    "pitchlog.sync.terminal_pitch_tokens.PlayPrefixPlayRowInsertToken"
+    "pitchlog.sync.terminal_pitch_tokens.PlayPrefixPlayRowInsertToken",
+    "pitchlog.repositories.batted_ball_options.BattedBallOptionsToken"
   ],
   "cross_tenant_functions": [],
   "function_executor": {
@@ -248,6 +250,7 @@
     "signature": "run_function(self, operation: TenantOperationToken) -> TenantOperationResult"
   },
   "product_function_operation_ids": [
+    "RECORDING_VOCABULARIES:read_batted_ball_options",
     "RG1:precheck",
     "RG1:commit_check",
     "RG1:scope_binding",
@@ -270,5 +273,5 @@
     "SYNC_PLAY_PREFIX:prepare_play_prefix_projection",
     "SYNC_LINEUP_PREFIX:read_lineup_started_origin"
   ],
-  "source_digest": "6175311f0e27d7229036798ab22670de3d90a65219e0f5e1b23880492566a41d"
+  "source_digest": "501f5fcb72f847f0ddc2d95640256d8dcc6a6d636e6bbe00773d1b8b9cc93113"
 }

@@ -1883,9 +1883,11 @@ def _activate_stamp_profile() -> None:
 _activate_stamp_profile()
 
 
-def _activate_ordinary_profile(*, play_prefix=False) -> None:
+def _activate_ordinary_profile(*, play_prefix=False, recording_vocab=False) -> None:
     """承認対象の有限ordinary宣言だけを同じ正式installerへ接合する。"""
-    if play_prefix:
+    if recording_vocab:
+        from pitchlog.authz.recording_vocabulary_product import candidate_declarations
+    elif play_prefix:
         from pitchlog.authz.terminal_pitch_product import candidate_declarations
     else:
         from pitchlog.authz.ordinary_pitch_product import candidate_declarations
@@ -1926,6 +1928,8 @@ def _activate_ordinary_profile(*, play_prefix=False) -> None:
 
 _activate_ordinary_profile()
 _activate_ordinary_profile(play_prefix=True)
+_activate_ordinary_profile(recording_vocab=True)
+ROLES = frozenset(row["role_id"] for row in ADDITIONS["roles"])
 
 TABLES = frozenset(
     {
@@ -1950,7 +1954,11 @@ DB_REVOKES = [
 ]
 PUBLIC_GRANTS = [
     {"grantee": p, "privilege": "USAGE", "grantable": False}
-    for p in ("pitchlog_sync_binding_fn_owner", "pitchlog_sync_right_fn_owner")
+    for p in (
+        "pitchlog_sync_binding_fn_owner",
+        "pitchlog_sync_right_fn_owner",
+        "pitchlog_recording_vocab_fn_owner",
+    )
 ]
 
 
@@ -2179,7 +2187,7 @@ def function_details() -> tuple[tuple[object, ...], ...]:
                 row["security_mode"] == "definer",
                 row["language"],
                 _pg_result_type(row["returns"]),
-                "v",
+                {"volatile": "v", "stable": "s", "immutable": "i"}[row["volatility"]],
                 ("search_path=pg_catalog, pg_temp",),
                 pieces[1].strip(),
             )
@@ -2346,6 +2354,7 @@ def application_function_sql(function_id: str, sql: str) -> str | None:
         RAISE EXCEPTION 'first ball function definition collision';
     END IF;"""
     lookup = f"pg_catalog.to_regprocedure({_sql_literal(identity)})::pg_catalog.oid"
+    volatility = _sql_literal(str(details[7]))
     return f"""DO $first_ball_reapply$
 DECLARE existing pg_catalog.oid;
 BEGIN
@@ -2360,7 +2369,7 @@ BEGIN
         JOIN pg_catalog.pg_language l ON l.oid=p.prolang
         WHERE p.oid=existing AND o.rolname={_sql_literal(row["owner_role_id"])}
           AND l.lanname={_sql_literal(row["language"])}
-          AND p.prokind='f' AND p.provolatile='v' AND p.proparallel='u'
+          AND p.prokind='f' AND p.provolatile={volatility} AND p.proparallel='u'
           AND NOT p.proisstrict AND NOT p.proleakproof AND p.provariadic=0
           AND p.pronargdefaults=0 AND p.proargnames IS NOT DISTINCT FROM {names_sql}
           AND p.proargmodes IS NOT DISTINCT FROM {modes_sql}
