@@ -158,3 +158,5 @@ D11の最小正式登録（2026-11-05、PO委任による主担当root判断）:
 公開deriveLineupPlayPrefixWithContinuationから既唯一evaluatePitchのbattedHit入口へ委譲し、T2は既終了核へ。到達baseは実T1 batterDestinationから取り、double/tripleをbase1に固定しない。HRは既確定score/RBI事実と保存観測を比較、サヨナラ/コールド等を未評価noendへしない。旧FirstBallObservations variantを保持し、新打球だけ明示観測/打球情報/result IDとT1を全比較。利用者観測を4タグから推測/生成しない。
 
 契約schema/d.ts/新cases候補は作者が承認済batted規範と既v3からcacheへ先置き（runtime生成期待不可）、rootが実path/SHAを照合して直列反映する。新意味を増やさない型接合をroot委任で具体化し、不足があれば閉拒否・対象外理由を記録する。共有pin/manifest/正式受理/DB/UIはroot後続。非作者の全応答/旧回帰/入力欠測拒否/元source確認を必要とし、step3候補を保存成功やMVP完成へ昇格しない。
+
+ステップ3の既決D01=B整合追補: decision-sheet（2026-10-29採用記録、主担当台帳の現記録）により9回裏サヨナラ/コールド同時成立はwalk-offで既決。既endConditionCore.tsにcold先行が残るため、作者scopeへ同fileとendConditionCore.spec.tsのexact2を追加する（計13）。新規裁定ではなく既採用方針への最小修復。単独walk-off/単独cold/同時の3対向を規範から先置きし、E08の通常終了対cold、表完了のx-mark、OUT3有効得点先行、非本塁打余剰得点切捨て、正式終了を自動成立させない条件を保持。境界.completedHalf=top等の既通常終了を単なるafter.half=bottomでwalk-offへ誤変換しない。契約/coverage差分が不可分なら先にrootへ列挙し正式資産を勝手に書かない。新artifactに意味差が生じる1競合は互換全同値扱いせず適用範囲/既決根拠と新旧差を明記し、独立確認を要する。
