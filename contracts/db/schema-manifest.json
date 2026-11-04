@@ -9003,7 +9003,7 @@
       ],
       "unique_constraints": [
         {
-          "name": "pk_ordinary_pitch_checkpoints",
+          "name": "ordinary_pitch_checkpoints_pkey",
           "kind": "PRIMARY KEY",
           "columns": [
             "tenant_id",
@@ -9016,7 +9016,7 @@
           ]
         },
         {
-          "name": "uq_ordinary_checkpoint_id",
+          "name": "ordinary_pitch_checkpoints_tenant_id_id_key",
           "kind": "UNIQUE",
           "columns": [
             "tenant_id",
@@ -9435,7 +9435,7 @@
       ],
       "unique_constraints": [
         {
-          "name": "pk_ordinary_pitch_write_admissions",
+          "name": "ordinary_pitch_write_admissions_pkey",
           "kind": "PRIMARY KEY",
           "columns": [
             "tenant_id",
@@ -9448,7 +9448,7 @@
           ]
         },
         {
-          "name": "uq_ordinary_admission_frame",
+          "name": "ordinary_pitch_write_admissions_tenant_id_frame_id_key",
           "kind": "UNIQUE",
           "columns": [
             "tenant_id",
@@ -9466,7 +9466,7 @@
           }
         },
         {
-          "name": "uq_ordinary_admission_event",
+          "name": "ordinary_pitch_write_admissions_tenant_id_source_event_id_key",
           "kind": "UNIQUE",
           "columns": [
             "tenant_id",
@@ -9484,7 +9484,7 @@
           }
         },
         {
-          "name": "uq_ordinary_admission_projection",
+          "name": "ordinary_pitch_write_admissions_tenant_id_play_row_id_key",
           "kind": "UNIQUE",
           "columns": [
             "tenant_id",
@@ -9665,7 +9665,7 @@
       ],
       "unique_constraints": [
         {
-          "name": "pk_ordinary_pitch_history",
+          "name": "ordinary_pitch_history_pkey",
           "kind": "PRIMARY KEY",
           "columns": [
             "tenant_id",
@@ -9678,7 +9678,7 @@
           ]
         },
         {
-          "name": "uq_ordinary_history_version",
+          "name": "ordinary_pitch_history_tenant_id_game_id_internal_generatio_key",
           "kind": "UNIQUE",
           "columns": [
             "tenant_id",

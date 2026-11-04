@@ -578,13 +578,33 @@ def test_index_catalog_lookup_binds_schema_and_preserves_five_values(
 
 
 @pytest.mark.parametrize(
-    "constraint", ("uq_sync_writer_binding_lease", "uq_sync_writer_binding_nonce")
+    "table_name,constraint",
+    (
+        ("writer_bindings", "uq_sync_writer_binding_lease"),
+        ("writer_bindings", "uq_sync_writer_binding_nonce"),
+        (
+            "ordinary_pitch_write_admissions",
+            "ordinary_pitch_write_admissions_tenant_id_frame_id_key",
+        ),
+        (
+            "ordinary_pitch_write_admissions",
+            "ordinary_pitch_write_admissions_tenant_id_source_event_id_key",
+        ),
+        (
+            "ordinary_pitch_write_admissions",
+            "ordinary_pitch_write_admissions_tenant_id_play_row_id_key",
+        ),
+        (
+            "ordinary_pitch_history",
+            "ordinary_pitch_history_tenant_id_game_id_internal_generatio_key",
+        ),
+    ),
 )
 @pytest.mark.parametrize("field", ("columns", "source_row", "roles", "predicate"))
 def test_schema_audit_private_unique_exception_is_exact(
-    constraint: str, field: str
+    table_name: str, constraint: str, field: str
 ) -> None:
-    """旧31/対象外5を保ち、6-1-aの2制約だけへ全field例外を閉じる。"""
+    """旧31/対象外5を保ち、私有6制約だけへ全field例外を閉じる。"""
     import copy
 
     from db import test_schema_audit as audit
@@ -596,16 +616,16 @@ def test_schema_audit_private_unique_exception_is_exact(
         for c in t["unique_constraints"]
         if "business_unique" in c["roles"]
     ]
-    assert len(rows) == 31 + 2
+    assert len(rows) == 31 + 6
     assert len([c for c in rows if c["source_row"].get("scope") == "outside"]) == 5 + 2
     changed = copy.deepcopy(manifest)
-    table = next(t for t in changed["tables"] if t["name"] == "writer_bindings")
+    table = next(t for t in changed["tables"] if t["name"] == table_name)
     row = next(c for c in table["unique_constraints"] if c["name"] == constraint)
     row[field] = (
         [] if field in ("columns", "roles") else {} if field == "source_row" else "true"
     )
     # rolesを外す改変も、有限2件の欠落として拒否する。
-    with pytest.raises(ValueError, match="exact2"):
+    with pytest.raises(ValueError, match="閉集合"):
         audit._cross_table_audit_violations(
             changed,
             audit._manifest_columns(changed),
@@ -645,7 +665,7 @@ def test_schema_audit_unique_exception_cannot_expand(mode: str) -> None:
         ].append(row)
     else:
         row["source_row"]["section"] = "unknown"
-    with pytest.raises(ValueError, match="exact2"):
+    with pytest.raises(ValueError, match="閉集合"):
         audit._cross_table_audit_violations(
             changed,
             audit._manifest_columns(changed),

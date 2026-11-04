@@ -1253,6 +1253,90 @@
     {
       "product": "table:writer_bindings",
       "reason": "product_only"
+    },
+    {
+      "product": "acl_privilege:ACL:sync_fence:ordinary_pitch_write_admissions:pitchlog_sync_right_fn_owner:SELECT",
+      "reason": "product_only"
+    },
+    {
+      "product": "function:FUNCTION:sync_right_api:bind_ordinary_device(uuid, uuid, uuid, bytea, uuid, uuid, bytea)",
+      "reason": "product_only"
+    },
+    {
+      "product": "function:FUNCTION:sync_right_api:check_ordinary_right(uuid, uuid, uuid, bytea, uuid, uuid, bigint, bigint, bytea)",
+      "reason": "product_only"
+    },
+    {
+      "product": "function:FUNCTION:sync_right_api:consume_ordinary_projection(jsonb)",
+      "reason": "product_only"
+    },
+    {
+      "product": "function:FUNCTION:sync_right_api:lock_ordinary_checkpoint(uuid, uuid, uuid, bytea, uuid, uuid, bigint)",
+      "reason": "product_only"
+    },
+    {
+      "product": "function:FUNCTION:sync_right_api:prepare_ordinary_projection(uuid, uuid, uuid, bytea, uuid, uuid, text)",
+      "reason": "product_only"
+    },
+    {
+      "product": "function:FUNCTION:sync_right_api:read_ordinary_checkpoint(uuid, uuid, bigint)",
+      "reason": "product_only"
+    },
+    {
+      "product": "function:FUNCTION:sync_right_api:read_ordinary_history_page(uuid, uuid, bigint, bigint, uuid, bigint, bigint, bigint, bigint, uuid, integer)",
+      "reason": "product_only"
+    },
+    {
+      "product": "function:FUNCTION:sync_right_api:read_ordinary_order_summary(uuid, uuid)",
+      "reason": "product_only"
+    },
+    {
+      "product": "policy:POLICY:ordinary_pitch_checkpoints:ordinary_pitch_insert_ordinary_pitch_checkpoints",
+      "reason": "product_only"
+    },
+    {
+      "product": "policy:POLICY:ordinary_pitch_checkpoints:ordinary_pitch_select_ordinary_pitch_checkpoints",
+      "reason": "product_only"
+    },
+    {
+      "product": "policy:POLICY:ordinary_pitch_checkpoints:ordinary_pitch_update_ordinary_pitch_checkpoints",
+      "reason": "product_only"
+    },
+    {
+      "product": "policy:POLICY:ordinary_pitch_history:ordinary_pitch_insert_ordinary_pitch_history",
+      "reason": "product_only"
+    },
+    {
+      "product": "policy:POLICY:ordinary_pitch_history:ordinary_pitch_select_ordinary_pitch_history",
+      "reason": "product_only"
+    },
+    {
+      "product": "policy:POLICY:ordinary_pitch_write_admissions:ordinary_pitch_insert_ordinary_pitch_write_admissions",
+      "reason": "product_only"
+    },
+    {
+      "product": "policy:POLICY:ordinary_pitch_write_admissions:ordinary_pitch_select_ordinary_pitch_write_admissions",
+      "reason": "product_only"
+    },
+    {
+      "product": "policy:POLICY:ordinary_pitch_write_admissions:ordinary_pitch_update_ordinary_pitch_write_admissions",
+      "reason": "product_only"
+    },
+    {
+      "product": "policy:POLICY:play_rows:ordinary_pitch_select_play_rows",
+      "reason": "product_only"
+    },
+    {
+      "product": "table:ordinary_pitch_checkpoints",
+      "reason": "product_only"
+    },
+    {
+      "product": "table:ordinary_pitch_history",
+      "reason": "product_only"
+    },
+    {
+      "product": "table:ordinary_pitch_write_admissions",
+      "reason": "product_only"
     }
   ]
 }

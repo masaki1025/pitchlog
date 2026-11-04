@@ -17,7 +17,7 @@ import re
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import psycopg
 import pytest
@@ -52,6 +52,13 @@ _CANONICAL_RETIREMENT_CONSTRAINTS = {
     "medical_notes": "uq_medical_notes_active",
     "migrated_final_lineups": "uq_migrated_final_lineups_active",
 }
+_PRIVATE_BUSINESS_UNIQUE_TABLES = frozenset(
+    {
+        "writer_bindings",
+        "ordinary_pitch_write_admissions",
+        "ordinary_pitch_history",
+    }
+)
 _PRIVATE_BUSINESS_UNIQUES = {
     "uq_sync_writer_binding_lease": {
         "name": "uq_sync_writer_binding_lease",
@@ -77,6 +84,69 @@ _PRIVATE_BUSINESS_UNIQUES = {
             "uniqueness": "同期writer資格のnonce digest",
             "key_shape": "nonce_digest",
             "scope": "outside",
+        },
+    },
+    "ordinary_pitch_write_admissions_tenant_id_frame_id_key": {
+        "name": "ordinary_pitch_write_admissions_tenant_id_frame_id_key",
+        "kind": "UNIQUE",
+        "columns": ["tenant_id", "frame_id"],
+        "predicate": None,
+        "roles": ["business_unique"],
+        "source_row": {
+            "section": "6-1-b",
+            "uniqueness": "通常投球のframeは1 admissionだけが消費する",
+            "key_shape": "UNIQUE (tenant_id, frame_id)",
+            "scope": "scoped",
+        },
+    },
+    "ordinary_pitch_write_admissions_tenant_id_source_event_id_key": {
+        "name": "ordinary_pitch_write_admissions_tenant_id_source_event_id_key",
+        "kind": "UNIQUE",
+        "columns": ["tenant_id", "source_event_id"],
+        "predicate": None,
+        "roles": ["business_unique"],
+        "source_row": {
+            "section": "6-1-b",
+            "uniqueness": "通常投球のsource eventは1 admissionだけが消費する",
+            "key_shape": "UNIQUE (tenant_id, source_event_id)",
+            "scope": "scoped",
+        },
+    },
+    "ordinary_pitch_write_admissions_tenant_id_play_row_id_key": {
+        "name": "ordinary_pitch_write_admissions_tenant_id_play_row_id_key",
+        "kind": "UNIQUE",
+        "columns": ["tenant_id", "play_row_id"],
+        "predicate": None,
+        "roles": ["business_unique"],
+        "source_row": {
+            "section": "6-1-b",
+            "uniqueness": "通常投球のPlayRowは1 admissionだけが消費する",
+            "key_shape": "UNIQUE (tenant_id, play_row_id)",
+            "scope": "scoped",
+        },
+    },
+    "ordinary_pitch_history_tenant_id_game_id_internal_generatio_key": {
+        "name": "ordinary_pitch_history_tenant_id_game_id_internal_generatio_key",
+        "kind": "UNIQUE",
+        "columns": [
+            "tenant_id",
+            "game_id",
+            "internal_generation",
+            "history_version",
+            "d1",
+        ],
+        "predicate": None,
+        "roles": ["business_unique"],
+        "source_row": {
+            "section": "6-1-b",
+            "uniqueness": "通常投球の履歴は同game/世代/版/打順で1件",
+            "key_shape": "UNIQUE "
+            "(tenant_id, "
+            "game_id, "
+            "internal_generation, "
+            "history_version, "
+            "d1)",
+            "scope": "scoped",
         },
     },
 }
@@ -830,9 +900,11 @@ def _cross_table_audit_violations(
     if (
         len(private_rows) != len(_PRIVATE_BUSINESS_UNIQUES)
         or private_constraints != _PRIVATE_BUSINESS_UNIQUES
-        or any(table != "writer_bindings" for table, _ in private_rows)
+        or any(
+            table not in _PRIVATE_BUSINESS_UNIQUE_TABLES for table, _ in private_rows
+        )
     ):
-        raise ValueError("6-1-aの私有一意制約exact2全fieldが不一致")
+        raise ValueError("私有一意制約の全field閉集合が不一致")
     canonical_outside = {
         name
         for name, constraint in business_constraints.items()
@@ -864,13 +936,17 @@ def _cross_table_audit_violations(
     )
     if len(business_constraints) != 31 + len(_PRIVATE_BUSINESS_UNIQUES):
         global_uniqueness_violations.append(
-            "business_unique が旧31件＋6-1-aの2件ではない: "
-            f"{len(business_constraints)} 件"
+            f"business_unique が旧31件＋私有6件ではない: {len(business_constraints)} 件"
         )
 
-    if len(canonical_outside) != 5 + len(_PRIVATE_BUSINESS_UNIQUES):
+    outside_private = {
+        name
+        for name, constraint in _PRIVATE_BUSINESS_UNIQUES.items()
+        if cast(dict[str, Any], constraint)["source_row"].get("scope") == "outside"
+    }
+    if len(canonical_outside) != 5 + len(outside_private):
         global_uniqueness_violations.append(
-            "テナント外 business_unique が旧5件＋6-1-aの2件ではない: "
+            "テナント外 business_unique が旧5件＋私有2件ではない: "
             f"{len(canonical_outside)} 件"
         )
 
