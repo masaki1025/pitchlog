@@ -2515,7 +2515,9 @@ def positive_fixture_qualification_contexts(
     tmp_path_factory: pytest.TempPathFactory,
 ) -> tuple[Any, Any, Path]:
     """旧generic正例と現source資格を混ぜず、同じ3面の検査材料を供給する。"""
-    historical_revision = "eb8b31cdaa052d0a05b2d2d07b25e224accb769a"
+    historical_revision = checker._pr192_read_fixed_expectations(REPOSITORY_ROOT)[
+        "formal_base_revision"
+    ]
     parent = tmp_path_factory.mktemp("positive-qualification")
     historical_root = _materialize_checker_revision_root(
         historical_revision, parent / "historical",

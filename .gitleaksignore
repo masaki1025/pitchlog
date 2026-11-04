@@ -39,3 +39,9 @@ d865265c06204f8b8b06e5e8aa2c403a7dd3ab05:backend/tests/test_api_auth_exit.py:gen
 # ルール・ファイル全体を除外しない。既存履歴の別1件はこの承認に含めない。
 1fea2c60f04f9c50c882298042b5a0458dd5879a:docs/features/auth-session-verification-contract/step2-review-manifest.json:generic-api-key:4
 1fea2c60f04f9c50c882298042b5a0458dd5879a:docs/features/auth-session-verification-contract/step2-review-manifest.json:generic-api-key:6
+
+# PR #192 — 2026-11-05・PO委任によるCodex主担当/root判断の限定候補。
+# step4-pathsのterminal_pitch_tokens.py値は同一commitの公開source内容SHA-256。
+# 実Git blobから再計算し完全一致/対象行を確認済み。実認証情報ではない。
+# 下記commit/file/rule/lineの1件だけを抑止し、ルール・ファイル全体は除外しない。
+dac1ad4cea7847e2154ab9101c118185d85a22a7:docs/features/mvp-strikeout-pitches/step4-paths.json:generic-api-key:147
