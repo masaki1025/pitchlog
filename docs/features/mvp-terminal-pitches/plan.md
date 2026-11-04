@@ -363,3 +363,11 @@ backend shard1の12失敗は、新規2公開moduleの未追記、PLAY_PREFIX_TRI
 read-only全失敗台帳8c09c325…は660nodeを重複根因へ分解した。旧sourceの検査条件を保ち、未登録の現操作を有限追加する試験追随は、追加backend9ファイル（writer reapply/製品table ACL/model ports/product supply/first-ball登録/writer binding/capability登録/control access/provisioning）へ限定する。stagingの子検査は本来のcontrol access是正を通して確認し、試験自体を弱めない。実画面の旧記録復元1件は主担当が同版owned環境で再現して原因を確認するまで期待変更しない。
 
 harnessは、合成Gitの原典実object/祖先保持を既正例だけでなく共通fixture/凍結archive runnerへ同じ実証条件で伝播し、checkerの祖先拒否を弱めない。原典固定selector/集計件数・T2/MC/DC/failure注入の連鎖は実前後値と公式導出から追随する。人間署名/既封印は変更・代記せず、現在追加を歴史署名へ含めない。新たな鍵発行・本人署名・skip・反例削除・許可集合の無制限化は不可。必要な追加pathは担当前に固定し、正式資産/全再導出はrootが直列で管理する。
+
+### 2026-11-05 ordinary33のPR191限定・委任extension
+
+read-only全差分529289e4…で、30f署名原典と正式40ceの旧fixed11/record/schema/数学9は一致し、現変更は既受理BB/HBP2row15caseとそれに必要な6path（state contract、branch mapping、game coverage、handoff、T2descriptor参照、descriptor資格軸/末尾受理record）だけと確認した。旧49row/119case/旧9履歴prefix・旧33の計算/期待/署名は不変。本人cryptoの新署名待ちではなく、既PO委任手続きに新操作の有限接合がないため拒否されている。
+
+`scripts/check_human_review_signature.py`と同test、必要なら独立固定原典JSON1を最小変更し、既ordinaryのbase-first・旧record/schema/旧9hash・全HEAD依存・policy/公開委任証拠検査を保持してPR191/feature-mvp-terminal-pitchesだけのextensionを追加する。既descriptor freeze受理record/schema/append-onlyと既terminal15全値検査を再利用し、重複した新しい人間署名recordを作らない。固定原典は実審査済み22437086を名前付きfrozen inputへ登録し、現在木から期待を生成しない。現headの未知差分、旧33/旧119の改変、他target/branch/fork/base、非祖先、record欠落/改変、自己申告approved、未解消・同作者・非独立・証拠API失敗は拒否する。technical/旧署名scope保持と現追加の委任受理を出力で区別し、後者を本人署名/全T1/P6成立と表示しない。
+
+現行の旧不変経路は一般緩和しない。コードと全前後値を固定し、例外手続き自体の独立レビュー・無効証拠拒否試験と実PR CLIを通してから通常統合へ進む。rootの今回限定PO委任判断で着手し、新しいPO本人承認待ちを作らない。
