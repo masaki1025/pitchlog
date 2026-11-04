@@ -26,7 +26,8 @@
           "scripts/check_tenant_boundary_bypass.py",
           "tests/test_census_baseline_check.py",
           "tests/test_pr191_tenant_source_registration.py",
-          "tests/fixtures/pr191_tenant_source_expected_v1.json"
+          "tests/fixtures/pr191_tenant_source_expected_v1.json",
+          "backend/tests/test_terminal_pitch_write_stamp.py"
         ]
       }
     },
@@ -101,6 +102,13 @@
       "sources": [
         "scripts/check_tenant_boundary_bypass.py:_load_pr191_source_owners",
         "tests/test_pr191_tenant_source_registration.py:immutable_source"
+      ]
+    },
+    "terminal_prepare_original_sql_sha256": {
+      "value": "18fb89b0d4065b536a726bc5f17ccfcb5b3577825a42990387e08e07c891712d",
+      "purpose": "PR191のprepare_play_prefix_projectionでCASE括弧5箇所以外を変えなかったことを全byte SHAで検査する旧SQLの独立固定期待。値は8712866dの既試験から同値移設し製品sourceから再計算しない。",
+      "sources": [
+        "backend/tests/test_terminal_pitch_write_stamp.py:test_prepare_parenthesizes_five_case_expressions_without_other_sql_changes"
       ]
     }
   }

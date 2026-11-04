@@ -34318,7 +34318,8 @@
                       "scripts/check_tenant_boundary_bypass.py",
                       "tests/test_census_baseline_check.py",
                       "tests/test_pr191_tenant_source_registration.py",
-                      "tests/fixtures/pr191_tenant_source_expected_v1.json"
+                      "tests/fixtures/pr191_tenant_source_expected_v1.json",
+                      "backend/tests/test_terminal_pitch_write_stamp.py"
                     ]
                   }
                 },
@@ -34592,6 +34593,11 @@
                 "snapshot_ref": "contracts/tenant_boundary/history-snapshots/8ad8f18c379c96e2473857119c620cff3016d732b6cf39536b00c58a758a8621"
               },
               {
+                "path": "backend/tests/test_terminal_pitch_write_stamp.py",
+                "sha256": "df97726f451b558a0b6504935c749cc645824d3e0308127a22ce23b35a8e6c96",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/df97726f451b558a0b6504935c749cc645824d3e0308127a22ce23b35a8e6c96"
+              },
+              {
                 "path": "scripts/check_tenant_boundary_bypass.py",
                 "sha256": "dbf236a642fbdf6551afdb23bdb031f2bb9c661e3bc939d8d8a85387a56b2cea",
                 "snapshot_ref": "contracts/tenant_boundary/history-snapshots/dbf236a642fbdf6551afdb23bdb031f2bb9c661e3bc939d8d8a85387a56b2cea"
@@ -34665,8 +34671,8 @@
               },
               {
                 "path": "contracts/tenant_boundary/frozen-inputs.json",
-                "sha256": "e02e409aa269faa141820e6c09836a4161cd5189618c22531d4f5846bae0d415",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/e02e409aa269faa141820e6c09836a4161cd5189618c22531d4f5846bae0d415"
+                "sha256": "19bdc1f7ff3fb6733a4bf87e115cb96d99ee5da1551d70e56d5a5ddb3952fcda",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/19bdc1f7ff3fb6733a4bf87e115cb96d99ee5da1551d70e56d5a5ddb3952fcda"
               },
               {
                 "path": "contracts/tenant_boundary/negative-fixtures.json",
