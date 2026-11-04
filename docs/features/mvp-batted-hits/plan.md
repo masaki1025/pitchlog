@@ -198,3 +198,8 @@ cache step5-scope-proposal.json c9f7a6ef…を基に、作者batted_prefix_conne
 共有schema interpreterはallOfの全ANDと型省略properties制約を正式JSONschemaどおり検証し、未知constructを成功化しない。旧wireを全保持し閉4結果と12原観測の相関を検証する。既v3/一意artifact/queue/D5/ACK/re-read・実fielding rosterを再利用、在塁/TB/終了/併発・観測未確定は成功にしない。新componentは4結果と各6 nullable観測/公式記録条件の確認・修正を明示し、自動チェック/推測/既定観測を作らない。hitX/Yは既0..1の正準十進を直接入力し新座標計算/丸めを複製しない。
 
 語彙キーの手入力を製品導線にせず、rootが同認証/C2でGET /vocabularies/batted-ballsを供給する。既pitch-typesと同じ閉Page(key,display_name; next_cursor)、limit1..100/cursor、DB側category=batted_ball/disabled=falseとkeyset有限読取。type/strengthは現正本/保存SQLの同admin categoryを消費し、未裁定groupを勝手に作らない。新FE APIも既transport/閉検証/paging/認可失効を再利用。未供給/失敗を固定候補や未観測へ自動置換せず、利用者が明示した未観測NULLと区別する。rootのbackend/token/正式登録・認可/DB検証は別直列writerで後続し、本FE成功だけで実画面保存成立にしない。作者は純検査/全SHA/旧比較を固定し非作者確認前にcommitやブラウザPGを開始しない。
+
+
+### ステップ5実語彙readの担当分離（2026-11-05、PO委任Codex /root判断）
+
+FE14と分離しstats_csv_next_unitへ新exact4: backend/src/pitchlog/api/schemas/batted_ball_options.py、同routers/batted_ball_options.py、repositories/batted_ball_options.py、backend/tests/test_batted_ball_options.pyを許可。前節endpoint/閉Page/実認証C2/tenant scope/keysetを満たす実callerを実装する。既SQLが受理するglobal admin_vocabulariesのcategory=batted_ball・disabled=falseだけの固定function readを候補にし、tokenはCAP:recording_vocabularies:read、関数はrecording_vocab_api.read_batted_ball_options。外部category/tenant/任意SQL/固定選択肢を受けず、上限101・正準cursor・key順/表示名・未知/改竄・越境を閉検証する。SECURITY DEFINERのsession_user/current_user・app.tenant_id一致/最小column ACL/EXECUTE・SQLbodyと共有app/registry/正式producerへの登録差分はcacheだけへ候補提示しrootが別途直列採否・反映する。作者は上記4だけを編集し、FE14/正式資産/共有code/台帳/refs/DBを変更しない。独立確認と正式登録前の純成功を製品read提供済みへ拡張しない。
