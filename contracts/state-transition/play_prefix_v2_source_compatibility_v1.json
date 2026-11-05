@@ -600,6 +600,28 @@
       ],
       "sourceFormat": "ordinary-pitch-play-v1",
       "witnessSha256": "b2d1fa6e6eaa23005f841b3ffb1d992dfeb48607fd013fcf5eea85a6fdc58f9a"
+    },
+    {
+      "priorArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+      "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+      "compatibleOperations": [
+        "deriveState",
+        "deriveFirstPitchWithContinuation"
+      ],
+      "sourceFormat": "first-ball-play-v1",
+      "witnessSha256": "8f74a5805e462f2e03d312bc9ab7412a9f79d8ee50a409da46eaacf6f5234093"
+    },
+    {
+      "priorArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+      "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+      "compatibleOperations": [
+        "deriveState",
+        "deriveFirstPitchWithContinuation",
+        "deriveOrdinaryPitch",
+        "deriveOrdinaryPitchWithContinuation"
+      ],
+      "sourceFormat": "ordinary-pitch-play-v1",
+      "witnessSha256": "8f74a5805e462f2e03d312bc9ab7412a9f79d8ee50a409da46eaacf6f5234093"
     }
   ]
 }
