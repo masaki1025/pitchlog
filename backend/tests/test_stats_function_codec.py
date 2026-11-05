@@ -60,7 +60,7 @@ def save(**changes):
         model_sha256=SOURCE_MODEL_HASH,
         expected_revision=0,
         expected_source_set_sha256=None,
-        evaluation_json=json.dumps(envelope()),
+        evaluation_json=json.dumps(current_envelope()),
         binding_nonce=NONCE,
     )
     values.update(changes)
@@ -142,7 +142,7 @@ def test_five_closed_function_signatures_and_typed_sql():
     second = cast(Any, save_binds["evaluation_json"].type).process_bind_param(
         calls[0].parameters["evaluation_json"], postgresql.dialect()
     )
-    assert first == second == envelope()
+    assert first == second == current_envelope()
     first["selected"] = False
     assert second["selected"] is True
     for factory in (
@@ -467,8 +467,12 @@ def test_contract_valid_129_digits_metric_and_credit_are_lossless():
     assert result == data
     assert result["metrics"]["runs"]["value"] == amount
     assert result["metrics"]["runs"]["credits"][0]["quantity"] == amount
-    call = save(evaluation_json=json.dumps(data))
-    assert call.parameters["evaluation_json"] == json.dumps(data)
+    current = current_envelope()
+    current["metrics"] = copy.deepcopy(data["metrics"])
+    call = save(evaluation_json=json.dumps(current))
+    assert call.parameters["evaluation_json"] == json.dumps(current)
+    with pytest.raises(codec.StatsFunctionCodecError):
+        save(evaluation_json=json.dumps(data))
 
 
 @pytest.mark.parametrize("bad", [True, "-1", "1e2", "1.5", "NaN", "Infinity"])
@@ -518,3 +522,206 @@ def test_explicit_pa_rbi_and_inning_lengths_are_retained():
     base["pa_row"]["rbi"] = "1" * 129
     with pytest.raises(codec.StatsFunctionCodecError):
         codec.parse_evaluation_json(json.dumps(base))
+
+
+def current_envelope():
+    """採用済みv2のmetadataを規範から手置きし、計算出力を採取しない。"""
+    data = envelope()
+    del data["pending"]
+    data["decisions"] = {
+        "D02": {
+            "decision_id": "D02",
+            "decision_state": "adopted",
+            "choice": "A",
+            "implementation_state": "available",
+        },
+        "D03": {
+            "decision_id": "D03",
+            "decision_state": "adopted",
+            "choice": "A",
+            "implementation_state": "pending",
+            "source_state": "not_evaluated",
+            "value": None,
+        },
+        "D04": {
+            "decision_id": "D04",
+            "decision_state": "adopted",
+            "choice": "A",
+            "implementation_state": "pending",
+            "source_state": "not_evaluated",
+            "value": None,
+        },
+        "D05": {
+            "decision_id": "D05",
+            "decision_state": "adopted",
+            "choice": "A",
+            "implementation_state": "available",
+        },
+    }
+    return data
+
+
+def test_v1_and_v2_evaluation_profiles_remain_distinct_and_closed():
+    """旧pendingと現adoptedを同じmetadataへ補修しない。"""
+    for data in (envelope(), current_envelope()):
+        original = copy.deepcopy(data)
+        assert codec.parse_evaluation_json(json.dumps(data)) == original
+        assert data == original
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        "pending-plus-decisions",
+        "missing-decision",
+        "unknown-decision",
+        "wrong-choice",
+        "decision-pending",
+        "D03-available",
+        "D04-zero",
+        "extra-field",
+        "missing-source-state",
+        "string-null",
+        "missing-metadata",
+        "unknown-version",
+    ],
+)
+def test_v2_metadata_rejects_unestablished_or_mixed_profiles(mutation):
+    """実装待ちをavailable/0へ補うことや、未知版への推定を拒否する。"""
+    data = current_envelope()
+    if mutation == "pending-plus-decisions":
+        data["pending"] = envelope()["pending"]
+    elif mutation == "missing-decision":
+        del data["decisions"]["D02"]
+    elif mutation == "unknown-decision":
+        data["decisions"]["D06"] = data["decisions"]["D02"]
+    elif mutation == "wrong-choice":
+        data["decisions"]["D02"]["choice"] = "B"
+    elif mutation == "decision-pending":
+        data["decisions"]["D05"]["decision_state"] = "pending"
+    elif mutation == "D03-available":
+        data["decisions"]["D03"]["implementation_state"] = "available"
+    elif mutation == "D04-zero":
+        data["decisions"]["D04"]["value"] = "0"
+    elif mutation == "extra-field":
+        data["decisions"]["D05"]["value"] = None
+    elif mutation == "missing-source-state":
+        del data["decisions"]["D03"]["source_state"]
+    elif mutation == "string-null":
+        data["decisions"]["D04"]["value"] = "null"
+    elif mutation == "missing-metadata":
+        del data["decisions"]
+    else:
+        data["contract_version"] = "unknown"
+    with pytest.raises(codec.StatsFunctionCodecError):
+        codec.parse_evaluation_json(json.dumps(data))
+
+
+def test_historical_decode_does_not_grant_current_sql_write():
+    """保存済み旧原値の読取を、旧版の新規書込能力へ拡張しない。"""
+    old = envelope()
+    legacy_model = codec._native_profiles()["v1"]["model_sha256"]
+    assert (
+        codec.decode_historical_evaluation_json(
+            json.dumps(old), model_sha256=legacy_model
+        )
+        == old
+    )
+    for model in (SOURCE_MODEL_HASH, "sha256:" + H):
+        with pytest.raises(codec.StatsFunctionCodecError):
+            codec.decode_historical_evaluation_json(json.dumps(old), model_sha256=model)
+    with pytest.raises(codec.StatsFunctionCodecError):
+        codec.decode_historical_evaluation_json(
+            json.dumps(current_envelope()), model_sha256=legacy_model
+        )
+    with pytest.raises(codec.StatsFunctionCodecError):
+        save(model_sha256=legacy_model, evaluation_json=json.dumps(old))
+    with pytest.raises(codec.StatsFunctionCodecError):
+        save(model_sha256=SOURCE_MODEL_HASH, evaluation_json=json.dumps(old))
+    with pytest.raises(codec.StatsFunctionCodecError):
+        codec._EvaluationJSONB().process_bind_param(
+            json.dumps(old), postgresql.dialect()
+        )
+
+
+@pytest.fixture
+def copied_native_profiles(tmp_path, monkeypatch):
+    """新2profileの参照先だけを実copyし、実manifestは書かない。"""
+    paths = [
+        "backend/domain/stats-manifest.json",
+        "docs/features/mvp-stats-primitives/primitive-output.candidate.json",
+        "backend/domain/model.schema.json",
+        "backend/domain/play-export.model.json",
+        "backend/domain/stats.model.json",
+        "backend/src/pitchlog/stats/generated/facts.py",
+        "frontend/src/lib/generated/statsPrimitives.ts",
+    ]
+    for name in paths:
+        target = tmp_path / name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes((codec._ROOT / name).read_bytes())
+    monkeypatch.setattr(codec, "_ROOT", tmp_path)
+    return tmp_path
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        "missing",
+        "third-profile",
+        "extra-profile-field",
+        "wrong-current-hash",
+        "same-hash",
+        "old-input",
+        "old-binding-model",
+        "unknown-artifact",
+        "wrong-version-type",
+        "current-input-byte",
+        "current-artifact-byte",
+        "contract-byte",
+    ],
+)
+def test_native_profile_binding_rejects_incomplete_or_mixed_supply(
+    copied_native_profiles, mutation
+):
+    """旧来歴と現在配置を混ぜず、未知profile/供給不足を補完しない。"""
+    root = copied_native_profiles
+    path = root / "backend/domain/stats-manifest.json"
+    data = json.loads(path.read_text())
+    profiles = data["nativeEvaluationProfiles"]
+    if mutation == "missing":
+        del data["nativeEvaluationProfiles"]
+    elif mutation == "third-profile":
+        profiles["v3"] = copy.deepcopy(profiles["v2"])
+    elif mutation == "extra-profile-field":
+        profiles["v1"]["current_execution"] = True
+    elif mutation == "wrong-current-hash":
+        profiles["v2"]["model_sha256"] = "sha256:" + H
+    elif mutation == "same-hash":
+        profiles["v1"]["model_sha256"] = SOURCE_MODEL_HASH
+        profiles["v1"]["artifact_binding"]["model_sha256"] = SOURCE_MODEL_HASH
+    elif mutation == "old-input":
+        profiles["v1"]["generation_input_files"][
+            "backend/domain/play-export.model.json"
+        ] = H
+    elif mutation == "old-binding-model":
+        profiles["v1"]["artifact_binding"]["model_sha256"] = SOURCE_MODEL_HASH
+    elif mutation == "unknown-artifact":
+        profiles["v1"]["artifact_binding"]["artifacts"]["unknown"] = H
+    elif mutation == "wrong-version-type":
+        profiles["v1"]["artifact_binding"]["version"] = True
+    else:
+        name = {
+            "current-input-byte": "backend/domain/play-export.model.json",
+            "current-artifact-byte": "backend/src/pitchlog/stats/generated/facts.py",
+            "contract-byte": (
+                "docs/features/mvp-stats-primitives/primitive-output.candidate.json"
+            ),
+        }[mutation]
+        target = root / name
+        target.write_bytes(target.read_bytes() + b"\n")
+    path.write_text(json.dumps(data))
+    with pytest.raises(codec.StatsFunctionCodecError):
+        codec.decode_historical_evaluation_json(
+            json.dumps(envelope()), model_sha256=profiles["v1"]["model_sha256"]
+        )

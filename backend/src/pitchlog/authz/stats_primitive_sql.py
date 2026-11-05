@@ -9,12 +9,23 @@ from pathlib import Path
 
 from pitchlog.authz.sync_right_sql import _STAMP_COLS
 from pitchlog.domaingen.core import _canonical_hash, generate_primitive_sql_bundle
+from pitchlog.repositories.stats_function_codec import (
+    _current_decisions,
+    _native_profiles,
+)
 from pitchlog.stats.generated.receiver import METRIC_IDS, SOURCE_MODEL_HASH
 
 _ROOT = Path(__file__).parents[4]
 _SQL_PATH = "backend/src/pitchlog/exports/generated/play_primitives.sql"
 _MODEL_PATH = "backend/domain/play-export.model.json"
 _CONSUMER_PATH = "backend/domain/stats.model.json"
+_SQL_PATHS = frozenset(
+    {
+        _SQL_PATH,
+        "backend/src/pitchlog/stats/generated/stats.sql",
+        "backend/src/pitchlog/stats/generated/stats_rates.sql",
+    }
+)
 _MANIFEST_PATH = "backend/domain/stats-manifest.json"
 _ARTIFACT_PATHS = frozenset(
     {
@@ -31,6 +42,26 @@ def _verified_inputs(root: Path) -> tuple[str, dict[str, str], str, str]:
     manifest = json.loads((root / _MANIFEST_PATH).read_text())
     bundle = generate_primitive_sql_bundle(common_model, consumer_model)
     model_hash = _canonical_hash(common_model)
+    profiles = _native_profiles(root)
+    if profiles["v2"]["model_sha256"] != model_hash or set(bundle) != _SQL_PATHS:
+        raise ValueError("成績nativeの現在版/生成SQL集合が一致しません")
+    if common_model["calculations"][0]["typedProgram"].get("version") != 2:
+        raise ValueError("成績native SQL sinkは現在v2専用です")
+    if (
+        common_model["calculations"][0]["typedProgram"].get("decisions")
+        != _current_decisions()
+    ):
+        raise ValueError("成績nativeの採用metadataが一致しません")
+    for path in _SQL_PATHS:
+        raw_sql = (root / path).read_text()
+        if (
+            raw_sql != bundle[path]
+            or manifest["generatedFiles"][path]
+            != hashlib.sha256(raw_sql.encode()).hexdigest()
+        ):
+            raise ValueError("成績nativeの生成SQL本文が一致しません")
+    if profiles["v2"]["artifact_binding"] != manifest["t5ArtifactSetBinding"]:
+        raise ValueError("成績native現在profileとartifact宣言が一致しません")
     raw = (root / _SQL_PATH).read_text()
     binding = manifest["t5ArtifactSetBinding"]
     if (
@@ -107,6 +138,16 @@ def candidate_function_bodies() -> dict[str, str]:
             "after_source_event_id": "p_after_source_event_id",
             "after_metric_id": "p_after_metric_id",
             "page_size": "p_page_size",
+            # nativeの単一game読取は合算固定。任意の集合/選択は呼出者に開かない。
+            "named_category": "'all'",
+            "raw_game_type_keys": "ARRAY["
+            + ",".join(
+                "'" + key + "'"
+                for key in json.loads((_ROOT / _MODEL_PATH).read_text())[
+                    "calculations"
+                ][0]["typedProgram"]["namedScopes"]["groups"]["all"]
+            )
+            + "]::text[]",
         }
         if substitutions:
             names.update(substitutions)
@@ -675,8 +716,8 @@ def candidate_function_bodies() -> dict[str, str]:
         "(SELECT pg_catalog.array_agg(k ORDER BY "
         "k) FROM pg_catalog.jsonb_object_keys(p_e"
         "valuation_json) k)\n IS DISTINCT FROM "
-        "ARRAY['metrics','native_rule_sha256',"
-        "'pa_row','pending','selected',"
+        "ARRAY['decisions','metrics','native_rule_sha256',"
+        "'pa_row','selected',"
         "'source_event_id']::text[]\n OR "
         "p_evaluation_json->'selected' IS "
         "DISTINCT FROM 'true'::jsonb\n OR "
@@ -688,19 +729,14 @@ def candidate_function_bodies() -> dict[str, str]:
         "FROM 'string'\n OR "
         "p_evaluation_json->>'native_rule_sha256'"
         " !~ '^[a-f0-9]{64}$'\n OR "
-        "p_evaluation_json->'pending' IS "
-        "DISTINCT FROM\n "
-        '\'{"named_category":{"state":"decision_pe'
-        'nding","decision_id":"D02",'
-        '"value":null},'
-        '"appearances":{"state":"decision_pending'
-        '","decision_id":"D03","value":null},'
-        '"batters_faced":{"state":"decision_pendi'
-        'ng","decision_id":"D04","value":null},'
-        '"ops":{"state":"decision_pending",'
-        '"decision_id":"D05",'
-        '"value":null}}\'::jsonb\n OR '
-        "pg_catalog.jsonb_typeof(p_evaluation_jso"
+        "p_evaluation_json->'decisions' IS "
+        "DISTINCT FROM "
+        + "'"
+        + json.dumps(
+            _current_decisions(), separators=(",", ":"), ensure_ascii=False
+        ).replace("'", "''")
+        + "'::jsonb\n OR "
+        + "pg_catalog.jsonb_typeof(p_evaluation_jso"
         "n->'metrics') IS DISTINCT FROM 'object'\n"
         " OR (SELECT pg_catalog.array_agg(k "
         "ORDER BY k) FROM "

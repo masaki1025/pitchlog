@@ -2,6 +2,11 @@
 
 import hashlib
 import json
+import os
+import subprocess
+from pathlib import Path
+from tempfile import TemporaryDirectory
+from types import ModuleType
 from unittest.mock import patch
 
 import pytest
@@ -41,9 +46,70 @@ def _json_sha(value):
     ).hexdigest()
 
 
+def _legacy_sql(tmp_path, monkeypatch):
+    """真正immutable v1入力を同compilerへ渡し、旧SQL全期待を歴史比較する。"""
+    root = sql._ROOT
+    contract = json.loads(
+        (
+            root / "docs/features/mvp-stats-primitives/primitive-output.candidate.json"
+        ).read_text()
+    )
+    origin = contract["x-v1-immutable-model-inputs"]
+
+    def blob(path):
+        return subprocess.check_output(
+            ["git", "-C", str(root), "show", origin["revision"] + ":" + path]
+        )
+
+    manifest = json.loads(blob(sql._MANIFEST_PATH))
+    paths = {sql._MANIFEST_PATH, *origin["paths"], *manifest["generatedFiles"]}
+    for name in paths:
+        raw = blob(name)
+        if name in origin["paths"]:
+            assert hashlib.sha256(raw).hexdigest() == origin["paths"][name]
+        if name in manifest["generatedFiles"]:
+            assert hashlib.sha256(raw).hexdigest() == manifest["generatedFiles"][name]
+        target = tmp_path / name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(raw)
+    source_name = "backend/src/pitchlog/authz/stats_primitive_sql.py"
+    module = ModuleType("__legacy_stats_sql__")
+    module.__dict__["__file__"] = str(tmp_path / source_name)
+    source = blob(source_name)
+    exec(compile(source, "<immutable-v1-stats-sql>", "exec"), module.__dict__)
+    module.__dict__["_ROOT"] = tmp_path
+    module.__dict__["SOURCE_MODEL_HASH"] = manifest["commonModelHash"]
+    monkeypatch.setattr(
+        product,
+        "candidate_function_bodies",
+        module.__dict__["candidate_function_bodies"],
+    )
+    return module
+
+
+@pytest.fixture
+def legacy_sql(tmp_path, monkeypatch):
+    """旧installer比較だけに閉じた一時supplierを渡す。"""
+    return _legacy_sql(tmp_path, monkeypatch)
+
+
 def test_all_four_sql_and_84_bodies_preserve_adopted_whole_bytes():
+    """既write-state試験からの引数なし呼出し互換も保つ。"""
+    temporary_root = Path(
+        os.environ.get("PITCHLOG_PYTEST_TMPDIR")
+        or Path.home() / ".cache/pitchlog/pytest-tmp"
+    )
+    temporary_root.mkdir(parents=True, exist_ok=True)
+    with TemporaryDirectory(
+        prefix="stats-v1-reference-", dir=temporary_root
+    ) as directory:
+        with pytest.MonkeyPatch.context() as monkeypatch:
+            _assert_legacy_sql_values(_legacy_sql(Path(directory), monkeypatch))
+
+
+def _assert_legacy_sql_values(legacy_sql):
     """rawSQLと旧54列/7policy+追加16列/3policyを全値で保つ。"""
-    bodies = sql.candidate_function_bodies()
+    bodies = legacy_sql.candidate_function_bodies()
     assert {
         name: hashlib.sha256(body.encode()).hexdigest() for name, body in bodies.items()
     } == _SQL_SHA
@@ -56,10 +122,10 @@ def test_all_four_sql_and_84_bodies_preserve_adopted_whole_bytes():
         "column_acl_expectations": 70,
     }
     assert len(raw) == 84
-    assert sql.candidate_function_bodies() == bodies
+    assert legacy_sql.candidate_function_bodies() == bodies
 
 
-def test_installer_and_operation_requirements_preserve_adopted_values():
+def test_installer_and_operation_requirements_preserve_adopted_values(legacy_sql):
     """実適用待ちのowner/ACL footerとnonce/RRRO境界を落とさない。"""
     assert (
         hashlib.sha256(product.candidate_install_sql().encode()).hexdigest()
@@ -144,14 +210,18 @@ def copied_inputs(tmp_path, monkeypatch):
         sql._MODEL_PATH,
         sql._CONSUMER_PATH,
         sql._MANIFEST_PATH,
-        sql._SQL_PATH,
+        *sql._SQL_PATHS,
         *sql._ARTIFACT_PATHS,
+        "backend/domain/model.schema.json",
+        "docs/features/mvp-stats-primitives/primitive-output.candidate.json",
     ]
     for relative in paths:
         target = tmp_path / relative
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes((sql._ROOT / relative).read_bytes())
     monkeypatch.setattr(sql, "_ROOT", tmp_path)
+    # 対向の前に、同じ供給全体が実際に成立することを確認する。
+    sql._verified_inputs(tmp_path)
     return tmp_path
 
 

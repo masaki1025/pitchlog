@@ -1,33 +1,34 @@
 {
   "schemaVersion": 1,
-  "status": "step1cd-code-preparation-db-and-formal-registration-pending",
+  "status": "v2-math-reviewed-native-admission-pg-and-formal-registration-pending",
   "baseCommit": "40eebf0e13efa9b44cb354831fc9eaac24a06167",
   "commonCalculationId": "canonicalEventFacts",
-  "commonModelHash": "sha256:f358df32f54bedfecb2866436e718c7bd6ece514798fe4de2325022d38a09422",
+  "commonModelHash": "sha256:60ab45878fdfc868efc15ddb0f9b84d6ab0f3583519c48a2202e3d9c3abac59d",
   "generationInputFiles": {
-    "backend/domain/model.schema.json": "1793f0ea0dcbae7b2868475a5fcd3e132bac2e40eeba94d16f9d65f9372a8e1b",
-    "backend/domain/play-export.model.json": "59f64a5e9b163ed196af9dad9750beb4fae76ae7512d96e187e0ce392fe4e999",
-    "backend/domain/stats.model.json": "4836ed1a6c6f39fea47a5a9850bc3b9590bbe8a7c0f509c4834851e93592ded5",
-    "backend/src/pitchlog/domaingen/core.py": "dea0ac1b1d9ce812e071e4b6d12182fe1048944813dad5db186e57f2ef70b4b6",
-    "backend/src/pitchlog/domaingen/pregen_checks.py": "3b3f24e53d50b7efdc03b171f5f7d1e2399802ec2e2d6558c213dda79e1416c9",
-    "backend/src/pitchlog/domaingen/formatter.py": "ed5bd72638dd84f93ae7e983bcd290e355c99f07c502bb287ede604ea284e57b",
-    "backend/src/pitchlog/domaingen/backends/python.py": "06dd4721116cf4b984f60a045f629421cdd38bb7536627c4a830f2afec8a458b",
-    "backend/src/pitchlog/domaingen/backends/typescript.py": "56da0501c6520212d8a2854b2e8698a5ed05716367aea5d544dff28a379e723a",
-    "backend/src/pitchlog/domaingen/backends/sql.py": "c7179a3246cf0c8cfa0bc0cb9feddea9a3db3fbd609bc0fc523cd23c0f6e8f29"
+    "backend/domain/model.schema.json": "ec6b8b9c90e37a22e4f57005df4e227380a0fc20d397a02cdee317e02892ac9a",
+    "backend/domain/play-export.model.json": "3ee265ce3586b793f8e48853e07548dfd700bd94fe988af1a63190e8626e073b",
+    "backend/domain/stats.model.json": "a3a7643780f7e430309b909d4c1b23a72da87b327afc5e1be2ff7c9da8244773",
+    "backend/src/pitchlog/domaingen/core.py": "761e60e3b10a09df5f5e5b32a39097094756a863bb13e6346abd3b44aa3967a5",
+    "backend/src/pitchlog/domaingen/pregen_checks.py": "72f558898fb535107e588eb03724ae106b8484544c0ccd50123d54df1621ba15",
+    "backend/src/pitchlog/domaingen/formatter.py": "11cbeae3b605add84eeebea9974b2e0b0449891601c84f62f9046ef36bd7dc3b",
+    "backend/src/pitchlog/domaingen/backends/python.py": "1c50aaac513d8ab684c6b24e659ca4aa7368995de322f7839b3686e248edd28b",
+    "backend/src/pitchlog/domaingen/backends/typescript.py": "b9c4458d10a3e872c45dcd5b5d24bbaf6f01f86df5ea71c84002b81b1213d468",
+    "backend/src/pitchlog/domaingen/backends/sql.py": "e0fb3a4956a47eafd6bca64c19740b6d6432c3dafda8668d4234e144ca270ffb"
   },
   "generatedFiles": {
-    "backend/src/pitchlog/stats/generated/facts.py": "523f6e0869d43b160ac2f33198ff2b45cdfeefdb95dc73f37a39e23f46988747",
-    "frontend/src/lib/generated/statsPrimitives.ts": "05212680e11dae31deee86a053b32f2c9bb12f279d4c5170bffb628c990c9e5c",
-    "backend/src/pitchlog/exports/generated/play_primitives.sql": "11ca5237097685c0f0749bdbb6e58421aee93abc64d8497f5c7079b6e54ce036",
-    "backend/src/pitchlog/stats/generated/stats.sql": "8edefccb74d35f0e44e9464c70daaaed9f424b0e18e551bfa50de153a09fc7f4",
-    "backend/src/pitchlog/stats/generated/receiver.py": "a7bc85acdd4d0086e5235044e484e1951dbf566c3259e5a021a7c7bc7a07bd70",
-    "backend/src/pitchlog/stats/generated/formatter.py": "e083603a99c3029db0cb3de91e49003dddb1691bc2c38c80f99afc2e45e1f173",
-    "frontend/src/lib/generated/statsFormatter.ts": "756b7c5f8ef5ce702f425dc57ff4139afac5b946a6d9ed08295b2428fe083f66"
+    "backend/src/pitchlog/stats/generated/facts.py": "7673b5969d6ce3104b48d4f94f217c6b4a44ef1b9b08d06ebaeee935648497d4",
+    "frontend/src/lib/generated/statsPrimitives.ts": "4ed903e416d2fbdf67d226b6e1f48a9dbfe8c9690feb7bd86485622be8078219",
+    "backend/src/pitchlog/exports/generated/play_primitives.sql": "6b76ca894f910a484aa8d130d07c61ab237a1737af0bec0e6a3b578a277b9552",
+    "backend/src/pitchlog/stats/generated/stats.sql": "b7a8837fb9efaf662a66a7b3c93ec977969139e93c58857716069a9b1329a541",
+    "backend/src/pitchlog/stats/generated/receiver.py": "2761af6c043820b93c12729112fe728b2c39103c2e5422091c0fda7007ce1b17",
+    "backend/src/pitchlog/stats/generated/formatter.py": "2778fefa6cb7e890266c31fdce250bd8c7e3358624f73fb81948d7a187be9a9c",
+    "frontend/src/lib/generated/statsFormatter.ts": "53c30ddf1b36d539c82cced1fbcbf64f4676082e44f6eeb3ec3ca7b3ab0f67d8",
+    "backend/src/pitchlog/stats/generated/stats_rates.sql": "2cd641e8ab0c56ee029dd3e477ccecdface1e18fd97770c0dfd9f1f174814f81"
   },
   "independentContractReferencesNotGenerationInputs": {
-    "docs/features/mvp-stats-primitives/primitive-input.candidate.json": "df75bd09f57345a3451693d2aa1dfcec3f930a9af2315d3ee310bc6c10d7104d",
-    "docs/features/mvp-stats-primitives/primitive-output.candidate.json": "95c5acc290296a25ba5f5707455773c0f411dca17f5ed6d62fe4730bec456add",
-    "docs/features/mvp-stats-primitives/primitive-cases.candidate.json": "fb7c65660f5e22c82a6c6326e5e7b4a47fc02f60fa771708413ca674aa9ca86a"
+    "docs/features/mvp-stats-primitives/primitive-input.candidate.json": "deed75d930cc9c77afe511433cdbe0572042b882b95217fa25df3488dc344426",
+    "docs/features/mvp-stats-primitives/primitive-output.candidate.json": "bef40a4c6fb3a509a3c72de6867eed01ffadde094ae329fdcc6f0148fc6fc198",
+    "docs/features/mvp-stats-primitives/primitive-cases.candidate.json": "8a2bee7ff357d8b20ba3af7bc0a8f80a5567bb344b2204801fc7460f6b9bbf48"
   },
   "formatTools": {
     "ruff": "0.16.3",
@@ -60,8 +61,8 @@
     "actual 191/192 native source supply to this worktree",
     "formal registry/contracts/display binding and actual entrypoint adoption",
     "completion receipt provider and official ended/season public targets",
-    "D02/D03/D04/D05 decisions",
-    "full step1 / 27 metrics / UI HTTP CSV completion"
+    "full step1 / 27 metrics / UI HTTP CSV completion",
+    "D02-D05 PO adopted 2026-11-05; D03/D04 source/implementation pending; current v2 real PG/native/provider/D11 validation still pending"
   ],
   "reflection1": {
     "reviewReportSha256": "9c05f9928864edde000f260e5c325526d908a71f0f3614adc731ab117d7a0c3b",
@@ -72,13 +73,13 @@
   },
   "t5ArtifactSetBinding": {
     "version": 1,
-    "model_sha256": "sha256:f358df32f54bedfecb2866436e718c7bd6ece514798fe4de2325022d38a09422",
+    "model_sha256": "sha256:60ab45878fdfc868efc15ddb0f9b84d6ab0f3583519c48a2202e3d9c3abac59d",
     "artifacts": {
-      "backend/src/pitchlog/stats/generated/facts.py": "523f6e0869d43b160ac2f33198ff2b45cdfeefdb95dc73f37a39e23f46988747",
-      "frontend/src/lib/generated/statsPrimitives.ts": "05212680e11dae31deee86a053b32f2c9bb12f279d4c5170bffb628c990c9e5c"
+      "backend/src/pitchlog/stats/generated/facts.py": "7673b5969d6ce3104b48d4f94f217c6b4a44ef1b9b08d06ebaeee935648497d4",
+      "frontend/src/lib/generated/statsPrimitives.ts": "4ed903e416d2fbdf67d226b6e1f48a9dbfe8c9690feb7bd86485622be8078219"
     }
   },
-  "t5ArtifactSetSha256": "3e2e03e605025f10aea5a449e1faa673bf34880bd88b5af84462a945054a40bf",
+  "t5ArtifactSetSha256": "28af30fd1b1300c805b7dcb243fc7b32ab9d6db9fc10c38bdcbc63fa85c3a0de",
   "currentSeriesBinding": {
     "state": "current_open only same model/rule/t5_artifact_set",
     "conditionalMutable": [
@@ -120,5 +121,54 @@
     "commit": "40eebf0e13efa9b44cb354831fc9eaac24a06167",
     "actualOwnedPG": "17.11 2passed10.92s",
     "scopeOnly": true
+  },
+  "nativeEvaluationProfiles": {
+    "v1": {
+      "model_sha256": "sha256:f358df32f54bedfecb2866436e718c7bd6ece514798fe4de2325022d38a09422",
+      "generation_input_files": {
+        "backend/domain/model.schema.json": "1793f0ea0dcbae7b2868475a5fcd3e132bac2e40eeba94d16f9d65f9372a8e1b",
+        "backend/domain/play-export.model.json": "59f64a5e9b163ed196af9dad9750beb4fae76ae7512d96e187e0ce392fe4e999",
+        "backend/domain/stats.model.json": "4836ed1a6c6f39fea47a5a9850bc3b9590bbe8a7c0f509c4834851e93592ded5"
+      },
+      "artifact_binding": {
+        "version": 1,
+        "model_sha256": "sha256:f358df32f54bedfecb2866436e718c7bd6ece514798fe4de2325022d38a09422",
+        "artifacts": {
+          "backend/src/pitchlog/stats/generated/facts.py": "523f6e0869d43b160ac2f33198ff2b45cdfeefdb95dc73f37a39e23f46988747",
+          "frontend/src/lib/generated/statsPrimitives.ts": "05212680e11dae31deee86a053b32f2c9bb12f279d4c5170bffb628c990c9e5c"
+        }
+      }
+    },
+    "v2": {
+      "model_sha256": "sha256:60ab45878fdfc868efc15ddb0f9b84d6ab0f3583519c48a2202e3d9c3abac59d",
+      "generation_input_files": {
+        "backend/domain/model.schema.json": "ec6b8b9c90e37a22e4f57005df4e227380a0fc20d397a02cdee317e02892ac9a",
+        "backend/domain/play-export.model.json": "3ee265ce3586b793f8e48853e07548dfd700bd94fe988af1a63190e8626e073b",
+        "backend/domain/stats.model.json": "a3a7643780f7e430309b909d4c1b23a72da87b327afc5e1be2ff7c9da8244773"
+      },
+      "artifact_binding": {
+        "version": 1,
+        "model_sha256": "sha256:60ab45878fdfc868efc15ddb0f9b84d6ab0f3583519c48a2202e3d9c3abac59d",
+        "artifacts": {
+          "backend/src/pitchlog/stats/generated/facts.py": "7673b5969d6ce3104b48d4f94f217c6b4a44ef1b9b08d06ebaeee935648497d4",
+          "frontend/src/lib/generated/statsPrimitives.ts": "4ed903e416d2fbdf67d226b6e1f48a9dbfe8c9690feb7bd86485622be8078219"
+        }
+      }
+    }
+  },
+  "nativeProfileUsage": {
+    "v1": "stored-history-decode-and-saved-ack-only; identity is historical, not current execution",
+    "v2": "current same-frame evaluation/native SQL; model and artifact guards remain single-valued"
+  },
+  "currentV2Adoption": {
+    "authoring_head": "cb4a6056",
+    "po_decisions": "D02/D03/D04/D05=A adopted; implementation/source status is separate",
+    "independent_report_sha256": "7fd457b6b1d2d3209c5494a2cdf127adba82eb6d2a2c92a39fdc7abf6cc5314d",
+    "actual_pure_backend_tests": 245,
+    "actual_generator_tests": 62,
+    "actual_frontend_wrapper_tests": 25,
+    "actual_pg_executed": false,
+    "legacy_manifest_sha256": "dcdd901153ce70da08816391e2de3ed206f4a324bd63fc5fb63d8dfa01eaaafc",
+    "legacy_profile_is_not_current_sql_capability": true
   }
 }

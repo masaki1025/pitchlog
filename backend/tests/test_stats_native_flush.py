@@ -379,7 +379,16 @@ def test_public_save_value_token_still_has_no_direct_function_registration(flush
 
 
 @pytest.mark.parametrize(
-    "change", ["extra", "wrong_source", "false_selection", "numeric_value"]
+    "change",
+    [
+        "extra",
+        "wrong_source",
+        "false_selection",
+        "numeric_value",
+        "v1-history",
+        "mixed-profile",
+        "D03-available",
+    ],
 )
 def test_t5_envelope_corruption_cannot_be_saved(flush_rig, monkeypatch, change):
     """唯一評価の後でも閉schema/sourceと異なる値を保存へ送らない。"""
@@ -395,8 +404,26 @@ def test_t5_envelope_corruption_cannot_be_saved(flush_rig, monkeypatch, change):
             data["source_event_id"] = str(UUID(int=99))
         elif change == "false_selection":
             data["selected"] = False
-        else:
+        elif change == "numeric_value":
             data["metrics"][next(iter(data["metrics"]))]["value"] = 0.5
+        elif change in ("v1-history", "mixed-profile"):
+            if change == "v1-history":
+                del data["decisions"]
+            data["pending"] = {
+                key: {
+                    "state": "decision_pending",
+                    "decision_id": decision,
+                    "value": None,
+                }
+                for key, decision in (
+                    ("named_category", "D02"),
+                    ("appearances", "D03"),
+                    ("batters_faced", "D04"),
+                    ("ops", "D05"),
+                )
+            }
+        else:
+            data["decisions"]["D03"]["implementation_state"] = "available"
         return replace(token, evaluation_json=json.dumps(data))
 
     monkeypatch.setattr(api, "prepare_native_evaluation", corrupt)

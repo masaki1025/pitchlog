@@ -310,3 +310,23 @@ def test_canonical_declarations_remain_exact_after_real_json_roundtrip():
     declarations, _ = stats.connection_declarations()
     restored = json.loads(json.dumps(declarations, ensure_ascii=False))
     assert product._exact(restored, declarations)
+
+
+def test_current_v2_sink_does_not_execute_historical_model_or_artifact():
+    """履歴profileの来歴を現在5関数の自由な代替版へ変えない。"""
+    from pitchlog.repositories.stats_function_codec import _native_profiles
+    from pitchlog.stats.generated.receiver import SOURCE_MODEL_HASH
+
+    profiles = _native_profiles()
+    functions = stats.candidate_function_bodies()
+    assert len(functions) == 4
+    for text in functions.values():
+        assert SOURCE_MODEL_HASH in text
+        assert profiles["v1"]["model_sha256"] not in text
+    save = functions["save_primitive_source"]
+    assert "p_evaluation_json->'decisions' IS DISTINCT FROM" in save
+    assert "p_evaluation_json->'pending'" not in save
+    assert profiles["v1"]["artifact_binding"]["model_sha256"] not in save
+    writer_sql = writer.candidate_sql()
+    assert f"OR p_model_sha256 IS DISTINCT FROM '{SOURCE_MODEL_HASH}'" in writer_sql
+    assert profiles["v1"]["model_sha256"] not in writer_sql

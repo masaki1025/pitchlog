@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 from dataclasses import dataclass, field
 from decimal import Decimal
+from pathlib import Path
 from types import MappingProxyType
 from typing import Any, Mapping, cast
 from uuid import UUID
@@ -27,6 +29,8 @@ from sqlalchemy.sql.selectable import Select
 from sqlalchemy.types import TypeDecorator
 
 from pitchlog.stats.generated.receiver import METRIC_IDS, SOURCE_MODEL_HASH
+
+_ROOT = Path(__file__).parents[4]
 
 
 class StatsFunctionCodecError(ValueError):
@@ -58,9 +62,98 @@ def _hash(value: object) -> None:
     _require(type(value) is str and re.fullmatch(r"[a-f0-9]{64}", value) is not None)
 
 
+def _native_profiles(root: Path | None = None) -> dict[str, dict[str, Any]]:
+    """root前置の旧来歴と同版v2だけを閉読取し、runtime Gitは使わない。"""
+    root = _ROOT if root is None else root
+    try:
+        manifest = json.loads((root / "backend/domain/stats-manifest.json").read_text())
+        profiles = _object(manifest["nativeEvaluationProfiles"], {"v1", "v2"})
+        for profile in profiles.values():
+            row = _object(
+                profile, {"model_sha256", "generation_input_files", "artifact_binding"}
+            )
+            model = row["model_sha256"]
+            _require(type(model) is str and model.startswith("sha256:"))
+            _hash(model[7:])
+            inputs = _object(
+                row["generation_input_files"],
+                {
+                    "backend/domain/model.schema.json",
+                    "backend/domain/play-export.model.json",
+                    "backend/domain/stats.model.json",
+                },
+            )
+            for digest in inputs.values():
+                _hash(digest)
+            binding = _object(
+                row["artifact_binding"], {"version", "model_sha256", "artifacts"}
+            )
+            _require(type(binding["version"]) is int and binding["version"] == 1)
+            _require(binding["model_sha256"] == model)
+            artifacts = _object(
+                binding["artifacts"],
+                {
+                    "backend/src/pitchlog/stats/generated/facts.py",
+                    "frontend/src/lib/generated/statsPrimitives.ts",
+                },
+            )
+            for digest in artifacts.values():
+                _hash(digest)
+        _require(profiles["v2"]["model_sha256"] == SOURCE_MODEL_HASH)
+        _require(profiles["v1"]["model_sha256"] != SOURCE_MODEL_HASH)
+        contract_path = (
+            "docs/features/mvp-stats-primitives/primitive-output.candidate.json"
+        )
+        contract_raw = (root / contract_path).read_bytes()
+        _require(
+            manifest["independentContractReferencesNotGenerationInputs"][contract_path]
+            == hashlib.sha256(contract_raw).hexdigest()
+        )
+        contract = json.loads(contract_raw)
+        _require(
+            profiles["v1"]["generation_input_files"]
+            == contract["x-v1-immutable-model-inputs"]["paths"]
+        )
+        for path, digest in profiles["v2"]["generation_input_files"].items():
+            _require(hashlib.sha256((root / path).read_bytes()).hexdigest() == digest)
+        for path, digest in profiles["v2"]["artifact_binding"]["artifacts"].items():
+            _require(hashlib.sha256((root / path).read_bytes()).hexdigest() == digest)
+        return profiles
+    except (OSError, KeyError, TypeError, UnicodeError, json.JSONDecodeError):
+        raise StatsFunctionCodecError() from None
+
+
 def _model(value: object) -> None:
-    """既唯一モデル版だけを受ける。"""
-    _require(type(value) is str and value == SOURCE_MODEL_HASH)
+    """現在のSQL sinkはv2専用。旧履歴の存在を新規書込資格へしない。"""
+    _require(type(value) is str)
+    _require(value == SOURCE_MODEL_HASH)
+
+
+def _current_decisions() -> dict[str, dict[str, Any]]:
+    """採用契約のmetadataだけ。式・寄与の計算はここへ複製しない。"""
+    return {
+        key: {
+            "decision_id": key,
+            "decision_state": "adopted",
+            "choice": "A",
+            "implementation_state": "available" if key in {"D02", "D05"} else "pending",
+            **(
+                {"source_state": "not_evaluated", "value": None}
+                if key in {"D03", "D04"}
+                else {}
+            ),
+        }
+        for key in ("D02", "D03", "D04", "D05")
+    }
+
+
+def _evaluation_version(data: dict[str, Any]) -> str:
+    """metadataの全閉形を版識別に使い、推定や既定補完をしない。"""
+    if "pending" in data and "decisions" not in data:
+        return "v1"
+    if "decisions" in data and "pending" not in data:
+        return "v2"
+    raise StatsFunctionCodecError()
 
 
 def _text(value: object, *, empty: bool = False) -> None:
@@ -140,12 +233,14 @@ def parse_evaluation_json(value: object) -> dict[str, Any]:
         )
     except (ValueError, TypeError, UnicodeError, RecursionError):
         raise StatsFunctionCodecError() from None
+    _require(type(data) is dict)
+    version = _evaluation_version(data)
     data = _object(
         data,
         {
             "metrics",
             "pa_row",
-            "pending",
+            "pending" if version == "v1" else "decisions",
             "selected",
             "source_event_id",
             "native_rule_sha256",
@@ -176,21 +271,24 @@ def parse_evaluation_json(value: object) -> dict[str, Any]:
                 and row["credits"] == []
                 and row["reason"] in ("MISSING_OBSERVATION", "MISSING_ATTRIBUTION")
             )
-    pending = _object(
-        data["pending"], {"named_category", "appearances", "batters_faced", "ops"}
-    )
-    for key, decision in [
-        ("named_category", "D02"),
-        ("appearances", "D03"),
-        ("batters_faced", "D04"),
-        ("ops", "D05"),
-    ]:
-        row = _object(pending[key], {"state", "decision_id", "value"})
-        _require(
-            row["state"] == "decision_pending"
-            and row["decision_id"] == decision
-            and row["value"] is None
+    if version == "v2":
+        _require(data["decisions"] == _current_decisions())
+    else:
+        pending = _object(
+            data["pending"], {"named_category", "appearances", "batters_faced", "ops"}
         )
+        for key, decision in [
+            ("named_category", "D02"),
+            ("appearances", "D03"),
+            ("batters_faced", "D04"),
+            ("ops", "D05"),
+        ]:
+            row = _object(pending[key], {"state", "decision_id", "value"})
+            _require(
+                row["state"] == "decision_pending"
+                and row["decision_id"] == decision
+                and row["value"] is None
+            )
     if data["pa_row"] is not None:
         row = _object(
             data["pa_row"],
@@ -237,6 +335,19 @@ def parse_evaluation_json(value: object) -> dict[str, Any]:
     return data
 
 
+def decode_historical_evaluation_json(
+    value: object, *, model_sha256: object
+) -> dict[str, Any]:
+    """保存済みv1原値の読取だけ。SQL書込・現在実行物の能力は発行しない。"""
+    profiles = _native_profiles()
+    _require(
+        type(model_sha256) is str and model_sha256 == profiles["v1"]["model_sha256"]
+    )
+    data = parse_evaluation_json(value)
+    _require(_evaluation_version(data) == "v1")
+    return data
+
+
 class _EvaluationJSONB(TypeDecorator[str]):
     """immutable JSON原文字列を実bind時にも検査しJSONBへ写す。"""
 
@@ -245,7 +356,9 @@ class _EvaluationJSONB(TypeDecorator[str]):
 
     def process_bind_param(self, value: object, dialect: Any) -> dict[str, Any]:
         """caller所有のmutable dictを保持せず、実bind直前に新しく読む。"""
-        return parse_evaluation_json(value)
+        data = parse_evaluation_json(value)
+        _require(_evaluation_version(data) == "v2")
+        return data
 
 
 @dataclass(frozen=True, slots=True)
@@ -374,6 +487,7 @@ def build_save_source_call(
     _nonce(binding_nonce)
     _revision(expected_revision, expected_source_set_sha256, initial=True)
     data = parse_evaluation_json(evaluation_json)
+    _require(_evaluation_version(data) == "v2")
     _require(data["source_event_id"] == str(source_event_id))
     return _call(
         "save_primitive_source",

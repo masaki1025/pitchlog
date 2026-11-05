@@ -233,7 +233,7 @@ def _flush_native_stats(handle, writer, event, projected, *, generation):
     if type(evaluation) is not dict or set(evaluation) != {
         "metrics",
         "pa_row",
-        "pending",
+        "decisions",
         "selected",
         "source_event_id",
     }:
