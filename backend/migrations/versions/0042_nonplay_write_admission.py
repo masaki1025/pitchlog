@@ -147,7 +147,7 @@ def upgrade() -> None:
     )
     op.execute(
         """
-        CREATE FUNCTION sync_fence_api.protect_nonplay_admission()
+        CREATE FUNCTION public.protect_nonplay_admission()
         RETURNS trigger LANGUAGE plpgsql SET search_path=pg_catalog,pg_temp AS
         $guard$
         BEGIN
@@ -184,23 +184,26 @@ def upgrade() -> None:
         """
     )
     op.execute(
+        "ALTER FUNCTION public.protect_nonplay_admission() OWNER TO pitchlog_owner"
+    )
+    op.execute(
         """
-        REVOKE ALL ON FUNCTION sync_fence_api.protect_nonplay_admission() FROM
-        PUBLIC
+        REVOKE ALL ON FUNCTION public.protect_nonplay_admission() FROM
+        PUBLIC,pitchlog_app
         """
     )
     op.execute(
         """
         CREATE TRIGGER trg_nonplay_admission_guard BEFORE INSERT OR UPDATE OR DELETE
         ON sync_fence.nonplay_write_admissions FOR EACH ROW EXECUTE FUNCTION
-        sync_fence_api.protect_nonplay_admission()
+        public.protect_nonplay_admission()
         """
     )
     op.execute(
         """
         CREATE TRIGGER trg_nonplay_admission_no_truncate BEFORE TRUNCATE ON
         sync_fence.nonplay_write_admissions FOR EACH STATEMENT EXECUTE FUNCTION
-        sync_fence_api.protect_nonplay_admission()
+        public.protect_nonplay_admission()
         """
     )
 
