@@ -6,6 +6,9 @@
 - **成績canonical候補**: JSON往復exact2を非作者ab934a0c…後11fa979aへ保存。公式canonical body/derive/render/rederiveによる95pathをcache stats-canonical-publication-20261105へ前後固定。helperのnested role属性上書き不具合と反復時generated module inventory欠落は旧版・旧不正候補を保存して是正し、既rolname保持・公式module1を含む95全集合へ追随。正式版/7.7成立ではない。実CLI --skip-oracle成功（total1429/auth_claim187/db_claims191/routes53/cells12）。資産95の独立照合と、after_d1_intents後の同TX flush接続exact2候補を並行中。保存成功や実PG認可はまだ主張しない。
 - **次**: 固定安打source後発登録→census/Oracle/単一#196受理と最終レビュー・必須CI。成績は資産95レビュー→prefix hookレビュー→owned PGで実API native記録/成績原本・facts/RRRO読取・途中故障全取消を実測する。未回答成績4判断/全MVP残件は前節どおり維持。
 
+
+- **同候補の実DB接合で判明した次の是正**: stats95候補の公式module再導出check差分0、再生成95集合維持、関連producer/registration/flush252pass32.59秒。owned実0041起動検証は1pass/3error8.62秒、全catalog照合の閉拒否で停止。原検査を維持する診断で、COLUMN-ACL expected617/actual613の欠落は実xmin4だけ（extra0）、lifecycle58/58の不一致はstats5のTABLE区切り空白だけと特定。attnum>0採取をcanonical xmin4に限り拡張し、型・列順を維持した表記正規化へ修復中。検査期待削除や権限の迂回はしない。prefix→唯一flush exact2候補は作者32/87/73pure成功、非作者確認中。cacheはstats-prefix-flush-candidate-20261105、stats-formal-readiness-20261105。D11 manifestは既course1のみでstatsの正式property/coverage接合が残るが、全T6や画面完成を有界実PG検証の前提へ追加しない。
+
 ## 続き：2026-11-05（進行報告時の実状態照合）
 
 - **正式統合**: GitHub実照合で#192は112f771e549d6a92d724f62d9b0b45dcc89973c1へ通常merge済み（12:06 JST）。develop後続CI41959444977はsuccess。直前節の「CI実行中」は履歴として保持し、この結果で更新する。通常球・四球・死球に加え三振の提供版が統合された。GUI証拠は既記録の対象HEADのものとし、merge HEADで再実測したとはしない。
