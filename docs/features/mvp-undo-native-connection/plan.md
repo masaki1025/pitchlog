@@ -284,3 +284,6 @@ S26正式profile exact1の受理（2026-11-06 JST、PO委任Codex /root判断）
 
 
 生成集合R1の既修復再利用（2026-11-06 JST、PO委任Codex /root判断）: actual020f3417のprofile供給後関連4moduleは60成功/1失敗12.27秒。原子process2の未供給は解消し、残1は旧test_stats_sql_generation_runtime.pyのSQL_PATHS=2が現stats_rates.sqlを除外する既知の追随漏れ。成績基盤a2668780のexact1修復（独立da491d328731ef109aadecbcce76bbe99fb1158401782ead7084e5e5ed22edf7/12成功）と同じ3差分だけを再利用する。rootは元commit差分をgit apply --checkで照合し、S追加のnativeSQL検査/全既拒否・完全byte比較を保持する。新規意味や検査除外は導入せず同じ内容の承認を再取得しない。実sourceの後発差分として元S26のafterからの変化を別に記録し、修正後の4moduleを再実行する。
+
+
+Port期待集合の追随exact1（2026-11-06 JST、PO委任Codex /root判断）: S26採用後の同期/旧通常球9moduleは321成功/1失敗10.14秒、失敗はtest_sync_apply_model_ports.py::test_unregistered_port_is_rejected_before_callの期待集合だけが旧9Portのまま残り、採用済root HTTPのUndoContentValidationPort/UndoProjectionPort2件を含まないこと。S26がPortを増やした退行ではなく旧root Port登録の検査追随漏れで、formal27/runtime33の別残件とも区別する。編集exact1は当該test moduleの完全一致期待へ実登録済2tupleを明記するだけ。全旧9tuple/未知SafeProjectionの実呼出前拒否/port.calls==0/実登録verifierを保持し、部分一致・動的期待生成・登録拡大・新成功stubは不可。rootが同module全件を検査し、別非作者へ元差分/実登録2/source先行レビュー37801c28…を渡して限定確認する。製品Port/計算/認可/保存は変更しない。
