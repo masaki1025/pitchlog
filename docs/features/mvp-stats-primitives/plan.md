@@ -319,3 +319,6 @@ current pre-full builtin分類の是正（2026-11-05、PO委任Codex /root判断
 
 
 current migration既設pre-fullの厳格接合（2026-11-05、PO委任Codex /root判断）: owned nominal r2はpre/fullの部分不一致で閉拒否。元catalog/期待を改変しない観測で、0036 protect_initial_right_storage関数1と0006 projection_identity trigger1はmigrationが既設するがselected app DDLだけのpre導出に欠けると特定。current/test exact2に限定し、canonical full原典の既1関数/既1triggerを全fieldと一意件数を確認してpreへ含める。全文/owner/schema/対象/列/型/全trigger16値・旧他分類/full全tupleを保持、未知/余剰/重複/宣言欠落/full混在を拒否する。候補376598f0…/7c21340e…を非作者a0861e715bd6b7fde77898c3e3e970513e12eeb59cf0594eda3268c0dd15821f（独立96成功37.76秒=旧84＋追加12、Ruff0、P0/P1/P2=0）で採用可確認。実PG成功は未成立、旧拒否を残しfixed採用後owned nominal1から再確認する。権限/判定ID/検査範囲を緩和しない。
+
+
+current適用前読取transactionの終結（2026-11-05、PO委任Codex /root判断）: 277da7d6 owned nominal r3はpre-full厳密照合を通過し、正式apply_product_authz_ddlのIDLE前提で拒否した。直前の同connection readがimplicit transactionを開始している。current/test exact2で、既legacy resumeと同様、全構造/index/rules/public storage/pre-full検査用接続を正常に終了してから新しいIDLE接続で既applyを実行する。apply自体の状態再照合/同TX・全拒否条件/事後全catalogは保持する。既進行TXを強制commit/rollbackして適用する回避やautocommitは使わず、検査失敗時applyしない。新純回帰で全5読取がdirty化した接続の正常終結→別接続IDLE→apply→事後全確認の順序を検査、検査例外時applyなし/伝播を保持。root候補を別非作者確認後に実sourceへ採用しowned nominal1を再検証する。r3の失敗は保持。
