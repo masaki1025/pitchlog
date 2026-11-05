@@ -11,7 +11,7 @@
     "backend/src/pitchlog/domaingen/core.py": "761e60e3b10a09df5f5e5b32a39097094756a863bb13e6346abd3b44aa3967a5",
     "backend/src/pitchlog/domaingen/pregen_checks.py": "72f558898fb535107e588eb03724ae106b8484544c0ccd50123d54df1621ba15",
     "backend/src/pitchlog/domaingen/formatter.py": "11cbeae3b605add84eeebea9974b2e0b0449891601c84f62f9046ef36bd7dc3b",
-    "backend/src/pitchlog/domaingen/backends/python.py": "1c50aaac513d8ab684c6b24e659ca4aa7368995de322f7839b3686e248edd28b",
+    "backend/src/pitchlog/domaingen/backends/python.py": "e1c29caa5dc121f977c3c2cec8e3c12dbfbdde33bd9c2e4258e9528cf84fcf0f",
     "backend/src/pitchlog/domaingen/backends/typescript.py": "b9c4458d10a3e872c45dcd5b5d24bbaf6f01f86df5ea71c84002b81b1213d468",
     "backend/src/pitchlog/domaingen/backends/sql.py": "e0fb3a4956a47eafd6bca64c19740b6d6432c3dafda8668d4234e144ca270ffb"
   },
@@ -20,7 +20,7 @@
     "frontend/src/lib/generated/statsPrimitives.ts": "4ed903e416d2fbdf67d226b6e1f48a9dbfe8c9690feb7bd86485622be8078219",
     "backend/src/pitchlog/exports/generated/play_primitives.sql": "6b76ca894f910a484aa8d130d07c61ab237a1737af0bec0e6a3b578a277b9552",
     "backend/src/pitchlog/stats/generated/stats.sql": "b7a8837fb9efaf662a66a7b3c93ec977969139e93c58857716069a9b1329a541",
-    "backend/src/pitchlog/stats/generated/receiver.py": "2761af6c043820b93c12729112fe728b2c39103c2e5422091c0fda7007ce1b17",
+    "backend/src/pitchlog/stats/generated/receiver.py": "be575adc588b87ce22bc7c47474235bb708a26c9e06974ebc589cf06a7950afc",
     "backend/src/pitchlog/stats/generated/formatter.py": "2778fefa6cb7e890266c31fdce250bd8c7e3358624f73fb81948d7a187be9a9c",
     "frontend/src/lib/generated/statsFormatter.ts": "53c30ddf1b36d539c82cced1fbcbf64f4676082e44f6eeb3ec3ca7b3ab0f67d8",
     "backend/src/pitchlog/stats/generated/stats_rates.sql": "2cd641e8ab0c56ee029dd3e477ccecdface1e18fd97770c0dfd9f1f174814f81"

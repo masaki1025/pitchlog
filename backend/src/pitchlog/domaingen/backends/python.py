@@ -471,7 +471,9 @@ def receive_rate_row(row, *, maximum_integer_chars):
         if (
             value_n is not None
             or value_d is not None
-            or not any(pair[1] == 0 for pair in components.values())
+            or not any(
+                pair is not None and pair[1] == 0 for pair in components.values()
+            )
         ):
             raise ValueError("零除算とNULLが不一致です")
         return format_derived_rate(row["rate_id"], None, components)
@@ -480,7 +482,7 @@ def receive_rate_row(row, *, maximum_integer_chars):
         or value_n is None
         or value_d is None
         or value_d == 0
-        or any(pair[1] == 0 for pair in components.values())
+        or any(pair is not None and pair[1] == 0 for pair in components.values())
     ):
         raise ValueError("定義済み比の全値が不足しています")
     a, b = value_n, value_d
