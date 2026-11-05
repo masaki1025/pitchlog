@@ -195,6 +195,8 @@ def _app_container(db, app_port: int, origin: str) -> list[str]:
         "--env",
         "PITCHLOG_BINDING_CLIENT_CONFIG=/run/pitchlog/public/binding-client.json",
     ]
+    if os.environ.get("PITCHLOG_GAME_LIFECYCLE_SPIKE") == "1":
+        args[1:1] = ["--env", "PITCHLOG_GAME_LIFECYCLE_SPIKE=1"]
     if (
         os.environ.get("PITCHLOG_E2E_INITIAL_DIAGNOSTIC") == "1"
         or os.environ.get("PITCHLOG_E2E_CREATE_DIAGNOSTIC") == "1"
@@ -357,6 +359,7 @@ def _run_playwright(
     origin: str,
     stem: str,
     extra_env: dict[str, str] | None = None,
+    timeout: int = 600,
 ) -> subprocess.CompletedProcess[str]:
     """実ブラウザspecを実行し、失敗時は実測logを残す。"""
     result = subprocess.run(  # noqa: S603
@@ -379,7 +382,7 @@ def _run_playwright(
         },
         capture_output=True,
         text=True,
-        timeout=600,
+        timeout=timeout,
     )
     (_LOGS / f"{stem}-playwright.log").write_text(result.stdout + "\n" + result.stderr)
     return result
