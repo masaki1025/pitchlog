@@ -316,3 +316,6 @@ current起動exact6の採用（2026-11-05、PO委任Codex /root判断）: 作者
 
 
 current pre-full builtin分類の是正（2026-11-05、PO委任Codex /root判断）: 017cd09f実nominalは5.57秒でpre-full未知catalogに閉拒否。元catalogを変えず検査ID/件数だけのowned観測で未知はBUILTIN-ADDITIONAL-EXECUTE1分類と特定。既selected canonicalがpreの追加EXECUTE2主体を適用しbinding owner1だけを保留するので、current/test exact2（f994139f…/c669291a…）で同selected由来pre2/full3の全tuple対を追加。旧他8分類/全旧期待/全判定を保持、PUBLIC/DECLARED/未知/混在/余剰を許可しない。非作者de656d2f212274113bfbcfc0b7acb54cb95825095ccf8e5d775d11968ee7f84bが独立95成功40.26秒（候補83+新12対向）で採用可確認したので採用する。runtime他AST/全旧6setsと全pairs保持。実PGは再検証前であり、初回拒否を成功へ書換えない。
+
+
+current migration既設pre-fullの厳格接合（2026-11-05、PO委任Codex /root判断）: owned nominal r2はpre/fullの部分不一致で閉拒否。元catalog/期待を改変しない観測で、0036 protect_initial_right_storage関数1と0006 projection_identity trigger1はmigrationが既設するがselected app DDLだけのpre導出に欠けると特定。current/test exact2に限定し、canonical full原典の既1関数/既1triggerを全fieldと一意件数を確認してpreへ含める。全文/owner/schema/対象/列/型/全trigger16値・旧他分類/full全tupleを保持、未知/余剰/重複/宣言欠落/full混在を拒否する。候補376598f0…/7c21340e…を非作者a0861e715bd6b7fde77898c3e3e970513e12eeb59cf0594eda3268c0dd15821f（独立96成功37.76秒=旧84＋追加12、Ruff0、P0/P1/P2=0）で採用可確認。実PG成功は未成立、旧拒否を残しfixed採用後owned nominal1から再確認する。権限/判定ID/検査範囲を緩和しない。
