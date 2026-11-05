@@ -286,3 +286,6 @@ native台帳接合の採用記録: 作者exact5 packet c7e7f653…（helper74f8b
 
 
 成績保存後故障試験の採用記録（2026-11-05、PO委任Codex /root判断）: exact1 c8ce45ad14f64de1c21b1c618d5237985aba00ae4f2445f76a84e87692e5961f、作者packet27d6ee50aa8a5449eda8ea7482152ec7e4a69cc1461ab535c2dc4d97c7105ac7、非作者REPORT fb28f4d9c3ef58d146ad8c33122b27142cee9764f8056eec1af3ab3267e6e9eb（P0/P1/P2=0、独立pure48成功）を照合して採用する。元flush完了後だけ固定故障を注入し13表全行を比較する。実PGの成功はこの採用時点では未成立。旧要求終結・D5未消費・新D5置換を推定しない。別の固定版b051defaの正常R5は新規作成/開始/ordinary3球/再送/GETと成績source3・球数3を1成功66.95秒で確認し、HEAD/tree/index前後一致・7証拠SHAを非作者8ba1dd24e939432cba81a4607489a9f2543213ae23bffda2b18ae5acb7270f0cで照合した。正常R5を故障・全profile・画面・正式集計の受入へ拡張しない。
+
+
+同一保存データの実読取3入口試験（2026-11-05、PO委任Codex /root判断）: backend/tests/db/test_stats_native_read_http.pyの新exact1を追加対象とする。既実HTTP新規作成/開始/ordinary3球の記録を再利用し、実製品のRRRO scope/ReadPlayExportPrimitives.open/read_pageと成績Totals adapterを同じ実DBで呼ぶ。全取得/page_size=1の連続cursor/正規sourceと確定指標の一致を確認し、同receiptを別scopeへ移植/終了後利用/別tenantを拒否する。既source/SQL/認可/fixtureを成功stubへ置換せず、未確定指標を0で補わない。実UI/公式終了試合集計は別受入。最初はcache-only exact1、不可分な供給不足は最小差分と根拠をrootへ返し、別非作者確認後に実PGをroot直列実行する。
