@@ -126,3 +126,14 @@ unit1の数学単位は成立済み、実appからのcollector到達は現undo�
 作者packet4f6dc4ee9a86c2c0bc1509338d0468baeab45fbd974192b27e153ceb2c33c7d1を非作者REPORTf1295e78a40ee9e5090cd4732d96490bacb1df2de9893532279bf5326843a136/checks9d6c7e46114cabe59635f7762a3c4d048187ef93ad8bfa6436d824923d7675dc（P0/P1/P2=0）で採用する。原典U1-U8/DI3/DI5、2球→2pop→次球の全6状態・既unit1純request/response全値2一致・nominal11/余剰key834/EOS型56/shape10拒否/strict tscを独立確認。37対向中semantic16/runtime11は仕様例であり実製品の拒否実証ではない。ownD4と真正連結されたtargetD4は異なり得る既意味を保持し、現_validate_v10の等置不足は本体で是正する。任意過去世代の許可ではなく実連結/先頭/原本/資格を検査する。
 
 rootはexact3を前後SHA照合して反映し、cases.statusだけcandidate-not-acceptedからaccepted-unit2-prefix-contractへ変更する承認metadata追随を行う。他の入力/期待/留保/原典参照全値は保持する。相殺carrierは初期成功Sourceから外された未提供referenceであり、既kernelU2/同TX両D5結果/水位/原典監査の義務を変更しない。全取消/相殺/空/世代跨ぎ・既規範の完成は後続のMVP必須として維持する。新3headは全nonplay skipを許可せず、旧playを物理削除しない。これは本体開始の操作単位契約であり、P1/真正Port/DB/HTTP/成績S/D11/画面成功やP6blind/本人逐行確認/署名を成立扱いにしない。
+
+
+## unit2本体の実装許可：真正source→単一host→同TX投影（2026-11-06 JST、PO委任Codex /root）
+
+閉契約3を97ed8a33で採用し、既unit1 host/唯一artifact4f45を本体へ接合する開始条件が本操作分で成立した。作者pr192へcache-onlyで新source exact6と対応test exact6を許可する。sourceはbackend/src/pitchlog/sync/{undo_payload,undo_execution,undo_ports,nonplay_prefix_bridge}.py、backend/src/pitchlog/repositories/nonplay_prefix.py、backend/src/pitchlog/authz/nonplay_prefix_sql.py。testsはbackend/tests/{test_undo_payload,test_undo_execution,test_undo_ports,test_nonplay_prefix_bridge,test_nonplay_prefix,test_nonplay_prefix_sql}.py。既source/生成物/正式assets/共有台帳/refsへ作者は書かない。rootは共有kernel/registry/HTTP/既GET/SQLスタンプとactual D11/pin/正式派生のwriterを継続する。
+
+目的はpayloadの形検査だけで止まらず、既実E1/記録権・handle/session/topTX/source/lease境界を再利用して実checkpoint/active原本を読み、既undo hostを一回だけ実行し、一回opaque frameから固定SQLへ同TX投影する接続候補を作ること。単なるJSON/ref/hashやcaller boolでsource/frame資格を作らず、既getterのsource identity/nonce/lifetimeと結ぶ。渡された全historyを信用せず、実reader原本と全値照合する。形不正/内容拒否と、真正source/host/DB不可用・結果不明を区別し、例外をFalse/成功へ変換しない。全D5順序/連番/認可/初期権/故障原子性・既kernelU2を保持する。
+
+SQLは既正式Table/列/CASの実在形を照合して最小私有function familyとして生成し、実accepted ledger/event/slot/target/現在head/世代連結/physical max+1を再検査する。旧play admissionへfake play_row_id/source_d2を入れたりCHECKをoptional化しない。旧物理play/履歴原本を論理取消し、3head/active空/D3>0/新checkpointとS invalidationを不可分に更新する。実SQL登録が未了なら明示閉拒否し、成功stub/仮DB/専用spike GETで提供済みとしない。既tableだけで真正資格を実装できないと判明した場合、必要な私有admission1表/migration/固定schema/権限と不可分exactpathを返しrootが限定追補する。一般role昇格/任意SQL/共有DB/新秘密発行は不可。
+
+source6/test6と実hook不足のexact契約を一緒に固定し非作者へ渡す。rootが不可分共有hookと正式登録を同じ統合候補へ接合し、owned2球→2pop→次球/同D5再送/越境/世代・非先頭/途中故障全原状・canonical Sと既GETで実測する。source試験のdoubleや手例はruntime/PGの成功と区別する。unit1のpin/D11未完を数学開始の新条件に戻さず、実到達はunit1/2の共同固定点で受入する。全取消/相殺/訂正/終了再開/成績CSV等のMVP義務は維持する。
