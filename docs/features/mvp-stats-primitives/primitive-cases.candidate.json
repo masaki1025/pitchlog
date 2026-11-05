@@ -57047,10 +57047,10 @@
               "reason": null
             },
             "batters_faced": {
-              "state": "source_unavailable",
-              "value": null,
-              "display": null,
-              "reason": "MISSING_ATTRIBUTION"
+              "state": "available",
+              "value": "0",
+              "display": "0",
+              "reason": null
             }
           },
           "credits": [
@@ -67375,10 +67375,10 @@
               "reason": null
             },
             "batters_faced": {
-              "state": "source_unavailable",
-              "value": null,
-              "display": null,
-              "reason": "MISSING_ATTRIBUTION"
+              "state": "available",
+              "value": "0",
+              "display": "0",
+              "reason": null
             }
           },
           "credits": [
@@ -69636,10 +69636,10 @@
               "reason": null
             },
             "batters_faced": {
-              "state": "source_unavailable",
-              "value": null,
-              "display": null,
-              "reason": "MISSING_ATTRIBUTION"
+              "state": "available",
+              "value": "0",
+              "display": "0",
+              "reason": null
             }
           },
           "credits": [
@@ -70097,10 +70097,10 @@
               "reason": null
             },
             "batters_faced": {
-              "state": "source_unavailable",
-              "value": null,
-              "display": null,
-              "reason": "MISSING_ATTRIBUTION"
+              "state": "available",
+              "value": "0",
+              "display": "0",
+              "reason": null
             }
           },
           "credits": [
@@ -73993,7 +73993,7 @@
               "state": "source_unavailable",
               "value": null,
               "display": null,
-              "reason": "MISSING_ATTRIBUTION"
+              "reason": "MISSING_OBSERVATION"
             }
           },
           "credits": [
@@ -76903,7 +76903,7 @@
               "state": "source_unavailable",
               "value": null,
               "display": null,
-              "reason": "MISSING_ATTRIBUTION"
+              "reason": "MISSING_OBSERVATION"
             }
           },
           "credits": [
@@ -78583,7 +78583,7 @@
               "state": "source_unavailable",
               "value": null,
               "display": null,
-              "reason": "MISSING_ATTRIBUTION"
+              "reason": "MISSING_OBSERVATION"
             }
           },
           "credits": [
@@ -80538,7 +80538,7 @@
               "state": "source_unavailable",
               "value": null,
               "display": null,
-              "reason": "MISSING_ATTRIBUTION"
+              "reason": "MISSING_OBSERVATION"
             }
           },
           "credits": [
@@ -81226,7 +81226,7 @@
               "state": "source_unavailable",
               "value": null,
               "display": null,
-              "reason": "MISSING_ATTRIBUTION"
+              "reason": "MISSING_OBSERVATION"
             }
           },
           "credits": [
@@ -81918,7 +81918,7 @@
               "state": "source_unavailable",
               "value": null,
               "display": null,
-              "reason": "MISSING_ATTRIBUTION"
+              "reason": "MISSING_OBSERVATION"
             }
           },
           "credits": [
@@ -82327,7 +82327,7 @@
               "state": "source_unavailable",
               "value": null,
               "display": null,
-              "reason": "MISSING_ATTRIBUTION"
+              "reason": "MISSING_OBSERVATION"
             }
           },
           "credits": [
@@ -82729,7 +82729,7 @@
               "state": "source_unavailable",
               "value": null,
               "display": null,
-              "reason": "MISSING_ATTRIBUTION"
+              "reason": "MISSING_OBSERVATION"
             }
           },
           "credits": [
@@ -83132,7 +83132,7 @@
               "state": "source_unavailable",
               "value": null,
               "display": null,
-              "reason": "MISSING_ATTRIBUTION"
+              "reason": "MISSING_OBSERVATION"
             }
           },
           "credits": [
@@ -83536,7 +83536,7 @@
               "state": "source_unavailable",
               "value": null,
               "display": null,
-              "reason": "MISSING_ATTRIBUTION"
+              "reason": "MISSING_OBSERVATION"
             }
           },
           "credits": [
@@ -83940,7 +83940,7 @@
               "state": "source_unavailable",
               "value": null,
               "display": null,
-              "reason": "MISSING_ATTRIBUTION"
+              "reason": "MISSING_OBSERVATION"
             }
           },
           "credits": [
@@ -85187,7 +85187,7 @@
               "state": "source_unavailable",
               "value": null,
               "display": null,
-              "reason": "MISSING_ATTRIBUTION"
+              "reason": "MISSING_OBSERVATION"
             }
           },
           "credits": [
@@ -85596,7 +85596,7 @@
               "state": "source_unavailable",
               "value": null,
               "display": null,
-              "reason": "MISSING_ATTRIBUTION"
+              "reason": "MISSING_OBSERVATION"
             }
           },
           "credits": [
@@ -86019,7 +86019,7 @@
               "state": "source_unavailable",
               "value": null,
               "display": null,
-              "reason": "MISSING_ATTRIBUTION"
+              "reason": "MISSING_OBSERVATION"
             }
           },
           "credits": [
@@ -86414,7 +86414,7 @@
               "state": "source_unavailable",
               "value": null,
               "display": null,
-              "reason": "MISSING_ATTRIBUTION"
+              "reason": "MISSING_OBSERVATION"
             }
           },
           "credits": [
@@ -86823,7 +86823,7 @@
               "state": "source_unavailable",
               "value": null,
               "display": null,
-              "reason": "MISSING_ATTRIBUTION"
+              "reason": "MISSING_OBSERVATION"
             }
           },
           "credits": [
@@ -87232,7 +87232,7 @@
               "state": "source_unavailable",
               "value": null,
               "display": null,
-              "reason": "MISSING_ATTRIBUTION"
+              "reason": "MISSING_OBSERVATION"
             }
           },
           "credits": [
@@ -87641,7 +87641,7 @@
               "state": "source_unavailable",
               "value": null,
               "display": null,
-              "reason": "MISSING_ATTRIBUTION"
+              "reason": "MISSING_OBSERVATION"
             }
           },
           "credits": [
@@ -88057,7 +88057,7 @@
               "state": "source_unavailable",
               "value": null,
               "display": null,
-              "reason": "MISSING_ATTRIBUTION"
+              "reason": "MISSING_OBSERVATION"
             }
           },
           "credits": [],
@@ -88434,7 +88434,7 @@
               "state": "source_unavailable",
               "value": null,
               "display": null,
-              "reason": "MISSING_ATTRIBUTION"
+              "reason": "MISSING_OBSERVATION"
             }
           },
           "credits": [
@@ -88820,7 +88820,7 @@
               "state": "source_unavailable",
               "value": null,
               "display": null,
-              "reason": "MISSING_ATTRIBUTION"
+              "reason": "MISSING_OBSERVATION"
             }
           },
           "credits": [],
@@ -95439,7 +95439,7 @@
               "before": {
                 "inning": "1",
                 "half": "top",
-                "strikes": 0,
+                "strikes": 2,
                 "balls": 3,
                 "outs": 0,
                 "away_score": "0",
@@ -95474,8 +95474,16 @@
                 "reached_by": "walk",
                 "result_display": "四球",
                 "vocabulary_display_receipt": "00000000-0000-0000-0000-000000001f41",
-                "starting_pitcher_id": "00000000-0000-0000-0000-000000000004",
-                "pitcher_changes": []
+                "starting_pitcher_id": "00000000-0000-0000-0000-00000000a001",
+                "pitcher_changes": [
+                  {
+                    "from_pitcher_id": "00000000-0000-0000-0000-00000000a001",
+                    "to_pitcher_id": "00000000-0000-0000-0000-000000000004",
+                    "balls": 2,
+                    "strikes": 0,
+                    "source_receipt_id": "00000000-0000-0000-0000-00000000b001"
+                  }
+                ]
               },
               "steal_attempts": []
             }
@@ -96511,7 +96519,7 @@
               "before": {
                 "inning": "1",
                 "half": "top",
-                "strikes": 0,
+                "strikes": 2,
                 "balls": 3,
                 "outs": 0,
                 "away_score": "0",
@@ -96546,8 +96554,16 @@
                 "reached_by": "walk",
                 "result_display": "四球",
                 "vocabulary_display_receipt": "00000000-0000-0000-0000-000000001f41",
-                "starting_pitcher_id": "00000000-0000-0000-0000-000000000004",
-                "pitcher_changes": []
+                "starting_pitcher_id": "00000000-0000-0000-0000-00000000a001",
+                "pitcher_changes": [
+                  {
+                    "from_pitcher_id": "00000000-0000-0000-0000-00000000a001",
+                    "to_pitcher_id": "00000000-0000-0000-0000-000000000004",
+                    "balls": 2,
+                    "strikes": 1,
+                    "source_receipt_id": "00000000-0000-0000-0000-00000000b001"
+                  }
+                ]
               },
               "steal_attempts": []
             }
@@ -97583,7 +97599,7 @@
               "before": {
                 "inning": "1",
                 "half": "top",
-                "strikes": 0,
+                "strikes": 2,
                 "balls": 3,
                 "outs": 0,
                 "away_score": "0",
@@ -97618,8 +97634,16 @@
                 "reached_by": "walk",
                 "result_display": "四球",
                 "vocabulary_display_receipt": "00000000-0000-0000-0000-000000001f41",
-                "starting_pitcher_id": "00000000-0000-0000-0000-000000000004",
-                "pitcher_changes": []
+                "starting_pitcher_id": "00000000-0000-0000-0000-00000000a001",
+                "pitcher_changes": [
+                  {
+                    "from_pitcher_id": "00000000-0000-0000-0000-00000000a001",
+                    "to_pitcher_id": "00000000-0000-0000-0000-000000000004",
+                    "balls": 3,
+                    "strikes": 0,
+                    "source_receipt_id": "00000000-0000-0000-0000-00000000b001"
+                  }
+                ]
               },
               "steal_attempts": []
             }
@@ -98655,7 +98679,7 @@
               "before": {
                 "inning": "1",
                 "half": "top",
-                "strikes": 0,
+                "strikes": 2,
                 "balls": 3,
                 "outs": 0,
                 "away_score": "0",
@@ -98690,8 +98714,16 @@
                 "reached_by": "walk",
                 "result_display": "四球",
                 "vocabulary_display_receipt": "00000000-0000-0000-0000-000000001f41",
-                "starting_pitcher_id": "00000000-0000-0000-0000-000000000004",
-                "pitcher_changes": []
+                "starting_pitcher_id": "00000000-0000-0000-0000-00000000a001",
+                "pitcher_changes": [
+                  {
+                    "from_pitcher_id": "00000000-0000-0000-0000-00000000a001",
+                    "to_pitcher_id": "00000000-0000-0000-0000-000000000004",
+                    "balls": 3,
+                    "strikes": 1,
+                    "source_receipt_id": "00000000-0000-0000-0000-00000000b001"
+                  }
+                ]
               },
               "steal_attempts": []
             }
@@ -99727,7 +99759,7 @@
               "before": {
                 "inning": "1",
                 "half": "top",
-                "strikes": 0,
+                "strikes": 2,
                 "balls": 3,
                 "outs": 0,
                 "away_score": "0",
@@ -99762,8 +99794,16 @@
                 "reached_by": "walk",
                 "result_display": "四球",
                 "vocabulary_display_receipt": "00000000-0000-0000-0000-000000001f41",
-                "starting_pitcher_id": "00000000-0000-0000-0000-000000000004",
-                "pitcher_changes": []
+                "starting_pitcher_id": "00000000-0000-0000-0000-00000000a001",
+                "pitcher_changes": [
+                  {
+                    "from_pitcher_id": "00000000-0000-0000-0000-00000000a001",
+                    "to_pitcher_id": "00000000-0000-0000-0000-000000000004",
+                    "balls": 3,
+                    "strikes": 2,
+                    "source_receipt_id": "00000000-0000-0000-0000-00000000b001"
+                  }
+                ]
               },
               "steal_attempts": []
             }
@@ -100799,7 +100839,7 @@
               "before": {
                 "inning": "1",
                 "half": "top",
-                "strikes": 0,
+                "strikes": 2,
                 "balls": 3,
                 "outs": 0,
                 "away_score": "0",
@@ -100834,8 +100874,16 @@
                 "reached_by": "walk",
                 "result_display": "四球",
                 "vocabulary_display_receipt": "00000000-0000-0000-0000-000000001f41",
-                "starting_pitcher_id": "00000000-0000-0000-0000-000000000004",
-                "pitcher_changes": []
+                "starting_pitcher_id": "00000000-0000-0000-0000-00000000a001",
+                "pitcher_changes": [
+                  {
+                    "from_pitcher_id": "00000000-0000-0000-0000-00000000a001",
+                    "to_pitcher_id": "00000000-0000-0000-0000-000000000004",
+                    "balls": 0,
+                    "strikes": 0,
+                    "source_receipt_id": "00000000-0000-0000-0000-00000000b001"
+                  }
+                ]
               },
               "steal_attempts": []
             }
@@ -101871,7 +101919,7 @@
               "before": {
                 "inning": "1",
                 "half": "top",
-                "strikes": 0,
+                "strikes": 2,
                 "balls": 3,
                 "outs": 0,
                 "away_score": "0",
@@ -101906,8 +101954,16 @@
                 "reached_by": "walk",
                 "result_display": "四球",
                 "vocabulary_display_receipt": "00000000-0000-0000-0000-000000001f41",
-                "starting_pitcher_id": "00000000-0000-0000-0000-000000000004",
-                "pitcher_changes": []
+                "starting_pitcher_id": "00000000-0000-0000-0000-00000000a001",
+                "pitcher_changes": [
+                  {
+                    "from_pitcher_id": "00000000-0000-0000-0000-00000000a001",
+                    "to_pitcher_id": "00000000-0000-0000-0000-000000000004",
+                    "balls": 0,
+                    "strikes": 1,
+                    "source_receipt_id": "00000000-0000-0000-0000-00000000b001"
+                  }
+                ]
               },
               "steal_attempts": []
             }
@@ -102943,7 +102999,7 @@
               "before": {
                 "inning": "1",
                 "half": "top",
-                "strikes": 0,
+                "strikes": 2,
                 "balls": 3,
                 "outs": 0,
                 "away_score": "0",
@@ -102978,8 +103034,16 @@
                 "reached_by": "walk",
                 "result_display": "四球",
                 "vocabulary_display_receipt": "00000000-0000-0000-0000-000000001f41",
-                "starting_pitcher_id": "00000000-0000-0000-0000-000000000004",
-                "pitcher_changes": []
+                "starting_pitcher_id": "00000000-0000-0000-0000-00000000a001",
+                "pitcher_changes": [
+                  {
+                    "from_pitcher_id": "00000000-0000-0000-0000-00000000a001",
+                    "to_pitcher_id": "00000000-0000-0000-0000-000000000004",
+                    "balls": 0,
+                    "strikes": 2,
+                    "source_receipt_id": "00000000-0000-0000-0000-00000000b001"
+                  }
+                ]
               },
               "steal_attempts": []
             }
@@ -104015,7 +104079,7 @@
               "before": {
                 "inning": "1",
                 "half": "top",
-                "strikes": 0,
+                "strikes": 2,
                 "balls": 3,
                 "outs": 0,
                 "away_score": "0",
@@ -104050,8 +104114,16 @@
                 "reached_by": "walk",
                 "result_display": "四球",
                 "vocabulary_display_receipt": "00000000-0000-0000-0000-000000001f41",
-                "starting_pitcher_id": "00000000-0000-0000-0000-000000000004",
-                "pitcher_changes": []
+                "starting_pitcher_id": "00000000-0000-0000-0000-00000000a001",
+                "pitcher_changes": [
+                  {
+                    "from_pitcher_id": "00000000-0000-0000-0000-00000000a001",
+                    "to_pitcher_id": "00000000-0000-0000-0000-000000000004",
+                    "balls": 1,
+                    "strikes": 0,
+                    "source_receipt_id": "00000000-0000-0000-0000-00000000b001"
+                  }
+                ]
               },
               "steal_attempts": []
             }
@@ -105087,7 +105159,7 @@
               "before": {
                 "inning": "1",
                 "half": "top",
-                "strikes": 0,
+                "strikes": 2,
                 "balls": 3,
                 "outs": 0,
                 "away_score": "0",
@@ -105122,8 +105194,16 @@
                 "reached_by": "walk",
                 "result_display": "四球",
                 "vocabulary_display_receipt": "00000000-0000-0000-0000-000000001f41",
-                "starting_pitcher_id": "00000000-0000-0000-0000-000000000004",
-                "pitcher_changes": []
+                "starting_pitcher_id": "00000000-0000-0000-0000-00000000a001",
+                "pitcher_changes": [
+                  {
+                    "from_pitcher_id": "00000000-0000-0000-0000-00000000a001",
+                    "to_pitcher_id": "00000000-0000-0000-0000-000000000004",
+                    "balls": 1,
+                    "strikes": 1,
+                    "source_receipt_id": "00000000-0000-0000-0000-00000000b001"
+                  }
+                ]
               },
               "steal_attempts": []
             }
@@ -106159,7 +106239,7 @@
               "before": {
                 "inning": "1",
                 "half": "top",
-                "strikes": 0,
+                "strikes": 2,
                 "balls": 3,
                 "outs": 0,
                 "away_score": "0",
@@ -106194,8 +106274,16 @@
                 "reached_by": "walk",
                 "result_display": "四球",
                 "vocabulary_display_receipt": "00000000-0000-0000-0000-000000001f41",
-                "starting_pitcher_id": "00000000-0000-0000-0000-000000000004",
-                "pitcher_changes": []
+                "starting_pitcher_id": "00000000-0000-0000-0000-00000000a001",
+                "pitcher_changes": [
+                  {
+                    "from_pitcher_id": "00000000-0000-0000-0000-00000000a001",
+                    "to_pitcher_id": "00000000-0000-0000-0000-000000000004",
+                    "balls": 1,
+                    "strikes": 2,
+                    "source_receipt_id": "00000000-0000-0000-0000-00000000b001"
+                  }
+                ]
               },
               "steal_attempts": []
             }
@@ -107231,7 +107319,7 @@
               "before": {
                 "inning": "1",
                 "half": "top",
-                "strikes": 0,
+                "strikes": 2,
                 "balls": 3,
                 "outs": 0,
                 "away_score": "0",
@@ -107266,8 +107354,16 @@
                 "reached_by": "walk",
                 "result_display": "四球",
                 "vocabulary_display_receipt": "00000000-0000-0000-0000-000000001f41",
-                "starting_pitcher_id": "00000000-0000-0000-0000-000000000004",
-                "pitcher_changes": []
+                "starting_pitcher_id": "00000000-0000-0000-0000-00000000a001",
+                "pitcher_changes": [
+                  {
+                    "from_pitcher_id": "00000000-0000-0000-0000-00000000a001",
+                    "to_pitcher_id": "00000000-0000-0000-0000-000000000004",
+                    "balls": 2,
+                    "strikes": 2,
+                    "source_receipt_id": "00000000-0000-0000-0000-00000000b001"
+                  }
+                ]
               },
               "steal_attempts": []
             }
@@ -116725,8 +116821,23 @@
                 "reached_by": "walk",
                 "result_display": "四球",
                 "vocabulary_display_receipt": "00000000-0000-0000-0000-000000001f41",
-                "starting_pitcher_id": "00000000-0000-0000-0000-000000000004",
-                "pitcher_changes": []
+                "starting_pitcher_id": "00000000-0000-0000-0000-00000000a001",
+                "pitcher_changes": [
+                  {
+                    "from_pitcher_id": "00000000-0000-0000-0000-00000000a001",
+                    "to_pitcher_id": "00000000-0000-0000-0000-00000000a002",
+                    "balls": 2,
+                    "strikes": 0,
+                    "source_receipt_id": "00000000-0000-0000-0000-00000000b001"
+                  },
+                  {
+                    "from_pitcher_id": "00000000-0000-0000-0000-00000000a002",
+                    "to_pitcher_id": "00000000-0000-0000-0000-000000000004",
+                    "balls": 3,
+                    "strikes": 1,
+                    "source_receipt_id": "00000000-0000-0000-0000-00000000b002"
+                  }
+                ]
               },
               "steal_attempts": []
             }
@@ -117265,8 +117376,23 @@
                 "reached_by": "walk",
                 "result_display": "四球",
                 "vocabulary_display_receipt": "00000000-0000-0000-0000-000000001f41",
-                "starting_pitcher_id": "00000000-0000-0000-0000-000000000004",
-                "pitcher_changes": []
+                "starting_pitcher_id": "00000000-0000-0000-0000-00000000a001",
+                "pitcher_changes": [
+                  {
+                    "from_pitcher_id": "00000000-0000-0000-0000-00000000a001",
+                    "to_pitcher_id": "00000000-0000-0000-0000-00000000a002",
+                    "balls": 2,
+                    "strikes": 0,
+                    "source_receipt_id": "00000000-0000-0000-0000-00000000b001"
+                  },
+                  {
+                    "from_pitcher_id": "00000000-0000-0000-0000-00000000a002",
+                    "to_pitcher_id": "00000000-0000-0000-0000-000000000004",
+                    "balls": 2,
+                    "strikes": 2,
+                    "source_receipt_id": "00000000-0000-0000-0000-00000000b002"
+                  }
+                ]
               },
               "steal_attempts": []
             }
