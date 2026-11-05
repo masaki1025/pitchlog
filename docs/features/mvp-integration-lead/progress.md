@@ -1,5 +1,14 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 続き：2026-11-05（#192最終候補を公開し全CIへ、安打画面の停止を診断）
+
+- **#192統合候補**: backend登録追随14を963a543f、単一受理R4を67858d763f130cc37de989d5b3073539e7c33806へ保存し通常push済み。最終非作者60ef630c…がbase eb8→HEADの222paths/diff d1c768ee…、9747以後の製品runtime/数学/artifact/画面/SQL全byte不変を確認。既画面10球r12を継承しつつ同6785で新GUI実行済みとはしない。R4非作者e10bc86b…は公式empty-root54blob/差分9完全一致、old36→単一192/37、current323/base300/pin83保持/不要2だけ退避削除/3変異拒否を確認。rootはPO委任7.7判断として受理、本人署名/P6blindではない。公開証拠comment6647177429、本文pointer更新済み。
+- **実CI**: 全CI41949597842は実行中（最終確認時failure0、secrets/harness-static/backend-static/tenant/consistency等成功）。PRbody41949597910はrootがmarker後JSONをコードブロック化した掲載ミスで一度失敗、値不変で正規raw JSONへ訂正し本文だけ再実行して**success**。製品source再pushなし。全必須CI成功前はDraft解除/merge不可。旧41908083319の赤を成功へ変更しない。root/backend全ruff/ty、backend602fileformat、tenant公式CLI/authz1429/frozeninvariantsも成功。
+- **安打画面**: GUI3は初回P1二件（元安打でなく次ball再送/入力context再束縛待ち不足）を最小反映しed67f4d4へ保存。r1は正規DDL再適用/fullprofile成功後、Node静的JSON import属性不足でPlaywright試験前失敗36.47秒。type-only import+readFileSyncで同goldenを読むloaderをa229a8a6へ是正、実CLIlist4成功/非作者9f22ad60…。同HEAD r2は4test開始後wrapper600秒期限で失敗634.65秒、3684tracked SHA/HEAD一致/owned掃除。停止行/根因は未確定で安打GUI成功とはしない。partial stdout未保存で反例が粗かったため、writerがFE.e2e/DBtest2だけへ固定stage/HTTP30秒/元安打retry30秒/TimeoutExpired出力保存後rethrowを反映（観測候補56f0e882…、未採用/非作者レビュー中）。rootだけがPG/HTTPSを起動し、原因不明の同じ10分実行を繰返さない。
+- **成績実装**: source3を7ba56ed9へ保存、SQL4/raw84/70col10policy4func/installerの全byte再現、唯一モデル/既生成SQL/実54列参照を非作者74f4212f…が確認・独立18pass。実DB/保存は未接続。実接合案e0618c87…はprefix_path after_d1_intents後の単一flush・生存する実Execution/payload/同TXeventから唯一T5評価・private opaque proof・5関数だけのcodecを具体化。cbc1f35d/bc5b32b3 planで新writer preflight2をpr191、閉値codec2をbatted_prefixへ実装移管、共有registry/transaction/sync/正式assetsはroot専有。値JSON/UUID/nonce/snapshotだけを資格にせず、未決4とMVP全条件を保持。
+- **再開/次**: #192は6785を固定してremoteCIの実結果を確認し、全緑/依存/重大未解消なしの条件で通常統合する。CI中は安打観測修復→実画面の停止行特定/是正と、成績producer/5固定関数/同frame flush/RRROのroot実接合を続ける。新3/2/2のsource unit成果は専有writer完了後に非作者照合・コミット。既キャンセル/訂正/終了再開/全操作offline/担当交代/閲覧更新/27成績/両CSV/負荷復旧/ユーザー実機は未完を保持、Goal active。
+
+
 ## 続き：2026-11-05（CI修復を保存、実語彙HTTP成立と4安打画面へ）
 
 - **#192保存/検査**: f87c9594で旧署名/旧9hash/旧114testを保持するPR192限定core照合を保存。固定7984全426pass347.59秒・非作者6fca99bd…を確認。32e4a9e7で認可2参照digestと合成fixtureの真正Git原典を接合（26pass63.62秒/非作者a20333e0…）。5c74c8cfで旧79row/134caseを保持し新16row/24caseのGAP/正規化参照を追随、592pass45.33秒/非作者3119ef33…。36a18dcaでpin追随時に失われたduplicate-v7-keyの原不正wireだけを正式eb8から復元、codec/期待不変で479pass4.69秒/非作者6b0002a8…。正式R4/新公開証拠/必須CIは未了でマージ不可。2b414db0のplanにより残backend登録追随exact14をpr191_residual_independentへ一本化し、別調査者の固定9b76期待ea51b8ae…を供給。旧637文/既42pin/旧lockpinを保持、新origin1/policy2/column9だけへ閉じる。
