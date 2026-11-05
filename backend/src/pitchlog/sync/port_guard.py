@@ -510,6 +510,7 @@ def _load_first_ball_port_classes() -> tuple[type[object], ...]:
         PlayPrefixContentValidationPort,
         PlayPrefixProjectionPort,
     )
+    from pitchlog.sync.undo_ports import UndoContentValidationPort, UndoProjectionPort
 
     return (
         FirstBallContentValidationPort,
@@ -521,6 +522,8 @@ def _load_first_ball_port_classes() -> tuple[type[object], ...]:
         LineupPrefixContentValidationPort,
         PlayPrefixProjectionPort,
         LineupPrefixProjectionPort,
+        UndoContentValidationPort,
+        UndoProjectionPort,
     )
 
 
