@@ -380,3 +380,12 @@ source/body5確定後のruntime derive/render・tenant rederive・実変化の7.
 
 
 正式stats5本文の採用（2026-11-06 JST、PO委任Codex /root判断）: 固定6d4994bbの候補packetfd4d4895b2a88c79e845771282079af1b538692995c42bfe2c4c02123856bd49を、非作者REPORT9ddcabc1ce22713cf18af2fd565f13c3d87ea5fedf84be13826114d2b749a301/checks8c57c2ce94d546d27d90feb0d201faac3d1fa640ae218214be2edd90b95ef7f6で採用する。独立全差分c255499cec5ffde143f2c77589cda64ce0b023133a07e7d82a521325f5968986はmodel/唯一ART/閉decisions metadataだけ、全認可/TX/tenant/WHERE/page/拒否/関数ABI/ACLを保持。旧before5は真正ec3原物と照合保存、manifest795/旧29/全DDL/immutablev1旧10のbyte保持を確認。新5受理/旧5＋改変15拒否・official bodycheck/関連38独立成功。rootは全before/after SHAを確認して5だけ反映し、runtime/tenantの公式deriveをread-only照合、差分が実在する場合だけ別scope/非作者後に更新する。実PG compile/保存・再取得/再送/故障、7.7/必要seal/正式D11/画面・CSVは未成立。PO本人の確認/署名やP6blindとは記録しない。
+
+
+## D04の次の操作単位：真正no-change完了PAのBF（2026-11-06 JST、PO委任Codex /root判断）
+
+read-only REPORT06380485d083918429d50e04d1f73c0c6a6f269a8505eeda0c99fd68d72ad426と要件2.19/A-2/PO76により、交代なしの真正完了PA→実投手BF1、未完→既知0、不足→unavailableを先行する。D03出場producerや全交代Portの完成を数学着手条件へ追加しない。単一交代BB/IBBは既責任原本へ従い、K等の別creditをBFへ流用しない。T1の継承カウント判定は既唯一artifactからの真正責任出力を消費し、D1/Pythonへcountルールをコピーしない。未対応交代nativeは成功にせず後続MVP義務に残す。
+
+技術版は新current v3を閉じ、v1-history/v2-history/new-currentの3profileを区別する。旧v1とD02D05-v2の全26値/decisions/元JSON/ART/全casesと保存ACKを保持する。現資料の別typed contribution案は未採用とし、BFは整数寄与であるため同じD1の明示27番目のprimitiveとして宣言する方針を選ぶ。native DBの26固定CHECKは黙って緩めず、後続の限定migrationで既全26＋BF1だけの閉集合/27上限へ正式追随する。既profileは26のまま厳格decodeし、旧factを新modelへin-place再刻印せず、unknown metricや旧sourceのBFを0補完しない。型が自由なJSON欄へBF保存を紛れ込ませない。migration/正式SQL/実source接続は数学と別受入、共有DB適用なし。
+
+作者pr191へ最初のcache-only起案exact3を許可する: docs/features/mvp-stats-primitives/{primitive-input,primitive-output,primitive-cases}.candidate.json。既v1/v2の規範全値/順序を保持し、S11/S18のlegacy文言は旧射程と明記する最小の注記だけ、新v3はPO76/2.19を正にする。no-change完了/未完/未知source/欠測を独立期待で先置きし、既原典から12count×BB/IBB・非BB・真正recorded ownerと複数交代責任原本なしgapの対照を用意できる。後者は規範fixtureでありnative交代提供済みとしない。入力の完全性/責任参照は型だけで真正資格を証明せず、host/nativeが同frameの実PA開始/終了/実参加者/原本に束縛する。旧モデル2世代の原物と生成由来を固定し、期待は製品出力から採取しない。別非作者確認後root受理し、同D1/emitter/回帰の必要scopeを最小追補して本体へ進む。新しい意味PO判断/全Port/全DB完了を余計な前提にしない。
