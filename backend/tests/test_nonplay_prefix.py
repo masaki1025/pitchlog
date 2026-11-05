@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import hashlib
 import json
 from contextlib import ExitStack
 from pathlib import Path
@@ -64,12 +65,18 @@ def fixture_values(step=2):
         }
         records.append(record)
     content = value["checkpoint"]["content"]
+    # 原手例は不変。これは現runtimeだけの自己pinを持つ新規pure文脈。
+    current = hashlib.sha256(
+        (ROOT / "frontend/public/domain/pitchlog-domain.js").read_bytes()
+    ).hexdigest()
+    content["executionArtifactSha256"] = current
     head = value["activeStack"][0]["play"]
     content["activeHead"] = copy.deepcopy(head)
     content["d1Head"]["source"] = copy.deepcopy(head["source"])
     content["projectionHead"]["source"] = copy.deepcopy(head["source"])
     value["checkpoint"]["ref"]["digest"] = source_fingerprint(content)
     raw = copy.deepcopy(CASES["undoEvents"][0])
+    raw["payload"]["artifactSha256"] = current
     raw["payload"]["expectedCheckpoint"] = copy.deepcopy(value["checkpoint"]["ref"])
     return value, raw, records
 
@@ -793,3 +800,219 @@ def test_saved_profile_full_values_and_types_are_bound(rig, mutation):
             artifact_sha256=rig.raw["payload"]["artifactSha256"],
         ):
             pytest.fail("保存全列の一葉差を受理しました")
+
+
+def legacy_profile_fixture(rig, monkeypatch, prior):
+    """前置手例から型整合した旧v3境界doubleを作り、数学期待は生成しない。"""
+    from pitchlog.repositories.play_prefix import read_lineup_prefix_document
+
+    for frame in rig.value["activeStack"]:
+        for name in ("beforeContext", "afterContext"):
+            context = frame[name]
+            context["layoutDigest"] = context["rosterDigest"]
+    cp = rig.value["checkpoint"]
+    c = cp["content"]
+    head = rig.value["activeStack"][0]["play"]
+    src = head["source"]
+    restored = copy.deepcopy(rig.value["activeStack"][0]["afterContext"])
+    ref = {
+        "version": "3",
+        "scope": "play-prefix-v3",
+        "tenantId": c["scope"]["tenantId"],
+        "gameId": c["scope"]["gameId"],
+        "generation": c["scope"]["generation"],
+        "length": c["activeDepth"],
+        "checkpoint": copy.deepcopy(cp["ref"]),
+        "historyVersion": c["historyVersion"],
+        "origin": c["origin"],
+    }
+    raw = {
+        "version": "3",
+        "id": cp["ref"]["id"],
+        "revision": cp["ref"]["revision"],
+        "history_version": c["storageHistoryEpoch"],
+        "storage_anchor": {
+            "id": cp["ref"]["id"],
+            "history_epoch": c["storageHistoryEpoch"],
+        },
+        "prefix_ref": ref,
+        "wire_d4": c["scope"]["generation"],
+        "internal_generation": "1",
+        "recovery_generation": "1",
+        "confirmed_watermark": c["d3"],
+        "applied_watermark": c["d3"],
+        "last_source": {
+            "id": src["eventId"],
+            "tenant_id": c["scope"]["tenantId"],
+            "game_id": src["gameId"],
+            "generation": "1",
+            "d1": src["d1"],
+            "d2": head["d2"],
+            "d5": src["d5"],
+            "source_fingerprint": src["fingerprint"],
+            "event_fingerprint": src["fingerprint"],
+        },
+        "history_depth": c["activeDepth"],
+        "after": restored["current"],
+        "rules": restored["rules"],
+        "t2": restored["lastPlayEvaluation"],
+        "runners": restored["runners"],
+        "participants": restored["participants"],
+        "pa_start_source": restored["responsibility"]["paStartSource"],
+        "lineup": restored["lineup"],
+        "roster_digest": restored["rosterDigest"],
+        "roster_source_digest": source_fingerprint({"explicit-roster-fixture": 1}),
+        "source_origin": c["origin"],
+        "previous_prefix_ref": copy.deepcopy(ref),
+        "artifact_sha256": prior,
+        "state": "current",
+        "projection_snapshot": {
+            "play_row": {"fixture": "not-real-DB"},
+            "play_runners": [],
+        },
+    }
+    raw["content_digest"] = source_fingerprint(raw)
+    doc = read_lineup_prefix_document(_canonical_json(raw))
+    row = {
+        "tenant_id": c["scope"]["tenantId"],
+        "game_id": c["scope"]["gameId"],
+        "internal_generation": 1,
+        "id": doc.id,
+        "revision": int(doc.revision),
+        "history_version": int(doc.history_version),
+        "recovery_generation": 1,
+        "confirmed_watermark": int(c["d3"]),
+        "applied_watermark": int(c["d3"]),
+        "content_digest": doc.content_digest,
+        "content": raw,
+        "roster": {},
+        "state": "current",
+        "saved_at": "2026-11-06T00:00:00+00:00",
+    }
+    original = tx._TenantTransaction.run_function
+
+    def run(handle, operation):
+        if type(operation) is api._LockNonplayCheckpoint:
+            q = api._qualified_nonplay_call(handle, operation)
+            assert q.operation is operation
+            return TenantOperationResult(
+                (
+                    (
+                        _canonical_json(
+                            {
+                                "checkpoint": raw,
+                                "storage": {
+                                    "row": row,
+                                    "nextPhysicalPlayNumber": rig.actual_next_physical,
+                                },
+                                "generationChain": rig.chain,
+                            }
+                        ),
+                    ),
+                )
+            )
+        return original(handle, operation)
+
+    monkeypatch.setattr(tx._TenantTransaction, "run_function", run)
+    return raw, row
+
+
+def test_current_fixture_self_pin_is_derived_without_changing_original_goldens():
+    """自己pin/digestだけを派生し、元JSON/数学/履歴/原保存pinは全保持する。"""
+    path = ROOT / "contracts/state-transition/nonplay_prefix_bridge_cases_v1.json"
+    before = path.read_bytes()
+    original = copy.deepcopy(CASES)
+    actual = hashlib.sha256(
+        (ROOT / "frontend/public/domain/pitchlog-domain.js").read_bytes()
+    ).hexdigest()
+    for step in (2, 5):
+        value, event, records = fixture_values(step)
+        assert value["checkpoint"]["content"]["executionArtifactSha256"] == actual
+        assert event["payload"]["artifactSha256"] == actual
+        assert event["payload"]["expectedCheckpoint"] == value["checkpoint"]["ref"]
+        assert value["checkpoint"]["ref"]["digest"] == source_fingerprint(
+            value["checkpoint"]["content"]
+        )
+        assert (
+            event["payload"]["calculation"]
+            == CASES["undoEvents"][0]["payload"]["calculation"]
+        )
+        assert [r["frame"]["historyEntry"] for r in records] == [
+            f["historyEntry"] for f in CASES["steps"][step]["source"]["activeStack"]
+        ]
+    assert CASES == original and path.read_bytes() == before
+
+
+@pytest.mark.parametrize("prior", ["unknown", "same-current"])
+def test_legacy_v3_requires_real_shared_finite_qualification(rig, monkeypatch, prior):
+    """旧原本が型整合していても未宣言pairをcurrentへ投影しない。"""
+    current = rig.raw["payload"]["artifactSha256"]
+    prior = (
+        current
+        if prior == "same-current"
+        else source_fingerprint({"unregistered-legacy": 1})
+    )
+    raw, row = legacy_profile_fixture(rig, monkeypatch, prior)
+    original = copy.deepcopy((raw, row))
+    with pytest.raises(api.NonplaySourceUnavailable, match="有限artifact互換資格"):
+        with api.read_confirmed_nonplay_prefix(
+            rig.handle, rig.event, rig.source, artifact_sha256=current
+        ):
+            pytest.fail("v3未宣言互換を受理しました")
+    assert (raw, row) == original
+    assert not any(type(op) is api._ReadNonplayHistoryPage for op in rig.calls)
+
+
+def test_shared_gate_unknown_format_missing_and_changed_witness_stays_closed(
+    tmp_path, monkeypatch
+):
+    """正式checker本体を使い、独立な欠落/別形式/改変の閉拒否を確認する。"""
+    from pitchlog.repositories import play_prefix
+    from pitchlog.repositories.ordinary_prefix import OrdinaryPrefixError
+
+    current = hashlib.sha256(
+        (ROOT / "frontend/public/domain/pitchlog-domain.js").read_bytes()
+    ).hexdigest()
+    for prior in (source_fingerprint({"unknown": 2}), current):
+        with pytest.raises(OrdinaryPrefixError):
+            play_prefix._require_legacy_compatibility(
+                prior, current, source_format="play-prefix-play-v3"
+            )
+    with pytest.raises(OrdinaryPrefixError):
+        play_prefix._require_legacy_compatibility(
+            current, current, source_format="unknown-format"
+        )
+    # pathだけを隔離rootへ向け、checker/成功値をstubしない。
+    fake = tmp_path / "backend/src/pitchlog/repositories/play_prefix.py"
+    fake.parent.mkdir(parents=True)
+    fake.write_text("# test-only root")
+    monkeypatch.setattr(play_prefix, "__file__", str(fake))
+    for value in (
+        None,
+        {
+            "version": "1",
+            "cases": [
+                {
+                    "priorArtifactSha256": current,
+                    "executionArtifactSha256": current,
+                    "sourceFormat": "first-ball-play-v1",
+                    "compatibleOperations": [
+                        "deriveState",
+                        "deriveFirstPitchWithContinuation",
+                    ],
+                    "witnessSha256": "changed",
+                }
+            ],
+        },
+    ):
+        path = (
+            tmp_path
+            / "contracts/state-transition/play_prefix_v2_source_compatibility_v1.json"
+        )
+        if value is not None:
+            path.parent.mkdir(parents=True)
+            path.write_text(json.dumps(value))
+        with pytest.raises(OrdinaryPrefixError):
+            play_prefix._require_legacy_compatibility(
+                current, current, source_format="first-ball-play-v1"
+            )

@@ -344,6 +344,9 @@ def read_confirmed_nonplay_prefix(handle, event, source, *, artifact_sha256):
         from pitchlog.repositories.play_prefix import read_lineup_prefix_document
 
         legacy_doc = read_lineup_prefix_document(_canonical_json(cp))
+        _require_nonplay_legacy_compatibility(
+            legacy_doc.artifact_sha256, artifact_sha256
+        )
         content = {
             "scope": {
                 "tenantId": legacy_doc.prefix_ref.tenant_id,
@@ -1066,3 +1069,18 @@ def _stored_ordinary_item(handle, event, source, item, lifetime, runtime):
         "physical": item["physical"],
         "expectedPhysical": item["expectedPhysical"],
     }
+
+
+def _require_nonplay_legacy_compatibility(prior, execution):
+    """真正旧v3をcurrentへ投影する前に、共有の有限互換資格を必須確認する。"""
+    from pitchlog.repositories.ordinary_prefix import OrdinaryPrefixError
+    from pitchlog.repositories.play_prefix import _require_legacy_compatibility
+
+    try:
+        _require_legacy_compatibility(
+            prior, execution, source_format="play-prefix-play-v3"
+        )
+    except OrdinaryPrefixError:
+        raise NonplaySourceUnavailable(
+            "旧v3の有限artifact互換資格が確認できません"
+        ) from None
