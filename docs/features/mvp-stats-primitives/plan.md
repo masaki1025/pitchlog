@@ -283,3 +283,6 @@ native台帳接合に伴う単体試験境界の追随（2026-11-05、PO委任Co
 
 
 native台帳接合の採用記録: 作者exact5 packet c7e7f653…（helper74f8b4ca…/prefixf774ba0d…/新test97571cb9…/prefixTest6ccad048…/persistencecf1bea69…）を非作者98e28cd1793bba44035f60abc4cb77c99a2c91d805e8db0012dbfdd08be59c81で照合し採用する。作者497成功/独立421成功・追加20SQL0拒否、旧generic6source/66DML/SQLxmin/全保存境界を保持。新HTTP test f28283e4…は非作者90baf30e…でtmp結果分離P2反映を確認した。root隔離r4は実新POST作成/開始→ordinary-prefix-v1で3球/replay/GET→event3=成績source3/current_open(count3,rev3)/pitch_count3が1成功63.34秒。ただし未commit固定候補の初回実測であり、本commit固定HEADの再実証・全4profile・故障全取消・正式source/D11/7.7/CI・公式成績表示は残る。判断者Codex /root、2026-11-05 JST、PO既委任に基づく判断で本人署名・P6blindではない。
+
+
+成績保存後故障試験の採用記録（2026-11-05、PO委任Codex /root判断）: exact1 c8ce45ad14f64de1c21b1c618d5237985aba00ae4f2445f76a84e87692e5961f、作者packet27d6ee50aa8a5449eda8ea7482152ec7e4a69cc1461ab535c2dc4d97c7105ac7、非作者REPORT fb28f4d9c3ef58d146ad8c33122b27142cee9764f8056eec1af3ab3267e6e9eb（P0/P1/P2=0、独立pure48成功）を照合して採用する。元flush完了後だけ固定故障を注入し13表全行を比較する。実PGの成功はこの採用時点では未成立。旧要求終結・D5未消費・新D5置換を推定しない。別の固定版b051defaの正常R5は新規作成/開始/ordinary3球/再送/GETと成績source3・球数3を1成功66.95秒で確認し、HEAD/tree/index前後一致・7証拠SHAを非作者8ba1dd24e939432cba81a4607489a9f2543213ae23bffda2b18ae5acb7270f0cで照合した。正常R5を故障・全profile・画面・正式集計の受入へ拡張しない。
