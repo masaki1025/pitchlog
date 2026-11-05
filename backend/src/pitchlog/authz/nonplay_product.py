@@ -46,7 +46,7 @@ _FUNCTIONS = {
     "lock_nonplay_checkpoint": (_COMMON + ", text", "record_json text"),
     "read_nonplay_history_page": (_COMMON + ", text", "record_json text"),
     "prepare_nonplay_undo": (_COMMON + ", text", "prepared boolean"),
-    "consume_nonplay_undo": (_COMMON + ", text", "consumed boolean"),
+    "consume_nonplay_undo": (_COMMON + ", text", "receipt_json text"),
 }
 _PREDICATE = (
     "tenant_id = NULLIF(pg_catalog.current_setting('app.tenant_id',true),'')::uuid"

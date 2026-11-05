@@ -131,3 +131,27 @@ def test_fresh_json_values_do_not_mutate_later_declarations():
     actual[0]["functions"][0]["acl_expectations"].clear()
     assert publisher.candidate_declarations() == expected
     assert json.loads(json.dumps(expected[0])) == expected[0]
+
+
+@pytest.mark.parametrize(
+    "result_type", ["consumed boolean", "receipt_json boolean", "record_json text"]
+)
+def test_consume_requires_exact_receipt_text_abi(monkeypatch, result_type):
+    """受理済みreceipt原文だけを宣言し、旧bool・別名・別型を拒否する。"""
+    declarations, _ = publisher.candidate_declarations()
+    row = next(
+        row
+        for row in declarations["functions"]
+        if row["function_name"] == "consume_nonplay_undo"
+    )
+    assert row["returns"] == "TABLE(receipt_json text)"
+    source = candidate_function_bodies()
+    original = source["consume_nonplay_undo"]
+    expected = "RETURNS TABLE(receipt_json text)"
+    assert original.count(expected) == 1
+    source["consume_nonplay_undo"] = original.replace(
+        expected, "RETURNS TABLE(" + result_type + ")", 1
+    )
+    monkeypatch.setattr(publisher, "candidate_function_bodies", lambda: source)
+    with pytest.raises(ValueError, match="固定SQL署名・実行属性"):
+        publisher.candidate_declarations()
