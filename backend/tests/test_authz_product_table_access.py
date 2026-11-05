@@ -878,6 +878,39 @@ def test_product_policies_and_table_acls_match_all_five_profiles() -> None:
             f"TO pitchlog_sync_right_fn_owner {clause} ({terminal_predicate});\n"
         )
     owner_policy_ids |= terminal_policy_ids
+    lineup_predicate = (
+        "COALESCE(tenant_id = NULLIF("
+        "pg_catalog.current_setting('app.tenant_id', true), '')::UUID, FALSE)"
+    )
+    lineup_policy_ids = set()
+    for table in ("game_start_requests", "game_start_attempts"):
+        name = f"lineup_prefix_{table}_select"
+        policy_id = f"POLICY:{table}:{name}"
+        lineup_policy_ids.add(policy_id)
+        assert [row for row in asset["policies"] if row["policy_id"] == policy_id] == [
+            {
+                "policy_id": policy_id,
+                "table_id": table,
+                "profile": "function_only",
+                "policy_name": name,
+                "command": "SELECT",
+                "policy_mode": "permissive",
+                "role_ids": ["pitchlog_sync_right_fn_owner"],
+                "using_predicate_id": "PREDICATE:TENANT",
+                "using_column": "tenant_id",
+                "using_expression": lineup_predicate,
+                "with_check_predicate_id": None,
+                "with_check_column": None,
+                "with_check_expression": None,
+            }
+        ]
+        assert actual_sql[("policy", policy_id)] == (
+            f"-- ELEMENT-TYPE: policy\n-- ELEMENT-ID: {policy_id}\n\n"
+            f"CREATE POLICY {name} ON public.{table} FOR SELECT "
+            f"TO pitchlog_sync_right_fn_owner USING ({lineup_predicate});\n"
+        )
+    assert len(lineup_policy_ids) == 2
+    owner_policy_ids |= lineup_policy_ids
     assert {
         element_id
         for element_type, element_id in actual_sql

@@ -1373,6 +1373,18 @@
     {
       "product": "policy:POLICY:play_runners:play_prefix_select_play_runners",
       "reason": "product_only"
+    },
+    {
+      "product": "function:FUNCTION:sync_right_api:read_lineup_started_origin(uuid, uuid, bigint)",
+      "reason": "product_only"
+    },
+    {
+      "product": "policy:POLICY:game_start_attempts:lineup_prefix_game_start_attempts_select",
+      "reason": "product_only"
+    },
+    {
+      "product": "policy:POLICY:game_start_requests:lineup_prefix_game_start_requests_select",
+      "reason": "product_only"
     }
   ]
 }

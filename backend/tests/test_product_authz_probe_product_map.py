@@ -212,6 +212,16 @@ _TERMINAL_PRODUCT_ATOMS = frozenset(
 )
 
 
+_LINEUP_PRODUCT_ATOMS = frozenset(
+    {
+        "function:FUNCTION:sync_right_api:read_lineup_started_origin"
+        "(uuid, uuid, bigint)",
+        "policy:POLICY:game_start_attempts:lineup_prefix_game_start_attempts_select",
+        "policy:POLICY:game_start_requests:lineup_prefix_game_start_requests_select",
+    }
+)
+
+
 def _product_path() -> Path:
     """共有 API が判定した状態の製品資産パスを返す。"""
     state, violations = evaluate_repository(_REPOSITORY_ROOT)
@@ -506,6 +516,35 @@ def test_terminal_product_only_atoms_are_exact() -> None:
 @pytest.mark.parametrize("atom", sorted(_TERMINAL_PRODUCT_ATOMS))
 def test_each_terminal_product_only_atom_is_required(atom: str) -> None:
     """正常基線成立後に追加9原子の個別欠落を双方向exact-setで拒否する。"""
+    mapping, probe, product = _documents()
+    validate_probe_product_map(mapping, probe, product)
+    rows = _rows(mapping, "product_only")
+    rows.remove(_row_by_value(rows, key="product", value=atom))
+    with pytest.raises(
+        ProbeProductMapError, match="製品原子要素が双方向 exact-set でない"
+    ):
+        validate_probe_product_map(mapping, probe, product)
+
+
+def test_lineup_product_only_atoms_are_exact() -> None:
+    """固定9b76のorigin1/開始SELECT2だけを理由付き非対応原子へ追記する。"""
+    mapping, probe, product = _documents()
+    summary = validate_probe_product_map(mapping, probe, product)
+    assert len(_LINEUP_PRODUCT_ATOMS) == 3
+    assert {
+        row["product"]
+        for row in _rows(mapping, "product_only")
+        if isinstance(row, dict)
+        and row.get("product") in _LINEUP_PRODUCT_ATOMS
+        and row.get("reason") == "product_only"
+    } == _LINEUP_PRODUCT_ATOMS
+    assert not _LINEUP_PRODUCT_ATOMS & summary.mapped_product_atoms
+    assert not _LINEUP_PRODUCT_ATOMS & _TERMINAL_PRODUCT_ATOMS
+
+
+@pytest.mark.parametrize("atom", sorted(_LINEUP_PRODUCT_ATOMS))
+def test_each_lineup_product_only_atom_is_required(atom: str) -> None:
+    """新3のどの原子を削除しても既双方向exact-set検査が拒否する。"""
     mapping, probe, product = _documents()
     validate_probe_product_map(mapping, probe, product)
     rows = _rows(mapping, "product_only")
