@@ -771,6 +771,93 @@ def validate_pr196_schema_comparison_area_path_layers(
         raise GuardError("schema比較core層の削除は許可しない")
 
 
+# 成績native基盤の未登録29pathだけ。旧schema2以下を変更しない有限外層。
+STATS_FOUNDATION_CORE_ADDITIONS: Mapping[str, tuple[str, ...]] = {
+    'sync-protocol': (
+        'backend/tests/test_native_ledger_insert.py',
+        'backend/tests/test_stats_native_connection.py',
+        'backend/tests/test_stats_native_flush.py',
+        'backend/tests/test_stats_native_prefix_connection.py',
+        'backend/tests/test_ordinary_pitch_payload.py',
+    ),
+    'game-state': (
+        'backend/src/pitchlog/exports/generated/play_primitives.sql',
+        'backend/src/pitchlog/stats/facts.py',
+        'backend/src/pitchlog/stats/generated/facts.py',
+        'backend/src/pitchlog/stats/generated/formatter.py',
+        'backend/src/pitchlog/stats/generated/receiver.py',
+        'backend/src/pitchlog/stats/generated/stats.sql',
+        'backend/src/pitchlog/stats/generated/stats_rates.sql',
+        'backend/tests/stats/test_basic_stats.py',
+        'backend/tests/stats/test_primitive_facts.py',
+        'backend/tests/test_stats_sql_generation_runtime.py',
+        'contracts/stats/native_event_facts_d11_v2.json',
+        'contracts/stats/native_current_totals_d11_v2.json',
+        'backend/tests/stats/test_stats_native_d11.py',
+    ),
+    'recording-rights': (),
+    'tenant-isolation': (
+        'backend/tests/test_stats_function_codec.py',
+        'backend/tests/test_stats_native_function_registration.py',
+        'backend/tests/test_stats_native_product_connection.py',
+        'backend/tests/test_stats_native_read_dispatch.py',
+        'backend/tests/test_stats_native_read_receipts.py',
+        'backend/tests/test_stats_primitive_product.py',
+        'backend/tests/test_stats_primitive_write_state.py',
+        'tests/test_stats_native_dependency_columns.py',
+    ),
+    'data-migration': (
+        'backend/src/pitchlog/db/current_product_startup.py',
+        'backend/tests/test_current_product_startup.py',
+        'backend/tests/test_stats_catalog_pg_representation.py',
+    ),
+}
+
+
+def _project_stats_foundation_layer(
+    document: Mapping[str, Any], label: str,
+) -> tuple[dict[str, Any], bool]:
+    """全29pairの完全suffixだけを外し、旧全field/登録を保持する。"""
+    paths_by_id = _area_paths_by_id(document, label)
+    expected = {(area, path) for area, paths in
+                STATS_FOUNDATION_CORE_ADDITIONS.items() for path in paths}
+    known = {path for _, path in expected}
+    observed = {(area, path) for area, paths in paths_by_id.items()
+                for path in paths if path in known}
+    guard_paths = document.get("guard_paths", [])
+    if isinstance(guard_paths, list) and any(path in known for path in guard_paths):
+        raise GuardError(f"{label} の成績基盤core層をguard_pathsへ代用できない")
+    projected = copy.deepcopy(dict(document))
+    if not observed:
+        return projected, False
+    if observed != expected or tuple(paths_by_id) != tuple(STATS_FOUNDATION_CORE_ADDITIONS):
+        raise GuardError(f"{label} の成績基盤core層の全29pair/領域順序が不一致")
+    for area in projected["areas"]:
+        paths = paths_by_id[area["id"]]
+        suffix = STATS_FOUNDATION_CORE_ADDITIONS[area["id"]]
+        if suffix and paths[-len(suffix):] != suffix:
+            raise GuardError(f"{label} の成績基盤core層が完全suffixに不一致")
+        prefix = paths[:-len(suffix)] if suffix else paths
+        if any(path in known for path in prefix):
+            raise GuardError(f"{label} の成績基盤core層が旧prefixへ混入している")
+        area["paths"] = list(prefix)
+    _, prior_present = _project_pr196_schema_comparison_layer(projected, label)
+    if not prior_present:
+        raise GuardError(f"{label} の成績基盤core層には既schema比較全2pairが必要")
+    return projected, True
+
+
+def validate_stats_foundation_area_path_layers(
+    baseline: Mapping[str, Any], candidate: Mapping[str, Any],
+) -> None:
+    """成績29の完全性/単調追加を閉確認し、既schema2以下へ委譲する。"""
+    old_baseline, before = _project_stats_foundation_layer(baseline, "merge-base")
+    old_candidate, after = _project_stats_foundation_layer(candidate, "PR head")
+    validate_pr196_schema_comparison_area_path_layers(old_baseline, old_candidate)
+    if before and not after:
+        raise GuardError("成績基盤core層の削除は許可しない")
+
+
 def _commits_between(root: Path, base_revision: str, head_sha: str) -> tuple[str, ...]:
     """基線より後から head までのコミットを古い順で返す。"""
     output = _run_git(
@@ -840,7 +927,7 @@ def verify_area_path_baseline(root: Path, base_sha: str, head_sha: str) -> str:
     baseline_revision = merge_base_revision(root, base_sha, head_sha)
     baseline = load_core_areas_at_revision(root, baseline_revision)
     candidate = load_core_areas_at_revision(root, head_sha)
-    validate_pr196_schema_comparison_area_path_layers(baseline, candidate)
+    validate_stats_foundation_area_path_layers(baseline, candidate)
 
     for revision in _commits_between(root, baseline_revision, head_sha):
         changed = _changed_paths_in_commit(root, revision)

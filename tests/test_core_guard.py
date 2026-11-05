@@ -5794,9 +5794,12 @@ def test_http_core_complete_declared_configuration_covers_component_asset() -> N
     # 投影で外れる先行層（first-ball層）は実configの宣言済みpathで補う。
     for area in _first_ball_raw_core_areas()["areas"]:
         patterns.extend(p for p in area["paths"] if p not in patterns)
-    # 旧HTTP fixtureへ新schema層の2件だけを明示補充し、実母集団は全件検査する。
-    for paths in _SCHEMA_COMPARISON_EXPECTED.values():
-        patterns.extend(p for p in paths if p not in patterns)
+    # 歴史fixtureで外す既terminal/schema2と今回の有限26を独立期待から補充する。
+    # 母集団を差引かず、旧HTTPの完全宣言fixtureへ現行の宣言済み資産を重ねる。
+    for additions in (_terminal_expected_additions(), _SCHEMA_COMPARISON_EXPECTED,
+                      _STATS_FOUNDATION_EXPECTED):
+        for paths in additions.values():
+            patterns.extend(p for p in paths if p not in patterns)
     configured = guard.CoreAreas(tuple(patterns), frozenset(document["guard_paths"]))
     assert_schema_contract_assets_are_registered(schema_contract_asset_paths(),
                                                 configured=configured)
@@ -6853,7 +6856,7 @@ _SCHEMA_COMPARISON_EXPECTED: dict[str, tuple[str, ...]] = {
 
 def _schema_comparison_historical_fixture(document: dict[str, Any]) -> dict[str, Any]:
     """新2だけを厳密に投影し、旧3pairの前提と全旧fieldを保持する。"""
-    raw = json.loads(json.dumps(document))
+    raw = _stats_foundation_historical_fixture(document)
     pairs = {(a, p) for a, paths in _SCHEMA_COMPARISON_EXPECTED.items() for p in paths}
     known = {p for _, p in pairs}
     observed = {(a['id'], p) for a in raw['areas'] for p in a['paths'] if p in known}
@@ -6880,6 +6883,7 @@ def _schema_comparison_historical_fixture(document: dict[str, Any]) -> dict[str,
 
 def _schema_comparison_legacy_guard_source(source: str) -> str:
     """新helper2/定数/verify入口1callだけを逆射影し、他全AST変更を残す。"""
+    source = _stats_foundation_legacy_guard_source(source)
     tree = ast.parse(source)
     names = {'_project_pr196_schema_comparison_layer',
              'validate_pr196_schema_comparison_area_path_layers'}
@@ -6922,7 +6926,7 @@ def test_schema_comparison_2_is_separate_from_pr196_3_and_covers_all_discovered_
     """期待は現JSON採取でなく明示2件、旧固定3と自動導出全母集団を照合する。"""
     guard = load_core_guard_module()
     old, new = _schema_comparison_config()
-    actual = json.loads(CORE_AREAS_PATH.read_text())
+    actual = _stats_foundation_historical_fixture(json.loads(CORE_AREAS_PATH.read_text()))
     assert actual == new
     assert dict(guard.PR196_SCHEMA_COMPARISON_CORE_ADDITIONS) == _SCHEMA_COMPARISON_EXPECTED
     assert dict(guard.PR196_CORE_ADDITIONS) == _pr196_expected_additions()
@@ -7063,3 +7067,263 @@ def test_schema_comparison_2_requires_prior3_even_when_both_git_sides_lack_it(tm
         guard.verify_area_path_baseline(root, base, head)
     with pytest.raises(AssertionError, match='旧PR196層'):
         _schema_comparison_historical_fixture(candidate)
+
+
+_STATS_FOUNDATION_EXPECTED: dict[str, tuple[str, ...]] = {
+    'sync-protocol': (
+        'backend/tests/test_native_ledger_insert.py',
+        'backend/tests/test_stats_native_connection.py',
+        'backend/tests/test_stats_native_flush.py',
+        'backend/tests/test_stats_native_prefix_connection.py',
+        'backend/tests/test_ordinary_pitch_payload.py',
+    ),
+    'game-state': (
+        'backend/src/pitchlog/exports/generated/play_primitives.sql',
+        'backend/src/pitchlog/stats/facts.py',
+        'backend/src/pitchlog/stats/generated/facts.py',
+        'backend/src/pitchlog/stats/generated/formatter.py',
+        'backend/src/pitchlog/stats/generated/receiver.py',
+        'backend/src/pitchlog/stats/generated/stats.sql',
+        'backend/src/pitchlog/stats/generated/stats_rates.sql',
+        'backend/tests/stats/test_basic_stats.py',
+        'backend/tests/stats/test_primitive_facts.py',
+        'backend/tests/test_stats_sql_generation_runtime.py',
+        'contracts/stats/native_event_facts_d11_v2.json',
+        'contracts/stats/native_current_totals_d11_v2.json',
+        'backend/tests/stats/test_stats_native_d11.py',
+    ),
+    'recording-rights': (),
+    'tenant-isolation': (
+        'backend/tests/test_stats_function_codec.py',
+        'backend/tests/test_stats_native_function_registration.py',
+        'backend/tests/test_stats_native_product_connection.py',
+        'backend/tests/test_stats_native_read_dispatch.py',
+        'backend/tests/test_stats_native_read_receipts.py',
+        'backend/tests/test_stats_primitive_product.py',
+        'backend/tests/test_stats_primitive_write_state.py',
+        'tests/test_stats_native_dependency_columns.py',
+    ),
+    'data-migration': (
+        'backend/src/pitchlog/db/current_product_startup.py',
+        'backend/tests/test_current_product_startup.py',
+        'backend/tests/test_stats_catalog_pg_representation.py',
+    ),
+}
+
+
+def _stats_foundation_historical_fixture(document):
+    """独立literal全26を検査してから既fixtureへ渡す。未知fieldは残す。"""
+    raw = json.loads(json.dumps(document))
+    expected = {(a, p) for a, paths in _STATS_FOUNDATION_EXPECTED.items() for p in paths}
+    known = {p for _, p in expected}
+    assert not known.intersection(raw.get('guard_paths', [])), '成績guard代用'
+    observed = {(a['id'], p) for a in raw['areas'] for p in a['paths'] if p in known}
+    if not observed:
+        return raw
+    assert observed == expected and [a['id'] for a in raw['areas']] == list(
+        _STATS_FOUNDATION_EXPECTED), '成績全29pair/領域順序'
+    for area in raw['areas']:
+        paths, suffix = area['paths'], _STATS_FOUNDATION_EXPECTED[area['id']]
+        assert len(paths) == len(set(paths)), '成績重複'
+        assert not suffix or tuple(paths[-len(suffix):]) == suffix, '成績suffix'
+        prefix = paths[:-len(suffix)] if suffix else paths
+        assert not any(p in known for p in prefix), '成績prefix'
+        area['paths'] = prefix
+    return raw
+
+
+def _stats_foundation_legacy_guard_source(source):
+    """今回2helper/定数/入口1call以外の全ASTを比較へ残す。"""
+    tree = ast.parse(source)
+    names = {'_project_stats_foundation_layer', 'validate_stats_foundation_area_path_layers'}
+    found = {n.name for n in tree.body if isinstance(n, ast.FunctionDef) and n.name in names}
+    assert found in (set(), names)
+    constants = [n for n in tree.body if isinstance(n, ast.AnnAssign)
+                 and isinstance(n.target, ast.Name)
+                 and n.target.id == 'STATS_FOUNDATION_CORE_ADDITIONS']
+    assert len(constants) == int(bool(found))
+    verify = next(n for n in tree.body if isinstance(n, ast.FunctionDef)
+                  and n.name == 'verify_area_path_baseline')
+    calls = [n for n in ast.walk(verify) if isinstance(n, ast.Call)
+             and isinstance(n.func, ast.Name)
+             and n.func.id == 'validate_stats_foundation_area_path_layers']
+    assert len(calls) == int(bool(found))
+    for call in calls:
+        assert ast.dump(call) == ast.dump(ast.parse(
+            'validate_stats_foundation_area_path_layers(baseline, candidate)', mode='eval').body)
+        assert isinstance(call.func, ast.Name)
+        call.func.id = 'validate_pr196_schema_comparison_area_path_layers'
+    tree.body = [n for n in tree.body if not (
+        isinstance(n, ast.FunctionDef) and n.name in names or n in constants)]
+    return ast.unparse(tree)
+
+
+def _stats_foundation_config():
+    """旧schema2を前提に全29だけを後置した非採取fixture。"""
+    _, old = _schema_comparison_config()
+    new = json.loads(json.dumps(old))
+    for area in new['areas']:
+        area['paths'].extend(_STATS_FOUNDATION_EXPECTED[area['id']])
+    return old, new
+
+
+def test_stats_foundation29_exact_paths_detection_and_full_ast_preservation():
+    """29母集団/独立期待/実検出と旧guard全文ASTを確認する。"""
+    guard = load_core_guard_module()
+    assert dict(guard.STATS_FOUNDATION_CORE_ADDITIONS) == _STATS_FOUNDATION_EXPECTED
+    old, new = _stats_foundation_config()
+    expected = {p for ps in _STATS_FOUNDATION_EXPECTED.values() for p in ps}
+    assert len(expected) == 29
+    # 定義前置→D11 source8→JSON後置の順。未来3の実体はD11側runnerで必須検査する。
+    pending_d11 = {
+        'contracts/stats/native_event_facts_d11_v2.json',
+        'contracts/stats/native_current_totals_d11_v2.json',
+        'backend/tests/stats/test_stats_native_d11.py',
+    }
+    assert pending_d11 <= expected
+    assert all((REPO / p).is_file() for p in expected - pending_d11)
+    projected, present = guard._project_stats_foundation_layer(new, 'test')
+    assert present and projected == old and _stats_foundation_historical_fixture(new) == old
+    base_source = run_git(REPO, 'show',
+        'c8f1c1d679f79499d37c8cfbb3129fc5d82278b3:scripts/core_guard.py').stdout
+    assert ast.dump(ast.parse(_stats_foundation_legacy_guard_source(SCRIPT.read_text()))) == (
+        ast.dump(ast.parse(base_source)))
+    added = SCRIPT.read_text() + '\n\ndef unknown_stats_helper():\n    return False\n'
+    assert ast.dump(ast.parse(_stats_foundation_legacy_guard_source(added))) != ast.dump(
+        ast.parse(base_source))
+    configured = guard.CoreAreas(path_patterns=tuple(
+        p for a in new['areas'] for p in a['paths']), guard_paths=frozenset())
+    assert set(guard.matched_paths(sorted(expected), configured)) == expected
+    actual = json.loads(CORE_AREAS_PATH.read_text())
+    assert actual in (old, new)
+
+
+@pytest.mark.parametrize(('before', 'after'), [(False, False), (False, True),
+                                               (True, True), (True, False)])
+def test_stats_foundation29_monotonic_real_git(tmp_path, before, after):
+    """完全追加/保持を許可し、削除は拒否する。"""
+    guard = load_core_guard_module()
+    old, new = _stats_foundation_config()
+    root, base = _first_ball_git_repo(tmp_path, new if before else old)
+    _, head = commit_change(root, '.claude/core-areas.json',
+                            json.dumps(new if after else old)) if before != after else (
+        commit_change(root, 'README.md', 'unchanged stats layer\n'))
+    if before and not after:
+        with pytest.raises(guard.GuardError, match='成績基盤core層の削除'):
+            guard.verify_area_path_baseline(root, base, head)
+    else:
+        assert guard.verify_area_path_baseline(root, base, head) == base
+
+
+@pytest.mark.parametrize('mutation', ['missing', 'wrong-area', 'order', 'duplicate',
+    'prefix', 'unknown-suffix', 'unknown-prefix', 'guard-only', 'guard-plus-area',
+    'missing-prior2', 'missing-prior3', 'area-order', 'path-type', 'area-type'])
+def test_stats_foundation29_rejects_partial_or_extra_layers(tmp_path, mutation):
+    """旧層/全29/領域/順序/guard代用/未知混入を拒否する。"""
+    guard = load_core_guard_module()
+    old, new = _stats_foundation_config()
+    bad = json.loads(json.dumps(new))
+    maps = {a['id']: a['paths'] for a in bad['areas']}
+    a = 'game-state'
+    first, second = _STATS_FOUNDATION_EXPECTED[a][:2]
+    if mutation == 'missing':
+        maps[a].remove(first)
+    elif mutation == 'wrong-area':
+        maps[a].remove(first)
+        maps['recording-rights'].append(first)
+    elif mutation == 'order':
+        x, y = maps[a].index(first), maps[a].index(second)
+        maps[a][x], maps[a][y] = maps[a][y], maps[a][x]
+    elif mutation == 'duplicate':
+        maps[a].append(first)
+    elif mutation == 'prefix':
+        maps[a].remove(first)
+        maps[a].insert(0, first)
+    elif mutation == 'unknown-suffix':
+        maps[a].append('backend/tests/unapproved_stats.py')
+    elif mutation == 'unknown-prefix':
+        maps[a].insert(0, 'backend/tests/unapproved_stats.py')
+    elif mutation in ('guard-only', 'guard-plus-area'):
+        bad['guard_paths'].append(first)
+        if mutation == 'guard-only':
+            maps[a].remove(first)
+    elif mutation == 'missing-prior2':
+        maps['data-migration'].remove(_SCHEMA_COMPARISON_EXPECTED['data-migration'][0])
+    elif mutation == 'missing-prior3':
+        maps['sync-protocol'].remove(_pr196_expected_additions()['sync-protocol'][0])
+    elif mutation == 'area-order':
+        bad['areas'].reverse()
+    elif mutation == 'path-type':
+        maps[a][-1] = True
+    else:
+        bad['areas'] = False
+    root, base = _first_ball_git_repo(tmp_path, old)
+    _, head = commit_change(root, '.claude/core-areas.json', json.dumps(bad))
+    with pytest.raises(guard.GuardError):
+        guard.verify_area_path_baseline(root, base, head)
+
+
+@pytest.mark.parametrize('definition', ['scripts/core_guard.py', 'tests/test_core_guard.py'])
+def test_stats_foundation29_keeps_ordered_definition_commits(tmp_path, definition):
+    """完全29でも定義とJSONの同commitは受理しない。"""
+    guard = load_core_guard_module()
+    old, new = _stats_foundation_config()
+    root, base = _first_ball_git_repo(tmp_path, old)
+    original = (root / definition).read_text() if (root / definition).exists() else ''
+    write_text(root, definition, original + '\n# cochange\n')
+    write_text(root, '.claude/core-areas.json', json.dumps(new))
+    run_git(root, 'add', definition, '.claude/core-areas.json')
+    run_git(root, '-c', 'user.email=test@example.com', '-c', 'user.name=test',
+            'commit', '-m', 'cochange')
+    with pytest.raises(guard.GuardError, match='同一コミット'):
+        head = run_git(root, 'rev-parse', 'HEAD').stdout.strip()
+        guard.verify_area_path_baseline(root, base, head)
+
+
+@pytest.mark.parametrize(('area_id', 'path'), [
+    (area, path) for area, paths in _STATS_FOUNDATION_EXPECTED.items() for path in paths
+])
+def test_each_stats_foundation_path_is_required_in_its_exact_area(area_id, path):
+    """29件の各欠落を一つずつ拒否し、部分集合の受理を防ぐ。"""
+    guard = load_core_guard_module()
+    old, new = _stats_foundation_config()
+    bad = json.loads(json.dumps(new))
+    area = next(a for a in bad['areas'] if a['id'] == area_id)
+    area['paths'].remove(path)
+    with pytest.raises(guard.GuardError):
+        guard.validate_stats_foundation_area_path_layers(old, bad)
+
+
+@pytest.mark.parametrize(('area_id', 'path'), [
+    (area, path) for area, paths in _STATS_FOUNDATION_EXPECTED.items() for path in paths
+])
+def test_each_stats_foundation_path_cannot_move_to_another_area(area_id, path):
+    """29件の各誤領域への移動を拒否し、他領域検出だけで代用しない。"""
+    guard = load_core_guard_module()
+    old, new = _stats_foundation_config()
+    bad = json.loads(json.dumps(new))
+    area = next(a for a in bad['areas'] if a['id'] == area_id)
+    area['paths'].remove(path)
+    next(a for a in bad['areas'] if a['id'] == 'recording-rights')['paths'].append(path)
+    with pytest.raises(guard.GuardError):
+        guard.validate_stats_foundation_area_path_layers(old, bad)
+
+
+def test_stats_foundation_complete_proposal_covers_full_schema_asset_population():
+    """実JSON後置前も完全候補の全schema母集団を検査し、欠落を隠さない。"""
+    guard = load_core_guard_module()
+    _, new = _stats_foundation_config()
+    patterns = tuple(path for area in new['areas'] for path in area['paths'])
+    configured = guard.CoreAreas(patterns, frozenset(new['guard_paths']))
+    assert_schema_contract_assets_are_registered(
+        schema_contract_asset_paths(), configured=configured)
+
+
+def test_stats_foundation_projection_keeps_unknown_fields_and_input_unchanged():
+    """未知後発fieldも元入力も保持し、対象外を射影で消さない。"""
+    guard = load_core_guard_module()
+    old, new = _stats_foundation_config()
+    old['extra'] = new['extra'] = {'kept': [True, 1]}
+    saved = json.loads(json.dumps(new))
+    projected, present = guard._project_stats_foundation_layer(new, 'test')
+    assert present and projected == old and new == saved
