@@ -1,5 +1,13 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 続き：2026-11-05 安打最終候補を隔離して検査待ちを短縮
+
+- 元安打WT/PR196branchは4a27af44のままcleanでroot回帰session72039を継続、同入力の再実行はしていない。重い回帰中に原本を変更しないため、同4a27からfeature-mvp-batted-hits-final-candidate WT/branchを作成し、AST同一整形1（独立5ce6e99d…）を8ccdcd84、単一196R3を70158b17へ保存した。R3はR2bundle全SHA guard＋旧37prefix/9IDbase+1据置で公式導出、新2/除去2のみ（base/pin/ref保護・退避）。BE全Ruff/Ty成功、R3正式tenant CLI session79918 exit0。最終候補のbranch自体は公開せず、元回帰終了後にPR196のfeature/mvp-batted-hitsを同commitへffする。CI/merge未成立。
+- 全候補4a27の非作者c72017be…は162paths/全SHA/42報告/作者union5/実GUI3310の限界を照合し未解消P0/P1/P2=0。最終70158のR3値と限定再bindingを同別非作者へ依頼中。runtimeは基礎reviewからAST同一testだけ、唯一計算/SQL/認可/保存は不変更。
+- 成績PO4判断は1879aa46で正式回答を保存。stats8d2cba28で正本/README/research/既55保持ケース候補exact4をpr192へ割当て、D04の全継承/申告敬遠とD05の零除算/桁数を原典照合し同ゲートで暦年方針も伝播する。pr191は5284588f planのcurrent起動exact6をcache-only実装中（既provisioner selected要素共有helperを最小抽出し、pre/fullを任意subsetにしない）。rootは正式資産/refs/台帳のみ直列writer。
+- 外部LLMへの取消接続spikeはPOへ具体指示文を提示済み。予定branch feature/mvp-undo-connection-spike、正式112f起点、既b2ed/41d7再利用、画面新規→開始→1球→取消→再取得/reload/再送/故障を目標。まだ実担当の受諾/稼働/成果受領は未確認であり、送付・引受済みと記録しない。主担当は同範囲を二重編集せず、接続/契約追補と正式レビュー統合を引き受ける。
+
+
 ## 続き：2026-11-05 成績4判断のPO回答を受領
 
 POが成績MVP-D02〜D05を全てAとして採用。5区分の公式/練習対応、実登板1試合1件（0球/再登板含む）、既責任帰属による打者数、未丸めOBP+SLG後の最終丸めを正式回答としてdecision-sheetへ記録した。未回答4件という従前状態は解消。D04の他継承カウント/申告敬遠とD05分母0/桁数の原典照合・正本/契約/case/唯一モデル/画面/CSVへ伝播・独立検証はこれからであり、現source_unavailableを無根拠にavailable/0へ変えない。通常起動/安打最終検査はこの回答に依存せず継続する。
