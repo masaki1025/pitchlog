@@ -665,8 +665,13 @@ def _apply_e1_f1(
     validator,
     registrations=None,
     targets=None,
+    logical_d1=False,
 ):
-    """未公開のF1私有入口。実issuer/Port/登録不足は閉拒否する。"""
+    """未公開のF1私有入口。実issuer/Port/登録不足は閉拒否する。
+
+    ``logical_d1`` は初球以外の D1 を受理するspike経路だけが True にする。
+    製品の初球入口は False のまま、D1=1 以外を閉じる。
+    """
     from pitchlog.repositories.rg1 import RG1Unavailable, read_rg1_open
     from pitchlog.sync.control_provider.binding_control import BindingControl
     from pitchlog.sync.control_provider.evidence import EventPhaseBinding
@@ -712,7 +717,9 @@ def _apply_e1_f1(
         PlayPrefixContentValidationPort,
         LineupPrefixContentValidationPort,
     }
-    if len(request.events) != 1 or (not ordinary and request.events[0].d1 != 1):
+    if len(request.events) != 1 or (
+        not ordinary and not logical_d1 and request.events[0].d1 != 1
+    ):
         raise _E1OutOfScope("E1要求はF1の範囲外")
     event = request.events[0]
     registrations = registrations or {}

@@ -47,6 +47,10 @@ from pitchlog.sync.control_provider.writer_binding import (
 from pitchlog.sync.first_ball_ports import FirstBallContentValidationPort
 from pitchlog.sync.first_ball_projection import FirstBallProjectionPort
 from pitchlog.sync.first_ball_recording_rights import FirstBallRecordingRightsPort
+from pitchlog.sync.game_lifecycle_ports import (
+    GameLifecycleContentValidationPort,
+    GameLifecycleProjectionPort,
+)
 from pitchlog.sync.http_recording_key import _decode_recording_key
 from pitchlog.sync.model import AckResult, RequestShapeError, SyncRequest
 from pitchlog.sync.ordinary_pitch_execution import OrdinaryPitchExecutionError
@@ -235,11 +239,16 @@ def sync_events(
                 isinstance(event.v7, Mapping)
                 and event.v7.get("formatVersion") == "play-prefix-play-v3"
             )
+            lifecycle = (
+                isinstance(event.v7, Mapping)
+                and event.v7.get("formatVersion") == "game-lifecycle-spike-v1"
+            )
             if isinstance(event.v7, Mapping) and event.v7.get("formatVersion") not in {
                 "first-ball-play-v1",
                 "ordinary-pitch-play-v1",
                 "play-prefix-play-v2",
                 "play-prefix-play-v3",
+                "game-lifecycle-spike-v1",
             }:
                 raise _E1OutOfScope("未知payload mode")
             result = _apply_e1_f1(
@@ -253,7 +262,9 @@ def sync_events(
                 control=BindingControl(configuration.broker_endpoint),
                 rights=rights,
                 projection=(
-                    LineupPrefixProjectionPort()
+                    GameLifecycleProjectionPort()
+                    if lifecycle
+                    else LineupPrefixProjectionPort()
                     if lineup_prefix
                     else PlayPrefixProjectionPort()
                     if play_prefix
@@ -262,7 +273,9 @@ def sync_events(
                     else FirstBallProjectionPort()
                 ),
                 validator=(
-                    LineupPrefixContentValidationPort()
+                    GameLifecycleContentValidationPort()
+                    if lifecycle
+                    else LineupPrefixContentValidationPort()
                     if lineup_prefix
                     else PlayPrefixContentValidationPort()
                     if play_prefix
@@ -270,6 +283,7 @@ def sync_events(
                     if ordinary
                     else FirstBallContentValidationPort()
                 ),
+                logical_d1=lifecycle,
             )
     except _E1OutOfScope:
         raise HTTPException(status_code=501) from None

@@ -105,6 +105,12 @@ def create_app() -> FastAPI:
     register_exception_handlers(app)
     for router in ROUTERS:
         app.include_router(router)
+    if os.environ.get("PITCHLOG_GAME_LIFECYCLE_SPIKE") == "1":
+        # 終了・再開・再終了の接続spike。製品既定では閉じる。
+        from pitchlog.api.tenant_access import require_tenant_access
+        from pitchlog.sync.spike_lifecycle_http import install
+
+        install(app, tenant_access=require_tenant_access)
     configured = os.environ.get(_BINDING_CLIENT_VARIABLE)
     app.state.binding_client_config_path = Path(configured) if configured else None
     _activate_presentation(app.state.token_presentation)

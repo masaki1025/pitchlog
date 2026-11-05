@@ -54,6 +54,8 @@ def test_tenant_match_operations_keep_old_routes_and_add_self() -> None:
             "initial_device_enroll",
             "initial_game_start",
             "initial_game_start_resolve",
+            "game_lifecycle_spike_read",
+            "game_lifecycle_spike_fault",
         }
     )
 
