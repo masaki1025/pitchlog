@@ -235,7 +235,9 @@ def test_selected_helper_refuses_caller_defined_operation(kind):
 
 def test_pre_full_expected_uses_exact_selected_declarations():
     """要素不足をsubset成功で補完せず既選択の閉集合を取得する。"""
-    functions, schemas, policies, table_acl, columns, _ = current._pre_full_expected()
+    functions, schemas, policies, table_acl, columns, _, _ = (
+        current._pre_full_expected()
+    )
     assert "sync_fence" in schemas and "stats_api" not in schemas
     assert not any(key[0] == "stats_api" for key in functions)
     assert not any(key[0] == "sync_fence" for key in policies)
@@ -696,3 +698,44 @@ def test_current41_failure_never_reaches_full_repair(monkeypatch, phase):
     )
     with pytest.raises(current.CurrentProductStartupError):
         current._finish_current("owner", "admin")
+
+
+def test_pre_full_builtin_execute_is_exact_selected_declaration(monkeypatch):
+    """保留されたbinding ownerだけを除き、未知主体や欠落を受け入れない。"""
+    from types import SimpleNamespace
+
+    check = "PRODUCT-CATALOG:BUILTIN-ADDITIONAL-EXECUTE"
+    pairs = current._pre_full_catalog_pairs()
+    full, pre = pairs[check]
+    assert {row[3] for row in full} == {
+        "pitchlog_rg1_control_owner",
+        "pitchlog_ledger_identity_owner",
+        "pitchlog_sync_binding_fn_owner",
+    }
+    assert {row[3] for row in pre} == {
+        "pitchlog_rg1_control_owner",
+        "pitchlog_ledger_identity_owner",
+    }
+    violations = [
+        SimpleNamespace(check_id=key, expected=f, actual=p)
+        for key, (f, p) in pairs.items()
+        if f != p
+    ]
+    report = SimpleNamespace(
+        ok=False,
+        checked_ids=tuple(pairs),
+        violations=tuple(violations),
+    )
+    monkeypatch.setattr(current, "_catalog", lambda connection: report)
+    assert current._require_pre_or_full_catalog(object()) == "pre-full"
+    base = next(v for v in violations if v.check_id == check)
+    for bad in (
+        (),
+        full,
+        pre
+        + (("pg_catalog", "pg_control_system", "", "pitchlog_app", "EXECUTE", False),),
+    ):
+        base.actual = bad
+        with pytest.raises(current.CurrentProductStartupError):
+            current._require_pre_or_full_catalog(object())
+    base.actual = pre

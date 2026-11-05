@@ -660,11 +660,22 @@ def _pre_full_expected():
         for r in present
         if r.element_type == "policy"
     }
-    table_acl, column_acl, schema_acl = set(), set(), set()
+    table_acl, column_acl, schema_acl, builtin_acl = set(), set(), set(), set()
     for row in present:
         f = cast(dict[str, Any], row.fields)
         if row.element_type in {"acl_expectation", "column_acl_expectation"}:
             if f.get("object_kind") == "builtin_function":
+                for privilege in f["privilege_ids"]:
+                    builtin_acl.add(
+                        (
+                            f["object_schema"],
+                            f["object_id"],
+                            "",
+                            f["grantee_role_id"],
+                            privilege.upper(),
+                            f["grant_option"],
+                        )
+                    )
                 continue
             for privilege in f["privilege_ids"]:
                 base = (f["object_schema"], f["object_id"])
@@ -697,7 +708,7 @@ def _pre_full_expected():
                         grant["grantable"],
                     )
                 )
-    return functions, schemas, policies, table_acl, column_acl, schema_acl
+    return functions, schemas, policies, table_acl, column_acl, schema_acl, builtin_acl
 
 
 def _pre_full_catalog_pairs():
@@ -710,7 +721,7 @@ def _pre_full_catalog_pairs():
     from pitchlog.authz.terminal_pitch_write_stamp import trigger_expectations
 
     full = _load_product_expectations()
-    functions, schemas, policies, table_acl, column_acl, schema_acl = (
+    functions, schemas, policies, table_acl, column_acl, schema_acl, builtin_acl = (
         _pre_full_expected()
     )
     fields = {
@@ -721,6 +732,10 @@ def _pre_full_catalog_pairs():
         "COLUMN-ACL": (full.column_acl, lambda r: r in column_acl),
         "FUNCTIONS": (full.functions, lambda r: r[:3] in functions),
         "FUNCTION-ACL": (full.function_acl, lambda r: r[:3] in functions),
+        "BUILTIN-ADDITIONAL-EXECUTE": (
+            full.builtin_function_acl,
+            lambda r: r in builtin_acl,
+        ),
         "LIFECYCLE-FUNCTION-DETAILS": (
             _expected_lifecycle_function_details(),
             lambda r: r[:3] in functions,

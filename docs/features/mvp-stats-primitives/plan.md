@@ -313,3 +313,6 @@ pr192_harness_values_independentへcache-onlyで、既候補55期待を保持し
 
 
 current起動exact6の採用（2026-11-05、PO委任Codex /root判断）: 作者packet5428dac1e633f134c91daccb863affc4ec70bd35ba3d7109134eb44153fe0b15（currentf98713a1…/fixture8cb228f3…/purebf935dab…/DBbc636bae…/oldtest8f37989a…/provision9e751b49…）を非作者0188d75195880401f41e63f2d030848019b78944c9eb95dda9abaa9d39129aaf（独立83pure成功13.33秒/追加式反例11、旧AST・全54列・scope保持、P0/P1/P2=0）で照合し採用する。旧stage全byte/fixturecurrent外・legacy半分/元provision抽出以外ASTと適用SQLを保持し、canonical選択集合の共通helperを使う。DB15件は収集のみであり、実PG deparse/pre-full全catalog/0039rollback/41migration0再開は採用時点未実証。rootがまず実S0→0041/正規再開の1件をowned PGで実行し、準備成功後に残14・旧prefix境界20を実施する。新正常実証を全MVP/正式統合/P6成立へ拡張しない。
+
+
+current pre-full builtin分類の是正（2026-11-05、PO委任Codex /root判断）: 017cd09f実nominalは5.57秒でpre-full未知catalogに閉拒否。元catalogを変えず検査ID/件数だけのowned観測で未知はBUILTIN-ADDITIONAL-EXECUTE1分類と特定。既selected canonicalがpreの追加EXECUTE2主体を適用しbinding owner1だけを保留するので、current/test exact2（f994139f…/c669291a…）で同selected由来pre2/full3の全tuple対を追加。旧他8分類/全旧期待/全判定を保持、PUBLIC/DECLARED/未知/混在/余剰を許可しない。非作者de656d2f212274113bfbcfc0b7acb54cb95825095ccf8e5d775d11968ee7f84bが独立95成功40.26秒（候補83+新12対向）で採用可確認したので採用する。runtime他AST/全旧6setsと全pairs保持。実PGは再検証前であり、初回拒否を成功へ書換えない。
