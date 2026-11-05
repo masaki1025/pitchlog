@@ -318,3 +318,6 @@ v3 payload既34のroot custom schema consumerは、新既採用schemaのallOfを
 残CIは完走させ全失敗を分類した後、実変更分だけ単一196R5へ置換導出/全前後独立確認/新HEAD証拠/1pushする。R4失敗を成功へ読替えず、旧37履歴と9IDbase+1を保ち不必要な再増分をしない。
 
 同schema consumerの必要keywordは実schemaでallOfだけでなくanyOfも使われるため、同exact2内でallOf/anyOf/oneOfの閉配列・交差/和/一意一致を検査する。oneOf成功後の早期returnを除き、同階層のconst/enum/type/required/additionalProperties/items/pattern/min/maxも維持する。新旧の合法データを同consumerで通し、複合schemaの親制約・nullable/非nullableの交差・誤った結果相関・bool数値混同・未知追加の拒否を検査する。malformed組合せschemaを黙って許容せず、既descriptorの対応型制約は拡張で弱めない。
+
+
+CI42017498235の全job完走後、backend-shard0の追加失敗1はbackend/tests/test_product_authz_provisioning.py::test_current_sync_roles_have_strict_all_attribute_collision_sqlで、別DB対向側の既正規4主体（旧3＋recording_vocab owner1）へ旧3集合期待が未追随と確定した。このtest exact1をroot専有候補へ追加する。旧3集合を明示保持し、新owner1・重複無し・全7属性の正式DDL衝突拒否とALTER ROLE無しを同じ検査へ含める。既実DB4×7対向・生成SQL・validator・権限・正式資産は変更しない。前記root exact3と合わせsource/test4として非作者確認後に採用する。判断者Codex /root、2026-11-05 JST、PO既委任による有限追随。CI失敗を既知基線赤として無視せず、実修正後の必須CIを要求する。
