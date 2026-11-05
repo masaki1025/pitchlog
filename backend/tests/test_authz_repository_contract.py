@@ -616,6 +616,7 @@ def test_roster_capabilities_tokens_and_registry_are_exact() -> None:
         "CAP:games:insert",
         "CAP:tenant_vocabularies:insert",
         "CAP:tenant_vocabularies:read",
+        "CAP:recording_vocabularies:read",
     )
     expected_sync_operations = (
         ("GameReadToken", "CAP:games:read"),
@@ -690,22 +691,27 @@ def test_roster_capabilities_tokens_and_registry_are_exact() -> None:
         "pitchlog.repositories.pitch_type_options.PitchTypeOptionsToken",
         "pitchlog.sync.ordinary_pitch_tokens.OrdinaryPlayRowInsertToken",
         "pitchlog.sync.terminal_pitch_tokens.PlayPrefixPlayRowInsertToken",
+        "pitchlog.repositories.batted_ball_options.BattedBallOptionsToken",
     )
-    assert len(expected_capabilities) == 36
+    assert len(expected_capabilities) == 37
     assert repository_contract.PRODUCT_CAPABILITY_IDS == expected_capabilities
     assert repository_contract.PRODUCT_OPERATION_TOKEN_TYPES == expected_token_types
-    assert len(expected_token_types) == 66
+    assert len(expected_token_types) == 67
     assert (
         repository_contract.CROSS_TENANT_FUNCTION_ENTRY
         == repository_contract.CONTEXT_BINDING_ENTRY
     )
     assert type(repository_base._OPERATION_REGISTRY) is MappingProxyType
+    # 新語彙tokenは固定関数専用で、既66個のtable操作登録へ混入させない。
+    assert expected_token_types[-1] == (
+        "pitchlog.repositories.batted_ball_options.BattedBallOptionsToken"
+    )
     assert {
         f"{token_type.__module__}.{token_type.__qualname__}": spec.capability_id
         for token_type, spec in repository_base._OPERATION_REGISTRY.items()
     } == dict(
         zip(
-            expected_token_types,
+            expected_token_types[:-1],
             (
                 *expected_capabilities[:3],
                 "CAP:players:update",
@@ -1090,6 +1096,7 @@ def test_each_stale_generated_repository_field_is_red(field: str) -> None:
 
 def test_stage_a_function_registration_matches_exact_asset_and_retains_rg1() -> None:
     """旧8と端末状態read登録の生成全fieldを照合し、DMLとは混同しない。"""
+    from pitchlog.repositories.batted_ball_options import BattedBallOptionsToken
     from pitchlog.repositories.operation_registry import (
         PRODUCT_FUNCTION_OPERATIONS,
         PRODUCT_OPERATIONS,
@@ -1098,6 +1105,7 @@ def test_stage_a_function_registration_matches_exact_asset_and_retains_rg1() -> 
 
     asset = _read_contract()
     expected = (
+        "RECORDING_VOCABULARIES:read_batted_ball_options",
         "RG1:precheck",
         "RG1:commit_check",
         "RG1:scope_binding",
@@ -1120,11 +1128,12 @@ def test_stage_a_function_registration_matches_exact_asset_and_retains_rg1() -> 
         "SYNC_PLAY_PREFIX:prepare_play_prefix_projection",
         "SYNC_LINEUP_PREFIX:read_lineup_started_origin",
     )
-    assert len(expected) == 21
+    assert len(expected) == 22
     assert tuple(asset["product_function_operation_ids"]) == expected
     assert repository_contract.PRODUCT_FUNCTION_OPERATION_IDS == expected
     assert tuple(row.operation_id for row in PRODUCT_FUNCTION_OPERATIONS) == expected
     assert tuple(row.function_id for row in PRODUCT_FUNCTION_OPERATIONS) == (
+        "recording_vocab_api.read_batted_ball_options",
         "rg1_api.rg1_read_open",
         "rg1_api.rg1_assert_open_before_commit",
         "rg1_control.scope_binding",
@@ -1147,6 +1156,22 @@ def test_stage_a_function_registration_matches_exact_asset_and_retains_rg1() -> 
         "sync_right_api.prepare_play_prefix_projection",
         "sync_right_api.read_lineup_started_origin",
     )
+    vocab = PRODUCT_FUNCTION_OPERATIONS[0]
+    assert vocab.token_type is BattedBallOptionsToken
+    assert vocab.capability_id == "CAP:recording_vocabularies:read"
+    assert vocab.input_fields == (("page_size", int), ("cursor_key", str))
+    assert vocab.result_fields == (("key", str), ("display_name", str))
+    assert vocab.nonempty_inputs == vocab.nullable_results == ()
+    assert vocab.aware_datetime_results == ()
+    assert (vocab.min_rows, vocab.max_rows) == (0, 101)
+    assert vocab.statement.compile().params == {
+        "tenant_id": None,
+        "page_size": None,
+        "cursor_key": None,
+    }
+    assert all(
+        row.token_type is not BattedBallOptionsToken for row in PRODUCT_OPERATIONS
+    )
     from pitchlog.repositories.rg1 import (
         RG1CommitCheckToken,
         RG1PrecheckToken,
@@ -1154,7 +1179,7 @@ def test_stage_a_function_registration_matches_exact_asset_and_retains_rg1() -> 
     )
 
     for row, token, capability, result in zip(
-        PRODUCT_FUNCTION_OPERATIONS[:3],
+        PRODUCT_FUNCTION_OPERATIONS[1:4],
         (RG1PrecheckToken, RG1CommitCheckToken, RG1ScopeBindingToken),
         ("CAP:rg1:precheck", "CAP:rg1:commit_check", "CAP:rg1:scope_binding"),
         ((("is_open", bool),), (("is_open", bool),), (("binding", str),)),
@@ -1167,7 +1192,7 @@ def test_stage_a_function_registration_matches_exact_asset_and_retains_rg1() -> 
         assert row.statement.compile().params == {"tenant_id": None}
         assert row.min_rows == row.max_rows == 1
         assert all(item.token_type is not token for item in PRODUCT_OPERATIONS)
-    registration = PRODUCT_FUNCTION_OPERATIONS[3]
+    registration = PRODUCT_FUNCTION_OPERATIONS[4]
     assert registration.token_type is StageAResolveRuleToken
     assert registration.capability_id == "CAP:rules:resolve_stage_a"
     assert registration.input_fields == (
@@ -1195,7 +1220,7 @@ def test_stage_a_function_identity_mutation_is_rejected(function_id: str) -> Non
     from pitchlog.repositories.operation_registry import PRODUCT_FUNCTION_OPERATIONS
 
     with pytest.raises(FunctionOperationError):
-        replace(PRODUCT_FUNCTION_OPERATIONS[3], function_id=function_id)
+        replace(PRODUCT_FUNCTION_OPERATIONS[4], function_id=function_id)
 
 
 @pytest.mark.parametrize("symbol", sorted(_LEXICAL_SYMBOLS))

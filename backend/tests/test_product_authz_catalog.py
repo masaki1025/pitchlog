@@ -602,8 +602,18 @@ def test_product_expectations_cover_every_catalog_surface() -> None:
     asset_column_acls = cast(list[dict[str, Any]], asset["column_acl_expectations"])
 
     assert len(expectations.roles) == len(asset_roles)
+    assert len(asset_roles) == 18
+    assert tuple(
+        row
+        for row in expectations.roles
+        if row[0] == "pitchlog_recording_vocab_fn_owner"
+    ) == (("pitchlog_recording_vocab_fn_owner", *([False] * 7)),)
     assert expectations.roles == expectations.semantic_roles
     assert len(expectations.tables) == 56
+    assert len(expectations.schemas) == 12
+    assert tuple(
+        row for row in expectations.schemas if row[0] == "recording_vocab_api"
+    ) == (("recording_vocab_api", "pitchlog_recording_vocab_fn_owner"),)
     # 旧91policyを保持し、終端runnerのSELECT/INSERTだけを追加する。
     terminal_policies = {
         row[2]
@@ -616,8 +626,113 @@ def test_product_expectations_cover_every_catalog_surface() -> None:
         "play_prefix_select_play_runners",
         "play_prefix_insert_play_runners",
     }
-    assert len(expectations.policies) - len(terminal_policies) == 91
-    assert len(expectations.policies) == 93
+    lineup_policies = {
+        row[2]
+        for row in expectations.policies
+        if row[2]
+        in {
+            "lineup_prefix_game_start_attempts_select",
+            "lineup_prefix_game_start_requests_select",
+        }
+    }
+    assert lineup_policies == {
+        "lineup_prefix_game_start_attempts_select",
+        "lineup_prefix_game_start_requests_select",
+    }
+    batted_policies = {
+        row[2]
+        for row in expectations.policies
+        if row[2]
+        in {
+            "batted_hit_select_admin_vocabularies",
+            "batted_hit_select_tenant_vocabularies",
+            "recording_vocab_select_batted_ball",
+        }
+    }
+    assert batted_policies == {
+        "batted_hit_select_admin_vocabularies",
+        "batted_hit_select_tenant_vocabularies",
+        "recording_vocab_select_batted_ball",
+    }
+    assert {row for row in expectations.policies if row[2] in batted_policies} == {
+        (
+            "public",
+            "admin_vocabularies",
+            "batted_hit_select_admin_vocabularies",
+            "select",
+            ("pitchlog_sync_right_fn_owner",),
+            "permissive",
+            ("session_user", "=", "'pitchlog_app'"),
+            None,
+        ),
+        (
+            "public",
+            "tenant_vocabularies",
+            "batted_hit_select_tenant_vocabularies",
+            "select",
+            ("pitchlog_sync_right_fn_owner",),
+            "permissive",
+            (
+                "tenant_id",
+                "=",
+                "nullif",
+                "current_setting",
+                "'app.tenant_id'",
+                ",",
+                "true",
+                ",",
+                "''",
+                "::",
+                "uuid",
+                "and",
+                "session_user",
+                "=",
+                "'pitchlog_app'",
+            ),
+            None,
+        ),
+        (
+            "public",
+            "admin_vocabularies",
+            "recording_vocab_select_batted_ball",
+            "select",
+            ("pitchlog_recording_vocab_fn_owner",),
+            "permissive",
+            (
+                "category",
+                "=",
+                "'batted_ball'",
+                "and",
+                "disabled",
+                "=",
+                "false",
+                "and",
+                "session_user",
+                "=",
+                "'pitchlog_app'",
+                "and",
+                "nullif",
+                "current_setting",
+                "'app.tenant_id'",
+                ",",
+                "true",
+                ",",
+                "''",
+                "is",
+                "not",
+                "null",
+            ),
+            None,
+        ),
+    }
+    assert (
+        len(expectations.policies)
+        - len(terminal_policies)
+        - len(lineup_policies)
+        - len(batted_policies)
+        == 91
+    )
+    assert len(expectations.policies) == 98
     assert {
         row[2]
         for row in expectations.policies
@@ -628,6 +743,18 @@ def test_product_expectations_cover_every_catalog_surface() -> None:
         "pitchlog_owner_game_type_seed_delete",
     }
     assert len(expectations.functions) == len(asset_functions)
+    assert len(asset_functions) == 108
+    assert tuple(
+        row for row in expectations.functions if row[0] == "recording_vocab_api"
+    ) == (
+        (
+            "recording_vocab_api",
+            "read_batted_ball_options",
+            "uuid, integer, text",
+            "pitchlog_recording_vocab_fn_owner",
+            True,
+        ),
+    )
     assert len(expectations.trigger_function_keys) == sum(
         row["function_kind"] == "migration_trigger" for row in asset_functions
     )
@@ -640,6 +767,35 @@ def test_product_expectations_cover_every_catalog_surface() -> None:
     assert len(expectations.column_acl) == sum(
         len(row["privilege_ids"]) for row in asset_column_acls
     )
+    assert len(asset_column_acls) == 372
+    batted_column_keys = {
+        (table, column, owner)
+        for table, columns, owner in (
+            (
+                "admin_vocabularies",
+                ("category", "disabled", "key"),
+                "pitchlog_sync_right_fn_owner",
+            ),
+            (
+                "tenant_vocabularies",
+                ("category", "disabled", "key", "tenant_id"),
+                "pitchlog_sync_right_fn_owner",
+            ),
+            (
+                "admin_vocabularies",
+                ("category", "disabled", "display_name", "key"),
+                "pitchlog_recording_vocab_fn_owner",
+            ),
+        )
+        for column in columns
+    }
+    assert len(batted_column_keys) == 11
+    assert {
+        row for row in expectations.column_acl if row[1:4] in batted_column_keys
+    } == {
+        ("public", table, column, owner, "SELECT", False)
+        for table, column, owner in batted_column_keys
+    }
     assert len(expectations.table_acl) == sum(
         len(row["privilege_ids"])
         for row in asset_table_acls

@@ -1604,7 +1604,9 @@ def validate_gate6_subject_carry(root: Path) -> None:
     """技術的不変条件だけを検査する。最終委任受理・本人署名を表明しない。"""
     try:
         if _ordinary_present(root):
-            if (root / "contracts/state-transition/terminal_pitch_cases_v1.json").exists():
+            if (root / _STRIKEOUT_REFERENCE_PATH).exists():
+                _ordinary_strikeout_body(root)
+            elif (root / "contracts/state-transition/terminal_pitch_cases_v1.json").exists():
                 _ordinary_terminal_body(root)
             else:
                 _ordinary_body(root)
@@ -2387,20 +2389,21 @@ class _TerminalLegacyReader(_Gate6CurrentReader):
             object_pairs_hook=descriptor_checker._reject_duplicate_keys), label)
 
 
-def _ordinary_terminal_body(root: Path) -> dict[str, Any]:
+def _ordinary_terminal_body(root: Path, *,
+                            _reader: _Gate6CurrentReader | None = None) -> dict[str, Any]:
     """旧33全値と新2行15例・6pathだけを分離し、公開受理はしない。"""
     try:
         reference = _terminal_extension_reference(root)
         old_reader = _TerminalLegacyReader(root)
         record = _ordinary_body(root, policy_mode="integration18", _terminal_legacy=True)
+        current = _Gate6CurrentReader(root) if _reader is None else _reader
         for path in {*record["assets"], *_ORDINARY_FIXED_INPUTS}:
-            raw = (root / path).read_bytes()
+            raw = current.read_bytes(path)
             expected = (reference["files"][path]["after_sha256"]
                         if path in _TERMINAL_EXTENSION_FILES
                         else hashlib.sha256(old_reader.read_bytes(path)).hexdigest())
             if hashlib.sha256(raw).hexdigest() != expected:
                 raise HumanReviewSignatureRecordError("terminal headが固定全値と不一致")
-        current = _Gate6CurrentReader(root)
         prefix = "contracts/state-transition/"
         before = {Path(path).name: old_reader.load_json(path, "旧terminal比較元")
                   for path in _TERMINAL_EXTENSION_FILES}
@@ -2460,7 +2463,7 @@ def _ordinary_terminal_body(root: Path) -> dict[str, Any]:
         artifacts = projected["appendix_e_consumer_handoff_v1.json"]["artifacts"]
         for index, asset in enumerate(artifacts):
             if index < 3:
-                raw = (root / asset["path"]).read_bytes()
+                raw = current.read_bytes(asset["path"])
                 if asset["digest"] != "sha256:" + hashlib.sha256(raw).hexdigest():
                     raise HumanReviewSignatureRecordError("terminal handoff digestが不一致")
                 asset["digest"] = before["appendix_e_consumer_handoff_v1.json"]["artifacts"][index][
@@ -2473,6 +2476,307 @@ def _ordinary_terminal_body(root: Path) -> dict[str, Any]:
     except (KeyError, IndexError, TypeError, ValueError, OSError,
             descriptor_checker.DescriptorCheckError) as error:
         raise HumanReviewSignatureRecordError("terminal旧scope/有限全値検査が不成立") from error
+
+
+_STRIKEOUT_REFERENCE_PATH = PurePosixPath(
+    "tests/fixtures/pr192_ordinary_extension_reference_v1.json"
+)
+_STRIKEOUT_REFERENCE_PURPOSE = (
+    "PR192 ordinary33継承の独立全前後と有限4path拡張をroot前置Git全byteへ束縛する。"
+    "旧署名subject・191scope・現木自己期待・任意PR受理へ流用しない。"
+)
+_STRIKEOUT_CHANGED_PATHS = tuple(
+    "contracts/state-transition/" + name for name in (
+        "state_transition_contract_v1.json", "branch_row_mapping_v1.json",
+        "game_end_coverage_declaration_v1.json", "appendix_e_consumer_handoff_v1.json",
+    )
+)
+_STRIKEOUT_AUXILIARY_INPUTS = frozenset(
+    "contracts/state-transition/" + name for name in (
+        "strikeout_pitch_cases_v1.json", "strikeout_pitch_schema_v1.json",
+        "state_transition_contract_schema_v1.json",
+    )
+)
+_STRIKEOUT_EXTENSION_INPUTS = frozenset({
+    str(_STRIKEOUT_REFERENCE_PATH), *_TERMINAL_EXTENSION_INPUTS,
+    *_STRIKEOUT_AUXILIARY_INPUTS, "scripts/check_required_set_coverage.py",
+    "tests/test_human_review_signature.py",
+    "tests/fixtures/pr192_tenant_source_expected_v1.json",
+})
+
+
+def _strikeout_extension_reference(root: Path) -> dict[str, Any]:
+    """作者と別のroot前置Git原本を読み、正式合流前の二系統を区別する。"""
+    try:
+        current = _Gate6CurrentReader(root)
+        frozen = current.load_json(
+            "contracts/tenant_boundary/frozen-inputs.json", "三振固定入力",
+        )["frozen_inputs"]
+        entry = _object(frozen["pr192_ordinary_extension_reference_revision"], "三振用途")
+        _exact_keys(entry, {"value", "purpose", "sources"}, "三振用途")
+        if entry["purpose"] != _STRIKEOUT_REFERENCE_PURPOSE or entry["sources"] != [
+            "scripts/check_human_review_signature.py:_strikeout_extension_reference",
+            "tests/test_human_review_signature.py:strikeout_extension_fixture",
+        ]:
+            raise HumanReviewSignatureRecordError("三振原典の用途/consumerが不一致")
+        revision = entry["value"]
+        if not isinstance(revision, str) or re.fullmatch(r"[0-9a-f]{40}", revision) is None:
+            raise HumanReviewSignatureRecordError("三振原典は直接のfull commitが必要")
+        fixed = _carry_git_bytes(root, ["show", f"{revision}:{_STRIKEOUT_REFERENCE_PATH}"])
+        if current.read_bytes(_STRIKEOUT_REFERENCE_PATH) != fixed:
+            raise HumanReviewSignatureRecordError("三振原典がroot前置Git全byteと不一致")
+        reference = _object(json.loads(fixed,
+            object_pairs_hook=descriptor_checker._reject_duplicate_keys), "三振原典")
+        _exact_keys(reference, {"schema_version", "formal_base_revision",
+                    "terminal_accepted_revision", "candidate_revision", "files",
+                    "historical_ordinary_scope", "finite_extension"}, "三振原典")
+        if type(reference["schema_version"]) is not int or reference["schema_version"] != 1:
+            raise HumanReviewSignatureRecordError("三振原典の版が不正")
+        for commit in (revision, reference["formal_base_revision"],
+                       reference["terminal_accepted_revision"], reference["candidate_revision"]):
+            if (not isinstance(commit, str) or re.fullmatch(r"[0-9a-f]{40}", commit) is None
+                    or _carry_git_bytes(root, ["rev-parse", "--verify", commit + "^{commit}"]
+                                       ).decode().strip() != commit):
+                raise HumanReviewSignatureRecordError("三振原典の実commitが不一致")
+        terminal = _terminal_extension_reference(root)
+        if (reference["terminal_accepted_revision"] != terminal["candidate_revision"]
+                or reference["candidate_revision"]
+                != frozen["pr192_source_registration_revision"]["value"]):
+            raise HumanReviewSignatureRecordError("三振原典の独立固定源が不一致")
+        expectation_revision = frozen["pr192_source_expectation_revision"]["value"]
+        if (not isinstance(expectation_revision, str)
+                or re.fullmatch(r"[0-9a-f]{40}", expectation_revision) is None
+                or _carry_git_bytes(root, ["rev-parse", "--verify",
+                    expectation_revision + "^{commit}"]).decode().strip() != expectation_revision):
+            raise HumanReviewSignatureRecordError("三振独立合流原典のcommitが不一致")
+        expectation_path = "tests/fixtures/pr192_tenant_source_expected_v1.json"
+        expected_raw = _carry_git_bytes(root, ["show",
+            expectation_revision + ":" + expectation_path])
+        if current.read_bytes(expectation_path) != expected_raw:
+            raise HumanReviewSignatureRecordError("三振独立合流原典が固定Git全byteと不一致")
+        expected = _object(json.loads(expected_raw,
+            object_pairs_hook=descriptor_checker._reject_duplicate_keys), "三振独立合流元")
+        if (reference["formal_base_revision"] != expected["formal_base_revision"]
+                or reference["candidate_revision"] != expected["source_revision"]):
+            raise HumanReviewSignatureRecordError("三振正式base/候補が独立原典と不一致")
+        # eb8は正式merge、9b76は並行候補。eb8→9b76という偽の祖先関係は要求しない。
+        for prior, later in (
+            (reference["terminal_accepted_revision"], reference["formal_base_revision"]),
+            (reference["terminal_accepted_revision"], reference["candidate_revision"]),
+            (reference["formal_base_revision"], revision),
+            (reference["candidate_revision"], revision),
+            (reference["candidate_revision"], expectation_revision),
+            (expectation_revision, revision),
+            (revision, current.head),
+        ):
+            _carry_git_bytes(root, ["merge-base", "--is-ancestor", prior, later])
+        record = _gate6_git_object(root, terminal["base_revision"], GATE6_ORDINARY_PATH)
+        files = _object(reference["files"], "三振11全前後")
+        _exact_keys(files, {*record["assets"],
+            "contracts/state-transition/input_axes_descriptor_v1.json",
+            str(GAME_END_CONTRACT_PATH)}, "三振11全前後")
+        for path, hashes in files.items():
+            _exact_keys(_object(hashes, "三振SHA"), {"before_sha256", "after_sha256"},
+                        "三振SHA")
+            for key, commit in (("before_sha256", reference["formal_base_revision"]),
+                                ("after_sha256", reference["candidate_revision"])):
+                digest = hashes[key]
+                raw = _carry_git_bytes(root, ["show", f"{commit}:{path}"])
+                if (not isinstance(digest, str) or re.fullmatch(r"[0-9a-f]{64}", digest) is None
+                        or hashlib.sha256(raw).hexdigest() != digest):
+                    raise HumanReviewSignatureRecordError("三振全前後SHAが実Gitと不一致")
+                if key == "before_sha256" and raw != _carry_git_bytes(root, ["show",
+                    reference["terminal_accepted_revision"] + ":" + path,
+                ]):
+                    raise HumanReviewSignatureRecordError("正式191 baseと受理224の11全値が不一致")
+        historical = _object(reference["historical_ordinary_scope"], "三振の旧署名scope")
+        _exact_keys(historical, {"accepted_revision", "protected_file_sha256",
+                                "signed_asset_sha256"}, "三振の旧署名scope")
+        if (historical["accepted_revision"] != terminal["base_revision"]
+                or historical["signed_asset_sha256"] != record["assets"]):
+            raise HumanReviewSignatureRecordError("三振追加が旧署名の対象/9hashを変更")
+        protected = historical["protected_file_sha256"]
+        _exact_keys(_object(protected, "三振旧record/schema/pins"), {
+            str(GATE6_ORDINARY_PATH), str(GATE6_ORDINARY_SCHEMA_PATH), str(ORDINARY_PINS_PATH),
+        }, "三振旧record/schema/pins")
+        for path, digest in protected.items():
+            for commit in (historical["accepted_revision"], reference["formal_base_revision"],
+                           reference["candidate_revision"]):
+                if hashlib.sha256(_carry_git_bytes(root, ["show", f"{commit}:{path}"])
+                                  ).hexdigest() != digest:
+                    raise HumanReviewSignatureRecordError("三振基線の旧record/schema/pinsが不一致")
+        return reference
+    except HumanReviewSignatureRecordError:
+        raise
+    except (KeyError, IndexError, TypeError, ValueError, OSError,
+            descriptor_checker.DescriptorCheckError) as error:
+        raise HumanReviewSignatureRecordError("三振の独立原典/合流検査が不成立") from error
+
+
+class _StrikeoutTerminalReader(_Gate6CurrentReader):
+    """PR192用に固定した正式191の原本だけを読み、任意revisionを受けない。"""
+
+    def __init__(self, root: Path) -> None:
+        self.root = root
+        self.head = _strikeout_extension_reference(root)["formal_base_revision"]
+
+    def read_bytes(self, path: str | PurePosixPath) -> bytes:
+        """署名scopeと分離した正式191 Git全値を返す。"""
+        return _carry_git_bytes(self.root, ["show", f"{self.head}:{path}"])
+
+    def load_json(self, path: str | PurePosixPath, label: str) -> dict[str, Any]:
+        """固定baseを重複key拒否で読む。"""
+        return _object(json.loads(self.read_bytes(path),
+            object_pairs_hook=descriptor_checker._reject_duplicate_keys), label)
+
+
+def _ordinary_strikeout_body(root: Path) -> dict[str, Any]:
+    """旧33/119/191を保持し、root前置7操作と規範24例だけを検査する。"""
+    try:
+        reference = _strikeout_extension_reference(root)
+        reader = _StrikeoutTerminalReader(root)
+        record = _ordinary_terminal_body(root, _reader=reader)
+        for path, digest in reference["historical_ordinary_scope"]["protected_file_sha256"].items():
+            if hashlib.sha256((root / path).read_bytes()).hexdigest() != digest:
+                raise HumanReviewSignatureRecordError("三振headの旧record/schema/pinsが不一致")
+        for path, hashes in reference["files"].items():
+            if hashlib.sha256((root / path).read_bytes()).hexdigest() != hashes["after_sha256"]:
+                raise HumanReviewSignatureRecordError("三振head11資産が固定192全値と不一致")
+        for path in _STRIKEOUT_AUXILIARY_INPUTS:
+            if (root / path).read_bytes() != _carry_git_bytes(root, ["show",
+                reference["candidate_revision"] + ":" + path,
+            ]):
+                raise HumanReviewSignatureRecordError("三振規範case/schemaが固定源と不一致")
+        finite = _object(reference["finite_extension"], "三振有限差分")
+        _exact_keys(finite, {"changed_paths", "added_case_ids", "additional_case_mapping_ids",
+                           "added_matrix_row_coordinates", "projection_operations"},
+                    "三振有限差分")
+        if finite["changed_paths"] != list(_STRIKEOUT_CHANGED_PATHS):
+            raise HumanReviewSignatureRecordError("三振の変更4pathが不一致")
+        current = _Gate6CurrentReader(root)
+        before = {p: reader.load_json(p, "三振旧191") for p in _STRIKEOUT_CHANGED_PATHS}
+        after = {p: current.load_json(p, "三振現192") for p in _STRIKEOUT_CHANGED_PATHS}
+        rebuilt = copy.deepcopy(before)
+        operations = finite["projection_operations"]
+        identities = [
+            ("append", _STRIKEOUT_CHANGED_PATHS[0], "/cases"),
+            ("append", _STRIKEOUT_CHANGED_PATHS[0], "/matrixRows"),
+            ("append", _STRIKEOUT_CHANGED_PATHS[0], "/mustOperationCoverage/mappings/0/rowRefs"),
+            ("append", _STRIKEOUT_CHANGED_PATHS[1], "/mappings/0/additionalCaseMappings"),
+            ("append", _STRIKEOUT_CHANGED_PATHS[1], "/mappings/1/additionalCaseMappings"),
+            ("replace", _STRIKEOUT_CHANGED_PATHS[2], "/normalCaseCounts/stateTransition"),
+            ("replace", _STRIKEOUT_CHANGED_PATHS[3], "/artifacts/0/digest"),
+        ]
+        if type(operations) is not list or [
+            (o["op"], o["path"], o["pointer"]) for o in operations
+        ] != identities:
+            raise HumanReviewSignatureRecordError("三振のprojectionは閉じた7操作だけに限定")
+        for operation in operations:
+            parent: Any = rebuilt[operation["path"]]
+            segments = operation["pointer"].removeprefix("/").split("/")
+            for segment in segments[:-1]:
+                parent = parent[int(segment)] if type(parent) is list else parent[segment]
+            key = segments[-1]
+            if operation["op"] == "append":
+                _exact_keys(operation, {"op", "path", "pointer", "property_previously_present",
+                    "before_length", "after_length", "added_values"}, "三振append")
+                if (type(parent) is not dict
+                        or type(operation["property_previously_present"]) is not bool):
+                    raise HumanReviewSignatureRecordError("三振appendの閉じた親型が不一致")
+                if (key in parent) is not operation["property_previously_present"]:
+                    raise HumanReviewSignatureRecordError("三振appendの既存propertyが不一致")
+                if key not in parent:
+                    parent[key] = []
+                values = parent[key]
+                if (type(values) is not list or type(operation["added_values"]) is not list
+                        or type(operation["before_length"]) is not int
+                        or type(operation["after_length"]) is not int
+                        or len(values) != operation["before_length"]):
+                    raise HumanReviewSignatureRecordError("三振appendの旧全値/長さが不一致")
+                values.extend(copy.deepcopy(operation["added_values"]))
+                if len(values) != operation["after_length"]:
+                    raise HumanReviewSignatureRecordError("三振appendの新全値/長さが不一致")
+            else:
+                _exact_keys(operation, {"op", "path", "pointer", "before_value", "after_value"},
+                            "三振replace")
+                if _compact_json(parent[key]) != _compact_json(operation["before_value"]):
+                    raise HumanReviewSignatureRecordError("三振replaceの前値が不一致")
+                parent[key] = copy.deepcopy(operation["after_value"])
+        if _compact_json(rebuilt) != _compact_json(after):
+            raise HumanReviewSignatureRecordError("三振の許可7操作以外のJSON差分")
+        coverage = importlib.import_module("check_required_set_coverage")
+        contract = after[_STRIKEOUT_CHANGED_PATHS[0]]
+        identifiers = coverage._strikeout_case_extension(root, contract)
+        if (len(identifiers) != 24 or sorted(identifiers) != finite["added_case_ids"]
+                or len(contract["cases"]) != 158 or len(contract["matrixRows"]) != 67
+                or [case["caseId"] for case in contract["cases"][134:]]
+                != finite["added_case_ids"]):
+            raise HumanReviewSignatureRecordError("三振の新24例/旧134prefix/67行が不一致")
+        coordinates = [{key: row[key] for key in ("eventKind", "resultId", "precondition")}
+                       for row in contract["matrixRows"][51:]]
+        if _compact_json(coordinates) != _compact_json(finite["added_matrix_row_coordinates"]):
+            raise HumanReviewSignatureRecordError("三振の新16座標が不一致")
+        mappings = after[_STRIKEOUT_CHANGED_PATHS[1]]["mappings"]
+        for index, branch in enumerate(("SO-01", "SO-02")):
+            row = mappings[index]
+            if (row["branchId"] != branch or [c["caseId"] for c in row["additionalCaseMappings"]]
+                    != finite["additional_case_mapping_ids"][branch]):
+                raise HumanReviewSignatureRecordError("三振の規範branch/追加対応12が不一致")
+        return record
+    except HumanReviewSignatureRecordError:
+        raise
+    except (KeyError, IndexError, TypeError, ValueError, OSError,
+            descriptor_checker.DescriptorCheckError) as error:
+        raise HumanReviewSignatureRecordError("三振の歴史scope/有限全値検査が不成立") from error
+
+
+def _ordinary_strikeout_ci(root: Path, event: Any) -> str:
+    """PR192の二系統合流と最終公開独立PO証拠を必須にする。"""
+    try:
+        if (type(event.number) is not int or event.number != 192
+                or event.head_branch != "feature/mvp-strikeout-pitches"
+                or event.repository != "masaki1025/pitchlog"
+                or event.head_repository != event.repository):
+            raise HumanReviewSignatureRecordError("三振追加は実PR192だけに限定する")
+        _validate_gate6_checkout(root, event)
+        reference = _strikeout_extension_reference(root)
+        if event.base_sha != reference["formal_base_revision"]:
+            raise HumanReviewSignatureRecordError("三振actual baseが固定正式191と不一致")
+        # 実baseを先に読む。旧signed9hashを上書きせず191全値との同一性を検査する。
+        for path, hashes in reference["files"].items():
+            raw = _carry_git_bytes(root, ["show", f"{event.base_sha}:{path}"])
+            if hashlib.sha256(raw).hexdigest() != hashes["before_sha256"]:
+                raise HumanReviewSignatureRecordError("三振actual baseの11全値が不一致")
+        for prior in (event.base_sha, reference["candidate_revision"]):
+            _carry_git_bytes(root, ["merge-base", "--is-ancestor", prior, event.head_sha])
+        guard = _carry_core_guard(root)
+        try:
+            base_policy, _ = guard._load_delegation_policy(root, event.base_sha)
+            head_policy, _ = guard._load_delegation_policy(root, event.head_sha)
+        except guard.GuardError as error:
+            raise HumanReviewSignatureRecordError(str(error)) from error
+        origins = _ordinary_policy_origins(root, guard, _OrdinaryAcceptedReader(root),
+                                           _ordinary_pins(root))
+        if base_policy != origins["integration18"] or head_policy != base_policy:
+            raise HumanReviewSignatureRecordError("三振policyの固定18全値が不一致")
+        record = _ordinary_strikeout_body(root)
+        _ordinary_head(root, event, record)
+        for path in _STRIKEOUT_EXTENSION_INPUTS:
+            if (root / path).read_bytes() != _carry_git_bytes(
+                root, ["show", f"{event.head_sha}:{path}"],
+            ):
+                raise HumanReviewSignatureRecordError("三振の検査入力/依存が最終HEADと不一致")
+        try:
+            guard.verify_delegated_confirmation(root, event)
+        except guard.GuardError as error:
+            raise HumanReviewSignatureRecordError(str(error)) from error
+        return ("gate6 old ordinary33/PR191: HISTORICAL PRESERVED; PR192 strikeout extension: "
+                "DELEGATED VERIFIED; not new PR187/191 acceptance; not a personal signature")
+    except HumanReviewSignatureRecordError:
+        raise
+    except (KeyError, TypeError, ValueError, OSError,
+            descriptor_checker.DescriptorCheckError) as error:
+        raise HumanReviewSignatureRecordError("三振の公開委任/実HEAD検査が不成立") from error
 
 
 def _ordinary_terminal_ci(root: Path, event: Any) -> str:
@@ -2629,6 +2933,8 @@ def validate_gate6_ci_event(root: Path, event: Any) -> str:
     """PR183の新受理と、別PRの変更を伴わない継承を区別する。"""
     if event is None:
         raise HumanReviewSignatureRecordError("最終PR eventが未提供")
+    if event.number == 192:
+        return _ordinary_strikeout_ci(root, event)
     if event.number == 191:
         return _ordinary_terminal_ci(root, event)
     if event.number == _ORDINARY_PR:

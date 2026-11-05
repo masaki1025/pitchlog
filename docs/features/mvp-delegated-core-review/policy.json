@@ -86,6 +86,10 @@
     {
       "pr": 193,
       "branch": "feature/ci-shard-pytest"
+    },
+    {
+      "pr": 196,
+      "branch": "feature/mvp-batted-hits"
     }
   ]
 }

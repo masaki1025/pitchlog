@@ -192,18 +192,20 @@ def test_actual_host_replay_response_mismatch_rejected(index, tmp_path, monkeypa
             assert calls == [(operation, prior_json)]
             replayed = decode_lineup_prefix_response(raw)
             assert replayed.ok is True
-            assert replayed.model_dump(
-                mode="json", by_alias=True, exclude_unset=True
-            ) == expected
+            assert (
+                replayed.model_dump(mode="json", by_alias=True, exclude_unset=True)
+                == expected
+            )
             altered = json.loads(raw)
             flags = altered["value"]["t1"]["statFlags"]
             flags["投球数"] = not flags["投球数"]
             changed_raw = json.dumps(altered, ensure_ascii=False, allow_nan=False)
             changed = decode_lineup_prefix_response(changed_raw)
             assert changed.ok is True
-            assert changed.model_dump(
-                mode="json", by_alias=True, exclude_unset=True
-            ) == altered
+            assert (
+                changed.model_dump(mode="json", by_alias=True, exclude_unset=True)
+                == altered
+            )
             assert altered != expected
             decoded_faults.append(changed)
             return changed_raw

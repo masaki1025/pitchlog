@@ -70,6 +70,33 @@ _TERMINAL_COLUMN_ACL_IDS = frozenset(
 )
 
 
+_LINEUP_FUNCTION_IDS = frozenset(
+    {
+        "FUNCTION:sync_right_api:read_lineup_started_origin(uuid, uuid, bigint)",
+    }
+)
+_LINEUP_POLICY_IDS = frozenset(
+    {
+        "POLICY:game_start_attempts:lineup_prefix_game_start_attempts_select",
+        "POLICY:game_start_requests:lineup_prefix_game_start_requests_select",
+    }
+)
+_LINEUP_COLUMN_ACL_IDS = frozenset(
+    f"COLUMN-ACL:public:{table}:{column}:pitchlog_sync_right_fn_owner"
+    for table, columns in (
+        (
+            "game_start_attempts",
+            ("tenant_id", "game_id", "device_id", "start_request_id", "outcome"),
+        ),
+        (
+            "game_start_requests",
+            ("tenant_id", "game_id", "device_id", "start_request_id"),
+        ),
+    )
+    for column in columns
+)
+
+
 _LEGACY_CONTACT_SQL = {
     "current_database": "-- ELEMENT-TYPE: database\n"
     "-- ELEMENT-ID: current_database\n"
@@ -161,6 +188,35 @@ _FIRST_BALL_CONTACT_SUFFIX = {
     "pitchlog_sync_binding_fn_owner, "
     "pitchlog_sync_right_fn_owner;\n",
 }
+_RECORDING_VOCAB_PUBLIC_USAGE = (
+    "\nGRANT USAGE ON SCHEMA public TO pitchlog_recording_vocab_fn_owner;\n"
+)
+
+# 新語彙readの1関数と既保存に必要な参照7列、専用ownerの4列だけ。
+_BATTED_FUNCTION_IDS = frozenset(
+    {"FUNCTION:recording_vocab_api:read_batted_ball_options(uuid, integer, text)"}
+)
+_BATTED_COLUMN_ACL_IDS = frozenset(
+    f"COLUMN-ACL:public:{table}:{column}:{owner}"
+    for table, columns, owner in (
+        (
+            "admin_vocabularies",
+            ("category", "disabled", "key"),
+            "pitchlog_sync_right_fn_owner",
+        ),
+        (
+            "tenant_vocabularies",
+            ("category", "disabled", "key", "tenant_id"),
+            "pitchlog_sync_right_fn_owner",
+        ),
+        (
+            "admin_vocabularies",
+            ("category", "disabled", "display_name", "key"),
+            "pitchlog_recording_vocab_fn_owner",
+        ),
+    )
+    for column in columns
+)
 
 
 @pytest.fixture
@@ -199,8 +255,14 @@ def legacy_product_profile(
                 and statement.element_id in _LEGACY_CONTACT_SQL
             ):
                 key = statement.element_id
+                current_sql = statement.sql
+                if key == "public":
+                    assert current_sql.count(_RECORDING_VOCAB_PUBLIC_USAGE) == 1
+                    current_sql = current_sql.removesuffix(
+                        _RECORDING_VOCAB_PUBLIC_USAGE
+                    )
                 assert (
-                    statement.sql
+                    current_sql
                     == _LEGACY_CONTACT_SQL[key] + _FIRST_BALL_CONTACT_SUFFIX[key]
                 )
         assert {
@@ -2012,6 +2074,10 @@ def test_pre_rule_preserves_old16_and_defers_exact_epoch_acl() -> None:
         | _EXPECTED_DEFERRED_ORDINARY_IDS
         | _TERMINAL_FUNCTION_IDS
         | _TERMINAL_COLUMN_ACL_IDS
+        | _LINEUP_FUNCTION_IDS
+        | _LINEUP_COLUMN_ACL_IDS
+        | _BATTED_FUNCTION_IDS
+        | _BATTED_COLUMN_ACL_IDS
     )
     assert {row.element_id for row in withheld} - {
         row.element_id for row in old
@@ -2231,9 +2297,19 @@ def test_new_schema_guards_preserve_other_five_and_exact_owner() -> None:
         "sync_fence",
         "sync_fence_api",
         "sync_right_api",
+        "recording_vocab_api",
     }
-    assert len(schemas) == 8 + 3
+    assert len(schemas) == 8 + 3 + 1
     for row in schemas:
+        if row.element_id == "recording_vocab_api":
+            assert row.sql in sql_texts
+            assert (
+                "n.nspname='recording_vocab_api' AND "
+                "r.rolname='pitchlog_recording_vocab_fn_owner'"
+            ) in row.sql
+            assert "RAISE EXCEPTION 'recording vocabulary schema collision'" in row.sql
+            assert "ALTER SCHEMA" not in row.sql
+            continue
         if row.element_id not in {
             "rg1_control",
             "pitchlog_ledger_observer",

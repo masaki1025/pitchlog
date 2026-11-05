@@ -2510,12 +2510,75 @@ marker = 0
     assert "Call 被覆不変条件" in result.stderr
 
 
-def test_positive_fixtures_pass() -> None:
-    contract = checker.load_contract(REPOSITORY_ROOT)
+@pytest.fixture(scope="module")
+def positive_fixture_qualification_contexts(
+    tmp_path_factory: pytest.TempPathFactory,
+) -> tuple[Any, Any, Path]:
+    """旧generic正例と現source資格を混ぜず、同じ3面の検査材料を供給する。"""
+    historical_revision = checker._pr192_read_fixed_expectations(REPOSITORY_ROOT)[
+        "formal_base_revision"
+    ]
+    parent = tmp_path_factory.mktemp("positive-qualification")
+    historical_root = _materialize_checker_revision_root(
+        historical_revision, parent / "historical",
+    )
+    historical = checker.load_contract(historical_root)
+    assert historical.pr192_source_registration is None
+    relative_root = POSITIVE_ROOT.relative_to(REPOSITORY_ROOT).as_posix()
+    expected_paths = subprocess.check_output(
+        ["git", "show", historical_revision + ":" + relative_root],
+        cwd=REPOSITORY_ROOT,
+    )
+    assert expected_paths, "旧正例treeは真正Gitに存在する"
+    old_names = subprocess.check_output(
+        ["git", "ls-tree", "-r", "--name-only", historical_revision, "--", relative_root],
+        cwd=REPOSITORY_ROOT, text=True,
+    ).splitlines()
+    old_python = {name for name in old_names if name.endswith(".py")}
+    actual_python = {
+        p.relative_to(REPOSITORY_ROOT).as_posix() for p in POSITIVE_ROOT.rglob("*.py")
+    }
+    assert actual_python == old_python, "旧generic正例の欠落/追加を認めない"
+    for name in sorted(old_python):
+        fixture = REPOSITORY_ROOT / name
+        assert fixture.is_file() and not fixture.is_symlink()
+        assert fixture.read_bytes() == subprocess.check_output(
+            ["git", "show", historical_revision + ":" + name], cwd=REPOSITORY_ROOT,
+        ), "旧generic正例の全byteを保持する"
+    current = checker.load_contract(REPOSITORY_ROOT)
+    assert checker._pr192_registration_is_trusted(current)
+    registration = current.pr192_source_registration
+    assert registration is not None
+    full = "backend/src/pitchlog/repositories/transaction.py"
+    genuine = dict(registration.source_files)[full]
+    assert (REPOSITORY_ROOT / full).read_bytes() == genuine
+    qualified = parent / "current-positive"
+    shutil.copytree(POSITIVE_ROOT, qualified)
+    relative = "pitchlog/repositories/transaction.py"
+    (qualified / relative).write_bytes(genuine)
+    for fixture in POSITIVE_ROOT.rglob("*.py"):
+        local = fixture.relative_to(POSITIVE_ROOT)
+        if local.as_posix() != relative:
+            assert (qualified / local).read_bytes() == fixture.read_bytes()
+    return historical, current, qualified
 
-    violations = checker.scan_directory(POSITIVE_ROOT, contract=contract)
 
-    assert violations == []
+def test_positive_fixtures_pass(
+    positive_fixture_qualification_contexts: tuple[Any, Any, Path],
+) -> None:
+    """旧generic/現拒否/現真正sourceの3面を同じcurrent checkerで完全比較する。"""
+    historical, current, qualified = positive_fixture_qualification_contexts
+    assert checker.scan_directory(POSITIVE_ROOT, contract=historical) == []
+    violations = checker.scan_directory(POSITIVE_ROOT, contract=current)
+    assert [
+        (v.path, v.line, v.end_line, v.condition, v.code, v.symbol, v.message, v.scope)
+        for v in violations
+    ] == [(
+        "pitchlog/repositories/transaction.py", 1, 0, 2, "TB002",
+        "pr192-source-identity", "pr192の固定source8/完全ownerと不一致",
+        "pitchlog.repositories.transaction.<module>",
+    )]
+    assert checker.scan_directory(qualified, contract=current) == []
 
 
 def test_fixed_function_builder_has_only_select_permission() -> None:
@@ -2946,6 +3009,7 @@ def test_all_assets_freeze_mode_wiring_and_declare_single_authority() -> None:
             "tests/fixtures/pr192_tenant_source_expected_v1.json",
             "tests/test_pr192_tenant_source_registration.py",
             "tests/test_check_tenant_boundary_bypass.py",
+            "tests/fixtures/pr192_ordinary_extension_reference_v1.json",
         ],
         Path("contracts/tenant_boundary/negative-fixtures.json"): shared_external_files,
         Path("contracts/tenant_boundary/repository-contract.json"): shared_external_files,
@@ -4595,16 +4659,21 @@ def test_safe_change_passes_external_or_default_real_commit_cli(
     assert _test_repository_exit_code(repository, selected_base_ref) == 0
 
 
-def test_reject_all_mutant_kills_positive_fixture() -> None:
-    contract = checker.load_contract(REPOSITORY_ROOT)
-
-    violations = checker.scan_directory(
-        POSITIVE_ROOT,
-        contract=contract,
-        reject_all_db_calls=True,
-    )
-
-    assert {violation.code for violation in violations} == {"TB900"}
+def test_reject_all_mutant_kills_positive_fixture(
+    positive_fixture_qualification_contexts: tuple[Any, Any, Path],
+) -> None:
+    """旧genericと現真正sourceの両正例で、reject-allがDB Callを実際に拒否する。"""
+    historical, current, qualified = positive_fixture_qualification_contexts
+    for fixture_root, contract in ((POSITIVE_ROOT, historical), (qualified, current)):
+        assert checker.scan_directory(fixture_root, contract=contract) == []
+        violations = checker.scan_directory(
+            fixture_root, contract=contract, reject_all_db_calls=True,
+        )
+        assert {violation.code for violation in violations} == {"TB900"}
+        assert any(
+            v.path == "pitchlog/repositories/transaction.py" and v.code == "TB900"
+            for v in violations
+        ), "対象generic/真正transaction自体も実際にkillされる"
 
 
 def test_api_added_outside_sealed_inventory_is_red(tmp_path: Path) -> None:

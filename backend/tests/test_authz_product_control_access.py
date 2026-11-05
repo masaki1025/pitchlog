@@ -59,6 +59,10 @@ _EXPECTED_TERMINAL_FUNCTIONS = [
     ),
 ]
 
+_EXPECTED_LINEUP_FUNCTIONS = [
+    ("sync_right_api", "read_lineup_started_origin", "uuid, uuid, bigint"),
+]
+
 _EXPECTED_ORDINARY_FUNCTIONS = [
     (
         "sync_right_api",
@@ -1585,7 +1589,9 @@ def test_runtime_entry_normal_profile_remains_accepted() -> None:
     } == set(result.schema_names)
     assert len(_EXPECTED_TERMINAL_FUNCTIONS) == 7
     assert (
-        len(result.functions) - len(_EXPECTED_TERMINAL_FUNCTIONS)
+        len(result.functions)
+        - len(_EXPECTED_TERMINAL_FUNCTIONS)
+        - len(_EXPECTED_LINEUP_FUNCTIONS)
         == 79 + len(_EXPECTED_FIRST_BALL_FUNCTIONS) + 8
     )
     assert (
@@ -1593,6 +1599,7 @@ def test_runtime_entry_normal_profile_remains_accepted() -> None:
         | set(_EXPECTED_FIRST_BALL_FUNCTIONS)
         | set(_EXPECTED_ORDINARY_FUNCTIONS)
         | set(_EXPECTED_TERMINAL_FUNCTIONS)
+        | set(_EXPECTED_LINEUP_FUNCTIONS)
     ) == {tuple(r[:3]) for r in result.functions}
     assert {
         r[2]
@@ -1602,8 +1609,22 @@ def test_runtime_entry_normal_profile_remains_accepted() -> None:
         "play_prefix_select_play_runners",
         "play_prefix_insert_play_runners",
     }
-    assert len(result.policies) - 2 == 91
-    assert len(result.policies) == 93
+    lineup_policies = {
+        r[2]
+        for r in result.policies
+        if r[2]
+        in {
+            "lineup_prefix_game_start_attempts_select",
+            "lineup_prefix_game_start_requests_select",
+        }
+    }
+    assert lineup_policies == {
+        "lineup_prefix_game_start_attempts_select",
+        "lineup_prefix_game_start_requests_select",
+    }
+    assert len(_EXPECTED_LINEUP_FUNCTIONS) == 1
+    assert len(result.policies) - 2 - len(lineup_policies) == 91
+    assert len(result.policies) == 95
     terminal_columns = {
         "id",
         "status",
@@ -1625,7 +1646,37 @@ def test_runtime_entry_normal_profile_remains_accepted() -> None:
     ]
     assert {r["column_id"] for r in terminal_acls} == terminal_columns
     assert len(terminal_acls) == 10
-    assert len(acls) - len(terminal_acls) == 342
+    lineup_columns = {
+        (table, column)
+        for table, columns in (
+            (
+                "game_start_attempts",
+                ("tenant_id", "game_id", "device_id", "start_request_id", "outcome"),
+            ),
+            (
+                "game_start_requests",
+                ("tenant_id", "game_id", "device_id", "start_request_id"),
+            ),
+        )
+        for column in columns
+    }
+    lineup_acls = [
+        row
+        for row in acls
+        if row["object_id"] in {"game_start_attempts", "game_start_requests"}
+        and row["grantee_role_id"] == "pitchlog_sync_right_fn_owner"
+    ]
+    assert {
+        (row["object_id"], row["column_id"]) for row in lineup_acls
+    } == lineup_columns
+    assert len(lineup_acls) == 9
+    assert all(
+        row["privilege_ids"] == ["SELECT"]
+        and row["grant_option"] is False
+        and row["object_schema"] == "public"
+        for row in lineup_acls
+    )
+    assert len(acls) - len(terminal_acls) - len(lineup_acls) == 342
 
 
 @pytest.mark.parametrize(

@@ -265,3 +265,43 @@ rootが独立分類由来の新fixture tests/fixtures/pr192_tenant_source_expect
 ステップ4のcensus実接合指示（2026-11-05、PO委任Codex /root判断）: 作者pr191_residual_independentのexact3をtests/test_census_baseline_check.py・contracts/tenant_boundary/census-baseline.json・tests/fixtures/tenant_boundary/census-scoped-digests.jsonに限定して委任する。旧191693/正式eb8の51siteとdigestを歴史viewで全保持し、現2unchangedowner6siteを旧資格、新4+2owner90siteを9b76原典8/9407独立期待fixture/用途/AST全値から独立実測する。37metadata追随と4supersession sentinelを一般allowへ混ぜない。counterfactualへ新固定fixture/真正Git文脈を運び、同時source/decl/fixture改竄・欠落・未知・用途/条件・非祖先・偽countを拒否。旧digest全保持+新192key追加のみ、現/増減は公式CLIで実導出し期待/結果の自己申告で緑にしない。作者はこの3pathだけを編集しrootは並行編集しない。正式9資産受理/歴史snapshot/Oracle/他source/台帳はroot所有のまま、独立再確認後に採否する。
 
 統合後develop CIの実失敗への限定是正（PO委任root判断、2026-11-05）: run41871502390のharness-shard2はtest_generated_provenance_corpus_runs_all_cases_for_distinct_revisions1件で失敗（他区画の成功と分離）。比較元checkerの__file__由来trusted rootと履歴契約rootが分離し、実基線eb8のhelperがtemp/contracts/base-allowlist欠落を読む反例をログで確認。pr191_residual_independentへtests/test_census_baseline_check.pyの履歴checker materializationとtests/test_check_tenant_boundary_bypass.pyの当該比較試験のexact2を委任し、まずorigin/develop=正式eb8条件で再現する。歴史checker自身の真正8原典/契約/Git文脈を同じ隔離rootへ供給し、現在の契約を歴史へ流用したりContractErrorを握り潰してgreenにしない。旧全case比較・同版skipの資格/未知拒否を保持し、source/checker/正式JSONは書き換えない。rootはこの2pathを書かず、修復後に必要な単一192受理候補だけ公式再導出する。新CI入力/最終前後値・非作者確認を終えるまでpushしない。
+
+
+最終検査で判明したfixture資格/online入力待ちの限定追補（2026-11-05、PO委任Codex /root判断）: 旧positive transactionは真正eb8のgeneric正例でありcurrent192全byte原典ではない。既test_check_tenant_boundary_bypass.pyのpositive/reject-all2試験に、旧全fixtureのeb8 byte保持/current checker+真正歴史contract正例/current契約ならexact1 identity拒否/current真正transactionだけを置換したcopyの正例という3面を追加し、両正例でreject-allがtransaction自身をTB900拒否することを要求する。製品guard/fixture原本/skipは変更しない。非作者8620eb9b…の候補全SHA/pytest2pass/現登録回帰を根拠に採用。
+
+online画面E2Eはfrontend/src/screens/GameScreenLineupPrefix.e2e.tsの次球入力開始で既ordinary-state-sourceがserver確認済みへ戻るのを待つ4行を追加する。ACK後local-provisional表示と親GETの履歴DOM更新、async入力context再形成は同じ完了ではないため、元全assert/HTTP30秒/認可/記録権/二重保存条件を保持して追加前提だけを検査する。非作者94db25b0…が元全byte復元/型検査/狭いonline範囲を確認し採用。create503/全offline/local連続入力を解消したとは扱わない。r11の閉診断1pass217.35秒も正式GUIではない。旧37の全件影響走査は既知2失敗の修正採用後SIGINTで明示中断し、未完を成功にしない。修正後の関連検査→正式実値再導出/独立照合→最終実画面/必須全CIを完了するまで通常統合不可。
+
+
+CI41908083319/PRbody41908083238の実失敗修復（2026-11-05、PO委任Codex /root判断）: source SHAをgeneric-api-keyとした歴史1件は実Git source blobのSHA完全一致を非作者b1d40f11…が再計算し、.gitleaksignoreの当該commit/path/rule/line1件だけを限定登録する。scan allowlistは追加禁止を維持し、既positive fixtureのhistorical_revisionは既validated pr192固定入力のformal_base_revisionへ束縛する。backend/tests/test_ordinary_pitch_native_evidence.pyのformat2assertはAST全一致。上記exact3を採用、未知の秘密/別path/別commitの検査を緩めない。
+
+通常33のcore carryは、採用済み191基線の数学4更新と192の有限4追加への未対応。独立provider3a86722d…/fixture5aff1fcd…がactual eb8/224/9b76の11全SHA、旧134/51の完全prefix保持→158/67、mapper2組各12・coverage数・handoff digestだけの7操作/全逆投影一致を確認した。rootが新tests/fixtures/pr192_ordinary_extension_reference_v1.jsonを前置し、別gate6 frozen用途を固定する。旧record/schema/旧9hashや旧191経路は変更しない。eb8→9b76は非祖先なので、224→eb8/9b76と両基線→最終head合流を別検証する。
+
+作者pr191_residual_independentへscripts/check_human_review_signature.pyとtests/test_human_review_signature.pyのexact2を許可する（root前置pin通知後着手）。PR192/正準public branch/既委任policy/固定独立参照だけに閉じた専用分岐、base先行の実全値照合、旧119/33/134/51検証と新24規範consumerを保持し、local技術確認と公開proof成立は別表示。未知baseline/非合流/偽head/旧値/新集合追加欠落/原典宣言同時改変・無効独立proofを拒否し、source2以外/旧署名値/正式受理/台帳/refsは作者編集不可。例外自体の別非作者確認後にrootが採否し、全失敗を閉じた固定版で正式R4/公開証拠/次CIを1回にまとめる。旧9747のCI失敗は成功へ読み替えない。
+
+
+CI残差の参照連鎖・合成fixture追随（2026-11-05、PO委任Codex /root判断）: contracts/authz/failure-injection-points.jsonのsource_asset.git_blob_digest、mcdc-map.jsonのsources.claim_mutant_map.blob_digestだけを公式git_blob_digestで再導出し、対象源本文・既全injection/decision/caseを保持する。新認可や故障判定の変更ではなく採用済み資産更新に伴う参照整合。rootが完全前後とdiffを保存し別非作者確認を受ける。tests/test_product_authz_tenant_boundary_allowlist.pyの合成repoは旧191だけのshallow objectから現192固定原典を照合できないため、既他試験と同じ実Git objectのread-only alternates・名前付き期待原典を親にする。正例fixture欠落の実拒否/現検査器/固定fixture全byte/祖先確認を維持し、例外握り潰し・検査器変更・skip・未知許可はしない。上記exact3以外は本追補で編集しない。最終正式7.7/公開proofは全修復固定後に一括更新する。
+
+
+三振追加の検査対象追随/不正wire復元（2026-11-05、PO委任Codex /root判断）: cache pr192-harness-repair-20261105 の非作者検証対象exact4（gap_register_v1.json/state_transition_manual_fixtures_v1.json/tests/test_gap_register.py/tests/test_state_transition_normalization.py）に限り、旧79row/134case全値保持と追加16row/24caseの公式逆参照を追記する。GAP08所有row5→21/selector12→36、normalization406とidentity69を新旧集合分離で検証し、未承認manual bootstrapの公式射影3値だけを同期する。意味期待/既負対向/承認状態を緩めず、別非作者確認後rootが適用する。
+
+backend/tests/fixtures/first_ball_payload_vectors_v1.jsonのduplicate-v7-key一例はpin追随時の再serialiseにより重複が消えたことを確認（現重複0、正式eb8はformatVersion重複1、parsed前後差はartifactSha256のみ/v8全byte不変）。同fixture exact1で真正eb8のraw v7Jsonを取得し、artifact SHA文字列だけ現pinへ置換して不正wireを復元する。102caseの期待を変えず、duplicate自身の閉拒否・既codec全caseを検査する。入力を正規化して不正性を消さず、拒否期待削除/codec寛容化をしない。完全前後・重複検出・独立確認を保存しR4前の一括修復へ含める。
+
+
+backend実CI残31件の閉じた登録追随（2026-11-05、PO委任Codex /root判断）: 実run41908083319の4区画失敗を調査し、採用済み固定9b76に既登録のread_lineup_started_origin1・game_start policy2・FnOwner SELECT9を旧期待が欠くことを確認。functions106→107/policies93→95/columns352→361で旧全宣言値/roles/membership/tables/schemas/tableACLは不変。probe product-onlyは新function1+policy2の3atomだけ閉追加（column9は対象外）、既検査母集合と全旧反例を保持する。旧20token+1/旧7Port+2を全名で閉検査し、旧637非wrapper aggregate/旧operation pin42/旧lockguard pinは保持する。新operation1・guard admissionの既採用v3body・terminal aggregateだけを現在木自己期待ではなく固定9b76から独立再導出して根拠を記録する。676→688文は追加列ACL9+policy2+function1、旧rowや拒否条件の削除/部分一致化/未知allow/単なるpytest失敗への期待緩和は禁止。実DBreapply失敗は旧9→10関数を検証するinput追随以外の原因があれば成功とせず別固定点で診断する。
+
+作者pr191_residual_independentへ次exact14だけを許可する。調査者batted_prefix_connectionはcacheの固定源/導出根拠供給のみで共有source非編集。rootは同path非編集、共有tenant9/受理/台帳/refsは引続きroot専有。staging/first_ball_write_stampは間接参照修復により同既testを通す想定で本体非編集。修復後-n0局所/型lint/既反例と別非作者確認を経てsource固定し、実PG/必須CIはrootが直列管理する。
+
+- `backend/tests/db/test_sync_writer_binding_reapply.py`
+- `backend/tests/test_product_authz_probe_product_map.py`
+- `backend/tests/test_product_authz_provisioning.py`
+- `backend/tests/test_sync_apply_product_supply.py`
+- `backend/tests/test_sync_first_ball_registration.py`
+- `backend/tests/test_authz_product_control_access.py`
+- `backend/tests/test_product_authz_catalog.py`
+- `backend/tests/test_rg1_operations.py`
+- `backend/tests/test_sync_apply_model_ports.py`
+- `backend/tests/test_sync_apply_writer_binding.py`
+- `backend/tests/test_authz_product_table_access.py`
+- `backend/tests/first_ball_expected_source_pins.py`
+- `backend/tests/fixtures/first_ball_expected_source_pins_v1.json`
+- `contracts/authz/product/probe-product-map.json`

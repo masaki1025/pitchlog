@@ -3256,3 +3256,280 @@ def test_terminal_extension_rejects_nonancestor_inputs(
     with pytest.raises(checker.HumanReviewSignatureRecordError):
         checker.validate_gate6_ci_event(root, event)
     assert fetches == []
+
+
+@pytest.fixture
+def strikeout_extension_fixture(ordinary_fixture: Any,
+                                 monkeypatch: pytest.MonkeyPatch) -> Any:
+    """root前置Gitと合成公開proofで192を検査し、実公開受理と分離する。"""
+    root, guard, prior_event, _, _, calls, comment, fetches = ordinary_fixture
+    repository = Path(__file__).resolve().parents[1]
+    reference = json.loads((repository / checker._STRIKEOUT_REFERENCE_PATH).read_bytes())
+    for path in reference['files']:
+        (root / path).write_bytes(checker._carry_git_bytes(repository, [
+            'show', reference['candidate_revision'] + ':' + path,
+        ]))
+    for path in checker._STRIKEOUT_EXTENSION_INPUTS:
+        target = root / path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes((repository / path).read_bytes())
+    policy_path = root / guard.DELEGATION_POLICY_PATH
+    policy_path.write_bytes(checker._carry_git_bytes(repository, [
+        'show', reference['formal_base_revision'] + ':' + str(guard.DELEGATION_POLICY_PATH),
+    ]))
+    url = 'https://github.com/masaki1025/pitchlog/pull/192#issuecomment-192'
+    event = guard.PullRequestEvent(reference['formal_base_revision'], prior_event.head_sha,
+        'PO-DELEGATION-EVIDENCE: ' + url, 192, prior_event.repository,
+        prior_event.head_repository, 'feature/mvp-strikeout-pitches')
+    evidence = {
+        'authority_sha256': hashlib.sha256(policy_path.read_bytes()).hexdigest(),
+        'pr': 192, 'base': event.base_sha, 'head': event.head_sha,
+        'diff_sha256': guard._delegation_diff(root, event),
+        'paths': guard.changed_paths(root, event.base_sha, event.head_sha),
+        'reviewer_agent': 'strikeout-nonauthor',
+        'candidate_agents': ['strikeout-author', 'root'],
+        'independent': True, 'verdict': 'approved', 'findings': [],
+        'report': {'task': 'strikeout-nonauthor', 'reviewed_head': event.head_sha,
+                   'text': '独立純試験の合成公開proof。実PR192受理・本人署名ではない。'},
+    }
+    comment.clear()
+    comment.update({'id': 192, 'html_url': url,
+        'issue_url': 'https://api.github.com/repos/masaki1025/pitchlog/issues/192',
+        'author_association': 'OWNER', 'user': {'login': 'masaki1025'},
+        'body': guard.DELEGATION_COMMENT_MARKER + json.dumps(evidence)})
+    committed = {path.relative_to(root).as_posix(): path.read_bytes()
+                 for path in root.rglob('*') if path.is_file() and path.name != '.git'}
+    original = checker._carry_git_bytes
+    def read(repository: Path, args: list[str]) -> bytes:
+        if args[0] == 'show' and args[1].startswith(event.head_sha + ':'):
+            path = args[1].split(':', 1)[1]
+            if path not in committed:
+                raise checker.HumanReviewSignatureRecordError('合成192head欠落')
+            return committed[path]
+        return original(repository, args)
+    monkeypatch.setattr(checker, '_carry_git_bytes', read)
+    return root, guard, event, comment, fetches, committed, calls
+
+
+def test_strikeout_extension_closes_real_base_failure_without_new_signature(
+    strikeout_extension_fixture: Any, capsys: pytest.CaptureFixture[str],
+) -> None:
+    """旧失敗を残し、旧署名を更新せず技術確認と最終公開proofを分ける。"""
+    root, _, event, _, fetches, _, calls = strikeout_extension_fixture
+    with pytest.raises(checker.HumanReviewSignatureRecordError, match='base数学9資産'):
+        checker._ordinary_ci(root, event, new_acceptance=False)
+    assert fetches == []
+    assert checker.main(['--root', str(root), '--gate6-carry']) == 0
+    assert 'TECHNICAL ONLY; final delegation NOT CHECKED' in capsys.readouterr().out
+    assert fetches == []
+    assert ('PR192 strikeout extension: DELEGATED VERIFIED; not new PR187/191 acceptance; '
+            'not a personal signature') in checker.validate_gate6_ci_event(root, event)
+    assert fetches == ['192']
+    reference = json.loads((root / checker._STRIKEOUT_REFERENCE_PATH).read_bytes())
+    # 正式mergeと候補の二系統を独立に合流検査し、偽のbase→候補祖先を要求しない。
+    assert ['merge-base', '--is-ancestor', event.base_sha,
+            reference['candidate_revision']] not in calls
+    for prior in (event.base_sha, reference['candidate_revision']):
+        assert ['merge-base', '--is-ancestor', prior, event.head_sha] in calls
+
+
+@pytest.mark.parametrize('mutation', [
+    'old-case', 'old-row', 'missing-case', 'duplicate-case', 'unknown-case', 'old-rowref',
+    'new-case', 'new-history', 'new-flag', 'new-row', 'new-rowref', 'mapping', 'count',
+    'handoff', 'descriptor', 'game-end', 'record', 'schema', 'ordinary-vectors',
+    'case-source', 'case-schema', 'reference', 'joint-source-reference', 'projection',
+    'pin', 'purpose', 'consumer', 'pin-extra', 'delete-reference', 'dirty-checker',
+    'dirty-tests', 'joint-source-declaration', 'joint-expectation-declaration',
+])
+def test_strikeout_extension_rejects_every_scope_and_joint_reference_change(
+    strikeout_extension_fixture: Any, mutation: str,
+) -> None:
+    """旧値/新有限値/原典/用途の改竄は自己一致や合成公開proofで救済しない。"""
+    root, _, event, _, fetches, _, _ = strikeout_extension_fixture
+    path = root / checker.STATE_TRANSITION_CONTRACT_PATH
+    contract = json.loads(path.read_bytes())
+    if mutation in {'old-case', 'old-row', 'missing-case', 'duplicate-case', 'unknown-case',
+                    'old-rowref', 'new-case', 'new-history', 'new-flag', 'new-row',
+                    'new-rowref', 'joint-source-reference', 'joint-source-declaration'}:
+        if mutation == 'old-case':
+            contract['cases'][0]['expected']['plateAppearanceEnded'] = True
+        elif mutation == 'old-row':
+            contract['matrixRows'][0]['remarks'] += 'tampered'
+        elif mutation == 'missing-case':
+            contract['cases'].pop()
+        elif mutation == 'duplicate-case':
+            contract['cases'].append(copy.deepcopy(contract['cases'][134]))
+        elif mutation == 'unknown-case':
+            contract['cases'][-1]['caseId'] += '-unknown'
+        elif mutation in {'old-rowref', 'new-rowref'}:
+            index = 0 if mutation == 'old-rowref' else 51
+            contract['mustOperationCoverage']['mappings'][0]['rowRefs'].pop(index)
+        elif mutation == 'new-row':
+            contract['matrixRows'][51]['remarks'] += 'tampered'
+        elif mutation == 'new-history':
+            contract['cases'][134]['historyInput']['before']['stateFields']['state.outs'] = 1
+        elif mutation == 'new-flag':
+            flags = contract['cases'][134]['expected']['statFlags']
+            key = next(iter(flags))
+            flags[key] = not flags[key]
+        else:
+            contract['cases'][134]['expected']['plateAppearanceEnded'] = False
+        _write_t1_append_json(path, contract)
+        if mutation in {'joint-source-reference', 'joint-source-declaration'}:
+            reference_path = root / checker._STRIKEOUT_REFERENCE_PATH
+            reference = json.loads(reference_path.read_bytes())
+            reference['files'][str(checker.STATE_TRANSITION_CONTRACT_PATH)]['after_sha256'] = (
+                hashlib.sha256(path.read_bytes()).hexdigest())
+            _write_t1_append_json(reference_path, reference)
+            if mutation == 'joint-source-declaration':
+                frozen_path = root / 'contracts/tenant_boundary/frozen-inputs.json'
+                frozen = json.loads(frozen_path.read_bytes())
+                frozen['frozen_inputs']['pr192_ordinary_extension_reference_revision']['value'] = (
+                    reference['candidate_revision'])
+                _write_t1_append_json(frozen_path, frozen)
+    elif mutation in {'mapping', 'count', 'handoff', 'descriptor', 'game-end', 'case-source',
+                      'case-schema', 'record', 'schema', 'ordinary-vectors'}:
+        paths = {
+            'mapping': checker._STRIKEOUT_CHANGED_PATHS[1],
+            'count': checker._STRIKEOUT_CHANGED_PATHS[2],
+            'handoff': checker._STRIKEOUT_CHANGED_PATHS[3],
+            'descriptor': 'contracts/state-transition/input_axes_descriptor_v1.json',
+            'game-end': str(checker.GAME_END_CONTRACT_PATH),
+            'case-source': 'contracts/state-transition/strikeout_pitch_cases_v1.json',
+            'case-schema': 'contracts/state-transition/strikeout_pitch_schema_v1.json',
+            'record': str(checker.GATE6_ORDINARY_PATH),
+            'schema': str(checker.GATE6_ORDINARY_SCHEMA_PATH),
+            'ordinary-vectors': 'contracts/state-transition/ordinary_pitch_vectors_v1.json',
+        }
+        target = root / paths[mutation]
+        value = json.loads(target.read_bytes())
+        value['unknown-extension'] = True
+        _write_t1_append_json(target, value)
+    elif mutation in {'reference', 'projection', 'delete-reference'}:
+        target = root / checker._STRIKEOUT_REFERENCE_PATH
+        if mutation == 'delete-reference':
+            target.unlink()
+        else:
+            value = json.loads(target.read_bytes())
+            if mutation == 'projection':
+                value['finite_extension']['projection_operations'][0]['before_length'] = 0
+            else:
+                value['formal_base_revision'] = value['terminal_accepted_revision']
+            _write_t1_append_json(target, value)
+    elif mutation in {'dirty-checker', 'dirty-tests'}:
+        target = root / ('scripts/check_human_review_signature.py' if mutation == 'dirty-checker'
+                         else 'tests/test_human_review_signature.py')
+        target.write_text(target.read_text() + '\n# 合成未保存差分\n')
+    elif mutation == 'joint-expectation-declaration':
+        target = root / 'tests/fixtures/pr192_tenant_source_expected_v1.json'
+        value = json.loads(target.read_bytes())
+        value['formal_base_revision'] = '0' * 40
+        _write_t1_append_json(target, value)
+        target = root / 'contracts/tenant_boundary/frozen-inputs.json'
+        value = json.loads(target.read_bytes())
+        value['frozen_inputs']['pr192_source_expectation_revision']['value'] = (
+            value['frozen_inputs']['pr192_source_registration_revision']['value'])
+        _write_t1_append_json(target, value)
+    else:
+        target = root / 'contracts/tenant_boundary/frozen-inputs.json'
+        value = json.loads(target.read_bytes())
+        entry = value['frozen_inputs']['pr192_ordinary_extension_reference_revision']
+        if mutation == 'pin':
+            entry['value'] = '0' * 40
+        elif mutation == 'purpose':
+            entry['purpose'] += 'general approval'
+        elif mutation == 'consumer':
+            entry['sources'] = []
+        else:
+            entry['extra'] = True
+        _write_t1_append_json(target, value)
+    with pytest.raises(checker.HumanReviewSignatureRecordError):
+        checker.validate_gate6_ci_event(root, event)
+    assert fetches == []
+
+
+@pytest.mark.parametrize('mutation', ['pr', 'branch', 'repository', 'head-repository',
+                                      'base', 'head'])
+def test_strikeout_extension_rejects_other_actual_event(
+    strikeout_extension_fixture: Any, mutation: str,
+) -> None:
+    """PR192の権限を別PR・別系統・別基線へ広げない。"""
+    root, guard, event, _, fetches, _, _ = strikeout_extension_fixture
+    fields = dict(vars(event))
+    key, value = {'pr': ('number', 194), 'branch': ('head_branch', 'feature/unknown'),
+                  'repository': ('repository', 'other/pitchlog'),
+                  'head-repository': ('head_repository', 'other/pitchlog'),
+                  'base': ('base_sha', '0' * 40), 'head': ('head_sha', '0' * 40)}[mutation]
+    fields[key] = value
+    with pytest.raises(checker.HumanReviewSignatureRecordError):
+        checker._ordinary_strikeout_ci(root, guard.PullRequestEvent(**fields))
+    assert fetches == []
+
+
+@pytest.mark.parametrize('mutation', [
+    'missing', 'author-approved', 'same-author', 'non-independent', 'p0', 'p1',
+    'report-head', 'head', 'base', 'diff', 'paths', 'authority', 'api',
+])
+def test_strikeout_extension_requires_final_independent_public_confirmation(
+    strikeout_extension_fixture: Any, mutation: str, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """固定数学の一致だけで本人署名・最終独立PO証拠を成立扱いにしない。"""
+    root, guard, event, comment, _, _, _ = strikeout_extension_fixture
+    evidence = json.loads(comment['body'][len(guard.DELEGATION_COMMENT_MARKER):])
+    if mutation in {'missing', 'author-approved'}:
+        comment['body'] = '' if mutation == 'missing' else 'author approved'
+    elif mutation == 'same-author':
+        evidence['candidate_agents'].append(evidence['reviewer_agent'])
+    elif mutation == 'non-independent':
+        evidence['independent'] = False
+    elif mutation in {'p0', 'p1'}:
+        evidence['findings'] = [{'severity': mutation.upper(), 'resolved': False,
+                                 'detail': '合成未解消'}]
+    elif mutation == 'report-head':
+        evidence['report']['reviewed_head'] = '0' * 40
+    elif mutation in {'head', 'base'}:
+        evidence[mutation] = '0' * 40
+    elif mutation in {'diff', 'authority'}:
+        evidence[{'diff': 'diff_sha256', 'authority': 'authority_sha256'}[mutation]] = '0' * 64
+    elif mutation == 'paths':
+        evidence['paths'] = []
+    else:
+        def fail(_: str) -> Any:
+            raise guard.GuardError('合成192公開API故障')
+        monkeypatch.setattr(guard, '_fetch_delegation_comment', fail)
+    if mutation not in {'missing', 'author-approved'}:
+        comment['body'] = guard.DELEGATION_COMMENT_MARKER + json.dumps(evidence)
+    with pytest.raises(checker.HumanReviewSignatureRecordError):
+        checker.validate_gate6_ci_event(root, event)
+
+
+@pytest.mark.parametrize('relation', ['terminal-base', 'terminal-candidate', 'base-reference',
+                                      'candidate-reference', 'reference-head', 'base-head',
+                                      'candidate-head'])
+def test_strikeout_extension_requires_real_two_parent_convergence(
+    strikeout_extension_fixture: Any, monkeypatch: pytest.MonkeyPatch, relation: str,
+) -> None:
+    """並行源をbase→候補と偽らず、個別の真正祖先/実HEAD合流を必須にする。"""
+    root, _, event, _, fetches, _, _ = strikeout_extension_fixture
+    reference = json.loads((root / checker._STRIKEOUT_REFERENCE_PATH).read_bytes())
+    frozen = json.loads((root / 'contracts/tenant_boundary/frozen-inputs.json').read_bytes())
+    pin = frozen['frozen_inputs']['pr192_ordinary_extension_reference_revision']['value']
+    pairs = {
+        'terminal-base': (reference['terminal_accepted_revision'], event.base_sha),
+        'terminal-candidate': (reference['terminal_accepted_revision'],
+                               reference['candidate_revision']),
+        'base-reference': (event.base_sha, pin),
+        'candidate-reference': (reference['candidate_revision'], pin),
+        'reference-head': (pin, event.head_sha),
+        'base-head': (event.base_sha, event.head_sha),
+        'candidate-head': (reference['candidate_revision'], event.head_sha),
+    }
+    original = checker._carry_git_bytes
+    def read(repository: Path, args: list[str]) -> bytes:
+        if args == ['merge-base', '--is-ancestor', *pairs[relation]]:
+            raise checker.HumanReviewSignatureRecordError('合成192非祖先')
+        return original(repository, args)
+    monkeypatch.setattr(checker, '_carry_git_bytes', read)
+    with pytest.raises(checker.HumanReviewSignatureRecordError, match='非祖先'):
+        checker.validate_gate6_ci_event(root, event)
+    assert fetches == []
