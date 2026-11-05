@@ -1,5 +1,14 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 続き：2026-11-05 14時台（実PG成立と成績の実API停止原因を特定）
+
+- **利用者操作/正式版**: developはGitHub再照合で112f771eのまま、#192統合後CI成功。#196は公開2fd47782/Draft、候補GUI4安打成功を正式提供とは分離する。新しい成績操作の利用者向け完了はまだ無い。
+- **安打正式登録**: 供給1074成功後6965088b固定sourceを保持。独立前置分類87e10892…で4path/15実tuple/2successorと旧90/旧51の区分・metadata全保持を確認し、fixture52d056f1…とplan採用を**E=0f75d17002cd6fac2cec056c8850196d93a5acd4**へ前置保存。コアpathsの新fixture/test2だけ追加は非作者29000438…後8b834ec0保存。pr192へcache-only loader4source実装を移管、rootは正式asset/census writerを専有。まだ17診断解消/正式受理/全CI未了、未push。
+- **成績実接合の保存**: canonical95は非作者094e815a…、prefix2はa0d1fbe2…後fae7fd6eへ97path一括保存。catalog実表現3はbea6b29a…、失効RRRO testは6afd867c…、所有DB fixtureはc5f85622…を採用し01dd5323保存。実owned storage4pass24.34秒（実0041/54列/FORCE RLS/default deny/全catalog/既identity autouse）とRRRO2pass5.34秒（RR/on/SQLSTATE25006/marker不変/失効後再BEGIN無し）が成立。途中catalog失敗・fixture DSN/既role衝突は保存し、検査条件/権限を緩めて相殺していない。
+- **実APIで発見した不整合**: 新POST作成/開始/3球を試したr1は42.41秒でsource event_kind期待のplay不一致、既正式play_inputへ直し新旧336pure成功44.08秒、非作者bc57675b…後00845118保存。採用後期待2の239作者成功/cbb81ae7…も同commitで保存。r2/r3は保存1球目で503、r3の固定PG関数位置はread_primitive_writer_state prosrc107（台帳xmin等の最終4条件）まで特定。source/error文字列だけで保存成功/全取消を主張しない。新test_stats_native_vertical_http.pyは未追跡保全・ruff成功、独立レビュー中、実API成功未成立。r1外部cache診断のDBmarker警告は正式試験と区別する。
+- **次の是正方針**: 既accepted台帳INSERTはrun_in_savepoint→begin_nested、後のevent/projectionはtop TX。owned PGミクロで同TXでもtop741/sub742となり、RELEASE後のsubrowはtop xmin一致を満たさない事実を確認。pg_locksはtopだけなのでそのmembershipで救済できず、statusだけ/可視性だけの保証へ弱めない。既native acceptedだけtop-level固定INSERT ON CONFLICT PK DO NOTHING RETURNING1を用い、実1/0と既classify_d5で分岐する案Aを優先。旧汎用SAVEPOINT・D5結果/拒否優先順・SQL側xmin==topを維持する設計を非作者へ調査依頼中。ミクロは新規1/再送0/異内容0・原値不変・xmin==top/非D5 23514伝播までであり、実製品保証の代替ではない。
+- **証拠/再開入口**: cache mvp-resume-20261104/ のstats-real-storage-owned-identity-reflection3、stats-rrro-real-boundary-reflection1、stats-native-three-pitch-integration-r1/r2/r3、owned-pg-subxid{-locks,}-observation.json、owned-pg-d5-insert-observation.json。全owned container撤去済み・共有DSN未継承。進行中cacheはpr196-source-registration-candidate-20261105/、stats-native-preflight-stop-diagnostic-20261105/、stats-native-vertical-http-test-independent-20261105/。Goalはactive、D11正式登録/単一受理/Oracle/実API原子性/成績UI・全27/両CSV/全MVPは未完。
+
 ## 続き：2026-11-05（安打の供給検査完了・成績の正式資産候補生成）
 
 - **#196 source保存**: 旧STABLE語彙read1件だけのvolatility期待を訂正し、既28関数VOLATILE/全guard/43pin/637/31原典を保持。非作者40a06581…が全29反転を拒否、root全供給1074pass33.42秒。既反映1 b754c985…/metadata e146a186…と合わせsource5を6965088bへ保存、未push。authz --skip-oracleは成功。RAW source診断は17site、既pr192登録試験は174pass/2fail（安打のlineup入力型と観測照合追加によりimmutable source全byte不一致）であり、検査を緩めず固定後発登録を追加する必要がある。正式#196受理/全CIは未了。
