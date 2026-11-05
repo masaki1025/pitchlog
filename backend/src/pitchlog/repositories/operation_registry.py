@@ -17,6 +17,9 @@ from pitchlog.repositories.function_operations import (
 from pitchlog.repositories.games import PREPARING_GAME_READ_OPERATIONS
 from pitchlog.repositories.invalidation_intents import INVALIDATION_INTENT_OPERATIONS
 from pitchlog.repositories.lineup_memory import LINEUP_MEMORY_OPERATIONS
+from pitchlog.repositories.nonplay_function_operations import (
+    NONPLAY_FUNCTION_OPERATIONS,
+)
 from pitchlog.repositories.operation_registration import OperationRegistration
 from pitchlog.repositories.ordinary_order import ORDINARY_ORDER_OPERATIONS
 from pitchlog.repositories.ordinary_pitch_operations import (
@@ -240,6 +243,7 @@ PRODUCT_FUNCTION_OPERATIONS: tuple[FunctionOperationRegistration, ...] = (
         operation_id="SYNC_LINEUP_PREFIX:read_lineup_started_origin",
     ),
     *STATS_NATIVE_FUNCTION_OPERATIONS,
+    *NONPLAY_FUNCTION_OPERATIONS,
 )
 FUNCTION_OPERATION_REGISTRY = build_function_registry(
     PRODUCT_FUNCTION_OPERATIONS,

@@ -431,6 +431,36 @@ def _stats_native_family(registration) -> bool:
     }
 
 
+def _nonplay_native_family(registration) -> bool:
+    """新6の予約名だけを閉検査し、旧familyの許容範囲を変更しない。"""
+    names = {
+        "bind_nonplay_device",
+        "check_nonplay_right",
+        "lock_nonplay_checkpoint",
+        "read_nonplay_history_page",
+        "prepare_nonplay_undo",
+        "consume_nonplay_undo",
+    }
+    return (
+        (
+            type(registration.function_id) is str
+            and registration.function_id in {"sync_right_api." + name for name in names}
+        )
+        or any(
+            isinstance(value, str) and value.startswith(prefix)
+            for value, prefix in (
+                (registration.operation_id, "SYNC_NONPLAY:"),
+                (registration.capability_id, "CAP:sync_nonplay:"),
+            )
+        )
+        or getattr(registration.token_type, "__module__", None)
+        in {
+            "pitchlog.repositories.nonplay_prefix",
+            "pitchlog.repositories.nonplay_qualification",
+        }
+    )
+
+
 @dataclass(frozen=True, slots=True)
 class FunctionOperationRegistration:
     """単一のschema修飾関数、exact bind、戻りdecoderを固定する。"""
@@ -464,6 +494,13 @@ class FunctionOperationRegistration:
             raise FunctionOperationError("固定関数tokenはfrozen dataclassが必要")
         if type(self.statement) is not Select or not callable(self.decoder):
             raise FunctionOperationError("固定関数には固定Selectとdecoderが必要")
+        if _nonplay_native_family(self):
+            from pitchlog.repositories.nonplay_function_operations import (
+                validate_registration,
+            )
+
+            validate_registration(self)
+            return
         if _stats_native_family(self):
             from pitchlog.repositories.stats_native_operations import (
                 validate_registration,
@@ -836,6 +873,12 @@ def build_function_registry(
     registry: dict[type[TenantOperationToken], FunctionOperationRegistration] = {}
     operation_ids: set[str] = set()
     for registration in registrations:
+        if _nonplay_native_family(registration):
+            from pitchlog.repositories.nonplay_function_operations import (
+                validate_registration,
+            )
+
+            validate_registration(registration)
         if _stats_native_family(registration):
             from pitchlog.repositories.stats_native_operations import (
                 validate_registration,
@@ -864,6 +907,15 @@ def prepare_function_operation(
     spec = registry.get(type(operation))
     if spec is None:
         raise FunctionOperationError("未登録または偽造された固定関数token")
+    if _nonplay_native_family(spec):
+        from pitchlog.repositories.nonplay_function_operations import (
+            validate_registration,
+        )
+
+        validate_registration(spec)
+        raise FunctionOperationError(
+            "取消固定6関数は真正私有dispatcherだけで実行できます"
+        )
     if _stats_native_family(spec):
         from pitchlog.repositories.stats_native_operations import validate_registration
 

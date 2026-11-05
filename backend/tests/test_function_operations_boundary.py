@@ -119,6 +119,16 @@ def test_product_function_registry_keeps_rg1_and_adds_one_rule_operation() -> No
         _CheckFirstBallRightToken,
         _ReadFirstBallDeviceStateToken,
     )
+    from pitchlog.repositories.nonplay_function_operations import (
+        _ConsumeNonplayUndoCall,
+        _LockNonplayCheckpointCall,
+        _PrepareNonplayUndoCall,
+        _ReadNonplayHistoryPageCall,
+    )
+    from pitchlog.repositories.nonplay_qualification import (
+        BindNonplayDeviceToken,
+        CheckNonplayRightToken,
+    )
     from pitchlog.repositories.ordinary_order import OrdinaryOrderSummaryToken
     from pitchlog.repositories.ordinary_pitch_qualification import (
         BindOrdinaryDeviceToken,
@@ -186,6 +196,12 @@ def test_product_function_registry_keeps_rg1_and_adds_one_rule_operation() -> No
         "STATS_PRIMITIVES:open_snapshot",
         "STATS_PRIMITIVES:read_page",
         "STATS_PRIMITIVES:read_totals",
+        "SYNC_NONPLAY:bind_nonplay_device",
+        "SYNC_NONPLAY:check_nonplay_right",
+        "SYNC_NONPLAY:lock_nonplay_checkpoint",
+        "SYNC_NONPLAY:read_nonplay_history_page",
+        "SYNC_NONPLAY:prepare_nonplay_undo",
+        "SYNC_NONPLAY:consume_nonplay_undo",
     )
     assert set(operation_registry.FUNCTION_OPERATION_REGISTRY) == {
         BattedBallOptionsToken,
@@ -216,6 +232,12 @@ def test_product_function_registry_keeps_rg1_and_adds_one_rule_operation() -> No
         OpenPrimitiveSnapshotToken,
         ReadPrimitivePageToken,
         ReadPrimitiveTotalsToken,
+        BindNonplayDeviceToken,
+        CheckNonplayRightToken,
+        _LockNonplayCheckpointCall,
+        _ReadNonplayHistoryPageCall,
+        _PrepareNonplayUndoCall,
+        _ConsumeNonplayUndoCall,
     }
     assert operation_registry.PRODUCT_OPERATIONS
 
@@ -2069,7 +2091,9 @@ def test_literal_product_function_bindings_preserve_original_objects() -> None:
         *PLAY_PREFIX_OPERATIONS,
         *LINEUP_START_ORIGIN_OPERATIONS,
     )
-    registered = operation_registry.PRODUCT_FUNCTION_OPERATIONS[-len(original) - 5 : -5]
+    registered = operation_registry.PRODUCT_FUNCTION_OPERATIONS[
+        -len(original) - 11 : -11
+    ]
     assert len(original) == len(registered) == 12
     assert all(
         actual is expected
