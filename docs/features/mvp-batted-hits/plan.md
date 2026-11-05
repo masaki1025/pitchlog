@@ -219,3 +219,6 @@ FE14と分離しstats_csv_next_unitへ新exact4: backend/src/pitchlog/api/schema
 
 
 実HTTP試験の前提訂正（2026-11-05、PO委任Codex /root判断）: vocab-http-r1は2failed294秒。新試験がappのadmin_vocabularies直接SELECT拒否を期待したのはrootの誤りで、既正式ACL:admin_vocabularies:pitchlog_app/global_read_onlyはSELECTを採用済み（旧e2b72672と現候補で当該ACL全byte/全値不変）。既決の公開語彙readを禁止へ再裁定せず、同test exact1はsession_user/current_user=appを確認し、既SELECT成功を維持しつつUPDATE WHERE falseの拒否でreadonlyを実証する。権限を変更せず、既有限HTTP全assert/負対向は保持する。この訂正を非作者へ再照合し、HTTPだけ先にowned再検証する。旧4安打の再検証は第二系列の故障要求時binding_closeでLedgerUnavailableとなった別失敗として保存し、r4過去成功で相殺しない。lease/finishの安全条件や故障期待は変更せず、非秘密の終結診断を次の限定単位で行う。
+
+
+安打4種の実画面縦断単位（2026-11-05、PO委任Codex /root判断）: 新frontend/src/screens/GameScreenBattedHits.e2e.ts・GameScreenBattedHits.playwright.config.ts・backend/tests/db/test_batted_hits_screen_e2e.pyのexact3を専有writerへ委任する。既screen start/lineup E2Eの実認証・画面新規POST作成・端末登録・実start・唯一controller/queue/ACK/GET/復元、ownedPGと実HTTPS補助を再利用する。4試合を画面で新規作成し、無走者の単打/二塁打/三塁打/本塁打を各1回→次球ball→同要求再送→reloadからafter/history/41保存値/runner before/afterを確認する。試合/記録の事前投入やtest-only API保存、画面fetch成功応答のmockは不可。参照選手/球種/結果/打球語彙のみowned準備し、実語彙endpointと実fieldingrosterから明示選択、観測6欄と裁定4確認を揃え、未観測も明示操作する。期待は既承認golden無走者4安打/次球の値を引用し、画面へ野球算式や別計算実装を置かない。新schema/frontend runtime/既E2Eは変更しない。既authority故障の結果不明は本画面成功で相殺せず別追跡、運用信頼TLS/実機成功へ拡張しない。作者は構文/型/対象lintまで、実PG/HTTPS実行はroot直列所有し、別非作者確認後に同候補で実測する。
