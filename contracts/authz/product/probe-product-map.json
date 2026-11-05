@@ -1385,6 +1385,30 @@
     {
       "product": "policy:POLICY:game_start_requests:lineup_prefix_game_start_requests_select",
       "reason": "product_only"
+    },
+    {
+      "product": "function:FUNCTION:recording_vocab_api:read_batted_ball_options(uuid, integer, text)",
+      "reason": "product_only"
+    },
+    {
+      "product": "policy:POLICY:admin_vocabularies:batted_hit_select_admin_vocabularies",
+      "reason": "product_only"
+    },
+    {
+      "product": "policy:POLICY:admin_vocabularies:recording_vocab_select_batted_ball",
+      "reason": "product_only"
+    },
+    {
+      "product": "policy:POLICY:tenant_vocabularies:batted_hit_select_tenant_vocabularies",
+      "reason": "product_only"
+    },
+    {
+      "product": "role:pitchlog_recording_vocab_fn_owner",
+      "reason": "product_only"
+    },
+    {
+      "product": "schema:recording_vocab_api",
+      "reason": "product_only"
     }
   ]
 }

@@ -1060,7 +1060,7 @@ _WRITER_BINDING_TABLES = frozenset(
 )
 
 
-def _metadata_for_schema_revision(revision: str) -> MetaData:
+def _metadata_for_pre_batted_revision(revision: str) -> MetaData:
     """0035/0036/0037/0038の実migration差だけを逆射影し、他の差は保持する。"""
     if revision == "0039_ordinary_pitch_storage":
         return Base.metadata
@@ -1149,6 +1149,36 @@ def _metadata_for_schema_revision(revision: str) -> MetaData:
             )
             copied.constraints.remove(checks[0])
             copied._columns.remove(epoch)
+    return historical
+
+
+def _metadata_for_schema_revision(revision: str) -> MetaData:
+    """旧revisionから承認0040の索引1だけをcopy上で逆射影する。"""
+    from test_tenant_models import _batted_key_index_columns
+
+    if revision == "0040_batted_vocabulary_index":
+        indexes = [
+            i
+            for i in Base.metadata.tables["admin_vocabularies"].indexes
+            if i.name == "ix_admin_vocabularies_batted_ball_key_c"
+        ]
+        assert len(indexes) == 1
+        _batted_key_index_columns(indexes[0])
+        return Base.metadata
+    source = _metadata_for_pre_batted_revision(revision)
+    historical = MetaData(naming_convention=source.naming_convention)
+    for table in source.tables.values():
+        table.to_metadata(historical)
+    table = historical.tables.get("admin_vocabularies")
+    if table is None:
+        # 既metadata差分検出probeの疎な代替モデルも、そのまま比較へ渡す。
+        return historical
+    indexes = [
+        i for i in table.indexes if i.name == "ix_admin_vocabularies_batted_ball_key_c"
+    ]
+    assert len(indexes) == 1
+    _batted_key_index_columns(indexes[0])
+    table.indexes.remove(indexes[0])
     return historical
 
 
@@ -6077,6 +6107,15 @@ def test_analysis_group_cross_tenant_guards_and_migration_round_trip(
                 if index["predicate"] is not None
             }
             assert predicate_index_names
+            assert "ix_admin_vocabularies_batted_ball_key_c" in predicate_index_names
+            assert _manifest_index_contract(
+                "ix_admin_vocabularies_batted_ball_key_c"
+            ) == (
+                "admin_vocabularies",
+                ['key COLLATE "C"'],
+                "category = 'batted_ball' AND disabled = false",
+            )
+            predicate_index_names.remove("ix_admin_vocabularies_batted_ball_key_c")
             for index_name in sorted(predicate_index_names):
                 actual_index = _index_catalog_contract(connection, index_name)
                 assert actual_index[1:4] == _manifest_index_contract(index_name)

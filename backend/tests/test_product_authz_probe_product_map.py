@@ -553,3 +553,54 @@ def test_each_lineup_product_only_atom_is_required(atom: str) -> None:
         ProbeProductMapError, match="製品原子要素が双方向 exact-set でない"
     ):
         validate_probe_product_map(mapping, probe, product)
+
+
+_BATTED_PRODUCT_ATOMS = frozenset(
+    {
+        "policy:POLICY:tenant_vocabularies:batted_hit_select_tenant_vocabularies",
+        "schema:recording_vocab_api",
+        "function:FUNCTION:recording_vocab_api:read_batted_ball_options"
+        "(uuid, integer, text)",
+        "role:pitchlog_recording_vocab_fn_owner",
+        "policy:POLICY:admin_vocabularies:batted_hit_select_admin_vocabularies",
+        "policy:POLICY:admin_vocabularies:recording_vocab_select_batted_ball",
+    }
+)
+
+
+def test_batted_six_product_only_atoms_are_exact() -> None:
+    """後発6原子だけを有限追加し、旧probe写像を拡張しない。"""
+    mapping, probe, product = _documents()
+    summary = validate_probe_product_map(mapping, probe, product)
+    assert len(_BATTED_PRODUCT_ATOMS) == 6
+    assert {
+        row["product"]
+        for row in _rows(mapping, "product_only")
+        if isinstance(row, dict)
+        and row.get("product") in _BATTED_PRODUCT_ATOMS
+        and row.get("reason") == "product_only"
+    } == _BATTED_PRODUCT_ATOMS
+    assert not _BATTED_PRODUCT_ATOMS & summary.mapped_product_atoms
+
+
+@pytest.mark.parametrize("atom", sorted(_BATTED_PRODUCT_ATOMS))
+def test_each_batted_product_atom_is_required(atom: str) -> None:
+    """新6原子の一件欠落も製品母集合の縮小で補完しない。"""
+    mapping, probe, product = _documents()
+    _rows(mapping, "product_only").remove(
+        _row_by_value(_rows(mapping, "product_only"), key="product", value=atom)
+    )
+    with pytest.raises(ProbeProductMapError):
+        validate_probe_product_map(mapping, probe, product)
+
+
+@pytest.mark.parametrize("atom", sorted(_BATTED_PRODUCT_ATOMS))
+def test_batted_unknown_or_wrong_kind_atom_is_refused(atom: str) -> None:
+    """未知または誤種別をproduct_onlyの一般許可にしない。"""
+    for bad in (atom + "_unknown", "table:" + atom.split(":", 1)[1]):
+        mapping, probe, product = _documents()
+        _rows(mapping, "product_only").append(
+            {"product": bad, "reason": "product_only"}
+        )
+        with pytest.raises(ProbeProductMapError):
+            validate_probe_product_map(mapping, probe, product)
