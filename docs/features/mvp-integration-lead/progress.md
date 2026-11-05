@@ -1,5 +1,15 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 再開時の現在地：2026-11-06T04:58:08.551104+09:00（#196 R10公開CI中／取消HTTP・schemaへ接合）
+
+- **正式提供**: develop112f771e、#196未merge、全MVP active。正式利用者の新操作は今回まだ増えていない。候補の実接合と正式提供を区別する。
+- **#196**: final9ddcd5c332a4778ffd5a2979492cf17912a34350/tree4a8ac895…/diffb86a40b3…/220pathを非作者52add3b2…で最終束縛。公開委任 https://github.com/masaki1025/pitchlog/pull/196#issuecomment-6667329944 、実公開proofを読む両localguard0後push1回。本文42095289228 success、main https://github.com/masaki1025/pitchlog/actions/runs/42095289008 は実行中。前失敗harness0/3は今回ともsuccess、harness1もsuccess、残harness2/全backendshardは未確定。R9旧HEAD本文編集run42095034149のfailureは旧対象版として保持し新HEADへ混ぜない。
+- **取消current接合**: actuald3332df0でpin16を非作者ceaf0fa5…後採用。全1241葉（current849＋公式echo392）だけ/旧数学・raw字句・priorFP保持、actual旧host44＋新12＋runtime126の182成功7.94秒。chain9は旧親のまま保存、fresh再連結は未採用。v3有限候補はpr192、旧firstball/ordinaryの無条件self witness呼出もrootで発見して同一周へ正確self宣言を追加する。未知全pair許可はしない。
+- **取消実PG**: migration0042初回f1f9b9f5は後段API schema先行依存でERROR1/8.37秒。rootが既0036同様のpublic invoker guard/owner固定へe406d530で修復（guard本文byte/43列/2trigger保持）。同固定版のownedPG17.11で1成功25.31秒、全43列型/nullable/8FK/PK/unique/索引/owner/RLS/既role直権限拒否を実測、source前後同一・自前PG撤去。共有DBなし。新publisher6と権限実適用/取消操作実PGとは区別する。
+- **取消の新実装**: root5544b1bdに必要最小権限publisher2（36成功2.52秒、RuffTy0）、16484611に真正sync HTTP/Port選択4（73成功1.53秒、RuffTy0）を反映。P1単一undoだけ追加、既D5再掲より前にV7意味検査をしない。新Port2は既静的検査/旧9実装を保持して登録。Unavailableは503、成功stub/新資格を再送へ要求しない。これらroot8の非作者レビュー中、実API成功とはしない。
+- **並行実装**: 共有kernel8作者packet5d93c900…（722影響成功、stored拡充125/native最終72、RuffTy0）を固定、missingSの例外型をHTTPと整合する反映1中。独立採否前でactual source未反映。固定関数/transaction登録10はstats担当cache-onlyで実装し、旧厳密集合/位置だけ追随、正式registry契約未接合1failureは期待を緩めずroot依存へ残す。有限v3候補5は旧57保持・53normative/1878別scopeを固定しreflection1中。
+- **次の実到達点**: source/登録/有限compatを独立確認後同候補へ接合、正式catalog/body/manifest/D11を一括整合してowned2球→2取消→次球→GET/reloadを通す。最大の未実装はcanonical Sの取消除外と同TX版invalidation/再保存、非play後の実次球保存・既GET供給。missingSを成功skipにせず外側rollbackを維持する。成績BF数学29c9枝は保持、native27/全操作/両CSV/実機・運用復旧は未完のMVP必須のまま。
+
 ## 再開時の現在地：2026-11-06T04:31:37.349401+09:00（#196 R10固定、取消legacy是正126成功）
 
 - 正式developは112f771e、#196 open/draft、全MVP active。新たに正式利用者へ提供された操作は今回まだ増えていない。
