@@ -7,8 +7,10 @@ from pitchlog.repositories.play_export_primitives import (
     PrimitiveReadError,
     PrimitiveSnapshot,
     ReadPlayExportPrimitives,
+    _read_call,
+    _require_receipt,
 )
-from pitchlog.repositories.tokens import TenantOperationToken
+from pitchlog.repositories.tokens import TenantOperationResult, TenantOperationToken
 from pitchlog.stats.generated.receiver import METRIC_IDS, receive_fact_row
 
 
@@ -36,21 +38,19 @@ def read_primitive_totals(reader, receipt):
         or type(receipt) is not PrimitiveSnapshot
     ):
         raise PrimitiveReadError
-    reader._live()
-    if receipt._owner is not reader:
-        raise PrimitiveReadError
+    _require_receipt(reader, receipt)
     scope = receipt.scope
-    result = reader._handle.run(
-        ReadPrimitiveTotalsToken(
-            scope.game_id,
-            scope.player_id,
-            receipt.fact_version_id,
-            receipt.revision,
-            receipt.source_set_sha256,
-            scope.model_sha256,
-        )
+    operation = ReadPrimitiveTotalsToken(
+        scope.game_id,
+        scope.player_id,
+        receipt.fact_version_id,
+        receipt.revision,
+        receipt.source_set_sha256,
+        scope.model_sha256,
     )
-    if len(result.rows) != len(METRIC_IDS):
+    with _read_call(reader, operation, receipt=receipt):
+        result = reader._handle.run(operation)
+    if type(result) is not TenantOperationResult or len(result.rows) != len(METRIC_IDS):
         raise PrimitiveReadError
     values = {}
     for row in result.rows:
