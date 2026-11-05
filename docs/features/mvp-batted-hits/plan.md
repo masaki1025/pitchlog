@@ -252,3 +252,6 @@ registry反映1採用（2026-11-05、PO委任Codex /root判断）: source2 ad58b
 
 
 最終整形追随の採用（2026-11-05、PO委任Codex /root判断）: backend/tests/test_sync_apply_product_supply.pyの新STABLE判定literal1行がE501（91字）で停止したため、暗黙文字列結合へ改行するだけの候補1ed8e18b…を非作者5ce6e99d64e68ffcf20e7fd22f03c387bf1a843258b3debcf9302eda34826900（全AST/期待/全assert不変、独立ruff0）で採用する。root/BE ty・FE vue-tsc/eslintは成功。source/数学/SQL/認可/保存意味は変わらず、frozen外部原本の全byteだけが変わるので単一196候補をR3へ置換し、旧37/9IDbase+1を保持する。4a27固定のroot回帰72039は元WTを無編集で継続し、本最終候補は同4a27から隔離したWTで作成、回帰終了後同commitへffする。R2独立44bee168…/正式CLI成功と全候補基礎c72017be…を保持し、最終HEADの限定再bindingと必須CI前はmergeしない。
+
+
+PR196 core-guardの登録済み3path追随（2026-11-05、PO委任Codex /root判断）: 公開70158のPR body run41993067895/core-guard job127129657212は『terminal core層が全領域の完全suffixに不一致』で拒否した。既承認core JSONは旧terminal suffix後へsync1/tenant2の3pathを追加済みだがguardが新外層を未認識だった。scripts/core_guard.pyとtests/test_core_guard.pyのexact2で、既固定8b834ec0のcore JSON実差分3pairだけを完全な外層として閉検査し旧terminal/first-ball/基線検査へ委譲する。raw core JSONは全3pathを含むまま実検出に使用し、除外/検出縮小/部分層/領域跨ぎ/誤順/重複/未知追加/旧prefix混入/層削除を拒否する。旧全層の定義・検査関数AST・同commit共変更拒否・委任証拠検査は保持、新定義とcore JSONを同commitで変更しない。新pathの今後追加を自由許可せず、既登録済み3pathの歴史追随は固定実Git原典から独立期待を採る。テストの現raw取得helperに必要な外層投影だけを追随し、既旧期待/全対向を保持する。作者pr192_harness_values_independentがcache-only exact2を作成し別非作者確認後root採用、実射影変化に限り単一196R4へ置換再導出し新証拠/通常push/CIを行う。旧R3成功や今回失敗を後発HEADの成功へ読み替えない。
