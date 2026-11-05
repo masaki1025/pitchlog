@@ -106,4 +106,15 @@ def create_app() -> FastAPI:
     configured = os.environ.get(_BINDING_CLIENT_VARIABLE)
     app.state.binding_client_config_path = Path(configured) if configured else None
     _activate_presentation(app.state.token_presentation)
+    if os.environ.get("PITCHLOG_UNDO_SPIKE") == "1":
+        # 取消の接続spike専用。製品の既定起動ではルートを追加しない。
+        from pitchlog.api.request_presentation import require_presented_token
+        from pitchlog.api.tenant_access import require_tenant_access
+        from pitchlog.sync.spike_undo_http import install as install_undo_spike
+
+        install_undo_spike(
+            app,
+            tenant_access=require_tenant_access,
+            presented_token=require_presented_token,
+        )
     return app

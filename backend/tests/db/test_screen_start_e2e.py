@@ -194,6 +194,9 @@ def _app_container(db, app_port: int, origin: str) -> list[str]:
         f"PITCHLOG_ALLOWED_ORIGINS={origin}",
         "--env",
         "PITCHLOG_BINDING_CLIENT_CONFIG=/run/pitchlog/public/binding-client.json",
+        # 取消spikeのscreen E2Eだけが使う。製品create_appの既定では無効。
+        "--env",
+        "PITCHLOG_UNDO_SPIKE=1",
     ]
     if (
         os.environ.get("PITCHLOG_E2E_INITIAL_DIAGNOSTIC") == "1"

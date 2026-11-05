@@ -356,6 +356,8 @@ def _replay_e1_without_binding(
     context: TenantContext,
     request: SyncRequest,
     fingerprints: tuple[str, ...],
+    *,
+    path: Literal["P1", "P2"] = "P2",
 ) -> AckResult | Literal["B6", "B7"] | None:
     """③認可後・V12前の D5 先行分類を writer binding 前に一度だけ行う。
 
@@ -368,6 +370,7 @@ def _replay_e1_without_binding(
         context: 実認証済みのテナント文脈。
         request: S-1 外形を通過した同期要求。
         fingerprints: 原wireから凍結した各イベントの指紋（要求順）。
+        path: 再掲を許す単球経路。既定は製品P2で、取消spikeだけP1を指定する。
 
     Returns:
         再掲 ACK、ACK を返さない境界 ``"B6"``/``"B7"``、または通常経路へ戻す
@@ -390,8 +393,8 @@ def _replay_e1_without_binding(
         or any(type(value) is not str for value in fingerprints)
     ):
         raise SourceBindingError("E1再掲の入力が不正")
-    if request.path != "P2" or len(request.events) != 1:
-        # 単球F1入口の範囲外は流儀どおり後段（_E1OutOfScope）へ委ねる。
+    if request.path != path or len(request.events) != 1:
+        # 単球入口の範囲外は流儀どおり後段（_E1OutOfScope）へ委ねる。
         return None
     event = request.events[0]
     if (
@@ -414,7 +417,7 @@ def _replay_e1_without_binding(
         d3 = _cell(rows[0], _GENERATION_COLUMNS, "confirmed_watermark")
         if type(d3) is not int:
             raise RuntimeError("D3 の型が不正")
-        candidate = classify_d5(scope, UUID(event.d5), fingerprints[0], "P2")
+        candidate = classify_d5(scope, UUID(event.d5), fingerprints[0], path)
     if candidate.kind == "unused":
         # 未使用 D5 は ⑤ 以降（V12・content・order）が正本の段階順。
         return None
@@ -665,6 +668,7 @@ def _apply_e1_f1(
     validator,
     registrations=None,
     targets=None,
+    spike_p1=False,
 ):
     """未公開のF1私有入口。実issuer/Port/登録不足は閉拒否する。"""
     from pitchlog.repositories.rg1 import RG1Unavailable, read_rg1_open
@@ -712,7 +716,10 @@ def _apply_e1_f1(
         PlayPrefixContentValidationPort,
         LineupPrefixContentValidationPort,
     }
-    if len(request.events) != 1 or (not ordinary and request.events[0].d1 != 1):
+    # 接続spikeの P1 取消だけは D1=1 に限らず、同じ実writer/権利/同期核を通す。
+    if len(request.events) != 1 or (
+        not ordinary and not spike_p1 and request.events[0].d1 != 1
+    ):
         raise _E1OutOfScope("E1要求はF1の範囲外")
     event = request.events[0]
     registrations = registrations or {}

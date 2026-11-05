@@ -9,6 +9,7 @@ import LoginScreen from './screens/LoginScreen.vue'
 import TeamScreen from './screens/TeamScreen.vue'
 import GameScreenEntryHost from './screens/GameScreenEntryHost.vue'
 import GameScreenEntryRecordHost from './screens/GameScreenEntryRecordHost.vue'
+import GameScreenUndoSpike from './screens/GameScreenUndoSpike.vue'
 import { resolveGameEntryReturnPath } from './screens/GameScreenEntryNavigation'
 import { useAuthStore } from './stores/authStore'
 
@@ -39,6 +40,13 @@ export function createAppRouter(history: RouterHistory = createWebHistory()) {
         path: '/games/:gameId/record',
         name: 'game-record',
         component: GameScreenEntryRecordHost,
+        meta: { requiresAuth: true },
+      },
+      {
+        // 取消の接続spike専用。製品の記録画面とは別routeで、正式統合時に置換する。
+        path: '/games/:gameId/undo-spike',
+        name: 'game-undo-spike',
+        component: GameScreenUndoSpike,
         meta: { requiresAuth: true },
       },
     ],

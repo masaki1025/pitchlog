@@ -1082,6 +1082,7 @@ def _port_read_types(kind: str):
     from pitchlog.repositories.roster import PlayerReadToken
     from pitchlog.sync.tokens import (
         GameReadToken,
+        OperationEventReadToken,
         RecordingGenerationByNumberReadToken,
         RecordingGenerationReadToken,
         TemporaryPlayerMappingReadToken,
@@ -1095,7 +1096,13 @@ def _port_read_types(kind: str):
             {RecordingGenerationReadToken, RecordingGenerationByNumberReadToken}
         ),
         "content": frozenset(
-            {PlayerReadToken, TemporaryPlayerMappingReadToken, GameReadToken}
+            {
+                PlayerReadToken,
+                TemporaryPlayerMappingReadToken,
+                GameReadToken,
+                RecordingGenerationReadToken,
+                OperationEventReadToken,
+            }
         ),
     }[kind]
 
@@ -1165,6 +1172,7 @@ def _is_port_command(operation):
         ProjectOrdinaryPitchToken,
         ValidateOrdinaryPitchToken,
     )
+    from pitchlog.sync.spike_undo_ports import SpikeUndoValidationToken
     from pitchlog.sync.terminal_pitch_tokens import (
         ProjectLineupPrefixToken,
         ProjectPlayPrefixToken,
@@ -1190,6 +1198,7 @@ def _is_port_command(operation):
             ValidateLineupPrefixToken,
             ProjectPlayPrefixToken,
             ProjectLineupPrefixToken,
+            SpikeUndoValidationToken,
             PortBindCurrentDeviceToken,
             PortCheckCurrentRightToken,
             PortCheckPresentedRightToken,
@@ -1259,6 +1268,7 @@ def _execute_port_command(handle, operation):
         ProjectOrdinaryPitchToken,
         ValidateOrdinaryPitchToken,
     )
+    from pitchlog.sync.spike_undo_ports import SpikeUndoValidationToken
     from pitchlog.sync.terminal_pitch_tokens import (
         ProjectLineupPrefixToken,
         ProjectPlayPrefixToken,
@@ -1315,6 +1325,14 @@ def _execute_port_command(handle, operation):
         return TenantOperationResult(
             ((accepted, None if accepted else "通常投球の実評価値と不一致"),)
         )
+    if type(operation) is SpikeUndoValidationToken:
+        operation.__post_init__()
+        from pitchlog.sync.spike_undo_validation import validate_spike_undo
+
+        accepted, reason = validate_spike_undo(
+            handle, operation.event, operation.writer
+        )
+        return TenantOperationResult(((accepted, reason),))
     if type(operation) is PortProjectFirstBallToken:
         if phase is not None:
             raise TenantBindingError("投影命令は判定phaseの外だけで使う")

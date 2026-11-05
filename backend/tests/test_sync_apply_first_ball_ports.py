@@ -35,6 +35,8 @@ def test_port_real_guard_and_original_event_command():
                 "pitchlog.sync.first_ball_recording_rights",
                 "FirstBallRecordingRightsPort",
             ),
+            ("pitchlog.sync.spike_undo_ports", "SpikeUndoContentValidationPort"),
+            ("pitchlog.sync.spike_undo_ports", "SpikeUndoProjectionPort"),
         }
     )
     event = SyncEvent(str(uuid4()), str(uuid4()), 1, "d4", "1")

@@ -32,6 +32,17 @@ import type {
   Scoreboard,
   StateFields,
 } from './stateTypes'
+import {
+  applyUndo,
+  type BoardDifference as UndoBoardDifference,
+  type BoolSpan as UndoBoolSpan,
+  type CursorDifference as UndoCursorDifference,
+  type HalfSpan as UndoHalfSpan,
+  type HistoryEntry as UndoHistoryEntry,
+  type IntSpan as UndoIntSpan,
+  type RunnersSpan as UndoRunnersSpan,
+  type StateDifference as UndoStateDifference,
+} from './undo'
 
 type DomainErrorCode =
   | 'INVALID_JSON'
@@ -515,6 +526,7 @@ function validateHistoryEntry(
   value: unknown,
   terminal: boolean = false,
   strikeout: boolean = false,
+  undo: boolean = false,
 ): DomainErrorCode | null {
   const entry = asObject(value)
   if (
@@ -526,7 +538,7 @@ function validateHistoryEntry(
   const difference = asObject(entry.difference)
   let keys = ['stateFields', 'scoreboard', 'statFlags']
   if (
-    strikeout &&
+    (strikeout || undo) &&
     difference !== null &&
     Object.prototype.hasOwnProperty.call(difference, 'battingOrderBySide')
   )
@@ -537,7 +549,7 @@ function validateHistoryEntry(
   if (stateError !== null) return stateError
   const boardError = historyFields(difference.scoreboard, false, terminal)
   if (boardError !== null) return boardError
-  if (strikeout && keys.includes('battingOrderBySide')) {
+  if ((strikeout || undo) && keys.includes('battingOrderBySide')) {
     const cursors = asObject(difference.battingOrderBySide)
     if (
       cursors === null ||
@@ -563,6 +575,325 @@ function validateHistoryEntry(
   )
     return 'INVALID_REQUEST'
   return null
+}
+
+/** 履歴差分の整数 span を内部型へ読む（境界では十進文字列のみ）。 */
+function readIntSpan(value: unknown): UndoIntSpan | null {
+  const pair = asObject(value)
+  if (pair === null || !exactKeys(pair, ['before', 'after'])) return null
+  const before = parseDecimalInteger(pair.before)
+  const after = parseDecimalInteger(pair.after)
+  if (before === null || after === null) return null
+  return { before: before, after: after }
+}
+
+/** 履歴差分の得点 span を内部型へ読む。 */
+function readScoreSpan(
+  value: unknown,
+): {
+  before: { home: bigint; away: bigint }
+  after: { home: bigint; away: bigint }
+} | null {
+  const pair = asObject(value)
+  if (pair === null || !exactKeys(pair, ['before', 'after'])) return null
+  const before = asObject(pair.before)
+  const after = asObject(pair.after)
+  if (
+    before === null ||
+    after === null ||
+    !exactKeys(before, ['home', 'away']) ||
+    !exactKeys(after, ['home', 'away'])
+  )
+    return null
+  const beforeHome = parseDecimalInteger(before.home)
+  const beforeAway = parseDecimalInteger(before.away)
+  const afterHome = parseDecimalInteger(after.home)
+  const afterAway = parseDecimalInteger(after.away)
+  if (
+    beforeHome === null ||
+    beforeAway === null ||
+    afterHome === null ||
+    afterAway === null
+  )
+    return null
+  return {
+    before: { home: beforeHome, away: beforeAway },
+    after: { home: afterHome, away: afterAway },
+  }
+}
+
+/** 攻守 span を読む。 */
+function halfSpan(value: unknown): UndoHalfSpan | null {
+  const span = asObject(value)
+  if (span === null || !exactKeys(span, ['before', 'after'])) return null
+  if (
+    (span.before !== 'top' && span.before !== 'bottom') ||
+    (span.after !== 'top' && span.after !== 'bottom')
+  )
+    return null
+  return { before: span.before, after: span.after }
+}
+
+/** 走者 span を読む（表記は入力のまま保持する）。 */
+function runnersSpan(value: unknown): UndoRunnersSpan | null {
+  const span = asObject(value)
+  if (span === null || !exactKeys(span, ['before', 'after'])) return null
+  const before = textField(span.before)
+  const after = textField(span.after)
+  if (before === null || after === null) return null
+  return { before: before as Runners, after: after as Runners }
+}
+
+/** 真偽値 span を読む。 */
+function boolSpan(value: unknown): UndoBoolSpan | null {
+  const span = asObject(value)
+  if (span === null || !exactKeys(span, ['before', 'after'])) return null
+  if (typeof span.before !== 'boolean' || typeof span.after !== 'boolean')
+    return null
+  return { before: span.before, after: span.after }
+}
+
+/** 検証済みの履歴行 1 件を内部型へ読む。 */
+function readHistoryEntry(value: unknown): UndoHistoryEntry | null {
+  const entry = asObject(value)
+  if (entry === null) return null
+  const difference = asObject(entry.difference)
+  if (difference === null) return null
+  const stateFields = asObject(difference.stateFields)
+  const scoreboard = asObject(difference.scoreboard)
+  const statFlags = asObject(difference.statFlags)
+  if (stateFields === null || scoreboard === null || statFlags === null)
+    return null
+  const half = fieldValue(stateFields, 'state.half')
+  const runners = fieldValue(stateFields, 'state.runners')
+  const tiebreakActive = fieldValue(stateFields, 'state.tiebreakActive')
+  const gameEnded = fieldValue(stateFields, 'state.gameEnded')
+  const score = fieldValue(stateFields, 'state.score')
+  const stateDifference: UndoStateDifference = {
+    half: halfSpan(half),
+    strikes: readIntSpan(fieldValue(stateFields, 'state.count.strikes')),
+    balls: readIntSpan(fieldValue(stateFields, 'state.count.balls')),
+    outs: readIntSpan(fieldValue(stateFields, 'state.outs')),
+    runners: runnersSpan(runners),
+    battingOrder: readIntSpan(fieldValue(stateFields, 'state.battingOrder')),
+    tiebreakActive: boolSpan(tiebreakActive),
+    gameEnded: boolSpan(gameEnded),
+    inning: readIntSpan(fieldValue(stateFields, 'state.inning')),
+    score: readScoreSpan(score),
+  }
+  const boardDifference: UndoBoardDifference = {
+    inningScores: readScoreSpan(fieldValue(scoreboard, 'inningScores')),
+    hits: readIntSpan(fieldValue(scoreboard, 'hits')),
+    errors: readIntSpan(fieldValue(scoreboard, 'errors')),
+    strikeouts: readIntSpan(fieldValue(scoreboard, 'strikeouts')),
+    walks: readIntSpan(fieldValue(scoreboard, 'walks')),
+  }
+  let cursorDifference: UndoCursorDifference | null = null
+  if (Object.prototype.hasOwnProperty.call(difference, 'battingOrderBySide')) {
+    const cursors = asObject(difference.battingOrderBySide)
+    if (cursors === null) return null
+    cursorDifference = {
+      away: readIntSpan(fieldValue(cursors, 'away')),
+      home: readIntSpan(fieldValue(cursors, 'home')),
+    }
+  }
+  const flags: Record<string, boolean> = {}
+  for (const pair of Object.entries(statFlags)) {
+    const key = pair.shift()
+    const raw = pair.pop()
+    if (typeof key !== 'string' || typeof raw !== 'boolean') return null
+    Object.assign(flags, Object.fromEntries([[key, raw]]))
+  }
+  return {
+    kind: entry.kind as string,
+    difference: {
+      stateFields: stateDifference,
+      scoreboard: boardDifference,
+      statFlags: flags,
+      battingOrderBySide: cursorDifference,
+    },
+  }
+}
+
+/** 内部の整数 span を境界の十進文字列 span へ戻す。 */
+function intSpanJson(span: UndoIntSpan): Record<string, unknown> {
+  return {
+    before: formatDecimalInteger(span.before),
+    after: formatDecimalInteger(span.after),
+  }
+}
+
+/** 内部の得点 span を境界の十進文字列 span へ戻す。 */
+function scoreSpanJson(span: {
+  before: { home: bigint; away: bigint }
+  after: { home: bigint; away: bigint }
+}): Record<string, unknown> {
+  return {
+    before: {
+      home: formatDecimalInteger(span.before.home),
+      away: formatDecimalInteger(span.before.away),
+    },
+    after: {
+      home: formatDecimalInteger(span.after.home),
+      away: formatDecimalInteger(span.after.away),
+    },
+  }
+}
+
+/** 内部の履歴行 1 件を境界の JSON へ戻す。 */
+function historyEntryJson(entry: UndoHistoryEntry): Record<string, unknown> {
+  const stateFields: Record<string, unknown> = {}
+  const sf = entry.difference.stateFields
+  if (sf.half !== null)
+    Object.assign(stateFields, {
+      'state.half': { before: sf.half.before, after: sf.half.after },
+    })
+  if (sf.strikes !== null)
+    Object.assign(stateFields, {
+      'state.count.strikes': intSpanJson(sf.strikes),
+    })
+  if (sf.balls !== null)
+    Object.assign(stateFields, {
+      'state.count.balls': intSpanJson(sf.balls),
+    })
+  if (sf.outs !== null)
+    Object.assign(stateFields, { 'state.outs': intSpanJson(sf.outs) })
+  if (sf.runners !== null)
+    Object.assign(stateFields, {
+      'state.runners': {
+        before: sf.runners.before,
+        after: sf.runners.after,
+      },
+    })
+  if (sf.battingOrder !== null)
+    Object.assign(stateFields, {
+      'state.battingOrder': intSpanJson(sf.battingOrder),
+    })
+  if (sf.tiebreakActive !== null)
+    Object.assign(stateFields, {
+      'state.tiebreakActive': {
+        before: sf.tiebreakActive.before,
+        after: sf.tiebreakActive.after,
+      },
+    })
+  if (sf.gameEnded !== null)
+    Object.assign(stateFields, {
+      'state.gameEnded': {
+        before: sf.gameEnded.before,
+        after: sf.gameEnded.after,
+      },
+    })
+  if (sf.inning !== null)
+    Object.assign(stateFields, { 'state.inning': intSpanJson(sf.inning) })
+  if (sf.score !== null)
+    Object.assign(stateFields, { 'state.score': scoreSpanJson(sf.score) })
+  const scoreboard: Record<string, unknown> = {}
+  const sb = entry.difference.scoreboard
+  if (sb.inningScores !== null)
+    Object.assign(scoreboard, { inningScores: scoreSpanJson(sb.inningScores) })
+  if (sb.hits !== null)
+    Object.assign(scoreboard, { hits: intSpanJson(sb.hits) })
+  if (sb.errors !== null)
+    Object.assign(scoreboard, { errors: intSpanJson(sb.errors) })
+  if (sb.strikeouts !== null)
+    Object.assign(scoreboard, {
+      strikeouts: intSpanJson(sb.strikeouts),
+    })
+  if (sb.walks !== null)
+    Object.assign(scoreboard, { walks: intSpanJson(sb.walks) })
+  const difference: Record<string, unknown> = {
+    stateFields: stateFields,
+    scoreboard: scoreboard,
+    statFlags: entry.difference.statFlags,
+  }
+  if (entry.difference.battingOrderBySide !== null) {
+    const cursors: Record<string, unknown> = {}
+    const cd = entry.difference.battingOrderBySide
+    if (cd.away !== null) Object.assign(cursors, { away: intSpanJson(cd.away) })
+    if (cd.home !== null) Object.assign(cursors, { home: intSpanJson(cd.home) })
+    difference.battingOrderBySide = cursors
+  }
+  return { kind: entry.kind, difference: difference }
+}
+
+/** 取消の JSON 境界。履歴差分を逆適用し、契約と同じ意味の結果を返す。 */
+function applyUndoJson(requestJson: string): string {
+  if (typeof requestJson !== 'string') return errorResponse('INVALID_REQUEST')
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(requestJson) as unknown
+    if (hasDuplicateKeys(requestJson)) return errorResponse('INVALID_JSON')
+  } catch {
+    return errorResponse('INVALID_JSON')
+  }
+  const request = asObject(parsed)
+  if (request === null || !exactKeys(request, ['current', 'history']))
+    return errorResponse('INVALID_REQUEST')
+  const current = asObject(request.current)
+  const history = asObject(request.history)
+  if (current === null || history === null || !exactKeys(history, ['stack']))
+    return errorResponse('INVALID_REQUEST')
+  const currentKeys = Object.keys(current)
+  if (
+    !currentKeys.includes('stateFields') ||
+    !currentKeys.includes('scoreboard') ||
+    currentKeys.some(
+      (key) =>
+        key !== 'stateFields' &&
+        key !== 'scoreboard' &&
+        key !== 'battingOrderBySide',
+    )
+  )
+    return errorResponse('INVALID_REQUEST')
+  const stateSource = asObject(current.stateFields)
+  const boardSource = asObject(current.scoreboard)
+  if (stateSource === null || boardSource === null)
+    return errorResponse('INVALID_REQUEST')
+  const state = readState(stateSource)
+  const board = readBoard(boardSource)
+  if (state === null || board === null) return errorResponse('INVALID_REQUEST')
+  let cursors: BattingOrderBySide | null = null
+  if (Object.prototype.hasOwnProperty.call(current, 'battingOrderBySide')) {
+    const raw = asObject(current.battingOrderBySide)
+    if (raw === null || !exactKeys(raw, ['away', 'home']))
+      return errorResponse('INVALID_REQUEST')
+    const away = parseDecimalInteger(raw.away)
+    const home = parseDecimalInteger(raw.home)
+    if (away === null || home === null)
+      return errorResponse('INVALID_DECIMAL_INTEGER')
+    cursors = { away: away, home: home }
+  }
+  if (!Array.isArray(history.stack)) return errorResponse('INVALID_REQUEST')
+  let stack: Array<UndoHistoryEntry> = []
+  for (const item of history.stack) {
+    const error = validateHistoryEntry(item, false, false, true)
+    if (error !== null) return errorResponse(error)
+    const entry = readHistoryEntry(item)
+    if (entry === null) return errorResponse('INVALID_REQUEST')
+    stack = stack.concat([entry])
+  }
+  let outcome
+  if (cursors === null) outcome = applyUndo(state, board, stack, null)
+  else outcome = applyUndo(state, board, stack, cursors)
+  const after: Record<string, unknown> = {
+    stateFields: stateJson(outcome.after.stateFields),
+    scoreboard: boardJson(outcome.after.scoreboard),
+  }
+  if (outcome.after.battingOrderBySide !== null)
+    Object.assign(after, {
+      battingOrderBySide: orderJson(outcome.after.battingOrderBySide),
+    })
+  return JSON.stringify({
+    ok: true,
+    value: {
+      operationResult: outcome.operationResult,
+      after: after,
+      historyEffect: {
+        pops: formatDecimalInteger(outcome.historyEffect.pops),
+      },
+      historyContext: outcome.historyContext.map(historyEntryJson),
+    },
+  })
 }
 
 /** JSON.parse済みの文法に対し、object内の復号済みキー重複だけを検査する。 */
@@ -995,7 +1326,7 @@ function deriveLineupPlayPrefixWithContinuation(requestJson: string): string {
   }
 }
 
-/** JSON文字列だけの公開表。未実装の取消/訂正/他結果は公開しない。 */
+/** JSON文字列だけの公開表。取消計算を含み、未実装の訂正/他結果は公開しない。 */
 export const domainOperations = Object.freeze({
   ping,
   deriveState,
@@ -1006,6 +1337,7 @@ export const domainOperations = Object.freeze({
   deriveLineupPlayPrefixWithContinuation,
   deriveFirstPitchWithContinuation,
   deriveOrdinaryPitchWithContinuation,
+  applyUndo: applyUndoJson,
   validateInitialGameRoster,
   quantizeCourse,
 })

@@ -142,6 +142,9 @@ PORT_IMPLEMENTATIONS: frozenset[tuple[str, str]] = frozenset(
         ("pitchlog.sync.ordinary_pitch_ports", "LineupPrefixProjectionPort"),
         ("pitchlog.sync.first_ball_projection", "FirstBallProjectionPort"),
         ("pitchlog.sync.first_ball_recording_rights", "FirstBallRecordingRightsPort"),
+        # 取消の接続spike専用。製品 create_app には接続しない。
+        ("pitchlog.sync.spike_undo_ports", "SpikeUndoContentValidationPort"),
+        ("pitchlog.sync.spike_undo_ports", "SpikeUndoProjectionPort"),
     }
 )
 _PORT_VERIFIER: Callable[[object], None] | None = None

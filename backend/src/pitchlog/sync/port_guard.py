@@ -483,6 +483,10 @@ def validate_port_modules(modules: Collection[str] | None = None) -> None:
 
 def require_registered_port(port: object) -> None:
     """登録済みクラスとの同一性を、ポート呼び出し前に照合する。"""
+    # 接続spikeのポートは製品経路からも登録表の静的検査対象になるため、
+    # 呼び出し前にモジュールだけを読み込む。ルートは install された場合だけ動く。
+    from pitchlog.sync import spike_undo_ports as _spike_undo_ports  # noqa: F401
+
     validate_port_modules()
     for module_name, class_name in ports.PORT_IMPLEMENTATIONS:
         module = sys.modules.get(module_name)

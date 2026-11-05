@@ -2,7 +2,11 @@
 import { computed, toRaw, ref, watch } from 'vue'
 import GameScreenFirstBall from './GameScreenFirstBall.vue'
 import GameScreenOrdinaryPitch from './GameScreenOrdinaryPitch.vue'
-import { ordinaryContextFromRead } from '../api/recordedPrefixGame'
+import GameScreenUndoSpike from './GameScreenUndoSpike.vue'
+import {
+  ordinaryContextFromRead,
+  readRecordedPrefixGame,
+} from '../api/recordedPrefixGame'
 import { sameOrdinaryWire } from '../api/ordinaryPitchWire'
 import {
   playContextFromRead,
@@ -45,6 +49,21 @@ const projection = computed(() => {
   return 'invalid' as const
 })
 const restore = useRecordedRestore(gameId, auto, legacy, projection)
+async function loadSpikeOrdinary() {
+  if (!gameId.value || auth.teamId === null) return
+  spikeOrdinaryMessage.value = '通常投球の状態を取得しています'
+  try {
+    const read = await readRecordedPrefixGame(gameId.value)
+    if (read.kind !== 'found') {
+      spikeOrdinaryMessage.value = '通常投球の状態を取得できません'
+      return
+    }
+    spikeOrdinaryContext.value = ordinaryContextFromRead(read.game, auth.teamId)
+    spikeOrdinaryMessage.value = '通常投球を記録できます'
+  } catch {
+    spikeOrdinaryMessage.value = '通常投球の状態を取得できません'
+  }
+}
 async function enterLineup() {
   await router.replace({
     query: { ...route.query, recording: 'play-prefix-v3' },
@@ -72,6 +91,9 @@ const recorded = computed(
       BigInt(restore.game.value.prefix_ref.length) > 0n),
 )
 const prefixContext = ref<RecordingContext | null>(null)
+// 取消の接続spike専用: route遷移を伴わず通常v1の入力を同じ画面へ接続する。
+const spikeOrdinaryContext = ref<RecordingContext | null>(null)
+const spikeOrdinaryMessage = ref('')
 let contextSequence = 0
 // pending/確認済みの同値入力だけを保持し、失敗値を再利用しない。
 let watchedContextInput: unknown = null
@@ -346,5 +368,26 @@ const history = computed(() =>
     >
       三振・攻守交代を含む投球の記録へ
     </button>
+    <section
+      v-if="gameId"
+      aria-label="取消spikeの通常投球入力"
+      class="space-y-3 rounded-xl border p-4"
+    >
+      <h2 class="text-lg font-bold">通常投球の入力（取消spike）</h2>
+      <p role="status">{{ spikeOrdinaryMessage }}</p>
+      <button
+        type="button"
+        data-testid="spike-load-ordinary"
+        class="min-h-11 rounded-lg border px-3 py-2"
+        @click="loadSpikeOrdinary"
+      >
+        通常投球の状態を取得
+      </button>
+      <GameScreenOrdinaryPitch
+        v-if="spikeOrdinaryContext"
+        :context="spikeOrdinaryContext"
+      />
+    </section>
+    <GameScreenUndoSpike v-if="gameId" />
   </section>
 </template>

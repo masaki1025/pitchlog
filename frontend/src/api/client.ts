@@ -245,7 +245,11 @@ async function requestResponse<T>(
   if (
     sync !== undefined &&
     (method !== 'POST' ||
-      !/^\/games\/[0-9a-f-]{36}\/sync\/events$/.test(path) ||
+      !(
+        /^\/games\/[0-9a-f-]{36}\/sync\/events$/.test(path) ||
+        // 取消の接続spikeだけは、実端末提示を同じ検証付きで送る。
+        /^\/spike\/games\/[0-9a-f-]{36}\/undo$/.test(path)
+      ) ||
       !isCanonicalUuid(sync.deviceId) ||
       !isCanonicalUuid(sync.attempt) ||
       !/^[\x21-\x7e]+$/.test(sync.deviceCredential))

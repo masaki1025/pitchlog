@@ -108,8 +108,18 @@ def test_sealed_ui_product_server(
         secrets.token_bytes(32)
     ).decode("ascii")
     from pitchlog.api.app import create_app
+    from pitchlog.api.request_presentation import require_presented_token
+    from pitchlog.api.tenant_access import require_tenant_access
+    from pitchlog.sync.spike_undo_http import install as install_undo_spike
 
-    _serve_browser_app(create_app(), (first, second))
+    app = create_app()
+    # 取消の接続spikeは製品 create_app ではなく、この使い捨てE2E合成だけに接続する。
+    install_undo_spike(
+        app,
+        tenant_access=require_tenant_access,
+        presented_token=require_presented_token,
+    )
+    _serve_browser_app(app, (first, second))
 
 
 def _serve_browser_app(
