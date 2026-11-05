@@ -376,3 +376,6 @@ author pr191へcache-onlyの実装4＋CI厳密試験1の計5を許可し、rootC
 
 
 R7 exact5のsource採用（2026-11-06 JST、PO委任Codex /root判断）: 作者packetd0ac3ec62e8b30e7a4affdd2e65bc05b909420b5bbca34091bc82c936044598cを非作者0cafeb69fd79c903a9797e0b98df0f07796aba094d881b70fe687ac0f325591c/checksb15fc0fcb403da97d298f5868e0d7fbe99764b7b31c99429f0da7cca7d5f5905で採用する。独立pure40/CI106、追加39誤配線拒否、公式Alembic1.19.2のsignature作成前hookを確認。対象1の実catalog23属性の一致後に反射Cだけ復元し通常比較へ渡す。比較集合/op削除/例外の成功変換なし、他索引/create/drop/offline/既metadata/S3/0040本体を保持。初回P1×2のsource是正を確認した結果であり、実PG正常＋7負はまだroot次条件。actual5全SHA照合後、owned9（新8＋既全schemaaudit1）でcheck/拒否と全構造を同固定版へ結合する。
+
+
+R7実PGの受入結果（2026-11-06 JST、PO委任Codex /root判断）: 固定157e495eのowned pr196-current0040-smoke-r2が9成功49.06秒。新正常1は実ownerで0039→0040→current(check_heads)→check、誤collation/predicate/expression/unique/order/owner/validityの実catalog7負と、既schemaauditの全構造exact-set1を通した。tracked HEAD/tree/index前後同一・所有PG削除をresultへ固定。元r1の1失敗6.56秒・初回レビューP1×2を上書きしない。actualpure40/CI106成功7.15秒も確認。rootの独立DB実行ではなく作者側実行として扱い、別非作者source確認0cafeb69…と対象版を結合する。これでR7 source是正の2件はsource/実PG範囲で解消、正式R7全値/最終HEAD/公開証拠/全必須CIは別に残る。全MVP・運用・実機/P6blind/本人署名は未成立。
