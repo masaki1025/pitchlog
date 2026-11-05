@@ -113,6 +113,7 @@ def _registration() -> FunctionOperationRegistration:
 
 def test_product_function_registry_keeps_rg1_and_adds_one_rule_operation() -> None:
     """既16件を保持し、v2 prefixの正規4件を含む全集合を照合する。"""
+    from pitchlog.repositories.batted_ball_options import BattedBallOptionsToken
     from pitchlog.repositories.first_ball import (
         _BindFirstBallDeviceToken,
         _CheckFirstBallRightToken,
@@ -149,6 +150,7 @@ def test_product_function_registry_keeps_rg1_and_adds_one_rule_operation() -> No
     assert tuple(
         entry.operation_id for entry in operation_registry.PRODUCT_FUNCTION_OPERATIONS
     ) == (
+        "RECORDING_VOCABULARIES:read_batted_ball_options",
         "RG1:precheck",
         "RG1:commit_check",
         "RG1:scope_binding",
@@ -172,6 +174,7 @@ def test_product_function_registry_keeps_rg1_and_adds_one_rule_operation() -> No
         "SYNC_LINEUP_PREFIX:read_lineup_started_origin",
     )
     assert set(operation_registry.FUNCTION_OPERATION_REGISTRY) == {
+        BattedBallOptionsToken,
         RG1PrecheckToken,
         RG1CommitCheckToken,
         RG1ScopeBindingToken,
@@ -2100,7 +2103,7 @@ def test_parent_literal_function_bindings_keep_same_objects() -> None:
     assert all(
         actual is expected
         for actual, expected in zip(
-            operation_registry.PRODUCT_FUNCTION_OPERATIONS[4:9],
+            operation_registry.PRODUCT_FUNCTION_OPERATIONS[5:10],
             original,
             strict=True,
         )
