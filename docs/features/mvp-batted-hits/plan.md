@@ -261,3 +261,6 @@ PR196のCI静的追随（2026-11-05、PO委任Codex /root判断）: 同70158 CI4
 
 
 固定値scan追随の是正（2026-11-05、PO委任Codex /root判断）: 作者確認で既check_frozen_baselines.pyの通常規則はallowlistへの新pair追加を禁止していると判明したため、前記scan allowlist追加案は撤回し、同JSON/スキャナ/全拒否を不変更とする。既PR192で採用済みのtenant7.7 frozen_inputs型付固定参照と、既first_ball_expected_source_pins閉fixtureへの移設を用いる。候補追加scopeは既Python5file（宣言/storage/supply試験、checker、census試験）＋既pins helper/fixture2、新core参照3はcore作者の既test_core_guard.py内で同typed参照へ移設する。正式frozen-inputsへの最小value/purpose/sources追記proposalはrootだけが適用する。全旧pin値・旧group・独立先置き期待・固定Git/Eblob・祖先・旧15tuple4ownerを保持し、現在source/製品出力から期待値を採取しない。checker参照は既PR192の厳格取得と同じように欠落/未知/異型/用途/consumer不一致を拒否する。実code差分採用前に各追加scopeの必要性と前後全値を別非作者が確認し、正式R4と既全CLIをrootが導出する。Python文字列分割等によるscanner回避、追加禁止例外/新免除は不可。
+
+
+型付参照の互換追随（2026-11-05、PO委任Codex /root判断）: 196固定値はimport時JSON/Git読取やlazy module属性へ置換せず、必要な新196入口だけroot引数の厳格getterで取得し旧inline/歴史素材の前提を増やさない。不可分な追加はtests/test_pr196_tenant_source_registration.pyの旧private定数参照8とtests/test_check_tenant_boundary_bypass.pyのformal_base参照1の取得先追随exact2だけ。既16/15分類・固定fixture/E/祖先/全反例を保持し、全repo参照検索で取りこぼしを確認する。censusの同取得先追随は既scope内。許可外の新callerや新動的機構は足さず、全移設前後値と拒否を非作者が再照合する。
