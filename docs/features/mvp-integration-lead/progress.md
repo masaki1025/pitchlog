@@ -1,5 +1,13 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 続き：2026-11-05 11:22 JST（#192 R5保存、安打4種の画面成功と最終DB照合、成績実接合）
+
+- **正式基線**: GitHub照合で#191はeb8b31cdへmerged、#192は公開67858d76/Draft。全CI41949597842はterminal failureで成功扱いにしない。backend4/frontend等は成功、harness1の2件は既凍結fixture期待リスト追加漏れと訂正前の公開証拠JSON参照。後者はraw JSONへ是正した本文run41949597910成功、source変更の代替にしない。前者exact1は非作者7fafcbac…後a1d213d1保存。公式helperのR5は旧36→単一192/37・9revision不変・base300/pin83を全保持、未参照2だけ退避差替、非作者1b05355d…で完全再導出一致、tenant CLI成功。6c779700へ保存、最終非作者binding/公開証拠/通常push/全CIは未了。
+- **利用者操作の実証**: 安打候補5c6384b8のowned HTTPS r4で単打/二塁打/三塁打/本塁打の全4ブラウザ試験が成功（約1.3分）。各画面新規作成→開始→安打→次球→元安打の同body/attempt再送ACK重複→reloadを実行。ただし外側pytestは115.27秒で失敗、公開runner7fieldを物理10fieldへ直接比較した誤検査。既物理全列比較は成功しており、それを保持した正式public7/private3の厳密射影へexact1修復、作者0bf5dcb8…/非作者8f048699…（正常/18拒否）を照合し3310dcd1へ保存。同固定HEADでowned r5を実行中、外側DB最終照合の成功はまだ主張しない。共有DSN未継承/独立PG/既試験TLSパスのみ使用、実機・運用HTTPSではない。
+- **成績接続**: 元stats枝の閉値codec2は初回P1（未規定128桁制限）と反映履歴を保持し非作者428f9bd9…/独立93件確認、d49eccb1保存。SQL4/計算と共有root資格は別。新接続WT feature-mvp-stats-native-connectionは通常依存merge候補、migration0041→既batted0040を4adffaf0で接合し旧DDL全AST保持（非作者5a8c26d4…）。canonical共有source5は作者f63a9975…完了・非作者レビュー中、schema再適用body欠落の疑義を検証中で成立扱いにしない。rootは実行時SQL検証がPrettierを要求する問題へ、同validation/同SQLbackendの二SQL専用APIを追加。既七対象全byte/hashを実公式生成で確認、core入力hashのみ追随。新旧30検査/ruff/ty成功、独立レビュー待ち。実同frame保存hook/5関数登録/RRRO資格/PG/HTTP/成績表示は引き続き未接続。
+- **次の作業/所有**: rootは#192最終binding→公開証拠→一回push→CI、安打r5実測、成績共有registry/transaction/sync接合と台帳を専有。canonical5はレビュー後の是正を元作者へ限定移管し並行衝突を避ける。CSV実供給/取消訂正/全操作offline/担当交代/閲覧更新/全27成績/負荷復旧/ユーザー実機のMVP条件を維持、Goal active。
+
+
 ## 続き：2026-11-05（#192最終候補を公開し全CIへ、安打画面の停止を診断）
 
 - **#192統合候補**: backend登録追随14を963a543f、単一受理R4を67858d763f130cc37de989d5b3073539e7c33806へ保存し通常push済み。最終非作者60ef630c…がbase eb8→HEADの222paths/diff d1c768ee…、9747以後の製品runtime/数学/artifact/画面/SQL全byte不変を確認。既画面10球r12を継承しつつ同6785で新GUI実行済みとはしない。R4非作者e10bc86b…は公式empty-root54blob/差分9完全一致、old36→単一192/37、current323/base300/pin83保持/不要2だけ退避削除/3変異拒否を確認。rootはPO委任7.7判断として受理、本人署名/P6blindではない。公開証拠comment6647177429、本文pointer更新済み。
