@@ -253,7 +253,7 @@ def test_private_table_profiles_match_existing_migration_owner_force_rls():
 
     from pitchlog.db.game_state.stats import StatsPrimitiveFact, StatsPrimitiveSource
 
-    migration = sql._ROOT / "backend/migrations/versions/0040_stats_fact_versions.py"
+    migration = sql._ROOT / "backend/migrations/versions/0041_stats_fact_versions.py"
     tree = ast.parse(migration.read_text())
     upgrade = next(
         node

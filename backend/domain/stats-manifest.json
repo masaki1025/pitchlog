@@ -8,7 +8,7 @@
     "backend/domain/model.schema.json": "1793f0ea0dcbae7b2868475a5fcd3e132bac2e40eeba94d16f9d65f9372a8e1b",
     "backend/domain/play-export.model.json": "59f64a5e9b163ed196af9dad9750beb4fae76ae7512d96e187e0ce392fe4e999",
     "backend/domain/stats.model.json": "4836ed1a6c6f39fea47a5a9850bc3b9590bbe8a7c0f509c4834851e93592ded5",
-    "backend/src/pitchlog/domaingen/core.py": "3ffa693599cd66c515ff14441082aaaa4a878f7a9c16966b5d262b54fd13ba5c",
+    "backend/src/pitchlog/domaingen/core.py": "dea0ac1b1d9ce812e071e4b6d12182fe1048944813dad5db186e57f2ef70b4b6",
     "backend/src/pitchlog/domaingen/pregen_checks.py": "3b3f24e53d50b7efdc03b171f5f7d1e2399802ec2e2d6558c213dda79e1416c9",
     "backend/src/pitchlog/domaingen/formatter.py": "ed5bd72638dd84f93ae7e983bcd290e355c99f07c502bb287ede604ea284e57b",
     "backend/src/pitchlog/domaingen/backends/python.py": "06dd4721116cf4b984f60a045f629421cdd38bb7536627c4a830f2afec8a458b",

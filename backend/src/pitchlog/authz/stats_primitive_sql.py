@@ -8,7 +8,7 @@ import re
 from pathlib import Path
 
 from pitchlog.authz.sync_right_sql import _STAMP_COLS
-from pitchlog.domaingen.core import _canonical_hash, generate_primitive_bundle
+from pitchlog.domaingen.core import _canonical_hash, generate_primitive_sql_bundle
 from pitchlog.stats.generated.receiver import METRIC_IDS, SOURCE_MODEL_HASH
 
 _ROOT = Path(__file__).parents[4]
@@ -29,7 +29,7 @@ def _verified_inputs(root: Path) -> tuple[str, dict[str, str], str, str]:
     common_model = json.loads((root / _MODEL_PATH).read_text())
     consumer_model = json.loads((root / _CONSUMER_PATH).read_text())
     manifest = json.loads((root / _MANIFEST_PATH).read_text())
-    bundle = generate_primitive_bundle(common_model, consumer_model)
+    bundle = generate_primitive_sql_bundle(common_model, consumer_model)
     model_hash = _canonical_hash(common_model)
     raw = (root / _SQL_PATH).read_text()
     binding = manifest["t5ArtifactSetBinding"]

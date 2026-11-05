@@ -864,6 +864,34 @@ def generate_primitive_bundle(
     Raises:
         GenerationError: 未知/型違い/循環参照や宣言違反がある場合。
     """
+    return _generate_primitive_targets(common_model, consumer_model, sql_only=False)
+
+
+def generate_primitive_sql_bundle(
+    common_model: Mapping[str, Any], consumer_model: Mapping[str, Any]
+) -> dict[str, str]:
+    """共通の全入力検証から固定二SQLを生成し、外部整形を起動しない。
+
+    Args:
+        common_model: 唯一の人手式を持つ共通model。
+        consumer_model: 同じprimitive ID/type/hashだけを参照するstats model。
+
+    Returns:
+        固定された二SQL生成先と生成内容。
+
+    Raises:
+        GenerationError: 未知/型違い/循環参照や宣言違反がある場合。
+    """
+    return _generate_primitive_targets(common_model, consumer_model, sql_only=True)
+
+
+def _generate_primitive_targets(
+    common_model: Mapping[str, Any],
+    consumer_model: Mapping[str, Any],
+    *,
+    sql_only: bool,
+) -> dict[str, str]:
+    """七対象とSQL専用入口で入力検証と唯一SQL backendを共有する。"""
     from pitchlog.domaingen.backends import python as py_backend
     from pitchlog.domaingen.backends import sql as sql_backend
     from pitchlog.domaingen.backends import typescript as ts_backend
@@ -918,9 +946,16 @@ def generate_primitive_bundle(
         expected = [{"id": m["id"], "type": "integer"} for m in program["metrics"]]
         if reference["refs"] != expected:
             raise ValueError("primitive ID/型/順序の参照不一致")
+        queries = sql_backend.generate_typed_queries(program, source_hash)
+        if sql_only:
+            return {
+                "backend/src/pitchlog/exports/generated/play_primitives.sql": queries[
+                    "window"
+                ],
+                "backend/src/pitchlog/stats/generated/stats.sql": queries["grouped"],
+            }
         py = py_backend.generate_typed_facts(program, source_hash)
         ts = ts_backend.generate_typed_facts(program, source_hash)
-        queries = sql_backend.generate_typed_queries(program, source_hash)
         raw_bundle = {
             "backend/src/pitchlog/stats/generated/facts.py": py,
             "frontend/src/lib/generated/statsPrimitives.ts": ts,
