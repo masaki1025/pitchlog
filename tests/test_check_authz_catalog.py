@@ -6882,3 +6882,98 @@ def test_batted_owner_remains_one_closed_addition_to_old_seventeen(fault: str) -
         row[fault] = True
     with pytest.raises(checker.CatalogError):
         checker.validate_ddl_elements(asset, REPOSITORY_ROOT, checker.PRODUCT_SPEC)
+
+
+def _stats_private_classification_root(tmp_path):
+    """共有資産に書かず59表の論理母集合だけを専有tmpへ置く。"""
+    for path in (checker.PRODUCT_SCHEMA_MANIFEST, checker.PRODUCT_TABLE_CLASSIFICATION):
+        destination = tmp_path / path
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_bytes((REPOSITORY_ROOT / path).read_bytes())
+    return tmp_path
+
+
+def test_stats_private_table_universe59_and_old56(tmp_path):
+    """旧56を全保持し、新私有3だけをoptionalな閉集合へ足す。"""
+    root = _stats_private_classification_root(tmp_path)
+    assert len(checker._product_table_universe(root)) == 59
+    stats = {"stats_fact_versions", "stats_primitive_sources", "stats_primitive_facts"}
+    inputs = [
+        (checker.PRODUCT_SCHEMA_MANIFEST, "tables", "name"),
+        (checker.PRODUCT_TABLE_CLASSIFICATION, "tables", "table"),
+    ]
+    for path, key, name in inputs:
+        value = json.loads((root / path).read_text())
+        value[key] = [row for row in value[key] if row[name] not in stats]
+        (root / path).write_text(json.dumps(value))
+    assert len(checker._product_table_universe(root)) == 56
+
+
+@pytest.mark.parametrize(
+    "change", ["partial1", "partial2", "unknown", "profile", "owner", "reason", "role", "extra"]
+)
+def test_stats_private_universe_partial_or_forged_rejected(tmp_path, change):
+    """同じ個数・自己一致宣言でも固定3/owner/reason以外を受けない。"""
+    root = _stats_private_classification_root(tmp_path)
+    mp = root / checker.PRODUCT_SCHEMA_MANIFEST
+    cp = root / checker.PRODUCT_TABLE_CLASSIFICATION
+    manifest = json.loads(mp.read_text())
+    classification = json.loads(cp.read_text())
+    names = ["stats_fact_versions", "stats_primitive_sources", "stats_primitive_facts"]
+    row = next(row for row in classification["tables"] if row["table"] == names[0])
+    if change.startswith("partial"):
+        keep = set(names[:int(change[-1])])
+        manifest["tables"] = [
+            row for row in manifest["tables"]
+            if row["name"] not in names or row["name"] in keep
+        ]
+        classification["tables"] = [
+            row for row in classification["tables"]
+            if row["table"] not in names or row["table"] in keep
+        ]
+    elif change == "unknown":
+        row["table"] = "unknown_stats_private"
+        original = next(row for row in manifest["tables"] if row["name"] == names[0])
+        original["name"] = "unknown_stats_private"
+    elif change == "profile":
+        row["profile"] = "tenant_owned"
+        row.pop("access_path")
+    elif change == "owner":
+        row["access_path"]["owner_unit"] = "U-R1"
+    elif change == "reason":
+        row["access_path"]["reason"] = "ordinary_pitch_storage"
+    elif change == "role":
+        row["access_path"]["role"] = "pitchlog_app"
+    else:
+        classification["tables"].append(copy.deepcopy(row))
+    mp.write_text(json.dumps(manifest))
+    cp.write_text(json.dumps(classification))
+    with pytest.raises(checker.CatalogError):
+        checker._product_table_universe(root)
+
+
+@pytest.mark.parametrize("schema", ["public", "unknown", "stats_api"])
+def test_stats_private_ddl_unknown_schema_rejected(tmp_path, monkeypatch, schema):
+    """私有3だけsync_fenceへ閉じ、別schemaを許可しない。"""
+    root = _stats_private_classification_root(tmp_path)
+    names = checker._product_table_universe(root)
+    private = {
+        "writer_bindings", "writer_admissions", "first_ball_write_admissions",
+        "ordinary_pitch_checkpoints", "ordinary_pitch_write_admissions", "ordinary_pitch_history",
+        "stats_fact_versions", "stats_primitive_sources", "stats_primitive_facts",
+    }
+    rows = [
+        {"table_id": name, "schema_name": "sync_fence" if name in private else "public",
+         "enable_row_level_security": True, "force_row_level_security": True}
+        for name in names
+    ]
+    # 実body資産は後段で供給する。この対向はschema拒否が先に成立することを調べる。
+    called = []
+    monkeypatch.setattr(checker, "_validate_product_table_bodies", lambda r, t: called.append(True))
+    checker._validate_product_table_expectations(rows, root)
+    assert called == [True]
+    called.clear()
+    next(row for row in rows if row["table_id"] == "stats_fact_versions")["schema_name"] = schema
+    with pytest.raises(checker.CatalogError):
+        checker._validate_product_table_expectations(rows, root)
+    assert called == []

@@ -787,3 +787,272 @@ __all__ = [
     "generate_display_artifacts",
     "verify_generated_provenance",
 ]
+
+
+def integer_target(language: str, source_hash: str) -> str:
+    """scale=0の任意精度非負整数codec/formatterを生成する。"""
+    header = (
+        f"# generated={source_hash}\n"
+        if language == "python"
+        else f"// generated={source_hash}\n"
+    )
+    if language == "python":
+        return (
+            header
+            + '''import re
+
+
+def parse_count(value):
+    """globalの整数桁上限を変えず、正準整数を有限chunkで読む。"""
+    if type(value) is int and value >= 0:
+        return value
+    if type(value) is not str or re.fullmatch(r"0|[1-9][0-9]*", value) is None:
+        raise ValueError("正準非負整数が必要です")
+    number = 0
+    for offset in range(0, len(value), 9):
+        chunk = value[offset:offset + 9]
+        number = number * (10 ** len(chunk)) + int(chunk)
+    return number
+
+
+def format_count(value):
+    """任意精度整数を表示し、NULLを0へ変換しない。"""
+    if value is None:
+        return None
+    if type(value) is str and re.fullmatch(r"0|[1-9][0-9]*", value):
+        return value
+    if type(value) is not int or value < 0:
+        raise ValueError("正準非負整数が必要です")
+    if value == 0:
+        return "0"
+    groups = []
+    while value:
+        value, remainder = divmod(value, 1000000000)
+        groups.append(str(remainder))
+    return groups[-1] + "".join(group.zfill(9) for group in reversed(groups[:-1]))
+'''
+        )
+    if language == "typescript":
+        return (
+            header
+            + """export function parseCount(value: unknown): bigint {
+  if (typeof value === "bigint" && value >= 0n) return value;
+  if (typeof value === "number" && Number.isSafeInteger(value) && value >= 0) return BigInt(value);
+  if (typeof value === "string" && /^(0|[1-9][0-9]*)$/.test(value)) return BigInt(value);
+  throw new Error("正準非負整数が必要です");
+}
+export function formatCount(value: unknown): string | null {
+  if (value === null) return null;
+  if (typeof value === "bigint" && value >= 0n) return value.toString();
+  if (typeof value === "string" && /^(0|[1-9][0-9]*)$/.test(value)) return value;
+  throw new Error("正準非負整数が必要です");
+}
+"""  # noqa: E501 — 生成targetのliteral
+        )
+    raise FormatterGenerationError("未知の整数target言語")
+
+
+def ratio_target(language: str, source_hash: str) -> str:
+    """比の汎用演算と最終整数roundの生成helper。"""
+    if language == "python":
+        return (
+            "def _rate_inputs(metrics, names):\n    if type(me"
+            "trics) is not dict or set(metrics) != set(names)"
+            ":\n        raise ValueError('派生率の十分統計は閉26項目が必要です'"
+            ")\n    values = {}\n    for key in names:\n        "
+            "row = metrics[key]\n        if type(row) is dict:"
+            "\n            if set(row) != {'state','value','di"
+            "splay','reason'}:\n                raise ValueErr"
+            "or('十分統計の閉型が不正です')\n            if row['state'] ="
+            "= 'source_unavailable':\n                if row['"
+            "value'] is not None or row['display'] is not Non"
+            "e or row['reason'] not in ('MISSING_OBSERVATION'"
+            ",'MISSING_ATTRIBUTION','UNSUPPORTED_SOURCE_VARIA"
+            "NT'):\n                    raise ValueError('不足観測"
+            "の型が不正です')\n                values[key] = None\n   "
+            "             continue\n            if row['state'"
+            "] != 'available' or row['value'] is None or row["
+            "'reason'] is not None or row['display'] != row['"
+            "value']:\n                raise ValueError('十分統計の"
+            "状態が不正です')\n            row = row['value']\n       "
+            " if row is None:\n            values[key] = None\n"
+            "        elif type(row) is str:\n            value"
+            "s[key] = parse_count(row)\n        else:\n        "
+            "    raise ValueError('十分統計は正準整数文字列です')\n    retur"
+            "n values\n\n\ndef _rate_add(*values):\n    return No"
+            "ne if any(value is None for value in values) els"
+            "e sum(values)\n\n\ndef _ratio(numerator, denominato"
+            "r):\n    if numerator is None or denominator is N"
+            "one:\n        return None\n    return (numerator, "
+            "denominator)\n\n\ndef _ratio_add(*values):\n    if a"
+            "ny(value is None or value[1] == 0 for value in v"
+            "alues):\n        return None\n    numerator, denom"
+            "inator = 0, 1\n    for n, d in values:\n        nu"
+            "merator, denominator = numerator * d + n * denom"
+            "inator, denominator * d\n    return numerator, de"
+            "nominator\n\n\ndef _rate_reason(metrics, dependenci"
+            "es):\n    for key in dependencies:\n        value "
+            "= metrics[key]\n        if type(value) is dict an"
+            "d value['state'] == 'source_unavailable':\n      "
+            "      return value['reason']\n    return 'MISSING"
+            "_OBSERVATION'\n\n\ndef _rate_result(value, componen"
+            "ts, display, reason='MISSING_OBSERVATION'):\n    "
+            "if type(components) is not dict or set(component"
+            "s) != {x['component'] for x in display['denomina"
+            "tors']}:\n        raise ValueError('比componentの閉集"
+            "合が不正です')\n    for pair in [value, *components.val"
+            "ues()]:\n        if pair is not None and (type(pa"
+            "ir) is not tuple or len(pair) != 2 or any(type(x"
+            ") is not int or x < 0 for x in pair)):\n         "
+            "   raise ValueError('比の整数型が不正です')\n    if any(pai"
+            "r is None for pair in components.values()):\n    "
+            "    if value is not None:\n            raise Valu"
+            "eError('不足観測に比を補完できません')\n        return {'state'"
+            ":'source_unavailable','value_state':'not_evaluat"
+            "ed','exact_ratio':None,'components':None,'format"
+            "ted_value':None,'display':None,'reason':reason}\n"
+            "    raw = {key:{'numerator':format_count(pair[0]"
+            "),'denominator':format_count(pair[1])} for key,p"
+            "air in components.items()}\n    if any(pair[1] =="
+            " 0 for pair in components.values()):\n        exa"
+            "ct = None\n        formatted = display['zeroDivis"
+            "ionGlyph']\n        state = 'undefined_zero_denom"
+            "inator'\n    else:\n        if value is None:\n    "
+            "        raise ValueError('定義済み比の値が不足しています')\n    "
+            "    n,d = value\n        if d == 0:\n            r"
+            "aise ValueError('定義済み比の分母は正です')\n        a,b=n,d\n"
+            "        while b:\n            a,b=b,a%b\n        n"
+            ",d=n//a,d//a\n        exact={'numerator':format_c"
+            "ount(n),'denominator':format_count(d)}\n        p"
+            "ower = 10 ** display['scale']\n        quotient,r"
+            "emainder=divmod(n*power,d)\n        rounded=quoti"
+            "ent+(2*remainder>=d)\n        integer,fraction=di"
+            "vmod(rounded,power)\n        formatted=format_cou"
+            "nt(integer)+'.'+format_count(fraction).zfill(dis"
+            "play['scale'])\n        state='defined'\n    label"
+            "s=[label['prefix']+raw[label['component']]['deno"
+            "minator']+label['suffix'] for label in display['"
+            "denominators']]\n    return {'state':'available',"
+            "'value_state':state,'exact_ratio':exact,'compone"
+            "nts':raw,'formatted_value':formatted,'display':f"
+            "ormatted+'('+'・'.join(labels)+')','reason':None}"
+            "\n"
+        )
+    if language == "typescript":
+        return (
+            "type RateMetric = string | null | {state:string;"
+            "value:string|null;display:string|null;reason:str"
+            "ing|null};\ntype RatioPair = readonly [bigint,big"
+            "int] | null;\ntype RatioDisplay = {scale:number;r"
+            "ounding:string;leadingZero:boolean;zeroDivisionG"
+            "lyph:string;denominators:readonly {component:str"
+            "ing;prefix:string;suffix:string}[]};\nfunction _r"
+            "ateInputs(metrics:unknown,names:readonly string["
+            "]):Record<string,bigint|null> {\n  if (typeof met"
+            "rics !== 'object' || metrics===null || Array.isA"
+            "rray(metrics)) throw new Error('派生率の閉型が必要です');\n "
+            " const source=metrics as Record<string,unknown>;"
+            "\n  if(Object.keys(source).length!==names.length "
+            "|| Object.keys(source).some(k=>!names.includes(k"
+            "))) throw new Error('派生率の十分統計は閉26項目が必要です');\n  co"
+            "nst values:Record<string,bigint|null>={};\n  for("
+            "const key of names){\n    let row=source[key];\n  "
+            "  if(typeof row==='object' && row!==null && !Arr"
+            "ay.isArray(row)){\n      const metric=row as Reco"
+            "rd<string,unknown>;\n      if(Object.keys(metric)"
+            ".length!==4 || Object.keys(metric).some(k=>!['st"
+            "ate','value','display','reason'].includes(k))) t"
+            "hrow new Error('十分統計の閉型が不正です');\n      if(metric."
+            "state==='source_unavailable'){\n        if(metric"
+            ".value!==null || metric.display!==null || !['MIS"
+            "SING_OBSERVATION','MISSING_ATTRIBUTION','UNSUPPO"
+            "RTED_SOURCE_VARIANT'].includes(metric.reason as "
+            "string)) throw new Error('不足観測の型が不正です');\n       "
+            " values[key]=null;continue;\n      }\n      if(met"
+            "ric.state!=='available'||metric.value===null||me"
+            "tric.reason!==null||metric.display!==metric.valu"
+            "e) throw new Error('十分統計の状態が不正です');\n      row=me"
+            "tric.value;\n    }\n    if(row===null) values[key]"
+            "=null;\n    else if(typeof row==='string' && /^(0"
+            "|[1-9][0-9]*)(?![\\s\\S])/.test(row)) values[key]="
+            "BigInt(row);\n    else throw new Error('十分統計は正準整数"
+            "文字列です');\n  }\n  return values;\n}\nfunction _rateAd"
+            "d(...values:Array<bigint|null|undefined>):bigint"
+            "|null {let result=0n;for(const value of values){"
+            "if(value===null||value===undefined)return null;r"
+            "esult+=value;}return result;}\nfunction _ratio(n:"
+            "bigint|null|undefined,d:bigint|null|undefined):R"
+            "atioPair {return n===null||n===undefined||d===nu"
+            "ll||d===undefined?null:[n,d];}\nfunction _ratioAd"
+            "d(...values:RatioPair[]):RatioPair{\n  let n=0n,d"
+            "=1n;\n  for(const value of values){if(value===nul"
+            "l||value[1]===0n)return null; n=n*value[1]+value"
+            "[0]*d;d*=value[1];}\n  return [n,d];\n}\nfunction _"
+            "rateReason(metrics:Record<string,RateMetric>,dep"
+            "endencies:readonly string[]):string{\n  for(const"
+            " key of dependencies){const row=metrics[key];if("
+            "typeof row==='object'&&row!==null&&row.state==='"
+            "source_unavailable')return row.reason!;}\n  retur"
+            "n 'MISSING_OBSERVATION';\n}\nfunction _rateResult("
+            "value:RatioPair,components:Record<string,RatioPa"
+            "ir>,display:RatioDisplay,reason='MISSING_OBSERVA"
+            "TION'){\n  const expected=display.denominators.ma"
+            "p(x=>x.component);\n  if(Object.keys(components)."
+            "length!==expected.length||Object.keys(components"
+            ").some(k=>!expected.includes(k)))throw new Error"
+            "('比componentの閉集合が不正です');\n  for(const pair of [va"
+            "lue,...Object.values(components)])if(pair!==null"
+            "&&(!Array.isArray(pair)||pair.length!==2||pair.s"
+            "ome(x=>typeof x!=='bigint'||x<0n)))throw new Err"
+            "or('比の整数型が不正です');\n  if(Object.values(components)"
+            ".some(pair=>pair===null)&&value!==null)throw new"
+            " Error('不足観測に比を補完できません');\n  if(Object.values(com"
+            "ponents).some(pair=>pair===null))return {state:'"
+            "source_unavailable',value_state:'not_evaluated',"
+            "exact_ratio:null,components:null,formatted_value"
+            ":null,display:null,reason};\n  const raw:Record<s"
+            "tring,{numerator:string;denominator:string}>={};"
+            "\n  for(const [key,pair] of Object.entries(compon"
+            "ents)){if(pair===null)throw new Error('比が不足しています"
+            "');raw[key]={numerator:pair[0].toString(),denomi"
+            "nator:pair[1].toString()};}\n  let exact:{numerat"
+            "or:string;denominator:string}|null=null,formatte"
+            "d:string,state:string;\n  if(Object.values(compon"
+            "ents).some(pair=>pair!==null&&pair[1]===0n)){for"
+            "matted=display.zeroDivisionGlyph;state='undefine"
+            "d_zero_denominator';}\n  else{\n    if(value===nul"
+            "l)throw new Error('定義済み比の値が不足しています');\n    let [n"
+            ",d]=value,a=n,b=d;\n    if(d===0n)throw new Error"
+            "('定義済み比の分母は正です');\n    while(b!==0n){const r=a%b;"
+            "a=b;b=r;}\n    n/=a;d/=a;exact={numerator:n.toStr"
+            "ing(),denominator:d.toString()};\n    const power"
+            "=10n**BigInt(display.scale),q=n*power/d,r=n*powe"
+            "r%d;\n    const rounded=q+(2n*r>=d?1n:0n);\n    fo"
+            "rmatted=(rounded/power).toString()+'.'+(rounded%"
+            "power).toString().padStart(display.scale,'0');st"
+            "ate='defined';\n  }\n  const labels=display.denomi"
+            "nators.map(label=>label.prefix+raw[label.compone"
+            "nt]!.denominator+label.suffix);\n  return {state:"
+            "'available',value_state:state,exact_ratio:exact,"
+            "components:raw,formatted_value:formatted,display"
+            ":formatted+'('+labels.join('・')+')',reason:null}"
+            ";\n}\n"
+        )
+    raise FormatterGenerationError("未知の比target言語")
+
+
+def ratio_formatter_target(language: str, source_hash: str) -> str:
+    """同じ最終表示helperだけを抽出し、不要な入力演算を配布しない。"""
+    source = ratio_target(language, source_hash)
+    if language == "python":
+        marker = "def _rate_result("
+        return marker + source.split(marker, 1)[1]
+    if language == "typescript":
+        types = "\n".join(
+            line
+            for line in source.splitlines()
+            if line.startswith(("type RatioPair", "type RatioDisplay"))
+        )
+        marker = "function _rateResult("
+        return types + "\n" + marker + source.split(marker, 1)[1]
+    raise FormatterGenerationError("未知の比formatter言語")

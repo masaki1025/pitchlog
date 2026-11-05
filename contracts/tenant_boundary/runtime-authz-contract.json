@@ -95,6 +95,7 @@
       "recording_vocab_api",
       "rg1_api",
       "rg1_control",
+      "stats_api",
       "sync_fence",
       "sync_fence_api",
       "sync_right_api"
@@ -315,6 +316,18 @@
       [
         "sync_fence",
         "ordinary_pitch_write_admissions"
+      ],
+      [
+        "sync_fence",
+        "stats_fact_versions"
+      ],
+      [
+        "sync_fence",
+        "stats_primitive_facts"
+      ],
+      [
+        "sync_fence",
+        "stats_primitive_sources"
       ],
       [
         "sync_fence",
@@ -727,6 +740,31 @@
         ""
       ],
       [
+        "stats_api",
+        "open_primitive_snapshot",
+        "uuid, uuid, text"
+      ],
+      [
+        "stats_api",
+        "read_play_export_primitives",
+        "uuid, uuid, uuid, bigint, text, text, text, bigint, uuid, text, integer"
+      ],
+      [
+        "stats_api",
+        "read_primitive_totals",
+        "uuid, uuid, uuid, bigint, text, text, text"
+      ],
+      [
+        "stats_api",
+        "read_primitive_writer_state",
+        "uuid, uuid, uuid, text, bytea"
+      ],
+      [
+        "stats_api",
+        "save_primitive_source",
+        "uuid, uuid, uuid, text, bigint, text, jsonb, bytea"
+      ],
+      [
         "sync_fence_api",
         "assert_writer_binding",
         "uuid, uuid, uuid, bytea, uuid, uuid"
@@ -891,5 +929,5 @@
     }
   ],
   "derived_from": "contracts/authz/product/ddl-elements.json",
-  "source_digest": "c50b85b0ca0905128db62143b8d963268bb9b9134c64228ba86a22dcdebde382"
+  "source_digest": "42cb1868e7298bc14eb36a51823b6dedb5eef0fb37b91fc67cee7dc8e00892bb"
 }

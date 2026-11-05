@@ -173,7 +173,9 @@
     "CAP:games:insert",
     "CAP:tenant_vocabularies:insert",
     "CAP:tenant_vocabularies:read",
-    "CAP:recording_vocabularies:read"
+    "CAP:recording_vocabularies:read",
+    "CAP:stats_primitives:save_source",
+    "CAP:stats_primitives:read"
   ],
   "product_operation_token_types": [
     "pitchlog.repositories.roster.PlayerReadToken",
@@ -242,7 +244,12 @@
     "pitchlog.repositories.pitch_type_options.PitchTypeOptionsToken",
     "pitchlog.sync.ordinary_pitch_tokens.OrdinaryPlayRowInsertToken",
     "pitchlog.sync.terminal_pitch_tokens.PlayPrefixPlayRowInsertToken",
-    "pitchlog.repositories.batted_ball_options.BattedBallOptionsToken"
+    "pitchlog.repositories.batted_ball_options.BattedBallOptionsToken",
+    "pitchlog.repositories.stats_native_operations._SavePrimitiveSourceCall",
+    "pitchlog.repositories.stats_native_operations._ReadPrimitiveWriterStateCall",
+    "pitchlog.repositories.play_export_primitives.OpenPrimitiveSnapshotToken",
+    "pitchlog.repositories.play_export_primitives.ReadPrimitivePageToken",
+    "pitchlog.repositories.stats.ReadPrimitiveTotalsToken"
   ],
   "cross_tenant_functions": [],
   "function_executor": {
@@ -271,7 +278,12 @@
     "SYNC_PLAY_PREFIX:lock_play_prefix_checkpoint",
     "SYNC_PLAY_PREFIX:read_play_prefix_history_page",
     "SYNC_PLAY_PREFIX:prepare_play_prefix_projection",
-    "SYNC_LINEUP_PREFIX:read_lineup_started_origin"
+    "SYNC_LINEUP_PREFIX:read_lineup_started_origin",
+    "STATS_PRIMITIVES:save_source",
+    "STATS_PRIMITIVES:read_writer_state",
+    "STATS_PRIMITIVES:open_snapshot",
+    "STATS_PRIMITIVES:read_page",
+    "STATS_PRIMITIVES:read_totals"
   ],
-  "source_digest": "900dd0bcedf9489c8444b87b1e9276bf280a4e11122d70c6f78bd7e82e9c8939"
+  "source_digest": "a66c333bc3c0895fae46da8d5d8f7655c82cab05fc02a13a40b530447c8995fc"
 }

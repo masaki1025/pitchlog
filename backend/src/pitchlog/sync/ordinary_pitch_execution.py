@@ -79,6 +79,7 @@ class _Execution:
     preparation_digest: str | None = None
     preparation_used: bool = False
     mode: str = "ordinary-pitch-play-v1"
+    stats_source_reference: object = None
 
 
 _EXECUTIONS: dict[object, _Execution] = {}
@@ -211,12 +212,27 @@ def _bind_ordinary_pitch_execution(
                         state.prefix = prefix
                         state.frame = object.__new__(OrdinaryPitchFrame)
                         state.frame_id = uuid4()
+                        state.stats_source_reference = (
+                            (
+                                state.frame,
+                                state.frame_id,
+                                state.payload,
+                                state.source.bound,
+                                state.source.bound._lease,
+                                state.source.phase,
+                                state.source.bound._lease.nonce,
+                                state.source.bound._phase_snapshot,
+                            )
+                            if type(state.source) is _E1CoreSource
+                            else None
+                        )
                         state.phase = "ready"
         _live(state)
         yield
     finally:
         if _EXECUTIONS.get(key) is state:
             del _EXECUTIONS[key]
+        state.stats_source_reference = None
         state.phase = "closed"
         state.frame = None
         state.prefix = None
@@ -627,6 +643,20 @@ def _evaluate_play_prefix(state):
             state.prefix = prefix
             state.frame = object.__new__(OrdinaryPitchFrame)
             state.frame_id = uuid4()
+            state.stats_source_reference = (
+                (
+                    state.frame,
+                    state.frame_id,
+                    state.payload,
+                    state.source.bound,
+                    state.source.bound._lease,
+                    state.source.phase,
+                    state.source.bound._lease.nonce,
+                    state.source.bound._phase_snapshot,
+                )
+                if type(state.source) is _E1CoreSource
+                else None
+            )
             state.phase = "ready"
 
 
@@ -751,6 +781,20 @@ def _evaluate_lineup_prefix_bound(state):
             state.prefix = prefix
             state.frame = object.__new__(OrdinaryPitchFrame)
             state.frame_id = uuid4()
+            state.stats_source_reference = (
+                (
+                    state.frame,
+                    state.frame_id,
+                    state.payload,
+                    state.source.bound,
+                    state.source.bound._lease,
+                    state.source.phase,
+                    state.source.bound._lease.nonce,
+                    state.source.bound._phase_snapshot,
+                )
+                if type(state.source) is _E1CoreSource
+                else None
+            )
             state.phase = "ready"
 
 
@@ -789,3 +833,55 @@ def _evaluate_lineup_prefix(state):
         return _evaluate_lineup_prefix_bound(state)
     except LineupPrefixProtocolError:
         raise OrdinaryPitchExecutionError from None
+
+
+def _read_ordinary_stats_source(handle, writer, event, projected):
+    """3modeの実frame_idと一回consume済み投影だけを成績へ貸与する。"""
+    if type(handle) is not transaction._TenantTransaction:
+        raise OrdinaryPitchExecutionError
+    state = _EXECUTIONS.get(handle._state_key)
+    if type(state) is not _Execution:
+        raise OrdinaryPitchExecutionError
+    _live(state)
+    _require_ordinary_projection_completed(handle, event)
+    anchor = state.stats_source_reference
+    if (
+        state.handle is not handle
+        or state.writer is not writer
+        or state.event is not event
+        or type(projected) is not SyncEvent
+        or state.source.write_started is not True
+        or state.phase != "projected"
+        or state.frame is not None
+        or state.projected is not None
+        or state.projection_call is not None
+        or state.preparation_used is not True
+        or state.preparation_token is not None
+        or state.preparation_digest is not None
+        or state.payload is None
+        or state.prefix is None
+        or type(state.frame_id) is not UUID
+        or type(anchor) is not tuple
+        or len(anchor) not in (8, 9)
+        or type(anchor[0]) is not OrdinaryPitchFrame
+        or anchor[1] is not state.frame_id
+        or anchor[2] is not state.payload
+        or anchor[3] is not state.source.bound
+        or anchor[4] is not state.source.bound._lease
+        or anchor[5] is not state.source.phase
+        or type(anchor[6]) is not bytes
+        or anchor[6] != state.source.bound._lease.nonce
+        or anchor[7] != state.source.bound._phase_snapshot
+        or state.mode
+        not in {"ordinary-pitch-play-v1", "play-prefix-play-v2", "play-prefix-play-v3"}
+        or state.payload.format_version != state.mode
+        or transaction._port_phase(handle) is not None
+        or type(projected.v6) is not int
+        or not 0 <= projected.v6 <= _MAX_D2
+        or any(
+            not _same_wire_value(getattr(event, n), getattr(projected, n))
+            for n in ("d5", "game_id", "d1", "d4", "v5", "v7", "v8", "v9", "v10", "v11")
+        )
+    ):
+        raise OrdinaryPitchExecutionError
+    return state

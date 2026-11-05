@@ -90,6 +90,7 @@ class _Execution:
     projected_event: SyncEvent | None = None
     projection_call: object | None = None
     assigned_d2: int | None = None
+    stats_source_reference: object = None
 
 
 _EXECUTIONS: dict[object, _Execution] = {}
@@ -265,11 +266,22 @@ def _bind_first_ball_execution(handle, writer, event, source):
                         state.phase = "rejected"
                     else:
                         state.bridge, state.frame, state.phase = bridge, frame, "ready"
+                        state.stats_source_reference = (
+                            bridge,
+                            frame,
+                            state.payload,
+                            source.bound,
+                            source.bound._lease,
+                            source.phase,
+                            source.bound._lease.nonce,
+                            source.bound._phase_snapshot,
+                        )
             _live(state)
             yield
     finally:
         if _EXECUTIONS.get(key) is state:
             del _EXECUTIONS[key]
+        state.stats_source_reference = None
         state.phase, state.bridge, state.frame, state.payload = (
             "closed",
             None,
@@ -552,3 +564,62 @@ def _physical_course(value: object) -> float:
         return course_unit_to_double(value)
     except ValueError:
         raise FirstBallExecutionError from None
+
+
+def _read_first_ball_stats_source(handle, writer, event, projected):
+    """同frame消費/投影後の実Executionだけを成績の私有接合へ貸与する。"""
+    from pitchlog.sync import first_ball_bridge as bridge_api
+
+    if type(handle) is not transaction._TenantTransaction:
+        raise FirstBallExecutionError
+    state = _EXECUTIONS.get(handle._state_key)
+    if type(state) is not _Execution:
+        raise FirstBallExecutionError
+    _live(state)
+    _require_first_ball_projection_completed(handle, projected)
+    anchor = state.stats_source_reference
+    bridge = bridge_api._STATES.get(state.bridge)
+    if (
+        state.handle is not handle
+        or state.writer is not writer
+        or state.event is not event
+        or type(projected) is not SyncEvent
+        or state.source.write_started is not True
+        or state.phase != "projected"
+        or state.payload is None
+        or state.projected_event is not None
+        or state.projection_call is not None
+        or state.assigned_d2 is not None
+        or transaction._port_phase(handle) is not None
+        or type(anchor) is not tuple
+        or len(anchor) not in (8, 9)
+        or anchor[:3] != (state.bridge, state.frame, state.payload)
+        or anchor[0] is not state.bridge
+        or anchor[1] is not state.frame
+        or anchor[2] is not state.payload
+        or anchor[3] is not state.source.bound
+        or anchor[4] is not state.source.bound._lease
+        or anchor[5] is not state.source.phase
+        or type(anchor[6]) is not bytes
+        or anchor[6] != state.source.bound._lease.nonce
+        or anchor[7] != state.source.bound._phase_snapshot
+        or type(state.bridge) is not FirstBallBridge
+        or type(state.frame) is not FirstBallFrame
+        or type(bridge) is not bridge_api._State
+        or bridge.handle is not handle
+        or bridge.writer is not writer
+        or bridge.event is not event
+        or bridge.source is not state.source
+        or bridge.phase != "consumed"
+        or bridge.frame is not None
+        or bridge.value is not None
+        or type(projected.v6) is not int
+        or not 0 <= projected.v6 <= _MAX_D2
+        or any(
+            not _same_wire_value(getattr(event, n), getattr(projected, n))
+            for n in ("d5", "game_id", "d1", "d4", "v5", "v7", "v8", "v9", "v10", "v11")
+        )
+    ):
+        raise FirstBallExecutionError
+    bridge_api._live(bridge, writer, event)
+    return state

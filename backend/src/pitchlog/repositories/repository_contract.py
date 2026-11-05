@@ -5,7 +5,7 @@ CONTRACT_REVISION = 38
 ASSET_KIND = "tenant_repository_contract"
 CANONICALIZATION = "json-sort-keys-utf8-v1"
 SOURCE_ASSET = "contracts/tenant_boundary/repository-contract.json"
-SOURCE_DIGEST = "900dd0bcedf9489c8444b87b1e9276bf280a4e11122d70c6f78bd7e82e9c8939"
+SOURCE_DIGEST = "a66c333bc3c0895fae46da8d5d8f7655c82cab05fc02a13a40b530447c8995fc"
 
 REPOSITORY_TYPE = "pitchlog.repositories.base.TenantRepositoryBase"
 CONTEXT_BINDING_ENTRY = "pitchlog.repositories.base.TenantRepositoryBase.execute"
@@ -117,6 +117,8 @@ PRODUCT_CAPABILITY_IDS = (
     "CAP:tenant_vocabularies:insert",
     "CAP:tenant_vocabularies:read",
     "CAP:recording_vocabularies:read",
+    "CAP:stats_primitives:save_source",
+    "CAP:stats_primitives:read",
 )
 PRODUCT_OPERATION_TOKEN_TYPES = (
     "pitchlog.repositories.roster.PlayerReadToken",
@@ -186,6 +188,11 @@ PRODUCT_OPERATION_TOKEN_TYPES = (
     "pitchlog.sync.ordinary_pitch_tokens.OrdinaryPlayRowInsertToken",
     "pitchlog.sync.terminal_pitch_tokens.PlayPrefixPlayRowInsertToken",
     "pitchlog.repositories.batted_ball_options.BattedBallOptionsToken",
+    "pitchlog.repositories.stats_native_operations._SavePrimitiveSourceCall",
+    "pitchlog.repositories.stats_native_operations._ReadPrimitiveWriterStateCall",
+    "pitchlog.repositories.play_export_primitives.OpenPrimitiveSnapshotToken",
+    "pitchlog.repositories.play_export_primitives.ReadPrimitivePageToken",
+    "pitchlog.repositories.stats.ReadPrimitiveTotalsToken",
 )
 CROSS_TENANT_FUNCTIONS = ()
 PRODUCT_FUNCTION_OPERATION_IDS = (
@@ -211,4 +218,9 @@ PRODUCT_FUNCTION_OPERATION_IDS = (
     "SYNC_PLAY_PREFIX:read_play_prefix_history_page",
     "SYNC_PLAY_PREFIX:prepare_play_prefix_projection",
     "SYNC_LINEUP_PREFIX:read_lineup_started_origin",
+    "STATS_PRIMITIVES:save_source",
+    "STATS_PRIMITIVES:read_writer_state",
+    "STATS_PRIMITIVES:open_snapshot",
+    "STATS_PRIMITIVES:read_page",
+    "STATS_PRIMITIVES:read_totals",
 )

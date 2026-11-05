@@ -154,7 +154,7 @@ JOIN pg_catalog.pg_roles AS owner ON owner.oid = routine.proowner
 JOIN pg_catalog.pg_language AS language ON language.oid = routine.prolang
 WHERE namespace.nspname IN (
     'rg1_control', 'pitchlog_ledger_observer', 'initial_right_api',
-    'sync_fence_api', 'sync_right_api', 'recording_vocab_api'
+    'sync_fence_api', 'sync_right_api', 'recording_vocab_api', 'stats_api'
 ) OR (namespace.nspname = 'public' AND routine.proname IN (
     'protect_initial_right_storage', 'protect_recording_generations_updates'
 ))
@@ -296,7 +296,18 @@ CROSS JOIN LATERAL pg_catalog.aclexplode(attribute.attacl) AS privilege
 LEFT JOIN pg_catalog.pg_roles AS grantee ON grantee.oid = privilege.grantee
 WHERE namespace.nspname = ANY(%s)
   AND relation.relname = ANY(%s)
-  AND attribute.attnum > 0
+  AND (
+      attribute.attnum > 0
+      OR (
+          attribute.attnum < 0 AND attribute.attname = 'xmin'
+          AND (namespace.nspname, relation.relname) IN (
+              ('public', 'idempotency_ledger'),
+              ('public', 'operation_events'),
+              ('public', 'play_rows'),
+              ('sync_fence', 'ordinary_pitch_checkpoints')
+          )
+      )
+  )
   AND NOT attribute.attisdropped
   AND privilege.grantee <> relation.relowner
 ORDER BY 1, 2, attribute.attnum, 4, 5, 6

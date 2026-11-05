@@ -4600,7 +4600,17 @@ def _product_table_universe(root: Path) -> frozenset[str]:
     ordinary = manifest_set & ordinary_ids
     if ordinary and ordinary != ordinary_ids:
         raise CatalogError('通常投球保存表はexact3表が必要')
-    expected_tables = baseline_tables | present | binding | ordinary
+    stats_ids = {'stats_fact_versions', 'stats_primitive_sources', 'stats_primitive_facts'}
+    stats = manifest_set & stats_ids
+    if stats and stats != stats_ids:
+        raise CatalogError('成績private保存表はexact3表が必要')
+    for row in classification_rows:
+        if row['table'] in stats_ids and row != {
+            'table':row['table'], 'profile':'function_only',
+            'access_path':{'reason':'stats_primitive_storage','owner_unit':'U-X1'},
+        }:
+            raise CatalogError('成績private保存の分類全fieldが不一致')
+    expected_tables = baseline_tables | present | binding | ordinary | stats
     if "rg1_restore_gate" in manifest_set:
         expected_tables |= {'rg1_restore_gate'}
     if manifest_set != classification_set or manifest_set != expected_tables:
@@ -4793,6 +4803,9 @@ def _validate_product_table_expectations(value: object, root: Path) -> None:
                     'ordinary_pitch_checkpoints',
                     'ordinary_pitch_write_admissions',
                     'ordinary_pitch_history',
+                    'stats_fact_versions',
+                    'stats_primitive_sources',
+                    'stats_primitive_facts',
                 }
                 else 'public'
             )
@@ -5182,6 +5195,41 @@ def _validate_membership_helper_bodies(
             raise CatalogError(f"{expectation_id}のSQLが生成結果と不一致")
 
 
+def _product_stats_xmin_columns(
+    column_acls: dict[str, dict[str, object]],
+) -> frozenset[tuple[str, str]]:
+    """同TX検証に必要なcanonical四宣言だけをsystem列依存として認める。"""
+    allowed = {
+        ("public", "operation_events"),
+        ("public", "play_rows"),
+        ("public", "idempotency_ledger"),
+        ("sync_fence", "ordinary_pitch_checkpoints"),
+    }
+    result: set[tuple[str, str]] = set()
+    for row in column_acls.values():
+        if row.get("column_id") != "xmin":
+            continue
+        schema, table = row.get("object_schema"), row.get("object_id")
+        if (
+            type(schema) is not str
+            or type(table) is not str
+            or (schema, table) not in allowed
+            or row.get("grant_option") is not False
+        ):
+            raise CatalogError("未登録のsystem列依存です")
+        from pitchlog.authz.first_ball_product import (  # ty: ignore[unresolved-import]
+            require_row,
+        )
+        try:
+            canonical = require_row("column_acl_expectations", row)
+        except ValueError as error:
+            raise CatalogError("system列のcanonical宣言が不一致") from error
+        if canonical is None:
+            raise CatalogError("system列のcanonical宣言が存在しない")
+        result.add((str(row["object_id"]), "xmin"))
+    return frozenset(result)
+
+
 def _validate_product_membership_helper(
     raw: dict[str, object],
     root: Path,
@@ -5283,7 +5331,7 @@ def _validate_product_membership_helper(
         (str(row["object_id"]), str(row["column_id"]))
         for row in column_acls.values()
     }
-    if not dependency_columns <= set(manifest_columns):
+    if not dependency_columns <= set(manifest_columns) | _product_stats_xmin_columns(column_acls):
         raise CatalogError("補助関数の依存列がschema manifestに存在しない")
 
     table_acls = _product_declarations_by_id(

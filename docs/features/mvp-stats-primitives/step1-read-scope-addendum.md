@@ -1,0 +1,11 @@
+# step1(c)(d)の実読取トランザクション接合
+
+PO委任によるCodex /root判断、2026-11-05。既採用計画step1とstep1-db-reader-addendumのroot所有RR/READ ONLY scopeを具体化する。新意味判断・新成功応答を作らない。
+
+root編集exact2: backend/src/pitchlog/repositories/transaction.py、新backend/tests/db/test_stats_primitive_read_scope.py。必要な実PG確認は別の既owned fixtureで実施し、pure試験でDB設定を実証したとは扱わない。
+
+stats_primitive_read_scope(context)は既TenantContext真正性を検査し、同じ既実handleを返す。Sessionを作る前に内部engineへREPEATABLE READとpostgresql_readonly=Trueを設定し、最初のtenant binding SQLから同snapshotへ置く。外部からSession/SQL/isolation値や成功boolを受けない。Open/Page/Totals exact3 tokenだけを既正式function registryへ渡し、それ以外のrun/run_function・port/writeはSQL前拒否。scope終了でmarkerと既handleを同時失効させる。
+
+ReadPlayExportPrimitivesは作者所有とし、root helper _require_stats_primitive_read_scopeをinit/_liveから呼ぶ。普通のwritable handleから同snapshot receiptを作らない。登録operation/ACL/RLSとcanonical S/実DB/同期save hookは別に閉じ、未登録operationを仮成功にしない。T5保存flushは同businessTXのprefix/watermark更新後かつcommit前、評価は真正frameで先に束縛する。公開成績確定や未供給意味をここで代用しない。
+
+非作者による最終source/拒否対向レビューと実PG設定確認を要する。本人逐行確認・署名・P6blindを代記しない。

@@ -118,13 +118,19 @@ _ORDINARY_PRIVATE_TABLES = {
     "ordinary_pitch_write_admissions",
     "ordinary_pitch_history",
 }
+_STATS_PRIVATE_TABLES = {
+    "stats_fact_versions",
+    "stats_primitive_sources",
+    "stats_primitive_facts",
+}
 # 旧46表と初期権4表を保ち、私有3表だけをfunction_onlyへ加える。
 _EXPECTED_PROFILES = {
     **_EXPECTED_LEGACY_PROFILES,
     "function_only": _EXPECTED_LEGACY_PROFILES["function_only"]
     | _INITIAL_RIGHT_STORAGE_TABLES
     | _SYNC_BINDING_TABLES
-    | _ORDINARY_PRIVATE_TABLES,
+    | _ORDINARY_PRIVATE_TABLES
+    | _STATS_PRIVATE_TABLES,
 }
 _EXPECTED_LEGACY_FACT_TABLES = {
     "rg1_control": {"rg1_restore_gate"},
@@ -167,6 +173,7 @@ _EXPECTED_FACT_TABLES = {
     "initial_right_storage": _INITIAL_RIGHT_STORAGE_TABLES,
     "sync_writer_binding_storage": _SYNC_BINDING_TABLES,
     "ordinary_pitch_storage": _ORDINARY_PRIVATE_TABLES,
+    "stats_primitive_storage": _STATS_PRIVATE_TABLES,
 }
 _EXPECTED_LEGACY_SECRET_COLUMNS = {
     ("tenant_credentials", "password_hash"),
@@ -347,7 +354,10 @@ def test_design_assignment_satisfies_all_classification_conditions(
         "self_tenant_row": 1,
         "effective_group_control": 4,
         "global_read_only": 4,
-        "function_only": 18 + len(_SYNC_BINDING_TABLES) + len(_ORDINARY_PRIVATE_TABLES),
+        "function_only": 18
+        + len(_SYNC_BINDING_TABLES)
+        + len(_ORDINARY_PRIVATE_TABLES)
+        + len(_STATS_PRIVATE_TABLES),
     }
     assert (
         _row_for_table(classification, "rule_sets")["access_path"]["owner_unit"]
@@ -381,7 +391,10 @@ def test_manifest_models_and_classification_have_the_same_population(
     assert (
         len(manifest_tables)
         == len(model_tables)
-        == 50 + len(_SYNC_BINDING_TABLES) + len(_ORDINARY_PRIVATE_TABLES)
+        == 50
+        + len(_SYNC_BINDING_TABLES)
+        + len(_ORDINARY_PRIVATE_TABLES)
+        + len(_STATS_PRIVATE_TABLES)
     )
     assert manifest_tables == model_tables == classification_tables
 
@@ -656,3 +669,111 @@ def test_count_preserving_function_only_swap_mutation_is_rejected(
         _set_profile(values[0], "admin_operation_logs", "tenant_owned")
 
     _assert_mutation_rejected(documents, mutate)
+
+
+def test_stats_private_positive59_and_optional_legacy56(documents):
+    """旧56全行/factを保持し、3表が無い旧基線でも新kindを要求しない。"""
+    _validate(documents)
+    legacy = _mutated_documents(documents)
+    legacy[0]["tables"] = [
+        r for r in legacy[0]["tables"] if r["table"] not in _STATS_PRIVATE_TABLES
+    ]
+    legacy[1]["facts"] = [
+        r for r in legacy[1]["facts"] if r["kind"] != "stats_primitive_storage"
+    ]
+    legacy[2]["tables"] = [
+        r for r in legacy[2]["tables"] if r["name"] not in _STATS_PRIVATE_TABLES
+    ]
+    legacy[4] = legacy[4] - _STATS_PRIVATE_TABLES
+    assert len(legacy[0]["tables"]) == 56
+    _validate(tuple(legacy))
+    assert len(documents[0]["tables"]) == 59
+
+
+@pytest.mark.parametrize("count", [1, 2])
+def test_stats_private_partial_manifest_facts_and_profiles_rejected(documents, count):
+    """三つの集合を自己一致させても部分1/2表では受理しない。"""
+    values = _mutated_documents(documents)
+    keep = set(sorted(_STATS_PRIVATE_TABLES)[:count])
+    values[0]["tables"] = [
+        r
+        for r in values[0]["tables"]
+        if r["table"] not in _STATS_PRIVATE_TABLES or r["table"] in keep
+    ]
+    fact = _fact_for_kind(values[1], "stats_primitive_storage")
+    fact["entries"] = [r for r in fact["entries"] if r["table"] in keep]
+    values[2]["tables"] = [
+        r
+        for r in values[2]["tables"]
+        if r["name"] not in _STATS_PRIVATE_TABLES or r["name"] in keep
+    ]
+    values[4] = values[4] - (_STATS_PRIVATE_TABLES - keep)
+    with pytest.raises(ProductClassificationError):
+        _validate(tuple(values))
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        "profile",
+        "owner",
+        "reason",
+        "role",
+        "schema",
+        "fact_table",
+        "fact_quote",
+        "fact_section",
+        "fact_kind",
+        "fact_missing",
+        "extra",
+    ],
+)
+def test_stats_private_forged_classification_and_facts_rejected(documents, change):
+    """既存の妥当なenum値でも新3表の境界を変えられない。"""
+    values = _mutated_documents(documents)
+    row = _row_for_table(values[0], "stats_fact_versions")
+    fact = _fact_for_kind(values[1], "stats_primitive_storage")
+    if change == "profile":
+        _set_profile(values[0], "stats_fact_versions", "tenant_owned")
+    elif change == "owner":
+        row["access_path"]["owner_unit"] = "U-R1"
+    elif change == "reason":
+        row["access_path"]["reason"] = "ordinary_pitch_storage"
+    elif change == "role":
+        row["access_path"]["role"] = "pitchlog_app"
+    elif change == "schema":
+        row["schema_name"] = "unknown"
+    elif change == "fact_table":
+        fact["entries"][0]["table"] = "team_records"
+    elif change == "fact_quote":
+        fact["entries"][0]["evidence"][0]["quote"] = (
+            "3表とも業務オブジェクトの削除系統では対象外で、物理DELETE/TRUNCATEを許可せず、退役述語を持たず、履歴を失うdowngradeを拒否する。"
+        )
+    elif change == "fact_section":
+        fact["entries"][0]["evidence"][0]["section"] = "6-1-b"
+    elif change == "fact_kind":
+        fact["kind"] = "unknown_stats_storage"
+    elif change == "fact_missing":
+        fact["entries"].pop()
+    else:
+        values[0]["tables"].append(copy.deepcopy(row))
+    with pytest.raises(ProductClassificationError):
+        _validate(tuple(values))
+
+
+@pytest.mark.parametrize("index", [0, 1, 2])
+def test_stats_private_unknown_three_names_rejected(documents, index):
+    """表の個数だけを保っても任意のstats資源を追加できない。"""
+    values = _mutated_documents(documents)
+    old = sorted(_STATS_PRIVATE_TABLES)[index]
+    new = "unknown_stats_private"
+    _row_for_table(values[0], old)["table"] = new
+    next(
+        r
+        for r in _fact_for_kind(values[1], "stats_primitive_storage")["entries"]
+        if r["table"] == old
+    )["table"] = new
+    next(r for r in values[2]["tables"] if r["name"] == old)["name"] = new
+    values[4] = (values[4] - {old}) | {new}
+    with pytest.raises(ProductClassificationError):
+        _validate(tuple(values))

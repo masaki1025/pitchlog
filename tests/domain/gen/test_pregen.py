@@ -369,3 +369,51 @@ def test_valid_declaration_passes_all_checks_and_reaches_generation(
         "python",
         "typescript",
     }
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        "unknown-category", "missing-other", "adopted-to-pending",
+        "appearance-zero", "ratio-integer", "unknown-metric", "component-cycle",
+        "ratio-unknown", "component-duplicate", "display-rounding",
+        "display-leading-zero", "display-scale", "one-denominator", "extra-key",
+    ],
+)
+def test_v2_ratio_and_named_declarations_are_closed(mutation):
+    """未知参照/型/仮0/表示変更を共通D1の生成前に拒否する。"""
+    common = _read_json(ROOT / "backend/domain/play-export.model.json")
+    program = copy.deepcopy(common["calculations"][0]["typedProgram"])
+    row = program["derivedMetrics"][0]
+    if mutation == "unknown-category":
+        program["namedScopes"]["groups"]["unknown"] = []
+    elif mutation == "missing-other":
+        program["namedScopes"]["groups"]["practice"].pop()
+    elif mutation == "adopted-to-pending":
+        program["decisions"]["D03"]["decision_state"] = "decision_pending"
+    elif mutation == "appearance-zero":
+        program["decisions"]["D03"]["value"] = "0"
+    elif mutation == "ratio-integer":
+        row["expression"] = {"op": "metric", "id": "ab"}
+    elif mutation == "unknown-metric":
+        row["components"][0]["expression"]["numerator"] = {
+            "op": "metric", "id": "unknown",
+        }
+    elif mutation == "component-cycle":
+        row["components"][0]["expression"] = {"op": "component", "id": "obp"}
+    elif mutation == "ratio-unknown":
+        row["expression"] = {"op": "ratio-eval", "code": "1"}
+    elif mutation == "component-duplicate":
+        row["components"][1]["id"] = "obp"
+    elif mutation == "display-rounding":
+        row["display"]["rounding"] = "truncate"
+    elif mutation == "display-leading-zero":
+        row["display"]["leadingZero"] = False
+    elif mutation == "display-scale":
+        row["display"]["scale"] = 2
+    elif mutation == "one-denominator":
+        row["display"]["denominators"].pop()
+    else:
+        row["expression"]["unknown"] = True
+    with pytest.raises(ValueError):
+        PREGEN.validate_typed_program(program)

@@ -617,6 +617,8 @@ def test_roster_capabilities_tokens_and_registry_are_exact() -> None:
         "CAP:tenant_vocabularies:insert",
         "CAP:tenant_vocabularies:read",
         "CAP:recording_vocabularies:read",
+        "CAP:stats_primitives:save_source",
+        "CAP:stats_primitives:read",
     )
     expected_sync_operations = (
         ("GameReadToken", "CAP:games:read"),
@@ -692,18 +694,24 @@ def test_roster_capabilities_tokens_and_registry_are_exact() -> None:
         "pitchlog.sync.ordinary_pitch_tokens.OrdinaryPlayRowInsertToken",
         "pitchlog.sync.terminal_pitch_tokens.PlayPrefixPlayRowInsertToken",
         "pitchlog.repositories.batted_ball_options.BattedBallOptionsToken",
+        "pitchlog.repositories.stats_native_operations._SavePrimitiveSourceCall",
+        "pitchlog.repositories.stats_native_operations._ReadPrimitiveWriterStateCall",
+        "pitchlog.repositories.play_export_primitives.OpenPrimitiveSnapshotToken",
+        "pitchlog.repositories.play_export_primitives.ReadPrimitivePageToken",
+        "pitchlog.repositories.stats.ReadPrimitiveTotalsToken",
     )
-    assert len(expected_capabilities) == 37
+    assert len(expected_capabilities) == 39
     assert repository_contract.PRODUCT_CAPABILITY_IDS == expected_capabilities
     assert repository_contract.PRODUCT_OPERATION_TOKEN_TYPES == expected_token_types
-    assert len(expected_token_types) == 67
+    assert len(expected_token_types) == 72
     assert (
         repository_contract.CROSS_TENANT_FUNCTION_ENTRY
         == repository_contract.CONTEXT_BINDING_ENTRY
     )
     assert type(repository_base._OPERATION_REGISTRY) is MappingProxyType
-    # 新語彙tokenは固定関数専用で、既66個のtable操作登録へ混入させない。
-    assert expected_token_types[-1] == (
+    # 語彙1+成績5は固定関数/private専用。旧66DML登録の型/能力/順序を保持する。
+    assert len(expected_token_types[:-6]) == 66
+    assert expected_token_types[-6] == (
         "pitchlog.repositories.batted_ball_options.BattedBallOptionsToken"
     )
     assert {
@@ -711,7 +719,7 @@ def test_roster_capabilities_tokens_and_registry_are_exact() -> None:
         for token_type, spec in repository_base._OPERATION_REGISTRY.items()
     } == dict(
         zip(
-            expected_token_types[:-1],
+            expected_token_types[:-6],
             (
                 *expected_capabilities[:3],
                 "CAP:players:update",
@@ -1127,8 +1135,13 @@ def test_stage_a_function_registration_matches_exact_asset_and_retains_rg1() -> 
         "SYNC_PLAY_PREFIX:read_play_prefix_history_page",
         "SYNC_PLAY_PREFIX:prepare_play_prefix_projection",
         "SYNC_LINEUP_PREFIX:read_lineup_started_origin",
+        "STATS_PRIMITIVES:save_source",
+        "STATS_PRIMITIVES:read_writer_state",
+        "STATS_PRIMITIVES:open_snapshot",
+        "STATS_PRIMITIVES:read_page",
+        "STATS_PRIMITIVES:read_totals",
     )
-    assert len(expected) == 22
+    assert len(expected) == 27
     assert tuple(asset["product_function_operation_ids"]) == expected
     assert repository_contract.PRODUCT_FUNCTION_OPERATION_IDS == expected
     assert tuple(row.operation_id for row in PRODUCT_FUNCTION_OPERATIONS) == expected
@@ -1155,6 +1168,34 @@ def test_stage_a_function_registration_matches_exact_asset_and_retains_rg1() -> 
         "sync_right_api.read_play_prefix_history_page",
         "sync_right_api.prepare_play_prefix_projection",
         "sync_right_api.read_lineup_started_origin",
+        "stats_api.save_primitive_source",
+        "stats_api.read_primitive_writer_state",
+        "stats_api.open_primitive_snapshot",
+        "stats_api.read_play_export_primitives",
+        "stats_api.read_primitive_totals",
+    )
+    stats_tail = PRODUCT_FUNCTION_OPERATIONS[-5:]
+    assert tuple(
+        f"{row.token_type.__module__}.{row.token_type.__qualname__}"
+        for row in stats_tail
+    ) == (
+        "pitchlog.repositories.stats_native_operations._SavePrimitiveSourceCall",
+        "pitchlog.repositories.stats_native_operations._ReadPrimitiveWriterStateCall",
+        "pitchlog.repositories.play_export_primitives.OpenPrimitiveSnapshotToken",
+        "pitchlog.repositories.play_export_primitives.ReadPrimitivePageToken",
+        "pitchlog.repositories.stats.ReadPrimitiveTotalsToken",
+    )
+    assert tuple(row.capability_id for row in stats_tail) == (
+        "CAP:stats_primitives:save_source",
+        "CAP:stats_primitives:save_source",
+        "CAP:stats_primitives:read",
+        "CAP:stats_primitives:read",
+        "CAP:stats_primitives:read",
+    )
+    assert all(
+        item.token_type is not row.token_type
+        for row in stats_tail
+        for item in PRODUCT_OPERATIONS
     )
     vocab = PRODUCT_FUNCTION_OPERATIONS[0]
     assert vocab.token_type is BattedBallOptionsToken
