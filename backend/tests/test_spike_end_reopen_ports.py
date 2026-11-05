@@ -17,11 +17,18 @@ from pitchlog.sync.spike_end_reopen_ports import (
     EVENT_COLUMNS,
     GAME_COLUMNS,
     SpikeEndReopenContentValidationPort,
+    SpikeEndReopenProjectionPort,
+    SpikeEndReopenRejected,
     fold_lifecycle,
     payload,
     state_from_row,
 )
-from pitchlog.sync.tokens import GameReadToken, OperationEventReadToken
+from pitchlog.sync.tokens import (
+    RECORDING_GENERATION_READ_COLUMNS,
+    GameReadToken,
+    OperationEventReadToken,
+    RecordingGenerationReadToken,
+)
 
 
 def state(score: tuple[str, str] = ("1", "0")) -> dict[str, object]:
@@ -358,3 +365,100 @@ def test_fixed_column_orders_match_models() -> None:
     """ハードコードした列順が実モデルと一致する。"""
     assert GAME_COLUMNS == tuple(Game.__table__.c.keys())
     assert EVENT_COLUMNS == tuple(OperationEvent.__table__.c.keys())
+
+class _ProjectionWriter:
+    """世代行と D1 行だけを返す投影検査用の同一 TX 代用。"""
+
+    def __init__(
+        self,
+        game_id: UUID,
+        rows: dict[int, dict[str, object]],
+        watermark: int,
+    ) -> None:
+        self.game_id = game_id
+        self.rows = rows
+        self.watermark = watermark
+
+    def run(self, operation: object) -> TenantOperationResult:
+        if type(operation) is RecordingGenerationReadToken:
+            values: dict[str, object] = {
+                "tenant_id": uuid4(),
+                "game_id": self.game_id,
+                "generation": 1,
+                "kind": "normal",
+                "issuance_order": 1,
+                "holder_device": None,
+                "confirmed_watermark": self.watermark,
+                "applied_prefix": self.watermark,
+                "granted_at": datetime.now(UTC),
+                "revoked_at": None,
+                "import_batch_id": None,
+                "retired_at": None,
+            }
+            row = cast(
+                tuple[ImmutableValue, ...],
+                tuple(values[name] for name in RECORDING_GENERATION_READ_COLUMNS),
+            )
+            return TenantOperationResult((row,))
+        assert type(operation) is OperationEventReadToken
+        values = {
+            "id": uuid4(),
+            "game_id": self.game_id,
+            "generation": 1,
+            "d1": operation.d1,
+            "d2": None,
+            "d5": uuid4(),
+            "ledger_kind": "accepted",
+            "event_kind": "substitution",
+            "payload": {},
+            "state_diff": None,
+            "is_tombstone": False,
+            "replaced_at": None,
+            "target_generation": None,
+            "target_d1": None,
+            "expected_version": None,
+            "change_order": None,
+            "legacy_row_identifier": None,
+            "migration_unverified": False,
+            "tenant_id": uuid4(),
+            "import_batch_id": None,
+            "retired_at": None,
+        }
+        values.update(self.rows.get(operation.d1, {}))
+        values["d1"] = operation.d1
+        row = cast(
+            tuple[ImmutableValue, ...],
+            tuple(values[name] for name in EVENT_COLUMNS),
+        )
+        return TenantOperationResult((row,))
+
+
+def test_projection_rejects_reend_without_reopen() -> None:
+    """終了済みの再終了を内部破損でなく 409 用の拒否へ閉じる。"""
+    game_id = uuid4()
+    event = SyncEvent(
+        str(uuid4()),
+        str(game_id),
+        d1=3,
+        d4="d4",
+        v5="game_end_declaration",
+        v6=3001,
+        v7=end_payload(version=2, previous={"version": 1, "d1": 2}),
+    )
+    rows: dict[int, dict[str, object]] = {
+        2: {
+            "d2": 1001,
+            "d5": uuid4(),
+            "event_kind": "game_end_declaration",
+            "payload": end_payload(),
+        },
+        3: {
+            "d2": 3001,
+            "d5": UUID(event.d5),
+            "event_kind": "game_end_declaration",
+            "payload": event.v7,
+        },
+    }
+    writer = _ProjectionWriter(game_id, rows, 3)
+    with pytest.raises(SpikeEndReopenRejected):
+        SpikeEndReopenProjectionPort().apply(event, cast(PortWriter, writer))

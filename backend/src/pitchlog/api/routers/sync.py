@@ -165,6 +165,14 @@ def sync_events(
         raise HTTPException(status_code=422) from None
     if sync_request.v12 is None:
         raise HTTPException(status_code=422)
+    if (
+        isinstance(sync_request.events[0].v7, Mapping)
+        and sync_request.events[0].v7.get("formatVersion")
+        == "game-lifecycle-spike-v1"
+        and os.environ.get("PITCHLOG_SPIKE_END_REOPEN") != "1"
+    ):
+        # D5 再掲より前で閉じ、env 未設定のまま保存済み結果も返さない。
+        raise HTTPException(status_code=501)
     # DI1/DI2/DI3: ③認可後・V12前に D5 を分類し、保存済み結果だけを再掲する。
     try:
         replayed = _replay_e1_without_binding(

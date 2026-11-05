@@ -152,7 +152,8 @@ def test_screen_end_reopen_reend_reload(
                 "version": "v2",
                 "watermark": "4",
             }
-            assert result["badV12"]["status"] in (200, 403, 503)
+            assert result["badV12"]["status"] == 200
+            assert result["badV12"]["a5"] == "退避"
             assert result["badV12"]["watermarkAfter"] == "4"
             assert result["otherTenantStatus"] == 404
             assert result["otherTenantFaultStatus"] == 404
@@ -207,6 +208,17 @@ def test_screen_end_reopen_reend_reload(
                             (db.tenant_id, UUID(game)),
                         ).fetchone()
                     assert count == (expected,), (table, count)
+                bad_d5 = UUID(result["badV12"]["d5"])
+                assert admin.execute(
+                    "SELECT kind FROM public.idempotency_ledger "
+                    "WHERE tenant_id=%s AND d5=%s",
+                    (db.tenant_id, bad_d5),
+                ).fetchone() == ("evacuated",)
+                assert admin.execute(
+                    "SELECT count(*) FROM public.operation_events "
+                    "WHERE tenant_id=%s AND d5=%s",
+                    (db.tenant_id, bad_d5),
+                ).fetchone() == (0,)
                 # 本spikeはgames.statusを更新しない。製品投影の残件を明示する。
                 status = admin.execute(
                     "SELECT status FROM public.games WHERE tenant_id=%s AND id=%s",

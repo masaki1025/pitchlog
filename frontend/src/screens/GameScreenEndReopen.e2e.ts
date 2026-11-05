@@ -390,11 +390,9 @@ test('実HTTPS画面の9回制非同時点で終了→再送→再開→再終�
     },
   })
   const badV12Status = badV12.status()
-  expect([200, 403, 503]).toContain(badV12Status)
-  if (badV12Status === 200) {
-    const badBody = (await badV12.json()) as AckBody
-    expect(badBody.eventResults[0]!.a5Result).toBe('退避')
-  }
+  expect(badV12Status).toBe(200)
+  const badBody = (await badV12.json()) as AckBody
+  expect(badBody.eventResults[0]!.a5Result).toBe('退避')
   await page.getByTestId('lifecycle-refresh').click()
   await expect(page.getByTestId('lifecycle-watermark')).toHaveText('4')
 
@@ -448,7 +446,12 @@ test('実HTTPS画面の9回制非同時点で終了→再送→再開→再終�
           { version: 2, d1: 4, invalidatedBy: null },
         ],
         reloaded: { status: 'finished', version: 'v2', watermark: '4' },
-        badV12: { status: badV12Status, watermarkAfter: '4' },
+        badV12: {
+          status: badV12Status,
+          a5: '退避',
+          d5: bad.events[0]!.d5,
+          watermarkAfter: '4',
+        },
         otherTenantStatus: otherRead.status(),
         otherTenantFaultStatus: otherFault.status(),
       }),
