@@ -144,7 +144,12 @@ def _initialize_repository(tmp_path: Path) -> tuple[Path, str]:
     # 正式固定原典を実objectのまま保持し、合成baselineにも本来の祖先を与える。
     # 現在木から別の原典を作ったり、検査器の祖先確認を省いたりしない。
     frozen_inputs = assets["contracts/tenant_boundary/frozen-inputs.json"]["frozen_inputs"]
-    source_revision = frozen_inputs["pr192_source_expectation_revision"]["value"]
+    source_key = (
+        "pr196_source_expectation_revision"
+        if "pr196_source_expectation_revision" in frozen_inputs
+        else "pr192_source_expectation_revision"
+    )
+    source_revision = frozen_inputs[source_key]["value"]
     assert _run_git(
         _REPOSITORY_ROOT, ["rev-parse", "--verify", source_revision + "^{commit}"]
     ).strip() == source_revision
@@ -158,6 +163,11 @@ def _initialize_repository(tmp_path: Path) -> tuple[Path, str]:
     _run_git(repository, ["update-ref", "HEAD", source_revision])
     baseline = _commit(repository, "baseline")
     _run_git(repository, ["merge-base", "--is-ancestor", source_revision, baseline])
+    for key in ("pr192_source_expectation_revision", "pr196_source_registration_revision"):
+        if key in frozen_inputs:
+            _run_git(repository, [
+                "merge-base", "--is-ancestor", frozen_inputs[key]["value"], baseline,
+            ])
     return repository, baseline
 
 

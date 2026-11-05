@@ -270,3 +270,6 @@ PR196のCI静的追随（2026-11-05、PO委任Codex /root判断）: 同70158 CI4
 
 
 core外層反映1採用（2026-11-05、PO委任Codex /root判断）: 作者packet8545fc21…のcore f89626c6…/test8953b511…/固定入力3提案21bbb96e…を非作者08c893075ce5f02590578f7e4bcfa969f293282613c37e53e37ecfcef86c3342（独立798成功78.09秒、P0/P1/P2=0）で採用する。初回独立shadow index未構築の17拒否は自身のGit indexを直し同候補再実行した経緯を保持。旧検査関数ASTは全保持、verify入口接続1callのみ新外層へ委譲、旧raw helper2の歴史投影を追随。新raw3path検出/全拒否は保持し、固定参照は既typed frozen入力へ置きPython新hex0。purposeは非空plainstr/consumer exact/40桁型の境界を検査し、任意非空文言まで単独拒否するとは主張しない。具体3entry全値は正式7.7射影で別拘束する。70158の旧証拠/CI失敗を保持、後発全差分のR4・最終証拠・CIは別に必要。
+
+
+歴史source試験exact2の採用（2026-11-05、PO委任Codex /root判断）: root候補の旧2path/8site全byteを固定9b76で保持し現sourceを別にscanする追随、正例欠落helperへ前置Eの真正祖先を含める追随を、非作者a3d67c94b4f4ddc4ff421e7b5d689e52b91f634168ed25fe6c983bd0fe90c84b（独立37成功14.40秒＋未知current2/旧Git欠落の対向、P0/P1/P2=0）で採用する。root直接3caseはpytest全件成功へ数えず独立37とは分離。旧pin・他全defs/反例/歴史対象を保持し、現hashへの上書きや任意fallbackは無い。初回CI harness1の2不一致とcore層同根は別に記録する。
