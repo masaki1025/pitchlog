@@ -290,3 +290,8 @@ Port期待集合の追随exact1（2026-11-06 JST、PO委任Codex /root判断）:
 
 
 GET契約unionの旧画面型追随exact1（2026-11-06 JST、PO委任Codex /root判断）: 正直なcanonical payload DTSへNP inner unionを追加すると、既GameScreenOrdinaryPitchController.tsのrestoreLocalが全LineupPlayPrefixV7へ再castし旧prefixRef.gameId/tenantIdと旧Request専用fieldを読むため、新CheckpointRef branchが混入すると実測。既GET候補37へfrontend/src/screens/GameScreenOrdinaryPitchController.tsだけを追加し最大38とする。旧ローカル復元でcalculation.formatVersion===play-prefix-calculation-v3を明示確認し、その成立branchだけ旧型へ絞る。NPを旧型へ偽装cast/any化せず、未接続NP画面復元は明示非成功に閉じる。既提供v3の保存/再読込/結果不明slotは保持し、Source6/JS/artifact/計算を変更しない。既controllerテストの旧全正常/拒否と型検査を実行、不可分な負対向追加が別pathなら対象を先に返す。作者はcache-only、rootは全before/後発FE差分と非作者確認後に直列採用する。
+
+
+GET旧画面負対向の不可分追補（2026-11-06 JST、PO委任Codex /root判断）: 前記FE guard exact1へ同既componentのfrontend/src/screens/GameScreenOrdinaryPitchController.spec.tsだけを加え最大39pathとする。正規v3 durable slotのinner formatだけをNP/未知へ変えた2対向を実restoreLocal public入口へ通し、非成功・数学再実行なし・新D5発行なしを確認する。private関数直呼びへの付替え/既v3正常の削減はしない。source本体/対応試験の同一単位であり新意味の追加でない。
+
+取消publisherの既採用ABI追随exact2（2026-11-06 JST、PO委任Codex /root判断）: S26がconsume_nonplay_undoをTABLE(receipt_json text)へ変更したため、root専有publisher nonplay_product.pyの固定descriptor TABLE(consumed boolean)が一致せずcandidate_declarationsがValueError『取消の固定SQL署名・実行属性が不一致』と閉拒否することを実確認。編集exact2はbackend/src/pitchlog/authz/nonplay_product.pyとbackend/tests/test_nonplay_product.py。固定consumer戻り値宣言1だけを受理済S26/codec/bridgeのreceipt_json textへ一致させ、旧bool/別名/別型を拒否する対向を加える。6関数署名/引数/SECURITY DEFINER/owner/search_path/ACL、43列/可変列/全他宣言・全SQL本文は不変更。任意結果型を許すregex緩和やV7/ACK変更をしない。別非作者で正確2差分・全旧拒否と新ABI対向を確認してから正式assetsを導出する。publisher composeへの非play正式接合/正本catalog/全PG成功は別残で、この単一descriptor修復だけでは成立としない。
