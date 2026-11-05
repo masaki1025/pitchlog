@@ -844,6 +844,7 @@ def _finish_current(owner_dsn: str, applicator_dsn: str) -> CurrentProductStartu
         _check_current_rules(connection)
         _check_current_public_storage(connection)
         _require_pre_or_full_catalog(connection)
+    with psycopg.connect(applicator_dsn) as connection:
         apply_product_authz_ddl(connection)
     with psycopg.connect(applicator_dsn) as connection:
         if _revision(connection) != CURRENT_REVISION:

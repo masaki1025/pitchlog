@@ -771,3 +771,63 @@ def test_pre_full_keeps_only_the_verified_migration_guards(monkeypatch):
             with pytest.raises(current.CurrentProductStartupError):
                 current._require_pre_or_full_catalog(object())
         item.actual = original
+
+
+def test_current_finish_closes_read_transaction_before_idle_authz_apply(monkeypatch):
+    """全事前read接続を終結し、別IDLE接続で既適用器を実行する。"""
+    trace = []
+    connections = []
+
+    @contextmanager
+    def connect(_dsn):
+        connection = SimpleNamespace(dirty=False, closed=False, number=len(connections))
+        connections.append(connection)
+        try:
+            yield connection
+        finally:
+            connection.closed = True
+            trace.append(("closed", connection.number))
+
+    def read(connection, name):
+        assert not connection.closed
+        connection.dirty = True
+        trace.append((name, connection.number))
+
+    monkeypatch.setattr(current.psycopg, "connect", connect)
+
+    def revision(connection):
+        read(connection, "revision")
+        return current.CURRENT_REVISION
+
+    monkeypatch.setattr(current, "_revision", revision)
+    names = [
+        "_check_current_structure",
+        "_check_current_indexes",
+        "_check_current_rules",
+        "_check_current_public_storage",
+        "_require_pre_or_full_catalog",
+    ]
+    for name in names:
+        monkeypatch.setattr(
+            current, name, lambda connection, n=name: read(connection, n)
+        )
+
+    def apply(connection):
+        assert not connection.dirty and not connection.closed
+        assert connections[1].closed
+        assert [name for name, number in trace if number == 1] == [*names, "closed"]
+        trace.append(("apply", connection.number))
+
+    monkeypatch.setattr(current, "apply_product_authz_ddl", apply)
+
+    def catalog(connection):
+        read(connection, "catalog")
+        return SimpleNamespace(ok=True)
+
+    monkeypatch.setattr(current, "_catalog", catalog)
+    assert (
+        current._finish_current("owner", "admin")
+        == current.CurrentProductStartupResult()
+    )
+    assert len(connections) == 4 and all(c.closed for c in connections)
+    assert ("apply", 2) in trace and ("catalog", 3) in trace
