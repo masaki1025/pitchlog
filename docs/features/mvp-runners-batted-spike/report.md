@@ -5,7 +5,7 @@
 - 起点: `feature/mvp-batted-hits@82557119314aebb5db3acb8704f71d1a91f82c9a`
 - 専用枝: `feature/mvp-runners-batted-spike`
 - 作業worktree: `/home/ymdms/projects/pitchlog-worktrees/feature-mvp-runners-batted-spike`
-- コードHEAD: `f293cf87750870be93b93063f99d6f254bb1cb40`
+- コードHEAD: `31d9f303f05210c90ce081dd6b93f43fc99ac445`
 - 報告HEAD: 本ファイルを含むコミット（`git rev-parse HEAD`で確認）
 
 ## 結論
@@ -21,6 +21,19 @@
 - 既存のno-runner保存境界試験（越境・語彙・野手・全取消）2件は本変更後も成功。
 
 正本・`contracts/`・共有台帳は変更していない。必要な追補は`proposal.md`へ分離した。
+
+### 追加修正（2026-11-06）
+
+- **フォース連鎖**: 打者の出塁でフォースされる一塁走者は、到達先が三塁・本塁でも
+  T1 `runnerDefaultAdvance.first.modality=forced` を返す。backendのrunner投影検証も
+  `forced`以外を拒否する。
+- **未対応入力の拒否**: 一塁以外の走者、複数走者、走者あり三塁打/本塁打を
+  domain・provider・backend guard・spike schemaで拒否する。UIも一塁走者1人の
+  単打/二塁打だけを表示する。
+- **wire原値の厳格検証**: wire値を旧schema形へ書き換える処理を削除した。
+  正準schemaを複製し、明示進塁の3定義だけを候補形へ拡張した
+  `frontend/src/api/lineupPrefixSpikeSchema.ts` で、元のwire値をそのまま検証する。
+- 追加修正後の実画面E2E（3 tests: 2シナリオ + 別tenant 404）とDB照合は再度成功した。
 
 ## 再現手順
 
@@ -39,7 +52,7 @@ cd /home/ymdms/projects/pitchlog-worktrees/feature-mvp-runners-batted-spike
 cd frontend
 pnpm install --frozen-lockfile
 pnpm build:domain
-# 5f4caa1f89963fadbad2664dd245dac94afb91977e525fbd5acf01949a3fcc28 65773 bytes
+# 345130852d3b2f6626b142383fda9aa2c5ff6a8ee27a1396479a1adf58cb1937 65993 bytes
 ```
 
 ### 3. 隔離PostgreSQLと実HTTPS
@@ -84,7 +97,7 @@ Playwrightの`PITCHLOG_RUNNER_SCREEN_RESULT`から抜粋。
 
 ### シナリオA: 単打・一塁走者→三塁
 
-- game: `9eccb927-1c20-45b8-a83d-4751f101d877`
+- game: `06dd1fc0-11d5-4b3c-91ca-9c55ee94f966`
 - 1球目: `batting-result.single`、before=`empty`→after=`first`、hits 0→1、打順1→2。
 - 2球目: `batting-result.single`、before=`first`→after=`first-third`、hits 1→2、打順2→3。
 - after:
@@ -103,7 +116,7 @@ Playwrightの`PITCHLOG_RUNNER_SCREEN_RESULT`から抜粋。
 
 ### シナリオB: 二塁打・一塁走者→本塁
 
-- game: `72266df5-369e-4090-b613-46b80d05c19e`
+- game: `a4e0a9c2-2b7f-497e-bc9c-cbf0f2bfbbd2`
 - 1球目: `batting-result.single`、before=`empty`→after=`first`、hits 0→1。
 - 2球目: `batting-result.double`、before=`first`→after=`second`、hits 1→2、打順2→3。
 - after:
@@ -137,8 +150,11 @@ Playwrightの`PITCHLOG_RUNNER_SCREEN_RESULT`から抜粋。
 - `frontend/src/domain/battedHit.spec.ts`
 - `frontend/src/api/lineupPrefixWire.ts`
 - `frontend/src/api/runnerAdvanceWire.ts`（新）
+- `frontend/src/api/lineupPrefixSpikeSchema.ts`（新）
+- `frontend/src/api/lineupPrefixSpikeSchema.spec.ts`（新）
 - `frontend/src/screens/GameScreenBattedHitObservation.vue`
 - `frontend/src/screens/GameScreenOrdinaryPitch.vue`
+- `frontend/src/screens/GameScreenOrdinaryPitch.lifecycle.spec.ts`
 - `frontend/src/screens/GameScreenOrdinaryPitchProvider.ts`
 - `frontend/src/screens/GameScreenRunnersBattedHits.e2e.ts`（新）
 - `frontend/src/screens/GameScreenRunnersBattedHits.playwright.config.ts`（新）
@@ -164,7 +180,7 @@ Playwrightの`PITCHLOG_RUNNER_SCREEN_RESULT`から抜粋。
 
 1. **正式契約は未変更**。V7観測/T1の`applied`と`optional|forced`は候補であり、
    現行`contracts/`では未受理。正式化は`proposal.md`の追補が必要。
-2. **artifact pin/manifest/D11は未追随**。新artifact SHA `5f4caa1f...`に対し、
+2. **artifact pin/manifest/D11は未追随**。新artifact SHA `345130852d3b...`に対し、
    既存のpin期待は旧`51d4d0f...`のまま。実測時だけmanifestを一時差し替えた。
    そのため既存のD11/pin試験は旧SHA期待で失敗する（実装の失敗ではない）。
 3. **SQL関数body契約は未追随**。実測時だけ契約assetを一時差し替えた。

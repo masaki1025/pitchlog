@@ -48,11 +48,21 @@ V7とT1の両方で同じ内容を運び、SQL admissionでも両者の一致を
 - `optional|forced`は`destination != null`、`hold|not-applicable`は`destination == null`の
   双方向制約を維持する。
 - 打者到達塁と走者到達塁の重複を拒否する。
+- 打者の出塁でフォースされる走者は、到達先がさらに先でも`forced`とする。
+  forced走者を`hold`にするwireは拒否する。
+- spikeの成功入力は一塁走者1人・単打/二塁打だけに閉じ、一塁以外・複数走者・
+  走者あり三塁打/本塁打は成功にしない。
+
+### wire検証
+
+明示進塁のwire値を旧形へ書き換えて正準schemaへ通すのではなく、正準schemaを複製し
+`runnerAdvanceOverrides`/`runnerAdvanceOverridesByRunner`/`runnerDefaultAdvance`だけを
+候補形へ拡張したspike schemaで、**元のwire値**を検証する。正準`contracts/`は変更しない。
 
 ## 3. artifact・pin・manifest
 
-- 唯一artifactのSHAは `5f4caa1f89963fadbad2664dd245dac94afb91977e525fbd5acf01949a3fcc28`
-  （65773 bytes、公式builder再生成）。
+- 唯一artifactのSHAは `345130852d3b2f6626b142383fda9aa2c5ff6a8ee27a1396479a1adf58cb1937`
+  （65993 bytes、公式builder再生成）。
 - `backend/domain/*manifest.json` の`directTargets[].hash`を上記へ更新する。
 - `contracts/state-transition/batted_hit_d11_vectors_v1.json`、
   `batted_hit_prefix_cases_v1.json`、`lineup_play_prefix_d11_vectors_v1.json`等の
