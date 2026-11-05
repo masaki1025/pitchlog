@@ -53,7 +53,16 @@ def contract():
 def test_current_v3_source_keeps_old_owner_and_exact_finite_sites(contract, path):
     """歴史viewだけで現v3を成功とせず、現sourceの全byte/拒否を確認する。"""
     source = immutable_source(path)
-    assert source == (ROOT / path).read_text()
+    current = (ROOT / path).read_text()
+    if path in {
+        "backend/src/pitchlog/domainrt/lineup_play_prefix_continuation.py",
+        "backend/src/pitchlog/domainrt/lineup_prefix_source.py",
+    } and contract.pr196_source_registration is not None:
+        assert checker._pr196_successor_matches(
+            current, path.removeprefix("backend/src/"), contract,
+        )
+    else:
+        assert source == current
     relative = path.removeprefix("backend/src/")
     expected = {tuple(s[k] for k in ("line", "code", "symbol", "scope"))
                 for s in EXPECTED["owners"][path]["findings"]}
@@ -279,13 +288,14 @@ def test_shared_synthetic_git_parent_preserves_current_and_legacy_origins(
                 asset_path = Path(destination) / "base-allowlist.json"
                 value = json.loads(asset_path.read_text())
                 value.pop("pr192_source_registration", None)
+                value.pop("pr196_source_registration", None)
                 asset_path.write_text(json.dumps(value, ensure_ascii=False))
             return result
         monkeypatch.setattr(shared.shutil, "copytree", historical_copy)
     repository, baseline = shared._initialize_test_repository(tmp_path, {})
     frozen = json.loads((ROOT / "contracts/tenant_boundary/frozen-inputs.json").read_text())
     wanted = (
-        frozen["frozen_inputs"]["pr192_source_expectation_revision"]["value"] if current
+        frozen["frozen_inputs"]["pr196_source_expectation_revision"]["value"] if current
         else json.loads((ROOT / checker._PR191_EXPECTED_FIXTURE).read_text())["source_revision"]
     )
     assert shared.checker._run_git(repository, ["rev-parse", baseline + "^"]).strip() == wanted

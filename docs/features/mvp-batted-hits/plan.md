@@ -234,3 +234,6 @@ FE14と分離しstats_csv_next_unitへ新exact4: backend/src/pitchlog/api/schema
 
 
 前置分類の採用記録: 対象source6965088b9353dfa89643528531c22b340e9f4c72、fixture SHA52d056f109df66c29fea8f32ab900a2830d210efa6ff8985c3d5ca6bd6bedc7b、作者資料5df8c0eb…、非作者分類87e1089243de4aa19bd0ac41f43e5810514e64123af78c4733837287338ede6cを照合し採用する。旧pr191は全51（後継45/不変6）、pr192は全90（旧45/新45）を区別し、models旧49を新許可へ含めない。判断者Codex /root、2026-11-05 JST、PO既委任による技術的具体化であり本人署名/P6blind/旧人間確認の拡張ではない。Eのfull SHAは本fixture前置commit後に正式frozen入力へ束縛し、未確定文字列を受理値へ入れない。コアpathsは新fixture/test2だけtenant-isolationへ明示追加する最小追随を別非作者確認し、既検出を保持する。
+
+
+source登録の採用記録: 作者cache source4（checker7a6c9a4c…/新196test ed7131c2…/旧192test cc7d619d…/旧checktenanttest257dfdc7…）と正式追加候補2を非作者f0a1ae8b57885132df0ac893dab7450dc43f0d56dc5ed6dedd46db9e03cdd0b2で照合し採用した。actual root回帰409pass31.84秒、旧fixture3と追加偽型対向を独立確認。判断者Codex /root、2026-11-05 JST、PO既委任による判断。E0f75/fixture52d056/旧51・90/11maps16frozen/37履歴は保持、本人署名/P6blindの拡張ではない。正式2assetは識別値と射影の公式更新・単一#196受理がまだ必要な候補であり、current source診断0や回帰を正式7.7/CLI/CI成功へ読み替えない。後段census source1は別非作者確認中。

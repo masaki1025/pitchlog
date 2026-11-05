@@ -1139,7 +1139,12 @@ def _initialize_test_repository(
     checker._run_git(repository, ["init"])
     if "pr191_source_registration" in allowlist or "pr192_source_registration" in allowlist:
         # 合成repoも実原典のobject/祖先を保持する。元repoのrefsやobjectは変更しない。
-        if "pr192_source_registration" in allowlist:
+        if "pr196_source_registration" in allowlist:
+            frozen = json.loads(
+                (REPOSITORY_ROOT / "contracts/tenant_boundary/frozen-inputs.json").read_text()
+            )
+            revision = frozen["frozen_inputs"]["pr196_source_expectation_revision"]["value"]
+        elif "pr192_source_registration" in allowlist:
             frozen = json.loads(
                 (REPOSITORY_ROOT / "contracts/tenant_boundary/frozen-inputs.json").read_text()
             )
@@ -3012,6 +3017,8 @@ def test_all_assets_freeze_mode_wiring_and_declare_single_authority() -> None:
             "tests/fixtures/pr192_ordinary_extension_reference_v1.json",
             "backend/tests/test_sync_apply_product_supply.py",
             "backend/tests/fixtures/batted_source_extension_reference_v1.json",
+            "tests/fixtures/pr196_tenant_source_expected_v1.json",
+            "tests/test_pr196_tenant_source_registration.py",
         ],
         Path("contracts/tenant_boundary/negative-fixtures.json"): shared_external_files,
         Path("contracts/tenant_boundary/repository-contract.json"): shared_external_files,

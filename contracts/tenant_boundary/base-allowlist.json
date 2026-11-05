@@ -38904,5 +38904,139 @@
         ]
       }
     }
+  },
+  "pr196_source_registration": {
+    "expected_fixture": "tests/fixtures/pr196_tenant_source_expected_v1.json",
+    "owners": {
+      "backend/src/pitchlog/domainrt/lineup_play_prefix_continuation.py": {
+        "purpose": "旧pr192の同位置全禁止tupleを保持し、既採用安打の閉入力/原観測接合を別固定sourceへ束縛する。新しい権限や旧署名の拡張ではない。",
+        "source_sha256": "44b0e610a6ff4c21bcb039d9be6ca12fcd45fd4f05e6ceb82fa8b2ded5736e0d",
+        "findings": [
+          {
+            "line": 132,
+            "condition": 2,
+            "code": "TB002",
+            "symbol": "typing.Annotated",
+            "scope": "pitchlog.domainrt.lineup_play_prefix_continuation.PrefixRef.<module>"
+          }
+        ]
+      },
+      "backend/src/pitchlog/domainrt/lineup_prefix_source.py": {
+        "purpose": "旧pr192の同位置全禁止tupleを保持し、既採用安打の閉入力/原観測接合を別固定sourceへ束縛する。新しい権限や旧署名の拡張ではない。",
+        "source_sha256": "b7887c8f3c977b1939b0ea44f8e0870d10d11bfd69b86e7c634900cae3f327ae",
+        "findings": [
+          {
+            "line": 39,
+            "condition": 2,
+            "code": "TB002",
+            "symbol": "str",
+            "scope": "pitchlog.domainrt.lineup_prefix_source.StartedLineupEvidence.<module>"
+          },
+          {
+            "line": 132,
+            "condition": 2,
+            "code": "TB002",
+            "symbol": "pitchlog.domainrt.lineup_play_prefix_continuation.LineupPrefixRequest.prefix_ref.generation",
+            "scope": "pitchlog.domainrt.lineup_prefix_source._bound"
+          },
+          {
+            "line": 132,
+            "condition": 2,
+            "code": "TB002",
+            "symbol": "pitchlog.domainrt.lineup_prefix_source.StartedLineupEvidence.generation",
+            "scope": "pitchlog.domainrt.lineup_prefix_source._bound"
+          },
+          {
+            "line": 381,
+            "condition": 2,
+            "code": "TB002",
+            "symbol": "generation",
+            "scope": "pitchlog.domainrt.lineup_prefix_source.<module>"
+          },
+          {
+            "line": 401,
+            "condition": 2,
+            "code": "TB002",
+            "symbol": "str",
+            "scope": "pitchlog.domainrt.lineup_prefix_source.initial_lineup_source"
+          }
+        ]
+      },
+      "backend/src/pitchlog/repositories/ordinary_pitch_operations.py": {
+        "purpose": "既ordinary/PlayPrefixの旧8禁止tupleを同scope/symbolに保つ。安打6観測を扱う採用済み限定分岐で生じた6tupleの行移動だけを固定原本へ対応付け、旧owner mapは変更しない。",
+        "source_sha256": "b7a702c873bf1412b955bb29c22f12a73ee6643bf4127d6174280fca02c0ce5c",
+        "findings": [
+          {
+            "line": 15,
+            "condition": 2,
+            "code": "TB002",
+            "symbol": "IdempotencyLedger",
+            "scope": "pitchlog.repositories.ordinary_pitch_operations.<module>"
+          },
+          {
+            "line": 26,
+            "condition": 2,
+            "code": "TB002",
+            "symbol": "IdempotencyLedgerReadToken",
+            "scope": "pitchlog.repositories.ordinary_pitch_operations.<module>"
+          },
+          {
+            "line": 117,
+            "condition": 2,
+            "code": "TB002",
+            "symbol": "token.generation",
+            "scope": "pitchlog.repositories.ordinary_pitch_operations._row"
+          },
+          {
+            "line": 178,
+            "condition": 2,
+            "code": "TB002",
+            "symbol": "pitchlog.db.sync_protocol.models.IdempotencyLedger",
+            "scope": "pitchlog.repositories.ordinary_pitch_operations._preflight.validate"
+          },
+          {
+            "line": 178,
+            "condition": 2,
+            "code": "TB002",
+            "symbol": "pitchlog.db.sync_protocol.models.IdempotencyLedger.__table__.c.keys",
+            "scope": "pitchlog.repositories.ordinary_pitch_operations._preflight.validate"
+          },
+          {
+            "line": 186,
+            "condition": 2,
+            "code": "TB002",
+            "symbol": "token.generation",
+            "scope": "pitchlog.repositories.ordinary_pitch_operations._preflight.validate"
+          },
+          {
+            "line": 229,
+            "condition": 2,
+            "code": "TB002",
+            "symbol": "token.generation",
+            "scope": "pitchlog.repositories.ordinary_pitch_operations._preflight"
+          },
+          {
+            "line": 230,
+            "condition": 2,
+            "code": "TB002",
+            "symbol": "pitchlog.sync.tokens.IdempotencyLedgerReadToken",
+            "scope": "pitchlog.repositories.ordinary_pitch_operations._preflight"
+          }
+        ]
+      },
+      "backend/src/pitchlog/db/tenant_isolation/models.py": {
+        "purpose": "AdminVocabularyの非一意partial Indexの固定述語text一件だけ。実問い合わせのcategory/disabled/key COLLATE Cに閉じ、DML/任意text/新DB到達経路を許可しない。",
+        "source_sha256": "2a8667f0e1d2f5e58699b9bcfb2e7c0f0dafbafc7ea3420f75486f7c977e3b1b",
+        "findings": [
+          {
+            "line": 1202,
+            "condition": 5,
+            "code": "TB005",
+            "symbol": "sqlalchemy.text",
+            "scope": "pitchlog.db.tenant_isolation.models.AdminVocabulary.<module>"
+          }
+        ]
+      }
+    }
   }
 }
