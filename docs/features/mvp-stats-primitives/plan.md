@@ -203,3 +203,16 @@ source3/4SQLを非作者74f4212f…で採用し7ba56ed9へ保存。read-only調�
 新repositories/stats_function_codec.pyとtests/test_stats_function_codec.pyのexact2をbatted_prefix_connectionへ許可する。既SQL4＋writer preflight1のidentityだけに閉じ、実宣言の引数順/型/NULL許可/行形から実bind/result値を厳格に形成する。tenant先頭を注入せずSQL内tenantGUCを使う5関数だけの固定Selectを供給し、caller指定SQL/identity/arity/tenant-injection flagや一般registryの型緩和を導入しない。Saveのprivate nonce、Page/Totalsのprivate transaction_idはrootが真正proof/receiptから渡す値であり、値codecが資格を発行したりscalar/UUID/JSON/trueを認可へ変換したりしない。公開値tokenのrun_function直実行を許す登録はrootのprivate資格gate前に行わない。
 
 UUID/bytes32/modelhash/厳密int範囲・page上限・nullable S/cursorの全か無か/JSONB exact評価envelope/NUMERICの有限整数DecimalとNULLをfield単位に閉定義する。BigIntegerをfloatへ近似せず、計算/丸め/集計は既生成式へ任せ、codecに別統計算式を作らない。適用対象は新5だけで既Fn token/SQL/行validator/NULL拒否は不変。閉Query/typed params/厳密行変換の値部品と追加すべき共有callsiteの最小cache差分を提示する。source2以外のproducer/SQL/共有registry/transaction/sync/reader/正式assets/refs/PGは作者非編集。正常5/型混同/余剰欠落/未知identity/NaN fractional Decimal/BOOL-as-int/不完全cursor/偽hash/不適切NULL・JSON余剰を有限pureで検査し、別非作者確認後rootが実資格gate/登録/単一flushへ接ぐ。純transport成功は実認可/保存/読取の成立ではない。
+
+
+## root隔離接続候補での実接合（2026-11-05、PO委任Codex /root判断）
+
+feature/mvp-stats-native-connectionはbatted固定9d0a3dc1へ採用stats固定bc5b32b3を通常mergeした00d8811d起点。元2枝/WTと正式developを変更せず、実製品が同時に動く候補だけを作る。後段PRは依存元を維持し、このmergeだけを正式統合/成績提供としない。rootが同候補のshared writerを専有する。
+
+最初に隔離未公開stats migration0040を0041_stats_fact_versionsへ改称しdown_revisionを0040_batted_vocabulary_indexへ接合する。本文/54列/PK/FK/ForceRLS/default-deny/物理削除禁止は全AST保持し、tests/db/test_stats_storage.pyの対象pathだけ追随する。tests/db/test_stats_primitive_read_scope.pyの既ty違反は実driver例外型を明示確認してSQLSTATE25006拒否を維持する。新列/データ修復/共有DB適用なし。新単一alembic head/DDL不変と既downgrade拒否をpure確認し、実migrationはroot owned PGで後段検証する。
+
+続くroot接合はauthz/first_ball_product.py・product_catalog.py（新stats schema/私有3表/4+1関数/最小列policy/sourcebody/同じ再適用guard）、repositories/function_operations.py・operation_registry.py・transaction.py・play_export_primitives.py・stats.py、sync/prefix_path.py・first_ball_execution.py・ordinary_pitch_execution.py・新stats_native_hook.py、および対応新tests/test_stats_native_connection.pyの範囲に限定する。原実Executionのlive state/実state-key/同TX/source・元event原本/実規則/既nonce/consumed・projectedを全部照合するopaque qualifierと一回消費を実装し、after_d1_intents後/return前だけで唯一prepare_native_evaluation→実前値→Saveを実行する。既consumeを再呼出しせずDI2再掲はflushせず、失敗はnativeとstats全体rollback。RRRO readは既真正marker/同handle/実発行receipt・cursor identityを両入口で強制し、snapshot文字列だけに資格を与えない。5identity値codec以外の一般SQL/型/NULL/tenant先頭契約は不変。
+
+正式資産はrootだけが同canonical producer/modelからcontracts/db/schema-manifest.json・contracts/authz/product/ddl-elements.json/function-bodies/manifestと新body・contracts/tenant_boundary/repository-contract.json/runtime-authz-contract.json、公式生成moduleを一括候補化する。旧全宣言値/権限を保持し必要統合後に単一受理前後とOracle/provenanceを独立確認する。body/生成module手編集や先取り再封印は不可。5th preflight/codec作者の新2+2は停止・独立採否・commit後に元stats枝から通常mergeし、同名pathを並行編集しない。
+
+受入は隔離同候補のfresh画面/実API新規作成→start→native球→同TXstats原本/facts/series→新RRRO Open/Page/Totals、T4後/Save後/commit故障全取消、nonce/他tenant/別receipt・同snapshot別handle/再送二重加算/過去nativeのみの不足源閉拒否を検証する。現current_open供給だけで終了確定試合・全27/season/CSV/MVP完成としない。正式developへの順次統合・実機/運用/全受入は別条件を保持する。
