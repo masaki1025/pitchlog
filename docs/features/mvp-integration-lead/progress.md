@@ -1,6 +1,6 @@
 # 初回MVP 主担当引受・進捗台帳
 
-## 続き：2026-11-05（成績の実3球保存成立、保存直後故障を実測中）
+## 続き：2026-11-05（成績の実3球保存・保存直後故障成立）
 
 - **新たに成立した経路**: 成績枝b051defab4c69889cc2695f72a396e111313b614の固定HEADで、実POST新規作成→開始→ordinary-prefix-v1の3球→元要求再送→サーバーGETが1pass66.95秒。event3と成績source3のID一致、current_open(source_count3/revision3)、pitch_count3を実PGで確認した。HEAD/tree/index全3840項目前後一致、7証拠SHAとowned終了を非作者8ba1dd24e939432cba81a4607489a9f2543213ae23bffda2b18ae5acb7270f0cで照合。cache mvp-resume-20261104/stats-native-three-pitch-integration-r5-proof/evidence.json。APIの成績保存接続であり、成績画面/全4profile/終了確定集計/全27項目/正式受理ではない。
 - **保存保証の次の検証**: native accepted台帳のtop-level INSERT exact5は非作者98e28cd1…後b051へ採用、旧generic/savepoint/66DML/SQL xmin条件/DI2優先を保持。実flush完了直後だけ固定故障を起こすHTTP test exact1 c8ce45ad…は非作者fb28f4d9…（独立pure48成功、P0/P1/P2=0）後53dcc597へ保存。固定53dcc597494b22b4d7493a7eb1d2014568da7258のowned PG実行は1pass44.89秒。元の実認証/開始/計算/SQLと成績flush完了後の固定故障を通し、成功ACK無し・関連13表全列/全行の前後原状一致を確認。HEAD/tree/index前後一致・所有container撤去を含む7証拠をcache mvp-resume-20261104/stats-native-atomicity-http-r1-proof/へ保存し、証拠結合の非作者照合を依頼した。旧要求終結/D5未消費/新D5置換をこの試験から推定しない。
@@ -16,6 +16,8 @@
 - **実APIで発見した不整合**: 新POST作成/開始/3球を試したr1は42.41秒でsource event_kind期待のplay不一致、既正式play_inputへ直し新旧336pure成功44.08秒、非作者bc57675b…後00845118保存。採用後期待2の239作者成功/cbb81ae7…も同commitで保存。r2/r3は保存1球目で503、r3の固定PG関数位置はread_primitive_writer_state prosrc107（台帳xmin等の最終4条件）まで特定。source/error文字列だけで保存成功/全取消を主張しない。新test_stats_native_vertical_http.pyは未追跡保全・ruff成功、独立レビュー中、実API成功未成立。r1外部cache診断のDBmarker警告は正式試験と区別する。
 - **次の是正方針**: 既accepted台帳INSERTはrun_in_savepoint→begin_nested、後のevent/projectionはtop TX。owned PGミクロで同TXでもtop741/sub742となり、RELEASE後のsubrowはtop xmin一致を満たさない事実を確認。pg_locksはtopだけなのでそのmembershipで救済できず、statusだけ/可視性だけの保証へ弱めない。既native acceptedだけtop-level固定INSERT ON CONFLICT PK DO NOTHING RETURNING1を用い、実1/0と既classify_d5で分岐する案Aを優先。旧汎用SAVEPOINT・D5結果/拒否優先順・SQL側xmin==topを維持する設計を非作者へ調査依頼中。ミクロは新規1/再送0/異内容0・原値不変・xmin==top/非D5 23514伝播までであり、実製品保証の代替ではない。
 - **証拠/再開入口**: cache mvp-resume-20261104/ のstats-real-storage-owned-identity-reflection3、stats-rrro-real-boundary-reflection1、stats-native-three-pitch-integration-r1/r2/r3、owned-pg-subxid{-locks,}-observation.json、owned-pg-d5-insert-observation.json。全owned container撤去済み・共有DSN未継承。進行中cacheはpr196-source-registration-candidate-20261105/、stats-native-preflight-stop-diagnostic-20261105/、stats-native-vertical-http-test-independent-20261105/。Goalはactive、D11正式登録/単一受理/Oracle/実API原子性/成績UI・全27/両CSV/全MVPは未完。
+
+- **追加回帰/所有逸脱の是正**: 成績接続後65d59875の既初球API回帰は1pass64.81秒、fixture試合起点のAPI試験であり新規画面実証へ加算しない。#196反映1作者cacheのcandidate-root/contractsが実WTへ向く親directory symlinkだったため、16:03:35 JSTにfrozen-inputs.json exact1をproposal後値へ書いた。rootが未適用dirtyを検出し停止、作者が原因と「正式JSON未変更」誤報を撤回。前後/差分SHAをcache mvp-resume-20261104/pr196-unexpected-metadata-observation/へ保全し、現在HEAD原本全byteへrootが復元、WTcleanを確認。source2/refs/DB変更なし。反映1は実copy隔離先で非作者再検証する。事故を承認/受理済みへ読み替えない。
 
 ## 続き：2026-11-05（安打の供給検査完了・成績の正式資産候補生成）
 
