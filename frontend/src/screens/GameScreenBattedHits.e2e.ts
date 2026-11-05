@@ -1,6 +1,18 @@
 import { createHash } from 'node:crypto'
-import golden from '../../../contracts/state-transition/batted_hit_cases_v1.json'
+import { readFileSync } from 'node:fs'
+import type goldenSource from '../../../contracts/state-transition/batted_hit_cases_v1.json'
 import { expect, test, type Page } from '@playwright/test'
+
+// NodeのJSON import属性に依存せず、同じ版固定goldenをそのまま読む。
+const golden = JSON.parse(
+  readFileSync(
+    new URL(
+      '../../../contracts/state-transition/batted_hit_cases_v1.json',
+      import.meta.url,
+    ),
+    'utf8',
+  ),
+) as typeof goldenSource
 
 const baseURL = process.env.PITCHLOG_E2E_BASE_URL
 const team = process.env.PITCHLOG_E2E_TEAM_NAME
