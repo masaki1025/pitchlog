@@ -180,3 +180,12 @@ metric state候補はavailable/decision_pending/source_unavailable/failed。集�
 判断者Codex主担当/root。対象は計画SHA256 `4a3f8a1d164f8551e77e0e2ff45d27901b3e2ccf9946ced363ce85a115fbd35c`・research `5a4546b6f21e3e3bf9a800debce9cc2cc24bb2b45313ad75be4bd226fd827dca`、非作者REPORT `5bd400fd3c7041dd1efa5964e7dbe33f47dc5ec5a80a9ed790b5fbd15535badf` のP0/P1未解消0を照合し、既MVPのPO委任により計画を採用する。本人の逐行確認・署名・旧method方式承認の代記ではない。
 
 ステップ1(a)の閉入力/出力型・有効集合/版/source境界・独立規範期待・3層比較契約候補から開始する。全23flagを入力として保持しつつPA/安打/BB/HBP/K/HR/outs/投球数等の正式sourceが閉じた群を同engineへ写す。未回答D02〜05や不足観測を仮採用しない。共通モデル/本計画の候補contract・同feature evidenceは担当を一本化し、共有registry・同期/DB・生成器source・正式contractsへの採用は非作者確認とrootの次の指示後。独立期待を製品出力から生成しない。対象群の契約成立後は直ちに1(b)の実生成コードへ進み、全27/MVP全体の開始待ちにしない。
+
+
+## ステップ2：実native SQL/最小権限producerへの操作単位接合（2026-11-05、PO委任Codex /root判断）
+
+反映1cache stats-native-functions-reflection1-20261105/ packet e053264b…と非作者de9d8cb3…を候補採用する。既4SQL本体は不変、必要通常SELECT12+xmin4/tenant policy3/logicalID正準化を確認済み。純parse/最小xmin PGと実製品4関数の成功は別であり、まだ実成績提供ではない。今は実native関数とcanonical publisherのsource化を先行し、shared installer/registry/同frame opaque proof/commit前flush/実native PGはroot直列で続ける。既Port/HTTP/全操作供給の完成を本単位の追加開始条件にしない。
+
+専有writer batted_prefix_connectionへ新backend/src/pitchlog/authz/stats_primitive_sql.py・stats_primitive_product.py・backend/tests/test_stats_primitive_product.pyのexact3を許可。SQL生成は既唯一play-exportモデルと生成selector/count/page/totalsを参照し、別S/別T5算式を増やさない。候補build.py/publisher.pyを製品pathへ移し、cache絶対path/固定WT/relations候補への実行依存をなくす。SQL4が反映1全byteへ再生成一致すること、既54col/7policy値保持と追加通常12+xmin4/policy3/計70col10policy4func84bodyの閉集合を検証する。未知モデル/列/型/参照/権限を拒否、appへtable直接grantを追加しない。stats_api schemaの正式所有者/USAGE/再適用guardも既producer規約へ合わせて候補として提供し、承認済4SQLを暗黙に変更しない。新SQL/PL/nullable PA envelope/nonce+consumed sameframe/TX/canonical S/CAS/RRRO snapshot境界を保持する。
+
+新3以外（既生成器/生成物/正式contracts/共有registry/transaction/sync/既migration/他WT/台帳/Git refs）を作者は編集しない。既export SQL/実モデル/54列表構造をsourceから参照し、必要受け口が不足ならcacheへexact差分候補を返す。型/ruff/pure有限検証・再現byte比較を行い、PG/HTTP/署名/正式7.7はroot後続として明示する。独立レビュー後rootが採否し、必要共有pathを直列実装する。未決4意味判断とMVP全27/両CSV・終了再開等の完成条件は維持する。
