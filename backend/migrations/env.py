@@ -18,6 +18,8 @@ if config.config_file_name is not None:
 
 # Base の定義後に集約モジュールを読み込み、全モデルを metadata へ登録する。
 _all_models = import_module("pitchlog.db.all_models")
+# 公式PostgresqlImpl hookを登録する。import/constructorでDB接続しない。
+_index_comparison = import_module("pitchlog.db.alembic_index_comparison")
 target_metadata = Base.metadata
 
 _MIGRATION_DATABASE_URL_VARIABLE = "PITCHLOG_MIGRATION_DATABASE_URL"
