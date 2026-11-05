@@ -189,3 +189,10 @@ metric state候補はavailable/decision_pending/source_unavailable/failed。集�
 専有writer batted_prefix_connectionへ新backend/src/pitchlog/authz/stats_primitive_sql.py・stats_primitive_product.py・backend/tests/test_stats_primitive_product.pyのexact3を許可。SQL生成は既唯一play-exportモデルと生成selector/count/page/totalsを参照し、別S/別T5算式を増やさない。候補build.py/publisher.pyを製品pathへ移し、cache絶対path/固定WT/relations候補への実行依存をなくす。SQL4が反映1全byteへ再生成一致すること、既54col/7policy値保持と追加通常12+xmin4/policy3/計70col10policy4func84bodyの閉集合を検証する。未知モデル/列/型/参照/権限を拒否、appへtable直接grantを追加しない。stats_api schemaの正式所有者/USAGE/再適用guardも既producer規約へ合わせて候補として提供し、承認済4SQLを暗黙に変更しない。新SQL/PL/nullable PA envelope/nonce+consumed sameframe/TX/canonical S/CAS/RRRO snapshot境界を保持する。
 
 新3以外（既生成器/生成物/正式contracts/共有registry/transaction/sync/既migration/他WT/台帳/Git refs）を作者は編集しない。既export SQL/実モデル/54列表構造をsourceから参照し、必要受け口が不足ならcacheへexact差分候補を返す。型/ruff/pure有限検証・再現byte比較を行い、PG/HTTP/署名/正式7.7はroot後続として明示する。独立レビュー後rootが採否し、必要共有pathを直列実装する。未決4意味判断とMVP全27/両CSV・終了再開等の完成条件は維持する。
+
+
+### 同TX writer前値の有限供給（2026-11-05、PO委任Codex /root判断）
+
+source3/4SQLを非作者74f4212f…で採用し7ba56ed9へ保存。read-only調査e0618c87…により、実writerのREV/Sを既RRRO Openへ流用せず取得するprivate固定関数1件が不足と確認した。新authz/stats_primitive_write_state.pyとtests/test_stats_primitive_write_state.pyのexact2をpr191_residual_independentへ許可。stats_api.read_primitive_writer_state(attempt_id uuid,phase_id uuid,source_event_id uuid,model_sha256 text,binding_nonce bytea)→(revision bigint,source_set_sha256 text)をcanonical producer候補にし、既Saveと同じsession_user/current_user/tenantGUC・実binding/currentXID・実consumed admission/元event/game/nonceを全照合する。current_openの有効current行だけFOR UPDATEで読み、真に不在のときだけ0/NULLを返す。終了/失効/複数/未知モデル/別TX/偽nonce/別tenant/未consumeの事実を欠如や0へ読み替えない。JSON/UUID/nonce単独は資格でなく、rootの実state-key/TX/同frame/全evalと一回消費proofが別に必要。
+
+既SQL4の署名/本文と70列10policy84bodyは不変、新関数1/必要最小metadata/ownerACLfooterだけを別追加し、新capabilityやapp直接tablegrantを足さない。既モデル/実SQL/旧固定guardを参照し計算を複製しない。作者は新2だけ、source3/共有registry/transaction/sync/正式資産/refs/DB非編集。構文/型/限界/構造変異を検証し、rootが独立確認後に正式producer・5identity限定codec/registryと単一flushへ直列接合する。純試験を実PGの資格/CAS/原子性成立へ読み替えない。
