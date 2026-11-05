@@ -1,5 +1,15 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 再開時の現在地：2026-11-06 00:05 JST（R6公開CI中・成績v2/取消の接続継続）
+
+- **利用者操作/正式版**: 正式develop112f771e、#196未merge。今回新たな正式提供は未成立。candidate/sourceの接合成果とAPI/GUIの対象版を区別し、MVP全機能・品質・実機/運用条件を維持する。
+- **#196固定/公開**: 最終3ecc85aba36dd913a70358b98394f7aed103029b、BASE112f→211path canonicaldiff3576238a0d1fb428951fe558e7a29cde497f1e008b04fe2a4c713547109dc64c。実final-candidate/元batted WTとも同HEAD・clean。正式単一196R6の9値はbase+1据置、旧37＋1961行を置換し不要な再増分なし。非作者input853236d0…/値805a5a2a…/最終62d15d2c…・bindingcc63631e…、旧全レビュー/P1履歴を保持。公開proof https://github.com/masaki1025/pitchlog/pull/196#issuecomment-6661184582 、実コメントを取得するlocal core/G6CI-mode両方0。source/head/final proof確定後、通常push1回だけ実施。**実本文42050222779 success、本体42050222825 in_progress**を同SHAで確認し、CI未完を成立扱いしない。旧head本文42050075661は新pointer/旧HEADのためfailure、旧R5 failureと分けて保存する。
+- **検査/範囲**: rootactual G6影響104成功138.40秒、backenddescriptor28成功0.99秒、frontendhandoff29成功1.89秒、tenant CLI0、rootRuff0/Tyは明示venvで0。R6値非作者は公式bundle一致/portable62/9ID/350snapshot(base323,pin83,ref317保護)/除去3退避/追加3・他8JSON/生成3/corpus不変を確認。local frozen acceptance CLIはsourceHEADがsynthetic mergeでないため拒否、独立synthetic受入とactualCIを区別しsourceの親を偽装しない。
+- **成績v2/実装と次**: native7＋manifest反映1を3c81f522へ採用し、関連766成功。typefollowup exact3は非作者2f5b4af9…/checks44245d36…で492全返却/例外同値とofficial8/他7不変・manifestSHA2pointerのみを確認し、6d4994bbへ採用/通常push済み。actual全backendTy0/receiver7成功0.78秒。初案E501は生成文字列括弧改行で解消、ignore追加なし。v2-save-r1のsetupERRORは正式stats5bodyだけ旧版と特定（canonical34中29一致、read-only82826eec…）。plan121e380dの有限5body scopeに従い作者pr191がcache-only公式再生成中、rootが正式派生/7.7を直列、非作者後にowned同版新規3球/reload/replay/read/faultへ戻る。旧v1実測をv2成功にしない。
+- **取消/次の操作**: pure/host採用c3edf395を保全、次の契約起案plan25bcccccを通常pushで保全する。共通3headと空active/D3>0/物理採番不再利用の技術追補を前置し、pr192がcache-only非playprefix契約3と2球→2取消→次球の手例/拒否対向を作成中。正式受理後に本体へ接続する。unit1 collectorの実app到達は未成立なのでunused CLIで代替せずunit1/2の接続固定点で共同受入。取消/再開を全nonplay skipやfake playで通さない。
+- **再開条件/所有**: 最優先はCI42050222825の同run観測と独立成績5body採用。R6に新sourceを追加しない。root共有正式資産/台帳writer、pr191成績5bodycache、pr192取消契約3cache、非作者は各候補の非作者へ分離。実機はPO担当、共有DB/有料/運用公開/秘密新規発行は未実施。
+
+
 ## 再開時の現在地：2026-11-05 23:45 JST（R5 CI失敗の修復、成績v2 native接続反映）
 
 - **利用者操作/提供版**: develop112f771e、#196はDraft/open・公開82557119。新しい正式提供はまだ増えていない。候補の実画面4安打証拠と、各spike作者の実測は別版/別証拠として保持する。Goalは全MVPのままactive。
