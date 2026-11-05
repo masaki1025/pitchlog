@@ -20,7 +20,7 @@ created: 2026-11-04
 
 既[計画候補8f67bbb2](https://github.com/masaki1025/pitchlog/blob/8f67bbb25f0f5aaad84706bd42e0afa63ab15152/docs/features/mvp-basic-stats-calculation/plan.md)の責任・27項目・版/原子性・十分統計量を再利用する。同候補の承認は3文書保全のみであり、未承認method-addendumの「TS正本→同一artifact/TS→SQL」は採用しない。現[ADR-003](../../adr/ADR-003-domain-calc-method.md) D-1/D-1-dで実装する。T5=(α)のPython/TS、T6=(β)③のSQL→Python typed receiver→生成formatterを、同じ宣言の派生物にする。D-14-mのT1/T2/座標量子化例外を成績へ広げない。
 
-JST暦年と終了確定最新版だけの公式成績は既PO方針として維持する。40ceの要件に残る4/1年度の文言は、既採用方針の正式整合ゲートで追随し、期間の再裁定を求めない。未回答の**成績MVP-D02〜D05**は第7節のまま保持する。記録lock D02=A、CSV文書の「3表示区分は既決」という記述を、成績区分対応D02の回答へ流用しない。
+JST暦年と終了確定最新版だけの公式成績は既PO方針として維持する。40ceの要件に残る4/1年度の文言は、既採用方針の正式整合ゲートで追随し、期間の再裁定を求めない。**成績MVP-D02〜D05は2026-11-05のPO実回答で全てAを採用済み**。末尾の採用記録と伝播条件を現状の正とし、以下の旧未回答記述は採用前の履歴である。記録lock D02=A、CSV文書の「3表示区分は既決」という記述を、成績区分対応D02の回答へ流用しない。
 
 今回の作業許可は本planと[research](research.md)のexact2だけ。rootが対象SHA/独立レビューを照合しPO委任で計画採用後、指定した実装ステップへ進める。コミット実施者と各ステップで止まる規律はAGENTS.mdに従う。rootは正式資産・共有式/producerの最終writerを直列管理する。
 
@@ -306,3 +306,7 @@ current起動追補の限定反映・採用（2026-11-05、PO委任Codex /root�
 
 
 current pre-full宣言の共有（2026-11-05、PO委任Codex /root判断）: exact5へbackend/src/pitchlog/authz/product_provisioning.pyの既_build_operation_statementsからselected generated要素の閉導出をprivate helper1へ抽出する技術追随だけを加えexact6とする。既APPLY_PRE_RULEの70＋追加deferredの算法をcurrent側へコピーしないための不可分最小差分で、新scopeの機能追加/権限追加ではない。既loader/validate/全deferred exact-set/主体拒否/全手順・生成SQL・順序・全operation結果と例外を保持し、unknown operationや自由選択setを許可しない。newcurrentは同helperから読み取り専用で正規pre-full要素集合を受け、任意subsetや現DB出力でexpectedを作らない。既test_current内に抽出前後の全SQL/sequence/手順/拒否の同値回帰を置き、全6差分を別非作者が再確認する。旧stage_a_startup/legacy全byte保持と前記7条件は継続する。実source採用は非作者確認後rootのみ。
+
+
+成績D02〜D05のPO回答に伴う正式伝播（2026-11-05）: PO実回答と留保の正はlead WT decision-sheetの1879aa46。D02は公式=公式戦+準公式戦、練習=オープン戦+紅白戦+その他の同写像を画面/集計/CSVへ。D03は実投手出場のgame/player1件で0球も対象、再登板重複0。D04は既A-2の責任帰属に合わせ、ボール優勢5count/その他count・四球/申告敬遠/他結果・複数交代を既記録へ照合し、未定義/矛盾だけPOへ具体提示。D05は未丸めOBP+SLG→最後に表示round、分母0/桁数を既A-1へ整合する。意味判断待ちは4件とも解消したがsource不足/未実装をavailable/0へ変えず、正常保存/読取の26primitiveを新公式27指標完成へ読み替えない。
+pr192_harness_values_independentへcache-onlyで、既候補55期待を保持した採用4規則の対向ケースと要件正本最小改訂草案（既PO採用JST暦年の残存年度文言も同一正式整合候補へ）を割当てる。正本/READMEの追随候補、既docs/features/mvp-stats-primitives/research.mdとprimitive-cases.candidate.jsonへの根拠/境界ケース追加候補をexact4として作成し、公式版番号は実統合履歴を照合する。D04の明示既規定・推定不可の空白、D05の既定零除算/小数3桁half-upと構造値を区別。コード/期待値を製品出力から生成しない。rootが必要な7.3/契約採用/独立確認を直列処理し、成立したD02選択集合・D05式/formatterから同一D-1モデル/生成target/typedSQLを実装する。D03/D04のsource/API未完成を他指標の着手前条件に追加しない。正式models/contract/generated/shared assets/台帳の実writerはroot、current起動作者pr191の6pathへ触れない。
