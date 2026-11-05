@@ -7,7 +7,7 @@ from typing import Any
 
 from sqlalchemy.dialects import postgresql
 
-from pitchlog.authz.first_ball_product import _pg_result_type
+from pitchlog.authz.function_result_type import pg_result_type
 from pitchlog.authz.stats_primitive_sql import candidate_function_bodies
 from pitchlog.db.game_state.stats import (
     StatsFactVersion,
@@ -293,6 +293,27 @@ def candidate_schema() -> dict[str, Any]:
     }
 
 
+def candidate_schema_body() -> str:
+    """既schemaのownerを修復せず照合し、新schemaの最小USAGEだけを供給する。"""
+    return (
+        "DO $stats_schema$\nBEGIN\n"
+        " IF NOT EXISTS(SELECT 1 FROM pg_catalog.pg_namespace n\n"
+        "  JOIN pg_catalog.pg_roles r ON r.oid=n.nspowner\n"
+        "  WHERE n.nspname='stats_api' AND r.rolname='pitchlog_owner') THEN\n"
+        "  IF EXISTS(SELECT 1 FROM pg_catalog.pg_namespace WHERE "
+        "nspname='stats_api') THEN\n"
+        "   RAISE EXCEPTION 'stats schema owner collision';\n"
+        "  END IF;\n"
+        "  CREATE SCHEMA stats_api AUTHORIZATION pitchlog_owner;\n"
+        " END IF;\nEND;$stats_schema$;\n"
+        "REVOKE ALL ON SCHEMA stats_api FROM PUBLIC;\n"
+        "REVOKE CREATE ON SCHEMA stats_api FROM pitchlog_app,"
+        "pitchlog_sync_right_fn_owner;\n"
+        "GRANT USAGE ON SCHEMA stats_api TO pitchlog_app,"
+        "pitchlog_sync_right_fn_owner;\n"
+    )
+
+
 def declaration(section: str, key: str) -> dict[str, Any] | None:
     """正式installerが既guardへ渡す閉じた宣言。未知IDを発行しない。"""
     declarations, _ = candidate_declarations()
@@ -328,7 +349,7 @@ def function_details() -> tuple[tuple[object, ...], ...]:
                 row["owner_role_id"],
                 True,
                 row["language"],
-                _pg_result_type(row["returns"]),
+                pg_result_type(row["returns"]),
                 "v",
                 ("search_path=pg_catalog, pg_temp",),
                 parts[1].strip(),
@@ -435,3 +456,31 @@ def candidate_table_declarations() -> tuple[list[dict[str, Any]], dict[str, str]
             f"REVOKE ALL ON TABLE sync_fence.{table} FROM PUBLIC,pitchlog_app;\n"
         )
     return rows, bodies
+
+
+def connection_declarations() -> tuple[dict[str, list[dict[str, Any]]], dict[str, str]]:
+    """採用4関数を保持し前値1/schema/私有3表だけをcanonical集合へ供給する。"""
+    from pitchlog.authz import stats_primitive_write_state as writer
+
+    declarations, bodies = candidate_declarations()
+    for row in declarations["functions"]:
+        key = "function|" + row["function_id"]
+        bodies[key] = _application_body(row, bodies[key])
+    extra, extra_bodies = writer.candidate_declarations()
+    if len(extra["functions"]) != 1 or set(extra_bodies) != {
+        "function|" + writer.FUNCTION_ID
+    }:
+        raise ValueError("成績writer前値の追加集合が不一致")
+    declarations["functions"].extend(extra["functions"])
+    # 同じ候補内で既に取得した原本を使い、Save guardを重複生成しない。
+    bodies["function|" + writer.FUNCTION_ID] = _application_body(
+        extra["functions"][0], extra_bodies["function|" + writer.FUNCTION_ID]
+    )
+    declarations["schemas"] = [candidate_schema()]
+    bodies["schema|stats_api"] = candidate_schema_body()
+    tables, table_bodies = candidate_table_declarations()
+    declarations["tables"] = tables
+    bodies.update(table_bodies)
+    if len(declarations["functions"]) != 5 or len(tables) != 3:
+        raise ValueError("成績接合の固定関数/表集合が不一致")
+    return declarations, bodies
