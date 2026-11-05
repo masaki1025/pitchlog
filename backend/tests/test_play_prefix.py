@@ -556,7 +556,8 @@ def test_current_identity_has_actual_git_full_response_and_normative_witness(tmp
     import subprocess
     from pathlib import Path
 
-    root = Path(__file__).resolve().parents[2]
+    current_root = Path(__file__).resolve().parents[2]
+    root = _historical_v3_context(current_root, tmp_path / "historical")
     witness_bytes, witness, registry = _current_identity_materials(root, tmp_path)
     artifact = (root / "frontend/public/domain/pitchlog-domain.js").read_bytes()
     _assert_current_identity_rows(witness_bytes, witness, registry, artifact)
@@ -621,17 +622,26 @@ def test_current_identity_has_actual_git_full_response_and_normative_witness(tmp
         "extra-row",
     ],
 )
-def test_current_identity_registration_proof_rejects_changed_material(mutation):
+def test_current_identity_registration_proof_rejects_changed_material(
+    mutation, tmp_path
+):
     """証拠整合の拒否であり、既readerにwitnessファイル検査を追加したとはしない。"""
     import json
     from pathlib import Path
 
-    root = Path(__file__).resolve().parents[2]
+    current_root = Path(__file__).resolve().parents[2]
+    root = _historical_v3_context(current_root, tmp_path / "historical")
     base = root / "contracts/state-transition"
     raw = (base / "batted_current_identity_witness_v1.json").read_bytes()
     witness = json.loads(raw)
     registry_raw = (base / "play_prefix_v2_source_compatibility_v1.json").read_bytes()
     registry = json.loads(registry_raw)
+    _assert_current_identity_rows(
+        raw,
+        witness,
+        registry,
+        (root / "frontend/public/domain/pitchlog-domain.js").read_bytes(),
+    )
     row = registry["cases"][-1]
     if mutation == "unknown-prior":
         row["priorArtifactSha256"] = "0" * 64
@@ -656,3 +666,403 @@ def test_current_identity_registration_proof_rejects_changed_material(mutation):
             registry,
             (root / "frontend/public/domain/pitchlog-domain.js").read_bytes(),
         )
+
+
+def _historical_v3_context(root, destination):
+    """旧57/51dを真正Git commitの物理checkoutで検査し、現在値へ書き換えない。"""
+    import json
+    import re
+    import subprocess
+
+    witness = json.loads(
+        (
+            root / "contracts/state-transition/nonplay_v3_compatibility_witness_v1.json"
+        ).read_bytes()
+    )
+    revision = witness["historicalContext"]["revision"]
+    assert type(revision) is str and re.fullmatch(r"[a-f0-9]{40}", revision)
+    subprocess.run(
+        [
+            "git",
+            "clone",
+            "--quiet",
+            "--shared",
+            "--no-checkout",
+            str(root),
+            str(destination),
+        ],
+        check=True,
+        capture_output=True,
+        timeout=30,
+    )
+    subprocess.run(
+        ["git", "-C", str(destination), "checkout", "--quiet", "--detach", revision],
+        check=True,
+        capture_output=True,
+        timeout=30,
+    )
+    assert (
+        subprocess.check_output(
+            ["git", "-C", str(destination), "rev-parse", "HEAD"], text=True
+        ).strip()
+        == revision
+    )
+    return destination
+
+
+def _v3_compatibility_root(tmp_path):
+    """実checker用の固定asset全組を物理copyし、個別の欠落/変異だけを与える。"""
+    import shutil
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[2]
+    paths = [
+        "contracts/state-transition/play_prefix_v2_source_compatibility_v1.json",
+        "contracts/state-transition/nonplay_v3_compatibility_witness_v1.json",
+        "contracts/state-transition/batted_current_identity_witness_v1.json",
+        "frontend/public/domain/pitchlog-domain.js",
+        "frontend/public/domain/pitchlog-domain.json",
+    ]
+    for name in paths:
+        dest = tmp_path / name
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(root / name, dest)
+    module = tmp_path / "backend/src/pitchlog/repositories/play_prefix.py"
+    module.parent.mkdir(parents=True)
+    module.write_text("# test-only root, no implementation stub\n")
+    return tmp_path, module
+
+
+def test_real_v3_fixed_witness_two_pairs_and_full_normative_vm(tmp_path):
+    """旧53規範と現自己の実VM全応答、正規化だけの期待、真のgate成立を確認する。"""
+    import hashlib
+    import json
+    import subprocess
+    from pathlib import Path
+
+    from pitchlog.domainrt.first_ball_projection import _canonical_json
+    from pitchlog.domainrt.lineup_play_prefix_continuation import (
+        LineupPrefixRequest,
+        LineupPrefixSuccess,
+        decode_lineup_prefix_response,
+        lineup_wire_digest,
+        verify_lineup_wire_seal,
+    )
+
+    root = Path(__file__).resolve().parents[2]
+    base = root / "contracts/state-transition"
+    witness = json.loads(
+        (base / "nonplay_v3_compatibility_witness_v1.json").read_bytes()
+    )
+    historical = _historical_v3_context(root, tmp_path / "historical")
+    for source in witness["normativeSources"]:
+        raw = (historical / source["path"]).read_bytes()
+        assert hashlib.sha256(raw).hexdigest() == source["sha256"]
+        original = json.loads(raw)["cases"]
+        selected = [s for s in witness["samples"] if s["sourcePath"] == source["path"]]
+        assert len(original) == len(selected) == source["caseCount"]
+        for case, sample in zip(original, selected, strict=True):
+            assert sample["caseId"] == case["caseId"]
+            assert _canonical_json(sample["originalRequest"]) == _canonical_json(
+                case["request"]
+            )
+            assert _canonical_json(sample["oldExpected"]) == _canonical_json(
+                case["expected"]
+            )
+            current_request = copy.deepcopy(case["request"])
+            current_expected = copy.deepcopy(case["expected"])
+            current_request["source"]["executionArtifactSha256"] = witness[
+                "executionArtifactSha256"
+            ]
+            current_expected["value"]["executionArtifactSha256"] = witness[
+                "executionArtifactSha256"
+            ]
+            decoded_expected = decode_lineup_prefix_response(
+                _canonical_json(current_expected)
+            )
+            assert type(decoded_expected) is LineupPrefixSuccess
+            digest = lineup_wire_digest(
+                LineupPrefixRequest.model_validate_json(
+                    _canonical_json(current_request), by_alias=True, by_name=False
+                ),
+                decoded_expected,
+            )
+            current_request["nextCheckpoint"]["digest"] = digest
+            current_expected["value"]["nextPrefixRef"]["checkpoint"]["digest"] = digest
+            assert _canonical_json(current_request) == _canonical_json(
+                sample["currentRequest"]
+            )
+            assert _canonical_json(current_expected) == _canonical_json(
+                sample["currentExpected"]
+            )
+            sealed_expected = decode_lineup_prefix_response(
+                _canonical_json(current_expected)
+            )
+            assert type(sealed_expected) is LineupPrefixSuccess
+            verify_lineup_wire_seal(
+                LineupPrefixRequest.model_validate_json(
+                    _canonical_json(current_request), by_alias=True, by_name=False
+                ),
+                sealed_expected,
+            )
+    data = tmp_path / "vm-input.json"
+    data.write_text(
+        json.dumps(
+            {
+                "oldArtifact": str(
+                    historical / "frontend/public/domain/pitchlog-domain.js"
+                ),
+                "currentArtifact": str(
+                    root / "frontend/public/domain/pitchlog-domain.js"
+                ),
+                "samples": witness["samples"],
+            }
+        )
+    )
+    script = r"""
+const fs=require('fs'),vm=require('vm');
+const p=JSON.parse(fs.readFileSync(process.argv[1],'utf8'));
+function load(path){
+  const c=vm.createContext({});
+  new vm.Script(fs.readFileSync(path,'utf8')).runInContext(c);
+  return c.PitchlogDomain;
+}
+const old=load(p.oldArtifact),now=load(p.currentArtifact),self=load(p.currentArtifact);
+process.stdout.write(JSON.stringify(p.samples.map(s=>({oldActual:JSON.parse(old.deriveLineupPlayPrefixWithContinuation(JSON.stringify(s.originalRequest))),currentActual:JSON.parse(now.deriveLineupPlayPrefixWithContinuation(JSON.stringify(s.currentRequest))),selfActual:JSON.parse(self.deriveLineupPlayPrefixWithContinuation(JSON.stringify(s.currentRequest)))}))));
+"""
+    measured = json.loads(
+        subprocess.check_output(["node", "-e", script, str(data)], timeout=60)
+    )
+    assert len(measured) == 53
+    for sample, result in zip(witness["samples"], measured, strict=True):
+        for name in ("oldActual", "currentActual", "selfActual"):
+            assert _canonical_json(result[name]) == _canonical_json(sample[name]), (
+                sample["caseId"]
+            )
+    for prior in witness["priorArtifacts"]:
+        _require_legacy_compatibility(
+            prior,
+            witness["executionArtifactSha256"],
+            source_format="play-prefix-play-v3",
+        )
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        "none",
+        "unknown-prior",
+        "unknown-execution",
+        "old4f-not-declared",
+        "unknown-format",
+        "missing-row",
+        "extra-row",
+        "duplicate-row",
+        "changed-order",
+        "missing-operation",
+        "extra-operation",
+        "wrong-witness",
+        "missing-witness",
+        "changed-witness-bytes",
+        "changed-format-follow-hash",
+        "changed-math-follow-hash",
+        "unknown-pair-follow-hash",
+        "scope-bool-int-follow-hash",
+        "changed-old-row-follow-hash",
+        "wrong-source-format-follow-hash",
+        "metadata-follow-hash",
+        "join-input-mismatch-follow-hash",
+    ],
+)
+def test_v3_real_runtime_gate_uses_fixed_bytes_and_closed_metadata(
+    tmp_path, monkeypatch, mutation
+):
+    """正常baseline成立後に実checkerへ変異し、hash追随でも閉条件を崩さない。"""
+    import hashlib
+    import json
+
+    from pitchlog.repositories import play_prefix as reader
+
+    root, module = _v3_compatibility_root(tmp_path)
+    monkeypatch.setattr(reader, "__file__", str(module))
+    base = root / "contracts/state-transition"
+    path = base / "play_prefix_v2_source_compatibility_v1.json"
+    witness_path = base / "nonplay_v3_compatibility_witness_v1.json"
+    data = json.loads(path.read_bytes())
+    w = json.loads(witness_path.read_bytes())
+    prior = w["priorArtifacts"][0]
+    execution = w["executionArtifactSha256"]
+    for permitted in w["priorArtifacts"]:
+        reader._require_legacy_compatibility(
+            permitted, execution, source_format="play-prefix-play-v3"
+        )
+    if mutation == "none":
+        return
+    rows = data["cases"]
+    row = rows[-2]
+    fmt = "play-prefix-play-v3"
+    if mutation == "unknown-prior":
+        prior = "0" * 64
+    elif mutation == "unknown-execution":
+        execution = "0" * 64
+    elif mutation == "old4f-not-declared":
+        # 未統合4fは運用保存/互換宣言としない。既手例の参照からだけ取得する。
+        from pathlib import Path
+
+        contract = json.loads(
+            (
+                Path(__file__).resolve().parents[2]
+                / "contracts/state-transition/nonplay_prefix_bridge_cases_v1.json"
+            ).read_bytes()
+        )
+        prior = contract["steps"][0]["source"]["checkpoint"]["content"][
+            "executionArtifactSha256"
+        ]
+    elif mutation == "unknown-format":
+        fmt = "unknown"
+    elif mutation == "missing-row":
+        rows.pop(-2)
+    elif mutation == "extra-row":
+        rows.append({**row, "priorArtifactSha256": "0" * 64})
+    elif mutation == "duplicate-row":
+        rows.append(copy.deepcopy(row))
+    elif mutation == "changed-order":
+        rows[-2:] = reversed(rows[-2:])
+    elif mutation == "missing-operation":
+        row["compatibleOperations"] = []
+    elif mutation == "extra-operation":
+        row["compatibleOperations"].append("applyUndo")
+    elif mutation == "wrong-witness":
+        row["witnessSha256"] = "0" * 64
+    elif mutation == "missing-witness":
+        witness_path.unlink()
+    elif mutation == "changed-witness-bytes":
+        witness_path.write_bytes(witness_path.read_bytes() + b" ")
+    else:
+        if mutation == "changed-math-follow-hash":
+            w["samples"][0]["currentActual"]["value"]["t1"]["after"]["stateFields"][
+                "state.outs"
+            ] = "2"
+        elif mutation == "unknown-pair-follow-hash":
+            w["priorArtifacts"][0] = "0" * 64
+            row["priorArtifactSha256"] = "0" * 64
+            prior = "0" * 64
+        elif mutation == "scope-bool-int-follow-hash":
+            w["scope"]["HTTPorDB"] = 0
+        elif mutation == "changed-old-row-follow-hash":
+            rows[0]["compatibleOperations"] = []
+        elif mutation == "wrong-source-format-follow-hash":
+            w["sourceFormat"] = "ordinary-pitch-play-v1"
+        elif mutation == "join-input-mismatch-follow-hash":
+            w["fourOperationJoinEvidence"]["rawInputSha256"] = "0" * 64
+        elif mutation != "changed-format-follow-hash":
+            w["normalization"]["requestPointers"].append("/source/after")
+        new = (json.dumps(w, ensure_ascii=False, indent=2) + "\n").encode()
+        if mutation == "changed-format-follow-hash":
+            new += b" "
+        witness_path.write_bytes(new)
+        for declared in rows[57:]:
+            declared["witnessSha256"] = hashlib.sha256(new).hexdigest()
+    path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n")
+    with pytest.raises(OrdinaryPrefixError):
+        reader._require_legacy_compatibility(prior, execution, source_format=fmt)
+
+
+def test_four_operation_join_declares_only_measured_pairs_and_groups(tmp_path):
+    """初版v3根拠を保持し、別1878群の正確self/旧51d joinだけを確認する。"""
+    import hashlib
+    import json
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[2]
+    base = root / "contracts/state-transition"
+    raw = (base / "nonplay_v3_compatibility_witness_v1.json").read_bytes()
+    w = json.loads(raw)
+    registry = json.loads(
+        (base / "play_prefix_v2_source_compatibility_v1.json").read_bytes()
+    )
+    join = w["fourOperationJoinEvidence"]
+    assert join["comparisonArtifactSha256"] == w["priorArtifacts"][0]
+    assert join["executionArtifactSha256"] == w["executionArtifactSha256"]
+    assert join["fullCaseCount"] == 1878 and join["normalizationPointers"] == []
+    assert [g["caseCount"] for g in join["groups"]] == [24, 1854]
+    for g in join["groups"]:
+        assert (
+            g["priorFullResponsesSha256"]
+            == g["currentFullResponsesSha256"]
+            == g["selfFullResponsesSha256"]
+        )
+    operations = ["deriveState", "deriveFirstPitchWithContinuation"]
+    expected = []
+    for prior in (w["executionArtifactSha256"], w["priorArtifacts"][0]):
+        for fmt, ops in [
+            ("first-ball-play-v1", operations),
+            (
+                "ordinary-pitch-play-v1",
+                operations
+                + ["deriveOrdinaryPitch", "deriveOrdinaryPitchWithContinuation"],
+            ),
+        ]:
+            expected.append(
+                {
+                    "priorArtifactSha256": prior,
+                    "executionArtifactSha256": w["executionArtifactSha256"],
+                    "sourceFormat": fmt,
+                    "compatibleOperations": ops,
+                    "witnessSha256": hashlib.sha256(raw).hexdigest(),
+                }
+            )
+    assert registry["cases"][59:] == expected
+    assert len(registry["cases"]) == 63
+    for row in expected:
+        prior = row["priorArtifactSha256"]
+        execution = row["executionArtifactSha256"]
+        fmt = row["sourceFormat"]
+        assert type(prior) is str and type(execution) is str and type(fmt) is str
+        _require_legacy_compatibility(prior, execution, source_format=fmt)
+
+
+@pytest.mark.parametrize("fmt", ["first-ball-play-v1", "ordinary-pitch-play-v1"])
+@pytest.mark.parametrize("prior_kind", ["current", "legacy"])
+@pytest.mark.parametrize(
+    "fault", ["missing-row", "missing-operation", "extra-operation", "unknown-prior"]
+)
+def test_current_four_operation_join_real_checker_rejects_missing_rows(
+    tmp_path, monkeypatch, fmt, prior_kind, fault
+):
+    """新current正常成立を先に確認し、旧checkerのまま未宣言joinを拒否する。"""
+    import json
+
+    from pitchlog.repositories import play_prefix as reader
+
+    root, module = _v3_compatibility_root(tmp_path)
+    monkeypatch.setattr(reader, "__file__", str(module))
+    base = root / "contracts/state-transition"
+    path = base / "play_prefix_v2_source_compatibility_v1.json"
+    data = json.loads(path.read_bytes())
+    w = json.loads((base / "nonplay_v3_compatibility_witness_v1.json").read_bytes())
+    prior = (
+        w["executionArtifactSha256"]
+        if prior_kind == "current"
+        else w["priorArtifacts"][0]
+    )
+    execution = w["executionArtifactSha256"]
+    reader._require_legacy_compatibility(prior, execution, source_format=fmt)
+    index = next(
+        i
+        for i, r in enumerate(data["cases"])
+        if r["sourceFormat"] == fmt
+        and r["priorArtifactSha256"] == prior
+        and r["executionArtifactSha256"] == execution
+    )
+    if fault == "missing-row":
+        data["cases"].pop(index)
+    elif fault == "missing-operation":
+        data["cases"][index]["compatibleOperations"].pop()
+    elif fault == "extra-operation":
+        data["cases"][index]["compatibleOperations"].append("applyUndo")
+    else:
+        prior = "0" * 64
+    path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n")
+    with pytest.raises(OrdinaryPrefixError):
+        reader._require_legacy_compatibility(prior, execution, source_format=fmt)

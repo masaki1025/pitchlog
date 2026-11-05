@@ -944,7 +944,9 @@ def test_current_fixture_self_pin_is_derived_without_changing_original_goldens()
 
 
 @pytest.mark.parametrize("prior", ["unknown", "same-current"])
-def test_legacy_v3_requires_real_shared_finite_qualification(rig, monkeypatch, prior):
+def test_legacy_v3_requires_real_shared_finite_qualification(
+    rig, monkeypatch, tmp_path, prior
+):
     """旧原本が型整合していても未宣言pairをcurrentへ投影しない。"""
     current = rig.raw["payload"]["artifactSha256"]
     prior = (
@@ -953,6 +955,23 @@ def test_legacy_v3_requires_real_shared_finite_qualification(rig, monkeypatch, p
         else source_fingerprint({"unregistered-legacy": 1})
     )
     raw, row = legacy_profile_fixture(rig, monkeypatch, prior)
+    if prior == current:
+        # 正常v3宣言を別rootで欠落させる。unsupported固定に依存しない真の負例。
+        from test_play_prefix import _v3_compatibility_root
+
+        from pitchlog.repositories import play_prefix
+
+        root, module = _v3_compatibility_root(tmp_path)
+        path = (
+            root
+            / "contracts/state-transition/play_prefix_v2_source_compatibility_v1.json"
+        )
+        declared = json.loads(path.read_bytes())
+        declared["cases"] = [
+            r for r in declared["cases"] if r["sourceFormat"] != "play-prefix-play-v3"
+        ]
+        path.write_text(json.dumps(declared, ensure_ascii=False, indent=2) + "\n")
+        monkeypatch.setattr(play_prefix, "__file__", str(module))
     original = copy.deepcopy((raw, row))
     with pytest.raises(api.NonplaySourceUnavailable, match="有限artifact互換資格"):
         with api.read_confirmed_nonplay_prefix(
@@ -973,7 +992,7 @@ def test_shared_gate_unknown_format_missing_and_changed_witness_stays_closed(
     current = hashlib.sha256(
         (ROOT / "frontend/public/domain/pitchlog-domain.js").read_bytes()
     ).hexdigest()
-    for prior in (source_fingerprint({"unknown": 2}), current):
+    for prior in (source_fingerprint({"unknown": 2}),):
         with pytest.raises(OrdinaryPrefixError):
             play_prefix._require_legacy_compatibility(
                 prior, current, source_format="play-prefix-play-v3"
@@ -1016,3 +1035,29 @@ def test_shared_gate_unknown_format_missing_and_changed_witness_stays_closed(
             play_prefix._require_legacy_compatibility(
                 current, current, source_format="first-ball-play-v1"
             )
+
+
+@pytest.mark.parametrize("which", ["prior", "current"])
+def test_legacy_v3_declared_real_gate_returns_current_view_preserving_storage(
+    rig, monkeypatch, which
+):
+    """有限宣言済旧v3を本物gate経由で提供し、原CP/storageを保持する。"""
+    witness = json.loads(
+        (
+            ROOT / "contracts/state-transition/nonplay_v3_compatibility_witness_v1.json"
+        ).read_bytes()
+    )
+    current = witness["executionArtifactSha256"]
+    prior = witness["priorArtifacts"][0] if which == "prior" else current
+    raw, row = legacy_profile_fixture(rig, monkeypatch, prior)
+    original = copy.deepcopy((raw, row))
+    with api.read_confirmed_nonplay_prefix(
+        rig.handle, rig.event, rig.source, artifact_sha256=current
+    ) as prefix:
+        view, storage = api._read_prefix(prefix, rig.handle, rig.source, rig.event)
+        assert view["checkpoint"]["content"]["executionArtifactSha256"] == current
+        assert storage["storage"]["row"] == row
+        assert raw["artifact_sha256"] == prior
+        assert raw["content_digest"] == row["content_digest"]
+        assert view["checkpoint"]["ref"]["digest"] != row["content_digest"]
+    assert (raw, row) == original
