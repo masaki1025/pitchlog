@@ -216,3 +216,6 @@ FE14と分離しstats_csv_next_unitへ新exact4: backend/src/pitchlog/api/schema
 
 
 実語彙HTTP/索引の検証単位（2026-11-05、PO委任Codex /root判断）: 新backend/tests/db/test_batted_ball_options_http.py exact1をrootへ追加する。既真正owned vertical fixture/実認証app UID/実PGを再利用し、参照語彙だけを準備する。実GETのページ境界/重複欠落なし/無効と異category除外/未認証拒否/認証tenant不一致拒否/改竄cursor拒否、app直接table SELECT拒否、新SECDEF資格と既fullprofile再適用/partial index実在を検証する。固定成功/仮Port/共有DB/新secretは使わず、global admin語彙にtenant別owned dataがあるとは仮定しない。新索引EXPLAINは有界keysetとplanner条件を区別して記録する。製品関数/認可失敗を試験で補わず、失敗時は同版診断→新差分を確認する。実HTTP成功は画面保存の実証や正式7.7へ読み替えない。
+
+
+実HTTP試験の前提訂正（2026-11-05、PO委任Codex /root判断）: vocab-http-r1は2failed294秒。新試験がappのadmin_vocabularies直接SELECT拒否を期待したのはrootの誤りで、既正式ACL:admin_vocabularies:pitchlog_app/global_read_onlyはSELECTを採用済み（旧e2b72672と現候補で当該ACL全byte/全値不変）。既決の公開語彙readを禁止へ再裁定せず、同test exact1はsession_user/current_user=appを確認し、既SELECT成功を維持しつつUPDATE WHERE falseの拒否でreadonlyを実証する。権限を変更せず、既有限HTTP全assert/負対向は保持する。この訂正を非作者へ再照合し、HTTPだけ先にowned再検証する。旧4安打の再検証は第二系列の故障要求時binding_closeでLedgerUnavailableとなった別失敗として保存し、r4過去成功で相殺しない。lease/finishの安全条件や故障期待は変更せず、非秘密の終結診断を次の限定単位で行う。
