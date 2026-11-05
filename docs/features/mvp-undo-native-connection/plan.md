@@ -196,3 +196,6 @@ nonplay正式publisherのroot実装scope（同日、PO委任Codex /root）: 新b
 
 
 固定6登録の既exact集合検査追随（同日、PO委任Codex /root）: registry作者の実照合に基づき既backend/tests/test_function_operations_boundary.pyのtest_product_function_registry_keeps_rg1_and_adds_one_rule_operation内だけを追加許可し、exact8→9とする。既27operationの値/順序/全assertを保持し、新6operation/metadata型6だけを末尾へ厳密追加する。除外/skip/部分集合化や他test変更は許可しない。
+
+
+0042実PG初回の配置不備是正（2026-11-06 JST、PO委任Codex /root）: owned固定f1f9b9f5で新schema試験を実行しsetup ERROR1/8.37秒。原因はmigration0042が後段product_ddl作成のsync_fence_apiへ先にguard関数を作ること（InvalidSchemaName）。source前後同一/専用PG撤去を記録し、構文検査成功を実PG成功へ読み替えない。既0036のmigration guardと同じ既存public schemaに私有invoker triggerを置き、owner pitchlog_owner固定/PUBLIC・app EXECUTE剥奪/同じguard本文・2trigger・43列を維持する最小是正を許可する。exact2はbackend/migrations/versions/0042_nonplay_write_admission.pyと新backend/tests/test_nonplay_admission_migration.py。新schema/新role/definer昇格/guard削除やfixtureの段階順変更では回避しない。公式migration-function宣言へ既helperで追随し別非作者確認後に同固定候補の実PGを再検証する。
