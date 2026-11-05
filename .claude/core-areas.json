@@ -760,7 +760,9 @@
         "backend/tests/db/test_terminal_pitch_storage.py",
         "backend/src/pitchlog/api/routers/sync.py",
         "backend/src/pitchlog/sync/port_guard.py",
-        "backend/src/pitchlog/repositories/recorded_snapshot.py"
+        "backend/src/pitchlog/repositories/recorded_snapshot.py",
+        "tests/fixtures/pr196_tenant_source_expected_v1.json",
+        "tests/test_pr196_tenant_source_registration.py"
       ]
     },
     {
