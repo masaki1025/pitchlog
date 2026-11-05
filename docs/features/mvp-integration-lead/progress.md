@@ -1,5 +1,16 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 再開時の現在地：2026-11-06T05:22:09.697614+09:00（#196最後のbackend shard待ち／取消S本体着手）
+
+- **正式版/利用者操作**: develop112f771e・#191/#192はGitHubでmerge済みを再確認、#196は9ddcd5c3固定で未merge。全MVP active。候補コードの接続/試験を新しい正式操作の提供済みとしない。
+- **#196実CI**: https://github.com/masaki1025/pitchlog/actions/runs/42095289008 のharness全4＋集約/frontend/各静的検査/backend0・1・2はsuccess、backend3(job127483718481)のpytestが実行中。本文42095289228 success。9個の表示済required checkがpass/CLI0でも、まだ作られていないbackend集約の成功を証明しないためmergeしていない。GitHubprotection readは404（設定操作なし）、repo必須CIの全件成功という統合条件は維持。origWTもclean9ddへff済み。公開proof6667329944/最終review52add3b2…/正式値3ff856fb…を保持する。
+- **取消actual**: source e80ec007までpush済み、その後e2d0ebecはS23の計画追補だけ。root9（publisher2/0042fix2/HTTP4/旧Porttest1）反映1は非作者37801c28…によりP1×2/P2×1全解消で採用、旧誤指摘『4表tableSELECT必須』は撤回・不採用。実不足はledger.result/reason＋slot.xminの3列だけ。owned fixed4b5の実publisher3GRANTで全4原本LIMIT0読取/全tableSELECT falseを1成功26.61秒で実証、source同一/自前PG撤去。0042全schema実PG1成功25.31秒も保持。認可/越境/実取消保存の成功に拡張しない。
+- **フロント全件**: e80ec007を実source固定しSSD専用TMPで146file/3395tests全成功156.92秒。最初の--minWorkersは現Vitest4で無効・試験未実行、通常pnpm testへ是正したログを保持。全domain/artifactは4e8b3252…95274Bのまま、git clean。
+- **共有kernel8＋dispatch10**: pr191の非作者REPORT1249f988…/checks18c11c46…は採用保留P1=1。実資格scopeの終了がsync-active失効後となり正常returnもUnavailableになる反例を真正source/handleで再現。新195/旧766/独立9成功でこのP1を覆さない。作者kernel reflection2はundo専用ExitStackをgatedwriter・sync-active生存中へ移し、旧ordinary stackの順序を保持して真正資格のreturn/replay/fresh対向を実装中。原5d93/f53packet・未検出履歴を保持、actual source8/dispatch10はまだ未反映。
+- **有限compat5**: 作者reflection1 b44a9182…/REPORT0c1fe816…で旧57＋v3旧51d/self2＋firstball/ordinary old51d/self4の63rowを固定、180成功15.84秒/RuffTy0。v3規範53と実old51d/current/self1878の4op全応答一致を分離、旧4f証拠は別scope。pr191が非作者確認中、actual未反映。自己pair欠落による新作成→2球目の閉拒否もこの同一周で解消する。
+- **canonical S本体**: rootplan e2d0ebecでstats作者へexact23を承認し実装開始。旧T5model/hash/8生成を保持、metric式のない閉selector IR＋同一SQL backendのnative overlay3を生成しnormal Save/read/undoのSを統一。真正消費印のtargetだけ除外、任意hiddenは不可用。既consume内で私有SQL helperが同TXで旧版失効/qualified残factコピー/新S版保存を行い、strict receipt text1とopaque一回資格で_flush_native_undo_statsを実供給する。旧boolbodyを成功化しない。公開wire/ACKは不変更、正式profile/manifest/D11/実PG/GET/次球保存はroot接合工程のまま。
+- **次**: kernel反映2＋有限5の独立受理→sharedsource18/5をactualへ反映、S23→非play後GET/次球の実保存→正式assets/登録33・D11を一括整合→同版owned2球/2取消/次球/再送/reload/fault。成績27native/全操作・終了再開・両CSV・実機/復旧・負荷等のMVP必須は全て維持。共有DB/運用公開/新秘密操作なし。
+
 ## 再開時の現在地：2026-11-06T04:58:08.551104+09:00（#196 R10公開CI中／取消HTTP・schemaへ接合）
 
 - **正式提供**: develop112f771e、#196未merge、全MVP active。正式利用者の新操作は今回まだ増えていない。候補の実接合と正式提供を区別する。
