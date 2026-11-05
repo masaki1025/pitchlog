@@ -8408,7 +8408,7 @@ def test_batted_payload_nineteen_inputs_use_closed_composition_consumer() -> Non
             "runnerAdvanceOverridesByRunner": {"kind": "not-applied", "overrides": []},
             "thirdOutObservation": {"kind": "none"}, "thirdOutTimingByRunner": {},
         }
-        payload = {
+        payload: dict[str, object] = {
             "formatVersion": "play-prefix-play-v3", "observations": observations,
             "participants": request["source"]["participants"],
             "calculation": {
@@ -8420,17 +8420,21 @@ def test_batted_payload_nineteen_inputs_use_closed_composition_consumer() -> Non
         schema_checker._validate_instance(payload, schema, schema, "$")
         for fault in ("root-extra", "result-mismatch", "unknown-observation", "bool-coordinate"):
             bad = copy.deepcopy(payload)
+            bad_observations = bad["observations"]
+            assert isinstance(bad_observations, dict)
             if fault == "root-extra":
                 bad["extra"] = True
             elif fault == "result-mismatch":
-                bad["observations"]["resultId"] = (
+                bad_observations["resultId"] = (
                     "batting-result.double"
                     if observations["resultId"] == "batting-result.single"
                     else "batting-result.single"
                 )
             elif fault == "unknown-observation":
-                bad["observations"]["extra"] = True
+                bad_observations["extra"] = True
             else:
-                bad["observations"]["battedBall"]["hitX"] = False
+                bad_batted_ball = bad_observations["battedBall"]
+                assert isinstance(bad_batted_ball, dict)
+                bad_batted_ball["hitX"] = False
             with pytest.raises(schema_checker.DescriptorCheckError):
                 schema_checker._validate_instance(bad, schema, schema, "$")

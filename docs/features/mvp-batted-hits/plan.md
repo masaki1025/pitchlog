@@ -339,3 +339,8 @@ G6反映1の具体化（PO委任Codex /root、2026-11-05）: 既exact2内でactu
 
 
 G6反映2を非作者dfadb039a9b6a79eed3e3545548914e056b98e96e506e17bf8c33c15d895ec00で採用する。反映1の初回非作者2815cef0…はrecord.beforeのint1→trueを旧engineのPython等値が誤受理するP1=1を固定し、不採用。旧engineを変えずpresence付きbefore/after scopeへ_compact_json完全一致2条件を追加し、同じ元反例を旧True→新拒否、深い2位置×両側×3異型12を全拒否、正常879 local/CI＋型境界3を独立4成功8.92秒で確認。P1解消1/残存0、旧89定義/133testAST・全217/515と独立12を保持。作者反映2の28成功/ruffty0は非作者証拠と区別する。本人確認の改変/新hashliteral免除/一般PR免除は無し。新R5/最終HEAD/全CIは残る。判断者PO委任Codex /root、2026-11-05 JST。
+
+
+最終R5値は非作者97d23ddc271c7af805e2fcb3250b1e391c0a3866a7d5f836ff4d3f6907028745が公式再導出bundle完全一致/portable62/旧37＋単一196/9IDbase+1据置/全base323・pin83保護/非参照1だけ退避/生成3他8JSON・corpus不変を確認し採用する。全6物理path（authority1/新4/除去1、rename表示5）を区別する。正式CLIとactual G6 local1成功4.36秒は実公開証拠/CI成立とは別。
+
+root全tyで後発新testの異種dict推論による7診断を検出し、既exact1の新payloadをdict[str,object]で正確に表し、否定変異前のobservations/battedBallをdict実型assert2で補強した。非作者81a77f339c24aec238a50e90156b7a2cadeff28d2010cbbddcddaa0688ef1660が旧全AST意味/期待/拒否保持・独立1成功（19正/76否定）・movement affected=[]/全external byte/corpus不変を確認して採用。新Anyによる型隠蔽はしない。foreign単独cache pathのruffで旧D103×13が出たログはproper per-fileignore対象外の環境結果として保存し、正規projectのruff/ty成功を区別する。正式R5値に影響しないため再受理/再増分をしない。最終input非作者7daadcc1707b38c9af9af85533198c864d3764c821eabe49c2cc2639944254d4を継承し、最後のHEAD/全差分SHA/実公開委任/必須CIは別に束縛する。判断者PO委任Codex /root、2026-11-05 JST。
