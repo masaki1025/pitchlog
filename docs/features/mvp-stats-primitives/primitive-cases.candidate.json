@@ -22309,7 +22309,7 @@
     "native source projection adapters for all variants",
     "independent nonauthor review of these expectations",
     "D-1 schema/model/target generation and executable SQL/3-layer acceptance",
-    "pending D02/D03/D04/D05 meaning",
+    "D02/D03/D04/D05 PO meanings adopted1879; formal propagation and actual source/implementation still incomplete",
     "Provider-before/after physical validity of all finite manually specified candidates still requires nonauthor source review; no native artifact used as oracle"
   ],
   "review_repair1": {
@@ -22322,5 +22322,1984 @@
     "success_count_expectations_changed": false,
     "expectation_source": "normative source text only; no implementation/artifact/generator oracle",
     "scope": "source before/after and RBI applicability only; all26/D02..05/D1/provider authority unchanged"
+  },
+  "po_adoption_followup": {
+    "status": "PO meanings adopted; expectation/formatter/draft not formally accepted",
+    "decision_revision": "1879aa469f23ef7d1f8fb93ec1b9adf6b9d2c309",
+    "decision_path": "docs/features/mvp-integration-lead/decision-sheet.md",
+    "seed_path": "contracts/seeds/game-type.json",
+    "raw_groups": {
+      "official": [
+        "game_official",
+        "game_semi_official"
+      ],
+      "practice": [
+        "game_open",
+        "game_intrasquad",
+        "game_other"
+      ],
+      "all": [
+        "game_official",
+        "game_semi_official",
+        "game_open",
+        "game_intrasquad",
+        "game_other"
+      ]
+    },
+    "fixtures": {
+      "five-visible-ended-games-plus-hidden-trash": [
+        {
+          "game_id": "G1",
+          "game_type_key": "game_official",
+          "status": "confirmed_ended",
+          "hidden": false,
+          "trashed": false
+        },
+        {
+          "game_id": "G2",
+          "game_type_key": "game_semi_official",
+          "status": "confirmed_ended",
+          "hidden": false,
+          "trashed": false
+        },
+        {
+          "game_id": "G3",
+          "game_type_key": "game_open",
+          "status": "confirmed_ended",
+          "hidden": false,
+          "trashed": false
+        },
+        {
+          "game_id": "G4",
+          "game_type_key": "game_intrasquad",
+          "status": "confirmed_ended",
+          "hidden": false,
+          "trashed": false
+        },
+        {
+          "game_id": "G5",
+          "game_type_key": "game_other",
+          "status": "confirmed_ended",
+          "hidden": false,
+          "trashed": false
+        },
+        {
+          "game_id": "HIDDEN",
+          "game_type_key": "game_official",
+          "status": "confirmed_ended",
+          "hidden": true,
+          "trashed": false
+        },
+        {
+          "game_id": "TRASH",
+          "game_type_key": "game_other",
+          "status": "confirmed_ended",
+          "hidden": false,
+          "trashed": true
+        }
+      ]
+    },
+    "cases": [
+      {
+        "case_id": "po-d02-fixed-partition",
+        "stage": "po_normative_expectation_candidate_not_accepted_contract",
+        "decision": "D02",
+        "input": {
+          "raw_keys": [
+            "game_official",
+            "game_semi_official",
+            "game_open",
+            "game_intrasquad",
+            "game_other"
+          ]
+        },
+        "expected": {
+          "official": [
+            "game_official",
+            "game_semi_official"
+          ],
+          "practice": [
+            "game_open",
+            "game_intrasquad",
+            "game_other"
+          ],
+          "all": [
+            "game_official",
+            "game_semi_official",
+            "game_open",
+            "game_intrasquad",
+            "game_other"
+          ],
+          "outputs_share_selection": [
+            "screen",
+            "db_aggregate",
+            "stats_csv"
+          ]
+        },
+        "derivation": "1879 D02=A + fixed game-type seed",
+        "rejected_alternatives": {
+          "official_only": [
+            "game_official"
+          ],
+          "practice_without_other": [
+            "game_open",
+            "game_intrasquad"
+          ]
+        }
+      },
+      {
+        "case_id": "po-d02-game_official",
+        "stage": "po_normative_expectation_candidate_not_accepted_contract",
+        "decision": "D02",
+        "input": {
+          "game_type_key": "game_official"
+        },
+        "expected": {
+          "named_group": "official",
+          "all_included": true
+        },
+        "derivation": "1879 D02=A; no display-name fallback"
+      },
+      {
+        "case_id": "po-d02-game_semi_official",
+        "stage": "po_normative_expectation_candidate_not_accepted_contract",
+        "decision": "D02",
+        "input": {
+          "game_type_key": "game_semi_official"
+        },
+        "expected": {
+          "named_group": "official",
+          "all_included": true
+        },
+        "derivation": "1879 D02=A; no display-name fallback"
+      },
+      {
+        "case_id": "po-d02-game_open",
+        "stage": "po_normative_expectation_candidate_not_accepted_contract",
+        "decision": "D02",
+        "input": {
+          "game_type_key": "game_open"
+        },
+        "expected": {
+          "named_group": "practice",
+          "all_included": true
+        },
+        "derivation": "1879 D02=A; no display-name fallback"
+      },
+      {
+        "case_id": "po-d02-game_intrasquad",
+        "stage": "po_normative_expectation_candidate_not_accepted_contract",
+        "decision": "D02",
+        "input": {
+          "game_type_key": "game_intrasquad"
+        },
+        "expected": {
+          "named_group": "practice",
+          "all_included": true
+        },
+        "derivation": "1879 D02=A; no display-name fallback"
+      },
+      {
+        "case_id": "po-d02-game_other",
+        "stage": "po_normative_expectation_candidate_not_accepted_contract",
+        "decision": "D02",
+        "input": {
+          "game_type_key": "game_other"
+        },
+        "expected": {
+          "named_group": "practice",
+          "all_included": true
+        },
+        "derivation": "1879 D02=A; no display-name fallback"
+      },
+      {
+        "case_id": "po-d02-shared-official",
+        "stage": "po_normative_expectation_candidate_not_accepted_contract",
+        "decision": "D02",
+        "input": {
+          "group": "official",
+          "fixture_ref": "five-visible-ended-games-plus-hidden-trash"
+        },
+        "expected": {
+          "screen_ids": [
+            "G1",
+            "G2"
+          ],
+          "aggregate_ids": [
+            "G1",
+            "G2"
+          ],
+          "csv_ids": [
+            "G1",
+            "G2"
+          ]
+        },
+        "derivation": "D02 one fixed selection; A-1 hidden/trash excluded before grouping"
+      },
+      {
+        "case_id": "po-d02-shared-practice",
+        "stage": "po_normative_expectation_candidate_not_accepted_contract",
+        "decision": "D02",
+        "input": {
+          "group": "practice",
+          "fixture_ref": "five-visible-ended-games-plus-hidden-trash"
+        },
+        "expected": {
+          "screen_ids": [
+            "G3",
+            "G4",
+            "G5"
+          ],
+          "aggregate_ids": [
+            "G3",
+            "G4",
+            "G5"
+          ],
+          "csv_ids": [
+            "G3",
+            "G4",
+            "G5"
+          ]
+        },
+        "derivation": "D02 one fixed selection; A-1 hidden/trash excluded before grouping"
+      },
+      {
+        "case_id": "po-d02-shared-all",
+        "stage": "po_normative_expectation_candidate_not_accepted_contract",
+        "decision": "D02",
+        "input": {
+          "group": "all",
+          "fixture_ref": "five-visible-ended-games-plus-hidden-trash"
+        },
+        "expected": {
+          "screen_ids": [
+            "G1",
+            "G2",
+            "G3",
+            "G4",
+            "G5"
+          ],
+          "aggregate_ids": [
+            "G1",
+            "G2",
+            "G3",
+            "G4",
+            "G5"
+          ],
+          "csv_ids": [
+            "G1",
+            "G2",
+            "G3",
+            "G4",
+            "G5"
+          ]
+        },
+        "derivation": "D02 one fixed selection; A-1 hidden/trash excluded before grouping"
+      },
+      {
+        "case_id": "po-d02-unknown-key",
+        "stage": "po_normative_expectation_candidate_not_accepted_contract",
+        "decision": "D02",
+        "input": {
+          "game_type_key": "game_unknown"
+        },
+        "expected": {
+          "status": "reject_unknown_raw_key"
+        },
+        "derivation": "fixed seed5 closed; no new category",
+        "rejected_alternatives": {
+          "fallback_group": "practice"
+        }
+      },
+      {
+        "case_id": "po-d03-zero-pitch",
+        "stage": "po_normative_expectation_candidate_not_accepted_contract",
+        "decision": "D03",
+        "input": {
+          "actual_pitcher_intervals": [
+            [
+              "G1",
+              "P1",
+              0,
+              1
+            ]
+          ],
+          "pitch_count": 0
+        },
+        "expected": {
+          "appearances_by_player": {
+            "P1": 1
+          }
+        },
+        "derivation": "1879 D03=A: distinct actual(game,player); zero pitches included; planned/roster not actual"
+      },
+      {
+        "case_id": "po-d03-ibb-only",
+        "stage": "po_normative_expectation_candidate_not_accepted_contract",
+        "decision": "D03",
+        "input": {
+          "actual_pitcher_intervals": [
+            [
+              "G1",
+              "P1",
+              0,
+              1
+            ]
+          ],
+          "pitch_count": 0,
+          "only_result": "intentional_walk"
+        },
+        "expected": {
+          "appearances_by_player": {
+            "P1": 1
+          }
+        },
+        "derivation": "1879 D03=A: distinct actual(game,player); zero pitches included; planned/roster not actual"
+      },
+      {
+        "case_id": "po-d03-reentry-once",
+        "stage": "po_normative_expectation_candidate_not_accepted_contract",
+        "decision": "D03",
+        "input": {
+          "actual_pitcher_intervals": [
+            [
+              "G1",
+              "P1",
+              0,
+              1
+            ],
+            [
+              "G1",
+              "P1",
+              3,
+              4
+            ]
+          ],
+          "pitch_count": 2
+        },
+        "expected": {
+          "appearances_by_player": {
+            "P1": 1
+          }
+        },
+        "derivation": "1879 D03=A: distinct actual(game,player); zero pitches included; planned/roster not actual"
+      },
+      {
+        "case_id": "po-d03-two-games",
+        "stage": "po_normative_expectation_candidate_not_accepted_contract",
+        "decision": "D03",
+        "input": {
+          "actual_pitcher_intervals": [
+            [
+              "G1",
+              "P1",
+              0,
+              1
+            ],
+            [
+              "G2",
+              "P1",
+              0,
+              1
+            ]
+          ],
+          "pitch_count": 0
+        },
+        "expected": {
+          "appearances_by_player": {
+            "P1": 2
+          }
+        },
+        "derivation": "1879 D03=A: distinct actual(game,player); zero pitches included; planned/roster not actual"
+      },
+      {
+        "case_id": "po-d03-planned-only",
+        "stage": "po_normative_expectation_candidate_not_accepted_contract",
+        "decision": "D03",
+        "input": {
+          "actual_pitcher_intervals": [],
+          "planned_pitcher_ids": [
+            "P1"
+          ],
+          "roster_pitcher_ids": [
+            "P1"
+          ]
+        },
+        "expected": {
+          "appearances_by_player": {
+            "P1": 0
+          }
+        },
+        "derivation": "1879 D03=A: distinct actual(game,player); zero pitches included; planned/roster not actual"
+      },
+      {
+        "case_id": "po-d03-fielder-only",
+        "stage": "po_normative_expectation_candidate_not_accepted_contract",
+        "decision": "D03",
+        "input": {
+          "actual_pitcher_intervals": [],
+          "actual_fielder_intervals": [
+            [
+              "G1",
+              "P1",
+              0,
+              1
+            ]
+          ]
+        },
+        "expected": {
+          "appearances_by_player": {
+            "P1": 0
+          }
+        },
+        "derivation": "1879 D03=A: distinct actual(game,player); zero pitches included; planned/roster not actual"
+      },
+      {
+        "case_id": "po-d03-missing-actual-source",
+        "stage": "po_normative_expectation_candidate_not_accepted_contract",
+        "decision": "D03",
+        "input": {
+          "actual_pitcher_intervals": null,
+          "roster_pitcher_ids": [
+            "P1"
+          ]
+        },
+        "expected": {
+          "status": "source_unavailable",
+          "appearances_by_player": null
+        },
+        "derivation": "Do not turn missing actual participation into zero/roster inference"
+      },
+      {
+        "case_id": "po-d04-2-0-walk",
+        "stage": "po_normative_expectation_candidate_not_accepted_contract",
+        "decision": "D04",
+        "input": {
+          "prior_pitcher": "A",
+          "relief_pitcher": "B",
+          "handoff_count": [
+            2,
+            0
+          ],
+          "completed_pa": true,
+          "result": "walk"
+        },
+        "expected": {
+          "bf": {
+            "A": 1,
+            "B": 0
+          },
+          "responsible_pitcher": "A",
+          "pitch_count_reassignment": false
+        },
+        "derivation": "A-2 explicit5 + other7; IBB included by A-2/A-3;1879 D04=A"
+      },
+      {
+        "case_id": "po-d04-2-0-intentional_walk",
+        "stage": "po_normative_expectation_candidate_not_accepted_contract",
+        "decision": "D04",
+        "input": {
+          "prior_pitcher": "A",
+          "relief_pitcher": "B",
+          "handoff_count": [
+            2,
+            0
+          ],
+          "completed_pa": true,
+          "result": "intentional_walk"
+        },
+        "expected": {
+          "bf": {
+            "A": 1,
+            "B": 0
+          },
+          "responsible_pitcher": "A",
+          "pitch_count_reassignment": false
+        },
+        "derivation": "A-2 explicit5 + other7; IBB included by A-2/A-3;1879 D04=A"
+      },
+      {
+        "case_id": "po-d04-2-1-walk",
+        "stage": "po_normative_expectation_candidate_not_accepted_contract",
+        "decision": "D04",
+        "input": {
+          "prior_pitcher": "A",
+          "relief_pitcher": "B",
+          "handoff_count": [
+            2,
+            1
+          ],
+          "completed_pa": true,
+          "result": "walk"
+        },
+        "expected": {
+          "bf": {
+            "A": 1,
+            "B": 0
+          },
+          "responsible_pitcher": "A",
+          "pitch_count_reassignment": false
+        },
+        "derivation": "A-2 explicit5 + other7; IBB included by A-2/A-3;1879 D04=A"
+      },
+      {
+        "case_id": "po-d04-2-1-intentional_walk",
+        "stage": "po_normative_expectation_candidate_not_accepted_contract",
+        "decision": "D04",
+        "input": {
+          "prior_pitcher": "A",
+          "relief_pitcher": "B",
+          "handoff_count": [
+            2,
+            1
+          ],
+          "completed_pa": true,
+          "result": "intentional_walk"
+        },
+        "expected": {
+          "bf": {
+            "A": 1,
+            "B": 0
+          },
+          "responsible_pitcher": "A",
+          "pitch_count_reassignment": false
+        },
+        "derivation": "A-2 explicit5 + other7; IBB included by A-2/A-3;1879 D04=A"
+      },
+      {
+        "case_id": "po-d04-3-0-walk",
+        "stage": "po_normative_expectation_candidate_not_accepted_contract",
+        "decision": "D04",
+        "input": {
+          "prior_pitcher": "A",
+          "relief_pitcher": "B",
+          "handoff_count": [
+            3,
+            0
+          ],
+          "completed_pa": true,
+          "result": "walk"
+        },
+        "expected": {
+          "bf": {
+            "A": 1,
+            "B": 0
+          },
+          "responsible_pitcher": "A",
+          "pitch_count_reassignment": false
+        },
+        "derivation": "A-2 explicit5 + other7; IBB included by A-2/A-3;1879 D04=A"
+      },
+      {
+        "case_id": "po-d04-3-0-intentional_walk",
+        "stage": "po_normative_expectation_candidate_not_accepted_contract",
+        "decision": "D04",
+        "input": {
+          "prior_pitcher": "A",
+          "relief_pitcher": "B",
+          "handoff_count": [
+            3,
+            0
+          ],
+          "completed_pa": true,
+          "result": "intentional_walk"
+        },
+        "expected": {
+          "bf": {
+            "A": 1,
+            "B": 0
+          },
+          "responsible_pitcher": "A",
+          "pitch_count_reassignment": false
+        },
+        "derivation": "A-2 explicit5 + other7; IBB included by A-2/A-3;1879 D04=A"
+      },
+      {
+        "case_id": "po-d04-3-1-walk",
+        "stage": "po_normative_expectation_candidate_not_accepted_contract",
+        "decision": "D04",
+        "input": {
+          "prior_pitcher": "A",
+          "relief_pitcher": "B",
+          "handoff_count": [
+            3,
+            1
+          ],
+          "completed_pa": true,
+          "result": "walk"
+        },
+        "expected": {
+          "bf": {
+            "A": 1,
+            "B": 0
+          },
+          "responsible_pitcher": "A",
+          "pitch_count_reassignment": false
+        },
+        "derivation": "A-2 explicit5 + other7; IBB included by A-2/A-3;1879 D04=A"
+      },
+      {
+        "case_id": "po-d04-3-1-intentional_walk",
+        "stage": "po_normative_expectation_candidate_not_accepted_contract",
+        "decision": "D04",
+        "input": {
+          "prior_pitcher": "A",
+          "relief_pitcher": "B",
+          "handoff_count": [
+            3,
+            1
+          ],
+          "completed_pa": true,
+          "result": "intentional_walk"
+        },
+        "expected": {
+          "bf": {
+            "A": 1,
+            "B": 0
+          },
+          "responsible_pitcher": "A",
+          "pitch_count_reassignment": false
+        },
+        "derivation": "A-2 explicit5 + other7; IBB included by A-2/A-3;1879 D04=A"
+      },
+      {
+        "case_id": "po-d04-3-2-walk",
+        "stage": "po_normative_expectation_candidate_not_accepted_contract",
+        "decision": "D04",
+        "input": {
+          "prior_pitcher": "A",
+          "relief_pitcher": "B",
+          "handoff_count": [
+            3,
+            2
+          ],
+          "completed_pa": true,
+          "result": "walk"
+        },
+        "expected": {
+          "bf": {
+            "A": 1,
+            "B": 0
+          },
+          "responsible_pitcher": "A",
+          "pitch_count_reassignment": false
+        },
+        "derivation": "A-2 explicit5 + other7; IBB included by A-2/A-3;1879 D04=A"
+      },
+      {
+        "case_id": "po-d04-3-2-intentional_walk",
+        "stage": "po_normative_expectation_candidate_not_accepted_contract",
+        "decision": "D04",
+        "input": {
+          "prior_pitcher": "A",
+          "relief_pitcher": "B",
+          "handoff_count": [
+            3,
+            2
+          ],
+          "completed_pa": true,
+          "result": "intentional_walk"
+        },
+        "expected": {
+          "bf": {
+            "A": 1,
+            "B": 0
+          },
+          "responsible_pitcher": "A",
+          "pitch_count_reassignment": false
+        },
+        "derivation": "A-2 explicit5 + other7; IBB included by A-2/A-3;1879 D04=A"
+      },
+      {
+        "case_id": "po-d04-0-0-walk",
+        "stage": "po_normative_expectation_candidate_not_accepted_contract",
+        "decision": "D04",
+        "input": {
+          "prior_pitcher": "A",
+          "relief_pitcher": "B",
+          "handoff_count": [
+            0,
+            0
+          ],
+          "completed_pa": true,
+          "result": "walk"
+        },
+        "expected": {
+          "bf": {
+            "A": 0,
+            "B": 1
+          },
+          "responsible_pitcher": "B",
+          "pitch_count_reassignment": false
+        },
+        "derivation": "A-2 explicit5 + other7; IBB included by A-2/A-3;1879 D04=A"
+      },
+      {
+        "case_id": "po-d04-0-0-intentional_walk",
+        "stage": "po_normative_expectation_candidate_not_accepted_contract",
+        "decision": "D04",
+        "input": {
+          "prior_pitcher": "A",
+          "relief_pitcher": "B",
+          "handoff_count": [
+            0,
+            0
+          ],
+          "completed_pa": true,
+          "result": "intentional_walk"
+        },
+        "expected": {
+          "bf": {
+            "A": 0,
+            "B": 1
+          },
+          "responsible_pitcher": "B",
+          "pitch_count_reassignment": false
+        },
+        "derivation": "A-2 explicit5 + other7; IBB included by A-2/A-3;1879 D04=A"
+      },
+      {
+        "case_id": "po-d04-0-1-walk",
+        "stage": "po_normative_expectation_candidate_not_accepted_contract",
+        "decision": "D04",
+        "input": {
+          "prior_pitcher": "A",
+          "relief_pitcher": "B",
+          "handoff_count": [
+            0,
+            1
+          ],
+          "completed_pa": true,
+          "result": "walk"
+        },
+        "expected": {
+          "bf": {
+            "A": 0,
+            "B": 1
+          },
+          "responsible_pitcher": "B",
+          "pitch_count_reassignment": false
+        },
+        "derivation": "A-2 explicit5 + other7; IBB included by A-2/A-3;1879 D04=A"
+      },
+      {
+        "case_id": "po-d04-0-1-intentional_walk",
+        "stage": "po_normative_expectation_candidate_not_accepted_contract",
+        "decision": "D04",
+        "input": {
+          "prior_pitcher": "A",
+          "relief_pitcher": "B",
+          "handoff_count": [
+            0,
+            1
+          ],
+          "completed_pa": true,
+          "result": "intentional_walk"
+        },
+        "expected": {
+          "bf": {
+            "A": 0,
+            "B": 1
+          },
+          "responsible_pitcher": "B",
+          "pitch_count_reassignment": false
+        },
+        "derivation": "A-2 explicit5 + other7; IBB included by A-2/A-3;1879 D04=A"
+      },
+      {
+        "case_id": "po-d04-0-2-walk",
+        "stage": "po_normative_expectation_candidate_not_accepted_contract",
+        "decision": "D04",
+        "input": {
+          "prior_pitcher": "A",
+          "relief_pitcher": "B",
+          "handoff_count": [
+            0,
+            2
+          ],
+          "completed_pa": true,
+          "result": "walk"
+        },
+        "expected": {
+          "bf": {
+            "A": 0,
+            "B": 1
+          },
+          "responsible_pitcher": "B",
+          "pitch_count_reassignment": false
+        },
+        "derivation": "A-2 explicit5 + other7; IBB included by A-2/A-3;1879 D04=A"
+      },
+      {
+        "case_id": "po-d04-0-2-intentional_walk",
+        "stage": "po_normative_expectation_candidate_not_accepted_contract",
+        "decision": "D04",
+        "input": {
+          "prior_pitcher": "A",
+          "relief_pitcher": "B",
+          "handoff_count": [
+            0,
+            2
+          ],
+          "completed_pa": true,
+          "result": "intentional_walk"
+        },
+        "expected": {
+          "bf": {
+            "A": 0,
+            "B": 1
+          },
+          "responsible_pitcher": "B",
+          "pitch_count_reassignment": false
+        },
+        "derivation": "A-2 explicit5 + other7; IBB included by A-2/A-3;1879 D04=A"
+      },
+      {
+        "case_id": "po-d04-1-0-walk",
+        "stage": "po_normative_expectation_candidate_not_accepted_contract",
+        "decision": "D04",
+        "input": {
+          "prior_pitcher": "A",
+          "relief_pitcher": "B",
+          "handoff_count": [
+            1,
+            0
+          ],
+          "completed_pa": true,
+          "result": "walk"
+        },
+        "expected": {
+          "bf": {
+            "A": 0,
+            "B": 1
+          },
+          "responsible_pitcher": "B",
+          "pitch_count_reassignment": false
+        },
+        "derivation": "A-2 explicit5 + other7; IBB included by A-2/A-3;1879 D04=A"
+      },
+      {
+        "case_id": "po-d04-1-0-intentional_walk",
+        "stage": "po_normative_expectation_candidate_not_accepted_contract",
+        "decision": "D04",
+        "input": {
+          "prior_pitcher": "A",
+          "relief_pitcher": "B",
+          "handoff_count": [
+            1,
+            0
+          ],
+          "completed_pa": true,
+          "result": "intentional_walk"
+        },
+        "expected": {
+          "bf": {
+            "A": 0,
+            "B": 1
+          },
+          "responsible_pitcher": "B",
+          "pitch_count_reassignment": false
+        },
+        "derivation": "A-2 explicit5 + other7; IBB included by A-2/A-3;1879 D04=A"
+      },
+      {
+        "case_id": "po-d04-1-1-walk",
+        "stage": "po_normative_expectation_candidate_not_accepted_contract",
+        "decision": "D04",
+        "input": {
+          "prior_pitcher": "A",
+          "relief_pitcher": "B",
+          "handoff_count": [
+            1,
+            1
+          ],
+          "completed_pa": true,
+          "result": "walk"
+        },
+        "expected": {
+          "bf": {
+            "A": 0,
+            "B": 1
+          },
+          "responsible_pitcher": "B",
+          "pitch_count_reassignment": false
+        },
+        "derivation": "A-2 explicit5 + other7; IBB included by A-2/A-3;1879 D04=A"
+      },
+      {
+        "case_id": "po-d04-1-1-intentional_walk",
+        "stage": "po_normative_expectation_candidate_not_accepted_contract",
+        "decision": "D04",
+        "input": {
+          "prior_pitcher": "A",
+          "relief_pitcher": "B",
+          "handoff_count": [
+            1,
+            1
+          ],
+          "completed_pa": true,
+          "result": "intentional_walk"
+        },
+        "expected": {
+          "bf": {
+            "A": 0,
+            "B": 1
+          },
+          "responsible_pitcher": "B",
+          "pitch_count_reassignment": false
+        },
+        "derivation": "A-2 explicit5 + other7; IBB included by A-2/A-3;1879 D04=A"
+      },
+      {
+        "case_id": "po-d04-1-2-walk",
+        "stage": "po_normative_expectation_candidate_not_accepted_contract",
+        "decision": "D04",
+        "input": {
+          "prior_pitcher": "A",
+          "relief_pitcher": "B",
+          "handoff_count": [
+            1,
+            2
+          ],
+          "completed_pa": true,
+          "result": "walk"
+        },
+        "expected": {
+          "bf": {
+            "A": 0,
+            "B": 1
+          },
+          "responsible_pitcher": "B",
+          "pitch_count_reassignment": false
+        },
+        "derivation": "A-2 explicit5 + other7; IBB included by A-2/A-3;1879 D04=A"
+      },
+      {
+        "case_id": "po-d04-1-2-intentional_walk",
+        "stage": "po_normative_expectation_candidate_not_accepted_contract",
+        "decision": "D04",
+        "input": {
+          "prior_pitcher": "A",
+          "relief_pitcher": "B",
+          "handoff_count": [
+            1,
+            2
+          ],
+          "completed_pa": true,
+          "result": "intentional_walk"
+        },
+        "expected": {
+          "bf": {
+            "A": 0,
+            "B": 1
+          },
+          "responsible_pitcher": "B",
+          "pitch_count_reassignment": false
+        },
+        "derivation": "A-2 explicit5 + other7; IBB included by A-2/A-3;1879 D04=A"
+      },
+      {
+        "case_id": "po-d04-2-2-walk",
+        "stage": "po_normative_expectation_candidate_not_accepted_contract",
+        "decision": "D04",
+        "input": {
+          "prior_pitcher": "A",
+          "relief_pitcher": "B",
+          "handoff_count": [
+            2,
+            2
+          ],
+          "completed_pa": true,
+          "result": "walk"
+        },
+        "expected": {
+          "bf": {
+            "A": 0,
+            "B": 1
+          },
+          "responsible_pitcher": "B",
+          "pitch_count_reassignment": false
+        },
+        "derivation": "A-2 explicit5 + other7; IBB included by A-2/A-3;1879 D04=A"
+      },
+      {
+        "case_id": "po-d04-2-2-intentional_walk",
+        "stage": "po_normative_expectation_candidate_not_accepted_contract",
+        "decision": "D04",
+        "input": {
+          "prior_pitcher": "A",
+          "relief_pitcher": "B",
+          "handoff_count": [
+            2,
+            2
+          ],
+          "completed_pa": true,
+          "result": "intentional_walk"
+        },
+        "expected": {
+          "bf": {
+            "A": 0,
+            "B": 1
+          },
+          "responsible_pitcher": "B",
+          "pitch_count_reassignment": false
+        },
+        "derivation": "A-2 explicit5 + other7; IBB included by A-2/A-3;1879 D04=A"
+      },
+      {
+        "case_id": "po-d04-2-0-single",
+        "stage": "po_normative_expectation_candidate_not_accepted_contract",
+        "decision": "D04",
+        "input": {
+          "prior_pitcher": "A",
+          "relief_pitcher": "B",
+          "handoff_count": [
+            2,
+            0
+          ],
+          "completed_pa": true,
+          "result": "single"
+        },
+        "expected": {
+          "bf": {
+            "A": 0,
+            "B": 1
+          },
+          "responsible_pitcher": "B"
+        },
+        "derivation": "A-2: all non-BB results to relief; D04 BF follows same responsibility"
+      },
+      {
+        "case_id": "po-d04-2-0-hit_by_pitch",
+        "stage": "po_normative_expectation_candidate_not_accepted_contract",
+        "decision": "D04",
+        "input": {
+          "prior_pitcher": "A",
+          "relief_pitcher": "B",
+          "handoff_count": [
+            2,
+            0
+          ],
+          "completed_pa": true,
+          "result": "hit_by_pitch"
+        },
+        "expected": {
+          "bf": {
+            "A": 0,
+            "B": 1
+          },
+          "responsible_pitcher": "B"
+        },
+        "derivation": "A-2: all non-BB results to relief; D04 BF follows same responsibility"
+      },
+      {
+        "case_id": "po-d04-2-0-strikeout",
+        "stage": "po_normative_expectation_candidate_not_accepted_contract",
+        "decision": "D04",
+        "input": {
+          "prior_pitcher": "A",
+          "relief_pitcher": "B",
+          "handoff_count": [
+            2,
+            0
+          ],
+          "completed_pa": true,
+          "result": "strikeout"
+        },
+        "expected": {
+          "bf": {
+            "A": 0,
+            "B": 1
+          },
+          "responsible_pitcher": "B"
+        },
+        "derivation": "A-2: all non-BB results to relief; D04 BF follows same responsibility"
+      },
+      {
+        "case_id": "po-d04-2-1-single",
+        "stage": "po_normative_expectation_candidate_not_accepted_contract",
+        "decision": "D04",
+        "input": {
+          "prior_pitcher": "A",
+          "relief_pitcher": "B",
+          "handoff_count": [
+            2,
+            1
+          ],
+          "completed_pa": true,
+          "result": "single"
+        },
+        "expected": {
+          "bf": {
+            "A": 0,
+            "B": 1
+          },
+          "responsible_pitcher": "B"
+        },
+        "derivation": "A-2: all non-BB results to relief; D04 BF follows same responsibility"
+      },
+      {
+        "case_id": "po-d04-2-1-hit_by_pitch",
+        "stage": "po_normative_expectation_candidate_not_accepted_contract",
+        "decision": "D04",
+        "input": {
+          "prior_pitcher": "A",
+          "relief_pitcher": "B",
+          "handoff_count": [
+            2,
+            1
+          ],
+          "completed_pa": true,
+          "result": "hit_by_pitch"
+        },
+        "expected": {
+          "bf": {
+            "A": 0,
+            "B": 1
+          },
+          "responsible_pitcher": "B"
+        },
+        "derivation": "A-2: all non-BB results to relief; D04 BF follows same responsibility"
+      },
+      {
+        "case_id": "po-d04-2-1-strikeout",
+        "stage": "po_normative_expectation_candidate_not_accepted_contract",
+        "decision": "D04",
+        "input": {
+          "prior_pitcher": "A",
+          "relief_pitcher": "B",
+          "handoff_count": [
+            2,
+            1
+          ],
+          "completed_pa": true,
+          "result": "strikeout"
+        },
+        "expected": {
+          "bf": {
+            "A": 0,
+            "B": 1
+          },
+          "responsible_pitcher": "B"
+        },
+        "derivation": "A-2: all non-BB results to relief; D04 BF follows same responsibility"
+      },
+      {
+        "case_id": "po-d04-3-0-single",
+        "stage": "po_normative_expectation_candidate_not_accepted_contract",
+        "decision": "D04",
+        "input": {
+          "prior_pitcher": "A",
+          "relief_pitcher": "B",
+          "handoff_count": [
+            3,
+            0
+          ],
+          "completed_pa": true,
+          "result": "single"
+        },
+        "expected": {
+          "bf": {
+            "A": 0,
+            "B": 1
+          },
+          "responsible_pitcher": "B"
+        },
+        "derivation": "A-2: all non-BB results to relief; D04 BF follows same responsibility"
+      },
+      {
+        "case_id": "po-d04-3-0-hit_by_pitch",
+        "stage": "po_normative_expectation_candidate_not_accepted_contract",
+        "decision": "D04",
+        "input": {
+          "prior_pitcher": "A",
+          "relief_pitcher": "B",
+          "handoff_count": [
+            3,
+            0
+          ],
+          "completed_pa": true,
+          "result": "hit_by_pitch"
+        },
+        "expected": {
+          "bf": {
+            "A": 0,
+            "B": 1
+          },
+          "responsible_pitcher": "B"
+        },
+        "derivation": "A-2: all non-BB results to relief; D04 BF follows same responsibility"
+      },
+      {
+        "case_id": "po-d04-3-0-strikeout",
+        "stage": "po_normative_expectation_candidate_not_accepted_contract",
+        "decision": "D04",
+        "input": {
+          "prior_pitcher": "A",
+          "relief_pitcher": "B",
+          "handoff_count": [
+            3,
+            0
+          ],
+          "completed_pa": true,
+          "result": "strikeout"
+        },
+        "expected": {
+          "bf": {
+            "A": 0,
+            "B": 1
+          },
+          "responsible_pitcher": "B"
+        },
+        "derivation": "A-2: all non-BB results to relief; D04 BF follows same responsibility"
+      },
+      {
+        "case_id": "po-d04-3-1-single",
+        "stage": "po_normative_expectation_candidate_not_accepted_contract",
+        "decision": "D04",
+        "input": {
+          "prior_pitcher": "A",
+          "relief_pitcher": "B",
+          "handoff_count": [
+            3,
+            1
+          ],
+          "completed_pa": true,
+          "result": "single"
+        },
+        "expected": {
+          "bf": {
+            "A": 0,
+            "B": 1
+          },
+          "responsible_pitcher": "B"
+        },
+        "derivation": "A-2: all non-BB results to relief; D04 BF follows same responsibility"
+      },
+      {
+        "case_id": "po-d04-3-1-hit_by_pitch",
+        "stage": "po_normative_expectation_candidate_not_accepted_contract",
+        "decision": "D04",
+        "input": {
+          "prior_pitcher": "A",
+          "relief_pitcher": "B",
+          "handoff_count": [
+            3,
+            1
+          ],
+          "completed_pa": true,
+          "result": "hit_by_pitch"
+        },
+        "expected": {
+          "bf": {
+            "A": 0,
+            "B": 1
+          },
+          "responsible_pitcher": "B"
+        },
+        "derivation": "A-2: all non-BB results to relief; D04 BF follows same responsibility"
+      },
+      {
+        "case_id": "po-d04-3-1-strikeout",
+        "stage": "po_normative_expectation_candidate_not_accepted_contract",
+        "decision": "D04",
+        "input": {
+          "prior_pitcher": "A",
+          "relief_pitcher": "B",
+          "handoff_count": [
+            3,
+            1
+          ],
+          "completed_pa": true,
+          "result": "strikeout"
+        },
+        "expected": {
+          "bf": {
+            "A": 0,
+            "B": 1
+          },
+          "responsible_pitcher": "B"
+        },
+        "derivation": "A-2: all non-BB results to relief; D04 BF follows same responsibility"
+      },
+      {
+        "case_id": "po-d04-3-2-single",
+        "stage": "po_normative_expectation_candidate_not_accepted_contract",
+        "decision": "D04",
+        "input": {
+          "prior_pitcher": "A",
+          "relief_pitcher": "B",
+          "handoff_count": [
+            3,
+            2
+          ],
+          "completed_pa": true,
+          "result": "single"
+        },
+        "expected": {
+          "bf": {
+            "A": 0,
+            "B": 1
+          },
+          "responsible_pitcher": "B"
+        },
+        "derivation": "A-2: all non-BB results to relief; D04 BF follows same responsibility"
+      },
+      {
+        "case_id": "po-d04-3-2-hit_by_pitch",
+        "stage": "po_normative_expectation_candidate_not_accepted_contract",
+        "decision": "D04",
+        "input": {
+          "prior_pitcher": "A",
+          "relief_pitcher": "B",
+          "handoff_count": [
+            3,
+            2
+          ],
+          "completed_pa": true,
+          "result": "hit_by_pitch"
+        },
+        "expected": {
+          "bf": {
+            "A": 0,
+            "B": 1
+          },
+          "responsible_pitcher": "B"
+        },
+        "derivation": "A-2: all non-BB results to relief; D04 BF follows same responsibility"
+      },
+      {
+        "case_id": "po-d04-3-2-strikeout",
+        "stage": "po_normative_expectation_candidate_not_accepted_contract",
+        "decision": "D04",
+        "input": {
+          "prior_pitcher": "A",
+          "relief_pitcher": "B",
+          "handoff_count": [
+            3,
+            2
+          ],
+          "completed_pa": true,
+          "result": "strikeout"
+        },
+        "expected": {
+          "bf": {
+            "A": 0,
+            "B": 1
+          },
+          "responsible_pitcher": "B"
+        },
+        "derivation": "A-2: all non-BB results to relief; D04 BF follows same responsibility"
+      },
+      {
+        "case_id": "po-d04-incomplete-pa",
+        "stage": "po_normative_expectation_candidate_not_accepted_contract",
+        "decision": "D04",
+        "input": {
+          "handoff_count": [
+            3,
+            1
+          ],
+          "completed_pa": false,
+          "result": null
+        },
+        "expected": {
+          "bf": {
+            "A": 0,
+            "B": 0
+          }
+        },
+        "derivation": "No completed PA/BF increment"
+      },
+      {
+        "case_id": "po-d04-multiple-recorded-owner",
+        "stage": "po_normative_expectation_candidate_not_accepted_contract",
+        "decision": "D04",
+        "input": {
+          "changes": [
+            [
+              "A",
+              "B",
+              2,
+              0
+            ],
+            [
+              "B",
+              "C",
+              3,
+              1
+            ]
+          ],
+          "result": "intentional_walk",
+          "recorded_walk_pitcher": "A",
+          "responsibility_source": "authentic-existing-record"
+        },
+        "expected": {
+          "bf": {
+            "A": 1,
+            "B": 0,
+            "C": 0
+          }
+        },
+        "derivation": "D04 uses existing authentic responsibility; no new precedence algorithm"
+      },
+      {
+        "case_id": "po-d04-gap-two-qualified",
+        "stage": "po_normative_expectation_candidate_not_accepted_contract",
+        "decision": "D04",
+        "input": {
+          "changes": [
+            [
+              "A",
+              "B",
+              2,
+              0
+            ],
+            [
+              "B",
+              "C",
+              3,
+              1
+            ]
+          ],
+          "result": "walk",
+          "recorded_walk_pitcher": null
+        },
+        "expected": {
+          "status": "requires_specific_responsibility_rule_or_authentic_source",
+          "bf": null
+        },
+        "derivation": "A-2 has single prior/relief rule but no explicit multi-handoff precedence when authoritative responsibility is absent; do not guess",
+        "rejected_alternatives": {
+          "immediate_predecessor_default": true,
+          "first_pitcher_default": true,
+          "both_counted": true
+        }
+      },
+      {
+        "case_id": "po-d04-gap-qualified-then-two-two",
+        "stage": "po_normative_expectation_candidate_not_accepted_contract",
+        "decision": "D04",
+        "input": {
+          "changes": [
+            [
+              "A",
+              "B",
+              2,
+              0
+            ],
+            [
+              "B",
+              "C",
+              2,
+              2
+            ]
+          ],
+          "result": "walk",
+          "recorded_walk_pitcher": null
+        },
+        "expected": {
+          "status": "requires_specific_responsibility_rule_or_authentic_source",
+          "bf": null
+        },
+        "derivation": "A-2 has single prior/relief rule but no explicit multi-handoff precedence when authoritative responsibility is absent; do not guess",
+        "rejected_alternatives": {
+          "immediate_predecessor_default": true,
+          "first_pitcher_default": true,
+          "both_counted": true
+        }
+      },
+      {
+        "case_id": "po-d05-one-third-plus-one-third",
+        "stage": "po_normative_expectation_candidate_not_accepted_contract",
+        "decision": "D05",
+        "input": {
+          "ab": "3",
+          "h": "1",
+          "total_bases": "1",
+          "bb": "0",
+          "hbp": "0",
+          "sf": "0"
+        },
+        "expected": {
+          "input_state": "complete",
+          "source_state": "available",
+          "value_state": "defined",
+          "exact_ratio": {
+            "numerator": "2",
+            "denominator": "3"
+          },
+          "value": "0.667",
+          "display_candidate": "0.667(出塁率分母3打席・長打率分母3打数)",
+          "denominators": {
+            "obp_numerator": "1",
+            "obp_denominator": "3",
+            "slg_numerator": "1",
+            "slg_denominator": "3"
+          },
+          "formatter_candidate": {
+            "scale": 3,
+            "rounding": "half-up",
+            "leading_zero": true,
+            "zero_division_glyph": "−",
+            "zero_division_codepoint": "U+2212"
+          }
+        },
+        "derivation": "1879 D05=A; A-3 OBP/SLG; A-1 exact one final round/null/minus/leading0 default",
+        "rejected_alternatives": {
+          "sum_rounded_components": "0.666",
+          "collapse_denominators": true,
+          "undefined_term_as_zero": true
+        }
+      },
+      {
+        "case_id": "po-d05-different-denominators",
+        "stage": "po_normative_expectation_candidate_not_accepted_contract",
+        "decision": "D05",
+        "input": {
+          "ab": "3",
+          "h": "1",
+          "total_bases": "2",
+          "bb": "1",
+          "hbp": "0",
+          "sf": "0"
+        },
+        "expected": {
+          "input_state": "complete",
+          "source_state": "available",
+          "value_state": "defined",
+          "exact_ratio": {
+            "numerator": "7",
+            "denominator": "6"
+          },
+          "value": "1.167",
+          "display_candidate": "1.167(出塁率分母4打席・長打率分母3打数)",
+          "denominators": {
+            "obp_numerator": "2",
+            "obp_denominator": "4",
+            "slg_numerator": "2",
+            "slg_denominator": "3"
+          },
+          "formatter_candidate": {
+            "scale": 3,
+            "rounding": "half-up",
+            "leading_zero": true,
+            "zero_division_glyph": "−",
+            "zero_division_codepoint": "U+2212"
+          }
+        },
+        "derivation": "1879 D05=A; A-3 OBP/SLG; A-1 exact one final round/null/minus/leading0 default",
+        "rejected_alternatives": {
+          "sum_rounded_components": "not_the_definition",
+          "collapse_denominators": true,
+          "undefined_term_as_zero": true
+        }
+      },
+      {
+        "case_id": "po-d05-zero-defined",
+        "stage": "po_normative_expectation_candidate_not_accepted_contract",
+        "decision": "D05",
+        "input": {
+          "ab": "1",
+          "h": "0",
+          "total_bases": "0",
+          "bb": "0",
+          "hbp": "0",
+          "sf": "0"
+        },
+        "expected": {
+          "input_state": "complete",
+          "source_state": "available",
+          "value_state": "defined",
+          "exact_ratio": {
+            "numerator": "0",
+            "denominator": "1"
+          },
+          "value": "0.000",
+          "display_candidate": "0.000(出塁率分母1打席・長打率分母1打数)",
+          "denominators": {
+            "obp_numerator": "0",
+            "obp_denominator": "1",
+            "slg_numerator": "0",
+            "slg_denominator": "1"
+          },
+          "formatter_candidate": {
+            "scale": 3,
+            "rounding": "half-up",
+            "leading_zero": true,
+            "zero_division_glyph": "−",
+            "zero_division_codepoint": "U+2212"
+          }
+        },
+        "derivation": "1879 D05=A; A-3 OBP/SLG; A-1 exact one final round/null/minus/leading0 default",
+        "rejected_alternatives": {
+          "sum_rounded_components": "not_the_definition",
+          "collapse_denominators": true,
+          "undefined_term_as_zero": true
+        }
+      },
+      {
+        "case_id": "po-d05-above-half-boundary",
+        "stage": "po_normative_expectation_candidate_not_accepted_contract",
+        "decision": "D05",
+        "input": {
+          "ab": "3999",
+          "h": "1",
+          "total_bases": "1",
+          "bb": "0",
+          "hbp": "0",
+          "sf": "0"
+        },
+        "expected": {
+          "input_state": "complete",
+          "source_state": "available",
+          "value_state": "defined",
+          "exact_ratio": {
+            "numerator": "2",
+            "denominator": "3999"
+          },
+          "value": "0.001",
+          "display_candidate": "0.001(出塁率分母3999打席・長打率分母3999打数)",
+          "denominators": {
+            "obp_numerator": "1",
+            "obp_denominator": "3999",
+            "slg_numerator": "1",
+            "slg_denominator": "3999"
+          },
+          "formatter_candidate": {
+            "scale": 3,
+            "rounding": "half-up",
+            "leading_zero": true,
+            "zero_division_glyph": "−",
+            "zero_division_codepoint": "U+2212"
+          }
+        },
+        "derivation": "1879 D05=A; A-3 OBP/SLG; A-1 exact one final round/null/minus/leading0 default",
+        "rejected_alternatives": {
+          "sum_rounded_components": "not_the_definition",
+          "collapse_denominators": true,
+          "undefined_term_as_zero": true
+        }
+      },
+      {
+        "case_id": "po-d05-half-boundary",
+        "stage": "po_normative_expectation_candidate_not_accepted_contract",
+        "decision": "D05",
+        "input": {
+          "ab": "4000",
+          "h": "1",
+          "total_bases": "1",
+          "bb": "0",
+          "hbp": "0",
+          "sf": "0"
+        },
+        "expected": {
+          "input_state": "complete",
+          "source_state": "available",
+          "value_state": "defined",
+          "exact_ratio": {
+            "numerator": "1",
+            "denominator": "2000"
+          },
+          "value": "0.001",
+          "display_candidate": "0.001(出塁率分母4000打席・長打率分母4000打数)",
+          "denominators": {
+            "obp_numerator": "1",
+            "obp_denominator": "4000",
+            "slg_numerator": "1",
+            "slg_denominator": "4000"
+          },
+          "formatter_candidate": {
+            "scale": 3,
+            "rounding": "half-up",
+            "leading_zero": true,
+            "zero_division_glyph": "−",
+            "zero_division_codepoint": "U+2212"
+          }
+        },
+        "derivation": "1879 D05=A; A-3 OBP/SLG; A-1 exact one final round/null/minus/leading0 default",
+        "rejected_alternatives": {
+          "sum_rounded_components": "not_the_definition",
+          "collapse_denominators": true,
+          "undefined_term_as_zero": true
+        }
+      },
+      {
+        "case_id": "po-d05-below-half-boundary",
+        "stage": "po_normative_expectation_candidate_not_accepted_contract",
+        "decision": "D05",
+        "input": {
+          "ab": "4001",
+          "h": "1",
+          "total_bases": "1",
+          "bb": "0",
+          "hbp": "0",
+          "sf": "0"
+        },
+        "expected": {
+          "input_state": "complete",
+          "source_state": "available",
+          "value_state": "defined",
+          "exact_ratio": {
+            "numerator": "2",
+            "denominator": "4001"
+          },
+          "value": "0.000",
+          "display_candidate": "0.000(出塁率分母4001打席・長打率分母4001打数)",
+          "denominators": {
+            "obp_numerator": "1",
+            "obp_denominator": "4001",
+            "slg_numerator": "1",
+            "slg_denominator": "4001"
+          },
+          "formatter_candidate": {
+            "scale": 3,
+            "rounding": "half-up",
+            "leading_zero": true,
+            "zero_division_glyph": "−",
+            "zero_division_codepoint": "U+2212"
+          }
+        },
+        "derivation": "1879 D05=A; A-3 OBP/SLG; A-1 exact one final round/null/minus/leading0 default",
+        "rejected_alternatives": {
+          "sum_rounded_components": "not_the_definition",
+          "collapse_denominators": true,
+          "undefined_term_as_zero": true
+        }
+      },
+      {
+        "case_id": "po-d05-over-one",
+        "stage": "po_normative_expectation_candidate_not_accepted_contract",
+        "decision": "D05",
+        "input": {
+          "ab": "1",
+          "h": "1",
+          "total_bases": "4",
+          "bb": "0",
+          "hbp": "0",
+          "sf": "0"
+        },
+        "expected": {
+          "input_state": "complete",
+          "source_state": "available",
+          "value_state": "defined",
+          "exact_ratio": {
+            "numerator": "5",
+            "denominator": "1"
+          },
+          "value": "5.000",
+          "display_candidate": "5.000(出塁率分母1打席・長打率分母1打数)",
+          "denominators": {
+            "obp_numerator": "1",
+            "obp_denominator": "1",
+            "slg_numerator": "4",
+            "slg_denominator": "1"
+          },
+          "formatter_candidate": {
+            "scale": 3,
+            "rounding": "half-up",
+            "leading_zero": true,
+            "zero_division_glyph": "−",
+            "zero_division_codepoint": "U+2212"
+          }
+        },
+        "derivation": "1879 D05=A; A-3 OBP/SLG; A-1 exact one final round/null/minus/leading0 default",
+        "rejected_alternatives": {
+          "sum_rounded_components": "not_the_definition",
+          "collapse_denominators": true,
+          "undefined_term_as_zero": true
+        }
+      },
+      {
+        "case_id": "po-d05-zero-both-denominators",
+        "stage": "po_normative_expectation_candidate_not_accepted_contract",
+        "decision": "D05",
+        "input": {
+          "ab": "0",
+          "h": "0",
+          "total_bases": "0",
+          "bb": "0",
+          "hbp": "0",
+          "sf": "0"
+        },
+        "expected": {
+          "input_state": "complete",
+          "source_state": "available",
+          "value_state": "undefined_zero_denominator",
+          "exact_ratio": null,
+          "value": null,
+          "display_candidate": "−(出塁率分母0打席・長打率分母0打数)",
+          "denominators": {
+            "obp_numerator": "0",
+            "obp_denominator": "0",
+            "slg_numerator": "0",
+            "slg_denominator": "0"
+          },
+          "formatter_candidate": {
+            "scale": 3,
+            "rounding": "half-up",
+            "leading_zero": true,
+            "zero_division_glyph": "−",
+            "zero_division_codepoint": "U+2212"
+          }
+        },
+        "derivation": "1879 D05=A; A-3 OBP/SLG; A-1 exact one final round/null/minus/leading0 default",
+        "rejected_alternatives": {
+          "sum_rounded_components": "not_the_definition",
+          "collapse_denominators": true,
+          "undefined_term_as_zero": true
+        }
+      },
+      {
+        "case_id": "po-d05-zero-slg-denominator-only",
+        "stage": "po_normative_expectation_candidate_not_accepted_contract",
+        "decision": "D05",
+        "input": {
+          "ab": "0",
+          "h": "0",
+          "total_bases": "0",
+          "bb": "1",
+          "hbp": "0",
+          "sf": "0"
+        },
+        "expected": {
+          "input_state": "complete",
+          "source_state": "available",
+          "value_state": "undefined_zero_denominator",
+          "exact_ratio": null,
+          "value": null,
+          "display_candidate": "−(出塁率分母1打席・長打率分母0打数)",
+          "denominators": {
+            "obp_numerator": "1",
+            "obp_denominator": "1",
+            "slg_numerator": "0",
+            "slg_denominator": "0"
+          },
+          "formatter_candidate": {
+            "scale": 3,
+            "rounding": "half-up",
+            "leading_zero": true,
+            "zero_division_glyph": "−",
+            "zero_division_codepoint": "U+2212"
+          }
+        },
+        "derivation": "1879 D05=A; A-3 OBP/SLG; A-1 exact one final round/null/minus/leading0 default",
+        "rejected_alternatives": {
+          "sum_rounded_components": "not_the_definition",
+          "collapse_denominators": true,
+          "undefined_term_as_zero": true
+        }
+      },
+      {
+        "case_id": "po-d05-missing-source",
+        "stage": "po_normative_expectation_candidate_not_accepted_contract",
+        "decision": "D05",
+        "input": {
+          "source_complete": false,
+          "ab": null,
+          "h": null,
+          "total_bases": null,
+          "bb": null,
+          "hbp": null,
+          "sf": null
+        },
+        "expected": {
+          "source_state": "source_unavailable",
+          "value_state": "not_evaluated",
+          "value": null,
+          "zero_division": false,
+          "denominators": null
+        },
+        "derivation": "PO meanings adopted does not make missing source available; not a mathematical zero denominator"
+      },
+      {
+        "case_id": "po-calendar-before-jst-new-year",
+        "stage": "po_normative_expectation_candidate_not_accepted_contract",
+        "decision": "JST-calendar-existing-decision",
+        "input": {
+          "scheduled_at": "2025-12-31T14:59:59Z"
+        },
+        "expected": {
+          "year": 2025,
+          "period_label": "2025年通算"
+        },
+        "derivation": "1879 existing adopted JST calendar;4517 candidate normalized to integratedv2.18; not new ruling"
+      },
+      {
+        "case_id": "po-calendar-at-jst-new-year",
+        "stage": "po_normative_expectation_candidate_not_accepted_contract",
+        "decision": "JST-calendar-existing-decision",
+        "input": {
+          "scheduled_at": "2025-12-31T15:00:00Z"
+        },
+        "expected": {
+          "year": 2026,
+          "period_label": "2026年通算"
+        },
+        "derivation": "1879 existing adopted JST calendar;4517 candidate normalized to integratedv2.18; not new ruling"
+      },
+      {
+        "case_id": "po-calendar-before-old-fiscal-boundary",
+        "stage": "po_normative_expectation_candidate_not_accepted_contract",
+        "decision": "JST-calendar-existing-decision",
+        "input": {
+          "scheduled_at": "2026-03-31T14:59:59Z"
+        },
+        "expected": {
+          "year": 2026,
+          "period_label": "2026年通算"
+        },
+        "derivation": "1879 existing adopted JST calendar;4517 candidate normalized to integratedv2.18; not new ruling"
+      },
+      {
+        "case_id": "po-calendar-after-old-fiscal-boundary",
+        "stage": "po_normative_expectation_candidate_not_accepted_contract",
+        "decision": "JST-calendar-existing-decision",
+        "input": {
+          "scheduled_at": "2026-03-31T15:00:00Z"
+        },
+        "expected": {
+          "year": 2026,
+          "period_label": "2026年通算"
+        },
+        "derivation": "1879 existing adopted JST calendar;4517 candidate normalized to integratedv2.18; not new ruling"
+      },
+      {
+        "case_id": "po-calendar-end-jst-year",
+        "stage": "po_normative_expectation_candidate_not_accepted_contract",
+        "decision": "JST-calendar-existing-decision",
+        "input": {
+          "scheduled_at": "2026-12-31T14:59:59Z"
+        },
+        "expected": {
+          "year": 2026,
+          "period_label": "2026年通算"
+        },
+        "derivation": "1879 existing adopted JST calendar;4517 candidate normalized to integratedv2.18; not new ruling"
+      },
+      {
+        "case_id": "po-calendar-next-jst-year",
+        "stage": "po_normative_expectation_candidate_not_accepted_contract",
+        "decision": "JST-calendar-existing-decision",
+        "input": {
+          "scheduled_at": "2026-12-31T15:00:00Z"
+        },
+        "expected": {
+          "year": 2027,
+          "period_label": "2027年通算"
+        },
+        "derivation": "1879 existing adopted JST calendar;4517 candidate normalized to integratedv2.18; not new ruling"
+      }
+    ],
+    "remaining_specific_gaps": [
+      "multi-handoff precedence when authentic recorded responsibility is absent"
+    ],
+    "not_claimed": [
+      "formal7.3/adopted contract",
+      "new metric availability/source supplied",
+      "new share permission",
+      "product/generated implementation",
+      "P6/P7/CI/MVP completion"
+    ]
   }
 }
