@@ -108,3 +108,21 @@ def test_official_runtime_projection_preserves_application_role_identity():
     from pitchlog.authz.runtime_contract_generator import check_repository
 
     assert check_repository(_ROOT) == set()
+
+
+def test_catalog_reads_new_schema_with_all_prior_lifecycle_schemas() -> None:
+    """新語彙関数も実カタログの全属性照合へ含め、旧schemaを保持する。"""
+    from pitchlog.authz import product_catalog
+
+    query = product_catalog._LIFECYCLE_FUNCTION_DETAILS_QUERY
+    for schema in (
+        "rg1_control",
+        "pitchlog_ledger_observer",
+        "initial_right_api",
+        "sync_fence_api",
+        "sync_right_api",
+        "recording_vocab_api",
+    ):
+        assert "'" + schema + "'" in query
+    assert "routine.provolatile::text" in query
+    assert "routine.proconfig, routine.prosrc" in query
