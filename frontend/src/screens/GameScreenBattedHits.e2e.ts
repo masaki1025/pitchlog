@@ -131,7 +131,16 @@ type Head = {
   page: { items: HistoryItem[] }
   last_entry: unknown
 }
-type ReplayWindow = Window & { __repeatBattedForTest: () => Promise<number> }
+type ReplayAckBody = Readonly<{
+  eventResults: readonly Readonly<{
+    a5Result: '受理' | '重複' | '拒否' | '退避' | '未処理'
+  }>[]
+}>
+type ReplayWindow = Window & {
+  __repeatBattedForTest: () => Promise<
+    Readonly<{ status: number; body: ReplayAckBody }>
+  >
+}
 const resultIds = [
   'batting-result.single',
   'batting-result.double',
@@ -186,13 +195,14 @@ for (const resultId of resultIds) {
       Object.defineProperty(window, '__repeatBattedForTest', {
         value: async () => {
           if (!recorded) throw new Error('再送対象の原要求がない')
-          return (
-            await nativeFetch(recorded.url, {
-              ...recorded.init,
-              // 旧body/attemptは保持し、ブラウザ内fetchだけを有限時間へ閉じる。
-              signal: AbortSignal.timeout(30_000),
-            })
-          ).status
+          const response = await nativeFetch(recorded.url, {
+            ...recorded.init,
+            // 旧body/attemptは保持し、ブラウザ内fetchだけを有限時間へ閉じる。
+            signal: AbortSignal.timeout(30_000),
+          })
+          // 手動fetchの実bodyは同じブラウザ内で消費し、CDPから取り直さない。
+          const body = (await response.json()) as ReplayAckBody
+          return { status: response.status, body }
         },
       })
     })
@@ -499,16 +509,14 @@ for (const resultId of resultIds) {
       { timeout: httpTimeout },
     )
     progress('replay-before')
-    expect(
-      await page.evaluate(() =>
-        (window as unknown as ReplayWindow).__repeatBattedForTest(),
-      ),
-    ).toBe(200)
+    const replay = await page.evaluate(() =>
+      (window as unknown as ReplayWindow).__repeatBattedForTest(),
+    )
+    expect(replay.status).toBe(200)
     progress('replay-after')
     progress('replay-response-before')
-    expect((await (await replayed).json()).eventResults[0].a5Result).toBe(
-      '重複',
-    )
+    expect((await replayed).status()).toBe(replay.status)
+    expect(replay.body.eventResults[0]!.a5Result).toBe('重複')
     progress('replay-response-after')
     expect(requests).toHaveLength(3)
     expect(requests[0]).toEqual(original)
