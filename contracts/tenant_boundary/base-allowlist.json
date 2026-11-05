@@ -37804,10 +37804,10 @@
       "fixture": "tests/fixtures/tenant_boundary/positive/pitchlog/repositories/ordinary_pitch_operations_allowed/_ordinary_play_row_insert_statement.py"
     },
     {
-      "symbol": "pitchlog.db.alembic_index_comparison.PitchlogPostgresqlImpl.correct_for_autogen_constraints",
-      "signature": "correct_for_autogen_constraints(self, conn_unique_constraints, conn_indexes, metadata_unique_constraints, metadata_indexes)",
+      "symbol": "pitchlog.db.alembic_index_comparison._require_catalog",
+      "signature": "_require_catalog(connection: Connection) -> None",
       "allowed_api_ids": [
-        "PSYCOPG_CONNECTION_EXECUTE",
+        "SQLA_CONNECTION_EXECUTE",
         "SQLA_TEXT"
       ],
       "fixture": "tests/fixtures/tenant_boundary/positive/pitchlog/db/alembic_index_comparison.py"

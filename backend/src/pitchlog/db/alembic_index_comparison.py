@@ -6,7 +6,7 @@ from typing import NoReturn
 
 from alembic.ddl.postgresql import PostgresqlImpl
 from alembic.util import CommandError
-from sqlalchemy import text
+from sqlalchemy import Connection, text
 
 _INDEX = "ix_admin_vocabularies_batted_ball_key_c"
 _TABLE = "admin_vocabularies"
@@ -109,6 +109,15 @@ def _target(index) -> bool:
     )
 
 
+def _require_catalog(connection: Connection) -> None:
+    """型を明示した同owner接続で対象1の実catalogを閉照合する。"""
+    result = connection.execute(text(_CATALOG_SQL))
+    try:
+        _catalog_is_exact(result.fetchall())
+    finally:
+        result.close()
+
+
 class PitchlogPostgresqlImpl(PostgresqlImpl):
     """Alembicのdialect hookで既標準処理を維持し、対象1だけ反射を整合する。"""
 
@@ -152,11 +161,7 @@ class PitchlogPostgresqlImpl(PostgresqlImpl):
             or self._compile_element(r.expressions[0]) not in {"key", 'key COLLATE "C"'}
         ):
             _reject()
-        result = self.connection.execute(text(_CATALOG_SQL))
-        try:
-            _catalog_is_exact(result.fetchall())
-        finally:
-            result.close()
+        _require_catalog(self.connection)
         if self._compile_element(r.expressions[0]) == "key":
             r.expressions = [r.expressions[0].collate("C")]
         # 集合も比較結果も除外せず、この後の通常compare_indexesへそのまま渡す。
