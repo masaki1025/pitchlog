@@ -302,3 +302,6 @@ backend残登録の限定追随（2026-11-05、PO委任Codex /root判断）: rea
 
 
 登録関数exact2の採用（2026-11-05、PO委任Codex /root判断）: 作者packeta9677b72…を非作者/root ef10b0eddbe1b7864b9f7d41e12ead4874e27ba2c69143fb391a9dba6e436b18（独立実体copy173成功1.04秒、P0/P1/P2=0）で照合し採用。旧21ID/order/全54pinと他定義ASTを保持、新descriptor SQL/bind3/selected2/processor全値は独立literal由来で現在値を期待採取しない。新18負対向/未知追加完全比較、source/helper/fixture/scanner/正式JSON不変。PG成功を旧pin変更の根拠へ流用しない。
+
+
+backend有限期待exact13の採用（2026-11-05、PO委任Codex /root判断）: packet918109dc…/REPORTf684caba…を非作者/root 57de488afabf2db7d6345f7c8a99d5adb21a5146858db2884c63a3b3d5ce9cca（独立3071成功297.30秒＋review copyのorigin/develop不足を正式112f参照で補完した旧CLI1成功5.59秒=3072固有case、P0/P1/P2=0）で採用。全旧route/role/schema/policy/cap/table集合を保持、新語彙分だけ明示し、衝突owner7属性を補修成功にしない。DB40は別実測前、元CI失敗とreview環境失敗を保持、正式R4/最終CI成功を先取りしない。
