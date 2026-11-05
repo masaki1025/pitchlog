@@ -38,10 +38,35 @@ const battedHit = ref<PlayScreenObservation['battedHit']>(null)
 const hitAvailable = computed(
   () =>
     isLineupRecordingContext(displayed.value) &&
-    displayed.value.after.stateFields['state.runners'] === 'empty' &&
     !displayed.value.after.stateFields['state.tiebreakActive'] &&
     !displayed.value.after.stateFields['state.gameEnded'],
 )
+const battedRunners = computed(() => {
+  const runners = displayed.value.after.stateFields['state.runners']
+  const result: Array<{ base: '1' | '2' | '3'; label: string }> = []
+  if (
+    runners === 'first' ||
+    runners === 'first-second' ||
+    runners === 'first-third' ||
+    runners === 'first-second-third'
+  )
+    result.push({ base: '1', label: '一塁走者' })
+  if (
+    runners === 'second' ||
+    runners === 'first-second' ||
+    runners === 'second-third' ||
+    runners === 'first-second-third'
+  )
+    result.push({ base: '2', label: '二塁走者' })
+  if (
+    runners === 'third' ||
+    runners === 'first-third' ||
+    runners === 'second-third' ||
+    runners === 'first-second-third'
+  )
+    result.push({ base: '3', label: '三塁走者' })
+  return result
+})
 const battedContextKey = computed(() => {
   const c = displayed.value
   return isLineupRecordingContext(c)
@@ -478,11 +503,12 @@ onScopeDispose(() => {
         :context-key="battedContextKey"
         :result-id="resultId as BattedHitResult"
         :fielders="fielders"
+        :runners="battedRunners"
         :disabled="busy"
         @change="(value) => (battedHit = value)"
       />
       <p v-else-if="batted" role="alert">
-        この安打入力は無走者・タイブレークなし・試合継続中のみ対応しています。
+        この安打入力はタイブレークなし・試合継続中のみ対応しています。
       </p>
       <label v-if="terminal" class="block"
         >次の打者を確認

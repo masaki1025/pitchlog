@@ -112,10 +112,8 @@ END IF;
  AND r->>'status'='継続' AND r->>'status_source'='auto'
  AND source_row.payload->'calculation'->'response'->'value'->'t1'
  ->'runnerDefaultAdvance'->(CASE m->>'base' WHEN '1' THEN 'first'
- WHEN '2' THEN 'second' WHEN '3' THEN 'third' END)->>'modality'='hold'
- AND source_row.payload->'calculation'->'response'->'value'->'t1'
- ->'runnerDefaultAdvance'->(CASE m->>'base' WHEN '1' THEN 'first'
- WHEN '2' THEN 'second' WHEN '3' THEN 'third' END)->'destination'='null'::jsonb))
+ WHEN '2' THEN 'second' WHEN '3' THEN 'third' END)->>'modality'
+ IN ('hold','optional','forced')))
  THEN RAISE EXCEPTION 'play prefix source or runners rejected'
  USING ERRCODE='42501'; END IF;
 """
@@ -539,16 +537,22 @@ source_row.payload->'calculation'->'request'->'source'->'responsibility'
   OR batted_obs->'officialScoringPayload' IS DISTINCT FROM
   '{"kind":"no-error","errorCount":"0","fielders":[]}'::jsonb
   OR batted_obs->'interferenceRuling' IS DISTINCT FROM '{"kind":"not-required"}'::jsonb
-  OR batted_obs->'runnerAdvanceOverridesByRunner' IS DISTINCT FROM
-  '{"kind":"not-applied","overrides":[]}'::jsonb
+  OR (
+   batted_obs->'runnerAdvanceOverridesByRunner' IS DISTINCT FROM
+   '{"kind":"not-applied","overrides":[]}'::jsonb
+   AND batted_obs->'runnerAdvanceOverridesByRunner' IS DISTINCT FROM
+   source_row.payload->'calculation'->'request'->'t1'->'runnerAdvanceOverrides')
+  OR (
+   batted_obs->'runnerAdvanceOverridesByRunner' =
+   '{"kind":"not-applied","overrides":[]}'::jsonb
+   AND source_row.payload->'calculation'->'request'->'t1'
+   ->>'runnerAdvanceOverrides' IS DISTINCT FROM 'not-applied')
   OR batted_obs->'thirdOutObservation' IS DISTINCT FROM '{"kind":"none"}'::jsonb
   OR batted_obs->'thirdOutTimingByRunner' IS DISTINCT FROM '{}'::jsonb
   OR source_row.payload->'calculation'->'request'->'t1'->>'officialScoringPayload'
   IS DISTINCT FROM 'no-error'
   OR source_row.payload->'calculation'->'request'->'t1'->>'interferenceRuling'
   IS DISTINCT FROM 'not-required'
-  OR source_row.payload->'calculation'->'request'->'t1'->>'runnerAdvanceOverrides'
-  IS DISTINCT FROM 'not-applied'
   OR source_row.payload->'calculation'->'request'->'t1'->>'thirdOutObservation'
   IS DISTINCT FROM 'none'
   OR pg_catalog.jsonb_typeof(batted_obs->'battedBall') IS DISTINCT FROM 'object'

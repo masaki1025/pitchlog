@@ -3,7 +3,7 @@ import {
   type BattedHitObservation,
   type BattedHitDerived,
 } from './battedHit'
-import { ordinaryStateSupported, ordinaryRunnerHold } from './ordinaryState'
+import { ordinaryStateSupported } from './ordinaryState'
 import {
   FIRST_BALL_RULE,
   ORDINARY_STRIKE_RULE,
@@ -11,10 +11,12 @@ import {
   TERMINAL_OUT_RULE,
 } from './stateRules'
 import type {
+  Advance,
   BatterKind,
   BattingOrderBySide,
   CountEffectKind,
   Derived,
+  Runners,
   Rule,
   Scoreboard,
   StateFields,
@@ -261,6 +263,106 @@ export function deriveBattedHit(
   return applyCountRule(before, board, rule, rule.resultId, cursors)
 }
 
+/** 塁番号の走査順（1塁から3塁）。 */
+const BASES: Array<bigint> = [1n, 2n, 3n]
+
+/** 起点塁の占有を既存8値から読む。 */
+function hasRunner(runners: Runners, base: bigint): boolean {
+  if (runners === 'loaded') return true
+  if (base === 1n)
+    return (
+      runners === 'first' ||
+      runners === 'first-second' ||
+      runners === 'first-third'
+    )
+  if (base === 2n)
+    return (
+      runners === 'second' ||
+      runners === 'first-second' ||
+      runners === 'second-third'
+    )
+  return (
+    runners === 'third' ||
+    runners === 'first-third' ||
+    runners === 'second-third'
+  )
+}
+
+/** 塁の占有を既存8値へ戻す。 */
+function runnersName(first: boolean, second: boolean, third: boolean): Runners {
+  if (first && second && third) return 'loaded'
+  if (first && second) return 'first-second'
+  if (first && third) return 'first-third'
+  if (second && third) return 'second-third'
+  if (first) return 'first'
+  if (second) return 'second'
+  if (third) return 'third'
+  return 'empty'
+}
+
+/** 塁番号を `explicit` のキーへ写す。 */
+function baseKey(base: bigint): string {
+  if (base === 1n) return '1'
+  if (base === 2n) return '2'
+  return '3'
+}
+
+/** 進塁先を4（本塁）で頭打ちにする。 */
+function cap(destination: bigint): bigint {
+  if (destination > 4n) return 4n
+  return destination
+}
+
+/** 打者の出塁でフォースされる塁か（ADV-02の連鎖）。 */
+function forcedByBatter(runners: Runners, base: bigint): boolean {
+  if (base === 1n) return true
+  if (base === 2n) return hasRunner(runners, 1n)
+  return hasRunner(runners, 1n) && hasRunner(runners, 2n)
+}
+
+/** ADV-01..04: 起点塁1つ分の進塁計画を返す。 */
+function advanceFor(
+  base: bigint,
+  rule: Rule,
+  runners: Runners,
+  batterKind: BatterKind,
+): Advance {
+  if (!hasRunner(runners, base)) {
+    return { modality: 'not-applicable', destination: null }
+  }
+  if (rule.advance === 'hold_all') {
+    return { modality: 'hold', destination: null }
+  }
+  if (rule.advance === 'plus1_all') {
+    return { modality: 'optional', destination: cap(base + 1n) }
+  }
+  if (rule.advance === 'explicit') {
+    const key = baseKey(base)
+    const field = Object.getOwnPropertyDescriptor(rule.explicit, key)
+    if (
+      field &&
+      Object.hasOwn(field, 'value') &&
+      typeof field.value === 'bigint'
+    )
+      return { modality: 'optional', destination: field.value }
+    return { modality: 'hold', destination: null }
+  }
+  if (rule.advance === 'force') {
+    if (batterKind === 'reach') {
+      if (forcedByBatter(runners, base)) {
+        let step = rule.step
+        if (step < 1n) step = 1n
+        return { modality: 'forced', destination: cap(base + step) }
+      }
+    }
+    if (rule.step > 0n) {
+      return { modality: 'optional', destination: cap(base + rule.step) }
+    }
+    return { modality: 'hold', destination: null }
+  }
+  return { modality: 'hold', destination: null }
+}
+
 function applyCountRule(
   before: StateFields,
   board: Scoreboard,
@@ -330,21 +432,11 @@ function applyCountRule(
   if (homeRun) {
     flags.被本塁打 = true
     flags.本塁打 = true
-    flags.失点 = true
-    flags.得点 = true
-    flags.打点 = true
   }
-  // 出塁は無走者の受理済み操作に限定。走者の帰属/保存は補完しない。
   const destination: { kind: BatterKind; base?: bigint } = { kind: rule.batter }
-  let runners = before.runners
+  if (rule.batter === 'reach') destination.base = rule.batterBase
   let battingOrder = before.battingOrder
   let walks = board.walks
-  if (rule.batter === 'reach') {
-    destination.base = rule.batterBase
-    if (rule.batterBase === 1n) runners = 'first'
-    else if (rule.batterBase === 2n) runners = 'second'
-    else if (rule.batterBase === 3n) runners = 'third'
-  }
   if (rule.pa === true) battingOrder = (before.battingOrder % 9n) + 1n
   if (walk) walks = board.walks + 1n
   let outs = before.outs + rule.outs
@@ -357,6 +449,44 @@ function applyCountRule(
     if (before.half === 'top') orders.away = battingOrder
     else orders.home = battingOrder
   }
+  const plan = {
+    first: advanceFor(1n, rule, before.runners, rule.batter),
+    second: advanceFor(2n, rule, before.runners, rule.batter),
+    third: advanceFor(3n, rule, before.runners, rule.batter),
+  }
+  let runs = 0n
+  let forcedRuns = 0n
+  let first = false
+  let second = false
+  let third = false
+  for (const base of BASES) {
+    let advance = plan.third
+    if (base === 1n) advance = plan.first
+    else if (base === 2n) advance = plan.second
+    if (advance.modality === 'not-applicable') continue
+    if (rule.targets.includes(baseKey(base))) continue
+    if (advance.destination === 4n) {
+      if (advance.modality === 'forced') forcedRuns = forcedRuns + 1n
+      runs = runs + 1n
+      continue
+    }
+    if (advance.destination === null) {
+      if (base === 1n) first = true
+      if (base === 2n) second = true
+      if (base === 3n) third = true
+      continue
+    }
+    if (advance.destination === 1n) first = true
+    if (advance.destination === 2n) second = true
+    if (advance.destination === 3n) third = true
+  }
+  if (rule.batter === 'reach') {
+    if (rule.batterBase === 1n) first = true
+    if (rule.batterBase === 2n) second = true
+    if (rule.batterBase === 3n) third = true
+  }
+  if (rule.batter === 'score') runs = runs + 1n
+  let runners = runnersName(first, second, third)
   if (outs === 3n) {
     outs = 0n
     strikes = 0n
@@ -377,17 +507,23 @@ function applyCountRule(
   let targets: Array<Target> = []
   if (rule.targets.includes('batter'))
     targets = targets.concat([{ kind: 'batter' }])
-  // 無走者HRの得点側はbeforeで決める。終了判定はこの核で仮定しない。
+  let rbi = 0n
+  if (homeRun || hit) rbi = runs
+  else if (walk || hitByPitch) rbi = forcedRuns
+  flags.得点 = runs > 0n
+  flags.失点 = runs > 0n
+  flags.打点 = rbi > 0n
+  // 得点側はbefore.halfで決める。終了判定はこの核で仮定しない。
   let home = before.home
   let away = before.away
-  if (homeRun) {
-    if (before.half === 'top') away = away + 1n
-    else home = home + 1n
+  if (runs > 0n) {
+    if (before.half === 'top') away = away + runs
+    else home = home + runs
   }
   let boardHome = board.home
   let boardAway = board.away
   let hits = board.hits
-  if (homeRun) {
+  if (runs > 0n) {
     boardHome = home
     boardAway = away
   }
@@ -425,9 +561,9 @@ function applyCountRule(
     plateAppearanceEnded: rule.pa,
     batterDestination: destination,
     runnerDefaultAdvance: {
-      first: ordinaryRunnerHold(before.runners, 'first'),
-      second: ordinaryRunnerHold(before.runners, 'second'),
-      third: ordinaryRunnerHold(before.runners, 'third'),
+      first: plan.first,
+      second: plan.second,
+      third: plan.third,
     },
     outEffect: {
       count: rule.outs,

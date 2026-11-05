@@ -203,6 +203,38 @@ function responsibility(v: unknown): Json | null {
     return null
   return r
 }
+/** T1の進塁計画を、閉じた到達塁だけへ読む。 */
+function runnerDestination(
+  value: unknown,
+): '1' | '2' | '3' | '4' | null | 'invalid' {
+  const advance = object(value, ['modality', 'destination'])
+  if (advance === null) return 'invalid'
+  const modality = read(advance, 'modality')
+  const destination = read(advance, 'destination')
+  if (modality === 'not-applicable') return 'invalid'
+  if (modality === 'hold') {
+    if (destination === null) return null
+    return 'invalid'
+  }
+  if (modality !== 'optional' && modality !== 'forced') return 'invalid'
+  if (
+    destination === '1' ||
+    destination === '2' ||
+    destination === '3' ||
+    destination === '4'
+  )
+    return destination
+  return 'invalid'
+}
+
+/** 起点塁をT1進塁計画の固定キーへ写す。 */
+function slotForBase(value: unknown): string | null {
+  if (value === '1') return 'first'
+  if (value === '2') return 'second'
+  if (value === '3') return 'third'
+  return null
+}
+
 function runners(value: unknown, snapshot: Json): boolean {
   if (!Array.isArray(value)) return false
   const fields = snapshot.stateFields as Json
@@ -639,21 +671,44 @@ export function finishLineupContinuation(r: Json, raw: string): string {
   const l = source.lineup as Json
   const nextPeople = participant(after, l)
   if (nextPeople === null) return failure('PREFIX_SOURCE_MISMATCH')
-  let nextRunners = source.runners
-  if (completedHalf !== null) nextRunners = []
-  else if (
-    value.plateAppearanceEnded === true &&
-    (value.batterDestination as Json).kind === 'reach'
-  )
-    nextRunners = [
-      {
-        runnerId: (source.participants as Json).batterId,
-        responsiblePitcherId: (source.participants as Json).pitcherId,
-        base: (value.batterDestination as Json).base,
-        status: '継続',
-        statusSource: 'auto',
-      },
-    ]
+  let nextRunners: Array<Json> = []
+  if (completedHalf === null) {
+    const advances = object(value.runnerDefaultAdvance, [
+      'first',
+      'second',
+      'third',
+    ])
+    if (advances === null) return failure('PREFIX_SOURCE_MISMATCH')
+    for (const runner of source.runners as Array<Json>) {
+      const slot = slotForBase(runner.base)
+      if (slot === null) return failure('PREFIX_SOURCE_MISMATCH')
+      const destination = runnerDestination(read(advances, slot))
+      if (destination === 'invalid') return failure('PREFIX_SOURCE_MISMATCH')
+      if (destination === null)
+        nextRunners = nextRunners.concat([Object.assign({}, runner)])
+      else if (destination !== '4')
+        nextRunners = nextRunners.concat([
+          Object.assign({}, runner, { base: destination }),
+        ])
+    }
+    if (value.plateAppearanceEnded === true) {
+      const batter = value.batterDestination as Json
+      if (batter.kind === 'reach') {
+        const base = batter.base
+        if (base !== '1' && base !== '2' && base !== '3')
+          return failure('PREFIX_SOURCE_MISMATCH')
+        nextRunners = nextRunners.concat([
+          {
+            runnerId: (source.participants as Json).batterId,
+            responsiblePitcherId: (source.participants as Json).pitcherId,
+            base: base,
+            status: '継続',
+            statusSource: 'auto',
+          },
+        ])
+      }
+    }
+  }
   if (!runners(nextRunners, after)) return failure('PREFIX_SOURCE_MISMATCH')
   let nextResponsibility = source.responsibility
   if (value.plateAppearanceEnded === true)

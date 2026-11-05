@@ -643,8 +643,11 @@ function evaluatePitch(
     battedHit &&
     (typeof request.officialScoringPayload !== 'string' ||
       typeof request.interferenceRuling !== 'string' ||
-      typeof request.runnerAdvanceOverrides !== 'string' ||
-      typeof request.thirdOutObservation !== 'string')
+      typeof request.thirdOutObservation !== 'string' ||
+      (typeof request.runnerAdvanceOverrides !== 'string' &&
+        (typeof request.runnerAdvanceOverrides !== 'object' ||
+          request.runnerAdvanceOverrides === null ||
+          Array.isArray(request.runnerAdvanceOverrides))))
   )
     return errorResponse('INVALID_REQUEST')
   let stack: Array<unknown> = []
@@ -759,7 +762,7 @@ function evaluatePitch(
       raw.home.startsWith('-')
     )
       return errorResponse('INVALID_DECIMAL_INTEGER')
-    if (fieldValue(fields, 'state.runners') === 'loaded')
+    if (!battedHit && fieldValue(fields, 'state.runners') === 'loaded')
       return errorResponse('UNSUPPORTED_T1_SCOPE')
     cursors = Object.freeze({ away: away, home: home })
     let cursorCalculator = deriveStrikeout
