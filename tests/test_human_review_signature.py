@@ -3272,7 +3272,10 @@ def strikeout_extension_fixture(ordinary_fixture: Any,
     for path in checker._STRIKEOUT_EXTENSION_INPUTS:
         target = root / path
         target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_bytes((repository / path).read_bytes())
+        target.write_bytes(checker._carry_git_bytes(repository, [
+            'show', reference['candidate_revision'] + ':' + path,
+        ]) if path in checker._STRIKEOUT_AUXILIARY_INPUTS
+            else (repository / path).read_bytes())
     policy_path = root / guard.DELEGATION_POLICY_PATH
     policy_path.write_bytes(checker._carry_git_bytes(repository, [
         'show', reference['formal_base_revision'] + ':' + str(guard.DELEGATION_POLICY_PATH),
@@ -3533,3 +3536,452 @@ def test_strikeout_extension_requires_real_two_parent_convergence(
     with pytest.raises(checker.HumanReviewSignatureRecordError, match='非祖先'):
         checker.validate_gate6_ci_event(root, event)
     assert fetches == []
+
+
+@pytest.fixture
+def batted_carry_fixture(ordinary_fixture: Any, monkeypatch: pytest.MonkeyPatch) -> Any:
+    """実正式baseのGit原本と合成196公開proofを供給し、実受理とは区別する。"""
+    root, guard, prior, _, _, calls, comment, fetches = ordinary_fixture
+    repository = Path(__file__).resolve().parents[1]
+    expected = _load_object(repository / 'tests/fixtures/pr196_tenant_source_expected_v1.json')
+    revision = expected['formal_base_revision']
+    assert type(revision) is str and len(revision) == 40
+    base_reader = checker._BattedCarryBaseReader(repository, revision)
+    record = base_reader.load_json(checker.GATE6_ORDINARY_PATH, '実base記録')
+    paths = {*record['assets'], *checker._ORDINARY_FIXED_INPUTS,
+        *checker._ORDINARY_EXECUTION_INPUTS, *checker._STRIKEOUT_EXTENSION_INPUTS,
+        *checker._BATTED_METADATA_PATHS,
+        str(checker.GATE6_ORDINARY_PATH), str(checker.GATE6_ORDINARY_SCHEMA_PATH),
+        'scripts/check_human_review_signature.py',
+        'docs/features/mvp-delegated-core-review/policy.json'}
+    baseline = {}
+    for path in paths:
+        target = root / path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        baseline[path] = base_reader.read_bytes(path)
+        target.write_bytes((repository / path).read_bytes())
+    # 数学/旧署名は現値から期待を採取せず、実baseを起点に配置する。
+    for path in {*record['assets'], *checker._ORDINARY_FIXED_INPUTS,
+                 *checker._BATTED_METADATA_PATHS,
+                 str(checker.GATE6_ORDINARY_PATH), str(checker.GATE6_ORDINARY_SCHEMA_PATH)}:
+        (root / path).write_bytes(baseline[path])
+    url = 'https://github.com/masaki1025/pitchlog/pull/196#issuecomment-196'
+    event = guard.PullRequestEvent(revision, prior.head_sha, 'PO-DELEGATION-EVIDENCE: ' + url,
+        196, prior.repository, prior.head_repository, 'feature/mvp-batted-hits')
+    evidence = {'authority_sha256': hashlib.sha256(
+        (root / guard.DELEGATION_POLICY_PATH).read_bytes()).hexdigest(),
+        'pr': 196, 'base': event.base_sha, 'head': event.head_sha,
+        'diff_sha256': guard._delegation_diff(root, event),
+        'paths': guard.changed_paths(root, event.base_sha, event.head_sha),
+        'reviewer_agent': 'batted-carry-nonauthor', 'candidate_agents': ['batted-carry-author'],
+        'independent': True, 'verdict': 'approved', 'findings': [],
+        'report': {'task': 'batted-carry-nonauthor', 'reviewed_head': event.head_sha,
+                   'text': '合成196proofによる局所試験。実公開確認・本人署名ではない。'}}
+    comment.clear()
+    comment.update({'id': 196, 'html_url': url,
+        'issue_url': 'https://api.github.com/repos/masaki1025/pitchlog/issues/196',
+        'author_association': 'OWNER', 'user': {'login': 'masaki1025'},
+        'body': guard.DELEGATION_COMMENT_MARKER + json.dumps(evidence)})
+    committed = {path.relative_to(root).as_posix(): path.read_bytes()
+                 for path in root.rglob('*') if path.is_file() and path.name != '.git'}
+    original = checker._carry_git_bytes
+
+    def read(repository: Path, args: list[str]) -> bytes:
+        if args[0] == 'show':
+            commit, _, path = args[1].partition(':')
+            if commit == event.base_sha and path in baseline:
+                return baseline[path]
+            if commit == event.head_sha:
+                if path not in committed:
+                    raise checker.HumanReviewSignatureRecordError('合成196head欠落')
+                return committed[path]
+        return original(repository, args)
+
+    monkeypatch.setattr(checker, '_carry_git_bytes', read)
+    return root, guard, event, comment, fetches, baseline, committed, calls
+
+
+def test_batted_carry_checks_real_base_history_and_own_public_proof(
+    batted_carry_fixture: Any, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """旧generic失敗を保持し、192 eventを合成せず196の実base全bodyを通す。"""
+    root, _, event, _, fetches, _, _, _ = batted_carry_fixture
+    with pytest.raises(checker.HumanReviewSignatureRecordError, match='base数学9資産'):
+        checker._ordinary_ci(root, event, new_acceptance=False)
+    assert fetches == []
+
+    def forbidden(*_: object, **__: object) -> Any:
+        raise AssertionError('PR192 CI eventへ変換してはならない')
+
+    monkeypatch.setattr(checker, '_ordinary_strikeout_ci', forbidden)
+    assert 'PR196 carry: HISTORICAL ordinary33/PR191/PR192 PRESERVED' in (
+        checker.validate_gate6_ci_event(root, event))
+    assert fetches == ['196']
+
+
+_BATTED_CARRY_TEST_PATHS = sorted({
+    *_ordinary_test_materials(REPOSITORY_ROOT)[0]['assets'],
+    str(checker.GATE6_ORDINARY_PATH), str(checker.GATE6_ORDINARY_SCHEMA_PATH),
+    str(checker.ORDINARY_PINS_PATH), str(checker._TERMINAL_REFERENCE_PATH),
+    str(checker._STRIKEOUT_REFERENCE_PATH),
+    'tests/fixtures/pr192_tenant_source_expected_v1.json',
+    'contracts/state-transition/input_axes_descriptor_v1.json',
+})
+
+
+@pytest.mark.parametrize('path', _BATTED_CARRY_TEST_PATHS)
+@pytest.mark.parametrize('location', ['base', 'head', 'missing-base'])
+def test_batted_carry_rejects_every_protected_change(
+    batted_carry_fixture: Any, path: str, location: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """古い署名値を更新せずbase数学改変・head差分・原典欠落を全byteで拒否する。"""
+    root, _, event, _, fetches, baseline, _, _ = batted_carry_fixture
+    if location == 'base':
+        baseline[path] += b' '
+    elif location == 'head':
+        (root / path).write_bytes((root / path).read_bytes() + b' ')
+    else:
+        original = checker._carry_git_bytes
+
+        def missing(repository: Path, args: list[str]) -> bytes:
+            if args == ['show', event.base_sha + ':' + path]:
+                raise checker.HumanReviewSignatureRecordError('実base原典欠落')
+            return original(repository, args)
+
+        monkeypatch.setattr(checker, '_carry_git_bytes', missing)
+    with pytest.raises(checker.HumanReviewSignatureRecordError):
+        checker.validate_gate6_ci_event(root, event)
+    assert fetches == []
+
+
+@pytest.mark.parametrize('key', sorted(checker._BATTED_CARRY_FROZEN_KEYS))
+def test_batted_carry_rejects_changed_historical_registration(
+    batted_carry_fixture: Any, key: str,
+) -> None:
+    """後発登録全体ではなく旧191/192の必要entry全値をbaseへ固定する。"""
+    root, _, event, _, fetches, _, _, _ = batted_carry_fixture
+    path = root / 'contracts/tenant_boundary/frozen-inputs.json'
+    value = _load_object(path)
+    value['frozen_inputs'][key]['purpose'] += ' altered'
+    _write_t1_append_json(path, value)
+    with pytest.raises(checker.HumanReviewSignatureRecordError):
+        checker.validate_gate6_ci_event(root, event)
+    assert fetches == []
+
+
+@pytest.mark.parametrize('change', ['pr', 'bool-pr', 'branch', 'repository', 'fork',
+    'base', 'head', 'nonancestor', 'base-head', 'checkout'])
+def test_batted_carry_rejects_foreign_event_or_git_binding(
+    batted_carry_fixture: Any, monkeypatch: pytest.MonkeyPatch, change: str,
+) -> None:
+    """専用入口を別PR/branch/repoや自己申告版へ一般化しない。"""
+    root, guard, event, _, fetches, _, _, _ = batted_carry_fixture
+    fields = vars(event).copy()
+    if change == 'pr':
+        fields['number'] = 197
+    elif change == 'bool-pr':
+        fields['number'] = True
+    elif change == 'branch':
+        fields['head_branch'] = 'feature/unapproved'
+    elif change == 'repository':
+        fields['repository'] = 'other/pitchlog'
+    elif change == 'fork':
+        fields['head_repository'] = 'other/pitchlog'
+    elif change in {'base', 'head'}:
+        fields[change + '_sha'] = '0' * 40
+    else:
+        original = checker._carry_git_bytes
+
+        def broken(repository: Path, args: list[str]) -> bytes:
+            if (change == 'nonancestor' and args[:2] == ['merge-base', '--is-ancestor']
+                    or change == 'base-head' and args == [
+                        'merge-base', '--is-ancestor', event.base_sha, event.head_sha]
+                    or change == 'checkout' and args == ['rev-parse', 'HEAD']):
+                raise checker.HumanReviewSignatureRecordError('版結合拒否')
+            return original(repository, args)
+
+        monkeypatch.setattr(checker, '_carry_git_bytes', broken)
+    with pytest.raises(checker.HumanReviewSignatureRecordError):
+        checker._ordinary_batted_carry_ci(root, guard.PullRequestEvent(**fields))
+    if change == 'pr':
+        with pytest.raises(checker.HumanReviewSignatureRecordError):
+            checker.validate_gate6_ci_event(root, guard.PullRequestEvent(**fields))
+    assert fetches == []
+
+
+@pytest.mark.parametrize('change', ['head', 'base', 'pr', 'self-review', 'P1',
+    'publisher', 'missing', 'api'])
+def test_batted_carry_requires_own_final_public_evidence(
+    batted_carry_fixture: Any, monkeypatch: pytest.MonkeyPatch, change: str,
+) -> None:
+    """歴史bodyの成功で公開proof不正を隠したりlocalへfallbackしない。"""
+    root, guard, event, comment, fetches, _, _, _ = batted_carry_fixture
+    evidence = json.loads(comment['body'][len(guard.DELEGATION_COMMENT_MARKER):])
+    if change in {'head', 'base'}:
+        evidence[change] = '0' * 40
+    elif change == 'pr':
+        evidence['pr'] = 192
+    elif change == 'self-review':
+        evidence['candidate_agents'].append(evidence['reviewer_agent'])
+    elif change == 'P1':
+        evidence['findings'] = [{'severity': 'P1', 'resolved': False, 'detail': '未解消'}]
+    elif change == 'publisher':
+        comment['user']['login'] = 'other'
+    elif change == 'missing':
+        event = guard.PullRequestEvent(**{**vars(event), 'body': ''})
+    else:
+        def fail(_: str) -> Any:
+            raise guard.GuardError('公開API取得故障')
+        monkeypatch.setattr(guard, '_fetch_delegation_comment', fail)
+    comment['body'] = guard.DELEGATION_COMMENT_MARKER + json.dumps(evidence)
+    with pytest.raises(checker.HumanReviewSignatureRecordError) as error:
+        checker.validate_gate6_ci_event(root, event)
+    if change not in {'missing', 'api'}:
+        assert fetches == ['196'], str(error.value)
+
+
+@pytest.mark.parametrize('path', _BATTED_CARRY_TEST_PATHS)
+def test_batted_carry_rejects_joint_base_and_head_changes(
+    batted_carry_fixture: Any, path: str,
+) -> None:
+    """base/headを同時追随させても旧受理の固定数学・原典へ連動変更を通さない。"""
+    root, _, event, _, fetches, baseline, _, _ = batted_carry_fixture
+    baseline[path] += b' '
+    (root / path).write_bytes(baseline[path])
+    with pytest.raises(checker.HumanReviewSignatureRecordError):
+        checker.validate_gate6_ci_event(root, event)
+    assert fetches == []
+
+
+@pytest.fixture
+def batted_metadata_fixture(batted_carry_fixture: Any) -> Any:
+    """独立採用済みmetadata5の原本を置き、実base/旧数学を変えない。"""
+    root, _, _, _, _, _, committed, _ = batted_carry_fixture
+    repository = Path(__file__).resolve().parents[1]
+    for path in checker._BATTED_METADATA_PATHS:
+        raw = (repository / path).read_bytes()
+        (root / path).write_bytes(raw)
+        committed[path] = raw
+    return batted_carry_fixture
+
+
+def test_batted_metadata_local_and_actual_196_modes(
+    batted_metadata_fixture: Any, capsys: pytest.CaptureFixture[str],
+) -> None:
+    """localは閉射影のみ、実196 modeだけが最終公開proofを検査する。"""
+    root, _, event, _, fetches, _, _, _ = batted_metadata_fixture
+    assert checker.main(['--root', str(root), '--gate6-carry']) == 0
+    assert 'TECHNICAL ONLY; final delegation NOT CHECKED' in capsys.readouterr().out
+    assert fetches == []
+    assert 'DELEGATED VERIFIED' in checker.validate_gate6_ci_event(root, event)
+    assert fetches == ['196']
+
+
+def _write_batted_metadata_counterfactual(root: Path, descriptor: dict[str, Any]) -> None:
+    """未知差分でも公式digestと4参照を追随し、hashだけの拒否へ逃がさない。"""
+    path = root / checker._BATTED_METADATA_DESCRIPTOR
+    old_digest = _load_object(path)['digest']
+    limit = checker.descriptor_checker.load_descriptor_criteria(
+        _load_object(path)).safe_integer_limit
+    canonical = checker.descriptor_checker.canonicalize_json(
+        {k: v for k, v in descriptor.items() if k != 'digest'}, limit)
+    descriptor['digest'] = 'sha256:' + hashlib.sha256(canonical).hexdigest()
+    _write_t1_append_json(path, descriptor)
+    for name in checker._BATTED_METADATA_BINDINGS:
+        target = root / name
+        old = json.dumps(old_digest).encode()
+        assert target.read_bytes().count(old) == 1
+        target.write_bytes(target.read_bytes().replace(
+            old, json.dumps(descriptor['digest']).encode(), 1))
+
+
+@pytest.mark.parametrize('mutation', ['third-word', 'missing-word', 'duplicate-word',
+    'navigation-order', 'other-source', 'criteria', 'top-field', 'old-history',
+    'extra-record', 'missing-record', 'record-pr', 'record-series', 'record-prior',
+    'record-new', 'record-before', 'record-after', 'extra-change', 'unapproved-fact',
+    'unapproved-by', 'human-by', 'date', 'record-unknown'])
+@pytest.mark.parametrize('mode', ['local', 'ci'])
+def test_batted_metadata_rejects_hash_following_unknown_changes(
+    batted_metadata_fixture: Any, mutation: str, mode: str,
+) -> None:
+    """2語/1record以外は全参照digestが自己整合してもlocal/CI双方で閉拒否する。"""
+    root, _, event, _, fetches, _, _, _ = batted_metadata_fixture
+    descriptor = _load_object(root / checker._BATTED_METADATA_DESCRIPTOR)
+    declaration = descriptor['freezeBaseline']
+    record = declaration['history'][-1]
+    audit = declaration['scope']['sourceLiteralAudit']['permittedComparisonLiteralsBySource']
+    navigation = audit['scripts/check_input_axes_descriptor.py'][
+        'json-object-member-name-used-only-for-navigation']
+    if mutation == 'third-word':
+        navigation.append('unknown-keyword')
+    elif mutation == 'missing-word':
+        navigation.remove('allOf')
+    elif mutation == 'duplicate-word':
+        navigation.append('anyOf')
+    elif mutation == 'navigation-order':
+        navigation.reverse()
+    elif mutation == 'other-source':
+        audit['scripts/check_gap_register.py'][
+            'json-object-member-name-used-only-for-navigation'].append('unknown')
+    elif mutation == 'criteria':
+        declaration['criteria']['gapRegister']['schemaVersion'] = 2
+    elif mutation == 'top-field':
+        descriptor['unknown'] = True
+    elif mutation == 'old-history':
+        declaration['history'][0]['fact'] += ' changed'
+    elif mutation == 'extra-record':
+        declaration['history'].append(copy.deepcopy(record))
+    elif mutation == 'missing-record':
+        declaration['history'].pop()
+    elif mutation == 'record-pr':
+        record['acceptanceId'] = 'masaki1025/pitchlog#197'
+    elif mutation == 'record-series':
+        record['series'] = 'unknown'
+    elif mutation == 'record-prior':
+        record['priorIdentity']['values'][0]['identity'] = 'sha256:' + '0' * 64
+    elif mutation == 'record-new':
+        record['newIdentity']['values'][0]['identity'] = 'sha256:' + '0' * 64
+    elif mutation == 'record-before':
+        record['changes'][0]['before']['value']['identityCriterionId'] = 'unknown'
+    elif mutation == 'record-after':
+        record['changes'][0]['after']['value']['identityCriterionId'] = 'unknown'
+    elif mutation == 'extra-change':
+        record['changes'].append(copy.deepcopy(record['changes'][0]))
+    elif mutation == 'unapproved-fact':
+        record['fact'] = '未承認(PR #196 のレビュー待ち)'
+    elif mutation == 'unapproved-by':
+        record['approvedBy'] = '未承認(PR #196 のレビュー待ち)'
+    elif mutation == 'human-by':
+        record['approvedBy'] = '山田正輝'
+    elif mutation == 'date':
+        record['approvedDate'] = '2026/11/05'
+    else:
+        record['unknown'] = True
+    _write_batted_metadata_counterfactual(root, descriptor)
+    with pytest.raises(checker.HumanReviewSignatureRecordError):
+        if mode == 'local':
+            checker.validate_gate6_subject_carry(root)
+        else:
+            checker.validate_gate6_ci_event(root, event)
+    assert fetches == []
+
+
+@pytest.mark.parametrize('path', sorted(checker._BATTED_METADATA_BINDINGS))
+@pytest.mark.parametrize('mutation', ['other-field', 'missing-reference', 'wrong-reference',
+    'formatting', 'dirty-head'])
+def test_batted_metadata_rejects_dependency_delta_beyond_exact_one(
+    batted_metadata_fixture: Any, path: str, mutation: str,
+) -> None:
+    """subject2/schema2の指定const以外は全JSON値と元byte書式を保持する。"""
+    root, _, event, _, fetches, _, committed, _ = batted_metadata_fixture
+    target = root / path
+    value = _load_object(target)
+    if mutation in {'missing-reference', 'wrong-reference'}:
+        parent = value
+        pointer = checker._BATTED_METADATA_BINDINGS[path]
+        for key in pointer[:-1]:
+            parent = parent[key]
+        if mutation == 'missing-reference':
+            del parent[pointer[-1]]
+        else:
+            parent[pointer[-1]] = 'sha256:' + '0' * 64
+        _write_t1_append_json(target, value)
+    elif mutation == 'other-field':
+        value['unknown'] = True
+        _write_t1_append_json(target, value)
+    elif mutation == 'formatting':
+        target.write_bytes(target.read_bytes() + b' ')
+    else:
+        committed[path] += b' '
+    with pytest.raises(checker.HumanReviewSignatureRecordError):
+        checker.validate_gate6_ci_event(root, event)
+    assert fetches == []
+
+
+@pytest.mark.parametrize('mode', ['local', 'ci'])
+def test_batted_metadata_rejects_replayed_third_navigation_word(
+    batted_metadata_fixture: Any, mode: str,
+) -> None:
+    """engine replay/全identity/digest/4参照が正しくても第三語を有限層で拒否する。"""
+    root, _, event, _, fetches, _, _, _ = batted_metadata_fixture
+    descriptor = _load_object(root / checker._BATTED_METADATA_DESCRIPTOR)
+    declaration = descriptor['freezeBaseline']
+    navigation = declaration['scope']['sourceLiteralAudit'][
+        'permittedComparisonLiteralsBySource']['scripts/check_input_axes_descriptor.py'][
+            'json-object-member-name-used-only-for-navigation']
+    navigation.append('unapproved-keyword')
+    record = declaration['history'][-1]
+    record['changes'][0]['after']['value'] = copy.deepcopy(declaration['scope'])
+    engine = checker.descriptor_checker.freeze_checker
+    record['newIdentity']['values'] = engine.current_identities(declaration)
+    prior = checker._BattedCarryBaseReader(root, event.base_sha).load_json(
+        checker._BATTED_METADATA_DESCRIPTOR, '実base')['freezeBaseline']
+    assert engine.validate_append_only_transition(declaration, prior) == ('freezeDefinition',)
+    _write_batted_metadata_counterfactual(root, descriptor)
+    with pytest.raises(checker.HumanReviewSignatureRecordError):
+        if mode == 'local':
+            checker.validate_gate6_subject_carry(root)
+        else:
+            checker.validate_gate6_ci_event(root, event)
+    assert fetches == []
+
+
+@pytest.mark.parametrize('side', ['before', 'after'])
+@pytest.mark.parametrize(('path', 'value'), [
+    (('engineExpectedValues', 'schemaVersion'), True),
+    (('engineExpectedValues', 'schemaVersion'), False),
+    (('engineExpectedValues', 'schemaVersion'), 0),
+    (('selectionRule', 'knownDirectComparisonDispositions', 0, 'observedValue'), True),
+    (('selectionRule', 'knownDirectComparisonDispositions', 0, 'observedValue'), False),
+    (('selectionRule', 'knownDirectComparisonDispositions', 0, 'observedValue'), 0),
+])
+@pytest.mark.parametrize('mode', ['local', 'ci'])
+def test_batted_metadata_rejects_record_scope_leaf_type_confusion(
+    batted_metadata_fixture: Any, side: str, path: tuple[Any, ...], value: Any, mode: str,
+) -> None:
+    """実scopeの単一leaf型混同をdigest/全4参照追随後も厳格に拒否する。"""
+    root, _, event, _, fetches, _, _, _ = batted_metadata_fixture
+    descriptor = _load_object(root / checker._BATTED_METADATA_DESCRIPTOR)
+    declaration = descriptor['freezeBaseline']
+    change = declaration['history'][-1]['changes'][0]
+    target = change[side]['value']
+    for key in path[:-1]:
+        target = target[key]
+    assert type(target[path[-1]]) is int
+    target[path[-1]] = value
+    if side == 'before' and path == ('engineExpectedValues', 'schemaVersion') and value is True:
+        prior = checker._BattedCarryBaseReader(root, event.base_sha).load_json(
+            checker._BATTED_METADATA_DESCRIPTOR, '実base')['freezeBaseline']
+        assert checker.descriptor_checker.freeze_checker.validate_append_only_transition(
+            declaration, prior) == ('freezeDefinition',)
+    # before反例は全prior/new identityが真正。afterも真正identityを保持し、
+    # record内1leafとdescriptor digest/参照だけを変える。
+    _write_batted_metadata_counterfactual(root, descriptor)
+    with pytest.raises(checker.HumanReviewSignatureRecordError):
+        if mode == 'local':
+            checker.validate_gate6_subject_carry(root)
+        else:
+            checker.validate_gate6_ci_event(root, event)
+    assert fetches == []
+
+
+@pytest.mark.parametrize(('path', 'left', 'right'), [
+    (('engineExpectedValues', 'schemaVersion'), True, 1),
+    (('engineExpectedValues', 'schemaVersion'), False, 0),
+    (('selectionRule', 'knownDirectComparisonDispositions', 0, 'observedValue'), False, 0),
+])
+def test_batted_metadata_scope_serialization_distinguishes_python_equal_types(
+    path: tuple[Any, ...], left: Any, right: Any,
+) -> None:
+    """実scope形の1leafでPython同値のbool/intを厳格JSON比較が分離する。"""
+    descriptor = _load_object(REPOSITORY_ROOT / checker._BATTED_METADATA_DESCRIPTOR)
+    before = descriptor['freezeBaseline']['history'][-1]['changes'][0]['before']['value']
+    a, b = copy.deepcopy(before), copy.deepcopy(before)
+    target_a, target_b = a, b
+    for key in path[:-1]:
+        target_a, target_b = target_a[key], target_b[key]
+    target_a[path[-1]], target_b[path[-1]] = left, right
+    # False/0は境界比較の反例。元の採用scopeに0/falseがあったとは主張しない。
+    assert a == b
+    assert checker._compact_json(a) != checker._compact_json(b)
