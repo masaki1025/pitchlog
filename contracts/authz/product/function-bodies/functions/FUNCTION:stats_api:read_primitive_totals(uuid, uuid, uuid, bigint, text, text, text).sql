@@ -10,7 +10,7 @@ BEGIN
  tenant:=NULLIF(pg_catalog.current_setting('app.tenant_id',true),'')::uuid;
  IF session_user IS DISTINCT FROM 'pitchlog_app' OR current_user IS DISTINCT FROM 'pitchlog_sync_right_fn_owner'
  OR tenant IS NULL OR p_game_id IS NULL OR p_player_id IS NULL
- OR p_model_sha256 IS DISTINCT FROM 'sha256:f358df32f54bedfecb2866436e718c7bd6ece514798fe4de2325022d38a09422'
+ OR p_model_sha256 IS DISTINCT FROM 'sha256:60ab45878fdfc868efc15ddb0f9b84d6ab0f3583519c48a2202e3d9c3abac59d'
  OR pg_catalog.current_setting('transaction_isolation') IS DISTINCT FROM 'repeatable read'
  OR pg_catalog.current_setting('transaction_read_only') IS DISTINCT FROM 'on'
  THEN RAISE EXCEPTION 'stats primitive boundary rejected' USING ERRCODE='42501'; END IF;

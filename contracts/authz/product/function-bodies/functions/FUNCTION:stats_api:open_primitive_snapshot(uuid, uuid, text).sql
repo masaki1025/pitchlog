@@ -10,7 +10,7 @@ BEGIN
  tenant:=NULLIF(pg_catalog.current_setting('app.tenant_id',true),'')::uuid;
  IF session_user IS DISTINCT FROM 'pitchlog_app' OR current_user IS DISTINCT FROM 'pitchlog_sync_right_fn_owner'
  OR tenant IS NULL OR p_game_id IS NULL OR p_player_id IS NULL
- OR p_model_sha256 IS DISTINCT FROM 'sha256:f358df32f54bedfecb2866436e718c7bd6ece514798fe4de2325022d38a09422'
+ OR p_model_sha256 IS DISTINCT FROM 'sha256:60ab45878fdfc868efc15ddb0f9b84d6ab0f3583519c48a2202e3d9c3abac59d'
  OR pg_catalog.current_setting('transaction_isolation') IS DISTINCT FROM 'repeatable read'
  OR pg_catalog.current_setting('transaction_read_only') IS DISTINCT FROM 'on'
  THEN RAISE EXCEPTION 'stats primitive boundary rejected' USING ERRCODE='42501'; END IF;
@@ -21,7 +21,7 @@ BEGIN
  FROM sync_fence.stats_fact_versions v WHERE v.tenant_id=tenant AND v.game_id=p_game_id
  AND v.model_sha256=p_model_sha256 AND v.is_current AND v.invalidated_at IS NULL
  AND v.rule_sha256 ~ '^[a-f0-9]{64}$'
- AND v.t5_artifact_set_sha256='3e2e03e605025f10aea5a449e1faa673bf34880bd88b5af84462a945054a40bf' AND v.completion_state='current_open';
+ AND v.t5_artifact_set_sha256='28af30fd1b1300c805b7dcb243fc7b32ab9d6db9fc10c38bdcbc63fa85c3a0de' AND v.completion_state='current_open';
  SELECT * INTO STRICT health FROM (WITH canonical_scope AS (
  SELECT g.tenant_id,g.id AS game_id FROM public.games g
  WHERE g.tenant_id=tenant AND g.hidden_at IS NULL AND g.trashed_at IS NULL

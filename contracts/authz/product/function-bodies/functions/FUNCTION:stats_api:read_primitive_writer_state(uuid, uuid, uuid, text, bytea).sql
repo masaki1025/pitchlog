@@ -21,7 +21,7 @@ BEGIN
  OR tenant IS NULL OR p_attempt_id IS NULL OR p_phase_id IS NULL OR p_source_event_id IS NULL
  OR p_binding_nonce IS NULL OR pg_catalog.octet_length(p_binding_nonce)<>32
  OR pg_catalog.current_setting('transaction_read_only') IS DISTINCT FROM 'off'
- OR p_model_sha256 IS DISTINCT FROM 'sha256:f358df32f54bedfecb2866436e718c7bd6ece514798fe4de2325022d38a09422'
+ OR p_model_sha256 IS DISTINCT FROM 'sha256:60ab45878fdfc868efc15ddb0f9b84d6ab0f3583519c48a2202e3d9c3abac59d'
  THEN RAISE EXCEPTION 'stats primitive boundary rejected' USING ERRCODE='42501'; END IF;
  SELECT b.* INTO STRICT binding FROM sync_fence.writer_bindings b
  WHERE b.tenant_id=tenant AND b.attempt_id=p_attempt_id AND b.phase_id=p_phase_id
@@ -197,7 +197,7 @@ SELECT c.* FROM canonical_s c WHERE c.source_event_id=p_source_event_id AND c.so
  OR series.source_set_sha256 !~ '^[a-f0-9]{64}$'
  OR series.rule_sha256 IS NULL OR series.rule_sha256 !~ '^[a-f0-9]{64}$'
  OR series.source_count IS NULL OR series.source_count<0
- OR series.t5_artifact_set_sha256 IS DISTINCT FROM '3e2e03e605025f10aea5a449e1faa673bf34880bd88b5af84462a945054a40bf' THEN
+ OR series.t5_artifact_set_sha256 IS DISTINCT FROM '28af30fd1b1300c805b7dcb243fc7b32ab9d6db9fc10c38bdcbc63fa85c3a0de' THEN
   RAISE EXCEPTION 'stats primitive boundary rejected' USING ERRCODE='42501';
  END IF;
  RETURN QUERY SELECT series.revision,series.source_set_sha256;

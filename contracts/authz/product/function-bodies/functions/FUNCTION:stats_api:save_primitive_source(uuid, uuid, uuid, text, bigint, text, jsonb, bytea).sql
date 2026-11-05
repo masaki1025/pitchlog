@@ -19,7 +19,7 @@ BEGIN
  OR tenant IS NULL OR p_attempt_id IS NULL OR p_phase_id IS NULL OR p_source_event_id IS NULL
  OR p_binding_nonce IS NULL OR pg_catalog.octet_length(p_binding_nonce)<>32
  OR pg_catalog.current_setting('transaction_read_only') IS DISTINCT FROM 'off'
- OR p_model_sha256 IS DISTINCT FROM 'sha256:f358df32f54bedfecb2866436e718c7bd6ece514798fe4de2325022d38a09422'
+ OR p_model_sha256 IS DISTINCT FROM 'sha256:60ab45878fdfc868efc15ddb0f9b84d6ab0f3583519c48a2202e3d9c3abac59d'
  OR p_expected_revision IS NULL OR p_expected_revision<0
  OR ((p_expected_revision=0) IS DISTINCT FROM (p_expected_source_set_sha256 IS NULL))
  OR (p_expected_source_set_sha256 IS NOT NULL AND p_expected_source_set_sha256 !~ '^[a-f0-9]{64}$')
@@ -242,13 +242,12 @@ SELECT COALESCE(ch.game_count,0) AS game_count,COALESCE(ch.canonical_source_coun
  -- rootはこのenvelopeを実frameの唯一T5生成値/token identityへ同scope束縛する。
  IF p_evaluation_json IS NULL OR pg_catalog.jsonb_typeof(p_evaluation_json) IS DISTINCT FROM 'object'
  OR (SELECT pg_catalog.array_agg(k ORDER BY k COLLATE "C") FROM pg_catalog.jsonb_object_keys(p_evaluation_json) k)
- IS DISTINCT FROM ARRAY['metrics','native_rule_sha256','pa_row','pending','selected','source_event_id']::text[]
+ IS DISTINCT FROM ARRAY['decisions','metrics','native_rule_sha256','pa_row','selected','source_event_id']::text[]
  OR p_evaluation_json->'selected' IS DISTINCT FROM 'true'::jsonb
  OR p_evaluation_json->>'source_event_id' IS DISTINCT FROM p_source_event_id::text
  OR pg_catalog.jsonb_typeof(p_evaluation_json->'native_rule_sha256') IS DISTINCT FROM 'string'
  OR p_evaluation_json->>'native_rule_sha256' !~ '^[a-f0-9]{64}$'
- OR p_evaluation_json->'pending' IS DISTINCT FROM
- '{"named_category":{"state":"decision_pending","decision_id":"D02","value":null},"appearances":{"state":"decision_pending","decision_id":"D03","value":null},"batters_faced":{"state":"decision_pending","decision_id":"D04","value":null},"ops":{"state":"decision_pending","decision_id":"D05","value":null}}'::jsonb
+ OR p_evaluation_json->'decisions' IS DISTINCT FROM '{"D02":{"decision_id":"D02","decision_state":"adopted","choice":"A","implementation_state":"available"},"D03":{"decision_id":"D03","decision_state":"adopted","choice":"A","implementation_state":"pending","source_state":"not_evaluated","value":null},"D04":{"decision_id":"D04","decision_state":"adopted","choice":"A","implementation_state":"pending","source_state":"not_evaluated","value":null},"D05":{"decision_id":"D05","decision_state":"adopted","choice":"A","implementation_state":"available"}}'::jsonb
  OR pg_catalog.jsonb_typeof(p_evaluation_json->'metrics') IS DISTINCT FROM 'object'
  OR (SELECT pg_catalog.array_agg(k ORDER BY k COLLATE "C") FROM pg_catalog.jsonb_object_keys(p_evaluation_json->'metrics') k)
  IS DISTINCT FROM ARRAY['ab','bb','catcher_interference_reached','doubles','fielding_errors','h','hbp','hits_allowed','home_runs_allowed','hr','k','pa','pitch_count','pitcher_bb','pitcher_hbp','pitcher_k','pitching_outs','rbi','runner_interference_reached','runs','runs_allowed','sf','sh','stolen_bases','total_bases','triples']::text[]
@@ -327,7 +326,7 @@ SELECT COALESCE(ch.game_count,0) AS game_count,COALESCE(ch.canonical_source_coun
  had_series:=FOUND;
  IF had_series THEN
   IF series.completion_state IS DISTINCT FROM 'current_open' OR series.rule_sha256 IS DISTINCT FROM rule_hash
-  OR series.t5_artifact_set_sha256 IS DISTINCT FROM '3e2e03e605025f10aea5a449e1faa673bf34880bd88b5af84462a945054a40bf' THEN RAISE EXCEPTION 'stats primitive boundary rejected' USING ERRCODE='42501'; END IF;
+  OR series.t5_artifact_set_sha256 IS DISTINCT FROM '28af30fd1b1300c805b7dcb243fc7b32ab9d6db9fc10c38bdcbc63fa85c3a0de' THEN RAISE EXCEPTION 'stats primitive boundary rejected' USING ERRCODE='42501'; END IF;
   SELECT s.* INTO prior_source FROM sync_fence.stats_primitive_sources s
   WHERE s.tenant_id=tenant AND s.game_id=p_game_id AND s.fact_version_id=series.id AND s.source_event_id=p_source_event_id;
   IF FOUND THEN
@@ -643,7 +642,7 @@ SELECT COALESCE(ch.game_count,0) AS game_count,COALESCE(ch.canonical_source_coun
   INSERT INTO sync_fence.stats_fact_versions(tenant_id,game_id,id,model_sha256,rule_sha256,
   t5_artifact_set_sha256,source_set_sha256,source_count,revision,last_generation,last_d1,last_d2,updated_at,
   computed_metric_keys,is_current,completion_state,completion_receipt_id,public_pointer_receipt_id,created_at,invalidated_at)
-  VALUES(tenant,p_game_id,pg_catalog.gen_random_uuid(),p_model_sha256,rule_hash,'3e2e03e605025f10aea5a449e1faa673bf34880bd88b5af84462a945054a40bf',
+  VALUES(tenant,p_game_id,pg_catalog.gen_random_uuid(),p_model_sha256,rule_hash,'28af30fd1b1300c805b7dcb243fc7b32ab9d6db9fc10c38bdcbc63fa85c3a0de',
   health.canonical_source_set_sha256,1,1,event_row.generation,event_row.d1,event_row.d2,pg_catalog.clock_timestamp(),
   new_keys,true,'current_open',NULL,NULL,pg_catalog.clock_timestamp(),NULL) RETURNING * INTO STRICT series;
  END IF;
@@ -672,7 +671,7 @@ SELECT COALESCE(ch.game_count,0) AS game_count,COALESCE(ch.canonical_source_coun
   last_generation=event_row.generation,last_d1=event_row.d1,last_d2=event_row.d2,updated_at=pg_catalog.clock_timestamp()
   WHERE v.tenant_id=tenant AND v.game_id=p_game_id AND v.id=series.id AND v.is_current AND v.invalidated_at IS NULL
   AND v.completion_state='current_open' AND v.revision=p_expected_revision AND v.source_set_sha256=p_expected_source_set_sha256
-  AND v.model_sha256=p_model_sha256 AND v.rule_sha256=rule_hash AND v.t5_artifact_set_sha256='3e2e03e605025f10aea5a449e1faa673bf34880bd88b5af84462a945054a40bf'
+  AND v.model_sha256=p_model_sha256 AND v.rule_sha256=rule_hash AND v.t5_artifact_set_sha256='28af30fd1b1300c805b7dcb243fc7b32ab9d6db9fc10c38bdcbc63fa85c3a0de'
   RETURNING * INTO STRICT series;
  END IF;
  p_fact_version_id:=series.id; p_revision:=series.revision; p_source_set_sha256:=series.source_set_sha256;
