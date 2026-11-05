@@ -296,3 +296,6 @@ backend残登録の限定追随（2026-11-05、PO委任Codex /root判断）: rea
 
 
 登録関数の残3CI追随exact2（2026-11-05、PO委任Codex /root判断）: scope案73387b525081849a7fefc0f8d8ed533f8a2cd47cb1435c23f99bc1e709dd6d1fを採用。backend/tests/test_sync_apply_function_registration.pyとbackend/tests/test_sync_apply_writer_binding.pyを作者pr191へcache-only割当てる。旧21操作の値/順序を保持し新語彙read先頭1件/旧device index8→9だけ追随、SQL/tenant/失効/偽token拒否と旧source pin全値を保持する。新関数descriptorは独立decl/builderの閉literal（SQL/bind3/selected2/processor全値、proposalfa0f7f6d…）からcanonical JSON hashを計算して既actual==expectedへ追加し、現registry/compile結果から期待を採取しない。literal改変/未知追加/欠落を拒否、helper/fixture/scanner/allowlist/正式資産/sourceは不変更、新40/64hex免除も不要。非作者確認後rootだけ採用し、既typed12/全旧54pinと整合させる。
+
+
+現artifact identity exact3採用（2026-11-05、PO委任Codex /root判断）: packet8b02da42…を非作者8765612f176c4884f88d0c758d725dfd85ec135bf4ed94f138db40da31fbd37d（独立12成功1.56秒、別VMで旧Git0755/現51dの1878全応答/保存原本hash/規範84/D01旧INVALID_REQUEST・現walk-offを直接再照合、P0/P1/P2=0）で採用する。旧55raw/全値/順序・旧test全AST/reader/sourceを保持、新self2行だけで旧→51d追加0。tracked witness8f74a580…全byteで根拠を固定。witness本文改変拒否は採用証拠試験であり、readerが本文を新検証するとの主張ではない。新意味判断/人間逐行/P6成立/全版互換へ拡張せずPO委任の既実装接合として受理。実PG/HTTP/画面/7.7/最終CIは後続。
