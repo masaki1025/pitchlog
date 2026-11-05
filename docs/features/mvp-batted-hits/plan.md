@@ -290,3 +290,6 @@ backend残登録の限定追随（2026-11-05、PO委任Codex /root判断）: rea
 
 
 現artifact保存identityの欠落接合（2026-11-05、PO委任Codex /root判断）: 実同版診断でprior=execution=51d4d0f3…を旧互換表が拒否することを確認した。scope提案51adac4777714e71e5a793378ce6e54e1763bb686055dcd76697449cd46dd365に従い、contracts/state-transition/play_prefix_v2_source_compatibility_v1.json・新contracts/state-transition/batted_current_identity_witness_v1.json・backend/tests/test_play_prefix.pyのexact3を作者pr191へcache-only割当てる。既55全行/順序/拒否を保持し現51d→現51dのfirst/ordinary2だけ追加、reader/認可/保存/source不変更。旧0755との宣言全受理corpus1878応答実比較と独立規範期待を結び自己比較のみで可決しない。既承認D01=B競合を実際の旧/現公開ABIへ通し全応答差を記録する。旧cold-endを推測せず、旧ABIが未対応拒否ならその実拒否と現walk-offの差を別反例へ明示、旧→51d全互換行は追加しない。新tracked witnessに原典Git/corpus/input/全応答digestとcase/operation集合・D01規範と差を固定し、両新行が全byteSHAを参照する。cacheだけの証拠/未知SHA/形式/不足op/改変witnessの受入不可、旧→現への自動拡張やD01差の隠蔽は禁止。非作者が全差分/独立再計算を確認してroot採否、必要core登録/正式射影はroot直列、実HTTP/DB/画面は別に再検証する。旧形式の全操作/過去訂正/終了再開などMVP要件は維持し、今回identity復旧を旧版全互換やMVP完成とは扱わない。
+
+
+索引表示exact2の採用（2026-11-05、PO委任Codex /root判断）: packet76008c52…を非作者b767021dd3b23c9659db9eda8fdf8abb7925a38af2b464d5beccff8c9def12de（独立171成功2.32秒、P0/P1/P2=0）で採用する。固定C indexだけ実18値再照合後に有限key表示へ写像、他index/未知raw/旧全AST/18値helperは保持。旧PG40pass1failを残し、同成功40は繰返さず当該audit1だけを新固定版でowned再検証する。
