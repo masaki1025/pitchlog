@@ -65,6 +65,7 @@ it('単一artifactが旧11口を全保持し打球1口だけ追加する', () =>
     'deriveOrdinaryPitchWithContinuation',
     'validateInitialGameRoster',
     'quantizeCourse',
+    'applyUndo',
   ])
   expect(Object.isFrozen(built)).toBe(true)
   expect(JSON.parse(built.ping('{"value":"9007199254740993"}'))).toEqual({

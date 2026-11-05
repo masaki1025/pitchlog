@@ -1,0 +1,2501 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pitchlog.example/contracts/state-transition/undo_schema_v1.json",
+  "title": "applyUndo closed pure ABI v1; semantic conditions in undo_cases_v1.json",
+  "$defs": {
+    "CanonicalUnsigned": {
+      "type": "string",
+      "pattern": "^(?:0|[1-9][0-9]*)(?![\\s\\S])"
+    },
+    "CanonicalPositive": {
+      "type": "string",
+      "pattern": "^[1-9][0-9]*(?![\\s\\S])"
+    },
+    "Score": {
+      "type": "object",
+      "properties": {
+        "home": {
+          "$ref": "#/$defs/CanonicalUnsigned"
+        },
+        "away": {
+          "$ref": "#/$defs/CanonicalUnsigned"
+        }
+      },
+      "required": [
+        "home",
+        "away"
+      ],
+      "additionalProperties": false
+    },
+    "StateFields": {
+      "type": "object",
+      "properties": {
+        "state.half": {
+          "enum": [
+            "top",
+            "bottom"
+          ]
+        },
+        "state.count.strikes": {
+          "enum": [
+            "0",
+            "1",
+            "2"
+          ]
+        },
+        "state.count.balls": {
+          "enum": [
+            "0",
+            "1",
+            "2",
+            "3"
+          ]
+        },
+        "state.outs": {
+          "enum": [
+            "0",
+            "1",
+            "2"
+          ]
+        },
+        "state.runners": {
+          "enum": [
+            "empty",
+            "first",
+            "second",
+            "third",
+            "first-second",
+            "first-third",
+            "second-third",
+            "first-second-third"
+          ]
+        },
+        "state.battingOrder": {
+          "enum": [
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9"
+          ]
+        },
+        "state.tiebreakActive": {
+          "type": "boolean"
+        },
+        "state.gameEnded": {
+          "type": "boolean"
+        },
+        "state.inning": {
+          "$ref": "#/$defs/CanonicalPositive"
+        },
+        "state.score": {
+          "$ref": "#/$defs/Score"
+        }
+      },
+      "required": [
+        "state.half",
+        "state.count.strikes",
+        "state.count.balls",
+        "state.outs",
+        "state.runners",
+        "state.battingOrder",
+        "state.tiebreakActive",
+        "state.gameEnded",
+        "state.inning",
+        "state.score"
+      ],
+      "additionalProperties": false
+    },
+    "Scoreboard": {
+      "type": "object",
+      "properties": {
+        "inningScores": {
+          "$ref": "#/$defs/Score"
+        },
+        "hits": {
+          "$ref": "#/$defs/CanonicalUnsigned"
+        },
+        "errors": {
+          "$ref": "#/$defs/CanonicalUnsigned"
+        },
+        "strikeouts": {
+          "$ref": "#/$defs/CanonicalUnsigned"
+        },
+        "walks": {
+          "$ref": "#/$defs/CanonicalUnsigned"
+        }
+      },
+      "required": [
+        "inningScores",
+        "hits",
+        "errors",
+        "strikeouts",
+        "walks"
+      ],
+      "additionalProperties": false
+    },
+    "StatFlags": {
+      "type": "object",
+      "properties": {
+        "投球回算入アウト": {
+          "type": "boolean"
+        },
+        "投球数": {
+          "type": "boolean"
+        },
+        "奪三振": {
+          "type": "boolean"
+        },
+        "与四球": {
+          "type": "boolean"
+        },
+        "与死球": {
+          "type": "boolean"
+        },
+        "被安打": {
+          "type": "boolean"
+        },
+        "被本塁打": {
+          "type": "boolean"
+        },
+        "失点": {
+          "type": "boolean"
+        },
+        "失策": {
+          "type": "boolean"
+        },
+        "打席": {
+          "type": "boolean"
+        },
+        "打数": {
+          "type": "boolean"
+        },
+        "安打": {
+          "type": "boolean"
+        },
+        "本塁打": {
+          "type": "boolean"
+        },
+        "塁打": {
+          "type": "boolean"
+        },
+        "犠打": {
+          "type": "boolean"
+        },
+        "犠飛": {
+          "type": "boolean"
+        },
+        "四球": {
+          "type": "boolean"
+        },
+        "死球": {
+          "type": "boolean"
+        },
+        "三振": {
+          "type": "boolean"
+        },
+        "打撃妨害出塁": {
+          "type": "boolean"
+        },
+        "走塁妨害出塁": {
+          "type": "boolean"
+        },
+        "得点": {
+          "type": "boolean"
+        },
+        "打点": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "投球回算入アウト",
+        "投球数",
+        "奪三振",
+        "与四球",
+        "与死球",
+        "被安打",
+        "被本塁打",
+        "失点",
+        "失策",
+        "打席",
+        "打数",
+        "安打",
+        "本塁打",
+        "塁打",
+        "犠打",
+        "犠飛",
+        "四球",
+        "死球",
+        "三振",
+        "打撃妨害出塁",
+        "走塁妨害出塁",
+        "得点",
+        "打点"
+      ],
+      "additionalProperties": false
+    },
+    "StateDifference": {
+      "type": "object",
+      "properties": {
+        "state.half": {
+          "type": "object",
+          "properties": {
+            "before": {
+              "enum": [
+                "top",
+                "bottom"
+              ]
+            },
+            "after": {
+              "enum": [
+                "top",
+                "bottom"
+              ]
+            }
+          },
+          "required": [
+            "before",
+            "after"
+          ],
+          "additionalProperties": false
+        },
+        "state.count.strikes": {
+          "type": "object",
+          "properties": {
+            "before": {
+              "$ref": "#/$defs/CanonicalUnsigned"
+            },
+            "after": {
+              "$ref": "#/$defs/CanonicalUnsigned"
+            }
+          },
+          "required": [
+            "before",
+            "after"
+          ],
+          "additionalProperties": false
+        },
+        "state.count.balls": {
+          "type": "object",
+          "properties": {
+            "before": {
+              "$ref": "#/$defs/CanonicalUnsigned"
+            },
+            "after": {
+              "$ref": "#/$defs/CanonicalUnsigned"
+            }
+          },
+          "required": [
+            "before",
+            "after"
+          ],
+          "additionalProperties": false
+        },
+        "state.outs": {
+          "type": "object",
+          "properties": {
+            "before": {
+              "$ref": "#/$defs/CanonicalUnsigned"
+            },
+            "after": {
+              "$ref": "#/$defs/CanonicalUnsigned"
+            }
+          },
+          "required": [
+            "before",
+            "after"
+          ],
+          "additionalProperties": false
+        },
+        "state.runners": {
+          "type": "object",
+          "properties": {
+            "before": {
+              "enum": [
+                "empty",
+                "first",
+                "second",
+                "third",
+                "first-second",
+                "first-third",
+                "second-third",
+                "first-second-third"
+              ]
+            },
+            "after": {
+              "enum": [
+                "empty",
+                "first",
+                "second",
+                "third",
+                "first-second",
+                "first-third",
+                "second-third",
+                "first-second-third"
+              ]
+            }
+          },
+          "required": [
+            "before",
+            "after"
+          ],
+          "additionalProperties": false
+        },
+        "state.battingOrder": {
+          "type": "object",
+          "properties": {
+            "before": {
+              "$ref": "#/$defs/CanonicalUnsigned"
+            },
+            "after": {
+              "$ref": "#/$defs/CanonicalUnsigned"
+            }
+          },
+          "required": [
+            "before",
+            "after"
+          ],
+          "additionalProperties": false
+        },
+        "state.tiebreakActive": {
+          "type": "object",
+          "properties": {
+            "before": {
+              "type": "boolean"
+            },
+            "after": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "before",
+            "after"
+          ],
+          "additionalProperties": false
+        },
+        "state.gameEnded": {
+          "type": "object",
+          "properties": {
+            "before": {
+              "type": "boolean"
+            },
+            "after": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "before",
+            "after"
+          ],
+          "additionalProperties": false
+        },
+        "state.inning": {
+          "type": "object",
+          "properties": {
+            "before": {
+              "$ref": "#/$defs/CanonicalPositive"
+            },
+            "after": {
+              "$ref": "#/$defs/CanonicalPositive"
+            }
+          },
+          "required": [
+            "before",
+            "after"
+          ],
+          "additionalProperties": false
+        },
+        "state.score": {
+          "type": "object",
+          "properties": {
+            "before": {
+              "$ref": "#/$defs/Score"
+            },
+            "after": {
+              "$ref": "#/$defs/Score"
+            }
+          },
+          "required": [
+            "before",
+            "after"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "ScoreboardDifference": {
+      "type": "object",
+      "properties": {
+        "inningScores": {
+          "type": "object",
+          "properties": {
+            "before": {
+              "$ref": "#/$defs/Score"
+            },
+            "after": {
+              "$ref": "#/$defs/Score"
+            }
+          },
+          "required": [
+            "before",
+            "after"
+          ],
+          "additionalProperties": false
+        },
+        "hits": {
+          "type": "object",
+          "properties": {
+            "before": {
+              "$ref": "#/$defs/CanonicalUnsigned"
+            },
+            "after": {
+              "$ref": "#/$defs/CanonicalUnsigned"
+            }
+          },
+          "required": [
+            "before",
+            "after"
+          ],
+          "additionalProperties": false
+        },
+        "errors": {
+          "type": "object",
+          "properties": {
+            "before": {
+              "$ref": "#/$defs/CanonicalUnsigned"
+            },
+            "after": {
+              "$ref": "#/$defs/CanonicalUnsigned"
+            }
+          },
+          "required": [
+            "before",
+            "after"
+          ],
+          "additionalProperties": false
+        },
+        "strikeouts": {
+          "type": "object",
+          "properties": {
+            "before": {
+              "$ref": "#/$defs/CanonicalUnsigned"
+            },
+            "after": {
+              "$ref": "#/$defs/CanonicalUnsigned"
+            }
+          },
+          "required": [
+            "before",
+            "after"
+          ],
+          "additionalProperties": false
+        },
+        "walks": {
+          "type": "object",
+          "properties": {
+            "before": {
+              "$ref": "#/$defs/CanonicalUnsigned"
+            },
+            "after": {
+              "$ref": "#/$defs/CanonicalUnsigned"
+            }
+          },
+          "required": [
+            "before",
+            "after"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "HistoryEntry": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "confirmed-play"
+        },
+        "difference": {
+          "type": "object",
+          "properties": {
+            "stateFields": {
+              "$ref": "#/$defs/StateDifference"
+            },
+            "scoreboard": {
+              "$ref": "#/$defs/ScoreboardDifference"
+            },
+            "statFlags": {
+              "$ref": "#/$defs/StatFlags"
+            },
+            "battingOrderBySide": {
+              "$ref": "#/$defs/CursorDifference"
+            }
+          },
+          "required": [
+            "stateFields",
+            "scoreboard",
+            "statFlags"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "kind",
+        "difference"
+      ],
+      "additionalProperties": false
+    },
+    "BattingOrderBySide": {
+      "type": "object",
+      "properties": {
+        "away": {
+          "enum": [
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9"
+          ],
+          "x-pitchlog-axis-id": "state.battingOrder",
+          "$comment": "既descriptor同軸の独立context写像。active値一致・inactive独立性は相関検査。"
+        },
+        "home": {
+          "enum": [
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9"
+          ],
+          "x-pitchlog-axis-id": "state.battingOrder",
+          "$comment": "既descriptor同軸の独立context写像。active値一致・inactive独立性は相関検査。"
+        }
+      },
+      "required": [
+        "away",
+        "home"
+      ],
+      "additionalProperties": false
+    },
+    "CursorDifference": {
+      "type": "object",
+      "properties": {
+        "away": {
+          "type": "object",
+          "properties": {
+            "before": {
+              "enum": [
+                "1",
+                "2",
+                "3",
+                "4",
+                "5",
+                "6",
+                "7",
+                "8",
+                "9"
+              ]
+            },
+            "after": {
+              "enum": [
+                "1",
+                "2",
+                "3",
+                "4",
+                "5",
+                "6",
+                "7",
+                "8",
+                "9"
+              ]
+            }
+          },
+          "required": [
+            "before",
+            "after"
+          ],
+          "additionalProperties": false
+        },
+        "home": {
+          "type": "object",
+          "properties": {
+            "before": {
+              "enum": [
+                "1",
+                "2",
+                "3",
+                "4",
+                "5",
+                "6",
+                "7",
+                "8",
+                "9"
+              ]
+            },
+            "after": {
+              "enum": [
+                "1",
+                "2",
+                "3",
+                "4",
+                "5",
+                "6",
+                "7",
+                "8",
+                "9"
+              ]
+            }
+          },
+          "required": [
+            "before",
+            "after"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    },
+    "CanonicalSigned": {
+      "type": "string",
+      "pattern": "^(0|-?[1-9][0-9]*)(?![\\s\\S])"
+    },
+    "Current": {
+      "type": "object",
+      "properties": {
+        "stateFields": {
+          "$ref": "#/$defs/StateFields"
+        },
+        "scoreboard": {
+          "$ref": "#/$defs/Scoreboard"
+        },
+        "battingOrderBySide": {
+          "$ref": "#/$defs/BattingOrderBySide"
+        }
+      },
+      "required": [
+        "stateFields",
+        "scoreboard"
+      ],
+      "additionalProperties": false
+    },
+    "Request": {
+      "type": "object",
+      "properties": {
+        "current": {
+          "$ref": "#/$defs/Current"
+        },
+        "history": {
+          "type": "object",
+          "properties": {
+            "stack": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/HistoryEntry"
+              }
+            }
+          },
+          "required": [
+            "stack"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "current",
+        "history"
+      ],
+      "additionalProperties": false
+    },
+    "AppliedStateEffect": {
+      "type": "object",
+      "properties": {
+        "stateFields": {
+          "type": "object",
+          "properties": {
+            "state.half": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "const": "unchanged"
+                    }
+                  },
+                  "required": [
+                    "kind"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "const": "set"
+                    },
+                    "value": {
+                      "enum": [
+                        "top",
+                        "bottom"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "value"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "state.count.strikes": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "const": "unchanged"
+                    }
+                  },
+                  "required": [
+                    "kind"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "const": "set"
+                    },
+                    "value": {
+                      "enum": [
+                        "0",
+                        "1",
+                        "2"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "value"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "const": "delta"
+                    },
+                    "value": {
+                      "$ref": "#/$defs/CanonicalSigned"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "value"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "state.count.balls": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "const": "unchanged"
+                    }
+                  },
+                  "required": [
+                    "kind"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "const": "set"
+                    },
+                    "value": {
+                      "enum": [
+                        "0",
+                        "1",
+                        "2",
+                        "3"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "value"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "const": "delta"
+                    },
+                    "value": {
+                      "$ref": "#/$defs/CanonicalSigned"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "value"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "state.outs": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "const": "unchanged"
+                    }
+                  },
+                  "required": [
+                    "kind"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "const": "set"
+                    },
+                    "value": {
+                      "enum": [
+                        "0",
+                        "1",
+                        "2"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "value"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "const": "delta"
+                    },
+                    "value": {
+                      "$ref": "#/$defs/CanonicalSigned"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "value"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "state.runners": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "const": "unchanged"
+                    }
+                  },
+                  "required": [
+                    "kind"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "const": "set"
+                    },
+                    "value": {
+                      "enum": [
+                        "empty",
+                        "first",
+                        "second",
+                        "third",
+                        "first-second",
+                        "first-third",
+                        "second-third",
+                        "first-second-third"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "value"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "state.battingOrder": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "const": "unchanged"
+                    }
+                  },
+                  "required": [
+                    "kind"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "const": "set"
+                    },
+                    "value": {
+                      "enum": [
+                        "1",
+                        "2",
+                        "3",
+                        "4",
+                        "5",
+                        "6",
+                        "7",
+                        "8",
+                        "9"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "value"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "const": "delta"
+                    },
+                    "value": {
+                      "$ref": "#/$defs/CanonicalSigned"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "value"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "state.tiebreakActive": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "const": "unchanged"
+                    }
+                  },
+                  "required": [
+                    "kind"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "const": "set"
+                    },
+                    "value": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "value"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "state.gameEnded": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "const": "unchanged"
+                    }
+                  },
+                  "required": [
+                    "kind"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "const": "set"
+                    },
+                    "value": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "value"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "state.inning": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "const": "unchanged"
+                    }
+                  },
+                  "required": [
+                    "kind"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "const": "set"
+                    },
+                    "value": {
+                      "$ref": "#/$defs/CanonicalPositive"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "value"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "const": "delta"
+                    },
+                    "value": {
+                      "$ref": "#/$defs/CanonicalSigned"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "value"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "state.score": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "const": "unchanged"
+                    }
+                  },
+                  "required": [
+                    "kind"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "const": "set"
+                    },
+                    "value": {
+                      "$ref": "#/$defs/Score"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "value"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            }
+          },
+          "required": [
+            "state.half",
+            "state.count.strikes",
+            "state.count.balls",
+            "state.outs",
+            "state.runners",
+            "state.battingOrder",
+            "state.tiebreakActive",
+            "state.gameEnded",
+            "state.inning",
+            "state.score"
+          ],
+          "additionalProperties": false
+        },
+        "scoreboard": {
+          "type": "object",
+          "properties": {
+            "inningScores": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "const": "unchanged"
+                    }
+                  },
+                  "required": [
+                    "kind"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "const": "set"
+                    },
+                    "value": {
+                      "$ref": "#/$defs/Score"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "value"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "hits": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "const": "unchanged"
+                    }
+                  },
+                  "required": [
+                    "kind"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "const": "set"
+                    },
+                    "value": {
+                      "$ref": "#/$defs/CanonicalUnsigned"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "value"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "const": "delta"
+                    },
+                    "value": {
+                      "$ref": "#/$defs/CanonicalSigned"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "value"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "errors": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "const": "unchanged"
+                    }
+                  },
+                  "required": [
+                    "kind"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "const": "set"
+                    },
+                    "value": {
+                      "$ref": "#/$defs/CanonicalUnsigned"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "value"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "const": "delta"
+                    },
+                    "value": {
+                      "$ref": "#/$defs/CanonicalSigned"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "value"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "strikeouts": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "const": "unchanged"
+                    }
+                  },
+                  "required": [
+                    "kind"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "const": "set"
+                    },
+                    "value": {
+                      "$ref": "#/$defs/CanonicalUnsigned"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "value"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "const": "delta"
+                    },
+                    "value": {
+                      "$ref": "#/$defs/CanonicalSigned"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "value"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "walks": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "const": "unchanged"
+                    }
+                  },
+                  "required": [
+                    "kind"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "const": "set"
+                    },
+                    "value": {
+                      "$ref": "#/$defs/CanonicalUnsigned"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "value"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "const": "delta"
+                    },
+                    "value": {
+                      "$ref": "#/$defs/CanonicalSigned"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "value"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            }
+          },
+          "required": [
+            "inningScores",
+            "hits",
+            "errors",
+            "strikeouts",
+            "walks"
+          ],
+          "additionalProperties": false
+        },
+        "statFlags": {
+          "type": "object",
+          "properties": {
+            "投球回算入アウト": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "unchanged"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            "投球数": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "unchanged"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            "奪三振": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "unchanged"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            "与四球": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "unchanged"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            "与死球": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "unchanged"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            "被安打": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "unchanged"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            "被本塁打": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "unchanged"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            "失点": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "unchanged"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            "失策": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "unchanged"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            "打席": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "unchanged"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            "打数": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "unchanged"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            "安打": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "unchanged"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            "本塁打": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "unchanged"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            "塁打": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "unchanged"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            "犠打": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "unchanged"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            "犠飛": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "unchanged"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            "四球": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "unchanged"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            "死球": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "unchanged"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            "三振": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "unchanged"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            "打撃妨害出塁": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "unchanged"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            "走塁妨害出塁": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "unchanged"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            "得点": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "unchanged"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            "打点": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "unchanged"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "投球回算入アウト",
+            "投球数",
+            "奪三振",
+            "与四球",
+            "与死球",
+            "被安打",
+            "被本塁打",
+            "失点",
+            "失策",
+            "打席",
+            "打数",
+            "安打",
+            "本塁打",
+            "塁打",
+            "犠打",
+            "犠飛",
+            "四球",
+            "死球",
+            "三振",
+            "打撃妨害出塁",
+            "走塁妨害出塁",
+            "得点",
+            "打点"
+          ],
+          "additionalProperties": false
+        },
+        "historyAndResult": {
+          "type": "object",
+          "properties": {
+            "history": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "pop"
+                },
+                "count": {
+                  "const": "1"
+                }
+              },
+              "required": [
+                "kind",
+                "count"
+              ],
+              "additionalProperties": false
+            },
+            "operationResult": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "set"
+                },
+                "value": {
+                  "const": "applied"
+                }
+              },
+              "required": [
+                "kind",
+                "value"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "history",
+            "operationResult"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "stateFields",
+        "scoreboard",
+        "statFlags",
+        "historyAndResult"
+      ],
+      "additionalProperties": false
+    },
+    "EmptyStateEffect": {
+      "type": "object",
+      "properties": {
+        "stateFields": {
+          "type": "object",
+          "properties": {
+            "state.half": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "unchanged"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            "state.count.strikes": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "unchanged"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            "state.count.balls": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "unchanged"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            "state.outs": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "unchanged"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            "state.runners": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "unchanged"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            "state.battingOrder": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "unchanged"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            "state.tiebreakActive": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "unchanged"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            "state.gameEnded": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "unchanged"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            "state.inning": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "unchanged"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            "state.score": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "unchanged"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "state.half",
+            "state.count.strikes",
+            "state.count.balls",
+            "state.outs",
+            "state.runners",
+            "state.battingOrder",
+            "state.tiebreakActive",
+            "state.gameEnded",
+            "state.inning",
+            "state.score"
+          ],
+          "additionalProperties": false
+        },
+        "scoreboard": {
+          "type": "object",
+          "properties": {
+            "inningScores": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "unchanged"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            "hits": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "unchanged"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            "errors": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "unchanged"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            "strikeouts": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "unchanged"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            "walks": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "unchanged"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "inningScores",
+            "hits",
+            "errors",
+            "strikeouts",
+            "walks"
+          ],
+          "additionalProperties": false
+        },
+        "statFlags": {
+          "type": "object",
+          "properties": {
+            "投球回算入アウト": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "unchanged"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            "投球数": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "unchanged"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            "奪三振": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "unchanged"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            "与四球": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "unchanged"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            "与死球": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "unchanged"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            "被安打": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "unchanged"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            "被本塁打": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "unchanged"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            "失点": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "unchanged"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            "失策": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "unchanged"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            "打席": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "unchanged"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            "打数": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "unchanged"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            "安打": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "unchanged"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            "本塁打": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "unchanged"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            "塁打": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "unchanged"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            "犠打": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "unchanged"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            "犠飛": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "unchanged"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            "四球": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "unchanged"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            "死球": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "unchanged"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            "三振": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "unchanged"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            "打撃妨害出塁": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "unchanged"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            "走塁妨害出塁": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "unchanged"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            "得点": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "unchanged"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            "打点": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "unchanged"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "投球回算入アウト",
+            "投球数",
+            "奪三振",
+            "与四球",
+            "与死球",
+            "被安打",
+            "被本塁打",
+            "失点",
+            "失策",
+            "打席",
+            "打数",
+            "安打",
+            "本塁打",
+            "塁打",
+            "犠打",
+            "犠飛",
+            "四球",
+            "死球",
+            "三振",
+            "打撃妨害出塁",
+            "走塁妨害出塁",
+            "得点",
+            "打点"
+          ],
+          "additionalProperties": false
+        },
+        "historyAndResult": {
+          "type": "object",
+          "properties": {
+            "history": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "unchanged"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            "operationResult": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "set"
+                },
+                "value": {
+                  "const": "nothing-to-undo"
+                }
+              },
+              "required": [
+                "kind",
+                "value"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "history",
+            "operationResult"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "stateFields",
+        "scoreboard",
+        "statFlags",
+        "historyAndResult"
+      ],
+      "additionalProperties": false
+    },
+    "Applied": {
+      "type": "object",
+      "properties": {
+        "operationResult": {
+          "const": "applied"
+        },
+        "after": {
+          "$ref": "#/$defs/Current"
+        },
+        "stateEffect": {
+          "$ref": "#/$defs/AppliedStateEffect"
+        },
+        "historyEffect": {
+          "type": "object",
+          "properties": {
+            "pops": {
+              "const": "1"
+            }
+          },
+          "required": [
+            "pops"
+          ],
+          "additionalProperties": false
+        },
+        "historyContext": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/HistoryEntry"
+          }
+        }
+      },
+      "required": [
+        "operationResult",
+        "after",
+        "stateEffect",
+        "historyEffect",
+        "historyContext"
+      ],
+      "additionalProperties": false
+    },
+    "Empty": {
+      "type": "object",
+      "properties": {
+        "operationResult": {
+          "const": "nothing-to-undo"
+        },
+        "after": {
+          "$ref": "#/$defs/Current"
+        },
+        "stateEffect": {
+          "$ref": "#/$defs/EmptyStateEffect"
+        },
+        "historyEffect": {
+          "type": "object",
+          "properties": {
+            "pops": {
+              "const": "0"
+            }
+          },
+          "required": [
+            "pops"
+          ],
+          "additionalProperties": false
+        },
+        "historyContext": {
+          "type": "array",
+          "maxItems": 0,
+          "items": {
+            "$ref": "#/$defs/HistoryEntry"
+          }
+        }
+      },
+      "required": [
+        "operationResult",
+        "after",
+        "stateEffect",
+        "historyEffect",
+        "historyContext"
+      ],
+      "additionalProperties": false
+    },
+    "Value": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/Applied"
+        },
+        {
+          "$ref": "#/$defs/Empty"
+        }
+      ]
+    },
+    "Success": {
+      "type": "object",
+      "properties": {
+        "ok": {
+          "const": true
+        },
+        "value": {
+          "$ref": "#/$defs/Value"
+        }
+      },
+      "required": [
+        "ok",
+        "value"
+      ],
+      "additionalProperties": false
+    },
+    "Failure": {
+      "type": "object",
+      "properties": {
+        "ok": {
+          "const": false
+        },
+        "error": {
+          "type": "object",
+          "properties": {
+            "code": {
+              "enum": [
+                "INVALID_JSON",
+                "INVALID_REQUEST",
+                "INVALID_DECIMAL_INTEGER",
+                "UNSUPPORTED_T1_SCOPE"
+              ]
+            }
+          },
+          "required": [
+            "code"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "ok",
+        "error"
+      ],
+      "additionalProperties": false
+    },
+    "Response": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/Success"
+        },
+        {
+          "$ref": "#/$defs/Failure"
+        }
+      ]
+    }
+  },
+  "oneOf": [
+    {
+      "$ref": "#/$defs/Request"
+    },
+    {
+      "$ref": "#/$defs/Response"
+    }
+  ],
+  "$comment": "JSONschemaは構造のみ。head/current全値一致・分類・逆適用・全tail保持・空不変・23flag不変はundo_cases_v1 semanticRules/規範で別に必須検査。depth上限は置かない。"
+}

@@ -48,6 +48,7 @@ it('宣言SHA一致の単一artifactが旧11口と打球1口を保持する', ()
     'deriveOrdinaryPitchWithContinuation',
     'validateInitialGameRoster',
     'quantizeCourse',
+    'applyUndo',
   ])
 })
 

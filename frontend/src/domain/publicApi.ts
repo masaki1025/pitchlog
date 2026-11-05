@@ -1,3 +1,14 @@
+import { applyUndo } from './undo'
+import type {
+  HistoryEntry as UndoHistoryEntry,
+  StateDifference as UndoStateDifference,
+  BoardDifference as UndoBoardDifference,
+  CursorDifference as UndoCursorDifference,
+  IntSpan as UndoIntSpan,
+  HalfSpan as UndoHalfSpan,
+  RunnersSpan as UndoRunnersSpan,
+  BoolSpan as UndoBoolSpan,
+} from './undo'
 import type { BattedHitObservation } from './battedHit'
 import {
   prepareLineupContinuation,
@@ -1036,7 +1047,446 @@ function deriveLineupPlayPrefixWithContinuation(requestJson: string): string {
   }
 }
 
-/** JSON文字列だけの公開表。未実装の取消/訂正/他結果は公開しない。 */
+/** 履歴差分の整数 span を内部型へ読む（境界では十進文字列のみ）。 */
+function readIntSpan(value: unknown): UndoIntSpan | null {
+  const pair = asObject(value)
+  if (pair === null || !exactKeys(pair, ['before', 'after'])) return null
+  const before = parseDecimalInteger(pair.before)
+  const after = parseDecimalInteger(pair.after)
+  if (before === null || after === null) return null
+  return { before: before, after: after }
+}
+
+/** 履歴差分の得点 span を内部型へ読む。 */
+function readScoreSpan(value: unknown): {
+  before: { home: bigint; away: bigint }
+  after: { home: bigint; away: bigint }
+} | null {
+  const pair = asObject(value)
+  if (pair === null || !exactKeys(pair, ['before', 'after'])) return null
+  const before = asObject(pair.before)
+  const after = asObject(pair.after)
+  if (
+    before === null ||
+    after === null ||
+    !exactKeys(before, ['home', 'away']) ||
+    !exactKeys(after, ['home', 'away'])
+  )
+    return null
+  const beforeHome = parseDecimalInteger(before.home)
+  const beforeAway = parseDecimalInteger(before.away)
+  const afterHome = parseDecimalInteger(after.home)
+  const afterAway = parseDecimalInteger(after.away)
+  if (
+    beforeHome === null ||
+    beforeAway === null ||
+    afterHome === null ||
+    afterAway === null
+  )
+    return null
+  return {
+    before: { home: beforeHome, away: beforeAway },
+    after: { home: afterHome, away: afterAway },
+  }
+}
+
+/** 攻守 span を読む。 */
+function halfSpan(value: unknown): UndoHalfSpan | null {
+  const span = asObject(value)
+  if (span === null || !exactKeys(span, ['before', 'after'])) return null
+  if (
+    (span.before !== 'top' && span.before !== 'bottom') ||
+    (span.after !== 'top' && span.after !== 'bottom')
+  )
+    return null
+  return { before: span.before, after: span.after }
+}
+
+/** 走者 span を読む（表記は入力のまま保持する）。 */
+function runnersSpan(value: unknown): UndoRunnersSpan | null {
+  const span = asObject(value)
+  if (span === null || !exactKeys(span, ['before', 'after'])) return null
+  const before = textField(span.before)
+  const after = textField(span.after)
+  if (before === null || after === null) return null
+  let normalizedBefore = before
+  let normalizedAfter = after
+  if (normalizedBefore === 'first-second-third') normalizedBefore = 'loaded'
+  if (normalizedAfter === 'first-second-third') normalizedAfter = 'loaded'
+  return {
+    before: normalizedBefore as Runners,
+    after: normalizedAfter as Runners,
+  }
+}
+
+/** 真偽値 span を読む。 */
+function boolSpan(value: unknown): UndoBoolSpan | null {
+  const span = asObject(value)
+  if (span === null || !exactKeys(span, ['before', 'after'])) return null
+  if (typeof span.before !== 'boolean' || typeof span.after !== 'boolean')
+    return null
+  return { before: span.before, after: span.after }
+}
+
+/** 検証済みの履歴行 1 件を内部型へ読む。 */
+function readHistoryEntry(value: unknown): UndoHistoryEntry | null {
+  const entry = asObject(value)
+  if (entry === null) return null
+  const difference = asObject(entry.difference)
+  if (difference === null) return null
+  const stateFields = asObject(difference.stateFields)
+  const scoreboard = asObject(difference.scoreboard)
+  const statFlags = asObject(difference.statFlags)
+  if (stateFields === null || scoreboard === null || statFlags === null)
+    return null
+  const half = fieldValue(stateFields, 'state.half')
+  const runners = fieldValue(stateFields, 'state.runners')
+  const tiebreakActive = fieldValue(stateFields, 'state.tiebreakActive')
+  const gameEnded = fieldValue(stateFields, 'state.gameEnded')
+  const score = fieldValue(stateFields, 'state.score')
+  const stateDifference: UndoStateDifference = {
+    half: halfSpan(half),
+    strikes: readIntSpan(fieldValue(stateFields, 'state.count.strikes')),
+    balls: readIntSpan(fieldValue(stateFields, 'state.count.balls')),
+    outs: readIntSpan(fieldValue(stateFields, 'state.outs')),
+    runners: runnersSpan(runners),
+    battingOrder: readIntSpan(fieldValue(stateFields, 'state.battingOrder')),
+    tiebreakActive: boolSpan(tiebreakActive),
+    gameEnded: boolSpan(gameEnded),
+    inning: readIntSpan(fieldValue(stateFields, 'state.inning')),
+    score: readScoreSpan(score),
+  }
+  const boardDifference: UndoBoardDifference = {
+    inningScores: readScoreSpan(fieldValue(scoreboard, 'inningScores')),
+    hits: readIntSpan(fieldValue(scoreboard, 'hits')),
+    errors: readIntSpan(fieldValue(scoreboard, 'errors')),
+    strikeouts: readIntSpan(fieldValue(scoreboard, 'strikeouts')),
+    walks: readIntSpan(fieldValue(scoreboard, 'walks')),
+  }
+  let cursorDifference: UndoCursorDifference | null = null
+  if (Object.prototype.hasOwnProperty.call(difference, 'battingOrderBySide')) {
+    const cursors = asObject(difference.battingOrderBySide)
+    if (cursors === null) return null
+    cursorDifference = {
+      away: readIntSpan(fieldValue(cursors, 'away')),
+      home: readIntSpan(fieldValue(cursors, 'home')),
+    }
+  }
+  const flags: Record<string, boolean> = {}
+  for (const pair of Object.entries(statFlags)) {
+    const key = pair.shift()
+    const raw = pair.pop()
+    if (typeof key !== 'string' || typeof raw !== 'boolean') return null
+    Object.assign(flags, Object.fromEntries([[key, raw]]))
+  }
+  return {
+    kind: entry.kind as string,
+    difference: {
+      stateFields: stateDifference,
+      scoreboard: boardDifference,
+      statFlags: flags,
+      battingOrderBySide: cursorDifference,
+    },
+  }
+}
+
+/** numberの非有限値をJSON原値として拒む。有限numberも各scalar slotでは拒否する。 */
+function undoNonFinite(value: unknown): boolean {
+  if (value !== null && JSON.stringify(value) === 'null') return true
+  if (Array.isArray(value)) return value.some(undoNonFinite)
+  const object = asObject(value)
+  return object !== null && Object.values(object).some(undoNonFinite)
+}
+
+/** 型/閉構造違反をdecimal文法違反より先に保持する。 */
+function undoError(
+  a: DomainErrorCode | null,
+  b: DomainErrorCode | null,
+): DomainErrorCode | null {
+  if (a === 'INVALID_REQUEST' || b === 'INVALID_REQUEST')
+    return 'INVALID_REQUEST'
+  return a ?? b
+}
+
+/** 既契約のscalar型と正準表現を検査する。変換で入力を補修しない。 */
+function undoScalar(value: unknown, key: string): DomainErrorCode | null {
+  if (key === 'state.half') {
+    if (value !== 'top' && value !== 'bottom') return 'INVALID_REQUEST'
+    return null
+  }
+  if (key === 'state.runners') {
+    if (
+      typeof value !== 'string' ||
+      ![
+        'empty',
+        'first',
+        'second',
+        'third',
+        'first-second',
+        'first-third',
+        'second-third',
+        'first-second-third',
+      ].includes(value)
+    )
+      return 'INVALID_REQUEST'
+    return null
+  }
+  if (key === 'state.tiebreakActive' || key === 'state.gameEnded') {
+    if (typeof value !== 'boolean') return 'INVALID_REQUEST'
+    return null
+  }
+  if (key === 'state.score' || key === 'inningScores') {
+    const score = asObject(value)
+    if (score === null || !exactKeys(score, ['home', 'away']))
+      return 'INVALID_REQUEST'
+    return undoError(
+      undoScalar(score.home, 'unsigned'),
+      undoScalar(score.away, 'unsigned'),
+    )
+  }
+  if (typeof value !== 'string') return 'INVALID_REQUEST'
+  const integer = parseDecimalInteger(value)
+  if (integer === null || integer < 0n) return 'INVALID_DECIMAL_INTEGER'
+  if ((key === 'state.inning' || key === 'cursor') && integer === 0n)
+    return 'INVALID_REQUEST'
+  if (key === 'cursor' && integer > 9n) return 'INVALID_REQUEST'
+  return null
+}
+
+/** オブジェクトscalarの同値をキー順や型変換に依存せず確認する。 */
+function undoEqual(a: unknown, b: unknown): boolean {
+  if (a === b) return true
+  const left = asObject(a)
+  const right = asObject(b)
+  if (left === null || right === null || !exactKeys(left, Object.keys(right)))
+    return false
+  return Object.entries(left).every((pair) => {
+    const key = pair.shift()
+    const value = pair.pop()
+    return typeof key === 'string' && undoEqual(value, fieldValue(right, key))
+  })
+}
+
+/** currentの固定面とhistoryの疎差分に同じscalar型を適用する。 */
+function undoFields(
+  source: unknown,
+  state: boolean,
+  spans: boolean,
+): DomainErrorCode | null {
+  const object = asObject(source)
+  if (object === null) return 'INVALID_REQUEST'
+  let keys = ['inningScores', 'hits', 'errors', 'strikeouts', 'walks']
+  if (state)
+    keys = [
+      'state.half',
+      'state.count.strikes',
+      'state.count.balls',
+      'state.outs',
+      'state.runners',
+      'state.battingOrder',
+      'state.tiebreakActive',
+      'state.gameEnded',
+      'state.inning',
+      'state.score',
+    ]
+  if (!spans && !exactKeys(object, keys)) return 'INVALID_REQUEST'
+  let error: DomainErrorCode | null = null
+  for (const pair of Object.entries(object)) {
+    const key = pair.shift()
+    const value = pair.pop()
+    if (typeof key !== 'string' || !keys.includes(key)) return 'INVALID_REQUEST'
+    if (spans) {
+      const span = asObject(value)
+      if (span === null || !exactKeys(span, ['before', 'after']))
+        return 'INVALID_REQUEST'
+      error = undoError(error, undoScalar(span.before, key))
+      error = undoError(error, undoScalar(span.after, key))
+    } else {
+      error = undoError(error, undoScalar(value, key))
+      const integer = parseDecimalInteger(value)
+      if (
+        integer !== null &&
+        ((key === 'state.count.strikes' && integer > 2n) ||
+          (key === 'state.count.balls' && integer > 3n) ||
+          (key === 'state.outs' && integer > 2n) ||
+          (key === 'state.battingOrder' && (integer < 1n || integer > 9n)))
+      )
+        error = undoError(error, 'INVALID_REQUEST')
+    }
+  }
+  return error
+}
+
+/** cursorは1..9で閉じ、差分は提示された欄だけを検査する。 */
+function undoCursors(source: unknown, spans: boolean): DomainErrorCode | null {
+  const object = asObject(source)
+  if (
+    object === null ||
+    Object.keys(object).some((key) => key !== 'away' && key !== 'home')
+  )
+    return 'INVALID_REQUEST'
+  if (!spans && !exactKeys(object, ['away', 'home'])) return 'INVALID_REQUEST'
+  let error: DomainErrorCode | null = null
+  for (const value of Object.values(object)) {
+    if (spans) {
+      const span = asObject(value)
+      if (span === null || !exactKeys(span, ['before', 'after']))
+        return 'INVALID_REQUEST'
+      error = undoError(error, undoScalar(span.before, 'cursor'))
+      error = undoError(error, undoScalar(span.after, 'cursor'))
+    } else error = undoError(error, undoScalar(value, 'cursor'))
+  }
+  return error
+}
+
+/** tailも含む全履歴の閉shape/23flagを検査する。再計算や深さ制限はしない。 */
+function undoEntryError(source: unknown): DomainErrorCode | null {
+  const entry = asObject(source)
+  if (
+    entry === null ||
+    !exactKeys(entry, ['kind', 'difference']) ||
+    entry.kind !== 'confirmed-play'
+  )
+    return 'INVALID_REQUEST'
+  const d = asObject(entry.difference)
+  if (d === null) return 'INVALID_REQUEST'
+  let keys = ['stateFields', 'scoreboard', 'statFlags']
+  if (Object.prototype.hasOwnProperty.call(d, 'battingOrderBySide'))
+    keys = keys.concat(['battingOrderBySide'])
+  if (!exactKeys(d, keys)) return 'INVALID_REQUEST'
+  const flags = asObject(d.statFlags)
+  if (
+    flags === null ||
+    !exactKeys(flags, Object.keys(emptyFlags())) ||
+    Object.values(flags).some((v) => typeof v !== 'boolean')
+  )
+    return 'INVALID_REQUEST'
+  let error = undoError(
+    undoFields(d.stateFields, true, true),
+    undoFields(d.scoreboard, false, true),
+  )
+  if (keys.includes('battingOrderBySide'))
+    error = undoError(error, undoCursors(d.battingOrderBySide, true))
+  return error
+}
+
+/** 同値spanの意味拒否は全shape/decimal検査を終えてから判定する。 */
+function undoEntryHasEqualSpan(source: unknown): boolean {
+  const entry = asObject(source)
+  if (entry === null) return true
+  const difference = asObject(entry.difference)
+  if (difference === null) return true
+  for (const key of ['stateFields', 'scoreboard', 'battingOrderBySide']) {
+    const face = asObject(fieldValue(difference, key))
+    if (face !== null) {
+      for (const value of Object.values(face)) {
+        const span = asObject(value)
+        if (span !== null && undoEqual(span.before, span.after)) return true
+      }
+    }
+  }
+  return false
+}
+
+/** 比較面のbigint葉だけを唯一formatterへ渡す。 */
+function undoEffectJson(value: unknown): unknown {
+  if (typeof value === 'bigint') return formatDecimalInteger(value)
+  if (Array.isArray(value)) return value.map(undoEffectJson)
+  const object = asObject(value)
+  if (object === null) return value
+  const output: Record<string, unknown> = {}
+  for (const pair of Object.entries(object)) {
+    const key = pair.shift()
+    const field = pair.pop()
+    if (typeof key === 'string')
+      Object.assign(output, Object.fromEntries([[key, undoEffectJson(field)]]))
+  }
+  return output
+}
+
+/** 採用済み純取消ABI。真正履歴/認可/保存ACKは発行しない。 */
+function applyUndoJson(requestJson: string): string {
+  if (typeof requestJson !== 'string') return errorResponse('INVALID_REQUEST')
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(requestJson) as unknown
+    if (hasDuplicateKeys(requestJson) || undoNonFinite(parsed))
+      return errorResponse('INVALID_JSON')
+  } catch {
+    return errorResponse('INVALID_JSON')
+  }
+  const request = asObject(parsed)
+  if (request === null || !exactKeys(request, ['current', 'history']))
+    return errorResponse('INVALID_REQUEST')
+  const current = asObject(request.current)
+  const history = asObject(request.history)
+  if (
+    current === null ||
+    history === null ||
+    !exactKeys(history, ['stack']) ||
+    !Array.isArray(history.stack)
+  )
+    return errorResponse('INVALID_REQUEST')
+  let currentKeys = ['stateFields', 'scoreboard']
+  if (Object.prototype.hasOwnProperty.call(current, 'battingOrderBySide'))
+    currentKeys = currentKeys.concat(['battingOrderBySide'])
+  if (!exactKeys(current, currentKeys)) return errorResponse('INVALID_REQUEST')
+  let error = undoError(
+    undoFields(current.stateFields, true, false),
+    undoFields(current.scoreboard, false, false),
+  )
+  if (currentKeys.includes('battingOrderBySide'))
+    error = undoError(error, undoCursors(current.battingOrderBySide, false))
+  for (const entry of history.stack)
+    error = undoError(error, undoEntryError(entry))
+  if (error !== null) return errorResponse(error)
+  if (history.stack.some(undoEntryHasEqualSpan))
+    return errorResponse('INVALID_REQUEST')
+  const fields = asObject(current.stateFields)
+  const boardFields = asObject(current.scoreboard)
+  if (fields === null || boardFields === null)
+    return errorResponse('INVALID_REQUEST')
+  const state = readState(fields, true)
+  const board = readBoard(boardFields)
+  if (state === null || board === null) return errorResponse('INVALID_REQUEST')
+  let cursors: BattingOrderBySide | null = null
+  if (currentKeys.includes('battingOrderBySide')) {
+    const value = asObject(current.battingOrderBySide)
+    if (value === null) return errorResponse('INVALID_REQUEST')
+    const away = parseDecimalInteger(value.away)
+    const home = parseDecimalInteger(value.home)
+    if (away === null || home === null) return errorResponse('INVALID_REQUEST')
+    cursors = { away: away, home: home }
+  }
+  const parsedStack = history.stack.map(readHistoryEntry)
+  if (parsedStack.some((entry) => entry === null))
+    return errorResponse('INVALID_REQUEST')
+  const stack = parsedStack as Array<UndoHistoryEntry>
+  const tail = history.stack.concat()
+  tail.shift()
+  const outcome = applyUndo(state, board, stack, cursors)
+  if (typeof outcome === 'string') return errorResponse(outcome)
+  const after: Record<string, unknown> = {
+    stateFields: stateJson(outcome.after.stateFields, true),
+    scoreboard: boardJson(outcome.after.scoreboard),
+  }
+  if (outcome.after.battingOrderBySide !== null)
+    Object.assign(after, {
+      battingOrderBySide: orderJson(outcome.after.battingOrderBySide),
+    })
+  return JSON.stringify({
+    ok: true,
+    value: {
+      operationResult: outcome.operationResult,
+      after: after,
+      stateEffect: undoEffectJson(outcome.stateEffect),
+      historyEffect: { pops: formatDecimalInteger(outcome.historyEffect.pops) },
+      historyContext: tail,
+    },
+  })
+}
+
+/** JSON文字列だけの公開表。採用済みの純取消を含み、未実装の訂正/他結果は公開しない。 */
 export const domainOperations = Object.freeze({
   ping,
   deriveState,
@@ -1050,4 +1500,5 @@ export const domainOperations = Object.freeze({
   deriveOrdinaryPitchWithContinuation,
   validateInitialGameRoster,
   quantizeCourse,
+  applyUndo: applyUndoJson,
 })
