@@ -229,3 +229,7 @@ stats_product→firstball._pg_result_typeの循環importは、既TABLE表記整�
 ### root実行時SQL生成の単一路維持（2026-11-05、PO委任Codex /root判断）
 
 canonical producerの実接合で、既generate_primitive_bundleが実行時にPython/TS整形まで起動し、backendに開発用Prettierを要求する問題を確認した。rootはdomaingen/core.pyへ既schema・閉集合・参照hash/type/順序検証と同一sql_backendを共有する固定SQL二対象専用APIを追加する。既七対象API/生成byte/全拒否条件を保持し、SQL専用時だけ他言語生成・外部formatterを起動しない。authz/stats_primitive_sql.pyは同APIを呼び、既model/manifest/artifact/hash検証を保持する。backend/domain/stats-manifest.jsonの生成入力hashは既公式生成手順で追随し、生成物本文が変わらないことを検証する。backend/tests/test_stats_sql_generation_runtime.pyでformatter/他言語実行禁止・二SQL全byte・不正model/参照拒否を対向検査する。独立レビュー前に成立扱いにしない。併せてbackend/tests/test_stats_primitive_product.pyの隔離migration参照0040→0041だけを追随する。野球の意味・SQL式・54列・認可・正式資産の採用は変更しない。
+
+### canonical schema反映1（2026-11-05、PO委任Codex /root判断）
+
+非作者初回REPORT SHA11190154987079259d50c1d1e4aa5ff9414b5d3f606b4c1a5f2e86d392aa2345のP1を受け、同移管5source内でstats_api schema宣言1に対応するbody1を補う。既recording_vocab schemaと同型の存在/owner確認・異owner拒否、未作成時pitchlog_owner所有CREATE、PUBLIC全権限とapp/FnOwnerCREATEのREVOKE・app/FnOwnerUSAGEだけを描画し、canonical body lookup/既installerへ接合する。旧4SQL/84body/旧323/29guardは全byte保持し、新body総89。純構文・owner/CREATE等の宣言変異拒否を検査し、作者反映後に非作者再レビューする。実PG成功は別のroot後段検証まで留保する。
