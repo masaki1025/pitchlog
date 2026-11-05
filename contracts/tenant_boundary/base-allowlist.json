@@ -37077,8 +37077,8 @@
               },
               {
                 "path": "scripts/check_human_review_signature.py",
-                "sha256": "c1ab1a3c139d4b48d6809c515089f4e903397b2829b170269768b9e100e92c13",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/c1ab1a3c139d4b48d6809c515089f4e903397b2829b170269768b9e100e92c13"
+                "sha256": "30227bfabc5a5a35864a26f80e4bac8c67945d7ca530a60155c34fbd7e7729e8",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/30227bfabc5a5a35864a26f80e4bac8c67945d7ca530a60155c34fbd7e7729e8"
               },
               {
                 "path": "scripts/check_tenant_boundary_bypass.py",
@@ -37137,8 +37137,8 @@
               },
               {
                 "path": "tests/test_check_authz_catalog.py",
-                "sha256": "8a4fb41e2d0ad09748d71367e6e9537a9a38deadd14f64d655da281353545427",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/8a4fb41e2d0ad09748d71367e6e9537a9a38deadd14f64d655da281353545427"
+                "sha256": "595f8051557b43f449fa2520e37b310f53bd8512c58852001dbe268192f81d94",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/595f8051557b43f449fa2520e37b310f53bd8512c58852001dbe268192f81d94"
               },
               {
                 "path": "tests/test_check_tenant_boundary_bypass.py",
@@ -37157,8 +37157,8 @@
               },
               {
                 "path": "tests/test_human_review_signature.py",
-                "sha256": "41d8c0b6c12422dd4aa3900507dad5c1406417299bf255c23b821c1208742e37",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/41d8c0b6c12422dd4aa3900507dad5c1406417299bf255c23b821c1208742e37"
+                "sha256": "d6a6d1815822e3cd7e1ea26afde2da398fd8f7c7ca84f4437ed87d3636923a79",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/d6a6d1815822e3cd7e1ea26afde2da398fd8f7c7ca84f4437ed87d3636923a79"
               },
               {
                 "path": "tests/test_plan_generation.py",
@@ -37209,8 +37209,8 @@
               },
               {
                 "path": "contracts/tenant_boundary/frozen-inputs.json",
-                "sha256": "4bd3abf057e458179caa67c58d7c93ea738c41d65a5ee020a54c5581b62b9a4d",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/4bd3abf057e458179caa67c58d7c93ea738c41d65a5ee020a54c5581b62b9a4d"
+                "sha256": "78f683c7d52feef8f13325ac7bbe300a789e11f9fb249eb46087c909729bcacd",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/78f683c7d52feef8f13325ac7bbe300a789e11f9fb249eb46087c909729bcacd"
               },
               {
                 "path": "contracts/tenant_boundary/negative-fixtures.json",
@@ -37235,8 +37235,8 @@
             ]
           }
         },
-        "movement_fact": "公式射影の実移動9資産だけをbase+1据置で再導出。旧37履歴prefixと単一196識別を保持し、R3単一候補をR4へ置換し二重受理/不要な再増分をしない。全base/pin/referenced snapshotを保護、除去は非参照かつ非base非pin差分だけを退避する。core3/typed3の6入力と新正式probe mapの変化は各非作者根拠を継承し、後発源本の全前後値を照合する。",
-        "reason": "正式112fを基線とする無走者4安打の既実GUI3310証拠と全旧レビューを保持。公開70158の初回CI失敗41993067839/41993067895を保全し、登録済core3path外層・typed固定参照12と新6typed入力・旧historical原典試験・0040歴史index投影と実18属性audit・新6製品原子map・後発有限登録13/新関数期待2を非作者確認した。scanner/allowlist/旧43pin/旧37record/旧source51/90/旧数学を保持。現51d self2形式だけを独立1878全応答/規範84/D01実差witnessで登録し旧55/readerを不変更、旧版から現版への包括互換を主張しない。実terminal四球死球2成功198.34秒・既記録画面restore1成功45.67秒・migration40とaudit1成功を対象版別に保持し、新規作成からの全GUIを後発HEADで再測定したとはしない。実機/運用公開/P6blind/全T1/全MVPを先取りしない。",
+        "movement_fact": "旧37履歴prefixと単一196識別を保持し、実変更分だけ単一196R4をR5へ置換して不要な再増分をしない。全対象識別値をbase+1据置とし、全前後を公式helperで導出。全base/pin/参照snapshotを保護、除去は非参照かつ非base非pin差分だけ退避。新源本とdescriptor参照の全移動を照合し、旧拒否を緩めず新HEADの非作者レビュー/実公開委任/必須CIを別途成立させる。",
+        "reason": "公開660dのCI42017498235/本文42017498245失敗を保全。非作者ed5dbe9cで組合せschema/旧17+新owner1/旧3+新衝突1の閉検査4を採用し、非作者ff61693bでdescriptor監査2語・単一196scope受理・公式digestと依存4参照だけを採用した。新G6は実112fの既191/192全bodyをGit原典で維持し、現descriptor/4参照だけを型付き前後有限検査へ束縛、実event/祖先/HEAD/公開委任証拠を必須とする。初回非作者2815cef0のint1/true混同P1を保全し、非作者dfadb039で完全JSON前後比較により解消。旧人間署名/record/schema/pinsを改変せず、旧9数学全byte不変の根拠はR4までとし、R5のsubject2は参照digestだけ変更・全入力/期待不変。root関連900成功156.68秒、各作者/非作者と旧R4 DB/UI証拠は対象版別に保持し、実機/運用公開/P6blind/全MVPの成立へ拡張しない。",
         "approved_by": "PO委任によるCodex主担当/root判断（本人署名・人間逐行確認の代記ではない）",
         "approved_on": "2026-11-05"
       }
