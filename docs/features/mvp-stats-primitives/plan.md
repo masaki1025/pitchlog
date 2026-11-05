@@ -377,3 +377,6 @@ root専有metadataはbackend/domain/stats-manifest.json exact1へnativeEvaluatio
 - `contracts/authz/product/function-bodies/functions/FUNCTION:stats_api:read_primitive_writer_state(uuid, uuid, uuid, text, bytea).sql` before SHA256 `073e7a5e0617cd6f286677027eb864aa09134dc61b369f3520ed732011aabd5b`
 
 source/body5確定後のruntime derive/render・tenant rederive・実変化の7.7/必要seal追随はroot専有で直列化し、差分path/全前後/非作者を先に固定する。登録manifest795集合/役割/関数追加や拒否の緩和は許可しない。実PGから期待を採取せず、official関数生成との正確な対応だけを受理し、owned新規作成/開始/3球/replay/read/faultで再実証する。型追随や旧v1実測をv2成功としない。
+
+
+正式stats5本文の採用（2026-11-06 JST、PO委任Codex /root判断）: 固定6d4994bbの候補packetfd4d4895b2a88c79e845771282079af1b538692995c42bfe2c4c02123856bd49を、非作者REPORT9ddcabc1ce22713cf18af2fd565f13c3d87ea5fedf84be13826114d2b749a301/checks8c57c2ce94d546d27d90feb0d201faac3d1fa640ae218214be2edd90b95ef7f6で採用する。独立全差分c255499cec5ffde143f2c77589cda64ce0b023133a07e7d82a521325f5968986はmodel/唯一ART/閉decisions metadataだけ、全認可/TX/tenant/WHERE/page/拒否/関数ABI/ACLを保持。旧before5は真正ec3原物と照合保存、manifest795/旧29/全DDL/immutablev1旧10のbyte保持を確認。新5受理/旧5＋改変15拒否・official bodycheck/関連38独立成功。rootは全before/after SHAを確認して5だけ反映し、runtime/tenantの公式deriveをread-only照合、差分が実在する場合だけ別scope/非作者後に更新する。実PG compile/保存・再取得/再送/故障、7.7/必要seal/正式D11/画面・CSVは未成立。PO本人の確認/署名やP6blindとは記録しない。
