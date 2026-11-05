@@ -336,6 +336,11 @@ def test_unregistered_port_is_rejected_before_call() -> None:
                 "pitchlog.sync.first_ball_recording_rights",
                 "FirstBallRecordingRightsPort",
             ),
+            (
+                "pitchlog.sync.game_lifecycle_ports",
+                "GameLifecycleContentValidationPort",
+            ),
+            ("pitchlog.sync.game_lifecycle_ports", "GameLifecycleProjectionPort"),
         }
     )
     import pitchlog.sync.first_ball_projection  # noqa: F401  # 登録集合の固定bootstrap

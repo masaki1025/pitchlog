@@ -497,11 +497,15 @@ def require_registered_port(port: object) -> None:
 
 
 def _load_first_ball_port_classes() -> tuple[type[object], ...]:
-    """既3実装と通常投球2実装を検査後に読み、集合の巡回順へ依存させない。"""
+    """登録済み Port を検査後に読み、集合の巡回順へ依存させない。"""
     validate_port_modules()
     from pitchlog.sync.first_ball_ports import FirstBallContentValidationPort
     from pitchlog.sync.first_ball_projection import FirstBallProjectionPort
     from pitchlog.sync.first_ball_recording_rights import FirstBallRecordingRightsPort
+    from pitchlog.sync.game_lifecycle_ports import (
+        GameLifecycleContentValidationPort,
+        GameLifecycleProjectionPort,
+    )
     from pitchlog.sync.ordinary_pitch_ports import (
         LineupPrefixContentValidationPort,
         LineupPrefixProjectionPort,
@@ -521,6 +525,8 @@ def _load_first_ball_port_classes() -> tuple[type[object], ...]:
         LineupPrefixContentValidationPort,
         PlayPrefixProjectionPort,
         LineupPrefixProjectionPort,
+        GameLifecycleContentValidationPort,
+        GameLifecycleProjectionPort,
     )
 
 

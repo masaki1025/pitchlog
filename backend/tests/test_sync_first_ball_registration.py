@@ -23,6 +23,11 @@ _EXPECTED_PORTS = frozenset(
         ("pitchlog.sync.ordinary_pitch_ports", "OrdinaryPitchProjectionPort"),
         ("pitchlog.sync.first_ball_projection", "FirstBallProjectionPort"),
         ("pitchlog.sync.first_ball_recording_rights", "FirstBallRecordingRightsPort"),
+        (
+            "pitchlog.sync.game_lifecycle_ports",
+            "GameLifecycleContentValidationPort",
+        ),
+        ("pitchlog.sync.game_lifecycle_ports", "GameLifecycleProjectionPort"),
     }
 )
 
@@ -64,8 +69,8 @@ def test_port_registry_is_the_audited_closed_set() -> None:
         - _EXPECTED_PLAY_PREFIX_PORTS
         - _EXPECTED_LINEUP_PREFIX_PORTS
     ) == _EXPECTED_PORTS
-    assert len(_EXPECTED_PORTS) == 5 and len(_EXPECTED_PLAY_PREFIX_PORTS) == 2
-    assert len(_EXPECTED_LINEUP_PREFIX_PORTS) == 2 and len(PORT_IMPLEMENTATIONS) == 9
+    assert len(_EXPECTED_PORTS) == 7 and len(_EXPECTED_PLAY_PREFIX_PORTS) == 2
+    assert len(_EXPECTED_LINEUP_PREFIX_PORTS) == 2 and len(PORT_IMPLEMENTATIONS) == 11
 
 
 def test_unregistered_objects_are_not_ports_or_operations() -> None:
