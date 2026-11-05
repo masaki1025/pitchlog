@@ -92,3 +92,10 @@ root側共有proposalはunit1実装に属するが、最初のwriter9へ混ぜ�
 ## 採用記録（2026-11-05、PO委任Codex /root）
 
 原案03a8bf7e…/scope2d626c83…/packet202906ae…を非作者7221cc2b…（P0/P1/P2=0）で確認し採用。原案からの差はfrontmatter/状態/この採用記録のみ。固定点1ea9fdeeの新専用WTを作成し、元spike ae3298afと#196候補を変更しない。最初の許可はroot専有の閉契約3候補起案・非作者確認で、unit1 writer9の本体開始はその成立後。認可/DB/HTTP完成や全操作契約を追加開始条件へしない。既10の期待/留保・5P1・全3段とMVP条件は維持、人間署名/P6blindとは記録しない。
+
+
+## unit1閉契約3の限定受理（2026-11-05、PO委任Codex /root）
+
+原案packet27ab055b…/初回非作者4000878e…のP0=0/P1=1/P2=0を保持し、Signed数値の末尾LF誤受理だけを反映1packet ed8ea2cd…で是正。非作者5c7d6e760c13c6c5269cd7c0842f3a12f2dfe97b85fb1427704a9ae991f14effが1field差分、req/res24改行否定/整数型文法/5001桁/旧10+10/新14全値/257履歴/tscを独立再確認しP1解消1・残存0。初回のreq/res全体疑いはUnsigned/Positive既strict・Signedだけへ精密化した履歴も保持する。schema40bb46c0…/d.tscca60b55…/cases1f01f39a…を純計算operation単位の閉契約として受理する。casesのstatusだけをrootがcandidate-not-accepted→accepted-unit1-pure-contractへ更新する承認メタデータ追随を行い、期待/入力/規則/原典SHAの全値は不変更。正式D11全成立/P6/P7/実Port/DB/画面を受理したとはしない。
+
+body開始条件の本操作分は成立。writer9は既規範で閉じた空/整合確定playの一般構造・field逆適用から実装する。fixture/caseID lookupや固定結果は不可。delta/set未分類3/旧D+1矛盾固有行は未提供留保し、深さや桁数で実行上限を作らず全MVP後続で解決する。旧23flag/4比較面・旧全公開operation/安打D01を保持。DB/全操作契約を追加前提へしない。
