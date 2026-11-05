@@ -187,6 +187,15 @@ def _fresh(minimum, writer, event, token, expected: _Fresh | None = None) -> _Fr
 
     handle = minimum.handle
     _minimum(handle, minimum)
+    from pitchlog.sync import undo_execution as undo
+
+    if minimum.key in undo._EXECUTIONS:
+        if (
+            first._EXECUTIONS.get(minimum.key) is not None
+            or ordinary._EXECUTIONS.get(minimum.key) is not None
+        ):
+            raise NativeLedgerInsertError
+        return _fresh_undo(minimum, writer, event, token, expected)
     states = [
         state
         for state in (
@@ -337,6 +346,93 @@ def _fresh(minimum, writer, event, token, expected: _Fresh | None = None) -> _Fr
         bound._lease.nonce,
         bound._phase_snapshot,
         mode,
+    )
+    if expected is not None and (
+        result.state is not expected.state
+        or result.source is not expected.source
+        or result.bound is not expected.bound
+        or result.lease is not expected.lease
+        or result.phase is not expected.phase
+        or result.anchor is not expected.anchor
+        or result.nonce != expected.nonce
+        or result.snapshot != expected.snapshot
+        or result.mode != expected.mode
+    ):
+        raise NativeLedgerInsertError
+    _minimum(handle, minimum)
+    return result
+
+
+def _fresh_undo(minimum, writer, event, token, expected: _Fresh | None) -> _Fresh:
+    """取消の実frameを再確認し、play用StatsStateやownD2を作らない。"""
+    from pitchlog.sync import undo_execution as undo
+
+    handle = minimum.handle
+    _minimum(handle, minimum)
+    state = undo._undo_native_ledger_state(handle, event, writer)
+    if type(state) is not undo._Execution:
+        raise NativeLedgerInsertError
+    source = state.source
+    if type(source) is not _E1CoreSource:
+        raise NativeLedgerInsertError
+    bound, phase, anchor = source.bound, source.phase, state.anchor
+    if (
+        state.handle is not handle
+        or state.writer is not writer
+        or state.event is not event
+        or state.runtime is not minimum.runtime
+        or state.phase != "ready"
+        or source.scope is not handle
+        or source.context is not minimum.context
+        or source.event is not event
+        or source.write_started is not True
+        or type(bound) is not _LiveWriterBinding
+        or _LIVE_BINDINGS.get(minimum.key) is not bound
+        or bound._handle is not handle
+        or bound._used is not False
+        or bound._owner[0] is not minimum.lifetime[0]
+        or bound._owner[1] is not minimum.lifetime[1]
+        or type(phase) is not EventPhaseBinding
+        or phase.attempt.tenant_id != minimum.context.tenant_id
+        or phase.attempt.game_id != UUID(event.game_id)
+        or phase.d1 != event.d1
+        or phase.d5 != UUID(event.d5)
+        or type(anchor) is not tuple
+        or len(anchor) != 7
+        or type(bound._lease.nonce) is not bytes
+        or len(bound._lease.nonce) != 32
+        or bound._lease._phase_snapshot != bound._phase_snapshot
+        or type(writer) is not PortWriter
+        or writer._active is not True
+        or getattr(writer._execute, "__self__", None) is not handle
+        or getattr(writer._execute, "__func__", None)
+        is not transaction._TenantTransaction.run
+        or type(state.frame) is not undo.UndoFrame
+        or type(state.frame_id) is not UUID
+        or type(state.event_id) is not UUID
+        or state.prefix is None
+        or state.projected is not None
+        or state.projection_call is not None
+        or type(state.payload) is not dict
+        or state.payload.get("formatVersion") != "native-undo-prefix-v1"
+        or _json(state.payload) != _json(event.v7)
+        or event.v5 != "undo"
+    ):
+        raise NativeLedgerInsertError
+    _check_token(token, event, phase.event_fingerprint)
+    result = _Fresh(
+        minimum,
+        writer,
+        event,
+        state,
+        source,
+        bound,
+        bound._lease,
+        phase,
+        anchor,
+        bound._lease.nonce,
+        bound._phase_snapshot,
+        "native-undo-prefix-v1",
     )
     if expected is not None and (
         result.state is not expected.state

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
 from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass
 from typing import Any
@@ -374,8 +373,6 @@ def _undo_qualification_scope(handle, source):
         or source.write_started
         or handle._state_key in _QUALIFICATIONS
         or source.event.v5 != "undo"
-        or not isinstance(source.event.v7, Mapping)
-        or source.event.v7.get("formatVersion") != "native-undo-prefix-v1"
     ):
         raise UndoExecutionError("取消の実rights資格が不一致です")
     lifetime = handle._writer_lifetime()

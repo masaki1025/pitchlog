@@ -249,3 +249,59 @@ def test_old_active_generation_is_not_equated_to_own_d4(rig, linked):
         with pytest.raises(RuntimeError):
             with prepared(rig):
                 pytest.fail("非連結世代が成功しました")
+
+
+@pytest.mark.parametrize("bad_payload", [{"formatVersion": "broken"}, None, {}])
+def test_sql_qualification_does_not_parse_fresh_payload_but_fresh_execution_rejects(
+    rig, monkeypatch, bad_payload
+):
+    """D5 stored前の既E1 device資格とfresh内容資格を混同しない。"""
+    from pitchlog.sync.model import SyncEvent
+
+    e = rig.event
+    event = SyncEvent(e.d5, e.game_id, e.d1, e.d4, v5="undo", v7=bad_payload, v10=e.v10)
+    rig.source.event = event
+    with api._undo_qualification_scope(rig.handle, rig.source):
+        assert api._undo_qualification_active(rig.handle) is True
+        assert not api._EXECUTIONS
+    # read_undo_eventはhost/checkpointより先に拒否し、内容tupleを保持する。
+    with api._bind_undo_execution(rig.handle, rig.writer, event, rig.source):
+        assert api._EXECUTIONS[rig.handle._state_key].phase == "rejected"
+        phase = SimpleNamespace(
+            kind="content",
+            handle=rig.handle,
+            bound=rig.source.bound,
+            snapshot=rig.source.bound._phase_snapshot,
+        )
+        with monkeypatch.context() as patch:
+            patch.setattr(tx, "_port_phase", lambda _: phase)
+            result = api._undo_content_result(rig.handle, event, rig.writer)
+            assert result[0] is False
+            assert result[1] == "取消内容が確定原本または実評価値と不一致"
+
+
+@pytest.mark.parametrize(
+    "fault", ["wrong-v5", "write-started", "wrong-source", "reentry"]
+)
+def test_minimum_sql_qualification_retains_scope_refusals(rig, fault):
+    """V7を遅延しても同E1/source/V5/未書込/非再入条件は緩めない。"""
+    from pitchlog.sync.model import SyncEvent
+
+    if fault == "wrong-v5":
+        e = rig.event
+        rig.source.event = SyncEvent(
+            e.d5, e.game_id, e.d1, e.d4, v5="play_input", v7=e.v7
+        )
+    elif fault == "write-started":
+        rig.source.write_started = True
+    elif fault == "wrong-source":
+        rig.source.scope = object()
+    if fault == "reentry":
+        with api._undo_qualification_scope(rig.handle, rig.source):
+            with pytest.raises(api.UndoExecutionError):
+                with api._undo_qualification_scope(rig.handle, rig.source):
+                    pytest.fail("再入を許可しました")
+    else:
+        with pytest.raises(api.UndoExecutionError):
+            with api._undo_qualification_scope(rig.handle, rig.source):
+                pytest.fail("不正scopeを許可しました")

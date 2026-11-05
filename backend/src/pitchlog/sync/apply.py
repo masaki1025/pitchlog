@@ -712,7 +712,12 @@ def _apply_e1_f1(
         PlayPrefixContentValidationPort,
         LineupPrefixContentValidationPort,
     }
-    if len(request.events) != 1 or (not ordinary and request.events[0].d1 != 1):
+    from pitchlog.sync.undo_ports import UndoContentValidationPort
+
+    undo = type(validator) is UndoContentValidationPort
+    if len(request.events) != 1 or (
+        not ordinary and not undo and request.events[0].d1 != 1
+    ):
         raise _E1OutOfScope("E1要求はF1の範囲外")
     event = request.events[0]
     registrations = registrations or {}
@@ -735,7 +740,10 @@ def _apply_e1_f1(
                 except RG1Unavailable:
                     return "B7"
                 bound = control.bind_writer(scope, context, phase, cookie=cookie)
-                with gated_e1_writer(scope, rights) as gated:
+                with (
+                    gated_e1_writer(scope, rights) as gated,
+                    ExitStack() as undo_qualification_stack,
+                ):
                     source = _E1CoreSource(
                         binding,
                         scope=scope,
@@ -752,6 +760,25 @@ def _apply_e1_f1(
 
                         qualification_stack.enter_context(
                             _ordinary_qualification_scope(scope, source)
+                        )
+                    if undo:
+                        # SQL familyの既E1資格に入る前にD5だけを内部分類する。
+                        # 返却は既device検証後。host/CP/frameはfresh内容段だけ。
+                        from pitchlog.sync.source_binding import (
+                            read_selected_event_source,
+                        )
+                        from pitchlog.sync.undo_execution import (
+                            _undo_qualification_scope,
+                        )
+
+                        selected = read_selected_event_source(
+                            binding, context=context, request=request, event=event
+                        )
+                        classify_request_d5(
+                            scope, request, (selected.event_fingerprint,)
+                        )
+                        undo_qualification_stack.enter_context(
+                            _undo_qualification_scope(scope, source)
                         )
                     device = _verify_bound_device(
                         bound,
