@@ -321,3 +321,6 @@ v3 payload既34のroot custom schema consumerは、新既採用schemaのallOfを
 
 
 CI42017498235の全job完走後、backend-shard0の追加失敗1はbackend/tests/test_product_authz_provisioning.py::test_current_sync_roles_have_strict_all_attribute_collision_sqlで、別DB対向側の既正規4主体（旧3＋recording_vocab owner1）へ旧3集合期待が未追随と確定した。このtest exact1をroot専有候補へ追加する。旧3集合を明示保持し、新owner1・重複無し・全7属性の正式DDL衝突拒否とALTER ROLE無しを同じ検査へ含める。既実DB4×7対向・生成SQL・validator・権限・正式資産は変更しない。前記root exact3と合わせsource/test4として非作者確認後に採用する。判断者Codex /root、2026-11-05 JST、PO既委任による有限追随。CI失敗を既知基線赤として無視せず、実修正後の必須CIを要求する。
+
+
+組合せconsumer追加の回帰617成功/6失敗49.82秒で、6失敗は全て新比較literal allOf/anyOfと旧freeze宣言のexact-set差（missing無し、新2だけ）と確定。新literalを隠すリファクタ/監査source除外/許可集合緩和は行わない。root専有でcontracts/state-transition/input_axes_descriptor_v1.jsonのfreezeBaseline.scope.sourceLiteralAuditの当該source navigation欄に同2だけを追記し、旧全literal/criteria/基準10履歴を保持した単一PR196 scope変更record・公式descriptor digestを起案する。これは検査技術の追随で野球意味や数学9の変更でない。完全before/after・識別値を非作者確認後に既PO委任で受理し、関連descriptor参照の実移動があれば公式helperによる必要更新集合を先に列挙する。正式JSONへは非作者採用まで書かずcache候補のみ。判断者Codex /root、2026-11-05 JST。
