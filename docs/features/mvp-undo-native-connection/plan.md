@@ -287,3 +287,6 @@ S26正式profile exact1の受理（2026-11-06 JST、PO委任Codex /root判断）
 
 
 Port期待集合の追随exact1（2026-11-06 JST、PO委任Codex /root判断）: S26採用後の同期/旧通常球9moduleは321成功/1失敗10.14秒、失敗はtest_sync_apply_model_ports.py::test_unregistered_port_is_rejected_before_callの期待集合だけが旧9Portのまま残り、採用済root HTTPのUndoContentValidationPort/UndoProjectionPort2件を含まないこと。S26がPortを増やした退行ではなく旧root Port登録の検査追随漏れで、formal27/runtime33の別残件とも区別する。編集exact1は当該test moduleの完全一致期待へ実登録済2tupleを明記するだけ。全旧9tuple/未知SafeProjectionの実呼出前拒否/port.calls==0/実登録verifierを保持し、部分一致・動的期待生成・登録拡大・新成功stubは不可。rootが同module全件を検査し、別非作者へ元差分/実登録2/source先行レビュー37801c28…を渡して限定確認する。製品Port/計算/認可/保存は変更しない。
+
+
+GET契約unionの旧画面型追随exact1（2026-11-06 JST、PO委任Codex /root判断）: 正直なcanonical payload DTSへNP inner unionを追加すると、既GameScreenOrdinaryPitchController.tsのrestoreLocalが全LineupPlayPrefixV7へ再castし旧prefixRef.gameId/tenantIdと旧Request専用fieldを読むため、新CheckpointRef branchが混入すると実測。既GET候補37へfrontend/src/screens/GameScreenOrdinaryPitchController.tsだけを追加し最大38とする。旧ローカル復元でcalculation.formatVersion===play-prefix-calculation-v3を明示確認し、その成立branchだけ旧型へ絞る。NPを旧型へ偽装cast/any化せず、未接続NP画面復元は明示非成功に閉じる。既提供v3の保存/再読込/結果不明slotは保持し、Source6/JS/artifact/計算を変更しない。既controllerテストの旧全正常/拒否と型検査を実行、不可分な負対向追加が別pathなら対象を先に返す。作者はcache-only、rootは全before/後発FE差分と非作者確認後に直列採用する。
