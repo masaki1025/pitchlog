@@ -4,7 +4,7 @@ status: active
 承認: 済（2026-11-04・PO委任によるCodex主担当判断）
 重さ分類: コア領域
 worktree: ../../..
-branch: feature/mvp-stats-primitives
+branch: feature/mvp-stats-bf-calculation
 created: 2026-11-04
 計画レビュー周回: 1
 確定ゲート周回: 0
@@ -392,3 +392,14 @@ read-only REPORT06380485d083918429d50e04d1f73c0c6a6f269a8505eeda0c99fd68d72ad426
 
 
 BF v3先行contract3の採用（2026-11-06 JST、PO委任Codex /root判断）: 作者packetaea7581bd7855d5ad57391806692969e9604074468ce20edea4428811d768642を、非作者REPORTdbef568b20e6bfa879428eef165c424556f5f985b65955b64b64b41538e37948/checksd973d0da9a68e4f30f1d6c0206e7245b460af5ff994442dddfa52fcc6e6d55cc（P0/P1/P2=0）で採用する。新60BF/owner期待と24BB/IBB＋15非BBの39責任対照を原典から独立再計算して一致、旧v1/v2各input/output計4branch/全defs/55/PO76/v2全75を保持、v3旧26/PA/全credit/OPS75全値比較・148出力/132valid入力/16shape否定・独立36否定・BF5001桁shapeを確認。旧モデル2世代/生成全21原物を保存。free owner IDは受けず既T1責任field参照、no-changeのみ初回native提供範囲、他規範対照を交代/IBB Port成功としない。rootはexact3全before/after SHAで反映、candidate型/期待の受理を数学の開始根拠とする。source資格否定5の実runtime・27CHECK正式migration・実PG/画面/CSV/D11は未成立で、新しい全Port待ちを本体へ足さない。既D5 ACK/旧factを変更せず新版再刻印しない。
+
+
+## BF数学の実装scopeと実績v2の保全（2026-11-06 JST、PO委任Codex /root）
+
+受理BF契約f3a64aaeを専用WT/branch feature-mvp-stats-bf-calculationへ全commitを保全して移し、元feature-mvp-stats-native-connectionは公開済み実PG検証済みbcee3decの同HEADへ保つ。未公開参照だけを保全後に整理し、remote履歴/利用者データを変更しない（cache stats-bf-branch-split.json）。新v3契約を追加しただけで旧v2 runtimeの独立参照SHAが失効した状態を提供せず、新版数学/移行/nativeを別featureでまとめて進める。既v2の3球/read/fault証拠はbceeだけへ束縛する。
+
+作者pr191へcache-onlyのD1/decl/emitter/回帰exact16を許可する。source9はbackend/domain/{model.schema,play-export.model,stats.model}.json、backend/src/pitchlog/domaingen/{pregen_checks,core,formatter}.py、同backends/{python,typescript,sql}.py。tests7はtests/domain/gen/{test_pregen,test_core,test_formatter}.py、backend/tests/stats/{test_basic_stats,test_primitive_facts}.py、frontend/src/lib/generated/wrappers/statsPrimitives.spec.ts、backend/tests/db/test_stats_queries.py。既型/整数/NULL/PA/credit/OPS/公式2練習3全5の計算を保持し、唯一D1で27番目BFの数量/credit/不足を宣言して3targetへ生成する。T1の継承count判定はコピーせず、既真正責任field選択だけを参照する。
+
+旧v1/v2の原モデル6＋生成15/旧全casesを保持し、同compilerで歴史2profileを完全比較。新v3全135肯定（旧26/PA/fullcredit/OPS75＋新60）の全応答とshape/意味/未知source/field不足/型/5001桁の対向を消費する。fixture出力lookup/部分一致/余剰field無視を禁止。既no-change未完0と完了BF1、不足unavailableを区別し、他39規範fixtureをnative交代提供済みとしない。
+
+公式generate_primitive_bundleで生成するtarget8は作者のcacheに別groupで固定して再現一致を示し、実asset/manifest/native/SQL正式body/DBmodel/migrationへ作者は書かない。rootが非作者確認後source9を反映して正式helperで生成8を再現、decl/input/ART全後値を照合する。実BF保存には26固定CHECKの明示27化migration/新current3＋旧2profile decode/ACK/source完全性/native各境界の次scopeが必要であり、同mathをDB完成扱いにしない。一方これらの未供給を数学着手前条件にはしない。sharedDB/新秘密/運用公開なし。
