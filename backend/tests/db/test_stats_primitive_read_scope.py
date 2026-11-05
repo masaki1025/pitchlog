@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+from psycopg.errors import ReadOnlySqlTransaction
 from sqlalchemy import event, text
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import Session
@@ -63,6 +64,7 @@ def test_real_stats_scope_is_rr_read_only_and_rejects_non_read_tokens(
                             "SET marker='forbidden'"
                         )
                     )
+                assert isinstance(rejected.value.orig, ReadOnlySqlTransaction)
                 assert rejected.value.orig.sqlstate == "25006"
             with pytest.raises(TenantBindingError):
                 transaction._require_stats_primitive_read_scope(handle)

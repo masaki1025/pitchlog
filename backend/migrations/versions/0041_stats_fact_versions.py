@@ -2,8 +2,8 @@
 
 from alembic import op
 
-revision = "0040_stats_fact_versions"
-down_revision = "0039_ordinary_pitch_storage"
+revision = "0041_stats_fact_versions"
+down_revision = "0040_batted_vocabulary_index"
 branch_labels = None
 depends_on = None
 

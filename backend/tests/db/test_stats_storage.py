@@ -74,7 +74,7 @@ def test_stats_downgrade_never_physically_deletes():
     import importlib.util
     from pathlib import Path
 
-    path = Path(__file__).parents[2] / "migrations/versions/0040_stats_fact_versions.py"
+    path = Path(__file__).parents[2] / "migrations/versions/0041_stats_fact_versions.py"
     spec = importlib.util.spec_from_file_location("stats_storage_migration", path)
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
