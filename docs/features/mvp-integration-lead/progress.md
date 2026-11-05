@@ -1,5 +1,15 @@
 # 初回MVP 主担当引受・進捗台帳
 
+
+## 続き：2026-11-05（安打R4の公開・完走CI4件を是正、成績と取消本体を並行）
+
+- **利用者操作/正式提供**: 正式develop112fの範囲は維持。#196候補の4安打実GUIは既3310固定の証拠で、公開660dや正式版の全再実証へ拡張しない。全MVPは未完。
+- **#196公開とCI**: source8bb9656eのowned DB40は40成功282.89秒で終結。単一196R4を非作者b2c5a936…、最終input b47d4e9c…、最終HEAD5f7fc40b…で確認し660d58554f3e0b74da2623ffd7e9a452188d7772へ保存/通常push。全197path差分SHA66e993e5fd7f650c51f13d4f4406b6061f358b9b997b2aa8cbead842bd65fbba、公開委任証拠pull/196#issuecomment-6656530525を実取得してfull core/委任検査成功。旧本人署名を変更/代記していない。
+- **完走結果と次**: CI42017498235はterminal failure。frontend・static・mutation・tenant・他backend3/harness3は成功。失敗はroot3（旧role17、新schema組合せconsumer、旧ordinary署名carry）とbackend1（旧3主体集合に既採用語彙owner1未追随）。PRbody42017498245はcore成功後G6carry失敗。ログはcache pr196-final-publication-r4/all-ci-failed.logへ保存。同じ失敗を反復せず、計画efce3d3c/b27932b7/c2430529でroot4と別writer G6exact2を分離。旧9数学資産は112f→660d全byte不変で、既191/192のactual base検査を保持するcarryを非作者へ渡す。root候補4は初回の新test2構成誤りを保全して是正しtarget29成功3.42秒＋backendtarget1成功、全schema/descriptor回帰と独立レビューを実行中。正式JSON/旧署名書換えや検査skipをしない。全修正後だけ単一196R5置換導出/新証拠/通常1push、全必須CI成功後mergeする。
+- **取消本体**: native枝e5a58501で閉契約3を非作者5c7d6e76…後に受理。unit1 code9候補は別作者がcacheへ返却済みで815固有検査・再現build/既1878応答保持を報告。これは作者証拠でroot採用/実host/同期保存/画面の成立ではない。全取消・訂正の義務を維持し、単純playを超える未分類compoundは提供済みにしない。host decoder2と正式P1/read/queue接合が次。
+- **成績本体**: native枝6ccb7a64でD02区分/D05 OPSの純契約3を独立de8096a9…後に採用、7effb519で単一D1→Py/TS/SQL生成のsource16/generated8を承認。別writerがcache-only本体実装中。D03登板/D04打者数はPO採用済み、技術source未接続を意味未回答へ戻さない。既current起動15・旧prefix20の実PG成功は保持するが全27/成績画面/CSVは未完。
+- **外部並行依頼**: 次候補として終了→再開→追加記録→再終了の接続spike用指示をPOへ提示した。外部への実送付/受諾/稼働は未確認。取消spikeは受領済みで正式接合中。主担当は同じ共有ファイルへ複数writerを割当てない。
+
 ## 続き：2026-11-05（成績current起動の実成立・取消spike受領）
 
 - **成績の新たな技術到達点**: 固定e8e991a1でowned S0→0041配置/全catalog/正規再開migration0が1成功8.38秒、残るmigration途中故障rollback/ACL・構造改変拒否/pre-full再開14件が14成功90.50秒。元r1〜r3拒否を保持し、既migration関数/triggerのpre-full厳密接合を非作者a0861e71…後277da7d6へ、事前read接続終結→新IDLE接続の既applyを非作者fb295a1f…後e8e991a1へ採用。既適用器のIDLE/主体/同TX/拒否と旧stageは不変。旧prefix境界20はsnapshotの新schema/private表を旧閉集合が知らずsetup20ERROR131.36秒。fixtureだけを非作者/root e5067fc5…（新36成功/旧85AST保持）後e270ce9fへ追随し、固定e270で同根smoke1成功7.81秒＋残19成功133.60秒により全20を実確認した。成績画面/全27/両CSV提供の成立とは別。
