@@ -12,7 +12,7 @@ import {
   type PitchTypeOption,
 } from '../api/pitchTypeOptions'
 import GameScreenBattedHitObservation from './GameScreenBattedHitObservation.vue'
-import type { BattedHitResult } from '../../../contracts/state-transition/lineup_play_prefix_payload_v1'
+import type { BattedHitResult } from '../../../contracts/state-transition/lineup_play_prefix_payload_v1.d.ts'
 import StrikeZone from '../components/zone/StrikeZone.vue'
 import { useAuthStore } from '../stores/authStore'
 import {

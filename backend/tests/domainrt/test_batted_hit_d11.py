@@ -55,9 +55,7 @@ def test_normative_16_actual_direct_and_product_factory_full_values(
                 "expected": case["expected"],
                 "provenance": "NFR-018 (b)② 差分の検出可能性",
             }
-            request = BattedHitRequest.model_validate_json(
-                json.dumps(row["request"])
-            )
+            request = BattedHitRequest.model_validate_json(json.dumps(row["request"]))
             assert (
                 request.model_dump(mode="json", by_alias=True, exclude_unset=True)
                 == row["request"]

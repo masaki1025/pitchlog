@@ -10242,7 +10242,9 @@ def test_registry_static_tuple_fixed_git_proof_is_required(tmp_path, fault):
     if fault == "fixture":
         (root / "tests/fixtures/pr196_tenant_source_expected_v1.json").write_text("{}")
     elif fault == "nonancestor":
-        (root / ".git/HEAD").write_text(checker._PR196_FORMAL_BASE + "\n")
+        (root / ".git/HEAD").write_text(
+            checker._pr196_read_fixed_expectations(REPOSITORY_ROOT)["formal_base_revision"] + "\n"
+        )
     else:
         path = root / "contracts/tenant_boundary/frozen-inputs.json"
         frozen = json.loads(path.read_text())

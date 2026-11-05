@@ -3,7 +3,7 @@ import { computed, onScopeDispose, ref, watch } from 'vue'
 import type {
   BattedHitObservations,
   BattedHitResult,
-} from '../../../contracts/state-transition/lineup_play_prefix_payload_v1'
+} from '../../../contracts/state-transition/lineup_play_prefix_payload_v1.d.ts'
 import {
   readBattedBallOptions,
   type BattedBallOption,

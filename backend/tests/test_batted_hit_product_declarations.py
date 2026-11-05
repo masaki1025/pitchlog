@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 
 import pytest
+from first_ball_expected_source_pins import read_expected_source_pins
 
 from pitchlog.authz.terminal_pitch_product import (
     FUNCTIONS,
@@ -14,6 +15,11 @@ from pitchlog.authz.terminal_pitch_product import (
 )
 from pitchlog.authz.terminal_pitch_write_stamp import candidate_function_bodies
 from pitchlog.repositories.ordinary_prefix import OrdinaryPrefixError
+
+_EXPECTED_BATTED_PINS = read_expected_source_pins(
+    "test_batted_hit_product_declarations.py"
+)
+
 
 # sourceではなく、実装前に非作者が確認した有限宣言/SQLを独立期待として保持する。
 # fmt: off
@@ -345,10 +351,7 @@ def test_batted_hit_declarations_match_preaccepted_nine_elements_exactly():
         identifiers = {r[key] for r in expected}
         assert [r for r in actual[section] if r[key] in identifiers] == expected
         restored[section] = [r for r in restored[section] if r[key] not in identifiers]
-    assert (
-        _hash(restored)
-        == "1ecaad379aa2b844d15659e915ec7da6e9d5651a458e2e9c6121ed0b58bcaaf8"
-    )
+    assert _hash(restored) == _EXPECTED_BATTED_PINS["old_terminal_declarations_sha256"]
     assert len(actual["functions"]) == 8
     assert len(actual["column_acl_expectations"]) == 26
     assert len(actual["policies"]) == 6
@@ -375,7 +378,7 @@ def test_batted_hit_sql_and_existing_activation_are_exact():
         hashlib.sha256(
             candidate_function_bodies()["prepare_play_prefix_projection"].encode()
         ).hexdigest()
-        == "9028e9079a826c8b7445c07611c8941f883580b8b00f8fdb4d0d95707cb09642"
+        == _EXPECTED_BATTED_PINS["adopted_prepare_body_sha256"]
     )
 
 

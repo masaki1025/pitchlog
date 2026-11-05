@@ -220,6 +220,28 @@
       "sources": [
         "tests/test_core_guard.py:_PR196_ACTUAL_BASE"
       ]
+    },
+    "pr196_batted_reference_base_revision": {
+      "value": "112f771e549d6a92d724f62d9b0b45dcc89973c1",
+      "purpose": "PR196安打source差分の正式before原典。旧43pin/全宣言の投影根拠に限り、任意基線へ流用しない。",
+      "sources": [
+        "backend/tests/test_sync_apply_product_supply.py:_batted_source_reference_revisions"
+      ]
+    },
+    "pr196_batted_reference_candidate_revision": {
+      "value": "3633f95d5e62fc922d2f86fb6bc434b6b861e5cd",
+      "purpose": "PR196採用安打source差分の固定after原典。既beforeとの全前後値検証に限り、現木期待を生成しない。",
+      "sources": [
+        "backend/tests/test_sync_apply_product_supply.py:_batted_source_reference_revisions"
+      ]
+    },
+    "pr196_source_expectation_fixture_sha256": {
+      "value": "52d056f109df66c29fea8f32ab900a2830d210efa6ff8985c3d5ca6bd6bedc7b",
+      "purpose": "PR196前置Eの期待fixture全byteのSHA256。実固定Gitblobとの一致を必須とし、現木から期待を生成しない。",
+      "sources": [
+        "scripts/check_tenant_boundary_bypass.py:_pr196_read_fixed_expectations",
+        "tests/test_census_baseline_check.py:test_pr196_census_materializes_fixed_expectation_in_both_proof_contexts"
+      ]
     }
   }
 }

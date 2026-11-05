@@ -15,7 +15,11 @@ _EXPECTED_KEYS = {
         ["type_target_sha256", "type_fields_sha256"]
     ),
     "test_sync_apply_product_supply.py": frozenset(
-        ["other_generated_statements_sha256", "terminal_generated_statements_sha256"]
+        [
+            "other_generated_statements_sha256",
+            "terminal_generated_statements_sha256",
+            "batted_extension_reference_sha256",
+        ]
     ),
     "test_sync_apply_writer_binding.py": frozenset(
         [
@@ -60,6 +64,21 @@ _EXPECTED_KEYS = {
             "bind_device",
             "check_current_right",
             "device_state_read_sha256",
+        ]
+    ),
+    "test_batted_hit_product_declarations.py": frozenset(
+        ["old_terminal_declarations_sha256", "adopted_prepare_body_sha256"]
+    ),
+    "test_batted_hit_storage_boundaries.py": frozenset(
+        [
+            "read_play_prefix_checkpoint",
+            "lock_play_prefix_checkpoint",
+            "read_play_prefix_history_page",
+            "assert_play_prefix_projection",
+            "finish_play_prefix_projection",
+            "guard_play_prefix_runner_insert",
+            "read_lineup_started_origin",
+            "old_v2_prepare_body_sha256",
         ]
     ),
 }
