@@ -1,5 +1,13 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 続き：2026-11-05 16時台（成績実読取3入口成立・安打正式CLI通過）
+
+- **新たな製品経路の実証**: 成績枝0b8435eeee046c21cbdc76d51c2caf22ca688ce0の固定owned PGで、実新POST作成→開始→ordinary3球保存/再送/GET→実login issuer context→真正RRRO Open/Page/Totalsが1pass70.32秒。Pageは26metric×3source=78行をpage_size1＋終端79回、球数累計1/2/3とTotals3、版/revision3/S/保存sourceの対応、scope/receipt/cursor移植・失効・別tenant固定42501拒否を全検査した。新たな成績画面の操作はまだ増えておらず、API保存から製品Python readerの実DB接合の成立に限る。cache mvp-resume-20261104/stats-native-real-read-r2-proof/7証拠SHA。通常current起動/全profile/正式終了・暦年集計/全27/成績HTTP UI/両CSVは別残。
+- **失敗と訂正**: r1(a040a792)は1fail69.41秒、Pageの累計を各source寄与1と試験が混同。既plan§4l57/唯一model/生成SQL windowから1/2/3へ期待を訂正し製品計算は不変更。候補053fbca3…/非作者0c7f13af…、旧32対向保持＋all1拒否で独立33成功1.01秒、初回レビュー見落としも保全した。r2をr1成功へ書換えない。
+- **安打の正式検査**: registry反映1を非作者508ee59a…（独立実copy89成功22.63秒）後71be33eeへ採用し、単一196のR2を4a27af44へ保存。正式tenant CLI r2/session60716 exit0。非作者44bee168…が旧37履歴＋単一196、9IDbase+1据置、新11/除去11のbase323/pin83/ref保護・現340・公式全blob/生成3/corpus一致を確認。現HEADroot関連4module回帰session72039が実行中（再起動せずpoll）。root/BE ty・FE vue-tsc/eslint成功。BE Ruffはtest_sync_apply_product_supply.pyの91字E501だけ未解消。AST同一改行候補を非作者5ce6e99d…で採用可確認しcacheへ保全、回帰中の実sourceは変えない。終了後に整形1→R3単一候補置換→限定再binding/公開証拠/1push/必須CIへ。R2成功を最終CI成立にしない。
+- **並行所有/次**: batted_hits_independentは安打全候補4a27の非作者基礎レビュー、pr192_harness_values_independentはcurrent起動計画を非作者確認。旧validatorは0039までで0041を拒否するため新currentの全9表/旧全期待＋新54列/固定0040partialindexの閉validatorが必要。旧stage_a_startup/legacyを全byte保持し、固定0040/41をowner同TX、0039復帰/0041再開migration0、fixture旧0036seed hookを実呼出しする。既provisioning testのcurrent半分追随1が必要でexact4→5のscopeP1を最小追補する。pr191はreadr2証拠結合後に採用済計画のcurrent起動作者へ移管予定。共有source/正式資産/refs/台帳はroot専有。Goal active、全MVPは未完。
+
+
 ## 続き：2026-11-05（成績の実3球保存・保存直後故障成立）
 
 - **新たに成立した経路**: 成績枝b051defab4c69889cc2695f72a396e111313b614の固定HEADで、実POST新規作成→開始→ordinary-prefix-v1の3球→元要求再送→サーバーGETが1pass66.95秒。event3と成績source3のID一致、current_open(source_count3/revision3)、pitch_count3を実PGで確認した。HEAD/tree/index全3840項目前後一致、7証拠SHAとowned終了を非作者8ba1dd24e939432cba81a4607489a9f2543213ae23bffda2b18ae5acb7270f0cで照合。cache mvp-resume-20261104/stats-native-three-pitch-integration-r5-proof/evidence.json。APIの成績保存接続であり、成績画面/全4profile/終了確定集計/全27項目/正式受理ではない。
