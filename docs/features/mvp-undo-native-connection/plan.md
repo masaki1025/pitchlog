@@ -226,3 +226,49 @@ root9反映1の採用（2026-11-06 JST、PO委任Codex /root）: 非作者37801c
 
 
 共有kernel8＋固定SQL登録10の反映2採用（2026-11-06 JST、PO委任Codex /root）: 作者kernel原5d93c900/反映1f53cbbf6とdispatch24786d98を保持。非作者初回1249f988…のgenuine資格終了順P1（新195/旧766成功でも正常returnが失敗）を隠さず、作者反映2be8bf49f…を非作者5660875889a32ecbeb36015c9c323ad6cd7d16be977543603e69862190da6c49/checks53e314528f2c101d92fcece7fd33441e25066fe747b18bd16d416c80a74a8e2dで採用する。P1全解消/残P0P1P2=0、同genuine5入力は独立旧5失敗→新E1関連27成功、undo専用stackをactiveかつwriter生存内へ移しただけで旧ordinary終了順/旧13test/全apply ASTを許可逆射影以外保持。missingSのtyped503反映1を保持し、一般RuntimeError catchや仮成功を作らない。全18before/after一致、残16byte保持、metadata4↔actualSource17閉mapping/実getter一回/真正rights2/Port tuple/native7A no fakeD2/同TXframe projectionを接合する。元623中622/正式27対runtime33未接合1は原期待のまま残す。正式assets/S/GET/次球保存/実PGは次工程、本受理を全取消やMVP提供済みへ拡張しない。rootがkernel8→dispatch10を各step commitし同版影響検査する。
+
+
+非play後GET→通常1球保存の閉接合scope（2026-11-06 JST、PO委任Codex /root）: pr192作者へcache-only最大36pathを許可する。これは既step2接続の不可分追補で全体計画の再作成ではない。既Source6/TS/唯一artifact4eを変えず、数学のnextPrefixRefはlogical proposal echo、実保存CPは固定physical id/FKを保持し原wireFP確定後server digest/refを発行する既境界を維持する。従って同ID/異IDを理由に数学guardを変更せず、caller提案を資格へ昇格しない。真のsummary tail D2と既allocatorを再利用し、tail D1==D3の旧条件は明示NP profileだけ3head/activeDepth/実D3に分離する。
+
+許可path:
+
+- `backend/src/pitchlog/authz/nonplay_prefix_read_sql.py`
+- `backend/src/pitchlog/repositories/nonplay_prefix_read.py`
+- `backend/src/pitchlog/repositories/nonplay_prefix_read_operations.py`
+- `backend/src/pitchlog/repositories/ordinary_prefix_read.py`
+- `backend/src/pitchlog/repositories/nonplay_prefix.py`
+- `backend/src/pitchlog/repositories/recorded_snapshot.py`
+- `backend/src/pitchlog/sync/terminal_pitch_payload.py`
+- `backend/src/pitchlog/sync/ordinary_pitch_execution.py`
+- `backend/src/pitchlog/sync/terminal_pitch_projection.py`
+- `backend/src/pitchlog/authz/terminal_pitch_write_stamp.py`
+- `backend/src/pitchlog/api/schemas/started_games.py`
+- `backend/src/pitchlog/api/routers/started_games.py`
+- `backend/src/pitchlog/authz/ordinary_pitch_product.py`
+- `backend/src/pitchlog/repositories/function_operations.py`
+- `backend/src/pitchlog/repositories/operation_registry.py`
+- `backend/src/pitchlog/authz/terminal_pitch_product.py`
+- `backend/src/pitchlog/repositories/play_prefix.py`
+- `backend/src/pitchlog/repositories/ordinary_pitch_operations.py`
+- `backend/src/pitchlog/authz/nonplay_prefix_sql.py`
+- `backend/src/pitchlog/sync/stats_native_hook.py`
+- `backend/src/pitchlog/stats/facts.py`
+- `contracts/state-transition/lineup_play_prefix_payload_schema_v1.json`
+- `contracts/state-transition/lineup_play_prefix_payload_v1.d.ts`
+- `backend/tests/test_nonplay_prefix_read.py`
+- `backend/tests/test_nonplay_prefix_read_sql.py`
+- `backend/tests/test_nonplay_normal_payload.py`
+- `backend/tests/test_nonplay_normal_execution.py`
+- `backend/tests/test_nonplay_normal_projection.py`
+- `backend/tests/test_nonplay_started_read.py`
+- `backend/tests/test_ordinary_prefix_read.py`
+- `backend/tests/test_terminal_pitch_write_stamp.py`
+- `backend/tests/test_function_operations_boundary.py`
+- `backend/tests/test_stats_native_function_registration.py`
+- `backend/tests/test_stats_native_connection.py`
+- `backend/tests/stats/test_primitive_facts.py`
+- `backend/tests/test_nonplay_payload_contract.py`
+
+生成backend/src/pitchlog/authz/runtime_contract.pyは作者が手編集せず、関数1/cap1の正確formal proposalをrootへ返し公式helperで生成する。scope内でもordinary_pitch_operations/terminal_pitch_product等が不要なら未変更とする。outer play-prefix-play-v3/既Port/E1/native7Aは保持し、innerにclosed nonplay-prefix-calculation-v1型だけを追加、旧branch/全原値を保持する。canonical payload schema/d.tsも必要な同閉分岐だけ候補として提出し、PydanticとJSONSchemaで同じ原wireを検査、検証のための旧形式書換やsemantic観測補完は禁止。新能力はcredential-free/tenant-scopedのbounded readonly1、CP id/rev/storageepoch/D3/logicalversionを同anchorに最大100+1のactive page/keysetだけ返す。部分pageを完全Sourceと偽称せず、全page同anchorで揃った時だけ完全contextを形成する。秘密/lease/nonce/admission本体は公開DTOへ返さない。writerは実ordinary lock/権利/nonce/同TXで原本を別に全再読取する。
+
+NP normal保存/次undo原本は同じSQL内部のledger/印/slot/physical全参照を要求、旧v3へ偽装せず閉profileを分岐する。実source.currentCP/restored.rules/responsibility/sourcePositionからstats_native_hookとstats.factsの必要aliasだけを機械射影し、別T5集計/責任再判定やnative7A資格緩和を作らない。checkpoint.rulesはdistinct typed CP viewの実restored.rules読み出しpropertyで満たせる場合その方式を優先し、kernel/native7A本体は変更しない。stats/facts.pyは実NP入力の既射影pathが必要な場合だけ、旧全数学・入力/期待byteを保持する。S source26を依存基線へ合成し、同nonplay_prefix_sqlで必要なactive原本frame写像だけを後発差分として直列化する。formal JSON/catalog/manifest/pin/D11/DDL/refs/shared台帳はroot専有、作者PG実行0。DTO/契約は非作者レビュー後rootが採用、無関係なfrontend型追随が必要なら正確箇所をまとめて返し成功扱いしない。新SQL・既SQLbody・manifest必要後値と実接続用ROOT-CALLを一緒に固定する。pure/host/構文成功を実HTTP/PG/画面の成功へ拡張しない。
