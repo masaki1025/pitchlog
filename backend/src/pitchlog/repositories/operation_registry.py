@@ -20,6 +20,7 @@ from pitchlog.repositories.lineup_memory import LINEUP_MEMORY_OPERATIONS
 from pitchlog.repositories.nonplay_function_operations import (
     NONPLAY_FUNCTION_OPERATIONS,
 )
+from pitchlog.repositories.nonplay_prefix_read_operations import NONPLAY_READ_OPERATIONS
 from pitchlog.repositories.operation_registration import OperationRegistration
 from pitchlog.repositories.ordinary_order import ORDINARY_ORDER_OPERATIONS
 from pitchlog.repositories.ordinary_pitch_operations import (
@@ -85,6 +86,7 @@ PRODUCT_OPERATIONS: tuple[OperationRegistration, ...] = (
 
 _STATIC_PRODUCT_FUNCTION_BINDING_IDS = frozenset(
     {
+        "SYNC_ORDINARY_PITCH:read_nonplay_active_history",
         "SYNC_FIRST_BALL:bind_device",
         "SYNC_FIRST_BALL:check_current_right",
         "SYNC_WRITER_BINDING:read_writer_identity",
@@ -244,6 +246,10 @@ PRODUCT_FUNCTION_OPERATIONS: tuple[FunctionOperationRegistration, ...] = (
     ),
     *STATS_NATIVE_FUNCTION_OPERATIONS,
     *NONPLAY_FUNCTION_OPERATIONS,
+    _registered_product_function(
+        NONPLAY_READ_OPERATIONS[0],
+        operation_id="SYNC_ORDINARY_PITCH:read_nonplay_active_history",
+    ),
 )
 FUNCTION_OPERATION_REGISTRY = build_function_registry(
     PRODUCT_FUNCTION_OPERATIONS,

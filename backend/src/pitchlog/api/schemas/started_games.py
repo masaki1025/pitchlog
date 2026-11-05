@@ -29,6 +29,8 @@ from pitchlog.domainrt.lineup_play_prefix_continuation import (
 )
 from pitchlog.domainrt.lineup_play_prefix_continuation import (
     Lineup,
+    NonplayActiveFrame,
+    NonplayCheckpoint,
 )
 from pitchlog.domainrt.lineup_play_prefix_continuation import (
     Participants as LineupParticipants,
@@ -508,12 +510,47 @@ class StartedLineupPrefixGameRead(StartedGameRead):
         return self
 
 
+class NonplayActivePage(BaseSchema):
+    """部分pageを完全Sourceと混同しない。"""
+
+    items: Annotated[list[NonplayActiveFrame], Field(max_length=100)]
+    next_cursor: Annotated[str, Field(max_length=2048)] | None
+
+
+class StartedNonplayPrefixGameRead(StartedGameRead):
+    """正式CP/三headと有限active履歴。秘密の保存資格は返さない。"""
+
+    read_kind: Literal["nonplay-prefix"]
+    profile: Literal["nonplay-prefix-read-v1"]
+    checkpoint: NonplayCheckpoint
+    after: StrikeoutSnapshot
+    next_position: PrefixNextPosition
+    recovery: PositivePrefixInteger = Field(alias=RECOVERY_WIRE_FIELD)
+    page: NonplayActivePage
+    append_policy: OrdinaryAppendPolicy
+    last_saved_at: Timestamp
+
+    @model_validator(mode="after")
+    def _anchor(self):
+        """空activeでも実D3/epochを保持し、別試合やbefore偽装を拒否する。"""
+        c = self.checkpoint.content
+        if (
+            c.scope.game_id != str(self.id)
+            or self.after != c.restored.current
+            or int(self.next_position.d1) != int(c.d3) + 1
+            or len(self.page.items) > int(c.active_depth)
+        ):
+            raise ValueError("非play公開CP/位置が不一致")
+        return self
+
+
 StartedGameReadResponse = Annotated[
     StartedGameRead
     | StartedRecordedGameRead
     | StartedRecordedPrefixGameRead
     | StartedPlayPrefixGameRead
-    | StartedLineupPrefixGameRead,
+    | StartedLineupPrefixGameRead
+    | StartedNonplayPrefixGameRead,
     Field(discriminator="read_kind"),
 ]
 """`read_kind` で判別する記録前後の応答。既存 `initial` の形は変えない。"""

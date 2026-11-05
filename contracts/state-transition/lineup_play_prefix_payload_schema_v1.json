@@ -18,7 +18,14 @@
       "$ref": "#/$defs/PayloadParticipants"
     },
     "calculation": {
-      "$ref": "#/$defs/PayloadCalculation"
+      "oneOf": [
+        {
+          "$ref": "#/$defs/PayloadCalculation"
+        },
+        {
+          "$ref": "#/$defs/NonplayPayloadCalculation"
+        }
+      ]
     }
   },
   "required": [
@@ -2730,6 +2737,67 @@
         "runnerAdvanceOverridesByRunner",
         "thirdOutObservation",
         "thirdOutTimingByRunner"
+      ],
+      "additionalProperties": false
+    },
+    "NonplayPayloadCalculation": {
+      "type": "object",
+      "properties": {
+        "formatVersion": {
+          "const": "nonplay-prefix-calculation-v1"
+        },
+        "artifactSha256": {
+          "$ref": "#/$defs/Digest"
+        },
+        "request": {
+          "allOf": [
+            {
+              "$ref": "lineup_play_prefix_schema_v1.json#/$defs/NonplayRequest"
+            },
+            {
+              "properties": {
+                "t1": {
+                  "properties": {
+                    "resultId": {
+                      "const": "batting-result.ball"
+                    },
+                    "pitchEventKind": {
+                      "const": "pitch-event"
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "response": {
+          "allOf": [
+            {
+              "$ref": "lineup_play_prefix_schema_v1.json#/$defs/NonplaySuccess"
+            },
+            {
+              "properties": {
+                "value": {
+                  "properties": {
+                    "t1": {
+                      "properties": {
+                        "plateAppearanceEnded": {
+                          "const": false
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "required": [
+        "formatVersion",
+        "artifactSha256",
+        "request",
+        "response"
       ],
       "additionalProperties": false
     }

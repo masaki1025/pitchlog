@@ -1236,4 +1236,81 @@ def candidate_function_bodies() -> dict[str, str]:
         n: s.replace("array_agg(k ORDER BY k)", 'array_agg(k ORDER BY k COLLATE "C")')
         for n, s in functions.items()
     }
+    functions["save_primitive_source"] = _nonplay_normal_save_binding(
+        functions["save_primitive_source"]
+    )
     return functions
+
+
+def _nonplay_normal_save_binding(sql):
+    """同Saveの保存profile参照だけを閉分岐する。S/数学/認可本文は共有する。"""
+    is_nonplay = (
+        "variant='play-prefix-play-v3' AND "
+        "event_row.payload#>>'{calculation,formatVersion}'="
+        "'nonplay-prefix-calculation-v1' AND "
+        "event_row.payload#>>'{calculation,request,source,formatVersion}'="
+        "'nonplay-prefix-source-v1' AND "
+        "stamp->'next_checkpoint_content'->>'formatVersion'='nonplay-normal-storage-v1'"
+    )
+    # 初期のvariant検査はstamp読取より前なので、inner/Source型だけで分岐する。
+    profile_condition = (
+        "event_row.payload#>>'{calculation,formatVersion}'="
+        "'nonplay-prefix-calculation-v1' AND "
+        "event_row.payload#>>'{calculation,request,source,formatVersion}'="
+        "'nonplay-prefix-source-v1'"
+    )
+    old = "WHEN 'play-prefix-play-v3' THEN 'play-prefix-calculation-v3' END)"
+    new = (
+        "WHEN 'play-prefix-play-v3' THEN (CASE WHEN "
+        + profile_condition
+        + " THEN 'nonplay-prefix-calculation-v1' ELSE "
+        "'play-prefix-calculation-v3' END) END)"
+    )
+    if sql.count(old) != 1:
+        raise ValueError("native inner formatの既閉参照が変化")
+    sql = sql.replace(old, new, 1)
+    fields = {
+        ("stamp->'next_checkpoint_content'"): (
+            "stamp->'next_checkpoint_content'->'checkpoint'"
+        ),
+        ("stamp->'next_checkpoint_content'->>'content_digest'"): (
+            "stamp->'next_checkpoint_content'->'checkpoint'->'ref'->>'digest'"
+        ),
+        ("(stamp->'next_checkpoint_content'->>'revision')::bigint"): (
+            "(stamp->'next_checkpoint_content'->'checkpoint'->'ref'->>'"
+            "revision')::bigint"
+        ),
+        ("(stamp->'next_checkpoint_content'->>'history_version')::bigint"): (
+            "(stamp->'next_checkpoint_content'->'checkpoint'->'content'"
+            "->>'storageHistoryEpoch')::bigint"
+        ),
+        ("event_row.payload#>>'{calculation,request,source,rulesDigest}'"): (
+            "event_row.payload#>>'{calculation,request,source,checkpoin"
+            "t,content,restored,rulesDigest}'"
+        ),
+    }
+    # exact tokenの長い方から一回置換し、条件自身を再置換しない。
+    clauses = [
+        (
+            "c.content=" + list(fields)[0],
+            "c.content=(CASE WHEN "
+            + is_nonplay
+            + " THEN "
+            + fields[list(fields)[0]]
+            + " ELSE "
+            + list(fields)[0]
+            + " END)",
+        ),
+    ]
+    for old, new in list(fields.items())[1:]:
+        clauses.append(
+            (
+                old,
+                "(CASE WHEN " + is_nonplay + " THEN " + new + " ELSE " + old + " END)",
+            )
+        )
+    for old, new in clauses:
+        if sql.count(old) != 1:
+            raise ValueError("native CP/rulesの既閉参照が変化")
+        sql = sql.replace(old, new, 1)
+    return sql

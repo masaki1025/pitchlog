@@ -713,30 +713,17 @@ def _read_nonplay_first_ball_frame(
     """同scopeで一回貸与された歴史初球だけを真正開始原典から再評価する。"""
     from pitchlog.db.game_state.models import PlayRow
     from pitchlog.db.sync_protocol.models import EventSlot, OperationEvent
-    from pitchlog.domainrt.first_ball_projection import _canonical_json
-    from pitchlog.domainrt.lineup_play_prefix_continuation import (
-        NonplayLineupPrefixRequest,
-        NonplayLineupPrefixSuccess,
-        SourcePosition,
-        decode_nonplay_lineup_prefix_response,
-    )
-    from pitchlog.domainrt.lineup_prefix_source import initial_lineup_source
     from pitchlog.repositories.nonplay_prefix import (
         HistoricalFirstBallEvidence,
         _live,
         _read_historical_first_ball_evidence,
     )
-    from pitchlog.repositories.play_prefix import (
-        _lineup_started_origin,
-        _require_legacy_compatibility,
-    )
     from pitchlog.sync.control_provider.writer_binding_models import (
         FirstBallWriteAdmission,
     )
-    from pitchlog.sync.idempotency import source_fingerprint
     from pitchlog.sync.model import SyncEvent
     from pitchlog.sync.source_binding import _E1CoreSource
-    from pitchlog.sync.undo_payload import _load, _validate_value
+    from pitchlog.sync.undo_payload import _load
 
     if (
         type(handle) is not _TenantTransaction
@@ -848,6 +835,58 @@ def _read_nonplay_first_ball_frame(
         or not 0 <= ev["d2"] < 2**63
     ):
         raise RecordedSnapshotUnavailable
+    return _evaluate_historical_first_ball_frame(
+        handle,
+        ev=ev,
+        admission=admission,
+        play=play,
+        play_raw=play_raw,
+        runners_raw=runners_raw,
+        ledger=ledger,
+        source_event_id=source_event_id,
+        generation=generation,
+        d1=d1,
+        tenant=tenant,
+        game_id=game_id,
+        live=live,
+        run=run,
+    )
+
+
+def _evaluate_historical_first_ball_frame(
+    handle,
+    *,
+    ev,
+    admission,
+    play,
+    play_raw,
+    runners_raw,
+    ledger,
+    source_event_id,
+    generation,
+    d1,
+    tenant,
+    game_id,
+    live,
+    run,
+):
+    """実SQL貸与で照合済みの保存値を同hostへ渡す。独立資格はcallerが検査する。"""
+    from pitchlog.db.game_state.models import PlayRow
+    from pitchlog.domainrt.first_ball_projection import _canonical_json
+    from pitchlog.domainrt.lineup_play_prefix_continuation import (
+        NonplayLineupPrefixRequest,
+        NonplayLineupPrefixSuccess,
+        SourcePosition,
+        decode_nonplay_lineup_prefix_response,
+    )
+    from pitchlog.domainrt.lineup_prefix_source import initial_lineup_source
+    from pitchlog.repositories.play_prefix import (
+        _lineup_started_origin,
+        _require_legacy_compatibility,
+    )
+    from pitchlog.sync.idempotency import source_fingerprint
+    from pitchlog.sync.undo_payload import _validate_value
+
     metadata = dict(
         tenant_id=tenant,
         game_id=game_id,

@@ -1001,6 +1001,17 @@ def _stored_contexts(payload):
     try:
         source = payload["calculation"]["request"]["source"]
         value = payload["calculation"]["response"]["value"]
+        nonplay = (
+            payload["calculation"].get("formatVersion")
+            == "nonplay-prefix-calculation-v1"
+        )
+        if nonplay:
+            if (
+                payload.get("formatVersion") != "play-prefix-play-v3"
+                or source.get("formatVersion") != "nonplay-prefix-source-v1"
+            ):
+                raise NonplaySourceUnavailable("非play保存profileの型が不一致")
+            source = source["checkpoint"]["content"]["restored"]
         before = {
             key: source[key]
             for key in (
@@ -1014,7 +1025,12 @@ def _stored_contexts(payload):
                 "responsibility",
             )
         }
-        before.update(current=source["after"], lastPlayEvaluation=source["t2"])
+        before.update(
+            current=source["current"] if nonplay else source["after"],
+            lastPlayEvaluation=source["lastPlayEvaluation"]
+            if nonplay
+            else source["t2"],
+        )
         after = {key: before[key] for key in ("rules", "rulesDigest", "layoutDigest")}
         after.update(
             {

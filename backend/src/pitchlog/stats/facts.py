@@ -82,7 +82,17 @@ def native_projection(payload, *, source_event_id):
         completeness["pa"] = "complete"
     if variant in ("play-prefix-play-v2", "play-prefix-play-v3"):
         native_source = calc["request"]["source"]
-        responsibility = native_source["responsibility"]
+        if calc["formatVersion"] == "nonplay-prefix-calculation-v1":
+            if (
+                variant != "play-prefix-play-v3"
+                or native_source.get("formatVersion") != "nonplay-prefix-source-v1"
+            ):
+                raise ValueError("NP native sourceの閉profile不一致")
+            responsibility = native_source["checkpoint"]["content"]["restored"][
+                "responsibility"
+            ]
+        else:
+            responsibility = native_source["responsibility"]
         if responsibility["kind"] != "no-change":
             raise ValueError("native継承責任variantは本接合の対象外です")
         if (

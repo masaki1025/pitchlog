@@ -7,6 +7,10 @@ SQL本文はwriter/bridge/資格の各単一定義から取得する。appへpri
 import copy
 import re
 
+from pitchlog.authz.nonplay_prefix_read_sql import IDENTITY_ARGS
+from pitchlog.authz.nonplay_prefix_read_sql import (
+    candidate_read_function_bodies as nonplay_read_bodies,
+)
 from pitchlog.authz.ordinary_order_sql import candidate_order_function_bodies
 from pitchlog.authz.ordinary_pitch_write_stamp import candidate_function_bodies
 from pitchlog.authz.ordinary_prefix_sql import candidate_read_function_bodies
@@ -19,6 +23,7 @@ _TABLES = (
     "ordinary_pitch_history",
 )
 _FUNCTIONS = {
+    "read_nonplay_active_history": (IDENTITY_ARGS, "TABLE(record_json text)"),
     "read_ordinary_order_summary": ("uuid, uuid", "TABLE(record_json text)"),
     "bind_ordinary_device": (
         "uuid, uuid, uuid, bytea, uuid, uuid, bytea",
@@ -158,6 +163,7 @@ def candidate_profile():
         **candidate_function_bodies(),
         **candidate_read_function_bodies(),
         **candidate_order_function_bodies(),
+        **nonplay_read_bodies(),
     }
     if bodies.keys() != _FUNCTIONS.keys():
         raise ValueError("通常投球関数候補の閉集合が不一致")

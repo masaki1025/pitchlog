@@ -322,13 +322,21 @@ before_cp)
 def _active_evidence_query():
     """原本/history/既消費play印を有限id参照で結び、view表を新設しない。"""
     before = "e.payload->'calculation'->'request'->'source'"
+    native_before = f"{before}->'checkpoint'->'content'->'restored'"
+    is_nonplay = (
+        "e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1'"
+    )
+    before = f"(CASE WHEN {is_nonplay} THEN {native_before} ELSE {before} END)"
     value = "e.payload->'calculation'->'response'->'value'"
     context_before = f"""pg_catalog.jsonb_build_object(
- 'current',{before}->'after','rules',{before}->'rules',
+ 'current',CASE WHEN {is_nonplay} THEN {before}->'current'
+ ELSE {before}->'after' END,'rules',{before}->'rules',
  'rulesDigest',{before}->'rulesDigest','layoutDigest',{before}->'layoutDigest',
  'rosterDigest',{before}->'rosterDigest','lineup',{before}->'lineup',
  'participants',{before}->'participants','runners',{before}->'runners',
- 'responsibility',{before}->'responsibility','lastPlayEvaluation',{before}->'t2')"""
+ 'responsibility',{before}->'responsibility','lastPlayEvaluation',
+ CASE WHEN {is_nonplay} THEN {before}->'lastPlayEvaluation'
+ ELSE {before}->'t2' END)"""
     context_after = f"""pg_catalog.jsonb_build_object(
  'current',{value}->'t1'->'after','rules',{before}->'rules',
  'rulesDigest',{before}->'rulesDigest','layoutDigest',{before}->'layoutDigest',

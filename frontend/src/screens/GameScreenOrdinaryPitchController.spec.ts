@@ -1028,3 +1028,72 @@ it.each(['single', 'double', 'triple', 'home-run'] as const)(
     )
   },
 )
+
+it.each(['nonplay-prefix-calculation-v1', 'unknown-inner-v1'])(
+  '%sを旧v3slotへ混入してもpublic inspectは数学/UUID/新要求を発行しない',
+  async (inner) => {
+    const post = vi
+      .spyOn(transport, 'postSyncEvents')
+      .mockResolvedValue({ sent: false, reason: 'no-response' })
+    const original = await lineupController()
+    expect(await original.submit(observation, vocabulary)).toBe('pending')
+    const first = post.mock.calls[0]![0]
+    original.dispose()
+    const database = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open('pitchlog-first-ball-queue-' + tenant)
+      request.onsuccess = () => resolve(request.result)
+      request.onerror = () => reject(request.error)
+    })
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const tx = database.transaction('queue', 'readwrite'),
+          store = tx.objectStore('queue')
+        tx.oncomplete = () => resolve()
+        tx.onabort = () => reject(tx.error)
+        tx.onerror = () => reject(tx.error)
+        const request = store.getAll()
+        request.onsuccess = () => {
+          const records = request.result as unknown[]
+          expect(records).toHaveLength(1)
+          const record = records[0]
+          if (!record || typeof record !== 'object' || !('event' in record))
+            throw new Error('試験slot不正')
+          const event = record.event
+          if (!event || typeof event !== 'object' || !('fields' in event))
+            throw new Error('試験event不正')
+          const fields = event.fields
+          if (!fields || typeof fields !== 'object' || !('V7' in fields))
+            throw new Error('試験fields不正')
+          const payload = fields.V7
+          if (
+            !payload ||
+            typeof payload !== 'object' ||
+            !('calculation' in payload)
+          )
+            throw new Error('試験payload不正')
+          if (!payload.calculation || typeof payload.calculation !== 'object')
+            throw new Error('試験calculation不正')
+          Object.defineProperty(payload.calculation, 'formatVersion', {
+            value: inner,
+            enumerable: true,
+            writable: true,
+          })
+          store.put(record)
+        }
+        request.onerror = () => reject(request.error)
+      })
+    } finally {
+      database.close()
+    }
+    const restarted = await lineupController()
+    const math = vi.spyOn(domainWrapper, 'invokeFirstBallDomain')
+    const uuid = vi.spyOn(crypto, 'randomUUID')
+    expect(await restarted.inspect()).toBe('pending')
+    expect(restarted.canAppend).toBe(false)
+    expect(math).not.toHaveBeenCalled()
+    expect(uuid).not.toHaveBeenCalled()
+    expect(post).toHaveBeenCalledTimes(1)
+    expect(post.mock.calls[0]![0]).toBe(first)
+    expect(await slots()).toBe(1)
+  },
+)

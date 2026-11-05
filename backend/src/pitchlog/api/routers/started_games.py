@@ -14,6 +14,7 @@ from pitchlog.api.schemas.started_games import (
     StartedLineupEntry,
     StartedLineupPrefixGameRead,
     StartedLineups,
+    StartedNonplayPrefixGameRead,
     StartedPlayPrefixGameRead,
     StartedPlayRow,
     StartedRecordedGameRead,
@@ -174,7 +175,14 @@ def read_started_game_detail(
                     projected = dict(prefix.projection)
                     model = StartedRecordedPrefixGameRead
                     kind = "recorded-prefix"
-                    if projection in {"play-prefix-v2", "play-prefix-v3"}:
+                    is_nonplay = projected.get("profile") == "nonplay-prefix-read-v1"
+                    if is_nonplay:
+                        model = StartedNonplayPrefixGameRead
+                        kind = "nonplay-prefix"
+                    if not is_nonplay and projection in {
+                        "play-prefix-v2",
+                        "play-prefix-v3",
+                    }:
                         model = StartedPlayPrefixGameRead
                         kind = "play-prefix"
                         for key, default in {

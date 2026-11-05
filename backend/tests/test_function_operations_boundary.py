@@ -125,6 +125,9 @@ def test_product_function_registry_keeps_rg1_and_adds_one_rule_operation() -> No
         _PrepareNonplayUndoCall,
         _ReadNonplayHistoryPageCall,
     )
+    from pitchlog.repositories.nonplay_prefix_read_operations import (
+        NonplayActiveHistoryReadToken,
+    )
     from pitchlog.repositories.nonplay_qualification import (
         BindNonplayDeviceToken,
         CheckNonplayRightToken,
@@ -202,6 +205,7 @@ def test_product_function_registry_keeps_rg1_and_adds_one_rule_operation() -> No
         "SYNC_NONPLAY:read_nonplay_history_page",
         "SYNC_NONPLAY:prepare_nonplay_undo",
         "SYNC_NONPLAY:consume_nonplay_undo",
+        "SYNC_ORDINARY_PITCH:read_nonplay_active_history",
     )
     assert set(operation_registry.FUNCTION_OPERATION_REGISTRY) == {
         BattedBallOptionsToken,
@@ -238,6 +242,7 @@ def test_product_function_registry_keeps_rg1_and_adds_one_rule_operation() -> No
         _ReadNonplayHistoryPageCall,
         _PrepareNonplayUndoCall,
         _ConsumeNonplayUndoCall,
+        NonplayActiveHistoryReadToken,
     }
     assert operation_registry.PRODUCT_OPERATIONS
 
@@ -2092,7 +2097,7 @@ def test_literal_product_function_bindings_preserve_original_objects() -> None:
         *LINEUP_START_ORIGIN_OPERATIONS,
     )
     registered = operation_registry.PRODUCT_FUNCTION_OPERATIONS[
-        -len(original) - 11 : -11
+        -len(original) - 12 : -12
     ]
     assert len(original) == len(registered) == 12
     assert all(

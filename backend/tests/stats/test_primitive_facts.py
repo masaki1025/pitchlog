@@ -666,3 +666,67 @@ def test_v2_rate_input_state_and_values_are_closed(mutation, v2_python, v2_node)
         v2_python["derive_rates"](metrics)
     with pytest.raises(subprocess.CalledProcessError):
         v2_node([{"kind": "rates", "metrics": metrics}])
+
+
+def test_nonplay_normal_uses_same_projection_and_exact_restored_responsibility():
+    """NPの原責任をaliasし、再計算/別event集合を作らない。"""
+    import importlib.util
+    from pathlib import Path
+    from uuid import UUID
+
+    from pitchlog.stats.facts import evaluate_native_projection, native_projection
+
+    p = Path(__file__).resolve().parents[1] / "test_nonplay_normal_payload.py"
+    spec = importlib.util.spec_from_file_location("np_fact_fixture", p)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    raw, _ = module.fixture_values()
+    q = raw["calculation"]["request"]
+    before = q["source"]["checkpoint"]["content"]["restored"]
+    people = raw["participants"]
+    event = UUID(q["playIdentity"]["eventId"])
+    expected = {
+        "event_kind": "pitch",
+        "source": {"lifecycle": "effective", "source_event_id": str(event)},
+        "before": {"inning": "1", "half": "top"},
+        "stat_flags": raw["calculation"]["response"]["value"]["t1"]["statFlags"],
+        "out_effect": {"effective_count": "0"},
+        "pa": {
+            "ended_here": False,
+            "pa_id": before["responsibility"]["paStartSource"]["id"],
+        },
+        "participants": {
+            "actual_pitcher_id": people["pitcherId"],
+            "actual_batter_id": people["batterId"],
+            "credited_batter_id": people["batterId"],
+            **{
+                key: people["pitcherId"]
+                for key in (
+                    "strikeout_pitcher_id",
+                    "walk_pitcher_id",
+                    "hbp_pitcher_id",
+                    "hit_pitcher_id",
+                    "home_run_pitcher_id",
+                    "outs_pitcher_id",
+                )
+            },
+        },
+        "completeness": {
+            "participants": "complete",
+            "pa": "complete",
+            "outs": "complete",
+            "runs_rbi": "unavailable",
+            "steals": "unavailable",
+        },
+    }
+    assert native_projection(raw, source_event_id=event) == expected
+    result = evaluate_native_projection(raw, source_event_id=event)
+    assert result["metrics"]["pitch_count"]["value"] == "1"
+    assert result["metrics"]["pitching_outs"]["value"] == "0"
+    bad = copy.deepcopy(raw)
+    bad["calculation"]["request"]["source"]["checkpoint"]["content"]["restored"][
+        "responsibility"
+    ]["kind"] = "unknown"
+    with pytest.raises(ValueError):
+        native_projection(bad, source_event_id=event)
