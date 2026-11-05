@@ -1,5 +1,13 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 続き：2026-11-05（CI修復を保存、実語彙HTTP成立と4安打画面へ）
+
+- **#192保存/検査**: f87c9594で旧署名/旧9hash/旧114testを保持するPR192限定core照合を保存。固定7984全426pass347.59秒・非作者6fca99bd…を確認。32e4a9e7で認可2参照digestと合成fixtureの真正Git原典を接合（26pass63.62秒/非作者a20333e0…）。5c74c8cfで旧79row/134caseを保持し新16row/24caseのGAP/正規化参照を追随、592pass45.33秒/非作者3119ef33…。36a18dcaでpin追随時に失われたduplicate-v7-keyの原不正wireだけを正式eb8から復元、codec/期待不変で479pass4.69秒/非作者6b0002a8…。正式R4/新公開証拠/必須CIは未了でマージ不可。2b414db0のplanにより残backend登録追随exact14をpr191_residual_independentへ一本化し、別調査者の固定9b76期待ea51b8ae…を供給。旧637文/既42pin/旧lockpinを保持、新origin1/policy2/column9だけへ閉じる。
+- **新たに通った実経路**: batted語彙の実認証→tenant照合→正式関数→実PG→有界HTTPページはvocab-http-r2で1pass27.75秒。参照130key/limit31の5ページ以上・重複欠落なし、無効/異category除外、未認証401/tenant不一致404/不正cursor422/既global_read_onlyのUPDATE拒否を確認。rootの初版SELECT拒否期待は既正式ACLと不整合だったため、旧ACL/SQL全byte維持を独立照合acccabda…し訂正。カタログの新schema読取漏れはc151c0e9、実HTTP試験は90226c05へ保存。元profile失敗/r1誤期待は保全し成功へ書換えない。GUI/EXPLAIN/運用公開ではない。
+- **故障留保**: vocab-http-r1全体は2failed294秒。旧4安打の二塁打故障after_t2_eventでbinding_closeがLedgerUnavailable。cache診断double1系列は元assertを保持し61.81秒成功・同Ledger例外0で非再現だが、4安打正式成功/原因解消とはしない。root診断helperのsignature取り違えsetup失敗も別保存し、その所有3PG/2authority/ネットワーク/immutable2volumeはcanonical cleanupで全回収。共有資源は触れない。
+- **次/並行所有**: rootは実DB/HTTPS実行と共有正式値/台帳を直列所有。31a1ccab planで新GUI exact3をpr192_harness_values_independentへ実装移管（4別試合を実画面作成開始し各安打→次ball→元要求再送→reload、期待golden・41列/runner照合）。statsは5acb665a planで新canonical SQL/product/test exact3をbatted_prefix_connectionへ移管、既唯一モデル/SQLを参照してSQL4全byte/70col10policy4func84body再現し、正式installer/同frame hookはroot後続。残意味4件・全27成績/両CSV・未実機/復旧・全MVP条件は維持。Goal active。
+
+
 ## 続き：2026-11-05（#192実画面成立・CI修復中、安打画面と実語彙接続を保存）
 
 - **利用者操作/実証**: #192候補9747faaaは診断bootstrapなしの同一実HTTPS/owned PGで、新規画面作成→開始→三振3PA/9球→攻守交代→相手側1球→実ACK喪失→既認証再確認/GET→reload→元body/attempt再送を1pass309.720秒。event/play/slot/ledger各10、二重保存なし、追跡3627pathのSHA/HEAD前後一致。cache mvp-resume-20261104/pr192-ui-final-r12-result.json・log/xml/source-beforeへ保存。期限切れ試験TLS+ignoreHTTPSの隔離技術実証であり、実機/運用HTTPS/全offline受入ではない。旧create503はcold3回と最終GUIで非再現・原因未確定、故障/負荷受入の留保へ残す。
