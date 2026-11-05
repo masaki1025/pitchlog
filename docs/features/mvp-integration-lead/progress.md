@@ -1,5 +1,17 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 再開時の現在地：2026-11-06T06:50:22.002052+09:00（取消Sを実候補へ接続、成績の認可出典派生を閉鎖）
+
+- **前turn分類/正式提供範囲**: 前turnはR1 actual修正＋同版owned保存/read/fault3成功の前進。本turnもsource4dd21ce3・profile020f3417・修復f9a82577/a67cc82b/adcf1250を実commitし前進。正式develop51bcb/#196/4新規試合実画面の提供範囲は不変、未統合の取消/成績を正式提供としない。MVP全体active。
+- **取消canonical S26の実接合**: 作者反映1packet5f5d94d5…を非作者7189121ddbdbc3bd98e2dc3997c7d69530fc1c55096ef7db3420be602016d44b/checksc8da242f…で採用。初回P1 FACTS/OPAQUEとold2fail保持、共有既credit完全性を旧版失効前/新版clone後に照合し、immutable issuer registryでclone/raw改変/anchor替え/used巻戻しを拒否。rootは全26before/afterと全packet証拠SHAを確認し、source23＋公式builder nativeSQL3を4dd21ce3へ配置。旧8/数学/同artifact4e保持、actual5module124成功7.00秒。SQL構文/通常11本文不変をPG実証へ広げない。
+- **profile供給と既追随漏れ解消**: rootがnativeCanonicalSelection1を独立導出し非作者9084ceca…後020f3417へ配置。旧全top/v1-v2/T5 ART/旧生成8は保持。旧9生成入力のうち3現sourceはS26で旧来歴hashと異なることを明記、新nativeoverlayの現入力識別は別D11対象。子processの未供給2失敗は解消した。追加4moduleの残1は旧SQL_PATHS=2漏れだったため受理済a2668780差分を再利用f9a82577、S追加の検査保持で61成功12.04秒。
+- **旧通常経路/残存Port期待**: 9module321成功/1失敗10.14秒。残1は既採用root Port2件を旧完全一致期待が含まない追随漏れで、製品Portを拡大せずa67cc82bのtest2行だけ追加。旧9tuple/未知SafeProjection呼出前拒否/calls0保持、actual125成功3.22秒、非作者30915bcafcf47068f05c8011357714d10127c0c767c28c4791a0d6e2ee58fd36で独立125成功3.34秒・全旧AST保持を確認。formal27/runtime33の別未接合1とは区別する。S採用版の全backend Ruff/Tyも成功。
+- **取消publisherの次の実停止を是正**: fixed descriptorがconsumeの旧TABLE(consumed boolean)のままで、受理済S26実SQL TABLE(receipt_json text)を拒否するValueErrorを実確認。plan a1ea9b79でexact2を限定、adcf1250でdescriptor1値だけ正確追随し旧bool/別名/別型3拒否を追加、全旧6関数/43列/ACL/実SQLは保持。12成功0.74秒＋Ruff/Ty成功、別非作者確認待ち。既formalcomposeへnonplay登録/current0042接合・catalog/7.7/DB2球2取消次球は未実施である。
+- **成績基盤の認可出典/派生**: source2を独立1c7bfe7b…後60d74f47へ採用（全1434 source/187auth判断不変）。派生6初案は入力2hashだけでA5source digest残存を独立eb956e09…がP1拒否した。反映1で既A5原文参照1fieldと公式lockのみ是正、非作者76246aed9f1c08981f32608575d77f753349570344abe431fd3ca76ba80d180f後7c2abc98へ反映。root公式--reseal-derived --skip-oracleはtotal1434/auth187/out1247/db191/routes53/cells12成功、全6後SHAが固定候補に一致。oracle・tenant/repo/corpus・D11・新PR/CIを完了とはしない。
+- **成績release core/CIの反映1**: 初回26packet74fbe7…は非作者0a5d0014…でP1保留。current stepのenvでowner/applicatorを差替えても配線111が通る反例（runtimeのadmin拒否は保持）を発見。反映1packetcc92ae3f…は閉step構造でenv/shell/workdir/if等改変を拒否、D11必要新3pathだけgame-stateへ追加して29、旧26全順序/領域/値と全旧guard AST/拒否を保持。旧counter2不変oldfail→newpass＋CI121/core83を作者確認、現在別非作者再レビュー中。code/test29前置→D11source8別commit→実JSON29後置の順で同commit拒否を維持、actual4/JSONは未反映。
+- **D11とGETの並行owner**: rootplan a649d13a/ba90b3fdでD11別manifest/vector2/property2/runner/puretest/実SQLDBtestのexact8を承認、core作者が別cacheで実装中。実receiver内formatterを同file別symbolの正直な3段として登録できるschema/collector/profiling技術検証により、数学/生成8を変えず実SQL→receiver→formatter全field/credits/独立期待/property/変異を検証する。probe1だけを全D11としない。GET作者はbackend37＋旧controller型guard1＋public拒否test1の最大39をcache実装中、NPを旧v3へ偽装せず旧画面で非成功、Source6/JS/4e不変。新NP記録画面/providerの実接続は次単位で未提供。
+- **直近の次作業**: core/CI29反映1の独立確認→定義code/testだけ前置採用。GET39固定→非作者→S基線差分を直列接合。D11source8固定/非作者/owned SQL実証→正式assets/JSON29/新PR・全CI。取消はpublisher ABIの独立確認、nonplay正式compose・current0042/全canonical/限定新readcapをまとめて接続し、同版owned2球→2取消→次球→GET/reload/再送/越境/故障/S欠損全rollback。全27・両CSV・全試合操作・断中耐久/閲覧/負荷/実機/運用復旧は引続きMVP必須、未完。
+
 ## 再開時の現在地：2026-11-06T06:25:31.785796+09:00（成績基盤を分離し同版実保存・読取・故障成功）
 
 - **正式版の操作**: develop51bcb4e1/#196の4新規試合・無走者4安打→通常球→再送→reloadの前節実画面証拠を維持。統合後CI42103165175もGitHub現状態でcompleted/successを確認。前回の利用者向けstatus回答は既証拠の再確認であり実装前進とは数えず、本節の新commitと同版owned実証を前進として記録する。
