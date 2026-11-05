@@ -1,5 +1,13 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 続き：2026-11-05（成績current起動の実成立・取消spike受領）
+
+- **成績の新たな技術到達点**: 固定e8e991a1でowned S0→0041配置/全catalog/正規再開migration0が1成功8.38秒、残るmigration途中故障rollback/ACL・構造改変拒否/pre-full再開14件が14成功90.50秒。元r1〜r3拒否を保持し、既migration関数/triggerのpre-full厳密接合を非作者a0861e71…後277da7d6へ、事前read接続終結→新IDLE接続の既applyを非作者fb295a1f…後e8e991a1へ採用。既適用器のIDLE/主体/同TX/拒否と旧stageは不変。旧prefix境界20の実検査session62399は継続中、成績画面/全27/両CSV提供の成立とは別。
+- **安打の実故障解消**: e73c7f21 owned migration/schema auditは40成功/1失敗113.12秒。最後の固定C索引表示だけを非作者b767021d…後ab3a0ee6へ追随し、当該audit1を同版で1成功5.98秒（旧成功40は反復せず）確認。新index全18値/旧全audit/未知拒否を保持。typed静的12＋frozen差分3を非作者f19f4e3d…後7d0dfd4cへ採用、scanner/allowlist全byte不変更。現51d self2形式の登録を非作者8765612f…後832e54e2へ採用、旧55/reader不変、旧0755との1878応答/規範84/D01実差witnessをtracked固定。旧→現全互換は主張しない。実terminal2はsession43095で検証中。新7.7R4/公開証拠/CI/mergeは残る。
+- **取消spikeの受領**: PO報告後、WT feature-mvp-undo-connection-spike・HEAD/origin ae3298afa988f7ee6949ba1e7e4687f2182aa223・clean・base112f・35file+3828/-17を実Gitで確認。plan SHAde44dfc0919c6aede24a86158e06d33ce28ad7351be571d91b4b66f873b87f46/findings SHAba3713fed30ea2912468b439705bebf2aef26edbf8a7d93efea8fe9007713d82。contracts/正本/共有台帳の差分なし。作者報告のAPI実PG1成功49.62秒、契約undo10/再送/越境/故障原状は受領証拠でありroot再実測ではない。画面E2E未達/暫定wire/tail-play1件のみ/全pnpm59失敗を保持、正式提供・独立受理としない。
+- **取消の所有/次**: 旧『送付/稼働未確認』は本受領で更新し、rootが統合担当を引き受ける。作者原枝は保存し直接編集しない。非作者batted_hitsがreadonly全diff/coreレビュー中、保存時とGET全値比較の差、複数履歴、画面ACK/D5耐久を具体反例で確認する。次の正式接合候補は#196の51dとspike744を唯一artifactへ合成し、全旧vector/全API互換を公式生成・検査で維持する（別コピー計算/失敗期待の緩和は不可）。正式V7/read checkpoint/history stackは既規範へ照合し、技術選択はPO委任で閉じる。未裁定意味だけを判断票へ集約、初回spike成功を全取消/訂正完成へ拡張しない。
+
+
 ## 続き：2026-11-05（#196の初回CI失敗を分解・成績要件2.19を候補で確定）
 
 - **利用者操作/正式版**: GitHub再照合でdevelop/base112f771e、#196は公開70158b17・Draft/open/未merge。候補4安打の実GUI成功は既3310の証拠を保持し、正式提供や後発HEADでの再実証へ拡張しない。外部取消接続は具体指示を提示した段階で、担当受諾/稼働は未確認。
