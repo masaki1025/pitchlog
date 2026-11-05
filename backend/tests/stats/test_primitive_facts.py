@@ -140,6 +140,32 @@ def _provider_fixture_gate(case):
                 return "SOURCE_MODEL_MISMATCH"
         return None
     events = data["events"]
+    is_v3 = data.get("contract_version") == "primitive-input-v3-candidate"
+    if is_v3:
+        marker = case.get("provider_boundary_fixture", {}).get(
+            "bf_same_frame_qualification"
+        )
+        if marker == "UUID-only-not-issued":
+            return "SOURCE_UNVERIFIED"
+        if marker == "receipt-from-different-frame":
+            return "SOURCE_CHECKPOINT_MISMATCH"
+        if marker == "v2-source-cannot-be-stamped-v3":
+            return "SOURCE_MODEL_MISMATCH"
+        for event in events:
+            evidence = event["pa"]["bf_evidence"]
+            if evidence["kind"] == "no-change":
+                start = evidence["pa_start_source"]
+                if (
+                    start["kind"] == "started-game"
+                    and start["id"] != event["source"]["game_id"]
+                ):
+                    return "PA_SOURCE_MISMATCH"
+            elif evidence["kind"] == "verified-result-owner":
+                if (
+                    evidence["responsibility_ref"]["source_event_id"]
+                    != event["source"]["source_event_id"]
+                ):
+                    return "PA_SOURCE_MISMATCH"
     rows = case.get("provider_boundary_fixture", {}).get("receipt_binding_rows", [])
     if events and not rows:
         return "SOURCE_UNVERIFIED"
@@ -179,7 +205,12 @@ def _provider_fixture_gate(case):
             if e["source"]["source_event_id"] == bound["source_event_id"]
         )
         if any(
-            event[field] != bound[field]
+            (
+                {k: v for k, v in event[field].items() if k != "bf_evidence"}
+                if is_v3 and field == "pa"
+                else event[field]
+            )
+            != bound[field]
             for field in ("before", "after", "pa", "steal_attempts")
         ):
             return "T1_QUANTITY_MISMATCH"
@@ -433,9 +464,7 @@ def test_projection_rejects_unknown_duplicate_or_unbounded_ids(
 @pytest.fixture(scope="module")
 def v2_bundle():
     """現在v2モデルだけを同じcompilerへ渡す。"""
-    return generate_primitive_bundle(
-        _load_model("play-export.model.json"), _load_model("stats.model.json")
-    )
+    return generate_primitive_bundle(*_v2_models())
 
 
 @pytest.fixture(scope="module")
@@ -577,17 +606,38 @@ def test_generated_named_sets_refuse_arbitrary_raw_override(
         v2_node([{"kind": "select", "category": category, "keys": keys}])
 
 
-def test_v2_targets_are_reproducible_without_contract_input(v2_bundle):
-    """新8byteはmodel2件から再現され、旧7の歴史比較と混同しない。"""
-    assert len(v2_bundle) == 8
-    assert (
-        generate_primitive_bundle(
-            _load_model("play-export.model.json"), _load_model("stats.model.json")
+def _v2_models():
+    """真正v2原物2件を同compilerへ供給し現在v3と混同しない。"""
+    import hashlib
+
+    origin = json.loads((FEATURE / "primitive-cases.candidate.json").read_text())[
+        "current_v3_bf_followup"
+    ]["immutable_v2"]
+    result = []
+    for name in ("play-export.model.json", "stats.model.json"):
+        path = "backend/domain/" + name
+        raw = subprocess.check_output(
+            ["git", "-C", str(ROOT), "show", origin["revision"] + ":" + path]
         )
-        == v2_bundle
-    )
+        assert hashlib.sha256(raw).hexdigest() == origin["paths"][path]
+        result.append(json.loads(raw))
+    return tuple(result)
+
+
+def test_v2_targets_are_reproducible_without_contract_input(v2_bundle):
+    """真正v2八対象の全byteを同compiler出力と比較し歴史原値を保つ。"""
+    assert len(v2_bundle) == 8
+    assert generate_primitive_bundle(*_v2_models()) == v2_bundle
+    origin = json.loads((FEATURE / "primitive-cases.candidate.json").read_text())[
+        "current_v3_bf_followup"
+    ]["immutable_v2"]
     for path, content in v2_bundle.items():
-        assert (ROOT / path).read_text() == content
+        assert (
+            subprocess.check_output(
+                ["git", "-C", str(ROOT), "show", origin["revision"] + ":" + path]
+            ).decode()
+            == content
+        )
 
 
 def test_v2_ratio_has_no_float_or_global_digit_limit(
@@ -599,9 +649,7 @@ def test_v2_ratio_has_no_float_or_global_digit_limit(
     before = sys.get_int_max_str_digits()
     known = {
         key: "0"
-        for key in _load_model("play-export.model.json")["calculations"][0][
-            "typedProgram"
-        ]["metrics"]
+        for key in _v2_models()[0]["calculations"][0]["typedProgram"]["metrics"]
         for key in [key["id"]]
     }
     large = "1" + "0" * 5000
@@ -666,3 +714,192 @@ def test_v2_rate_input_state_and_values_are_closed(mutation, v2_python, v2_node)
         v2_python["derive_rates"](metrics)
     with pytest.raises(subprocess.CalledProcessError):
         v2_node([{"kind": "rates", "metrics": metrics}])
+
+
+@pytest.fixture(scope="module")
+def v3_bundle():
+    """現在v3だけから公式八対象を生成する。"""
+    return generate_primitive_bundle(
+        _load_model("play-export.model.json"), _load_model("stats.model.json")
+    )
+
+
+@pytest.fixture(scope="module")
+def v3_python(v3_bundle):
+    """実Python生成targetをwrapperとしてロードする。"""
+    namespace = {"__name__": "__pitchlog_generated_wrapper__"}
+    exec(
+        compile(
+            v3_bundle["backend/src/pitchlog/stats/generated/facts.py"],
+            "<v3-generated>",
+            "exec",
+        ),
+        namespace,
+    )
+    return namespace
+
+
+@pytest.fixture(scope="module")
+def v3_node(v3_bundle, tmp_path_factory):
+    """同じNode driverでv3実targetを実行する。"""
+    return _node_api_from_bundle(v3_bundle, tmp_path_factory)
+
+
+def _v3_cases():
+    """受理済み期待だけを読み、model生成へは渡さない。"""
+    data = json.loads((FEATURE / "primitive-cases.candidate.json").read_text())[
+        "current_v3_bf_followup"
+    ]
+    return [*data["regression_cases"], *data["cases"], *data["rejection_cases"]]
+
+
+@pytest.mark.parametrize("case", _v3_cases(), ids=lambda c: c["case_id"])
+def test_v3_all_full_primitive_pa_credit_and_ops(case, v3_python, v3_node):
+    """旧26/PA/全credit/OPSとBF追加の全148独立期待を同じ比較器で検査する。"""
+    test_current_v2_all_primitive_pa_credit_and_derived_values(case, v3_python, v3_node)
+    if (
+        case["expected"]["status"] != "available"
+        or case["input"]["scope"] == "t6_sufficient_statistics"
+    ):
+        return
+    results = [v3_python["_pitchlog_generated"](e) for e in case["input"]["events"]]
+    expected = case["expected"]["totals"]
+    assert all(set(r["metrics"]) == set(expected) for r in results)
+    for key, wanted in expected.items():
+        missing = [
+            r["metrics"][key]
+            for r in results
+            if r["metrics"][key]["state"] == "source_unavailable"
+        ]
+        if missing:
+            actual = {k: missing[0][k] for k in ("state", "value", "display", "reason")}
+        else:
+            value = "0"
+            for r in results:
+                value = v3_python["add_counts"](value, r["metrics"][key]["value"])
+            actual = {
+                "state": "available",
+                "value": value,
+                "display": value,
+                "reason": None,
+            }
+        assert actual == wanted
+
+
+def _bf_negative_events():
+    """規範no-change/refへ36の独立不正入力を作り期待値を出力採取しない。"""
+    cases = _v3_cases()
+    nochange = next(c for c in cases if c["case_id"] == "current-v3-bf-no-change-walk")[
+        "input"
+    ]["events"][0]
+    verified = next(
+        c for c in cases if c["case_id"] == "current-v3-bf-normative-2-0-walk"
+    )["input"]["events"][0]
+    changes = [
+        ("pa.bf_evidence.kind", "unknown"),
+        ("pa.bf_evidence.kind", True),
+        ("pa.bf_evidence.extra", True),
+        ("pa.bf_evidence", []),
+        ("pa.bf_evidence", False),
+        ("pa.bf_evidence.pa_start_source.extra", True),
+        ("pa.bf_evidence.pa_start_source.kind", "unknown"),
+        *[
+            ("pa.bf_evidence.pa_start_source.id", v)
+            for v in [
+                None,
+                1,
+                "",
+                "0",
+                "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA",
+                nochange["source"]["game_id"] + "\n",
+                nochange["source"]["game_id"] + "\r",
+                nochange["source"]["game_id"] + "\u2028",
+            ]
+        ],
+        ("pa.bf_evidence.pa_start_source.id", "00000000-0000-0000-0000-000000000099"),
+        ("pa.pitcher_changes", [{}]),
+        ("pa.starting_pitcher_id", "00000000-0000-0000-0000-000000000099"),
+    ]
+    refs = [
+        ("responsibility_ref.extra", True),
+        ("responsibility_ref.kind", "unknown"),
+        ("responsibility_ref.kind", False),
+        ("responsibility_ref", []),
+        *[
+            ("responsibility_ref.source_event_id", v)
+            for v in [
+                None,
+                1,
+                "",
+                "00000000-0000-0000-0000-000000000099",
+                verified["source"]["source_event_id"] + "\n",
+            ]
+        ],
+        *[
+            ("responsibility_ref.artifact_sha256", v)
+            for v in [None, 1, "a" * 63, "A" * 64, "a" * 64, "c" * 64 + "\n"]
+        ],
+        ("owner_field", "strikeout_pitcher_id"),
+        ("owner_field", "actual_pitcher_id"),
+        ("owner_id", "00000000-0000-0000-0000-000000000099"),
+    ]
+    result = []
+    for original, rows in (
+        (nochange, changes),
+        (verified, [("pa.bf_evidence." + p, v) for p, v in refs]),
+    ):
+        for path, value in rows:
+            event = copy.deepcopy(original)
+            owner = event
+            keys = path.split(".")
+            for key in keys[:-1]:
+                owner = owner[key]
+            owner[keys[-1]] = value
+            result.append(event)
+    assert len(result) == 36
+    return result
+
+
+@pytest.mark.parametrize("event", _bf_negative_events())
+def test_v3_independent_source_reference_negatives(event, v3_python, v3_node):
+    """未知/余剰/不整合36件を拒否し、JSON値を真正資格へ読み替えない。"""
+    with pytest.raises(ValueError):
+        v3_python["_pitchlog_generated"](event)
+    with pytest.raises(subprocess.CalledProcessError):
+        v3_node([{"kind": "event", "event": event}])
+
+
+def test_v3_27_projection_huge_add_and_reproducible_targets(
+    v3_python, v3_node, v3_bundle
+):
+    """27全射影/5001桁を検査し、生成八対象を正確に再現する。"""
+    import sys
+
+    limit = sys.get_int_max_str_digits()
+    large = "9" * 5001
+    wanted = "1" + "0" * 5001
+    assert v3_python["add_counts"](large, "1") == wanted
+    assert v3_node([{"kind": "add", "left": large, "right": "1"}])[0] == wanted
+    event = next(
+        c for c in _v3_cases() if c["case_id"] == "current-v3-bf-no-change-walk"
+    )["input"]["events"][0]
+    full = v3_python["_pitchlog_generated"](event)
+    assert len(full["metrics"]) == 27
+    assert (
+        v3_python["_pitchlog_generated"](event, list(full["metrics"]))["metrics"]
+        == full["metrics"]
+    )
+    known = {key: large for key in full["metrics"]}
+    assert (
+        v3_python["derive_rates"](known)
+        == v3_node([{"kind": "rates", "metrics": known}])[0]
+    )
+    assert sys.get_int_max_str_digits() == limit
+    assert (
+        generate_primitive_bundle(
+            _load_model("play-export.model.json"), _load_model("stats.model.json")
+        )
+        == v3_bundle
+    )
+    for path, value in v3_bundle.items():
+        assert (ROOT / path).read_text() == value

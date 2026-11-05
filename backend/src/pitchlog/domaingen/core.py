@@ -932,7 +932,7 @@ def _generate_primitive_targets(
             "commonModelHash",
             "refs",
         }
-        if program["version"] == 2:
+        if program["version"] in (2, 3):
             reference_keys.add("derivedRefs")
         if set(reference) != reference_keys:
             raise ValueError("consumerはID/hash/type参照だけが必要")
@@ -950,7 +950,7 @@ def _generate_primitive_targets(
         expected = [{"id": m["id"], "type": "integer"} for m in program["metrics"]]
         if reference["refs"] != expected:
             raise ValueError("primitive ID/型/順序の参照不一致")
-        if program["version"] == 2 and reference["derivedRefs"] != [
+        if program["version"] in (2, 3) and reference["derivedRefs"] != [
             {"id": row["id"], "type": "ratio"} for row in program["derivedMetrics"]
         ]:
             raise ValueError("派生率ID/型/順序の参照不一致")
@@ -962,7 +962,7 @@ def _generate_primitive_targets(
                 ],
                 "backend/src/pitchlog/stats/generated/stats.sql": queries["grouped"],
             }
-            if program["version"] == 2:
+            if program["version"] in (2, 3):
                 sql_bundle["backend/src/pitchlog/stats/generated/stats_rates.sql"] = (
                     queries["rates"]
                 )
@@ -986,7 +986,7 @@ def _generate_primitive_targets(
                 "typescript", source_hash
             ),
         }
-        if program["version"] == 2:
+        if program["version"] in (2, 3):
             raw_bundle["backend/src/pitchlog/stats/generated/stats_rates.sql"] = (
                 queries["rates"]
             )
@@ -1116,3 +1116,156 @@ def rate_metric_dependencies(node: Mapping[str, Any]) -> tuple[str, ...]:
 
     walk(node)
     return tuple(result)
+
+
+def projection_expression(node, language):
+    """有限source投影式を直接コードへ下げ、野球規則をtarget側へ複製しない。"""
+    js = language == "typescript"
+
+    def quote(value):
+        """型付きliteralを対象言語へ安全に符号化する。"""
+        return json.dumps(value, ensure_ascii=False) if js else repr(value)
+
+    op = node["op"]
+
+    def render(part):
+        """同じ閉式を再帰的に出力する。"""
+        return projection_expression(part, language)
+
+    if op == "literal":
+        return quote(node["value"])
+    if op == "ref":
+        return "_projection_ref(event," + quote(node["path"]) + ")"
+    if op in ("eq", "ne"):
+        value = (
+            "_projection_equal("
+            + render(node["left"])
+            + ","
+            + render(node["right"])
+            + ")"
+        )
+        return ("!" if js else "not ") + value if op == "ne" else value
+    if op in ("and", "or"):
+        token = {"and": " && " if js else " and ", "or": " || " if js else " or "}[op]
+        return "(" + token.join(render(part) for part in node["args"]) + ")"
+    if op == "choose":
+        a, b, c = render(node["when"]), render(node["then"]), render(node["otherwise"])
+        return f"({a} ? {b} : {c})" if js else f"({b} if {a} else {c})"
+    raise ValueError("未知のsource投影式")
+
+
+def generate_source_projections(program, language):
+    """型検査済み順序規則から同じ寄与判定をPython/TSへ出力する。"""
+    js = language == "typescript"
+    if "sourceProjections" not in program:
+        return ""
+    lines = []
+
+    def quote(value):
+        """型付きliteralを対象言語へ安全に符号化する。"""
+        return json.dumps(value, ensure_ascii=False) if js else repr(value)
+
+    for name, plan in program["sourceProjections"].items():
+        metric = next(m for m in program["metrics"] if m["id"] == name)
+        quantity = typed_expression(metric["quantity"], language, program["fields"])
+        amount = ("formatCount(" if js else "format_count(") + quantity + ")"
+        lines.append(
+            f"function _project_{name}(event: unknown): Metric {{"
+            if js
+            else f"def _project_{name}(event):"
+        )
+        refs = set()
+
+        def collect(node):
+            """式内のfield参照だけを集め、同D1既型へ束縛する。"""
+            if type(node) is dict:
+                if node.get("op") == "ref":
+                    refs.add(node["path"])
+                for part in node.values():
+                    collect(part)
+            elif type(node) is list:
+                for part in node:
+                    collect(part)
+
+        collect(plan["rules"])
+        for path in sorted(refs & set(program["fields"])):
+            field = program["fields"][path]
+            value = "_projection_ref(event," + quote(path) + ")"
+            arguments = [
+                field["type"],
+                field["nullable"],
+                str(field["minimum"]) if "minimum" in field else None,
+                str(field["maximum"]) if "maximum" in field else None,
+                field.get("enum"),
+            ]
+            call = "_check(" + value + "," + ",".join(quote(a) for a in arguments) + ")"
+            lines.append(
+                f"  if ({value} !== null) {call};"
+                if js
+                else f"    if {value} is not None:\n        {call}"
+            )
+        for check in plan["checks"]:
+            value = "_projection_ref(event," + quote(check["path"]) + ")"
+            shape = "_projection_shape(" + value + "," + quote(check["schema"]) + ")"
+            condition = (
+                f"{value} !== null && !{shape}"
+                if js
+                else f"{value} is not None and not {shape}"
+            )
+            lines.append(
+                f"  if ({condition}) throw new Error('閉source shape違反');"
+                if js
+                else (
+                    f"    if {condition}:\n"
+                    "        raise ValueError('閉source shape違反')"
+                )
+            )
+        for rule in plan["rules"]:
+            condition = projection_expression(rule["when"], language)
+            action = rule["action"]
+            value = (
+                projection_expression(rule["value"], language)
+                if "value" in rule
+                else ""
+            )
+            if action == "zero":
+                statement = "return _zero()"
+            elif action == "missing":
+                statement = (
+                    f"return _missing({value} as MissingReason)"
+                    if js
+                    else f"return _missing({value})"
+                )
+            elif action == "reject":
+                statement = (
+                    "throw new Error('source参照不整合')"
+                    if js
+                    else "raise ValueError('source参照不整合')"
+                )
+            else:
+                statement = (
+                    (
+                        f"return {{state:'available',value:{amount},display:{amount},"
+                        "reason:null,"
+                        f"credits:[{{player_id:{value} as string,"
+                        f"quantity:{amount}!}}]}}"
+                    )
+                    if js
+                    else (
+                        f"return {{'state':'available','value':{amount},"
+                        f"'display':{amount},"
+                        "'reason':None,"
+                        f"'credits':[{{'player_id':{value},'quantity':{amount}}}]}}"
+                    )
+                )
+            lines.append(
+                f"  if ({condition}) {statement};"
+                if js
+                else f"    if {condition}:\n        {statement}"
+            )
+        lines.append(
+            "  throw new Error('source投影未終結');\n}"
+            if js
+            else "    raise ValueError('source投影未終結')"
+        )
+    return "\n".join(lines) + "\n"

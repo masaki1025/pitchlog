@@ -161,7 +161,7 @@ def _pitchlog_generated(event, requested_metrics=None):
         [
             f"    known_metrics = {names!r}",
             "    if requested_metrics is not None:",
-            "        if type(requested_metrics) not in (list, tuple) or len(requested_metrics)>26:",  # noqa: E501 — 生成targetのliteral
+            f"        if type(requested_metrics) not in (list, tuple) or len(requested_metrics)>{len(names)}:",  # noqa: E501 — 生成targetのliteral
             "            raise ValueError('primitive射影の有限型違い')",
             "        if any(type(x) is not str or x not in known_metrics for x in requested_metrics):",  # noqa: E501 — 生成targetのliteral
             "            raise ValueError('未知primitive射影')",
@@ -217,6 +217,13 @@ def _pitchlog_generated(event, requested_metrics=None):
     for metric in program["metrics"]:
         metric_start = len(lines)
         mid, relation = metric["id"], metric["relation"]
+        if "projection" in metric:
+            lines.append(
+                "        if requested_metrics is None or "
+                f"{mid!r} in requested_metrics:\n"
+                f"            metrics[{mid!r}] = _project_{mid}(event)"
+            )
+            continue
         items = (
             program["collections"][relation]["fields"]
             if relation in program["collections"]
@@ -293,11 +300,19 @@ def _pitchlog_generated(event, requested_metrics=None):
         lines.append(f"        pa_row[{key!r}] = metrics[{mid!r}]['value']")
         lines.append(f"        pa_row[{key + '_state'!r}] = metrics[{mid!r}]['state']")
     lines.append(
-        f"    return {{'metrics': metrics, 'pa_row': pa_row, 'source_event_id': _p(event, 'source.source_event_id'), 'selected': selected, {('decisions' if program['version'] == 2 else 'pending')!r}: {program['decisions' if program['version'] == 2 else 'pendingDecisions']!r}}}"  # noqa: E501 — 生成targetのliteral
+        f"    return {{'metrics': metrics, 'pa_row': pa_row, 'source_event_id': _p(event, 'source.source_event_id'), 'selected': selected, {('decisions' if program['version'] in (2, 3) else 'pending')!r}: {program['decisions' if program['version'] in (2, 3) else 'pendingDecisions']!r}}}"  # noqa: E501 — 生成targetのliteral
     )
-    if program["version"] == 2:
+    if program["version"] == 3:
+        from pitchlog.domaingen.core import generate_source_projections
+
+        lines.append(_source_projection_runtime())
+        lines.append(generate_source_projections(program, "python"))
+    if program["version"] in (2, 3):
         lines.append(generate_derived_facts(program, source_hash))
-    return "\n".join(lines) + "\n"
+    result = "\n".join(lines) + "\n"
+    if program["version"] == 3:
+        result = result.replace("閉26項目", f"閉{len(program['metrics'])}項目")
+    return result
 
 
 def generate_typed_receiver(program, source_hash: str) -> str:
@@ -493,3 +508,39 @@ def receive_rate_row(row, *, maximum_integer_chars):
     return format_derived_rate(row["rate_id"], (value_n, value_d), components)
 """
     )
+
+
+def _source_projection_runtime():
+    """D1のsource shapeを読む対象言語の汎用型検証だけを生成する。"""
+    return r"""
+def _projection_ref(event, path):
+    for key in path.split('.'):
+        if event is None:
+            return None
+        if type(event) is not dict:
+            raise ValueError('source投影の親型違い')
+        event = event.get(key)
+    return event
+
+
+def _projection_equal(left, right):
+    return type(left) is type(right) and left == right
+
+
+def _projection_shape(value, schema):
+    import re
+    if 'oneOf' in schema:
+        return sum(_projection_shape(value, part) for part in schema['oneOf']) == 1
+    if 'const' in schema:
+        return _projection_equal(value, schema['const'])
+    if 'enum' in schema:
+        return any(_projection_equal(value, part) for part in schema['enum'])
+    if schema['type'] == 'object':
+        return (type(value) is dict and len(value) == len(schema['required'])
+                and all(key in value for key in schema['required'])
+                and all(_projection_shape(value[key], part)
+                        for key, part in schema['properties'].items()))
+    if schema['type'] == 'string':
+        return type(value) is str and re.search(schema['pattern'], value) is not None
+    raise ValueError('未知のsource shape')
+"""

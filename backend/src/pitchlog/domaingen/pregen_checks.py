@@ -673,11 +673,13 @@ def validate_typed_program(program: Mapping[str, Any]) -> None:
     }
     if version == 1:
         required |= {"pendingDecisions"}
-    elif version == 2:
+    elif version in (2, 3):
         required |= {"decisions", "namedScopes", "derivedMetrics"}
+    if version == 3:
+        required.add("sourceProjections")
     if (
         type(version) is not int
-        or version not in (1, 2)
+        or version not in (1, 2, 3)
         or set(program) != required
         or program.get("kind") != "event-facts"
     ):
@@ -835,14 +837,30 @@ def validate_typed_program(program: Mapping[str, Any]) -> None:
     if infer(program["selection"], {}) != "boolean":
         raise ValueError("選択条件はbooleanが必要")
     for metric in metrics:
-        if not isinstance(metric, dict) or set(metric) != {
+        metric_keys = {
             "id",
             "relation",
             "guard",
             "available",
             "quantity",
             "credit",
-        }:
+        }
+        if (
+            version == 3
+            and isinstance(metric, dict)
+            and metric.get("id") == "batters_faced"
+        ):
+            if (
+                set(metric) != {"id", "relation", "quantity", "projection"}
+                or metric["projection"] != "batters_faced"
+                or metric["relation"] != "source_projection"
+                or "batters_faced" in identifiers
+                or infer(metric["quantity"], {}) != "integer"
+            ):
+                raise ValueError("source projection metricの閉型違い")
+            identifiers.add("batters_faced")
+            continue
+        if not isinstance(metric, dict) or set(metric) != metric_keys:
             raise ValueError("primitiveの閉キーが不正")
         name = metric["id"]
         if not isinstance(name, str) or not re.fullmatch(r"[a-z][a-z0-9_]*", name):
@@ -869,6 +887,8 @@ def validate_typed_program(program: Mapping[str, Any]) -> None:
         "operator": "add",
     }:
         raise ValueError("共通reducerは整数addだけ")
+    if version == 3:
+        validate_source_projections(program)
     validate_derived_program(program)
     projection = program["paProjection"]
     if not isinstance(projection, dict) or set(projection) != {
@@ -937,7 +957,7 @@ def validate_derived_program(program: Mapping[str, Any]) -> None:
     """v2の有限selector/ratio式/表示と採用状態を生成前に閉照合する。"""
     import re
 
-    if program["version"] != 2:
+    if program["version"] not in (2, 3):
         return
     groups = {
         "official": ["game_official", "game_semi_official"],
@@ -958,9 +978,11 @@ def validate_derived_program(program: Mapping[str, Any]) -> None:
             "decision_id": key,
             "decision_state": "adopted",
             "choice": "A",
-            "implementation_state": "pending" if key in ("D03", "D04") else "available",
+            "implementation_state": "pending"
+            if key == "D03" or (key == "D04" and program["version"] == 2)
+            else "available",
         }
-        if key in ("D03", "D04"):
+        if key == "D03" or (key == "D04" and program["version"] == 2):
             expected[key].update({"source_state": "not_evaluated", "value": None})
     if program["decisions"] != expected:
         raise ValueError("採用状態と実装/source待ちの区別が不一致")
@@ -1063,3 +1085,150 @@ def validate_derived_program(program: Mapping[str, Any]) -> None:
                 )
             ):
                 raise ValueError("分母表示の閉型が不正")
+
+
+def validate_source_projections(program):
+    """新source投影のshape・式・終結を有限型だけで検査する。"""
+    projections = program["sourceProjections"]
+    if type(projections) is not dict or set(projections) != {"batters_faced"}:
+        raise ValueError("source投影の閉集合が不正")
+    if [m["id"] for m in program["metrics"]][-1:] != ["batters_faced"] or len(
+        program["metrics"]
+    ) != 27:
+        raise ValueError("BFは旧26に続く27番目が必要")
+
+    def shape(node):
+        if type(node) is not dict:
+            raise ValueError("閉shapeが必要")
+        if (
+            set(node) == {"oneOf"}
+            and type(node["oneOf"]) is list
+            and 1 <= len(node["oneOf"]) <= 4
+        ):
+            for child in node["oneOf"]:
+                shape(child)
+        elif set(node) == {"const"} and type(node["const"]) is str:
+            return
+        elif (
+            set(node) == {"enum"}
+            and type(node["enum"]) is list
+            and 1 <= len(node["enum"]) <= 8
+            and all(type(x) is str for x in node["enum"])
+        ):
+            return
+        elif node.get("type") == "string" and set(node) == {"type", "pattern"}:
+            if node["pattern"] not in {
+                r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\s\S])",
+                r"^[0-9a-f]{64}(?![\s\S])",
+            }:
+                raise ValueError("source shapeの未知文法")
+        elif (
+            node.get("type") == "object"
+            and set(node) == {"type", "additionalProperties", "required", "properties"}
+            and node["additionalProperties"] is False
+            and type(node["properties"]) is dict
+            and type(node["required"]) is list
+            and len(node["required"]) == len(set(node["required"]))
+            and set(node["required"]) == set(node["properties"])
+            and 1 <= len(node["properties"]) <= 8
+        ):
+            for child in node["properties"].values():
+                shape(child)
+        else:
+            raise ValueError("未知/余剰source shape")
+
+    allowed = set(program["fields"]) | {
+        "pa.bf_evidence",
+        "pa.bf_evidence.kind",
+        "pa.bf_evidence.reason",
+        "pa.bf_evidence.pa_start_source.kind",
+        "pa.bf_evidence.pa_start_source.id",
+        "pa.bf_evidence.owner_field",
+        "pa.bf_evidence.responsibility_ref.source_event_id",
+        "pa.bf_evidence.responsibility_ref.artifact_sha256",
+        "pa.starting_pitcher_id",
+        "pa.pitcher_changes",
+        "source.game_id",
+        "source.versions.t1_artifact_sha256",
+    }
+
+    types = {key: value["type"] for key, value in program["fields"].items()}
+    types.update({key: "string" for key in allowed - set(types)})
+    types["pa.bf_evidence"] = "object"
+    types["pa.pitcher_changes"] = "array"
+
+    def expression(node):
+        """source式も真偽・文字列・欠測・配列を混同させない。"""
+        if type(node) is not dict:
+            raise ValueError("閉source式が必要")
+        op = node.get("op")
+        if op == "literal" and set(node) == {"op", "value"}:
+            value = node["value"]
+            if value is None:
+                return "null"
+            if type(value) is bool:
+                return "boolean"
+            if type(value) is str:
+                return "string"
+            if type(value) is list and value == []:
+                return "array"
+        if op == "ref" and set(node) == {"op", "path"} and node["path"] in allowed:
+            return types[node["path"]]
+        if op in ("eq", "ne") and set(node) == {"op", "left", "right"}:
+            left, right = expression(node["left"]), expression(node["right"])
+            if left != right and "null" not in (left, right):
+                raise ValueError("source比較の型違い")
+            return "boolean"
+        if (
+            op in ("and", "or")
+            and set(node) == {"op", "args"}
+            and type(node["args"]) is list
+            and 1 <= len(node["args"]) <= 8
+        ):
+            if any(expression(child) != "boolean" for child in node["args"]):
+                raise ValueError("source論理式はbooleanだけ")
+            return "boolean"
+        if op == "choose" and set(node) == {"op", "when", "then", "otherwise"}:
+            if expression(node["when"]) != "boolean":
+                raise ValueError("source分岐条件はbooleanだけ")
+            yes, no = expression(node["then"]), expression(node["otherwise"])
+            if yes != no:
+                raise ValueError("source分岐結果の型違い")
+            return yes
+        raise ValueError("未知/余剰source式")
+
+    for plan in projections.values():
+        if (
+            type(plan) is not dict
+            or set(plan) != {"checks", "rules"}
+            or type(plan["checks"]) is not list
+            or len(plan["checks"]) != 1
+            or type(plan["rules"]) is not list
+            or not 1 <= len(plan["rules"]) <= 32
+        ):
+            raise ValueError("source投影planの閉型違い")
+        for check in plan["checks"]:
+            if (
+                set(check) != {"path", "schema", "optional"}
+                or check["path"] != "pa.bf_evidence"
+                or check["optional"] is not True
+            ):
+                raise ValueError("source shape参照不正")
+            shape(check["schema"])
+        for rule in plan["rules"]:
+            action = rule.get("action")
+            if action not in ("zero", "missing", "reject", "credit") or set(rule) != (
+                {"when", "action", "value"}
+                if action in ("missing", "credit")
+                else {"when", "action"}
+            ):
+                raise ValueError("source投影action不正")
+            if expression(rule["when"]) != "boolean":
+                raise ValueError("source規則条件はbooleanだけ")
+            if "value" in rule and expression(rule["value"]) != "string":
+                raise ValueError("source理由/責任は文字列だけ")
+        if (
+            plan["rules"][-1].get("when") != {"op": "literal", "value": True}
+            or plan["rules"][-1]["action"] != "credit"
+        ):
+            raise ValueError("source投影は有限終結が必要")

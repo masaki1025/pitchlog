@@ -69,7 +69,7 @@ def generate_typed_queries(program, source_hash: str) -> dict[str, str]:
     binding = program["sql"]
     category_filter = "AND g.game_type_key=ANY(:raw_game_type_keys)"
     category_guard = "true"
-    if program["version"] == 2:
+    if program["version"] in (2, 3):
         branches = " ".join(
             "WHEN '"
             + name
@@ -168,7 +168,7 @@ def generate_typed_queries(program, source_hash: str) -> dict[str, str]:
                 "AND g.scheduled_at<:year_end_jst " + category_filter  # noqa: E501 — 生成targetのliteral
             )
         )
-        if program["version"] == 2 and "g.id=:game_id" in scope:
+        if program["version"] in (2, 3) and "g.id=:game_id" in scope:
             game_scope += " AND g.id=:game_id"
         return f"""WITH requested_metrics(metric_id) AS (VALUES {values}),
 {canonical_selection(game_scope)}, version_scope AS (
@@ -235,7 +235,7 @@ def generate_typed_queries(program, source_hash: str) -> dict[str, str]:
         """同じsource集合の欠測・空0とSUMを生成する。"""
         guard = unhealthy + (
             " OR NOT COALESCE(" + category_guard + ",false)"
-            if named and program["version"] == 2
+            if named and program["version"] in (2, 3)
             else ""
         )
         return (
@@ -317,7 +317,7 @@ JOIN canonical_health ch ON ch.tenant_id=v.tenant_id AND ch.game_id=v.game_id;
         + "LEFT JOIN canonical_health ch ON true;\n",
     }
 
-    if program["version"] == 2:
+    if program["version"] in (2, 3):
         queries["rates"] = generate_derived_queries(
             program,
             source_hash,

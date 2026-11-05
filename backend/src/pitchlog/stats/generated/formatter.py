@@ -1,4 +1,4 @@
-# generated=sha256:60ab45878fdfc868efc15ddb0f9b84d6ab0f3583519c48a2202e3d9c3abac59d
+# generated=sha256:7f0282944e6ce61d171caa428b4240a9429b0ac30d0e9f55dea828cec6a76524
 """自動生成された整数表示・型検証。"""
 
 import re

@@ -3,7 +3,7 @@
 import re
 
 SOURCE_MODEL_HASH = (
-    "sha256:60ab45878fdfc868efc15ddb0f9b84d6ab0f3583519c48a2202e3d9c3abac59d"
+    "sha256:7f0282944e6ce61d171caa428b4240a9429b0ac30d0e9f55dea828cec6a76524"
 )
 if __name__ != "__pitchlog_generated_wrapper__":
     raise ImportError("生成targetは登録wrapper経由だけです")
@@ -157,9 +157,10 @@ def _pitchlog_generated(event, requested_metrics=None):
         "home_runs_allowed",
         "fielding_errors",
         "runs_allowed",
+        "batters_faced",
     ]
     if requested_metrics is not None:
-        if type(requested_metrics) not in (list, tuple) or len(requested_metrics) > 26:
+        if type(requested_metrics) not in (list, tuple) or len(requested_metrics) > 27:
             raise ValueError("primitive射影の有限型違い")
         if any(
             (type(x) is not str or x not in known_metrics for x in requested_metrics)
@@ -405,6 +406,7 @@ def _pitchlog_generated(event, requested_metrics=None):
             "home_runs_allowed",
             "fielding_errors",
             "runs_allowed",
+            "batters_faced",
         ]
         if requested_metrics is None or name in requested_metrics
     }
@@ -2103,6 +2105,8 @@ def _pitchlog_generated(event, requested_metrics=None):
                 if requested_metrics is None:
                     raise
                 metrics["runs_allowed"] = _missing()
+        if requested_metrics is None or "batters_faced" in requested_metrics:
+            metrics["batters_faced"] = _project_batters_faced(event)
     pa_row = None
     if (
         requested_metrics is None
@@ -2186,9 +2190,7 @@ def _pitchlog_generated(event, requested_metrics=None):
                 "decision_id": "D04",
                 "decision_state": "adopted",
                 "choice": "A",
-                "implementation_state": "pending",
-                "source_state": "not_evaluated",
-                "value": None,
+                "implementation_state": "available",
             },
             "D05": {
                 "decision_id": "D05",
@@ -2200,10 +2202,301 @@ def _pitchlog_generated(event, requested_metrics=None):
     }
 
 
+def _projection_ref(event, path):
+    """生成された型検証・有限寄与処理。"""
+    for key in path.split("."):
+        if event is None:
+            return None
+        if type(event) is not dict:
+            raise ValueError("source投影の親型違い")
+        event = event.get(key)
+    return event
+
+
+def _projection_equal(left, right):
+    """生成された型検証・有限寄与処理。"""
+    return type(left) is type(right) and left == right
+
+
+def _projection_shape(value, schema):
+    """生成された型検証・有限寄与処理。"""
+    import re
+
+    if "oneOf" in schema:
+        return sum((_projection_shape(value, part) for part in schema["oneOf"])) == 1
+    if "const" in schema:
+        return _projection_equal(value, schema["const"])
+    if "enum" in schema:
+        return any((_projection_equal(value, part) for part in schema["enum"]))
+    if schema["type"] == "object":
+        return (
+            type(value) is dict
+            and len(value) == len(schema["required"])
+            and all((key in value for key in schema["required"]))
+            and all(
+                (
+                    _projection_shape(value[key], part)
+                    for key, part in schema["properties"].items()
+                )
+            )
+        )
+    if schema["type"] == "string":
+        return type(value) is str and re.search(schema["pattern"], value) is not None
+    raise ValueError("未知のsource shape")
+
+
+def _project_batters_faced(event):
+    """生成された型検証・有限寄与処理。"""
+    if _projection_ref(event, "completeness.pa") is not None:
+        _check(
+            _projection_ref(event, "completeness.pa"),
+            "string",
+            False,
+            None,
+            None,
+            ["complete", "unavailable"],
+        )
+    if _projection_ref(event, "completeness.participants") is not None:
+        _check(
+            _projection_ref(event, "completeness.participants"),
+            "string",
+            False,
+            None,
+            None,
+            ["complete", "unavailable"],
+        )
+    if _projection_ref(event, "pa.ended_here") is not None:
+        _check(
+            _projection_ref(event, "pa.ended_here"), "boolean", False, None, None, None
+        )
+    if _projection_ref(event, "pa.reached_by") is not None:
+        _check(
+            _projection_ref(event, "pa.reached_by"), "string", False, None, None, None
+        )
+    if _projection_ref(event, "participants.actual_pitcher_id") is not None:
+        _check(
+            _projection_ref(event, "participants.actual_pitcher_id"),
+            "string",
+            False,
+            None,
+            None,
+            None,
+        )
+    if _projection_ref(event, "participants.walk_pitcher_id") is not None:
+        _check(
+            _projection_ref(event, "participants.walk_pitcher_id"),
+            "string",
+            True,
+            None,
+            None,
+            None,
+        )
+    if _projection_ref(event, "source.source_event_id") is not None:
+        _check(
+            _projection_ref(event, "source.source_event_id"),
+            "string",
+            False,
+            None,
+            None,
+            None,
+        )
+    if _projection_ref(event, "pa.bf_evidence") is not None and (
+        not _projection_shape(
+            _projection_ref(event, "pa.bf_evidence"),
+            {
+                "oneOf": [
+                    {
+                        "type": "object",
+                        "additionalProperties": False,
+                        "required": ["kind", "pa_start_source"],
+                        "properties": {
+                            "kind": {"const": "no-change"},
+                            "pa_start_source": {
+                                "type": "object",
+                                "additionalProperties": False,
+                                "required": ["kind", "id"],
+                                "properties": {
+                                    "kind": {
+                                        "enum": ["started-game", "confirmed-play"]
+                                    },
+                                    "id": {
+                                        "type": "string",
+                                        "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])",
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    {
+                        "type": "object",
+                        "additionalProperties": False,
+                        "required": ["kind", "owner_field", "responsibility_ref"],
+                        "properties": {
+                            "kind": {"const": "verified-result-owner"},
+                            "owner_field": {
+                                "enum": ["actual_pitcher_id", "walk_pitcher_id"]
+                            },
+                            "responsibility_ref": {
+                                "type": "object",
+                                "additionalProperties": False,
+                                "required": [
+                                    "kind",
+                                    "source_event_id",
+                                    "artifact_sha256",
+                                ],
+                                "properties": {
+                                    "kind": {"const": "t1-responsibility"},
+                                    "source_event_id": {
+                                        "type": "string",
+                                        "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])",
+                                    },
+                                    "artifact_sha256": {
+                                        "type": "string",
+                                        "pattern": "^[0-9a-f]{64}(?![\\s\\S])",
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    {
+                        "type": "object",
+                        "additionalProperties": False,
+                        "required": ["kind", "reason"],
+                        "properties": {
+                            "kind": {"const": "unavailable"},
+                            "reason": {
+                                "enum": [
+                                    "MISSING_OBSERVATION",
+                                    "MISSING_ATTRIBUTION",
+                                    "UNSUPPORTED_SOURCE_VARIANT",
+                                ]
+                            },
+                        },
+                    },
+                ]
+            },
+        )
+    ):
+        raise ValueError("閉source shape違反")
+    if not _projection_equal(_projection_ref(event, "completeness.pa"), "complete"):
+        return _missing(
+            _projection_ref(event, "pa.bf_evidence.reason")
+            if _projection_equal(
+                _projection_ref(event, "pa.bf_evidence.kind"), "unavailable"
+            )
+            else "MISSING_OBSERVATION"
+        )
+    if not _projection_equal(
+        _projection_ref(event, "completeness.participants"), "complete"
+    ):
+        return _missing(
+            _projection_ref(event, "pa.bf_evidence.reason")
+            if _projection_equal(
+                _projection_ref(event, "pa.bf_evidence.kind"), "unavailable"
+            )
+            else "MISSING_OBSERVATION"
+        )
+    if _projection_equal(_projection_ref(event, "pa.ended_here"), False):
+        return _zero()
+    if not _projection_equal(_projection_ref(event, "pa.ended_here"), True):
+        return _missing("MISSING_OBSERVATION")
+    if _projection_equal(_projection_ref(event, "pa.bf_evidence"), None):
+        return _missing("MISSING_OBSERVATION")
+    if _projection_equal(_projection_ref(event, "pa.bf_evidence.kind"), "unavailable"):
+        return _missing(_projection_ref(event, "pa.bf_evidence.reason"))
+    if _projection_equal(
+        _projection_ref(event, "pa.bf_evidence.kind"), "no-change"
+    ) and (not _projection_equal(_projection_ref(event, "pa.pitcher_changes"), [])):
+        raise ValueError("source参照不整合")
+    if _projection_equal(
+        _projection_ref(event, "pa.bf_evidence.kind"), "no-change"
+    ) and _projection_equal(_projection_ref(event, "pa.starting_pitcher_id"), None):
+        return _missing("MISSING_OBSERVATION")
+    if _projection_equal(
+        _projection_ref(event, "pa.bf_evidence.kind"), "no-change"
+    ) and (
+        not _projection_equal(
+            _projection_ref(event, "pa.starting_pitcher_id"),
+            _projection_ref(event, "participants.actual_pitcher_id"),
+        )
+    ):
+        raise ValueError("source参照不整合")
+    if (
+        _projection_equal(_projection_ref(event, "pa.bf_evidence.kind"), "no-change")
+        and _projection_equal(
+            _projection_ref(event, "pa.bf_evidence.pa_start_source.kind"),
+            "started-game",
+        )
+        and (
+            not _projection_equal(
+                _projection_ref(event, "pa.bf_evidence.pa_start_source.id"),
+                _projection_ref(event, "source.game_id"),
+            )
+        )
+    ):
+        raise ValueError("source参照不整合")
+    if _projection_equal(
+        _projection_ref(event, "pa.bf_evidence.kind"), "verified-result-owner"
+    ) and (
+        not _projection_equal(
+            _projection_ref(event, "pa.bf_evidence.owner_field"),
+            "walk_pitcher_id"
+            if _projection_equal(_projection_ref(event, "pa.reached_by"), "walk")
+            else "actual_pitcher_id",
+        )
+        or not _projection_equal(
+            _projection_ref(event, "pa.bf_evidence.responsibility_ref.source_event_id"),
+            _projection_ref(event, "source.source_event_id"),
+        )
+        or (
+            not _projection_equal(
+                _projection_ref(
+                    event, "pa.bf_evidence.responsibility_ref.artifact_sha256"
+                ),
+                _projection_ref(event, "source.versions.t1_artifact_sha256"),
+            )
+        )
+    ):
+        raise ValueError("source参照不整合")
+    if _projection_equal(
+        _projection_ref(event, "participants.actual_pitcher_id")
+        if _projection_equal(_projection_ref(event, "pa.bf_evidence.kind"), "no-change")
+        else _projection_ref(event, "participants.walk_pitcher_id")
+        if _projection_equal(_projection_ref(event, "pa.reached_by"), "walk")
+        else _projection_ref(event, "participants.actual_pitcher_id"),
+        None,
+    ):
+        return _missing("MISSING_ATTRIBUTION")
+    if True:
+        return {
+            "state": "available",
+            "value": format_count(1),
+            "display": format_count(1),
+            "reason": None,
+            "credits": [
+                {
+                    "player_id": _projection_ref(
+                        event, "participants.actual_pitcher_id"
+                    )
+                    if _projection_equal(
+                        _projection_ref(event, "pa.bf_evidence.kind"), "no-change"
+                    )
+                    else _projection_ref(event, "participants.walk_pitcher_id")
+                    if _projection_equal(
+                        _projection_ref(event, "pa.reached_by"), "walk"
+                    )
+                    else _projection_ref(event, "participants.actual_pitcher_id"),
+                    "quantity": format_count(1),
+                }
+            ],
+        }
+    raise ValueError("source投影未終結")
+
+
 def _rate_inputs(metrics, names):
     """生成された型検証・有限寄与処理。"""
     if type(metrics) is not dict or set(metrics) != set(names):
-        raise ValueError("派生率の十分統計は閉26項目が必要です")
+        raise ValueError("派生率の十分統計は閉27項目が必要です")
     values = {}
     for key in names:
         row = metrics[key]
@@ -2387,9 +2680,7 @@ def decision_metadata():
             "decision_id": "D04",
             "decision_state": "adopted",
             "choice": "A",
-            "implementation_state": "pending",
-            "source_state": "not_evaluated",
-            "value": None,
+            "implementation_state": "available",
         },
         "D05": {
             "decision_id": "D05",
@@ -2431,6 +2722,7 @@ def derive_rates(metrics):
             "home_runs_allowed",
             "fielding_errors",
             "runs_allowed",
+            "batters_faced",
         ),
     )
     results = {}

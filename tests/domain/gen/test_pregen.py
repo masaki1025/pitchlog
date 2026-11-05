@@ -417,3 +417,42 @@ def test_v2_ratio_and_named_declarations_are_closed(mutation):
         row["expression"]["unknown"] = True
     with pytest.raises(ValueError):
         PREGEN.validate_typed_program(program)
+
+
+@pytest.mark.parametrize('mutation', [
+    'unknown-projection', 'extra-plan', 'extra-rule', 'unknown-action',
+    'unknown-expression', 'unknown-ref', 'wrong-condition-type', 'wrong-owner-type',
+    'unknown-shape', 'extra-metric', 'wrong-relation', 'missing-terminal',
+])
+def test_v3_bf_source_projection_is_closed_and_typed(mutation):
+    """source投影の自由式/型違い/余剰/未知を生成前に閉拒否する。"""
+    program = copy.deepcopy(_read_json(ROOT / 'backend/domain/play-export.model.json')
+                            ['calculations'][0]['typedProgram'])
+    plan = program['sourceProjections']['batters_faced']
+    rule = plan['rules'][0]
+    if mutation == 'unknown-projection':
+        program['sourceProjections']['unknown'] = copy.deepcopy(plan)
+    elif mutation == 'extra-plan':
+        plan['extra'] = True
+    elif mutation == 'extra-rule':
+        rule['extra'] = True
+    elif mutation == 'unknown-action':
+        rule['action'] = 'success'
+    elif mutation == 'unknown-expression':
+        rule['when'] = {'op': 'eval', 'source': 'true'}
+    elif mutation == 'unknown-ref':
+        rule['when'] = {'op': 'ref', 'path': 'unknown'}
+    elif mutation == 'wrong-condition-type':
+        rule['when'] = {'op': 'literal', 'value': 'false'}
+    elif mutation == 'wrong-owner-type':
+        plan['rules'][-1]['value'] = {'op': 'literal', 'value': False}
+    elif mutation == 'unknown-shape':
+        plan['checks'][0]['schema'] = {'type': 'number'}
+    elif mutation == 'extra-metric':
+        program['metrics'][-1]['extra'] = True
+    elif mutation == 'wrong-relation':
+        program['metrics'][-1]['relation'] = 'event'
+    else:
+        plan['rules'].pop()
+    with pytest.raises(ValueError):
+        PREGEN.validate_typed_program(program)

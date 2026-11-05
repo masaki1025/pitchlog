@@ -568,3 +568,17 @@ def test_derived_reference_cannot_be_integer_or_unknown():
         other["calculations"][0]["typedProgram"]["derivedRefs"] = [changed]
         with pytest.raises(CORE.GenerationError):
             CORE.generate_primitive_bundle(common, other)
+
+
+def test_bf_projection_uses_d1_guards_and_responsibility_without_count_formula():
+    """BFの分岐はD1式から直接下げ、T1責任countの再計算や期待表を含めない。"""
+    program=json.loads((ROOT/'backend/domain/play-export.model.json').read_text())[
+        'calculations'][0]['typedProgram']
+    for language in ('python','typescript'):
+        source=CORE.generate_source_projections(program,language)
+        assert 'walk_pitcher_id' in source and 'actual_pitcher_id' in source
+        assert all(name not in source for name in ('before.balls','before.strikes',
+                                                   'case_id','expected','pitcher_changes.'))
+        assert '_project_batters_faced' in source
+        assert 'source.source_event_id' in source
+        assert 'source.versions.t1_artifact_sha256' in source

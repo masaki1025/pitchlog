@@ -1,12 +1,12 @@
 /** 自動生成。単一遷移だけを計算し、認可/全game集計を行わない。 */
 export const SOURCE_MODEL_HASH =
-  'sha256:60ab45878fdfc868efc15ddb0f9b84d6ab0f3583519c48a2202e3d9c3abac59d'
+  'sha256:7f0282944e6ce61d171caa428b4240a9429b0ac30d0e9f55dea828cec6a76524'
 if (
   (globalThis as { __PITCHLOG_GENERATED_WRAPPER__?: boolean })
     .__PITCHLOG_GENERATED_WRAPPER__ !== true
 )
   throw new Error('登録wrapperが必要です')
-// generated=sha256:60ab45878fdfc868efc15ddb0f9b84d6ab0f3583519c48a2202e3d9c3abac59d
+// generated=sha256:7f0282944e6ce61d171caa428b4240a9429b0ac30d0e9f55dea828cec6a76524
 export function parseCount(value: unknown): bigint {
   if (typeof value === 'bigint' && value >= 0n) return value
   if (typeof value === 'number' && Number.isSafeInteger(value) && value >= 0)
@@ -115,9 +115,9 @@ function _zero(): Metric {
     credits: [],
   }
 }
-function _missing(
-  reason: 'MISSING_OBSERVATION' | 'MISSING_ATTRIBUTION' = 'MISSING_OBSERVATION',
-): Metric {
+type MissingReason =
+  'MISSING_OBSERVATION' | 'MISSING_ATTRIBUTION' | 'UNSUPPORTED_SOURCE_VARIANT'
+function _missing(reason: MissingReason = 'MISSING_OBSERVATION'): Metric {
   return {
     state: 'source_unavailable',
     value: null,
@@ -160,11 +160,12 @@ export function eventFacts(
     'home_runs_allowed',
     'fielding_errors',
     'runs_allowed',
+    'batters_faced',
   ]
   if (
     requestedMetrics !== undefined &&
     (!Array.isArray(requestedMetrics) ||
-      requestedMetrics.length > 26 ||
+      requestedMetrics.length > 27 ||
       requestedMetrics.some(
         (x) => typeof x !== 'string' || !knownMetrics.includes(x),
       ) ||
@@ -457,6 +458,7 @@ export function eventFacts(
     'home_runs_allowed',
     'fielding_errors',
     'runs_allowed',
+    'batters_faced',
   ])
     if (requestedMetrics === undefined || requestedMetrics.includes(name))
       metrics[name] = _zero()
@@ -2512,6 +2514,11 @@ export function eventFacts(
         throw error
       metrics['runs_allowed'] = _missing()
     }
+    if (
+      requestedMetrics === undefined ||
+      requestedMetrics.includes('batters_faced')
+    )
+      metrics['batters_faced'] = _project_batters_faced(event)
   }
   let paRow: Record<string, unknown> | null = null
   if (
@@ -2625,9 +2632,7 @@ export function eventFacts(
         decision_id: 'D04',
         decision_state: 'adopted',
         choice: 'A',
-        implementation_state: 'pending',
-        source_state: 'not_evaluated',
-        value: null,
+        implementation_state: 'available',
       },
       D05: {
         decision_id: 'D05',
@@ -2638,6 +2643,345 @@ export function eventFacts(
     } as const,
   }
 }
+
+function _projection_ref(event: unknown, path: string): unknown {
+  for (const key of path.split('.')) {
+    if (event === null || event === undefined) return null
+    if (typeof event !== 'object' || Array.isArray(event))
+      throw new Error('source投影親型')
+    if (!Object.hasOwn(event, key)) return null
+    event = (event as Record<string, unknown>)[key]
+  }
+  return event === undefined ? null : event
+}
+function _projection_equal(left: unknown, right: unknown): boolean {
+  if (Array.isArray(left) && Array.isArray(right))
+    return (
+      left.length === right.length &&
+      left.every((x, i) => _projection_equal(x, right[i]))
+    )
+  return left === right
+}
+type ProjectionShape = {
+  oneOf?: ProjectionShape[]
+  const?: unknown
+  enum?: unknown[]
+  type?: string
+  required?: string[]
+  properties?: Record<string, ProjectionShape>
+  pattern?: string
+  additionalProperties?: false
+}
+function _projection_shape(value: unknown, schema: ProjectionShape): boolean {
+  if (schema.oneOf)
+    return schema.oneOf.filter((x) => _projection_shape(value, x)).length === 1
+  if (Object.hasOwn(schema, 'const'))
+    return _projection_equal(value, schema.const)
+  if (schema.enum) return schema.enum.some((x) => _projection_equal(value, x))
+  if (schema.type === 'object') {
+    if (value === null || typeof value !== 'object' || Array.isArray(value))
+      return false
+    const record = value as Record<string, unknown>
+    let seen = 0
+    for (const key in record) {
+      if (!Object.hasOwn(record, key)) continue
+      if (++seen > schema.required!.length || !schema.required!.includes(key))
+        return false
+    }
+    return (
+      seen === schema.required!.length &&
+      schema.required!.every((x) => Object.hasOwn(record, x)) &&
+      Object.entries(schema.properties!).every(([k, v]) =>
+        _projection_shape(record[k], v),
+      )
+    )
+  }
+  if (schema.type === 'string')
+    return typeof value === 'string' && new RegExp(schema.pattern!).test(value)
+  throw new Error('未知のsource shape')
+}
+
+function _project_batters_faced(event: unknown): Metric {
+  if (_projection_ref(event, 'completeness.pa') !== null)
+    _check(
+      _projection_ref(event, 'completeness.pa'),
+      'string',
+      false,
+      null,
+      null,
+      ['complete', 'unavailable'],
+    )
+  if (_projection_ref(event, 'completeness.participants') !== null)
+    _check(
+      _projection_ref(event, 'completeness.participants'),
+      'string',
+      false,
+      null,
+      null,
+      ['complete', 'unavailable'],
+    )
+  if (_projection_ref(event, 'pa.ended_here') !== null)
+    _check(
+      _projection_ref(event, 'pa.ended_here'),
+      'boolean',
+      false,
+      null,
+      null,
+      null,
+    )
+  if (_projection_ref(event, 'pa.reached_by') !== null)
+    _check(
+      _projection_ref(event, 'pa.reached_by'),
+      'string',
+      false,
+      null,
+      null,
+      null,
+    )
+  if (_projection_ref(event, 'participants.actual_pitcher_id') !== null)
+    _check(
+      _projection_ref(event, 'participants.actual_pitcher_id'),
+      'string',
+      false,
+      null,
+      null,
+      null,
+    )
+  if (_projection_ref(event, 'participants.walk_pitcher_id') !== null)
+    _check(
+      _projection_ref(event, 'participants.walk_pitcher_id'),
+      'string',
+      true,
+      null,
+      null,
+      null,
+    )
+  if (_projection_ref(event, 'source.source_event_id') !== null)
+    _check(
+      _projection_ref(event, 'source.source_event_id'),
+      'string',
+      false,
+      null,
+      null,
+      null,
+    )
+  if (
+    _projection_ref(event, 'pa.bf_evidence') !== null &&
+    !_projection_shape(_projection_ref(event, 'pa.bf_evidence'), {
+      oneOf: [
+        {
+          type: 'object',
+          additionalProperties: false,
+          required: ['kind', 'pa_start_source'],
+          properties: {
+            kind: { const: 'no-change' },
+            pa_start_source: {
+              type: 'object',
+              additionalProperties: false,
+              required: ['kind', 'id'],
+              properties: {
+                kind: { enum: ['started-game', 'confirmed-play'] },
+                id: {
+                  type: 'string',
+                  pattern:
+                    '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])',
+                },
+              },
+            },
+          },
+        },
+        {
+          type: 'object',
+          additionalProperties: false,
+          required: ['kind', 'owner_field', 'responsibility_ref'],
+          properties: {
+            kind: { const: 'verified-result-owner' },
+            owner_field: { enum: ['actual_pitcher_id', 'walk_pitcher_id'] },
+            responsibility_ref: {
+              type: 'object',
+              additionalProperties: false,
+              required: ['kind', 'source_event_id', 'artifact_sha256'],
+              properties: {
+                kind: { const: 't1-responsibility' },
+                source_event_id: {
+                  type: 'string',
+                  pattern:
+                    '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])',
+                },
+                artifact_sha256: {
+                  type: 'string',
+                  pattern: '^[0-9a-f]{64}(?![\\s\\S])',
+                },
+              },
+            },
+          },
+        },
+        {
+          type: 'object',
+          additionalProperties: false,
+          required: ['kind', 'reason'],
+          properties: {
+            kind: { const: 'unavailable' },
+            reason: {
+              enum: [
+                'MISSING_OBSERVATION',
+                'MISSING_ATTRIBUTION',
+                'UNSUPPORTED_SOURCE_VARIANT',
+              ],
+            },
+          },
+        },
+      ],
+    })
+  )
+    throw new Error('閉source shape違反')
+  if (!_projection_equal(_projection_ref(event, 'completeness.pa'), 'complete'))
+    return _missing(
+      (_projection_equal(
+        _projection_ref(event, 'pa.bf_evidence.kind'),
+        'unavailable',
+      )
+        ? _projection_ref(event, 'pa.bf_evidence.reason')
+        : 'MISSING_OBSERVATION') as MissingReason,
+    )
+  if (
+    !_projection_equal(
+      _projection_ref(event, 'completeness.participants'),
+      'complete',
+    )
+  )
+    return _missing(
+      (_projection_equal(
+        _projection_ref(event, 'pa.bf_evidence.kind'),
+        'unavailable',
+      )
+        ? _projection_ref(event, 'pa.bf_evidence.reason')
+        : 'MISSING_OBSERVATION') as MissingReason,
+    )
+  if (_projection_equal(_projection_ref(event, 'pa.ended_here'), false))
+    return _zero()
+  if (!_projection_equal(_projection_ref(event, 'pa.ended_here'), true))
+    return _missing('MISSING_OBSERVATION' as MissingReason)
+  if (_projection_equal(_projection_ref(event, 'pa.bf_evidence'), null))
+    return _missing('MISSING_OBSERVATION' as MissingReason)
+  if (
+    _projection_equal(
+      _projection_ref(event, 'pa.bf_evidence.kind'),
+      'unavailable',
+    )
+  )
+    return _missing(
+      _projection_ref(event, 'pa.bf_evidence.reason') as MissingReason,
+    )
+  if (
+    _projection_equal(
+      _projection_ref(event, 'pa.bf_evidence.kind'),
+      'no-change',
+    ) &&
+    !_projection_equal(_projection_ref(event, 'pa.pitcher_changes'), [])
+  )
+    throw new Error('source参照不整合')
+  if (
+    _projection_equal(
+      _projection_ref(event, 'pa.bf_evidence.kind'),
+      'no-change',
+    ) &&
+    _projection_equal(_projection_ref(event, 'pa.starting_pitcher_id'), null)
+  )
+    return _missing('MISSING_OBSERVATION' as MissingReason)
+  if (
+    _projection_equal(
+      _projection_ref(event, 'pa.bf_evidence.kind'),
+      'no-change',
+    ) &&
+    !_projection_equal(
+      _projection_ref(event, 'pa.starting_pitcher_id'),
+      _projection_ref(event, 'participants.actual_pitcher_id'),
+    )
+  )
+    throw new Error('source参照不整合')
+  if (
+    _projection_equal(
+      _projection_ref(event, 'pa.bf_evidence.kind'),
+      'no-change',
+    ) &&
+    _projection_equal(
+      _projection_ref(event, 'pa.bf_evidence.pa_start_source.kind'),
+      'started-game',
+    ) &&
+    !_projection_equal(
+      _projection_ref(event, 'pa.bf_evidence.pa_start_source.id'),
+      _projection_ref(event, 'source.game_id'),
+    )
+  )
+    throw new Error('source参照不整合')
+  if (
+    _projection_equal(
+      _projection_ref(event, 'pa.bf_evidence.kind'),
+      'verified-result-owner',
+    ) &&
+    (!_projection_equal(
+      _projection_ref(event, 'pa.bf_evidence.owner_field'),
+      _projection_equal(_projection_ref(event, 'pa.reached_by'), 'walk')
+        ? 'walk_pitcher_id'
+        : 'actual_pitcher_id',
+    ) ||
+      !_projection_equal(
+        _projection_ref(
+          event,
+          'pa.bf_evidence.responsibility_ref.source_event_id',
+        ),
+        _projection_ref(event, 'source.source_event_id'),
+      ) ||
+      !_projection_equal(
+        _projection_ref(
+          event,
+          'pa.bf_evidence.responsibility_ref.artifact_sha256',
+        ),
+        _projection_ref(event, 'source.versions.t1_artifact_sha256'),
+      ))
+  )
+    throw new Error('source参照不整合')
+  if (
+    _projection_equal(
+      _projection_equal(
+        _projection_ref(event, 'pa.bf_evidence.kind'),
+        'no-change',
+      )
+        ? _projection_ref(event, 'participants.actual_pitcher_id')
+        : _projection_equal(_projection_ref(event, 'pa.reached_by'), 'walk')
+          ? _projection_ref(event, 'participants.walk_pitcher_id')
+          : _projection_ref(event, 'participants.actual_pitcher_id'),
+      null,
+    )
+  )
+    return _missing('MISSING_ATTRIBUTION' as MissingReason)
+  if (true)
+    return {
+      state: 'available',
+      value: formatCount(1n),
+      display: formatCount(1n),
+      reason: null,
+      credits: [
+        {
+          player_id: (_projection_equal(
+            _projection_ref(event, 'pa.bf_evidence.kind'),
+            'no-change',
+          )
+            ? _projection_ref(event, 'participants.actual_pitcher_id')
+            : _projection_equal(_projection_ref(event, 'pa.reached_by'), 'walk')
+              ? _projection_ref(event, 'participants.walk_pitcher_id')
+              : _projection_ref(
+                  event,
+                  'participants.actual_pitcher_id',
+                )) as string,
+          quantity: formatCount(1n)!,
+        },
+      ],
+    }
+  throw new Error('source投影未終結')
+}
+
 type RateMetric =
   | string
   | null
@@ -2666,7 +3010,7 @@ function _rateInputs(
     Object.keys(source).length !== names.length ||
     Object.keys(source).some((k) => !names.includes(k))
   )
-    throw new Error('派生率の十分統計は閉26項目が必要です')
+    throw new Error('派生率の十分統計は閉27項目が必要です')
   const values: Record<string, bigint | null> = {}
   for (const key of names) {
     let row = source[key]
@@ -2886,9 +3230,7 @@ export function decisionMetadata() {
       decision_id: 'D04',
       decision_state: 'adopted',
       choice: 'A',
-      implementation_state: 'pending',
-      source_state: 'not_evaluated',
-      value: null,
+      implementation_state: 'available',
     },
     D05: {
       decision_id: 'D05',
@@ -2926,6 +3268,7 @@ export function deriveRates(metrics: Record<string, RateMetric>) {
     'home_runs_allowed',
     'fielding_errors',
     'runs_allowed',
+    'batters_faced',
   ])
   const results: Record<string, ReturnType<typeof _rateResult>> = {}
   const parts0: Record<string, RatioPair> = {

@@ -95,7 +95,7 @@ def test_real_generated_sql_has_same_native_membership_count_and_window(
         health = _execute(conn, queries["canonical_health"], params)
         assert health == [(1, 3, 0, digest)]
         count = _execute(conn, queries["count"], params)
-        assert len(count) == 1 and count[0][4:6] == (3, 78)
+        assert len(count) == 1 and count[0][4:6] == (3, 81)
         assert count[0][8:] == (3, 3, 0, digest)
         totals = {
             r[0]: r[1:] for r in _execute(conn, queries["current_totals"], params)

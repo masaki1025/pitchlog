@@ -525,3 +525,14 @@ def test_v2_ratio_helpers_use_integer_only_single_final_round():
         "slg": {"numerator": "1", "denominator": "3"},
     }
     assert "Decimal" not in source and "float(" not in source
+
+
+def test_bf_quantity_uses_existing_arbitrary_precision_integer_codec():
+    """27番目も既任意精度整数型を使い4300桁の全局制約を変えない。"""
+    import sys
+    namespace={}
+    exec(compile(FORMATTER.integer_target('python','test'),'<bf-integer>','exec'),namespace)
+    limit=sys.get_int_max_str_digits()
+    value='1'+'0'*5000
+    assert namespace['format_count'](namespace['parse_count'](value))==value
+    assert sys.get_int_max_str_digits()==limit

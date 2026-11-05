@@ -129,7 +129,7 @@ export function eventFacts(event: unknown, requestedMetrics?: readonly string[])
     lines.extend(
         [
             f"  const knownMetrics={quoted(names)};",
-            "  if (requestedMetrics !== undefined && (!Array.isArray(requestedMetrics) || requestedMetrics.length>26 || requestedMetrics.some(x=>typeof x!=='string' || !knownMetrics.includes(x)) || new Set(requestedMetrics).size!==requestedMetrics.length)) throw new Error('primitive射影の有限型違い');",  # noqa: E501 — 生成targetのliteral
+            f"  if (requestedMetrics !== undefined && (!Array.isArray(requestedMetrics) || requestedMetrics.length>{len(names)} || requestedMetrics.some(x=>typeof x!=='string' || !knownMetrics.includes(x)) || new Set(requestedMetrics).size!==requestedMetrics.length)) throw new Error('primitive射影の有限型違い');",  # noqa: E501 — 生成targetのliteral
         ]
     )
     for record in program["closedRecords"]:
@@ -192,6 +192,13 @@ export function eventFacts(event: unknown, requestedMetrics?: readonly string[])
     for metric in program["metrics"]:
         metric_start = len(lines)
         mid, relation = metric["id"], metric["relation"]
+        if "projection" in metric:
+            lines.append(
+                f"    if (requestedMetrics===undefined || "
+                f"requestedMetrics.includes({quoted(mid)})) "
+                f"metrics[{quoted(mid)}]=_project_{mid}(event);"
+            )
+            continue
         items = (
             program["collections"][relation]["fields"]
             if relation in program["collections"]
@@ -274,13 +281,27 @@ export function eventFacts(event: unknown, requestedMetrics?: readonly string[])
     lines.extend(
         [
             "  }",
-            f"  return {{metrics,pa_row:paRow,source_event_id:_p(event,'source.source_event_id'),selected,{('decisions' if program['version'] == 2 else 'pending')}:{quoted(program['decisions' if program['version'] == 2 else 'pendingDecisions'])} as const}};",  # noqa: E501 — 生成targetのliteral
+            f"  return {{metrics,pa_row:paRow,source_event_id:_p(event,'source.source_event_id'),selected,{('decisions' if program['version'] in (2, 3) else 'pending')}:{quoted(program['decisions' if program['version'] in (2, 3) else 'pendingDecisions'])} as const}};",  # noqa: E501 — 生成targetのliteral
             "}",
         ]
     )
-    if program["version"] == 2:
+    if program["version"] == 3:
+        from pitchlog.domaingen.core import generate_source_projections
+
+        lines.append(_source_projection_runtime())
+        lines.append(generate_source_projections(program, "typescript"))
+    if program["version"] in (2, 3):
         lines.append(generate_derived_facts(program, source_hash))
-    return "\n".join(lines) + "\n"
+    result = "\n".join(lines) + "\n"
+    if program["version"] == 3:
+        result = result.replace("閉26項目", f"閉{len(program['metrics'])}項目")
+        result = result.replace(
+            'function _missing(reason: "MISSING_OBSERVATION" | "MISSING_ATTRIBUTION"=',
+            'type MissingReason = "MISSING_OBSERVATION" | "MISSING_ATTRIBUTION"'
+            ' | "UNSUPPORTED_SOURCE_VARIANT";\n'
+            "function _missing(reason: MissingReason=",
+        )
+    return result
 
 
 def generate_derived_facts(program, source_hash: str) -> str:
@@ -345,3 +366,52 @@ def generate_ratio_formatter(program, source_hash: str) -> str:
         + json.dumps(displays, ensure_ascii=False)
         + ";\nexport function formatDerivedRate(rateId:string,value:RatioPair,components:Record<string,RatioPair>){\n if(!Object.hasOwn(RATE_DISPLAYS,rateId))throw new Error('未知の派生率です');\n return _rateResult(value,components,RATE_DISPLAYS[rateId]!);\n}\n"  # noqa: E501 — 生成target/固定SQLのliteral
     )
+
+
+def _source_projection_runtime():
+    """D1のsource shapeを読む対象言語の汎用型検証だけを生成する。"""
+    return r"""
+function _projection_ref(event: unknown, path: string): unknown {
+  for (const key of path.split('.')) {
+    if (event === null || event === undefined) return null;
+    if (typeof event !== 'object' || Array.isArray(event))
+      throw new Error('source投影親型');
+    if (!Object.hasOwn(event, key)) return null;
+    event = (event as Record<string, unknown>)[key];
+  }
+  return event === undefined ? null : event;
+}
+function _projection_equal(left: unknown, right: unknown): boolean {
+  if (Array.isArray(left) && Array.isArray(right))
+    return left.length===right.length
+      && left.every((x,i)=>_projection_equal(x,right[i]));
+  return left === right;
+}
+type ProjectionShape = {oneOf?:ProjectionShape[], const?:unknown,
+  enum?:unknown[], type?:string, required?:string[],
+  properties?:Record<string,ProjectionShape>, pattern?:string,
+  additionalProperties?:false};
+function _projection_shape(value: unknown, schema: ProjectionShape): boolean {
+  if (schema.oneOf)
+    return schema.oneOf.filter(x=>_projection_shape(value,x)).length===1;
+  if (Object.hasOwn(schema,'const')) return _projection_equal(value,schema.const);
+  if (schema.enum) return schema.enum.some(x=>_projection_equal(value,x));
+  if (schema.type==='object') {
+    if (value===null || typeof value!=='object' || Array.isArray(value)) return false;
+    const record=value as Record<string,unknown>;
+    let seen = 0;
+    for (const key in record) {
+      if (!Object.hasOwn(record,key)) continue;
+      if (++seen > schema.required!.length
+          || !schema.required!.includes(key)) return false;
+    }
+    return seen===schema.required!.length
+      && schema.required!.every(x=>Object.hasOwn(record,x))
+      && Object.entries(schema.properties!)
+         .every(([k,v])=>_projection_shape(record[k],v));
+  }
+  if (schema.type==='string')
+    return typeof value==='string' && new RegExp(schema.pattern!).test(value);
+  throw new Error('未知のsource shape');
+}
+"""

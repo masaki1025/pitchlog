@@ -83,9 +83,7 @@ describe('生成count primitiveの純比較', () => {
         decision_id: 'D04',
         decision_state: 'adopted',
         choice: 'A',
-        implementation_state: 'pending',
-        source_state: 'not_evaluated',
-        value: null,
+        implementation_state: 'available',
       },
       D05: {
         decision_id: 'D05',
@@ -132,9 +130,13 @@ const current: CurrentMathCase[] = JSON.parse(
     ),
     'utf8',
   ),
-).current_v2_followup.cases
+).current_v3_bf_followup.regression_cases.filter(
+  (c: CurrentMathCase) =>
+    c.case_id.startsWith('current-v3-d02-') ||
+    c.case_id.startsWith('current-v3-po-d05-'),
+)
 it.each(current.filter((c) => c.expected.status !== 'rejected'))(
-  '$case_id v2の比・実分母・最後の表示を全値比較する',
+  '$case_id v3でも比・実分母・最後の表示を全値比較する',
   (c) => {
     expect(api.deriveRates(c.expected.totals)).toEqual(c.expected.rates)
     expect(
@@ -158,4 +160,75 @@ it('raw集合override/未知/その他欠落を拒否する', () => {
       'game_other',
     ]),
   ).toThrow()
+})
+
+it('v3のno-change規範入力は旧26全値とBF寄与1を保持する', () => {
+  const document = JSON.parse(
+    readFileSync(
+      resolve(
+        process.cwd(),
+        '../docs/features/mvp-stats-primitives/primitive-cases.candidate.json',
+      ),
+      'utf8',
+    ),
+  )
+  const source = document.current_v3_bf_followup.cases.find(
+    (c: { case_id: string }) => c.case_id === 'current-v3-bf-no-change-walk',
+  )
+  const result = api.eventFacts(source.input.events[0])
+  expect(Object.keys(result.metrics)).toHaveLength(27)
+  expect(
+    Object.fromEntries(
+      Object.entries(result.metrics).map(([key, metric]) => {
+        return [
+          key,
+          {
+            state: metric.state,
+            value: metric.value,
+            display: metric.display,
+            reason: metric.reason,
+          },
+        ]
+      }),
+    ),
+  ).toEqual(source.expected.totals)
+  expect(result.metrics.batters_faced).toEqual({
+    state: 'available',
+    value: '1',
+    display: '1',
+    reason: null,
+    credits: [
+      {
+        player_id: source.input.events[0].participants.actual_pitcher_id,
+        quantity: '1',
+      },
+    ],
+  })
+  expect(result.decisions).toEqual(source.expected.decisions)
+})
+
+it('prototypeから継承したBF観測を記録者の提示値としない', () => {
+  const document = JSON.parse(
+    readFileSync(
+      resolve(
+        process.cwd(),
+        '../docs/features/mvp-stats-primitives/primitive-cases.candidate.json',
+      ),
+      'utf8',
+    ),
+  )
+  const source = document.current_v3_bf_followup.cases.find(
+    (c: { case_id: string }) => c.case_id === 'current-v3-bf-no-change-walk',
+  )
+  const event = structuredClone(source.input.events[0])
+  const evidence = event.pa.bf_evidence
+  delete event.pa.bf_evidence
+  event.pa = Object.assign(Object.create({ bf_evidence: evidence }), event.pa)
+  expect(api.eventFacts(event).metrics.batters_faced).toEqual({
+    state: 'source_unavailable',
+    value: null,
+    display: null,
+    reason: 'MISSING_OBSERVATION',
+    credits: [],
+  })
 })

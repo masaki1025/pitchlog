@@ -821,7 +821,7 @@ def test_generated_season_joins_each_game_health_to_its_own_version(
     assert "GROUP BY g.tenant_id,g.game_id" in health
     assert "FROM canonical_scope g LEFT JOIN canonical_s c" in health
     rows = _execute_generated_season_health(sql, mode)
-    assert len(rows) == 26
+    assert len(rows) == 27
     assert all(state == "available" for _, state, _ in rows)
     assert (
         next(value for metric, _, value in rows if metric == "pitch_count")
@@ -844,7 +844,7 @@ def test_generated_season_rejects_one_game_health_gap(generated, mode):
     rows = _execute_generated_season_health(
         generated["backend/src/pitchlog/stats/generated/stats.sql"], mode
     )
-    assert len(rows) == 26
+    assert len(rows) == 27
     assert all(
         state == "source_unavailable" and value is None for _, state, value in rows
     )
@@ -868,7 +868,7 @@ def test_generated_sql_cannot_turn_invalid_named_selection_into_zero(
         category,
         raw,
     )
-    assert len(rows) == 26 and all(
+    assert len(rows) == 27 and all(
         state == "source_unavailable" and value is None for _, state, value in rows
     )
 
@@ -1013,3 +1013,39 @@ def test_ratio_sql_decimal_codec_keeps_5000_digit_pairs_at_precision_two(generat
     assert result["components"]["obp"]["denominator"] == input_denominator
     assert result["formatted_value"] == "2.000"
     assert sys.get_int_max_str_digits() == before
+
+
+def test_bf_quantity_is_generated_from_d1_not_a_fixed_expected_response():
+    """BF数量のD1変異も実行体へ伝播し固定1応答やcase lookupでないことを示す。"""
+    from pitchlog.domaingen.core import _canonical_hash
+
+    common, consumer = _models()
+    common = copy.deepcopy(common)
+    consumer = copy.deepcopy(consumer)
+    common["calculations"][0]["typedProgram"]["metrics"][-1]["quantity"] = {
+        "op": "literal",
+        "value": 2,
+    }
+    consumer["calculations"][0]["typedProgram"]["commonModelHash"] = _canonical_hash(
+        common
+    )
+    bundle = generate_primitive_bundle(common, consumer)
+    api = _load_python(bundle["backend/src/pitchlog/stats/generated/facts.py"])
+    cases = json.loads(
+        (
+            ROOT / "docs/features/mvp-stats-primitives/primitive-cases.candidate.json"
+        ).read_text()
+    )["current_v3_bf_followup"]["cases"]
+    event = next(c for c in cases if c["case_id"] == "current-v3-bf-no-change-walk")[
+        "input"
+    ]["events"][0]
+    actual = api["_pitchlog_generated"](event)["metrics"]["batters_faced"]
+    assert actual == {
+        "state": "available",
+        "value": "2",
+        "display": "2",
+        "reason": None,
+        "credits": [
+            {"player_id": event["participants"]["actual_pitcher_id"], "quantity": "2"}
+        ],
+    }

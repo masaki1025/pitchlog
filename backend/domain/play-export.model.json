@@ -4,7 +4,7 @@
     {
       "calculationId": "canonicalEventFacts",
       "typedProgram": {
-        "version": 2,
+        "version": 3,
         "kind": "event-facts",
         "fields": {
           "event_kind": {
@@ -1453,6 +1453,15 @@
               "op": "ref",
               "path": "item.responsible_pitcher_id"
             }
+          },
+          {
+            "id": "batters_faced",
+            "relation": "source_projection",
+            "quantity": {
+              "op": "literal",
+              "value": 1
+            },
+            "projection": "batters_faced"
           }
         ],
         "selection": {
@@ -1578,9 +1587,7 @@
             "decision_id": "D04",
             "decision_state": "adopted",
             "choice": "A",
-            "implementation_state": "pending",
-            "source_state": "not_evaluated",
-            "value": null
+            "implementation_state": "available"
           },
           "D05": {
             "decision_id": "D05",
@@ -1706,7 +1713,569 @@
               ]
             }
           }
-        ]
+        ],
+        "sourceProjections": {
+          "batters_faced": {
+            "checks": [
+              {
+                "path": "pa.bf_evidence",
+                "schema": {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "kind",
+                        "pa_start_source"
+                      ],
+                      "properties": {
+                        "kind": {
+                          "const": "no-change"
+                        },
+                        "pa_start_source": {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "required": [
+                            "kind",
+                            "id"
+                          ],
+                          "properties": {
+                            "kind": {
+                              "enum": [
+                                "started-game",
+                                "confirmed-play"
+                              ]
+                            },
+                            "id": {
+                              "type": "string",
+                              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+                            }
+                          }
+                        }
+                      }
+                    },
+                    {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "kind",
+                        "owner_field",
+                        "responsibility_ref"
+                      ],
+                      "properties": {
+                        "kind": {
+                          "const": "verified-result-owner"
+                        },
+                        "owner_field": {
+                          "enum": [
+                            "actual_pitcher_id",
+                            "walk_pitcher_id"
+                          ]
+                        },
+                        "responsibility_ref": {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "required": [
+                            "kind",
+                            "source_event_id",
+                            "artifact_sha256"
+                          ],
+                          "properties": {
+                            "kind": {
+                              "const": "t1-responsibility"
+                            },
+                            "source_event_id": {
+                              "type": "string",
+                              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+                            },
+                            "artifact_sha256": {
+                              "type": "string",
+                              "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
+                            }
+                          }
+                        }
+                      }
+                    },
+                    {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "kind",
+                        "reason"
+                      ],
+                      "properties": {
+                        "kind": {
+                          "const": "unavailable"
+                        },
+                        "reason": {
+                          "enum": [
+                            "MISSING_OBSERVATION",
+                            "MISSING_ATTRIBUTION",
+                            "UNSUPPORTED_SOURCE_VARIANT"
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                },
+                "optional": true
+              }
+            ],
+            "rules": [
+              {
+                "when": {
+                  "op": "ne",
+                  "left": {
+                    "op": "ref",
+                    "path": "completeness.pa"
+                  },
+                  "right": {
+                    "op": "literal",
+                    "value": "complete"
+                  }
+                },
+                "action": "missing",
+                "value": {
+                  "op": "choose",
+                  "when": {
+                    "op": "eq",
+                    "left": {
+                      "op": "ref",
+                      "path": "pa.bf_evidence.kind"
+                    },
+                    "right": {
+                      "op": "literal",
+                      "value": "unavailable"
+                    }
+                  },
+                  "then": {
+                    "op": "ref",
+                    "path": "pa.bf_evidence.reason"
+                  },
+                  "otherwise": {
+                    "op": "literal",
+                    "value": "MISSING_OBSERVATION"
+                  }
+                }
+              },
+              {
+                "when": {
+                  "op": "ne",
+                  "left": {
+                    "op": "ref",
+                    "path": "completeness.participants"
+                  },
+                  "right": {
+                    "op": "literal",
+                    "value": "complete"
+                  }
+                },
+                "action": "missing",
+                "value": {
+                  "op": "choose",
+                  "when": {
+                    "op": "eq",
+                    "left": {
+                      "op": "ref",
+                      "path": "pa.bf_evidence.kind"
+                    },
+                    "right": {
+                      "op": "literal",
+                      "value": "unavailable"
+                    }
+                  },
+                  "then": {
+                    "op": "ref",
+                    "path": "pa.bf_evidence.reason"
+                  },
+                  "otherwise": {
+                    "op": "literal",
+                    "value": "MISSING_OBSERVATION"
+                  }
+                }
+              },
+              {
+                "when": {
+                  "op": "eq",
+                  "left": {
+                    "op": "ref",
+                    "path": "pa.ended_here"
+                  },
+                  "right": {
+                    "op": "literal",
+                    "value": false
+                  }
+                },
+                "action": "zero"
+              },
+              {
+                "when": {
+                  "op": "ne",
+                  "left": {
+                    "op": "ref",
+                    "path": "pa.ended_here"
+                  },
+                  "right": {
+                    "op": "literal",
+                    "value": true
+                  }
+                },
+                "action": "missing",
+                "value": {
+                  "op": "literal",
+                  "value": "MISSING_OBSERVATION"
+                }
+              },
+              {
+                "when": {
+                  "op": "eq",
+                  "left": {
+                    "op": "ref",
+                    "path": "pa.bf_evidence"
+                  },
+                  "right": {
+                    "op": "literal",
+                    "value": null
+                  }
+                },
+                "action": "missing",
+                "value": {
+                  "op": "literal",
+                  "value": "MISSING_OBSERVATION"
+                }
+              },
+              {
+                "when": {
+                  "op": "eq",
+                  "left": {
+                    "op": "ref",
+                    "path": "pa.bf_evidence.kind"
+                  },
+                  "right": {
+                    "op": "literal",
+                    "value": "unavailable"
+                  }
+                },
+                "action": "missing",
+                "value": {
+                  "op": "ref",
+                  "path": "pa.bf_evidence.reason"
+                }
+              },
+              {
+                "when": {
+                  "op": "and",
+                  "args": [
+                    {
+                      "op": "eq",
+                      "left": {
+                        "op": "ref",
+                        "path": "pa.bf_evidence.kind"
+                      },
+                      "right": {
+                        "op": "literal",
+                        "value": "no-change"
+                      }
+                    },
+                    {
+                      "op": "ne",
+                      "left": {
+                        "op": "ref",
+                        "path": "pa.pitcher_changes"
+                      },
+                      "right": {
+                        "op": "literal",
+                        "value": []
+                      }
+                    }
+                  ]
+                },
+                "action": "reject"
+              },
+              {
+                "when": {
+                  "op": "and",
+                  "args": [
+                    {
+                      "op": "eq",
+                      "left": {
+                        "op": "ref",
+                        "path": "pa.bf_evidence.kind"
+                      },
+                      "right": {
+                        "op": "literal",
+                        "value": "no-change"
+                      }
+                    },
+                    {
+                      "op": "eq",
+                      "left": {
+                        "op": "ref",
+                        "path": "pa.starting_pitcher_id"
+                      },
+                      "right": {
+                        "op": "literal",
+                        "value": null
+                      }
+                    }
+                  ]
+                },
+                "action": "missing",
+                "value": {
+                  "op": "literal",
+                  "value": "MISSING_OBSERVATION"
+                }
+              },
+              {
+                "when": {
+                  "op": "and",
+                  "args": [
+                    {
+                      "op": "eq",
+                      "left": {
+                        "op": "ref",
+                        "path": "pa.bf_evidence.kind"
+                      },
+                      "right": {
+                        "op": "literal",
+                        "value": "no-change"
+                      }
+                    },
+                    {
+                      "op": "ne",
+                      "left": {
+                        "op": "ref",
+                        "path": "pa.starting_pitcher_id"
+                      },
+                      "right": {
+                        "op": "ref",
+                        "path": "participants.actual_pitcher_id"
+                      }
+                    }
+                  ]
+                },
+                "action": "reject"
+              },
+              {
+                "when": {
+                  "op": "and",
+                  "args": [
+                    {
+                      "op": "eq",
+                      "left": {
+                        "op": "ref",
+                        "path": "pa.bf_evidence.kind"
+                      },
+                      "right": {
+                        "op": "literal",
+                        "value": "no-change"
+                      }
+                    },
+                    {
+                      "op": "eq",
+                      "left": {
+                        "op": "ref",
+                        "path": "pa.bf_evidence.pa_start_source.kind"
+                      },
+                      "right": {
+                        "op": "literal",
+                        "value": "started-game"
+                      }
+                    },
+                    {
+                      "op": "ne",
+                      "left": {
+                        "op": "ref",
+                        "path": "pa.bf_evidence.pa_start_source.id"
+                      },
+                      "right": {
+                        "op": "ref",
+                        "path": "source.game_id"
+                      }
+                    }
+                  ]
+                },
+                "action": "reject"
+              },
+              {
+                "when": {
+                  "op": "and",
+                  "args": [
+                    {
+                      "op": "eq",
+                      "left": {
+                        "op": "ref",
+                        "path": "pa.bf_evidence.kind"
+                      },
+                      "right": {
+                        "op": "literal",
+                        "value": "verified-result-owner"
+                      }
+                    },
+                    {
+                      "op": "or",
+                      "args": [
+                        {
+                          "op": "ne",
+                          "left": {
+                            "op": "ref",
+                            "path": "pa.bf_evidence.owner_field"
+                          },
+                          "right": {
+                            "op": "choose",
+                            "when": {
+                              "op": "eq",
+                              "left": {
+                                "op": "ref",
+                                "path": "pa.reached_by"
+                              },
+                              "right": {
+                                "op": "literal",
+                                "value": "walk"
+                              }
+                            },
+                            "then": {
+                              "op": "literal",
+                              "value": "walk_pitcher_id"
+                            },
+                            "otherwise": {
+                              "op": "literal",
+                              "value": "actual_pitcher_id"
+                            }
+                          }
+                        },
+                        {
+                          "op": "ne",
+                          "left": {
+                            "op": "ref",
+                            "path": "pa.bf_evidence.responsibility_ref.source_event_id"
+                          },
+                          "right": {
+                            "op": "ref",
+                            "path": "source.source_event_id"
+                          }
+                        },
+                        {
+                          "op": "ne",
+                          "left": {
+                            "op": "ref",
+                            "path": "pa.bf_evidence.responsibility_ref.artifact_sha256"
+                          },
+                          "right": {
+                            "op": "ref",
+                            "path": "source.versions.t1_artifact_sha256"
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                },
+                "action": "reject"
+              },
+              {
+                "when": {
+                  "op": "eq",
+                  "left": {
+                    "op": "choose",
+                    "when": {
+                      "op": "eq",
+                      "left": {
+                        "op": "ref",
+                        "path": "pa.bf_evidence.kind"
+                      },
+                      "right": {
+                        "op": "literal",
+                        "value": "no-change"
+                      }
+                    },
+                    "then": {
+                      "op": "ref",
+                      "path": "participants.actual_pitcher_id"
+                    },
+                    "otherwise": {
+                      "op": "choose",
+                      "when": {
+                        "op": "eq",
+                        "left": {
+                          "op": "ref",
+                          "path": "pa.reached_by"
+                        },
+                        "right": {
+                          "op": "literal",
+                          "value": "walk"
+                        }
+                      },
+                      "then": {
+                        "op": "ref",
+                        "path": "participants.walk_pitcher_id"
+                      },
+                      "otherwise": {
+                        "op": "ref",
+                        "path": "participants.actual_pitcher_id"
+                      }
+                    }
+                  },
+                  "right": {
+                    "op": "literal",
+                    "value": null
+                  }
+                },
+                "action": "missing",
+                "value": {
+                  "op": "literal",
+                  "value": "MISSING_ATTRIBUTION"
+                }
+              },
+              {
+                "when": {
+                  "op": "literal",
+                  "value": true
+                },
+                "action": "credit",
+                "value": {
+                  "op": "choose",
+                  "when": {
+                    "op": "eq",
+                    "left": {
+                      "op": "ref",
+                      "path": "pa.bf_evidence.kind"
+                    },
+                    "right": {
+                      "op": "literal",
+                      "value": "no-change"
+                    }
+                  },
+                  "then": {
+                    "op": "ref",
+                    "path": "participants.actual_pitcher_id"
+                  },
+                  "otherwise": {
+                    "op": "choose",
+                    "when": {
+                      "op": "eq",
+                      "left": {
+                        "op": "ref",
+                        "path": "pa.reached_by"
+                      },
+                      "right": {
+                        "op": "literal",
+                        "value": "walk"
+                      }
+                    },
+                    "then": {
+                      "op": "ref",
+                      "path": "participants.walk_pitcher_id"
+                    },
+                    "otherwise": {
+                      "op": "ref",
+                      "path": "participants.actual_pitcher_id"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
       }
     }
   ],
