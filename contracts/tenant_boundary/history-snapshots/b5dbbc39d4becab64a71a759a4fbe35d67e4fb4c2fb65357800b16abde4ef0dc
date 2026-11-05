@@ -30,7 +30,7 @@ def immutable_expectations():
     """期待Eの全byteを外部固定値から得る。"""
     return subprocess.check_output(["git",
         "show",
-        checker._PR196_EXPECTATION_REVISION + ":" + checker._PR196_EXPECTED_FIXTURE],
+        checker._pr196_source_input_revisions(ROOT)[1] + ":" + checker._PR196_EXPECTED_FIXTURE],
         cwd=ROOT)
 
 @pytest.fixture(scope="module")
@@ -265,14 +265,14 @@ def test_fixture_or_frozen_values_cannot_replace_e(isolated_root, fault):
 def test_real_git_ancestry_is_required(monkeypatch, relation):
     """一つでも真の祖先を失えば固定値だけを根拠にしない。"""
     original = checker._run_git
-    pairs = {"source-head":(checker._PR196_SOURCE_REVISION,
+    pairs = {"source-head":(checker._pr196_source_input_revisions(ROOT)[0],
         "HEAD"),
-        "expectation-head":(checker._PR196_EXPECTATION_REVISION,
+        "expectation-head":(checker._pr196_source_input_revisions(ROOT)[1],
         "HEAD"),
-        "source-expectation":(checker._PR196_SOURCE_REVISION,
-        checker._PR196_EXPECTATION_REVISION),
-        "base-source":(checker._PR196_FORMAL_BASE,
-        checker._PR196_SOURCE_REVISION)}
+        "source-expectation":(checker._pr196_source_input_revisions(ROOT)[0],
+        checker._pr196_source_input_revisions(ROOT)[1]),
+        "base-source":(EXPECTED["formal_base_revision"],
+        checker._pr196_source_input_revisions(ROOT)[0])}
     def refuse(root, arguments):
         if arguments == ["merge-base","--is-ancestor",*pairs[relation]]:
             raise checker.ContractError("祖先なし")
@@ -280,3 +280,27 @@ def test_real_git_ancestry_is_required(monkeypatch, relation):
     monkeypatch.setattr(checker,"_run_git",refuse)
     with pytest.raises(checker.ContractError):
         checker._pr196_read_fixed_expectations(ROOT)
+
+
+@pytest.mark.parametrize(
+    "fault", ["missing", "extra", "bool", "short", "wrong", "purpose", "consumer"],
+)
+def test_typed_absolute_e_fixture_digest_is_not_self_derived(isolated_root, fault):
+    """typed絶対SHAとE Gitblobは別照合し、現在木の自己期待へしない。"""
+    path = isolated_root / "contracts/tenant_boundary/frozen-inputs.json"
+    frozen = json.loads(path.read_text())
+    key = "pr196_source_expectation_fixture_sha256"
+    entry = frozen["frozen_inputs"][key]
+    if fault == "missing":
+        del frozen["frozen_inputs"][key]
+    elif fault == "extra":
+        entry["extra"] = True
+    elif fault == "purpose":
+        entry["purpose"] += " unapproved"
+    elif fault == "consumer":
+        entry["sources"] = []
+    else:
+        entry["value"] = {"bool": True, "short": "bad", "wrong": "0" * 64}[fault]
+    path.write_text(json.dumps(frozen))
+    with pytest.raises(checker.ContractError):
+        checker._pr196_read_fixed_expectations(isolated_root)

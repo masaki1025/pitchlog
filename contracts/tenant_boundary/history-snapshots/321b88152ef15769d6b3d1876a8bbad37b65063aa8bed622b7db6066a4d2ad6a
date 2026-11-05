@@ -368,9 +368,9 @@ def test_reapply_guard_retains_exact_four_triggers_and_refuses_collisions():
 _BATTED_SOURCE_REFERENCE_PATH = (
     Path(__file__).parent / "fixtures/batted_source_extension_reference_v1.json"
 )
-_BATTED_SOURCE_REFERENCE_SHA256 = (
-    "ddf4953a9ab4e3f48863c79c2042d895611aa4efc99a546864595c9f477da421"
-)
+_BATTED_SOURCE_REFERENCE_SHA256 = _EXPECTED_SOURCE_PINS[
+    "batted_extension_reference_sha256"
+]
 _BATTED_PREPARE_ID = (
     "FUNCTION:sync_right_api:prepare_play_prefix_projection(uuid, uuid, uuid, "
     "bytea, uuid, uuid, text)"
@@ -472,6 +472,49 @@ def _project_batted_source_extension(rows):
     return tuple(projected)
 
 
+def _batted_source_reference_revisions():
+    """正式frozen入力の固定2commitだけを独立原典として読む。"""
+    import subprocess
+
+    from first_ball_expected_source_pins import _unique_object
+
+    document = json.loads(
+        (ROOT / "contracts/tenant_boundary/frozen-inputs.json").read_text(),
+        object_pairs_hook=_unique_object,
+    )
+    result = {}
+    for label, key, purpose in (
+        (
+            "before",
+            "pr196_batted_reference_base_revision",
+            "PR196安打source差分の正式before原典。旧43pin/全宣言の投影根拠に限り、任意基線へ流用しない。",
+        ),
+        (
+            "after",
+            "pr196_batted_reference_candidate_revision",
+            "PR196採用安打source差分の固定after原典。既beforeとの全前後値検証に限り、現木期待を生成しない。",
+        ),
+    ):
+        entry = document["frozen_inputs"][key]
+        assert type(entry) is dict and set(entry) == {"value", "purpose", "sources"}
+        assert entry["purpose"] == purpose
+        assert entry["sources"] == [
+            "backend/tests/test_sync_apply_product_supply.py:_batted_source_reference_revisions",
+        ]
+        value = entry["value"]
+        assert type(value) is str and re.fullmatch(r"[0-9a-f]{40}", value)
+        assert (
+            subprocess.check_output(
+                ["git", "rev-parse", "--verify", value + "^{commit}"],
+                cwd=ROOT,
+                text=True,
+            ).strip()
+            == value
+        )
+        result[label] = value
+    return result
+
+
 def test_batted_source_reference_is_bound_to_immutable_git():
     """原典commit/tree/全source blobをGitへ照合し、現出力を原典にしない。"""
     import hashlib
@@ -479,8 +522,7 @@ def test_batted_source_reference_is_bound_to_immutable_git():
 
     reference = _load_batted_source_reference()
     assert {key: row["commit"] for key, row in reference["origins"].items()} == {
-        "before": "112f771e549d6a92d724f62d9b0b45dcc89973c1",
-        "after": "3633f95d5e62fc922d2f86fb6bc434b6b861e5cd",
+        **_batted_source_reference_revisions(),
     }
     repository = ROOT
     for origin in reference["origins"].values():
@@ -856,9 +898,31 @@ def test_expected_source_pin_fixture_has_all_thirty_independent_values():
     for name, keys in lineup_keys.items():
         assert keys <= raw["pins"][name].keys()
         assert not keys & terminal_keys.get(name, set())
-    assert sum(len(values) for values in raw["pins"].values()) - 5 - 1 == 37
-    assert sum(len(values) for values in raw["pins"].values()) - 1 == 42
-    assert sum(len(values) for values in raw["pins"].values()) == 43
+    batted_keys = {
+        "test_batted_hit_product_declarations.py": {
+            "old_terminal_declarations_sha256",
+            "adopted_prepare_body_sha256",
+        },
+        "test_batted_hit_storage_boundaries.py": {
+            "read_play_prefix_checkpoint",
+            "lock_play_prefix_checkpoint",
+            "read_play_prefix_history_page",
+            "assert_play_prefix_projection",
+            "finish_play_prefix_projection",
+            "guard_play_prefix_runner_insert",
+            "read_lineup_started_origin",
+            "old_v2_prepare_body_sha256",
+        },
+        "test_sync_apply_product_supply.py": {"batted_extension_reference_sha256"},
+    }
+    assert sum(map(len, batted_keys.values())) == 11
+    for name, keys in batted_keys.items():
+        assert keys <= raw["pins"][name].keys()
+    total = sum(len(values) for values in raw["pins"].values())
+    assert total - 11 - 5 - 1 == 37
+    assert total - 11 - 1 == 42
+    assert total - 11 == 43
+    assert total == 54
     assert {name: read_expected_source_pins(name) for name in raw["pins"]} == raw[
         "pins"
     ]
@@ -923,3 +987,61 @@ def test_expected_source_pin_reader_rejects_missing_file_and_unknown_request(tmp
         )
     with pytest.raises(SourcePinError):
         read_expected_source_pins("unknown.py")
+
+
+@pytest.mark.parametrize(
+    "fault",
+    [
+        "missing",
+        "extra",
+        "bool",
+        "short",
+        "not_hex",
+        "unknown_commit",
+        "purpose",
+        "consumer",
+        "wrong_existing_commit",
+    ],
+)
+def test_batted_reference_typed_inputs_do_not_authorize_new_origins(
+    monkeypatch,
+    tmp_path,
+    fault,
+):
+    """型/用途/consumer/実Gitと独立fixture原典の全一致を要求する。"""
+    import subprocess
+    import sys
+
+    frozen_path = tmp_path / "contracts/tenant_boundary/frozen-inputs.json"
+    frozen_path.parent.mkdir(parents=True)
+    frozen = json.loads(
+        (ROOT / "contracts/tenant_boundary/frozen-inputs.json").read_text()
+    )
+    (tmp_path / ".git").symlink_to(ROOT / ".git")
+    key = "pr196_batted_reference_base_revision"
+    entry = frozen["frozen_inputs"][key]
+    if fault == "missing":
+        del frozen["frozen_inputs"][key]
+    elif fault == "extra":
+        entry["extra"] = True
+    elif fault == "purpose":
+        entry["purpose"] += " forged"
+    elif fault == "consumer":
+        entry["sources"] = []
+    else:
+        entry["value"] = {
+            "bool": True,
+            "short": "bad",
+            "not_hex": "x" * 40,
+            "unknown_commit": "0" * 40,
+            "wrong_existing_commit": frozen["frozen_inputs"][
+                "pr196_batted_reference_candidate_revision"
+            ]["value"],
+        }[fault]
+    frozen_path.write_text(json.dumps(frozen))
+    original = _load_batted_source_reference()
+    monkeypatch.setattr(sys.modules[__name__], "ROOT", tmp_path)
+    with pytest.raises((AssertionError, KeyError, subprocess.CalledProcessError)):
+        assert _batted_source_reference_revisions() == {
+            label: row["commit"] for label, row in original["origins"].items()
+        }

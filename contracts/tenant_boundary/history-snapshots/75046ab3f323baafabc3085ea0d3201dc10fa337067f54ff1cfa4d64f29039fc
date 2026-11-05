@@ -5764,7 +5764,9 @@ def _validated_pr196_source_suppression(
     assert checker._pr196_same_json(measured_proof, expected_proof), "pr196 proofの型/全値が不正"
     expected = checker._pr196_read_fixed_expectations(REPOSITORY_ROOT)
     assert _load_json_pointer(proof["source_revision"]) == expected["source_revision"]
-    assert _load_json_pointer(proof["expectation_revision"]) == checker._PR196_EXPECTATION_REVISION
+    assert _load_json_pointer(proof["expectation_revision"]) == (
+        checker._pr196_source_input_revisions(REPOSITORY_ROOT)[1]
+    )
     assert checker._pr196_registration_is_trusted(current_contract), "pr196全資格が不正"
     registered = {o.path: o for o in current_contract.pr196_source_registration.owners}
     assert len(registered) == 4 and set(registered) == set(expected["owners"])
@@ -10230,16 +10232,17 @@ def test_pr196_census_materializes_fixed_expectation_in_both_proof_contexts(
 ) -> None:
     """真正版展開と現在反実の双方へ前置Eを全byteで供給する。"""
     revision_root = _materialize_checker_revision_root(
-        checker._PR196_EXPECTATION_REVISION, tmp_path / "revision",
+        checker._pr196_source_input_revisions(REPOSITORY_ROOT)[1], tmp_path / "revision",
     )
     current_root = tmp_path / "current"
     _copy_current_contract_tree(current_root)
     fixture = Path("tests/fixtures/pr196_tenant_source_expected_v1.json")
     expected = subprocess.check_output([
-        "git", "show", checker._PR196_EXPECTATION_REVISION + ":" + fixture.as_posix(),
+        "git", "show",
+        checker._pr196_source_input_revisions(REPOSITORY_ROOT)[1] + ":" + fixture.as_posix(),
     ], cwd=REPOSITORY_ROOT)
     assert hashlib.sha256(expected).hexdigest() == (
-        "52d056f109df66c29fea8f32ab900a2830d210efa6ff8985c3d5ca6bd6bedc7b"
+        checker._pr196_expected_fixture_sha256(REPOSITORY_ROOT)
     )
     assert (revision_root / fixture).read_bytes() == expected
     assert (current_root / fixture).read_bytes() == expected

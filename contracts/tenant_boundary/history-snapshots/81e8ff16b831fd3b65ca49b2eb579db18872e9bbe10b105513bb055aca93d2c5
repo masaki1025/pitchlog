@@ -2605,17 +2605,18 @@ def _batted_options_static_registration(
 ) -> ast.Call:
     """既採用先頭importの静的tuple1だけをASTで展開する。製品を実行しない。"""
     # readonly登録形の原典であり、source-owner許可4path/15tupleは拡張しない。
-    _pr196_read_fixed_expectations(repository_root)
+    fixed = _pr196_read_fixed_expectations(repository_root)
+    source_revision = _string(fixed["source_revision"], "pr196 readonly原典")
     for relative in (
         "backend/src/pitchlog/repositories/operation_registry.py",
         "backend/src/pitchlog/repositories/batted_ball_options.py",
     ):
         path = Path(relative)
-        _git_regular_blob(repository_root, _PR196_SOURCE_REVISION, path)
+        _git_regular_blob(repository_root, source_revision, path)
         target = repository_root / path
         try:
             if target.is_symlink() or target.read_bytes() != _pr192_git_bytes(
-                repository_root, _PR196_SOURCE_REVISION, relative
+                repository_root, source_revision, relative
             ):
                 raise ContractError("固定tupleのreadonly原典全byteが不一致")
         except OSError as error:
@@ -10444,10 +10445,6 @@ def _pr192_successor_matches(source: str, path: str, contract: Contract) -> bool
 
 
 _PR196_EXPECTED_FIXTURE = "tests/fixtures/pr196_tenant_source_expected_v1.json"
-_PR196_SOURCE_REVISION = "6965088b9353dfa89643528531c22b340e9f4c72"
-_PR196_EXPECTATION_REVISION = "0f75d17002cd6fac2cec056c8850196d93a5acd4"
-_PR196_FORMAL_BASE = "112f771e549d6a92d724f62d9b0b45dcc89973c1"
-_PR196_FIXTURE_SHA256 = "52d056f109df66c29fea8f32ab900a2830d210efa6ff8985c3d5ca6bd6bedc7b"
 _PR196_SOURCE_PURPOSE = (
     "PR196既採用安打source4path/実15tuple/限定2successorを固定6965088bの全byteへ束縛する。"
     "旧原典/署名/一般許可へ流用しない。"
@@ -10485,44 +10482,98 @@ def _pr196_same_json(left: object, right: object) -> bool:
     return type(left) in (str, int, bool, float, type(None)) and left == right
 
 
-def _pr196_read_fixed_expectations(root: Path) -> dict[str, Any]:
-    """新Eを外部固定値へ束縛し、現在fixture/自己申告sourceへfallbackしない。"""
-    try:
-        frozen, _ = _read_json(root / "contracts/tenant_boundary/frozen-inputs.json")
-        inputs = _object(frozen["frozen_inputs"], "pr196 frozen inputs")
-        for name, revision, purpose, consumer in (
-            ("pr196_source_registration_revision", _PR196_SOURCE_REVISION,
-             _PR196_SOURCE_PURPOSE, "immutable_source"),
-            ("pr196_source_expectation_revision", _PR196_EXPECTATION_REVISION,
-             _PR196_EXPECTATION_PURPOSE, "immutable_expectations"),
-        ):
-            sources = [
-                "scripts/check_tenant_boundary_bypass.py:_load_pr196_source_owners",
-                "tests/test_pr196_tenant_source_registration.py:" + consumer,
-            ]
-            if name == "pr196_source_registration_revision":
-                sources.append(
-                    "scripts/check_tenant_boundary_bypass.py:_batted_options_static_registration"
-                )
-            _pr196_require(_pr196_same_json(inputs.get(name), {
-                "value": revision, "purpose": purpose, "sources": sources,
-            }), "固定入力の全値/用途が不一致")
-            _pr196_require(
-                _run_git(root, ["rev-parse", "--verify", revision + "^{commit}"]).strip()
-                == revision, "固定commitが不一致",
+def _pr196_source_input_revisions(root: Path) -> tuple[str, str]:
+    """root付き正式frozen入力の固定2commitだけを厳格に読む。"""
+    frozen, _ = _read_json(root / "contracts/tenant_boundary/frozen-inputs.json")
+    inputs = _object(frozen.get("frozen_inputs"), "pr196 frozen inputs")
+    revisions = []
+    for name, purpose, consumer in (
+        ("pr196_source_registration_revision", _PR196_SOURCE_PURPOSE, "immutable_source"),
+        ("pr196_source_expectation_revision", _PR196_EXPECTATION_PURPOSE, "immutable_expectations"),
+    ):
+        entry = _object(inputs.get(name), name)
+        _strict_keys(entry, {"value", "purpose", "sources"}, name)
+        revision = entry["value"]
+        _pr196_require(
+            type(revision) is str and re.fullmatch(r"[0-9a-f]{40}", revision) is not None,
+            "固定原典はfull commitの文字列が必要",
+        )
+        sources = [
+            "scripts/check_tenant_boundary_bypass.py:_load_pr196_source_owners",
+            "tests/test_pr196_tenant_source_registration.py:" + consumer,
+        ]
+        if name == "pr196_source_registration_revision":
+            sources.append(
+                "scripts/check_tenant_boundary_bypass.py:_batted_options_static_registration"
             )
-            _run_git(root, ["merge-base", "--is-ancestor", revision, "HEAD"])
-        _run_git(root, ["merge-base", "--is-ancestor", _PR196_FORMAL_BASE,
-                        _PR196_SOURCE_REVISION])
-        _run_git(root, ["merge-base", "--is-ancestor", _PR196_SOURCE_REVISION,
-                        _PR196_EXPECTATION_REVISION])
-        raw = _pr192_git_bytes(root, _PR196_EXPECTATION_REVISION, _PR196_EXPECTED_FIXTURE)
+        _pr196_require(_pr196_same_json(entry, {
+            "value": revision, "purpose": purpose, "sources": sources,
+        }), "固定入力の全値/用途が不一致")
+        _pr196_require(
+            _run_git(root, ["rev-parse", "--verify", revision + "^{commit}"]).strip() == revision,
+            "固定commitが不一致",
+        )
+        _run_git(root, ["merge-base", "--is-ancestor", revision, "HEAD"])
+        revisions.append(revision)
+    source, expectation = revisions
+    _run_git(root, ["merge-base", "--is-ancestor", source, expectation])
+    return source, expectation
+
+
+def _pr196_expected_fixture_sha256(root: Path) -> str:
+    """前置Eの絶対SHAを正式typed入力から読み、算出値を期待にしない。"""
+    frozen, _ = _read_json(root / "contracts/tenant_boundary/frozen-inputs.json")
+    inputs = _object(frozen.get("frozen_inputs"), "pr196 frozen inputs")
+    entry = _object(inputs.get("pr196_source_expectation_fixture_sha256"), "pr196 fixture SHA")
+    _strict_keys(entry, {"value", "purpose", "sources"}, "pr196 fixture SHA")
+    digest = entry["value"]
+    _pr196_require(type(digest) is str and re.fullmatch(r"[0-9a-f]{64}", digest) is not None,
+                   "前置Eの固定SHA256型が不一致")
+    _pr196_require(_pr196_same_json(entry, {
+        "value": digest,
+        "purpose": (
+            "PR196前置Eの期待fixture全byteのSHA256。実固定Gitblobとの一致を必須とし、"
+            "現木から期待を生成しない。"
+        ),
+        "sources": [
+            "scripts/check_tenant_boundary_bypass.py:_pr196_read_fixed_expectations",
+            "tests/test_census_baseline_check.py:test_pr196_census_materializes_fixed_expectation_in_both_proof_contexts",
+        ],
+    }), "前置Eの固定SHA256用途/consumerが不一致")
+    return digest
+
+
+def _pr196_read_fixed_expectations(root: Path) -> dict[str, Any]:
+    """正式typed入力/固定E Gitblob/絶対SHA/現全byteを別々に照合する。"""
+    try:
+        source_revision, expectation_revision = _pr196_source_input_revisions(root)
+        raw = _pr192_git_bytes(root, expectation_revision, _PR196_EXPECTED_FIXTURE)
+        _pr196_require(hashlib.sha256(raw).hexdigest() == _pr196_expected_fixture_sha256(root),
+                       "前置fixtureの固定hashが不一致")
         target = root / _PR196_EXPECTED_FIXTURE
         _pr196_require(not target.is_symlink() and target.read_bytes() == raw,
                        "期待fixtureは前置Eの全byteが必要")
-        _pr196_require(hashlib.sha256(raw).hexdigest() == _PR196_FIXTURE_SHA256,
-                       "前置fixtureの固定hashが不一致")
-        return _object(json.loads(raw, object_pairs_hook=_unique_json_object), "pr196期待")
+        expected = _object(json.loads(raw, object_pairs_hook=_unique_json_object), "pr196期待")
+        _strict_keys(expected, {
+            "schema_version", "source_revision", "formal_base_revision", "frozen_input",
+            "expectation_frozen_input", "purpose", "findings_scope", "owners",
+            "qualified_pr192_successors", "preserved_state", "counts", "claims_not_made",
+        }, "pr196期待")
+        _pr196_require(type(expected["schema_version"]) is int and expected["schema_version"] == 1
+                       and _pr196_same_json(expected["source_revision"], source_revision)
+                       and expected["frozen_input"] == "pr196_source_registration_revision"
+                       and expected["expectation_frozen_input"]
+                       == "pr196_source_expectation_revision",
+                       "前置Eの型/原典/参照名が不一致")
+        formal_base = expected["formal_base_revision"]
+        _pr196_require(
+            type(formal_base) is str and re.fullmatch(r"[0-9a-f]{40}", formal_base) is not None,
+            "前置Eの正式基線はfull commitが必要",
+        )
+        _pr196_require(_run_git(root, ["rev-parse", "--verify", formal_base + "^{commit}"]).strip()
+                       == formal_base, "前置Eの正式基線commitが不一致")
+        _run_git(root, ["merge-base", "--is-ancestor", formal_base, source_revision])
+        return expected
     except (OSError, ValueError, KeyError, subprocess.CalledProcessError) as error:
         raise ContractError("pr196固定期待を取得/検証できない") from error
 
@@ -10566,7 +10617,7 @@ def _load_pr196_source_owners(
             raw = _pr192_git_bytes(root, origin["revision"], path)
             _pr196_require(hashlib.sha256(raw).hexdigest() == origin["sha256"],
                            "固定source全byteが不一致")
-        raw = _pr192_git_bytes(root, _PR196_SOURCE_REVISION, path)
+        raw = _pr192_git_bytes(root, _string(expected["source_revision"], "pr196原典"), path)
         findings = frozenset(tuple(site[k] for k in ("line", "code", "symbol", "scope"))
                              for site in row["findings"])
         owners.append(Pr191SourceOwner(path, row["purpose"], row["after"]["sha256"],
