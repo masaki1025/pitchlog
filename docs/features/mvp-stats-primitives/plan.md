@@ -295,3 +295,6 @@ current製品起動の接合追補（2026-11-05、PO委任Codex /root判断・�
 
 
 実read3試験の採用（2026-11-05、PO委任Codex /root判断）: source exact1 e1f159dc5a49c798c28e857bc535000de621ae81a6d9f25074f1fe44d62fea04/作者packet4db7573b…を非作者6a79d6a15b4b4afac14051eddd2fa08c3354978360aa4a24360254fa7d238f32（独立pure32成功0.99秒、既12anchor全byte同一、P0/P1/P2=0）で採用する。既実POST3球保存をそのまま通し、真正issuer/RRRO/Open/Page全78行/Totals球数3/移植・失効・別tenant固定拒否を検査する新testであり、採用時点の実PGは未実施。writer側の作者による通常非作者testレビューを全source/P6blindの成立へ広げず、未決4意味/公式終了集計/成績HTTP UI/通常current起動/7.7/CIは別残とする。
+
+
+実read3のwindow期待訂正（2026-11-05、PO委任Codex /root判断）: 初回a040a792実PGは1fail69.41秒、真正read実行後にPage球数2を旧testが各source寄与1と誤認して停止。既plan§4のCOUNT window・唯一モデル・生成SQLは保存寄与1/1/1とPage累計1/2/3を区別する。test exact1候補053fbca38468aa6a4203c36190438f273360abb6561ef21f2be3fdad44b77a5dで3行の(value,display)を固定[(1,1),(2,2),(3,3)]へ完全比較し、他全assertを保持。非作者0c7f13af939fbe04853fbb3cdd925386ecf9f787dfc036a2dff91d4a9bdd8dacが原典と旧32全対向/新all1拒否を独立33成功1.01秒で確認したので採用する。初回レビュー見落としと実失敗を保全、製品SQL/計算/保存値や未決意味は変更しない。実PG再検証前を成功にしない。

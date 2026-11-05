@@ -275,8 +275,12 @@ def _check_observed_read(value, sources, version) -> None:
         else:
             assert row["state"] == "available"
             assert type(row["value"]) is str and row["display"] == row["value"]
-        if metric == "pitch_count":
-            assert row["state"] == "available" and row["value"] == row["display"] == "1"
+    # plan §4のCOUNT windowは球ごとの寄与1ではなく、論理順の累計を返す。
+    assert [
+        (row["value"], row["display"])
+        for row in rows
+        if row["metric_id"] == "pitch_count"
+    ] == [("1", "1"), ("2", "2"), ("3", "3")]
     assert len(set(observed_keys)) == len(observed_keys)
     assert set(observed_keys) == expected_keys
     assert observed_keys == sorted(
