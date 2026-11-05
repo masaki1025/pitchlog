@@ -99,3 +99,12 @@ root側共有proposalはunit1実装に属するが、最初のwriter9へ混ぜ�
 原案packet27ab055b…/初回非作者4000878e…のP0=0/P1=1/P2=0を保持し、Signed数値の末尾LF誤受理だけを反映1packet ed8ea2cd…で是正。非作者5c7d6e760c13c6c5269cd7c0842f3a12f2dfe97b85fb1427704a9ae991f14effが1field差分、req/res24改行否定/整数型文法/5001桁/旧10+10/新14全値/257履歴/tscを独立再確認しP1解消1・残存0。初回のreq/res全体疑いはUnsigned/Positive既strict・Signedだけへ精密化した履歴も保持する。schema40bb46c0…/d.tscca60b55…/cases1f01f39a…を純計算operation単位の閉契約として受理する。casesのstatusだけをrootがcandidate-not-accepted→accepted-unit1-pure-contractへ更新する承認メタデータ追随を行い、期待/入力/規則/原典SHAの全値は不変更。正式D11全成立/P6/P7/実Port/DB/画面を受理したとはしない。
 
 body開始条件の本操作分は成立。writer9は既規範で閉じた空/整合確定playの一般構造・field逆適用から実装する。fixture/caseID lookupや固定結果は不可。delta/set未分類3/旧D+1矛盾固有行は未提供留保し、深さや桁数で実行上限を作らず全MVP後続で解決する。旧23flag/4比較面・旧全公開operation/安打D01を保持。DB/全操作契約を追加前提へしない。
+
+
+## unit1源本/hostの接合採用（2026-11-05、PO委任Codex /root）
+
+TS9初版packet81c99aa1…とhost反映1（外部resource拒否P1を非作者b17cac7d…で解消）を全候補非作者f08e9041…へ渡し、既決errorOrderに対する15複合不正の拒否順逆転P1=1を固定した。rootは同許可9内のpublicApi.ts/spec.tsだけを反映1し、同値spanを全shape/range/decimal検査後の別passへ移した。型/範囲の先行・数学・規範・期待の全値を不変更。非作者9c5504dee028bd6854b16593984aa321270a54dafe516925f50fa52702e2b0eb（初P1解消1/残存0、元21対向21一致、追加未知/型12、host52/FE30、空192/旧1878有限4操作、独立公式build再現）で源本9＋host2＋公式生成2を採用する。author unionはTS9 batted_hits/閉契約pr191・root/host・境界反映root、全候補reviewer undo_unit1_whole_independentは非作者。P6blind/本人署名/人間逐行確認とは記録しない。
+
+root全domain25file822成功34.81秒、同新artifactの実Nodehost52成功2.59秒、公式2buildは4f4544e13434af17fa10a36426e195c70ec36e15f3d84c8b65953718f8a8f0e4/75600byteで一致。旧1878は4操作の有限一致で、12公開操作の全入力包括互換とは主張しない。元12公開キー順序保持＋applyUndo1、旧publicApiのimports10/functions31全文保持。
+
+本採用はunit1の計算/閉境界の途中成果でありunit1全完了ではない。正式D11/全pin/自己互換witness/全操作往復・後続複合/reset分類・全CIは残る。先行51dを固定した参照はrootが全更新集合を先に列挙し、古い互換/原典pinを保持して正式helperで必要分だけ追随するまで、枝を正式提供/通常統合済みとしない。step2同TX/P1/read/成績invalidationsとstep3queue/ACK/画面・MVP全範囲を維持し、仮Port/固定成功へ置換しない。
