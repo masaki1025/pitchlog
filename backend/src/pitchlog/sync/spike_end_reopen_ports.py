@@ -112,16 +112,24 @@ _RUNNERS = frozenset(
     }
 )
 _ERROR = "試合ライフサイクルspikeを確認できません"
+
+
+class SpikeEndReopenRejected(RuntimeError):
+    """利用者入力・版競合によるspikeの拒否。内部破損と区別する。"""
 # spike の故障注入だけが設定する。通常の製品実行では常に None。
-_FAULT: str | None = None
+_FAULT: dict[UUID, str] = {}
 
 
-def set_fault(point: str | None) -> None:
-    """Spike の故障注入点を設定する。GET/POST の応答を固定成功にしない。"""
-    global _FAULT
-    if point not in (None, "after_lifecycle_projection"):
+def set_fault(game_id: UUID, point: str | None) -> None:
+    """Spike の故障注入点を試合単位で設定する。固定成功へは置き換えない。"""
+    if type(game_id) is not UUID:
+        raise ValueError("故障注入の試合 ID が不正")
+    if point is None:
+        _FAULT.pop(game_id, None)
+        return
+    if point not in {"after_lifecycle_projection"}:
         raise ValueError("未知のライフサイクル故障点")
-    _FAULT = point
+    _FAULT[game_id] = point
 
 
 def _cell(row: tuple[object, ...], columns: tuple[str, ...], name: str) -> object:
@@ -567,7 +575,7 @@ def _content_reason(event: SyncEvent, writer: PortWriter) -> str | None:
 
 
 @final
-class GameLifecycleContentValidationPort:
+class SpikeEndReopenContentValidationPort:
     """spike payload と 9回制・非同時点だけを内容段階で検査する。"""
 
     def validate(
@@ -576,7 +584,7 @@ class GameLifecycleContentValidationPort:
         """Payload の閉形・試合の前提・非同時点を検査する。"""
         try:
             reason = _content_reason(event, writer)
-        except Exception:
+        except (ValueError, TypeError, KeyError, RuntimeError):
             return False, "試合ライフサイクルの内容を確認できません"
         if reason is None:
             return True, None
@@ -626,65 +634,69 @@ def _project(event: SyncEvent, writer: PortWriter) -> None:
     latest = _latest_lifecycle(writer, game_id, generation, d1 - 1)
     if value.action == END_ACTION:
         if latest is not None and latest.action == END_ACTION:
-            raise RuntimeError("終了済みの試合は再開せずに再終了できません")
+            raise SpikeEndReopenRejected("終了済みの試合は再開せずに再終了できません")
         if latest is None:
             if value.previous is not None or value.version != 1:
-                raise RuntimeError("初回終了の版または前版参照が不正です")
+                raise SpikeEndReopenRejected("初回終了の版または前版参照が不正です")
         else:
             target = latest.target
             if target is None:
-                raise RuntimeError("再開の失効対象がありません")
+                raise SpikeEndReopenRejected("再開の失効対象がありません")
             target_d1 = _as_int(target["d1"])
             target_version = _as_int(target["version"])
             if target_d1 is None or target_version is None:
                 raise RuntimeError("再開の失効対象が不正です")
             end = event_row(writer, game_id, generation, target_d1)
             if end is None:
-                raise RuntimeError("失効対象の終了確定版がありません")
+                raise SpikeEndReopenRejected("失効対象の終了確定版がありません")
             end_value = _lifecycle_payload_from_row(end)
             if (
                 end_value is None
                 or end_value.action != END_ACTION
                 or end_value.version != target_version
             ):
-                raise RuntimeError("失効対象の終了確定版が一致しません")
+                raise SpikeEndReopenRejected("失効対象の終了確定版が一致しません")
             if value.previous is None or not _same(value.previous, target):
-                raise RuntimeError("再終了の前版参照が最新の失効対象と一致しません")
+                raise SpikeEndReopenRejected(
+                    "再終了の前版参照が最新の失効対象と一致しません"
+                )
             if value.version != end_value.version + 1:
-                raise RuntimeError("再終了の版が直前の版の次ではありません")
+                raise SpikeEndReopenRejected("再終了の版が直前の版の次ではありません")
         before = _state_before(writer, game_id, generation, d1 - 1)
         if before is None:
-            raise RuntimeError("終了確定版の直前状態がありません")
+            raise SpikeEndReopenRejected("終了確定版の直前状態がありません")
         if not _same(value.state, before):
-            raise RuntimeError("終了確定版の状態が直前の確定状態と一致しません")
+            raise SpikeEndReopenRejected(
+                "終了確定版の状態が直前の確定状態と一致しません"
+            )
         return
     # reopen
     if latest is None or latest.action != END_ACTION:
-        raise RuntimeError("終了していない試合は再開できません")
+        raise SpikeEndReopenRejected("終了していない試合は再開できません")
     if value.target is None or not _same(
         value.target, {"version": latest.version, "d1": latest.d1}
     ):
-        raise RuntimeError("再開の失効対象が最新の終了確定版と一致しません")
+        raise SpikeEndReopenRejected("再開の失効対象が最新の終了確定版と一致しません")
     if value.version != latest.version:
-        raise RuntimeError("再開の版が失効対象と一致しません")
+        raise SpikeEndReopenRejected("再開の版が失効対象と一致しません")
     if latest.state is None or not _same(value.state, latest.state):
-        raise RuntimeError("再開時の状態が終了確定版と一致しません")
+        raise SpikeEndReopenRejected("再開時の状態が終了確定版と一致しません")
 
 
-def _inject_fault() -> None:
-    """検証後の保存境界でだけ、spike の故障を送出する。"""
-    if _FAULT == "after_lifecycle_projection":
+def _inject_fault(game_id: UUID) -> None:
+    """検証後の保存境界でだけ、対象試合の spike 故障を送出する。"""
+    if _FAULT.get(game_id) == "after_lifecycle_projection":
         raise RuntimeError("注入されたライフサイクル投影故障")
 
 
 @final
-class GameLifecycleProjectionPort:
+class SpikeEndReopenProjectionPort:
     """lifecycle イベントの版連鎖を検査する。DB の status は更新しない。"""
 
     def apply(self, event: SyncEvent, writer: PortWriter) -> None:
         """同じ TX の挿入済み行と直前イベントだけを検査する。"""
         _project(event, writer)
-        _inject_fault()
+        _inject_fault(UUID(event.game_id))
 
 
 def fold_lifecycle(
@@ -767,8 +779,9 @@ __all__ = (
     "LIFECYCLE_FORMAT",
     "MAX_LIFECYCLE_SCAN",
     "REOPEN_ACTION",
-    "GameLifecycleContentValidationPort",
-    "GameLifecycleProjectionPort",
+    "SpikeEndReopenContentValidationPort",
+    "SpikeEndReopenProjectionPort",
+    "SpikeEndReopenRejected",
     "LifecyclePayload",
     "LifecycleRow",
     "event_row",

@@ -502,10 +502,6 @@ def _load_first_ball_port_classes() -> tuple[type[object], ...]:
     from pitchlog.sync.first_ball_ports import FirstBallContentValidationPort
     from pitchlog.sync.first_ball_projection import FirstBallProjectionPort
     from pitchlog.sync.first_ball_recording_rights import FirstBallRecordingRightsPort
-    from pitchlog.sync.game_lifecycle_ports import (
-        GameLifecycleContentValidationPort,
-        GameLifecycleProjectionPort,
-    )
     from pitchlog.sync.ordinary_pitch_ports import (
         LineupPrefixContentValidationPort,
         LineupPrefixProjectionPort,
@@ -513,6 +509,10 @@ def _load_first_ball_port_classes() -> tuple[type[object], ...]:
         OrdinaryPitchProjectionPort,
         PlayPrefixContentValidationPort,
         PlayPrefixProjectionPort,
+    )
+    from pitchlog.sync.spike_end_reopen_ports import (
+        SpikeEndReopenContentValidationPort,
+        SpikeEndReopenProjectionPort,
     )
 
     return (
@@ -525,8 +525,8 @@ def _load_first_ball_port_classes() -> tuple[type[object], ...]:
         LineupPrefixContentValidationPort,
         PlayPrefixProjectionPort,
         LineupPrefixProjectionPort,
-        GameLifecycleContentValidationPort,
-        GameLifecycleProjectionPort,
+        SpikeEndReopenContentValidationPort,
+        SpikeEndReopenProjectionPort,
     )
 
 

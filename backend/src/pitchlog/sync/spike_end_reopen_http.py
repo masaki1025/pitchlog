@@ -29,13 +29,14 @@ from pitchlog.repositories.started_read import (
 )
 from pitchlog.repositories.transaction import tenant_transaction_scope
 from pitchlog.sync.d4_reference import encode_d4_reference
-from pitchlog.sync.game_lifecycle_ports import (
+from pitchlog.sync.spike_end_reopen_ports import (
     event_row,
     fold_lifecycle,
     set_fault,
 )
 from pitchlog.sync.tokens import (
     RECORDING_GENERATION_READ_COLUMNS,
+    GameReadToken,
     RecordingGenerationReadToken,
 )
 
@@ -99,7 +100,7 @@ def _build_router(tenant_access: _TENANT_ACCESS) -> APIRouter:
 
     @router.get(
         "/spike/games/{game_id}/lifecycle",
-        operation_id="game_lifecycle_spike_read",
+        operation_id="spike_end_reopen_read",
     )
     def read_lifecycle(
         game_id: UUID,
@@ -235,7 +236,7 @@ def _build_router(tenant_access: _TENANT_ACCESS) -> APIRouter:
 
     @router.post(
         "/spike/games/{game_id}/lifecycle/fault",
-        operation_id="game_lifecycle_spike_fault",
+        operation_id="spike_end_reopen_fault",
     )
     def set_lifecycle_fault(
         game_id: UUID,
@@ -243,7 +244,6 @@ def _build_router(tenant_access: _TENANT_ACCESS) -> APIRouter:
         context: TenantContext = Depends(tenant_access),
     ) -> dict[str, object]:
         """Spike の実DB故障注入点を設定する。イベントや状態は書かない。"""
-        del game_id, context
         raw = payload.get("point")
         point: str | None = None
         if raw is not None:
@@ -253,7 +253,10 @@ def _build_router(tenant_access: _TENANT_ACCESS) -> APIRouter:
         if point not in (None, "after_lifecycle_projection"):
             raise HTTPException(status_code=422)
         try:
-            set_fault(point)
+            with tenant_transaction_scope(context) as scope:
+                if not scope.run(GameReadToken(game_id)).rows:
+                    raise HTTPException(status_code=404)
+            set_fault(game_id, point)
         except ValueError:
             raise HTTPException(status_code=422) from None
         return {"fault": point}

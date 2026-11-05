@@ -1,18 +1,40 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   endPayload,
-  postGameLifecycle,
-  readGameLifecycle,
+  postEndReopen,
+  readEndReopen,
   reopenPayload,
-  type GameLifecycleRead,
-} from './gameLifecycleSpike'
+  type EndReopenRead,
+} from './spikeEndReopen'
 import { apiRequest } from './client'
 
 vi.mock('./client', () => ({
   apiRequest: vi.fn(),
 }))
 
-const lifecycle: GameLifecycleRead = {
+const currentState: EndReopenRead['currentState'] = {
+  stateFields: {
+    'state.half': 'top',
+    'state.count.strikes': '0',
+    'state.count.balls': '0',
+    'state.outs': '0',
+    'state.runners': 'empty',
+    'state.battingOrder': '1',
+    'state.tiebreakActive': false,
+    'state.gameEnded': false,
+    'state.inning': '1',
+    'state.score': { home: '1', away: '0' },
+  },
+  scoreboard: {
+    inningScores: { home: '1', away: '0' },
+    hits: '1',
+    errors: '0',
+    strikeouts: '0',
+    walks: '0',
+  },
+}
+
+const lifecycle: EndReopenRead = {
   gameId: '00000000-0000-4000-8000-000000000001',
   status: 'in_progress',
   generation: 1,
@@ -22,27 +44,7 @@ const lifecycle: GameLifecycleRead = {
   nextD2: 4001,
   truncated: false,
   stateDigest: 'sha256:state',
-  currentState: {
-    stateFields: {
-      'state.half': 'top',
-      'state.count.strikes': '0',
-      'state.count.balls': '0',
-      'state.outs': '0',
-      'state.runners': 'empty',
-      'state.battingOrder': '1',
-      'state.tiebreakActive': false,
-      'state.gameEnded': false,
-      'state.inning': '1',
-      'state.score': { home: '1', away: '0' },
-    },
-    scoreboard: {
-      inningScores: { home: '1', away: '0' },
-      hits: '1',
-      errors: '0',
-      strikeouts: '0',
-      walks: '0',
-    },
-  },
+  currentState,
   activeFinalization: null,
   nextFinalization: { version: 2, previous: { version: 1, d1: 2 } },
   finalizations: [
@@ -50,7 +52,7 @@ const lifecycle: GameLifecycleRead = {
       version: 1,
       d1: 2,
       d5: '00000000-0000-4000-8000-000000000002',
-      state: {},
+      state: currentState,
       stateDigest: 'sha256:old',
       finalizationDigest: 'sha256:old-final',
       invalidatedBy: { d1: 3, d5: '00000000-0000-4000-8000-000000000003' },
@@ -71,13 +73,13 @@ describe('game lifecycle payloads', () => {
       finalization: {
         version: 2,
         previous: { version: 1, d1: 2 },
-        state: lifecycle.currentState,
+        state: currentState,
       },
     })
   })
 
   it('終了確定は有効版を失効対象にした再開payloadを作る', () => {
-    const finished: GameLifecycleRead = {
+    const finished: EndReopenRead = {
       ...lifecycle,
       status: 'finished',
       activeFinalization: lifecycle.finalizations[0]!,
@@ -115,7 +117,7 @@ describe('game lifecycle sync request', () => {
     }
     vi.mocked(apiRequest).mockResolvedValue(response)
     const payload = endPayload(lifecycle)!
-    const result = await postGameLifecycle(lifecycle.gameId, {
+    const result = await postEndReopen(lifecycle.gameId, {
       d4: lifecycle.d4,
       d1: lifecycle.nextD1,
       d2: lifecycle.nextD2,
@@ -156,7 +158,7 @@ describe('game lifecycle sync request', () => {
 
   it('ACKのa5が読めない応答を成功にしない', async () => {
     vi.mocked(apiRequest).mockResolvedValue({ eventResults: [] })
-    const result = await postGameLifecycle(lifecycle.gameId, {
+    const result = await postEndReopen(lifecycle.gameId, {
       d4: lifecycle.d4,
       d1: lifecycle.nextD1,
       d2: lifecycle.nextD2,
@@ -173,7 +175,7 @@ describe('game lifecycle sync request', () => {
 
   it('HTTP失敗を送信成功にしない', async () => {
     vi.mocked(apiRequest).mockRejectedValue(new Error('http'))
-    const result = await postGameLifecycle(lifecycle.gameId, {
+    const result = await postEndReopen(lifecycle.gameId, {
       d4: lifecycle.d4,
       d1: lifecycle.nextD1,
       d2: lifecycle.nextD2,
@@ -192,7 +194,7 @@ describe('game lifecycle sync request', () => {
 describe('game lifecycle read', () => {
   it('tenant束縛のGETを使う', async () => {
     vi.mocked(apiRequest).mockResolvedValue(lifecycle)
-    await expect(readGameLifecycle(lifecycle.gameId)).resolves.toBe(lifecycle)
+    await expect(readEndReopen(lifecycle.gameId)).resolves.toBe(lifecycle)
     expect(apiRequest).toHaveBeenCalledWith(
       'GET',
       `/spike/games/${lifecycle.gameId}/lifecycle`,

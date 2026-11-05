@@ -24,10 +24,10 @@ _EXPECTED_PORTS = frozenset(
         ("pitchlog.sync.first_ball_projection", "FirstBallProjectionPort"),
         ("pitchlog.sync.first_ball_recording_rights", "FirstBallRecordingRightsPort"),
         (
-            "pitchlog.sync.game_lifecycle_ports",
-            "GameLifecycleContentValidationPort",
+            "pitchlog.sync.spike_end_reopen_ports",
+            "SpikeEndReopenContentValidationPort",
         ),
-        ("pitchlog.sync.game_lifecycle_ports", "GameLifecycleProjectionPort"),
+        ("pitchlog.sync.spike_end_reopen_ports", "SpikeEndReopenProjectionPort"),
     }
 )
 

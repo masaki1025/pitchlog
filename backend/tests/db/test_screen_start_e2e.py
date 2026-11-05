@@ -195,8 +195,8 @@ def _app_container(db, app_port: int, origin: str) -> list[str]:
         "--env",
         "PITCHLOG_BINDING_CLIENT_CONFIG=/run/pitchlog/public/binding-client.json",
     ]
-    if os.environ.get("PITCHLOG_GAME_LIFECYCLE_SPIKE") == "1":
-        args[1:1] = ["--env", "PITCHLOG_GAME_LIFECYCLE_SPIKE=1"]
+    if os.environ.get("PITCHLOG_SPIKE_END_REOPEN") == "1":
+        args[1:1] = ["--env", "PITCHLOG_SPIKE_END_REOPEN=1"]
     if (
         os.environ.get("PITCHLOG_E2E_INITIAL_DIAGNOSTIC") == "1"
         or os.environ.get("PITCHLOG_E2E_CREATE_DIAGNOSTIC") == "1"

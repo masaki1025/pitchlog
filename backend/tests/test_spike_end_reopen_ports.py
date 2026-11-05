@@ -2,20 +2,26 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from typing import cast
 from uuid import UUID, uuid4
 
 import pytest
 
+from pitchlog.db.game_state.models import Game
+from pitchlog.db.sync_protocol.models import OperationEvent
 from pitchlog.repositories.tokens import ImmutableValue, TenantOperationResult
-from pitchlog.sync.game_lifecycle_ports import (
+from pitchlog.sync.model import SyncEvent
+from pitchlog.sync.ports import PortWriter
+from pitchlog.sync.spike_end_reopen_ports import (
     EVENT_COLUMNS,
+    GAME_COLUMNS,
+    SpikeEndReopenContentValidationPort,
     fold_lifecycle,
     payload,
     state_from_row,
 )
-from pitchlog.sync.model import SyncEvent
-from pitchlog.sync.tokens import OperationEventReadToken
+from pitchlog.sync.tokens import GameReadToken, OperationEventReadToken
 
 
 def state(score: tuple[str, str] = ("1", "0")) -> dict[str, object]:
@@ -259,3 +265,96 @@ def test_fold_rejects_reopen_without_end() -> None:
     }
     with pytest.raises(RuntimeError):
         fold_lifecycle(_FakeRunner(rows), UUID(int=1), 1, 1)
+
+class _GameRunner:
+    """試合行だけを返す内容検証用の同一 TX 代用。"""
+
+    def __init__(self, game: dict[str, object]) -> None:
+        self.game = game
+
+    def run(self, operation: object) -> TenantOperationResult:
+        assert type(operation) is GameReadToken
+        row = cast(
+            tuple[ImmutableValue, ...],
+            tuple(self.game[name] for name in GAME_COLUMNS),
+        )
+        return TenantOperationResult((row,))
+
+
+def game_row(**changes: object) -> dict[str, object]:
+    """9回制の進行中試合行を返す。"""
+    values: dict[str, object] = {
+        "id": uuid4(),
+        "scheduled_at": datetime.now(UTC),
+        "game_type_key": "game_other",
+        "game_type_category": "game_type",
+        "tournament_key": uuid4(),
+        "away_team_record_id": uuid4(),
+        "home_team_record_id": uuid4(),
+        "plate_umpire": None,
+        "section_label": None,
+        "week_label": None,
+        "day_label": None,
+        "game_number_label": None,
+        "started_at": datetime.now(UTC),
+        "status": "in_progress",
+        "applied_rules": {"regulationInnings": 9},
+        "rule_override": None,
+        "trashed_at": None,
+        "hidden_at": None,
+        "tenant_id": uuid4(),
+        "import_batch_id": None,
+    }
+    values.update(changes)
+    return values
+
+
+def lifecycle_event(
+    value: dict[str, object], game_id: object | None = None
+) -> SyncEvent:
+    """内容検証へ渡す game_end_declaration を作る。"""
+    return SyncEvent(
+        str(uuid4()),
+        str(game_id) if game_id is not None else str(uuid4()),
+        d1=1,
+        d4="d4",
+        v5="game_end_declaration",
+        v6=1,
+        v7=value,
+    )
+
+
+def test_content_validation_requires_nine_inning_in_progress_and_non_tie() -> None:
+    """9回制・進行中・非同時点だけを内容段階で受理する。"""
+    port = SpikeEndReopenContentValidationPort()
+    value = end_payload()
+    game = game_row()
+    event = lifecycle_event(value, game["id"])
+    assert port.validate(event, cast(PortWriter, _GameRunner(game))) == (True, None)
+
+    tie = state(("1", "1"))
+    assert port.validate(
+        lifecycle_event(end_payload(value=tie), game["id"]),
+        cast(PortWriter, _GameRunner(game)),
+    ) == (False, "同点の試合はこのspikeの対象外です")
+    assert port.validate(
+        event,
+        cast(
+            PortWriter,
+            _GameRunner(
+                game_row(id=game["id"], applied_rules={"regulationInnings": 5})
+            ),
+        ),
+    ) == (False, "9回制の試合だけを対象にします")
+    assert port.validate(
+        event,
+        cast(
+            PortWriter,
+            _GameRunner(game_row(id=game["id"], status="finished")),
+        ),
+    ) == (False, "進行中の開始済み試合ではありません")
+
+def test_fixed_column_orders_match_models() -> None:
+    """ハードコードした列順が実モデルと一致する。"""
+    assert GAME_COLUMNS == tuple(Game.__table__.c.keys())
+    assert EVENT_COLUMNS == tuple(OperationEvent.__table__.c.keys())

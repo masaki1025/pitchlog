@@ -2,16 +2,16 @@
 import { computed, ref } from 'vue'
 import {
   endPayload,
-  postGameLifecycle,
+  postEndReopen,
   reopenPayload,
-  type GameLifecycleRead,
-} from '../api/gameLifecycleSpike'
+  type EndReopenRead,
+} from '../api/spikeEndReopen'
 import { GameStartPersistence } from '../lib/gameStartPersistence'
 import { useAuthStore } from '../stores/authStore'
 
 const props = defineProps<{
   gameId: string
-  lifecycle: GameLifecycleRead | null
+  lifecycle: EndReopenRead | null
   loading: boolean
   message: string
 }>()
@@ -27,6 +27,7 @@ const score = computed(() => {
     : null
 })
 const active = computed(() => props.lifecycle?.activeFinalization ?? null)
+const truncated = computed(() => props.lifecycle?.truncated === true)
 const finalizations = computed(() => props.lifecycle?.finalizations ?? [])
 
 function digest(value: string): string {
@@ -69,7 +70,7 @@ async function submit(action: 'end' | 'reopen') {
           : '再開できる終了確定版を確認できません'
       return
     }
-    const result = await postGameLifecycle(props.gameId, {
+    const result = await postEndReopen(props.gameId, {
       d4: lifecycle.d4,
       d1: lifecycle.nextD1,
       d2: lifecycle.nextD2,
@@ -121,9 +122,11 @@ async function submit(action: 'end' | 'reopen') {
             ? 'サーバーの終了状態を取得中です'
             : lifecycle === null
               ? message
-              : lifecycle.status === 'finished'
-                ? '終了確定'
-                : '進行中'
+              : truncated
+                ? '履歴上限のため終了状態を確定できません'
+                : lifecycle.status === 'finished'
+                  ? '終了確定'
+                  : '進行中'
         }}
       </p>
       <p data-testid="lifecycle-message" role="status" class="text-sm">
@@ -190,7 +193,7 @@ async function submit(action: 'end' | 'reopen') {
           type="button"
           data-testid="lifecycle-end"
           class="min-h-11 rounded-lg border border-amber-700 bg-white px-3 py-2 font-bold disabled:opacity-60"
-          :disabled="busy || lifecycle.status !== 'in_progress'"
+          :disabled="busy || truncated || lifecycle.status !== 'in_progress'"
           @click="submit('end')"
         >
           終了を宣言する
@@ -199,7 +202,7 @@ async function submit(action: 'end' | 'reopen') {
           type="button"
           data-testid="lifecycle-reopen"
           class="min-h-11 rounded-lg border border-amber-700 bg-white px-3 py-2 font-bold disabled:opacity-60"
-          :disabled="busy || lifecycle.status !== 'finished'"
+          :disabled="busy || truncated || lifecycle.status !== 'finished'"
           @click="submit('reopen')"
         >
           試合を追記再開する

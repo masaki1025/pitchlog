@@ -3,7 +3,7 @@ import { gameScreenOutputDirectory } from './GameScreenE2eProcess'
 
 export default defineConfig({
   testDir: '.',
-  testMatch: 'GameScreenLifecycle.e2e.ts',
+  testMatch: 'GameScreenEndReopen.e2e.ts',
   fullyParallel: false,
   workers: 1,
   timeout: 600_000,

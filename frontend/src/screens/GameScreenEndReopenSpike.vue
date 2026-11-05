@@ -1,19 +1,16 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
-import {
-  readGameLifecycle,
-  type GameLifecycleRead,
-} from '../api/gameLifecycleSpike'
+import { readEndReopen, type EndReopenRead } from '../api/spikeEndReopen'
 import { useAuthStore } from '../stores/authStore'
-import GameScreenLifecyclePanel from './GameScreenLifecyclePanel.vue'
+import GameScreenEndReopenPanel from './GameScreenEndReopenPanel.vue'
 
 const route = useRoute()
 const auth = useAuthStore()
 const gameId = computed(() =>
   typeof route.params.gameId === 'string' ? route.params.gameId : '',
 )
-const lifecycle = ref<GameLifecycleRead | null>(null)
+const lifecycle = ref<EndReopenRead | null>(null)
 const loading = ref(false)
 const message = ref('')
 let sequence = 0
@@ -28,7 +25,7 @@ async function load(): Promise<void> {
   const request = ++sequence
   loading.value = true
   try {
-    const value = await readGameLifecycle(gameId.value)
+    const value = await readEndReopen(gameId.value)
     if (request !== sequence || auth.authEpoch !== epoch) return
     lifecycle.value = value
     message.value =
@@ -73,7 +70,7 @@ onMounted(load)
         終了確定版・再開による失効・再終了の版を読みます。
       </p>
     </header>
-    <GameScreenLifecyclePanel
+    <GameScreenEndReopenPanel
       v-if="gameId"
       :game-id="gameId"
       :lifecycle="lifecycle"

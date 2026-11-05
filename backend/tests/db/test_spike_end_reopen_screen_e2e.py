@@ -45,7 +45,7 @@ def _run_lifecycle_playwright(db, origin: str, extra_env: dict[str, str]):
     try:
         return _run_playwright(
             db,
-            "GameScreenLifecycle.playwright.config.ts",
+            "GameScreenEndReopen.playwright.config.ts",
             origin,
             "game-lifecycle",
             extra_env,
@@ -78,7 +78,7 @@ def test_screen_end_reopen_reend_reload(
     for name in ("PITCHLOG_E2E_TLS_CERT_PATH", "PITCHLOG_E2E_TLS_KEY_PATH"):
         path = os.environ.get(name)
         assert path and Path(path).is_absolute() and Path(path).is_file()
-    monkeypatch.setenv("PITCHLOG_GAME_LIFECYCLE_SPIKE", "1")
+    monkeypatch.setenv("PITCHLOG_SPIKE_END_REOPEN", "1")
     db = vertical_database
     with psycopg.connect(db.authority.database.business_admin) as admin:
         apply_product_authz_ddl(admin)
@@ -105,7 +105,7 @@ def test_screen_end_reopen_reend_reload(
     with db.broker_worker(token), binding_broker(db, token):
         with _browser_environment(
             db,
-            "GameScreenLifecycle.playwright.config.ts",
+            "GameScreenEndReopen.playwright.config.ts",
             "game-lifecycle",
             https=True,
         ) as origin:
@@ -152,7 +152,10 @@ def test_screen_end_reopen_reend_reload(
                 "version": "v2",
                 "watermark": "4",
             }
+            assert result["badV12"]["status"] in (200, 403, 503)
+            assert result["badV12"]["watermarkAfter"] == "4"
             assert result["otherTenantStatus"] == 404
+            assert result["otherTenantFaultStatus"] == 404
             with psycopg.connect(db.authority.database.business_admin) as admin:
                 rows = admin.execute(
                     "SELECT d1,d2,event_kind,payload->>'formatVersion',"

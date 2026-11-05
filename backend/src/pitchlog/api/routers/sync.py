@@ -5,6 +5,7 @@ P3は本入口の対象外で、ACK P3形も発行しない（後続のMVP完成
 
 from __future__ import annotations
 
+import os
 from collections.abc import Mapping
 from typing import Annotated, Literal, cast
 from uuid import UUID, uuid5
@@ -47,10 +48,6 @@ from pitchlog.sync.control_provider.writer_binding import (
 from pitchlog.sync.first_ball_ports import FirstBallContentValidationPort
 from pitchlog.sync.first_ball_projection import FirstBallProjectionPort
 from pitchlog.sync.first_ball_recording_rights import FirstBallRecordingRightsPort
-from pitchlog.sync.game_lifecycle_ports import (
-    GameLifecycleContentValidationPort,
-    GameLifecycleProjectionPort,
-)
 from pitchlog.sync.http_recording_key import _decode_recording_key
 from pitchlog.sync.model import AckResult, RequestShapeError, SyncRequest
 from pitchlog.sync.ordinary_pitch_execution import OrdinaryPitchExecutionError
@@ -67,6 +64,11 @@ from pitchlog.sync.source_binding import (
     _e1_receipt_scope,
     e1_event_source,
     selected_event_fingerprint,
+)
+from pitchlog.sync.spike_end_reopen_ports import (
+    SpikeEndReopenContentValidationPort,
+    SpikeEndReopenProjectionPort,
+    SpikeEndReopenRejected,
 )
 from pitchlog.sync.wire_source import WireSourceError, freeze_wire_source
 
@@ -243,6 +245,8 @@ def sync_events(
                 isinstance(event.v7, Mapping)
                 and event.v7.get("formatVersion") == "game-lifecycle-spike-v1"
             )
+            if lifecycle and os.environ.get("PITCHLOG_SPIKE_END_REOPEN") != "1":
+                raise _E1OutOfScope("試合終了・再開spikeは無効")
             if isinstance(event.v7, Mapping) and event.v7.get("formatVersion") not in {
                 "first-ball-play-v1",
                 "ordinary-pitch-play-v1",
@@ -262,7 +266,7 @@ def sync_events(
                 control=BindingControl(configuration.broker_endpoint),
                 rights=rights,
                 projection=(
-                    GameLifecycleProjectionPort()
+                    SpikeEndReopenProjectionPort()
                     if lifecycle
                     else LineupPrefixProjectionPort()
                     if lineup_prefix
@@ -273,7 +277,7 @@ def sync_events(
                     else FirstBallProjectionPort()
                 ),
                 validator=(
-                    GameLifecycleContentValidationPort()
+                    SpikeEndReopenContentValidationPort()
                     if lifecycle
                     else LineupPrefixContentValidationPort()
                     if lineup_prefix
@@ -287,6 +291,8 @@ def sync_events(
             )
     except _E1OutOfScope:
         raise HTTPException(status_code=501) from None
+    except SpikeEndReopenRejected:
+        raise HTTPException(status_code=409) from None
     except (SourceBindingError, ValueError):
         raise HTTPException(status_code=422) from None
     except (

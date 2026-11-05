@@ -363,12 +363,49 @@ test('実HTTPS画面の9回制非同時点で終了→再送→再開→再終�
     'v1（D1 2）: 再開 D1 3 で失効',
   )
 
+  // V12 を改竄した終了は保存されず、水位が変わらない。
+  const bad = JSON.parse(originalEnd.body) as {
+    recording_right_proof: string
+    events: Array<{
+      d5: string
+      d1: number
+      d2: number
+      payload: {
+        finalization: { version: number; previous: unknown }
+      }
+    }>
+  }
+  bad.recording_right_proof = bad.recording_right_proof + 'x'
+  bad.events[0]!.d5 = randomUUID()
+  bad.events[0]!.d1 = 5
+  bad.events[0]!.d2 = 5001
+  bad.events[0]!.payload.finalization.version = 3
+  bad.events[0]!.payload.finalization.previous = { version: 2, d1: 4 }
+  const badV12 = await page.request.post(originalEnd.url, {
+    data: JSON.stringify(bad),
+    headers: {
+      ...replayHeaders,
+      Origin: baseURL!,
+      'X-Pitchlog-Sync-Attempt': randomUUID(),
+    },
+  })
+  const badV12Status = badV12.status()
+  expect([200, 403, 503]).toContain(badV12Status)
+  if (badV12Status === 200) {
+    const badBody = (await badV12.json()) as AckBody
+    expect(badBody.eventResults[0]!.a5Result).toBe('退避')
+  }
+  await page.getByTestId('lifecycle-refresh').click()
+  await expect(page.getByTestId('lifecycle-watermark')).toHaveText('4')
+
   // 別tenantの実loginでは、同じ試合IDの専用GETが404になる。
   const otherLogin = await page.request.post(`${baseURL}/api/auth/login`, {
     data: { team_name: otherTeam, password },
     headers: { Origin: baseURL!, 'X-Pitchlog-Request': '1' },
   })
   expect(otherLogin.status()).toBe(200)
+  const otherBody = (await otherLogin.json()) as { tenant_id?: unknown }
+  expect(otherBody.tenant_id).toBe(otherTenant)
   const otherRead = await page.request.get(
     `${baseURL}/api/spike/games/${saved.id}/lifecycle`,
     {
@@ -380,6 +417,19 @@ test('実HTTPS画面の9回制非同時点で終了→再送→再開→再終�
     },
   )
   expect(otherRead.status()).toBe(404)
+  const otherFault = await page.request.post(
+    `${baseURL}/api/spike/games/${saved.id}/lifecycle/fault`,
+    {
+      data: { point: 'after_lifecycle_projection' },
+      headers: {
+        Origin: baseURL!,
+        'X-Pitchlog-Request': '1',
+        'X-Pitchlog-Expected-Tenant': otherTenant!,
+        'X-Pitchlog-Tenant-Challenge': randomUUID(),
+      },
+    },
+  )
+  expect(otherFault.status()).toBe(404)
 
   console.log(
     'PITCHLOG_LIFECYCLE_SCREEN_RESULT=' +
@@ -398,7 +448,9 @@ test('実HTTPS画面の9回制非同時点で終了→再送→再開→再終�
           { version: 2, d1: 4, invalidatedBy: null },
         ],
         reloaded: { status: 'finished', version: 'v2', watermark: '4' },
+        badV12: { status: badV12Status, watermarkAfter: '4' },
         otherTenantStatus: otherRead.status(),
+        otherTenantFaultStatus: otherFault.status(),
       }),
   )
 })

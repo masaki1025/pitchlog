@@ -1,7 +1,7 @@
 import { apiRequest, type SyncRequestCredentials } from './client'
 
 /** 終了・再開spikeの GET 応答。書込み結果ではない。 */
-export type GameLifecycleRead = Readonly<{
+export type EndReopenRead = Readonly<{
   gameId: string
   status: 'in_progress' | 'finished'
   generation: number
@@ -16,12 +16,12 @@ export type GameLifecycleRead = Readonly<{
     scoreboard: Readonly<Record<string, unknown>>
     battingOrderBySide?: Readonly<Record<string, unknown>>
   }>
-  activeFinalization: GameLifecycleFinalization | null
+  activeFinalization: EndReopenFinalization | null
   nextFinalization: Readonly<{
     version: number
     previous: Readonly<{ version: number; d1: number }> | null
   }> | null
-  finalizations: readonly GameLifecycleFinalization[]
+  finalizations: readonly EndReopenFinalization[]
   events: readonly Readonly<{
     d1: number
     d5: string
@@ -32,17 +32,17 @@ export type GameLifecycleRead = Readonly<{
   }>[]
 }>
 
-export type GameLifecycleFinalization = Readonly<{
+export type EndReopenFinalization = Readonly<{
   version: number
   d1: number
   d5: string
-  state: Readonly<Record<string, unknown>>
+  state: EndReopenRead['currentState']
   stateDigest: string
   finalizationDigest: string
   invalidatedBy: Readonly<{ d1: number; d5: string }> | null
 }>
 
-type LifecycleState = GameLifecycleRead['currentState']
+type LifecycleState = EndReopenRead['currentState']
 
 type LifecyclePayload =
   | Readonly<{
@@ -64,16 +64,16 @@ type LifecyclePayload =
       }>
     }>
 
-export type GameLifecycleResult =
+export type EndReopenResult =
   | Readonly<{ sent: true; a5Result: string; response: unknown }>
   | Readonly<{ sent: false; reason: string }>
 
 /** 実認証済みtenantで、保存済みイベントから終了確定版を取得する。 */
-export function readGameLifecycle(
+export function readEndReopen(
   gameId: string,
   signal?: AbortSignal,
-): Promise<GameLifecycleRead> {
-  return apiRequest<GameLifecycleRead>(
+): Promise<EndReopenRead> {
+  return apiRequest<EndReopenRead>(
     'GET',
     `/spike/games/${encodeURIComponent(gameId)}/lifecycle`,
     { tenantBound: true, signal },
@@ -87,7 +87,7 @@ export function readGameLifecycle(
  * 正式 wire の `game_end_declaration` は文字列リテラルである。ここでは
  * wire を直接組み、サーバーの閉じた検査を正とする。
  */
-export async function postGameLifecycle(
+export async function postEndReopen(
   gameId: string,
   request: Readonly<{
     d4: string
@@ -97,7 +97,7 @@ export async function postGameLifecycle(
     payload: LifecyclePayload
     syncCredentials: SyncRequestCredentials
   }>,
-): Promise<GameLifecycleResult> {
+): Promise<EndReopenResult> {
   const d5 = crypto.randomUUID()
   let response: unknown
   try {
@@ -145,9 +145,7 @@ export async function postGameLifecycle(
 }
 
 /** 終了 payload を現在状態と次の版から組み立てる。 */
-export function endPayload(
-  lifecycle: GameLifecycleRead,
-): LifecyclePayload | null {
+export function endPayload(lifecycle: EndReopenRead): LifecyclePayload | null {
   if (lifecycle.status !== 'in_progress' || lifecycle.nextFinalization === null)
     return null
   return {
@@ -163,7 +161,7 @@ export function endPayload(
 
 /** 再開 payload を有効な終了確定版から組み立てる。 */
 export function reopenPayload(
-  lifecycle: GameLifecycleRead,
+  lifecycle: EndReopenRead,
 ): LifecyclePayload | null {
   const active = lifecycle.activeFinalization
   if (lifecycle.status !== 'finished' || active === null) return null
@@ -173,7 +171,7 @@ export function reopenPayload(
     finalization: {
       version: active.version,
       target: { version: active.version, d1: active.d1 },
-      state: lifecycle.currentState,
+      state: active.state,
     },
   }
 }

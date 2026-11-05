@@ -9,7 +9,7 @@ import LoginScreen from './screens/LoginScreen.vue'
 import TeamScreen from './screens/TeamScreen.vue'
 import GameScreenEntryHost from './screens/GameScreenEntryHost.vue'
 import GameScreenEntryRecordHost from './screens/GameScreenEntryRecordHost.vue'
-import GameScreenLifecycleSpike from './screens/GameScreenLifecycleSpike.vue'
+import GameScreenEndReopenSpike from './screens/GameScreenEndReopenSpike.vue'
 import { resolveGameEntryReturnPath } from './screens/GameScreenEntryNavigation'
 import { useAuthStore } from './stores/authStore'
 
@@ -45,7 +45,7 @@ export function createAppRouter(history: RouterHistory = createWebHistory()) {
       {
         path: '/games/:gameId/lifecycle-spike',
         name: 'game-lifecycle-spike',
-        component: GameScreenLifecycleSpike,
+        component: GameScreenEndReopenSpike,
         meta: { requiresAuth: true },
       },
     ],

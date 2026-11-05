@@ -122,6 +122,6 @@ play を送れる余地が残る。製品接続では次を同一 TX で行う�
 - 再開の受理と `games.status='in_progress'` の更新
 - 終了後修正（P3）は `finished` のまま許可する既存仕様との整合
 
-この投影は本spikeの `game_lifecycle_ports` に置き場所だけ用意できるが、
+この投影は本spikeの `spike_end_reopen_ports` に置き場所だけ用意できるが、
 `games.status` の更新 operation と認可 catalog の正式登録が必要なため、
 本枝では提案に留める。
