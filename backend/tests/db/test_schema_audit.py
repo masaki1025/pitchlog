@@ -505,6 +505,14 @@ def _index_catalog(
             connection, name, schema=schema
         )
         del definition
+        if name == "ix_admin_vocabularies_batted_ball_key_c":
+            assert schema == "public" and table == "admin_vocabularies"
+            assert unique is False
+            assert columns in (["key"], ['key COLLATE "C"'])
+            assert predicate == "category = 'batted_ball' AND disabled = false"
+            # per-column表示が省く照合順を、実18fieldの再検査後だけ補う。
+            _assert_current_batted_index(connection)
+            columns = ['key COLLATE "C"']
         if unique:
             continue
         contracts.add(

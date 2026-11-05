@@ -870,3 +870,142 @@ def test_batted_audit_physical_index_is_closed(fault: str | None) -> None:
     else:
         with pytest.raises(AssertionError):
             _assert_current_batted_index(connection)
+
+
+@pytest.mark.parametrize("rendering", [["key"], ['key COLLATE "C"']])
+@pytest.mark.parametrize(
+    "fault",
+    [
+        None,
+        "schema",
+        "table",
+        "unique",
+        "empty",
+        "other-key",
+        "descending",
+        "other-collation",
+        "extra-key",
+        "predicate",
+        "physical-collation",
+        "physical-method",
+        "physical-opclass-schema",
+    ],
+)
+def test_batted_catalog_renders_only_after_exact_physical_check(
+    monkeypatch: pytest.MonkeyPatch,
+    rendering: list[str],
+    fault: str | None,
+) -> None:
+    """旧per-column表示は有限C indexの実18field確認後だけ射影する。"""
+    from contextlib import contextmanager
+    from types import SimpleNamespace
+
+    from db import test_schema_audit as audit
+
+    schema, table, unique = "public", "admin_vocabularies", False
+    columns = list(rendering)
+    predicate = "category = 'batted_ball' AND disabled = false"
+    physical: list[Any] = [
+        "public",
+        "admin_vocabularies",
+        "ix_admin_vocabularies_batted_ball_key_c",
+        "btree",
+        "pitchlog_owner",
+        False,
+        False,
+        True,
+        True,
+        True,
+        True,
+        False,
+        ["key"],
+        ["pg_catalog.C"],
+        [0],
+        None,
+        "((category = 'batted_ball'::text) AND (disabled = false))",
+        ["pg_catalog.text_ops"],
+    ]
+    if fault == "schema":
+        schema = "private"
+    elif fault == "table":
+        table = "tenant_vocabularies"
+    elif fault == "unique":
+        unique = True
+    elif fault in {"empty", "other-key", "descending", "other-collation", "extra-key"}:
+        columns = {
+            "empty": [],
+            "other-key": ["display_name"],
+            "descending": ["key DESC"],
+            "other-collation": ['key COLLATE "default"'],
+            "extra-key": ["key", "display_name"],
+        }[fault]
+    elif fault == "predicate":
+        predicate = "disabled = false"
+    elif fault == "physical-collation":
+        physical[13] = ["pg_catalog.default"]
+    elif fault == "physical-method":
+        physical[3] = "hash"
+    elif fault == "physical-opclass-schema":
+        physical[17] = ["public.text_ops"]
+    seen = []
+
+    @contextmanager
+    def cursor():
+        yield SimpleNamespace(
+            execute=lambda sql: seen.append(sql), fetchall=lambda: [tuple(physical)]
+        )
+
+    connection = cast(Any, SimpleNamespace(cursor=cursor))
+    monkeypatch.setattr(
+        audit,
+        "_index_kinds",
+        lambda _: [
+            (schema, "ix_admin_vocabularies_batted_ball_key_c"),
+            ("public", "ix_other"),
+        ],
+    )
+
+    def contract(_, name, *, schema):
+        if name == "ix_other":
+            return "other unchanged", "games", ["id DESC"], None, False
+        return "observed definition", table, columns, predicate, unique
+
+    monkeypatch.setattr(audit, "_index_catalog_contract", contract)
+    if fault is None:
+        actual = audit._index_catalog(connection)
+        assert actual == {
+            audit._IndexContract(
+                "admin_vocabularies",
+                "ix_admin_vocabularies_batted_ball_key_c",
+                ('key COLLATE "C"',),
+                predicate,
+            ),
+            audit._IndexContract("games", "ix_other", ("id DESC",), None),
+        }
+        assert len(seen) == 1
+    else:
+        with pytest.raises(AssertionError):
+            audit._index_catalog(connection)
+
+
+def test_batted_catalog_never_normalizes_or_excludes_unknown_index(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """他名の同形indexも旧raw表現のまま残し、未知差分を削除しない。"""
+    from db import test_schema_audit as audit
+
+    monkeypatch.setattr(audit, "_index_kinds", lambda _: [("public", "unknown_index")])
+    monkeypatch.setattr(
+        audit,
+        "_index_catalog_contract",
+        lambda *a, **k: (
+            "unknown definition",
+            "admin_vocabularies",
+            ["key"],
+            None,
+            False,
+        ),
+    )
+    assert audit._index_catalog(cast(Any, object())) == {
+        audit._IndexContract("admin_vocabularies", "unknown_index", ("key",), None),
+    }
