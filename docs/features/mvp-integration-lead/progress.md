@@ -1,5 +1,13 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 続き：2026-11-05（成績の実3球保存成立、保存直後故障を実測中）
+
+- **新たに成立した経路**: 成績枝b051defab4c69889cc2695f72a396e111313b614の固定HEADで、実POST新規作成→開始→ordinary-prefix-v1の3球→元要求再送→サーバーGETが1pass66.95秒。event3と成績source3のID一致、current_open(source_count3/revision3)、pitch_count3を実PGで確認した。HEAD/tree/index全3840項目前後一致、7証拠SHAとowned終了を非作者8ba1dd24e939432cba81a4607489a9f2543213ae23bffda2b18ae5acb7270f0cで照合。cache mvp-resume-20261104/stats-native-three-pitch-integration-r5-proof/evidence.json。APIの成績保存接続であり、成績画面/全4profile/終了確定集計/全27項目/正式受理ではない。
+- **保存保証の次の検証**: native accepted台帳のtop-level INSERT exact5は非作者98e28cd1…後b051へ採用、旧generic/savepoint/66DML/SQL xmin条件/DI2優先を保持。実flush完了直後だけ固定故障を起こすHTTP test exact1 c8ce45ad…は非作者fb28f4d9…（独立pure48成功、P0/P1/P2=0）後53dcc597へ保存。元の実認証/開始/計算/SQLを通し、関連13表の全列・全行原状比較をowned PGで実行中。旧要求終結/D5未消費/新D5置換をこの試験から推定しない。
+- **#196正式化**: source登録3503f222で関連409pass31.84秒、census287c5c95で独立69pass111.02秒。7.7 R1候補410d34b7は全9資産を各base+1、旧37履歴保持＋単一196、17新snapshot/旧base323・pin83保持で独立5ba47d48…照合済み。ただし正式CLIは固定registryのStarred tupleを読めずexit2で未成立。最小exact2を5acc5ba7計画追補。初版static展開はvars/alias/sys.modules経由再束縛4反例のP1を非作者ec48b0f3…が検出し採用しない。作者は新Starred経路を固定Git原典へ閉じる反映1をcache-onlyで実施中。source変更後はR1の単一196候補だけを置換再導出し、旧37・版base+1を維持する。未push/未CI/未merge、公開2fd47782のまま。
+- **操作面/残件**: 正式版の作成・開始・初期権・通常球・四死球・三振/攻守交代と、候補4安打（走者なし）の画面実証を区別する。交代/全走塁/取消/過去訂正/終了再開・成績UI/毎球・成績CSV/全offline・閲覧10秒/実機・復旧・全MVPは未完。成績の未回答4意味判断は既判断票を維持し、再照会や未回答採用をしない。正式develop112f771e/#192後CI成功は維持。Goal active。
+
+
 ## 続き：2026-11-05 14時台（実PG成立と成績の実API停止原因を特定）
 
 - **利用者操作/正式版**: developはGitHub再照合で112f771eのまま、#192統合後CI成功。#196は公開2fd47782/Draft、候補GUI4安打成功を正式提供とは分離する。新しい成績操作の利用者向け完了はまだ無い。
