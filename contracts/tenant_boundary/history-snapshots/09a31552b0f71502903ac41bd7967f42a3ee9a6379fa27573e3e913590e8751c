@@ -2882,34 +2882,94 @@ def _batted_metadata_delta(root: Path, base: _BattedCarryBaseReader) -> bool:
     return True
 
 
+_BATTED_HANDOFF_PATH = "contracts/state-transition/appendix_e_consumer_handoff_v1.json"
+_BATTED_HANDOFF_SOURCES = (
+    str(STATE_TRANSITION_CONTRACT_PATH), str(GAME_END_CONTRACT_PATH),
+    _BATTED_METADATA_DESCRIPTOR,
+)
+_BATTED_PROJECTION_PATHS = _BATTED_METADATA_PATHS | {_BATTED_HANDOFF_PATH}
+
+
+def _batted_current_legacy_documents(root: Path) -> None:
+    """旧固定文書をactual headのbyteと既JSON読取値の双方で原典へ束縛する。"""
+    current = _Gate6CurrentReader(root)
+    anchor = _OrdinaryAcceptedReader(root)
+    for path in sorted(_ORDINARY_FIXED_INPUTS - _BATTED_PROJECTION_PATHS):
+        if current.read_bytes(path) != anchor.read_bytes(path):
+            raise HumanReviewSignatureRecordError("安打current旧固定byteが原典と不一致: " + path)
+        if PurePosixPath(path).suffix == ".json" and _compact_json(
+            current.load_json(path, "安打current旧文書")
+        ) != _compact_json(anchor.load_json(path, "安打旧文書原典")):
+            raise HumanReviewSignatureRecordError("安打current旧JSON読取値が原典と不一致: " + path)
+
+
+def _batted_handoff_delta(root: Path, base: _BattedCarryBaseReader) -> None:
+    """base handoff全byteから実head3資産のdigestだけを導出し、その他の差を拒否する。"""
+    previous = base.read_bytes(_BATTED_HANDOFF_PATH)
+    handoff = base.load_json(_BATTED_HANDOFF_PATH, "安打base handoff")
+    artifacts = handoff["artifacts"]
+    if type(artifacts) is not list or len(artifacts) != len(_BATTED_HANDOFF_SOURCES):
+        raise HumanReviewSignatureRecordError("安打handoffのbase資産集合が不一致")
+    expected = previous
+    for raw_entry, path in zip(artifacts, _BATTED_HANDOFF_SOURCES, strict=True):
+        entry = _object(raw_entry, "安打base handoff資産")
+        if (entry["path"] != path or entry["version"] != PurePosixPath(path).stem
+                or entry["digest"] != "sha256:" + hashlib.sha256(
+                    base.read_bytes(path)).hexdigest()):
+            raise HumanReviewSignatureRecordError("安打handoffのbase path/version/digestが不一致")
+        before = json.dumps(entry["digest"]).encode()
+        if previous.count(before) != 1:
+            raise HumanReviewSignatureRecordError("安打handoffの旧digest参照がexact1でない")
+        after = json.dumps("sha256:" + hashlib.sha256((root / path).read_bytes()).hexdigest())
+        expected = expected.replace(before, after.encode(), 1)
+    if (root / _BATTED_HANDOFF_PATH).read_bytes() != expected:
+        raise HumanReviewSignatureRecordError("安打handoffは実3digest以外を変更または更新漏れ")
+
+
 class _BattedMetadataProjectionReader(_Gate6CurrentReader):
-    """閉検証済みmetadata5だけを原典へ戻し、他head値はそのまま既bodyへ渡す。"""
+    """閉検証済みmetadata5とhandoffだけを原典へ戻し、他head値を既bodyへ渡す。"""
 
     def __init__(self, root: Path, base: _BattedCarryBaseReader) -> None:
         super().__init__(root)
         self.base = base
 
+    def validate_current_views(self) -> None:
+        """閉raw guardを通ったmetadata全6文書も既decoder境界で照合する。"""
+        for path in sorted(_BATTED_PROJECTION_PATHS):
+            self.load_json(path, "安打current射影文書")
+
     def read_bytes(self, path: str | PurePosixPath) -> bytes:
-        """metadata5以外は現checkoutの全byteを読む。"""
-        if str(path) in _BATTED_METADATA_PATHS:
+        """閉検証対象以外は現checkoutの全byteを読む。"""
+        if str(path) in _BATTED_PROJECTION_PATHS:
             return self.base.read_bytes(path)
         return super().read_bytes(path)
 
     def load_json(self, path: str | PurePosixPath, label: str) -> dict[str, Any]:
         """射影した同byteを重複key拒否で読む。"""
-        return _object(json.loads(self.read_bytes(path),
+        if str(path) not in _BATTED_PROJECTION_PATHS:
+            return super().load_json(path, label)
+        current = super().load_json(path, label)
+        actual = _object(json.loads(super().read_bytes(path),
+            object_pairs_hook=descriptor_checker._reject_duplicate_keys), label)
+        if _compact_json(current) != _compact_json(actual):
+            raise HumanReviewSignatureRecordError("安打headの読取値と射影前rawが不一致")
+        return _object(json.loads(self.base.read_bytes(path),
             object_pairs_hook=descriptor_checker._reject_duplicate_keys), label)
 
 
 def _ordinary_strikeout_current_body(root: Path) -> dict[str, Any]:
     """localは固定192への閉射影だけを検査し、最終公開受理を主張しない。"""
+    _batted_current_legacy_documents(root)
     reference = _strikeout_extension_reference(root)
     base = _BattedCarryBaseReader(root, reference["candidate_revision"])
     if ((root / _BATTED_METADATA_DESCRIPTOR).read_bytes()
             == base.read_bytes(_BATTED_METADATA_DESCRIPTOR)):
         return _ordinary_strikeout_body(root)
     _batted_metadata_delta(root, base)
-    return _ordinary_strikeout_body(root, _reader=_BattedMetadataProjectionReader(root, base))
+    _batted_handoff_delta(root, base)
+    reader = _BattedMetadataProjectionReader(root, base)
+    reader.validate_current_views()
+    return _ordinary_strikeout_body(root, _reader=reader)
 
 
 _BATTED_CARRY_FROZEN_KEYS = frozenset({
@@ -2939,6 +2999,7 @@ def _ordinary_batted_carry_ci(root: Path, event: Any) -> str:
             if hashlib.sha256(base.read_bytes(path)).hexdigest() != digest:
                 raise HumanReviewSignatureRecordError("安打baseの旧record/schemaが固定値と不一致")
         record = base.load_json(GATE6_ORDINARY_PATH, "安打base旧record")
+        _batted_current_legacy_documents(root)
         # 検査コード/後発登録全体のbase不変は要求しない。数学・原典の閉集合だけを保護する。
         protected = {*record["assets"], *_ORDINARY_FIXED_INPUTS,
             str(GATE6_ORDINARY_PATH), str(GATE6_ORDINARY_SCHEMA_PATH), str(ORDINARY_PINS_PATH),
@@ -2947,7 +3008,9 @@ def _ordinary_batted_carry_ci(root: Path, event: Any) -> str:
             *_STRIKEOUT_AUXILIARY_INPUTS, str(descriptor_checker.SCHEMA_PATH),
             "tests/fixtures/pr192_tenant_source_expected_v1.json"}
         _batted_metadata_delta(root, base)
-        for path in protected - _BATTED_METADATA_PATHS:
+        _batted_handoff_delta(root, base)
+        _BattedMetadataProjectionReader(root, base).validate_current_views()
+        for path in protected - _BATTED_PROJECTION_PATHS:
             if (root / path).read_bytes() != base.read_bytes(path):
                 raise HumanReviewSignatureRecordError(
                     "安打carryで数学/旧署名/必要原典がbaseから変更")
@@ -2973,7 +3036,7 @@ def _ordinary_batted_carry_ci(root: Path, event: Any) -> str:
                         {"pr": 196, "branch": "feature/mvp-batted-hits"}]):
                 raise HumanReviewSignatureRecordError("安打carryの旧policy/単一196末尾が不一致")
             _ordinary_head(root, event, record)
-            for path in _STRIKEOUT_EXTENSION_INPUTS | _BATTED_METADATA_PATHS:
+            for path in _STRIKEOUT_EXTENSION_INPUTS | _BATTED_PROJECTION_PATHS:
                 if (root / path).read_bytes() != _carry_git_bytes(
                     root, ["show", f"{event.head_sha}:{path}"],
                 ):

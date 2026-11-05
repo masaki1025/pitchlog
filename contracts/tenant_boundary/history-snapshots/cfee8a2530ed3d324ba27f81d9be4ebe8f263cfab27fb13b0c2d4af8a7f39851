@@ -3763,6 +3763,8 @@ def batted_metadata_fixture(batted_carry_fixture: Any) -> Any:
         raw = (repository / path).read_bytes()
         (root / path).write_bytes(raw)
         committed[path] = raw
+    _write_batted_handoff_metadata(root)
+    committed[checker._BATTED_HANDOFF_PATH] = (root / checker._BATTED_HANDOFF_PATH).read_bytes()
     return batted_carry_fixture
 
 
@@ -3794,6 +3796,8 @@ def _write_batted_metadata_counterfactual(root: Path, descriptor: dict[str, Any]
         assert target.read_bytes().count(old) == 1
         target.write_bytes(target.read_bytes().replace(
             old, json.dumps(descriptor['digest']).encode(), 1))
+
+    _write_batted_handoff_metadata(root)
 
 
 @pytest.mark.parametrize('mutation', ['third-word', 'missing-word', 'duplicate-word',
@@ -3985,3 +3989,238 @@ def test_batted_metadata_scope_serialization_distinguishes_python_equal_types(
     # False/0は境界比較の反例。元の採用scopeに0/falseがあったとは主張しない。
     assert a == b
     assert checker._compact_json(a) != checker._compact_json(b)
+
+
+
+def _write_batted_handoff_metadata(root: Path) -> None:
+    """固定base由来のpath/version/orderを保持し、fixtureの実3raw hashだけ追随する。"""
+    path = root / checker._BATTED_HANDOFF_PATH
+    handoff = _load_object(path)
+    for entry in handoff['artifacts']:
+        entry['digest'] = 'sha256:' + hashlib.sha256(
+            (root / entry['path']).read_bytes()).hexdigest()
+    _write_t1_append_json(path, handoff)
+
+
+@pytest.mark.parametrize('mode', ['local', 'ci'])
+def test_batted_handoff_rejects_stale_digest_metadata(
+    batted_metadata_fixture: Any, mode: str,
+) -> None:
+    """R5 metadata5だけ新しくhandoffが旧値のままなら更新漏れを拒否する。"""
+    root, _, event, _, fetches, baseline, _, _ = batted_metadata_fixture
+    (root / checker._BATTED_HANDOFF_PATH).write_bytes(baseline[checker._BATTED_HANDOFF_PATH])
+    with pytest.raises(checker.HumanReviewSignatureRecordError, match='handoff'):
+        if mode == 'local':
+            checker.validate_gate6_subject_carry(root)
+        else:
+            checker.validate_gate6_ci_event(root, event)
+    assert fetches == []
+
+
+@pytest.mark.parametrize('mode', ['local', 'ci'])
+@pytest.mark.parametrize('mutation', ['digest0', 'digest1', 'digest2', 'path', 'version',
+    'order', 'duplicate', 'extra', 'missing', 'handoff-version', 'other-field',
+    'typed-field', 'formatting'])
+def test_batted_handoff_rejects_non_digest_changes(
+    batted_metadata_fixture: Any, mutation: str, mode: str,
+) -> None:
+    """正しい3digestが揃っていてもpath/version/order/全他fieldはbaseから変えない。"""
+    root, _, event, _, fetches, _, _, _ = batted_metadata_fixture
+    path = root / checker._BATTED_HANDOFF_PATH
+    document = _load_object(path)
+    if mutation.startswith('digest'):
+        document['artifacts'][int(mutation[-1])]['digest'] = 'sha256:' + '0' * 64
+    elif mutation == 'path':
+        document['artifacts'][0]['path'] = (
+            'contracts/state-transition/ordinary_pitch_vectors_v1.json')
+        document['artifacts'][0]['digest'] = 'sha256:' + hashlib.sha256(
+            (root / document['artifacts'][0]['path']).read_bytes()).hexdigest()
+    elif mutation == 'version':
+        document['artifacts'][0]['version'] = 'unapproved_v2'
+    elif mutation == 'order':
+        document['artifacts'].reverse()
+    elif mutation == 'duplicate':
+        document['artifacts'][1] = copy.deepcopy(document['artifacts'][0])
+    elif mutation == 'extra':
+        document['artifacts'].append(copy.deepcopy(document['artifacts'][0]))
+    elif mutation == 'missing':
+        document['artifacts'].pop()
+    elif mutation == 'handoff-version':
+        document['handoffVersion'] = 'unapproved_v2'
+    elif mutation == 'other-field':
+        document['receiverTaskId'] += '-altered'
+    elif mutation == 'typed-field':
+        assert type(document['consumerBindings'][0]['schemaVersion']) is int
+        document['consumerBindings'][0]['schemaVersion'] = True
+    else:
+        path.write_bytes(path.read_bytes() + b' ')
+    if mutation != 'formatting':
+        _write_t1_append_json(path, document)
+    with pytest.raises(checker.HumanReviewSignatureRecordError, match='handoff'):
+        if mode == 'local':
+            checker.validate_gate6_subject_carry(root)
+        else:
+            checker.validate_gate6_ci_event(root, event)
+    assert fetches == []
+
+
+@pytest.mark.parametrize('mode', ['local', 'ci'])
+@pytest.mark.parametrize('math_path', [str(checker.STATE_TRANSITION_CONTRACT_PATH),
+    'contracts/state-transition/ordinary_pitch_vectors_v1.json'])
+def test_batted_handoff_digest_following_cannot_change_mathematics(
+    batted_metadata_fixture: Any, mode: str, math_path: str,
+) -> None:
+    """実raw SHAを正しく追随しても別の数学/期待変更を許可へ変換しない。"""
+    root, _, event, _, fetches, _, _, _ = batted_metadata_fixture
+    path = root / math_path
+    document = _load_object(path)
+    if math_path == str(checker.STATE_TRANSITION_CONTRACT_PATH):
+        before = document['cases'][0]['expected']['plateAppearanceEnded']
+        assert type(before) is bool
+        document['cases'][0]['expected']['plateAppearanceEnded'] = not before
+    else:
+        before = document['cases'][0]['expected']['value']['plateAppearanceEnded']
+        assert type(before) is bool
+        document['cases'][0]['expected']['value']['plateAppearanceEnded'] = not before
+    _write_t1_append_json(path, document)
+    _write_batted_handoff_metadata(root)
+    # handoffは正しく導出済み。数学拒否は元の有限metadata/歴史bodyが担う。
+    base = checker._BattedCarryBaseReader(root, event.base_sha)
+    assert checker._batted_handoff_delta(root, base) is None
+    with pytest.raises(checker.HumanReviewSignatureRecordError):
+        if mode == 'local':
+            checker.validate_gate6_subject_carry(root)
+        else:
+            checker.validate_gate6_ci_event(root, event)
+    assert fetches == []
+
+
+def test_batted_handoff_requires_committed_head_bytes(batted_metadata_fixture: Any) -> None:
+    """正しいworktreeのhandoffでも最終headに未反映なら公開proofより先に拒否する。"""
+    root, _, event, _, fetches, _, committed, _ = batted_metadata_fixture
+    committed[checker._BATTED_HANDOFF_PATH] += b' '
+    with pytest.raises(checker.HumanReviewSignatureRecordError):
+        checker.validate_gate6_ci_event(root, event)
+    assert fetches == []
+
+
+@pytest.mark.parametrize('mode', ['local', 'ci'])
+def test_batted_handoff_rejects_duplicate_json_member(
+    batted_metadata_fixture: Any, mode: str,
+) -> None:
+    """JSON通常decoderが同値へ潰す重複memberもbase raw完全比較で拒否する。"""
+    root, _, event, _, fetches, _, _, _ = batted_metadata_fixture
+    path = root / checker._BATTED_HANDOFF_PATH
+    raw = path.read_bytes()
+    line = next(line for line in raw.splitlines(keepends=True) if b'"handoffVersion"' in line)
+    duplicate = raw.replace(line, line + line, 1)
+    assert json.loads(raw) == json.loads(duplicate)
+    path.write_bytes(duplicate)
+    with pytest.raises(checker.HumanReviewSignatureRecordError, match='handoff'):
+        if mode == 'local':
+            checker.validate_gate6_subject_carry(root)
+        else:
+            checker.validate_gate6_ci_event(root, event)
+    assert fetches == []
+
+
+@pytest.mark.parametrize('mode', ['local', 'ci'])
+def test_batted_current_carry_actual_file_authority_change_is_rejected(
+    batted_metadata_fixture: Any, mode: str,
+) -> None:
+    """decoder注入なしの実current carry改竄も公開入口で拒否する。"""
+    root, _, event, _, fetches, _, _, _ = batted_metadata_fixture
+    path = root / checker.GATE6_CARRY_PATH
+    document = _load_object(path)
+    document['authority']['sha256'] = '0' * 64
+    _write_t1_append_json(path, document)
+    with pytest.raises(checker.HumanReviewSignatureRecordError, match='current旧固定byte'):
+        if mode == 'local':
+            checker.validate_gate6_subject_carry(root)
+        else:
+            checker.validate_gate6_ci_event(root, event)
+    assert fetches == []
+
+
+@pytest.mark.parametrize('mode', ['local', 'ci'])
+@pytest.mark.parametrize('path', sorted(checker._ORDINARY_FIXED_INPUTS
+    - checker._BATTED_PROJECTION_PATHS))
+def test_batted_current_legacy_documents_are_all_raw_frozen(
+    batted_metadata_fixture: Any, mode: str, path: str,
+) -> None:
+    """actual headの旧9文書は署名/日付/sheet/schema/record全byteで保持する。"""
+    root, _, event, _, fetches, _, _, _ = batted_metadata_fixture
+    target = root / path
+    target.write_bytes(target.read_bytes() + b' ')
+    with pytest.raises(checker.HumanReviewSignatureRecordError, match='current旧固定byte'):
+        if mode == 'local':
+            checker.validate_gate6_subject_carry(root)
+        else:
+            checker.validate_gate6_ci_event(root, event)
+    assert fetches == []
+
+
+@pytest.mark.parametrize('mode', ['local', 'ci'])
+@pytest.mark.parametrize('mutated', [False, True])
+def test_batted_current_carry_existing_decoder_boundary_is_observed(
+    batted_metadata_fixture: Any, monkeypatch: pytest.MonkeyPatch, mode: str, mutated: bool,
+) -> None:
+    """現subjectを古くせず、既carry読取境界の正例/変異だけを実公開入口で検査する。"""
+    root, _, event, _, fetches, _, _, _ = batted_metadata_fixture
+    path = root / checker.GATE6_CARRY_PATH
+    document = _load_object(path)
+    if mutated:
+        document['boundary']['personalReviewClaimed'] = True
+    original = checker.descriptor_checker.load_json
+    observed = []
+
+    def read(candidate: Path, label: str) -> object:
+        if candidate == path:
+            observed.append(candidate)
+            return copy.deepcopy(document)
+        return original(candidate, label)
+
+    monkeypatch.setattr(checker.descriptor_checker, 'load_json', read)
+    if mutated:
+        with pytest.raises(checker.HumanReviewSignatureRecordError, match='current旧JSON読取値'):
+            if mode == 'local':
+                checker.validate_gate6_subject_carry(root)
+            else:
+                checker.validate_gate6_ci_event(root, event)
+        assert fetches == []
+    elif mode == 'local':
+        checker.validate_gate6_subject_carry(root)
+        assert fetches == []
+    else:
+        assert 'DELEGATED VERIFIED' in checker.validate_gate6_ci_event(root, event)
+        assert fetches == ['196']
+    assert observed
+
+
+@pytest.mark.parametrize('mode', ['local', 'ci'])
+@pytest.mark.parametrize('path', sorted(checker._BATTED_PROJECTION_PATHS))
+def test_batted_projection_preserves_actual_metadata_decoder_boundary(
+    batted_metadata_fixture: Any, monkeypatch: pytest.MonkeyPatch, mode: str, path: str,
+) -> None:
+    """rawが正しくてもmetadata既読取値の変異を無視してbaseへ射影しない。"""
+    root, _, event, _, fetches, _, _, _ = batted_metadata_fixture
+    target = root / path
+    document = json.loads(target.read_bytes())
+    document['unauthorized-decoded-field'] = True
+    original = checker.descriptor_checker.load_json
+    observed = []
+
+    def read(candidate: Path, label: str) -> object:
+        if candidate == target:
+            observed.append(candidate)
+            return copy.deepcopy(document)
+        return original(candidate, label)
+
+    monkeypatch.setattr(checker.descriptor_checker, 'load_json', read)
+    with pytest.raises(checker.HumanReviewSignatureRecordError):
+        if mode == 'local':
+            checker.validate_gate6_subject_carry(root)
+        else:
+            checker.validate_gate6_ci_event(root, event)
+    assert observed
+    assert fetches == []

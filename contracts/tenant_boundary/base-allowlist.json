@@ -37077,8 +37077,8 @@
               },
               {
                 "path": "scripts/check_human_review_signature.py",
-                "sha256": "30227bfabc5a5a35864a26f80e4bac8c67945d7ca530a60155c34fbd7e7729e8",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/30227bfabc5a5a35864a26f80e4bac8c67945d7ca530a60155c34fbd7e7729e8"
+                "sha256": "09a31552b0f71502903ac41bd7967f42a3ee9a6379fa27573e3e913590e8751c",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/09a31552b0f71502903ac41bd7967f42a3ee9a6379fa27573e3e913590e8751c"
               },
               {
                 "path": "scripts/check_tenant_boundary_bypass.py",
@@ -37157,8 +37157,8 @@
               },
               {
                 "path": "tests/test_human_review_signature.py",
-                "sha256": "d6a6d1815822e3cd7e1ea26afde2da398fd8f7c7ca84f4437ed87d3636923a79",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/d6a6d1815822e3cd7e1ea26afde2da398fd8f7c7ca84f4437ed87d3636923a79"
+                "sha256": "cfee8a2530ed3d324ba27f81d9be4ebe8f263cfab27fb13b0c2d4af8a7f39851",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/cfee8a2530ed3d324ba27f81d9be4ebe8f263cfab27fb13b0c2d4af8a7f39851"
               },
               {
                 "path": "tests/test_plan_generation.py",
@@ -37209,8 +37209,8 @@
               },
               {
                 "path": "contracts/tenant_boundary/frozen-inputs.json",
-                "sha256": "78f683c7d52feef8f13325ac7bbe300a789e11f9fb249eb46087c909729bcacd",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/78f683c7d52feef8f13325ac7bbe300a789e11f9fb249eb46087c909729bcacd"
+                "sha256": "fe236a4375d115ea394e8dc97facc4eef01c00167d535f9474aba94e7b2937a9",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/fe236a4375d115ea394e8dc97facc4eef01c00167d535f9474aba94e7b2937a9"
               },
               {
                 "path": "contracts/tenant_boundary/negative-fixtures.json",
@@ -37235,8 +37235,8 @@
             ]
           }
         },
-        "movement_fact": "旧37履歴prefixと単一196識別を保持し、実変更分だけ単一196R4をR5へ置換して不要な再増分をしない。全対象識別値をbase+1据置とし、全前後を公式helperで導出。全base/pin/参照snapshotを保護、除去は非参照かつ非base非pin差分だけ退避。新源本とdescriptor参照の全移動を照合し、旧拒否を緩めず新HEADの非作者レビュー/実公開委任/必須CIを別途成立させる。",
-        "reason": "公開660dのCI42017498235/本文42017498245失敗を保全。非作者ed5dbe9cで組合せschema/旧17+新owner1/旧3+新衝突1の閉検査4を採用し、非作者ff61693bでdescriptor監査2語・単一196scope受理・公式digestと依存4参照だけを採用した。新G6は実112fの既191/192全bodyをGit原典で維持し、現descriptor/4参照だけを型付き前後有限検査へ束縛、実event/祖先/HEAD/公開委任証拠を必須とする。初回非作者2815cef0のint1/true混同P1を保全し、非作者dfadb039で完全JSON前後比較により解消。旧人間署名/record/schema/pinsを改変せず、旧9数学全byte不変の根拠はR4までとし、R5のsubject2は参照digestだけ変更・全入力/期待不変。root関連900成功156.68秒、各作者/非作者と旧R4 DB/UI証拠は対象版別に保持し、実機/運用公開/P6blind/全MVPの成立へ拡張しない。",
+        "movement_fact": "旧37履歴prefixと単一196識別を保持し、実変更分だけ単一196R5をR6へ置換して不要な再増分をしない。全対象識別値をbase+1据置とし、全前後を公式helperで導出。全base/pin/参照snapshotを保護、除去は非参照かつ非base非pin差分だけ退避。新源本とdescriptor参照の全移動を照合し、旧拒否を緩めず新HEADの非作者レビュー/実公開委任/必須CIを別途成立させる。",
+        "reason": "公開82557119の実CI42033491881 failureを全4backend/frontend/harnessで分類し保持。rootのhandoff artifacts3 digestだけの参照追随を非作者822af0a4（環境訂正62cd58c4）で採用し全他field/数学/依存OIDを保持。G6反映3exact2を非作者ddbd1249で採用し、公開8255実copyの旧carry原本authority改竄をlocal技術検査が誤受理した新P1を固定し、current固定旧文書9のraw/型付き読取一致により解消した。旧9負対向をpublic入口/旧ASTのまま保持し正しい拒否点を観測。CI actual-file bypassは未実証。旧engine/本人署名/全受理prefix/既typed before-after検査を保持する。旧R5数学subject2参照変更と今回handoff3参照変更は明記し、旧9全byte不変とは主張しない。作者106成功・非作者46成功とroot実枝関連検査は対象版別に保持。正式値/最終HEAD/実公開委任/必須CIは別に確認し、GUI既版証拠を本版や全MVPへ拡張しない。",
         "approved_by": "PO委任によるCodex主担当/root判断（本人署名・人間逐行確認の代記ではない）",
         "approved_on": "2026-11-05"
       }
