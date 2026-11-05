@@ -11,7 +11,7 @@ from pitchlog.authz.ordinary_pitch_product import (
 
 
 def test_function_set_and_app_execute_are_closed():
-    """consumeのapp直接呼出を開けず、限定六入口だけ公開する。"""
+    """consumeのapp直接呼出を開けず、9関数中8入口だけ公開する。"""
     declarations, bodies = candidate_declarations()
     names = {row["function_name"] for row in declarations["functions"]}
     assert names == {
@@ -23,6 +23,7 @@ def test_function_set_and_app_execute_are_closed():
         "read_ordinary_checkpoint",
         "lock_ordinary_checkpoint",
         "read_ordinary_history_page",
+        "read_nonplay_active_history",
     }
     for row in declarations["functions"]:
         assert row["owner_role_id"] == "pitchlog_sync_right_fn_owner"
@@ -110,7 +111,7 @@ def test_all_eight_bodies_use_existing_installer_parser():
     from pitchlog.authz.first_ball_product import application_function_sql, body
 
     declarations, _ = candidate_declarations()
-    assert len(declarations["functions"]) == 8
+    assert len(declarations["functions"]) == 9
     for row in declarations["functions"]:
         key = row["function_id"]
         sql = body("function", key)
