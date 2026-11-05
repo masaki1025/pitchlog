@@ -10,6 +10,7 @@ requires-python = ">=3.12"
 # ruff・ty の版は backend/pyproject.toml と同一に固定する。層ごとに版が割れると
 # 同じコードへの CI の判定が層で食い違い、どちらが正か決められなくなる。
 dev = [
+    "jsonschema==4.26.0",
     "pytest>=8",
     "pytest-xdist>=3",
     "pyyaml>=6",

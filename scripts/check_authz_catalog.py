@@ -5182,6 +5182,41 @@ def _validate_membership_helper_bodies(
             raise CatalogError(f"{expectation_id}のSQLが生成結果と不一致")
 
 
+def _product_stats_xmin_columns(
+    column_acls: dict[str, dict[str, object]],
+) -> frozenset[tuple[str, str]]:
+    """同TX検証に必要なcanonical四宣言だけをsystem列依存として認める。"""
+    allowed = {
+        ("public", "operation_events"),
+        ("public", "play_rows"),
+        ("public", "idempotency_ledger"),
+        ("sync_fence", "ordinary_pitch_checkpoints"),
+    }
+    result: set[tuple[str, str]] = set()
+    for row in column_acls.values():
+        if row.get("column_id") != "xmin":
+            continue
+        schema, table = row.get("object_schema"), row.get("object_id")
+        if (
+            type(schema) is not str
+            or type(table) is not str
+            or (schema, table) not in allowed
+            or row.get("grant_option") is not False
+        ):
+            raise CatalogError("未登録のsystem列依存です")
+        from pitchlog.authz.first_ball_product import (  # ty: ignore[unresolved-import]
+            require_row,
+        )
+        try:
+            canonical = require_row("column_acl_expectations", row)
+        except ValueError as error:
+            raise CatalogError("system列のcanonical宣言が不一致") from error
+        if canonical is None:
+            raise CatalogError("system列のcanonical宣言が存在しない")
+        result.add((str(row["object_id"]), "xmin"))
+    return frozenset(result)
+
+
 def _validate_product_membership_helper(
     raw: dict[str, object],
     root: Path,
@@ -5283,7 +5318,7 @@ def _validate_product_membership_helper(
         (str(row["object_id"]), str(row["column_id"]))
         for row in column_acls.values()
     }
-    if not dependency_columns <= set(manifest_columns):
+    if not dependency_columns <= set(manifest_columns) | _product_stats_xmin_columns(column_acls):
         raise CatalogError("補助関数の依存列がschema manifestに存在しない")
 
     table_acls = _product_declarations_by_id(
