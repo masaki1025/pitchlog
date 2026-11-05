@@ -262,3 +262,6 @@ canonical採用後の閉期待追随（2026-11-05、PO委任Codex /root判断）
 
 
 実RRRO試験の後発期待追随（2026-11-05、PO委任Codex /root判断）: tests/db/test_stats_primitive_read_scope.py（backend配下）の失効時assertだけを採用private reader境界へ追随する。owned初回1pass/1fail5.31秒では実REPEATABLE READ/on、書込SQLSTATE25006、scope失効拒否まで成立し、内部TenantBindingErrorのcause連鎖を要求する旧assertだけが不一致だった。採用f150aa2aの_state_key=None先行拒否は秘密参照を含まないPrimitiveReadError直返しなので、cause無し/args空と新BEGIN無しを厳密確認する。拒否自体・実driver例外型/SQLSTATE・データ不変の検査は全保持し、製品例外をテストへ合わせて弱めない。別非作者確認後にowned実2件を再実行する。
+
+
+owned storage fixture接続の追随（2026-11-05、PO委任Codex /root判断）: backend/tests/db/test_stats_storage.pyのstats_ownerだけを既initial_scope_databaseの方式へ揃える。catalog修復後は実0041/provision/catalogを通過したが、fixtureが外側autouseに必要なDSNを消したままyieldし4error24.42秒になった。同一owned primaryの実admin/限定role DSNを既_dsn_names()の設定名へ渡し、verify_connection_identities自体と二主体区別・実認証照合は維持する。共有DSNの読取/利用やautouse無効化は行わず、所有container終結・環境復元を保つ。別非作者確認とowned全4試験を行う。
