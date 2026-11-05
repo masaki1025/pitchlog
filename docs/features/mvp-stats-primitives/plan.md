@@ -397,3 +397,6 @@ CIは旧advance_stage_a_from_s0とcompleted_stage S3/publishableFalseの実検�
 
 
 同版owned検証の結果（2026-11-06 JST、PO委任Codex /root記録）: 固定41d13638c336ef16ca0bb1d4e8e5410e8b2f7679で実HTTP保存/実RRRO読取/原子性の既3moduleを使い捨てPG17.11へ実行し3成功186.11秒。source HEAD/tree/index前後一致、共有DSN非継承、自前container撤去をcache native-foundation-save-read-fault-r1-result.jsonに固定した。旧bcee証拠だけでなく今回のdevelop51b取り込み候補そのものを実証したが、画面成績/API公開/正式D11/27指標/全MVP成功ではない。CI追補内のrevision文字列誤記を真正CURRENT_REVISION=0041_stats_fact_versionsへ整合し、実装定数/期待値は変えない。
+
+
+core登録閉包のexact1追補（2026-11-06 JST、PO委任Codex /root判断）: authorのordinary-payload-registration-evidence.jsonを実照合し、backend/tests/test_stats_native_connection.py:15/60のDB seed→静的ImportFrom閉包がbackend/tests/test_ordinary_pitch_payload.pyを検出する一方、現5area全て未登録で、当初25pair仮合成後もこれ1pathだけ欠落することを確認した。新有限外層を25から26pathへ限定拡張し、この1をsync-protocolへ追加する。新意味・検出除外ではなく既DB schema参照閉包への登録追随である。現4areaへ既登録のtest_terminal_pitch_payload.pyは新外層へ重複追加しない。旧HTTP歴史fixtureの完全性検査は真正固定_terminal_expected_additionsと新26宣言を明示合成した検査fixtureへ追随し、元scanner全件検査/旧期待/全負対向/各旧validator ASTを保持する。無条件suffix切捨てや欠落skipで通さず、全26と旧各層の独立確認後にrootがcode/test先行commit→JSON後置を実施する。
