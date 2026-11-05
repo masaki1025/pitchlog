@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import subprocess
 from pathlib import Path
 from uuid import UUID, uuid4
 
@@ -23,7 +24,7 @@ from pitchlog.sync.ordinary_pitch_physical import pitch_physical_row
 from pitchlog.sync.terminal_pitch_projection import runner_physical_rows
 
 from .sync_writer_binding_support import binding_broker
-from .test_screen_start_e2e import _browser_environment, _run_playwright
+from .test_screen_start_e2e import _LOGS, _browser_environment, _run_playwright
 from .test_screen_start_e2e import admin_connection as admin_connection
 from .test_screen_start_e2e import initial_scope_database as initial_scope_database
 from .test_screen_start_e2e import product_node_binary as product_node_binary
@@ -40,6 +41,33 @@ _RESULTS = {
     "batting-result.triple": "BH-Triple-top-O1",
     "batting-result.home-run": "BH-HomeRun-top-O1",
 }
+
+
+def _partial_output(value: str | bytes | None) -> bytes:
+    """TimeoutExpiredのtext指定時にも返るbytesをそのまま保持する。"""
+    return value.encode("utf-8") if isinstance(value, str) else value or b""
+
+
+def _run_batted_playwright(db, origin: str, extra_env: dict[str, str]):
+    """共通runnerの期限超過出力を既ログへ保存し、元の失敗を再送出する。"""
+    try:
+        return _run_playwright(
+            db,
+            "GameScreenBattedHits.playwright.config.ts",
+            origin,
+            "batted-hits",
+            extra_env,
+        )
+    except subprocess.TimeoutExpired as error:
+        try:
+            _LOGS.mkdir(parents=True, exist_ok=True)
+            (_LOGS / "batted-hits-playwright.log").write_bytes(
+                _partial_output(error.stdout) + b"\n" + _partial_output(error.stderr)
+            )
+        except OSError:
+            # 観測保存に失敗しても、期限超過を別例外や成功へ置き換えない。
+            error.add_note("Playwright期限超過の部分出力を保存できませんでした")
+        raise
 
 
 def _verify_saved_rows(admin, tenant, game, result) -> None:
@@ -174,11 +202,9 @@ def test_screen_four_new_games_hits_next_ball_replay_and_reload(
         with _browser_environment(
             db, "GameScreenBattedHits.playwright.config.ts", "batted-hits", https=True
         ) as origin:
-            completed = _run_playwright(
+            completed = _run_batted_playwright(
                 db,
-                "GameScreenBattedHits.playwright.config.ts",
                 origin,
-                "batted-hits",
                 {
                     "PITCHLOG_E2E_AWAY_TEAM": str(teams[0]),
                     "PITCHLOG_E2E_HOME_TEAM": str(teams[1]),

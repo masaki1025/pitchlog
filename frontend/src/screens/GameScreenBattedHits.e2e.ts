@@ -25,12 +25,60 @@ if (!baseURL || !team || !password || !away || !home)
 function apiPath(url: string): string {
   return new URL(url).pathname
 }
-async function login(page: Page): Promise<string> {
-  await page.goto(`${baseURL}/login?redirect=/games`)
+const httpTimeout = 30_000
+type ObservationKey =
+  | 'typeKey'
+  | 'strengthKey'
+  | 'hitX'
+  | 'hitY'
+  | 'rawFielderPosition'
+  | 'resolvedFielderId'
+type Stage =
+  | 'test-start'
+  | 'login-navigation-before'
+  | 'login-navigation-after'
+  | 'login-ready-before'
+  | 'login-ready-after'
+  | 'login-post-before'
+  | 'login-post-after'
+  | 'create-form-before'
+  | 'create-form-after'
+  | 'create-post-before'
+  | 'create-post-after'
+  | 'record-screen-before'
+  | 'record-screen-after'
+  | 'enroll-before'
+  | 'enroll-after'
+  | 'lineups-before'
+  | 'lineups-after'
+  | 'start-post-before'
+  | 'start-post-after'
+  | 'zero-get-before'
+  | 'zero-get-after'
+  | `observation-${ObservationKey}-${'before' | 'after'}`
+  | 'rulings-before'
+  | 'rulings-after'
+  | `${'hit' | 'ball'}-${'state' | 'pitch-options' | 'post' | 'get'}-${'before' | 'after'}`
+  | 'replay-before'
+  | 'replay-after'
+  | 'replay-response-before'
+  | 'replay-response-after'
+  | 'reload-before'
+  | 'reload-after'
+  | 'reload-get-before'
+  | 'reload-get-after'
+  | 'test-complete'
+type Progress = (stage: Stage) => void
+async function login(page: Page, progress: Progress): Promise<string> {
+  progress('login-navigation-before')
+  await page.goto(`${baseURL}/login?redirect=/games`, { timeout: httpTimeout })
+  progress('login-navigation-after')
+  progress('login-ready-before')
   await expect(page.locator('form[aria-busy]')).toHaveAttribute(
     'aria-busy',
     'false',
   )
+  progress('login-ready-after')
   await page.getByRole('textbox', { name: 'チーム名' }).fill(team!)
   await page.getByLabel('パスワード').fill(password!)
   const posted = page
@@ -38,10 +86,13 @@ async function login(page: Page): Promise<string> {
       (res) =>
         res.request().method() === 'POST' &&
         apiPath(res.url()) === '/api/auth/login',
+      { timeout: httpTimeout },
     )
     .catch(() => null)
+  progress('login-post-before')
   await page.getByRole('button', { name: 'ログイン', exact: true }).click()
   const response = await posted
+  progress('login-post-after')
   if (!response || response.status() !== 200)
     throw new Error('実login POSTが成功しない')
   const body = (await response.json()) as { tenant_id?: string }
@@ -92,7 +143,14 @@ for (const resultId of resultIds) {
   test(`実HTTPS画面の新規試合で${resultId}→次球→元D5再送→reload`, async ({
     page,
   }) => {
-    page.setDefaultTimeout(30_000)
+    const progress: Progress = (stage) => {
+      // 許可した固定stageと4結果だけを出し、要求・資格・レスポンス本文は出さない。
+      console.log(
+        'PITCHLOG_BATTED_SCREEN_STAGE=' + JSON.stringify({ resultId, stage }),
+      )
+    }
+    progress('test-start')
+    page.setDefaultTimeout(httpTimeout)
     if (new URL(baseURL!).protocol !== 'https:')
       throw new Error('実HTTPS originが必要')
     await page.addInitScript(() => {
@@ -128,11 +186,18 @@ for (const resultId of resultIds) {
       Object.defineProperty(window, '__repeatBattedForTest', {
         value: async () => {
           if (!recorded) throw new Error('再送対象の原要求がない')
-          return (await nativeFetch(recorded.url, recorded.init)).status
+          return (
+            await nativeFetch(recorded.url, {
+              ...recorded.init,
+              // 旧body/attemptは保持し、ブラウザ内fetchだけを有限時間へ閉じる。
+              signal: AbortSignal.timeout(30_000),
+            })
+          ).status
         },
       })
     })
-    await login(page)
+    await login(page, progress)
+    progress('create-form-before')
     await page.getByRole('button', { name: '新規作成', exact: true }).click()
     const form = page.getByRole('region', {
       name: '試合の新規作成',
@@ -147,15 +212,19 @@ for (const resultId of resultIds) {
     await form
       .getByLabel('新しい大会名', { exact: true })
       .fill('画面安打大会-' + resultId)
+    progress('create-form-after')
     const created = page.waitForResponse(
       (res) =>
         res.request().method() === 'POST' &&
         apiPath(res.url()) === '/api/games',
+      { timeout: httpTimeout },
     )
+    progress('create-post-before')
     await form
       .getByRole('button', { name: '準備中の試合を作成', exact: true })
       .click()
     const createdResponse = await created
+    progress('create-post-after')
     expect(createdResponse.status()).toBe(201)
     const saved = (await createdResponse.json()) as {
       id: string
@@ -164,6 +233,7 @@ for (const resultId of resultIds) {
     }
     expect(saved.status).toBe('preparing')
     // 作成した試合の保存値を確認すると記録画面へ遷移する。
+    progress('record-screen-before')
     await form
       .getByRole('button', {
         name: '作成した試合IDの保存値を確認',
@@ -174,8 +244,12 @@ for (const resultId of resultIds) {
     await expect(
       page.getByRole('heading', { name: 'スタメンと試合開始' }),
     ).toBeVisible()
+    progress('record-screen-after')
+    progress('enroll-before')
     await page.getByRole('button', { name: 'この端末を登録' }).click()
     await expect(page.getByText('開始入力を確認できます')).toBeVisible()
+    progress('enroll-after')
+    progress('lineups-before')
     const dh = saved.applied_rules.dh === true
     for (const side of ['away', 'home'] as const) {
       const rows = dh ? 10 : 9
@@ -196,13 +270,17 @@ for (const resultId of resultIds) {
           .selectOption(position)
       }
     }
+    progress('lineups-after')
     const started = page.waitForResponse(
       (res) =>
         res.request().method() === 'POST' &&
         apiPath(res.url()) === `/api/games/${saved.id}/start`,
+      { timeout: httpTimeout },
     )
+    progress('start-post-before')
     await page.getByRole('button', { name: '試合を開始', exact: true }).click()
     const startedResponse = await started
+    progress('start-post-after')
     expect(startedResponse.status()).toBe(200)
 
     const requests: Array<{ body: string; attempt: string }> = []
@@ -228,7 +306,9 @@ for (const resultId of resultIds) {
           response.status() === 200 &&
           (await response.json()).read_kind === 'lineup-prefix' &&
           (await response.json()).prefix_ref.length === length,
+        { timeout: httpTimeout },
       )
+    progress('zero-get-before')
     const zeroRead = readHead('0')
     await page
       .getByRole('button', {
@@ -237,6 +317,7 @@ for (const resultId of resultIds) {
       })
       .click()
     const zero = (await (await zeroRead).json()) as Head
+    progress('zero-get-after')
     expect(zero.runners).toEqual([])
     expect(zero.after.stateFields['state.runners']).toBe('empty')
     expect(zero.after.battingOrderBySide).toEqual({ away: '1', home: '1' })
@@ -246,21 +327,25 @@ for (const resultId of resultIds) {
     )
     if (!fielder) throw new Error('実守備rosterに位置9の野手がない')
     const nullable = resultId === 'batting-result.home-run'
-    async function selectPitch(result: string) {
+    async function selectPitch(result: string, kind: 'hit' | 'ball') {
       // 親の履歴更新とは別に、子controllerの実context再束縛を待つ。
+      progress(`${kind}-state-before`)
       await expect(page.getByTestId('ordinary-state-source')).toHaveText(
         'サーバー確認済みの状態',
       )
+      progress(`${kind}-state-after`)
       for (const name of ['profile', 'mode', 'bucket', 'lockdown'])
         await page.getByTestId(`first-ball-env-${name}`).check()
       const pitch = page.getByTestId('first-ball-pitch-type')
+      progress(`${kind}-pitch-options-before`)
       await expect(pitch).toBeEnabled()
       await expect(pitch.locator('option')).not.toHaveCount(1)
       await pitch.selectOption('u06-first-ball-fastball')
       await page.getByTestId('ordinary-pitch-result').selectOption(result)
       await page.getByTestId('first-ball-course').locator('svg').click()
+      progress(`${kind}-pitch-options-after`)
     }
-    await selectPitch(resultId)
+    await selectPitch(resultId, 'hit')
     const observations = {
       typeKey: 'batted.screen.line',
       strengthKey: 'batted.screen.hard',
@@ -272,6 +357,7 @@ for (const resultId of resultIds) {
     for (const key of Object.keys(observations) as Array<
       keyof typeof observations
     >) {
+      progress(`observation-${key}-before`)
       await page
         .getByTestId(`batted-mode-${key}`)
         .selectOption(nullable ? 'unobserved' : 'observed')
@@ -289,27 +375,35 @@ for (const resultId of resultIds) {
           await input.selectOption(observations[key])
         } else await input.fill(observations[key])
       }
+      progress(`observation-${key}-after`)
     }
+    progress('rulings-before')
     for (const key of ['scoring', 'interference', 'overrides', 'thirdOut'])
       await page
         .getByTestId('batted-hit-observation')
         .locator(`[data-question-key="${key}"] select`)
         .selectOption('confirmed')
-    async function save(): Promise<void> {
+    progress('rulings-after')
+    async function save(kind: 'hit' | 'ball'): Promise<void> {
       const posted = page.waitForResponse(
         (response) =>
           response.request().method() === 'POST' &&
           apiPath(response.url()) === `/api/games/${saved.id}/sync/events`,
+        { timeout: httpTimeout },
       )
+      progress(`${kind}-post-before`)
       await expect(page.getByTestId('first-ball-save')).toBeEnabled()
       await page.getByTestId('first-ball-save').click()
       const response = await posted
+      progress(`${kind}-post-after`)
       expect(response.status()).toBe(200)
       expect((await response.json()).eventResults[0].a5Result).toBe('受理')
     }
     const firstRead = readHead('1')
-    await save()
+    await save('hit')
+    progress('hit-get-before')
     const first = (await (await firstRead).json()) as Head
+    progress('hit-get-after')
     expect(requests).toHaveLength(1)
     const original = Object.freeze({ ...requests[0]! })
     expect(first.page.items).toHaveLength(1)
@@ -371,10 +465,12 @@ for (const resultId of resultIds) {
     await expect(page.getByTestId('restore-history')).toHaveText('1件')
     // 次球のcount/holdはST-MATRIX-99b1523fb41399e3と
     // play_prefix_v2_cases.json V2-FOLLOW-ORDINARY-PITCH-25の既採用帰結。
-    await selectPitch('batting-result.ball')
+    await selectPitch('batting-result.ball', 'ball')
     const nextRead = readHead('2')
-    await save()
+    await save('ball')
+    progress('ball-get-before')
     const next = (await (await nextRead).json()) as Head
+    progress('ball-get-after')
     expect(next.page.items).toHaveLength(2)
     expect(next.page.items[0]).toEqual(first.page.items[0])
     expect(next.page.items[1]!.play_row.batting_result_key).toBe(
@@ -400,27 +496,37 @@ for (const resultId of resultIds) {
       (response) =>
         response.request().method() === 'POST' &&
         apiPath(response.url()) === `/api/games/${saved.id}/sync/events`,
+      { timeout: httpTimeout },
     )
+    progress('replay-before')
     expect(
       await page.evaluate(() =>
         (window as unknown as ReplayWindow).__repeatBattedForTest(),
       ),
     ).toBe(200)
+    progress('replay-after')
+    progress('replay-response-before')
     expect((await (await replayed).json()).eventResults[0].a5Result).toBe(
       '重複',
     )
+    progress('replay-response-after')
     expect(requests).toHaveLength(3)
     expect(requests[0]).toEqual(original)
     expect(requests.at(-1)).toEqual(original)
     const restoredRead = readHead('2')
-    await page.reload()
+    progress('reload-before')
+    await page.reload({ timeout: httpTimeout })
+    progress('reload-after')
+    progress('reload-get-before')
     const restored = (await (await restoredRead).json()) as Head
+    progress('reload-get-after')
     expect(restored.after).toEqual(next.after)
     expect(restored.prefix_ref).toEqual(next.prefix_ref)
     expect(restored.page.items).toEqual(next.page.items)
     expect(restored.last_entry).toEqual(next.last_entry)
     expect(restored.runners).toEqual(next.runners)
     await expect(page.getByTestId('restore-history')).toHaveText('2件')
+    progress('test-complete')
     console.log(
       'PITCHLOG_BATTED_SCREEN_RESULT=' +
         JSON.stringify({
