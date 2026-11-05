@@ -619,10 +619,12 @@ def _unapplication_statements(
     return tuple(sorted(statements, key=lambda statement: statement.sequence))
 
 
-def _build_operation_statements(
+def _selected_product_ddl(
     operation: ProductOperation,
-) -> tuple[ProductApplicationSteps, tuple[_ProductStatement, ...]]:
-    """正規の置き場だけから手順と実行文を生成する。"""
+) -> tuple[ProductApplicationSteps, tuple[DDLStatement, ...]]:
+    """正規の閉operationだけの要素列を適用器とcurrent照合へ共有する。"""
+    if type(operation) is not ProductOperation:
+        raise ProductProvisioningError("未知の製品認可operationです")
     from pitchlog.authz.first_ball_product import (
         pre_rule_deferred_ids,
         validate,
@@ -886,6 +888,14 @@ def _build_operation_statements(
             for statement in generated
             if statement.element_id not in deferred_binding
         )
+    return steps, generated
+
+
+def _build_operation_statements(
+    operation: ProductOperation,
+) -> tuple[ProductApplicationSteps, tuple[_ProductStatement, ...]]:
+    """正規の置き場だけから手順と実行文を生成する。"""
+    steps, generated = _selected_product_ddl(operation)
     elements = _load_product_elements()
     if operation in (ProductOperation.APPLY, ProductOperation.APPLY_PRE_RULE):
         statements = _application_statements(generated, steps, elements)

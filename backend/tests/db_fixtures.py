@@ -1480,19 +1480,18 @@ def _prepare_current_product_baseline(
     applicator_dsn: str,
     applicator: psycopg.Connection[Any],
 ) -> None:
-    """所有seed DBを正規0038/S3へ進め、次の再適用前基準を用意する。
-
-    準備時のS3適用と、この基準からの独立DDL試験を区別する。
-    """
+    """current専用入口で0041/全認可を非公開配置し再適用基準を用意する。"""
+    from pitchlog.db.current_product_startup import advance_current_product_from_s0
     _close_owned_seed_database_access(cluster)
-    result = advance_stage_a_from_s0(
+    result = advance_current_product_from_s0(
         owner_dsn=owner_dsn,
         applicator_dsn=applicator_dsn,
     )
-    assert result.completed_stage == "S3" and result.publishable is False
+    assert (result.completed_revision == "0041_stats_fact_versions"
+            and result.publishable is False)
     with applicator.cursor() as cursor:
         cursor.execute("SELECT version_num FROM public.alembic_version")
-        assert cursor.fetchall() == [("0039_ordinary_pitch_storage",)]
+        assert cursor.fetchall() == [("0041_stats_fact_versions",)]
     applicator.rollback()
 
 

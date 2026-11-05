@@ -2615,7 +2615,7 @@ def test_current_and_legacy_owned_baselines_do_not_forge_stage(
     import db_fixtures
 
     trace = []
-    revision = "0039_ordinary_pitch_storage"
+    revision = "0041_stats_fact_versions"
 
     @contextmanager
     def cursor():
@@ -2639,9 +2639,15 @@ def test_current_and_legacy_owned_baselines_do_not_forge_stage(
             "owner_dsn": "synthetic-owner",
             "applicator_dsn": "synthetic-applicator",
         }
-        return SimpleNamespace(completed_stage="S3", publishable=False)
+        return SimpleNamespace(
+            completed_revision="0041_stats_fact_versions", publishable=False
+        )
 
-    monkeypatch.setattr(db_fixtures, "advance_stage_a_from_s0", advance)
+    from pitchlog.db import current_product_startup
+
+    monkeypatch.setattr(
+        current_product_startup, "advance_current_product_from_s0", advance
+    )
     monkeypatch.setattr(
         db_fixtures,
         "unapply_product_authz_ddl",
@@ -2657,13 +2663,19 @@ def test_current_and_legacy_owned_baselines_do_not_forge_stage(
         applicator=connection,
     )
     assert trace == ["close", "real-stage-entry", "marker", "rollback"]
-    revision = "0036_initial_right_storage"
+    revision = "0039_ordinary_pitch_storage"
     with pytest.raises(AssertionError):
         db_fixtures._prepare_current_product_baseline(
             cluster=cluster,
             owner_dsn="synthetic-owner",
             applicator_dsn="synthetic-applicator",
             applicator=connection,
+        )
+    revision = "0036_initial_right_storage"
+    with pytest.raises(AssertionError):
+        db_fixtures._prepare_current_product_baseline(
+            cluster=cluster, owner_dsn="synthetic-owner",
+            applicator_dsn="synthetic-applicator", applicator=connection,
         )
     trace.clear()
     monkeypatch.setattr(
