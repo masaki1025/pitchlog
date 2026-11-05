@@ -240,3 +240,6 @@ source登録の採用記録: 作者cache source4（checker7a6c9a4c…/新196test
 
 
 census追随の採用記録: 作者7f37309b…/source bfe3c4f7…を非作者fb144d3a30a67496836b834b802ef1eccdde604fb5546fe547661aa62c423616（独立69成功、shadow CLI exit0）で照合して採用する。判断者Codex /root、2026-11-05 JST、PO既委任による技術追随判断。旧全180定義/78test、歴史90/37・現在84/37・新15とsentinel2を区別、models旧49・署名範囲保持。正式census JSONは新proof6leafとinventory6だけを追加し旧全値を保持した候補で、識別値/射影/単一#196受理/正式CLI/CIは後段で閉じる。本人確認/P6blind/実PGの成立へ拡張しない。
+
+
+正式CLIの静的registry読取追随（2026-11-05、PO委任Codex /root判断）: 410d34b7のtenant CLI r1は実registryの先頭 *BATTED_BALL_OPTIONS_OPERATIONS を旧AST loaderがast.Call以外として拒否してexit2となった。scripts/check_tenant_boundary_bypass.py と tests/test_check_tenant_boundary_bypass.pyのexact2へ限定し、既採用のpitchlog.repositories.batted_ball_optionsから同名importされた静的tuple1（FunctionOperationRegistration call）の展開だけを閉読取する。旧inline call全順序・全IDのexact比較、未知Starred/任意eval/任意module import/再代入/動的tuple/余剰や重複の拒否を保持する。製品registry/型/SQL/CAPを変更して検査へ合わせず、同じ既21+新1を読む技術追随に限る。作者cache→別非作者レビュー後rootが適用し、実projection変更を根拠に単一#196受理候補を置換再導出（旧37prefix保持・196重複追記なし）する。必須CI/CLIを成功へ読み替えない。
