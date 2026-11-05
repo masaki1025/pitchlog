@@ -1200,7 +1200,9 @@ def test_roster_product_registries_match_catalog(catalog: dict[str, Any]) -> Non
         "CAP:tenant_vocabularies:read",
         "CAP:tenant_vocabularies:insert",
     }
-    assert set(repository_contract.PRODUCT_CAPABILITY_IDS) == expected
+    assert set(repository_contract.PRODUCT_CAPABILITY_IDS) == expected | {
+        "CAP:recording_vocabularies:read"
+    }
     assert {
         spec.capability_id for spec in repository_base._OPERATION_REGISTRY.values()
     } == expected

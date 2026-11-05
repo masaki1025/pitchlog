@@ -1575,23 +1575,26 @@ def test_runtime_entry_normal_profile_remains_accepted() -> None:
             _REPOSITORY_ROOT / "contracts/db/schema-manifest.json"
         )["tables"]
     }
-    assert len(result.role_ids) == 14 + 3
+    assert len(result.role_ids) == 14 + 3 + 1
     assert set(result.role_ids) == _EXPECTED_LEGACY_ROLE_IDS | {
         "pitchlog_sync_binding_fn_owner",
         "pitchlog_sync_binding_actor",
         "pitchlog_sync_right_fn_owner",
+        "pitchlog_recording_vocab_fn_owner",
     }
-    assert len(result.schema_names) == 8 + 3
+    assert len(result.schema_names) == 8 + 3 + 1
     assert _EXPECTED_LEGACY_SCHEMA_NAMES | {
         "sync_fence",
         "sync_fence_api",
         "sync_right_api",
+        "recording_vocab_api",
     } == set(result.schema_names)
     assert len(_EXPECTED_TERMINAL_FUNCTIONS) == 7
     assert (
         len(result.functions)
         - len(_EXPECTED_TERMINAL_FUNCTIONS)
         - len(_EXPECTED_LINEUP_FUNCTIONS)
+        - 1
         == 79 + len(_EXPECTED_FIRST_BALL_FUNCTIONS) + 8
     )
     assert (
@@ -1600,6 +1603,7 @@ def test_runtime_entry_normal_profile_remains_accepted() -> None:
         | set(_EXPECTED_ORDINARY_FUNCTIONS)
         | set(_EXPECTED_TERMINAL_FUNCTIONS)
         | set(_EXPECTED_LINEUP_FUNCTIONS)
+        | {("recording_vocab_api", "read_batted_ball_options", "uuid, integer, text")}
     ) == {tuple(r[:3]) for r in result.functions}
     assert {
         r[2]
@@ -1623,8 +1627,14 @@ def test_runtime_entry_normal_profile_remains_accepted() -> None:
         "lineup_prefix_game_start_requests_select",
     }
     assert len(_EXPECTED_LINEUP_FUNCTIONS) == 1
-    assert len(result.policies) - 2 - len(lineup_policies) == 91
-    assert len(result.policies) == 95
+    batted_policies = {
+        "recording_vocab_select_batted_ball",
+        "batted_hit_select_admin_vocabularies",
+        "batted_hit_select_tenant_vocabularies",
+    }
+    assert {r[2] for r in result.policies if r[2] in batted_policies} == batted_policies
+    assert len(result.policies) - 2 - len(lineup_policies) - len(batted_policies) == 91
+    assert len(result.policies) == 95 + 3
     terminal_columns = {
         "id",
         "status",
@@ -1676,7 +1686,38 @@ def test_runtime_entry_normal_profile_remains_accepted() -> None:
         and row["object_schema"] == "public"
         for row in lineup_acls
     )
-    assert len(acls) - len(terminal_acls) - len(lineup_acls) == 342
+    batted_columns = {
+        ("admin_vocabularies", column, owner)
+        for owner, columns in (
+            ("pitchlog_sync_right_fn_owner", ("key", "category", "disabled")),
+            (
+                "pitchlog_recording_vocab_fn_owner",
+                ("key", "category", "display_name", "disabled"),
+            ),
+        )
+        for column in columns
+    } | {
+        ("tenant_vocabularies", column, "pitchlog_sync_right_fn_owner")
+        for column in ("tenant_id", "key", "category", "disabled")
+    }
+    batted_acls = [
+        r
+        for r in acls
+        if r["object_id"] in {"admin_vocabularies", "tenant_vocabularies"}
+        and r["grantee_role_id"]
+        in {"pitchlog_sync_right_fn_owner", "pitchlog_recording_vocab_fn_owner"}
+    ]
+    assert {
+        (r["object_id"], r["column_id"], r["grantee_role_id"]) for r in batted_acls
+    } == batted_columns
+    assert len(batted_acls) == 11
+    assert all(
+        r["privilege_ids"] == ["SELECT"]
+        and r["grant_option"] is False
+        and r["object_schema"] == "public"
+        for r in batted_acls
+    )
+    assert len(acls) - len(terminal_acls) - len(lineup_acls) - len(batted_acls) == 342
 
 
 @pytest.mark.parametrize(

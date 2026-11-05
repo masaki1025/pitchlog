@@ -17,6 +17,22 @@ from pitchlog.authz.asset_spec import PRODUCT_SPEC
 from pitchlog.authz.ddl import DDLStatement, generate_authz_ddl
 
 # cdf1256dの採用済み3schemaを独立の全field期待として固定する。
+_EXPECTED_RECORDING_VOCAB_SCHEMA = {
+    "schema_id": "recording_vocab_api",
+    "schema_name": "recording_vocab_api",
+    "creation": "product_ddl",
+    "owner": "pitchlog_recording_vocab_fn_owner",
+    "ownership_path": "direct",
+    "acl_expectations": [
+        {"grantee": "pitchlog_app", "privilege": "USAGE", "grantable": False}
+    ],
+    "revoked_acl_expectations": [
+        {"grantee": "PUBLIC", "privilege": "USAGE", "grantable": False},
+        {"grantee": "PUBLIC", "privilege": "CREATE", "grantable": False},
+        {"grantee": "pitchlog_app", "privilege": "CREATE", "grantable": False},
+    ],
+}
+
 _EXPECTED_FIRST_BALL_SCHEMAS = [
     {
         "schema_id": "sync_fence",
@@ -236,6 +252,11 @@ _EXPECTED_SCHEMAS.update(
     }
 )
 
+# 新語彙owner1の既採用PUBLIC_USAGEだけを有限追加する。
+_EXPECTED_SCHEMAS["public"]["acl_expectations"].add(
+    ("pitchlog_recording_vocab_fn_owner", "USAGE", False)
+)
+
 # 初期権owner/actorは公開schemaを使用し、新APIはactorだけに公開する。
 for _role in ("pitchlog_initial_fn_owner", "pitchlog_initial_actor"):
     _EXPECTED_SCHEMAS["public"]["acl_expectations"].add((_role, "USAGE", False))
@@ -417,9 +438,11 @@ def test_product_database_and_schema_assets_match_design() -> None:
     databases = asset["databases"]
     schemas = asset["schemas"]
     assert isinstance(databases, list) and len(databases) == 1
-    assert isinstance(schemas, list) and len(schemas) == len(
-        _EXPECTED_SCHEMAS
-    ) + 2 + len(_EXPECTED_FIRST_BALL_SCHEMAS)
+    assert (
+        isinstance(schemas, list)
+        and len(schemas)
+        == len(_EXPECTED_SCHEMAS) + 2 + len(_EXPECTED_FIRST_BALL_SCHEMAS) + 1
+    )
     assert _normalized_object(databases[0], "database_id") == _EXPECTED_DATABASE
     normalized = {
         str(row["schema_id"]): _normalized_object(row, "schema_id") for row in schemas
@@ -429,6 +452,7 @@ def test_product_database_and_schema_assets_match_design() -> None:
         *_EXPECTED_SCHEMAS,
         "authn",
         "authn_crypto",
+        "recording_vocab_api",
         *(row["schema_id"] for row in _EXPECTED_FIRST_BALL_SCHEMAS),
     }
     assert [
@@ -436,6 +460,9 @@ def test_product_database_and_schema_assets_match_design() -> None:
         for row in schemas
         if row["schema_id"] in {"sync_fence", "sync_fence_api", "sync_right_api"}
     ] == _EXPECTED_FIRST_BALL_SCHEMAS
+    assert [row for row in schemas if row["schema_id"] == "recording_vocab_api"] == [
+        _EXPECTED_RECORDING_VOCAB_SCHEMA
+    ]
     assert normalized["authn"]["owner"] == "pitchlog_owner"
     assert normalized["authn"]["acl_expectations"] == {
         (role, "USAGE", False)
@@ -533,5 +560,42 @@ def test_first_ball_schema_full_declarations_are_closed(
     next(r for r in asset["schemas"] if r["schema_id"] == schema_id)[field] = (
         copy.deepcopy(value)
     )
+    with pytest.raises(_catalog_checker.CatalogError):
+        _validate_product_asset(asset)
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("owner", "pitchlog_app"),
+        ("schema_name", "unknown"),
+        (
+            "acl_expectations",
+            [{"grantee": "PUBLIC", "privilege": "USAGE", "grantable": False}],
+        ),
+        ("revoked_acl_expectations", []),
+    ],
+)
+def test_recording_vocab_schema_full_declaration_is_closed(
+    field: str, value: object
+) -> None:
+    """新schema1のowner/名前/ACL/剥奪を固定Git原典から変更できない。"""
+    asset = _read_product_asset()
+    next(r for r in asset["schemas"] if r["schema_id"] == "recording_vocab_api")[
+        field
+    ] = copy.deepcopy(value)
+    with pytest.raises(_catalog_checker.CatalogError):
+        _validate_product_asset(asset)
+
+
+@pytest.mark.parametrize("mode", ["remove", "duplicate"])
+def test_recording_vocab_schema_is_required_once(mode: str) -> None:
+    """新schemaの欠落や重複を有限追加の部分成立にしない。"""
+    asset = _read_product_asset()
+    row = next(r for r in asset["schemas"] if r["schema_id"] == "recording_vocab_api")
+    if mode == "remove":
+        asset["schemas"].remove(row)
+    else:
+        asset["schemas"].append(copy.deepcopy(row))
     with pytest.raises(_catalog_checker.CatalogError):
         _validate_product_asset(asset)

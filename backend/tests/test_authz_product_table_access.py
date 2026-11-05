@@ -703,6 +703,90 @@ def _mutate_secret_table_acl(asset: dict[str, Any]) -> None:
     )
 
 
+_EXPECTED_BATTED_POLICIES = [
+    {
+        "policy_id": "POLICY:admin_vocabularies:batted_hit_select_admin_vocabularies",
+        "table_id": "admin_vocabularies",
+        "profile": "function_only",
+        "policy_name": "batted_hit_select_admin_vocabularies",
+        "command": "SELECT",
+        "policy_mode": "permissive",
+        "role_ids": ["pitchlog_sync_right_fn_owner"],
+        "using_predicate_id": None,
+        "using_column": None,
+        "using_expression": "session_user = 'pitchlog_app'",
+        "with_check_predicate_id": None,
+        "with_check_column": None,
+        "with_check_expression": None,
+    },
+    {
+        "policy_id": "POLICY:tenant_vocabularies:batted_hit_select_tenant_vocabularies",
+        "table_id": "tenant_vocabularies",
+        "profile": "function_only",
+        "policy_name": "batted_hit_select_tenant_vocabularies",
+        "command": "SELECT",
+        "policy_mode": "permissive",
+        "role_ids": ["pitchlog_sync_right_fn_owner"],
+        "using_predicate_id": None,
+        "using_column": None,
+        "using_expression": "tenant_id = "
+        "NULLIF(pg_catalog.current_setting('app.tenant_id',true),'')::uuid "
+        "AND session_user = 'pitchlog_app'",
+        "with_check_predicate_id": None,
+        "with_check_column": None,
+        "with_check_expression": None,
+    },
+    {
+        "policy_id": "POLICY:admin_vocabularies:recording_vocab_select_batted_ball",
+        "table_id": "admin_vocabularies",
+        "profile": "function_only",
+        "policy_name": "recording_vocab_select_batted_ball",
+        "command": "SELECT",
+        "policy_mode": "permissive",
+        "role_ids": ["pitchlog_recording_vocab_fn_owner"],
+        "using_predicate_id": None,
+        "using_column": None,
+        "using_expression": "category = 'batted_ball' AND disabled = false AND "
+        "session_user = 'pitchlog_app' AND "
+        "NULLIF(pg_catalog.current_setting('app.tenant_id', "
+        "true), '') IS NOT NULL",
+        "with_check_predicate_id": None,
+        "with_check_column": None,
+        "with_check_expression": None,
+    },
+]
+
+_EXPECTED_BATTED_POLICY_SQL = {
+    "POLICY:admin_vocabularies:batted_hit_select_admin_vocabularies": (
+        "-- ELEMENT-TYPE: policy\n-- ELEMENT-ID: POLICY:admin_voc"
+        "abularies:batted_hit_select_admin_vocabularies\n\nCREATE "
+        "POLICY batted_hit_select_admin_vocabularies ON public.a"
+        "dmin_vocabularies AS PERMISSIVE FOR SELECT TO pitchlog_"
+        "sync_right_fn_owner USING (session_user = 'pitchlog_app"
+        "');\n"
+    ),
+    "POLICY:tenant_vocabularies:batted_hit_select_tenant_vocabularies": (
+        "-- ELEMENT-TYPE: policy\n-- ELEMENT-ID: POLICY:tenant_vo"
+        "cabularies:batted_hit_select_tenant_vocabularies\n\nCREAT"
+        "E POLICY batted_hit_select_tenant_vocabularies ON publi"
+        "c.tenant_vocabularies AS PERMISSIVE FOR SELECT TO pitch"
+        "log_sync_right_fn_owner USING (tenant_id = NULLIF(pg_ca"
+        "talog.current_setting('app.tenant_id',true),'')::uuid A"
+        "ND session_user = 'pitchlog_app');\n"
+    ),
+    "POLICY:admin_vocabularies:recording_vocab_select_batted_ball": (
+        "-- ELEMENT-TYPE: policy\n-- ELEMENT-ID: POLICY:admin_voc"
+        "abularies:recording_vocab_select_batted_ball\n\nCREATE PO"
+        "LICY recording_vocab_select_batted_ball ON public.admin"
+        "_vocabularies AS PERMISSIVE FOR SELECT TO pitchlog_reco"
+        "rding_vocab_fn_owner USING (category = 'batted_ball' AN"
+        "D disabled = false AND session_user = 'pitchlog_app' AN"
+        "D NULLIF(pg_catalog.current_setting('app.tenant_id', tr"
+        "ue), '') IS NOT NULL);\n"
+    ),
+}
+
+
 def test_product_policies_and_table_acls_match_all_five_profiles() -> None:
     """全5プロファイルのポリシー・ACL・展開SQLが設計へ一致する。"""
     asset = _product_asset()
@@ -911,6 +995,16 @@ def test_product_policies_and_table_acls_match_all_five_profiles() -> None:
         )
     assert len(lineup_policy_ids) == 2
     owner_policy_ids |= lineup_policy_ids
+    batted_ids = {row["policy_id"] for row in _EXPECTED_BATTED_POLICIES}
+    assert [row for row in asset["policies"] if row["policy_id"] in batted_ids] == (
+        _EXPECTED_BATTED_POLICIES
+    )
+    assert {
+        key: value
+        for key, value in actual_sql.items()
+        if key[0] == "policy" and key[1] in batted_ids
+    } == {("policy", key): value for key, value in _EXPECTED_BATTED_POLICY_SQL.items()}
+    owner_policy_ids |= batted_ids
     assert {
         element_id
         for element_type, element_id in actual_sql
@@ -1083,5 +1177,31 @@ def test_private_binding_tables_reject_app_direct_grants(
             grant_option=False,
         )
     )
+    with pytest.raises(_catalog_checker.CatalogError):
+        _validate_product_asset(asset)
+
+
+@pytest.mark.parametrize(
+    "policy_id", [r["policy_id"] for r in _EXPECTED_BATTED_POLICIES]
+)
+@pytest.mark.parametrize(
+    "fault", ["remove", "role", "predicate", "command", "duplicate"]
+)
+def test_batted_policy_three_full_declarations_are_closed(
+    policy_id: str, fault: str
+) -> None:
+    """新3policyの部分欠落・全field変更・重複も拒否する。"""
+    asset = _product_asset()
+    row = next(r for r in asset["policies"] if r["policy_id"] == policy_id)
+    if fault == "remove":
+        asset["policies"].remove(row)
+    elif fault == "role":
+        row["role_ids"] = ["pitchlog_app"]
+    elif fault == "predicate":
+        row["using_expression"] = "true"
+    elif fault == "command":
+        row["command"] = "ALL"
+    else:
+        asset["policies"].append(copy.deepcopy(row))
     with pytest.raises(_catalog_checker.CatalogError):
         _validate_product_asset(asset)

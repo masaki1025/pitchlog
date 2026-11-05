@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import cast
+from typing import Any, cast
 from uuid import UUID
 
 import pytest
@@ -69,6 +69,7 @@ class _UnknownToken(TenantOperationToken):
 
 def test_rg1_keeps_two_fixed_functions_with_one_registered_rule_resolver() -> None:
     """resolver1件追加後も、RG1のtenant固定2関数と未知token拒否を保つ。"""
+    from pitchlog.repositories.batted_ball_options import BattedBallOptionsToken
     from pitchlog.sync.terminal_pitch_tokens import LineupStartedOriginReadToken
 
     assert set(FUNCTION_OPERATION_REGISTRY) == {
@@ -95,8 +96,9 @@ def test_rg1_keeps_two_fixed_functions_with_one_registered_rule_resolver() -> No
         PreparePlayPrefixProjectionToken,
         # 固定9b76の同tenant・実started原本read1だけを閉追加する。
         LineupStartedOriginReadToken,
+        BattedBallOptionsToken,
     }
-    assert len(FUNCTION_OPERATION_REGISTRY) == 21
+    assert len(FUNCTION_OPERATION_REGISTRY) == 22
     for token, function_name in (
         (RG1PrecheckToken(), "rg1_read_open"),
         (RG1CommitCheckToken(), "rg1_assert_open_before_commit"),
@@ -163,3 +165,71 @@ def test_scope_binding_has_only_server_bound_tenant_and_text_result() -> None:
     for bad in (None, True, 1, (), 1.5):
         with pytest.raises(FunctionOperationError):
             decode_function_result(spec, TenantOperationResult(rows=((bad,),)))
+
+
+def test_recording_vocab_function_registration_keeps_table_registry() -> None:
+    """table66を増やさず、新function1の全公開属性を固定する。"""
+    from pitchlog.repositories.base import _OPERATION_REGISTRY
+    from pitchlog.repositories.batted_ball_options import (
+        BATTED_BALL_OPTIONS_OPERATIONS,
+        BattedBallOptionsToken,
+    )
+
+    spec = FUNCTION_OPERATION_REGISTRY[BattedBallOptionsToken]
+    assert spec is BATTED_BALL_OPTIONS_OPERATIONS[0]
+    assert len(BATTED_BALL_OPTIONS_OPERATIONS) == 1
+    assert spec.operation_id == "RECORDING_VOCABULARIES:read_batted_ball_options"
+    assert spec.function_id == "recording_vocab_api.read_batted_ball_options"
+    assert spec.capability_id == "CAP:recording_vocabularies:read"
+    assert spec.token_type is BattedBallOptionsToken
+    assert spec.input_fields == (("page_size", int), ("cursor_key", str))
+    assert spec.result_fields == (("key", str), ("display_name", str))
+    assert (spec.min_rows, spec.max_rows) == (0, 101)
+    assert (
+        spec.nonempty_inputs
+        == spec.nullable_results
+        == spec.aware_datetime_results
+        == ()
+    )
+    assert BattedBallOptionsToken not in _OPERATION_REGISTRY
+    assert len(_OPERATION_REGISTRY) == 66
+    actual, parameters = prepare_function_operation(
+        BattedBallOptionsToken(page_size=31, cursor_key="previous"),
+        _TENANT_ID,
+        FUNCTION_OPERATION_REGISTRY,
+    )
+    assert actual is spec
+    assert parameters == {
+        "tenant_id": _TENANT_ID,
+        "page_size": 31,
+        "cursor_key": "previous",
+    }
+    result = TenantOperationResult((("observed-key", "表示"),))
+    assert spec.decoder(result) is result
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("operation_id", "UNKNOWN:read"),
+        ("capability_id", "CAP:games:read"),
+        ("input_fields", (("page_size", bool), ("cursor_key", str))),
+        ("result_fields", (("key", str), ("display_name", int))),
+        ("min_rows", 1),
+        ("max_rows", 100),
+        ("nonempty_inputs", ("cursor_key",)),
+        ("nullable_results", ("key",)),
+        ("aware_datetime_results", ("key",)),
+    ],
+)
+def test_recording_vocab_function_registration_rejects_field_substitution(
+    field: str, value: object
+) -> None:
+    """新1登録の操作/型/上限等を独立な別宣言へ差し替えできない。"""
+    from dataclasses import replace
+
+    from pitchlog.repositories.batted_ball_options import BattedBallOptionsToken
+
+    spec = FUNCTION_OPERATION_REGISTRY[BattedBallOptionsToken]
+    with pytest.raises(FunctionOperationError):
+        replace(spec, **cast(Any, {field: value}))
