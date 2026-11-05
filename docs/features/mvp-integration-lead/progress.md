@@ -1,5 +1,14 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 再開時の現在地：2026-11-06 02:17 JST（走者打球修正のP1解消・R7正式値採用、後発基底登録を是正中）
+
+- **新たに利用できる操作/正式提供**: 正式develop112f771e/#196未mergeの区別を維持。走者打球の外部候補はfirst-only単打/二塁打の明示進塁が改善されたが、正式提供や固定HEADの実PG/E2E成立へは読み替えない。全MVP条件は維持。
+- **走者spike受領と非作者再検証**: 原枝を編集せず、HEAD fdab2a649010a011d64eaea1daaabe602f6ba477・コード31d9f303f05210c90ce081dd6b93f43fc99ac445・cleanを実Git確認。前c358→修正14path。初回独立P1×3（forced/閉範囲/wire書換え）を履歴に残し、非作者undo_unit1_whole_independentが元反例を新artifact34513085…65993bytesへ再生して全解消を報告。A/B forced、旧16全値保持、不正13欄を入力不変で拒否、TS63＋wireprobe1成功/BE2正5負。最終REPORT SHAは固定待ち。作者実E2E3＋DB1/133＋74は受領証拠で、一時SQLbody/manifest overlay使用・復元後のpush版単独未再現を明示。次は正式閉契約/pins/body/manifest/D11接合→同固定HEAD UI再実証→runner固有途中故障。新たなspike依頼は増やさず統合へ集中する。
+- **#196 CI/是正の実績**: R6実CI42050222825 attempt2はbackend4shard全成功後、aggregateの旧S3=0039/new0040接合不足でfailure。盲再実行しない。R7はCIの固定0040追加4行、公式Alembic hookのcatalog23厳密照合source5を非作者0cafeb69…後採用、owned正常1＋実catalog7負＋schemaaudit1が9成功49.06秒。入力7705df70/正式全値は非作者47e375fb…/checkse8cd897f…で全9IDbase+1据置・旧37＋単一196・352snapshot保護・corpus1葉を独立照合して採用、現在 c8b2a5c0d81a5e5b15361a42446c2ecf275307a6 にlocal commit。公開push/最終HEAD proof/必須CIは未実施。
+- **#196の現在の阻害と次**: rootactual tenant CLIがalembic_index_comparison.py:155にTB005 execute/text×2。新migration用catalog読取methodが基底未登録。検査を緩めず、完全修飾method1/API2の最小登録＋positivefixture＋欠落/署名/API/他scope拒否試験のexact3候補をcache pr196-r7-tenant-registration-candidate-20261106へ固定。in-memory6＋正例は作者診断として成功、actual資産未適用。別非作者へ依頼済み、採用→新入力の実影響だけ公式再導出→最終proof→push1回→全CI。既R7値レビューは旧inputの証拠として保持する。
+- **成績並行**: 実PG済v2安定枝をbcee3decへ保持し、新BF契約WIPを専用feature-mvp-stats-bf-calculation@5368a65bへ分離保存。旧公開履歴のforcepushなし。BF数学source16/generated8はpr191がcache-only実装中。既知未完BF0期待4・T6欠測reason21・真正観測の再束縛14の先置fixture差計39case/51葉を検出し、actual契約を変更せず別修正案と根拠を固定中。旧26/旧75/原典を保持し、モデル出力で期待を生成しない。既採用意味をPO未回答へ戻さない。
+- **取消並行**: integration dfde9f95を保持。runtime17のprivate admission/厳密source/保存接合候補は別writer、rootは旧first-ball原典bootstrap/実handle source寿命/通常次球投影/世代引継ぎCPの共有接合を所有。旧D3=1/初期D3=0公開guardを偽装しない。Source6世代跨ぎP1は作者reflection1 cacheへ是正済、非作者再確認前でactual未採用。真正旧世代D4をownD4へ等置せず、未実装の実担当交代成功を主張しない。
+
 ## 再開時の現在地：2026-11-06 01:00 JST（成績v2実API/原子性成立、取消runtimeを隔離接合中）
 
 - **正式提供/利用者操作**: develop112f771e、#196未merge。MVP全体はactive/未完成。今回新しく実証したのは候補bceeの成績v2同TX保存・真正read・故障原状であり、GUI/全27/公式終了/CSV/実機へ拡張しない。
