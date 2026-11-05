@@ -1,5 +1,18 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 続き：2026-11-05（安打の供給検査完了・成績の正式資産候補生成）
+
+- **#196 source保存**: 旧STABLE語彙read1件だけのvolatility期待を訂正し、既28関数VOLATILE/全guard/43pin/637/31原典を保持。非作者40a06581…が全29反転を拒否、root全供給1074pass33.42秒。既反映1 b754c985…/metadata e146a186…と合わせsource5を6965088bへ保存、未push。authz --skip-oracleは成功。RAW source診断は17site、既pr192登録試験は174pass/2fail（安打のlineup入力型と観測照合追加によりimmutable source全byte不一致）であり、検査を緩めず固定後発登録を追加する必要がある。正式#196受理/全CIは未了。
+- **成績canonical候補**: JSON往復exact2を非作者ab934a0c…後11fa979aへ保存。公式canonical body/derive/render/rederiveによる95pathをcache stats-canonical-publication-20261105へ前後固定。helperのnested role属性上書き不具合と反復時generated module inventory欠落は旧版・旧不正候補を保存して是正し、既rolname保持・公式module1を含む95全集合へ追随。正式版/7.7成立ではない。実CLI --skip-oracle成功（total1429/auth_claim187/db_claims191/routes53/cells12）。資産95の独立照合と、after_d1_intents後の同TX flush接続exact2候補を並行中。保存成功や実PG認可はまだ主張しない。
+- **次**: 固定安打source後発登録→census/Oracle/単一#196受理と最終レビュー・必須CI。成績は資産95レビュー→prefix hookレビュー→owned PGで実API native記録/成績原本・facts/RRRO読取・途中故障全取消を実測する。未回答成績4判断/全MVP残件は前節どおり維持。
+
+## 続き：2026-11-05（進行報告時の実状態照合）
+
+- **正式統合**: GitHub実照合で#192は112f771e549d6a92d724f62d9b0b45dcc89973c1へ通常merge済み（12:06 JST）。develop後続CI41959444977はsuccess。直前節の「CI実行中」は履歴として保持し、この結果で更新する。通常球・四球・死球に加え三振の提供版が統合された。GUI証拠は既記録の対象HEADのものとし、merge HEADで再実測したとはしない。
+- **安打**: #196はDraft、公開2fd47782、ローカルcbdb3a5d。単打・二塁打・三塁打・本塁打の同一候補3310dcd1で新規作成→開始→安打→次球→元要求再送→reloadを4系列実測済み。正式developの提供とは分離する。正式基線追随と受理用差分を作業中。全供給検査は1073成功/1失敗で、新しい読取関数のSTABLE属性を旧テストがVOLATILEと期待する有限追随が残る。5ファイルの未commit差分を保全し、全緑・受理・最終レビュー前は統合しない。
+- **成績**: 接続WT db4e6d66、保存/読取の資格・固定SQL・同TX flush候補・正式5操作登録・private schema/分類を実装、非作者レビュー済み単位を保存。実migrationの隔離PG catalog確認は1成功、これを実APIでの成績保存・表示成功へ拡張しない。正式資産生成中のJSON型不一致はstrict検査を維持して修正し、非作者ab934a0c…で採用可。現在は正式資産生成・実記録へのhook・実DB保存/読取の接合が残る。成績API/画面・CSV実DB供給は未完成。
+- **次**: #196の有限テスト追随→正式値/受理/最終レビュー/必須CI→通常統合。同時に成績の正式資産を揃え、実記録と同TX保存を接続して隔離DBで検証。全操作・取消/訂正・終了再開・耐久offline/交代・閲覧更新・全27成績/両CSV・負荷復旧・対象実機のMVP条件は維持し、完成扱いにしない。
+
 ## 続き：2026-11-05（#192修復版CIと成績の資格・実行経路を保存）
 
 - **#192**: 最終6c779700909d12f65941346f4ff679bfe80a284d/diff ba5cf0f4…/222pathsを非作者69538a60…で結合。6785からの差分は旧runtime全9root不変・既凍結fixture期待1行とR5だけ。公開証拠 https://github.com/masaki1025/pitchlog/pull/192#issuecomment-6648046950 をraw JSONで掲載、本文pointer更新、一回FF push済み。PRbody41955663311成功。全CI41955663408は実行中、最後の照合で失敗0（残harness1/backend4）。全緑前はDraft/merge不可、旧失敗runは保持。branch protection APIは404（Branch not protected）だが、委任条件の全必須CI/最終レビューを省略しない。
