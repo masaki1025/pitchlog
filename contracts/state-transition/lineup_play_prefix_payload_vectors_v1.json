@@ -1,7 +1,7 @@
 {
   "status": "AUTHOR_CACHE_CANDIDATE_NOT_ACCEPTED",
   "expectedSource": "受理済SO24 fullresponseをそのまま引用しFR005/F1と実lineup fixtureから接続期待を記述。kernel/artifact呼出0。",
-  "sourceCasesSha256": "e495e79cf022a2e44290f0bb0707fa5130ad48355e2d325ed6dd5cc93ec45b49",
+  "sourceCasesSha256": "ba7d7d84bbe28058f0c6df0921b9e1ff4321deced1be004b58d3f1051e913122",
   "wireHead": {
     "formatVersion": "play-prefix-wire-head-v3",
     "canonicalization": "UTF-8 JSON sorted keys, compact separators, ensure_ascii=false, no nonfinite or duplicate keys",
@@ -73,7 +73,7 @@
         },
         "calculation": {
           "formatVersion": "play-prefix-calculation-v3",
-          "artifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+          "artifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
           "request": {
             "version": "3",
             "prefixRef": {
@@ -234,7 +234,7 @@
                 "appliedWatermark": "100"
               },
               "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-              "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+              "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
               "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
               "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
               "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -312,7 +312,7 @@
             "nextCheckpoint": {
               "id": "10000000-0000-0000-0000-000000000021",
               "revision": "2",
-              "digest": "447e7758f9db6c2668095ea051bfb0be47f7a27a45c3cc3198694314a31117b2"
+              "digest": "ebcabe35627c91470c70c43352ab389c213f2476e2751fae061bd73c9d44fd39"
             }
           },
           "response": {
@@ -457,12 +457,6 @@
                       "after": "12"
                     }
                   },
-                  "battingOrderBySide": {
-                    "away": {
-                      "before": "1",
-                      "after": "2"
-                    }
-                  },
                   "statFlags": {
                     "投球回算入アウト": true,
                     "投球数": true,
@@ -487,6 +481,12 @@
                     "走塁妨害出塁": false,
                     "得点": false,
                     "打点": false
+                  },
+                  "battingOrderBySide": {
+                    "away": {
+                      "before": "1",
+                      "after": "2"
+                    }
                   }
                 }
               },
@@ -518,7 +518,7 @@
                 "checkpoint": {
                   "id": "10000000-0000-0000-0000-000000000021",
                   "revision": "2",
-                  "digest": "447e7758f9db6c2668095ea051bfb0be47f7a27a45c3cc3198694314a31117b2"
+                  "digest": "ebcabe35627c91470c70c43352ab389c213f2476e2751fae061bd73c9d44fd39"
                 },
                 "historyVersion": "101",
                 "origin": {
@@ -604,7 +604,7 @@
                 "d2": "101",
                 "appliedWatermark": "100"
               },
-              "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400"
+              "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1"
             }
           }
         }
@@ -740,7 +740,7 @@
           }
         },
         "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-        "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+        "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
         "sourcePosition": {
           "d1": "101",
           "d2": "101",
@@ -843,7 +843,7 @@
             "appliedWatermark": "100"
           },
           "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-          "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+          "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
           "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
           "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
           "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -1122,12 +1122,6 @@
                 "after": "12"
               }
             },
-            "battingOrderBySide": {
-              "away": {
-                "before": "1",
-                "after": "2"
-              }
-            },
             "statFlags": {
               "投球回算入アウト": true,
               "投球数": true,
@@ -1152,6 +1146,12 @@
               "走塁妨害出塁": false,
               "得点": false,
               "打点": false
+            },
+            "battingOrderBySide": {
+              "away": {
+                "before": "1",
+                "after": "2"
+              }
             }
           }
         },
@@ -1169,7 +1169,7 @@
           "battingOrder": "2"
         }
       },
-      "wireDigest": "447e7758f9db6c2668095ea051bfb0be47f7a27a45c3cc3198694314a31117b2"
+      "wireDigest": "ebcabe35627c91470c70c43352ab389c213f2476e2751fae061bd73c9d44fd39"
     },
     {
       "caseId": "V3-STRIKEOUT-1-B0-O1",
@@ -1197,7 +1197,7 @@
         },
         "calculation": {
           "formatVersion": "play-prefix-calculation-v3",
-          "artifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+          "artifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
           "request": {
             "version": "3",
             "prefixRef": {
@@ -1358,7 +1358,7 @@
                 "appliedWatermark": "100"
               },
               "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-              "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+              "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
               "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
               "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
               "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -1444,7 +1444,7 @@
             "nextCheckpoint": {
               "id": "10000000-0000-0000-0000-000000000021",
               "revision": "2",
-              "digest": "eb23e21f7bd1827835f14aa865b71e6854a67fe48c710b67a3d74d7199d9a759"
+              "digest": "3030eab39b890758875cfffdba091d7f14be890603e4a6898c2c334a33095251"
             }
           },
           "response": {
@@ -1589,12 +1589,6 @@
                       "after": "12"
                     }
                   },
-                  "battingOrderBySide": {
-                    "home": {
-                      "before": "2",
-                      "after": "3"
-                    }
-                  },
                   "statFlags": {
                     "投球回算入アウト": true,
                     "投球数": true,
@@ -1619,6 +1613,12 @@
                     "走塁妨害出塁": false,
                     "得点": false,
                     "打点": false
+                  },
+                  "battingOrderBySide": {
+                    "home": {
+                      "before": "2",
+                      "after": "3"
+                    }
                   }
                 }
               },
@@ -1650,7 +1650,7 @@
                 "checkpoint": {
                   "id": "10000000-0000-0000-0000-000000000021",
                   "revision": "2",
-                  "digest": "eb23e21f7bd1827835f14aa865b71e6854a67fe48c710b67a3d74d7199d9a759"
+                  "digest": "3030eab39b890758875cfffdba091d7f14be890603e4a6898c2c334a33095251"
                 },
                 "historyVersion": "101",
                 "origin": {
@@ -1744,7 +1744,7 @@
                 "d2": "101",
                 "appliedWatermark": "100"
               },
-              "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400"
+              "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1"
             }
           }
         }
@@ -1880,7 +1880,7 @@
           }
         },
         "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-        "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+        "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
         "sourcePosition": {
           "d1": "101",
           "d2": "101",
@@ -1983,7 +1983,7 @@
             "appliedWatermark": "100"
           },
           "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-          "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+          "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
           "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
           "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
           "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -2270,12 +2270,6 @@
                 "after": "12"
               }
             },
-            "battingOrderBySide": {
-              "home": {
-                "before": "2",
-                "after": "3"
-              }
-            },
             "statFlags": {
               "投球回算入アウト": true,
               "投球数": true,
@@ -2300,6 +2294,12 @@
               "走塁妨害出塁": false,
               "得点": false,
               "打点": false
+            },
+            "battingOrderBySide": {
+              "home": {
+                "before": "2",
+                "after": "3"
+              }
             }
           }
         },
@@ -2325,7 +2325,7 @@
           "battingOrder": "3"
         }
       },
-      "wireDigest": "eb23e21f7bd1827835f14aa865b71e6854a67fe48c710b67a3d74d7199d9a759"
+      "wireDigest": "3030eab39b890758875cfffdba091d7f14be890603e4a6898c2c334a33095251"
     },
     {
       "caseId": "V3-STRIKEOUT-1-B0-O2",
@@ -2353,7 +2353,7 @@
         },
         "calculation": {
           "formatVersion": "play-prefix-calculation-v3",
-          "artifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+          "artifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
           "request": {
             "version": "3",
             "prefixRef": {
@@ -2514,7 +2514,7 @@
                 "appliedWatermark": "100"
               },
               "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-              "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+              "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
               "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
               "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
               "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -2600,7 +2600,7 @@
             "nextCheckpoint": {
               "id": "10000000-0000-0000-0000-000000000021",
               "revision": "2",
-              "digest": "dbc35de5e75257bc06f65c1fc1884bc92c65ac50b325d8123c07d8b5d8fac61e"
+              "digest": "f3ccf18acfbb83f2f66ab3ad361f403b9851d37cbf87985d41266eefcac34b6b"
             }
           },
           "response": {
@@ -2753,12 +2753,6 @@
                       "after": "12"
                     }
                   },
-                  "battingOrderBySide": {
-                    "away": {
-                      "before": "3",
-                      "after": "4"
-                    }
-                  },
                   "statFlags": {
                     "投球回算入アウト": true,
                     "投球数": true,
@@ -2783,6 +2777,12 @@
                     "走塁妨害出塁": false,
                     "得点": false,
                     "打点": false
+                  },
+                  "battingOrderBySide": {
+                    "away": {
+                      "before": "3",
+                      "after": "4"
+                    }
                   }
                 }
               },
@@ -2814,7 +2814,7 @@
                 "checkpoint": {
                   "id": "10000000-0000-0000-0000-000000000021",
                   "revision": "2",
-                  "digest": "dbc35de5e75257bc06f65c1fc1884bc92c65ac50b325d8123c07d8b5d8fac61e"
+                  "digest": "f3ccf18acfbb83f2f66ab3ad361f403b9851d37cbf87985d41266eefcac34b6b"
                 },
                 "historyVersion": "101",
                 "origin": {
@@ -2900,7 +2900,7 @@
                 "d2": "101",
                 "appliedWatermark": "100"
               },
-              "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400"
+              "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1"
             }
           }
         }
@@ -3044,7 +3044,7 @@
           }
         },
         "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-        "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+        "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
         "sourcePosition": {
           "d1": "101",
           "d2": "101",
@@ -3147,7 +3147,7 @@
             "appliedWatermark": "100"
           },
           "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-          "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+          "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
           "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
           "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
           "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -3442,12 +3442,6 @@
                 "after": "12"
               }
             },
-            "battingOrderBySide": {
-              "away": {
-                "before": "3",
-                "after": "4"
-              }
-            },
             "statFlags": {
               "投球回算入アウト": true,
               "投球数": true,
@@ -3472,6 +3466,12 @@
               "走塁妨害出塁": false,
               "得点": false,
               "打点": false
+            },
+            "battingOrderBySide": {
+              "away": {
+                "before": "3",
+                "after": "4"
+              }
             }
           }
         },
@@ -3489,7 +3489,7 @@
           "battingOrder": "6"
         }
       },
-      "wireDigest": "dbc35de5e75257bc06f65c1fc1884bc92c65ac50b325d8123c07d8b5d8fac61e"
+      "wireDigest": "f3ccf18acfbb83f2f66ab3ad361f403b9851d37cbf87985d41266eefcac34b6b"
     },
     {
       "caseId": "V3-STRIKEOUT-1-B1-O0",
@@ -3517,7 +3517,7 @@
         },
         "calculation": {
           "formatVersion": "play-prefix-calculation-v3",
-          "artifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+          "artifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
           "request": {
             "version": "3",
             "prefixRef": {
@@ -3678,7 +3678,7 @@
                 "appliedWatermark": "100"
               },
               "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-              "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+              "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
               "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
               "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
               "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -3764,7 +3764,7 @@
             "nextCheckpoint": {
               "id": "10000000-0000-0000-0000-000000000021",
               "revision": "2",
-              "digest": "fa74ec33f270d43678380a1cb013775e51f6ee9f3821a8ec52c3de33b2d1ac7e"
+              "digest": "4de18fcafa6808ba716ea78f1c2618a17009e8fac4846a07bf2731e4440b88fb"
             }
           },
           "response": {
@@ -3913,12 +3913,6 @@
                       "after": "12"
                     }
                   },
-                  "battingOrderBySide": {
-                    "home": {
-                      "before": "4",
-                      "after": "5"
-                    }
-                  },
                   "statFlags": {
                     "投球回算入アウト": true,
                     "投球数": true,
@@ -3943,6 +3937,12 @@
                     "走塁妨害出塁": false,
                     "得点": false,
                     "打点": false
+                  },
+                  "battingOrderBySide": {
+                    "home": {
+                      "before": "4",
+                      "after": "5"
+                    }
                   }
                 }
               },
@@ -3974,7 +3974,7 @@
                 "checkpoint": {
                   "id": "10000000-0000-0000-0000-000000000021",
                   "revision": "2",
-                  "digest": "fa74ec33f270d43678380a1cb013775e51f6ee9f3821a8ec52c3de33b2d1ac7e"
+                  "digest": "4de18fcafa6808ba716ea78f1c2618a17009e8fac4846a07bf2731e4440b88fb"
                 },
                 "historyVersion": "101",
                 "origin": {
@@ -4068,7 +4068,7 @@
                 "d2": "101",
                 "appliedWatermark": "100"
               },
-              "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400"
+              "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1"
             }
           }
         }
@@ -4208,7 +4208,7 @@
           }
         },
         "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-        "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+        "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
         "sourcePosition": {
           "d1": "101",
           "d2": "101",
@@ -4311,7 +4311,7 @@
             "appliedWatermark": "100"
           },
           "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-          "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+          "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
           "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
           "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
           "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -4602,12 +4602,6 @@
                 "after": "12"
               }
             },
-            "battingOrderBySide": {
-              "home": {
-                "before": "4",
-                "after": "5"
-              }
-            },
             "statFlags": {
               "投球回算入アウト": true,
               "投球数": true,
@@ -4632,6 +4626,12 @@
               "走塁妨害出塁": false,
               "得点": false,
               "打点": false
+            },
+            "battingOrderBySide": {
+              "home": {
+                "before": "4",
+                "after": "5"
+              }
             }
           }
         },
@@ -4657,7 +4657,7 @@
           "battingOrder": "5"
         }
       },
-      "wireDigest": "fa74ec33f270d43678380a1cb013775e51f6ee9f3821a8ec52c3de33b2d1ac7e"
+      "wireDigest": "4de18fcafa6808ba716ea78f1c2618a17009e8fac4846a07bf2731e4440b88fb"
     },
     {
       "caseId": "V3-STRIKEOUT-1-B1-O1",
@@ -4685,7 +4685,7 @@
         },
         "calculation": {
           "formatVersion": "play-prefix-calculation-v3",
-          "artifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+          "artifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
           "request": {
             "version": "3",
             "prefixRef": {
@@ -4846,7 +4846,7 @@
                 "appliedWatermark": "100"
               },
               "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-              "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+              "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
               "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
               "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
               "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -4939,7 +4939,7 @@
             "nextCheckpoint": {
               "id": "10000000-0000-0000-0000-000000000021",
               "revision": "2",
-              "digest": "189aa8a40d987ab72598f069ed65e0124ca4b3bd324ddc8f83d77ed28d6adf55"
+              "digest": "5f9be3e8900a6ea268f8c6833c836d9a6953b20e2b33a7fa883d028e6b104112"
             }
           },
           "response": {
@@ -5088,12 +5088,6 @@
                       "after": "12"
                     }
                   },
-                  "battingOrderBySide": {
-                    "away": {
-                      "before": "5",
-                      "after": "6"
-                    }
-                  },
                   "statFlags": {
                     "投球回算入アウト": true,
                     "投球数": true,
@@ -5118,6 +5112,12 @@
                     "走塁妨害出塁": false,
                     "得点": false,
                     "打点": false
+                  },
+                  "battingOrderBySide": {
+                    "away": {
+                      "before": "5",
+                      "after": "6"
+                    }
                   }
                 }
               },
@@ -5149,7 +5149,7 @@
                 "checkpoint": {
                   "id": "10000000-0000-0000-0000-000000000021",
                   "revision": "2",
-                  "digest": "189aa8a40d987ab72598f069ed65e0124ca4b3bd324ddc8f83d77ed28d6adf55"
+                  "digest": "5f9be3e8900a6ea268f8c6833c836d9a6953b20e2b33a7fa883d028e6b104112"
                 },
                 "historyVersion": "101",
                 "origin": {
@@ -5250,7 +5250,7 @@
                 "d2": "101",
                 "appliedWatermark": "100"
               },
-              "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400"
+              "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1"
             }
           }
         }
@@ -5390,7 +5390,7 @@
           }
         },
         "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-        "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+        "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
         "sourcePosition": {
           "d1": "101",
           "d2": "101",
@@ -5493,7 +5493,7 @@
             "appliedWatermark": "100"
           },
           "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-          "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+          "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
           "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
           "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
           "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -5791,12 +5791,6 @@
                 "after": "12"
               }
             },
-            "battingOrderBySide": {
-              "away": {
-                "before": "5",
-                "after": "6"
-              }
-            },
             "statFlags": {
               "投球回算入アウト": true,
               "投球数": true,
@@ -5821,6 +5815,12 @@
               "走塁妨害出塁": false,
               "得点": false,
               "打点": false
+            },
+            "battingOrderBySide": {
+              "away": {
+                "before": "5",
+                "after": "6"
+              }
             }
           }
         },
@@ -5853,7 +5853,7 @@
           "battingOrder": "6"
         }
       },
-      "wireDigest": "189aa8a40d987ab72598f069ed65e0124ca4b3bd324ddc8f83d77ed28d6adf55"
+      "wireDigest": "5f9be3e8900a6ea268f8c6833c836d9a6953b20e2b33a7fa883d028e6b104112"
     },
     {
       "caseId": "V3-STRIKEOUT-1-B1-O2",
@@ -5881,7 +5881,7 @@
         },
         "calculation": {
           "formatVersion": "play-prefix-calculation-v3",
-          "artifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+          "artifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
           "request": {
             "version": "3",
             "prefixRef": {
@@ -6042,7 +6042,7 @@
                 "appliedWatermark": "100"
               },
               "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-              "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+              "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
               "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
               "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
               "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -6135,7 +6135,7 @@
             "nextCheckpoint": {
               "id": "10000000-0000-0000-0000-000000000021",
               "revision": "2",
-              "digest": "e38e430557a58697069cdcd3c2a179feb6cbc9daabf7153f46196fd63be24943"
+              "digest": "aac966d7f3ba9dc169801c02a559842ccea3528160aafe7f69ba9f95b09b4609"
             }
           },
           "response": {
@@ -6292,12 +6292,6 @@
                       "after": "12"
                     }
                   },
-                  "battingOrderBySide": {
-                    "home": {
-                      "before": "6",
-                      "after": "7"
-                    }
-                  },
                   "statFlags": {
                     "投球回算入アウト": true,
                     "投球数": true,
@@ -6322,6 +6316,12 @@
                     "走塁妨害出塁": false,
                     "得点": false,
                     "打点": false
+                  },
+                  "battingOrderBySide": {
+                    "home": {
+                      "before": "6",
+                      "after": "7"
+                    }
                   }
                 }
               },
@@ -6353,7 +6353,7 @@
                 "checkpoint": {
                   "id": "10000000-0000-0000-0000-000000000021",
                   "revision": "2",
-                  "digest": "e38e430557a58697069cdcd3c2a179feb6cbc9daabf7153f46196fd63be24943"
+                  "digest": "aac966d7f3ba9dc169801c02a559842ccea3528160aafe7f69ba9f95b09b4609"
                 },
                 "historyVersion": "101",
                 "origin": {
@@ -6439,7 +6439,7 @@
                 "d2": "101",
                 "appliedWatermark": "100"
               },
-              "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400"
+              "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1"
             }
           }
         }
@@ -6587,7 +6587,7 @@
           }
         },
         "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-        "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+        "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
         "sourcePosition": {
           "d1": "101",
           "d2": "101",
@@ -6690,7 +6690,7 @@
             "appliedWatermark": "100"
           },
           "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-          "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+          "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
           "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
           "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
           "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -6996,12 +6996,6 @@
                 "after": "12"
               }
             },
-            "battingOrderBySide": {
-              "home": {
-                "before": "6",
-                "after": "7"
-              }
-            },
             "statFlags": {
               "投球回算入アウト": true,
               "投球数": true,
@@ -7026,6 +7020,12 @@
               "走塁妨害出塁": false,
               "得点": false,
               "打点": false
+            },
+            "battingOrderBySide": {
+              "home": {
+                "before": "6",
+                "after": "7"
+              }
             }
           }
         },
@@ -7043,7 +7043,7 @@
           "battingOrder": "6"
         }
       },
-      "wireDigest": "e38e430557a58697069cdcd3c2a179feb6cbc9daabf7153f46196fd63be24943"
+      "wireDigest": "aac966d7f3ba9dc169801c02a559842ccea3528160aafe7f69ba9f95b09b4609"
     },
     {
       "caseId": "V3-STRIKEOUT-1-B2-O0",
@@ -7071,7 +7071,7 @@
         },
         "calculation": {
           "formatVersion": "play-prefix-calculation-v3",
-          "artifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+          "artifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
           "request": {
             "version": "3",
             "prefixRef": {
@@ -7232,7 +7232,7 @@
                 "appliedWatermark": "100"
               },
               "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-              "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+              "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
               "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
               "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
               "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -7325,7 +7325,7 @@
             "nextCheckpoint": {
               "id": "10000000-0000-0000-0000-000000000021",
               "revision": "2",
-              "digest": "fec6f0c934fedfa32edbc2076147c761e7a1227102d260a9dd33163922979197"
+              "digest": "2ddbf78cac2992400dc464d5de2bffc499c7e00f7e0866e4c0fb1bb78a17dfcd"
             }
           },
           "response": {
@@ -7474,12 +7474,6 @@
                       "after": "12"
                     }
                   },
-                  "battingOrderBySide": {
-                    "away": {
-                      "before": "7",
-                      "after": "8"
-                    }
-                  },
                   "statFlags": {
                     "投球回算入アウト": true,
                     "投球数": true,
@@ -7504,6 +7498,12 @@
                     "走塁妨害出塁": false,
                     "得点": false,
                     "打点": false
+                  },
+                  "battingOrderBySide": {
+                    "away": {
+                      "before": "7",
+                      "after": "8"
+                    }
                   }
                 }
               },
@@ -7535,7 +7535,7 @@
                 "checkpoint": {
                   "id": "10000000-0000-0000-0000-000000000021",
                   "revision": "2",
-                  "digest": "fec6f0c934fedfa32edbc2076147c761e7a1227102d260a9dd33163922979197"
+                  "digest": "2ddbf78cac2992400dc464d5de2bffc499c7e00f7e0866e4c0fb1bb78a17dfcd"
                 },
                 "historyVersion": "101",
                 "origin": {
@@ -7636,7 +7636,7 @@
                 "d2": "101",
                 "appliedWatermark": "100"
               },
-              "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400"
+              "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1"
             }
           }
         }
@@ -7776,7 +7776,7 @@
           }
         },
         "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-        "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+        "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
         "sourcePosition": {
           "d1": "101",
           "d2": "101",
@@ -7879,7 +7879,7 @@
             "appliedWatermark": "100"
           },
           "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-          "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+          "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
           "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
           "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
           "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -8177,12 +8177,6 @@
                 "after": "12"
               }
             },
-            "battingOrderBySide": {
-              "away": {
-                "before": "7",
-                "after": "8"
-              }
-            },
             "statFlags": {
               "投球回算入アウト": true,
               "投球数": true,
@@ -8207,6 +8201,12 @@
               "走塁妨害出塁": false,
               "得点": false,
               "打点": false
+            },
+            "battingOrderBySide": {
+              "away": {
+                "before": "7",
+                "after": "8"
+              }
             }
           }
         },
@@ -8239,7 +8239,7 @@
           "battingOrder": "8"
         }
       },
-      "wireDigest": "fec6f0c934fedfa32edbc2076147c761e7a1227102d260a9dd33163922979197"
+      "wireDigest": "2ddbf78cac2992400dc464d5de2bffc499c7e00f7e0866e4c0fb1bb78a17dfcd"
     },
     {
       "caseId": "V3-STRIKEOUT-1-B2-O1",
@@ -8267,7 +8267,7 @@
         },
         "calculation": {
           "formatVersion": "play-prefix-calculation-v3",
-          "artifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+          "artifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
           "request": {
             "version": "3",
             "prefixRef": {
@@ -8428,7 +8428,7 @@
                 "appliedWatermark": "100"
               },
               "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-              "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+              "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
               "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
               "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
               "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -8528,7 +8528,7 @@
             "nextCheckpoint": {
               "id": "10000000-0000-0000-0000-000000000021",
               "revision": "2",
-              "digest": "0d51c18b34d4a3862b1c779e5b689d2b07fe1163df81ab6b108cba87a8e3a73e"
+              "digest": "7e9d36dc6fe5b255bd339d39835a285a7cf7dc9968c1125be8b86c216a89261c"
             }
           },
           "response": {
@@ -8677,12 +8677,6 @@
                       "after": "12"
                     }
                   },
-                  "battingOrderBySide": {
-                    "home": {
-                      "before": "8",
-                      "after": "9"
-                    }
-                  },
                   "statFlags": {
                     "投球回算入アウト": true,
                     "投球数": true,
@@ -8707,6 +8701,12 @@
                     "走塁妨害出塁": false,
                     "得点": false,
                     "打点": false
+                  },
+                  "battingOrderBySide": {
+                    "home": {
+                      "before": "8",
+                      "after": "9"
+                    }
                   }
                 }
               },
@@ -8738,7 +8738,7 @@
                 "checkpoint": {
                   "id": "10000000-0000-0000-0000-000000000021",
                   "revision": "2",
-                  "digest": "0d51c18b34d4a3862b1c779e5b689d2b07fe1163df81ab6b108cba87a8e3a73e"
+                  "digest": "7e9d36dc6fe5b255bd339d39835a285a7cf7dc9968c1125be8b86c216a89261c"
                 },
                 "historyVersion": "101",
                 "origin": {
@@ -8846,7 +8846,7 @@
                 "d2": "101",
                 "appliedWatermark": "100"
               },
-              "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400"
+              "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1"
             }
           }
         }
@@ -8986,7 +8986,7 @@
           }
         },
         "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-        "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+        "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
         "sourcePosition": {
           "d1": "101",
           "d2": "101",
@@ -9089,7 +9089,7 @@
             "appliedWatermark": "100"
           },
           "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-          "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+          "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
           "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
           "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
           "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -9394,12 +9394,6 @@
                 "after": "12"
               }
             },
-            "battingOrderBySide": {
-              "home": {
-                "before": "8",
-                "after": "9"
-              }
-            },
             "statFlags": {
               "投球回算入アウト": true,
               "投球数": true,
@@ -9424,6 +9418,12 @@
               "走塁妨害出塁": false,
               "得点": false,
               "打点": false
+            },
+            "battingOrderBySide": {
+              "home": {
+                "before": "8",
+                "after": "9"
+              }
             }
           }
         },
@@ -9463,7 +9463,7 @@
           "battingOrder": "9"
         }
       },
-      "wireDigest": "0d51c18b34d4a3862b1c779e5b689d2b07fe1163df81ab6b108cba87a8e3a73e"
+      "wireDigest": "7e9d36dc6fe5b255bd339d39835a285a7cf7dc9968c1125be8b86c216a89261c"
     },
     {
       "caseId": "V3-STRIKEOUT-1-B2-O2",
@@ -9491,7 +9491,7 @@
         },
         "calculation": {
           "formatVersion": "play-prefix-calculation-v3",
-          "artifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+          "artifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
           "request": {
             "version": "3",
             "prefixRef": {
@@ -9652,7 +9652,7 @@
                 "appliedWatermark": "100"
               },
               "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-              "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+              "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
               "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
               "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
               "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -9730,7 +9730,7 @@
             "nextCheckpoint": {
               "id": "10000000-0000-0000-0000-000000000021",
               "revision": "2",
-              "digest": "fba2ec4007556c8c02d61b4e764358bd732535cfd26e6a5c64569d3e1bc0d1aa"
+              "digest": "55148bcefaba4a3d46d57b225f90a840b7a02c985d6e68a793d68d264cef24b6"
             }
           },
           "response": {
@@ -9879,12 +9879,6 @@
                       "after": "12"
                     }
                   },
-                  "battingOrderBySide": {
-                    "away": {
-                      "before": "9",
-                      "after": "1"
-                    }
-                  },
                   "statFlags": {
                     "投球回算入アウト": true,
                     "投球数": true,
@@ -9909,6 +9903,12 @@
                     "走塁妨害出塁": false,
                     "得点": false,
                     "打点": false
+                  },
+                  "battingOrderBySide": {
+                    "away": {
+                      "before": "9",
+                      "after": "1"
+                    }
                   }
                 }
               },
@@ -9940,7 +9940,7 @@
                 "checkpoint": {
                   "id": "10000000-0000-0000-0000-000000000021",
                   "revision": "2",
-                  "digest": "fba2ec4007556c8c02d61b4e764358bd732535cfd26e6a5c64569d3e1bc0d1aa"
+                  "digest": "55148bcefaba4a3d46d57b225f90a840b7a02c985d6e68a793d68d264cef24b6"
                 },
                 "historyVersion": "101",
                 "origin": {
@@ -10026,7 +10026,7 @@
                 "d2": "101",
                 "appliedWatermark": "100"
               },
-              "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400"
+              "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1"
             }
           }
         }
@@ -10166,7 +10166,7 @@
           }
         },
         "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-        "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+        "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
         "sourcePosition": {
           "d1": "101",
           "d2": "101",
@@ -10269,7 +10269,7 @@
             "appliedWatermark": "100"
           },
           "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-          "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+          "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
           "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
           "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
           "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -10552,12 +10552,6 @@
                 "after": "12"
               }
             },
-            "battingOrderBySide": {
-              "away": {
-                "before": "9",
-                "after": "1"
-              }
-            },
             "statFlags": {
               "投球回算入アウト": true,
               "投球数": true,
@@ -10582,6 +10576,12 @@
               "走塁妨害出塁": false,
               "得点": false,
               "打点": false
+            },
+            "battingOrderBySide": {
+              "away": {
+                "before": "9",
+                "after": "1"
+              }
             }
           }
         },
@@ -10599,7 +10599,7 @@
           "battingOrder": "9"
         }
       },
-      "wireDigest": "fba2ec4007556c8c02d61b4e764358bd732535cfd26e6a5c64569d3e1bc0d1aa"
+      "wireDigest": "55148bcefaba4a3d46d57b225f90a840b7a02c985d6e68a793d68d264cef24b6"
     },
     {
       "caseId": "V3-STRIKEOUT-1-B3-O0",
@@ -10627,7 +10627,7 @@
         },
         "calculation": {
           "formatVersion": "play-prefix-calculation-v3",
-          "artifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+          "artifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
           "request": {
             "version": "3",
             "prefixRef": {
@@ -10788,7 +10788,7 @@
                 "appliedWatermark": "100"
               },
               "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-              "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+              "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
               "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
               "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
               "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -10874,7 +10874,7 @@
             "nextCheckpoint": {
               "id": "10000000-0000-0000-0000-000000000021",
               "revision": "2",
-              "digest": "3889f84601089346987bd1df9466dffe0b6d85a42b355dfbb721f367392aacc6"
+              "digest": "bb470760157afe766abac6429d14b9110f85810e265af1dd99cf14b9d8183c16"
             }
           },
           "response": {
@@ -11023,12 +11023,6 @@
                       "after": "12"
                     }
                   },
-                  "battingOrderBySide": {
-                    "home": {
-                      "before": "1",
-                      "after": "2"
-                    }
-                  },
                   "statFlags": {
                     "投球回算入アウト": true,
                     "投球数": true,
@@ -11053,6 +11047,12 @@
                     "走塁妨害出塁": false,
                     "得点": false,
                     "打点": false
+                  },
+                  "battingOrderBySide": {
+                    "home": {
+                      "before": "1",
+                      "after": "2"
+                    }
                   }
                 }
               },
@@ -11084,7 +11084,7 @@
                 "checkpoint": {
                   "id": "10000000-0000-0000-0000-000000000021",
                   "revision": "2",
-                  "digest": "3889f84601089346987bd1df9466dffe0b6d85a42b355dfbb721f367392aacc6"
+                  "digest": "bb470760157afe766abac6429d14b9110f85810e265af1dd99cf14b9d8183c16"
                 },
                 "historyVersion": "101",
                 "origin": {
@@ -11178,7 +11178,7 @@
                 "d2": "101",
                 "appliedWatermark": "100"
               },
-              "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400"
+              "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1"
             }
           }
         }
@@ -11318,7 +11318,7 @@
           }
         },
         "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-        "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+        "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
         "sourcePosition": {
           "d1": "101",
           "d2": "101",
@@ -11421,7 +11421,7 @@
             "appliedWatermark": "100"
           },
           "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-          "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+          "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
           "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
           "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
           "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -11712,12 +11712,6 @@
                 "after": "12"
               }
             },
-            "battingOrderBySide": {
-              "home": {
-                "before": "1",
-                "after": "2"
-              }
-            },
             "statFlags": {
               "投球回算入アウト": true,
               "投球数": true,
@@ -11742,6 +11736,12 @@
               "走塁妨害出塁": false,
               "得点": false,
               "打点": false
+            },
+            "battingOrderBySide": {
+              "home": {
+                "before": "1",
+                "after": "2"
+              }
             }
           }
         },
@@ -11767,7 +11767,7 @@
           "battingOrder": "2"
         }
       },
-      "wireDigest": "3889f84601089346987bd1df9466dffe0b6d85a42b355dfbb721f367392aacc6"
+      "wireDigest": "bb470760157afe766abac6429d14b9110f85810e265af1dd99cf14b9d8183c16"
     },
     {
       "caseId": "V3-STRIKEOUT-1-B3-O1",
@@ -11795,7 +11795,7 @@
         },
         "calculation": {
           "formatVersion": "play-prefix-calculation-v3",
-          "artifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+          "artifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
           "request": {
             "version": "3",
             "prefixRef": {
@@ -11956,7 +11956,7 @@
                 "appliedWatermark": "100"
               },
               "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-              "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+              "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
               "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
               "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
               "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -12042,7 +12042,7 @@
             "nextCheckpoint": {
               "id": "10000000-0000-0000-0000-000000000021",
               "revision": "2",
-              "digest": "083a2817363c575f3c724b7756325801c71ca8b355e630721433712cf0c427b6"
+              "digest": "3ba42075f72f2867e6832af6f0fc4e10f5f2f366734b6e74938c08f6dbafdf62"
             }
           },
           "response": {
@@ -12191,12 +12191,6 @@
                       "after": "12"
                     }
                   },
-                  "battingOrderBySide": {
-                    "away": {
-                      "before": "2",
-                      "after": "3"
-                    }
-                  },
                   "statFlags": {
                     "投球回算入アウト": true,
                     "投球数": true,
@@ -12221,6 +12215,12 @@
                     "走塁妨害出塁": false,
                     "得点": false,
                     "打点": false
+                  },
+                  "battingOrderBySide": {
+                    "away": {
+                      "before": "2",
+                      "after": "3"
+                    }
                   }
                 }
               },
@@ -12252,7 +12252,7 @@
                 "checkpoint": {
                   "id": "10000000-0000-0000-0000-000000000021",
                   "revision": "2",
-                  "digest": "083a2817363c575f3c724b7756325801c71ca8b355e630721433712cf0c427b6"
+                  "digest": "3ba42075f72f2867e6832af6f0fc4e10f5f2f366734b6e74938c08f6dbafdf62"
                 },
                 "historyVersion": "101",
                 "origin": {
@@ -12346,7 +12346,7 @@
                 "d2": "101",
                 "appliedWatermark": "100"
               },
-              "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400"
+              "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1"
             }
           }
         }
@@ -12486,7 +12486,7 @@
           }
         },
         "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-        "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+        "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
         "sourcePosition": {
           "d1": "101",
           "d2": "101",
@@ -12589,7 +12589,7 @@
             "appliedWatermark": "100"
           },
           "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-          "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+          "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
           "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
           "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
           "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -12880,12 +12880,6 @@
                 "after": "12"
               }
             },
-            "battingOrderBySide": {
-              "away": {
-                "before": "2",
-                "after": "3"
-              }
-            },
             "statFlags": {
               "投球回算入アウト": true,
               "投球数": true,
@@ -12910,6 +12904,12 @@
               "走塁妨害出塁": false,
               "得点": false,
               "打点": false
+            },
+            "battingOrderBySide": {
+              "away": {
+                "before": "2",
+                "after": "3"
+              }
             }
           }
         },
@@ -12935,7 +12935,7 @@
           "battingOrder": "3"
         }
       },
-      "wireDigest": "083a2817363c575f3c724b7756325801c71ca8b355e630721433712cf0c427b6"
+      "wireDigest": "3ba42075f72f2867e6832af6f0fc4e10f5f2f366734b6e74938c08f6dbafdf62"
     },
     {
       "caseId": "V3-STRIKEOUT-1-B3-O2",
@@ -12963,7 +12963,7 @@
         },
         "calculation": {
           "formatVersion": "play-prefix-calculation-v3",
-          "artifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+          "artifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
           "request": {
             "version": "3",
             "prefixRef": {
@@ -13124,7 +13124,7 @@
                 "appliedWatermark": "100"
               },
               "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-              "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+              "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
               "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
               "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
               "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -13210,7 +13210,7 @@
             "nextCheckpoint": {
               "id": "10000000-0000-0000-0000-000000000021",
               "revision": "2",
-              "digest": "6a367b87da622e9a9491f38c4e9ead5dddefbf400d2b464f29d8da3b1c4a77bb"
+              "digest": "b6d5388d1ecfb9b85de27630a8ebab7584fd6fa237deb4fd69285d8124d577cc"
             }
           },
           "response": {
@@ -13367,12 +13367,6 @@
                       "after": "12"
                     }
                   },
-                  "battingOrderBySide": {
-                    "home": {
-                      "before": "3",
-                      "after": "4"
-                    }
-                  },
                   "statFlags": {
                     "投球回算入アウト": true,
                     "投球数": true,
@@ -13397,6 +13391,12 @@
                     "走塁妨害出塁": false,
                     "得点": false,
                     "打点": false
+                  },
+                  "battingOrderBySide": {
+                    "home": {
+                      "before": "3",
+                      "after": "4"
+                    }
                   }
                 }
               },
@@ -13428,7 +13428,7 @@
                 "checkpoint": {
                   "id": "10000000-0000-0000-0000-000000000021",
                   "revision": "2",
-                  "digest": "6a367b87da622e9a9491f38c4e9ead5dddefbf400d2b464f29d8da3b1c4a77bb"
+                  "digest": "b6d5388d1ecfb9b85de27630a8ebab7584fd6fa237deb4fd69285d8124d577cc"
                 },
                 "historyVersion": "101",
                 "origin": {
@@ -13514,7 +13514,7 @@
                 "d2": "101",
                 "appliedWatermark": "100"
               },
-              "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400"
+              "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1"
             }
           }
         }
@@ -13662,7 +13662,7 @@
           }
         },
         "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-        "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+        "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
         "sourcePosition": {
           "d1": "101",
           "d2": "101",
@@ -13765,7 +13765,7 @@
             "appliedWatermark": "100"
           },
           "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-          "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+          "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
           "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
           "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
           "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -14064,12 +14064,6 @@
                 "after": "12"
               }
             },
-            "battingOrderBySide": {
-              "home": {
-                "before": "3",
-                "after": "4"
-              }
-            },
             "statFlags": {
               "投球回算入アウト": true,
               "投球数": true,
@@ -14094,6 +14088,12 @@
               "走塁妨害出塁": false,
               "得点": false,
               "打点": false
+            },
+            "battingOrderBySide": {
+              "home": {
+                "before": "3",
+                "after": "4"
+              }
             }
           }
         },
@@ -14111,7 +14111,7 @@
           "battingOrder": "3"
         }
       },
-      "wireDigest": "6a367b87da622e9a9491f38c4e9ead5dddefbf400d2b464f29d8da3b1c4a77bb"
+      "wireDigest": "b6d5388d1ecfb9b85de27630a8ebab7584fd6fa237deb4fd69285d8124d577cc"
     },
     {
       "caseId": "V3-STRIKEOUT-2-B0-O0",
@@ -14139,7 +14139,7 @@
         },
         "calculation": {
           "formatVersion": "play-prefix-calculation-v3",
-          "artifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+          "artifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
           "request": {
             "version": "3",
             "prefixRef": {
@@ -14300,7 +14300,7 @@
                 "appliedWatermark": "100"
               },
               "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-              "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+              "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
               "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
               "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
               "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -14378,7 +14378,7 @@
             "nextCheckpoint": {
               "id": "10000000-0000-0000-0000-000000000021",
               "revision": "2",
-              "digest": "02f10340f6578cd4c7c7380c36428f84e9ca8bf90ec5dc34fd48c761757aea1e"
+              "digest": "882ec1cbdb058313c51f6f16d79bcc7962e1f681146e4c7db23e83d13cfc71af"
             }
           },
           "response": {
@@ -14523,12 +14523,6 @@
                       "after": "12"
                     }
                   },
-                  "battingOrderBySide": {
-                    "away": {
-                      "before": "1",
-                      "after": "2"
-                    }
-                  },
                   "statFlags": {
                     "投球回算入アウト": true,
                     "投球数": true,
@@ -14553,6 +14547,12 @@
                     "走塁妨害出塁": false,
                     "得点": false,
                     "打点": false
+                  },
+                  "battingOrderBySide": {
+                    "away": {
+                      "before": "1",
+                      "after": "2"
+                    }
                   }
                 }
               },
@@ -14584,7 +14584,7 @@
                 "checkpoint": {
                   "id": "10000000-0000-0000-0000-000000000021",
                   "revision": "2",
-                  "digest": "02f10340f6578cd4c7c7380c36428f84e9ca8bf90ec5dc34fd48c761757aea1e"
+                  "digest": "882ec1cbdb058313c51f6f16d79bcc7962e1f681146e4c7db23e83d13cfc71af"
                 },
                 "historyVersion": "101",
                 "origin": {
@@ -14670,7 +14670,7 @@
                 "d2": "101",
                 "appliedWatermark": "100"
               },
-              "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400"
+              "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1"
             }
           }
         }
@@ -14806,7 +14806,7 @@
           }
         },
         "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-        "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+        "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
         "sourcePosition": {
           "d1": "101",
           "d2": "101",
@@ -14909,7 +14909,7 @@
             "appliedWatermark": "100"
           },
           "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-          "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+          "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
           "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
           "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
           "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -15188,12 +15188,6 @@
                 "after": "12"
               }
             },
-            "battingOrderBySide": {
-              "away": {
-                "before": "1",
-                "after": "2"
-              }
-            },
             "statFlags": {
               "投球回算入アウト": true,
               "投球数": true,
@@ -15218,6 +15212,12 @@
               "走塁妨害出塁": false,
               "得点": false,
               "打点": false
+            },
+            "battingOrderBySide": {
+              "away": {
+                "before": "1",
+                "after": "2"
+              }
             }
           }
         },
@@ -15235,7 +15235,7 @@
           "battingOrder": "2"
         }
       },
-      "wireDigest": "02f10340f6578cd4c7c7380c36428f84e9ca8bf90ec5dc34fd48c761757aea1e"
+      "wireDigest": "882ec1cbdb058313c51f6f16d79bcc7962e1f681146e4c7db23e83d13cfc71af"
     },
     {
       "caseId": "V3-STRIKEOUT-2-B0-O1",
@@ -15263,7 +15263,7 @@
         },
         "calculation": {
           "formatVersion": "play-prefix-calculation-v3",
-          "artifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+          "artifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
           "request": {
             "version": "3",
             "prefixRef": {
@@ -15424,7 +15424,7 @@
                 "appliedWatermark": "100"
               },
               "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-              "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+              "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
               "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
               "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
               "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -15510,7 +15510,7 @@
             "nextCheckpoint": {
               "id": "10000000-0000-0000-0000-000000000021",
               "revision": "2",
-              "digest": "803f50b244414ca1e06bbf98956d9ff31958d33139e324741657d6b09c72b28c"
+              "digest": "9f5858b7903faa5357f91c580e0bdbdf869a93dd5f34b7278d498eab7ce11110"
             }
           },
           "response": {
@@ -15655,12 +15655,6 @@
                       "after": "12"
                     }
                   },
-                  "battingOrderBySide": {
-                    "home": {
-                      "before": "2",
-                      "after": "3"
-                    }
-                  },
                   "statFlags": {
                     "投球回算入アウト": true,
                     "投球数": true,
@@ -15685,6 +15679,12 @@
                     "走塁妨害出塁": false,
                     "得点": false,
                     "打点": false
+                  },
+                  "battingOrderBySide": {
+                    "home": {
+                      "before": "2",
+                      "after": "3"
+                    }
                   }
                 }
               },
@@ -15716,7 +15716,7 @@
                 "checkpoint": {
                   "id": "10000000-0000-0000-0000-000000000021",
                   "revision": "2",
-                  "digest": "803f50b244414ca1e06bbf98956d9ff31958d33139e324741657d6b09c72b28c"
+                  "digest": "9f5858b7903faa5357f91c580e0bdbdf869a93dd5f34b7278d498eab7ce11110"
                 },
                 "historyVersion": "101",
                 "origin": {
@@ -15810,7 +15810,7 @@
                 "d2": "101",
                 "appliedWatermark": "100"
               },
-              "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400"
+              "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1"
             }
           }
         }
@@ -15946,7 +15946,7 @@
           }
         },
         "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-        "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+        "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
         "sourcePosition": {
           "d1": "101",
           "d2": "101",
@@ -16049,7 +16049,7 @@
             "appliedWatermark": "100"
           },
           "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-          "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+          "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
           "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
           "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
           "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -16336,12 +16336,6 @@
                 "after": "12"
               }
             },
-            "battingOrderBySide": {
-              "home": {
-                "before": "2",
-                "after": "3"
-              }
-            },
             "statFlags": {
               "投球回算入アウト": true,
               "投球数": true,
@@ -16366,6 +16360,12 @@
               "走塁妨害出塁": false,
               "得点": false,
               "打点": false
+            },
+            "battingOrderBySide": {
+              "home": {
+                "before": "2",
+                "after": "3"
+              }
             }
           }
         },
@@ -16391,7 +16391,7 @@
           "battingOrder": "3"
         }
       },
-      "wireDigest": "803f50b244414ca1e06bbf98956d9ff31958d33139e324741657d6b09c72b28c"
+      "wireDigest": "9f5858b7903faa5357f91c580e0bdbdf869a93dd5f34b7278d498eab7ce11110"
     },
     {
       "caseId": "V3-STRIKEOUT-2-B0-O2",
@@ -16419,7 +16419,7 @@
         },
         "calculation": {
           "formatVersion": "play-prefix-calculation-v3",
-          "artifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+          "artifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
           "request": {
             "version": "3",
             "prefixRef": {
@@ -16580,7 +16580,7 @@
                 "appliedWatermark": "100"
               },
               "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-              "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+              "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
               "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
               "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
               "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -16666,7 +16666,7 @@
             "nextCheckpoint": {
               "id": "10000000-0000-0000-0000-000000000021",
               "revision": "2",
-              "digest": "c6c3dc54fdff9c4f760e3c237c943c4b4bfaa493167820c5b063105d8cc66179"
+              "digest": "0b27b07a4c497b80fdc48acd115f1824c437702c81bce65cf965d6c86f1f55d5"
             }
           },
           "response": {
@@ -16819,12 +16819,6 @@
                       "after": "12"
                     }
                   },
-                  "battingOrderBySide": {
-                    "away": {
-                      "before": "3",
-                      "after": "4"
-                    }
-                  },
                   "statFlags": {
                     "投球回算入アウト": true,
                     "投球数": true,
@@ -16849,6 +16843,12 @@
                     "走塁妨害出塁": false,
                     "得点": false,
                     "打点": false
+                  },
+                  "battingOrderBySide": {
+                    "away": {
+                      "before": "3",
+                      "after": "4"
+                    }
                   }
                 }
               },
@@ -16880,7 +16880,7 @@
                 "checkpoint": {
                   "id": "10000000-0000-0000-0000-000000000021",
                   "revision": "2",
-                  "digest": "c6c3dc54fdff9c4f760e3c237c943c4b4bfaa493167820c5b063105d8cc66179"
+                  "digest": "0b27b07a4c497b80fdc48acd115f1824c437702c81bce65cf965d6c86f1f55d5"
                 },
                 "historyVersion": "101",
                 "origin": {
@@ -16966,7 +16966,7 @@
                 "d2": "101",
                 "appliedWatermark": "100"
               },
-              "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400"
+              "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1"
             }
           }
         }
@@ -17110,7 +17110,7 @@
           }
         },
         "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-        "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+        "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
         "sourcePosition": {
           "d1": "101",
           "d2": "101",
@@ -17213,7 +17213,7 @@
             "appliedWatermark": "100"
           },
           "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-          "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+          "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
           "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
           "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
           "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -17508,12 +17508,6 @@
                 "after": "12"
               }
             },
-            "battingOrderBySide": {
-              "away": {
-                "before": "3",
-                "after": "4"
-              }
-            },
             "statFlags": {
               "投球回算入アウト": true,
               "投球数": true,
@@ -17538,6 +17532,12 @@
               "走塁妨害出塁": false,
               "得点": false,
               "打点": false
+            },
+            "battingOrderBySide": {
+              "away": {
+                "before": "3",
+                "after": "4"
+              }
             }
           }
         },
@@ -17555,7 +17555,7 @@
           "battingOrder": "6"
         }
       },
-      "wireDigest": "c6c3dc54fdff9c4f760e3c237c943c4b4bfaa493167820c5b063105d8cc66179"
+      "wireDigest": "0b27b07a4c497b80fdc48acd115f1824c437702c81bce65cf965d6c86f1f55d5"
     },
     {
       "caseId": "V3-STRIKEOUT-2-B1-O0",
@@ -17583,7 +17583,7 @@
         },
         "calculation": {
           "formatVersion": "play-prefix-calculation-v3",
-          "artifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+          "artifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
           "request": {
             "version": "3",
             "prefixRef": {
@@ -17744,7 +17744,7 @@
                 "appliedWatermark": "100"
               },
               "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-              "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+              "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
               "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
               "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
               "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -17830,7 +17830,7 @@
             "nextCheckpoint": {
               "id": "10000000-0000-0000-0000-000000000021",
               "revision": "2",
-              "digest": "00d4a1e89a4479193c39c33f580042acc909f17cbd9d90ce10bbf99181f03fef"
+              "digest": "c54fd1a1babbf83af127fca566dd72d10ba2a529b12428ddb1f62838df3fa5c2"
             }
           },
           "response": {
@@ -17979,12 +17979,6 @@
                       "after": "12"
                     }
                   },
-                  "battingOrderBySide": {
-                    "home": {
-                      "before": "4",
-                      "after": "5"
-                    }
-                  },
                   "statFlags": {
                     "投球回算入アウト": true,
                     "投球数": true,
@@ -18009,6 +18003,12 @@
                     "走塁妨害出塁": false,
                     "得点": false,
                     "打点": false
+                  },
+                  "battingOrderBySide": {
+                    "home": {
+                      "before": "4",
+                      "after": "5"
+                    }
                   }
                 }
               },
@@ -18040,7 +18040,7 @@
                 "checkpoint": {
                   "id": "10000000-0000-0000-0000-000000000021",
                   "revision": "2",
-                  "digest": "00d4a1e89a4479193c39c33f580042acc909f17cbd9d90ce10bbf99181f03fef"
+                  "digest": "c54fd1a1babbf83af127fca566dd72d10ba2a529b12428ddb1f62838df3fa5c2"
                 },
                 "historyVersion": "101",
                 "origin": {
@@ -18134,7 +18134,7 @@
                 "d2": "101",
                 "appliedWatermark": "100"
               },
-              "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400"
+              "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1"
             }
           }
         }
@@ -18274,7 +18274,7 @@
           }
         },
         "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-        "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+        "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
         "sourcePosition": {
           "d1": "101",
           "d2": "101",
@@ -18377,7 +18377,7 @@
             "appliedWatermark": "100"
           },
           "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-          "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+          "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
           "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
           "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
           "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -18668,12 +18668,6 @@
                 "after": "12"
               }
             },
-            "battingOrderBySide": {
-              "home": {
-                "before": "4",
-                "after": "5"
-              }
-            },
             "statFlags": {
               "投球回算入アウト": true,
               "投球数": true,
@@ -18698,6 +18692,12 @@
               "走塁妨害出塁": false,
               "得点": false,
               "打点": false
+            },
+            "battingOrderBySide": {
+              "home": {
+                "before": "4",
+                "after": "5"
+              }
             }
           }
         },
@@ -18723,7 +18723,7 @@
           "battingOrder": "5"
         }
       },
-      "wireDigest": "00d4a1e89a4479193c39c33f580042acc909f17cbd9d90ce10bbf99181f03fef"
+      "wireDigest": "c54fd1a1babbf83af127fca566dd72d10ba2a529b12428ddb1f62838df3fa5c2"
     },
     {
       "caseId": "V3-STRIKEOUT-2-B1-O1",
@@ -18751,7 +18751,7 @@
         },
         "calculation": {
           "formatVersion": "play-prefix-calculation-v3",
-          "artifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+          "artifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
           "request": {
             "version": "3",
             "prefixRef": {
@@ -18912,7 +18912,7 @@
                 "appliedWatermark": "100"
               },
               "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-              "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+              "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
               "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
               "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
               "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -19005,7 +19005,7 @@
             "nextCheckpoint": {
               "id": "10000000-0000-0000-0000-000000000021",
               "revision": "2",
-              "digest": "a33e7969cb96df79a90b2ed91fef4efefb24eb5b694461fd3832a4f8e1681b37"
+              "digest": "3dec47f9bd5f3c75205679e49ae60104f70e0e4e34892ea3f90752960647e4cf"
             }
           },
           "response": {
@@ -19154,12 +19154,6 @@
                       "after": "12"
                     }
                   },
-                  "battingOrderBySide": {
-                    "away": {
-                      "before": "5",
-                      "after": "6"
-                    }
-                  },
                   "statFlags": {
                     "投球回算入アウト": true,
                     "投球数": true,
@@ -19184,6 +19178,12 @@
                     "走塁妨害出塁": false,
                     "得点": false,
                     "打点": false
+                  },
+                  "battingOrderBySide": {
+                    "away": {
+                      "before": "5",
+                      "after": "6"
+                    }
                   }
                 }
               },
@@ -19215,7 +19215,7 @@
                 "checkpoint": {
                   "id": "10000000-0000-0000-0000-000000000021",
                   "revision": "2",
-                  "digest": "a33e7969cb96df79a90b2ed91fef4efefb24eb5b694461fd3832a4f8e1681b37"
+                  "digest": "3dec47f9bd5f3c75205679e49ae60104f70e0e4e34892ea3f90752960647e4cf"
                 },
                 "historyVersion": "101",
                 "origin": {
@@ -19316,7 +19316,7 @@
                 "d2": "101",
                 "appliedWatermark": "100"
               },
-              "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400"
+              "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1"
             }
           }
         }
@@ -19456,7 +19456,7 @@
           }
         },
         "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-        "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+        "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
         "sourcePosition": {
           "d1": "101",
           "d2": "101",
@@ -19559,7 +19559,7 @@
             "appliedWatermark": "100"
           },
           "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-          "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+          "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
           "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
           "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
           "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -19857,12 +19857,6 @@
                 "after": "12"
               }
             },
-            "battingOrderBySide": {
-              "away": {
-                "before": "5",
-                "after": "6"
-              }
-            },
             "statFlags": {
               "投球回算入アウト": true,
               "投球数": true,
@@ -19887,6 +19881,12 @@
               "走塁妨害出塁": false,
               "得点": false,
               "打点": false
+            },
+            "battingOrderBySide": {
+              "away": {
+                "before": "5",
+                "after": "6"
+              }
             }
           }
         },
@@ -19919,7 +19919,7 @@
           "battingOrder": "6"
         }
       },
-      "wireDigest": "a33e7969cb96df79a90b2ed91fef4efefb24eb5b694461fd3832a4f8e1681b37"
+      "wireDigest": "3dec47f9bd5f3c75205679e49ae60104f70e0e4e34892ea3f90752960647e4cf"
     },
     {
       "caseId": "V3-STRIKEOUT-2-B1-O2",
@@ -19947,7 +19947,7 @@
         },
         "calculation": {
           "formatVersion": "play-prefix-calculation-v3",
-          "artifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+          "artifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
           "request": {
             "version": "3",
             "prefixRef": {
@@ -20108,7 +20108,7 @@
                 "appliedWatermark": "100"
               },
               "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-              "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+              "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
               "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
               "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
               "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -20201,7 +20201,7 @@
             "nextCheckpoint": {
               "id": "10000000-0000-0000-0000-000000000021",
               "revision": "2",
-              "digest": "1bf48a4d6d0b151824b4ff90405dcddf9c99567b98e988c93a1445783f80a7fa"
+              "digest": "d4ad16243e1d0f7e18b5a9d8166155f9380c18bdd9337e401346a63a96b95a41"
             }
           },
           "response": {
@@ -20358,12 +20358,6 @@
                       "after": "12"
                     }
                   },
-                  "battingOrderBySide": {
-                    "home": {
-                      "before": "6",
-                      "after": "7"
-                    }
-                  },
                   "statFlags": {
                     "投球回算入アウト": true,
                     "投球数": true,
@@ -20388,6 +20382,12 @@
                     "走塁妨害出塁": false,
                     "得点": false,
                     "打点": false
+                  },
+                  "battingOrderBySide": {
+                    "home": {
+                      "before": "6",
+                      "after": "7"
+                    }
                   }
                 }
               },
@@ -20419,7 +20419,7 @@
                 "checkpoint": {
                   "id": "10000000-0000-0000-0000-000000000021",
                   "revision": "2",
-                  "digest": "1bf48a4d6d0b151824b4ff90405dcddf9c99567b98e988c93a1445783f80a7fa"
+                  "digest": "d4ad16243e1d0f7e18b5a9d8166155f9380c18bdd9337e401346a63a96b95a41"
                 },
                 "historyVersion": "101",
                 "origin": {
@@ -20505,7 +20505,7 @@
                 "d2": "101",
                 "appliedWatermark": "100"
               },
-              "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400"
+              "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1"
             }
           }
         }
@@ -20653,7 +20653,7 @@
           }
         },
         "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-        "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+        "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
         "sourcePosition": {
           "d1": "101",
           "d2": "101",
@@ -20756,7 +20756,7 @@
             "appliedWatermark": "100"
           },
           "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-          "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+          "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
           "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
           "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
           "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -21062,12 +21062,6 @@
                 "after": "12"
               }
             },
-            "battingOrderBySide": {
-              "home": {
-                "before": "6",
-                "after": "7"
-              }
-            },
             "statFlags": {
               "投球回算入アウト": true,
               "投球数": true,
@@ -21092,6 +21086,12 @@
               "走塁妨害出塁": false,
               "得点": false,
               "打点": false
+            },
+            "battingOrderBySide": {
+              "home": {
+                "before": "6",
+                "after": "7"
+              }
             }
           }
         },
@@ -21109,7 +21109,7 @@
           "battingOrder": "6"
         }
       },
-      "wireDigest": "1bf48a4d6d0b151824b4ff90405dcddf9c99567b98e988c93a1445783f80a7fa"
+      "wireDigest": "d4ad16243e1d0f7e18b5a9d8166155f9380c18bdd9337e401346a63a96b95a41"
     },
     {
       "caseId": "V3-STRIKEOUT-2-B2-O0",
@@ -21137,7 +21137,7 @@
         },
         "calculation": {
           "formatVersion": "play-prefix-calculation-v3",
-          "artifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+          "artifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
           "request": {
             "version": "3",
             "prefixRef": {
@@ -21298,7 +21298,7 @@
                 "appliedWatermark": "100"
               },
               "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-              "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+              "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
               "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
               "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
               "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -21391,7 +21391,7 @@
             "nextCheckpoint": {
               "id": "10000000-0000-0000-0000-000000000021",
               "revision": "2",
-              "digest": "1468f4fe0a32aff94c9ea79140c459dfd286c194bc3b577ffc4a029e1e756fba"
+              "digest": "c4d70755bf4a4b4c836380b3ca4f77ac8222b6a51eaaa166c21395fd83909aa1"
             }
           },
           "response": {
@@ -21540,12 +21540,6 @@
                       "after": "12"
                     }
                   },
-                  "battingOrderBySide": {
-                    "away": {
-                      "before": "7",
-                      "after": "8"
-                    }
-                  },
                   "statFlags": {
                     "投球回算入アウト": true,
                     "投球数": true,
@@ -21570,6 +21564,12 @@
                     "走塁妨害出塁": false,
                     "得点": false,
                     "打点": false
+                  },
+                  "battingOrderBySide": {
+                    "away": {
+                      "before": "7",
+                      "after": "8"
+                    }
                   }
                 }
               },
@@ -21601,7 +21601,7 @@
                 "checkpoint": {
                   "id": "10000000-0000-0000-0000-000000000021",
                   "revision": "2",
-                  "digest": "1468f4fe0a32aff94c9ea79140c459dfd286c194bc3b577ffc4a029e1e756fba"
+                  "digest": "c4d70755bf4a4b4c836380b3ca4f77ac8222b6a51eaaa166c21395fd83909aa1"
                 },
                 "historyVersion": "101",
                 "origin": {
@@ -21702,7 +21702,7 @@
                 "d2": "101",
                 "appliedWatermark": "100"
               },
-              "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400"
+              "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1"
             }
           }
         }
@@ -21842,7 +21842,7 @@
           }
         },
         "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-        "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+        "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
         "sourcePosition": {
           "d1": "101",
           "d2": "101",
@@ -21945,7 +21945,7 @@
             "appliedWatermark": "100"
           },
           "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-          "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+          "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
           "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
           "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
           "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -22243,12 +22243,6 @@
                 "after": "12"
               }
             },
-            "battingOrderBySide": {
-              "away": {
-                "before": "7",
-                "after": "8"
-              }
-            },
             "statFlags": {
               "投球回算入アウト": true,
               "投球数": true,
@@ -22273,6 +22267,12 @@
               "走塁妨害出塁": false,
               "得点": false,
               "打点": false
+            },
+            "battingOrderBySide": {
+              "away": {
+                "before": "7",
+                "after": "8"
+              }
             }
           }
         },
@@ -22305,7 +22305,7 @@
           "battingOrder": "8"
         }
       },
-      "wireDigest": "1468f4fe0a32aff94c9ea79140c459dfd286c194bc3b577ffc4a029e1e756fba"
+      "wireDigest": "c4d70755bf4a4b4c836380b3ca4f77ac8222b6a51eaaa166c21395fd83909aa1"
     },
     {
       "caseId": "V3-STRIKEOUT-2-B2-O1",
@@ -22333,7 +22333,7 @@
         },
         "calculation": {
           "formatVersion": "play-prefix-calculation-v3",
-          "artifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+          "artifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
           "request": {
             "version": "3",
             "prefixRef": {
@@ -22494,7 +22494,7 @@
                 "appliedWatermark": "100"
               },
               "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-              "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+              "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
               "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
               "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
               "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -22594,7 +22594,7 @@
             "nextCheckpoint": {
               "id": "10000000-0000-0000-0000-000000000021",
               "revision": "2",
-              "digest": "dd15884e15612af826d2f7f61b0620cb702cb8bb872442c8270ce2c9d6b9f4e6"
+              "digest": "ae5284b40a0695afbc8d2d4c083db854665918976f41d65b4d4f4fe99306f1d7"
             }
           },
           "response": {
@@ -22743,12 +22743,6 @@
                       "after": "12"
                     }
                   },
-                  "battingOrderBySide": {
-                    "home": {
-                      "before": "8",
-                      "after": "9"
-                    }
-                  },
                   "statFlags": {
                     "投球回算入アウト": true,
                     "投球数": true,
@@ -22773,6 +22767,12 @@
                     "走塁妨害出塁": false,
                     "得点": false,
                     "打点": false
+                  },
+                  "battingOrderBySide": {
+                    "home": {
+                      "before": "8",
+                      "after": "9"
+                    }
                   }
                 }
               },
@@ -22804,7 +22804,7 @@
                 "checkpoint": {
                   "id": "10000000-0000-0000-0000-000000000021",
                   "revision": "2",
-                  "digest": "dd15884e15612af826d2f7f61b0620cb702cb8bb872442c8270ce2c9d6b9f4e6"
+                  "digest": "ae5284b40a0695afbc8d2d4c083db854665918976f41d65b4d4f4fe99306f1d7"
                 },
                 "historyVersion": "101",
                 "origin": {
@@ -22912,7 +22912,7 @@
                 "d2": "101",
                 "appliedWatermark": "100"
               },
-              "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400"
+              "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1"
             }
           }
         }
@@ -23052,7 +23052,7 @@
           }
         },
         "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-        "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+        "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
         "sourcePosition": {
           "d1": "101",
           "d2": "101",
@@ -23155,7 +23155,7 @@
             "appliedWatermark": "100"
           },
           "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-          "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+          "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
           "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
           "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
           "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -23460,12 +23460,6 @@
                 "after": "12"
               }
             },
-            "battingOrderBySide": {
-              "home": {
-                "before": "8",
-                "after": "9"
-              }
-            },
             "statFlags": {
               "投球回算入アウト": true,
               "投球数": true,
@@ -23490,6 +23484,12 @@
               "走塁妨害出塁": false,
               "得点": false,
               "打点": false
+            },
+            "battingOrderBySide": {
+              "home": {
+                "before": "8",
+                "after": "9"
+              }
             }
           }
         },
@@ -23529,7 +23529,7 @@
           "battingOrder": "9"
         }
       },
-      "wireDigest": "dd15884e15612af826d2f7f61b0620cb702cb8bb872442c8270ce2c9d6b9f4e6"
+      "wireDigest": "ae5284b40a0695afbc8d2d4c083db854665918976f41d65b4d4f4fe99306f1d7"
     },
     {
       "caseId": "V3-STRIKEOUT-2-B2-O2",
@@ -23557,7 +23557,7 @@
         },
         "calculation": {
           "formatVersion": "play-prefix-calculation-v3",
-          "artifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+          "artifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
           "request": {
             "version": "3",
             "prefixRef": {
@@ -23718,7 +23718,7 @@
                 "appliedWatermark": "100"
               },
               "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-              "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+              "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
               "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
               "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
               "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -23796,7 +23796,7 @@
             "nextCheckpoint": {
               "id": "10000000-0000-0000-0000-000000000021",
               "revision": "2",
-              "digest": "356756c6512b473966ef2a8b369aec9afa41df822b1e49ac450c400aa4f0ea1f"
+              "digest": "564e1b869198bdc2845fc9c5fb59dd83ebcd9ecc86cbeafac1d9bcc46fb32f04"
             }
           },
           "response": {
@@ -23945,12 +23945,6 @@
                       "after": "12"
                     }
                   },
-                  "battingOrderBySide": {
-                    "away": {
-                      "before": "9",
-                      "after": "1"
-                    }
-                  },
                   "statFlags": {
                     "投球回算入アウト": true,
                     "投球数": true,
@@ -23975,6 +23969,12 @@
                     "走塁妨害出塁": false,
                     "得点": false,
                     "打点": false
+                  },
+                  "battingOrderBySide": {
+                    "away": {
+                      "before": "9",
+                      "after": "1"
+                    }
                   }
                 }
               },
@@ -24006,7 +24006,7 @@
                 "checkpoint": {
                   "id": "10000000-0000-0000-0000-000000000021",
                   "revision": "2",
-                  "digest": "356756c6512b473966ef2a8b369aec9afa41df822b1e49ac450c400aa4f0ea1f"
+                  "digest": "564e1b869198bdc2845fc9c5fb59dd83ebcd9ecc86cbeafac1d9bcc46fb32f04"
                 },
                 "historyVersion": "101",
                 "origin": {
@@ -24092,7 +24092,7 @@
                 "d2": "101",
                 "appliedWatermark": "100"
               },
-              "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400"
+              "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1"
             }
           }
         }
@@ -24232,7 +24232,7 @@
           }
         },
         "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-        "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+        "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
         "sourcePosition": {
           "d1": "101",
           "d2": "101",
@@ -24335,7 +24335,7 @@
             "appliedWatermark": "100"
           },
           "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-          "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+          "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
           "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
           "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
           "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -24618,12 +24618,6 @@
                 "after": "12"
               }
             },
-            "battingOrderBySide": {
-              "away": {
-                "before": "9",
-                "after": "1"
-              }
-            },
             "statFlags": {
               "投球回算入アウト": true,
               "投球数": true,
@@ -24648,6 +24642,12 @@
               "走塁妨害出塁": false,
               "得点": false,
               "打点": false
+            },
+            "battingOrderBySide": {
+              "away": {
+                "before": "9",
+                "after": "1"
+              }
             }
           }
         },
@@ -24665,7 +24665,7 @@
           "battingOrder": "9"
         }
       },
-      "wireDigest": "356756c6512b473966ef2a8b369aec9afa41df822b1e49ac450c400aa4f0ea1f"
+      "wireDigest": "564e1b869198bdc2845fc9c5fb59dd83ebcd9ecc86cbeafac1d9bcc46fb32f04"
     },
     {
       "caseId": "V3-STRIKEOUT-2-B3-O0",
@@ -24693,7 +24693,7 @@
         },
         "calculation": {
           "formatVersion": "play-prefix-calculation-v3",
-          "artifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+          "artifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
           "request": {
             "version": "3",
             "prefixRef": {
@@ -24854,7 +24854,7 @@
                 "appliedWatermark": "100"
               },
               "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-              "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+              "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
               "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
               "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
               "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -24940,7 +24940,7 @@
             "nextCheckpoint": {
               "id": "10000000-0000-0000-0000-000000000021",
               "revision": "2",
-              "digest": "b5098040e9be085784242a407bbe076a48d3ad303db2db51e950b64c2f8ca081"
+              "digest": "8c4a45c0eb470fdd478bdc805785cb9feaeab43b4366ff0fa96f5a288d7d8780"
             }
           },
           "response": {
@@ -25089,12 +25089,6 @@
                       "after": "12"
                     }
                   },
-                  "battingOrderBySide": {
-                    "home": {
-                      "before": "1",
-                      "after": "2"
-                    }
-                  },
                   "statFlags": {
                     "投球回算入アウト": true,
                     "投球数": true,
@@ -25119,6 +25113,12 @@
                     "走塁妨害出塁": false,
                     "得点": false,
                     "打点": false
+                  },
+                  "battingOrderBySide": {
+                    "home": {
+                      "before": "1",
+                      "after": "2"
+                    }
                   }
                 }
               },
@@ -25150,7 +25150,7 @@
                 "checkpoint": {
                   "id": "10000000-0000-0000-0000-000000000021",
                   "revision": "2",
-                  "digest": "b5098040e9be085784242a407bbe076a48d3ad303db2db51e950b64c2f8ca081"
+                  "digest": "8c4a45c0eb470fdd478bdc805785cb9feaeab43b4366ff0fa96f5a288d7d8780"
                 },
                 "historyVersion": "101",
                 "origin": {
@@ -25244,7 +25244,7 @@
                 "d2": "101",
                 "appliedWatermark": "100"
               },
-              "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400"
+              "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1"
             }
           }
         }
@@ -25384,7 +25384,7 @@
           }
         },
         "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-        "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+        "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
         "sourcePosition": {
           "d1": "101",
           "d2": "101",
@@ -25487,7 +25487,7 @@
             "appliedWatermark": "100"
           },
           "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-          "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+          "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
           "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
           "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
           "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -25778,12 +25778,6 @@
                 "after": "12"
               }
             },
-            "battingOrderBySide": {
-              "home": {
-                "before": "1",
-                "after": "2"
-              }
-            },
             "statFlags": {
               "投球回算入アウト": true,
               "投球数": true,
@@ -25808,6 +25802,12 @@
               "走塁妨害出塁": false,
               "得点": false,
               "打点": false
+            },
+            "battingOrderBySide": {
+              "home": {
+                "before": "1",
+                "after": "2"
+              }
             }
           }
         },
@@ -25833,7 +25833,7 @@
           "battingOrder": "2"
         }
       },
-      "wireDigest": "b5098040e9be085784242a407bbe076a48d3ad303db2db51e950b64c2f8ca081"
+      "wireDigest": "8c4a45c0eb470fdd478bdc805785cb9feaeab43b4366ff0fa96f5a288d7d8780"
     },
     {
       "caseId": "V3-STRIKEOUT-2-B3-O1",
@@ -25861,7 +25861,7 @@
         },
         "calculation": {
           "formatVersion": "play-prefix-calculation-v3",
-          "artifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+          "artifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
           "request": {
             "version": "3",
             "prefixRef": {
@@ -26022,7 +26022,7 @@
                 "appliedWatermark": "100"
               },
               "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-              "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+              "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
               "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
               "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
               "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -26108,7 +26108,7 @@
             "nextCheckpoint": {
               "id": "10000000-0000-0000-0000-000000000021",
               "revision": "2",
-              "digest": "ee3c720294433d181f3b20438cfa8c7d7a5f1c2c085ce26abdd862d7a28ece1c"
+              "digest": "3d39c2f47c76978dd7dd943d19f9841f05760a4cd3e84f627691074688f68ace"
             }
           },
           "response": {
@@ -26257,12 +26257,6 @@
                       "after": "12"
                     }
                   },
-                  "battingOrderBySide": {
-                    "away": {
-                      "before": "2",
-                      "after": "3"
-                    }
-                  },
                   "statFlags": {
                     "投球回算入アウト": true,
                     "投球数": true,
@@ -26287,6 +26281,12 @@
                     "走塁妨害出塁": false,
                     "得点": false,
                     "打点": false
+                  },
+                  "battingOrderBySide": {
+                    "away": {
+                      "before": "2",
+                      "after": "3"
+                    }
                   }
                 }
               },
@@ -26318,7 +26318,7 @@
                 "checkpoint": {
                   "id": "10000000-0000-0000-0000-000000000021",
                   "revision": "2",
-                  "digest": "ee3c720294433d181f3b20438cfa8c7d7a5f1c2c085ce26abdd862d7a28ece1c"
+                  "digest": "3d39c2f47c76978dd7dd943d19f9841f05760a4cd3e84f627691074688f68ace"
                 },
                 "historyVersion": "101",
                 "origin": {
@@ -26412,7 +26412,7 @@
                 "d2": "101",
                 "appliedWatermark": "100"
               },
-              "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400"
+              "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1"
             }
           }
         }
@@ -26552,7 +26552,7 @@
           }
         },
         "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-        "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+        "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
         "sourcePosition": {
           "d1": "101",
           "d2": "101",
@@ -26655,7 +26655,7 @@
             "appliedWatermark": "100"
           },
           "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-          "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+          "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
           "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
           "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
           "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -26946,12 +26946,6 @@
                 "after": "12"
               }
             },
-            "battingOrderBySide": {
-              "away": {
-                "before": "2",
-                "after": "3"
-              }
-            },
             "statFlags": {
               "投球回算入アウト": true,
               "投球数": true,
@@ -26976,6 +26970,12 @@
               "走塁妨害出塁": false,
               "得点": false,
               "打点": false
+            },
+            "battingOrderBySide": {
+              "away": {
+                "before": "2",
+                "after": "3"
+              }
             }
           }
         },
@@ -27001,7 +27001,7 @@
           "battingOrder": "3"
         }
       },
-      "wireDigest": "ee3c720294433d181f3b20438cfa8c7d7a5f1c2c085ce26abdd862d7a28ece1c"
+      "wireDigest": "3d39c2f47c76978dd7dd943d19f9841f05760a4cd3e84f627691074688f68ace"
     },
     {
       "caseId": "V3-STRIKEOUT-2-B3-O2",
@@ -27029,7 +27029,7 @@
         },
         "calculation": {
           "formatVersion": "play-prefix-calculation-v3",
-          "artifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+          "artifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
           "request": {
             "version": "3",
             "prefixRef": {
@@ -27190,7 +27190,7 @@
                 "appliedWatermark": "100"
               },
               "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-              "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+              "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
               "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
               "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
               "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -27276,7 +27276,7 @@
             "nextCheckpoint": {
               "id": "10000000-0000-0000-0000-000000000021",
               "revision": "2",
-              "digest": "4039dcebfe8706317e86e5308f116c667a8898555e81b4010b72a9efd91356e8"
+              "digest": "5dd53ef49df0eef68a3b59e5399ad0dabd4ccda02efea0acb59d0b975f89ca6d"
             }
           },
           "response": {
@@ -27433,12 +27433,6 @@
                       "after": "12"
                     }
                   },
-                  "battingOrderBySide": {
-                    "home": {
-                      "before": "3",
-                      "after": "4"
-                    }
-                  },
                   "statFlags": {
                     "投球回算入アウト": true,
                     "投球数": true,
@@ -27463,6 +27457,12 @@
                     "走塁妨害出塁": false,
                     "得点": false,
                     "打点": false
+                  },
+                  "battingOrderBySide": {
+                    "home": {
+                      "before": "3",
+                      "after": "4"
+                    }
                   }
                 }
               },
@@ -27494,7 +27494,7 @@
                 "checkpoint": {
                   "id": "10000000-0000-0000-0000-000000000021",
                   "revision": "2",
-                  "digest": "4039dcebfe8706317e86e5308f116c667a8898555e81b4010b72a9efd91356e8"
+                  "digest": "5dd53ef49df0eef68a3b59e5399ad0dabd4ccda02efea0acb59d0b975f89ca6d"
                 },
                 "historyVersion": "101",
                 "origin": {
@@ -27580,7 +27580,7 @@
                 "d2": "101",
                 "appliedWatermark": "100"
               },
-              "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400"
+              "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1"
             }
           }
         }
@@ -27728,7 +27728,7 @@
           }
         },
         "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-        "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+        "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
         "sourcePosition": {
           "d1": "101",
           "d2": "101",
@@ -27831,7 +27831,7 @@
             "appliedWatermark": "100"
           },
           "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-          "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+          "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
           "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
           "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
           "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -28130,12 +28130,6 @@
                 "after": "12"
               }
             },
-            "battingOrderBySide": {
-              "home": {
-                "before": "3",
-                "after": "4"
-              }
-            },
             "statFlags": {
               "投球回算入アウト": true,
               "投球数": true,
@@ -28160,6 +28154,12 @@
               "走塁妨害出塁": false,
               "得点": false,
               "打点": false
+            },
+            "battingOrderBySide": {
+              "home": {
+                "before": "3",
+                "after": "4"
+              }
             }
           }
         },
@@ -28177,7 +28177,7 @@
           "battingOrder": "3"
         }
       },
-      "wireDigest": "4039dcebfe8706317e86e5308f116c667a8898555e81b4010b72a9efd91356e8"
+      "wireDigest": "5dd53ef49df0eef68a3b59e5399ad0dabd4ccda02efea0acb59d0b975f89ca6d"
     },
     {
       "caseId": "V3-STARTED-CHAIN-01",
@@ -28205,7 +28205,7 @@
         },
         "calculation": {
           "formatVersion": "play-prefix-calculation-v3",
-          "artifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+          "artifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
           "request": {
             "version": "3",
             "prefixRef": {
@@ -28337,7 +28337,7 @@
                 "appliedWatermark": "0"
               },
               "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-              "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+              "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
               "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
               "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
               "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -28405,7 +28405,7 @@
             "nextCheckpoint": {
               "id": "10000000-0000-0000-0000-000000000601",
               "revision": "2",
-              "digest": "2612a2f05fc68a2082e3037f5cb84711a438dd2d9362c5ce0f670cd0702f8e7c"
+              "digest": "514ce932d331ebe0c75decd560b44d5c2f748e866144b8c9beb096bbce84bd4a"
             }
           },
           "response": {
@@ -28536,7 +28536,6 @@
                     }
                   },
                   "scoreboard": {},
-                  "battingOrderBySide": {},
                   "statFlags": {
                     "投球回算入アウト": false,
                     "投球数": true,
@@ -28561,7 +28560,8 @@
                     "走塁妨害出塁": false,
                     "得点": false,
                     "打点": false
-                  }
+                  },
+                  "battingOrderBySide": {}
                 }
               },
               "previousPrefixRef": {
@@ -28592,7 +28592,7 @@
                 "checkpoint": {
                   "id": "10000000-0000-0000-0000-000000000601",
                   "revision": "2",
-                  "digest": "2612a2f05fc68a2082e3037f5cb84711a438dd2d9362c5ce0f670cd0702f8e7c"
+                  "digest": "514ce932d331ebe0c75decd560b44d5c2f748e866144b8c9beb096bbce84bd4a"
                 },
                 "historyVersion": "1",
                 "origin": {
@@ -28678,7 +28678,7 @@
                 "d2": "1",
                 "appliedWatermark": "0"
               },
-              "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400"
+              "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1"
             }
           }
         }
@@ -28796,7 +28796,7 @@
           }
         },
         "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-        "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+        "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
         "sourcePosition": {
           "d1": "1",
           "d2": "1",
@@ -28870,7 +28870,7 @@
             "appliedWatermark": "0"
           },
           "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-          "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+          "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
           "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
           "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
           "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -29115,7 +29115,6 @@
               }
             },
             "scoreboard": {},
-            "battingOrderBySide": {},
             "statFlags": {
               "投球回算入アウト": false,
               "投球数": true,
@@ -29140,7 +29139,8 @@
               "走塁妨害出塁": false,
               "得点": false,
               "打点": false
-            }
+            },
+            "battingOrderBySide": {}
           }
         },
         "runners": [],
@@ -29157,7 +29157,7 @@
           "battingOrder": "1"
         }
       },
-      "wireDigest": "2612a2f05fc68a2082e3037f5cb84711a438dd2d9362c5ce0f670cd0702f8e7c"
+      "wireDigest": "514ce932d331ebe0c75decd560b44d5c2f748e866144b8c9beb096bbce84bd4a"
     },
     {
       "caseId": "V3-STARTED-CHAIN-02",
@@ -29185,7 +29185,7 @@
         },
         "calculation": {
           "formatVersion": "play-prefix-calculation-v3",
-          "artifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+          "artifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
           "request": {
             "version": "3",
             "prefixRef": {
@@ -29346,7 +29346,7 @@
                 "appliedWatermark": "1"
               },
               "priorArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
-              "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+              "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
               "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
               "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
               "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -29424,7 +29424,7 @@
             "nextCheckpoint": {
               "id": "10000000-0000-0000-0000-000000000602",
               "revision": "3",
-              "digest": "a143c0de4bce6ec04123793f422683a063ed07c0d83d51c14ef4be438c459fc5"
+              "digest": "4fb233f5c7cdec878adbe214c99a1501c988d0eb2bb1372968d1d3691c512852"
             }
           },
           "response": {
@@ -29555,7 +29555,6 @@
                     }
                   },
                   "scoreboard": {},
-                  "battingOrderBySide": {},
                   "statFlags": {
                     "投球回算入アウト": false,
                     "投球数": true,
@@ -29580,7 +29579,8 @@
                     "走塁妨害出塁": false,
                     "得点": false,
                     "打点": false
-                  }
+                  },
+                  "battingOrderBySide": {}
                 }
               },
               "previousPrefixRef": {
@@ -29611,7 +29611,7 @@
                 "checkpoint": {
                   "id": "10000000-0000-0000-0000-000000000602",
                   "revision": "3",
-                  "digest": "a143c0de4bce6ec04123793f422683a063ed07c0d83d51c14ef4be438c459fc5"
+                  "digest": "4fb233f5c7cdec878adbe214c99a1501c988d0eb2bb1372968d1d3691c512852"
                 },
                 "historyVersion": "2",
                 "origin": {
@@ -29697,7 +29697,7 @@
                 "d2": "2",
                 "appliedWatermark": "1"
               },
-              "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400"
+              "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1"
             }
           }
         }
@@ -29815,7 +29815,7 @@
           }
         },
         "priorArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
-        "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+        "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
         "sourcePosition": {
           "d1": "2",
           "d2": "2",
@@ -29918,7 +29918,7 @@
             "appliedWatermark": "1"
           },
           "priorArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
-          "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+          "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
           "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
           "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
           "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -30183,7 +30183,6 @@
               }
             },
             "scoreboard": {},
-            "battingOrderBySide": {},
             "statFlags": {
               "投球回算入アウト": false,
               "投球数": true,
@@ -30208,7 +30207,8 @@
               "走塁妨害出塁": false,
               "得点": false,
               "打点": false
-            }
+            },
+            "battingOrderBySide": {}
           }
         },
         "runners": [],
@@ -30225,7 +30225,7 @@
           "battingOrder": "1"
         }
       },
-      "wireDigest": "a143c0de4bce6ec04123793f422683a063ed07c0d83d51c14ef4be438c459fc5"
+      "wireDigest": "4fb233f5c7cdec878adbe214c99a1501c988d0eb2bb1372968d1d3691c512852"
     },
     {
       "caseId": "V3-STARTED-CHAIN-03",
@@ -30253,7 +30253,7 @@
         },
         "calculation": {
           "formatVersion": "play-prefix-calculation-v3",
-          "artifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+          "artifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
           "request": {
             "version": "3",
             "prefixRef": {
@@ -30414,7 +30414,7 @@
                 "appliedWatermark": "2"
               },
               "priorArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
-              "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+              "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
               "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
               "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
               "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -30492,7 +30492,7 @@
             "nextCheckpoint": {
               "id": "10000000-0000-0000-0000-000000000603",
               "revision": "4",
-              "digest": "9c6d4bcd37b8ff3b0a75bebec1129f76f02338b192e1d24d45dde3513bf69b6d"
+              "digest": "e6241724e2568b6be588c52c17148e683235f24ea82357b1f20e9cfb1482cbfd"
             }
           },
           "response": {
@@ -30637,12 +30637,6 @@
                       "after": "1"
                     }
                   },
-                  "battingOrderBySide": {
-                    "away": {
-                      "before": "1",
-                      "after": "2"
-                    }
-                  },
                   "statFlags": {
                     "投球回算入アウト": true,
                     "投球数": true,
@@ -30667,6 +30661,12 @@
                     "走塁妨害出塁": false,
                     "得点": false,
                     "打点": false
+                  },
+                  "battingOrderBySide": {
+                    "away": {
+                      "before": "1",
+                      "after": "2"
+                    }
                   }
                 }
               },
@@ -30698,7 +30698,7 @@
                 "checkpoint": {
                   "id": "10000000-0000-0000-0000-000000000603",
                   "revision": "4",
-                  "digest": "9c6d4bcd37b8ff3b0a75bebec1129f76f02338b192e1d24d45dde3513bf69b6d"
+                  "digest": "e6241724e2568b6be588c52c17148e683235f24ea82357b1f20e9cfb1482cbfd"
                 },
                 "historyVersion": "3",
                 "origin": {
@@ -30784,7 +30784,7 @@
                 "d2": "3",
                 "appliedWatermark": "2"
               },
-              "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400"
+              "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1"
             }
           }
         }
@@ -30920,7 +30920,7 @@
           }
         },
         "priorArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
-        "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+        "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
         "sourcePosition": {
           "d1": "3",
           "d2": "3",
@@ -31023,7 +31023,7 @@
             "appliedWatermark": "2"
           },
           "priorArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
-          "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+          "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
           "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
           "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
           "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -31302,12 +31302,6 @@
                 "after": "1"
               }
             },
-            "battingOrderBySide": {
-              "away": {
-                "before": "1",
-                "after": "2"
-              }
-            },
             "statFlags": {
               "投球回算入アウト": true,
               "投球数": true,
@@ -31332,6 +31326,12 @@
               "走塁妨害出塁": false,
               "得点": false,
               "打点": false
+            },
+            "battingOrderBySide": {
+              "away": {
+                "before": "1",
+                "after": "2"
+              }
             }
           }
         },
@@ -31349,7 +31349,7 @@
           "battingOrder": "2"
         }
       },
-      "wireDigest": "9c6d4bcd37b8ff3b0a75bebec1129f76f02338b192e1d24d45dde3513bf69b6d"
+      "wireDigest": "e6241724e2568b6be588c52c17148e683235f24ea82357b1f20e9cfb1482cbfd"
     },
     {
       "caseId": "V3-STARTED-CHAIN-04",
@@ -31377,7 +31377,7 @@
         },
         "calculation": {
           "formatVersion": "play-prefix-calculation-v3",
-          "artifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+          "artifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
           "request": {
             "version": "3",
             "prefixRef": {
@@ -31538,7 +31538,7 @@
                 "appliedWatermark": "3"
               },
               "priorArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
-              "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+              "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
               "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
               "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
               "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -31616,7 +31616,7 @@
             "nextCheckpoint": {
               "id": "10000000-0000-0000-0000-000000000604",
               "revision": "5",
-              "digest": "391c932fedd78cba12d1137d8e60160c2c3c4a96a9d6de06e2645131a27fe520"
+              "digest": "90ee60da6ba2b00483db408d750c000a664375c25156552c4796ed7c64898a2d"
             }
           },
           "response": {
@@ -31747,7 +31747,6 @@
                     }
                   },
                   "scoreboard": {},
-                  "battingOrderBySide": {},
                   "statFlags": {
                     "投球回算入アウト": false,
                     "投球数": true,
@@ -31772,7 +31771,8 @@
                     "走塁妨害出塁": false,
                     "得点": false,
                     "打点": false
-                  }
+                  },
+                  "battingOrderBySide": {}
                 }
               },
               "previousPrefixRef": {
@@ -31803,7 +31803,7 @@
                 "checkpoint": {
                   "id": "10000000-0000-0000-0000-000000000604",
                   "revision": "5",
-                  "digest": "391c932fedd78cba12d1137d8e60160c2c3c4a96a9d6de06e2645131a27fe520"
+                  "digest": "90ee60da6ba2b00483db408d750c000a664375c25156552c4796ed7c64898a2d"
                 },
                 "historyVersion": "4",
                 "origin": {
@@ -31889,7 +31889,7 @@
                 "d2": "4",
                 "appliedWatermark": "3"
               },
-              "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400"
+              "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1"
             }
           }
         }
@@ -32007,7 +32007,7 @@
           }
         },
         "priorArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
-        "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+        "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
         "sourcePosition": {
           "d1": "4",
           "d2": "4",
@@ -32110,7 +32110,7 @@
             "appliedWatermark": "3"
           },
           "priorArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
-          "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+          "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
           "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
           "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
           "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -32375,7 +32375,6 @@
               }
             },
             "scoreboard": {},
-            "battingOrderBySide": {},
             "statFlags": {
               "投球回算入アウト": false,
               "投球数": true,
@@ -32400,7 +32399,8 @@
               "走塁妨害出塁": false,
               "得点": false,
               "打点": false
-            }
+            },
+            "battingOrderBySide": {}
           }
         },
         "runners": [],
@@ -32417,7 +32417,7 @@
           "battingOrder": "2"
         }
       },
-      "wireDigest": "391c932fedd78cba12d1137d8e60160c2c3c4a96a9d6de06e2645131a27fe520"
+      "wireDigest": "90ee60da6ba2b00483db408d750c000a664375c25156552c4796ed7c64898a2d"
     },
     {
       "caseId": "V3-STARTED-CHAIN-05",
@@ -32445,7 +32445,7 @@
         },
         "calculation": {
           "formatVersion": "play-prefix-calculation-v3",
-          "artifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+          "artifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
           "request": {
             "version": "3",
             "prefixRef": {
@@ -32606,7 +32606,7 @@
                 "appliedWatermark": "4"
               },
               "priorArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
-              "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+              "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
               "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
               "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
               "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -32684,7 +32684,7 @@
             "nextCheckpoint": {
               "id": "10000000-0000-0000-0000-000000000605",
               "revision": "6",
-              "digest": "3a44d66451db74fc317a9bc561e5a2b3277f90ad620a6fbf790266aeccb6a0b9"
+              "digest": "9670fedfe5a100e84537ddf9fb8e053c18878fce5a222d5079b6adc1bce55a86"
             }
           },
           "response": {
@@ -32815,7 +32815,6 @@
                     }
                   },
                   "scoreboard": {},
-                  "battingOrderBySide": {},
                   "statFlags": {
                     "投球回算入アウト": false,
                     "投球数": true,
@@ -32840,7 +32839,8 @@
                     "走塁妨害出塁": false,
                     "得点": false,
                     "打点": false
-                  }
+                  },
+                  "battingOrderBySide": {}
                 }
               },
               "previousPrefixRef": {
@@ -32871,7 +32871,7 @@
                 "checkpoint": {
                   "id": "10000000-0000-0000-0000-000000000605",
                   "revision": "6",
-                  "digest": "3a44d66451db74fc317a9bc561e5a2b3277f90ad620a6fbf790266aeccb6a0b9"
+                  "digest": "9670fedfe5a100e84537ddf9fb8e053c18878fce5a222d5079b6adc1bce55a86"
                 },
                 "historyVersion": "5",
                 "origin": {
@@ -32957,7 +32957,7 @@
                 "d2": "5",
                 "appliedWatermark": "4"
               },
-              "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400"
+              "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1"
             }
           }
         }
@@ -33075,7 +33075,7 @@
           }
         },
         "priorArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
-        "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+        "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
         "sourcePosition": {
           "d1": "5",
           "d2": "5",
@@ -33178,7 +33178,7 @@
             "appliedWatermark": "4"
           },
           "priorArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
-          "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+          "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
           "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
           "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
           "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -33443,7 +33443,6 @@
               }
             },
             "scoreboard": {},
-            "battingOrderBySide": {},
             "statFlags": {
               "投球回算入アウト": false,
               "投球数": true,
@@ -33468,7 +33467,8 @@
               "走塁妨害出塁": false,
               "得点": false,
               "打点": false
-            }
+            },
+            "battingOrderBySide": {}
           }
         },
         "runners": [],
@@ -33485,7 +33485,7 @@
           "battingOrder": "2"
         }
       },
-      "wireDigest": "3a44d66451db74fc317a9bc561e5a2b3277f90ad620a6fbf790266aeccb6a0b9"
+      "wireDigest": "9670fedfe5a100e84537ddf9fb8e053c18878fce5a222d5079b6adc1bce55a86"
     },
     {
       "caseId": "V3-STARTED-CHAIN-06",
@@ -33513,7 +33513,7 @@
         },
         "calculation": {
           "formatVersion": "play-prefix-calculation-v3",
-          "artifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+          "artifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
           "request": {
             "version": "3",
             "prefixRef": {
@@ -33674,7 +33674,7 @@
                 "appliedWatermark": "5"
               },
               "priorArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
-              "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+              "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
               "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
               "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
               "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -33752,7 +33752,7 @@
             "nextCheckpoint": {
               "id": "10000000-0000-0000-0000-000000000606",
               "revision": "7",
-              "digest": "af41ba8c460fd6e2f8d297daddffefe1658cbc70cc8acd0bfbfd2a7a5ae2cf8c"
+              "digest": "97e5162d320a3a52beec9a1c06fa0f7dac3ce9983bca90113aa68e3ee9d4f417"
             }
           },
           "response": {
@@ -33897,12 +33897,6 @@
                       "after": "2"
                     }
                   },
-                  "battingOrderBySide": {
-                    "away": {
-                      "before": "2",
-                      "after": "3"
-                    }
-                  },
                   "statFlags": {
                     "投球回算入アウト": true,
                     "投球数": true,
@@ -33927,6 +33921,12 @@
                     "走塁妨害出塁": false,
                     "得点": false,
                     "打点": false
+                  },
+                  "battingOrderBySide": {
+                    "away": {
+                      "before": "2",
+                      "after": "3"
+                    }
                   }
                 }
               },
@@ -33958,7 +33958,7 @@
                 "checkpoint": {
                   "id": "10000000-0000-0000-0000-000000000606",
                   "revision": "7",
-                  "digest": "af41ba8c460fd6e2f8d297daddffefe1658cbc70cc8acd0bfbfd2a7a5ae2cf8c"
+                  "digest": "97e5162d320a3a52beec9a1c06fa0f7dac3ce9983bca90113aa68e3ee9d4f417"
                 },
                 "historyVersion": "6",
                 "origin": {
@@ -34044,7 +34044,7 @@
                 "d2": "6",
                 "appliedWatermark": "5"
               },
-              "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400"
+              "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1"
             }
           }
         }
@@ -34180,7 +34180,7 @@
           }
         },
         "priorArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
-        "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+        "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
         "sourcePosition": {
           "d1": "6",
           "d2": "6",
@@ -34283,7 +34283,7 @@
             "appliedWatermark": "5"
           },
           "priorArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
-          "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+          "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
           "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
           "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
           "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -34562,12 +34562,6 @@
                 "after": "2"
               }
             },
-            "battingOrderBySide": {
-              "away": {
-                "before": "2",
-                "after": "3"
-              }
-            },
             "statFlags": {
               "投球回算入アウト": true,
               "投球数": true,
@@ -34592,6 +34586,12 @@
               "走塁妨害出塁": false,
               "得点": false,
               "打点": false
+            },
+            "battingOrderBySide": {
+              "away": {
+                "before": "2",
+                "after": "3"
+              }
             }
           }
         },
@@ -34609,7 +34609,7 @@
           "battingOrder": "3"
         }
       },
-      "wireDigest": "af41ba8c460fd6e2f8d297daddffefe1658cbc70cc8acd0bfbfd2a7a5ae2cf8c"
+      "wireDigest": "97e5162d320a3a52beec9a1c06fa0f7dac3ce9983bca90113aa68e3ee9d4f417"
     },
     {
       "caseId": "V3-STARTED-CHAIN-07",
@@ -34637,7 +34637,7 @@
         },
         "calculation": {
           "formatVersion": "play-prefix-calculation-v3",
-          "artifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+          "artifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
           "request": {
             "version": "3",
             "prefixRef": {
@@ -34798,7 +34798,7 @@
                 "appliedWatermark": "6"
               },
               "priorArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
-              "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+              "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
               "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
               "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
               "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -34876,7 +34876,7 @@
             "nextCheckpoint": {
               "id": "10000000-0000-0000-0000-000000000607",
               "revision": "8",
-              "digest": "cd7642a99006d8e24d305dc00a3b479997c9b05a6de2cea73ba07bbd26a9195f"
+              "digest": "46c73558baa455babb59b2674f3a5a62c7f7dfdbe5d9fe1351b6d189cd95ee48"
             }
           },
           "response": {
@@ -35007,7 +35007,6 @@
                     }
                   },
                   "scoreboard": {},
-                  "battingOrderBySide": {},
                   "statFlags": {
                     "投球回算入アウト": false,
                     "投球数": true,
@@ -35032,7 +35031,8 @@
                     "走塁妨害出塁": false,
                     "得点": false,
                     "打点": false
-                  }
+                  },
+                  "battingOrderBySide": {}
                 }
               },
               "previousPrefixRef": {
@@ -35063,7 +35063,7 @@
                 "checkpoint": {
                   "id": "10000000-0000-0000-0000-000000000607",
                   "revision": "8",
-                  "digest": "cd7642a99006d8e24d305dc00a3b479997c9b05a6de2cea73ba07bbd26a9195f"
+                  "digest": "46c73558baa455babb59b2674f3a5a62c7f7dfdbe5d9fe1351b6d189cd95ee48"
                 },
                 "historyVersion": "7",
                 "origin": {
@@ -35149,7 +35149,7 @@
                 "d2": "7",
                 "appliedWatermark": "6"
               },
-              "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400"
+              "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1"
             }
           }
         }
@@ -35267,7 +35267,7 @@
           }
         },
         "priorArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
-        "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+        "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
         "sourcePosition": {
           "d1": "7",
           "d2": "7",
@@ -35370,7 +35370,7 @@
             "appliedWatermark": "6"
           },
           "priorArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
-          "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+          "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
           "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
           "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
           "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -35635,7 +35635,6 @@
               }
             },
             "scoreboard": {},
-            "battingOrderBySide": {},
             "statFlags": {
               "投球回算入アウト": false,
               "投球数": true,
@@ -35660,7 +35659,8 @@
               "走塁妨害出塁": false,
               "得点": false,
               "打点": false
-            }
+            },
+            "battingOrderBySide": {}
           }
         },
         "runners": [],
@@ -35677,7 +35677,7 @@
           "battingOrder": "3"
         }
       },
-      "wireDigest": "cd7642a99006d8e24d305dc00a3b479997c9b05a6de2cea73ba07bbd26a9195f"
+      "wireDigest": "46c73558baa455babb59b2674f3a5a62c7f7dfdbe5d9fe1351b6d189cd95ee48"
     },
     {
       "caseId": "V3-STARTED-CHAIN-08",
@@ -35705,7 +35705,7 @@
         },
         "calculation": {
           "formatVersion": "play-prefix-calculation-v3",
-          "artifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+          "artifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
           "request": {
             "version": "3",
             "prefixRef": {
@@ -35866,7 +35866,7 @@
                 "appliedWatermark": "7"
               },
               "priorArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
-              "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+              "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
               "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
               "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
               "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -35944,7 +35944,7 @@
             "nextCheckpoint": {
               "id": "10000000-0000-0000-0000-000000000608",
               "revision": "9",
-              "digest": "c375dfc9dc471c30da5b3c2b89919850063a1220a8564bf6b12aa2cea5448201"
+              "digest": "51d6df7de51e182d6f9f3784fc7489c21b53c2f00912fdd551a3dbdb6f53b34e"
             }
           },
           "response": {
@@ -36075,7 +36075,6 @@
                     }
                   },
                   "scoreboard": {},
-                  "battingOrderBySide": {},
                   "statFlags": {
                     "投球回算入アウト": false,
                     "投球数": true,
@@ -36100,7 +36099,8 @@
                     "走塁妨害出塁": false,
                     "得点": false,
                     "打点": false
-                  }
+                  },
+                  "battingOrderBySide": {}
                 }
               },
               "previousPrefixRef": {
@@ -36131,7 +36131,7 @@
                 "checkpoint": {
                   "id": "10000000-0000-0000-0000-000000000608",
                   "revision": "9",
-                  "digest": "c375dfc9dc471c30da5b3c2b89919850063a1220a8564bf6b12aa2cea5448201"
+                  "digest": "51d6df7de51e182d6f9f3784fc7489c21b53c2f00912fdd551a3dbdb6f53b34e"
                 },
                 "historyVersion": "8",
                 "origin": {
@@ -36217,7 +36217,7 @@
                 "d2": "8",
                 "appliedWatermark": "7"
               },
-              "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400"
+              "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1"
             }
           }
         }
@@ -36335,7 +36335,7 @@
           }
         },
         "priorArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
-        "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+        "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
         "sourcePosition": {
           "d1": "8",
           "d2": "8",
@@ -36438,7 +36438,7 @@
             "appliedWatermark": "7"
           },
           "priorArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
-          "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+          "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
           "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
           "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
           "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -36703,7 +36703,6 @@
               }
             },
             "scoreboard": {},
-            "battingOrderBySide": {},
             "statFlags": {
               "投球回算入アウト": false,
               "投球数": true,
@@ -36728,7 +36727,8 @@
               "走塁妨害出塁": false,
               "得点": false,
               "打点": false
-            }
+            },
+            "battingOrderBySide": {}
           }
         },
         "runners": [],
@@ -36745,7 +36745,7 @@
           "battingOrder": "3"
         }
       },
-      "wireDigest": "c375dfc9dc471c30da5b3c2b89919850063a1220a8564bf6b12aa2cea5448201"
+      "wireDigest": "51d6df7de51e182d6f9f3784fc7489c21b53c2f00912fdd551a3dbdb6f53b34e"
     },
     {
       "caseId": "V3-STARTED-CHAIN-09",
@@ -36773,7 +36773,7 @@
         },
         "calculation": {
           "formatVersion": "play-prefix-calculation-v3",
-          "artifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+          "artifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
           "request": {
             "version": "3",
             "prefixRef": {
@@ -36934,7 +36934,7 @@
                 "appliedWatermark": "8"
               },
               "priorArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
-              "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+              "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
               "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
               "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
               "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -37012,7 +37012,7 @@
             "nextCheckpoint": {
               "id": "10000000-0000-0000-0000-000000000609",
               "revision": "10",
-              "digest": "b9560663800a3ab0ecbb6f1e723618dc5a45770c1c17912994d8f4e2face2da3"
+              "digest": "b1acd083b26bbddfb6ef694cea63ca32c08395ff54c3b5931a8eb37c741f872b"
             }
           },
           "response": {
@@ -37161,12 +37161,6 @@
                       "after": "3"
                     }
                   },
-                  "battingOrderBySide": {
-                    "away": {
-                      "before": "3",
-                      "after": "4"
-                    }
-                  },
                   "statFlags": {
                     "投球回算入アウト": true,
                     "投球数": true,
@@ -37191,6 +37185,12 @@
                     "走塁妨害出塁": false,
                     "得点": false,
                     "打点": false
+                  },
+                  "battingOrderBySide": {
+                    "away": {
+                      "before": "3",
+                      "after": "4"
+                    }
                   }
                 }
               },
@@ -37222,7 +37222,7 @@
                 "checkpoint": {
                   "id": "10000000-0000-0000-0000-000000000609",
                   "revision": "10",
-                  "digest": "b9560663800a3ab0ecbb6f1e723618dc5a45770c1c17912994d8f4e2face2da3"
+                  "digest": "b1acd083b26bbddfb6ef694cea63ca32c08395ff54c3b5931a8eb37c741f872b"
                 },
                 "historyVersion": "9",
                 "origin": {
@@ -37308,7 +37308,7 @@
                 "d2": "9",
                 "appliedWatermark": "8"
               },
-              "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400"
+              "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1"
             }
           }
         }
@@ -37448,7 +37448,7 @@
           }
         },
         "priorArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
-        "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+        "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
         "sourcePosition": {
           "d1": "9",
           "d2": "9",
@@ -37551,7 +37551,7 @@
             "appliedWatermark": "8"
           },
           "priorArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
-          "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+          "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
           "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
           "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
           "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -37834,12 +37834,6 @@
                 "after": "3"
               }
             },
-            "battingOrderBySide": {
-              "away": {
-                "before": "3",
-                "after": "4"
-              }
-            },
             "statFlags": {
               "投球回算入アウト": true,
               "投球数": true,
@@ -37864,6 +37858,12 @@
               "走塁妨害出塁": false,
               "得点": false,
               "打点": false
+            },
+            "battingOrderBySide": {
+              "away": {
+                "before": "3",
+                "after": "4"
+              }
             }
           }
         },
@@ -37881,7 +37881,7 @@
           "battingOrder": "1"
         }
       },
-      "wireDigest": "b9560663800a3ab0ecbb6f1e723618dc5a45770c1c17912994d8f4e2face2da3"
+      "wireDigest": "b1acd083b26bbddfb6ef694cea63ca32c08395ff54c3b5931a8eb37c741f872b"
     },
     {
       "caseId": "V3-STARTED-CHAIN-10",
@@ -37909,7 +37909,7 @@
         },
         "calculation": {
           "formatVersion": "play-prefix-calculation-v3",
-          "artifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+          "artifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
           "request": {
             "version": "3",
             "prefixRef": {
@@ -38070,7 +38070,7 @@
                 "appliedWatermark": "9"
               },
               "priorArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
-              "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+              "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
               "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
               "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
               "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -38148,7 +38148,7 @@
             "nextCheckpoint": {
               "id": "10000000-0000-0000-0000-000000000610",
               "revision": "11",
-              "digest": "0efea4828e48e8dc5b485a5481c612a0b3fd4e2652f42fa32f1fc5e2cb0dd7e0"
+              "digest": "38d1d2d448f65aad3df2299a40abbefcf3a62fedb31ea0b514c9857e33eed9ea"
             }
           },
           "response": {
@@ -38279,7 +38279,6 @@
                     }
                   },
                   "scoreboard": {},
-                  "battingOrderBySide": {},
                   "statFlags": {
                     "投球回算入アウト": false,
                     "投球数": true,
@@ -38304,7 +38303,8 @@
                     "走塁妨害出塁": false,
                     "得点": false,
                     "打点": false
-                  }
+                  },
+                  "battingOrderBySide": {}
                 }
               },
               "previousPrefixRef": {
@@ -38335,7 +38335,7 @@
                 "checkpoint": {
                   "id": "10000000-0000-0000-0000-000000000610",
                   "revision": "11",
-                  "digest": "0efea4828e48e8dc5b485a5481c612a0b3fd4e2652f42fa32f1fc5e2cb0dd7e0"
+                  "digest": "38d1d2d448f65aad3df2299a40abbefcf3a62fedb31ea0b514c9857e33eed9ea"
                 },
                 "historyVersion": "10",
                 "origin": {
@@ -38421,7 +38421,7 @@
                 "d2": "10",
                 "appliedWatermark": "9"
               },
-              "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400"
+              "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1"
             }
           }
         }
@@ -38539,7 +38539,7 @@
           }
         },
         "priorArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
-        "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+        "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
         "sourcePosition": {
           "d1": "10",
           "d2": "10",
@@ -38642,7 +38642,7 @@
             "appliedWatermark": "9"
           },
           "priorArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
-          "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+          "executionArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
           "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
           "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
           "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -38907,7 +38907,6 @@
               }
             },
             "scoreboard": {},
-            "battingOrderBySide": {},
             "statFlags": {
               "投球回算入アウト": false,
               "投球数": true,
@@ -38932,7 +38931,8 @@
               "走塁妨害出塁": false,
               "得点": false,
               "打点": false
-            }
+            },
+            "battingOrderBySide": {}
           }
         },
         "runners": [],
@@ -38949,7 +38949,7 @@
           "battingOrder": "1"
         }
       },
-      "wireDigest": "0efea4828e48e8dc5b485a5481c612a0b3fd4e2652f42fa32f1fc5e2cb0dd7e0"
+      "wireDigest": "38d1d2d448f65aad3df2299a40abbefcf3a62fedb31ea0b514c9857e33eed9ea"
     }
   ],
   "mutationRequirements": {
