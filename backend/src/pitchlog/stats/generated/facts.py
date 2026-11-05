@@ -2321,7 +2321,10 @@ def _project_batters_faced(event):
                                     },
                                     "id": {
                                         "type": "string",
-                                        "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])",
+                                        "pattern": (
+                                            "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a"
+                                            "-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+                                        ),
                                     },
                                 },
                             },
@@ -2348,7 +2351,10 @@ def _project_batters_faced(event):
                                     "kind": {"const": "t1-responsibility"},
                                     "source_event_id": {
                                         "type": "string",
-                                        "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])",
+                                        "pattern": (
+                                            "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a"
+                                            "-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+                                        ),
                                     },
                                     "artifact_sha256": {
                                         "type": "string",

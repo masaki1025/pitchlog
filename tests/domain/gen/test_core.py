@@ -582,3 +582,43 @@ def test_bf_projection_uses_d1_guards_and_responsibility_without_count_formula()
         assert '_project_batters_faced' in source
         assert 'source.source_event_id' in source
         assert 'source.versions.t1_artifact_sha256' in source
+
+
+@pytest.mark.parametrize('value', [
+    '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])',
+    "quoted'\\backslash\"" * 12,
+    '日本語é\u2028' * 30,
+    '\ud800' * 50,
+    '\U0001f600' * 50,
+    'x\U0010ffffé' * 35,
+])
+def test_long_generated_python_literal_folding_preserves_ast_and_value(value):
+    """ASCII/引用符/escape/Unicodeを値のまま隣接literalで表記する。"""
+    source = 'def value():\n' + '    return {"pattern": ' + ascii(value) + '}\n'
+    folded = CORE._fold_python_string_literals(source)
+    assert ast.dump(ast.parse(folded)) == ast.dump(ast.parse(source))
+    before, after = {}, {}
+    exec(compile(source, '<before>', 'exec'), before)
+    exec(compile(folded, '<after>', 'exec'), after)
+    assert before['value']() == after['value']() == {'pattern': value}
+    assert all(len(line) <= 88 for line in folded.splitlines())
+    assert CORE._fold_python_string_literals(folded) == folded
+
+
+def test_short_or_non_string_literals_keep_original_representation():
+    """既短literal/bytes/f-stringを一般変換せず既経路へ委譲する。"""
+    source = 'value = "short"\nblob = b"' + 'x' * 110 + '"\n'
+    assert CORE._fold_python_string_literals(source) == source
+
+
+def test_generated_pattern_folding_uses_normal_formatter_without_lint_exemptions():
+    """深いdictの長patternだけを折返し、Ruff標準整形で値を保持する。"""
+    value = '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])'
+    original = 'data = ' + repr({'a': {'b': {'c': {'d': {'e': {'f': {'pattern': value}}}}}}})
+    formatted = CORE._format_typed_target('backend/src/pitchlog/stats/generated/facts.py', original)
+    namespace = {}
+    exec(compile(formatted, '<formatted>', 'exec'), namespace)
+    assert namespace['data'] == ast.literal_eval(ast.parse(original).body[0].value)
+    assert all(len(line) <= 88 for line in formatted.splitlines())
+    assert 'noqa' not in formatted and 'fmt: skip' not in formatted
+    assert '("pattern")' not in formatted

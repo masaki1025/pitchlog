@@ -1059,7 +1059,70 @@ def _format_typed_target(path: str, content: str) -> str:
     process = subprocess.run(
         command, input=raw, text=True, capture_output=True, check=True
     )  # noqa: E501 — 生成targetのliteral
-    return process.stdout
+    result = process.stdout
+    if path.endswith(".py"):
+        folded = _fold_python_string_literals(result)
+        if folded != result:
+            result = subprocess.run(
+                command, input=folded, text=True, capture_output=True, check=True
+            ).stdout
+            if ast.dump(ast.parse(result)) != ast.dump(ast.parse(process.stdout)):
+                raise GenerationError("生成literal折返しでAST値が変化しました")
+    return result
+
+
+def _fold_python_string_literals(source: str, width: int = 88) -> str:
+    """長い単行文字列だけを隣接literalへ折り返し、値とASTを保持する。"""
+    import ast
+    import io
+    import tokenize
+
+    lines = source.splitlines(keepends=True)
+    replacements = []
+    for token in tokenize.generate_tokens(io.StringIO(source).readline):
+        if token.type != tokenize.STRING or token.start[0] != token.end[0]:
+            continue
+        line = lines[token.start[0] - 1]
+        if len(line.rstrip("\n")) <= width or token.end[1] <= width:
+            continue
+        try:
+            value = ast.literal_eval(token.string)
+        except (ValueError, SyntaxError):
+            continue
+        if type(value) is not str:
+            continue
+        indent = len(line) - len(line.lstrip()) + 4
+        budget = width - indent
+        if budget < 8:
+            raise GenerationError("生成literalの字下げが折返し幅を超えています")
+        chunks = []
+        chunk = ""
+        for character in value:
+            candidate = chunk + character
+            if len(ascii(candidate)) > budget and chunk:
+                chunks.append(chunk)
+                chunk = character
+            else:
+                chunk = candidate
+        chunks.append(chunk)
+        folded = (
+            "(\n"
+            + "".join(
+                " " * indent + ascii(part) + "\n"
+                for part in chunks
+            )
+            + " " * (indent - 4)
+            + ")"
+        )
+        replacements.append((token, folded))
+    for token, folded in reversed(replacements):
+        row = token.start[0] - 1
+        line = lines[row]
+        lines[row] = line[: token.start[1]] + folded + line[token.end[1] :]
+    result = "".join(lines)
+    if ast.dump(ast.parse(result)) != ast.dump(ast.parse(source)):
+        raise GenerationError("生成literal折返しでAST値が変化しました")
+    return result
 
 
 if __name__ == "__main__":
