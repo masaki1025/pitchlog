@@ -7,12 +7,13 @@ import weakref
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from decimal import Decimal
+from typing import TYPE_CHECKING
 from uuid import UUID
 
-from pitchlog.repositories import transaction as _transaction_runtime
+if TYPE_CHECKING:
+    from pitchlog.repositories import transaction as _transaction_runtime
 from pitchlog.repositories.binding import TenantBindingError
 from pitchlog.repositories.tokens import TenantOperationResult, TenantOperationToken
-from pitchlog.repositories.transaction import _TenantTransaction
 from pitchlog.stats.generated.receiver import METRIC_IDS, receive_fact_row
 
 
@@ -32,7 +33,7 @@ class _QualifiedStatsReadCall:
 class _ReaderState:
     """reader自身とは別に実handle/runtimeと発行済identityを記憶する。"""
 
-    handle: _TenantTransaction
+    handle: _transaction_runtime._TenantTransaction
     state_key: object
     runtime: object
     key: object
@@ -87,6 +88,8 @@ def _remember_identity(registry, value, facts):
 
 def _reader_state(reader):
     """実constructorが登録したreaderと現在のRRRO runtimeだけを受ける。"""
+    from pitchlog.repositories import transaction as _transaction_runtime
+
     if type(reader) is not ReadPlayExportPrimitives:
         raise PrimitiveReadError
     state = _READERS.get(reader)
@@ -249,7 +252,9 @@ def _read_call(reader, operation, *, receipt=None, cursor=None):
 
 def _qualified_stats_read_call(handle, operation) -> _QualifiedStatsReadCall:
     """同reader/runの実命令を一度だけ消費し、SQL前の資格を返す。"""
-    if type(handle) is not _TenantTransaction:
+    from pitchlog.repositories import transaction as _transaction_runtime
+
+    if type(handle) is not _transaction_runtime._TenantTransaction:
         raise PrimitiveReadError
     _require_root_read_scope(handle)
     call = _READ_CALLS.get(handle._state_key)
@@ -271,8 +276,10 @@ def _qualified_stats_read_call(handle, operation) -> _QualifiedStatsReadCall:
 
 def _require_root_read_scope(handle):
     """rootの真正RR RO markerが未供給なら、通常scopeを代用品にしない。"""
+    from pitchlog.repositories import transaction as _transaction_runtime
+
     if (
-        type(handle) is not _TenantTransaction
+        type(handle) is not _transaction_runtime._TenantTransaction
         or getattr(handle, "_state_key", None) is None
     ):
         raise PrimitiveReadError
@@ -429,8 +436,10 @@ class ReadPlayExportPrimitives:
 
     def __init__(self, handle, *, maximum_integer_chars):
         """rootの同snapshot scopeで開始された実handleだけを保持する。"""
+        from pitchlog.repositories import transaction as _transaction_runtime
+
         if (
-            type(handle) is not _TenantTransaction
+            type(handle) is not _transaction_runtime._TenantTransaction
             or getattr(handle, "_state_key", None) is None
         ):
             raise PrimitiveReadError

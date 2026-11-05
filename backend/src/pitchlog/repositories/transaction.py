@@ -831,8 +831,13 @@ def _run_stats_primitive_read(
         decode_page_rows,
         decode_totals_rows,
     )
+    from pitchlog.repositories.stats_native_operations import (
+        require_read_registration,
+        require_registered_call,
+    )
 
     _require_stats_primitive_read_scope(handle)
+    registration = require_read_registration(operation, FUNCTION_OPERATION_REGISTRY)
     qualification = _qualified_stats_read_call(handle, operation)
     if qualification.operation is not operation:
         raise TenantBindingError("成績readの実要求identityが不一致")
@@ -877,6 +882,9 @@ def _run_stats_primitive_read(
         maximum_rows = 26
     else:
         raise TenantBindingError("成績readの登録実型が不一致")
+    require_registered_call(registration, call, FUNCTION_OPERATION_REGISTRY)
+    if not 0 <= maximum_rows <= registration.max_rows:
+        raise TenantBindingError("成績readの登録上限が不一致")
     _require_stats_primitive_read_scope(handle)
     session, _ = _TRANSACTION_RUNTIMES[handle._state_key]
     rows = tuple(
