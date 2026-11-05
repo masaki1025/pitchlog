@@ -1,5 +1,16 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 再開時の現在地：2026-11-05 23:45 JST（R5 CI失敗の修復、成績v2 native接続反映）
+
+- **利用者操作/提供版**: develop112f771e、#196はDraft/open・公開82557119。新しい正式提供はまだ増えていない。候補の実画面4安打証拠と、各spike作者の実測は別版/別証拠として保持する。Goalは全MVPのままactive。
+- **#196**: R5本体CI42033491881は完了failure、本文42033491953はsuccess。全4backend shardのdescriptor parity setup各7ERROR、frontend handoff3失敗、root handoffと旧G6拒否9の失敗を分類した。4番backendも3269pass/7ERROR・2190.72秒で同じ参照SHA不一致。CIを成功扱いしない。root手元8d1feda5は修正計画だけ、source未反映。handoff3digestだけ更新した候補は非作者822af0a4…と環境訂正62cd58c4…で確認、own環境FE3319成功。G6反映3source2（REPORT6891af8e…/packetba4f67e0…）は公開8255実copyのcarry実file改竄をlocal検査が誤受理する新P1を含め修復、元9public負例ASTと正しい拒否点を維持し106成功。CI actualfile誤受理は未実証。非作者再確認中、採用後全source凍結→単一196R6公式導出→独立値確認→公開証拠→push1回→実CIの順とする。
+- **成績/今回実装**: math24をcb4a6056へ採用済み。v2 native接合7＋root manifest反映1を非作者38cbe970…/checks4c6cbaf1…後、全8前後SHA照合して3c81f522へ反映した（plan4c97ed9a）。actual関連766成功79.68秒、scopedRuff成功。初回rootコマンドは不存在test2pathを指定して0件exit4、そのまま再実行せず存在pathへ修正した。backend全Tyは生成receiverのNone添字2診断を検出、検査除外せずemitter2条件→公式生成receiver1/metadata2pointerのexact3追随をplan4bb8c864で許可、cache stats-receiver-type-followup-20261105/候補を非作者へ渡した。v1は保存履歴decode/ACKだけ、current SQLはv2の1model/1ART。固定manifestの配置信頼境界をplanへ明記した。
+- **成績/次の実接続依存**: owned実PG stats-native-v2-save-r1は同固定3c81f522でsetup1ERROR9.35秒、first_ball_product.py:2357の初球関数適用本文凍結不一致。記録本体は未実行であり旧v1実測をv2成功へ拡張しない。head/tree/index前後一致・所有一時PG削除をresultに固定。公式生成SQLと初球配置の合成境界をread-only調査し、最小正式追随後に新規作成→開始→3球→再送/再取得・故障原状を同版で再実測する。共有DBは触れていない。
+- **取消/終了再開の製品接続**: undo純計算/hostはc3edf395に採用済み、pins/D11とP1同TX/UIは未完。共通prefixはnon-playがあると拒否し、event head・projection head・active play headの分離を設計中。監査eventをskipして成功化しない。FR007の再開はオンライン制御として既規範を照合し、game_reopenを根拠なく断中Must7へ追加しない。
+- **外部lifecycle spike受領**: 実GitでHEAD/origin4642bd140d571ab386fbe37343858607cb575d24/clean、code bceba327、最後はfindings1fileだけと確認。plan/findings/proposal＋実行logの実在/全SHAをcache lifecycle-spike-intake-20261105.jsonへ固定。作者の実画面作成/開始/HR→早期終了v1→再開→再終了v2→reload/再送/越境/故障証拠を受領したがroot再実測・正式採用ではない。再開後play追加、自然終了、games.status、成績版、耐久UI要求は未達。既非作者2周/初回P1×3の修復履歴を維持し丸ごと取り込まない。
+- **並行依頼**: 利用者へ走者あり単打/二塁打の明示進塁・保存/reload spike指示を提示した。起点82557119。送付済/担当受諾/実行済は未確認。D07既定は二死二三塁単打1行のみ、他配置へ推測拡張しない。
+
+
 
 ## 再開時の現在地：2026-11-05（#196 R5公開、取消純計算を接合、成績本体レビュー）
 
