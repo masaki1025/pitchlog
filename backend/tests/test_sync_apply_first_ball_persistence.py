@@ -189,7 +189,7 @@ def test_b2_absent_still_rolls_back_after_kernel_callback(
 ):
     """実prefix O4後callbackで一回consumeしても、B2未提供なら成功へ進めない。"""
     from pitchlog.repositories.tokens import TenantOperationResult
-    from pitchlog.sync import prefix_path
+    from pitchlog.sync import native_ledger_insert, prefix_path
     from pitchlog.sync.first_ball_ports import FirstBallContentValidationPort
     from pitchlog.sync.idempotency import D5Candidate
     from pitchlog.sync.tokens import (
@@ -217,6 +217,9 @@ def test_b2_absent_still_rolls_back_after_kernel_callback(
     monkeypatch.setattr(prefix_path, "_lock_game_generation", lambda *a: (1, 0))
     monkeypatch.setattr(prefix_path, "classify_d5", lambda *a: D5Candidate("unused"))
     monkeypatch.setattr(prefix_path, "recheck_and_insert_result", lambda *a: None)
+    monkeypatch.setattr(
+        native_ledger_insert, "_recheck_and_insert_native_result", lambda *a: None
+    )
     monkeypatch.setattr(
         prefix_path.port_guard, "require_registered_port", lambda _: None
     )

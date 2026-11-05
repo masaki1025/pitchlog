@@ -280,3 +280,6 @@ native台帳接合に伴う単体試験境界の追随（2026-11-05、PO委任Co
 
 
 成績保存後故障の実HTTP原子性試験（2026-11-05、PO委任Codex /root判断）: 新backend/tests/db/test_stats_native_atomicity_http.pyを追加する。既ordinary実HTTP新規作成/開始関数・実認証/初期権/元artifactを再利用し、開始・initial GET後/最初の保存前に同owned DBを別admin read-only接続でsnapshotする。元flushを実行して戻った直後だけ固定故障を注入し、成功ACKが出ず、記録/台帳/prefix/投影/history/checkpoint/成績version/source/factの実前後が原状であることを検証する。同期点はtest専用tmp mountの公開gameUUID marker/continueのみ、元apply/認可/SQLをstub成功へ置換しない。snapshotに資格・原payloadをログせず、固定表/tenant/gameで絞った件数とcanonical行digestだけを保存。既requires_db/実identity autouse・cleanupを保持し、先行D5ミクロやpureを実原子性の代用としない。結果不明時の全取消・旧要求終結未確認を勝手に未消費/新D5置換可能とは扱わない。cache作者・別非作者確認後rootがowned PGで実行する。対象は当該故障1経路であり、全4profile/全故障/実画面/運用成立は別受入とする。
+
+
+native台帳接合の採用記録: 作者exact5 packet c7e7f653…（helper74f8b4ca…/prefixf774ba0d…/新test97571cb9…/prefixTest6ccad048…/persistencecf1bea69…）を非作者98e28cd1793bba44035f60abc4cb77c99a2c91d805e8db0012dbfdd08be59c81で照合し採用する。作者497成功/独立421成功・追加20SQL0拒否、旧generic6source/66DML/SQLxmin/全保存境界を保持。新HTTP test f28283e4…は非作者90baf30e…でtmp結果分離P2反映を確認した。root隔離r4は実新POST作成/開始→ordinary-prefix-v1で3球/replay/GET→event3=成績source3/current_open(count3,rev3)/pitch_count3が1成功63.34秒。ただし未commit固定候補の初回実測であり、本commit固定HEADの再実証・全4profile・故障全取消・正式source/D11/7.7/CI・公式成績表示は残る。判断者Codex /root、2026-11-05 JST、PO既委任に基づく判断で本人署名・P6blindではない。

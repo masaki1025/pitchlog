@@ -19,8 +19,8 @@ from test_sync_apply_prefix_path import D5, GAME, _AcceptedObservation, _registe
 
 from pitchlog.repositories.transaction import _TenantTransaction
 from pitchlog.sync import first_ball_execution as first
+from pitchlog.sync import native_ledger_insert, ports, prefix_path, stats_native_flush
 from pitchlog.sync import ordinary_pitch_execution as ordinary
-from pitchlog.sync import ports, prefix_path, stats_native_flush
 from pitchlog.sync.first_ball_ports import FirstBallContentValidationPort
 from pitchlog.sync.idempotency import D5Candidate, StoredResult
 from pitchlog.sync.model import SyncEvent
@@ -51,6 +51,14 @@ def rig(monkeypatch):
     writer = _issue_port_writer(scope.run)
     event = SyncEvent(D5, GAME, 1, "epoch", v5="play_input", v6=10, v7={}, v8={})
     _register_ports(monkeypatch)
+    # このmoduleは呼出順だけの観測。私有台帳の真正資格は専用試験/実PGで別検証。
+    monkeypatch.setattr(
+        native_ledger_insert,
+        "_recheck_and_insert_native_result",
+        lambda handle, actual_writer, original, token, path: (
+            prefix_path.recheck_and_insert_result(handle, token, path)
+        ),
+    )
     monkeypatch.setattr(
         ports,
         "PORT_IMPLEMENTATIONS",
