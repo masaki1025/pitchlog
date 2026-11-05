@@ -609,8 +609,8 @@ def test_product_expectations_cover_every_catalog_surface() -> None:
         if row[0] == "pitchlog_recording_vocab_fn_owner"
     ) == (("pitchlog_recording_vocab_fn_owner", *([False] * 7)),)
     assert expectations.roles == expectations.semantic_roles
-    assert len(expectations.tables) == 56
-    assert len(expectations.schemas) == 12
+    assert len(expectations.tables) == 59
+    assert len(expectations.schemas) == 13
     assert tuple(
         row for row in expectations.schemas if row[0] == "recording_vocab_api"
     ) == (("recording_vocab_api", "pitchlog_recording_vocab_fn_owner"),)
@@ -725,14 +725,97 @@ def test_product_expectations_cover_every_catalog_surface() -> None:
             None,
         ),
     }
+    # 採用SQLの10policyを全fieldで閉じ、既91の控除へ混ぜない。
+    stats_tables = {
+        "stats_fact_versions",
+        "stats_primitive_sources",
+        "stats_primitive_facts",
+    }
+    assert {row for row in expectations.tables if row[1] in stats_tables} == {
+        ("sync_fence", name, "pitchlog_owner", True, True) for name in stats_tables
+    }
+    assert tuple(row for row in expectations.schemas if row[0] == "stats_api") == (
+        ("stats_api", "pitchlog_owner"),
+    )
+    predicate = (
+        "tenant_id = NULLIF(pg_catalog.current_setting('app.tenant_id',true),'')::uuid"
+        " AND session_user = 'pitchlog_app'"
+    )
+    expected_stats_policies = set()
+    for table in (
+        "stats_fact_versions",
+        "stats_primitive_sources",
+        "stats_primitive_facts",
+    ):
+        commands = (
+            ("SELECT", "INSERT", "UPDATE")
+            if table == "stats_fact_versions"
+            else ("SELECT", "INSERT")
+        )
+        for command in commands:
+            scoped = predicate
+            if table == "stats_fact_versions" and command != "SELECT":
+                scoped += " AND completion_state='current_open'"
+            if table != "stats_fact_versions" and command == "INSERT":
+                scoped += (
+                    " AND EXISTS(SELECT 1 FROM sync_fence.stats_fact_versions v WHERE "
+                    "v.tenant_id="
+                    + table
+                    + ".tenant_id AND v.game_id="
+                    + table
+                    + ".game_id "
+                    "AND v.id=" + table + ".fact_version_id AND v.is_current "
+                    "AND v.invalidated_at IS NULL "
+                    "AND v.completion_state='current_open')"
+                )
+            expected_stats_policies.add(
+                (
+                    "sync_fence",
+                    table,
+                    "stats_primitives_" + command.lower(),
+                    command.lower(),
+                    ("pitchlog_sync_right_fn_owner",),
+                    "permissive",
+                    product_catalog._semantic_sql_tokens(scoped)
+                    if command != "INSERT"
+                    else None,
+                    product_catalog._semantic_sql_tokens(scoped)
+                    if command != "SELECT"
+                    else None,
+                )
+            )
+    for table in ("players", "games", "event_slots"):
+        expected_stats_policies.add(
+            (
+                "public",
+                table,
+                "stats_primitives_select",
+                "select",
+                ("pitchlog_sync_right_fn_owner",),
+                "permissive",
+                product_catalog._semantic_sql_tokens(
+                    predicate + " AND current_user = 'pitchlog_sync_right_fn_owner'"
+                ),
+                None,
+            )
+        )
+    assert all(type(row[2]) is str for row in expectations.policies)
+    stats_policies = {
+        row
+        for row in expectations.policies
+        if cast(str, row[2]).startswith("stats_primitives_")
+    }
+    assert len(expected_stats_policies) == 10
+    assert stats_policies == expected_stats_policies
     assert (
         len(expectations.policies)
+        - len(stats_policies)
         - len(terminal_policies)
         - len(lineup_policies)
         - len(batted_policies)
         == 91
     )
-    assert len(expectations.policies) == 98
+    assert len(expectations.policies) == 108
     assert {
         row[2]
         for row in expectations.policies
@@ -743,7 +826,7 @@ def test_product_expectations_cover_every_catalog_surface() -> None:
         "pitchlog_owner_game_type_seed_delete",
     }
     assert len(expectations.functions) == len(asset_functions)
-    assert len(asset_functions) == 108
+    assert len(asset_functions) == 113
     assert tuple(
         row for row in expectations.functions if row[0] == "recording_vocab_api"
     ) == (
@@ -752,6 +835,43 @@ def test_product_expectations_cover_every_catalog_surface() -> None:
             "read_batted_ball_options",
             "uuid, integer, text",
             "pitchlog_recording_vocab_fn_owner",
+            True,
+        ),
+    )
+    assert tuple(row for row in expectations.functions if row[0] == "stats_api") == (
+        (
+            "stats_api",
+            "open_primitive_snapshot",
+            "uuid, uuid, text",
+            "pitchlog_sync_right_fn_owner",
+            True,
+        ),
+        (
+            "stats_api",
+            "read_play_export_primitives",
+            "uuid, uuid, uuid, bigint, text, text, text, bigint, uuid, text, integer",
+            "pitchlog_sync_right_fn_owner",
+            True,
+        ),
+        (
+            "stats_api",
+            "read_primitive_totals",
+            "uuid, uuid, uuid, bigint, text, text, text",
+            "pitchlog_sync_right_fn_owner",
+            True,
+        ),
+        (
+            "stats_api",
+            "read_primitive_writer_state",
+            "uuid, uuid, uuid, text, bytea",
+            "pitchlog_sync_right_fn_owner",
+            True,
+        ),
+        (
+            "stats_api",
+            "save_primitive_source",
+            "uuid, uuid, uuid, text, bigint, text, jsonb, bytea",
+            "pitchlog_sync_right_fn_owner",
             True,
         ),
     )
@@ -767,7 +887,7 @@ def test_product_expectations_cover_every_catalog_surface() -> None:
     assert len(expectations.column_acl) == sum(
         len(row["privilege_ids"]) for row in asset_column_acls
     )
-    assert len(asset_column_acls) == 372
+    assert len(asset_column_acls) == 442
     batted_column_keys = {
         (table, column, owner)
         for table, columns, owner in (

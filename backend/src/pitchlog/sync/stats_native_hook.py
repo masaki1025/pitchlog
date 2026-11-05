@@ -192,7 +192,7 @@ def _read_values(handle, writer, event, projected, generation):
         "d2": projected.v6,
         "d5": UUID(event.d5),
         "ledger_kind": "accepted",
-        "event_kind": "play",
+        "event_kind": "play_input",
         "is_tombstone": False,
         "replaced_at": None,
         "retired_at": None,
