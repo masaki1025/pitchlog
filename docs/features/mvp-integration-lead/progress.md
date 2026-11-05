@@ -1,5 +1,14 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 再開時の現在地：2026-11-06T04:31:37.349401+09:00（#196 R10固定、取消legacy是正126成功）
+
+- 正式developは112f771e、#196 open/draft、全MVP active。新たに正式利用者へ提供された操作は今回まだ増えていない。
+- #196 R9実CI42079943264はbackend4shard/集約とfrontend成功、harness0/3のschema2登録漏れだけでterminal failure。rootが追随漏れを検出し、新source2前置8ad25215→JSON後置f6928025で修正。非作者a3772eb3…、actual関連352成功34.77秒/G6carry254成功421.49秒、旧検出/拒否を保持。
+- R10正式値は公式bundle27eab0d3…を独立全文再現3ff856fb…で受理。旧37履歴/単一196/9IDbase+1/保護snapshot/corpus保持。最終候補HEAD9ddcd5c332a4778ffd5a2979492cf17912a34350/tree4a8ac895…/diffb86a40b3…/220path、clean固定。最終HEAD結合レビュー中、その後新公開証拠・両guard・通常push1回・全必須CIへ進む。R10はまだ未push、マージ済みとしない。
+- 取消integrationは歴史初球bootstrap exact2を3d945436へ採用、actual337成功12.10秒。旧public guard/実D2=1024/全41列/rawFPを保持し、真正歴史beforeだけを数学proposalへ包む。legacy-v3投影前の有限資格P1は非作者1f509ac2…後e8902b55へ是正採用、actual126成功6.84秒。誤ファイル名による未実行ログは成功数へ含めない。
+- 次球source6/唯一artifact4e8b3252…95274Bは接合済み。current pin16は作者527e68be…で固定（数学/prior/FP/raw字句保持、674件作者成功）、非作者レビュー中。legacy-v3有限提供exact5は既旧57行/証拠を保持し新53規範実VMから正確2pairを成立させる実装をpr192へ許可、actual009d631eのplanへ記録。未宣言v3の閉拒否を提供完成としない。
+- 次の製品到達点は同版owned環境で2球→2取消→次球→GET/reload。残る実装は実actor/registry/SQL/S/genCP/GET/次球保存/D11、候補私有計算の成功をHTTP/実DBへ拡張しない。BF数学は別枝29c9d7d6で431/84/27成功済み、native27/画面/CSVは次工程。共有DB/運用公開/実機/新秘密は未実施。
+
 ## 再開時の現在地：2026-11-06 03:45 JST（#196 R9公開CIのcore登録漏れを是正中／BF数学と取消sourceを実候補へ接合）
 
 - **正式提供/完了判定**: develop112f771e・#196未merge・全MVP active。今回の新たな正式利用者操作は未成立。候補での数学/私有runtime接合を、1試合・全27表示・両CSV・実機/運用の完成へ拡張しない。
