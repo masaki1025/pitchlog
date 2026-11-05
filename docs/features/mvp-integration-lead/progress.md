@@ -1,5 +1,16 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 再開時の現在地：2026-11-06 01:00 JST（成績v2実API/原子性成立、取消runtimeを隔離接合中）
+
+- **正式提供/利用者操作**: develop112f771e、#196未merge。MVP全体はactive/未完成。今回新しく実証したのは候補bceeの成績v2同TX保存・真正read・故障原状であり、GUI/全27/公式終了/CSV/実機へ拡張しない。
+- **#196/実CI**: 最終source3ecc85ab/全211diff3576238a…/公開proof6661184582を保持。本文42050222779 success。CI42050222825 attempt1はharness全4・backend3shard他全job success、backend3だけ初期start commit故障1caseがLedgerOutcomeUnconfirmedでfailure。related5コードはR5/R6同一、同3eccのowned単体pr196-start-commit-r1は1成功24.28秒/固定前後同一/owned削除。非作者2a7ec98a…/checks418c07d0…はfixture2秒idleを超える機序を明示doubleの無DB反例で再現したが、実CI根因とは断定しない。server明示unconfirmedをsocket受信timeoutと同一視せず、拒否/結果不明やtimeout条件は変更0。新証拠を根拠にfailedjob再確認を1回だけPO委任root判断で起動、実APIで**attempt2/in_progress**を確認。再失敗時は盲反復せずphase/例外型/経過だけの安全観測へ移る（bounded-failed-job-recheck.json）。必須CI前のmerge無し。
+- **成績v2/今回の実接続**: 新5本文は非作者9ddcabc1…/8c57c2ce…後、全before/after照合しbcee3dece130286d5e47b5e5e385e13953ddcff6へ採用。official runtime/tenant derived3は同じで更新不要、actual bodycheck OK。owned save-r2が新規作成→開始→通常3球→同要求再送→GETとevent3=source3/pitchcount3を1成功69.23秒。同HEAD read-fault-r1は真正RRRO Open/Page/Totals78行(79page)＋資格/越境7拒否、実flush直後faultで13表全行原状を2成功110.42秒。両実行でtracked HEAD/tree/index一致・所有PG cleanup・shared DSN継承無し。非作者証拠照合a2c43182…/checks39ca5b49…が17証拠SHA/全assertを固定、独立再実行やP6blindではない。
+- **成績の次**: rootstats HEAD4fa07c87はbcee後の計画だけ。D03/D04調査06380485…からno-change完了PAのBF1を先行し、新currentv3＋v1/v2歴史profile/旧26保持/known27への正式限定migration方針を前置。pr191はcontract候補3cache-only起案中（math/Port実装済みではない）。カウントによるT1責任判定をT5へコピーしない。0球登板/再登板にはstart/交代の真正出場sourceが別途必要、D03や交代Port全完成をBF数学の余計な着手条件にしない。
+- **取消契約/実装**: 閉prefix3は非作者f1295e78…後97ed8a33へ採用。実E1 fingerprintのwire-v1接合P1は作者/初回非作者の見落としを保持し、非作者反映1の013cf20b…/9a550f57…で既型46入力/実wire旧拒否新受理/他Digest拒否を確認、e633e011へ反映。原pure WTは保全。
+- **隔離接続WT/固定点**: 新feature-mvp-undo-runtime-integration、HEAD dfde9f95（3ecc#196＋実PG済statsbcee＋undoe633、元各枝/PRは保存）。c229c68fの生成衝突4は#196 history/identityを保持しstats登録集合superset全値を公式helperで合成、catalog testは両群保持。d5fbfdc7でundoを合成、eb5842de/2ee41fad/dfde9f95で実装所有/最小scopeを固定。独立composition/正式7.7/D11/pin/実runtime成功は未成立。ownvenv/ownnode_modulesを構築しbackend全Ruff/Ty0・host/登録82成功7.33秒・domain25file822成功34.44秒。全frontendは旧pin残存を解消するまで完了扱いしない。
+- **並行ownerと次**: pr192はruntime source6/test6＋新private nonplay admission1表のmodel/init/migration0042(親0041_stats_fact_versions)/test2の計17pathをcache-only作成。fake play/旧CHECK緩和なし、root共有kernel/registry/HTTP/既GET/S生成はroot専有。batted_hitsは新Source→次球のTS/domain contract2/host/testの計6pathをcache-only実装（同deltaでは作者となる）。新request閉8key版/sourcePosition/CP提案と保存済みCPを区別し、D2をphysical数から算出しない。全runtime/次球/原子性とpin/D11を同接続固定点で非作者確認後owned2球→2pop→次球→GET/reloadへ進む。運用公開/共有DB/新秘密/実機は未実施。
+
+
 ## 再開時の現在地：2026-11-06 00:05 JST（R6公開CI中・成績v2/取消の接続継続）
 
 - **利用者操作/正式版**: 正式develop112f771e、#196未merge。今回新たな正式提供は未成立。candidate/sourceの接合成果とAPI/GUIの対象版を区別し、MVP全機能・品質・実機/運用条件を維持する。
