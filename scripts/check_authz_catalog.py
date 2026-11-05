@@ -4600,7 +4600,17 @@ def _product_table_universe(root: Path) -> frozenset[str]:
     ordinary = manifest_set & ordinary_ids
     if ordinary and ordinary != ordinary_ids:
         raise CatalogError('通常投球保存表はexact3表が必要')
-    expected_tables = baseline_tables | present | binding | ordinary
+    stats_ids = {'stats_fact_versions', 'stats_primitive_sources', 'stats_primitive_facts'}
+    stats = manifest_set & stats_ids
+    if stats and stats != stats_ids:
+        raise CatalogError('成績private保存表はexact3表が必要')
+    for row in classification_rows:
+        if row['table'] in stats_ids and row != {
+            'table':row['table'], 'profile':'function_only',
+            'access_path':{'reason':'stats_primitive_storage','owner_unit':'U-X1'},
+        }:
+            raise CatalogError('成績private保存の分類全fieldが不一致')
+    expected_tables = baseline_tables | present | binding | ordinary | stats
     if "rg1_restore_gate" in manifest_set:
         expected_tables |= {'rg1_restore_gate'}
     if manifest_set != classification_set or manifest_set != expected_tables:
@@ -4793,6 +4803,9 @@ def _validate_product_table_expectations(value: object, root: Path) -> None:
                     'ordinary_pitch_checkpoints',
                     'ordinary_pitch_write_admissions',
                     'ordinary_pitch_history',
+                    'stats_fact_versions',
+                    'stats_primitive_sources',
+                    'stats_primitive_facts',
                 }
                 else 'public'
             )
