@@ -643,6 +643,20 @@ def _pre_full_expected():
         for r in present
         if r.element_type == "function"
     }
+    # 旧0036の実構造検査が先に保証した内部保護関数はmigration由来で既存。
+    migration_function = ("public", "protect_initial_right_storage", "")
+    canonical_functions = {
+        (
+            r.fields["schema_name"],
+            r.fields["function_name"],
+            r.fields.get("identity_args", ""),
+        )
+        for r in elements
+        if r.element_type == "function"
+    }
+    if migration_function not in canonical_functions:
+        raise CurrentProductStartupError("0036内部保護関数の正規宣言がありません")
+    functions.add(migration_function)
     schemas = {r.fields["schema_name"] for r in present if r.element_type == "schema"}
     # sync_fenceは0037/0041のowner migrationが配置する。権限は別に閉照合する。
     schemas.add("sync_fence")
@@ -745,7 +759,12 @@ def _pre_full_catalog_pairs():
         "PRODUCT-CATALOG:" + key: (rows, tuple(r for r in rows if keep(r)))
         for key, (rows, keep) in fields.items()
     }
-    pairs["PRODUCT-CATALOG:FIRST-BALL-TRIGGERS"] = (stamp_trigger_expectations(), ())
+    identity_trigger = "trg_play_rows_projection_identity_immutable"
+    first_triggers = stamp_trigger_expectations()
+    migration_first = tuple(r for r in first_triggers if r[0] == identity_trigger)
+    if len(migration_first) != 1:
+        raise CurrentProductStartupError("migration由来のplay_rows保護宣言が不一致です")
+    pairs["PRODUCT-CATALOG:FIRST-BALL-TRIGGERS"] = (first_triggers, migration_first)
     pairs["PRODUCT-CATALOG:PLAY-PREFIX-TRIGGERS"] = (
         tuple(
             (
@@ -756,8 +775,14 @@ def _pre_full_catalog_pairs():
             )
             for r in trigger_expectations()
         ),
-        (),
+        tuple(
+            ("play_rows", *r)
+            for r in trigger_expectations()
+            if r[0] == identity_trigger
+        ),
     )
+    if len(pairs["PRODUCT-CATALOG:PLAY-PREFIX-TRIGGERS"][1]) != 1:
+        raise CurrentProductStartupError("migration由来のprefix保護宣言が不一致です")
     return pairs
 
 

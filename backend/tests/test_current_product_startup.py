@@ -739,3 +739,35 @@ def test_pre_full_builtin_execute_is_exact_selected_declaration(monkeypatch):
         with pytest.raises(current.CurrentProductStartupError):
             current._require_pre_or_full_catalog(object())
     base.actual = pre
+
+
+def test_pre_full_keeps_only_the_verified_migration_guards(monkeypatch):
+    """0036の関数と既投影identity triggerだけをpre-fullに含める。"""
+    functions, *_ = current._pre_full_expected()
+    assert ("public", "protect_initial_right_storage", "") in functions
+    pairs = current._pre_full_catalog_pairs()
+    first_key = "PRODUCT-CATALOG:FIRST-BALL-TRIGGERS"
+    play_key = "PRODUCT-CATALOG:PLAY-PREFIX-TRIGGERS"
+    first = pairs[first_key][1]
+    play = pairs[play_key][1]
+    assert len(first) == len(play) == 1
+    assert first[0][0] == "trg_play_rows_projection_identity_immutable"
+    assert play[0] == ("play_rows", *first[0])
+    violations = [
+        SimpleNamespace(check_id=key, expected=full, actual=pre)
+        for key, (full, pre) in pairs.items()
+        if full != pre
+    ]
+    report = SimpleNamespace(
+        ok=False, checked_ids=tuple(pairs), violations=tuple(violations)
+    )
+    monkeypatch.setattr(current, "_catalog", lambda connection: report)
+    assert current._require_pre_or_full_catalog(object()) == "pre-full"
+    for key in (first_key, play_key):
+        item = next(v for v in violations if v.check_id == key)
+        original = item.actual
+        for bad in ((), pairs[key][0], original + original):
+            item.actual = bad
+            with pytest.raises(current.CurrentProductStartupError):
+                current._require_pre_or_full_catalog(object())
+        item.actual = original
