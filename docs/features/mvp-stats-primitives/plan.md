@@ -432,3 +432,17 @@ core/CI反映1の限定是正（2026-11-06 JST、PO委任Codex /root判断）: �
 
 core29定義2の先行採用とCI実起動保留（2026-11-06 JST、PO委任Codex /root判断）: 非作者REPORT1d1b1db33a4cd25eeb678ba7b0d2560b5fb447dd8ed7ed92b7adf2555685bbf9/checkse47c974e50879b0adb746ca808e561a66ac113e6f34f33e48d0c674c43510becで元owner上書きP1を解消1/残0、新重大指摘0、元counter不変121成功/旧AST・229負対向/ownJSON29で903成功を確認。ここではexact4のうちscripts/core_guard.pyとtests/test_core_guard.pyの29有限定義2だけを先行採用する。D11source8の実在/別確認前に実JSON29を先行登録しない。
 CI2はstatic限定採用可と実起動を区別し未採用で保持する。rootが固定7c2abc98のowned PGで審査済旧S3/currentのPython本文をそのまま実行したところ1失敗6.06秒、旧0039段階のfullapplyがまだ存在しないsync_fence.stats_fact_versionsを参照してUndefinedTableと閉拒否した。source前後同一・owned撤去。CI2を成功扱い/既失敗の同入力再実行をせず、current実入口への整合と旧0039/legacy全assertを真正歴史profileで保持する最小接合を別に調査する。oldstage本体/拒否を変更する回避は不可。定義2の採用をCI修復/実JSON/実PG全成立へ広げない。
+
+
+CI現起動/歴史S3の最小接合scope7（2026-11-06 JST、PO委任Codex /root判断）: owned1fail6.06秒を根拠にREPORT2e79afeccc3cfae0f39556b2b1a2867b1a1ec77c8821a237da7089d4d3f005afの切分けを採用する。旧S3→currentの順序では旧call内で0041表未配置により停止する。CI現在入口は既advance_current_product_from_s0の1本へ整合し、旧S0/0033→34/35/36/39の既実検査→同owner40/41→全current構造/catalog/非公開を実際に通す。旧S3全検査は削減せず、正式51bcb4e11b4d8d1e51327ca3e1e10ef2e6214d56の真正0039 canonical code/dataを歴史検証専用の別interpreterへ閉じて保持する。0036 profileを39と偽称せず、現prod validator/ADDITIONS/旧globals・拒否条件を緩和しない。
+編集exact7:
+- `.github/workflows/ci.yml`
+- `tests/test_ci_wiring.py`
+- `backend/tests/db/test_stage_a_rule_candidates.py`
+- `backend/tests/stage_a_0039_profile.py`
+- `backend/tests/fixtures/product_authz_stage_a_profile_v0039.json`
+- `backend/tests/test_stage_a_0039_profile.py`
+- `backend/tests/db/test_current_product_startup.py`
+
+作者は先にCI2を別固定候補として、current一本/同owner同DB/固定版/単回/閉step・誤metadata拒否/最終head/checkを実装する。歴史5は別候補に分離。対象旧moduleの全元関数/期待/fault ASTを保持し、全元case/param IDの集合と実child実行exit/JUnitを厳密照合する。対象moduleの固定source/hashを照合したcollection時の標準pytest.Function等の閉wrapperを優先し、fixture起動前に現canonicalのeager fixtureへ進まない境界を作る（provisioned_product_catalog14/public_resolver_database5を含む31元関数がある）。手製成功report・収集0・未実行・skip・child失敗を成功にしない。unknown marker/root/import/path/hash/改変・欠損・別版・再入はfail、現在木へfallbackしない。既materialize/new directory/owned cleanup規律を再利用し、51bcbの必要code/dataはGit由来の明示有限allowlist/SHAへ固定する。whole tree/.env/secret/会話/P6封印資料は採らず、productionに任意historical profile選択を追加しない。子processのDB操作は既owned factoryに閉じ、共有DB/本番資格/運用秘密を使わない。
+manifestの必要path集合はまず実import/file closureを原典Gitから機械採取してrootへ固定案を返す。rootが前後識別値を照合してから当該固定manifestを供給し、独立レビューでも全fileを同Gitへ再計算する（期待を製品実測で作らない）。CI2/歴史5はそれぞれ非作者確認後rootが採用し、ownedでcurrent本文正例→歴史0039全case/seed変異/故障/tenant/権限/lock→current再開/40-41故障全rollbackを実施するまで全backend成立としない。core検出登録・7.7/corpus派生はsource固定後のroot専有最小追随へ含め、検査を緩めない。D11source8は別owner/cacheのまま継続する。
