@@ -365,3 +365,15 @@ root専有metadataはbackend/domain/stats-manifest.json exact1へnativeEvaluatio
 
 
 受け口生成の型絞込み追随（2026-11-05、PO委任Codex /root判断）: actual3c81f522の関連766成功・scopedRuff成功後、backend全Tyが生成receiver.py:258/267でNoneの添字参照2件を検出した。前置any(None)拒否は保持し、domaingen/backends/python.pyの生成文字列中の後続2条件だけをpair is not None and pair[1] == 0へ明示する。任意Noneを受理する意味変更ではなく型推論へ同じ到達条件を示す追随とし、正式generate_primitive_bundleで8を再生成し他7生成byte不変を要求する。編集許可exact3は当該emitter1・公式生成receiver1・backend/domain/stats-manifest.jsonの同入力/生成SHA2pointerだけ。contract/モデル/SQL/formatter/旧v1profile/T5 ART bindingは不変更。既receiverの全PO/拒否対向を検査し、別非作者が意味同値・公式生成・前後値を確認するまで本体へ採用しない。元Ty失敗を保全しignoreや検査除外で通さない。
+
+
+型追随exact3反映1の採用（2026-11-05、PO委任Codex /root判断）: 非作者REPORT2f5b4af9d23093774f79b90ab33048a57be9a86a73541a6d0ae7c50443293f1f/checks44245d369e6e1a8013d56f87080209952028994134a1ce40c0f81d967cecaaf3を根拠に採用。初案emitterのE501を生成文字列内の括弧改行だけで解消、ignore追加なし。独立492nullable/state/不正数値の旧新全返却/例外型/文言一致、既PO/拒否/巨大Decimal3成功、公式8再現・他7不変・真正v1旧7不変、manifest2pointerのみ・Ruff/全backendTy成功。新SQLやPG提供を証明した結果ではない。
+
+実起動停止の正式本文v2追随（同日、PO委任Codex /root判断）: read-only REPORT82826eecceb51d2b73a4782257c6a546b5e57fd2a387cc3e5a1fbcc42bc464c3/checks5555f0fbb3c5acee2ba6ec36c60b3a614cda9d11d21a81f9ffea04c291a0ffdbにより、既canonical34中29は一致、採用済みcurrent v2のstats5だけ旧v1正式本文との不一致と確定した。author pr191へ次exact5をcache-onlyでproducer.body()から生成する許可を与える。各原本は真正ec3fdad5 blob/旧beforeSHAと全byte照合して保全し、既source7/公式SQLと独立比較する。手で本文を変更せず、v1歴史入力/生成/保存ACK/全旧29/署名/関数ABI/ACLは保持。
+- `contracts/authz/product/function-bodies/functions/FUNCTION:stats_api:save_primitive_source(uuid, uuid, uuid, text, bigint, text, jsonb, bytea).sql` before SHA256 `85b0c8a1088a24f04ac6615383611bed274aca4a4819de141e95992ee214a372`
+- `contracts/authz/product/function-bodies/functions/FUNCTION:stats_api:open_primitive_snapshot(uuid, uuid, text).sql` before SHA256 `bb4ff6223cf2d682741e3b494f141718394430aafcd2949e5066de838e669039`
+- `contracts/authz/product/function-bodies/functions/FUNCTION:stats_api:read_play_export_primitives(uuid, uuid, uuid, bigint, text, text, text, bigint, uuid, text, integer).sql` before SHA256 `18c5d961828d5a7c06b94bb01a802b029a61f41b9d51ecc4a83d7537cec553cd`
+- `contracts/authz/product/function-bodies/functions/FUNCTION:stats_api:read_primitive_totals(uuid, uuid, uuid, bigint, text, text, text).sql` before SHA256 `c37e01be3bdd8a16eee3bd570a1885f656b2495ebfd7c80988cf05d9582c20ab`
+- `contracts/authz/product/function-bodies/functions/FUNCTION:stats_api:read_primitive_writer_state(uuid, uuid, uuid, text, bytea).sql` before SHA256 `073e7a5e0617cd6f286677027eb864aa09134dc61b369f3520ed732011aabd5b`
+
+source/body5確定後のruntime derive/render・tenant rederive・実変化の7.7/必要seal追随はroot専有で直列化し、差分path/全前後/非作者を先に固定する。登録manifest795集合/役割/関数追加や拒否の緩和は許可しない。実PGから期待を採取せず、official関数生成との正確な対応だけを受理し、owned新規作成/開始/3球/replay/read/faultで再実証する。型追随や旧v1実測をv2成功としない。
