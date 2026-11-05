@@ -13,6 +13,7 @@ import psycopg
 import pytest
 from psycopg import sql
 
+from pitchlog.api.schemas.started_games import StartedPlayRunner
 from pitchlog.authz.product_catalog import inspect_product_authz_catalog
 from pitchlog.authz.product_provisioning import apply_product_authz_ddl
 from pitchlog.repositories.ordinary_prefix_read import (
@@ -129,7 +130,26 @@ def _verify_saved_rows(admin, tenant, game, result) -> None:
             play_id=UUID(actual["id"]),
         )
         assert [r[0] for r in runners] == expected_runners
-        assert result["rows"][index]["play_runners"] == expected_runners
+        public_fields = set(StartedPlayRunner.model_fields)
+        public_runners = []
+        for runner in expected_runners:
+            # 物理10列を保持し、正式公開7列とprivate3列の境界を閉じる。
+            assert set(runner) == public_fields | {
+                "tenant_id",
+                "import_batch_id",
+                "retired_at",
+            }
+            assert runner["tenant_id"] == str(tenant)
+            assert runner["import_batch_id"] is None
+            assert runner["retired_at"] is None
+            public_runners.append(
+                StartedPlayRunner.model_validate(
+                    {field: runner[field] for field in public_fields}
+                ).model_dump(mode="json", by_alias=True)
+            )
+        for public_runner in result["rows"][index]["play_runners"]:
+            StartedPlayRunner.model_validate(public_runner)
+        assert result["rows"][index]["play_runners"] == public_runners
         if index == 0:
             assert runners == []  # 第1球のbeforeは無走者。
             assert (
