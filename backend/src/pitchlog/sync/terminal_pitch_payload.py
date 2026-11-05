@@ -5,7 +5,7 @@ from __future__ import annotations
 import hashlib
 from typing import Annotated, Literal
 
-from pydantic import AfterValidator, Field
+from pydantic import AfterValidator, Field, model_validator
 
 from pitchlog.domainrt.first_ball_projection import _canonical_json, _canonical_sha256
 from pitchlog.domainrt.first_pitch import _Frozen
@@ -229,11 +229,98 @@ class LineupPitchCalculation(_Frozen):
     response: LineupPrefixSuccess
 
 
+class _NoErrorScoring(_Frozen):
+    """失策なしの明示採用観測。件数や野手を結果から推測しない。"""
+
+    kind: Literal["no-error"]
+    error_count: Literal["0"] = Field(alias="errorCount")
+    fielders: tuple[()]
+
+
+class _NoInterference(_Frozen):
+    """今回妨害裁定が不要であるという記録者の明示観測。"""
+
+    kind: Literal["not-required"]
+
+
+class _NoRunnerOverride(_Frozen):
+    """走者上書きを行わなかった明示観測。空値の既定補完はしない。"""
+
+    kind: Literal["not-applied"]
+    overrides: tuple[()]
+
+
+class _NoThirdOut(_Frozen):
+    """今回第三アウトがない明示観測。"""
+
+    kind: Literal["none"]
+
+
+class _NoThirdOutTiming(_Frozen):
+    """第三アウトがない場合の空観測。未知走者/観測値は拒否する。"""
+
+
+class _BattedBall(_Frozen):
+    """記録された打球情報だけを保持し、未観測値や野手を推測しない。"""
+
+    type_key: Annotated[str, Field(min_length=1)] | None = Field(alias="typeKey")
+    strength_key: Annotated[str, Field(min_length=1)] | None = Field(
+        alias="strengthKey"
+    )
+    hit_x: str | None = Field(alias="hitX")
+    hit_y: str | None = Field(alias="hitY")
+    raw_fielder_position: Annotated[str, Field(min_length=1)] | None = Field(
+        alias="rawFielderPosition"
+    )
+    resolved_fielder_id: str | None = Field(alias="resolvedFielderId")
+
+    @model_validator(mode="after")
+    def _closed_observed_coordinates(self):
+        """有限十進原値/UUID表現だけを検査し、座標/所属の計算はしない。"""
+        import re
+        from uuid import UUID
+
+        for value in (self.hit_x, self.hit_y):
+            if (
+                value is not None
+                and re.fullmatch(r"-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?", value, re.ASCII)
+                is None
+            ):
+                raise ValueError("打球座標の有限十進表現が不正")
+        if (
+            self.resolved_fielder_id is not None
+            and str(UUID(self.resolved_fielder_id)) != self.resolved_fielder_id
+        ):
+            raise ValueError("打球野手のUUID表現が不正")
+        return self
+
+
+class BattedHitPlayObservations(FirstBallObservations):
+    """既投球観測と独立した打球/裁定の全明示値。数学タグだけで代用しない。"""
+
+    result_id: Literal[
+        "batting-result.single",
+        "batting-result.double",
+        "batting-result.triple",
+        "batting-result.home-run",
+    ] = Field(alias="resultId")
+    batted_ball: _BattedBall = Field(alias="battedBall")
+    official_scoring_payload: _NoErrorScoring = Field(alias="officialScoringPayload")
+    interference_ruling: _NoInterference = Field(alias="interferenceRuling")
+    runner_advance_overrides: _NoRunnerOverride = Field(
+        alias="runnerAdvanceOverridesByRunner"
+    )
+    third_out_observation: _NoThirdOut = Field(alias="thirdOutObservation")
+    third_out_timing_by_runner: _NoThirdOutTiming = Field(
+        alias="thirdOutTimingByRunner"
+    )
+
+
 class LineupPitchPlayPayload(_Frozen):
     """V7のbefore参加者/実観測と実一回計算。V8は差分のまま。"""
 
     format_version: Literal["play-prefix-play-v3"] = Field(alias="formatVersion")
-    observations: FirstBallObservations
+    observations: FirstBallObservations | BattedHitPlayObservations
     participants: OrdinaryPitchParticipants
     calculation: LineupPitchCalculation
 
@@ -255,6 +342,11 @@ def read_lineup_pitch_payload(raw_v7, raw_v8, *, expected_calculation):
             raise ValueError
         request = payload.calculation.request
         response = payload.calculation.response
+        from pitchlog.domainrt.lineup_prefix_source import (
+            require_batted_hit_observations,
+        )
+
+        require_batted_hit_observations(request.t1, payload.observations)
         if (
             payload.calculation.artifact_sha256
             != response.value.execution_artifact_sha256
@@ -274,4 +366,29 @@ def read_lineup_pitch_payload(raw_v7, raw_v8, *, expected_calculation):
             raise ValueError
         return payload
     except (ValueError, TypeError):
+        raise TerminalPitchPayloadError from None
+
+
+def format_batted_hit_prefix_payload(
+    observations: BattedHitPlayObservations,
+    calculation: LineupPitchCalculation,
+) -> tuple[str, str]:
+    """唯一の実計算と観測からV7/V8を形成する。保存資格や成功ACKは発行しない。"""
+    try:
+        observed = _checked(observations, BattedHitPlayObservations)
+        calc = _checked(calculation, LineupPitchCalculation)
+        raw_v7 = _canonical_json(
+            {
+                "formatVersion": "play-prefix-play-v3",
+                "observations": _dump(observed),
+                "participants": _dump(calc.response.value.before_participants),
+                "calculation": _dump(calc),
+            }
+        )
+        raw_v8 = _canonical_json(
+            _dump(calc.response.value.new_history_entry.difference)
+        )
+        read_lineup_pitch_payload(raw_v7, raw_v8, expected_calculation=calc)
+        return raw_v7, raw_v8
+    except (AttributeError, TypeError, ValueError):
         raise TerminalPitchPayloadError from None

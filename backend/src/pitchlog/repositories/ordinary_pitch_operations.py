@@ -26,6 +26,19 @@ from pitchlog.sync.terminal_pitch_tokens import PlayPrefixPlayRowInsertToken
 from pitchlog.sync.tokens import IdempotencyLedgerReadToken, OperationEventReadToken
 
 _PLAY = cast(Table, PlayRow.__table__)
+_BATTED_COLUMNS = frozenset(
+    {
+        "raw_fielder_position",
+        "resolved_fielder_id",
+        "batted_ball_type",
+        "batted_ball_strength",
+        "hit_x",
+        "hit_y",
+    }
+)
+_BATTED_RESULTS = frozenset(
+    f"batting-result.{result}" for result in ("single", "double", "triple", "home-run")
+)
 
 
 def _ordinary_play_row_insert_statement() -> Insert:
@@ -74,6 +87,28 @@ def _row(token):
                 raise OrdinaryPlayRowError
             if expected is float and not math.isfinite(value):
                 raise OrdinaryPlayRowError
+        batted = (
+            type(token) is PlayPrefixPlayRowInsertToken
+            and row["batting_result_key"] in _BATTED_RESULTS
+        )
+        required_null = (
+            set(_NULL_COLUMNS) - _BATTED_COLUMNS if batted else _NULL_COLUMNS
+        )
+        if batted and (
+            any(
+                row[name] is not None and not 0 <= row[name] <= 1
+                for name in ("hit_x", "hit_y")
+            )
+            or any(
+                row[name] is not None and not row[name]
+                for name in (
+                    "batted_ball_type",
+                    "batted_ball_strength",
+                    "raw_fielder_position",
+                )
+            )
+        ):
+            raise OrdinaryPlayRowError
         if (
             type(token.game_id) is not UUID
             or type(token.d5) is not UUID
@@ -94,7 +129,7 @@ def _row(token):
             or not 1 <= row["batting_order"] <= 9
             or row["version"] != 1
             or row["migration_unverified"] is not False
-            or any(row[name] is not None for name in _NULL_COLUMNS)
+            or any(row[name] is not None for name in required_null)
             or row["batter_id"] is None
             or row["pitcher_id"] is None
             or row["catcher_id"] is None

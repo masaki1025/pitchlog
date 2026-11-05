@@ -50,6 +50,7 @@ def test_tenant_match_operations_keep_old_routes_and_add_self() -> None:
             "preparing_game_create",
             "preparing_game_preparation_options",
             "pitch_type_options",
+            "batted_ball_options",
             "initial_device_enroll",
             "initial_game_start",
             "initial_game_start_resolve",

@@ -21,19 +21,25 @@ from typing import Any, cast
 
 import psycopg
 import pytest
+from alembic import command
 from product_authz_tenant_owned_cases import table_schema
 from psycopg import sql
+from sqlalchemy import create_engine
 from test_schema_manifest import (
     _business_uniqueness_violations,
     _contract_table_name,
     _manifest_business_uniqueness_row,
 )
 
+from pitchlog.db.url import normalize_postgresql_url
+
 from .conftest import ProvisionedProductCatalog
 from .test_alembic_migrations import (
+    _alembic_config,
     _index_catalog_contract,
     _normalize_sql,
     _normalized_predicate,
+    _sqlalchemy_url,
 )
 
 pytestmark = pytest.mark.requires_db
@@ -499,6 +505,14 @@ def _index_catalog(
             connection, name, schema=schema
         )
         del definition
+        if name == "ix_admin_vocabularies_batted_ball_key_c":
+            assert schema == "public" and table == "admin_vocabularies"
+            assert unique is False
+            assert columns in (["key"], ['key COLLATE "C"'])
+            assert predicate == "category = 'batted_ball' AND disabled = false"
+            # per-column表示が省く照合順を、実18fieldの再検査後だけ補う。
+            _assert_current_batted_index(connection)
+            columns = ['key COLLATE "C"']
         if unique:
             continue
         contracts.add(
@@ -975,10 +989,95 @@ def _nonempty_violations(
     return {name: errors for name, errors in violations.items() if errors}
 
 
+def _assert_current_batted_index(connection: psycopg.Connection[Any]) -> None:
+    """0040の物理索引は未知式やcollationを補正せず全形状で拒否する。"""
+    with connection.cursor() as cursor:
+        cursor.execute(
+            "SELECT tn.nspname,t.relname,x.relname,am.amname,r.rolname,"
+            "i.indisunique,i.indisprimary,i.indisvalid,i.indisready,i.indislive,"
+            "i.indimmediate,i.indnullsnotdistinct,"
+            "ARRAY(SELECT a.attname FROM unnest(i.indkey) WITH ORDINALITY s(id,n) "
+            "LEFT JOIN pg_attribute a ON a.attrelid=i.indrelid AND a.attnum=s.id "
+            "ORDER BY s.n),"
+            "ARRAY(SELECT cn.nspname||'.'||co.collname FROM unnest(i.indcollation) "
+            "WITH ORDINALITY s(id,n) LEFT JOIN pg_collation co ON co.oid=s.id "
+            "LEFT JOIN pg_namespace cn ON cn.oid=co.collnamespace ORDER BY s.n),"
+            "i.indoption::smallint[],pg_get_expr(i.indexprs,i.indrelid),"
+            "pg_get_expr(i.indpred,i.indrelid),"
+            "ARRAY(SELECT opn.nspname||'.'||o.opcname "
+            "FROM unnest(i.indclass) WITH ORDINALITY s(id,n) "
+            "JOIN pg_opclass o ON o.oid=s.id "
+            "JOIN pg_namespace opn ON opn.oid=o.opcnamespace ORDER BY s.n) "
+            "FROM pg_index i JOIN pg_class x ON x.oid=i.indexrelid "
+            "JOIN pg_namespace xn ON xn.oid=x.relnamespace "
+            "JOIN pg_class t ON t.oid=i.indrelid "
+            "JOIN pg_namespace tn ON tn.oid=t.relnamespace "
+            "JOIN pg_am am ON am.oid=x.relam JOIN pg_roles r ON r.oid=x.relowner "
+            "WHERE xn.nspname='public' "
+            "AND x.relname='ix_admin_vocabularies_batted_ball_key_c'"
+        )
+        rows = cursor.fetchall()
+    assert len(rows) == 1
+    row = rows[0]
+    assert (
+        *row[:12],
+        tuple(row[12]),
+        tuple(row[13]),
+        tuple(row[14]),
+        row[15],
+        _normalized_predicate(row[16]),
+        tuple(row[17]),
+    ) == (
+        "public",
+        "admin_vocabularies",
+        "ix_admin_vocabularies_batted_ball_key_c",
+        "btree",
+        "pitchlog_owner",
+        False,
+        False,
+        True,
+        True,
+        True,
+        True,
+        False,
+        ("key",),
+        ("pg_catalog.C",),
+        (0,),
+        None,
+        "category = 'batted_ball' AND disabled = false",
+        ("pg_catalog.text_ops",),
+    )
+
+
+def _prepare_current_audit_index(catalog: ProvisionedProductCatalog) -> None:
+    """当該auditだけ同owner supplied TXで実0039から固定0040へ進める。"""
+    engine = create_engine(normalize_postgresql_url(_sqlalchemy_url(catalog.owner_dsn)))
+    try:
+        with engine.begin() as connection:
+            assert connection.exec_driver_sql(
+                "SELECT current_user,session_user"
+            ).one() == ("pitchlog_owner", "pitchlog_owner")
+            assert connection.exec_driver_sql(
+                "SELECT version_num FROM public.alembic_version"
+            ).scalars().all() == ["0039_ordinary_pitch_storage"]
+            config = _alembic_config()
+            config.attributes["connection"] = connection
+            command.upgrade(config, "0040_batted_vocabulary_index")
+            assert connection.exec_driver_sql(
+                "SELECT version_num FROM public.alembic_version"
+            ).scalars().all() == ["0040_batted_vocabulary_index"]
+            raw = connection.connection.driver_connection
+            assert raw is not None
+            _assert_current_batted_index(raw)
+    finally:
+        engine.dispose()
+
+
 def test_schema_manifest_matches_catalog_and_cross_table_rules(
     provisioned_product_catalog: ProvisionedProductCatalog,
 ) -> None:
-    """正規0035の全構造と横断不変条件をexact-set突合する。"""
+    """当該current0040の全構造と横断不変条件をexact-set突合する。"""
+    _prepare_current_audit_index(provisioned_product_catalog)
     manifest = _load_manifest()
     connection = provisioned_product_catalog.applicator
     with connection.transaction():

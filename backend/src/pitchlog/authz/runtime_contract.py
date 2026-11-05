@@ -3,11 +3,11 @@
 from dataclasses import dataclass
 
 SCHEMA_VERSION = 1
-RUNTIME_CONTRACT_REVISION = 31
+RUNTIME_CONTRACT_REVISION = 32
 PROVISIONAL = False
 SUPERSEDED_BY = None
 SOURCE_ASSET = "contracts/tenant_boundary/runtime-authz-contract.json"
-SOURCE_DIGEST = "38ecec41ef9bb5955b1412de43bf9ef497efcd82b7f7c9b1db3cc2982d34328c"
+SOURCE_DIGEST = "c50b85b0ca0905128db62143b8d963268bb9b9134c64228ba86a22dcdebde382"
 DERIVED_FROM = "contracts/authz/product/ddl-elements.json"
 
 
@@ -42,6 +42,7 @@ PROTECTED_SCHEMAS = (
     "initial_right_api",
     "pitchlog_ledger_observer",
     "public",
+    "recording_vocab_api",
     "rg1_api",
     "rg1_control",
     "sync_fence",
@@ -192,6 +193,7 @@ PROTECTED_FUNCTIONS = (
     ("public", "protect_recording_generations_updates", ""),
     ("public", "resolve_stage_a_rule", "uuid, text, text, boolean"),
     ("public", "verify_games_applied_rules_final", ""),
+    ("recording_vocab_api", "read_batted_ball_options", "uuid, integer, text"),
     ("rg1_api", "rg1_assert_open_before_commit", "uuid"),
     ("rg1_api", "rg1_read_open", "uuid"),
     ("rg1_control", "bind_initial_fresh_epoch", "bigint"),

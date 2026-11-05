@@ -437,3 +437,132 @@ it('別tenant・破損roster hashを真正sourceにしない', async () => {
     ),
   ).rejects.toThrow()
 })
+
+it.each(['single', 'double', 'triple', 'home-run'] as const)(
+  '画面で確認済み%sの全観測を既v3へ渡し次打者を唯一核から取得する',
+  async (result) => {
+    const value = lineupFixture.value
+    if (!isLineupPrefixGame(value)) throw new Error('独立DTO不正')
+    const context = await lineupContextFromRead(
+      value,
+      value.prefix_ref.tenantId,
+    )
+    const resultId = `batting-result.${result}` as const
+    const battedHit = {
+      resultId,
+      battedBall: {
+        typeKey: null,
+        strengthKey: null,
+        hitX: '0.25',
+        hitY: '0.75',
+        rawFielderPosition: null,
+        resolvedFielderId: null,
+      },
+      officialScoringPayload: {
+        kind: 'no-error' as const,
+        errorCount: '0' as const,
+        fielders: [] as const,
+      },
+      interferenceRuling: { kind: 'not-required' as const },
+      runnerAdvanceOverridesByRunner: {
+        kind: 'not-applied' as const,
+        overrides: [] as const,
+      },
+      thirdOutObservation: { kind: 'none' as const },
+      thirdOutTimingByRunner: {},
+    }
+    const observation: PlayScreenObservation = {
+      resultId,
+      battedHit,
+      pitchTypeKey: 'tenant.pitch.straight',
+      screenX: 131.5,
+      screenY: 124,
+      view: 'catcher',
+      pitchSpeed: { kmh: null, outsideRangeConfirmed: false },
+      stance: null,
+      battingSide: null,
+    }
+    const vocab = {
+      tenantId: value.prefix_ref.tenantId,
+      pitchTypeKeys: ['tenant.pitch.straight'],
+    }
+    const ids = {
+      d5: '44444444-4444-4444-8444-444444444444',
+      eventId: '55555555-5555-4555-8555-555555555555',
+      playId: '66666666-6666-4666-8666-666666666666',
+    }
+    const wire = await prepareLineupPrefix(
+      context,
+      observation,
+      vocab,
+      value.prefix_ref.tenantId,
+      ids,
+      '77777777-7777-4777-8777-777777777777',
+    )
+    expect(wire.payload.observations).toEqual({
+      ...battedHit,
+      pitchTypeKey: observation.pitchTypeKey,
+      course: { unit: '1/263', x: '132', y: '139' },
+      pitchSpeed: observation.pitchSpeed,
+      stance: null,
+      battingSide: null,
+    })
+    const r = wire.payload.calculation.response.value
+    expect(r.beforeParticipants).toEqual(context.lineupSource.participants)
+    expect(r.t1.after.stateFields['state.battingOrder']).toBe('2')
+    expect(r.t1.after.stateFields['state.runners']).toBe(
+      {
+        single: 'first',
+        double: 'second',
+        triple: 'third',
+        'home-run': 'empty',
+      }[result],
+    )
+    expect(r.t1.after.stateFields['state.score']).toEqual({
+      home: '0',
+      away: result === 'home-run' ? '1' : '0',
+    })
+    expect(r.t1.after.scoreboard.hits).toBe('1')
+    for (const bad of [
+      { ...observation, battedHit: null },
+      {
+        ...observation,
+        battedHit: {
+          ...battedHit,
+          resultId:
+            resultId === 'batting-result.single'
+              ? ('batting-result.home-run' as const)
+              : ('batting-result.single' as const),
+        },
+      },
+      {
+        ...observation,
+        battedHit: {
+          ...battedHit,
+          battedBall: { ...battedHit.battedBall, hitX: '-0.0000001' },
+        },
+      },
+      {
+        ...observation,
+        battedHit: {
+          ...battedHit,
+          battedBall: {
+            ...battedHit.battedBall,
+            resolvedFielderId: value.participants.batterId,
+          },
+        },
+      },
+      { ...observation, resultId: 'batting-result.ball' as const },
+    ])
+      await expect(
+        prepareLineupPrefix(
+          context,
+          bad,
+          vocab,
+          value.prefix_ref.tenantId,
+          ids,
+          '77777777-7777-4777-8777-777777777777',
+        ),
+      ).rejects.toThrow()
+  },
+)

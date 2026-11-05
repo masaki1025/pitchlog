@@ -11,7 +11,8 @@
     },
     "test_sync_apply_product_supply.py": {
       "other_generated_statements_sha256": "886798da9f719c0a57534d629d279028d07387e2de375b510f2969ab4e1519de",
-      "terminal_generated_statements_sha256": "70327380c4b57eb9b7960dd636ebbf5af3f5ed7a3befbc7fa3ccfbdfc4bf49ef"
+      "terminal_generated_statements_sha256": "70327380c4b57eb9b7960dd636ebbf5af3f5ed7a3befbc7fa3ccfbdfc4bf49ef",
+      "batted_extension_reference_sha256": "ddf4953a9ab4e3f48863c79c2042d895611aa4efc99a546864595c9f477da421"
     },
     "test_sync_apply_writer_binding.py": {
       "RG1:precheck": "cd36c04857da91f506e29414e5bf0bb07d4b7c6b2826ccf97be1bb123823051c",
@@ -53,6 +54,20 @@
       "bind_device": "8994f14153a7ff696e932b60a1e44785d27420412c7e9a35f407727192d383bf",
       "check_current_right": "0088634a6910663565944b7c4d80b469a2416218e0a50a7912bc397f67aeb86c",
       "device_state_read_sha256": "a54b9e6e5b1416db84cc110112e82f687b4987a35f42a7fc1826a891b07695a1"
+    },
+    "test_batted_hit_product_declarations.py": {
+      "old_terminal_declarations_sha256": "1ecaad379aa2b844d15659e915ec7da6e9d5651a458e2e9c6121ed0b58bcaaf8",
+      "adopted_prepare_body_sha256": "9028e9079a826c8b7445c07611c8941f883580b8b00f8fdb4d0d95707cb09642"
+    },
+    "test_batted_hit_storage_boundaries.py": {
+      "read_play_prefix_checkpoint": "22e4cb446bbbce7a8f15133874f79ad6aa462c1bf21f113fd9a1f4dbc1a25be3",
+      "lock_play_prefix_checkpoint": "d9291635f8ad6db4707c01a2f8ccf86bf3d84a78403cbbc0502287a87c3153c1",
+      "read_play_prefix_history_page": "2346ea918bfa470ae69add54c31572667451814498383164ecb5870e59f30f5e",
+      "assert_play_prefix_projection": "3b0058ead18e47a00d51365dcd578435f08b6f35e902c31e8dc59c14d0d22c8a",
+      "finish_play_prefix_projection": "4665b56bb8d7ac806bd6480b77171dd4b27995c6a8679c260dc53914ed7407f6",
+      "guard_play_prefix_runner_insert": "3489089a548fecef4a062abc1f8e1f9bd5feefda78e4ea2ec0be0a0b749113e6",
+      "read_lineup_started_origin": "730d153b7c27c6f5f42112a3790cc1ca30fe549b4602ed108c83e5ba77e1b6b4",
+      "old_v2_prepare_body_sha256": "6a51bc53df61ecd37262d8fa3b05c4f702f4861f419376d752062de170bce6b6"
     }
   }
 }

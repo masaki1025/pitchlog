@@ -55,6 +55,7 @@ _OTHER_AUTHZ_MODULES = frozenset(
         "authz.ordinary_pitch_product",
         "authz.ordinary_pitch_write_stamp",
         "authz.ordinary_prefix_sql",
+        "authz.recording_vocabulary_product",
         # 終端prefixのDDL・trigger監査を供給する公開module2件。
         "authz.terminal_pitch_product",
         "authz.terminal_pitch_write_stamp",

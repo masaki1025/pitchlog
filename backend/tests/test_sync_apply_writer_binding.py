@@ -664,6 +664,12 @@ def test_void_adapter_preserves_every_other_registered_function():
             )
         }
     )
+    # 新規readの期待は採用宣言と固定builder規約の閉literalから作る。
+    # 旧pinはすべて維持し、現在のcompiled値を期待へ取り込まない。
+    vocabulary = _batted_ball_options_expected_descriptor()
+    expected[vocabulary["operation_id"]] = hashlib.sha256(
+        json.dumps(vocabulary, sort_keys=True, separators=(",", ":")).encode()
+    ).hexdigest()
     dialect = postgresql.dialect()
     actual = {}
     registrations = (
@@ -696,6 +702,8 @@ def test_void_adapter_preserves_every_other_registered_function():
                 for x in spec.statement.selected_columns
             ],
         }
+        if spec.operation_id == "RECORDING_VOCABULARIES:read_batted_ball_options":
+            _assert_batted_ball_options_descriptor(row)
         digest = hashlib.sha256(
             json.dumps(row, sort_keys=True, separators=(",", ":")).encode()
         ).hexdigest()
@@ -927,3 +935,102 @@ def test_pure_actual_phase_source_comparison_no_real_lease(monkeypatch, change):
         writer._LIVE_BINDINGS.pop(bound._owner[0], None)
         source._RECEIPTS.clear()
         source._SELECTIONS.clear()
+
+
+def _batted_ball_options_expected_descriptor() -> dict[str, Any]:
+    """採用済み閉宣言と既builder規約から独立列挙した新readの全期待。"""
+    return {
+        "function_id": "recording_vocab_api.read_batted_ball_options",
+        "operation_id": "RECORDING_VOCABULARIES:read_batted_ball_options",
+        "sql": (
+            "SELECT anon_1.key, anon_1.display_name \n"
+            "FROM recording_vocab_api.read_batted_ball_options("
+            "%(tenant_id)s::UUID, %(page_size)s, %(cursor_key)s) AS anon_1"
+        ),
+        "bind": [
+            ("tenant_id", "Uuid", "CHAR(32)"),
+            ("page_size", "Integer", "INTEGER"),
+            ("cursor_key", "String", "VARCHAR"),
+        ],
+        "selected": [
+            ("key", "NullType", "NULL", True),
+            ("display_name", "NullType", "NULL", True),
+        ],
+    }
+
+
+def _assert_batted_ball_options_descriptor(actual: dict[str, Any]) -> None:
+    """余剰・欠落・型・順序・processorを部分一致へ弱めず拒否する。"""
+    assert actual == _batted_ball_options_expected_descriptor()
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        "function",
+        "operation",
+        "sql",
+        "bind-name",
+        "bind-type",
+        "bind-sql-type",
+        "bind-order",
+        "selected-name",
+        "selected-type",
+        "selected-sql-type",
+        "processor",
+        "selected-order",
+        "missing-field",
+        "extra-field",
+        "missing-bind",
+        "extra-bind",
+        "missing-selected",
+        "extra-selected",
+    ],
+)
+def test_vocabulary_descriptor_rejects_any_changed_or_unknown_field(mutation):
+    """独立期待の各比較面を壊すと全値比較が拒否し、旧pinを置き換えない。"""
+    actual = _batted_ball_options_expected_descriptor()
+    if mutation == "function":
+        actual["function_id"] = "unknown.read_batted_ball_options"
+    elif mutation == "operation":
+        actual["operation_id"] = "UNKNOWN:read_batted_ball_options"
+    elif mutation == "sql":
+        actual["sql"] += " WHERE true"
+    elif mutation in ("bind-name", "bind-type", "bind-sql-type"):
+        index = {"bind-name": 0, "bind-type": 1, "bind-sql-type": 2}[mutation]
+        values = list(actual["bind"][0])
+        values[index] = "unknown"
+        actual["bind"][0] = tuple(values)
+    elif mutation == "bind-order":
+        actual["bind"].reverse()
+    elif mutation in (
+        "selected-name",
+        "selected-type",
+        "selected-sql-type",
+        "processor",
+    ):
+        index = {
+            "selected-name": 0,
+            "selected-type": 1,
+            "selected-sql-type": 2,
+            "processor": 3,
+        }[mutation]
+        values = list(actual["selected"][0])
+        values[index] = False if mutation == "processor" else "unknown"
+        actual["selected"][0] = tuple(values)
+    elif mutation == "selected-order":
+        actual["selected"].reverse()
+    elif mutation == "missing-field":
+        del actual["function_id"]
+    elif mutation == "extra-field":
+        actual["unknown"] = True
+    elif mutation == "missing-bind":
+        actual["bind"].pop()
+    elif mutation == "extra-bind":
+        actual["bind"].append(("unknown", "String", "VARCHAR"))
+    elif mutation == "missing-selected":
+        actual["selected"].pop()
+    elif mutation == "extra-selected":
+        actual["selected"].append(("unknown", "NullType", "NULL", True))
+    with pytest.raises(AssertionError):
+        _assert_batted_ball_options_descriptor(actual)

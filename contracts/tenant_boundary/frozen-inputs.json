@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "contract_revision": 16,
+  "contract_revision": 17,
   "baseline_control": {
     "identity": {
       "scheme": "integer_revision_field",
       "field": "contract_revision",
       "current_identifiers": [
-        "contract_revision:16"
+        "contract_revision:17"
       ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
@@ -40,7 +40,11 @@
           "tests/fixtures/pr192_tenant_source_expected_v1.json",
           "tests/test_pr192_tenant_source_registration.py",
           "tests/test_check_tenant_boundary_bypass.py",
-          "tests/fixtures/pr192_ordinary_extension_reference_v1.json"
+          "tests/fixtures/pr192_ordinary_extension_reference_v1.json",
+          "backend/tests/test_sync_apply_product_supply.py",
+          "backend/tests/fixtures/batted_source_extension_reference_v1.json",
+          "tests/fixtures/pr196_tenant_source_expected_v1.json",
+          "tests/test_pr196_tenant_source_registration.py"
         ]
       }
     },
@@ -177,6 +181,66 @@
       "sources": [
         "scripts/check_human_review_signature.py:_strikeout_extension_reference",
         "tests/test_human_review_signature.py:strikeout_extension_fixture"
+      ]
+    },
+    "pr196_source_registration_revision": {
+      "value": "6965088b9353dfa89643528531c22b340e9f4c72",
+      "purpose": "PR196既採用安打source4path/実15tuple/限定2successorを固定6965088bの全byteへ束縛する。旧原典/署名/一般許可へ流用しない。登録tupleのreadonly形の原典としてregistry/owner2pathも同固定Gitへ全byte束縛するが、既4path/15tupleの許可対象は増やさない。",
+      "sources": [
+        "scripts/check_tenant_boundary_bypass.py:_load_pr196_source_owners",
+        "tests/test_pr196_tenant_source_registration.py:immutable_source",
+        "scripts/check_tenant_boundary_bypass.py:_batted_options_static_registration"
+      ]
+    },
+    "pr196_source_expectation_revision": {
+      "value": "0f75d17002cd6fac2cec056c8850196d93a5acd4",
+      "purpose": "PR196後発sourceの独立分類fixtureを前置0f75d170の全byteへ束縛し、現木source/宣言/fixtureの同時改変を拒否する。",
+      "sources": [
+        "scripts/check_tenant_boundary_bypass.py:_load_pr196_source_owners",
+        "tests/test_pr196_tenant_source_registration.py:immutable_expectations"
+      ]
+    },
+    "pr196_core_reference_head_revision": {
+      "value": "8b834ec0fab732aaf2ceabf73e364178d342bfdf",
+      "purpose": "PR196 core外層3pairの既登録固定Git原典。旧terminal原典との全差分だけを期待とし、現在木や任意追加から採取しない。",
+      "sources": [
+        "tests/test_core_guard.py:_PR196_CORE_REFERENCE_HEAD"
+      ]
+    },
+    "pr196_core_guard_before_revision": {
+      "value": "4937cea5322c5cc1c4dd9a9372052997228a7a34",
+      "purpose": "PR196 core外層修復前の全guard AST原典。承認済みverify接続1call以外の旧関数保持を検査する固定Git。",
+      "sources": [
+        "tests/test_core_guard.py:_PR196_GUARD_BEFORE"
+      ]
+    },
+    "pr196_core_public_base_revision": {
+      "value": "112f771e549d6a92d724f62d9b0b45dcc89973c1",
+      "purpose": "PR196公開基線developの固定Git。前置修復headまでの実Git検証入力であり、旧署名や別PRの受理へ流用しない。",
+      "sources": [
+        "tests/test_core_guard.py:_PR196_ACTUAL_BASE"
+      ]
+    },
+    "pr196_batted_reference_base_revision": {
+      "value": "112f771e549d6a92d724f62d9b0b45dcc89973c1",
+      "purpose": "PR196安打source差分の正式before原典。旧43pin/全宣言の投影根拠に限り、任意基線へ流用しない。",
+      "sources": [
+        "backend/tests/test_sync_apply_product_supply.py:_batted_source_reference_revisions"
+      ]
+    },
+    "pr196_batted_reference_candidate_revision": {
+      "value": "3633f95d5e62fc922d2f86fb6bc434b6b861e5cd",
+      "purpose": "PR196採用安打source差分の固定after原典。既beforeとの全前後値検証に限り、現木期待を生成しない。",
+      "sources": [
+        "backend/tests/test_sync_apply_product_supply.py:_batted_source_reference_revisions"
+      ]
+    },
+    "pr196_source_expectation_fixture_sha256": {
+      "value": "52d056f109df66c29fea8f32ab900a2830d210efa6ff8985c3d5ca6bd6bedc7b",
+      "purpose": "PR196前置Eの期待fixture全byteのSHA256。実固定Gitblobとの一致を必須とし、現木から期待を生成しない。",
+      "sources": [
+        "scripts/check_tenant_boundary_bypass.py:_pr196_read_fixed_expectations",
+        "tests/test_census_baseline_check.py:test_pr196_census_materializes_fixed_expectation_in_both_proof_contexts"
       ]
     }
   }

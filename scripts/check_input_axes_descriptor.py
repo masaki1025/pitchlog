@@ -507,20 +507,30 @@ def _validate_instance(
         referenced = _resolve_schema_reference(root_schema, reference)
         _validate_instance(value, referenced, root_schema, path)
 
-    variants = schema.get("oneOf")
-    if isinstance(variants, list):
+    for keyword in ("allOf", "anyOf", "oneOf"):
+        if keyword not in schema:
+            continue
+        variants = schema[keyword]
+        if (
+            not isinstance(variants, list)
+            or not variants
+            or any(not isinstance(variant, dict) for variant in variants)
+        ):
+            raise DescriptorCheckError(f"JSON Schemaの{keyword}が不正: {path}")
         matched = 0
         for variant in variants:
-            if not isinstance(variant, dict):
-                raise DescriptorCheckError(f"JSON SchemaのoneOfが不正: {path}")
             try:
                 _validate_instance(value, variant, root_schema, path)
             except DescriptorCheckError:
                 continue
             matched += 1
-        if matched != 1:
+        if keyword == "allOf" and matched != len(variants):
+            raise DescriptorCheckError(f"schema: {path}: allOfの交差に一致しない")
+        if keyword == "anyOf" and matched == 0:
+            raise DescriptorCheckError(f"schema: {path}: anyOfに一致しない")
+        if keyword == "oneOf" and matched != 1:
             raise DescriptorCheckError(f"schema: {path}: oneOfに一意に一致しない")
-        return
+        # 組合せの成功は同階層の型・必須・余剰等を免除しない。
 
     if "const" in schema and not _json_equal(value, schema["const"]):
         raise DescriptorCheckError(

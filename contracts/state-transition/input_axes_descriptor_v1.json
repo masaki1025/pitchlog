@@ -1,7 +1,7 @@
 {
   "descriptorId": "pitchlog.input-axes",
   "version": "input_axes_descriptor_v1",
-  "digest": "sha256:7249affb740621ee5d0eba25b3d9f42f704e7823962c8fb572e6be8ef370e14c",
+  "digest": "sha256:676a12aa93eb2a78c476312f8e72fd98dd96c3094df926e297a40559bca68d79",
   "digestSpec": {
     "excludedJsonPointers": [
       "/digest"
@@ -567,6 +567,8 @@
               "$ref",
               "$schema",
               "additionalProperties",
+              "allOf",
+              "anyOf",
               "approvedBaseCommit",
               "axis",
               "axisClassification",
@@ -13317,6 +13319,970 @@
         "reason": "既承認BB/HBPの有限2行と旧行の自然ID衝突を、既機構の明示軸1追加で解消する。新野球意味・旧49の変更・一般的count軸追加はしない。",
         "approvedBy": "PO委任によるCodex主担当 /root 判断（本人逐行確認・署名の代記ではない）",
         "approvedDate": "2026-11-04"
+      },
+      {
+        "acceptanceId": "masaki1025/pitchlog#196",
+        "series": "state-transition-contract-checks",
+        "priorIdentity": {
+          "present": true,
+          "values": [
+            {
+              "criterionId": "freezeDefinition",
+              "identity": "sha256:3be3115309aff638c49b2e26febed903d50ded3308bb6114a424b6dcc6f276be"
+            },
+            {
+              "criterionId": "threeWayParity",
+              "identity": "sha256:b3abb02ed1bb7e4974ca1d8745b995ac1a50b40ef74ac379addca64efdc881de"
+            },
+            {
+              "criterionId": "inputAxesDescriptor",
+              "identity": "sha256:c1dd2cfe54053e4e56e0ba031a81a521b0debcf219ec853c5d3060e204b6dff5"
+            },
+            {
+              "criterionId": "gapRegister",
+              "identity": "sha256:cf9070da3b8350cfeeb024f48d273f43f067451d09e38514fe11145f4cbe6a8c"
+            }
+          ]
+        },
+        "newIdentity": {
+          "present": true,
+          "values": [
+            {
+              "criterionId": "freezeDefinition",
+              "identity": "sha256:6beda6088c587f11757e267c67d59f6f23a694a59e5ce018579d980e0ee6f97c"
+            },
+            {
+              "criterionId": "threeWayParity",
+              "identity": "sha256:b3abb02ed1bb7e4974ca1d8745b995ac1a50b40ef74ac379addca64efdc881de"
+            },
+            {
+              "criterionId": "inputAxesDescriptor",
+              "identity": "sha256:c1dd2cfe54053e4e56e0ba031a81a521b0debcf219ec853c5d3060e204b6dff5"
+            },
+            {
+              "criterionId": "gapRegister",
+              "identity": "sha256:cf9070da3b8350cfeeb024f48d273f43f067451d09e38514fe11145f4cbe6a8c"
+            }
+          ]
+        },
+        "changes": [
+          {
+            "criterionId": "freezeDefinition",
+            "before": {
+              "present": true,
+              "value": {
+                "identityCriterionId": "freezeDefinition",
+                "criterionOrder": [
+                  "threeWayParity",
+                  "inputAxesDescriptor",
+                  "gapRegister"
+                ],
+                "criterionBindings": {
+                  "threeWayParity": {
+                    "kind": "checker-criteria",
+                    "sourcePath": "scripts/check_input_axes_three_way_parity.py"
+                  },
+                  "inputAxesDescriptor": {
+                    "kind": "checker-criteria",
+                    "sourcePath": "scripts/check_input_axes_descriptor.py"
+                  },
+                  "gapRegister": {
+                    "kind": "checker-criteria",
+                    "sourcePath": "scripts/check_gap_register.py"
+                  }
+                },
+                "assuranceBoundary": {
+                  "mechanicallyGuaranteed": {
+                    "subjectJsonPointers": [
+                      "/freezeBaseline/scope",
+                      "/freezeBaseline/criteria"
+                    ],
+                    "identitySource": "/freezeBaseline/identitySpec",
+                    "changeWithoutAcceptanceRecord": "fail",
+                    "comparisonSource": "github-pull-request-event.pull_request.base.sha",
+                    "missingComparisonSourceAction": "fail-in-acceptance-mode",
+                    "localInvariantModeResult": "acceptance-transition-not-checked-explicit"
+                  },
+                  "notMechanicallyGuaranteed": {
+                    "propertyId": "absence-of-undeclared-implementation-baselines",
+                    "reason": "arbitrary-program-semantic-analysis-is-undecidable",
+                    "normativeStatus": "prohibited-by-dev-harness-7.7-1",
+                    "reviewControl": "pull-request-review"
+                  }
+                },
+                "selectionRule": {
+                  "includedComparison": {
+                    "leftOperandOrigin": "descriptor-json-value",
+                    "operatorKinds": [
+                      "equality",
+                      "inequality",
+                      "membership",
+                      "subset"
+                    ],
+                    "rightOperandOrigin": "checker-source-literal-or-module-constant"
+                  },
+                  "requiredRepresentation": "bound-criterion-value-loaded-at-runtime",
+                  "excludedOperandRoles": [
+                    "json-object-member-name-used-only-for-navigation",
+                    "json-schema-vocabulary-used-by-generic-validator",
+                    "identifier-or-format-grammar",
+                    "repository-path-or-filename-grammar",
+                    "runtime-type-or-control-sentinel",
+                    "relation-derived-only-from-current-asset-values",
+                    "closed-object-grammar-key-set",
+                    "diagnostic-text"
+                  ],
+                  "knownDirectComparisonDispositions": [
+                    {
+                      "findingId": "round10-require-exact-keys-48",
+                      "sourcePath": "scripts/state_transition_freeze.py",
+                      "construct": "_require_exact_keys.expected-key-set",
+                      "observedValue": 48,
+                      "disposition": "outside-frozen-criterion-values",
+                      "selectionRuleRole": "closed-object-grammar-key-set",
+                      "reason": "宣言JSONの閉じた文法を識別するobject member名であり、凍結するchecker判断値ではない"
+                    }
+                  ]
+                },
+                "sourceLiteralAudit": {
+                  "assuranceLevel": "supplemental-non-exhaustive-regression-signal",
+                  "coveredConstructs": [
+                    "direct-string-literal-in-ast.Compare",
+                    "module-assigned-string-literal-referenced-from-ast.Compare"
+                  ],
+                  "notCoveredConstructs": [
+                    "numeric-literal",
+                    "helper-argument-propagation",
+                    "bytes-derived-value",
+                    "operator-function-call",
+                    "imported-constant",
+                    "per-occurrence-semantic-role"
+                  ],
+                  "occurrenceRoleValidation": "not-performed-flat-literal-value-set-only",
+                  "engineSourcePath": "scripts/state_transition_freeze.py",
+                  "forbiddenImplementationSetNames": [
+                    "CRITERIA_SECTIONS"
+                  ],
+                  "excludedComparisonFunctionsBySource": {
+                    "scripts/state_transition_freeze.py": [],
+                    "scripts/check_input_axes_descriptor.py": [],
+                    "scripts/check_input_axes_three_way_parity.py": [],
+                    "scripts/check_gap_register.py": []
+                  },
+                  "permittedComparisonLiteralsBySource": {
+                    "scripts/state_transition_freeze.py": {
+                      "json-object-member-name-used-only-for-navigation": [
+                        "acceptance",
+                        "acceptanceId",
+                        "after",
+                        "approvedBy",
+                        "approvedDate",
+                        "base",
+                        "before",
+                        "changedAspects",
+                        "criteria",
+                        "criterionBindingKind",
+                        "criterionBindings",
+                        "criterionId",
+                        "criterionOrder",
+                        "engineExpectedValues",
+                        "engineExpectedValues.criterionBindingKind",
+                        "excludedComparisonFunctionsBySource",
+                        "excludedOperandRoles",
+                        "fact",
+                        "findingId",
+                        "freezeBaseline",
+                        "history",
+                        "identityCriterionId",
+                        "identitySpec",
+                        "kind",
+                        "newIdentity",
+                        "number",
+                        "operatorKinds",
+                        "permittedComparisonLiteralsBySource",
+                        "present",
+                        "priorIdentity",
+                        "schemaVersion",
+                        "scope",
+                        "selectionRule",
+                        "selectionRuleRole",
+                        "series",
+                        "sha",
+                        "sourcePath",
+                        "subjectJsonPointers",
+                        "value",
+                        "values"
+                      ],
+                      "identifier-or-format-grammar": [
+                        " のレビュー待ち)",
+                        "#",
+                        "[0-9a-f]{40}",
+                        "\\d{4}-\\d{2}-\\d{2}",
+                        "^[^/#\\s]+/[^/#\\s]+#[1-9][0-9]*$",
+                        "^{commit}",
+                        "未承認(PR #"
+                      ],
+                      "runtime-type-or-control-sentinel": [
+                        "",
+                        "--verify",
+                        ".acceptanceId",
+                        ".criterionId",
+                        ".findingId",
+                        ".values[",
+                        "/",
+                        "/criteria",
+                        "/scope",
+                        "].criterionId",
+                        "freezeBaseline.series",
+                        "frozen-target-correspondence",
+                        "git",
+                        "identity-granularity-and-interpretation",
+                        "placement",
+                        "rev-parse",
+                        "scope.identityCriterionId",
+                        "set"
+                      ]
+                    },
+                    "scripts/check_input_axes_descriptor.py": {
+                      "json-object-member-name-used-only-for-navigation": [
+                        "$defs",
+                        "$ref",
+                        "$schema",
+                        "additionalProperties",
+                        "approvedBaseCommit",
+                        "axis",
+                        "axisClassification",
+                        "axisCombinationBoundary",
+                        "axisCombinationScope",
+                        "axisId",
+                        "baselineSource",
+                        "boundaryPartitionAxis",
+                        "boundaryValues",
+                        "by_runner",
+                        "byteSha256",
+                        "classification",
+                        "conditionalValues",
+                        "const",
+                        "constraintClass",
+                        "constraintClasses",
+                        "coordinateConsumerBaseline",
+                        "coverageBound",
+                        "coverageBounds",
+                        "deferredStructuredAxisDimensions",
+                        "deferredStructuredAxisVariants",
+                        "derivedAxes",
+                        "derivedAxisId",
+                        "derivedAxisIds",
+                        "derivedFrom",
+                        "derivedValue",
+                        "descriptorDigest",
+                        "descriptorId",
+                        "digest",
+                        "digestSpec",
+                        "dimension",
+                        "dimensions",
+                        "event",
+                        "event.perPitch.",
+                        "fieldId",
+                        "finiteEnumerableAxis",
+                        "freezeBaseline",
+                        "gameEndAxes",
+                        "gameEndAxisClassification",
+                        "gameEndAxisSupportingClauseId",
+                        "gameEndCombinationRules",
+                        "gameEndCoordinateScope",
+                        "identityTargetIds",
+                        "includedAxisIds",
+                        "inputCoordinateAxisBinding",
+                        "inputCoordinateCoverage",
+                        "inputCoordinateCoverageIdentity",
+                        "inputCoordinateCoverageSelector",
+                        "inputCoordinateRowBinding",
+                        "inputSchemaByteSha256",
+                        "inputSchemaPath",
+                        "interpretation",
+                        "invalid",
+                        "invalidBoundaryValues",
+                        "jsonSchemaDialect",
+                        "jsonSchemaKeywords",
+                        "kind",
+                        "leftAxisId",
+                        "leftValue",
+                        "legacyT2CoordinateAxisIds",
+                        "letter",
+                        "matrixRows",
+                        "maxItems",
+                        "maximum",
+                        "minItems",
+                        "minLength",
+                        "minimum",
+                        "minimumCoverageObligationsPerAxis",
+                        "nonCoverageField",
+                        "nonCoverageSchemaRetention",
+                        "nonFiniteAxis",
+                        "observationCoordinateBindingIds",
+                        "observationOnlyAxisIds",
+                        "oneOf",
+                        "operationPayloadAxisId",
+                        "originalPath",
+                        "parityChecks",
+                        "path",
+                        "pattern",
+                        "payloadAxisIds",
+                        "per_pitch",
+                        "projectionMode",
+                        "projectionRule",
+                        "projectionRules",
+                        "properties",
+                        "purpose",
+                        "qualificationSource",
+                        "rawInputRootDefinition",
+                        "rawInputSchemaPath",
+                        "reason",
+                        "representationCapability",
+                        "required",
+                        "requiredArtifact",
+                        "requiredArtifacts",
+                        "requiredJsonSchemaKeywords",
+                        "requiredParityChecks",
+                        "rightAxisId",
+                        "rightValue",
+                        "rowLayers",
+                        "ruleFieldId",
+                        "ruleId",
+                        "rulesByteSha256",
+                        "rulesPath",
+                        "safeIntegerLimit",
+                        "sameByteConfirmedAtCommit",
+                        "schemaRetention",
+                        "scope",
+                        "snapshotPath",
+                        "sourceAxisId",
+                        "sourceAxisIds",
+                        "sourceClauseId",
+                        "sourceClauseIds",
+                        "sourceDecisionId",
+                        "sourceKind",
+                        "sourceValue",
+                        "stage2ExternalConstraints",
+                        "state",
+                        "stateTransitionAxes",
+                        "status",
+                        "supportingClauseIds",
+                        "targetIds",
+                        "type",
+                        "undecidableAction",
+                        "uniqueItems",
+                        "valid",
+                        "value",
+                        "valueSchema",
+                        "values",
+                        "variantTags",
+                        "version",
+                        "x-pitchlog-uniqueBy"
+                      ],
+                      "json-schema-vocabulary-used-by-generic-validator": [
+                        "boolean",
+                        "object"
+                      ],
+                      "identifier-or-format-grammar": [
+                        "#/$defs/",
+                        "[0-9a-f]{40}",
+                        "[0-9a-f]{64}",
+                        "[a-z][a-z0-9_]*_v[1-9][0-9]*\\.json",
+                        "sha256:[0-9a-f]{64}"
+                      ],
+                      "repository-path-or-filename-grammar": [
+                        "contracts",
+                        "contracts/state-transition/input_axes_descriptor_schema_v1.json",
+                        "contracts/state-transition/input_axes_descriptor_v1.json",
+                        "state-transition"
+                      ],
+                      "runtime-type-or-control-sentinel": [
+                        ".",
+                        ".deferredStructuredAxisVariants.",
+                        "__main__",
+                        "index=",
+                        "observed",
+                        "observed-value-or-unobserved-tag",
+                        "unobserved",
+                        "入力軸descriptor",
+                        "入力軸descriptor schema"
+                      ],
+                      "diagnostic-text": [
+                        "gameEndCoordinateScope.includedAxisIds",
+                        "gameEndCoordinateScope.observationOnlyAxisIds",
+                        "原観測binding資格",
+                        "旧T2基線snapshot",
+                        "独立旧T2基線",
+                        "閉入力schema"
+                      ]
+                    },
+                    "scripts/check_input_axes_three_way_parity.py": {
+                      "json-object-member-name-used-only-for-navigation": [
+                        "clause_id",
+                        "collection",
+                        "constraint_id",
+                        "decisionId",
+                        "decision_id",
+                        "layer",
+                        "sourceClauseId",
+                        "supportingClauseIds",
+                        "version"
+                      ],
+                      "identifier-or-format-grammar": [
+                        "^[a-z]+(?:_[a-z]+)*_v[1-9][0-9]*\\.json$",
+                        "freeze-baseline-(?:field|series|scope|assurance):[A-Za-z][A-Za-z0-9.-]*",
+                        "req:"
+                      ],
+                      "repository-path-or-filename-grammar": [
+                        "contracts",
+                        "state-transition"
+                      ],
+                      "runtime-type-or-control-sentinel": [
+                        "GITHUB_EVENT_NAME",
+                        "__main__",
+                        "pull_request"
+                      ]
+                    },
+                    "scripts/check_gap_register.py": {
+                      "json-object-member-name-used-only-for-navigation": [
+                        ".gapIds",
+                        ".listStageFields",
+                        ".stageFields",
+                        ".states",
+                        "axisId",
+                        "gapId",
+                        "gapIds",
+                        "gaps",
+                        "initialState",
+                        "keyPaths",
+                        "layer",
+                        "listStageFields",
+                        "matrixRows",
+                        "ownershipPath",
+                        "qualifyWhenPredicateAxes",
+                        "resultId",
+                        "rowLayers",
+                        "schemaVersion",
+                        "sourceClauseIds",
+                        "sourcePath",
+                        "stageFields",
+                        "state",
+                        "stateTransitionAxes",
+                        "states",
+                        "terminalState",
+                        "version"
+                      ],
+                      "repository-path-or-filename-grammar": [
+                        "..",
+                        "contracts",
+                        "contracts/state-transition/gap_register_v1.json",
+                        "state-transition"
+                      ],
+                      "runtime-type-or-control-sentinel": [
+                        ".",
+                        "]",
+                        "__main__",
+                        "gap register",
+                        "gaps["
+                      ],
+                      "identifier-or-format-grammar": [
+                        "(?![A-Za-z0-9-])",
+                        "(?<![A-Za-z0-9-])",
+                        ":",
+                        "req:"
+                      ],
+                      "diagnostic-text": [
+                        "rowLayers.qualifyWhenPredicateAxes"
+                      ]
+                    }
+                  }
+                },
+                "engineExpectedValues": {
+                  "schemaVersion": 1,
+                  "acceptance": {
+                    "unit": "pull_request",
+                    "acceptanceIdSource": "github-pull-request-event.repository.full_name-plus-pull_request.number",
+                    "comparisonSource": "github-pull-request-event.pull_request.base.sha",
+                    "missingComparisonSourceAction": "fail-in-acceptance-mode-and-explicit-not-checked-in-invariants-only",
+                    "posteriorState": "pull-request-head"
+                  },
+                  "identitySpec": {
+                    "granularity": "checker-criteria-object",
+                    "algorithm": "SHA-256",
+                    "canonicalization": "json-sort-keys-no-whitespace-v1",
+                    "encoding": "UTF-8"
+                  },
+                  "criterionBindingKind": "checker-criteria"
+                }
+              }
+            },
+            "after": {
+              "present": true,
+              "value": {
+                "identityCriterionId": "freezeDefinition",
+                "criterionOrder": [
+                  "threeWayParity",
+                  "inputAxesDescriptor",
+                  "gapRegister"
+                ],
+                "criterionBindings": {
+                  "threeWayParity": {
+                    "kind": "checker-criteria",
+                    "sourcePath": "scripts/check_input_axes_three_way_parity.py"
+                  },
+                  "inputAxesDescriptor": {
+                    "kind": "checker-criteria",
+                    "sourcePath": "scripts/check_input_axes_descriptor.py"
+                  },
+                  "gapRegister": {
+                    "kind": "checker-criteria",
+                    "sourcePath": "scripts/check_gap_register.py"
+                  }
+                },
+                "assuranceBoundary": {
+                  "mechanicallyGuaranteed": {
+                    "subjectJsonPointers": [
+                      "/freezeBaseline/scope",
+                      "/freezeBaseline/criteria"
+                    ],
+                    "identitySource": "/freezeBaseline/identitySpec",
+                    "changeWithoutAcceptanceRecord": "fail",
+                    "comparisonSource": "github-pull-request-event.pull_request.base.sha",
+                    "missingComparisonSourceAction": "fail-in-acceptance-mode",
+                    "localInvariantModeResult": "acceptance-transition-not-checked-explicit"
+                  },
+                  "notMechanicallyGuaranteed": {
+                    "propertyId": "absence-of-undeclared-implementation-baselines",
+                    "reason": "arbitrary-program-semantic-analysis-is-undecidable",
+                    "normativeStatus": "prohibited-by-dev-harness-7.7-1",
+                    "reviewControl": "pull-request-review"
+                  }
+                },
+                "selectionRule": {
+                  "includedComparison": {
+                    "leftOperandOrigin": "descriptor-json-value",
+                    "operatorKinds": [
+                      "equality",
+                      "inequality",
+                      "membership",
+                      "subset"
+                    ],
+                    "rightOperandOrigin": "checker-source-literal-or-module-constant"
+                  },
+                  "requiredRepresentation": "bound-criterion-value-loaded-at-runtime",
+                  "excludedOperandRoles": [
+                    "json-object-member-name-used-only-for-navigation",
+                    "json-schema-vocabulary-used-by-generic-validator",
+                    "identifier-or-format-grammar",
+                    "repository-path-or-filename-grammar",
+                    "runtime-type-or-control-sentinel",
+                    "relation-derived-only-from-current-asset-values",
+                    "closed-object-grammar-key-set",
+                    "diagnostic-text"
+                  ],
+                  "knownDirectComparisonDispositions": [
+                    {
+                      "findingId": "round10-require-exact-keys-48",
+                      "sourcePath": "scripts/state_transition_freeze.py",
+                      "construct": "_require_exact_keys.expected-key-set",
+                      "observedValue": 48,
+                      "disposition": "outside-frozen-criterion-values",
+                      "selectionRuleRole": "closed-object-grammar-key-set",
+                      "reason": "宣言JSONの閉じた文法を識別するobject member名であり、凍結するchecker判断値ではない"
+                    }
+                  ]
+                },
+                "sourceLiteralAudit": {
+                  "assuranceLevel": "supplemental-non-exhaustive-regression-signal",
+                  "coveredConstructs": [
+                    "direct-string-literal-in-ast.Compare",
+                    "module-assigned-string-literal-referenced-from-ast.Compare"
+                  ],
+                  "notCoveredConstructs": [
+                    "numeric-literal",
+                    "helper-argument-propagation",
+                    "bytes-derived-value",
+                    "operator-function-call",
+                    "imported-constant",
+                    "per-occurrence-semantic-role"
+                  ],
+                  "occurrenceRoleValidation": "not-performed-flat-literal-value-set-only",
+                  "engineSourcePath": "scripts/state_transition_freeze.py",
+                  "forbiddenImplementationSetNames": [
+                    "CRITERIA_SECTIONS"
+                  ],
+                  "excludedComparisonFunctionsBySource": {
+                    "scripts/state_transition_freeze.py": [],
+                    "scripts/check_input_axes_descriptor.py": [],
+                    "scripts/check_input_axes_three_way_parity.py": [],
+                    "scripts/check_gap_register.py": []
+                  },
+                  "permittedComparisonLiteralsBySource": {
+                    "scripts/state_transition_freeze.py": {
+                      "json-object-member-name-used-only-for-navigation": [
+                        "acceptance",
+                        "acceptanceId",
+                        "after",
+                        "approvedBy",
+                        "approvedDate",
+                        "base",
+                        "before",
+                        "changedAspects",
+                        "criteria",
+                        "criterionBindingKind",
+                        "criterionBindings",
+                        "criterionId",
+                        "criterionOrder",
+                        "engineExpectedValues",
+                        "engineExpectedValues.criterionBindingKind",
+                        "excludedComparisonFunctionsBySource",
+                        "excludedOperandRoles",
+                        "fact",
+                        "findingId",
+                        "freezeBaseline",
+                        "history",
+                        "identityCriterionId",
+                        "identitySpec",
+                        "kind",
+                        "newIdentity",
+                        "number",
+                        "operatorKinds",
+                        "permittedComparisonLiteralsBySource",
+                        "present",
+                        "priorIdentity",
+                        "schemaVersion",
+                        "scope",
+                        "selectionRule",
+                        "selectionRuleRole",
+                        "series",
+                        "sha",
+                        "sourcePath",
+                        "subjectJsonPointers",
+                        "value",
+                        "values"
+                      ],
+                      "identifier-or-format-grammar": [
+                        " のレビュー待ち)",
+                        "#",
+                        "[0-9a-f]{40}",
+                        "\\d{4}-\\d{2}-\\d{2}",
+                        "^[^/#\\s]+/[^/#\\s]+#[1-9][0-9]*$",
+                        "^{commit}",
+                        "未承認(PR #"
+                      ],
+                      "runtime-type-or-control-sentinel": [
+                        "",
+                        "--verify",
+                        ".acceptanceId",
+                        ".criterionId",
+                        ".findingId",
+                        ".values[",
+                        "/",
+                        "/criteria",
+                        "/scope",
+                        "].criterionId",
+                        "freezeBaseline.series",
+                        "frozen-target-correspondence",
+                        "git",
+                        "identity-granularity-and-interpretation",
+                        "placement",
+                        "rev-parse",
+                        "scope.identityCriterionId",
+                        "set"
+                      ]
+                    },
+                    "scripts/check_input_axes_descriptor.py": {
+                      "json-object-member-name-used-only-for-navigation": [
+                        "$defs",
+                        "$ref",
+                        "$schema",
+                        "additionalProperties",
+                        "allOf",
+                        "anyOf",
+                        "approvedBaseCommit",
+                        "axis",
+                        "axisClassification",
+                        "axisCombinationBoundary",
+                        "axisCombinationScope",
+                        "axisId",
+                        "baselineSource",
+                        "boundaryPartitionAxis",
+                        "boundaryValues",
+                        "by_runner",
+                        "byteSha256",
+                        "classification",
+                        "conditionalValues",
+                        "const",
+                        "constraintClass",
+                        "constraintClasses",
+                        "coordinateConsumerBaseline",
+                        "coverageBound",
+                        "coverageBounds",
+                        "deferredStructuredAxisDimensions",
+                        "deferredStructuredAxisVariants",
+                        "derivedAxes",
+                        "derivedAxisId",
+                        "derivedAxisIds",
+                        "derivedFrom",
+                        "derivedValue",
+                        "descriptorDigest",
+                        "descriptorId",
+                        "digest",
+                        "digestSpec",
+                        "dimension",
+                        "dimensions",
+                        "event",
+                        "event.perPitch.",
+                        "fieldId",
+                        "finiteEnumerableAxis",
+                        "freezeBaseline",
+                        "gameEndAxes",
+                        "gameEndAxisClassification",
+                        "gameEndAxisSupportingClauseId",
+                        "gameEndCombinationRules",
+                        "gameEndCoordinateScope",
+                        "identityTargetIds",
+                        "includedAxisIds",
+                        "inputCoordinateAxisBinding",
+                        "inputCoordinateCoverage",
+                        "inputCoordinateCoverageIdentity",
+                        "inputCoordinateCoverageSelector",
+                        "inputCoordinateRowBinding",
+                        "inputSchemaByteSha256",
+                        "inputSchemaPath",
+                        "interpretation",
+                        "invalid",
+                        "invalidBoundaryValues",
+                        "jsonSchemaDialect",
+                        "jsonSchemaKeywords",
+                        "kind",
+                        "leftAxisId",
+                        "leftValue",
+                        "legacyT2CoordinateAxisIds",
+                        "letter",
+                        "matrixRows",
+                        "maxItems",
+                        "maximum",
+                        "minItems",
+                        "minLength",
+                        "minimum",
+                        "minimumCoverageObligationsPerAxis",
+                        "nonCoverageField",
+                        "nonCoverageSchemaRetention",
+                        "nonFiniteAxis",
+                        "observationCoordinateBindingIds",
+                        "observationOnlyAxisIds",
+                        "oneOf",
+                        "operationPayloadAxisId",
+                        "originalPath",
+                        "parityChecks",
+                        "path",
+                        "pattern",
+                        "payloadAxisIds",
+                        "per_pitch",
+                        "projectionMode",
+                        "projectionRule",
+                        "projectionRules",
+                        "properties",
+                        "purpose",
+                        "qualificationSource",
+                        "rawInputRootDefinition",
+                        "rawInputSchemaPath",
+                        "reason",
+                        "representationCapability",
+                        "required",
+                        "requiredArtifact",
+                        "requiredArtifacts",
+                        "requiredJsonSchemaKeywords",
+                        "requiredParityChecks",
+                        "rightAxisId",
+                        "rightValue",
+                        "rowLayers",
+                        "ruleFieldId",
+                        "ruleId",
+                        "rulesByteSha256",
+                        "rulesPath",
+                        "safeIntegerLimit",
+                        "sameByteConfirmedAtCommit",
+                        "schemaRetention",
+                        "scope",
+                        "snapshotPath",
+                        "sourceAxisId",
+                        "sourceAxisIds",
+                        "sourceClauseId",
+                        "sourceClauseIds",
+                        "sourceDecisionId",
+                        "sourceKind",
+                        "sourceValue",
+                        "stage2ExternalConstraints",
+                        "state",
+                        "stateTransitionAxes",
+                        "status",
+                        "supportingClauseIds",
+                        "targetIds",
+                        "type",
+                        "undecidableAction",
+                        "uniqueItems",
+                        "valid",
+                        "value",
+                        "valueSchema",
+                        "values",
+                        "variantTags",
+                        "version",
+                        "x-pitchlog-uniqueBy"
+                      ],
+                      "json-schema-vocabulary-used-by-generic-validator": [
+                        "boolean",
+                        "object"
+                      ],
+                      "identifier-or-format-grammar": [
+                        "#/$defs/",
+                        "[0-9a-f]{40}",
+                        "[0-9a-f]{64}",
+                        "[a-z][a-z0-9_]*_v[1-9][0-9]*\\.json",
+                        "sha256:[0-9a-f]{64}"
+                      ],
+                      "repository-path-or-filename-grammar": [
+                        "contracts",
+                        "contracts/state-transition/input_axes_descriptor_schema_v1.json",
+                        "contracts/state-transition/input_axes_descriptor_v1.json",
+                        "state-transition"
+                      ],
+                      "runtime-type-or-control-sentinel": [
+                        ".",
+                        ".deferredStructuredAxisVariants.",
+                        "__main__",
+                        "index=",
+                        "observed",
+                        "observed-value-or-unobserved-tag",
+                        "unobserved",
+                        "入力軸descriptor",
+                        "入力軸descriptor schema"
+                      ],
+                      "diagnostic-text": [
+                        "gameEndCoordinateScope.includedAxisIds",
+                        "gameEndCoordinateScope.observationOnlyAxisIds",
+                        "原観測binding資格",
+                        "旧T2基線snapshot",
+                        "独立旧T2基線",
+                        "閉入力schema"
+                      ]
+                    },
+                    "scripts/check_input_axes_three_way_parity.py": {
+                      "json-object-member-name-used-only-for-navigation": [
+                        "clause_id",
+                        "collection",
+                        "constraint_id",
+                        "decisionId",
+                        "decision_id",
+                        "layer",
+                        "sourceClauseId",
+                        "supportingClauseIds",
+                        "version"
+                      ],
+                      "identifier-or-format-grammar": [
+                        "^[a-z]+(?:_[a-z]+)*_v[1-9][0-9]*\\.json$",
+                        "freeze-baseline-(?:field|series|scope|assurance):[A-Za-z][A-Za-z0-9.-]*",
+                        "req:"
+                      ],
+                      "repository-path-or-filename-grammar": [
+                        "contracts",
+                        "state-transition"
+                      ],
+                      "runtime-type-or-control-sentinel": [
+                        "GITHUB_EVENT_NAME",
+                        "__main__",
+                        "pull_request"
+                      ]
+                    },
+                    "scripts/check_gap_register.py": {
+                      "json-object-member-name-used-only-for-navigation": [
+                        ".gapIds",
+                        ".listStageFields",
+                        ".stageFields",
+                        ".states",
+                        "axisId",
+                        "gapId",
+                        "gapIds",
+                        "gaps",
+                        "initialState",
+                        "keyPaths",
+                        "layer",
+                        "listStageFields",
+                        "matrixRows",
+                        "ownershipPath",
+                        "qualifyWhenPredicateAxes",
+                        "resultId",
+                        "rowLayers",
+                        "schemaVersion",
+                        "sourceClauseIds",
+                        "sourcePath",
+                        "stageFields",
+                        "state",
+                        "stateTransitionAxes",
+                        "states",
+                        "terminalState",
+                        "version"
+                      ],
+                      "repository-path-or-filename-grammar": [
+                        "..",
+                        "contracts",
+                        "contracts/state-transition/gap_register_v1.json",
+                        "state-transition"
+                      ],
+                      "runtime-type-or-control-sentinel": [
+                        ".",
+                        "]",
+                        "__main__",
+                        "gap register",
+                        "gaps["
+                      ],
+                      "identifier-or-format-grammar": [
+                        "(?![A-Za-z0-9-])",
+                        "(?<![A-Za-z0-9-])",
+                        ":",
+                        "req:"
+                      ],
+                      "diagnostic-text": [
+                        "rowLayers.qualifyWhenPredicateAxes"
+                      ]
+                    }
+                  }
+                },
+                "engineExpectedValues": {
+                  "schemaVersion": 1,
+                  "acceptance": {
+                    "unit": "pull_request",
+                    "acceptanceIdSource": "github-pull-request-event.repository.full_name-plus-pull_request.number",
+                    "comparisonSource": "github-pull-request-event.pull_request.base.sha",
+                    "missingComparisonSourceAction": "fail-in-acceptance-mode-and-explicit-not-checked-in-invariants-only",
+                    "posteriorState": "pull-request-head"
+                  },
+                  "identitySpec": {
+                    "granularity": "checker-criteria-object",
+                    "algorithm": "SHA-256",
+                    "canonicalization": "json-sort-keys-no-whitespace-v1",
+                    "encoding": "UTF-8"
+                  },
+                  "criterionBindingKind": "checker-criteria"
+                }
+              }
+            },
+            "changedAspects": [
+              "set",
+              "value",
+              "placement",
+              "frozen-target-correspondence",
+              "identity-granularity-and-interpretation"
+            ]
+          }
+        ],
+        "fact": "2026-11-05、非作者0d4c5e7551bf03248b41ff4b3d1fe9271a0fd9c4503f5663cffea08d3c00a66aによりscope navigation2語のみと旧10履歴/全criteria保持を確認し、PO既委任で採用。generic schema consumerのallOf/anyOfを宣言へ明示し、旧数学の入力/結果を変更しない。",
+        "reason": "既採用allOf/anyOf schemaを閉検査するため、navigation分類へ2だけ追加。旧criteria/数学/許可範囲を維持。",
+        "approvedBy": "PO委任によるCodex主担当/root判断（本人署名・人間逐行確認の代記ではない）",
+        "approvedDate": "2026-11-05"
       }
     ]
   },

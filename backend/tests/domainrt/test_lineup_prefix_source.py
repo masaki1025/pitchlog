@@ -193,3 +193,143 @@ def test_source_evidence_raw_duplicate_and_nonfinite_are_closed():
     for raw in ('{"complete":true,"complete":true}', '{"complete":NaN}'):
         with pytest.raises(caller.LineupPrefixProtocolError):
             verifier.decode_lineup_source_evidence(raw)
+
+
+def _batted_native_pair(case):
+    """採用安打の直近原本を組み、DB取得済みや保存資格とは主張しない。"""
+    q = copy.deepcopy(case["request"])
+    v = case["expected"]["value"]
+    q["prefixRef"] = copy.deepcopy(v["nextPrefixRef"])
+    q["t1"] = {
+        "eventKind": "batting-result",
+        "resultId": "batting-result.ball",
+        "pitchEventKind": "pitch-event",
+        "before": copy.deepcopy(v["t1"]["after"]),
+    }
+    source = q["source"]
+    source.update(
+        {
+            "kind": "evaluated-prefix-v3",
+            "prefixRef": copy.deepcopy(v["nextPrefixRef"]),
+            "after": copy.deepcopy(v["t1"]["after"]),
+            "t2": copy.deepcopy(v["t2"]),
+            "historyDepth": v["nextPrefixRef"]["length"],
+            "playCount": v["nextPrefixRef"]["length"],
+            "lastSource": copy.deepcopy(v["playIdentity"]),
+            "priorArtifactSha256": v["executionArtifactSha256"],
+            "runners": copy.deepcopy(v["runners"]),
+            "participants": copy.deepcopy(v["participants"]),
+            "responsibility": copy.deepcopy(v["nextResponsibility"]),
+            "position": {"d1": "102", "d2": "1101", "appliedWatermark": "101"},
+            "provenance": {
+                "kind": "confirmed-prefix",
+                "checkpoint": copy.deepcopy(v["nextPrefixRef"]["checkpoint"]),
+                "sourceIdentity": copy.deepcopy(v["playIdentity"]),
+                "historyDepth": v["nextPrefixRef"]["length"],
+            },
+        }
+    )
+    q["playIdentity"] = {
+        "eventId": "40000000-0000-0000-0000-000000000001",
+        "d5": "40000000-0000-0000-0000-000000000002",
+        "playId": "40000000-0000-0000-0000-000000000003",
+    }
+    q["nextCheckpoint"] = {
+        "id": "40000000-0000-0000-0000-000000000004",
+        "revision": "3",
+        "digest": "0" * 64,
+    }
+    return q
+
+
+def test_batted_head_actual_replay_and_all_source_values():
+    """安打16原本を同artifactで再生し、実配置とafter責任/走者を全照合する。"""
+    cases = json.loads(
+        (
+            ROOT / "contracts/state-transition/batted_hit_prefix_cases_v1.json"
+        ).read_text()
+    )["cases"][:16]
+    roster = _evidence(_chain(), 0).started.roster
+    with open_domain_host() as host:
+        for case in cases:
+            wire = _batted_native_pair(case)
+            request = caller.decode_lineup_prefix_request(json.dumps(wire))
+            evidence = verifier.NativeLineupEvidence.model_validate_json(
+                json.dumps(
+                    {
+                        "expected_source": wire["source"],
+                        "roster": roster.model_dump(mode="json"),
+                        "previous_request": case["request"],
+                        "previous_response": case["expected"],
+                    }
+                )
+            )
+            verifier.verify_native_lineup_source(request, evidence, host)
+            for field in ["participants", "runners", "responsibility", "after", "t2"]:
+                bad = copy.deepcopy(wire)
+                if field == "runners":
+                    bad["source"][field] = [
+                        {
+                            "runnerId": "40000000-0000-0000-0000-000000000005",
+                            "responsiblePitcherId": wire["source"]["participants"][
+                                "pitcherId"
+                            ],
+                            "base": "1",
+                            "status": "継続",
+                            "statusSource": "auto",
+                        }
+                    ]
+                elif field == "participants":
+                    bad["source"][field]["pitcherId"] = wire["source"]["participants"][
+                        "catcherId"
+                    ]
+                elif field == "responsibility":
+                    bad["source"][field]["paStartSource"]["id"] = (
+                        "40000000-0000-0000-0000-000000000006"
+                    )
+                elif field == "after":
+                    bad["source"][field]["stateFields"]["state.count.balls"] = "1"
+                else:
+                    bad["source"][field]["facts"]["scoreUnchanged"] = not bad["source"][
+                        field
+                    ]["facts"]["scoreUnchanged"]
+                with pytest.raises(caller.LineupPrefixProtocolError):
+                    verifier.verify_native_lineup_source(
+                        caller.decode_lineup_prefix_request(json.dumps(bad)),
+                        evidence,
+                        host,
+                    )
+
+
+def test_forged_batted_head_is_rejected_even_after_self_consistent_reseal():
+    """変更した23flagのsealだけ直しても、実artifact再生で拒否する。"""
+    case = json.loads(
+        (
+            ROOT / "contracts/state-transition/batted_hit_prefix_cases_v1.json"
+        ).read_text()
+    )["cases"][0]
+    forged = copy.deepcopy(case["expected"])
+    forged["value"]["t1"]["statFlags"]["安打"] = False
+    prior_q = caller.decode_lineup_prefix_request(json.dumps(case["request"]))
+    prior_r = caller.decode_lineup_prefix_response(json.dumps(forged))
+    assert prior_r.ok
+    sealed_q, sealed_r = caller.seal_lineup_wire(prior_q, prior_r)
+    forged_case = {
+        "request": sealed_q.model_dump(mode="json", by_alias=True, exclude_unset=True),
+        "expected": sealed_r.model_dump(mode="json", by_alias=True, exclude_unset=True),
+    }
+    wire = _batted_native_pair(forged_case)
+    evidence = verifier.NativeLineupEvidence.model_validate_json(
+        json.dumps(
+            {
+                "expected_source": wire["source"],
+                "roster": _evidence(_chain(), 0).started.roster.model_dump(mode="json"),
+                "previous_request": forged_case["request"],
+                "previous_response": forged_case["expected"],
+            }
+        )
+    )
+    with open_domain_host() as host, pytest.raises(caller.LineupPrefixProtocolError):
+        verifier.verify_native_lineup_source(
+            caller.decode_lineup_prefix_request(json.dumps(wire)), evidence, host
+        )

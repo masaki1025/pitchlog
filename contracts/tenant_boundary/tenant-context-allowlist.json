@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "contract_revision": 29,
+  "contract_revision": 30,
   "baseline_control": {
     "identity": {
       "scheme": "integer_revision_field",
       "field": "contract_revision",
       "current_identifiers": [
-        "contract_revision:29"
+        "contract_revision:30"
       ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
@@ -101,5 +101,5 @@
   "allowed_product_modules": [
     "pitchlog.repositories.tenant_context_issuance"
   ],
-  "source_digest": "c99265af29a6f02e7b03fdbf36c3a0e6d764771ab82847eefda2b1d6651c8a94"
+  "source_digest": "b2ca554350549aa6bee9fd1b5da02665208482f0daa18d12929993ab39bac878"
 }

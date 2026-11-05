@@ -8348,3 +8348,93 @@ def test_legacy_strikeout_manual_qualifier_is_exact(
         monkeypatch.setattr(sys.modules[__name__], "_repository_contract", lambda: contract)
     with pytest.raises((AssertionError, schema_checker.DescriptorCheckError)):
         _validate_manual_fixtures(document, schema)
+
+
+@pytest.mark.parametrize("keyword", ["allOf", "anyOf", "oneOf"])
+@pytest.mark.parametrize("variants", [None, {}, True, [], [False]])
+def test_composition_rejects_malformed_closed_schema(keyword, variants) -> None:
+    """利用する組合せkeywordを不明定義として黙って無視しない。"""
+    schema = {keyword: variants}
+    with pytest.raises(schema_checker.DescriptorCheckError):
+        schema_checker._validate_instance("1", schema, schema, "$")
+
+
+def test_schema_composition_preserves_intersection_union_and_parent_constraints() -> None:
+    """交差/和/一意と同階層制約をそれぞれ独立に検査する。"""
+    schema = {
+        "allOf": [{"type": "integer"}, {"minimum": 2}],
+        "anyOf": [{"const": 2}, {"const": 3}],
+        "oneOf": [{"const": 2}, {"const": 4}],
+        "maximum": 2,
+    }
+    schema_checker._validate_instance(2, schema, schema, "$")
+    for bad in (True, "2", 1, 3, 4):
+        with pytest.raises(schema_checker.DescriptorCheckError):
+            schema_checker._validate_instance(bad, schema, schema, "$")
+    parent = {
+        "oneOf": [{"type": "object", "properties": {"kind": {"const": "one"}}}],
+        "type": "object", "properties": {"kind": {"type": "string"}},
+        "required": ["kind"], "additionalProperties": False,
+    }
+    schema_checker._validate_instance({"kind": "one"}, parent, parent, "$")
+    for bad in ({}, {"kind": "one", "extra": True}):
+        with pytest.raises(schema_checker.DescriptorCheckError):
+            schema_checker._validate_instance(bad, parent, parent, "$")
+    ambiguous = {"oneOf": [{"type": "integer"}, {"type": "integer"}]}
+    with pytest.raises(schema_checker.DescriptorCheckError):
+        schema_checker._validate_instance(2, ambiguous, ambiguous, "$")
+
+
+def test_batted_payload_nineteen_inputs_use_closed_composition_consumer() -> None:
+    """先置き19規範のrequest/responseをwireへ束ね、数学値を生成しない。"""
+    base = REPOSITORY_ROOT / "contracts/state-transition"
+    schema = _load_object(base / "lineup_play_prefix_payload_schema_v1.json")
+    rows = _load_object(base / "batted_hit_prefix_cases_v1.json")["cases"]
+    assert len(rows) == 19
+    for row in rows:
+        request = row["request"]
+        observations = {
+            "pitchTypeKey": "observed.pitch",
+            "course": {"unit": "1/263", "x": "1", "y": "263"},
+            "pitchSpeed": {"kmh": None, "outsideRangeConfirmed": False},
+            "stance": None, "battingSide": None,
+            "resultId": request["t1"]["resultId"],
+            "battedBall": dict.fromkeys([
+                "typeKey", "strengthKey", "hitX", "hitY",
+                "rawFielderPosition", "resolvedFielderId",
+            ]),
+            "officialScoringPayload": {"kind": "no-error", "errorCount": "0", "fielders": []},
+            "interferenceRuling": {"kind": "not-required"},
+            "runnerAdvanceOverridesByRunner": {"kind": "not-applied", "overrides": []},
+            "thirdOutObservation": {"kind": "none"}, "thirdOutTimingByRunner": {},
+        }
+        payload: dict[str, object] = {
+            "formatVersion": "play-prefix-play-v3", "observations": observations,
+            "participants": request["source"]["participants"],
+            "calculation": {
+                "formatVersion": "play-prefix-calculation-v3",
+                "artifactSha256": "a" * 64,
+                "request": request, "response": row["expected"],
+            },
+        }
+        schema_checker._validate_instance(payload, schema, schema, "$")
+        for fault in ("root-extra", "result-mismatch", "unknown-observation", "bool-coordinate"):
+            bad = copy.deepcopy(payload)
+            bad_observations = bad["observations"]
+            assert isinstance(bad_observations, dict)
+            if fault == "root-extra":
+                bad["extra"] = True
+            elif fault == "result-mismatch":
+                bad_observations["resultId"] = (
+                    "batting-result.double"
+                    if observations["resultId"] == "batting-result.single"
+                    else "batting-result.single"
+                )
+            elif fault == "unknown-observation":
+                bad_observations["extra"] = True
+            else:
+                bad_batted_ball = bad_observations["battedBall"]
+                assert isinstance(bad_batted_ball, dict)
+                bad_batted_ball["hitX"] = False
+            with pytest.raises(schema_checker.DescriptorCheckError):
+                schema_checker._validate_instance(bad, schema, schema, "$")

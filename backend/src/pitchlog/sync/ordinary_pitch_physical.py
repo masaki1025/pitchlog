@@ -1,5 +1,7 @@
 """通常投球の実観測を全41物理列へ写す単一mapper。資格や数学は生成しない。"""
 
+import math
+from decimal import Decimal, InvalidOperation
 from uuid import UUID
 
 from pitchlog.db.game_state.models import PlayRow
@@ -46,9 +48,10 @@ def pitch_physical_row(
     """旧v1/v2の実観測を同じ全41列mapperへ渡す。数学は再計算しない。"""
     from pitchlog.sync.first_ball_payload import FirstBallObservations
     from pitchlog.sync.ordinary_pitch_payload import OrdinaryPitchParticipants
+    from pitchlog.sync.terminal_pitch_payload import BattedHitPlayObservations
 
     if (
-        type(observations) is not FirstBallObservations
+        type(observations) not in {FirstBallObservations, BattedHitPlayObservations}
         or type(people) is not OrdinaryPitchParticipants
         or type(result_id) is not str
     ):
@@ -76,6 +79,38 @@ def pitch_physical_row(
         "stance": observations.stance,
         "batting_side": observations.batting_side,
     }
+    if type(observations) is BattedHitPlayObservations:
+        if observations.result_id != result_id:
+            raise ValueError("打球の結果原本が不一致")
+        ball = observations.batted_ball
+        row.update(
+            {
+                "raw_fielder_position": ball.raw_fielder_position,
+                "resolved_fielder_id": ball.resolved_fielder_id,
+                "batted_ball_type": ball.type_key,
+                "batted_ball_strength": ball.strength_key,
+                "hit_x": _observed_storage_unit(ball.hit_x),
+                "hit_y": _observed_storage_unit(ball.hit_y),
+            }
+        )
     if set(row) != set(PlayRow.__table__.c.keys()):
         raise ValueError("物理列集合が不一致")
     return row
+
+
+def _observed_storage_unit(value: str | None) -> float | None:
+    """既保存単位0..1の観測をDoubleへ束縛する。画面座標の変換をしない。"""
+    if value is None:
+        return None
+    if type(value) is not str:
+        raise ValueError("打球保存座標は明示十進文字列が必要")
+    try:
+        decimal = Decimal(value)
+        if not decimal.is_finite() or not Decimal(0) <= decimal <= Decimal(1):
+            raise ValueError("打球保存座標が0..1の有限値ではない")
+        result = float(value)
+    except (InvalidOperation, OverflowError):
+        raise ValueError("打球保存座標の表現が不正") from None
+    if not math.isfinite(result) or not 0.0 <= result <= 1.0:
+        raise ValueError("打球保存座標がDoubleの範囲外")
+    return result

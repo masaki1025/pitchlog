@@ -1,4 +1,8 @@
 import type {
+  BattedHitObservations,
+  BattedHitResult,
+} from '../../../contracts/state-transition/lineup_play_prefix_payload_v1'
+import type {
   Source as LineupSource,
   PrefixRef as LineupRef,
   Snapshot as LineupSnapshot,
@@ -262,6 +266,8 @@ export type PlayScreenObservation = Omit<
       | 'batting-result.hit-by-pitch'
       | 'batting-result.called-strikeout'
       | 'batting-result.swinging-strikeout'
+      | BattedHitResult
+    battedHit?: Omit<BattedHitObservations, keyof FirstBallObservations> | null
     nextBatter?: NextBatter | null
   }>
 /** 同じ保存roster/lineup照合を旧v1とv2で共有する。 */
@@ -693,7 +699,40 @@ export async function prepareLineupPrefix(
     !sameOrdinaryWire(context.lineupSource.prefixRef, context.prefixRef)
   )
     return invalid()
-  const request: LineupRequest = {
+  const hitResults: readonly string[] = [
+    'batting-result.single',
+    'batting-result.double',
+    'batting-result.triple',
+    'batting-result.home-run',
+  ]
+  const batted = hitResults.includes(observation.resultId)
+  if (batted) {
+    const hit = observation.battedHit
+    const defenders = context.game.roster.teams.find(
+      (t) =>
+        t.side ===
+        (context.after.stateFields['state.half'] === 'top' ? 'home' : 'away'),
+    )
+    if (
+      !hit ||
+      hit.resultId !== observation.resultId ||
+      context.after.stateFields['state.runners'] !== 'empty' ||
+      context.after.stateFields['state.tiebreakActive'] !== false ||
+      context.after.stateFields['state.gameEnded'] !== false ||
+      [hit.battedBall.hitX, hit.battedBall.hitY].some(
+        (v) =>
+          v !== null && !/^(?:0(?:\.[0-9]+)?|1(?:\.0+)?|-0(?:\.0+)?)$/.test(v),
+      ) ||
+      (hit.battedBall.resolvedFielderId !== null &&
+        !defenders?.participants.some(
+          (p) =>
+            p.player.player_id === hit.battedBall.resolvedFielderId &&
+            p.roles.some((r) => r.kind === 'fielding'),
+        ))
+    )
+      return invalid()
+  } else if (observation.battedHit != null) return invalid()
+  const candidate = {
     version: '3',
     prefixRef: context.prefixRef,
     rules: context.rules,
@@ -702,6 +741,14 @@ export async function prepareLineupPrefix(
       resultId: observation.resultId,
       pitchEventKind: 'pitch-event',
       before: context.after,
+      ...(batted
+        ? {
+            officialScoringPayload: 'no-error',
+            interferenceRuling: 'not-required',
+            runnerAdvanceOverrides: 'not-applied',
+            thirdOutObservation: 'none',
+          }
+        : {}),
     },
     source: context.lineupSource,
     playIdentity,
@@ -711,6 +758,8 @@ export async function prepareLineupPrefix(
       digest: '0'.repeat(64),
     },
   }
+  if (!isLineupDefinition<LineupRequest>(candidate, 'Request')) return invalid()
+  const request = candidate
   const response: LineupSuccess = {
     ok: true,
     value: invokeFirstBallDomain(
@@ -734,6 +783,7 @@ export async function prepareLineupPrefix(
       pitchSpeed: observation.pitchSpeed,
       stance: observation.stance,
       battingSide: observation.battingSide,
+      ...(batted ? observation.battedHit : {}),
     },
     context.lineupSource.participants,
   )

@@ -3446,6 +3446,91 @@
       "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:game_start_attempts:outcome:pitchlog_sync_right_fn_owner.sql",
       "element_type": "column_acl_expectation",
       "element_id": "COLUMN-ACL:public:game_start_attempts:outcome:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:admin_vocabularies:key:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:admin_vocabularies:key:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:admin_vocabularies:category:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:admin_vocabularies:category:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:admin_vocabularies:disabled:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:admin_vocabularies:disabled:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/policies/POLICY:admin_vocabularies:batted_hit_select_admin_vocabularies.sql",
+      "element_type": "policy",
+      "element_id": "POLICY:admin_vocabularies:batted_hit_select_admin_vocabularies"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:tenant_vocabularies:tenant_id:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:tenant_vocabularies:tenant_id:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:tenant_vocabularies:key:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:tenant_vocabularies:key:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:tenant_vocabularies:category:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:tenant_vocabularies:category:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:tenant_vocabularies:disabled:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:tenant_vocabularies:disabled:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/policies/POLICY:tenant_vocabularies:batted_hit_select_tenant_vocabularies.sql",
+      "element_type": "policy",
+      "element_id": "POLICY:tenant_vocabularies:batted_hit_select_tenant_vocabularies"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/roles/pitchlog_recording_vocab_fn_owner.sql",
+      "element_type": "role",
+      "element_id": "pitchlog_recording_vocab_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/schemas/recording_vocab_api.sql",
+      "element_type": "schema",
+      "element_id": "recording_vocab_api"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/functions/FUNCTION:recording_vocab_api:read_batted_ball_options(uuid, integer, text).sql",
+      "element_type": "function",
+      "element_id": "FUNCTION:recording_vocab_api:read_batted_ball_options(uuid, integer, text)"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/policies/POLICY:admin_vocabularies:recording_vocab_select_batted_ball.sql",
+      "element_type": "policy",
+      "element_id": "POLICY:admin_vocabularies:recording_vocab_select_batted_ball"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:admin_vocabularies:key:pitchlog_recording_vocab_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:admin_vocabularies:key:pitchlog_recording_vocab_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:admin_vocabularies:category:pitchlog_recording_vocab_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:admin_vocabularies:category:pitchlog_recording_vocab_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:admin_vocabularies:display_name:pitchlog_recording_vocab_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:admin_vocabularies:display_name:pitchlog_recording_vocab_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:admin_vocabularies:disabled:pitchlog_recording_vocab_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:admin_vocabularies:disabled:pitchlog_recording_vocab_fn_owner"
     }
   ]
 }

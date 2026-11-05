@@ -186,6 +186,15 @@ export function evaluateEndCondition(
   )
     return null
   const cold = coldEvidence(state, rules, boundary).satisfied
+  // D01=B: 裏のプレイ中に成立したサヨナラだけをcoldより優先する。
+  // 表/裏の完了境界は従来のnormal-end/X表記/cold優先を保持する。
+  if (
+    boundary.completedHalf === null &&
+    state.half === 'bottom' &&
+    state.inning >= rules.regulationInnings &&
+    state.home > state.away
+  )
+    return decision('walk-off', 'recorded-score')
   if (cold) {
     let mark: XMark = 'recorded-score'
     if (boundary.completedHalf === 'top') mark = 'x-mark'

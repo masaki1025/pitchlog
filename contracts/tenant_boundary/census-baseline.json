@@ -1,11 +1,11 @@
 {
-  "contract_revision": 28,
+  "contract_revision": 29,
   "baseline_control": {
     "identity": {
       "scheme": "integer_revision_field",
       "field": "contract_revision",
       "current_identifiers": [
-        "contract_revision:28"
+        "contract_revision:29"
       ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
@@ -565,7 +565,13 @@
     "pr192_source_proof.expectation_revision",
     "pr192_source_proof.expected_fixture",
     "pr192_source_proof.identity_fields",
-    "pr192_source_proof.meaning"
+    "pr192_source_proof.meaning",
+    "pr196_source_proof.kind",
+    "pr196_source_proof.source_revision",
+    "pr196_source_proof.expectation_revision",
+    "pr196_source_proof.expected_fixture",
+    "pr196_source_proof.identity_fields",
+    "pr196_source_proof.meaning"
   ],
   "initial_population_proof": {
     "kind": "immutable_git_sites_and_counterfactual",
@@ -1120,5 +1126,21 @@
       "message"
     ],
     "meaning": "6 fixed v3 owners/90 sites; old37 metadata and four supersession guards are separate"
+  },
+  "pr196_source_proof": {
+    "kind": "immutable_pr196_sites_and_closed_successors",
+    "source_revision": "contracts/tenant_boundary/frozen-inputs.json#/frozen_inputs/pr196_source_registration_revision/value",
+    "expectation_revision": "contracts/tenant_boundary/frozen-inputs.json#/frozen_inputs/pr196_source_expectation_revision/value",
+    "expected_fixture": "tests/fixtures/pr196_tenant_source_expected_v1.json",
+    "identity_fields": [
+      "path",
+      "line",
+      "end_line",
+      "scope",
+      "code",
+      "symbol",
+      "message"
+    ],
+    "meaning": "4 fixed owners/15 real sites; 2 closed predecessor guards are separate; old90 remain historical and unchanged4 owners/84 sites remain current"
   }
 }

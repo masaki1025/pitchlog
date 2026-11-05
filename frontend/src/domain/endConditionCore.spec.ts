@@ -301,3 +301,69 @@ it('COLD03: 裏の有効得点playで第三アウトも確定していてもafte
   // 同じafter位置だけで半回完了を捏造せず、旧open wrapperは旧返値を保持する。
   expect(evaluateEndConditionNoEnd(state, configured)).not.toBeNull()
 })
+
+it('D01=Bは裏のプレイ中のサヨナラとコールド同時成立だけを優先する', () => {
+  const configured = rules({
+    coldConditions: [{ pointDifference: '1', startInning: '7' }],
+    extensionLimit: '9',
+  })
+  const finalBottom = {
+    ...initial,
+    inning: 9n,
+    half: 'bottom' as const,
+    home: 1n,
+  }
+  const midPlay = { completedHalf: null, completedInning: null }
+  const ended = (outcome: string, xMark: string) => ({
+    outcome,
+    endConditionDetected: true,
+    lockFurtherPlayInput: true,
+    promptEndDeclaration: true,
+    automaticallyEndsGame: false,
+    xMark,
+  })
+  expect(evaluateEndCondition(finalBottom, configured, midPlay)).toEqual({
+    outcome: 'walk-off',
+    endConditionDetected: true,
+    lockFurtherPlayInput: true,
+    promptEndDeclaration: true,
+    automaticallyEndsGame: false,
+    xMark: 'recorded-score',
+  })
+  // 表完了の未実施裏はmid-bottomではなく、既cold/Xを維持する。
+  expect(
+    evaluateEndCondition(finalBottom, configured, {
+      completedHalf: 'top',
+      completedInning: 9n,
+    }),
+  ).toStrictEqual(ended('cold-end', 'x-mark'))
+  expect(
+    evaluateEndCondition(finalBottom, rules(), {
+      completedHalf: 'top',
+      completedInning: 9n,
+    }),
+  ).toStrictEqual(ended('normal-end', 'x-mark'))
+  // E08: 裏完了境界でのcold優先をnormal-endへ反転しない。
+  expect(
+    evaluateEndCondition(
+      { ...finalBottom, inning: 10n, half: 'top' },
+      configured,
+      { completedHalf: 'bottom', completedInning: 9n },
+    ),
+  ).toStrictEqual(ended('cold-end', 'recorded-score'))
+  // OUT3で無効となった得点を推測復元せず、供給された有効0-0を使う。
+  expect(
+    evaluateEndCondition(
+      { ...initial, inning: 10n },
+      rules({ extensionLimit: '9' }),
+      { completedHalf: 'bottom', completedInning: 9n },
+    ),
+  ).toStrictEqual(ended('limit-draw', 'recorded-score'))
+  expect(
+    evaluateEndCondition(
+      { ...initial, inning: 5n, half: 'bottom', home: 5n },
+      rules({ coldConditions: [{ pointDifference: '5', startInning: '5' }] }),
+      midPlay,
+    ),
+  ).toStrictEqual(ended('cold-end', 'recorded-score'))
+})

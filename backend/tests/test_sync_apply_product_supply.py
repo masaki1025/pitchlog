@@ -278,9 +278,19 @@ def test_reapply_is_closed_to_exact_nine_and_preserves_frozen_first_apply():
         assert "GRANT " not in existing_branch
         assert "REVOKE " not in existing_branch
         assert "DROP " not in existing_branch
+        # 新しい語彙readだけは採用済みSTABLE。他の旧関数はVOLATILEを維持する。
+        expected_volatility = (
+            "s"
+            if row["function_id"]
+            == (
+                "FUNCTION:recording_vocab_api:read_batted_ball_options("
+                "uuid, integer, text)"
+            )
+            else "v"
+        )
         for required in (
             "p.prokind='f'",
-            "p.provolatile='v'",
+            f"p.provolatile='{expected_volatility}'",
             "p.proparallel='u'",
             "NOT p.proisstrict",
             "NOT p.proleakproof",
@@ -354,11 +364,373 @@ def test_reapply_guard_retains_exact_four_triggers_and_refuses_collisions():
         assert required in check
 
 
+# 安打の後発差分だけをimmutable Git原本へ束縛する。旧43pinは変更しない。
+_BATTED_SOURCE_REFERENCE_PATH = (
+    Path(__file__).parent / "fixtures/batted_source_extension_reference_v1.json"
+)
+_BATTED_SOURCE_REFERENCE_SHA256 = _EXPECTED_SOURCE_PINS[
+    "batted_extension_reference_sha256"
+]
+_BATTED_PREPARE_ID = (
+    "FUNCTION:sync_right_api:prepare_play_prefix_projection(uuid, uuid, uuid, "
+    "bytea, uuid, uuid, text)"
+)
+_BATTED_ADDED_IDS = frozenset(
+    {
+        "pitchlog_recording_vocab_fn_owner",
+        "recording_vocab_api",
+        "FUNCTION:recording_vocab_api:read_batted_ball_options(uuid, integer, text)",
+        "POLICY:admin_vocabularies:batted_hit_select_admin_vocabularies",
+        "POLICY:tenant_vocabularies:batted_hit_select_tenant_vocabularies",
+        "POLICY:admin_vocabularies:recording_vocab_select_batted_ball",
+        *(
+            f"COLUMN-ACL:public:{table}:{column}:{owner}"
+            for table, columns, owner in (
+                (
+                    "admin_vocabularies",
+                    ("category", "disabled", "key"),
+                    "pitchlog_sync_right_fn_owner",
+                ),
+                (
+                    "tenant_vocabularies",
+                    ("category", "disabled", "key", "tenant_id"),
+                    "pitchlog_sync_right_fn_owner",
+                ),
+                (
+                    "admin_vocabularies",
+                    ("category", "disabled", "display_name", "key"),
+                    "pitchlog_recording_vocab_fn_owner",
+                ),
+            )
+            for column in columns
+        ),
+    }
+)
+
+
+def _load_batted_source_reference(raw: bytes | None = None):
+    """全fixture byteを固定し、変更した期待値による自己合格を拒否する。"""
+    import hashlib
+
+    data = _BATTED_SOURCE_REFERENCE_PATH.read_bytes() if raw is None else raw
+    assert hashlib.sha256(data).hexdigest() == _BATTED_SOURCE_REFERENCE_SHA256
+    return json.loads(data)
+
+
+def _batted_statement_id(sql: str) -> str:
+    """原典のmarkerが一意な文だけを有限対応へ送る。"""
+    markers = re.findall(r"(?m)^-- ELEMENT-ID: ([^\n]+)", sql)
+    assert len(markers) == 1
+    return markers[0]
+
+
+def _project_batted_source_extension(rows):
+    """実17追加と2文だけを全値照合し、旧署名検査用の原典へ戻す。"""
+    from dataclasses import replace
+
+    reference = _load_batted_source_reference()
+    assert len(rows) == 705
+    additions = reference["added_statements"]
+    assert len(additions) == len(_BATTED_ADDED_IDS) == 17
+    assert {row["element_id"] for row in additions} == _BATTED_ADDED_IDS
+    assert reference["changed_statement"]["element_id"] == _BATTED_PREPARE_ID
+    public = reference["public_usage"]
+    usage = "\nGRANT USAGE ON SCHEMA public TO pitchlog_recording_vocab_fn_owner;\n"
+    assert public["after"]["sequence"] == public["before"]["sequence"]
+    assert public["after"]["sql"] == public["before"]["sql"] + usage
+    projected = []
+    found = []
+    actual_added = []
+    for row in rows:
+        assert type(row.sequence) is int
+        assert type(row.sql) is str
+        markers = re.findall(r"(?m)^-- ELEMENT-ID: ([^\n]+)", row.sql)
+        assert len(markers) == 1
+        element_id = markers[0]
+        found.append(element_id)
+        if element_id in _BATTED_ADDED_IDS:
+            actual_added.append(
+                {"element_id": element_id, "sequence": row.sequence, "sql": row.sql}
+            )
+            continue
+        if element_id in {"public", _BATTED_PREPARE_ID}:
+            pair = public if element_id == "public" else reference["changed_statement"]
+            assert {"sequence": row.sequence, "sql": row.sql} == pair["after"]
+            row = replace(row, sql=pair["before"]["sql"])
+        projected.append(row)
+    assert len(found) == len(set(found)) == 705
+    assert actual_added == additions
+    assert {"public", _BATTED_PREPARE_ID} <= set(found)
+    terminal_before = reference["terminal_before"]
+    terminal_ids = {_batted_statement_id(row["sql"]) for row in terminal_before}
+    assert len(terminal_before) == len(terminal_ids) == 31
+    assert [
+        {"sequence": row.sequence, "sql": row.sql}
+        for row in projected
+        if _batted_statement_id(row.sql) in terminal_ids
+    ] == terminal_before
+    return tuple(projected)
+
+
+def _batted_source_reference_revisions():
+    """正式frozen入力の固定2commitだけを独立原典として読む。"""
+    import subprocess
+
+    from first_ball_expected_source_pins import _unique_object
+
+    document = json.loads(
+        (ROOT / "contracts/tenant_boundary/frozen-inputs.json").read_text(),
+        object_pairs_hook=_unique_object,
+    )
+    result = {}
+    for label, key, purpose in (
+        (
+            "before",
+            "pr196_batted_reference_base_revision",
+            "PR196安打source差分の正式before原典。旧43pin/全宣言の投影根拠に限り、任意基線へ流用しない。",
+        ),
+        (
+            "after",
+            "pr196_batted_reference_candidate_revision",
+            "PR196採用安打source差分の固定after原典。既beforeとの全前後値検証に限り、現木期待を生成しない。",
+        ),
+    ):
+        entry = document["frozen_inputs"][key]
+        assert type(entry) is dict and set(entry) == {"value", "purpose", "sources"}
+        assert entry["purpose"] == purpose
+        assert entry["sources"] == [
+            "backend/tests/test_sync_apply_product_supply.py:_batted_source_reference_revisions",
+        ]
+        value = entry["value"]
+        assert type(value) is str and re.fullmatch(r"[0-9a-f]{40}", value)
+        assert (
+            subprocess.check_output(
+                ["git", "rev-parse", "--verify", value + "^{commit}"],
+                cwd=ROOT,
+                text=True,
+            ).strip()
+            == value
+        )
+        result[label] = value
+    return result
+
+
+def test_batted_source_reference_is_bound_to_immutable_git():
+    """原典commit/tree/全source blobをGitへ照合し、現出力を原典にしない。"""
+    import hashlib
+    import subprocess
+
+    reference = _load_batted_source_reference()
+    assert {key: row["commit"] for key, row in reference["origins"].items()} == {
+        **_batted_source_reference_revisions(),
+    }
+    repository = ROOT
+    for origin in reference["origins"].values():
+        revision = origin["commit"]
+        for path, oid in origin["tree_oids"].items():
+            assert (
+                subprocess.check_output(
+                    ["git", "rev-parse", f"{revision}:{path}"],
+                    cwd=repository,
+                    text=True,
+                ).strip()
+                == oid
+            )
+        for row in origin["files"]:
+            assert (
+                subprocess.check_output(
+                    ["git", "rev-parse", f"{revision}:{row['path']}"],
+                    cwd=repository,
+                    text=True,
+                ).strip()
+                == row["git_blob_oid"]
+            )
+            content = subprocess.check_output(
+                ["git", "show", f"{revision}:{row['path']}"], cwd=repository
+            )
+            assert hashlib.sha256(content).hexdigest() == row["sha256"]
+    assert (
+        hashlib.sha256(
+            json.dumps(
+                reference["terminal_before"], ensure_ascii=False, separators=(",", ":")
+            ).encode()
+        ).hexdigest()
+        == _EXPECTED_SOURCE_PINS["terminal_generated_statements_sha256"]
+    )
+
+
+@pytest.mark.parametrize("index", range(30))
+def test_batted_extension_rejects_every_other_old_statement(index, monkeypatch):
+    """prepare以外の旧30文を1文ずつ改変しても旧署名で通さない。"""
+    from dataclasses import replace
+
+    reference = _load_batted_source_reference()
+    others = [
+        row
+        for row in reference["terminal_before"]
+        if f"-- ELEMENT-ID: {_BATTED_PREPARE_ID}\n" not in row["sql"]
+    ]
+    assert len(others) == 30
+    target = others[index]["sql"]
+    steps, rows = prov._build_operation_statements(prov.ProductOperation.APPLY)
+    assert sum(row.sql == target for row in rows) == 1
+    changed = tuple(
+        replace(row, sql=row.sql + "\n-- unknown mutation\n")
+        if row.sql == target
+        else row
+        for row in rows
+    )
+    monkeypatch.setattr(prov, "_build_operation_statements", lambda _: (steps, changed))
+    with pytest.raises(AssertionError):
+        test_reapply_keeps_all_other_generated_statements_exact()
+
+
+@pytest.mark.parametrize(
+    "fault",
+    [
+        "missing",
+        "duplicate",
+        "added-sql",
+        "prepare-sql",
+        "public-sql",
+        "old637-sql",
+        "sequence",
+        "unknown-id",
+    ],
+)
+def test_batted_extension_rejects_unregistered_delta(fault, monkeypatch):
+    """有限追加/元SQLの欠落・重複・未知差分・部分一致を拒否する。"""
+    from dataclasses import replace
+
+    steps, rows = prov._build_operation_statements(prov.ProductOperation.APPLY)
+    changed = list(rows)
+    target = next(
+        i
+        for i, row in enumerate(rows)
+        if _batted_statement_id(row.sql) in _BATTED_ADDED_IDS
+    )
+    if fault == "missing":
+        changed.pop(target)
+    elif fault == "duplicate":
+        changed.append(changed[target])
+    else:
+        if fault == "prepare-sql":
+            target = next(
+                i
+                for i, row in enumerate(rows)
+                if (f"-- ELEMENT-ID: {_BATTED_PREPARE_ID}\n" in row.sql)
+            )
+        elif fault == "public-sql":
+            target = next(
+                i
+                for i, row in enumerate(rows)
+                if ("-- ELEMENT-ID: public\n" in row.sql)
+            )
+        elif fault == "old637-sql":
+            target = next(
+                i
+                for i, row in enumerate(rows)
+                if ("-- ELEMENT-ID: pitchlog_app\n" in row.sql)
+            )
+        row = changed[target]
+        changed[target] = (
+            replace(row, sequence=row.sequence + 1)
+            if fault == "sequence"
+            else replace(row, sql=row.sql.replace("-- ELEMENT-ID:", "-- UNKNOWN:", 1))
+            if fault == "unknown-id"
+            else replace(row, sql=row.sql + "\n-- unknown\n")
+        )
+    monkeypatch.setattr(
+        prov, "_build_operation_statements", lambda _: (steps, tuple(changed))
+    )
+    with pytest.raises(AssertionError):
+        test_reapply_keeps_all_other_generated_statements_exact()
+
+
+@pytest.mark.parametrize("location", ["added", "prepare", "old637"])
+@pytest.mark.parametrize(
+    "fault",
+    [
+        "float-sequence",
+        "bool-sequence",
+        "str-sequence",
+        "none-sequence",
+        "subclass-sequence",
+        "subclass-sql",
+        "bytes-sql",
+        "none-sql",
+    ],
+)
+def test_batted_extension_rejects_nonexact_statement_types(
+    location, fault, monkeypatch
+):
+    """数値同値や同内容の派生型を含め、全行の型を除外前に拒否する。"""
+    from dataclasses import replace
+
+    class Sequence(int):
+        """同値のint派生型を検査する。"""
+
+    class Sql(str):
+        """同内容のstr派生型を検査する。"""
+
+    identifiers = {
+        "added": "pitchlog_recording_vocab_fn_owner",
+        "prepare": _BATTED_PREPARE_ID,
+        "old637": "pitchlog_app",
+    }
+    steps, rows = prov._build_operation_statements(prov.ProductOperation.APPLY)
+    changed = list(rows)
+    target = next(
+        i
+        for i, row in enumerate(rows)
+        if _batted_statement_id(row.sql) == identifiers[location]
+    )
+    row = changed[target]
+    if fault.endswith("sequence"):
+        values = {
+            "float-sequence": float(row.sequence),
+            "bool-sequence": bool(row.sequence),
+            "str-sequence": str(row.sequence),
+            "none-sequence": None,
+            "subclass-sequence": Sequence(row.sequence),
+        }
+        changed[target] = replace(row, sequence=values[fault])
+    else:
+        values = {
+            "subclass-sql": Sql(row.sql),
+            "bytes-sql": row.sql.encode(),
+            "none-sql": None,
+        }
+        changed[target] = replace(row, sql=values[fault])
+    monkeypatch.setattr(
+        prov, "_build_operation_statements", lambda _: (steps, tuple(changed))
+    )
+    with pytest.raises(AssertionError):
+        test_reapply_keeps_all_other_generated_statements_exact()
+
+
+@pytest.mark.parametrize("fault", ["unknown", "old-before", "anchor", "new-after"])
+def test_batted_extension_rejects_reference_mutation(fault):
+    """fixture/原典/旧署名対象の書換えを新期待として受理しない。"""
+    reference = _load_batted_source_reference()
+    if fault == "unknown":
+        reference["unknown"] = True
+    elif fault == "old-before":
+        reference["terminal_before"][0]["sql"] += "\n-- changed\n"
+    elif fault == "anchor":
+        reference["origins"]["after"]["commit"] = "0" * 40
+    else:
+        reference["changed_statement"]["after"]["sql"] += "\n-- changed\n"
+    with pytest.raises(AssertionError):
+        _load_batted_source_reference(json.dumps(reference).encode())
+
+
 def test_reapply_keeps_all_other_generated_statements_exact():
     """旧637文の全byteを保持し、有限追加19+12文も独立固定値へ束縛する。"""
     import hashlib
 
     _, rows = prov._build_operation_statements(prov.ProductOperation.APPLY)
+    rows = _project_batted_source_extension(rows)
     wrappers = [r for r in rows if r.sql.startswith("DO $first_ball_reapply$")]
     terminal_ids = (
         _TERMINAL_FUNCTION_IDS
@@ -526,9 +898,31 @@ def test_expected_source_pin_fixture_has_all_thirty_independent_values():
     for name, keys in lineup_keys.items():
         assert keys <= raw["pins"][name].keys()
         assert not keys & terminal_keys.get(name, set())
-    assert sum(len(values) for values in raw["pins"].values()) - 5 - 1 == 37
-    assert sum(len(values) for values in raw["pins"].values()) - 1 == 42
-    assert sum(len(values) for values in raw["pins"].values()) == 43
+    batted_keys = {
+        "test_batted_hit_product_declarations.py": {
+            "old_terminal_declarations_sha256",
+            "adopted_prepare_body_sha256",
+        },
+        "test_batted_hit_storage_boundaries.py": {
+            "read_play_prefix_checkpoint",
+            "lock_play_prefix_checkpoint",
+            "read_play_prefix_history_page",
+            "assert_play_prefix_projection",
+            "finish_play_prefix_projection",
+            "guard_play_prefix_runner_insert",
+            "read_lineup_started_origin",
+            "old_v2_prepare_body_sha256",
+        },
+        "test_sync_apply_product_supply.py": {"batted_extension_reference_sha256"},
+    }
+    assert sum(map(len, batted_keys.values())) == 11
+    for name, keys in batted_keys.items():
+        assert keys <= raw["pins"][name].keys()
+    total = sum(len(values) for values in raw["pins"].values())
+    assert total - 11 - 5 - 1 == 37
+    assert total - 11 - 1 == 42
+    assert total - 11 == 43
+    assert total == 54
     assert {name: read_expected_source_pins(name) for name in raw["pins"]} == raw[
         "pins"
     ]
@@ -593,3 +987,61 @@ def test_expected_source_pin_reader_rejects_missing_file_and_unknown_request(tmp
         )
     with pytest.raises(SourcePinError):
         read_expected_source_pins("unknown.py")
+
+
+@pytest.mark.parametrize(
+    "fault",
+    [
+        "missing",
+        "extra",
+        "bool",
+        "short",
+        "not_hex",
+        "unknown_commit",
+        "purpose",
+        "consumer",
+        "wrong_existing_commit",
+    ],
+)
+def test_batted_reference_typed_inputs_do_not_authorize_new_origins(
+    monkeypatch,
+    tmp_path,
+    fault,
+):
+    """型/用途/consumer/実Gitと独立fixture原典の全一致を要求する。"""
+    import subprocess
+    import sys
+
+    frozen_path = tmp_path / "contracts/tenant_boundary/frozen-inputs.json"
+    frozen_path.parent.mkdir(parents=True)
+    frozen = json.loads(
+        (ROOT / "contracts/tenant_boundary/frozen-inputs.json").read_text()
+    )
+    (tmp_path / ".git").symlink_to(ROOT / ".git")
+    key = "pr196_batted_reference_base_revision"
+    entry = frozen["frozen_inputs"][key]
+    if fault == "missing":
+        del frozen["frozen_inputs"][key]
+    elif fault == "extra":
+        entry["extra"] = True
+    elif fault == "purpose":
+        entry["purpose"] += " forged"
+    elif fault == "consumer":
+        entry["sources"] = []
+    else:
+        entry["value"] = {
+            "bool": True,
+            "short": "bad",
+            "not_hex": "x" * 40,
+            "unknown_commit": "0" * 40,
+            "wrong_existing_commit": frozen["frozen_inputs"][
+                "pr196_batted_reference_candidate_revision"
+            ]["value"],
+        }[fault]
+    frozen_path.write_text(json.dumps(frozen))
+    original = _load_batted_source_reference()
+    monkeypatch.setattr(sys.modules[__name__], "ROOT", tmp_path)
+    with pytest.raises((AssertionError, KeyError, subprocess.CalledProcessError)):
+        assert _batted_source_reference_revisions() == {
+            label: row["commit"] for label, row in original["origins"].items()
+        }

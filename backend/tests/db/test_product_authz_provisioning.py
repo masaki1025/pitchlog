@@ -45,6 +45,7 @@ _SYNC_COLLISION_ROLES = (
     "pitchlog_sync_binding_fn_owner",
     "pitchlog_sync_binding_actor",
     "pitchlog_sync_right_fn_owner",
+    "pitchlog_recording_vocab_fn_owner",
 )
 
 
@@ -498,7 +499,7 @@ def test_sync_role_all_seven_attribute_collisions_are_rejected_and_rolled_back(
     attribute: str,
     column: str,
 ) -> None:
-    """新3主体の全7属性は正規SQLが衝突拒否し、catalog全体を取消す。"""
+    """新4主体の全7属性は正規SQLが衝突拒否し、catalog全体を取消す。"""
     catalog = provisioned_product_catalog
     roles = _asset_roles(catalog)
     role_sql = next(

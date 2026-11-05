@@ -980,6 +980,14 @@ class Pr192SourceRegistration:
 
 
 @dataclass(frozen=True)
+class Pr196SourceRegistration:
+    """旧登録を保持する固定安打4source/15tuple/後継2の閉登録。"""
+
+    owners: tuple[Pr191SourceOwner, ...]
+    successor_paths: frozenset[str]
+
+
+@dataclass(frozen=True)
 class Contract:
     """検査に必要な資産を読み合わせた契約を表す。"""
 
@@ -1011,6 +1019,7 @@ class Contract:
     resolution_owner: ResolutionOwnershipRegistration | None = None
     pr191_source_owners: tuple[Pr191SourceOwner, ...] = ()
     pr192_source_registration: Pr192SourceRegistration | None = None
+    pr196_source_registration: Pr196SourceRegistration | None = None
 
 
 @dataclass(frozen=True, order=True)
@@ -1804,7 +1813,8 @@ def _load_allowlist(
             "rg1_deployment_assets",
             "writer_binding_deployment_assets",
             "baseline_control",
-        } | ({"pr192_source_registration"} if "pr192_source_registration" in value else set()),
+        } | ({"pr192_source_registration"} if "pr192_source_registration" in value else set())
+        | ({"pr196_source_registration"} if "pr196_source_registration" in value else set()),
         "base-allowlist.json",
     )
     if _integer(value["schema_version"], "allowlist.schema_version") != 1:
@@ -2537,6 +2547,171 @@ def _load_cache_invalidation_bypass_contract(
     )
 
 
+def _require_single_static_name_binding(
+    tree: ast.Module, name: str, expected: ast.AST
+) -> None:
+    """限定展開の参照名へ別import/再代入/隠れたStoreを認めない。"""
+    bindings: list[ast.AST] = []
+    for node in ast.walk(tree):
+        if (
+            isinstance(node, ast.Name)
+            and node.id == name
+            and isinstance(node.ctx, (ast.Store, ast.Del))
+        ):
+            bindings.append(node)
+        elif (isinstance(node, ast.Attribute) and node.attr == name
+              and isinstance(node.ctx, (ast.Store, ast.Del))):
+            bindings.append(node)
+        elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            if node.name == name:
+                bindings.append(node)
+        elif isinstance(node, ast.arg) and node.arg == name:
+            bindings.append(node)
+        elif isinstance(node, ast.ExceptHandler) and node.name == name:
+            bindings.append(node)
+        elif isinstance(node, (ast.MatchAs, ast.MatchStar)) and node.name == name:
+            bindings.append(node)
+        elif isinstance(node, ast.MatchMapping) and node.rest == name:
+            bindings.append(node)
+        elif isinstance(node, (ast.Import, ast.ImportFrom)):
+            if isinstance(node, ast.ImportFrom) and any(
+                alias.name == "*" for alias in node.names
+            ):
+                raise ContractError("固定tuple参照へstar importは使えない")
+            for alias in node.names:
+                bound = alias.asname or (
+                    alias.name.split(".")[0] if isinstance(node, ast.Import) else alias.name
+                )
+                if bound == name:
+                    bindings.append(node)
+        if (
+            isinstance(node, ast.Call)
+            and (
+                (isinstance(node.func, ast.Name) and node.func.id in {
+                    "exec", "eval", "globals", "locals", "setattr", "delattr",
+                })
+                or (isinstance(node.func, ast.Attribute) and node.func.attr in {
+                    "exec", "eval", "globals", "locals", "setattr", "delattr",
+                })
+            )
+        ):
+            raise ContractError("固定tuple参照に動的namespace操作は使えない")
+    if len(bindings) != 1 or bindings[0] is not expected:
+        raise ContractError("固定tuple参照名のimport/代入が単一でない")
+
+
+def _batted_options_static_registration(
+    repository_root: Path, registry_tree: ast.Module, registry_value: ast.Tuple
+) -> ast.Call:
+    """既採用先頭importの静的tuple1だけをASTで展開する。製品を実行しない。"""
+    # readonly登録形の原典であり、source-owner許可4path/15tupleは拡張しない。
+    fixed = _pr196_read_fixed_expectations(repository_root)
+    source_revision = _string(fixed["source_revision"], "pr196 readonly原典")
+    for relative in (
+        "backend/src/pitchlog/repositories/operation_registry.py",
+        "backend/src/pitchlog/repositories/batted_ball_options.py",
+    ):
+        path = Path(relative)
+        _git_regular_blob(repository_root, source_revision, path)
+        target = repository_root / path
+        try:
+            if target.is_symlink() or target.read_bytes() != _pr192_git_bytes(
+                repository_root, source_revision, relative
+            ):
+                raise ContractError("固定tupleのreadonly原典全byteが不一致")
+        except OSError as error:
+            raise ContractError("固定tupleのreadonly原典が取得できない") from error
+    name = "BATTED_BALL_OPTIONS_OPERATIONS"
+    starred = [entry for entry in registry_value.elts if isinstance(entry, ast.Starred)]
+    if (
+        len(starred) != 1
+        or len(registry_value.elts) != 22
+        or registry_value.elts[0] is not starred[0]
+        or not isinstance(starred[0].value, ast.Name)
+        or starred[0].value.id != name
+    ):
+        raise ContractError("固定関数registryのStarredは既採用先頭tuple1だけが必要")
+    imports = [
+        node for node in registry_tree.body
+        if isinstance(node, ast.ImportFrom)
+        and node.level == 0
+        and node.module == "pitchlog.repositories.batted_ball_options"
+        and len(node.names) == 1
+        and node.names[0].name == name
+        and node.names[0].asname is None
+    ]
+    if len(imports) != 1:
+        raise ContractError("固定tupleの既採用importが不一致")
+    _require_single_static_name_binding(registry_tree, name, imports[0])
+    registry_targets = [
+        node.target for node in registry_tree.body
+        if isinstance(node, ast.AnnAssign)
+        and isinstance(node.target, ast.Name)
+        and node.target.id == "PRODUCT_FUNCTION_OPERATIONS"
+        and node.value is registry_value
+    ]
+    if len(registry_targets) != 1:
+        raise ContractError("固定tupleの展開先registryが不一致")
+    _require_single_static_name_binding(
+        registry_tree, "PRODUCT_FUNCTION_OPERATIONS", registry_targets[0]
+    )
+    path = repository_root / "backend/src/pitchlog/repositories/batted_ball_options.py"
+    try:
+        if path.is_symlink() or not path.is_file():
+            raise ContractError("固定tupleの供給元は正規fileが必要")
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+    except (OSError, SyntaxError, UnicodeError) as error:
+        raise ContractError("固定tupleの供給元を読めない") from error
+    assignments = [
+        node for node in tree.body
+        if isinstance(node, ast.Assign)
+        and len(node.targets) == 1
+        and isinstance(node.targets[0], ast.Name)
+        and node.targets[0].id == name
+    ]
+    if len(assignments) != 1:
+        raise ContractError("供給元の固定tuple代入が単一でない")
+    assignment = assignments[0]
+    _require_single_static_name_binding(tree, name, assignment.targets[0])
+    constructor = "FunctionOperationRegistration"
+    constructors = [
+        node for node in tree.body
+        if isinstance(node, ast.ImportFrom)
+        and node.level == 0
+        and node.module == "pitchlog.repositories.function_operations"
+        and any(alias.name == constructor and alias.asname is None for alias in node.names)
+    ]
+    if len(constructors) != 1:
+        raise ContractError("供給元の登録constructor importが不一致")
+    _require_single_static_name_binding(tree, constructor, constructors[0])
+    value = assignment.value
+    if not isinstance(value, ast.Tuple) or len(value.elts) != 1:
+        raise ContractError("供給元は静的tuple1が必要")
+    entry = value.elts[0]
+    if (
+        not isinstance(entry, ast.Call)
+        or not isinstance(entry.func, ast.Name)
+        or entry.func.id != constructor
+        or entry.args
+        or any(keyword.arg is None for keyword in entry.keywords)
+        or len({keyword.arg for keyword in entry.keywords}) != len(entry.keywords)
+        or {keyword.arg for keyword in entry.keywords} != {
+            "operation_id", "token_type", "capability_id", "function_id", "statement",
+            "input_fields", "result_fields", "min_rows", "max_rows", "decoder",
+        }
+    ):
+        raise ContractError("供給元の固定登録callが不一致")
+    ids = [keyword.value for keyword in entry.keywords if keyword.arg == "operation_id"]
+    if (
+        len(ids) != 1
+        or not isinstance(ids[0], ast.Constant)
+        or type(ids[0].value) is not str
+        or ids[0].value != "RECORDING_VOCABULARIES:read_batted_ball_options"
+    ):
+        raise ContractError("供給元の固定operation IDが不一致")
+    return entry
+
+
 def _validate_function_operation_surface(
     repository_root: Path,
     asset: Mapping[str, object],
@@ -2614,7 +2789,13 @@ def _validate_function_operation_surface(
     if len(registry_values) != 1 or not isinstance(registry_values[0], ast.Tuple):
         raise ContractError("固定関数製品registryは静的tupleが必要")
     actual_ids: list[str] = []
-    for entry in registry_values[0].elts:
+    entries = registry_values[0].elts
+    if any(isinstance(entry, ast.Starred) for entry in entries):
+        resolved = _batted_options_static_registration(
+            repository_root, registry_tree, registry_values[0]
+        )
+        entries = [resolved, *entries[1:]]
+    for entry in entries:
         if not isinstance(entry, ast.Call):
             raise ContractError("固定関数製品registryの登録形式が不正")
         matches = [
@@ -2763,6 +2944,11 @@ def load_contract(repository_root: Path) -> Contract:
                 repository_root, allowlist_value["pr192_source_registration"], allowlist_value,
             )
             if "pr192_source_registration" in allowlist_value else None
+        ),
+        pr196_source_registration=(
+            _load_pr196_source_owners(
+                repository_root, allowlist_value["pr196_source_registration"], allowlist_value,
+            ) if "pr196_source_registration" in allowlist_value else None
         ),
     )
 
@@ -8196,9 +8382,13 @@ def scan_source(
         trusted192 = _pr192_trusted_source_registration()
         for full_path, raw in trusted192.source_files:
             if path == full_path.removeprefix("backend/src/") and (
-                    not pr192_active or source.encode() != raw):
+                    not pr192_active or source.encode() != raw) and not _pr196_successor_matches(
+                        source, path, contract):
                 violations.append(Violation(path, 1, 2, "TB002", "pr192-source-identity",
                     "pr192の固定source8/完全ownerと不一致", scope=_module_name(path) + ".<module>"))
+    pr196_evidence = _pr196_source_evidence(source, path, contract)
+    violations = [item for item in violations
+                  if (item.line, item.code, item.symbol, item.scope) not in pr196_evidence]
     return sorted(violations)
 
 
@@ -10252,6 +10442,248 @@ def _pr192_successor_matches(source: str, path: str, contract: Contract) -> bool
     return any(owner.path in registration.superseded_pr191_owners
                and owner.path.removeprefix("backend/src/") == path
                and source.encode() == owner.immutable_source for owner in registration.owners)
+
+
+_PR196_EXPECTED_FIXTURE = "tests/fixtures/pr196_tenant_source_expected_v1.json"
+_PR196_SOURCE_PURPOSE = (
+    "PR196既採用安打source4path/実15tuple/限定2successorを固定6965088bの全byteへ束縛する。"
+    "旧原典/署名/一般許可へ流用しない。"
+    "登録tupleのreadonly形の原典としてregistry/owner2pathも同固定Gitへ全byte束縛するが、"
+    "既4path/15tupleの許可対象は増やさない。"
+)
+_PR196_EXPECTATION_PURPOSE = (
+    "PR196後発sourceの独立分類fixtureを前置0f75d170の全byteへ束縛し、"
+    "現木source/宣言/fixtureの同時改変を拒否する。"
+)
+
+
+def _pr196_require(condition: bool, message: str) -> None:
+    """型・全値・原典の不一致を部分許可へ補完しない。"""
+    if not condition:
+        raise ContractError("pr196: " + message)
+
+
+def _pr196_same_json(left: object, right: object) -> bool:
+    """bool/数値同値・派生key/値を拒否して前置JSONへ全値照合する。"""
+    if type(left) is not type(right):
+        return False
+    if type(left) is dict and type(right) is dict:
+        left_dict = _object(left, "pr196 JSON左値")
+        right_dict = _object(right, "pr196 JSON右値")
+        return (
+            all(type(k) is str for k in (*left_dict, *right_dict))
+            and left_dict.keys() == right_dict.keys()
+            and all(_pr196_same_json(left_dict[k], right_dict[k]) for k in left_dict)
+        )
+    if type(left) is list and type(right) is list:
+        return len(left) == len(right) and all(
+            _pr196_same_json(a, b) for a, b in zip(left, right, strict=True)
+        )
+    return type(left) in (str, int, bool, float, type(None)) and left == right
+
+
+def _pr196_source_input_revisions(root: Path) -> tuple[str, str]:
+    """root付き正式frozen入力の固定2commitだけを厳格に読む。"""
+    frozen, _ = _read_json(root / "contracts/tenant_boundary/frozen-inputs.json")
+    inputs = _object(frozen.get("frozen_inputs"), "pr196 frozen inputs")
+    revisions = []
+    for name, purpose, consumer in (
+        ("pr196_source_registration_revision", _PR196_SOURCE_PURPOSE, "immutable_source"),
+        ("pr196_source_expectation_revision", _PR196_EXPECTATION_PURPOSE, "immutable_expectations"),
+    ):
+        entry = _object(inputs.get(name), name)
+        _strict_keys(entry, {"value", "purpose", "sources"}, name)
+        revision = entry["value"]
+        _pr196_require(
+            type(revision) is str and re.fullmatch(r"[0-9a-f]{40}", revision) is not None,
+            "固定原典はfull commitの文字列が必要",
+        )
+        sources = [
+            "scripts/check_tenant_boundary_bypass.py:_load_pr196_source_owners",
+            "tests/test_pr196_tenant_source_registration.py:" + consumer,
+        ]
+        if name == "pr196_source_registration_revision":
+            sources.append(
+                "scripts/check_tenant_boundary_bypass.py:_batted_options_static_registration"
+            )
+        _pr196_require(_pr196_same_json(entry, {
+            "value": revision, "purpose": purpose, "sources": sources,
+        }), "固定入力の全値/用途が不一致")
+        _pr196_require(
+            _run_git(root, ["rev-parse", "--verify", revision + "^{commit}"]).strip() == revision,
+            "固定commitが不一致",
+        )
+        _run_git(root, ["merge-base", "--is-ancestor", revision, "HEAD"])
+        revisions.append(revision)
+    source, expectation = revisions
+    _run_git(root, ["merge-base", "--is-ancestor", source, expectation])
+    return source, expectation
+
+
+def _pr196_expected_fixture_sha256(root: Path) -> str:
+    """前置Eの絶対SHAを正式typed入力から読み、算出値を期待にしない。"""
+    frozen, _ = _read_json(root / "contracts/tenant_boundary/frozen-inputs.json")
+    inputs = _object(frozen.get("frozen_inputs"), "pr196 frozen inputs")
+    entry = _object(inputs.get("pr196_source_expectation_fixture_sha256"), "pr196 fixture SHA")
+    _strict_keys(entry, {"value", "purpose", "sources"}, "pr196 fixture SHA")
+    digest = entry["value"]
+    _pr196_require(type(digest) is str and re.fullmatch(r"[0-9a-f]{64}", digest) is not None,
+                   "前置Eの固定SHA256型が不一致")
+    _pr196_require(_pr196_same_json(entry, {
+        "value": digest,
+        "purpose": (
+            "PR196前置Eの期待fixture全byteのSHA256。実固定Gitblobとの一致を必須とし、"
+            "現木から期待を生成しない。"
+        ),
+        "sources": [
+            "scripts/check_tenant_boundary_bypass.py:_pr196_read_fixed_expectations",
+            "tests/test_census_baseline_check.py:test_pr196_census_materializes_fixed_expectation_in_both_proof_contexts",
+        ],
+    }), "前置Eの固定SHA256用途/consumerが不一致")
+    return digest
+
+
+def _pr196_read_fixed_expectations(root: Path) -> dict[str, Any]:
+    """正式typed入力/固定E Gitblob/絶対SHA/現全byteを別々に照合する。"""
+    try:
+        source_revision, expectation_revision = _pr196_source_input_revisions(root)
+        raw = _pr192_git_bytes(root, expectation_revision, _PR196_EXPECTED_FIXTURE)
+        _pr196_require(hashlib.sha256(raw).hexdigest() == _pr196_expected_fixture_sha256(root),
+                       "前置fixtureの固定hashが不一致")
+        target = root / _PR196_EXPECTED_FIXTURE
+        _pr196_require(not target.is_symlink() and target.read_bytes() == raw,
+                       "期待fixtureは前置Eの全byteが必要")
+        expected = _object(json.loads(raw, object_pairs_hook=_unique_json_object), "pr196期待")
+        _strict_keys(expected, {
+            "schema_version", "source_revision", "formal_base_revision", "frozen_input",
+            "expectation_frozen_input", "purpose", "findings_scope", "owners",
+            "qualified_pr192_successors", "preserved_state", "counts", "claims_not_made",
+        }, "pr196期待")
+        _pr196_require(type(expected["schema_version"]) is int and expected["schema_version"] == 1
+                       and _pr196_same_json(expected["source_revision"], source_revision)
+                       and expected["frozen_input"] == "pr196_source_registration_revision"
+                       and expected["expectation_frozen_input"]
+                       == "pr196_source_expectation_revision",
+                       "前置Eの型/原典/参照名が不一致")
+        formal_base = expected["formal_base_revision"]
+        _pr196_require(
+            type(formal_base) is str and re.fullmatch(r"[0-9a-f]{40}", formal_base) is not None,
+            "前置Eの正式基線はfull commitが必要",
+        )
+        _pr196_require(_run_git(root, ["rev-parse", "--verify", formal_base + "^{commit}"]).strip()
+                       == formal_base, "前置Eの正式基線commitが不一致")
+        _run_git(root, ["merge-base", "--is-ancestor", formal_base, source_revision])
+        return expected
+    except (OSError, ValueError, KeyError, subprocess.CalledProcessError) as error:
+        raise ContractError("pr196固定期待を取得/検証できない") from error
+
+
+def _load_pr196_source_owners(
+    root: Path, declaration: object, asset: Mapping[str, Any],
+) -> Pr196SourceRegistration:
+    """旧全owner/mapsを維持し、新4path/15tuple/2successorだけを原典へ閉じる。"""
+    expected = _pr196_read_fixed_expectations(root)
+    expected_decl = {
+        "expected_fixture": _PR196_EXPECTED_FIXTURE,
+        "owners": {path: {
+            "purpose": row["purpose"], "source_sha256": row["after"]["sha256"],
+            "findings": row["findings"],
+        } for path, row in expected["owners"].items()},
+    }
+    _pr196_require(_pr196_same_json(declaration, expected_decl),
+                   "宣言の全owner/tuple/型/用途が前置期待と不一致")
+    state = expected["preserved_state"]
+    for key, value in state["owner_asset_fields"].items():
+        _pr196_require(_pr196_same_json(asset.get(key), value), "旧owner/mapsが変化")
+    frozen, _ = _read_json(root / state["frozen_input_asset_path"])
+    for key, value in state["frozen_input_entries"].items():
+        _pr196_require(_pr196_same_json(frozen["frozen_inputs"].get(key), value),
+                       "旧frozen入力が変化")
+    _load_pr192_source_owners(root, asset["pr192_source_registration"], asset)
+    for row in state["expected_fixture_files"]:
+        path = root / row["path"]
+        raw = _pr192_git_bytes(root, row["revision"], row["path"])
+        _pr196_require(not path.is_symlink() and path.read_bytes() == raw
+                       and hashlib.sha256(raw).hexdigest() == row["sha256"],
+                       "旧fixture全byteが不一致")
+    for row in state["source_files"]:
+        raw = _pr192_git_bytes(root, row["revision"], row["path"])
+        _pr196_require(hashlib.sha256(raw).hexdigest() == row["sha256"],
+                       "旧14原典sourceが不一致")
+    owners = []
+    for path, row in sorted(expected["owners"].items()):
+        for name in ("before", "after"):
+            origin = row[name]
+            raw = _pr192_git_bytes(root, origin["revision"], path)
+            _pr196_require(hashlib.sha256(raw).hexdigest() == origin["sha256"],
+                           "固定source全byteが不一致")
+        raw = _pr192_git_bytes(root, _string(expected["source_revision"], "pr196原典"), path)
+        findings = frozenset(tuple(site[k] for k in ("line", "code", "symbol", "scope"))
+                             for site in row["findings"])
+        owners.append(Pr191SourceOwner(path, row["purpose"], row["after"]["sha256"],
+                                       findings, raw))
+    return Pr196SourceRegistration(tuple(owners),
+                                   frozenset(expected["qualified_pr192_successors"]))
+
+
+@functools.lru_cache(maxsize=1)
+def _pr196_trusted_source_registration() -> Pr196SourceRegistration:
+    """呼出者Contractでなく実repositoryの固定Eから信頼比較元を構築する。"""
+    root = Path(__file__).resolve().parents[1]
+    asset, _ = _read_json(root / DEFAULT_ALLOWLIST)
+    return _load_pr196_source_owners(root, asset["pr196_source_registration"], asset)
+
+
+def _pr196_owner_is_typed(owner: object) -> bool:
+    """偽eqや派生tuple/値でowner比較を捏造できないよう閉型を検査する。"""
+    if type(owner) is not Pr191SourceOwner:
+        return False
+    if (any(type(v) is not str for v in (owner.path, owner.purpose, owner.source_sha256))
+            or type(owner.immutable_source) is not bytes or type(owner.findings) is not frozenset):
+        return False
+    return all(type(site) is tuple and len(site) == 4 and type(site[0]) is int
+               and all(type(v) is str for v in site[1:]) for site in owner.findings)
+
+
+def _pr196_registration_is_trusted(contract: Contract) -> bool:
+    """新登録と旧全登録の不可分な全型/全値一致だけを信頼する。"""
+    if type(contract) is not Contract:
+        return False
+    registration = contract.pr196_source_registration
+    if (type(registration) is not Pr196SourceRegistration
+            or type(registration.owners) is not tuple
+            or type(registration.successor_paths) is not frozenset
+            or any(type(p) is not str for p in registration.successor_paths)
+            or any(not _pr196_owner_is_typed(o) for o in registration.owners)
+            or not _pr192_registration_is_trusted(contract)
+            or type(contract.pr191_source_owners) is not tuple
+            or any(not _pr196_owner_is_typed(o) for o in contract.pr191_source_owners)):
+        return False
+    return (contract.pr191_source_owners == _pr191_trusted_source_owners()
+            and registration == _pr196_trusted_source_registration())
+
+
+def _pr196_source_evidence(
+    source: str, path: str, contract: Contract,
+) -> frozenset[tuple[int, str, str, str]]:
+    """新15実tupleだけを固定6965の同path全byteに接合する。"""
+    if (type(source) is not str or type(path) is not str
+            or not _pr196_registration_is_trusted(contract)):
+        return frozenset()
+    return next((owner.findings for owner in _pr196_trusted_source_registration().owners
+                 if owner.path.removeprefix("backend/src/") == path
+                 and owner.immutable_source == source.encode()), frozenset())
+
+
+def _pr196_successor_matches(source: str, path: str, contract: Contract) -> bool:
+    """旧identity sentinel2を許可siteへ変えず、検証済み後継だけを照合する。"""
+    if (type(source) is not str or type(path) is not str
+            or not _pr196_registration_is_trusted(contract)):
+        return False
+    registration = _pr196_trusted_source_registration()
+    return any(owner.path in registration.successor_paths
+               and owner.path.removeprefix("backend/src/") == path
+               and owner.immutable_source == source.encode() for owner in registration.owners)
 
 
 if __name__ == "__main__":

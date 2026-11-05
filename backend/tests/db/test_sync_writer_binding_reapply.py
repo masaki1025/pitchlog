@@ -58,6 +58,28 @@ _TERMINAL_NAMES = frozenset(
 )
 
 _LINEUP_NAMES = frozenset({"read_lineup_started_origin"})
+_RECORDING_VOCAB_NAMES = frozenset({"read_batted_ball_options"})
+_EXPECTED_RECORDING_VOCAB_FUNCTION = {
+    "function_id": "FUNCTION:recording_vocab_api:read_batted_ball_options(uuid, "
+    "integer, text)",
+    "schema_name": "recording_vocab_api",
+    "function_name": "read_batted_ball_options",
+    "identity_args": "uuid, integer, text",
+    "function_kind": "definer",
+    "owner_role_id": "pitchlog_recording_vocab_fn_owner",
+    "language": "plpgsql",
+    "returns": "TABLE(key text, display_name text)",
+    "security_mode": "definer",
+    "volatility": "stable",
+    "search_path": ["pg_catalog", "pg_temp"],
+    "acl_expectations": [
+        {"grantee": "pitchlog_app", "privilege": "EXECUTE", "grantable": False}
+    ],
+    "revoked_acl_expectations": [
+        {"grantee": "PUBLIC", "privilege": "EXECUTE", "grantable": False}
+    ],
+}
+
 
 _TRIGGERS = (
     ("writer_bindings", "sync_writer_binding_immutable", 27),
@@ -202,14 +224,18 @@ def _subject(applicator: psycopg.Connection[Any], expected: str) -> None:
 def test_owned_full_apply_repeats_and_rejects_nine_functions_four_triggers(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """単一所有clusterで本文28（旧20+終端7+原本1）・writer4衝突を直列に実証する。"""
+    """単一所有clusterで本文29（旧20+終端7+原本1+語彙1）・writer4衝突を直列に実証する。"""
     functions = ADDITIONS["functions"]
     assert len(_NAMES) == 20 and len(_TERMINAL_NAMES) == 7
     assert len(_LINEUP_NAMES) == 1
     assert {row["function_name"] for row in functions} == (
-        _NAMES | _TERMINAL_NAMES | _LINEUP_NAMES
+        _NAMES | _TERMINAL_NAMES | _LINEUP_NAMES | _RECORDING_VOCAB_NAMES
     )
-    assert len(functions) == 28
+    assert len(_RECORDING_VOCAB_NAMES) == 1
+    assert [r for r in functions if r["function_name"] in _RECORDING_VOCAB_NAMES] == [
+        _EXPECTED_RECORDING_VOCAB_FUNCTION
+    ]
+    assert len(functions) == 28 + 1
     visited_functions: set[str] = set()
     visited_triggers: set[str] = set()
     with owned_binding_database(monkeypatch) as owner:

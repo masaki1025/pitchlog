@@ -1,3 +1,4 @@
+import type { LineupPlayPrefixV7 } from '../../../contracts/state-transition/lineup_play_prefix_payload_v1'
 import * as domainWrapper from '../lib/generated/wrappers/domainArtifact'
 import { queueStateId } from '../lib/sync/queueState'
 import { canonicalAttemptEvents } from '../lib/firstBallAttemptPersistence'
@@ -967,3 +968,63 @@ it('新読取もauth epoch変更後の保存を許さない', async () => {
   expect(post).not.toHaveBeenCalled()
   expect(await slots()).toBe(0)
 })
+
+it.each(['single', 'double', 'triple', 'home-run'] as const)(
+  '%sの未確認12観測を耐久保存し、再起動後に元D5/body/attemptを保って再送する',
+  async (result) => {
+    const post = vi
+      .spyOn(transport, 'postSyncEvents')
+      .mockResolvedValue({ sent: false, reason: 'no-response' })
+    const c = await lineupController()
+    expect(await c.inspect()).toBe('ready')
+    const resultId = `batting-result.${result}` as const
+    const battedHit = {
+      resultId,
+      battedBall: {
+        typeKey: null,
+        strengthKey: null,
+        hitX: null,
+        hitY: null,
+        rawFielderPosition: null,
+        resolvedFielderId: null,
+      },
+      officialScoringPayload: {
+        kind: 'no-error' as const,
+        errorCount: '0' as const,
+        fielders: [] as const,
+      },
+      interferenceRuling: { kind: 'not-required' as const },
+      runnerAdvanceOverridesByRunner: {
+        kind: 'not-applied' as const,
+        overrides: [] as const,
+      },
+      thirdOutObservation: { kind: 'none' as const },
+      thirdOutTimingByRunner: {},
+    }
+    expect(
+      await c.submit({ ...observation, resultId, battedHit }, vocabulary),
+    ).toBe('pending')
+    const original = post.mock.calls[0]![0]
+    expect(
+      (original.slots[0]!.event.fields.V7 as LineupPlayPrefixV7).observations,
+    ).toEqual({
+      ...battedHit,
+      pitchTypeKey: observation.pitchTypeKey,
+      course: { unit: '1/263', x: '132', y: '139' },
+      pitchSpeed: observation.pitchSpeed,
+      stance: null,
+      battingSide: null,
+    })
+    c.dispose()
+    const restarted = await lineupController()
+    expect(await restarted.inspect()).toBe('pending')
+    expect(await restarted.retry()).toBe('pending')
+    const resent = post.mock.calls[1]![0]
+    expect(transport.buildSyncEventRequestBody(resent)).toStrictEqual(
+      transport.buildSyncEventRequestBody(original),
+    )
+    expect(resent.syncCredentials?.attempt).toBe(
+      original.syncCredentials?.attempt,
+    )
+  },
+)

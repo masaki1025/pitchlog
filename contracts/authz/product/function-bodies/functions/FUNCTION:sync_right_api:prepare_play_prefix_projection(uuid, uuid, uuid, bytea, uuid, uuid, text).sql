@@ -7,7 +7,7 @@ RETURNS TABLE(prepared boolean) LANGUAGE plpgsql VOLATILE SECURITY DEFINER
 SET search_path=pg_catalog,pg_temp AS $dispatch$
 BEGIN
  IF p_preparation_json::jsonb->'next_checkpoint'->>'version'='3' THEN
-DECLARE p jsonb; before_cp jsonb; after_cp jsonb; source_row record;
+DECLARE p jsonb; batted_obs jsonb; before_cp jsonb; after_cp jsonb; source_row record;
  stamp sync_fence.ordinary_pitch_write_admissions%ROWTYPE;
  current_cp sync_fence.ordinary_pitch_checkpoints%ROWTYPE;
  own_xid text; row_xmin text; previous_d1 bigint;
@@ -211,6 +211,94 @@ source_row.payload->'calculation'->'request'->'source'->'responsibility'
  ->'runnerDefaultAdvance'->(CASE m->>'base' WHEN '1' THEN 'first'
  WHEN '2' THEN 'second' WHEN '3' THEN 'third' END)->'destination'='null'::jsonb))
  THEN RAISE EXCEPTION 'lineup physical source rejected' USING ERRCODE='42501'; END IF;
+
+ -- 新安打だけの閉分岐。旧writer/原本/nonce検査は変更しない。
+ batted_obs:=source_row.payload->'observations';
+ IF source_row.payload->'calculation'->'request'->'t1'->>'resultId'
+ IN ('batting-result.single','batting-result.double',
+ 'batting-result.triple','batting-result.home-run')
+ OR batted_obs ? 'battedBall' THEN
+  IF pg_catalog.jsonb_typeof(batted_obs) IS DISTINCT FROM 'object'
+  OR (SELECT pg_catalog.array_agg(k ORDER BY k) FROM
+  pg_catalog.jsonb_object_keys(batted_obs) k)
+  IS DISTINCT FROM ARRAY['battedBall','battingSide','course','interferenceRuling',
+  'officialScoringPayload','pitchSpeed','pitchTypeKey','resultId',
+  'runnerAdvanceOverridesByRunner','stance','thirdOutObservation','thirdOutTimingByRunner']::text[]
+  OR pg_catalog.jsonb_typeof(batted_obs->'resultId') IS DISTINCT FROM 'string'
+  OR batted_obs->>'resultId' NOT IN ('batting-result.single','batting-result.double',
+  'batting-result.triple','batting-result.home-run')
+  OR batted_obs->>'resultId' IS DISTINCT FROM
+  source_row.payload->'calculation'->'request'->'t1'->>'resultId'
+  OR batted_obs->'officialScoringPayload' IS DISTINCT FROM
+  '{"kind":"no-error","errorCount":"0","fielders":[]}'::jsonb
+  OR batted_obs->'interferenceRuling' IS DISTINCT FROM '{"kind":"not-required"}'::jsonb
+  OR batted_obs->'runnerAdvanceOverridesByRunner' IS DISTINCT FROM
+  '{"kind":"not-applied","overrides":[]}'::jsonb
+  OR batted_obs->'thirdOutObservation' IS DISTINCT FROM '{"kind":"none"}'::jsonb
+  OR batted_obs->'thirdOutTimingByRunner' IS DISTINCT FROM '{}'::jsonb
+  OR source_row.payload->'calculation'->'request'->'t1'->>'officialScoringPayload'
+  IS DISTINCT FROM 'no-error'
+  OR source_row.payload->'calculation'->'request'->'t1'->>'interferenceRuling'
+  IS DISTINCT FROM 'not-required'
+  OR source_row.payload->'calculation'->'request'->'t1'->>'runnerAdvanceOverrides'
+  IS DISTINCT FROM 'not-applied'
+  OR source_row.payload->'calculation'->'request'->'t1'->>'thirdOutObservation'
+  IS DISTINCT FROM 'none'
+  OR pg_catalog.jsonb_typeof(batted_obs->'battedBall') IS DISTINCT FROM 'object'
+  OR (SELECT pg_catalog.array_agg(k ORDER BY k) FROM
+  pg_catalog.jsonb_object_keys(batted_obs->'battedBall') k)
+  IS DISTINCT FROM ARRAY['hitX','hitY','rawFielderPosition','resolvedFielderId',
+  'strengthKey','typeKey']::text[]
+  OR p->'play_row'->>'event_kind' IS DISTINCT FROM 'pitch'
+  OR p->'play_row'->>'batting_result_key' IS DISTINCT FROM batted_obs->>'resultId'
+  OR p->'play_row'->>'pitch_type_key' IS DISTINCT FROM batted_obs->>'pitchTypeKey'
+  OR p->'play_row'->'raw_fielder_position' IS DISTINCT FROM
+  batted_obs->'battedBall'->'rawFielderPosition'
+  OR p->'play_row'->'resolved_fielder_id' IS DISTINCT FROM
+  batted_obs->'battedBall'->'resolvedFielderId'
+  OR p->'play_row'->'batted_ball_type' IS DISTINCT FROM
+  batted_obs->'battedBall'->'typeKey'
+  OR p->'play_row'->'batted_ball_strength' IS DISTINCT FROM
+  batted_obs->'battedBall'->'strengthKey'
+  OR (batted_obs->'battedBall'->'hitX'='null'::jsonb AND
+  p->'play_row'->'hit_x' IS DISTINCT FROM 'null'::jsonb)
+  OR (batted_obs->'battedBall'->'hitY'='null'::jsonb AND
+  p->'play_row'->'hit_y' IS DISTINCT FROM 'null'::jsonb)
+  OR (batted_obs->'battedBall'->'hitX'<>'null'::jsonb AND
+  (pg_catalog.jsonb_typeof(batted_obs->'battedBall'->'hitX') IS DISTINCT FROM 'string'
+  OR NOT ((batted_obs->'battedBall'->>'hitX')::numeric BETWEEN 0 AND 1)
+  OR (p->'play_row'->>'hit_x')::double precision IS DISTINCT FROM
+  (batted_obs->'battedBall'->>'hitX')::double precision))
+  OR (batted_obs->'battedBall'->'hitY'<>'null'::jsonb AND
+  (pg_catalog.jsonb_typeof(batted_obs->'battedBall'->'hitY') IS DISTINCT FROM 'string'
+  OR NOT ((batted_obs->'battedBall'->>'hitY')::numeric BETWEEN 0 AND 1)
+  OR (p->'play_row'->>'hit_y')::double precision IS DISTINCT FROM
+  (batted_obs->'battedBall'->>'hitY')::double precision))
+  OR NOT EXISTS(SELECT 1 FROM public.tenant_vocabularies v
+  WHERE v.tenant_id=p_tenant_id AND v.key=batted_obs->>'pitchTypeKey'
+  AND v.category='pitch_type' AND NOT v.disabled)
+  OR NOT EXISTS(SELECT 1 FROM public.admin_vocabularies v
+  WHERE v.key=batted_obs->>'resultId' AND v.category='batting_result'
+  AND NOT v.disabled)
+  OR (batted_obs->'battedBall'->'typeKey'<>'null'::jsonb AND NOT EXISTS(
+  SELECT 1 FROM public.admin_vocabularies v
+  WHERE v.key=batted_obs->'battedBall'->>'typeKey' AND v.category='batted_ball'
+  AND NOT v.disabled))
+  OR (batted_obs->'battedBall'->'strengthKey'<>'null'::jsonb AND NOT EXISTS(
+  SELECT 1 FROM public.admin_vocabularies v
+  WHERE v.key=batted_obs->'battedBall'->>'strengthKey' AND v.category='batted_ball'
+  AND NOT v.disabled))
+  OR (batted_obs->'battedBall'->'resolvedFielderId'<>'null'::jsonb AND NOT EXISTS(
+   SELECT 1 FROM pg_catalog.jsonb_array_elements(p->'roster'->'teams') team,
+   LATERAL pg_catalog.jsonb_array_elements(team->'participants') player
+   WHERE team->>'side'=(CASE before_cp->'after'->'stateFields'->>'state.half'
+   WHEN 'top' THEN 'home' WHEN 'bottom' THEN 'away' ELSE '' END)
+   AND player->'player'->>'player_id'=batted_obs->'battedBall'->>'resolvedFielderId'
+   AND EXISTS(SELECT 1 FROM pg_catalog.jsonb_array_elements(player->'roles') role
+   WHERE role->>'kind'='fielding')))
+  THEN RAISE EXCEPTION 'batted hit physical source rejected'
+  USING ERRCODE='42501'; END IF;
+ END IF;
  SELECT c.* INTO current_cp FROM sync_fence.ordinary_pitch_checkpoints c
  WHERE c.tenant_id=p_tenant_id AND c.game_id=p_game_id
  AND c.internal_generation=stamp.internal_generation FOR UPDATE;

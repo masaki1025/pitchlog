@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "pins": {
+    "test_first_ball_write_stamp.py": {
+      "guard_first_ball_projection_lock": "6f56a458e8709ed56c8908252a5cef1cb51864822ca7c26eab03c1df5397dce9",
+      "guard_first_ball_projection_admission": "29d8a5143cff0e616c8ef25aaa63baf2c6860e8983a2cecf43c420dccf176ba9"
+    },
+    "test_sync_apply_first_ball_payload.py": {
+      "type_target_sha256": "72d2620c6731a5e9367880f2967a7771cc75e5c6e76a18052b988943ff2af921",
+      "type_fields_sha256": "9555f1650b070b08539a7a20b9551f3c67d3f28818630d9b72c7028b649c80d3"
+    },
+    "test_sync_apply_product_supply.py": {
+      "other_generated_statements_sha256": "886798da9f719c0a57534d629d279028d07387e2de375b510f2969ab4e1519de",
+      "terminal_generated_statements_sha256": "70327380c4b57eb9b7960dd636ebbf5af3f5ed7a3befbc7fa3ccfbdfc4bf49ef",
+      "batted_extension_reference_sha256": "ddf4953a9ab4e3f48863c79c2042d895611aa4efc99a546864595c9f477da421"
+    },
+    "test_sync_apply_writer_binding.py": {
+      "RG1:precheck": "cd36c04857da91f506e29414e5bf0bb07d4b7c6b2826ccf97be1bb123823051c",
+      "RG1:commit_check": "c6a149e5bce9efc167b60642f4dc536445f711e0a537dde3f49fd03b2a1f0c75",
+      "RG1:scope_binding": "0f4af18080ce42056c5f7d66fa7c9bbac42179d5c410e5613377d7be37a5e5db",
+      "RULE:resolve_stage_a": "d3a2465260b7380558ee8f362866c69207b35d5556118242610f41039f56eef5",
+      "INITIAL_RIGHT:lock_device": "aced3e0bc2fd3095caa500564e95d49e1b09f0e1a64d4e09477f09e1e69850e6",
+      "INITIAL_RIGHT:read_existing_start": "ce6742722c0572b1a158f97c8840baec9cb1398ac3bfa7c9273ff0ac7b2ab9eb",
+      "INITIAL_RIGHT:read_start_game": "fe9fd82c90394114e326b54234ee8a176883eafbed9b708f51efcf4132a31171",
+      "INITIAL_RIGHT:lock_preparing_game": "a608825e1ba4981cf0f59698410fb3d81efb4ce7acaae4cb81446fbbf24b9c6d",
+      "INITIAL_RIGHT:lock_current_start": "71948d14b70b2d85d5b49329dfad22f3edd4bb4ac164ff15182c15b3e7bb89a9",
+      "INITIAL_RIGHT:check_business_epoch": "b298e0d985736f4230d6d55d9d1454b59dcaa7f75411c1ad0daeb3639fda09b2",
+      "INITIAL_RIGHT:insert_initial_grant": "df0403f96f7adb136977cbb4463a0e04aa4cf71ac010bbfec8954eda389dc0a4",
+      "INITIAL_RIGHT:begin_start_attempt": "958edd7069e0055f9908016186c4aa142f9fbe3f98d214fb6795338eb4b7202c",
+      "INITIAL_RIGHT:resolve_start_attempt": "8112937671d5c575b4cb091708d734e425ebada4ca4e3ecf5b11f0de20f0b88f",
+      "INITIAL_RIGHT:read_initial_start_context": "2bcb2a0d5f9849a258a9c190170f83cb1b2eaa12b6c9f1ccddf337138b5e712b",
+      "INITIAL_RIGHT:persist_initial_start": "bdf1d6879538fd537913bc371e44059ac8eb9f389ed2489a24b89af2d8bc27bb",
+      "INITIAL_RIGHT:enroll_device": "0ff335f54a8dc6d749432ca057d707c8873d7434f9d8f06daa57577d4481fc49",
+      "INITIAL_RIGHT:lookup_existing_start_attempt": "fc58b83f41a47046d7ae690198d51998e28b20afe739c51126b7109cdaa9a6a4",
+      "SYNC_FIRST_BALL:bind_device": "15c3702e4e5390b856669ea1ffd49343b9a1769e324f501daec593c876a2e96e",
+      "SYNC_FIRST_BALL:check_current_right": "d0790dd944798534a8df3d2079aa438e7d3307d0de9acb654c2fd7e874ae8704",
+      "SYNC_FIRST_BALL:read_device_state": "281792f9b426c1fdc7eba3305c069f5fd3afcde268a367fc06583bc006652e71",
+      "SYNC_WRITER_BINDING:read_writer_identity": "4122d688347d16207dbe0129eee860404763b4c2f3fa6dd4ef52d3a20fa74169",
+      "SYNC_ORDINARY_PITCH:read_ordinary_order_summary": "9fe964ac9acdc55affd49aeec9af7e5bfdf9d7423cb7f40e05964ce04901ae0a",
+      "SYNC_ORDINARY_PITCH:bind_ordinary_device": "62979ada626c6a44ba564a67b172c82592939c0add19aa32c5c9b9aa1f71ba8f",
+      "SYNC_ORDINARY_PITCH:check_ordinary_right": "81a812e044a95a1da0ec1032e269f6bd9a8748a0267376577629790a5362d901",
+      "SYNC_ORDINARY_PITCH:prepare_ordinary_projection": "8fea7cdc1033a5db6bce8b5e4a96b8d5b4ddddba57b76b6709c3520c88bcc313",
+      "SYNC_ORDINARY_PITCH:read_ordinary_checkpoint": "fe353fa7741a11b5654f7a0ddab87faf1138fc45ea67c527c591202221fb7d2c",
+      "SYNC_ORDINARY_PITCH:lock_ordinary_checkpoint": "9109e453e8aa0cc6011444c735d5d59a4b73a3abfce6725558d298abf797fdee",
+      "SYNC_ORDINARY_PITCH:read_ordinary_history_page": "3e80687f6ebbf0f09c830534fa40e5a78ccb3fea4cd5d1b0396a2ab59a05494d",
+      "SYNC_PLAY_PREFIX:read_play_prefix_checkpoint": "4bb49ff423f734655435dfd7e3fb0efdcf27d485a80f73d5ea9483d762a546d0",
+      "SYNC_PLAY_PREFIX:lock_play_prefix_checkpoint": "e394ad4a009a7b3c0473ec61ab476a2c6db9b2c7567b8cd1b26593babe83c010",
+      "SYNC_PLAY_PREFIX:read_play_prefix_history_page": "18c486eaff749b0b2b7b80b71363cb242f268b1e956614c1c841c5c42085437a",
+      "SYNC_PLAY_PREFIX:prepare_play_prefix_projection": "fcb5015801f47e34d6c8a7df93ac7c3cc64bec0d6359223d63bedeb749d39053",
+      "SYNC_LINEUP_PREFIX:read_lineup_started_origin": "5e5fd0cd9022e24827b0d6993a0f5adee79be0625e9778deff6ba3d27d2355a4"
+    },
+    "test_sync_right_sql.py": {
+      "old_render_sha256": "55ff49bc530e55325c2f9e7ad1f17fbe41b8f40071431777bf6efc8641bf705e",
+      "bind_device": "8994f14153a7ff696e932b60a1e44785d27420412c7e9a35f407727192d383bf",
+      "check_current_right": "0088634a6910663565944b7c4d80b469a2416218e0a50a7912bc397f67aeb86c",
+      "device_state_read_sha256": "a54b9e6e5b1416db84cc110112e82f687b4987a35f42a7fc1826a891b07695a1"
+    },
+    "test_batted_hit_product_declarations.py": {
+      "old_terminal_declarations_sha256": "1ecaad379aa2b844d15659e915ec7da6e9d5651a458e2e9c6121ed0b58bcaaf8",
+      "adopted_prepare_body_sha256": "9028e9079a826c8b7445c07611c8941f883580b8b00f8fdb4d0d95707cb09642"
+    },
+    "test_batted_hit_storage_boundaries.py": {
+      "read_play_prefix_checkpoint": "22e4cb446bbbce7a8f15133874f79ad6aa462c1bf21f113fd9a1f4dbc1a25be3",
+      "lock_play_prefix_checkpoint": "d9291635f8ad6db4707c01a2f8ccf86bf3d84a78403cbbc0502287a87c3153c1",
+      "read_play_prefix_history_page": "2346ea918bfa470ae69add54c31572667451814498383164ecb5870e59f30f5e",
+      "assert_play_prefix_projection": "3b0058ead18e47a00d51365dcd578435f08b6f35e902c31e8dc59c14d0d22c8a",
+      "finish_play_prefix_projection": "4665b56bb8d7ac806bd6480b77171dd4b27995c6a8679c260dc53914ed7407f6",
+      "guard_play_prefix_runner_insert": "3489089a548fecef4a062abc1f8e1f9bd5feefda78e4ea2ec0be0a0b749113e6",
+      "read_lineup_started_origin": "730d153b7c27c6f5f42112a3790cc1ca30fe549b4602ed108c83e5ba77e1b6b4",
+      "old_v2_prepare_body_sha256": "6a51bc53df61ecd37262d8fa3b05c4f702f4861f419376d752062de170bce6b6"
+    }
+  }
+}

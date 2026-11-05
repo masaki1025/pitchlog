@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 from typing import Any, NotRequired, TypedDict, cast
 
+import pytest
 from sqlalchemy import (
     BigInteger,
     Boolean,
@@ -19,7 +20,12 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.sql import operators
-from sqlalchemy.sql.elements import UnaryExpression
+from sqlalchemy.sql.elements import (
+    BinaryExpression,
+    CollationClause,
+    ColumnClause,
+    UnaryExpression,
+)
 from sqlalchemy.sql.schema import DefaultClause, Index, Table
 
 from pitchlog.db.tenant_isolation.models import (
@@ -278,8 +284,40 @@ def _model_indexes(table: Table) -> list[_IndexContract]:
     return sorted(contracts, key=lambda index: index["name"])
 
 
+def _batted_key_index_columns(index: Index) -> list[str]:
+    """承認0040の索引1だけを式・対象・属性の全値で照合する。"""
+    assert index.name == "ix_admin_vocabularies_batted_ball_key_c"
+    assert index.table is not None
+    assert index.table.name == "admin_vocabularies"
+    assert index.table.schema in {None, "public"}
+    assert index.unique is False and len(index.expressions) == 1
+    expression = index.expressions[0]
+    assert type(expression) is BinaryExpression
+    assert expression.operator is operators.collate
+    assert type(expression.left) is ColumnClause
+    assert expression.left.name == "key" and not expression.left.is_literal
+    assert type(expression.right) is CollationClause
+    assert expression.right.collation == "C"
+    options = dict(index.dialect_options["postgresql"])
+    predicate = options.pop("where")
+    assert str(predicate) == "category = 'batted_ball' AND disabled = false"
+    using = options.pop("using")
+    assert using is False or using == "btree"
+    assert options == {
+        "with": {},
+        "include": None,
+        "ops": {},
+        "nulls_not_distinct": None,
+        "tablespace": None,
+        "concurrently": False,
+    }
+    return ['key COLLATE "C"']
+
+
 def _index_columns(index: Index) -> list[str]:
     """索引の列順と降順指定を manifest の形へ変換する。"""
+    if index.name == "ix_admin_vocabularies_batted_ball_key_c":
+        return _batted_key_index_columns(index)
     columns: list[str] = []
     for expression in index.expressions:
         if isinstance(expression, Column):
@@ -539,3 +577,435 @@ def test_analysis_group_migration_contains_no_dml() -> None:
 
     assert "INSERT" not in source
     assert "BULK_INSERT" not in source
+
+
+@pytest.mark.parametrize(
+    "fault",
+    [
+        "name",
+        "table",
+        "schema",
+        "unique",
+        "where",
+        "using",
+        "include",
+        "ops",
+        "tablespace",
+        "concurrently",
+        "with",
+        "nulls_not_distinct",
+        "extra-key",
+        "other-key",
+        "collation",
+        "literal",
+        "expression",
+    ],
+)
+def test_batted_index_rejects_every_unapproved_shape(fault: str) -> None:
+    """有限0040以外の式/属性を一般的な索引式として採用しない。"""
+    from sqlalchemy import MetaData, column, literal_column, text
+
+    table = cast(Table, AdminVocabulary.__table__).to_metadata(MetaData())
+    index = next(
+        i for i in table.indexes if i.name == "ix_admin_vocabularies_batted_ball_key_c"
+    )
+    # 型契約外の入力も対向として実オブジェクトへ与える。
+    mutant = cast(Any, index)
+    if fault == "name":
+        mutant.name = "unknown_index"
+    elif fault == "table":
+        table.name = "tenant_vocabularies"
+    elif fault == "schema":
+        table.schema = "private"
+    elif fault == "unique":
+        index.unique = True
+    elif fault == "where":
+        index.dialect_options["postgresql"]["where"] = text("category='other'")
+    elif fault == "extra-key":
+        mutant.expressions.append(column("key"))
+    elif fault in {"other-key", "collation", "literal", "expression"}:
+        mutant.expressions = [
+            {
+                "other-key": column("other").collate("C"),
+                "collation": column("key").collate("default"),
+                "literal": literal_column("key").collate("C"),
+                "expression": text('key COLLATE "C"'),
+            }[fault]
+        ]
+    else:
+        index.dialect_options["postgresql"][fault] = {
+            "using": "hash",
+            "include": ["display_name"],
+            "ops": {"key": "x"},
+            "tablespace": "other",
+            "concurrently": True,
+            "with": {"fillfactor": 50},
+            "nulls_not_distinct": True,
+        }[fault]
+    with pytest.raises(AssertionError):
+        _batted_key_index_columns(index)
+    with pytest.raises(AssertionError):
+        _index_columns(index)
+
+
+@pytest.mark.parametrize(
+    "revision",
+    [
+        "0032_rg1_restore_gate",
+        "0033_game_rules_immutable",
+        "0035_rg1_initial_fresh_epoch",
+        "0036_initial_right_storage",
+        "0037_sync_writer_binding",
+        "0038_first_ball_write_admission",
+        "0039_ordinary_pitch_storage",
+    ],
+)
+def test_batted_historical_projection_only_removes_fixed_index(revision: str) -> None:
+    """旧全metadataに対する差は索引1だけ、現Baseの実体は不変とする。"""
+    from db.test_alembic_migrations import (
+        _metadata_for_pre_batted_revision,
+        _metadata_for_schema_revision,
+    )
+    from sqlalchemy.dialects.postgresql import dialect
+    from sqlalchemy.schema import AddConstraint, CreateColumn, CreateIndex
+
+    from pitchlog.db.base import Base
+
+    before = {t.fullname: tuple(t.indexes) for t in Base.metadata.tables.values()}
+    old = _metadata_for_pre_batted_revision(revision)
+    projected = _metadata_for_schema_revision(revision)
+    assert projected is not Base.metadata
+    assert set(projected.tables) == set(old.tables)
+    for name, original in old.tables.items():
+        actual = projected.tables[name]
+        assert [
+            (c.name, str(CreateColumn(c).compile(dialect=dialect())), c.info)
+            for c in actual.c
+        ] == [
+            (c.name, str(CreateColumn(c).compile(dialect=dialect())), c.info)
+            for c in original.c
+        ]
+        assert actual.info == original.info
+        assert {
+            str(AddConstraint(c).compile(dialect=dialect())) for c in actual.constraints
+        } == {
+            str(AddConstraint(c).compile(dialect=dialect()))
+            for c in original.constraints
+        }
+        assert {
+            str(CreateIndex(i).compile(dialect=dialect())) for i in actual.indexes
+        } == {
+            str(CreateIndex(i).compile(dialect=dialect()))
+            for i in original.indexes
+            if i.name != "ix_admin_vocabularies_batted_ball_key_c"
+        }
+    assert before == {
+        t.fullname: tuple(t.indexes) for t in Base.metadata.tables.values()
+    }
+    assert (
+        _metadata_for_schema_revision("0040_batted_vocabulary_index") is Base.metadata
+    )
+    with pytest.raises(AssertionError, match="未対応revision"):
+        _metadata_for_schema_revision("0040_unknown")
+
+
+def test_batted_current_audit_uses_owner_supplied_transaction_and_fixed_revision(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """実PG成功を代用せず、owner/TX/固定migration/検査の接続を確認する。"""
+    from contextlib import contextmanager
+    from types import SimpleNamespace
+
+    from db import test_schema_audit as audit
+
+    trace = []
+    revision = "0039_ordinary_pitch_storage"
+    raw = object()
+
+    class Connection:
+        connection = SimpleNamespace(driver_connection=raw)
+
+        def exec_driver_sql(self, statement):
+            if "current_user" in statement:
+                return SimpleNamespace(one=lambda: ("pitchlog_owner", "pitchlog_owner"))
+            return SimpleNamespace(
+                scalars=lambda: SimpleNamespace(all=lambda: [revision])
+            )
+
+    connection = Connection()
+
+    @contextmanager
+    def begin():
+        trace.append("begin")
+        try:
+            yield connection
+        except RuntimeError:
+            trace.append("rollback-propagated")
+            raise
+        else:
+            trace.append("commit-path")
+
+    engine = SimpleNamespace(begin=begin, dispose=lambda: trace.append("dispose"))
+    monkeypatch.setattr(audit, "create_engine", lambda _: engine)
+    monkeypatch.setattr(audit, "_sqlalchemy_url", lambda _: "postgresql://owned")
+    monkeypatch.setattr(audit, "normalize_postgresql_url", lambda x: x)
+
+    def upgrade(config, target):
+        nonlocal revision
+        assert config.attributes["connection"] is connection
+        assert target == "0040_batted_vocabulary_index"
+        trace.append("upgrade40")
+        revision = target
+
+    def verify(actual):
+        assert actual is raw
+        trace.append("verify")
+
+    monkeypatch.setattr(audit.command, "upgrade", upgrade)
+    monkeypatch.setattr(audit, "_assert_current_batted_index", verify)
+    catalog = cast(Any, SimpleNamespace(owner_dsn="owned"))
+    audit._prepare_current_audit_index(catalog)
+    assert trace == ["begin", "upgrade40", "verify", "commit-path", "dispose"]
+    trace.clear()
+    revision = "0039_ordinary_pitch_storage"
+
+    def fail(_):
+        raise RuntimeError("index shape mismatch")
+
+    monkeypatch.setattr(audit, "_assert_current_batted_index", fail)
+    with pytest.raises(RuntimeError, match="index shape mismatch"):
+        audit._prepare_current_audit_index(catalog)
+    assert trace == ["begin", "upgrade40", "rollback-propagated", "dispose"]
+
+
+@pytest.mark.parametrize(
+    "fault",
+    [
+        None,
+        "missing",
+        "extra",
+        "schema",
+        "table",
+        "name",
+        "method",
+        "owner",
+        "unique",
+        "primary",
+        "valid",
+        "ready",
+        "live",
+        "immediate",
+        "nulls",
+        "key",
+        "collation",
+        "order",
+        "expression",
+        "predicate",
+        "opclass",
+        "opclass-schema",
+    ],
+)
+def test_batted_audit_physical_index_is_closed(fault: str | None) -> None:
+    """実PGの代替にせず、物理index全fieldの不足/余剰/変更拒否を確認する。"""
+    from contextlib import contextmanager
+    from types import SimpleNamespace
+
+    from db.test_schema_audit import _assert_current_batted_index
+
+    row: list[Any] = [
+        "public",
+        "admin_vocabularies",
+        "ix_admin_vocabularies_batted_ball_key_c",
+        "btree",
+        "pitchlog_owner",
+        False,
+        False,
+        True,
+        True,
+        True,
+        True,
+        False,
+        ["key"],
+        ["pg_catalog.C"],
+        [0],
+        None,
+        "((category = 'batted_ball'::text) AND (disabled = false))",
+        ["pg_catalog.text_ops"],
+    ]
+    changes = {
+        "schema": (0, "private"),
+        "table": (1, "tenant_vocabularies"),
+        "name": (2, "unknown"),
+        "method": (3, "hash"),
+        "owner": (4, "other"),
+        "unique": (5, True),
+        "primary": (6, True),
+        "valid": (7, False),
+        "ready": (8, False),
+        "live": (9, False),
+        "immediate": (10, False),
+        "nulls": (11, True),
+        "key": (12, ["display_name"]),
+        "collation": (13, ["pg_catalog.default"]),
+        "order": (14, [1]),
+        "expression": (15, "lower(key)"),
+        "predicate": (16, "disabled=false"),
+        "opclass": (17, ["pg_catalog.text_pattern_ops"]),
+        "opclass-schema": (17, ["public.text_ops"]),
+    }
+    if fault in changes:
+        index, value = changes[fault]
+        row[index] = value
+    rows = [] if fault == "missing" else [tuple(row)]
+    if fault == "extra":
+        rows *= 2
+
+    @contextmanager
+    def cursor():
+        yield SimpleNamespace(execute=lambda _: None, fetchall=lambda: rows)
+
+    connection = cast(Any, SimpleNamespace(cursor=cursor))
+    if fault is None:
+        _assert_current_batted_index(connection)
+    else:
+        with pytest.raises(AssertionError):
+            _assert_current_batted_index(connection)
+
+
+@pytest.mark.parametrize("rendering", [["key"], ['key COLLATE "C"']])
+@pytest.mark.parametrize(
+    "fault",
+    [
+        None,
+        "schema",
+        "table",
+        "unique",
+        "empty",
+        "other-key",
+        "descending",
+        "other-collation",
+        "extra-key",
+        "predicate",
+        "physical-collation",
+        "physical-method",
+        "physical-opclass-schema",
+    ],
+)
+def test_batted_catalog_renders_only_after_exact_physical_check(
+    monkeypatch: pytest.MonkeyPatch,
+    rendering: list[str],
+    fault: str | None,
+) -> None:
+    """旧per-column表示は有限C indexの実18field確認後だけ射影する。"""
+    from contextlib import contextmanager
+    from types import SimpleNamespace
+
+    from db import test_schema_audit as audit
+
+    schema, table, unique = "public", "admin_vocabularies", False
+    columns = list(rendering)
+    predicate = "category = 'batted_ball' AND disabled = false"
+    physical: list[Any] = [
+        "public",
+        "admin_vocabularies",
+        "ix_admin_vocabularies_batted_ball_key_c",
+        "btree",
+        "pitchlog_owner",
+        False,
+        False,
+        True,
+        True,
+        True,
+        True,
+        False,
+        ["key"],
+        ["pg_catalog.C"],
+        [0],
+        None,
+        "((category = 'batted_ball'::text) AND (disabled = false))",
+        ["pg_catalog.text_ops"],
+    ]
+    if fault == "schema":
+        schema = "private"
+    elif fault == "table":
+        table = "tenant_vocabularies"
+    elif fault == "unique":
+        unique = True
+    elif fault in {"empty", "other-key", "descending", "other-collation", "extra-key"}:
+        columns = {
+            "empty": [],
+            "other-key": ["display_name"],
+            "descending": ["key DESC"],
+            "other-collation": ['key COLLATE "default"'],
+            "extra-key": ["key", "display_name"],
+        }[fault]
+    elif fault == "predicate":
+        predicate = "disabled = false"
+    elif fault == "physical-collation":
+        physical[13] = ["pg_catalog.default"]
+    elif fault == "physical-method":
+        physical[3] = "hash"
+    elif fault == "physical-opclass-schema":
+        physical[17] = ["public.text_ops"]
+    seen = []
+
+    @contextmanager
+    def cursor():
+        yield SimpleNamespace(
+            execute=lambda sql: seen.append(sql), fetchall=lambda: [tuple(physical)]
+        )
+
+    connection = cast(Any, SimpleNamespace(cursor=cursor))
+    monkeypatch.setattr(
+        audit,
+        "_index_kinds",
+        lambda _: [
+            (schema, "ix_admin_vocabularies_batted_ball_key_c"),
+            ("public", "ix_other"),
+        ],
+    )
+
+    def contract(_, name, *, schema):
+        if name == "ix_other":
+            return "other unchanged", "games", ["id DESC"], None, False
+        return "observed definition", table, columns, predicate, unique
+
+    monkeypatch.setattr(audit, "_index_catalog_contract", contract)
+    if fault is None:
+        actual = audit._index_catalog(connection)
+        assert actual == {
+            audit._IndexContract(
+                "admin_vocabularies",
+                "ix_admin_vocabularies_batted_ball_key_c",
+                ('key COLLATE "C"',),
+                predicate,
+            ),
+            audit._IndexContract("games", "ix_other", ("id DESC",), None),
+        }
+        assert len(seen) == 1
+    else:
+        with pytest.raises(AssertionError):
+            audit._index_catalog(connection)
+
+
+def test_batted_catalog_never_normalizes_or_excludes_unknown_index(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """他名の同形indexも旧raw表現のまま残し、未知差分を削除しない。"""
+    from db import test_schema_audit as audit
+
+    monkeypatch.setattr(audit, "_index_kinds", lambda _: [("public", "unknown_index")])
+    monkeypatch.setattr(
+        audit,
+        "_index_catalog_contract",
+        lambda *a, **k: (
+            "unknown definition",
+            "admin_vocabularies",
+            ["key"],
+            None,
+            False,
+        ),
+    )
+    assert audit._index_catalog(cast(Any, object())) == {
+        audit._IndexContract("admin_vocabularies", "unknown_index", ("key",), None),
+    }

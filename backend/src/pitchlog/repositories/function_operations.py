@@ -479,6 +479,9 @@ class FunctionOperationRegistration:
         ordinary_prefix = _SYNC_ORDINARY_PREFIX_FUNCTION_TYPES.get(self.function_id)
         play_prefix = _SYNC_PLAY_PREFIX_FUNCTION_TYPES.get(self.function_id)
         writer_binding = _SYNC_WRITER_BINDING_FUNCTION_TYPES.get(self.function_id)
+        recording_vocab = (
+            self.function_id == "recording_vocab_api.read_batted_ball_options"
+        )
         extended = (
             self.input_fields,
             self.result_fields,
@@ -551,6 +554,22 @@ class FunctionOperationRegistration:
                 or self.nonempty_inputs
             ):
                 raise FunctionOperationError("writer binding関数の有限型宣言が不一致")
+        elif recording_vocab:
+            if (
+                extended
+                != (
+                    (("page_size", int), ("cursor_key", str)),
+                    (("key", str), ("display_name", str)),
+                    (),
+                    (),
+                )
+                or self.operation_id
+                != "RECORDING_VOCABULARIES:read_batted_ball_options"
+                or self.capability_id != "CAP:recording_vocabularies:read"
+                or (self.min_rows, self.max_rows) != (0, 101)
+                or self.nonempty_inputs
+            ):
+                raise FunctionOperationError("打球語彙readの有限型宣言が不一致")
         elif (
             self.nullable_results
             or self.aware_datetime_results

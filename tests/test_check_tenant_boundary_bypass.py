@@ -1139,7 +1139,12 @@ def _initialize_test_repository(
     checker._run_git(repository, ["init"])
     if "pr191_source_registration" in allowlist or "pr192_source_registration" in allowlist:
         # 合成repoも実原典のobject/祖先を保持する。元repoのrefsやobjectは変更しない。
-        if "pr192_source_registration" in allowlist:
+        if "pr196_source_registration" in allowlist:
+            frozen = json.loads(
+                (REPOSITORY_ROOT / "contracts/tenant_boundary/frozen-inputs.json").read_text()
+            )
+            revision = frozen["frozen_inputs"]["pr196_source_expectation_revision"]["value"]
+        elif "pr192_source_registration" in allowlist:
             frozen = json.loads(
                 (REPOSITORY_ROOT / "contracts/tenant_boundary/frozen-inputs.json").read_text()
             )
@@ -2513,7 +2518,7 @@ marker = 0
 @pytest.fixture(scope="module")
 def positive_fixture_qualification_contexts(
     tmp_path_factory: pytest.TempPathFactory,
-) -> tuple[Any, Any, Path]:
+) -> tuple[Any, Any, Path, Path]:
     """旧generic正例と現source資格を混ぜず、同じ3面の検査材料を供給する。"""
     historical_revision = checker._pr192_read_fixed_expectations(REPOSITORY_ROOT)[
         "formal_base_revision"
@@ -2538,7 +2543,16 @@ def positive_fixture_qualification_contexts(
     actual_python = {
         p.relative_to(REPOSITORY_ROOT).as_posix() for p in POSITIVE_ROOT.rglob("*.py")
     }
-    assert actual_python == old_python, "旧generic正例の欠落/追加を認めない"
+    current_only = {
+        "tests/fixtures/tenant_boundary/positive/pitchlog/db/alembic_index_comparison.py",
+    }
+    assert not (old_python & current_only)
+    assert actual_python == old_python | current_only, "旧正例保持と明示した現行追加だけ"
+    historical_positive = historical_root / relative_root
+    assert {
+        f.relative_to(historical_root).as_posix()
+        for f in historical_positive.rglob("*.py")
+    } == old_python
     for name in sorted(old_python):
         fixture = REPOSITORY_ROOT / name
         assert fixture.is_file() and not fixture.is_symlink()
@@ -2560,15 +2574,15 @@ def positive_fixture_qualification_contexts(
         local = fixture.relative_to(POSITIVE_ROOT)
         if local.as_posix() != relative:
             assert (qualified / local).read_bytes() == fixture.read_bytes()
-    return historical, current, qualified
+    return historical, current, qualified, historical_positive
 
 
 def test_positive_fixtures_pass(
-    positive_fixture_qualification_contexts: tuple[Any, Any, Path],
+    positive_fixture_qualification_contexts: tuple[Any, Any, Path, Path],
 ) -> None:
     """旧generic/現拒否/現真正sourceの3面を同じcurrent checkerで完全比較する。"""
-    historical, current, qualified = positive_fixture_qualification_contexts
-    assert checker.scan_directory(POSITIVE_ROOT, contract=historical) == []
+    historical, current, qualified, historical_positive = positive_fixture_qualification_contexts
+    assert checker.scan_directory(historical_positive, contract=historical) == []
     violations = checker.scan_directory(POSITIVE_ROOT, contract=current)
     assert [
         (v.path, v.line, v.end_line, v.condition, v.code, v.symbol, v.message, v.scope)
@@ -2579,6 +2593,12 @@ def test_positive_fixtures_pass(
         "pitchlog.repositories.transaction.<module>",
     )]
     assert checker.scan_directory(qualified, contract=current) == []
+    new_path = "pitchlog/db/alembic_index_comparison.py"
+    new_source = (POSITIVE_ROOT / new_path).read_text(encoding="utf-8")
+    old_findings = checker.scan_source(new_source, path=new_path, contract=historical)
+    assert len(old_findings) == 2
+    assert {item.code for item in old_findings} == {"TB005"}
+    assert checker.scan_source(new_source, path=new_path, contract=current) == []
 
 
 def test_fixed_function_builder_has_only_select_permission() -> None:
@@ -3010,6 +3030,10 @@ def test_all_assets_freeze_mode_wiring_and_declare_single_authority() -> None:
             "tests/test_pr192_tenant_source_registration.py",
             "tests/test_check_tenant_boundary_bypass.py",
             "tests/fixtures/pr192_ordinary_extension_reference_v1.json",
+            "backend/tests/test_sync_apply_product_supply.py",
+            "backend/tests/fixtures/batted_source_extension_reference_v1.json",
+            "tests/fixtures/pr196_tenant_source_expected_v1.json",
+            "tests/test_pr196_tenant_source_registration.py",
         ],
         Path("contracts/tenant_boundary/negative-fixtures.json"): shared_external_files,
         Path("contracts/tenant_boundary/repository-contract.json"): shared_external_files,
@@ -4660,11 +4684,11 @@ def test_safe_change_passes_external_or_default_real_commit_cli(
 
 
 def test_reject_all_mutant_kills_positive_fixture(
-    positive_fixture_qualification_contexts: tuple[Any, Any, Path],
+    positive_fixture_qualification_contexts: tuple[Any, Any, Path, Path],
 ) -> None:
     """旧genericと現真正sourceの両正例で、reject-allがDB Callを実際に拒否する。"""
-    historical, current, qualified = positive_fixture_qualification_contexts
-    for fixture_root, contract in ((POSITIVE_ROOT, historical), (qualified, current)):
+    historical, current, qualified, historical_positive = positive_fixture_qualification_contexts
+    for fixture_root, contract in ((historical_positive, historical), (qualified, current)):
         assert checker.scan_directory(fixture_root, contract=contract) == []
         violations = checker.scan_directory(
             fixture_root, contract=contract, reject_all_db_calls=True,
@@ -9961,3 +9985,348 @@ def test_historical_checker_does_not_accept_missing_or_self_consistent_tampered_
             asset_path.write_text(json.dumps(asset))
     with pytest.raises(historical.ContractError):
         historical.load_contract(root)
+
+
+def _registry_static_tuple_case(tmp_path):
+    """実4sourceを専有tmpへ複写し、ID順序だけの局所読取を試す。"""
+    module_root = tmp_path / "backend/src/pitchlog/repositories"
+    module_root.mkdir(parents=True)
+    for name in ("function_operations", "operation_registry", "transaction", "batted_ball_options"):
+        (module_root / f"{name}.py").write_bytes(
+            (REPOSITORY_ROOT / "backend/src/pitchlog/repositories" / f"{name}.py").read_bytes()
+        )
+    asset = json.loads(
+        (REPOSITORY_ROOT / "contracts/tenant_boundary/repository-contract.json").read_text()
+    )
+    # 真正固定Gitを独立rootへread-only供給し、現在木を期待原典にしない。
+    for relative in (
+        "contracts/tenant_boundary/frozen-inputs.json",
+        "tests/fixtures/pr196_tenant_source_expected_v1.json",
+    ):
+        target = tmp_path / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes((REPOSITORY_ROOT / relative).read_bytes())
+    subprocess.run(["git", "init", "--quiet", str(tmp_path)], check=True)
+    common = subprocess.check_output(
+        ["git", "-C", str(REPOSITORY_ROOT), "rev-parse", "--path-format=absolute",
+         "--git-common-dir"], text=True,
+    ).strip()
+    (tmp_path / ".git/objects/info/alternates").write_text(str(Path(common) / "objects") + "\n")
+    head = subprocess.check_output(
+        ["git", "-C", str(REPOSITORY_ROOT), "rev-parse", "HEAD"], text=True,
+    ).strip()
+    (tmp_path / ".git/HEAD").write_text(head + "\n")
+    return tmp_path, module_root, asset
+
+
+def test_registry_static_tuple_current_exact22_and_no_product_execution(tmp_path, monkeypatch):
+    """既inline21と固定先頭1を順序どおり読み、製品module/evalを実行しない。"""
+    import builtins
+
+    root, modules, asset = _registry_static_tuple_case(tmp_path)
+    assert len(asset["product_function_operation_ids"]) == 22
+    assert asset["product_function_operation_ids"][0] == (
+        "RECORDING_VOCABULARIES:read_batted_ball_options"
+    )
+    original = builtins.__import__
+
+    def no_product_import(name, *args, **kwargs):
+        if name == "pitchlog.repositories.batted_ball_options":
+            raise AssertionError("static reader imported product code")
+        return original(name, *args, **kwargs)
+
+    def no_eval(*args, **kwargs):
+        raise AssertionError("static reader evaluated product code")
+
+    monkeypatch.setattr(builtins, "__import__", no_product_import)
+    monkeypatch.setattr(builtins, "eval", no_eval)
+    checker._validate_function_operation_surface(root, asset)
+
+
+@pytest.mark.parametrize("count", [0, 21])
+def test_registry_static_tuple_keeps_legacy_inline_only_without_new_module(tmp_path, count):
+    """新Starredが無い既0/21inline経路に新moduleを前提追加しない。"""
+    root, modules, asset = _registry_static_tuple_case(tmp_path)
+    path = modules / "operation_registry.py"
+    tree = ast.parse(path.read_text())
+    declaration = next(
+        n for n in tree.body if isinstance(n, ast.AnnAssign)
+        and isinstance(n.target, ast.Name) and n.target.id == "PRODUCT_FUNCTION_OPERATIONS"
+    )
+    assert isinstance(declaration.value, ast.Tuple)
+    declaration.value.elts = declaration.value.elts[1:] if count else []
+    asset["product_function_operation_ids"] = (
+        asset["product_function_operation_ids"][1:] if count else []
+    )
+    path.write_text(ast.unparse(tree))
+    (modules / "batted_ball_options.py").unlink()
+    checker._validate_function_operation_surface(root, asset)
+
+
+@pytest.mark.parametrize("fault", [
+    "unknown_star", "star_call", "star_attribute", "star_position", "star_duplicate",
+    "registry_assign", "registry_augassign", "registry_delete", "registry_function_shadow",
+    "import_module", "import_relative", "import_alias", "import_equal_alias", "import_duplicate",
+    "constant_reassign", "constant_augassign", "constant_delete", "constant_namedexpr",
+    "owner_missing", "owner_symlink", "owner_tuple_empty", "owner_tuple_two", "owner_list",
+    "owner_tuple_call", "owner_annotated_only", "constructor_alias", "constructor_module",
+    "constructor_reassign", "dynamic_id", "wrong_id_with_matching_asset", "bool_id", "kwargs",
+    "inline_id", "inline_order", "declared_order", "declared_duplicate", "dynamic_namespace",
+    "owner_keyword_extra", "owner_keyword_missing", "attribute_rebind",
+    "registry_star_import", "owner_star_import", "attribute_namespace",
+])
+def test_registry_static_tuple_unknown_or_rebound_inputs_are_rejected(tmp_path, fault):
+    """既固定import/静的tuple1以外は自己一致assetを付けても閉拒否する。"""
+    root, modules, asset = _registry_static_tuple_case(tmp_path)
+    registry_path = modules / "operation_registry.py"
+    owner_path = modules / "batted_ball_options.py"
+    registry = registry_path.read_text()
+    owner = owner_path.read_text()
+    binding = "BATTED_BALL_OPTIONS_OPERATIONS"
+    if fault == "unknown_star":
+        registry = registry.replace("*" + binding, "*UNKNOWN_OPERATIONS")
+    elif fault == "star_call":
+        registry = registry.replace("*" + binding, "*" + binding + "()")
+    elif fault == "star_attribute":
+        registry = registry.replace("*" + binding, "*module." + binding)
+    elif fault == "star_position":
+        tree = ast.parse(registry)
+        value = next(
+            n.value for n in tree.body if isinstance(n, ast.AnnAssign)
+            and isinstance(n.target, ast.Name) and n.target.id == "PRODUCT_FUNCTION_OPERATIONS"
+        )
+        assert isinstance(value, ast.Tuple)
+        value.elts[0], value.elts[1] = value.elts[1], value.elts[0]
+        registry = ast.unparse(tree)
+    elif fault == "star_duplicate":
+        registry = registry.replace("*" + binding + ",", "*" + binding + ", *" + binding + ",")
+    elif fault == "registry_assign":
+        registry += "\nPRODUCT_FUNCTION_OPERATIONS = ()\n"
+    elif fault == "registry_augassign":
+        registry += "\nPRODUCT_FUNCTION_OPERATIONS += ()\n"
+    elif fault == "registry_delete":
+        registry += "\ndel PRODUCT_FUNCTION_OPERATIONS\n"
+    elif fault == "registry_function_shadow":
+        registry += "\ndef PRODUCT_FUNCTION_OPERATIONS(): pass\n"
+    elif fault == "import_module":
+        registry = registry.replace(
+            "from pitchlog.repositories.batted_ball_options", "from other.module"
+        )
+    elif fault == "import_relative":
+        registry = registry.replace(
+            "from pitchlog.repositories.batted_ball_options", "from .batted_ball_options"
+        )
+    elif fault == "import_alias":
+        registry = registry.replace("import " + binding, "import " + binding + " as ALIAS")
+        registry = registry.replace("*" + binding, "*ALIAS")
+    elif fault == "import_equal_alias":
+        registry = registry.replace("import " + binding, "import " + binding + " as " + binding)
+    elif fault == "import_duplicate":
+        registry += "\nfrom pitchlog.repositories.batted_ball_options import " + binding + "\n"
+    elif fault == "constant_reassign":
+        owner += "\n" + binding + " = ()\n"
+    elif fault == "constant_augassign":
+        owner += "\n" + binding + " += ()\n"
+    elif fault == "constant_delete":
+        owner += "\ndel " + binding + "\n"
+    elif fault == "constant_namedexpr":
+        owner += "\n(" + binding + " := ())\n"
+    elif fault == "owner_missing":
+        owner_path.unlink()
+    elif fault == "owner_symlink":
+        target = modules / "alternate.py"
+        target.write_text(owner)
+        owner_path.unlink()
+        owner_path.symlink_to(target)
+    elif fault in {
+        "owner_tuple_empty", "owner_tuple_two", "owner_list", "owner_tuple_call",
+        "owner_annotated_only",
+    }:
+        tree = ast.parse(owner)
+        assignment = next(n for n in tree.body if isinstance(n, ast.Assign)
+                          and any(isinstance(t, ast.Name) and t.id == binding for t in n.targets))
+        assert isinstance(assignment.value, ast.Tuple)
+        if fault == "owner_tuple_empty":
+            assignment.value.elts = []
+        elif fault == "owner_tuple_two":
+            assignment.value.elts.append(copy.deepcopy(assignment.value.elts[0]))
+        elif fault == "owner_list":
+            assignment.value = ast.List(elts=assignment.value.elts, ctx=ast.Load())
+        elif fault == "owner_tuple_call":
+            assignment.value = ast.Call(
+                func=ast.Name(id="tuple", ctx=ast.Load()), args=[assignment.value], keywords=[]
+            )
+        else:
+            tree.body[tree.body.index(assignment)] = ast.AnnAssign(
+                target=assignment.targets[0], annotation=ast.Name(id="tuple", ctx=ast.Load()),
+                value=assignment.value, simple=1,
+            )
+        owner = ast.unparse(ast.fix_missing_locations(tree))
+    elif fault == "constructor_alias":
+        owner = owner.replace(
+            "    FunctionOperationRegistration,", "    FunctionOperationRegistration as ALIAS,"
+        )
+        owner = owner.replace("    FunctionOperationRegistration(", "    ALIAS(")
+    elif fault == "constructor_module":
+        owner = owner.replace("from pitchlog.repositories.function_operations", "from other.module")
+    elif fault == "constructor_reassign":
+        owner += "\nFunctionOperationRegistration = object()\n"
+    elif fault == "dynamic_id":
+        owner = owner.replace(
+            'operation_id="RECORDING_VOCABULARIES:read_batted_ball_options"', "operation_id=ID"
+        )
+    elif fault == "wrong_id_with_matching_asset":
+        owner = owner.replace(
+            "RECORDING_VOCABULARIES:read_batted_ball_options", "UNKNOWN:operation"
+        )
+        asset["product_function_operation_ids"][0] = "UNKNOWN:operation"
+    elif fault == "bool_id":
+        owner = owner.replace(
+            'operation_id="RECORDING_VOCABULARIES:read_batted_ball_options"', "operation_id=True"
+        )
+    elif fault == "kwargs":
+        owner = owner.replace(
+            "    FunctionOperationRegistration(\n",
+            "    FunctionOperationRegistration(\n        **unknown,\n",
+        )
+    elif fault == "owner_keyword_extra":
+        owner = owner.replace("        max_rows=101,", "        max_rows=101, unknown=True,")
+    elif fault == "owner_keyword_missing":
+        owner = owner.replace("        decoder=_identity,", "")
+    elif fault == "attribute_rebind":
+        registry += "\nmodule.BATTED_BALL_OPTIONS_OPERATIONS = ()\n"
+    elif fault == "registry_star_import":
+        registry += "\nfrom unknown import *\n"
+    elif fault == "owner_star_import":
+        owner += "\nfrom unknown import *\n"
+    elif fault == "attribute_namespace":
+        registry += "\nbuiltins.setattr(module, 'BATTED_BALL_OPTIONS_OPERATIONS', ())\n"
+    elif fault == "inline_id":
+        registry = registry.replace('operation_id="RG1:precheck"', 'operation_id="RG1:unknown"')
+    elif fault == "inline_order":
+        tree = ast.parse(registry)
+        value = next(
+            n.value for n in tree.body if isinstance(n, ast.AnnAssign)
+            and isinstance(n.target, ast.Name) and n.target.id == "PRODUCT_FUNCTION_OPERATIONS"
+        )
+        assert isinstance(value, ast.Tuple)
+        value.elts[1], value.elts[2] = value.elts[2], value.elts[1]
+        registry = ast.unparse(tree)
+    elif fault == "declared_order":
+        asset["product_function_operation_ids"][1:3] = reversed(
+            asset["product_function_operation_ids"][1:3]
+        )
+    elif fault == "declared_duplicate":
+        asset["product_function_operation_ids"][1] = asset["product_function_operation_ids"][0]
+    else:
+        registry += "\neval('1')\n"
+    registry_path.write_text(registry)
+    if fault not in {"owner_missing", "owner_symlink"}:
+        owner_path.write_text(owner)
+    with pytest.raises(checker.ContractError):
+        checker._validate_function_operation_surface(root, asset)
+
+
+@pytest.mark.parametrize("target_name", ["operation_registry", "batted_ball_options"])
+@pytest.mark.parametrize("operation", [
+    "vars()[{name!r}] = ()",
+    "from builtins import vars as namespace\nnamespace()[{name!r}] = ()",
+    "import sys\nsys.modules[__name__].__dict__[{name!r}] = ()",
+    "unknown_runtime_mutation()",
+    "from builtins import globals as another\nanother()[{name!r}] = ()",
+])
+def test_registry_static_tuple_fixed_git_rejects_namespace_rebinding(
+    tmp_path, target_name, operation,
+):
+    """別名・属性・未知callをdenylistで推測せず原典全byteで拒否する。"""
+    root, modules, asset = _registry_static_tuple_case(tmp_path)
+    name = ("PRODUCT_FUNCTION_OPERATIONS" if target_name == "operation_registry"
+            else "BATTED_BALL_OPTIONS_OPERATIONS")
+    path = modules / (target_name + ".py")
+    path.write_text(path.read_text() + "\n" + operation.format(name=name) + "\n")
+    with pytest.raises(checker.ContractError):
+        checker._validate_function_operation_surface(root, asset)
+
+
+@pytest.mark.parametrize(
+    "fault", ["fixture", "declared_revision", "purpose", "consumer", "nonancestor"],
+)
+def test_registry_static_tuple_fixed_git_proof_is_required(tmp_path, fault):
+    """固定原典の証拠欠落・改変・非祖先を現在木自己一致へ補完しない。"""
+    root, _modules, asset = _registry_static_tuple_case(tmp_path)
+    if fault == "fixture":
+        (root / "tests/fixtures/pr196_tenant_source_expected_v1.json").write_text("{}")
+    elif fault == "nonancestor":
+        (root / ".git/HEAD").write_text(
+            checker._pr196_read_fixed_expectations(REPOSITORY_ROOT)["formal_base_revision"] + "\n"
+        )
+    else:
+        path = root / "contracts/tenant_boundary/frozen-inputs.json"
+        frozen = json.loads(path.read_text())
+        entry = frozen["frozen_inputs"]["pr196_source_registration_revision"]
+        if fault == "declared_revision":
+            entry["value"] = "0" * 40
+        elif fault == "purpose":
+            entry["purpose"] += " forged"
+        else:
+            entry["sources"].pop()
+        path.write_text(json.dumps(frozen))
+    with pytest.raises(checker.ContractError):
+        checker._validate_function_operation_surface(root, asset)
+
+
+@pytest.mark.parametrize("mutation", ["none", "missing", "signature", "execute", "text"])
+def test_current0040_catalog_hook_registration_is_exact(mutation: str) -> None:
+    """migration固定catalog読取の完全署名と最小APIだけを許可する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    symbol = (
+        "pitchlog.db.alembic_index_comparison."
+        "_require_catalog"
+    )
+    selected = [row for row in contract.allowed_symbols if row.symbol == symbol]
+    assert len(selected) == 1
+    row = selected[0]
+    assert row.signature == (
+        "_require_catalog(connection: Connection) -> None"
+    )
+    assert row.allowed_api_ids == frozenset({"SQLA_CONNECTION_EXECUTE", "SQLA_TEXT"})
+    assert row.fixture == (
+        "tests/fixtures/tenant_boundary/positive/pitchlog/db/alembic_index_comparison.py"
+    )
+    path = "pitchlog/db/alembic_index_comparison.py"
+    source = (REPOSITORY_ROOT / "backend/src" / path).read_text(encoding="utf-8")
+    rows = tuple(item for item in contract.allowed_symbols if item.symbol != symbol)
+    if mutation == "none":
+        rows = (*rows, row)
+    elif mutation == "signature":
+        rows = (*rows, replace(row, signature=row.signature + "_invalid"))
+    elif mutation in {"execute", "text"}:
+        removed = "SQLA_CONNECTION_EXECUTE" if mutation == "execute" else "SQLA_TEXT"
+        rows = (*rows, replace(row, allowed_api_ids=row.allowed_api_ids - {removed}))
+    findings = checker.scan_source(
+        source, path=path, contract=replace(contract, allowed_symbols=rows),
+    )
+    if mutation == "none":
+        assert findings == []
+    else:
+        assert any(item.code == "TB005" and item.scope == symbol for item in findings)
+
+
+def test_current0040_catalog_hook_does_not_allow_other_scope_or_api() -> None:
+    """同moduleの別helperと追加DB APIを登録範囲へ拡張しない。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    path = "pitchlog/db/alembic_index_comparison.py"
+    source = (REPOSITORY_ROOT / "backend/src" / path).read_text(encoding="utf-8")
+    unrelated = source + (
+        '\n\ndef arbitrary_catalog_read(connection):\n'
+        '    return connection.execute(text("SELECT 1"))\n'
+    )
+    findings = checker.scan_source(unrelated, path=path, contract=contract)
+    assert any(item.code == "TB005" and item.scope.endswith(".arbitrary_catalog_read")
+               for item in findings)
+    marker = "    result = connection.execute(text(_CATALOG_SQL))"
+    assert source.count(marker) == 1
+    extra = source.replace(marker, marker + '\n    connection.exec_driver_sql("SELECT 1")')
+    findings = checker.scan_source(extra, path=path, contract=contract)
+    assert any(item.code == "TB005" and item.scope.endswith(
+        "._require_catalog") for item in findings)

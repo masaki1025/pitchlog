@@ -1729,37 +1729,14 @@
       ]
     },
     "T1Input": {
-      "type": "object",
-      "properties": {
-        "eventKind": {
-          "const": "batting-result"
+      "oneOf": [
+        {
+          "$ref": "#/$defs/PitchT1Input"
         },
-        "resultId": {
-          "enum": [
-            "batting-result.called-pitch",
-            "batting-result.swinging-strike",
-            "batting-result.ball",
-            "batting-result.foul",
-            "batting-result.walk",
-            "batting-result.hit-by-pitch",
-            "batting-result.called-strikeout",
-            "batting-result.swinging-strikeout"
-          ]
-        },
-        "pitchEventKind": {
-          "const": "pitch-event"
-        },
-        "before": {
-          "$ref": "#/$defs/Snapshot"
+        {
+          "$ref": "#/$defs/BattedHitT1Input"
         }
-      },
-      "required": [
-        "eventKind",
-        "resultId",
-        "pitchEventKind",
-        "before"
-      ],
-      "additionalProperties": false
+      ]
     },
     "Request": {
       "type": "object",
@@ -1936,6 +1913,50 @@
               "properties": {
                 "kind": {
                   "const": "out"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "reach"
+                },
+                "base": {
+                  "const": "2"
+                }
+              },
+              "required": [
+                "kind",
+                "base"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "reach"
+                },
+                "base": {
+                  "const": "3"
+                }
+              },
+              "required": [
+                "kind",
+                "base"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "score"
                 }
               },
               "required": [
@@ -2197,6 +2218,84 @@
           "$ref": "#/$defs/Failure"
         }
       ]
+    },
+    "PitchT1Input": {
+      "type": "object",
+      "properties": {
+        "eventKind": {
+          "const": "batting-result"
+        },
+        "resultId": {
+          "enum": [
+            "batting-result.called-pitch",
+            "batting-result.swinging-strike",
+            "batting-result.ball",
+            "batting-result.foul",
+            "batting-result.walk",
+            "batting-result.hit-by-pitch",
+            "batting-result.called-strikeout",
+            "batting-result.swinging-strikeout"
+          ]
+        },
+        "pitchEventKind": {
+          "const": "pitch-event"
+        },
+        "before": {
+          "$ref": "#/$defs/Snapshot"
+        }
+      },
+      "required": [
+        "eventKind",
+        "resultId",
+        "pitchEventKind",
+        "before"
+      ],
+      "additionalProperties": false
+    },
+    "BattedHitT1Input": {
+      "type": "object",
+      "properties": {
+        "eventKind": {
+          "const": "batting-result"
+        },
+        "resultId": {
+          "enum": [
+            "batting-result.single",
+            "batting-result.double",
+            "batting-result.triple",
+            "batting-result.home-run"
+          ]
+        },
+        "pitchEventKind": {
+          "const": "pitch-event"
+        },
+        "before": {
+          "$ref": "#/$defs/Snapshot"
+        },
+        "officialScoringPayload": {
+          "const": "no-error"
+        },
+        "interferenceRuling": {
+          "const": "not-required"
+        },
+        "runnerAdvanceOverrides": {
+          "const": "not-applied"
+        },
+        "thirdOutObservation": {
+          "const": "none"
+        }
+      },
+      "required": [
+        "eventKind",
+        "resultId",
+        "pitchEventKind",
+        "before",
+        "officialScoringPayload",
+        "interferenceRuling",
+        "runnerAdvanceOverrides",
+        "thirdOutObservation"
+      ],
+      "additionalProperties": false
     }
   },
   "oneOf": [

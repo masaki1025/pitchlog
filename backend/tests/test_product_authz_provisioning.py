@@ -188,6 +188,35 @@ _FIRST_BALL_CONTACT_SUFFIX = {
     "pitchlog_sync_binding_fn_owner, "
     "pitchlog_sync_right_fn_owner;\n",
 }
+_RECORDING_VOCAB_PUBLIC_USAGE = (
+    "\nGRANT USAGE ON SCHEMA public TO pitchlog_recording_vocab_fn_owner;\n"
+)
+
+# 新語彙readの1関数と既保存に必要な参照7列、専用ownerの4列だけ。
+_BATTED_FUNCTION_IDS = frozenset(
+    {"FUNCTION:recording_vocab_api:read_batted_ball_options(uuid, integer, text)"}
+)
+_BATTED_COLUMN_ACL_IDS = frozenset(
+    f"COLUMN-ACL:public:{table}:{column}:{owner}"
+    for table, columns, owner in (
+        (
+            "admin_vocabularies",
+            ("category", "disabled", "key"),
+            "pitchlog_sync_right_fn_owner",
+        ),
+        (
+            "tenant_vocabularies",
+            ("category", "disabled", "key", "tenant_id"),
+            "pitchlog_sync_right_fn_owner",
+        ),
+        (
+            "admin_vocabularies",
+            ("category", "disabled", "display_name", "key"),
+            "pitchlog_recording_vocab_fn_owner",
+        ),
+    )
+    for column in columns
+)
 
 
 @pytest.fixture
@@ -226,8 +255,14 @@ def legacy_product_profile(
                 and statement.element_id in _LEGACY_CONTACT_SQL
             ):
                 key = statement.element_id
+                current_sql = statement.sql
+                if key == "public":
+                    assert current_sql.count(_RECORDING_VOCAB_PUBLIC_USAGE) == 1
+                    current_sql = current_sql.removesuffix(
+                        _RECORDING_VOCAB_PUBLIC_USAGE
+                    )
                 assert (
-                    statement.sql
+                    current_sql
                     == _LEGACY_CONTACT_SQL[key] + _FIRST_BALL_CONTACT_SUFFIX[key]
                 )
         assert {
@@ -2041,6 +2076,8 @@ def test_pre_rule_preserves_old16_and_defers_exact_epoch_acl() -> None:
         | _TERMINAL_COLUMN_ACL_IDS
         | _LINEUP_FUNCTION_IDS
         | _LINEUP_COLUMN_ACL_IDS
+        | _BATTED_FUNCTION_IDS
+        | _BATTED_COLUMN_ACL_IDS
     )
     assert {row.element_id for row in withheld} - {
         row.element_id for row in old
@@ -2260,9 +2297,19 @@ def test_new_schema_guards_preserve_other_five_and_exact_owner() -> None:
         "sync_fence",
         "sync_fence_api",
         "sync_right_api",
+        "recording_vocab_api",
     }
-    assert len(schemas) == 8 + 3
+    assert len(schemas) == 8 + 3 + 1
     for row in schemas:
+        if row.element_id == "recording_vocab_api":
+            assert row.sql in sql_texts
+            assert (
+                "n.nspname='recording_vocab_api' AND "
+                "r.rolname='pitchlog_recording_vocab_fn_owner'"
+            ) in row.sql
+            assert "RAISE EXCEPTION 'recording vocabulary schema collision'" in row.sql
+            assert "ALTER SCHEMA" not in row.sql
+            continue
         if row.element_id not in {
             "rg1_control",
             "pitchlog_ledger_observer",
@@ -2780,17 +2827,20 @@ def test_owned_profile_selection_rejects_unknown_or_mixed_context(
 
 
 def test_current_sync_roles_have_strict_all_attribute_collision_sql() -> None:
-    """新3主体をskipせず専用21対向へ分類する正式SQL根拠を照合する。"""
+    """旧3主体と新owner1の全属性衝突拒否の正式SQLを照合する。"""
     from db.test_product_authz_provisioning import (
         _ROLE_ATTRIBUTES,
         _SYNC_COLLISION_ROLES,
     )
 
-    assert set(_SYNC_COLLISION_ROLES) == {
+    original = {
         "pitchlog_sync_binding_fn_owner",
         "pitchlog_sync_binding_actor",
         "pitchlog_sync_right_fn_owner",
     }
+    added = {"pitchlog_recording_vocab_fn_owner"}
+    assert set(_SYNC_COLLISION_ROLES) == original | added
+    assert len(_SYNC_COLLISION_ROLES) == len(original) + len(added)
     assert len(_ROLE_ATTRIBUTES) == 7
     statements = product_provisioning.generate_authz_ddl(_REPOSITORY_ROOT, PRODUCT_SPEC)
     roles = {

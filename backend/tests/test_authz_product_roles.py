@@ -21,6 +21,35 @@ from pitchlog.authz.product_role_contract import (
     generate_lifecycle_role_sql,
 )
 
+_EXPECTED_RECORDING_VOCAB_ROLE = {
+    "role_id": "pitchlog_recording_vocab_fn_owner",
+    "creation": "product_ddl",
+    "superuser": False,
+    "bypass_rls": False,
+    "login": False,
+    "create_role": False,
+    "create_db": False,
+    "replication": False,
+    "inherit": False,
+}
+_EXPECTED_RECORDING_VOCAB_ROLE_SQL = (
+    "-- ELEMENT-TYPE: role\n-- ELEMENT-ID: pitchlog_recording_voca"
+    "b_fn_owner\n\nDO $authz$\nBEGIN\n IF EXISTS (SELECT 1 FROM pg_ca"
+    "talog.pg_roles WHERE rolname='pitchlog_recording_vocab_fn_ow"
+    "ner') THEN\n  IF NOT EXISTS(SELECT 1 FROM pg_catalog.pg_roles"
+    " r WHERE r.rolname='pitchlog_recording_vocab_fn_owner'\n   AN"
+    "D r.rolcanlogin IS FALSE AND NOT r.rolsuper AND NOT r.rolbyp"
+    "assrls AND NOT r.rolinherit\n   AND NOT r.rolcreaterole AND N"
+    "OT r.rolcreatedb AND NOT r.rolreplication\n   AND r.rolconnli"
+    "mit=-1 AND r.rolvaliduntil IS NULL\n   AND NOT EXISTS(SELECT "
+    "1 FROM pg_catalog.pg_auth_members m WHERE m.roleid=r.oid OR "
+    "m.member=r.oid)) THEN\n    RAISE EXCEPTION 'sync role collisi"
+    "on: pitchlog_recording_vocab_fn_owner';\n  END IF;\n ELSE\n  CR"
+    "EATE ROLE pitchlog_recording_vocab_fn_owner NOLOGIN NOSUPERU"
+    "SER NOBYPASSRLS NOINHERIT NOCREATEROLE NOCREATEDB NOREPLICAT"
+    "ION;\n END IF;\nEND;$authz$;\n"
+)
+
 _EXPECTED_FIRST_BALL_ROLES = [
     {
         "role_id": "pitchlog_sync_binding_fn_owner",
@@ -321,6 +350,11 @@ def test_product_role_assets_match_design_and_all_readers_accept_them() -> None:
         for row in role_rows
         if row["role_id"] in {r["role_id"] for r in _EXPECTED_FIRST_BALL_ROLES}
     ] == _EXPECTED_FIRST_BALL_ROLES
+    assert [
+        row
+        for row in role_rows
+        if row["role_id"] == "pitchlog_recording_vocab_fn_owner"
+    ] == [_EXPECTED_RECORDING_VOCAB_ROLE]
     assert asset["permanent_privileged_role_ids"] == ["pitchlog_owner"]
     assert asset["membership_edges"] == []
 
@@ -329,6 +363,9 @@ def test_product_role_assets_match_design_and_all_readers_accept_them() -> None:
     assert set(statements_by_role) == set(expected_roles)
     for role_id, expected in expected_roles.items():
         sql = statements_by_role[role_id].sql
+        if role_id == "pitchlog_recording_vocab_fn_owner":
+            assert sql == _EXPECTED_RECORDING_VOCAB_ROLE_SQL
+            continue
         if role_id in _EXPECTED_FIRST_BALL_ROLE_SQL:
             assert sql == _EXPECTED_FIRST_BALL_ROLE_SQL[role_id]
             continue
@@ -403,6 +440,7 @@ def test_product_state_requires_authn_role_even_when_role_is_missing() -> None:
         "pitchlog_rg1_fn_owner",
         "pitchlog_rule_resolution_fn_owner",
         "pitchlog_initial_auth_verifier",
+        "pitchlog_recording_vocab_fn_owner",
         *_LIFECYCLE_ROLE_EXPECTATIONS,
         *(r["role_id"] for r in _EXPECTED_FIRST_BALL_ROLES),
     }
@@ -424,7 +462,9 @@ def test_whole_authn_bundle_removal_is_rejected() -> None:
     asset["functions"] = [
         row for row in asset["functions"] if row["schema_name"] != "authn"
     ]
-    assert len(expected_product_roles(asset)) == 14 + len(_EXPECTED_FIRST_BALL_ROLES)
+    assert (
+        len(expected_product_roles(asset)) == 14 + len(_EXPECTED_FIRST_BALL_ROLES) + 1
+    )
     with pytest.raises(ValueError, match="署名"):
         validate_authn_asset(asset)
     with pytest.raises(_catalog_checker.CatalogError):
@@ -649,6 +689,51 @@ def test_first_ball_role_membership_is_rejected(role: str, reverse: bool) -> Non
         dict(
             role_id="pitchlog_app" if reverse else role,
             member_id=role if reverse else "pitchlog_app",
+            admin_option=False,
+            set_option=True,
+            inherit_option=False,
+        )
+    ]
+    with pytest.raises(_catalog_checker.CatalogError):
+        _validate_product_asset(asset)
+
+
+@pytest.mark.parametrize("attribute", _ATTRIBUTE_ORDER)
+def test_recording_vocab_role_seven_attributes_are_closed(attribute: str) -> None:
+    """固定Gitの新owner1も全7属性を反転させると拒否する。"""
+    asset = _read_product_asset()
+    row = next(
+        r for r in asset["roles"] if r["role_id"] == "pitchlog_recording_vocab_fn_owner"
+    )
+    row[attribute] = not row[attribute]
+    with pytest.raises(_catalog_checker.CatalogError):
+        _validate_product_asset(asset)
+
+
+@pytest.mark.parametrize("mode", ["remove", "duplicate"])
+def test_recording_vocab_role_is_one_required_declaration(mode: str) -> None:
+    """新ownerの欠落や重複を母集合の追随で成功化しない。"""
+    asset = _read_product_asset()
+    row = next(
+        r for r in asset["roles"] if r["role_id"] == "pitchlog_recording_vocab_fn_owner"
+    )
+    if mode == "remove":
+        asset["roles"].remove(row)
+    else:
+        asset["roles"].append(copy.deepcopy(row))
+    with pytest.raises(_catalog_checker.CatalogError):
+        _validate_product_asset(asset)
+
+
+@pytest.mark.parametrize("reverse", [False, True])
+def test_recording_vocab_role_membership_is_closed(reverse: bool) -> None:
+    """新ownerの両向membershipも許可しない。"""
+    asset = _read_product_asset()
+    owner = "pitchlog_recording_vocab_fn_owner"
+    asset["membership_edges"] = [
+        dict(
+            role_id="pitchlog_app" if reverse else owner,
+            member_id=owner if reverse else "pitchlog_app",
             admin_option=False,
             set_option=True,
             inherit_option=False,

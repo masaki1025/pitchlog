@@ -322,7 +322,8 @@
         "backend/src/pitchlog/sync/port_guard.py",
         "backend/src/pitchlog/repositories/recorded_snapshot.py",
         "frontend/src/api/terminalPitchWire.ts",
-        "frontend/src/api/terminalPitchWire.spec.ts"
+        "frontend/src/api/terminalPitchWire.spec.ts",
+        "backend/tests/fixtures/batted_source_extension_reference_v1.json"
       ]
     },
     {
@@ -759,7 +760,9 @@
         "backend/tests/db/test_terminal_pitch_storage.py",
         "backend/src/pitchlog/api/routers/sync.py",
         "backend/src/pitchlog/sync/port_guard.py",
-        "backend/src/pitchlog/repositories/recorded_snapshot.py"
+        "backend/src/pitchlog/repositories/recorded_snapshot.py",
+        "tests/fixtures/pr196_tenant_source_expected_v1.json",
+        "tests/test_pr196_tenant_source_registration.py"
       ]
     },
     {
@@ -844,7 +847,9 @@
         "backend/tests/test_first_ball_write_stamp.py",
         "backend/tests/db/test_terminal_pitch_storage.py",
         "frontend/src/api/terminalPitchWire.ts",
-        "frontend/src/api/terminalPitchWire.spec.ts"
+        "frontend/src/api/terminalPitchWire.spec.ts",
+        "backend/src/pitchlog/db/alembic_index_comparison.py",
+        "backend/tests/test_alembic_index_comparison.py"
       ]
     }
   ]

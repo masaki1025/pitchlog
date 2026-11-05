@@ -165,3 +165,31 @@ it('既観測小数球速139.5を保持し、余剰constructor/sourcePosition変
     ),
   ).rejects.toThrow()
 })
+
+import { isClosedPlaySchema } from './terminalPitchWire'
+it('allOfのANDと型省略propertiesも制約として検査し、未知構文は閉拒否する', () => {
+  const document = {
+    $defs: {},
+    allOf: [
+      {
+        type: 'object',
+        properties: { result: { type: 'string' } },
+        required: ['result'],
+        additionalProperties: false,
+      },
+      { properties: { result: { const: 'single' } } },
+    ],
+  }
+  expect(isClosedPlaySchema({ result: 'single' }, document)).toBe(true)
+  expect(isClosedPlaySchema({ result: 'home-run' }, document)).toBe(false)
+  expect(isClosedPlaySchema({}, document)).toBe(false)
+  expect(isClosedPlaySchema({ result: 'single', extra: 1 }, document)).toBe(
+    false,
+  )
+  expect(
+    isClosedPlaySchema(
+      { result: 'single' },
+      { ...document, unsupported: true },
+    ),
+  ).toBe(false)
+})

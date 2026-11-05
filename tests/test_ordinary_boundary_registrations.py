@@ -6,6 +6,7 @@ import copy
 import hashlib
 import importlib.util
 import json
+import subprocess
 import sys
 from dataclasses import replace
 from pathlib import Path
@@ -49,13 +50,23 @@ def test_ordinary_exact_source_and_each_site(state, owner_path):
     assert len(contract.ordinary_condition2_owners) == _ORDINARY_OWNER_COUNT
     owner = next(o for o in contract.ordinary_condition2_owners if o.path == owner_path)
     path = owner.path.removeprefix("backend/src/")
-    source = sources[path]
+    # 旧所有者の全byteは署名対象と同じ固定Gitで保持する。
+    frozen = json.loads((ROOT / "contracts/tenant_boundary/frozen-inputs.json").read_text())
+    revision = frozen["frozen_inputs"]["pr192_source_registration_revision"]["value"]
+    checker._git_regular_blob(ROOT, revision, Path(owner.path))
+    source = subprocess.check_output(
+        ["git", "show", revision + ":" + owner.path], cwd=ROOT,
+    ).decode("utf-8")
     assert hashlib.sha256(source.encode()).hexdigest() == owner.source_sha256
     raw = checker.scan_source(
         source, path=path, contract=replace(contract, ordinary_condition2_owners=()),
         reexport_map=reexports,
     )
     actual = checker.scan_source(source, path=path, contract=contract, reexport_map=reexports)
+    # 現sourceは旧hashへ上書きせず、受理済み後継登録で別に検査する。
+    assert checker.scan_source(
+        sources[path], path=path, contract=contract, reexport_map=reexports,
+    ) == []
     assert {(v.line, v.symbol, v.scope) for v in raw if v.code == "TB002"} == owner.findings
     assert actual == [v for v in raw if v.code != "TB002"]
     undeclared = replace(contract, ordinary_condition2_owners=())

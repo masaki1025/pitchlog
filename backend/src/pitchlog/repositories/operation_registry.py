@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from types import MappingProxyType
 
+from pitchlog.repositories.batted_ball_options import BATTED_BALL_OPTIONS_OPERATIONS
 from pitchlog.repositories.first_ball import (
     _UNREGISTERED_DECLARATIONS as _FIRST_BALL_FUNCTION_OPERATIONS,
 )
@@ -115,6 +116,7 @@ def _registered_product_function(
 
 # 既8関数を保持し、binding前の端末状態readだけを末尾へ加える。
 PRODUCT_FUNCTION_OPERATIONS: tuple[FunctionOperationRegistration, ...] = (
+    *BATTED_BALL_OPTIONS_OPERATIONS,
     FunctionOperationRegistration(
         operation_id="RG1:precheck",
         token_type=RG1PrecheckToken,

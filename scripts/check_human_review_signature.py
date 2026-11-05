@@ -1605,7 +1605,7 @@ def validate_gate6_subject_carry(root: Path) -> None:
     try:
         if _ordinary_present(root):
             if (root / _STRIKEOUT_REFERENCE_PATH).exists():
-                _ordinary_strikeout_body(root)
+                _ordinary_strikeout_current_body(root)
             elif (root / "contracts/state-transition/terminal_pitch_cases_v1.json").exists():
                 _ordinary_terminal_body(root)
             else:
@@ -2630,20 +2630,22 @@ class _StrikeoutTerminalReader(_Gate6CurrentReader):
             object_pairs_hook=descriptor_checker._reject_duplicate_keys), label)
 
 
-def _ordinary_strikeout_body(root: Path) -> dict[str, Any]:
+def _ordinary_strikeout_body(root: Path, *,
+                             _reader: _Gate6CurrentReader | None = None) -> dict[str, Any]:
     """旧33/119/191を保持し、root前置7操作と規範24例だけを検査する。"""
     try:
         reference = _strikeout_extension_reference(root)
+        current = _Gate6CurrentReader(root) if _reader is None else _reader
         reader = _StrikeoutTerminalReader(root)
         record = _ordinary_terminal_body(root, _reader=reader)
         for path, digest in reference["historical_ordinary_scope"]["protected_file_sha256"].items():
-            if hashlib.sha256((root / path).read_bytes()).hexdigest() != digest:
+            if hashlib.sha256(current.read_bytes(path)).hexdigest() != digest:
                 raise HumanReviewSignatureRecordError("三振headの旧record/schema/pinsが不一致")
         for path, hashes in reference["files"].items():
-            if hashlib.sha256((root / path).read_bytes()).hexdigest() != hashes["after_sha256"]:
+            if hashlib.sha256(current.read_bytes(path)).hexdigest() != hashes["after_sha256"]:
                 raise HumanReviewSignatureRecordError("三振head11資産が固定192全値と不一致")
         for path in _STRIKEOUT_AUXILIARY_INPUTS:
-            if (root / path).read_bytes() != _carry_git_bytes(root, ["show",
+            if current.read_bytes(path) != _carry_git_bytes(root, ["show",
                 reference["candidate_revision"] + ":" + path,
             ]):
                 raise HumanReviewSignatureRecordError("三振規範case/schemaが固定源と不一致")
@@ -2653,7 +2655,6 @@ def _ordinary_strikeout_body(root: Path) -> dict[str, Any]:
                     "三振有限差分")
         if finite["changed_paths"] != list(_STRIKEOUT_CHANGED_PATHS):
             raise HumanReviewSignatureRecordError("三振の変更4pathが不一致")
-        current = _Gate6CurrentReader(root)
         before = {p: reader.load_json(p, "三振旧191") for p in _STRIKEOUT_CHANGED_PATHS}
         after = {p: current.load_json(p, "三振現192") for p in _STRIKEOUT_CHANGED_PATHS}
         rebuilt = copy.deepcopy(before)
@@ -2777,6 +2778,280 @@ def _ordinary_strikeout_ci(root: Path, event: Any) -> str:
     except (KeyError, TypeError, ValueError, OSError,
             descriptor_checker.DescriptorCheckError) as error:
         raise HumanReviewSignatureRecordError("三振の公開委任/実HEAD検査が不成立") from error
+
+
+class _BattedCarryBaseReader(_Gate6CurrentReader):
+    """実PR196のbase blobだけを読む。旧コードや合成PR192 eventは実行しない。"""
+
+    def __init__(self, root: Path, revision: str) -> None:
+        if type(revision) is not str or re.fullmatch(r"[0-9a-f]{40}", revision) is None:
+            raise HumanReviewSignatureRecordError("安打carryの実baseが不正")
+        self.root = root
+        self.head = revision
+
+    def read_bytes(self, path: str | PurePosixPath) -> bytes:
+        """実baseの原本をread-only Gitで読む。"""
+        return _carry_git_bytes(self.root, ["show", f"{self.head}:{path}"])
+
+    def load_json(self, path: str | PurePosixPath, label: str) -> dict[str, Any]:
+        """現木へfallbackせず、重複keyも拒否する。"""
+        return _object(json.loads(self.read_bytes(path),
+            object_pairs_hook=descriptor_checker._reject_duplicate_keys), label)
+
+
+_BATTED_METADATA_DESCRIPTOR = "contracts/state-transition/input_axes_descriptor_v1.json"
+_BATTED_METADATA_BINDINGS = {
+    "contracts/state-transition/state_transition_contract_v1.json":
+        ("inputAxesDescriptor", "digest"),
+    "contracts/state-transition/game_end_contract_v1.json":
+        ("inputAxesDescriptor", "digest"),
+    "contracts/state-transition/state_transition_contract_schema_v1.json":
+        ("$defs", "inputAxesDescriptorBinding", "properties", "digest", "const"),
+    "contracts/state-transition/game_end_contract_schema_v1.json":
+        ("$defs", "inputAxesDescriptorBinding", "properties", "digest", "const"),
+}
+_BATTED_METADATA_PATHS = frozenset({_BATTED_METADATA_DESCRIPTOR, *_BATTED_METADATA_BINDINGS})
+
+
+def _batted_metadata_delta(root: Path, base: _BattedCarryBaseReader) -> bool:
+    """descriptor監査2語/記録1と依存4参照だけを実原典から再構成する。"""
+    previous_raw = base.read_bytes(_BATTED_METADATA_DESCRIPTOR)
+    current_raw = (root / _BATTED_METADATA_DESCRIPTOR).read_bytes()
+    # R4以前の経路は全5byte不変を必須にして旧挙動を維持する。
+    if current_raw == previous_raw:
+        if any((root / path).read_bytes() != base.read_bytes(path)
+               for path in _BATTED_METADATA_BINDINGS):
+            raise HumanReviewSignatureRecordError("descriptor不変で依存参照だけが変更された")
+        return False
+    previous = base.load_json(_BATTED_METADATA_DESCRIPTOR, "安打旧descriptor")
+    current = _Gate6CurrentReader(root).load_json(_BATTED_METADATA_DESCRIPTOR, "安打descriptor")
+    rebuilt = copy.deepcopy(previous)
+    declaration = current["freezeBaseline"]
+    prior = previous["freezeBaseline"]
+    history = declaration["history"]
+    if (type(history) is not list or len(history) != len(prior["history"]) + 1
+            or _compact_json(history[:-1]) != _compact_json(prior["history"])):
+        raise HumanReviewSignatureRecordError("安打metadataの旧履歴/単一196記録が不一致")
+    navigation = rebuilt["freezeBaseline"]["scope"]["sourceLiteralAudit"][
+        "permittedComparisonLiteralsBySource"]["scripts/check_input_axes_descriptor.py"][
+            "json-object-member-name-used-only-for-navigation"]
+    if (type(navigation) is not list or any(type(v) is not str for v in navigation)
+            or "allOf" in navigation or "anyOf" in navigation):
+        raise HumanReviewSignatureRecordError("安打metadataの監査旧原典が不一致")
+    navigation.extend(["allOf", "anyOf"])
+    navigation.sort()
+    record = history[-1]
+    if (record["acceptanceId"] != "masaki1025/pitchlog#196"
+            or record["series"] != "state-transition-contract-checks"
+            or type(record["changes"]) is not list or len(record["changes"]) != 1
+            or record["changes"][0]["criterionId"] != prior["scope"]["identityCriterionId"]
+            or _compact_json(record["changes"][0]["before"]) != _compact_json({
+                "present": True, "value": prior["scope"]})
+            or _compact_json(record["changes"][0]["after"]) != _compact_json({
+                "present": True, "value": declaration["scope"]})
+            or record["approvedBy"] != (
+                "PO委任によるCodex主担当/root判断（本人署名・人間逐行確認の代記ではない）")
+            or type(record["fact"]) is not str or "未承認" in record["fact"]):
+        raise HumanReviewSignatureRecordError("安打metadataの196記録/委任主体が不一致")
+    # before/after、全prior/new identity、日付形式と全closed recordは既engineで検査する。
+    try:
+        changed = descriptor_checker.freeze_checker.validate_append_only_transition(
+            declaration, prior)
+    except descriptor_checker.freeze_checker.FreezeBaselineError as error:
+        raise HumanReviewSignatureRecordError(str(error)) from error
+    if changed != (prior["scope"]["identityCriterionId"],):
+        raise HumanReviewSignatureRecordError("安打metadataの変更基準が不一致")
+    rebuilt["freezeBaseline"]["history"].append(copy.deepcopy(record))
+    rebuilt["digest"] = descriptor_checker.compute_descriptor_digest(rebuilt)
+    # 全未知field/型/criteria/他scopeを含めて比較し、旧書式も再serialiseで変えない。
+    expected_raw = (json.dumps(rebuilt, ensure_ascii=False, indent=2) + "\n").encode()
+    if _compact_json(current) != _compact_json(rebuilt) or current_raw != expected_raw:
+        raise HumanReviewSignatureRecordError("安打metadataは監査2語/記録1以外を変更")
+    old_digest, new_digest = previous["digest"], rebuilt["digest"]
+    for path, pointer in _BATTED_METADATA_BINDINGS.items():
+        old_raw = base.read_bytes(path)
+        value: Any = base.load_json(path, "安打旧descriptor参照")
+        for key in pointer:
+            value = value[key]
+        old_literal = json.dumps(old_digest).encode()
+        if value != old_digest or old_raw.count(old_literal) != 1:
+            raise HumanReviewSignatureRecordError("安打metadataの旧参照がexact1でない")
+        expected = old_raw.replace(old_literal, json.dumps(new_digest).encode(), 1)
+        if (root / path).read_bytes() != expected:
+            raise HumanReviewSignatureRecordError("安打metadataの依存4参照以外に差分")
+    return True
+
+
+_BATTED_HANDOFF_PATH = "contracts/state-transition/appendix_e_consumer_handoff_v1.json"
+_BATTED_HANDOFF_SOURCES = (
+    str(STATE_TRANSITION_CONTRACT_PATH), str(GAME_END_CONTRACT_PATH),
+    _BATTED_METADATA_DESCRIPTOR,
+)
+_BATTED_PROJECTION_PATHS = _BATTED_METADATA_PATHS | {_BATTED_HANDOFF_PATH}
+
+
+def _batted_current_legacy_documents(root: Path) -> None:
+    """旧固定文書をactual headのbyteと既JSON読取値の双方で原典へ束縛する。"""
+    current = _Gate6CurrentReader(root)
+    anchor = _OrdinaryAcceptedReader(root)
+    for path in sorted(_ORDINARY_FIXED_INPUTS - _BATTED_PROJECTION_PATHS):
+        if current.read_bytes(path) != anchor.read_bytes(path):
+            raise HumanReviewSignatureRecordError("安打current旧固定byteが原典と不一致: " + path)
+        if PurePosixPath(path).suffix == ".json" and _compact_json(
+            current.load_json(path, "安打current旧文書")
+        ) != _compact_json(anchor.load_json(path, "安打旧文書原典")):
+            raise HumanReviewSignatureRecordError("安打current旧JSON読取値が原典と不一致: " + path)
+
+
+def _batted_handoff_delta(root: Path, base: _BattedCarryBaseReader) -> None:
+    """base handoff全byteから実head3資産のdigestだけを導出し、その他の差を拒否する。"""
+    previous = base.read_bytes(_BATTED_HANDOFF_PATH)
+    handoff = base.load_json(_BATTED_HANDOFF_PATH, "安打base handoff")
+    artifacts = handoff["artifacts"]
+    if type(artifacts) is not list or len(artifacts) != len(_BATTED_HANDOFF_SOURCES):
+        raise HumanReviewSignatureRecordError("安打handoffのbase資産集合が不一致")
+    expected = previous
+    for raw_entry, path in zip(artifacts, _BATTED_HANDOFF_SOURCES, strict=True):
+        entry = _object(raw_entry, "安打base handoff資産")
+        if (entry["path"] != path or entry["version"] != PurePosixPath(path).stem
+                or entry["digest"] != "sha256:" + hashlib.sha256(
+                    base.read_bytes(path)).hexdigest()):
+            raise HumanReviewSignatureRecordError("安打handoffのbase path/version/digestが不一致")
+        before = json.dumps(entry["digest"]).encode()
+        if previous.count(before) != 1:
+            raise HumanReviewSignatureRecordError("安打handoffの旧digest参照がexact1でない")
+        after = json.dumps("sha256:" + hashlib.sha256((root / path).read_bytes()).hexdigest())
+        expected = expected.replace(before, after.encode(), 1)
+    if (root / _BATTED_HANDOFF_PATH).read_bytes() != expected:
+        raise HumanReviewSignatureRecordError("安打handoffは実3digest以外を変更または更新漏れ")
+
+
+class _BattedMetadataProjectionReader(_Gate6CurrentReader):
+    """閉検証済みmetadata5とhandoffだけを原典へ戻し、他head値を既bodyへ渡す。"""
+
+    def __init__(self, root: Path, base: _BattedCarryBaseReader) -> None:
+        super().__init__(root)
+        self.base = base
+
+    def validate_current_views(self) -> None:
+        """閉raw guardを通ったmetadata全6文書も既decoder境界で照合する。"""
+        for path in sorted(_BATTED_PROJECTION_PATHS):
+            self.load_json(path, "安打current射影文書")
+
+    def read_bytes(self, path: str | PurePosixPath) -> bytes:
+        """閉検証対象以外は現checkoutの全byteを読む。"""
+        if str(path) in _BATTED_PROJECTION_PATHS:
+            return self.base.read_bytes(path)
+        return super().read_bytes(path)
+
+    def load_json(self, path: str | PurePosixPath, label: str) -> dict[str, Any]:
+        """射影した同byteを重複key拒否で読む。"""
+        if str(path) not in _BATTED_PROJECTION_PATHS:
+            return super().load_json(path, label)
+        current = super().load_json(path, label)
+        actual = _object(json.loads(super().read_bytes(path),
+            object_pairs_hook=descriptor_checker._reject_duplicate_keys), label)
+        if _compact_json(current) != _compact_json(actual):
+            raise HumanReviewSignatureRecordError("安打headの読取値と射影前rawが不一致")
+        return _object(json.loads(self.base.read_bytes(path),
+            object_pairs_hook=descriptor_checker._reject_duplicate_keys), label)
+
+
+def _ordinary_strikeout_current_body(root: Path) -> dict[str, Any]:
+    """localは固定192への閉射影だけを検査し、最終公開受理を主張しない。"""
+    _batted_current_legacy_documents(root)
+    reference = _strikeout_extension_reference(root)
+    base = _BattedCarryBaseReader(root, reference["candidate_revision"])
+    if ((root / _BATTED_METADATA_DESCRIPTOR).read_bytes()
+            == base.read_bytes(_BATTED_METADATA_DESCRIPTOR)):
+        return _ordinary_strikeout_body(root)
+    _batted_metadata_delta(root, base)
+    _batted_handoff_delta(root, base)
+    reader = _BattedMetadataProjectionReader(root, base)
+    reader.validate_current_views()
+    return _ordinary_strikeout_body(root, _reader=reader)
+
+
+_BATTED_CARRY_FROZEN_KEYS = frozenset({
+    "terminal_ordinary_extension_revision", "terminal_core_reference_head_revision",
+    "terminal_core_reference_base_revision", "pr192_ordinary_extension_reference_revision",
+    "pr192_source_registration_revision", "pr192_source_expectation_revision",
+})
+
+
+def _ordinary_batted_carry_ci(root: Path, event: Any) -> str:
+    """実PR196だけで既191/192全検査をbaseへ適用し、署名scopeを拡張しない。"""
+    try:
+        if (type(event.number) is not int or event.number != 196
+                or event.head_branch != "feature/mvp-batted-hits"
+                or event.repository != "masaki1025/pitchlog"
+                or event.head_repository != event.repository
+                or any(type(value) is not str or re.fullmatch(r"[0-9a-f]{40}", value) is None
+                       for value in (event.base_sha, event.head_sha))):
+            raise HumanReviewSignatureRecordError("安打carryは実PR196/repo/branchだけに限定する")
+        _validate_gate6_checkout(root, event)
+        _carry_git_bytes(root, ["merge-base", "--is-ancestor",
+                               event.base_sha, event.head_sha])
+        base = _BattedCarryBaseReader(root, event.base_sha)
+        pins = _ordinary_pins(root)
+        for path, digest in ((GATE6_ORDINARY_PATH, pins["record_sha256"]),
+                             (GATE6_ORDINARY_SCHEMA_PATH, pins["schema_sha256"])):
+            if hashlib.sha256(base.read_bytes(path)).hexdigest() != digest:
+                raise HumanReviewSignatureRecordError("安打baseの旧record/schemaが固定値と不一致")
+        record = base.load_json(GATE6_ORDINARY_PATH, "安打base旧record")
+        _batted_current_legacy_documents(root)
+        # 検査コード/後発登録全体のbase不変は要求しない。数学・原典の閉集合だけを保護する。
+        protected = {*record["assets"], *_ORDINARY_FIXED_INPUTS,
+            str(GATE6_ORDINARY_PATH), str(GATE6_ORDINARY_SCHEMA_PATH), str(ORDINARY_PINS_PATH),
+            str(_TERMINAL_REFERENCE_PATH), str(_STRIKEOUT_REFERENCE_PATH),
+            "contracts/state-transition/terminal_pitch_cases_v1.json",
+            *_STRIKEOUT_AUXILIARY_INPUTS, str(descriptor_checker.SCHEMA_PATH),
+            "tests/fixtures/pr192_tenant_source_expected_v1.json"}
+        _batted_metadata_delta(root, base)
+        _batted_handoff_delta(root, base)
+        _BattedMetadataProjectionReader(root, base).validate_current_views()
+        for path in protected - _BATTED_PROJECTION_PATHS:
+            if (root / path).read_bytes() != base.read_bytes(path):
+                raise HumanReviewSignatureRecordError(
+                    "安打carryで数学/旧署名/必要原典がbaseから変更")
+        frozen_path = "contracts/tenant_boundary/frozen-inputs.json"
+        old_inputs = base.load_json(frozen_path, "安打base固定入力")["frozen_inputs"]
+        inputs = _Gate6CurrentReader(root).load_json(frozen_path, "安打固定入力")["frozen_inputs"]
+        for key in _BATTED_CARRY_FROZEN_KEYS:
+            if _compact_json(old_inputs[key]) != _compact_json(inputs[key]):
+                raise HumanReviewSignatureRecordError("安打carryの191/192固定登録がbaseと不一致")
+        reference = _strikeout_extension_reference(root)
+        _carry_git_bytes(root, ["merge-base", "--is-ancestor",
+                               reference["candidate_revision"], event.base_sha])
+        # headを期待原典にしない。既ordinary/terminal/strikeoutの全bodyを実baseで再利用する。
+        _ordinary_strikeout_body(root, _reader=base)
+        guard = _carry_core_guard(root)
+        try:
+            base_policy, _ = guard._load_delegation_policy(root, event.base_sha)
+            head_policy, _ = guard._load_delegation_policy(root, event.head_sha)
+            origins = _ordinary_policy_origins(root, guard, _OrdinaryAcceptedReader(root), pins)
+            if (base_policy != origins["integration18"]
+                    or not _ordinary_policy_matches(head_policy, base_policy, allow_append=True)
+                    or head_policy["targets"] != base_policy["targets"] + [
+                        {"pr": 196, "branch": "feature/mvp-batted-hits"}]):
+                raise HumanReviewSignatureRecordError("安打carryの旧policy/単一196末尾が不一致")
+            _ordinary_head(root, event, record)
+            for path in _STRIKEOUT_EXTENSION_INPUTS | _BATTED_PROJECTION_PATHS:
+                if (root / path).read_bytes() != _carry_git_bytes(
+                    root, ["show", f"{event.head_sha}:{path}"],
+                ):
+                    raise HumanReviewSignatureRecordError("安打carryの実行依存が最終HEADと不一致")
+            guard.verify_delegated_confirmation(root, event)
+        except guard.GuardError as error:
+            raise HumanReviewSignatureRecordError(str(error)) from error
+        return ("gate6 PR196 carry: HISTORICAL ordinary33/PR191/PR192 PRESERVED; "
+                "DELEGATED VERIFIED; no new historical acceptance; not a personal signature")
+    except HumanReviewSignatureRecordError:
+        raise
+    except (KeyError, TypeError, ValueError, OSError,
+            descriptor_checker.DescriptorCheckError) as error:
+        raise HumanReviewSignatureRecordError(
+            "安打carryの実base/最終公開証拠検査が不成立") from error
 
 
 def _ordinary_terminal_ci(root: Path, event: Any) -> str:
@@ -2933,6 +3208,8 @@ def validate_gate6_ci_event(root: Path, event: Any) -> str:
     """PR183の新受理と、別PRの変更を伴わない継承を区別する。"""
     if event is None:
         raise HumanReviewSignatureRecordError("最終PR eventが未提供")
+    if event.number == 196:
+        return _ordinary_batted_carry_ci(root, event)
     if event.number == 192:
         return _ordinary_strikeout_ci(root, event)
     if event.number == 191:

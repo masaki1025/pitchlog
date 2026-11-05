@@ -1,3 +1,4 @@
+import type { LineupPlayPrefixV7 } from '../../../contracts/state-transition/lineup_play_prefix_payload_v1'
 // @vitest-environment-options {"url":"https://pitchlog.test"}
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -374,5 +375,88 @@ it('新打席画面の三振選択を実artifactへ通し、次打者は応答�
     )
   } finally {
     wrapper.unmount()
+  }
+})
+
+import * as battedOptions from '../api/battedBallOptions'
+it('単打の画面は全観測を確認するまで送信せず、同じController/ACKで次打者と走者を表示する', async () => {
+  const raw = structuredClone(lineupFixture.value)
+  if (!isLineupPrefixGame(raw)) throw new Error('構造fixture不正')
+  vi.spyOn(battedOptions, 'readBattedBallOptions').mockResolvedValue({
+    items: [{ key: 'observed.line', display_name: '観測打球' }],
+    next_cursor: null,
+  })
+  const post = vi
+    .spyOn(transport, 'postSyncEvents')
+    .mockImplementation(async (request) => {
+      const body = transport.buildSyncEventRequestBody(request),
+        slot = request.slots[0]!
+      if (!('events' in body)) throw new Error('要求不正')
+      return {
+        sent: true,
+        requestBody: body,
+        response: {
+          advancedD3: slot.d1,
+          eventResults: [
+            { d4: slot.d4, d1: slot.d1, d5: slot.d5, a5Result: '受理' },
+          ],
+        },
+      }
+    })
+  const w = mount(GameScreenOrdinaryPitch, {
+    props: { context: await lineupContextFromRead(raw, tenant) },
+    global: { plugins: [pinia] },
+  })
+  try {
+    await vi.waitFor(() =>
+      expect(w.find('[data-testid="ordinary-pitch-result"]').exists()).toBe(
+        true,
+      ),
+    )
+    for (const name of ['profile', 'mode', 'bucket', 'lockdown'])
+      await w.get(`[data-testid="first-ball-env-${name}"]`).setValue(true)
+    await w
+      .get('[data-testid="first-ball-pitch-type"]')
+      .setValue('tenant.pitch.straight')
+    await w
+      .get('[data-testid="ordinary-pitch-result"]')
+      .setValue('batting-result.single')
+    await flushPromises()
+    w.getComponent(StrikeZone).vm.$emit('tap', 131.5, 124)
+    await flushPromises()
+    expect(
+      w.get('[data-testid="first-ball-save"]').attributes('disabled'),
+    ).toBeDefined()
+    expect(post).not.toHaveBeenCalled()
+    for (const key of [
+      'typeKey',
+      'strengthKey',
+      'hitX',
+      'hitY',
+      'rawFielderPosition',
+      'resolvedFielderId',
+    ])
+      await w.get(`[data-testid="batted-mode-${key}"]`).setValue('unobserved')
+    for (const q of w.findAll('[data-question-key] select'))
+      await q.setValue('confirmed')
+    await flushPromises()
+    expect(
+      w.get('[data-testid="first-ball-save"]').attributes('disabled'),
+    ).toBeUndefined()
+    await w.get('[data-testid="first-ball-save"]').trigger('click')
+    await vi.waitFor(() => expect(w.emitted('saved')).toHaveLength(1))
+    expect(post).toHaveBeenCalledTimes(1)
+    const v7 = post.mock.calls[0]![0].slots[0]!.event.fields
+      .V7 as LineupPlayPrefixV7
+    expect(v7.calculation.request.t1.resultId).toBe('batting-result.single')
+    expect(
+      v7.calculation.response.value.t1.after.stateFields['state.runners'],
+    ).toBe('first')
+    expect(w.get('[data-testid="lineup-local-state"]').text()).toContain('2番')
+    expect(w.find('[data-testid="batted-hit-observation"]').exists()).toBe(
+      false,
+    )
+  } finally {
+    w.unmount()
   }
 })

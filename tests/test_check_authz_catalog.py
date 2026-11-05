@@ -6793,10 +6793,17 @@ def _first_ball_product_asset() -> dict[str, Any]:
 
 def test_first_ball_product_full_profile_uses_closed_actual_declarations() -> None:
     """新規要素は実source/canonical/bodyの全検査後だけ受理する。"""
-    result = checker.validate_ddl_elements(
-        _first_ball_product_asset(), REPOSITORY_ROOT, checker.PRODUCT_SPEC
-    )
-    assert result["product_role_count"] == 17
+    asset = _first_ball_product_asset()
+    owner = "pitchlog_recording_vocab_fn_owner"
+    added = [row for row in asset["roles"] if row["role_id"] == owner]
+    assert added == [{
+        "role_id": owner, "creation": "product_ddl", "superuser": False,
+        "bypass_rls": False, "login": False, "create_role": False,
+        "create_db": False, "replication": False, "inherit": False,
+    }]
+    assert len([row for row in asset["roles"] if row["role_id"] != owner]) == 17
+    result = checker.validate_ddl_elements(asset, REPOSITORY_ROOT, checker.PRODUCT_SPEC)
+    assert result["product_role_count"] == 17 + len(added)
 
 
 @pytest.mark.parametrize("fault", [
@@ -6855,3 +6862,23 @@ def test_first_ball_invoker_unknown_mode_and_order_are_rejected(tmp_path: Path) 
             path.write_text(json.dumps(value))
         with pytest.raises(AuthzApplicationStepsError):
             load_product_application_steps(root, PRODUCT_SPEC)
+
+
+@pytest.mark.parametrize("fault", [
+    "superuser", "bypass_rls", "login", "create_role", "create_db",
+    "replication", "inherit", "missing", "duplicate", "unknown",
+])
+def test_batted_owner_remains_one_closed_addition_to_old_seventeen(fault: str) -> None:
+    """旧17主体を減らさず新owner1の危険属性・欠落・余剰を拒否する。"""
+    asset = _first_ball_product_asset()
+    row = next(r for r in asset["roles"] if r["role_id"] == "pitchlog_recording_vocab_fn_owner")
+    if fault == "missing":
+        asset["roles"].remove(row)
+    elif fault == "duplicate":
+        asset["roles"].append(copy.deepcopy(row))
+    elif fault == "unknown":
+        row["role_id"] = "unknown_recording_owner"
+    else:
+        row[fault] = True
+    with pytest.raises(checker.CatalogError):
+        checker.validate_ddl_elements(asset, REPOSITORY_ROOT, checker.PRODUCT_SPEC)

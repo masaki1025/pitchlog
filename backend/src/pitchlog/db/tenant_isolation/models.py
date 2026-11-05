@@ -1196,6 +1196,12 @@ class AdminVocabulary(LifecycleMixin, Base):
             name="pk_admin_vocabularies",
             info={"roles": ("business_unique", "primary_key", "fk_target")},
         ),
+        Index(
+            "ix_admin_vocabularies_batted_ball_key_c",
+            column("key").collate("C"),
+            postgresql_where=text("category = 'batted_ball' AND disabled = false"),
+            info={"purpose": "range_sort"},
+        ),
     )
 
     key: Mapped[str] = mapped_column(Text, nullable=False)
