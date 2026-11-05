@@ -831,3 +831,251 @@ def test_current_finish_closes_read_transaction_before_idle_authz_apply(monkeypa
     )
     assert len(connections) == 4 and all(c.closed for c in connections)
     assert ("apply", 2) in trace and ("catalog", 3) in trace
+
+
+def _snapshot_profile_asset(profile):
+    """実DB出力から作らず、既3/新currentの全schema・私有表を列挙する。"""
+    legacy = [
+        "public",
+        "authz_private",
+        "authn",
+        "authn_crypto",
+        "rg1_api",
+        "rg1_control",
+        "pitchlog_ledger_observer",
+        "initial_right_api",
+    ]
+    schemas = list(legacy)
+    tables = []
+    if profile != "legacy":
+        schemas += ["sync_fence", "sync_fence_api", "sync_right_api"]
+        tables += [
+            "writer_bindings",
+            "writer_admissions",
+            "first_ball_write_admissions",
+            "ordinary_pitch_checkpoints",
+            "ordinary_pitch_write_admissions",
+            "ordinary_pitch_history",
+        ]
+    if profile in ("vocabulary", "current"):
+        schemas.append("recording_vocab_api")
+    if profile == "current":
+        schemas.append("stats_api")
+        tables += [
+            "stats_fact_versions",
+            "stats_primitive_sources",
+            "stats_primitive_facts",
+        ]
+    owners = ["pitchlog_rg1_control_owner", "pitchlog_ledger_identity_owner"]
+    if tables:
+        owners.append("pitchlog_sync_binding_fn_owner")
+    return {
+        "schemas": [{"schema_name": name} for name in schemas],
+        "tables": [{"table_id": name, "schema_name": "sync_fence"} for name in tables],
+        "acl_expectations": [
+            {
+                "acl_id": f"ACL:pg_catalog:pg_control_system():{owner}",
+                "object_kind": "builtin_function",
+                "object_schema": "pg_catalog",
+                "object_id": "pg_control_system",
+                "profile": "additional_builtin_execute",
+                "grantee_role_id": owner,
+                "privilege_ids": ["EXECUTE"],
+                "grant_option": False,
+            }
+            for owner in sorted(owners)
+        ],
+    }
+
+
+@pytest.mark.parametrize(
+    "profile,schema_count,private_count",
+    [
+        ("legacy", 8, 0),
+        ("private", 11, 6),
+        ("vocabulary", 12, 6),
+        ("current", 13, 9),
+    ],
+)
+def test_snapshot_profile_preserves_old_three_and_one_full_current(
+    profile, schema_count, private_count
+):
+    """全4個の有限対だけを許し、宣言の元順序と全名を保存する。"""
+    import db_fixtures as fixtures
+
+    asset = _snapshot_profile_asset(profile)
+    schemas, rows = fixtures._snapshot_product_profile(asset)
+    assert len(schemas) == schema_count and len(rows) == private_count
+    assert schemas == tuple(row["schema_name"] for row in asset["schemas"])
+    assert rows == tuple(
+        (row["table_id"], row["schema_name"]) for row in asset["tables"]
+    )
+    asset["schemas"].reverse()
+    asset["tables"].reverse()
+    reversed_schemas, reversed_rows = fixtures._snapshot_product_profile(asset)
+    assert reversed_schemas == schemas[::-1] and reversed_rows == rows[::-1]
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        "unknown-schema",
+        "missing-schema",
+        "duplicate-schema",
+        "schema-type",
+        "schema-missing-name",
+        "schema-section-type",
+        "schema-row-type",
+        "missing-stats-one",
+        "missing-stats-two",
+        "missing-stats-all",
+        "duplicate-table",
+        "unknown-table",
+        "wrong-table-schema",
+        "table-name-type",
+        "table-schema-type",
+        "table-missing-name",
+        "table-row-type",
+        "table-section-type",
+        "stats-without-vocabulary",
+        "stats-without-private",
+        "new-tables-old-schema",
+        "new-schema-old-tables",
+        "duplicate-stats-table",
+    ],
+)
+def test_snapshot_profile_refuses_incomplete_or_forged_current(mutation):
+    """statsの一部供給や別schema・型補修を正常profileへ推測しない。"""
+    import db_fixtures as fixtures
+
+    asset = _snapshot_profile_asset("current")
+    if mutation == "unknown-schema":
+        asset["schemas"].append({"schema_name": "unknown"})
+    elif mutation == "missing-schema":
+        asset["schemas"].pop(0)
+    elif mutation == "duplicate-schema":
+        asset["schemas"].append(dict(asset["schemas"][0]))
+    elif mutation == "schema-type":
+        asset["schemas"][0]["schema_name"] = 1
+    elif mutation == "schema-missing-name":
+        del asset["schemas"][0]["schema_name"]
+    elif mutation == "schema-section-type":
+        asset["schemas"] = ()
+    elif mutation == "schema-row-type":
+        asset["schemas"][0] = "public"
+    elif mutation in ("missing-stats-one", "missing-stats-two", "missing-stats-all"):
+        count = {
+            "missing-stats-one": 1,
+            "missing-stats-two": 2,
+            "missing-stats-all": 3,
+        }[mutation]
+        del asset["tables"][-count:]
+    elif mutation == "duplicate-table":
+        asset["tables"].append(dict(asset["tables"][0]))
+    elif mutation == "unknown-table":
+        asset["tables"][-1]["table_id"] = "unknown"
+    elif mutation == "wrong-table-schema":
+        asset["tables"][-1]["schema_name"] = "stats_api"
+    elif mutation == "table-name-type":
+        asset["tables"][-1]["table_id"] = 1
+    elif mutation == "table-schema-type":
+        asset["tables"][-1]["schema_name"] = 1
+    elif mutation == "table-missing-name":
+        del asset["tables"][-1]["table_id"]
+    elif mutation == "table-row-type":
+        asset["tables"][-1] = "stats_primitive_facts"
+    elif mutation == "table-section-type":
+        asset["tables"] = ()
+    elif mutation == "stats-without-vocabulary":
+        asset["schemas"] = [
+            r for r in asset["schemas"] if r["schema_name"] != "recording_vocab_api"
+        ]
+    elif mutation == "stats-without-private":
+        asset["schemas"] = [
+            r for r in asset["schemas"] if r["schema_name"] != "sync_right_api"
+        ]
+    elif mutation == "new-tables-old-schema":
+        asset["schemas"] = _snapshot_profile_asset("vocabulary")["schemas"]
+    elif mutation == "new-schema-old-tables":
+        asset["tables"] = _snapshot_profile_asset("vocabulary")["tables"]
+    elif mutation == "duplicate-stats-table":
+        asset["tables"].append(dict(asset["tables"][-1]))
+    with pytest.raises(AssertionError):
+        fixtures._snapshot_product_profile(asset)
+
+
+@pytest.mark.parametrize("profile", ["legacy", "private", "vocabulary", "current"])
+def test_original_snapshot_uses_closed_profile_and_every_query(monkeypatch, profile):
+    """元snapshotの全13取得とschema/私有表引数に新実値が流れることを観測する。"""
+    from dataclasses import fields
+
+    import db_fixtures as fixtures
+
+    asset = _snapshot_profile_asset(profile)
+    trace = []
+
+    class Connection:
+        @contextmanager
+        def cursor(self):
+            yield object()
+
+    def fetch(cursor, query, params=()):
+        assert cursor is not None
+        trace.append((query, params))
+        return (("snapshot-query-observation", len(trace)),)
+
+    monkeypatch.setattr(fixtures, "_fetch_snapshot_rows", fetch)
+    result = fixtures._snapshot_product_catalog(
+        cast(Any, Connection()), ("test_role",), asset=asset
+    )
+    assert len(trace) == len(fields(result)) == 13
+    assert [getattr(result, f.name) for f in fields(result)] == [
+        (("snapshot-query-observation", n),) for n in range(1, 14)
+    ]
+    schema_names = [r["schema_name"] for r in asset["schemas"]]
+    table_names = [r["table_id"] for r in asset["tables"]]
+    assert sum(params == (schema_names,) for _, params in trace) == 4
+    assert sum(params == (table_names,) for _, params in trace) == 4
+    function_acl = trace[9][1]
+    assert function_acl == (schema_names, ["pg_control_system"])
+    if profile == "current":
+        assert all(
+            name in table_names
+            for name in [
+                "stats_fact_versions",
+                "stats_primitive_sources",
+                "stats_primitive_facts",
+            ]
+        )
+
+    def rejected(_asset):
+        raise AssertionError("closed-profile-sentinel")
+
+    monkeypatch.setattr(fixtures, "_snapshot_product_profile", rejected)
+    with pytest.raises(AssertionError, match="closed-profile-sentinel"):
+        fixtures._snapshot_product_catalog(
+            cast(Any, Connection()), ("test_role",), asset=asset
+        )
+    assert len(trace) == 13
+
+
+@pytest.mark.parametrize(
+    "mutation", ["missing", "extra", "wrong-role", "grant", "wrong-privilege"]
+)
+def test_snapshot_keeps_old_builtin_exact_rejection(monkeypatch, mutation):
+    """新schema profileが既builtin3主体の閉検査を迂回しない。"""
+    import db_fixtures as fixtures
+
+    asset = _snapshot_profile_asset("current")
+    if mutation == "missing":
+        asset["acl_expectations"].pop()
+    elif mutation == "extra":
+        asset["acl_expectations"].append(dict(asset["acl_expectations"][0]))
+    elif mutation == "wrong-role":
+        asset["acl_expectations"][0]["grantee_role_id"] = "unknown"
+    elif mutation == "grant":
+        asset["acl_expectations"][0]["grant_option"] = True
+    elif mutation == "wrong-privilege":
+        asset["acl_expectations"][0]["privilege_ids"] = ["SELECT"]
+    with pytest.raises(AssertionError, match="builtin exact"):
+        fixtures._snapshot_product_catalog(cast(Any, object()), (), asset=asset)

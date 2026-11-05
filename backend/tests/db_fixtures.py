@@ -1097,17 +1097,16 @@ def _fetch_snapshot_rows(
     return tuple(tuple(row) for row in cursor.fetchall())
 
 
-def _snapshot_product_catalog(
-    connection: psycopg.Connection[Any],
-    role_ids: tuple[str, ...],
-    *,
-    asset: dict[str, object] | None = None,
-) -> ProductCatalogSnapshot:
-    """製品 DDL が変更し得るカタログを安定した順序で記録する。"""
-    selected = _load_ddl_asset(PRODUCT_SPEC) if asset is None else asset
-    schema_names = tuple(
-        str(row["schema_name"]) for row in _asset_rows(selected, "schemas")
-    )
+def _snapshot_product_profile(
+    selected: dict[str, object],
+) -> tuple[tuple[str, ...], tuple[tuple[str, str], ...]]:
+    """既3profileとstats currentのschema/私有表の対だけを許す。"""
+    schema_names: list[str] = []
+    for row in _asset_rows(selected, "schemas"):
+        name = row.get("schema_name")
+        if type(name) is not str:
+            raise AssertionError("snapshotのschema名の型が不正")
+        schema_names.append(name)
     legacy_schemas = {
         "public",
         "authz_private",
@@ -1119,18 +1118,28 @@ def _snapshot_product_catalog(
         "initial_right_api",
     }
     private_schemas = {"sync_fence", "sync_fence_api", "sync_right_api"}
-    recording_vocab_schemas = {"recording_vocab_api"}
-    if len(set(schema_names)) != len(schema_names) or set(schema_names) not in (
+    vocabulary = {"recording_vocab_api"}
+    parent = legacy_schemas | private_schemas | vocabulary
+    current_schemas = parent | {"stats_api"}
+    allowed_schemas = (
         legacy_schemas,
         legacy_schemas | private_schemas,
-        legacy_schemas | private_schemas | recording_vocab_schemas,
+        parent,
+        current_schemas,
+    )
+    if (
+        len(set(schema_names)) != len(schema_names)
+        or set(schema_names) not in allowed_schemas
     ):
         raise AssertionError("snapshotのschema閉集合が不一致")
-    private_rows = [
-        (str(row["table_id"]), str(row["schema_name"]))
-        for row in _asset_rows(selected, "tables")
-        if row["schema_name"] != "public"
-    ]
+    private_rows: list[tuple[str, str]] = []
+    for row in _asset_rows(selected, "tables"):
+        table = row.get("table_id")
+        schema = row.get("schema_name")
+        if type(table) is not str or type(schema) is not str:
+            raise AssertionError("snapshotの表名/schema名の型が不正")
+        if schema != "public":
+            private_rows.append((table, schema))
     expected_private = (
         {
             (table, "sync_fence")
@@ -1143,18 +1152,35 @@ def _snapshot_product_catalog(
                 "ordinary_pitch_history",
             )
         }
-        if set(schema_names)
-        in (
-            legacy_schemas | private_schemas,
-            legacy_schemas | private_schemas | recording_vocab_schemas,
-        )
+        if set(schema_names) != legacy_schemas
         else set()
     )
+    if set(schema_names) == current_schemas:
+        expected_private |= {
+            (table, "sync_fence")
+            for table in (
+                "stats_fact_versions",
+                "stats_primitive_sources",
+                "stats_primitive_facts",
+            )
+        }
     if (
         len(set(private_rows)) != len(private_rows)
         or set(private_rows) != expected_private
     ):
         raise AssertionError("snapshotのprivate表閉集合が不一致")
+    return tuple(schema_names), tuple(private_rows)
+
+
+def _snapshot_product_catalog(
+    connection: psycopg.Connection[Any],
+    role_ids: tuple[str, ...],
+    *,
+    asset: dict[str, object] | None = None,
+) -> ProductCatalogSnapshot:
+    """製品 DDL が変更し得るカタログを安定した順序で記録する。"""
+    selected = _load_ddl_asset(PRODUCT_SPEC) if asset is None else asset
+    schema_names, private_rows = _snapshot_product_profile(selected)
     private_tables = tuple(table for table, _ in private_rows)
     builtin_owners = {"pitchlog_rg1_control_owner", "pitchlog_ledger_identity_owner"}
     if private_rows:
