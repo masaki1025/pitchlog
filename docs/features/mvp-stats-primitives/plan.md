@@ -265,3 +265,6 @@ canonical採用後の閉期待追随（2026-11-05、PO委任Codex /root判断）
 
 
 owned storage fixture接続の追随（2026-11-05、PO委任Codex /root判断）: backend/tests/db/test_stats_storage.pyのstats_ownerだけを既initial_scope_databaseの方式へ揃える。catalog修復後は実0041/provision/catalogを通過したが、fixtureが外側autouseに必要なDSNを消したままyieldし4error24.42秒になった。同一owned primaryの実admin/限定role DSNを既_dsn_names()の設定名へ渡し、verify_connection_identities自体と二主体区別・実認証照合は維持する。共有DSNの読取/利用やautouse無効化は行わず、所有container終結・環境復元を保つ。別非作者確認とowned全4試験を行う。
+
+
+実API同TX縦断の受入試験（2026-11-05、PO委任Codex /root判断）: 新backend/tests/db/test_stats_native_vertical_http.pyを追加する。既実POST新規作成/開始/通常3球/再送/GETをそのまま呼び、同owned DBで新試合のevent3と成績source3の同ID、current_open版source_count/revision3、pitch_count3を照合する。参照選手以外のgame/記録事前投入・固定ACK・認可迂回なし。既requires_db/実identity autouseを有効にして、外部cache診断（42.41秒、DBmarker警告あり）を正式受入へ読み替えない。実API診断で発見したnative原本event_kindのplay→既正本play_inputへの是正は既source/test範囲で行い、元playの拒否対向を追加する。画面/公式成績/全T5/T6/終了確定集計/全原子性成立は別に検証する。
