@@ -2827,17 +2827,20 @@ def test_owned_profile_selection_rejects_unknown_or_mixed_context(
 
 
 def test_current_sync_roles_have_strict_all_attribute_collision_sql() -> None:
-    """新3主体をskipせず専用21対向へ分類する正式SQL根拠を照合する。"""
+    """旧3主体と新owner1の全属性衝突拒否の正式SQLを照合する。"""
     from db.test_product_authz_provisioning import (
         _ROLE_ATTRIBUTES,
         _SYNC_COLLISION_ROLES,
     )
 
-    assert set(_SYNC_COLLISION_ROLES) == {
+    original = {
         "pitchlog_sync_binding_fn_owner",
         "pitchlog_sync_binding_actor",
         "pitchlog_sync_right_fn_owner",
     }
+    added = {"pitchlog_recording_vocab_fn_owner"}
+    assert set(_SYNC_COLLISION_ROLES) == original | added
+    assert len(_SYNC_COLLISION_ROLES) == len(original) + len(added)
     assert len(_ROLE_ATTRIBUTES) == 7
     statements = product_provisioning.generate_authz_ddl(_REPOSITORY_ROOT, PRODUCT_SPEC)
     roles = {
