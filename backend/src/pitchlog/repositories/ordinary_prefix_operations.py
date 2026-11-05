@@ -172,3 +172,37 @@ def _play_prefix_declarations():
 
 
 PLAY_PREFIX_OPERATIONS = _play_prefix_declarations()
+
+
+def _lineup_origin_declarations():
+    """開始原本の一行関数だけを有限登録する。"""
+    from pitchlog.repositories.function_operations import (
+        _SYNC_PLAY_PREFIX_FUNCTION_TYPES,
+    )
+    from pitchlog.sync.terminal_pitch_tokens import LineupStartedOriginReadToken
+
+    name = "read_lineup_started_origin"
+    inputs, outputs, nullable, aware, minimum, maximum = (
+        _SYNC_PLAY_PREFIX_FUNCTION_TYPES["sync_right_api." + name]
+    )
+    return (
+        FunctionOperationRegistration(
+            operation_id="SYNC_LINEUP_PREFIX:" + name,
+            capability_id="CAP:sync_lineup_prefix:read_started_origin",
+            token_type=LineupStartedOriginReadToken,
+            function_id="sync_right_api." + name,
+            statement=_build_fixed_function_statement(
+                "sync_right_api", name, inputs, ("record_json",), True
+            ),
+            input_fields=inputs,
+            result_fields=outputs,
+            decoder=_identity,
+            nullable_results=nullable,
+            aware_datetime_results=aware,
+            min_rows=minimum,
+            max_rows=maximum,
+        ),
+    )
+
+
+LINEUP_START_ORIGIN_OPERATIONS = _lineup_origin_declarations()

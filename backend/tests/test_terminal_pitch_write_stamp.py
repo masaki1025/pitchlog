@@ -36,9 +36,14 @@ def test_before_v2_assert_never_consumes_old_stamp():
         for r in formal_profile()["functions"]
         if r["function_name"] == "guard_first_ball_projection_admission"
     )
-    branch = sql.split(
-        "IF event_row.payload->>'formatVersion'='play-prefix-play-v2' THEN"
-    )[1].split("END IF;")[0]
+    branch = (
+        " ".join(sql.split())
+        .split(
+            "IF event_row.payload->>'formatVersion' IN "
+            "('play-prefix-play-v2','play-prefix-play-v3') THEN"
+        )[1]
+        .split("END IF;")[0]
+    )
     assert "assert_play_prefix_projection" in branch
     assert "RETURN NEW;" in branch
     assert "consume_ordinary_projection" not in branch
@@ -61,7 +66,9 @@ def test_prepare_parenthesizes_five_case_expressions_without_other_sql_changes()
     import re
     from pathlib import Path
 
-    sql = candidate_function_bodies()["prepare_play_prefix_projection"]
+    from pitchlog.authz.terminal_pitch_write_stamp import _v2_function_bodies
+
+    sql = _v2_function_bodies()["prepare_play_prefix_projection"]
     removed = []
 
     def original_case(match):
@@ -84,3 +91,42 @@ def test_prepare_parenthesizes_five_case_expressions_without_other_sql_changes()
     expected = frozen["frozen_inputs"]["terminal_prepare_original_sql_sha256"]["value"]
     assert type(expected) is str and re.fullmatch(r"[0-9a-f]{64}", expected)
     assert hashlib.sha256(previous.encode()).hexdigest() == expected
+
+
+def test_lineup_origin_minimal_columns_and_historical_device_no_current_role():
+    """成功開始原本はlogical重複を潰し、二つ以上/不存在を閉拒否する。"""
+    from pitchlog.authz.first_ball_product import _function_argument_names
+
+    bodies = candidate_function_bodies()
+    for sql in bodies.values():
+        _function_argument_names(sql)
+    sql = bodies["read_lineup_started_origin"]
+    assert "SELECT DISTINCT r.start_request_id::text" in sql
+    assert "a.outcome='committed'" in sql
+    assert "LIMIT 2" in sql and "jsonb_array_length(origins)<>1" in sql
+    for forbidden in (
+        "credential",
+        "nonce",
+        "auth_epoch",
+        "FROM public.games",
+        "FROM public.lineups",
+        "game_start_deliveries",
+        "ORDER BY",
+        "MIN(",
+        "MAX(",
+    ):
+        assert forbidden not in sql
+    for name in ("read_play_prefix_checkpoint", "lock_play_prefix_checkpoint"):
+        sql = bodies[name]
+        assert "pg_catalog.to_jsonb(c) || CASE" in sql
+        assert "'last_history'" in sql and "h.source_event_id=" in sql
+    sql = bodies["prepare_play_prefix_projection"]
+    for required in (
+        "read_lineup_started_origin",
+        "before_cp->'source_origin'",
+        "before_cp->'storage_anchor'",
+        "'beforeParticipants'",
+        "before_cp->'pa_start_source'",
+        "lineup physical source rejected",
+    ):
+        assert required in sql

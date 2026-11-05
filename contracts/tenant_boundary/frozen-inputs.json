@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "contract_revision": 15,
+  "contract_revision": 16,
   "baseline_control": {
     "identity": {
       "scheme": "integer_revision_field",
       "field": "contract_revision",
       "current_identifiers": [
-        "contract_revision:15"
+        "contract_revision:16"
       ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
@@ -36,7 +36,11 @@
           "backend/tests/fixtures/first_ball_expected_source_pins_v1.json",
           "scripts/check_human_review_signature.py",
           "tests/test_human_review_signature.py",
-          "tests/fixtures/pr191_ordinary_extension_reference_v1.json"
+          "tests/fixtures/pr191_ordinary_extension_reference_v1.json",
+          "tests/fixtures/pr192_tenant_source_expected_v1.json",
+          "tests/test_pr192_tenant_source_registration.py",
+          "tests/test_check_tenant_boundary_bypass.py",
+          "tests/fixtures/pr192_ordinary_extension_reference_v1.json"
         ]
       }
     },
@@ -149,6 +153,30 @@
       "sources": [
         "scripts/check_human_review_signature.py:_terminal_extension_reference",
         "tests/test_human_review_signature.py:terminal_extension_fixture"
+      ]
+    },
+    "pr192_source_registration_revision": {
+      "value": "9b76ab2fc4a6eb4d17ab956836bd7fc79dd4334e",
+      "purpose": "PR192審査済み実source8pathを固定Git全byteへ束縛。旧v2用途保持と新v3有限90site以外を許可しない。",
+      "sources": [
+        "scripts/check_tenant_boundary_bypass.py:_load_pr192_source_owners",
+        "tests/test_pr192_tenant_source_registration.py:immutable_source"
+      ]
+    },
+    "pr192_source_expectation_revision": {
+      "value": "9407dd2bb1ec1451b6a192720118c689386388bf",
+      "purpose": "PR192独立分類の6owner90tuple/旧37metadata/旧4supersession期待を実装前置fixtureの固定Git全byteへ束縛。現在declとfixture同時改変では更新できない。",
+      "sources": [
+        "scripts/check_tenant_boundary_bypass.py:_load_pr192_source_owners",
+        "tests/test_pr192_tenant_source_registration.py:immutable_expectations"
+      ]
+    },
+    "pr192_ordinary_extension_reference_revision": {
+      "value": "51c5930fc4562a05972be3e074e6ee41765df859",
+      "purpose": "PR192 ordinary33継承の独立全前後と有限4path拡張をroot前置Git全byteへ束縛する。旧署名subject・191scope・現木自己期待・任意PR受理へ流用しない。",
+      "sources": [
+        "scripts/check_human_review_signature.py:_strikeout_extension_reference",
+        "tests/test_human_review_signature.py:strikeout_extension_fixture"
       ]
     }
   }

@@ -47,3 +47,19 @@ export const TERMINAL_REACH_RULE: Rule = {
   ballEffect: 'reset',
   ballDelta: 0n,
 }
+
+/** SO-01/02: 正規捕球の三振。振逃げ・K3・併発走塁へ拡張しない。 */
+export const TERMINAL_OUT_RULE: Rule = {
+  pa: true,
+  batter: 'out',
+  batterBase: 0n,
+  outs: 1n,
+  targets: ['batter'],
+  advance: 'hold_all',
+  step: 0n,
+  explicit: {},
+  strikeEffect: 'reset',
+  strikeDelta: 0n,
+  ballEffect: 'reset',
+  ballDelta: 0n,
+}

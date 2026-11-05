@@ -111,6 +111,972 @@
         "axisId": "state.runners",
         "value": "empty"
       }
+    },
+    {
+      "vocabularyId": "batting-result.called-strikeout",
+      "partitionRuleId": "identity",
+      "partitionId": "identity",
+      "signal": {
+        "location": "expected",
+        "field": "precondition",
+        "value": {
+          "op": "and",
+          "args": [
+            {
+              "op": "eq",
+              "axisId": "state.outs",
+              "value": 0
+            },
+            {
+              "op": "eq",
+              "axisId": "state.runners",
+              "value": "empty"
+            },
+            {
+              "op": "eq",
+              "axisId": "state.count.strikes",
+              "value": 2
+            },
+            {
+              "op": "eq",
+              "axisId": "state.count.balls",
+              "value": 0
+            },
+            {
+              "op": "eq",
+              "axisId": "event.perPitch.pitchEventKind",
+              "value": "pitch-event"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "vocabularyId": "batting-result.called-strikeout",
+      "partitionRuleId": "identity",
+      "partitionId": "caught-empty-remainder",
+      "signal": {
+        "location": "expected",
+        "field": "precondition",
+        "value": {
+          "op": "and",
+          "args": [
+            {
+              "op": "eq",
+              "axisId": "state.runners",
+              "value": "empty"
+            },
+            {
+              "op": "in",
+              "axisId": "state.outs",
+              "values": [
+                0,
+                1,
+                2
+              ]
+            },
+            {
+              "op": "eq",
+              "axisId": "state.count.strikes",
+              "value": 2
+            },
+            {
+              "op": "in",
+              "axisId": "state.count.balls",
+              "values": [
+                0,
+                1,
+                2,
+                3
+              ]
+            },
+            {
+              "op": "eq",
+              "axisId": "event.perPitch.pitchEventKind",
+              "value": "pitch-event"
+            },
+            {
+              "op": "eq",
+              "axisId": "state.gameEnded",
+              "value": false
+            },
+            {
+              "op": "not",
+              "args": [
+                {
+                  "op": "and",
+                  "args": [
+                    {
+                      "op": "eq",
+                      "axisId": "state.outs",
+                      "value": 0
+                    },
+                    {
+                      "op": "eq",
+                      "axisId": "state.count.balls",
+                      "value": 0
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "vocabularyId": "batting-result.called-strikeout",
+      "partitionRuleId": "identity",
+      "partitionId": "caught-first",
+      "signal": {
+        "location": "expected",
+        "field": "precondition",
+        "value": {
+          "op": "and",
+          "args": [
+            {
+              "op": "eq",
+              "axisId": "state.runners",
+              "value": "first"
+            },
+            {
+              "op": "in",
+              "axisId": "state.outs",
+              "values": [
+                0,
+                1,
+                2
+              ]
+            },
+            {
+              "op": "eq",
+              "axisId": "state.count.strikes",
+              "value": 2
+            },
+            {
+              "op": "in",
+              "axisId": "state.count.balls",
+              "values": [
+                0,
+                1,
+                2,
+                3
+              ]
+            },
+            {
+              "op": "eq",
+              "axisId": "event.perPitch.pitchEventKind",
+              "value": "pitch-event"
+            },
+            {
+              "op": "eq",
+              "axisId": "state.gameEnded",
+              "value": false
+            }
+          ]
+        }
+      }
+    },
+    {
+      "vocabularyId": "batting-result.called-strikeout",
+      "partitionRuleId": "identity",
+      "partitionId": "caught-second",
+      "signal": {
+        "location": "expected",
+        "field": "precondition",
+        "value": {
+          "op": "and",
+          "args": [
+            {
+              "op": "eq",
+              "axisId": "state.runners",
+              "value": "second"
+            },
+            {
+              "op": "in",
+              "axisId": "state.outs",
+              "values": [
+                0,
+                1,
+                2
+              ]
+            },
+            {
+              "op": "eq",
+              "axisId": "state.count.strikes",
+              "value": 2
+            },
+            {
+              "op": "in",
+              "axisId": "state.count.balls",
+              "values": [
+                0,
+                1,
+                2,
+                3
+              ]
+            },
+            {
+              "op": "eq",
+              "axisId": "event.perPitch.pitchEventKind",
+              "value": "pitch-event"
+            },
+            {
+              "op": "eq",
+              "axisId": "state.gameEnded",
+              "value": false
+            }
+          ]
+        }
+      }
+    },
+    {
+      "vocabularyId": "batting-result.called-strikeout",
+      "partitionRuleId": "identity",
+      "partitionId": "caught-third",
+      "signal": {
+        "location": "expected",
+        "field": "precondition",
+        "value": {
+          "op": "and",
+          "args": [
+            {
+              "op": "eq",
+              "axisId": "state.runners",
+              "value": "third"
+            },
+            {
+              "op": "in",
+              "axisId": "state.outs",
+              "values": [
+                0,
+                1,
+                2
+              ]
+            },
+            {
+              "op": "eq",
+              "axisId": "state.count.strikes",
+              "value": 2
+            },
+            {
+              "op": "in",
+              "axisId": "state.count.balls",
+              "values": [
+                0,
+                1,
+                2,
+                3
+              ]
+            },
+            {
+              "op": "eq",
+              "axisId": "event.perPitch.pitchEventKind",
+              "value": "pitch-event"
+            },
+            {
+              "op": "eq",
+              "axisId": "state.gameEnded",
+              "value": false
+            }
+          ]
+        }
+      }
+    },
+    {
+      "vocabularyId": "batting-result.called-strikeout",
+      "partitionRuleId": "identity",
+      "partitionId": "caught-first-second",
+      "signal": {
+        "location": "expected",
+        "field": "precondition",
+        "value": {
+          "op": "and",
+          "args": [
+            {
+              "op": "eq",
+              "axisId": "state.runners",
+              "value": "first-second"
+            },
+            {
+              "op": "in",
+              "axisId": "state.outs",
+              "values": [
+                0,
+                1,
+                2
+              ]
+            },
+            {
+              "op": "eq",
+              "axisId": "state.count.strikes",
+              "value": 2
+            },
+            {
+              "op": "in",
+              "axisId": "state.count.balls",
+              "values": [
+                0,
+                1,
+                2,
+                3
+              ]
+            },
+            {
+              "op": "eq",
+              "axisId": "event.perPitch.pitchEventKind",
+              "value": "pitch-event"
+            },
+            {
+              "op": "eq",
+              "axisId": "state.gameEnded",
+              "value": false
+            }
+          ]
+        }
+      }
+    },
+    {
+      "vocabularyId": "batting-result.called-strikeout",
+      "partitionRuleId": "identity",
+      "partitionId": "caught-first-third",
+      "signal": {
+        "location": "expected",
+        "field": "precondition",
+        "value": {
+          "op": "and",
+          "args": [
+            {
+              "op": "eq",
+              "axisId": "state.runners",
+              "value": "first-third"
+            },
+            {
+              "op": "in",
+              "axisId": "state.outs",
+              "values": [
+                0,
+                1,
+                2
+              ]
+            },
+            {
+              "op": "eq",
+              "axisId": "state.count.strikes",
+              "value": 2
+            },
+            {
+              "op": "in",
+              "axisId": "state.count.balls",
+              "values": [
+                0,
+                1,
+                2,
+                3
+              ]
+            },
+            {
+              "op": "eq",
+              "axisId": "event.perPitch.pitchEventKind",
+              "value": "pitch-event"
+            },
+            {
+              "op": "eq",
+              "axisId": "state.gameEnded",
+              "value": false
+            }
+          ]
+        }
+      }
+    },
+    {
+      "vocabularyId": "batting-result.called-strikeout",
+      "partitionRuleId": "identity",
+      "partitionId": "caught-second-third",
+      "signal": {
+        "location": "expected",
+        "field": "precondition",
+        "value": {
+          "op": "and",
+          "args": [
+            {
+              "op": "eq",
+              "axisId": "state.runners",
+              "value": "second-third"
+            },
+            {
+              "op": "in",
+              "axisId": "state.outs",
+              "values": [
+                0,
+                1,
+                2
+              ]
+            },
+            {
+              "op": "eq",
+              "axisId": "state.count.strikes",
+              "value": 2
+            },
+            {
+              "op": "in",
+              "axisId": "state.count.balls",
+              "values": [
+                0,
+                1,
+                2,
+                3
+              ]
+            },
+            {
+              "op": "eq",
+              "axisId": "event.perPitch.pitchEventKind",
+              "value": "pitch-event"
+            },
+            {
+              "op": "eq",
+              "axisId": "state.gameEnded",
+              "value": false
+            }
+          ]
+        }
+      }
+    },
+    {
+      "vocabularyId": "batting-result.called-strikeout",
+      "partitionRuleId": "identity",
+      "partitionId": "caught-first-second-third",
+      "signal": {
+        "location": "expected",
+        "field": "precondition",
+        "value": {
+          "op": "and",
+          "args": [
+            {
+              "op": "eq",
+              "axisId": "state.runners",
+              "value": "loaded"
+            },
+            {
+              "op": "in",
+              "axisId": "state.outs",
+              "values": [
+                0,
+                1,
+                2
+              ]
+            },
+            {
+              "op": "eq",
+              "axisId": "state.count.strikes",
+              "value": 2
+            },
+            {
+              "op": "in",
+              "axisId": "state.count.balls",
+              "values": [
+                0,
+                1,
+                2,
+                3
+              ]
+            },
+            {
+              "op": "eq",
+              "axisId": "event.perPitch.pitchEventKind",
+              "value": "pitch-event"
+            },
+            {
+              "op": "eq",
+              "axisId": "state.gameEnded",
+              "value": false
+            }
+          ]
+        }
+      }
+    },
+    {
+      "vocabularyId": "batting-result.swinging-strikeout",
+      "partitionRuleId": "identity",
+      "partitionId": "identity",
+      "signal": {
+        "location": "expected",
+        "field": "precondition",
+        "value": {
+          "op": "and",
+          "args": [
+            {
+              "op": "eq",
+              "axisId": "state.outs",
+              "value": 0
+            },
+            {
+              "op": "eq",
+              "axisId": "state.runners",
+              "value": "empty"
+            },
+            {
+              "op": "eq",
+              "axisId": "state.count.strikes",
+              "value": 2
+            },
+            {
+              "op": "eq",
+              "axisId": "state.count.balls",
+              "value": 0
+            },
+            {
+              "op": "eq",
+              "axisId": "event.perPitch.pitchEventKind",
+              "value": "pitch-event"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "vocabularyId": "batting-result.swinging-strikeout",
+      "partitionRuleId": "identity",
+      "partitionId": "caught-empty-remainder",
+      "signal": {
+        "location": "expected",
+        "field": "precondition",
+        "value": {
+          "op": "and",
+          "args": [
+            {
+              "op": "eq",
+              "axisId": "state.runners",
+              "value": "empty"
+            },
+            {
+              "op": "in",
+              "axisId": "state.outs",
+              "values": [
+                0,
+                1,
+                2
+              ]
+            },
+            {
+              "op": "eq",
+              "axisId": "state.count.strikes",
+              "value": 2
+            },
+            {
+              "op": "in",
+              "axisId": "state.count.balls",
+              "values": [
+                0,
+                1,
+                2,
+                3
+              ]
+            },
+            {
+              "op": "eq",
+              "axisId": "event.perPitch.pitchEventKind",
+              "value": "pitch-event"
+            },
+            {
+              "op": "eq",
+              "axisId": "state.gameEnded",
+              "value": false
+            },
+            {
+              "op": "not",
+              "args": [
+                {
+                  "op": "and",
+                  "args": [
+                    {
+                      "op": "eq",
+                      "axisId": "state.outs",
+                      "value": 0
+                    },
+                    {
+                      "op": "eq",
+                      "axisId": "state.count.balls",
+                      "value": 0
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "vocabularyId": "batting-result.swinging-strikeout",
+      "partitionRuleId": "identity",
+      "partitionId": "caught-first",
+      "signal": {
+        "location": "expected",
+        "field": "precondition",
+        "value": {
+          "op": "and",
+          "args": [
+            {
+              "op": "eq",
+              "axisId": "state.runners",
+              "value": "first"
+            },
+            {
+              "op": "in",
+              "axisId": "state.outs",
+              "values": [
+                0,
+                1,
+                2
+              ]
+            },
+            {
+              "op": "eq",
+              "axisId": "state.count.strikes",
+              "value": 2
+            },
+            {
+              "op": "in",
+              "axisId": "state.count.balls",
+              "values": [
+                0,
+                1,
+                2,
+                3
+              ]
+            },
+            {
+              "op": "eq",
+              "axisId": "event.perPitch.pitchEventKind",
+              "value": "pitch-event"
+            },
+            {
+              "op": "eq",
+              "axisId": "state.gameEnded",
+              "value": false
+            }
+          ]
+        }
+      }
+    },
+    {
+      "vocabularyId": "batting-result.swinging-strikeout",
+      "partitionRuleId": "identity",
+      "partitionId": "caught-second",
+      "signal": {
+        "location": "expected",
+        "field": "precondition",
+        "value": {
+          "op": "and",
+          "args": [
+            {
+              "op": "eq",
+              "axisId": "state.runners",
+              "value": "second"
+            },
+            {
+              "op": "in",
+              "axisId": "state.outs",
+              "values": [
+                0,
+                1,
+                2
+              ]
+            },
+            {
+              "op": "eq",
+              "axisId": "state.count.strikes",
+              "value": 2
+            },
+            {
+              "op": "in",
+              "axisId": "state.count.balls",
+              "values": [
+                0,
+                1,
+                2,
+                3
+              ]
+            },
+            {
+              "op": "eq",
+              "axisId": "event.perPitch.pitchEventKind",
+              "value": "pitch-event"
+            },
+            {
+              "op": "eq",
+              "axisId": "state.gameEnded",
+              "value": false
+            }
+          ]
+        }
+      }
+    },
+    {
+      "vocabularyId": "batting-result.swinging-strikeout",
+      "partitionRuleId": "identity",
+      "partitionId": "caught-third",
+      "signal": {
+        "location": "expected",
+        "field": "precondition",
+        "value": {
+          "op": "and",
+          "args": [
+            {
+              "op": "eq",
+              "axisId": "state.runners",
+              "value": "third"
+            },
+            {
+              "op": "in",
+              "axisId": "state.outs",
+              "values": [
+                0,
+                1,
+                2
+              ]
+            },
+            {
+              "op": "eq",
+              "axisId": "state.count.strikes",
+              "value": 2
+            },
+            {
+              "op": "in",
+              "axisId": "state.count.balls",
+              "values": [
+                0,
+                1,
+                2,
+                3
+              ]
+            },
+            {
+              "op": "eq",
+              "axisId": "event.perPitch.pitchEventKind",
+              "value": "pitch-event"
+            },
+            {
+              "op": "eq",
+              "axisId": "state.gameEnded",
+              "value": false
+            }
+          ]
+        }
+      }
+    },
+    {
+      "vocabularyId": "batting-result.swinging-strikeout",
+      "partitionRuleId": "identity",
+      "partitionId": "caught-first-second",
+      "signal": {
+        "location": "expected",
+        "field": "precondition",
+        "value": {
+          "op": "and",
+          "args": [
+            {
+              "op": "eq",
+              "axisId": "state.runners",
+              "value": "first-second"
+            },
+            {
+              "op": "in",
+              "axisId": "state.outs",
+              "values": [
+                0,
+                1,
+                2
+              ]
+            },
+            {
+              "op": "eq",
+              "axisId": "state.count.strikes",
+              "value": 2
+            },
+            {
+              "op": "in",
+              "axisId": "state.count.balls",
+              "values": [
+                0,
+                1,
+                2,
+                3
+              ]
+            },
+            {
+              "op": "eq",
+              "axisId": "event.perPitch.pitchEventKind",
+              "value": "pitch-event"
+            },
+            {
+              "op": "eq",
+              "axisId": "state.gameEnded",
+              "value": false
+            }
+          ]
+        }
+      }
+    },
+    {
+      "vocabularyId": "batting-result.swinging-strikeout",
+      "partitionRuleId": "identity",
+      "partitionId": "caught-first-third",
+      "signal": {
+        "location": "expected",
+        "field": "precondition",
+        "value": {
+          "op": "and",
+          "args": [
+            {
+              "op": "eq",
+              "axisId": "state.runners",
+              "value": "first-third"
+            },
+            {
+              "op": "in",
+              "axisId": "state.outs",
+              "values": [
+                0,
+                1,
+                2
+              ]
+            },
+            {
+              "op": "eq",
+              "axisId": "state.count.strikes",
+              "value": 2
+            },
+            {
+              "op": "in",
+              "axisId": "state.count.balls",
+              "values": [
+                0,
+                1,
+                2,
+                3
+              ]
+            },
+            {
+              "op": "eq",
+              "axisId": "event.perPitch.pitchEventKind",
+              "value": "pitch-event"
+            },
+            {
+              "op": "eq",
+              "axisId": "state.gameEnded",
+              "value": false
+            }
+          ]
+        }
+      }
+    },
+    {
+      "vocabularyId": "batting-result.swinging-strikeout",
+      "partitionRuleId": "identity",
+      "partitionId": "caught-second-third",
+      "signal": {
+        "location": "expected",
+        "field": "precondition",
+        "value": {
+          "op": "and",
+          "args": [
+            {
+              "op": "eq",
+              "axisId": "state.runners",
+              "value": "second-third"
+            },
+            {
+              "op": "in",
+              "axisId": "state.outs",
+              "values": [
+                0,
+                1,
+                2
+              ]
+            },
+            {
+              "op": "eq",
+              "axisId": "state.count.strikes",
+              "value": 2
+            },
+            {
+              "op": "in",
+              "axisId": "state.count.balls",
+              "values": [
+                0,
+                1,
+                2,
+                3
+              ]
+            },
+            {
+              "op": "eq",
+              "axisId": "event.perPitch.pitchEventKind",
+              "value": "pitch-event"
+            },
+            {
+              "op": "eq",
+              "axisId": "state.gameEnded",
+              "value": false
+            }
+          ]
+        }
+      }
+    },
+    {
+      "vocabularyId": "batting-result.swinging-strikeout",
+      "partitionRuleId": "identity",
+      "partitionId": "caught-first-second-third",
+      "signal": {
+        "location": "expected",
+        "field": "precondition",
+        "value": {
+          "op": "and",
+          "args": [
+            {
+              "op": "eq",
+              "axisId": "state.runners",
+              "value": "loaded"
+            },
+            {
+              "op": "in",
+              "axisId": "state.outs",
+              "values": [
+                0,
+                1,
+                2
+              ]
+            },
+            {
+              "op": "eq",
+              "axisId": "state.count.strikes",
+              "value": 2
+            },
+            {
+              "op": "in",
+              "axisId": "state.count.balls",
+              "values": [
+                0,
+                1,
+                2,
+                3
+              ]
+            },
+            {
+              "op": "eq",
+              "axisId": "event.perPitch.pitchEventKind",
+              "value": "pitch-event"
+            },
+            {
+              "op": "eq",
+              "axisId": "state.gameEnded",
+              "value": false
+            }
+          ]
+        }
+      }
     }
   ],
   "uncoveredRowRequirements": [

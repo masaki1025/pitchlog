@@ -195,3 +195,87 @@ def test_candidate_schema_vectors_and_all_selected_field_mutations():
         with pytest.raises((ValidationError, TerminalPitchPayloadError)):
             changed = TerminalPitchCalculation.model_validate_json(json.dumps(raw))
             verify_play_prefix_seal(changed)
+
+
+@pytest.mark.parametrize("index", range(34))
+def test_lineup_payload_all_frozen_faces_and_cancellation_difference(index):
+    """v3静的封筒の全明示fieldを保存。実host/DB資格は別途要求する。"""
+    from pitchlog.sync.terminal_pitch_payload import (
+        LineupPitchPlayPayload,
+        read_lineup_pitch_payload,
+    )
+
+    cases = json.loads(
+        (
+            ROOT
+            / "contracts/state-transition/lineup_play_prefix_payload_vectors_v1.json"
+        ).read_text()
+    )["cases"]
+    raw = cases[index]
+    expected = LineupPitchPlayPayload.model_validate_json(json.dumps(raw["V7"]))
+    value = read_lineup_pitch_payload(
+        json.dumps(raw["V7"]),
+        json.dumps(raw["V8"]),
+        expected_calculation=expected.calculation,
+    )
+    assert (
+        json.loads(value.model_dump_json(by_alias=True, exclude_unset=True))
+        == raw["V7"]
+    )
+    for path, member in [
+        ("extra", True),
+        ("participants", None),
+        ("observations", None),
+    ]:
+        changed = copy.deepcopy(raw["V7"])
+        changed[path] = member
+        with pytest.raises(TerminalPitchPayloadError):
+            read_lineup_pitch_payload(
+                json.dumps(changed),
+                json.dumps(raw["V8"]),
+                expected_calculation=expected.calculation,
+            )
+    changed = copy.deepcopy(raw["V8"])
+    changed["extra"] = True
+    with pytest.raises(TerminalPitchPayloadError):
+        read_lineup_pitch_payload(
+            json.dumps(raw["V7"]),
+            json.dumps(changed),
+            expected_calculation=expected.calculation,
+        )
+
+
+def test_lineup_payload_all23_numeric_flag_aliases_and_duplicate_json_rejected():
+    """bool/int混同、重複、非有限JSONをV7/V8の全値比較へ通さない。"""
+    from pitchlog.sync.terminal_pitch_payload import (
+        LineupPitchPlayPayload,
+        read_lineup_pitch_payload,
+    )
+
+    case = json.loads(
+        (
+            ROOT
+            / "contracts/state-transition/lineup_play_prefix_payload_vectors_v1.json"
+        ).read_text()
+    )["cases"][0]
+    raw = case["V7"]
+    expected = LineupPitchPlayPayload.model_validate_json(json.dumps(raw))
+    flags = raw["calculation"]["response"]["value"]["t1"]["statFlags"]
+    assert len(flags) == 23
+    for key, value in flags.items():
+        changed = copy.deepcopy(raw)
+        changed["calculation"]["response"]["value"]["t1"]["statFlags"][key] = int(value)
+        with pytest.raises(TerminalPitchPayloadError):
+            read_lineup_pitch_payload(
+                json.dumps(changed),
+                json.dumps(case["V8"]),
+                expected_calculation=expected.calculation,
+            )
+    for text in [
+        '{"formatVersion":"play-prefix-play-v3","formatVersion":"play-prefix-play-v3"}',
+        '{"x":NaN}',
+    ]:
+        with pytest.raises(TerminalPitchPayloadError):
+            read_lineup_pitch_payload(
+                text, json.dumps(case["V8"]), expected_calculation=expected.calculation
+            )

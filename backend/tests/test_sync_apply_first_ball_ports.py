@@ -28,6 +28,8 @@ def test_port_real_guard_and_original_event_command():
             ("pitchlog.sync.ordinary_pitch_ports", "OrdinaryPitchProjectionPort"),
             ("pitchlog.sync.ordinary_pitch_ports", "PlayPrefixContentValidationPort"),
             ("pitchlog.sync.ordinary_pitch_ports", "PlayPrefixProjectionPort"),
+            ("pitchlog.sync.ordinary_pitch_ports", "LineupPrefixContentValidationPort"),
+            ("pitchlog.sync.ordinary_pitch_ports", "LineupPrefixProjectionPort"),
             ("pitchlog.sync.first_ball_projection", "FirstBallProjectionPort"),
             (
                 "pitchlog.sync.first_ball_recording_rights",
@@ -76,3 +78,53 @@ def test_partial_or_coerced_command_reply_never_becomes_success(rows):
     with pytest.raises(RuntimeError):
         FirstBallContentValidationPort().validate(event, writer)
     writer._close()
+
+
+def test_lineup_ports_have_two_exact_commands_and_no_subclass_acceptance():
+    """v3の閉2型だけを登録し、元参照/同writerを保ち自由成功を発行しない。"""
+    from pitchlog.sync.ordinary_pitch_ports import (
+        LineupPrefixContentValidationPort,
+        LineupPrefixProjectionPort,
+    )
+    from pitchlog.sync.ports import PortRegistrationError
+    from pitchlog.sync.terminal_pitch_tokens import (
+        ProjectLineupPrefixToken,
+        ValidateLineupPrefixToken,
+    )
+
+    event = SyncEvent(str(uuid4()), str(uuid4()), 1, "d4", "1")
+    seen = []
+
+    def run(token):
+        seen.append(token)
+        return TenantOperationResult(
+            ((True, None),) if type(token) is ValidateLineupPrefixToken else ((True,),)
+        )
+
+    writer = _issue_port_writer(run)
+    content = LineupPrefixContentValidationPort()
+    projection = LineupPrefixProjectionPort()
+    require_registered_port(content)
+    require_registered_port(projection)
+    assert content.validate(event, writer) == (True, None)
+    projection.apply(event, writer)
+    assert [type(t) for t in seen] == [
+        ValidateLineupPrefixToken,
+        ProjectLineupPrefixToken,
+    ]
+    assert seen[0].event is event and seen[1].projected is event
+    assert all(t.writer is writer for t in seen)
+
+    class ForeignContent:
+        def validate(self, event, writer):
+            return True, None
+
+    with pytest.raises(PortRegistrationError):
+        require_registered_port(ForeignContent())
+    for base in (LineupPrefixContentValidationPort, LineupPrefixProjectionPort):
+        derived = type("UnregisteredSubclass", (base,), {})()
+        with pytest.raises(PortRegistrationError):
+            require_registered_port(derived)
+    writer._close()
+    with pytest.raises(RuntimeError):
+        projection.apply(event, writer)

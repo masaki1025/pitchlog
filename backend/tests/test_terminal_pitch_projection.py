@@ -280,3 +280,154 @@ def test_new_execution_rejects_different_loaded_source_before_math(monkeypatch):
     with pytest.raises(OrdinaryPitchExecutionError):
         execution._evaluate_play_prefix(state)
     assert calls == []
+
+
+def test_v3_zero_ten_real_math_calls_prepare_third_out_and_opposite_people():
+    """合成readerの数学/保存封筒を検査。実DB/Port資格の成功とは区別する。"""
+    import json
+    from types import SimpleNamespace
+    from uuid import uuid4
+
+    from test_play_prefix import _lineup_initial_from_fixture
+
+    from pitchlog.domainrt.first_ball_projection import _canonical_json
+    from pitchlog.domainrt.host import open_domain_host
+    from pitchlog.domainrt.lineup_play_prefix_continuation import (
+        SourcePosition,
+        decode_lineup_prefix_request,
+        decode_lineup_prefix_response,
+        seal_lineup_wire,
+    )
+    from pitchlog.repositories.play_prefix import (
+        ConfirmedLineupPrefix,
+        _initial_lineup_document,
+        _source_from_lineup_document,
+        read_lineup_prefix_document,
+    )
+    from pitchlog.sync.model import SyncEvent
+    from pitchlog.sync.terminal_pitch_payload import LineupPitchPlayPayload
+    from pitchlog.sync.terminal_pitch_projection import build_lineup_prefix_preparation
+
+    initial, cases = _lineup_initial_from_fixture()
+    chain = [c for c in cases if c["caseId"].startswith("V3-STARTED-CHAIN-")]
+    previous = None
+    with open_domain_host() as host:
+        doc, source = _initial_lineup_document(
+            initial,
+            str(UUID(int=9001)),
+            "d4-test",
+            1,
+            host.artifact_sha256,
+            SourcePosition(d1="1", d2="1", appliedWatermark="0"),
+        )
+        for i, case in enumerate(chain):
+            if i:
+                assert previous is not None
+                source = _source_from_lineup_document(
+                    doc,
+                    SourcePosition(
+                        d1=str(i + 1), d2=str(1 + 1000 * i), appliedWatermark=str(i)
+                    ),
+                    host.artifact_sha256,
+                    previous.calculation.request.play_identity,
+                )
+            raw = case["request"].copy()
+            raw.update(
+                prefixRef=source.prefix_ref.model_dump(mode="json", by_alias=True),
+                rules=source.rules.model_dump(mode="json", by_alias=True),
+                source=source.model_dump(
+                    mode="json", by_alias=True, exclude_unset=True
+                ),
+            )
+            raw["t1"] = {
+                **raw["t1"],
+                "before": source.after.model_dump(mode="json", by_alias=True),
+            }
+            request = decode_lineup_prefix_request(json.dumps(raw))
+            response = decode_lineup_prefix_response(
+                host.call(
+                    "deriveLineupPlayPrefixWithContinuation",
+                    request.model_dump_json(by_alias=True, exclude_unset=True),
+                )
+            )
+            assert response.ok is True
+            assert _canonical_json(
+                response.value.t1.model_dump(
+                    mode="json", by_alias=True, exclude_unset=True
+                )
+            ) == _canonical_json(case["expected"]["value"]["t1"])
+            assert _canonical_json(
+                response.value.t2.model_dump(
+                    mode="json", by_alias=True, exclude_unset=True
+                )
+            ) == _canonical_json(case["expected"]["value"]["t2"])
+            request, response = seal_lineup_wire(request, response)
+            payload = LineupPitchPlayPayload.model_validate_json(
+                json.dumps(
+                    {
+                        "formatVersion": "play-prefix-play-v3",
+                        "observations": {
+                            "battingSide": None,
+                            "course": {"unit": "1/263", "x": "131", "y": "132"},
+                            "pitchSpeed": {"kmh": None, "outsideRangeConfirmed": False},
+                            "pitchTypeKey": "pitch-type.straight",
+                            "stance": None,
+                        },
+                        "participants": response.value.before_participants.model_dump(
+                            mode="json", by_alias=True
+                        ),
+                        "calculation": {
+                            "formatVersion": "play-prefix-calculation-v3",
+                            "artifactSha256": host.artifact_sha256,
+                            "request": request.model_dump(
+                                mode="json", by_alias=True, exclude_unset=True
+                            ),
+                            "response": response.model_dump(
+                                mode="json", by_alias=True, exclude_unset=True
+                            ),
+                        },
+                    }
+                )
+            )
+            projected = SyncEvent(
+                request.play_identity.d5,
+                str(initial.game_id),
+                i + 1,
+                "d4-test",
+                v6=1 + 1000 * i,
+            )
+            state = SimpleNamespace(
+                prefix=ConfirmedLineupPrefix(
+                    doc, source, initial.roster, i == 0, i + 1, previous
+                ),
+                payload=payload,
+                frame_id=uuid4(),
+                projected=projected,
+                source=SimpleNamespace(
+                    read=lambda *args: SimpleNamespace(event_fingerprint="f" * 64)
+                ),
+                handle=object(),
+                event=projected,
+            )
+            prepared = build_lineup_prefix_preparation(
+                state, {"id": UUID(request.play_identity.event_id)}, initial.tenant_id
+            )
+            doc = read_lineup_prefix_document(
+                _canonical_json(prepared["next_checkpoint"])
+            )
+            assert doc.revision == str(i + 2)
+            assert doc.history_version == "1" and doc.prefix_ref.history_version == str(
+                i + 1
+            )
+            assert prepared[
+                "history_entry"
+            ] == response.value.new_history_entry.model_dump(
+                mode="json", by_alias=True, exclude_unset=True
+            )
+            assert prepared["play_row"]["batter_id"] == source.participants.batter_id
+            assert prepared["play_row"]["pitcher_id"] == source.participants.pitcher_id
+            assert prepared["play_row"]["catcher_id"] == source.participants.catcher_id
+            previous = payload
+        assert doc.after.state_fields.half == "bottom"
+        assert doc.participants.pitcher_id == doc.lineup.away.pitcher_id
+        assert doc.participants.batter_id == doc.lineup.home.batting_order.one

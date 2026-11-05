@@ -51,6 +51,8 @@ from pitchlog.sync.http_recording_key import _decode_recording_key
 from pitchlog.sync.model import AckResult, RequestShapeError, SyncRequest
 from pitchlog.sync.ordinary_pitch_execution import OrdinaryPitchExecutionError
 from pitchlog.sync.ordinary_pitch_ports import (
+    LineupPrefixContentValidationPort,
+    LineupPrefixProjectionPort,
     OrdinaryPitchContentValidationPort,
     OrdinaryPitchProjectionPort,
     PlayPrefixContentValidationPort,
@@ -229,10 +231,15 @@ def sync_events(
                 isinstance(event.v7, Mapping)
                 and event.v7.get("formatVersion") == "play-prefix-play-v2"
             )
+            lineup_prefix = (
+                isinstance(event.v7, Mapping)
+                and event.v7.get("formatVersion") == "play-prefix-play-v3"
+            )
             if isinstance(event.v7, Mapping) and event.v7.get("formatVersion") not in {
                 "first-ball-play-v1",
                 "ordinary-pitch-play-v1",
                 "play-prefix-play-v2",
+                "play-prefix-play-v3",
             }:
                 raise _E1OutOfScope("未知payload mode")
             result = _apply_e1_f1(
@@ -246,14 +253,18 @@ def sync_events(
                 control=BindingControl(configuration.broker_endpoint),
                 rights=rights,
                 projection=(
-                    PlayPrefixProjectionPort()
+                    LineupPrefixProjectionPort()
+                    if lineup_prefix
+                    else PlayPrefixProjectionPort()
                     if play_prefix
                     else OrdinaryPitchProjectionPort()
                     if ordinary
                     else FirstBallProjectionPort()
                 ),
                 validator=(
-                    PlayPrefixContentValidationPort()
+                    LineupPrefixContentValidationPort()
+                    if lineup_prefix
+                    else PlayPrefixContentValidationPort()
                     if play_prefix
                     else OrdinaryPitchContentValidationPort()
                     if ordinary

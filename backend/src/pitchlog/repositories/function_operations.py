@@ -307,6 +307,14 @@ _SYNC_ORDINARY_PREFIX_FUNCTION_TYPES = MappingProxyType(
 
 _SYNC_PLAY_PREFIX_FUNCTION_TYPES = MappingProxyType(
     {
+        "sync_right_api.read_lineup_started_origin": (
+            (("game_id", UUID), ("generation", int)),
+            (("record_json", str),),
+            (),
+            (),
+            1,
+            1,
+        ),
         "sync_right_api.read_play_prefix_checkpoint": (
             (("game_id", UUID), ("generation", int)),
             (("record_json", str),),
@@ -519,11 +527,16 @@ class FunctionOperationRegistration:
                 raise FunctionOperationError("通常prefix関数の有限型宣言が不一致")
         elif play_prefix is not None:
             name = self.function_id.rsplit(".", 1)[1]
+            expected_operation = f"SYNC_PLAY_PREFIX:{name}"
+            expected_capability = f"CAP:sync_play_prefix:{name}"
+            if name == "read_lineup_started_origin":
+                expected_operation = "SYNC_LINEUP_PREFIX:read_lineup_started_origin"
+                expected_capability = "CAP:sync_lineup_prefix:read_started_origin"
             if (
                 extended != play_prefix[:4]
                 or (self.min_rows, self.max_rows) != play_prefix[4:]
-                or self.operation_id != f"SYNC_PLAY_PREFIX:{name}"
-                or self.capability_id != f"CAP:sync_play_prefix:{name}"
+                or self.operation_id != expected_operation
+                or self.capability_id != expected_capability
                 or self.nonempty_inputs
             ):
                 raise FunctionOperationError("v2 prefix関数の有限型宣言が不一致")

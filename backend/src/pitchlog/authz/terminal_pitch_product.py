@@ -6,6 +6,11 @@ from pitchlog.authz.terminal_pitch_write_stamp import candidate_function_bodies
 
 OWNER = "pitchlog_sync_right_fn_owner"
 FUNCTIONS = {
+    "read_lineup_started_origin": (
+        "uuid, uuid, bigint",
+        "TABLE(record_json text)",
+        True,
+    ),
     "read_play_prefix_checkpoint": (
         "uuid, uuid, bigint",
         "TABLE(record_json text)",
@@ -59,7 +64,7 @@ TRIGGERS = (
 )
 
 
-def candidate_declarations():
+def _v2_candidate_declarations():
     """既asset形式に合う宣言/実SQLだけを返し、書込/適用しない。"""
     functions = candidate_function_bodies()
     result = {n: [] for n in ("functions", "policies", "column_acl_expectations")}
@@ -165,13 +170,75 @@ def candidate_declarations():
     return result, bodies
 
 
-def require_registered_product(*, artifact_sha256=None):
+def candidate_declarations():
+    """新源泉2表9列/SELECT policyだけを追加し、app直接許可は増やさない。"""
+    declarations, bodies = _v2_candidate_declarations()
+    for table, columns in (
+        (
+            "game_start_requests",
+            ("tenant_id", "game_id", "start_request_id", "device_id"),
+        ),
+        (
+            "game_start_attempts",
+            ("tenant_id", "game_id", "start_request_id", "device_id", "outcome"),
+        ),
+    ):
+        name = "lineup_prefix_" + table + "_select"
+        key = f"POLICY:{table}:{name}"
+        declarations["policies"].append(
+            {
+                "policy_id": key,
+                "table_id": table,
+                "profile": "function_only",
+                "policy_name": name,
+                "command": "SELECT",
+                "policy_mode": "permissive",
+                "role_ids": [OWNER],
+                "using_predicate_id": "PREDICATE:TENANT",
+                "using_column": "tenant_id",
+                "using_expression": (
+                    "COALESCE(tenant_id = NULLIF(pg_catalog.current_setting("
+                    "'app.tenant_id', true), '')::UUID, FALSE)"
+                ),
+                "with_check_predicate_id": None,
+                "with_check_column": None,
+                "with_check_expression": None,
+            }
+        )
+        bodies["policy|" + key] = (
+            f"CREATE POLICY {name} ON public.{table} FOR SELECT TO {OWNER} "
+            "USING (COALESCE(tenant_id = NULLIF(pg_catalog.current_setting("
+            "'app.tenant_id', true), '')::UUID, FALSE));\n"
+        )
+        for column in columns:
+            key = f"COLUMN-ACL:public:{table}:{column}:{OWNER}"
+            declarations["column_acl_expectations"].append(
+                {
+                    "expectation_id": key,
+                    "object_kind": "column",
+                    "object_schema": "public",
+                    "object_id": table,
+                    "column_id": column,
+                    "grantee_role_id": OWNER,
+                    "privilege_ids": ["SELECT"],
+                    "grant_option": False,
+                }
+            )
+            bodies["column_acl_expectation|" + key] = (
+                f"GRANT SELECT ({column}) ON public.{table} TO {OWNER};\n"
+            )
+    return declarations, bodies
+
+
+def require_registered_product(*, artifact_sha256=None, mode="play-prefix-play-v2"):
     """正式runtime/repository/DDL登録が揃わなければ新modeだけを閉じる。"""
     import json
     from pathlib import Path
 
     from jsonschema import Draft202012Validator, SchemaError, ValidationError
 
+    if mode not in {"play-prefix-play-v2", "play-prefix-play-v3"}:
+        raise ValueError("未登録prefix mode")
     root = Path(__file__).resolve().parents[4]
     try:
         ddl = json.loads(
@@ -181,6 +248,20 @@ def require_registered_product(*, artifact_sha256=None):
             (root / "contracts/tenant_boundary/repository-contract.json").read_text()
         )
         declarations, _ = candidate_declarations()
+        if mode == "play-prefix-play-v2":
+            declarations["functions"] = [
+                x
+                for x in declarations["functions"]
+                if x["function_name"] != "read_lineup_started_origin"
+            ]
+            declarations["policies"] = [
+                x for x in declarations["policies"] if x["table_id"] == "play_runners"
+            ]
+            declarations["column_acl_expectations"] = [
+                x
+                for x in declarations["column_acl_expectations"]
+                if x["object_id"] == "play_runners"
+            ]
         identifiers = {
             "functions": "function_id",
             "policies": "policy_id",
@@ -194,14 +275,33 @@ def require_registered_product(*, artifact_sha256=None):
             ):
                 raise ValueError
         manifest = json.loads(
-            (root / "backend/domain/play-prefix-manifest.json").read_text()
+            (
+                root
+                / (
+                    "backend/domain/lineup-prefix-manifest.json"
+                    if mode == "play-prefix-play-v3"
+                    else "backend/domain/play-prefix-manifest.json"
+                )
+            ).read_text()
         )
         catalog = json.loads(
-            (root / "backend/domain/play-prefix-property-catalog.json").read_text()
+            (
+                root
+                / (
+                    "backend/domain/lineup-prefix-property-catalog.json"
+                    if mode == "play-prefix-play-v3"
+                    else "backend/domain/play-prefix-property-catalog.json"
+                )
+            ).read_text()
         )
         schema = json.loads(
             (
-                root / "backend/domain/play-prefix-property-catalog.schema.json"
+                root
+                / (
+                    "backend/domain/lineup-prefix-property-catalog.schema.json"
+                    if mode == "play-prefix-play-v3"
+                    else "backend/domain/play-prefix-property-catalog.schema.json"
+                )
             ).read_text()
         )
         Draft202012Validator.check_schema(schema)
@@ -214,17 +314,38 @@ def require_registered_product(*, artifact_sha256=None):
             ).hexdigest()
         if (
             manifest.get("propertyCatalog", {}).get("path")
-            != "backend/domain/play-prefix-property-catalog.json"
+            != (
+                "backend/domain/lineup-prefix-property-catalog.json"
+                if mode == "play-prefix-play-v3"
+                else "backend/domain/play-prefix-property-catalog.json"
+            )
             or manifest.get("propertyCatalog", {}).get("schema")
-            != "backend/domain/play-prefix-property-catalog.schema.json"
+            != (
+                "backend/domain/lineup-prefix-property-catalog.schema.json"
+                if mode == "play-prefix-play-v3"
+                else "backend/domain/play-prefix-property-catalog.schema.json"
+            )
             or not any(
-                c.get("calculation") == "play-prefix-v2"
+                c.get("calculation")
+                == (
+                    "lineup-play-prefix-v3"
+                    if mode == "play-prefix-play-v3"
+                    else "play-prefix-v2"
+                )
                 and c.get("source", {}).get("path")
-                == "frontend/src/domain/playPrefixContinuation.ts"
+                == (
+                    "frontend/src/domain/lineupPlayPrefixContinuation.ts"
+                    if mode == "play-prefix-play-v3"
+                    else "frontend/src/domain/playPrefixContinuation.ts"
+                )
                 and any(
                     t.get("hash") == "sha256:" + artifact_sha256
                     and t.get("invocation", {}).get("operation")
-                    == "derivePlayPrefixWithContinuation"
+                    == (
+                        "deriveLineupPlayPrefixWithContinuation"
+                        if mode == "play-prefix-play-v3"
+                        else "derivePlayPrefixWithContinuation"
+                    )
                     for t in c.get("directTargets", [])
                 )
                 for c in manifest.get("calculations", [])
@@ -233,7 +354,16 @@ def require_registered_product(*, artifact_sha256=None):
             raise ValueError
         operations = set(repository["product_function_operation_ids"])
         if (
-            not {f"SYNC_PLAY_PREFIX:{n}" for n, (_, _, app) in FUNCTIONS.items() if app}
+            not {
+                (
+                    "SYNC_LINEUP_PREFIX:read_lineup_started_origin"
+                    if n == "read_lineup_started_origin"
+                    else f"SYNC_PLAY_PREFIX:{n}"
+                )
+                for n, (_, _, app) in FUNCTIONS.items()
+                if app
+                and (mode == "play-prefix-play-v3" or n != "read_lineup_started_origin")
+            }
             <= operations
         ):
             raise ValueError

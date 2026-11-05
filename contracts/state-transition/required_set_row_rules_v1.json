@@ -252,6 +252,42 @@
             "req:E-1",
             "req:ADV-01"
           ]
+        },
+        {
+          "vocabularyId": "batting-result.called-strikeout",
+          "partitions": [
+            "caught-empty-remainder",
+            "caught-first",
+            "caught-second",
+            "caught-third",
+            "caught-first-second",
+            "caught-first-third",
+            "caught-second-third",
+            "caught-first-second-third"
+          ],
+          "sourceClauseIds": [
+            "req:SO-01",
+            "req:XC-03",
+            "req:FR-005"
+          ]
+        },
+        {
+          "vocabularyId": "batting-result.swinging-strikeout",
+          "partitions": [
+            "caught-empty-remainder",
+            "caught-first",
+            "caught-second",
+            "caught-third",
+            "caught-first-second",
+            "caught-first-third",
+            "caught-second-third",
+            "caught-first-second-third"
+          ],
+          "sourceClauseIds": [
+            "req:SO-02",
+            "req:XC-03",
+            "req:FR-005"
+          ]
         }
       ]
     },

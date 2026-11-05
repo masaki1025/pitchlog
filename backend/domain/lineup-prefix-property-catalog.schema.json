@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "catalogId": {
+      "const": "lineup-prefix-properties"
+    },
+    "scope": {
+      "const": "lineup-play-prefix-v3"
+    },
+    "predicates": {
+      "const": [
+        {
+          "propertyId": "lineupPrefixHostParity",
+          "propertyKind": "equivalence",
+          "authorityId": "NFR-018 (b)② 差分の検出可能性"
+        }
+      ]
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "catalogId",
+    "scope",
+    "predicates"
+  ]
+}

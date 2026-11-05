@@ -26,7 +26,13 @@ PERFORM sync_fence_api.assert_writer_binding(p_tenant_id,p_attempt_id,
  RAISE EXCEPTION 'ordinary prefix read rejected' USING ERRCODE='42501';
  END IF;
 
- RETURN QUERY SELECT (pg_catalog.to_jsonb(c) || pg_catalog.jsonb_build_object('last_play_row',s.expected_play_row,'source_evidence',(SELECT pg_catalog.jsonb_build_object(
+ RETURN QUERY SELECT (pg_catalog.to_jsonb(c) || CASE WHEN c.content->>'version'='3' THEN
+pg_catalog.jsonb_build_object('last_history',
+(SELECT pg_catalog.to_jsonb(h) FROM sync_fence.ordinary_pitch_history h
+WHERE h.tenant_id=c.tenant_id AND h.game_id=c.game_id AND
+h.internal_generation=c.internal_generation
+AND h.history_version=c.history_version AND
+h.source_event_id=(c.content->'last_source'->>'id')::uuid)) ELSE '{}'::jsonb END || pg_catalog.jsonb_build_object('last_play_row',s.expected_play_row,'source_evidence',(SELECT pg_catalog.jsonb_build_object(
  'all_play_count',pg_catalog.count(*) FILTER (WHERE e.event_kind='play_input'),
  'ordinary_play_count',pg_catalog.count(*) FILTER (WHERE e.event_kind='play_input'
  AND e.payload->>'formatVersion' IN ('first-ball-play-v1','ordinary-pitch-play-v1')

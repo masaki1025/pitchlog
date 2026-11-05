@@ -64,8 +64,15 @@ const schemaKeywords = new Set([
   'properties',
   'required',
   'type',
+  '$comment',
+  'title',
+  'x-pitchlog-axis-id',
 ])
-function matches(value: unknown, rule: Schema): boolean {
+function matches(
+  value: unknown,
+  rule: Schema,
+  defs: Record<string, Schema> = definitions,
+): boolean {
   // 未対応の将来制約を無視して通さず、更新時は明示的に追随する。
   if (
     Object.keys(rule).some((k) => !schemaKeywords.has(k)) ||
@@ -77,17 +84,21 @@ function matches(value: unknown, rule: Schema): boolean {
     const key = rule.$ref.replace('#/$defs/', '')
     return (
       rule.$ref === '#/$defs/' + key &&
-      Object.hasOwn(definitions, key) &&
-      matches(value, definitions[key]!)
+      Object.hasOwn(defs, key) &&
+      matches(value, defs[key]!, defs)
     )
   }
   if (Object.hasOwn(rule, 'const') && !sameOrdinaryWire(value, rule.const))
     return false
   if (rule.enum && !rule.enum.some((v) => sameOrdinaryWire(v, value)))
     return false
-  if (rule.oneOf && rule.oneOf.filter((v) => matches(value, v)).length !== 1)
+  if (
+    rule.oneOf &&
+    rule.oneOf.filter((v) => matches(value, v, defs)).length !== 1
+  )
     return false
-  if (rule.anyOf && !rule.anyOf.some((v) => matches(value, v))) return false
+  if (rule.anyOf && !rule.anyOf.some((v) => matches(value, v, defs)))
+    return false
   if (rule.type === 'null') return value === null
   if (rule.type === 'boolean') return typeof value === 'boolean'
   if (rule.type === 'string')
@@ -104,7 +115,7 @@ function matches(value: unknown, rule: Schema): boolean {
       Array.isArray(value) &&
       (rule.minItems === undefined || value.length >= rule.minItems) &&
       (rule.maxItems === undefined || value.length <= rule.maxItems) &&
-      (!rule.items || value.every((v) => matches(v, rule.items!)))
+      (!rule.items || value.every((v) => matches(v, rule.items!, defs)))
     )
   if (rule.type === 'object') {
     if (value === null || typeof value !== 'object' || Array.isArray(value))
@@ -115,7 +126,7 @@ function matches(value: unknown, rule: Schema): boolean {
       (rule.required ?? []).every((k) => Object.hasOwn(row, k)) &&
       Object.entries(row).every(([k, v]) =>
         Object.hasOwn(properties, k)
-          ? matches(v, properties[k]!)
+          ? matches(v, properties[k]!, defs)
           : rule.additionalProperties !== false,
       )
     )
@@ -238,7 +249,7 @@ export async function sealPlayMetadata(
     },
   }
 }
-function observationsValid(v: Observations): boolean {
+export function observationsValid(v: Observations): boolean {
   return (
     isPlayDefinition(v, 'PayloadObservations') &&
     [v.course.x, v.course.y].every(
@@ -290,4 +301,21 @@ export async function formatTerminalPitchWire(
     payload,
     stateDiff: response.value.newHistoryEntry.difference,
   })
+}
+
+/** 正式にimportした別variantの閉schemaを同じ構造検査へ通す。 */
+export function isClosedPlaySchema<T>(
+  value: unknown,
+  document: unknown,
+  definition?: string,
+): value is T {
+  try {
+    canonicalPlayJson(value)
+    const root = document as Schema & { $defs: Record<string, Schema> }
+    if (!root || !root.$defs || typeof root.$defs !== 'object') return false
+    const rule = definition === undefined ? root : root.$defs[definition]
+    return rule !== undefined && matches(value, rule, root.$defs)
+  } catch {
+    return false
+  }
 }

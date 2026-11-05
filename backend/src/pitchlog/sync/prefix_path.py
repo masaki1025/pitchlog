@@ -432,10 +432,10 @@ def _event_insert_token(
     from pitchlog.sync.ordinary_pitch_execution import _reserved_play_event_id
 
     reserved = None
-    if (
-        isinstance(event.v7, Mapping)
-        and event.v7.get("formatVersion") == "play-prefix-play-v2"
-    ):
+    if isinstance(event.v7, Mapping) and event.v7.get("formatVersion") in {
+        "play-prefix-play-v2",
+        "play-prefix-play-v3",
+    }:
         reserved = _reserved_play_event_id(scope, event)
         if reserved is None:
             raise P1PreconditionError("v2元原本の予約frameがありません")
@@ -756,6 +756,7 @@ def _apply_locked_in_scope(
             _require_rejected_original(scope, event, original_d5)
         from pitchlog.sync.first_ball_ports import FirstBallContentValidationPort
         from pitchlog.sync.ordinary_pitch_ports import (
+            LineupPrefixContentValidationPort,
             OrdinaryPitchContentValidationPort,
             PlayPrefixContentValidationPort,
         )
@@ -769,6 +770,7 @@ def _apply_locked_in_scope(
         if type(validator) in {
             OrdinaryPitchContentValidationPort,
             PlayPrefixContentValidationPort,
+            LineupPrefixContentValidationPort,
         }:
             from pitchlog.sync.ordinary_pitch_execution import (
                 _bind_ordinary_pitch_execution,
@@ -780,7 +782,9 @@ def _apply_locked_in_scope(
                     writer,
                     event,
                     source,
-                    mode="play-prefix-play-v2"
+                    mode="play-prefix-play-v3"
+                    if type(validator) is LineupPrefixContentValidationPort
+                    else "play-prefix-play-v2"
                     if type(validator) is PlayPrefixContentValidationPort
                     else "ordinary-pitch-play-v1",
                 )
@@ -899,6 +903,7 @@ def _apply_locked_in_scope(
         elif type(validator) in {
             OrdinaryPitchContentValidationPort,
             PlayPrefixContentValidationPort,
+            LineupPrefixContentValidationPort,
         }:
             from pitchlog.sync.ordinary_pitch_execution import (
                 _bind_ordinary_pitch_projection,
@@ -911,6 +916,7 @@ def _apply_locked_in_scope(
         if type(validator) in {
             OrdinaryPitchContentValidationPort,
             PlayPrefixContentValidationPort,
+            LineupPrefixContentValidationPort,
         }:
             from pitchlog.sync.ordinary_pitch_execution import (
                 _require_ordinary_projection_completed,

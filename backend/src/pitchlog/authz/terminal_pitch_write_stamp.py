@@ -392,3 +392,214 @@ def trigger_query():
         "t.tgrelid IN ('public.play_rows'::pg_catalog.regclass, "
         "'public.play_runners'::pg_catalog.regclass)",
     ).replace("AND t.tgname<>'trg_play_prefix_30_project_after'", "")
+
+
+def _lineup_origin_sql():
+    """元端末の現在資格を要求せず、同一logical成功開始だけを返す。"""
+    return f"""CREATE FUNCTION sync_right_api.read_lineup_started_origin(
+p_tenant_id uuid,p_game_id uuid,p_generation bigint)
+RETURNS TABLE(record_json text) LANGUAGE plpgsql VOLATILE SECURITY DEFINER
+SET search_path=pg_catalog,pg_temp AS $origin$
+DECLARE origins jsonb;
+BEGIN
+ IF session_user IS DISTINCT FROM 'pitchlog_app'
+ OR current_user IS DISTINCT FROM '{_OWNER}'
+ OR p_tenant_id IS DISTINCT FROM
+ NULLIF(pg_catalog.current_setting('app.tenant_id',true),'')::uuid
+ OR p_game_id IS NULL OR p_generation IS NULL OR p_generation<=0 THEN {_REJECT} END IF;
+ SELECT pg_catalog.jsonb_agg(pg_catalog.to_jsonb(x)) INTO origins FROM (
+ SELECT DISTINCT r.start_request_id::text AS start_request_id,
+ r.device_id::text AS device_id
+ FROM public.game_start_requests r JOIN public.game_start_attempts a
+ ON (a.tenant_id,a.game_id,a.start_request_id,a.device_id)=
+ (r.tenant_id,r.game_id,r.start_request_id,r.device_id)
+ WHERE r.tenant_id=p_tenant_id AND r.game_id=p_game_id AND a.outcome='committed'
+ LIMIT 2) x;
+ IF origins IS NULL OR pg_catalog.jsonb_array_length(origins)<>1 THEN {_REJECT} END IF;
+ RETURN QUERY SELECT (origins->0)::text;
+END;
+$origin$;
+"""
+
+
+def _v3_prepare_sql():
+    """同じwriter検証を保ち、v3の実源泉/全比較面だけを追加する。"""
+    sql = (
+        PREPARE_SQL.replace(
+            "prepare_ordinary_projection(", "prepare_play_prefix_projection("
+        )
+        .replace("ordinary-pitch-play-v1", "play-prefix-play-v3")
+        .replace("ordinary-pitch-calculation-v1", "play-prefix-calculation-v3")
+        .replace("->'prior'->'t2'", "->'source'->'t2'")
+    )
+    checks = """
+ IF before_cp->>'version' IS DISTINCT FROM '3' OR after_cp->>'version' IS DISTINCT
+FROM '3'
+ OR before_cp->'source_origin' IS DISTINCT FROM after_cp->'source_origin'
+ OR before_cp->'source_origin' IS DISTINCT FROM before_cp->'prefix_ref'->'origin'
+ OR after_cp->'source_origin' IS DISTINCT FROM after_cp->'prefix_ref'->'origin'
+ OR before_cp->'lineup' IS DISTINCT FROM after_cp->'lineup'
+ OR after_cp->'lineup' IS DISTINCT FROM
+source_row.payload->'calculation'->'response'->'value'->'lineup'
+ OR before_cp->'roster_source_digest' IS DISTINCT FROM
+after_cp->'roster_source_digest'
+ OR after_cp->'roster_digest' IS DISTINCT FROM
+source_row.payload->'calculation'->'response'->'value'->'rosterDigest'
+ OR after_cp->'participants' IS DISTINCT FROM
+source_row.payload->'calculation'->'response'->'value'->'participants'
+ OR before_cp->'participants' IS DISTINCT FROM
+source_row.payload->'calculation'->'response'->'value'->'beforeParticipants'
+ OR before_cp->'participants' IS DISTINCT FROM
+source_row.payload->'calculation'->'request'->'source'->'participants'
+ OR after_cp->'pa_start_source' IS DISTINCT FROM
+source_row.payload->'calculation'->'response'->'value'->'nextResponsibility'->'paStartSource'
+ OR after_cp->'runners' IS DISTINCT FROM
+source_row.payload->'calculation'->'response'->'value'->'runners'
+ OR after_cp->'previous_prefix_ref' IS DISTINCT FROM before_cp->'prefix_ref'
+ OR before_cp->'storage_anchor' IS DISTINCT FROM after_cp->'storage_anchor'
+ OR after_cp->'storage_anchor'->>'id' IS DISTINCT FROM before_cp->>'id'
+ OR after_cp->'storage_anchor'->>'history_epoch' IS DISTINCT FROM
+before_cp->>'history_version'
+ OR after_cp->'prefix_ref'->>'version' IS DISTINCT FROM '3'
+ OR after_cp->'prefix_ref'->>'scope' IS DISTINCT FROM 'play-prefix-v3'
+ OR after_cp->'projection_snapshot'->'play_row' IS DISTINCT FROM p->'play_row'
+ OR pg_catalog.jsonb_typeof(after_cp->'projection_snapshot'->'play_runners') IS
+DISTINCT FROM 'array'
+ OR p->'play_row'->>'batter_id' IS DISTINCT FROM
+before_cp->'participants'->>'batterId'
+ OR p->'play_row'->>'pitcher_id' IS DISTINCT FROM
+before_cp->'participants'->>'pitcherId'
+ OR p->'play_row'->>'catcher_id' IS DISTINCT FROM
+before_cp->'participants'->>'catcherId'
+ OR before_cp->'source_origin'->>'eventId' IS DISTINCT FROM
+ (SELECT r.record_json::jsonb->>'start_request_id' FROM
+sync_right_api.read_lineup_started_origin(
+p_tenant_id,p_game_id,stamp.internal_generation) r)
+ OR EXISTS(SELECT 1 FROM public.operation_events e WHERE e.tenant_id=p_tenant_id AND
+e.game_id=p_game_id
+ AND e.generation=stamp.internal_generation AND e.d1<=previous_d1
+ AND (e.ledger_kind<>'accepted' OR e.is_tombstone OR e.replaced_at IS NOT NULL OR
+e.retired_at IS NOT NULL
+ OR e.import_batch_id IS NOT NULL OR e.migration_unverified OR
+e.legacy_row_identifier IS NOT NULL OR e.event_kind<>'play_input'))
+ THEN RAISE EXCEPTION 'lineup source mismatch' USING ERRCODE='42501'; END IF;
+"""
+    marker = " SELECT c.* INTO current_cp"
+    if marker not in sql:
+        raise ValueError("prepare共有templateが変更されました")
+    runner_template = _prepare_sql()
+    begin = runner_template.index(
+        " OR EXISTS(SELECT 1 FROM pg_catalog.jsonb_array_elements(\n "
+        "after_cp->'projection_snapshot'->'play_runners') r WHERE"
+    )
+    end = runner_template.index(
+        " THEN RAISE EXCEPTION 'play prefix source or runners rejected'", begin
+    )
+    runner_checks = runner_template[begin:end]
+    checks += (
+        """
+ IF pg_catalog.jsonb_array_length(after_cp->'projection_snapshot'->'play_runners')
+ IS DISTINCT FROM
+pg_catalog.jsonb_array_length(source_row.payload->'calculation'->'request'->'source'->'runners')
+ OR source_row.state_diff IS DISTINCT FROM
+source_row.payload->'calculation'->'response'->'value'->'newHistoryEntry'->'difference'
+ OR source_row.payload->'calculation'->'request'->'playIdentity' IS DISTINCT FROM
+ pg_catalog.jsonb_build_object('eventId',source_row.id::text,'d5',source_row.d5::text,'playId',p->'play_row'->>'id')
+ OR
+source_row.payload->'calculation'->'request'->'source'->'responsibility'->>'kind' IS
+DISTINCT FROM 'no-change'
+ OR
+source_row.payload->'calculation'->'request'->'source'->'responsibility'
+->'paStartSource' IS DISTINCT FROM before_cp->'pa_start_source'
+"""
+        + runner_checks
+        + " THEN RAISE EXCEPTION 'lineup physical source rejected' "
+        "USING ERRCODE='42501'; END IF;\n"
+    )
+    return sql.replace(marker, checks + marker, 1)
+
+
+def _dispatch_sql(old_sql, new_sql, predicate):
+    """閉version二分岐だけを既関数のnested blockへまとめる。"""
+    head, old_body = old_sql.split("DECLARE", 1)
+    _, new_body = new_sql.split("DECLARE", 1)
+    old_body = "DECLARE" + old_body[: old_body.rfind("$ordinary$;")]
+    new_body = "DECLARE" + new_body[: new_body.rfind("$ordinary$;")]
+    return (
+        head.replace("$ordinary$", "$dispatch$")
+        + f"BEGIN\n IF {predicate} THEN\n{new_body}\n ELSE\n{old_body}\n"
+        " END IF;\nEND;\n$dispatch$;\n"
+    )
+
+
+_v2_function_bodies = candidate_function_bodies
+
+
+def candidate_function_bodies():
+    """旧7本文を保持しv3閉枝/源泉read1だけを生成する。正式writerが採否する。"""
+    result = _v2_function_bodies()
+    result["prepare_play_prefix_projection"] = _dispatch_sql(
+        result["prepare_play_prefix_projection"],
+        _v3_prepare_sql(),
+        "p_preparation_json::jsonb->'next_checkpoint'->>'version'='3'",
+    )
+    # 根拠は呼出rowの自己申告でなく同tenant/game/source eventの実payload。
+    predicate = (
+        "EXISTS(SELECT 1 FROM public.operation_events e WHERE "
+        "e.tenant_id=(p_row->>'tenant_id')::uuid AND "
+        "e.game_id=(p_row->>'game_id')::uuid AND "
+        "e.id=(p_row->>'source_event_id')::uuid AND "
+        "e.payload->>'formatVersion'='play-prefix-play-v3')"
+    )
+    result["assert_play_prefix_projection"] = _dispatch_sql(
+        result["assert_play_prefix_projection"],
+        _assert_sql().replace("play-prefix-play-v2", "play-prefix-play-v3"),
+        predicate,
+    )
+    pred_trigger = (
+        "EXISTS(SELECT 1 FROM public.operation_events e WHERE "
+        "e.tenant_id=NEW.tenant_id AND e.game_id=NEW.game_id AND "
+        "e.id=NEW.source_event_id AND "
+        "e.payload->>'formatVersion'='play-prefix-play-v3')"
+    )
+    result["finish_play_prefix_projection"] = _dispatch_sql(
+        result["finish_play_prefix_projection"],
+        _finish_sql().replace("play-prefix-play-v2", "play-prefix-play-v3"),
+        pred_trigger,
+    )
+    result["guard_play_prefix_runner_insert"] = result[
+        "guard_play_prefix_runner_insert"
+    ].replace(
+        "a.next_checkpoint_content->>'version' IS DISTINCT FROM '2'",
+        "(a.next_checkpoint_content->>'version' IS DISTINCT FROM '2' "
+        "AND a.next_checkpoint_content->>'version' IS DISTINCT FROM '3')",
+    )
+    result["read_play_prefix_history_page"] = (
+        result["read_play_prefix_history_page"]
+        .replace("c.content->>'version'='2'", "c.content->>'version' IN ('2','3')")
+        .replace(
+            "'ordinary-pitch-play-v1','play-prefix-play-v2'",
+            "'ordinary-pitch-play-v1','play-prefix-play-v2','play-prefix-play-v3'",
+        )
+    )
+    for name in ("read_play_prefix_checkpoint", "lock_play_prefix_checkpoint"):
+        target = "pg_catalog.to_jsonb(c) ||"
+        last = """ || CASE WHEN c.content->>'version'='3' THEN
+pg_catalog.jsonb_build_object('last_history',
+(SELECT pg_catalog.to_jsonb(h) FROM sync_fence.ordinary_pitch_history h
+WHERE h.tenant_id=c.tenant_id AND h.game_id=c.game_id AND
+h.internal_generation=c.internal_generation
+AND h.history_version=c.history_version AND
+h.source_event_id=(c.content->'last_source'->>'id')::uuid)) ELSE '{}'::jsonb END"""
+        if target not in result[name]:
+            raise ValueError("checkpoint read共有templateが変更されました")
+        result[name] = result[name].replace(
+            target, "pg_catalog.to_jsonb(c)" + last + " ||", 1
+        )
+    result["read_lineup_started_origin"] = _lineup_origin_sql()
+    return {
+        name: sql.replace(
+            "CREATE FUNCTION\nsync_right_api.", "CREATE FUNCTION sync_right_api."
+        )
+        for name, sql in result.items()
+    }

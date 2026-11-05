@@ -315,8 +315,15 @@ def test_unregistered_port_is_rejected_before_call() -> None:
             ("pitchlog.sync.ordinary_pitch_ports", "PlayPrefixProjectionPort"),
         }
     )
+    lineup_ports = frozenset(
+        {
+            ("pitchlog.sync.ordinary_pitch_ports", "LineupPrefixContentValidationPort"),
+            ("pitchlog.sync.ordinary_pitch_ports", "LineupPrefixProjectionPort"),
+        }
+    )
     assert terminal_ports <= ports.PORT_IMPLEMENTATIONS
-    assert ports.PORT_IMPLEMENTATIONS - terminal_ports == frozenset(
+    assert lineup_ports <= ports.PORT_IMPLEMENTATIONS
+    assert ports.PORT_IMPLEMENTATIONS - terminal_ports - lineup_ports == frozenset(
         {
             ("pitchlog.sync.first_ball_ports", "FirstBallContentValidationPort"),
             (

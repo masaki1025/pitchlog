@@ -171,3 +171,31 @@ class PlayPrefixPlayRowInsertToken(_SyncToken):
     source_fingerprint: str
     row_json: str = field(repr=False)
     _capability_id = "CAP:play_rows:insert"
+
+
+@dataclass(frozen=True, slots=True)
+class LineupStartedOriginReadToken(_SyncToken):
+    """開始原本の論理IDだけを取得する。現在writer資格は発行しない。"""
+
+    game_id: UUID
+    generation: int
+    _capability_id = "CAP:sync_lineup_prefix:read_started_origin"
+
+    def __post_init__(self):
+        """正規UUID/正BIGINTだけを許す。"""
+        if (
+            type(self.game_id) is not UUID
+            or type(self.generation) is not int
+            or not 0 < self.generation < 2**63
+        ):
+            raise ValueError("v3開始原本読取の識別が不正")
+
+
+@dataclass(frozen=True, slots=True)
+class ValidateLineupPrefixToken(ValidatePlayPrefixToken):
+    """v3内容判定の元event/同writerだけを渡す。"""
+
+
+@dataclass(frozen=True, slots=True)
+class ProjectLineupPrefixToken(ProjectPlayPrefixToken):
+    """v3投影の同writer一回frameだけを要求する。"""

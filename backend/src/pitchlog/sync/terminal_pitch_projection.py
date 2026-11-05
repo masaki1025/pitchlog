@@ -22,6 +22,7 @@ from pitchlog.sync.terminal_pitch_tokens import (
     PlayPrefixCheckpointLockToken,
     PlayPrefixPlayRowInsertToken,
     PreparePlayPrefixProjectionToken,
+    ProjectLineupPrefixToken,
     ProjectPlayPrefixToken,
 )
 from pitchlog.sync.tokens import OperationEventReadToken
@@ -170,10 +171,15 @@ def build_play_prefix_preparation(state, record, tenant_id):
 
 def apply_play_prefix_projection(handle, operation):
     """AFTER triggerによるrunner/印消費まで終わった親INSERTだけを成功とする。"""
-    if type(operation) is not ProjectPlayPrefixToken:
+    if type(operation) not in {ProjectPlayPrefixToken, ProjectLineupPrefixToken}:
         raise OrdinaryPitchExecutionError
     state = _consume_ordinary_pitch_frame(
-        handle, operation.projected, operation.writer, mode="play-prefix-play-v2"
+        handle,
+        operation.projected,
+        operation.writer,
+        mode="play-prefix-play-v3"
+        if type(operation) is ProjectLineupPrefixToken
+        else "play-prefix-play-v2",
     )
     if operation.game_id != UUID(state.event.game_id) or operation.d5 != UUID(
         state.event.d5
@@ -208,7 +214,12 @@ def apply_play_prefix_projection(handle, operation):
         type(record[k]) is not type(v) or record[k] != v for k, v in expected.items()
     ):
         raise OrdinaryPitchExecutionError
-    prepared = build_play_prefix_preparation(state, record, handle._bound_tenant_id)
+    builder = (
+        build_lineup_prefix_preparation
+        if type(operation) is ProjectLineupPrefixToken
+        else build_play_prefix_preparation
+    )
+    prepared = builder(state, record, handle._bound_tenant_id)
     lease = state.source.bound._lease
     token = PreparePlayPrefixProjectionToken(
         lease.attempt_id,
@@ -261,3 +272,114 @@ def apply_play_prefix_projection(handle, operation):
     _live(state)
     state.phase = "projected"
     return TenantOperationResult(((True,),))
+
+
+def build_lineup_prefix_preparation(state, record, tenant_id):
+    """v3実frameのbefore物理行とafter両cursorを別の保存面へ写す。"""
+    from pitchlog.domainrt.lineup_play_prefix_continuation import (
+        verify_lineup_wire_seal,
+    )
+    from pitchlog.repositories.play_prefix import read_lineup_prefix_document
+    from pitchlog.sync.terminal_pitch_payload import LineupPitchPlayPayload
+
+    if (
+        state.prefix is None
+        or type(state.payload) is not LineupPitchPlayPayload
+        or state.frame_id is None
+    ):
+        raise OrdinaryPitchExecutionError
+    calc = state.payload.calculation
+    request, response = calc.request, calc.response.value
+    verify_lineup_wire_seal(request, calc.response)
+    doc = state.prefix.checkpoint
+    projected = state.projected
+    identity = request.play_identity
+    if (
+        projected is None
+        or identity.event_id != str(record["id"])
+        or identity.d5 != projected.d5
+        or request.source.position.d1 != str(projected.d1)
+        or request.source.position.d2 != str(projected.v6)
+    ):
+        raise OrdinaryPitchExecutionError
+    view = state.source.read(state.handle, state.event)
+    source = {
+        "id": str(record["id"]),
+        "tenant_id": str(tenant_id),
+        "game_id": projected.game_id,
+        "generation": doc.internal_generation,
+        "d1": str(projected.d1),
+        "d2": str(projected.v6),
+        "d5": projected.d5,
+        "source_fingerprint": view.event_fingerprint,
+        "event_fingerprint": view.event_fingerprint,
+    }
+    row = pitch_physical_row(
+        state.payload.observations,
+        state.payload.participants,
+        request.t1.result_id,
+        tenant_id=tenant_id,
+        game_id=UUID(projected.game_id),
+        source_event_id=record["id"],
+        row_id=UUID(identity.play_id),
+        play_number=state.prefix.next_play_number,
+    )
+    runners = runner_physical_rows(
+        request.source.runners,
+        t1=response.t1,
+        tenant_id=tenant_id,
+        play_id=UUID(identity.play_id),
+    )
+    previous = doc.model_dump(mode="json", by_alias=True, exclude_unset=True)
+    after = {
+        **previous,
+        "revision": response.next_prefix_ref.checkpoint.revision,
+        "prefix_ref": response.next_prefix_ref.model_dump(mode="json", by_alias=True),
+        "confirmed_watermark": str(projected.d1),
+        "applied_watermark": str(projected.d1),
+        "last_source": source,
+        "history_depth": response.next_prefix_ref.length,
+        "after": response.t1.after.model_dump(mode="json", by_alias=True),
+        "t2": response.t2.model_dump(mode="json", by_alias=True),
+        "runners": [r.model_dump(mode="json", by_alias=True) for r in response.runners],
+        "participants": response.participants.model_dump(mode="json", by_alias=True),
+        "pa_start_source": response.next_responsibility.pa_start_source.model_dump(
+            mode="json", by_alias=True
+        ),
+        "lineup": response.lineup.model_dump(mode="json", by_alias=True),
+        "roster_digest": response.roster_digest,
+        "previous_prefix_ref": response.previous_prefix_ref.model_dump(
+            mode="json", by_alias=True
+        ),
+        "artifact_sha256": calc.artifact_sha256,
+        "projection_snapshot": {"play_row": row, "play_runners": runners},
+    }
+    del after["content_digest"]
+    after["content_digest"] = source_fingerprint(after)
+    next_doc = read_lineup_prefix_document(_canonical_json(after))
+    prepared = {
+        "checkpoint": previous,
+        "next_checkpoint": next_doc.model_dump(
+            mode="json", by_alias=True, exclude_unset=True
+        ),
+        "roster": state.prefix.roster.model_dump(mode="json", by_alias=True),
+        "frame_id": str(state.frame_id),
+        "artifact_sha256": calc.artifact_sha256,
+        "source": source,
+        "play_row": row,
+        "history_entry": response.new_history_entry.model_dump(
+            mode="json", by_alias=True, exclude_unset=True
+        ),
+    }
+    prepared["frame_digest"] = source_fingerprint(
+        {
+            **prepared,
+            "request": request.model_dump(
+                mode="json", by_alias=True, exclude_unset=True
+            ),
+            "response": calc.response.model_dump(
+                mode="json", by_alias=True, exclude_unset=True
+            ),
+        }
+    )
+    return prepared

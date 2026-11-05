@@ -10,6 +10,12 @@ from pydantic import AfterValidator, Field
 from pitchlog.domainrt.first_ball_projection import _canonical_json, _canonical_sha256
 from pitchlog.domainrt.first_pitch import _Frozen
 from pitchlog.domainrt.first_pitch_continuation import _check_frozen_members
+from pitchlog.domainrt.lineup_play_prefix_continuation import (
+    Digest,
+    LineupPrefixRequest,
+    LineupPrefixSuccess,
+    verify_lineup_wire_seal,
+)
 from pitchlog.domainrt.play_prefix_continuation import (
     PlayPrefixRequest,
     PlayPrefixSuccess,
@@ -211,4 +217,61 @@ def read_terminal_pitch_payload(
             raise TerminalPitchPayloadError
         return payload
     except (AttributeError, KeyError, TypeError, ValueError, RecursionError):
+        raise TerminalPitchPayloadError from None
+
+
+class LineupPitchCalculation(_Frozen):
+    """旧v2計算封筒を広げないv3 variant。"""
+
+    format_version: Literal["play-prefix-calculation-v3"] = Field(alias="formatVersion")
+    artifact_sha256: Digest = Field(alias="artifactSha256")
+    request: LineupPrefixRequest
+    response: LineupPrefixSuccess
+
+
+class LineupPitchPlayPayload(_Frozen):
+    """V7のbefore参加者/実観測と実一回計算。V8は差分のまま。"""
+
+    format_version: Literal["play-prefix-play-v3"] = Field(alias="formatVersion")
+    observations: FirstBallObservations
+    participants: OrdinaryPitchParticipants
+    calculation: LineupPitchCalculation
+
+
+def read_lineup_pitch_payload(raw_v7, raw_v8, *, expected_calculation):
+    """実独立評価とV7/V8/参加者を全比較し、欠落/alias/型の変化を拒否する。"""
+    try:
+        payload = LineupPitchPlayPayload.model_validate_json(raw_v7)
+        if _canonical_json(_raw_json(raw_v7)) != _canonical_json(_dump(payload)):
+            raise ValueError
+        if (
+            type(payload) is not LineupPitchPlayPayload
+            or type(expected_calculation) is not LineupPitchCalculation
+        ):
+            raise ValueError
+        if _canonical_json(_dump(payload.calculation)) != _canonical_json(
+            _dump(expected_calculation)
+        ):
+            raise ValueError
+        request = payload.calculation.request
+        response = payload.calculation.response
+        if (
+            payload.calculation.artifact_sha256
+            != response.value.execution_artifact_sha256
+        ):
+            raise ValueError
+        verify_lineup_wire_seal(request, response)
+        if _canonical_json(_dump(payload.participants)) != _canonical_json(
+            _dump(response.value.before_participants)
+        ):
+            raise ValueError
+        parsed = _raw_json(raw_v8)
+        if _canonical_json(parsed) != _canonical_json(
+            response.value.new_history_entry.difference.model_dump(
+                mode="json", by_alias=True, exclude_unset=True
+            )
+        ):
+            raise ValueError
+        return payload
+    except (ValueError, TypeError):
         raise TerminalPitchPayloadError from None

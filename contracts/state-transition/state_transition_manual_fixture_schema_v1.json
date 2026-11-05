@@ -285,6 +285,9 @@
         },
         {
           "$ref": "#/$defs/terminalInputCoordinate"
+        },
+        {
+          "$ref": "#/$defs/strikeoutInputCoordinate"
         }
       ]
     },
@@ -2961,6 +2964,67 @@
           }
         }
       ]
+    },
+    "strikeoutInputCoordinate": {
+      "type": "object",
+      "required": [
+        "eventKind",
+        "resultId",
+        "state.outs",
+        "state.runners",
+        "state.count.strikes",
+        "state.count.balls",
+        "event.perPitch.pitchEventKind",
+        "state.gameEnded"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "eventKind": {
+          "const": "batting-result"
+        },
+        "resultId": {
+          "enum": [
+            "batting-result.called-strikeout",
+            "batting-result.swinging-strikeout"
+          ]
+        },
+        "state.outs": {
+          "enum": [
+            0,
+            1,
+            2
+          ]
+        },
+        "state.runners": {
+          "enum": [
+            "empty",
+            "first",
+            "second",
+            "third",
+            "first-second",
+            "first-third",
+            "second-third",
+            "loaded"
+          ]
+        },
+        "state.count.strikes": {
+          "const": 2
+        },
+        "state.count.balls": {
+          "enum": [
+            0,
+            1,
+            2,
+            3
+          ]
+        },
+        "event.perPitch.pitchEventKind": {
+          "const": "pitch-event"
+        },
+        "state.gameEnded": {
+          "const": false
+        }
+      }
     }
   },
   "x-pitchlog-observation-binding-rules": "contracts/state-transition/t1_observation_binding_rules_v1.json"

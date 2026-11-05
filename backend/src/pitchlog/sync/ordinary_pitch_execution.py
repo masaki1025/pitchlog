@@ -31,7 +31,10 @@ from pitchlog.sync.ordinary_pitch_payload import (
 )
 from pitchlog.sync.ports import PortWriter
 from pitchlog.sync.source_binding import _E1CoreSource
-from pitchlog.sync.terminal_pitch_payload import TerminalPitchPlayPayload
+from pitchlog.sync.terminal_pitch_payload import (
+    LineupPitchPlayPayload,
+    TerminalPitchPlayPayload,
+)
 
 
 class OrdinaryPitchExecutionError(RuntimeError):
@@ -63,7 +66,12 @@ class _Execution:
     frame: OrdinaryPitchFrame | None = None
     frame_id: UUID | None = None
     prefix: object = None
-    payload: OrdinaryPitchPlayPayload | TerminalPitchPlayPayload | None = None
+    payload: (
+        OrdinaryPitchPlayPayload
+        | TerminalPitchPlayPayload
+        | LineupPitchPlayPayload
+        | None
+    ) = None
     phase: str = "preparing"
     projected: SyncEvent | None = None
     projection_call: object = None
@@ -122,14 +130,20 @@ def _bind_ordinary_pitch_execution(
         handle._writer_lifetime(),
         transaction._TRANSACTION_RUNTIMES.get(handle._state_key),
     )
-    if mode not in {"ordinary-pitch-play-v1", "play-prefix-play-v2"}:
+    if mode not in {
+        "ordinary-pitch-play-v1",
+        "play-prefix-play-v2",
+        "play-prefix-play-v3",
+    }:
         raise OrdinaryPitchExecutionError
     state.mode = mode
     key = handle._state_key
     _EXECUTIONS[key] = state
     try:
         _live(state)
-        if mode == "play-prefix-play-v2":
+        if mode == "play-prefix-play-v3":
+            _evaluate_lineup_prefix(state)
+        elif mode == "play-prefix-play-v2":
             _evaluate_play_prefix(state)
         else:
             try:
@@ -342,7 +356,7 @@ def _ordinary_qualification_scope(handle, source):
         or transaction._port_phase(handle) is not None
         or not isinstance(source.event.v7, Mapping)
         or source.event.v7.get("formatVersion")
-        not in {"ordinary-pitch-play-v1", "play-prefix-play-v2"}
+        not in {"ordinary-pitch-play-v1", "play-prefix-play-v2", "play-prefix-play-v3"}
     ):
         raise OrdinaryPitchExecutionError
     source.read(handle, source.event)
@@ -380,7 +394,7 @@ def _bind_ordinary_preparation(state, token):
 
     expected_type = (
         PreparePlayPrefixProjectionToken
-        if state.mode == "play-prefix-play-v2"
+        if state.mode in {"play-prefix-play-v2", "play-prefix-play-v3"}
         else PrepareOrdinaryProjectionToken
     )
     _live(state)
@@ -616,17 +630,146 @@ def _evaluate_play_prefix(state):
             state.phase = "ready"
 
 
+def _native_lineup_evidence(source, roster, previous):
+    """実readerのreadonly原本を、保存時と同じ閉じたwire JSONから再構成する。
+
+    ``NativeLineupEvidence`` は ``revalidate_instances="always"`` のため、Python
+    インスタンスをそのまま渡すと差分欄の省略済みfieldが既定Noneで明示nullへ戻り、
+    「差分欄にnullは指定できない」で拒否される。wire表現へ一度戻すことで、保存時と
+    同じ省略状態のまま再検証する。野球値の再計算は行わない。
+
+    Args:
+        source: 実readerが返した確認済みprefixのsource。
+        roster: 同readerが返した実名簿。
+        previous: 直前の保存calculation。
+
+    Returns:
+        wire表現から再検証した ``NativeLineupEvidence``。
+    """
+    from pitchlog.domainrt.lineup_prefix_source import NativeLineupEvidence
+
+    return NativeLineupEvidence.model_validate_json(
+        json.dumps(
+            {
+                "expected_source": source.model_dump(
+                    mode="json", by_alias=True, exclude_unset=True
+                ),
+                "roster": roster.model_dump(
+                    mode="json", by_alias=True, exclude_unset=True
+                ),
+                "previous_request": previous.request.model_dump(
+                    mode="json", by_alias=True, exclude_unset=True
+                ),
+                "previous_response": previous.response.model_dump(
+                    mode="json", by_alias=True, exclude_unset=True
+                ),
+            },
+            ensure_ascii=False,
+            allow_nan=False,
+        )
+    )
+
+
+def _evaluate_lineup_prefix_bound(state):
+    """実開始又はnative headに結合し、固定hostで今回を一回だけ評価する。"""
+    from pitchlog.domainrt.lineup_play_prefix_continuation import (
+        LineupPrefixSuccess,
+        decode_lineup_prefix_response,
+    )
+    from pitchlog.domainrt.lineup_prefix_source import verify_native_lineup_source
+    from pitchlog.repositories.play_prefix import read_confirmed_lineup_prefix
+    from pitchlog.sync.terminal_pitch_payload import (
+        LineupPitchCalculation,
+        LineupPitchPlayPayload,
+        TerminalPitchPayloadError,
+        read_lineup_pitch_payload,
+    )
+
+    try:
+        raw_v7 = json.dumps(
+            _json_value(state.event.v7), ensure_ascii=False, allow_nan=False
+        )
+        raw_v8 = json.dumps(
+            _json_value(state.event.v8), ensure_ascii=False, allow_nan=False
+        )
+        supplied = LineupPitchPlayPayload.model_validate_json(raw_v7)
+    except (TypeError, ValueError, RecursionError):
+        state.phase = "rejected"
+        return
+    with open_domain_host() as host:
+        if type(host) is not NodeDomainHost:
+            raise OrdinaryPitchExecutionError
+        digest = host.artifact_sha256
+        request = supplied.calculation.request
+        prefix = read_confirmed_lineup_prefix(
+            state.handle,
+            state.event,
+            state.source,
+            proposal=request,
+            artifact_sha256=digest,
+        )
+        _live(state)
+        if prefix.previous_payload is not None:
+            previous = prefix.previous_payload.calculation
+            evidence = _native_lineup_evidence(prefix.source, prefix.roster, previous)
+            verify_native_lineup_source(request, evidence, host)
+            _live(state)
+        response = decode_lineup_prefix_response(
+            host.call(
+                "deriveLineupPlayPrefixWithContinuation",
+                request.model_dump_json(by_alias=True, exclude_unset=True),
+            )
+        )
+        _live(state)
+        if not response.ok:
+            from pitchlog.sync.apply import _E1OutOfScope
+
+            raise _E1OutOfScope("v3投球資格又は未対応操作")
+        if type(response) is not LineupPrefixSuccess:
+            raise OrdinaryPitchExecutionError
+        calculation = LineupPitchCalculation.model_validate_json(
+            json.dumps(
+                {
+                    "formatVersion": "play-prefix-calculation-v3",
+                    "artifactSha256": digest,
+                    "request": request.model_dump(
+                        mode="json", by_alias=True, exclude_unset=True
+                    ),
+                    "response": response.model_dump(
+                        mode="json", by_alias=True, exclude_unset=True
+                    ),
+                }
+            )
+        )
+        try:
+            state.payload = read_lineup_pitch_payload(
+                raw_v7, raw_v8, expected_calculation=calculation
+            )
+        except TerminalPitchPayloadError:
+            state.phase = "rejected"
+        else:
+            state.prefix = prefix
+            state.frame = object.__new__(OrdinaryPitchFrame)
+            state.frame_id = uuid4()
+            state.phase = "ready"
+
+
 def _reserved_play_event_id(handle, event):
     """自由UUID引数を作らず、同D5実評価済frameの予約だけを元INSERTへ渡す。"""
     if type(handle) is not transaction._TenantTransaction:
         raise OrdinaryPitchExecutionError
     state = _EXECUTIONS.get(handle._state_key)
-    if state is None or state.mode != "play-prefix-play-v2":
+    if state is None or state.mode not in {
+        "play-prefix-play-v2",
+        "play-prefix-play-v3",
+    }:
         return None
     _live(state)
     if state.phase != "ready" or state.event.d5 != event.d5 or state.payload is None:
         raise OrdinaryPitchExecutionError
-    if type(state.payload) is not TerminalPitchPlayPayload:
+    if not isinstance(
+        state.payload, (TerminalPitchPlayPayload, LineupPitchPlayPayload)
+    ):
         raise OrdinaryPitchExecutionError
     request = state.payload.calculation.request
     if request.source.position.d1 != str(event.d1) or request.source.position.d2 != str(
@@ -634,3 +777,15 @@ def _reserved_play_event_id(handle, event):
     ):
         raise OrdinaryPitchExecutionError
     return UUID(request.play_identity.event_id)
+
+
+def _evaluate_lineup_prefix(state):
+    """Loaded ABI/原本再生の不明を恒久内容拒否や成功へ変換しない。"""
+    from pitchlog.domainrt.lineup_play_prefix_continuation import (
+        LineupPrefixProtocolError,
+    )
+
+    try:
+        return _evaluate_lineup_prefix_bound(state)
+    except LineupPrefixProtocolError:
+        raise OrdinaryPitchExecutionError from None

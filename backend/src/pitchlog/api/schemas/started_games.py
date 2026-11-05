@@ -24,6 +24,24 @@ from pitchlog.domainrt.initial_game_roster import (
     OneToNine,
     Role,
 )
+from pitchlog.domainrt.lineup_play_prefix_continuation import (
+    T2 as LineupT2,
+)
+from pitchlog.domainrt.lineup_play_prefix_continuation import (
+    Lineup,
+)
+from pitchlog.domainrt.lineup_play_prefix_continuation import (
+    Participants as LineupParticipants,
+)
+from pitchlog.domainrt.lineup_play_prefix_continuation import (
+    PaStart as LineupPaStart,
+)
+from pitchlog.domainrt.lineup_play_prefix_continuation import (
+    PrefixRef as LineupPrefixRef,
+)
+from pitchlog.domainrt.lineup_play_prefix_continuation import (
+    Runner as LineupRunner,
+)
 from pitchlog.domainrt.ordinary_pitch_continuation import (
     NewHistoryEntry,
     OrdinaryT2,
@@ -44,6 +62,7 @@ from pitchlog.domainrt.play_prefix_continuation import (
     PlayT2,
     RunnerSnapshot,
 )
+from pitchlog.domainrt.strikeout_pitch import StrikeoutHistoryEntry, StrikeoutSnapshot
 from pitchlog.domainrt.terminal_pitch import TerminalHistoryEntry, TerminalSnapshot
 from pitchlog.repositories.play_prefix import StorageAnchor
 from pitchlog.sync.first_ball_payload import FirstBallCourse
@@ -412,11 +431,89 @@ class StartedPlayPrefixGameRead(StartedGameRead):
         return self
 
 
+class LineupPrefixPageItem(_FrozenSchema):
+    """実v3行/実差分/物理before走者の閉じたpage item。"""
+
+    play_row: RecordedPrefixPlayRow
+    history_entry: StrikeoutHistoryEntry
+    play_runners: Annotated[list[StartedPlayRunner], Field(max_length=3)]
+
+
+class LineupPrefixPage(_FrozenSchema):
+    """現v3 headに固定した有界page。"""
+
+    items: Annotated[list[LineupPrefixPageItem], Field(max_length=100)]
+    next_cursor: Annotated[str, Field(min_length=1, max_length=2048)] | None
+
+
+class StartedLineupPrefixGameRead(StartedGameRead):
+    """両cursor/実投捕を保存したv3だけのreadonly DTO。"""
+
+    read_kind: Literal["lineup-prefix"]
+    after: StrikeoutSnapshot
+    prefix_ref: LineupPrefixRef
+    rules: SavedRuleWire
+    t2: LineupT2 | None
+    last_entry: StrikeoutHistoryEntry | None
+    last_source: PlayIdentity | None
+    prior_artifact_sha256: Digest
+    pa_start_source: LineupPaStart
+    lineup: Lineup
+    roster_digest: Digest
+    runners: Annotated[list[LineupRunner], Field(max_length=3)]
+    participants: LineupParticipants
+    next_position: PrefixNextPosition
+    checkpoint_anchor: PrefixCheckpointAnchor | None
+    storage_anchor: StorageAnchor | None
+    recovery: PositivePrefixInteger = Field(alias=RECOVERY_WIRE_FIELD)
+    page: LineupPrefixPage
+    append_policy: OrdinaryAppendPolicy
+    last_saved_at: Timestamp
+
+    @model_validator(mode="after")
+    def _lineup_head(self):
+        """実headと初期/記録済metadataを混ぜない。writer資格を発行しない。"""
+        assert_prefix_matches(self.prefix_ref, str(self.id), self.current_d4)
+        n = int(self.prefix_ref.length)
+        if n == 0:
+            before = self.after.model_dump(mode="json", by_alias=True)
+            del before["battingOrderBySide"]
+            if (
+                before != self.state.model_dump(mode="json", by_alias=True)
+                or self.last_source is not None
+                or self.last_entry is not None
+                or self.t2 is not None
+                or self.checkpoint_anchor is not None
+                or self.storage_anchor is not None
+                or self.page.items
+                or self.page.next_cursor is not None
+                or self.runners
+            ):
+                raise ValueError("v3初期へ保存済値が混入")
+        elif (
+            self.last_source is None
+            or self.last_entry is None
+            or self.t2 is None
+            or self.checkpoint_anchor is None
+            or self.storage_anchor is None
+        ):
+            raise ValueError("v3保存head原本不足")
+        if self.page.next_cursor is not None and not self.page.items:
+            raise ValueError("v3空page位置不正")
+        ids = set()
+        for item in self.page.items:
+            if item.play_row.game_id != self.id or item.play_row.id in ids:
+                raise ValueError("v3page試合/重複不正")
+            ids.add(item.play_row.id)
+        return self
+
+
 StartedGameReadResponse = Annotated[
     StartedGameRead
     | StartedRecordedGameRead
     | StartedRecordedPrefixGameRead
-    | StartedPlayPrefixGameRead,
+    | StartedPlayPrefixGameRead
+    | StartedLineupPrefixGameRead,
     Field(discriminator="read_kind"),
 ]
 """`read_kind` で判別する記録前後の応答。既存 `initial` の形は変えない。"""

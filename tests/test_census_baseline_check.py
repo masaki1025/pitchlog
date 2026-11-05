@@ -50,31 +50,64 @@ def _load_checker() -> ModuleType:
     )
 
 
-def _load_checker_from_revision(revision: str, destination: Path) -> ModuleType:
-    """VCS 上の検査器と同 revision の依存を別モジュールとして読む。"""
-    relative_script = SCRIPT.relative_to(REPOSITORY_ROOT).as_posix()
-    result = subprocess.run(
-        ["git", "show", f"{revision}:{relative_script}"],
-        cwd=REPOSITORY_ROOT,
-        check=True,
-        capture_output=True,
+def _materialize_checker_revision_root(revision: str, destination: Path) -> Path:
+    """checker/契約/source/固定fixtureを真正な同revisionの一つのrootへ展開する。"""
+    resolved = subprocess.check_output(
+        ["git", "-C", str(REPOSITORY_ROOT), "rev-parse", "--verify", revision + "^{commit}"],
+        text=True,
+    ).strip()
+    assert re.fullmatch(r"[0-9a-f]{40}", resolved), "真正commitのfull SHAが必要"
+    destination.mkdir(parents=True)
+    selected = (
+        "scripts/check_tenant_boundary_bypass.py", "scripts/frozen_history.py",
+        "contracts/tenant_boundary", "tests/fixtures/tenant_boundary",
+        "tests/fixtures/pr191_tenant_source_expected_v1.json",
+        "tests/fixtures/pr192_tenant_source_expected_v1.json",
+        ".claude/core-areas.json", "backend/src",
     )
-    scripts_directory = destination.parent / f"{destination.stem}_scripts"
-    scripts_directory.mkdir()
-    extracted_checker = scripts_directory / SCRIPT.name
-    extracted_checker.write_bytes(result.stdout)
-    dependency = "scripts/frozen_history.py"
-    dependency_result = subprocess.run(
-        ["git", "show", f"{revision}:{dependency}"],
-        cwd=REPOSITORY_ROOT,
-        check=False,
-        capture_output=True,
-    )
-    if dependency_result.returncode == 0:
-        (scripts_directory / "frozen_history.py").write_bytes(
-            dependency_result.stdout
+    entries = subprocess.check_output([
+        "git", "-C", str(REPOSITORY_ROOT), "ls-tree", "-r", "-z", resolved, "--", *selected,
+    ])
+    for entry in entries.split(b"\0"):
+        if not entry:
+            continue
+        metadata, name = entry.split(b"\t", 1)
+        mode, kind, _oid = metadata.decode().split()
+        relative = Path(name.decode())
+        assert not relative.is_absolute() and ".." not in relative.parts
+        assert kind == "blob" and mode in {"100644", "100755"}, (
+            "歴史checkerの依存はregular Git blobが必要", relative, mode,
         )
-    digest = hashlib.sha256(result.stdout).hexdigest()
+        target = destination / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(subprocess.check_output([
+            "git", "-C", str(REPOSITORY_ROOT), "show", resolved + ":" + relative.as_posix(),
+        ]))
+    assert (destination / "scripts/check_tenant_boundary_bypass.py").is_file()
+    # 元repoのHEAD/refsを変更しない。一時repoのHEADも同じ真正revisionへ固定する。
+    subprocess.run(["git", "-C", str(destination), "init", "--quiet"], check=True)
+    objects = subprocess.check_output([
+        "git", "-C", str(REPOSITORY_ROOT), "rev-parse", "--path-format=absolute",
+        "--git-path", "objects",
+    ], text=True).strip()
+    (destination / ".git/objects/info/alternates").write_text(
+        str(Path(objects).resolve()) + "\n", encoding="utf-8",
+    )
+    (destination / ".git/HEAD").write_text(resolved + "\n", encoding="utf-8")
+    assert subprocess.check_output([
+        "git", "-C", str(destination), "rev-parse", "HEAD",
+    ], text=True).strip() == resolved
+    return destination
+
+
+def _load_checker_from_revision(revision: str, destination: Path) -> ModuleType:
+    """VCS上のcheckerと同版の真正な契約/Git文脈を一体で隔離する。"""
+    root = _materialize_checker_revision_root(
+        revision, destination.parent / f"{destination.stem}_root",
+    )
+    scripts_directory = root / "scripts"
+    extracted_checker = scripts_directory / SCRIPT.name
+    digest = hashlib.sha256(extracted_checker.read_bytes()).hexdigest()
     previous_dependency = sys.modules.pop("frozen_history", None)
     previous_path = list(sys.path)
     try:
@@ -900,7 +933,12 @@ def _condition2_owned_path(path: str, contract: Any) -> bool:
         owner.path for owner in getattr(contract, "pr191_source_owners", ())
         if any(code == "TB002" for _, code, _, _ in owner.findings)
     }
-    if source_path in ordinary_owned | pr191_condition2_owned:
+    pr192_owned = {
+        owner.path for owner in getattr(
+            getattr(contract, "pr192_source_registration", None), "owners", (),
+        ) if any(code == "TB002" for _, code, _, _ in owner.findings)
+    }
+    if source_path in ordinary_owned | pr191_condition2_owned | pr192_owned:
         return True
     return any(
         fnmatch.fnmatchcase(source_path, pattern)
@@ -1367,12 +1405,53 @@ def _declared_relaxation_identities(
         assert re.fullmatch(r"[0-9a-f]{64}", digest) is not None
         target = source_root / identity[0]
         assert target.is_file(), "緩和 site の source が存在しない"
-        assert hashlib.sha256(target.read_bytes()).hexdigest() == digest, (
-            "緩和 site の source SHA が不一致"
-        )
+        if hashlib.sha256(target.read_bytes()).hexdigest() != digest:
+            identity = _pr192_relocated_ordinary_frame(identity, digest, target)
         assert identity not in identities, "緩和 site の重複"
         identities.add(identity)
     return frozenset(identities)
+
+
+
+def _pr192_relocated_ordinary_frame(
+    identity: CensusIdentity, digest: str, target: Path,
+) -> CensusIdentity:
+    """旧普通投球frame一行だけを、固定前後source/同scopeの同ASTで移す。"""
+    expected = _pr192_fixed_expectations()
+    path = "pitchlog/sync/ordinary_pitch_execution.py"
+    assert identity[0] == path and identity[1:3] == (198, 198)
+    assert identity[3:] == (
+        "pitchlog.sync.ordinary_pitch_execution._bind_ordinary_pitch_execution",
+        "TB007", "builtins.object.__new__",
+        "型を解決できない object.__new__ も TenantContext 生成迂回として拒否",
+    ), "未採用の緩和siteは移動できない"
+    full = "backend/src/" + path
+    old = subprocess.check_output(
+        ["git", "show", expected["formal_base_revision"] + ":" + full],
+        cwd=REPOSITORY_ROOT,
+    )
+    current = subprocess.check_output(
+        ["git", "show", expected["source_revision"] + ":" + full],
+        cwd=REPOSITORY_ROOT,
+    )
+    assert hashlib.sha256(old).hexdigest() == digest, "旧緩和SHAが正式191と不一致"
+    assert target.read_bytes() == current, "緩和site source SHAが固定192と不一致"
+    def call(source: bytes) -> ast.Call:
+        tree = ast.parse(source.decode(), filename=path)
+        function = next(n for n in tree.body if isinstance(n, ast.FunctionDef)
+                        and n.name == "_bind_ordinary_pitch_execution")
+        calls = [n for n in ast.walk(function) if isinstance(n, ast.Call)
+                 and isinstance(n.func, ast.Attribute) and n.func.attr == "__new__"]
+        assert len(calls) == 1
+        assert ast.dump(calls[0], include_attributes=False) == ast.dump(
+            ast.parse("object.__new__(OrdinaryPitchFrame)", mode="eval").body,
+            include_attributes=False,
+        )
+        return calls[0]
+    before, after = call(old), call(current)
+    assert (before.lineno, before.end_lineno) == identity[1:3]
+    assert after.end_lineno == after.lineno
+    return (path, after.lineno, after.end_lineno, *identity[3:])
 
 
 def _assert_removed_tb007_matches_declared_relaxations(
@@ -5284,7 +5363,7 @@ def _validated_initial_population_suppression(
     return frozenset(result)
 
 
-def _validated_pr191_source_suppression(
+def _validated_pr191_historical_source_suppression(
     declaration: dict[str, Any], *, source_root: Path, current_contract: Any,
 ) -> frozenset[CensusIdentity]:
     """693原典と独立51siteから期待を作り、新枠だけを外す実効果と照合する。"""
@@ -5322,6 +5401,7 @@ def _validated_pr191_source_suppression(
     owners = _object(expected["owners"], "pr191.fixture.owners")
     assert len(owners) == 6
     registered = {owner.path: owner for owner in current_contract.pr191_source_owners}
+    current_contract = _pr191_historical_contract(current_contract)
     assert set(registered) == set(owners)
     messages = {
         "TB002": "条件 2 の禁止シンボルを検出",
@@ -5370,8 +5450,12 @@ def _validated_pr191_source_suppression(
         target = source_root / relative
         if not target.is_file():
             continue
-        source = target.read_text(encoding="utf-8")
-        assert source.encode() == original, "pr191原典と現source全byteが一致しない"
+        # 現v3の4ownerと混ぜず、正式191原典の履歴51を測る。
+        source = original.decode()
+        assert original == subprocess.check_output(
+            ["git", "show", f"{_pr192_fixed_expectations()['formal_base_revision']}:{full_path}"],
+            cwd=REPOSITORY_ROOT,
+        )
         _assert_pr191_closed_meaning(source, relative)
         def scan(contract: Any) -> frozenset[CensusIdentity]:
             return frozenset(
@@ -5392,6 +5476,225 @@ def _validated_pr191_source_suppression(
     if len(measured_all) == 51:
         _assert_scoped_identity_digest(frozenset(measured_all), "pr191_source_suppression")
     return frozenset(measured_all)
+
+
+
+def _pr192_fixed_expectations() -> dict[str, Any]:
+    """前置9407と9b76の資格はloaderでも照合し、現fixtureの自己期待を使わない。"""
+    return checker._pr192_read_fixed_expectations(REPOSITORY_ROOT)
+
+
+def _pr191_historical_contract(contract: Any) -> Any:
+    """正式191の旧metadataを復元し、旧51の履歴検査を現v3から分ける。"""
+    expected = _pr192_fixed_expectations()
+    raw = json.loads(subprocess.check_output(
+        ["git", "show", expected["formal_base_revision"] + ":" + str(checker.DEFAULT_ALLOWLIST)],
+        cwd=REPOSITORY_ROOT,
+    ))
+    return replace(contract, pr192_source_registration=None,
+        ordinary_condition2_owners=checker._load_ordinary_condition2_owners(
+            raw["condition_2_ordinary_scoped_findings"]),
+        ordinary_condition5_owners=checker._load_ordinary_condition5_owners(
+            raw["condition_5_ordinary_scoped_findings"]),
+        resolution_owner=checker._load_resolution_owner(
+            raw["condition_1_resolve_scoped_finding"]))
+
+
+def _validated_pr191_source_suppression(
+    declaration: dict[str, Any], *, source_root: Path, current_contract: Any,
+) -> frozenset[CensusIdentity]:
+    """旧51全履歴を保持し、現在も旧資格で成立する2owner6siteだけを返す。"""
+    historical = _validated_pr191_historical_source_suppression(
+        declaration, source_root=source_root, current_contract=current_contract,
+    )
+    expected = _pr192_fixed_expectations()
+    retained = set(expected["unchanged_pr191_owners"])
+    superseded = set(expected["superseded_pr191_owners"])
+    assert len(retained) == 2 and len(superseded) == 4
+    assert checker._pr192_registration_is_trusted(current_contract)
+    registration = current_contract.pr192_source_registration
+    new_sources = dict(registration.source_files)
+    result: set[CensusIdentity] = set()
+    for owner in current_contract.pr191_source_owners:
+        relative = owner.path.removeprefix("backend/src/")
+        target = source_root / relative
+        if not target.is_file():
+            continue
+        source = target.read_bytes()
+        if owner.path in superseded:
+            assert source == new_sources[owner.path], "pr191後継sourceが固定9b76と不一致"
+            continue
+        assert owner.path in retained and source == owner.immutable_source
+        def scan(contract: Any) -> frozenset[CensusIdentity]:
+            return frozenset((v.path, v.line, v.end_line, v.scope, v.code, v.symbol, v.message)
+                             for v in checker.scan_source(source.decode(), path=relative,
+                                                          contract=contract))
+        before = scan(replace(current_contract, pr191_source_owners=()))
+        after = scan(current_contract)
+        wanted = frozenset(i for i in historical if i[0] == relative)
+        assert not after - before and before - after == wanted
+        result.update(wanted)
+    assert len(result) == 6, "pr191の現不変2owner6siteが不足"
+    return frozenset(result)
+
+
+@contextmanager
+def _without_pr192_site_filter() -> Iterator[None]:
+    """原典/metadata/後継guardを保ち、90siteの最終filter一つだけを除く反実。"""
+    original = checker._pr192_source_evidence
+    setattr(checker, "_pr192_source_evidence", lambda *_args: frozenset())
+    try:
+        yield
+    finally:
+        setattr(checker, "_pr192_source_evidence", original)
+
+
+
+def _validated_pr192_legacy_followups(
+    expected: dict[str, Any], *, source_root: Path, current_contract: Any,
+) -> frozenset[CensusIdentity]:
+    """旧37の前後と同じ用途の実抑止を、新90/後継guardとは分けて測る。"""
+    grouped: dict[tuple[str, str], list[dict[str, Any]]] = {}
+    for row in expected["existing_owner_followups"]:
+        grouped.setdefault((row["owner_key"], row["path"]), []).append(row)
+    result: set[CensusIdentity] = set()
+    for (key, full), rows in grouped.items():
+        relative = full.removeprefix("backend/src/")
+        original = subprocess.check_output(
+            ["git", "show", expected["formal_base_revision"] + ":" + full],
+            cwd=REPOSITORY_ROOT,
+        )
+        source = (source_root / relative).read_bytes()
+        tree = ast.parse(source.decode(), filename=relative)
+        wanted: set[CensusIdentity] = set()
+        for row in rows:
+            assert hashlib.sha256(original).hexdigest() == row["before"]["source_sha256"]
+            assert hashlib.sha256(source).hexdigest() == row["after_source_sha256"]
+            site = row["after"]
+            end = site["line"]
+            if key == "condition_1_resolve_scoped_finding":
+                nodes = [n for n in tree.body if isinstance(n, ast.FunctionDef)
+                         and n.name == site["symbol"] and n.lineno == site["line"]]
+                assert len(nodes) == 1 and nodes[0].end_lineno is not None
+                assert ast.dump(nodes[0]) == ast.dump(checker._RESOLUTION_OWNER_EXPECTED_AST)
+                end = nodes[0].end_lineno
+            else:
+                nodes = [n for n in ast.walk(tree)
+                         if getattr(n, "lineno", None) == site["line"]]
+                assert nodes
+                if any(isinstance(n, (ast.Import, ast.ImportFrom)) for n in nodes):
+                    end = next(n.end_lineno for n in nodes
+                               if isinstance(n, (ast.Import, ast.ImportFrom)))
+                else:
+                    assert any(getattr(n, "end_lineno", None) == end for n in nodes)
+            message = ("条件 1 の禁止シンボルを検出" if key.startswith("condition_1") else
+                       "条件 2 の禁止シンボルを検出" if key.startswith("condition_2") else
+                       "型を解決できない object.__new__ も TenantContext 生成迂回として拒否")
+            assert type(end) is int
+            wanted.add((relative, site["line"], end, site["scope"], site["code"],
+                        site["symbol"], message))
+        without = replace(current_contract, **{
+            "resolution_owner" if key.startswith("condition_1") else
+            "ordinary_condition2_owners" if key.startswith("condition_2") else
+            "ordinary_condition5_owners": None if key.startswith("condition_1") else (),
+        })
+        def scan(contract: Any) -> frozenset[CensusIdentity]:
+            return frozenset((v.path, v.line, v.end_line, v.scope, v.code, v.symbol, v.message)
+                             for v in checker.scan_source(source.decode(), path=relative,
+                                                          contract=contract))
+        before, after = scan(without), scan(current_contract)
+        assert not after - before and before - after == frozenset(wanted), (
+            "pr192旧37metadataの用途付き実抑止が不一致", wanted, before - after,
+        )
+        result.update(wanted)
+    assert len(result) == 37
+    return frozenset(result)
+
+
+def _validated_pr192_source_suppression(
+    declaration: dict[str, Any], *, source_root: Path, current_contract: Any,
+) -> frozenset[CensusIdentity]:
+    """独立固定6owner90siteと実filterの差集合を全identityで測定する。"""
+    proof = _object(declaration.get("pr192_source_proof"), "pr192_source_proof")
+    _exact_keys(proof, {"kind", "source_revision", "expectation_revision",
+                       "expected_fixture", "identity_fields", "meaning"}, "pr192 proof")
+    assert _string(proof.get("kind"), "pr192 kind") == "immutable_v3_sites_and_counterfactual"
+    assert _string(proof.get("source_revision"), "pr192 source") == (
+        "contracts/tenant_boundary/frozen-inputs.json#/frozen_inputs/"
+        "pr192_source_registration_revision/value")
+    assert _string(proof.get("expectation_revision"), "pr192 expectation") == (
+        "contracts/tenant_boundary/frozen-inputs.json#/frozen_inputs/"
+        "pr192_source_expectation_revision/value")
+    fixture = _string(proof.get("expected_fixture"), "pr192 fixture")
+    assert fixture == "tests/fixtures/pr192_tenant_source_expected_v1.json"
+    assert _string_array(proof.get("identity_fields"), "pr192 identity") == (
+        "path", "line", "end_line", "scope", "code", "symbol", "message")
+    assert _string(proof.get("meaning"), "pr192 meaning") == (
+        "6 fixed v3 owners/90 sites; old37 metadata and four supersession guards are separate")
+    expected = _pr192_fixed_expectations()
+    assert _load_json_pointer(proof["source_revision"]) == expected["source_revision"]
+    expectation = _load_json_pointer(proof["expectation_revision"])
+    assert isinstance(expectation, str)
+    fixed = subprocess.check_output(
+        ["git", "show", expectation + ":" + fixture], cwd=REPOSITORY_ROOT,
+    )
+    assert fixed == (REPOSITORY_ROOT / fixture).read_bytes()
+    assert json.loads(fixed) == expected
+    assert checker._pr192_registration_is_trusted(current_contract), "pr192全資格が不正"
+    registration = current_contract.pr192_source_registration
+    registered = {owner.path: owner for owner in registration.owners}
+    assert set(registered) == set(expected["owners"]) and len(registered) == 6
+    # 旧37metadataをsource90へ混ぜず、正式eb8前値と固定9b76後値の両方を照合。
+    assert len(expected["existing_owner_followups"]) == 37
+    metadata = checker._pr192_expected_metadata(REPOSITORY_ROOT, expected)
+    actual_allow = json.loads((REPOSITORY_ROOT / checker.DEFAULT_ALLOWLIST).read_text())
+    assert all(actual_allow[key] == value for key, value in metadata.items())
+    for full_path, raw in registration.source_files:
+        target = source_root / full_path.removeprefix("backend/src/")
+        assert target.is_file() and not target.is_symlink(), "pr192 source欠落/非regular"
+        assert target.read_bytes() == raw, "pr192 sourceは固定原典との全byte一致が必要"
+    _validated_pr192_legacy_followups(
+        expected, source_root=source_root, current_contract=current_contract,
+    )
+    result: set[CensusIdentity] = set()
+    for path, row in expected["owners"].items():
+        relative = path.removeprefix("backend/src/")
+        owner = registered[path]
+        original = subprocess.check_output(
+            ["git", "show", expected["source_revision"] + ":" + path], cwd=REPOSITORY_ROOT,
+        )
+        assert hashlib.sha256(original).hexdigest() == row["source_sha256"]
+        assert owner.purpose == row["purpose"] and owner.immutable_source == original
+        tree = ast.parse(original.decode(), filename=relative)
+        wanted: set[CensusIdentity] = set()
+        for site in row["findings"]:
+            line, code, symbol, scope = (site[k] for k in ("line", "code", "symbol", "scope"))
+            assert type(line) is int and line > 0
+            assert site["condition"] == {"TB002": 2, "TB003": 3, "TB007": 5}[code]
+            assert any(getattr(n, "lineno", None) == line
+                       and getattr(n, "end_lineno", None) == line for n in ast.walk(tree))
+            assert code in {"TB002", "TB003", "TB007"}
+            message = ("条件 2 の禁止シンボルを検出" if code == "TB002" else
+                       "条件 3 の禁止シンボルを検出" if code == "TB003" else
+                       "型を解決できない object.__new__ も TenantContext 生成迂回として拒否"
+                       if symbol == "builtins.object.__new__" else
+                       "由来を完全修飾名へ解決できない callable は "
+                       "TenantContext の生成経路として拒否")
+            wanted.add((relative, line, line, scope, code, symbol, message))
+        assert len(wanted) == len(row["findings"])
+        def scan() -> frozenset[CensusIdentity]:
+            return frozenset((v.path, v.line, v.end_line, v.scope, v.code, v.symbol, v.message)
+                             for v in checker.scan_source(original.decode(), path=relative,
+                                                          contract=current_contract))
+        after = scan()
+        with _without_pr192_site_filter():
+            before = scan()
+        assert not after - before, "pr192 filterは別所見を作れない"
+        assert before - after == frozenset(wanted), "pr192独立tupleと実抑止が不一致"
+        result.update(wanted)
+    assert len(result) == 90
+    _assert_scoped_identity_digest(frozenset(result), "pr192_source_suppression")
+    return frozenset(result)
 
 
 def _assert_pr191_closed_meaning(source: str, path: str) -> None:
@@ -5538,6 +5841,9 @@ def _assert_removed_equals_measured_allowlist_suppression(
     suppression |= _validated_pr191_source_suppression(
         declaration, source_root=source_root, current_contract=current_contract,
     )
+    suppression |= _validated_pr192_source_suppression(
+        declaration, source_root=source_root, current_contract=current_contract,
+    )
     code_index = identity_indexes["code"]
     for identity in data_sets[set_name]:
         code = identity[code_index]
@@ -5572,6 +5878,9 @@ def _assert_removed_matches_declared_relaxations(
         if identity[identity_indexes["code"]] == code
     )
     proof = _validated_pr191_source_suppression(
+        declaration, source_root=source_root, current_contract=current_contract,
+    )
+    proof |= _validated_pr192_source_suppression(
         declaration, source_root=source_root, current_contract=current_contract,
     )
     _assert_removed_tb007_matches_declared_relaxations(
@@ -5763,7 +6072,7 @@ _SCOPED_DIGEST_FIXTURE = (
 _SCOPED_DIGEST_KEYS = frozenset(
     {"removed_checker_43", "added_independent_ast_18",
      "ledger_removed_checker", "ledger_added_independent_ast",
-     "first_ball_owned_suppression", "pr191_source_suppression"}
+     "first_ball_owned_suppression", "pr191_source_suppression", "pr192_source_suppression"}
 )
 
 
@@ -5817,7 +6126,7 @@ def _assert_scoped_identity_digest(
         else "独立AST由来の限定18 identityが一致しない"
     )
     if key.startswith("ledger_") or key in {
-        "first_ball_owned_suppression", "pr191_source_suppression",
+        "first_ball_owned_suppression", "pr191_source_suppression", "pr192_source_suppression",
     }:
         label = "限定identityが一致しない: " + key
     assert actual == expected, label
@@ -5869,7 +6178,8 @@ def test_scoped_digest_fixture_rejects_invalid_content(
     if message in {"schema_versionが不正", "値が不正"}:
         content = content[:-1] + "," + ",".join(
             json.dumps(key) + ":" + json.dumps("0" * 64)
-            for key in ("first_ball_owned_suppression", "pr191_source_suppression")
+            for key in ("first_ball_owned_suppression", "pr191_source_suppression",
+                        "pr192_source_suppression")
         ) + "}"
     fixture_path.write_text(content, encoding="utf-8")
     with pytest.raises(AssertionError, match=message):
@@ -5915,7 +6225,12 @@ def test_scoped_digest_fixture_rejects_changed_valid_value(
             source_root=context["source_root"], current_contract=context["current_contract"],
         )
     elif key == "pr191_source_suppression":
-        identities = _validated_pr191_source_suppression(
+        identities = _validated_pr191_historical_source_suppression(
+            context["declaration"], source_root=context["source_root"],
+            current_contract=context["current_contract"],
+        )
+    if key == "pr192_source_suppression":
+        identities = _validated_pr192_source_suppression(
             context["declaration"], source_root=context["source_root"],
             current_contract=context["current_contract"],
         )
@@ -6252,6 +6567,9 @@ def _assert_unadjudicated_removed_remains(
     pr191_removed = _validated_pr191_source_suppression(
         declaration, source_root=source_root, current_contract=current_contract,
     )
+    pr191_removed |= _validated_pr192_source_suppression(
+        declaration, source_root=source_root, current_contract=current_contract,
+    )
     for identity in data_sets[set_name]:
         if (
             identity in pr191_removed or identity in initial_removed
@@ -6424,6 +6742,9 @@ def _assert_added_equals_independently_derived_candidates(
         if (identity[0], identity[1], identity[4]) not in suppressed_sites
     )
     pr191_suppressed = _validated_pr191_source_suppression(
+        declaration, source_root=source_root, current_contract=current_contract,
+    )
+    pr191_suppressed |= _validated_pr192_source_suppression(
         declaration, source_root=source_root, current_contract=current_contract,
     )
     pr191_sites = {(i[0], i[1], i[4]) for i in pr191_suppressed if i[4] == "TB002"}
@@ -6816,9 +7137,12 @@ def _run_with_extra_removed(
 
 def _copy_pr191_proof_inputs(destination: Path) -> None:
     """反実ツリーへ独立fixtureと固定Git読取の文脈を明示供給する。"""
-    fixture = Path("tests/fixtures/pr191_tenant_source_expected_v1.json")
-    (destination / fixture).parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(REPOSITORY_ROOT / fixture, destination / fixture)
+    for fixture in (
+        Path("tests/fixtures/pr191_tenant_source_expected_v1.json"),
+        Path("tests/fixtures/pr192_tenant_source_expected_v1.json"),
+    ):
+        (destination / fixture).parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(REPOSITORY_ROOT / fixture, destination / fixture)
     git_directory = subprocess.check_output(
         ["git", "rev-parse", "--absolute-git-dir"], cwd=REPOSITORY_ROOT, text=True,
     ).strip()
@@ -9280,7 +9604,7 @@ def test_initial_population_census_closes_all_control_frames(
 def test_pr191_census_proof_matches_independent_51_and_condition2_ownership() -> None:
     """51全tupleの実効果とC2専用の所有判定を別々に確認する。"""
     contract = checker.load_contract(REPOSITORY_ROOT)
-    identities = _validated_pr191_source_suppression(
+    identities = _validated_pr191_historical_source_suppression(
         _load_census_baseline_declaration(),
         source_root=REPOSITORY_ROOT / "backend/src", current_contract=contract,
     )
@@ -9365,3 +9689,201 @@ def test_pr191_census_proof_cannot_authorize_mutated_source(
             _load_census_baseline_declaration(), source_root=tmp_path,
             current_contract=replace(contract, pr191_source_owners=owners),
         )
+
+
+@pytest.fixture(scope="module")
+def pr192_census_context() -> tuple[Any, dict[str, Any]]:
+    """真正原典の契約だけを共有し、mutable source/宣言は試験ごとに分ける。"""
+    return checker.load_contract(REPOSITORY_ROOT), _load_census_baseline_declaration()
+
+
+def test_pr192_census_preserves_historical51_current6_and_new90(
+    pr192_census_context: tuple[Any, dict[str, Any]],
+) -> None:
+    """旧歴史を現在のsuccessorへ誤帰属せず、別集合で全数を測る。"""
+    contract, declaration = pr192_census_context
+    arguments = {"source_root": REPOSITORY_ROOT / "backend/src", "current_contract": contract}
+    old = _validated_pr191_historical_source_suppression(declaration, **arguments)
+    current = _validated_pr191_source_suppression(declaration, **arguments)
+    new = _validated_pr192_source_suppression(declaration, **arguments)
+    assert len(old) == 51 and len(current) == 6 and len(new) == 90
+    assert current <= old and not current & new
+    old_fixture = json.loads(
+        (REPOSITORY_ROOT / "tests/fixtures/pr191_tenant_source_expected_v1.json").read_text()
+    )
+    assert len(old_fixture["owners"]) == 6
+    for owner in contract.pr192_source_registration.owners:
+        relative = owner.path.removeprefix("backend/src/")
+        assert _condition2_owned_path(relative, contract)
+        assert any(identity[0] == relative for identity in new)
+
+
+@pytest.mark.parametrize("field", [
+    "kind", "source_revision", "expectation_revision", "expected_fixture",
+    "identity_fields", "meaning",
+])
+def test_pr192_census_rejects_changed_declaration(
+    pr192_census_context: tuple[Any, dict[str, Any]], field: str,
+) -> None:
+    """由来/用途/原典/全identity指定を自由宣言へ変えられない。"""
+    contract, original = pr192_census_context
+    declaration = copy.deepcopy(original)
+    declaration["pr192_source_proof"][field] = "unapproved"
+    with pytest.raises(AssertionError):
+        _validated_pr192_source_suppression(
+            declaration, source_root=REPOSITORY_ROOT / "backend/src", current_contract=contract,
+        )
+
+
+@pytest.mark.parametrize("mutation", ["delete", "unknown-source", "source-and-owner-sha"])
+def test_pr192_census_rejects_missing_or_simultaneously_changed_source(
+    tmp_path: Path, pr192_census_context: tuple[Any, dict[str, Any]], mutation: str,
+) -> None:
+    """欠落/未知行/source+宣言同時改変でも固定9b76を置換できない。"""
+    contract, declaration = pr192_census_context
+    registration = contract.pr192_source_registration
+    for full, raw in registration.source_files:
+        target = tmp_path / full.removeprefix("backend/src/")
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(raw)
+    owner = registration.owners[0]
+    target = tmp_path / owner.path.removeprefix("backend/src/")
+    if mutation == "delete":
+        target.unlink()
+    else:
+        changed = target.read_bytes() + (
+            b"\ndef unauthorized_site(generation):\n    return generation\n"
+        )
+        target.write_bytes(changed)
+        if mutation == "source-and-owner-sha":
+            forged = replace(owner, immutable_source=changed,
+                             source_sha256=hashlib.sha256(changed).hexdigest())
+            registration = replace(registration, owners=(forged, *registration.owners[1:]))
+            contract = replace(contract, pr192_source_registration=registration)
+    with pytest.raises(AssertionError):
+        _validated_pr192_source_suppression(
+            declaration, source_root=tmp_path, current_contract=contract,
+        )
+
+
+@pytest.mark.parametrize("mutation", ["false-count", "wrong-condition", "unknown-identity"])
+def test_pr192_census_rejects_changed_measured_effect(
+    monkeypatch: pytest.MonkeyPatch,
+    pr192_census_context: tuple[Any, dict[str, Any]], mutation: str,
+) -> None:
+    """件数だけ合う別所見や誤条件も、7field完全比較で拒否する。"""
+    contract, declaration = pr192_census_context
+    original = checker.scan_source
+    filter_function = checker._pr192_source_evidence
+    def changed(source: str, **kwargs: Any) -> list[Any]:
+        values = original(source, **kwargs)
+        if checker._pr192_source_evidence is not filter_function and values:
+            if mutation == "false-count":
+                return values[1:]
+            first = values[0]
+            values[0] = replace(first, **(
+                {"code": "TB003"} if mutation == "wrong-condition" else
+                {"path": "pitchlog/unknown_owner.py"}
+            ))
+        return values
+    monkeypatch.setattr(checker, "scan_source", changed)
+    with pytest.raises(AssertionError, match="独立tupleと実抑止が不一致"):
+        _validated_pr192_source_suppression(
+            declaration, source_root=REPOSITORY_ROOT / "backend/src", current_contract=contract,
+        )
+
+
+def test_pr192_census_rejects_nonancestor_proof(
+    monkeypatch: pytest.MonkeyPatch, pr192_census_context: tuple[Any, dict[str, Any]],
+) -> None:
+    """固定Gitの祖先証拠が取れない場合、現宣言の自己一致へ退避しない。"""
+    contract, declaration = pr192_census_context
+    original = checker._run_git
+    def not_ancestor(root: Path, arguments: list[str]) -> str:
+        if arguments[:2] == ["merge-base", "--is-ancestor"]:
+            raise subprocess.CalledProcessError(1, ["git", *arguments])
+        return original(root, arguments)
+    monkeypatch.setattr(checker, "_run_git", not_ancestor)
+    with pytest.raises(checker.ContractError):
+        _validated_pr192_source_suppression(
+            declaration, source_root=REPOSITORY_ROOT / "backend/src", current_contract=contract,
+        )
+
+
+def test_pr192_census_rejects_fixture_and_declaration_together(
+    monkeypatch: pytest.MonkeyPatch, pr192_census_context: tuple[Any, dict[str, Any]],
+) -> None:
+    """現fixtureを同時変更しても別固定Gitの期待を変更できない。"""
+    contract, declaration = pr192_census_context
+    fixture = REPOSITORY_ROOT / "tests/fixtures/pr192_tenant_source_expected_v1.json"
+    actual = Path.read_bytes
+    value = json.loads(actual(fixture))
+    next(iter(value["owners"].values()))["purpose"] = "unapproved"
+    forged = json.dumps(value).encode()
+    def modified(path: Path) -> bytes:
+        return forged if path == fixture else actual(path)
+    monkeypatch.setattr(Path, "read_bytes", modified)
+    with pytest.raises(checker.ContractError):
+        _validated_pr192_source_suppression(
+            declaration, source_root=REPOSITORY_ROOT / "backend/src", current_contract=contract,
+        )
+
+
+@pytest.mark.parametrize("mutation", ["line", "scope", "symbol", "old-sha", "new-source"])
+def test_pr192_census_relocated_frame_is_not_a_general_relaxation(
+    tmp_path: Path, pr192_census_context: tuple[Any, dict[str, Any]], mutation: str,
+) -> None:
+    """旧frame一行の固定前後以外を、同じ移動口で緩和できない。"""
+    _, declaration = pr192_census_context
+    predicate = next(p for p in declaration["pass_fail_mapping"]["predicates"]
+                     if p["id"] == "removed_tb007_matches_declared_relaxations")
+    row = next(r for r in predicate["declared_relaxations"]["sites"]
+               if r["path"] == "pitchlog/sync/ordinary_pitch_execution.py")
+    fields = ("path", "line", "end_line", "scope", "code", "symbol", "message")
+    identity = tuple(row[key] for key in fields)
+    target = tmp_path / "ordinary_pitch_execution.py"
+    target.write_bytes((REPOSITORY_ROOT / "backend/src" / row["path"]).read_bytes())
+    good = _pr192_relocated_ordinary_frame(identity, row["source_sha256"], target)
+    assert good[1:3] == (212, 212) and good[3:] == identity[3:]
+    changed = list(identity)
+    digest = row["source_sha256"]
+    if mutation in {"line", "scope", "symbol"}:
+        index = {"line": 1, "scope": 3, "symbol": 5}[mutation]
+        changed[index] = 199 if index == 1 else str(changed[index]) + "-other"
+    elif mutation == "old-sha":
+        digest = "0" * 64
+    else:
+        target.write_bytes(target.read_bytes() + b"\n# unauthorized\n")
+    with pytest.raises(AssertionError):
+        _pr192_relocated_ordinary_frame(tuple(changed), digest, target)
+
+
+def test_pr192_census_supersession_guards_are_not_source_site_permissions(
+    pr192_census_context: tuple[Any, dict[str, Any]],
+) -> None:
+    """旧4不一致sentinelの解除は真正後継だけであり、90実siteへ加算しない。"""
+    contract, _ = pr192_census_context
+    expected = _pr192_fixed_expectations()
+    old = {owner.path: owner for owner in contract.pr191_source_owners}
+    current = {owner.path: owner for owner in contract.pr192_source_registration.owners}
+    original = checker._pr192_successor_matches
+    measured: set[CensusIdentity] = set()
+    for full in expected["superseded_pr191_owners"]:
+        relative = full.removeprefix("backend/src/")
+        source = current[full].immutable_source.decode()
+        def scan() -> frozenset[CensusIdentity]:
+            return frozenset((v.path, v.line, v.end_line, v.scope, v.code, v.symbol, v.message)
+                             for v in checker.scan_source(source, path=relative, contract=contract))
+        after = scan()
+        setattr(checker, "_pr192_successor_matches", lambda *_args: False)
+        try:
+            before = scan()
+        finally:
+            setattr(checker, "_pr192_successor_matches", original)
+        line, code, symbol, scope = min(old[full].findings)
+        sentinel = (relative, line, 0, scope, code, symbol,
+                    "用途付き原典の全byte/全ownerと不一致")
+        assert not after - before and before - after == frozenset({sentinel})
+        measured.add(sentinel)
+    assert len(measured) == 4
+    assert all(item[6] == "用途付き原典の全byte/全ownerと不一致" for item in measured)

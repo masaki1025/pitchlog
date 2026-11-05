@@ -971,6 +971,49 @@
       "series": "oracle_input",
       "approved_by": "PO委任によるCodex主担当/root判断（本人署名ではない）",
       "approved_at": "2026-11-04"
+    },
+    {
+      "acceptance_id": "masaki1025/pitchlog#192",
+      "changes": [],
+      "moved": false,
+      "new_identity": {
+        "present": true,
+        "values": [
+          {
+            "kind": "literal_commit_string",
+            "value": "c3a3589dc9420769ddbc084dd018881ffa88997e"
+          }
+        ]
+      },
+      "placement_change": {
+        "after": [
+          {
+            "kind": "ledger_series",
+            "path": "contracts/authz/frozen-baselines.json",
+            "series": "oracle_input"
+          }
+        ],
+        "before": [
+          {
+            "kind": "ledger_series",
+            "path": "contracts/authz/frozen-baselines.json",
+            "series": "oracle_input"
+          }
+        ]
+      },
+      "prior_identity": {
+        "present": true,
+        "values": [
+          {
+            "kind": "literal_commit_string",
+            "value": "e1ca5d2a70b1d187312a1b38fab62ed79128a4f8"
+          }
+        ]
+      },
+      "reason": "三振v3の実GET原文を固定した入力8資産c3a3589dへoracle_inputだけを前進する。route引用/派生hashのexact2は非作者880a80db9bfc5872511c322fcf0bd338f5ac712b19b1bcf22e34b14b4259a699で全前後と250判断/認可不変を確認。6oracleの意味本文/期待/拒否と旧19履歴/placementを保持し、参照commitと公式sealだけを追随する。新8差分の非作者採否、正式tenant7.7/最終CIは別証拠。PO本人の直接確認/署名・P6blind・実機/全MVP完了を代記しない。",
+      "series": "oracle_input",
+      "approved_by": "PO委任によるCodex主担当/root判断（本人署名ではない）",
+      "approved_at": "2026-11-05"
     }
   ]
 }

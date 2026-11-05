@@ -171,6 +171,7 @@ def test_device_state_read_exact_registration_and_fixed_sql(active, monkeypatch)
         "SYNC_PLAY_PREFIX:lock_play_prefix_checkpoint",
         "SYNC_PLAY_PREFIX:read_play_prefix_history_page",
         "SYNC_PLAY_PREFIX:prepare_play_prefix_projection",
+        "SYNC_LINEUP_PREFIX:read_lineup_started_origin",
     )
     assert PRODUCT_FUNCTION_OPERATIONS[8] is spec
     assert spec.operation_id == "SYNC_FIRST_BALL:read_device_state"

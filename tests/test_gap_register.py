@@ -392,7 +392,7 @@ def test_five_resolved_four_open_gaps_have_real_bidirectional_references() -> No
     assert {gap["gapId"]: len(gap["rowIds"]) for gap in document["gaps"]} == {
         "GAP-01": 0, "GAP-02": 0, "GAP-03": 3,
         "GAP-04": 5, "GAP-05": 1, "GAP-06": 6,
-        "GAP-07": 20, "GAP-08": 5, "GAP-09": 8,
+        "GAP-07": 20, "GAP-08": 5 + 16, "GAP-09": 8,
     }
     assert {gap["gapId"]: len(gap["fixtureCaseIds"]) for gap in document["gaps"]} == {
         "GAP-01": 0, "GAP-02": 0, "GAP-03": 2,
@@ -422,7 +422,7 @@ def test_generated_selector_selects_cases_by_normative_row_ownership() -> None:
         _criteria(), row_index, rows, document["gaps"]
     )
     expected = {"GAP-03": 102, "GAP-04": 136, "GAP-07": 54,
-                "GAP-08": 12, "GAP-09": 6}
+                "GAP-08": 12 + 24, "GAP-09": 6}
 
     assert {
         gap["gapId"]: len(selected[checker.canonical_reference_token(
@@ -587,19 +587,65 @@ def test_open_skipping_fixture_stage_for_generated_selector_is_red() -> None:
         _validate(document, _real_indexes(document))
 
 
+_STRIKEOUT_ROW_IDS = frozenset({
+    'matrixRows:batting-result:batting-result.called-strikeout:compound:03653c357e04ce0c',
+    'matrixRows:batting-result:batting-result.called-strikeout:compound:11a3a4144bcd24a1',
+    'matrixRows:batting-result:batting-result.called-strikeout:compound:27e349c3ebc43736',
+    'matrixRows:batting-result:batting-result.called-strikeout:compound:79c36f8a44c1a596',
+    'matrixRows:batting-result:batting-result.called-strikeout:compound:911b0ebd8c076e49',
+    'matrixRows:batting-result:batting-result.called-strikeout:compound:a339770c0a2411cb',
+    'matrixRows:batting-result:batting-result.called-strikeout:compound:cf7cfdd9fee6dfa9',
+    'matrixRows:batting-result:batting-result.called-strikeout:compound:e531bd924f215054',
+    'matrixRows:batting-result:batting-result.swinging-strikeout:compound:03653c357e04ce0c',
+    'matrixRows:batting-result:batting-result.swinging-strikeout:compound:11a3a4144bcd24a1',
+    'matrixRows:batting-result:batting-result.swinging-strikeout:compound:27e349c3ebc43736',
+    'matrixRows:batting-result:batting-result.swinging-strikeout:compound:79c36f8a44c1a596',
+    'matrixRows:batting-result:batting-result.swinging-strikeout:compound:911b0ebd8c076e49',
+    'matrixRows:batting-result:batting-result.swinging-strikeout:compound:a339770c0a2411cb',
+    'matrixRows:batting-result:batting-result.swinging-strikeout:compound:cf7cfdd9fee6dfa9',
+    'matrixRows:batting-result:batting-result.swinging-strikeout:compound:e531bd924f215054',
+})
+_STRIKEOUT_CASE_IDS = frozenset({
+    'ST-STRIKEOUT-1-B0-O0',
+    'ST-STRIKEOUT-1-B0-O1',
+    'ST-STRIKEOUT-1-B0-O2',
+    'ST-STRIKEOUT-1-B1-O0',
+    'ST-STRIKEOUT-1-B1-O1',
+    'ST-STRIKEOUT-1-B1-O2',
+    'ST-STRIKEOUT-1-B2-O0',
+    'ST-STRIKEOUT-1-B2-O1',
+    'ST-STRIKEOUT-1-B2-O2',
+    'ST-STRIKEOUT-1-B3-O0',
+    'ST-STRIKEOUT-1-B3-O1',
+    'ST-STRIKEOUT-1-B3-O2',
+    'ST-STRIKEOUT-2-B0-O0',
+    'ST-STRIKEOUT-2-B0-O1',
+    'ST-STRIKEOUT-2-B0-O2',
+    'ST-STRIKEOUT-2-B1-O0',
+    'ST-STRIKEOUT-2-B1-O1',
+    'ST-STRIKEOUT-2-B1-O2',
+    'ST-STRIKEOUT-2-B2-O0',
+    'ST-STRIKEOUT-2-B2-O1',
+    'ST-STRIKEOUT-2-B2-O2',
+    'ST-STRIKEOUT-2-B3-O0',
+    'ST-STRIKEOUT-2-B3-O1',
+    'ST-STRIKEOUT-2-B3-O2',
+})
+
+
 def test_normative_row_natural_keys_are_unique_in_all_four_layers() -> None:
-    """操作種別の重複も前提軸と値で分離し旧77行と新2行を識別する。"""
+    """操作種別の重複も前提軸と値で分離し旧79行と追加16行を識別する。"""
     document = _register()
     index = _real_indexes(document)["rowIds"]
 
-    assert len(index.existing_references) == 79
+    assert len(index.existing_references) == 79 + 16
     assert len([row for row in index.existing_references if row.startswith("operationRows:")]) == 10
     assert "operationRows:substitution:state.gameEnded:false" in index.existing_references
     assert "operationRows:substitution:state.gameEnded:true" in index.existing_references
 
 
 def test_step99_no_orphan_normative_rows() -> None:
-    """4層79行すべてが分岐または要件条文に辿れることを確認する。"""
+    """4層95行すべてが分岐または要件条文に辿れることを確認する。"""
     orphans = checker.orphan_normative_row_ids(
         _criteria(), _row_documents(), _clause_branch_register(),
         checker.load_requirement_clause_ids(REPOSITORY_ROOT), _row_rules(),
@@ -629,7 +675,7 @@ def test_step99_all_row_ids_resolve() -> None:
     """gapのrowIdsと364件のcase参照が一意な規範行へ解決する。"""
     rows = _row_documents()
     index = checker.row_reference_index(_criteria(), _register()["gaps"], rows)
-    assert len(index.existing_references) == 79
+    assert len(index.existing_references) == 79 + 16
     assert checker.unresolved_row_references(
         _criteria(), _register()["gaps"], rows, index
     ) == []
@@ -973,7 +1019,7 @@ def _formal_190_revision() -> str:
 
 
 def test_terminal_gap_scope_preserves_old_rows_and_selected_cases() -> None:
-    """旧77行とGAP07旧39例を全値保持し、terminal2行15例だけを加える。"""
+    """旧77行/GAP07旧39例を保持し、terminal2行15例とSO16行24例を分離する。"""
     revision = _formal_190_revision()
     def old(path: str) -> dict[str, Any]:
         return json.loads(subprocess.check_output(
@@ -988,7 +1034,7 @@ def test_terminal_gap_scope_preserves_old_rows_and_selected_cases() -> None:
     prior_index = checker.row_reference_index(criteria, prior_register["gaps"], prior_rows)
     assert len(prior_index.existing_references) == 77
     assert prior_index.existing_references <= index.existing_references
-    assert index.existing_references - prior_index.existing_references == {
+    assert index.existing_references - prior_index.existing_references == _STRIKEOUT_ROW_IDS | {
         "matrixRows:batting-result:batting-result.hit-by-pitch:compound:0161bab1bfab470f",
         "matrixRows:batting-result:batting-result.walk:compound:deff5d19870a1396",
     }
@@ -1007,6 +1053,10 @@ def test_terminal_gap_scope_preserves_old_rows_and_selected_cases() -> None:
     }
     assert len(prior_cases) == 39
     assert current_cases == prior_cases | terminal_ids
+    current_so = next(value for key, value in selected.items() if '"GAP-08"' in key)
+    prior_so = next(value for key, value in prior.items() if '"GAP-08"' in key)
+    assert len(prior_so) == 12
+    assert current_so == prior_so | _STRIKEOUT_CASE_IDS
     path = "contracts/state-transition/state_transition_contract_v1.json"
     assert [case for case in rows[path]["cases"]
             if case["caseId"] in prior_cases] == [case for case in prior_rows[path]["cases"]

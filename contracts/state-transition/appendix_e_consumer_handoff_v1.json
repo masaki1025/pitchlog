@@ -125,7 +125,7 @@
     {
       "path": "contracts/state-transition/state_transition_contract_v1.json",
       "version": "state_transition_contract_v1",
-      "digest": "sha256:7a5e83013909337028bd4b787a31b99df3b73cf4e03ddf02b091fbcb7552e63b"
+      "digest": "sha256:79d64dbb9dd97265a125dec8d38fe6dfd1250a2def387d983ba565dabf4e2d29"
     },
     {
       "path": "contracts/state-transition/game_end_contract_v1.json",

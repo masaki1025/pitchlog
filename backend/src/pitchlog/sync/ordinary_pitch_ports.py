@@ -83,3 +83,21 @@ class PlayPrefixProjectionPort(_PitchProjectionPort):
     from pitchlog.sync.terminal_pitch_tokens import ProjectPlayPrefixToken
 
     _token_type = ProjectPlayPrefixToken
+
+
+@final
+class LineupPrefixContentValidationPort(_PitchContentPort):
+    """v3だけの実内容Port。自由frameや成功boolを受け取らない。"""
+
+    from pitchlog.sync.terminal_pitch_tokens import ValidateLineupPrefixToken
+
+    _token_type = ValidateLineupPrefixToken
+
+
+@final
+class LineupPrefixProjectionPort(_PitchProjectionPort):
+    """v3だけの実投影Port。旧Portへfallbackしない。"""
+
+    from pitchlog.sync.terminal_pitch_tokens import ProjectLineupPrefixToken
+
+    _token_type = ProjectLineupPrefixToken

@@ -102,7 +102,7 @@ BEGIN
  AND e.replaced_at IS NULL AND e.retired_at IS NULL AND e.import_batch_id IS NULL
  AND e.legacy_row_identifier IS NULL AND NOT e.migration_unverified;
  ordinary:=event_row.payload->>'formatVersion' IN
- ('ordinary-pitch-play-v1','play-prefix-play-v2');
+ ('ordinary-pitch-play-v1','play-prefix-play-v2','play-prefix-play-v3');
  IF ordinary IS DISTINCT FROM true THEN
  IF event_row.payload->>'formatVersion' IS DISTINCT FROM 'first-ball-play-v1'
  OR event_row.d1 IS DISTINCT FROM 1
@@ -162,7 +162,8 @@ BEGIN
  EXCEPTION WHEN no_data_found OR too_many_rows OR invalid_text_representation THEN
   RAISE EXCEPTION 'first ball write admission rejected' USING ERRCODE='42501';
  END;
- IF event_row.payload->>'formatVersion'='play-prefix-play-v2' THEN
+ IF event_row.payload->>'formatVersion' IN
+ ('play-prefix-play-v2','play-prefix-play-v3') THEN
  PERFORM sync_right_api.assert_play_prefix_projection(pg_catalog.to_jsonb(NEW));
  RETURN NEW;
  END IF;

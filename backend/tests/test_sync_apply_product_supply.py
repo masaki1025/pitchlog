@@ -60,6 +60,33 @@ _TERMINAL_COLUMN_ACL_IDS = frozenset(
 )
 
 
+_LINEUP_FUNCTION_IDS = frozenset(
+    {
+        "FUNCTION:sync_right_api:read_lineup_started_origin(uuid, uuid, bigint)",
+    }
+)
+_LINEUP_POLICY_IDS = frozenset(
+    {
+        "POLICY:game_start_attempts:lineup_prefix_game_start_attempts_select",
+        "POLICY:game_start_requests:lineup_prefix_game_start_requests_select",
+    }
+)
+_LINEUP_COLUMN_ACL_IDS = frozenset(
+    f"COLUMN-ACL:public:{table}:{column}:pitchlog_sync_right_fn_owner"
+    for table, columns in (
+        (
+            "game_start_attempts",
+            ("tenant_id", "game_id", "device_id", "start_request_id", "outcome"),
+        ),
+        (
+            "game_start_requests",
+            ("tenant_id", "game_id", "device_id", "start_request_id"),
+        ),
+    )
+    for column in columns
+)
+
+
 _EXPECTED_SOURCE_PINS = read_expected_source_pins("test_sync_apply_product_supply.py")
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -168,11 +195,13 @@ def test_catalog_keeps_added_objects_and_actual_bodies():
         "publish_writer_binding",
     }
     assert {r[1] for r in rows} == old_names | {
-        value.split(":")[-1].split("(")[0] for value in _TERMINAL_FUNCTION_IDS
+        value.split(":")[-1].split("(")[0]
+        for value in _TERMINAL_FUNCTION_IDS | _LINEUP_FUNCTION_IDS
     }
     assert len(old_names) == 20
-    assert len(rows) - len(_TERMINAL_FUNCTION_IDS) == 20
-    assert len(rows) == 27
+    assert len(_TERMINAL_FUNCTION_IDS) == 7 and len(_LINEUP_FUNCTION_IDS) == 1
+    assert len(rows) - len(_TERMINAL_FUNCTION_IDS) - len(_LINEUP_FUNCTION_IDS) == 20
+    assert len(rows) == 28
     assert sum(r[4] is False for r in rows) == 2
     assert all(r[9] and r[8] == ("search_path=pg_catalog, pg_temp",) for r in rows)
 
@@ -193,9 +222,12 @@ def test_full_apply_has_nine_definitions_and_four_guards_without_execution():
     sql = "\n".join(r.sql for r in s)
     assert sql.count("CREATE FUNCTION sync_fence_api.") == 7
     assert (
-        sql.count("CREATE FUNCTION sync_right_api.") - len(_TERMINAL_FUNCTION_IDS) == 13
+        sql.count("CREATE FUNCTION sync_right_api.")
+        - len(_TERMINAL_FUNCTION_IDS)
+        - len(_LINEUP_FUNCTION_IDS)
+        == 13
     )
-    assert sql.count("CREATE FUNCTION sync_right_api.") == 20
+    assert sql.count("CREATE FUNCTION sync_right_api.") == 21
     assert sql.count("CREATE TRIGGER trg_play_prefix_") == 2
     assert sql.count("CREATE TRIGGER sync_writer_") == 4
     assert sql.count("CREATE TRIGGER trg_first_ball_") == 2
@@ -323,13 +355,18 @@ def test_reapply_guard_retains_exact_four_triggers_and_refuses_collisions():
 
 
 def test_reapply_keeps_all_other_generated_statements_exact():
-    """旧637文の全byteを保持し、有限追加19文も独立固定値へ束縛する。"""
+    """旧637文の全byteを保持し、有限追加19+12文も独立固定値へ束縛する。"""
     import hashlib
 
     _, rows = prov._build_operation_statements(prov.ProductOperation.APPLY)
     wrappers = [r for r in rows if r.sql.startswith("DO $first_ball_reapply$")]
     terminal_ids = (
-        _TERMINAL_FUNCTION_IDS | _TERMINAL_POLICY_IDS | _TERMINAL_COLUMN_ACL_IDS
+        _TERMINAL_FUNCTION_IDS
+        | _TERMINAL_POLICY_IDS
+        | _TERMINAL_COLUMN_ACL_IDS
+        | _LINEUP_FUNCTION_IDS
+        | _LINEUP_POLICY_IDS
+        | _LINEUP_COLUMN_ACL_IDS
     )
     terminal = []
     previous = []
@@ -343,8 +380,13 @@ def test_reapply_keeps_all_other_generated_statements_exact():
         else:
             previous.append(row)
     assert frozenset(found) == terminal_ids
-    assert len(found) == len(terminal_ids) == 19
-    assert len(rows) == 676 and len(wrappers) == 27
+    assert (
+        len(_TERMINAL_FUNCTION_IDS | _TERMINAL_POLICY_IDS | _TERMINAL_COLUMN_ACL_IDS)
+        == 19
+    )
+    assert len(_LINEUP_FUNCTION_IDS | _LINEUP_POLICY_IDS | _LINEUP_COLUMN_ACL_IDS) == 12
+    assert len(found) == len(terminal_ids) == 31
+    assert len(rows) == 688 and len(wrappers) == 28
     assert len(previous) == 657
     assert sum(row.sql.startswith("DO $first_ball_reapply$") for row in previous) == 20
     keep = [
@@ -460,7 +502,7 @@ def test_device_state_overload_guard_only_extends_new_wrapper():
 
 
 def test_expected_source_pin_fixture_has_all_thirty_independent_values():
-    """独立fixtureの旧37期待と終端追加5期待を閉readerで照合する。"""
+    """旧37期待/終端5を保持し、原本read1期待だけを分離して閉照合する。"""
     fixture = Path(__file__).parent / "fixtures/first_ball_expected_source_pins_v1.json"
     raw = json.loads(fixture.read_text())
     terminal_keys = {
@@ -475,8 +517,18 @@ def test_expected_source_pin_fixture_has_all_thirty_independent_values():
     assert sum(len(keys) for keys in terminal_keys.values()) == 5
     for name, keys in terminal_keys.items():
         assert keys <= raw["pins"][name].keys()
-    assert sum(len(values) for values in raw["pins"].values()) - 5 == 37
-    assert sum(len(values) for values in raw["pins"].values()) == 42
+    lineup_keys = {
+        "test_sync_apply_writer_binding.py": {
+            "SYNC_LINEUP_PREFIX:read_lineup_started_origin",
+        },
+    }
+    assert sum(len(keys) for keys in lineup_keys.values()) == 1
+    for name, keys in lineup_keys.items():
+        assert keys <= raw["pins"][name].keys()
+        assert not keys & terminal_keys.get(name, set())
+    assert sum(len(values) for values in raw["pins"].values()) - 5 - 1 == 37
+    assert sum(len(values) for values in raw["pins"].values()) - 1 == 42
+    assert sum(len(values) for values in raw["pins"].values()) == 43
     assert {name: read_expected_source_pins(name) for name in raw["pins"]} == raw[
         "pins"
     ]

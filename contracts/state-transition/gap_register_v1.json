@@ -239,7 +239,23 @@
         "matrixRows:batting-result:batting-result.dropped-third-strike",
         "matrixRows:batting-result:batting-result.k3",
         "matrixRows:batting-result:batting-result.strikeout-double-play",
-        "matrixRows:batting-result:batting-result.swinging-strikeout"
+        "matrixRows:batting-result:batting-result.swinging-strikeout",
+        "matrixRows:batting-result:batting-result.called-strikeout:compound:03653c357e04ce0c",
+        "matrixRows:batting-result:batting-result.called-strikeout:compound:11a3a4144bcd24a1",
+        "matrixRows:batting-result:batting-result.called-strikeout:compound:27e349c3ebc43736",
+        "matrixRows:batting-result:batting-result.called-strikeout:compound:79c36f8a44c1a596",
+        "matrixRows:batting-result:batting-result.called-strikeout:compound:911b0ebd8c076e49",
+        "matrixRows:batting-result:batting-result.called-strikeout:compound:a339770c0a2411cb",
+        "matrixRows:batting-result:batting-result.called-strikeout:compound:cf7cfdd9fee6dfa9",
+        "matrixRows:batting-result:batting-result.called-strikeout:compound:e531bd924f215054",
+        "matrixRows:batting-result:batting-result.swinging-strikeout:compound:03653c357e04ce0c",
+        "matrixRows:batting-result:batting-result.swinging-strikeout:compound:11a3a4144bcd24a1",
+        "matrixRows:batting-result:batting-result.swinging-strikeout:compound:27e349c3ebc43736",
+        "matrixRows:batting-result:batting-result.swinging-strikeout:compound:79c36f8a44c1a596",
+        "matrixRows:batting-result:batting-result.swinging-strikeout:compound:911b0ebd8c076e49",
+        "matrixRows:batting-result:batting-result.swinging-strikeout:compound:a339770c0a2411cb",
+        "matrixRows:batting-result:batting-result.swinging-strikeout:compound:cf7cfdd9fee6dfa9",
+        "matrixRows:batting-result:batting-result.swinging-strikeout:compound:e531bd924f215054"
       ],
       "fixtureCaseIds": [
         "ST-SO-01",
@@ -253,7 +269,7 @@
       "generatedCaseSelector": {
         "sourcePath": "contracts/state-transition/state_transition_contract_v1.json",
         "rowOwnerGapId": "GAP-08",
-        "caseCount": 12
+        "caseCount": 36
       }
     },
     {

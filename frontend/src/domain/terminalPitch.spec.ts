@@ -224,3 +224,14 @@ for (const [name, call] of Object.entries(callers))
       }
     })
   })
+
+it('旧BB/HBP入口は新cursor Snapshotを受け付けない', () => {
+  const request = structuredClone(vectors.cases[0].request)
+  request.before.battingOrderBySide = { away: '1', home: '1' }
+  expect(
+    JSON.parse(domainOperations.deriveTerminalPitch(JSON.stringify(request))),
+  ).toEqual({
+    ok: false,
+    error: { code: 'INVALID_REQUEST' },
+  })
+})

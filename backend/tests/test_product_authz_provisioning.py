@@ -70,6 +70,33 @@ _TERMINAL_COLUMN_ACL_IDS = frozenset(
 )
 
 
+_LINEUP_FUNCTION_IDS = frozenset(
+    {
+        "FUNCTION:sync_right_api:read_lineup_started_origin(uuid, uuid, bigint)",
+    }
+)
+_LINEUP_POLICY_IDS = frozenset(
+    {
+        "POLICY:game_start_attempts:lineup_prefix_game_start_attempts_select",
+        "POLICY:game_start_requests:lineup_prefix_game_start_requests_select",
+    }
+)
+_LINEUP_COLUMN_ACL_IDS = frozenset(
+    f"COLUMN-ACL:public:{table}:{column}:pitchlog_sync_right_fn_owner"
+    for table, columns in (
+        (
+            "game_start_attempts",
+            ("tenant_id", "game_id", "device_id", "start_request_id", "outcome"),
+        ),
+        (
+            "game_start_requests",
+            ("tenant_id", "game_id", "device_id", "start_request_id"),
+        ),
+    )
+    for column in columns
+)
+
+
 _LEGACY_CONTACT_SQL = {
     "current_database": "-- ELEMENT-TYPE: database\n"
     "-- ELEMENT-ID: current_database\n"
@@ -2012,6 +2039,8 @@ def test_pre_rule_preserves_old16_and_defers_exact_epoch_acl() -> None:
         | _EXPECTED_DEFERRED_ORDINARY_IDS
         | _TERMINAL_FUNCTION_IDS
         | _TERMINAL_COLUMN_ACL_IDS
+        | _LINEUP_FUNCTION_IDS
+        | _LINEUP_COLUMN_ACL_IDS
     )
     assert {row.element_id for row in withheld} - {
         row.element_id for row in old

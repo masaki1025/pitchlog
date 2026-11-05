@@ -22,6 +22,7 @@ from test_census_baseline_check import (
     REPOSITORY_ROOT,
     SCRIPT,
     _load_checker_from_revision,
+    _materialize_checker_revision_root,
     checker,
 )
 
@@ -274,75 +275,13 @@ raise SystemExit(module.main(sys.argv[2:]))
 
 
 def _develop_contract_root(destination: Path) -> Path:
-    """develop worktree を git から探し、無ければ同 revision を一時展開する。"""
-    listing = subprocess.run(
-        ["git", "worktree", "list", "--porcelain"],
-        cwd=REPOSITORY_ROOT,
-        check=True,
-        capture_output=True,
-        text=True,
-    ).stdout
-    worktree: Path | None = None
-    for block in listing.strip().split("\n\n"):
-        fields = dict(
-            line.split(" ", 1)
-            for line in block.splitlines()
-            if " " in line
-        )
-        if fields.get("branch") == "refs/heads/develop":
-            candidate = Path(fields["worktree"])
-            head = subprocess.run(
-                ["git", "rev-parse", "HEAD"],
-                cwd=candidate,
-                check=True,
-                capture_output=True,
-                text=True,
-            ).stdout.strip()
-            reference = subprocess.run(
-                ["git", "rev-parse", "origin/develop"],
-                cwd=REPOSITORY_ROOT,
-                check=True,
-                capture_output=True,
-                text=True,
-            ).stdout.strip()
-            if head == reference:
-                worktree = candidate
-                break
-    if worktree is not None:
-        return worktree
-
+    """現worktreeを流用せず、真正develop revisionの全依存を隔離する。"""
     return _materialize_contract_root("origin/develop", destination)
 
 
 def _materialize_contract_root(revision: str, destination: Path) -> Path:
-    """指定 revision の契約資産と fixture を git show で一時展開する。"""
-    names = subprocess.run(
-        [
-            "git",
-            "ls-tree",
-            "-r",
-            "--name-only",
-            revision,
-            "--",
-            "contracts/tenant_boundary",
-            "tests/fixtures/tenant_boundary",
-        ],
-        cwd=REPOSITORY_ROOT,
-        check=True,
-        capture_output=True,
-        text=True,
-    ).stdout.splitlines()
-    for relative in names:
-        target = destination / relative
-        target.parent.mkdir(parents=True, exist_ok=True)
-        content = subprocess.run(
-            ["git", "show", f"{revision}:{relative}"],
-            cwd=REPOSITORY_ROOT,
-            check=True,
-            capture_output=True,
-        ).stdout
-        target.write_bytes(content)
-    return destination
+    """checkerと同じGit展開手続きで歴史契約のrootを作る。"""
+    return _materialize_checker_revision_root(revision, destination)
 
 
 def _insert_generated_use(template: str, use: str) -> str:
@@ -1198,13 +1137,19 @@ def _initialize_test_repository(
         shutil.copy2(REPOSITORY_ROOT / relative_path, destination)
     _write_test_repository_sources(repository, sources)
     checker._run_git(repository, ["init"])
-    if "pr191_source_registration" in allowlist:
+    if "pr191_source_registration" in allowlist or "pr192_source_registration" in allowlist:
         # 合成repoも実原典のobject/祖先を保持する。元repoのrefsやobjectは変更しない。
-        expected = json.loads(
-            (REPOSITORY_ROOT / "tests/fixtures/pr191_tenant_source_expected_v1.json")
-            .read_text(encoding="utf-8")
-        )
-        revision = expected["source_revision"]
+        if "pr192_source_registration" in allowlist:
+            frozen = json.loads(
+                (REPOSITORY_ROOT / "contracts/tenant_boundary/frozen-inputs.json").read_text()
+            )
+            revision = frozen["frozen_inputs"]["pr192_source_expectation_revision"]["value"]
+        else:
+            expected = json.loads(
+                (REPOSITORY_ROOT / "tests/fixtures/pr191_tenant_source_expected_v1.json")
+                .read_text(encoding="utf-8")
+            )
+            revision = expected["source_revision"]
         assert checker._run_git(
             REPOSITORY_ROOT, ["rev-parse", "--verify", f"{revision}^{{commit}}"]
         ).strip() == revision
@@ -1690,9 +1635,10 @@ def test_generated_provenance_corpus_never_weakens_develop(
         "origin/develop",
         tmp_path / "check_tenant_boundary_bypass_develop.py",
     )
-    develop_contract = develop_checker.load_contract(
-        _develop_contract_root(tmp_path / "develop-contract-root")
-    )
+    # __file__は実際に展開したchecker。信頼helperのrootと契約rootを分離しない。
+    assert isinstance(develop_checker.__file__, str)
+    develop_root = Path(develop_checker.__file__).resolve().parents[1]
+    develop_contract = develop_checker.load_contract(develop_root)
     head_contract = checker.load_contract(REPOSITORY_ROOT)
     outcomes: list[tuple[str, bool, bool]] = []
     for case_id, source in _tenant_context_provenance_corpus():
@@ -2564,12 +2510,75 @@ marker = 0
     assert "Call 被覆不変条件" in result.stderr
 
 
-def test_positive_fixtures_pass() -> None:
-    contract = checker.load_contract(REPOSITORY_ROOT)
+@pytest.fixture(scope="module")
+def positive_fixture_qualification_contexts(
+    tmp_path_factory: pytest.TempPathFactory,
+) -> tuple[Any, Any, Path]:
+    """旧generic正例と現source資格を混ぜず、同じ3面の検査材料を供給する。"""
+    historical_revision = checker._pr192_read_fixed_expectations(REPOSITORY_ROOT)[
+        "formal_base_revision"
+    ]
+    parent = tmp_path_factory.mktemp("positive-qualification")
+    historical_root = _materialize_checker_revision_root(
+        historical_revision, parent / "historical",
+    )
+    historical = checker.load_contract(historical_root)
+    assert historical.pr192_source_registration is None
+    relative_root = POSITIVE_ROOT.relative_to(REPOSITORY_ROOT).as_posix()
+    expected_paths = subprocess.check_output(
+        ["git", "show", historical_revision + ":" + relative_root],
+        cwd=REPOSITORY_ROOT,
+    )
+    assert expected_paths, "旧正例treeは真正Gitに存在する"
+    old_names = subprocess.check_output(
+        ["git", "ls-tree", "-r", "--name-only", historical_revision, "--", relative_root],
+        cwd=REPOSITORY_ROOT, text=True,
+    ).splitlines()
+    old_python = {name for name in old_names if name.endswith(".py")}
+    actual_python = {
+        p.relative_to(REPOSITORY_ROOT).as_posix() for p in POSITIVE_ROOT.rglob("*.py")
+    }
+    assert actual_python == old_python, "旧generic正例の欠落/追加を認めない"
+    for name in sorted(old_python):
+        fixture = REPOSITORY_ROOT / name
+        assert fixture.is_file() and not fixture.is_symlink()
+        assert fixture.read_bytes() == subprocess.check_output(
+            ["git", "show", historical_revision + ":" + name], cwd=REPOSITORY_ROOT,
+        ), "旧generic正例の全byteを保持する"
+    current = checker.load_contract(REPOSITORY_ROOT)
+    assert checker._pr192_registration_is_trusted(current)
+    registration = current.pr192_source_registration
+    assert registration is not None
+    full = "backend/src/pitchlog/repositories/transaction.py"
+    genuine = dict(registration.source_files)[full]
+    assert (REPOSITORY_ROOT / full).read_bytes() == genuine
+    qualified = parent / "current-positive"
+    shutil.copytree(POSITIVE_ROOT, qualified)
+    relative = "pitchlog/repositories/transaction.py"
+    (qualified / relative).write_bytes(genuine)
+    for fixture in POSITIVE_ROOT.rglob("*.py"):
+        local = fixture.relative_to(POSITIVE_ROOT)
+        if local.as_posix() != relative:
+            assert (qualified / local).read_bytes() == fixture.read_bytes()
+    return historical, current, qualified
 
-    violations = checker.scan_directory(POSITIVE_ROOT, contract=contract)
 
-    assert violations == []
+def test_positive_fixtures_pass(
+    positive_fixture_qualification_contexts: tuple[Any, Any, Path],
+) -> None:
+    """旧generic/現拒否/現真正sourceの3面を同じcurrent checkerで完全比較する。"""
+    historical, current, qualified = positive_fixture_qualification_contexts
+    assert checker.scan_directory(POSITIVE_ROOT, contract=historical) == []
+    violations = checker.scan_directory(POSITIVE_ROOT, contract=current)
+    assert [
+        (v.path, v.line, v.end_line, v.condition, v.code, v.symbol, v.message, v.scope)
+        for v in violations
+    ] == [(
+        "pitchlog/repositories/transaction.py", 1, 0, 2, "TB002",
+        "pr192-source-identity", "pr192の固定source8/完全ownerと不一致",
+        "pitchlog.repositories.transaction.<module>",
+    )]
+    assert checker.scan_directory(qualified, contract=current) == []
 
 
 def test_fixed_function_builder_has_only_select_permission() -> None:
@@ -2997,6 +3006,10 @@ def test_all_assets_freeze_mode_wiring_and_declare_single_authority() -> None:
             "scripts/check_human_review_signature.py",
             "tests/test_human_review_signature.py",
             "tests/fixtures/pr191_ordinary_extension_reference_v1.json",
+            "tests/fixtures/pr192_tenant_source_expected_v1.json",
+            "tests/test_pr192_tenant_source_registration.py",
+            "tests/test_check_tenant_boundary_bypass.py",
+            "tests/fixtures/pr192_ordinary_extension_reference_v1.json",
         ],
         Path("contracts/tenant_boundary/negative-fixtures.json"): shared_external_files,
         Path("contracts/tenant_boundary/repository-contract.json"): shared_external_files,
@@ -4646,16 +4659,21 @@ def test_safe_change_passes_external_or_default_real_commit_cli(
     assert _test_repository_exit_code(repository, selected_base_ref) == 0
 
 
-def test_reject_all_mutant_kills_positive_fixture() -> None:
-    contract = checker.load_contract(REPOSITORY_ROOT)
-
-    violations = checker.scan_directory(
-        POSITIVE_ROOT,
-        contract=contract,
-        reject_all_db_calls=True,
-    )
-
-    assert {violation.code for violation in violations} == {"TB900"}
+def test_reject_all_mutant_kills_positive_fixture(
+    positive_fixture_qualification_contexts: tuple[Any, Any, Path],
+) -> None:
+    """旧genericと現真正sourceの両正例で、reject-allがDB Callを実際に拒否する。"""
+    historical, current, qualified = positive_fixture_qualification_contexts
+    for fixture_root, contract in ((POSITIVE_ROOT, historical), (qualified, current)):
+        assert checker.scan_directory(fixture_root, contract=contract) == []
+        violations = checker.scan_directory(
+            fixture_root, contract=contract, reject_all_db_calls=True,
+        )
+        assert {violation.code for violation in violations} == {"TB900"}
+        assert any(
+            v.path == "pitchlog/repositories/transaction.py" and v.code == "TB900"
+            for v in violations
+        ), "対象generic/真正transaction自体も実際にkillされる"
 
 
 def test_api_added_outside_sealed_inventory_is_red(tmp_path: Path) -> None:
@@ -9867,3 +9885,79 @@ def test_writer_binding_candidate_unlisted_python_change_still_reports_tb000(
         and item.path.endswith("control_provider/sql/other.sql")
         for item in violations
     )
+
+
+def test_historical_checker_and_all_trusted_inputs_share_true_revision_root(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """実__file__/同Git HEAD/旧8sourceを照合し、現worktreeを読まない。"""
+    historical = _load_checker_from_revision(
+        "origin/develop", tmp_path / "historical-checker.py",
+    )
+    assert isinstance(historical.__file__, str)
+    root = Path(historical.__file__).resolve().parents[1]
+    revision = subprocess.check_output(
+        ["git", "-C", str(REPOSITORY_ROOT), "rev-parse", "origin/develop"], text=True,
+    ).strip()
+    assert root != REPOSITORY_ROOT
+    assert Path(historical.__file__) == root / "scripts/check_tenant_boundary_bypass.py"
+    assert subprocess.check_output(
+        ["git", "-C", str(root), "rev-parse", "HEAD"], text=True,
+    ).strip() == revision
+    fixture = "tests/fixtures/pr191_tenant_source_expected_v1.json"
+    expected = json.loads((root / fixture).read_text())
+    source_paths = set(expected["owners"]) | {
+        "backend/src/pitchlog/repositories/transaction.py",
+        "backend/src/pitchlog/repositories/ordinary_prefix_operations.py",
+    }
+    assert len(source_paths) == 8
+    for path in source_paths | {
+        fixture, "contracts/tenant_boundary/base-allowlist.json",
+        "contracts/tenant_boundary/frozen-inputs.json", ".claude/core-areas.json",
+        "scripts/check_tenant_boundary_bypass.py", "scripts/frozen_history.py",
+    }:
+        assert (root / path).read_bytes() == subprocess.check_output(
+            ["git", "-C", str(REPOSITORY_ROOT), "show", revision + ":" + path],
+        )
+    read_bytes, read_text = Path.read_bytes, Path.read_text
+    def isolated_bytes(path: Path) -> bytes:
+        assert not path.is_relative_to(REPOSITORY_ROOT), "現worktreeの資産を読めない"
+        return read_bytes(path)
+    def isolated_text(path: Path, *args: Any, **kwargs: Any) -> str:
+        assert not path.is_relative_to(REPOSITORY_ROOT), "現worktreeの資産を読めない"
+        return read_text(path, *args, **kwargs)
+    monkeypatch.setattr(Path, "read_bytes", isolated_bytes)
+    monkeypatch.setattr(Path, "read_text", isolated_text)
+    contract = historical.load_contract(root)
+    assert len(historical._pr191_trusted_source_owners()) == 6
+    assert _source_is_tb007_red(historical, contract, (
+        "from pitchlog.repositories.context import TenantContext\n"
+        "value = TenantContext(None)\n"
+    ))
+
+
+@pytest.mark.parametrize("mutation", ["missing-fixture", "fixture-tamper", "both-tamper"])
+def test_historical_checker_does_not_accept_missing_or_self_consistent_tampered_fixture(
+    tmp_path: Path, mutation: str,
+) -> None:
+    """不在/期待改変/宣言との同時改変をskipや成功へ変えない。"""
+    historical = _load_checker_from_revision(
+        "origin/develop", tmp_path / "historical-negative.py",
+    )
+    assert isinstance(historical.__file__, str)
+    root = Path(historical.__file__).resolve().parents[1]
+    fixture = root / "tests/fixtures/pr191_tenant_source_expected_v1.json"
+    if mutation == "missing-fixture":
+        fixture.unlink()
+    else:
+        expected = json.loads(fixture.read_text())
+        path = next(iter(expected["owners"]))
+        expected["owners"][path]["purpose"] = "unapproved"
+        fixture.write_text(json.dumps(expected))
+        if mutation == "both-tamper":
+            asset_path = root / historical.DEFAULT_ALLOWLIST
+            asset = json.loads(asset_path.read_text())
+            asset["pr191_source_registration"]["owners"][path]["purpose"] = "unapproved"
+            asset_path.write_text(json.dumps(asset))
+    with pytest.raises(historical.ContractError):
+        historical.load_contract(root)

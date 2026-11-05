@@ -1118,8 +1118,9 @@ def test_stage_a_function_registration_matches_exact_asset_and_retains_rg1() -> 
         "SYNC_PLAY_PREFIX:lock_play_prefix_checkpoint",
         "SYNC_PLAY_PREFIX:read_play_prefix_history_page",
         "SYNC_PLAY_PREFIX:prepare_play_prefix_projection",
+        "SYNC_LINEUP_PREFIX:read_lineup_started_origin",
     )
-    assert len(expected) == 20
+    assert len(expected) == 21
     assert tuple(asset["product_function_operation_ids"]) == expected
     assert repository_contract.PRODUCT_FUNCTION_OPERATION_IDS == expected
     assert tuple(row.operation_id for row in PRODUCT_FUNCTION_OPERATIONS) == expected
@@ -1144,6 +1145,7 @@ def test_stage_a_function_registration_matches_exact_asset_and_retains_rg1() -> 
         "sync_right_api.lock_play_prefix_checkpoint",
         "sync_right_api.read_play_prefix_history_page",
         "sync_right_api.prepare_play_prefix_projection",
+        "sync_right_api.read_lineup_started_origin",
     )
     from pitchlog.repositories.rg1 import (
         RG1CommitCheckToken,
