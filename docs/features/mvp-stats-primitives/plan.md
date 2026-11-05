@@ -406,3 +406,18 @@ R1限定再確認の採用（2026-11-06 JST、PO委任Codex /root判断）: a266
 
 
 要件出典source2の独立受理（2026-11-06 JST、PO委任Codex /root判断）: root候補packet18f38e507a3c4d0ed5cd7df191e517028f656775abd07cff07b3191969b4e7bcを非作者REPORT1c7bfe7b7aab8c04661f68316410c9b84dde9686411e5efd45f58adf03accc6c/checksbabc0c7546e1413a2b6473ce51c5657b556116fb2416c947df517c6ad41565e5で採用する。exact2はcontracts/authz/requirement-claims.jsonと同.lock.jsonだけ。公式extract_source/validateで旧1429→現1434全source、見出し同一、decision187/分類規則/層/根拠/受取先/test_owner全値保持を確認、元の11新原文はoutscope10と既A-5共有集合不変のauth原文1。ID移動含む86差は全数照合し削除0、公式reseal_catalog/build_decision_lockで全後値を再現する。確定済み要件v2.19のPO意味を新しい裁定へ戻さず、source commit41d13638の実blobと束縛する。母集合とlockだけの本受理をderived/oracle seal・7.7/全catalog成功へ拡張しない。後段source固定時に必要な入力派生/owner用値/正式sealを別に独立照合する。
+
+
+成績native26基盤のD11登録最小追補（2026-11-06 JST、PO委任Codex /root判断）: 既承認4.1の登録/3層検査を実体化する技術scope8を採用する。根拠scope387a1159d99de849c3e270eee60d43010d3ea819ac49e5855ae7418fc266fa37、既schema/collectorの同生成receiver内formatter別symbolを正直に登録できるprobe9652b459（実SQLは未検証）。主manifestを変更せず、別finite D11 manifestを公式--assetで検査する。生成profile用旧stats-manifestと混同しない。
+編集exact8:
+- `backend/domain/stats-native-d11-manifest.json`
+- `backend/domain/stats-native-d11-property-catalog.json`
+- `backend/domain/stats-native-d11-property-catalog.schema.json`
+- `contracts/stats/native_event_facts_d11_v2.json`
+- `contracts/stats/native_current_totals_d11_v2.json`
+- `backend/src/pitchlog/domaincheck/runners/stats_native.py`
+- `backend/tests/stats/test_stats_native_d11.py`
+- `backend/tests/db/test_stats_native_d11.py`
+
+子計算は既D-1生成eventFacts26とcurrent_open native totals26。源本/生成8/SQL数学/認可を変更せず、全artifact hash・実nativehook→唯一T5・真正RRRO SQL→generated receiver→同receiver内実format_countを登録する。同fileを異なるgeneratedId/kind/symbolで正直に参照し、実sysprofile call/returnで計算差替えなしに段階I/Oを採取する。未使用formatter.pyを経由したとの宣言は禁止。新SQL成功stub/別集計/ダミー入口を作らない。独立55/現75の原本/全期待/既比較・zero-null/巨大数/拒否を保持、対象計算ごとの全行field/credits/表示/全stage I/O/hash、invariant/equivalence/非等価変異killを正規runner/JUnit/既collectorへ結ぶ。対象外provider fixtureの拒否を実認可成立へ、子calcの限定成功を全T5/T6・公式終了版/27指標/season/画面CSVへ広げない。規範期待を実製品出力から生成・補完しない。既native供給がない入力は範囲外として明示し、未対応機能をMVPから削らない。
+新ownedDB testは既実HTTP保存/owned fixtureを再利用し、同DBの実producer SQL/真正RRRO reader/receiver/formatterを独立規範期待に比較する。rootが同版固定で実行し、作者はcacheのみでDB0。全source8を別非作者確認後rootが直列採用する。新未登録vector2/test1のgame-state登録は計算source8とは別に既core候補反映1へ明示3path追加（26→29）し、旧26・初回レビュー/失敗を保全する。code/test29定義を独立確認・先行commit→D11source8別commit→実JSON29後置を守り同commit拒否を緩和しない。
