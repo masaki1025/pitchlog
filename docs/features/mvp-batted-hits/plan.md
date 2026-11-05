@@ -237,3 +237,6 @@ FE14と分離しstats_csv_next_unitへ新exact4: backend/src/pitchlog/api/schema
 
 
 source登録の採用記録: 作者cache source4（checker7a6c9a4c…/新196test ed7131c2…/旧192test cc7d619d…/旧checktenanttest257dfdc7…）と正式追加候補2を非作者f0a1ae8b57885132df0ac893dab7450dc43f0d56dc5ed6dedd46db9e03cdd0b2で照合し採用した。actual root回帰409pass31.84秒、旧fixture3と追加偽型対向を独立確認。判断者Codex /root、2026-11-05 JST、PO既委任による判断。E0f75/fixture52d056/旧51・90/11maps16frozen/37履歴は保持、本人署名/P6blindの拡張ではない。正式2assetは識別値と射影の公式更新・単一#196受理がまだ必要な候補であり、current source診断0や回帰を正式7.7/CLI/CI成功へ読み替えない。後段census source1は別非作者確認中。
+
+
+census追随の採用記録: 作者7f37309b…/source bfe3c4f7…を非作者fb144d3a30a67496836b834b802ef1eccdde604fb5546fe547661aa62c423616（独立69成功、shadow CLI exit0）で照合して採用する。判断者Codex /root、2026-11-05 JST、PO既委任による技術追随判断。旧全180定義/78test、歴史90/37・現在84/37・新15とsentinel2を区別、models旧49・署名範囲保持。正式census JSONは新proof6leafとinventory6だけを追加し旧全値を保持した候補で、識別値/射影/単一#196受理/正式CLI/CIは後段で閉じる。本人確認/P6blind/実PGの成立へ拡張しない。
