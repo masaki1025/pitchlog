@@ -35881,8 +35881,8 @@
               },
               {
                 "path": "tests/test_check_tenant_boundary_bypass.py",
-                "sha256": "a0b2b1bc09d572fe43c6700813203b8d42cdb1169f0ab59914d7421e0069b43d",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/a0b2b1bc09d572fe43c6700813203b8d42cdb1169f0ab59914d7421e0069b43d"
+                "sha256": "0a9f3943d80728effee9dede94d0b6b6fab8d82a38ec369455ae3655fe75a70b",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/0a9f3943d80728effee9dede94d0b6b6fab8d82a38ec369455ae3655fe75a70b"
               },
               {
                 "path": "tests/test_ci_wiring.py",
@@ -35943,8 +35943,8 @@
               },
               {
                 "path": "contracts/tenant_boundary/frozen-inputs.json",
-                "sha256": "1c9b0d94990a490853d9be6e1b6c9e13be2028353475f92f58a06476c6d85cac",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/1c9b0d94990a490853d9be6e1b6c9e13be2028353475f92f58a06476c6d85cac"
+                "sha256": "2a74395e1b1450454ee79493ff49d3c42a356270da3e562cc1fc710d55588db5",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/2a74395e1b1450454ee79493ff49d3c42a356270da3e562cc1fc710d55588db5"
               },
               {
                 "path": "contracts/tenant_boundary/negative-fixtures.json",
