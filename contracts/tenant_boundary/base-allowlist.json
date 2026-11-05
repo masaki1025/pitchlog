@@ -37062,8 +37062,8 @@
               },
               {
                 "path": "backend/tests/test_sync_apply_product_supply.py",
-                "sha256": "706e6be911d3457e62af000a687fae51d3dbcd212c3a171c791165c8c0b7ab7c",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/706e6be911d3457e62af000a687fae51d3dbcd212c3a171c791165c8c0b7ab7c"
+                "sha256": "1ed8e18bb9566c6fd5ddcfe66799ee3959d41d64b05cc3787cc74a2ce583e620",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/1ed8e18bb9566c6fd5ddcfe66799ee3959d41d64b05cc3787cc74a2ce583e620"
               },
               {
                 "path": "backend/tests/test_terminal_pitch_write_stamp.py",
@@ -37209,8 +37209,8 @@
               },
               {
                 "path": "contracts/tenant_boundary/frozen-inputs.json",
-                "sha256": "ebeaa9ccdab083b7a5e8acd3d932b43dd3441c31ff484f7e2ea1cf8c8f79af3c",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/ebeaa9ccdab083b7a5e8acd3d932b43dd3441c31ff484f7e2ea1cf8c8f79af3c"
+                "sha256": "367323aee68bcd009b16e67875063cb1f9db87a1ab87d710118b437beaa2ac63",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/367323aee68bcd009b16e67875063cb1f9db87a1ab87d710118b437beaa2ac63"
               },
               {
                 "path": "contracts/tenant_boundary/negative-fixtures.json",
@@ -37235,8 +37235,8 @@
             ]
           }
         },
-        "movement_fact": "公式射影で9資産の実移動を検出して全識別値をbase+1に保持。CLI source追随で失効したR1の単一196候補だけを置換する。旧実装source/旧37record prefix/全base/pin snapshotを保持し、単一#196だけを追加。新source登録は6965088bとE0f75全byte、独立15tuple/2successor/Index用途に限定し、旧人間署名やP6blindの適用拡大をしない。",
-        "reason": "正式112fを基線に、無走者の単打/二塁打/三塁打/本塁打の実画面新規作成→開始→安打→次球→元body/attempt再送→reloadを同3310候補で実証した製品差分を結合する。源本/数学/登録/保存/語彙/UIの既レビューを継承し、sourceの新15tupleと旧2owner successorを独立前置E0f75/期待52d056に束縛、旧51/90/metadata/署名と37履歴を保持。censusの歴史90/37と現在84/37、新15と合成guard2を別検証する。後発CLI static tupleの新Starred分岐は同6965のregistry/owner全byteへ閉じ、旧inline検査を保持する。R1は実変更に伴い単一196候補のみ置換し二重受理/再増分をしない。後発差分f0a1ae8/fb144d3および供給1074成功を別に照合した。実機/運用公開/全MVP/全T1成立を代記しない。",
+        "movement_fact": "公式射影で9資産の実移動を検出して全識別値をbase+1に保持。E501のAST同一format追随で失効したR2の単一196候補だけを置換する。旧実装source/旧37record prefix/全base/pin snapshotを保持し、単一#196だけを追加。新source登録は6965088bとE0f75全byte、独立15tuple/2successor/Index用途に限定し、旧人間署名やP6blindの適用拡大をしない。",
+        "reason": "正式112fを基線に、無走者の単打/二塁打/三塁打/本塁打の実画面新規作成→開始→安打→次球→元body/attempt再送→reloadを同3310候補で実証した製品差分を結合する。源本/数学/登録/保存/語彙/UIの既レビューを継承し、sourceの新15tupleと旧2owner successorを独立前置E0f75/期待52d056に束縛、旧51/90/metadata/署名と37履歴を保持。censusの歴史90/37と現在84/37、新15と合成guard2を別検証する。後発CLI static tupleの新Starred分岐は同6965のregistry/owner全byteへ閉じ、旧inline検査を保持する。R2後の供給試験E501はAST同一の文字列改行だけで是正し、実frozen外部原本の変更に伴い単一196候補のみR3へ置換し二重受理/再増分をしない。後発差分f0a1ae8/fb144d3および供給1074成功を別に照合した。実機/運用公開/全MVP/全T1成立を代記しない。",
         "approved_by": "PO委任によるCodex主担当/root判断（本人署名・人間逐行確認の代記ではない）",
         "approved_on": "2026-11-05"
       }

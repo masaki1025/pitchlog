@@ -282,7 +282,10 @@ def test_reapply_is_closed_to_exact_nine_and_preserves_frozen_first_apply():
         expected_volatility = (
             "s"
             if row["function_id"]
-            == "FUNCTION:recording_vocab_api:read_batted_ball_options(uuid, integer, text)"
+            == (
+                "FUNCTION:recording_vocab_api:read_batted_ball_options("
+                "uuid, integer, text)"
+            )
             else "v"
         )
         for required in (
