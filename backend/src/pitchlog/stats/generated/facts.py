@@ -3,7 +3,7 @@
 import re
 
 SOURCE_MODEL_HASH = (
-    "sha256:f358df32f54bedfecb2866436e718c7bd6ece514798fe4de2325022d38a09422"
+    "sha256:60ab45878fdfc868efc15ddb0f9b84d6ab0f3583519c48a2202e3d9c3abac59d"
 )
 if __name__ != "__pitchlog_generated_wrapper__":
     raise ImportError("生成targetは登録wrapper経由だけです")
@@ -2167,22 +2167,293 @@ def _pitchlog_generated(event, requested_metrics=None):
         "pa_row": pa_row,
         "source_event_id": _p(event, "source.source_event_id"),
         "selected": selected,
-        "pending": {
-            "named_category": {
-                "state": "decision_pending",
+        "decisions": {
+            "D02": {
                 "decision_id": "D02",
-                "value": None,
+                "decision_state": "adopted",
+                "choice": "A",
+                "implementation_state": "available",
             },
-            "appearances": {
-                "state": "decision_pending",
+            "D03": {
                 "decision_id": "D03",
+                "decision_state": "adopted",
+                "choice": "A",
+                "implementation_state": "pending",
+                "source_state": "not_evaluated",
                 "value": None,
             },
-            "batters_faced": {
-                "state": "decision_pending",
+            "D04": {
                 "decision_id": "D04",
+                "decision_state": "adopted",
+                "choice": "A",
+                "implementation_state": "pending",
+                "source_state": "not_evaluated",
                 "value": None,
             },
-            "ops": {"state": "decision_pending", "decision_id": "D05", "value": None},
+            "D05": {
+                "decision_id": "D05",
+                "decision_state": "adopted",
+                "choice": "A",
+                "implementation_state": "available",
+            },
         },
     }
+
+
+def _rate_inputs(metrics, names):
+    """生成された型検証・有限寄与処理。"""
+    if type(metrics) is not dict or set(metrics) != set(names):
+        raise ValueError("派生率の十分統計は閉26項目が必要です")
+    values = {}
+    for key in names:
+        row = metrics[key]
+        if type(row) is dict:
+            if set(row) != {"state", "value", "display", "reason"}:
+                raise ValueError("十分統計の閉型が不正です")
+            if row["state"] == "source_unavailable":
+                if (
+                    row["value"] is not None
+                    or row["display"] is not None
+                    or row["reason"]
+                    not in (
+                        "MISSING_OBSERVATION",
+                        "MISSING_ATTRIBUTION",
+                        "UNSUPPORTED_SOURCE_VARIANT",
+                    )
+                ):
+                    raise ValueError("不足観測の型が不正です")
+                values[key] = None
+                continue
+            if (
+                row["state"] != "available"
+                or row["value"] is None
+                or row["reason"] is not None
+                or (row["display"] != row["value"])
+            ):
+                raise ValueError("十分統計の状態が不正です")
+            row = row["value"]
+        if row is None:
+            values[key] = None
+        elif type(row) is str:
+            values[key] = parse_count(row)
+        else:
+            raise ValueError("十分統計は正準整数文字列です")
+    return values
+
+
+def _rate_add(*values):
+    """生成された型検証・有限寄与処理。"""
+    return None if any((value is None for value in values)) else sum(values)
+
+
+def _ratio(numerator, denominator):
+    """生成された型検証・有限寄与処理。"""
+    if numerator is None or denominator is None:
+        return None
+    return (numerator, denominator)
+
+
+def _ratio_add(*values):
+    """生成された型検証・有限寄与処理。"""
+    if any((value is None or value[1] == 0 for value in values)):
+        return None
+    numerator, denominator = (0, 1)
+    for n, d in values:
+        numerator, denominator = (numerator * d + n * denominator, denominator * d)
+    return (numerator, denominator)
+
+
+def _rate_reason(metrics, dependencies):
+    """生成された型検証・有限寄与処理。"""
+    for key in dependencies:
+        value = metrics[key]
+        if type(value) is dict and value["state"] == "source_unavailable":
+            return value["reason"]
+    return "MISSING_OBSERVATION"
+
+
+def _rate_result(value, components, display, reason="MISSING_OBSERVATION"):
+    """生成された型検証・有限寄与処理。"""
+    if type(components) is not dict or set(components) != {
+        x["component"] for x in display["denominators"]
+    }:
+        raise ValueError("比componentの閉集合が不正です")
+    for pair in [value, *components.values()]:
+        if pair is not None and (
+            type(pair) is not tuple
+            or len(pair) != 2
+            or any((type(x) is not int or x < 0 for x in pair))
+        ):
+            raise ValueError("比の整数型が不正です")
+    if any((pair is None for pair in components.values())):
+        if value is not None:
+            raise ValueError("不足観測に比を補完できません")
+        return {
+            "state": "source_unavailable",
+            "value_state": "not_evaluated",
+            "exact_ratio": None,
+            "components": None,
+            "formatted_value": None,
+            "display": None,
+            "reason": reason,
+        }
+    raw = {
+        key: {"numerator": format_count(pair[0]), "denominator": format_count(pair[1])}
+        for key, pair in components.items()
+    }
+    if any((pair[1] == 0 for pair in components.values())):
+        exact = None
+        formatted = display["zeroDivisionGlyph"]
+        state = "undefined_zero_denominator"
+    else:
+        if value is None:
+            raise ValueError("定義済み比の値が不足しています")
+        n, d = value
+        if d == 0:
+            raise ValueError("定義済み比の分母は正です")
+        a, b = (n, d)
+        while b:
+            a, b = (b, a % b)
+        n, d = (n // a, d // a)
+        exact = {"numerator": format_count(n), "denominator": format_count(d)}
+        power = 10 ** display["scale"]
+        quotient, remainder = divmod(n * power, d)
+        rounded = quotient + (2 * remainder >= d)
+        integer, fraction = divmod(rounded, power)
+        formatted = (
+            format_count(integer) + "." + format_count(fraction).zfill(display["scale"])
+        )
+        state = "defined"
+    labels = [
+        label["prefix"] + raw[label["component"]]["denominator"] + label["suffix"]
+        for label in display["denominators"]
+    ]
+    return {
+        "state": "available",
+        "value_state": state,
+        "exact_ratio": exact,
+        "components": raw,
+        "formatted_value": formatted,
+        "display": formatted + "(" + "・".join(labels) + ")",
+        "reason": None,
+    }
+
+
+GAME_TYPE_SCOPES = {
+    "official": ["game_official", "game_semi_official"],
+    "practice": ["game_open", "game_intrasquad", "game_other"],
+    "all": [
+        "game_official",
+        "game_semi_official",
+        "game_open",
+        "game_intrasquad",
+        "game_other",
+    ],
+}
+
+
+def select_game_type_keys(named_category="all", raw_game_type_keys=None):
+    """生成された型検証・有限寄与処理。"""
+    if type(named_category) is not str or named_category not in GAME_TYPE_SCOPES:
+        raise ValueError("未知のnamed categoryです")
+    keys = list(GAME_TYPE_SCOPES[named_category])
+    if raw_game_type_keys is not None and (
+        type(raw_game_type_keys) is not list
+        or any((type(x) is not str for x in raw_game_type_keys))
+        or raw_game_type_keys != keys
+    ):
+        raise ValueError("named/raw集合が不一致です")
+    return keys
+
+
+def decision_metadata():
+    """生成された型検証・有限寄与処理。"""
+    return {
+        "D02": {
+            "decision_id": "D02",
+            "decision_state": "adopted",
+            "choice": "A",
+            "implementation_state": "available",
+        },
+        "D03": {
+            "decision_id": "D03",
+            "decision_state": "adopted",
+            "choice": "A",
+            "implementation_state": "pending",
+            "source_state": "not_evaluated",
+            "value": None,
+        },
+        "D04": {
+            "decision_id": "D04",
+            "decision_state": "adopted",
+            "choice": "A",
+            "implementation_state": "pending",
+            "source_state": "not_evaluated",
+            "value": None,
+        },
+        "D05": {
+            "decision_id": "D05",
+            "decision_state": "adopted",
+            "choice": "A",
+            "implementation_state": "available",
+        },
+    }
+
+
+def derive_rates(metrics):
+    """生成された型検証・有限寄与処理。"""
+    values = _rate_inputs(
+        metrics,
+        (
+            "pitch_count",
+            "pa",
+            "ab",
+            "h",
+            "hr",
+            "bb",
+            "hbp",
+            "k",
+            "sh",
+            "sf",
+            "catcher_interference_reached",
+            "runner_interference_reached",
+            "doubles",
+            "triples",
+            "total_bases",
+            "runs",
+            "rbi",
+            "stolen_bases",
+            "pitching_outs",
+            "pitcher_k",
+            "pitcher_bb",
+            "pitcher_hbp",
+            "hits_allowed",
+            "home_runs_allowed",
+            "fielding_errors",
+            "runs_allowed",
+        ),
+    )
+    results = {}
+    parts_0 = {
+        "obp": _ratio(
+            _rate_add(values["h"], values["bb"], values["hbp"]),
+            _rate_add(values["ab"], values["bb"], values["hbp"], values["sf"]),
+        ),
+        "slg": _ratio(values["total_bases"], values["ab"]),
+    }
+    results["ops"] = _rate_result(
+        _ratio_add(parts_0["obp"], parts_0["slg"]),
+        parts_0,
+        {
+            "scale": 3,
+            "rounding": "half-up",
+            "leadingZero": True,
+            "zeroDivisionGlyph": "−",
+            "denominators": [
+                {"component": "obp", "prefix": "出塁率分母", "suffix": "打席"},
+                {"component": "slg", "prefix": "長打率分母", "suffix": "打数"},
+            ],
+        },
+        _rate_reason(metrics, ("h", "bb", "hbp", "ab", "sf", "total_bases")),
+    )
+    return results

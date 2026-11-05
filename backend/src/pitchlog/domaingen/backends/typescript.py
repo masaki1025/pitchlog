@@ -274,8 +274,74 @@ export function eventFacts(event: unknown, requestedMetrics?: readonly string[])
     lines.extend(
         [
             "  }",
-            f"  return {{metrics,pa_row:paRow,source_event_id:_p(event,'source.source_event_id'),selected,pending:{quoted(program['pendingDecisions'])} as const}};",  # noqa: E501 — 生成targetのliteral
+            f"  return {{metrics,pa_row:paRow,source_event_id:_p(event,'source.source_event_id'),selected,{('decisions' if program['version'] == 2 else 'pending')}:{quoted(program['decisions' if program['version'] == 2 else 'pendingDecisions'])} as const}};",  # noqa: E501 — 生成targetのliteral
             "}",
         ]
     )
+    if program["version"] == 2:
+        lines.append(generate_derived_facts(program, source_hash))
     return "\n".join(lines) + "\n"
+
+
+def generate_derived_facts(program, source_hash: str) -> str:
+    """共通D1のratioをBigIntだけへ下げる。"""
+    from pitchlog.domaingen.core import rate_metric_dependencies, typed_rate_expression
+    from pitchlog.domaingen.formatter import ratio_target
+
+    def quoted(value):
+        """検証済み宣言を安全なJSON literalにする。"""
+        return json.dumps(value, ensure_ascii=False, separators=(",", ":"))
+
+    groups = quoted(program["namedScopes"]["groups"])
+    names = quoted([m["id"] for m in program["metrics"]])
+    lines = [
+        ratio_target("typescript", source_hash),
+        f"const GAME_TYPE_SCOPES:Record<string,readonly string[]>={groups};",
+        "export function selectGameTypeKeys(namedCategory:unknown='all',rawKeys?:unknown):string[]{",  # noqa: E501 — 生成target/固定SQLのliteral
+        "  if(typeof namedCategory!=='string'||!Object.hasOwn(GAME_TYPE_SCOPES,namedCategory))throw new Error('未知のnamed categoryです');",  # noqa: E501 — 生成target/固定SQLのliteral
+        "  const keys=GAME_TYPE_SCOPES[namedCategory]!;",
+        "  if(rawKeys!==undefined&&(!Array.isArray(rawKeys)||rawKeys.length!==keys.length||rawKeys.some((x,i)=>typeof x!=='string'||x!==keys[i])))throw new Error('named/raw集合が不一致です');",  # noqa: E501 — 生成target/固定SQLのliteral
+        "  return [...keys];",
+        "}",
+        "export function decisionMetadata(){return "
+        + quoted(program["decisions"])
+        + " as const;}",
+        "export function deriveRates(metrics:Record<string,RateMetric>){",
+        f"  const values=_rateInputs(metrics,{names});",
+        "  const results:Record<string,ReturnType<typeof _rateResult>>={};",
+    ]
+    for index, row in enumerate(program["derivedMetrics"]):
+        parts = f"parts{index}"
+        expressions = [
+            quoted(c["id"])
+            + ":"
+            + typed_rate_expression(c["expression"], "typescript", parts)
+            for c in row["components"]
+        ]
+        lines.append(
+            "  const "
+            + parts
+            + ":Record<string,RatioPair>={"
+            + ",".join(expressions)
+            + "};"
+        )
+        expression = typed_rate_expression(row["expression"], "typescript", parts)
+        dependencies = rate_metric_dependencies({"components": row["components"]})
+        lines.append(
+            f"  results[{quoted(row['id'])}]=_rateResult({expression},{parts},{quoted(row['display'])},_rateReason(metrics,{quoted(dependencies)}));"  # noqa: E501 — 生成target/固定SQLのliteral
+        )
+    lines.extend(["  return results;", "}"])
+    return "\n".join(lines) + "\n"
+
+
+def generate_ratio_formatter(program, source_hash: str) -> str:
+    """閉rate ID/表示bindingへBigInt formatterを生成する。"""
+    from pitchlog.domaingen.formatter import ratio_formatter_target
+
+    displays = {row["id"]: row["display"] for row in program["derivedMetrics"]}
+    return (
+        ratio_formatter_target("typescript", source_hash)
+        + "\nconst RATE_DISPLAYS:Record<string,RatioDisplay>="
+        + json.dumps(displays, ensure_ascii=False)
+        + ";\nexport function formatDerivedRate(rateId:string,value:RatioPair,components:Record<string,RatioPair>){\n if(!Object.hasOwn(RATE_DISPLAYS,rateId))throw new Error('未知の派生率です');\n return _rateResult(value,components,RATE_DISPLAYS[rateId]!);\n}\n"  # noqa: E501 — 生成target/固定SQLのliteral
+    )

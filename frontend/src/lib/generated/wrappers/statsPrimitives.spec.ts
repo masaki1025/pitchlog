@@ -59,12 +59,41 @@ describe('生成count primitiveの純比較', () => {
     expect(result.pa_row!.rbi).toBeNull()
   })
 
-  it('未回答4件を生成値で埋めない', () => {
+  it('採用済み判断と実装待ちを分け、未供給を0へしない', () => {
     const source = cases.find(
       (c: { case_id: string }) => c.case_id === 'incomplete-pa-one-pitch',
     )
     const result = api.eventFacts(source.input.events[0])
-    expect(result.pending).toEqual(source.expected.pending)
+    expect(result.decisions).toEqual({
+      D02: {
+        decision_id: 'D02',
+        decision_state: 'adopted',
+        choice: 'A',
+        implementation_state: 'available',
+      },
+      D03: {
+        decision_id: 'D03',
+        decision_state: 'adopted',
+        choice: 'A',
+        implementation_state: 'pending',
+        source_state: 'not_evaluated',
+        value: null,
+      },
+      D04: {
+        decision_id: 'D04',
+        decision_state: 'adopted',
+        choice: 'A',
+        implementation_state: 'pending',
+        source_state: 'not_evaluated',
+        value: null,
+      },
+      D05: {
+        decision_id: 'D05',
+        decision_state: 'adopted',
+        choice: 'A',
+        implementation_state: 'available',
+      },
+    })
     expect(result.pa_row).toBeNull()
     expect(result.metrics.pa!.value).toBe('0')
   })
@@ -83,4 +112,50 @@ describe('生成count primitiveの純比較', () => {
     event.runner_scores.push(...structuredClone(event.runner_scores))
     expect(() => api.eventFacts(event)).toThrow()
   })
+})
+
+type CurrentMathCase = {
+  case_id: string
+  input: { named_category: string; raw_game_type_keys: string[] }
+  expected: {
+    status: string
+    totals: Parameters<typeof api.deriveRates>[0]
+    rates: ReturnType<typeof api.deriveRates>
+    decisions: ReturnType<typeof api.decisionMetadata>
+  }
+}
+const current: CurrentMathCase[] = JSON.parse(
+  readFileSync(
+    resolve(
+      process.cwd(),
+      '../docs/features/mvp-stats-primitives/primitive-cases.candidate.json',
+    ),
+    'utf8',
+  ),
+).current_v2_followup.cases
+it.each(current.filter((c) => c.expected.status !== 'rejected'))(
+  '$case_id v2の比・実分母・最後の表示を全値比較する',
+  (c) => {
+    expect(api.deriveRates(c.expected.totals)).toEqual(c.expected.rates)
+    expect(
+      api.selectGameTypeKeys(
+        c.input.named_category,
+        c.input.raw_game_type_keys,
+      ),
+    ).toEqual(c.input.raw_game_type_keys)
+    expect(api.decisionMetadata()).toEqual(c.expected.decisions)
+  },
+)
+it('raw集合override/未知/その他欠落を拒否する', () => {
+  expect(() => api.selectGameTypeKeys('unknown')).toThrow()
+  expect(() =>
+    api.selectGameTypeKeys('practice', ['game_open', 'game_intrasquad']),
+  ).toThrow()
+  expect(() =>
+    api.selectGameTypeKeys('official', [
+      'game_open',
+      'game_intrasquad',
+      'game_other',
+    ]),
+  ).toThrow()
 })

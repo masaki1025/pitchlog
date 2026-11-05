@@ -1062,6 +1062,576 @@
                   }
                 }
               }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "version",
+                "kind",
+                "fields",
+                "collections",
+                "metrics",
+                "selection",
+                "paProjection",
+                "reducer",
+                "sql",
+                "numericEnvelope",
+                "closedRecords",
+                "decisions",
+                "namedScopes",
+                "derivedMetrics"
+              ],
+              "properties": {
+                "version": {
+                  "const": 2
+                },
+                "kind": {
+                  "const": "event-facts"
+                },
+                "fields": {
+                  "type": "object",
+                  "minProperties": 1,
+                  "maxProperties": 256,
+                  "additionalProperties": {
+                    "$ref": "#/$defs/TypedField"
+                  }
+                },
+                "collections": {
+                  "type": "object",
+                  "maxProperties": 8,
+                  "additionalProperties": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "maximumItems",
+                      "fields"
+                    ],
+                    "properties": {
+                      "maximumItems": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 4
+                      },
+                      "fields": {
+                        "type": "object",
+                        "minProperties": 1,
+                        "maxProperties": 256,
+                        "additionalProperties": {
+                          "$ref": "#/$defs/TypedField"
+                        }
+                      }
+                    }
+                  }
+                },
+                "metrics": {
+                  "type": "array",
+                  "minItems": 1,
+                  "maxItems": 64,
+                  "items": {
+                    "$ref": "#/$defs/TypedMetric"
+                  }
+                },
+                "selection": {
+                  "$ref": "#/$defs/TypedExpression"
+                },
+                "paProjection": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "guard",
+                    "fields",
+                    "metricFields"
+                  ],
+                  "properties": {
+                    "guard": {
+                      "$ref": "#/$defs/TypedExpression"
+                    },
+                    "fields": {
+                      "type": "object",
+                      "maxProperties": 32,
+                      "additionalProperties": {
+                        "$ref": "#/$defs/TypedExpression"
+                      }
+                    },
+                    "metricFields": {
+                      "type": "object",
+                      "maxProperties": 32,
+                      "additionalProperties": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                },
+                "reducer": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "id",
+                    "type",
+                    "initial",
+                    "operator"
+                  ],
+                  "properties": {
+                    "id": {
+                      "const": "integer_add"
+                    },
+                    "type": {
+                      "const": "integer"
+                    },
+                    "initial": {
+                      "const": 0
+                    },
+                    "operator": {
+                      "const": "add"
+                    }
+                  }
+                },
+                "sql": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "facts",
+                    "versions",
+                    "games",
+                    "events",
+                    "plays",
+                    "slots",
+                    "amountColumn",
+                    "metricColumn",
+                    "sources",
+                    "generations",
+                    "ledger",
+                    "canonicalSelection"
+                  ],
+                  "properties": {
+                    "facts": {
+                      "type": "string",
+                      "pattern": "^sync_fence\\.[a-z][a-z0-9_]*$"
+                    },
+                    "versions": {
+                      "type": "string",
+                      "pattern": "^sync_fence\\.[a-z][a-z0-9_]*$"
+                    },
+                    "games": {
+                      "type": "string",
+                      "pattern": "^public\\.[a-z][a-z0-9_]*$"
+                    },
+                    "events": {
+                      "type": "string",
+                      "pattern": "^public\\.[a-z][a-z0-9_]*$"
+                    },
+                    "plays": {
+                      "type": "string",
+                      "pattern": "^public\\.[a-z][a-z0-9_]*$"
+                    },
+                    "slots": {
+                      "type": "string",
+                      "pattern": "^public\\.[a-z][a-z0-9_]*$"
+                    },
+                    "amountColumn": {
+                      "type": "string",
+                      "pattern": "^[a-z][a-z0-9_]*$"
+                    },
+                    "metricColumn": {
+                      "type": "string",
+                      "pattern": "^[a-z][a-z0-9_]*$"
+                    },
+                    "sources": {
+                      "type": "string",
+                      "pattern": "^sync_fence\\.[a-z][a-z0-9_]*$"
+                    },
+                    "generations": {
+                      "type": "string",
+                      "pattern": "^public\\.[a-z][a-z0-9_]*$"
+                    },
+                    "ledger": {
+                      "type": "string",
+                      "pattern": "^public\\.[a-z][a-z0-9_]*$"
+                    },
+                    "canonicalSelection": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "version",
+                        "kind"
+                      ],
+                      "properties": {
+                        "version": {
+                          "const": 1
+                        },
+                        "kind": {
+                          "const": "accepted-play-slot-v1"
+                        }
+                      }
+                    }
+                  }
+                },
+                "numericEnvelope": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "minimum",
+                    "maximum"
+                  ],
+                  "properties": {
+                    "minimum": {
+                      "const": 0
+                    },
+                    "maximum": {
+                      "type": "null"
+                    }
+                  }
+                },
+                "closedRecords": {
+                  "type": "array",
+                  "maxItems": 16,
+                  "uniqueItems": true,
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "decisions": {
+                  "type": "object",
+                  "properties": {
+                    "D02": {
+                      "type": "object",
+                      "properties": {
+                        "decision_id": {
+                          "const": "D02"
+                        },
+                        "decision_state": {
+                          "const": "adopted"
+                        },
+                        "choice": {
+                          "const": "A"
+                        },
+                        "implementation_state": {
+                          "const": "available"
+                        }
+                      },
+                      "required": [
+                        "decision_id",
+                        "decision_state",
+                        "choice",
+                        "implementation_state"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "D03": {
+                      "type": "object",
+                      "properties": {
+                        "decision_id": {
+                          "const": "D03"
+                        },
+                        "decision_state": {
+                          "const": "adopted"
+                        },
+                        "choice": {
+                          "const": "A"
+                        },
+                        "implementation_state": {
+                          "const": "pending"
+                        },
+                        "source_state": {
+                          "const": "not_evaluated"
+                        },
+                        "value": {
+                          "const": null
+                        }
+                      },
+                      "required": [
+                        "decision_id",
+                        "decision_state",
+                        "choice",
+                        "implementation_state",
+                        "source_state",
+                        "value"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "D04": {
+                      "type": "object",
+                      "properties": {
+                        "decision_id": {
+                          "const": "D04"
+                        },
+                        "decision_state": {
+                          "const": "adopted"
+                        },
+                        "choice": {
+                          "const": "A"
+                        },
+                        "implementation_state": {
+                          "const": "pending"
+                        },
+                        "source_state": {
+                          "const": "not_evaluated"
+                        },
+                        "value": {
+                          "const": null
+                        }
+                      },
+                      "required": [
+                        "decision_id",
+                        "decision_state",
+                        "choice",
+                        "implementation_state",
+                        "source_state",
+                        "value"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "D05": {
+                      "type": "object",
+                      "properties": {
+                        "decision_id": {
+                          "const": "D05"
+                        },
+                        "decision_state": {
+                          "const": "adopted"
+                        },
+                        "choice": {
+                          "const": "A"
+                        },
+                        "implementation_state": {
+                          "const": "available"
+                        }
+                      },
+                      "required": [
+                        "decision_id",
+                        "decision_state",
+                        "choice",
+                        "implementation_state"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "D02",
+                    "D03",
+                    "D04",
+                    "D05"
+                  ],
+                  "additionalProperties": false
+                },
+                "namedScopes": {
+                  "type": "object",
+                  "properties": {
+                    "default": {
+                      "const": "all"
+                    },
+                    "groups": {
+                      "type": "object",
+                      "properties": {
+                        "official": {
+                          "const": [
+                            "game_official",
+                            "game_semi_official"
+                          ]
+                        },
+                        "practice": {
+                          "const": [
+                            "game_open",
+                            "game_intrasquad",
+                            "game_other"
+                          ]
+                        },
+                        "all": {
+                          "const": [
+                            "game_official",
+                            "game_semi_official",
+                            "game_open",
+                            "game_intrasquad",
+                            "game_other"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "official",
+                        "practice",
+                        "all"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "default",
+                    "groups"
+                  ],
+                  "additionalProperties": false
+                },
+                "derivedMetrics": {
+                  "type": "array",
+                  "minItems": 1,
+                  "maxItems": 16,
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "$ref": "#/$defs/Identifier"
+                      },
+                      "type": {
+                        "const": "ratio"
+                      },
+                      "components": {
+                        "type": "array",
+                        "minItems": 1,
+                        "maxItems": 8,
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "$ref": "#/$defs/Identifier"
+                            },
+                            "expression": {
+                              "$ref": "#/$defs/TypedRateExpression"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "expression"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "expression": {
+                        "$ref": "#/$defs/TypedRateExpression"
+                      },
+                      "display": {
+                        "type": "object",
+                        "properties": {
+                          "scale": {
+                            "const": 3
+                          },
+                          "rounding": {
+                            "const": "half-up"
+                          },
+                          "leadingZero": {
+                            "const": true
+                          },
+                          "zeroDivisionGlyph": {
+                            "const": "−"
+                          },
+                          "denominators": {
+                            "type": "array",
+                            "minItems": 2,
+                            "maxItems": 2,
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "component": {
+                                  "$ref": "#/$defs/Identifier"
+                                },
+                                "prefix": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "suffix": {
+                                  "type": "string",
+                                  "minLength": 1
+                                }
+                              },
+                              "required": [
+                                "component",
+                                "prefix",
+                                "suffix"
+                              ],
+                              "additionalProperties": false
+                            }
+                          }
+                        },
+                        "required": [
+                          "scale",
+                          "rounding",
+                          "leadingZero",
+                          "zeroDivisionGlyph",
+                          "denominators"
+                        ],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "type",
+                      "components",
+                      "expression",
+                      "display"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "version",
+                "commonCalculationId",
+                "commonModelHash",
+                "refs",
+                "derivedRefs"
+              ],
+              "properties": {
+                "kind": {
+                  "const": "primitive-refs"
+                },
+                "version": {
+                  "const": 2
+                },
+                "commonCalculationId": {
+                  "$ref": "#/$defs/Identifier"
+                },
+                "commonModelHash": {
+                  "type": "string",
+                  "pattern": "^sha256:[a-f0-9]{64}$"
+                },
+                "refs": {
+                  "type": "array",
+                  "minItems": 1,
+                  "maxItems": 64,
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "id",
+                      "type"
+                    ],
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "pattern": "^[a-z][a-z0-9_]*$"
+                      },
+                      "type": {
+                        "const": "integer"
+                      }
+                    }
+                  }
+                },
+                "derivedRefs": {
+                  "type": "array",
+                  "minItems": 1,
+                  "maxItems": 16,
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "$ref": "#/$defs/Identifier"
+                      },
+                      "type": {
+                        "const": "ratio"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "type"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              }
             }
           ]
         }
@@ -1252,6 +1822,103 @@
           "$ref": "#/$defs/TypedExpression"
         }
       }
+    },
+    "TypedRateExpression": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "const": "metric"
+            },
+            "id": {
+              "$ref": "#/$defs/Identifier"
+            }
+          },
+          "required": [
+            "op",
+            "id"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "const": "component"
+            },
+            "id": {
+              "$ref": "#/$defs/Identifier"
+            }
+          },
+          "required": [
+            "op",
+            "id"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "const": "literal"
+            },
+            "value": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "op",
+            "value"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "enum": [
+                "add",
+                "ratio-add"
+              ]
+            },
+            "args": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 32,
+              "items": {
+                "$ref": "#/$defs/TypedRateExpression"
+              }
+            }
+          },
+          "required": [
+            "op",
+            "args"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "op": {
+              "const": "ratio"
+            },
+            "numerator": {
+              "$ref": "#/$defs/TypedRateExpression"
+            },
+            "denominator": {
+              "$ref": "#/$defs/TypedRateExpression"
+            }
+          },
+          "required": [
+            "op",
+            "numerator",
+            "denominator"
+          ],
+          "additionalProperties": false
+        }
+      ]
     }
   },
   "x-authorityCatalog": [

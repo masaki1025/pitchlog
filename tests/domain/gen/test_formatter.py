@@ -499,3 +499,29 @@ def test_trigger_three_record_matches_measured_matrix(schemas: Any) -> None:
 
     assert trigger["evaluation"] == {"fired": not evaluation.complete}
     assert trigger["evidenceLocation"] == "tests/domain/gen/test_formatter.py"
+
+
+def test_v2_ratio_helpers_use_integer_only_single_final_round():
+    """比helperはfloat/Decimal精度へ依存せず最終値を整数で丸める。"""
+    namespace = {}
+    source = FORMATTER.integer_target("python", "test")
+    source += FORMATTER.ratio_target("python", "test")
+    exec(compile(source, "<ratio-helper>", "exec"), namespace)
+    display = {
+        "scale": 3, "rounding": "half-up", "leadingZero": True,
+        "zeroDivisionGlyph": "−",
+        "denominators": [
+            {"component": "obp", "prefix": "出塁率分母", "suffix": "打席"},
+            {"component": "slg", "prefix": "長打率分母", "suffix": "打数"},
+        ],
+    }
+    parts = {"obp": (1, 3), "slg": (1, 3)}
+    ratio = namespace["_ratio_add"](*parts.values())
+    result = namespace["_rate_result"](ratio, parts, display)
+    assert result["exact_ratio"] == {"numerator": "2", "denominator": "3"}
+    assert result["formatted_value"] == "0.667"
+    assert result["components"] == {
+        "obp": {"numerator": "1", "denominator": "3"},
+        "slg": {"numerator": "1", "denominator": "3"},
+    }
+    assert "Decimal" not in source and "float(" not in source

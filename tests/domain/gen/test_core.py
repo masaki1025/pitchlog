@@ -278,7 +278,11 @@ def _owned_schema(name: str) -> dict[str, Any]:
     schema = CORE.INTERMEDIATE_REPRESENTATION_SCHEMA
     if name == "root":
         return schema
-    return schema["$defs"][name]
+    definitions = schema["$defs"]
+    assert isinstance(definitions, dict)
+    selected = definitions[name]
+    assert isinstance(selected, dict)
+    return selected
 
 
 def _nested_object(intermediate: dict[str, Any], name: str) -> dict[str, Any]:
@@ -493,7 +497,9 @@ def test_single_js_artifact_becomes_one_intermediate_stage(schemas: Any) -> None
     intermediate = CORE.generate_intermediate_representation(
         _model(), manifest, schemas, ROOT
     )
-    stages = intermediate["calculations"][0]["targets"][0]["stages"]
+    calculations = intermediate["calculations"]
+    assert isinstance(calculations, list)
+    stages = calculations[0]["targets"][0]["stages"]
     assert len(stages) == 1
     assert stages[0]["stage"] == "js-artifact"
     assert stages[0]["generatedId"] == artifact["generatedId"]
@@ -514,9 +520,11 @@ def test_declaration_change_updates_each_stage_hash(schemas: Any) -> None:
         stage["sourceHash"]
         for stage in original["calculations"][0]["targets"][0]["stages"]
     }
+    changed_calculations = changed["calculations"]
+    assert isinstance(changed_calculations, list)
     changed_hashes = {
         stage["sourceHash"]
-        for stage in changed["calculations"][0]["targets"][0]["stages"]
+        for stage in changed_calculations[0]["targets"][0]["stages"]
     }
 
     assert len(original_hashes) == len(changed_hashes) == 3
@@ -532,3 +540,31 @@ def test_core_contains_no_language_backend_implementation() -> None:
     assert function_names.isdisjoint(
         {"generate_python", "generate_typescript", "generate_sql"}
     )
+
+
+def test_ratio_emits_generic_operations_not_fixture_lookup():
+    """比ASTは直接演算となり、期待表を実行体へ入れない。"""
+    common = json.loads((ROOT / "backend/domain/play-export.model.json").read_text())
+    row = common["calculations"][0]["typedProgram"]["derivedMetrics"][0]
+    for language in ("python", "typescript"):
+        emitted = CORE.typed_rate_expression(row["expression"], language, "parts")
+        operator = "_ratio_add(" if language == "python" else "_ratioAdd("
+        assert operator in emitted
+        assert 'parts["obp"]' in emitted and 'parts["slg"]' in emitted
+        assert "case_id" not in emitted and "expected" not in emitted
+    assert CORE.rate_metric_dependencies({"components": row["components"]}) == (
+        "h", "bb", "hbp", "ab", "sf", "total_bases",
+    )
+
+
+def test_derived_reference_cannot_be_integer_or_unknown():
+    """既26参照にOPSを混ぜず、派生比は別typed参照に閉じる。"""
+    common = json.loads((ROOT / "backend/domain/play-export.model.json").read_text())
+    consumer = json.loads((ROOT / "backend/domain/stats.model.json").read_text())
+    for changed in (
+        {"id": "ops", "type": "integer"}, {"id": "unknown", "type": "ratio"},
+    ):
+        other = copy.deepcopy(consumer)
+        other["calculations"][0]["typedProgram"]["derivedRefs"] = [changed]
+        with pytest.raises(CORE.GenerationError):
+            CORE.generate_primitive_bundle(common, other)

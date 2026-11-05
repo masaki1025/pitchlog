@@ -657,24 +657,28 @@ def validate_typed_program(program: Mapping[str, Any]) -> None:
     """
     import re
 
+    version = program.get("version")
+    required = {
+        "numericEnvelope",
+        "paProjection",
+        "closedRecords",
+        "metrics",
+        "reducer",
+        "version",
+        "collections",
+        "sql",
+        "selection",
+        "fields",
+        "kind",
+    }
+    if version == 1:
+        required |= {"pendingDecisions"}
+    elif version == 2:
+        required |= {"decisions", "namedScopes", "derivedMetrics"}
     if (
-        set(program)
-        != {
-            "version",
-            "kind",
-            "fields",
-            "collections",
-            "closedRecords",
-            "metrics",
-            "selection",
-            "paProjection",
-            "pendingDecisions",
-            "numericEnvelope",
-            "reducer",
-            "sql",
-        }
-        or type(program.get("version")) is not int
-        or program.get("version") != 1
+        type(version) is not int
+        or version not in (1, 2)
+        or set(program) != required
         or program.get("kind") != "event-facts"
     ):
         raise ValueError("typed-programの閉キーまたは版が不正")
@@ -685,23 +689,24 @@ def validate_typed_program(program: Mapping[str, Any]) -> None:
         or type(envelope["minimum"]) is not int
     ):
         raise ValueError("任意精度非負整数の宣言が必要")
-    pending = program["pendingDecisions"]
-    if not isinstance(pending, dict) or not 1 <= len(pending) <= 16:
-        raise ValueError("未回答状態の閉宣言が必要")
-    for name, state in pending.items():
-        if (
-            not isinstance(name, str)
-            or not isinstance(state, dict)
-            or set(state) != {"state", "decision_id", "value"}
-        ):
-            raise ValueError("未回答状態の型が不正")
-        if (
-            state["state"] != "decision_pending"
-            or state["value"] is not None
-            or type(state["decision_id"]) is not str
-            or re.fullmatch(r"D[0-9]{2}", state["decision_id"]) is None
-        ):
-            raise ValueError("未回答を確定値へ置換できない")
+    if version == 1:
+        pending = program["pendingDecisions"]
+        if not isinstance(pending, dict) or not 1 <= len(pending) <= 16:
+            raise ValueError("未回答状態の閉宣言が必要")
+        for name, state in pending.items():
+            if (
+                not isinstance(name, str)
+                or not isinstance(state, dict)
+                or set(state) != {"state", "decision_id", "value"}
+            ):
+                raise ValueError("未回答状態の型が不正")
+            if (
+                state["state"] != "decision_pending"
+                or state["value"] is not None
+                or type(state["decision_id"]) is not str
+                or re.fullmatch(r"D[0-9]{2}", state["decision_id"]) is None
+            ):
+                raise ValueError("未回答を確定値へ置換できない")
     fields = program["fields"]
     collections = program["collections"]
     metrics = program["metrics"]
@@ -864,6 +869,7 @@ def validate_typed_program(program: Mapping[str, Any]) -> None:
         "operator": "add",
     }:
         raise ValueError("共通reducerは整数addだけ")
+    validate_derived_program(program)
     projection = program["paProjection"]
     if not isinstance(projection, dict) or set(projection) != {
         "guard",
@@ -925,3 +931,135 @@ def validate_primitive_sql_binding(binding):
             or re.fullmatch(r"[a-z][a-z0-9_]*", binding[role]) is None
         ):
             raise ValueError("SQL column bindingが不正です")
+
+
+def validate_derived_program(program: Mapping[str, Any]) -> None:
+    """v2の有限selector/ratio式/表示と採用状態を生成前に閉照合する。"""
+    import re
+
+    if program["version"] != 2:
+        return
+    groups = {
+        "official": ["game_official", "game_semi_official"],
+        "practice": ["game_open", "game_intrasquad", "game_other"],
+        "all": [
+            "game_official",
+            "game_semi_official",
+            "game_open",
+            "game_intrasquad",
+            "game_other",
+        ],
+    }
+    if program["namedScopes"] != {"default": "all", "groups": groups}:
+        raise ValueError("採用済みnamed scopeの閉集合が不一致")
+    expected: dict[str, dict[str, object]] = {}
+    for key in ("D02", "D03", "D04", "D05"):
+        expected[key] = {
+            "decision_id": key,
+            "decision_state": "adopted",
+            "choice": "A",
+            "implementation_state": "pending" if key in ("D03", "D04") else "available",
+        }
+        if key in ("D03", "D04"):
+            expected[key].update({"source_state": "not_evaluated", "value": None})
+    if program["decisions"] != expected:
+        raise ValueError("採用状態と実装/source待ちの区別が不一致")
+    names = {m["id"] for m in program["metrics"]}
+
+    def identifier(value):
+        return (
+            type(value) is str and re.fullmatch(r"[a-z][a-z0-9_]*", value) is not None
+        )
+
+    def infer(node, components):
+        if type(node) is not dict:
+            raise ValueError("比の閉式が必要")
+        op = node.get("op")
+        if op == "metric" and set(node) == {"op", "id"} and node["id"] in names:
+            return "integer"
+        if op == "component" and set(node) == {"op", "id"} and node["id"] in components:
+            return "ratio"
+        if (
+            op == "literal"
+            and set(node) == {"op", "value"}
+            and type(node["value"]) is int
+            and node["value"] >= 0
+        ):
+            return "integer"
+        if op in ("add", "ratio-add") and set(node) == {"op", "args"}:
+            args = node["args"]
+            kind = "integer" if op == "add" else "ratio"
+            if (
+                type(args) is list
+                and 1 <= len(args) <= 32
+                and all(infer(x, components) == kind for x in args)
+            ):
+                return kind
+        if op == "ratio" and set(node) == {"op", "numerator", "denominator"}:
+            if (
+                infer(node["numerator"], components)
+                == infer(node["denominator"], components)
+                == "integer"
+            ):
+                return "ratio"
+        raise ValueError("未知/循環/型違いの比演算")
+
+    derived = program["derivedMetrics"]
+    if type(derived) is not list or not 1 <= len(derived) <= 16:
+        raise ValueError("派生指標の有限宣言が必要")
+    seen = set()
+    for row in derived:
+        if (
+            type(row) is not dict
+            or set(row) != {"id", "type", "components", "expression", "display"}
+            or not identifier(row["id"])
+            or row["id"] in seen | names
+            or row["type"] != "ratio"
+        ):
+            raise ValueError("派生比の閉型/重複が不正")
+        seen.add(row["id"])
+        components = row["components"]
+        if type(components) is not list or not 1 <= len(components) <= 8:
+            raise ValueError("有限componentが必要")
+        component_ids = set()
+        for component in components:
+            if (
+                type(component) is not dict
+                or set(component) != {"id", "expression"}
+                or not identifier(component["id"])
+                or component["id"] in component_ids
+                or infer(component["expression"], set()) != "ratio"
+            ):
+                raise ValueError("componentの閉型/参照が不正")
+            component_ids.add(component["id"])
+        if infer(row["expression"], component_ids) != "ratio":
+            raise ValueError("派生はintegerでなくratioが必要")
+        display = row["display"]
+        if (
+            type(display) is not dict
+            or set(display)
+            != {"scale", "rounding", "leadingZero", "zeroDivisionGlyph", "denominators"}
+            or type(display["scale"]) is not int
+            or display["scale"] != 3
+            or display["rounding"] != "half-up"
+            or display["leadingZero"] is not True
+            or display["zeroDivisionGlyph"] != "−"
+        ):
+            raise ValueError("採用済み最終比表示の指定が不一致")
+        labels = display["denominators"]
+        if (
+            type(labels) is not list
+            or len(labels) != 2
+            or {x.get("component") for x in labels if type(x) is dict} != component_ids
+        ):
+            raise ValueError("両実分母の表示bindingが必要")
+        for label in labels:
+            if (
+                type(label) is not dict
+                or set(label) != {"component", "prefix", "suffix"}
+                or any(
+                    type(label[k]) is not str or not label[k]
+                    for k in ("prefix", "suffix")
+                )
+            ):
+                raise ValueError("分母表示の閉型が不正")

@@ -241,7 +241,7 @@ def test_generation_never_reads_expectation_or_property_files(monkeypatch):
         return original(path, *args, **kwargs)
 
     monkeypatch.setattr(Path, "read_text", guarded)
-    assert len(generate_primitive_bundle(*models)) == 7
+    assert len(generate_primitive_bundle(*models)) == 8
 
 
 def test_integer_range_and_enum_refusals(generated):
@@ -625,7 +625,7 @@ def _generated_cte(sql, name):
     raise AssertionError("生成CTEが閉じていない")
 
 
-def _execute_generated_season_health(sql, mode):
+def _execute_generated_season_health(sql, mode, category="official", raw_keys=None):
     """実生成JOIN/健康/SUMを有限SQLite面で実行。PG/認可の証明ではない。"""
     import sqlite3
 
@@ -641,7 +641,9 @@ def _execute_generated_season_health(sql, mode):
     conn.execute("ATTACH DATABASE ':memory:' AS public")
     conn.execute("ATTACH DATABASE ':memory:' AS sync_fence")
     conn.create_function(
-        "array_has", 2, lambda key, encoded: key in json.loads(encoded)
+        "array_has",
+        2,
+        lambda key, encoded: None if encoded is None else key in json.loads(encoded),
     )
 
     class BoolAnd:
@@ -682,7 +684,7 @@ CREATE TABLE sync_fence.stats_primitive_facts(tenant_id,game_id,fact_version_id,
         version = "version-" + game
         event = "event-" + game
         conn.execute(
-            "INSERT INTO public.games VALUES(?,?,1,'raw-key','finished',NULL,NULL)",
+            "INSERT INTO public.games VALUES(?,?,1,'game_official','finished',NULL,NULL)",  # noqa: E501 — 生成target/固定SQLのliteral
             (tenant, game),
         )
         model = "old-model" if mode == "wrong-model" and game == "game-b" else "model"
@@ -762,6 +764,23 @@ CREATE TABLE sync_fence.stats_primitive_facts(tenant_id,game_id,fact_version_id,
     body = body.replace(
         "g.game_type_key=ANY(:raw_game_type_keys)",
         "array_has(g.game_type_key,:raw_game_type_keys)",
+    )
+    body = re.sub(
+        r"ARRAY\[([^\]]*)\]::text\[\]",
+        lambda m: (
+            "'"
+            + json.dumps(re.findall(r"'([^']*)'", m.group(1)), separators=(",", ":"))
+            + "'"
+        ),
+        body,
+    )
+    body = body.replace(
+        "CAST(:raw_game_type_keys AS text[])", ":raw_game_type_keys"
+    ).replace("NULL::text[]", "NULL")
+    body = re.sub(
+        r"g\.game_type_key=ANY\((\(CASE :named_category .*? END\))\)",
+        r"array_has(g.game_type_key,\1)",
+        body,
     )  # noqa: E501 — 固定SQL literal
     body = re.sub(
         r"m\.metric_id=ANY\((\w+\.computed_metric_keys)\)",
@@ -777,7 +796,13 @@ CREATE TABLE sync_fence.stats_primitive_facts(tenant_id,game_id,fact_version_id,
                 "model_sha256": "model",
                 "year_start_jst": 0,
                 "year_end_jst": 10,
-                "raw_game_type_keys": json.dumps(["raw-key"]),
+                "raw_game_type_keys": json.dumps(
+                    ["game_official", "game_semi_official"]
+                    if raw_keys is None
+                    else raw_keys,
+                    separators=(",", ":"),
+                ),
+                "named_category": category,
             },
         ).fetchall()
     finally:
@@ -823,3 +848,168 @@ def test_generated_season_rejects_one_game_health_gap(generated, mode):
     assert all(
         state == "source_unavailable" and value is None for _, state, value in rows
     )
+
+
+@pytest.mark.parametrize(
+    "category,raw",
+    [
+        ("unknown", ["game_official"]),
+        ("practice", ["game_open", "game_intrasquad"]),
+        ("official", ["game_other"]),
+    ],
+)
+def test_generated_sql_cannot_turn_invalid_named_selection_into_zero(
+    generated, category, raw
+):
+    """実SQLの閉selector guardが未知/不足/不一致をavailable0へしない。"""
+    rows = _execute_generated_season_health(
+        generated["backend/src/pitchlog/stats/generated/stats.sql"],
+        "single",
+        category,
+        raw,
+    )
+    assert len(rows) == 26 and all(
+        state == "source_unavailable" and value is None for _, state, value in rows
+    )
+
+
+def test_exact_ratio_receiver_and_single_round_preserve_sql_values(generated):
+    """SQL受け口はratioをinteger metricへ偽装せず、全pairとNULLを検査する。"""
+    api = _load_python(generated["backend/src/pitchlog/stats/generated/receiver.py"])
+    receive = api["receive_rate_row"]
+    rows = json.loads(
+        (
+            ROOT / "docs/features/mvp-stats-primitives/primitive-cases.candidate.json"
+        ).read_text()
+    )["current_v2_followup"]["cases"]
+    for case in rows:
+        if case.get("decision") != "D05":
+            continue
+        expected = case["expected"]["rates"]["ops"]
+        ratio = expected["exact_ratio"]
+        components = expected["components"]
+        row = {
+            "rate_id": "ops",
+            "state": expected["state"],
+            "value_state": expected["value_state"],
+            "numerator": None if ratio is None else Decimal(ratio["numerator"]),
+            "denominator": None if ratio is None else Decimal(ratio["denominator"]),
+        }
+        for key in ("obp", "slg"):
+            for side in ("numerator", "denominator"):
+                row[key + "_" + side] = (
+                    None if components is None else Decimal(components[key][side])
+                )
+        assert receive(row, maximum_integer_chars=10000) == expected
+    valid = {
+        "rate_id": "ops",
+        "state": "available",
+        "value_state": "defined",
+        "numerator": 2,
+        "denominator": 3,
+        "obp_numerator": 1,
+        "obp_denominator": 3,
+        "slg_numerator": 1,
+        "slg_denominator": 3,
+    }
+    for key, value in [
+        ("rate_id", "unknown"),
+        ("numerator", True),
+        ("numerator", 1.5),
+        ("numerator", Decimal("1.2")),
+        ("denominator", 0),
+        ("obp_denominator", None),
+        ("extra", 0),
+        ("state", "source_unavailable"),
+    ]:
+        changed = {**valid, key: value}
+        with pytest.raises(ValueError):
+            receive(changed, maximum_integer_chars=10000)
+    with pytest.raises(ValueError):
+        receive(
+            {**valid, "numerator": 2, "denominator": 2}, maximum_integer_chars=10000
+        )
+    with pytest.raises(ValueError):
+        receive(
+            {k: v for k, v in valid.items() if k != "obp_denominator"},
+            maximum_integer_chars=10000,
+        )
+    with pytest.raises(api["OutputBudgetExceeded"]):
+        receive({**valid, "numerator": "1" * 101}, maximum_integer_chars=100)
+
+
+def test_ratio_sql_reuses_full_count_selection_and_keeps_bounded_current_queries(
+    generated,
+):
+    """count/ratesで同じtenant/JST/終了/S/版WHEREを使う実生成SQLを検査する。"""
+    from sqlalchemy import text
+
+    count = generated["backend/src/pitchlog/stats/generated/stats.sql"]
+    rate = generated["backend/src/pitchlog/stats/generated/stats_rates.sql"]
+    sections = dict(
+        part.split("\n", 1) for part in rate.split("-- pitchlog-rate-query: ")[1:]
+    )
+    assert set(sections) == {"season.ops", "game.ops"}
+    assert count.split("\n", 2)[-1].strip().removesuffix(";") in sections["season.ops"]
+    for name, sql in sections.items():
+        assert "GROUP BY player_id, metric_id" in sql
+        assert "g.game_type_key=ANY((CASE :named_category" in sql
+        for token in (
+            "g.tenant_id=:tenant_id",
+            "g.status='finished'",
+            "v.completion_state='confirmed_ended'",
+            "v.public_pointer_receipt_id IS NOT NULL",
+            "g.scheduled_at>=:year_start_jst",
+            "g.scheduled_at<:year_end_jst",
+            "g.hidden_at IS NULL",
+            "g.trashed_at IS NULL",
+            "canonical_source_set_sha256",
+            "v.model_sha256=:model_sha256",
+            "g.id=v.game_id",
+        ):
+            assert token in sql
+        assert "gcd(" in sql and "div(" in sql and "FLOAT" not in sql.upper()
+        assert set(text(sql)._bindparams) == {
+            "tenant_id",
+            "player_id",
+            "model_sha256",
+            "year_start_jst",
+            "year_end_jst",
+            "named_category",
+            "raw_game_type_keys",
+            *({"game_id"} if name == "game.ops" else set()),
+        }
+    assert "AND g.id=:game_id" in sections["game.ops"]
+    window = generated["backend/src/pitchlog/exports/generated/play_primitives.sql"]
+    assert "LIMIT :page_size" in window and "LIMIT :canonical_page_size" in window
+
+
+def test_ratio_sql_decimal_codec_keeps_5000_digit_pairs_at_precision_two(generated):
+    """SQL numericの受け口もDecimal精度へ丸めず、global桁上限を変えない。"""
+    import sys
+    from decimal import localcontext
+
+    receive = _load_python(
+        generated["backend/src/pitchlog/stats/generated/receiver.py"]
+    )["receive_rate_row"]
+    before = sys.get_int_max_str_digits()
+    n, d = "9" * 5000, "5" + "0" * 4999
+    input_denominator = "1" + "0" * 5000
+    with localcontext() as context:
+        context.prec = 2
+        row = {
+            "rate_id": "ops",
+            "state": "available",
+            "value_state": "defined",
+            "numerator": Decimal(n),
+            "denominator": Decimal(d),
+            "obp_numerator": Decimal(n),
+            "obp_denominator": Decimal(input_denominator),
+            "slg_numerator": Decimal(n),
+            "slg_denominator": Decimal(input_denominator),
+        }
+        result = receive(row, maximum_integer_chars=10000)
+    assert result["exact_ratio"] == {"numerator": n, "denominator": d}
+    assert result["components"]["obp"]["denominator"] == input_denominator
+    assert result["formatted_value"] == "2.000"
+    assert sys.get_int_max_str_digits() == before

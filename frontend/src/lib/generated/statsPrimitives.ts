@@ -1,12 +1,12 @@
 /** 自動生成。単一遷移だけを計算し、認可/全game集計を行わない。 */
 export const SOURCE_MODEL_HASH =
-  'sha256:f358df32f54bedfecb2866436e718c7bd6ece514798fe4de2325022d38a09422'
+  'sha256:60ab45878fdfc868efc15ddb0f9b84d6ab0f3583519c48a2202e3d9c3abac59d'
 if (
   (globalThis as { __PITCHLOG_GENERATED_WRAPPER__?: boolean })
     .__PITCHLOG_GENERATED_WRAPPER__ !== true
 )
   throw new Error('登録wrapperが必要です')
-// generated=sha256:f358df32f54bedfecb2866436e718c7bd6ece514798fe4de2325022d38a09422
+// generated=sha256:60ab45878fdfc868efc15ddb0f9b84d6ab0f3583519c48a2202e3d9c3abac59d
 export function parseCount(value: unknown): bigint {
   if (typeof value === 'bigint' && value >= 0n) return value
   if (typeof value === 'number' && Number.isSafeInteger(value) && value >= 0)
@@ -2606,23 +2606,349 @@ export function eventFacts(
     pa_row: paRow,
     source_event_id: _p(event, 'source.source_event_id'),
     selected,
-    pending: {
-      named_category: {
-        state: 'decision_pending',
+    decisions: {
+      D02: {
         decision_id: 'D02',
-        value: null,
+        decision_state: 'adopted',
+        choice: 'A',
+        implementation_state: 'available',
       },
-      appearances: {
-        state: 'decision_pending',
+      D03: {
         decision_id: 'D03',
+        decision_state: 'adopted',
+        choice: 'A',
+        implementation_state: 'pending',
+        source_state: 'not_evaluated',
         value: null,
       },
-      batters_faced: {
-        state: 'decision_pending',
+      D04: {
         decision_id: 'D04',
+        decision_state: 'adopted',
+        choice: 'A',
+        implementation_state: 'pending',
+        source_state: 'not_evaluated',
         value: null,
       },
-      ops: { state: 'decision_pending', decision_id: 'D05', value: null },
+      D05: {
+        decision_id: 'D05',
+        decision_state: 'adopted',
+        choice: 'A',
+        implementation_state: 'available',
+      },
     } as const,
   }
+}
+type RateMetric =
+  | string
+  | null
+  | {
+      state: string
+      value: string | null
+      display: string | null
+      reason: string | null
+    }
+type RatioPair = readonly [bigint, bigint] | null
+type RatioDisplay = {
+  scale: number
+  rounding: string
+  leadingZero: boolean
+  zeroDivisionGlyph: string
+  denominators: readonly { component: string; prefix: string; suffix: string }[]
+}
+function _rateInputs(
+  metrics: unknown,
+  names: readonly string[],
+): Record<string, bigint | null> {
+  if (typeof metrics !== 'object' || metrics === null || Array.isArray(metrics))
+    throw new Error('派生率の閉型が必要です')
+  const source = metrics as Record<string, unknown>
+  if (
+    Object.keys(source).length !== names.length ||
+    Object.keys(source).some((k) => !names.includes(k))
+  )
+    throw new Error('派生率の十分統計は閉26項目が必要です')
+  const values: Record<string, bigint | null> = {}
+  for (const key of names) {
+    let row = source[key]
+    if (typeof row === 'object' && row !== null && !Array.isArray(row)) {
+      const metric = row as Record<string, unknown>
+      if (
+        Object.keys(metric).length !== 4 ||
+        Object.keys(metric).some(
+          (k) => !['state', 'value', 'display', 'reason'].includes(k),
+        )
+      )
+        throw new Error('十分統計の閉型が不正です')
+      if (metric.state === 'source_unavailable') {
+        if (
+          metric.value !== null ||
+          metric.display !== null ||
+          ![
+            'MISSING_OBSERVATION',
+            'MISSING_ATTRIBUTION',
+            'UNSUPPORTED_SOURCE_VARIANT',
+          ].includes(metric.reason as string)
+        )
+          throw new Error('不足観測の型が不正です')
+        values[key] = null
+        continue
+      }
+      if (
+        metric.state !== 'available' ||
+        metric.value === null ||
+        metric.reason !== null ||
+        metric.display !== metric.value
+      )
+        throw new Error('十分統計の状態が不正です')
+      row = metric.value
+    }
+    if (row === null) values[key] = null
+    else if (typeof row === 'string' && /^(0|[1-9][0-9]*)(?![\s\S])/.test(row))
+      values[key] = BigInt(row)
+    else throw new Error('十分統計は正準整数文字列です')
+  }
+  return values
+}
+function _rateAdd(...values: Array<bigint | null | undefined>): bigint | null {
+  let result = 0n
+  for (const value of values) {
+    if (value === null || value === undefined) return null
+    result += value
+  }
+  return result
+}
+function _ratio(
+  n: bigint | null | undefined,
+  d: bigint | null | undefined,
+): RatioPair {
+  return n === null || n === undefined || d === null || d === undefined
+    ? null
+    : [n, d]
+}
+function _ratioAdd(...values: RatioPair[]): RatioPair {
+  let n = 0n,
+    d = 1n
+  for (const value of values) {
+    if (value === null || value[1] === 0n) return null
+    n = n * value[1] + value[0] * d
+    d *= value[1]
+  }
+  return [n, d]
+}
+function _rateReason(
+  metrics: Record<string, RateMetric>,
+  dependencies: readonly string[],
+): string {
+  for (const key of dependencies) {
+    const row = metrics[key]
+    if (
+      typeof row === 'object' &&
+      row !== null &&
+      row.state === 'source_unavailable'
+    )
+      return row.reason!
+  }
+  return 'MISSING_OBSERVATION'
+}
+function _rateResult(
+  value: RatioPair,
+  components: Record<string, RatioPair>,
+  display: RatioDisplay,
+  reason = 'MISSING_OBSERVATION',
+) {
+  const expected = display.denominators.map((x) => x.component)
+  if (
+    Object.keys(components).length !== expected.length ||
+    Object.keys(components).some((k) => !expected.includes(k))
+  )
+    throw new Error('比componentの閉集合が不正です')
+  for (const pair of [value, ...Object.values(components)])
+    if (
+      pair !== null &&
+      (!Array.isArray(pair) ||
+        pair.length !== 2 ||
+        pair.some((x) => typeof x !== 'bigint' || x < 0n))
+    )
+      throw new Error('比の整数型が不正です')
+  if (Object.values(components).some((pair) => pair === null) && value !== null)
+    throw new Error('不足観測に比を補完できません')
+  if (Object.values(components).some((pair) => pair === null))
+    return {
+      state: 'source_unavailable',
+      value_state: 'not_evaluated',
+      exact_ratio: null,
+      components: null,
+      formatted_value: null,
+      display: null,
+      reason,
+    }
+  const raw: Record<string, { numerator: string; denominator: string }> = {}
+  for (const [key, pair] of Object.entries(components)) {
+    if (pair === null) throw new Error('比が不足しています')
+    raw[key] = {
+      numerator: pair[0].toString(),
+      denominator: pair[1].toString(),
+    }
+  }
+  let exact: { numerator: string; denominator: string } | null = null,
+    formatted: string,
+    state: string
+  if (
+    Object.values(components).some((pair) => pair !== null && pair[1] === 0n)
+  ) {
+    formatted = display.zeroDivisionGlyph
+    state = 'undefined_zero_denominator'
+  } else {
+    if (value === null) throw new Error('定義済み比の値が不足しています')
+    let [n, d] = value,
+      a = n,
+      b = d
+    if (d === 0n) throw new Error('定義済み比の分母は正です')
+    while (b !== 0n) {
+      const r = a % b
+      a = b
+      b = r
+    }
+    n /= a
+    d /= a
+    exact = { numerator: n.toString(), denominator: d.toString() }
+    const power = 10n ** BigInt(display.scale),
+      q = (n * power) / d,
+      r = (n * power) % d
+    const rounded = q + (2n * r >= d ? 1n : 0n)
+    formatted =
+      (rounded / power).toString() +
+      '.' +
+      (rounded % power).toString().padStart(display.scale, '0')
+    state = 'defined'
+  }
+  const labels = display.denominators.map(
+    (label) => label.prefix + raw[label.component]!.denominator + label.suffix,
+  )
+  return {
+    state: 'available',
+    value_state: state,
+    exact_ratio: exact,
+    components: raw,
+    formatted_value: formatted,
+    display: formatted + '(' + labels.join('・') + ')',
+    reason: null,
+  }
+}
+
+const GAME_TYPE_SCOPES: Record<string, readonly string[]> = {
+  official: ['game_official', 'game_semi_official'],
+  practice: ['game_open', 'game_intrasquad', 'game_other'],
+  all: [
+    'game_official',
+    'game_semi_official',
+    'game_open',
+    'game_intrasquad',
+    'game_other',
+  ],
+}
+export function selectGameTypeKeys(
+  namedCategory: unknown = 'all',
+  rawKeys?: unknown,
+): string[] {
+  if (
+    typeof namedCategory !== 'string' ||
+    !Object.hasOwn(GAME_TYPE_SCOPES, namedCategory)
+  )
+    throw new Error('未知のnamed categoryです')
+  const keys = GAME_TYPE_SCOPES[namedCategory]!
+  if (
+    rawKeys !== undefined &&
+    (!Array.isArray(rawKeys) ||
+      rawKeys.length !== keys.length ||
+      rawKeys.some((x, i) => typeof x !== 'string' || x !== keys[i]))
+  )
+    throw new Error('named/raw集合が不一致です')
+  return [...keys]
+}
+export function decisionMetadata() {
+  return {
+    D02: {
+      decision_id: 'D02',
+      decision_state: 'adopted',
+      choice: 'A',
+      implementation_state: 'available',
+    },
+    D03: {
+      decision_id: 'D03',
+      decision_state: 'adopted',
+      choice: 'A',
+      implementation_state: 'pending',
+      source_state: 'not_evaluated',
+      value: null,
+    },
+    D04: {
+      decision_id: 'D04',
+      decision_state: 'adopted',
+      choice: 'A',
+      implementation_state: 'pending',
+      source_state: 'not_evaluated',
+      value: null,
+    },
+    D05: {
+      decision_id: 'D05',
+      decision_state: 'adopted',
+      choice: 'A',
+      implementation_state: 'available',
+    },
+  } as const
+}
+export function deriveRates(metrics: Record<string, RateMetric>) {
+  const values = _rateInputs(metrics, [
+    'pitch_count',
+    'pa',
+    'ab',
+    'h',
+    'hr',
+    'bb',
+    'hbp',
+    'k',
+    'sh',
+    'sf',
+    'catcher_interference_reached',
+    'runner_interference_reached',
+    'doubles',
+    'triples',
+    'total_bases',
+    'runs',
+    'rbi',
+    'stolen_bases',
+    'pitching_outs',
+    'pitcher_k',
+    'pitcher_bb',
+    'pitcher_hbp',
+    'hits_allowed',
+    'home_runs_allowed',
+    'fielding_errors',
+    'runs_allowed',
+  ])
+  const results: Record<string, ReturnType<typeof _rateResult>> = {}
+  const parts0: Record<string, RatioPair> = {
+    obp: _ratio(
+      _rateAdd(values['h'], values['bb'], values['hbp']),
+      _rateAdd(values['ab'], values['bb'], values['hbp'], values['sf']),
+    ),
+    slg: _ratio(values['total_bases'], values['ab']),
+  }
+  results['ops'] = _rateResult(
+    _ratioAdd(parts0['obp']!, parts0['slg']!),
+    parts0,
+    {
+      scale: 3,
+      rounding: 'half-up',
+      leadingZero: true,
+      zeroDivisionGlyph: '−',
+      denominators: [
+        { component: 'obp', prefix: '出塁率分母', suffix: '打席' },
+        { component: 'slg', prefix: '長打率分母', suffix: '打数' },
+      ],
+    },
+    _rateReason(metrics, ['h', 'bb', 'hbp', 'ab', 'sf', 'total_bases']),
+  )
+  return results
 }

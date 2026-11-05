@@ -4,7 +4,7 @@
     {
       "calculationId": "canonicalEventFacts",
       "typedProgram": {
-        "version": 1,
+        "version": 2,
         "kind": "event-facts",
         "fields": {
           "event_kind": {
@@ -1552,34 +1552,160 @@
             "kind": "accepted-play-slot-v1"
           }
         },
-        "pendingDecisions": {
-          "named_category": {
-            "state": "decision_pending",
-            "decision_id": "D02",
-            "value": null
-          },
-          "appearances": {
-            "state": "decision_pending",
-            "decision_id": "D03",
-            "value": null
-          },
-          "batters_faced": {
-            "state": "decision_pending",
-            "decision_id": "D04",
-            "value": null
-          },
-          "ops": {
-            "state": "decision_pending",
-            "decision_id": "D05",
-            "value": null
-          }
-        },
         "numericEnvelope": {
           "minimum": 0,
           "maximum": null
         },
         "closedRecords": [
           "stat_flags"
+        ],
+        "decisions": {
+          "D02": {
+            "decision_id": "D02",
+            "decision_state": "adopted",
+            "choice": "A",
+            "implementation_state": "available"
+          },
+          "D03": {
+            "decision_id": "D03",
+            "decision_state": "adopted",
+            "choice": "A",
+            "implementation_state": "pending",
+            "source_state": "not_evaluated",
+            "value": null
+          },
+          "D04": {
+            "decision_id": "D04",
+            "decision_state": "adopted",
+            "choice": "A",
+            "implementation_state": "pending",
+            "source_state": "not_evaluated",
+            "value": null
+          },
+          "D05": {
+            "decision_id": "D05",
+            "decision_state": "adopted",
+            "choice": "A",
+            "implementation_state": "available"
+          }
+        },
+        "namedScopes": {
+          "default": "all",
+          "groups": {
+            "official": [
+              "game_official",
+              "game_semi_official"
+            ],
+            "practice": [
+              "game_open",
+              "game_intrasquad",
+              "game_other"
+            ],
+            "all": [
+              "game_official",
+              "game_semi_official",
+              "game_open",
+              "game_intrasquad",
+              "game_other"
+            ]
+          }
+        },
+        "derivedMetrics": [
+          {
+            "id": "ops",
+            "type": "ratio",
+            "components": [
+              {
+                "id": "obp",
+                "expression": {
+                  "op": "ratio",
+                  "numerator": {
+                    "op": "add",
+                    "args": [
+                      {
+                        "op": "metric",
+                        "id": "h"
+                      },
+                      {
+                        "op": "metric",
+                        "id": "bb"
+                      },
+                      {
+                        "op": "metric",
+                        "id": "hbp"
+                      }
+                    ]
+                  },
+                  "denominator": {
+                    "op": "add",
+                    "args": [
+                      {
+                        "op": "metric",
+                        "id": "ab"
+                      },
+                      {
+                        "op": "metric",
+                        "id": "bb"
+                      },
+                      {
+                        "op": "metric",
+                        "id": "hbp"
+                      },
+                      {
+                        "op": "metric",
+                        "id": "sf"
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "id": "slg",
+                "expression": {
+                  "op": "ratio",
+                  "numerator": {
+                    "op": "metric",
+                    "id": "total_bases"
+                  },
+                  "denominator": {
+                    "op": "metric",
+                    "id": "ab"
+                  }
+                }
+              }
+            ],
+            "expression": {
+              "op": "ratio-add",
+              "args": [
+                {
+                  "op": "component",
+                  "id": "obp"
+                },
+                {
+                  "op": "component",
+                  "id": "slg"
+                }
+              ]
+            },
+            "display": {
+              "scale": 3,
+              "rounding": "half-up",
+              "leadingZero": true,
+              "zeroDivisionGlyph": "−",
+              "denominators": [
+                {
+                  "component": "obp",
+                  "prefix": "出塁率分母",
+                  "suffix": "打席"
+                },
+                {
+                  "component": "slg",
+                  "prefix": "長打率分母",
+                  "suffix": "打数"
+                }
+              ]
+            }
+          }
         ]
       }
     }

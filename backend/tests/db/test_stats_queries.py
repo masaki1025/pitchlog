@@ -133,3 +133,52 @@ def test_real_generated_sql_has_same_native_membership_count_and_window(
             {**params, "tenant_id": UUID("00000000-0000-0000-0000-000000000099")},
         )
         assert foreign[0][:3] == (0, 0, 0)
+
+
+def test_real_pending_game_is_not_published_as_completed_ops(vertical_database):
+    """同版native接合後の所有PGでのみ実行し、未終了試合を集計しない。"""
+    from datetime import datetime
+
+    db = vertical_database
+    _run_native_reader(db)
+    raw = (
+        Path(__file__).resolve().parents[2]
+        / "src/pitchlog/stats/generated/stats_rates.sql"
+    ).read_text()
+    sections = dict(
+        part.split("\n", 1) for part in raw.split("-- pitchlog-rate-query: ")[1:]
+    )
+    assert set(sections) == {"season.ops", "game.ops"}
+    with psycopg.connect(db.authority.database.business_admin) as conn:
+        rows = conn.execute(
+            "SELECT v.game_id,f.player_id FROM sync_fence.stats_fact_versions v JOIN sync_fence.stats_primitive_facts f ON f.tenant_id=v.tenant_id AND f.game_id=v.game_id AND f.fact_version_id=v.id WHERE v.tenant_id=%s AND v.is_current AND f.metric_id='pitch_count'",  # noqa: E501 — 生成target/固定SQLのliteral
+            (db.tenant_id,),
+        ).fetchall()
+        assert rows
+        game, player = rows[0]
+        params = {
+            "tenant_id": db.tenant_id,
+            "game_id": game,
+            "player_id": player,
+            "model_sha256": SOURCE_MODEL_HASH,
+            "year_start_jst": datetime.fromisoformat("2026-01-01T00:00:00+09:00"),
+            "year_end_jst": datetime.fromisoformat("2027-01-01T00:00:00+09:00"),
+            "named_category": "all",
+            "raw_game_type_keys": [
+                "game_official",
+                "game_semi_official",
+                "game_open",
+                "game_intrasquad",
+                "game_other",
+            ],
+        }
+        for sql in sections.values():
+            result = _execute(conn, sql, params)
+            assert len(result) == 1 and tuple(result[0][:5]) == (
+                "ops",
+                "available",
+                "undefined_zero_denominator",
+                None,
+                None,
+            )
+            assert tuple(result[0][5:]) == (0, 0, 0, 0)

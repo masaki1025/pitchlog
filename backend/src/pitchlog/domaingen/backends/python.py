@@ -293,8 +293,10 @@ def _pitchlog_generated(event, requested_metrics=None):
         lines.append(f"        pa_row[{key!r}] = metrics[{mid!r}]['value']")
         lines.append(f"        pa_row[{key + '_state'!r}] = metrics[{mid!r}]['state']")
     lines.append(
-        f"    return {{'metrics': metrics, 'pa_row': pa_row, 'source_event_id': _p(event, 'source.source_event_id'), 'selected': selected, 'pending': {program['pendingDecisions']!r}}}"  # noqa: E501 — 生成targetのliteral
+        f"    return {{'metrics': metrics, 'pa_row': pa_row, 'source_event_id': _p(event, 'source.source_event_id'), 'selected': selected, {('decisions' if program['version'] == 2 else 'pending')!r}: {program['decisions' if program['version'] == 2 else 'pendingDecisions']!r}}}"  # noqa: E501 — 生成targetのliteral
     )
+    if program["version"] == 2:
+        lines.append(generate_derived_facts(program, source_hash))
     return "\n".join(lines) + "\n"
 
 
@@ -344,3 +346,148 @@ def receive_fact_row(row, *, maximum_integer_chars):
         raise OutputBudgetExceeded("整数の出力資源予算超過")
     return {{**row, "value": rendered, "display": rendered}}
 '''
+
+
+def generate_derived_facts(program, source_hash: str) -> str:
+    """共通D1の有限集合とratio ASTだけから派生操作を生成する。"""
+    from pitchlog.domaingen.core import rate_metric_dependencies, typed_rate_expression
+    from pitchlog.domaingen.formatter import ratio_target
+
+    names = tuple(m["id"] for m in program["metrics"])
+    groups = program["namedScopes"]["groups"]
+    lines = [
+        ratio_target("python", source_hash),
+        f"GAME_TYPE_SCOPES = {groups!r}",
+        "def select_game_type_keys(named_category='all', raw_game_type_keys=None):",
+        "    if type(named_category) is not str or named_category not in GAME_TYPE_SCOPES:",  # noqa: E501 — 生成target/固定SQLのliteral
+        "        raise ValueError('未知のnamed categoryです')",
+        "    keys = list(GAME_TYPE_SCOPES[named_category])",
+        "    if raw_game_type_keys is not None and (type(raw_game_type_keys) is not list or any(type(x) is not str for x in raw_game_type_keys) or raw_game_type_keys != keys):",  # noqa: E501 — 生成target/固定SQLのliteral
+        "        raise ValueError('named/raw集合が不一致です')",
+        "    return keys",
+        "def decision_metadata():",
+        f"    return {program['decisions']!r}",
+        "def derive_rates(metrics):",
+        f"    values = _rate_inputs(metrics, {names!r})",
+        "    results = {}",
+    ]
+    for index, row in enumerate(program["derivedMetrics"]):
+        parts = f"parts_{index}"
+        component_items = [
+            repr(c["id"])
+            + ": "
+            + typed_rate_expression(c["expression"], "python", parts)
+            for c in row["components"]
+        ]
+        lines.append("    " + parts + " = {" + ", ".join(component_items) + "}")
+        expression = typed_rate_expression(row["expression"], "python", parts)
+        dependencies = rate_metric_dependencies({"components": row["components"]})
+        lines.append(
+            f"    results[{row['id']!r}] = _rate_result({expression}, {parts}, {row['display']!r}, _rate_reason(metrics, {dependencies!r}))"  # noqa: E501 — 生成target/固定SQLのliteral
+        )
+    lines.append("    return results")
+    return "\n".join(lines) + "\n"
+
+
+def generate_ratio_formatter(program, source_hash: str) -> str:
+    """宣言済rate IDと表示bindingだけを公開formatterへ閉じる。"""
+    from pitchlog.domaingen.formatter import ratio_formatter_target
+
+    display = {row["id"]: row["display"] for row in program["derivedMetrics"]}
+    return (
+        ratio_formatter_target("python", source_hash)
+        + "\n"
+        + f"_RATE_DISPLAYS = {display!r}\n"
+        + "def format_derived_rate(rate_id, value, components, reason='MISSING_OBSERVATION'):\n    if type(rate_id) is not str or rate_id not in _RATE_DISPLAYS:\n        raise ValueError('未知の派生率です')\n    return _rate_result(value, components, _RATE_DISPLAYS[rate_id], reason)\n"  # noqa: E501 — 生成target/固定SQLのliteral
+    )
+
+
+def generate_ratio_receiver(program, source_hash: str) -> str:
+    """SQL比の全列をコピーし、未知/NULL不整合と非正準比を拒否する。"""
+    components = {
+        row["id"]: [c["id"] for c in row["components"]]
+        for row in program["derivedMetrics"]
+    }
+    return (
+        generate_ratio_formatter(program, source_hash)
+        + f"\n_RATE_COMPONENTS = {components!r}\n"
+        + r"""
+def _receive_ratio_integer(value, budget):
+    if value is None:
+        return None
+    if type(value) is Decimal:
+        if not value.is_finite() or (
+            not value.is_zero() and value.adjusted() >= budget
+        ):
+            raise OutputBudgetExceeded("比SQL numericの出力資源予算超過/非有限")
+        if value != int(value):
+            raise ValueError("比SQL numericは整数が必要です")
+        value = int(value)
+    if type(value) is str and len(value) > budget:
+        raise OutputBudgetExceeded("比の出力資源予算超過")
+    if type(value) is int and value.bit_length() > budget * 4:
+        raise OutputBudgetExceeded("比の出力資源予算超過")
+    rendered = format_count(value)
+    if rendered is None or len(rendered) > budget:
+        raise OutputBudgetExceeded("比の出力資源予算超過")
+    return parse_count(rendered)
+
+
+def receive_rate_row(row, *, maximum_integer_chars):
+    if type(maximum_integer_chars) is not int or maximum_integer_chars < 1:
+        raise ValueError("出力資源予算を明示してください")
+    if (
+        type(row) is not dict
+        or type(row.get("rate_id")) is not str
+        or row["rate_id"] not in _RATE_COMPONENTS
+    ):
+        raise ValueError("未知の派生率です")
+    keys = _RATE_COMPONENTS[row["rate_id"]]
+    expected = {"rate_id", "state", "value_state", "numerator", "denominator"} | {
+        key + "_" + side for key in keys for side in ("numerator", "denominator")
+    }
+    if set(row) != expected:
+        raise ValueError("比SQL受け口の閉型が不正です")
+    value_n = _receive_ratio_integer(row["numerator"], maximum_integer_chars)
+    value_d = _receive_ratio_integer(row["denominator"], maximum_integer_chars)
+    components = {}
+    for key in keys:
+        n = _receive_ratio_integer(row[key + "_numerator"], maximum_integer_chars)
+        d = _receive_ratio_integer(row[key + "_denominator"], maximum_integer_chars)
+        if (n is None) != (d is None):
+            raise ValueError("比componentのNULLが不整合です")
+        components[key] = None if n is None else (n, d)
+    if row["state"] == "source_unavailable" and row["value_state"] == "not_evaluated":
+        if (
+            value_n is not None
+            or value_d is not None
+            or any(pair is not None for pair in components.values())
+        ):
+            raise ValueError("source不足を0で補完できません")
+        return format_derived_rate(row["rate_id"], None, components)
+    if row["state"] != "available" or any(pair is None for pair in components.values()):
+        raise ValueError("比SQLの状態が不一致です")
+    if row["value_state"] == "undefined_zero_denominator":
+        if (
+            value_n is not None
+            or value_d is not None
+            or not any(pair[1] == 0 for pair in components.values())
+        ):
+            raise ValueError("零除算とNULLが不一致です")
+        return format_derived_rate(row["rate_id"], None, components)
+    if (
+        row["value_state"] != "defined"
+        or value_n is None
+        or value_d is None
+        or value_d == 0
+        or any(pair[1] == 0 for pair in components.values())
+    ):
+        raise ValueError("定義済み比の全値が不足しています")
+    a, b = value_n, value_d
+    while b:
+        a, b = b, a % b
+    if a != 1:
+        raise ValueError("SQLの最終比は正準既約である必要があります")
+    return format_derived_rate(row["rate_id"], (value_n, value_d), components)
+"""
+    )

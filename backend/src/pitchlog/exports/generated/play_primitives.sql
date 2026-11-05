@@ -1,4 +1,4 @@
--- 自動生成 model=sha256:f358df32f54bedfecb2866436e718c7bd6ece514798fe4de2325022d38a09422
+-- 自動生成 model=sha256:60ab45878fdfc868efc15ddb0f9b84d6ab0f3583519c48a2202e3d9c3abac59d
 -- 正式operation/receiptはroot binding、実DB実行前は成功を主張しない。
 -- pitchlog-query: window
 WITH requested_metrics(metric_id) AS (VALUES ('pitch_count'), ('pa'), ('ab'), ('h'), ('hr'), ('bb'), ('hbp'), ('k'), ('sh'), ('sf'), ('catcher_interference_reached'), ('runner_interference_reached'), ('doubles'), ('triples'), ('total_bases'), ('runs'), ('rbi'), ('stolen_bases'), ('pitching_outs'), ('pitcher_k'), ('pitcher_bb'), ('pitcher_hbp'), ('hits_allowed'), ('home_runs_allowed'), ('fielding_errors'), ('runs_allowed')),

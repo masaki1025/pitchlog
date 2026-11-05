@@ -1,11 +1,11 @@
--- 自動生成 model=sha256:f358df32f54bedfecb2866436e718c7bd6ece514798fe4de2325022d38a09422
+-- 自動生成 model=sha256:60ab45878fdfc868efc15ddb0f9b84d6ab0f3583519c48a2202e3d9c3abac59d
 -- 正式operation/receiptはroot binding、実DB実行前は成功を主張しない。
 WITH requested_metrics(metric_id) AS (VALUES ('pitch_count'), ('pa'), ('ab'), ('h'), ('hr'), ('bb'), ('hbp'), ('k'), ('sh'), ('sf'), ('catcher_interference_reached'), ('runner_interference_reached'), ('doubles'), ('triples'), ('total_bases'), ('runs'), ('rbi'), ('stolen_bases'), ('pitching_outs'), ('pitcher_k'), ('pitcher_bb'), ('pitcher_hbp'), ('hits_allowed'), ('home_runs_allowed'), ('fielding_errors'), ('runs_allowed')),
 canonical_scope AS (
  SELECT g.tenant_id,g.id AS game_id FROM public.games g
  WHERE g.tenant_id=:tenant_id AND g.hidden_at IS NULL AND g.trashed_at IS NULL
    AND g.status NOT IN ('hidden','trashed')
-   AND g.status='finished' AND g.scheduled_at>=:year_start_jst AND g.scheduled_at<:year_end_jst AND g.game_type_key=ANY(:raw_game_type_keys)
+   AND g.status='finished' AND g.scheduled_at>=:year_start_jst AND g.scheduled_at<:year_end_jst AND (CAST(:raw_game_type_keys AS text[])=(CASE :named_category WHEN 'official' THEN ARRAY['game_official','game_semi_official']::text[] WHEN 'practice' THEN ARRAY['game_open','game_intrasquad','game_other']::text[] WHEN 'all' THEN ARRAY['game_official','game_semi_official','game_open','game_intrasquad','game_other']::text[] ELSE NULL::text[] END)) AND g.game_type_key=ANY((CASE :named_category WHEN 'official' THEN ARRAY['game_official','game_semi_official']::text[] WHEN 'practice' THEN ARRAY['game_open','game_intrasquad','game_other']::text[] WHEN 'all' THEN ARRAY['game_official','game_semi_official','game_open','game_intrasquad','game_other']::text[] ELSE NULL::text[] END))
 ), canonical_raw AS (
  SELECT slot.tenant_id,slot.game_id,slot.generation AS recording_generation,
    slot.d1,e.d2,slot.confirmed_version AS slot_version,e.id AS base_event_id,
@@ -70,7 +70,7 @@ canonical_scope AS (
    AND v.completion_state='confirmed_ended'
    AND v.completion_receipt_id IS NOT NULL AND v.public_pointer_receipt_id IS NOT NULL
    AND g.scheduled_at>=:year_start_jst AND g.scheduled_at<:year_end_jst
-   AND g.game_type_key=ANY(:raw_game_type_keys)
+   AND (CAST(:raw_game_type_keys AS text[])=(CASE :named_category WHEN 'official' THEN ARRAY['game_official','game_semi_official']::text[] WHEN 'practice' THEN ARRAY['game_open','game_intrasquad','game_other']::text[] WHEN 'all' THEN ARRAY['game_official','game_semi_official','game_open','game_intrasquad','game_other']::text[] ELSE NULL::text[] END)) AND g.game_type_key=ANY((CASE :named_category WHEN 'official' THEN ARRAY['game_official','game_semi_official']::text[] WHEN 'practice' THEN ARRAY['game_open','game_intrasquad','game_other']::text[] WHEN 'all' THEN ARRAY['game_official','game_semi_official','game_open','game_intrasquad','game_other']::text[] ELSE NULL::text[] END))
 ), source_members AS (
  SELECT s.* FROM sync_fence.stats_primitive_sources s
  JOIN version_scope v ON v.tenant_id=s.tenant_id AND v.game_id=s.game_id
@@ -130,14 +130,14 @@ SELECT m.metric_id,
  CASE WHEN EXISTS (SELECT 1 FROM binding_health WHERE invalid)
      OR EXISTS (SELECT 1 FROM canonical_health ch LEFT JOIN version_scope bound_version
        ON bound_version.tenant_id=ch.tenant_id AND bound_version.game_id=ch.game_id
-       WHERE bound_version.id IS NULL)
+       WHERE bound_version.id IS NULL) OR NOT COALESCE((CAST(:raw_game_type_keys AS text[])=(CASE :named_category WHEN 'official' THEN ARRAY['game_official','game_semi_official']::text[] WHEN 'practice' THEN ARRAY['game_open','game_intrasquad','game_other']::text[] WHEN 'all' THEN ARRAY['game_official','game_semi_official','game_open','game_intrasquad','game_other']::text[] ELSE NULL::text[] END)),false)
      OR EXISTS (SELECT 1 FROM version_scope coverage
                 WHERE NOT (m.metric_id=ANY(coverage.computed_metric_keys)))
      OR a.complete=false THEN 'source_unavailable' ELSE 'available' END AS state,
  CASE WHEN EXISTS (SELECT 1 FROM binding_health WHERE invalid)
      OR EXISTS (SELECT 1 FROM canonical_health ch LEFT JOIN version_scope bound_version
        ON bound_version.tenant_id=ch.tenant_id AND bound_version.game_id=ch.game_id
-       WHERE bound_version.id IS NULL)
+       WHERE bound_version.id IS NULL) OR NOT COALESCE((CAST(:raw_game_type_keys AS text[])=(CASE :named_category WHEN 'official' THEN ARRAY['game_official','game_semi_official']::text[] WHEN 'practice' THEN ARRAY['game_open','game_intrasquad','game_other']::text[] WHEN 'all' THEN ARRAY['game_official','game_semi_official','game_open','game_intrasquad','game_other']::text[] ELSE NULL::text[] END)),false)
      OR EXISTS (SELECT 1 FROM version_scope coverage
                 WHERE NOT (m.metric_id=ANY(coverage.computed_metric_keys)))
      OR a.complete=false THEN NULL ELSE COALESCE(a.value,0) END AS value

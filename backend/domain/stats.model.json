@@ -5,9 +5,9 @@
       "calculationId": "seasonCountFacts",
       "typedProgram": {
         "kind": "primitive-refs",
-        "version": 1,
+        "version": 2,
         "commonCalculationId": "canonicalEventFacts",
-        "commonModelHash": "sha256:f358df32f54bedfecb2866436e718c7bd6ece514798fe4de2325022d38a09422",
+        "commonModelHash": "sha256:60ab45878fdfc868efc15ddb0f9b84d6ab0f3583519c48a2202e3d9c3abac59d",
         "refs": [
           {
             "id": "pitch_count",
@@ -112,6 +112,12 @@
           {
             "id": "runs_allowed",
             "type": "integer"
+          }
+        ],
+        "derivedRefs": [
+          {
+            "id": "ops",
+            "type": "ratio"
           }
         ]
       }

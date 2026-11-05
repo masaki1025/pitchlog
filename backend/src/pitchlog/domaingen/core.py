@@ -925,18 +925,22 @@ def _generate_primitive_targets(
         program = calculation["typedProgram"]
         validate_typed_program(program)
         reference = consumer_model["calculations"][0]["typedProgram"]
-        if set(reference) != {
+        reference_keys = {
             "kind",
             "version",
             "commonCalculationId",
             "commonModelHash",
             "refs",
-        }:
+        }
+        if program["version"] == 2:
+            reference_keys.add("derivedRefs")
+        if set(reference) != reference_keys:
             raise ValueError("consumerはID/hash/type参照だけが必要")
         source_hash = _canonical_hash(common_model)
         if (
             reference["kind"] != "primitive-refs"
-            or reference["version"] != 1
+            or type(reference["version"]) is not int
+            or reference["version"] != program["version"]
             or reference["commonCalculationId"] != calculation["calculationId"]
             or reference["commonModelHash"] != source_hash
             or consumer_model["calculations"][0]["calculationId"]
@@ -946,14 +950,23 @@ def _generate_primitive_targets(
         expected = [{"id": m["id"], "type": "integer"} for m in program["metrics"]]
         if reference["refs"] != expected:
             raise ValueError("primitive ID/型/順序の参照不一致")
+        if program["version"] == 2 and reference["derivedRefs"] != [
+            {"id": row["id"], "type": "ratio"} for row in program["derivedMetrics"]
+        ]:
+            raise ValueError("派生率ID/型/順序の参照不一致")
         queries = sql_backend.generate_typed_queries(program, source_hash)
         if sql_only:
-            return {
+            sql_bundle = {
                 "backend/src/pitchlog/exports/generated/play_primitives.sql": queries[
                     "window"
                 ],
                 "backend/src/pitchlog/stats/generated/stats.sql": queries["grouped"],
             }
+            if program["version"] == 2:
+                sql_bundle["backend/src/pitchlog/stats/generated/stats_rates.sql"] = (
+                    queries["rates"]
+                )
+            return sql_bundle
         py = py_backend.generate_typed_facts(program, source_hash)
         ts = ts_backend.generate_typed_facts(program, source_hash)
         raw_bundle = {
@@ -973,6 +986,19 @@ def _generate_primitive_targets(
                 "typescript", source_hash
             ),
         }
+        if program["version"] == 2:
+            raw_bundle["backend/src/pitchlog/stats/generated/stats_rates.sql"] = (
+                queries["rates"]
+            )
+            raw_bundle["backend/src/pitchlog/stats/generated/receiver.py"] += (
+                py_backend.generate_ratio_receiver(program, source_hash)
+            )
+            raw_bundle["backend/src/pitchlog/stats/generated/formatter.py"] += (
+                py_backend.generate_ratio_formatter(program, source_hash)
+            )
+            raw_bundle["frontend/src/lib/generated/statsFormatter.ts"] += (
+                ts_backend.generate_ratio_formatter(program, source_hash)
+            )
         return {
             path: _format_typed_target(path, content)
             for path, content in raw_bundle.items()
@@ -1038,3 +1064,55 @@ def _format_typed_target(path: str, content: str) -> str:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
+
+def typed_rate_expression(
+    node: Mapping[str, Any], language: str, components: str
+) -> str:
+    """型検査済み比ASTを直接演算へ下げ、fixture lookupを作らない。"""
+    js = language == "typescript"
+    op = node["op"]
+    if op == "metric":
+        return "values[" + json.dumps(node["id"]) + "]"
+    if op == "component":
+        return components + "[" + json.dumps(node["id"]) + "]" + ("!" if js else "")
+    if op == "literal":
+        return str(node["value"]) + ("n" if js else "")
+    if op == "add":
+        args = [typed_rate_expression(x, language, components) for x in node["args"]]
+        return ("_rateAdd(" if js else "_rate_add(") + ",".join(args) + ")"
+    if op == "ratio":
+        return (
+            "_ratio("
+            + typed_rate_expression(node["numerator"], language, components)
+            + ","
+            + typed_rate_expression(node["denominator"], language, components)
+            + ")"
+        )
+    if op == "ratio-add":
+        return (
+            ("_ratioAdd(" if js else "_ratio_add(")
+            + ",".join(
+                typed_rate_expression(x, language, components) for x in node["args"]
+            )
+            + ")"
+        )
+    raise GenerationError("未対応の型付き比演算")
+
+
+def rate_metric_dependencies(node: Mapping[str, Any]) -> tuple[str, ...]:
+    """式で参照する十分統計IDを宣言順に一度だけ列挙する。"""
+    result = []
+
+    def walk(value):
+        if isinstance(value, dict):
+            if value.get("op") == "metric" and value["id"] not in result:
+                result.append(value["id"])
+            for child in value.values():
+                walk(child)
+        elif isinstance(value, list):
+            for child in value:
+                walk(child)
+
+    walk(node)
+    return tuple(result)

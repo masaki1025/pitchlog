@@ -67,6 +67,22 @@ def generate_typed_queries(program, source_hash: str) -> dict[str, str]:
     from pitchlog.domaingen.pregen_checks import validate_primitive_sql_binding
 
     binding = program["sql"]
+    category_filter = "AND g.game_type_key=ANY(:raw_game_type_keys)"
+    category_guard = "true"
+    if program["version"] == 2:
+        branches = " ".join(
+            "WHEN '"
+            + name
+            + "' THEN ARRAY["
+            + ",".join("'" + key + "'" for key in keys)
+            + "]::text[]"
+            for name, keys in program["namedScopes"]["groups"].items()
+        )
+        canonical_keys = "(CASE :named_category " + branches + " ELSE NULL::text[] END)"
+        category_guard = "(CAST(:raw_game_type_keys AS text[])=" + canonical_keys + ")"
+        category_filter = (
+            "AND " + category_guard + " AND g.game_type_key=ANY(" + canonical_keys + ")"
+        )
     try:
         validate_primitive_sql_binding(binding)
     except ValueError as error:
@@ -149,9 +165,11 @@ def generate_typed_queries(program, source_hash: str) -> dict[str, str]:
             if "v.game_id=:game_id" in scope
             else (
                 "AND g.status='finished' AND g.scheduled_at>=:year_start_jst "
-                "AND g.scheduled_at<:year_end_jst AND g.game_type_key=ANY(:raw_game_type_keys)"  # noqa: E501 — 生成targetのliteral
+                "AND g.scheduled_at<:year_end_jst " + category_filter  # noqa: E501 — 生成targetのliteral
             )
         )
+        if program["version"] == 2 and "g.id=:game_id" in scope:
+            game_scope += " AND g.id=:game_id"
         return f"""WITH requested_metrics(metric_id) AS (VALUES {values}),
 {canonical_selection(game_scope)}, version_scope AS (
  SELECT v.* FROM {binding["versions"]} v
@@ -208,13 +226,18 @@ def generate_typed_queries(program, source_hash: str) -> dict[str, str]:
 
     current_scope = """AND v.game_id=:game_id AND v.id=:fact_version_id
    AND v.source_set_sha256=:source_set_sha256 AND v.revision=:revision"""
-    official_scope = """AND v.completion_state='confirmed_ended'
+    official_scope = f"""AND v.completion_state='confirmed_ended'
    AND v.completion_receipt_id IS NOT NULL AND v.public_pointer_receipt_id IS NOT NULL
    AND g.scheduled_at>=:year_start_jst AND g.scheduled_at<:year_end_jst
-   AND g.game_type_key=ANY(:raw_game_type_keys)"""
+   {category_filter}"""
 
-    def totals(common, require_version=False):
+    def totals(common, require_version=False, named=False):
         """同じsource集合の欠測・空0とSUMを生成する。"""
+        guard = unhealthy + (
+            " OR NOT COALESCE(" + category_guard + ",false)"
+            if named and program["version"] == 2
+            else ""
+        )
         return (
             common
             + f""", aggregate_facts AS (
@@ -225,11 +248,11 @@ def generate_typed_queries(program, source_hash: str) -> dict[str, str]:
  FROM selected GROUP BY player_id, metric_id
 )
 SELECT m.metric_id,
- CASE WHEN {"NOT EXISTS (SELECT 1 FROM version_scope) OR " if require_version else ""}{unhealthy}
+ CASE WHEN {"NOT EXISTS (SELECT 1 FROM version_scope) OR " if require_version else ""}{guard}
      OR EXISTS (SELECT 1 FROM version_scope coverage
                 WHERE NOT (m.metric_id=ANY(coverage.computed_metric_keys)))
      OR a.complete=false THEN 'source_unavailable' ELSE 'available' END AS state,
- CASE WHEN {"NOT EXISTS (SELECT 1 FROM version_scope) OR " if require_version else ""}{unhealthy}
+ CASE WHEN {"NOT EXISTS (SELECT 1 FROM version_scope) OR " if require_version else ""}{guard}
      OR EXISTS (SELECT 1 FROM version_scope coverage
                 WHERE NOT (m.metric_id=ANY(coverage.computed_metric_keys)))
      OR a.complete=false THEN NULL ELSE COALESCE(a.value,0) END AS value
@@ -270,8 +293,8 @@ JOIN canonical_health ch ON ch.tenant_id=v.tenant_id AND ch.game_id=v.game_id;
 """  # noqa: E501 — 生成targetのliteral
     )
     # 区切りは固定。rootが正式関数へ同じ生成sectionを組み込み、別の式を書かない。
-    return {
-        "grouped": header + totals(selection(official_scope)),
+    queries = {
+        "grouped": header + totals(selection(official_scope), named=True),
         "window": header
         + "-- pitchlog-query: window\n"
         + window
@@ -293,3 +316,93 @@ JOIN canonical_health ch ON ch.tenant_id=v.tenant_id AND ch.game_id=v.game_id;
         + "AS canonical_source_set_sha256 FROM (VALUES(1)) singleton(n) "
         + "LEFT JOIN canonical_health ch ON true;\n",
     }
+
+    if program["version"] == 2:
+        queries["rates"] = generate_derived_queries(
+            program,
+            source_hash,
+            totals(selection(official_scope), named=True),
+            totals(selection(official_scope + " AND g.id=:game_id"), named=True),
+        )
+    return queries
+
+
+def generate_derived_queries(program, source_hash, season_counts, game_counts):
+    """同じcount選択SQLを共有し、typed ratio演算だけをDBへ生成する。"""
+    from pitchlog.domaingen.core import rate_metric_dependencies
+
+    sections = []
+
+    def integer(node):
+        if node["op"] == "metric":
+            return "m_" + node["id"]
+        if node["op"] == "literal":
+            return str(node["value"]) + "::numeric"
+        if node["op"] == "add":
+            return "(" + "+".join(integer(x) for x in node["args"]) + ")"
+        raise ValueError("SQL整数式の型が不正")
+
+    def ratio(node, parts):
+        if node["op"] == "component":
+            return parts[node["id"]]
+        if node["op"] == "ratio":
+            return integer(node["numerator"]), integer(node["denominator"])
+        if node["op"] == "ratio-add":
+            n, d = "0::numeric", "1::numeric"
+            for item in node["args"]:
+                x, y = ratio(item, parts)
+                n, d = f"({n}*{y}+{x}*{d})", f"({d}*{y})"
+            return n, d
+        raise ValueError("SQL比演算の型が不正")
+
+    for mode, counts in (("season", season_counts), ("game", game_counts)):
+        for row in program["derivedMetrics"]:
+            dependencies = rate_metric_dependencies({"components": row["components"]})
+            values = ",".join(
+                "MAX(value) FILTER (WHERE metric_id='" + key + "') AS m_" + key
+                for key in dependencies
+            )
+            ids = ",".join("'" + key + "'" for key in dependencies)
+            complete = (
+                "COUNT(*) FILTER (WHERE metric_id IN ("
+                + ids
+                + ") AND state='available' AND value IS NOT NULL)="
+                + str(len(dependencies))
+            )
+            parts = {c["id"]: ratio(c["expression"], {}) for c in row["components"]}
+            n, d = ratio(row["expression"], parts)
+            defined = "complete AND " + " AND ".join(
+                "(" + den + ")>0" for _, den in parts.values()
+            )
+            gcd = f"NULLIF(gcd({n},{d}),0)"
+            columns = [
+                "'" + row["id"] + "' AS rate_id",
+                "CASE WHEN complete THEN 'available' ELSE 'source_unavailable' END AS state",  # noqa: E501 — 生成target/固定SQLのliteral
+                "CASE WHEN NOT complete THEN 'not_evaluated' WHEN "
+                + defined
+                + " THEN 'defined' ELSE 'undefined_zero_denominator' END AS value_state",  # noqa: E501 — 生成target/固定SQLのliteral
+                f"CASE WHEN {defined} THEN div({n},{gcd}) ELSE NULL END AS numerator",
+                f"CASE WHEN {defined} THEN div({d},{gcd}) ELSE NULL END AS denominator",
+            ]
+            for key, (num, den) in parts.items():
+                columns.extend(
+                    [
+                        f"CASE WHEN complete THEN {num} ELSE NULL END AS {key}_numerator",  # noqa: E501 — 生成target/固定SQLのliteral
+                        f"CASE WHEN complete THEN {den} ELSE NULL END AS {key}_denominator",  # noqa: E501 — 生成target/固定SQLのliteral
+                    ]
+                )
+            section = (
+                f"-- pitchlog-rate-query: {mode}.{row['id']}\nWITH primitive_totals AS (\n"  # noqa: E501 — 生成target/固定SQLのliteral
+                + counts.rstrip().removesuffix(";")
+                + "\n), rate_inputs AS (SELECT "
+                + values
+                + ",("
+                + complete
+                + ") AS complete FROM primitive_totals)\nSELECT "
+                + ",\n".join(columns)
+                + " FROM rate_inputs;\n"
+            )
+            sections.append(section)
+    return (
+        "-- 自動生成typed exact ratio model=" + source_hash + "\n" + "".join(sections)
+    )
