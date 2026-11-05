@@ -245,6 +245,7 @@ class _TenantTransaction:
             )
         if _stats_read_operation(operation):
             _require_stats_primitive_read_scope(self)
+            return _run_stats_primitive_read(self, operation)
         elif state_key in _STATS_READ_HANDLES:
             raise TenantBindingError("成績読取scopeはOpen/Page/Totalsだけを実行できる")
         from pitchlog.repositories.initial_recording_right import (
@@ -809,6 +810,89 @@ def _require_stats_primitive_read_scope(handle: object) -> None:
         or not handle._context._has_valid_integrity_proof()
     ):
         raise TenantBindingError("成績read scopeは失効/別handle/別tenant")
+
+
+def _run_stats_primitive_read(
+    handle: _TenantTransaction, operation: TenantOperationToken
+) -> TenantOperationResult:
+    """真正RRROとprivate一回資格の後だけで固定三SQLを同Sessionへ実行する。"""
+    from pitchlog.repositories.play_export_primitives import (
+        OpenPrimitiveSnapshotToken,
+        ReadPrimitivePageToken,
+        _qualified_stats_read_call,
+    )
+    from pitchlog.repositories.stats import ReadPrimitiveTotalsToken
+    from pitchlog.repositories.stats_function_codec import (
+        StatsFunctionCodecError,
+        build_open_snapshot_call,
+        build_page_call,
+        build_totals_call,
+        decode_open_snapshot_rows,
+        decode_page_rows,
+        decode_totals_rows,
+    )
+
+    _require_stats_primitive_read_scope(handle)
+    qualification = _qualified_stats_read_call(handle, operation)
+    if qualification.operation is not operation:
+        raise TenantBindingError("成績readの実要求identityが不一致")
+    if type(operation) is OpenPrimitiveSnapshotToken:
+        if qualification.transaction_id is not None:
+            raise TenantBindingError("成績Openに外部snapshotを注入できない")
+        call = build_open_snapshot_call(
+            operation.game_id, operation.player_id, operation.model_sha256
+        )
+        maximum_rows = 1
+    elif type(operation) is ReadPrimitivePageToken:
+        transaction_id = qualification.transaction_id
+        if type(transaction_id) is not str or not transaction_id:
+            raise StatsFunctionCodecError()
+        call = build_page_call(
+            operation.game_id,
+            operation.player_id,
+            operation.fact_version_id,
+            operation.revision,
+            operation.source_set_sha256,
+            operation.model_sha256,
+            operation.after_d2,
+            operation.after_source_event_id,
+            operation.after_metric_id,
+            operation.page_size,
+            transaction_id=transaction_id,
+        )
+        maximum_rows = operation.page_size
+    elif type(operation) is ReadPrimitiveTotalsToken:
+        transaction_id = qualification.transaction_id
+        if type(transaction_id) is not str or not transaction_id:
+            raise StatsFunctionCodecError()
+        call = build_totals_call(
+            operation.game_id,
+            operation.player_id,
+            operation.fact_version_id,
+            operation.revision,
+            operation.source_set_sha256,
+            operation.model_sha256,
+            transaction_id=transaction_id,
+        )
+        maximum_rows = 26
+    else:
+        raise TenantBindingError("成績readの登録実型が不一致")
+    _require_stats_primitive_read_scope(handle)
+    session, _ = _TRANSACTION_RUNTIMES[handle._state_key]
+    rows = tuple(
+        tuple(row)
+        for row in islice(
+            session.execute(call.statement, call.parameters), maximum_rows + 1
+        )
+    )
+    _require_stats_primitive_read_scope(handle)
+    if type(operation) is OpenPrimitiveSnapshotToken:
+        decoded = decode_open_snapshot_rows(rows)
+    elif type(operation) is ReadPrimitivePageToken:
+        decoded = decode_page_rows(rows, page_size=operation.page_size)
+    else:
+        decoded = decode_totals_rows(rows)
+    return _materialize_rows(decoded)
 
 
 def stats_primitive_read_scope(
