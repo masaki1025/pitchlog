@@ -293,3 +293,6 @@ backend残登録の限定追随（2026-11-05、PO委任Codex /root判断）: rea
 
 
 索引表示exact2の採用（2026-11-05、PO委任Codex /root判断）: packet76008c52…を非作者b767021dd3b23c9659db9eda8fdf8abb7925a38af2b464d5beccff8c9def12de（独立171成功2.32秒、P0/P1/P2=0）で採用する。固定C indexだけ実18値再照合後に有限key表示へ写像、他index/未知raw/旧全AST/18値helperは保持。旧PG40pass1failを残し、同成功40は繰返さず当該audit1だけを新固定版でowned再検証する。
+
+
+登録関数の残3CI追随exact2（2026-11-05、PO委任Codex /root判断）: scope案73387b525081849a7fefc0f8d8ed533f8a2cd47cb1435c23f99bc1e709dd6d1fを採用。backend/tests/test_sync_apply_function_registration.pyとbackend/tests/test_sync_apply_writer_binding.pyを作者pr191へcache-only割当てる。旧21操作の値/順序を保持し新語彙read先頭1件/旧device index8→9だけ追随、SQL/tenant/失効/偽token拒否と旧source pin全値を保持する。新関数descriptorは独立decl/builderの閉literal（SQL/bind3/selected2/processor全値、proposalfa0f7f6d…）からcanonical JSON hashを計算して既actual==expectedへ追加し、現registry/compile結果から期待を採取しない。literal改変/未知追加/欠落を拒否、helper/fixture/scanner/allowlist/正式資産/sourceは不変更、新40/64hex免除も不要。非作者確認後rootだけ採用し、既typed12/全旧54pinと整合させる。
