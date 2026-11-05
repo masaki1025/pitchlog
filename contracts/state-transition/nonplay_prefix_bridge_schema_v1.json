@@ -1,0 +1,534 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pitchlog.example/contracts/state-transition/nonplay_prefix_bridge_schema_v1.json",
+  "title": "共通非play prefix橋の最初の閉版（候補）",
+  "$comment": "JSON shapeのみ。認証/計算/完全履歴/原本/同TX/opaque資格/CAS/canonical Sの成立はschemaでは証明しない。相関条件と非提供範囲はcases.semanticRules。既undo ABIは外部refで利用しコピーしない。重複key/非有限JSON/同値異型をdecode前後で拒否する。",
+  "$defs": {
+    "Unsigned": {
+      "type": "string",
+      "pattern": "^(?:0|[1-9][0-9]*)(?![\\s\\S])"
+    },
+    "Positive": {
+      "type": "string",
+      "pattern": "^[1-9][0-9]*(?![\\s\\S])"
+    },
+    "Uuid": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+    },
+    "Digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
+    },
+    "Generation": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "WireD1": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9007199254740991
+    },
+    "Scope": {
+      "type": "object",
+      "properties": {
+        "tenantId": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "gameId": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "generation": {
+          "$ref": "#/$defs/Generation"
+        }
+      },
+      "required": [
+        "tenantId",
+        "gameId",
+        "generation"
+      ],
+      "additionalProperties": false
+    },
+    "CheckpointRef": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "revision": {
+          "$ref": "#/$defs/Positive"
+        },
+        "digest": {
+          "$ref": "#/$defs/Digest"
+        }
+      },
+      "required": [
+        "id",
+        "revision",
+        "digest"
+      ],
+      "additionalProperties": false
+    },
+    "EventSource": {
+      "type": "object",
+      "properties": {
+        "eventId": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "gameId": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "generation": {
+          "$ref": "#/$defs/Generation"
+        },
+        "d1": {
+          "$ref": "#/$defs/Positive"
+        },
+        "d5": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "fingerprint": {
+          "$ref": "#/$defs/Digest"
+        },
+        "eventKind": {
+          "enum": [
+            "play_input",
+            "undo"
+          ]
+        }
+      },
+      "required": [
+        "eventId",
+        "gameId",
+        "generation",
+        "d1",
+        "d5",
+        "fingerprint",
+        "eventKind"
+      ],
+      "additionalProperties": false
+    },
+    "D1Head": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "accepted-event"
+        },
+        "source": {
+          "$ref": "#/$defs/EventSource"
+        }
+      },
+      "required": [
+        "kind",
+        "source"
+      ],
+      "additionalProperties": false
+    },
+    "ProjectionHead": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "started-game"
+            },
+            "eventId": {
+              "$ref": "#/$defs/Uuid"
+            }
+          },
+          "required": [
+            "kind",
+            "eventId"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "d1-event"
+            },
+            "source": {
+              "$ref": "#/$defs/EventSource"
+            }
+          },
+          "required": [
+            "kind",
+            "source"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "ActivePlay": {
+      "type": "object",
+      "properties": {
+        "source": {
+          "$ref": "#/$defs/EventSource"
+        },
+        "playId": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "d2": {
+          "$ref": "#/$defs/Unsigned"
+        },
+        "physicalPlayNumber": {
+          "$ref": "#/$defs/Positive"
+        }
+      },
+      "required": [
+        "source",
+        "playId",
+        "d2",
+        "physicalPlayNumber"
+      ],
+      "additionalProperties": false
+    },
+    "Current": {
+      "type": "object",
+      "properties": {
+        "stateFields": {
+          "$ref": "undo_schema_v1.json#/$defs/StateFields"
+        },
+        "scoreboard": {
+          "$ref": "undo_schema_v1.json#/$defs/Scoreboard"
+        },
+        "battingOrderBySide": {
+          "$ref": "undo_schema_v1.json#/$defs/BattingOrderBySide"
+        }
+      },
+      "required": [
+        "stateFields",
+        "scoreboard",
+        "battingOrderBySide"
+      ],
+      "additionalProperties": false
+    },
+    "RestoreContext": {
+      "type": "object",
+      "properties": {
+        "current": {
+          "$ref": "#/$defs/Current"
+        },
+        "rules": {
+          "$ref": "https://pitchlog.local/contracts/lineup_play_prefix_schema_v1.json#/$defs/SavedRuleWire"
+        },
+        "rulesDigest": {
+          "$ref": "#/$defs/Digest"
+        },
+        "layoutDigest": {
+          "$ref": "#/$defs/Digest"
+        },
+        "rosterDigest": {
+          "$ref": "#/$defs/Digest"
+        },
+        "lineup": {
+          "$ref": "https://pitchlog.local/contracts/lineup_play_prefix_schema_v1.json#/$defs/Lineup"
+        },
+        "participants": {
+          "$ref": "https://pitchlog.local/contracts/lineup_play_prefix_schema_v1.json#/$defs/Participant"
+        },
+        "runners": {
+          "type": "array",
+          "items": {
+            "$ref": "https://pitchlog.local/contracts/lineup_play_prefix_schema_v1.json#/$defs/Runner"
+          }
+        },
+        "responsibility": {
+          "$ref": "https://pitchlog.local/contracts/lineup_play_prefix_schema_v1.json#/$defs/Responsibility"
+        },
+        "lastPlayEvaluation": {
+          "oneOf": [
+            {
+              "$ref": "https://pitchlog.local/contracts/lineup_play_prefix_schema_v1.json#/$defs/T2"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "current",
+        "rules",
+        "rulesDigest",
+        "layoutDigest",
+        "rosterDigest",
+        "lineup",
+        "participants",
+        "runners",
+        "responsibility",
+        "lastPlayEvaluation"
+      ],
+      "additionalProperties": false
+    },
+    "Content": {
+      "type": "object",
+      "properties": {
+        "scope": {
+          "$ref": "#/$defs/Scope"
+        },
+        "origin": {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "started-game"
+            },
+            "eventId": {
+              "$ref": "#/$defs/Uuid"
+            }
+          },
+          "required": [
+            "kind",
+            "eventId"
+          ],
+          "additionalProperties": false
+        },
+        "d3": {
+          "$ref": "#/$defs/Unsigned"
+        },
+        "d1Head": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/D1Head"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "projectionHead": {
+          "$ref": "#/$defs/ProjectionHead"
+        },
+        "activeHead": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/ActivePlay"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "activeDepth": {
+          "$ref": "#/$defs/Unsigned"
+        },
+        "historyVersion": {
+          "$ref": "#/$defs/Unsigned"
+        },
+        "storageHistoryEpoch": {
+          "$ref": "#/$defs/Unsigned"
+        },
+        "nextPhysicalPlayNumber": {
+          "$ref": "#/$defs/Positive"
+        },
+        "executionArtifactSha256": {
+          "$ref": "#/$defs/Digest"
+        },
+        "restored": {
+          "$ref": "#/$defs/RestoreContext"
+        }
+      },
+      "required": [
+        "scope",
+        "origin",
+        "d3",
+        "d1Head",
+        "projectionHead",
+        "activeHead",
+        "activeDepth",
+        "historyVersion",
+        "storageHistoryEpoch",
+        "nextPhysicalPlayNumber",
+        "executionArtifactSha256",
+        "restored"
+      ],
+      "additionalProperties": false
+    },
+    "Checkpoint": {
+      "type": "object",
+      "properties": {
+        "formatVersion": {
+          "const": "nonplay-prefix-checkpoint-v1"
+        },
+        "ref": {
+          "$ref": "#/$defs/CheckpointRef"
+        },
+        "content": {
+          "$ref": "#/$defs/Content"
+        }
+      },
+      "required": [
+        "formatVersion",
+        "ref",
+        "content"
+      ],
+      "additionalProperties": false
+    },
+    "ActiveFrame": {
+      "type": "object",
+      "properties": {
+        "play": {
+          "$ref": "#/$defs/ActivePlay"
+        },
+        "historyEntry": {
+          "$ref": "undo_schema_v1.json#/$defs/HistoryEntry"
+        },
+        "beforeContext": {
+          "$ref": "#/$defs/RestoreContext"
+        },
+        "afterContext": {
+          "$ref": "#/$defs/RestoreContext"
+        }
+      },
+      "required": [
+        "play",
+        "historyEntry",
+        "beforeContext",
+        "afterContext"
+      ],
+      "additionalProperties": false
+    },
+    "Source": {
+      "type": "object",
+      "properties": {
+        "formatVersion": {
+          "const": "nonplay-prefix-source-v1"
+        },
+        "checkpoint": {
+          "$ref": "#/$defs/Checkpoint"
+        },
+        "activeStack": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ActiveFrame"
+          }
+        }
+      },
+      "required": [
+        "formatVersion",
+        "checkpoint",
+        "activeStack"
+      ],
+      "additionalProperties": false
+    },
+    "Calculation": {
+      "type": "object",
+      "properties": {
+        "request": {
+          "$ref": "undo_schema_v1.json#/$defs/Request"
+        },
+        "response": {
+          "type": "object",
+          "properties": {
+            "ok": {
+              "const": true
+            },
+            "value": {
+              "$ref": "undo_schema_v1.json#/$defs/Applied"
+            }
+          },
+          "required": [
+            "ok",
+            "value"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "request",
+        "response"
+      ],
+      "additionalProperties": false
+    },
+    "UndoPayload": {
+      "type": "object",
+      "properties": {
+        "formatVersion": {
+          "const": "native-undo-prefix-v1"
+        },
+        "artifactSha256": {
+          "$ref": "#/$defs/Digest"
+        },
+        "expectedCheckpoint": {
+          "$ref": "#/$defs/CheckpointRef"
+        },
+        "calculation": {
+          "$ref": "#/$defs/Calculation"
+        }
+      },
+      "required": [
+        "formatVersion",
+        "artifactSha256",
+        "expectedCheckpoint",
+        "calculation"
+      ],
+      "additionalProperties": false
+    },
+    "Target": {
+      "type": "object",
+      "properties": {
+        "game": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "d4": {
+          "$ref": "#/$defs/Generation"
+        },
+        "d1": {
+          "$ref": "#/$defs/WireD1"
+        }
+      },
+      "required": [
+        "game",
+        "d4",
+        "d1"
+      ],
+      "additionalProperties": false
+    },
+    "UndoEvent": {
+      "type": "object",
+      "properties": {
+        "d5": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "d1": {
+          "$ref": "#/$defs/WireD1"
+        },
+        "d4": {
+          "$ref": "#/$defs/Generation"
+        },
+        "game_id": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "event_kind": {
+          "const": "undo"
+        },
+        "payload": {
+          "$ref": "#/$defs/UndoPayload"
+        },
+        "target_reference": {
+          "$ref": "#/$defs/Target"
+        }
+      },
+      "required": [
+        "d5",
+        "d1",
+        "d4",
+        "game_id",
+        "event_kind",
+        "payload",
+        "target_reference"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "oneOf": [
+    {
+      "$ref": "#/$defs/Source"
+    },
+    {
+      "$ref": "#/$defs/UndoEvent"
+    }
+  ]
+}
