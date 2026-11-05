@@ -19,6 +19,8 @@
 
 - **追加回帰/所有逸脱の是正**: 成績接続後65d59875の既初球API回帰は1pass64.81秒、fixture試合起点のAPI試験であり新規画面実証へ加算しない。#196反映1作者cacheのcandidate-root/contractsが実WTへ向く親directory symlinkだったため、16:03:35 JSTにfrozen-inputs.json exact1をproposal後値へ書いた。rootが未適用dirtyを検出し停止、作者が原因と「正式JSON未変更」誤報を撤回。前後/差分SHAをcache mvp-resume-20261104/pr196-unexpected-metadata-observation/へ保全し、現在HEAD原本全byteへrootが復元、WTcleanを確認。source2/refs/DB変更なし。反映1は実copy隔離先で非作者再検証する。事故を承認/受理済みへ読み替えない。
 
+- **通常起動の未接続を新たに検出**: stats-native-prefix-boundary-regression-r1は20setupERROR/90.00秒。全件共通のUndefinedTable sync_fence.stats_fact_versionsがsave_primitive_sourceコンパイル時に発生。既db_fixtures._prepare_current_product_baseline→advance_stage_a_from_s0は0039までだがcurrentcanonicalの成績5関数は0041表に依存する。先の正常/故障成功は0041へ進めるowned_binding_database経路であり、通常起動成立の証拠ではない。同じ失敗を再実行せず、pr191へ旧S0〜S3/0039原典を保つ最小current起動接合をread-only調査依頼、pr192の実read3 test作成とは並行する。原子性r1の証拠結合は非作者1f0fb6ab26b1551118bf0a70b952b7997c6c4f1abd4ae79542d73beb5c296229でP0/P1/P2=0（HEAD/tree/index・前後tracked-clean、全runtime byte封印とはしない）。
+
 ## 続き：2026-11-05（安打の供給検査完了・成績の正式資産候補生成）
 
 - **#196 source保存**: 旧STABLE語彙read1件だけのvolatility期待を訂正し、既28関数VOLATILE/全guard/43pin/637/31原典を保持。非作者40a06581…が全29反転を拒否、root全供給1074pass33.42秒。既反映1 b754c985…/metadata e146a186…と合わせsource5を6965088bへ保存、未push。authz --skip-oracleは成功。RAW source診断は17site、既pr192登録試験は174pass/2fail（安打のlineup入力型と観測照合追加によりimmutable source全byte不一致）であり、検査を緩めず固定後発登録を追加する必要がある。正式#196受理/全CIは未了。
