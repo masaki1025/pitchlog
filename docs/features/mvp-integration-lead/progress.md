@@ -1,6 +1,17 @@
 # 初回MVP 主担当引受・進捗台帳
 
 
+## 再開時の現在地：2026-11-05（#196 R5公開、取消純計算を接合、成績本体レビュー）
+
+- **正式提供/利用者操作**: developは実GitHubで112f771eを再確認。新しい安打/取消/成績の正式提供は未成立。候補3310の新規作成→開始→安打4種→次球→再送→reloadの実GUI証拠を保持するが、下記8255の同版実測や実機完了へ拡張しない。全MVP Goal active。
+- **#196の固定点と公開**: final-candidate/source258302daからroot修正4 edd0d83d、metadata5 879fbc96、G6 258302daを採用し、test型補強7c770006後、単一196R5を**82557119314aebb5db3acb8704f71d1a91f82c9a**へcommit/通常pushした。公開枝feature/mvp-batted-hitsと元WTも同HEADへff/clean。最終tree7268872826b3450a6d8cae0cd63594bb86d2182b、BASE112f→全210path diff SHA691cfebb7e74e834a3a57aaa9314a5857c5810439a41af189d37171c469d1cb5。非作者最終cbca4d602b921c59d9854dbfd2c2290a646e7311c19db9bbcc179c13ea85894d、R5値97d23ddc…/input7daadcc1…/typedtest81a77f33…を継承。公開委任証拠は https://github.com/masaki1025/pitchlog/pull/196#issuecomment-6658789689 、本文pointer差替え済み。
+- **修復/検証範囲**: R4 CI42017498235のroot3/backend1失敗を保存。複合schema検査・新owner1の閉属性/衝突期待を修復し関連6module900成功156.68秒。G6はactual baseの既191/192全bodyを維持し、新descriptor2語/history1/digest＋依存4参照だけの有限層を追加。初回2815のint1→booltrue誤受理P1を反映2のtyped前後比較で閉じ、非作者dfadb039…の元反例/深い12否定/正常系を保持。旧人間署名・engine・許可/拒否を緩めない。R5公式helperは旧37＋単一196/9IDbase+1据置、物理6path（authority1/add4/delete1、rename表示5）、base323/pin83/全参照を保護。生成3/他8JSON/corpus不変。test型補強は外部9消費外・movement0なので再受理/再増分なし。最終root/backend型/lint0、local G6 1成功3.94秒。公開証拠の実取得を含むcore/G6 CI-mode local検証0は**ローカル構成eventの検証であり実GitHub CIではない**。実CI全緑/Draft解除/通常mergeは次。PR本文編集による旧660head run42033304819の失敗は新HEADの結果へ混同しない。
+- **取消の新たな技術操作**: native枝**c3edf395**で純逆適用/閉ABI/実Python hostを唯一artifactへ接合。新artifact4f4544e13434af17fa10a36426e195c70ec36e15f3d84c8b65953718f8a8f0e4/75600byteを公式2buildで再現、実枝のNode host52成功2.53秒。root全domain822成功34.81秒。全候補非作者初回f08e9041…はdecimalと同値spanの拒否順P1=1を固定し、rootはpublicApi.ts/spec.ts2だけを既errorOrderへ反映。非作者9c5504dee028bd6854b16593984aa321270a54dafe516925f50fa52702e2b0ebで元21対向21一致、未知/型先行12、host52/FE30、空192/旧1878有限4操作/独立build一致を確認し採用。host初回外部ref P1も54637413…→b17cac7d…で保持/解消。TS9作者batted/host・境界root/全候補reviewer undo_unit1_whole_independentを区別し、P6blind/本人署名とはしない。
+- **取消の残り/次**: unit1全完了ではない。正式D11/全pin/現自己互換witnessと複合reset分類/全往復が残り、pr192がcache-onlyで全更新集合/公式helper/保持pinを調査中。コード13は採用したが同期P1同TX保存/read/queue/ACK/実画面はまだ未接続、実安打/BB/HBP/Kの取消を成功化しない。元spike ae3298afの5P1を部品成功で全解消扱いにしない。#196正式merge後に必要な基線差分だけ追随、旧schema/caseのsources SHA更新はmetadataと数学不変を照合する。
+- **成績の現在地/次**: native枝7effb519は通常push保全済み。純契約3は6ccb7a64採用、source16＋公式生成8はcache stats-d02-d05-math-candidate-20261105（packet0d4ce74d6f412f052a3e57722b9f7ca9dc7a83b4b405a1b024c1d85209a12406）に作者停止で固定、別非作者undo_unit1_whole_independentが確認中。実計画pathはdocs/features/mvp-stats-primitives/plan.md。単一D1の区分集合/ratio/add→Py/TS/SQL、作者backend245/root62/FE25、5001桁Py/Node exactとglobal4300不変を報告。独立Fraction1000/実Node/BE245/FE25は途中結果で採否前。reviewcopy内Vitestとroot snapshotの競合/選択venv jsonschema不足2は作者source欠陥と区別して非作者が当該2だけ再確認中。PG/native admission最小5path/正式D11/全27/画面/CSVは未完。PO D02〜D05を意味未回答へ戻さない。
+- **作業の次順**: 8255実CI全緑と依存照合→#196通常merge。その待ちに成績24採否→同版admission＋owned PG、取消pin/D11→正式P1/read/queue/画面を進める。残走塁/走者あり打球/交代/過去訂正/終了再開/閲覧10秒/両CSV/全offline・交代・負荷復旧/実機運用は維持。終了再開spike指示はPOへ提示済みだが外部送付/受諾/稼働は未確認。#186/#187はOPENを再確認、HEADはdevelopの祖先でないため表示だけで閉じず、置換対応/公開引継ぎを確認してから処理する。
+- **再開入口**: cache mvp-resume-20261104/{tenant196-r5,pr196-final-publication-r5}/、active-checkpoint.json。source WT/原枝とcache候補は別、共有DB/運用公開/実機未実施を完了へ読み替えない。次の実CI IDは公開後に取得して同checkpointへ追記する。
+
 ## 続き：2026-11-05（安打R4の公開・完走CI4件を是正、成績と取消本体を並行）
 
 - **利用者操作/正式提供**: 正式develop112fの範囲は維持。#196候補の4安打実GUIは既3310固定の証拠で、公開660dや正式版の全再実証へ拡張しない。全MVPは未完。
