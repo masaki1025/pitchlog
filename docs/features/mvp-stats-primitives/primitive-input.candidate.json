@@ -213,6 +213,287 @@
           }
         }
       }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "contract_version",
+        "scope",
+        "tenant_id",
+        "game_id",
+        "source_snapshot_sha256",
+        "assembly_receipt_id",
+        "expected_versions",
+        "events",
+        "assembly_computed_metric_keys"
+      ],
+      "properties": {
+        "contract_version": {
+          "const": "primitive-input-v2-candidate"
+        },
+        "scope": {
+          "type": "string",
+          "enum": [
+            "confirmed_game",
+            "device_provisional"
+          ]
+        },
+        "tenant_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+        },
+        "game_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+        },
+        "source_snapshot_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
+        },
+        "assembly_receipt_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+        },
+        "expected_versions": {
+          "$ref": "#/$defs/v2_versions"
+        },
+        "events": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/v2_event"
+          },
+          "maxItems": 150000
+        },
+        "assembly_computed_metric_keys": {
+          "type": "array",
+          "uniqueItems": true,
+          "maxItems": 26,
+          "items": {
+            "type": "string",
+            "enum": [
+              "pitch_count",
+              "pa",
+              "ab",
+              "h",
+              "doubles",
+              "triples",
+              "hr",
+              "total_bases",
+              "bb",
+              "hbp",
+              "k",
+              "sh",
+              "sf",
+              "catcher_interference_reached",
+              "runner_interference_reached",
+              "runs",
+              "rbi",
+              "stolen_bases",
+              "pitching_outs",
+              "pitcher_k",
+              "pitcher_bb",
+              "pitcher_hbp",
+              "hits_allowed",
+              "home_runs_allowed",
+              "runs_allowed",
+              "fielding_errors"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "contract_version",
+        "scope",
+        "tenant_id",
+        "game_id",
+        "source_snapshot_sha256",
+        "assembly_receipt_id",
+        "expected_versions",
+        "calendar_year_jst",
+        "player_id",
+        "raw_game_type_keys",
+        "named_category",
+        "facts",
+        "assembly_computed_metric_keys"
+      ],
+      "properties": {
+        "contract_version": {
+          "const": "primitive-input-v2-candidate"
+        },
+        "scope": {
+          "const": "t6_sufficient_statistics"
+        },
+        "tenant_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+        },
+        "game_id": {
+          "type": "null"
+        },
+        "source_snapshot_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
+        },
+        "assembly_receipt_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+        },
+        "expected_versions": {
+          "$ref": "#/$defs/v2_versions"
+        },
+        "calendar_year_jst": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9999
+        },
+        "player_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+        },
+        "raw_game_type_keys": {
+          "type": "array",
+          "uniqueItems": true,
+          "minItems": 1,
+          "maxItems": 5,
+          "items": {
+            "type": "string",
+            "enum": [
+              "game_official",
+              "game_semi_official",
+              "game_open",
+              "game_intrasquad",
+              "game_other"
+            ]
+          }
+        },
+        "named_category": {
+          "enum": [
+            "official",
+            "practice",
+            "all"
+          ]
+        },
+        "facts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/v2_t5_fact"
+          },
+          "maxItems": 150000
+        },
+        "assembly_computed_metric_keys": {
+          "type": "array",
+          "uniqueItems": true,
+          "maxItems": 26,
+          "items": {
+            "type": "string",
+            "enum": [
+              "pitch_count",
+              "pa",
+              "ab",
+              "h",
+              "doubles",
+              "triples",
+              "hr",
+              "total_bases",
+              "bb",
+              "hbp",
+              "k",
+              "sh",
+              "sf",
+              "catcher_interference_reached",
+              "runner_interference_reached",
+              "runs",
+              "rbi",
+              "stolen_bases",
+              "pitching_outs",
+              "pitcher_k",
+              "pitcher_bb",
+              "pitcher_hbp",
+              "hits_allowed",
+              "home_runs_allowed",
+              "runs_allowed",
+              "fielding_errors"
+            ]
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "named_category": {
+                "const": "official"
+              }
+            },
+            "required": [
+              "named_category"
+            ]
+          },
+          "then": {
+            "properties": {
+              "raw_game_type_keys": {
+                "const": [
+                  "game_official",
+                  "game_semi_official"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "named_category": {
+                "const": "practice"
+              }
+            },
+            "required": [
+              "named_category"
+            ]
+          },
+          "then": {
+            "properties": {
+              "raw_game_type_keys": {
+                "const": [
+                  "game_open",
+                  "game_intrasquad",
+                  "game_other"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "named_category": {
+                "const": "all"
+              }
+            },
+            "required": [
+              "named_category"
+            ]
+          },
+          "then": {
+            "properties": {
+              "raw_game_type_keys": {
+                "const": [
+                  "game_official",
+                  "game_semi_official",
+                  "game_open",
+                  "game_intrasquad",
+                  "game_other"
+                ]
+              }
+            }
+          }
+        }
+      ]
     }
   ],
   "$defs": {
@@ -1960,6 +2241,1751 @@
           }
         }
       }
+    },
+    "v2_versions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rule_sha256",
+        "vocabulary_sha256",
+        "t1_artifact_sha256",
+        "primitive_model_sha256",
+        "projection_schema_sha256"
+      ],
+      "properties": {
+        "rule_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
+        },
+        "vocabulary_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
+        },
+        "t1_artifact_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
+        },
+        "primitive_model_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
+        },
+        "projection_schema_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
+        }
+      }
+    },
+    "v2_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "inning",
+        "half",
+        "strikes",
+        "balls",
+        "outs",
+        "away_score",
+        "home_score",
+        "batting_order",
+        "runner_ids",
+        "game_ended"
+      ],
+      "properties": {
+        "inning": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]*(?![\\s\\S])",
+          "maxLength": 20
+        },
+        "half": {
+          "type": "string",
+          "enum": [
+            "top",
+            "bottom"
+          ]
+        },
+        "strikes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2
+        },
+        "balls": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 3
+        },
+        "outs": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2
+        },
+        "away_score": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])",
+          "maxLength": 128
+        },
+        "home_score": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])",
+          "maxLength": 128
+        },
+        "batting_order": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9
+        },
+        "runner_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+          },
+          "maxItems": 3,
+          "uniqueItems": true
+        },
+        "game_ended": {
+          "type": "boolean"
+        }
+      }
+    },
+    "v2_source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider_receipt_id",
+        "tenant_id",
+        "game_id",
+        "source_event_id",
+        "d5",
+        "recording_generation",
+        "d1",
+        "d2",
+        "d4_binding_digest",
+        "ledger_id",
+        "ledger_outcome",
+        "checkpoint_id",
+        "checkpoint_revision",
+        "slot_version",
+        "play_row_id",
+        "play_row_version",
+        "source_payload_sha256",
+        "source_projection_sha256",
+        "membership_epoch",
+        "rg1_recovery_generation",
+        "lifecycle",
+        "applied_state",
+        "versions",
+        "source_namespace"
+      ],
+      "properties": {
+        "provider_receipt_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+        },
+        "tenant_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+        },
+        "game_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+        },
+        "source_event_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+        },
+        "d5": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+        },
+        "recording_generation": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[1-9][0-9]*(?![\\s\\S])",
+              "maxLength": 20
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "d1": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[1-9][0-9]*(?![\\s\\S])",
+              "maxLength": 20
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "d2": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])",
+              "maxLength": 128
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "d4_binding_digest": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
+        },
+        "ledger_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "ledger_outcome": {
+          "type": "string",
+          "enum": [
+            "accepted",
+            "not_committed"
+          ]
+        },
+        "checkpoint_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+        },
+        "checkpoint_revision": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]*(?![\\s\\S])",
+          "maxLength": 20
+        },
+        "slot_version": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]*(?![\\s\\S])",
+          "maxLength": 20
+        },
+        "play_row_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "play_row_version": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[1-9][0-9]*(?![\\s\\S])",
+              "maxLength": 20
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "source_payload_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
+        },
+        "source_projection_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
+        },
+        "membership_epoch": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]*(?![\\s\\S])",
+          "maxLength": 20
+        },
+        "rg1_recovery_generation": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]*(?![\\s\\S])",
+          "maxLength": 20
+        },
+        "lifecycle": {
+          "type": "string",
+          "enum": [
+            "effective",
+            "replaced",
+            "retired",
+            "tombstone",
+            "audit_control"
+          ]
+        },
+        "applied_state": {
+          "type": "string",
+          "enum": [
+            "applied",
+            "before_apply"
+          ]
+        },
+        "versions": {
+          "$ref": "#/$defs/v2_versions"
+        },
+        "source_namespace": {
+          "type": "string",
+          "enum": [
+            "accepted_event",
+            "device_provisional"
+          ]
+        }
+      }
+    },
+    "v2_flags": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "投球回算入アウト",
+        "投球数",
+        "奪三振",
+        "与四球",
+        "与死球",
+        "被安打",
+        "被本塁打",
+        "失点",
+        "失策",
+        "打席",
+        "打数",
+        "安打",
+        "本塁打",
+        "塁打",
+        "犠打",
+        "犠飛",
+        "四球",
+        "死球",
+        "三振",
+        "打撃妨害出塁",
+        "走塁妨害出塁",
+        "得点",
+        "打点"
+      ],
+      "properties": {
+        "投球回算入アウト": {
+          "type": "boolean"
+        },
+        "投球数": {
+          "type": "boolean"
+        },
+        "奪三振": {
+          "type": "boolean"
+        },
+        "与四球": {
+          "type": "boolean"
+        },
+        "与死球": {
+          "type": "boolean"
+        },
+        "被安打": {
+          "type": "boolean"
+        },
+        "被本塁打": {
+          "type": "boolean"
+        },
+        "失点": {
+          "type": "boolean"
+        },
+        "失策": {
+          "type": "boolean"
+        },
+        "打席": {
+          "type": "boolean"
+        },
+        "打数": {
+          "type": "boolean"
+        },
+        "安打": {
+          "type": "boolean"
+        },
+        "本塁打": {
+          "type": "boolean"
+        },
+        "塁打": {
+          "type": "boolean"
+        },
+        "犠打": {
+          "type": "boolean"
+        },
+        "犠飛": {
+          "type": "boolean"
+        },
+        "四球": {
+          "type": "boolean"
+        },
+        "死球": {
+          "type": "boolean"
+        },
+        "三振": {
+          "type": "boolean"
+        },
+        "打撃妨害出塁": {
+          "type": "boolean"
+        },
+        "走塁妨害出塁": {
+          "type": "boolean"
+        },
+        "得点": {
+          "type": "boolean"
+        },
+        "打点": {
+          "type": "boolean"
+        }
+      }
+    },
+    "v2_participants": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "actual_batter_id",
+        "actual_pitcher_id",
+        "catcher_id",
+        "batting_team_id",
+        "fielding_team_id",
+        "credited_batter_id",
+        "strikeout_pitcher_id",
+        "walk_pitcher_id",
+        "hbp_pitcher_id",
+        "hit_pitcher_id",
+        "home_run_pitcher_id",
+        "outs_pitcher_id",
+        "error_fielder_id"
+      ],
+      "properties": {
+        "actual_batter_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+        },
+        "actual_pitcher_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+        },
+        "catcher_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+        },
+        "batting_team_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+        },
+        "fielding_team_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+        },
+        "credited_batter_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "strikeout_pitcher_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "walk_pitcher_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "hbp_pitcher_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "hit_pitcher_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "home_run_pitcher_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "outs_pitcher_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "error_fielder_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "v2_pa": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "pa_id",
+        "started_here",
+        "ended_here",
+        "ordinal_for_batter",
+        "starting_batter_id",
+        "ending_batter_id",
+        "result_id",
+        "hit_kind",
+        "reached_by",
+        "result_display",
+        "vocabulary_display_receipt",
+        "starting_pitcher_id",
+        "pitcher_changes"
+      ],
+      "properties": {
+        "pa_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "started_here": {
+          "type": "boolean"
+        },
+        "ended_here": {
+          "type": "boolean"
+        },
+        "ordinal_for_batter": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[1-9][0-9]*(?![\\s\\S])",
+              "maxLength": 20
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "starting_batter_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "ending_batter_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "result_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "hit_kind": {
+          "type": "string",
+          "enum": [
+            "none",
+            "single",
+            "double",
+            "triple",
+            "home_run"
+          ]
+        },
+        "reached_by": {
+          "type": "string",
+          "enum": [
+            "none",
+            "hit",
+            "walk",
+            "hit_by_pitch",
+            "error",
+            "fielders_choice",
+            "catcher_interference",
+            "runner_interference"
+          ]
+        },
+        "result_display": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 4096
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "vocabulary_display_receipt": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "starting_pitcher_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "pitcher_changes": {
+          "type": "array",
+          "maxItems": 1000,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "from_pitcher_id",
+              "to_pitcher_id",
+              "balls",
+              "strikes",
+              "source_receipt_id"
+            ],
+            "properties": {
+              "from_pitcher_id": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+              },
+              "to_pitcher_id": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+              },
+              "balls": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 3
+              },
+              "strikes": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 2
+              },
+              "source_receipt_id": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+              }
+            }
+          }
+        }
+      }
+    },
+    "v2_out_effect": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "effective_count",
+        "targets",
+        "quantity_source_receipt"
+      ],
+      "properties": {
+        "effective_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 3
+        },
+        "targets": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "player_id",
+              "kind"
+            ],
+            "properties": {
+              "player_id": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "batter",
+                  "runner"
+                ]
+              }
+            }
+          },
+          "maxItems": 3
+        },
+        "quantity_source_receipt": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+        }
+      }
+    },
+    "v2_runner_score": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "runner_id",
+        "responsible_pitcher_id",
+        "valid_run",
+        "rbi_credited",
+        "rbi_batter_id",
+        "rbi_branch",
+        "validity_source_receipt"
+      ],
+      "properties": {
+        "runner_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+        },
+        "responsible_pitcher_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+        },
+        "valid_run": {
+          "type": "boolean"
+        },
+        "rbi_credited": {
+          "type": "boolean"
+        },
+        "rbi_batter_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "rbi_branch": {
+          "anyOf": [
+            {
+              "type": "string",
+              "enum": [
+                "RBI-01",
+                "RBI-02",
+                "RBI-03",
+                "RBI-04",
+                "RBI-05",
+                "RBI-06",
+                "RBI-07",
+                "RBI-08",
+                "RBI-09"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "validity_source_receipt": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "valid_run": {
+                "const": false
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "rbi_branch": {
+                "type": "null"
+              },
+              "rbi_credited": {
+                "const": false
+              },
+              "rbi_batter_id": {
+                "type": "null"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "rbi_branch": {
+                "type": "string",
+                "enum": [
+                  "RBI-01",
+                  "RBI-02",
+                  "RBI-03",
+                  "RBI-04",
+                  "RBI-05",
+                  "RBI-06",
+                  "RBI-07",
+                  "RBI-08",
+                  "RBI-09"
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "v2_steal_attempt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "runner_id",
+        "attempted",
+        "successful",
+        "source_receipt"
+      ],
+      "properties": {
+        "runner_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+        },
+        "attempted": {
+          "type": "boolean"
+        },
+        "successful": {
+          "type": "boolean"
+        },
+        "source_receipt": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+        }
+      }
+    },
+    "v2_completeness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "pa",
+        "outs",
+        "runs_rbi",
+        "steals",
+        "participants"
+      ],
+      "properties": {
+        "pa": {
+          "type": "string",
+          "enum": [
+            "complete",
+            "unavailable"
+          ]
+        },
+        "outs": {
+          "type": "string",
+          "enum": [
+            "complete",
+            "unavailable"
+          ]
+        },
+        "runs_rbi": {
+          "type": "string",
+          "enum": [
+            "complete",
+            "unavailable"
+          ]
+        },
+        "steals": {
+          "type": "string",
+          "enum": [
+            "complete",
+            "unavailable"
+          ]
+        },
+        "participants": {
+          "type": "string",
+          "enum": [
+            "complete",
+            "unavailable"
+          ]
+        }
+      }
+    },
+    "v2_event": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source",
+        "event_kind",
+        "before",
+        "after",
+        "stat_flags",
+        "participants",
+        "pa",
+        "out_effect",
+        "runner_scores",
+        "steal_attempts",
+        "completeness"
+      ],
+      "properties": {
+        "source": {
+          "$ref": "#/$defs/v2_source"
+        },
+        "event_kind": {
+          "type": "string",
+          "enum": [
+            "pitch",
+            "non_pitch",
+            "control"
+          ]
+        },
+        "before": {
+          "$ref": "#/$defs/v2_state"
+        },
+        "after": {
+          "$ref": "#/$defs/v2_state"
+        },
+        "stat_flags": {
+          "$ref": "#/$defs/v2_flags"
+        },
+        "participants": {
+          "$ref": "#/$defs/v2_participants"
+        },
+        "pa": {
+          "$ref": "#/$defs/v2_pa"
+        },
+        "out_effect": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/v2_out_effect"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "runner_scores": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/v2_runner_score"
+              },
+              "maxItems": 150000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "steal_attempts": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/v2_steal_attempt"
+              },
+              "maxItems": 150000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "completeness": {
+          "$ref": "#/$defs/v2_completeness"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "completeness": {
+                "properties": {
+                  "outs": {
+                    "const": "complete"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "out_effect": {
+                "not": {
+                  "type": "null"
+                }
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "out_effect": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "completeness": {
+                "properties": {
+                  "runs_rbi": {
+                    "const": "complete"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "runner_scores": {
+                "not": {
+                  "type": "null"
+                }
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "runner_scores": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "completeness": {
+                "properties": {
+                  "steals": {
+                    "const": "complete"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "steal_attempts": {
+                "not": {
+                  "type": "null"
+                }
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "steal_attempts": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "v2_counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "pitch_count",
+        "pa",
+        "ab",
+        "h",
+        "doubles",
+        "triples",
+        "hr",
+        "total_bases",
+        "bb",
+        "hbp",
+        "k",
+        "sh",
+        "sf",
+        "catcher_interference_reached",
+        "runner_interference_reached",
+        "runs",
+        "rbi",
+        "stolen_bases",
+        "pitching_outs",
+        "pitcher_k",
+        "pitcher_bb",
+        "pitcher_hbp",
+        "hits_allowed",
+        "home_runs_allowed",
+        "runs_allowed",
+        "fielding_errors"
+      ],
+      "properties": {
+        "pitch_count": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])",
+          "maxLength": 128
+        },
+        "pa": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])",
+          "maxLength": 128
+        },
+        "ab": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])",
+          "maxLength": 128
+        },
+        "h": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])",
+          "maxLength": 128
+        },
+        "doubles": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])",
+          "maxLength": 128
+        },
+        "triples": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])",
+          "maxLength": 128
+        },
+        "hr": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])",
+          "maxLength": 128
+        },
+        "total_bases": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])",
+          "maxLength": 128
+        },
+        "bb": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])",
+          "maxLength": 128
+        },
+        "hbp": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])",
+          "maxLength": 128
+        },
+        "k": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])",
+          "maxLength": 128
+        },
+        "sh": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])",
+          "maxLength": 128
+        },
+        "sf": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])",
+          "maxLength": 128
+        },
+        "catcher_interference_reached": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])",
+          "maxLength": 128
+        },
+        "runner_interference_reached": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])",
+          "maxLength": 128
+        },
+        "runs": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])",
+          "maxLength": 128
+        },
+        "rbi": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])",
+          "maxLength": 128
+        },
+        "stolen_bases": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])",
+          "maxLength": 128
+        },
+        "pitching_outs": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])",
+          "maxLength": 128
+        },
+        "pitcher_k": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])",
+          "maxLength": 128
+        },
+        "pitcher_bb": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])",
+          "maxLength": 128
+        },
+        "pitcher_hbp": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])",
+          "maxLength": 128
+        },
+        "hits_allowed": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])",
+          "maxLength": 128
+        },
+        "home_runs_allowed": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])",
+          "maxLength": 128
+        },
+        "runs_allowed": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])",
+          "maxLength": 128
+        },
+        "fielding_errors": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])",
+          "maxLength": 128
+        }
+      }
+    },
+    "v2_t5_fact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider_receipt_id",
+        "tenant_id",
+        "game_id",
+        "player_id",
+        "raw_game_type_key",
+        "calendar_year_jst",
+        "completion_state",
+        "completion_receipt_id",
+        "public_fact_version",
+        "source_set_sha256",
+        "model_sha256",
+        "lifecycle",
+        "counts",
+        "computed_metric_keys"
+      ],
+      "properties": {
+        "provider_receipt_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+        },
+        "tenant_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+        },
+        "game_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+        },
+        "player_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+        },
+        "raw_game_type_key": {
+          "type": "string",
+          "enum": [
+            "game_official",
+            "game_semi_official",
+            "game_open",
+            "game_intrasquad",
+            "game_other"
+          ]
+        },
+        "calendar_year_jst": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9999
+        },
+        "completion_state": {
+          "type": "string",
+          "enum": [
+            "confirmed_ended",
+            "reopened",
+            "in_progress"
+          ]
+        },
+        "completion_receipt_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "public_fact_version": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]*(?![\\s\\S])",
+          "maxLength": 20
+        },
+        "source_set_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
+        },
+        "model_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}(?![\\s\\S])"
+        },
+        "lifecycle": {
+          "type": "string",
+          "enum": [
+            "effective_latest",
+            "superseded",
+            "hidden"
+          ]
+        },
+        "counts": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "pitch_count",
+            "pa",
+            "ab",
+            "h",
+            "doubles",
+            "triples",
+            "hr",
+            "total_bases",
+            "bb",
+            "hbp",
+            "k",
+            "sh",
+            "sf",
+            "catcher_interference_reached",
+            "runner_interference_reached",
+            "runs",
+            "rbi",
+            "stolen_bases",
+            "pitching_outs",
+            "pitcher_k",
+            "pitcher_bb",
+            "pitcher_hbp",
+            "hits_allowed",
+            "home_runs_allowed",
+            "runs_allowed",
+            "fielding_errors"
+          ],
+          "properties": {
+            "pitch_count": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])",
+                  "maxLength": 128
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "pa": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])",
+                  "maxLength": 128
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "ab": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])",
+                  "maxLength": 128
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "h": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])",
+                  "maxLength": 128
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "doubles": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])",
+                  "maxLength": 128
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "triples": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])",
+                  "maxLength": 128
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "hr": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])",
+                  "maxLength": 128
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "total_bases": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])",
+                  "maxLength": 128
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "bb": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])",
+                  "maxLength": 128
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "hbp": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])",
+                  "maxLength": 128
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "k": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])",
+                  "maxLength": 128
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "sh": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])",
+                  "maxLength": 128
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "sf": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])",
+                  "maxLength": 128
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "catcher_interference_reached": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])",
+                  "maxLength": 128
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "runner_interference_reached": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])",
+                  "maxLength": 128
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "runs": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])",
+                  "maxLength": 128
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "rbi": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])",
+                  "maxLength": 128
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "stolen_bases": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])",
+                  "maxLength": 128
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "pitching_outs": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])",
+                  "maxLength": 128
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "pitcher_k": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])",
+                  "maxLength": 128
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "pitcher_bb": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])",
+                  "maxLength": 128
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "pitcher_hbp": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])",
+                  "maxLength": 128
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "hits_allowed": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])",
+                  "maxLength": 128
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "home_runs_allowed": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])",
+                  "maxLength": 128
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "runs_allowed": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])",
+                  "maxLength": 128
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "fielding_errors": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^(0|[1-9][0-9]*)(?![\\s\\S])",
+                  "maxLength": 128
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          }
+        },
+        "computed_metric_keys": {
+          "type": "array",
+          "uniqueItems": true,
+          "maxItems": 26,
+          "items": {
+            "type": "string",
+            "enum": [
+              "pitch_count",
+              "pa",
+              "ab",
+              "h",
+              "doubles",
+              "triples",
+              "hr",
+              "total_bases",
+              "bb",
+              "hbp",
+              "k",
+              "sh",
+              "sf",
+              "catcher_interference_reached",
+              "runner_interference_reached",
+              "runs",
+              "rbi",
+              "stolen_bases",
+              "pitching_outs",
+              "pitcher_k",
+              "pitcher_bb",
+              "pitcher_hbp",
+              "hits_allowed",
+              "home_runs_allowed",
+              "runs_allowed",
+              "fielding_errors"
+            ]
+          }
+        }
+      }
     }
   },
   "x-status": "candidate-not-accepted",
@@ -2164,5 +4190,50 @@
       ],
       "adapter_responsibility": "registered provider joins actual PA/participation/runners/accepted source/ledger/checkpoint; known native variants do not yet supply every field. Reject or expose source_unavailable for missing observations. Formal provider receipt still required; JSON candidate is not a source qualification."
     }
-  ]
+  ],
+  "x-v2-contract": {
+    "version": "primitive-input-v2-candidate",
+    "meaning_authority": "requirements-v2.19/PO1879 D02..D05 allA",
+    "historical_v1": "original first2 branches and original defs unchanged; old S18/pending language applies only v1",
+    "selector": {
+      "id": "game-type-selection-v2",
+      "groups": {
+        "official": [
+          "game_official",
+          "game_semi_official"
+        ],
+        "practice": [
+          "game_open",
+          "game_intrasquad",
+          "game_other"
+        ],
+        "all": [
+          "game_official",
+          "game_semi_official",
+          "game_open",
+          "game_intrasquad",
+          "game_other"
+        ]
+      },
+      "default": "all",
+      "raw_key_policy": "canonical exact projection of named set; mismatch/unknown/raw override rejected before WHERE/GROUP BY",
+      "shared_consumers": [
+        "T6 count SQL",
+        "T6 derived-rate SQL",
+        "screen",
+        "stats CSV"
+      ]
+    },
+    "v2_scalar_policy": "same values as v1; strict EOS in v2 regex only; no digit cap added",
+    "authority_boundary": "Schema selection/defaults do not certify tenant, game end, canonical S, model/version, current_open/confirmed or source completeness. Existing provider checks remain mandatory."
+  },
+  "x-v1-immutable-model-inputs": {
+    "revision": "054e88d4e4b42151445ba40bb2bb2169d6e83009",
+    "paths": {
+      "backend/domain/play-export.model.json": "59f64a5e9b163ed196af9dad9750beb4fae76ae7512d96e187e0ce392fe4e999",
+      "backend/domain/stats.model.json": "4836ed1a6c6f39fea47a5a9850bc3b9590bbe8a7c0f509c4834851e93592ded5",
+      "backend/domain/model.schema.json": "1793f0ea0dcbae7b2868475a5fcd3e132bac2e40eeba94d16f9d65f9372a8e1b"
+    },
+    "use": "load immutable v1 model inputs from this genuine Git revision and compile with same compiler as current v2; do not compare only old generated snapshot, delete pending expectations, or reimplement v1 math"
+  }
 }
