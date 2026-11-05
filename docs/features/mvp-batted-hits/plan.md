@@ -379,3 +379,7 @@ R7 exact5のsource採用（2026-11-06 JST、PO委任Codex /root判断）: 作者
 
 
 R7実PGの受入結果（2026-11-06 JST、PO委任Codex /root判断）: 固定157e495eのowned pr196-current0040-smoke-r2が9成功49.06秒。新正常1は実ownerで0039→0040→current(check_heads)→check、誤collation/predicate/expression/unique/order/owner/validityの実catalog7負と、既schemaauditの全構造exact-set1を通した。tracked HEAD/tree/index前後同一・所有PG削除をresultへ固定。元r1の1失敗6.56秒・初回レビューP1×2を上書きしない。actualpure40/CI106成功7.15秒も確認。rootの独立DB実行ではなく作者側実行として扱い、別非作者source確認0cafeb69…と対象版を結合する。これでR7 source是正の2件はsource/実PG範囲で解消、正式R7全値/最終HEAD/公開証拠/全必須CIは別に残る。全MVP・運用・実機/P6blind/本人署名は未成立。
+
+R7正式全値の受理（2026-11-06 JST、PO委任Codex /root判断）: 入力7705df70807e5bb0284b32e41e528f84d95a8af3を非作者55f998b2、source5を0cafeb69で確認後に公式単一196 R7を導出した。非作者47e375fbfc2b5925ea2d3d242708d87c8d057568fe79c560b608f1b985c6b848/checkse8cd897f2b0c4a771ba7104d7286e20323046cac32716b1921f97611ed53b8f4が全bundle/portable64/9ID据置/旧37+単一196/新11除去9の保護/352snapshot/生成3不変/corpus1葉を独立照合し重大指摘0。対象入力に限りこの正式値を採用する。R6旧実CI全履歴・原因未確定の結果不明を保持する。最終HEAD/公開証拠/全必須CIは未成立。
+
+後発source登録拒否（同日、未解消）: rootactual tenant境界CLIが新alembic_index_comparison.py:155のexecute/textにTB005×2を報告した。実catalog23属性を読むmigration owner用hookが新たなDB到達基底symbolとして未登録であり、実PG正常やR7値レビューをCLI成功に読み替えない。次の限定scopeはbase-allowlistの完全修飾method1登録、そのpositive fixture1、既test_check_tenant_boundary_bypass.pyへの完全署名/最小API/欠落・改変・他scope拒否試験の計3。検査器/対象paths/既基底/SQL/権限/比較hookは不変更。root cache pr196-r7-tenant-registration-candidate-20261106の候補はin-memory6対向と正例を通したが、actual採用/非作者レビュー/正式再導出はまだ。真正な新入力差分だけを後続受理へ反映し、既承認の意味判断を再照会しない。

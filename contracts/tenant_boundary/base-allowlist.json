@@ -37037,8 +37037,8 @@
             "external_snapshots": [
               {
                 "path": ".github/workflows/ci.yml",
-                "sha256": "05a724f36925332d3f5f3c43903dd5c23a963b1813480330ed12819d39f70c43",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/05a724f36925332d3f5f3c43903dd5c23a963b1813480330ed12819d39f70c43"
+                "sha256": "37045fef6200f18fe72862affee2e2bf9079c168dbb53b88161264c875a2db8f",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/37045fef6200f18fe72862affee2e2bf9079c168dbb53b88161264c875a2db8f"
               },
               {
                 "path": "backend/tests/first_ball_expected_source_pins.py",
@@ -37147,8 +37147,8 @@
               },
               {
                 "path": "tests/test_ci_wiring.py",
-                "sha256": "3b77aa4dea76778623424fbd0df1e26c7b1b64409155fb2b9d9261db4ac93762",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/3b77aa4dea76778623424fbd0df1e26c7b1b64409155fb2b9d9261db4ac93762"
+                "sha256": "9a376c8ac2ae7927cec20a1e6b28681ba09364e65b176902f5a9ec26610cc10f",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/9a376c8ac2ae7927cec20a1e6b28681ba09364e65b176902f5a9ec26610cc10f"
               },
               {
                 "path": "tests/test_core_guard.py",
@@ -37189,54 +37189,54 @@
             "asset_snapshots": [
               {
                 "path": "contracts/tenant_boundary/base-allowlist.json",
-                "sha256": "e41bb772fc818d3d599c0cef802e78d486b7b0a44afc50dbd93722c48078a0ab",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/e41bb772fc818d3d599c0cef802e78d486b7b0a44afc50dbd93722c48078a0ab"
+                "sha256": "d0a37e71fccc74e72495a1d92e5704bca63d38726bb83ec864e71b0fa57d103e",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/d0a37e71fccc74e72495a1d92e5704bca63d38726bb83ec864e71b0fa57d103e"
               },
               {
                 "path": "contracts/tenant_boundary/cache-invalidation-contract.json",
-                "sha256": "5e44b2bf160eb72509e467e6d4554070fd0b923cce4723d365bfc3eec6800e07",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/5e44b2bf160eb72509e467e6d4554070fd0b923cce4723d365bfc3eec6800e07"
+                "sha256": "7cdc3acf3ca747db9978dabcf7fa3dd70e5ebf5157e6c5f1c82e48c01848c56c",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/7cdc3acf3ca747db9978dabcf7fa3dd70e5ebf5157e6c5f1c82e48c01848c56c"
               },
               {
                 "path": "contracts/tenant_boundary/census-baseline.json",
-                "sha256": "97f715718718307c1949f55a2dad17e95e3e106c75ba279950c26e6e2701380f",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/97f715718718307c1949f55a2dad17e95e3e106c75ba279950c26e6e2701380f"
+                "sha256": "c97b072b444dca23902b9e3c070cfd4f7236f9c8200692a23e00ade4f2cf16a0",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/c97b072b444dca23902b9e3c070cfd4f7236f9c8200692a23e00ade4f2cf16a0"
               },
               {
                 "path": "contracts/tenant_boundary/db-api-inventory.json",
-                "sha256": "0b42b161d5f8d0b1528720c1a3013f5bc47945d878df1f98e32bcdb34ad54c4f",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/0b42b161d5f8d0b1528720c1a3013f5bc47945d878df1f98e32bcdb34ad54c4f"
+                "sha256": "f0f387945ff80ab85b0716730960e4fd5317280887855adee86717ead0e080f5",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/f0f387945ff80ab85b0716730960e4fd5317280887855adee86717ead0e080f5"
               },
               {
                 "path": "contracts/tenant_boundary/frozen-inputs.json",
-                "sha256": "fe236a4375d115ea394e8dc97facc4eef01c00167d535f9474aba94e7b2937a9",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/fe236a4375d115ea394e8dc97facc4eef01c00167d535f9474aba94e7b2937a9"
+                "sha256": "b78fcd7941b2f55d949072ef7d69296d8d5083faf6ed59cc252221f8e75733c5",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/b78fcd7941b2f55d949072ef7d69296d8d5083faf6ed59cc252221f8e75733c5"
               },
               {
                 "path": "contracts/tenant_boundary/negative-fixtures.json",
-                "sha256": "087e3c7309a7ff7721ead10197f612b79b2229862e28ba8ac5b7c1cb40133729",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/087e3c7309a7ff7721ead10197f612b79b2229862e28ba8ac5b7c1cb40133729"
+                "sha256": "c0782dcf6ea7619d29d8840bb185f9acc7d7172b3a664ddf0f3b8901aacffc22",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/c0782dcf6ea7619d29d8840bb185f9acc7d7172b3a664ddf0f3b8901aacffc22"
               },
               {
                 "path": "contracts/tenant_boundary/repository-contract.json",
-                "sha256": "3528acd07b12f749b07817fe0db055e8c1cc578f5ab59931571c048c2bf6464b",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/3528acd07b12f749b07817fe0db055e8c1cc578f5ab59931571c048c2bf6464b"
+                "sha256": "970c7db48bbaa7159ea271b70a559f54d25f39cb45570a9e03eef0333569ea26",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/970c7db48bbaa7159ea271b70a559f54d25f39cb45570a9e03eef0333569ea26"
               },
               {
                 "path": "contracts/tenant_boundary/runtime-authz-contract.json",
-                "sha256": "ad04858f046e088e2a7e4d60e1d37b7b56f9a830e5fc0666dd328d9f2551c5b1",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/ad04858f046e088e2a7e4d60e1d37b7b56f9a830e5fc0666dd328d9f2551c5b1"
+                "sha256": "422c4027a4f1cf2dbb8c46a754e323f0d18c46129d21177aafbd6f197e9f3fa6",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/422c4027a4f1cf2dbb8c46a754e323f0d18c46129d21177aafbd6f197e9f3fa6"
               },
               {
                 "path": "contracts/tenant_boundary/tenant-context-allowlist.json",
-                "sha256": "cdc782704da3804c78aae1c091495bd4de9f8764058e8d88543d3fe5168cf18f",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/cdc782704da3804c78aae1c091495bd4de9f8764058e8d88543d3fe5168cf18f"
+                "sha256": "d4e13309d02af774f9f2944ff0d84707dc8a65f7cd77ad909a94e5ffe7cc5f3b",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/d4e13309d02af774f9f2944ff0d84707dc8a65f7cd77ad909a94e5ffe7cc5f3b"
               }
             ]
           }
         },
-        "movement_fact": "旧37履歴prefixと単一196識別を保持し、実変更分だけ単一196R5をR6へ置換して不要な再増分をしない。全対象識別値をbase+1据置とし、全前後を公式helperで導出。全base/pin/参照snapshotを保護、除去は非参照かつ非base非pin差分だけ退避。新源本とdescriptor参照の全移動を照合し、旧拒否を緩めず新HEADの非作者レビュー/実公開委任/必須CIを別途成立させる。",
-        "reason": "公開82557119の実CI42033491881 failureを全4backend/frontend/harnessで分類し保持。rootのhandoff artifacts3 digestだけの参照追随を非作者822af0a4（環境訂正62cd58c4）で採用し全他field/数学/依存OIDを保持。G6反映3exact2を非作者ddbd1249で採用し、公開8255実copyの旧carry原本authority改竄をlocal技術検査が誤受理した新P1を固定し、current固定旧文書9のraw/型付き読取一致により解消した。旧9負対向をpublic入口/旧ASTのまま保持し正しい拒否点を観測。CI actual-file bypassは未実証。旧engine/本人署名/全受理prefix/既typed before-after検査を保持する。旧R5数学subject2参照変更と今回handoff3参照変更は明記し、旧9全byte不変とは主張しない。作者106成功・非作者46成功とroot実枝関連検査は対象版別に保持。正式値/最終HEAD/実公開委任/必須CIは別に確認し、GUI既版証拠を本版や全MVPへ拡張しない。",
+        "movement_fact": "旧37履歴prefixと単一196識別を保持し、実変更分だけ単一196R6をR7へ置換して不要な再増分をしない。全対象識別値をbase+1据置とし、全前後を公式helperで導出。全base/pin/参照snapshotを保護、除去は非参照かつ非base非pin差分だけ退避。新源本とdescriptor参照の全移動を照合し、旧拒否を緩めず新HEADの非作者レビュー/実公開委任/必須CIを別途成立させる。",
+        "reason": "公開3eccのR6実CI42050222825を保全。attempt1初期start commit故障1caseが明示結果不明、同HEADowned1成功24.28秒とsource不変/非作者2a7ec98aの潜在2秒idle機序を根拠にfailedjob1回再確認、実CI根因は未確定。attempt2は全4backend試験success後aggregateが旧S3=0039と新0040の未接合で失敗。ownerを保ちS3直後に固定0040だけを適用するCI4行、閉CI配線106と拒否39を保持。初回非作者f805ca60のP1×2を保全し、非作者0cafeb69で実pg_index23属性の正確一致後に反射COLLATE Cだけを公式Alembic hookで補正して標準比較へ戻すsource5を採用した。他索引/比較集合/S3/0040本体/metadata/権限を不変更。owned固定157eの実current/check正常1、誤C/述語/式/unique/順序/owner/validity7負、全schemaaudit1が9成功49.06秒。元実PG失敗1と旧レビュー全履歴を保持し、target/index検査を除外しない。rootactualpure40/CI106成功。R6のG6/数学metadata/type拒否は全値不変。全前後と最終HEAD/公開委任/必須CIを別途束縛し、実機/全MVP完了へ拡張しない。",
         "approved_by": "PO委任によるCodex主担当/root判断（本人署名・人間逐行確認の代記ではない）",
         "approved_on": "2026-11-05"
       }
