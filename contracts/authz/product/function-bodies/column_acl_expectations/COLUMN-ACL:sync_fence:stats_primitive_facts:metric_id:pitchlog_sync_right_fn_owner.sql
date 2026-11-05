@@ -1,0 +1,4 @@
+-- ELEMENT-TYPE: column_acl_expectation
+-- ELEMENT-ID: COLUMN-ACL:sync_fence:stats_primitive_facts:metric_id:pitchlog_sync_right_fn_owner
+
+GRANT SELECT (metric_id),INSERT (metric_id) ON sync_fence.stats_primitive_facts TO pitchlog_sync_right_fn_owner;

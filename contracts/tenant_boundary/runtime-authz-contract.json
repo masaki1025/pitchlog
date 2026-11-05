@@ -73,7 +73,6 @@
   "provisional": false,
   "canonicalization": "json-sort-keys-utf8-v1",
   "application_role": {
-    "rolname": "pitchlog_app",
     "attributes": {
       "rolsuper": false,
       "rolbypassrls": false,
@@ -82,7 +81,8 @@
       "rolcreatedb": false,
       "rolreplication": false,
       "rolinherit": false
-    }
+    },
+    "rolname": "pitchlog_app"
   },
   "protected_objects": {
     "schemas": [
@@ -95,6 +95,7 @@
       "recording_vocab_api",
       "rg1_api",
       "rg1_control",
+      "stats_api",
       "sync_fence",
       "sync_fence_api",
       "sync_right_api"
@@ -315,6 +316,18 @@
       [
         "sync_fence",
         "ordinary_pitch_write_admissions"
+      ],
+      [
+        "sync_fence",
+        "stats_fact_versions"
+      ],
+      [
+        "sync_fence",
+        "stats_primitive_facts"
+      ],
+      [
+        "sync_fence",
+        "stats_primitive_sources"
       ],
       [
         "sync_fence",
@@ -727,6 +740,31 @@
         ""
       ],
       [
+        "stats_api",
+        "open_primitive_snapshot",
+        "uuid, uuid, text"
+      ],
+      [
+        "stats_api",
+        "read_play_export_primitives",
+        "uuid, uuid, uuid, bigint, text, text, text, bigint, uuid, text, integer"
+      ],
+      [
+        "stats_api",
+        "read_primitive_totals",
+        "uuid, uuid, uuid, bigint, text, text, text"
+      ],
+      [
+        "stats_api",
+        "read_primitive_writer_state",
+        "uuid, uuid, uuid, text, bytea"
+      ],
+      [
+        "stats_api",
+        "save_primitive_source",
+        "uuid, uuid, uuid, text, bigint, text, jsonb, bytea"
+      ],
+      [
         "sync_fence_api",
         "assert_writer_binding",
         "uuid, uuid, uuid, bytea, uuid, uuid"
@@ -891,5 +929,5 @@
     }
   ],
   "derived_from": "contracts/authz/product/ddl-elements.json",
-  "source_digest": "f87028f34b9791058b83a8329570466fbbb4345a1fffa36b923859dee832d52e"
+  "source_digest": "7fb3d3f0f5adc815d1a8c238d1c09d4356a0609fbc90986c602e9d19357a5a77"
 }

@@ -7,7 +7,7 @@ RUNTIME_CONTRACT_REVISION = 31
 PROVISIONAL = False
 SUPERSEDED_BY = None
 SOURCE_ASSET = "contracts/tenant_boundary/runtime-authz-contract.json"
-SOURCE_DIGEST = "f87028f34b9791058b83a8329570466fbbb4345a1fffa36b923859dee832d52e"
+SOURCE_DIGEST = "7fb3d3f0f5adc815d1a8c238d1c09d4356a0609fbc90986c602e9d19357a5a77"
 DERIVED_FROM = "contracts/authz/product/ddl-elements.json"
 
 
@@ -45,6 +45,7 @@ PROTECTED_SCHEMAS = (
     "recording_vocab_api",
     "rg1_api",
     "rg1_control",
+    "stats_api",
     "sync_fence",
     "sync_fence_api",
     "sync_right_api",
@@ -104,6 +105,9 @@ PROTECTED_TABLES = (
     ("sync_fence", "ordinary_pitch_checkpoints"),
     ("sync_fence", "ordinary_pitch_history"),
     ("sync_fence", "ordinary_pitch_write_admissions"),
+    ("sync_fence", "stats_fact_versions"),
+    ("sync_fence", "stats_primitive_facts"),
+    ("sync_fence", "stats_primitive_sources"),
     ("sync_fence", "writer_admissions"),
     ("sync_fence", "writer_bindings"),
 )
@@ -204,6 +208,23 @@ PROTECTED_FUNCTIONS = (
     ("rg1_control", "release_controller_lease", ""),
     ("rg1_control", "scope_binding", "uuid"),
     ("rg1_control", "try_controller_lease", ""),
+    ("stats_api", "open_primitive_snapshot", "uuid, uuid, text"),
+    (
+        "stats_api",
+        "read_play_export_primitives",
+        "uuid, uuid, uuid, bigint, text, text, text, bigint, uuid, text, integer",
+    ),
+    (
+        "stats_api",
+        "read_primitive_totals",
+        "uuid, uuid, uuid, bigint, text, text, text",
+    ),
+    ("stats_api", "read_primitive_writer_state", "uuid, uuid, uuid, text, bytea"),
+    (
+        "stats_api",
+        "save_primitive_source",
+        "uuid, uuid, uuid, text, bigint, text, jsonb, bytea",
+    ),
     ("sync_fence_api", "assert_writer_binding", "uuid, uuid, uuid, bytea, uuid, uuid"),
     ("sync_fence_api", "close_writer_binding", "uuid, uuid, uuid, uuid, uuid"),
     ("sync_fence_api", "guard_writer_records", ""),
