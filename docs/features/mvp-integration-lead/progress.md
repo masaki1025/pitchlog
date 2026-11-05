@@ -10,7 +10,7 @@
 - **取消の残り/次**: unit1全完了ではない。正式D11/全pin/現自己互換witnessと複合reset分類/全往復が残り、pr192がcache-onlyで全更新集合/公式helper/保持pinを調査中。コード13は採用したが同期P1同TX保存/read/queue/ACK/実画面はまだ未接続、実安打/BB/HBP/Kの取消を成功化しない。元spike ae3298afの5P1を部品成功で全解消扱いにしない。#196正式merge後に必要な基線差分だけ追随、旧schema/caseのsources SHA更新はmetadataと数学不変を照合する。
 - **成績の現在地/次**: native枝7effb519は通常push保全済み。純契約3は6ccb7a64採用、source16＋公式生成8はcache stats-d02-d05-math-candidate-20261105（packet0d4ce74d6f412f052a3e57722b9f7ca9dc7a83b4b405a1b024c1d85209a12406）に作者停止で固定、別非作者undo_unit1_whole_independentが確認中。実計画pathはdocs/features/mvp-stats-primitives/plan.md。単一D1の区分集合/ratio/add→Py/TS/SQL、作者backend245/root62/FE25、5001桁Py/Node exactとglobal4300不変を報告。独立Fraction1000/実Node/BE245/FE25は途中結果で採否前。reviewcopy内Vitestとroot snapshotの競合/選択venv jsonschema不足2は作者source欠陥と区別して非作者が当該2だけ再確認中。PG/native admission最小5path/正式D11/全27/画面/CSVは未完。PO D02〜D05を意味未回答へ戻さない。
 - **作業の次順**: 8255実CI全緑と依存照合→#196通常merge。その待ちに成績24採否→同版admission＋owned PG、取消pin/D11→正式P1/read/queue/画面を進める。残走塁/走者あり打球/交代/過去訂正/終了再開/閲覧10秒/両CSV/全offline・交代・負荷復旧/実機運用は維持。終了再開spike指示はPOへ提示済みだが外部送付/受諾/稼働は未確認。#186/#187はOPENを再確認、HEADはdevelopの祖先でないため表示だけで閉じず、置換対応/公開引継ぎを確認してから処理する。
-- **再開入口**: cache mvp-resume-20261104/{tenant196-r5,pr196-final-publication-r5}/、active-checkpoint.json。source WT/原枝とcache候補は別、共有DB/運用公開/実機未実施を完了へ読み替えない。次の実CI IDは公開後に取得して同checkpointへ追記する。
+- **再開入口**: cache mvp-resume-20261104/{tenant196-r5,pr196-final-publication-r5}/、active-checkpoint.json。source WT/原枝とcache候補は別、共有DB/運用公開/実機未実施を完了へ読み替えない。同8255の実GitHub本文workflow42033491953はsuccess、全件CI42033491881はin_progressを実確認。checkpointに同IDを固定し、このhandleを追跡する。
 
 ## 続き：2026-11-05（安打R4の公開・完走CI4件を是正、成績と取消本体を並行）
 
