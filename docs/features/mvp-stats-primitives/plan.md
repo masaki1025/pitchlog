@@ -322,3 +322,6 @@ current migration既設pre-fullの厳格接合（2026-11-05、PO委任Codex /roo
 
 
 current適用前読取transactionの終結（2026-11-05、PO委任Codex /root判断）: 277da7d6 owned nominal r3はpre-full厳密照合を通過し、正式apply_product_authz_ddlのIDLE前提で拒否した。直前の同connection readがimplicit transactionを開始している。current/test exact2で、既legacy resumeと同様、全構造/index/rules/public storage/pre-full検査用接続を正常に終了してから新しいIDLE接続で既applyを実行する。apply自体の状態再照合/同TX・全拒否条件/事後全catalogは保持する。既進行TXを強制commit/rollbackして適用する回避やautocommitは使わず、検査失敗時applyしない。新純回帰で全5読取がdirty化した接続の正常終結→別接続IDLE→apply→事後全確認の順序を検査、検査例外時applyなし/伝播を保持。root候補を別非作者確認後に実sourceへ採用しowned nominal1を再検証する。r3の失敗は保持。
+
+
+current IDLE接合exact2採用（2026-11-05、PO委任Codex /root判断）: root候補8e7467c9…/d4191c9a…を非作者fb295a1f1f2be77e173e454c3bc138ceddda28f77f370ee14d42b43ddb05c193（独立84成功24.27秒＋review copyのGit不足を補完した旧原典1成功2.57秒=85固有case、P0/P1/P2=0）で採用。旧全AST/適用器IDLE・主体・同TX・全事後catalog不変、事前read接続終結後の新IDLE接続だけへ分離する。初回review環境失敗は保持し同候補の全実DB成功とはしない。rootが同固定版でowned nominal1を実証後、未実施残14/旧prefix20へ進む。
