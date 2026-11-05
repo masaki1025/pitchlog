@@ -52557,5 +52557,85 @@
     "GET/next play with active empty and preserved physical rows",
     "canonical S verified cancellation exclusions / generated stats invalidation",
     "unit1+2 actual app D11 reach and traces; step3 UI/queue/ACK"
-  ]
+  ],
+  "fingerprintReflection1": {
+    "status": "candidate-runtime-binding-repair",
+    "authority": "repositories/ordinary_prefix.py Fingerprint + sync/wire_fingerprint.py::_fingerprint; no strip/rehash or old golden change",
+    "positive": [
+      {
+        "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "accepted": true
+      },
+      {
+        "value": "wire-v1:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "accepted": true
+      }
+    ],
+    "negative": [
+      {
+        "value": "wire-v2:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "accepted": false
+      },
+      {
+        "value": "wire-v1:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+        "accepted": false
+      },
+      {
+        "value": "wire-v1:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "accepted": false
+      },
+      {
+        "value": "wire-v1:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "accepted": false
+      },
+      {
+        "value": "wire-v1:wire-v1:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "accepted": false
+      },
+      {
+        "value": true,
+        "accepted": false
+      },
+      {
+        "value": 1,
+        "accepted": false
+      },
+      {
+        "value": null,
+        "accepted": false
+      },
+      {
+        "value": "wire-v1:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n",
+        "accepted": false
+      },
+      {
+        "value": "wire-v1:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\r",
+        "accepted": false
+      },
+      {
+        "value": "wire-v1:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\r\n",
+        "accepted": false
+      },
+      {
+        "value": "wire-v1:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "accepted": false
+      },
+      {
+        "value": "wire-v1:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa ",
+        "accepted": false
+      },
+      {
+        "value": "wire-v1:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa ",
+        "accepted": false
+      },
+      {
+        "value": "wire-v1:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\u000b",
+        "accepted": false
+      },
+      {
+        "value": "wire-v1:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\f",
+        "accepted": false
+      }
+    ]
+  }
 }

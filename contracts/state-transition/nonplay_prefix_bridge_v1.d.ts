@@ -7,13 +7,15 @@ export type Unsigned = string;
 export type Positive = string;
 export type Uuid = string;
 export type Digest = string;
+/** 既E1 wire-v1タグを全値保持する。旧plain64も保持しstrip/再hashしない。 */
+export type Fingerprint = string;
 export type Generation = string;
 /** 既sync HTTPの正整数safe範囲。内部の十進文字列と混同しない。 */
 export type WireD1 = number;
 export type Scope = Readonly<{ tenantId: Uuid; gameId: Uuid; generation: Generation }>;
 export type CheckpointRef = Readonly<{ id: Uuid; revision: Positive; digest: Digest }>;
 export type EventSource = Readonly<{ eventId: Uuid; gameId: Uuid; generation: Generation;
-  d1: Positive; d5: Uuid; fingerprint: Digest; eventKind: "play_input" | "undo" }>;
+  d1: Positive; d5: Uuid; fingerprint: Fingerprint; eventKind: "play_input" | "undo" }>;
 export type D1Head = Readonly<{ kind: "accepted-event"; source: EventSource }>;
 export type ProjectionHead = Readonly<{ kind: "started-game"; eventId: Uuid }> |
   Readonly<{ kind: "d1-event"; source: EventSource }>;

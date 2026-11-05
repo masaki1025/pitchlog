@@ -89,7 +89,7 @@
           "$ref": "#/$defs/Uuid"
         },
         "fingerprint": {
-          "$ref": "#/$defs/Digest"
+          "$ref": "#/$defs/Fingerprint"
         },
         "eventKind": {
           "enum": [
@@ -521,6 +521,10 @@
         "target_reference"
       ],
       "additionalProperties": false
+    },
+    "Fingerprint": {
+      "type": "string",
+      "pattern": "^(?:wire-v1:)?[a-f0-9]{64}(?![\\s\\S])"
     }
   },
   "oneOf": [
