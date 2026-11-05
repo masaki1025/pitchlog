@@ -249,3 +249,6 @@ census追随の採用記録: 作者7f37309b…/source bfe3c4f7…を非作者fb1
 
 
 registry反映1採用（2026-11-05、PO委任Codex /root判断）: source2 ad58bfe4…/9da4039c…とmetadata提案1f956988…を、非作者508ee59aab5217ff745cff5574e68fdf8e371e295c657e04ae1c40b44ef94738（独立実copy89成功22.63秒、初回4反例拒否、旧inline0/21・旧4owner15tuple保持、P0/P1/P2=0）で採用する。初版ec48のP1は閉じた。作者が親directory symlink越しに正式JSON1へ書いた事故と未変更誤報は訂正packet b76e70a4…/REPORT162e0171…・root保全復元で記録し、作者89を完全隔離証拠としない。本採用はrootが原本前値を確認して改めて適用したもので、事故時の変更を追認/正式受理しない。正式7.7R2/CLI/CI/通常統合は別残。
+
+
+最終整形追随の採用（2026-11-05、PO委任Codex /root判断）: backend/tests/test_sync_apply_product_supply.pyの新STABLE判定literal1行がE501（91字）で停止したため、暗黙文字列結合へ改行するだけの候補1ed8e18b…を非作者5ce6e99d64e68ffcf20e7fd22f03c387bf1a843258b3debcf9302eda34826900（全AST/期待/全assert不変、独立ruff0）で採用する。root/BE ty・FE vue-tsc/eslintは成功。source/数学/SQL/認可/保存意味は変わらず、frozen外部原本の全byteだけが変わるので単一196候補をR3へ置換し、旧37/9IDbase+1を保持する。4a27固定のroot回帰72039は元WTを無編集で継続し、本最終候補は同4a27から隔離したWTで作成、回帰終了後同commitへffする。R2独立44bee168…/正式CLI成功と全候補基礎c72017be…を保持し、最終HEADの限定再bindingと必須CI前はmergeしない。
