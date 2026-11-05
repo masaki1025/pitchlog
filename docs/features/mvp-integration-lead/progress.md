@@ -1,5 +1,10 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 続き：2026-11-05（安打4種の実画面→実DB→再読込が全完走）
+
+利用者が候補環境で新たに完了できる操作は、単打・二塁打・三塁打・本塁打を画面で入力し、その次の球を記録した後でも元要求の再送を二重保存せず、reloadで同じ状態へ復元すること。固定3310dcd1ba369de11ca3442c2da6f49cab0b0cd4のowned host HTTPS r5は**browser4passed/約1.4分・外側pytest1passed/123.11秒**。実画面の新規4試合作成/開始から正式経路を通し、API全公開値・物理PlayRow41列/runner10列・source/slot/history各2・再送後の件数を検査。全3684追跡SHA/HEAD前後不変・共有DSN未継承・owned PG撤去済み。証拠cache batted-storage-step4-20261105/batted-screen-r5-evidence.jsonへ6file SHAを封印、非作者最終照合中。r4の誤比較失敗と旧故障試験binding close非再現留保は保全し、運用TLS/実機/正式提供/全MVPの成立へ広げない。次は安打候補の正式登録・後発差分レビュー・必須CI/通常統合と、成績の同TX接続。
+
+
 ## 続き：2026-11-05 11:22 JST（#192 R5保存、安打4種の画面成功と最終DB照合、成績実接合）
 
 - **正式基線**: GitHub照合で#191はeb8b31cdへmerged、#192は公開67858d76/Draft。全CI41949597842はterminal failureで成功扱いにしない。backend4/frontend等は成功、harness1の2件は既凍結fixture期待リスト追加漏れと訂正前の公開証拠JSON参照。後者はraw JSONへ是正した本文run41949597910成功、source変更の代替にしない。前者exact1は非作者7fafcbac…後a1d213d1保存。公式helperのR5は旧36→単一192/37・9revision不変・base300/pin83を全保持、未参照2だけ退避差替、非作者1b05355d…で完全再導出一致、tenant CLI成功。6c779700へ保存、最終非作者binding/公開証拠/通常push/全CIは未了。
