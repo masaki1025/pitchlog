@@ -157,7 +157,7 @@ stats合成時の4生成衝突は、#196の既history/identityを保持し、inc
 
 ## 取消後の次球へ同一artifactを接合するscope（2026-11-06 JST、PO委任Codex /root）
 
-新3head Sourceは既v3 Sourceと同じlast_source.D1=D3前提を持たないため、単にv3/startedへ偽装できない。作者batted_hitsへcache-onlyのexact6を許可する: frontend/src/domain/lineupPlayPrefixContinuation.ts、同spec.ts、contracts/state-transition/lineup_play_prefix_v1.d.ts、同schema_v1.json、backend/src/pitchlog/domainrt/lineup_play_prefix_continuation.py、backend/tests/domain/test_lineup_play_prefix_continuation_host.py（既対応test名が異なる場合は実pathを先にrootへ確認する）。新nonplay-prefix-source-v1だけを閉unionとして追加し、既T1/T2/forward計算を再利用する。旧Source3/全公開operation/旧1878有限4操作の入力出力とsourceを保持し、新Python/TS逆計算コピーを作らない。
+新3head Sourceは既v3 Sourceと同じlast_source.D1=D3前提を持たないため、単にv3/startedへ偽装できない。作者batted_hitsへcache-onlyのexact6を許可する: frontend/src/domain/lineupPlayPrefixContinuation.ts、同spec.ts、contracts/state-transition/lineup_play_prefix_v1.d.ts、同schema_v1.json、backend/src/pitchlog/domainrt/lineup_play_prefix_continuation.py、backend/tests/domainrt/test_lineup_play_prefix_continuation.py（実既存pathをrootが照合済み）。新nonplay-prefix-source-v1だけを閉unionとして追加し、既T1/T2/forward計算を再利用する。旧Source3/全公開operation/旧1878有限4操作の入力出力とsourceを保持し、新Python/TS逆計算コピーを作らない。
 
 CPのrestored/activeDepth/historyVersion/物理next番号を真正source値として別々に供給し、空active/D3>0でもbeforeをinitialに偽装しない。次の1球のnewHistoryEntry/contextは既計算が返すものを使い、targetD4/自世代/実世代連結を混同せず、未知controlや不正cross-fieldは閉拒否する。shapeは資格にならず、実source/nonce/TX/ACKはruntime側の必要条件と分離する。既prefix/opaque getterをcaller rawJSONで代用しない。
 
