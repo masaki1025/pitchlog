@@ -3,7 +3,7 @@ feature: mvp-undo-native-connection
 status: active
 承認: PO委任によるCodex主担当/root判断（2026-11-05、原案SHA 03a8bf7ee9fd835ae3d2502358ba23ba8e11fbfcbfb93606a237f1e16528aac2、非作者敵対7221cc2bc5f0f1891a4bed6aecd7651fdc49d5c4c09e085eddfb815a956977ce）
 重さ分類: コア領域
-branch: feature/mvp-undo-native-connection
+branch: feature/mvp-undo-runtime-integration
 created: 2026-11-05
 計画レビュー周回: 1
 確定ゲート周回: 0
@@ -142,3 +142,14 @@ source6/test6と実hook不足のexact契約を一緒に固定し非作者へ渡�
 ## unit2契約の実wire fingerprint接合反映1（2026-11-06 JST、PO委任Codex /root）
 
 本体接続時に、EventSource.fingerprintを一般Digestのraw64へ束縛した旧契約が実E1のwire-v1:64を拒否するP1を発見した。作者と初回非作者の未検出履歴を初回P1=1として保持し、既ordinary Prefix Fingerprintの許可集合に合わせる最小反映を採用する。作者packeta02b343f9f8935e17dad7666530c0f0a0e804768ad6c8f75e31934e7a8d68b9a、非作者013cf20b45409507bdf9909266eb9381d45a909a0f04c0b929bf6af94a25af14/checks9a550f5740c9506cb4e39a1a9935267c52d537c93a10d8fad96c4dbf435e40b5（P1解消1/残0）を確認。schema新Fingerprint定義＋当該field参照、d.ts alias/説明と既cases保持＋scalar2肯定16否定だけ。独立実wireの旧拒否→新受理・既型との46入力採否一致/受理原値保持・無関係Digest拒否・strict tscを根拠とする。タグstrip/再hashや実ledgerとの不一致を成功へ変換しない。反映対象は既exact3だけ、以降も形の成功を真正source/資格/PG/全操作の成功へ拡張しない。
+
+
+## 隔離接続候補の固定とadmission不足の限定追補（2026-11-06 JST、PO委任Codex /root）
+
+最終#196候補3ecc85ab（実CI初回backend1case結果不明/他全success・原因未確定、同HEAD実PG単体成功後failedjob1回再確認中）と、成績v2実API/実read/故障3caseが同版で成立したbcee3dec、および取消純計算/契約e633e011を、専用WT/branch feature-mvp-undo-runtime-integrationへ依存合成した。元各枝/PR/証拠は保存し、正式develop/通常統合済みとしない。本branchは連続取消の単位に必要な依存だけの隔離接続用であり、全旧成果の一括移植ではない。以後本planの実runtime writerはrootの当該WT、原pure WTは保全する。
+
+stats合成時の4生成衝突は、#196の既history/identityを保持し、incoming statsの3登録集合が既集合の真supersetであることを全値照合後、公式asset_digest/runtime derive/render/rederiveだけで描画した。catalog test衝突は両群の全定義を保持する和で解決し、拒否を削除しない。recipeと全根拠はcache undo-runtime-integration-20261106/resolve-stats-dependency.py。正式7.7/独立composition確認/全CI/新pin/D11/実接続は未成立。
+
+作者の実DB形照合で、ordinary admissionのevaluated/consumed CHECKはplay_row_id/source_d2必須、既writerbindingだけではundo評価/target/CPの独立一回資格を保存できないと判明した。fake play/CHECK弱化を避け、private nonplay_write_admissions一表だけのcache-only実装を追加許可する。exact5追加はbackend/src/pitchlog/db/writer_binding/nonplay_models.py、同__init__.pyの登録、backend/migrations/versions/0042_nonplay_write_admission.py、backend/tests/test_nonplay_admission_model.py、backend/tests/db/test_nonplay_admission_schema.py。親revisionは既検証済み0041_stats_fact_versionsで固定し、0041の重複枝や汎用head upgradeを作らない。新source/root共有登録への書込は従来どおり別scope/別writer。
+
+新表は同tenant/game/実writer binding/SessionトップTX/currentXID/nonce/一回phaseと、真正undo原本/target/世代連結/CP before-after/frame/artifact/restore/history根拠へ閉じる。own D2は作らず、準備→評価→消費の状態遷移を有限CHECK/制約/固定SQLで再確認する。自由JSON/bool/IDだけの資格、caller任意SQL、任意phase遷移、過去資格再使用、app直書込、RLS免除、物理削除は不可。owner/既roleの最小列権限・FORCE RLS/defaultdenyとtenant複合参照を含む採用根拠を先置きし、実PGschema/移行/原子性/越境はrootのowned環境で別受入する。shared DB適用/有料/運用公開/新秘密発行なし。新表宣言と旧ordinary全CHECK/source不変を非作者が確認する。
