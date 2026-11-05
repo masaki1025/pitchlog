@@ -419,7 +419,7 @@ def _play_state(row: Mapping[str, object]) -> Mapping[str, object] | None:
     return None
 
 
-def _undo_state(row: Mapping[str, object]) -> Mapping[str, object] | None:
+def _reversal_state(row: Mapping[str, object]) -> Mapping[str, object] | None:
     """Undo 接続spikeの保存結果から after を読む。"""
     raw = _mapping(row.get("payload"))
     if raw is None or raw.get("formatVersion") != "undo-connection-spike-v1":
@@ -484,7 +484,7 @@ def state_from_row(row: Mapping[str, object]) -> Mapping[str, object] | None:
     if kind == "play_input":
         return _play_state(row)
     if kind == "undo":
-        return _undo_state(row)
+        return _reversal_state(row)
     if kind == EVENT_KIND:
         value = _lifecycle_payload_from_row(row)
         return None if value is None else value.state
