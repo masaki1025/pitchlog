@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "runtime_contract_revision": 31,
+  "runtime_contract_revision": 32,
   "baseline_control": {
     "identity": {
       "scheme": "integer_revision_field",
       "field": "runtime_contract_revision",
       "current_identifiers": [
-        "runtime_contract_revision:31"
+        "runtime_contract_revision:32"
       ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
@@ -891,5 +891,5 @@
     }
   ],
   "derived_from": "contracts/authz/product/ddl-elements.json",
-  "source_digest": "f87028f34b9791058b83a8329570466fbbb4345a1fffa36b923859dee832d52e"
+  "source_digest": "c50b85b0ca0905128db62143b8d963268bb9b9134c64228ba86a22dcdebde382"
 }

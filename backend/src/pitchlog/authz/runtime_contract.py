@@ -3,11 +3,11 @@
 from dataclasses import dataclass
 
 SCHEMA_VERSION = 1
-RUNTIME_CONTRACT_REVISION = 31
+RUNTIME_CONTRACT_REVISION = 32
 PROVISIONAL = False
 SUPERSEDED_BY = None
 SOURCE_ASSET = "contracts/tenant_boundary/runtime-authz-contract.json"
-SOURCE_DIGEST = "f87028f34b9791058b83a8329570466fbbb4345a1fffa36b923859dee832d52e"
+SOURCE_DIGEST = "c50b85b0ca0905128db62143b8d963268bb9b9134c64228ba86a22dcdebde382"
 DERIVED_FROM = "contracts/authz/product/ddl-elements.json"
 
 

@@ -1,0 +1,922 @@
+"""初球製品供給のexact差分・旧投影・DDL非実行を確認する。"""
+
+from __future__ import annotations
+
+import copy
+import json
+import re
+from pathlib import Path
+
+import pytest
+from first_ball_expected_source_pins import read_expected_source_pins
+
+from pitchlog.authz import product_catalog as cat
+from pitchlog.authz import product_provisioning as prov
+from pitchlog.authz.asset_spec import PRODUCT_SPEC, load_product_application_steps
+from pitchlog.authz.first_ball_product import ADDITIONS, IDS, legacy_asset, validate
+
+# 終端prefixの正式7関数・2policy・runner有限10列（旧集合は維持）。
+_TERMINAL_FUNCTION_IDS = frozenset(
+    {
+        "FUNCTION:sync_right_api:assert_play_prefix_projection(jsonb)",
+        "FUNCTION:sync_right_api:finish_play_prefix_projection()",
+        "FUNCTION:sync_right_api:guard_play_prefix_runner_insert()",
+        (
+            "FUNCTION:sync_right_api:lock_play_prefix_checkpoint(uuid, uuid, "
+            "uuid, bytea, uuid, uuid, bigint)"
+        ),
+        (
+            "FUNCTION:sync_right_api:prepare_play_prefix_projection(uuid, "
+            "uuid, uuid, bytea, uuid, uuid, text)"
+        ),
+        "FUNCTION:sync_right_api:read_play_prefix_checkpoint(uuid, uuid, bigint)",
+        (
+            "FUNCTION:sync_right_api:read_play_prefix_history_page(uuid, "
+            "uuid, bigint, bigint, uuid, bigint, bigint, bigint, bigint, "
+            "bigint, uuid, integer)"
+        ),
+    }
+)
+_TERMINAL_POLICY_IDS = frozenset(
+    {
+        "POLICY:play_runners:play_prefix_insert_play_runners",
+        "POLICY:play_runners:play_prefix_select_play_runners",
+    }
+)
+_TERMINAL_COLUMN_ACL_IDS = frozenset(
+    f"COLUMN-ACL:public:play_runners:{column}:pitchlog_sync_right_fn_owner"
+    for column in (
+        "tenant_id",
+        "id",
+        "play_id",
+        "base",
+        "runner_id",
+        "status",
+        "status_source",
+        "responsible_pitcher_id",
+        "import_batch_id",
+        "retired_at",
+    )
+)
+
+
+_LINEUP_FUNCTION_IDS = frozenset(
+    {
+        "FUNCTION:sync_right_api:read_lineup_started_origin(uuid, uuid, bigint)",
+    }
+)
+_LINEUP_POLICY_IDS = frozenset(
+    {
+        "POLICY:game_start_attempts:lineup_prefix_game_start_attempts_select",
+        "POLICY:game_start_requests:lineup_prefix_game_start_requests_select",
+    }
+)
+_LINEUP_COLUMN_ACL_IDS = frozenset(
+    f"COLUMN-ACL:public:{table}:{column}:pitchlog_sync_right_fn_owner"
+    for table, columns in (
+        (
+            "game_start_attempts",
+            ("tenant_id", "game_id", "device_id", "start_request_id", "outcome"),
+        ),
+        (
+            "game_start_requests",
+            ("tenant_id", "game_id", "device_id", "start_request_id"),
+        ),
+    )
+    for column in columns
+)
+
+
+_EXPECTED_SOURCE_PINS = read_expected_source_pins("test_sync_apply_product_supply.py")
+
+ROOT = Path(__file__).resolve().parents[2]
+
+
+def asset():
+    """検証用の実資産を読み、予期しない処理を閉じる。"""
+    return json.loads((ROOT / "contracts/authz/product/ddl-elements.json").read_bytes())
+
+
+ROWS = [(s, i) for s, rows in ADDITIONS.items() for i in range(len(rows))]
+
+
+@pytest.mark.parametrize("section,index", ROWS)
+@pytest.mark.parametrize("fault", ["missing", "mutated", "duplicate"])
+def test_extension_rejects_every_missing_mutated_or_duplicate_row(
+    section, index, fault
+):
+    """実認可資産の閉集合と失敗条件を検査する。"""
+    value = asset()
+    target = ADDITIONS[section][index]
+    key = IDS[section]
+    at = next(i for i, r in enumerate(value[section]) if r[key] == target[key])
+    if fault == "missing":
+        value[section].pop(at)
+    elif fault == "duplicate":
+        value[section].append(copy.deepcopy(value[section][at]))
+    else:
+        value[section][at]["unexpected"] = True
+    with pytest.raises(ValueError):
+        validate(value)
+
+
+def test_legacy_projection_preserves_semantics_and_input():
+    """実認可資産の閉集合と失敗条件を検査する。"""
+    value = asset()
+    assert validate(value)
+    legacy = legacy_asset(value)
+    assert not validate(legacy)
+    assert legacy_asset(legacy) == legacy
+    assert not any(r.get("schema_name") == "sync_fence" for r in legacy["tables"])
+    assert value == asset()
+
+
+@pytest.mark.parametrize(
+    "fault", ["connect", "usage", "namespace", "invoker", "unknown-invoker", "bool-int"]
+)
+def test_profile_rejects_partial_privileges_namespace_and_mode(fault):
+    """実認可資産の閉集合と失敗条件を検査する。"""
+    value = asset()
+    if fault == "connect":
+        value["databases"][0]["acl_expectations"] = [
+            r
+            for r in value["databases"][0]["acl_expectations"]
+            if r["grantee"] != "pitchlog_sync_binding_actor"
+        ]
+    elif fault == "usage":
+        next(r for r in value["schemas"] if r["schema_id"] == "public")[
+            "acl_expectations"
+        ].pop()
+    elif fault == "namespace":
+        value["tables"][-1]["schema_name"] = "public"
+    elif fault == "bool-int":
+        value["roles"][-1]["bypass_rls"] = 0
+    else:
+        r = next(r for r in value["functions"] if r["function_kind"] == "invoker")
+        if fault == "invoker":
+            r["security_mode"] = "definer"
+        else:
+            r["function_id"] = "FUNCTION:sync_fence_api:unknown(uuid)"
+    with pytest.raises(ValueError):
+        validate(value)
+
+
+def test_catalog_keeps_added_objects_and_actual_bodies():
+    """実認可資産の閉集合と失敗条件を検査する。"""
+    e = cat._load_product_expectations()
+    assert {("sync_fence", "writer_bindings"), ("sync_fence", "writer_admissions")} <= {
+        r[:2] for r in e.tables
+    }
+    rows = [
+        r
+        for r in cat._expected_lifecycle_function_details()
+        if r[0] in {"sync_fence_api", "sync_right_api"}
+    ]
+    old_names = {
+        "observe_writer_binding",
+        "guard_first_ball_projection_admission",
+        "read_ordinary_order_summary",
+        "read_device_state",
+        "read_ordinary_checkpoint",
+        "assert_writer_binding",
+        "prepare_ordinary_projection",
+        "guard_writer_records",
+        "guard_first_ball_projection_lock",
+        "read_writer_database_identity",
+        "bind_device",
+        "check_ordinary_right",
+        "bind_ordinary_device",
+        "consume_ordinary_projection",
+        "close_writer_binding",
+        "check_current_right",
+        "read_ordinary_history_page",
+        "lock_ordinary_checkpoint",
+        "read_writer_identity",
+        "publish_writer_binding",
+    }
+    assert {r[1] for r in rows} == old_names | {
+        value.split(":")[-1].split("(")[0]
+        for value in _TERMINAL_FUNCTION_IDS | _LINEUP_FUNCTION_IDS
+    }
+    assert len(old_names) == 20
+    assert len(_TERMINAL_FUNCTION_IDS) == 7 and len(_LINEUP_FUNCTION_IDS) == 1
+    assert len(rows) - len(_TERMINAL_FUNCTION_IDS) - len(_LINEUP_FUNCTION_IDS) == 20
+    assert len(rows) == 28
+    assert sum(r[4] is False for r in rows) == 2
+    assert all(r[9] and r[8] == ("search_path=pg_catalog, pg_temp",) for r in rows)
+
+
+def test_invoker_has_exact_helper_step_position():
+    """実認可資産の閉集合と失敗条件を検査する。"""
+    s = load_product_application_steps(ROOT, PRODUCT_SPEC)
+    assert s.application_steps[2].element_groups == (
+        "functions:rls_helper",
+        "functions:definer",
+        "functions:invoker",
+    )
+
+
+def test_full_apply_has_nine_definitions_and_four_guards_without_execution():
+    """実認可資産の閉集合と失敗条件を検査する。"""
+    _, s = prov._build_operation_statements(prov.ProductOperation.APPLY)
+    sql = "\n".join(r.sql for r in s)
+    assert sql.count("CREATE FUNCTION sync_fence_api.") == 7
+    assert (
+        sql.count("CREATE FUNCTION sync_right_api.")
+        - len(_TERMINAL_FUNCTION_IDS)
+        - len(_LINEUP_FUNCTION_IDS)
+        == 13
+    )
+    assert sql.count("CREATE FUNCTION sync_right_api.") == 21
+    assert sql.count("CREATE TRIGGER trg_play_prefix_") == 2
+    assert sql.count("CREATE TRIGGER sync_writer_") == 4
+    assert sql.count("CREATE TRIGGER trg_first_ball_") == 2
+
+
+def test_pre_rule_defers_unavailable_dependencies():
+    """実認可資産の閉集合と失敗条件を検査する。"""
+    _, s = prov._build_operation_statements(prov.ProductOperation.APPLY_PRE_RULE)
+    sql = "\n".join(r.sql for r in s)
+    assert "CREATE FUNCTION sync_fence_api." not in sql
+    assert "CREATE FUNCTION sync_right_api." not in sql
+    assert "ALTER TABLE sync_fence." not in sql
+    assert "CREATE ROLE pitchlog_sync_binding_actor" in sql
+
+
+def test_unapply_rejects_before_generation_or_execution(monkeypatch):
+    """実認可資産の閉集合と失敗条件を検査する。"""
+
+    def forbidden(*a, **kw):
+        """検証用の実資産を読み、予期しない処理を閉じる。"""
+        raise AssertionError("DDL生成へ進めない")
+
+    monkeypatch.setattr(prov, "generate_authz_ddl", forbidden)
+    with pytest.raises(prov.ProductProvisioningError, match="退役は未提供"):
+        prov._build_operation_statements(prov.ProductOperation.UNAPPLY)
+
+
+def test_reapply_is_closed_to_exact_nine_and_preserves_frozen_first_apply():
+    """新9は未存在分岐だけで元全文を実行し既存時は検査だけを行う。"""
+    from pitchlog.authz.first_ball_product import application_function_sql, body
+
+    for row in ADDITIONS["functions"]:
+        original = body("function", row["function_id"])
+        assert original is not None
+        wrapped = application_function_sql(row["function_id"], original)
+        assert wrapped is not None
+        assert wrapped.startswith("DO $first_ball_reapply$")
+        assert wrapped.count("EXECUTE ") == original.count("EXECUTE ") + 1
+        literal = "'" + original.replace("'", "''") + "'"
+        assert (
+            f"IF existing IS NULL THEN\n        EXECUTE {literal};\n        RETURN;"
+            in wrapped
+        )
+        existing_branch = wrapped.split("        RETURN;\n    END IF;", 1)[1]
+        assert "CREATE FUNCTION " not in existing_branch
+        assert "CREATE TRIGGER " not in existing_branch
+        assert "ALTER FUNCTION " not in existing_branch
+        assert "GRANT " not in existing_branch
+        assert "REVOKE " not in existing_branch
+        assert "DROP " not in existing_branch
+        # 新しい語彙readだけは採用済みSTABLE。他の旧関数はVOLATILEを維持する。
+        expected_volatility = (
+            "s"
+            if row["function_id"]
+            == "FUNCTION:recording_vocab_api:read_batted_ball_options(uuid, integer, text)"
+            else "v"
+        )
+        for required in (
+            "p.prokind='f'",
+            f"p.provolatile='{expected_volatility}'",
+            "p.proparallel='u'",
+            "NOT p.proisstrict",
+            "NOT p.proleakproof",
+            "p.provariadic=0",
+            "p.pronargdefaults=0",
+            "p.proargmodes IS NOT DISTINCT FROM",
+            "p.procost=100",
+            "p.prorows=",
+            "p.prosupport=0",
+            "p.probin IS NULL",
+            "p.prosqlbody IS NULL",
+            "p.protrftypes IS NULL",
+            "p.proargnames IS NOT DISTINCT FROM",
+            "p.prosecdef=",
+            "p.proretset=",
+            "pg_get_function_result(p.oid)",
+            "p.proconfig=ARRAY['search_path=pg_catalog, pg_temp']::pg_catalog.text[]",
+            "pg_catalog.btrim(p.prosrc, E' \\t\\r\\n')=",
+            "p.proowner",
+            "a.privilege_type,a.is_grantable",
+            "a.grantee<>p.proowner",
+            "first ball function definition collision",
+            "first ball function privilege collision",
+        ):
+            assert required in existing_branch
+        assert f"o.rolname='{row['owner_role_id']}'" in existing_branch
+        with pytest.raises(ValueError, match="凍結値"):
+            application_function_sql(row["function_id"], original + "-- changed")
+    assert (
+        application_function_sql("FUNCTION:other:unknown()", "CREATE FUNCTION x")
+        is None
+    )
+
+
+def test_reapply_guard_retains_exact_four_triggers_and_refuses_collisions():
+    """guardの対象/事象/行単位/関数/有効状態/余剰を検査し修復しない。"""
+    from pitchlog.authz.first_ball_product import application_function_sql, body
+
+    key = "FUNCTION:sync_fence_api:guard_writer_records()"
+    original = body("function", key)
+    assert original is not None
+    wrapped = application_function_sql(key, original)
+    assert wrapped is not None
+    check = wrapped.split("        RETURN;\n    END IF;", 1)[1]
+    for name, table, tgtype in (
+        ("sync_writer_binding_immutable", "writer_bindings", 27),
+        ("sync_writer_binding_no_truncate", "writer_bindings", 34),
+        ("sync_writer_admission_immutable", "writer_admissions", 27),
+        ("sync_writer_admission_no_truncate", "writer_admissions", 34),
+    ):
+        assert (
+            f"t.tgname='{name}' AND t.tgrelid='sync_fence.{table}'"
+            f"::pg_catalog.regclass AND t.tgtype={tgtype}"
+        ) in check
+    for required in (
+        "<> 4",
+        "NOT t.tgisinternal",
+        "t.tgfoid=existing",
+        "t.tgenabled='O'",
+        "NOT t.tgdeferrable",
+        "NOT t.tginitdeferred",
+        "t.tgconstraint=0",
+        "t.tgnargs=0",
+        "t.tgattr::text=''",
+        "t.tgqual IS NULL",
+        "t.tgargs=''::pg_catalog.bytea",
+        "t.tgoldtable IS NULL",
+        "t.tgnewtable IS NULL",
+        "first ball trigger definition collision",
+    ):
+        assert required in check
+
+
+# 安打の後発差分だけをimmutable Git原本へ束縛する。旧43pinは変更しない。
+_BATTED_SOURCE_REFERENCE_PATH = (
+    Path(__file__).parent / "fixtures/batted_source_extension_reference_v1.json"
+)
+_BATTED_SOURCE_REFERENCE_SHA256 = (
+    "ddf4953a9ab4e3f48863c79c2042d895611aa4efc99a546864595c9f477da421"
+)
+_BATTED_PREPARE_ID = (
+    "FUNCTION:sync_right_api:prepare_play_prefix_projection(uuid, uuid, uuid, "
+    "bytea, uuid, uuid, text)"
+)
+_BATTED_ADDED_IDS = frozenset(
+    {
+        "pitchlog_recording_vocab_fn_owner",
+        "recording_vocab_api",
+        "FUNCTION:recording_vocab_api:read_batted_ball_options(uuid, integer, text)",
+        "POLICY:admin_vocabularies:batted_hit_select_admin_vocabularies",
+        "POLICY:tenant_vocabularies:batted_hit_select_tenant_vocabularies",
+        "POLICY:admin_vocabularies:recording_vocab_select_batted_ball",
+        *(
+            f"COLUMN-ACL:public:{table}:{column}:{owner}"
+            for table, columns, owner in (
+                (
+                    "admin_vocabularies",
+                    ("category", "disabled", "key"),
+                    "pitchlog_sync_right_fn_owner",
+                ),
+                (
+                    "tenant_vocabularies",
+                    ("category", "disabled", "key", "tenant_id"),
+                    "pitchlog_sync_right_fn_owner",
+                ),
+                (
+                    "admin_vocabularies",
+                    ("category", "disabled", "display_name", "key"),
+                    "pitchlog_recording_vocab_fn_owner",
+                ),
+            )
+            for column in columns
+        ),
+    }
+)
+
+
+def _load_batted_source_reference(raw: bytes | None = None):
+    """全fixture byteを固定し、変更した期待値による自己合格を拒否する。"""
+    import hashlib
+
+    data = _BATTED_SOURCE_REFERENCE_PATH.read_bytes() if raw is None else raw
+    assert hashlib.sha256(data).hexdigest() == _BATTED_SOURCE_REFERENCE_SHA256
+    return json.loads(data)
+
+
+def _batted_statement_id(sql: str) -> str:
+    """原典のmarkerが一意な文だけを有限対応へ送る。"""
+    markers = re.findall(r"(?m)^-- ELEMENT-ID: ([^\n]+)", sql)
+    assert len(markers) == 1
+    return markers[0]
+
+
+def _project_batted_source_extension(rows):
+    """実17追加と2文だけを全値照合し、旧署名検査用の原典へ戻す。"""
+    from dataclasses import replace
+
+    reference = _load_batted_source_reference()
+    assert len(rows) == 705
+    additions = reference["added_statements"]
+    assert len(additions) == len(_BATTED_ADDED_IDS) == 17
+    assert {row["element_id"] for row in additions} == _BATTED_ADDED_IDS
+    assert reference["changed_statement"]["element_id"] == _BATTED_PREPARE_ID
+    public = reference["public_usage"]
+    usage = "\nGRANT USAGE ON SCHEMA public TO pitchlog_recording_vocab_fn_owner;\n"
+    assert public["after"]["sequence"] == public["before"]["sequence"]
+    assert public["after"]["sql"] == public["before"]["sql"] + usage
+    projected = []
+    found = []
+    actual_added = []
+    for row in rows:
+        assert type(row.sequence) is int
+        assert type(row.sql) is str
+        markers = re.findall(r"(?m)^-- ELEMENT-ID: ([^\n]+)", row.sql)
+        assert len(markers) == 1
+        element_id = markers[0]
+        found.append(element_id)
+        if element_id in _BATTED_ADDED_IDS:
+            actual_added.append(
+                {"element_id": element_id, "sequence": row.sequence, "sql": row.sql}
+            )
+            continue
+        if element_id in {"public", _BATTED_PREPARE_ID}:
+            pair = public if element_id == "public" else reference["changed_statement"]
+            assert {"sequence": row.sequence, "sql": row.sql} == pair["after"]
+            row = replace(row, sql=pair["before"]["sql"])
+        projected.append(row)
+    assert len(found) == len(set(found)) == 705
+    assert actual_added == additions
+    assert {"public", _BATTED_PREPARE_ID} <= set(found)
+    terminal_before = reference["terminal_before"]
+    terminal_ids = {_batted_statement_id(row["sql"]) for row in terminal_before}
+    assert len(terminal_before) == len(terminal_ids) == 31
+    assert [
+        {"sequence": row.sequence, "sql": row.sql}
+        for row in projected
+        if _batted_statement_id(row.sql) in terminal_ids
+    ] == terminal_before
+    return tuple(projected)
+
+
+def test_batted_source_reference_is_bound_to_immutable_git():
+    """原典commit/tree/全source blobをGitへ照合し、現出力を原典にしない。"""
+    import hashlib
+    import subprocess
+
+    reference = _load_batted_source_reference()
+    assert {key: row["commit"] for key, row in reference["origins"].items()} == {
+        "before": "112f771e549d6a92d724f62d9b0b45dcc89973c1",
+        "after": "3633f95d5e62fc922d2f86fb6bc434b6b861e5cd",
+    }
+    repository = ROOT
+    for origin in reference["origins"].values():
+        revision = origin["commit"]
+        for path, oid in origin["tree_oids"].items():
+            assert (
+                subprocess.check_output(
+                    ["git", "rev-parse", f"{revision}:{path}"],
+                    cwd=repository,
+                    text=True,
+                ).strip()
+                == oid
+            )
+        for row in origin["files"]:
+            assert (
+                subprocess.check_output(
+                    ["git", "rev-parse", f"{revision}:{row['path']}"],
+                    cwd=repository,
+                    text=True,
+                ).strip()
+                == row["git_blob_oid"]
+            )
+            content = subprocess.check_output(
+                ["git", "show", f"{revision}:{row['path']}"], cwd=repository
+            )
+            assert hashlib.sha256(content).hexdigest() == row["sha256"]
+    assert (
+        hashlib.sha256(
+            json.dumps(
+                reference["terminal_before"], ensure_ascii=False, separators=(",", ":")
+            ).encode()
+        ).hexdigest()
+        == _EXPECTED_SOURCE_PINS["terminal_generated_statements_sha256"]
+    )
+
+
+@pytest.mark.parametrize("index", range(30))
+def test_batted_extension_rejects_every_other_old_statement(index, monkeypatch):
+    """prepare以外の旧30文を1文ずつ改変しても旧署名で通さない。"""
+    from dataclasses import replace
+
+    reference = _load_batted_source_reference()
+    others = [
+        row
+        for row in reference["terminal_before"]
+        if f"-- ELEMENT-ID: {_BATTED_PREPARE_ID}\n" not in row["sql"]
+    ]
+    assert len(others) == 30
+    target = others[index]["sql"]
+    steps, rows = prov._build_operation_statements(prov.ProductOperation.APPLY)
+    assert sum(row.sql == target for row in rows) == 1
+    changed = tuple(
+        replace(row, sql=row.sql + "\n-- unknown mutation\n")
+        if row.sql == target
+        else row
+        for row in rows
+    )
+    monkeypatch.setattr(prov, "_build_operation_statements", lambda _: (steps, changed))
+    with pytest.raises(AssertionError):
+        test_reapply_keeps_all_other_generated_statements_exact()
+
+
+@pytest.mark.parametrize(
+    "fault",
+    [
+        "missing",
+        "duplicate",
+        "added-sql",
+        "prepare-sql",
+        "public-sql",
+        "old637-sql",
+        "sequence",
+        "unknown-id",
+    ],
+)
+def test_batted_extension_rejects_unregistered_delta(fault, monkeypatch):
+    """有限追加/元SQLの欠落・重複・未知差分・部分一致を拒否する。"""
+    from dataclasses import replace
+
+    steps, rows = prov._build_operation_statements(prov.ProductOperation.APPLY)
+    changed = list(rows)
+    target = next(
+        i
+        for i, row in enumerate(rows)
+        if _batted_statement_id(row.sql) in _BATTED_ADDED_IDS
+    )
+    if fault == "missing":
+        changed.pop(target)
+    elif fault == "duplicate":
+        changed.append(changed[target])
+    else:
+        if fault == "prepare-sql":
+            target = next(
+                i
+                for i, row in enumerate(rows)
+                if (f"-- ELEMENT-ID: {_BATTED_PREPARE_ID}\n" in row.sql)
+            )
+        elif fault == "public-sql":
+            target = next(
+                i
+                for i, row in enumerate(rows)
+                if ("-- ELEMENT-ID: public\n" in row.sql)
+            )
+        elif fault == "old637-sql":
+            target = next(
+                i
+                for i, row in enumerate(rows)
+                if ("-- ELEMENT-ID: pitchlog_app\n" in row.sql)
+            )
+        row = changed[target]
+        changed[target] = (
+            replace(row, sequence=row.sequence + 1)
+            if fault == "sequence"
+            else replace(row, sql=row.sql.replace("-- ELEMENT-ID:", "-- UNKNOWN:", 1))
+            if fault == "unknown-id"
+            else replace(row, sql=row.sql + "\n-- unknown\n")
+        )
+    monkeypatch.setattr(
+        prov, "_build_operation_statements", lambda _: (steps, tuple(changed))
+    )
+    with pytest.raises(AssertionError):
+        test_reapply_keeps_all_other_generated_statements_exact()
+
+
+@pytest.mark.parametrize("location", ["added", "prepare", "old637"])
+@pytest.mark.parametrize(
+    "fault",
+    [
+        "float-sequence",
+        "bool-sequence",
+        "str-sequence",
+        "none-sequence",
+        "subclass-sequence",
+        "subclass-sql",
+        "bytes-sql",
+        "none-sql",
+    ],
+)
+def test_batted_extension_rejects_nonexact_statement_types(
+    location, fault, monkeypatch
+):
+    """数値同値や同内容の派生型を含め、全行の型を除外前に拒否する。"""
+    from dataclasses import replace
+
+    class Sequence(int):
+        """同値のint派生型を検査する。"""
+
+    class Sql(str):
+        """同内容のstr派生型を検査する。"""
+
+    identifiers = {
+        "added": "pitchlog_recording_vocab_fn_owner",
+        "prepare": _BATTED_PREPARE_ID,
+        "old637": "pitchlog_app",
+    }
+    steps, rows = prov._build_operation_statements(prov.ProductOperation.APPLY)
+    changed = list(rows)
+    target = next(
+        i
+        for i, row in enumerate(rows)
+        if _batted_statement_id(row.sql) == identifiers[location]
+    )
+    row = changed[target]
+    if fault.endswith("sequence"):
+        values = {
+            "float-sequence": float(row.sequence),
+            "bool-sequence": bool(row.sequence),
+            "str-sequence": str(row.sequence),
+            "none-sequence": None,
+            "subclass-sequence": Sequence(row.sequence),
+        }
+        changed[target] = replace(row, sequence=values[fault])
+    else:
+        values = {
+            "subclass-sql": Sql(row.sql),
+            "bytes-sql": row.sql.encode(),
+            "none-sql": None,
+        }
+        changed[target] = replace(row, sql=values[fault])
+    monkeypatch.setattr(
+        prov, "_build_operation_statements", lambda _: (steps, tuple(changed))
+    )
+    with pytest.raises(AssertionError):
+        test_reapply_keeps_all_other_generated_statements_exact()
+
+
+@pytest.mark.parametrize("fault", ["unknown", "old-before", "anchor", "new-after"])
+def test_batted_extension_rejects_reference_mutation(fault):
+    """fixture/原典/旧署名対象の書換えを新期待として受理しない。"""
+    reference = _load_batted_source_reference()
+    if fault == "unknown":
+        reference["unknown"] = True
+    elif fault == "old-before":
+        reference["terminal_before"][0]["sql"] += "\n-- changed\n"
+    elif fault == "anchor":
+        reference["origins"]["after"]["commit"] = "0" * 40
+    else:
+        reference["changed_statement"]["after"]["sql"] += "\n-- changed\n"
+    with pytest.raises(AssertionError):
+        _load_batted_source_reference(json.dumps(reference).encode())
+
+
+def test_reapply_keeps_all_other_generated_statements_exact():
+    """旧637文の全byteを保持し、有限追加19+12文も独立固定値へ束縛する。"""
+    import hashlib
+
+    _, rows = prov._build_operation_statements(prov.ProductOperation.APPLY)
+    rows = _project_batted_source_extension(rows)
+    wrappers = [r for r in rows if r.sql.startswith("DO $first_ball_reapply$")]
+    terminal_ids = (
+        _TERMINAL_FUNCTION_IDS
+        | _TERMINAL_POLICY_IDS
+        | _TERMINAL_COLUMN_ACL_IDS
+        | _LINEUP_FUNCTION_IDS
+        | _LINEUP_POLICY_IDS
+        | _LINEUP_COLUMN_ACL_IDS
+    )
+    terminal = []
+    previous = []
+    found = []
+    for row in rows:
+        marker = re.search(r"-- ELEMENT-ID: ([^\n]+)", row.sql)
+        element_id = marker[1] if marker else None
+        if element_id in terminal_ids:
+            terminal.append({"sequence": row.sequence, "sql": row.sql})
+            found.append(element_id)
+        else:
+            previous.append(row)
+    assert frozenset(found) == terminal_ids
+    assert (
+        len(_TERMINAL_FUNCTION_IDS | _TERMINAL_POLICY_IDS | _TERMINAL_COLUMN_ACL_IDS)
+        == 19
+    )
+    assert len(_LINEUP_FUNCTION_IDS | _LINEUP_POLICY_IDS | _LINEUP_COLUMN_ACL_IDS) == 12
+    assert len(found) == len(terminal_ids) == 31
+    assert len(rows) == 688 and len(wrappers) == 28
+    assert len(previous) == 657
+    assert sum(row.sql.startswith("DO $first_ball_reapply$") for row in previous) == 20
+    keep = [
+        {"sequence": row.sequence, "sql": row.sql}
+        for row in previous
+        if not row.sql.startswith("DO $first_ball_reapply$")
+    ]
+    assert len(keep) == 637
+    assert (
+        hashlib.sha256(
+            json.dumps(terminal, ensure_ascii=False, separators=(",", ":")).encode()
+        ).hexdigest()
+        == _EXPECTED_SOURCE_PINS["terminal_generated_statements_sha256"]
+    )
+    digest = hashlib.sha256(
+        json.dumps(keep, ensure_ascii=False, separators=(",", ":")).encode()
+    ).hexdigest()
+    assert digest == _EXPECTED_SOURCE_PINS["other_generated_statements_sha256"]
+
+
+def test_reapply_is_per_function_and_normalizes_only_new_table_spacing():
+    """部分既配置でも一関数ずつ照合し未知の名前/型を補わない。"""
+    from pitchlog.authz.first_ball_product import (
+        _function_argument_names,
+        _pg_result_type,
+        application_function_sql,
+        body,
+        function_details,
+    )
+
+    assert _pg_result_type("TABLE (x boolean)") == "TABLE(x boolean)"
+    assert _pg_result_type("void") == "void"
+    for row in function_details():
+        assert isinstance(row[6], str)
+        assert row[6] == "void" or row[6] == "trigger" or row[6].startswith("TABLE(")
+    key = "FUNCTION:sync_fence_api:read_writer_identity(uuid)"
+    original = body("function", key)
+    assert original is not None
+    wrapped = application_function_sql(key, original)
+    assert wrapped is not None
+    assert "guard_writer_records()" not in wrapped
+    assert "assert_writer_binding(" not in wrapped
+    names, table = _function_argument_names(original)
+    assert table is True
+    assert names == (
+        "p_tenant_id",
+        "system_identifier",
+        "database_oid",
+        "postmaster_started_at",
+        "backend_pid",
+        "backend_start",
+        "transaction_id",
+    )
+    with pytest.raises(ValueError):
+        _function_argument_names("CREATE PROCEDURE x.y() LANGUAGE sql")
+
+
+def test_device_state_formal_declaration_uses_shared_pipeline():
+    """新read1だけを固定owner/ACLと既canonical描画へ追加する。"""
+    from pitchlog.authz.first_ball_product import body, declaration
+    from pitchlog.authz.sync_right_sql import render_device_state_read_create_sql
+
+    key = "FUNCTION:sync_right_api:read_device_state(uuid, uuid)"
+    row = declaration("functions", key)
+    assert row is not None
+    assert row == {
+        "function_id": key,
+        "schema_name": "sync_right_api",
+        "function_name": "read_device_state",
+        "identity_args": "uuid, uuid",
+        "function_kind": "definer",
+        "owner_role_id": "pitchlog_sync_right_fn_owner",
+        "language": "plpgsql",
+        "returns": "TABLE(device_active boolean)",
+        "security_mode": "definer",
+        "volatility": "volatile",
+        "search_path": ["pg_catalog", "pg_temp"],
+        "acl_expectations": [
+            {"grantee": "pitchlog_app", "privilege": "EXECUTE", "grantable": False}
+        ],
+        "revoked_acl_expectations": [
+            {"grantee": "PUBLIC", "privilege": "EXECUTE", "grantable": False}
+        ],
+    }
+    original = body("function", key)
+    assert original is not None
+    assert (
+        render_device_state_read_create_sql().replace(
+            "CREATE OR REPLACE FUNCTION", "CREATE FUNCTION", 1
+        )
+        in original
+    )
+    assert "OWNER TO pitchlog_sync_right_fn_owner" in original
+    assert "FROM PUBLIC" in original and "TO pitchlog_app" in original
+
+
+def test_device_state_overload_guard_only_extends_new_wrapper():
+    """同名別署名だけを拒否し、真の欠落は既CREATE分岐へ進める。"""
+    from pitchlog.authz.first_ball_product import application_function_sql, body
+
+    for row in ADDITIONS["functions"]:
+        canonical = body("function", row["function_id"])
+        assert canonical is not None
+        wrapped = application_function_sql(row["function_id"], canonical)
+        assert wrapped is not None
+        has_guard = "other.oid IS DISTINCT FROM existing" in wrapped
+        assert has_guard is (row["function_name"] == "read_device_state")
+        if has_guard:
+            assert wrapped.index("other.oid IS DISTINCT FROM existing") < wrapped.index(
+                "IF existing IS NULL THEN"
+            )
+            assert "AND other.proname='read_device_state'" in wrapped
+
+
+def test_expected_source_pin_fixture_has_all_thirty_independent_values():
+    """旧37期待/終端5を保持し、原本read1期待だけを分離して閉照合する。"""
+    fixture = Path(__file__).parent / "fixtures/first_ball_expected_source_pins_v1.json"
+    raw = json.loads(fixture.read_text())
+    terminal_keys = {
+        "test_sync_apply_product_supply.py": {"terminal_generated_statements_sha256"},
+        "test_sync_apply_writer_binding.py": {
+            "SYNC_PLAY_PREFIX:read_play_prefix_checkpoint",
+            "SYNC_PLAY_PREFIX:lock_play_prefix_checkpoint",
+            "SYNC_PLAY_PREFIX:read_play_prefix_history_page",
+            "SYNC_PLAY_PREFIX:prepare_play_prefix_projection",
+        },
+    }
+    assert sum(len(keys) for keys in terminal_keys.values()) == 5
+    for name, keys in terminal_keys.items():
+        assert keys <= raw["pins"][name].keys()
+    lineup_keys = {
+        "test_sync_apply_writer_binding.py": {
+            "SYNC_LINEUP_PREFIX:read_lineup_started_origin",
+        },
+    }
+    assert sum(len(keys) for keys in lineup_keys.values()) == 1
+    for name, keys in lineup_keys.items():
+        assert keys <= raw["pins"][name].keys()
+        assert not keys & terminal_keys.get(name, set())
+    assert sum(len(values) for values in raw["pins"].values()) - 5 - 1 == 37
+    assert sum(len(values) for values in raw["pins"].values()) - 1 == 42
+    assert sum(len(values) for values in raw["pins"].values()) == 43
+    assert {name: read_expected_source_pins(name) for name in raw["pins"]} == raw[
+        "pins"
+    ]
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        "version",
+        "top-extra",
+        "file-missing",
+        "file-extra",
+        "pin-missing",
+        "pin-extra",
+        "value-type",
+        "value-shape",
+        "duplicate",
+    ],
+)
+def test_expected_source_pin_reader_rejects_invalid_fixture(mutation, tmp_path):
+    """欠落/未知/重複/型/不正桁から固定比較を失わせない。"""
+    from first_ball_expected_source_pins import SourcePinError
+
+    fixture = Path(__file__).parent / "fixtures/first_ball_expected_source_pins_v1.json"
+    raw = json.loads(fixture.read_text())
+    name = "test_sync_apply_product_supply.py"
+    key = "other_generated_statements_sha256"
+    if mutation == "version":
+        raw["schema_version"] = True
+    elif mutation == "top-extra":
+        raw["extra"] = None
+    elif mutation == "file-missing":
+        del raw["pins"][name]
+    elif mutation == "file-extra":
+        raw["pins"]["unknown.py"] = {}
+    elif mutation == "pin-missing":
+        del raw["pins"][name][key]
+    elif mutation == "pin-extra":
+        raw["pins"][name]["unknown"] = raw["pins"][name][key]
+    elif mutation == "value-type":
+        raw["pins"][name][key] = False
+    elif mutation == "value-shape":
+        raw["pins"][name][key] = "g" * 64
+    text = json.dumps(raw)
+    if mutation == "duplicate":
+        text = text.replace(
+            '"schema_version": 1', '"schema_version": 1, "schema_version": 1'
+        )
+    target = tmp_path / "pins.json"
+    target.write_text(text)
+    with pytest.raises(SourcePinError):
+        read_expected_source_pins(name, path=target)
+
+
+def test_expected_source_pin_reader_rejects_missing_file_and_unknown_request(tmp_path):
+    """fixture欠落と未登録要求は製品から補完せず拒否する。"""
+    from first_ball_expected_source_pins import SourcePinError
+
+    with pytest.raises(SourcePinError):
+        read_expected_source_pins(
+            "test_sync_apply_product_supply.py", path=tmp_path / "missing.json"
+        )
+    with pytest.raises(SourcePinError):
+        read_expected_source_pins("unknown.py")

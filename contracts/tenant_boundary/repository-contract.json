@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "contract_revision": 37,
+  "contract_revision": 38,
   "baseline_control": {
     "identity": {
       "scheme": "integer_revision_field",
       "field": "contract_revision",
       "current_identifiers": [
-        "contract_revision:37"
+        "contract_revision:38"
       ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
@@ -273,5 +273,5 @@
     "SYNC_PLAY_PREFIX:prepare_play_prefix_projection",
     "SYNC_LINEUP_PREFIX:read_lineup_started_origin"
   ],
-  "source_digest": "501f5fcb72f847f0ddc2d95640256d8dcc6a6d636e6bbe00773d1b8b9cc93113"
+  "source_digest": "900dd0bcedf9489c8444b87b1e9276bf280a4e11122d70c6f78bd7e82e9c8939"
 }
