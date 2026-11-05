@@ -81,7 +81,7 @@ def route_setup(monkeypatch):
     monkeypatch.setattr(
         "pitchlog.sync.http_recording_key._broker_generation", lambda *args: 1
     )
-    payload = {
+    payload: dict[str, object] = {
         "recording_right_proof": {},
         "events": [
             {

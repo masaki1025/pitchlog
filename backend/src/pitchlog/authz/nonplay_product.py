@@ -7,7 +7,7 @@ import re
 from sqlalchemy.dialects import postgresql
 
 from pitchlog.authz.nonplay_prefix_sql import candidate_function_bodies
-from pitchlog.authz.stats_primitive_product import _add_policy
+from pitchlog.authz.stats_primitive_product import _add_column, _add_policy
 from pitchlog.db.writer_binding.nonplay_models import NonplayWriteAdmission
 from pitchlog.domaingen.core import _canonical_hash
 
@@ -212,6 +212,13 @@ def candidate_declarations():
         "UPDATE",
         _PREDICATE,
     )
+    # 実owned roleで不足を確認した列だけ。全表SELECTへ拡張しない。
+    for table_name, column in (
+        ("idempotency_ledger", "result"),
+        ("idempotency_ledger", "reason"),
+        ("event_slots", "xmin"),
+    ):
+        _add_column(declarations, bodies, "public", table_name, column, ["SELECT"])
     return declarations, bodies
 
 

@@ -54,7 +54,7 @@ def test_private_table_and_update_columns_are_minimal():
     assert declarations["acl_expectations"][0]["privilege_ids"] == ["SELECT"]
     assert len(declarations["acl_expectations"]) == 1
     rows = declarations["column_acl_expectations"]
-    assert len(rows) == 44
+    assert len(rows) == 47
     table_rows = [r for r in rows if r["object_id"] == "nonplay_write_admissions"]
     assert {r["column_id"] for r in table_rows} == set(
         NonplayWriteAdmission.__table__.c.keys()
@@ -68,7 +68,10 @@ def test_private_table_and_update_columns_are_minimal():
     )
     public = [r for r in rows if r["object_schema"] == "public"]
     assert [(r["object_id"], r["column_id"], r["privilege_ids"]) for r in public] == [
-        ("play_rows", "hidden_at", ["UPDATE"])
+        ("play_rows", "hidden_at", ["UPDATE"]),
+        ("idempotency_ledger", "result", ["SELECT"]),
+        ("idempotency_ledger", "reason", ["SELECT"]),
+        ("event_slots", "xmin", ["SELECT"]),
     ]
     for row in rows:
         assert row["grantee_role_id"] == "pitchlog_sync_right_fn_owner"
