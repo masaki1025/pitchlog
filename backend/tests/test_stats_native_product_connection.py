@@ -303,3 +303,10 @@ def test_schema_create_owner_collision_guard_and_minimal_acl_body():
         in sql
     )
     assert "GRANT CREATE" not in sql
+
+
+def test_canonical_declarations_remain_exact_after_real_json_roundtrip():
+    """ORM quoted_nameをJSONへ保存して戻しても厳密型・全fieldを維持する。"""
+    declarations, _ = stats.connection_declarations()
+    restored = json.loads(json.dumps(declarations, ensure_ascii=False))
+    assert product._exact(restored, declarations)

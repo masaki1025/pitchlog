@@ -62,7 +62,7 @@ def _relations() -> dict[str, list[str]]:
     for model in (StatsFactVersion, StatsPrimitiveSource, StatsPrimitiveFact):
         table = model.__table__
         columns = {
-            column.name: {
+            str(column.name): {
                 "type": str(column.type.compile(dialect=postgresql.dialect())),
                 "nullable": column.nullable,
             }
@@ -72,7 +72,8 @@ def _relations() -> dict[str, list[str]]:
             _canonical_hash(columns) != _COLUMN_SCHEMAS[table.name]
         ):
             raise ValueError("成績の実表列/型/nullableが採用集合と不一致")
-        result[table.name] = list(columns)
+        # ORM識別子quoted_nameをJSONのplain strへ閉じる。利用者入力は変換しない。
+        result[str(table.name)] = list(columns)
     if StatsFactVersion.immutability.conditional_update_columns != _VERSION_UPDATES:
         raise ValueError("成績版の更新可能列が採用集合と不一致")
     return result
