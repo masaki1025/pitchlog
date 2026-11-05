@@ -1,5 +1,14 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 再開時の現在地：2026-11-06T05:38:50.480111+09:00（#196マージ・正式版4安打の実画面縦断成功）
+
+- **正式develop**: 51bcb4e11b4d8d1e51327ca3e1e10ef2e6214d56。#196をDraft解除→通常mergeした。最終9ddcd5c3/旧base112f/全220path/diffb86a40b3…/独立52add3b2…/正式受理3ff856fb…/公開proof6667329944/全必須12contextを照合、main42095289008の21job全success＋本文42095289228 success。merge parents=[112f,9dd]、tree4a8ac895…がレビュー済treeと完全一致。本人署名は代記していない。merge-preflight/result/postmerge-verificationをcache pr196-final-publication-r10へ保存。新develop CI42103165175は別途実行中として扱う。
+- **利用者が新たに正式版で完了できる操作の実測**: 同固定51bcbの専用WT feature-mvp-batted-merged-verification-20261106で、実HTTPS Vite/Chromium/実app UID20003/実認証・記録権/owned PG17.11を使用。画面で4新規試合作成→開始→無走者の単打/二塁打/三塁打/本塁打→次の通常ボール→元D5の再送→reloadを4ケース成功（Playwright4、DB照合wrapper1成功117.84秒）。各試合play_rows2件・次球後balls1/hits1、得点はHRだけaway1、各親41列/runner全列/真正goldenと照合。事前投入試合の復元ではない。
+- **正式版の検証境界/保存先**: 同HEAD/source前後同一、自前PG撤去/共有DSNなし。既存の有効なloopback自己署名TLSを再利用し新鍵発行なし、ignoreHTTPSErrorsのChromiumであり実iPhone/iPad/Edge/運用信頼TLSの証拠ではない。外部pytest pluginはログ先だけをSSDへ分離、製品/fixtureに変更なし。cache merged196-ui-four-hits-r1-{result,source-before,source-after}.json、merged196-ui-four-hits-summary.json、merged-batted-screen-logs/。汎用owner runnerのno-UI/MVP acceptanceラベルは実機/全体受入なしという限界を表し、4画面ケースはbrowser logとwrapper結果を根拠とする。
+- **取消actual**: finite5を独立43687aba…後e83b4d73で採用（63pair row、旧57/旧原値保持）。kernel8反映2＋dispatch10を独立56608758…後b0a8d589/5bc82cf1へ採用、終了順P1旧1249を解消し旧ordinary範囲保持。新qualified source/host一回/native7A/私有SQL/Portを接続、actual13module659成功28.63秒。現formal契約27とruntime33の未接合1は原assertのまま、正式profile/D11/S/GETは未提供。前frontend全146/3395成功も保持。これを実取消DB/画面成功へは広げない。
+- **現在の実装並行owner**: stats作者はS25（同根既product test追随で26提案）をcache-only実装中。oldT5 model/hash/8生成を保持、新閉selector IRを同一SQLbackendへ供給しnative3へ公式生成、consume同TXで版失効/残qualifiedfactコピー/strict receipt text1・opaque一回hookを実装。新app EXEC無しinvoker SQL helper/独立profile SHAをrootが正式登録する。未採用manifestによるpure subprocess2失敗は原assert保持。pr192は非play後GET＋次の通常球保存までの実接続を調査し正確scope提案待ち。actual refs/assets writerはroot一本。
+- **次の直列工程**: 新develop51bcbを取消枝へ通常追随（旧stats/undo枝・証拠を保持、正式資産の実差だけ整合）、S sourceの独立レビュー/採用→GET/次球保存→正式profile/cap33・独立native selector manifest/D11/生成assetをまとめて受理→同版owned2球→2取消→次球→GET/reload/再送/越境/途中故障全原状。基本成績27native/両CSV/走者あり全操作/交代/訂正/終了再開/閲覧10秒/断中再起動・交代・負荷/復旧/実機運用を含むMVP全体はactive・未完。
+
 ## 再開時の現在地：2026-11-06T05:22:09.697614+09:00（#196最後のbackend shard待ち／取消S本体着手）
 
 - **正式版/利用者操作**: develop112f771e・#191/#192はGitHubでmerge済みを再確認、#196は9ddcd5c3固定で未merge。全MVP active。候補コードの接続/試験を新しい正式操作の提供済みとしない。
