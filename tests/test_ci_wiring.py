@@ -43,6 +43,7 @@ REQUIRED_FULL_CHECKS = ("check_design_propagation", "check_doc_coverage")
 FORBIDDEN_SELECTORS = ("--defects", "--checks")
 ALEMBIC_CI_COMMANDS = (
     "uv run alembic upgrade 0033_game_rules_immutable",
+    "uv run alembic upgrade 0040_batted_vocabulary_index",
     "uv run alembic current --check-heads",
     "uv run alembic check",
 )
@@ -1430,7 +1431,17 @@ def _ci_wiring_errors(
         errors.append("backend 集約ジョブの順序が期待値と異なる")
     expected_alembic_locations = [("backend", command) for command in ALEMBIC_CI_COMMANDS]
     if _alembic_command_locations(workflow) != expected_alembic_locations:
-        errors.append("Alembic 3 段は既存 backend ジョブだけで一度ずつ実行する")
+        errors.append("Alembic 4 段は既存 backend ジョブだけで一度ずつ実行する")
+    for command in ALEMBIC_CI_COMMANDS:
+        matches = [
+            step for step in backend.get("steps", [])
+            if isinstance(step, dict) and step.get("run") == command
+        ]
+        if len(matches) != 1 or matches[0].get("env") != {
+            "PITCHLOG_MIGRATION_DATABASE_URL": "${{ env.PITCHLOG_STAGE_A_OWNER_DSN }}"
+        }:
+            errors.append("Alembic 4段は固定owner専用DBの同接続先だけを使う")
+            break
     if "shard_commands" not in locals():
         shard_commands = _backend_commands(_backend_pytest_job(workflow))
     pytest_commands = [command for command in shard_commands if "pytest" in shlex.split(command)]
@@ -3386,7 +3397,7 @@ def test_consistency_does_not_prepare_other_job_runtimes() -> None:
     ),
 )
 def test_alembic_ci_command_negative_cases_are_red(mutation: str) -> None:
-    """Alembic 3 段の欠落・重複・順序違い・別ジョブ追加を拒否する。"""
+    """Alembic 4 段の欠落・重複・順序違い・別ジョブ追加を拒否する。"""
     workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8"))
     mutated = copy.deepcopy(workflow)
     backend = _backend_job(mutated)
@@ -3404,8 +3415,8 @@ def test_alembic_ci_command_negative_cases_are_red(mutation: str) -> None:
     if mutation.startswith("missing-"):
         missing_command = {
             "missing-upgrade": ALEMBIC_CI_COMMANDS[0],
-            "missing-current": ALEMBIC_CI_COMMANDS[1],
-            "missing-check": ALEMBIC_CI_COMMANDS[2],
+            "missing-current": ALEMBIC_CI_COMMANDS[2],
+            "missing-check": ALEMBIC_CI_COMMANDS[3],
         }[mutation]
         steps.pop(alembic_indexes[ALEMBIC_CI_COMMANDS.index(missing_command)])
     elif mutation == "duplicate":
@@ -3430,7 +3441,7 @@ def test_alembic_ci_command_negative_cases_are_red(mutation: str) -> None:
         _load_yaml_mapping(COMPOSE_PATH),
     )
 
-    assert "Alembic 3 段は既存 backend ジョブだけで一度ずつ実行する" in errors
+    assert "Alembic 4 段は既存 backend ジョブだけで一度ずつ実行する" in errors
 
 
 def test_stage_a_ci_startup_omission_is_red() -> None:
@@ -3786,3 +3797,51 @@ def test_pr_body_gate6_connection_cannot_be_omitted_or_made_optional(mutation: s
         step['env'] = {'GH_TOKEN': '${{ secrets.GITHUB_TOKEN }}'}
     with pytest.raises(AssertionError):
         _assert_pr_body_gate6_connection(workflow)
+
+
+@pytest.mark.parametrize(
+    'mutation',
+    ['missing', 'duplicate', 'before-S3', 'after-current', 'wrong-owner', 'wrong-revision'],
+)
+def test_current0040_is_a_single_closed_owner_step_after_legacy_S3(mutation: str) -> None:
+    """旧S3を変更せず0040を必須にし、欠落/別revision/接続先改変を拒否する。"""
+    workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding='utf-8'))
+    steps = _backend_job(workflow)['steps']
+    command = 'uv run alembic upgrade 0040_batted_vocabulary_index'
+    positions = [
+        i for i, step in enumerate(steps)
+        if isinstance(step, dict) and step.get('run') == command
+    ]
+    assert len(positions) == 1
+    pos = positions[0]
+    if mutation == 'missing':
+        steps.pop(pos)
+    elif mutation == 'duplicate':
+        steps.insert(pos, copy.deepcopy(steps[pos]))
+    elif mutation == 'wrong-owner':
+        steps[pos]['env'] = {
+            'PITCHLOG_MIGRATION_DATABASE_URL': '${{ env.PITCHLOG_TEST_ADMIN_DSN }}',
+        }
+    elif mutation == 'wrong-revision':
+        steps[pos]['run'] = 'uv run alembic upgrade head'
+    else:
+        step = steps.pop(pos)
+        if mutation == 'before-S3':
+            loc = next(
+                i for i, s in enumerate(steps)
+                if isinstance(s, dict)
+                and 'advance_stage_a_from_s0' in str(s.get('run', ''))
+            )
+        else:
+            loc = next(
+                i for i, s in enumerate(steps)
+                if isinstance(s, dict)
+                and s.get('run') == 'uv run alembic current --check-heads'
+            ) + 1
+        steps.insert(loc, step)
+    errors = _ci_wiring_errors(workflow, _load_expectations(), _load_yaml_mapping(COMPOSE_PATH))
+    assert any(x in errors for x in [
+        'backend 集約ジョブの順序が期待値と異なる',
+        'Alembic 4 段は既存 backend ジョブだけで一度ずつ実行する',
+        'Alembic 4段は固定owner専用DBの同接続先だけを使う',
+    ])

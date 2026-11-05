@@ -847,7 +847,9 @@
         "backend/tests/test_first_ball_write_stamp.py",
         "backend/tests/db/test_terminal_pitch_storage.py",
         "frontend/src/api/terminalPitchWire.ts",
-        "frontend/src/api/terminalPitchWire.spec.ts"
+        "frontend/src/api/terminalPitchWire.spec.ts",
+        "backend/src/pitchlog/db/alembic_index_comparison.py",
+        "backend/tests/test_alembic_index_comparison.py"
       ]
     }
   ]

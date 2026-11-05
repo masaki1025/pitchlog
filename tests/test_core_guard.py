@@ -5794,6 +5794,9 @@ def test_http_core_complete_declared_configuration_covers_component_asset() -> N
     # 投影で外れる先行層（first-ball層）は実configの宣言済みpathで補う。
     for area in _first_ball_raw_core_areas()["areas"]:
         patterns.extend(p for p in area["paths"] if p not in patterns)
+    # 旧HTTP fixtureへ新schema層の2件だけを明示補充し、実母集団は全件検査する。
+    for paths in _SCHEMA_COMPARISON_EXPECTED.values():
+        patterns.extend(p for p in paths if p not in patterns)
     configured = guard.CoreAreas(tuple(patterns), frozenset(document["guard_paths"]))
     assert_schema_contract_assets_are_registered(schema_contract_asset_paths(),
                                                 configured=configured)
@@ -6608,6 +6611,7 @@ def _pr196_expected_additions() -> dict[str, tuple[str, ...]]:
 
 def _pr196_historical_fixture(document: dict[str, Any]) -> dict[str, Any]:
     """旧試験支援で固定外層だけを外し、誤登録を黙って削除しない。"""
+    document = _schema_comparison_historical_fixture(document)
     expected = _pr196_expected_additions()
     pairs = {(a, p) for a, paths in expected.items() for p in paths}
     known = {p for _, p in pairs}
@@ -6629,7 +6633,7 @@ def _pr196_historical_fixture(document: dict[str, Any]) -> dict[str, Any]:
 
 def _pr196_legacy_guard_source(source: str) -> str:
     """旧AST検査へ新helper2/定数/入口1callだけを逆射影する。"""
-    tree = ast.parse(source)
+    tree = ast.parse(_schema_comparison_legacy_guard_source(source))
     names = {"_project_pr196_core_layer", "validate_pr196_area_path_layers"}
     found = {n.name for n in tree.body if isinstance(n, ast.FunctionDef) and n.name in names}
     assert found in (set(), names)
@@ -6836,3 +6840,226 @@ def test_pr196_frozen_reference_rejects_inexact_metadata(
     monkeypatch.setattr(sys.modules[__name__], "REPO", tmp_path)
     with pytest.raises((AssertionError, KeyError)):
         _pr196_reference_revision(key)
+
+
+_SCHEMA_COMPARISON_EXPECTED: dict[str, tuple[str, ...]] = {
+    'sync-protocol': (), 'game-state': (), 'recording-rights': (), 'tenant-isolation': (),
+    'data-migration': (
+        'backend/src/pitchlog/db/alembic_index_comparison.py',
+        'backend/tests/test_alembic_index_comparison.py',
+    ),
+}
+
+
+def _schema_comparison_historical_fixture(document: dict[str, Any]) -> dict[str, Any]:
+    """新2だけを厳密に投影し、旧3pairの前提と全旧fieldを保持する。"""
+    raw = json.loads(json.dumps(document))
+    pairs = {(a, p) for a, paths in _SCHEMA_COMPARISON_EXPECTED.items() for p in paths}
+    known = {p for _, p in pairs}
+    observed = {(a['id'], p) for a in raw['areas'] for p in a['paths'] if p in known}
+    assert not known.intersection(raw.get('guard_paths', [])), 'guard_paths代用は不可'
+    if not observed:
+        return raw
+    assert observed == pairs and [a['id'] for a in raw['areas']] == list(
+        _SCHEMA_COMPARISON_EXPECTED
+    ), 'schema比較の全2pair/領域順序が不一致'
+    for area in raw['areas']:
+        paths, suffix = area['paths'], _SCHEMA_COMPARISON_EXPECTED[area['id']]
+        assert len(paths) == len(set(paths)), 'schema比較の重複'
+        assert not suffix or tuple(paths[-len(suffix):]) == suffix, 'schema比較suffix不一致'
+        prefix = paths[:-len(suffix)] if suffix else paths
+        assert not any(p in known for p in prefix), 'schema比較prefix混入'
+        area['paths'] = prefix
+    # この段では旧3を外さず、既固定Git由来の全3pair/suffixが前提であると確認する。
+    prior = _pr196_expected_additions()
+    for area in raw['areas']:
+        suffix = prior[area['id']]
+        assert not suffix or tuple(area['paths'][-len(suffix):]) == suffix, '旧PR196層が必要'
+    return raw
+
+
+def _schema_comparison_legacy_guard_source(source: str) -> str:
+    """新helper2/定数/verify入口1callだけを逆射影し、他全AST変更を残す。"""
+    tree = ast.parse(source)
+    names = {'_project_pr196_schema_comparison_layer',
+             'validate_pr196_schema_comparison_area_path_layers'}
+    found = {n.name for n in tree.body if isinstance(n, ast.FunctionDef) and n.name in names}
+    assert found in (set(), names)
+    constants = [n for n in tree.body if isinstance(n, ast.AnnAssign)
+                 and isinstance(n.target, ast.Name)
+                 and n.target.id == 'PR196_SCHEMA_COMPARISON_CORE_ADDITIONS']
+    assert len(constants) == int(bool(found))
+    verify = next(n for n in tree.body if isinstance(n, ast.FunctionDef)
+                  and n.name == 'verify_area_path_baseline')
+    calls = [n for n in ast.walk(verify) if isinstance(n, ast.Call)
+             and isinstance(n.func, ast.Name)
+             and n.func.id == 'validate_pr196_schema_comparison_area_path_layers']
+    assert len(calls) == int(bool(found))
+    for call in calls:
+        assert ast.dump(call) == ast.dump(ast.parse(
+            'validate_pr196_schema_comparison_area_path_layers(baseline, candidate)',
+            mode='eval',
+        ).body)
+        assert isinstance(call.func, ast.Name)
+        call.func.id = 'validate_pr196_area_path_layers'
+    tree.body = [n for n in tree.body if not (
+        isinstance(n, ast.FunctionDef) and n.name in names or n in constants
+    )]
+    return ast.unparse(tree)
+
+
+def _schema_comparison_config() -> tuple[dict[str, Any], dict[str, Any]]:
+    """旧3pair不変Gitを基線に、明示した新schema2だけを足す独立fixture。"""
+    _, old = _pr196_reference_documents()
+    old = json.loads(json.dumps(old))
+    new = json.loads(json.dumps(old))
+    for area in new['areas']:
+        area['paths'].extend(_SCHEMA_COMPARISON_EXPECTED[area['id']])
+    return old, new
+
+
+def test_schema_comparison_2_is_separate_from_pr196_3_and_covers_all_discovered_assets():
+    """期待は現JSON採取でなく明示2件、旧固定3と自動導出全母集団を照合する。"""
+    guard = load_core_guard_module()
+    old, new = _schema_comparison_config()
+    actual = json.loads(CORE_AREAS_PATH.read_text())
+    assert actual == new
+    assert dict(guard.PR196_SCHEMA_COMPARISON_CORE_ADDITIONS) == _SCHEMA_COMPARISON_EXPECTED
+    assert dict(guard.PR196_CORE_ADDITIONS) == _pr196_expected_additions()
+    assert tuple(map(len, guard.PR196_CORE_ADDITIONS.values())) == (1, 0, 0, 2, 0)
+    assert _schema_comparison_historical_fixture(actual) == old
+    data = guard.load_core_areas(REPO)
+    assets = schema_contract_asset_paths()
+    assert set(_SCHEMA_COMPARISON_EXPECTED['data-migration']) <= set(assets)
+    assert_schema_contract_assets_are_registered(assets, configured=data)
+    before = guard.CoreAreas(path_patterns=tuple(
+        p for p in data.path_patterns if p not in _SCHEMA_COMPARISON_EXPECTED['data-migration']
+    ), guard_paths=frozenset())
+    missing = set(assets) - set(guard.matched_paths(assets, before))
+    assert missing == set(_SCHEMA_COMPARISON_EXPECTED['data-migration'])
+    for p in missing:
+        assert guard.matched_paths([p], data) == [p]
+
+
+@pytest.mark.parametrize(('before_present', 'after_present'), [
+    (False, False), (False, True), (True, True), (True, False),
+])
+def test_schema_comparison_2_monotonic_real_git(tmp_path, before_present, after_present):
+    """完全2件の追加/保持だけを許可し、既登録からの削除を拒否する。"""
+    guard = load_core_guard_module()
+    old, new = _schema_comparison_config()
+    root, base = _first_ball_git_repo(tmp_path, new if before_present else old)
+    if before_present == after_present:
+        _, head = commit_change(root, 'README.md', 'unchanged schema layer\n')
+    else:
+        _, head = commit_change(root, '.claude/core-areas.json',
+                                json.dumps(new if after_present else old))
+    if before_present and not after_present:
+        with pytest.raises(guard.GuardError, match='schema比較core層の削除'):
+            guard.verify_area_path_baseline(root, base, head)
+    else:
+        assert guard.verify_area_path_baseline(root, base, head) == base
+
+
+@pytest.mark.parametrize('mutation', [
+    'partial-first', 'partial-second', 'wrong-order', 'duplicate', 'cross-area',
+    'prefix', 'unknown-suffix', 'unknown-prefix', 'area-order', 'missing-area',
+    'without-prior3', 'guard-only', 'guard-plus-area', 'path-type', 'area-type',
+])
+def test_schema_comparison_2_bad_layers_rejected_by_real_git_and_fixture(tmp_path, mutation):
+    """部分/異領域/型/未知/混入/guard代用/旧3欠落を有限層でも拒否する。"""
+    guard = load_core_guard_module()
+    old, new = _schema_comparison_config()
+    bad = json.loads(json.dumps(new))
+    maps = {a['id']: a['paths'] for a in bad['areas']}
+    paths = maps['data-migration']
+    first, second = _SCHEMA_COMPARISON_EXPECTED['data-migration']
+    if mutation == 'partial-first':
+        paths.remove(first)
+    elif mutation == 'partial-second':
+        paths.remove(second)
+    elif mutation == 'wrong-order':
+        paths[-2:] = reversed(paths[-2:])
+    elif mutation == 'duplicate':
+        paths.append(first)
+    elif mutation == 'cross-area':
+        paths.remove(first)
+        maps['sync-protocol'].append(first)
+    elif mutation == 'prefix':
+        paths.remove(first)
+        paths.insert(0, first)
+    elif mutation == 'unknown-suffix':
+        paths.append('backend/tests/unapproved_schema.py')
+    elif mutation == 'unknown-prefix':
+        paths.insert(0, 'backend/tests/unapproved_schema.py')
+    elif mutation == 'area-order':
+        bad['areas'].reverse()
+    elif mutation == 'missing-area':
+        bad['areas'].pop(0)
+    elif mutation == 'without-prior3':
+        for area in bad['areas']:
+            for path in _pr196_expected_additions()[area['id']]:
+                area['paths'].remove(path)
+    elif mutation in ('guard-only', 'guard-plus-area'):
+        bad['guard_paths'].extend([first, second])
+        if mutation == 'guard-only':
+            del paths[-2:]
+    elif mutation == 'path-type':
+        paths[-1] = True
+    else:
+        bad['areas'] = False
+    root, base = _first_ball_git_repo(tmp_path, old)
+    _, head = commit_change(root, '.claude/core-areas.json', json.dumps(bad))
+    with pytest.raises(guard.GuardError):
+        guard.verify_area_path_baseline(root, base, head)
+    with pytest.raises((AssertionError, guard.GuardError, TypeError, KeyError)):
+        guard.validate_pr196_area_path_layers(old, _schema_comparison_historical_fixture(bad))
+
+
+@pytest.mark.parametrize('definition', ['scripts/core_guard.py', 'tests/test_core_guard.py'])
+def test_schema_comparison_2_does_not_bypass_same_commit_definition_rejection(tmp_path, definition):
+    """新2を完全に足しても旧定義/JSONの同commit拒否は保持する。"""
+    guard = load_core_guard_module()
+    old, new = _schema_comparison_config()
+    root, base = _first_ball_git_repo(tmp_path, old)
+    original = (root / definition).read_text() if (root / definition).exists() else ''
+    write_text(root, definition, original + '\n# cochange\n')
+    write_text(root, '.claude/core-areas.json', json.dumps(new))
+    run_git(root, 'add', definition, '.claude/core-areas.json')
+    run_git(root, '-c', 'user.email=test@example.com', '-c', 'user.name=test',
+            'commit', '-m', 'cochange')
+    head = run_git(root, 'rev-parse', 'HEAD').stdout.strip()
+    with pytest.raises(guard.GuardError, match='同一コミット'):
+        guard.verify_area_path_baseline(root, base, head)
+
+
+def test_schema_comparison_2_preserves_full_document_and_old_source_ast():
+    """旧全fieldと旧ASTを保ち、未知後発codeを逆射影で隠さない。"""
+    guard = load_core_guard_module()
+    old, new = _schema_comparison_config()
+    new['extra'] = {'kept': [True, 1]}
+    old['extra'] = {'kept': [True, 1]}
+    saved = json.loads(json.dumps(new))
+    projected, present = guard._project_pr196_schema_comparison_layer(new, 'test')
+    assert present and new == saved and projected == old
+    assert projected == _schema_comparison_historical_fixture(new)
+    source = SCRIPT.read_text()
+    unknown = source + '\n\ndef unapproved_schema_helper():\n    return False\n'
+    assert ast.dump(ast.parse(_schema_comparison_legacy_guard_source(source))) != ast.dump(
+        ast.parse(_schema_comparison_legacy_guard_source(unknown))
+    )
+
+
+def test_schema_comparison_2_requires_prior3_even_when_both_git_sides_lack_it(tmp_path):
+    """旧3が基線にも無い状態へschema2だけを新規許可しない。"""
+    guard = load_core_guard_module()
+    before, _ = _pr196_reference_documents()
+    candidate = json.loads(json.dumps(before))
+    for area in candidate['areas']:
+        area['paths'].extend(_SCHEMA_COMPARISON_EXPECTED[area['id']])
+    root, base = _first_ball_git_repo(tmp_path, before)
+    _, head = commit_change(root, '.claude/core-areas.json', json.dumps(candidate))
+    with pytest.raises(guard.GuardError, match='旧PR196全3pair'):
+        guard.verify_area_path_baseline(root, base, head)
+    with pytest.raises(AssertionError, match='旧PR196層'):
+        _schema_comparison_historical_fixture(candidate)
