@@ -175,6 +175,10 @@ def _bounded_rows(result) -> tuple[tuple[object, ...], ...]:
 
 def _flush_native_stats(handle, writer, event, projected, *, generation):
     """同TXの真正sourceからのみ成績を保存し、例外は外TXへ伝播する。"""
+    from pitchlog.repositories.stats_native_operations import (
+        require_private_writer_call,
+    )
+
     scope = _capture_scope(handle, writer)
     receipt = native._issue_native_stats_source(
         handle,
@@ -191,6 +195,11 @@ def _flush_native_stats(handle, writer, event, projected, *, generation):
         source.source_event_id,
         SOURCE_MODEL_HASH,
         binding_nonce=scope.nonce,
+    )
+    require_private_writer_call(
+        "STATS_PRIMITIVES:read_writer_state",
+        preflight,
+        transaction.FUNCTION_OPERATION_REGISTRY,
     )
     # この私有入口の2固定factoryだけがSQLを形成する。caller SQLや汎用tokenは受けない。
     _assert_scope(scope, receipt, source)
@@ -248,6 +257,9 @@ def _flush_native_stats(handle, writer, event, projected, *, generation):
         binding_nonce=scope.nonce,
     )
     _assert_scope(scope, receipt, source)
+    require_private_writer_call(
+        "STATS_PRIMITIVES:save_source", save, transaction.FUNCTION_OPERATION_REGISTRY
+    )
     rows = _bounded_rows(scope.session.execute(save.statement, save.parameters))
     _assert_scope(scope, receipt, source)
     # 新Sは新canonical集合のhash。旧Sとの同値を求めず、前値はSaveのCASへ全値束縛する。

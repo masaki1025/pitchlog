@@ -404,3 +404,32 @@ def test_t5_envelope_corruption_cannot_be_saved(flush_rig, monkeypatch, change):
         _flush(r)
     assert len(r.calls) == 1 and len(r.prepare_calls) == 1
     assert r.transaction_controls == []
+
+
+@pytest.mark.parametrize("site", ["read_writer_state", "save_source"])
+@pytest.mark.parametrize("mutation", ["missing", "clone"])
+def test_actual_writer_registration_is_required_before_each_sql(
+    flush_rig, monkeypatch, site, mutation
+):
+    """同値cloneや登録欠落をsource資格だけで補わず、対象SQLより前に拒否する。"""
+    from pitchlog.repositories.function_operations import FunctionOperationError
+
+    r = flush_rig
+    original = tx.FUNCTION_OPERATION_REGISTRY
+    selected = next(
+        row
+        for row in original.values()
+        if row.operation_id == "STATS_PRIMITIVES:" + site
+    )
+    changed = dict(original)
+    if mutation == "missing":
+        del changed[selected.token_type]
+    else:
+        changed[selected.token_type] = replace(selected)
+    monkeypatch.setattr(tx, "FUNCTION_OPERATION_REGISTRY", changed)
+    with pytest.raises(FunctionOperationError):
+        _flush(r)
+    expected_calls = 0 if site == "read_writer_state" else 1
+    assert len(r.calls) == expected_calls
+    assert len(r.prepare_calls) == expected_calls
+    assert all(result.closed for result in r.results)

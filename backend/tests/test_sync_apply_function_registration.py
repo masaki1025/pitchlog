@@ -151,6 +151,7 @@ def test_device_state_read_exact_registration_and_fixed_sql(active, monkeypatch)
     handle, context, seen = _handle(monkeypatch, ((active,),))
     spec = FUNCTION_OPERATION_REGISTRY[type(token)]
     assert tuple(entry.operation_id for entry in PRODUCT_FUNCTION_OPERATIONS) == (
+        "RECORDING_VOCABULARIES:read_batted_ball_options",
         "RG1:precheck",
         "RG1:commit_check",
         "RG1:scope_binding",
@@ -172,8 +173,13 @@ def test_device_state_read_exact_registration_and_fixed_sql(active, monkeypatch)
         "SYNC_PLAY_PREFIX:read_play_prefix_history_page",
         "SYNC_PLAY_PREFIX:prepare_play_prefix_projection",
         "SYNC_LINEUP_PREFIX:read_lineup_started_origin",
+        "STATS_PRIMITIVES:save_source",
+        "STATS_PRIMITIVES:read_writer_state",
+        "STATS_PRIMITIVES:open_snapshot",
+        "STATS_PRIMITIVES:read_page",
+        "STATS_PRIMITIVES:read_totals",
     )
-    assert PRODUCT_FUNCTION_OPERATIONS[8] is spec
+    assert PRODUCT_FUNCTION_OPERATIONS[9] is spec
     assert spec.operation_id == "SYNC_FIRST_BALL:read_device_state"
     assert spec.function_id == "sync_right_api.read_device_state"
     assert spec.input_fields == (("device_id", UUID),)
