@@ -380,3 +380,10 @@ source/body5確定後のruntime derive/render・tenant rederive・実変化の7.
 
 
 正式stats5本文の採用（2026-11-06 JST、PO委任Codex /root判断）: 固定6d4994bbの候補packetfd4d4895b2a88c79e845771282079af1b538692995c42bfe2c4c02123856bd49を、非作者REPORT9ddcabc1ce22713cf18af2fd565f13c3d87ea5fedf84be13826114d2b749a301/checks8c57c2ce94d546d27d90feb0d201faac3d1fa640ae218214be2edd90b95ef7f6で採用する。独立全差分c255499cec5ffde143f2c77589cda64ce0b023133a07e7d82a521325f5968986はmodel/唯一ART/閉decisions metadataだけ、全認可/TX/tenant/WHERE/page/拒否/関数ABI/ACLを保持。旧before5は真正ec3原物と照合保存、manifest795/旧29/全DDL/immutablev1旧10のbyte保持を確認。新5受理/旧5＋改変15拒否・official bodycheck/関連38独立成功。rootは全before/after SHAを確認して5だけ反映し、runtime/tenantの公式deriveをread-only照合、差分が実在する場合だけ別scope/非作者後に更新する。実PG compile/保存・再取得/再送/故障、7.7/必要seal/正式D11/画面・CSVは未成立。PO本人の確認/署名やP6blindとは記録しない。
+
+
+step1 native共通基盤の独立通常統合単位（2026-11-06 JST、PO委任Codex /root）: 実PGで保存/実RRRO読取/全13表rollbackを同版確認済みbcee3decの源本を保持し、既c229c68f（#196候補3eccとbceeの必要依存だけを合成した固定点）から専用feature/mvp-stats-native-foundationへ分離した。51bcb4e1正式developへ通常mergeし源本/旧生成/採用済み意味を保持する。取消/未採用spikeをこの単位へ混ぜず、後続取消Sは本native5関数/0041/26共通事実を依存として引き継ぐ。原stable bcee/BF27枝/取消枝は保全する。
+
+本PR単位は真正native sourceから唯一T5の26既metric（BFは後続）を同外側TXへ保存し、同版RRRO receiptでOpen/Page/Totalsを読み取る実基盤だけ。親planの27基本成績/公式終了最新版/暦年画面/成績CSV/0球登板/責任継承等の未完条件を削減せず、feature/step1全体やMVP完成判定はしない。actualcurrent27関数とformal27、関連7module437成功41.75秒を確認済み。tenant CLIのfrozen-input識別未追随は旧候補履歴に対する真正移動なので、未受理を隠さず新単位の正式値として全前後を導出する。
+
+rootはこの専用WT/PRの唯一writerとして既公式producerで最新base51bに対するrepo/runtime/tenant/Census/derived modules/D11/認可seal等の必要差だけを整合し、公開PR番号取得後の委任policy対象も当該PR/枝に限定追加する。既37+196履歴を保持し未公開旧候補のjournalを正式採用としない。生成物手編集・snapshot一括削除・検出/拒否緩和・本人署名代記は禁止。最終差分の非作者レビュー/同版owned新規作成・保存・再送・実read・途中故障検証/公開委任証拠/全必須CIの後だけ通常mergeする。検査待ちには取消S/GET接続を継続する。
