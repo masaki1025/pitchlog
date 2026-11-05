@@ -225,3 +225,7 @@ feature/mvp-stats-native-connectionはbatted固定9d0a3dc1へ採用stats固定bc
 stats_product→firstball._pg_result_typeの循環importは、既TABLE表記整形を新leafへ一度だけ移し、firstballの旧名は同じ結果の互換委譲、stats_productはleafを参照して両import順で起動できるようにする。単一のメタデータ整形で数学/SQL/期待値は不変。新xmin4の宣言照合が必要ならstatsの固定4table/column/ownerだけに閉じ、一般の未知列/role許可は広げない。source canonical段階はprospective資産をcacheに描画して局所対向を検証し、正式JSON/bodymanifest/生成Pythonの手編集や先取り再封印はしない。
 
 作者は上記6pathだけ、他core/同期/registry/新codec/正式assets/refs/DB非編集。新5/3table/schemaの閉集合・old全値/guard保持・正規import両順・破壊対向/未知拒否をpure/lint/typeで確認し、raw4SQL/publisher84の値再現とformal供給不足を明記する。未適用は成功とせず、独立確認後rootがcanonical publisherで正式資産を一括候補化・実PG適用する。
+
+### root実行時SQL生成の単一路維持（2026-11-05、PO委任Codex /root判断）
+
+canonical producerの実接合で、既generate_primitive_bundleが実行時にPython/TS整形まで起動し、backendに開発用Prettierを要求する問題を確認した。rootはdomaingen/core.pyへ既schema・閉集合・参照hash/type/順序検証と同一sql_backendを共有する固定SQL二対象専用APIを追加する。既七対象API/生成byte/全拒否条件を保持し、SQL専用時だけ他言語生成・外部formatterを起動しない。authz/stats_primitive_sql.pyは同APIを呼び、既model/manifest/artifact/hash検証を保持する。backend/domain/stats-manifest.jsonの生成入力hashは既公式生成手順で追随し、生成物本文が変わらないことを検証する。backend/tests/test_stats_sql_generation_runtime.pyでformatter/他言語実行禁止・二SQL全byte・不正model/参照拒否を対向検査する。独立レビュー前に成立扱いにしない。併せてbackend/tests/test_stats_primitive_product.pyの隔離migration参照0040→0041だけを追随する。野球の意味・SQL式・54列・認可・正式資産の採用は変更しない。
