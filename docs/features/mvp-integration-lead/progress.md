@@ -1,5 +1,14 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 続き：2026-11-05（#192修復版CIと成績の資格・実行経路を保存）
+
+- **#192**: 最終6c779700909d12f65941346f4ff679bfe80a284d/diff ba5cf0f4…/222pathsを非作者69538a60…で結合。6785からの差分は旧runtime全9root不変・既凍結fixture期待1行とR5だけ。公開証拠 https://github.com/masaki1025/pitchlog/pull/192#issuecomment-6648046950 をraw JSONで掲載、本文pointer更新、一回FF push済み。PRbody41955663311成功。全CI41955663408は実行中、最後の照合で失敗0（残harness1/backend4）。全緑前はDraft/merge不可、旧失敗runは保持。branch protection APIは404（Branch not protected）だが、委任条件の全必須CI/最終レビューを省略しない。
+- **安打証拠と後発差分**: r5の非作者a553053d…が同3310HEAD・3684SHA・新4試合・browser4/outerpytest1を確認。DB直接件数はplay/event/slot/ledger各2、history2はGET、watermarkはclosed GET/prefix2と全値照合由来であり、生数値を別途ログ測定したとはしない。後発は旧21operation/type/親5object identityを全保持して新語彙1の期待だけを追随、途中2fail→1fail→最終246pass0.84秒/非作者b931e5d8…を経て2fd47782保存。実製品runtimeはr5と不変、同HEAD GUIを再実行したとはしない。
+- **成績の保存・読取接続候補**: schema P1は反映1で解消し非作者6457d332…後b98579ae採用（89decl/89body、旧323body/29guard/SQL4保持）。実行時SQL-onlyは非作者2fb8a751…後3dd0229d、7生成target全byte/hash保持。実frame資格4は非作者bf700b90…後3609c518保存、新132+旧113=245pure成功、既live/consume/completed7AST保持。同native source/実lease/元payload/rules/同TX event+ledgerを発行・消費時に照合し偽造/再発行/再消費/失効を拒否するが、まだ実PGの資格成立ではない。読取dispatcher2は非作者59fa1fd4…後90da7006、private receipt/cursor3は非作者8f9ad230…後f150aa2a。実reader/dispatcher/codecの純接合を確認、RRROの実DB開始/提供は別。
+- **共有検査器/環境**: 既canonical xmin4件のみを全宣言・schema/table exactstr・grant_option is Falseで認め、未知依存は従来どおり拒否。初回9passでは0/False混同を見逃したため修復し11pass/44改変拒否、非作者2db64bbd…後46ceb394保存。root実行環境は既backend同版jsonschema4.26.0を公式uvで追加、旧package全不変、新5依存だけ。検査削減や架空xmin列の宣言はしていない。
+- **結合検査/次**: 接続WT14f5ff1cで採用codec/安打2fdを通常merge済み。関連8moduleの合成検査588pass20.31秒、root xmin11pass0.69秒。T5の真source→実前値→唯一評価→Saveを新flush2へ限定移管中、rootがprefix after_d1_intents/同Session・正式5操作/資産とowned PGへ接ぐ。正式schema54列/正本追随のcache候補は別担当へ準備依頼、正式共有資産writerはrootだけ。T5保存/実成績API・CSV・全MVPを成功扱いにはしない。
+
+
 ## 続き：2026-11-05（安打4種の実画面→実DB→再読込が全完走）
 
 利用者が候補環境で新たに完了できる操作は、単打・二塁打・三塁打・本塁打を画面で入力し、その次の球を記録した後でも元要求の再送を二重保存せず、reloadで同じ状態へ復元すること。固定3310dcd1ba369de11ca3442c2da6f49cab0b0cd4のowned host HTTPS r5は**browser4passed/約1.4分・外側pytest1passed/123.11秒**。実画面の新規4試合作成/開始から正式経路を通し、API全公開値・物理PlayRow41列/runner10列・source/slot/history各2・再送後の件数を検査。全3684追跡SHA/HEAD前後不変・共有DSN未継承・owned PG撤去済み。証拠cache batted-storage-step4-20261105/batted-screen-r5-evidence.jsonへ6file SHAを封印、非作者最終照合中。r4の誤比較失敗と旧故障試験binding close非再現留保は保全し、運用TLS/実機/正式提供/全MVPの成立へ広げない。次は安打候補の正式登録・後発差分レビュー・必須CI/通常統合と、成績の同TX接続。
