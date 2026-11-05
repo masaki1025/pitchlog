@@ -616,8 +616,23 @@ def test_product_expectations_cover_every_catalog_surface() -> None:
         "play_prefix_select_play_runners",
         "play_prefix_insert_play_runners",
     }
-    assert len(expectations.policies) - len(terminal_policies) == 91
-    assert len(expectations.policies) == 93
+    lineup_policies = {
+        row[2]
+        for row in expectations.policies
+        if row[2]
+        in {
+            "lineup_prefix_game_start_attempts_select",
+            "lineup_prefix_game_start_requests_select",
+        }
+    }
+    assert lineup_policies == {
+        "lineup_prefix_game_start_attempts_select",
+        "lineup_prefix_game_start_requests_select",
+    }
+    assert (
+        len(expectations.policies) - len(terminal_policies) - len(lineup_policies) == 91
+    )
+    assert len(expectations.policies) == 95
     assert {
         row[2]
         for row in expectations.policies

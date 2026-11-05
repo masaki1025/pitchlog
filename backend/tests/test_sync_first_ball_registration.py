@@ -35,6 +35,14 @@ _EXPECTED_PLAY_PREFIX_PORTS = frozenset(
 )
 
 
+_EXPECTED_LINEUP_PREFIX_PORTS = frozenset(
+    {
+        ("pitchlog.sync.ordinary_pitch_ports", "LineupPrefixContentValidationPort"),
+        ("pitchlog.sync.ordinary_pitch_ports", "LineupPrefixProjectionPort"),
+    }
+)
+
+
 class _AlwaysTrue:
     """任意の問いへ True を返す常true object。"""
 
@@ -45,9 +53,19 @@ class _AlwaysTrue:
 
 def test_port_registry_is_the_audited_closed_set() -> None:
     """実 Port の登録集合を過不足なく固定する。"""
-    assert PORT_IMPLEMENTATIONS == _EXPECTED_PORTS | _EXPECTED_PLAY_PREFIX_PORTS
-    assert PORT_IMPLEMENTATIONS - _EXPECTED_PLAY_PREFIX_PORTS == _EXPECTED_PORTS
+    assert PORT_IMPLEMENTATIONS == (
+        _EXPECTED_PORTS | _EXPECTED_PLAY_PREFIX_PORTS | _EXPECTED_LINEUP_PREFIX_PORTS
+    )
+    assert PORT_IMPLEMENTATIONS - _EXPECTED_LINEUP_PREFIX_PORTS == (
+        _EXPECTED_PORTS | _EXPECTED_PLAY_PREFIX_PORTS
+    )
+    assert (
+        PORT_IMPLEMENTATIONS
+        - _EXPECTED_PLAY_PREFIX_PORTS
+        - _EXPECTED_LINEUP_PREFIX_PORTS
+    ) == _EXPECTED_PORTS
     assert len(_EXPECTED_PORTS) == 5 and len(_EXPECTED_PLAY_PREFIX_PORTS) == 2
+    assert len(_EXPECTED_LINEUP_PREFIX_PORTS) == 2 and len(PORT_IMPLEMENTATIONS) == 9
 
 
 def test_unregistered_objects_are_not_ports_or_operations() -> None:

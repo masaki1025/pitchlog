@@ -3,7 +3,7 @@
   "pins": {
     "test_first_ball_write_stamp.py": {
       "guard_first_ball_projection_lock": "6f56a458e8709ed56c8908252a5cef1cb51864822ca7c26eab03c1df5397dce9",
-      "guard_first_ball_projection_admission": "9bd0dffbde1f502302f8ebdbaab385696806a58ddd25b9eb8fc4e2fdcc2b45ea"
+      "guard_first_ball_projection_admission": "29d8a5143cff0e616c8ef25aaa63baf2c6860e8983a2cecf43c420dccf176ba9"
     },
     "test_sync_apply_first_ball_payload.py": {
       "type_target_sha256": "72d2620c6731a5e9367880f2967a7771cc75e5c6e76a18052b988943ff2af921",
@@ -11,7 +11,7 @@
     },
     "test_sync_apply_product_supply.py": {
       "other_generated_statements_sha256": "886798da9f719c0a57534d629d279028d07387e2de375b510f2969ab4e1519de",
-      "terminal_generated_statements_sha256": "083efe09b0f423b2b8b6fd4ccbe4ae8048856b753611a8f4c145084920787cb0"
+      "terminal_generated_statements_sha256": "70327380c4b57eb9b7960dd636ebbf5af3f5ed7a3befbc7fa3ccfbdfc4bf49ef"
     },
     "test_sync_apply_writer_binding.py": {
       "RG1:precheck": "cd36c04857da91f506e29414e5bf0bb07d4b7c6b2826ccf97be1bb123823051c",
@@ -45,7 +45,8 @@
       "SYNC_PLAY_PREFIX:read_play_prefix_checkpoint": "4bb49ff423f734655435dfd7e3fb0efdcf27d485a80f73d5ea9483d762a546d0",
       "SYNC_PLAY_PREFIX:lock_play_prefix_checkpoint": "e394ad4a009a7b3c0473ec61ab476a2c6db9b2c7567b8cd1b26593babe83c010",
       "SYNC_PLAY_PREFIX:read_play_prefix_history_page": "18c486eaff749b0b2b7b80b71363cb242f268b1e956614c1c841c5c42085437a",
-      "SYNC_PLAY_PREFIX:prepare_play_prefix_projection": "fcb5015801f47e34d6c8a7df93ac7c3cc64bec0d6359223d63bedeb749d39053"
+      "SYNC_PLAY_PREFIX:prepare_play_prefix_projection": "fcb5015801f47e34d6c8a7df93ac7c3cc64bec0d6359223d63bedeb749d39053",
+      "SYNC_LINEUP_PREFIX:read_lineup_started_origin": "5e5fd0cd9022e24827b0d6993a0f5adee79be0625e9778deff6ba3d27d2355a4"
     },
     "test_sync_right_sql.py": {
       "old_render_sha256": "55ff49bc530e55325c2f9e7ad1f17fbe41b8f40071431777bf6efc8641bf705e",

@@ -56,7 +56,7 @@ def _rules_for_schema(schema: dict[str, Any]) -> Any:
 
 
 def test_all_cases_match_declared_normalization_rules() -> None:
-    """旧状況119件とterminal15件・終了248件の規則適用を分けて保持する。"""
+    """旧状況119件とterminal15件・三振24件・終了248件の規則適用を分けて保持する。"""
     baseline = json.loads(subprocess.check_output([
         "git", "show", _formal_190_revision() + ":contracts/state-transition/"
         "state_transition_contract_v1.json",
@@ -65,12 +65,18 @@ def test_all_cases_match_declared_normalization_rules() -> None:
     terminal_ids = {f"ST-TERMINAL-BB-S{s}-B3" for s in range(3)} | {
         f"ST-TERMINAL-HBP-S{s}-B{b}" for s in range(3) for b in range(4)
     }
+    strikeout_ids = {
+        f"ST-STRIKEOUT-{kind}-B{balls}-O{outs}"
+        for kind in (1, 2) for balls in range(4) for outs in range(3)
+    }
     assert len(baseline["cases"]) == 119
     assert [case for case in current["cases"]
-            if case["caseId"] not in terminal_ids] == baseline["cases"]
+            if case["caseId"] not in terminal_ids | strikeout_ids] == baseline["cases"]
     assert {case["caseId"] for case in current["cases"]
             if case["caseId"] in terminal_ids} == terminal_ids
-    assert checker.check_repository(ROOT) == 119 + 15 + 248
+    assert {case["caseId"] for case in current["cases"]
+            if case["caseId"] in strikeout_ids} == strikeout_ids
+    assert checker.check_repository(ROOT) == 119 + 15 + 24 + 248
 
 
 def test_game_end_cases_have_triples_and_display_names_are_resolved() -> None:
@@ -166,14 +172,14 @@ def test_noncanonical_raw_fails_when_rule_is_mutated_to_identity(
 
 
 def test_canonical_raw_with_identity_is_accepted() -> None:
-    """正規形rawのidentityケース45件を拒否せず全件通す。"""
+    """正規形rawのidentityケース旧45件と新24件を拒否せず全件通す。"""
     cases, rules = checker.load_inputs(ROOT)
     identity_cases = [
         case for case in cases if case["normalizationRuleId"] == "identity"
     ]
-    assert len(identity_cases) == 45
+    assert len(identity_cases) == 45 + 24
     assert all(case["raw"] == case["normalized"] for case in identity_cases)
-    assert checker.check_cases(identity_cases, rules) == 45
+    assert checker.check_cases(identity_cases, rules) == 45 + 24
 
 
 def test_new_rule_id_with_existing_transform_is_followed() -> None:

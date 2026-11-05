@@ -39,7 +39,8 @@
           "tests/fixtures/pr191_ordinary_extension_reference_v1.json",
           "tests/fixtures/pr192_tenant_source_expected_v1.json",
           "tests/test_pr192_tenant_source_registration.py",
-          "tests/test_check_tenant_boundary_bypass.py"
+          "tests/test_check_tenant_boundary_bypass.py",
+          "tests/fixtures/pr192_ordinary_extension_reference_v1.json"
         ]
       }
     },
@@ -168,6 +169,14 @@
       "sources": [
         "scripts/check_tenant_boundary_bypass.py:_load_pr192_source_owners",
         "tests/test_pr192_tenant_source_registration.py:immutable_expectations"
+      ]
+    },
+    "pr192_ordinary_extension_reference_revision": {
+      "value": "51c5930fc4562a05972be3e074e6ee41765df859",
+      "purpose": "PR192 ordinary33継承の独立全前後と有限4path拡張をroot前置Git全byteへ束縛する。旧署名subject・191scope・現木自己期待・任意PR受理へ流用しない。",
+      "sources": [
+        "scripts/check_human_review_signature.py:_strikeout_extension_reference",
+        "tests/test_human_review_signature.py:strikeout_extension_fixture"
       ]
     }
   }

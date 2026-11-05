@@ -57,6 +57,8 @@ _TERMINAL_NAMES = frozenset(
     }
 )
 
+_LINEUP_NAMES = frozenset({"read_lineup_started_origin"})
+
 _TRIGGERS = (
     ("writer_bindings", "sync_writer_binding_immutable", 27),
     ("writer_bindings", "sync_writer_binding_no_truncate", 34),
@@ -200,11 +202,14 @@ def _subject(applicator: psycopg.Connection[Any], expected: str) -> None:
 def test_owned_full_apply_repeats_and_rejects_nine_functions_four_triggers(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """単一所有clusterで正常1・本文27（旧20+終端7）・writer無効化4を直列に実証する。"""
+    """単一所有clusterで本文28（旧20+終端7+原本1）・writer4衝突を直列に実証する。"""
     functions = ADDITIONS["functions"]
     assert len(_NAMES) == 20 and len(_TERMINAL_NAMES) == 7
-    assert {row["function_name"] for row in functions} == _NAMES | _TERMINAL_NAMES
-    assert len(functions) == 27
+    assert len(_LINEUP_NAMES) == 1
+    assert {row["function_name"] for row in functions} == (
+        _NAMES | _TERMINAL_NAMES | _LINEUP_NAMES
+    )
+    assert len(functions) == 28
     visited_functions: set[str] = set()
     visited_triggers: set[str] = set()
     with owned_binding_database(monkeypatch) as owner:
