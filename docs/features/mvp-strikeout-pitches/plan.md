@@ -285,3 +285,23 @@ CI残差の参照連鎖・合成fixture追随（2026-11-05、PO委任Codex /root
 三振追加の検査対象追随/不正wire復元（2026-11-05、PO委任Codex /root判断）: cache pr192-harness-repair-20261105 の非作者検証対象exact4（gap_register_v1.json/state_transition_manual_fixtures_v1.json/tests/test_gap_register.py/tests/test_state_transition_normalization.py）に限り、旧79row/134case全値保持と追加16row/24caseの公式逆参照を追記する。GAP08所有row5→21/selector12→36、normalization406とidentity69を新旧集合分離で検証し、未承認manual bootstrapの公式射影3値だけを同期する。意味期待/既負対向/承認状態を緩めず、別非作者確認後rootが適用する。
 
 backend/tests/fixtures/first_ball_payload_vectors_v1.jsonのduplicate-v7-key一例はpin追随時の再serialiseにより重複が消えたことを確認（現重複0、正式eb8はformatVersion重複1、parsed前後差はartifactSha256のみ/v8全byte不変）。同fixture exact1で真正eb8のraw v7Jsonを取得し、artifact SHA文字列だけ現pinへ置換して不正wireを復元する。102caseの期待を変えず、duplicate自身の閉拒否・既codec全caseを検査する。入力を正規化して不正性を消さず、拒否期待削除/codec寛容化をしない。完全前後・重複検出・独立確認を保存しR4前の一括修復へ含める。
+
+
+backend実CI残31件の閉じた登録追随（2026-11-05、PO委任Codex /root判断）: 実run41908083319の4区画失敗を調査し、採用済み固定9b76に既登録のread_lineup_started_origin1・game_start policy2・FnOwner SELECT9を旧期待が欠くことを確認。functions106→107/policies93→95/columns352→361で旧全宣言値/roles/membership/tables/schemas/tableACLは不変。probe product-onlyは新function1+policy2の3atomだけ閉追加（column9は対象外）、既検査母集合と全旧反例を保持する。旧20token+1/旧7Port+2を全名で閉検査し、旧637非wrapper aggregate/旧operation pin42/旧lockguard pinは保持する。新operation1・guard admissionの既採用v3body・terminal aggregateだけを現在木自己期待ではなく固定9b76から独立再導出して根拠を記録する。676→688文は追加列ACL9+policy2+function1、旧rowや拒否条件の削除/部分一致化/未知allow/単なるpytest失敗への期待緩和は禁止。実DBreapply失敗は旧9→10関数を検証するinput追随以外の原因があれば成功とせず別固定点で診断する。
+
+作者pr191_residual_independentへ次exact14だけを許可する。調査者batted_prefix_connectionはcacheの固定源/導出根拠供給のみで共有source非編集。rootは同path非編集、共有tenant9/受理/台帳/refsは引続きroot専有。staging/first_ball_write_stampは間接参照修復により同既testを通す想定で本体非編集。修復後-n0局所/型lint/既反例と別非作者確認を経てsource固定し、実PG/必須CIはrootが直列管理する。
+
+- `backend/tests/db/test_sync_writer_binding_reapply.py`
+- `backend/tests/test_product_authz_probe_product_map.py`
+- `backend/tests/test_product_authz_provisioning.py`
+- `backend/tests/test_sync_apply_product_supply.py`
+- `backend/tests/test_sync_first_ball_registration.py`
+- `backend/tests/test_authz_product_control_access.py`
+- `backend/tests/test_product_authz_catalog.py`
+- `backend/tests/test_rg1_operations.py`
+- `backend/tests/test_sync_apply_model_ports.py`
+- `backend/tests/test_sync_apply_writer_binding.py`
+- `backend/tests/test_authz_product_table_access.py`
+- `backend/tests/first_ball_expected_source_pins.py`
+- `backend/tests/fixtures/first_ball_expected_source_pins_v1.json`
+- `contracts/authz/product/probe-product-map.json`
