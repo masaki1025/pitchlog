@@ -602,6 +602,10 @@ jobs:
           assert result.completed_stage == 'S3'
           assert result.publishable is False
           PY
+      # 旧S3は0039で固定し、本PRのcurrent索引だけを同ownerで追加する。
+      - run: uv run alembic upgrade 0040_batted_vocabulary_index
+        env:
+          PITCHLOG_MIGRATION_DATABASE_URL: ${{ env.PITCHLOG_STAGE_A_OWNER_DSN }}
       - run: uv run alembic current --check-heads
         env:
           PITCHLOG_MIGRATION_DATABASE_URL: ${{ env.PITCHLOG_STAGE_A_OWNER_DSN }}

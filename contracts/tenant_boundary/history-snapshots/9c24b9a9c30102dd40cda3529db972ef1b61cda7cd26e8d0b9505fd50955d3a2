@@ -2518,7 +2518,7 @@ marker = 0
 @pytest.fixture(scope="module")
 def positive_fixture_qualification_contexts(
     tmp_path_factory: pytest.TempPathFactory,
-) -> tuple[Any, Any, Path]:
+) -> tuple[Any, Any, Path, Path]:
     """旧generic正例と現source資格を混ぜず、同じ3面の検査材料を供給する。"""
     historical_revision = checker._pr192_read_fixed_expectations(REPOSITORY_ROOT)[
         "formal_base_revision"
@@ -2543,7 +2543,16 @@ def positive_fixture_qualification_contexts(
     actual_python = {
         p.relative_to(REPOSITORY_ROOT).as_posix() for p in POSITIVE_ROOT.rglob("*.py")
     }
-    assert actual_python == old_python, "旧generic正例の欠落/追加を認めない"
+    current_only = {
+        "tests/fixtures/tenant_boundary/positive/pitchlog/db/alembic_index_comparison.py",
+    }
+    assert not (old_python & current_only)
+    assert actual_python == old_python | current_only, "旧正例保持と明示した現行追加だけ"
+    historical_positive = historical_root / relative_root
+    assert {
+        f.relative_to(historical_root).as_posix()
+        for f in historical_positive.rglob("*.py")
+    } == old_python
     for name in sorted(old_python):
         fixture = REPOSITORY_ROOT / name
         assert fixture.is_file() and not fixture.is_symlink()
@@ -2565,15 +2574,15 @@ def positive_fixture_qualification_contexts(
         local = fixture.relative_to(POSITIVE_ROOT)
         if local.as_posix() != relative:
             assert (qualified / local).read_bytes() == fixture.read_bytes()
-    return historical, current, qualified
+    return historical, current, qualified, historical_positive
 
 
 def test_positive_fixtures_pass(
-    positive_fixture_qualification_contexts: tuple[Any, Any, Path],
+    positive_fixture_qualification_contexts: tuple[Any, Any, Path, Path],
 ) -> None:
     """旧generic/現拒否/現真正sourceの3面を同じcurrent checkerで完全比較する。"""
-    historical, current, qualified = positive_fixture_qualification_contexts
-    assert checker.scan_directory(POSITIVE_ROOT, contract=historical) == []
+    historical, current, qualified, historical_positive = positive_fixture_qualification_contexts
+    assert checker.scan_directory(historical_positive, contract=historical) == []
     violations = checker.scan_directory(POSITIVE_ROOT, contract=current)
     assert [
         (v.path, v.line, v.end_line, v.condition, v.code, v.symbol, v.message, v.scope)
@@ -2584,6 +2593,12 @@ def test_positive_fixtures_pass(
         "pitchlog.repositories.transaction.<module>",
     )]
     assert checker.scan_directory(qualified, contract=current) == []
+    new_path = "pitchlog/db/alembic_index_comparison.py"
+    new_source = (POSITIVE_ROOT / new_path).read_text(encoding="utf-8")
+    old_findings = checker.scan_source(new_source, path=new_path, contract=historical)
+    assert len(old_findings) == 2
+    assert {item.code for item in old_findings} == {"TB005"}
+    assert checker.scan_source(new_source, path=new_path, contract=current) == []
 
 
 def test_fixed_function_builder_has_only_select_permission() -> None:
@@ -4669,11 +4684,11 @@ def test_safe_change_passes_external_or_default_real_commit_cli(
 
 
 def test_reject_all_mutant_kills_positive_fixture(
-    positive_fixture_qualification_contexts: tuple[Any, Any, Path],
+    positive_fixture_qualification_contexts: tuple[Any, Any, Path, Path],
 ) -> None:
     """旧genericと現真正sourceの両正例で、reject-allがDB Callを実際に拒否する。"""
-    historical, current, qualified = positive_fixture_qualification_contexts
-    for fixture_root, contract in ((POSITIVE_ROOT, historical), (qualified, current)):
+    historical, current, qualified, historical_positive = positive_fixture_qualification_contexts
+    for fixture_root, contract in ((historical_positive, historical), (qualified, current)):
         assert checker.scan_directory(fixture_root, contract=contract) == []
         violations = checker.scan_directory(
             fixture_root, contract=contract, reject_all_db_calls=True,
@@ -10258,3 +10273,60 @@ def test_registry_static_tuple_fixed_git_proof_is_required(tmp_path, fault):
         path.write_text(json.dumps(frozen))
     with pytest.raises(checker.ContractError):
         checker._validate_function_operation_surface(root, asset)
+
+
+@pytest.mark.parametrize("mutation", ["none", "missing", "signature", "execute", "text"])
+def test_current0040_catalog_hook_registration_is_exact(mutation: str) -> None:
+    """migration固定catalog読取の完全署名と最小APIだけを許可する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    symbol = (
+        "pitchlog.db.alembic_index_comparison."
+        "_require_catalog"
+    )
+    selected = [row for row in contract.allowed_symbols if row.symbol == symbol]
+    assert len(selected) == 1
+    row = selected[0]
+    assert row.signature == (
+        "_require_catalog(connection: Connection) -> None"
+    )
+    assert row.allowed_api_ids == frozenset({"SQLA_CONNECTION_EXECUTE", "SQLA_TEXT"})
+    assert row.fixture == (
+        "tests/fixtures/tenant_boundary/positive/pitchlog/db/alembic_index_comparison.py"
+    )
+    path = "pitchlog/db/alembic_index_comparison.py"
+    source = (REPOSITORY_ROOT / "backend/src" / path).read_text(encoding="utf-8")
+    rows = tuple(item for item in contract.allowed_symbols if item.symbol != symbol)
+    if mutation == "none":
+        rows = (*rows, row)
+    elif mutation == "signature":
+        rows = (*rows, replace(row, signature=row.signature + "_invalid"))
+    elif mutation in {"execute", "text"}:
+        removed = "SQLA_CONNECTION_EXECUTE" if mutation == "execute" else "SQLA_TEXT"
+        rows = (*rows, replace(row, allowed_api_ids=row.allowed_api_ids - {removed}))
+    findings = checker.scan_source(
+        source, path=path, contract=replace(contract, allowed_symbols=rows),
+    )
+    if mutation == "none":
+        assert findings == []
+    else:
+        assert any(item.code == "TB005" and item.scope == symbol for item in findings)
+
+
+def test_current0040_catalog_hook_does_not_allow_other_scope_or_api() -> None:
+    """同moduleの別helperと追加DB APIを登録範囲へ拡張しない。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    path = "pitchlog/db/alembic_index_comparison.py"
+    source = (REPOSITORY_ROOT / "backend/src" / path).read_text(encoding="utf-8")
+    unrelated = source + (
+        '\n\ndef arbitrary_catalog_read(connection):\n'
+        '    return connection.execute(text("SELECT 1"))\n'
+    )
+    findings = checker.scan_source(unrelated, path=path, contract=contract)
+    assert any(item.code == "TB005" and item.scope.endswith(".arbitrary_catalog_read")
+               for item in findings)
+    marker = "    result = connection.execute(text(_CATALOG_SQL))"
+    assert source.count(marker) == 1
+    extra = source.replace(marker, marker + '\n    connection.exec_driver_sql("SELECT 1")')
+    findings = checker.scan_source(extra, path=path, contract=contract)
+    assert any(item.code == "TB005" and item.scope.endswith(
+        "._require_catalog") for item in findings)

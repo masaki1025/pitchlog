@@ -713,6 +713,64 @@ def validate_pr196_area_path_layers(
         raise GuardError("PR196 core層の削除は許可しない")
 
 
+# PR196旧3pairとは独立した、0040比較の実schema資産2件だけの有限外層。
+PR196_SCHEMA_COMPARISON_CORE_ADDITIONS: Mapping[str, tuple[str, ...]] = {
+    "sync-protocol": (),
+    "game-state": (),
+    "recording-rights": (),
+    "tenant-isolation": (),
+    "data-migration": (
+        "backend/src/pitchlog/db/alembic_index_comparison.py",
+        "backend/tests/test_alembic_index_comparison.py",
+    ),
+}
+
+
+def _project_pr196_schema_comparison_layer(
+    document: Mapping[str, Any], label: str,
+) -> tuple[dict[str, Any], bool]:
+    """新schema2の完全suffixだけを外し、旧PR196層を改変せず保持する。"""
+    paths_by_id = _area_paths_by_id(document, label)
+    expected = {(area, path) for area, paths in
+                PR196_SCHEMA_COMPARISON_CORE_ADDITIONS.items() for path in paths}
+    known = {path for _, path in expected}
+    observed = {(area, path) for area, paths in paths_by_id.items()
+                for path in paths if path in known}
+    guard_paths = document.get("guard_paths", [])
+    if isinstance(guard_paths, list) and any(path in known for path in guard_paths):
+        raise GuardError(f"{label} のschema比較core層をguard_pathsへ代用できない")
+    projected = copy.deepcopy(dict(document))
+    if not observed:
+        return projected, False
+    if (observed != expected
+            or tuple(paths_by_id) != tuple(PR196_SCHEMA_COMPARISON_CORE_ADDITIONS)):
+        raise GuardError(f"{label} のschema比較core層の全2pair/領域順序が不一致")
+    for area in projected["areas"]:
+        paths = paths_by_id[area["id"]]
+        suffix = PR196_SCHEMA_COMPARISON_CORE_ADDITIONS[area["id"]]
+        if suffix and paths[-len(suffix):] != suffix:
+            raise GuardError(f"{label} のschema比較core層が完全suffixに不一致")
+        prefix = paths[:-len(suffix)] if suffix else paths
+        if any(path in known for path in prefix):
+            raise GuardError(f"{label} のschema比較core層が旧prefixへ混入している")
+        area["paths"] = list(prefix)
+    _, pr196_present = _project_pr196_core_layer(projected, label)
+    if not pr196_present:
+        raise GuardError(f"{label} のschema比較core層には旧PR196全3pairが必要")
+    return projected, True
+
+
+def validate_pr196_schema_comparison_area_path_layers(
+    baseline: Mapping[str, Any], candidate: Mapping[str, Any],
+) -> None:
+    """schema2の完全性/単調性を閉確認し、旧3→terminal→first-ballへ委譲する。"""
+    old_baseline, before = _project_pr196_schema_comparison_layer(baseline, "merge-base")
+    old_candidate, after = _project_pr196_schema_comparison_layer(candidate, "PR head")
+    validate_pr196_area_path_layers(old_baseline, old_candidate)
+    if before and not after:
+        raise GuardError("schema比較core層の削除は許可しない")
+
+
 def _commits_between(root: Path, base_revision: str, head_sha: str) -> tuple[str, ...]:
     """基線より後から head までのコミットを古い順で返す。"""
     output = _run_git(
@@ -782,7 +840,7 @@ def verify_area_path_baseline(root: Path, base_sha: str, head_sha: str) -> str:
     baseline_revision = merge_base_revision(root, base_sha, head_sha)
     baseline = load_core_areas_at_revision(root, baseline_revision)
     candidate = load_core_areas_at_revision(root, head_sha)
-    validate_pr196_area_path_layers(baseline, candidate)
+    validate_pr196_schema_comparison_area_path_layers(baseline, candidate)
 
     for revision in _commits_between(root, baseline_revision, head_sha):
         changed = _changed_paths_in_commit(root, revision)
