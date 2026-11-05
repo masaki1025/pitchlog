@@ -37142,8 +37142,8 @@
               },
               {
                 "path": "tests/test_check_tenant_boundary_bypass.py",
-                "sha256": "120859e5422b49f00ec7fe80cd70b5f7702c32f9d6546706bf2e032e2a1c6c99",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/120859e5422b49f00ec7fe80cd70b5f7702c32f9d6546706bf2e032e2a1c6c99"
+                "sha256": "9c24b9a9c30102dd40cda3529db972ef1b61cda7cd26e8d0b9505fd50955d3a2",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/9c24b9a9c30102dd40cda3529db972ef1b61cda7cd26e8d0b9505fd50955d3a2"
               },
               {
                 "path": "tests/test_ci_wiring.py",
@@ -37189,8 +37189,8 @@
             "asset_snapshots": [
               {
                 "path": "contracts/tenant_boundary/base-allowlist.json",
-                "sha256": "fcd2ac939b59bd9b92975d0c835d5420e06db09e1aaea829116c5edf563bdd87",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/fcd2ac939b59bd9b92975d0c835d5420e06db09e1aaea829116c5edf563bdd87"
+                "sha256": "99cb20c02dca13dfec2d358de71a9ee913c15696990e982ee8ec32298ccfd3f7",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/99cb20c02dca13dfec2d358de71a9ee913c15696990e982ee8ec32298ccfd3f7"
               },
               {
                 "path": "contracts/tenant_boundary/cache-invalidation-contract.json",
@@ -37209,8 +37209,8 @@
               },
               {
                 "path": "contracts/tenant_boundary/frozen-inputs.json",
-                "sha256": "b4aa2ffa3b343e2bd8f1ef81bf9628f10b291c4af2e6975d6fc7633b359da073",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/b4aa2ffa3b343e2bd8f1ef81bf9628f10b291c4af2e6975d6fc7633b359da073"
+                "sha256": "d87bc5b2b36739dca97221f57e3f933c810fb66bcf76756f8bfc20c601ca3fb9",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/d87bc5b2b36739dca97221f57e3f933c810fb66bcf76756f8bfc20c601ca3fb9"
               },
               {
                 "path": "contracts/tenant_boundary/negative-fixtures.json",
@@ -37235,8 +37235,8 @@
             ]
           }
         },
-        "movement_fact": "旧37履歴prefixと単一196識別を保持し、実変更分だけ単一196R7をR8へ置換して不要な再増分をしない。全対象識別値をbase+1据置とし、全前後を公式helperで導出。全base/pin/参照snapshotを保護、除去は非参照かつ非base非pin差分だけ退避。新源本とdescriptor参照の全移動を照合し、旧拒否を緩めず新HEADの非作者レビュー/実公開委任/必須CIを別途成立させる。",
-        "reason": "R8は後発TB005×2の有限登録3だけの是正。非作者fae86d045c8edbae7656ad27d680b194cada5cd41455f33823b627b34374f69f/checks1116af22832919cbedf5395c3c2577957696e9260930ab2ae45707dcc0172e8cが完全修飾migration hook1と最小execute/text API2・旧61登録保持・新6/元2試験/追加7負を確認。初回98b59996のP1（新fixtureの旧歴史tree混入）を保持し、真正Git旧全path/全byteとcurrent追加1を分離、旧contractは新fixtureを2拒否する。checker/SQL/hook/権限/既拒否は不変更。旧R7全値47e375fbの承認範囲を新入力へ無断拡張せず、今回の真正移動だけ単一196へ再導出する。以降はR7までの根拠・失敗履歴を継承: 公開3eccのR6実CI42050222825を保全。attempt1初期start commit故障1caseが明示結果不明、同HEADowned1成功24.28秒とsource不変/非作者2a7ec98aの潜在2秒idle機序を根拠にfailedjob1回再確認、実CI根因は未確定。attempt2は全4backend試験success後aggregateが旧S3=0039と新0040の未接合で失敗。ownerを保ちS3直後に固定0040だけを適用するCI4行、閉CI配線106と拒否39を保持。初回非作者f805ca60のP1×2を保全し、非作者0cafeb69で実pg_index23属性の正確一致後に反射COLLATE Cだけを公式Alembic hookで補正して標準比較へ戻すsource5を採用した。他索引/比較集合/S3/0040本体/metadata/権限を不変更。owned固定157eの実current/check正常1、誤C/述語/式/unique/順序/owner/validity7負、全schemaaudit1が9成功49.06秒。元実PG失敗1と旧レビュー全履歴を保持し、target/index検査を除外しない。rootactualpure40/CI106成功。R6のG6/数学metadata/type拒否は全値不変。全前後と最終HEAD/公開委任/必須CIを別途束縛し、実機/全MVP完了へ拡張しない。",
+        "movement_fact": "旧37履歴prefixと単一196識別を保持し、実変更分だけ単一196R8をR9へ置換して不要な再増分をしない。全対象識別値をbase+1据置とし、全前後を公式helperで導出。全base/pin/参照snapshotを保護、除去は非参照かつ非base非pin差分だけ退避。新源本とdescriptor参照の全移動を照合し、旧拒否を緩めず新HEADの非作者レビュー/実公開委任/必須CIを別途成立させる。",
+        "reason": "R9はrootfullTyの正例fixture未宣言1を検出して是正。Protocol反映2はTy0でも未登録executeを隠す反例で否決しactual不採用を保持。反映4 exact4は非作者029dc36929d11cb8aaee7a6e8867e3f7d70fe4f5385fe77281a6b65871103d3c/checks846c59acb29847e20ae7cd1519404643c747d83b2791a0dc16a5c43b69773efeが実SQL/block/catalog23/close不変のASTと一回callを確認。型を明示した固定private catalog helper1へDBblockだけ抽出し、登録APIを真のSQLA_CONNECTION_EXECUTE/TEXT最小2へ正確化した。実helper/fixture未登録時は双方2検出、旧61/既拒否を保持。actualroot/backendTyRuff0/tenantCLI0、影響8成功9.71秒/pure40成功0.22秒。元venveditable参照のcollection環境ERRORはPYTHONPATHcurrentを明示して同source成功へ是正、記録保持。固定81a40a5aのowned typed-r3は正常1/実catalog7負/全schema1の9成功49.51秒、tracked前後同一/自前PGcleanup/共有DSNなし。ローカル任意全testfile旧版の231成功357.27秒は修正前inputの自己所有runをSIGINT保存した部分結果であり、必須全CIの799全件成功へ置換しない。以降はR8までの根拠を保持する: R8は後発TB005×2の有限登録3だけの是正。非作者fae86d045c8edbae7656ad27d680b194cada5cd41455f33823b627b34374f69f/checks1116af22832919cbedf5395c3c2577957696e9260930ab2ae45707dcc0172e8cが完全修飾migration hook1と最小execute/text API2・旧61登録保持・新6/元2試験/追加7負を確認。初回98b59996のP1（新fixtureの旧歴史tree混入）を保持し、真正Git旧全path/全byteとcurrent追加1を分離、旧contractは新fixtureを2拒否する。checker/SQL/hook/権限/既拒否は不変更。旧R7全値47e375fbの承認範囲を新入力へ無断拡張せず、今回の真正移動だけ単一196へ再導出する。以降はR7までの根拠・失敗履歴を継承: 公開3eccのR6実CI42050222825を保全。attempt1初期start commit故障1caseが明示結果不明、同HEADowned1成功24.28秒とsource不変/非作者2a7ec98aの潜在2秒idle機序を根拠にfailedjob1回再確認、実CI根因は未確定。attempt2は全4backend試験success後aggregateが旧S3=0039と新0040の未接合で失敗。ownerを保ちS3直後に固定0040だけを適用するCI4行、閉CI配線106と拒否39を保持。初回非作者f805ca60のP1×2を保全し、非作者0cafeb69で実pg_index23属性の正確一致後に反射COLLATE Cだけを公式Alembic hookで補正して標準比較へ戻すsource5を採用した。他索引/比較集合/S3/0040本体/metadata/権限を不変更。owned固定157eの実current/check正常1、誤C/述語/式/unique/順序/owner/validity7負、全schemaaudit1が9成功49.06秒。元実PG失敗1と旧レビュー全履歴を保持し、target/index検査を除外しない。rootactualpure40/CI106成功。R6のG6/数学metadata/type拒否は全値不変。全前後と最終HEAD/公開委任/必須CIを別途束縛し、実機/全MVP完了へ拡張しない。",
         "approved_by": "PO委任によるCodex主担当/root判断（本人署名・人間逐行確認の代記ではない）",
         "approved_on": "2026-11-06"
       }

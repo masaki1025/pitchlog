@@ -10281,16 +10281,15 @@ def test_current0040_catalog_hook_registration_is_exact(mutation: str) -> None:
     contract = checker.load_contract(REPOSITORY_ROOT)
     symbol = (
         "pitchlog.db.alembic_index_comparison."
-        "PitchlogPostgresqlImpl.correct_for_autogen_constraints"
+        "_require_catalog"
     )
     selected = [row for row in contract.allowed_symbols if row.symbol == symbol]
     assert len(selected) == 1
     row = selected[0]
     assert row.signature == (
-        "correct_for_autogen_constraints(self, conn_unique_constraints, "
-        "conn_indexes, metadata_unique_constraints, metadata_indexes)"
+        "_require_catalog(connection: Connection) -> None"
     )
-    assert row.allowed_api_ids == frozenset({"PSYCOPG_CONNECTION_EXECUTE", "SQLA_TEXT"})
+    assert row.allowed_api_ids == frozenset({"SQLA_CONNECTION_EXECUTE", "SQLA_TEXT"})
     assert row.fixture == (
         "tests/fixtures/tenant_boundary/positive/pitchlog/db/alembic_index_comparison.py"
     )
@@ -10302,7 +10301,7 @@ def test_current0040_catalog_hook_registration_is_exact(mutation: str) -> None:
     elif mutation == "signature":
         rows = (*rows, replace(row, signature=row.signature + "_invalid"))
     elif mutation in {"execute", "text"}:
-        removed = "PSYCOPG_CONNECTION_EXECUTE" if mutation == "execute" else "SQLA_TEXT"
+        removed = "SQLA_CONNECTION_EXECUTE" if mutation == "execute" else "SQLA_TEXT"
         rows = (*rows, replace(row, allowed_api_ids=row.allowed_api_ids - {removed}))
     findings = checker.scan_source(
         source, path=path, contract=replace(contract, allowed_symbols=rows),
@@ -10325,9 +10324,9 @@ def test_current0040_catalog_hook_does_not_allow_other_scope_or_api() -> None:
     findings = checker.scan_source(unrelated, path=path, contract=contract)
     assert any(item.code == "TB005" and item.scope.endswith(".arbitrary_catalog_read")
                for item in findings)
-    marker = "        result = self.connection.execute(text(_CATALOG_SQL))"
+    marker = "    result = connection.execute(text(_CATALOG_SQL))"
     assert source.count(marker) == 1
-    extra = source.replace(marker, marker + "\n        self.connection.cursor()")
+    extra = source.replace(marker, marker + '\n    connection.exec_driver_sql("SELECT 1")')
     findings = checker.scan_source(extra, path=path, contract=contract)
     assert any(item.code == "TB005" and item.scope.endswith(
-        ".correct_for_autogen_constraints") for item in findings)
+        "._require_catalog") for item in findings)
