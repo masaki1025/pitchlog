@@ -322,7 +322,8 @@
         "backend/src/pitchlog/sync/port_guard.py",
         "backend/src/pitchlog/repositories/recorded_snapshot.py",
         "frontend/src/api/terminalPitchWire.ts",
-        "frontend/src/api/terminalPitchWire.spec.ts"
+        "frontend/src/api/terminalPitchWire.spec.ts",
+        "backend/tests/fixtures/batted_source_extension_reference_v1.json"
       ]
     },
     {

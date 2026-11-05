@@ -3010,6 +3010,8 @@ def test_all_assets_freeze_mode_wiring_and_declare_single_authority() -> None:
             "tests/test_pr192_tenant_source_registration.py",
             "tests/test_check_tenant_boundary_bypass.py",
             "tests/fixtures/pr192_ordinary_extension_reference_v1.json",
+            "backend/tests/test_sync_apply_product_supply.py",
+            "backend/tests/fixtures/batted_source_extension_reference_v1.json",
         ],
         Path("contracts/tenant_boundary/negative-fixtures.json"): shared_external_files,
         Path("contracts/tenant_boundary/repository-contract.json"): shared_external_files,
