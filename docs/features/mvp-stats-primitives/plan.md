@@ -333,3 +333,8 @@ current IDLE接合exact2採用（2026-11-05、PO委任Codex /root判断）: root
 
 
 snapshot exact2採用（2026-11-05、PO委任Codex /root判断）: 作者packete0ef8cb4…/source d29546e0…・d4746114…を非作者/root e5067fc5407b4e2d04305859bd3a3af60e48fa65af136a212b724e2ed2ee1c51（独立新36成功0.39秒、旧85定義AST保持、P0/P1/P2=0）で採用。作者最終121と既旧85独立fb295a1fは別証拠として保持。旧3profile/全snapshot SQL/項目/builtinは不変更、新full13/9だけ追加しsource不足を補正しない。次は同固定sourceでowned旧prefix1→成立後残19。
+
+
+D02/D05の最初の契約単位（2026-11-05、PO委任Codex /root判断）: 調査7343218c25f66b33ac1611305fe2af235d525e73cbee2c9e42bba9eb25867b6c/scope d307974a…に基づき、同compilerの歴史v1入力＋current v2出力を区別する技術版境界を採用する。旧55全値/順序（34のpending4全比較含む）と既PO76を保持し、current v2のD02選択集合/採用metadata/D05整数比・両分母/零分母/一度だけhalf-upを独立20対向で先置きする。新v2でも旧26primitive/PA/creditの全値を比較し、歴史期待の置換/部分一致化/数値availableへの状態flipは不可。候補編集はdocs/features/mvp-stats-primitives/primitive-input.candidate.json・primitive-output.candidate.json・primitive-cases.candidate.jsonのexact3だけ、作者pr191がcache-only作成、実writerrootが非作者確認後に採用する。期待を製品出力から採取せず、PO76の根拠/整数比から再計算し出所を分離する。候補contractであり正式D11/P6/実装/DB完了とはしない。
+
+後続の単一計算は同調査のdecl/emitter9＋回帰7/生成8、同版native admission最低5/正式D11登録5とcollector追加scopeを、契約ABIが固定した時点で最小追補する。OPSを旧26整数metric行へ偽装せず、同一D1のratio/add/名前付き閉集合とformatterからPython/TS/SQLを生成する。一般formatterのNumber/Decimal精度依存へ流用しない。D03/D04source待ち・DB/HTTP/全27/画面CSV完成は当該計算bodyの開始前提に追加しない。旧D5の保存済みACK再掲/新旧seriesの拒否条件を維持し、旧factの破壊/無根拠再刻印やserver/client数学コピーはしない。rootが次scopeを明示するまで本体source/生成物/正式資産を変更しない。
