@@ -305,3 +305,14 @@ backend残登録の限定追随（2026-11-05、PO委任Codex /root判断）: rea
 
 
 backend有限期待exact13の採用（2026-11-05、PO委任Codex /root判断）: packet918109dc…/REPORTf684caba…を非作者/root 57de488afabf2db7d6345f7c8a99d5adb21a5146858db2884c63a3b3d5ce9cca（独立3071成功297.30秒＋review copyのorigin/develop不足を正式112f参照で補完した旧CLI1成功5.59秒=3072固有case、P0/P1/P2=0）で採用。全旧route/role/schema/policy/cap/table集合を保持、新語彙分だけ明示し、衝突owner7属性を補修成功にしない。DB40は別実測前、元CI失敗とreview環境失敗を保持、正式R4/最終CI成功を先取りしない。
+
+
+## 最終CI R4で新たに顕在化した3分類（2026-11-05、PO委任Codex /root判断）
+
+公開660d/CI42017498235・PRbody42017498245を保持。core定義/委任証拠は成功したが後段gate6 carryが旧ordinary9hashをcurrent base112fへ直接要求して拒否。実Gitで9数学資産はbase112f→660d全byte不変、baseには既正式191/192の受理済み有限拡張がある。同じ原因のroot署名試験1も失敗。scripts/check_human_review_signature.py・tests/test_human_review_signature.pyのexact2を作者pr192へcache-only割当てる。旧署名record/schema/pinsと歴史subjectを一切変更せず、既191/192の全歴史/有限拡張body検査を実baseのGit原典で実行し、headの保護9数学/受理原典をbaseと全値比較するPR196限定の後続carryを具体化する。実PR196/repository/branch/固定HEADの公開PO委任証拠/checkout/祖先を検証し、既導入PR分岐/全拒否条件を保持、合成のPR192 eventを作って本人確認を成立扱いしない。検査skip/承認欄自動check/署名9hash書換え・任意PR向け免除は禁止。新必要scopeがあれば根拠提示しroot判断、非作者確認後root採用。
+
+root catalog試験の旧role17期待は新既採用owner1を含む18へ有限追随する。対象tests/test_check_authz_catalog.py exact1、旧17集合・意味を維持して新owner全属性/不足/重複/未知を独立明示し、validator/生成source/正式資産は不変更。
+
+v3 payload既34のroot custom schema consumerは、新既採用schemaのallOfを解釈せずoneOfが不一致となる。scripts/check_input_axes_descriptor.pyとtests/test_state_transition_contract_schema.py exact2でJSON Schemaの使用済みallOfを検証し、oneOf成功後も同階層の型/必須/余剰等を検査する最小是正を候補化する。全既keyword/値比較/数値bool分離/拒否を保持、親制約・allOf交差/型不正・複数または0match・新旧payload全比較の対向を加える。schema/期待を書換えず、必要な仕様変更が見つかった範囲だけ返す。旧34＋新安打側を同consumerへ通し、検査を緩めて緑にしない。rootがexact3を作成し別非作者で確認。
+
+残CIは完走させ全失敗を分類した後、実変更分だけ単一196R5へ置換導出/全前後独立確認/新HEAD証拠/1pushする。R4失敗を成功へ読替えず、旧37履歴と9IDbase+1を保ち不必要な再増分をしない。
