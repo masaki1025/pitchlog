@@ -663,6 +663,56 @@ def validate_terminal_pitch_area_path_layers(
         raise GuardError("terminal core層の削除は許可しない")
 
 
+# 既登録8b834ec0のJSON差分3pairだけ。旧terminal/初球層の許可を増やさない。
+PR196_CORE_ADDITIONS: Mapping[str, tuple[str, ...]] = {
+    "sync-protocol": ("backend/tests/fixtures/batted_source_extension_reference_v1.json",),
+    "game-state": (),
+    "recording-rights": (),
+    "tenant-isolation": (
+        "tests/fixtures/pr196_tenant_source_expected_v1.json",
+        "tests/test_pr196_tenant_source_registration.py",
+    ),
+    "data-migration": (),
+}
+
+
+def _project_pr196_core_layer(
+    document: Mapping[str, Any], label: str,
+) -> tuple[dict[str, Any], bool]:
+    """固定3pairの完全suffixだけを非破壊で外し、raw登録は保持する。"""
+    paths_by_id = _area_paths_by_id(document, label)
+    expected = {(area, path) for area, paths in PR196_CORE_ADDITIONS.items() for path in paths}
+    known = {path for _, path in expected}
+    observed = {(area, path) for area, paths in paths_by_id.items()
+                for path in paths if path in known}
+    projected = copy.deepcopy(dict(document))
+    if not observed:
+        return projected, False
+    if observed != expected or tuple(paths_by_id) != tuple(PR196_CORE_ADDITIONS):
+        raise GuardError(f"{label} のPR196 core層の全3pair/領域が不一致")
+    for area in projected["areas"]:
+        suffix = PR196_CORE_ADDITIONS[area["id"]]
+        paths = paths_by_id[area["id"]]
+        if suffix and paths[-len(suffix):] != suffix:
+            raise GuardError(f"{label} のPR196 core層が完全suffixに不一致")
+        prefix = paths[:-len(suffix)] if suffix else paths
+        if any(path in known for path in prefix):
+            raise GuardError(f"{label} のPR196 core層が旧prefixへ混入している")
+        area["paths"] = list(prefix)
+    return projected, True
+
+
+def validate_pr196_area_path_layers(
+    baseline: Mapping[str, Any], candidate: Mapping[str, Any],
+) -> None:
+    """新3pairの完全性/単調性だけを加え、旧terminal以下へ委譲する。"""
+    old_baseline, before = _project_pr196_core_layer(baseline, "merge-base")
+    old_candidate, after = _project_pr196_core_layer(candidate, "PR head")
+    validate_terminal_pitch_area_path_layers(old_baseline, old_candidate)
+    if before and not after:
+        raise GuardError("PR196 core層の削除は許可しない")
+
+
 def _commits_between(root: Path, base_revision: str, head_sha: str) -> tuple[str, ...]:
     """基線より後から head までのコミットを古い順で返す。"""
     output = _run_git(
@@ -732,7 +782,7 @@ def verify_area_path_baseline(root: Path, base_sha: str, head_sha: str) -> str:
     baseline_revision = merge_base_revision(root, base_sha, head_sha)
     baseline = load_core_areas_at_revision(root, baseline_revision)
     candidate = load_core_areas_at_revision(root, head_sha)
-    validate_terminal_pitch_area_path_layers(baseline, candidate)
+    validate_pr196_area_path_layers(baseline, candidate)
 
     for revision in _commits_between(root, baseline_revision, head_sha):
         changed = _changed_paths_in_commit(root, revision)

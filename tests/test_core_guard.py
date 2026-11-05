@@ -5928,6 +5928,7 @@ def _terminal_expected_additions() -> dict[str, tuple[str, ...]]:
 
 def _terminal_historical_fixture(document: dict[str, Any]) -> dict[str, Any]:
     """旧fixtureの入口だけで完全terminal suffixを外し、旧7状態を維持する。"""
+    document = _pr196_historical_fixture(document)
     expected = _terminal_expected_additions()
     pairs = {(a, p) for a, paths in expected.items() for p in paths}
     known = {p for _, p in pairs}
@@ -5950,7 +5951,7 @@ def _terminal_historical_fixture(document: dict[str, Any]) -> dict[str, Any]:
 
 def _terminal_legacy_guard_source(source: str) -> str:
     """外側の既知helper/callだけを旧初球入口へ戻す歴史証拠adapter。"""
-    tree = ast.parse(source)
+    tree = ast.parse(_pr196_legacy_guard_source(source))
     names = {"_project_terminal_pitch_layer", "validate_terminal_pitch_area_path_layers"}
     found = {n.name for n in tree.body if isinstance(n, ast.FunctionDef) and n.name in names}
     assert found in (set(), names)
@@ -6551,3 +6552,287 @@ def test_terminal_removing_monotonic_rejection_is_caught_by_real_git(tmp_path: P
     sys.modules[mutant.__name__] = mutant
     exec(compile(tree, str(SCRIPT), "exec"), mutant.__dict__)
     assert mutant.verify_area_path_baseline(root, base, head) == base
+
+
+# 期待は現JSON採取でなく、terminal既原典と既登録8b834のGit全差分へ束縛する。
+def _pr196_reference_revision(key: str) -> str:
+    """新参照3件を正式typed入力へ束縛し、現木fallbackを使わない。"""
+    consumers = {
+        "pr196_core_reference_head_revision": "tests/test_core_guard.py:_PR196_CORE_REFERENCE_HEAD",
+        "pr196_core_guard_before_revision": "tests/test_core_guard.py:_PR196_GUARD_BEFORE",
+        "pr196_core_public_base_revision": "tests/test_core_guard.py:_PR196_ACTUAL_BASE",
+    }
+    assert key in consumers
+    frozen = json.loads((REPO / "contracts/tenant_boundary/frozen-inputs.json").read_text())
+    entry = frozen["frozen_inputs"][key]
+    assert type(entry) is dict and set(entry) == {"value", "purpose", "sources"}
+    assert type(entry["purpose"]) is str and entry["purpose"]
+    assert type(entry["sources"]) is list and entry["sources"] == [consumers[key]]
+    value = entry["value"]
+    assert type(value) is str and len(value) == 40
+    assert all(char in "0123456789abcdef" for char in value)
+    return value
+
+
+_PR196_CORE_REFERENCE_BASE = TERMINAL_REFERENCE_HEAD
+_PR196_CORE_REFERENCE_HEAD = _pr196_reference_revision("pr196_core_reference_head_revision")
+_PR196_GUARD_BEFORE = _pr196_reference_revision("pr196_core_guard_before_revision")
+_PR196_ACTUAL_BASE = _pr196_reference_revision("pr196_core_public_base_revision")
+
+
+@cache
+def _pr196_reference_documents() -> tuple[dict[str, Any], dict[str, Any]]:
+    """後発3pairの不変Git前後を読み、現木fallbackを使わない。"""
+    return tuple(json.loads(run_git(
+        TERMINAL_REFERENCE_REPOSITORY, "show", revision + ":.claude/core-areas.json",
+    ).stdout) for revision in (_PR196_CORE_REFERENCE_BASE, _PR196_CORE_REFERENCE_HEAD))
+
+
+def _pr196_expected_additions() -> dict[str, tuple[str, ...]]:
+    """固定Gitの他全field/旧prefixを保つ差分だけを独立期待にする。"""
+    before, after = _pr196_reference_documents()
+    assert {k: v for k, v in before.items() if k != "areas"} == {
+        k: v for k, v in after.items() if k != "areas"
+    }
+    assert [a["id"] for a in before["areas"]] == [a["id"] for a in after["areas"]]
+    result = {}
+    for old, new in zip(before["areas"], after["areas"], strict=True):
+        assert {k: v for k, v in old.items() if k != "paths"} == {
+            k: v for k, v in new.items() if k != "paths"
+        }
+        assert new["paths"][:len(old["paths"])] == old["paths"]
+        result[old["id"]] = tuple(new["paths"][len(old["paths"]):])
+    assert tuple(map(len, result.values())) == (1, 0, 0, 2, 0)
+    return result
+
+
+def _pr196_historical_fixture(document: dict[str, Any]) -> dict[str, Any]:
+    """旧試験支援で固定外層だけを外し、誤登録を黙って削除しない。"""
+    expected = _pr196_expected_additions()
+    pairs = {(a, p) for a, paths in expected.items() for p in paths}
+    known = {p for _, p in pairs}
+    raw = json.loads(json.dumps(document))
+    observed = {(a["id"], p) for a in raw["areas"] for p in a["paths"] if p in known}
+    if not observed:
+        return raw
+    assert observed == pairs, "PR196 fixtureの全3pairが不一致"
+    assert [a["id"] for a in raw["areas"]] == list(expected)
+    for area in raw["areas"]:
+        paths, suffix = area["paths"], expected[area["id"]]
+        assert len(paths) == len(set(paths))
+        assert not suffix or tuple(paths[-len(suffix):]) == suffix, "PR196完全suffix不一致"
+        prefix = paths[:-len(suffix)] if suffix else paths
+        assert not any(p in known for p in prefix)
+        area["paths"] = prefix
+    return raw
+
+
+def _pr196_legacy_guard_source(source: str) -> str:
+    """旧AST検査へ新helper2/定数/入口1callだけを逆射影する。"""
+    tree = ast.parse(source)
+    names = {"_project_pr196_core_layer", "validate_pr196_area_path_layers"}
+    found = {n.name for n in tree.body if isinstance(n, ast.FunctionDef) and n.name in names}
+    assert found in (set(), names)
+    verify = next(n for n in tree.body if isinstance(n, ast.FunctionDef)
+                  and n.name == "verify_area_path_baseline")
+    calls = [n for n in ast.walk(verify) if isinstance(n, ast.Call)
+             and isinstance(n.func, ast.Name) and n.func.id == "validate_pr196_area_path_layers"]
+    assert len(calls) == int(bool(found))
+    for call in calls:
+        assert ast.dump(call) == ast.dump(ast.parse(
+            "validate_pr196_area_path_layers(baseline, candidate)", mode="eval",
+        ).body)
+        assert isinstance(call.func, ast.Name)
+        call.func.id = "validate_terminal_pitch_area_path_layers"
+    tree.body = [n for n in tree.body if not (
+        isinstance(n, ast.FunctionDef) and n.name in names
+        or isinstance(n, ast.AnnAssign) and isinstance(n.target, ast.Name)
+        and n.target.id == "PR196_CORE_ADDITIONS"
+    )]
+    return ast.unparse(tree)
+
+
+def test_pr196_fixed3_matches_git_and_preserves_every_old_guard_function_ast() -> None:
+    """旧全検査関数は不変、verify接続1callだけを明示して比較する。"""
+    guard = load_core_guard_module()
+    assert dict(guard.PR196_CORE_ADDITIONS) == _pr196_expected_additions()
+    original = ast.parse(
+        run_git(REPO, "show", _PR196_GUARD_BEFORE + ":scripts/core_guard.py").stdout
+    )
+    projected = ast.parse(_pr196_legacy_guard_source(SCRIPT.read_text()))
+    assert ast.dump(projected) == ast.dump(original)
+
+
+def test_pr196_fixed_complete_git_and_actual_head_pass_real_verifier() -> None:
+    """既登録8b834/現headと旧基線を実Git入口へ通す。"""
+    guard = load_core_guard_module()
+    for base, head in [(_PR196_CORE_REFERENCE_BASE, _PR196_CORE_REFERENCE_HEAD),
+                       (_PR196_CORE_REFERENCE_HEAD, _PR196_CORE_REFERENCE_HEAD),
+                       (_PR196_ACTUAL_BASE, _PR196_GUARD_BEFORE)]:
+        assert guard.verify_area_path_baseline(REPO, base, head)
+
+
+@pytest.mark.parametrize(("before_present", "after_present"), [
+    (False, False), (False, True), (True, True), (True, False),
+])
+def test_pr196_complete_presence_is_monotone_real_git(
+    tmp_path: Path, before_present: bool, after_present: bool,
+) -> None:
+    """外層なし/全3pairだけを許可し、既登録後の削除を拒否する。"""
+    guard = load_core_guard_module()
+    old, new = _pr196_reference_documents()
+    root, base = _first_ball_git_repo(tmp_path, new if before_present else old)
+    _, head = commit_change(root, "README.md", "PR196 candidate\n")
+    write_text(root, ".claude/core-areas.json", json.dumps(new if after_present else old))
+    run_git(root, "add", ".claude/core-areas.json")
+    run_git(root, "-c", "user.email=test@example.com", "-c", "user.name=test",
+            "commit", "--allow-empty", "-m", "PR196 core candidate")
+    head = run_git(root, "rev-parse", "HEAD").stdout.strip()
+    if before_present and not after_present:
+        with pytest.raises(guard.GuardError, match="PR196 core層の削除"):
+            guard.verify_area_path_baseline(root, base, head)
+    else:
+        assert guard.verify_area_path_baseline(root, base, head) == base
+
+
+@pytest.mark.parametrize(("area_id", "path"), [
+    ("sync-protocol", "backend/tests/fixtures/batted_source_extension_reference_v1.json"),
+    ("tenant-isolation", "tests/fixtures/pr196_tenant_source_expected_v1.json"),
+    ("tenant-isolation", "tests/test_pr196_tenant_source_registration.py"),
+])
+def test_pr196_each_pair_required_in_real_git(tmp_path: Path, area_id: str, path: str) -> None:
+    """3pairの一件欠落も完全suffixではない。"""
+    guard = load_core_guard_module()
+    old, new = _pr196_reference_documents()
+    bad = json.loads(json.dumps(new))
+    next(a for a in bad["areas"] if a["id"] == area_id)["paths"].remove(path)
+    root, base = _first_ball_git_repo(tmp_path, old)
+    _, head = commit_change(root, ".claude/core-areas.json", json.dumps(bad))
+    with pytest.raises(guard.GuardError):
+        guard.verify_area_path_baseline(root, base, head)
+
+
+@pytest.mark.parametrize("mutation", [
+    "partial", "wrong-order", "cross-area", "duplicate", "prefix", "unknown-suffix",
+    "unknown-prefix", "missing-area", "area-order", "old-prefix-deleted",
+])
+def test_pr196_bad_layer_refused_in_real_git(tmp_path: Path, mutation: str) -> None:
+    """固定3pairを部分/他領域/誤順/prefix混入の一般許可へしない。"""
+    guard = load_core_guard_module()
+    old, new = _pr196_reference_documents()
+    bad = json.loads(json.dumps(new))
+    maps = {a["id"]: a["paths"] for a in bad["areas"]}
+    path = "tests/test_pr196_tenant_source_registration.py"
+    if mutation == "partial":
+        maps["tenant-isolation"].remove(path)
+    elif mutation == "wrong-order":
+        maps["tenant-isolation"][-2:] = reversed(maps["tenant-isolation"][-2:])
+    elif mutation == "cross-area":
+        maps["tenant-isolation"].remove(path)
+        maps["game-state"].append(path)
+    elif mutation == "duplicate":
+        maps["tenant-isolation"].append(path)
+    elif mutation == "prefix":
+        maps["tenant-isolation"].remove(path)
+        maps["tenant-isolation"].insert(0, path)
+    elif mutation == "unknown-suffix":
+        maps["sync-protocol"].append("tests/unapproved_core.py")
+    elif mutation == "unknown-prefix":
+        maps["game-state"].insert(0, "tests/unapproved_core.py")
+    elif mutation == "missing-area":
+        bad["areas"].pop()
+    elif mutation == "area-order":
+        bad["areas"].reverse()
+    else:
+        maps["sync-protocol"].pop(0)
+    root, base = _first_ball_git_repo(tmp_path, old)
+    _, head = commit_change(root, ".claude/core-areas.json", json.dumps(bad))
+    with pytest.raises(guard.GuardError):
+        guard.verify_area_path_baseline(root, base, head)
+    with pytest.raises((AssertionError, guard.GuardError)):
+        # fixture投影も未知変更を旧validatorと合わせて拒否する。
+        guard.validate_terminal_pitch_area_path_layers(old, _pr196_historical_fixture(bad))
+
+
+@pytest.mark.parametrize(
+    "definition", sorted({"scripts/core_guard.py", "tests/test_core_guard.py"}),
+)
+def test_pr196_keeps_same_commit_definition_json_refusal(tmp_path: Path, definition: str) -> None:
+    """層が正しくても定義/JSON同commitなら既拒否へ委譲する。"""
+    guard = load_core_guard_module()
+    old, new = _pr196_reference_documents()
+    root, base = _first_ball_git_repo(tmp_path, old)
+    previous = (root / definition).read_text() if (root / definition).exists() else ""
+    write_text(root, definition, previous + "\n# cochange\n")
+    write_text(root, ".claude/core-areas.json", json.dumps(new))
+    run_git(root, "add", definition, ".claude/core-areas.json")
+    run_git(root, "-c", "user.email=test@example.com", "-c", "user.name=test",
+            "commit", "-m", "cochange")
+    head = run_git(root, "rev-parse", "HEAD").stdout.strip()
+    with pytest.raises(guard.GuardError, match="同一コミット"):
+        guard.verify_area_path_baseline(root, base, head)
+
+
+def test_pr196_projection_preserves_fields_and_raw_capture_all3() -> None:
+    """旧検査向け射影だけで外し、実raw検出の3literalは全て保持する。"""
+    guard = load_core_guard_module()
+    old, new = _pr196_reference_documents()
+    raw = json.loads(json.dumps(new))
+    raw["extra"] = {"retained": [True, 1]}
+    saved = json.loads(json.dumps(raw))
+    projected, present = guard._project_pr196_core_layer(raw, "test")
+    assert present and raw == saved and projected == _pr196_historical_fixture(raw)
+    restored = json.loads(json.dumps(projected))
+    for area in restored["areas"]:
+        area["paths"].extend(_pr196_expected_additions()[area["id"]])
+    assert restored == raw
+    data = guard.load_core_areas(REPO)
+    for paths in _pr196_expected_additions().values():
+        for path in paths:
+            assert path in data.path_patterns
+            assert guard.matched_paths([path], data) == [path]
+    assert guard._project_pr196_core_layer(old, "old") == (old, False)
+
+
+@pytest.mark.parametrize("key", [
+    "pr196_core_reference_head_revision", "pr196_core_guard_before_revision",
+    "pr196_core_public_base_revision",
+])
+@pytest.mark.parametrize("fault", [
+    "missing", "extra", "short", "uppercase", "integer", "boolean",
+    "purpose-empty", "purpose-type", "sources-empty", "sources-wrong", "entry-list",
+])
+def test_pr196_frozen_reference_rejects_inexact_metadata(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, key: str, fault: str,
+) -> None:
+    """新参照の欠落/異型/40桁違反/用途やconsumer不備を拒否する。"""
+    frozen = json.loads((REPO / "contracts/tenant_boundary/frozen-inputs.json").read_text())
+    entry = frozen["frozen_inputs"][key]
+    if fault == "missing":
+        del frozen["frozen_inputs"][key]
+    elif fault == "extra":
+        entry["unknown"] = True
+    elif fault == "short":
+        entry["value"] = entry["value"][:-1]
+    elif fault == "uppercase":
+        entry["value"] = entry["value"].upper()
+    elif fault == "integer":
+        entry["value"] = 1
+    elif fault == "boolean":
+        entry["value"] = True
+    elif fault == "purpose-empty":
+        entry["purpose"] = ""
+    elif fault == "purpose-type":
+        entry["purpose"] = False
+    elif fault == "sources-empty":
+        entry["sources"] = []
+    elif fault == "sources-wrong":
+        entry["sources"] = ["tests/test_core_guard.py:wrong"]
+    else:
+        frozen["frozen_inputs"][key] = []
+    path = tmp_path / "contracts/tenant_boundary/frozen-inputs.json"
+    path.parent.mkdir(parents=True)
+    path.write_text(json.dumps(frozen))
+    monkeypatch.setattr(sys.modules[__name__], "REPO", tmp_path)
+    with pytest.raises((AssertionError, KeyError)):
+        _pr196_reference_revision(key)

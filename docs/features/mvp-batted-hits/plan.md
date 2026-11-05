@@ -267,3 +267,6 @@ PR196のCI静的追随（2026-11-05、PO委任Codex /root判断）: 同70158 CI4
 
 
 既受理の歴史source試験追随（2026-11-05、PO委任Codex /root判断）: 初回CI harness1はcore suffix同根125件に加えtests/test_product_authz_tenant_boundary_allowlist.pyの正例欠落試験fixtureが旧192だけを祖先にする不足と、tests/test_ordinary_boundary_registrations.pyの旧ordinary全byteを現196 sourceへ直接比較する不一致を検出。exact2 testのhelper/対象1関数だけを追随する。前者は既実Git object alternatesと原典確認を保ち、登録済196前置Eもbaseline祖先へ加えて、正常actualcheck後に正例1削除の同拒否を確認する。後者は旧所有者2path/全8siteの全byte期待を既192固定Gitから検査し、現sourceは196有限登録を含む実checkerで別に全拒否/許可を検証する。旧pinを現hashへ上書きせず、他対向/意味/製品コードは変更しない。root候補を別非作者確認後に採用、未知原典/未受理sourceを通すfallbackを足さない。
+
+
+core外層反映1採用（2026-11-05、PO委任Codex /root判断）: 作者packet8545fc21…のcore f89626c6…/test8953b511…/固定入力3提案21bbb96e…を非作者08c893075ce5f02590578f7e4bcfa969f293282613c37e53e37ecfcef86c3342（独立798成功78.09秒、P0/P1/P2=0）で採用する。初回独立shadow index未構築の17拒否は自身のGit indexを直し同候補再実行した経緯を保持。旧検査関数ASTは全保持、verify入口接続1callのみ新外層へ委譲、旧raw helper2の歴史投影を追随。新raw3path検出/全拒否は保持し、固定参照は既typed frozen入力へ置きPython新hex0。purposeは非空plainstr/consumer exact/40桁型の境界を検査し、任意非空文言まで単独拒否するとは主張しない。具体3entry全値は正式7.7射影で別拘束する。70158の旧証拠/CI失敗を保持、後発全差分のR4・最終証拠・CIは別に必要。
