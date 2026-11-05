@@ -290,9 +290,10 @@ before_cp)
  WHERE (tenant_id,attempt_id,phase_id)=(p_tenant_id,p_attempt_id,p_phase_id)
  AND state='evaluated' AND transaction_id=own_xid;
  IF NOT FOUND THEN {_REJECT} END IF;
- RETURN QUERY SELECT true;
+ RETURN QUERY SELECT stats_api.rebuild_after_nonplay_undo(
+ p_tenant_id,p_attempt_id,p_phase_id,p_binding_nonce,p_device_id,p_game_id,p_request_json);
 """,
-        "consumed boolean",
+        "receipt_json text",
     )
     prepare = result["prepare_nonplay_undo"]
     start = prepare.index(" SELECT c.* INTO STRICT cp")

@@ -54,18 +54,25 @@ def generate(source: BackendInput) -> GeneratedArtifact:
     return artifact(source, Language.SQL, f"{header}\n{expression}\n")
 
 
-def generate_typed_queries(program, source_hash: str) -> dict[str, str]:
+def generate_typed_queries(
+    program, source_hash: str, *, selector_profile=None
+) -> dict[str, str]:
     """受理済みT5寄与factだけをDB集計するSQLを生成する。
 
     Args:
         program: 共通primitiveとDBの閉binding宣言。
         source_hash: 唯一modelのhash。
+        selector_profile: 数式を持たない閉取消選択profile。
 
     Returns:
         版付き事実のGROUP BYとwindowのSQL。
     """
     from pitchlog.domaingen.pregen_checks import validate_primitive_sql_binding
 
+    if selector_profile is not None:
+        from pitchlog.domaingen.pregen_checks import validate_undo_selection_profile
+
+        validate_undo_selection_profile(selector_profile)
     binding = program["sql"]
     category_filter = "AND g.game_type_key=ANY(:raw_game_type_keys)"
     category_guard = "true"
@@ -91,14 +98,88 @@ def generate_typed_queries(program, source_hash: str) -> dict[str, str]:
     values = ", ".join("('" + name + "')" for name in names)
     header = f"-- 自動生成 model={source_hash}\n-- 正式operation/receiptはroot binding、実DB実行前は成功を主張しない。\n"  # noqa: E501 — 生成targetのliteral
 
+    def undo_selection():
+        """真の消費印/原本/台帳/slot/不変binding全列を結び、取消だけを資格化する。"""
+        if selector_profile is None:
+            return "", "", "", ""
+        equal = " AND ".join(
+            "n." + key + " IS NOT DISTINCT FROM ub." + key
+            for key in selector_profile["bindingIdentity"]
+        )
+        cte = f"""canonical_undos AS (
+ SELECT n.* FROM {selector_profile["admissions"]} n
+ JOIN canonical_scope scope ON (scope.tenant_id,scope.game_id)=(n.tenant_id,n.game_id)
+ JOIN {selector_profile["bindings"]} ub ON {equal}
+ JOIN {binding["events"]} u ON (u.tenant_id,u.game_id,u.id)=(n.tenant_id,n.game_id,n.source_event_id)
+ JOIN {binding["ledger"]} ul ON ul.tenant_id=u.tenant_id AND ul.d5=u.d5
+ JOIN {binding["slots"]} us ON (us.tenant_id,us.game_id,us.generation,us.d1)
+  =(u.tenant_id,u.game_id,u.generation,u.d1) AND us.confirmed_version=1
+ JOIN {binding["events"]} t ON (t.tenant_id,t.game_id,t.id)=(n.tenant_id,n.game_id,n.target_event_id)
+ JOIN {binding["ledger"]} tl ON tl.tenant_id=t.tenant_id AND tl.d5=t.d5
+ JOIN {binding["plays"]} tp ON (tp.tenant_id,tp.game_id,tp.id)=(n.tenant_id,n.game_id,n.target_play_id)
+  AND tp.source_event_id=t.id AND tp.hidden_at IS NOT NULL
+ WHERE n.state='consumed' AND n.consumed_at IS NOT NULL
+ AND n.preparation_json::jsonb=n.preparation
+ AND n.frame_id=(n.preparation->>'frame_id')::uuid
+ AND n.frame_digest=n.preparation->>'frame_digest'
+ AND n.artifact_sha256=n.preparation->>'artifact_sha256'
+ AND n.source_event_id=(n.preparation->>'event_id')::uuid
+ AND n.target_event_id=(n.preparation->'target'->'source'->>'eventId')::uuid
+ AND n.target_play_id=(n.preparation->'target'->>'playId')::uuid
+ AND n.checkpoint_id=(n.preparation->'before_source'->'checkpoint'->'ref'->>'id')::uuid
+ AND n.checkpoint_revision=(n.preparation->'before_source'->'checkpoint'->'ref'->>'revision')::bigint
+ AND n.checkpoint_digest=n.preparation->'before_source'->'checkpoint'->'ref'->>'digest'
+ AND u.event_kind='undo' AND u.ledger_kind='accepted' AND ul.kind='accepted'
+ AND u.d5=n.d5 AND u.generation=n.internal_generation AND u.d1=n.source_d1
+ AND u.d2 IS NULL AND u.state_diff IS NULL AND NOT u.is_tombstone
+ AND u.replaced_at IS NULL AND u.retired_at IS NULL AND u.import_batch_id IS NULL
+ AND NOT u.migration_unverified AND ul.retired_at IS NULL AND ul.import_batch_id IS NULL
+ AND ul.source_fingerprint=n.event_fingerprint
+ AND u.payload=n.preparation->'event_original'->'payload'
+ AND u.payload->'calculation'->'response'=n.preparation->'response'
+ AND u.payload->>'artifactSha256'=n.artifact_sha256
+ AND u.target_generation=n.target_generation AND u.target_d1=n.target_d1
+ AND t.event_kind='play_input' AND t.ledger_kind='accepted' AND tl.kind='accepted'
+ AND t.generation=n.target_generation AND t.d1=n.target_d1
+ AND t.replaced_at IS NULL AND t.retired_at IS NULL AND t.import_batch_id IS NULL
+ AND NOT t.is_tombstone AND NOT t.migration_unverified
+ AND tl.retired_at IS NULL AND tl.import_batch_id IS NULL
+ AND tl.source_fingerprint=n.preparation->'target'->'source'->>'fingerprint'
+ AND tp.import_batch_id IS NULL AND NOT tp.migration_unverified
+), """  # noqa: E501 — 生成SQLの固定literal
+        join = """ LEFT JOIN canonical_undos undo ON undo.tenant_id=current_event.tenant_id
+   AND undo.game_id=current_event.game_id AND undo.target_event_id=current_event.id
+   AND undo.target_play_id=p.id
+"""  # noqa: E501 — 生成SQLの固定literal
+        restore = "NULL::uuid /* restore-undo-event */"
+        excluded = (
+            "     WHEN undo.source_event_id IS NOT NULL AND undo.source_event_id "
+            "IS DISTINCT FROM " + restore + " THEN 'excluded_undo'\n"
+        )
+        hidden = (
+            "(p.hidden_at IS NOT NULL AND NOT COALESCE(undo.source_event_id="
+            + restore
+            + ",false))"
+        )
+        return cte, join, excluded, hidden
+
     def canonical_selection(game_scope):
         """実slot/原本/D5台帳から独立したSと未解決行を一度だけ生成する。"""
+        undo_cte, undo_join, undo_excluded, undo_hidden = undo_selection()
+        hidden = undo_hidden or "p.hidden_at IS NOT NULL"
+        undo_control = (
+            "     WHEN e.event_kind='undo' AND NOT EXISTS (SELECT 1 FROM "
+            "canonical_undos verified WHERE verified.source_event_id=current_event.id) "
+            "THEN 'source_unavailable'\n"
+            if selector_profile is not None
+            else ""
+        )
         return f"""canonical_scope AS (
  SELECT g.tenant_id,g.id AS game_id FROM {binding["games"]} g
  WHERE g.tenant_id=:tenant_id AND g.hidden_at IS NULL AND g.trashed_at IS NULL
    AND g.status NOT IN ('hidden','trashed')
    {game_scope}
-), canonical_raw AS (
+), {undo_cte}canonical_raw AS (
  SELECT slot.tenant_id,slot.game_id,slot.generation AS recording_generation,
    slot.d1,e.d2,slot.confirmed_version AS slot_version,e.id AS base_event_id,
    CASE WHEN slot.confirmed_version=1 THEN e.id ELSE change.id END AS source_event_id,
@@ -109,12 +190,12 @@ def generate_typed_queries(program, source_hash: str) -> dict[str, str]:
    COUNT(*) OVER (PARTITION BY slot.tenant_id,slot.game_id,slot.generation,slot.d1) AS match_count,
    CASE WHEN gen.retired_at IS NOT NULL THEN 'excluded_retired'
      WHEN e.id IS NULL OR current_event.id IS NULL THEN 'source_unavailable'
-     WHEN e.event_kind<>'play_input' THEN 'excluded_control'
+{undo_control}     WHEN e.event_kind<>'play_input' THEN 'excluded_control'
      WHEN e.is_tombstone OR current_event.is_tombstone THEN 'excluded_tombstone'
      WHEN current_event.event_kind='play_delete' THEN 'excluded_delete'
      WHEN slot.d1>gen.confirmed_watermark OR slot.d1>gen.applied_prefix THEN 'source_unavailable'
-     WHEN ledger.kind IS DISTINCT FROM 'accepted' OR ledger.retired_at IS NOT NULL
-       OR p.id IS NULL OR p.hidden_at IS NOT NULL THEN 'source_unavailable'
+{undo_excluded}     WHEN ledger.kind IS DISTINCT FROM 'accepted' OR ledger.retired_at IS NOT NULL
+       OR p.id IS NULL OR {hidden} THEN 'source_unavailable'
      ELSE 'included' END AS preliminary_state
  FROM {binding["slots"]} slot JOIN canonical_scope g
    ON g.tenant_id=slot.tenant_id AND g.game_id=slot.game_id
@@ -134,7 +215,7 @@ def generate_typed_queries(program, source_hash: str) -> dict[str, str]:
    AND ledger.d5=current_event.d5
  LEFT JOIN {binding["plays"]} p ON p.tenant_id=current_event.tenant_id
    AND p.game_id=current_event.game_id AND p.source_event_id=current_event.id
-), canonical_s AS (
+{undo_join}), canonical_s AS (
  SELECT *,CASE WHEN match_count<>1 THEN 'source_unavailable'
                ELSE preliminary_state END AS source_state FROM canonical_raw
 ), canonical_health AS (
@@ -157,6 +238,15 @@ def generate_typed_queries(program, source_hash: str) -> dict[str, str]:
      OR EXISTS (SELECT 1 FROM canonical_health ch LEFT JOIN version_scope bound_version
        ON bound_version.tenant_id=ch.tenant_id AND bound_version.game_id=ch.game_id
        WHERE bound_version.id IS NULL)"""
+
+    def member_join():
+        """通常読取と取消版複製で同じ原本対応を使用する。"""
+        return """ JOIN canonical_s c ON c.tenant_id=s.tenant_id AND c.game_id=s.game_id
+   AND c.source_event_id=s.source_event_id AND c.recording_generation=s.recording_generation
+   AND c.d1=s.d1 AND c.d2=s.d2 AND c.slot_version=s.slot_version
+   AND c.play_row_id=s.play_row_id AND c.play_row_version=s.play_row_version
+   AND c.source_fingerprint=s.source_fingerprint AND c.artifact_sha256=s.artifact_sha256
+   AND c.source_state='included'"""  # noqa: E501 — 旧生成bytes保持
 
     def selection(scope):
         """版/Sと生存source集合を一度だけ宣言する。"""
@@ -184,12 +274,7 @@ def generate_typed_queries(program, source_hash: str) -> dict[str, str]:
  SELECT s.* FROM {binding["sources"]} s
  JOIN version_scope v ON v.tenant_id=s.tenant_id AND v.game_id=s.game_id
    AND v.id=s.fact_version_id
- JOIN canonical_s c ON c.tenant_id=s.tenant_id AND c.game_id=s.game_id
-   AND c.source_event_id=s.source_event_id AND c.recording_generation=s.recording_generation
-   AND c.d1=s.d1 AND c.d2=s.d2 AND c.slot_version=s.slot_version
-   AND c.play_row_id=s.play_row_id AND c.play_row_version=s.play_row_version
-   AND c.source_fingerprint=s.source_fingerprint AND c.artifact_sha256=s.artifact_sha256
-   AND c.source_state='included'
+{member_join()}
 ), scope_health AS (
  SELECT v.tenant_id,v.game_id,v.id,v.source_count,
    COUNT(s.source_event_id) AS actual_source_count
@@ -316,6 +401,18 @@ JOIN canonical_health ch ON ch.tenant_id=v.tenant_id AND ch.game_id=v.game_id;
         + "AS canonical_source_set_sha256 FROM (VALUES(1)) singleton(n) "
         + "LEFT JOIN canonical_health ch ON true;\n",
     }
+
+    if selector_profile is not None:
+        queries["window"] += (
+            "-- pitchlog-query: canonical_source_members\nWITH "
+            + canonical_selection("AND g.id=:game_id")
+            + "SELECT s.* FROM "
+            + binding["sources"]
+            + " s\n"
+            + member_join()
+            + "\nWHERE s.tenant_id=:tenant_id AND s.game_id=:game_id"
+            + " AND s.fact_version_id=:fact_version_id;\n"
+        )
 
     if program["version"] == 2:
         queries["rates"] = generate_derived_queries(

@@ -71,17 +71,17 @@ def test_all_old_declarations_bodies_details_and_guards_remain_exact():
     )
 
 
-def test_new_five_functions_three_private_tables_and_schema_are_exact():
+def test_new_five_functions_and_one_private_invoker_are_exact():
     """SQL/ACL/RLSを同じcanonical producerから既installerへ供給する。"""
     declarations, bodies = stats.connection_declarations()
     assert {section: len(rows) for section, rows in declarations.items()} == {
-        "functions": 5,
+        "functions": 6,
         "policies": 10,
         "column_acl_expectations": 70,
         "schemas": 1,
         "tables": 3,
     }
-    assert len(bodies) == 89
+    assert len(bodies) == 90
     for section, rows in declarations.items():
         for row in rows:
             key = row[product.IDS[section]]
@@ -111,13 +111,29 @@ def test_new_five_functions_three_private_tables_and_schema_are_exact():
                 "function privilege collision",
                 "p.proargnames IS NOT DISTINCT FROM",
                 "p.proargmodes IS NOT DISTINCT FROM",
-                "p.prosecdef=TRUE",
+                (
+                    "p.prosecdef=FALSE"
+                    if identifier.startswith(
+                        "FUNCTION:stats_api:rebuild_after_nonplay_undo("
+                    )
+                    else "p.prosecdef=TRUE"
+                ),
                 "p.proconfig=ARRAY",
                 "pg_catalog.btrim(p.prosrc",
             ):
                 assert condition in guard
             with pytest.raises(ValueError):
                 product.application_function_sql(identifier, canonical + "\n")
+    helpers = [
+        row
+        for row in declarations["functions"]
+        if row["function_name"] == "rebuild_after_nonplay_undo"
+    ]
+    assert len(helpers) == 1
+    assert (
+        helpers[0]["security_mode"] == "invoker"
+        and helpers[0]["acl_expectations"] == []
+    )
     for row in declarations["tables"]:
         assert row["table_id"] in product.TABLES
         assert row["schema_name"] == "sync_fence"

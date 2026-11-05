@@ -4,14 +4,17 @@ import copy
 import json
 
 import pytest
-from test_nonplay_prefix import rig as rig
 from test_nonplay_prefix import wire_event
+from test_stats_native_undo import base_rig as base_rig
+from test_stats_native_undo import undo_stats_rig as undo_stats_rig
 from test_undo_execution import prepared
 
 from pitchlog.repositories import nonplay_prefix as reader
 from pitchlog.sync import nonplay_prefix_bridge as bridge
 from pitchlog.sync import undo_execution as execution
 from pitchlog.sync.idempotency import _json_value, event_source
+
+rig = undo_stats_rig
 
 
 @pytest.mark.parametrize(

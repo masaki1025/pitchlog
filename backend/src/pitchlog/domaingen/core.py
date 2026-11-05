@@ -885,6 +885,30 @@ def generate_primitive_sql_bundle(
     return _generate_primitive_targets(common_model, consumer_model, sql_only=True)
 
 
+def generate_native_primitive_sql_bundle(
+    common_model, consumer_model, selector_profile
+):
+    """共通モデルの資格と式を保持し、閉取消selectorだけを同backendへ渡す。"""
+    from pitchlog.domaingen.pregen_checks import validate_undo_selection_profile
+
+    generate_primitive_sql_bundle(common_model, consumer_model)
+    validate_undo_selection_profile(selector_profile)
+    from pitchlog.domaingen.backends.sql import generate_typed_queries
+
+    queries = generate_typed_queries(
+        common_model["calculations"][0]["typedProgram"],
+        _canonical_hash(common_model),
+        selector_profile=selector_profile,
+    )
+    return {
+        "backend/src/pitchlog/exports/generated/play_primitives_native.sql": queries[
+            "window"
+        ],
+        "backend/src/pitchlog/stats/generated/stats_native.sql": queries["grouped"],
+        "backend/src/pitchlog/stats/generated/stats_rates_native.sql": queries["rates"],
+    }
+
+
 def _generate_primitive_targets(
     common_model: Mapping[str, Any],
     consumer_model: Mapping[str, Any],

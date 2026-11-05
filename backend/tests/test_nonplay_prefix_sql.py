@@ -111,3 +111,15 @@ def test_saved_evidence_profile_preserves_raw_fingerprint_and_original_tx():
         assert text in sql
     assert "'original'," not in sql
     assert "digest(" not in sql and "sha256(" not in sql
+
+
+def test_consume_requires_same_statement_stats_receipt_not_old_bool():
+    """取消/CP/印/版更新を一SQL内で行い、helper欠落を成功へ補完しない。"""
+    body = candidate_function_bodies()["consume_nonplay_undo"]
+    assert "RETURNS TABLE(receipt_json text)" in body
+    assert "stats_api.rebuild_after_nonplay_undo(" in body
+    assert body.index("SET state='consumed'") < body.index(
+        "rebuild_after_nonplay_undo("
+    )
+    assert "RETURN QUERY SELECT true" not in body
+    assert "EXCEPTION WHEN" not in body and "consumed boolean" not in body

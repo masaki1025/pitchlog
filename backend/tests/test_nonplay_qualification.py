@@ -6,6 +6,7 @@ from types import SimpleNamespace
 
 import pytest
 from test_nonplay_prefix import rig as rig
+from test_stats_native_undo import receipt_value
 
 from pitchlog.domainrt.first_ball_projection import _canonical_json
 from pitchlog.repositories import nonplay_qualification as api
@@ -52,7 +53,13 @@ def function_rig(rig, monkeypatch):
                 if request["cursor"] is None
                 else ()
             )
-        assert name in {"prepare_nonplay_undo", "consume_nonplay_undo"}
+        if name == "consume_nonplay_undo":
+            from pitchlog.sync.undo_execution import _EXECUTIONS
+
+            state = _EXECUTIONS[rig.handle._state_key]
+            receipt = receipt_value(rig, state, json.loads(parameters["request_json"]))
+            return iter(((json.dumps(receipt),),))
+        assert name == "prepare_nonplay_undo"
         return iter(((True,),))
 
     rig.runtime[0].execute = execute
@@ -69,7 +76,10 @@ def decision_phase(rig, monkeypatch, kind):
     old = rig.source.bound._phase_snapshot
     snapshot = json.dumps({"phase": {"internal_generation": 7, "wire_d4": "1"}})
     rig.source.bound._phase_snapshot = snapshot
-    rig.source.bound.assert_current = lambda: None
+    from pitchlog.sync.control_provider.writer_binding import _LiveWriterBinding
+
+    if type(rig.source.bound) is not _LiveWriterBinding:
+        rig.source.bound.assert_current = lambda: None
     phase = SimpleNamespace(
         handle=rig.handle,
         runtime=rig.runtime,

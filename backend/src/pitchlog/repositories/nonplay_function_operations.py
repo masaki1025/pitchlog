@@ -144,7 +144,7 @@ _FAMILIES = MappingProxyType(
             _ConsumeNonplayUndoCall,
             "consume_undo",
             (*_COMMON, ("request_json", str)),
-            (("consumed", bool),),
+            (("receipt_json", str),),
             1,
             1,
         ),
@@ -345,11 +345,18 @@ def _decode(spec, rows):
             or any(type(v) is not t for v, (_k, t) in zip(row, spec.result_fields))
         ):
             raise FunctionOperationError("取消固定関数の戻り全型が不一致です")
-    if spec.token_type in {
-        _PrepareNonplayUndoCall,
-        _ConsumeNonplayUndoCall,
-    } and rows != ((True,),):
+    if spec.token_type is _PrepareNonplayUndoCall and rows != ((True,),):
         raise FunctionOperationError("取消writeの実True応答がありません")
+    if spec.token_type is _ConsumeNonplayUndoCall:
+        from pitchlog.sync.stats_native_flush import (
+            StatsNativeFlushError,
+            _decode_undo_stats_receipt,
+        )
+
+        try:
+            _decode_undo_stats_receipt(rows[0][0])
+        except StatsNativeFlushError as error:
+            raise FunctionOperationError("取消S受領証の全型が不一致です") from error
     return TenantOperationResult(rows)
 
 

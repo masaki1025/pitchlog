@@ -62,6 +62,9 @@ class _Execution:
     event_id: object = None
     projected: object = None
     projection_call: object = None
+    completed_projected: object = None
+    stats_receipt: object = None
+    stats_flushed: bool = False
 
 
 _EXECUTIONS = {}
@@ -253,9 +256,13 @@ def _bind_undo_execution(handle, writer, event, source):
             _execution_live(state)
             yield
     finally:
+        from pitchlog.sync.stats_native_flush import _close_undo_stats_receipt
+
+        _close_undo_stats_receipt(state)
         if _EXECUTIONS.get(key) is state:
             del _EXECUTIONS[key]
         state.phase = "closed"
+        state.completed_projected = state.stats_receipt = None
         state.frame = state.prefix = state.payload = state.response = None
 
 
@@ -324,6 +331,8 @@ def _bind_undo_projection(handle, writer, event, projected):
     try:
         yield
         _execution_live(state)
+        if state.phase == "projected":
+            state.completed_projected = projected
     finally:
         state.projected = state.projection_call = None
         if state.phase != "projected":

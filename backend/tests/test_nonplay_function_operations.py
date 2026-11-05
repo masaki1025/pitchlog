@@ -7,6 +7,7 @@ from uuid import UUID
 import pytest
 from sqlalchemy import literal, select
 from sqlalchemy.dialects import postgresql
+from test_stats_native_undo import decoder_receipt
 
 from pitchlog.repositories import nonplay_function_operations as api
 from pitchlog.repositories.function_operations import (
@@ -101,7 +102,7 @@ def test_changed_renderer_abi_does_not_validate_cached_metadata(monkeypatch):
         (3, ()),
         (3, tuple(("{}",) for _ in range(100))),
         (4, ((True,),)),
-        (5, ((True,),)),
+        (5, ((decoder_receipt(),),)),
     ],
 )
 def test_closed_positive_decoders(index, rows):
@@ -122,7 +123,9 @@ def test_closed_positive_decoders(index, rows):
         (3, tuple(("{}",) for _ in range(101))),
         (4, ((1,),)),
         (4, ((False,),)),
+        (5, ((True,),)),
         (5, ((False,),)),
+        (5, (("{}",),)),
         (5, ((True,), (True,))),
         (2, [["{}"]]),
     ],

@@ -1,11 +1,15 @@
 """実Source17→新固定SQLと実undo Port dispatcherの接合対向。"""
 
+from contextlib import contextmanager
+from typing import Any, cast
 from uuid import UUID
 
 import pytest
 from test_nonplay_qualification import decision_phase
 from test_nonplay_qualification import function_rig as function_rig
 from test_nonplay_qualification import rig as rig
+from test_stats_native_undo import base_rig as base_rig
+from test_stats_native_undo import undo_stats_rig as undo_stats_rig
 from test_undo_execution import prepared
 
 from pitchlog.repositories import nonplay_prefix as reader
@@ -77,34 +81,40 @@ def test_private_sql_errors_and_row_corruption_propagate(function_rig, fault):
 
 
 def test_actual_undo_host_content_then_bridge_uses_fixed_prepare_consume(
-    function_rig, monkeypatch
+    undo_stats_rig, monkeypatch
 ):
     """実host一回/実hook tuple/実Port/実bridge/固定SQL2へ一回到達する。"""
-    r = function_rig
-    with prepared(r):
-        with decision_phase(r, monkeypatch, "content"):
-            assert UndoContentValidationPort().validate(r.event, r.writer) == (
-                True,
-                None,
-            )
-            forged = ValidateUndoToken(UUID(int=9), UUID(r.event.d5), r.event, r.writer)
-            with pytest.raises(RuntimeError):
-                r.handle.run(forged)
-        r.source.write_started = True
-        # 元DTOと同値の別projected実体も、既projection区間でのみ使う。
-        from test_nonplay_prefix import wire_event
+    with contextmanager(cast(Any, function_rig).__wrapped__)(
+        undo_stats_rig, monkeypatch
+    ) as r:
+        with prepared(r):
+            with decision_phase(r, monkeypatch, "content"):
+                assert UndoContentValidationPort().validate(r.event, r.writer) == (
+                    True,
+                    None,
+                )
+                forged = ValidateUndoToken(
+                    UUID(int=9), UUID(r.event.d5), r.event, r.writer
+                )
+                with pytest.raises(RuntimeError):
+                    r.handle.run(forged)
+            r.source.write_started = True
+            # 元DTOと同値の別projected実体も、既projection区間でのみ使う。
+            from test_nonplay_prefix import wire_event
 
-        from pitchlog.sync.idempotency import _json_value, event_source
+            from pitchlog.sync.idempotency import _json_value, event_source
 
-        projected = wire_event(_json_value(event_source(r.event)))
-        with execution._bind_undo_projection(r.handle, r.writer, r.event, projected):
-            UndoProjectionPort().apply(projected, r.writer)
-        execution._require_undo_projection_completed(r.handle, r.event)
-    assert [name for name, _ in r.sql][-2:] == [
-        "prepare_nonplay_undo",
-        "consume_nonplay_undo",
-    ]
-    assert r.sql[-1][1]["request_json"] == r.sql[-2][1]["request_json"]
+            projected = wire_event(_json_value(event_source(r.event)))
+            with execution._bind_undo_projection(
+                r.handle, r.writer, r.event, projected
+            ):
+                UndoProjectionPort().apply(projected, r.writer)
+            execution._require_undo_projection_completed(r.handle, r.event)
+        assert [name for name, _ in r.sql][-2:] == [
+            "prepare_nonplay_undo",
+            "consume_nonplay_undo",
+        ]
+        assert r.sql[-1][1]["request_json"] == r.sql[-2][1]["request_json"]
 
 
 @pytest.mark.parametrize("kind", ["device", "rights"])

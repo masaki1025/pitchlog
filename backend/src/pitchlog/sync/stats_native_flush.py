@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 from itertools import islice
-from typing import Any
+from typing import Any, NamedTuple
 
 from sqlalchemy.orm import Session
 
@@ -265,3 +265,333 @@ def _flush_native_stats(handle, writer, event, projected, *, generation):
     # 新Sは新canonical集合のhash。旧Sとの同値を求めず、前値はSaveのCASへ全値束縛する。
     decoded = decode_save_source_rows(rows, source_event_id=source.source_event_id)
     return TenantOperationResult(decoded)
+
+
+_UNDO_RECEIPT_KEYS = frozenset(
+    {
+        "formatVersion",
+        "profileSha256",
+        "modelSha256",
+        "tenantId",
+        "gameId",
+        "attemptId",
+        "phaseId",
+        "undoEventId",
+        "targetEventId",
+        "frameId",
+        "frameDigest",
+        "artifactSha256",
+        "sourceFingerprint",
+        "transactionId",
+        "internalGeneration",
+        "checkpointDigest",
+        "oldFactVersionId",
+        "factVersionId",
+        "oldRevision",
+        "revision",
+        "beforeSourceSetSha256",
+        "sourceSetSha256",
+        "sourceCount",
+    }
+)
+
+
+def _undo_selector_hash():
+    """数学T5のhashとは独立した、唯一閉selectorのhashを読む。"""
+    from pathlib import Path
+
+    from pitchlog.domaingen.core import _canonical_hash
+    from pitchlog.domaingen.pregen_checks import validate_undo_selection_profile
+
+    path = Path(__file__).parents[3] / "domain/play-export-undo-selection.model.json"
+    profile = json.loads(path.read_text())
+    validate_undo_selection_profile(profile)
+    return _canonical_hash(profile)
+
+
+def _decode_undo_stats_receipt(raw):
+    """有限text一行の全列を検査する。形だけで実行資格を発行しない。"""
+    import re
+    from uuid import UUID
+
+    if type(raw) is not str or not 1 <= len(raw) <= 4096:
+        raise StatsNativeFlushError
+
+    def unique(pairs):
+        value = {}
+        for key, item in pairs:
+            if key in value:
+                raise StatsNativeFlushError
+            value[key] = item
+        return value
+
+    try:
+        data = json.loads(raw, object_pairs_hook=unique)
+        if (
+            type(data) is not dict
+            or set(data) != _UNDO_RECEIPT_KEYS
+            or any(type(value) is not str for value in data.values())
+            or data["formatVersion"] != "undo-native-stats-receipt-v1"
+            or data["profileSha256"] != _undo_selector_hash()
+            or data["modelSha256"] != SOURCE_MODEL_HASH
+        ):
+            raise StatsNativeFlushError
+        for key in (
+            "tenantId",
+            "gameId",
+            "attemptId",
+            "phaseId",
+            "undoEventId",
+            "targetEventId",
+            "frameId",
+            "oldFactVersionId",
+            "factVersionId",
+        ):
+            if str(UUID(data[key])) != data[key]:
+                raise StatsNativeFlushError
+        for key in (
+            "frameDigest",
+            "artifactSha256",
+            "checkpointDigest",
+            "beforeSourceSetSha256",
+            "sourceSetSha256",
+        ):
+            if re.fullmatch(r"[a-f0-9]{64}", data[key]) is None:
+                raise StatsNativeFlushError
+        if (
+            re.fullmatch(r"(?:wire-v1:)?[a-f0-9]{64}", data["sourceFingerprint"])
+            is None
+        ):
+            raise StatsNativeFlushError
+        for key in (
+            "oldRevision",
+            "revision",
+            "sourceCount",
+            "transactionId",
+            "internalGeneration",
+        ):
+            if re.fullmatch(r"0|[1-9][0-9]{0,19}", data[key]) is None:
+                raise StatsNativeFlushError
+            limit = 2**64 if key == "transactionId" else 2**63
+            if int(data[key]) >= limit:
+                raise StatsNativeFlushError
+        if (
+            int(data["oldRevision"]) < 1
+            or int(data["revision"]) != int(data["oldRevision"]) + 1
+            or int(data["transactionId"]) < 1
+            or int(data["internalGeneration"]) < 1
+            or data["oldFactVersionId"] == data["factVersionId"]
+            or data["undoEventId"] == data["targetEventId"]
+        ):
+            raise StatsNativeFlushError
+    except (ValueError, TypeError, KeyError, OSError) as error:
+        raise StatsNativeFlushError from error
+    return data
+
+
+@dataclass(frozen=True, slots=True, repr=False, init=False)
+class _UndoStatsReceipt:
+    """実bridgeの一回SQL結果と同実行stateだけが保持する貸与値。"""
+
+    def __new__(cls, *args, **kwargs):
+        """raw値から実SQL受領資格を構築しない。"""
+        raise StatsNativeFlushError
+
+    scope: _WriterScope
+    execution: Any
+    source: Any
+    original: Any
+    projected: Any
+    raw: str
+    preparation_json: str
+    frame_id: Any
+    frame_digest: str
+    event_id: Any
+    artifact: str
+
+
+class _UndoStatsIssuance(NamedTuple):
+    """receiptから独立した発行原本。tupleの全anchorは後発改変できない。"""
+
+    receipt: _UndoStatsReceipt
+    execution: Any
+    raw: str
+    receipt_values: tuple
+    scope_values: tuple
+    execution_anchor: tuple
+    used: bool
+
+
+_UNDO_STATS_ISSUED: dict[int, _UndoStatsIssuance] = {}
+
+
+def _assert_undo_stats_issuance(state, *, used=False):
+    """発行時objectと不変全anchorを独立registryから読み、clone/再刻印を拒否する。"""
+    issued = _UNDO_STATS_ISSUED.get(id(state))
+    if (
+        type(issued) is not _UndoStatsIssuance
+        or issued.execution is not state
+        or issued.used is not used
+        or state.stats_receipt is not issued.receipt
+        or state.anchor is not issued.execution_anchor
+    ):
+        raise StatsNativeFlushError
+    receipt = issued.receipt
+    identity_fields = {"scope", "execution", "source", "original", "projected"}
+    for field, original in zip(
+        fields(_UndoStatsReceipt), issued.receipt_values, strict=True
+    ):
+        value = getattr(receipt, field.name)
+        if field.name in identity_fields:
+            if value is not original:
+                raise StatsNativeFlushError
+        elif type(value) is not type(original) or value != original:
+            raise StatsNativeFlushError
+    for field, original in zip(fields(_WriterScope), issued.scope_values, strict=True):
+        value = getattr(receipt.scope, field.name)
+        if field.name in {"nonce", "phase_snapshot"}:
+            if type(value) is not type(original) or value != original:
+                raise StatsNativeFlushError
+        elif value is not original:
+            raise StatsNativeFlushError
+    return issued
+
+
+def _close_undo_stats_receipt(state):
+    """成功/故障/参照差替えでも当該実行の発行記録をfinallyで失効する。"""
+    issued = _UNDO_STATS_ISSUED.get(id(state))
+    if issued is not None and issued.execution is state:
+        del _UNDO_STATS_ISSUED[id(state)]
+
+
+def _bind_undo_stats_receipt(state, preparation, rows):
+    """実consume後の同projection区間でだけ不変receiptを記録する。"""
+    from pitchlog.domainrt.first_ball_projection import _canonical_json
+    from pitchlog.sync.undo_execution import _execution_live
+
+    _execution_live(state)
+    if (
+        state.phase != "consumed"
+        or state.projected is None
+        or state.projection_call is None
+        or state.stats_receipt is not None
+        or id(state) in _UNDO_STATS_ISSUED
+        or type(rows) is not tuple
+        or len(rows) != 1
+        or type(rows[0]) is not tuple
+        or len(rows[0]) != 1
+    ):
+        raise StatsNativeFlushError
+    data = _decode_undo_stats_receipt(rows[0][0])
+    scope = _capture_scope(state.handle, state.writer)
+    expected = {
+        "tenantId": str(scope.context.tenant_id),
+        "gameId": str(state.event.game_id),
+        "attemptId": str(scope.lease.attempt_id),
+        "phaseId": str(scope.lease.phase_id),
+        "undoEventId": str(state.event_id),
+        "targetEventId": preparation["target"]["source"]["eventId"],
+        "frameId": str(state.frame_id),
+        "frameDigest": preparation["frame_digest"],
+        "artifactSha256": state.artifact,
+        "sourceFingerprint": preparation["source_fingerprint"],
+        "checkpointDigest": preparation["after_source"]["checkpoint"]["ref"]["digest"],
+        "transactionId": scope.bound._identity.transaction_id,
+        "internalGeneration": str(
+            json.loads(scope.phase_snapshot)["phase"]["internal_generation"]
+        ),
+    }
+    if any(data[key] != value for key, value in expected.items()):
+        raise StatsNativeFlushError
+    receipt = object.__new__(_UndoStatsReceipt)
+    for key, value in zip(
+        (
+            "scope",
+            "execution",
+            "source",
+            "original",
+            "projected",
+            "raw",
+            "preparation_json",
+            "frame_id",
+            "frame_digest",
+            "event_id",
+            "artifact",
+        ),
+        (
+            scope,
+            state,
+            state.source,
+            state.event,
+            state.projected,
+            rows[0][0],
+            _canonical_json(preparation),
+            state.frame_id,
+            preparation["frame_digest"],
+            state.event_id,
+            state.artifact,
+        ),
+        strict=True,
+    ):
+        object.__setattr__(receipt, key, value)
+    _UNDO_STATS_ISSUED[id(state)] = _UndoStatsIssuance(
+        receipt,
+        state,
+        rows[0][0],
+        tuple(getattr(receipt, field.name) for field in fields(_UndoStatsReceipt)),
+        tuple(getattr(scope, field.name) for field in fields(_WriterScope)),
+        state.anchor,
+        False,
+    )
+    state.stats_receipt = receipt
+    _assert_undo_stats_issuance(state)
+
+
+def _flush_native_undo_stats(handle, writer, event, projected, *, generation):
+    """同TXの真正投影/版更新receiptを一回だけ消費し、旧bool応答は拒否する。"""
+    from pitchlog.sync.undo_execution import _EXECUTIONS, _execution_live
+
+    state = _EXECUTIONS.get(getattr(handle, "_state_key", None))
+    if state is None:
+        raise StatsNativeFlushError
+    issued = _assert_undo_stats_issuance(state)
+    receipt = issued.receipt
+    if state.source is not receipt.source:
+        raise StatsNativeFlushError
+    _execution_live(state)
+    if (
+        type(receipt) is not _UndoStatsReceipt
+        or receipt.execution is not state
+        or state.phase != "projected"
+        or state.stats_flushed
+        or state.event is not event
+        or state.writer is not writer
+        or receipt.original is not event
+        or receipt.projected is not projected
+        or state.completed_projected is not projected
+        or receipt.scope.handle is not handle
+        or receipt.scope.writer is not writer
+        or receipt.frame_id != state.frame_id
+        or receipt.event_id != state.event_id
+        or receipt.artifact != state.artifact
+        or type(generation) is not int
+    ):
+        raise StatsNativeFlushError
+    _assert_scope(receipt.scope)
+    _assert_undo_stats_issuance(state)
+    data = _decode_undo_stats_receipt(issued.raw)
+    if (
+        generation != int(data["internalGeneration"])
+        or data["frameDigest"] != receipt.frame_digest
+        or data["undoEventId"] != str(state.event_id)
+        or data["transactionId"] != receipt.scope.bound._identity.transaction_id
+    ):
+        raise StatsNativeFlushError
+    # 保存SQL内でS/版更新を完了し、このhookは同実scopeの結果受領を不可分に確認する。
+    # callerへraw値から新しい実行資格を作るfactoryは提供しない。
+    _UNDO_STATS_ISSUED[id(state)] = issued._replace(used=True)
+    state.stats_flushed = True
+    _execution_live(state)
+    _assert_scope(receipt.scope)
+    _assert_undo_stats_issuance(state, used=True)
+    return data

@@ -148,7 +148,8 @@ def project_nonplay_undo(handle, event, writer):
     token = _ConsumeNonplayUndo(raw)
     with _write_call(state, token):
         rows = _run(handle, state.source, state.event, token)
-    if not _true_row(rows):
-        raise UndoExecutionError("取消の同TX投影を確認できません")
+    from pitchlog.sync.stats_native_flush import _bind_undo_stats_receipt
+
+    _bind_undo_stats_receipt(state, preparation, rows)
     _execution_live(state)
     state.phase = "projected"

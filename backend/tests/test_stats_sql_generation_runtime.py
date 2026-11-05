@@ -73,3 +73,21 @@ def test_both_entries_reject_invalid_models(mutation, entry):
         common["schemaVersion"] = 2
     with pytest.raises(core.GenerationError):
         entry(common, consumer)
+
+
+def test_native_overlay_has_no_other_language_or_format_execution(monkeypatch):
+    """旧式/旧bundleを保ち、native SQL3も外部toolchainなしで公式描画する。"""
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("native selector生成から別計算又はformatterを起動しました")
+
+    monkeypatch.setattr(core, "_format_typed_target", forbidden)
+    monkeypatch.setattr(py_backend, "generate_typed_facts", forbidden)
+    monkeypatch.setattr(ts_backend, "generate_typed_facts", forbidden)
+    profile = json.loads(
+        (ROOT / "backend/domain/play-export-undo-selection.model.json").read_text()
+    )
+    common, consumer = _models()
+    result = core.generate_native_primitive_sql_bundle(common, consumer, profile)
+    assert len(result) == 3
+    assert result == {path: (ROOT / path).read_text() for path in result}

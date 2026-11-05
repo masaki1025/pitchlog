@@ -89,19 +89,115 @@ def _verified_inputs(root: Path) -> tuple[str, dict[str, str], str, str]:
         != METRIC_IDS
     ):
         raise ValueError("成績共通model/生成SQL/artifactの対応が不一致")
+    # T5原model/旧SQL/保存profileを検証してから、独立したnative selectorを検証する。
+    from pitchlog.domaingen.core import generate_native_primitive_sql_bundle
+
+    selector_path = "backend/domain/play-export-undo-selection.model.json"
+    selector_raw = (root / selector_path).read_bytes()
+    selector = json.loads(selector_raw)
+    native_bundle = generate_native_primitive_sql_bundle(
+        common_model, consumer_model, selector
+    )
+    native_binding = manifest.get("nativeCanonicalSelection")
+    expected_binding = {
+        "version": 1,
+        "profilePath": selector_path,
+        "profileFileSha256": hashlib.sha256(selector_raw).hexdigest(),
+        "profileSha256": _canonical_hash(selector),
+        "generatedFiles": {
+            path: hashlib.sha256(value.encode()).hexdigest()
+            for path, value in native_bundle.items()
+        },
+    }
+    if (
+        type(native_binding) is not dict
+        or native_binding != expected_binding
+        or type(native_binding.get("version")) is not int
+        or any(
+            (root / path).read_text() != value for path, value in native_bundle.items()
+        )
+    ):
+        raise ValueError(
+            "成績native selectorの独立profile/生成SQL束縛が未供給又は不一致"
+        )
+    raw = native_bundle[
+        "backend/src/pitchlog/exports/generated/play_primitives_native.sql"
+    ]
     parts = raw.split("-- pitchlog-query: ")[1:]
     sections = {
         part.split("\n", 1)[0]: part.split("\n", 1)[1].strip() for part in parts
     }
-    if len(parts) != 5 or set(sections) != {
+    if len(parts) != 6 or set(sections) != {
         "window",
         "count",
         "current_totals",
         "canonical_members",
         "canonical_health",
+        "canonical_source_members",
     }:
         raise ValueError("成績の生成query集合が閉じていません")
     return raw, sections, model_hash, manifest["t5ArtifactSetSha256"]
+
+
+def _credit_integrity_guard(scope: str) -> str:
+    """保存済みT5応答と実credit全集合の既検査を、閉じた三scopeで共有する。"""
+    aliases = {
+        "read": ("tenant", "p_fact_version_id"),
+        "undo-prior": ("p_tenant_id", "prior.id"),
+        "undo-current": ("p_tenant_id", "new_id"),
+    }
+    if type(scope) is not str or scope not in aliases:
+        raise ValueError("未登録credit完全性scopeです")
+    REJECT = (
+        "RAISE EXCEPTION 'stats primitive boundary rejected' USING ERRCODE='42501';"
+    )
+    credit_integrity = (
+        "\n -- 内容を再計算せず、保存済み唯一T5応答の全creditと実fact集合"
+        "を双方向比較する。\n IF EXISTS(SELECT 1 FROM "
+        "sync_fence.stats_primitive_sources s\n "
+        "WHERE s.tenant_id=tenant AND "
+        "s.game_id=p_game_id AND "
+        "s.fact_version_id=p_fact_version_id\n "
+        "AND s.evaluation_sha256 IS DISTINCT "
+        "FROM pg_catalog.encode(pg_catalog.sha256"
+        "(pg_catalog.convert_to(\n "
+        "s.metric_states::text,'UTF8')),'hex')) "
+        "OR EXISTS(\n WITH expected_credits AS (\n "
+        " SELECT s.source_event_id,m.key AS "
+        "metric_id,(c.value->>'player_id')::uuid "
+        "AS player_id,\n  c.ordinality-1 AS "
+        "credit_ordinal,'available'::text AS "
+        "state,(c.value->>'quantity')::numeric "
+        "AS amount\n  FROM "
+        "sync_fence.stats_primitive_sources s\n  "
+        "CROSS JOIN LATERAL "
+        "pg_catalog.jsonb_each(s.metric_states->'"
+        "metrics') m\n  CROSS JOIN LATERAL "
+        "pg_catalog.jsonb_array_elements(m.value-"
+        ">'credits') WITH ORDINALITY c\n  WHERE "
+        "s.tenant_id=tenant AND "
+        "s.game_id=p_game_id AND "
+        "s.fact_version_id=p_fact_version_id\n ), "
+        "actual_credits AS (\n  SELECT "
+        "f.source_event_id,f.metric_id,"
+        "f.player_id,f.credit_ordinal,f.state,"
+        "f.amount\n  FROM "
+        "sync_fence.stats_primitive_facts f "
+        "WHERE f.tenant_id=tenant AND "
+        "f.game_id=p_game_id\n  AND "
+        "f.fact_version_id=p_fact_version_id\n )\n "
+        "(SELECT * FROM expected_credits EXCEPT "
+        "SELECT * FROM actual_credits)\n UNION "
+        "ALL (SELECT * FROM actual_credits "
+        "EXCEPT SELECT * FROM expected_credits)\n "
+        ") THEN "
+        f"{REJECT}"
+        " END IF;\n"
+    )
+    tenant, version = aliases[scope]
+    return re.sub(r"\btenant\b", tenant, credit_integrity).replace(
+        "p_fact_version_id", version
+    )
 
 
 def candidate_function_bodies() -> dict[str, str]:
@@ -257,49 +353,7 @@ def candidate_function_bodies() -> dict[str, str]:
         f"{REJECT}"
         " END IF;"
     )
-    credit_integrity = (
-        "\n -- 内容を再計算せず、保存済み唯一T5応答の全creditと実fact集合"
-        "を双方向比較する。\n IF EXISTS(SELECT 1 FROM "
-        "sync_fence.stats_primitive_sources s\n "
-        "WHERE s.tenant_id=tenant AND "
-        "s.game_id=p_game_id AND "
-        "s.fact_version_id=p_fact_version_id\n "
-        "AND s.evaluation_sha256 IS DISTINCT "
-        "FROM pg_catalog.encode(pg_catalog.sha256"
-        "(pg_catalog.convert_to(\n "
-        "s.metric_states::text,'UTF8')),'hex')) "
-        "OR EXISTS(\n WITH expected_credits AS (\n "
-        " SELECT s.source_event_id,m.key AS "
-        "metric_id,(c.value->>'player_id')::uuid "
-        "AS player_id,\n  c.ordinality-1 AS "
-        "credit_ordinal,'available'::text AS "
-        "state,(c.value->>'quantity')::numeric "
-        "AS amount\n  FROM "
-        "sync_fence.stats_primitive_sources s\n  "
-        "CROSS JOIN LATERAL "
-        "pg_catalog.jsonb_each(s.metric_states->'"
-        "metrics') m\n  CROSS JOIN LATERAL "
-        "pg_catalog.jsonb_array_elements(m.value-"
-        ">'credits') WITH ORDINALITY c\n  WHERE "
-        "s.tenant_id=tenant AND "
-        "s.game_id=p_game_id AND "
-        "s.fact_version_id=p_fact_version_id\n ), "
-        "actual_credits AS (\n  SELECT "
-        "f.source_event_id,f.metric_id,"
-        "f.player_id,f.credit_ordinal,f.state,"
-        "f.amount\n  FROM "
-        "sync_fence.stats_primitive_facts f "
-        "WHERE f.tenant_id=tenant AND "
-        "f.game_id=p_game_id\n  AND "
-        "f.fact_version_id=p_fact_version_id\n )\n "
-        "(SELECT * FROM expected_credits EXCEPT "
-        "SELECT * FROM actual_credits)\n UNION "
-        "ALL (SELECT * FROM actual_credits "
-        "EXCEPT SELECT * FROM expected_credits)\n "
-        ") THEN "
-        f"{REJECT}"
-        " END IF;\n"
-    )
+    credit_integrity = _credit_integrity_guard("read")
     count_check += credit_integrity
     open_body = read_guard + (
         "\n SELECT v.id,v.revision,"

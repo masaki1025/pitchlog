@@ -11,6 +11,7 @@ from unittest.mock import patch
 
 import pytest
 from sqlalchemy import Column, Text
+from test_stats_native_undo import verified_native_root as verified_native_root
 
 from pitchlog.authz import stats_primitive_product as product
 from pitchlog.authz import stats_primitive_sql as sql
@@ -212,6 +213,10 @@ def copied_inputs(tmp_path, monkeypatch):
         sql._MANIFEST_PATH,
         *sql._SQL_PATHS,
         *sql._ARTIFACT_PATHS,
+        "backend/domain/play-export-undo-selection.model.json",
+        "backend/src/pitchlog/exports/generated/play_primitives_native.sql",
+        "backend/src/pitchlog/stats/generated/stats_native.sql",
+        "backend/src/pitchlog/stats/generated/stats_rates_native.sql",
         "backend/domain/model.schema.json",
         "docs/features/mvp-stats-primitives/primitive-output.candidate.json",
     ]
@@ -389,3 +394,25 @@ def test_private_table_profiles_match_existing_migration_owner_force_rls():
             f"ALTER TABLE sync_fence.{name} FORCE ROW LEVEL SECURITY;\n"
             f"REVOKE ALL ON TABLE sync_fence.{name} FROM PUBLIC,pitchlog_app;\n"
         )
+
+
+def test_undo_private_helper_has_no_app_or_public_execute(verified_native_root):
+    """既4関数のfamilyを増やさず、SQL内呼出専用invokerだけを別宣言する。"""
+    declarations, bodies = product.undo_candidate_declarations()
+    assert set(declarations) == {"functions"}
+    (row,) = declarations["functions"]
+    assert row["function_kind"] == row["security_mode"] == "invoker"
+    assert row["acl_expectations"] == []
+    assert row["revoked_acl_expectations"] == [
+        {"grantee": role, "privilege": "EXECUTE", "grantable": False}
+        for role in ("PUBLIC", "pitchlog_app")
+    ]
+    assert product.declaration("functions", row["function_id"]) == row
+    assert (
+        product.body("function", row["function_id"])
+        == bodies["function|" + row["function_id"]]
+    )
+    installed = product.undo_candidate_install_sql()
+    assert "SECURITY INVOKER" in installed
+    assert "FROM PUBLIC,pitchlog_app" in installed
+    assert "GRANT EXECUTE" not in installed
