@@ -153,3 +153,12 @@ stats合成時の4生成衝突は、#196の既history/identityを保持し、inc
 作者の実DB形照合で、ordinary admissionのevaluated/consumed CHECKはplay_row_id/source_d2必須、既writerbindingだけではundo評価/target/CPの独立一回資格を保存できないと判明した。fake play/CHECK弱化を避け、private nonplay_write_admissions一表だけのcache-only実装を追加許可する。exact5追加はbackend/src/pitchlog/db/writer_binding/nonplay_models.py、同__init__.pyの登録、backend/migrations/versions/0042_nonplay_write_admission.py、backend/tests/test_nonplay_admission_model.py、backend/tests/db/test_nonplay_admission_schema.py。親revisionは既検証済み0041_stats_fact_versionsで固定し、0041の重複枝や汎用head upgradeを作らない。新source/root共有登録への書込は従来どおり別scope/別writer。
 
 新表は同tenant/game/実writer binding/SessionトップTX/currentXID/nonce/一回phaseと、真正undo原本/target/世代連結/CP before-after/frame/artifact/restore/history根拠へ閉じる。own D2は作らず、準備→評価→消費の状態遷移を有限CHECK/制約/固定SQLで再確認する。自由JSON/bool/IDだけの資格、caller任意SQL、任意phase遷移、過去資格再使用、app直書込、RLS免除、物理削除は不可。owner/既roleの最小列権限・FORCE RLS/defaultdenyとtenant複合参照を含む採用根拠を先置きし、実PGschema/移行/原子性/越境はrootのowned環境で別受入する。shared DB適用/有料/運用公開/新秘密発行なし。新表宣言と旧ordinary全CHECK/source不変を非作者が確認する。
+
+
+## 取消後の次球へ同一artifactを接合するscope（2026-11-06 JST、PO委任Codex /root）
+
+新3head Sourceは既v3 Sourceと同じlast_source.D1=D3前提を持たないため、単にv3/startedへ偽装できない。作者batted_hitsへcache-onlyのexact6を許可する: frontend/src/domain/lineupPlayPrefixContinuation.ts、同spec.ts、contracts/state-transition/lineup_play_prefix_v1.d.ts、同schema_v1.json、backend/src/pitchlog/domainrt/lineup_play_prefix_continuation.py、backend/tests/domain/test_lineup_play_prefix_continuation_host.py（既対応test名が異なる場合は実pathを先にrootへ確認する）。新nonplay-prefix-source-v1だけを閉unionとして追加し、既T1/T2/forward計算を再利用する。旧Source3/全公開operation/旧1878有限4操作の入力出力とsourceを保持し、新Python/TS逆計算コピーを作らない。
+
+CPのrestored/activeDepth/historyVersion/物理next番号を真正source値として別々に供給し、空active/D3>0でもbeforeをinitialに偽装しない。次の1球のnewHistoryEntry/contextは既計算が返すものを使い、targetD4/自世代/実世代連結を混同せず、未知controlや不正cross-fieldは閉拒否する。shapeは資格にならず、実source/nonce/TX/ACKはruntime側の必要条件と分離する。既prefix/opaque getterをcaller rawJSONで代用しない。
+
+root専有artifact2/全pin16/互換witness/manifest/正式D11は作者が実assetへ書かず、必要後値を自分cacheの公式buildから提出する。基線は隔離integration eb5842de（後発planだけ追加）、新契約反映1のFingerprintをそのまま保持。次球公開範囲が閉じた時点でnative source17と合成・非作者確認・official build/pinを一周にまとめ、owned2球→2pop→次球/既GET/reloadで実接続する。数学単位やfixturesの成功を実Port/DB提供済みとしない。
