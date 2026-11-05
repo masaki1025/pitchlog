@@ -256,3 +256,6 @@ private3表の分類・露出事実追随（2026-11-05、PO委任Codex /root判�
 
 
 実PG catalog表現の限定追随（2026-11-05、PO委任Codex /root判断）: 実0041/製品provision後のowned起動検査は初回1pass/3error8.62秒。拒否を維持した観測で、COLUMN-ACLのexpected617/actual613は既canonical xmin4列のみ欠落（extra0）、58関数detailsはstats5のTABLE列区切り空白だけ不一致と確認した。backend/src/pitchlog/authz/product_catalog.py・function_result_type.pyと新backend/tests/test_stats_catalog_pg_representation.pyのexact3を実装追随対象へ追加する。旧全正数attnum採取/全ACL/全関数列・型・権限照合は維持し、xminは既採用4組の実pg_attribute/attaclだけを採る。TABLE戻り値は型/列を無視せずpg_get_function_resultの表記にだけ揃える。一般system列許可/不足権限の成功補完/期待削除は不可。cache作者と非作者レビュー後にrootだけが採用し、95canonicalの静的レビューとは区別して同候補owned PGを再検証する。製品SQL/権限を変更して検査へ合わせない。
+
+
+canonical採用後の閉期待追随（2026-11-05、PO委任Codex /root判断）: backend/tests/test_product_authz_catalog.py・test_authz_repository_contract.pyのexact2を追随対象へ加える。旧全DDL/706body/role/権限を保持した95pathの非作者094e815a…採否を根拠に、私有3表/1schema/5関数/10policy/70列ACLと2CAP/5tokenだけを固定期待へ追加する。旧policy基線91・旧66DML mapping/順序/値・既vocab function-only1は保持し、新5も一般DML登録へ混入させない。現在出力の集合をそのまま期待へ取り込まず、採用source/SQLから新有限literalと各拒否を明示して別非作者が確認する。検査条件・保存意味・新しい記録結果の変更ではない。
