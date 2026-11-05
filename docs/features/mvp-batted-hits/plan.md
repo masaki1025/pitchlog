@@ -299,3 +299,6 @@ backend残登録の限定追随（2026-11-05、PO委任Codex /root判断）: rea
 
 
 現artifact identity exact3採用（2026-11-05、PO委任Codex /root判断）: packet8b02da42…を非作者8765612f176c4884f88d0c758d725dfd85ec135bf4ed94f138db40da31fbd37d（独立12成功1.56秒、別VMで旧Git0755/現51dの1878全応答/保存原本hash/規範84/D01旧INVALID_REQUEST・現walk-offを直接再照合、P0/P1/P2=0）で採用する。旧55raw/全値/順序・旧test全AST/reader/sourceを保持、新self2行だけで旧→51d追加0。tracked witness8f74a580…全byteで根拠を固定。witness本文改変拒否は採用証拠試験であり、readerが本文を新検証するとの主張ではない。新意味判断/人間逐行/P6成立/全版互換へ拡張せずPO委任の既実装接合として受理。実PG/HTTP/画面/7.7/最終CIは後続。
+
+
+登録関数exact2の採用（2026-11-05、PO委任Codex /root判断）: 作者packeta9677b72…を非作者/root ef10b0eddbe1b7864b9f7d41e12ead4874e27ba2c69143fb391a9dba6e436b18（独立実体copy173成功1.04秒、P0/P1/P2=0）で照合し採用。旧21ID/order/全54pinと他定義ASTを保持、新descriptor SQL/bind3/selected2/processor全値は独立literal由来で現在値を期待採取しない。新18負対向/未知追加完全比較、source/helper/fixture/scanner/正式JSON不変。PG成功を旧pin変更の根拠へ流用しない。
