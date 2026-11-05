@@ -387,3 +387,6 @@ step1 native共通基盤の独立通常統合単位（2026-11-06 JST、PO委任C
 本PR単位は真正native sourceから唯一T5の26既metric（BFは後続）を同外側TXへ保存し、同版RRRO receiptでOpen/Page/Totalsを読み取る実基盤だけ。親planの27基本成績/公式終了最新版/暦年画面/成績CSV/0球登板/責任継承等の未完条件を削減せず、feature/step1全体やMVP完成判定はしない。actualcurrent27関数とformal27、関連7module437成功41.75秒を確認済み。tenant CLIのfrozen-input識別未追随は旧候補履歴に対する真正移動なので、未受理を隠さず新単位の正式値として全前後を導出する。
 
 rootはこの専用WT/PRの唯一writerとして既公式producerで最新base51bに対するrepo/runtime/tenant/Census/derived modules/D11/認可seal等の必要差だけを整合し、公開PR番号取得後の委任policy対象も当該PR/枝に限定追加する。既37+196履歴を保持し未公開旧候補のjournalを正式採用としない。生成物手編集・snapshot一括削除・検出/拒否緩和・本人署名代記は禁止。最終差分の非作者レビュー/同版owned新規作成・保存・再送・実read・途中故障検証/公開委任証拠/全必須CIの後だけ通常mergeする。検査待ちには取消S/GET接続を継続する。
+
+
+release検査の生成集合追随（2026-11-06 JST、PO委任Codex /root判断）: 固定582375bdの非作者REPORT823a96303c3232d963ef7c95c53fd3fc1f18e015be2b0e85ccd87f119b78da6cが検出したR1だけを先に是正する。対象exact1はbackend/tests/test_stats_sql_generation_runtime.py。SQL_PATHSへ採用済み唯一生成stats_rates.sqlを加えて正確な3件集合へ追随し、二SQL/七対象の説明と試験名を三SQL/八対象へ現状整合する。元のformatter/他言語生成禁止・全byte比較・不正モデル拒否を全て保持し、製品数学/モデル/生成物/manifest/正式値は変更しない。修正後に当該全検査と非作者の限定再確認を行う。追加release gateのscopeは別記し、本修正でcore/D11/正式受理/実PGが成立したとは扱わない。
