@@ -55,3 +55,23 @@ first implementationは、型付きS/source/全flagと独立期待を固定→�
 要件の実統合基線はこのWTのv2.18で、lead1879の先頭v2.15/旧暦年候補4517の仮v2.16を採番へ流用しない。今回v2.19案をdraftとして要件/READMEに限定提示する。既PO採用のJST暦年1/1〜12/31、`{年}年通算`を現行規範4箇所へ整合し、過去年度裁定の履歴は保存する。正式版番号/本文確定はrootが統合衝突を照合し7.3等を処理して決める。A-3へのOPS定義追加でA-5の非共有理由が古くなるため、既共有除外集合を維持して理由だけ整合した。
 
 次のD02選択集合とD05式/formatterは同一D-1宣言・生成target/typedSQLへrootが接続する。本草案は新コード/正式model/contract/生成物を作らず、D03/D04のsource不足をD02/D05開始の前提へ増設しない。
+
+
+## 2026-11-05 成績PO4判断の要件v2.19確定
+
+7.3対象は要件・READMEの限定本文。PO実回答と委任によるCodex本文確認を分離し、初回f701P1→c575反映1→追加敵対3142286fの履歴を保持して確定した。新76契約候補・旧55/finite2は数値/全field不変更で、正式契約/生成コード/実供給の受理とは区別する。
+
+```json
+{
+  "target_head": "de4b619d68d4d27f57e130d1e1a1333f284db516",
+  "requirements_before_sha256": "8fc73ce2d26bc90337edd42b00d2e41dbc309366c1898715bd1389a981684aa3",
+  "requirements_after_sha256": "080b1a127513ba95c9f3d258bddd5dea1f180a2c462d3aaefab9f3dbd9a3d0f4",
+  "readme_after_sha256": "4083a757a3d10309a6ce566b970a1cbc7a7a778e66d1267efc74f57ed62b79cd",
+  "review": "3142286f25e8280cc85bac8e299557c66ba140724a2e57b3c89dea25daa71452",
+  "decision_by": "Codex主担当/root, PO delegation",
+  "time": "2026-11-05T09:38:07.534783+00:00",
+  "po_meaning_record": "lead1879aa46",
+  "P2": "OPS候補表記を既レビューexact値の正文へ編集。式/値/scale/母数変更0",
+  "not_claimed": "formal contracts/P6/P7/implementation/DB/UI/CSV/MVP completion"
+}
+```
