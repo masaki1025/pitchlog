@@ -202,3 +202,6 @@ nonplay正式publisherのroot実装scope（同日、PO委任Codex /root）: 新b
 
 
 取消HTTP/Portの実入口scope（同日、PO委任Codex /root）: rootがexact4、backend/src/pitchlog/api/routers/sync.py、backend/src/pitchlog/sync/{ports,port_guard}.py、新backend/tests/test_undo_http_boundary.pyを接合する。P1は単一event_kind=undoだけを既真正HTTPへ追加しP3/他P1/batch未提供は保持する。V7判定を保存済みD5再掲へ前倒しせず、既認証/tenant/RG1/再送照合と実端末提示を通す。新Port2を正規登録/静的閉包検査後のclass読込へ加え、旧9実装/検査器/禁止importを保持する。fresh不正V7は既内容段、原本/host/DB不可用は503へ閉じ、仮ACK/成功Portを追加しない。kernel/登録/正式SQL/S/GET/queueの不足は別の未成立であり、本入口選択だけで提供完了としない。root実PGschema修復版e406d530は1成功25.31秒、全43列/制約/RLS/直接権限拒否/source前後同一/自前PG撤去を確認済みで、実取消APIの証拠へ拡張しない。
+
+
+root publisher/HTTP非作者反映1の限定追補（同日、PO委任Codex /root）: HTTP初版の旧Port厳密集合9件への追随漏れP1を保持し、backend/tests/test_sync_apply_first_ball_ports.pyの元9literal/全assertを保持して新2literalだけを追加する（HTTP exact4→5）。publisherでは初回静的4表tableSELECT不足という指摘をactual ownedで反証し、不要な4表権限拡大案を不採用とした。既xmin列SELECTでoperation_events/play_rowsは全原本読取可、真の不足はidempotency_ledger.result/reasonとevent_slots.xminのSELECT3列だけ（owned probe r2全4表/current_user実値、source同一/撤去）。この3列だけを既共通column publisherで追加し、DML/role/RLS/全表SELECTを増やさない。初回probeの『op xmin不足』期待が失敗した履歴を保持し、成功に読み替えない。新scopeはrootpublisher2不変、既66?件等の範囲を広げて主張せず新pure/正式profile/実PGを別々に検査する。
