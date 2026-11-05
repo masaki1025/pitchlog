@@ -325,3 +325,6 @@ current適用前読取transactionの終結（2026-11-05、PO委任Codex /root判
 
 
 current IDLE接合exact2採用（2026-11-05、PO委任Codex /root判断）: root候補8e7467c9…/d4191c9a…を非作者fb295a1f1f2be77e173e454c3bc138ceddda28f77f370ee14d42b43ddb05c193（独立84成功24.27秒＋review copyのGit不足を補完した旧原典1成功2.57秒=85固有case、P0/P1/P2=0）で採用。旧全AST/適用器IDLE・主体・同TX・全事後catalog不変、事前read接続終結後の新IDLE接続だけへ分離する。初回review環境失敗は保持し同候補の全実DB成功とはしない。rootが同固定版でowned nominal1を実証後、未実施残14/旧prefix20へ進む。
+
+
+製品fixtureのsnapshot schema追随（2026-11-05、PO委任Codex /root判断）: e8e991a1のcurrent normal1/negative14は実PG成功、次の旧prefix20は全setup ERROR131.36秒。現在の起動を通った後、tests/db_fixtures.py::_snapshot_product_catalogが旧3profileのschema閉集合にstats_apiを含めず拒否した同根で、prefix本体実行は0件。exact2はbackend/tests/db_fixtures.pyとbackend/tests/test_current_product_startup.py。作者pr191へcache-onlyで、旧3schema集合・全文snapshot項目/SQL/順序を保持し、既現currentのlegacy+private+recording_vocab+stats_apiの全13schema1profileだけを明示追加する。任意subset/unknown schema/重複/型不正を許さず、stats_apiだけの欠けた親profileを受けない。必要なら閉schema名検査だけprivate helperへ抽出し元snapshotが必ずその検査を通す。実DB出力から期待を採取せず、固定既宣言名と前後完全なprofileを対向で検査。新schemaに属する関数/ACL/ポリシー等は既snapshot query対象へ含まれ、実現集合から除外しない。旧historical snapshot/旧stage/runtime/生成物/正式資産は変更0。別非作者確認後root反映し、旧prefixまず1case→成立後残19を一度だけ検証する。全20の同根ERRORを意味修正で成功化しない。
