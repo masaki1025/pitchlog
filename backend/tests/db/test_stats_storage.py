@@ -5,6 +5,7 @@ from typing import Any
 
 import psycopg
 import pytest
+from db_fixtures import _dsn_names
 
 from pitchlog.db.game_state.stats import (
     StatsFactVersion,
@@ -22,7 +23,27 @@ def stats_owner() -> Iterator[Any]:
     """rootが割り当てた時間内にだけ所有隔離PGを起動する。"""
     with pytest.MonkeyPatch.context() as patch:
         with owned_binding_database(patch) as owner:
+            # 既autouseの接続identity検査へ、同じowned primaryの実接続を渡す。
+            admin_name, role_name = _dsn_names()
+            patch.setenv(admin_name, owner.authority.database.primary_admin)
+            patch.setenv(role_name, owner.authority.database.endpoints.primary_dsn)
             yield owner
+
+
+@pytest.fixture
+def admin_connection(stats_owner) -> Iterator[psycopg.Connection]:
+    """既identity検査へ、同owned primaryの実管理接続を供給する。"""
+    with psycopg.connect(stats_owner.authority.database.primary_admin) as connection:
+        yield connection
+
+
+@pytest.fixture
+def tested_role_connection(stats_owner) -> Iterator[psycopg.Connection]:
+    """既identity検査へ、同owned primaryの既登録限定roleで接続する。"""
+    with psycopg.connect(
+        stats_owner.authority.database.endpoints.primary_dsn
+    ) as connection:
+        yield connection
 
 
 @pytest.mark.parametrize(

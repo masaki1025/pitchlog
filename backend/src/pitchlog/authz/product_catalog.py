@@ -296,7 +296,18 @@ CROSS JOIN LATERAL pg_catalog.aclexplode(attribute.attacl) AS privilege
 LEFT JOIN pg_catalog.pg_roles AS grantee ON grantee.oid = privilege.grantee
 WHERE namespace.nspname = ANY(%s)
   AND relation.relname = ANY(%s)
-  AND attribute.attnum > 0
+  AND (
+      attribute.attnum > 0
+      OR (
+          attribute.attnum < 0 AND attribute.attname = 'xmin'
+          AND (namespace.nspname, relation.relname) IN (
+              ('public', 'idempotency_ledger'),
+              ('public', 'operation_events'),
+              ('public', 'play_rows'),
+              ('sync_fence', 'ordinary_pitch_checkpoints')
+          )
+      )
+  )
   AND NOT attribute.attisdropped
   AND privilege.grantee <> relation.relowner
 ORDER BY 1, 2, attribute.attnum, 4, 5, 6

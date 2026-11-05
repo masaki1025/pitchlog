@@ -70,7 +70,10 @@ def test_real_stats_scope_is_rr_read_only_and_rejects_non_read_tokens(
                 transaction._require_stats_primitive_read_scope(handle)
             with pytest.raises(PrimitiveReadError) as expired:
                 reader._live()
-            assert isinstance(expired.value.__cause__, TenantBindingError)
+            # 失効keyの先行拒否は私有参照を例外へ連鎖させず、新BEGINも行わない。
+            assert expired.value.__cause__ is None
+            assert expired.value.args == ()
+            assert observed == [("REPEATABLE READ", "on")]
         finally:
             event.remove(Session, "after_begin", observe_begin)
         with database.admin_engine.connect() as admin:
