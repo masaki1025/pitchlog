@@ -13,6 +13,7 @@ import type {
   Participants,
 } from '../../../contracts/state-transition/play_prefix_v2_payload_v1'
 import type { RunnerAdvanceOverridesByRunner } from './runnerAdvanceWire'
+import { lineupPrefixSpikeSchema } from './lineupPrefixSpikeSchema'
 import identity from '../../public/domain/pitchlog-domain.json'
 import {
   isClosedPlaySchema,
@@ -33,105 +34,18 @@ export function isLineupDefinition<T>(
   return isClosedPlaySchema<T>(value, schema, name)
 }
 
-function appliedOverrides(value: unknown): boolean {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    (value as Record<string, unknown>).kind === 'applied'
-  )
-}
-
-function occupied(
-  runners: unknown,
-  slot: 'first' | 'second' | 'third',
-): boolean {
-  if (runners === 'loaded') return true
-  if (slot === 'first')
-    return (
-      runners === 'first' ||
-      runners === 'first-second' ||
-      runners === 'first-third'
-    )
-  if (slot === 'second')
-    return (
-      runners === 'second' ||
-      runners === 'first-second' ||
-      runners === 'second-third'
-    )
-  return (
-    runners === 'third' ||
-    runners === 'first-third' ||
-    runners === 'second-third'
-  )
-}
-
-type ValidationRequest = {
-  t1: { runnerAdvanceOverrides?: unknown }
-}
-type ValidationResponse = {
-  value: { t1: { runnerDefaultAdvance: Record<string, unknown> } }
-}
-type ValidationPayload = {
-  observations: { runnerAdvanceOverridesByRunner?: unknown }
-  calculation: {
-    request: {
-      t1: {
-        runnerAdvanceOverrides?: unknown
-        before: { stateFields: Record<string, unknown> }
-      }
-    }
-    response: ValidationResponse
-  }
-}
-
-/** 正準schemaが未受理の明示進塁だけを既存形へ戻し、他の全fieldを同じ検査へ通す。 */
-function requestForValidation(request: Request): Request {
-  const t1 = request.t1 as unknown as ValidationRequest['t1']
-  if (!appliedOverrides(t1.runnerAdvanceOverrides)) return request
-  const copy = structuredClone(request) as unknown as ValidationRequest
-  copy.t1.runnerAdvanceOverrides = 'not-applied'
-  return copy as unknown as Request
-}
-
-function responseForValidation(response: Success, request: Request): Success {
-  const requestT1 =
-    request.t1 as unknown as ValidationPayload['calculation']['request']['t1']
-  if (!appliedOverrides(requestT1.runnerAdvanceOverrides)) return response
-  const copy = structuredClone(response) as unknown as ValidationResponse
-  const runners = requestT1.before.stateFields['state.runners']
-  for (const slot of ['first', 'second', 'third'] as const)
-    copy.value.t1.runnerDefaultAdvance[slot] = occupied(runners, slot)
-      ? { modality: 'hold', destination: null }
-      : { modality: 'not-applicable', destination: null }
-  return copy as unknown as Success
-}
-
-function payloadForValidation(payload: unknown): unknown {
-  const value = payload as ValidationPayload
-  if (!appliedOverrides(value.observations.runnerAdvanceOverridesByRunner))
-    return payload
-  const copy = structuredClone(value)
-  copy.observations.runnerAdvanceOverridesByRunner = {
-    kind: 'not-applied',
-    overrides: [],
-  }
-  copy.calculation.request.t1.runnerAdvanceOverrides = 'not-applied'
-  const runners =
-    copy.calculation.request.t1.before.stateFields['state.runners']
-  for (const slot of ['first', 'second', 'third'] as const)
-    copy.calculation.response.value.t1.runnerDefaultAdvance[slot] = occupied(
-      runners,
-      slot,
-    )
-      ? { modality: 'hold', destination: null }
-      : { modality: 'not-applicable', destination: null }
-  return copy
+/** spike候補の明示進塁を、原値のまま拡張schemaで厳格に検証する。 */
+export function isLineupSpikeDefinition<T>(
+  value: unknown,
+  name: string,
+): value is T {
+  return isClosedPlaySchema<T>(value, lineupPrefixSpikeSchema, name)
 }
 /** 自己echo二欄以外の正式32fieldを保存側と同じ形で束縛する。 */
 export function lineupWireHead(q: Request, response: Success) {
   if (
-    !isLineupDefinition<Request>(requestForValidation(q), 'Request') ||
-    !isLineupDefinition<Success>(responseForValidation(response, q), 'Success')
+    !isLineupSpikeDefinition<Request>(q, 'Request') ||
+    !isLineupSpikeDefinition<Success>(response, 'Success')
   )
     throw new Error('打席の要求・応答を確認できません')
   const v = response.value,
@@ -222,10 +136,7 @@ export async function formatLineupPrefixWire(
     },
   }
   if (
-    !isClosedPlaySchema<LineupPlayPrefixV7>(
-      payloadForValidation(payload),
-      schema,
-    ) ||
+    !isClosedPlaySchema<LineupPlayPrefixV7>(payload, lineupPrefixSpikeSchema) ||
     !observationsValid({
       pitchTypeKey: observations.pitchTypeKey,
       course: observations.course,

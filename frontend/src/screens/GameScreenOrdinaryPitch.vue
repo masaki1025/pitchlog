@@ -35,12 +35,15 @@ const hitResults: readonly string[] = [
 ]
 const batted = computed(() => hitResults.includes(resultId.value))
 const battedHit = ref<PlayScreenObservation['battedHit']>(null)
-const hitAvailable = computed(
-  () =>
-    isLineupRecordingContext(displayed.value) &&
+const hitAvailable = computed(() => {
+  if (!isLineupRecordingContext(displayed.value)) return false
+  const runners = displayed.value.after.stateFields['state.runners']
+  return (
+    (runners === 'empty' || runners === 'first') &&
     !displayed.value.after.stateFields['state.tiebreakActive'] &&
-    !displayed.value.after.stateFields['state.gameEnded'],
-)
+    !displayed.value.after.stateFields['state.gameEnded']
+  )
+})
 const battedRunners = computed(() => {
   const runners = displayed.value.after.stateFields['state.runners']
   const result: Array<{ base: '1' | '2' | '3'; label: string }> = []
@@ -490,8 +493,18 @@ onScopeDispose(() => {
           <template v-if="hitAvailable">
             <option value="batting-result.single">単打</option>
             <option value="batting-result.double">二塁打</option>
-            <option value="batting-result.triple">三塁打</option>
-            <option value="batting-result.home-run">本塁打</option>
+            <option
+              v-if="battedRunners.length === 0"
+              value="batting-result.triple"
+            >
+              三塁打
+            </option>
+            <option
+              v-if="battedRunners.length === 0"
+              value="batting-result.home-run"
+            >
+              本塁打
+            </option>
           </template>
           <option value="batting-result.foul">
             ファウル（通常・非バント）
@@ -508,7 +521,7 @@ onScopeDispose(() => {
         @change="(value) => (battedHit = value)"
       />
       <p v-else-if="batted" role="alert">
-        この安打入力はタイブレークなし・試合継続中のみ対応しています。
+        この単位の安打入力は、無走者4安打、または一塁走者1人の単打・二塁打だけに対応しています。
       </p>
       <label v-if="terminal" class="block"
         >次の打者を確認

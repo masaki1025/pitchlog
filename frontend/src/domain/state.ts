@@ -320,6 +320,15 @@ function forcedByBatter(runners: Runners, base: bigint): boolean {
   return hasRunner(runners, 1n) && hasRunner(runners, 2n)
 }
 
+/** フォース連鎖内なら、到達先がさらに先でもforcedを保つ。 */
+function isForced(
+  base: bigint,
+  runners: Runners,
+  batterKind: BatterKind,
+): boolean {
+  return batterKind === 'reach' && forcedByBatter(runners, base)
+}
+
 /** ADV-01..04: 起点塁1つ分の進塁計画を返す。 */
 function advanceFor(
   base: bigint,
@@ -334,6 +343,8 @@ function advanceFor(
     return { modality: 'hold', destination: null }
   }
   if (rule.advance === 'plus1_all') {
+    if (isForced(base, runners, batterKind))
+      return { modality: 'forced', destination: cap(base + 1n) }
     return { modality: 'optional', destination: cap(base + 1n) }
   }
   if (rule.advance === 'explicit') {
@@ -343,17 +354,18 @@ function advanceFor(
       field &&
       Object.hasOwn(field, 'value') &&
       typeof field.value === 'bigint'
-    )
+    ) {
+      if (isForced(base, runners, batterKind))
+        return { modality: 'forced', destination: field.value }
       return { modality: 'optional', destination: field.value }
+    }
     return { modality: 'hold', destination: null }
   }
   if (rule.advance === 'force') {
-    if (batterKind === 'reach') {
-      if (forcedByBatter(runners, base)) {
-        let step = rule.step
-        if (step < 1n) step = 1n
-        return { modality: 'forced', destination: cap(base + step) }
-      }
+    if (isForced(base, runners, batterKind)) {
+      let step = rule.step
+      if (step < 1n) step = 1n
+      return { modality: 'forced', destination: cap(base + step) }
     }
     if (rule.step > 0n) {
       return { modality: 'optional', destination: cap(base + rule.step) }

@@ -18,6 +18,7 @@ import {
 } from '../api/lineupPrefixGame'
 import {
   isLineupDefinition,
+  isLineupSpikeDefinition,
   sealLineupMetadata,
   formatLineupPrefixWire,
 } from '../api/lineupPrefixWire'
@@ -696,29 +697,14 @@ function requestRunnerOverrides(
     if (hit.runnerAdvanceOverridesByRunner.kind !== 'not-applied') invalid()
     return 'not-applied'
   }
-  if (hit.resultId === 'batting-result.home-run') invalid()
+  if (runners !== 'first') invalid()
+  if (
+    hit.resultId !== 'batting-result.single' &&
+    hit.resultId !== 'batting-result.double'
+  )
+    invalid()
   const applied = hit.runnerAdvanceOverridesByRunner
   if (applied.kind !== 'applied' || applied.overrides.length === 0) invalid()
-  const occupied = (base: string) => {
-    if (runners === 'first-second-third') return true
-    if (base === '1')
-      return (
-        runners === 'first' ||
-        runners === 'first-second' ||
-        runners === 'first-third'
-      )
-    if (base === '2')
-      return (
-        runners === 'second' ||
-        runners === 'first-second' ||
-        runners === 'second-third'
-      )
-    return (
-      runners === 'third' ||
-      runners === 'first-third' ||
-      runners === 'second-third'
-    )
-  }
   const batterBase =
     hit.resultId === 'batting-result.single'
       ? '1'
@@ -729,20 +715,16 @@ function requestRunnerOverrides(
   const seen = new Set<string>()
   for (const override of applied.overrides) {
     const base = override.runnerBase
-    if (!occupied(base) || seen.has(base)) invalid()
+    if (base !== '1' || seen.has(base)) invalid()
     seen.add(base)
-    const minimum = Number(base) + 1
-    if (Number(override.destination) < minimum) invalid()
+    if (Number(override.destination) < 2) invalid()
     if (override.destination !== '4') {
       if (destinations.has(override.destination)) invalid()
       destinations.add(override.destination)
     }
   }
-  for (const base of ['1', '2', '3'])
-    if (occupied(base) && !seen.has(base)) {
-      if (destinations.has(base)) invalid()
-      destinations.add(base)
-    }
+  // 一塁走者は打者の出塁で必ずフォースされるため、明示到達塁を要求する。
+  if (!seen.has('1')) invalid()
   return { kind: 'applied', overrides: applied.overrides.slice() }
 }
 
@@ -827,18 +809,7 @@ export async function prepareLineupPrefix(
       digest: '0'.repeat(64),
     },
   }
-  // 正準schemaは明示進塁を未受理のため、進塁欄だけ既存形へ戻して他を全検査する。
-  const validation =
-    runnerAdvanceOverrides === null || runnerAdvanceOverrides === 'not-applied'
-      ? candidate
-      : {
-          ...structuredClone(candidate),
-          t1: {
-            ...structuredClone(candidate.t1),
-            runnerAdvanceOverrides: 'not-applied',
-          },
-        }
-  if (!isLineupDefinition<LineupRequest>(validation, 'Request'))
+  if (!isLineupSpikeDefinition<LineupRequest>(candidate, 'Request'))
     return invalid()
   const request = candidate as unknown as LineupRequest
   const response: LineupSuccess = {

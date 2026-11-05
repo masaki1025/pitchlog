@@ -304,9 +304,15 @@ export function battedHitRule(
   if (before.runners === 'empty') {
     // 無走者の既存経路へ applied を混ぜない。
     if (overrides !== null) return null
-  } else if (overrides === null || batter === 'score') {
-    // 走者ありは記録者の明示確認を必須にし、HRの既定進塁は別単位へ送る。
-    return null
+  } else {
+    // このspikeの成功入力は「一塁走者1人・単打/二塁打」だけに閉じる。
+    if (before.runners !== 'first') return null
+    if (
+      resultId !== 'batting-result.single' &&
+      resultId !== 'batting-result.double'
+    )
+      return null
+    if (overrides === null || overrides.first === null) return null
   }
   if (!destinationsDoNotCollide(before, base, overrides)) return null
   let advance: 'hold_all' | 'explicit' = 'hold_all'

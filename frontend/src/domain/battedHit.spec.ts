@@ -389,7 +389,7 @@ describe('走者あり打球の明示進塁だけを接続する', () => {
       plateAppearanceEnded: true,
       batterDestination: { kind: 'reach', base: 1n },
       runnerDefaultAdvance: {
-        first: { modality: 'optional', destination: 3n },
+        first: { modality: 'forced', destination: 3n },
         second: { modality: 'not-applicable', destination: null },
         third: { modality: 'not-applicable', destination: null },
       },
@@ -431,7 +431,7 @@ describe('走者あり打球の明示進塁だけを接続する', () => {
       plateAppearanceEnded: true,
       batterDestination: { kind: 'reach', base: 2n },
       runnerDefaultAdvance: {
-        first: { modality: 'optional', destination: 4n },
+        first: { modality: 'forced', destination: 4n },
         second: { modality: 'not-applicable', destination: null },
         third: { modality: 'not-applicable', destination: null },
       },
@@ -482,35 +482,51 @@ describe('走者あり打球の明示進塁だけを接続する', () => {
         ),
       ).toBeNull()
     }
-    const second = { ...f.before, runners: 'second' as const }
+    // このspikeの成功入力は一塁走者1人だけ。二塁走者・複数走者は成功にしない。
+    for (const runners of [
+      'second',
+      'third',
+      'first-second',
+      'first-third',
+      'second-third',
+      'loaded',
+    ] as const) {
+      const before = { ...f.before, runners }
+      const overrides = [{ runnerBase: '1', destination: '3' }]
+      expect(
+        deriveBattedHit(
+          before,
+          f.board,
+          {
+            ...single,
+            runnerAdvanceOverrides: { kind: 'applied', overrides },
+          } as BattedHitObservation,
+          f.cursors,
+        ),
+      ).toBeNull()
+    }
+    // 三塁打・本塁打は走者ありの成功入力にしない。
+    for (const resultId of [
+      'batting-result.triple',
+      'batting-result.home-run',
+    ] as const)
+      expect(
+        deriveBattedHit(
+          f.before,
+          f.board,
+          runnerObservation(resultId, '4'),
+          f.cursors,
+        ),
+      ).toBeNull()
+    // 二塁打で一塁走者を二塁に止めると打者と衝突する。
     expect(
       deriveBattedHit(
-        second,
+        f.before,
         f.board,
-        {
-          ...observation('batting-result.double'),
-          runnerAdvanceOverrides: {
-            kind: 'applied',
-            overrides: [{ runnerBase: '2', destination: '2' }],
-          },
-        },
+        runnerObservation('batting-result.double', '2'),
         f.cursors,
       ),
     ).toBeNull()
-    expect(
-      deriveBattedHit(
-        second,
-        f.board,
-        {
-          ...observation('batting-result.double'),
-          runnerAdvanceOverrides: {
-            kind: 'applied',
-            overrides: [{ runnerBase: '2', destination: '3' }],
-          },
-        },
-        f.cursors,
-      ),
-    ).not.toBeNull()
   })
   it('overrideのgetter/余剰field/未知kindを実行せず拒否する', () => {
     const f = runnerFixture()

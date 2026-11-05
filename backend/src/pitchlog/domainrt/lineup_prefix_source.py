@@ -274,6 +274,14 @@ def _validate_runner_projection(
         slots = {"1": "first", "2": "second", "3": "third"}
         for runner in request.source.runners:
             effect = getattr(t1.runner_default_advance, slots[runner.base])
+            if (
+                runner.base == "1"
+                and t1.batter_destination.kind == "reach"
+                and effect.modality != "forced"
+            ):
+                raise LineupPrefixProtocolError(
+                    "一塁走者のフォース進塁がforcedではありません"
+                )
             if effect.modality == "not-applicable":
                 raise LineupPrefixProtocolError("在塁走者の進塁計画がありません")
             if effect.modality == "hold":
@@ -533,6 +541,18 @@ def require_batted_hit_observations(t1, observations) -> None:
     checked = BattedHitPlayObservations.model_validate_json(
         _canonical(_dump(observations))
     )
+    if t1.before.state_fields.runners != "empty":
+        if t1.before.state_fields.runners != "first" or t1.result_id not in {
+            "batting-result.single",
+            "batting-result.double",
+        }:
+            raise ValueError("この単位の走者あり打球は一塁走者1人・単打/二塁打だけです")
+        if type(
+            t1.runner_advance_overrides
+        ) is not AppliedRunnerAdvanceOverrides or not any(
+            item.runner_base == "1" for item in t1.runner_advance_overrides.overrides
+        ):
+            raise ValueError("一塁走者の明示進塁が必要です")
     observation_override = checked.runner_advance_overrides
     if observation_override.kind == "not-applied":
         override_matches = t1.runner_advance_overrides == "not-applied"
