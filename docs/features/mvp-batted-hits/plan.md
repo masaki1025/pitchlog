@@ -246,3 +246,6 @@ census追随の採用記録: 作者7f37309b…/source bfe3c4f7…を非作者fb1
 
 
 静的registry追随の反映1（2026-11-05、PO委任Codex /root判断）: 初版の非作者ec48b0f3…はvars/別名/sys.modules経由の4再束縛を拒否できないP1を検出し、初版を不採用とする。新Starred分岐だけ既source固定6965088bのregistry/owner2path全byteへ束縛し、未知の動的変更を閉拒否する。旧inline経路と旧15tupleの許可範囲は維持。前記exact2に加えcontracts/tenant_boundary/frozen-inputs.jsonのpr196_source_registration_revision.sourcesへ新私有helper consumer1とpurposeのreadonly原典2path説明だけを追記する技術metadata追随をroot専有で許可する。既revision/固定HEAD/旧consumer・4path15許可・全旧metadataを保持し、source許可の新規拡張や旧署名の意味変更はしない。cache反映1全差分とmetadata提案を非作者が再確認後に採用する。
+
+
+registry反映1採用（2026-11-05、PO委任Codex /root判断）: source2 ad58bfe4…/9da4039c…とmetadata提案1f956988…を、非作者508ee59aab5217ff745cff5574e68fdf8e371e295c657e04ae1c40b44ef94738（独立実copy89成功22.63秒、初回4反例拒否、旧inline0/21・旧4owner15tuple保持、P0/P1/P2=0）で採用する。初版ec48のP1は閉じた。作者が親directory symlink越しに正式JSON1へ書いた事故と未変更誤報は訂正packet b76e70a4…/REPORT162e0171…・root保全復元で記録し、作者89を完全隔離証拠としない。本採用はrootが原本前値を確認して改めて適用したもので、事故時の変更を追認/正式受理しない。正式7.7R2/CLI/CI/通常統合は別残。

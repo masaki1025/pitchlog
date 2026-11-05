@@ -185,10 +185,11 @@
     },
     "pr196_source_registration_revision": {
       "value": "6965088b9353dfa89643528531c22b340e9f4c72",
-      "purpose": "PR196既採用安打source4path/実15tuple/限定2successorを固定6965088bの全byteへ束縛する。旧原典/署名/一般許可へ流用しない。",
+      "purpose": "PR196既採用安打source4path/実15tuple/限定2successorを固定6965088bの全byteへ束縛する。旧原典/署名/一般許可へ流用しない。登録tupleのreadonly形の原典としてregistry/owner2pathも同固定Gitへ全byte束縛するが、既4path/15tupleの許可対象は増やさない。",
       "sources": [
         "scripts/check_tenant_boundary_bypass.py:_load_pr196_source_owners",
-        "tests/test_pr196_tenant_source_registration.py:immutable_source"
+        "tests/test_pr196_tenant_source_registration.py:immutable_source",
+        "scripts/check_tenant_boundary_bypass.py:_batted_options_static_registration"
       ]
     },
     "pr196_source_expectation_revision": {

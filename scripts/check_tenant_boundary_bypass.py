@@ -2547,6 +2547,170 @@ def _load_cache_invalidation_bypass_contract(
     )
 
 
+def _require_single_static_name_binding(
+    tree: ast.Module, name: str, expected: ast.AST
+) -> None:
+    """限定展開の参照名へ別import/再代入/隠れたStoreを認めない。"""
+    bindings: list[ast.AST] = []
+    for node in ast.walk(tree):
+        if (
+            isinstance(node, ast.Name)
+            and node.id == name
+            and isinstance(node.ctx, (ast.Store, ast.Del))
+        ):
+            bindings.append(node)
+        elif (isinstance(node, ast.Attribute) and node.attr == name
+              and isinstance(node.ctx, (ast.Store, ast.Del))):
+            bindings.append(node)
+        elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            if node.name == name:
+                bindings.append(node)
+        elif isinstance(node, ast.arg) and node.arg == name:
+            bindings.append(node)
+        elif isinstance(node, ast.ExceptHandler) and node.name == name:
+            bindings.append(node)
+        elif isinstance(node, (ast.MatchAs, ast.MatchStar)) and node.name == name:
+            bindings.append(node)
+        elif isinstance(node, ast.MatchMapping) and node.rest == name:
+            bindings.append(node)
+        elif isinstance(node, (ast.Import, ast.ImportFrom)):
+            if isinstance(node, ast.ImportFrom) and any(
+                alias.name == "*" for alias in node.names
+            ):
+                raise ContractError("固定tuple参照へstar importは使えない")
+            for alias in node.names:
+                bound = alias.asname or (
+                    alias.name.split(".")[0] if isinstance(node, ast.Import) else alias.name
+                )
+                if bound == name:
+                    bindings.append(node)
+        if (
+            isinstance(node, ast.Call)
+            and (
+                (isinstance(node.func, ast.Name) and node.func.id in {
+                    "exec", "eval", "globals", "locals", "setattr", "delattr",
+                })
+                or (isinstance(node.func, ast.Attribute) and node.func.attr in {
+                    "exec", "eval", "globals", "locals", "setattr", "delattr",
+                })
+            )
+        ):
+            raise ContractError("固定tuple参照に動的namespace操作は使えない")
+    if len(bindings) != 1 or bindings[0] is not expected:
+        raise ContractError("固定tuple参照名のimport/代入が単一でない")
+
+
+def _batted_options_static_registration(
+    repository_root: Path, registry_tree: ast.Module, registry_value: ast.Tuple
+) -> ast.Call:
+    """既採用先頭importの静的tuple1だけをASTで展開する。製品を実行しない。"""
+    # readonly登録形の原典であり、source-owner許可4path/15tupleは拡張しない。
+    _pr196_read_fixed_expectations(repository_root)
+    for relative in (
+        "backend/src/pitchlog/repositories/operation_registry.py",
+        "backend/src/pitchlog/repositories/batted_ball_options.py",
+    ):
+        path = Path(relative)
+        _git_regular_blob(repository_root, _PR196_SOURCE_REVISION, path)
+        target = repository_root / path
+        try:
+            if target.is_symlink() or target.read_bytes() != _pr192_git_bytes(
+                repository_root, _PR196_SOURCE_REVISION, relative
+            ):
+                raise ContractError("固定tupleのreadonly原典全byteが不一致")
+        except OSError as error:
+            raise ContractError("固定tupleのreadonly原典が取得できない") from error
+    name = "BATTED_BALL_OPTIONS_OPERATIONS"
+    starred = [entry for entry in registry_value.elts if isinstance(entry, ast.Starred)]
+    if (
+        len(starred) != 1
+        or len(registry_value.elts) != 22
+        or registry_value.elts[0] is not starred[0]
+        or not isinstance(starred[0].value, ast.Name)
+        or starred[0].value.id != name
+    ):
+        raise ContractError("固定関数registryのStarredは既採用先頭tuple1だけが必要")
+    imports = [
+        node for node in registry_tree.body
+        if isinstance(node, ast.ImportFrom)
+        and node.level == 0
+        and node.module == "pitchlog.repositories.batted_ball_options"
+        and len(node.names) == 1
+        and node.names[0].name == name
+        and node.names[0].asname is None
+    ]
+    if len(imports) != 1:
+        raise ContractError("固定tupleの既採用importが不一致")
+    _require_single_static_name_binding(registry_tree, name, imports[0])
+    registry_targets = [
+        node.target for node in registry_tree.body
+        if isinstance(node, ast.AnnAssign)
+        and isinstance(node.target, ast.Name)
+        and node.target.id == "PRODUCT_FUNCTION_OPERATIONS"
+        and node.value is registry_value
+    ]
+    if len(registry_targets) != 1:
+        raise ContractError("固定tupleの展開先registryが不一致")
+    _require_single_static_name_binding(
+        registry_tree, "PRODUCT_FUNCTION_OPERATIONS", registry_targets[0]
+    )
+    path = repository_root / "backend/src/pitchlog/repositories/batted_ball_options.py"
+    try:
+        if path.is_symlink() or not path.is_file():
+            raise ContractError("固定tupleの供給元は正規fileが必要")
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+    except (OSError, SyntaxError, UnicodeError) as error:
+        raise ContractError("固定tupleの供給元を読めない") from error
+    assignments = [
+        node for node in tree.body
+        if isinstance(node, ast.Assign)
+        and len(node.targets) == 1
+        and isinstance(node.targets[0], ast.Name)
+        and node.targets[0].id == name
+    ]
+    if len(assignments) != 1:
+        raise ContractError("供給元の固定tuple代入が単一でない")
+    assignment = assignments[0]
+    _require_single_static_name_binding(tree, name, assignment.targets[0])
+    constructor = "FunctionOperationRegistration"
+    constructors = [
+        node for node in tree.body
+        if isinstance(node, ast.ImportFrom)
+        and node.level == 0
+        and node.module == "pitchlog.repositories.function_operations"
+        and any(alias.name == constructor and alias.asname is None for alias in node.names)
+    ]
+    if len(constructors) != 1:
+        raise ContractError("供給元の登録constructor importが不一致")
+    _require_single_static_name_binding(tree, constructor, constructors[0])
+    value = assignment.value
+    if not isinstance(value, ast.Tuple) or len(value.elts) != 1:
+        raise ContractError("供給元は静的tuple1が必要")
+    entry = value.elts[0]
+    if (
+        not isinstance(entry, ast.Call)
+        or not isinstance(entry.func, ast.Name)
+        or entry.func.id != constructor
+        or entry.args
+        or any(keyword.arg is None for keyword in entry.keywords)
+        or len({keyword.arg for keyword in entry.keywords}) != len(entry.keywords)
+        or {keyword.arg for keyword in entry.keywords} != {
+            "operation_id", "token_type", "capability_id", "function_id", "statement",
+            "input_fields", "result_fields", "min_rows", "max_rows", "decoder",
+        }
+    ):
+        raise ContractError("供給元の固定登録callが不一致")
+    ids = [keyword.value for keyword in entry.keywords if keyword.arg == "operation_id"]
+    if (
+        len(ids) != 1
+        or not isinstance(ids[0], ast.Constant)
+        or type(ids[0].value) is not str
+        or ids[0].value != "RECORDING_VOCABULARIES:read_batted_ball_options"
+    ):
+        raise ContractError("供給元の固定operation IDが不一致")
+    return entry
+
+
 def _validate_function_operation_surface(
     repository_root: Path,
     asset: Mapping[str, object],
@@ -2624,7 +2788,13 @@ def _validate_function_operation_surface(
     if len(registry_values) != 1 or not isinstance(registry_values[0], ast.Tuple):
         raise ContractError("固定関数製品registryは静的tupleが必要")
     actual_ids: list[str] = []
-    for entry in registry_values[0].elts:
+    entries = registry_values[0].elts
+    if any(isinstance(entry, ast.Starred) for entry in entries):
+        resolved = _batted_options_static_registration(
+            repository_root, registry_tree, registry_values[0]
+        )
+        entries = [resolved, *entries[1:]]
+    for entry in entries:
         if not isinstance(entry, ast.Call):
             raise ContractError("固定関数製品registryの登録形式が不正")
         matches = [
@@ -10281,6 +10451,8 @@ _PR196_FIXTURE_SHA256 = "52d056f109df66c29fea8f32ab900a2830d210efa6ff8985c3d5ca6
 _PR196_SOURCE_PURPOSE = (
     "PR196既採用安打source4path/実15tuple/限定2successorを固定6965088bの全byteへ束縛する。"
     "旧原典/署名/一般許可へ流用しない。"
+    "登録tupleのreadonly形の原典としてregistry/owner2pathも同固定Gitへ全byte束縛するが、"
+    "既4path/15tupleの許可対象は増やさない。"
 )
 _PR196_EXPECTATION_PURPOSE = (
     "PR196後発sourceの独立分類fixtureを前置0f75d170の全byteへ束縛し、"
@@ -10324,12 +10496,16 @@ def _pr196_read_fixed_expectations(root: Path) -> dict[str, Any]:
             ("pr196_source_expectation_revision", _PR196_EXPECTATION_REVISION,
              _PR196_EXPECTATION_PURPOSE, "immutable_expectations"),
         ):
+            sources = [
+                "scripts/check_tenant_boundary_bypass.py:_load_pr196_source_owners",
+                "tests/test_pr196_tenant_source_registration.py:" + consumer,
+            ]
+            if name == "pr196_source_registration_revision":
+                sources.append(
+                    "scripts/check_tenant_boundary_bypass.py:_batted_options_static_registration"
+                )
             _pr196_require(_pr196_same_json(inputs.get(name), {
-                "value": revision, "purpose": purpose,
-                "sources": [
-                    "scripts/check_tenant_boundary_bypass.py:_load_pr196_source_owners",
-                    "tests/test_pr196_tenant_source_registration.py:" + consumer,
-                ],
+                "value": revision, "purpose": purpose, "sources": sources,
             }), "固定入力の全値/用途が不一致")
             _pr196_require(
                 _run_git(root, ["rev-parse", "--verify", revision + "^{commit}"]).strip()

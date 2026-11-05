@@ -9970,3 +9970,289 @@ def test_historical_checker_does_not_accept_missing_or_self_consistent_tampered_
             asset_path.write_text(json.dumps(asset))
     with pytest.raises(historical.ContractError):
         historical.load_contract(root)
+
+
+def _registry_static_tuple_case(tmp_path):
+    """実4sourceを専有tmpへ複写し、ID順序だけの局所読取を試す。"""
+    module_root = tmp_path / "backend/src/pitchlog/repositories"
+    module_root.mkdir(parents=True)
+    for name in ("function_operations", "operation_registry", "transaction", "batted_ball_options"):
+        (module_root / f"{name}.py").write_bytes(
+            (REPOSITORY_ROOT / "backend/src/pitchlog/repositories" / f"{name}.py").read_bytes()
+        )
+    asset = json.loads(
+        (REPOSITORY_ROOT / "contracts/tenant_boundary/repository-contract.json").read_text()
+    )
+    # 真正固定Gitを独立rootへread-only供給し、現在木を期待原典にしない。
+    for relative in (
+        "contracts/tenant_boundary/frozen-inputs.json",
+        "tests/fixtures/pr196_tenant_source_expected_v1.json",
+    ):
+        target = tmp_path / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes((REPOSITORY_ROOT / relative).read_bytes())
+    subprocess.run(["git", "init", "--quiet", str(tmp_path)], check=True)
+    common = subprocess.check_output(
+        ["git", "-C", str(REPOSITORY_ROOT), "rev-parse", "--path-format=absolute",
+         "--git-common-dir"], text=True,
+    ).strip()
+    (tmp_path / ".git/objects/info/alternates").write_text(str(Path(common) / "objects") + "\n")
+    head = subprocess.check_output(
+        ["git", "-C", str(REPOSITORY_ROOT), "rev-parse", "HEAD"], text=True,
+    ).strip()
+    (tmp_path / ".git/HEAD").write_text(head + "\n")
+    return tmp_path, module_root, asset
+
+
+def test_registry_static_tuple_current_exact22_and_no_product_execution(tmp_path, monkeypatch):
+    """既inline21と固定先頭1を順序どおり読み、製品module/evalを実行しない。"""
+    import builtins
+
+    root, modules, asset = _registry_static_tuple_case(tmp_path)
+    assert len(asset["product_function_operation_ids"]) == 22
+    assert asset["product_function_operation_ids"][0] == (
+        "RECORDING_VOCABULARIES:read_batted_ball_options"
+    )
+    original = builtins.__import__
+
+    def no_product_import(name, *args, **kwargs):
+        if name == "pitchlog.repositories.batted_ball_options":
+            raise AssertionError("static reader imported product code")
+        return original(name, *args, **kwargs)
+
+    def no_eval(*args, **kwargs):
+        raise AssertionError("static reader evaluated product code")
+
+    monkeypatch.setattr(builtins, "__import__", no_product_import)
+    monkeypatch.setattr(builtins, "eval", no_eval)
+    checker._validate_function_operation_surface(root, asset)
+
+
+@pytest.mark.parametrize("count", [0, 21])
+def test_registry_static_tuple_keeps_legacy_inline_only_without_new_module(tmp_path, count):
+    """新Starredが無い既0/21inline経路に新moduleを前提追加しない。"""
+    root, modules, asset = _registry_static_tuple_case(tmp_path)
+    path = modules / "operation_registry.py"
+    tree = ast.parse(path.read_text())
+    declaration = next(
+        n for n in tree.body if isinstance(n, ast.AnnAssign)
+        and isinstance(n.target, ast.Name) and n.target.id == "PRODUCT_FUNCTION_OPERATIONS"
+    )
+    assert isinstance(declaration.value, ast.Tuple)
+    declaration.value.elts = declaration.value.elts[1:] if count else []
+    asset["product_function_operation_ids"] = (
+        asset["product_function_operation_ids"][1:] if count else []
+    )
+    path.write_text(ast.unparse(tree))
+    (modules / "batted_ball_options.py").unlink()
+    checker._validate_function_operation_surface(root, asset)
+
+
+@pytest.mark.parametrize("fault", [
+    "unknown_star", "star_call", "star_attribute", "star_position", "star_duplicate",
+    "registry_assign", "registry_augassign", "registry_delete", "registry_function_shadow",
+    "import_module", "import_relative", "import_alias", "import_equal_alias", "import_duplicate",
+    "constant_reassign", "constant_augassign", "constant_delete", "constant_namedexpr",
+    "owner_missing", "owner_symlink", "owner_tuple_empty", "owner_tuple_two", "owner_list",
+    "owner_tuple_call", "owner_annotated_only", "constructor_alias", "constructor_module",
+    "constructor_reassign", "dynamic_id", "wrong_id_with_matching_asset", "bool_id", "kwargs",
+    "inline_id", "inline_order", "declared_order", "declared_duplicate", "dynamic_namespace",
+    "owner_keyword_extra", "owner_keyword_missing", "attribute_rebind",
+    "registry_star_import", "owner_star_import", "attribute_namespace",
+])
+def test_registry_static_tuple_unknown_or_rebound_inputs_are_rejected(tmp_path, fault):
+    """既固定import/静的tuple1以外は自己一致assetを付けても閉拒否する。"""
+    root, modules, asset = _registry_static_tuple_case(tmp_path)
+    registry_path = modules / "operation_registry.py"
+    owner_path = modules / "batted_ball_options.py"
+    registry = registry_path.read_text()
+    owner = owner_path.read_text()
+    binding = "BATTED_BALL_OPTIONS_OPERATIONS"
+    if fault == "unknown_star":
+        registry = registry.replace("*" + binding, "*UNKNOWN_OPERATIONS")
+    elif fault == "star_call":
+        registry = registry.replace("*" + binding, "*" + binding + "()")
+    elif fault == "star_attribute":
+        registry = registry.replace("*" + binding, "*module." + binding)
+    elif fault == "star_position":
+        tree = ast.parse(registry)
+        value = next(
+            n.value for n in tree.body if isinstance(n, ast.AnnAssign)
+            and isinstance(n.target, ast.Name) and n.target.id == "PRODUCT_FUNCTION_OPERATIONS"
+        )
+        assert isinstance(value, ast.Tuple)
+        value.elts[0], value.elts[1] = value.elts[1], value.elts[0]
+        registry = ast.unparse(tree)
+    elif fault == "star_duplicate":
+        registry = registry.replace("*" + binding + ",", "*" + binding + ", *" + binding + ",")
+    elif fault == "registry_assign":
+        registry += "\nPRODUCT_FUNCTION_OPERATIONS = ()\n"
+    elif fault == "registry_augassign":
+        registry += "\nPRODUCT_FUNCTION_OPERATIONS += ()\n"
+    elif fault == "registry_delete":
+        registry += "\ndel PRODUCT_FUNCTION_OPERATIONS\n"
+    elif fault == "registry_function_shadow":
+        registry += "\ndef PRODUCT_FUNCTION_OPERATIONS(): pass\n"
+    elif fault == "import_module":
+        registry = registry.replace(
+            "from pitchlog.repositories.batted_ball_options", "from other.module"
+        )
+    elif fault == "import_relative":
+        registry = registry.replace(
+            "from pitchlog.repositories.batted_ball_options", "from .batted_ball_options"
+        )
+    elif fault == "import_alias":
+        registry = registry.replace("import " + binding, "import " + binding + " as ALIAS")
+        registry = registry.replace("*" + binding, "*ALIAS")
+    elif fault == "import_equal_alias":
+        registry = registry.replace("import " + binding, "import " + binding + " as " + binding)
+    elif fault == "import_duplicate":
+        registry += "\nfrom pitchlog.repositories.batted_ball_options import " + binding + "\n"
+    elif fault == "constant_reassign":
+        owner += "\n" + binding + " = ()\n"
+    elif fault == "constant_augassign":
+        owner += "\n" + binding + " += ()\n"
+    elif fault == "constant_delete":
+        owner += "\ndel " + binding + "\n"
+    elif fault == "constant_namedexpr":
+        owner += "\n(" + binding + " := ())\n"
+    elif fault == "owner_missing":
+        owner_path.unlink()
+    elif fault == "owner_symlink":
+        target = modules / "alternate.py"
+        target.write_text(owner)
+        owner_path.unlink()
+        owner_path.symlink_to(target)
+    elif fault in {
+        "owner_tuple_empty", "owner_tuple_two", "owner_list", "owner_tuple_call",
+        "owner_annotated_only",
+    }:
+        tree = ast.parse(owner)
+        assignment = next(n for n in tree.body if isinstance(n, ast.Assign)
+                          and any(isinstance(t, ast.Name) and t.id == binding for t in n.targets))
+        assert isinstance(assignment.value, ast.Tuple)
+        if fault == "owner_tuple_empty":
+            assignment.value.elts = []
+        elif fault == "owner_tuple_two":
+            assignment.value.elts.append(copy.deepcopy(assignment.value.elts[0]))
+        elif fault == "owner_list":
+            assignment.value = ast.List(elts=assignment.value.elts, ctx=ast.Load())
+        elif fault == "owner_tuple_call":
+            assignment.value = ast.Call(
+                func=ast.Name(id="tuple", ctx=ast.Load()), args=[assignment.value], keywords=[]
+            )
+        else:
+            tree.body[tree.body.index(assignment)] = ast.AnnAssign(
+                target=assignment.targets[0], annotation=ast.Name(id="tuple", ctx=ast.Load()),
+                value=assignment.value, simple=1,
+            )
+        owner = ast.unparse(ast.fix_missing_locations(tree))
+    elif fault == "constructor_alias":
+        owner = owner.replace(
+            "    FunctionOperationRegistration,", "    FunctionOperationRegistration as ALIAS,"
+        )
+        owner = owner.replace("    FunctionOperationRegistration(", "    ALIAS(")
+    elif fault == "constructor_module":
+        owner = owner.replace("from pitchlog.repositories.function_operations", "from other.module")
+    elif fault == "constructor_reassign":
+        owner += "\nFunctionOperationRegistration = object()\n"
+    elif fault == "dynamic_id":
+        owner = owner.replace(
+            'operation_id="RECORDING_VOCABULARIES:read_batted_ball_options"', "operation_id=ID"
+        )
+    elif fault == "wrong_id_with_matching_asset":
+        owner = owner.replace(
+            "RECORDING_VOCABULARIES:read_batted_ball_options", "UNKNOWN:operation"
+        )
+        asset["product_function_operation_ids"][0] = "UNKNOWN:operation"
+    elif fault == "bool_id":
+        owner = owner.replace(
+            'operation_id="RECORDING_VOCABULARIES:read_batted_ball_options"', "operation_id=True"
+        )
+    elif fault == "kwargs":
+        owner = owner.replace(
+            "    FunctionOperationRegistration(\n",
+            "    FunctionOperationRegistration(\n        **unknown,\n",
+        )
+    elif fault == "owner_keyword_extra":
+        owner = owner.replace("        max_rows=101,", "        max_rows=101, unknown=True,")
+    elif fault == "owner_keyword_missing":
+        owner = owner.replace("        decoder=_identity,", "")
+    elif fault == "attribute_rebind":
+        registry += "\nmodule.BATTED_BALL_OPTIONS_OPERATIONS = ()\n"
+    elif fault == "registry_star_import":
+        registry += "\nfrom unknown import *\n"
+    elif fault == "owner_star_import":
+        owner += "\nfrom unknown import *\n"
+    elif fault == "attribute_namespace":
+        registry += "\nbuiltins.setattr(module, 'BATTED_BALL_OPTIONS_OPERATIONS', ())\n"
+    elif fault == "inline_id":
+        registry = registry.replace('operation_id="RG1:precheck"', 'operation_id="RG1:unknown"')
+    elif fault == "inline_order":
+        tree = ast.parse(registry)
+        value = next(
+            n.value for n in tree.body if isinstance(n, ast.AnnAssign)
+            and isinstance(n.target, ast.Name) and n.target.id == "PRODUCT_FUNCTION_OPERATIONS"
+        )
+        assert isinstance(value, ast.Tuple)
+        value.elts[1], value.elts[2] = value.elts[2], value.elts[1]
+        registry = ast.unparse(tree)
+    elif fault == "declared_order":
+        asset["product_function_operation_ids"][1:3] = reversed(
+            asset["product_function_operation_ids"][1:3]
+        )
+    elif fault == "declared_duplicate":
+        asset["product_function_operation_ids"][1] = asset["product_function_operation_ids"][0]
+    else:
+        registry += "\neval('1')\n"
+    registry_path.write_text(registry)
+    if fault not in {"owner_missing", "owner_symlink"}:
+        owner_path.write_text(owner)
+    with pytest.raises(checker.ContractError):
+        checker._validate_function_operation_surface(root, asset)
+
+
+@pytest.mark.parametrize("target_name", ["operation_registry", "batted_ball_options"])
+@pytest.mark.parametrize("operation", [
+    "vars()[{name!r}] = ()",
+    "from builtins import vars as namespace\nnamespace()[{name!r}] = ()",
+    "import sys\nsys.modules[__name__].__dict__[{name!r}] = ()",
+    "unknown_runtime_mutation()",
+    "from builtins import globals as another\nanother()[{name!r}] = ()",
+])
+def test_registry_static_tuple_fixed_git_rejects_namespace_rebinding(
+    tmp_path, target_name, operation,
+):
+    """別名・属性・未知callをdenylistで推測せず原典全byteで拒否する。"""
+    root, modules, asset = _registry_static_tuple_case(tmp_path)
+    name = ("PRODUCT_FUNCTION_OPERATIONS" if target_name == "operation_registry"
+            else "BATTED_BALL_OPTIONS_OPERATIONS")
+    path = modules / (target_name + ".py")
+    path.write_text(path.read_text() + "\n" + operation.format(name=name) + "\n")
+    with pytest.raises(checker.ContractError):
+        checker._validate_function_operation_surface(root, asset)
+
+
+@pytest.mark.parametrize(
+    "fault", ["fixture", "declared_revision", "purpose", "consumer", "nonancestor"],
+)
+def test_registry_static_tuple_fixed_git_proof_is_required(tmp_path, fault):
+    """固定原典の証拠欠落・改変・非祖先を現在木自己一致へ補完しない。"""
+    root, _modules, asset = _registry_static_tuple_case(tmp_path)
+    if fault == "fixture":
+        (root / "tests/fixtures/pr196_tenant_source_expected_v1.json").write_text("{}")
+    elif fault == "nonancestor":
+        (root / ".git/HEAD").write_text(checker._PR196_FORMAL_BASE + "\n")
+    else:
+        path = root / "contracts/tenant_boundary/frozen-inputs.json"
+        frozen = json.loads(path.read_text())
+        entry = frozen["frozen_inputs"]["pr196_source_registration_revision"]
+        if fault == "declared_revision":
+            entry["value"] = "0" * 40
+        elif fault == "purpose":
+            entry["purpose"] += " forged"
+        else:
+            entry["sources"].pop()
+        path.write_text(json.dumps(frozen))
+    with pytest.raises(checker.ContractError):
+        checker._validate_function_operation_surface(root, asset)
