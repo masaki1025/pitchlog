@@ -1119,9 +1119,11 @@ def _snapshot_product_catalog(
         "initial_right_api",
     }
     private_schemas = {"sync_fence", "sync_fence_api", "sync_right_api"}
+    recording_vocab_schemas = {"recording_vocab_api"}
     if len(set(schema_names)) != len(schema_names) or set(schema_names) not in (
         legacy_schemas,
         legacy_schemas | private_schemas,
+        legacy_schemas | private_schemas | recording_vocab_schemas,
     ):
         raise AssertionError("snapshotのschema閉集合が不一致")
     private_rows = [
@@ -1141,7 +1143,11 @@ def _snapshot_product_catalog(
                 "ordinary_pitch_history",
             )
         }
-        if set(schema_names) == legacy_schemas | private_schemas
+        if set(schema_names)
+        in (
+            legacy_schemas | private_schemas,
+            legacy_schemas | private_schemas | recording_vocab_schemas,
+        )
         else set()
     )
     if (
