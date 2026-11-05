@@ -1,0 +1,121 @@
+{
+  "schemaVersion": 1,
+  "calculations": [
+    {
+      "calculationId": "seasonCountFacts",
+      "typedProgram": {
+        "kind": "primitive-refs",
+        "version": 1,
+        "commonCalculationId": "canonicalEventFacts",
+        "commonModelHash": "sha256:f358df32f54bedfecb2866436e718c7bd6ece514798fe4de2325022d38a09422",
+        "refs": [
+          {
+            "id": "pitch_count",
+            "type": "integer"
+          },
+          {
+            "id": "pa",
+            "type": "integer"
+          },
+          {
+            "id": "ab",
+            "type": "integer"
+          },
+          {
+            "id": "h",
+            "type": "integer"
+          },
+          {
+            "id": "hr",
+            "type": "integer"
+          },
+          {
+            "id": "bb",
+            "type": "integer"
+          },
+          {
+            "id": "hbp",
+            "type": "integer"
+          },
+          {
+            "id": "k",
+            "type": "integer"
+          },
+          {
+            "id": "sh",
+            "type": "integer"
+          },
+          {
+            "id": "sf",
+            "type": "integer"
+          },
+          {
+            "id": "catcher_interference_reached",
+            "type": "integer"
+          },
+          {
+            "id": "runner_interference_reached",
+            "type": "integer"
+          },
+          {
+            "id": "doubles",
+            "type": "integer"
+          },
+          {
+            "id": "triples",
+            "type": "integer"
+          },
+          {
+            "id": "total_bases",
+            "type": "integer"
+          },
+          {
+            "id": "runs",
+            "type": "integer"
+          },
+          {
+            "id": "rbi",
+            "type": "integer"
+          },
+          {
+            "id": "stolen_bases",
+            "type": "integer"
+          },
+          {
+            "id": "pitching_outs",
+            "type": "integer"
+          },
+          {
+            "id": "pitcher_k",
+            "type": "integer"
+          },
+          {
+            "id": "pitcher_bb",
+            "type": "integer"
+          },
+          {
+            "id": "pitcher_hbp",
+            "type": "integer"
+          },
+          {
+            "id": "hits_allowed",
+            "type": "integer"
+          },
+          {
+            "id": "home_runs_allowed",
+            "type": "integer"
+          },
+          {
+            "id": "fielding_errors",
+            "type": "integer"
+          },
+          {
+            "id": "runs_allowed",
+            "type": "integer"
+          }
+        ]
+      }
+    }
+  ],
+  "displayRules": []
+}

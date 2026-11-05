@@ -52,6 +52,7 @@ _INITIAL_ACTOR_STATES: dict[
     object, tuple[object, Literal["intent", "business", "enroll"]]
 ] = {}
 _RG1_LOANS: dict[object, _GateLoan] = {}
+_STATS_READ_HANDLES: dict[object, _TenantTransaction] = {}
 
 
 @dataclass(slots=True)
@@ -160,6 +161,7 @@ class _TenantTransaction:
         self._state_key = None
         _PORT_PHASES.pop(state_key, None)
         _PORT_DEVICE_BIND_USED.discard(state_key)
+        _STATS_READ_HANDLES.pop(state_key, None)
         return state_key
 
     def run(self, operation: TenantOperationToken) -> TenantOperationResult:
@@ -193,6 +195,11 @@ class _TenantTransaction:
             )
 
         session, _ = runtime
+        if _stats_read_operation(operation):
+            _require_stats_primitive_read_scope(self)
+            return self.run_function(operation)
+        if state_key in _STATS_READ_HANDLES:
+            raise TenantBindingError("成績読取scopeはOpen/Page/Totalsだけを実行できる")
         if _is_port_command(operation):
             return _execute_port_command(self, operation)
         phase = _port_phase(self)
@@ -236,6 +243,10 @@ class _TenantTransaction:
             raise TenantBindingError(
                 "TenantContext の発行証跡が不一致のため業務 SQL を開始できない"
             )
+        if _stats_read_operation(operation):
+            _require_stats_primitive_read_scope(self)
+        elif state_key in _STATS_READ_HANDLES:
+            raise TenantBindingError("成績読取scopeはOpen/Page/Totalsだけを実行できる")
         from pitchlog.repositories.initial_recording_right import (
             _INITIAL_BUSINESS_TOKENS,
             _INITIAL_FUNCTION_REGISTRY,
@@ -523,7 +534,7 @@ class _TenantTransaction:
 class _TenantTransactionScope(AbstractContextManager[_TenantTransaction]):
     """Session の生成から close までを所有する内部 context manager。"""
 
-    __slots__ = ("_context", "_handle", "_actor_runtime", "_actor_phase")
+    __slots__ = ("_context", "_handle", "_actor_runtime", "_actor_phase", "_stats_read")
 
     def __init__(
         self,
@@ -531,6 +542,7 @@ class _TenantTransactionScope(AbstractContextManager[_TenantTransaction]):
         *,
         _actor_runtime: object | None = None,
         _actor_phase: Literal["intent", "business", "enroll"] | None = None,
+        _stats_read: bool = False,
     ) -> None:
         """スコープへ一度だけ渡されたテナント文脈を保持する。
 
@@ -541,6 +553,7 @@ class _TenantTransactionScope(AbstractContextManager[_TenantTransaction]):
         self._handle: _TenantTransaction | None = None
         self._actor_runtime = _actor_runtime
         self._actor_phase = _actor_phase
+        self._stats_read = _stats_read
 
     def __enter__(self) -> _TenantTransaction:
         """Session を生成し、トランザクション先頭で文脈を束縛する。
@@ -574,6 +587,13 @@ class _TenantTransactionScope(AbstractContextManager[_TenantTransaction]):
             if self._actor_phase not in ("intent", "business", "enroll"):
                 raise TenantBindingError("actor phaseが未登録")
             engine = _initial_actor_engine(self._actor_runtime)
+        if self._stats_read:
+            if self._actor_runtime is not None or self._actor_phase is not None:
+                raise TenantBindingError("成績readと書込actorを同じscopeへ混在できない")
+            # tenant bindingの最初のSELECTより前にdriverのBEGIN設定を固定する。
+            engine = engine.execution_options(
+                isolation_level="REPEATABLE READ", postgresql_readonly=True
+            )
         session = Session(engine)
         exit_stack = ExitStack()
         state_key = object()
@@ -607,6 +627,8 @@ class _TenantTransactionScope(AbstractContextManager[_TenantTransaction]):
             raise
         if handle is None:
             raise RuntimeError("トランザクションハンドルを生成できない")
+        if self._stats_read:
+            _STATS_READ_HANDLES[state_key] = handle
         return handle
 
     def __exit__(
@@ -749,6 +771,51 @@ def tenant_transaction_scope(
         Session の生成・束縛・確定・取消・close を所有するスコープ。
     """
     return _TenantTransactionScope(context)
+
+
+def _stats_read_operation(operation: TenantOperationToken) -> bool:
+    """共通readerの3種の実型だけを識別し、派生型/同名偽tokenを拒否する。"""
+    # 既存operationは未導入の成績moduleへ依存させない。名前は許可根拠にしない。
+    if type(operation).__module__ not in {
+        "pitchlog.repositories.play_export_primitives",
+        "pitchlog.repositories.stats",
+    }:
+        return False
+    from pitchlog.repositories.play_export_primitives import (
+        OpenPrimitiveSnapshotToken,
+        ReadPrimitivePageToken,
+    )
+    from pitchlog.repositories.stats import ReadPrimitiveTotalsToken
+
+    return type(operation) in {
+        OpenPrimitiveSnapshotToken,
+        ReadPrimitivePageToken,
+        ReadPrimitiveTotalsToken,
+    }
+
+
+def _require_stats_primitive_read_scope(handle: object) -> None:
+    """実RR/READ ONLY scope発行の同handleと真正tenantだけを許可する。"""
+    if type(handle) is not _TenantTransaction:
+        raise TenantBindingError("成績readに真正な同snapshot handleが必要")
+    key = handle._state_key
+    if (
+        key is None
+        or key not in _TRANSACTION_RUNTIMES
+        or _STATS_READ_HANDLES.get(key) is not handle
+        or type(handle._context) is not TenantContext
+        or handle._context.tenant_id != handle._bound_tenant_id
+        or handle._context._integrity_proof != handle._bound_integrity_proof
+        or not handle._context._has_valid_integrity_proof()
+    ):
+        raise TenantBindingError("成績read scopeは失効/別handle/別tenant")
+
+
+def stats_primitive_read_scope(
+    context: TenantContext,
+) -> AbstractContextManager[_TenantTransaction]:
+    """真正tenantを同じRR/READ ONLY transactionへ束縛して有限読取する。"""
+    return _TenantTransactionScope(context, _stats_read=True)
 
 
 def _assert_initial_actor_transaction(

@@ -7,7 +7,7 @@ from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
-from typing import cast
+from typing import Any, cast
 
 from pitchlog.domaingen import core
 
@@ -302,6 +302,26 @@ def _check_types_and_ranges(
     violations: list[CheckViolation] = []
     for calculation_index, calculation in _calculations(model):
         root = f"$.calculations[{calculation_index}]"
+        typed = calculation.get("typedProgram")
+        if isinstance(typed, dict):
+            try:
+                if typed.get("kind") == "primitive-refs":
+                    if set(typed) != {
+                        "kind",
+                        "version",
+                        "commonCalculationId",
+                        "commonModelHash",
+                        "refs",
+                    }:
+                        raise ValueError("参照modelの閉キーが不正")
+                else:
+                    validate_typed_program(typed)
+            except ValueError as error:
+                violations.append(
+                    _violation(CheckId.TYPES_AND_RANGES, root, str(error))
+                )
+            continue
+
         state_fields: dict[str, dict[str, object]] = {}
         for path, field in _fields(calculation):
             kind = _field_kind(field)
@@ -624,3 +644,284 @@ __all__ = [
     "generate_checked",
     "run_pregen_checks",
 ]
+
+
+def validate_typed_program(program: Mapping[str, Any]) -> None:
+    """型付きprimitiveの閉演算・参照・有限collectionを生成前に検査する。
+
+    Args:
+        program: D-1の追加typed-program宣言。
+
+    Raises:
+        ValueError: 型・未知参照・非有限reducer・演算が不正な場合。
+    """
+    import re
+
+    if (
+        set(program)
+        != {
+            "version",
+            "kind",
+            "fields",
+            "collections",
+            "closedRecords",
+            "metrics",
+            "selection",
+            "paProjection",
+            "pendingDecisions",
+            "numericEnvelope",
+            "reducer",
+            "sql",
+        }
+        or type(program.get("version")) is not int
+        or program.get("version") != 1
+        or program.get("kind") != "event-facts"
+    ):
+        raise ValueError("typed-programの閉キーまたは版が不正")
+    validate_primitive_sql_binding(program["sql"])
+    envelope = program["numericEnvelope"]
+    if (
+        envelope != {"minimum": 0, "maximum": None}
+        or type(envelope["minimum"]) is not int
+    ):
+        raise ValueError("任意精度非負整数の宣言が必要")
+    pending = program["pendingDecisions"]
+    if not isinstance(pending, dict) or not 1 <= len(pending) <= 16:
+        raise ValueError("未回答状態の閉宣言が必要")
+    for name, state in pending.items():
+        if (
+            not isinstance(name, str)
+            or not isinstance(state, dict)
+            or set(state) != {"state", "decision_id", "value"}
+        ):
+            raise ValueError("未回答状態の型が不正")
+        if (
+            state["state"] != "decision_pending"
+            or state["value"] is not None
+            or type(state["decision_id"]) is not str
+            or re.fullmatch(r"D[0-9]{2}", state["decision_id"]) is None
+        ):
+            raise ValueError("未回答を確定値へ置換できない")
+    fields = program["fields"]
+    collections = program["collections"]
+    metrics = program["metrics"]
+    if not isinstance(fields, dict) or not isinstance(collections, dict):
+        raise ValueError("型付きfield/collectionが必要")
+    if not isinstance(metrics, list) or not 1 <= len(metrics) <= 64:
+        raise ValueError("primitive件数が不正")
+    kinds = {"integer", "boolean", "string"}
+    for path, field in fields.items():
+        if not isinstance(path, str) or not re.fullmatch(r"[\w.-]+", path):
+            raise ValueError("field pathが不正")
+        if (
+            not isinstance(field, dict)
+            or not {"type", "nullable"} <= set(field)
+            or set(field) - {"type", "nullable", "minimum", "maximum", "enum"}
+        ):
+            raise ValueError("field宣言が不正")
+        if field["type"] not in kinds or type(field["nullable"]) is not bool:
+            raise ValueError("field型が不正")
+        for bound in ("minimum", "maximum"):
+            if bound in field and (
+                field["type"] != "integer"
+                or type(field[bound]) is not int
+                or field[bound] < 0
+            ):
+                raise ValueError("整数範囲の宣言が不正")
+        if field.get("minimum", 0) > field.get("maximum", 2**256):
+            raise ValueError("整数範囲が逆転")
+        if "enum" in field:
+            values = field["enum"]
+            if (
+                field["type"] != "string"
+                or not isinstance(values, list)
+                or not 1 <= len(values) <= 32
+                or any(type(v) is not str for v in values)
+                or len(set(values)) != len(values)
+            ):
+                raise ValueError("閉enumの宣言が不正")
+
+    for name, collection in collections.items():
+        if not isinstance(name, str) or not isinstance(collection, dict):
+            raise ValueError("collectionが不正")
+        if set(collection) != {"maximumItems", "fields"}:
+            raise ValueError("collectionの閉キーが不正")
+        maximum = collection["maximumItems"]
+        if type(maximum) is not int or not 1 <= maximum <= 4:
+            raise ValueError("遷移内reducerの上限が不正")
+        if not isinstance(collection["fields"], dict):
+            raise ValueError("item型が不正")
+        for descriptor in collection["fields"].values():
+            if (
+                not isinstance(descriptor, dict)
+                or set(descriptor) != {"type", "nullable"}
+                or descriptor["type"] not in kinds
+                or type(descriptor["nullable"]) is not bool
+            ):
+                raise ValueError("item型が不正")
+    records = program["closedRecords"]
+    if (
+        not isinstance(records, list)
+        or len(records) > 16
+        or any(type(v) is not str for v in records)
+    ):
+        raise ValueError("閉record pathが不正")
+    for record in records:
+        children = [
+            path[len(record) + 1 :] for path in fields if path.startswith(record + ".")
+        ]
+        if not children or any("." in child for child in children):
+            raise ValueError("閉recordのfield対応が不正")
+    identifiers: set[str] = set()
+
+    def infer(node: object, items: Mapping[str, Any]) -> str:
+        if not isinstance(node, dict) or "op" not in node:
+            raise ValueError("式の閉演算が必要")
+        op = node["op"]
+        if op == "literal" and set(node) == {"op", "value"}:
+            value = node["value"]
+            if value is None:
+                return "null"
+            if type(value) is bool:
+                return "boolean"
+            if type(value) is int and value >= 0:
+                return "integer"
+            if type(value) is str:
+                return "string"
+        if op == "ref" and set(node) == {"op", "path"}:
+            path = node["path"]
+            owner = (
+                items if isinstance(path, str) and path.startswith("item.") else fields
+            )
+            key = path.removeprefix("item.") if owner is items else path
+            if key not in owner:
+                raise ValueError("未知の型付き参照")
+            return owner[key]["type"]
+        if op in {"and", "or", "add"} and set(node) == {"op", "args"}:
+            args = node["args"]
+            if not isinstance(args, list) or not 1 <= len(args) <= 32:
+                raise ValueError("有限の演算引数が必要")
+            expected = "integer" if op == "add" else "boolean"
+            if any(infer(arg, items) != expected for arg in args):
+                raise ValueError("演算引数の型違い")
+            return expected
+        if op in {"eq", "ne"} and set(node) == {"op", "left", "right"}:
+            left, right = infer(node["left"], items), infer(node["right"], items)
+            if left != right and "null" not in {left, right}:
+                raise ValueError("比較対象の型違い")
+            return "boolean"
+        if op == "lookup" and set(node) == {"op", "value", "cases"}:
+            if infer(node["value"], items) != "string":
+                raise ValueError("enum lookup入力は文字列が必要")
+            cases = node["cases"]
+            if not isinstance(cases, dict) or not 1 <= len(cases) <= 32:
+                raise ValueError("有限のenum lookupが必要")
+            if any(type(v) is not int for v in cases.values()):
+                raise ValueError("lookup出力は整数が必要")
+            value_ref = node["value"]
+            if value_ref.get("op") == "ref":
+                descriptor = fields.get(value_ref.get("path"), {})
+                if "enum" in descriptor and set(cases) != set(descriptor["enum"]):
+                    raise ValueError("enum lookupが閉じた外延と一致しない")
+
+            return "integer"
+        raise ValueError("未知または余剰演算")
+
+    if infer(program["selection"], {}) != "boolean":
+        raise ValueError("選択条件はbooleanが必要")
+    for metric in metrics:
+        if not isinstance(metric, dict) or set(metric) != {
+            "id",
+            "relation",
+            "guard",
+            "available",
+            "quantity",
+            "credit",
+        }:
+            raise ValueError("primitiveの閉キーが不正")
+        name = metric["id"]
+        if not isinstance(name, str) or not re.fullmatch(r"[a-z][a-z0-9_]*", name):
+            raise ValueError("primitive IDが不正")
+        if name in identifiers:
+            raise ValueError("primitive IDが重複")
+        identifiers.add(name)
+        relation = metric["relation"]
+        if relation not in {"event", "completed_pa", *collections}:
+            raise ValueError("未知のreducer source")
+        items = collections[relation]["fields"] if relation in collections else {}
+        if infer(metric["guard"], items) != "boolean":
+            raise ValueError("guardはbooleanが必要")
+        if infer(metric["available"], {}) != "boolean":
+            raise ValueError("availabilityはbooleanが必要")
+        if infer(metric["quantity"], items) != "integer":
+            raise ValueError("寄与数量は整数が必要")
+        if infer(metric["credit"], items) != "string":
+            raise ValueError("帰属はID文字列が必要")
+    if type(program["reducer"].get("initial")) is not int or program["reducer"] != {
+        "id": "integer_add",
+        "type": "integer",
+        "initial": 0,
+        "operator": "add",
+    }:
+        raise ValueError("共通reducerは整数addだけ")
+    projection = program["paProjection"]
+    if not isinstance(projection, dict) or set(projection) != {
+        "guard",
+        "fields",
+        "metricFields",
+    }:
+        raise ValueError("PA投影が不正")
+    if infer(projection["guard"], {}) != "boolean":
+        raise ValueError("PA guardはbooleanが必要")
+    if not isinstance(projection["fields"], dict) or not isinstance(
+        projection["metricFields"], dict
+    ):
+        raise ValueError("PA field/refの閉型が不正")
+    for expr in projection["fields"].values():
+        infer(expr, {})
+    if any(metric not in identifiers for metric in projection["metricFields"].values()):
+        raise ValueError("未知のPA共通metric参照")
+
+
+def validate_primitive_sql_binding(binding):
+    """共通Sの固定role/版とSQL識別子を全targetの生成前に閉検査する。"""
+    import re
+
+    roles = {
+        "facts",
+        "versions",
+        "sources",
+        "games",
+        "events",
+        "plays",
+        "slots",
+        "generations",
+        "ledger",
+    }
+    if type(binding) is not dict or set(binding) != roles | {
+        "amountColumn",
+        "metricColumn",
+        "canonicalSelection",
+    }:
+        raise ValueError("SQL bindingの閉キー違反")
+    selector = binding["canonicalSelection"]
+    if (
+        type(selector) is not dict
+        or set(selector) != {"version", "kind"}
+        or type(selector["version"]) is not int
+        or selector != {"version": 1, "kind": "accepted-play-slot-v1"}
+    ):
+        raise ValueError("未登録canonical S選択です")
+    for role in roles:
+        schema = "sync_fence" if role in {"facts", "versions", "sources"} else "public"
+        if (
+            type(binding[role]) is not str
+            or re.fullmatch(schema + r"\.[a-z][a-z0-9_]*", binding[role]) is None
+        ):
+            raise ValueError("SQL relation bindingが不正です")
+    for role in ("amountColumn", "metricColumn"):
+        if (
+            type(binding[role]) is not str
+            or re.fullmatch(r"[a-z][a-z0-9_]*", binding[role]) is None
+        ):
+            raise ValueError("SQL column bindingが不正です")
