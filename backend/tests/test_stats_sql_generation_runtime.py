@@ -16,6 +16,7 @@ ROOT = Path(__file__).resolve().parents[2]
 SQL_PATHS = {
     "backend/src/pitchlog/exports/generated/play_primitives.sql",
     "backend/src/pitchlog/stats/generated/stats.sql",
+    "backend/src/pitchlog/stats/generated/stats_rates.sql",
 }
 
 
@@ -28,7 +29,7 @@ def _models():
 
 
 def test_sql_generation_has_no_formatter_or_other_language_execution(monkeypatch):
-    """外部toolchainなしでも二SQL全byteを再現する。"""
+    """外部toolchainなしでも三SQL全byteを再現する。"""
 
     def forbidden(*args, **kwargs):
         raise AssertionError("SQL生成で他言語生成・整形を実行した")
@@ -42,8 +43,8 @@ def test_sql_generation_has_no_formatter_or_other_language_execution(monkeypatch
     assert result == {path: (ROOT / path).read_text() for path in SQL_PATHS}
 
 
-def test_full_generation_keeps_all_seven_existing_artifacts():
-    """既公開七対象の集合と全byteを保持する。"""
+def test_full_generation_keeps_all_eight_existing_artifacts():
+    """既公開八対象の集合と全byteを保持する。"""
     manifest = json.loads((ROOT / "backend/domain/stats-manifest.json").read_text())
     result = core.generate_primitive_bundle(*_models())
     assert set(result) == set(manifest["generatedFiles"])
