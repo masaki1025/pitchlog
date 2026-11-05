@@ -216,3 +216,12 @@ feature/mvp-stats-native-connectionはbatted固定9d0a3dc1へ採用stats固定bc
 正式資産はrootだけが同canonical producer/modelからcontracts/db/schema-manifest.json・contracts/authz/product/ddl-elements.json/function-bodies/manifestと新body・contracts/tenant_boundary/repository-contract.json/runtime-authz-contract.json、公式生成moduleを一括候補化する。旧全宣言値/権限を保持し必要統合後に単一受理前後とOracle/provenanceを独立確認する。body/生成module手編集や先取り再封印は不可。5th preflight/codec作者の新2+2は停止・独立採否・commit後に元stats枝から通常mergeし、同名pathを並行編集しない。
 
 受入は隔離同候補のfresh画面/実API新規作成→start→native球→同TXstats原本/facts/series→新RRRO Open/Page/Totals、T4後/Save後/commit故障全取消、nonce/他tenant/別receipt・同snapshot別handle/再送二重加算/過去nativeのみの不足源閉拒否を検証する。現current_open供給だけで終了確定試合・全27/season/CSV/MVP完成としない。正式developへの順次統合・実機/運用/全受入は別条件を保持する。
+
+
+### canonical producer共有pathの単独移管（2026-11-05、PO委任Codex /root判断）
+
+接続WT rootの共有接合を滞らせないため、authz/first_ball_product.py・product_catalog.py・stats_primitive_product.py・必要時product_table_access.py、新authz/function_result_type.py・新tests/test_stats_native_product_connection.pyをpr191_residual_independentの単独writerへ移管する。rootは完了通知まで同pathを書かず、registry/transaction/sync/read資格と正式資産writerを専有する。既source3/SQL4と採用済preflight1から5関数・stats_api・私有3表/最小ACL/policy/RLS/bodyをcanonical集合へ接合し、未作成段のpre-rule配置を正しく保留する。新source値/SQL以外の旧全宣言/旧全body/既関数再適用guardを保持し、重複する既column宣言は同値なら旧body byteを残す。未知衝突/owner違い/余剰bodyは拒否。新schemaは既ownerのみ、CREATEをapp/FnOwnerへ与えず、runtime function-detailsの実queryへstats_apiを追加する。
+
+stats_product→firstball._pg_result_typeの循環importは、既TABLE表記整形を新leafへ一度だけ移し、firstballの旧名は同じ結果の互換委譲、stats_productはleafを参照して両import順で起動できるようにする。単一のメタデータ整形で数学/SQL/期待値は不変。新xmin4の宣言照合が必要ならstatsの固定4table/column/ownerだけに閉じ、一般の未知列/role許可は広げない。source canonical段階はprospective資産をcacheに描画して局所対向を検証し、正式JSON/bodymanifest/生成Pythonの手編集や先取り再封印はしない。
+
+作者は上記6pathだけ、他core/同期/registry/新codec/正式assets/refs/DB非編集。新5/3table/schemaの閉集合・old全値/guard保持・正規import両順・破壊対向/未知拒否をpure/lint/typeで確認し、raw4SQL/publisher84の値再現とformal供給不足を明記する。未適用は成功とせず、独立確認後rootがcanonical publisherで正式資産を一括候補化・実PG適用する。
