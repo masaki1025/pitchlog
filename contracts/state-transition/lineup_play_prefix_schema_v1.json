@@ -1513,221 +1513,6 @@
         }
       ]
     },
-    "Source": {
-      "oneOf": [
-        {
-          "type": "object",
-          "properties": {
-            "kind": {
-              "const": "started-initial-v3"
-            },
-            "prefixRef": {
-              "$ref": "#/$defs/PrefixRef"
-            },
-            "rules": {
-              "$ref": "#/$defs/SavedRuleWire"
-            },
-            "after": {
-              "$ref": "#/$defs/Snapshot"
-            },
-            "t2": {
-              "const": null
-            },
-            "historyDepth": {
-              "const": "0"
-            },
-            "playCount": {
-              "const": "0"
-            },
-            "lastSource": {
-              "const": null
-            },
-            "position": {
-              "$ref": "#/$defs/Position"
-            },
-            "priorArtifactSha256": {
-              "$ref": "#/$defs/Digest"
-            },
-            "executionArtifactSha256": {
-              "$ref": "#/$defs/Digest"
-            },
-            "rulesDigest": {
-              "$ref": "#/$defs/Digest"
-            },
-            "layoutDigest": {
-              "$ref": "#/$defs/Digest"
-            },
-            "rosterDigest": {
-              "$ref": "#/$defs/Digest"
-            },
-            "lineup": {
-              "$ref": "#/$defs/Lineup"
-            },
-            "runners": {
-              "type": "array",
-              "items": {
-                "$ref": "#/$defs/Runner"
-              }
-            },
-            "participants": {
-              "$ref": "#/$defs/Participant"
-            },
-            "responsibility": {
-              "$ref": "#/$defs/Responsibility"
-            },
-            "provenance": {
-              "type": "object",
-              "properties": {
-                "kind": {
-                  "const": "started-game"
-                },
-                "eventId": {
-                  "$ref": "#/$defs/Uuid"
-                }
-              },
-              "required": [
-                "kind",
-                "eventId"
-              ],
-              "additionalProperties": false
-            }
-          },
-          "required": [
-            "kind",
-            "prefixRef",
-            "rules",
-            "after",
-            "t2",
-            "historyDepth",
-            "playCount",
-            "lastSource",
-            "position",
-            "priorArtifactSha256",
-            "executionArtifactSha256",
-            "rulesDigest",
-            "layoutDigest",
-            "rosterDigest",
-            "lineup",
-            "runners",
-            "participants",
-            "responsibility",
-            "provenance"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "kind": {
-              "enum": [
-                "evaluated-prefix-v3",
-                "locked-prefix-v3"
-              ]
-            },
-            "prefixRef": {
-              "$ref": "#/$defs/PrefixRef"
-            },
-            "rules": {
-              "$ref": "#/$defs/SavedRuleWire"
-            },
-            "after": {
-              "$ref": "#/$defs/Snapshot"
-            },
-            "t2": {
-              "$ref": "#/$defs/T2"
-            },
-            "historyDepth": {
-              "$ref": "#/$defs/Unsigned"
-            },
-            "playCount": {
-              "$ref": "#/$defs/Unsigned"
-            },
-            "lastSource": {
-              "$ref": "#/$defs/PlayIdentity"
-            },
-            "position": {
-              "$ref": "#/$defs/Position"
-            },
-            "priorArtifactSha256": {
-              "$ref": "#/$defs/Digest"
-            },
-            "executionArtifactSha256": {
-              "$ref": "#/$defs/Digest"
-            },
-            "rulesDigest": {
-              "$ref": "#/$defs/Digest"
-            },
-            "layoutDigest": {
-              "$ref": "#/$defs/Digest"
-            },
-            "rosterDigest": {
-              "$ref": "#/$defs/Digest"
-            },
-            "lineup": {
-              "$ref": "#/$defs/Lineup"
-            },
-            "runners": {
-              "type": "array",
-              "items": {
-                "$ref": "#/$defs/Runner"
-              }
-            },
-            "participants": {
-              "$ref": "#/$defs/Participant"
-            },
-            "responsibility": {
-              "$ref": "#/$defs/Responsibility"
-            },
-            "provenance": {
-              "type": "object",
-              "properties": {
-                "kind": {
-                  "const": "confirmed-prefix"
-                },
-                "checkpoint": {
-                  "$ref": "#/$defs/Checkpoint"
-                },
-                "sourceIdentity": {
-                  "$ref": "#/$defs/PlayIdentity"
-                },
-                "historyDepth": {
-                  "$ref": "#/$defs/Unsigned"
-                }
-              },
-              "required": [
-                "kind",
-                "checkpoint",
-                "sourceIdentity",
-                "historyDepth"
-              ],
-              "additionalProperties": false
-            }
-          },
-          "required": [
-            "kind",
-            "prefixRef",
-            "rules",
-            "after",
-            "t2",
-            "historyDepth",
-            "playCount",
-            "lastSource",
-            "position",
-            "priorArtifactSha256",
-            "executionArtifactSha256",
-            "rulesDigest",
-            "layoutDigest",
-            "rosterDigest",
-            "lineup",
-            "runners",
-            "participants",
-            "responsibility",
-            "provenance"
-          ],
-          "additionalProperties": false
-        }
-      ]
-    },
     "T1Input": {
       "oneOf": [
         {
@@ -1737,42 +1522,6 @@
           "$ref": "#/$defs/BattedHitT1Input"
         }
       ]
-    },
-    "Request": {
-      "type": "object",
-      "properties": {
-        "version": {
-          "const": "3"
-        },
-        "prefixRef": {
-          "$ref": "#/$defs/PrefixRef"
-        },
-        "rules": {
-          "$ref": "#/$defs/SavedRuleWire"
-        },
-        "t1": {
-          "$ref": "#/$defs/T1Input"
-        },
-        "source": {
-          "$ref": "#/$defs/Source"
-        },
-        "playIdentity": {
-          "$ref": "#/$defs/PlayIdentity"
-        },
-        "nextCheckpoint": {
-          "$ref": "#/$defs/Checkpoint"
-        }
-      },
-      "required": [
-        "version",
-        "prefixRef",
-        "rules",
-        "t1",
-        "source",
-        "playIdentity",
-        "nextCheckpoint"
-      ],
-      "additionalProperties": false
     },
     "T1": {
       "type": "object",
@@ -2090,77 +1839,6 @@
       ],
       "additionalProperties": false
     },
-    "Value": {
-      "type": "object",
-      "properties": {
-        "t1": {
-          "$ref": "#/$defs/T1"
-        },
-        "t2": {
-          "$ref": "#/$defs/T2"
-        },
-        "newHistoryEntry": {
-          "$ref": "#/$defs/HistoryEntry"
-        },
-        "previousPrefixRef": {
-          "$ref": "#/$defs/PrefixRef"
-        },
-        "nextPrefixRef": {
-          "$ref": "#/$defs/PrefixRef"
-        },
-        "runners": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/Runner"
-          }
-        },
-        "beforeParticipants": {
-          "$ref": "#/$defs/Participant"
-        },
-        "participants": {
-          "$ref": "#/$defs/Participant"
-        },
-        "lineup": {
-          "$ref": "#/$defs/Lineup"
-        },
-        "rosterDigest": {
-          "$ref": "#/$defs/Digest"
-        },
-        "responsibility": {
-          "$ref": "#/$defs/Responsibility"
-        },
-        "nextResponsibility": {
-          "$ref": "#/$defs/Responsibility"
-        },
-        "playIdentity": {
-          "$ref": "#/$defs/PlayIdentity"
-        },
-        "sourcePosition": {
-          "$ref": "#/$defs/Position"
-        },
-        "executionArtifactSha256": {
-          "$ref": "#/$defs/Digest"
-        }
-      },
-      "required": [
-        "t1",
-        "t2",
-        "newHistoryEntry",
-        "previousPrefixRef",
-        "nextPrefixRef",
-        "runners",
-        "beforeParticipants",
-        "participants",
-        "lineup",
-        "rosterDigest",
-        "responsibility",
-        "nextResponsibility",
-        "playIdentity",
-        "sourcePosition",
-        "executionArtifactSha256"
-      ],
-      "additionalProperties": false
-    },
     "Success": {
       "type": "object",
       "properties": {
@@ -2296,14 +1974,506 @@
         "thirdOutObservation"
       ],
       "additionalProperties": false
+    },
+    "NonplaySource": {
+      "$ref": "https://pitchlog.example/contracts/state-transition/nonplay_prefix_bridge_schema_v1.json#/$defs/Source"
+    },
+    "NonplayRequest": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "const": "nonplay-continuation-v1"
+        },
+        "prefixRef": {
+          "$ref": "#/$defs/Checkpoint"
+        },
+        "rules": {
+          "$ref": "#/$defs/SavedRuleWire"
+        },
+        "t1": {
+          "$ref": "#/$defs/T1Input"
+        },
+        "source": {
+          "$ref": "#/$defs/NonplaySource"
+        },
+        "playIdentity": {
+          "$ref": "#/$defs/PlayIdentity"
+        },
+        "nextCheckpoint": {
+          "$ref": "#/$defs/Checkpoint"
+        },
+        "sourcePosition": {
+          "$ref": "#/$defs/Position"
+        }
+      },
+      "required": [
+        "version",
+        "prefixRef",
+        "rules",
+        "t1",
+        "source",
+        "playIdentity",
+        "nextCheckpoint",
+        "sourcePosition"
+      ],
+      "additionalProperties": false
+    },
+    "NonplayValue": {
+      "type": "object",
+      "properties": {
+        "t1": {
+          "$ref": "#/$defs/T1"
+        },
+        "t2": {
+          "$ref": "#/$defs/T2"
+        },
+        "newHistoryEntry": {
+          "$ref": "#/$defs/HistoryEntry"
+        },
+        "previousPrefixRef": {
+          "$ref": "#/$defs/Checkpoint"
+        },
+        "nextPrefixRef": {
+          "$ref": "#/$defs/Checkpoint"
+        },
+        "runners": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Runner"
+          }
+        },
+        "beforeParticipants": {
+          "$ref": "#/$defs/Participant"
+        },
+        "participants": {
+          "$ref": "#/$defs/Participant"
+        },
+        "lineup": {
+          "$ref": "#/$defs/Lineup"
+        },
+        "rosterDigest": {
+          "$ref": "#/$defs/Digest"
+        },
+        "responsibility": {
+          "$ref": "#/$defs/Responsibility"
+        },
+        "nextResponsibility": {
+          "$ref": "#/$defs/Responsibility"
+        },
+        "playIdentity": {
+          "$ref": "#/$defs/PlayIdentity"
+        },
+        "sourcePosition": {
+          "$ref": "#/$defs/Position"
+        },
+        "executionArtifactSha256": {
+          "$ref": "#/$defs/Digest"
+        }
+      },
+      "required": [
+        "t1",
+        "t2",
+        "newHistoryEntry",
+        "previousPrefixRef",
+        "nextPrefixRef",
+        "runners",
+        "beforeParticipants",
+        "participants",
+        "lineup",
+        "rosterDigest",
+        "responsibility",
+        "nextResponsibility",
+        "playIdentity",
+        "sourcePosition",
+        "executionArtifactSha256"
+      ],
+      "additionalProperties": false
+    },
+    "ContinuationSource": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/Source"
+        },
+        {
+          "$ref": "#/$defs/NonplaySource"
+        }
+      ]
+    },
+    "Source": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "started-initial-v3"
+            },
+            "prefixRef": {
+              "$ref": "#/$defs/PrefixRef"
+            },
+            "rules": {
+              "$ref": "#/$defs/SavedRuleWire"
+            },
+            "after": {
+              "$ref": "#/$defs/Snapshot"
+            },
+            "t2": {
+              "const": null
+            },
+            "historyDepth": {
+              "const": "0"
+            },
+            "playCount": {
+              "const": "0"
+            },
+            "lastSource": {
+              "const": null
+            },
+            "position": {
+              "$ref": "#/$defs/Position"
+            },
+            "priorArtifactSha256": {
+              "$ref": "#/$defs/Digest"
+            },
+            "executionArtifactSha256": {
+              "$ref": "#/$defs/Digest"
+            },
+            "rulesDigest": {
+              "$ref": "#/$defs/Digest"
+            },
+            "layoutDigest": {
+              "$ref": "#/$defs/Digest"
+            },
+            "rosterDigest": {
+              "$ref": "#/$defs/Digest"
+            },
+            "lineup": {
+              "$ref": "#/$defs/Lineup"
+            },
+            "runners": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Runner"
+              }
+            },
+            "participants": {
+              "$ref": "#/$defs/Participant"
+            },
+            "responsibility": {
+              "$ref": "#/$defs/Responsibility"
+            },
+            "provenance": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "started-game"
+                },
+                "eventId": {
+                  "$ref": "#/$defs/Uuid"
+                }
+              },
+              "required": [
+                "kind",
+                "eventId"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "kind",
+            "prefixRef",
+            "rules",
+            "after",
+            "t2",
+            "historyDepth",
+            "playCount",
+            "lastSource",
+            "position",
+            "priorArtifactSha256",
+            "executionArtifactSha256",
+            "rulesDigest",
+            "layoutDigest",
+            "rosterDigest",
+            "lineup",
+            "runners",
+            "participants",
+            "responsibility",
+            "provenance"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "enum": [
+                "evaluated-prefix-v3",
+                "locked-prefix-v3"
+              ]
+            },
+            "prefixRef": {
+              "$ref": "#/$defs/PrefixRef"
+            },
+            "rules": {
+              "$ref": "#/$defs/SavedRuleWire"
+            },
+            "after": {
+              "$ref": "#/$defs/Snapshot"
+            },
+            "t2": {
+              "$ref": "#/$defs/T2"
+            },
+            "historyDepth": {
+              "$ref": "#/$defs/Unsigned"
+            },
+            "playCount": {
+              "$ref": "#/$defs/Unsigned"
+            },
+            "lastSource": {
+              "$ref": "#/$defs/PlayIdentity"
+            },
+            "position": {
+              "$ref": "#/$defs/Position"
+            },
+            "priorArtifactSha256": {
+              "$ref": "#/$defs/Digest"
+            },
+            "executionArtifactSha256": {
+              "$ref": "#/$defs/Digest"
+            },
+            "rulesDigest": {
+              "$ref": "#/$defs/Digest"
+            },
+            "layoutDigest": {
+              "$ref": "#/$defs/Digest"
+            },
+            "rosterDigest": {
+              "$ref": "#/$defs/Digest"
+            },
+            "lineup": {
+              "$ref": "#/$defs/Lineup"
+            },
+            "runners": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Runner"
+              }
+            },
+            "participants": {
+              "$ref": "#/$defs/Participant"
+            },
+            "responsibility": {
+              "$ref": "#/$defs/Responsibility"
+            },
+            "provenance": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "confirmed-prefix"
+                },
+                "checkpoint": {
+                  "$ref": "#/$defs/Checkpoint"
+                },
+                "sourceIdentity": {
+                  "$ref": "#/$defs/PlayIdentity"
+                },
+                "historyDepth": {
+                  "$ref": "#/$defs/Unsigned"
+                }
+              },
+              "required": [
+                "kind",
+                "checkpoint",
+                "sourceIdentity",
+                "historyDepth"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "kind",
+            "prefixRef",
+            "rules",
+            "after",
+            "t2",
+            "historyDepth",
+            "playCount",
+            "lastSource",
+            "position",
+            "priorArtifactSha256",
+            "executionArtifactSha256",
+            "rulesDigest",
+            "layoutDigest",
+            "rosterDigest",
+            "lineup",
+            "runners",
+            "participants",
+            "responsibility",
+            "provenance"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "ContinuationRequest": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/Request"
+        },
+        {
+          "$ref": "#/$defs/NonplayRequest"
+        }
+      ]
+    },
+    "Request": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "const": "3"
+        },
+        "prefixRef": {
+          "$ref": "#/$defs/PrefixRef"
+        },
+        "rules": {
+          "$ref": "#/$defs/SavedRuleWire"
+        },
+        "t1": {
+          "$ref": "#/$defs/T1Input"
+        },
+        "source": {
+          "$ref": "#/$defs/Source"
+        },
+        "playIdentity": {
+          "$ref": "#/$defs/PlayIdentity"
+        },
+        "nextCheckpoint": {
+          "$ref": "#/$defs/Checkpoint"
+        }
+      },
+      "required": [
+        "version",
+        "prefixRef",
+        "rules",
+        "t1",
+        "source",
+        "playIdentity",
+        "nextCheckpoint"
+      ],
+      "additionalProperties": false
+    },
+    "ContinuationValue": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/Value"
+        },
+        {
+          "$ref": "#/$defs/NonplayValue"
+        }
+      ]
+    },
+    "Value": {
+      "type": "object",
+      "properties": {
+        "t1": {
+          "$ref": "#/$defs/T1"
+        },
+        "t2": {
+          "$ref": "#/$defs/T2"
+        },
+        "newHistoryEntry": {
+          "$ref": "#/$defs/HistoryEntry"
+        },
+        "previousPrefixRef": {
+          "$ref": "#/$defs/PrefixRef"
+        },
+        "nextPrefixRef": {
+          "$ref": "#/$defs/PrefixRef"
+        },
+        "runners": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Runner"
+          }
+        },
+        "beforeParticipants": {
+          "$ref": "#/$defs/Participant"
+        },
+        "participants": {
+          "$ref": "#/$defs/Participant"
+        },
+        "lineup": {
+          "$ref": "#/$defs/Lineup"
+        },
+        "rosterDigest": {
+          "$ref": "#/$defs/Digest"
+        },
+        "responsibility": {
+          "$ref": "#/$defs/Responsibility"
+        },
+        "nextResponsibility": {
+          "$ref": "#/$defs/Responsibility"
+        },
+        "playIdentity": {
+          "$ref": "#/$defs/PlayIdentity"
+        },
+        "sourcePosition": {
+          "$ref": "#/$defs/Position"
+        },
+        "executionArtifactSha256": {
+          "$ref": "#/$defs/Digest"
+        }
+      },
+      "required": [
+        "t1",
+        "t2",
+        "newHistoryEntry",
+        "previousPrefixRef",
+        "nextPrefixRef",
+        "runners",
+        "beforeParticipants",
+        "participants",
+        "lineup",
+        "rosterDigest",
+        "responsibility",
+        "nextResponsibility",
+        "playIdentity",
+        "sourcePosition",
+        "executionArtifactSha256"
+      ],
+      "additionalProperties": false
+    },
+    "NonplaySuccess": {
+      "type": "object",
+      "properties": {
+        "ok": {
+          "const": true
+        },
+        "value": {
+          "$ref": "#/$defs/NonplayValue"
+        }
+      },
+      "required": [
+        "ok",
+        "value"
+      ],
+      "additionalProperties": false
+    },
+    "ContinuationResponse": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/Response"
+        },
+        {
+          "$ref": "#/$defs/NonplaySuccess"
+        }
+      ]
     }
   },
   "oneOf": [
     {
-      "$ref": "#/$defs/Request"
+      "$ref": "#/$defs/ContinuationRequest"
     },
     {
-      "$ref": "#/$defs/Response"
+      "$ref": "#/$defs/ContinuationResponse"
     }
   ]
 }

@@ -240,19 +240,1062 @@ function runners(value: unknown, snapshot: Json): boolean {
   }
   return !bases.some(() => true)
 }
+
+/** 採用Source schemaの閉shapeだけを機械転記する。野球計算・期待caseは含まない。 */
+const nonplayShapes: Json = {
+  'np.Source': {
+    fields: {
+      formatVersion: { constant: 'nonplay-prefix-source-v1' },
+      checkpoint: { ref: 'np.Checkpoint' },
+      activeStack: { items: { ref: 'np.ActiveFrame' } },
+    },
+    required: ['formatVersion', 'checkpoint', 'activeStack'],
+  },
+  'np.Checkpoint': {
+    fields: {
+      formatVersion: { constant: 'nonplay-prefix-checkpoint-v1' },
+      ref: { ref: 'np.CheckpointRef' },
+      content: { ref: 'np.Content' },
+    },
+    required: ['formatVersion', 'ref', 'content'],
+  },
+  'np.CheckpointRef': {
+    fields: {
+      id: { ref: 'np.Uuid' },
+      revision: { ref: 'np.Positive' },
+      digest: { ref: 'np.Digest' },
+    },
+    required: ['id', 'revision', 'digest'],
+  },
+  'np.Uuid': { scalar: 'uuid' },
+  'np.Positive': { scalar: 'positive' },
+  'np.Digest': { scalar: 'digest' },
+  'np.Content': {
+    fields: {
+      scope: { ref: 'np.Scope' },
+      origin: {
+        fields: {
+          kind: { constant: 'started-game' },
+          eventId: { ref: 'np.Uuid' },
+        },
+        required: ['kind', 'eventId'],
+      },
+      d3: { ref: 'np.Unsigned' },
+      d1Head: { choices: [{ ref: 'np.D1Head' }, { type: 'null' }] },
+      projectionHead: { ref: 'np.ProjectionHead' },
+      activeHead: { choices: [{ ref: 'np.ActivePlay' }, { type: 'null' }] },
+      activeDepth: { ref: 'np.Unsigned' },
+      historyVersion: { ref: 'np.Unsigned' },
+      storageHistoryEpoch: { ref: 'np.Unsigned' },
+      nextPhysicalPlayNumber: { ref: 'np.Positive' },
+      executionArtifactSha256: { ref: 'np.Digest' },
+      restored: { ref: 'np.RestoreContext' },
+    },
+    required: [
+      'scope',
+      'origin',
+      'd3',
+      'd1Head',
+      'projectionHead',
+      'activeHead',
+      'activeDepth',
+      'historyVersion',
+      'storageHistoryEpoch',
+      'nextPhysicalPlayNumber',
+      'executionArtifactSha256',
+      'restored',
+    ],
+  },
+  'np.Scope': {
+    fields: {
+      tenantId: { ref: 'np.Uuid' },
+      gameId: { ref: 'np.Uuid' },
+      generation: { ref: 'np.Generation' },
+    },
+    required: ['tenantId', 'gameId', 'generation'],
+  },
+  'np.Generation': { scalar: 'generation' },
+  'np.Unsigned': { scalar: 'unsigned' },
+  'np.D1Head': {
+    fields: {
+      kind: { constant: 'accepted-event' },
+      source: { ref: 'np.EventSource' },
+    },
+    required: ['kind', 'source'],
+  },
+  'np.EventSource': {
+    fields: {
+      eventId: { ref: 'np.Uuid' },
+      gameId: { ref: 'np.Uuid' },
+      generation: { ref: 'np.Generation' },
+      d1: { ref: 'np.Positive' },
+      d5: { ref: 'np.Uuid' },
+      fingerprint: { ref: 'np.Fingerprint' },
+      eventKind: { values: ['play_input', 'undo'] },
+    },
+    required: [
+      'eventId',
+      'gameId',
+      'generation',
+      'd1',
+      'd5',
+      'fingerprint',
+      'eventKind',
+    ],
+  },
+  'np.Fingerprint': { scalar: 'fingerprint' },
+  'np.ProjectionHead': {
+    choices: [
+      {
+        fields: {
+          kind: { constant: 'started-game' },
+          eventId: { ref: 'np.Uuid' },
+        },
+        required: ['kind', 'eventId'],
+      },
+      {
+        fields: {
+          kind: { constant: 'd1-event' },
+          source: { ref: 'np.EventSource' },
+        },
+        required: ['kind', 'source'],
+      },
+    ],
+  },
+  'np.ActivePlay': {
+    fields: {
+      source: { ref: 'np.EventSource' },
+      playId: { ref: 'np.Uuid' },
+      d2: { ref: 'np.Unsigned' },
+      physicalPlayNumber: { ref: 'np.Positive' },
+    },
+    required: ['source', 'playId', 'd2', 'physicalPlayNumber'],
+  },
+  'np.RestoreContext': {
+    fields: {
+      current: { ref: 'np.Current' },
+      rules: { ref: 'lp.SavedRuleWire' },
+      rulesDigest: { ref: 'np.Digest' },
+      layoutDigest: { ref: 'np.Digest' },
+      rosterDigest: { ref: 'np.Digest' },
+      lineup: { ref: 'lp.Lineup' },
+      participants: { ref: 'lp.Participant' },
+      runners: { items: { ref: 'lp.Runner' } },
+      responsibility: { ref: 'lp.Responsibility' },
+      lastPlayEvaluation: { choices: [{ ref: 'lp.T2' }, { type: 'null' }] },
+    },
+    required: [
+      'current',
+      'rules',
+      'rulesDigest',
+      'layoutDigest',
+      'rosterDigest',
+      'lineup',
+      'participants',
+      'runners',
+      'responsibility',
+      'lastPlayEvaluation',
+    ],
+  },
+  'np.Current': {
+    fields: {
+      stateFields: { ref: 'un.StateFields' },
+      scoreboard: { ref: 'un.Scoreboard' },
+      battingOrderBySide: { ref: 'un.BattingOrderBySide' },
+    },
+    required: ['stateFields', 'scoreboard', 'battingOrderBySide'],
+  },
+  'un.StateFields': {
+    fields: {
+      'state.half': { values: ['top', 'bottom'] },
+      'state.count.strikes': { values: ['0', '1', '2'] },
+      'state.count.balls': { values: ['0', '1', '2', '3'] },
+      'state.outs': { values: ['0', '1', '2'] },
+      'state.runners': {
+        values: [
+          'empty',
+          'first',
+          'second',
+          'third',
+          'first-second',
+          'first-third',
+          'second-third',
+          'first-second-third',
+        ],
+      },
+      'state.battingOrder': {
+        values: ['1', '2', '3', '4', '5', '6', '7', '8', '9'],
+      },
+      'state.tiebreakActive': { type: 'boolean' },
+      'state.gameEnded': { type: 'boolean' },
+      'state.inning': { ref: 'un.CanonicalPositive' },
+      'state.score': { ref: 'un.Score' },
+    },
+    required: [
+      'state.half',
+      'state.count.strikes',
+      'state.count.balls',
+      'state.outs',
+      'state.runners',
+      'state.battingOrder',
+      'state.tiebreakActive',
+      'state.gameEnded',
+      'state.inning',
+      'state.score',
+    ],
+  },
+  'un.CanonicalPositive': { scalar: 'positive' },
+  'un.Score': {
+    fields: {
+      home: { ref: 'un.CanonicalUnsigned' },
+      away: { ref: 'un.CanonicalUnsigned' },
+    },
+    required: ['home', 'away'],
+  },
+  'un.CanonicalUnsigned': { scalar: 'unsigned' },
+  'un.Scoreboard': {
+    fields: {
+      inningScores: { ref: 'un.Score' },
+      hits: { ref: 'un.CanonicalUnsigned' },
+      errors: { ref: 'un.CanonicalUnsigned' },
+      strikeouts: { ref: 'un.CanonicalUnsigned' },
+      walks: { ref: 'un.CanonicalUnsigned' },
+    },
+    required: ['inningScores', 'hits', 'errors', 'strikeouts', 'walks'],
+  },
+  'un.BattingOrderBySide': {
+    fields: {
+      away: { values: ['1', '2', '3', '4', '5', '6', '7', '8', '9'] },
+      home: { values: ['1', '2', '3', '4', '5', '6', '7', '8', '9'] },
+    },
+    required: ['away', 'home'],
+  },
+  'lp.SavedRuleWire': {
+    fields: {
+      regulationInnings: { scalar: 'regulation-innings' },
+      coldConditions: {
+        items: {
+          fields: {
+            pointDifference: { scalar: 'regulation-innings' },
+            startInning: { scalar: 'regulation-innings' },
+          },
+          required: ['pointDifference', 'startInning'],
+        },
+        maxItems: '16',
+      },
+      extensionLimit: {
+        choices: [{ type: 'null' }, { scalar: 'regulation-innings' }],
+      },
+      tiebreak: {
+        choices: [
+          { type: 'null' },
+          {
+            fields: {
+              startInning: { scalar: 'regulation-innings' },
+              runnerPlacement: { type: 'string' },
+              leadoffRule: { type: 'string' },
+            },
+            required: ['startInning', 'runnerPlacement', 'leadoffRule'],
+          },
+        ],
+      },
+      dh: { type: 'boolean' },
+    },
+    required: [
+      'regulationInnings',
+      'coldConditions',
+      'extensionLimit',
+      'tiebreak',
+      'dh',
+    ],
+  },
+  'lp.Lineup': {
+    fields: { away: { ref: 'lp.LineupTeam' }, home: { ref: 'lp.LineupTeam' } },
+    required: ['away', 'home'],
+  },
+  'lp.LineupTeam': {
+    fields: {
+      teamId: { ref: 'lp.Uuid' },
+      battingOrder: {
+        fields: {
+          '1': { ref: 'lp.Uuid' },
+          '2': { ref: 'lp.Uuid' },
+          '3': { ref: 'lp.Uuid' },
+          '4': { ref: 'lp.Uuid' },
+          '5': { ref: 'lp.Uuid' },
+          '6': { ref: 'lp.Uuid' },
+          '7': { ref: 'lp.Uuid' },
+          '8': { ref: 'lp.Uuid' },
+          '9': { ref: 'lp.Uuid' },
+        },
+        required: ['1', '2', '3', '4', '5', '6', '7', '8', '9'],
+      },
+      pitcherId: { ref: 'lp.Uuid' },
+      catcherId: { ref: 'lp.Uuid' },
+    },
+    required: ['teamId', 'battingOrder', 'pitcherId', 'catcherId'],
+  },
+  'lp.Uuid': { scalar: 'uuid' },
+  'lp.Participant': {
+    fields: {
+      batterId: { ref: 'lp.Uuid' },
+      pitcherId: { ref: 'lp.Uuid' },
+      catcherId: { ref: 'lp.Uuid' },
+      battingOrder: { ref: 'lp.Slot' },
+    },
+    required: ['batterId', 'pitcherId', 'catcherId', 'battingOrder'],
+  },
+  'lp.Slot': { values: ['1', '2', '3', '4', '5', '6', '7', '8', '9'] },
+  'lp.Runner': {
+    fields: {
+      runnerId: { ref: 'lp.Uuid' },
+      responsiblePitcherId: { ref: 'lp.Uuid' },
+      base: { values: ['1', '2', '3'] },
+      status: { constant: '継続' },
+      statusSource: { constant: 'auto' },
+    },
+    required: [
+      'runnerId',
+      'responsiblePitcherId',
+      'base',
+      'status',
+      'statusSource',
+    ],
+  },
+  'lp.Responsibility': {
+    fields: {
+      kind: { constant: 'no-change' },
+      paStartSource: {
+        fields: {
+          kind: { values: ['started-game', 'confirmed-play'] },
+          id: { ref: 'lp.Uuid' },
+        },
+        required: ['kind', 'id'],
+      },
+      previousPitcherId: { constant: null },
+      strikesAtChange: { constant: null },
+      ballsAtChange: { constant: null },
+    },
+    required: [
+      'kind',
+      'paStartSource',
+      'previousPitcherId',
+      'strikesAtChange',
+      'ballsAtChange',
+    ],
+  },
+  'lp.T2': {
+    fields: {
+      kind: { constant: 'evaluated-end-condition' },
+      scope: { constant: 'play-prefix-v3' },
+      evaluation_point: { constant: 'post-play' },
+      facts: { ref: 'lp.BoundaryFacts' },
+      decision: { ref: 'lp.Decision' },
+      tiebreakStartRequired: { type: 'boolean' },
+    },
+    required: [
+      'kind',
+      'scope',
+      'evaluation_point',
+      'facts',
+      'decision',
+      'tiebreakStartRequired',
+    ],
+  },
+  'lp.BoundaryFacts': {
+    fields: {
+      beforeInning: { ref: 'lp.Positive' },
+      beforeHalf: { values: ['top', 'bottom'] },
+      beforeOuts: { values: ['0', '1', '2'] },
+      afterInning: { ref: 'lp.Positive' },
+      afterHalf: { values: ['top', 'bottom'] },
+      afterOuts: { values: ['0', '1', '2'] },
+      halfCompleted: { type: 'boolean' },
+      outsUnchanged: { type: 'boolean' },
+      scoreUnchanged: { type: 'boolean' },
+      priorOpen: { constant: true },
+    },
+    required: [
+      'beforeInning',
+      'beforeHalf',
+      'beforeOuts',
+      'afterInning',
+      'afterHalf',
+      'afterOuts',
+      'halfCompleted',
+      'outsUnchanged',
+      'scoreUnchanged',
+      'priorOpen',
+    ],
+  },
+  'lp.Positive': { scalar: 'positive' },
+  'lp.Decision': {
+    choices: [
+      {
+        fields: {
+          outcome: { constant: 'normal-end' },
+          endConditionDetected: { constant: true },
+          lockFurtherPlayInput: { constant: true },
+          promptEndDeclaration: { constant: true },
+          automaticallyEndsGame: { constant: false },
+          xMark: { constant: 'recorded-score' },
+        },
+        required: [
+          'outcome',
+          'endConditionDetected',
+          'lockFurtherPlayInput',
+          'promptEndDeclaration',
+          'automaticallyEndsGame',
+          'xMark',
+        ],
+      },
+      {
+        fields: {
+          outcome: { constant: 'extra-continue' },
+          endConditionDetected: { constant: false },
+          lockFurtherPlayInput: { constant: false },
+          promptEndDeclaration: { constant: false },
+          automaticallyEndsGame: { constant: false },
+          xMark: { constant: 'recorded-score' },
+        },
+        required: [
+          'outcome',
+          'endConditionDetected',
+          'lockFurtherPlayInput',
+          'promptEndDeclaration',
+          'automaticallyEndsGame',
+          'xMark',
+        ],
+      },
+      {
+        fields: {
+          outcome: { constant: 'limit-draw' },
+          endConditionDetected: { constant: true },
+          lockFurtherPlayInput: { constant: true },
+          promptEndDeclaration: { constant: true },
+          automaticallyEndsGame: { constant: false },
+          xMark: { constant: 'recorded-score' },
+        },
+        required: [
+          'outcome',
+          'endConditionDetected',
+          'lockFurtherPlayInput',
+          'promptEndDeclaration',
+          'automaticallyEndsGame',
+          'xMark',
+        ],
+      },
+      {
+        fields: {
+          outcome: { constant: 'tiebreak-continue' },
+          endConditionDetected: { constant: false },
+          lockFurtherPlayInput: { constant: false },
+          promptEndDeclaration: { constant: false },
+          automaticallyEndsGame: { constant: false },
+          xMark: { constant: 'recorded-score' },
+        },
+        required: [
+          'outcome',
+          'endConditionDetected',
+          'lockFurtherPlayInput',
+          'promptEndDeclaration',
+          'automaticallyEndsGame',
+          'xMark',
+        ],
+      },
+      {
+        fields: {
+          outcome: { constant: 'cold-end' },
+          endConditionDetected: { constant: true },
+          lockFurtherPlayInput: { constant: true },
+          promptEndDeclaration: { constant: true },
+          automaticallyEndsGame: { constant: false },
+          xMark: { constant: 'x-mark' },
+        },
+        required: [
+          'outcome',
+          'endConditionDetected',
+          'lockFurtherPlayInput',
+          'promptEndDeclaration',
+          'automaticallyEndsGame',
+          'xMark',
+        ],
+      },
+      {
+        fields: {
+          outcome: { constant: 'walk-off' },
+          endConditionDetected: { constant: true },
+          lockFurtherPlayInput: { constant: true },
+          promptEndDeclaration: { constant: true },
+          automaticallyEndsGame: { constant: false },
+          xMark: { constant: 'recorded-score' },
+        },
+        required: [
+          'outcome',
+          'endConditionDetected',
+          'lockFurtherPlayInput',
+          'promptEndDeclaration',
+          'automaticallyEndsGame',
+          'xMark',
+        ],
+      },
+      {
+        fields: {
+          outcome: { constant: 'normal-end' },
+          endConditionDetected: { constant: true },
+          lockFurtherPlayInput: { constant: true },
+          promptEndDeclaration: { constant: true },
+          automaticallyEndsGame: { constant: false },
+          xMark: { constant: 'x-mark' },
+        },
+        required: [
+          'outcome',
+          'endConditionDetected',
+          'lockFurtherPlayInput',
+          'promptEndDeclaration',
+          'automaticallyEndsGame',
+          'xMark',
+        ],
+      },
+      {
+        fields: {
+          outcome: { constant: 'no-end' },
+          endConditionDetected: { constant: false },
+          lockFurtherPlayInput: { constant: false },
+          promptEndDeclaration: { constant: false },
+          automaticallyEndsGame: { constant: false },
+          xMark: { constant: 'recorded-score' },
+        },
+        required: [
+          'outcome',
+          'endConditionDetected',
+          'lockFurtherPlayInput',
+          'promptEndDeclaration',
+          'automaticallyEndsGame',
+          'xMark',
+        ],
+      },
+      {
+        fields: {
+          outcome: { constant: 'cold-end' },
+          endConditionDetected: { constant: true },
+          lockFurtherPlayInput: { constant: true },
+          promptEndDeclaration: { constant: true },
+          automaticallyEndsGame: { constant: false },
+          xMark: { constant: 'recorded-score' },
+        },
+        required: [
+          'outcome',
+          'endConditionDetected',
+          'lockFurtherPlayInput',
+          'promptEndDeclaration',
+          'automaticallyEndsGame',
+          'xMark',
+        ],
+      },
+    ],
+  },
+  'np.ActiveFrame': {
+    fields: {
+      play: { ref: 'np.ActivePlay' },
+      historyEntry: { ref: 'un.HistoryEntry' },
+      beforeContext: { ref: 'np.RestoreContext' },
+      afterContext: { ref: 'np.RestoreContext' },
+    },
+    required: ['play', 'historyEntry', 'beforeContext', 'afterContext'],
+  },
+  'un.HistoryEntry': {
+    fields: {
+      kind: { constant: 'confirmed-play' },
+      difference: {
+        fields: {
+          stateFields: { ref: 'un.StateDifference' },
+          scoreboard: { ref: 'un.ScoreboardDifference' },
+          statFlags: { ref: 'un.StatFlags' },
+          battingOrderBySide: { ref: 'un.CursorDifference' },
+        },
+        required: ['stateFields', 'scoreboard', 'statFlags'],
+      },
+    },
+    required: ['kind', 'difference'],
+  },
+  'un.StateDifference': {
+    fields: {
+      'state.half': {
+        fields: {
+          before: { values: ['top', 'bottom'] },
+          after: { values: ['top', 'bottom'] },
+        },
+        required: ['before', 'after'],
+      },
+      'state.count.strikes': {
+        fields: {
+          before: { ref: 'un.CanonicalUnsigned' },
+          after: { ref: 'un.CanonicalUnsigned' },
+        },
+        required: ['before', 'after'],
+      },
+      'state.count.balls': {
+        fields: {
+          before: { ref: 'un.CanonicalUnsigned' },
+          after: { ref: 'un.CanonicalUnsigned' },
+        },
+        required: ['before', 'after'],
+      },
+      'state.outs': {
+        fields: {
+          before: { ref: 'un.CanonicalUnsigned' },
+          after: { ref: 'un.CanonicalUnsigned' },
+        },
+        required: ['before', 'after'],
+      },
+      'state.runners': {
+        fields: {
+          before: {
+            values: [
+              'empty',
+              'first',
+              'second',
+              'third',
+              'first-second',
+              'first-third',
+              'second-third',
+              'first-second-third',
+            ],
+          },
+          after: {
+            values: [
+              'empty',
+              'first',
+              'second',
+              'third',
+              'first-second',
+              'first-third',
+              'second-third',
+              'first-second-third',
+            ],
+          },
+        },
+        required: ['before', 'after'],
+      },
+      'state.battingOrder': {
+        fields: {
+          before: { ref: 'un.CanonicalUnsigned' },
+          after: { ref: 'un.CanonicalUnsigned' },
+        },
+        required: ['before', 'after'],
+      },
+      'state.tiebreakActive': {
+        fields: { before: { type: 'boolean' }, after: { type: 'boolean' } },
+        required: ['before', 'after'],
+      },
+      'state.gameEnded': {
+        fields: { before: { type: 'boolean' }, after: { type: 'boolean' } },
+        required: ['before', 'after'],
+      },
+      'state.inning': {
+        fields: {
+          before: { ref: 'un.CanonicalPositive' },
+          after: { ref: 'un.CanonicalPositive' },
+        },
+        required: ['before', 'after'],
+      },
+      'state.score': {
+        fields: { before: { ref: 'un.Score' }, after: { ref: 'un.Score' } },
+        required: ['before', 'after'],
+      },
+    },
+    required: [],
+  },
+  'un.ScoreboardDifference': {
+    fields: {
+      inningScores: {
+        fields: { before: { ref: 'un.Score' }, after: { ref: 'un.Score' } },
+        required: ['before', 'after'],
+      },
+      hits: {
+        fields: {
+          before: { ref: 'un.CanonicalUnsigned' },
+          after: { ref: 'un.CanonicalUnsigned' },
+        },
+        required: ['before', 'after'],
+      },
+      errors: {
+        fields: {
+          before: { ref: 'un.CanonicalUnsigned' },
+          after: { ref: 'un.CanonicalUnsigned' },
+        },
+        required: ['before', 'after'],
+      },
+      strikeouts: {
+        fields: {
+          before: { ref: 'un.CanonicalUnsigned' },
+          after: { ref: 'un.CanonicalUnsigned' },
+        },
+        required: ['before', 'after'],
+      },
+      walks: {
+        fields: {
+          before: { ref: 'un.CanonicalUnsigned' },
+          after: { ref: 'un.CanonicalUnsigned' },
+        },
+        required: ['before', 'after'],
+      },
+    },
+    required: [],
+  },
+  'un.StatFlags': {
+    fields: {
+      投球回算入アウト: { type: 'boolean' },
+      投球数: { type: 'boolean' },
+      奪三振: { type: 'boolean' },
+      与四球: { type: 'boolean' },
+      与死球: { type: 'boolean' },
+      被安打: { type: 'boolean' },
+      被本塁打: { type: 'boolean' },
+      失点: { type: 'boolean' },
+      失策: { type: 'boolean' },
+      打席: { type: 'boolean' },
+      打数: { type: 'boolean' },
+      安打: { type: 'boolean' },
+      本塁打: { type: 'boolean' },
+      塁打: { type: 'boolean' },
+      犠打: { type: 'boolean' },
+      犠飛: { type: 'boolean' },
+      四球: { type: 'boolean' },
+      死球: { type: 'boolean' },
+      三振: { type: 'boolean' },
+      打撃妨害出塁: { type: 'boolean' },
+      走塁妨害出塁: { type: 'boolean' },
+      得点: { type: 'boolean' },
+      打点: { type: 'boolean' },
+    },
+    required: [
+      '投球回算入アウト',
+      '投球数',
+      '奪三振',
+      '与四球',
+      '与死球',
+      '被安打',
+      '被本塁打',
+      '失点',
+      '失策',
+      '打席',
+      '打数',
+      '安打',
+      '本塁打',
+      '塁打',
+      '犠打',
+      '犠飛',
+      '四球',
+      '死球',
+      '三振',
+      '打撃妨害出塁',
+      '走塁妨害出塁',
+      '得点',
+      '打点',
+    ],
+  },
+  'un.CursorDifference': {
+    fields: {
+      away: {
+        fields: {
+          before: { values: ['1', '2', '3', '4', '5', '6', '7', '8', '9'] },
+          after: { values: ['1', '2', '3', '4', '5', '6', '7', '8', '9'] },
+        },
+        required: ['before', 'after'],
+      },
+      home: {
+        fields: {
+          before: { values: ['1', '2', '3', '4', '5', '6', '7', '8', '9'] },
+          after: { values: ['1', '2', '3', '4', '5', '6', '7', '8', '9'] },
+        },
+        required: ['before', 'after'],
+      },
+    },
+    required: [],
+  },
+}
+/** 任意深さ/桁数へ新capを設けず、正準scalarと閉memberだけを検査する。 */
+function nonplayFingerprint(value: unknown): boolean {
+  if (typeof value !== 'string') return false
+  if (digest(value)) return true
+  if (!value.startsWith('wire-v1:')) return false
+  let suffix = ''
+  let offset = 0n
+  for (const ch of value) {
+    if (offset >= 8n) suffix = suffix + ch
+    offset = offset + 1n
+  }
+  return digest(suffix)
+}
+function nonplayShape(value: unknown, shape: Json): boolean {
+  if (typeof shape.ref === 'string')
+    return nonplayShape(value, read(nonplayShapes, shape.ref) as Json)
+  if (Object.prototype.hasOwnProperty.call(shape, 'constant'))
+    return sameContinuationValue(value, shape.constant)
+  if (Array.isArray(shape.values))
+    return shape.values.some((v) => sameContinuationValue(v, value))
+  if (Array.isArray(shape.choices)) {
+    let matches = 0n
+    for (const choice of shape.choices)
+      if (nonplayShape(value, choice as Json)) matches = matches + 1n
+    return matches === 1n
+  }
+  if (typeof shape.scalar === 'string') {
+    if (shape.scalar === 'uuid') return canonicalContinuationUuid(value)
+    if (shape.scalar === 'digest') return digest(value)
+    if (shape.scalar === 'generation')
+      return canonicalContinuationGeneration(value)
+    if (shape.scalar === 'fingerprint') return nonplayFingerprint(value)
+    if (shape.scalar === 'signed')
+      return typeof value === 'string' && parseDecimalInteger(value) !== null
+    const n = unsigned(value)
+    if (shape.scalar === 'regulation-innings')
+      return n !== null && n >= 1n && n <= 99n
+    return n !== null && (shape.scalar !== 'positive' || n > 0n)
+  }
+  if (shape.type === 'null') return value === null
+  if (shape.type === 'boolean') return typeof value === 'boolean'
+  if (shape.type === 'string') return typeof value === 'string'
+  if (typeof shape.fields !== 'undefined') {
+    if (value === null || typeof value !== 'object' || Array.isArray(value))
+      return false
+    const fields = shape.fields as Json
+    const required = shape.required as Array<string>
+    const obj = value as Json
+    if (!required.every((k) => Object.prototype.hasOwnProperty.call(obj, k)))
+      return false
+    for (const pair of Object.entries(obj)) {
+      const key = pair.slice().shift() as string
+      const v = pair.slice().pop()
+      if (
+        !Object.prototype.hasOwnProperty.call(fields, key) ||
+        !nonplayShape(v, read(fields, key) as Json)
+      )
+        return false
+    }
+    return true
+  }
+  if (typeof shape.items !== 'undefined') {
+    if (!Array.isArray(value)) return false
+    let count = 0n
+    for (const v of value) {
+      if (!nonplayShape(v, shape.items as Json)) return false
+      count = count + 1n
+    }
+    let minimum: bigint | null = null
+    let maximum: bigint | null = null
+    if (typeof shape.minItems === 'string') minimum = unsigned(shape.minItems)
+    if (typeof shape.maxItems === 'string') maximum = unsigned(shape.maxItems)
+    return (
+      (minimum === null || count >= minimum) &&
+      (maximum === null || count <= maximum)
+    )
+  }
+  return false
+}
+/** 保存全before/after面との観測比較だけを行い、逆計算を複製しない。 */
+function nonplayHistoryMatches(frame: Json): boolean {
+  const before = (frame.beforeContext as Json).current as Json
+  const after = (frame.afterContext as Json).current as Json
+  const difference = (frame.historyEntry as Json).difference as Json
+  for (const key of ['stateFields', 'scoreboard', 'battingOrderBySide']) {
+    const b = read(before, key) as Json
+    const a = read(after, key) as Json
+    const changes = read(difference, key) as Json | null
+    for (const pair of Object.entries(b)) {
+      const field = pair.slice().shift() as string
+      const old = pair.slice().pop()
+      let span: Json | null = null
+      if (changes !== null) span = read(changes, field) as Json | null
+      if (span === null) {
+        if (!sameContinuationValue(old, read(a, field))) return false
+      } else if (
+        !sameContinuationValue(span.before, old) ||
+        !sameContinuationValue(span.after, read(a, field))
+      )
+        return false
+    }
+  }
+  return true
+}
+/** 三headはそのまま保ち、旧v3/startedへ偽装せず共通計算に必要なviewだけを取る。 */
+function nonplayView(value: unknown, suppliedPosition: unknown): Json | null {
+  if (!nonplayShape(value, read(nonplayShapes, 'np.Source') as Json))
+    return null
+  const s = value as Json
+  const cp = s.checkpoint as Json
+  const c = cp.content as Json
+  const restored = c.restored as Json
+  const stack = s.activeStack as Array<Json>
+  const pos = object(suppliedPosition, ['d1', 'd2', 'appliedWatermark'])
+  const d3 = unsigned(c.d3)
+  let depth = 0n
+  let previous: Json | null = null
+  for (const frame of stack) {
+    depth = depth + 1n
+    if (!nonplayHistoryMatches(frame)) return null
+    const play = frame.play as Json
+    const event = play.source as Json
+    const scope = c.scope as Json
+    const eventD1 = unsigned(event.d1)
+    const physical = unsigned(play.physicalPlayNumber)
+    const nextPhysical = unsigned(c.nextPhysicalPlayNumber)
+    if (
+      event.gameId !== scope.gameId ||
+      event.eventKind !== 'play_input' ||
+      eventD1 === null ||
+      physical === null ||
+      nextPhysical === null ||
+      d3 === null ||
+      (event.generation === scope.generation && eventD1 > d3) ||
+      physical >= nextPhysical
+    )
+      return null
+    if (previous !== null) {
+      const newer = previous.play as Json
+      const newerD1 = unsigned((newer.source as Json).d1)
+      const d2 = unsigned(play.d2)
+      const newerD2 = unsigned(newer.d2)
+      const newerPhysical = unsigned(newer.physicalPlayNumber)
+      if (
+        newerD1 === null ||
+        d2 === null ||
+        newerD2 === null ||
+        newerPhysical === null
+      )
+        return null
+      if (
+        (event.generation === (newer.source as Json).generation &&
+          eventD1 >= newerD1) ||
+        d2 >= newerD2 ||
+        physical >= newerPhysical
+      )
+        return null
+    }
+    if (
+      previous !== null &&
+      !sameContinuationValue(previous.beforeContext, frame.afterContext)
+    )
+      return null
+    previous = frame
+  }
+  const first = stack.slice().shift()
+  let headMismatch = c.activeHead !== null
+  if (typeof first !== 'undefined')
+    headMismatch = !sameContinuationValue(c.activeHead, first.play)
+  if (
+    d3 === null ||
+    unsigned(c.activeDepth) !== depth ||
+    headMismatch ||
+    (typeof first !== 'undefined' &&
+      !sameContinuationValue(c.restored, first.afterContext)) ||
+    pos === null ||
+    unsigned(pos.d1) !== d3 + 1n ||
+    unsigned(pos.appliedWatermark) !== d3 ||
+    unsigned(pos.d2) === null ||
+    unsigned(pos.d2) === 0n
+  )
+    return null
+  const scope = c.scope as Json
+  const head = c.d1Head as Json | null
+  const projection = c.projectionHead as Json
+  if (d3 === 0n) {
+    if (head !== null) return null
+  } else if (
+    head === null ||
+    unsigned((head.source as Json).d1) !== d3 ||
+    (head.source as Json).gameId !== scope.gameId ||
+    (head.source as Json).generation !== scope.generation
+  )
+    return null
+  if (projection.kind === 'started-game') {
+    if (projection.eventId !== (c.origin as Json).eventId || depth !== 0n)
+      return null
+  } else {
+    const projected = projection.source as Json
+    const projectionD1 = unsigned(projected.d1)
+    if (
+      projected.gameId !== scope.gameId ||
+      projectionD1 === null ||
+      (projected.generation === scope.generation && projectionD1 > d3)
+    )
+      return null
+    if (
+      head !== null &&
+      projected.eventId === (head.source as Json).eventId &&
+      !sameContinuationValue(projected, head.source)
+    )
+      return null
+  }
+  if (typeof first !== 'undefined' && head !== null) {
+    const activeSource = (first.play as Json).source as Json
+    if (
+      activeSource.eventId === (head.source as Json).eventId &&
+      !sameContinuationValue(activeSource, head.source)
+    )
+      return null
+  }
+  // 同世代文字列や単純なD2大小は真正連結/全物理末尾の証明ではない。SQLが再照合する。
+  return {
+    kind: 'nonplay-prefix-source-v1',
+    after: restored.current,
+    rules: restored.rules,
+    lineup: restored.lineup,
+    runners: restored.runners,
+    participants: restored.participants,
+    responsibility: restored.responsibility,
+    t2: restored.lastPlayEvaluation,
+    historyDepth: c.activeDepth,
+    playCount: c.activeDepth,
+    historyVersion: c.historyVersion,
+    position: pos,
+    rulesDigest: restored.rulesDigest,
+    layoutDigest: restored.layoutDigest,
+    rosterDigest: restored.rosterDigest,
+    executionArtifactSha256: c.executionArtifactSha256,
+    priorArtifactSha256: c.executionArtifactSha256,
+    checkpoint: cp.ref,
+  }
+}
+
 /** 未信頼提案の相関だけを検査する。DB真正資格はsource verifierが別に確認する。 */
 export function prepareLineupContinuation(raw: string): Prepared {
-  const r = object(JSON.parse(raw), [
-    'version',
-    'prefixRef',
-    'rules',
-    't1',
-    'source',
-    'playIdentity',
-    'nextCheckpoint',
-  ])
-  if (r === null || r.version !== '3') return reject('INVALID_REQUEST')
-  const ref = prefix(r.prefixRef)
+  const decoded = JSON.parse(raw)
+  const r =
+    object(decoded, [
+      'version',
+      'prefixRef',
+      'rules',
+      't1',
+      'source',
+      'playIdentity',
+      'nextCheckpoint',
+    ]) ??
+    object(decoded, [
+      'version',
+      'prefixRef',
+      'rules',
+      't1',
+      'source',
+      'playIdentity',
+      'nextCheckpoint',
+      'sourcePosition',
+    ])
+  if (
+    r === null ||
+    !['3', 'nonplay-continuation-v1'].includes(r.version as string)
+  )
+    return reject('INVALID_REQUEST')
+  const nonplay = r.version === 'nonplay-continuation-v1'
+  if (
+    (!nonplay && Object.prototype.hasOwnProperty.call(r, 'sourcePosition')) ||
+    (nonplay && !Object.prototype.hasOwnProperty.call(r, 'sourcePosition'))
+  )
+    return reject('INVALID_REQUEST')
+  let ref = prefix(r.prefixRef)
+  if (nonplay) ref = checkpoint(r.prefixRef)
   const next = checkpoint(r.nextCheckpoint)
   const ordinaryInput = object(r.t1, [
     'eventKind',
@@ -283,7 +1326,7 @@ export function prepareLineupContinuation(raw: string): Prepared {
     ].includes(ordinaryInput.resultId)
   )
     return reject('INVALID_REQUEST')
-  const s = object(r.source, [
+  let s = object(r.source, [
     'kind',
     'prefixRef',
     'rules',
@@ -304,6 +1347,12 @@ export function prepareLineupContinuation(raw: string): Prepared {
     'responsibility',
     'provenance',
   ])
+  if (nonplay) {
+    if (!nonplayShape(r.source, read(nonplayShapes, 'np.Source') as Json))
+      return reject('INVALID_REQUEST')
+    s = nonplayView(r.source, r.sourcePosition)
+    if (s === null) return reject('PREFIX_SOURCE_MISMATCH')
+  }
   if (
     ref === null ||
     next === null ||
@@ -351,11 +1400,14 @@ export function prepareLineupContinuation(raw: string): Prepared {
     return reject('INVALID_REQUEST')
   let active = cursors.away
   if (read(fields, 'state.half') === 'bottom') active = cursors.home
-  const cp = ref.checkpoint as Json
+  let cp = ref.checkpoint as Json
+  if (nonplay) cp = ref
+  let refMatches = sameContinuationValue(s.prefixRef, ref)
+  if (nonplay) refMatches = sameContinuationValue(s.checkpoint, ref)
   const revision = unsigned(cp.revision)
   const applied = unsigned(pos.appliedWatermark)
   if (
-    !sameContinuationValue(s.prefixRef, ref) ||
+    !refMatches ||
     !sameContinuationValue(s.rules, r.rules) ||
     !sameContinuationValue(before, input.before) ||
     !sameContinuationValue(s.participants, participant(before, l)) ||
@@ -364,12 +1416,12 @@ export function prepareLineupContinuation(raw: string): Prepared {
       read(fields, 'state.score'),
       (before.scoreboard as Json).inningScores,
     ) ||
-    s.historyDepth !== ref.length ||
-    s.playCount !== ref.length ||
+    (!nonplay &&
+      (s.historyDepth !== ref.length || s.playCount !== ref.length)) ||
     applied === null ||
     unsigned(pos.d1) !== applied + 1n ||
     unsigned(pos.d2) === 0n ||
-    s.rosterDigest !== s.layoutDigest ||
+    (!nonplay && s.rosterDigest !== s.layoutDigest) ||
     revision === null ||
     unsigned(next.revision) !== revision + 1n ||
     next.id === cp.id ||
@@ -377,7 +1429,31 @@ export function prepareLineupContinuation(raw: string): Prepared {
   )
     return reject('PREFIX_SOURCE_MISMATCH')
   const provenance = s.provenance as Json
-  if (s.kind === 'started-initial-v3') {
+  if (nonplay) {
+    if (s.kind !== 'nonplay-prefix-source-v1')
+      return reject('PREFIX_SOURCE_MISMATCH')
+    if (s.t2 !== null) {
+      const prior = s.t2 as Json
+      const d = prior.decision as Json
+      const f = prior.facts as Json
+      if (
+        prior.tiebreakStartRequired !== false ||
+        d.endConditionDetected !== false ||
+        d.lockFurtherPlayInput !== false ||
+        d.promptEndDeclaration !== false ||
+        d.automaticallyEndsGame !== false ||
+        d.xMark !== 'recorded-score' ||
+        !['no-end', 'extra-continue', 'tiebreak-continue'].includes(
+          d.outcome as string,
+        ) ||
+        f.afterInning !== read(fields, 'state.inning') ||
+        f.afterHalf !== read(fields, 'state.half') ||
+        f.afterOuts !== read(fields, 'state.outs') ||
+        f.priorOpen !== true
+      )
+        return reject('PREFIX_SOURCE_MISMATCH')
+    }
+  } else if (s.kind === 'started-initial-v3') {
     const p = object(provenance, ['kind', 'eventId'])
     const origin = ref.origin as Json
     const pa = resp.paStartSource as Json
@@ -491,7 +1567,7 @@ export function prepareLineupContinuation(raw: string): Prepared {
     )
       return reject('PREFIX_SOURCE_MISMATCH')
   } else return reject('PREFIX_SOURCE_MISMATCH')
-  if (s.kind === 'evaluated-prefix-v3') {
+  if (s.kind === 'evaluated-prefix-v3' || (nonplay && s.t2 !== null)) {
     const prior = s.t2 as Json
     const facts = prior.facts as Json
     const score = read(fields, 'state.score') as Json
@@ -562,7 +1638,13 @@ export function finishLineupContinuation(r: Json, raw: string): string {
   if (response.ok !== true) return raw
   const value = response.value as Json
   const input = r.t1 as Json
-  const source = r.source as Json
+  const nonplay = r.version === 'nonplay-continuation-v1'
+  let source = r.source as Json
+  if (nonplay) {
+    const view = nonplayView(r.source, r.sourcePosition)
+    if (view === null) return failure('PREFIX_SOURCE_MISMATCH')
+    source = view
+  }
   const before = input.before as Json
   const after = value.after as Json
   const bf = before.stateFields as Json
@@ -668,10 +1750,20 @@ export function finishLineupContinuation(r: Json, raw: string): string {
       ballsAtChange: null,
     }
   const ref = r.prefixRef as Json
-  const length = unsigned(ref.length)
-  const history = unsigned(ref.historyVersion)
+  let length = unsigned(ref.length)
+  let history = unsigned(ref.historyVersion)
+  if (nonplay) {
+    length = unsigned(source.historyDepth)
+    history = unsigned(source.historyVersion)
+  }
   if (length === null || history === null)
     return failure('PREFIX_SOURCE_MISMATCH')
+  let nextRef: Json = Object.assign({}, ref, {
+    length: formatDecimalInteger(length + 1n),
+    historyVersion: formatDecimalInteger(history + 1n),
+    checkpoint: r.nextCheckpoint,
+  })
+  if (nonplay) nextRef = r.nextCheckpoint as Json
   return JSON.stringify({
     ok: true,
     value: {
@@ -687,11 +1779,7 @@ export function finishLineupContinuation(r: Json, raw: string): string {
       t2: t2,
       newHistoryEntry: entry,
       previousPrefixRef: ref,
-      nextPrefixRef: Object.assign({}, ref, {
-        length: formatDecimalInteger(length + 1n),
-        historyVersion: formatDecimalInteger(history + 1n),
-        checkpoint: r.nextCheckpoint,
-      }),
+      nextPrefixRef: nextRef,
       runners: nextRunners,
       beforeParticipants: source.participants,
       participants: nextPeople,

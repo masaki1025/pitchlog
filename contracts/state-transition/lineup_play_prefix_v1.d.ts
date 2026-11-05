@@ -41,3 +41,14 @@ export type Value = Readonly<{readonly "t1": T1; readonly "t2": T2; readonly "ne
 export type Success = Readonly<{readonly "ok": true; readonly "value": Value}>;
 export type Failure = Readonly<{readonly "ok": false; readonly "error": Readonly<{readonly "code": ("INVALID_JSON" | "INVALID_REQUEST" | "INVALID_DECIMAL_INTEGER" | "UNSUPPORTED_T1_SCOPE" | "T2_NOT_EVALUATED" | "PREFIX_SOURCE_MISMATCH")}>}>;
 export type Response = (Success | Failure);
+
+/** 新Sourceは既採用3head wireをそのまま保持し、v3/startedへ偽装しない。 */
+import type { Source as NonplayPrefixSource } from './nonplay_prefix_bridge_v1';
+export type ContinuationSource = Source | NonplayPrefixSource;
+/** sourcePositionは実allocatorの提案値、nextCheckpointは保存成功を意味しない。 */
+export type NonplayRequest = Readonly<{version:'nonplay-continuation-v1';prefixRef:Checkpoint;rules:SavedRuleWire;t1:T1Input;source:NonplayPrefixSource;playIdentity:PlayIdentity;nextCheckpoint:Checkpoint;sourcePosition:Position}>;
+export type ContinuationRequest = Request | NonplayRequest;
+export type NonplayValue = Omit<Value,'previousPrefixRef'|'nextPrefixRef'> & Readonly<{previousPrefixRef:Checkpoint;nextPrefixRef:Checkpoint}>;
+export type ContinuationValue = Value | NonplayValue;
+export type NonplaySuccess = Readonly<{ok:true;value:NonplayValue}>;
+export type ContinuationResponse = Response | NonplaySuccess;

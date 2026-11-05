@@ -307,3 +307,393 @@ def test_prior_boundary_innings_are_positive_in_request_and_response():
         response["value"]["t2"]["facts"][field] = "0"
         with pytest.raises(caller.LineupPrefixProtocolError):
             caller.decode_lineup_prefix_response(json.dumps(response))
+
+
+def _nonplay_request(index, linked=False):
+    """旧構造手例へ有効名簿を明示派生し、6状態/三headは保持する。"""
+    bridge = json.loads(
+        (
+            ROOT / "contracts/state-transition/nonplay_prefix_bridge_cases_v1.json"
+        ).read_text()
+    )
+    source = copy.deepcopy(
+        bridge["crossGenerationCase"]["source"]
+        if linked
+        else bridge["steps"][index]["source"]
+    )
+    valid = CASES[0]["request"]["source"]
+    contexts = [source["checkpoint"]["content"]["restored"]]
+    for frame in source["activeStack"]:
+        contexts.extend([frame["beforeContext"], frame["afterContext"]])
+    for context in contexts:
+        for key in ("rules", "lineup", "participants"):
+            context[key] = copy.deepcopy(valid[key])
+        context["rulesDigest"] = hashlib.sha256(
+            json.dumps(
+                context["rules"],
+                ensure_ascii=False,
+                sort_keys=True,
+                separators=(",", ":"),
+                allow_nan=False,
+            ).encode()
+        ).hexdigest()
+        context["layoutDigest"] = hashlib.sha256(
+            json.dumps(
+                context["lineup"],
+                ensure_ascii=False,
+                sort_keys=True,
+                separators=(",", ":"),
+                allow_nan=False,
+            ).encode()
+        ).hexdigest()
+        context["rosterDigest"] = context["layoutDigest"]
+    c = source["checkpoint"]["content"]
+    c["executionArtifactSha256"] = ACTUAL
+    cp = source["checkpoint"]["ref"]
+    cp["digest"] = hashlib.sha256(
+        json.dumps(
+            c,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+            allow_nan=False,
+        ).encode()
+    ).hexdigest()
+    return {
+        "version": "nonplay-continuation-v1",
+        "prefixRef": copy.deepcopy(cp),
+        "rules": copy.deepcopy(c["restored"]["rules"]),
+        "t1": {
+            "eventKind": "batting-result",
+            "resultId": "batting-result.ball",
+            "pitchEventKind": "pitch-event",
+            "before": copy.deepcopy(c["restored"]["current"]),
+        },
+        "source": source,
+        "playIdentity": {
+            "eventId": "00000000-0000-4000-8000-0000000008a1",
+            "d5": "00000000-0000-4000-8000-0000000008a2",
+            "playId": "00000000-0000-4000-8000-0000000008a3",
+        },
+        "nextCheckpoint": {
+            "id": "00000000-0000-4000-8000-0000000008a4",
+            "revision": str(int(cp["revision"]) + 1),
+            "digest": "f" * 64,
+        },
+        "sourcePosition": {
+            "d1": str(int(c["d3"]) + 1),
+            "d2": "3072",
+            "appliedWatermark": c["d3"],
+        },
+    }
+
+
+def _nonplay_expected(r, called=False):
+    """球数の手導出だけを期待へ置き、製品計算出力を採取しない。"""
+    c = r["source"]["checkpoint"]["content"]["restored"]
+    before = c["current"]
+    field = "state.count.strikes" if called else "state.count.balls"
+    old = before["stateFields"][field]
+    new = {"0": "1", "1": "2", "2": "3"}[old]
+    after = copy.deepcopy(before)
+    after["stateFields"][field] = new
+    bridge = json.loads(
+        (
+            ROOT / "contracts/state-transition/nonplay_prefix_bridge_cases_v1.json"
+        ).read_text()
+    )
+    flags = bridge["steps"][1]["event"]["state_diff"]["difference"]["statFlags"]
+    decision = {
+        "outcome": "no-end",
+        "endConditionDetected": False,
+        "lockFurtherPlayInput": False,
+        "promptEndDeclaration": False,
+        "automaticallyEndsGame": False,
+        "xMark": "recorded-score",
+    }
+    return {
+        "ok": True,
+        "value": {
+            "t1": {
+                "countEffect": {
+                    "strikes": (
+                        {"kind": "delta", "value": "1"}
+                        if called
+                        else {"kind": "unchanged"}
+                    ),
+                    "balls": (
+                        {"kind": "unchanged"}
+                        if called
+                        else {"kind": "delta", "value": "1"}
+                    ),
+                },
+                "plateAppearanceEnded": False,
+                "batterDestination": {"kind": "continue"},
+                "runnerDefaultAdvance": {
+                    base: {"modality": "not-applicable", "destination": None}
+                    for base in ["first", "second", "third"]
+                },
+                "outEffect": {"count": "0", "targets": []},
+                "statFlags": flags,
+                "after": after,
+            },
+            "t2": {
+                "kind": "evaluated-end-condition",
+                "scope": "play-prefix-v3",
+                "evaluation_point": "post-play",
+                "facts": {
+                    "beforeInning": "1",
+                    "beforeHalf": "top",
+                    "beforeOuts": "0",
+                    "afterInning": "1",
+                    "afterHalf": "top",
+                    "afterOuts": "0",
+                    "halfCompleted": False,
+                    "outsUnchanged": True,
+                    "scoreUnchanged": True,
+                    "priorOpen": True,
+                },
+                "decision": decision,
+                "tiebreakStartRequired": False,
+            },
+            "newHistoryEntry": {
+                "kind": "confirmed-play",
+                "difference": {
+                    "stateFields": {field: {"before": old, "after": new}},
+                    "scoreboard": {},
+                    "statFlags": flags,
+                    "battingOrderBySide": {},
+                },
+            },
+            "previousPrefixRef": r["prefixRef"],
+            "nextPrefixRef": r["nextCheckpoint"],
+            "runners": c["runners"],
+            "beforeParticipants": c["participants"],
+            "participants": c["participants"],
+            "lineup": c["lineup"],
+            "rosterDigest": c["rosterDigest"],
+            "responsibility": c["responsibility"],
+            "nextResponsibility": c["responsibility"],
+            "playIdentity": r["playIdentity"],
+            "sourcePosition": r["sourcePosition"],
+            "executionArtifactSha256": ACTUAL,
+        },
+    }
+
+
+@pytest.mark.parametrize("index", range(6))
+def test_nonplay_six_actual_host_responses(index):
+    """実同一artifactで三head/空activeを保持した全応答を照合する。"""
+    r = _nonplay_request(index)
+    saved = copy.deepcopy(r)
+    request = caller.decode_nonplay_lineup_prefix_request(json.dumps(r))
+    response = caller.evaluate_nonplay_lineup_prefix_continuation(request)
+    assert response.model_dump(
+        mode="json", by_alias=True, exclude_unset=True
+    ) == _nonplay_expected(r)
+    assert r == saved
+
+
+def test_nonplay_host_one_call_immutable_and_failure_propagation(monkeypatch):
+    """本物一回hostと不変型を確認し、host故障を内容拒否へ変換しない。"""
+    from contextlib import nullcontext
+
+    r = _nonplay_request(4)
+    request = caller.decode_nonplay_lineup_prefix_request(json.dumps(r))
+    with pytest.raises(ValidationError):
+        setattr(request.source.checkpoint.content, "d3", "0")
+    calls = []
+    with open_domain_host() as host:
+        original = host.call
+
+        def counted(operation, raw):
+            calls.append(operation)
+            return original(operation, raw)
+
+        monkeypatch.setattr(host, "call", counted)
+        monkeypatch.setattr(caller, "open_domain_host", lambda: nullcontext(host))
+        response = caller.evaluate_nonplay_lineup_prefix_continuation(request)
+        assert response.model_dump(
+            mode="json", by_alias=True, exclude_unset=True
+        ) == _nonplay_expected(r)
+    assert calls == ["deriveLineupPlayPrefixWithContinuation"]
+
+    def failed():
+        raise RuntimeError("owned nonplay host unavailable")
+
+    monkeypatch.setattr(caller, "open_domain_host", failed)
+    with pytest.raises(RuntimeError, match="owned nonplay host unavailable"):
+        caller.evaluate_nonplay_lineup_prefix_continuation(request)
+
+
+def test_nonplay_closed_decoder_and_exact_flags():
+    """余剰/重複/非有限/全23数値flag/旧参照混在を拒否する。"""
+    r = _nonplay_request(4)
+    for target in [r, r["source"], r["source"]["checkpoint"]["content"]]:
+        target["unknown"] = True
+        with pytest.raises(caller.LineupPrefixProtocolError):
+            caller.decode_nonplay_lineup_prefix_request(json.dumps(r))
+        del target["unknown"]
+    for bad in [
+        '{"version":"nonplay-continuation-v1","version":"nonplay-continuation-v1"}',
+        '{"x":NaN}',
+    ]:
+        with pytest.raises(caller.LineupPrefixProtocolError):
+            caller.decode_nonplay_lineup_prefix_request(bad)
+    expected = _nonplay_expected(r)
+    for key, value in expected["value"]["t1"]["statFlags"].items():
+        bad = copy.deepcopy(expected)
+        bad["value"]["t1"]["statFlags"][key] = int(value)
+        with pytest.raises(caller.LineupPrefixProtocolError):
+            caller.decode_nonplay_lineup_prefix_response(json.dumps(bad))
+    bad = copy.deepcopy(expected)
+    bad["value"]["nextPrefixRef"] = CASES[0]["expected"]["value"]["nextPrefixRef"]
+    with pytest.raises(caller.LineupPrefixProtocolError):
+        caller.decode_nonplay_lineup_prefix_response(json.dumps(bad))
+
+
+def test_nonplay_actual_execution_hash_is_checked_before_host_call(monkeypatch):
+    """Source文字列の自己宣言を実loaded artifactと照合し、相違を実行しない。"""
+    from contextlib import nullcontext
+
+    wire = _nonplay_request(4)
+    wire["source"]["checkpoint"]["content"]["executionArtifactSha256"] = "0" * 64
+    request = caller.decode_nonplay_lineup_prefix_request(json.dumps(wire))
+    calls = []
+    with open_domain_host() as host:
+        original = host.call
+
+        def observed(operation, raw):
+            calls.append(operation)
+            return original(operation, raw)
+
+        monkeypatch.setattr(host, "call", observed)
+        monkeypatch.setattr(caller, "open_domain_host", lambda: nullcontext(host))
+        with pytest.raises(caller.LineupPrefixProtocolError):
+            caller.evaluate_nonplay_lineup_prefix_continuation(request)
+    assert calls == []
+
+
+def test_nonplay_real_host_call_failure_is_not_a_content_rejection(monkeypatch):
+    """生成hostは真正のままcall障害を伝播し、False応答にしない。"""
+    from contextlib import nullcontext
+
+    request = caller.decode_nonplay_lineup_prefix_request(
+        json.dumps(_nonplay_request(4))
+    )
+    calls = []
+    with open_domain_host() as host:
+
+        def failed(operation, raw):
+            calls.append(operation)
+            raise RuntimeError("owned nonplay call unavailable")
+
+        monkeypatch.setattr(host, "call", failed)
+        monkeypatch.setattr(caller, "open_domain_host", lambda: nullcontext(host))
+        with pytest.raises(RuntimeError, match="owned nonplay call unavailable"):
+            caller.evaluate_nonplay_lineup_prefix_continuation(request)
+    assert calls == ["deriveLineupPlayPrefixWithContinuation"]
+
+
+def test_nonplay_linked_prior_generation_active_is_not_initial_zero():
+    """ownD3=0でも世代連結済みprior activeを消さず実hostに渡す。"""
+    wire = _nonplay_request(2, linked=True)
+    content = wire["source"]["checkpoint"]["content"]
+    assert content["d3"] == "0" and content["activeDepth"] == "2"
+    assert content["scope"]["generation"] == "2" and content["d1Head"] is None
+    request = caller.decode_nonplay_lineup_prefix_request(json.dumps(wire))
+    response = caller.evaluate_nonplay_lineup_prefix_continuation(request)
+    assert response.model_dump(
+        mode="json", by_alias=True, exclude_unset=True
+    ) == _nonplay_expected(wire)
+
+
+def test_nonplay_mixed_generation_two_actual_operations_continue_from_real_output():
+    """実after/履歴をそのまま次Sourceへ積み、世代2D1=1の後にも続ける。"""
+    wire = _nonplay_request(2, linked=True)
+    first = caller.evaluate_nonplay_lineup_prefix_continuation(
+        caller.decode_nonplay_lineup_prefix_request(json.dumps(wire))
+    )
+    actual = first.model_dump(mode="json", by_alias=True, exclude_unset=True)
+    assert actual == _nonplay_expected(wire)
+    value = actual["value"]
+    content = wire["source"]["checkpoint"]["content"]
+    before = copy.deepcopy(content["restored"])
+    after = copy.deepcopy(before)
+    after.update(
+        current=copy.deepcopy(value["t1"]["after"]),
+        participants=copy.deepcopy(value["participants"]),
+        runners=copy.deepcopy(value["runners"]),
+        responsibility=copy.deepcopy(value["nextResponsibility"]),
+        lastPlayEvaluation=copy.deepcopy(value["t2"]),
+    )
+    event = {
+        "eventId": wire["playIdentity"]["eventId"],
+        "gameId": content["scope"]["gameId"],
+        "generation": content["scope"]["generation"],
+        "d1": wire["sourcePosition"]["d1"],
+        "d5": wire["playIdentity"]["d5"],
+        "fingerprint": "wire-v1:" + "b" * 64,
+        "eventKind": "play_input",
+    }
+    play = {
+        "source": event,
+        "playId": wire["playIdentity"]["playId"],
+        "d2": wire["sourcePosition"]["d2"],
+        "physicalPlayNumber": content["nextPhysicalPlayNumber"],
+    }
+    wire["source"]["activeStack"].insert(
+        0,
+        {
+            "play": play,
+            "historyEntry": copy.deepcopy(value["newHistoryEntry"]),
+            "beforeContext": before,
+            "afterContext": after,
+        },
+    )
+    content.update(
+        restored=after,
+        d3=event["d1"],
+        d1Head={"kind": "accepted-event", "source": copy.deepcopy(event)},
+        projectionHead={"kind": "d1-event", "source": copy.deepcopy(event)},
+        activeHead=copy.deepcopy(play),
+        activeDepth="3",
+        historyVersion=str(int(content["historyVersion"]) + 1),
+        nextPhysicalPlayNumber="4",
+    )
+    wire["source"]["checkpoint"]["ref"] = copy.deepcopy(value["nextPrefixRef"])
+    wire["source"]["checkpoint"]["ref"]["digest"] = hashlib.sha256(
+        json.dumps(
+            content,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+            allow_nan=False,
+        ).encode()
+    ).hexdigest()
+    wire["prefixRef"] = copy.deepcopy(wire["source"]["checkpoint"]["ref"])
+    wire["t1"]["before"] = copy.deepcopy(value["t1"]["after"])
+    wire["t1"]["resultId"] = "batting-result.called-pitch"
+    wire["sourcePosition"] = {"d1": "2", "d2": "4096", "appliedWatermark": "1"}
+    wire["playIdentity"] = {
+        "eventId": "00000000-0000-4000-8000-0000000008b1",
+        "d5": "00000000-0000-4000-8000-0000000008b2",
+        "playId": "00000000-0000-4000-8000-0000000008b3",
+    }
+    wire["nextCheckpoint"] = {
+        "id": "00000000-0000-4000-8000-0000000008b4",
+        "revision": "22",
+        "digest": "a" * 64,
+    }
+    assert [
+        (x["play"]["source"]["generation"], x["play"]["source"]["d1"])
+        for x in wire["source"]["activeStack"]
+    ] == [("2", "1"), ("1", "2"), ("1", "1")]
+    saved = copy.deepcopy(wire)
+    second = caller.evaluate_nonplay_lineup_prefix_continuation(
+        caller.decode_nonplay_lineup_prefix_request(json.dumps(wire))
+    )
+    assert second.model_dump(
+        mode="json", by_alias=True, exclude_unset=True
+    ) == _nonplay_expected(wire, called=True)
+    assert wire == saved
