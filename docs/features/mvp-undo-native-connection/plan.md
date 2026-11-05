@@ -193,3 +193,6 @@ nonplay固定関数の実登録scope（2026-11-06 JST、PO委任Codex /root判�
 
 
 nonplay正式publisherのroot実装scope（同日、PO委任Codex /root）: 新backend/src/pitchlog/authz/nonplay_product.pyとbackend/tests/test_nonplay_product.pyのexact2をrootが実装する。既唯一SQLrendererの閉6関数/実43列model/可変列限定INSERT-UPDATEを正式descriptor候補へ描画し、共通publisherのcolumn/policy描画helperを再利用する。新表はowner固定・ENABLE/FORCE RLS・PUBLIC/app直権限拒否、fnownerのxmin照合用SELECTと必要identityINSERT/可変UPDATEだけを許可する。既play_rowsの変更権限はhidden_atのUPDATEだけ、他既表/旧CHECK/triggerを変更しない。既正式assetへは非作者確認後に公式producerでまとめて反映し、schema/installer/真正Portを実owned PGで検証する。renderer単体成功を正式受理やDB導入成功にしない。
+
+
+固定6登録の既exact集合検査追随（同日、PO委任Codex /root）: registry作者の実照合に基づき既backend/tests/test_function_operations_boundary.pyのtest_product_function_registry_keeps_rg1_and_adds_one_rule_operation内だけを追加許可し、exact8→9とする。既27operationの値/順序/全assertを保持し、新6operation/metadata型6だけを末尾へ厳密追加する。除外/skip/部分集合化や他test変更は許可しない。
