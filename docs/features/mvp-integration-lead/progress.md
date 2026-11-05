@@ -1,5 +1,9 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 続き：2026-11-05 成績4判断のPO回答を受領
+
+POが成績MVP-D02〜D05を全てAとして採用。5区分の公式/練習対応、実登板1試合1件（0球/再登板含む）、既責任帰属による打者数、未丸めOBP+SLG後の最終丸めを正式回答としてdecision-sheetへ記録した。未回答4件という従前状態は解消。D04の他継承カウント/申告敬遠とD05分母0/桁数の原典照合・正本/契約/case/唯一モデル/画面/CSVへ伝播・独立検証はこれからであり、現source_unavailableを無根拠にavailable/0へ変えない。通常起動/安打最終検査はこの回答に依存せず継続する。
+
 ## 続き：2026-11-05 16時台（成績実読取3入口成立・安打正式CLI通過）
 
 - **新たな製品経路の実証**: 成績枝0b8435eeee046c21cbdc76d51c2caf22ca688ce0の固定owned PGで、実新POST作成→開始→ordinary3球保存/再送/GET→実login issuer context→真正RRRO Open/Page/Totalsが1pass70.32秒。Pageは26metric×3source=78行をpage_size1＋終端79回、球数累計1/2/3とTotals3、版/revision3/S/保存sourceの対応、scope/receipt/cursor移植・失効・別tenant固定42501拒否を全検査した。新たな成績画面の操作はまだ増えておらず、API保存から製品Python readerの実DB接合の成立に限る。cache mvp-resume-20261104/stats-native-real-read-r2-proof/7証拠SHA。通常current起動/全profile/正式終了・暦年集計/全27/成績HTTP UI/両CSVは別残。
