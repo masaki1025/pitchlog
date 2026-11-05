@@ -1,5 +1,16 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 続き：2026-11-05（#196の初回CI失敗を分解・成績要件2.19を候補で確定）
+
+- **利用者操作/正式版**: GitHub再照合でdevelop/base112f771e、#196は公開70158b17・Draft/open/未merge。候補4安打の実GUI成功は既3310の証拠を保持し、正式提供や後発HEADでの再実証へ拡張しない。外部取消接続は具体指示を提示した段階で、担当受諾/稼働は未確認。
+- **#196検査と修正**: root固定4a27回帰は1446成功3591.21秒で終了。初回公開CI41993067839/本文41993067895は失敗として保持。core suffix既登録3pathの追随を非作者08c89307…（独立798）後8844cba1へ、歴史source試験2の追随を非作者a3d67c94…（独立37）後9ce6e837へ採用。新allowlist追加案は通常禁止規則に反するため撤回し、scanner/allowlist全byteを保持したtyped固定参照12候補を非作者確認中。再導出/新証拠/追加push/最終CIは未実施。
+- **backend接合**: 0040 indexを旧revisionへ誤要求するhelper、current audit、model式、新6製品原子mapのexact5候補を非作者/root92217c8d…で全差分照合し、独立copy144成功2.25秒後e73c7f21へ採用。最初のreview copyはscripts不足でimport失敗、環境補完後の同一候補で成功し両ログ保持。owned PGのmigration/schemaaudit41はsession82553で実行中。同版を変更せず観測する。実PG解消/CI成功は未主張。
+- **製品故障の特定**: 公開70158の実walk→ordinary再現はOrdinaryPrefixError。observerだけの同版診断でprior/executionが共に51d4d0f3…、source_format ordinary-pitch-play-v1と確認。互換表に現artifact自身の登録が無い。旧版→現版にはD01=Bの意味差があるため一括互換とはせず、現版self identityの実witnessと最小契約接合を作る。reader/認可/ACKの迂回や期待変更で隠さない。
+- **成績**: 実3球保存/同TX故障13表原状/実RRRO Open/Page/Totalsの証拠は維持。通常current起動exact6を017cd09f、builtin pre-full修正を非作者de656d2f…後a8b576abへ採用。owned通常起動はなお失敗、migration既設関数1/trigger1とpre-full catalog期待の差まで診断済み。最小exact2候補は84pure成功・非作者レビュー待ちで、実通常起動成功とはしていない。
+- **PO4判断の正本反映**: lead1879aa46の実回答に基づき、D02区分/D03登板/D04既責任/D05未丸めOPSと既決暦年を要件v2.19へ反映。初回f701のFR021 P1をc575で解消し、追加敵対レビュー3142286f…の18対向でP0/P1=0、表示草案語のP2だけ是正後stats e65f4e3dへPO委任Codex判断として確定。docs status21文書0違反/coverage/設計伝播成功。既55全保持＋新76ケースは候補のまま、正式contracts/P6/実計算/成績画面/CSV/全27完了とは扱わない。新2継承カウント例は責任source欠落時だけ留保し、既責任がある入力の再裁定はしない。
+- **次**: 固定PGを終結確認→typed12/残backend有限登録/現版self互換の独立確認と実保存再検証→単一196R4公式導出→最終証拠/1push/必須CI/通常統合。並行で成績current起動を閉じ、確定PO4を唯一モデル・成績read/UI/CSVへ伝播する。全走塁/交代/取消/訂正/終了再開/全offline/閲覧10秒/両CSV/負荷復旧/実機をMVP条件に残す。Goal active。
+
+
 ## 続き：2026-11-05 安打最終候補を隔離して検査待ちを短縮
 
 - 元安打WT/PR196branchは4a27af44のままcleanでroot回帰session72039を継続、同入力の再実行はしていない。重い回帰中に原本を変更しないため、同4a27からfeature-mvp-batted-hits-final-candidate WT/branchを作成し、AST同一整形1（独立5ce6e99d…）を8ccdcd84、単一196R3を70158b17へ保存した。R3はR2bundle全SHA guard＋旧37prefix/9IDbase+1据置で公式導出、新2/除去2のみ（base/pin/ref保護・退避）。BE全Ruff/Ty成功、R3正式tenant CLI session79918 exit0。最終候補のbranch自体は公開せず、元回帰終了後にPR196のfeature/mvp-batted-hitsを同commitへffする。CI/merge未成立。
