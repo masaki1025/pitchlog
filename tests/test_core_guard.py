@@ -8002,4 +8002,7 @@ def test_pr197_approved_doc_merge_rejects_changed_typed_pin(tmp_path, key):
         (clone / 'tests/fixtures/pr197_tenant_source_expected_v1.json').read_text()
     )['formal_base_revision']
     with pytest.raises(guard.GuardError):
-        guard._verify_pr197_definition_order(clone, base, head)
+        if key == 'pr197_identical_cochange_revision':
+            guard.verify_area_path_baseline(clone, base, head)
+        else:
+            guard._verify_pr197_definition_order(clone, base, head)
