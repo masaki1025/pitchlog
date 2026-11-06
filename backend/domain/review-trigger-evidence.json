@@ -74,13 +74,13 @@
         "fired": false,
         "previousEvidenceDigest": "sha256:3724d5a486861ccf1199f633b031ee75639ba4089a22737828b368717ada8f57",
         "evidenceDigest": "sha256:ec6b8b9c90e37a22e4f57005df4e227380a0fc20d397a02cdee317e02892ac9a",
-        "reason": "PO委任によるCodex主担当判断。旧本人記録は2fa原本の全値を保持する。既採用D1の有限型付き生成と現在schemaの5項目に表現不能の反例を認めず、非作者04133レビュー7de9cc58および反映1 aaff6f53、独立36対向/生成3suite62を根拠に発火falseを維持。本人の現値確認・署名・製品全受入ではない。 後発eb116a83は拒否理由に旧testが要求するdigest語を保持した1行だけで、非作者reflection2 ef045fbcが期待緩和なしを確認。",
+        "reason": "PO委任によるCodex主担当判断。旧本人記録は2fa原本の全値を保持する。既採用D1の有限型付き生成と現在schemaの5項目に表現不能の反例を認めず、非作者04133レビュー7de9cc58および反映1 aaff6f53、独立36対向/生成3suite62を根拠に発火falseを維持。本人の現値確認・署名・製品全受入ではない。 後発eb116a83は拒否理由に旧testが要求するdigest語を保持した1行だけで、非作者reflection2 ef045fbcが期待緩和なしを確認。 後発3944ee11の実型検査後の型束縛整理は非作者reflection3 021420e4が拒否集合不変を確認。",
         "pr": 197,
         "branch": "feature/mvp-stats-native-foundation",
-        "sourceRevision": "eb116a8350cf5c5ea8ba1beb9da2804dc5b68dcd",
+        "sourceRevision": "3944ee11f3e20b17d82d73d081d682a8ef530abd",
         "authoritySha256": "b488fbcfe8f44831d9cb4a2dbc601e8390ab09f8c319503ba189f8d02f46bf86",
         "reviewPath": "docs/features/mvp-stats-primitives/trigger1-delegated-review.json",
-        "reviewSha256": "acd504e97dfa70db021b031d1e64e856d508078340e5bbccc99a964d2cf04694"
+        "reviewSha256": "b066cbdad9a0e5534087b1149a038fff3be2bd680eb49dcc33b5d888b1db5b0b"
       }
     },
     {
