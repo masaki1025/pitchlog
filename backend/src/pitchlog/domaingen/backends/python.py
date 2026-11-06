@@ -402,6 +402,119 @@ def generate_ratio_formatter(program, source_hash: str) -> str:
     )
 
 
+def generate_display_rates(rows, source_hash: str) -> str:
+    """T6専用の表示率だけを宣言から生成し、T5 artifactを変更しない。"""
+    from pitchlog.domaingen.core import rate_metric_dependencies, typed_rate_expression
+
+    def ops(node):
+        """式で使う生成済み比helperだけを列挙する。"""
+        found = set()
+
+        def walk(value):
+            if isinstance(value, dict):
+                op = value.get("op")
+                if op in ("add", "ratio", "ratio-add"):
+                    found.add(op)
+                for child in value.values():
+                    walk(child)
+            elif isinstance(value, list):
+                for child in value:
+                    walk(child)
+
+        walk(node)
+        return found
+
+    used = set()
+    for row in rows:
+        for component in row["components"]:
+            used |= ops(component["expression"])
+        used |= ops(row["expression"])
+    helper_names = {
+        "add": "_rate_add",
+        "ratio": "_ratio",
+        "ratio-add": "_ratio_add",
+    }
+    from pitchlog.domaingen.formatter import rate_helpers_target
+
+    lines = [
+        "# generated=" + source_hash,
+        '"""自動生成されたT6表示率。T5 artifactのfacts.pyを変更しない。"""',
+        "",
+        "from pitchlog.stats.generated.formatter import _rate_result",
+        "",
+        rate_helpers_target("python"),
+        "_DISPLAY_RATES = " + repr({row["id"]: row["display"] for row in rows}),
+        "",
+        "",
+        "def _display_result(value, components, display, reason):",
+        '    """表示規則の先頭0だけを最後に適用し、比の値を再計算しない。"""',
+        "    result = _rate_result(value, components, display, reason)",
+        '    if not display["leadingZero"] and result["formatted_value"] is not None:',
+        '        original = result["formatted_value"]',
+        '        formatted = original.removeprefix("0")',
+        '        result = {**result, "formatted_value": formatted}',
+        '        if result["display"] is not None:',
+        "            result = {",
+        "                **result,",
+        '                "display": formatted + result["display"][len(original) :],',
+        "            }",
+        "    return result",
+        "",
+        "",
+        "def _metric_value(metrics, key):",
+        '    """十分統計の状態を表示率の入力へ写す。0と未取得を混同しない。"""',
+        "    row = metrics[key]",
+        '    if type(row) is not dict or row.get("state") not in (',
+        '        "available",',
+        '        "source_unavailable",',
+        "    ):",
+        '        raise ValueError("十分統計の状態が不正です")',
+        '    if row["state"] == "source_unavailable":',
+        "        return None",
+        '    value = row.get("value")',
+        "    if type(value) is not int or value < 0:",
+        '        raise ValueError("十分統計の値が不正です")',
+        "    return value",
+        "",
+        "",
+        "def _reason(metrics, dependencies):",
+        '    """最初の不足理由を保持し、未取得を0へ変えない。"""',
+        "    for key in dependencies:",
+        "        row = metrics[key]",
+        '        if row["state"] == "source_unavailable":',
+        '            return row.get("reason") or "MISSING_OBSERVATION"',
+        '    return "MISSING_OBSERVATION"',
+        "",
+        "",
+        "def derive_display_rates(metrics):",
+        '    """宣言済みT6表示率を同じ生成済み表示規則で返す。"""',
+        "    results = {}",
+    ]
+    for index, row in enumerate(rows):
+        dependencies = rate_metric_dependencies({"components": row["components"]})
+        lines.append(
+            "    values = {"
+            + ", ".join(
+                f"{key!r}: _metric_value(metrics, {key!r})" for key in dependencies
+            )
+            + "}"
+        )
+        parts = f"parts_{index}"
+        component_items = [
+            repr(c["id"])
+            + ": "
+            + typed_rate_expression(c["expression"], "python", "values")
+            for c in row["components"]
+        ]
+        lines.append("    " + parts + " = {" + ", ".join(component_items) + "}")
+        expression = typed_rate_expression(row["expression"], "python", parts)
+        lines.append(
+            f"    results[{row['id']!r}] = _display_result({expression}, {parts}, _DISPLAY_RATES[{row['id']!r}], _reason(metrics, {dependencies!r}))"
+        )
+    lines.append("    return results")
+    return "\n".join(lines) + "\n"
+
+
 def generate_ratio_receiver(program, source_hash: str) -> str:
     """SQL比の全列をコピーし、未知/NULL不整合と非正準比を拒否する。"""
     components = {

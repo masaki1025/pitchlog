@@ -1007,6 +1007,204 @@ def _generate_primitive_targets(
         raise GenerationError(f"typed primitiveを生成できない: {error}") from error
 
 
+def generate_display_rates_bundle(
+    common_model: Mapping[str, Any], display_model: Mapping[str, Any]
+) -> dict[str, str]:
+    """T6専用の表示率だけを生成し、T5 artifactとnative profileを変更しない。
+
+    Args:
+        common_model: 唯一の人手式を持つ共通model。
+        display_model: 同じprimitive ID/type/hashを参照する表示率model。
+
+    Returns:
+        T6専用生成先と生成内容。
+
+    Raises:
+        GenerationError: 参照不一致・未知metric・表示規則違反がある場合。
+    """
+    from pitchlog.domaingen.backends import python as py_backend
+    from pitchlog.domaingen.pregen_checks import validate_typed_program
+
+    try:
+        from jsonschema import Draft202012Validator
+        from jsonschema.exceptions import ValidationError
+
+        schema_path = Path(__file__).resolve().parents[3] / "domain/model.schema.json"
+        validator = Draft202012Validator(json.loads(schema_path.read_text()))
+        try:
+            validator.validate(common_model)
+        except ValidationError as error:
+            raise ValueError("typed modelのschema違反") from error
+        for model in (common_model, display_model):
+            if set(model) != {"schemaVersion", "calculations", "displayRules"}:
+                raise ValueError("modelの生成入力は閉集合が必要")
+            if model["schemaVersion"] != 1 or model["displayRules"] != []:
+                raise ValueError("typed modelの版/表示宣言が不正")
+            if (
+                not isinstance(model["calculations"], list)
+                or len(model["calculations"]) != 1
+            ):
+                raise ValueError("typed modelは単一計算が必要")
+            if set(model["calculations"][0]) != {"calculationId", "typedProgram"}:
+                raise ValueError("計算宣言の閉キーが不正")
+        calculation = common_model["calculations"][0]
+        program = calculation["typedProgram"]
+        validate_typed_program(program)
+        reference = display_model["calculations"][0]["typedProgram"]
+        source_hash = _canonical_hash(common_model)
+        if (
+            type(reference) is not dict
+            or set(reference)
+            != {
+                "kind",
+                "version",
+                "commonCalculationId",
+                "commonModelHash",
+                "refs",
+                "derivedRefs",
+                "displayRates",
+            }
+            or reference["kind"] != "primitive-refs"
+            or type(reference["version"]) is not int
+            or reference["version"] != program["version"]
+            or reference["commonCalculationId"] != calculation["calculationId"]
+            or reference["commonModelHash"] != source_hash
+            or display_model["calculations"][0]["calculationId"]
+            == calculation["calculationId"]
+            or reference["refs"]
+            != [{"id": m["id"], "type": "integer"} for m in program["metrics"]]
+            or reference["derivedRefs"]
+            != [{"id": row["id"], "type": "ratio"} for row in program["derivedMetrics"]]
+        ):
+            raise ValueError("表示率modelの共通参照が不一致")
+        _validate_display_rates(program, reference["displayRates"])
+        path = "backend/src/pitchlog/stats/generated/rates.py"
+        return {
+            path: _format_typed_target(
+                path,
+                py_backend.generate_display_rates(
+                    reference["displayRates"], source_hash
+                ),
+            )
+        }
+    except (KeyError, TypeError, ValueError) as error:
+        raise GenerationError(f"T6表示率を生成できない: {error}") from error
+
+
+def _validate_display_rates(program, display_rates):
+    """T6専用表示率のID・参照・表示bindingを生成前に閉検査する。"""
+    import re
+
+    if type(display_rates) is not list or not 1 <= len(display_rates) <= 16:
+        raise ValueError("表示率の有限宣言が必要")
+    metric_ids = {row["id"] for row in program["metrics"]}
+    derived_ids = {row["id"] for row in program["derivedMetrics"]}
+    seen = set()
+    for row in display_rates:
+        if (
+            type(row) is not dict
+            or set(row) != {"id", "type", "components", "expression", "display"}
+            or type(row["id"]) is not str
+            or re.fullmatch(r"[a-z][a-z0-9_]*", row["id"]) is None
+            or row["id"] in seen
+            or row["id"] in metric_ids
+            or row["id"] in derived_ids
+            or row["type"] != "ratio"
+        ):
+            raise ValueError("表示率のID/型/重複が不正")
+        seen.add(row["id"])
+        components = row["components"]
+        if type(components) is not list or not 1 <= len(components) <= 8:
+            raise ValueError("表示率のcomponentが不正")
+        component_ids = set()
+        for component in components:
+            if (
+                type(component) is not dict
+                or set(component) != {"id", "expression"}
+                or type(component["id"]) is not str
+                or re.fullmatch(r"[a-z][a-z0-9_]*", component["id"]) is None
+                or component["id"] in component_ids
+            ):
+                raise ValueError("表示率のcomponent IDが不正")
+            component_ids.add(component["id"])
+
+        def walk(node, *, ratio_ok):
+            if type(node) is not dict:
+                raise ValueError("表示率の式が不正")
+            op = node.get("op")
+            if op == "metric":
+                if set(node) != {"op", "id"} or node["id"] not in metric_ids:
+                    raise ValueError("表示率の未知metric参照")
+                return "integer"
+            if op == "component":
+                if set(node) != {"op", "id"} or node["id"] not in component_ids:
+                    raise ValueError("表示率の未知component参照")
+                return "ratio"
+            if op == "literal":
+                if (
+                    set(node) != {"op", "value"}
+                    or type(node["value"]) is not int
+                    or node["value"] < 0
+                ):
+                    raise ValueError("表示率のliteralが不正")
+                return "integer"
+            if op in ("add", "ratio-add"):
+                kind = "integer" if op == "add" else "ratio"
+                args = node.get("args")
+                if (
+                    set(node) != {"op", "args"}
+                    or type(args) is not list
+                    or not 1 <= len(args) <= 32
+                    or any(walk(x, ratio_ok=True) != kind for x in args)
+                ):
+                    raise ValueError("表示率の加算式が不正")
+                return kind
+            if op == "ratio":
+                if set(node) != {"op", "numerator", "denominator"}:
+                    raise ValueError("表示率の比が不正")
+                if (
+                    walk(node["numerator"], ratio_ok=True) != "integer"
+                    or walk(node["denominator"], ratio_ok=True) != "integer"
+                ):
+                    raise ValueError("表示率の比の型が不正")
+                return "ratio"
+            raise ValueError("表示率の未知演算")
+
+        for component in components:
+            if walk(component["expression"], ratio_ok=False) != "ratio":
+                raise ValueError("表示率のcomponentは比が必要")
+        if walk(row["expression"], ratio_ok=False) != "ratio":
+            raise ValueError("表示率の式は比が必要")
+        display = row["display"]
+        if (
+            type(display) is not dict
+            or set(display)
+            != {"scale", "rounding", "leadingZero", "zeroDivisionGlyph", "denominators"}
+            or type(display["scale"]) is not int
+            or not 1 <= display["scale"] <= 6
+            or display["rounding"] != "half-up"
+            or type(display["leadingZero"]) is not bool
+            or display["zeroDivisionGlyph"] != "−"
+        ):
+            raise ValueError("表示率の表示規則が不正")
+        labels = display["denominators"]
+        if (
+            type(labels) is not list
+            or not 1 <= len(labels) <= 8
+            or {x.get("component") for x in labels if type(x) is dict} != component_ids
+        ):
+            raise ValueError("表示率の分母表示が不正")
+        for label in labels:
+            if (
+                type(label) is not dict
+                or set(label) != {"component", "prefix", "suffix"}
+                or type(label["prefix"]) is not str
+                or type(label["suffix"]) is not str
+                or (not label["prefix"] and not label["suffix"])
+            ):
+                raise ValueError("表示率の分母ラベルが不正")
+
+
 def _format_typed_target(path: str, content: str) -> str:
     """固定toolchainで生成bytesを整形し、日本語docstringを補う。"""
     import ast

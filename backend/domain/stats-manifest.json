@@ -8,10 +8,10 @@
     "backend/domain/model.schema.json": "ec6b8b9c90e37a22e4f57005df4e227380a0fc20d397a02cdee317e02892ac9a",
     "backend/domain/play-export.model.json": "3ee265ce3586b793f8e48853e07548dfd700bd94fe988af1a63190e8626e073b",
     "backend/domain/stats.model.json": "a3a7643780f7e430309b909d4c1b23a72da87b327afc5e1be2ff7c9da8244773",
-    "backend/src/pitchlog/domaingen/core.py": "761e60e3b10a09df5f5e5b32a39097094756a863bb13e6346abd3b44aa3967a5",
+    "backend/src/pitchlog/domaingen/core.py": "3f65dadc78d8bf986aea86149f7c35ff315ccd8eec6a7bec30fe8836d8ffa797",
     "backend/src/pitchlog/domaingen/pregen_checks.py": "72f558898fb535107e588eb03724ae106b8484544c0ccd50123d54df1621ba15",
-    "backend/src/pitchlog/domaingen/formatter.py": "11cbeae3b605add84eeebea9974b2e0b0449891601c84f62f9046ef36bd7dc3b",
-    "backend/src/pitchlog/domaingen/backends/python.py": "e1c29caa5dc121f977c3c2cec8e3c12dbfbdde33bd9c2e4258e9528cf84fcf0f",
+    "backend/src/pitchlog/domaingen/formatter.py": "30eddd35a628e7fcd17aae607dd6ad5a1349b322c814d2a68fa46c8d41ae18ef",
+    "backend/src/pitchlog/domaingen/backends/python.py": "50c8541877809eca249b1c518a3169ab2fe5d175c5d99ec5651805f89d12258f",
     "backend/src/pitchlog/domaingen/backends/typescript.py": "b9c4458d10a3e872c45dcd5b5d24bbaf6f01f86df5ea71c84002b81b1213d468",
     "backend/src/pitchlog/domaingen/backends/sql.py": "e0fb3a4956a47eafd6bca64c19740b6d6432c3dafda8668d4234e144ca270ffb"
   },
@@ -170,5 +170,20 @@
     "actual_pg_executed": false,
     "legacy_manifest_sha256": "dcdd901153ce70da08816391e2de3ed206f4a324bd63fc5fb63d8dfa01eaaafc",
     "legacy_profile_is_not_current_sql_capability": true
+  },
+  "t6DisplayRates": {
+    "status": "candidate",
+    "modelPath": "backend/domain/stats-display.model.json",
+    "modelSha256": "fdc46a25a3238270700f06f258978b4c1b53cacc2c25de54950190b93ebef4f0",
+    "generatedPath": "backend/src/pitchlog/stats/generated/rates.py",
+    "generatedSha256": "733013c1412b4b801075c3be885f12c5584dde55433dd01fc01f2db93db52330",
+    "generatorInputs": {
+      "backend/domain/play-export.model.json": "3ee265ce3586b793f8e48853e07548dfd700bd94fe988af1a63190e8626e073b",
+      "backend/src/pitchlog/domaingen/core.py": "3f65dadc78d8bf986aea86149f7c35ff315ccd8eec6a7bec30fe8836d8ffa797",
+      "backend/src/pitchlog/domaingen/backends/python.py": "50c8541877809eca249b1c518a3169ab2fe5d175c5d99ec5651805f89d12258f",
+      "backend/src/pitchlog/domaingen/formatter.py": "30eddd35a628e7fcd17aae607dd6ad5a1349b322c814d2a68fa46c8d41ae18ef"
+    },
+    "t5ArtifactSetUnchanged": true,
+    "note": "T6表示率only。T5 artifact set/native profileとfacts.py/statsPrimitives.tsは不変。"
   }
 }

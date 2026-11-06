@@ -16,6 +16,7 @@ from pitchlog.api.routers import (
     pitch_type_options,
     players,
     started_games,
+    stats,
     sync,
     team_records,
 )
@@ -36,6 +37,7 @@ ROUTERS: tuple[APIRouter, ...] = (
     pitch_type_options.router,
     batted_ball_options.router,
     started_games.router,
+    stats.router,
     sync.router,
 )
 _SIGNING_KEY_VARIABLE = "PITCHLOG_TOKEN_SIGNING_KEY_B64"

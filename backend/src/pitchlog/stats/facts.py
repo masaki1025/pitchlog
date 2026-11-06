@@ -13,17 +13,22 @@ from pitchlog.repositories.tokens import TenantOperationToken
 from pitchlog.stats.generated.receiver import METRIC_IDS, SOURCE_MODEL_HASH
 
 
-def _generated_api():
+def _generated_module():
     """配置済み共通生成物だけをwrapper名で読み込む。"""
     module = ModuleType("__pitchlog_generated_wrapper__")
     path = Path(__file__).parent / "generated/facts.py"
     exec(compile(path.read_text(), str(path), "exec"), module.__dict__)
     if module.__dict__["SOURCE_MODEL_HASH"] != SOURCE_MODEL_HASH:
         raise RuntimeError("T5/typed receiverのモデル版が一致しません")
-    return module.__dict__["_pitchlog_generated"]
+    return module.__dict__
 
 
-_EVENT_FACTS = _generated_api()
+_EVENT_FACTS = _generated_module()["_pitchlog_generated"]
+
+
+def derive_rates(metrics):
+    """同じ生成核のOPS表示率を返す。率の式をこのmoduleへ複製しない。"""
+    return _generated_module()["derive_rates"](metrics)
 
 
 def native_projection(payload, *, source_event_id):
