@@ -133,9 +133,10 @@ export function deriveLineupPitch(
     return null
   if (
     resultId === 'batting-result.called-strikeout' ||
-    resultId === 'batting-result.swinging-strikeout'
+    resultId === 'batting-result.swinging-strikeout' ||
+    resultId === 'batting-result.k3'
   )
-    return deriveStrikeout(before, board, resultId, pitchEventKind, cursors)
+    return deriveClosedStrikeout(before, board, resultId, pitchEventKind, cursors)
   if (
     resultId === 'batting-result.walk' ||
     resultId === 'batting-result.hit-by-pitch'
@@ -229,6 +230,22 @@ export function deriveStrikeout(
   pitchEventKind: string,
   cursors: BattingOrderBySide,
 ): StrikeoutDerived | null {
+  if (
+    resultId !== 'batting-result.called-strikeout' &&
+    resultId !== 'batting-result.swinging-strikeout'
+  )
+    return null
+  return deriveClosedStrikeout(before, board, resultId, pitchEventKind, cursors)
+}
+
+/** 既正式SO-01/02と、v3だけのSO-04を同じT1核へ渡す。 */
+function deriveClosedStrikeout(
+  before: StateFields,
+  board: Scoreboard,
+  resultId: string,
+  pitchEventKind: string,
+  cursors: BattingOrderBySide,
+): StrikeoutDerived | null {
   let activeOrder = cursors.away
   if (before.half === 'bottom') activeOrder = cursors.home
   if (
@@ -240,7 +257,8 @@ export function deriveStrikeout(
     before.home !== board.home ||
     before.away !== board.away ||
     (resultId !== 'batting-result.called-strikeout' &&
-      resultId !== 'batting-result.swinging-strikeout') ||
+      resultId !== 'batting-result.swinging-strikeout' &&
+      resultId !== 'batting-result.k3') ||
     cursors.away < 1n ||
     cursors.away > 9n ||
     cursors.home < 1n ||
@@ -411,7 +429,8 @@ function applyCountRule(
   const hitByPitch = resultId === 'batting-result.hit-by-pitch'
   const strikeout =
     resultId === 'batting-result.called-strikeout' ||
-    resultId === 'batting-result.swinging-strikeout'
+    resultId === 'batting-result.swinging-strikeout' ||
+    resultId === 'batting-result.k3'
   const hit =
     resultId === 'batting-result.single' ||
     resultId === 'batting-result.double' ||
