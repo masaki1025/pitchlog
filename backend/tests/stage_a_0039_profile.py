@@ -528,12 +528,15 @@ def _start_child_database(config: pytest.Config) -> None:
         raise _fail()
     stack = ExitStack()
     try:
+        # 元factoryは起動後の実endpointへ差し替えるrole用テンプレートを要求する。
+        # endpoint無しの公開試験資格だけを先に渡し、この値では接続しない。
+        os.environ[names[1]] = make_conninfo(
+            user="pitchlog_stage_a_test_role", password="public-owned-child-fixture"
+        )
         factory = cast(Any, disposable_postgres_cluster).__wrapped__()
         cluster = stack.enter_context(factory())
         os.environ[names[0]] = cluster.admin_dsn
-        os.environ[names[1]] = make_conninfo(
-            cluster.admin_dsn, user="pitchlog_stage_a_test_role"
-        )
+        os.environ[names[1]] = cluster.role_dsn_template
     except BaseException:
         stack.close()
         for name in names:
