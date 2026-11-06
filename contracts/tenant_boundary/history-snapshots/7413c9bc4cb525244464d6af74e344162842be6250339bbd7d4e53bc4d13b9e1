@@ -4261,6 +4261,35 @@ def test_batted_projection_preserves_actual_metadata_decoder_boundary(
     assert fetches == []
 
 
+def _pr197_gate6_checkout_head(root: Path, base: str) -> str:
+    """同treeの正規CI二親mergeだけを試験用PR headへ戻す。"""
+    import subprocess
+
+    head = subprocess.check_output(
+        ["git", "-C", str(root), "rev-parse", "HEAD"], text=True,
+    ).strip()
+    parents = subprocess.check_output(
+        ["git", "-C", str(root), "show", "-s", "--format=%P", head], text=True,
+    ).split()
+    if len(parents) == 1:
+        return head
+    assert len(parents) == 2, "PR197試験checkoutの親数が不正"
+    assert parents[0] == base, "PR197試験checkoutの第1親が正式baseでない"
+    subject = subprocess.check_output(
+        ["git", "-C", str(root), "show", "-s", "--format=%s", head], text=True,
+    ).strip()
+    assert subject == f"Merge {parents[1]} into {base}", "PR197試験checkoutのmerge名が不正"
+    subprocess.run(
+        ["git", "-C", str(root), "merge-base", "--is-ancestor", base, parents[1]],
+        check=True,
+    )
+    subprocess.run(
+        ["git", "-C", str(root), "diff", "--exit-code", head, parents[1], "--"],
+        check=True,
+    )
+    return parents[1]
+
+
 @pytest.fixture
 def pr197_gate6_candidate(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
@@ -4279,9 +4308,7 @@ def pr197_gate6_candidate(
         (root / "tests/fixtures/pr197_tenant_source_expected_v1.json").read_bytes(),
     )
     base = expected["formal_base_revision"]
-    head = subprocess.check_output(
-        ["git", "-C", str(root), "rev-parse", "HEAD"], text=True,
-    ).strip()
+    head = _pr197_gate6_checkout_head(root, base)
     url = "https://github.com/masaki1025/pitchlog/pull/197#issuecomment-197"
     event = guard.PullRequestEvent(
         base, head, "PO-DELEGATION-EVIDENCE: " + url, 197,
@@ -4311,12 +4338,31 @@ def pr197_gate6_candidate(
     return root, guard, event, comment
 
 
+@pytest.mark.parametrize("synthetic_checkout", (False, True))
 def test_pr197_gate6_success_uses_existing_typed_e_and_real_git_event(
     pr197_gate6_candidate: tuple[Path, Any, Any, dict[str, Any]],
-    monkeypatch: pytest.MonkeyPatch,
+    monkeypatch: pytest.MonkeyPatch, synthetic_checkout: bool,
 ) -> None:
     """旧記録を書き換えず51bから数学9/旧49を保ち公開委任を照合する。"""
+    import subprocess
+
     root, guard, event, _ = pr197_gate6_candidate
+    if synthetic_checkout:
+        tree = subprocess.check_output(
+            ["git", "-C", str(root), "rev-parse", event.head_sha + "^{tree}"],
+            text=True,
+        ).strip()
+        synthetic = subprocess.check_output([
+            "git", "-C", str(root), "-c", "user.name=Test",
+            "-c", "user.email=test@local.invalid", "commit-tree", tree,
+            "-p", event.base_sha, "-p", event.head_sha,
+            "-m", f"Merge {event.head_sha} into {event.base_sha}",
+        ], text=True).strip()
+        subprocess.run(
+            ["git", "-C", str(root), "checkout", "--detach", synthetic],
+            check=True, capture_output=True,
+        )
+        assert _pr197_gate6_checkout_head(root, event.base_sha) == event.head_sha
     value = checker.validate_gate6_ci_event(root, event)
     assert "PR197 carry: HISTORICAL ordinary33/PR191/PR192/PR196 PRESERVED" in value
     assert "not a personal signature" in value
