@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "catalogId",
+    "scope",
+    "predicates"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "catalogId": {
+      "const": "stats-native-d11-properties"
+    },
+    "scope": {
+      "const": [
+        "native-event-facts26-v2",
+        "native-current-totals26-v2"
+      ]
+    },
+    "predicates": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "propertyId",
+          "propertyKind",
+          "authorityId",
+          "predicate"
+        ],
+        "properties": {
+          "propertyId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "propertyKind": {
+            "enum": [
+              "invariant",
+              "equivalence"
+            ]
+          },
+          "authorityId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "predicate": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    }
+  }
+}
