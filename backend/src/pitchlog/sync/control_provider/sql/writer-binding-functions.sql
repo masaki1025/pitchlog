@@ -22,6 +22,7 @@ GRANT UPDATE(state,close_id) ON sync_fence.writer_bindings TO pitchlog_sync_bind
 GRANT SELECT,INSERT ON sync_fence.writer_admissions TO pitchlog_sync_binding_fn_owner;
 GRANT USAGE ON SCHEMA public TO pitchlog_sync_binding_fn_owner;
 GRANT SELECT(singleton_id,state,recovery_generation) ON public.rg1_restore_gate TO pitchlog_sync_binding_fn_owner;
+GRANT SELECT(tenant_id,d5,source_fingerprint) ON public.idempotency_ledger TO pitchlog_sync_binding_fn_owner;
 GRANT EXECUTE ON FUNCTION pg_catalog.pg_control_system() TO pitchlog_sync_binding_fn_owner;
 ALTER TABLE sync_fence.writer_bindings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE sync_fence.writer_bindings FORCE ROW LEVEL SECURITY;
@@ -31,6 +32,7 @@ REVOKE ALL ON sync_fence.writer_bindings,sync_fence.writer_admissions FROM PUBLI
 CREATE POLICY binding_owner ON sync_fence.writer_bindings TO pitchlog_sync_binding_fn_owner USING(true) WITH CHECK(true);
 CREATE POLICY admission_owner ON sync_fence.writer_admissions TO pitchlog_sync_binding_fn_owner USING(true) WITH CHECK(true);
 CREATE POLICY binding_gate ON public.rg1_restore_gate FOR SELECT TO pitchlog_sync_binding_fn_owner USING(singleton_id=1);
+CREATE POLICY binding_d5_read ON public.idempotency_ledger FOR SELECT TO pitchlog_sync_binding_fn_owner USING(true);
 
 -- backend_startはapp自己観測の相関値。権威条件は実instance/PID/full xid8。
 CREATE FUNCTION sync_fence_api.read_writer_database_identity(p_tenant_id uuid)
@@ -131,6 +133,18 @@ BEGIN
  WHEN admission_count=0 AND xid_status IN ('in progress','committed') THEN 'ENTRY_CLOSED_UNADMITTED' ELSE 'UNKNOWN' END;
 END;$f$;
 
+-- 旧attemptの実TX終結と別にD5確定原本を照合する。結果本文は外へ渡さない。
+CREATE FUNCTION sync_fence_api.read_attempt_d5(p_tenant_id uuid,p_d5 uuid,p_event_fingerprint text)
+RETURNS text LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path=pg_catalog,pg_temp AS $f$
+DECLARE stored_fingerprint text;
+BEGIN
+ IF session_user<>'pitchlog_sync_binding_actor' OR p_tenant_id IS NULL OR p_d5 IS NULL OR p_event_fingerprint IS NULL OR p_event_fingerprint='' OR current_setting('transaction_isolation')<>'read committed' THEN RAISE EXCEPTION 'attempt D5 observation rejected' USING ERRCODE='42501'; END IF;
+ SELECT l.source_fingerprint INTO stored_fingerprint FROM public.idempotency_ledger l WHERE l.tenant_id=p_tenant_id AND l.d5=p_d5;
+ IF NOT FOUND THEN RETURN 'absent'; END IF;
+ IF stored_fingerprint IS DISTINCT FROM p_event_fingerprint THEN RETURN 'conflict'; END IF;
+ RETURN 'matching';
+END;$f$;
+
 -- 私有guard。呼出可能な業務APIにせず、旧値→一回closeだけを許す。
 CREATE FUNCTION sync_fence_api.guard_writer_records()
 RETURNS trigger LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path=pg_catalog,pg_temp AS $f$
@@ -156,6 +170,7 @@ ALTER FUNCTION sync_fence_api.publish_writer_binding(uuid,uuid,uuid,jsonb,bytea)
 ALTER FUNCTION sync_fence_api.assert_writer_binding(uuid,uuid,uuid,bytea,uuid,uuid) OWNER TO pitchlog_sync_binding_fn_owner;
 ALTER FUNCTION sync_fence_api.close_writer_binding(uuid,uuid,uuid,uuid,uuid) OWNER TO pitchlog_sync_binding_fn_owner;
 ALTER FUNCTION sync_fence_api.observe_writer_binding(uuid,uuid,uuid,uuid,uuid) OWNER TO pitchlog_sync_binding_fn_owner;
+ALTER FUNCTION sync_fence_api.read_attempt_d5(uuid,uuid,text) OWNER TO pitchlog_sync_binding_fn_owner;
 REVOKE ALL ON ALL FUNCTIONS IN SCHEMA sync_fence_api FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION sync_fence_api.read_writer_database_identity(uuid),sync_fence_api.read_writer_identity(uuid),sync_fence_api.assert_writer_binding(uuid,uuid,uuid,bytea,uuid,uuid) TO pitchlog_app;
-GRANT EXECUTE ON FUNCTION sync_fence_api.publish_writer_binding(uuid,uuid,uuid,jsonb,bytea),sync_fence_api.close_writer_binding(uuid,uuid,uuid,uuid,uuid),sync_fence_api.observe_writer_binding(uuid,uuid,uuid,uuid,uuid) TO pitchlog_sync_binding_actor;
+GRANT EXECUTE ON FUNCTION sync_fence_api.publish_writer_binding(uuid,uuid,uuid,jsonb,bytea),sync_fence_api.close_writer_binding(uuid,uuid,uuid,uuid,uuid),sync_fence_api.observe_writer_binding(uuid,uuid,uuid,uuid,uuid),sync_fence_api.read_attempt_d5(uuid,uuid,text) TO pitchlog_sync_binding_actor;

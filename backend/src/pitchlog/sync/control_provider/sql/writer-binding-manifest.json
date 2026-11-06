@@ -4,9 +4,9 @@
   "purpose": "別PG専用のwriter-binding制御候補。製品runtimeからの配備・実行権は未提供。",
   "deployment_authority": "none_unintegrated_candidate",
   "files": {
-    "control-phase-schema.sql": "02596049a61ff542d7c0ed176a828054f280acccdbb846870947251022145954",
-    "writer-binding-control.sql": "0981420767021ae781d620c72222d62864b8f1fc1fd732671d677d774c155b1e",
-    "writer-binding-functions.sql": "69ea20ef3d2facb2c2f2eca1dff9eed52a4b967029c3c10f68cb92dde5488359"
+    "control-phase-schema.sql": "a3ce291cc049046afcd65263f7714d32771c72e25f0540d349184c2868ce8307",
+    "writer-binding-control.sql": "71c70423507c3c9be2f99d3ff1eeb47c28d4bdebca0b620647558abb58914334",
+    "writer-binding-functions.sql": "17832b6431787443ec9f4792c00e3d1db3fb5a513b09fabe5ef34b694af0c4f3"
   },
   "evidence_boundaries": [
     "tests_only_application",

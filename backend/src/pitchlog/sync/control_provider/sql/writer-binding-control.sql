@@ -13,12 +13,14 @@ BEGIN
  END LOOP;
 END;$roles$;
 GRANT USAGE ON SCHEMA sync_control TO pitchlog_sync_binding_actor,pitchlog_sync_binding_fn_owner;
-REVOKE ALL ON sync_control.authorities,sync_control.attempts,sync_control.event_phases FROM PUBLIC,pitchlog_sync_binding_actor;
+REVOKE ALL ON sync_control.authorities,sync_control.attempts,sync_control.event_phases,sync_control.attempt_retirements FROM PUBLIC,pitchlog_sync_binding_actor;
 GRANT SELECT ON sync_control.authorities TO pitchlog_sync_binding_fn_owner;
-GRANT SELECT,INSERT ON sync_control.attempts,sync_control.event_phases TO pitchlog_sync_binding_fn_owner;
+GRANT SELECT,INSERT ON sync_control.attempts,sync_control.event_phases,sync_control.attempt_retirements TO pitchlog_sync_binding_fn_owner;
 CREATE POLICY binding_owner ON sync_control.authorities FOR SELECT TO pitchlog_sync_binding_fn_owner USING(true);
 CREATE POLICY binding_owner ON sync_control.attempts TO pitchlog_sync_binding_fn_owner USING(true) WITH CHECK(true);
 CREATE POLICY binding_owner ON sync_control.event_phases TO pitchlog_sync_binding_fn_owner USING(true) WITH CHECK(true);
+CREATE POLICY binding_retirement_read ON sync_control.attempt_retirements FOR SELECT TO pitchlog_sync_binding_fn_owner USING(true);
+CREATE POLICY binding_retirement_insert ON sync_control.attempt_retirements FOR INSERT TO pitchlog_sync_binding_fn_owner WITH CHECK(true);
 
 CREATE FUNCTION sync_control.register_first_ball_phase(p_tenant_id uuid,p_context jsonb)
 RETURNS void LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path=pg_catalog,pg_temp AS $f$
@@ -26,6 +28,8 @@ DECLARE au sync_control.authorities%ROWTYPE; at sync_control.attempts%ROWTYPE; p
 BEGIN
  IF session_user<>'pitchlog_sync_binding_actor' OR p_tenant_id IS NULL OR jsonb_typeof(p_context) IS DISTINCT FROM 'object'
  OR ARRAY(SELECT jsonb_object_keys(p_context) ORDER BY 1) IS DISTINCT FROM ARRAY['attempt_id','authority_id','business_instance','codec_version','control_instance','control_version','d5','device_id','event_fingerprint','game_id','internal_generation','phase_id','request_fingerprint','restore_epoch','wire_d4']::text[] THEN RAISE EXCEPTION 'control phase registration rejected' USING ERRCODE='42501'; END IF;
+ PERFORM pg_advisory_xact_lock(hashtext(p_tenant_id::text),hashtext(p_context->>'attempt_id'));
+ IF EXISTS(SELECT FROM sync_control.attempt_retirements r WHERE r.tenant_id=p_tenant_id AND r.attempt_id=(p_context->>'attempt_id')::uuid) THEN RAISE EXCEPTION 'attempt retired' USING ERRCODE='42501'; END IF;
  au:=jsonb_populate_record(NULL::sync_control.authorities,p_context); au.state:='active';
  IF NOT EXISTS(SELECT FROM sync_control.authorities a WHERE a=au) THEN RAISE EXCEPTION 'authority conflict' USING ERRCODE='42501'; END IF;
  at:=jsonb_populate_record(NULL::sync_control.attempts,p_context); at.tenant_id:=p_tenant_id; at.event_count:=1; at.record_version:=1;
@@ -43,7 +47,27 @@ BEGIN
  FROM sync_control.authorities au JOIN sync_control.attempts at USING(authority_id) JOIN sync_control.event_phases ph USING(tenant_id,attempt_id)
  WHERE au.state='active' AND at.tenant_id=p_tenant_id AND at.attempt_id=p_attempt_id AND ph.phase_id=p_phase_id AND at.event_count=1 AND ph.event_position=1 AND ph.d1=1;
 END;$f$;
+CREATE FUNCTION sync_control.retire_sync_attempt(p_tenant_id uuid,p_attempt_id uuid,p_device_id uuid,p_game_id uuid,p_wire_d4 text,p_codec_version bigint,p_request_fingerprint text,p_authority_id uuid,p_recovery_generation bigint)
+RETURNS text LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path=pg_catalog,pg_temp AS $f$
+DECLARE observed sync_control.attempts%ROWTYPE; retired sync_control.attempt_retirements%ROWTYPE; expected sync_control.attempt_retirements%ROWTYPE;
+BEGIN
+ IF session_user<>'pitchlog_sync_binding_actor' OR p_tenant_id IS NULL OR p_attempt_id IS NULL OR p_device_id IS NULL OR p_game_id IS NULL OR p_wire_d4 IS NULL OR p_wire_d4='' OR p_codec_version IS NULL OR p_codec_version<=0 OR p_request_fingerprint IS NULL OR p_request_fingerprint='' OR p_authority_id IS NULL OR p_recovery_generation IS NULL OR p_recovery_generation<=0 THEN RAISE EXCEPTION 'attempt retirement rejected' USING ERRCODE='42501'; END IF;
+ PERFORM pg_advisory_xact_lock(hashtext(p_tenant_id::text),hashtext(p_attempt_id::text));
+ IF NOT EXISTS(SELECT FROM sync_control.authorities a WHERE a.authority_id=p_authority_id AND a.state='active') THEN RAISE EXCEPTION 'attempt authority rejected' USING ERRCODE='42501'; END IF;
+ SELECT a.* INTO observed FROM sync_control.attempts a WHERE a.tenant_id=p_tenant_id AND a.attempt_id=p_attempt_id;
+ IF FOUND AND (observed.device_id IS DISTINCT FROM p_device_id OR observed.game_id IS DISTINCT FROM p_game_id OR observed.authority_id IS DISTINCT FROM p_authority_id OR observed.wire_d4 IS DISTINCT FROM p_wire_d4 OR observed.codec_version IS DISTINCT FROM p_codec_version OR observed.request_fingerprint IS DISTINCT FROM p_request_fingerprint OR observed.event_count IS DISTINCT FROM 1) THEN RAISE EXCEPTION 'attempt identity rejected' USING ERRCODE='42501'; END IF;
+ expected.tenant_id:=p_tenant_id; expected.attempt_id:=p_attempt_id; expected.device_id:=p_device_id; expected.game_id:=p_game_id; expected.authority_id:=p_authority_id; expected.wire_d4:=p_wire_d4; expected.codec_version:=p_codec_version; expected.request_fingerprint:=p_request_fingerprint; expected.recovery_generation:=p_recovery_generation;
+ SELECT r.* INTO retired FROM sync_control.attempt_retirements r WHERE r.tenant_id=p_tenant_id AND r.attempt_id=p_attempt_id;
+ IF FOUND THEN
+  IF retired IS DISTINCT FROM expected THEN RAISE EXCEPTION 'attempt retirement identity rejected' USING ERRCODE='42501'; END IF;
+  RETURN 'retired';
+ END IF;
+ INSERT INTO sync_control.attempt_retirements (tenant_id,attempt_id,device_id,game_id,authority_id,wire_d4,codec_version,request_fingerprint,recovery_generation)
+ VALUES (expected.tenant_id,expected.attempt_id,expected.device_id,expected.game_id,expected.authority_id,expected.wire_d4,expected.codec_version,expected.request_fingerprint,expected.recovery_generation);
+ RETURN 'retired';
+END;$f$;
 ALTER FUNCTION sync_control.register_first_ball_phase(uuid,jsonb) OWNER TO pitchlog_sync_binding_fn_owner;
 ALTER FUNCTION sync_control.read_first_ball_phase(uuid,uuid,uuid) OWNER TO pitchlog_sync_binding_fn_owner;
-REVOKE ALL ON FUNCTION sync_control.register_first_ball_phase(uuid,jsonb),sync_control.read_first_ball_phase(uuid,uuid,uuid) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION sync_control.register_first_ball_phase(uuid,jsonb),sync_control.read_first_ball_phase(uuid,uuid,uuid) TO pitchlog_sync_binding_actor;
+ALTER FUNCTION sync_control.retire_sync_attempt(uuid,uuid,uuid,uuid,text,bigint,text,uuid,bigint) OWNER TO pitchlog_sync_binding_fn_owner;
+REVOKE ALL ON FUNCTION sync_control.register_first_ball_phase(uuid,jsonb),sync_control.read_first_ball_phase(uuid,uuid,uuid),sync_control.retire_sync_attempt(uuid,uuid,uuid,uuid,text,bigint,text,uuid,bigint) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION sync_control.register_first_ball_phase(uuid,jsonb),sync_control.read_first_ball_phase(uuid,uuid,uuid),sync_control.retire_sync_attempt(uuid,uuid,uuid,uuid,text,bigint,text,uuid,bigint) TO pitchlog_sync_binding_actor;

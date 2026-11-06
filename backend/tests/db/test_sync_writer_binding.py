@@ -5,14 +5,16 @@ from __future__ import annotations
 import hashlib
 import json
 from datetime import datetime, timedelta, timezone
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from psycopg import sql
 
+from .rg1_lifecycle_support import docker
 from .sync_writer_binding_support import (
     ACTOR,
     APP,
+    BindingPeer,
     _literal,
     assert_statement,
     owned_binding_database,
@@ -44,6 +46,96 @@ def initial_scope_database(monkeypatch):
 def binding_database(initial_scope_database):
     """正式供給のない表/関数をfixture専用DDLで補わない。"""
     return prepare_binding_database(initial_scope_database)
+
+
+def test_control_retirement_blocks_old_attempt_and_keeps_new_attempt(
+    initial_scope_database,
+):
+    """実制御PGで旧試行を遮断し、別試行の同原文登録は維持する。"""
+    owner = initial_scope_database
+    cluster = owner.authority
+    issuer = docker(
+        "exec",
+        cluster.binding_control,
+        "psql",
+        "-X",
+        "-A",
+        "-t",
+        "-q",
+        "-U",
+        "postgres",
+        "-d",
+        "binding_control_fixture",
+        "-c",
+        "SELECT authority_id FROM sync_control.authorities WHERE state='active'",
+    ).strip()
+    authority = {
+        "authority_id": issuer,
+        "control_instance": str(UUID(int=7101)),
+        "business_instance": str(UUID(int=7102)),
+        "restore_epoch": str(UUID(int=7103)),
+        "control_version": 1,
+    }
+    tenant, device, game, attempt, phase, d5 = (uuid4() for _ in range(6))
+    original = {
+        **authority,
+        "attempt_id": str(attempt),
+        "device_id": str(device),
+        "game_id": str(game),
+        "wire_d4": "original-D4",
+        "internal_generation": 1,
+        "codec_version": 1,
+        "request_fingerprint": "original-request",
+        "phase_id": str(phase),
+        "d5": str(d5),
+        "event_fingerprint": "original-event",
+    }
+    with BindingPeer(
+        cluster.binding_control, "binding_control_fixture", ACTOR
+    ) as actor:
+        registration = (
+            "SELECT sync_control.register_first_ball_phase("
+            + _literal(tenant)
+            + ","
+            + _literal(json.dumps(original))
+            + "::jsonb)"
+        )
+        assert actor.execute(registration)[1] == "00000"
+        retire = (
+            "SELECT sync_control.retire_sync_attempt("
+            + ",".join(
+                _literal(value)
+                for value in (
+                    tenant,
+                    attempt,
+                    device,
+                    game,
+                    "original-D4",
+                    1,
+                    "original-request",
+                    issuer,
+                    7,
+                )
+            )
+            + ")"
+        )
+        assert actor.query(retire) == ("retired",)
+        assert actor.query(retire) == ("retired",)
+        assert actor.execute(registration)[1] == "42501"
+        altered = {**original, "request_fingerprint": "other-request"}
+        assert (
+            actor.execute(
+                registration.replace(json.dumps(original), json.dumps(altered))
+            )[1]
+            == "42501"
+        )
+        fresh = {**original, "attempt_id": str(uuid4()), "phase_id": str(uuid4())}
+        assert (
+            actor.execute(
+                registration.replace(json.dumps(original), json.dumps(fresh))
+            )[1]
+            == "00000"
+        )
 
 
 def _publish(db, writer, *, ttl=20):

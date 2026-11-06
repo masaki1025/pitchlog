@@ -6,7 +6,7 @@ status: active
 branch: feature/mvp-attempt-recovery
 worktree: /home/ymdms/projects/pitchlog-worktrees/feature-mvp-attempt-recovery
 created: 2026-11-07
-計画レビュー周回: 0
+計画レビュー周回: 1
 確定ゲート周回: 0
 実行方式: 通常
 ---
@@ -19,9 +19,11 @@ created: 2026-11-07
 
 業務 DB 外側から見た行数 0 や Python の例外捕捉だけで取消成功を認定しない。本人署名・P6 blind・正式 7.7 はこの候補の成果ではない。
 
+2026-11-07、root の非作者読取と PO 委任判断で本計画の step 1 着手を採用した。`business` 行が無い場合も、同じ recovery fence が既発行参照・borrow・進行中 RPC を排出した後にだけ判断する。control 側 register の遮断と business binding 作成の間の競合を、journal の intent/terminal と実 PG の txid 終結で別々に否定する。live/UNKNOWN を `retry_allowed` にしない。この判断は人間逐行確認・P6 blind・製品成功ではない。
+
 ## 所有と接合境界
 
-担当の新規 WT `feature/mvp-attempt-recovery` は固定 `a0c192a0e282479790eb8daae6b025a4952022fc` 起点。候補編集は backend `sync/attempt_recovery.py`、`sync/stop_contract.py`、`sync/control_provider/{evidence.py,binding_control.py,sql/control-phase-schema.sql,sql/writer-binding-control.sql}`、`durable_rights_ledger/adapter.py`、`api/routers/sync.py`、必要な `sync/{apply.py,source_binding.py}`、frontend `api/syncAttemptRecovery.ts`、既 attempt persistence と必要な controller、専用試験・E2E。専用 control/business schema の migration/DDL、公開 DTO/contract/登録は本 WT の未受理候補差分または cache patch とし、root が共有本体へ直列接合する。正本、数学、唯一 artifact、旧業務保存は変更しない。権限・DDL の一般緩和や固定成功 Port は作らない。
+担当の新規 WT `feature/mvp-attempt-recovery` は固定 `a0c192a0e282479790eb8daae6b025a4952022fc` 起点。候補編集は backend `sync/attempt_recovery.py`、`sync/stop_contract.py`、`sync/control_provider/{evidence.py,binding_control.py,sql/control-phase-schema.sql,sql/writer-binding-control.sql,sql/writer-binding-functions.sql}`、`durable_rights_ledger/adapter.py`、`api/routers/sync.py`、実 C2 route 宣言 `api/tenant_access.py`、必要な `sync/{apply.py,source_binding.py}`、frontend `api/syncAttemptRecovery.ts`、既 attempt persistence と必要な controller、専用試験・E2E。専用 control/business schema の migration/DDL、同 token 更新 route の `contracts/authentication/cookie_identity_v1.json`、公開 DTO/contract/登録は本 WT の未受理候補差分または cache patch とし、root が共有本体へ直列接合する。正本、数学、唯一 artifact、旧業務保存は変更しない。権限・DDL の一般緩和や固定成功 Port は作らない。
 
 ## 段階
 

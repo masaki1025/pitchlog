@@ -1596,6 +1596,120 @@ class _AuthorityRuntime:
                     self._blocked = True
             raise
 
+    def _handle_binding_recovery(
+        self, channel: socket.socket, request: dict[str, Any]
+    ) -> None:
+        """実fenceで旧RPCを排出し、終結証拠とD5を別照合して遮断する。"""
+        from pitchlog.sync.control_provider.binding_control import (
+            BindingOutcome,
+            _BindingAuthority,
+        )
+        from pitchlog.sync.stop_contract import AttemptIdentity
+
+        if (
+            self._value.get("schema_version") != 3
+            or self._blocked
+            or set(request)
+            != {
+                "operation",
+                "tenant_id",
+                "device_id",
+                "identity",
+                "d5",
+                "event_fingerprint",
+            }
+            or request["operation"] != "binding_recover"
+            or type(request["tenant_id"]) is not str
+            or type(request["device_id"]) is not str
+            or type(request["d5"]) is not str
+            or type(request["event_fingerprint"]) is not str
+            or not request["event_fingerprint"]
+        ):
+            raise LedgerUnavailable("ledger unavailable")
+        try:
+            tenant = UUID(request["tenant_id"])
+            device = UUID(request["device_id"])
+            d5 = UUID(request["d5"])
+            identity = AttemptIdentity.from_mapping(request["identity"])
+            if any(
+                str(value) != request[key]
+                for key, value in (
+                    ("tenant_id", tenant),
+                    ("device_id", device),
+                    ("d5", d5),
+                )
+            ):
+                raise ValueError
+        except (KeyError, TypeError, ValueError):
+            raise LedgerUnavailable("ledger unavailable") from None
+        authority = _BindingAuthority(self._value, self._journal.authority_id)
+        outcome: str = "unresolved"
+        with self._pair.recovery_fence() as fence:
+            fence.assert_held()
+            records: dict[int, dict[str, Any]] = {}
+            terminals: dict[int, list[str]] = {}
+            rejected: set[int] = set()
+            closed: set[int] = set()
+            for _ordinal, event in _events(self._journal):
+                if (
+                    event["event"] == "binding_intent"
+                    and event["record"]["attempt_id"] == identity.attempt_id
+                ):
+                    lease = event["lease"]
+                    if lease in records:
+                        _send(channel, {"status": "ok", "result": outcome})
+                        return
+                    records[lease] = event["record"]
+                    terminals[lease] = []
+                    if len(records) > 16:
+                        _send(channel, {"status": "ok", "result": outcome})
+                        return
+                elif event["event"] == "binding_terminal" and event["lease"] in records:
+                    terminals[event["lease"]].append(event["outcome"])
+                elif event["event"] == "binding_rejected" and event["lease"] in records:
+                    rejected.add(event["lease"])
+                elif event["event"] == "lease_close" and event["lease"] in records:
+                    closed.add(event["lease"])
+            if any(
+                record["tenant_id"] != str(tenant)
+                or record["phase"].get("device_id") != str(device)
+                or record["phase"].get("game_id") != identity.game_id
+                or record["phase"].get("wire_d4") != identity.d4
+                or record["phase"].get("codec_version") != identity.codec_version
+                or record["phase"].get("request_fingerprint")
+                != identity.wire_fingerprint
+                or record["phase"].get("d5") != str(d5)
+                or record["phase"].get("event_fingerprint")
+                != request["event_fingerprint"]
+                for record in records.values()
+            ):
+                _send(channel, {"status": "ok", "result": outcome})
+                return
+            terminal: set[str] = set()
+            for lease in records:
+                if (
+                    len(terminals[lease]) != 1
+                    or lease in rejected
+                    or lease not in closed
+                ):
+                    _send(channel, {"status": "ok", "result": outcome})
+                    return
+                terminal.add(terminals[lease][0])
+            if len(terminal) > 1:
+                _send(channel, {"status": "ok", "result": outcome})
+                return
+            d5_state = authority.observe_d5(tenant, d5, request["event_fingerprint"])
+            if d5_state == "conflict" or (
+                terminal == {BindingOutcome.COMMITTED.value} and d5_state != "matching"
+            ):
+                _send(channel, {"status": "ok", "result": outcome})
+                return
+            fence.assert_held()
+            authority.retire_attempt(tenant, device, identity, fence.generation)
+            fence.assert_held()
+            outcome = "retry_allowed"
+        _send(channel, {"status": "ok", "result": outcome})
+
     def handle(self, channel: socket.socket, *, role: str | None = None) -> None:
         """実peer認証済みchannel上で閉じた要求と実fenceだけを実行する。"""
         lease = None
@@ -1606,7 +1720,10 @@ class _AuthorityRuntime:
             # PG/fence/journalに触れる前に能力外の操作を拒否する。
             _authorize_operation(role, operation)
             if role == "sync_binding":
-                self._handle_binding(channel, request)
+                if operation == "binding_recover":
+                    self._handle_binding_recovery(channel, request)
+                else:
+                    self._handle_binding(channel, request)
                 return
             if role is not None:
                 keys = (
@@ -1671,7 +1788,7 @@ def _authorize_operation(role: str | None, operation: object) -> None:
     allowed = {
         "generation": frozenset({"epoch", "reserve", "claim", "fence_open"}),
         "fresh_controller": frozenset({"fresh_activation_open"}),
-        "sync_binding": frozenset({"binding_open"}),
+        "sync_binding": frozenset({"binding_open", "binding_recover"}),
     }
     if (
         type(role) is not str

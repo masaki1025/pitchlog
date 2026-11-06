@@ -1499,6 +1499,112 @@ def _g20_open_intent():
     ]
 
 
+@pytest.mark.parametrize(
+    "change,expected",
+    [
+        ("closed_rollback", "retry_allowed"),
+        ("closed_committed", "retry_allowed"),
+        ("no_intent", "retry_allowed"),
+        ("live", "unresolved"),
+        ("no_close", "unresolved"),
+        ("unknown_identity", "unresolved"),
+        ("d5_conflict", "unresolved"),
+        ("committed_without_d5", "unresolved"),
+    ],
+)
+def test_attempt_recovery_requires_real_lease_terminal_and_d5(
+    monkeypatch, change, expected
+):
+    """Binding intent行番号とlease番号の違い、live/未知/D5不一致を閉じる。"""
+    import socket
+    from contextlib import contextmanager
+    from types import SimpleNamespace
+
+    from pitchlog.sync.control_provider import binding_control as binding
+
+    tenant, device, game, d5 = (str(UUID(int=i)) for i in (11, 16, 17, 18))
+    record = _g20_record()
+    record["phase"] = {
+        "device_id": device,
+        "game_id": game if change != "unknown_identity" else str(UUID(int=99)),
+        "wire_d4": "D4-original",
+        "codec_version": 1,
+        "request_fingerprint": "request-original",
+        "d5": d5,
+        "event_fingerprint": "event-original",
+    }
+    events = (
+        []
+        if change == "no_intent"
+        else [
+            (1, {"event": "lease_open", "epoch": 1}),
+            (2, {"event": "binding_intent", "lease": 1, "record": record}),
+        ]
+    )
+    if change not in ("no_intent", "live"):
+        outcome = (
+            "COMMITTED"
+            if change in ("closed_committed", "committed_without_d5")
+            else "ROLLBACK_CONFIRMED"
+        )
+        events.append(
+            (3, {"event": "binding_terminal", "lease": 1, "outcome": outcome})
+        )
+        if change != "no_close":
+            events.append((4, {"event": "lease_close", "lease": 1}))
+    runtime = _g20_runtime()
+    calls = []
+
+    @contextmanager
+    def fence():
+        calls.append("fence-enter")
+        yield SimpleNamespace(generation=7, assert_held=lambda: None)
+        calls.append("fence-exit")
+
+    runtime._pair = SimpleNamespace(recovery_fence=fence)
+    monkeypatch.setattr(adapter, "_events", lambda _journal: iter(events))
+
+    class Authority:
+        def __init__(self, *_args):
+            pass
+
+        def observe_d5(self, *_args):
+            calls.append("d5")
+            if change == "d5_conflict":
+                return "conflict"
+            if change == "committed_without_d5":
+                return "absent"
+            return "matching"
+
+        def retire_attempt(self, *_args):
+            calls.append("retire")
+
+    monkeypatch.setattr(binding, "_BindingAuthority", Authority)
+    request = {
+        "operation": "binding_recover",
+        "tenant_id": tenant,
+        "device_id": device,
+        "identity": {
+            "attempt_id": record["attempt_id"],
+            "game_id": game,
+            "d4": "D4-original",
+            "codec_version": 1,
+            "wire_fingerprint": "request-original",
+        },
+        "d5": d5,
+        "event_fingerprint": "event-original",
+    }
+    client, server = socket.socketpair()
+    try:
+        runtime._handle_binding_recovery(server, request)
+        assert adapter._receive(client) == {"status": "ok", "result": expected}
+    finally:
+        client.close()
+        server.close()
+    assert calls[0] == "fence-enter" and calls[-1] == "fence-exit"
+    assert ("retire" in calls) is (expected == "retry_allowed")
+
+
 @pytest.mark.parametrize("stage", ["register", "publish", "unknown", "journal-fault"])
 def test_g20_runtime_closes_only_confirmed_request(monkeypatch, stage):
     """実handle分岐は確定時だけ全体停止せず閉じる。不明/追記故障は停止。"""

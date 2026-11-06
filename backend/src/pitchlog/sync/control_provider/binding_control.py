@@ -29,6 +29,7 @@ from pitchlog.sync.control_provider.writer_binding import (
     WriterBindingUnavailable,
     WriterIdentity,
 )
+from pitchlog.sync.stop_contract import AttemptIdentity
 
 
 class _ConfirmedBindingRejection(WriterBindingUnavailable):
@@ -426,6 +427,49 @@ class _BindingAuthority:
         except Exception:
             return BindingOutcome.UNKNOWN
 
+    def observe_d5(self, tenant_id: UUID, d5: UUID, fingerprint: str) -> str:
+        """業務TX終結と別の固定関数でD5原本だけを分類する。"""
+        row = self._call(
+            "business",
+            "SELECT sync_fence_api.read_attempt_d5(%s,%s,%s)",
+            (tenant_id, d5, fingerprint),
+        )
+        if len(row) != 1 or row[0] not in ("absent", "matching", "conflict"):
+            raise WriterBindingUnavailable("D5照合結果が不正")
+        return cast(str, row[0])
+
+    def retire_attempt(
+        self,
+        tenant_id: UUID,
+        device_id: UUID,
+        identity: AttemptIdentity,
+        recovery_generation: int,
+    ) -> None:
+        """同fence内の最終段で旧attemptの遅着を不可逆に遮断する。"""
+        if (
+            type(identity) is not AttemptIdentity
+            or type(recovery_generation) is not int
+        ):
+            raise WriterBindingUnavailable("旧試行識別が不正")
+        row = self._call(
+            "control",
+            "SELECT sync_control.retire_sync_attempt(%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+            (
+                tenant_id,
+                UUID(identity.attempt_id),
+                device_id,
+                UUID(identity.game_id),
+                identity.d4,
+                identity.codec_version,
+                identity.wire_fingerprint,
+                self._issuer,
+                recovery_generation,
+            ),
+            write=True,
+        )
+        if row != ("retired",):
+            raise WriterBindingUnavailable("旧試行遮断の確定値が不正")
+
 
 _LEASE_CREATION = object()
 
@@ -610,9 +654,24 @@ class _BindingBroker:
             ):
                 raise WriterBindingUnavailable("binding app主体が不正")
             request = _receive(channel)
+            recovery = request.get("operation") == "binding_recover"
             if (
-                set(request) != {"operation", "cookie", "tenant_id", "phase", "writer"}
-                or request["operation"] != "binding_open"
+                set(request)
+                != (
+                    {
+                        "operation",
+                        "cookie",
+                        "tenant_id",
+                        "device_id",
+                        "identity",
+                        "d5",
+                        "event_fingerprint",
+                    }
+                    if recovery
+                    else {"operation", "cookie", "tenant_id", "phase", "writer"}
+                )
+                or request["operation"]
+                != ("binding_recover" if recovery else "binding_open")
                 or type(request["cookie"]) is not str
             ):
                 raise WriterBindingUnavailable("binding app要求が不正")
@@ -623,8 +682,10 @@ class _BindingBroker:
             if authenticated is None or str(authenticated[0]) != request["tenant_id"]:
                 raise WriterBindingUnavailable("binding認証が不一致")
             with self._ledger._channel() as authority:
-                result = _request(authority, request)
+                result = _request(authority, request, mutation=recovery)
                 _send(channel, {"status": "ok", "result": result})
+                if recovery:
+                    return
                 while True:
                     current = _receive(channel)
                     if set(current) != {"operation"} or current["operation"] not in (
@@ -736,3 +797,52 @@ class BindingControl:
         except BaseException:
             manager.__exit__(None, None, None)
             raise
+
+    def recover_attempt(
+        self,
+        context: TenantContext,
+        identity: AttemptIdentity,
+        device_id: UUID,
+        d5: UUID,
+        event_fingerprint: str,
+        *,
+        cookie: str,
+    ) -> Literal["retry_allowed", "unresolved"]:
+        """実Cookieと同端末照合済みの旧試行だけを専用peerへ照会する。"""
+        from pitchlog.durable_rights_ledger.adapter import _request
+
+        if (
+            type(context) is not TenantContext
+            or not context._has_valid_integrity_proof()
+            or type(identity) is not AttemptIdentity
+            or type(device_id) is not UUID
+            or type(d5) is not UUID
+            or type(event_fingerprint) is not str
+            or not event_fingerprint
+            or type(cookie) is not str
+            or not cookie
+        ):
+            raise WriterBindingUnavailable("旧試行照会の資格が不正")
+        with self._channel() as channel:
+            result = _request(
+                channel,
+                {
+                    "operation": "binding_recover",
+                    "cookie": cookie,
+                    "tenant_id": str(context.tenant_id),
+                    "device_id": str(device_id),
+                    "d5": str(d5),
+                    "event_fingerprint": event_fingerprint,
+                    "identity": {
+                        "attempt_id": identity.attempt_id,
+                        "game_id": identity.game_id,
+                        "d4": identity.d4,
+                        "codec_version": identity.codec_version,
+                        "wire_fingerprint": identity.wire_fingerprint,
+                    },
+                },
+                mutation=True,
+            )
+        if result not in ("retry_allowed", "unresolved"):
+            raise WriterBindingUnavailable("旧試行照会の結果が不正")
+        return cast(Literal["retry_allowed", "unresolved"], result)
