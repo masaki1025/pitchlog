@@ -272,21 +272,24 @@ def _pr197_delegated_digest_impl(
         raise fail()
     seen_prs: set[int] = set()
     seen_branches: set[str] = set()
-    for target in targets:
+    for raw_target in targets:
+        if type(raw_target) is not dict:
+            raise fail()
+        target = cast(dict[str, object], raw_target)
+        pr = target.get("pr")
+        branch = target.get("branch")
         if (
-            type(target) is not dict
-            or set(target) != {"pr", "branch"}
-            or type(target["pr"]) is not int
-            or target["pr"] <= 0
-            or type(target["branch"]) is not str
-            or re.fullmatch(r"(?:feature|fix)/[a-z0-9][a-z0-9/._-]*", target["branch"])
-            is None
-            or target["pr"] in seen_prs
-            or target["branch"] in seen_branches
+            set(target) != {"pr", "branch"}
+            or type(pr) is not int
+            or pr <= 0
+            or type(branch) is not str
+            or re.fullmatch(r"(?:feature|fix)/[a-z0-9][a-z0-9/._-]*", branch) is None
+            or pr in seen_prs
+            or branch in seen_branches
         ):
             raise fail()
-        seen_prs.add(target["pr"])
-        seen_branches.add(target["branch"])
+        seen_prs.add(pr)
+        seen_branches.add(branch)
     if (
         policy.get("enabled") is not True
         or policy.get("schema_version") != 1
