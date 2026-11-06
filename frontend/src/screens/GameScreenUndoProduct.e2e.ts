@@ -41,6 +41,10 @@ test('実画面の新規作成→開始→2球→ACK喪失/reload/同要求再�
   page,
 }) => {
   const syncDurationsMs: number[] = []
+  page.on('console', (message) => {
+    if (message.text().startsWith('PITCHLOG_UNDO_CLIENT_STAGE='))
+      console.log(message.text())
+  })
   page.setDefaultTimeout(30_000)
   if (new URL(baseURL!).protocol !== 'https:')
     throw new Error('実HTTPSが必要です')

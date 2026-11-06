@@ -8,6 +8,38 @@ import { exactPlayObject } from '../api/terminalPitchWire'
 import { apiRequest } from '../api/client'
 import { isLineupPrefixGame } from '../api/lineupPrefixGame'
 import { sameOrdinaryWire } from '../api/ordinaryPitchWire'
+import { NativeEnvelopePersistence } from '../api/nativeUndoWire'
+import { DurableQueue } from '../lib/sync/durableQueue'
+
+// 診断専用: 入出力値を読まず、実耐久処理の開始/終結だけを観測する。
+function observeMethod(target: object, key: string, label: string) {
+  const original: unknown = Reflect.get(target, key)
+  if (typeof original !== 'function') throw new Error('観測対象がありません')
+  Reflect.set(target, key, function (this: unknown, ...args: unknown[]) {
+    console.log('PITCHLOG_UNDO_CLIENT_STAGE=' + label + ':start')
+    const result: unknown = Reflect.apply(original, this, args)
+    if (!(result instanceof Promise)) return result
+    return result.then(
+      (value: unknown) => {
+        console.log('PITCHLOG_UNDO_CLIENT_STAGE=' + label + ':done')
+        return value
+      },
+      (error: unknown) => {
+        console.log('PITCHLOG_UNDO_CLIENT_STAGE=' + label + ':failed')
+        throw error
+      },
+    )
+  })
+}
+observeMethod(
+  NativeEnvelopePersistence.prototype,
+  'readPreparedSlot',
+  'prepared',
+)
+observeMethod(NativeEnvelopePersistence.prototype, 'prepare', 'prepare')
+observeMethod(NativeEnvelopePersistence.prototype, 'read', 'envelope-read')
+observeMethod(DurableQueue.prototype, 'readSlotsPage', 'queue-page')
+observeMethod(DurableQueue.prototype, 'readNextD1', 'queue-position')
 
 const outputId = 'pitchlog-undo-read-probe'
 document.getElementById(outputId)?.remove()
