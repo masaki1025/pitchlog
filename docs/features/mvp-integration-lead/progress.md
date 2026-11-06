@@ -1,5 +1,15 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 正式成績基盤の派生反映と取消SQLの実測更新（2026-11-06 15:40 JST）
+
+- **利用者操作**: 同一候補の実HTTPS新規作成→開始→通常2球保存は維持。取消の前段GETはr16でStartedReadRecordedを2回返すまで進んだが、後続SQLのrecording_generations権限で停止。2取消→次球→reload全列は未達。NFR性能5秒閾値も維持しており、成功扱いにしない。
+- **修復固定版**: NP 3b652358はJOINのROWTYPEに依存せず、保持checkpoint lock下で物理xminを明示取得。2b1533aeは未初期化PLPGSQL record xとSQL派生表aliasの衝突を解消。r16は実PG回帰2成功・画面1失敗65.97秒、source前後一致・owned container除去済み。次の権限エラーを限定診断中。広いUPDATE追加はしていない。
+- **正式成績基盤**: E42bda907→定義cd9fb5bb→core JSON ba59b627の順序を固定。31派生＋corpusは独立REPORT2963fa62ab83a94b9c8961b0293ce19053f64bd29701578673d9b0fdda3ad663（全重要度0）後、PO委任判断を計画へ記録し2fa42d65へ反映。実木tenant CLI ok、関連150成功/849非選択15.79秒、Ruff/diff check成功。正式PR/最終差分/必須全CI/実DBは別ゲートで未成立。
+- **終了再開**: 49896734にreflection2（confirmed_prefix・直前依存・ADR003 v0.11・CL責務）を反映。基本2回を維持し、既記録した追加限定1回の非作者レビューを進行中。正本はin-review、まだ確定/製品実装済みではない。
+- **成績製品接合**: feature-mvp-basic-stats-productは3059fd37をHEADとするmerge作業中。41507aa0の既存成果＋反映patch＋root生成核/pin接合30pathをcache working-integration.patch SHA0fdf982c1a16e205b8feb13c35e70c00879f2575bda69330d809a2c5a686643bに保全。独立レビューは未登録step1候補として可。旧v2保存series互換、可変read hook廃止/正式認可、真正終了pointer、登板/BF27項目、毎球CSVは未達。test-only finalizeを製品成功と扱わない。
+- **次の作業**: native最終HEAD確認→PR197提出/全CI、取消の次SQLを修復・直接snapshot/権限/競合検査、終了再開ゲート追加レビュー→実装、成績の旧版互換と閉read接続。毎球CSVは外部LLMへの独立実装指示をユーザーへ提示済み、送付/受諾/担当枝は未確認。
+
+
 ## 実画面2球の保存・取消GET修復と終了再開ゲート（2026-11-06）
 
 - **利用者操作の候補実証**: cc9系～d118のowned HTTPS/実認証/実記録権/実DBで、画面新規作成→開始→通常ボール2球の受理と2行保存を実測（r8/r9/r10/r11）。取消のGET503で停止し、2取消/次球/reloadや正式develop提供には広げない。外側PGだけの無blocking監視は内側業務PGの保証でないと訂正済み。
