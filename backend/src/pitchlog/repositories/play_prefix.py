@@ -1197,7 +1197,7 @@ def _require_v3_compatibility_v2(root, prior, current, old_raw, anchor_raw):
     witness_sha = hashlib.sha256(raw).hexdigest()
     if (
         witness_sha
-        != "6b3b29e545b4c0a09876bad1fc3dc4e8e207b2ad691a220b2322fca06cda9296"
+        != "c325d5174ca260f45489a6589351104cbe96cb14d30b123fa03a495a4b2375a5"
     ):
         raise ValueError
     registry_raw = (base / "play_prefix_v3_source_compatibility_v2.json").read_bytes()

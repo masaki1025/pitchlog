@@ -32,3 +32,6 @@ step1の入力codec部分を採用（2026-11-06、PO委任Codex /root判断）: 
 
 
 step3の実画面E2E追加（2026-11-06、PO委任Codex/root判断）: GameScreenLifecycleProduct.e2e.ts/専用Playwright config/backend実DB wrapperを追加。UIで新規作成→開始→1球→終了v1→再開→既NP画面から2球→再終了v2→reloadを同じ候補で実測し、DBの6accepted原本と真正confirmed_ended/source_count3を別literalで照合する。既外部E2Eの未接続driverを成功stubで置換せず、実画面のボタン/唯一核/実APIを使用。まだ実行前で、準備完了を実証成功にしない。
+
+
+単一artifact再束縛（2026-11-06、PO委任Codex/root判断）: root合成source9805045fをcache作者が公式builderで生成し、唯一artifact9ae9d16db1f2fa48905eb0ac951c8cb3ce5704dfe308df95a7a0bba155f33d19へ接合。patch55abded5a39fea258876884ea99d5b3c66efa7d10b89d00dc635d8b3be8c695dの22pathを全before/after SHA照合し採用候補とする。旧数学D11 134＋prefix19、旧Git4e8の53witnessを新hostと全値比較し、数学期待を採取し直していない。7manifest/識別値/lineup digest/有限v2witnessを公式派生、authz547body全byte一致・checker/限定33成功は作者証拠。正式7.7/最終非作者確認/全CI/同版実画面は未了、旧NP CPと未掲載候補artifactの互換は自動拡張しない。

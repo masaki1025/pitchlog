@@ -38,7 +38,7 @@
           "targetClass": "alpha",
           "kind": "single",
           "generated": "strikeoutPitchArtifact",
-          "hash": "sha256:fbcf253b150daa0a382034e2c388a5e86c2a629d1566be30522921b4681bafdd",
+          "hash": "sha256:9ae9d16db1f2fa48905eb0ac951c8cb3ce5704dfe308df95a7a0bba155f33d19",
           "invocation": {
             "adapter": "backend/src/pitchlog/domainrt/host.py",
             "operation": "deriveStrikeoutPitch"
