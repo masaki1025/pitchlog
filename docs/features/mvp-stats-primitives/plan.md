@@ -557,3 +557,10 @@ rootの候補作成後、非作者へ前後差分・旧判定保持・3表/全�
 R-9の型境界検査が、採用済D05の分母0未定義値と旧移行フィールドのセンチネル変換を混同していた。検査の限定例外は、現生成物の `_ratio_add` 1件と `_rate_result` 3件だけ（module path＋関数全AST SHA256完全一致）。全fileやstats目录を除外しない。既登録D1/T5生成物・モデル・率の出力・独立goldenは変えない。同fileの新parser、別path、関数名/本文変更、実フィールド0→NULLは従前どおり拒否する。この技術具体化は既POのD05とハーネス限定緩和許可に基づくroot判断であり、例外手続き自体を非作者レビューへ渡し、未解消P0/P1があれば採用しない。将来の計算変更は既指紋から外れ、再確認なしに自動許容しない。
 
 関連pure検査は全103件を確認し、業務DBはowned隔離環境だけを使う。共有DB/運用公開は行わない。正式資産の再導出・受理・最終CIはsource固定後に行い、成功を先取りしない。
+
+
+### 現行fixture追随の固定範囲（2026-11-07 06:10 JST、PO委任root）
+
+実CIの同一根因を閉じるため、step4/5の検査追随に `backend/tests/db_fixtures.py`、`backend/tests/db/test_alembic_migrations.py`、`backend/tests/db/test_schema_audit.py`、`backend/tests/db/test_stage_a_writer_storage.py` と同義型の純負例 `backend/tests/test_schema_audit_normalized_types.py` を追加する。業務用fixtureは正式current0041で起動し、旧0033往復と0037〜39の歴史検査は保持する。現行installerの故障取消/再開先は0041、旧private物理配置の確認も残す。schema監査は成績3表の既正式business unique3件を全fieldで追加し、37→40とする。全スキーマの型比較は既同義語正準化を期待/実catalogの両側へ対称適用し、timezone/精度変更を拒否する。metadata比較は正式migrations/env.pyと同じpublic/sync_fenceに限定して全モデルを比較し、public epoch列とprivate stats列の欠落をそれぞれ実PGで検出してrollback復元する。別schemaの任意取込や不明revisionの許容はしない。
+
+検証は純106件成功、owned r2の現行再開/installer故障全取消/0040索引3件成功、r3の全schema/旧team往復2件成功、r4のpublic/private欠落検出2件成功（各source前後同一/cleanup/共有DSN未使用）。r1 bootstrap失敗・r2型表記差・r3 public-only比較失敗の履歴はcacheへ保持する。非作者最終確認・全CI・正式派生資産受理は別条件であり、本人による確認やP6blind成立を代記しない。

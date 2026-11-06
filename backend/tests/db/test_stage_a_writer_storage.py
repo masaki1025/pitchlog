@@ -8,6 +8,7 @@ from alembic import command
 from alembic.config import Config
 from sqlalchemy import Engine, create_engine, event
 
+import pitchlog.db.current_product_startup as current
 import pitchlog.db.stage_a_startup as startup
 from pitchlog.authz.product_provisioning import (
     apply_product_authz_before_rule_placement,
@@ -24,6 +25,24 @@ def _revision(dsn: str) -> str:
         row = connection.execute("SELECT version_num FROM alembic_version").fetchone()
         assert row is not None
         return row[0]
+
+
+def _require_current_placement(dsn: str) -> None:
+    """現9表と既epoch/権利の実構造・索引を全照合する。"""
+    assert _revision(dsn) == current.CURRENT_REVISION
+    with psycopg.connect(dsn) as connection:
+        current._check_current_structure(connection)
+        current._check_current_indexes(connection)
+        current._check_current_rules(connection)
+        current._check_current_public_storage(connection)
+
+
+def _require_current_s3(dsn: str) -> None:
+    """物理currentと全認可catalogの成立を、公開可と混同せず検査する。"""
+    _require_current_placement(dsn)
+    with psycopg.connect(dsn) as connection:
+        report = current._catalog(connection)
+        assert report.ok, report.violations
 
 
 @pytest.mark.parametrize(
@@ -76,7 +95,9 @@ def test_placement_fault_rolls_back(
         event.listen(Engine, target[0], fail)
         try:
             with pytest.raises(RuntimeError, match="writer fault"):
-                startup.advance_stage_a_from_s0(owner_dsn=owner, applicator_dsn=admin)
+                current.advance_current_product_from_s0(
+                    owner_dsn=owner, applicator_dsn=admin
+                )
         finally:
             event.remove(Engine, target[0], fail)
         assert reached == [fault_point]
@@ -88,7 +109,7 @@ def test_placement_fault_rolls_back(
             assert connection.execute(
                 "SELECT count(*) FROM game_type_rule_defaults"
             ).fetchone() == (5,)
-        assert not startup.resume_stage_a_after_placement(
+        assert not current.resume_current_product_after_placement(
             owner_dsn=owner, applicator_dsn=admin
         ).publishable
 
@@ -124,11 +145,14 @@ def test_finite_resume(
             engine.dispose()
         assert _revision(admin) == revision
         for _ in range(2):
-            result = startup.resume_stage_a_after_placement(
+            result = current.resume_current_product_after_placement(
                 owner_dsn=owner, applicator_dsn=admin
             )
-            assert result.completed_stage == "S3" and not result.publishable
-        startup._require_s3(admin)
+            assert (
+                result.completed_revision == current.CURRENT_REVISION
+                and not result.publishable
+            )
+        _require_current_s3(admin)
 
 
 @pytest.mark.parametrize(
@@ -154,11 +178,11 @@ def test_structural_drift_rejected(
         owner,
         admin,
     ):
-        startup.advance_stage_a_from_s0(owner_dsn=owner, applicator_dsn=admin)
+        current.advance_current_product_from_s0(owner_dsn=owner, applicator_dsn=admin)
         with psycopg.connect(admin) as connection:
             connection.execute(cast(LiteralString, mutation))
         with pytest.raises(startup.StageAStartupError):
-            startup.resume_stage_a_after_placement(
+            current.resume_current_product_after_placement(
                 owner_dsn=owner, applicator_dsn=admin
             )
 
@@ -271,8 +295,8 @@ def test_installer_fault_rollback_and_resume(
     monkeypatch: pytest.MonkeyPatch,
     fault_position: str,
 ) -> None:
-    """認可transactionの故障は部分適用を残さず0038から再開する。"""
-    original = startup.apply_product_authz_ddl
+    """認可transactionの故障はcurrent配置を壊さず部分適用を全取消して再開する。"""
+    original = current.apply_product_authz_ddl
     snapshots = []
 
     def fail(connection: Any) -> None:
@@ -306,10 +330,12 @@ def test_installer_fault_rollback_and_resume(
         owner,
         admin,
     ):
-        monkeypatch.setattr(startup, "apply_product_authz_ddl", fail)
+        monkeypatch.setattr(current, "apply_product_authz_ddl", fail)
         with pytest.raises(RuntimeError, match="installer fault"):
-            startup.advance_stage_a_from_s0(owner_dsn=owner, applicator_dsn=admin)
-        assert _revision(admin) == "0039_ordinary_pitch_storage"
+            current.advance_current_product_from_s0(
+                owner_dsn=owner, applicator_dsn=admin
+            )
+        assert _revision(admin) == current.CURRENT_REVISION
         assert len(snapshots) == 1
         assert _full_catalog_snapshot(admin) == snapshots[0]
         with psycopg.connect(admin) as connection:
@@ -317,9 +343,9 @@ def test_installer_fault_rollback_and_resume(
                 "SELECT to_regprocedure('public.resolve_stage_a_rule(uuid,tex"
                 "t,text,boolean)')"
             ).fetchone() == (None,)
-        startup._require_writer_state(admin)
-        monkeypatch.setattr(startup, "apply_product_authz_ddl", original)
-        assert not startup.resume_stage_a_after_placement(
+        _require_current_placement(admin)
+        monkeypatch.setattr(current, "apply_product_authz_ddl", original)
+        assert not current.resume_current_product_after_placement(
             owner_dsn=owner, applicator_dsn=admin
         ).publishable
-        startup._require_s3(admin)
+        _require_current_s3(admin)

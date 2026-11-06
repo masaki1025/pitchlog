@@ -26,7 +26,7 @@ from psycopg import sql
 from psycopg.conninfo import conninfo_to_dict, make_conninfo
 from psycopg.types.json import Jsonb
 from sqlalchemy import BigInteger, CheckConstraint, Column, Integer, MetaData, Table
-from sqlalchemy.engine import URL, create_engine
+from sqlalchemy.engine import URL, Connection, create_engine
 from sqlalchemy.exc import DBAPIError
 
 from pitchlog.authz.product_catalog import inspect_product_authz_catalog
@@ -1209,6 +1209,19 @@ def _metadata_for_schema_revision(revision: str) -> MetaData:
     return historical
 
 
+def _schema_comparison_context(connection: Connection) -> MigrationContext:
+    """正式migrationと同じpublic/private schemaの全モデルを比較する。"""
+    return MigrationContext.configure(
+        connection,
+        opts={
+            "include_schemas": True,
+            "include_name": lambda name, type_, _parents: (
+                type_ != "schema" or name in (None, "public", "sync_fence")
+            ),
+        },
+    )
+
+
 def _pre_placement_metadata_diffs() -> list[object]:
     """実revisionに対応した表構造とモデルの差分を取得する。"""
     engine = create_engine(
@@ -1224,7 +1237,7 @@ def _pre_placement_metadata_diffs() -> list[object]:
                 .all()
             )
             assert len(revisions) == 1 and type(revisions[0]) is str
-            context = MigrationContext.configure(connection)
+            context = _schema_comparison_context(connection)
             return compare_metadata(
                 context, _metadata_for_schema_revision(revisions[0])
             )
@@ -8797,9 +8810,14 @@ def test_historical_metadata_copy_retains_all_other_tables(revision: str) -> Non
         == set(Base.metadata.tables)
         - (_INITIAL_RIGHT_STORAGE_TABLES)
         - _WRITER_BINDING_TABLES
+        - _STATS_PRIVATE_TABLES
     )
     for name, table in Base.metadata.tables.items():
-        if name in _INITIAL_RIGHT_STORAGE_TABLES or name in _WRITER_BINDING_TABLES:
+        if name in (
+            _INITIAL_RIGHT_STORAGE_TABLES
+            | _WRITER_BINDING_TABLES
+            | _STATS_PRIVATE_TABLES
+        ):
             continue
         expected = set(table.c.keys())
         if name == "rg1_restore_gate" and revision != "0035_rg1_initial_fresh_epoch":
@@ -8813,16 +8831,26 @@ def test_historical_metadata_copy_retains_all_other_tables(revision: str) -> Non
     )
     assert (
         set(_metadata_for_schema_revision("0036_initial_right_storage").tables)
-        == set(Base.metadata.tables) - _WRITER_BINDING_TABLES
+        == set(Base.metadata.tables) - _WRITER_BINDING_TABLES - _STATS_PRIVATE_TABLES
     )
     with pytest.raises(AssertionError, match="未対応revision"):
         _metadata_for_schema_revision("unknown")
 
 
+@pytest.mark.parametrize(
+    ("schema", "table", "column"),
+    (
+        ("public", "rg1_restore_gate", "recovery_generation"),
+        ("sync_fence", "stats_fact_versions", "created_at"),
+    ),
+)
 def test_current_metadata_epoch_column_loss_is_detected(
     provisioned_product_catalog: ProvisionedProductCatalog,
+    schema: str,
+    table: str,
+    column: str,
 ) -> None:
-    """正規0039は完全モデルで比較し、epoch欠落を必ず検出する。"""
+    """正規0041は完全モデルで比較し、epoch欠落を必ず検出する。"""
     engine = create_engine(
         normalize_postgresql_url(_sqlalchemy_url(provisioned_product_catalog.owner_dsn))
     )
@@ -8834,35 +8862,35 @@ def test_current_metadata_epoch_column_loss_is_detected(
                     connection.exec_driver_sql(
                         "SELECT version_num FROM public.alembic_version"
                     ).scalar_one()
-                    == "0039_ordinary_pitch_storage"
+                    == "0041_stats_fact_versions"
                 )
                 assert (
                     compare_metadata(
-                        MigrationContext.configure(connection),
-                        _metadata_for_schema_revision("0036_initial_right_storage"),
+                        _schema_comparison_context(connection),
+                        _metadata_for_schema_revision("0041_stats_fact_versions"),
                     )
                     == []
                 )
                 connection.exec_driver_sql(
-                    "ALTER TABLE public.rg1_restore_gate "
-                    "DROP COLUMN recovery_generation"
+                    f'ALTER TABLE "{schema}"."{table}" DROP COLUMN "{column}"'
                 )
                 diffs = compare_metadata(
-                    MigrationContext.configure(connection),
-                    _metadata_for_schema_revision("0036_initial_right_storage"),
+                    _schema_comparison_context(connection),
+                    _metadata_for_schema_revision("0041_stats_fact_versions"),
                 )
                 assert any(
                     difference[0] == "add_column"
-                    and difference[2] == "rg1_restore_gate"
-                    and difference[3].name == "recovery_generation"
+                    and difference[1] == (None if schema == "public" else schema)
+                    and difference[2] == table
+                    and difference[3].name == column
                     for difference in diffs
                 )
             finally:
                 transaction.rollback()
             assert (
                 compare_metadata(
-                    MigrationContext.configure(connection),
-                    _metadata_for_schema_revision("0036_initial_right_storage"),
+                    _schema_comparison_context(connection),
+                    _metadata_for_schema_revision("0041_stats_fact_versions"),
                 )
                 == []
             )
