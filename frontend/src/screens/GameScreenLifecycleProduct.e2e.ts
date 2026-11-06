@@ -242,12 +242,10 @@ test('実画面の新規作成→開始→1球→終了→再開→2球→再終
       })
     }
   })
-  await page
-    .getByRole('button', {
-      name: '三振・攻守交代を含む投球の記録へ',
-      exact: true,
-    })
-    .click()
+  // 新規開始は実0件v3 GETとstrict seed確定へ自動接続する。
+  await expect(page).toHaveURL(
+    `${baseURL}/games/${saved.id}/record?recording=play-prefix-v3`,
+  )
   for (let n = 1; n <= 1; n++) {
     await expect(page.getByTestId('ordinary-state-source')).toHaveText(
       'サーバー確認済みの状態',
