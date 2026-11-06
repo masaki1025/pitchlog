@@ -990,6 +990,11 @@
         "sync_right_api",
         "read_play_prefix_history_page",
         "uuid, uuid, bigint, bigint, uuid, bigint, bigint, bigint, bigint, bigint, uuid, integer"
+      ],
+      [
+        "sync_right_api",
+        "verify_replay_device",
+        "uuid, uuid, bytea"
       ]
     ]
   },
@@ -1016,5 +1021,5 @@
     }
   ],
   "derived_from": "contracts/authz/product/ddl-elements.json",
-  "source_digest": "f4661d1f0efe63cf0fa8c5a999f8e3ae424ab43fef392a5a254c97bd5ed2d077"
+  "source_digest": "c3ebfa7432cab33c0fd6b4bbbf256890aa6802369646e6645e1830cf65a1f107"
 }

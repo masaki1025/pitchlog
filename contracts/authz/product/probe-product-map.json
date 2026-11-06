@@ -1171,6 +1171,10 @@
       "reason": "product_only"
     },
     {
+      "product": "function:FUNCTION:sync_right_api:verify_replay_device(uuid, uuid, bytea)",
+      "reason": "product_only"
+    },
+    {
       "product": "policy:POLICY:first_ball_write_admissions:first_ball_stamp_first_ball_write_admissions",
       "reason": "product_only"
     },

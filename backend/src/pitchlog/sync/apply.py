@@ -356,7 +356,9 @@ def _replay_e1_without_binding(
     context: TenantContext,
     request: SyncRequest,
     fingerprints: tuple[str, ...],
-) -> AckResult | Literal["B6", "B7"] | None:
+    reference_device: UUID,
+    credential_digest: bytes,
+) -> AckResult | Literal["B5", "B6", "B7"] | None:
     """③認可後・V12前の D5 先行分類を writer binding 前に一度だけ行う。
 
     正本 sync-protocol DI1〜DI3 と 7-3 の再掲を、単球入口（1要求1イベント）
@@ -368,14 +370,18 @@ def _replay_e1_without_binding(
         context: 実認証済みのテナント文脈。
         request: S-1 外形を通過した同期要求。
         fingerprints: 原wireから凍結した各イベントの指紋（要求順）。
+        reference_device: 実要求の端末ID。
+        credential_digest: 実要求credentialの32 byte digest。
 
     Returns:
-        再掲 ACK、ACK を返さない境界 ``"B6"``/``"B7"``、または通常経路へ戻す
+        再掲 ACK、ACK を返さない境界 ``"B5"``/``"B6"``/``"B7"``、または通常経路へ戻す
         ``None``。
 
     Raises:
         SourceBindingError: 入力が単球F1入口の閉形式に合わない場合。
     """
+    from contextlib import nullcontext
+
     from pitchlog.repositories.rg1 import RG1Unavailable, read_rg1_open
     from pitchlog.sync.idempotency import classify_d5
     from pitchlog.sync.prefix_path import _candidate_result
@@ -403,9 +409,12 @@ def _replay_e1_without_binding(
     ):
         return None
     game_id = UUID(request.game_id)
-    if not game_accessible(context, game_id, tenant_transaction_scope):
-        return "B6"
     with tenant_transaction_scope(context) as scope:
+        # 同取引の行lockをD5読取完了まで保持し、資格失効との隙間を作らない。
+        if not _verify_replay_device(scope, reference_device, credential_digest):
+            return "B5"
+        if not game_accessible(context, game_id, lambda _: nullcontext(scope)):
+            return "B6"
         try:
             read_rg1_open(scope)
         except RG1Unavailable:
@@ -650,6 +659,26 @@ def _read_reference_device_state(context, reference_device):
         ):
             raise RuntimeError("端末状態の読取結果が不正")
         return result.rows[0][0]
+
+
+def _verify_replay_device(scope, reference_device, credential_digest):
+    """②B5の端末資格を読取専用SQLで照合し、異型結果は閉拒否する。"""
+    from pitchlog.repositories.first_ball import _VerifyReplayDeviceToken
+
+    if type(credential_digest) is not bytes or len(credential_digest) != 32:
+        raise ValueError("端末資格digestが不正")
+    result = scope.run_function(
+        _VerifyReplayDeviceToken(reference_device, credential_digest)
+    )
+    if (
+        type(result.rows) is not tuple
+        or len(result.rows) != 1
+        or type(result.rows[0]) is not tuple
+        or len(result.rows[0]) != 1
+        or type(result.rows[0][0]) is not bool
+    ):
+        raise RuntimeError("再掲端末資格の読取結果が不正")
+    return result.rows[0][0]
 
 
 def _apply_e1_f1(

@@ -1784,6 +1784,7 @@ def _activate_stamp_profile() -> None:
     )
     from pitchlog.authz.sync_right_sql import (
         render_device_state_read_create_sql,
+        render_replay_device_verify_create_sql,
         render_stamped_function_sql,
     )
 
@@ -1857,9 +1858,33 @@ def _activate_stamp_profile() -> None:
             ],
         }
     )
+    ADDITIONS["functions"].append(
+        {
+            "function_id": (
+                "FUNCTION:sync_right_api:verify_replay_device(uuid, uuid, bytea)"
+            ),
+            "schema_name": "sync_right_api",
+            "function_name": "verify_replay_device",
+            "identity_args": "uuid, uuid, bytea",
+            "function_kind": "definer",
+            "owner_role_id": "pitchlog_sync_right_fn_owner",
+            "language": "plpgsql",
+            "returns": "TABLE(device_matches boolean)",
+            "security_mode": "definer",
+            "volatility": "volatile",
+            "search_path": ["pg_catalog", "pg_temp"],
+            "acl_expectations": [
+                {"grantee": "pitchlog_app", "privilege": "EXECUTE", "grantable": False}
+            ],
+            "revoked_acl_expectations": [
+                {"grantee": "PUBLIC", "privilege": "EXECUTE", "grantable": False}
+            ],
+        }
+    )
     stamped = {
         **render_stamped_function_sql(),
         "read_device_state": render_device_state_read_create_sql(),
+        "verify_replay_device": render_replay_device_verify_create_sql(),
     }
     for row in ADDITIONS["functions"]:
         if (
@@ -2495,19 +2520,24 @@ def application_function_sql(function_id: str, sql: str) -> str | None:
     )
     # 新readは別署名の同名関数を既APIの代替として残さない。
     overload_guard = ""
-    if (row["schema_name"], row["function_name"]) == (
-        "sync_right_api",
+    if row["schema_name"] == "sync_right_api" and row["function_name"] in {
         "read_device_state",
-    ):
-        overload_guard = """
+        "verify_replay_device",
+    }:
+        function_name = row["function_name"]
+        overload_guard = (
+            """
     IF EXISTS (
         SELECT 1 FROM pg_catalog.pg_proc other
         JOIN pg_catalog.pg_namespace n ON n.oid=other.pronamespace
-        WHERE n.nspname='sync_right_api' AND other.proname='read_device_state'
+        WHERE n.nspname='sync_right_api' AND other.proname='"""
+            + function_name
+            + """'
           AND other.oid IS DISTINCT FROM existing
     ) THEN
         RAISE EXCEPTION 'first ball function definition collision';
     END IF;"""
+        )
     lookup = f"pg_catalog.to_regprocedure({_sql_literal(identity)})::pg_catalog.oid"
     volatility = _sql_literal(str(details[7]))
     return f"""DO $first_ball_reapply$
