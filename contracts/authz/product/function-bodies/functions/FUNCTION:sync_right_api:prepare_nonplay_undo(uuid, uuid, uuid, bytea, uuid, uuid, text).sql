@@ -69,7 +69,7 @@ PERFORM sync_fence_api.assert_writer_binding(p_tenant_id,p_attempt_id,
  AND l.source_fingerprint=stamp.event_fingerprint AND l.retired_at IS NULL
  AND l.import_batch_id IS NULL AND e.d2 IS NULL AND e.state_diff IS NULL
  AND NOT e.is_tombstone AND e.replaced_at IS NULL AND e.retired_at IS NULL
- AND e.import_batch_id IS NULL AND NOT e.migration_unverified FOR SHARE OF e;
+ AND e.import_batch_id IS NULL AND NOT e.migration_unverified;
  SELECT e.* INTO STRICT target_event FROM public.operation_events e
  JOIN public.idempotency_ledger l ON l.tenant_id=e.tenant_id AND l.d5=e.d5
  WHERE e.tenant_id=p_tenant_id AND e.game_id=p_game_id AND e.id=target_id
@@ -78,7 +78,7 @@ PERFORM sync_fence_api.assert_writer_binding(p_tenant_id,p_attempt_id,
  AND e.generation=own_event.target_generation AND e.d1=own_event.target_d1
  AND e.replaced_at IS NULL AND e.retired_at IS NULL AND e.import_batch_id IS NULL
  AND l.retired_at IS NULL AND l.import_batch_id IS NULL AND NOT e.is_tombstone
- AND NOT e.migration_unverified FOR SHARE OF e;
+ AND NOT e.migration_unverified;
  IF (cp.content->>'version' IS DISTINCT FROM '3' AND cp.content IS DISTINCT FROM
 before_cp)
  OR pg_catalog.to_jsonb(cp) IS DISTINCT FROM p->'storage'->'row'
