@@ -33,6 +33,42 @@ pytestmark = pytest.mark.requires_db
 
 def _stats_script() -> str:
     """既LC実経路の同一workerへ成績の真正readだけを追加する。"""
+    # 原testはserver側の最初のread障害を一律503へ畳むため、診断時だけ
+    # 同worker内の実read境界で型と関数位置を記録する。
+    diagnostic = '''from pitchlog.repositories import nonplay_prefix_read as np_read
+from pitchlog.repositories import game_lifecycle as lc_read
+from pitchlog.api.routers import started_games as started_route
+
+def trace_read(name, operation):
+    def traced(*args, **kwargs):
+        try:
+            return operation(*args, **kwargs)
+        except Exception as error:
+            original = getattr(error, "orig", error)
+            runtime_diagnostics["stats_read_error"] = {
+                "stage": name,
+                "type": type(error).__name__,
+                "sqlstate": getattr(original, "sqlstate", None),
+                "fixed_reason": (
+                    str(error)
+                    if type(error).__name__ == "NonplaySourceUnavailable"
+                    else None
+                ),
+                "frames": [
+                    (f.name, f.lineno)
+                    for f in traceback.extract_tb(error.__traceback__)
+                ][-8:],
+            }
+            raise
+    return traced
+
+np_read.read_undo_prefix = trace_read("nonplay", np_read.read_undo_prefix)
+lc_read._read_lifecycle_display = trace_read(
+    "lifecycle", lc_read._read_lifecycle_display)
+started_route.StartedNonplayPrefixGameRead.model_validate_json = trace_read(
+    "response", started_route.StartedNonplayPrefixGameRead.model_validate_json)
+
+'''
     helper = '''        async def stats_read():
             response = await client.get(
                 "/games/" + game + "/stats?mode=official&limit=200",
@@ -59,6 +95,17 @@ def _stats_script() -> str:
     marker = "        current, _ = await read_full()\n"
     assert _LIFECYCLE_SCRIPT.count(marker) == 1
     script = _LIFECYCLE_SCRIPT.replace(marker, helper + marker, 1)
+    status_guard = '                assert response.status_code == 200, (\n'
+    assert script.count(status_guard) >= 1
+    script = script.replace(
+        status_guard,
+        '                runtime_diagnostics["stats_read_status"] = '
+        'response.status_code\n' + status_guard,
+        1,
+    )
+    tail = "try:\n    out = asyncio.run(run())\n"
+    assert script.count(tail) == 1
+    script = script.replace(tail, diagnostic + tail, 1)
     marker = '        reopened, reopen_d5 = await lifecycle("reopen", ended)\n'
     assert script.count(marker) == 1
     script = script.replace(
