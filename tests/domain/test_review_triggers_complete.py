@@ -534,7 +534,12 @@ def test_pr197_delegated_reconfirmation_rejects_invalid_proof(
     elif mutation in {"source-byte", "policy-byte"}:
         path = root / ("backend/domain/model.schema.json" if mutation == "source-byte" else
                        "docs/features/mvp-delegated-core-review/policy.json")
-        path.write_bytes(path.read_bytes() + b"\n")
+        if mutation == "source-byte":
+            path.write_bytes(path.read_bytes() + b"\n")
+        else:
+            policy = json.loads(path.read_text())
+            policy["enabled"] = False
+            path.write_text(json.dumps(policy, ensure_ascii=False, indent=2) + "\n")
     else:
         path = root / record["reviewPath"]
         if mutation == "review-missing":
@@ -556,3 +561,47 @@ def test_pr197_delegated_reconfirmation_rejects_invalid_proof(
             record["reviewSha256"] = hashlib.sha256(path.read_bytes()).hexdigest()
     with pytest.raises(COMPLETION.trigger_evaluation.TriggerEvaluationError):
         COMPLETION.trigger_evaluation._pr197_delegated_digest(root, identifier, decision)
+
+
+@pytest.mark.parametrize("mutation", [
+    "append", "disabled", "expiry", "source", "remove", "reorder", "old-target",
+    "duplicate-pr", "duplicate-branch", "unknown-key", "boolean-pr", "duplicate-json",
+])
+def test_pr197_delegation_policy_allows_only_unrelated_target_append(
+    pr197_delegation_candidate, mutation,
+) -> None:
+    """固定委任根拠を保ち、新PR末尾追記で同じ意味承認を失効させない。"""
+    root, decision = pr197_delegation_candidate
+    path = root / "docs/features/mvp-delegated-core-review/policy.json"
+    policy = json.loads(path.read_text())
+    policy["targets"].append({"pr": 198, "branch": "feature/unit-test-future"})
+    if mutation == "disabled":
+        policy["enabled"] = False
+    elif mutation == "expiry":
+        policy["expires"] = "never"
+    elif mutation == "source":
+        policy["source"] = "self-approved"
+    elif mutation == "remove":
+        policy["targets"].pop(0)
+    elif mutation == "reorder":
+        policy["targets"][0], policy["targets"][1] = policy["targets"][1], policy["targets"][0]
+    elif mutation == "old-target":
+        policy["targets"][0]["branch"] = "feature/other"
+    elif mutation == "duplicate-pr":
+        policy["targets"][-1]["pr"] = 197
+    elif mutation == "duplicate-branch":
+        policy["targets"][-1]["branch"] = policy["targets"][0]["branch"]
+    elif mutation == "unknown-key":
+        policy["targets"][-1]["approved"] = True
+    elif mutation == "boolean-pr":
+        policy["targets"][-1]["pr"] = True
+    raw = json.dumps(policy, ensure_ascii=False, indent=2) + "\n"
+    if mutation == "duplicate-json":
+        raw = raw.replace('"enabled": true,', '"enabled": false, "enabled": true,')
+    path.write_text(raw)
+    checker = COMPLETION.trigger_evaluation._pr197_delegated_digest
+    if mutation == "append":
+        assert checker(root, 1, decision) == decision["delegatedReconfirmation"]["evidenceDigest"]
+    else:
+        with pytest.raises(COMPLETION.trigger_evaluation.TriggerEvaluationError):
+            checker(root, 1, decision)

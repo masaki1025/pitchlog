@@ -237,11 +237,56 @@ def _pr197_delegated_digest_impl(
     if (
         path.is_symlink()
         or not path.is_file()
-        or path.read_bytes() != authority
         or record["authoritySha256"] != hashlib.sha256(authority).hexdigest()
     ):
         raise fail()
     policy = json.loads(authority)
+
+    def unique(pairs: list[tuple[str, object]]) -> dict[str, object]:
+        """現policyの重複キーを後勝ちで補修しない。"""
+        result: dict[str, object] = {}
+        for key, value in pairs:
+            if key in result:
+                raise fail()
+            result[key] = value
+        return result
+
+    current_policy = _object(
+        json.loads(path.read_bytes(), object_pairs_hook=unique),
+        "現委任policy",
+    )
+    old_targets = policy["targets"]
+    targets = current_policy.get("targets")
+    if (
+        type(targets) is not list
+        or len(targets) < len(old_targets)
+        or json.dumps(targets[: len(old_targets)], sort_keys=True)
+        != json.dumps(old_targets, sort_keys=True)
+        or json.dumps(
+            {k: v for k, v in current_policy.items() if k != "targets"}, sort_keys=True
+        )
+        != json.dumps(
+            {k: v for k, v in policy.items() if k != "targets"}, sort_keys=True
+        )
+    ):
+        raise fail()
+    seen_prs: set[int] = set()
+    seen_branches: set[str] = set()
+    for target in targets:
+        if (
+            type(target) is not dict
+            or set(target) != {"pr", "branch"}
+            or type(target["pr"]) is not int
+            or target["pr"] <= 0
+            or type(target["branch"]) is not str
+            or re.fullmatch(r"(?:feature|fix)/[a-z0-9][a-z0-9/._-]*", target["branch"])
+            is None
+            or target["pr"] in seen_prs
+            or target["branch"] in seen_branches
+        ):
+            raise fail()
+        seen_prs.add(target["pr"])
+        seen_branches.add(target["branch"])
     if (
         policy.get("enabled") is not True
         or policy.get("schema_version") != 1
