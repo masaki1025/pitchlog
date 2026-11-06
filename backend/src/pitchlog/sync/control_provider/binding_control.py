@@ -23,7 +23,9 @@ from pitchlog.repositories.context import TenantContext
 from pitchlog.sync.control_provider.evidence import (
     AttemptBinding,
     AuthorityBinding,
+    D1lessPhaseBinding,
     EventPhaseBinding,
+    PhaseBinding,
 )
 from pitchlog.sync.control_provider.writer_binding import (
     WriterBindingUnavailable,
@@ -40,10 +42,11 @@ class _ConfirmedBindingRejection(WriterBindingUnavailable):
 
 
 def _is_confirmed_rejection(
-    error: psycopg.Error, phase: Literal["register", "publish"]
+    error: psycopg.Error,
+    phase: Literal["register", "register_d1less", "publish"],
 ) -> bool:
     """採用済5診断だけ。commit/timeout/UNKNOWNは呼出側から渡さない。"""
-    if phase == "register":
+    if phase in ("register", "register_d1less"):
         return error.sqlstate == "42501" and error.diag.message_primary in (
             "attempt conflict",
             "phase conflict",
@@ -88,15 +91,17 @@ def _classify_observation(
 
 
 def _phase_wire(
-    phase: EventPhaseBinding, authority_id: UUID, version: int
+    phase: PhaseBinding, authority_id: UUID, version: int
 ) -> dict[str, object]:
     """初球/通常の1要求1eventを、D1原値の指紋を保持して閉形式へ写す。"""
     if (
-        type(phase) is not EventPhaseBinding
+        type(phase) not in (EventPhaseBinding, D1lessPhaseBinding)
         or type(phase.position) is not int
         or phase.position != 1
-        or type(phase.d1) is not int
-        or phase.d1 <= 0
+        or (
+            type(phase) is EventPhaseBinding
+            and (type(phase.d1) is not int or phase.d1 <= 0)
+        )
         or type(phase.attempt.event_count) is not int
         or phase.attempt.event_count != 1
         or type(authority_id) is not UUID
@@ -105,7 +110,7 @@ def _phase_wire(
     ):
         raise WriterBindingUnavailable("単球phaseが不正")
     a = phase.attempt
-    return {
+    wire = {
         "authority_id": str(authority_id),
         "control_instance": str(a.authority.control_instance),
         "business_instance": str(a.authority.business_instance),
@@ -122,14 +127,17 @@ def _phase_wire(
         "d5": str(phase.d5),
         "event_fingerprint": phase.event_fingerprint,
     }
+    if type(phase) is D1lessPhaseBinding:
+        wire["phase_kind"] = "d1less"
+    return wire
 
 
 def _phase_snapshot_value(
-    phase: EventPhaseBinding, tenant_id: UUID, phase_wire: dict[str, object]
+    phase: PhaseBinding, tenant_id: UUID, phase_wire: dict[str, object]
 ):
     """RPC wireを変えず、通常D1の原値をprivate snapshotにも固定する。"""
     value = {"tenant_id": str(tenant_id), "phase": phase_wire}
-    if phase.d1 != 1:
+    if type(phase) is EventPhaseBinding and phase.d1 != 1:
         value["source_d1"] = phase.d1
     return value
 
@@ -183,7 +191,9 @@ class _BindingAuthority:
         params: tuple[object, ...],
         *,
         write: bool = False,
-        confirmed_rejection: Literal["register", "publish"] | None = None,
+        confirmed_rejection: Literal[
+            "register", "register_d1less", "publish"
+        ] | None = None,
     ) -> tuple[Any, ...]:
         """固定呼出しごとにactual actorとread-committedを確認する。"""
         from pitchlog.durable_rights_ledger.adapter import _commit, _connection
@@ -192,6 +202,10 @@ class _BindingAuthority:
             "register": (
                 "control",
                 "SELECT sync_control.register_first_ball_phase(%s,%s)",
+            ),
+            "register_d1less": (
+                "control",
+                "SELECT sync_control.register_d1less_phase(%s,%s)",
             ),
             "publish": (
                 "business",
@@ -272,13 +286,23 @@ class _BindingAuthority:
                 phase["request_fingerprint"],
                 1,
             )
-            event = EventPhaseBinding(
-                attempt,
-                UUID(phase["phase_id"]),
-                1,
-                1,
-                UUID(phase["d5"]),
-                phase["event_fingerprint"],
+            event = (
+                D1lessPhaseBinding(
+                    attempt,
+                    UUID(phase["phase_id"]),
+                    1,
+                    UUID(phase["d5"]),
+                    phase["event_fingerprint"],
+                )
+                if phase.get("phase_kind") == "d1less"
+                else EventPhaseBinding(
+                    attempt,
+                    UUID(phase["phase_id"]),
+                    1,
+                    1,
+                    UUID(phase["d5"]),
+                    phase["event_fingerprint"],
+                )
             )
             if (
                 _phase_wire(
@@ -310,17 +334,24 @@ class _BindingAuthority:
         ) != str(self._issuer):
             raise WriterBindingUnavailable("phase権威が不一致")
         # 信頼された専用peerのみ到達する固定登録。部分上書きはSQLが拒否する。
+        d1less = phase.get("phase_kind") == "d1less"
         self._call(
             "control",
-            "SELECT sync_control.register_first_ball_phase(%s,%s)",
+            "SELECT sync_control.register_d1less_phase(%s,%s)"
+            if d1less
+            else "SELECT sync_control.register_first_ball_phase(%s,%s)",
             (tenant, Jsonb(phase)),
             write=True,
-            confirmed_rejection="register",
+            confirmed_rejection="register_d1less" if d1less else "register",
         )
         attempt, phase_id = UUID(phase["attempt_id"]), UUID(phase["phase_id"])
         saved = self._call(
             "control",
-            "SELECT context_json FROM sync_control.read_first_ball_phase(%s,%s,%s)",
+            "SELECT context_json FROM sync_control."
+            "read_d1less_phase(%s,%s,%s)"
+            if d1less
+            else "SELECT context_json FROM sync_control."
+            "read_first_ball_phase(%s,%s,%s)",
             (tenant, attempt, phase_id),
         )
         if (
@@ -334,7 +365,9 @@ class _BindingAuthority:
         lease = uuid4()
         expires = datetime.now(timezone.utc) + timedelta(seconds=30)
         binding = {
-            k: v for k, v in phase.items() if k not in {"attempt_id", "phase_id"}
+            k: v
+            for k, v in phase.items()
+            if k not in {"attempt_id", "phase_id", "phase_kind"}
         }
         binding.update(writer.wire())
         binding.update(
@@ -389,9 +422,14 @@ class _BindingAuthority:
             )
         ):
             raise WriterBindingUnavailable("binding制御leaseが失効")
+        d1less = record["phase"].get("phase_kind") == "d1less"
         row = self._call(
             "control",
-            "SELECT context_json FROM sync_control.read_first_ball_phase(%s,%s,%s)",
+            "SELECT context_json FROM sync_control."
+            "read_d1less_phase(%s,%s,%s)"
+            if d1less
+            else "SELECT context_json FROM sync_control."
+            "read_first_ball_phase(%s,%s,%s)",
             tuple(UUID(record[n]) for n in ("tenant_id", "attempt_id", "phase_id")),
         )
         if (
@@ -438,7 +476,7 @@ class _BindingLease:
         ledger,
         channel_context,
         channel,
-        phase: EventPhaseBinding,
+        phase: PhaseBinding,
         identity: WriterIdentity,
         reply: object,
         creation: object,
@@ -675,7 +713,7 @@ class BindingControl:
             channel.close()
 
     def bind_writer(
-        self, handle, context: TenantContext, phase: EventPhaseBinding, *, cookie: str
+        self, handle, context: TenantContext, phase: PhaseBinding, *, cookie: str
     ):
         """既Cookieと実scopeのidentityをbrokerが再認証してから資格化する。"""
         from pitchlog.durable_rights_ledger.adapter import _request
