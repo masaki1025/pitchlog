@@ -780,6 +780,9 @@ _PUBLIC_IMPORT_NAMES = frozenset(
         "unapply_product_authz_ddl",
     }
 )
+_CURRENT_STARTUP_INTERNAL_IMPORTS = frozenset(
+    {"_load_product_elements", "_selected_product_ddl"}
+)
 _EXPECTED_TERMINAL_SIGNATURE = (
     "_run_product_operation(connection: psycopg.Connection[Any], "
     "operation: ProductOperation) -> None"
@@ -1007,10 +1010,15 @@ def _assert_external_import_shape(
         if imported_from == _TERMINAL_MODULE:
             if any(alias.name == "*" for alias in node.names):
                 raise AssertionError("製品適用器モジュールの import * は禁止")
+            permitted = _PUBLIC_IMPORT_NAMES | (
+                _CURRENT_STARTUP_INTERNAL_IMPORTS
+                if module_name == "pitchlog.db.current_product_startup"
+                else frozenset()
+            )
             unexpected_names = {
                 alias.name
                 for alias in node.names
-                if alias.name not in _PUBLIC_IMPORT_NAMES
+                if alias.name not in permitted
             }
             if unexpected_names:
                 raise AssertionError(
@@ -1257,6 +1265,10 @@ def test_calling_terminal_through_an_alias_is_red(tmp_path: Path) -> None:
         pytest.param(
             "from pitchlog.authz.product_provisioning import _ProductStatement\n",
             id="other-private-import",
+        ),
+        pytest.param(
+            "from pitchlog.authz.product_provisioning import _load_product_elements\n",
+            id="current-startup-private-from-other-module",
         ),
         pytest.param(
             "from pitchlog.authz.product_provisioning import PRODUCT_SPEC\n",
@@ -2062,6 +2074,48 @@ def test_pre_rule_preserves_old16_and_defers_exact_epoch_acl() -> None:
         )
     )
     assert len(old) == 16
+    # 旧保留列はそのまま、採用済み成績5関数・70列だけを真正Gitの前後差で追加する。
+    import subprocess
+
+    asset_path = "contracts/authz/product/ddl-elements.json"
+    parent = json.loads(
+        subprocess.check_output(
+            ["git", "show", "40a01434dc19bfe9dcfc51e9a66064e48eb7b4a9:" + asset_path],
+            cwd=_REPOSITORY_ROOT,
+        )
+    )
+    stats_bytes = subprocess.check_output(
+        ["git", "show", "fae7fd6ee8f3254604132bb20a714c133c5e42d3:" + asset_path],
+        cwd=_REPOSITORY_ROOT,
+    )
+    assert stats_bytes == (_REPOSITORY_ROOT / asset_path).read_bytes()
+    stats = json.loads(stats_bytes)
+    old_functions = {row["function_id"]: row for row in parent["functions"]}
+    old_columns = {
+        row["expectation_id"]: row for row in parent["column_acl_expectations"]
+    }
+    assert all(stats_row in stats["functions"] for stats_row in old_functions.values())
+    assert all(
+        stats_row in stats["column_acl_expectations"]
+        for stats_row in old_columns.values()
+    )
+    stats_function_ids = {
+        row["function_id"]
+        for row in stats["functions"]
+        if row["function_id"] not in old_functions
+    }
+    stats_column_ids = {
+        row["expectation_id"]
+        for row in stats["column_acl_expectations"]
+        if row["expectation_id"] not in old_columns
+    }
+    assert len(stats_function_ids) == 5 and all(
+        value.startswith("FUNCTION:stats_api:") for value in stats_function_ids
+    )
+    assert len(stats_column_ids) == 70 and all(
+        value.endswith(":pitchlog_sync_right_fn_owner")
+        for value in stats_column_ids
+    )
     expected_extra = (
         {
             (
@@ -2078,6 +2132,8 @@ def test_pre_rule_preserves_old16_and_defers_exact_epoch_acl() -> None:
         | _LINEUP_COLUMN_ACL_IDS
         | _BATTED_FUNCTION_IDS
         | _BATTED_COLUMN_ACL_IDS
+        | stats_function_ids
+        | stats_column_ids
     )
     assert {row.element_id for row in withheld} - {
         row.element_id for row in old
@@ -2756,6 +2812,9 @@ def test_product_snapshot_uses_closed_current_schema_and_private_tables(
             "ordinary_pitch_checkpoints",
             "ordinary_pitch_write_admissions",
             "ordinary_pitch_history",
+            "stats_fact_versions",
+            "stats_primitive_sources",
+            "stats_primitive_facts",
         }
         for _, p in private_queries
     )

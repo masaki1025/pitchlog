@@ -36,6 +36,7 @@ _FUNCTION_ONLY_FACT_KINDS = frozenset(
         "initial_right_storage",
         "sync_writer_binding_storage",
         "ordinary_pitch_storage",
+        "stats_primitive_storage",
     }
 )
 

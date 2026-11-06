@@ -573,8 +573,96 @@ def test_void_caller_result_type_is_discarded_by_canonical_rebuild():
     assert processor is not None and processor("") is None
 
 
+def _assert_stats_registration_shape(spec) -> None:
+    """成績5関数の公開ABIを固定し、numericにvoid OIDを渡さない。"""
+    from sqlalchemy.dialects import postgresql
+
+    types = {
+        "uuid": ("Uuid", "CHAR(32)"),
+        "text": ("String", "VARCHAR"),
+        "bigint": ("BigInteger", "BIGINT"),
+        "integer": ("Integer", "INTEGER"),
+        "jsonb": ("_EvaluationJSONB", "JSONB"),
+        "bytea": ("LargeBinary", "BLOB"),
+        "numeric": ("Numeric", "NUMERIC"),
+    }
+    expected = {
+        "STATS_PRIMITIVES:save_source": (
+            "save_primitive_source",
+            (("attempt_id", "uuid"), ("phase_id", "uuid"),
+             ("source_event_id", "uuid"), ("model_sha256", "text"),
+             ("expected_revision", "bigint"),
+             ("expected_source_set_sha256", "text"),
+             ("evaluation_json", "jsonb"), ("binding_nonce", "bytea")),
+            (("fact_version_id", "uuid"), ("source_event_id", "uuid"),
+             ("model_sha256", "text"), ("source_set_sha256", "text")),
+        ),
+        "STATS_PRIMITIVES:read_writer_state": (
+            "read_primitive_writer_state",
+            (("attempt_id", "uuid"), ("phase_id", "uuid"),
+             ("source_event_id", "uuid"), ("model_sha256", "text"),
+             ("binding_nonce", "bytea")),
+            (("revision", "bigint"), ("source_set_sha256", "text")),
+        ),
+        "STATS_PRIMITIVES:open_snapshot": (
+            "open_primitive_snapshot",
+            (("game_id", "uuid"), ("player_id", "uuid"),
+             ("model_sha256", "text")),
+            (("fact_version_id", "uuid"), ("revision", "bigint"),
+             ("source_set_sha256", "text"), ("model_sha256", "text"),
+             ("source_count", "bigint"), ("row_count", "bigint"),
+             ("transaction_id", "text"), ("completion_state", "text")),
+        ),
+        "STATS_PRIMITIVES:read_page": (
+            "read_play_export_primitives",
+            (("game_id", "uuid"), ("player_id", "uuid"),
+             ("fact_version_id", "uuid"), ("revision", "bigint"),
+             ("source_set_sha256", "text"), ("model_sha256", "text"),
+             ("transaction_id", "text"), ("after_d2", "bigint"),
+             ("after_source_event_id", "uuid"), ("after_metric_id", "text"),
+             ("page_size", "integer")),
+            (("metric_id", "text"), ("state", "text"), ("value", "numeric"),
+             ("d2", "bigint"), ("source_event_id", "uuid")),
+        ),
+        "STATS_PRIMITIVES:read_totals": (
+            "read_primitive_totals",
+            (("game_id", "uuid"), ("player_id", "uuid"),
+             ("fact_version_id", "uuid"), ("revision", "bigint"),
+             ("source_set_sha256", "text"), ("model_sha256", "text"),
+             ("transaction_id", "text")),
+            (("metric_id", "text"), ("state", "text"), ("value", "numeric")),
+        ),
+    }
+    assert spec.operation_id in expected
+    name, inputs, outputs = expected[spec.operation_id]
+    assert spec.function_id == "stats_api." + name
+    dialect = postgresql.dialect()
+    compiled = spec.statement.compile(dialect=dialect)
+    assert [
+        (key, type(compiled.binds[key].type).__name__, str(compiled.binds[key].type))
+        for key in compiled.params
+    ] == [(key, *types[kind]) for key, kind in inputs]
+    assert [
+        (column.name, type(column.type).__name__, str(column.type))
+        for column in spec.statement.selected_columns
+    ] == [(key, *types[kind]) for key, kind in outputs]
+    arguments = ", ".join(
+        f"%({key})s"
+        + ("::UUID" if kind == "uuid" else "::JSONB" if kind == "jsonb" else "")
+        for key, kind in inputs
+    )
+    columns = ", ".join("anon_1." + key for key, _ in outputs)
+    assert str(compiled) == (
+        f"SELECT {columns} \nFROM stats_api.{name}({arguments}) AS anon_1"
+    )
+    assert all(
+        column.type._cached_result_processor(dialect, 1700) is None
+        for column in spec.statement.selected_columns
+    )
+
+
 def test_void_adapter_preserves_every_other_registered_function():
-    """既全関数のSQL/bind/選択型/processor欠如を実before全値へ束縛する。"""
+    """旧全関数のpinを保持し、成績5関数は別OIDの固定ABIで照合する。"""
     import hashlib
     import json
 
@@ -672,6 +760,7 @@ def test_void_adapter_preserves_every_other_registered_function():
     ).hexdigest()
     dialect = postgresql.dialect()
     actual = {}
+    stats_operations: set[str] = set()
     registrations = (
         *PRODUCT_FUNCTION_OPERATIONS,
         *_ALL_INITIAL_REGISTRATIONS,
@@ -682,6 +771,11 @@ def test_void_adapter_preserves_every_other_registered_function():
     )
     for spec in registrations:
         if spec.function_id == "sync_fence_api.assert_writer_binding":
+            continue
+        if spec.operation_id.startswith("STATS_PRIMITIVES:"):
+            _assert_stats_registration_shape(spec)
+            assert spec.operation_id not in stats_operations
+            stats_operations.add(spec.operation_id)
             continue
         compiled = spec.statement.compile(dialect=dialect)
         row = {
@@ -710,6 +804,13 @@ def test_void_adapter_preserves_every_other_registered_function():
         assert actual.get(spec.operation_id, digest) == digest
         actual[spec.operation_id] = digest
     assert actual == expected
+    assert stats_operations == {
+        "STATS_PRIMITIVES:save_source",
+        "STATS_PRIMITIVES:read_writer_state",
+        "STATS_PRIMITIVES:open_snapshot",
+        "STATS_PRIMITIVES:read_page",
+        "STATS_PRIMITIVES:read_totals",
+    }
 
 
 @pytest.mark.parametrize(

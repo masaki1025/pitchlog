@@ -191,6 +191,7 @@ def test_function_execute_request_covers_every_declared_product_schema(
         "sync_fence",
         "sync_fence_api",
         "sync_right_api",
+        "stats_api",
         "recording_vocab_api",
     }
     monkeypatch.setattr(product_catalog, "_load_product_asset", lambda: asset)
