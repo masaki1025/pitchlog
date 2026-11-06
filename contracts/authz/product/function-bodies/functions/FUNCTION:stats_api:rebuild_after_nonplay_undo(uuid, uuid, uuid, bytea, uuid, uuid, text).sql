@@ -113,7 +113,7 @@ PERFORM sync_fence_api.assert_writer_binding(p_tenant_id,p_attempt_id,
  AND n.target_play_id=(n.preparation->'target'->>'playId')::uuid
  AND n.checkpoint_id=(n.preparation->'before_source'->'checkpoint'->'ref'->>'id')::uuid
  AND n.checkpoint_revision=(n.preparation->'before_source'->'checkpoint'->'ref'->>'revision')::bigint
- AND n.checkpoint_digest=n.preparation->'before_source'->'checkpoint'->'ref'->>'digest'
+ AND n.checkpoint_digest=n.preparation->'storage'->'row'->>'content_digest'
  AND u.event_kind='undo' AND u.ledger_kind='accepted' AND ul.kind='accepted'
  AND u.d5=n.d5 AND u.generation=n.internal_generation AND u.d1=n.source_d1
  AND u.d2 IS NULL AND u.state_diff IS NULL AND NOT u.is_tombstone
@@ -217,7 +217,7 @@ SELECT COALESCE(ch.game_count,0) AS game_count,COALESCE(ch.canonical_source_coun
  AND n.target_play_id=(n.preparation->'target'->>'playId')::uuid
  AND n.checkpoint_id=(n.preparation->'before_source'->'checkpoint'->'ref'->>'id')::uuid
  AND n.checkpoint_revision=(n.preparation->'before_source'->'checkpoint'->'ref'->>'revision')::bigint
- AND n.checkpoint_digest=n.preparation->'before_source'->'checkpoint'->'ref'->>'digest'
+ AND n.checkpoint_digest=n.preparation->'storage'->'row'->>'content_digest'
  AND u.event_kind='undo' AND u.ledger_kind='accepted' AND ul.kind='accepted'
  AND u.d5=n.d5 AND u.generation=n.internal_generation AND u.d1=n.source_d1
  AND u.d2 IS NULL AND u.state_diff IS NULL AND NOT u.is_tombstone
@@ -321,7 +321,7 @@ SELECT COALESCE(ch.game_count,0) AS game_count,COALESCE(ch.canonical_source_coun
  AND n.target_play_id=(n.preparation->'target'->>'playId')::uuid
  AND n.checkpoint_id=(n.preparation->'before_source'->'checkpoint'->'ref'->>'id')::uuid
  AND n.checkpoint_revision=(n.preparation->'before_source'->'checkpoint'->'ref'->>'revision')::bigint
- AND n.checkpoint_digest=n.preparation->'before_source'->'checkpoint'->'ref'->>'digest'
+ AND n.checkpoint_digest=n.preparation->'storage'->'row'->>'content_digest'
  AND u.event_kind='undo' AND u.ledger_kind='accepted' AND ul.kind='accepted'
  AND u.d5=n.d5 AND u.generation=n.internal_generation AND u.d1=n.source_d1
  AND u.d2 IS NULL AND u.state_diff IS NULL AND NOT u.is_tombstone
@@ -437,7 +437,7 @@ WHERE s.tenant_id=p_tenant_id AND s.game_id=p_game_id AND s.fact_version_id=prio
  AND n.target_play_id=(n.preparation->'target'->>'playId')::uuid
  AND n.checkpoint_id=(n.preparation->'before_source'->'checkpoint'->'ref'->>'id')::uuid
  AND n.checkpoint_revision=(n.preparation->'before_source'->'checkpoint'->'ref'->>'revision')::bigint
- AND n.checkpoint_digest=n.preparation->'before_source'->'checkpoint'->'ref'->>'digest'
+ AND n.checkpoint_digest=n.preparation->'storage'->'row'->>'content_digest'
  AND u.event_kind='undo' AND u.ledger_kind='accepted' AND ul.kind='accepted'
  AND u.d5=n.d5 AND u.generation=n.internal_generation AND u.d1=n.source_d1
  AND u.d2 IS NULL AND u.state_diff IS NULL AND NOT u.is_tombstone
@@ -549,7 +549,7 @@ WHERE s.tenant_id=p_tenant_id AND s.game_id=p_game_id AND s.fact_version_id=prio
  AND n.target_play_id=(n.preparation->'target'->>'playId')::uuid
  AND n.checkpoint_id=(n.preparation->'before_source'->'checkpoint'->'ref'->>'id')::uuid
  AND n.checkpoint_revision=(n.preparation->'before_source'->'checkpoint'->'ref'->>'revision')::bigint
- AND n.checkpoint_digest=n.preparation->'before_source'->'checkpoint'->'ref'->>'digest'
+ AND n.checkpoint_digest=n.preparation->'storage'->'row'->>'content_digest'
  AND u.event_kind='undo' AND u.ledger_kind='accepted' AND ul.kind='accepted'
  AND u.d5=n.d5 AND u.generation=n.internal_generation AND u.d1=n.source_d1
  AND u.d2 IS NULL AND u.state_diff IS NULL AND NOT u.is_tombstone
@@ -661,7 +661,7 @@ WHERE s.tenant_id=p_tenant_id AND s.game_id=p_game_id AND s.fact_version_id=prio
  AND n.target_play_id=(n.preparation->'target'->>'playId')::uuid
  AND n.checkpoint_id=(n.preparation->'before_source'->'checkpoint'->'ref'->>'id')::uuid
  AND n.checkpoint_revision=(n.preparation->'before_source'->'checkpoint'->'ref'->>'revision')::bigint
- AND n.checkpoint_digest=n.preparation->'before_source'->'checkpoint'->'ref'->>'digest'
+ AND n.checkpoint_digest=n.preparation->'storage'->'row'->>'content_digest'
  AND u.event_kind='undo' AND u.ledger_kind='accepted' AND ul.kind='accepted'
  AND u.d5=n.d5 AND u.generation=n.internal_generation AND u.d1=n.source_d1
  AND u.d2 IS NULL AND u.state_diff IS NULL AND NOT u.is_tombstone
@@ -773,7 +773,7 @@ WHERE s.tenant_id=p_tenant_id AND s.game_id=p_game_id AND s.fact_version_id=prio
  AND n.target_play_id=(n.preparation->'target'->>'playId')::uuid
  AND n.checkpoint_id=(n.preparation->'before_source'->'checkpoint'->'ref'->>'id')::uuid
  AND n.checkpoint_revision=(n.preparation->'before_source'->'checkpoint'->'ref'->>'revision')::bigint
- AND n.checkpoint_digest=n.preparation->'before_source'->'checkpoint'->'ref'->>'digest'
+ AND n.checkpoint_digest=n.preparation->'storage'->'row'->>'content_digest'
  AND u.event_kind='undo' AND u.ledger_kind='accepted' AND ul.kind='accepted'
  AND u.d5=n.d5 AND u.generation=n.internal_generation AND u.d1=n.source_d1
  AND u.d2 IS NULL AND u.state_diff IS NULL AND NOT u.is_tombstone
@@ -886,7 +886,7 @@ WHERE s.tenant_id=p_tenant_id AND s.game_id=p_game_id AND s.fact_version_id=prio
  AND n.target_play_id=(n.preparation->'target'->>'playId')::uuid
  AND n.checkpoint_id=(n.preparation->'before_source'->'checkpoint'->'ref'->>'id')::uuid
  AND n.checkpoint_revision=(n.preparation->'before_source'->'checkpoint'->'ref'->>'revision')::bigint
- AND n.checkpoint_digest=n.preparation->'before_source'->'checkpoint'->'ref'->>'digest'
+ AND n.checkpoint_digest=n.preparation->'storage'->'row'->>'content_digest'
  AND u.event_kind='undo' AND u.ledger_kind='accepted' AND ul.kind='accepted'
  AND u.d5=n.d5 AND u.generation=n.internal_generation AND u.d1=n.source_d1
  AND u.d2 IS NULL AND u.state_diff IS NULL AND NOT u.is_tombstone
@@ -1013,7 +1013,7 @@ WHERE s.tenant_id=p_tenant_id AND s.game_id=p_game_id AND s.fact_version_id=prio
  AND n.target_play_id=(n.preparation->'target'->>'playId')::uuid
  AND n.checkpoint_id=(n.preparation->'before_source'->'checkpoint'->'ref'->>'id')::uuid
  AND n.checkpoint_revision=(n.preparation->'before_source'->'checkpoint'->'ref'->>'revision')::bigint
- AND n.checkpoint_digest=n.preparation->'before_source'->'checkpoint'->'ref'->>'digest'
+ AND n.checkpoint_digest=n.preparation->'storage'->'row'->>'content_digest'
  AND u.event_kind='undo' AND u.ledger_kind='accepted' AND ul.kind='accepted'
  AND u.d5=n.d5 AND u.generation=n.internal_generation AND u.d1=n.source_d1
  AND u.d2 IS NULL AND u.state_diff IS NULL AND NOT u.is_tombstone
@@ -1124,7 +1124,7 @@ WHERE s.tenant_id=p_tenant_id AND s.game_id=p_game_id AND s.fact_version_id=prio
  AND n.target_play_id=(n.preparation->'target'->>'playId')::uuid
  AND n.checkpoint_id=(n.preparation->'before_source'->'checkpoint'->'ref'->>'id')::uuid
  AND n.checkpoint_revision=(n.preparation->'before_source'->'checkpoint'->'ref'->>'revision')::bigint
- AND n.checkpoint_digest=n.preparation->'before_source'->'checkpoint'->'ref'->>'digest'
+ AND n.checkpoint_digest=n.preparation->'storage'->'row'->>'content_digest'
  AND u.event_kind='undo' AND u.ledger_kind='accepted' AND ul.kind='accepted'
  AND u.d5=n.d5 AND u.generation=n.internal_generation AND u.d1=n.source_d1
  AND u.d2 IS NULL AND u.state_diff IS NULL AND NOT u.is_tombstone
