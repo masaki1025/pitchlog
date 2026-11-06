@@ -338,3 +338,6 @@ xid8型表現の接合受理（2026-11-06 JST、PO委任Codex /root判断）: �
 
 
 xmin観測反映1の受理（2026-11-06 JST、PO委任Codex /root判断）: 初版query1/DBtest1に旧pure exact4追随不足があり、初版8失敗22成功を保持。scopeへbackend/tests/test_stats_catalog_pg_representation.py1だけ追加、既4表/対向は保持してevent_slotsの5表へ正確追随し、新tableの別schema/他system列3拒否を追加した。非作者09bb98562205cb4de48aa3b8bfd61f5b81838b8ee484658ee2729b77e4493890で全3SHA・元2afterbyte保持・33純成功/pglast/33DBcollect/型lintを確認し新P0/P1=0。root固定隔離candidateのowned新規起動/同版再開・新3権限改変/旧SELECT改変は5成功49.93秒、source前後同一・owned撤去。反映1はDB関連source2が同byteでpure期待test1だけを追加する。本体制御/GRANTは不変。広域product_catalog旧59→現60表等のstale失敗は別残件でgreenに含めず、正式全検査/実画面は後段で実施する。
+
+
+実画面の機能/性能の観測順追補（2026-11-06、PO委任Codex /root）: step3のfrontend/src/screens/GameScreenUndoProduct.e2e.tsで、最初の診断用10秒失敗で後続の取消操作を遮らず、既画面30秒の応答待ち内で機能列を最後まで評価する。通常球のHTTP所要を全件保持し、末尾にNFR-002の5秒条件を明示assertする。性能未達なら全testは引き続き失敗し、受入成功としない。元10秒失敗/後着200/1行保存、RPC192回7.88秒の証拠はcacheに保存済み。狙いは独立した機能不具合を同一実行で発見すること。仮応答/権限迂回/保存条件変更なし。MVPの性能合格には別途正式負荷p95実測が必要で、この単発閾値成功をp95成立へ読み替えない。
