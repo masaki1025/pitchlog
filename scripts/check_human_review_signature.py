@@ -3126,6 +3126,48 @@ _PR197_GATE6_NEW_TYPED = frozenset({
 })
 
 
+def _pr197_formal_ledger_binding_successor(
+    root: Path, source: bytes, head: bytes, head_sha: str,
+) -> None:
+    """PR197で検査器実byteを束縛した台帳の唯一の追随形を検証する。"""
+    old = _object(json.loads(
+        source, object_pairs_hook=descriptor_checker._reject_duplicate_keys,
+    ), "PR197固定S台帳")
+    actual = _object(json.loads(
+        head, object_pairs_hook=descriptor_checker._reject_duplicate_keys,
+    ), "PR197現台帳")
+    expected = copy.deepcopy(old)
+    history = expected.get("history")
+    bindings = _object(expected.get("implementation_bindings"), "PR197旧実装束縛")
+    code_assets = bindings.get("code_assets")
+    if (type(history) is not list or not history
+            or history[-1].get("acceptance_id") != "masaki1025/pitchlog#197"
+            or history[-1].get("changes") != []
+            or type(code_assets) is not list or len(code_assets) != 2
+            or code_assets[0].get("path") != "scripts/check_frozen_baselines.py"
+            or code_assets[1].get("path") != "scripts/frozen_baselines.py"):
+        raise HumanReviewSignatureRecordError("PR197旧台帳の実装束縛前値が不一致")
+    checker_path = "scripts/check_frozen_baselines.py"
+    checker_bytes = _carry_git_bytes(root, ["show", f"{head_sha}:{checker_path}"])
+    if (root / checker_path).read_bytes() != checker_bytes:
+        raise HumanReviewSignatureRecordError("PR197検査器実byteがheadと不一致")
+    before = copy.deepcopy(bindings)
+    code_assets[0]["sha256"] = hashlib.sha256(checker_bytes).hexdigest()
+    history[-1]["changes"] = [{
+        "aspect": "implementation_bindings",
+        "before": before,
+        "after": copy.deepcopy(bindings),
+    }]
+    history[-1]["reason"] += (
+        " 同じ未受理PR197内で検査器実byteを改訂したため、code_assetsの固定SHAを"
+        "正式base51bの前値から現実byteへ束縛し、履歴1件の変更として記録する。"
+    )
+    if actual != expected or head != (
+        json.dumps(expected, ensure_ascii=False, indent=2) + "\n"
+    ).encode("utf-8"):
+        raise HumanReviewSignatureRecordError("PR197台帳の限定実装束縛追随が不一致")
+
+
 def _pr197_gate6_body(root: Path, head_sha: str) -> dict[str, Any]:
     """前置Eで固定した正式baseから旧scopeとPR197数学不変を検査する。"""
     try:
@@ -3191,8 +3233,9 @@ def _pr197_gate6_body(root: Path, head_sha: str) -> dict[str, Any]:
                     "PR197正式base typed")
                 if not all(after.get(key) == value for key, value in baseline_inputs.items()):
                     raise HumanReviewSignatureRecordError("PR197正式baseの旧typed入力が変更")
-            elif path in {"contracts/authz/frozen-baselines.json",
-                          "docs/features/mvp-delegated-core-review/policy.json"}:
+            elif path == "contracts/authz/frozen-baselines.json":
+                _pr197_formal_ledger_binding_successor(root, source, head, head_sha)
+            elif path == "docs/features/mvp-delegated-core-review/policy.json":
                 if head != source:
                     raise HumanReviewSignatureRecordError("PR197旧台帳/policyのS固定byteが変更")
             elif path == "scripts/core_guard.py":

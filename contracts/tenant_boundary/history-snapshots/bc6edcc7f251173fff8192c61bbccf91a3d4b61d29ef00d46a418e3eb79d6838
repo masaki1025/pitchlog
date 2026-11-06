@@ -4324,6 +4324,38 @@ def test_pr197_gate6_success_uses_existing_typed_e_and_real_git_event(
     assert checker.main(["--root", str(root), "--gate6-carry", "--ci"]) == 0
 
 
+def test_pr197_formal_ledger_binding_successor_is_exact() -> None:
+    """正式台帳の検査器束縛以外を同時変更した候補を拒否する。"""
+    import subprocess
+
+    root = REPOSITORY_ROOT
+    source_revision = json.loads(
+        (root / "tests/fixtures/pr197_tenant_source_expected_v1.json").read_bytes()
+    )["source_revision"]
+    path = "contracts/authz/frozen-baselines.json"
+    source = subprocess.check_output(
+        ["git", "show", source_revision + ":" + path], cwd=root,
+    )
+    head = (root / path).read_bytes()
+    head_sha = subprocess.check_output(
+        ["git", "rev-parse", "HEAD"], cwd=root, text=True,
+    ).strip()
+    checker._pr197_formal_ledger_binding_successor(root, source, head, head_sha)
+    for mutation in ("second-code", "extra-history", "changed-reason"):
+        altered = json.loads(head)
+        if mutation == "second-code":
+            altered["implementation_bindings"]["code_assets"][1]["sha256"] = "0" * 64
+        elif mutation == "extra-history":
+            altered["history"].append(altered["history"][-1])
+        else:
+            altered["history"][-1]["reason"] += " 未確認"
+        with pytest.raises(checker.HumanReviewSignatureRecordError):
+            checker._pr197_formal_ledger_binding_successor(
+                root, source, (json.dumps(altered, ensure_ascii=False, indent=2) + "\n").encode(),
+                head_sha,
+            )
+
+
 @pytest.mark.parametrize("mutation", [
     "wrong-pr", "bool-pr", "wrong-branch", "wrong-repository", "wrong-base",
     "math-worktree", "math-commit", "typed-pin", "typed-and-fixture",
