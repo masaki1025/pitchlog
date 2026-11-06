@@ -1,5 +1,13 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 続行固定点：2026-11-06T11:30:11.487187+09:00（認可oracle実反映、取消UI反映1の独立確認）
+
+- **実反映**: 成績nativeは `36d1e92b` の限定委任受理後、公式builder/validatorでoracleを再生成し、独立候補8全byte一致を確認、policy197追記と共に `b5669d3f` へ保存。通常認可CLIは total1434/auth187/out1247/db191/routes53/cells12/oracle202/probe33/contract169/mutants235/cutsets24で成功。初回CLI --reseal-oracleは旧sealのanchorを維持するためcontext不一致で停止し、その失敗を保持。承認対象のanchorだけseedへ供給して公式builderで再生成し照合した。人間署名や本人逐行確認にはしていない。
+- **正式tenantの実停止**: 197受理候補は公式builderで9実射影・9rev更新・17不足snapshotを導出。初版inventory raw bytesの参照hash漏れを独立6c457594…でP1、反映1の206独立照合/c30b0b0d…で値原因解消。ただしCLIは旧PR196 registry全byte制約が新native関数5の正規追加を拒否して停止。正本/値受理/必須CIは未成立。`1d30741b` でsource exact2と用途限定frozen参照の追随を起案し、旧22tuple/未知namespace拒否を保持するcache候補を作者実装中。過去受理やテストを削除して通さない。
+- **取消の実検査**: current42実接合WT3049の型/Ruff成功。局所3moduleは208成功/11失敗2.90秒、全失敗は正式product表/宣言が旧版のための閉拒否であり、greenとはしない。正式資産供給前の再実行はしない。UI反映1は作者packet e57248ae…/17中5修復・12保持、全frontend3455成功158.28秒で封印。別非作者がbackend6+followup1と合成して98FE/101backendを確認中、最終判定待ち。実画面取消・PGは未実。
+- **終了再開**: 同一artifact候補で早期宣言と実T2自動終了後のend→reopen→二追記→reendを限定adapter試験で実行し、T2のend/outcomeを偽falseにしないことを確認中。実auth/head/PGの代替証拠にはしない。正式game_reopen/DDL/ACL/pinの受理とowned実接続が残る。
+- **次**: registry限定修復の独立確認→tenant/corpusの一括公式再導出→197を製品PRへ変換し必須CI。取消read/UI判定後にsourceを接続し、同一版owned実画面/2取消/次球/再起動へ。外部成績依頼は送付済み・受諾/HEAD未受領の区別を維持。
+
 ## 再開時の現在地：2026-11-06T11:20:25.493764+09:00（固定点再照合、成績基盤1033成功・取消画面の耐久修復継続）
 
 - **再照合**: native基盤の実HEADは `3f8e414c`、clean。旧セッション41336はハンドルなしで終了済み、Gitにcore定義 `bbcdf6e6` →JSON後置 `3f8e414c` が存在することを確認。旧agentはlive登録がなく、未完cacheを完成扱いにせず、新作者へscopeを限定して引継ぎ直した。
