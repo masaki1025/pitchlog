@@ -567,6 +567,10 @@ R-9の型境界検査が、採用済D05の分母0未定義値と旧移行フィ�
 
 反映7周目の対向追補: 非作者が指摘した新stats3 uniqueの負例被覆不足を閉じる。`backend/tests/test_product_authz_tenant_owned_cases.py` の旧6件を残し、新3件それぞれで columns/source_row/roles/predicate の改変を拒否する全36対向へ拡張する。旧行数/対象外集合の全一致も維持する。
 
+### CIの認可関数再適用試験追随（2026-11-07、PO委任root・ステップ4/5）
+
+run42275253517の `test_sync_writer_binding_reapply.py` は旧29関数だけを期待しており、正式 `first_ball_product.ADDITIONS` に登録済みの `stats_api` 5関数を検査集合へ含めていなかった。専用修復枝では同試験1pathだけを変更し、旧20＋終端7＋開始原本1＋語彙1を全値維持した上で、新5の署名・owner・volatility・return・search_path・EXECUTE ACLを閉じた全属性へ照合する。各34関数の本文とPUBLIC権限衝突、writer4 trigger衝突、再適用前後の全非system catalog比較を同じowned PGで検査する。件数の可変化、製品DDL/ACL/正式資産の変更、共有DBの利用は行わない。独立非作者確認と実CI緑は別条件とする。
+
 反映8周目: 非作者P1のprivate許可表間移設反例を修復。9制約の名称→所属tableを独立literalで固定し、row全fieldに加えて対応も完全一致を要求する。新旧9件それぞれを他の許可表4つへ移す全36負例を追加する。元05bbeの失敗反例はcacheへ保持し、修復版の再レビュー前に採用しない。
 
 
