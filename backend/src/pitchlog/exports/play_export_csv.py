@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections.abc import Iterable, Iterator
 from datetime import datetime, timedelta, timezone
 from typing import Any, Mapping
 from uuid import UUID
@@ -107,7 +108,17 @@ def _source_digest(bundle: PlayExportBundle) -> str:
         "snapshots": bundle.snapshots,
         "runner_snapshots": bundle.runner_snapshots,
     }
-    return hashlib.sha256(_canonical_json(payload).encode("utf-8")).hexdigest()
+    digest = hashlib.sha256()
+    encoder = json.JSONEncoder(
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+        default=_json_default,
+    )
+    for chunk in encoder.iterencode(payload):
+        digest.update(chunk.encode("utf-8"))
+    return digest.hexdigest()
 
 
 def _missing_snapshot(bundle: PlayExportBundle) -> tuple[str, ...]:
@@ -159,111 +170,104 @@ def snapshot_id_for(bundle: PlayExportBundle) -> str:
 def export_snapshot(bundle: PlayExportBundle) -> ExportSnapshot:
     """manifestへ記録する同一版とJST出力時刻を返す。"""
     now = datetime.now(_JST).strftime("%Y-%m-%d %H:%M:%S")
+    digest = _source_digest(bundle)
     return ExportSnapshot(
         game_id=bundle.game["id"],
-        snapshot_id=_source_digest(bundle),
-        source_versions=_source_digest(bundle),
+        snapshot_id=digest,
+        source_versions=digest,
         exported_at=now,
     )
 
 
-def _plays_rows(bundle: PlayExportBundle, snapshot_id: str) -> list[SavedCsvRow]:
+def _plays_rows(bundle: PlayExportBundle, snapshot_id: str) -> Iterator[SavedCsvRow]:
     snapshots = {row["play_row_id"]: row for row in bundle.snapshots}
-    rows = []
     for play in bundle.plays:
         values = snapshots[play["id"]]["plays_csv_json"]
         if set(values) != set(_SNAPSHOT_COLUMNS):
             raise PlayExportSupplyError("88列projectionの列集合が不一致です")
-        rows.append(_row(bundle.game["id"], snapshot_id, values))
-    return rows
+        yield _row(bundle.game["id"], snapshot_id, values)
+    return
 
 
-def _play_links_rows(bundle: PlayExportBundle, snapshot_id: str) -> list[SavedCsvRow]:
+def _play_links_rows(
+    bundle: PlayExportBundle, snapshot_id: str
+) -> Iterator[SavedCsvRow]:
     events = _event_by_id(bundle)
-    rows = []
     for index, play in enumerate(bundle.plays, start=1):
         event = events.get(play["source_event_id"])
-        rows.append(
-            _row(
-                bundle.game["id"],
-                snapshot_id,
-                {
-                    "row_number": index,
-                    "game_id": bundle.game["id"],
-                    "recording_generation": event["generation"] if event else None,
-                    "event_sequence": event["d2"] if event else None,
-                    "source_event_id": play["source_event_id"],
-                    "play_row_id": play["id"],
-                    "play_number": play["play_number"],
-                    "version": play["version"],
-                },
-            )
+        yield _row(
+            bundle.game["id"],
+            snapshot_id,
+            {
+                "row_number": index,
+                "game_id": bundle.game["id"],
+                "recording_generation": event["generation"] if event else None,
+                "event_sequence": event["d2"] if event else None,
+                "source_event_id": play["source_event_id"],
+                "play_row_id": play["id"],
+                "play_number": play["play_number"],
+                "version": play["version"],
+            },
         )
-    return rows
+    return
 
 
-def _events_rows(bundle: PlayExportBundle, snapshot_id: str) -> list[SavedCsvRow]:
-    rows = []
+def _events_rows(bundle: PlayExportBundle, snapshot_id: str) -> Iterator[SavedCsvRow]:
     for event in bundle.events:
-        rows.append(
-            _row(
-                bundle.game["id"],
-                snapshot_id,
-                {
-                    "game_id": bundle.game["id"],
-                    "recording_generation": event["generation"],
-                    "event_sequence": event["d2"],
-                    "source_event_id": event["id"],
-                    "event_kind": event["event_kind"],
-                    "d2": event["d2"],
-                    "target_generation": event["target_generation"],
-                    "target_event_sequence": event["target_d1"],
-                    "expected_version": event["expected_version"],
-                    "change_order": event["change_order"],
-                    "is_tombstone": event["is_tombstone"],
-                    "replaced_at": event["replaced_at"],
-                    "retired_at": event["retired_at"],
-                    "business_payload_json": _canonical_json(event["payload"]),
-                    "state_diff_json": _canonical_json(event["state_diff"]),
-                },
-            )
+        yield _row(
+            bundle.game["id"],
+            snapshot_id,
+            {
+                "game_id": bundle.game["id"],
+                "recording_generation": event["generation"],
+                "event_sequence": event["d2"],
+                "source_event_id": event["id"],
+                "event_kind": event["event_kind"],
+                "d2": event["d2"],
+                "target_generation": event["target_generation"],
+                "target_event_sequence": event["target_d1"],
+                "expected_version": event["expected_version"],
+                "change_order": event["change_order"],
+                "is_tombstone": event["is_tombstone"],
+                "replaced_at": event["replaced_at"],
+                "retired_at": event["retired_at"],
+                "business_payload_json": _canonical_json(event["payload"]),
+                "state_diff_json": _canonical_json(event["state_diff"]),
+            },
         )
-    return rows
+    return
 
 
-def _runner_rows(bundle: PlayExportBundle, snapshot_id: str) -> list[SavedCsvRow]:
+def _runner_rows(bundle: PlayExportBundle, snapshot_id: str) -> Iterator[SavedCsvRow]:
     plays = _play_by_id(bundle)
     events = _event_by_id(bundle)
-    rows = []
     for runner in bundle.runners:
         play = plays.get(runner["play_id"])
         event = events.get(play["source_event_id"]) if play else None
-        rows.append(
-            _row(
-                bundle.game["id"],
-                snapshot_id,
-                {
-                    "game_id": bundle.game["id"],
-                    "recording_generation": event["generation"] if event else None,
-                    "event_sequence": event["d2"] if event else None,
-                    "source_event_id": play["source_event_id"] if play else None,
-                    "play_row_id": runner["play_id"],
-                    "runner_row_id": runner["id"],
-                    "base": runner["base"],
-                    "runner_id": runner["runner_id"],
-                    "responsible_pitcher_id": runner["responsible_pitcher_id"],
-                    "status": runner["status"],
-                    "status_source": runner["status_source"],
-                    "retired_at": runner["retired_at"],
-                    "source_json": _canonical_json(runner),
-                },
-            )
+        yield _row(
+            bundle.game["id"],
+            snapshot_id,
+            {
+                "game_id": bundle.game["id"],
+                "recording_generation": event["generation"] if event else None,
+                "event_sequence": event["d2"] if event else None,
+                "source_event_id": play["source_event_id"] if play else None,
+                "play_row_id": runner["play_id"],
+                "runner_row_id": runner["id"],
+                "base": runner["base"],
+                "runner_id": runner["runner_id"],
+                "responsible_pitcher_id": runner["responsible_pitcher_id"],
+                "status": runner["status"],
+                "status_source": runner["status_source"],
+                "retired_at": runner["retired_at"],
+                "source_json": _canonical_json(runner),
+            },
         )
-    return rows
+    return
 
 
-def _lineup_rows(bundle: PlayExportBundle, snapshot_id: str) -> list[SavedCsvRow]:
-    return [
+def _lineup_rows(bundle: PlayExportBundle, snapshot_id: str) -> Iterator[SavedCsvRow]:
+    yield from (
         _row(
             bundle.game["id"],
             snapshot_id,
@@ -277,13 +281,13 @@ def _lineup_rows(bundle: PlayExportBundle, snapshot_id: str) -> list[SavedCsvRow
             },
         )
         for row in bundle.lineups
-    ]
+    )
 
 
 def _participation_rows(
     bundle: PlayExportBundle, snapshot_id: str
-) -> list[SavedCsvRow]:
-    return [
+) -> Iterator[SavedCsvRow]:
+    yield from (
         _row(
             bundle.game["id"],
             snapshot_id,
@@ -294,11 +298,11 @@ def _participation_rows(
             },
         )
         for row in bundle.participations
-    ]
+    )
 
 
-def _game_rows(bundle: PlayExportBundle, snapshot_id: str) -> list[SavedCsvRow]:
-    return [
+def _game_rows(bundle: PlayExportBundle, snapshot_id: str) -> Iterator[SavedCsvRow]:
+    yield from [
         _row(
             bundle.game["id"],
             snapshot_id,
@@ -307,8 +311,9 @@ def _game_rows(bundle: PlayExportBundle, snapshot_id: str) -> list[SavedCsvRow]:
     ]
 
 
-def _reference_rows(bundle: PlayExportBundle, snapshot_id: str) -> list[SavedCsvRow]:
-    rows = []
+def _reference_rows(
+    bundle: PlayExportBundle, snapshot_id: str
+) -> Iterator[SavedCsvRow]:
     for kind, source in (
         ("player", bundle.players),
         ("team", bundle.teams),
@@ -316,51 +321,46 @@ def _reference_rows(bundle: PlayExportBundle, snapshot_id: str) -> list[SavedCsv
         ("admin_vocabulary", bundle.admin_vocabularies),
     ):
         for row in source:
-            rows.append(
-                _row(
-                    bundle.game["id"],
-                    snapshot_id,
-                    {
-                        "game_id": bundle.game["id"],
-                        "reference_kind": kind,
-                        "reference_id": str(row["id"])
-                        if "id" in row
-                        else str(row["key"]),
-                        "source_json": _canonical_json(row),
-                    },
-                )
-            )
-    return rows
-
-
-def _projection_rows(bundle: PlayExportBundle, snapshot_id: str) -> list[SavedCsvRow]:
-    plays = _play_by_id(bundle)
-    rows = []
-    for snapshot in bundle.snapshots:
-        play = plays.get(snapshot["play_row_id"])
-        if play is None:
-            continue
-        rows.append(
-            _row(
+            yield _row(
                 bundle.game["id"],
                 snapshot_id,
                 {
                     "game_id": bundle.game["id"],
-                    "recording_generation": snapshot.get("recording_generation"),
-                    "event_sequence": snapshot.get("event_sequence"),
-                    "source_event_id": play["source_event_id"],
-                    "projection_kind": "plays_csv_v1",
-                    "source_version": 1,
-                    "source_json": _canonical_json(snapshot["plays_csv_json"]),
+                    "reference_kind": kind,
+                    "reference_id": str(row["id"]) if "id" in row else str(row["key"]),
+                    "source_json": _canonical_json(row),
                 },
             )
+    return
+
+
+def _projection_rows(
+    bundle: PlayExportBundle, snapshot_id: str
+) -> Iterator[SavedCsvRow]:
+    plays = _play_by_id(bundle)
+    for snapshot in bundle.snapshots:
+        play = plays.get(snapshot["play_row_id"])
+        if play is None:
+            continue
+        yield _row(
+            bundle.game["id"],
+            snapshot_id,
+            {
+                "game_id": bundle.game["id"],
+                "recording_generation": snapshot.get("recording_generation"),
+                "event_sequence": snapshot.get("event_sequence"),
+                "source_event_id": play["source_event_id"],
+                "projection_kind": "plays_csv_v1",
+                "source_version": 1,
+                "source_json": _canonical_json(snapshot["plays_csv_json"]),
+            },
         )
-    return rows
+    return
 
 
 def build_play_export_tables(
     bundle: PlayExportBundle,
-) -> tuple[ExportSnapshot, dict[str, list[SavedCsvRow]]]:
+) -> tuple[ExportSnapshot, dict[str, Iterable[SavedCsvRow]]]:
     """88列と全9サイドカーを同一snapshotの行集合へ写す。
 
     Args:

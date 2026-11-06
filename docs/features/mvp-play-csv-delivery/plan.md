@@ -30,3 +30,7 @@ rootへの既PO委任と2026-11-06の速度優先・品質維持指示に基づ�
 全イベントをaccepted条件の500行keyset（d2 NULLはid独立系列）にし、2000件打切りを撤去。SQLite実SQLの500/501/2001件＋NULL3件/別tenant/退避混在で欠落・重複0を確認（PG ACL証拠ではない）。snapshotはtenant/game/source_event_id/play_version/generation/d2の全一致を要求し、候補DDLへ原本ID/版を追加した。旧fixtureの値を実原本へ追随しただけでproducer成功とはしない。manifestは全イベント/補助資源/保存projectionを束縛する。C2 route_class/閉operation追加と、完成ZIP後の提示token再照合・新RR可視性再確認/拒否cleanupを実装。関連94pytest、Ruff/Ty成功。送出拒否4caseは依存置換した単体試験であり真正認可の実DB証拠ではない。
 
 **未完**: 全量RAM materializationは残り、repository/formatterを有限ページ→ディスクZIPへ接ぐ修復を継続する。製品app/正式資産登録と既registry完全一致検査の追随、実PG/C2/認可撤回実測、88列producerは後続。6指摘が全解消した、正式readが提供されたとはしない。
+
+ステップ1後発22ade8c7の非作者反映確認 `play-csv-fixed-independent-20261107/reflection1/REPORT.md` SHA256 `f07ee585a6bf20de709c28fc6a36c03ccbf230df7e2b4b263c4c0421ad609ee1` はP0/P1/P2=0（実source読取、独立試験再実行なし）。
+
+ステップ2継続: CSV各formatterをiteratorに変更し、完成行を全10ファイル分list化して二重保持する経路を撤去。manifest hashもJSONEncoder.iterencodeのchunk更新とし、巨大な単一JSON文字列を作らない。2001イベントのsourceを最初の要求行まで消費しない/500境界/全件exact対向を追加、関連95pytest・Ruff/Ty成功。**repository自体の全量tuple/list保持は残るため、全量RAM指摘の全解消とはしない**。次は同RR内で有限ページを直接archiveへ渡す読取の接合（archive完成までRRを保持）と88列producerを優先する。
