@@ -11,6 +11,11 @@ import {
   readPitchTypeOptions,
   type PitchTypeOption,
 } from '../api/pitchTypeOptions'
+import { captureLocalPitchPage } from '../lib/localRecordingPermissionPersistence'
+import {
+  isLocalRecordingSession,
+  type LocalRecordingSession,
+} from '../lib/localRecordingSession'
 import GameScreenBattedHitObservation from './GameScreenBattedHitObservation.vue'
 import type { BattedHitResult } from '../../../contracts/state-transition/lineup_play_prefix_payload_v1.d.ts'
 import StrikeZone from '../components/zone/StrikeZone.vue'
@@ -18,8 +23,12 @@ import { useAuthStore } from '../stores/authStore'
 import {
   GameScreenOrdinaryPitchController,
   type OrdinaryOperationResult,
+  type LocalOrdinaryResult,
 } from './GameScreenOrdinaryPitchController'
-const props = defineProps<{ context: RecordingContext }>()
+const props = defineProps<{
+  context: RecordingContext
+  localSession?: LocalRecordingSession | null
+}>()
 const emit = defineEmits<{ saved: [] }>()
 const auth = useAuthStore()
 const point = ref<{ x: number; y: number } | null>(null)
@@ -138,7 +147,7 @@ const nextCursor = ref<string | null>(null)
 const loading = ref(false)
 const failed = ref(false)
 const busy = ref(false)
-const status = ref<OrdinaryOperationResult>('blocked')
+const status = ref<OrdinaryOperationResult | LocalOrdinaryResult>('blocked')
 const sameProfile = ref(false),
   sameMode = ref(false),
   sameBucket = ref(false),
@@ -155,6 +164,13 @@ const confirmed = computed(
     noLockdown.value &&
     httpsTopLevel(),
 )
+function activeLocalSession(): LocalRecordingSession | null {
+  if (props.localSession == null) return null
+  const raw = toRaw(props.localSession)
+  return isLocalRecordingSession(raw) && raw.current ? raw : null
+}
+const localRequested = computed(() => props.localSession != null)
+const isLocalMode = computed(() => localRequested.value)
 const writer = {
   resolvePreconditions: () => ({
     topLevelHttps: httpsTopLevel(),
@@ -166,19 +182,44 @@ const writer = {
   }),
   revalidateSingleWriter: () => confirmed.value && identity().verified,
 }
+const localWriter = {
+  resolvePreconditions: writer.resolvePreconditions,
+  revalidateSingleWriter: () =>
+    confirmed.value && activeLocalSession()?.current === true,
+}
 
 let controller: GameScreenOrdinaryPitchController | null = null
 let generation = 0
 let request: AbortController | null = null
-const identity = () => ({
-  tenantId: auth.teamId,
-  epoch: auth.authEpoch,
-  verified: auth.hasHydrated && auth.isAuthenticated && auth.teamId !== null,
-})
+const identity = () =>
+  localRequested.value
+    ? (activeLocalSession()?.identity() ?? {
+        tenantId: null,
+        epoch: 0,
+        verified: false,
+      })
+    : {
+        tenantId: auth.teamId,
+        epoch: auth.authEpoch,
+        verified:
+          auth.hasHydrated && auth.isAuthenticated && auth.teamId !== null,
+      }
 const message = computed(() => {
   if (retryEvidenceUnavailable.value)
     return '再送に必要な元要求の送信記録を確認できません。新しい要求に置き換えず、運用責任者に確認してください'
-  if (busy.value) return '記録要求の保存・送信結果を確認しています'
+  if (busy.value)
+    return isLocalMode.value
+      ? '端末の未送信記録を確認しています'
+      : '記録要求の保存・送信結果を確認しています'
+  if (isLocalMode.value) {
+    if (status.value === 'queued-local')
+      return '投球を端末の未送信キューに記録しました。サーバー確認前の暫定状態です'
+    if (status.value === 'pending')
+      return '端末の未送信記録を復元しました。通信復帰後に同じ要求を順序どおり送信します'
+    if (status.value === 'blocked')
+      return '端末内記録の資格または保存原本を確認できません'
+    return '端末内の未送信記録として投球できます'
+  }
   if (status.value === 'saved')
     return '保存応答を受け取りました。サーバーから再取得しています'
   if (status.value === 'pending')
@@ -198,14 +239,27 @@ async function load(page: string | null) {
   items.value = []
   selected.value = ''
   const captured = identity()
+  const local = activeLocalSession()
   try {
-    const result = await readPitchTypeOptions(page, 25, request.signal)
-    if (
-      own !== generation ||
-      captured.tenantId !== auth.teamId ||
-      captured.epoch !== auth.authEpoch
-    )
-      return
+    const result = localRequested.value
+      ? local?.page(page)
+      : await readPitchTypeOptions(page, 25, request.signal)
+    if (!result) throw new Error('保存済み球種ページがありません')
+    if (own !== generation || !sameOrdinaryWire(captured, identity())) return
+    if (!localRequested.value && isLineupRecordingContext(displayed.value)) {
+      try {
+        await captureLocalPitchPage(
+          displayed.value.game.id,
+          displayed.value.game.current_d4,
+          page,
+          result,
+          captured.epoch,
+        )
+      } catch {
+        // onlineの実ページは使用可能。端末内資格としては採用しない。
+      }
+    }
+    if (own !== generation || !sameOrdinaryWire(captured, identity())) return
     items.value = result.items
     cursor.value = page
     nextCursor.value = result.next_cursor
@@ -233,6 +287,7 @@ async function save() {
     busy.value ||
     !canAppend.value ||
     !confirmed.value ||
+    (localRequested.value && (!activeLocalSession() || batted.value)) ||
     !point.value ||
     (batted.value && (!hitAvailable.value || !battedHit.value)) ||
     !items.value.some((i) => i.key === selected.value)
@@ -241,67 +296,99 @@ async function save() {
   const current = controller
   busy.value = true
   try {
-    const result = await current.submit(
-      {
-        resultId: resultId.value,
-        battedHit: batted.value
-          ? structuredClone(toRaw(battedHit.value))
-          : null,
-        nextBatter: terminal.value
-          ? (() => {
-              const p = nextBatters.value.find(
-                (p) => p.player.player_id === nextBatterId.value,
-              )
-              return p?.batting_slot.kind === 'slot'
-                ? {
-                    batterId: p.player.player_id,
-                    battingOrder: p.batting_slot.slot,
-                  }
-                : null
-            })()
-          : null,
-        pitchTypeKey: selected.value,
-        screenX: point.value.x,
-        screenY: point.value.y,
-        view: viewpoint.value,
-        pitchSpeed: { kmh: null, outsideRangeConfirmed: false },
-        stance: null,
-        battingSide: null,
-      },
-      { tenantId: auth.teamId!, pitchTypeKeys: items.value.map((i) => i.key) },
-    )
+    const observation: PlayScreenObservation = {
+      resultId: resultId.value,
+      battedHit: batted.value ? structuredClone(toRaw(battedHit.value)) : null,
+      nextBatter: terminal.value
+        ? (() => {
+            const p = nextBatters.value.find(
+              (p) => p.player.player_id === nextBatterId.value,
+            )
+            return p?.batting_slot.kind === 'slot'
+              ? {
+                  batterId: p.player.player_id,
+                  battingOrder: p.batting_slot.slot,
+                }
+              : null
+          })()
+        : null,
+      pitchTypeKey: selected.value,
+      screenX: point.value.x,
+      screenY: point.value.y,
+      view: viewpoint.value,
+      pitchSpeed: { kmh: null, outsideRangeConfirmed: false },
+      stance: null,
+      battingSide: null,
+    }
+    const tenantId = identity().tenantId
+    if (!tenantId) return
+    const vocabulary = {
+      tenantId,
+      pitchTypeKeys: items.value.map((i) => i.key),
+    }
+    const result = localRequested.value
+      ? await current.localEnqueue(observation, vocabulary)
+      : await current.submit(observation, vocabulary)
     if (controller !== current) return
     status.value = result
     displayed.value = current.context
-    canAppend.value = current.canAppend
+    canAppend.value = localRequested.value
+      ? current.canAppendLocal
+      : current.canAppend
     retryEvidenceUnavailable.value = current.retryEvidenceUnavailable
-    if (result === 'saved' || result === 'pending') point.value = null
-    if (result === 'saved') emit('saved')
+    if (result === 'saved' || result === 'pending' || result === 'queued-local')
+      point.value = null
+    if (result === 'saved' && !localRequested.value) emit('saved')
   } finally {
     if (controller === current) busy.value = false
   }
 }
-async function retry() {
-  if (!controller || busy.value || !confirmed.value) return
+async function retry(): Promise<OrdinaryOperationResult | null> {
+  if (
+    localRequested.value ||
+    !controller ||
+    busy.value ||
+    !confirmed.value ||
+    !identity().verified
+  )
+    return null
   const current = controller
   busy.value = true
   try {
     const result = await current.retry()
-    if (controller !== current) return
+    if (controller !== current) return null
     status.value = result
     displayed.value = current.context
     canAppend.value = current.canAppend
     retryEvidenceUnavailable.value = current.retryEvidenceUnavailable
     if (result === 'saved' || result === 'pending') point.value = null
     if (result === 'saved') emit('saved')
+    return result
   } finally {
     if (controller === current) busy.value = false
   }
 }
+watch(confirmed, async (ready) => {
+  if (!ready || !controller || busy.value) return
+  const current = controller
+  if (localRequested.value) {
+    if (!activeLocalSession()) return
+    const result = await current.inspectLocal()
+    if (controller !== current) return
+    status.value = result
+    displayed.value = current.context
+    canAppend.value = current.canAppendLocal
+    retryEvidenceUnavailable.value = current.retryEvidenceUnavailable
+    if (result === 'ready' || result === 'pending') await load(null)
+  } else if (status.value === 'pending' && identity().verified) {
+    await retry()
+  }
+})
 let watchedInput: {
   context: RecordingContext
   identity: ReturnType<typeof identity>
   hydrated: boolean
+  local: boolean
 } | null = null
 watch(
   () =>
@@ -315,12 +402,14 @@ watch(
       auth.teamId,
       auth.isAuthenticated,
       auth.hasHydrated,
+      props.localSession,
     ] as const,
   async () => {
     const input = {
       context: toRaw(props.context),
       identity: identity(),
       hydrated: auth.hasHydrated,
+      local: localRequested.value,
     }
     // 親の同値DTO再供給では送信中の所有者を失効させない。
     // anchor/世代/状態/位置を含む全値と認証scopeが変われば必ず失効する。
@@ -337,7 +426,9 @@ watch(
     nextCursor.value = null
     busy.value = false
     status.value = 'blocked'
-    if (!identity().verified) return
+    if (localRequested.value) resultId.value = 'batting-result.ball'
+    if (localRequested.value ? !activeLocalSession() : !identity().verified)
+      return
     try {
       watchedInput = structuredClone(input)
       // APIで閉DTO検証された値からVueの観測Proxyだけを外す。
@@ -345,15 +436,25 @@ watch(
       const current = new GameScreenOrdinaryPitchController(
         watchedInput.context,
         identity,
-        writer,
+        localRequested.value ? localWriter : writer,
+        localRequested.value ? activeLocalSession() : null,
       )
       controller = current
-      const result = await current.inspect()
+      // 最終チェック前のlocal inspectは開始しない。最後のチェックで一度だけ再評価する。
+      if (localRequested.value && !confirmed.value) return
+      const result = localRequested.value
+        ? await current.inspectLocal()
+        : await current.inspect()
       if (controller !== current) return
       status.value = result
       displayed.value = current.context
-      canAppend.value = current.canAppend
+      canAppend.value = localRequested.value
+        ? current.canAppendLocal
+        : current.canAppend
       retryEvidenceUnavailable.value = current.retryEvidenceUnavailable
+      if (result === 'pending' && !localRequested.value && confirmed.value) {
+        if ((await retry()) === 'saved' || controller !== current) return
+      }
       if (
         items.value.length === 0 &&
         (result === 'ready' || result === 'pending')
@@ -412,11 +513,16 @@ onScopeDispose(() => {
       記録にはHTTPSで直接開いた画面が必要です。
     </p>
     <p role="status" data-testid="first-ball-status">{{ message }}</p>
+    <p v-if="isLocalMode" data-testid="ordinary-local-notice">
+      通信断中は端末へ未送信の投球だけを記録します。安打の詳細観測はこの入口で確定できません。
+    </p>
     <p>
       {{
-        isLineupRecordingContext(displayed)
-          ? 'ボール・ストライク・ファウル、四球・死球、三振、単打・二塁打・三塁打・本塁打を記録できます。走者あり安打では走者ごとの到達塁を確認します。次の打者と攻守は保存された打順から引き継ぎます。'
-          : 'ボール・見逃し・空振り・通常のファウル、無走者の四球・死球を記録できます。四球・死球では次の打者を確認してください。'
+        isLocalMode
+          ? 'ボール・ストライク・ファウル、四球・死球、三振を端末の未送信記録として入力できます。'
+          : isLineupRecordingContext(displayed)
+            ? 'ボール・ストライク・ファウル、四球・死球、三振、単打・二塁打・三塁打・本塁打を記録できます。走者あり安打では走者ごとの到達塁を確認します。次の打者と攻守は保存された打順から引き継ぎます。'
+            : 'ボール・見逃し・空振り・通常のファウル、無走者の四球・死球を記録できます。四球・死球では次の打者を確認してください。'
       }}
     </p>
     <p data-testid="ordinary-state-source">
@@ -506,15 +612,11 @@ onScopeDispose(() => {
           >
             三振ゲッツー（一死一塁・一塁走者アウト）
           </option>
-          <template v-if="hitAvailable">
+          <template v-if="hitAvailable && !isLocalMode">
             <option value="batting-result.single">単打</option>
             <option value="batting-result.double">二塁打</option>
-            <option value="batting-result.triple">
-              三塁打
-            </option>
-            <option value="batting-result.home-run">
-              本塁打
-            </option>
+            <option value="batting-result.triple">三塁打</option>
+            <option value="batting-result.home-run">本塁打</option>
           </template>
           <option value="batting-result.foul">
             ファウル（通常・非バント）
@@ -522,7 +624,7 @@ onScopeDispose(() => {
         </select></label
       >
       <GameScreenBattedHitObservation
-        v-if="batted && hitAvailable"
+        v-if="batted && hitAvailable && !isLocalMode"
         :context-key="battedContextKey"
         :result-id="resultId as BattedHitResult"
         :fielders="fielders"
@@ -567,7 +669,11 @@ onScopeDispose(() => {
         </select>
       </label>
       <p v-if="failed" role="alert">
-        球種を取得できません。再取得してください。
+        {{
+          isLocalMode
+            ? '保存済みの球種ページを確認できません。'
+            : '球種を取得できません。再取得してください。'
+        }}
       </p>
       <button
         v-if="failed"
@@ -575,7 +681,7 @@ onScopeDispose(() => {
         :disabled="loading"
         @click="load(cursor)"
       >
-        球種を再取得
+        {{ isLocalMode ? '保存済み球種を再確認' : '球種を再取得' }}
       </button>
       <button
         type="button"
@@ -627,11 +733,11 @@ onScopeDispose(() => {
         "
         @click="save"
       >
-        投球を確定・保存
+        {{ isLocalMode ? '投球を端末に記録' : '投球を確定・保存' }}
       </button>
     </template>
     <button
-      v-if="status === 'pending'"
+      v-if="status === 'pending' && !isLocalMode"
       type="button"
       :disabled="busy || !confirmed"
       class="min-h-11 rounded border px-4 py-2"
