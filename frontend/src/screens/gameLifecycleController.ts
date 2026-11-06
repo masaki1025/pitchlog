@@ -559,6 +559,8 @@ type Snapshot = Readonly<{
   oldestUnsettled: DurableQueueSlot | null
   lastLifecycle: LifecycleSlot | null
   lifecycle: readonly LifecycleSlot[]
+  /** 同一game/D4の全slot。prefix連続性の確認に使う。 */
+  byD1: ReadonlyMap<number, DurableQueueSlot>
   preparedCount: number
   unknownCount: number
   unpreparedCount: number
@@ -1119,6 +1121,7 @@ export class GameLifecycleController {
       lastLifecycle:
         lifecycle.length > 0 ? lifecycle[lifecycle.length - 1]! : null,
       lifecycle,
+      byD1,
       preparedCount,
       unknownCount,
       unpreparedCount,
@@ -1148,11 +1151,6 @@ export class GameLifecycleController {
     } else {
       if (snapshot.effectiveStatus !== 'finished')
         return { ok: false, reason: GAME_LIFECYCLE_REASON.TARGET_UNAVAILABLE }
-      if (
-        snapshot.lastLifecycle !== null &&
-        snapshot.lastLifecycle.action !== 'end'
-      )
-        return { ok: false, reason: GAME_LIFECYCLE_REASON.TARGET_UNAVAILABLE }
     }
     return { ok: true }
   }
@@ -1176,9 +1174,8 @@ export class GameLifecycleController {
       return { ok: false, reason: GAME_LIFECYCLE_REASON.INVALID_LOCAL_STATE }
     if (previous.state === queueStateId('同期済み')) {
       for (let d1 = Number(d3) + 1; d1 <= previous.d1; d1 += 1) {
-        const slot = snapshot.lifecycle.find((x) => x.slot.d1 === d1)
-        const queueSlot = slot?.slot
-        if (!queueSlot || queueSlot.state !== queueStateId('同期済み'))
+        const slot = snapshot.byD1.get(d1)
+        if (!slot || slot.state !== queueStateId('同期済み'))
           return { ok: false, reason: GAME_LIFECYCLE_REASON.INVALID_ORDER }
       }
       return {
@@ -1214,7 +1211,9 @@ export class GameLifecycleController {
     base: GameLifecycleBase,
   ): Selection<GameLifecycleReopenTarget> {
     const end = snapshot.lastLifecycle
-    if (end === null) {
+    if (end === null || BigInt(end.slot.d1) <= BigInt(base.d3)) {
+      // 端末に終了slotが無い/古い場合でも、サーバー確定済みの最新activeがあれば
+      // その版を対象にする（別端末で終了した試合の再開）。
       if (base.active === null)
         return { ok: false, reason: GAME_LIFECYCLE_REASON.TARGET_UNAVAILABLE }
       return {
@@ -1229,21 +1228,7 @@ export class GameLifecycleController {
     }
     if (end.action !== 'end')
       return { ok: false, reason: GAME_LIFECYCLE_REASON.TARGET_UNAVAILABLE }
-    const endD1 = BigInt(end.slot.d1)
     const confirmedActive = base.active
-    if (endD1 <= BigInt(base.d3)) {
-      if (confirmedActive === null)
-        return { ok: false, reason: GAME_LIFECYCLE_REASON.INVALID_LOCAL_STATE }
-      return {
-        ok: true,
-        value: {
-          kind: 'confirmed',
-          version: confirmedActive.version,
-          eventId: confirmedActive.eventId,
-          receiptId: confirmedActive.receiptId,
-        },
-      }
-    }
     if (
       confirmedActive !== null &&
       confirmedActive.eventId === end.eventId &&
