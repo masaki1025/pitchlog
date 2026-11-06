@@ -132,7 +132,11 @@ def read_past_correction_v3_source(
                 )
             )
         last = projection["last_source"]
-        if last is None or last.event_id != str(source[-1].source_event_id):
+        if (
+            last is None
+            or last.event_id != str(source[-1].source_event_id)
+            or source[-1].calculation.response.value.next_prefix_ref != ref
+        ):
             raise PastCorrectionSourceUnavailable("v3最終原本とcurrent headが不一致")
         return tuple(source)
     except (OrdinaryPrefixError, KeyError, TypeError, ValueError, AttributeError):
