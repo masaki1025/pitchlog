@@ -29,6 +29,22 @@ export async function readPitchTypeOptions(
       signal,
     },
   )
+  return parsePitchTypePage(response, cursor, limit)
+}
+
+/** 保存済みの閉ページにも同じ検証を適用し、欠損や語彙を補完しない。 */
+export function parsePitchTypePage(
+  response: unknown,
+  cursor: string | null = null,
+  limit = 25,
+): PitchTypePage {
+  if (
+    !Number.isSafeInteger(limit) ||
+    limit < 1 ||
+    limit > 100 ||
+    (cursor !== null && (typeof cursor !== 'string' || cursor.length === 0))
+  )
+    return invalid()
   if (
     typeof response !== 'object' ||
     response === null ||

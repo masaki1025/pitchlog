@@ -27,4 +27,4 @@ plan b75adacfの非作者REPORT fcc707cb…の3 P1を採用し、実装条件を
 - cap更新は、同nonce/世代では水位後退と同水位別refを拒否。未終結slotがある間は旧capを保持し新headへ置換しない。完全ACK済みprefixだけなら新しい真正C2 headをstrict確定してから基点を進める。新nonceは古capで許可せず、実認証/C2で改めてsourceと語彙を確認した場合だけ新capを確定する。旧queue/本文/attemptを消さず、同一内容の未終結列を先に同期する。
 - オンライン復帰は実session/C2成功後だけ、最古slotを同本文/D5/attemptで再送し、ACK適用→真正GET→次の最古を自動反復する。非成功ACK/HTTP不明/再取得不明/資格変更で止まり、手動押下無しで全suffixが空になる正例と件数通知を確認する。health成功直後session通信断は安全に閉じる未充足として残す。5秒最適化はPO指示で後段だが安全/自動順序条件は維持。
 
-所有分割: rootはpermission store/readonly intent lease/health gate/router/local host/OrdinaryPitch.vueと文書。別作者game_operations_final_independentはOrdinaryPitchController・PitchCommit/PitchAcceptance・必要なprepared envelope補助と対応specのみ。共有同一fileへ並行書込みせず、coreの最終候補は別レビュアーへ渡す。
+所有分割: rootはpermission store/readonly intent lease/health gate/router/local host/RecordedRestoreと文書。別作者game_operations_final_independentはOrdinaryPitchController・PitchCommit/PitchAcceptance・必要なprepared envelope補助・OrdinaryPitch.vueと対応spec（22:54 JST追加移管）。共有同一fileへ並行書込みせず、coreの最終候補は別レビュアーへ渡す。
