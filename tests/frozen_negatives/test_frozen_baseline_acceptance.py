@@ -812,16 +812,44 @@ def test_empty_changes_with_moved_identity_is_green(tmp_path: Path) -> None:
     fixture = _build_repository(tmp_path / "baseline")
     _assert_baseline_green(fixture)
 
-    def remove_document_changes(ledger: dict[str, Any]) -> None:
-        record = ledger["history"][-1]
-        assert record["prior_identity"] != record["new_identity"]
-        record["changes"] = []
+    def split_document_changes_from_identity(ledger: dict[str, Any]) -> None:
+        history = ledger["history"]
+        index = next(
+            i for i in reversed(range(len(history)))
+            if history[i]["prior_identity"] != history[i]["new_identity"]
+            and history[i]["changes"]
+        )
+        record = history[index]
+        # 現197の実implementation_bindings変更を捨てず、先行同identity行へ分ける。
+        if record["changes"]:
+            document_record = copy.deepcopy(record)
+            document_record["acceptance_id"] = "masaki1025/pitchlog#990001"
+            document_record["new_identity"] = copy.deepcopy(record["prior_identity"])
+            document_record["reason"] = "規範状態の変更をidentity移動前へ分離する試験記録"
+            history.insert(index, document_record)
+            record["placement_change"]["before"] = copy.deepcopy(
+                document_record["placement_change"]["after"]
+            )
+            record["moved"] = False
+            record["changes"] = []
 
     pure_value_move = _build_repository(
         tmp_path / "pure-value-move",
-        base_mutation=remove_document_changes,
+        base_mutation=split_document_changes_from_identity,
     )
     _assert_baseline_green(pure_value_move)
+
+    def discard_document_changes(ledger: dict[str, Any]) -> None:
+        record = next(r for r in reversed(ledger["history"]) if r["changes"])
+        record["changes"] = []
+
+    missing_document_change = _build_repository(
+        tmp_path / "discarded-document-change",
+        base_mutation=discard_document_changes,
+    )
+    rejected = _run_acceptance(missing_document_change)
+    assert rejected.returncode != 0
+    assert "replay:" in rejected.stderr
 
     def split_initial_record_for_pure_placement(ledger: dict[str, Any]) -> None:
         placement_record = ledger["history"][0]
