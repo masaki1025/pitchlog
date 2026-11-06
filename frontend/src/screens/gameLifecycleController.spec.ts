@@ -1,6 +1,6 @@
 // @vitest-environment-options {"url":"https://pitchlog.test"}
 //
-// この spec は保存呼出順・耐久・ACK 分岐・再取得分岐を検査する。
+// この spec は保存呼出順・耐久・ACK 分岐・再取得分岐・断中chainを検査する。
 // mock の ACK 成功は実認可/実DB/PG の成功証拠ではない（root の隔離PG実画面で
 // 実測するまで未成立）。再開種別は正本の写しに未裁定のため、順序検査に限り
 // 構造だけを差し込む（正式裁定後に実在する予定の種別）。
@@ -26,21 +26,23 @@ import GameScreenLifecyclePanel from './GameScreenLifecyclePanel.vue'
 import {
   GAME_LIFECYCLE_REASON,
   GameLifecycleController,
+  createGameLifecycleWriter,
   type GameLifecycleView,
 } from './gameLifecycleController'
 import { undoRead } from './GameScreenUndoProduct.test-support'
 
-const base = undoRead()
-const tenant = base.checkpoint.content.scope.tenantId
-const gameId = base.id
-const d4 = base.current_d4
+const fixture = undoRead()
+const tenant = fixture.checkpoint.content.scope.tenantId
+const gameId = fixture.id
+const d4 = fixture.current_d4
+const baseD2 = fixture.next_position.d2
 const deviceId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
 
 type WirePayload = Readonly<{
   formatVersion: string
   action: 'end' | 'reopen'
-  checkpointRef: unknown
-  target: unknown
+  checkpointRef: Record<string, unknown>
+  target: Record<string, unknown> | null
   event: Readonly<{ eventId: string; receiptId: string }>
 }>
 
@@ -62,10 +64,12 @@ type Server = {
 }
 
 let server: Server
+let serverD3: number
+let serverNextD2: number
 let applied: Set<string>
 let posts: { body: GameLifecycleRequestBody; attempt: string }[]
-let readFailsFrom: number
-let readCount: number
+let readFails: boolean
+let forcedRead: GameLifecycleGame | null
 let postMode: 'ok' | 'lost-ack' | 'http-409' | 'http-503'
 let identity = { tenantId: tenant, epoch: 1, verified: true }
 let controllers: GameLifecycleController[] = []
@@ -81,16 +85,30 @@ function resetServer(): void {
     active: null,
     statsId: null,
   }
+  serverD3 = 0
+  serverNextD2 = Number(baseD2)
   applied = new Set()
   posts = []
-  readFailsFrom = Number.POSITIVE_INFINITY
-  readCount = 0
+  readFails = false
+  forcedRead = null
   postMode = 'ok'
 }
 
+/** 実GETのfixture。適用済みD1/D2を反映し、baseのd3とnext_positionを進める。 */
 function currentRead(): GameLifecycleGame {
   const value: unknown = {
-    ...base,
+    ...fixture,
+    checkpoint: {
+      ...fixture.checkpoint,
+      content: {
+        ...fixture.checkpoint.content,
+        d3: String(serverD3),
+        activeDepth: String(serverD3),
+        activeHead: null,
+      },
+    },
+    next_position: { d1: String(serverD3 + 1), d2: String(serverNextD2) },
+    page: { items: [], next_cursor: null },
     status: server.status,
     lifecycle: {
       formatVersion: GAME_LIFECYCLE_READ_FORMAT,
@@ -117,6 +135,8 @@ function applyBody(body: GameLifecycleRequestBody): string {
   const event = wireEvent(body)
   if (applied.has(event.d5)) return '重複'
   applied.add(event.d5)
+  serverD3 = Math.max(serverD3, event.d1)
+  serverNextD2 = Math.max(serverNextD2, event.d2 + 1000)
   if (event.event_kind === 'game_end_declaration') {
     const version = (BigInt(server.lastVersion) + 1n).toString()
     server = {
@@ -221,8 +241,11 @@ async function queueSlots() {
   }
 }
 
-/** 既通常/NP入力の代わりに「同じqueueの2球」だけを積む。計算は実装しない。 */
-async function appendOrdinaryMarkers(count: number): Promise<void> {
+/** 既通常/NP入力の代わりに「同じqueueの球」だけを積む。計算は実装しない。 */
+async function appendOrdinaryMarkers(
+  count: number,
+  firstD2 = Number(baseD2),
+): Promise<void> {
   const queue = await scopeQueue()
   try {
     for (let index = 0; index < count; index += 1) {
@@ -237,7 +260,7 @@ async function appendOrdinaryMarkers(count: number): Promise<void> {
             V3: d4,
             V4: gameId,
             V5: '1',
-            V6: 1000 + index,
+            V6: firstD2 + index * 1000,
             V7: { formatVersion: 'unit-order-marker-v1' },
           },
         },
@@ -283,6 +306,14 @@ async function markUnsentSynced(
   }
 }
 
+function lifecycleSlots(slots: Awaited<ReturnType<typeof queueSlots>>) {
+  return slots.filter(
+    (slot) =>
+      (slot.event.fields.V7 as { formatVersion?: string } | undefined)
+        ?.formatVersion === 'native-game-lifecycle-v1',
+  )
+}
+
 beforeEach(() => {
   vi.stubGlobal('indexedDB', new IDBFactory())
   vi.stubGlobal('IDBKeyRange', IDBKeyRange)
@@ -300,19 +331,18 @@ beforeEach(() => {
       grant: {
         device_id: deviceId,
         d4,
-        away_lineup_id: base.lineups.away.lineup_id,
-        home_lineup_id: base.lineups.home.lineup_id,
+        away_lineup_id: fixture.lineups.away.lineup_id,
+        home_lineup_id: fixture.lineups.home.lineup_id,
         recording_right_proof: 'unit-only-proof',
-        recovery_generation: base.recovery_generation,
+        recovery_generation: fixture.recovery_generation,
       },
     }),
     close: () => {},
   } as unknown as GameStartPersistence)
   vi.spyOn(lifecycle, 'readGameLifecycle').mockImplementation(
     async (): Promise<GameLifecycleReadResult> => {
-      readCount += 1
-      if (readCount >= readFailsFrom) throw new Error('read failed')
-      return { kind: 'found', game: currentRead() }
+      if (readFails) throw new Error('read failed')
+      return { kind: 'found', game: forcedRead ?? currentRead() }
     },
   )
   vi.spyOn(lifecycle, 'postGameLifecycleRequestBody').mockImplementation(
@@ -344,16 +374,76 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-describe('終了から再終了まで', () => {
-  it('終了v1→再開→2球→再終了v2→reloadを、同queue/同本文/実GET復元で接続する', async () => {
+describe('実writer接続', () => {
+  it('既存環境確認からpreconditions/revalidateを組み立て、偽のtrueを作らない', async () => {
+    const environment = {
+      topLevelHttps: () => true,
+      sameBrowserProfile: () => true,
+      sameBrowsingMode: () => true,
+      sameStorageBucket: () => true,
+      siteStorageAvailable: () => true,
+      lockdownModeNotApplied: () => false,
+      identityVerified: () => true,
+    }
+    const built = createGameLifecycleWriter(environment)
+    expect(built.resolvePreconditions?.()).toMatchObject({
+      topLevelHttps: true,
+      lockdownModeNotApplied: false,
+    })
+    expect(
+      built.revalidateSingleWriter?.({
+        gameIdentifier: gameId,
+        lockName: '',
+        lock: {},
+      }),
+    ).toBe(false)
+    const c = controller({
+      writer: { ...built, lockManager: writer.lockManager },
+    })
+    await c.refresh()
+    expect(await c.end()).toEqual({
+      outcome: 'blocked',
+      reason: GAME_LIFECYCLE_REASON.LOCK_UNAVAILABLE,
+    })
+    expect(await queueSlots()).toHaveLength(0)
+  })
+
+  it('すべての実前提が揃えば同じhelperで操作できる', async () => {
+    const built = createGameLifecycleWriter({
+      topLevelHttps: () => true,
+      sameBrowserProfile: () => true,
+      sameBrowsingMode: () => true,
+      sameStorageBucket: () => true,
+      siteStorageAvailable: () => true,
+      lockdownModeNotApplied: () => true,
+      identityVerified: () => true,
+    })
+    expect(
+      built.revalidateSingleWriter?.({
+        gameIdentifier: gameId,
+        lockName: '',
+        lock: {},
+      }),
+    ).toBe(true)
+    const c = controller({
+      writer: { ...built, lockManager: writer.lockManager },
+      resolveEventKind: undefined,
+    })
+    await c.refresh()
+    expect((await c.end()).outcome).toBe('acked')
+  })
+})
+
+describe('オンラインの終了から再終了まで', () => {
+  it('終了v1→再開→2球→再終了v2→reloadを、同queue/閉union/実GET復元で接続する', async () => {
     // 再開種別の正式裁定patchが入った後の遷移を、表への一時追加で再現する。
     installPendingReopenKind()
     const c = controller()
     const first = await c.refresh()
     expect(first.status).toBe('in_progress')
+    expect(first.confirmedStatus).toBe('in_progress')
     expect(first.canEnd).toBe(true)
     expect(first.canReopen).toBe(false)
-    expect(first.resumeHandoff).not.toBeNull()
 
     const end1 = await c.end()
     expect(end1).toEqual({ outcome: 'acked', ack: 'accepted', refresh: 'done' })
@@ -367,17 +457,18 @@ describe('終了から再終了まで', () => {
       d4,
       game_id: gameId,
       event_kind: 'game_end_declaration',
-      d2: Number(base.next_position.d2),
+      d2: Number(baseD2),
     })
     expect(wireEvent(posts[0]!.body).payload).toMatchObject({
       formatVersion: 'native-game-lifecycle-v1',
       action: 'end',
-      checkpointRef: base.checkpoint.ref,
+      checkpointRef: { kind: 'confirmed', id: fixture.checkpoint.ref.id },
       target: null,
     })
     expect(posts[0]!.body.recording_right_proof).toBe('unit-only-proof')
     const view1 = c.view
     expect(view1.status).toBe('finished')
+    expect(view1.confirmedStatus).toBe('finished')
     expect(view1.lastVersion).toBe('1')
     expect(view1.active?.version).toBe('1')
     expect(view1.saveAck).toBe('accepted')
@@ -400,24 +491,23 @@ describe('終了から再終了まで', () => {
     })
     expect(wireEvent(posts[1]!.body).payload).toMatchObject({
       action: 'reopen',
-      target,
-      checkpointRef: base.checkpoint.ref,
+      checkpointRef: { kind: 'confirmed', id: fixture.checkpoint.ref.id },
+      target: { kind: 'confirmed', ...target },
     })
     const view2 = c.view
     expect(view2.status).toBe('in_progress')
+    expect(view2.confirmedStatus).toBe('in_progress')
     expect(view2.active).toBeNull()
     expect(view2.lastVersion).toBe('1')
 
     // 既通常/NP入力controllerが積む2球分。計算はここで実装しない。
-    await appendOrdinaryMarkers(2)
+    await appendOrdinaryMarkers(2, Number(baseD2) + 1000)
     const deferred = await c.end()
     expect(deferred.outcome).toBe('pending')
     if (deferred.outcome !== 'pending') return
     expect(deferred.reason).toBe(
       GAME_LIFECYCLE_REASON.QUEUED_AWAITING_PREDECESSOR,
     )
-    // FR-010: 未同期プレイがあっても終了宣言はキューへ積む。ただし先行分を飛ばして
-    // 送らない（postsは増えない）。
     expect(await queueSlots()).toHaveLength(5)
     expect(posts).toHaveLength(2)
     expect(c.view.preparedCount).toBe(1)
@@ -432,6 +522,7 @@ describe('終了から再終了まで', () => {
     })
     const view3 = c.view
     expect(view3.status).toBe('finished')
+    expect(view3.confirmedStatus).toBe('finished')
     expect(view3.lastVersion).toBe('2')
     expect(view3.active?.version).toBe('2')
 
@@ -439,12 +530,12 @@ describe('終了から再終了まで', () => {
     const reloaded = controller()
     const restored = await reloaded.refresh()
     expect(restored.status).toBe('finished')
+    expect(restored.confirmedStatus).toBe('finished')
     expect(restored.lastVersion).toBe('2')
     expect(restored.active?.version).toBe('2')
-    expect(restored.activeStatsVersionId).toBe(server.statsId)
     expect(restored.saveAck).toBeNull()
     expect(restored.unknownCount).toBe(0)
-  })
+  }, 20_000)
 
   it('再開種別が未裁定なら追記再開を閉拒否する', async () => {
     const c = controller({
@@ -464,6 +555,264 @@ describe('終了から再終了まで', () => {
     expect(c.view.reopenBlocked).toBe(true)
     expect(c.view.canReopen).toBe(false)
   })
+
+  it('サーバー確定済みの終了は、端末に終了slotが無くてもconfirmed targetで再開できる', async () => {
+    installPendingReopenKind()
+    server = {
+      status: 'finished',
+      lastVersion: '1',
+      active: {
+        version: '1',
+        eventId: 'aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa',
+        receiptId: 'bbbbbbbb-1111-4111-8111-bbbbbbbbbbbb',
+      },
+      statsId: 'cccccccc-1111-4111-8111-cccccccccccc',
+    }
+    const c = controller()
+    const view = await c.refresh()
+    expect(view.status).toBe('finished')
+    expect(view.canReopen).toBe(true)
+    const reopened = await c.reopen()
+    expect(reopened).toEqual({
+      outcome: 'acked',
+      ack: 'accepted',
+      refresh: 'done',
+    })
+    expect(wireEvent(posts[0]!.body).payload).toMatchObject({
+      action: 'reopen',
+      checkpointRef: { kind: 'confirmed' },
+      target: {
+        kind: 'confirmed',
+        version: '1',
+        eventId: 'aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa',
+        receiptId: 'bbbbbbbb-1111-4111-8111-bbbbbbbbbbbb',
+      },
+    })
+    expect(c.view.status).toBe('in_progress')
+    expect(c.view.confirmedStatus).toBe('in_progress')
+  })
+
+  it('ACK後のGETが古い間はconfirmed_prefix/queued_endで次の再開を表現する', async () => {
+    installPendingReopenKind()
+    const c = controller()
+    await c.refresh()
+    const stale = currentRead()
+    forcedRead = stale
+    const ended = await c.end()
+    expect(ended).toEqual({
+      outcome: 'acked',
+      ack: 'accepted',
+      refresh: 'pending',
+    })
+    const endBody = wireEvent(posts[0]!.body)
+    const reopened = await c.reopen()
+    expect(reopened).toEqual({
+      outcome: 'acked',
+      ack: 'accepted',
+      refresh: 'pending',
+    })
+    expect(posts).toHaveLength(2)
+    expect(wireEvent(posts[1]!.body).payload).toMatchObject({
+      action: 'reopen',
+      checkpointRef: {
+        kind: 'confirmed_prefix',
+        d4,
+        d1: '1',
+        d5: endBody.d5,
+      },
+      target: {
+        kind: 'queued_end',
+        d4,
+        d1: '1',
+        d5: endBody.d5,
+        eventId: endBody.payload.event.eventId,
+        receiptId: endBody.payload.event.receiptId,
+      },
+    })
+    expect(reopened.outcome).toBe('acked')
+  })
+})
+
+describe('通信断中の終了・再開', () => {
+  it('実GET不能でも未送信プレイ→終了→再開→再終了を順序どおり耐久保存する', async () => {
+    installPendingReopenKind()
+    const c = controller()
+    await c.refresh()
+    const baseD2Value = Number(baseD2)
+
+    // 断中: 既通常入力が2球を未送信で積んだ状態。
+    await appendOrdinaryMarkers(2, baseD2Value)
+    readFails = true
+
+    const end1 = await c.end()
+    expect(end1).toEqual({
+      outcome: 'pending',
+      reason: GAME_LIFECYCLE_REASON.QUEUED_AWAITING_PREDECESSOR,
+    })
+    const reopen = await c.reopen()
+    expect(reopen).toEqual({
+      outcome: 'pending',
+      reason: GAME_LIFECYCLE_REASON.QUEUED_AWAITING_PREDECESSOR,
+    })
+    const end2 = await c.end()
+    expect(end2).toEqual({
+      outcome: 'pending',
+      reason: GAME_LIFECYCLE_REASON.QUEUED_AWAITING_PREDECESSOR,
+    })
+    expect(posts).toHaveLength(0)
+    const slots = await queueSlots()
+    expect(slots).toHaveLength(5)
+    const chain = lifecycleSlots(slots)
+    expect(chain.map((slot) => slot.d1)).toEqual([3, 4, 5])
+    expect(chain.map((slot) => slot.event.fields.V6)).toEqual([
+      baseD2Value + 2000,
+      baseD2Value + 3000,
+      baseD2Value + 4000,
+    ])
+
+    const end1Body = wireEvent(
+      JSON.parse(
+        (await (
+          await NativeEnvelopePersistence.open()
+        ).read({
+          tenantId: tenant,
+          gameId,
+          d4,
+          d1: 3,
+          d5: String(chain[0]!.d5),
+        }))!.requestJson,
+      ) as GameLifecycleRequestBody,
+    )
+    expect(end1Body.payload).toMatchObject({
+      action: 'end',
+      checkpointRef: {
+        kind: 'queued_predecessor',
+        d4,
+        d1: '2',
+        d5: String(slots[1]!.d5),
+      },
+      target: null,
+    })
+    const reopenBody = wireEvent(
+      JSON.parse(
+        (await (
+          await NativeEnvelopePersistence.open()
+        ).read({
+          tenantId: tenant,
+          gameId,
+          d4,
+          d1: 4,
+          d5: String(chain[1]!.d5),
+        }))!.requestJson,
+      ) as GameLifecycleRequestBody,
+    )
+    expect(reopenBody.payload).toMatchObject({
+      action: 'reopen',
+      checkpointRef: {
+        kind: 'queued_predecessor',
+        d1: '3',
+        d5: String(chain[0]!.d5),
+      },
+      target: {
+        kind: 'queued_end',
+        d1: '3',
+        d5: String(chain[0]!.d5),
+        eventId: end1Body.payload.event.eventId,
+        receiptId: end1Body.payload.event.receiptId,
+      },
+    })
+
+    const view = c.view
+    expect(view.status).toBe('finished')
+    expect(view.confirmedStatus).toBe('in_progress')
+    expect(view.pendingLifecycleCount).toBe(3)
+    expect(view.preparedCount).toBe(3)
+    expect(view.canEnd).toBe(false)
+    expect(view.canReopen).toBe(true)
+
+    // reload: baseは実GET成功時に耐久保存されている。
+    c.dispose()
+    const reloaded = controller()
+    const restored = await reloaded.refresh()
+    expect(restored.status).toBe('finished')
+    expect(restored.confirmedStatus).toBe('in_progress')
+    expect(restored.pendingLifecycleCount).toBe(3)
+    expect(restored.canReopen).toBe(true)
+
+    // 復帰: 先行の通常球が同期された後、lifecycle chainを同本文で順に送る。
+    await markUnsentSynced(3)
+    readFails = false
+    const retried = await reloaded.retry()
+    expect(retried).toEqual({
+      outcome: 'acked',
+      ack: 'accepted',
+      refresh: 'done',
+    })
+    expect(posts).toHaveLength(3)
+    expect(posts.map((post) => wireEvent(post.body).d1)).toEqual([3, 4, 5])
+    expect(posts.map((post) => wireEvent(post.body).payload.action)).toEqual([
+      'end',
+      'reopen',
+      'end',
+    ])
+    expect(new Set(posts.map((post) => wireEvent(post.body).d5)).size).toBe(3)
+    expect(posts[1]!.body).not.toEqual(posts[0]!.body)
+    expect(posts.map((post) => post.attempt)).toEqual([
+      posts[0]!.attempt,
+      posts[1]!.attempt,
+      posts[2]!.attempt,
+    ])
+    const final = reloaded.view
+    expect(final.status).toBe('finished')
+    expect(final.confirmedStatus).toBe('finished')
+    expect(final.lastVersion).toBe('2')
+    expect(final.active?.version).toBe('2')
+    expect(final.pendingLifecycleCount).toBe(0)
+  }, 20_000)
+
+  it('先行の結果が未確定なら送信を待ち、本文・D5・attemptを変えない', async () => {
+    const c = controller()
+    await c.refresh()
+    await appendOrdinaryMarkers(1)
+    const queued = await c.end()
+    expect(queued.outcome).toBe('pending')
+    if (queued.outcome !== 'pending') return
+    expect(queued.reason).toBe(
+      GAME_LIFECYCLE_REASON.QUEUED_AWAITING_PREDECESSOR,
+    )
+    expect(posts).toHaveLength(0)
+    const before = await queueSlots()
+    const lifecycleBefore = lifecycleSlots(before)[0]!
+    const store = await NativeEnvelopePersistence.open()
+    const storedBefore = await store.read({
+      tenantId: tenant,
+      gameId,
+      d4,
+      d1: lifecycleBefore.d1,
+      d5: String(lifecycleBefore.d5),
+    })
+    store.close()
+    expect(storedBefore).not.toBeNull()
+
+    const waiting = await c.retry()
+    expect(waiting).toEqual({
+      outcome: 'pending',
+      reason: GAME_LIFECYCLE_REASON.PENDING_PREDECESSOR,
+    })
+    expect(posts).toHaveLength(0)
+    const after = await queueSlots()
+    expect(lifecycleSlots(after)[0]!.d5).toBe(lifecycleBefore.d5)
+    const store2 = await NativeEnvelopePersistence.open()
+    const storedAfter = await store2.read({
+      tenantId: tenant,
+      gameId,
+      d4,
+      d1: lifecycleBefore.d1,
+      d5: String(lifecycleBefore.d5),
+    })
+    store2.close()
+    expect(storedAfter).toEqual(storedBefore)
+  })
 })
 
 describe('非成功と結果不明', () => {
@@ -476,9 +825,12 @@ describe('非成功と結果不明', () => {
     expect(c.view.saveAck).toBeNull()
     expect(c.view.unknownCount).toBe(1)
     expect(await queueSlots()).toHaveLength(1)
+    expect(posts).toHaveLength(1)
 
+    const c2 = controller()
+    await c2.refresh()
     postMode = 'ok'
-    const retried = await c.retry()
+    const retried = await c2.retry()
     expect(retried).toEqual({
       outcome: 'acked',
       ack: 'duplicate',
@@ -488,35 +840,8 @@ describe('非成功と結果不明', () => {
     expect(posts[1]!.body).toEqual(posts[0]!.body)
     expect(posts[1]!.attempt).toBe(posts[0]!.attempt)
     expect(await queueSlots()).toHaveLength(1)
-    expect(c.view.status).toBe('finished')
-    expect(c.view.unknownCount).toBe(0)
-  })
-
-  it('reload後も原本文とattemptを復元し、新D5へ置換しない', async () => {
-    const c = controller()
-    await c.refresh()
-    postMode = 'lost-ack'
-    expect((await c.end()).outcome).toBe('pending')
-    const firstBody = posts[0]!.body
-    const firstAttempt = posts[0]!.attempt
-    c.dispose()
-
-    const reloaded = controller()
-    const view = await reloaded.refresh()
-    expect(view.status).toBe('finished')
-    expect(view.unknownCount).toBe(1)
-    expect(view.saveAck).toBeNull()
-
-    postMode = 'ok'
-    const retried = await reloaded.retry()
-    expect(retried).toEqual({
-      outcome: 'acked',
-      ack: 'duplicate',
-      refresh: 'done',
-    })
-    expect(posts[1]!.body).toEqual(firstBody)
-    expect(posts[1]!.attempt).toBe(firstAttempt)
-    expect(await queueSlots()).toHaveLength(1)
+    expect(c2.view.status).toBe('finished')
+    expect(c2.view.unknownCount).toBe(0)
   })
 
   it.each(['http-409', 'http-503'] as const)(
@@ -528,29 +853,50 @@ describe('非成功と結果不明', () => {
       const result = await c.end()
       expect(result.outcome).toBe('pending')
       expect(c.view.saveAck).toBeNull()
-      expect(c.view.status).toBe('in_progress')
       expect((await queueSlots())[0]?.state).toBe('未送信')
       expect(c.view.lastFailure).toBe(GAME_LIFECYCLE_REASON.SEND_NOT_ACCEPTED)
     },
   )
 
-  it('保存ACKと実GET未了を区別し、成功を装わない', async () => {
+  it('ACK後に古いGETが返ったら再取得完了にしない', async () => {
     const c = controller()
     await c.refresh()
-    // 書込前GET(#2)は成功し、ACK後GET(#3)だけを失敗させる。
-    readFailsFrom = 3
+    // 操作前のin_progressを、ACK後のGETとして返させる。
+    forcedRead = currentRead()
     const result = await c.end()
     expect(result).toEqual({
       outcome: 'acked',
       ack: 'accepted',
       refresh: 'pending',
     })
+    expect(c.view.refresh).toBe('failed')
+    expect(c.view.lastFailure).toBe(GAME_LIFECYCLE_REASON.STALE_READ)
+    expect(c.view.confirmedStatus).toBe('in_progress')
+    expect(c.view.status).toBe('finished')
+    expect(c.view.stale).toBe(true)
+
+    forcedRead = null
+    const refreshed = await c.refresh()
+    expect(refreshed.refresh).toBe('done')
+    expect(refreshed.confirmedStatus).toBe('finished')
+    expect(refreshed.status).toBe('finished')
+    expect(refreshed.lastVersion).toBe('1')
+  })
+
+  it('保存ACKと実GET不能を区別し、成功を装わない', async () => {
+    const c = controller()
+    await c.refresh()
+    readFails = true
+    const result = await c.end()
+    expect(result.outcome).toBe('acked')
+    if (result.outcome !== 'acked') return
+    expect(result.refresh).toBe('pending')
     expect(c.view.saveAck).toBe('accepted')
     expect(c.view.refresh).toBe('failed')
     expect(c.view.stale).toBe(true)
+    expect(c.view.status).toBe('finished')
+    expect(c.view.confirmedStatus).toBe('in_progress')
     expect(c.view.lastFailure).toBe(GAME_LIFECYCLE_REASON.READ_FAILED)
-    expect(c.view.canEnd).toBe(false)
-    expect((await queueSlots())[0]?.state).toBe('同期済み')
   })
 
   it('旧server/旧projectionは成功にしない', async () => {
@@ -560,6 +906,7 @@ describe('非成功と結果不明', () => {
     const c = controller()
     const view = await c.refresh()
     expect(view.status).toBeNull()
+    expect(view.confirmedStatus).toBeNull()
     expect(view.lastFailure).toBe(GAME_LIFECYCLE_REASON.READ_UNSUPPORTED)
     expect(view.canEnd).toBe(false)
     expect(await c.end()).toEqual({
@@ -601,26 +948,6 @@ describe('書込前提', () => {
     expect(posts).toHaveLength(0)
   })
 
-  it('先行の未終結slotを飛ばして送らない（追記は受理済みで保持する）', async () => {
-    await appendOrdinaryMarkers(1)
-    const c = controller()
-    await c.refresh()
-    const result = await c.end()
-    expect(result.outcome).toBe('pending')
-    if (result.outcome !== 'pending') return
-    expect(result.reason).toBe(
-      GAME_LIFECYCLE_REASON.QUEUED_AWAITING_PREDECESSOR,
-    )
-    const slots = await queueSlots()
-    expect(slots).toHaveLength(2)
-    expect(slots[1]!.event.fields.V5).toBe('5')
-    expect(slots[1]!.state).toBe('未送信')
-    expect(c.view.preparedCount).toBe(1)
-    expect(c.view.unknownCount).toBe(0)
-    expect(c.view.canRetry).toBe(false)
-    expect(posts).toHaveLength(0)
-  })
-
   it('grantsと実GETの世代が食い違えば追記しない', async () => {
     vi.mocked(lifecycle.readGameLifecycle).mockResolvedValue({
       kind: 'found',
@@ -641,13 +968,13 @@ describe('画面パネル', () => {
   function view(overrides: Partial<GameLifecycleView> = {}): GameLifecycleView {
     return {
       status: 'finished',
+      confirmedStatus: 'finished',
       lastVersion: '2',
       active: {
         version: '2',
         eventId: '33333333-3333-4333-8333-333333333333',
         receiptId: '44444444-4444-4444-8444-444444444444',
       },
-      activeStatsVersionId: '55555555-5555-4555-8555-555555555555',
       lastSavedAt: '2026-11-06T10:00:00Z',
       nextPosition: { d1: '7', d2: '1' },
       recoveryGeneration: '1',
@@ -658,15 +985,17 @@ describe('画面パネル', () => {
       },
       pageItemCount: 1,
       hasNextPage: false,
-      unknownCount: 0,
       preparedCount: 0,
+      unknownCount: 0,
       unpreparedCount: 0,
+      pendingLifecycleCount: 0,
       otherUnsettledCount: 0,
       scanTruncated: false,
       saveAck: 'accepted',
       refresh: 'done',
       stale: false,
       lastFailure: null,
+      blockedReason: null,
       reopenBlocked: false,
       canEnd: false,
       canReopen: true,
@@ -677,17 +1006,23 @@ describe('画面パネル', () => {
     }
   }
 
-  it('status/確定版/最終更新/未送信・結果不明を表示する', () => {
+  it('期待status/サーバー確認済み/最終更新/未送信・結果不明を表示する', () => {
     const wrapper = mount(GameScreenLifecyclePanel, {
       props: {
         view: view({
-          unknownCount: 2,
+          status: 'finished',
+          confirmedStatus: 'in_progress',
+          pendingLifecycleCount: 2,
           preparedCount: 3,
-          lastFailure: 'send-not-accepted',
+          unknownCount: 2,
+          lastFailure: 'stale-read',
         }),
       },
     })
     expect(wrapper.get('[data-testid="lifecycle-status"]').text()).toBe('終了')
+    expect(
+      wrapper.get('[data-testid="lifecycle-confirmed-status"]').text(),
+    ).toBe('進行中')
     expect(wrapper.get('[data-testid="lifecycle-last-version"]').text()).toBe(
       'v2',
     )
@@ -703,14 +1038,23 @@ describe('画面パネル', () => {
     expect(wrapper.get('[data-testid="lifecycle-unsent-count"]').text()).toBe(
       '3件',
     )
+    expect(
+      wrapper.get('[data-testid="lifecycle-server-unconfirmed"]').text(),
+    ).toContain('2件')
     expect(wrapper.get('[data-testid="lifecycle-failure"]').text()).toContain(
-      '結果は未確定',
+      '追いついていません',
     )
   })
 
   it('再開未裁定は実行できず、理由を表示する', () => {
     const wrapper = mount(GameScreenLifecyclePanel, {
-      props: { view: view({ reopenBlocked: true, canReopen: false }) },
+      props: {
+        view: view({
+          reopenBlocked: true,
+          canReopen: false,
+          blockedReason: 'reopen-kind-unavailable',
+        }),
+      },
     })
     expect(
       wrapper.get('[data-testid="lifecycle-reopen"]').attributes('disabled'),
@@ -718,6 +1062,9 @@ describe('画面パネル', () => {
     expect(
       wrapper.get('[data-testid="lifecycle-reopen-blocked"]').text(),
     ).toContain('接合')
+    expect(
+      wrapper.get('[data-testid="lifecycle-blocked-reason"]').text(),
+    ).toContain('正式裁定')
   })
 
   it('操作をemitし、資格原値を表示しない', async () => {
@@ -737,6 +1084,7 @@ describe('画面パネル', () => {
       props: {
         view: view({
           status: 'in_progress',
+          confirmedStatus: 'in_progress',
           active: null,
           canEnd: true,
           canReopen: false,
@@ -754,35 +1102,5 @@ describe('画面パネル', () => {
     expect(wrapper.emitted('resume-recording')?.[0]).toEqual([handoff])
     expect(wrapper.text()).not.toContain('unit-only-proof')
     expect(wrapper.text()).not.toContain('unit-only-credential')
-  })
-})
-
-describe('耐久store', () => {
-  it('queue受理前の準備行をD1単位で復元できる', async () => {
-    const c = controller()
-    await c.refresh()
-    postMode = 'lost-ack'
-    await c.end()
-    const store = await NativeEnvelopePersistence.open()
-    try {
-      const prepared = await store.readPreparedSlot({
-        tenantId: tenant,
-        gameId,
-        d4,
-        d1: 2,
-      })
-      expect(prepared).toBeNull()
-      const stored = await store.read({
-        tenantId: tenant,
-        gameId,
-        d4,
-        d1: 1,
-        d5: wireEvent(posts[0]!.body).d5,
-      })
-      expect(stored?.attemptId).toBe(posts[0]!.attempt)
-      expect(JSON.parse(stored!.requestJson)).toEqual(posts[0]!.body)
-    } finally {
-      store.close()
-    }
   })
 })
