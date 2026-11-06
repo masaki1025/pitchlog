@@ -54,6 +54,9 @@ def _is_confirmed_rejection(
             ("23505", "pk_sync_writer_bindings"),
             ("23503", "fk_sync_writer_binding_game"),
             ("23503", "fk_sync_writer_binding_tenant"),
+        ) or (error.sqlstate, error.diag.message_primary) == (
+            "42501",
+            "binding attempt retired",
         )
     return False
 
@@ -469,6 +472,47 @@ class _BindingAuthority:
         )
         if row != ("retired",):
             raise WriterBindingUnavailable("旧試行遮断の確定値が不正")
+
+    def retire_business_attempt(
+        self,
+        tenant_id: UUID,
+        device_id: UUID,
+        identity: AttemptIdentity,
+        d5: UUID,
+        event_fingerprint: str,
+        recovery_generation: int,
+    ) -> Literal["retired", "unresolved"]:
+        """実business publishと同じ鍵で旧試行を永久遮断する。"""
+        if (
+            type(identity) is not AttemptIdentity
+            or type(d5) is not UUID
+            or type(event_fingerprint) is not str
+            or not event_fingerprint
+            or type(recovery_generation) is not int
+        ):
+            raise WriterBindingUnavailable("旧試行識別が不正")
+        row = self._call(
+            "business",
+            "SELECT sync_fence_api.retire_sync_attempt("
+            "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+            (
+                tenant_id,
+                UUID(identity.attempt_id),
+                device_id,
+                UUID(identity.game_id),
+                d5,
+                identity.d4,
+                identity.codec_version,
+                identity.wire_fingerprint,
+                event_fingerprint,
+                self._issuer,
+                recovery_generation,
+            ),
+            write=True,
+        )
+        if row not in (("retired",), ("unresolved",)):
+            raise WriterBindingUnavailable("業務試行遮断の確定値が不正")
+        return cast(Literal["retired", "unresolved"], row[0])
 
 
 _LEASE_CREATION = object()

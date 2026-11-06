@@ -1599,7 +1599,7 @@ class _AuthorityRuntime:
     def _handle_binding_recovery(
         self, channel: socket.socket, request: dict[str, Any]
     ) -> None:
-        """実fenceで旧RPCを排出し、終結証拠とD5を別照合して遮断する。"""
+        """共有epochと終結証拠を照合し、業務publishの同鍵遮断を確定する。"""
         from pitchlog.sync.control_provider.binding_control import (
             BindingOutcome,
             _BindingAuthority,
@@ -1648,8 +1648,8 @@ class _AuthorityRuntime:
             fence.assert_held()
             records: dict[int, dict[str, Any]] = {}
             terminals: dict[int, list[str]] = {}
-            rejected: set[int] = set()
-            closed: set[int] = set()
+            rejected: dict[int, int] = {}
+            closed: dict[int, int] = {}
             for _ordinal, event in _events(self._journal):
                 if (
                     event["event"] == "binding_intent"
@@ -1661,15 +1661,17 @@ class _AuthorityRuntime:
                         return
                     records[lease] = event["record"]
                     terminals[lease] = []
+                    rejected[lease] = 0
+                    closed[lease] = 0
                     if len(records) > 16:
                         _send(channel, {"status": "ok", "result": outcome})
                         return
                 elif event["event"] == "binding_terminal" and event["lease"] in records:
                     terminals[event["lease"]].append(event["outcome"])
                 elif event["event"] == "binding_rejected" and event["lease"] in records:
-                    rejected.add(event["lease"])
+                    rejected[event["lease"]] += 1
                 elif event["event"] == "lease_close" and event["lease"] in records:
-                    closed.add(event["lease"])
+                    closed[event["lease"]] += 1
             if any(
                 record["tenant_id"] != str(tenant)
                 or record["phase"].get("device_id") != str(device)
@@ -1687,14 +1689,11 @@ class _AuthorityRuntime:
                 return
             terminal: set[str] = set()
             for lease in records:
-                if (
-                    len(terminals[lease]) != 1
-                    or lease in rejected
-                    or lease not in closed
-                ):
+                if closed[lease] != 1 or len(terminals[lease]) + rejected[lease] != 1:
                     _send(channel, {"status": "ok", "result": outcome})
                     return
-                terminal.add(terminals[lease][0])
+                if terminals[lease]:
+                    terminal.add(terminals[lease][0])
             if len(terminal) > 1 or not terminal <= {
                 BindingOutcome.COMMITTED.value,
                 BindingOutcome.ROLLBACK_CONFIRMED.value,
@@ -1708,6 +1707,20 @@ class _AuthorityRuntime:
                 _send(channel, {"status": "ok", "result": outcome})
                 return
             fence.assert_held()
+            if (
+                authority.retire_business_attempt(
+                    tenant,
+                    device,
+                    identity,
+                    d5,
+                    request["event_fingerprint"],
+                    fence.generation,
+                )
+                != "retired"
+            ):
+                _send(channel, {"status": "ok", "result": outcome})
+                return
+            # 業務tombstone commit後にcontrolを遮断する。失敗時も旧publishは拒否。
             authority.retire_attempt(tenant, device, identity, fence.generation)
             fence.assert_held()
             outcome = "retry_allowed"

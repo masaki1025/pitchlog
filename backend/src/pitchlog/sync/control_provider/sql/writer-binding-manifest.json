@@ -1,16 +1,16 @@
 {
   "schema_version": 1,
-  "status": "unintegrated_candidate",
-  "purpose": "別PG専用のwriter-binding制御候補。製品runtimeからの配備・実行権は未提供。",
-  "deployment_authority": "none_unintegrated_candidate",
+  "status": "product_authz_candidate",
+  "purpose": "別PG専用のwriter-binding制御候補。業務DB関数は正式product認可の候補宣言から配備する。",
+  "deployment_authority": "candidate_product_authz_only",
   "files": {
     "control-phase-schema.sql": "a3ce291cc049046afcd65263f7714d32771c72e25f0540d349184c2868ce8307",
     "writer-binding-control.sql": "71c70423507c3c9be2f99d3ff1eeb47c28d4bdebca0b620647558abb58914334",
-    "writer-binding-functions.sql": "17832b6431787443ec9f4792c00e3d1db3fb5a513b09fabe5ef34b694af0c4f3"
+    "writer-binding-functions.sql": "98dad4f1d39318599d7bdbd49000bcb6341665efca28158e44332af64e593193"
   },
   "evidence_boundaries": [
     "tests_only_application",
-    "no_product_runtime_deployment",
+    "candidate_product_runtime_only",
     "no_trusted_operational_acceptance"
   ]
 }

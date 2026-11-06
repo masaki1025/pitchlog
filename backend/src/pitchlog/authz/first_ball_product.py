@@ -2076,8 +2076,7 @@ def _activate_basic_stats_profile() -> None:
             if body_key in BODIES:
                 raise ValueError("基本成績readの本文が既本文と衝突")
             BODIES[body_key] = (
-                f"-- ELEMENT-TYPE: {kind}\n-- ELEMENT-ID: {key}\n\n"
-                + bodies[body_key]
+                f"-- ELEMENT-TYPE: {kind}\n-- ELEMENT-ID: {key}\n\n" + bodies[body_key]
             )
 
 
@@ -2124,6 +2123,42 @@ def _activate_lifecycle_storage_guards() -> None:
 
 
 _activate_lifecycle_storage_guards()
+
+
+def _activate_attempt_recovery_profile() -> None:
+    """旧publish/guardと退役資産を単一SQL源から閉じて導出する。"""
+    from pitchlog.authz.attempt_recovery_product import connection_declarations
+
+    declarations, bodies = connection_declarations(BODIES)
+    kinds = {
+        "tables": "table",
+        "policies": "policy",
+        "functions": "function",
+        "acl_expectations": "acl_expectation",
+        "column_acl_expectations": "column_acl_expectation",
+    }
+    for section, rows in declarations.items():
+        if section not in kinds:
+            raise ValueError("退役資産の宣言節が不正")
+        for row in rows:
+            key = row[IDS[section]]
+            body_key = kinds[section] + "|" + key
+            if body_key in BODIES or any(
+                old[IDS[section]] == key for old in ADDITIONS[section]
+            ):
+                raise ValueError("退役資産が既宣言と衝突")
+            ADDITIONS[section].append(copy.deepcopy(row))
+            BODIES[body_key] = bodies.pop(body_key)
+    if set(bodies) != {
+        "function|FUNCTION:sync_fence_api:publish_writer_binding("
+        "uuid, uuid, uuid, jsonb, bytea)",
+        "function|FUNCTION:sync_fence_api:guard_writer_records()",
+    }:
+        raise ValueError("退役資産の既本文更新対象が不一致")
+    BODIES.update(bodies)
+
+
+_activate_attempt_recovery_profile()
 ROLES = frozenset(row["role_id"] for row in ADDITIONS["roles"])
 
 TABLES = frozenset(
@@ -2427,8 +2462,8 @@ def _function_argument_names(sql: str) -> tuple[tuple[str, ...], bool]:
     import re
 
     match = re.search(
-        r"CREATE FUNCTION [a-z_]+\.[a-z_]+\(([^)]*)\)\s*RETURNS\s+"
-        r"(?:(TABLE)\s*\(([^)]*)\)|(?:void|trigger))",
+        r"CREATE FUNCTION [a-z_][a-z0-9_]*\.[a-z_][a-z0-9_]*\(([^)]*)\)\s*RETURNS\s+"
+        r"(?:(TABLE)\s*\(([^)]*)\)|(?:void|trigger|text))",
         sql,
     )
     if match is None:
@@ -2484,6 +2519,8 @@ def _guard_reapply_check(function_identity: str) -> str:
         ("sync_writer_binding_no_truncate", "writer_bindings", 34),
         ("sync_writer_admission_immutable", "writer_admissions", 27),
         ("sync_writer_admission_no_truncate", "writer_admissions", 34),
+        ("sync_attempt_retirement_immutable", "attempt_retirements", 27),
+        ("sync_attempt_retirement_no_truncate", "attempt_retirements", 34),
     )
     expected = " OR ".join(
         f"(t.tgname={_sql_literal(name)} AND "
@@ -2494,15 +2531,16 @@ def _guard_reapply_check(function_identity: str) -> str:
     return f"""
     IF (SELECT pg_catalog.count(*) FROM pg_catalog.pg_trigger t
         WHERE t.tgrelid IN ('sync_fence.writer_bindings'::pg_catalog.regclass,
-                           'sync_fence.writer_admissions'::pg_catalog.regclass)
-          AND NOT t.tgisinternal) <> 4
+                           'sync_fence.writer_admissions'::pg_catalog.regclass,
+                           'sync_fence.attempt_retirements'::pg_catalog.regclass)
+          AND NOT t.tgisinternal) <> 6
        OR (SELECT pg_catalog.count(*) FROM pg_catalog.pg_trigger t
            WHERE ({expected}) AND NOT t.tgisinternal
              AND t.tgfoid=existing AND t.tgenabled='O'
              AND NOT t.tgdeferrable AND NOT t.tginitdeferred
              AND t.tgconstraint=0 AND t.tgnargs=0 AND t.tgattr::text=''
              AND t.tgqual IS NULL AND t.tgargs=''::pg_catalog.bytea
-             AND t.tgoldtable IS NULL AND t.tgnewtable IS NULL) <> 4 THEN
+             AND t.tgoldtable IS NULL AND t.tgnewtable IS NULL) <> 6 THEN
         RAISE EXCEPTION 'first ball trigger definition collision';
     END IF;"""
 

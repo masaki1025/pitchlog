@@ -9,6 +9,11 @@ BEGIN
  OR jsonb_typeof(p_binding) IS DISTINCT FROM 'object' OR ARRAY(SELECT jsonb_object_keys(p_binding) ORDER BY 1) IS DISTINCT FROM ARRAY['authority_id','backend_pid','backend_start','business_instance','codec_version','control_instance','control_version','d5','database_oid','device_id','event_fingerprint','expires_at','game_id','internal_generation','issuer','lease_id','postmaster_started_at','recovery_generation','request_fingerprint','restore_epoch','system_identifier','transaction_id','wire_d4']::text[] THEN
   RAISE EXCEPTION 'writer publication rejected' USING ERRCODE='42501';
  END IF;
+ -- retire と publish は別PGのcontrol registerに依存せず同じ業務鍵で直列化する。
+ PERFORM pg_advisory_xact_lock(hashtext(p_tenant_id::text),hashtext(p_attempt_id::text));
+ IF EXISTS(SELECT FROM sync_fence.attempt_retirements t WHERE t.tenant_id=p_tenant_id AND t.attempt_id=p_attempt_id) THEN
+  RAISE EXCEPTION 'binding attempt retired' USING ERRCODE='42501';
+ END IF;
  -- JSONは固定関数の閉じた内部形式。欠損/nullはNOT NULL/有限CHECKでも拒否する。
  r:=jsonb_populate_record(NULL::sync_fence.writer_bindings,p_binding);
  SELECT c.system_identifier::text,d.oid::text INTO STRICT observed_system,observed_oid FROM pg_control_system() c CROSS JOIN pg_database d WHERE d.datname=current_database();

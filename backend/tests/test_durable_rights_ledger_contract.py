@@ -1512,6 +1512,10 @@ def _g20_open_intent():
         ("committed_without_d5", "unresolved"),
         ("unknown_terminal", "unresolved"),
         ("unadmitted_terminal", "unresolved"),
+        ("business_open", "unresolved"),
+        ("confirmed_rejection", "retry_allowed"),
+        ("double_rejection", "unresolved"),
+        ("double_close", "unresolved"),
     ],
 )
 def test_attempt_recovery_requires_real_lease_terminal_and_d5(
@@ -1544,20 +1548,27 @@ def test_attempt_recovery_requires_real_lease_terminal_and_d5(
         ]
     )
     if change not in ("no_intent", "live"):
-        outcome = (
-            "UNKNOWN"
-            if change == "unknown_terminal"
-            else "ENTRY_CLOSED_UNADMITTED"
-            if change == "unadmitted_terminal"
-            else "COMMITTED"
-            if change in ("closed_committed", "committed_without_d5")
-            else "ROLLBACK_CONFIRMED"
-        )
-        events.append(
-            (3, {"event": "binding_terminal", "lease": 1, "outcome": outcome})
-        )
+        if change in ("confirmed_rejection", "double_rejection"):
+            events.append((3, {"event": "binding_rejected", "lease": 1}))
+            if change == "double_rejection":
+                events.append((4, {"event": "binding_rejected", "lease": 1}))
+        else:
+            outcome = (
+                "UNKNOWN"
+                if change == "unknown_terminal"
+                else "ENTRY_CLOSED_UNADMITTED"
+                if change == "unadmitted_terminal"
+                else "COMMITTED"
+                if change in ("closed_committed", "committed_without_d5")
+                else "ROLLBACK_CONFIRMED"
+            )
+            events.append(
+                (3, {"event": "binding_terminal", "lease": 1, "outcome": outcome})
+            )
         if change != "no_close":
-            events.append((4, {"event": "lease_close", "lease": 1}))
+            events.append((len(events) + 1, {"event": "lease_close", "lease": 1}))
+            if change == "double_close":
+                events.append((len(events) + 1, {"event": "lease_close", "lease": 1}))
     runtime = _g20_runtime()
     calls = []
 
@@ -1583,7 +1594,11 @@ def test_attempt_recovery_requires_real_lease_terminal_and_d5(
             return "matching"
 
         def retire_attempt(self, *_args):
-            calls.append("retire")
+            calls.append("control-retire")
+
+        def retire_business_attempt(self, *_args):
+            calls.append("business-retire")
+            return "unresolved" if change == "business_open" else "retired"
 
     monkeypatch.setattr(binding, "_BindingAuthority", Authority)
     request = {
@@ -1608,7 +1623,9 @@ def test_attempt_recovery_requires_real_lease_terminal_and_d5(
         client.close()
         server.close()
     assert calls[0] == "fence-enter" and calls[-1] == "fence-exit"
-    assert ("retire" in calls) is (expected == "retry_allowed")
+    assert ("control-retire" in calls) is (expected == "retry_allowed")
+    if expected == "retry_allowed":
+        assert calls.index("business-retire") < calls.index("control-retire")
 
 
 @pytest.mark.parametrize("stage", ["register", "publish", "unknown", "journal-fault"])

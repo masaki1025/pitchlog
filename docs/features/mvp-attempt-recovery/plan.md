@@ -19,11 +19,15 @@ created: 2026-11-07
 
 業務 DB 外側から見た行数 0 や Python の例外捕捉だけで取消成功を認定しない。本人署名・P6 blind・正式 7.7 はこの候補の成果ではない。
 
-2026-11-07、root の非作者読取と PO 委任判断で本計画の step 1 着手を採用した。`business` 行が無い場合も、同じ recovery fence が既発行参照・borrow・進行中 RPC を排出した後にだけ判断する。control 側 register の遮断と business binding 作成の間の競合を、journal の intent/terminal と実 PG の txid 終結で別々に否定する。live/UNKNOWN を `retry_allowed` にしない。この判断は人間逐行確認・P6 blind・製品成功ではない。
+2026-11-07、root の非作者読取と PO 委任判断で本計画の step 1 着手を採用した。`business` 行が無い場合も、既発行参照・borrow・進行中 RPC の遅着適用を同じ業務鍵の遮断で排除してから判断する。control 側 register の遮断と business binding 作成の間の競合を、journal の intent/terminal と実 PG の txid 終結で別々に否定する。live/UNKNOWN を `retry_allowed` にしない。この判断は人間逐行確認・P6 blind・製品成功ではない。
+
+step 1 の実装読取で、既 epoch fence は `FOR SHARE` であって旧 binding RPC を排出しないと判明した。root の指摘を採用し、業務 PG 側にも同 attempt の永続 tombstone を置く。業務 `publish_writer_binding` と `retire_sync_attempt` は同一 `(tenant,attempt)` advisory transaction lock で直列化し、遮断後の旧 publish を固定関数で拒否する。既 binding がある場合は全行の原識別、close 状態、実 xid 観測の closed outcome を再確認し、open/UNKNOWN は未解決のままにする。業務 tombstone commit を control retirement より先に置き、後者失敗と ACK 消失時も同原本の再照会で完結する。候補 migration `0046_sync_attempt_retirement` は本専用 WT の番号であり、他作者の正式番号と衝突すれば root が直列確定時に調整する。候補と正式受理は分離する。
+
+業務 tombstone と固定関数の配備には正式 product authz の候補宣言、SQL body、列 ACL、body manifest が必要である。step 1 の範囲にこれらの公式 generator 由来候補を加える。既表・既ロールの余分な権限や再適用時の定義衝突を隠さず、候補の配備後に同一 owned PG で publish と retire の競合を測る。正式 7.7 の受理・記録は root の別ゲートとする。
 
 ## 所有と接合境界
 
-担当の新規 WT `feature/mvp-attempt-recovery` は固定 `a0c192a0e282479790eb8daae6b025a4952022fc` 起点。候補編集は backend `sync/attempt_recovery.py`、`sync/stop_contract.py`、`sync/control_provider/{evidence.py,binding_control.py,sql/control-phase-schema.sql,sql/writer-binding-control.sql,sql/writer-binding-functions.sql}`、`durable_rights_ledger/adapter.py`、`api/routers/sync.py`、実 C2 route 宣言 `api/tenant_access.py`、必要な `sync/{apply.py,source_binding.py}`、frontend `api/syncAttemptRecovery.ts`、既 attempt persistence と必要な controller、専用試験・E2E。専用 control/business schema の migration/DDL、同 token 更新 route の `contracts/authentication/cookie_identity_v1.json`、公開 DTO/contract/登録は本 WT の未受理候補差分または cache patch とし、root が共有本体へ直列接合する。正本、数学、唯一 artifact、旧業務保存は変更しない。権限・DDL の一般緩和や固定成功 Port は作らない。
+担当の新規 WT `feature/mvp-attempt-recovery` は固定 `a0c192a0e282479790eb8daae6b025a4952022fc` 起点。候補編集は backend `sync/attempt_recovery.py`、`sync/stop_contract.py`、`sync/control_provider/{evidence.py,binding_control.py,sql/control-phase-schema.sql,sql/writer-binding-control.sql,sql/writer-binding-functions.sql}`、`durable_rights_ledger/adapter.py`、`api/routers/sync.py`、実 C2 route 宣言 `api/tenant_access.py`、必要な `sync/{apply.py,source_binding.py}`、frontend `api/{client.ts,client.syncEvents.ts,syncAttemptRecovery.ts,recoverableSyncPost.ts,gameLifecycle.ts,substitutionWire.ts,nativeUndoWire.ts}`、専用耐久 barrier と既 attempt persistence・必要な controller、専用試験・E2E。専用 control/business schema の migration/DDL、同 token 更新 route の `contracts/authentication/cookie_identity_v1.json`、公開 DTO/contract/登録は本 WT の未受理候補差分または cache patch とし、root が共有本体へ直列接合する。正本、数学、唯一 artifact、旧業務保存は変更しない。権限・DDL の一般緩和や固定成功 Port は作らない。
 
 ## 段階
 

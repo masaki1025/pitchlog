@@ -4791,6 +4791,51 @@
       "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:game_lineups:import_batch_id:pitchlog_sync_right_fn_owner.sql",
       "element_type": "column_acl_expectation",
       "element_id": "COLUMN-ACL:public:game_lineups:import_batch_id:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/tables/attempt_retirements.sql",
+      "element_type": "table",
+      "element_id": "attempt_retirements"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/policies/POLICY:attempt_retirements:attempt_retirement_owner.sql",
+      "element_type": "policy",
+      "element_id": "POLICY:attempt_retirements:attempt_retirement_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/policies/POLICY:idempotency_ledger:binding_d5_read.sql",
+      "element_type": "policy",
+      "element_id": "POLICY:idempotency_ledger:binding_d5_read"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/functions/FUNCTION:sync_fence_api:read_attempt_d5(uuid, uuid, text).sql",
+      "element_type": "function",
+      "element_id": "FUNCTION:sync_fence_api:read_attempt_d5(uuid, uuid, text)"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/acl_expectations/ACL:sync_fence:attempt_retirements:pitchlog_sync_binding_fn_owner.sql",
+      "element_type": "acl_expectation",
+      "element_id": "ACL:sync_fence:attempt_retirements:pitchlog_sync_binding_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:idempotency_ledger:tenant_id:pitchlog_sync_binding_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:idempotency_ledger:tenant_id:pitchlog_sync_binding_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:idempotency_ledger:d5:pitchlog_sync_binding_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:idempotency_ledger:d5:pitchlog_sync_binding_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:idempotency_ledger:source_fingerprint:pitchlog_sync_binding_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:idempotency_ledger:source_fingerprint:pitchlog_sync_binding_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/functions/FUNCTION:sync_fence_api:retire_sync_attempt(uuid, uuid, uuid, uuid, uuid, text, bigint, text, text, uuid, bigint).sql",
+      "element_type": "function",
+      "element_id": "FUNCTION:sync_fence_api:retire_sync_attempt(uuid, uuid, uuid, uuid, uuid, text, bigint, text, text, uuid, bigint)"
     }
   ]
 }
