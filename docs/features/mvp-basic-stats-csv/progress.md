@@ -10,7 +10,7 @@
 | 作業worktree | `/home/ymdms/projects/pitchlog-worktrees/feature-mvp-basic-stats-csv` |
 | 作業branch | `feature/mvp-basic-stats-csv` |
 | 起点（指示の固定HEAD） | `a018b896bfc1ee49efc5b0912f1b6a04fd24e363` |
-| 本枝の候補commit | `6cb83584`（push済み・PR未作成。実装 `05241ebc`、27受理 `88b1cd42`、CSV一時ファイル `6cb83584`） |
+| 本枝の候補commit | `103f4c5d`（push済み・PR未作成。実装 `05241ebc`、27受理 `88b1cd42`、CSV一時ファイル `6cb83584`、画面テスト `103f4c5d`） |
 | 成績基盤worktreeの実HEAD（開始時） | `49bf535ce73c51ab843217e2dab706a0d257b2f6` |
 | 差 | 固定HEADの子3コミット（`3be91ac0`/`dbda56c9`/`49bf535c`。D11比較資産9path）。本枝は取り込んでいない |
 | 主担当台帳のD11固定候補 | `a524277f`（別枝 `feature/mvp-stats-d11-reflection-root`）。本枝へ未統合 |
@@ -76,7 +76,7 @@
 - `tests/domain/gen`: **87 passed**（`PYTHONDONTWRITEBYTECODE=1`。未設定だとpycacheで
   formatterのtree監視が落ちる環境差がある）。
 - backend `ruff check`/`ruff format`/`ty check`: 成功。
-- frontend `BasicStatsTable.spec.ts` + `router.spec.ts`: **44 passed**、`vue-tsc`/ESLint成功。
+- frontend `BasicStatsTable.spec.ts` + `SeasonStats.spec.ts` + `router.spec.ts`: **46 passed**、`vue-tsc`/ESLint成功。
 - 実Vite/Chromium/実機の画面操作は未実施。
 
 ## 4. 利用者が候補環境で完了できる操作
