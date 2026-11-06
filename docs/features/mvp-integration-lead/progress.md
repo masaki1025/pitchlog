@@ -1,5 +1,12 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 2026-11-07 08:10 JST：成績私有3表の非空RLS対向を実測、残6表と全CIは継続
+
+- root cache実験run2は **1passed70.10秒**、固定d8e8b34d/2063source前後同一。真正新規作成・開始・HTTP3球保存と実RRRO読取の後、stats_primitive_sources=3行/versions=1行/facts=3行の非空を管理者で確認。実table ownerへSET LOCAL ROLE後、無文脈/別tenantでは各0件、row_security_active=true。隔離TXだけNO FORCEとした反例では同実行が3/1/3見え、rollback後FORCE復元を別接続で確認。共有DBなし・共通lock/owned cleanup。REPORT `pr197-private-nonempty-rls-root-20261107/REPORT.md` SHA `11dd6e6ef583dd74c1477d937fc667cc37f71a232bdb88b3f4f24e99eeede081`。
+- **範囲**: 既P2の空表対向の不足をこの3表に限り埋めた。その他6私有表は非空実対向未実施、全9表や全NFRへ拡大せず既P2を限定継続。run1の中断/156.13秒/自己待ちとrun2修復は同cacheで保持。製品source/検査条件/正式値の変更なし、PR197再push不要。
+- P3 R21は旧NP SQLのsync_right_api.read_nonplay_active_history 655行、原event/admission証拠がP3 target slotv2を拒否する停止点を確定。原証拠を保持したP3専用資格分岐を候補SQLで修復中。0046は復旧、0047はCSVへ予約、P3新migrationが必要なら0048候補としてrootで正式順を確定する。新公開CI42308513249は静的/tenant/認可/frontend等成功・8pytest shard実行中、完走/mergeは未成立。
+
+
 ## 2026-11-07 08:06 JST：限定申告敬遠・CSVを独立採用、取消後CSVの修復を開始
 
 - **非投球の採否**: a0c192a0/e422a363の49pathに対し非作者REPORT SHA `98e46cea5bfcda3403edb402be84704781284ad1a38a0275d80513a16e40433c`、新P0/P1/P2=0。716 fixture数学不変/単一artifact再生成/閉v3型・token・NULL・pitch0を確認。rootは `nonpitch-product-root-adoption-20261107/ADOPTION.json` で既裁定の限定申告敬遠候補をPO委任採用、全非投球/故障回復/正式受理へ広げない。
