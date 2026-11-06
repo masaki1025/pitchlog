@@ -201,10 +201,14 @@ test('production SWで真の断中cold再起動から2球を同原文順で同�
     throw new Error('production SW縦断には実HTTPSが必要です')
   const { gameId, pitchKey } = await createAndStart(page)
   await waitForPreparedScope(page, gameId)
-  await page.evaluate(async () => {
-    const registration = await navigator.serviceWorker.ready
-    if (!registration.active) throw new Error('Service Workerが未配備です')
-  })
+  await page.waitForFunction(
+    async () => {
+      const registration = await navigator.serviceWorker.getRegistration()
+      return registration?.active?.state === 'activated'
+    },
+    null,
+    { timeout: 30_000 },
+  )
   await page.reload()
   await page.waitForFunction(() => navigator.serviceWorker.controller !== null)
   const syncPath = `/api/games/${gameId}/sync/events`
