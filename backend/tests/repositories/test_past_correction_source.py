@@ -15,10 +15,10 @@ from pitchlog.repositories.transaction import _TenantTransaction
 _GAME = UUID("10000000-0000-0000-0000-000000000002")
 
 
-def test_untrusted_scope_or_nonfirst_target_cannot_read_as_current_source(
+def test_untrusted_scope_or_out_of_range_target_cannot_read_as_current_source(
     monkeypatch,
 ) -> None:
-    """未認可scope・後続対象を既定値で先頭扱いにしない。"""
+    """未認可scope・範囲外対象を既定値で先頭扱いにしない。"""
 
     class _Scope:
         pass
@@ -30,7 +30,7 @@ def test_untrusted_scope_or_nonfirst_target_cannot_read_as_current_source(
         )
     with pytest.raises(source.PastCorrectionSourceUnavailable):
         source.read_past_correction_v3_source(
-            cast(_TenantTransaction, _Scope()), _GAME, 2
+            cast(_TenantTransaction, _Scope()), _GAME, 26
         )
 
 

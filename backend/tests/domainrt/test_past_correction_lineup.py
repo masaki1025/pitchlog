@@ -132,6 +132,40 @@ def test_v3_two_pitch_correction_replays_real_artifact_and_preserves_source_ids(
     assert result[1].corrected_response.value.t1.after.state_fields.balls == "1"
 
 
+def test_v3_second_pitch_correction_starts_at_verified_prior_checkpoint() -> None:
+    """先行原本を改変せず、２球目だけを真正１球目のCPから再評価する。"""
+    with _host() as host:
+        old = _two_saved(host)
+        result = _evaluate(
+            old,
+            "batting-result.ball",
+            (_NEW2,),
+            host,
+            target_d1=2,
+        )
+    assert len(result) == 1
+    assert result[0].source_event_id == _ID2
+    prior = old[0].calculation.response.value
+    assert result[0].corrected_request.source.after == prior.t1.after
+    assert result[0].corrected_request.source.t2 == prior.t2
+    assert result[0].corrected_request.prefix_ref == prior.next_prefix_ref
+    assert result[0].corrected_response.value.t1.after.state_fields.strikes == "1"
+    assert result[0].corrected_response.value.t1.after.state_fields.balls == "1"
+
+
+@pytest.mark.parametrize("target", [0, 3, True])
+def test_v3_correction_rejects_unknown_target(target: int) -> None:
+    """対象位置の曖昧な補完やboolの整数化を認めない。"""
+    with _host() as host, pytest.raises(LineupCorrectionUnsupported):
+        _evaluate(
+            _two_saved(host),
+            "batting-result.ball",
+            (_NEW2,),
+            host,
+            target_d1=target,
+        )
+
+
 @pytest.mark.parametrize("mutation", ["id", "d2", "old-after", "old-response"])
 def test_v3_replay_rejects_forged_old_source(mutation: str) -> None:
     """旧原本参照・応答・前後連鎖を補修せず閉じる。"""

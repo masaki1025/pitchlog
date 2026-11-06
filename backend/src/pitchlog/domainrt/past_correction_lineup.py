@@ -173,13 +173,17 @@ def _evaluate(
     ],
     checkpoint_ids: tuple[UUID, ...],
     host: NodeDomainHost,
+    *,
+    target_d1: int = 1,
 ) -> tuple[CorrectedLineupPitch, ...]:
     """旧正史を全照合後、訂正系列だけを同核で再導出する。"""
     if (
         type(rows) is not tuple
         or not 1 <= len(rows) <= 25
+        or type(target_d1) is not int
+        or not 1 <= target_d1 <= len(rows)
         or type(checkpoint_ids) is not tuple
-        or len(checkpoint_ids) != len(rows)
+        or len(checkpoint_ids) != len(rows) - target_d1 + 1
         or any(type(identifier) is not UUID for identifier in checkpoint_ids)
         or len(set(checkpoint_ids)) != len(checkpoint_ids)
         or replacement_result_id
@@ -190,7 +194,9 @@ def _evaluate(
     originals: list[tuple[LineupPrefixRequest, LineupPrefixSuccess]] = []
     previous_original: LineupPrefixSuccess | None = None
     prior_d2 = 0
-    for saved in rows:
+    for number, saved in enumerate(rows, start=1):
+        if saved.d1 != number:
+            raise LineupCorrectionUnsupported("訂正v3原本D1の順序が不正")
         if saved.d2 <= prior_d2:
             raise LineupCorrectionUnsupported("訂正v3原本D2の順序が不正")
         pair = _bound_original(saved, previous_original, host)
@@ -198,14 +204,17 @@ def _evaluate(
         previous_original = pair[1]
         prior_d2 = saved.d2
     corrected: list[CorrectedLineupPitch] = []
-    previous_corrected: LineupPrefixSuccess | None = None
-    for index, saved in enumerate(rows):
+    previous_corrected: LineupPrefixSuccess | None = (
+        originals[target_d1 - 2][1] if target_d1 > 1 else None
+    )
+    for index in range(target_d1 - 1, len(rows)):
+        saved = rows[index]
         original_request, original_response = originals[index]
         request = _next_corrected_request(
             original_request,
             previous_corrected,
-            replacement_result_id if index == 0 else None,
-            checkpoint_ids[index],
+            replacement_result_id if index == target_d1 - 1 else None,
+            checkpoint_ids[index - target_d1 + 1],
             host.artifact_sha256,
         )
         response = decode_lineup_prefix_response(
@@ -237,7 +246,15 @@ def evaluate_lineup_pitch_result_correction(
         "batting-result.ball", "batting-result.called-pitch"
     ],
     checkpoint_ids: tuple[UUID, ...],
+    *,
+    target_d1: int = 1,
 ) -> tuple[CorrectedLineupPitch, ...]:
     """製品固定artifactだけで有限v3結果候補を返す。"""
     with open_domain_host() as host:
-        return _evaluate(rows, replacement_result_id, checkpoint_ids, host)
+        return _evaluate(
+            rows,
+            replacement_result_id,
+            checkpoint_ids,
+            host,
+            target_d1=target_d1,
+        )

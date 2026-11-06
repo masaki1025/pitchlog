@@ -35,7 +35,7 @@ def read_past_correction_v3_source(
         type(scope) is not _TenantTransaction
         or type(game_id) is not UUID
         or type(target_d1) is not int
-        or target_d1 != 1
+        or not 1 <= target_d1 <= 25
     ):
         raise PastCorrectionSourceUnavailable("限定v3原本対象が不正")
     try:
@@ -66,6 +66,7 @@ def read_past_correction_v3_source(
             or type(watermark) is not int
             or watermark != len(items)
             or watermark > 25
+            or target_d1 > watermark
             or anchor["id"] != ref.checkpoint.id
             or anchor["revision"] != ref.checkpoint.revision
             or storage.id != anchor["id"]
