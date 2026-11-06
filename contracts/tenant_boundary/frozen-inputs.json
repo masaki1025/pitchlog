@@ -440,6 +440,27 @@
       "sources": [
         "scripts/core_guard.py:_verify_pr197_definition_order"
       ]
+    },
+    "pr197_identical_cochange_revision": {
+      "value": "6f17f72dbdb8778e62e5876902478ade55b2cbd4",
+      "purpose": "PR197のJSON/基線定義同時変更を実Git全byteの同値一件に限定する。",
+      "sources": [
+        "scripts/core_guard.py:_pr197_identical_cochange"
+      ]
+    },
+    "pr197_recovery_source_revision": {
+      "value": "3188b0f7736ac9093e111b4f6c9fb2fb32cd0275",
+      "purpose": "PR197限定回復検査器の旧5a原典に続く先行source全byteを固定する。",
+      "sources": [
+        "scripts/core_guard.py:_pr197_merge_carry_pins"
+      ]
+    },
+    "pr197_recovery_definition_sha256": {
+      "value": "4b9a49970bc3187cf7891563dd584f73e03cf0d00ea954899c38e05b09f628c9",
+      "purpose": "PR197限定回復後の定義ASTを旧5a定義と区別して固定する。",
+      "sources": [
+        "scripts/core_guard.py:_verify_pr197_definition_order"
+      ]
     }
   }
 }
