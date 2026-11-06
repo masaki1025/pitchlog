@@ -792,9 +792,9 @@ def _nonplay_normal_prepare_sql():
  pg_catalog.jsonb_object_keys(after_cp) k)
  IS DISTINCT FROM ARRAY['checkpoint','formatVersion','projection_snapshot']::text[]
  OR after_cp->'checkpoint'->'content' IS DISTINCT FROM expected_cp
- OR (after_cp->'checkpoint'-'content'-'ref') IS DISTINCT FROM
+ OR (((after_cp->'checkpoint')-'content')-'ref') IS DISTINCT FROM
  (before_cp-'content'-'ref')
- OR (after_cp->'checkpoint'->'ref'-'digest') IS DISTINCT FROM
+ OR ((after_cp->'checkpoint'->'ref')-'digest') IS DISTINCT FROM
  pg_catalog.jsonb_build_object('id',current_cp.id::text,'revision',
  (current_cp.revision+1)::text)
  OR after_cp->'checkpoint'->'ref'->>'digest' !~ '^[a-f0-9]{{64}}$'

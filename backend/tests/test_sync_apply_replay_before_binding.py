@@ -3,6 +3,7 @@
 実DB・実writer・実権利の成立はここで主張しない。外形の拒否だけを見る。
 """
 
+from dataclasses import replace
 from types import MappingProxyType
 from typing import cast
 from uuid import uuid4
@@ -86,10 +87,11 @@ def test_multi_event_and_p3_are_left_to_the_existing_out_of_scope() -> None:
     assert _replay_e1_without_binding(context, _p3(), (_digest(),)) is None
 
 
+@pytest.mark.parametrize("path", ["P2", "P1"])
 @pytest.mark.parametrize("d1,current_d3", [(1, 1), (2, 2), (99, 99), (1, 3), (2, 3)])
 @pytest.mark.parametrize("kind", ["unused", "stored_result", "conflict"])
 def test_positive_d1_classifies_saved_d5_before_any_binding(
-    monkeypatch, d1, current_d3, kind
+    monkeypatch, d1, current_d3, kind, path
 ):
     """通常後続単球も同じD5分類を再利用し、未使用だけ通常段へ戻す。"""
     from contextlib import contextmanager
@@ -104,6 +106,10 @@ def test_positive_d1_classifies_saved_d5_before_any_binding(
     )
 
     request = _p2(d1=d1)
+    if path == "P1":
+        request = replace(
+            request, path="P1", events=(replace(request.events[0], v5="undo"),)
+        )
     context = make_tenant_context(uuid4())
     seen = []
 
@@ -128,7 +134,7 @@ def test_positive_d1_classifies_saved_d5_before_any_binding(
         assert (
             str(d5) == request.events[0].d5
             and fingerprint == _digest()
-            and path == "P2"
+            and path == request.path
         )
         if kind == "stored_result":
             return D5Candidate(
@@ -159,3 +165,12 @@ def test_positive_d1_classifies_saved_d5_before_any_binding(
         assert result.d3 == current_d3
         assert result.a5[0].d1 == d1
         assert result.a5[0].state == ("重複" if kind == "stored_result" else "拒否")
+
+
+def test_p1_non_undo_is_not_added_to_replay_entry():
+    """接続対象外P1を新たな再掲成功経路へ拡張しない。"""
+    request = replace(_p2(), path="P1")
+    assert (
+        _replay_e1_without_binding(make_tenant_context(uuid4()), request, (_digest(),))
+        is None
+    )
