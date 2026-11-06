@@ -483,3 +483,6 @@ current CI2の独立受理（2026-11-06 JST、PO委任Codex /root判断）: 作�
 
 
 認可oracle8とPR対象197の限定受理（2026-11-06 JST、PO委任によるCodex /root判断）: 独立report dc74cc794edad166bf6061100f82759739c3abccc37f17b64f37d5e364a28bde、67照合/拒否成功、P0/P1=0を根拠に、contracts/authzの6context commit参照を真正source8の固定7c2abc98へ更新し、公式sealを再生成する。frozen-baselinesは旧20履歴・placementを保持して197の1履歴だけ追記。policy.jsonは既全値保持で197/feature-mvp-stats-native-foundationのtarget1だけ追記する。scopeはcacheのfiles.jsonのexact8＋policy1。本人の逐行確認や署名は実施していない。human_review_required=trueは保持し、本MVP限定の委任確認証拠を別途最終HEADへ束縛する。現時点197はIssueでPR未作成、変換後の実PR/HEAD/正式値/CIの確認は別条件として残す。tenant7.7や全成績/取消の受入へ広げない。
+
+
+受理対象sourceの有限registry追随（2026-11-06 JST、PO委任Codex /root判断）: 実tenant CLIが旧PR196のoperation_registry全byteを要求し、正規native5関数のimport/末尾tuple追加を拒否した。検査を除外せず、scripts/check_tenant_boundary_bypass.py/tests/test_check_tenant_boundary_bypass.pyのexact2を、旧原典全byteを維持する限定射影へ追随する候補を許可する。承認済み製品sourceの固定b5669d3f04541cd117bb876ec4e3ca9bbe07796cに用途限定した新frozen-inputs typed参照は正式資産root側で起案し、真正Git祖先・registry/供給元/codec全byte・新5ID/旧22行の順を束縛する。任意のStarred/別Git/可変fixture同時改変を許可しない。旧namespace/期待改変/非祖先の対向を保持し、必要test materializerのコピーだけ追随する。新5以外のundo/lifecycleを無審査に広げない。source候補はcache-only別作者、rootは非作者確認後に採用し全正式派生を同じ確定版から再生成する。初版inventory pointer漏れP1/修復c30b0b0d…とreadonly CLI失敗を保持し、全接続や正式7.7の成立とはしない。
