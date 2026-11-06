@@ -1,4 +1,5 @@
 import { applyGameLifecycle } from './gameLifecycle'
+import { replayOrdinaryCorrectionPage } from './pastCorrectionReplay'
 import {
   advanceSubstitutionAfterPitch,
   calculateSubstitution,
@@ -840,8 +841,21 @@ function deriveState(requestJson: string): string {
 }
 
 /** 必須履歴と通常33座標だけを単一計算核へ渡す。 */
-function deriveOrdinaryPitch(requestJson: string): string {
+export function deriveOrdinaryPitch(requestJson: string): string {
   return evaluatePitch(requestJson, true)
+}
+
+/** 対象と後続の有限ページを既通常T1で照合・再導出する。 */
+function replayPastCorrectionPage(requestJson: string): string {
+  if (typeof requestJson !== 'string') return errorResponse('INVALID_REQUEST')
+  let request: unknown
+  try {
+    request = JSON.parse(requestJson)
+    if (hasDuplicateKeys(requestJson)) return errorResponse('INVALID_JSON')
+  } catch {
+    return errorResponse('INVALID_JSON')
+  }
+  return replayOrdinaryCorrectionPage(request)
 }
 
 /** 無走者BB/HBPの閉契約。旧投球ABIとは独立した入口。 */
@@ -1550,12 +1564,13 @@ function advanceSubstitutionAfterPitchV1(requestJson: string): string {
   }
 }
 
-/** JSON文字列だけの公開表。採用済みの純取消を含み、未実装の訂正/他結果は公開しない。 */
+/** JSON文字列だけの公開表。過去訂正の有限数学はP3受理資格ではない。 */
 export const domainOperations = Object.freeze({
   ping,
   applyGameLifecycle,
   deriveState,
   deriveOrdinaryPitch,
+  replayPastCorrectionPage,
   deriveTerminalPitch,
   deriveStrikeoutPitch,
   deriveBattedHit,
