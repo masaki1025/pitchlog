@@ -1,5 +1,15 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 2026-11-07 08:06 JST：限定申告敬遠・CSVを独立採用、取消後CSVの修復を開始
+
+- **非投球の採否**: a0c192a0/e422a363の49pathに対し非作者REPORT SHA `98e46cea5bfcda3403edb402be84704781284ad1a38a0275d80513a16e40433c`、新P0/P1/P2=0。716 fixture数学不変/単一artifact再生成/閉v3型・token・NULL・pitch0を確認。rootは `nonpitch-product-root-adoption-20261107/ADOPTION.json` で既裁定の限定申告敬遠候補をPO委任採用、全非投球/故障回復/正式受理へ広げない。
+- **CSVの採否**: 2dba7c09の非作者REPORT SHA `27685366406cc4c5a77b615b68f75a7f1c1e174895567221ebb6928cf4d33faa`、独立180pure成功、新P0/P1なし。作者owned932source SHAはfinal Gitと一致。rootは `play-csv-nonpitch-root-adoption-20261107/ADOPTION.json` に限定4記録→ZIPの採用を記録。初回prettier未供給18failは独立cache cloneの試験環境を修復した履歴で、製品変更/検査緩和ではない。
+- **新たに具体化したCSV残件**: CSV-CURRENT-01。Undo後も旧snapshotは保持される一方、抽出PlayRowは有効分だけなので、全取消・1件残存の双方で件数不一致409となる純反例を固定。旧snapshot削除や件数検査だけの撤去は不可。CSV作者を新専用 `feature/mvp-play-csv-effective-versions`（base2dba）へ移し、実有効PlayRow/正規source/世代/版snapshotと監査全旧版を分離、実Undo→CSV/再入力/reloadを一単位で進める。既delivery計画のstep3追補をrootが読取・PO委任採用、共有sync/P3/domain/正式資産は編集しない。
+- **復旧の重大修復**: 作者がP1競合を確認。shared epoch fenceは排出証拠とせず、business側永続attempt tombstoneと旧publishを同advisory lockで直列化する0046候補を実装中。business commit成功/control失敗と再照会冪等性、旧register/intent/publish前後のbarrier対向が必要。現step1を全体採用していない。
+- **CIと追加隔離検査**: 新CI42308513249ではharness-staticを含む静的/認可/tenant/frontend等が成功、8 pytest shardは実行中。本文42308513519も成功。旧runの本文不整合を解消したが全CI完走/mergeはまだ。rootのprivate非空RLS実験run1は観測TX保持による自己待ちを認識して自前PIDだけSIGINT、exit2/156.13秒/2063source同一/owned cleanup。製品失敗・成功へ採らず、run2は観測TX終了とSQL timeoutを付け修復、共通lock待機中。P2は未解消のまま。
+- **次の統合準備**: formal候補d8と既connected60fのmerge-treeだけを試算し、競合はrepo/runtime派生各2・DB fixture・native登録試験の6pathと特定。実branch/共有ファイルは未変更、正式197統合後の接合をこの範囲へ絞る。P3/復旧/CSVの製品作業を止めず、全MVPと実機/負荷/運用復旧の残条件を維持する。
+
+
 ## 2026-11-07 07:59 JST：公開イベント本文の不一致を是正、復旧競合を非作者検出
 
 - **PR197のイベント訂正**: 最初の実CI42308269517のharness-staticはpush時点の旧本文pointerをeventに保持し、正しく拒否。最新本文のcore-guard42308286132は成功したが旧eventの失敗を成功へ読み替えない。rootの公開順が原因（本文更新をpushより先にすべきだった）。同HEAD/全source/正式値/証拠を変えず、本文更新済みPRを一時close→reopenして新pull_request eventを発行。新実CI **42308513249** は現在queued、本文 **42308513519** はsuccess。旧runはcancelled終結。新pushや検査変更は無し、Draft/openのまま。古いeventの再実行を反復しない。
