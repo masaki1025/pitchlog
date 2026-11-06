@@ -44,7 +44,10 @@
           "backend/tests/test_sync_apply_product_supply.py",
           "backend/tests/fixtures/batted_source_extension_reference_v1.json",
           "tests/fixtures/pr196_tenant_source_expected_v1.json",
-          "tests/test_pr196_tenant_source_registration.py"
+          "tests/test_pr196_tenant_source_registration.py",
+          "backend/tests/stage_a_0039_profile.py",
+          "backend/tests/fixtures/product_authz_stage_a_profile_v0039.json",
+          "backend/tests/test_stage_a_0039_profile.py"
         ]
       }
     },
@@ -241,6 +244,14 @@
       "sources": [
         "scripts/check_tenant_boundary_bypass.py:_pr196_read_fixed_expectations",
         "tests/test_census_baseline_check.py:test_pr196_census_materializes_fixed_expectation_in_both_proof_contexts"
+      ]
+    },
+    "stage_a_0039_profile_reference_revision": {
+      "value": "45493c6669b5c1d6737fc41acb975b7f58f48289",
+      "purpose": "正式51bcbの0039歴史検証profile972file/31caseをroot前置Git全byteへ束縛し、現木/fixture/任意revision同時改変を拒否。current製品loader・任意profile許可・署名・一般受理へ流用しない。",
+      "sources": [
+        "backend/tests/stage_a_0039_profile.py:immutable_stage_a_0039_profile",
+        "backend/tests/test_stage_a_0039_profile.py:immutable_profile_expectation"
       ]
     }
   }
