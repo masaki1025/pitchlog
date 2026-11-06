@@ -8,7 +8,7 @@ import type {
   StateFields,
 } from './stateTypes'
 
-/** 無走者で観測を閉じる最初の4安打。公開wireの型ではない。 */
+/** 失策・第3アウトを伴わない4安打。公開wireの型ではない。 */
 export type BattedHitResultId =
   | 'batting-result.single'
   | 'batting-result.double'
@@ -305,14 +305,25 @@ export function battedHitRule(
     // 無走者の既存経路へ applied を混ぜない。
     if (overrides !== null) return null
   } else {
-    // このspikeの成功入力は「一塁走者1人・単打/二塁打」だけに閉じる。
-    if (before.runners !== 'first') return null
+    if (overrides === null) return null
+    // 出塁で生じるフォース連鎖は、手動の実到達塁が欠ければ確定できない。
     if (
-      resultId !== 'batting-result.single' &&
-      resultId !== 'batting-result.double'
+      resultId !== 'batting-result.home-run' &&
+      ((occupied(before.runners, '1') && overrides.first === null) ||
+        (occupied(before.runners, '1') &&
+          occupied(before.runners, '2') &&
+          overrides.second === null) ||
+        (before.runners === 'loaded' && overrides.third === null))
     )
       return null
-    if (overrides === null || overrides.first === null) return null
+    // 本塁打は打者と全走者の生還が原典で確定する。明示値が全員4でなければ拒否。
+    if (
+      resultId === 'batting-result.home-run' &&
+      ((occupied(before.runners, '1') && overrides.first !== 4n) ||
+        (occupied(before.runners, '2') && overrides.second !== 4n) ||
+        (occupied(before.runners, '3') && overrides.third !== 4n))
+    )
+      return null
   }
   if (!destinationsDoNotCollide(before, base, overrides)) return null
   let advance: 'hold_all' | 'explicit' = 'hold_all'

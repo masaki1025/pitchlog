@@ -482,7 +482,7 @@ describe('走者あり打球の明示進塁だけを接続する', () => {
         ),
       ).toBeNull()
     }
-    // このspikeの成功入力は一塁走者1人だけ。二塁走者・複数走者は成功にしない。
+    // 不在塁の指定やフォース連鎖の指定不足は成功にしない。
     for (const runners of [
       'second',
       'third',
@@ -505,19 +505,15 @@ describe('走者あり打球の明示進塁だけを接続する', () => {
         ),
       ).toBeNull()
     }
-    // 三塁打・本塁打は走者ありの成功入力にしない。
-    for (const resultId of [
-      'batting-result.triple',
-      'batting-result.home-run',
-    ] as const)
-      expect(
-        deriveBattedHit(
-          f.before,
-          f.board,
-          runnerObservation(resultId, '4'),
-          f.cursors,
-        ),
-      ).toBeNull()
+    // 本塁打で一人でも塁上に残す観測はRBI-06の前提に反する。
+    expect(
+      deriveBattedHit(
+        f.before,
+        f.board,
+        runnerObservation('batting-result.home-run', '3'),
+        f.cursors,
+      ),
+    ).toBeNull()
     // 二塁打で一塁走者を二塁に止めると打者と衝突する。
     expect(
       deriveBattedHit(
@@ -572,5 +568,73 @@ describe('走者あり打球の明示進塁だけを接続する', () => {
           f.cursors,
         ),
       ).toBeNull()
+  })
+  it('一二塁の単打で両フォース走者の実進塁を反映し、生還1をRBI-08で計上する', () => {
+    const f = runnerFixture()
+    f.before.runners = 'first-second'
+    const result = deriveBattedHit(
+      f.before,
+      f.board,
+      {
+        ...observation('batting-result.single'),
+        runnerAdvanceOverrides: {
+          kind: 'applied',
+          overrides: [
+            { runnerBase: '1', destination: '3' },
+            { runnerBase: '2', destination: '4' },
+          ],
+        },
+      },
+      f.cursors,
+    )
+    expect(result?.runnerDefaultAdvance).toEqual({
+      first: { modality: 'forced', destination: 3n },
+      second: { modality: 'forced', destination: 4n },
+      third: { modality: 'not-applicable', destination: null },
+    })
+    expect(result?.after.stateFields.runners).toBe('first-third')
+    expect(result?.after.stateFields.away).toBe(1n)
+    expect(result?.statFlags).toEqual({
+      ...FLAGS,
+      得点: true,
+      失点: true,
+      打点: true,
+    })
+  })
+  it('満塁本塁打は全走者の明示生還と打者の生還を合わせて4点とする', () => {
+    const f = runnerFixture()
+    f.before.runners = 'loaded'
+    const result = deriveBattedHit(
+      f.before,
+      f.board,
+      {
+        ...observation('batting-result.home-run'),
+        runnerAdvanceOverrides: {
+          kind: 'applied',
+          overrides: [
+            { runnerBase: '1', destination: '4' },
+            { runnerBase: '2', destination: '4' },
+            { runnerBase: '3', destination: '4' },
+          ],
+        },
+      },
+      f.cursors,
+    )
+    expect(result?.runnerDefaultAdvance).toEqual({
+      first: { modality: 'optional', destination: 4n },
+      second: { modality: 'optional', destination: 4n },
+      third: { modality: 'optional', destination: 4n },
+    })
+    expect(result?.after.stateFields.runners).toBe('empty')
+    expect(result?.after.stateFields.away).toBe(4n)
+    expect(result?.after.scoreboard.away).toBe(4n)
+    expect(result?.statFlags).toEqual({
+      ...FLAGS,
+      被本塁打: true,
+      本塁打: true,
+      得点: true,
+      失点: true,
+      打点: true,
+    })
   })
 })
