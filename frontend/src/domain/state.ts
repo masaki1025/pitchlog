@@ -137,6 +137,8 @@ export function deriveLineupPitch(
     resultId === 'batting-result.k3'
   )
     return deriveClosedStrikeout(before, board, resultId, pitchEventKind, cursors)
+  if (resultId === 'batting-result.strikeout-double-play')
+    return deriveStrikeoutDoublePlay(before, board, pitchEventKind, cursors)
   if (
     resultId === 'batting-result.walk' ||
     resultId === 'batting-result.hit-by-pitch'
@@ -267,6 +269,37 @@ function deriveClosedStrikeout(
   )
     return null
   return applyCountRule(before, board, TERMINAL_OUT_RULE, resultId, cursors)
+}
+
+/** SO-05の固定一死一塁行だけ。対象走者は原典行の一塁に限る。 */
+function deriveStrikeoutDoublePlay(
+  before: StateFields,
+  board: Scoreboard,
+  pitchEventKind: string,
+  cursors: BattingOrderBySide,
+): StrikeoutDerived | null {
+  if (
+    pitchEventKind !== 'pitch-event' ||
+    !ordinaryStateSupported(before, board) ||
+    before.outs !== 1n ||
+    before.runners !== 'first' ||
+    before.strikes !== 2n ||
+    before.balls !== 0n ||
+    before.home !== board.home ||
+    before.away !== board.away
+  )
+    return null
+  const rule: Rule = Object.assign({}, TERMINAL_OUT_RULE, {
+    outs: 2n,
+    targets: ['batter', '1'],
+  })
+  return applyCountRule(
+    before,
+    board,
+    rule,
+    'batting-result.strikeout-double-play',
+    cursors,
+  )
 }
 
 /** 無走者4安打を、確定観測と両cursorを検証して唯一核へ渡す。 */
@@ -430,7 +463,8 @@ function applyCountRule(
   const strikeout =
     resultId === 'batting-result.called-strikeout' ||
     resultId === 'batting-result.swinging-strikeout' ||
-    resultId === 'batting-result.k3'
+    resultId === 'batting-result.k3' ||
+    resultId === 'batting-result.strikeout-double-play'
   const hit =
     resultId === 'batting-result.single' ||
     resultId === 'batting-result.double' ||
@@ -538,6 +572,9 @@ function applyCountRule(
   let targets: Array<Target> = []
   if (rule.targets.includes('batter'))
     targets = targets.concat([{ kind: 'batter' }])
+  for (const base of BASES)
+    if (rule.targets.includes(baseKey(base)))
+      targets = targets.concat([{ kind: 'runner', base }])
   let rbi = 0n
   if (homeRun || hit) rbi = runs
   else if (walk || hitByPitch) rbi = forcedRuns
