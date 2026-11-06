@@ -3,7 +3,6 @@ import {
   courseScreen,
   fieldingPositionLabel,
   plateResultDisplay,
-  serverAcceptedElapsed,
 } from './playExportCoordinate'
 
 describe('B-7 毎球CSV表示座標', () => {
@@ -35,24 +34,6 @@ describe('B-7 毎球CSV表示座標', () => {
     ['0', '0', '1/262'],
   ] as const)('非正準値を補完しない', (x, y, unit) => {
     expect(() => courseScreen(x, y, unit)).toThrow()
-  })
-})
-
-describe('サーバー受理基準の経過時間', () => {
-  const start = new Date('2026-11-07T00:00:00.000Z')
-  it('完了分だけを h:mm に表示する', () => {
-    expect(
-      serverAcceptedElapsed(start, new Date('2026-11-07T00:00:59.000Z')),
-    ).toBe('0:00')
-    expect(
-      serverAcceptedElapsed(start, new Date('2026-11-07T01:01:00.000Z')),
-    ).toBe('1:01')
-  })
-  it('負の差と不正日時を拒否する', () => {
-    expect(() =>
-      serverAcceptedElapsed(start, new Date('2026-11-06T23:59:59.000Z')),
-    ).toThrow()
-    expect(() => serverAcceptedElapsed(new Date('invalid'), start)).toThrow()
   })
 })
 

@@ -5,6 +5,7 @@ import json
 import types
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -168,6 +169,27 @@ def test_server_accepted_elapsed_uses_completed_minutes_and_rejects_bad_start():
         target.server_accepted_elapsed(start, start - timedelta(seconds=1))
     with pytest.raises(ValueError):
         target.server_accepted_elapsed(start.replace(tzinfo=None), start)
+
+
+def test_server_elapsed_compares_utc_instants_and_keeps_microseconds():
+    """DST foldとPostgreSQLマイクロ秒を壁時計/Dateミリ秒へ丸めない。"""
+    target = _generated_python()
+    ny = ZoneInfo("America/New_York")
+    first = datetime(2026, 11, 1, 1, 30, tzinfo=ny, fold=0)
+    second = datetime(2026, 11, 1, 1, 30, tzinfo=ny, fold=1)
+    assert target.server_accepted_elapsed(first, second) == "1:00"
+    assert (
+        target.server_accepted_elapsed(first, first.astimezone(timezone.utc)) == "0:00"
+    )
+    with pytest.raises(ValueError):
+        target.server_accepted_elapsed(second, first)
+    micro_start = datetime(2026, 11, 7, 0, 0, 0, 999900, tzinfo=timezone.utc)
+    assert (
+        target.server_accepted_elapsed(
+            micro_start, micro_start + timedelta(seconds=59, microseconds=999900)
+        )
+        == "0:00"
+    )
 
 
 def test_historical_fielding_position_labels_are_finite():

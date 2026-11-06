@@ -1,10 +1,10 @@
 """自動生成。B-7の正準座標から画面整数への一方向写像。"""
 
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 
 SOURCE_MODEL_HASH = (
-    "sha256:85113bca53ec9667f9bd3d90e997f0c82a8f30d93e3a46fc6c82c4f5f379fe67"
+    "sha256:6be2f315e519fa8054ae6980ce8b5e161dbf197793d1400bbbe1e56ac15d7e14"
 )
 SIZE = 263
 UNIT = "1/263"
@@ -41,10 +41,16 @@ def server_accepted_elapsed(start: datetime, accepted: datetime) -> str:
         or type(accepted) is not datetime
         or start.utcoffset() is None
         or (accepted.utcoffset() is None)
-        or (accepted < start)
     ):
         raise ValueError("開始/受理時刻が不正です")
-    elapsed = accepted - start
+    try:
+        first = start.astimezone(timezone.utc)
+        last = accepted.astimezone(timezone.utc)
+    except (OverflowError, ValueError):
+        raise ValueError("開始/受理時刻が不正です") from None
+    if last < first:
+        raise ValueError("開始/受理時刻が不正です")
+    elapsed = last - first
     minutes = elapsed.days * 1440 + elapsed.seconds // 60
     hours, minute = divmod(minutes, 60)
     return f"{hours}:{minute:02d}"

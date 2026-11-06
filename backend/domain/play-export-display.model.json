@@ -19,6 +19,8 @@
     "kind": "whole-minutes-h-mm",
     "startSource": "games.started_at",
     "endSource": "pg_catalog.clock_timestamp",
+    "runtime": "python-server-only",
+    "precision": "postgres-timestamptz-microsecond",
     "negative": "reject"
   },
   "fieldingPositionLabels": {

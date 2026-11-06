@@ -39,6 +39,8 @@ def _declaration(model: Mapping[str, Any]) -> tuple[int, str, str, str]:
         "kind": "whole-minutes-h-mm",
         "startSource": "games.started_at",
         "endSource": "pg_catalog.clock_timestamp",
+        "runtime": "python-server-only",
+        "precision": "postgres-timestamptz-microsecond",
         "negative": "reject",
     }:
         raise ExportCoordinateDeclarationError("経過時間の有限宣言が不正")
@@ -149,7 +151,7 @@ def _generate_course_export_targets(
     python = f'''"""自動生成。B-7の正準座標から画面整数への一方向写像。"""
 
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 
 SOURCE_MODEL_HASH = {source_hash!r}
 SIZE = {size}
@@ -187,10 +189,16 @@ def server_accepted_elapsed(start: datetime, accepted: datetime) -> str:
         or type(accepted) is not datetime
         or start.utcoffset() is None
         or accepted.utcoffset() is None
-        or accepted < start
     ):
         raise ValueError("開始/受理時刻が不正です")
-    elapsed = accepted - start
+    try:
+        first = start.astimezone(timezone.utc)
+        last = accepted.astimezone(timezone.utc)
+    except (OverflowError, ValueError):
+        raise ValueError("開始/受理時刻が不正です") from None
+    if last < first:
+        raise ValueError("開始/受理時刻が不正です")
+    elapsed = last - first
     minutes = elapsed.days * 1440 + elapsed.seconds // 60
     hours, minute = divmod(minutes, 60)
     return f"{{hours}}:{{minute:02d}}"
@@ -268,21 +276,6 @@ export function courseScreen(
   const xValue = number(x)
   const yValue = number(y)
   return [String({ts_x}), String({ts_y})]
-}}
-
-/** 試合開始からサーバー受理までの完了分をh:mmで返す。 */
-export function serverAcceptedElapsed(start: Date, accepted: Date): string {{
-  if (!(start instanceof Date) || !(accepted instanceof Date))
-    throw new Error('開始/受理時刻が不正です')
-  const first = start.getTime()
-  const last = accepted.getTime()
-  if (!Number.isFinite(first) || !Number.isFinite(last) || last < first)
-    throw new Error('開始/受理時刻が不正です')
-  const minutes = Math.floor((last - first) / 60000)
-  if (!Number.isSafeInteger(minutes)) throw new Error('経過時間が範囲外です')
-  const hours = Math.floor(minutes / 60)
-  const minute = String(minutes % 60).padStart(2, '0')
-  return `${{hours}}:${{minute}}`
 }}
 
 const FIELDING_POSITION_LABELS: Readonly<Record<string, string>> = {ts_labels}
