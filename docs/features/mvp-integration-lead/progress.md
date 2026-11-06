@@ -2,6 +2,10 @@
 
 ## 次回評価と毎球CSV候補受領（2026-11-06）
 
+- **21:16追補**: CSV d00f925a差分SHA26893e7875474ad25213af12c32a5255acb3eea6b68d1795216f91079571cffaを非作者が確認、P0=0/P1=6（イベント2000件切断、旧snapshot/版digest、C2未接続、送出前再認可、必須長さ/SHAなし保存成功、全RAM保持）。producer未供給と別の候補欠陥として修復必須。cache `play-csv-independent-intake-20261106/REPORT.md` SHAe2047785b0fe7b0fa80b660364c1aa7dfad493e3623e11882bf9598bf1502aec、別作者用REPAIR_REQUEST.mdを固定。
+- **終了画面修復**: r5の条件別probeで終了GETのCheckpointだけfalse。controlBridges.kernelが参照するgame_lifecycle_schema_v1がFE閉検証器未登録だった。LC d7394e93で正本schema参照を登録、関連26/型/lint成功。同固定版r6で実画面再測中、成功判定は未了。
+- **断中認証修復**: 別WT87e09f7a/37e2a103でserver同値Cookie強制とclient同epoch/tenant/verified C2通信断継続を実装しcommit。backend22/FE123・型/lint成功、非作者レビュー中。実画面断中複数入力/reload/順序同期は未実証、開始ACK後の真正v3 seed未保存という別の接合不足は保持。
+
 - **次回評価**: PO指示により、接続候補を一つにまとめて実装・実測し固定後レビューする方式を継続し、2026-11-07 00:00 JSTに再評価する。安全性/全MVP条件/正式統合ゲートは維持する。担当はCodex/root、PO本人の検査・署名ではない。
 - **毎球CSV**: `feature/mvp-play-csv-product@d00f925a290b976247d943734e944a2cfb88fa99`、受領時cleanをGitで確認。起点14b96546のstep1を再利用し、RR同一snapshot抽出・ZIP API候補・長さ/SHA検査後DL画面を実装したとの作者報告を受領。非作者read-only確認を依頼。実gameは88列producer未供給で409、fixture投入時の200は製品完成証拠としない。製品app/正式ACL等は未登録。
 - **CSVの次の作業**: 記録時の真正before/after/lineup/player名snapshot等を同一TXで88列projectionへ渡すproducer、正式migration/ACL/registry、画面導線を主担当が直列接合し、事前投入なし新規記録→ZIP 200を実測する。現在名簿・0・NULLの代替補完をしない。作者から共通owned PG/network lock全fixture保持の反映報告を受領（前の中継文の未送達扱いを更新、実装自体は非作者確認待ち）。
