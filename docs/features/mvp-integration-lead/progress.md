@@ -1,5 +1,15 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 2026-11-07 04:13 JST：PR197最終候補公開・実CIの5失敗修復、CSV/P3の実保存が前進
+
+- **正式統合の現在地**: developは51bcb4e1。PR197はe5b6fef580cfe2bf0791331db6ff08ce1742221fを通常push済み、Draft/未merge。base51b比291path・diff SHA256 `9d1e955b5fbc2bf1b99fd92251dd5bbd021343fa569b10982d78807b4c52be4e`。公式9資産を全再導出し各revision+1、旧352snapshotを保存、新9追加/非参照8だけ保全除去。非作者最終REPORT `6ad732643c0f6a49b577caf947725e39b3b2b6fa5a9ef079387e8759a714ae15`、100試験/実tenant CLI成功。rootはPO委任で実値受理、証拠 https://github.com/masaki1025/pitchlog/pull/197#issuecomment-6692860788 。本人逐行確認/署名ではない。
+- **実CI**: run42275253517は継続中、本文/委任検査run42275253385は成功。harness-shard3は8230pass/1skip/5fail・733秒。内訳はcore歴史AST投影3、MC/DCのclaim map digest連鎖1、ORM fresh不変行の出現番号032→034の追随漏れ1。core3はnonplayが新専用WTで担当、rootは残2と追加関連moduleを修復。旧e5を緑扱い/mergeしない。他shardは同runを確認し、同失敗を根拠なく再実行しない。
+- **利用者に近い新証拠・毎球CSV**: 実HTTP新規作成→開始→現v3通常2球→同TX exact88列snapshot2件→認可ZIP200を事前CSV投入なしで実証。全回sidecar追加後73.36秒・11CSV（既9 sidecar維持+全回）も成功、前後HEAD/diff/36path同一・cleanup済み。正式0047/ACL/registry/受理、実画面DL、500境界、取消/訂正/再終了対応は残件。作者WTの一時DDL実測を正式migration成功に読み替えない。
+- **CSV表示の独立確認**: 7d4のDST壁時計P1/精度P2を75dcaa6dで是正。UTC瞬間比較・PostgreSQLマイクロ秒・server-only elapsed宣言、root33BE/15FE成功。REPORT-reflection2 SHA `fc6c6a702e707bf72ed8522319672368c43156c3d1cb3fbf7fea9a25a5bd0f4b`。このD1差分だけ採用、producer/正式資産全体へ広げない。
+- **過去訂正**: bea190fc18aad47726ad613fe7bc8fa058e540f3を区切り固定。真正HTTPで2球→先頭球訂正→GET→同D5再掲/異本文B13→第3球ACK/再掲/GET、owned80.24秒成功。追加対向93.09秒ではT2/T4両故障の全取消と別tenant GET/再送404を実証（試験追補commit待ち）。有限1suffix・同寄与の狭い証拠であり、成績寄与変化・複数訂正・走者/全操作は未完。
+- **断中の一般操作**: offline-normal-operations@631a8979で終了→再開→再終了の耐久queue/再起動向けlocal source捕捉まで45純試験成功。LC後の次球ではserver生成CP/frameに依存するため、推測CPや固定成功を作らずclosed queued-source参照と同TX解決を検討中。実ブラウザ/PGの断中LC→次球成功は未成立。
+- **次**: CI5失敗と関連追随を別fix WTで固定→非作者確認→必要な正式値だけ再導出→最終CI/通常統合。同時にCSV/P3の範囲拡張・実画面接合と断中一般操作を継続。既connected60f/viewer f69/9回163球の証拠を維持し、全MVP/性能/負荷/実機/運用復旧は未完のまま管理する。
+
 ## 2026-11-07 02:53 JST：trigger1を閉鎖、毎球CSVの実sourceとP3保存へ接続中
 
 - **root CI候補の固定**: `fix/pr197-ci-finalization@dc133d2c` clean・通常push済み。旧本人trigger1記録を2fa全値で保持し、別のPO委任確認をsource3944ee11のexact3 blob・非作者JSONへ束縛した。非作者初回/反映1/拒否理由1行/型整理の履歴を保持し、reflection3 REPORT `021420e4c5e65fd088a5837b98a36834163c11823a0c5001a2a1b9126bedc974`、JSON `b066cbdad9a0e5534087b1149a038fff3be2bd680eb49dcc33b5d888b1db5b0b`。root最終全55passed12.35秒、root/backend Ruff/Ty・backend format672成功。途中の旧理由regex1fail/型診断8件は隠さず修復履歴へ残した。本人署名・新P6blindではない。
