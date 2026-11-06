@@ -419,6 +419,27 @@
         "scripts/frozen_history.py:read_original_pr197_pin",
         "scripts/check_frozen_baselines.py:_verify_pr197_pin_scan_exception"
       ]
+    },
+    "pr197_approved_doc_merge_revision": {
+      "value": "2953103d4e280dff42ee1d8c356bc3e888799651",
+      "purpose": "PR197承認済み7.7-1文書だけを接合した実mergeを一件に固定する。",
+      "sources": [
+        "scripts/core_guard.py:_verify_pr197_approved_doc_merge"
+      ]
+    },
+    "pr197_core_carry_source_revision": {
+      "value": "5a7e0479ade6230178d24876b3e3ec82d41ccb16",
+      "purpose": "PR197限定merge carry実装の先行Git全byteを固定する。",
+      "sources": [
+        "scripts/core_guard.py:_pr197_merge_carry_pins"
+      ]
+    },
+    "pr197_core_carry_definition_sha256": {
+      "value": "67ffc917c68d09cfbb16a431ecd0415a5e4ffa55de329b00bbd9c4ee30ae3e7e",
+      "purpose": "PR197限定merge carryを含む定義ASTを旧固定値と区別して固定する。",
+      "sources": [
+        "scripts/core_guard.py:_verify_pr197_definition_order"
+      ]
     }
   }
 }

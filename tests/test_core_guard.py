@@ -7668,25 +7668,34 @@ def _pr197_old_definition_repo(tmp_path, old32):
     return root, base
 
 
+def _pr197_pre_carry_guard(tmp_path):
+    """旧every-parent反例を、2faで固定済みの旧検査器で再演する。"""
+    revision = '2fa42d653e44bba8586c0afe831421402247fd30'
+    source = run_git(REPO, 'show', revision + ':scripts/core_guard.py').stdout
+    path = tmp_path / 'pr197_pre_carry_core_guard.py'
+    path.write_text(source)
+    return load_core_guard_module(path, module_name='pr197_pre_carry_' + tmp_path.name), source
+
+
 @pytest.mark.parametrize('order', [
     'definition-first', 'json-first', 'same-commit', 'definition-no-entry',
     'definition-broken-order-helper', 'definition-broken-helper',
 ])
 def test_pr197_tenant_source_requires_prior_definition_commit(tmp_path, order):
     """新2path初登場時の親に固定定義と入口が無ければ閉拒否する。"""
-    guard = load_core_guard_module()
+    guard, fixed_source = _pr197_pre_carry_guard(tmp_path)
     old32, new34 = _pr197_tenant_source_config()
     root, base = _pr197_old_definition_repo(tmp_path, old32)
     if order == 'definition-first':
-        commit_change(root, 'scripts/core_guard.py', SCRIPT.read_text())
+        commit_change(root, 'scripts/core_guard.py', fixed_source)
         _, head = commit_change(root, '.claude/core-areas.json', json.dumps(new34))
         assert guard.verify_area_path_baseline(root, base, head) == base
         return
     if order == 'json-first':
         commit_change(root, '.claude/core-areas.json', json.dumps(new34))
-        _, head = commit_change(root, 'scripts/core_guard.py', SCRIPT.read_text())
+        _, head = commit_change(root, 'scripts/core_guard.py', fixed_source)
     elif order == 'definition-no-entry':
-        source = SCRIPT.read_text()
+        source = fixed_source
         broken = source.replace(
             'validate_pr197_tenant_source_area_path_layers(\n'
             '        baseline, candidate, root=root, base_revision=baseline_revision, '
@@ -7698,7 +7707,7 @@ def test_pr197_tenant_source_requires_prior_definition_commit(tmp_path, order):
         commit_change(root, '.claude/core-areas.json', json.dumps(new34))
         _, head = commit_change(root, 'scripts/core_guard.py', source)
     elif order == 'definition-broken-order-helper':
-        source = SCRIPT.read_text()
+        source = fixed_source
         node = next(n for n in ast.parse(source).body
                     if isinstance(n, ast.FunctionDef)
                     and n.name == '_verify_pr197_definition_order')
@@ -7711,7 +7720,7 @@ def test_pr197_tenant_source_requires_prior_definition_commit(tmp_path, order):
         commit_change(root, '.claude/core-areas.json', json.dumps(new34))
         _, head = commit_change(root, 'scripts/core_guard.py', source)
     elif order == 'definition-broken-helper':
-        source = SCRIPT.read_text()
+        source = fixed_source
         broken = source.replace(
             'if before and not after:\n'
             '        raise GuardError("PR197 tenant source core層の削除は許可しない")',
@@ -7724,7 +7733,7 @@ def test_pr197_tenant_source_requires_prior_definition_commit(tmp_path, order):
         _, head = commit_change(root, 'scripts/core_guard.py', source)
     else:
         write_text(root, '.claude/core-areas.json', json.dumps(new34))
-        write_text(root, 'scripts/core_guard.py', SCRIPT.read_text())
+        write_text(root, 'scripts/core_guard.py', fixed_source)
         run_git(root, 'add', '.claude/core-areas.json', 'scripts/core_guard.py')
         run_git(root, '-c', 'user.email=test@example.com', '-c', 'user.name=test',
                 'commit', '-m', 'same commit')
@@ -7735,11 +7744,11 @@ def test_pr197_tenant_source_requires_prior_definition_commit(tmp_path, order):
 
 def test_pr197_tenant_source_merge_requires_definition_in_every_parent(tmp_path):
     """片親だけ旧定義のmergeで新2pathを引き継げない。"""
-    guard = load_core_guard_module()
+    guard, fixed_source = _pr197_pre_carry_guard(tmp_path)
     old32, new34 = _pr197_tenant_source_config()
     root, base = _pr197_old_definition_repo(tmp_path, old32)
     run_git(root, 'branch', 'without-definition', base)
-    commit_change(root, 'scripts/core_guard.py', SCRIPT.read_text())
+    commit_change(root, 'scripts/core_guard.py', fixed_source)
     commit_change(root, '.claude/core-areas.json', json.dumps(new34))
     run_git(root, 'checkout', 'without-definition')
     commit_change(root, 'README.md', 'other parent\n')
@@ -7753,10 +7762,10 @@ def test_pr197_tenant_source_merge_requires_definition_in_every_parent(tmp_path)
 
 def test_pr197_tenant_source_rejects_delete_then_readd(tmp_path):
     """最終34でも中間commitで新2pathを削除した履歴を拒否する。"""
-    guard = load_core_guard_module()
+    guard, fixed_source = _pr197_pre_carry_guard(tmp_path)
     old32, new34 = _pr197_tenant_source_config()
     root, base = _pr197_old_definition_repo(tmp_path, old32)
-    commit_change(root, 'scripts/core_guard.py', SCRIPT.read_text())
+    commit_change(root, 'scripts/core_guard.py', fixed_source)
     commit_change(root, '.claude/core-areas.json', json.dumps(new34))
     commit_change(root, '.claude/core-areas.json', json.dumps(old32))
     _, head = commit_change(root, '.claude/core-areas.json', json.dumps(new34))
@@ -7766,13 +7775,90 @@ def test_pr197_tenant_source_rejects_delete_then_readd(tmp_path):
 
 def test_pr197_tenant_source_rejects_intermediate_partial_json(tmp_path):
     """最終34でも途中commitの片path登録を履歴から拒否する。"""
-    guard = load_core_guard_module()
+    guard, fixed_source = _pr197_pre_carry_guard(tmp_path)
     old32, new34 = _pr197_tenant_source_config()
     root, base = _pr197_old_definition_repo(tmp_path, old32)
-    commit_change(root, 'scripts/core_guard.py', SCRIPT.read_text())
+    commit_change(root, 'scripts/core_guard.py', fixed_source)
     partial = json.loads(json.dumps(new34))
     next(a for a in partial['areas'] if a['id'] == 'tenant-isolation')['paths'].pop()
     commit_change(root, '.claude/core-areas.json', json.dumps(partial))
     _, head = commit_change(root, '.claude/core-areas.json', json.dumps(new34))
     with pytest.raises(guard.GuardError, match='部分追加'):
         guard.verify_area_path_baseline(root, base, head)
+
+
+def test_pr197_approved_doc_merge_is_one_exact_carry():
+    """実295だけを全履歴に残し、先行定義と文書限定carryを照合する。"""
+    guard = load_core_guard_module()
+    base = '51bcb4e11b4d8d1e51327ca3e1e10ef2e6214d56'
+    head = run_git(REPO, 'rev-parse', 'HEAD').stdout.strip()
+    revision, fingerprint = guard._pr197_merge_carry_pins(REPO, head)
+    assert revision == '2953103d4e280dff42ee1d8c356bc3e888799651'
+    assert revision in guard._commits_between(REPO, base, head)
+    assert guard._pr197_definition_fingerprint(SCRIPT.read_text()) == fingerprint
+    guard._verify_pr197_approved_doc_merge(REPO, base, revision)
+    guard._verify_pr197_definition_order(REPO, base, head)
+
+
+@pytest.mark.parametrize('mutation', [
+    'wrong-parent', 'product-from-second-parent', 'core-byte', 'json-byte',
+    'approved-doc-byte',
+])
+def test_pr197_approved_doc_merge_rejects_nonidentical_carry(
+    monkeypatch, mutation,
+):
+    """親・第二親の製品混入・core原本・承認本文の改変を拒否する。"""
+    guard = load_core_guard_module()
+    base = '51bcb4e11b4d8d1e51327ca3e1e10ef2e6214d56'
+    revision = '2953103d4e280dff42ee1d8c356bc3e888799651'
+    actual = guard._pr197_merge_git
+
+    def altered(root, *arguments):
+        output = actual(root, *arguments)
+        if mutation == 'wrong-parent' and arguments == (
+            'show', '-s', '--format=%P', revision,
+        ):
+            return output.split()[0] + '\n'
+        if mutation == 'product-from-second-parent' and arguments[:2] == (
+            'diff', '--name-only',
+        ) and arguments[2] == base:
+            return output + 'backend/src/pitchlog/stats/facts.py\n'
+        if mutation in {'core-byte', 'json-byte'} and arguments == (
+            'show', revision + ':' + (
+                'scripts/core_guard.py' if mutation == 'core-byte'
+                else '.claude/core-areas.json'),
+        ):
+            return output + '\n'
+        if mutation == 'approved-doc-byte' and arguments == (
+            'show', revision + ':docs/development/dev-harness-design-2026-08-07.md',
+        ):
+            return output + '\n'
+        return output
+
+    monkeypatch.setattr(guard, '_pr197_merge_git', altered)
+    with pytest.raises(guard.GuardError):
+        guard._verify_pr197_approved_doc_merge(REPO, base, revision)
+
+
+@pytest.mark.parametrize('key', [
+    'pr197_approved_doc_merge_revision',
+    'pr197_core_carry_source_revision',
+    'pr197_core_carry_definition_sha256',
+])
+def test_pr197_approved_doc_merge_rejects_changed_typed_pin(tmp_path, key):
+    """新typed pinの欠落・別値を現HEADのまま受理しない。"""
+    guard = load_core_guard_module()
+    clone = tmp_path / 'pr197-carry-clone'
+    run_git(REPO, 'clone', '--shared', '--quiet', str(REPO), str(clone))
+    head = run_git(clone, 'rev-parse', 'HEAD').stdout.strip()
+    path = clone / 'contracts/tenant_boundary/frozen-inputs.json'
+    asset = json.loads(path.read_text())
+    assert key in asset['frozen_inputs']
+    asset['frozen_inputs'][key]['value'] = '0' * len(asset['frozen_inputs'][key]['value'])
+    path.write_text(json.dumps(asset, ensure_ascii=False, indent=2) + '\n')
+    with pytest.raises(guard.GuardError):
+        guard._pr197_merge_carry_pins(clone, head)
+    del asset['frozen_inputs'][key]
+    path.write_text(json.dumps(asset, ensure_ascii=False, indent=2) + '\n')
+    with pytest.raises(guard.GuardError):
+        guard._pr197_merge_carry_pins(clone, head)

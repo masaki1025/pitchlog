@@ -3144,6 +3144,11 @@ _PR197_GATE6_MIGRATED_TYPED = frozenset({
     "stats_season_source_set_game_a_sha256",
     "stats_season_source_set_game_b_sha256",
 })
+_PR197_GATE6_DOC_CARRY_TYPED = frozenset({
+    "pr197_approved_doc_merge_revision",
+    "pr197_core_carry_source_revision",
+    "pr197_core_carry_definition_sha256",
+})
 
 
 def _pr197_formal_ledger_binding_successor(
@@ -3249,17 +3254,24 @@ def _pr197_gate6_body(root: Path, head_sha: str) -> dict[str, Any]:
                 expected_added = (
                     _PR197_GATE6_NEW_TYPED
                     | _PR197_GATE6_MIGRATED_TYPED
+                    | _PR197_GATE6_DOC_CARRY_TYPED
                     | {"pr197_pin_origin_commit"}
                 )
                 if (not all(after.get(key) == value for key, value in before.items())
                         or set(after) - set(before) != expected_added):
-                    raise HumanReviewSignatureRecordError("PR197旧typed入力または追加22が不一致")
+                    raise HumanReviewSignatureRecordError("PR197旧typed入力または追加25が不一致")
                 try:
                     for key in _PR197_GATE6_MIGRATED_TYPED:
                         guard.frozen_history.read_original_pr197_pin(key, root)
                 except guard.frozen_history.ContractError as error:
                     raise HumanReviewSignatureRecordError(
                         "PR197新typed入力の固定Git原典が不一致"
+                    ) from error
+                try:
+                    guard._pr197_merge_carry_pins(root, head_sha)
+                except guard.GuardError as error:
+                    raise HumanReviewSignatureRecordError(
+                        "PR197文書merge typed版が不一致"
                     ) from error
                 baseline_inputs = _object(json.loads(baseline,
                     object_pairs_hook=descriptor_checker._reject_duplicate_keys)["frozen_inputs"],
