@@ -15,6 +15,7 @@ import GameScreenUndoProduct from './GameScreenUndoProduct.vue'
 import { ApiError, ApiNetworkError } from '../api/client'
 import { IDBFactory, IDBKeyRange } from 'fake-indexeddb'
 import { GameStartPersistence } from '../lib/gameStartPersistence'
+import { LocalRecordingSession } from '../lib/localRecordingSession'
 
 vi.mock('../api/startedGame', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../api/startedGame')>()),
@@ -99,6 +100,8 @@ async function mountRestore(
 }
 
 beforeEach(() => {
+  // このsuiteは復元componentの自動取得を検査する。routerのlocal資格読取は専用suiteで検査する。
+  vi.spyOn(LocalRecordingSession, 'restore').mockResolvedValue(null)
   vi.spyOn(ordinaryRead, 'readPlayPrefixGame').mockResolvedValue({
     kind: 'unsupported',
   })

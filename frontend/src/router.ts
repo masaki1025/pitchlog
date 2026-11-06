@@ -8,11 +8,16 @@ import HelpScreen from './screens/HelpScreen.vue'
 import LoginScreen from './screens/LoginScreen.vue'
 import TeamScreen from './screens/TeamScreen.vue'
 import GameScreenEntryHost from './screens/GameScreenEntryHost.vue'
-import GameScreenEntryRecordHost from './screens/GameScreenEntryRecordHost.vue'
+import GameScreenRecordModeHost from './screens/GameScreenRecordModeHost.vue'
+import {
+  LocalRecordingSession,
+  recordingBackendReachability,
+} from './lib/localRecordingSession'
 import { resolveGameEntryReturnPath } from './screens/GameScreenEntryNavigation'
 import { useAuthStore } from './stores/authStore'
 
 export function createAppRouter(history: RouterHistory = createWebHistory()) {
+  let localEntry: { path: string; session: LocalRecordingSession } | null = null
   const router = createRouter({
     history,
     routes: [
@@ -38,12 +43,20 @@ export function createAppRouter(history: RouterHistory = createWebHistory()) {
       {
         path: '/games/:gameId/record',
         name: 'game-record',
-        component: GameScreenEntryRecordHost,
+        component: GameScreenRecordModeHost,
+        props: (route) => ({
+          localSession:
+            localEntry?.path === route.fullPath
+              ? localEntry.session
+              : undefined,
+        }),
         meta: { requiresAuth: true },
       },
     ],
   })
   router.beforeEach(async (to) => {
+    localEntry?.session.dispose()
+    localEntry = null
     if (to.meta.requiresAuth !== true) return true
     const loginRoute = {
       name: 'login',
@@ -67,6 +80,20 @@ export function createAppRouter(history: RouterHistory = createWebHistory()) {
     }
     try {
       if (getActivePinia() !== pinia) return loginRoute
+      // HTTP認証を成功扱いにせず、真正保存原本のある記録入口だけを端末内へ戻す。
+      if (to.name === 'game-record' && typeof to.params.gameId === 'string') {
+        const saved = await LocalRecordingSession.restore(
+          to.params.gameId,
+        ).catch(() => null)
+        if (saved) {
+          const reachability = await recordingBackendReachability()
+          if (reachability === 'unavailable' && saved.current) {
+            localEntry = { path: to.fullPath, session: saved }
+            return true
+          }
+          saved.dispose()
+        }
+      }
       const result = await ensureSessionVerified()
       auth.syncFromStorage()
       if (
