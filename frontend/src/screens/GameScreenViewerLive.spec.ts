@@ -6,6 +6,7 @@ import initial from '../api/fixtures/lineupPrefixGame.v3.json'
 import { setVerifiedAuthForTest } from '../api/auth.test-support'
 import * as viewerApi from '../api/viewerGame'
 import * as rosterApi from '../api/roster'
+import { isGameLifecycleGame } from '../api/gameLifecycle'
 import { installAppProviders, pinia } from '../appProviders'
 import { useAuthStore } from '../stores/authStore'
 import { undoRead } from './GameScreenUndoProduct.test-support'
@@ -119,6 +120,7 @@ it('終了済みの第3アウトは保存T2の完了半回を示し、次の10�
       activeStatsVersionId: '55555555-5555-4555-8555-555555555555',
     },
   } as unknown as viewerApi.ViewerGame
+  expect(isGameLifecycleGame(finishedGame)).toBe(true)
   setActivePinia(pinia)
   setVerifiedAuthForTest(useAuthStore(pinia), {
     teamId: base.checkpoint.content.scope.tenantId,

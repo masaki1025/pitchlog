@@ -132,9 +132,7 @@ def test_route_uses_c2_and_distinguishes_invisible_from_failure(monkeypatch):
     assert viewer.router.route_class is TenantMatchedRoute
     tenant = cast(TenantContext, object())
     game_id = UUID("22222222-2222-4222-8222-222222222222")
-    monkeypatch.setattr(
-        viewer, "viewer_read_scope", lambda actual: nullcontext(actual)
-    )
+    monkeypatch.setattr(viewer, "viewer_read_scope", lambda actual: nullcontext(actual))
     monkeypatch.setattr(
         viewer,
         "read_viewer_probe",
@@ -164,8 +162,16 @@ def test_viewer_scope_rejects_writer_lock_and_unknown_functions(monkeypatch):
     """RR設定だけに頼らず、scopeの実行能力も有限読取tokenへ絞る。"""
     from pitchlog.repositories import transaction
     from pitchlog.repositories.binding import TenantBindingError
+    from pitchlog.repositories.nonplay_prefix_read_operations import (
+        NonplayActiveHistoryReadToken,
+    )
     from pitchlog.repositories.ordinary_order import OrdinaryOrderSummaryToken
     from pitchlog.repositories.transaction import _TenantTransaction
+    from pitchlog.repositories.viewer_read import (
+        ViewerNonplayActiveHistoryReadToken,
+        ViewerPlayPrefixHistoryPageToken,
+    )
+    from pitchlog.sync.terminal_pitch_tokens import PlayPrefixHistoryPageToken
     from pitchlog.sync.tokens import GameLockToken
 
     monkeypatch.setattr(transaction, "require_viewer_read_scope", lambda _: None)
@@ -175,6 +181,18 @@ def test_viewer_scope_rejects_writer_lock_and_unknown_functions(monkeypatch):
     transaction._require_viewer_read_token(
         handle, OrdinaryOrderSummaryToken(game), function=True
     )
+    for token_type in (
+        ViewerNonplayActiveHistoryReadToken,
+        ViewerPlayPrefixHistoryPageToken,
+    ):
+        transaction._require_viewer_read_token(
+            handle, object.__new__(token_type), function=True
+        )
+    for token_type in (NonplayActiveHistoryReadToken, PlayPrefixHistoryPageToken):
+        with pytest.raises(TenantBindingError):
+            transaction._require_viewer_read_token(
+                handle, object.__new__(token_type), function=True
+            )
     with pytest.raises(TenantBindingError):
         transaction._require_viewer_read_token(
             handle, GameLockToken(game), function=False

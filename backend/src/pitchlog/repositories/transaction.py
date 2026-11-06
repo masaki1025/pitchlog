@@ -255,10 +255,14 @@ class _TenantTransaction:
             ViewerPlayPrefixHistoryPageToken,
         )
 
-        if type(operation) in {
-            ViewerNonplayActiveHistoryReadToken,
-            ViewerPlayPrefixHistoryPageToken,
-        } and state_key not in _VIEWER_READ_HANDLES:
+        if (
+            type(operation)
+            in {
+                ViewerNonplayActiveHistoryReadToken,
+                ViewerPlayPrefixHistoryPageToken,
+            }
+            and state_key not in _VIEWER_READ_HANDLES
+        ):
             raise TenantBindingError("閲覧専用page関数はRR READ ONLY scopeが必要")
         if state_key in _VIEWER_READ_HANDLES:
             _require_viewer_read_token(self, operation, function=True)
@@ -971,9 +975,6 @@ def _require_viewer_read_token(
         from pitchlog.repositories.lifecycle_function_operations import (
             LifecycleDisplayToken,
         )
-        from pitchlog.repositories.nonplay_prefix_read_operations import (
-            NonplayActiveHistoryReadToken,
-        )
         from pitchlog.repositories.ordinary_order import OrdinaryOrderSummaryToken
         from pitchlog.repositories.ordinary_prefix_operations import (
             OrdinaryCheckpointReadToken,
@@ -985,17 +986,14 @@ def _require_viewer_read_token(
         from pitchlog.sync.terminal_pitch_tokens import (
             LineupStartedOriginReadToken,
             PlayPrefixCheckpointReadToken,
-            PlayPrefixHistoryPageToken,
         )
 
         allowed = {
             LifecycleDisplayToken,
-            NonplayActiveHistoryReadToken,
             OrdinaryOrderSummaryToken,
             OrdinaryCheckpointReadToken,
             LineupStartedOriginReadToken,
             PlayPrefixCheckpointReadToken,
-            PlayPrefixHistoryPageToken,
             ViewerNonplayActiveHistoryReadToken,
             ViewerPlayPrefixHistoryPageToken,
         }
@@ -1686,9 +1684,7 @@ def _execute_port_command(handle, operation):
             accepted, reason = substitution_content_result(
                 handle, operation.event, operation.writer
             )
-            if type(accepted) is not bool or (
-                accepted and reason is not None
-            ):
+            if type(accepted) is not bool or (accepted and reason is not None):
                 raise TenantBindingError("交代内容の閉応答が不一致")
             return TenantOperationResult(((accepted, reason),))
         if phase is not None:
