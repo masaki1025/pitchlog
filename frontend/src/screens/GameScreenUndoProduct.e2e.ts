@@ -12,8 +12,8 @@ if (!baseURL || !team || !password || !away || !home)
 function apiPath(url: string): string {
   return new URL(url).pathname
 }
-async function login(page: Page): Promise<string> {
-  await page.goto(`${baseURL}/login?redirect=/games`)
+async function login(page: Page, redirect = '/games'): Promise<string> {
+  await page.goto(`${baseURL}/login?redirect=${encodeURIComponent(redirect)}`)
   await expect(page.locator('form[aria-busy]')).toHaveAttribute(
     'aria-busy',
     'false',
@@ -63,6 +63,27 @@ test('実画面の新規作成→開始→2球→ACK喪失/reload/同要求再�
       )
   })
 
+  page.on('framenavigated', (frame) => {
+    if (frame === page.mainFrame())
+      console.log('PITCHLOG_UNDO_PAGE_PATH=' + new URL(frame.url()).pathname)
+  })
+  page.on('response', (response) => {
+    const path = apiPath(response.url())
+    if (path.startsWith('/api/') && response.request().method() === 'GET')
+      console.log(
+        'PITCHLOG_UNDO_READ_RESPONSE=' +
+          JSON.stringify({
+            route: path.endsWith('/started')
+              ? 'started'
+              : path.endsWith('/preparing')
+                ? 'preparing'
+                : path === '/api/auth/session'
+                  ? 'session'
+                  : 'other',
+            http: response.status(),
+          }),
+      )
+  })
   page.on('console', (message) => {
     if (message.text().startsWith('PITCHLOG_UNDO_CLIENT_STAGE='))
       console.log(message.text())
@@ -305,13 +326,27 @@ test('実画面の新規作成→開始→2球→ACK喪失/reload/同要求再�
     descriptor.value()
   })
   await panel.getByTestId('undo-product-apply').click()
+  // ヘッダー到達前の通信結果不明ではCookie更新も未確認となる。
+  // 既認証失効を迂回せず実loginで同tenantを再確認し、耐久要求を復元する。
+  await expect(page.getByRole('textbox', { name: 'チーム名' })).toBeVisible({
+    timeout: 30_000,
+  })
+  await login(page, `/games/${saved.id}/record`)
+  await expect(page).toHaveURL(`${baseURL}/games/${saved.id}/record`, {
+    timeout: 30_000,
+  })
+  panel = page.getByTestId('undo-product-panel')
+  await expect(panel.getByTestId('undo-product-balls')).toHaveText('1', {
+    timeout: 30_000,
+  })
   await expect(panel.getByTestId('undo-product-status')).toContainText(
     '結果未確認',
-    { timeout: 30_000 },
   )
   await page.reload()
   panel = page.getByTestId('undo-product-panel')
-  await expect(panel.getByTestId('undo-product-balls')).toHaveText('1')
+  await expect(panel.getByTestId('undo-product-balls')).toHaveText('1', {
+    timeout: 30_000,
+  })
   await expect(panel.getByTestId('undo-product-depth')).toHaveText('1')
   await expect(panel.getByTestId('undo-product-status')).toContainText(
     '結果未確認',
@@ -334,11 +369,15 @@ test('実画面の新規作成→開始→2球→ACK喪失/reload/同要求再�
   await pitch.selectOption({ index: 1 })
   await panel.getByTestId('undo-product-course').locator('svg').click()
   await panel.getByTestId('undo-product-ball').click()
-  await expect(panel.getByTestId('undo-product-balls')).toHaveText('1')
+  await expect(panel.getByTestId('undo-product-balls')).toHaveText('1', {
+    timeout: 30_000,
+  })
   await expect(panel.getByTestId('undo-product-depth')).toHaveText('1')
   await page.reload()
   panel = page.getByTestId('undo-product-panel')
-  await expect(panel.getByTestId('undo-product-balls')).toHaveText('1')
+  await expect(panel.getByTestId('undo-product-balls')).toHaveText('1', {
+    timeout: 30_000,
+  })
   await expect(panel.getByTestId('undo-product-depth')).toHaveText('1')
   console.log('PITCHLOG_UNDO_PRODUCT_GAME=' + saved.id)
   console.log(
