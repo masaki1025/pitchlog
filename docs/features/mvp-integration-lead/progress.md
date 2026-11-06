@@ -1,5 +1,17 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 2026-11-07 07:51 JST：申告敬遠から実画面CSV、過去訂正後2球を実証、PR197公開前検査を完了
+
+- **新たに通った利用者操作（隔離候補）**: nonpitch `a0c192a0e282479790eb8daae6b025a4952022fc` は実画面作成/開始→単打2→申告敬遠→原要求再送（重複）→次球→reload、owned r15 1passed99.55秒。実物理41列/公開35key・T5 pitch_count available0/credits[]・PA/BB/投手BB/BF各1を照合。runs/RBIの不足を0補完しない。前後source同一、作者のみの検査で非作者49pathレビューは現在依頼中。
+- **毎球CSVの実画面接合**: nonpitchと既CSV候補を通常mergeした専用枝 `feature/mvp-nonpitch-csv-connection@2dba7c09b5495e292fc66d1c5873b057602a63ff`。実画面新規作成/開始/上記4記録/reload→CSV画面DLが1passed125.13秒。ZIP106943bytes/11CSV/88列/4行、HTTP/ブラウザSHAと長さ・実DB4記録・sidecarを照合。ZIP SHA `bdce246fa182479ba1b4f4de697b7d82330a2e8200aa27099d72ab05815002b7`。cache `play-csv-nonpitch-connection-20261107/final/REPORT.md` SHA56933e4cd0e2aa002036e05a6a4d454e1fa8531dc9acc1fc580df6cc67ab6a8a。候補SQLの直接設置であり正式0047/7.7/CI/developは未成立、fixture投入のCSV200とは区別する。
+- **過去訂正の実画面**: 真正発行D4を使う `4d43e08c` のR11 1passed103.49秒で、画面3球→三振をボールへ訂正→確認GET/再送/reloadを実証。R16は訂正後さらに2球→B3/S2/history5/reload、旧版K1/現版K0・T5source行版整合まで1passed129.79秒（base4d43上のstep4未commit候補、cache `mvp-past-correction-product-20261106/step4-suffix2-20261107/`）。logical D1数とslot版を混同せず、同TX原本による確認を使用。旧numeric D4の狭い実測は真正D4証拠へ採らない。
+- **訂正と終了/取消の接合障害**: R17はP3+後続2球/主v3再取得200を再現したが、Undo GETとlifecycle GETは503。終了前の未取得で止まったため終了ACK/確定版は未実証。P3のeffective physical行と原D1 eventの区別を保つ共有変換を実装中、次は例外型/関数/行だけの観測で停止箇所を特定する。同じ503だけの再走をしない。
+- **結果不明時の復旧**: nonpitch T4故障で既testing_crash_hook到達と選択12表/水位の全取消を観測したが、同attempt再送503は6-3-Aの閉拒否であり成功ではない。旧試行照会/全旧RPC・borrow終結/後着遮断/真正retry_allowedの後、新attempt・同D5/同本文へ進む正式復旧経路を `feature/mvp-attempt-recovery` で実装中。外から見たDB空だけでD5未消費や全取消を主張しない。rootは既方針に沿う3step計画をPO委任で採用、製品成功/独立確認は未成立。
+- **PR197の最終値とsource**: `286ad3db805db11beed3ee757993f5d02993e76a` のfull342path差分SHA `3e65b837a9ca5204f15d6f53c7768f49aca89b08fa8ac74adde0e6ea04f2316b`。source e3abの固定pin4個をtracked JSON/strict readerへ宣言、検出除外なし・旧値/旧数学不変。公式9資産をbase51bから各+1で独立全値照合し、e3ab受理候補5fileを適用、最終381snapshot/base352/pinned83保持、prune2だけcache保全。corpus `5b2218f2a1625e4b4ced34ca80fac426bf4bbd0e32d3f9896d9490e9fc4c1caf`。値REPORT aa702b68…、最終結合REPORT c27b211e919b594d207626bbcc2f0bce9da5fdc51f7d5c8d6a4e28b69213685b、新P0/P1なし・private非空owner RLS対向P2は維持。PO委任によるCodex判断であり本人署名/P6blindではない。
+- **公開前検査**: 286で凍結/MC/DC関連139passed222.41秒、正式tenant CLI成功、認可CLIはoracle込み成功（1434/187/1247/191/53/12、oracle202/probe33/contract169/mutants235/cut_sets24）、backend Ruff/format675/Ty成功。root Tyはvenv未指定の環境診断を修正して正しいroot venv明示で成功。plan突合の既反映harness/README未宣言をplan1fileだけ `d8e8b34d` で補正しexit0、frozen invariantsも成功。新製品/正式値変更なし、後発docs非作者確認を依頼中。公開#197はまだe5/Draft/open、旧run42275253517は失敗終結。最終HEADの委任証拠/通常push1回/全必須CI/通常mergeはこれから。
+- **次の実作業**: PR197後発docs確認→最終証拠/公開CI、同時にP3終了接合・正式復旧入口・nonpitch独立レビュー。全一般操作/全断中操作/27成績/両CSVの正式提供・実機/負荷/運用復旧は残る。Goal active、候補の個別成功を全MVP完成へ広げない。
+
+
 ## 2026-11-07 06:52 JST：申告敬遠の画面保存を実証、PR197 sourceを固定して正式値候補を導出
 
 - **新たに通った利用者操作（候補）**: nonpitch作者r14、owned PG/HTTPS実画面1passed99.96秒。新規作成/開始→単打2球で一三塁→申告敬遠POST200/GET3→同V7/D5/attempt原本文再送で重複→次球POST200/GET4→reload。物理PlayRow41列と公開35keyを別全値照合、T5 source27/pitch_count available0・credits空/pa・bb・pitcher_bb・BF各1とfact4、runs/rbi未供給を確認。r13成功は106.06秒、r14は再送/T5のassertを追加。正式受理/非作者全候補確認/CSV接合はまだ。作者のstep commit/全SHA packet待ち。
