@@ -253,6 +253,14 @@
         "backend/tests/stage_a_0039_profile.py:immutable_stage_a_0039_profile",
         "backend/tests/test_stage_a_0039_profile.py:immutable_profile_expectation"
       ]
+    },
+    "stats_native_registry_reference_revision": {
+      "value": "b5669d3f04541cd117bb876ec4e3ca9bbe07796c",
+      "purpose": "採用済native5のregistry/owner/codec全byteを固定Git祖先へ束縛し、新import1と末尾Starred1だけを除くとPR196原典へ全byte一致する登録形に限定する。任意Starred・別領域・将来lifecycle/undo・実行資格を許可しない。",
+      "sources": [
+        "scripts/check_tenant_boundary_bypass.py:_stats_native_static_registrations",
+        "tests/test_check_tenant_boundary_bypass.py:test_registry_native_tuple_current_exact27"
+      ]
     }
   }
 }
