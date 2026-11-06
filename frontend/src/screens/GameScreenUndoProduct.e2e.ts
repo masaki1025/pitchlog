@@ -98,6 +98,7 @@ test('実画面の新規作成→開始→2球→ACK喪失/reload/同要求再�
     applied_rules: { dh: boolean }
   }
   expect(saved.status).toBe('preparing')
+  console.log('PITCHLOG_UNDO_ATTEMPT_GAME=' + saved.id)
   // 作成した試合の保存値を確認すると記録画面へ遷移する。
   await form
     .getByRole('button', {
@@ -180,7 +181,39 @@ test('実画面の新規作成→開始→2球→ACK喪失/reload/同要求再�
     await expect(pitch.locator('option')).not.toHaveCount(1)
     await pitch.selectOption({ index: 1 })
     await page.getByTestId('first-ball-course').locator('svg').click()
+    const posted = page
+      .waitForResponse(
+        (res) =>
+          res.request().method() === 'POST' &&
+          apiPath(res.url()) === `/api/games/${saved.id}/sync/events`,
+        { timeout: 10_000 },
+      )
+      .catch(() => null)
     await page.getByTestId('first-ball-save').click()
+    const response = await posted
+    console.log(
+      'PITCHLOG_UNDO_ORDINARY_HTTP=' +
+        JSON.stringify({
+          pitch: n,
+          http: response?.status() ?? null,
+          status: await page.getByTestId('first-ball-status').textContent(),
+        }),
+    )
+    expect(response).not.toBeNull()
+    expect(response!.status()).toBe(200)
+    const ack = await response!.json()
+    const a5 = ack.eventResults?.[0]?.a5Result
+    console.log(
+      'PITCHLOG_UNDO_ORDINARY_ACK=' +
+        JSON.stringify({
+          pitch: n,
+          a5: ['受理', '重複', '拒否', '退避', '未処理'].includes(a5)
+            ? a5
+            : 'unexpected',
+          d3: Number.isSafeInteger(ack.advancedD3) ? ack.advancedD3 : null,
+        }),
+    )
+    expect(a5).toBe('受理')
     await expect(page.getByTestId('restore-history')).toHaveText(`${n}件`)
   }
   let panel = page.getByTestId('undo-product-panel')

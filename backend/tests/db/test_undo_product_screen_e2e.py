@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import re
 from pathlib import Path
@@ -54,6 +55,33 @@ def test_screen_create_two_pitches_two_undo_next_pitch_reload(vertical_database)
                     "PITCHLOG_E2E_HOME_TEAM": str(teams[1]),
                 },
             )
+            if result.returncode != 0:
+                attempted = re.findall(
+                    r"PITCHLOG_UNDO_ATTEMPT_GAME=([a-f0-9-]{36})", result.stdout
+                )
+                if len(attempted) == 1:
+                    with psycopg.connect(
+                        db.authority.database.business_admin,
+                        options="-c default_transaction_read_only=on",
+                    ) as diagnostic:
+                        events = diagnostic.execute(
+                            "SELECT d1,event_kind FROM public.operation_events "
+                            "WHERE tenant_id=%s AND game_id=%s ORDER BY d1 LIMIT 10",
+                            (db.tenant_id, UUID(attempted[0])),
+                        ).fetchall()
+                        ledger = diagnostic.execute(
+                            "SELECT kind,reason,count(*) "
+                            "FROM public.idempotency_ledger WHERE tenant_id=%s "
+                            "GROUP BY kind,reason ORDER BY kind,reason",
+                            (db.tenant_id,),
+                        ).fetchall()
+                    print(
+                        "PITCHLOG_UNDO_FAILURE_DB="
+                        + json.dumps(
+                            {"events": events, "ledger_kind_reason_counts": ledger},
+                            ensure_ascii=False,
+                        )
+                    )
             assert result.returncode == 0, (
                 result.stdout[-8000:],
                 result.stderr[-3000:],
