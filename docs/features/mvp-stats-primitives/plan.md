@@ -541,3 +541,10 @@ trigger1限定委任の採用（2026-11-07、PO委任によるCodex /root判断�
 
 
 trigger1型整理後の最終束縛（2026-11-07、PO委任Codex /root）: 実backend Tyでpolicy target下付きのUnknown診断を検出したため、3944ee11でdict実型/閉key検査を保持した型束縛とpr/branch局所変数へ整理。非作者reflection3 REPORT `021420e4c5e65fd088a5837b98a36834163c11823a0c5001a2a1b9126bedc974` が意味/拒否集合不変と36対向成功を確認した。実record/reportを3944ee11のexact3 blob・JSON SHA `b066cbdad9a0e5534087b1149a038fff3be2bd680eb49dcc33b5d888b1db5b0b` へ再束縛し、root全55passed12.35秒、root Ruff/Ty・backend Ruff/format672/Ty成功。旧初回/反映1/反映2の履歴・旧本人記録は保持する。これを今回のtrigger1 source最終とし、公開CI/正式9資産/全MVPへ受理を拡張しない。
+
+
+## 2026-11-07 PR197 実CI追随の限定補足（PO委任root）
+
+対象はe5b6fef5のrun42275253517で判明した検査資産の追随漏れ。製品計算・認可・原子性・core拒否条件は変更しない。実装ステップ4/5の資産整合範囲で、MC/DCのclaim map参照digestを公式git blob演算で実値へ更新し、既成立§6-1-cの成績3表をORM受入生成へ伝播する。生成器はTable宣言をモデル実行なしのASTで捕捉し、sync_fenceの参照を検証、schema逸脱と重複表名を拒否する。既判定は語/正本/実装が完全一致し変更stats3識別子に無関係な行だけ公式carry処理で保持し、新規/変更10行を個別技術確認する。出現番号034、全件数107/129/68/108を現正本で固定する。人間確認済みを代記しない。
+
+rootの候補作成後、非作者へ前後差分・旧判定保持・3表/全列参照・対向試験を渡し、重大指摘解消後だけ採用する。関連pytest全件、Ruff/Tyと正式MC/DC CLIを実行し、最終source固定後に必要な7.7派生値だけ再導出、実CIを再確認する。この補足はPO委任の通常技術追随判断でありMVP縮小・既不変条件除外・CI失敗免除を含まない。

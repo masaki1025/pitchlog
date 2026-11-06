@@ -428,7 +428,7 @@ def test_rg1_fresh_open_invariant_is_captured_in_n3() -> None:
     ]
     assert len(fresh) == 1
     assert sentence in fresh[0].canonical
-    assert fresh[0].target == "出現 032: 不変"
+    assert fresh[0].target == "出現 034: 不変"
     assert fresh[0].implementation == (
         "rg1_restore_gate: protected=['singleton_id']; allowed=['state']; "
         "conditional=['recovery_generation']; coverage=exhaustive; "
@@ -444,10 +444,10 @@ def test_generated_row_counts_match_all_current_source_rows() -> None:
         filename: len(generator.parse_sheet_rows(expected[filename]))
         for filename in generator.SHEET_FILENAMES
     } == {
-        "N1-table-completeness.md": 106,
-        "N3-immutability-completeness.md": 127,
-        "N4-deletion-lifecycle.md": 65,
-        "N7-required-attributes.md": 105,
+        "N1-table-completeness.md": 107,
+        "N3-immutability-completeness.md": 129,
+        "N4-deletion-lifecycle.md": 68,
+        "N7-required-attributes.md": 108,
     }
 
 
@@ -536,3 +536,44 @@ def test_n4_supplement_requires_exact_source_target_lifecycle_and_real_column() 
         assert len(rows) == 9
         assert all("条件付き補助参照" not in row.implementation for row in rows)
         assert all(row.judgment == row.rationale == "" for row in rows)
+
+
+def test_stats_table_declarations_have_actual_model_and_private_schema():
+    """Table宣言の成績3表を実module/private schemaに束縛する。"""
+    sources = generator._model_sources(REPO_ROOT)
+    tables = {"stats_fact_versions", "stats_primitive_sources", "stats_primitive_facts"}
+    for table in tables:
+        assert sources[table] == "backend/src/pitchlog/db/game_state/stats.py"
+    rendered = generator.render_sheets(REPO_ROOT)["N7-required-attributes.md"]
+    for table in tables:
+        assert f"models=backend/src/pitchlog/db/game_state/stats.py::{table}" in rendered
+        assert f"(sync_fence.{table})" in rendered
+        assert f"(public.{table})" not in rendered
+
+
+def test_stats_model_reference_is_static_and_rejects_schema_drift(tmp_path):
+    """モデルを実行せずASTのみで発見しschema不一致を通さない。"""
+    directory = tmp_path / "backend/src/pitchlog/db/game_state"
+    directory.mkdir(parents=True)
+    model = directory / "stats.py"
+    source = (
+        'raise RuntimeError("モデルを実行してはいけない")\n'
+        '_SCHEMA = "sync_fence"\n'
+        'class Sample:\n'
+        '    __table__ = Table("sample", metadata, schema=_SCHEMA)\n'
+    )
+    model.write_text(source)
+    assert generator._model_sources(tmp_path) == {
+        "sample": "backend/src/pitchlog/db/game_state/stats.py"
+    }
+    for changed in (
+        source.replace('"sync_fence"', '"public"'),
+        source.replace('schema=_SCHEMA', 'schema="public"'),
+    ):
+        model.write_text(changed)
+        try:
+            generator._model_sources(tmp_path)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("schema変更を見逃した")
