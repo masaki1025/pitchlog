@@ -114,12 +114,7 @@ test('実画面の新規作成→開始→投手交代→次球→再取得', as
   )
   await page.getByRole('button', { name: '試合を開始', exact: true }).click()
   expect((await started).status()).toBe(200)
-  await page
-    .getByRole('button', {
-      name: '三振・攻守交代を含む投球の記録へ',
-      exact: true,
-    })
-    .click()
+  await expect(page).toHaveURL(/\/record\?recording=play-prefix-v3/)
   await expect(page.getByTestId('ordinary-state-source')).toHaveText(
     'サーバー確認済みの状態',
   )
