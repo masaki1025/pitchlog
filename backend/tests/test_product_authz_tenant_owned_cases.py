@@ -601,6 +601,12 @@ def test_index_catalog_lookup_binds_schema_and_preserves_five_values(
             "ordinary_pitch_history",
             "ordinary_pitch_history_tenant_id_game_id_internal_generatio_key",
         ),
+        ("stats_fact_versions", "stats_fact_versions_tenant_id_id_key"),
+        ("stats_fact_versions", "uq_stats_current_game_model"),
+        (
+            "stats_primitive_sources",
+            "stats_primitive_sources_tenant_id_game_id_fact_version_id_r_key",
+        ),
     ),
 )
 @pytest.mark.parametrize("field", ("columns", "source_row", "roles", "predicate"))

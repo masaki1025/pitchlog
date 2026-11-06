@@ -44,7 +44,6 @@ from pitchlog.authz.product_provisioning import (
 )
 from pitchlog.authz.provisioning import ProvisioningResult, apply_authz_ddl
 from pitchlog.db import stage_a_startup
-from pitchlog.db.stage_a_startup import advance_stage_a_from_s0
 
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 _BACKEND_ROOT = _REPOSITORY_ROOT / "backend"
@@ -2203,20 +2202,23 @@ def migration_only_product_catalog(
 
 
 def _advance_historical_product_catalog(catalog: ProvisionedProductCatalog) -> None:
-    """歴史往復を終えた実0033だけを正規S3へ進め、全catalogを照合する。"""
+    """歴史往復を終えた実0033だけをcurrent0041へ進め、全catalogを照合する。"""
     catalog.observer.rollback()
     catalog.applicator.rollback()
     assert catalog.applicator.execute(
         "SELECT version_num FROM public.alembic_version"
     ).fetchall() == [("0033_game_rules_immutable",)]
     catalog.applicator.rollback()
-    result = advance_stage_a_from_s0(
+    from pitchlog.db.current_product_startup import advance_current_product_from_s0
+
+    result = advance_current_product_from_s0(
         owner_dsn=catalog.owner_dsn,
         applicator_dsn=make_conninfo(
             catalog.cluster.admin_dsn, dbname=catalog.applicator.info.dbname
         ),
     )
-    assert result.completed_stage == "S3" and result.publishable is False
+    assert result.completed_revision == "0041_stats_fact_versions"
+    assert result.publishable is False
     role_oid = catalog.applicator.execute(
         "SELECT oid FROM pg_catalog.pg_roles WHERE rolname=session_user"
     ).fetchone()

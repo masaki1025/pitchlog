@@ -55,7 +55,7 @@ def _install_product_business(dsn: str) -> None:
     from alembic import command
     from alembic.config import Config
 
-    from pitchlog.db.stage_a_startup import advance_stage_a_from_s0
+    from pitchlog.db.current_product_startup import advance_current_product_from_s0
 
     with psycopg.connect(dsn, autocommit=True) as connection:
         connection.execute(
@@ -92,12 +92,13 @@ def _install_product_business(dsn: str) -> None:
             connection.commit()
     finally:
         engine.dispose()
-    result = advance_stage_a_from_s0(owner_dsn=owner_dsn, applicator_dsn=dsn)
-    assert result.completed_stage == "S3" and result.publishable is False
+    result = advance_current_product_from_s0(owner_dsn=owner_dsn, applicator_dsn=dsn)
+    assert result.completed_revision == "0041_stats_fact_versions"
+    assert result.publishable is False
     with psycopg.connect(dsn) as connection:
         assert connection.execute(
             "SELECT version_num FROM public.alembic_version"
-        ).fetchall() == [("0039_ordinary_pitch_storage",)]
+        ).fetchall() == [("0041_stats_fact_versions",)]
         assert connection.execute(
             "SELECT p.proowner::regrole::text,p.prosecdef "
             "FROM pg_catalog.pg_proc p WHERE p.oid = "

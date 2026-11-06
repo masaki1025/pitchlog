@@ -548,3 +548,23 @@ trigger1型整理後の最終束縛（2026-11-07、PO委任Codex /root）: 実ba
 対象はe5b6fef5のrun42275253517で判明した検査資産の追随漏れ。製品計算・認可・原子性・core拒否条件は変更しない。実装ステップ4/5の資産整合範囲で、MC/DCのclaim map参照digestを公式git blob演算で実値へ更新し、既成立§6-1-cの成績3表をORM受入生成へ伝播する。生成器はTable宣言をモデル実行なしのASTで捕捉し、sync_fenceの参照を検証、schema逸脱と重複表名を拒否する。既判定は語/正本/実装が完全一致し変更stats3識別子に無関係な行だけ公式carry処理で保持し、同版重複keyの出現数が変わる群は全判定を失効させ、履歴4行を含む新規/変更12行を個別技術確認する。出現番号034、全件数107/129/68/108を現正本で固定する。人間確認済みを代記しない。
 
 rootの候補作成後、非作者へ前後差分・旧判定保持・3表/全列参照・対向試験を渡し、重大指摘解消後だけ採用する。関連pytest全件、Ruff/Tyと正式MC/DC CLIを実行し、最終source固定後に必要な7.7派生値だけ再導出、実CIを再確認する。この補足はPO委任の通常技術追随判断でありMVP縮小・既不変条件除外・CI失敗免除を含まない。
+
+
+## 2026-11-07 backend実CIの技術追随（PO委任root・ステップ4/5）
+
+現在の耐久記録権の業務fixtureは0039専用の意味試験ではなく実業務providerを検証するため、current0041の正規起動と全schema認可照合を利用する。0039の固定31件・旧round-tripの物理範囲は別に保持する。歴史metadataでは0041の新private3表だけをcopyから除き、0040以前の全既存列・制約・索引を保存、current0041では3表を含む全Baseを使用する。部分的な3表の欠落は拒否し、FK参照モデルは正式all_modelsで明示登録する。業務scope/ACL/耐久性を緩めない。
+
+R-9の型境界検査が、採用済D05の分母0未定義値と旧移行フィールドのセンチネル変換を混同していた。検査の限定例外は、現生成物の `_ratio_add` 1件と `_rate_result` 3件だけ（module path＋関数全AST SHA256完全一致）。全fileやstats目录を除外しない。既登録D1/T5生成物・モデル・率の出力・独立goldenは変えない。同fileの新parser、別path、関数名/本文変更、実フィールド0→NULLは従前どおり拒否する。この技術具体化は既POのD05とハーネス限定緩和許可に基づくroot判断であり、例外手続き自体を非作者レビューへ渡し、未解消P0/P1があれば採用しない。将来の計算変更は既指紋から外れ、再確認なしに自動許容しない。
+
+関連pure検査は全103件を確認し、業務DBはowned隔離環境だけを使う。共有DB/運用公開は行わない。正式資産の再導出・受理・最終CIはsource固定後に行い、成功を先取りしない。
+
+
+### 現行fixture追随の固定範囲（2026-11-07 06:10 JST、PO委任root）
+
+実CIの同一根因を閉じるため、step4/5の検査追随に `backend/tests/db_fixtures.py`、`backend/tests/db/test_alembic_migrations.py`、`backend/tests/db/test_schema_audit.py`、`backend/tests/db/test_stage_a_writer_storage.py` と同義型の純負例 `backend/tests/test_schema_audit_normalized_types.py` を追加する。業務用fixtureは正式current0041で起動し、旧0033往復と0037〜39の歴史検査は保持する。現行installerの故障取消/再開先は0041、旧private物理配置の確認も残す。schema監査は成績3表の既正式business unique3件を全fieldで追加し、37→40とする。全スキーマの型比較は既同義語正準化を期待/実catalogの両側へ対称適用し、timezone/精度変更を拒否する。metadata比較は正式migrations/env.pyと同じpublic/sync_fenceに限定して全モデルを比較し、public epoch列とprivate stats列の欠落をそれぞれ実PGで検出してrollback復元する。別schemaの任意取込や不明revisionの許容はしない。
+
+検証は純106件成功、owned r2の現行再開/installer故障全取消/0040索引3件成功、r3の全schema/旧team往復2件成功、r4のpublic/private欠落検出2件成功（各source前後同一/cleanup/共有DSN未使用）。r1 bootstrap失敗・r2型表記差・r3 public-only比較失敗の履歴はcacheへ保持する。非作者最終確認・全CI・正式派生資産受理は別条件であり、本人による確認やP6blind成立を代記しない。
+
+反映7周目の対向追補: 非作者が指摘した新stats3 uniqueの負例被覆不足を閉じる。`backend/tests/test_product_authz_tenant_owned_cases.py` の旧6件を残し、新3件それぞれで columns/source_row/roles/predicate の改変を拒否する全36対向へ拡張する。旧行数/対象外集合の全一致も維持する。
+
+反映8周目: 非作者P1のprivate許可表間移設反例を修復。9制約の名称→所属tableを独立literalで固定し、row全fieldに加えて対応も完全一致を要求する。新旧9件それぞれを他の許可表4つへ移す全36負例を追加する。元05bbeの失敗反例はcacheへ保持し、修復版の再レビュー前に採用しない。
