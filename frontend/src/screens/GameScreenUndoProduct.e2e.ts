@@ -208,6 +208,21 @@ test('実画面の新規作成→開始→2球→ACK喪失/reload/同要求再�
           status: await page.getByTestId('first-ball-status').textContent(),
         }),
     )
+    if (response === null) {
+      // 元の10秒条件は失敗のまま保持し、遅延応答の有無だけ追加観測する。
+      const late = await page
+        .waitForResponse(
+          (res) =>
+            res.request().method() === 'POST' &&
+            apiPath(res.url()) === `/api/games/${saved.id}/sync/events`,
+          { timeout: 30_000 },
+        )
+        .catch(() => null)
+      console.log(
+        'PITCHLOG_UNDO_LATE_HTTP=' +
+          JSON.stringify({ pitch: n, http: late?.status() ?? null }),
+      )
+    }
     expect(response).not.toBeNull()
     expect(response!.status()).toBe(200)
     const ack = await response!.json()
