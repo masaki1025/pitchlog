@@ -38,3 +38,12 @@ step3の実画面E2E追加（2026-11-06、PO委任Codex/root判断）: GameScree
 
 
 合成実画面r1: 同版94baでUI新規作成→開始→1球保存は通過、終了POST404で停止。同期C2登録へLC transportのPOSTだけtenantBoundが追随せず期待tenant/challengeを送っていないと特定。GET/通常球/取消と同じtenantBound:trueをLC POSTへ加え、原body/attempt不変を既API spec完全一致期待でも固定する。API-only候補成功を画面完走へ広げない。
+
+
+### ステップ4・正式統合前の基線接合（2026-11-07、PO委任Codex主担当/root判断）
+
+既実画面結合候補60f39f1042e18d2bfe3bf882dd24dc3caccda0aeを不変更で保全し、root専有の新WT/枝feature/mvp-nonplay-formal-connectionで、PR197最終候補d8e8b34d8a5f12665530226ec0f539804c06791cのCI修復を通常mergeする。PR197はまだ公開CI中であり、ここで正式developの統合済みとは記録しない。公開197のbranch/HEADは変更しない。
+
+既step4の正式資産/独立確認/CI/通常統合準備の具体化に限り、repo/runtime候補原本・生成module、DB fixtureとnative登録試験の6競合をrootが直列解決する。既製品の認可・記録権・原子性・単一核と旧拒否対向を保持する。生成物は片側の完全byte選択または公式rendererから再導出し、手で生成moduleの値を作らない。旧候補payloadに残る未受理履歴を正式197受理へ読み替えず、次段の対象source固定と正式base確定後、公式helperで必要差分の完全前後値を導出し別非作者確認・委任受理を行う。
+
+この段階では申告敬遠/CSV/P3/復旧の後発実装を一括移植しない。各専用枝/証拠/編集所有を保持し、現在候補の開始・通常入力・取消・交代・終了再開の供給を197修復で失わないことを局所検査する。rootの統合準備をMVP完成や正式提供としない。
