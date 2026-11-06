@@ -1097,3 +1097,43 @@ it.each(['nonplay-prefix-calculation-v1', 'unknown-inner-v1'])(
     expect(await slots()).toBe(1)
   },
 )
+
+it('0件の真正v3 seedから初球送信失敗後も2球目を耐久appendし原要求だけを再送する', async () => {
+  const seed = structuredClone(lineupFixture.value)
+  if (
+    !isLineupPrefixGame(seed) ||
+    seed.prefix_ref.length !== '0' ||
+    seed.next_position.d1 !== '1'
+  )
+    throw new Error('0件の読取seedではありません')
+  const post = vi
+    .spyOn(transport, 'postSyncEvents')
+    .mockResolvedValue({ sent: false, reason: 'no-response' })
+  const c = await lineupController()
+  expect(await c.inspect()).toBe('ready')
+  const pitch = {
+    ...observation,
+    resultId: 'batting-result.called-pitch' as const,
+  }
+  expect(await c.submit(pitch, vocabulary)).toBe('pending')
+  const first = post.mock.calls[0]![0]
+  const original = transport.buildSyncEventRequestBody(first)
+  expect(await c.submit(pitch, vocabulary)).toBe('pending')
+  expect(post).toHaveBeenCalledOnce()
+  expect(await slots()).toBe(2)
+  expect(c.context.source).toBe('local-provisional')
+  expect(c.context.prefixRef.length).toBe('2')
+  expect(c.context.nextPosition.d1).toBe('3')
+  c.dispose()
+  const restored = await lineupController()
+  expect(await restored.inspect()).toBe('pending')
+  expect(restored.context.prefixRef.length).toBe('2')
+  expect(await restored.retry()).toBe('pending')
+  expect(transport.buildSyncEventRequestBody(post.mock.calls[1]![0])).toEqual(
+    original,
+  )
+  expect(post.mock.calls[1]![0].syncCredentials?.attempt).toBe(
+    first.syncCredentials?.attempt,
+  )
+  expect(post.mock.calls[1]![0].slots[0]!.d5).toBe(first.slots[0]!.d5)
+})
