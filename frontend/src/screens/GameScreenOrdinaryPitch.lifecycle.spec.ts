@@ -14,6 +14,10 @@ import { ordinaryContextFromRead } from '../api/recordedPrefixGame'
 import * as options from '../api/pitchTypeOptions'
 import * as transport from '../api/client.syncEvents'
 import { GameStartPersistence } from '../lib/gameStartPersistence'
+import { openDurableQueue } from '../lib/sync/durableQueue'
+import * as localSessions from '../lib/localRecordingSession'
+import * as localPermissions from '../lib/localRecordingPermissionPersistence'
+import type { LocalRecordingSession } from '../lib/localRecordingSession'
 import { GameScreenOrdinaryPitchController } from './GameScreenOrdinaryPitchController'
 import GameScreenOrdinaryPitch from './GameScreenOrdinaryPitch.vue'
 import StrikeZone from '../components/zone/StrikeZone.vue'
@@ -453,13 +457,317 @@ it('単打の画面は全観測を確認するまで送信せず、同じControl
       v7.calculation.response.value.t1.after.stateFields['state.runners'],
     ).toBe('first')
     expect(w.get('[data-testid="lineup-local-state"]').text()).toContain('2番')
-    expect(w.find('[data-testid="batted-hit-observation"]').exists()).toBe(
+    expect(w.find('[data-testid="batted-hit-observation"]').exists()).toBe(true)
+    expect(w.find('[data-testid="batted-runner-1-destination"]').exists()).toBe(
       true,
     )
-    expect(
-      w.find('[data-testid="batted-runner-1-destination"]').exists(),
-    ).toBe(true)
   } finally {
     w.unmount()
+  }
+})
+
+it('local画面は保存ページだけを使いHTTPS6条件後に未送信E0を表示しsavedを出さない', async () => {
+  const source = structuredClone(lineupFixture.value)
+  if (!isLineupPrefixGame(source)) throw new Error('構造fixture不正')
+  const page = {
+    items: [{ key: 'tenant.pitch.straight', display_name: '保存済み直球' }],
+    next_cursor: null,
+  }
+  const session = {
+    current: true,
+    gameId: source.id,
+    identity: () => ({ tenantId: tenant, epoch: 77, verified: false }),
+    page: (cursor: string | null) => {
+      if (cursor !== null) throw new Error('未保存ページ')
+      return structuredClone(page)
+    },
+    withinAcceptance: async <T>(_held: unknown, operation: () => Promise<T>) =>
+      operation(),
+  } as unknown as LocalRecordingSession
+  vi.spyOn(localSessions, 'isLocalRecordingSession').mockImplementation(
+    (value) => value === session,
+  )
+  const getPage = vi.mocked(options.readPitchTypeOptions)
+  const post = vi.spyOn(transport, 'postSyncEvents')
+  const wrapper = mount(GameScreenOrdinaryPitch, {
+    props: {
+      context: await lineupContextFromRead(source, tenant),
+      localSession: session,
+    },
+    global: { plugins: [pinia] },
+  })
+  try {
+    for (const name of ['profile', 'mode', 'bucket', 'lockdown'])
+      await wrapper.get(`[data-testid="first-ball-env-${name}"]`).setValue(true)
+    await vi.waitFor(() =>
+      expect(
+        wrapper.find('[data-testid="first-ball-pitch-type"]').exists(),
+      ).toBe(true),
+    )
+    expect(
+      wrapper.get('[data-testid="ordinary-local-notice"]').text(),
+    ).toContain('未送信')
+    expect(
+      wrapper
+        .get('[data-testid="ordinary-pitch-result"]')
+        .findAll('option')
+        .map((x) => x.attributes('value')),
+    ).not.toContain('batting-result.single')
+    expect(wrapper.text()).toContain('保存済み直球')
+    expect(getPage).not.toHaveBeenCalled()
+    await wrapper
+      .get('[data-testid="first-ball-pitch-type"]')
+      .setValue('tenant.pitch.straight')
+    wrapper.getComponent(StrikeZone).vm.$emit('tap', 131.5, 124)
+    await flushPromises()
+    await wrapper.get('[data-testid="first-ball-save"]').trigger('click')
+    await vi.waitFor(() =>
+      expect(wrapper.get('[data-testid="first-ball-status"]').text()).toContain(
+        '未送信キュー',
+      ),
+    )
+    expect(post).not.toHaveBeenCalled()
+    expect(wrapper.emitted('saved')).toBeUndefined()
+    const queue = await openDurableQueue({
+      databaseName: 'pitchlog-first-ball-queue-' + tenant,
+    })
+    try {
+      expect(await queue.countSlots()).toBe(1)
+    } finally {
+      queue.close()
+    }
+  } finally {
+    wrapper.unmount()
+  }
+})
+
+it('localSessionのruntime brandが不正ならonline認証済み状態へ落とさない', async () => {
+  const source = structuredClone(lineupFixture.value)
+  if (!isLineupPrefixGame(source)) throw new Error('構造fixture不正')
+  const getPage = vi.mocked(options.readPitchTypeOptions)
+  const post = vi.spyOn(transport, 'postSyncEvents')
+  const wrapper = mount(GameScreenOrdinaryPitch, {
+    props: {
+      context: await lineupContextFromRead(source, tenant),
+      localSession: { current: true } as unknown as LocalRecordingSession,
+    },
+    global: { plugins: [pinia] },
+  })
+  try {
+    for (const name of ['profile', 'mode', 'bucket', 'lockdown'])
+      await wrapper.get(`[data-testid="first-ball-env-${name}"]`).setValue(true)
+    await flushPromises()
+    expect(wrapper.find('[data-testid="first-ball-save"]').exists()).toBe(false)
+    expect(getPage).not.toHaveBeenCalled()
+    expect(post).not.toHaveBeenCalled()
+  } finally {
+    wrapper.unmount()
+  }
+})
+
+it('通常v3の実語彙ページは同game/D4/cursor/epochで端末へcaptureする', async () => {
+  const source = structuredClone(lineupFixture.value)
+  if (!isLineupPrefixGame(source)) throw new Error('構造fixture不正')
+  const capture = vi
+    .spyOn(localPermissions, 'captureLocalPitchPage')
+    .mockResolvedValue(undefined)
+  const wrapper = mount(GameScreenOrdinaryPitch, {
+    props: { context: await lineupContextFromRead(source, tenant) },
+    global: { plugins: [pinia] },
+  })
+  try {
+    await vi.waitFor(() => expect(capture).toHaveBeenCalledOnce())
+    expect(capture).toHaveBeenCalledWith(
+      source.id,
+      source.current_d4,
+      null,
+      {
+        items: [{ key: 'tenant.pitch.straight', display_name: '直球' }],
+        next_cursor: null,
+      },
+      useAuthStore().authEpoch,
+    )
+  } finally {
+    wrapper.unmount()
+  }
+})
+
+it('online復帰後は確認済み条件の後だけ先頭同attemptを1回再送してsavedを通知する', async () => {
+  const post = vi
+    .spyOn(transport, 'postSyncEvents')
+    .mockResolvedValueOnce({ sent: false, reason: 'no-response' })
+    .mockImplementation(async (request) => {
+      const body = transport.buildSyncEventRequestBody(request)
+      if (!('events' in body)) throw new Error('単体要求不正')
+      const slot = request.slots[0]!
+      return {
+        sent: true,
+        requestBody: body,
+        response: {
+          advancedD3: slot.d1,
+          eventResults: [
+            { d4: slot.d4, d1: slot.d1, d5: slot.d5, a5Result: '受理' },
+          ],
+        },
+      }
+    })
+  const first = mount(GameScreenOrdinaryPitch, {
+    props: { context: reactive(context()) },
+    global: { plugins: [pinia] },
+  })
+  try {
+    await vi.waitFor(() =>
+      expect(first.find('[data-testid="first-ball-save"]').exists()).toBe(true),
+    )
+    for (const name of ['profile', 'mode', 'bucket', 'lockdown'])
+      await first.get(`[data-testid="first-ball-env-${name}"]`).setValue(true)
+    await first
+      .get('[data-testid="first-ball-pitch-type"]')
+      .setValue('tenant.pitch.straight')
+    first.getComponent(StrikeZone).vm.$emit('tap', 131.5, 124)
+    await flushPromises()
+    await first.get('[data-testid="first-ball-save"]').trigger('click')
+    await vi.waitFor(() => expect(post).toHaveBeenCalledTimes(1))
+    expect(first.emitted('saved')).toBeUndefined()
+  } finally {
+    first.unmount()
+  }
+  const resumed = mount(GameScreenOrdinaryPitch, {
+    props: { context: reactive(context()) },
+    global: { plugins: [pinia] },
+  })
+  try {
+    await vi.waitFor(() =>
+      expect(
+        resumed.find('[data-testid="first-ball-env-profile"]').exists(),
+      ).toBe(true),
+    )
+    expect(post).toHaveBeenCalledTimes(1)
+    for (const name of ['profile', 'mode', 'bucket', 'lockdown'])
+      await resumed.get(`[data-testid="first-ball-env-${name}"]`).setValue(true)
+    await vi.waitFor(() => expect(resumed.emitted('saved')).toHaveLength(1))
+    expect(post).toHaveBeenCalledTimes(2)
+    expect(post.mock.calls[1]![0].syncCredentials?.attempt).toBe(
+      post.mock.calls[0]![0].syncCredentials?.attempt,
+    )
+    expect(transport.buildSyncEventRequestBody(post.mock.calls[1]![0])).toEqual(
+      transport.buildSyncEventRequestBody(post.mock.calls[0]![0]),
+    )
+    await resumed.setProps({ context: structuredClone(context()) })
+    await flushPromises()
+    expect(post).toHaveBeenCalledTimes(2)
+  } finally {
+    resumed.unmount()
+  }
+})
+
+it('同mountのGET停止中は入力/再送/語彙採用を閉じ、解除後に最古の同本文を一回再送する', async () => {
+  const post = vi
+    .spyOn(transport, 'postSyncEvents')
+    .mockResolvedValueOnce({ sent: false, reason: 'no-response' })
+    .mockImplementation(async (request) => {
+      const body = transport.buildSyncEventRequestBody(request)
+      if (!('events' in body)) throw new Error('単体要求不正')
+      const slot = request.slots[0]!
+      return {
+        sent: true,
+        requestBody: body,
+        response: {
+          advancedD3: slot.d1,
+          eventResults: [
+            { d4: slot.d4, d1: slot.d1, d5: slot.d5, a5Result: '受理' },
+          ],
+        },
+      }
+    })
+  const wrapper = mount(GameScreenOrdinaryPitch, {
+    props: { context: reactive(context()) },
+    global: { plugins: [pinia] },
+  })
+  try {
+    await vi.waitFor(() =>
+      expect(wrapper.find('[data-testid="first-ball-save"]').exists()).toBe(
+        true,
+      ),
+    )
+    for (const name of ['profile', 'mode', 'bucket', 'lockdown'])
+      await wrapper.get(`[data-testid="first-ball-env-${name}"]`).setValue(true)
+    await wrapper
+      .get('[data-testid="first-ball-pitch-type"]')
+      .setValue('tenant.pitch.straight')
+    wrapper.getComponent(StrikeZone).vm.$emit('tap', 131.5, 124)
+    await flushPromises()
+    await wrapper.get('[data-testid="first-ball-save"]').trigger('click')
+    await vi.waitFor(() => expect(post).toHaveBeenCalledTimes(1))
+    await wrapper.setProps({ suspended: true })
+    await flushPromises()
+    expect(wrapper.find('[data-testid="first-ball-save"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="first-ball-retry"]').exists()).toBe(
+      false,
+    )
+    expect(wrapper.get('[data-testid="first-ball-status"]').text()).toContain(
+      '一時停止',
+    )
+    expect(post).toHaveBeenCalledTimes(1)
+    await wrapper.setProps({ suspended: false })
+    await vi.waitFor(() => expect(wrapper.emitted('saved')).toHaveLength(1))
+    expect(post).toHaveBeenCalledTimes(2)
+    expect(post.mock.calls[1]![0].syncCredentials?.attempt).toBe(
+      post.mock.calls[0]![0].syncCredentials?.attempt,
+    )
+    expect(transport.buildSyncEventRequestBody(post.mock.calls[1]![0])).toEqual(
+      transport.buildSyncEventRequestBody(post.mock.calls[0]![0]),
+    )
+  } finally {
+    wrapper.unmount()
+  }
+})
+
+it('同値contextのsuspended往復では球種・結果・course観測を消さない', async () => {
+  const post = vi.spyOn(transport, 'postSyncEvents')
+  const wrapper = mount(GameScreenOrdinaryPitch, {
+    props: { context: reactive(context()) },
+    global: { plugins: [pinia] },
+  })
+  try {
+    await vi.waitFor(() =>
+      expect(wrapper.find('[data-testid="first-ball-save"]').exists()).toBe(
+        true,
+      ),
+    )
+    for (const name of ['profile', 'mode', 'bucket', 'lockdown'])
+      await wrapper.get(`[data-testid="first-ball-env-${name}"]`).setValue(true)
+    await wrapper
+      .get('[data-testid="ordinary-pitch-result"]')
+      .setValue('batting-result.called-pitch')
+    await wrapper
+      .get('[data-testid="first-ball-pitch-type"]')
+      .setValue('tenant.pitch.straight')
+    wrapper.getComponent(StrikeZone).vm.$emit('tap', 131.5, 124)
+    await flushPromises()
+    expect(
+      wrapper.get('[data-testid="first-ball-save"]').attributes('disabled'),
+    ).toBeUndefined()
+    await wrapper.setProps({ suspended: true })
+    await wrapper.setProps({ context: structuredClone(context()) })
+    expect(wrapper.find('[data-testid="first-ball-save"]').exists()).toBe(false)
+    await wrapper.setProps({ suspended: false })
+    await vi.waitFor(() =>
+      expect(wrapper.find('[data-testid="first-ball-save"]').exists()).toBe(
+        true,
+      ),
+    )
+    expect(
+      wrapper.get('[data-testid="ordinary-pitch-result"]').element,
+    ).toHaveProperty('value', 'batting-result.called-pitch')
+    expect(
+      wrapper.get('[data-testid="first-ball-pitch-type"]').element,
+    ).toHaveProperty('value', 'tenant.pitch.straight')
+    expect(
+      wrapper.get('[data-testid="first-ball-save"]').attributes('disabled'),
+    ).toBeUndefined()
+    expect(post).not.toHaveBeenCalled()
+  } finally {
+    wrapper.unmount()
   }
 })

@@ -1,6 +1,11 @@
 import { getActivePinia } from 'pinia'
-import { watch } from 'vue'
-import { createRouter, createWebHistory, type RouterHistory } from 'vue-router'
+import { shallowRef, watch, type ShallowRef } from 'vue'
+import {
+  createRouter,
+  createWebHistory,
+  type RouterHistory,
+  type Router,
+} from 'vue-router'
 import { ensureSessionVerified } from './api/auth'
 import { pinia } from './appProviders'
 import StrikeZoneCompareHost from './components/zone/StrikeZoneCompareHost.vue'
@@ -8,13 +13,47 @@ import HelpScreen from './screens/HelpScreen.vue'
 import LoginScreen from './screens/LoginScreen.vue'
 import TeamScreen from './screens/TeamScreen.vue'
 import GameScreenEntryHost from './screens/GameScreenEntryHost.vue'
-import GameScreenEntryRecordHost from './screens/GameScreenEntryRecordHost.vue'
 import GameStatsScreen from './screens/GameStatsScreen.vue'
 import SeasonStats from './screens/SeasonStats.vue'
+import GameScreenRecordModeHost from './screens/GameScreenRecordModeHost.vue'
+import {
+  LocalRecordingSession,
+  isLocalRecordingSession,
+  recordingBackendReachability,
+} from './lib/localRecordingSession'
 import { resolveGameEntryReturnPath } from './screens/GameScreenEntryNavigation'
 import { useAuthStore } from './stores/authStore'
 
+type LocalEntry = { path: string; session: LocalRecordingSession }
+const localGates = new WeakMap<
+  Router,
+  { entry: ShallowRef<LocalEntry | null>; transitioning: ShallowRef<boolean> }
+>()
+
+/** routerが実際に受け入れた同じ記録入口だけの表示資格。HTTP認証とは別。 */
+export function currentLocalRecordingSession(
+  router: Router,
+): LocalRecordingSession | null {
+  const entry = localGates.get(router)?.entry.value
+  return entry &&
+    router.currentRoute.value.name === 'game-record' &&
+    entry.path === router.currentRoute.value.fullPath &&
+    isLocalRecordingSession(entry.session) &&
+    entry.session.current
+    ? entry.session
+    : null
+}
+/** 同じ端末内記録から再接続中は保護内容を隠してguardの結論を待つ。 */
+export function localRecordingTransition(router: Router): boolean {
+  return (
+    router.currentRoute.value.name === 'game-record' &&
+    localGates.get(router)?.transitioning.value === true
+  )
+}
+
 export function createAppRouter(history: RouterHistory = createWebHistory()) {
+  const localEntry = shallowRef<LocalEntry | null>(null)
+  const transitioning = shallowRef(false)
   const router = createRouter({
     history,
     routes: [
@@ -40,7 +79,13 @@ export function createAppRouter(history: RouterHistory = createWebHistory()) {
       {
         path: '/games/:gameId/record',
         name: 'game-record',
-        component: GameScreenEntryRecordHost,
+        component: GameScreenRecordModeHost,
+        props: (route) => ({
+          localSession:
+            localEntry.value?.path === route.fullPath
+              ? localEntry.value.session
+              : undefined,
+        }),
         meta: { requiresAuth: true },
       },
       {
@@ -57,7 +102,21 @@ export function createAppRouter(history: RouterHistory = createWebHistory()) {
       },
     ],
   })
+  localGates.set(router, { entry: localEntry, transitioning })
+  router.afterEach(() => {
+    transitioning.value = false
+  })
+  router.onError(() => {
+    transitioning.value = false
+  })
   router.beforeEach(async (to) => {
+    const previous = localEntry.value
+    transitioning.value =
+      previous !== null &&
+      previous.session.current &&
+      router.currentRoute.value.name === 'game-record'
+    previous?.session.dispose()
+    localEntry.value = null
     if (to.meta.requiresAuth !== true) return true
     const loginRoute = {
       name: 'login',
@@ -81,6 +140,24 @@ export function createAppRouter(history: RouterHistory = createWebHistory()) {
     }
     try {
       if (getActivePinia() !== pinia) return loginRoute
+      // HTTP認証を成功扱いにせず、真正保存原本のある記録入口だけを端末内へ戻す。
+      if (to.name === 'game-record' && typeof to.params.gameId === 'string') {
+        const saved = await LocalRecordingSession.restore(
+          to.params.gameId,
+        ).catch(() => null)
+        if (saved) {
+          const reachability = await recordingBackendReachability()
+          if (
+            reachability === 'unavailable' &&
+            saved.current &&
+            getActivePinia() === pinia
+          ) {
+            localEntry.value = { path: to.fullPath, session: saved }
+            return true
+          }
+          saved.dispose()
+        }
+      }
       const result = await ensureSessionVerified()
       auth.syncFromStorage()
       if (

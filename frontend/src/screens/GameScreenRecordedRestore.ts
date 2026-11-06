@@ -23,6 +23,7 @@ import {
   saveLineupOfflineSeed,
 } from '../lib/lineupOfflineSeedPersistence'
 import { useAuthStore } from '../stores/authStore'
+import { captureLocalRecordingSource } from '../lib/localRecordingPermissionPersistence'
 import { lineupContextFromRead } from './GameScreenOrdinaryPitchProvider'
 
 export type RecordingGameRead =
@@ -140,10 +141,21 @@ export function useRecordedRestore(
             }
             if (request !== sequence || auth.authEpoch !== epoch) return
           }
+          let offlinePreparation = ''
+          // 閲覧GET自体を偽装せず、実受領済み開始の記録端末だけを準備する。
+          if (await receivedStartExists(id)) {
+            try {
+              await captureLocalRecordingSource(read.game, epoch)
+            } catch {
+              offlinePreparation =
+                ' 断中再起動の入力準備は未完了です。オンラインで再取得してください。'
+            }
+          }
+          if (request !== sequence || auth.authEpoch !== epoch) return
           confirmedEpoch = epoch
           game.value = read.game
           status.value = 'ready'
-          message.value = `サーバーの記録を取得しました。最終保存: ${read.game.last_saved_at}`
+          message.value = `サーバーの記録を取得しました。最終保存: ${read.game.last_saved_at}${offlinePreparation}`
         } else {
           game.value = null
           status.value = read.kind === 'not-found' ? 'not-found' : 'unavailable'

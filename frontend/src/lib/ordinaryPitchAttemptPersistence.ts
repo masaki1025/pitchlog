@@ -15,8 +15,16 @@ export type OrdinaryAttemptKey = Readonly<{
 }>
 export type OrdinaryAttemptInput = OrdinaryAttemptKey &
   Readonly<{ events: readonly unknown[] }>
+export type LocalPreparedOrigin = Readonly<{
+  kind: 'local-prepared-envelope-v1'
+  envelopeSha256: string
+}>
 export type StoredOrdinaryAttempt = OrdinaryAttemptKey &
-  Readonly<{ attemptId: string; requestJson: string }>
+  Readonly<{
+    attemptId: string
+    requestJson: string
+    localOrigin?: LocalPreparedOrigin
+  }>
 /** 原要求/資格/DOMエラーを外へ持ち出さない。 */
 export class OrdinaryAttemptPersistenceError extends Error {
   constructor() {
@@ -51,14 +59,28 @@ function readStored(
   if (!value || typeof value !== 'object' || Array.isArray(value))
     return invalid()
   const row = value as Record<string, unknown>
+  const names = Object.keys(row).sort().join(',')
+  const local =
+    names === 'attemptId,d1,d4,d5,gameId,localOrigin,requestJson,tenantId'
   if (
-    Object.keys(row).sort().join(',') !==
-      'attemptId,d1,d4,d5,gameId,requestJson,tenantId' ||
+    (!local && names !== 'attemptId,d1,d4,d5,gameId,requestJson,tenantId') ||
     !KEY.every((k) => row[k] === key[k as keyof OrdinaryAttemptKey]) ||
     typeof row.attemptId !== 'string' ||
     row.attemptId.length !== 36 ||
     !canonicalUuid.test(row.attemptId) ||
     typeof row.requestJson !== 'string'
+  )
+    return invalid()
+  const origin = row.localOrigin as Record<string, unknown> | null
+  if (
+    local &&
+    (!origin ||
+      typeof origin !== 'object' ||
+      Array.isArray(origin) ||
+      Object.keys(origin).sort().join(',') !== 'envelopeSha256,kind' ||
+      origin.kind !== 'local-prepared-envelope-v1' ||
+      typeof origin.envelopeSha256 !== 'string' ||
+      !/^[0-9a-f]{64}$/.test(origin.envelopeSha256))
   )
     return invalid()
   const parsed: unknown = JSON.parse(row.requestJson)
@@ -85,6 +107,14 @@ function readStored(
     d5: key.d5,
     attemptId: row.attemptId,
     requestJson: row.requestJson,
+    ...(local
+      ? {
+          localOrigin: Object.freeze({
+            kind: 'local-prepared-envelope-v1' as const,
+            envelopeSha256: origin!.envelopeSha256 as string,
+          }),
+        }
+      : {}),
   })
 }
 /** 未送信slotごとに固定する耐久attempt。次の独立slotを同じ要求へ統合しない。 */
@@ -202,7 +232,15 @@ export class OrdinaryPitchAttemptPersistence {
           try {
             if (request.result !== undefined) {
               result = readStored(request.result, key)
-              if (expected && result.requestJson !== expected.requestJson)
+              if (
+                expected &&
+                (result.requestJson !== expected.requestJson ||
+                  result.localOrigin?.kind !== expected.localOrigin?.kind ||
+                  result.localOrigin?.envelopeSha256 !==
+                    expected.localOrigin?.envelopeSha256 ||
+                  (expected.localOrigin !== undefined &&
+                    result.attemptId !== expected.attemptId))
+              )
                 return invalid()
             } else if (expected) {
               store.add(expected)
@@ -224,9 +262,11 @@ export class OrdinaryPitchAttemptPersistence {
   async prepare(
     input: OrdinaryAttemptInput,
     attemptId?: string,
+    localOrigin?: LocalPreparedOrigin,
   ): Promise<StoredOrdinaryAttempt> {
     try {
       validKey(input)
+      if (localOrigin !== undefined && attemptId === undefined) return invalid()
       const key: OrdinaryAttemptKey = {
         tenantId: input.tenantId,
         gameId: input.gameId,
@@ -239,6 +279,7 @@ export class OrdinaryPitchAttemptPersistence {
           ...key,
           attemptId: attemptId ?? crypto.randomUUID(),
           requestJson: canonicalAttemptEvents(input.events),
+          ...(localOrigin === undefined ? {} : { localOrigin }),
         },
         key,
       )

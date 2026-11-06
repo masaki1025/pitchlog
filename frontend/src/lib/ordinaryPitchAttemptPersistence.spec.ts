@@ -82,6 +82,75 @@ it('競合する同slot同内容は一つのattemptへ収束する', async () =>
   ])
   expect(records[0]).toEqual(records[1])
 })
+it('local originを原attempt/digestへ固定し、旧行への後付と同ID異値を拒む', async () => {
+  const h = await open()
+  const origin = {
+    kind: 'local-prepared-envelope-v1' as const,
+    envelopeSha256: 'a'.repeat(64),
+  }
+  const saved = await h.prepare(input(), attempt, origin)
+  expect(saved.localOrigin).toEqual(origin)
+  expect(await h.read(input())).toEqual(saved)
+  expect(await h.prepare(input(), attempt, origin)).toEqual(saved)
+  await expect(h.prepare(input(), other, origin)).rejects.toBeInstanceOf(
+    OrdinaryAttemptPersistenceError,
+  )
+  await expect(h.prepare(input(), attempt)).rejects.toBeInstanceOf(
+    OrdinaryAttemptPersistenceError,
+  )
+  await expect(
+    h.prepare(input(), attempt, { ...origin, envelopeSha256: 'b'.repeat(64) }),
+  ).rejects.toBeInstanceOf(OrdinaryAttemptPersistenceError)
+  const legacy = await h.prepare(input(2, other), attempt)
+  expect(Object.keys(legacy).sort()).toEqual([
+    'attemptId',
+    'd1',
+    'd4',
+    'd5',
+    'gameId',
+    'requestJson',
+    'tenantId',
+  ])
+  await expect(
+    h.prepare(input(2, other), attempt, origin),
+  ).rejects.toBeInstanceOf(OrdinaryAttemptPersistenceError)
+})
+it('未知originや破損digestを旧行として読み替えない', async () => {
+  const h = await open()
+  const origin = {
+    kind: 'local-prepared-envelope-v1' as const,
+    envelopeSha256: 'a'.repeat(64),
+  }
+  await h.prepare(input(), attempt, origin)
+  const db = await new Promise<IDBDatabase>((resolve, reject) => {
+    const request = indexedDB.open('pitchlog-ordinary-pitch-attempt')
+    request.onsuccess = () => resolve(request.result)
+    request.onerror = () => reject(request.error)
+  })
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction('attempts', 'readwrite')
+      const store = tx.objectStore('attempts')
+      tx.oncomplete = () => resolve()
+      tx.onabort = () => reject(tx.error)
+      const request = store.get([tenantId, gameId, 'opaque-D4', 1, d5])
+      request.onsuccess = () => {
+        store.put({
+          ...request.result,
+          localOrigin: { kind: 'unknown', envelopeSha256: 'a'.repeat(64) },
+        })
+      }
+    })
+  } finally {
+    db.close()
+  }
+  await expect(h.read(input())).rejects.toBeInstanceOf(
+    OrdinaryAttemptPersistenceError,
+  )
+  await expect(h.prepare(input(), attempt)).rejects.toBeInstanceOf(
+    OrdinaryAttemptPersistenceError,
+  )
+})
 it('別tenant/game/D4とraw事件のslot移植を拒否する', async () => {
   const h = await open(),
     saved = await h.prepare(input(), attempt)
