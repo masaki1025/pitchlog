@@ -356,6 +356,8 @@ def _model_sources(repo_root: Path) -> dict[str, str]:
             raise ValueError("成績Table宣言のschemaが単一固定sync_fenceではない")
         declaration_target = declarations[0].targets[0]
         for binding in ast.walk(tree):
+            if isinstance(binding, ast.Match):
+                raise ValueError("成績モデル参照の構造パターンは未対応です")
             if (
                 isinstance(binding, ast.Name)
                 and binding.id == "_SCHEMA"
@@ -1101,12 +1103,19 @@ def carry_forward_sheet(
         pending.setdefault(_row_match_key(previous_row), deque()).append(
             previous_row
         )
+    generated_counts = Counter(_row_match_key(row) for row in parse_sheet_rows(generated))
+    ambiguous_keys = {
+        key
+        for key, rows in pending.items()
+        if len(rows) != generated_counts[key]
+        and max(len(rows), generated_counts[key]) > 1
+    }
     carried_rows: list[SheetRow] = []
     counts: Counter[str] = Counter()
     for row in parse_sheet_rows(generated):
         candidates = pending.get(_row_match_key(row))
         previous_row = candidates.popleft() if candidates else None
-        key_changed = previous_row is None
+        key_changed = previous_row is None or _row_match_key(row) in ambiguous_keys
         was_difference = (
             previous_row is not None and previous_row.judgment == "差分"
         )

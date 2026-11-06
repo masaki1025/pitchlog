@@ -600,6 +600,9 @@ def test_stats_schema_rebinding_forms_are_rejected(tmp_path):
         'def _SCHEMA(): pass\n',
         'def helper(_SCHEMA): pass\n',
         'try: pass\nexcept Exception as _SCHEMA: pass\n',
+        'match "public":\n    case _SCHEMA: pass\n',
+        'match ["public"]:\n    case [*_SCHEMA]: pass\n',
+        'match {}:\n    case {**_SCHEMA}: pass\n',
     )
     for mutation in mutations:
         model.write_text(declaration + mutation)
@@ -609,3 +612,20 @@ def test_stats_schema_rebinding_forms_are_rejected(tmp_path):
             pass
         else:
             raise AssertionError(f"schema再束縛を見逃した: {mutation}")
+
+
+def test_carry_resets_entire_duplicate_key_group_when_count_changes():
+    """同じ版の履歴挿入を旧出現順へ誤対応させて判定を継承しない。"""
+    one = _single_row_sheet("一致", "旧履歴の判断 根拠: data-model.md:10")
+    lines = one.splitlines()
+    row = lines[-1]
+    header = "\n".join(lines[:-1]) + "\n"
+    for old_count, new_count in ((2, 4), (4, 2), (1, 2)):
+        previous = header + "\n".join([row] * old_count) + "\n"
+        generated = generator.without_human_judgments(
+            header + "\n".join([row] * new_count) + "\n"
+        )
+        carried, stats = generator.carry_forward_sheet(generated, previous, set())
+        assert all(not r.judgment for r in generator.parse_sheet_rows(carried))
+        assert stats.carried == 0
+        assert stats.reset_count == new_count
