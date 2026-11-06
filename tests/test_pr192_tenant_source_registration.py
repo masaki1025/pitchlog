@@ -61,6 +61,11 @@ def test_current_v3_source_keeps_old_owner_and_exact_finite_sites(contract, path
         assert checker._pr196_successor_matches(
             current, path.removeprefix("backend/src/"), contract,
         )
+    elif (path == "backend/src/pitchlog/sync/ordinary_pitch_execution.py"
+          and contract.pr197_source_registration is not None):
+        assert checker._pr197_identity_successor_matches(
+            current, path.removeprefix("backend/src/"), contract,
+        )
     else:
         assert source == current
     relative = path.removeprefix("backend/src/")
@@ -289,15 +294,22 @@ def test_shared_synthetic_git_parent_preserves_current_and_legacy_origins(
                 value = json.loads(asset_path.read_text())
                 value.pop("pr192_source_registration", None)
                 value.pop("pr196_source_registration", None)
+                value.pop("pr197_source_registration", None)
                 asset_path.write_text(json.dumps(value, ensure_ascii=False))
             return result
         monkeypatch.setattr(shared.shutil, "copytree", historical_copy)
     repository, baseline = shared._initialize_test_repository(tmp_path, {})
     frozen = json.loads((ROOT / "contracts/tenant_boundary/frozen-inputs.json").read_text())
     wanted = (
-        frozen["frozen_inputs"]["pr196_source_expectation_revision"]["value"] if current
+        frozen["frozen_inputs"]["pr197_pin_origin_commit"]["value"] if current
         else json.loads((ROOT / checker._PR191_EXPECTED_FIXTURE).read_text())["source_revision"]
     )
+    if current:
+        assert wanted == checker.frozen_history.PR197_PIN_ORIGIN_COMMIT
+        for key in ("pr192_source_expectation_revision", "pr196_source_expectation_revision"):
+            shared.checker._run_git(repository, [
+                "merge-base", "--is-ancestor", frozen["frozen_inputs"][key]["value"], wanted,
+            ])
     assert shared.checker._run_git(repository, ["rev-parse", baseline + "^"]).strip() == wanted
     shared.checker._run_git(repository, ["merge-base", "--is-ancestor", wanted, baseline])
 

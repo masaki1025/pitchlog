@@ -10667,7 +10667,13 @@ def test_pr197_frozen_literal_calls_are_exact_27_and_asset_cochange_is_rejected(
                     and isinstance(node.func.value, ast.Name)
                     and node.func.value.id == "frozen_history"
                     and node.func.attr == "read_original_pr197_pin"
-                    and len(node.args) == 1
+                    and not node.keywords
+                    and (len(node.args) == 1 or (
+                        path == 'backend/tests/stage_a_0039_profile.py'
+                        and len(node.args) == 2
+                        and isinstance(node.args[1], ast.Name)
+                        and node.args[1].id == 'control'
+                    ))
                     and isinstance(node.args[0], ast.Constant)
                     and isinstance(node.args[0].value, str)):
                 actual[path, node.args[0].value] += 1
@@ -10676,6 +10682,22 @@ def test_pr197_frozen_literal_calls_are_exact_27_and_asset_cochange_is_rejected(
     asset_path = REPOSITORY_ROOT / "contracts/tenant_boundary/frozen-inputs.json"
     original = Path.read_bytes
     baseline = json.loads(original(asset_path))
+    recovery_typed = {
+        "pr197_identical_cochange_revision": (
+            40, "scripts/core_guard.py:_pr197_identical_cochange",
+        ),
+        "pr197_recovery_source_revision": (40, "scripts/core_guard.py:_pr197_merge_carry_pins"),
+        "pr197_recovery_definition_sha256": (
+            64, "scripts/core_guard.py:_verify_pr197_definition_order",
+        ),
+    }
+    for key, (length, source) in recovery_typed.items():
+        entry = baseline["frozen_inputs"][key]
+        assert set(entry) == {"value", "purpose", "sources"}
+        assert type(entry["value"]) is str and len(entry["value"]) == length
+        assert all(character in "0123456789abcdef" for character in entry["value"])
+        assert type(entry["purpose"]) is str and entry["purpose"]
+        assert entry["sources"] == [source]
     for key in ("pr197_expectation_revision", "pr197_expectation_fixture_sha256",
                 "stats_primitive_sql_open_snapshot_sha256", "pr197_pin_origin_commit"):
         changed = copy.deepcopy(baseline)
