@@ -197,6 +197,10 @@ def _compare_event_results(case, results, metadata_key="pending"):
         assert result[metadata_key] == case["expected"][metadata_key]
         assert result["selected"] == (event["source"]["lifecycle"] == "effective")
         for metric, value in result["metrics"].items():
+            if metric not in case["expected"]["totals"]:
+                # 固定済み旧26期待は新BFを含まない。新項目は専用caseで比較する。
+                assert metadata_key == "decisions" and metric == "batters_faced"
+                continue
             if value["state"] == "available":
                 totals[metric] += int(value["value"])
                 assert value["display"] == value["value"]
@@ -549,8 +553,21 @@ def test_current_v2_all_primitive_pa_credit_and_derived_values(
     ]
     assert credits == expected["credits"]
     assert expected["completed_pa_rows"] == []
-    assert v2_python["derive_rates"](actual) == expected["rates"]
-    assert v2_node([{"kind": "rates", "metrics": actual}])[0] == expected["rates"]
+    # 旧26の率goldenはBFと独立。27入口へだけ中立値を供給して原期待を維持する。
+    current_rate_input = {
+        **actual,
+        "batters_faced": {
+            "state": "available",
+            "value": "0",
+            "display": "0",
+            "reason": None,
+        },
+    }
+    assert v2_python["derive_rates"](current_rate_input) == expected["rates"]
+    assert (
+        v2_node([{"kind": "rates", "metrics": current_rate_input}])[0]
+        == expected["rates"]
+    )
 
 
 @pytest.mark.parametrize(

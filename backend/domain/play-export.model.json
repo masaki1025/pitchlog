@@ -1311,6 +1311,49 @@
             }
           },
           {
+            "id": "batters_faced",
+            "relation": "completed_pa",
+            "guard": {
+              "op": "ref",
+              "path": "pa.ended_here"
+            },
+            "available": {
+              "op": "and",
+              "args": [
+                {
+                  "op": "eq",
+                  "left": {
+                    "op": "ref",
+                    "path": "completeness.pa"
+                  },
+                  "right": {
+                    "op": "literal",
+                    "value": "complete"
+                  }
+                },
+                {
+                  "op": "eq",
+                  "left": {
+                    "op": "ref",
+                    "path": "completeness.participants"
+                  },
+                  "right": {
+                    "op": "literal",
+                    "value": "complete"
+                  }
+                }
+              ]
+            },
+            "quantity": {
+              "op": "literal",
+              "value": 1
+            },
+            "credit": {
+              "op": "ref",
+              "path": "participants.walk_pitcher_id"
+            }
+          },
+          {
             "id": "pitcher_hbp",
             "relation": "event",
             "guard": {

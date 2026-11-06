@@ -1014,6 +1014,49 @@
       "series": "oracle_input",
       "approved_by": "PO委任によるCodex主担当/root判断（本人署名ではない）",
       "approved_at": "2026-11-05"
+    },
+    {
+      "acceptance_id": "masaki1025/pitchlog#197",
+      "changes": [],
+      "moved": false,
+      "new_identity": {
+        "present": true,
+        "values": [
+          {
+            "kind": "literal_commit_string",
+            "value": "7c2abc9883cd0fc679516dc9d1f73de08efcb188"
+          }
+        ]
+      },
+      "placement_change": {
+        "after": [
+          {
+            "kind": "ledger_series",
+            "path": "contracts/authz/frozen-baselines.json",
+            "series": "oracle_input"
+          }
+        ],
+        "before": [
+          {
+            "kind": "ledger_series",
+            "path": "contracts/authz/frozen-baselines.json",
+            "series": "oracle_input"
+          }
+        ]
+      },
+      "prior_identity": {
+        "present": true,
+        "values": [
+          {
+            "kind": "literal_commit_string",
+            "value": "c3a3589dc9420769ddbc084dd018881ffa88997e"
+          }
+        ]
+      },
+      "reason": "成績native基盤の真正source/派生8を固定した7c2abc98へoracle_inputを前進する候補。非作者1c7bfe7bと76246aedでsource2/派生6の全前後・187認可判断保持を照合済み。6oracle意味本文/全期待/拒否/旧履歴/placementを保持しcontext commitと公式sealだけ整合する。新8差分の独立再確認/正式tenant7.7/最終CIは別証拠。PO本人の確認・署名やP6blind/実機/全MVP完了を代記しない。",
+      "series": "oracle_input",
+      "approved_by": "PO委任によるCodex主担当/root判断（本人署名ではない）",
+      "approved_at": "2026-11-06"
     }
   ]
 }

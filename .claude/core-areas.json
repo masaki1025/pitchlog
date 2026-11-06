@@ -323,7 +323,12 @@
         "backend/src/pitchlog/repositories/recorded_snapshot.py",
         "frontend/src/api/terminalPitchWire.ts",
         "frontend/src/api/terminalPitchWire.spec.ts",
-        "backend/tests/fixtures/batted_source_extension_reference_v1.json"
+        "backend/tests/fixtures/batted_source_extension_reference_v1.json",
+        "backend/tests/test_native_ledger_insert.py",
+        "backend/tests/test_stats_native_connection.py",
+        "backend/tests/test_stats_native_flush.py",
+        "backend/tests/test_stats_native_prefix_connection.py",
+        "backend/tests/test_ordinary_pitch_payload.py"
       ]
     },
     {
@@ -481,7 +486,20 @@
         "backend/tests/db/test_terminal_pitch_storage.py",
         "backend/src/pitchlog/repositories/recorded_snapshot.py",
         "frontend/src/api/terminalPitchWire.ts",
-        "frontend/src/api/terminalPitchWire.spec.ts"
+        "frontend/src/api/terminalPitchWire.spec.ts",
+        "backend/src/pitchlog/exports/generated/play_primitives.sql",
+        "backend/src/pitchlog/stats/facts.py",
+        "backend/src/pitchlog/stats/generated/facts.py",
+        "backend/src/pitchlog/stats/generated/formatter.py",
+        "backend/src/pitchlog/stats/generated/receiver.py",
+        "backend/src/pitchlog/stats/generated/stats.sql",
+        "backend/src/pitchlog/stats/generated/stats_rates.sql",
+        "backend/tests/stats/test_basic_stats.py",
+        "backend/tests/stats/test_primitive_facts.py",
+        "backend/tests/test_stats_sql_generation_runtime.py",
+        "contracts/stats/native_event_facts_d11_v2.json",
+        "contracts/stats/native_current_totals_d11_v2.json",
+        "backend/tests/stats/test_stats_native_d11.py"
       ]
     },
     {
@@ -762,7 +780,17 @@
         "backend/src/pitchlog/sync/port_guard.py",
         "backend/src/pitchlog/repositories/recorded_snapshot.py",
         "tests/fixtures/pr196_tenant_source_expected_v1.json",
-        "tests/test_pr196_tenant_source_registration.py"
+        "tests/test_pr196_tenant_source_registration.py",
+        "backend/tests/test_stats_function_codec.py",
+        "backend/tests/test_stats_native_function_registration.py",
+        "backend/tests/test_stats_native_product_connection.py",
+        "backend/tests/test_stats_native_read_dispatch.py",
+        "backend/tests/test_stats_native_read_receipts.py",
+        "backend/tests/test_stats_primitive_product.py",
+        "backend/tests/test_stats_primitive_write_state.py",
+        "tests/test_stats_native_dependency_columns.py",
+        "backend/tests/stage_a_0039_profile.py",
+        "backend/tests/test_stage_a_0039_profile.py"
       ]
     },
     {
@@ -849,7 +877,11 @@
         "frontend/src/api/terminalPitchWire.ts",
         "frontend/src/api/terminalPitchWire.spec.ts",
         "backend/src/pitchlog/db/alembic_index_comparison.py",
-        "backend/tests/test_alembic_index_comparison.py"
+        "backend/tests/test_alembic_index_comparison.py",
+        "backend/src/pitchlog/db/current_product_startup.py",
+        "backend/tests/test_current_product_startup.py",
+        "backend/tests/test_stats_catalog_pg_representation.py",
+        "backend/tests/fixtures/product_authz_stage_a_profile_v0039.json"
       ]
     }
   ]

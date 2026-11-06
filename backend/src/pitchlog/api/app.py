@@ -10,6 +10,7 @@ from pitchlog.api.cookie_identity import same_token_cookie_headers
 from pitchlog.api.errors import register_exception_handlers
 from pitchlog.api.routers import (
     auth,
+    basic_stats,
     batted_ball_options,
     games,
     lineup_memory,
@@ -36,6 +37,7 @@ ROUTERS: tuple[APIRouter, ...] = (
     games.router,
     pitch_type_options.router,
     batted_ball_options.router,
+    basic_stats.router,
     started_games.router,
     sync.router,
 )

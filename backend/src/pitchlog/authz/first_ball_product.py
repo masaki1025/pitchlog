@@ -2040,6 +2040,48 @@ def _activate_stats_profile() -> None:
 
 
 _activate_stats_profile()
+
+
+def _activate_basic_stats_profile() -> None:
+    """基本成績readの追加宣言だけを既製品publisherへ接合する。"""
+    from pitchlog.authz.stats_basic_product import connection_declarations
+
+    declarations, bodies = connection_declarations()
+    kinds = {
+        "schemas": "schema",
+        "functions": "function",
+        "column_acl_expectations": "column_acl_expectation",
+        "policies": "policy",
+    }
+    expected = {
+        kinds[section] + "|" + row[IDS[section]]
+        for section, rows in declarations.items()
+        for row in rows
+    }
+    if set(bodies) != expected:
+        raise ValueError("基本成績readの本文集合が宣言と不一致")
+    for section, rows in declarations.items():
+        existing = {row[IDS[section]]: row for row in ADDITIONS[section]}
+        for row in rows:
+            key = row[IDS[section]]
+            old = existing.get(key)
+            if old is not None:
+                if old != row:
+                    raise ValueError("基本成績readの既宣言と衝突")
+                continue
+            ADDITIONS[section].append(copy.deepcopy(row))
+            existing[key] = row
+            kind = kinds[section]
+            body_key = kind + "|" + key
+            if body_key in BODIES:
+                raise ValueError("基本成績readの本文が既本文と衝突")
+            BODIES[body_key] = (
+                f"-- ELEMENT-TYPE: {kind}\n-- ELEMENT-ID: {key}\n\n"
+                + bodies[body_key]
+            )
+
+
+_activate_basic_stats_profile()
 _activate_ordinary_profile(nonplay=True)
 _activate_ordinary_profile(lifecycle=True)
 

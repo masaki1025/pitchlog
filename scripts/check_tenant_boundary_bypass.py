@@ -2600,6 +2600,186 @@ def _require_single_static_name_binding(
         raise ContractError("固定tuple参照名のimport/代入が単一でない")
 
 
+_STATS_NATIVE_REGISTRY_REFERENCE = "b5669d3f04541cd117bb876ec4e3ca9bbe07796c"
+_STATS_NATIVE_REGISTRY_PURPOSE = (
+    "採用済native5のregistry/owner/codec全byteを固定Git祖先へ束縛し、"
+    "新import1と末尾Starred1だけを除くとPR196原典へ全byte一致する登録形に限定する。"
+    "任意Starred・別領域・将来lifecycle/undo・実行資格を許可しない。"
+)
+_STATS_NATIVE_REGISTRY_SOURCES = [
+    "scripts/check_tenant_boundary_bypass.py:_stats_native_static_registrations",
+    "tests/test_check_tenant_boundary_bypass.py:test_registry_native_tuple_current_exact27",
+]
+
+
+def _stats_native_registry_profile(
+    repository_root: Path, declared_ids: Sequence[str], registry_tree: ast.Module,
+) -> bool:
+    """固定Gitの導入境界と宣言からnative登録profileを選ぶ。
+
+    Args:
+        repository_root: 検査対象のroot。
+        declared_ids: 資産に宣言された製品operation ID。
+        registry_tree: 製品registryのAST。
+
+    Returns:
+        native固定原典の証明を要求する場合は真。
+
+    Raises:
+        ContractError: 凍結宣言またはGit導入境界を検証できない場合。
+    """
+    frozen, _ = _read_json(repository_root / "contracts/tenant_boundary/frozen-inputs.json")
+    inputs = _object(frozen.get("frozen_inputs"), "native5 frozen inputs")
+    result = subprocess.run(
+        ["git", "merge-base", "--is-ancestor", _STATS_NATIVE_REGISTRY_REFERENCE, "HEAD"],
+        cwd=repository_root, capture_output=True, text=True, check=False,
+    )
+    if result.returncode not in (0, 1):
+        raise ContractError("native5導入境界の真正Gitを検証できない")
+    module_root = repository_root / "backend/src/pitchlog/repositories"
+    native_sources = ("stats_native_operations.py", "stats_function_codec.py")
+    return (
+        result.returncode == 0
+        or "stats_native_registry_reference_revision" in inputs
+        or any(value.startswith("STATS_PRIMITIVES:") for value in declared_ids)
+        or any((module_root / name).exists() or (module_root / name).is_symlink()
+               for name in native_sources)
+        or any(isinstance(node, ast.ImportFrom)
+               and node.module == "pitchlog.repositories.stats_native_operations"
+               for node in registry_tree.body)
+    )
+
+
+def _stats_native_static_registrations(
+    repository_root: Path,
+) -> tuple[bytes, list[ast.Call]]:
+    """真正Gitのnative5だけを静的解決し、旧原典へのbyte射影を返す。
+
+    Args:
+        repository_root: typed参照と真正Gitを持つ対象root。
+
+    Returns:
+        有限追加2断片を除いた旧registry原典と、静的に得た5登録。
+
+    Raises:
+        ContractError: pin・祖先・全byte・有限登録のいずれかが不一致の場合。
+    """
+    try:
+        frozen, _ = _read_json(repository_root / "contracts/tenant_boundary/frozen-inputs.json")
+        inputs = _object(frozen.get("frozen_inputs"), "native5 frozen inputs")
+        entry = _object(inputs.get("stats_native_registry_reference_revision"), "native5 pin")
+        _strict_keys(entry, {"value", "purpose", "sources"}, "native5 pin")
+        if not _pr196_same_json(entry, {
+            "value": _STATS_NATIVE_REGISTRY_REFERENCE,
+            "purpose": _STATS_NATIVE_REGISTRY_PURPOSE,
+            "sources": _STATS_NATIVE_REGISTRY_SOURCES,
+        }):
+            raise ContractError("native5固定原典の全値/用途が不一致")
+        revision = _STATS_NATIVE_REGISTRY_REFERENCE
+        resolved = _run_git(
+            repository_root, ["rev-parse", "--verify", revision + "^{commit}"]
+        ).strip()
+        if resolved != revision:
+            raise ContractError("native5固定原典commitが不一致")
+        _run_git(repository_root, ["merge-base", "--is-ancestor", revision, "HEAD"])
+        sources: dict[str, bytes] = {}
+        for name in ("operation_registry", "stats_native_operations", "stats_function_codec"):
+            relative = "backend/src/pitchlog/repositories/" + name + ".py"
+            path = repository_root / relative
+            if path.is_symlink() or not path.is_file():
+                raise ContractError("native5原典は正規fileが必要")
+            raw = path.read_bytes()
+            if raw != _pr192_git_bytes(repository_root, revision, relative):
+                raise ContractError("native5のregistry/owner/codec原典全byteが不一致")
+            sources[name] = raw
+        registry = sources["operation_registry"]
+        added_import = (
+            b"from pitchlog.repositories.stats_native_operations import (\n"
+            b"    STATS_NATIVE_FUNCTION_OPERATIONS,\n)\n"
+        )
+        added_star = b"    *STATS_NATIVE_FUNCTION_OPERATIONS,\n"
+        if registry.count(added_import) != 1 or registry.count(added_star) != 1:
+            raise ContractError("native5登録の有限追加2断片が不一致")
+        projection = registry.replace(added_import, b"", 1).replace(added_star, b"", 1)
+        fixed = _pr196_read_fixed_expectations(repository_root)
+        old = _pr192_git_bytes(
+            repository_root, fixed["source_revision"],
+            "backend/src/pitchlog/repositories/operation_registry.py",
+        )
+        if projection != old:
+            raise ContractError("native5追加を除いた旧registry原典全byteが不一致")
+        tree = ast.parse(registry.decode("utf-8"))
+        name = "STATS_NATIVE_FUNCTION_OPERATIONS"
+        imports = [node for node in tree.body if isinstance(node, ast.ImportFrom)
+                   and node.module == "pitchlog.repositories.stats_native_operations"
+                   and node.level == 0 and len(node.names) == 1
+                   and node.names[0].name == name and node.names[0].asname is None]
+        if len(imports) != 1:
+            raise ContractError("native5の固定importが不一致")
+        _require_single_static_name_binding(tree, name, imports[0])
+        values = [node.value for node in tree.body if isinstance(node, ast.AnnAssign)
+                  and isinstance(node.target, ast.Name)
+                  and node.target.id == "PRODUCT_FUNCTION_OPERATIONS"]
+        if (len(values) != 1 or not isinstance(values[0], ast.Tuple)
+                or len(values[0].elts) != 23
+                or not isinstance(values[0].elts[-1], ast.Starred)
+                or not isinstance(values[0].elts[-1].value, ast.Name)
+                or values[0].elts[-1].value.id != name):
+            raise ContractError("native5の末尾tuple追加位置が不一致")
+        owner = ast.parse(sources["stats_native_operations"].decode("utf-8"))
+        families = [node for node in owner.body if isinstance(node, ast.Assign)
+                    and len(node.targets) == 1 and isinstance(node.targets[0], ast.Name)
+                    and node.targets[0].id == "_FAMILIES"]
+        if len(families) != 1 or not isinstance(families[0].value, ast.Dict):
+            raise ContractError("native5の有限family宣言が不一致")
+        _require_single_static_name_binding(owner, "_FAMILIES", families[0].targets[0])
+        rows = families[0].value
+        expected = (
+            ("save_primitive_source", "_SavePrimitiveSourceCall",
+             "save_source", "save_source", 1, 1, ()),
+            ("read_primitive_writer_state", "_ReadPrimitiveWriterStateCall",
+             "read_writer_state", "save_source", 1, 1, ("source_set_sha256",)),
+            ("open_primitive_snapshot", "OpenPrimitiveSnapshotToken",
+             "open_snapshot", "read", 1, 1, ()),
+            ("read_play_export_primitives", "ReadPrimitivePageToken",
+             "read_page", "read", 0, 500, ("value",)),
+            ("read_primitive_totals", "ReadPrimitiveTotalsToken",
+             "read_totals", "read", 26, 26, ("value",)),
+        )
+        if len(rows.keys) != len(expected):
+            raise ContractError("native5のfamily数が不一致")
+        registrations: list[ast.Call] = []
+        for key, value, required in zip(rows.keys, rows.values, expected, strict=True):
+            function, token, operation, capability, minimum, maximum, nullable = required
+            if (not isinstance(key, ast.Constant) or key.value != function
+                    or not isinstance(value, ast.Tuple) or len(value.elts) != 6
+                    or not isinstance(value.elts[0], ast.Name) or value.elts[0].id != token):
+                raise ContractError("native5のfamily順序/型が不一致")
+            actual = tuple(ast.literal_eval(item) for item in value.elts[1:])
+            if (type(actual[2]) is not int or type(actual[3]) is not int
+                    or actual != (operation, capability, minimum, maximum, nullable)):
+                raise ContractError("native5のoperation/能力/行数が不一致")
+            registrations.append(ast.Call(
+                func=ast.Name(id="FunctionOperationRegistration", ctx=ast.Load()), args=[],
+                keywords=[ast.keyword(
+                    arg="operation_id", value=ast.Constant("STATS_PRIMITIVES:" + operation)
+                )],
+            ))
+        codec = ast.parse(sources["stats_function_codec"].decode("utf-8"))
+        specs = [node for node in codec.body if isinstance(node, ast.Assign)
+                 and len(node.targets) == 1 and isinstance(node.targets[0], ast.Name)
+                 and node.targets[0].id == "_SPECS"]
+        if (len(specs) != 1 or not isinstance(specs[0].value, ast.Dict)
+                or len(specs[0].value.keys) != 5
+                or any(not isinstance(key, ast.Constant) for key in specs[0].value.keys)
+                or {key.value for key in specs[0].value.keys if isinstance(key, ast.Constant)}
+                != {row[0] for row in expected}):
+            raise ContractError("native5のcodec有限5関数が不一致")
+        return projection, registrations
+    except (OSError, ValueError, UnicodeError, subprocess.CalledProcessError) as error:
+        raise ContractError("native5固定原典を取得/検証できない") from error
+
+
 def _batted_options_static_registration(
     repository_root: Path, registry_tree: ast.Module, registry_value: ast.Tuple
 ) -> ast.Call:
@@ -2615,9 +2795,13 @@ def _batted_options_static_registration(
         _git_regular_blob(repository_root, source_revision, path)
         target = repository_root / path
         try:
-            if target.is_symlink() or target.read_bytes() != _pr192_git_bytes(
-                repository_root, source_revision, relative
-            ):
+            if target.is_symlink():
+                raise ContractError("固定tupleのreadonly原典は正規fileが必要")
+            actual = target.read_bytes()
+            expected = _pr192_git_bytes(repository_root, source_revision, relative)
+            if actual != expected and relative.endswith("/operation_registry.py"):
+                actual, _ = _stats_native_static_registrations(repository_root)
+            if actual != expected:
                 raise ContractError("固定tupleのreadonly原典全byteが不一致")
         except OSError as error:
             raise ContractError("固定tupleのreadonly原典が取得できない") from error
@@ -2790,12 +2974,23 @@ def _validate_function_operation_surface(
         raise ContractError("固定関数製品registryは静的tupleが必要")
     actual_ids: list[str] = []
     entries = registry_values[0].elts
+    native_entries: list[ast.Call] = []
+    if _stats_native_registry_profile(repository_root, declared_ids, registry_tree):
+        projection, native_entries = _stats_native_static_registrations(repository_root)
+        registry_tree = ast.parse(projection.decode("utf-8"))
+        registry_values = [node.value for node in registry_tree.body
+                           if isinstance(node, ast.AnnAssign)
+                           and isinstance(node.target, ast.Name)
+                           and node.target.id == registry_parts[3]]
+        if len(registry_values) != 1 or not isinstance(registry_values[0], ast.Tuple):
+            raise ContractError("native5射影の旧registryが不一致")
+        entries = registry_values[0].elts
     if any(isinstance(entry, ast.Starred) for entry in entries):
         resolved = _batted_options_static_registration(
             repository_root, registry_tree, registry_values[0]
         )
         entries = [resolved, *entries[1:]]
-    for entry in entries:
+    for entry in [*entries, *native_entries]:
         if not isinstance(entry, ast.Call):
             raise ContractError("固定関数製品registryの登録形式が不正")
         matches = [

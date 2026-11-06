@@ -50,6 +50,7 @@ from pitchlog.repositories.rule_resolution import (
 from .conftest import DisposablePostgres
 
 pytestmark = pytest.mark.requires_db
+pytest_plugins = ("stage_a_0039_profile",)
 
 _BACKEND_ROOT = Path(__file__).resolve().parents[2]
 _CANDIDATE = _BACKEND_ROOT / "migrations/candidates/tsk550_stage_a_rule_defaults.py"

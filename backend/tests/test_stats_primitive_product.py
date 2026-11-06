@@ -80,6 +80,11 @@ def _legacy_sql(tmp_path, monkeypatch):
     exec(compile(source, "<immutable-v1-stats-sql>", "exec"), module.__dict__)
     module.__dict__["_ROOT"] = tmp_path
     module.__dict__["SOURCE_MODEL_HASH"] = manifest["commonModelHash"]
+    historical_model = json.loads(blob("backend/domain/play-export.model.json"))
+    module.__dict__["METRIC_IDS"] = tuple(
+        row["id"]
+        for row in historical_model["calculations"][0]["typedProgram"]["metrics"]
+    )
     monkeypatch.setattr(
         product,
         "candidate_function_bodies",

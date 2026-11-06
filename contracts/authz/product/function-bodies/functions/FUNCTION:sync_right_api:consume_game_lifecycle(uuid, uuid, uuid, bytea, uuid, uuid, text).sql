@@ -413,8 +413,8 @@ PERFORM sync_fence_api.assert_writer_binding(p_tenant_id,p_attempt_id,
  IF NOT FOUND THEN RAISE EXCEPTION 'game lifecycle rejected' USING ERRCODE='42501'; END IF;
  SELECT v.* INTO STRICT prior FROM sync_fence.stats_fact_versions v
  WHERE v.tenant_id=p_tenant_id AND v.game_id=p_game_id AND v.is_current
- AND v.invalidated_at IS NULL AND v.model_sha256='sha256:60ab45878fdfc868efc15ddb0f9b84d6ab0f3583519c48a2202e3d9c3abac59d'
- AND v.t5_artifact_set_sha256='28af30fd1b1300c805b7dcb243fc7b32ab9d6db9fc10c38bdcbc63fa85c3a0de'
+ AND v.invalidated_at IS NULL AND v.model_sha256='sha256:882acb95c08d88deb724a77f2fdfb184de48a2252cd03f5ca44df5cd8b48f4c6'
+ AND v.t5_artifact_set_sha256='b551ca128619674a5fc87efe44eba1acae329ed5979353600149dd4226e8dad2'
  AND v.completion_state=CASE WHEN action='end' THEN 'current_open' ELSE
  'confirmed_ended' END FOR UPDATE;
  IF action='reopen' AND prior.id IS DISTINCT FROM h.active_stats_version_id THEN

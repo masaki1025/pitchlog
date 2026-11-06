@@ -104,8 +104,8 @@ _FAMILIES = {
         ReadPrimitiveTotalsToken,
         "read_totals",
         "read",
-        26,
-        26,
+        27,
+        27,
         ("value",),
     ),
 }

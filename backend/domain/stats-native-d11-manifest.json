@@ -1,0 +1,209 @@
+{
+  "propertyCatalog": {
+    "path": "backend/domain/stats-native-d11-property-catalog.json",
+    "schema": "backend/domain/stats-native-d11-property-catalog.schema.json",
+    "provenance": "ADR-003 D-11 3 層表 プロパティ層"
+  },
+  "calculations": [
+    {
+      "calculation": "native-event-facts27-v3",
+      "source": {
+        "path": "backend/domain/play-export.model.json",
+        "provenance": "NFR-018 (b)② 差分の検出可能性"
+      },
+      "generated": [
+        {
+          "generatedId": "nativeFactsPy",
+          "path": "backend/src/pitchlog/stats/generated/facts.py",
+          "artifactKind": "python"
+        },
+        {
+          "generatedId": "nativeFactsTs",
+          "path": "frontend/src/lib/generated/statsPrimitives.ts",
+          "artifactKind": "typescript"
+        }
+      ],
+      "entrypoints": [
+        {
+          "entrypointId": "nativeFactsRuntime",
+          "module": "backend/src/pitchlog/stats/facts.py",
+          "symbol": "pitchlog.stats.facts._EVENT_FACTS",
+          "adapter": "backend/src/pitchlog/domaincheck/runners/stats_native.py"
+        }
+      ],
+      "directTargets": [
+        {
+          "directTargetId": "nativeFactsPy",
+          "targetClass": "alpha",
+          "kind": "single",
+          "generated": "nativeFactsPy",
+          "invocation": {
+            "adapter": "backend/src/pitchlog/domaincheck/runners/stats_native.py",
+            "operation": "execute_python"
+          },
+          "hash": "sha256:d39e5caf86a44bd8a52bc9b7cdb61f4707376aac9b797de36530abd5fb3e9e9f"
+        },
+        {
+          "directTargetId": "nativeFactsTs",
+          "targetClass": "alpha",
+          "kind": "single",
+          "generated": "nativeFactsTs",
+          "invocation": {
+            "adapter": "backend/src/pitchlog/domaincheck/runners/stats_native.py",
+            "operation": "execute_typescript"
+          },
+          "hash": "sha256:2cd0e148aa255a3d6517214705b83f2c746747354a3b9be74d85c514a01ebff3"
+        }
+      ],
+      "comparison": {
+        "mode": "lossless"
+      },
+      "normalization": [],
+      "vectors": [
+        {
+          "vectorId": "nativeFactsVectors",
+          "calculation": "native-event-facts27-v3",
+          "path": "contracts/stats/native_event_facts_d11_v3.json",
+          "runner": "pytest",
+          "expectedValueSchema": "#/$defs/ExpectedValue",
+          "provenance": "NFR-018 (b)② 差分の検出可能性"
+        }
+      ],
+      "properties": [
+        {
+          "propertyId": "native-event-facts27-v3-invariant",
+          "propertyKind": "invariant",
+          "path": "backend/tests/stats/test_stats_native_d11.py",
+          "provenance": "NFR-018 (b)② 差分の検出可能性"
+        },
+        {
+          "propertyId": "native-event-facts27-v3-equivalence",
+          "propertyKind": "equivalence",
+          "path": "backend/tests/stats/test_stats_native_d11.py",
+          "provenance": "NFR-018 (b)② 差分の検出可能性"
+        }
+      ],
+      "mutation": [
+        {
+          "mutationId": "native-event-facts27-v3-mutations",
+          "target": "backend/domain/play-export.model.json",
+          "operators": [
+            "increment-quantity",
+            "change-missing-to-zero"
+          ]
+        }
+      ]
+    },
+    {
+      "calculation": "native-current-totals27-v3",
+      "source": {
+        "path": "backend/domain/play-export.model.json",
+        "provenance": "NFR-018 (b)② 差分の検出可能性"
+      },
+      "generated": [
+        {
+          "generatedId": "nativeSql",
+          "path": "backend/src/pitchlog/exports/generated/play_primitives.sql",
+          "artifactKind": "sql"
+        },
+        {
+          "generatedId": "nativeReceiver",
+          "path": "backend/src/pitchlog/stats/generated/receiver.py",
+          "artifactKind": "typed-receiver"
+        },
+        {
+          "generatedId": "nativeCountFormatter",
+          "path": "backend/src/pitchlog/stats/generated/receiver.py",
+          "artifactKind": "formatter"
+        }
+      ],
+      "entrypoints": [
+        {
+          "entrypointId": "nativeTotalsRuntime",
+          "module": "backend/src/pitchlog/repositories/stats.py",
+          "symbol": "read_primitive_totals",
+          "adapter": "backend/src/pitchlog/domaincheck/runners/stats_native.py"
+        }
+      ],
+      "directTargets": [
+        {
+          "directTargetId": "nativeTotalsComposite",
+          "targetClass": "beta-1-5",
+          "kind": "composite",
+          "components": [
+            {
+              "stage": "sql",
+              "generated": "nativeSql",
+              "hash": "sha256:d6209deb502d255f795fc067471a33cc3debb6a2d495d9468e40ac8736c7d863"
+            },
+            {
+              "stage": "typed-receiver",
+              "generated": "nativeReceiver",
+              "hash": "sha256:2a71d21a72b5c9743dc9fc0f2bea2fb72b40b42426d63a2cabf4f6f09623ed4f"
+            },
+            {
+              "stage": "formatter",
+              "generated": "nativeCountFormatter",
+              "hash": "sha256:2a71d21a72b5c9743dc9fc0f2bea2fb72b40b42426d63a2cabf4f6f09623ed4f"
+            }
+          ],
+          "invocation": {
+            "adapter": "backend/src/pitchlog/domaincheck/runners/stats_native.py",
+            "operation": "execute_sql_composite"
+          }
+        }
+      ],
+      "comparison": {
+        "mode": "lossless"
+      },
+      "normalization": [
+        {
+          "normalizationId": "nativeNumericExact",
+          "kind": "exact-numeric-representation"
+        }
+      ],
+      "vectors": [
+        {
+          "vectorId": "nativeTotalsVectors",
+          "calculation": "native-current-totals27-v3",
+          "path": "contracts/stats/native_current_totals_d11_v3.json",
+          "runner": "pytest",
+          "expectedValueSchema": "#/$defs/ExpectedValue",
+          "provenance": "NFR-018 (b)② 差分の検出可能性"
+        }
+      ],
+      "properties": [
+        {
+          "propertyId": "native-current-totals27-v3-invariant",
+          "propertyKind": "invariant",
+          "path": "backend/tests/db/test_stats_native_d11.py",
+          "provenance": "NFR-018 (b)② 差分の検出可能性"
+        },
+        {
+          "propertyId": "native-current-totals27-v3-equivalence",
+          "propertyKind": "equivalence",
+          "path": "backend/tests/db/test_stats_native_d11.py",
+          "provenance": "NFR-018 (b)② 差分の検出可能性"
+        }
+      ],
+      "mutation": [
+        {
+          "mutationId": "native-current-totals27-v3-mutations",
+          "target": "backend/src/pitchlog/stats/generated/receiver.py",
+          "operators": [
+            "replace-display",
+            "break-stage-link"
+          ]
+        }
+      ]
+    }
+  ],
+  "displayBindings": [
+    {
+      "displayItem": "nativePrimitiveCountDisplay",
+      "callsite": "backend/src/pitchlog/stats/generated/receiver.py",
+      "formatter": "nativeCountFormatter",
+      "provenance": "付録A-1 表示書式の共通規定"
+    }
+  ]
+}

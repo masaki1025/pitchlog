@@ -283,11 +283,16 @@ def _require_root_read_scope(handle):
         or getattr(handle, "_state_key", None) is None
     ):
         raise PrimitiveReadError
-    verify = getattr(_transaction_runtime, "_require_stats_primitive_read_scope", None)
-    if not callable(verify):
+    try:
+        from pitchlog.repositories.transaction import (
+            _require_stats_primitive_read_scope,
+        )
+    except ImportError:
+        raise PrimitiveReadError from None
+    if not callable(_require_stats_primitive_read_scope):
         raise PrimitiveReadError
     try:
-        verify(handle)
+        _require_stats_primitive_read_scope(handle)
     except TenantBindingError as error:
         raise PrimitiveReadError from error
 

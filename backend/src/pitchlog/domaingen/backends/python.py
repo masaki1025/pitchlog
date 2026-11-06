@@ -161,7 +161,7 @@ def _pitchlog_generated(event, requested_metrics=None):
         [
             f"    known_metrics = {names!r}",
             "    if requested_metrics is not None:",
-            "        if type(requested_metrics) not in (list, tuple) or len(requested_metrics)>26:",  # noqa: E501 — 生成targetのliteral
+            f"        if type(requested_metrics) not in (list, tuple) or len(requested_metrics)>{len(names)}:",  # noqa: E501 — 生成targetのliteral
             "            raise ValueError('primitive射影の有限型違い')",
             "        if any(type(x) is not str or x not in known_metrics for x in requested_metrics):",  # noqa: E501 — 生成targetのliteral
             "            raise ValueError('未知primitive射影')",
@@ -359,17 +359,18 @@ def generate_derived_facts(program, source_hash: str) -> str:
         ratio_target("python", source_hash),
         f"GAME_TYPE_SCOPES = {groups!r}",
         "def select_game_type_keys(named_category='all', raw_game_type_keys=None):",
-        "    if type(named_category) is not str or named_category not in GAME_TYPE_SCOPES:",  # noqa: E501 — 生成target/固定SQLのliteral
+        "    if type(named_category) is not str or named_category not in GAME_TYPE_SCOPES:",  # noqa: E501
         "        raise ValueError('未知のnamed categoryです')",
         "    keys = list(GAME_TYPE_SCOPES[named_category])",
-        "    if raw_game_type_keys is not None and (type(raw_game_type_keys) is not list or any(type(x) is not str for x in raw_game_type_keys) or raw_game_type_keys != keys):",  # noqa: E501 — 生成target/固定SQLのliteral
+        "    if raw_game_type_keys is not None and (type(raw_game_type_keys) is not list or any(type(x) is not str for x in raw_game_type_keys) or raw_game_type_keys != keys):",  # noqa: E501
         "        raise ValueError('named/raw集合が不一致です')",
         "    return keys",
         "def decision_metadata():",
         f"    return {program['decisions']!r}",
-        "def derive_rates(metrics):",
+        "def derive_rates_with_components(metrics):",
         f"    values = _rate_inputs(metrics, {names!r})",
         "    results = {}",
+        "    component_results = {}",
     ]
     for index, row in enumerate(program["derivedMetrics"]):
         parts = f"parts_{index}"
@@ -380,12 +381,25 @@ def generate_derived_facts(program, source_hash: str) -> str:
             for c in row["components"]
         ]
         lines.append("    " + parts + " = {" + ", ".join(component_items) + "}")
+        lines.append(f"    component_results[{row['id']!r}] = {{}}")
+        for component in row["components"]:
+            dependencies = rate_metric_dependencies({"components": [component]})
+            component_id = component["id"]
+            lines.append(
+                f"    component_results[{row['id']!r}][{component_id!r}] = {{'state': 'available' if {parts}[{component_id!r}] is not None else 'source_unavailable', 'pair': {parts}[{component_id!r}], 'reason': None if {parts}[{component_id!r}] is not None else _rate_reason(metrics, {dependencies!r})}}"  # noqa: E501
+            )
         expression = typed_rate_expression(row["expression"], "python", parts)
         dependencies = rate_metric_dependencies({"components": row["components"]})
         lines.append(
-            f"    results[{row['id']!r}] = _rate_result({expression}, {parts}, {row['display']!r}, _rate_reason(metrics, {dependencies!r}))"  # noqa: E501 — 生成target/固定SQLのliteral
+            f"    results[{row['id']!r}] = _rate_result({expression}, {parts}, {row['display']!r}, _rate_reason(metrics, {dependencies!r}))"  # noqa: E501
         )
-    lines.append("    return results")
+    lines.extend(
+        [
+            "    return results, component_results",
+            "def derive_rates(metrics):",
+            "    return derive_rates_with_components(metrics)[0]",
+        ]
+    )
     return "\n".join(lines) + "\n"
 
 
@@ -400,6 +414,117 @@ def generate_ratio_formatter(program, source_hash: str) -> str:
         + f"_RATE_DISPLAYS = {display!r}\n"
         + "def format_derived_rate(rate_id, value, components, reason='MISSING_OBSERVATION'):\n    if type(rate_id) is not str or rate_id not in _RATE_DISPLAYS:\n        raise ValueError('未知の派生率です')\n    return _rate_result(value, components, _RATE_DISPLAYS[rate_id], reason)\n"  # noqa: E501 — 生成target/固定SQLのliteral
     )
+
+
+def generate_display_rates(rows, component_displays, source_hash: str) -> str:
+    """T6専用の表示率だけを宣言から生成し、T5 artifactを変更しない。"""
+    from pitchlog.domaingen.core import rate_metric_dependencies, typed_rate_expression
+    from pitchlog.domaingen.formatter import rate_helpers_target
+
+    lines = [
+        "# generated=" + source_hash,
+        '"""自動生成されたT6表示率。T5 artifactのfacts.pyを変更しない。"""',
+        "",
+        "from pitchlog.stats.generated.formatter import _rate_result, format_count",
+        "",
+        rate_helpers_target("python"),
+        "_DISPLAY_RATES = " + repr({row["id"]: row["display"] for row in rows}),
+        "_COMPONENT_DISPLAYS = " + repr(component_displays),
+        "",
+        "",
+        "def format_innings(outs):",
+        '    """アウト数をA-2の混合分数へ表示する。"""',
+        "    if type(outs) is not int or outs < 0:",
+        '        raise ValueError("投球回のアウト数は非負整数です")',
+        "    whole, remainder = divmod(outs, 3)",
+        '    return format_count(whole) + "回" + (format_count(remainder) + "/3" if remainder else "")',  # noqa: E501
+        "",
+        "",
+        "def _display_result(value, components, display, reason):",
+        '    """表示規則の先頭0だけを最後に適用し、比の値を再計算しない。"""',
+        "    result = _rate_result(value, components, display, reason)",
+        '    if result["state"] == "available" and any("format" in label for label in display["denominators"]):',  # noqa: E501
+        "        labels = []",
+        '        for label in display["denominators"]:',
+        '            denominator = int(result["components"][label["component"]]["denominator"])',  # noqa: E501
+        '            rendered = format_innings(denominator) if label.get("format") == "innings" else format_count(denominator)',  # noqa: E501
+        '            labels.append(label["prefix"] + rendered + label["suffix"])',
+        '        result = {**result, "display": result["formatted_value"] + "(" + "・".join(labels) + ")"}',  # noqa: E501
+        '    if not display["leadingZero"] and result["formatted_value"] is not None:',
+        '        original = result["formatted_value"]',
+        '        formatted = original.removeprefix("0")',
+        '        result = {**result, "formatted_value": formatted}',
+        '        if result["display"] is not None:',
+        "            result = {",
+        "                **result,",
+        '                "display": formatted + result["display"][len(original) :],',
+        "            }",
+        "    return result",
+        "",
+        "",
+        "def _metric_value(metrics, key):",
+        '    """十分統計の状態を表示率の入力へ写す。0と未取得を混同しない。"""',
+        "    row = metrics[key]",
+        '    if type(row) is not dict or row.get("state") not in (',
+        '        "available",',
+        '        "source_unavailable",',
+        "    ):",
+        '        raise ValueError("十分統計の状態が不正です")',
+        '    if row["state"] == "source_unavailable":',
+        "        return None",
+        '    value = row.get("value")',
+        "    if type(value) is not int or value < 0:",
+        '        raise ValueError("十分統計の値が不正です")',
+        "    return value",
+        "",
+        "",
+        "def _reason(metrics, dependencies):",
+        '    """最初の不足理由を保持し、未取得を0へ変えない。"""',
+        "    for key in dependencies:",
+        "        row = metrics[key]",
+        '        if row["state"] == "source_unavailable":',
+        '            return row.get("reason") or "MISSING_OBSERVATION"',
+        '    return "MISSING_OBSERVATION"',
+        "",
+        "",
+        "",
+        "",
+        'def format_component_rate(component_id, pair, reason="MISSING_OBSERVATION"):',
+        '    """T5が計算した比componentを、T6の表示規則だけで表示する。"""',
+        "    if type(component_id) is not str or component_id not in _COMPONENT_DISPLAYS:",  # noqa: E501
+        '        raise ValueError("未知の表示componentです")',
+        "    display = _COMPONENT_DISPLAYS[component_id]",
+        "    result = _display_result(pair, {component_id: pair}, display, reason)",  # noqa: E501
+        "    return result",
+        "",
+        "",
+        "def derive_display_rates(metrics):",
+        '    """宣言済みT6表示率を同じ生成済み表示規則で返す。"""',
+        "    results = {}",
+    ]
+    for index, row in enumerate(rows):
+        dependencies = rate_metric_dependencies({"components": row["components"]})
+        lines.append(
+            "    values = {"
+            + ", ".join(
+                f"{key!r}: _metric_value(metrics, {key!r})" for key in dependencies
+            )
+            + "}"
+        )
+        parts = f"parts_{index}"
+        component_items = [
+            repr(c["id"])
+            + ": "
+            + typed_rate_expression(c["expression"], "python", "values")
+            for c in row["components"]
+        ]
+        lines.append("    " + parts + " = {" + ", ".join(component_items) + "}")
+        expression = typed_rate_expression(row["expression"], "python", parts)
+        lines.append(
+            f"    results[{row['id']!r}] = _display_result({expression}, {parts}, _DISPLAY_RATES[{row['id']!r}], _reason(metrics, {dependencies!r}))"  # noqa: E501
+        )
+    lines.append("    return results")
+    return "\n".join(lines) + "\n"
 
 
 def generate_ratio_receiver(program, source_hash: str) -> str:

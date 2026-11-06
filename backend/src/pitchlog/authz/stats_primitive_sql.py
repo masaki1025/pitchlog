@@ -43,10 +43,10 @@ def _verified_inputs(root: Path) -> tuple[str, dict[str, str], str, str]:
     bundle = generate_primitive_sql_bundle(common_model, consumer_model)
     model_hash = _canonical_hash(common_model)
     profiles = _native_profiles(root)
-    if profiles["v2"]["model_sha256"] != model_hash or set(bundle) != _SQL_PATHS:
+    if profiles["v3"]["model_sha256"] != model_hash or set(bundle) != _SQL_PATHS:
         raise ValueError("成績nativeの現在版/生成SQL集合が一致しません")
     if common_model["calculations"][0]["typedProgram"].get("version") != 2:
-        raise ValueError("成績native SQL sinkは現在v2専用です")
+        raise ValueError("成績native SQL sinkは現在v3専用です")
     if (
         common_model["calculations"][0]["typedProgram"].get("decisions")
         != _current_decisions()
@@ -60,7 +60,7 @@ def _verified_inputs(root: Path) -> tuple[str, dict[str, str], str, str]:
             != hashlib.sha256(raw_sql.encode()).hexdigest()
         ):
             raise ValueError("成績nativeの生成SQL本文が一致しません")
-    if profiles["v2"]["artifact_binding"] != manifest["t5ArtifactSetBinding"]:
+    if profiles["v3"]["artifact_binding"] != manifest["t5ArtifactSetBinding"]:
         raise ValueError("成績native現在profileとartifact宣言が一致しません")
     raw = (root / _SQL_PATH).read_text()
     binding = manifest["t5ArtifactSetBinding"]
@@ -340,7 +340,7 @@ def candidate_function_bodies() -> dict[str, str]:
         "audit.source_set_sha256 IS DISTINCT "
         "FROM audit.canonical_source_set_sha256\n "
         "OR audit.row_count IS DISTINCT FROM "
-        "audit.source_count*26\n OR (SELECT "
+        f"audit.source_count*{len(METRIC_IDS)}\n OR (SELECT "
         "COUNT(*) FROM "
         "sync_fence.stats_primitive_sources s "
         "WHERE s.tenant_id=tenant\n AND "

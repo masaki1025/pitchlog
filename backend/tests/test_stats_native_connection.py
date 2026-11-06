@@ -362,7 +362,9 @@ def native(request, monkeypatch):
             (
                 prefix,
                 state,
-                _canonical_json(original.model_dump(mode="json", by_alias=True)),
+                _canonical_json(
+                    original.model_dump(mode="json", by_alias=True, exclude_unset=True)
+                ),
                 _canonical_json({"pure": "saved-roster"}),
                 npread._owner(r.handle),
                 _canonical_json(

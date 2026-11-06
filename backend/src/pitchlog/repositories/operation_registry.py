@@ -66,6 +66,7 @@ from pitchlog.repositories.rule_resolution import (
 from pitchlog.repositories.started_snapshot_operations import (
     STARTED_SNAPSHOT_OPERATIONS,
 )
+from pitchlog.repositories.stats_basic import STATS_BASIC_FUNCTION_OPERATIONS
 from pitchlog.repositories.stats_native_operations import (
     STATS_NATIVE_FUNCTION_OPERATIONS,
 )
@@ -257,6 +258,7 @@ PRODUCT_FUNCTION_OPERATIONS: tuple[FunctionOperationRegistration, ...] = (
         operation_id="SYNC_LINEUP_PREFIX:read_lineup_started_origin",
     ),
     *STATS_NATIVE_FUNCTION_OPERATIONS,
+    *STATS_BASIC_FUNCTION_OPERATIONS,
     *NONPLAY_FUNCTION_OPERATIONS,
     *LIFECYCLE_FUNCTION_OPERATIONS,
     display_registration(),

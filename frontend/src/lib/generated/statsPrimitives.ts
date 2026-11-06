@@ -1,12 +1,12 @@
 /** 自動生成。単一遷移だけを計算し、認可/全game集計を行わない。 */
 export const SOURCE_MODEL_HASH =
-  'sha256:60ab45878fdfc868efc15ddb0f9b84d6ab0f3583519c48a2202e3d9c3abac59d'
+  'sha256:882acb95c08d88deb724a77f2fdfb184de48a2252cd03f5ca44df5cd8b48f4c6'
 if (
   (globalThis as { __PITCHLOG_GENERATED_WRAPPER__?: boolean })
     .__PITCHLOG_GENERATED_WRAPPER__ !== true
 )
   throw new Error('登録wrapperが必要です')
-// generated=sha256:60ab45878fdfc868efc15ddb0f9b84d6ab0f3583519c48a2202e3d9c3abac59d
+// generated=sha256:882acb95c08d88deb724a77f2fdfb184de48a2252cd03f5ca44df5cd8b48f4c6
 export function parseCount(value: unknown): bigint {
   if (typeof value === 'bigint' && value >= 0n) return value
   if (typeof value === 'number' && Number.isSafeInteger(value) && value >= 0)
@@ -155,6 +155,7 @@ export function eventFacts(
     'pitching_outs',
     'pitcher_k',
     'pitcher_bb',
+    'batters_faced',
     'pitcher_hbp',
     'hits_allowed',
     'home_runs_allowed',
@@ -452,6 +453,7 @@ export function eventFacts(
     'pitching_outs',
     'pitcher_k',
     'pitcher_bb',
+    'batters_faced',
     'pitcher_hbp',
     'hits_allowed',
     'home_runs_allowed',
@@ -2153,6 +2155,77 @@ export function eventFacts(
     try {
       if (
         requestedMetrics === undefined ||
+        requestedMetrics.includes('batters_faced')
+      ) {
+        if (!(
+          _checked_ref(event, 'completeness.pa', 'string', false, null, null, [
+            'complete',
+            'unavailable',
+          ]) === 'complete' &&
+          _checked_ref(
+            event,
+            'completeness.participants',
+            'string',
+            false,
+            null,
+            null,
+            ['complete', 'unavailable'],
+          ) === 'complete'
+        ))
+          metrics['batters_faced'] = _missing()
+        else {
+          let quantity = 0n
+          const credits: Credit[] = []
+          let missing = false
+          if (
+            _checked_ref(
+              event,
+              'pa.ended_here',
+              'boolean',
+              false,
+              null,
+              null,
+              null,
+            )
+          ) {
+            const amount = _n(1n)
+            const player = _checked_ref(
+              event,
+              'participants.walk_pitcher_id',
+              'string',
+              true,
+              null,
+              null,
+              null,
+            )
+            if (amount > 0n && typeof player !== 'string') missing = true
+            else if (amount > 0n && typeof player === 'string') {
+              quantity += amount
+              _appendCredit(credits, player, amount)
+            }
+          }
+          metrics['batters_faced'] = missing
+            ? _missing('MISSING_ATTRIBUTION')
+            : {
+                state: 'available',
+                value: formatCount(quantity),
+                display: formatCount(quantity),
+                reason: null,
+                credits,
+              }
+        }
+      }
+    } catch (error) {
+      if (
+        requestedMetrics === undefined ||
+        !(error instanceof MissingProjectionField)
+      )
+        throw error
+      metrics['batters_faced'] = _missing()
+    }
+    try {
+      if (
+        requestedMetrics === undefined ||
         requestedMetrics.includes('pitcher_hbp')
       ) {
         if (
@@ -2921,6 +2994,7 @@ export function deriveRates(metrics: Record<string, RateMetric>) {
     'pitching_outs',
     'pitcher_k',
     'pitcher_bb',
+    'batters_faced',
     'pitcher_hbp',
     'hits_allowed',
     'home_runs_allowed',

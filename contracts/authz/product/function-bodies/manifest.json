@@ -4681,6 +4681,116 @@
       "path": "contracts/authz/product/function-bodies/policies/POLICY:substitution_write_receipts:substitution_receipt_insert.sql",
       "element_type": "policy",
       "element_id": "POLICY:substitution_write_receipts:substitution_receipt_insert"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/schemas/stats_basic_api.sql",
+      "element_type": "schema",
+      "element_id": "stats_basic_api"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/policies/POLICY:team_records:stats_basic_select.sql",
+      "element_type": "policy",
+      "element_id": "POLICY:team_records:stats_basic_select"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/functions/FUNCTION:stats_basic_api:read_basic_stats(uuid, text, text, text, text, text, boolean, text, integer, text).sql",
+      "element_type": "function",
+      "element_id": "FUNCTION:stats_basic_api:read_basic_stats(uuid, text, text, text, text, text, boolean, text, integer, text)"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:games:scheduled_at:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:games:scheduled_at:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:games:game_type_key:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:games:game_type_key:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:games:away_team_record_id:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:games:away_team_record_id:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:games:home_team_record_id:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:games:home_team_record_id:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:players:name:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:players:name:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:players:uniform_number:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:players:uniform_number:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:players:team_record_id:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:players:team_record_id:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:players:hidden_at:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:players:hidden_at:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:team_records:tenant_id:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:team_records:tenant_id:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:team_records:id:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:team_records:id:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:team_records:name:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:team_records:name:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:team_records:kind:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:team_records:kind:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:team_records:hidden_at:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:team_records:hidden_at:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:game_lineups:tenant_id:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:game_lineups:tenant_id:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:game_lineups:game_id:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:game_lineups:game_id:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:game_lineups:team_record_id:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:game_lineups:team_record_id:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:game_lineups:entries_with_uniform_number_snapshot:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:game_lineups:entries_with_uniform_number_snapshot:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/policies/POLICY:game_lineups:stats_basic_select.sql",
+      "element_type": "policy",
+      "element_id": "POLICY:game_lineups:stats_basic_select"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:game_lineups:import_batch_id:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:game_lineups:import_batch_id:pitchlog_sync_right_fn_owner"
     }
   ]
 }

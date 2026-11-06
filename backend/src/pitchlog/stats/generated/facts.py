@@ -3,7 +3,7 @@
 import re
 
 SOURCE_MODEL_HASH = (
-    "sha256:60ab45878fdfc868efc15ddb0f9b84d6ab0f3583519c48a2202e3d9c3abac59d"
+    "sha256:882acb95c08d88deb724a77f2fdfb184de48a2252cd03f5ca44df5cd8b48f4c6"
 )
 if __name__ != "__pitchlog_generated_wrapper__":
     raise ImportError("生成targetは登録wrapper経由だけです")
@@ -152,6 +152,7 @@ def _pitchlog_generated(event, requested_metrics=None):
         "pitching_outs",
         "pitcher_k",
         "pitcher_bb",
+        "batters_faced",
         "pitcher_hbp",
         "hits_allowed",
         "home_runs_allowed",
@@ -159,7 +160,7 @@ def _pitchlog_generated(event, requested_metrics=None):
         "runs_allowed",
     ]
     if requested_metrics is not None:
-        if type(requested_metrics) not in (list, tuple) or len(requested_metrics) > 26:
+        if type(requested_metrics) not in (list, tuple) or len(requested_metrics) > 27:
             raise ValueError("primitive射影の有限型違い")
         if any(
             (type(x) is not str or x not in known_metrics for x in requested_metrics)
@@ -400,6 +401,7 @@ def _pitchlog_generated(event, requested_metrics=None):
             "pitching_outs",
             "pitcher_k",
             "pitcher_bb",
+            "batters_faced",
             "pitcher_hbp",
             "hits_allowed",
             "home_runs_allowed",
@@ -1828,6 +1830,68 @@ def _pitchlog_generated(event, requested_metrics=None):
                 if requested_metrics is None:
                     raise
                 metrics["pitcher_bb"] = _missing()
+        if requested_metrics is None or "batters_faced" in requested_metrics:
+            try:
+                if not (
+                    _checked_ref(
+                        event,
+                        "completeness.pa",
+                        "string",
+                        False,
+                        None,
+                        None,
+                        ["complete", "unavailable"],
+                    )
+                    == "complete"
+                    and _checked_ref(
+                        event,
+                        "completeness.participants",
+                        "string",
+                        False,
+                        None,
+                        None,
+                        ["complete", "unavailable"],
+                    )
+                    == "complete"
+                ):
+                    metrics["batters_faced"] = _missing()
+                else:
+                    quantity = 0
+                    credits = []
+                    missing = False
+                    if _checked_ref(
+                        event, "pa.ended_here", "boolean", False, None, None, None
+                    ):
+                        amount = _n(1)
+                        player = _checked_ref(
+                            event,
+                            "participants.walk_pitcher_id",
+                            "string",
+                            True,
+                            None,
+                            None,
+                            None,
+                        )
+                        if amount and player is None:
+                            missing = True
+                        elif amount:
+                            quantity += amount
+                            _append_credit(credits, player, amount)
+                    metrics["batters_faced"] = (
+                        _missing("MISSING_ATTRIBUTION")
+                        if missing
+                        else {
+                            "state": "available",
+                            "value": format_count(quantity),
+                            "display": format_count(quantity),
+                            "reason": None,
+                            "credits": credits,
+                        }
+                    )
+            except MissingProjectionField:
+                if requested_metrics is None:
+                    raise
+                metrics["batters_faced"] = _missing()
         if requested_metrics is None or "pitcher_hbp" in requested_metrics:
             try:
                 if (
@@ -2400,7 +2464,7 @@ def decision_metadata():
     }
 
 
-def derive_rates(metrics):
+def derive_rates_with_components(metrics):
     """生成された型検証・有限寄与処理。"""
     values = _rate_inputs(
         metrics,
@@ -2426,6 +2490,7 @@ def derive_rates(metrics):
             "pitching_outs",
             "pitcher_k",
             "pitcher_bb",
+            "batters_faced",
             "pitcher_hbp",
             "hits_allowed",
             "home_runs_allowed",
@@ -2434,12 +2499,28 @@ def derive_rates(metrics):
         ),
     )
     results = {}
+    component_results = {}
     parts_0 = {
         "obp": _ratio(
             _rate_add(values["h"], values["bb"], values["hbp"]),
             _rate_add(values["ab"], values["bb"], values["hbp"], values["sf"]),
         ),
         "slg": _ratio(values["total_bases"], values["ab"]),
+    }
+    component_results["ops"] = {}
+    component_results["ops"]["obp"] = {
+        "state": "available" if parts_0["obp"] is not None else "source_unavailable",
+        "pair": parts_0["obp"],
+        "reason": None
+        if parts_0["obp"] is not None
+        else _rate_reason(metrics, ("h", "bb", "hbp", "ab", "sf")),
+    }
+    component_results["ops"]["slg"] = {
+        "state": "available" if parts_0["slg"] is not None else "source_unavailable",
+        "pair": parts_0["slg"],
+        "reason": None
+        if parts_0["slg"] is not None
+        else _rate_reason(metrics, ("total_bases", "ab")),
     }
     results["ops"] = _rate_result(
         _ratio_add(parts_0["obp"], parts_0["slg"]),
@@ -2456,4 +2537,9 @@ def derive_rates(metrics):
         },
         _rate_reason(metrics, ("h", "bb", "hbp", "ab", "sf", "total_bases")),
     )
-    return results
+    return (results, component_results)
+
+
+def derive_rates(metrics):
+    """生成された型検証・有限寄与処理。"""
+    return derive_rates_with_components(metrics)[0]

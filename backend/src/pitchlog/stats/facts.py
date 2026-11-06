@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 from dataclasses import dataclass
@@ -12,18 +13,50 @@ from uuid import UUID
 from pitchlog.repositories.tokens import TenantOperationToken
 from pitchlog.stats.generated.receiver import METRIC_IDS, SOURCE_MODEL_HASH
 
+_GENERATED_FACTS_SHA256 = (
+    "d39e5caf86a44bd8a52bc9b7cdb61f4707376aac9b797de36530abd5fb3e9e9f"
+)
 
-def _generated_api():
+
+def _generated_module():
     """配置済み共通生成物だけをwrapper名で読み込む。"""
-    module = ModuleType("__pitchlog_generated_wrapper__")
     path = Path(__file__).parent / "generated/facts.py"
-    exec(compile(path.read_text(), str(path), "exec"), module.__dict__)
+    try:
+        source = path.read_bytes()
+    except OSError as exc:
+        raise RuntimeError("T5生成物を読み込めません") from exc
+    if (
+        type(source) is not bytes
+        or hashlib.sha256(source).hexdigest() != _GENERATED_FACTS_SHA256
+    ):
+        raise RuntimeError("T5生成物の固定SHA256が一致しません")
+    try:
+        text = source.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise RuntimeError("T5生成物がUTF-8ではありません") from exc
+    module = ModuleType("__pitchlog_generated_wrapper__")
+    exec(compile(text, str(path), "exec"), module.__dict__)
     if module.__dict__["SOURCE_MODEL_HASH"] != SOURCE_MODEL_HASH:
         raise RuntimeError("T5/typed receiverのモデル版が一致しません")
-    return module.__dict__["_pitchlog_generated"]
+    return module.__dict__
+
+
+def _generated_api():
+    """旧native入口は同じ検証済みmoduleの確定計算だけを返す。"""
+    return _generated_module()["_pitchlog_generated"]
 
 
 _EVENT_FACTS = _generated_api()
+
+
+def derive_rates(metrics):
+    """同じ生成核のOPS表示率を返す。率の式をこのmoduleへ複製しない。"""
+    return _generated_module()["derive_rates"](metrics)
+
+
+def derive_rates_with_components(metrics):
+    """T5の同一評価でOPSと独立状態付きcomponentを返す。"""
+    return _generated_module()["derive_rates_with_components"](metrics)
 
 
 def native_projection(payload, *, source_event_id):
@@ -93,8 +126,11 @@ def native_projection(payload, *, source_event_id):
             ]
         else:
             responsibility = native_source["responsibility"]
-        if responsibility["kind"] != "no-change":
-            raise ValueError("native継承責任variantは本接合の対象外です")
+        if responsibility["kind"] not in (
+            "no-change",
+            "changed-mid-plate-appearance",
+        ):
+            raise ValueError("native責任variantが未対応です")
         if (
             variant == "play-prefix-play-v3"
             and value["responsibility"] != responsibility
@@ -102,10 +138,26 @@ def native_projection(payload, *, source_event_id):
             raise ValueError("今回責任の原本が不一致です")
         pa["pa_id"] = responsibility["paStartSource"]["id"]
         completeness["pa"] = "complete"
-        # 対応variantの明示no-change原本だけをaliasする。A-2再判定はしない。
+        # 打席途中の交代でも今回の実投球者・非四球帰属は今回の参加者に従う。
+        # 四球時は唯一artifactが出した打者走者の保存責任IDをそのまま写す。
+        walk_owner = people["pitcherId"]
+        if (
+            responsibility["kind"] == "changed-mid-plate-appearance"
+            and t1["statFlags"]["四球"] is True
+        ):
+            runner_matches = [
+                runner
+                for runner in value["runners"]
+                if runner["runnerId"] == people["batterId"]
+            ]
+            walk_owner = (
+                runner_matches[0]["responsiblePitcherId"]
+                if len(runner_matches) == 1
+                else None
+            )
+        participants["walk_pitcher_id"] = walk_owner
         for name in (
             "strikeout_pitcher_id",
-            "walk_pitcher_id",
             "hbp_pitcher_id",
             "hit_pitcher_id",
             "home_run_pitcher_id",
@@ -125,7 +177,7 @@ def native_projection(payload, *, source_event_id):
 
 
 def evaluate_native_projection(payload, *, source_event_id):
-    """全26群を同じ生成核で評価する。認可/保存成功は発行しない。"""
+    """全27群を同じ生成核で評価する。認可/保存成功は発行しない。"""
     projection = native_projection(payload, source_event_id=source_event_id)
     # PA表示のordinal/語彙等を仮生成せず、count/creditだけを有限射影する。
     return _EVENT_FACTS(projection, METRIC_IDS)

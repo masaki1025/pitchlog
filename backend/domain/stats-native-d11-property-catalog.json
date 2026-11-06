@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "catalogId": "stats-native-d11-properties",
+  "scope": [
+    "native-event-facts27-v3",
+    "native-current-totals27-v3"
+  ],
+  "predicates": [
+    {
+      "propertyId": "native-event-facts27-v3-invariant",
+      "propertyKind": "invariant",
+      "authorityId": "NFR-018 (b)② 差分の検出可能性",
+      "predicate": "全27metricの非負整数/全credit総量一致/known0とunavailable-nullを区別"
+    },
+    {
+      "propertyId": "native-event-facts27-v3-equivalence",
+      "propertyKind": "equivalence",
+      "authorityId": "NFR-018 (b)② 差分の検出可能性",
+      "predicate": "独立規範の全fieldと実生成Python/TypeScriptの全応答が完全一致"
+    },
+    {
+      "propertyId": "native-current-totals27-v3-invariant",
+      "propertyKind": "invariant",
+      "authorityId": "NFR-018 (b)② 差分の検出可能性",
+      "predicate": "実SQL全27行/全field/非負整数/NULL状態/重複なし"
+    },
+    {
+      "propertyId": "native-current-totals27-v3-equivalence",
+      "propertyKind": "equivalence",
+      "authorityId": "NFR-018 (b)② 差分の検出可能性",
+      "predicate": "真正RRRO製品読取と実SQL→生成receiver→実生成formatterの最終表示まで完全一致"
+    }
+  ]
+}

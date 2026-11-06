@@ -4,7 +4,7 @@ import re
 from decimal import Decimal
 
 SOURCE_MODEL_HASH = (
-    "sha256:60ab45878fdfc868efc15ddb0f9b84d6ab0f3583519c48a2202e3d9c3abac59d"
+    "sha256:882acb95c08d88deb724a77f2fdfb184de48a2252cd03f5ca44df5cd8b48f4c6"
 )
 METRIC_IDS = (
     "pitch_count",
@@ -28,6 +28,7 @@ METRIC_IDS = (
     "pitching_outs",
     "pitcher_k",
     "pitcher_bb",
+    "batters_faced",
     "pitcher_hbp",
     "hits_allowed",
     "home_runs_allowed",

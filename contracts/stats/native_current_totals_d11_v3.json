@@ -1,0 +1,324 @@
+{
+  "schemaVersion": 1,
+  "calculation": "native-current-totals27-v3",
+  "scope": "current_open one real created game, same pitcher, three nonterminal pitches, no observation of runs/RBI/steal; not official-ended/season",
+  "cases": [
+    {
+      "caseId": "native-three-pitch-current-open-pitcher27",
+      "request": {
+        "native_variant": "ordinary-v1",
+        "event_count": 3,
+        "player_role": "pitcher",
+        "generation": "actual-live-generation",
+        "scope": "current_open"
+      },
+      "expected": {
+        "comparison": "exact",
+        "expected": [
+          {
+            "metric_id": "ab",
+            "state": "available",
+            "value": "0",
+            "display": "0"
+          },
+          {
+            "metric_id": "batters_faced",
+            "state": "available",
+            "value": "0",
+            "display": "0"
+          },
+          {
+            "metric_id": "bb",
+            "state": "available",
+            "value": "0",
+            "display": "0"
+          },
+          {
+            "metric_id": "catcher_interference_reached",
+            "state": "available",
+            "value": "0",
+            "display": "0"
+          },
+          {
+            "metric_id": "doubles",
+            "state": "available",
+            "value": "0",
+            "display": "0"
+          },
+          {
+            "metric_id": "fielding_errors",
+            "state": "available",
+            "value": "0",
+            "display": "0"
+          },
+          {
+            "metric_id": "h",
+            "state": "available",
+            "value": "0",
+            "display": "0"
+          },
+          {
+            "metric_id": "hbp",
+            "state": "available",
+            "value": "0",
+            "display": "0"
+          },
+          {
+            "metric_id": "hits_allowed",
+            "state": "available",
+            "value": "0",
+            "display": "0"
+          },
+          {
+            "metric_id": "home_runs_allowed",
+            "state": "available",
+            "value": "0",
+            "display": "0"
+          },
+          {
+            "metric_id": "hr",
+            "state": "available",
+            "value": "0",
+            "display": "0"
+          },
+          {
+            "metric_id": "k",
+            "state": "available",
+            "value": "0",
+            "display": "0"
+          },
+          {
+            "metric_id": "pa",
+            "state": "available",
+            "value": "0",
+            "display": "0"
+          },
+          {
+            "metric_id": "pitch_count",
+            "state": "available",
+            "value": "3",
+            "display": "3"
+          },
+          {
+            "metric_id": "pitcher_bb",
+            "state": "available",
+            "value": "0",
+            "display": "0"
+          },
+          {
+            "metric_id": "pitcher_hbp",
+            "state": "available",
+            "value": "0",
+            "display": "0"
+          },
+          {
+            "metric_id": "pitcher_k",
+            "state": "available",
+            "value": "0",
+            "display": "0"
+          },
+          {
+            "metric_id": "pitching_outs",
+            "state": "available",
+            "value": "0",
+            "display": "0"
+          },
+          {
+            "metric_id": "rbi",
+            "state": "source_unavailable",
+            "value": null,
+            "display": null
+          },
+          {
+            "metric_id": "runner_interference_reached",
+            "state": "available",
+            "value": "0",
+            "display": "0"
+          },
+          {
+            "metric_id": "runs",
+            "state": "source_unavailable",
+            "value": null,
+            "display": null
+          },
+          {
+            "metric_id": "runs_allowed",
+            "state": "source_unavailable",
+            "value": null,
+            "display": null
+          },
+          {
+            "metric_id": "sf",
+            "state": "available",
+            "value": "0",
+            "display": "0"
+          },
+          {
+            "metric_id": "sh",
+            "state": "available",
+            "value": "0",
+            "display": "0"
+          },
+          {
+            "metric_id": "stolen_bases",
+            "state": "source_unavailable",
+            "value": null,
+            "display": null
+          },
+          {
+            "metric_id": "total_bases",
+            "state": "available",
+            "value": "0",
+            "display": "0"
+          },
+          {
+            "metric_id": "triples",
+            "state": "available",
+            "value": "0",
+            "display": "0"
+          }
+        ],
+        "provenance": "NFR-018 (b)② 差分の検出可能性"
+      },
+      "derivation": "A-2: each actual pitch contributes1 to actual pitcher, three total3; known nonterminal PA/outs/hits etc0; native runs_rbi/steals completeness unavailable remains null, not0"
+    }
+  ],
+  "sourceReferences": {
+    "path": "docs/features/mvp-stats-primitives/primitive-cases.candidate.json",
+    "sha256": "8a2bee7ff357d8b20ba3af7bc0a8f80a5567bb344b2204801fc7460f6b9bbf48",
+    "legacyCaseIds": [
+      "empty-confirmed-set",
+      "incomplete-pa-one-pitch",
+      "completed-single",
+      "completed-double",
+      "completed-triple",
+      "home-run-1-effective-runs",
+      "home-run-3-effective-runs",
+      "walk",
+      "intentional-walk",
+      "hit-by-pitch",
+      "strikeout-out",
+      "dropped-third-strike-reach",
+      "dropped-third-strike-thrown-out",
+      "strikeout-double-play",
+      "third-out-reset-preserves-one-out",
+      "sacrifice-bunt",
+      "sacrifice-fly",
+      "catcher-interference",
+      "runner-interference",
+      "inherited-ball-dominant-walk",
+      "multiple-runs-mixed-rbi-responsibility",
+      "nonpitch-steal-incomplete-pa",
+      "missing-run-quantities-not-boolean-one",
+      "correction-replaces-old-contribution",
+      "cancelled-play-excluded",
+      "two-generations-retain-effective-pitches",
+      "device-before-apply-is-provisional",
+      "confirmed-before-apply",
+      "wrong-source-tenant",
+      "wrong-source-game",
+      "unresolved-receipt",
+      "wrong-slot-version",
+      "wrong-artifact",
+      "wrong-model",
+      "wrong-checkpoint",
+      "wrong-ledger",
+      "retry-duplicate-source",
+      "false-flag-is-not-null",
+      "missing-one-of-23-flags",
+      "extra-24th-flag",
+      "nonpitch-flag-contradiction",
+      "t6-exact-bigint-no-reopened-or-old-version",
+      "fielder-error-not-a-hit",
+      "k3-strikeout-counts-once",
+      "missing-outs-not-after-minus-before",
+      "pa-completed-once-after-incomplete-pitch",
+      "t6-year-and-raw-type-filters-before-grouping",
+      "t6-model-mismatch-reject",
+      "t6-duplicate-effective-fact-reject",
+      "t6-partial-canonical-fact-not-zero",
+      "reject-original-walk-from-b0",
+      "reject-original-steal-absent-runner",
+      "reject-invalid-run-rbi09-original",
+      "reject-invalid-run-rbi-credited",
+      "reject-valid-run-missing-rbi-branch"
+    ],
+    "currentCaseIds": [
+      "current-v2-regression-empty-confirmed-set",
+      "current-v2-regression-incomplete-pa-one-pitch",
+      "current-v2-regression-completed-single",
+      "current-v2-regression-completed-double",
+      "current-v2-regression-completed-triple",
+      "current-v2-regression-home-run-1-effective-runs",
+      "current-v2-regression-home-run-3-effective-runs",
+      "current-v2-regression-walk",
+      "current-v2-regression-intentional-walk",
+      "current-v2-regression-hit-by-pitch",
+      "current-v2-regression-strikeout-out",
+      "current-v2-regression-dropped-third-strike-reach",
+      "current-v2-regression-dropped-third-strike-thrown-out",
+      "current-v2-regression-strikeout-double-play",
+      "current-v2-regression-third-out-reset-preserves-one-out",
+      "current-v2-regression-sacrifice-bunt",
+      "current-v2-regression-sacrifice-fly",
+      "current-v2-regression-catcher-interference",
+      "current-v2-regression-runner-interference",
+      "current-v2-regression-inherited-ball-dominant-walk",
+      "current-v2-regression-multiple-runs-mixed-rbi-responsibility",
+      "current-v2-regression-nonpitch-steal-incomplete-pa",
+      "current-v2-regression-missing-run-quantities-not-boolean-one",
+      "current-v2-regression-correction-replaces-old-contribution",
+      "current-v2-regression-cancelled-play-excluded",
+      "current-v2-regression-two-generations-retain-effective-pitches",
+      "current-v2-regression-device-before-apply-is-provisional",
+      "current-v2-regression-confirmed-before-apply",
+      "current-v2-regression-wrong-source-tenant",
+      "current-v2-regression-wrong-source-game",
+      "current-v2-regression-unresolved-receipt",
+      "current-v2-regression-wrong-slot-version",
+      "current-v2-regression-wrong-artifact",
+      "current-v2-regression-wrong-model",
+      "current-v2-regression-wrong-checkpoint",
+      "current-v2-regression-wrong-ledger",
+      "current-v2-regression-retry-duplicate-source",
+      "current-v2-regression-false-flag-is-not-null",
+      "current-v2-regression-missing-one-of-23-flags",
+      "current-v2-regression-extra-24th-flag",
+      "current-v2-regression-nonpitch-flag-contradiction",
+      "current-v2-regression-t6-exact-bigint-no-reopened-or-old-version",
+      "current-v2-regression-fielder-error-not-a-hit",
+      "current-v2-regression-k3-strikeout-counts-once",
+      "current-v2-regression-missing-outs-not-after-minus-before",
+      "current-v2-regression-pa-completed-once-after-incomplete-pitch",
+      "current-v2-regression-t6-year-and-raw-type-filters-before-grouping",
+      "current-v2-regression-t6-model-mismatch-reject",
+      "current-v2-regression-t6-duplicate-effective-fact-reject",
+      "current-v2-regression-t6-partial-canonical-fact-not-zero",
+      "current-v2-regression-reject-original-walk-from-b0",
+      "current-v2-regression-reject-original-steal-absent-runner",
+      "current-v2-regression-reject-invalid-run-rbi09-original",
+      "current-v2-regression-reject-invalid-run-rbi-credited",
+      "current-v2-regression-reject-valid-run-missing-rbi-branch",
+      "current-v2-d02-official",
+      "current-v2-d02-practice",
+      "current-v2-d02-all",
+      "current-v2-d02-game_official",
+      "current-v2-d02-game_semi_official",
+      "current-v2-d02-game_open",
+      "current-v2-d02-game_intrasquad",
+      "current-v2-d02-game_other",
+      "current-v2-d02-practice-missing-other",
+      "current-v2-d02-name-raw-mismatch",
+      "current-v2-po-d05-one-third-plus-one-third",
+      "current-v2-po-d05-different-denominators",
+      "current-v2-po-d05-zero-defined",
+      "current-v2-po-d05-above-half-boundary",
+      "current-v2-po-d05-half-boundary",
+      "current-v2-po-d05-below-half-boundary",
+      "current-v2-po-d05-over-one",
+      "current-v2-po-d05-zero-both-denominators",
+      "current-v2-po-d05-zero-slg-denominator-only",
+      "current-v2-po-d05-missing-source"
+    ]
+  }
+}

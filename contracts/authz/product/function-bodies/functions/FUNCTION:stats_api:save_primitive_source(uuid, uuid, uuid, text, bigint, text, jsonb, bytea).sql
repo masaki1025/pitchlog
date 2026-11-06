@@ -19,7 +19,7 @@ BEGIN
  OR tenant IS NULL OR p_attempt_id IS NULL OR p_phase_id IS NULL OR p_source_event_id IS NULL
  OR p_binding_nonce IS NULL OR pg_catalog.octet_length(p_binding_nonce)<>32
  OR pg_catalog.current_setting('transaction_read_only') IS DISTINCT FROM 'off'
- OR p_model_sha256 IS DISTINCT FROM 'sha256:60ab45878fdfc868efc15ddb0f9b84d6ab0f3583519c48a2202e3d9c3abac59d'
+ OR p_model_sha256 IS DISTINCT FROM 'sha256:882acb95c08d88deb724a77f2fdfb184de48a2252cd03f5ca44df5cd8b48f4c6'
  OR p_expected_revision IS NULL OR p_expected_revision<0
  OR ((p_expected_revision=0) IS DISTINCT FROM (p_expected_source_set_sha256 IS NULL))
  OR (p_expected_source_set_sha256 IS NOT NULL AND p_expected_source_set_sha256 !~ '^[a-f0-9]{64}$')
@@ -340,7 +340,7 @@ SELECT COALESCE(ch.game_count,0) AS game_count,COALESCE(ch.canonical_source_coun
  OR p_evaluation_json->'decisions' IS DISTINCT FROM '{"D02":{"decision_id":"D02","decision_state":"adopted","choice":"A","implementation_state":"available"},"D03":{"decision_id":"D03","decision_state":"adopted","choice":"A","implementation_state":"pending","source_state":"not_evaluated","value":null},"D04":{"decision_id":"D04","decision_state":"adopted","choice":"A","implementation_state":"pending","source_state":"not_evaluated","value":null},"D05":{"decision_id":"D05","decision_state":"adopted","choice":"A","implementation_state":"available"}}'::jsonb
  OR pg_catalog.jsonb_typeof(p_evaluation_json->'metrics') IS DISTINCT FROM 'object'
  OR (SELECT pg_catalog.array_agg(k ORDER BY k COLLATE "C") FROM pg_catalog.jsonb_object_keys(p_evaluation_json->'metrics') k)
- IS DISTINCT FROM ARRAY['ab','bb','catcher_interference_reached','doubles','fielding_errors','h','hbp','hits_allowed','home_runs_allowed','hr','k','pa','pitch_count','pitcher_bb','pitcher_hbp','pitcher_k','pitching_outs','rbi','runner_interference_reached','runs','runs_allowed','sf','sh','stolen_bases','total_bases','triples']::text[]
+ IS DISTINCT FROM ARRAY['ab','batters_faced','bb','catcher_interference_reached','doubles','fielding_errors','h','hbp','hits_allowed','home_runs_allowed','hr','k','pa','pitch_count','pitcher_bb','pitcher_hbp','pitcher_k','pitching_outs','rbi','runner_interference_reached','runs','runs_allowed','sf','sh','stolen_bases','total_bases','triples']::text[]
  THEN RAISE EXCEPTION 'stats primitive boundary rejected' USING ERRCODE='42501'; END IF;
  pa_value:=p_evaluation_json->'pa_row';
  IF pa_value IS DISTINCT FROM 'null'::jsonb THEN
@@ -416,7 +416,7 @@ SELECT COALESCE(ch.game_count,0) AS game_count,COALESCE(ch.canonical_source_coun
  had_series:=FOUND;
  IF had_series THEN
   IF series.completion_state IS DISTINCT FROM 'current_open' OR series.rule_sha256 IS DISTINCT FROM rule_hash
-  OR series.t5_artifact_set_sha256 IS DISTINCT FROM '28af30fd1b1300c805b7dcb243fc7b32ab9d6db9fc10c38bdcbc63fa85c3a0de' THEN RAISE EXCEPTION 'stats primitive boundary rejected' USING ERRCODE='42501'; END IF;
+  OR series.t5_artifact_set_sha256 IS DISTINCT FROM 'b551ca128619674a5fc87efe44eba1acae329ed5979353600149dd4226e8dad2' THEN RAISE EXCEPTION 'stats primitive boundary rejected' USING ERRCODE='42501'; END IF;
   SELECT s.* INTO prior_source FROM sync_fence.stats_primitive_sources s
   WHERE s.tenant_id=tenant AND s.game_id=p_game_id AND s.fact_version_id=series.id AND s.source_event_id=p_source_event_id;
   IF FOUND THEN
@@ -544,7 +544,7 @@ SELECT COALESCE(ch.game_count,0) AS game_count,COALESCE(ch.canonical_source_coun
    END IF;
    p_fact_version_id:=series.id; p_revision:=series.revision; p_source_set_sha256:=series.source_set_sha256;
    p_player_id:=(event_row.payload#>>'{participants,pitcherId}')::uuid;
-   SELECT * INTO STRICT audit FROM (WITH requested_metrics(metric_id) AS (VALUES ('pitch_count'), ('pa'), ('ab'), ('h'), ('hr'), ('bb'), ('hbp'), ('k'), ('sh'), ('sf'), ('catcher_interference_reached'), ('runner_interference_reached'), ('doubles'), ('triples'), ('total_bases'), ('runs'), ('rbi'), ('stolen_bases'), ('pitching_outs'), ('pitcher_k'), ('pitcher_bb'), ('pitcher_hbp'), ('hits_allowed'), ('home_runs_allowed'), ('fielding_errors'), ('runs_allowed')),
+   SELECT * INTO STRICT audit FROM (WITH requested_metrics(metric_id) AS (VALUES ('pitch_count'), ('pa'), ('ab'), ('h'), ('hr'), ('bb'), ('hbp'), ('k'), ('sh'), ('sf'), ('catcher_interference_reached'), ('runner_interference_reached'), ('doubles'), ('triples'), ('total_bases'), ('runs'), ('rbi'), ('stolen_bases'), ('pitching_outs'), ('pitcher_k'), ('pitcher_bb'), ('batters_faced'), ('pitcher_hbp'), ('hits_allowed'), ('home_runs_allowed'), ('fielding_errors'), ('runs_allowed')),
 canonical_scope AS (
  SELECT g.tenant_id,g.id AS game_id FROM public.games g
  WHERE g.tenant_id=tenant AND g.hidden_at IS NULL AND g.trashed_at IS NULL
@@ -720,7 +720,7 @@ JOIN canonical_health ch ON ch.tenant_id=v.tenant_id AND ch.game_id=v.game_id) i
  OR audit.source_count IS DISTINCT FROM audit.canonical_source_count
  OR audit.unavailable_count IS DISTINCT FROM 0::bigint
  OR audit.source_set_sha256 IS DISTINCT FROM audit.canonical_source_set_sha256
- OR audit.row_count IS DISTINCT FROM audit.source_count*26
+ OR audit.row_count IS DISTINCT FROM audit.source_count*27
  OR (SELECT COUNT(*) FROM sync_fence.stats_primitive_sources s WHERE s.tenant_id=tenant
  AND s.game_id=p_game_id AND s.fact_version_id=p_fact_version_id) IS DISTINCT FROM audit.source_count
 
@@ -867,7 +867,7 @@ SELECT COALESCE(ch.game_count,0) AS game_count,COALESCE(ch.canonical_source_coun
   INSERT INTO sync_fence.stats_fact_versions(tenant_id,game_id,id,model_sha256,rule_sha256,
   t5_artifact_set_sha256,source_set_sha256,source_count,revision,last_generation,last_d1,last_d2,updated_at,
   computed_metric_keys,is_current,completion_state,completion_receipt_id,public_pointer_receipt_id,created_at,invalidated_at)
-  VALUES(tenant,p_game_id,pg_catalog.gen_random_uuid(),p_model_sha256,rule_hash,'28af30fd1b1300c805b7dcb243fc7b32ab9d6db9fc10c38bdcbc63fa85c3a0de',
+  VALUES(tenant,p_game_id,pg_catalog.gen_random_uuid(),p_model_sha256,rule_hash,'b551ca128619674a5fc87efe44eba1acae329ed5979353600149dd4226e8dad2',
   health.canonical_source_set_sha256,1,1,event_row.generation,event_row.d1,event_row.d2,pg_catalog.clock_timestamp(),
   new_keys,true,'current_open',NULL,NULL,pg_catalog.clock_timestamp(),NULL) RETURNING * INTO STRICT series;
  END IF;
@@ -896,12 +896,12 @@ SELECT COALESCE(ch.game_count,0) AS game_count,COALESCE(ch.canonical_source_coun
   last_generation=event_row.generation,last_d1=event_row.d1,last_d2=event_row.d2,updated_at=pg_catalog.clock_timestamp()
   WHERE v.tenant_id=tenant AND v.game_id=p_game_id AND v.id=series.id AND v.is_current AND v.invalidated_at IS NULL
   AND v.completion_state='current_open' AND v.revision=p_expected_revision AND v.source_set_sha256=p_expected_source_set_sha256
-  AND v.model_sha256=p_model_sha256 AND v.rule_sha256=rule_hash AND v.t5_artifact_set_sha256='28af30fd1b1300c805b7dcb243fc7b32ab9d6db9fc10c38bdcbc63fa85c3a0de'
+  AND v.model_sha256=p_model_sha256 AND v.rule_sha256=rule_hash AND v.t5_artifact_set_sha256='b551ca128619674a5fc87efe44eba1acae329ed5979353600149dd4226e8dad2'
   RETURNING * INTO STRICT series;
  END IF;
  p_fact_version_id:=series.id; p_revision:=series.revision; p_source_set_sha256:=series.source_set_sha256;
  p_player_id:=(event_row.payload#>>'{participants,pitcherId}')::uuid;
- SELECT * INTO STRICT audit FROM (WITH requested_metrics(metric_id) AS (VALUES ('pitch_count'), ('pa'), ('ab'), ('h'), ('hr'), ('bb'), ('hbp'), ('k'), ('sh'), ('sf'), ('catcher_interference_reached'), ('runner_interference_reached'), ('doubles'), ('triples'), ('total_bases'), ('runs'), ('rbi'), ('stolen_bases'), ('pitching_outs'), ('pitcher_k'), ('pitcher_bb'), ('pitcher_hbp'), ('hits_allowed'), ('home_runs_allowed'), ('fielding_errors'), ('runs_allowed')),
+ SELECT * INTO STRICT audit FROM (WITH requested_metrics(metric_id) AS (VALUES ('pitch_count'), ('pa'), ('ab'), ('h'), ('hr'), ('bb'), ('hbp'), ('k'), ('sh'), ('sf'), ('catcher_interference_reached'), ('runner_interference_reached'), ('doubles'), ('triples'), ('total_bases'), ('runs'), ('rbi'), ('stolen_bases'), ('pitching_outs'), ('pitcher_k'), ('pitcher_bb'), ('batters_faced'), ('pitcher_hbp'), ('hits_allowed'), ('home_runs_allowed'), ('fielding_errors'), ('runs_allowed')),
 canonical_scope AS (
  SELECT g.tenant_id,g.id AS game_id FROM public.games g
  WHERE g.tenant_id=tenant AND g.hidden_at IS NULL AND g.trashed_at IS NULL
@@ -1077,7 +1077,7 @@ JOIN canonical_health ch ON ch.tenant_id=v.tenant_id AND ch.game_id=v.game_id) c
  OR audit.source_count IS DISTINCT FROM audit.canonical_source_count
  OR audit.unavailable_count IS DISTINCT FROM 0::bigint
  OR audit.source_set_sha256 IS DISTINCT FROM audit.canonical_source_set_sha256
- OR audit.row_count IS DISTINCT FROM audit.source_count*26
+ OR audit.row_count IS DISTINCT FROM audit.source_count*27
  OR (SELECT COUNT(*) FROM sync_fence.stats_primitive_sources s WHERE s.tenant_id=tenant
  AND s.game_id=p_game_id AND s.fact_version_id=p_fact_version_id) IS DISTINCT FROM audit.source_count
 

@@ -22,3 +22,9 @@ rootがこのWTのsole writer。元の作者WT/cacheをrootから編集しない
 ## ステップ1の候補固定（2026-11-06）
 
 交代 final-candidate-20261106/candidate.patch SHA 7c8367e025fc9c050f1696f7f3e64a1f4e0a383549c2e5b67df135850b185738、94path manifest245bbd62…をd335共通祖先で3way接合。既LC/B5の実端末資格・schema登録・offline-ready表示を保持。重複したlifecycle import/schema/unionだけを一件化。生成runtime2pathは手修正せず現資産から公式rederive（変更ありexit3）→check成功。function-bodies check成功、backend168/型、frontend57/型成功。backend書式2pathをRuffで追随。source差分根拠はcache mvp-resume-20261104/substitution-root-3way-20261106.json。交代後の次球はstats27未接合のため未実証、旧作者P1留保と正式受理・最終非作者確認は未了。
+
+## ステップ2の接合（2026-11-06）
+
+stats作者のstep2 ca7564e4/step3 7fbc5c4eを通常merge。共通生成4pathの競合は固定両枝の宣言と現sourceの公式ADDITIONS/BODIESから再派生し、公式validate/runtime check/function-bodies check成功（958 entries）。cacheのderive-substitution-stats-assets.pyは対象WTをassertし、共通IDの異なる宣言は公式publisherの採用値以外を拒否、本文は全値一致で描画する。数学model/生成27は作者固定版のまま、旧v1/v2 D11は上書きしない。stats_native --validate-only はstructural-registration-onlyを返し、SQL/PG/full-D11成功とはしない。
+
+関連642件の初回は613成功・NP variant29失敗。テストの手組生存原本がmodel_dump全defaultで凍結され、製品のexclude_unset原本と不一致だったため、当該fixtureの原本凍結を製品と同じexclude_unsetへ合わせた（数学期待や拒否条件を緩めない）。当該suite170成功を確認。最終全件・実PG/画面・正式7.7/core・独立確認は未了。
