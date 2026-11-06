@@ -457,3 +457,6 @@ D11新8の反映1（2026-11-06 JST、PO委任Codex /root判断）: 初回packet4
 
 
 D11反映1の独立受理（2026-11-06 JST、PO委任Codex /root判断）: 新8はfixeda524277fの非作者REPORT729b2ced6b104a8e3e4be976e4c63b3cdf71c6f20a7381d98da121533fdb2c49/checks674a10deb02ac53e597fca5b57c6ba8bff8059669d6e74585d171a1de9fe370aを照合して限定採用する。初回595f25d7のP1-FINITE/STAGEと元11failを保持し両解消、新P0/P1/P2=0。独立180成功16.50秒/旧数学・生成8/入力9/規範3の20path byte保持、実betaへ10改竄全拒否、collector110を確認。root同固定owned171成功146.36秒/source前後同一/owned撤去は作者実証として区別。初回owned2失敗131.27秒は検査の余剰category bind2を正式7へ整合して解消し、欠落/余剰の実行前拒否を保持。rootを非作者/PO本人/P6blindと記録しない。本候補へ5072b328/a524277fの8sourceのみを取り込み、実配置全afterSHAを固定対象と照合する。正式core29/tenant/corpus/oracle/7.7/CIは別残、native26の検査を全27/成績画面/CSV/MVP完成へ広げない。
+
+
+current CI2の独立受理（2026-11-06 JST、PO委任Codex /root判断）: 作者packet456d095267316428e092421219e2c6f87992f1a7dc437d3e583f92a61da242ffを、非作者REPORT6a06fa1dd5a4c0a6550ae9410339f0aaf5a6e6de0ad63ccb52a11c582b898330/checks9458c7e541bef41fc688d7d6b8f3ff79ed623aad359784db71528b74065910aeで限定採用する。exact2の全before/afterSHA照合、新P0/P1/P2=0、独立116成功6.52秒/追加metadata10拒否/旧128関数AST・全他job/残step保持。既current S0一本で旧段階の実検査と0040/41同owner配置・非公開/全catalogを呼ぶ。rootfixed07a4ed9cのowned本文1成功7.17秒は作者証拠、旧S3/current本文1失敗6.06秒も保持。旧31caseは別歴史helperへ接続中で本受理では成立としない。必須12/shard/aggregate/検査範囲は不変更。正式tenant/corpus/7.7/実CI全体は後段へ残す。
