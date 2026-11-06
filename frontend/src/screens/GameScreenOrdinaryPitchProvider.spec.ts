@@ -381,9 +381,71 @@ import lineupFixture from '../api/fixtures/lineupPrefixGame.v3.json'
 import {
   lineupContextFromRead,
   prepareLineupPrefix,
+  prepareIntentionalWalk,
+  type LineupRecordingContext,
   type PlayScreenObservation,
 } from './GameScreenOrdinaryPitchProvider'
 import { isLineupPrefixGame } from '../api/lineupPrefixGame'
+import artifactIdentity from '../../public/domain/pitchlog-domain.json'
+
+it('申告敬遠候補は投球観測なしで既v3封筒へ結ぶ', async () => {
+  const raw = structuredClone(lineupFixture.value)
+  if (!isLineupPrefixGame(raw)) throw new Error('構造fixture不正')
+  const context = structuredClone(
+    await lineupContextFromRead(raw, raw.prefix_ref.tenantId),
+  ) as unknown as Record<string, unknown>
+  const vectors = JSON.parse(
+    readFileSync(
+      resolve('../contracts/state-transition/lineup_play_prefix_cases_v1.json'),
+      'utf8',
+    ),
+  ) as { cases: Array<{ caseId: string; request: Record<string, unknown> }> }
+  const sourceCase = vectors.cases.find(
+    (item) => item.caseId === 'V3-STRIKEOUT-1-B1-O2',
+  )!
+  const q = structuredClone(sourceCase.request)
+  const t1 = q.t1 as Record<string, unknown>
+  const source = q.source as Record<string, unknown>
+  for (const state of [
+    (t1.before as Record<string, unknown>).stateFields,
+    (source.after as Record<string, unknown>).stateFields,
+  ] as Array<Record<string, unknown>>) {
+    state['state.count.strikes'] = '0'
+    state['state.count.balls'] = '0'
+    state['state.outs'] = '0'
+  }
+  ;((source.t2 as Record<string, unknown>).facts as Record<string, unknown>)[
+    'afterOuts'
+  ] = '0'
+  source.executionArtifactSha256 = artifactIdentity.sha256
+  context.prefixRef = q.prefixRef
+  context.rules = q.rules
+  context.after = t1.before
+  context.lineupSource = source
+  context.nextPosition = {
+    d1: (source.position as Record<string, unknown>).d1,
+    d2: (source.position as Record<string, unknown>).d2,
+  }
+  const prepared = await prepareIntentionalWalk(
+    context as LineupRecordingContext,
+    (q.prefixRef as Record<string, string>).tenantId,
+    {
+      eventId: crypto.randomUUID(),
+      d5: crypto.randomUUID(),
+      playId: crypto.randomUUID(),
+    },
+    crypto.randomUUID(),
+  )
+  expect(prepared.payload.observations).toEqual({ kind: 'intentional-walk' })
+  expect(prepared.payload.calculation.response.value.t1.statFlags.投球数).toBe(
+    false,
+  )
+  expect(
+    prepared.payload.calculation.response.value.t1.after.stateFields[
+      'state.runners'
+    ],
+  ).toBe('first-second-third')
+})
 it('両9枠と実投捕の読取を唯一artifactへ渡し、三振・攻守を計算しない', async () => {
   const value = lineupFixture.value
   if (!isLineupPrefixGame(value)) throw new Error('独立DTO不正')
