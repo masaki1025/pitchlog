@@ -118,7 +118,8 @@ def _cursor(value):
 
 
 def read_ordinary_prefix(
-    handle, game_id, *, limit=25, cursor=None, _play_prefix=False, _lineup_prefix=False
+    handle, game_id, *, limit=25, cursor=None, _play_prefix=False, _lineup_prefix=False,
+    _viewer=False
 ):
     """現在世代の実point原本と有限pageだけを返す。0/旧1も暗黙書込しない。"""
     if (
@@ -128,28 +129,40 @@ def read_ordinary_prefix(
         or not 1 <= limit <= 100
     ):
         raise OrdinaryPrefixError
+    if _viewer:
+        from pitchlog.repositories.transaction import require_viewer_read_scope
+
+        require_viewer_read_scope(handle)
+        if not _lineup_prefix or _play_prefix:
+            raise OrdinaryPrefixError
     tenant = handle._bound_tenant_id
 
     def run(token):
         return handle.run(token)
 
     columns = tuple(Game.__table__.c.keys())
-    locked = _rows(run(GameLockToken(game_id)), columns)
+    locked = None if _viewer else _rows(run(GameLockToken(game_id)), columns)
     games = _rows(run(GameReadToken(game_id)), columns)
-    if not locked and not games:
+    if (locked is None or not locked) and not games:
         return StartedReadNotVisible()
-    if len(games) != 1 or locked != games:
+    if len(games) != 1 or (not _viewer and locked != games):
         raise OrdinaryPrefixError
     game = games[0]
     if game["tenant_id"] != tenant or game["id"] != game_id:
         raise OrdinaryPrefixError
     from pitchlog.repositories.game_lifecycle import _finished_lifecycle_read_allowed
 
+    if _viewer and game["status"] == "finished":
+        from pitchlog.repositories.game_lifecycle import _read_lifecycle_display
+
+        display = _read_lifecycle_display(handle, game_id)
+        if type(display) is not dict or display.get("status") != "finished":
+            raise OrdinaryPrefixError
     if (
         game["status"] != "in_progress"
         and not (
             game["status"] == "finished"
-            and _finished_lifecycle_read_allowed(handle, game_id)
+            and (_viewer or _finished_lifecycle_read_allowed(handle, game_id))
         )
     ) or any(
         game[key] is not None for key in ("trashed_at", "hidden_at", "import_batch_id")
@@ -159,12 +172,17 @@ def read_ordinary_prefix(
     generation = current["generation"]
     if type(generation) is not int or not 0 < generation < 2**63:
         raise OrdinaryPrefixError
-    locked_generation = _one(
-        run(RecordingGenerationLockToken(game_id, generation)), _GENERATION_READ_COLUMNS
+    locked_generation = (
+        None
+        if _viewer
+        else _one(
+            run(RecordingGenerationLockToken(game_id, generation)),
+            _GENERATION_READ_COLUMNS,
+        )
     )
     n = current["confirmed_watermark"]
     if (
-        locked_generation != current
+        (not _viewer and locked_generation != current)
         or current["tenant_id"] != tenant
         or current["game_id"] != game_id
         or current["kind"] != "normal"
@@ -211,6 +229,7 @@ def read_ordinary_prefix(
                 tail,
                 limit,
                 cursor,
+                viewer=_viewer,
             )
     if (n == 0 and tail is not None) or (
         n > 0
@@ -265,6 +284,7 @@ def read_ordinary_prefix(
             projection,
             limit,
             cursor,
+            _viewer=_viewer,
         )
     if stored is None or stored.get("kind") == "first-ball-save":
         if cursor is not None or n > 1:
@@ -680,17 +700,32 @@ def _evaluate_v2_payload(raw):
     return payload
 
 
-def _verify_v2_read_packet(item, tenant, game_id, *, lineup=False):
+def _verify_v2_read_packet(
+    item, tenant, game_id, *, lineup=False, viewer=False
+):
     """独立再評価/取消差分/41列/runner10列を全値比較する。"""
     from pitchlog.sync.ordinary_pitch_physical import pitch_physical_row
     from pitchlog.sync.terminal_pitch_projection import runner_physical_rows
 
     h, e, p = item["history"], item["event"], item["play_row"]
-    payload = (
-        _evaluate_lineup_payload(e["payload"])
-        if lineup
-        else _evaluate_v2_payload(e["payload"])
-    )
+    if lineup and viewer:
+        from pitchlog.sync.terminal_pitch_payload import (
+            LineupPitchPlayPayload,
+            read_lineup_pitch_payload,
+        )
+
+        raw = _canonical_json(e["payload"])
+        parsed = LineupPitchPlayPayload.model_validate_json(raw)
+        payload = read_lineup_pitch_payload(
+            raw, _canonical_json(e["state_diff"]),
+            expected_calculation=parsed.calculation,
+        )
+    else:
+        payload = (
+            _evaluate_lineup_payload(e["payload"])
+            if lineup
+            else _evaluate_v2_payload(e["payload"])
+        )
     q, value = payload.calculation.request, payload.calculation.response.value
     expected = pitch_physical_row(
         payload.observations,
@@ -948,6 +983,8 @@ def _read_lineup_projection(
     projection,
     limit,
     cursor,
+    *,
+    _viewer=False,
 ):
     """Actual zero/native v3に限定し、最後の原本と有界pageを別々に確認する。"""
     from pitchlog.domainrt.host import open_domain_host
@@ -959,7 +996,10 @@ def _read_lineup_projection(
         _read_native_lineup_head,
         read_lineup_prefix_document,
     )
-    from pitchlog.repositories.started_snapshot import read_initial_started_snapshot
+    from pitchlog.repositories.started_snapshot import (
+        read_initial_started_snapshot,
+        read_initial_viewer_snapshot,
+    )
     from pitchlog.sync.terminal_pitch_tokens import PlayPrefixHistoryPageToken
 
     origin = _lineup_started_origin(handle, game_id, generation)
@@ -971,14 +1011,23 @@ def _read_lineup_projection(
     if n == 0:
         if stored is not None or cursor is not None:
             raise OrdinaryPrefixError
-        initial = read_initial_started_snapshot(handle, game_id)
+        initial = (
+            read_initial_viewer_snapshot(handle, game_id)
+            if _viewer
+            else read_initial_started_snapshot(handle, game_id)
+        )
         with open_domain_host() as host:
             doc, source = _initial_lineup_document(
                 initial, origin, d4, epoch, host.artifact_sha256, position
             )
-        metadata = read_started_game(handle, game_id)
-        if type(metadata) is not StartedGameView:
-            raise OrdinaryPrefixError
+        if _viewer:
+            metadata = _prefix_metadata(
+                game, game_id, d4, initial.lineups, initial.roster
+            )
+        else:
+            metadata = read_started_game(handle, game_id)
+            if type(metadata) is not StartedGameView:
+                raise OrdinaryPrefixError
         projection.update(
             after=doc.after,
             prefix_ref=doc.prefix_ref,
@@ -1036,9 +1085,10 @@ def _read_lineup_projection(
     if lineup_from_actual_roster(roster) != doc.lineup:
         raise OrdinaryPrefixError
     last_payload, _ = _read_native_lineup_head(handle, game_id, tenant, row, doc)
-    _evaluate_lineup_payload(
-        last_payload.model_dump(mode="json", by_alias=True, exclude_unset=True)
-    )
+    if not _viewer:
+        _evaluate_lineup_payload(
+            last_payload.model_dump(mode="json", by_alias=True, exclude_unset=True)
+        )
     saved = _rows(handle.run(StartedLineupsReadToken(game_id)), LINEUP_COLUMNS)
     if len(saved) != 2 or any(
         item["tenant_id"] != tenant or item["game_id"] != game_id for item in saved
@@ -1064,7 +1114,7 @@ def _read_lineup_projection(
         "watermark": str(n),
         "recovery_generation": str(epoch),
     }
-    point = (0, 0, UUID(int=0))
+    point = (max(0, n - limit), 0, UUID(int=0)) if _viewer else (0, 0, UUID(int=0))
     if cursor is not None:
         supplied = _cursor(cursor)
         if (
@@ -1084,9 +1134,17 @@ def _read_lineup_projection(
         ):
             raise OrdinaryPrefixError
         point = (int(raw[0]), int(raw[1]), UUID(raw[2]))
+        if _viewer and (point[1] != 0 or point[2].int != 0 or point[0] >= n):
+            raise OrdinaryPrefixError
         if [str(x) for x in point] != raw:
             raise OrdinaryPrefixError
-    token = PlayPrefixHistoryPageToken(
+    if _viewer:
+        from pitchlog.repositories.viewer_read import ViewerPlayPrefixHistoryPageToken
+
+        page_token = ViewerPlayPrefixHistoryPageToken
+    else:
+        page_token = PlayPrefixHistoryPageToken
+    token = page_token(
         game_id,
         generation,
         int(doc.history_version),
@@ -1128,7 +1186,9 @@ def _read_lineup_projection(
             or e["payload"].get("formatVersion") != "play-prefix-play-v3"
         ):
             raise OrdinaryPrefixError
-        payload = _verify_v2_read_packet(item, tenant, game_id, lineup=True)
+        payload = _verify_v2_read_packet(
+            item, tenant, game_id, lineup=True, viewer=_viewer
+        )
         current = (h["d1"], h["d2"], UUID(h["source_event_id"]))
         if current <= point or last_point is not None and current <= last_point:
             raise OrdinaryPrefixError
@@ -1141,7 +1201,21 @@ def _read_lineup_projection(
             }
         )
     next_cursor = None
-    if len(packets) > limit:
+    if _viewer:
+        if point[0] > 0:
+            if not items:
+                raise OrdinaryPrefixError
+            older = (max(0, point[0] - limit), 0, UUID(int=0))
+            next_cursor = (
+                base64.urlsafe_b64encode(
+                    _canonical_json(
+                        {**scope, "position": [str(x) for x in older]}
+                    ).encode()
+                )
+                .decode()
+                .rstrip("=")
+            )
+    elif len(packets) > limit:
         if last_point is None:
             raise OrdinaryPrefixError
         next_cursor = (
@@ -1176,7 +1250,8 @@ def _read_lineup_projection(
 
 
 def _read_nonplay_projection(
-    handle, game_id, tenant, game, generation, epoch, n, d4, row, tail, limit, cursor
+    handle, game_id, tenant, game, generation, epoch, n, d4, row, tail, limit, cursor,
+    *, viewer=False,
 ):
     """非play後D3を実head/active/物理採番と分離したreadonly projection。"""
     from pitchlog.domainrt.initial_game_roster import InitialRosterProjection
@@ -1201,7 +1276,8 @@ def _read_nonplay_projection(
     ):
         raise OrdinaryPrefixError
     page = read_active_page(
-        handle, cp, generation=generation, limit=limit, cursor=cursor
+        handle, cp, generation=generation, limit=limit, cursor=cursor,
+        viewer=viewer,
     )
     roster = InitialRosterProjection.model_validate_json(_canonical_json(row["roster"]))
     saved = _rows(handle.run(StartedLineupsReadToken(game_id)), LINEUP_COLUMNS)
@@ -1232,4 +1308,12 @@ def _read_nonplay_projection(
                 "max_d2": "9007199254740991",
             },
         },
+    )
+
+
+def read_viewer_prefix(handle, game_id, *, limit=25, cursor=None):
+    """RR READ ONLY同snapshotで既native head・有限履歴を照合する。"""
+    return read_ordinary_prefix(
+        handle, game_id, limit=limit, cursor=cursor, _lineup_prefix=True,
+        _viewer=True,
     )

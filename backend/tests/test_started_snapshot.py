@@ -492,3 +492,21 @@ def test_shared_initial_before_value_and_nonempty_refusal_remain(
     bundle.nonempty = StartedOperationEventsExistenceToken
     with pytest.raises(reader.StartedSnapshotUnavailable):
         reader.read_initial_started_snapshot(bundle.handle, bundle.game_id)
+
+
+def test_viewer_zero_uses_saved_start_without_writer_locks(
+    bundle: Bundle, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """RR閲覧0球は既初期演算を使い、games/generation行lockを呼ばない。"""
+    from pitchlog.repositories import transaction
+
+    monkeypatch.setattr(transaction, "require_viewer_read_scope", lambda handle: None)
+    value = reader.read_initial_viewer_snapshot(bundle.handle, bundle.game_id)
+    assert value.generation == 1 and value.confirmed_watermark == 0
+    assert GameReadToken in {type(token) for token in bundle.calls}
+    assert RecordingGenerationReadToken in {type(token) for token in bundle.calls}
+    assert GameLockToken not in {type(token) for token in bundle.calls}
+    assert RecordingGenerationLockToken not in {type(token) for token in bundle.calls}
+    bundle.nonempty = StartedOperationEventsExistenceToken
+    with pytest.raises(reader.StartedSnapshotUnavailable):
+        reader.read_initial_viewer_snapshot(bundle.handle, bundle.game_id)

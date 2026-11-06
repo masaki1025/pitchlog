@@ -204,11 +204,29 @@ def read_initial_started_snapshot(
     handle: _TenantTransaction,
     game_id: UUID,
 ) -> StartedInitialSnapshot:
+    """従来のwriter同TX・行ロック付き0球原本を読む。"""
+    return _read_initial_started_snapshot(handle, game_id, viewer=False)
+
+
+def read_initial_viewer_snapshot(
+    handle: _TenantTransaction, game_id: UUID
+) -> StartedInitialSnapshot:
+    """RR READ ONLYの同snapshotから真正0球原本を読む。"""
+    from pitchlog.repositories.transaction import require_viewer_read_scope
+
+    require_viewer_read_scope(handle)
+    return _read_initial_started_snapshot(handle, game_id, viewer=True)
+
+
+def _read_initial_started_snapshot(
+    handle: _TenantTransaction, game_id: UUID, *, viewer: bool
+) -> StartedInitialSnapshot:
     """同handleの保存原本を照合し、初球before/rulesだけを返す。
 
     Args:
-        handle: 既scopeが所有する生存中のwriter。別Sessionは開かない。
+        handle: 既scopeが所有する生存中のhandle。別Sessionは開かない。
         game_id: 対象試合のUUID。tenantはhandleからのみ得る。
+        viewer: RR READ ONLYの閲覧scopeなら行lockを取得しない。
 
     Returns:
         初期入力値。認証・現在権利・実保存の成功ではない。
@@ -235,15 +253,20 @@ def read_initial_started_snapshot(
             return value
 
         columns = tuple(Game.__table__.c.keys())
-        locked = _one(run(GameLockToken(game_id)), columns)
+        locked = None if viewer else _one(run(GameLockToken(game_id)), columns)
         game = _one(run(GameReadToken(game_id)), columns)
-        if locked != game or game["tenant_id"] != tenant or game["id"] != game_id:
+        if (
+            (not viewer and locked != game)
+            or game["tenant_id"] != tenant
+            or game["id"] != game_id
+        ):
             raise StartedSnapshotUnavailable
         if (
             (
                 game["status"] != "in_progress"
                 and not (
-                    game["status"] == "finished"
+                    not viewer
+                    and game["status"] == "finished"
                     and _finished_lifecycle_read_allowed(handle, game_id)
                 )
             )
@@ -266,12 +289,16 @@ def read_initial_started_snapshot(
         generation = current["generation"]
         if type(generation) is not int or not 0 < generation <= 2**63 - 1:
             raise StartedSnapshotUnavailable
-        locked_generation = _one(
-            run(RecordingGenerationLockToken(game_id, generation)),
-            _GENERATION_READ_COLUMNS,
+        locked_generation = (
+            None
+            if viewer
+            else _one(
+                run(RecordingGenerationLockToken(game_id, generation)),
+                _GENERATION_READ_COLUMNS,
+            )
         )
         if (
-            current != locked_generation
+            (not viewer and current != locked_generation)
             or current["tenant_id"] != tenant
             or current["game_id"] != game_id
             or current["kind"] != "normal"
