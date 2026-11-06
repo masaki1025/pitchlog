@@ -1,12 +1,12 @@
 ---
-status: in-review
+status: approved
 ---
 
 # pitchlog 開発ハーネス設計案
 
 | 版 | 日付 | 変更内容 | 状態 |
 | --- | --- | --- | --- |
-| **1.20** | 2026-11-06 | **PR197の固定Git期待1件の限定例外を起案**。本改訂で確定する範囲: 7.7-1の直書き禁止に対し、PR197の原典固定に必要なscripts/frozen_history.pyの固定2fa fullSHA一件だけを公開委任証拠と独立レビューへ束縛して許す。通常allow-list追加禁止・走査母集団・7.7-2履歴/7.7-3閉拒否・コア検出は維持する。実装時に確定する範囲: typed値移設、scannerの対象限定検査/対向、正式7.7派生・CI。PO委任の技術案A採用、本人署名ではない。 | in-review |
+| **1.20** | 2026-11-06 | **PR197の固定Git期待1件の限定例外を確定**。本改訂で確定する範囲: 7.7-1の直書き禁止に対し、PR197の原典固定に必要なscripts/frozen_history.pyの固定2fa fullSHA一件だけを公開委任証拠と独立レビューへ束縛して許す。通常allow-list追加禁止・走査母集団・7.7-2履歴/7.7-3閉拒否・コア検出は維持する。実装時に確定する範囲: typed値移設、scannerの対象限定検査/対向、正式7.7派生・CI。PO委任の技術案A採用。基本2回と限定追加2回の全指摘を採用し、最終反映f70a7478の履歴分離・実機構一致をCodex主担当/rootが委任範囲で確認して確定（2026-11-06）。本人署名・人間逐行確認ではない。source/7.7/実CIの成立とは別。 | approved |
 | 1.19 | 2026-10-23 | 版不変・初回MVPのPO委任によるCodex判断について6.3/10.1に今回限定の実施注記を追記。一般手続きは維持。7.6-3の実施追随。 | approved |
 | 1.19 | 2026-10-08 | **10.1 の実装追随(TSK-501、版は上げない — 7.6-3 前段)**: `harness` 行に **pytest-xdist による並列実行**(ルート `pyproject.toml` の `addopts = "-n auto --dist worksteal"` — ランナー 4 vCPU → 4 ワーカー・`--dist worksteal` は長短混在ケースの分配の尾を短くする〔計画修正 6〕。ローカルは `/check` が `PYTEST_XDIST_AUTO_NUM_WORKERS=8` で上限 8。`tests/test_check_authz_catalog.py` の全数変異 2 テストは収集時 `parametrize` へ分割し全数性を独立テストで固定。ルート `conftest.py` は xdist 不在の Python 環境でだけダミー `-n` を受理)、`backend` 行に **coverage の `core = sysmon`**(`backend/.coveragerc`)を追記。**`ci.yml` のコマンド・ジョブ構成・必須チェック・path filter は不変**(`ci.yml` は凍結資産 `base-allowlist.json` の `external_files` と比較 corpus `tests/fixtures/frozen-archive-cases/manifest.json` の入力に含まれ、1 行の変更が 7.7-2 の受理記録と digest 再 pin〔コア領域 paths〕を要するため — 計画書 `features/ci-harness-parallel/plan.md` 4 節「凍結点への注意」。同じ理由で `tests/test_census_baseline_check.py`〔census-baseline.json の `external_files`〕の重複計算削減は実装後に revert し後続へ)。実測は同計画書の worklog(`worklog/2026-10-08-ci-harness-parallel.md`)と PR の run に記録 | approved |
 | **1.19** | 2026-10-07 | **確定ゲート通過(approved)**: 敵対レビュー **9 回**(gpt-6-sol xhigh — 全文 3 + 差分 6)・**反映 7 周**・**指摘 21 件(P0 1 / P1 17 / P2 3)を全件採用・不採用 0**・7.3-6 エスカレーション 2 回(3 周目・7 周目 — いずれも PO 裁定 = 続行指示・射程不変)・6 周警告 1 回(PO 判断 = 続行)・適用版 = 7.3 v1.18(条文 SHA `388fc332`)。**最終全文確認周の再実施(10〜11 回目)は PO 裁定で打ち切り**(2026-10-07・徳光 尋弥 — 先例: data-model v0.5・ADR-003 v0.2。条文の争点は 4 回目で収束し、以降の全文周の指摘は新条文同士の整合〔P1〕のみで P0 ゼロ。**代償 = 最終反映〔反映7周目〕の版を機械が全文確認していない → 承認時の差分確認と PR の逐行確認で埋める**)→ **PO 承認(2026-10-07・徳光 尋弥)**。採否記録は `docs/worklog/2026-10-07-review-round-cap.md`。Codex 消費 ≈ 1.06M トークン(同じ v1.18 規則の直近ゲート 4.70M の約 23% — モデル世代更新〔ADR-001 v1.1〕と射程の限定による。v1.19 の規則なら 3 回・約 385K で終わっていた。上限の効果測定は v1.19 適用後のゲートで行う) | approved |

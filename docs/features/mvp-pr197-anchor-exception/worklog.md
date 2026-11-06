@@ -32,3 +32,12 @@ REPORT SHA256 39ff452d29a6b4abdd510a9a797c0a9acd34b13eec453e297cbf22abfa2e8070�
 REPORT SHA256 d07d217124e4a308f01bdd9d16f18c5ed81934c062478da8a51549bc4fc59b75、否決P0=0/P1=1/P2=0。P1非起因(A)を採用、不採用0。新2step計画へ親PR197の5step履歴を混ぜないため、未公開の専用枝を正式base51bへ再基線し、このゲートの4文書commitだけを保持した。旧HEAD20048517と各審査対象はarchive/mvp-pr197-anchor-exception-before-isolation-20261106で保全、原典正文/plan/worklog3fileは再基線前後で全SHA同一をroot cache native-pr197-anchor-exception-isolation-root-20261106に記録。回数をリセットせず、反映4をcounter4へ追随する。source trustanchor2faの先祖性を要求するのは実PR197/製品側のHEADであり、この文書専用枝にsource実装や独立値移設を適用したとは記録しない。
 
 基本2＋追加2実施済みを維持し、PO委任に基づく限定追加3回目は本履歴分離・metadata差分と実helper検査だけに一回許可する。v1.20規範条文は不変、source/7.7/CI/本人署名は別で未成立。
+
+
+## 上限後の最終差分確認とPO委任による本文確定
+
+確認対象f70a74787b94edae79ea8a2038f8c69be206a13c、確定前全文SHA256 56407b8719a8919f0e2c8c473581163d3cf4e787df810e2eaa9ca07273b4cd20。7.3-2/7.3-6/7.3-8の上限後終端（採用反映後の最終差分を承認者が確認）を使い、未実行の追加3回目の予約は撤回する。実施済み基本2＋追加2の4回、反映4周を維持しリセットしない。全指摘を採用、不採用0。最後の非起因(A)は文書枝をformalbase51bへ分離して解消、旧review対象の全文/plan/worklog3byte同一を保全し、feature_status反映=一致/進捗=known0/2、公式codex_run全前置・整数表validを実行して確認した。source/P0を担当自己評価で無視した確定ではなく、本文の実施手続きの委任最終判断である。
+
+適用版v1.19は不変。記録e1cbd729は条文fileの最終変更commitであり、in-review起案f99の第一親1efb3611にも同じapproved条文が全byteで収録される（SHA256 0ccca7291f56a8b64e5d416b96d3be3a70377298206be0d7e2702d5481003fef）。参照名の意味を補足し、適用内容を変更していない。
+
+PO委任によるCodex主担当/root判断としてv1.20本文を確定する。PO本人の署名/人間逐行確認/P6blindとは記録しない。原典1件sourceのreflection2は別非作者レビュー/7.7実値受理/公開最終HEAD証拠/CI待ちであり、本書approvedだけで実装成功・MVP完了にしない。規範条文の変更はない。
