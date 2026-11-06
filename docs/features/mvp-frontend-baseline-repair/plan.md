@@ -18,3 +18,9 @@ branch: feature/mvp-frontend-baseline-repair
 | 3 | FE全件を再実行し、未解消の数学・正式7.7・実HTTPは留保を明記して独立reviewへ渡す | 全件結果/差分/固定SHA、段階commit、元WT/共有資産/DB無変更 |
 
 frontend試験と必要な有限fixture/metadata、対応する本計画のみ編集する。新計算核の複製、未知operation許可、認証成功の偽造、閉拒否の緩和をしない。実DB/browserは不要。rootは別WTで製品接合を継続し、本WTは委任された作者が唯一writer。
+
+## ステップ1の固定証拠
+
+旧Git blob `177de16a` の artifact SHA `4e8b3252…` と現 `ce622726…` は、同一要求で v2 56/56、lineup 34/34、初球87/87 の**全応答**が一致する。初球の旧期待82/87と一致しない残5は旧・現の双方で同じ不正例である。打球の直前 `94ba8fa0` artifact SHA `9ae9d16d…` と現も19/19全応答・既期待19/19が一致する。比較script/resultは cache `stats-lifecycle-read-diagnostic-20261106/compare-fe-artifacts.cjs` と `fe-artifact-comparison.json`、打球比較は同一Git blob/現byteを使う。
+
+現行fixture四つは旧fixtureを残したまま追加した。v2の変更は56×実行pin3＋自己echo2=280欄、lineupは34×実行pin3＋wire-head内pin2＋wireDigest1＋自己echo2=272欄。自己digestは既Python正式 `play_prefix_wire_digest`/`lineup_wire_digest` から再導出し、他の数学/観測/参加者/V8/priorを変更しない。初球102、打球38のpin文字列は可逆置換で旧file byteを復元できる。派生script/proofは cache `fe-baseline-repair-20261106/{derive_metadata.py,metadata-proof.json}`。原典との差分pathを固定したtestと対象84 Vitest、FE型/ESLintが通過。旧共有fixture/正本・正式7.7受理は変更していない。

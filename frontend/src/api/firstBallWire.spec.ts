@@ -6,10 +6,7 @@ import { formatFirstBallWire, readFirstBallAck } from './firstBallWire'
 import { parseD1AckEnvelope } from '../lib/sync/ackEnvelope'
 const fixture = JSON.parse(
   readFileSync(
-    resolve(
-      process.cwd(),
-      '../backend/tests/fixtures/first_ball_payload_vectors_v1.json',
-    ),
+    resolve(process.cwd(), 'src/api/fixtures/currentFirstBallPayload.v1.json'),
     'utf8',
   ),
 ).cases[0]
