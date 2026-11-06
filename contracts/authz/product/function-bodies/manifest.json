@@ -3976,6 +3976,311 @@
       "path": "contracts/authz/product/function-bodies/tables/stats_primitive_facts.sql",
       "element_type": "table",
       "element_id": "stats_primitive_facts"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/acl_expectations/ACL:sync_fence:nonplay_write_admissions:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "acl_expectation",
+      "element_id": "ACL:sync_fence:nonplay_write_admissions:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:event_slots:xmin:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:event_slots:xmin:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:idempotency_ledger:reason:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:idempotency_ledger:reason:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:idempotency_ledger:result:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:idempotency_ledger:result:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:nonplay_write_admissions:artifact_sha256:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:nonplay_write_admissions:artifact_sha256:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:nonplay_write_admissions:attempt_id:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:nonplay_write_admissions:attempt_id:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:nonplay_write_admissions:authority_id:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:nonplay_write_admissions:authority_id:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:nonplay_write_admissions:backend_pid:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:nonplay_write_admissions:backend_pid:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:nonplay_write_admissions:backend_start:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:nonplay_write_admissions:backend_start:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:nonplay_write_admissions:business_instance:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:nonplay_write_admissions:business_instance:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:nonplay_write_admissions:checkpoint_digest:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:nonplay_write_admissions:checkpoint_digest:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:nonplay_write_admissions:checkpoint_id:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:nonplay_write_admissions:checkpoint_id:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:nonplay_write_admissions:checkpoint_revision:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:nonplay_write_admissions:checkpoint_revision:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:nonplay_write_admissions:codec_version:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:nonplay_write_admissions:codec_version:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:nonplay_write_admissions:consumed_at:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:nonplay_write_admissions:consumed_at:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:nonplay_write_admissions:control_instance:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:nonplay_write_admissions:control_instance:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:nonplay_write_admissions:control_version:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:nonplay_write_admissions:control_version:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:nonplay_write_admissions:d5:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:nonplay_write_admissions:d5:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:nonplay_write_admissions:database_oid:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:nonplay_write_admissions:database_oid:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:nonplay_write_admissions:device_id:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:nonplay_write_admissions:device_id:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:nonplay_write_admissions:event_fingerprint:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:nonplay_write_admissions:event_fingerprint:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:nonplay_write_admissions:expires_at:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:nonplay_write_admissions:expires_at:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:nonplay_write_admissions:frame_digest:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:nonplay_write_admissions:frame_digest:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:nonplay_write_admissions:frame_id:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:nonplay_write_admissions:frame_id:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:nonplay_write_admissions:game_id:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:nonplay_write_admissions:game_id:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:nonplay_write_admissions:internal_generation:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:nonplay_write_admissions:internal_generation:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:nonplay_write_admissions:issuer:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:nonplay_write_admissions:issuer:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:nonplay_write_admissions:lease_id:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:nonplay_write_admissions:lease_id:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:nonplay_write_admissions:nonce_digest:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:nonplay_write_admissions:nonce_digest:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:nonplay_write_admissions:phase_id:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:nonplay_write_admissions:phase_id:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:nonplay_write_admissions:postmaster_started_at:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:nonplay_write_admissions:postmaster_started_at:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:nonplay_write_admissions:preparation:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:nonplay_write_admissions:preparation:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:nonplay_write_admissions:preparation_json:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:nonplay_write_admissions:preparation_json:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:nonplay_write_admissions:recovery_generation:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:nonplay_write_admissions:recovery_generation:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:nonplay_write_admissions:request_fingerprint:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:nonplay_write_admissions:request_fingerprint:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:nonplay_write_admissions:restore_epoch:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:nonplay_write_admissions:restore_epoch:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:nonplay_write_admissions:source_d1:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:nonplay_write_admissions:source_d1:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:nonplay_write_admissions:source_event_id:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:nonplay_write_admissions:source_event_id:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:nonplay_write_admissions:state:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:nonplay_write_admissions:state:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:nonplay_write_admissions:system_identifier:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:nonplay_write_admissions:system_identifier:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:nonplay_write_admissions:target_d1:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:nonplay_write_admissions:target_d1:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:nonplay_write_admissions:target_event_id:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:nonplay_write_admissions:target_event_id:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:nonplay_write_admissions:target_generation:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:nonplay_write_admissions:target_generation:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:nonplay_write_admissions:target_play_id:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:nonplay_write_admissions:target_play_id:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:nonplay_write_admissions:tenant_id:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:nonplay_write_admissions:tenant_id:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:nonplay_write_admissions:transaction_id:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:nonplay_write_admissions:transaction_id:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:nonplay_write_admissions:wire_d4:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:nonplay_write_admissions:wire_d4:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/functions/FUNCTION:public:protect_nonplay_admission().sql",
+      "element_type": "function",
+      "element_id": "FUNCTION:public:protect_nonplay_admission()"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/functions/FUNCTION:stats_api:rebuild_after_nonplay_undo(uuid, uuid, uuid, bytea, uuid, uuid, text).sql",
+      "element_type": "function",
+      "element_id": "FUNCTION:stats_api:rebuild_after_nonplay_undo(uuid, uuid, uuid, bytea, uuid, uuid, text)"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/functions/FUNCTION:sync_right_api:bind_nonplay_device(uuid, uuid, uuid, bytea, uuid, uuid, bytea).sql",
+      "element_type": "function",
+      "element_id": "FUNCTION:sync_right_api:bind_nonplay_device(uuid, uuid, uuid, bytea, uuid, uuid, bytea)"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/functions/FUNCTION:sync_right_api:check_nonplay_right(uuid, uuid, uuid, bytea, uuid, uuid, bigint, bigint, bytea).sql",
+      "element_type": "function",
+      "element_id": "FUNCTION:sync_right_api:check_nonplay_right(uuid, uuid, uuid, bytea, uuid, uuid, bigint, bigint, bytea)"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/functions/FUNCTION:sync_right_api:consume_nonplay_undo(uuid, uuid, uuid, bytea, uuid, uuid, text).sql",
+      "element_type": "function",
+      "element_id": "FUNCTION:sync_right_api:consume_nonplay_undo(uuid, uuid, uuid, bytea, uuid, uuid, text)"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/functions/FUNCTION:sync_right_api:lock_nonplay_checkpoint(uuid, uuid, uuid, bytea, uuid, uuid, text).sql",
+      "element_type": "function",
+      "element_id": "FUNCTION:sync_right_api:lock_nonplay_checkpoint(uuid, uuid, uuid, bytea, uuid, uuid, text)"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/functions/FUNCTION:sync_right_api:prepare_nonplay_undo(uuid, uuid, uuid, bytea, uuid, uuid, text).sql",
+      "element_type": "function",
+      "element_id": "FUNCTION:sync_right_api:prepare_nonplay_undo(uuid, uuid, uuid, bytea, uuid, uuid, text)"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/functions/FUNCTION:sync_right_api:read_nonplay_active_history(uuid, uuid, bigint, uuid, bigint, bigint, bigint, bigint, bigint, bigint, uuid, integer).sql",
+      "element_type": "function",
+      "element_id": "FUNCTION:sync_right_api:read_nonplay_active_history(uuid, uuid, bigint, uuid, bigint, bigint, bigint, bigint, bigint, bigint, uuid, integer)"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/functions/FUNCTION:sync_right_api:read_nonplay_history_page(uuid, uuid, uuid, bytea, uuid, uuid, text).sql",
+      "element_type": "function",
+      "element_id": "FUNCTION:sync_right_api:read_nonplay_history_page(uuid, uuid, uuid, bytea, uuid, uuid, text)"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/policies/POLICY:nonplay_write_admissions:nonplay_insert.sql",
+      "element_type": "policy",
+      "element_id": "POLICY:nonplay_write_admissions:nonplay_insert"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/policies/POLICY:nonplay_write_admissions:nonplay_select.sql",
+      "element_type": "policy",
+      "element_id": "POLICY:nonplay_write_admissions:nonplay_select"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/policies/POLICY:nonplay_write_admissions:nonplay_update.sql",
+      "element_type": "policy",
+      "element_id": "POLICY:nonplay_write_admissions:nonplay_update"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/policies/POLICY:play_rows:nonplay_hide.sql",
+      "element_type": "policy",
+      "element_id": "POLICY:play_rows:nonplay_hide"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/tables/nonplay_write_admissions.sql",
+      "element_type": "table",
+      "element_id": "nonplay_write_admissions"
     }
   ]
 }

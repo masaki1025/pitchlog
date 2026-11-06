@@ -257,6 +257,27 @@ _PRODUCT_FUNCTION_KINDS = (
     "migration_function",
     "invoker",
 )
+_NONPLAY_UNDO_INVOKER_ID = (
+    "FUNCTION:stats_api:rebuild_after_nonplay_undo("
+    "uuid, uuid, uuid, bytea, uuid, uuid, text)"
+)
+
+
+def _is_formal_nonplay_undo_invoker(row: object) -> bool:
+    """非play取消用の私有invoker一件だけを正式宣言の全値へ照合する。"""
+    from pitchlog.authz.first_ball_write_stamp import _strict_json
+    from pitchlog.authz.stats_primitive_product import undo_candidate_declarations
+
+    try:
+        declarations, _ = undo_candidate_declarations()
+        functions = declarations["functions"]
+        return (
+            len(functions) == 1
+            and functions[0]["function_id"] == _NONPLAY_UNDO_INVOKER_ID
+            and _strict_json(row) == _strict_json(functions[0])
+        )
+    except (KeyError, TypeError, ValueError, RecursionError):
+        return False
 
 
 def _read_json_object(path: Path, label: str) -> dict[str, object]:
@@ -478,6 +499,13 @@ def _validate_element_coverage(
                     raise AuthzApplicationStepsError(
                         f"{label}の関数ACL付与先は配列で宣言しなければならない"
                     )
+                if (
+                    raw_row.get("function_id") == _NONPLAY_UNDO_INVOKER_ID
+                    or raw_row.get("function_name") == "rebuild_after_nonplay_undo"
+                ) and not _is_formal_nonplay_undo_invoker(raw_row):
+                    raise AuthzApplicationStepsError(
+                        "非play取消invokerの正式宣言が全field一致しない"
+                    )
                 if function_kind == "invoker":
                     from pitchlog.authz.first_ball_write_stamp import (
                         is_formal_stamp_lock_declaration,
@@ -488,11 +516,13 @@ def _validate_element_coverage(
                         == "FUNCTION:sync_fence_api:read_writer_identity(uuid)"
                         and raw_row.get("security_mode") == "invoker"
                     )
-                    if not legacy_identity and not is_formal_stamp_lock_declaration(
-                        raw_row
+                    if not (
+                        legacy_identity
+                        or is_formal_stamp_lock_declaration(raw_row)
+                        or _is_formal_nonplay_undo_invoker(raw_row)
                     ):
                         raise AuthzApplicationStepsError(
-                            "初球invokerは既identityと正式lockのexact2だけ"
+                            "invokerは既identity・正式lock・非play取消のexact3だけ"
                         )
                 if (
                     function_kind == "definer"
