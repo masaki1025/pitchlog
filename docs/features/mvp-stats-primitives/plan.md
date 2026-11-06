@@ -457,3 +457,6 @@ D11新8の反映1（2026-11-06 JST、PO委任Codex /root判断）: 初回packet4
 
 
 歴史0039検証helperの作者移管（2026-11-06 JST、PO委任Codex /root判断）: 既scope7/前置E d51306b2を保持し、停止中draft3をroot専用feature/mvp-stage-a0039-profile-root（basea018b896）へ引き継ぐ。rootが新作者で独立確認は別担当。元draft SHAをstage-a0039-root-completion-20261106/takeover.jsonへ保存した。新frozen entry1とexternal3の値は既root供給stage-a0039-frozen-reference-supply.jsonと完全一致に限定し、この隔離候補だけへ配置する。source/entry固定後の公式tenant/corpus再導出・全前後受理は一括し、現時点を正式7.7成立としない。旧31case/全assert/fault/旧module関数AST保持、fixtureより先の標準Function置換・本物child実行/非skip JUnit一致・全970blob固定/未知import拒否を検査する。実DBは同版rootownedで実施し、それまでcollect/pureを旧PG成立へ拡張しない。
+
+
+歴史helper反映1（2026-11-06 JST、PO委任Codex /root判断）: 非作者がfixture/typed entryの同時変更で未承認commitを受理するP1と、child DSN除去後のautouse実接続欠落を検出。root初回all31はparentも必須DSN無しで31setupERROR6.84秒であり成功証拠ではない。E d51306b2へhelper内の独立・明示固定anchor1を置き、既typed entryが同Eであることを要求する。候補fixtureから期待hashを自己導出したり、文字列分割で検出を回避しない。承認済E変更はsource/正式referenceの明示改訂と再確認を要する。新対向は真正別Gitcommitに変更fixtureを置きentryも同commitへ向けて拒否を確認する。childは親DSNを継承せず、immutable51bcbの真正disposable_postgres_cluster factoryをcollect以外で自ら起動し、子専用admin/別tested roleのDSNだけを供給して既autouseを実行する。config cleanupへ破棄を登録し、collectorのみはDocker/DB0を維持する。root実再検査のparent用DSNは既owned runnerから供給し、共有DSNはunsetのまま。旧guard/fixture/全31ASTを削除・skip・stub化しない。同exact4内の修正後に非作者へ限定再確認を依頼する。
