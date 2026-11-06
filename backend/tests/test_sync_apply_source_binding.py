@@ -97,6 +97,49 @@ def _receipt_double(raw: dict[str, Any]) -> tuple[api.E1Receipt, SyncRequest]:
     return receipt, request
 
 
+def test_p3_d1less_receipt_keeps_raw_change_and_expires() -> None:
+    """真正受付の寿命内だけ、D1/D4を捏造せずP3変更sourceを選ぶ。"""
+    raw = {
+        "d5": _raw()["d5"],
+        "game_id": _raw()["game_id"],
+        "event_kind": "play_change",
+        "payload": {"formatVersion": "p3-lineup-pitch-change-v1"},
+        "target_reference": {
+            "game": _raw()["game_id"],
+            "d4": "3",
+            "d1": 2,
+        },
+        "expected_version": 1,
+    }
+    request = SyncRequest.from_payload(
+        "P3",
+        raw["game_id"],
+        {"recovery_generation": "1", "change": raw},
+    )
+    source = freeze_wire_source(
+        game_id=raw["game_id"], d4="3", raw_events=(raw,), d1less=True
+    )
+    context = TenantContext(_TENANT, _ISSUANCE_CAPABILITY)
+    token = object()
+    with api._e1_receipt_scope(
+        context=context, request=request, source=source, entry_token=token
+    ) as receipt:
+        binding = api.e1_event_source(receipt, 1)
+        selected = api.read_selected_event_source(
+            binding,
+            context=context,
+            request=request,
+            event=request.events[0],
+        )
+        assert selected.event_fingerprint == source.event_fingerprints[0]
+        assert selected.request_fingerprint == source.request_fingerprint
+        assert selected.wire_event is not None
+        assert "d1" not in selected.wire_event.wire_event
+        assert "d4" not in selected.wire_event.wire_event
+    with pytest.raises(api.SourceBindingError):
+        api.selected_event_fingerprint(binding, request.events[0])
+
+
 @pytest.mark.parametrize("row", _VECTORS["event_cases"], ids=lambda r: r["case_id"])
 def test_pure_e1_correspondence_fixed_vectors(row: dict[str, Any]) -> None:
     """直接登録doubleが原event専用hashを返す対応だけを検査する。"""
