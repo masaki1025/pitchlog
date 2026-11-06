@@ -4286,6 +4286,371 @@
       "path": "contracts/authz/product/function-bodies/tables/nonplay_write_admissions.sql",
       "element_type": "table",
       "element_id": "nonplay_write_admissions"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/tables/lifecycle_write_admissions.sql",
+      "element_type": "table",
+      "element_id": "lifecycle_write_admissions"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/tables/game_lifecycle_heads.sql",
+      "element_type": "table",
+      "element_id": "game_lifecycle_heads"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/policies/POLICY:lifecycle_write_admissions:lifecycle_select.sql",
+      "element_type": "policy",
+      "element_id": "POLICY:lifecycle_write_admissions:lifecycle_select"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/policies/POLICY:lifecycle_write_admissions:lifecycle_insert.sql",
+      "element_type": "policy",
+      "element_id": "POLICY:lifecycle_write_admissions:lifecycle_insert"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/policies/POLICY:lifecycle_write_admissions:lifecycle_update.sql",
+      "element_type": "policy",
+      "element_id": "POLICY:lifecycle_write_admissions:lifecycle_update"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/policies/POLICY:game_lifecycle_heads:lifecycle_select.sql",
+      "element_type": "policy",
+      "element_id": "POLICY:game_lifecycle_heads:lifecycle_select"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/policies/POLICY:game_lifecycle_heads:lifecycle_insert.sql",
+      "element_type": "policy",
+      "element_id": "POLICY:game_lifecycle_heads:lifecycle_insert"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/policies/POLICY:game_lifecycle_heads:lifecycle_update.sql",
+      "element_type": "policy",
+      "element_id": "POLICY:game_lifecycle_heads:lifecycle_update"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/policies/POLICY:games:lifecycle_status_update.sql",
+      "element_type": "policy",
+      "element_id": "POLICY:games:lifecycle_status_update"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/policies/POLICY:stats_fact_versions:lifecycle_end_insert.sql",
+      "element_type": "policy",
+      "element_id": "POLICY:stats_fact_versions:lifecycle_end_insert"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/policies/POLICY:stats_fact_versions:lifecycle_reopen_update.sql",
+      "element_type": "policy",
+      "element_id": "POLICY:stats_fact_versions:lifecycle_reopen_update"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/policies/POLICY:stats_primitive_sources:lifecycle_end_insert.sql",
+      "element_type": "policy",
+      "element_id": "POLICY:stats_primitive_sources:lifecycle_end_insert"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/policies/POLICY:stats_primitive_facts:lifecycle_end_insert.sql",
+      "element_type": "policy",
+      "element_id": "POLICY:stats_primitive_facts:lifecycle_end_insert"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/functions/FUNCTION:sync_right_api:read_lifecycle_state(uuid, uuid, uuid, bytea, uuid, uuid, text).sql",
+      "element_type": "function",
+      "element_id": "FUNCTION:sync_right_api:read_lifecycle_state(uuid, uuid, uuid, bytea, uuid, uuid, text)"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/functions/FUNCTION:sync_right_api:prepare_game_lifecycle(uuid, uuid, uuid, bytea, uuid, uuid, text).sql",
+      "element_type": "function",
+      "element_id": "FUNCTION:sync_right_api:prepare_game_lifecycle(uuid, uuid, uuid, bytea, uuid, uuid, text)"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/functions/FUNCTION:sync_right_api:consume_game_lifecycle(uuid, uuid, uuid, bytea, uuid, uuid, text).sql",
+      "element_type": "function",
+      "element_id": "FUNCTION:sync_right_api:consume_game_lifecycle(uuid, uuid, uuid, bytea, uuid, uuid, text)"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/functions/FUNCTION:sync_right_api:read_lifecycle_display(uuid, uuid).sql",
+      "element_type": "function",
+      "element_id": "FUNCTION:sync_right_api:read_lifecycle_display(uuid, uuid)"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/functions/FUNCTION:public:protect_lifecycle_write_admissions().sql",
+      "element_type": "function",
+      "element_id": "FUNCTION:public:protect_lifecycle_write_admissions()"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/functions/FUNCTION:public:protect_game_lifecycle_heads().sql",
+      "element_type": "function",
+      "element_id": "FUNCTION:public:protect_game_lifecycle_heads()"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/acl_expectations/ACL:sync_fence:lifecycle_write_admissions:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "acl_expectation",
+      "element_id": "ACL:sync_fence:lifecycle_write_admissions:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:lifecycle_write_admissions:tenant_id:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:lifecycle_write_admissions:tenant_id:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:lifecycle_write_admissions:attempt_id:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:lifecycle_write_admissions:attempt_id:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:lifecycle_write_admissions:phase_id:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:lifecycle_write_admissions:phase_id:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:lifecycle_write_admissions:authority_id:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:lifecycle_write_admissions:authority_id:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:lifecycle_write_admissions:control_instance:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:lifecycle_write_admissions:control_instance:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:lifecycle_write_admissions:business_instance:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:lifecycle_write_admissions:business_instance:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:lifecycle_write_admissions:restore_epoch:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:lifecycle_write_admissions:restore_epoch:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:lifecycle_write_admissions:control_version:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:lifecycle_write_admissions:control_version:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:lifecycle_write_admissions:issuer:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:lifecycle_write_admissions:issuer:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:lifecycle_write_admissions:lease_id:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:lifecycle_write_admissions:lease_id:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:lifecycle_write_admissions:device_id:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:lifecycle_write_admissions:device_id:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:lifecycle_write_admissions:game_id:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:lifecycle_write_admissions:game_id:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:lifecycle_write_admissions:wire_d4:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:lifecycle_write_admissions:wire_d4:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:lifecycle_write_admissions:internal_generation:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:lifecycle_write_admissions:internal_generation:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:lifecycle_write_admissions:recovery_generation:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:lifecycle_write_admissions:recovery_generation:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:lifecycle_write_admissions:codec_version:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:lifecycle_write_admissions:codec_version:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:lifecycle_write_admissions:request_fingerprint:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:lifecycle_write_admissions:request_fingerprint:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:lifecycle_write_admissions:d5:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:lifecycle_write_admissions:d5:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:lifecycle_write_admissions:event_fingerprint:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:lifecycle_write_admissions:event_fingerprint:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:lifecycle_write_admissions:system_identifier:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:lifecycle_write_admissions:system_identifier:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:lifecycle_write_admissions:database_oid:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:lifecycle_write_admissions:database_oid:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:lifecycle_write_admissions:postmaster_started_at:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:lifecycle_write_admissions:postmaster_started_at:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:lifecycle_write_admissions:backend_pid:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:lifecycle_write_admissions:backend_pid:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:lifecycle_write_admissions:backend_start:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:lifecycle_write_admissions:backend_start:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:lifecycle_write_admissions:transaction_id:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:lifecycle_write_admissions:transaction_id:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:lifecycle_write_admissions:nonce_digest:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:lifecycle_write_admissions:nonce_digest:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:lifecycle_write_admissions:expires_at:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:lifecycle_write_admissions:expires_at:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:lifecycle_write_admissions:state:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:lifecycle_write_admissions:state:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:lifecycle_write_admissions:frame_id:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:lifecycle_write_admissions:frame_id:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:lifecycle_write_admissions:frame_digest:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:lifecycle_write_admissions:frame_digest:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:lifecycle_write_admissions:artifact_sha256:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:lifecycle_write_admissions:artifact_sha256:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:lifecycle_write_admissions:source_event_id:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:lifecycle_write_admissions:source_event_id:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:lifecycle_write_admissions:source_d1:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:lifecycle_write_admissions:source_d1:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:lifecycle_write_admissions:source_d2:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:lifecycle_write_admissions:source_d2:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:lifecycle_write_admissions:checkpoint_id:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:lifecycle_write_admissions:checkpoint_id:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:lifecycle_write_admissions:checkpoint_revision:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:lifecycle_write_admissions:checkpoint_revision:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:lifecycle_write_admissions:checkpoint_digest:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:lifecycle_write_admissions:checkpoint_digest:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:lifecycle_write_admissions:receipt_id:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:lifecycle_write_admissions:receipt_id:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:lifecycle_write_admissions:action:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:lifecycle_write_admissions:action:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:lifecycle_write_admissions:preparation_json:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:lifecycle_write_admissions:preparation_json:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:lifecycle_write_admissions:preparation:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:lifecycle_write_admissions:preparation:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:lifecycle_write_admissions:consumed_at:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:lifecycle_write_admissions:consumed_at:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:game_lifecycle_heads:tenant_id:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:game_lifecycle_heads:tenant_id:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:game_lifecycle_heads:game_id:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:game_lifecycle_heads:game_id:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:game_lifecycle_heads:last_version:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:game_lifecycle_heads:last_version:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:game_lifecycle_heads:is_finished:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:game_lifecycle_heads:is_finished:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:game_lifecycle_heads:active_end_event_id:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:game_lifecycle_heads:active_end_event_id:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:game_lifecycle_heads:active_receipt_id:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:game_lifecycle_heads:active_receipt_id:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:game_lifecycle_heads:active_stats_version_id:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:game_lifecycle_heads:active_stats_version_id:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:game_lifecycle_heads:last_control_event_id:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:game_lifecycle_heads:last_control_event_id:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:game_lifecycle_heads:updated_at:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:game_lifecycle_heads:updated_at:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:games:started_at:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:games:started_at:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:games:import_batch_id:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:games:import_batch_id:pitchlog_sync_right_fn_owner"
     }
   ]
 }

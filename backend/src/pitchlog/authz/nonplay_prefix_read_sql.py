@@ -1,5 +1,6 @@
 """非play現在原本の有限readonly関数。秘密印は内部照合にだけ使う。"""
 
+from pitchlog.authz.game_lifecycle_sql import control_bridge_guard
 from pitchlog.authz.nonplay_prefix_sql import _active_evidence_query
 from pitchlog.authz.ordinary_prefix_sql import _READ_ASSERT
 
@@ -83,8 +84,28 @@ BEGIN
  AND c.id=cp.id AND c.content=cp.content AND c.xmin=a.xmin
  AND e.event_kind='play_input' AND e.ledger_kind='accepted' AND e.xmin=a.xmin
  AND l.kind='accepted' AND l.source_fingerprint=a.event_fingerprint
+ AND l.xmin=a.xmin AND l.retired_at IS NULL AND l.import_batch_id IS NULL
+ UNION ALL SELECT 1 FROM sync_fence.lifecycle_write_admissions a
+ JOIN public.operation_events e ON e.tenant_id=a.tenant_id
+ AND e.game_id=a.game_id AND e.id=a.source_event_id
+ JOIN public.idempotency_ledger l ON l.tenant_id=e.tenant_id AND l.d5=e.d5
+ JOIN public.event_slots slot ON (slot.tenant_id,slot.game_id,slot.generation,slot.d1)
+ =(e.tenant_id,e.game_id,e.generation,e.d1)
+ JOIN sync_fence.ordinary_pitch_checkpoints c ON c.tenant_id=a.tenant_id
+ AND c.game_id=a.game_id AND c.internal_generation=a.internal_generation
+ WHERE a.tenant_id=p_tenant_id AND a.game_id=p_game_id
+ AND a.internal_generation=p_generation AND a.source_d1=p_d3 AND a.source_d2=e.d2
+ AND a.state='consumed' AND a.consumed_at IS NOT NULL AND slot.confirmed_version=1
+ AND a.preparation->'storage'->'row'->'roster'=cp.roster
+ AND a.preparation->'after_source'->'checkpoint'=cp.content
+ AND c.id=cp.id AND c.content=cp.content AND c.xmin=a.xmin
+ AND e.event_kind=CASE WHEN a.action='end' THEN 'game_end_declaration' ELSE
+ 'game_reopen' END
+ AND a.action IN ('end','reopen') AND e.ledger_kind='accepted' AND e.xmin=a.xmin
+ AND l.kind='accepted' AND l.source_fingerprint=a.event_fingerprint
  AND l.xmin=a.xmin AND l.retired_at IS NULL AND l.import_batch_id IS NULL)
  THEN {reject} END IF;
+{control_bridge_guard(generation="p_generation")}
  -- 非playを欠番として捨てず、真正受理印の完全参照だけを除外根拠にする。
  IF EXISTS(SELECT 1 FROM public.operation_events e
  WHERE e.tenant_id=p_tenant_id AND e.game_id=p_game_id AND e.generation=p_generation
@@ -92,7 +113,7 @@ BEGIN
  OR e.replaced_at IS NOT NULL OR e.retired_at IS NOT NULL OR e.import_batch_id IS NOT
  NULL
  OR e.migration_unverified OR e.legacy_row_identifier IS NOT NULL
- OR e.event_kind NOT IN ('play_input','undo')))
+ OR e.event_kind NOT IN ('play_input','undo','game_end_declaration','game_reopen')))
  THEN {reject} END IF;
  IF (SELECT pg_catalog.count(*) FROM public.operation_events e
  WHERE e.tenant_id=p_tenant_id AND e.game_id=p_game_id AND e.generation=p_generation
@@ -134,6 +155,12 @@ BEGIN
  AND a.wire_d4=head->>'generation'
  UNION ALL SELECT 1 FROM sync_fence.nonplay_write_admissions a
  WHERE a.tenant_id=e.tenant_id AND a.source_event_id=e.id AND a.state='consumed'
+ AND a.wire_d4=head->>'generation'
+ UNION ALL SELECT 1 FROM sync_fence.lifecycle_write_admissions a
+ WHERE a.tenant_id=e.tenant_id AND a.game_id=e.game_id AND a.source_event_id=e.id
+ AND a.state='consumed' AND a.consumed_at IS NOT NULL
+ AND a.internal_generation=e.generation AND a.source_d1=e.d1 AND a.source_d2=e.d2
+ AND a.d5=e.d5 AND a.event_fingerprint=l.source_fingerprint
  AND a.wire_d4=head->>'generation')))
  OR cp.content->'content'->'d1Head'->'source'->>'d1' IS DISTINCT FROM p_d3::text
  OR (cp.content->'content'->>'nextPhysicalPlayNumber')::bigint IS DISTINCT FROM

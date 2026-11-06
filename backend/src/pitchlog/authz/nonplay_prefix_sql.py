@@ -99,6 +99,16 @@ def candidate_function_bodies():
  GROUP BY r.issuance_order,b.wire_d4) x))::text;
 """,
     )
+    from pitchlog.authz.game_lifecycle_sql import control_bridge_guard
+
+    lock = result["lock_nonplay_checkpoint"]
+    point = " RETURN QUERY SELECT pg_catalog.jsonb_build_object("
+    if lock.count(point) != 1:
+        raise ValueError("終了制御のlock binding位置が不明です")
+    result["lock_nonplay_checkpoint"] = lock.replace(
+        point, control_bridge_guard() + point, 1
+    )
+
     result["read_nonplay_history_page"] = _function(
         "read_nonplay_history_page",
         f"""

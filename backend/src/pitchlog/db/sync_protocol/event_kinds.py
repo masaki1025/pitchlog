@@ -128,6 +128,9 @@ OPERATION_EVENT_PARTICIPATIONS = (
         ParticipationBinding.EVENT_KIND,
         "substitution_change",
     ),
+    OperationEventParticipation(
+        13, "追記再開 (game_reopen)", ParticipationBinding.EVENT_KIND, "game_reopen"
+    ),
 )
 EVENT_KIND_BY_CANONICAL_NAME = MappingProxyType(
     {
@@ -159,7 +162,13 @@ UNDO_EVENT_KIND = EVENT_KIND_BY_CANONICAL_NAME["undo"]
 C12_VALUES = tuple(C12Value)
 _LOGICAL_POSITION_EVENT_KINDS = frozenset(
     EVENT_KIND_BY_CANONICAL_NAME[name]
-    for name in ("毎球入力", "選手交代", "タイブレーク開始", "試合終了宣言")
+    for name in (
+        "毎球入力",
+        "選手交代",
+        "タイブレーク開始",
+        "試合終了宣言",
+        "追記再開 (game_reopen)",
+    )
 )
 _C12_CARRIER_COLUMNS = MappingProxyType(
     {
@@ -262,6 +271,8 @@ def _c12_requirement(
         )
         return requirement, None, None
     if value is C12Value.V10:
+        if literal == "game_reopen":
+            return C12Requirement.FORBIDDEN, None, None
         if is_tombstone:
             return (
                 C12Requirement.UNREPRESENTABLE,

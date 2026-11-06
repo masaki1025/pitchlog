@@ -1,0 +1,90 @@
+{
+  "propertyCatalog": {
+    "path": "backend/domain/game-lifecycle-property-catalog.json",
+    "schema": "backend/domain/game-lifecycle-property-catalog.schema.json",
+    "provenance": "ADR-003 D-11 3 層表 プロパティ層"
+  },
+  "calculations": [
+    {
+      "calculation": "native-game-lifecycle-v1",
+      "source": {
+        "path": "frontend/src/domain/gameLifecycle.ts",
+        "provenance": "FR-007 追記再開"
+      },
+      "generated": [
+        {
+          "generatedId": "gameLifecycleArtifact",
+          "path": "frontend/public/domain/pitchlog-domain.js",
+          "artifactKind": "js-artifact"
+        }
+      ],
+      "entrypoints": [
+        {
+          "entrypointId": "gameLifecyclePublic",
+          "module": "frontend/src/domain/publicApi.ts",
+          "symbol": "domainOperations.applyGameLifecycle",
+          "adapter": "frontend/src/domain/publicApi.ts"
+        },
+        {
+          "entrypointId": "gameLifecycleServer",
+          "module": "backend/src/pitchlog/domainrt/game_lifecycle.py",
+          "symbol": "evaluate_game_lifecycle",
+          "adapter": "backend/src/pitchlog/domainrt/game_lifecycle.py"
+        }
+      ],
+      "directTargets": [
+        {
+          "directTargetId": "gameLifecycleDirect",
+          "targetClass": "alpha",
+          "kind": "single",
+          "generated": "gameLifecycleArtifact",
+          "hash": "sha256:c461baff82d5b2f2dca44fdef5b07bf0964f7db315981023e724a132f9312aa1",
+          "invocation": {
+            "adapter": "backend/src/pitchlog/domainrt/host.py",
+            "operation": "applyGameLifecycle"
+          }
+        }
+      ],
+      "comparison": {
+        "mode": "lossless"
+      },
+      "normalization": [],
+      "vectors": [
+        {
+          "vectorId": "gameLifecycleVectors",
+          "calculation": "native-game-lifecycle-v1",
+          "path": "contracts/state-transition/game_lifecycle_d11_vectors_v1.json",
+          "runner": "pytest",
+          "expectedValueSchema": "#/$defs/ExpectedValue",
+          "provenance": "FR-007 追記再開"
+        }
+      ],
+      "properties": [
+        {
+          "propertyId": "lifecycleHostParity",
+          "propertyKind": "equivalence",
+          "path": "backend/tests/domainrt/test_game_lifecycle_d11.py",
+          "provenance": "NFR-018 (b)② 差分の検出可能性"
+        },
+        {
+          "propertyId": "lifecycleStatePreservation",
+          "propertyKind": "invariant",
+          "path": "backend/tests/domainrt/test_game_lifecycle_d11.py",
+          "provenance": "FR-007 追記再開"
+        }
+      ],
+      "mutation": [
+        {
+          "mutationId": "gameLifecycleMutations",
+          "target": "frontend/src/domain/gameLifecycle.ts",
+          "operators": [
+            "allow-stale-target",
+            "skip-game-ended-reset",
+            "increment-version-on-reopen"
+          ]
+        }
+      ]
+    }
+  ],
+  "displayBindings": []
+}

@@ -717,8 +717,11 @@ def _apply_e1_f1(
     from pitchlog.sync.undo_ports import UndoContentValidationPort
 
     undo = type(validator) is UndoContentValidationPort
+    from pitchlog.sync.lifecycle_ports import LifecycleContentValidationPort
+
+    lifecycle = type(validator) is LifecycleContentValidationPort
     if len(request.events) != 1 or (
-        not ordinary and not undo and request.events[0].d1 != 1
+        not ordinary and not undo and not lifecycle and request.events[0].d1 != 1
     ):
         raise _E1OutOfScope("E1要求はF1の範囲外")
     event = request.events[0]
@@ -782,6 +785,25 @@ def _apply_e1_f1(
                         undo_qualification_stack.enter_context(
                             _undo_qualification_scope(scope, source)
                         )
+                    if lifecycle:
+                        # SQL familyの既E1資格に入る前にD5だけを内部分類する。
+                        # 返却は既device検証後。host/CP/frameはfresh内容段だけ。
+                        from pitchlog.sync.lifecycle_execution import (
+                            _lifecycle_qualification_scope,
+                        )
+                        from pitchlog.sync.source_binding import (
+                            read_selected_event_source,
+                        )
+
+                        selected = read_selected_event_source(
+                            binding, context=context, request=request, event=event
+                        )
+                        classify_request_d5(
+                            scope, request, (selected.event_fingerprint,)
+                        )
+                        undo_qualification_stack.enter_context(
+                            _lifecycle_qualification_scope(scope, source)
+                        )
                     device = _verify_bound_device(
                         bound,
                         reference_device,
@@ -789,7 +811,9 @@ def _apply_e1_f1(
                         presentation=state.device_presentation,
                     )
                     if device != "match":
-                        rejected_boundary = "B6" if device == "different_game" else "B5"
+                        rejected_boundary = (
+                            ("B6") if device == ("different_game") else ("B5")
+                        )
                         raise rollback_marker
                     preflight = _preflight_in_scope(
                         scope,

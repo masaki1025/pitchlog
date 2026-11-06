@@ -10,6 +10,7 @@ from uuid import UUID
 import pytest
 from test_authz_tenant_context import make_tenant_context
 from test_nonplay_normal_payload import fixture_values
+from test_nonplay_prefix import CASES
 
 from pitchlog.repositories import nonplay_prefix_read as api
 from pitchlog.repositories import transaction as tx
@@ -77,6 +78,21 @@ def test_empty_active_preserves_true_d3_and_finite_read(read_rig):
     }
     assert len(r.calls) == 1 and r.calls[0].d3 == int(r.cp.content.d3)
     assert r.calls[0].epoch == int(r.cp.content.storage_history_epoch)
+
+
+def test_saved_history_difference_omission_survives_source_roundtrip():
+    """旧v3履歴の省略差分を明示nullへ補完しない。"""
+    from pitchlog.domainrt.lineup_play_prefix_continuation import NonplaySource
+
+    raw = CASES["steps"][1]["source"]
+    assert len(raw["activeStack"]) == 1
+    difference = raw["activeStack"][0]["historyEntry"]["difference"]
+    assert "battingOrderBySide" not in difference
+    parsed = NonplaySource.model_validate_json(json.dumps(raw))
+    assert api._same(
+        raw, parsed.model_dump(mode="json", by_alias=True, exclude_unset=True)
+    )
+    assert not api._same(raw, parsed.model_dump(mode="json", by_alias=True))
 
 
 @pytest.mark.parametrize(

@@ -97,6 +97,7 @@ _PLAYER_REFERENCE_FIELDS: dict[str, frozenset[str]] = {
     ),
     "tiebreak_start": frozenset({"player_id", "runner_id"}),
     "game_end_declaration": frozenset({"player_id"}),
+    "game_reopen": frozenset(),
     "player_registration": frozenset({"player_id"}),
     "state_correction": frozenset(
         {"player_id", "batter_id", "pitcher_id", "runner_id"}
@@ -458,6 +459,16 @@ def _event_insert_token(
         if reserved is None:
             raise P1PreconditionError("v2元原本の予約frameがありません")
     if (
+        _event_kind(event) in {"game_end_declaration", "game_reopen"}
+        and isinstance(event.v7, Mapping)
+        and event.v7.get("formatVersion") == "native-game-lifecycle-v1"
+    ):
+        from pitchlog.sync.lifecycle_execution import _reserved_lifecycle_event_id
+
+        reserved = _reserved_lifecycle_event_id(scope, event)
+        if type(reserved) is not UUID:
+            raise P1PreconditionError("終了再開の予約原本idがありません")
+    elif (
         _event_kind(event) == "undo"
         and isinstance(event.v7, Mapping)
         and event.v7.get("formatVersion") == "native-undo-prefix-v1"
@@ -794,12 +805,19 @@ def _apply_locked_in_scope(
         if original_d5 is not None:
             _require_rejected_original(scope, event, original_d5)
         from pitchlog.sync.first_ball_ports import FirstBallContentValidationPort
+        from pitchlog.sync.lifecycle_ports import LifecycleContentValidationPort
         from pitchlog.sync.ordinary_pitch_ports import (
             LineupPrefixContentValidationPort,
             OrdinaryPitchContentValidationPort,
             PlayPrefixContentValidationPort,
         )
 
+        if type(validator) is LifecycleContentValidationPort:
+            from pitchlog.sync.lifecycle_execution import _bind_lifecycle_execution
+
+            first_ball_stack.enter_context(
+                _bind_lifecycle_execution(scope, writer, event, source)
+            )
         if type(validator) is UndoContentValidationPort:
             from pitchlog.sync.undo_execution import _bind_undo_execution
 
@@ -941,6 +959,7 @@ def _apply_locked_in_scope(
             PlayPrefixContentValidationPort,
             LineupPrefixContentValidationPort,
             UndoContentValidationPort,
+            LifecycleContentValidationPort,
         }:
             from pitchlog.sync.native_ledger_insert import (
                 _recheck_and_insert_native_result,
@@ -995,6 +1014,11 @@ def _apply_locked_in_scope(
 
             with _bind_ordinary_pitch_projection(scope, writer, event, projected_event):
                 projection.apply(projected_event, writer)
+        elif type(validator) is LifecycleContentValidationPort:
+            from pitchlog.sync.lifecycle_execution import _bind_lifecycle_projection
+
+            with _bind_lifecycle_projection(scope, writer, event, projected_event):
+                projection.apply(projected_event, writer)
         elif type(validator) is UndoContentValidationPort:
             from pitchlog.sync.undo_execution import _bind_undo_projection
 
@@ -1002,6 +1026,12 @@ def _apply_locked_in_scope(
                 projection.apply(projected_event, writer)
         else:
             projection.apply(projected_event, writer)
+        if type(validator) is LifecycleContentValidationPort:
+            from pitchlog.sync.lifecycle_execution import (
+                _require_lifecycle_projection_completed,
+            )
+
+            _require_lifecycle_projection_completed(scope, event)
         if type(validator) is UndoContentValidationPort:
             from pitchlog.sync.undo_execution import _require_undo_projection_completed
 

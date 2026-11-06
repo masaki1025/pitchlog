@@ -148,7 +148,11 @@ def read_started_game_detail(
     game_id: UUID,
     context: Annotated[TenantContext, Depends(require_tenant_access)],
     projection: Literal[
-        "ordinary-prefix-v1", "play-prefix-v2", "play-prefix-v3", "undo-prefix-v1"
+        "ordinary-prefix-v1",
+        "play-prefix-v2",
+        "play-prefix-v3",
+        "undo-prefix-v1",
+        "lifecycle-prefix-v1",
     ]
     | None = None,
     limit: Annotated[int, Query(ge=1, le=100)] = 25,
@@ -162,96 +166,118 @@ def read_started_game_detail(
                 "play-prefix-v2",
                 "play-prefix-v3",
                 "undo-prefix-v1",
+                "lifecycle-prefix-v1",
             }:
-                if projection == "undo-prefix-v1":
-                    from pitchlog.repositories.nonplay_prefix_read import (
-                        read_undo_prefix,
-                    )
+                from contextlib import nullcontext
 
-                    prefix = read_undo_prefix(
-                        scope, game_id, limit=limit, cursor=cursor
-                    )
-                elif projection == "play-prefix-v3":
-                    prefix = read_lineup_prefix(
-                        scope, game_id, limit=limit, cursor=cursor
-                    )
-                elif projection == "play-prefix-v2":
-                    prefix = read_play_prefix(
-                        scope, game_id, limit=limit, cursor=cursor
-                    )
-                else:
-                    prefix = read_ordinary_prefix(
-                        scope, game_id, limit=limit, cursor=cursor
-                    )
-                if type(prefix) is OrdinaryPrefixView:
-                    metadata = _read(prefix.metadata).model_dump(
-                        mode="python", by_alias=True
-                    )
-                    projected = dict(prefix.projection)
-                    model = StartedRecordedPrefixGameRead
-                    kind = "recorded-prefix"
-                    is_nonplay = projected.get("profile") == "nonplay-prefix-read-v1"
-                    if is_nonplay:
-                        model = StartedNonplayPrefixGameRead
-                        kind = "nonplay-prefix"
-                    if not is_nonplay and projection in {
-                        "play-prefix-v2",
-                        "play-prefix-v3",
-                    }:
-                        model = StartedPlayPrefixGameRead
-                        kind = "play-prefix"
-                        for key, default in {
-                            "bridge_checkpoint": None,
-                            "storage_anchor": None,
-                            "bridge_origin": None,
-                            "runners": [],
-                            "participants": None,
-                        }.items():
-                            projected.setdefault(key, default)
-                        page = dict(projected["page"])
-                        page["items"] = [
-                            {
-                                **item,
-                                "play_runners": [
-                                    {
-                                        k: v
-                                        for k, v in runner.items()
-                                        if k
-                                        not in {
-                                            "tenant_id",
-                                            "import_batch_id",
-                                            "retired_at",
-                                        }
-                                    }
-                                    for runner in item.get("play_runners", [])
-                                ],
-                            }
-                            for item in page["items"]
-                        ]
-                        projected["page"] = page
-                        if projection == "play-prefix-v3":
-                            model = StartedLineupPrefixGameRead
-                            kind = "lineup-prefix"
-                            for key in ("bridge_checkpoint", "bridge_origin"):
-                                projected.pop(key, None)
-                    packet = {**metadata, "read_kind": kind, **projected}
-                    if projection in {
-                        "play-prefix-v2",
-                        "play-prefix-v3",
-                        "undo-prefix-v1",
-                    }:
-                        value = model.model_validate_json(
-                            TypeAdapter(dict).dump_json(
-                                packet, by_alias=True, exclude_unset=True
-                            )
-                        )
+                from pitchlog.repositories.game_lifecycle import lifecycle_display_scope
+
+                with (
+                    lifecycle_display_scope(scope, game_id)
+                    if projection == "lifecycle-prefix-v1"
+                    else nullcontext(None)
+                ) as display:
+                    if projection == "lifecycle-prefix-v1" and display is None:
+                        prefix = StartedReadNotVisible()
                     else:
-                        value = model.model_validate(packet)
-                    # 未提示History軸をnull補完しない。旧応答serializerは不変。
-                    return Response(
-                        value.model_dump_json(by_alias=True, exclude_unset=True),
-                        media_type="application/json",
-                    )
+                        if projection in {"undo-prefix-v1", "lifecycle-prefix-v1"}:
+                            from pitchlog.repositories.nonplay_prefix_read import (
+                                read_undo_prefix,
+                            )
+
+                            prefix = read_undo_prefix(
+                                scope, game_id, limit=limit, cursor=cursor
+                            )
+                        elif projection == "play-prefix-v3":
+                            prefix = read_lineup_prefix(
+                                scope, game_id, limit=limit, cursor=cursor
+                            )
+                        elif projection == "play-prefix-v2":
+                            prefix = read_play_prefix(
+                                scope, game_id, limit=limit, cursor=cursor
+                            )
+                        else:
+                            prefix = read_ordinary_prefix(
+                                scope, game_id, limit=limit, cursor=cursor
+                            )
+                        if type(prefix) is OrdinaryPrefixView:
+                            metadata = _read(prefix.metadata).model_dump(
+                                mode="python", by_alias=True
+                            )
+                            projected = dict(prefix.projection)
+                            model = StartedRecordedPrefixGameRead
+                            kind = "recorded-prefix"
+                            is_nonplay = (
+                                projected.get("profile") == "nonplay-prefix-read-v1"
+                            )
+                            if is_nonplay:
+                                model = StartedNonplayPrefixGameRead
+                                kind = "nonplay-prefix"
+                            if not is_nonplay and projection in {
+                                "play-prefix-v2",
+                                "play-prefix-v3",
+                            }:
+                                model = StartedPlayPrefixGameRead
+                                kind = "play-prefix"
+                                for key, default in {
+                                    "bridge_checkpoint": None,
+                                    "storage_anchor": None,
+                                    "bridge_origin": None,
+                                    "runners": [],
+                                    "participants": None,
+                                }.items():
+                                    projected.setdefault(key, default)
+                                page = dict(projected["page"])
+                                page["items"] = [
+                                    {
+                                        **item,
+                                        "play_runners": [
+                                            {
+                                                k: v
+                                                for k, v in runner.items()
+                                                if k
+                                                not in {
+                                                    "tenant_id",
+                                                    "import_batch_id",
+                                                    "retired_at",
+                                                }
+                                            }
+                                            for runner in item.get("play_runners", [])
+                                        ],
+                                    }
+                                    for item in page["items"]
+                                ]
+                                projected["page"] = page
+                                if projection == "play-prefix-v3":
+                                    model = StartedLineupPrefixGameRead
+                                    kind = "lineup-prefix"
+                                    for key in ("bridge_checkpoint", "bridge_origin"):
+                                        projected.pop(key, None)
+                            packet = {**metadata, "read_kind": kind, **projected}
+                            if display is not None:
+                                packet.update(
+                                    status=display["status"], lifecycle=display
+                                )
+                            if projection in {
+                                "play-prefix-v2",
+                                "play-prefix-v3",
+                                "undo-prefix-v1",
+                                "lifecycle-prefix-v1",
+                            }:
+                                value = model.model_validate_json(
+                                    TypeAdapter(dict).dump_json(
+                                        packet, by_alias=True, exclude_unset=True
+                                    )
+                                )
+                            else:
+                                value = model.model_validate(packet)
+                            # 未提示History軸をnull補完しない。旧応答serializerは不変。
+                            return Response(
+                                value.model_dump_json(
+                                    by_alias=True, exclude_unset=True
+                                ),
+                                media_type="application/json",
+                            )
                 result = prefix
                 item = None
             else:

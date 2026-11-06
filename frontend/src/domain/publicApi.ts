@@ -1,3 +1,4 @@
+import { applyGameLifecycle } from './gameLifecycle'
 import { applyUndo } from './undo'
 import type {
   HistoryEntry as UndoHistoryEntry,
@@ -1492,6 +1493,7 @@ function applyUndoJson(requestJson: string): string {
 /** JSON文字列だけの公開表。採用済みの純取消を含み、未実装の訂正/他結果は公開しない。 */
 export const domainOperations = Object.freeze({
   ping,
+  applyGameLifecycle,
   deriveState,
   deriveOrdinaryPitch,
   deriveTerminalPitch,

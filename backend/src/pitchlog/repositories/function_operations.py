@@ -451,6 +451,21 @@ def _stats_native_family(registration) -> bool:
     }
 
 
+def _lifecycle_native_family(registration) -> bool:
+    """private3 SQL IDとprivate名前空間を閉じ、公的read1は別tokenとする。"""
+    return registration.function_id in {
+        "sync_right_api.read_lifecycle_state",
+        "sync_right_api.prepare_game_lifecycle",
+        "sync_right_api.consume_game_lifecycle",
+    } or any(
+        isinstance(value, str) and value.startswith(prefix)
+        for value, prefix in (
+            (registration.operation_id, "SYNC_LIFECYCLE:"),
+            (registration.capability_id, "CAP:sync_lifecycle:"),
+        )
+    )
+
+
 def _nonplay_native_family(registration) -> bool:
     """新6の予約名だけを閉検査し、旧familyの許容範囲を変更しない。"""
     names = {
@@ -464,7 +479,8 @@ def _nonplay_native_family(registration) -> bool:
     return (
         (
             type(registration.function_id) is str
-            and registration.function_id in {"sync_right_api." + name for name in names}
+            and registration.function_id
+            in {("sync_right_api.") + name for name in names}
         )
         or any(
             isinstance(value, str) and value.startswith(prefix)
@@ -514,6 +530,13 @@ class FunctionOperationRegistration:
             raise FunctionOperationError("固定関数tokenはfrozen dataclassが必要")
         if type(self.statement) is not Select or not callable(self.decoder):
             raise FunctionOperationError("固定関数には固定Selectとdecoderが必要")
+        if _lifecycle_native_family(self):
+            from pitchlog.repositories.lifecycle_function_operations import (
+                validate_registration,
+            )
+
+            validate_registration(self)
+            return
         if _nonplay_native_family(self):
             from pitchlog.repositories.nonplay_function_operations import (
                 validate_registration,
@@ -760,7 +783,8 @@ class FunctionOperationRegistration:
                     (
                         (
                             first_ball is not None
-                            and self.function_id == "sync_right_api.check_current_right"
+                            and self.function_id
+                            == ("sync_right_api.check_current_right")
                         )
                         or (
                             ordinary is not None
@@ -825,7 +849,8 @@ def _build_fixed_function_statement(
                 schema == "sync_right_api"
                 and (
                     (
-                        function_name in {"check_current_right", "check_ordinary_right"}
+                        function_name
+                        in {("check_current_right"), ("check_ordinary_right")}
                         and name in ("internal_generation", "recovery_generation")
                     )
                     or (
@@ -893,7 +918,13 @@ def build_function_registry(
     registry: dict[type[TenantOperationToken], FunctionOperationRegistration] = {}
     operation_ids: set[str] = set()
     for registration in registrations:
-        if _nonplay_native_family(registration):
+        if _lifecycle_native_family(registration):
+            from pitchlog.repositories.lifecycle_function_operations import (
+                validate_registration,
+            )
+
+            validate_registration(registration)
+        elif _nonplay_native_family(registration):
             from pitchlog.repositories.nonplay_function_operations import (
                 validate_registration,
             )
@@ -927,6 +958,15 @@ def prepare_function_operation(
     spec = registry.get(type(operation))
     if spec is None:
         raise FunctionOperationError("未登録または偽造された固定関数token")
+    if _lifecycle_native_family(spec):
+        from pitchlog.repositories.lifecycle_function_operations import (
+            validate_registration,
+        )
+
+        validate_registration(spec)
+        raise FunctionOperationError(
+            "終了再開の私有固定関数は真正dispatcher以外では使えません"
+        )
     if _nonplay_native_family(spec):
         from pitchlog.repositories.nonplay_function_operations import (
             validate_registration,

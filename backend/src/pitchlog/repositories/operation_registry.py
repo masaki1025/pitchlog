@@ -16,6 +16,10 @@ from pitchlog.repositories.function_operations import (
 )
 from pitchlog.repositories.games import PREPARING_GAME_READ_OPERATIONS
 from pitchlog.repositories.invalidation_intents import INVALIDATION_INTENT_OPERATIONS
+from pitchlog.repositories.lifecycle_function_operations import (
+    LIFECYCLE_FUNCTION_OPERATIONS,
+    display_registration,
+)
 from pitchlog.repositories.lineup_memory import LINEUP_MEMORY_OPERATIONS
 from pitchlog.repositories.nonplay_function_operations import (
     NONPLAY_FUNCTION_OPERATIONS,
@@ -246,6 +250,8 @@ PRODUCT_FUNCTION_OPERATIONS: tuple[FunctionOperationRegistration, ...] = (
     ),
     *STATS_NATIVE_FUNCTION_OPERATIONS,
     *NONPLAY_FUNCTION_OPERATIONS,
+    *LIFECYCLE_FUNCTION_OPERATIONS,
+    display_registration(),
     _registered_product_function(
         NONPLAY_READ_OPERATIONS[0],
         operation_id="SYNC_ORDINARY_PITCH:read_nonplay_active_history",

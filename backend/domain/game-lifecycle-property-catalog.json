@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "catalogId": "game-lifecycle-properties",
+  "scope": "native-game-lifecycle-v1",
+  "predicates": [
+    {
+      "propertyId": "lifecycleHostParity",
+      "propertyKind": "equivalence",
+      "authorityId": "NFR-018 (b)② 差分の検出可能性"
+    },
+    {
+      "propertyId": "lifecycleStatePreservation",
+      "propertyKind": "invariant",
+      "authorityId": "FR-007 追記再開"
+    }
+  ]
+}

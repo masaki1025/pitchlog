@@ -49,6 +49,7 @@ from pitchlog.sync.first_ball_ports import FirstBallContentValidationPort
 from pitchlog.sync.first_ball_projection import FirstBallProjectionPort
 from pitchlog.sync.first_ball_recording_rights import FirstBallRecordingRightsPort
 from pitchlog.sync.http_recording_key import _decode_recording_key
+from pitchlog.sync.lifecycle_execution import LifecycleExecutionError
 from pitchlog.sync.model import AckResult, RequestShapeError, SyncRequest
 from pitchlog.sync.ordinary_pitch_execution import OrdinaryPitchExecutionError
 from pitchlog.sync.ordinary_pitch_ports import (
@@ -246,8 +247,19 @@ def sync_events(
                 and event.v7.get("formatVersion") == "play-prefix-play-v3"
             )
             undo = event.v5 == "undo"
+            from pitchlog.sync.lifecycle_ports import (
+                LifecycleContentValidationPort,
+                LifecycleProjectionPort,
+            )
+
+            lifecycle = (
+                event.v5 in {"game_end_declaration", "game_reopen"}
+                and isinstance(event.v7, Mapping)
+                and event.v7.get("formatVersion") == "native-game-lifecycle-v1"
+            )
             if (
                 not undo
+                and not lifecycle
                 and isinstance(event.v7, Mapping)
                 and event.v7.get("formatVersion")
                 not in {
@@ -269,7 +281,9 @@ def sync_events(
                 control=BindingControl(configuration.broker_endpoint),
                 rights=rights,
                 projection=(
-                    UndoProjectionPort()
+                    LifecycleProjectionPort()
+                    if lifecycle
+                    else UndoProjectionPort()
                     if undo
                     else LineupPrefixProjectionPort()
                     if lineup_prefix
@@ -280,7 +294,9 @@ def sync_events(
                     else FirstBallProjectionPort()
                 ),
                 validator=(
-                    UndoContentValidationPort()
+                    LifecycleContentValidationPort()
+                    if lifecycle
+                    else UndoContentValidationPort()
                     if undo
                     else LineupPrefixContentValidationPort()
                     if lineup_prefix
@@ -300,6 +316,7 @@ def sync_events(
         OrdinaryPitchExecutionError,
         OrdinaryPlayRowError,
         UndoExecutionError,
+        LifecycleExecutionError,
         NonplaySourceUnavailable,
         *DATABASE_ERRORS,
     ):

@@ -1886,13 +1886,16 @@ _activate_stamp_profile()
 
 
 def _activate_ordinary_profile(
-    *, play_prefix=False, recording_vocab=False, nonplay=False
+    *, play_prefix=False, recording_vocab=False, nonplay=False, lifecycle=False
 ) -> None:
     """承認対象の有限ordinary宣言だけを同じ正式installerへ接合する。"""
-    if nonplay:
-        if play_prefix or recording_vocab:
+    if nonplay or lifecycle:
+        if play_prefix or recording_vocab or (nonplay and lifecycle):
             raise ValueError("非play接合のprofileが重複")
-        from pitchlog.authz.nonplay_product import candidate_declarations
+        if lifecycle:
+            from pitchlog.authz.lifecycle_product import candidate_declarations
+        else:
+            from pitchlog.authz.nonplay_product import candidate_declarations
     elif recording_vocab:
         from pitchlog.authz.recording_vocabulary_product import candidate_declarations
     elif play_prefix:
@@ -1901,7 +1904,7 @@ def _activate_ordinary_profile(
         from pitchlog.authz.ordinary_pitch_product import candidate_declarations
 
     declarations, bodies = candidate_declarations()
-    if nonplay:
+    if nonplay or lifecycle:
         kinds = {
             "functions": "function",
             "tables": "table",
@@ -2013,6 +2016,7 @@ def _activate_stats_profile() -> None:
 
 _activate_stats_profile()
 _activate_ordinary_profile(nonplay=True)
+_activate_ordinary_profile(lifecycle=True)
 
 
 def _activate_nonplay_storage_guard() -> None:
@@ -2034,6 +2038,25 @@ def _activate_nonplay_storage_guard() -> None:
 
 
 _activate_nonplay_storage_guard()
+
+
+def _activate_lifecycle_storage_guards() -> None:
+    """0043内部guard二件をmigration所有のACL-only関数として登録する。"""
+    from pitchlog.authz.lifecycle_storage_profile import declarations
+
+    for row, sql in declarations():
+        key = "function|" + row["function_id"]
+        if key in BODIES or any(
+            x["function_id"] == row["function_id"] for x in ADDITIONS["functions"]
+        ):
+            raise ValueError("終了再開内部guardの重複登録")
+        ADDITIONS["functions"].append(row)
+        BODIES[key] = (
+            f"-- ELEMENT-TYPE: function\n-- ELEMENT-ID: {row['function_id']}\n\n" + sql
+        )
+
+
+_activate_lifecycle_storage_guards()
 ROLES = frozenset(row["role_id"] for row in ADDITIONS["roles"])
 
 TABLES = frozenset(
@@ -2048,6 +2071,8 @@ TABLES = frozenset(
         "stats_primitive_sources",
         "stats_primitive_facts",
         "nonplay_write_admissions",
+        "lifecycle_write_admissions",
+        "game_lifecycle_heads",
     }
 )
 SCHEMAS = frozenset(row["schema_name"] for row in ADDITIONS["schemas"])
@@ -2283,6 +2308,16 @@ def function_details() -> tuple[tuple[object, ...], ...]:
         if row["function_id"] == FUNCTION_ID:
             result.append(guard_details())
             continue
+        from pitchlog.authz.lifecycle_storage_profile import (
+            guard_details as lifecycle_guard,
+        )
+
+        if row["function_id"] in {
+            "FUNCTION:public:protect_lifecycle_write_admissions()",
+            "FUNCTION:public:protect_game_lifecycle_heads()",
+        }:
+            result.append(lifecycle_guard(row["function_name"]))
+            continue
         sql = body("function", row["function_id"])
         if sql is None:
             raise ValueError("初球関数本文がない")
@@ -2416,8 +2451,12 @@ def application_function_sql(function_id: str, sql: str) -> str | None:
         raise ValueError("初球関数の適用本文が凍結値と不一致")
     from pitchlog.authz.nonplay_storage_profile import FUNCTION_ID
 
-    if function_id == FUNCTION_ID:
-        return canonical  # 関数作成は0042 migrationだけ。再適用もACL-only。
+    if function_id == FUNCTION_ID or function_id in {
+        "FUNCTION:public:protect_lifecycle_write_admissions()",
+        "FUNCTION:public:protect_game_lifecycle_heads()",
+    }:
+        # 三件ともmigrationがCREATEする。適用器はACL-onlyを再適用する。
+        return canonical
     identity = f"{row['schema_name']}.{row['function_name']}({row['identity_args']})"
     details = next(
         d

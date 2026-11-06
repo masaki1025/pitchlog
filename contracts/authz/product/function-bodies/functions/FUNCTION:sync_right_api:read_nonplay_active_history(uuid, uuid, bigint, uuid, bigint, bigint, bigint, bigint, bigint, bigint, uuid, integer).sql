@@ -725,8 +725,175 @@ BEGIN
  AND c.id=cp.id AND c.content=cp.content AND c.xmin=a.xmin
  AND e.event_kind='play_input' AND e.ledger_kind='accepted' AND e.xmin=a.xmin
  AND l.kind='accepted' AND l.source_fingerprint=a.event_fingerprint
+ AND l.xmin=a.xmin AND l.retired_at IS NULL AND l.import_batch_id IS NULL
+ UNION ALL SELECT 1 FROM sync_fence.lifecycle_write_admissions a
+ JOIN public.operation_events e ON e.tenant_id=a.tenant_id
+ AND e.game_id=a.game_id AND e.id=a.source_event_id
+ JOIN public.idempotency_ledger l ON l.tenant_id=e.tenant_id AND l.d5=e.d5
+ JOIN public.event_slots slot ON (slot.tenant_id,slot.game_id,slot.generation,slot.d1)
+ =(e.tenant_id,e.game_id,e.generation,e.d1)
+ JOIN sync_fence.ordinary_pitch_checkpoints c ON c.tenant_id=a.tenant_id
+ AND c.game_id=a.game_id AND c.internal_generation=a.internal_generation
+ WHERE a.tenant_id=p_tenant_id AND a.game_id=p_game_id
+ AND a.internal_generation=p_generation AND a.source_d1=p_d3 AND a.source_d2=e.d2
+ AND a.state='consumed' AND a.consumed_at IS NOT NULL AND slot.confirmed_version=1
+ AND a.preparation->'storage'->'row'->'roster'=cp.roster
+ AND a.preparation->'after_source'->'checkpoint'=cp.content
+ AND c.id=cp.id AND c.content=cp.content AND c.xmin=a.xmin
+ AND e.event_kind=CASE WHEN a.action='end' THEN 'game_end_declaration' ELSE
+ 'game_reopen' END
+ AND a.action IN ('end','reopen') AND e.ledger_kind='accepted' AND e.xmin=a.xmin
+ AND l.kind='accepted' AND l.source_fingerprint=a.event_fingerprint
  AND l.xmin=a.xmin AND l.retired_at IS NULL AND l.import_batch_id IS NULL)
  THEN RAISE EXCEPTION 'nonplay read rejected' USING ERRCODE='42501'; END IF;
+
+ -- 既legacy/undoには新defaultを補完しない。presentなら全consumed原本へ閉じる。
+ IF cp.content->>'formatVersion'='nonplay-prefix-checkpoint-v1' THEN
+ IF EXISTS(SELECT 1 FROM
+ pg_catalog.jsonb_array_elements(COALESCE(cp.content->'content'->'controlBridges','[]'::jsonb)) b(value)
+ WHERE NOT EXISTS(SELECT 1 FROM (SELECT a.*,e.id AS original_id,r.issuance_order AS generation_order
+ FROM sync_fence.lifecycle_write_admissions a
+ JOIN public.operation_events e ON e.tenant_id=a.tenant_id AND e.game_id=a.game_id
+ AND e.id=a.source_event_id AND e.generation=a.internal_generation AND e.d1=a.source_d1
+ JOIN public.event_slots slot ON (slot.tenant_id,slot.game_id,slot.generation,slot.d1)
+ =(e.tenant_id,e.game_id,e.generation,e.d1)
+ JOIN public.idempotency_ledger l ON l.tenant_id=e.tenant_id AND l.d5=e.d5
+ JOIN public.recording_generations r ON r.tenant_id=e.tenant_id AND r.game_id=e.game_id
+ AND r.generation=e.generation
+ JOIN public.recording_generations current_generation ON
+ current_generation.tenant_id=r.tenant_id
+ AND current_generation.game_id=r.game_id AND current_generation.generation=p_generation
+ JOIN sync_fence.writer_bindings original_binding
+ ON (original_binding.tenant_id,original_binding.attempt_id,original_binding.phase_id)
+ =(a.tenant_id,a.attempt_id,a.phase_id)
+ WHERE a.tenant_id=p_tenant_id AND a.game_id=p_game_id AND a.state='consumed'
+ AND a.consumed_at IS NOT NULL AND e.ledger_kind='accepted'
+ AND e.event_kind=CASE WHEN a.action='end' THEN 'game_end_declaration' ELSE
+ 'game_reopen' END
+ AND a.action IN ('end','reopen') AND e.d2=a.source_d2 AND e.d5=a.d5
+ AND NOT e.is_tombstone AND e.replaced_at IS NULL AND e.retired_at IS NULL
+ AND e.import_batch_id IS NULL AND slot.confirmed_version=1
+ AND l.kind='accepted' AND l.retired_at IS NULL AND l.import_batch_id IS NULL
+ AND l.source_fingerprint=a.event_fingerprint AND e.xmin=a.xmin AND l.xmin=a.xmin
+ AND a.tenant_id IS NOT DISTINCT FROM original_binding.tenant_id AND a.attempt_id IS NOT DISTINCT FROM original_binding.attempt_id AND a.phase_id IS NOT DISTINCT FROM original_binding.phase_id AND a.authority_id IS NOT DISTINCT FROM original_binding.authority_id AND a.control_instance IS NOT DISTINCT FROM original_binding.control_instance AND a.business_instance IS NOT DISTINCT FROM original_binding.business_instance AND a.restore_epoch IS NOT DISTINCT FROM original_binding.restore_epoch AND a.control_version IS NOT DISTINCT FROM original_binding.control_version AND a.issuer IS NOT DISTINCT FROM original_binding.issuer AND a.lease_id IS NOT DISTINCT FROM original_binding.lease_id AND a.device_id IS NOT DISTINCT FROM original_binding.device_id AND a.game_id IS NOT DISTINCT FROM original_binding.game_id AND a.wire_d4 IS NOT DISTINCT FROM original_binding.wire_d4 AND a.internal_generation IS NOT DISTINCT FROM original_binding.internal_generation AND a.recovery_generation IS NOT DISTINCT FROM original_binding.recovery_generation AND a.codec_version IS NOT DISTINCT FROM original_binding.codec_version AND a.request_fingerprint IS NOT DISTINCT FROM original_binding.request_fingerprint AND a.d5 IS NOT DISTINCT FROM original_binding.d5 AND a.event_fingerprint IS NOT DISTINCT FROM original_binding.event_fingerprint AND a.system_identifier IS NOT DISTINCT FROM original_binding.system_identifier AND a.database_oid IS NOT DISTINCT FROM original_binding.database_oid AND a.postmaster_started_at IS NOT DISTINCT FROM original_binding.postmaster_started_at AND a.backend_pid IS NOT DISTINCT FROM original_binding.backend_pid AND a.backend_start IS NOT DISTINCT FROM original_binding.backend_start AND a.transaction_id IS NOT DISTINCT FROM original_binding.transaction_id AND a.nonce_digest IS NOT DISTINCT FROM original_binding.nonce_digest AND a.expires_at IS NOT DISTINCT FROM original_binding.expires_at
+ AND r.issuance_order<=current_generation.issuance_order
+ AND (e.generation<>p_generation OR e.d1<=cp.confirmed_watermark)
+) a
+ WHERE a.source_event_id=(b.value->'source'->>'eventId')::uuid
+ AND a.frame_id=(b.value->>'frameId')::uuid
+ AND a.action=b.value->>'action' AND a.wire_d4=b.value->'source'->>'generation'
+ AND a.source_d1::text=b.value->'source'->>'d1'
+ AND a.d5::text=b.value->'source'->>'d5'
+ AND a.event_fingerprint=b.value->'source'->>'fingerprint'
+ AND a.checkpoint_id::text=b.value->'checkpointBefore'->>'id'
+ AND a.checkpoint_revision::text=b.value->'checkpointBefore'->>'revision'
+ AND a.checkpoint_digest=b.value->'checkpointBefore'->>'digest'
+ AND a.receipt_id::text=b.value->'kernel'->'request'->'event'->>'receiptId'
+ AND a.source_event_id::text=b.value->'kernel'->'request'->'event'->>'eventId'
+ AND b.value->'source'->>'gameId'=p_game_id::text
+ AND a.preparation->'after_source'->'checkpoint'->'content'->'controlBridges'->-1
+ =b.value
+ AND a.preparation->'event_original'->'payload'=(SELECT e.payload FROM
+ public.operation_events e
+ WHERE e.tenant_id=p_tenant_id AND e.id=a.source_event_id)))
+ OR EXISTS(SELECT 1 FROM (SELECT a.*,e.id AS original_id,r.issuance_order AS generation_order
+ FROM sync_fence.lifecycle_write_admissions a
+ JOIN public.operation_events e ON e.tenant_id=a.tenant_id AND e.game_id=a.game_id
+ AND e.id=a.source_event_id AND e.generation=a.internal_generation AND e.d1=a.source_d1
+ JOIN public.event_slots slot ON (slot.tenant_id,slot.game_id,slot.generation,slot.d1)
+ =(e.tenant_id,e.game_id,e.generation,e.d1)
+ JOIN public.idempotency_ledger l ON l.tenant_id=e.tenant_id AND l.d5=e.d5
+ JOIN public.recording_generations r ON r.tenant_id=e.tenant_id AND r.game_id=e.game_id
+ AND r.generation=e.generation
+ JOIN public.recording_generations current_generation ON
+ current_generation.tenant_id=r.tenant_id
+ AND current_generation.game_id=r.game_id AND current_generation.generation=p_generation
+ JOIN sync_fence.writer_bindings original_binding
+ ON (original_binding.tenant_id,original_binding.attempt_id,original_binding.phase_id)
+ =(a.tenant_id,a.attempt_id,a.phase_id)
+ WHERE a.tenant_id=p_tenant_id AND a.game_id=p_game_id AND a.state='consumed'
+ AND a.consumed_at IS NOT NULL AND e.ledger_kind='accepted'
+ AND e.event_kind=CASE WHEN a.action='end' THEN 'game_end_declaration' ELSE
+ 'game_reopen' END
+ AND a.action IN ('end','reopen') AND e.d2=a.source_d2 AND e.d5=a.d5
+ AND NOT e.is_tombstone AND e.replaced_at IS NULL AND e.retired_at IS NULL
+ AND e.import_batch_id IS NULL AND slot.confirmed_version=1
+ AND l.kind='accepted' AND l.retired_at IS NULL AND l.import_batch_id IS NULL
+ AND l.source_fingerprint=a.event_fingerprint AND e.xmin=a.xmin AND l.xmin=a.xmin
+ AND a.tenant_id IS NOT DISTINCT FROM original_binding.tenant_id AND a.attempt_id IS NOT DISTINCT FROM original_binding.attempt_id AND a.phase_id IS NOT DISTINCT FROM original_binding.phase_id AND a.authority_id IS NOT DISTINCT FROM original_binding.authority_id AND a.control_instance IS NOT DISTINCT FROM original_binding.control_instance AND a.business_instance IS NOT DISTINCT FROM original_binding.business_instance AND a.restore_epoch IS NOT DISTINCT FROM original_binding.restore_epoch AND a.control_version IS NOT DISTINCT FROM original_binding.control_version AND a.issuer IS NOT DISTINCT FROM original_binding.issuer AND a.lease_id IS NOT DISTINCT FROM original_binding.lease_id AND a.device_id IS NOT DISTINCT FROM original_binding.device_id AND a.game_id IS NOT DISTINCT FROM original_binding.game_id AND a.wire_d4 IS NOT DISTINCT FROM original_binding.wire_d4 AND a.internal_generation IS NOT DISTINCT FROM original_binding.internal_generation AND a.recovery_generation IS NOT DISTINCT FROM original_binding.recovery_generation AND a.codec_version IS NOT DISTINCT FROM original_binding.codec_version AND a.request_fingerprint IS NOT DISTINCT FROM original_binding.request_fingerprint AND a.d5 IS NOT DISTINCT FROM original_binding.d5 AND a.event_fingerprint IS NOT DISTINCT FROM original_binding.event_fingerprint AND a.system_identifier IS NOT DISTINCT FROM original_binding.system_identifier AND a.database_oid IS NOT DISTINCT FROM original_binding.database_oid AND a.postmaster_started_at IS NOT DISTINCT FROM original_binding.postmaster_started_at AND a.backend_pid IS NOT DISTINCT FROM original_binding.backend_pid AND a.backend_start IS NOT DISTINCT FROM original_binding.backend_start AND a.transaction_id IS NOT DISTINCT FROM original_binding.transaction_id AND a.nonce_digest IS NOT DISTINCT FROM original_binding.nonce_digest AND a.expires_at IS NOT DISTINCT FROM original_binding.expires_at
+ AND r.issuance_order<=current_generation.issuance_order
+ AND (e.generation<>p_generation OR e.d1<=cp.confirmed_watermark)
+) a WHERE NOT EXISTS(
+ SELECT 1 FROM pg_catalog.jsonb_array_elements(COALESCE(cp.content->'content'->'controlBridges','[]'::jsonb)) b(value)
+ WHERE b.value->'source'->>'eventId'=a.source_event_id::text))
+ OR EXISTS(SELECT 1 FROM public.operation_events control_event
+ JOIN public.recording_generations control_generation ON
+ (control_generation.tenant_id,control_generation.game_id,control_generation.generation)
+ =(control_event.tenant_id,control_event.game_id,control_event.generation)
+ JOIN public.recording_generations selected_generation ON
+ selected_generation.tenant_id=control_event.tenant_id
+ AND selected_generation.game_id=control_event.game_id AND
+ selected_generation.generation=p_generation
+ WHERE control_event.tenant_id=p_tenant_id AND control_event.game_id=p_game_id
+ AND control_event.event_kind IN ('game_end_declaration','game_reopen')
+ AND control_event.ledger_kind='accepted' AND control_event.replaced_at IS NULL
+ AND control_event.retired_at IS NULL
+ AND control_generation.issuance_order<=selected_generation.issuance_order
+ AND (control_event.generation<>p_generation OR
+ control_event.d1<=cp.confirmed_watermark)
+ AND NOT EXISTS(SELECT 1 FROM
+ pg_catalog.jsonb_array_elements(COALESCE(cp.content->'content'->'controlBridges','[]'::jsonb)) b(value)
+ WHERE b.value->'source'->>'eventId'=control_event.id::text))
+ OR EXISTS(SELECT 1 FROM (SELECT count(*) AS n,count(DISTINCT
+ value->'source'->>'eventId') AS unique_n
+ FROM pg_catalog.jsonb_array_elements(COALESCE(cp.content->'content'->'controlBridges','[]'::jsonb)))
+ duplicate_controls
+ WHERE n<>unique_n)
+ OR EXISTS(SELECT 1 FROM (
+ SELECT a.generation_order,a.source_d1,
+ lag(a.generation_order) OVER(ORDER BY b.ordinality) AS previous_generation,
+ lag(a.source_d1) OVER(ORDER BY b.ordinality) AS previous_d1
+ FROM pg_catalog.jsonb_array_elements(COALESCE(cp.content->'content'->'controlBridges','[]'::jsonb))
+ WITH ORDINALITY b(value,ordinality)
+ JOIN (SELECT a.*,e.id AS original_id,r.issuance_order AS generation_order
+ FROM sync_fence.lifecycle_write_admissions a
+ JOIN public.operation_events e ON e.tenant_id=a.tenant_id AND e.game_id=a.game_id
+ AND e.id=a.source_event_id AND e.generation=a.internal_generation AND e.d1=a.source_d1
+ JOIN public.event_slots slot ON (slot.tenant_id,slot.game_id,slot.generation,slot.d1)
+ =(e.tenant_id,e.game_id,e.generation,e.d1)
+ JOIN public.idempotency_ledger l ON l.tenant_id=e.tenant_id AND l.d5=e.d5
+ JOIN public.recording_generations r ON r.tenant_id=e.tenant_id AND r.game_id=e.game_id
+ AND r.generation=e.generation
+ JOIN public.recording_generations current_generation ON
+ current_generation.tenant_id=r.tenant_id
+ AND current_generation.game_id=r.game_id AND current_generation.generation=p_generation
+ JOIN sync_fence.writer_bindings original_binding
+ ON (original_binding.tenant_id,original_binding.attempt_id,original_binding.phase_id)
+ =(a.tenant_id,a.attempt_id,a.phase_id)
+ WHERE a.tenant_id=p_tenant_id AND a.game_id=p_game_id AND a.state='consumed'
+ AND a.consumed_at IS NOT NULL AND e.ledger_kind='accepted'
+ AND e.event_kind=CASE WHEN a.action='end' THEN 'game_end_declaration' ELSE
+ 'game_reopen' END
+ AND a.action IN ('end','reopen') AND e.d2=a.source_d2 AND e.d5=a.d5
+ AND NOT e.is_tombstone AND e.replaced_at IS NULL AND e.retired_at IS NULL
+ AND e.import_batch_id IS NULL AND slot.confirmed_version=1
+ AND l.kind='accepted' AND l.retired_at IS NULL AND l.import_batch_id IS NULL
+ AND l.source_fingerprint=a.event_fingerprint AND e.xmin=a.xmin AND l.xmin=a.xmin
+ AND a.tenant_id IS NOT DISTINCT FROM original_binding.tenant_id AND a.attempt_id IS NOT DISTINCT FROM original_binding.attempt_id AND a.phase_id IS NOT DISTINCT FROM original_binding.phase_id AND a.authority_id IS NOT DISTINCT FROM original_binding.authority_id AND a.control_instance IS NOT DISTINCT FROM original_binding.control_instance AND a.business_instance IS NOT DISTINCT FROM original_binding.business_instance AND a.restore_epoch IS NOT DISTINCT FROM original_binding.restore_epoch AND a.control_version IS NOT DISTINCT FROM original_binding.control_version AND a.issuer IS NOT DISTINCT FROM original_binding.issuer AND a.lease_id IS NOT DISTINCT FROM original_binding.lease_id AND a.device_id IS NOT DISTINCT FROM original_binding.device_id AND a.game_id IS NOT DISTINCT FROM original_binding.game_id AND a.wire_d4 IS NOT DISTINCT FROM original_binding.wire_d4 AND a.internal_generation IS NOT DISTINCT FROM original_binding.internal_generation AND a.recovery_generation IS NOT DISTINCT FROM original_binding.recovery_generation AND a.codec_version IS NOT DISTINCT FROM original_binding.codec_version AND a.request_fingerprint IS NOT DISTINCT FROM original_binding.request_fingerprint AND a.d5 IS NOT DISTINCT FROM original_binding.d5 AND a.event_fingerprint IS NOT DISTINCT FROM original_binding.event_fingerprint AND a.system_identifier IS NOT DISTINCT FROM original_binding.system_identifier AND a.database_oid IS NOT DISTINCT FROM original_binding.database_oid AND a.postmaster_started_at IS NOT DISTINCT FROM original_binding.postmaster_started_at AND a.backend_pid IS NOT DISTINCT FROM original_binding.backend_pid AND a.backend_start IS NOT DISTINCT FROM original_binding.backend_start AND a.transaction_id IS NOT DISTINCT FROM original_binding.transaction_id AND a.nonce_digest IS NOT DISTINCT FROM original_binding.nonce_digest AND a.expires_at IS NOT DISTINCT FROM original_binding.expires_at
+ AND r.issuance_order<=current_generation.issuance_order
+ AND (e.generation<>p_generation OR e.d1<=cp.confirmed_watermark)
+) a ON a.source_event_id::text=b.value->'source'->>'eventId'
+ ) ordered_controls WHERE previous_generation>generation_order
+ OR (previous_generation=generation_order AND previous_d1>=source_d1))
+ THEN RAISE EXCEPTION 'game lifecycle rejected' USING ERRCODE='42501'; END IF;
+ IF pg_catalog.jsonb_array_length(COALESCE(cp.content->'content'->'controlBridges','[]'::jsonb))>0 AND NOT EXISTS(
+ SELECT 1 FROM sync_fence.game_lifecycle_heads lifecycle_head WHERE lifecycle_head.tenant_id=p_tenant_id
+ AND lifecycle_head.game_id=p_game_id
+ AND lifecycle_head.last_control_event_id::text=(cp.content->'content'->'controlBridges'->-1)->'source'->>'eventId'
+ AND lifecycle_head.is_finished=((cp.content->'content'->'controlBridges'->-1)->>'action'='end')
+ ) THEN RAISE EXCEPTION 'game lifecycle rejected' USING ERRCODE='42501'; END IF;
+ END IF;
+
  -- 非playを欠番として捨てず、真正受理印の完全参照だけを除外根拠にする。
  IF EXISTS(SELECT 1 FROM public.operation_events e
  WHERE e.tenant_id=p_tenant_id AND e.game_id=p_game_id AND e.generation=p_generation
@@ -734,7 +901,7 @@ BEGIN
  OR e.replaced_at IS NOT NULL OR e.retired_at IS NOT NULL OR e.import_batch_id IS NOT
  NULL
  OR e.migration_unverified OR e.legacy_row_identifier IS NOT NULL
- OR e.event_kind NOT IN ('play_input','undo')))
+ OR e.event_kind NOT IN ('play_input','undo','game_end_declaration','game_reopen')))
  THEN RAISE EXCEPTION 'nonplay read rejected' USING ERRCODE='42501'; END IF;
  IF (SELECT pg_catalog.count(*) FROM public.operation_events e
  WHERE e.tenant_id=p_tenant_id AND e.game_id=p_game_id AND e.generation=p_generation
@@ -776,6 +943,12 @@ BEGIN
  AND a.wire_d4=head->>'generation'
  UNION ALL SELECT 1 FROM sync_fence.nonplay_write_admissions a
  WHERE a.tenant_id=e.tenant_id AND a.source_event_id=e.id AND a.state='consumed'
+ AND a.wire_d4=head->>'generation'
+ UNION ALL SELECT 1 FROM sync_fence.lifecycle_write_admissions a
+ WHERE a.tenant_id=e.tenant_id AND a.game_id=e.game_id AND a.source_event_id=e.id
+ AND a.state='consumed' AND a.consumed_at IS NOT NULL
+ AND a.internal_generation=e.generation AND a.source_d1=e.d1 AND a.source_d2=e.d2
+ AND a.d5=e.d5 AND a.event_fingerprint=l.source_fingerprint
  AND a.wire_d4=head->>'generation')))
  OR cp.content->'content'->'d1Head'->'source'->>'d1' IS DISTINCT FROM p_d3::text
  OR (cp.content->'content'->>'nextPhysicalPlayNumber')::bigint IS DISTINCT FROM

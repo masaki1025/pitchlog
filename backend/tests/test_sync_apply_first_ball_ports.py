@@ -33,6 +33,8 @@ def test_port_real_guard_and_original_event_command():
             ("pitchlog.sync.first_ball_projection", "FirstBallProjectionPort"),
             ("pitchlog.sync.undo_ports", "UndoContentValidationPort"),
             ("pitchlog.sync.undo_ports", "UndoProjectionPort"),
+            ("pitchlog.sync.lifecycle_ports", "LifecycleContentValidationPort"),
+            ("pitchlog.sync.lifecycle_ports", "LifecycleProjectionPort"),
             (
                 "pitchlog.sync.first_ball_recording_rights",
                 "FirstBallRecordingRightsPort",

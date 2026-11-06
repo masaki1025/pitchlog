@@ -94,7 +94,9 @@
         "eventKind": {
           "enum": [
             "play_input",
-            "undo"
+            "undo",
+            "game_end_declaration",
+            "game_reopen"
           ]
         }
       },
@@ -328,6 +330,12 @@
         },
         "restored": {
           "$ref": "#/$defs/RestoreContext"
+        },
+        "controlBridges": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/LifecycleControlBridge"
+          }
         }
       },
       "required": [
@@ -525,6 +533,136 @@
     "Fingerprint": {
       "type": "string",
       "pattern": "^(?:wire-v1:)?[a-f0-9]{64}(?![\\s\\S])"
+    },
+    "LifecycleState": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "enum": [
+            "in_progress",
+            "finished"
+          ]
+        },
+        "lastVersion": {
+          "type": "string",
+          "pattern": "^(?:0|[1-9][0-9]*)(?![\\s\\S])"
+        },
+        "active": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "version": {
+                  "type": "string",
+                  "pattern": "^[1-9][0-9]*(?![\\s\\S])"
+                },
+                "eventId": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+                },
+                "receiptId": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+                }
+              },
+              "required": [
+                "version",
+                "eventId",
+                "receiptId"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        }
+      },
+      "required": [
+        "status",
+        "lastVersion",
+        "active"
+      ],
+      "additionalProperties": false
+    },
+    "ActiveFinalization": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]*(?![\\s\\S])"
+        },
+        "eventId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+        },
+        "receiptId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+        }
+      },
+      "required": [
+        "version",
+        "eventId",
+        "receiptId"
+      ],
+      "additionalProperties": false
+    },
+    "LifecycleControlBridge": {
+      "type": "object",
+      "properties": {
+        "source": {
+          "$ref": "#/$defs/EventSource"
+        },
+        "action": {
+          "enum": [
+            "end",
+            "reopen"
+          ]
+        },
+        "anchorEventId": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "beforeContext": {
+          "$ref": "#/$defs/RestoreContext"
+        },
+        "afterContext": {
+          "$ref": "#/$defs/RestoreContext"
+        },
+        "kernel": {
+          "type": "object",
+          "properties": {
+            "request": {
+              "$ref": "https://pitchlog.example/contracts/state-transition/game_lifecycle_schema_v1.json#/$defs/Request"
+            },
+            "response": {
+              "$ref": "https://pitchlog.example/contracts/state-transition/game_lifecycle_schema_v1.json#/$defs/Response"
+            }
+          },
+          "required": [
+            "request",
+            "response"
+          ],
+          "additionalProperties": false
+        },
+        "frameId": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "checkpointBefore": {
+          "$ref": "#/$defs/CheckpointRef"
+        }
+      },
+      "required": [
+        "source",
+        "action",
+        "anchorEventId",
+        "beforeContext",
+        "afterContext",
+        "kernel",
+        "frameId",
+        "checkpointBefore"
+      ],
+      "additionalProperties": false
     }
   },
   "oneOf": [

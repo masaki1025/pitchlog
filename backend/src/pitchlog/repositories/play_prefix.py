@@ -1314,6 +1314,8 @@ def _validated_v3_witness_v2(raw, registry_raw, old_raw, current):
     ):
         raise ValueError
     for before, sample in zip(old_witness["samples"], samples, strict=True):
+        if not isinstance(sample, dict) or type(sample) is not dict:
+            raise ValueError
         if (
             set(sample)
             != {

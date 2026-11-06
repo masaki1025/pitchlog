@@ -1284,6 +1284,18 @@
       "schema_name": "sync_fence",
       "enable_row_level_security": true,
       "force_row_level_security": true
+    },
+    {
+      "table_id": "lifecycle_write_admissions",
+      "schema_name": "sync_fence",
+      "enable_row_level_security": true,
+      "force_row_level_security": true
+    },
+    {
+      "table_id": "game_lifecycle_heads",
+      "schema_name": "sync_fence",
+      "enable_row_level_security": true,
+      "force_row_level_security": true
     }
   ],
   "predicates": [
@@ -3166,6 +3178,193 @@
       "with_check_predicate_id": null,
       "with_check_column": null,
       "with_check_expression": "tenant_id = NULLIF(pg_catalog.current_setting('app.tenant_id',true),'')::uuid AND session_user = 'pitchlog_app'"
+    },
+    {
+      "policy_id": "POLICY:lifecycle_write_admissions:lifecycle_select",
+      "table_id": "lifecycle_write_admissions",
+      "profile": "function_only",
+      "policy_name": "lifecycle_select",
+      "command": "SELECT",
+      "policy_mode": "permissive",
+      "role_ids": [
+        "pitchlog_sync_right_fn_owner"
+      ],
+      "using_predicate_id": null,
+      "using_column": null,
+      "using_expression": "tenant_id = NULLIF(pg_catalog.current_setting('app.tenant_id',true),'')::uuid AND session_user = 'pitchlog_app'",
+      "with_check_predicate_id": null,
+      "with_check_column": null,
+      "with_check_expression": null
+    },
+    {
+      "policy_id": "POLICY:lifecycle_write_admissions:lifecycle_insert",
+      "table_id": "lifecycle_write_admissions",
+      "profile": "function_only",
+      "policy_name": "lifecycle_insert",
+      "command": "INSERT",
+      "policy_mode": "permissive",
+      "role_ids": [
+        "pitchlog_sync_right_fn_owner"
+      ],
+      "using_predicate_id": null,
+      "using_column": null,
+      "using_expression": null,
+      "with_check_predicate_id": null,
+      "with_check_column": null,
+      "with_check_expression": "tenant_id = NULLIF(pg_catalog.current_setting('app.tenant_id',true),'')::uuid AND session_user = 'pitchlog_app' AND transaction_id=pg_catalog.pg_current_xact_id()::text"
+    },
+    {
+      "policy_id": "POLICY:lifecycle_write_admissions:lifecycle_update",
+      "table_id": "lifecycle_write_admissions",
+      "profile": "function_only",
+      "policy_name": "lifecycle_update",
+      "command": "UPDATE",
+      "policy_mode": "permissive",
+      "role_ids": [
+        "pitchlog_sync_right_fn_owner"
+      ],
+      "using_predicate_id": null,
+      "using_column": null,
+      "using_expression": "tenant_id = NULLIF(pg_catalog.current_setting('app.tenant_id',true),'')::uuid AND session_user = 'pitchlog_app' AND transaction_id=pg_catalog.pg_current_xact_id()::text",
+      "with_check_predicate_id": null,
+      "with_check_column": null,
+      "with_check_expression": "tenant_id = NULLIF(pg_catalog.current_setting('app.tenant_id',true),'')::uuid AND session_user = 'pitchlog_app' AND transaction_id=pg_catalog.pg_current_xact_id()::text"
+    },
+    {
+      "policy_id": "POLICY:game_lifecycle_heads:lifecycle_select",
+      "table_id": "game_lifecycle_heads",
+      "profile": "function_only",
+      "policy_name": "lifecycle_select",
+      "command": "SELECT",
+      "policy_mode": "permissive",
+      "role_ids": [
+        "pitchlog_sync_right_fn_owner"
+      ],
+      "using_predicate_id": null,
+      "using_column": null,
+      "using_expression": "tenant_id = NULLIF(pg_catalog.current_setting('app.tenant_id',true),'')::uuid AND session_user = 'pitchlog_app'",
+      "with_check_predicate_id": null,
+      "with_check_column": null,
+      "with_check_expression": null
+    },
+    {
+      "policy_id": "POLICY:game_lifecycle_heads:lifecycle_insert",
+      "table_id": "game_lifecycle_heads",
+      "profile": "function_only",
+      "policy_name": "lifecycle_insert",
+      "command": "INSERT",
+      "policy_mode": "permissive",
+      "role_ids": [
+        "pitchlog_sync_right_fn_owner"
+      ],
+      "using_predicate_id": null,
+      "using_column": null,
+      "using_expression": null,
+      "with_check_predicate_id": null,
+      "with_check_column": null,
+      "with_check_expression": "tenant_id = NULLIF(pg_catalog.current_setting('app.tenant_id',true),'')::uuid AND session_user = 'pitchlog_app' AND EXISTS(SELECT 1 FROM sync_fence.lifecycle_write_admissions a WHERE a.tenant_id=game_lifecycle_heads.tenant_id AND a.game_id=game_lifecycle_heads.game_id AND a.state='consumed' AND a.transaction_id=pg_catalog.pg_current_xact_id()::text)"
+    },
+    {
+      "policy_id": "POLICY:game_lifecycle_heads:lifecycle_update",
+      "table_id": "game_lifecycle_heads",
+      "profile": "function_only",
+      "policy_name": "lifecycle_update",
+      "command": "UPDATE",
+      "policy_mode": "permissive",
+      "role_ids": [
+        "pitchlog_sync_right_fn_owner"
+      ],
+      "using_predicate_id": null,
+      "using_column": null,
+      "using_expression": "tenant_id = NULLIF(pg_catalog.current_setting('app.tenant_id',true),'')::uuid AND session_user = 'pitchlog_app' AND EXISTS(SELECT 1 FROM sync_fence.lifecycle_write_admissions a WHERE a.tenant_id=game_lifecycle_heads.tenant_id AND a.game_id=game_lifecycle_heads.game_id AND a.state='consumed' AND a.transaction_id=pg_catalog.pg_current_xact_id()::text)",
+      "with_check_predicate_id": null,
+      "with_check_column": null,
+      "with_check_expression": "tenant_id = NULLIF(pg_catalog.current_setting('app.tenant_id',true),'')::uuid AND session_user = 'pitchlog_app' AND EXISTS(SELECT 1 FROM sync_fence.lifecycle_write_admissions a WHERE a.tenant_id=game_lifecycle_heads.tenant_id AND a.game_id=game_lifecycle_heads.game_id AND a.state='consumed' AND a.transaction_id=pg_catalog.pg_current_xact_id()::text)"
+    },
+    {
+      "policy_id": "POLICY:games:lifecycle_status_update",
+      "table_id": "games",
+      "profile": "function_only",
+      "policy_name": "lifecycle_status_update",
+      "command": "UPDATE",
+      "policy_mode": "permissive",
+      "role_ids": [
+        "pitchlog_sync_right_fn_owner"
+      ],
+      "using_predicate_id": null,
+      "using_column": null,
+      "using_expression": "tenant_id = NULLIF(pg_catalog.current_setting('app.tenant_id',true),'')::uuid AND session_user = 'pitchlog_app' AND EXISTS(SELECT 1 FROM sync_fence.lifecycle_write_admissions a WHERE a.tenant_id=games.tenant_id AND a.game_id=games.id AND a.state='consumed' AND a.transaction_id=pg_catalog.pg_current_xact_id()::text)",
+      "with_check_predicate_id": null,
+      "with_check_column": null,
+      "with_check_expression": "tenant_id = NULLIF(pg_catalog.current_setting('app.tenant_id',true),'')::uuid AND session_user = 'pitchlog_app' AND EXISTS(SELECT 1 FROM sync_fence.lifecycle_write_admissions a WHERE a.tenant_id=games.tenant_id AND a.game_id=games.id AND a.state='consumed' AND a.transaction_id=pg_catalog.pg_current_xact_id()::text)"
+    },
+    {
+      "policy_id": "POLICY:stats_fact_versions:lifecycle_end_insert",
+      "table_id": "stats_fact_versions",
+      "profile": "function_only",
+      "policy_name": "lifecycle_end_insert",
+      "command": "INSERT",
+      "policy_mode": "permissive",
+      "role_ids": [
+        "pitchlog_sync_right_fn_owner"
+      ],
+      "using_predicate_id": null,
+      "using_column": null,
+      "using_expression": null,
+      "with_check_predicate_id": null,
+      "with_check_column": null,
+      "with_check_expression": "tenant_id = NULLIF(pg_catalog.current_setting('app.tenant_id',true),'')::uuid AND session_user = 'pitchlog_app' AND completion_state='confirmed_ended' AND EXISTS(SELECT 1 FROM sync_fence.lifecycle_write_admissions a WHERE a.tenant_id=stats_fact_versions.tenant_id AND a.game_id=stats_fact_versions.game_id AND a.state='consumed' AND a.transaction_id=pg_catalog.pg_current_xact_id()::text AND a.action='end' AND a.receipt_id=stats_fact_versions.completion_receipt_id)"
+    },
+    {
+      "policy_id": "POLICY:stats_fact_versions:lifecycle_reopen_update",
+      "table_id": "stats_fact_versions",
+      "profile": "function_only",
+      "policy_name": "lifecycle_reopen_update",
+      "command": "UPDATE",
+      "policy_mode": "permissive",
+      "role_ids": [
+        "pitchlog_sync_right_fn_owner"
+      ],
+      "using_predicate_id": null,
+      "using_column": null,
+      "using_expression": "tenant_id = NULLIF(pg_catalog.current_setting('app.tenant_id',true),'')::uuid AND session_user = 'pitchlog_app' AND completion_state='confirmed_ended' AND EXISTS(SELECT 1 FROM sync_fence.lifecycle_write_admissions a WHERE a.tenant_id=stats_fact_versions.tenant_id AND a.game_id=stats_fact_versions.game_id AND a.state='consumed' AND a.transaction_id=pg_catalog.pg_current_xact_id()::text AND a.action='reopen')",
+      "with_check_predicate_id": null,
+      "with_check_column": null,
+      "with_check_expression": "tenant_id = NULLIF(pg_catalog.current_setting('app.tenant_id',true),'')::uuid AND session_user = 'pitchlog_app' AND completion_state='confirmed_ended' AND EXISTS(SELECT 1 FROM sync_fence.lifecycle_write_admissions a WHERE a.tenant_id=stats_fact_versions.tenant_id AND a.game_id=stats_fact_versions.game_id AND a.state='consumed' AND a.transaction_id=pg_catalog.pg_current_xact_id()::text AND a.action='reopen')"
+    },
+    {
+      "policy_id": "POLICY:stats_primitive_sources:lifecycle_end_insert",
+      "table_id": "stats_primitive_sources",
+      "profile": "function_only",
+      "policy_name": "lifecycle_end_insert",
+      "command": "INSERT",
+      "policy_mode": "permissive",
+      "role_ids": [
+        "pitchlog_sync_right_fn_owner"
+      ],
+      "using_predicate_id": null,
+      "using_column": null,
+      "using_expression": null,
+      "with_check_predicate_id": null,
+      "with_check_column": null,
+      "with_check_expression": "tenant_id = NULLIF(pg_catalog.current_setting('app.tenant_id',true),'')::uuid AND session_user = 'pitchlog_app' AND EXISTS(SELECT 1 FROM sync_fence.stats_fact_versions v WHERE v.tenant_id=stats_primitive_sources.tenant_id AND v.game_id=stats_primitive_sources.game_id AND v.id=stats_primitive_sources.fact_version_id AND v.is_current AND v.invalidated_at IS NULL AND v.completion_state='confirmed_ended' AND EXISTS(SELECT 1 FROM sync_fence.lifecycle_write_admissions a WHERE a.tenant_id=v.tenant_id AND a.game_id=v.game_id AND a.state='consumed' AND a.transaction_id=pg_catalog.pg_current_xact_id()::text AND a.action='end' AND a.receipt_id=v.completion_receipt_id))"
+    },
+    {
+      "policy_id": "POLICY:stats_primitive_facts:lifecycle_end_insert",
+      "table_id": "stats_primitive_facts",
+      "profile": "function_only",
+      "policy_name": "lifecycle_end_insert",
+      "command": "INSERT",
+      "policy_mode": "permissive",
+      "role_ids": [
+        "pitchlog_sync_right_fn_owner"
+      ],
+      "using_predicate_id": null,
+      "using_column": null,
+      "using_expression": null,
+      "with_check_predicate_id": null,
+      "with_check_column": null,
+      "with_check_expression": "tenant_id = NULLIF(pg_catalog.current_setting('app.tenant_id',true),'')::uuid AND session_user = 'pitchlog_app' AND EXISTS(SELECT 1 FROM sync_fence.stats_fact_versions v WHERE v.tenant_id=stats_primitive_facts.tenant_id AND v.game_id=stats_primitive_facts.game_id AND v.id=stats_primitive_facts.fact_version_id AND v.is_current AND v.invalidated_at IS NULL AND v.completion_state='confirmed_ended' AND EXISTS(SELECT 1 FROM sync_fence.lifecycle_write_admissions a WHERE a.tenant_id=v.tenant_id AND a.game_id=v.game_id AND a.state='consumed' AND a.transaction_id=pg_catalog.pg_current_xact_id()::text AND a.action='end' AND a.receipt_id=v.completion_receipt_id))"
     }
   ],
   "functions": [
@@ -6549,6 +6748,168 @@
           "grantable": false
         }
       ]
+    },
+    {
+      "function_id": "FUNCTION:sync_right_api:read_lifecycle_state(uuid, uuid, uuid, bytea, uuid, uuid, text)",
+      "schema_name": "sync_right_api",
+      "function_name": "read_lifecycle_state",
+      "identity_args": "uuid, uuid, uuid, bytea, uuid, uuid, text",
+      "function_kind": "definer",
+      "owner_role_id": "pitchlog_sync_right_fn_owner",
+      "language": "plpgsql",
+      "returns": "TABLE(record_json text)",
+      "security_mode": "definer",
+      "volatility": "volatile",
+      "search_path": [
+        "pg_catalog",
+        "pg_temp"
+      ],
+      "acl_expectations": [
+        {
+          "grantee": "pitchlog_app",
+          "privilege": "EXECUTE",
+          "grantable": false
+        }
+      ],
+      "revoked_acl_expectations": [
+        {
+          "grantee": "PUBLIC",
+          "privilege": "EXECUTE",
+          "grantable": false
+        }
+      ]
+    },
+    {
+      "function_id": "FUNCTION:sync_right_api:prepare_game_lifecycle(uuid, uuid, uuid, bytea, uuid, uuid, text)",
+      "schema_name": "sync_right_api",
+      "function_name": "prepare_game_lifecycle",
+      "identity_args": "uuid, uuid, uuid, bytea, uuid, uuid, text",
+      "function_kind": "definer",
+      "owner_role_id": "pitchlog_sync_right_fn_owner",
+      "language": "plpgsql",
+      "returns": "TABLE(prepared boolean)",
+      "security_mode": "definer",
+      "volatility": "volatile",
+      "search_path": [
+        "pg_catalog",
+        "pg_temp"
+      ],
+      "acl_expectations": [
+        {
+          "grantee": "pitchlog_app",
+          "privilege": "EXECUTE",
+          "grantable": false
+        }
+      ],
+      "revoked_acl_expectations": [
+        {
+          "grantee": "PUBLIC",
+          "privilege": "EXECUTE",
+          "grantable": false
+        }
+      ]
+    },
+    {
+      "function_id": "FUNCTION:sync_right_api:consume_game_lifecycle(uuid, uuid, uuid, bytea, uuid, uuid, text)",
+      "schema_name": "sync_right_api",
+      "function_name": "consume_game_lifecycle",
+      "identity_args": "uuid, uuid, uuid, bytea, uuid, uuid, text",
+      "function_kind": "definer",
+      "owner_role_id": "pitchlog_sync_right_fn_owner",
+      "language": "plpgsql",
+      "returns": "TABLE(record_json text)",
+      "security_mode": "definer",
+      "volatility": "volatile",
+      "search_path": [
+        "pg_catalog",
+        "pg_temp"
+      ],
+      "acl_expectations": [
+        {
+          "grantee": "pitchlog_app",
+          "privilege": "EXECUTE",
+          "grantable": false
+        }
+      ],
+      "revoked_acl_expectations": [
+        {
+          "grantee": "PUBLIC",
+          "privilege": "EXECUTE",
+          "grantable": false
+        }
+      ]
+    },
+    {
+      "function_id": "FUNCTION:sync_right_api:read_lifecycle_display(uuid, uuid)",
+      "schema_name": "sync_right_api",
+      "function_name": "read_lifecycle_display",
+      "identity_args": "uuid, uuid",
+      "function_kind": "definer",
+      "owner_role_id": "pitchlog_sync_right_fn_owner",
+      "language": "plpgsql",
+      "returns": "TABLE(record_json text)",
+      "security_mode": "definer",
+      "volatility": "volatile",
+      "search_path": [
+        "pg_catalog",
+        "pg_temp"
+      ],
+      "acl_expectations": [
+        {
+          "grantee": "pitchlog_app",
+          "privilege": "EXECUTE",
+          "grantable": false
+        }
+      ],
+      "revoked_acl_expectations": [
+        {
+          "grantee": "PUBLIC",
+          "privilege": "EXECUTE",
+          "grantable": false
+        }
+      ]
+    },
+    {
+      "function_id": "FUNCTION:public:protect_lifecycle_write_admissions()",
+      "schema_name": "public",
+      "function_name": "protect_lifecycle_write_admissions",
+      "identity_args": "",
+      "function_kind": "migration_trigger",
+      "owner_role_id": "pitchlog_owner",
+      "acl_expectations": [],
+      "revoked_acl_expectations": [
+        {
+          "grantee": "PUBLIC",
+          "privilege": "EXECUTE",
+          "grantable": false
+        },
+        {
+          "grantee": "pitchlog_app",
+          "privilege": "EXECUTE",
+          "grantable": false
+        }
+      ]
+    },
+    {
+      "function_id": "FUNCTION:public:protect_game_lifecycle_heads()",
+      "schema_name": "public",
+      "function_name": "protect_game_lifecycle_heads",
+      "identity_args": "",
+      "function_kind": "migration_trigger",
+      "owner_role_id": "pitchlog_owner",
+      "acl_expectations": [],
+      "revoked_acl_expectations": [
+        {
+          "grantee": "PUBLIC",
+          "privilege": "EXECUTE",
+          "grantable": false
+        },
+        {
+          "grantee": "pitchlog_app",
+          "privilege": "EXECUTE",
+          "grantable": false
+        }
+      ]
     }
   ],
   "acl_expectations": [
@@ -7078,6 +7439,18 @@
       "object_kind": "table",
       "object_schema": "sync_fence",
       "object_id": "nonplay_write_admissions",
+      "profile": "function_only",
+      "grantee_role_id": "pitchlog_sync_right_fn_owner",
+      "privilege_ids": [
+        "SELECT"
+      ],
+      "grant_option": false
+    },
+    {
+      "acl_id": "ACL:sync_fence:lifecycle_write_admissions:pitchlog_sync_right_fn_owner",
+      "object_kind": "table",
+      "object_schema": "sync_fence",
+      "object_id": "lifecycle_write_admissions",
       "profile": "function_only",
       "grantee_role_id": "pitchlog_sync_right_fn_owner",
       "privilege_ids": [
@@ -12477,7 +12850,8 @@
       "column_id": "status",
       "grantee_role_id": "pitchlog_sync_right_fn_owner",
       "privilege_ids": [
-        "SELECT"
+        "SELECT",
+        "UPDATE"
       ],
       "grant_option": false
     },
@@ -13160,6 +13534,702 @@
       "object_schema": "public",
       "object_id": "event_slots",
       "column_id": "xmin",
+      "grantee_role_id": "pitchlog_sync_right_fn_owner",
+      "privilege_ids": [
+        "SELECT"
+      ],
+      "grant_option": false
+    },
+    {
+      "expectation_id": "COLUMN-ACL:sync_fence:lifecycle_write_admissions:tenant_id:pitchlog_sync_right_fn_owner",
+      "object_kind": "column",
+      "object_schema": "sync_fence",
+      "object_id": "lifecycle_write_admissions",
+      "column_id": "tenant_id",
+      "grantee_role_id": "pitchlog_sync_right_fn_owner",
+      "privilege_ids": [
+        "SELECT",
+        "INSERT"
+      ],
+      "grant_option": false
+    },
+    {
+      "expectation_id": "COLUMN-ACL:sync_fence:lifecycle_write_admissions:attempt_id:pitchlog_sync_right_fn_owner",
+      "object_kind": "column",
+      "object_schema": "sync_fence",
+      "object_id": "lifecycle_write_admissions",
+      "column_id": "attempt_id",
+      "grantee_role_id": "pitchlog_sync_right_fn_owner",
+      "privilege_ids": [
+        "SELECT",
+        "INSERT"
+      ],
+      "grant_option": false
+    },
+    {
+      "expectation_id": "COLUMN-ACL:sync_fence:lifecycle_write_admissions:phase_id:pitchlog_sync_right_fn_owner",
+      "object_kind": "column",
+      "object_schema": "sync_fence",
+      "object_id": "lifecycle_write_admissions",
+      "column_id": "phase_id",
+      "grantee_role_id": "pitchlog_sync_right_fn_owner",
+      "privilege_ids": [
+        "SELECT",
+        "INSERT"
+      ],
+      "grant_option": false
+    },
+    {
+      "expectation_id": "COLUMN-ACL:sync_fence:lifecycle_write_admissions:authority_id:pitchlog_sync_right_fn_owner",
+      "object_kind": "column",
+      "object_schema": "sync_fence",
+      "object_id": "lifecycle_write_admissions",
+      "column_id": "authority_id",
+      "grantee_role_id": "pitchlog_sync_right_fn_owner",
+      "privilege_ids": [
+        "SELECT",
+        "INSERT"
+      ],
+      "grant_option": false
+    },
+    {
+      "expectation_id": "COLUMN-ACL:sync_fence:lifecycle_write_admissions:control_instance:pitchlog_sync_right_fn_owner",
+      "object_kind": "column",
+      "object_schema": "sync_fence",
+      "object_id": "lifecycle_write_admissions",
+      "column_id": "control_instance",
+      "grantee_role_id": "pitchlog_sync_right_fn_owner",
+      "privilege_ids": [
+        "SELECT",
+        "INSERT"
+      ],
+      "grant_option": false
+    },
+    {
+      "expectation_id": "COLUMN-ACL:sync_fence:lifecycle_write_admissions:business_instance:pitchlog_sync_right_fn_owner",
+      "object_kind": "column",
+      "object_schema": "sync_fence",
+      "object_id": "lifecycle_write_admissions",
+      "column_id": "business_instance",
+      "grantee_role_id": "pitchlog_sync_right_fn_owner",
+      "privilege_ids": [
+        "SELECT",
+        "INSERT"
+      ],
+      "grant_option": false
+    },
+    {
+      "expectation_id": "COLUMN-ACL:sync_fence:lifecycle_write_admissions:restore_epoch:pitchlog_sync_right_fn_owner",
+      "object_kind": "column",
+      "object_schema": "sync_fence",
+      "object_id": "lifecycle_write_admissions",
+      "column_id": "restore_epoch",
+      "grantee_role_id": "pitchlog_sync_right_fn_owner",
+      "privilege_ids": [
+        "SELECT",
+        "INSERT"
+      ],
+      "grant_option": false
+    },
+    {
+      "expectation_id": "COLUMN-ACL:sync_fence:lifecycle_write_admissions:control_version:pitchlog_sync_right_fn_owner",
+      "object_kind": "column",
+      "object_schema": "sync_fence",
+      "object_id": "lifecycle_write_admissions",
+      "column_id": "control_version",
+      "grantee_role_id": "pitchlog_sync_right_fn_owner",
+      "privilege_ids": [
+        "SELECT",
+        "INSERT"
+      ],
+      "grant_option": false
+    },
+    {
+      "expectation_id": "COLUMN-ACL:sync_fence:lifecycle_write_admissions:issuer:pitchlog_sync_right_fn_owner",
+      "object_kind": "column",
+      "object_schema": "sync_fence",
+      "object_id": "lifecycle_write_admissions",
+      "column_id": "issuer",
+      "grantee_role_id": "pitchlog_sync_right_fn_owner",
+      "privilege_ids": [
+        "SELECT",
+        "INSERT"
+      ],
+      "grant_option": false
+    },
+    {
+      "expectation_id": "COLUMN-ACL:sync_fence:lifecycle_write_admissions:lease_id:pitchlog_sync_right_fn_owner",
+      "object_kind": "column",
+      "object_schema": "sync_fence",
+      "object_id": "lifecycle_write_admissions",
+      "column_id": "lease_id",
+      "grantee_role_id": "pitchlog_sync_right_fn_owner",
+      "privilege_ids": [
+        "SELECT",
+        "INSERT"
+      ],
+      "grant_option": false
+    },
+    {
+      "expectation_id": "COLUMN-ACL:sync_fence:lifecycle_write_admissions:device_id:pitchlog_sync_right_fn_owner",
+      "object_kind": "column",
+      "object_schema": "sync_fence",
+      "object_id": "lifecycle_write_admissions",
+      "column_id": "device_id",
+      "grantee_role_id": "pitchlog_sync_right_fn_owner",
+      "privilege_ids": [
+        "SELECT",
+        "INSERT"
+      ],
+      "grant_option": false
+    },
+    {
+      "expectation_id": "COLUMN-ACL:sync_fence:lifecycle_write_admissions:game_id:pitchlog_sync_right_fn_owner",
+      "object_kind": "column",
+      "object_schema": "sync_fence",
+      "object_id": "lifecycle_write_admissions",
+      "column_id": "game_id",
+      "grantee_role_id": "pitchlog_sync_right_fn_owner",
+      "privilege_ids": [
+        "SELECT",
+        "INSERT"
+      ],
+      "grant_option": false
+    },
+    {
+      "expectation_id": "COLUMN-ACL:sync_fence:lifecycle_write_admissions:wire_d4:pitchlog_sync_right_fn_owner",
+      "object_kind": "column",
+      "object_schema": "sync_fence",
+      "object_id": "lifecycle_write_admissions",
+      "column_id": "wire_d4",
+      "grantee_role_id": "pitchlog_sync_right_fn_owner",
+      "privilege_ids": [
+        "SELECT",
+        "INSERT"
+      ],
+      "grant_option": false
+    },
+    {
+      "expectation_id": "COLUMN-ACL:sync_fence:lifecycle_write_admissions:internal_generation:pitchlog_sync_right_fn_owner",
+      "object_kind": "column",
+      "object_schema": "sync_fence",
+      "object_id": "lifecycle_write_admissions",
+      "column_id": "internal_generation",
+      "grantee_role_id": "pitchlog_sync_right_fn_owner",
+      "privilege_ids": [
+        "SELECT",
+        "INSERT"
+      ],
+      "grant_option": false
+    },
+    {
+      "expectation_id": "COLUMN-ACL:sync_fence:lifecycle_write_admissions:recovery_generation:pitchlog_sync_right_fn_owner",
+      "object_kind": "column",
+      "object_schema": "sync_fence",
+      "object_id": "lifecycle_write_admissions",
+      "column_id": "recovery_generation",
+      "grantee_role_id": "pitchlog_sync_right_fn_owner",
+      "privilege_ids": [
+        "SELECT",
+        "INSERT"
+      ],
+      "grant_option": false
+    },
+    {
+      "expectation_id": "COLUMN-ACL:sync_fence:lifecycle_write_admissions:codec_version:pitchlog_sync_right_fn_owner",
+      "object_kind": "column",
+      "object_schema": "sync_fence",
+      "object_id": "lifecycle_write_admissions",
+      "column_id": "codec_version",
+      "grantee_role_id": "pitchlog_sync_right_fn_owner",
+      "privilege_ids": [
+        "SELECT",
+        "INSERT"
+      ],
+      "grant_option": false
+    },
+    {
+      "expectation_id": "COLUMN-ACL:sync_fence:lifecycle_write_admissions:request_fingerprint:pitchlog_sync_right_fn_owner",
+      "object_kind": "column",
+      "object_schema": "sync_fence",
+      "object_id": "lifecycle_write_admissions",
+      "column_id": "request_fingerprint",
+      "grantee_role_id": "pitchlog_sync_right_fn_owner",
+      "privilege_ids": [
+        "SELECT",
+        "INSERT"
+      ],
+      "grant_option": false
+    },
+    {
+      "expectation_id": "COLUMN-ACL:sync_fence:lifecycle_write_admissions:d5:pitchlog_sync_right_fn_owner",
+      "object_kind": "column",
+      "object_schema": "sync_fence",
+      "object_id": "lifecycle_write_admissions",
+      "column_id": "d5",
+      "grantee_role_id": "pitchlog_sync_right_fn_owner",
+      "privilege_ids": [
+        "SELECT",
+        "INSERT"
+      ],
+      "grant_option": false
+    },
+    {
+      "expectation_id": "COLUMN-ACL:sync_fence:lifecycle_write_admissions:event_fingerprint:pitchlog_sync_right_fn_owner",
+      "object_kind": "column",
+      "object_schema": "sync_fence",
+      "object_id": "lifecycle_write_admissions",
+      "column_id": "event_fingerprint",
+      "grantee_role_id": "pitchlog_sync_right_fn_owner",
+      "privilege_ids": [
+        "SELECT",
+        "INSERT"
+      ],
+      "grant_option": false
+    },
+    {
+      "expectation_id": "COLUMN-ACL:sync_fence:lifecycle_write_admissions:system_identifier:pitchlog_sync_right_fn_owner",
+      "object_kind": "column",
+      "object_schema": "sync_fence",
+      "object_id": "lifecycle_write_admissions",
+      "column_id": "system_identifier",
+      "grantee_role_id": "pitchlog_sync_right_fn_owner",
+      "privilege_ids": [
+        "SELECT",
+        "INSERT"
+      ],
+      "grant_option": false
+    },
+    {
+      "expectation_id": "COLUMN-ACL:sync_fence:lifecycle_write_admissions:database_oid:pitchlog_sync_right_fn_owner",
+      "object_kind": "column",
+      "object_schema": "sync_fence",
+      "object_id": "lifecycle_write_admissions",
+      "column_id": "database_oid",
+      "grantee_role_id": "pitchlog_sync_right_fn_owner",
+      "privilege_ids": [
+        "SELECT",
+        "INSERT"
+      ],
+      "grant_option": false
+    },
+    {
+      "expectation_id": "COLUMN-ACL:sync_fence:lifecycle_write_admissions:postmaster_started_at:pitchlog_sync_right_fn_owner",
+      "object_kind": "column",
+      "object_schema": "sync_fence",
+      "object_id": "lifecycle_write_admissions",
+      "column_id": "postmaster_started_at",
+      "grantee_role_id": "pitchlog_sync_right_fn_owner",
+      "privilege_ids": [
+        "SELECT",
+        "INSERT"
+      ],
+      "grant_option": false
+    },
+    {
+      "expectation_id": "COLUMN-ACL:sync_fence:lifecycle_write_admissions:backend_pid:pitchlog_sync_right_fn_owner",
+      "object_kind": "column",
+      "object_schema": "sync_fence",
+      "object_id": "lifecycle_write_admissions",
+      "column_id": "backend_pid",
+      "grantee_role_id": "pitchlog_sync_right_fn_owner",
+      "privilege_ids": [
+        "SELECT",
+        "INSERT"
+      ],
+      "grant_option": false
+    },
+    {
+      "expectation_id": "COLUMN-ACL:sync_fence:lifecycle_write_admissions:backend_start:pitchlog_sync_right_fn_owner",
+      "object_kind": "column",
+      "object_schema": "sync_fence",
+      "object_id": "lifecycle_write_admissions",
+      "column_id": "backend_start",
+      "grantee_role_id": "pitchlog_sync_right_fn_owner",
+      "privilege_ids": [
+        "SELECT",
+        "INSERT"
+      ],
+      "grant_option": false
+    },
+    {
+      "expectation_id": "COLUMN-ACL:sync_fence:lifecycle_write_admissions:transaction_id:pitchlog_sync_right_fn_owner",
+      "object_kind": "column",
+      "object_schema": "sync_fence",
+      "object_id": "lifecycle_write_admissions",
+      "column_id": "transaction_id",
+      "grantee_role_id": "pitchlog_sync_right_fn_owner",
+      "privilege_ids": [
+        "SELECT",
+        "INSERT"
+      ],
+      "grant_option": false
+    },
+    {
+      "expectation_id": "COLUMN-ACL:sync_fence:lifecycle_write_admissions:nonce_digest:pitchlog_sync_right_fn_owner",
+      "object_kind": "column",
+      "object_schema": "sync_fence",
+      "object_id": "lifecycle_write_admissions",
+      "column_id": "nonce_digest",
+      "grantee_role_id": "pitchlog_sync_right_fn_owner",
+      "privilege_ids": [
+        "SELECT",
+        "INSERT"
+      ],
+      "grant_option": false
+    },
+    {
+      "expectation_id": "COLUMN-ACL:sync_fence:lifecycle_write_admissions:expires_at:pitchlog_sync_right_fn_owner",
+      "object_kind": "column",
+      "object_schema": "sync_fence",
+      "object_id": "lifecycle_write_admissions",
+      "column_id": "expires_at",
+      "grantee_role_id": "pitchlog_sync_right_fn_owner",
+      "privilege_ids": [
+        "SELECT",
+        "INSERT"
+      ],
+      "grant_option": false
+    },
+    {
+      "expectation_id": "COLUMN-ACL:sync_fence:lifecycle_write_admissions:state:pitchlog_sync_right_fn_owner",
+      "object_kind": "column",
+      "object_schema": "sync_fence",
+      "object_id": "lifecycle_write_admissions",
+      "column_id": "state",
+      "grantee_role_id": "pitchlog_sync_right_fn_owner",
+      "privilege_ids": [
+        "SELECT",
+        "INSERT",
+        "UPDATE"
+      ],
+      "grant_option": false
+    },
+    {
+      "expectation_id": "COLUMN-ACL:sync_fence:lifecycle_write_admissions:frame_id:pitchlog_sync_right_fn_owner",
+      "object_kind": "column",
+      "object_schema": "sync_fence",
+      "object_id": "lifecycle_write_admissions",
+      "column_id": "frame_id",
+      "grantee_role_id": "pitchlog_sync_right_fn_owner",
+      "privilege_ids": [
+        "SELECT",
+        "INSERT"
+      ],
+      "grant_option": false
+    },
+    {
+      "expectation_id": "COLUMN-ACL:sync_fence:lifecycle_write_admissions:frame_digest:pitchlog_sync_right_fn_owner",
+      "object_kind": "column",
+      "object_schema": "sync_fence",
+      "object_id": "lifecycle_write_admissions",
+      "column_id": "frame_digest",
+      "grantee_role_id": "pitchlog_sync_right_fn_owner",
+      "privilege_ids": [
+        "SELECT",
+        "INSERT"
+      ],
+      "grant_option": false
+    },
+    {
+      "expectation_id": "COLUMN-ACL:sync_fence:lifecycle_write_admissions:artifact_sha256:pitchlog_sync_right_fn_owner",
+      "object_kind": "column",
+      "object_schema": "sync_fence",
+      "object_id": "lifecycle_write_admissions",
+      "column_id": "artifact_sha256",
+      "grantee_role_id": "pitchlog_sync_right_fn_owner",
+      "privilege_ids": [
+        "SELECT",
+        "INSERT"
+      ],
+      "grant_option": false
+    },
+    {
+      "expectation_id": "COLUMN-ACL:sync_fence:lifecycle_write_admissions:source_event_id:pitchlog_sync_right_fn_owner",
+      "object_kind": "column",
+      "object_schema": "sync_fence",
+      "object_id": "lifecycle_write_admissions",
+      "column_id": "source_event_id",
+      "grantee_role_id": "pitchlog_sync_right_fn_owner",
+      "privilege_ids": [
+        "SELECT",
+        "INSERT"
+      ],
+      "grant_option": false
+    },
+    {
+      "expectation_id": "COLUMN-ACL:sync_fence:lifecycle_write_admissions:source_d1:pitchlog_sync_right_fn_owner",
+      "object_kind": "column",
+      "object_schema": "sync_fence",
+      "object_id": "lifecycle_write_admissions",
+      "column_id": "source_d1",
+      "grantee_role_id": "pitchlog_sync_right_fn_owner",
+      "privilege_ids": [
+        "SELECT",
+        "INSERT"
+      ],
+      "grant_option": false
+    },
+    {
+      "expectation_id": "COLUMN-ACL:sync_fence:lifecycle_write_admissions:source_d2:pitchlog_sync_right_fn_owner",
+      "object_kind": "column",
+      "object_schema": "sync_fence",
+      "object_id": "lifecycle_write_admissions",
+      "column_id": "source_d2",
+      "grantee_role_id": "pitchlog_sync_right_fn_owner",
+      "privilege_ids": [
+        "SELECT",
+        "INSERT"
+      ],
+      "grant_option": false
+    },
+    {
+      "expectation_id": "COLUMN-ACL:sync_fence:lifecycle_write_admissions:checkpoint_id:pitchlog_sync_right_fn_owner",
+      "object_kind": "column",
+      "object_schema": "sync_fence",
+      "object_id": "lifecycle_write_admissions",
+      "column_id": "checkpoint_id",
+      "grantee_role_id": "pitchlog_sync_right_fn_owner",
+      "privilege_ids": [
+        "SELECT",
+        "INSERT"
+      ],
+      "grant_option": false
+    },
+    {
+      "expectation_id": "COLUMN-ACL:sync_fence:lifecycle_write_admissions:checkpoint_revision:pitchlog_sync_right_fn_owner",
+      "object_kind": "column",
+      "object_schema": "sync_fence",
+      "object_id": "lifecycle_write_admissions",
+      "column_id": "checkpoint_revision",
+      "grantee_role_id": "pitchlog_sync_right_fn_owner",
+      "privilege_ids": [
+        "SELECT",
+        "INSERT"
+      ],
+      "grant_option": false
+    },
+    {
+      "expectation_id": "COLUMN-ACL:sync_fence:lifecycle_write_admissions:checkpoint_digest:pitchlog_sync_right_fn_owner",
+      "object_kind": "column",
+      "object_schema": "sync_fence",
+      "object_id": "lifecycle_write_admissions",
+      "column_id": "checkpoint_digest",
+      "grantee_role_id": "pitchlog_sync_right_fn_owner",
+      "privilege_ids": [
+        "SELECT",
+        "INSERT"
+      ],
+      "grant_option": false
+    },
+    {
+      "expectation_id": "COLUMN-ACL:sync_fence:lifecycle_write_admissions:receipt_id:pitchlog_sync_right_fn_owner",
+      "object_kind": "column",
+      "object_schema": "sync_fence",
+      "object_id": "lifecycle_write_admissions",
+      "column_id": "receipt_id",
+      "grantee_role_id": "pitchlog_sync_right_fn_owner",
+      "privilege_ids": [
+        "SELECT",
+        "INSERT"
+      ],
+      "grant_option": false
+    },
+    {
+      "expectation_id": "COLUMN-ACL:sync_fence:lifecycle_write_admissions:action:pitchlog_sync_right_fn_owner",
+      "object_kind": "column",
+      "object_schema": "sync_fence",
+      "object_id": "lifecycle_write_admissions",
+      "column_id": "action",
+      "grantee_role_id": "pitchlog_sync_right_fn_owner",
+      "privilege_ids": [
+        "SELECT",
+        "INSERT"
+      ],
+      "grant_option": false
+    },
+    {
+      "expectation_id": "COLUMN-ACL:sync_fence:lifecycle_write_admissions:preparation_json:pitchlog_sync_right_fn_owner",
+      "object_kind": "column",
+      "object_schema": "sync_fence",
+      "object_id": "lifecycle_write_admissions",
+      "column_id": "preparation_json",
+      "grantee_role_id": "pitchlog_sync_right_fn_owner",
+      "privilege_ids": [
+        "SELECT",
+        "INSERT"
+      ],
+      "grant_option": false
+    },
+    {
+      "expectation_id": "COLUMN-ACL:sync_fence:lifecycle_write_admissions:preparation:pitchlog_sync_right_fn_owner",
+      "object_kind": "column",
+      "object_schema": "sync_fence",
+      "object_id": "lifecycle_write_admissions",
+      "column_id": "preparation",
+      "grantee_role_id": "pitchlog_sync_right_fn_owner",
+      "privilege_ids": [
+        "SELECT",
+        "INSERT"
+      ],
+      "grant_option": false
+    },
+    {
+      "expectation_id": "COLUMN-ACL:sync_fence:lifecycle_write_admissions:consumed_at:pitchlog_sync_right_fn_owner",
+      "object_kind": "column",
+      "object_schema": "sync_fence",
+      "object_id": "lifecycle_write_admissions",
+      "column_id": "consumed_at",
+      "grantee_role_id": "pitchlog_sync_right_fn_owner",
+      "privilege_ids": [
+        "SELECT",
+        "INSERT",
+        "UPDATE"
+      ],
+      "grant_option": false
+    },
+    {
+      "expectation_id": "COLUMN-ACL:sync_fence:game_lifecycle_heads:tenant_id:pitchlog_sync_right_fn_owner",
+      "object_kind": "column",
+      "object_schema": "sync_fence",
+      "object_id": "game_lifecycle_heads",
+      "column_id": "tenant_id",
+      "grantee_role_id": "pitchlog_sync_right_fn_owner",
+      "privilege_ids": [
+        "SELECT",
+        "INSERT"
+      ],
+      "grant_option": false
+    },
+    {
+      "expectation_id": "COLUMN-ACL:sync_fence:game_lifecycle_heads:game_id:pitchlog_sync_right_fn_owner",
+      "object_kind": "column",
+      "object_schema": "sync_fence",
+      "object_id": "game_lifecycle_heads",
+      "column_id": "game_id",
+      "grantee_role_id": "pitchlog_sync_right_fn_owner",
+      "privilege_ids": [
+        "SELECT",
+        "INSERT"
+      ],
+      "grant_option": false
+    },
+    {
+      "expectation_id": "COLUMN-ACL:sync_fence:game_lifecycle_heads:last_version:pitchlog_sync_right_fn_owner",
+      "object_kind": "column",
+      "object_schema": "sync_fence",
+      "object_id": "game_lifecycle_heads",
+      "column_id": "last_version",
+      "grantee_role_id": "pitchlog_sync_right_fn_owner",
+      "privilege_ids": [
+        "SELECT",
+        "INSERT",
+        "UPDATE"
+      ],
+      "grant_option": false
+    },
+    {
+      "expectation_id": "COLUMN-ACL:sync_fence:game_lifecycle_heads:is_finished:pitchlog_sync_right_fn_owner",
+      "object_kind": "column",
+      "object_schema": "sync_fence",
+      "object_id": "game_lifecycle_heads",
+      "column_id": "is_finished",
+      "grantee_role_id": "pitchlog_sync_right_fn_owner",
+      "privilege_ids": [
+        "SELECT",
+        "INSERT",
+        "UPDATE"
+      ],
+      "grant_option": false
+    },
+    {
+      "expectation_id": "COLUMN-ACL:sync_fence:game_lifecycle_heads:active_end_event_id:pitchlog_sync_right_fn_owner",
+      "object_kind": "column",
+      "object_schema": "sync_fence",
+      "object_id": "game_lifecycle_heads",
+      "column_id": "active_end_event_id",
+      "grantee_role_id": "pitchlog_sync_right_fn_owner",
+      "privilege_ids": [
+        "SELECT",
+        "INSERT",
+        "UPDATE"
+      ],
+      "grant_option": false
+    },
+    {
+      "expectation_id": "COLUMN-ACL:sync_fence:game_lifecycle_heads:active_receipt_id:pitchlog_sync_right_fn_owner",
+      "object_kind": "column",
+      "object_schema": "sync_fence",
+      "object_id": "game_lifecycle_heads",
+      "column_id": "active_receipt_id",
+      "grantee_role_id": "pitchlog_sync_right_fn_owner",
+      "privilege_ids": [
+        "SELECT",
+        "INSERT",
+        "UPDATE"
+      ],
+      "grant_option": false
+    },
+    {
+      "expectation_id": "COLUMN-ACL:sync_fence:game_lifecycle_heads:active_stats_version_id:pitchlog_sync_right_fn_owner",
+      "object_kind": "column",
+      "object_schema": "sync_fence",
+      "object_id": "game_lifecycle_heads",
+      "column_id": "active_stats_version_id",
+      "grantee_role_id": "pitchlog_sync_right_fn_owner",
+      "privilege_ids": [
+        "SELECT",
+        "INSERT",
+        "UPDATE"
+      ],
+      "grant_option": false
+    },
+    {
+      "expectation_id": "COLUMN-ACL:sync_fence:game_lifecycle_heads:last_control_event_id:pitchlog_sync_right_fn_owner",
+      "object_kind": "column",
+      "object_schema": "sync_fence",
+      "object_id": "game_lifecycle_heads",
+      "column_id": "last_control_event_id",
+      "grantee_role_id": "pitchlog_sync_right_fn_owner",
+      "privilege_ids": [
+        "SELECT",
+        "INSERT",
+        "UPDATE"
+      ],
+      "grant_option": false
+    },
+    {
+      "expectation_id": "COLUMN-ACL:sync_fence:game_lifecycle_heads:updated_at:pitchlog_sync_right_fn_owner",
+      "object_kind": "column",
+      "object_schema": "sync_fence",
+      "object_id": "game_lifecycle_heads",
+      "column_id": "updated_at",
+      "grantee_role_id": "pitchlog_sync_right_fn_owner",
+      "privilege_ids": [
+        "SELECT",
+        "INSERT",
+        "UPDATE"
+      ],
+      "grant_option": false
+    },
+    {
+      "expectation_id": "COLUMN-ACL:public:games:started_at:pitchlog_sync_right_fn_owner",
+      "object_kind": "column",
+      "object_schema": "public",
+      "object_id": "games",
+      "column_id": "started_at",
+      "grantee_role_id": "pitchlog_sync_right_fn_owner",
+      "privilege_ids": [
+        "SELECT"
+      ],
+      "grant_option": false
+    },
+    {
+      "expectation_id": "COLUMN-ACL:public:games:import_batch_id:pitchlog_sync_right_fn_owner",
+      "object_kind": "column",
+      "object_schema": "public",
+      "object_id": "games",
+      "column_id": "import_batch_id",
       "grantee_role_id": "pitchlog_sync_right_fn_owner",
       "privilege_ids": [
         "SELECT"

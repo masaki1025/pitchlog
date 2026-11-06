@@ -49,6 +49,14 @@ def _contract():
                 "lineup_play_prefix_schema_v1.json",
             )
         ]
+        if "LifecycleControlBridge" in documents[0]["$defs"]:
+            documents.append(
+                json.loads(
+                    (_ROOT / "game_lifecycle_schema_v1.json").read_text(),
+                    object_pairs_hook=_unique_object,
+                    parse_constant=_invalid_constant,
+                )
+            )
         registry = Registry(retrieve=_no_resource)
         for document in documents:
             Draft202012Validator.check_schema(document)

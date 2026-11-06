@@ -1,3 +1,4 @@
+import { applyGameLifecycle } from './gameLifecycle'
 import { formatDecimalInteger, parseDecimalInteger } from './decimalCodec'
 import { readContinuationRules } from './firstPitchContinuation'
 import { evaluateEndCondition, validEndRules } from './endConditionCore'
@@ -273,6 +274,216 @@ function runners(value: unknown, snapshot: Json): boolean {
 
 /** 採用Source schemaの閉shapeだけを機械転記する。野球計算・期待caseは含まない。 */
 const nonplayShapes: Json = {
+  'np.LifecycleState': {
+    fields: {
+      status: {
+        values: ['in_progress', 'finished'],
+      },
+      lastVersion: {
+        scalar: 'unsigned',
+      },
+      active: {
+        choices: [
+          {
+            type: 'null',
+          },
+          {
+            fields: {
+              version: {
+                scalar: 'positive',
+              },
+              eventId: {
+                scalar: 'uuid',
+              },
+              receiptId: {
+                scalar: 'uuid',
+              },
+            },
+            required: ['version', 'eventId', 'receiptId'],
+          },
+        ],
+      },
+    },
+    required: ['status', 'lastVersion', 'active'],
+  },
+  'np.ActiveFinalization': {
+    fields: {
+      version: {
+        scalar: 'positive',
+      },
+      eventId: {
+        scalar: 'uuid',
+      },
+      receiptId: {
+        scalar: 'uuid',
+      },
+    },
+    required: ['version', 'eventId', 'receiptId'],
+  },
+  'np.LifecycleControlBridge': {
+    fields: {
+      source: {
+        ref: 'np.EventSource',
+      },
+      action: {
+        values: ['end', 'reopen'],
+      },
+      anchorEventId: {
+        ref: 'np.Uuid',
+      },
+      beforeContext: {
+        ref: 'np.RestoreContext',
+      },
+      afterContext: {
+        ref: 'np.RestoreContext',
+      },
+      kernel: {
+        fields: {
+          request: {
+            ref: 'gl.Request',
+          },
+          response: {
+            ref: 'gl.Response',
+          },
+        },
+        required: ['request', 'response'],
+      },
+      frameId: {
+        ref: 'np.Uuid',
+      },
+      checkpointBefore: {
+        ref: 'np.CheckpointRef',
+      },
+    },
+    required: [
+      'source',
+      'action',
+      'anchorEventId',
+      'beforeContext',
+      'afterContext',
+      'kernel',
+      'frameId',
+      'checkpointBefore',
+    ],
+  },
+  'gl.Request': {
+    fields: {
+      formatVersion: {
+        constant: 'native-game-lifecycle-v1',
+      },
+      action: {
+        values: ['end', 'reopen'],
+      },
+      current: {
+        ref: 'np.Current',
+      },
+      lifecycle: {
+        ref: 'np.LifecycleState',
+      },
+      target: {
+        choices: [
+          {
+            type: 'null',
+          },
+          {
+            fields: {
+              version: {
+                scalar: 'positive',
+              },
+              eventId: {
+                scalar: 'uuid',
+              },
+              receiptId: {
+                scalar: 'uuid',
+              },
+            },
+            required: ['version', 'eventId', 'receiptId'],
+          },
+        ],
+      },
+      event: {
+        fields: {
+          eventId: {
+            scalar: 'uuid',
+          },
+          receiptId: {
+            scalar: 'uuid',
+          },
+        },
+        required: ['eventId', 'receiptId'],
+      },
+    },
+    required: [
+      'formatVersion',
+      'action',
+      'current',
+      'lifecycle',
+      'target',
+      'event',
+    ],
+  },
+  'gl.Response': {
+    choices: [
+      {
+        fields: {
+          ok: {
+            constant: true,
+          },
+          value: {
+            fields: {
+              current: {
+                ref: 'np.Current',
+              },
+              lifecycle: {
+                ref: 'np.LifecycleState',
+              },
+              stateEffect: {
+                fields: {
+                  gameEnded: {
+                    fields: {
+                      kind: {
+                        values: ['unchanged', 'set'],
+                      },
+                      before: {
+                        type: 'boolean',
+                      },
+                      after: {
+                        type: 'boolean',
+                      },
+                    },
+                    required: ['kind', 'before', 'after'],
+                  },
+                },
+                required: ['gameEnded'],
+              },
+            },
+            required: ['current', 'lifecycle', 'stateEffect'],
+          },
+        },
+        required: ['ok', 'value'],
+      },
+      {
+        fields: {
+          ok: {
+            constant: false,
+          },
+          error: {
+            fields: {
+              code: {
+                values: [
+                  'INVALID_JSON',
+                  'INVALID_REQUEST',
+                  'LIFECYCLE_STATE_MISMATCH',
+                ],
+              },
+            },
+            required: ['code'],
+          },
+        },
+        required: ['ok', 'error'],
+      },
+    ],
+  },
   'np.Source': {
     fields: {
       formatVersion: { constant: 'nonplay-prefix-source-v1' },
@@ -320,6 +531,7 @@ const nonplayShapes: Json = {
       nextPhysicalPlayNumber: { ref: 'np.Positive' },
       executionArtifactSha256: { ref: 'np.Digest' },
       restored: { ref: 'np.RestoreContext' },
+      controlBridges: { items: { ref: 'np.LifecycleControlBridge' } },
     },
     required: [
       'scope',
@@ -361,7 +573,9 @@ const nonplayShapes: Json = {
       d1: { ref: 'np.Positive' },
       d5: { ref: 'np.Uuid' },
       fingerprint: { ref: 'np.Fingerprint' },
-      eventKind: { values: ['play_input', 'undo'] },
+      eventKind: {
+        values: ['play_input', 'undo', 'game_end_declaration', 'game_reopen'],
+      },
     },
     required: [
       'eventId',
@@ -1150,6 +1364,65 @@ function nonplayHistoryMatches(frame: Json): boolean {
   }
   return true
 }
+/** 全制御核応答を再確認する。構造と数学の検査であってDB資格ではない。 */
+function controlBridges(content: Json): Array<Json> | null {
+  let bridges: Array<Json> = []
+  if (typeof content.controlBridges !== 'undefined')
+    bridges = content.controlBridges as Array<Json>
+  let seen: Array<string> = []
+  for (const b of bridges) {
+    const source = b.source as Json
+    const kernel = b.kernel as Json
+    const request = kernel.request as Json
+    const response = kernel.response as Json
+    if (response.ok !== true) return null
+    const event = request.event as Json
+    const before = b.beforeContext as Json
+    const after = b.afterContext as Json
+    const scope = content.scope as Json
+    let kind = 'game_end_declaration'
+    if (b.action === 'reopen') kind = 'game_reopen'
+    if (
+      seen.includes(source.eventId as string) ||
+      source.gameId !== scope.gameId ||
+      source.eventKind !== kind ||
+      request.action !== b.action ||
+      event.eventId !== source.eventId ||
+      !sameContinuationValue(request.current, before.current) ||
+      !sameContinuationValue((response.value as Json).current, after.current) ||
+      !sameContinuationValue(
+        JSON.parse(applyGameLifecycle(JSON.stringify(request))) as unknown,
+        response,
+      )
+    )
+      return null
+    for (const pair of Object.entries(before)) {
+      const key = pair.slice().shift() as string
+      if (
+        key !== 'current' &&
+        !sameContinuationValue(pair.slice().pop(), read(after, key))
+      )
+        return null
+    }
+    seen = seen.concat([source.eventId as string])
+  }
+  return bridges
+}
+function controlContextMatches(
+  before: unknown,
+  after: unknown,
+  anchor: unknown,
+  bridges: Array<Json>,
+): boolean {
+  let current = before
+  for (const bridge of bridges) {
+    if (bridge.anchorEventId !== anchor) continue
+    if (!sameContinuationValue(current, bridge.beforeContext)) return false
+    current = bridge.afterContext
+  }
+  return sameContinuationValue(current, after)
+}
+
 /** 三headはそのまま保ち、旧v3/startedへ偽装せず共通計算に必要なviewだけを取る。 */
 function nonplayView(value: unknown, suppliedPosition: unknown): Json | null {
   if (!nonplayShape(value, read(nonplayShapes, 'np.Source') as Json))
@@ -1157,6 +1430,8 @@ function nonplayView(value: unknown, suppliedPosition: unknown): Json | null {
   const s = value as Json
   const cp = s.checkpoint as Json
   const c = cp.content as Json
+  const bridges = controlBridges(c)
+  if (bridges === null) return null
   const restored = c.restored as Json
   const stack = s.activeStack as Array<Json>
   const pos = object(suppliedPosition, ['d1', 'd2', 'appliedWatermark'])
@@ -1206,7 +1481,12 @@ function nonplayView(value: unknown, suppliedPosition: unknown): Json | null {
     }
     if (
       previous !== null &&
-      !sameContinuationValue(previous.beforeContext, frame.afterContext)
+      !controlContextMatches(
+        frame.afterContext,
+        previous.beforeContext,
+        event.eventId,
+        bridges,
+      )
     )
       return null
     previous = frame
@@ -1220,7 +1500,12 @@ function nonplayView(value: unknown, suppliedPosition: unknown): Json | null {
     unsigned(c.activeDepth) !== depth ||
     headMismatch ||
     (typeof first !== 'undefined' &&
-      !sameContinuationValue(c.restored, first.afterContext)) ||
+      !controlContextMatches(
+        first.afterContext,
+        c.restored,
+        ((first.play as Json).source as Json).eventId,
+        bridges,
+      )) ||
     pos === null ||
     unsigned(pos.d1) !== d3 + 1n ||
     unsigned(pos.appliedWatermark) !== d3 ||
@@ -1267,6 +1552,13 @@ function nonplayView(value: unknown, suppliedPosition: unknown): Json | null {
     )
       return null
   }
+  let releasedEndCondition = false
+  let latestControlAction: unknown = null
+  for (const bridge of bridges) {
+    releasedEndCondition = bridge.action === 'reopen'
+    latestControlAction = bridge.action
+  }
+  if (latestControlAction === 'end') return null
   // 同世代文字列や単純なD2大小は真正連結/全物理末尾の証明ではない。SQLが再照合する。
   return {
     kind: 'nonplay-prefix-source-v1',
@@ -1277,6 +1569,8 @@ function nonplayView(value: unknown, suppliedPosition: unknown): Json | null {
     participants: restored.participants,
     responsibility: restored.responsibility,
     t2: restored.lastPlayEvaluation,
+    // 真正consumed/head一致はSQLが保証し、核は全bridge応答と順序を再検算する。
+    releasedEndCondition: releasedEndCondition,
     historyDepth: c.activeDepth,
     playCount: c.activeDepth,
     historyVersion: c.historyVersion,
@@ -1468,20 +1762,57 @@ export function prepareLineupContinuation(raw: string): Prepared {
       const f = prior.facts as Json
       if (
         prior.tiebreakStartRequired !== false ||
-        d.endConditionDetected !== false ||
-        d.lockFurtherPlayInput !== false ||
-        d.promptEndDeclaration !== false ||
-        d.automaticallyEndsGame !== false ||
-        d.xMark !== 'recorded-score' ||
-        !['no-end', 'extra-continue', 'tiebreak-continue'].includes(
-          d.outcome as string,
-        ) ||
+        (s.releasedEndCondition !== true &&
+          (d.endConditionDetected !== false ||
+            d.lockFurtherPlayInput !== false ||
+            d.promptEndDeclaration !== false ||
+            d.automaticallyEndsGame !== false ||
+            d.xMark !== 'recorded-score' ||
+            !['no-end', 'extra-continue', 'tiebreak-continue'].includes(
+              d.outcome as string,
+            ))) ||
         f.afterInning !== read(fields, 'state.inning') ||
         f.afterHalf !== read(fields, 'state.half') ||
         f.afterOuts !== read(fields, 'state.outs') ||
         f.priorOpen !== true
       )
         return reject('PREFIX_SOURCE_MISMATCH')
+      if (s.releasedEndCondition === true) {
+        const inning = unsigned(f.afterInning)
+        const score = read(fields, 'state.score') as Json
+        const home = unsigned(score.home)
+        const away = unsigned(score.away)
+        const half = f.afterHalf
+        let completedHalf: 'top' | 'bottom' | null = null
+        let completedInning: bigint | null = null
+        if (f.halfCompleted === true) {
+          if (f.beforeHalf !== 'top' && f.beforeHalf !== 'bottom')
+            return reject('PREFIX_SOURCE_MISMATCH')
+          completedHalf = f.beforeHalf
+          completedInning = unsigned(f.beforeInning)
+        }
+        if (
+          inning === null ||
+          home === null ||
+          away === null ||
+          (half !== 'top' && half !== 'bottom')
+        )
+          return reject('PREFIX_SOURCE_MISMATCH')
+        const checked = evaluateEndCondition(
+          {
+            inning,
+            half,
+            home,
+            away,
+            tiebreakActive: read(fields, 'state.tiebreakActive') === true,
+            gameEnded: read(fields, 'state.gameEnded') === true,
+          },
+          rules.value,
+          { completedHalf, completedInning },
+        )
+        if (checked === null || !sameContinuationValue(prior.decision, checked))
+          return reject('PREFIX_SOURCE_MISMATCH')
+      }
     }
   } else if (s.kind === 'started-initial-v3') {
     const p = object(provenance, ['kind', 'eventId'])

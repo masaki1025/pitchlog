@@ -144,6 +144,8 @@ PORT_IMPLEMENTATIONS: frozenset[tuple[str, str]] = frozenset(
         ("pitchlog.sync.first_ball_recording_rights", "FirstBallRecordingRightsPort"),
         ("pitchlog.sync.undo_ports", "UndoContentValidationPort"),
         ("pitchlog.sync.undo_ports", "UndoProjectionPort"),
+        ("pitchlog.sync.lifecycle_ports", "LifecycleContentValidationPort"),
+        ("pitchlog.sync.lifecycle_ports", "LifecycleProjectionPort"),
     }
 )
 _PORT_VERIFIER: Callable[[object], None] | None = None

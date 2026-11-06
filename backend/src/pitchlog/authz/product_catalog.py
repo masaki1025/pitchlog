@@ -157,7 +157,8 @@ WHERE namespace.nspname IN (
     'sync_fence_api', 'sync_right_api', 'recording_vocab_api', 'stats_api'
 ) OR (namespace.nspname = 'public' AND routine.proname IN (
     'protect_initial_right_storage', 'protect_recording_generations_updates',
-    'protect_nonplay_admission'
+    'protect_nonplay_admission', 'protect_lifecycle_write_admissions',
+    'protect_game_lifecycle_heads'
 ))
 ORDER BY 1, 2, 3
 """
@@ -576,6 +577,7 @@ class CatalogQueryId(Enum):
     FIRST_BALL_TRIGGERS = "first_ball_triggers"
     PLAY_PREFIX_TRIGGERS = "play_prefix_triggers"
     NONPLAY_STORAGE_TRIGGERS = "nonplay_storage_triggers"
+    LIFECYCLE_STORAGE_TRIGGERS = "lifecycle_storage_triggers"
     MEMBERSHIPS = "memberships"
     DANGEROUS_LOGIN_ROLES = "dangerous_login_roles"
     UNAUTHORIZED_LOGIN_BYPASSRLS = "unauthorized_login_bypassrls"
@@ -1408,6 +1410,11 @@ def _catalog_requests(
             if "protect_nonplay_admission" in expectations.function_names
             else ()
         ),
+        *(
+            (_CatalogRequest(CatalogQueryId.LIFECYCLE_STORAGE_TRIGGERS, ()),)
+            if "protect_lifecycle_write_admissions" in expectations.function_names
+            else ()
+        ),
         _CatalogRequest(CatalogQueryId.MEMBERSHIPS, (roles, roles)),
         _CatalogRequest(
             CatalogQueryId.DANGEROUS_LOGIN_ROLES,
@@ -1511,6 +1518,10 @@ def _query_for_id(query_id: CatalogQueryId) -> LiteralString:
         return _FUNCTION_ACL_QUERY
     if query_id is CatalogQueryId.NONPLAY_STORAGE_TRIGGERS:
         from pitchlog.authz.nonplay_storage_profile import trigger_query
+
+        return trigger_query()
+    if query_id is CatalogQueryId.LIFECYCLE_STORAGE_TRIGGERS:
+        from pitchlog.authz.lifecycle_storage_profile import trigger_query
 
         return trigger_query()
     if query_id is CatalogQueryId.PLAY_PREFIX_TRIGGERS:
@@ -2410,6 +2421,17 @@ def inspect_product_authz_catalog(
         )
         report.compare(
             "PRODUCT-CATALOG:NONPLAY-STORAGE-TRIGGERS",
+            trigger_expectations(),
+            _actual_nonplay_storage_triggers(observed),
+        )
+    if "protect_lifecycle_write_admissions" in expectations.function_names:
+        from pitchlog.authz.lifecycle_storage_profile import trigger_expectations
+
+        observed = _observed_rows(
+            frozen_observations, CatalogQueryId.LIFECYCLE_STORAGE_TRIGGERS
+        )
+        report.compare(
+            "PRODUCT-CATALOG:LIFECYCLE-STORAGE-TRIGGERS",
             trigger_expectations(),
             _actual_nonplay_storage_triggers(observed),
         )

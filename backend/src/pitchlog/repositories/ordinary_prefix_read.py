@@ -143,7 +143,15 @@ def read_ordinary_prefix(
     game = games[0]
     if game["tenant_id"] != tenant or game["id"] != game_id:
         raise OrdinaryPrefixError
-    if game["status"] != "in_progress" or any(
+    from pitchlog.repositories.game_lifecycle import _finished_lifecycle_read_allowed
+
+    if (
+        game["status"] != "in_progress"
+        and not (
+            game["status"] == "finished"
+            and _finished_lifecycle_read_allowed(handle, game_id)
+        )
+    ) or any(
         game[key] is not None for key in ("trashed_at", "hidden_at", "import_batch_id")
     ):
         return StartedReadNotVisible()

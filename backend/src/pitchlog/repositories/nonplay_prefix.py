@@ -287,6 +287,12 @@ def _check_source(value):
         or (c["d3"] == "0") != (c["d1Head"] is None)
     ):
         raise NonplaySourceUnavailable("取消CPの全値相関が不一致です")
+    from pitchlog.sync.lifecycle_prefix_bridge import (
+        _context_chain_matches,
+        _validate_control_bridges,
+    )
+
+    bridges = _validate_control_bridges(c)
     identities = set()
     for index, frame in enumerate(stack):
         play = frame["play"]
@@ -300,13 +306,16 @@ def _check_source(value):
         ):
             raise NonplaySourceUnavailable("取消active原本が重複又は別種別です")
         identities.add(identity)
-        if index == 0 and _canonical_json(frame["afterContext"]) != _canonical_json(
-            c["restored"]
+        if index == 0 and not _context_chain_matches(
+            frame["afterContext"], c["restored"], src["eventId"], bridges
         ):
             raise NonplaySourceUnavailable("取消head/current文脈が不一致です")
-        if index + 1 < len(stack) and _canonical_json(
-            frame["beforeContext"]
-        ) != _canonical_json(stack[index + 1]["afterContext"]):
+        if index + 1 < len(stack) and not _context_chain_matches(
+            stack[index + 1]["afterContext"],
+            frame["beforeContext"],
+            stack[index + 1]["play"]["source"]["eventId"],
+            bridges,
+        ):
             raise NonplaySourceUnavailable("取消tail文脈が不一致です")
     if c["d1Head"] is not None:
         head = c["d1Head"]["source"]

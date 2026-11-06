@@ -1073,9 +1073,15 @@ def test_shared_gate_unknown_format_missing_and_changed_witness_stays_closed(
 
 @pytest.mark.parametrize("which", ["prior", "current"])
 def test_legacy_v3_declared_real_gate_returns_current_view_preserving_storage(
-    rig, monkeypatch, which
+    rig, monkeypatch, tmp_path, which
 ):
     """有限宣言済旧v3を本物gate経由で提供し、原CP/storageを保持する。"""
+    from test_play_prefix import _v3_compatibility_root
+
+    from pitchlog.repositories import play_prefix
+
+    _, module = _v3_compatibility_root(tmp_path)
+    monkeypatch.setattr(play_prefix, "__file__", str(module))
     witness = json.loads(
         (
             ROOT / "contracts/state-transition/nonplay_v3_compatibility_witness_v1.json"

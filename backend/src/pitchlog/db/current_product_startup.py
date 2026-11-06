@@ -31,9 +31,13 @@ from pitchlog.db.game_state.stats import (
     StatsPrimitiveFact,
     StatsPrimitiveSource,
 )
+from pitchlog.db.writer_binding.lifecycle_models import (
+    GameLifecycleHead,
+    LifecycleWriteAdmission,
+)
 from pitchlog.db.writer_binding.nonplay_models import NonplayWriteAdmission
 
-CURRENT_REVISION = "0042_nonplay_write_admission"
+CURRENT_REVISION = "0043_game_lifecycle"
 _INDEX_REVISION = "0040_batted_vocabulary_index"
 _STATS_MODELS = (StatsFactVersion, StatsPrimitiveSource, StatsPrimitiveFact)
 
@@ -230,6 +234,8 @@ def _tables() -> tuple[Table, ...]:
         OrdinaryPitchHistory,
         *_STATS_MODELS,
         NonplayWriteAdmission,
+        LifecycleWriteAdmission,
+        GameLifecycleHead,
     )
     return tuple(
         sorted((cast(Table, m.__table__) for m in models), key=lambda t: t.name)
@@ -402,7 +408,13 @@ def _check_current_structure(connection: Any) -> None:
             if cursor.fetchall() != expected:
                 raise CurrentProductStartupError("current全列の型/属性が不一致です")
             if table.name not in {
-                m.__table__.name for m in (*_STATS_MODELS, NonplayWriteAdmission)
+                m.__table__.name
+                for m in (
+                    *_STATS_MODELS,
+                    NonplayWriteAdmission,
+                    LifecycleWriteAdmission,
+                    GameLifecycleHead,
+                )
             }:
                 cursor.execute(
                     "SELECT c.relname,k.conname,pg_get_constraintdef(k.oid),"
@@ -706,6 +718,14 @@ def _pre_full_expected():
     if nonplay_guard not in canonical_functions:
         raise CurrentProductStartupError("0042内部保護関数の正規宣言がありません")
     functions.add(nonplay_guard)
+    for name in (
+        "protect_lifecycle_write_admissions",
+        "protect_game_lifecycle_heads",
+    ):
+        guard = ("public", name, "")
+        if guard not in canonical_functions:
+            raise CurrentProductStartupError("0043内部保護関数の正規宣言がありません")
+        functions.add(guard)
     schemas = {r.fields["schema_name"] for r in present if r.element_type == "schema"}
     # sync_fenceは0037/0041のowner migrationが配置する。権限は別に閉照合する。
     schemas.add("sync_fence")
@@ -839,6 +859,14 @@ def _pre_full_catalog_pairs():
     pairs["PRODUCT-CATALOG:NONPLAY-STORAGE-TRIGGERS"] = (
         nonplay_triggers(),
         nonplay_triggers(),
+    )
+    from pitchlog.authz.lifecycle_storage_profile import (
+        trigger_expectations as lifecycle_triggers,
+    )
+
+    pairs["PRODUCT-CATALOG:LIFECYCLE-STORAGE-TRIGGERS"] = (
+        lifecycle_triggers(),
+        lifecycle_triggers(),
     )
     return pairs
 

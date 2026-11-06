@@ -240,7 +240,13 @@ def read_initial_started_snapshot(
         if locked != game or game["tenant_id"] != tenant or game["id"] != game_id:
             raise StartedSnapshotUnavailable
         if (
-            game["status"] != "in_progress"
+            (
+                game["status"] != "in_progress"
+                and not (
+                    game["status"] == "finished"
+                    and _finished_lifecycle_read_allowed(handle, game_id)
+                )
+            )
             or game["trashed_at"] is not None
             or game["hidden_at"] is not None
             or game["import_batch_id"] is not None
@@ -249,7 +255,8 @@ def read_initial_started_snapshot(
         ):
             raise StartedSnapshotUnavailable
         away, home = (
-            _uuid(game[name]) for name in ("away_team_record_id", "home_team_record_id")
+            _uuid(game[name])
+            for name in (("away_team_record_id"), ("home_team_record_id"))
         )
         if away == home:
             raise StartedSnapshotUnavailable
@@ -327,7 +334,8 @@ def read_initial_started_snapshot(
                         name: {
                             "team_id": str(lineup.team_id),
                             "entries": [
-                                e.roster.model_dump(mode="json") for e in lineup.entries
+                                e.roster.model_dump(mode=("json"))
+                                for e in lineup.entries
                             ],
                         }
                         for name, lineup in zip(("away", "home"), sides, strict=True)
@@ -359,3 +367,12 @@ def read_initial_started_snapshot(
         )
     except (ValueError, TypeError, KeyError, RuntimeError):
         raise StartedSnapshotUnavailable from None
+
+
+def _finished_lifecycle_read_allowed(handle, game_id):
+    """同TXの真正表示受領証がないfinishedを旧readへ開かない。"""
+    from pitchlog.repositories.game_lifecycle import (
+        _finished_lifecycle_read_allowed as allowed,
+    )
+
+    return allowed(handle, game_id)

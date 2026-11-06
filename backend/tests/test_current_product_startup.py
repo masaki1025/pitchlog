@@ -55,12 +55,14 @@ def test_expression_unknown_syntax_is_closed(bad):
         current._expression(bad)
 
 
-def test_old_stats_and_nonplay_models_are_closed_ten_with_54_and_43_columns():
-    """既6表を落とさず、新3表54列の型元だけを利用する。"""
+def test_current_models_are_closed_twelve_with_lifecycle_tables():
+    """既10表を落とさず、終了再開2表の型元を加える。"""
     tables = current._tables()
-    assert len(tables) == 10
+    assert len(tables) == 12
     assert [t.name for t in tables] == [
         "first_ball_write_admissions",
+        "game_lifecycle_heads",
+        "lifecycle_write_admissions",
         "nonplay_write_admissions",
         "ordinary_pitch_checkpoints",
         "ordinary_pitch_history",

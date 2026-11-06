@@ -459,10 +459,21 @@ describe('canonOracle', () => {
 
   it('R-PARTICIPATION の未知 ID を fail-closed で拒否する', () => {
     const mutatedRelations = structuredClone(syncProtocolRelations)
-    mutatedRelations['R-PARTICIPATION'].source_elements.push('13:追加種別=従属')
+    mutatedRelations['R-PARTICIPATION'].source_elements.push('14:追加種別=従属')
 
     expect(() => readCanonParticipationRules(mutatedRelations)).toThrowError(
       /未知の R-PARTICIPATION ID/,
+    )
+  })
+
+  it('追記再開の P2 参加行を別経路に読み替えない', () => {
+    const mutatedRelations = structuredClone(syncProtocolRelations)
+    const source = mutatedRelations['R-PARTICIPATION'].source_elements
+    const index = source.indexOf('13:追記再開+P2')
+    expect(index).toBeGreaterThanOrEqual(0)
+    source[index] = '13:追記再開+P1'
+    expect(() => readCanonParticipationRules(mutatedRelations)).toThrowError(
+      /要素形式/,
     )
   })
 
@@ -842,11 +853,14 @@ describe('canonOracle', () => {
     const rules: readonly CanonTxnRouteRule[] = readCanonTxnRouteRules()
 
     expect(rules).toEqual(parseCanonTxnRouteRules(sourceElements))
-    expect(rules).toHaveLength(14)
+    expect(rules).toHaveLength(17)
     expect(rules.filter((rule) => Object.is(rule.kind, 'route'))).toHaveLength(
       5,
     )
     expect(rules.filter((rule) => Object.is(rule.kind, 'step'))).toHaveLength(9)
+    expect(
+      rules.filter((rule) => Object.is(rule.kind, 'control')),
+    ).toHaveLength(3)
   })
 
   it('R-TXN-ROUTE のパース結果から14要素を逐語かつ順序込みで復元する', () => {
@@ -964,6 +978,17 @@ describe('canonOracle', () => {
     sourceElements.push(sourceElements[targetIndex]!)
     expect(() => readCanonTxnRouteRules(mutatedRelations)).toThrowError(
       /ID が重複/,
+    )
+  })
+
+  it('CL1 の制御原本責務を一語でも欠いたら拒否する', () => {
+    const mutatedRelations = structuredClone(syncProtocolRelations)
+    const source = mutatedRelations['R-TXN-ROUTE'].source_elements
+    const index = source.findIndex((element) => element.startsWith('CL1:'))
+    expect(index).toBeGreaterThanOrEqual(0)
+    source[index] = source[index]!.replace('+receipt', '')
+    expect(() => readCanonTxnRouteRules(mutatedRelations)).toThrowError(
+      /制御原本行/,
     )
   })
 

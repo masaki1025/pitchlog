@@ -831,7 +831,7 @@ def _nonplay_normal_prepare_sql():
  IS DISTINCT FROM ARRAY['checkpoint','formatVersion','projection_snapshot']::text[]
  OR after_cp->'checkpoint'->'content' IS DISTINCT FROM expected_cp
  OR (((after_cp->'checkpoint')-'content')-'ref') IS DISTINCT FROM
- (before_cp-'content'-'ref')
+ ((before_cp-'content')-'ref')
  OR ((after_cp->'checkpoint'->'ref')-'digest') IS DISTINCT FROM
  pg_catalog.jsonb_build_object('id',current_cp.id::text,'revision',
  (current_cp.revision+1)::text)

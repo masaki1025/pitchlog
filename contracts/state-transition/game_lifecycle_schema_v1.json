@@ -1,0 +1,413 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pitchlog.example/contracts/state-transition/game_lifecycle_schema_v1.json",
+  "$defs": {
+    "Request": {
+      "type": "object",
+      "properties": {
+        "formatVersion": {
+          "const": "native-game-lifecycle-v1"
+        },
+        "action": {
+          "enum": [
+            "end",
+            "reopen"
+          ]
+        },
+        "current": {
+          "$ref": "https://pitchlog.example/contracts/state-transition/nonplay_prefix_bridge_schema_v1.json#/$defs/Current"
+        },
+        "lifecycle": {
+          "$ref": "https://pitchlog.example/contracts/state-transition/nonplay_prefix_bridge_schema_v1.json#/$defs/LifecycleState"
+        },
+        "target": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "version": {
+                  "type": "string",
+                  "pattern": "^[1-9][0-9]*(?![\\s\\S])"
+                },
+                "eventId": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+                },
+                "receiptId": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+                }
+              },
+              "required": [
+                "version",
+                "eventId",
+                "receiptId"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        },
+        "event": {
+          "type": "object",
+          "properties": {
+            "eventId": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+            },
+            "receiptId": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+            }
+          },
+          "required": [
+            "eventId",
+            "receiptId"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "formatVersion",
+        "action",
+        "current",
+        "lifecycle",
+        "target",
+        "event"
+      ],
+      "additionalProperties": false
+    },
+    "Response": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "ok": {
+              "const": true
+            },
+            "value": {
+              "type": "object",
+              "properties": {
+                "current": {
+                  "$ref": "https://pitchlog.example/contracts/state-transition/nonplay_prefix_bridge_schema_v1.json#/$defs/Current"
+                },
+                "lifecycle": {
+                  "$ref": "https://pitchlog.example/contracts/state-transition/nonplay_prefix_bridge_schema_v1.json#/$defs/LifecycleState"
+                },
+                "stateEffect": {
+                  "type": "object",
+                  "properties": {
+                    "gameEnded": {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "enum": [
+                            "unchanged",
+                            "set"
+                          ]
+                        },
+                        "before": {
+                          "type": "boolean"
+                        },
+                        "after": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "kind",
+                        "before",
+                        "after"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "gameEnded"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "current",
+                "lifecycle",
+                "stateEffect"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "ok",
+            "value"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "ok": {
+              "const": false
+            },
+            "error": {
+              "type": "object",
+              "properties": {
+                "code": {
+                  "enum": [
+                    "INVALID_JSON",
+                    "INVALID_REQUEST",
+                    "LIFECYCLE_STATE_MISMATCH"
+                  ]
+                }
+              },
+              "required": [
+                "code"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "ok",
+            "error"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "Payload": {
+      "type": "object",
+      "properties": {
+        "formatVersion": {
+          "const": "native-game-lifecycle-v1"
+        },
+        "action": {
+          "enum": [
+            "end",
+            "reopen"
+          ]
+        },
+        "checkpointRef": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "confirmed"
+                },
+                "id": {
+                  "$ref": "https://pitchlog.example/contracts/state-transition/nonplay_prefix_bridge_schema_v1.json#/$defs/Uuid"
+                },
+                "revision": {
+                  "$ref": "https://pitchlog.example/contracts/state-transition/nonplay_prefix_bridge_schema_v1.json#/$defs/Positive"
+                },
+                "digest": {
+                  "$ref": "https://pitchlog.example/contracts/state-transition/nonplay_prefix_bridge_schema_v1.json#/$defs/Digest"
+                }
+              },
+              "required": [
+                "kind",
+                "id",
+                "revision",
+                "digest"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "confirmed_prefix"
+                },
+                "id": {
+                  "$ref": "https://pitchlog.example/contracts/state-transition/nonplay_prefix_bridge_schema_v1.json#/$defs/Uuid"
+                },
+                "revision": {
+                  "$ref": "https://pitchlog.example/contracts/state-transition/nonplay_prefix_bridge_schema_v1.json#/$defs/Positive"
+                },
+                "digest": {
+                  "$ref": "https://pitchlog.example/contracts/state-transition/nonplay_prefix_bridge_schema_v1.json#/$defs/Digest"
+                },
+                "d4": {
+                  "$ref": "https://pitchlog.example/contracts/state-transition/nonplay_prefix_bridge_schema_v1.json#/$defs/Generation"
+                },
+                "d1": {
+                  "$ref": "https://pitchlog.example/contracts/state-transition/nonplay_prefix_bridge_schema_v1.json#/$defs/WireD1"
+                },
+                "d5": {
+                  "$ref": "https://pitchlog.example/contracts/state-transition/nonplay_prefix_bridge_schema_v1.json#/$defs/Uuid"
+                }
+              },
+              "required": [
+                "kind",
+                "id",
+                "revision",
+                "digest",
+                "d4",
+                "d1",
+                "d5"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "queued_predecessor"
+                },
+                "d4": {
+                  "$ref": "https://pitchlog.example/contracts/state-transition/nonplay_prefix_bridge_schema_v1.json#/$defs/Generation"
+                },
+                "d1": {
+                  "$ref": "https://pitchlog.example/contracts/state-transition/nonplay_prefix_bridge_schema_v1.json#/$defs/WireD1"
+                },
+                "d5": {
+                  "$ref": "https://pitchlog.example/contracts/state-transition/nonplay_prefix_bridge_schema_v1.json#/$defs/Uuid"
+                }
+              },
+              "required": [
+                "kind",
+                "d4",
+                "d1",
+                "d5"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        },
+        "target": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "confirmed"
+                },
+                "version": {
+                  "$ref": "https://pitchlog.example/contracts/state-transition/nonplay_prefix_bridge_schema_v1.json#/$defs/Positive"
+                },
+                "eventId": {
+                  "$ref": "https://pitchlog.example/contracts/state-transition/nonplay_prefix_bridge_schema_v1.json#/$defs/Uuid"
+                },
+                "receiptId": {
+                  "$ref": "https://pitchlog.example/contracts/state-transition/nonplay_prefix_bridge_schema_v1.json#/$defs/Uuid"
+                }
+              },
+              "required": [
+                "kind",
+                "version",
+                "eventId",
+                "receiptId"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "queued_end"
+                },
+                "d4": {
+                  "$ref": "https://pitchlog.example/contracts/state-transition/nonplay_prefix_bridge_schema_v1.json#/$defs/Generation"
+                },
+                "d1": {
+                  "$ref": "https://pitchlog.example/contracts/state-transition/nonplay_prefix_bridge_schema_v1.json#/$defs/WireD1"
+                },
+                "d5": {
+                  "$ref": "https://pitchlog.example/contracts/state-transition/nonplay_prefix_bridge_schema_v1.json#/$defs/Uuid"
+                },
+                "eventId": {
+                  "$ref": "https://pitchlog.example/contracts/state-transition/nonplay_prefix_bridge_schema_v1.json#/$defs/Uuid"
+                },
+                "receiptId": {
+                  "$ref": "https://pitchlog.example/contracts/state-transition/nonplay_prefix_bridge_schema_v1.json#/$defs/Uuid"
+                }
+              },
+              "required": [
+                "kind",
+                "d4",
+                "d1",
+                "d5",
+                "eventId",
+                "receiptId"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        },
+        "event": {
+          "type": "object",
+          "properties": {
+            "eventId": {
+              "$ref": "https://pitchlog.example/contracts/state-transition/nonplay_prefix_bridge_schema_v1.json#/$defs/Uuid"
+            },
+            "receiptId": {
+              "$ref": "https://pitchlog.example/contracts/state-transition/nonplay_prefix_bridge_schema_v1.json#/$defs/Uuid"
+            }
+          },
+          "required": [
+            "eventId",
+            "receiptId"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "formatVersion",
+        "action",
+        "checkpointRef",
+        "target",
+        "event"
+      ],
+      "additionalProperties": false
+    },
+    "Display": {
+      "type": "object",
+      "properties": {
+        "formatVersion": {
+          "const": "native-game-lifecycle-read-v1"
+        },
+        "status": {
+          "enum": [
+            "in_progress",
+            "finished"
+          ]
+        },
+        "lastVersion": {
+          "$ref": "https://pitchlog.example/contracts/state-transition/nonplay_prefix_bridge_schema_v1.json#/$defs/Unsigned"
+        },
+        "active": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "https://pitchlog.example/contracts/state-transition/nonplay_prefix_bridge_schema_v1.json#/$defs/ActiveFinalization"
+            }
+          ]
+        },
+        "activeStatsVersionId": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "https://pitchlog.example/contracts/state-transition/nonplay_prefix_bridge_schema_v1.json#/$defs/Uuid"
+            }
+          ]
+        }
+      },
+      "required": [
+        "formatVersion",
+        "status",
+        "lastVersion",
+        "active",
+        "activeStatsVersionId"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "$comment": "shapeだけ。認可/同TX/nonce/元event/CP/最終版と実資格は別に照合する。"
+}

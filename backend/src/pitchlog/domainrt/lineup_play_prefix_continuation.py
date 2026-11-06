@@ -4,9 +4,15 @@ from __future__ import annotations
 
 import json
 import re
-from typing import Annotated, Literal, Self, TypeAlias
+from typing import Annotated, Any, Literal, Self, TypeAlias
 
-from pydantic import Field, TypeAdapter, ValidationError, model_validator
+from pydantic import (
+    Field,
+    TypeAdapter,
+    ValidationError,
+    field_validator,
+    model_validator,
+)
 
 from pitchlog.domainrt.first_pitch import (
     BatterDestination,
@@ -643,7 +649,9 @@ class NonplayEventSource(_LineupWire):
     fingerprint: Annotated[
         str, Field(pattern=re.compile(r"^(?:wire-v1:)?[a-f0-9]{64}\Z"))
     ]
-    event_kind: Literal["play_input", "undo"] = Field(alias="eventKind")
+    event_kind: Literal[
+        ("play_input"), ("undo"), ("game_end_declaration"), ("game_reopen")
+    ] = Field(alias="eventKind")
 
 
 class NonplayD1Head(_LineupWire):
@@ -684,6 +692,40 @@ class NonplayRestoreContext(_LineupWire):
     last_play_evaluation: T2 | None = Field(alias="lastPlayEvaluation")
 
 
+class LifecycleKernel(_LineupWire):
+    """唯一kernelの全入出力。shapeは正式ABIを参照する。"""
+
+    request: dict[str, Any]
+    response: dict[str, Any]
+
+    @field_validator("request", mode="before")
+    @classmethod
+    def _request(cls, value):
+        from pitchlog.domainrt.game_lifecycle import LifecycleRequest
+
+        return LifecycleRequest(json.dumps(value, ensure_ascii=False)).to_wire()
+
+    @field_validator("response", mode="before")
+    @classmethod
+    def _response(cls, value):
+        from pitchlog.domainrt.game_lifecycle import LifecycleResponse
+
+        return LifecycleResponse(json.dumps(value, ensure_ascii=False)).to_wire()
+
+
+class LifecycleControlBridge(_LineupWire):
+    """全contextと実SQL証拠の参照。UUID型だけでは真正資格にならない。"""
+
+    source: NonplayEventSource
+    action: Literal["end", "reopen"]
+    anchor_event_id: CanonicalUuid = Field(alias="anchorEventId")
+    before_context: NonplayRestoreContext = Field(alias="beforeContext")
+    after_context: NonplayRestoreContext = Field(alias="afterContext")
+    kernel: LifecycleKernel
+    frame_id: CanonicalUuid = Field(alias="frameId")
+    checkpoint_before: Checkpoint = Field(alias="checkpointBefore")
+
+
 class NonplayContent(_LineupWire):
     """空activeでもD3/履歴版/epoch/物理番号を保持する。"""
 
@@ -699,6 +741,9 @@ class NonplayContent(_LineupWire):
     next_physical_play_number: PositiveInteger = Field(alias="nextPhysicalPlayNumber")
     execution_artifact_sha256: Digest = Field(alias="executionArtifactSha256")
     restored: NonplayRestoreContext
+    control_bridges: tuple[LifecycleControlBridge, ...] | None = Field(
+        default=None, alias="controlBridges", exclude_if=lambda v: v is None
+    )
 
 
 class NonplayCheckpoint(_LineupWire):
