@@ -24,3 +24,7 @@ PO回答「むずかしそうなら5秒以内は後回しでもいいよ」に�
 ## 初回実測の準備不足修復（PO委任Codex/root、2026-11-06）
 
 normal-full-game-r1は実HR入力で必要なbatted.screen語彙未配置により停止（source同一/cleanup済）。既走者打球/三振試験と同じ有限5語彙をowned DBへ準備する。game/playの事前投入ではない。既test_screen_start_e2e._run_playwrightは総期限600秒で、163球×5秒でも超えるため、後方互換のkeyword timeout_seconds=600を追加し本9回試験だけ3600秒にする対象範囲追補を承認する。投球の各要求deadlineや拒否は変更しない。
+
+## 実測結果（2026-11-06、候補環境）
+
+fixed64fc0b338f1ac862b4f00068cb089a310cce6fb6のnormal-full-game-r2でPlaywright1成功、owned pytest1成功/2240.02秒。実画面create/start→無走者HR1点＋54三振→18half/163投球→T2 normal-end→終了v1→reloadを実測。実DB literal assertはfinished/v1/confirmed_ended/is_current/source163、受理event164を照合。source前後同一・owned cleanup完了。cache mvp-resume-20261104/normal-full-game-r2-evidence.jsonにUI観測/実行証拠/固定SHAを保全。全163球が5秒超・最大14748msで性能未達。これは通常9回だけの機能証拠で、全操作/全MVP/正式提供/実機ではない。取消/交代/訂正/終了後再開/成績27/両CSV等の別受入条件は残る。
