@@ -9,6 +9,7 @@ import secrets
 from collections.abc import Callable
 from contextlib import AbstractContextManager
 from datetime import UTC, datetime
+from importlib import import_module
 from pathlib import Path
 from typing import Any, LiteralString
 from uuid import uuid4
@@ -38,6 +39,8 @@ from .conftest import DisposablePostgres, ProvisionedProductCatalog
 
 pytestmark = pytest.mark.requires_db
 
+# 比較開始時のBaseを完成させ、投影関数内で元metadataを増やさない。
+_ALL_MODELS = import_module("pitchlog.db.all_models")
 _BACKEND_ROOT = Path(__file__).resolve().parents[2]
 _SCHEMA_MANIFEST_PATH = (
     _BACKEND_ROOT.parent / "contracts" / "db" / "schema-manifest.json"
@@ -1071,9 +1074,6 @@ _STATS_PRIVATE_TABLES = frozenset(
 
 def _metadata_before_stats_revision() -> MetaData:
     """0041の新3表だけをcopyから除き、現Baseと旧全列/制約を保持する。"""
-    from importlib import import_module
-
-    import_module("pitchlog.db.all_models")
     present = _STATS_PRIVATE_TABLES & set(Base.metadata.tables)
     assert not present or present == _STATS_PRIVATE_TABLES
     historical = MetaData(naming_convention=Base.metadata.naming_convention)
