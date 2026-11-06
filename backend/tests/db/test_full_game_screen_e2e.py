@@ -39,6 +39,20 @@ def test_screen_normal_nine_innings_163_pitches(vertical_database):
             "WHERE tenant_id=%s AND id=%s",
             (db.tenant_id, db.game_id),
         ).fetchone()
+        # 既走者打球/三振試験と同じ有限語彙だけをowned環境へ準備する。
+        # 実証対象game/playは事前投入せず、すべて画面から新規保存する。
+        for key, category in (
+            ("batting-result.home-run", "batting_result"),
+            ("batting-result.called-pitch", "batting_result"),
+            ("batting-result.called-strikeout", "batting_result"),
+            ("batted.screen.line", "batted_ball"),
+            ("batted.screen.hard", "batted_ball"),
+        ):
+            admin.execute(
+                "INSERT INTO public.admin_vocabularies(key,category,display_name) "
+                "VALUES (%s,%s,%s) ON CONFLICT(key) DO NOTHING",
+                (key, category, key),
+            )
     assert teams is not None
     token = uuid4()
     config = "GameScreenFullGame.playwright.config.ts"
@@ -53,9 +67,10 @@ def test_screen_normal_nine_innings_163_pitches(vertical_database):
                     "PITCHLOG_E2E_AWAY_TEAM": str(teams[0]),
                     "PITCHLOG_E2E_HOME_TEAM": str(teams[1]),
                 },
+                timeout_seconds=3600,
             )
     lines = re.findall(r"PITCHLOG_FULL_GAME_FINAL=(\{[^\n]+\})", result.stdout)
-    assert len(lines) == 1
+    assert len(lines) == 1, (result.stdout[-12000:], result.stderr[-2000:])
     observed = json.loads(lines[0])
     game = UUID(observed["gameId"])
     assert game != db.game_id and observed["plays"] == 163

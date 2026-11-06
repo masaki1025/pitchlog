@@ -20,3 +20,7 @@ branch: feature/mvp-full-game-rehearsal
 ## 優先順位の追補（2026-11-06、PO回答に基づくCodex/root判断）
 
 PO回答「むずかしそうなら5秒以内は後回しでもいいよ」に従い、まず通常1試合の機能証拠を揃える。本新試験は全投球時間/5秒超件数を出力して機能判定と分離する。既LCの5秒assertは削除・緩和せず、性能未達として残す。性能達成/MVP全完成の判定には使わない。
+
+## 初回実測の準備不足修復（PO委任Codex/root、2026-11-06）
+
+normal-full-game-r1は実HR入力で必要なbatted.screen語彙未配置により停止（source同一/cleanup済）。既走者打球/三振試験と同じ有限5語彙をowned DBへ準備する。game/playの事前投入ではない。既test_screen_start_e2e._run_playwrightは総期限600秒で、163球×5秒でも超えるため、後方互換のkeyword timeout_seconds=600を追加し本9回試験だけ3600秒にする対象範囲追補を承認する。投球の各要求deadlineや拒否は変更しない。
