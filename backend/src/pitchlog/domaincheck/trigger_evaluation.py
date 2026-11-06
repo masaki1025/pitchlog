@@ -161,7 +161,7 @@ def _pr197_delegated_digest_impl(
     from scripts import frozen_history
 
     def fail() -> TriggerEvaluationError:
-        return TriggerEvaluationError("PR197 trigger1 の委任再確認証拠が不一致")
+        return TriggerEvaluationError("PR197 trigger1 の委任再確認証拠 digest が不一致")
 
     def git(*arguments: str) -> bytes:
         try:
