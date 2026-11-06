@@ -40,13 +40,16 @@ created: 2026-11-06
      `source_unavailable` + 理由を返す。
 4. 試合別/シーズン成績CSV（BOM付きUTF-8、共通 `stream_csv`、27項目+未取得一覧）。
 5. 終了確定した最新版だけをシーズン集計に使う。再開中（current_open）は公式対象外。
-6. 終了確定の候補関数（`finalize_game_stats`）。正式な終了確定providerのreceiptを引数に取り、
-   同一版の再実行は冪等、別receiptは拒否する。**製品の終了確定経路への接続は未実施**。
+6. 終了確定は**製品関数として提供しない**。任意receiptを受け取るapp実行可能なfinalizeは
+   receipt真正性を検証できないため、P0として候補から除外した。終了確定providerが自身のTX内で
+   真正receiptとともにcompletion列を更新する。`candidates/finalize_game_stats.test-only.sql` は
+   owned隔離DBのread検証専用で、正式catalog/HTTPへ接続しない。
 
 ## 2. 実装の境界
 
-- **T5 artifactを変更しない**。打率・出塁率・長打率・WHIPは `backend/domain/stats-display.model.json`
-  に一度だけ宣言し、`generate_display_rates_bundle` で `stats/generated/rates.py` だけを生成する。
+- **T5 artifactを変更しない**。打率・WHIPは `backend/domain/stats-display.model.json` に一度だけ宣言し、
+  `generate_display_rates_bundle` で `stats/generated/rates.py` だけを生成する。出塁率・長打率は
+  **T5のOPSが計算した同じcomponent pair**を表示し、式をT6へ複製しない（NFR-018）。
   `facts.py`/`statsPrimitives.ts` は byte 不変で、native profile `t5ArtifactSetSha256` も不変。
 - 26十分統計の集計は既存の `backend/src/pitchlog/stats/generated/stats.sql` を唯一の式とし、
   新関数はscope条件（試合/暦年・公式/暫定）だけを差し替える。
@@ -115,9 +118,9 @@ created: 2026-11-06
 
 ## 6. 次の最小接続（主担当向け）
 
-1. `candidates/basic_stats_functions.sql` の2関数を正式catalogへ登録し、`candidates/authz-diff.md` の
-   grants/policies/route/tokenを一括受理する。
-2. 終了確定providerの同一TXで `finalize_game_stats` を呼ぶ。receiptは既存の終了確定版から渡す。
+1. `candidates/basic_stats_functions.sql` のread関数を正式catalogへ登録し、`candidates/authz-diff.md` の
+   grants/policies/route/tokenを一括受理する。finalize関数は登録しない。
+2. 終了確定providerの同一TXでcompletion列を真正receiptとともに更新する。receiptは既存の終了確定版から渡す。
 3. BF/登板のsourceを27 CHECK/migrationとparticipation intervalへ接続する。本枝の
    `README`/APIは `appearances`/`batters_faced` がmetric JSONに現れれば自動で表示する。
 4. 毎球CSVは `ud2-csv-export` step2以降を同じ `stream_csv`/ZIP部品で接続する。

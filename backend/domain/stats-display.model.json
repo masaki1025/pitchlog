@@ -159,110 +159,6 @@
             }
           },
           {
-            "id": "obp",
-            "type": "ratio",
-            "components": [
-              {
-                "id": "obp",
-                "expression": {
-                  "op": "ratio",
-                  "numerator": {
-                    "op": "add",
-                    "args": [
-                      {
-                        "op": "metric",
-                        "id": "h"
-                      },
-                      {
-                        "op": "metric",
-                        "id": "bb"
-                      },
-                      {
-                        "op": "metric",
-                        "id": "hbp"
-                      }
-                    ]
-                  },
-                  "denominator": {
-                    "op": "add",
-                    "args": [
-                      {
-                        "op": "metric",
-                        "id": "ab"
-                      },
-                      {
-                        "op": "metric",
-                        "id": "bb"
-                      },
-                      {
-                        "op": "metric",
-                        "id": "hbp"
-                      },
-                      {
-                        "op": "metric",
-                        "id": "sf"
-                      }
-                    ]
-                  }
-                }
-              }
-            ],
-            "expression": {
-              "op": "component",
-              "id": "obp"
-            },
-            "display": {
-              "scale": 3,
-              "rounding": "half-up",
-              "leadingZero": false,
-              "zeroDivisionGlyph": "−",
-              "denominators": [
-                {
-                  "component": "obp",
-                  "prefix": "打席",
-                  "suffix": ""
-                }
-              ]
-            }
-          },
-          {
-            "id": "slg",
-            "type": "ratio",
-            "components": [
-              {
-                "id": "slg",
-                "expression": {
-                  "op": "ratio",
-                  "numerator": {
-                    "op": "metric",
-                    "id": "total_bases"
-                  },
-                  "denominator": {
-                    "op": "metric",
-                    "id": "ab"
-                  }
-                }
-              }
-            ],
-            "expression": {
-              "op": "component",
-              "id": "slg"
-            },
-            "display": {
-              "scale": 3,
-              "rounding": "half-up",
-              "leadingZero": false,
-              "zeroDivisionGlyph": "−",
-              "denominators": [
-                {
-                  "component": "slg",
-                  "prefix": "打数",
-                  "suffix": ""
-                }
-              ]
-            }
-          },
-          {
             "id": "whip",
             "type": "ratio",
             "components": [
@@ -324,7 +220,35 @@
               ]
             }
           }
-        ]
+        ],
+        "componentDisplays": {
+          "obp": {
+            "scale": 3,
+            "rounding": "half-up",
+            "leadingZero": false,
+            "zeroDivisionGlyph": "−",
+            "denominators": [
+              {
+                "component": "obp",
+                "prefix": "打席",
+                "suffix": ""
+              }
+            ]
+          },
+          "slg": {
+            "scale": 3,
+            "rounding": "half-up",
+            "leadingZero": false,
+            "zeroDivisionGlyph": "−",
+            "denominators": [
+              {
+                "component": "slg",
+                "prefix": "打数",
+                "suffix": ""
+              }
+            ]
+          }
+        }
       }
     }
   ],

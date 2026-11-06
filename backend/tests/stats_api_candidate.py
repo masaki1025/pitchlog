@@ -12,17 +12,17 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
-
-from pitchlog.api.schemas.stats import (
+from stats_basic_candidate import ReadBasicStatsToken
+from stats_schemas_candidate import (
     Category,
     GameBasicStats,
     PlayerBasicStats,
     SeasonBasicStats,
 )
+
 from pitchlog.api.tenant_access import require_tenant_access
 from pitchlog.exports.csv import CsvCell, stream_csv
 from pitchlog.repositories.context import TenantContext
-from pitchlog.repositories.stats_basic import ReadBasicStatsToken
 from pitchlog.repositories.transaction import stats_primitive_read_scope
 from pitchlog.stats.basic_stats import (
     BATTING_ITEMS,

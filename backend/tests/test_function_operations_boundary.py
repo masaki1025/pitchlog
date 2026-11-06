@@ -140,7 +140,6 @@ def test_product_function_registry_keeps_rg1_and_adds_one_rule_operation() -> No
         RG1ScopeBindingToken,
     )
     from pitchlog.repositories.stats import ReadPrimitiveTotalsToken
-    from pitchlog.repositories.stats_basic import ReadBasicStatsToken
     from pitchlog.repositories.stats_native_operations import (
         _ReadPrimitiveWriterStateCall,
         _SavePrimitiveSourceCall,
@@ -182,7 +181,6 @@ def test_product_function_registry_keeps_rg1_and_adds_one_rule_operation() -> No
         "SYNC_PLAY_PREFIX:read_play_prefix_history_page",
         "SYNC_PLAY_PREFIX:prepare_play_prefix_projection",
         "SYNC_LINEUP_PREFIX:read_lineup_started_origin",
-        "STATS_BASIC:read",
         "STATS_PRIMITIVES:save_source",
         "STATS_PRIMITIVES:read_writer_state",
         "STATS_PRIMITIVES:open_snapshot",
@@ -218,7 +216,6 @@ def test_product_function_registry_keeps_rg1_and_adds_one_rule_operation() -> No
         OpenPrimitiveSnapshotToken,
         ReadPrimitivePageToken,
         ReadPrimitiveTotalsToken,
-        ReadBasicStatsToken,
     }
     assert operation_registry.PRODUCT_OPERATIONS
 
@@ -2072,12 +2069,7 @@ def test_literal_product_function_bindings_preserve_original_objects() -> None:
         *PLAY_PREFIX_OPERATIONS,
         *LINEUP_START_ORIGIN_OPERATIONS,
     )
-    base = tuple(
-        r
-        for r in operation_registry.PRODUCT_FUNCTION_OPERATIONS
-        if r.operation_id != "STATS_BASIC:read"
-    )
-    registered = base[-len(original) - 5 : -5]
+    registered = operation_registry.PRODUCT_FUNCTION_OPERATIONS[-len(original) - 5 : -5]
     assert len(original) == len(registered) == 12
     assert all(
         actual is expected

@@ -6,10 +6,14 @@ import json
 from pathlib import Path
 
 import pytest
+from stats_api_candidate import _jst_boundaries, _metrics
 
-from pitchlog.api.routers.stats import _jst_boundaries, _metrics
 from pitchlog.domaingen.core import generate_display_rates_bundle
-from pitchlog.stats.basic_sql import candidate_sql, read_query
+from pitchlog.stats.basic_sql import (
+    candidate_sql,
+    finalize_candidate_sql,
+    read_query,
+)
 from pitchlog.stats.basic_stats import (
     COUNT_METRIC_IDS,
     build_basic_stats,
@@ -109,6 +113,14 @@ def test_candidate_sql_matches_committed_candidate_and_scope():
     assert "g.id=$8" in query
     assert "stats_basic_api" in committed
     assert "SECURITY DEFINER" in committed
+    # finalizeは製品候補に含めず、owned検証専用の別fileへ分離する。
+    assert "finalize_game_stats" not in committed
+    finalize = (
+        ROOT / "docs/features/mvp-basic-stats-csv/candidates/"
+        "finalize_game_stats.test-only.sql"
+    ).read_text()
+    assert finalize == finalize_candidate_sql()
+    assert "TEST ONLY" in finalize
 
 
 def test_display_rates_generation_is_reproducible():

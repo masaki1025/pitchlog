@@ -1063,6 +1063,7 @@ def generate_display_rates_bundle(
                 "refs",
                 "derivedRefs",
                 "displayRates",
+                "componentDisplays",
             }
             or reference["kind"] != "primitive-refs"
             or type(reference["version"]) is not int
@@ -1078,12 +1079,15 @@ def generate_display_rates_bundle(
         ):
             raise ValueError("表示率modelの共通参照が不一致")
         _validate_display_rates(program, reference["displayRates"])
+        _validate_component_displays(reference["componentDisplays"])
         path = "backend/src/pitchlog/stats/generated/rates.py"
         return {
             path: _format_typed_target(
                 path,
                 py_backend.generate_display_rates(
-                    reference["displayRates"], source_hash
+                    reference["displayRates"],
+                    reference["componentDisplays"],
+                    source_hash,
                 ),
             )
         }
@@ -1203,6 +1207,41 @@ def _validate_display_rates(program, display_rates):
                 or (not label["prefix"] and not label["suffix"])
             ):
                 raise ValueError("表示率の分母ラベルが不正")
+
+
+def _validate_component_displays(component_displays):
+    """T5比componentの表示規則だけを閉検査する。式は持たない。"""
+    import re
+
+    if type(component_displays) is not dict or set(component_displays) != {
+        "obp",
+        "slg",
+    }:
+        raise ValueError("表示componentの閉集合が必要")
+    for component_id, display in component_displays.items():
+        if (
+            type(display) is not dict
+            or set(display)
+            != {"scale", "rounding", "leadingZero", "zeroDivisionGlyph", "denominators"}
+            or type(display["scale"]) is not int
+            or not 1 <= display["scale"] <= 6
+            or display["rounding"] != "half-up"
+            or type(display["leadingZero"]) is not bool
+            or display["zeroDivisionGlyph"] != "−"
+        ):
+            raise ValueError("表示componentの表示規則が不正")
+        labels = display["denominators"]
+        if (
+            type(labels) is not list
+            or len(labels) != 1
+            or type(labels[0]) is not dict
+            or labels[0].get("component") != component_id
+            or set(labels[0]) != {"component", "prefix", "suffix"}
+            or type(labels[0]["prefix"]) is not str
+            or type(labels[0]["suffix"]) is not str
+            or re.fullmatch(r"[a-z][a-z0-9_]*", component_id) is None
+        ):
+            raise ValueError("表示componentの分母表示が不正")
 
 
 def _format_typed_target(path: str, content: str) -> str:

@@ -55,6 +55,20 @@ os.environ['PITCHLOG_BINDING_CLIENT_CONFIG']='/run/pitchlog/public/binding-clien
 import psycopg
 from httpx import AsyncClient,ASGITransport
 from pitchlog.api.app import create_app
+import pitchlog.api.app as app_module
+import stats_api_candidate as stats_router
+from pitchlog.repositories import operation_registry, transaction
+import stats_basic_candidate as stats_basic
+
+# 正式contract未受理の候補を、所有隔離appだけへ試験注入する。
+_registry=dict(operation_registry.FUNCTION_OPERATION_REGISTRY)
+for _op in stats_basic.STATS_BASIC_FUNCTION_OPERATIONS:
+    _registry[_op.token_type]=_op
+operation_registry.FUNCTION_OPERATION_REGISTRY=_registry
+transaction.FUNCTION_OPERATION_REGISTRY=_registry
+transaction._EXTRA_STATS_READ_OPERATION=(
+    lambda _op: type(_op) is stats_basic.ReadBasicStatsToken)
+app_module.ROUTERS=(*app_module.ROUTERS,stats_router.router)
 
 app=create_app()
 tenant=case['tenant'];game=case['game'];team=case['team_name'];password=case['password']
@@ -65,26 +79,34 @@ def headers():
         'X-Pitchlog-Expected-Tenant':tenant,
         'X-Pitchlog-Tenant-Challenge':str(uuid4())}
 
-async def login(client):
-    return await client.post('/auth/login',json={'team_name':team,'password':password},
+async def login(client,name=None):
+    return await client.post('/auth/login',json={'team_name':name or team,'password':password},
         headers={'Origin':'https://test','X-Pitchlog-Request':'1'})
 
-def finalize():
-    with psycopg.connect(
-        'postgresql://pitchlog_app@/ledger_fixture?host=/business-socket&sslmode=disable'
-    ) as connection:
-        connection.execute("SELECT set_config('app.tenant_id',%s,true)",(tenant,))
-        rows=connection.execute(
-            "SELECT fact_version_id,revision,completion_state "
-            "FROM stats_basic_api.finalize_game_stats(%s,%s,%s,%s,%s)",
-            (tenant,game,case['completion_receipt'],case['public_pointer_receipt'],
-             case['model'])).fetchall()
-        connection.commit()
-    return [[str(v) if hasattr(v,'hex') else v for v in row] for row in rows]
+def finalize(completion=None,pointer=None):
+    try:
+        with psycopg.connect(
+            'postgresql://pitchlog_app@/ledger_fixture?host=/business-socket&sslmode=disable'
+        ) as connection:
+            connection.execute("SELECT set_config('app.tenant_id',%s,true)",(tenant,))
+            rows=connection.execute(
+                "SELECT fact_version_id,revision,completion_state "
+                "FROM stats_basic_api.finalize_game_stats(%s,%s,%s,%s,%s)",
+                (tenant,game,completion or case['completion_receipt'],
+                 pointer or case['public_pointer_receipt'],case['model'])).fetchall()
+            connection.commit()
+        return [[str(v) if hasattr(v,'hex') else v for v in row] for row in rows]
+    except Exception as error:
+        original=getattr(error,'orig',None)
+        return {'error':type(error).__name__,
+                'sqlstate':getattr(error,'sqlstate',None)
+                or getattr(original,'sqlstate',None),
+                'message':str(error)[:200]}
 
 async def run():
     out={'phase':'stats','stages':[]}
     out['finalize']=finalize()
+    out['finalize_different']=finalize(str(uuid4()),str(uuid4()))
     async with AsyncClient(transport=ASGITransport(app=app),base_url='https://test') as client:
         response=await login(client)
         out['stages'].append(['login',response.status_code])
@@ -101,6 +123,20 @@ async def run():
             result=await client.get(path,headers=headers())
             out['stages'].append([name,result.status_code])
             out[name]=result.json() if result.status_code==200 else result.text[:400]
+        async with AsyncClient(transport=ASGITransport(app=app),
+                base_url='https://test') as foreign_client:
+            foreign=await login(foreign_client,case['other_team_name'])
+            out['stages'].append(['foreign_login',foreign.status_code])
+            if foreign.status_code==200:
+                foreign_headers=headers()
+                foreign_headers['X-Pitchlog-Expected-Tenant']=case['other_tenant']
+                result=await foreign_client.get(f'/games/{game}/stats?mode=official',
+                    headers=foreign_headers)
+                out['stages'].append(['foreign_game',result.status_code])
+        async with AsyncClient(transport=ASGITransport(app=app),
+                base_url='https://test') as guest:
+            result=await guest.get(f'/games/{game}/stats?mode=official',headers=headers())
+            out['stages'].append(['anonymous_game',result.status_code])
         for name,path in (
             ('game_csv',f'/games/{game}/stats.csv?mode=official'),
             ('season_csv',f'/stats/seasons/{year}/stats.csv?category=all'),
@@ -160,6 +196,8 @@ def test_basic_stats_official_current_and_season_vertical(
         "team_name": db.team_name,
         "password": "public-owned-vertical-password-A1",
         "pitch_type": "u06-first-ball-fastball",
+        "other_team_name": db.other_team_name,
+        "other_tenant": str(db.other_tenant_id),
     }
     with monkeypatch.context() as patch:
         patch.setattr(
@@ -189,9 +227,10 @@ def test_basic_stats_official_current_and_season_vertical(
             "UPDATE public.games SET status='finished' WHERE tenant_id=%s AND id=%s",
             (db.tenant_id, game),
         )
-        from pitchlog.stats.basic_sql import candidate_sql
+        from pitchlog.stats.basic_sql import candidate_sql, finalize_candidate_sql
 
         admin.execute(cast(LiteralString, candidate_sql()))
+        admin.execute(cast(LiteralString, finalize_candidate_sql()))
         # 候補finalizeの正式ACL差分。製品catalogは未受理のためownedだけに置く。
         admin.execute(
             "GRANT SELECT(scheduled_at,game_type_key,away_team_record_id,"
@@ -256,6 +295,7 @@ def test_basic_stats_official_current_and_season_vertical(
         },
     )
     assert out["finalize"][0][2] == "confirmed_ended"
+    assert out["finalize_different"]["sqlstate"] == "42501"
     assert out["stages"] == [
         ["login", 200],
         ["game_official", 200],
@@ -263,6 +303,9 @@ def test_basic_stats_official_current_and_season_vertical(
         ["season_all", 200],
         ["season_official", 200],
         ["season_practice", 200],
+        ["foreign_login", 200],
+        ["foreign_game", 404],
+        ["anonymous_game", 401],
         ["game_csv", 200],
         ["season_csv", 200],
     ]

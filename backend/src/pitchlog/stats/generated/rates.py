@@ -34,6 +34,15 @@ _DISPLAY_RATES = {
         "zeroDivisionGlyph": "−",
         "denominators": [{"component": "avg", "prefix": "打数", "suffix": ""}],
     },
+    "whip": {
+        "scale": 2,
+        "rounding": "half-up",
+        "leadingZero": True,
+        "zeroDivisionGlyph": "−",
+        "denominators": [{"component": "whip", "prefix": "投球回", "suffix": ""}],
+    },
+}
+_COMPONENT_DISPLAYS = {
     "obp": {
         "scale": 3,
         "rounding": "half-up",
@@ -47,13 +56,6 @@ _DISPLAY_RATES = {
         "leadingZero": False,
         "zeroDivisionGlyph": "−",
         "denominators": [{"component": "slg", "prefix": "打数", "suffix": ""}],
-    },
-    "whip": {
-        "scale": 2,
-        "rounding": "half-up",
-        "leadingZero": True,
-        "zeroDivisionGlyph": "−",
-        "denominators": [{"component": "whip", "prefix": "投球回", "suffix": ""}],
     },
 }
 
@@ -98,6 +100,15 @@ def _reason(metrics, dependencies):
     return "MISSING_OBSERVATION"
 
 
+def format_component_rate(component_id, pair):
+    """T5が計算した比componentを、T6の表示規則だけで表示する。"""
+    if type(component_id) is not str or component_id not in _COMPONENT_DISPLAYS:
+        raise ValueError("未知の表示componentです")
+    display = _COMPONENT_DISPLAYS[component_id]
+    result = _display_result(pair, {component_id: pair}, display, "MISSING_OBSERVATION")
+    return result
+
+
 def derive_display_rates(metrics):
     """宣言済みT6表示率を同じ生成済み表示規則で返す。"""
     results = {}
@@ -107,41 +118,11 @@ def derive_display_rates(metrics):
         parts_0["avg"], parts_0, _DISPLAY_RATES["avg"], _reason(metrics, ("h", "ab"))
     )
     values = {
-        "h": _metric_value(metrics, "h"),
-        "bb": _metric_value(metrics, "bb"),
-        "hbp": _metric_value(metrics, "hbp"),
-        "ab": _metric_value(metrics, "ab"),
-        "sf": _metric_value(metrics, "sf"),
-    }
-    parts_1 = {
-        "obp": _ratio(
-            _rate_add(values["h"], values["bb"], values["hbp"]),
-            _rate_add(values["ab"], values["bb"], values["hbp"], values["sf"]),
-        )
-    }
-    results["obp"] = _display_result(
-        parts_1["obp"],
-        parts_1,
-        _DISPLAY_RATES["obp"],
-        _reason(metrics, ("h", "bb", "hbp", "ab", "sf")),
-    )
-    values = {
-        "total_bases": _metric_value(metrics, "total_bases"),
-        "ab": _metric_value(metrics, "ab"),
-    }
-    parts_2 = {"slg": _ratio(values["total_bases"], values["ab"])}
-    results["slg"] = _display_result(
-        parts_2["slg"],
-        parts_2,
-        _DISPLAY_RATES["slg"],
-        _reason(metrics, ("total_bases", "ab")),
-    )
-    values = {
         "hits_allowed": _metric_value(metrics, "hits_allowed"),
         "pitcher_bb": _metric_value(metrics, "pitcher_bb"),
         "pitching_outs": _metric_value(metrics, "pitching_outs"),
     }
-    parts_3 = {
+    parts_1 = {
         "whip": _ratio(
             _rate_add(
                 values["hits_allowed"],
@@ -155,8 +136,8 @@ def derive_display_rates(metrics):
         )
     }
     results["whip"] = _display_result(
-        parts_3["whip"],
-        parts_3,
+        parts_1["whip"],
+        parts_1,
         _DISPLAY_RATES["whip"],
         _reason(metrics, ("hits_allowed", "pitcher_bb", "pitching_outs")),
     )

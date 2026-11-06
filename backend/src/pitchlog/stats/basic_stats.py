@@ -12,7 +12,10 @@ from typing import Any, Mapping
 
 from pitchlog.stats.facts import derive_rates as _derive_ops
 from pitchlog.stats.generated.formatter import format_count
-from pitchlog.stats.generated.rates import derive_display_rates
+from pitchlog.stats.generated.rates import (
+    derive_display_rates,
+    format_component_rate,
+)
 
 # 生成済みT5核が返す閉26十分統計。順序はmodel宣言順。
 COUNT_METRIC_IDS = (
@@ -271,7 +274,18 @@ def build_basic_stats(
                 "display": None,
                 "reason": reason,
             }
-    rates["ops"] = _derive_ops(ops_metrics)["ops"]
+    ops = _derive_ops(ops_metrics)["ops"]
+    rates["ops"] = ops
+    # OBP/SLGはT5 OPSの同じcomponent pairを使い、式を二重実装しない。
+    for component in ("obp", "slg"):
+        if ops["state"] == "source_unavailable":
+            rates[component] = ops
+            continue
+        raw = ops["components"][component]
+        rates[component] = format_component_rate(
+            component,
+            (int(raw["numerator"]), int(raw["denominator"])),
+        )
 
     batting = []
     for metric_id, label, kind in BATTING_ITEMS:

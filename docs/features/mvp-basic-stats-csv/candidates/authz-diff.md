@@ -13,10 +13,12 @@
   p_after_player_id text,p_page_size integer,p_model_sha256 text)`
   - `SECURITY DEFINER`, `STABLE`, `SET search_path=pg_catalog,pg_temp`
   - 実体は既存 `stats/generated/stats.sql` のscope差し替えのみ
-- `stats_basic_api.finalize_game_stats(p_tenant_id uuid,p_game_id uuid,
-  p_completion_receipt_id uuid,p_public_pointer_receipt_id uuid,p_model_sha256 text)`
-  - `SECURITY DEFINER`, `VOLATILE`
-  - `current_open` → `confirmed_ended` の原子的UPDATE。同receipt再実行は冪等、別receiptは拒否。
+**finalizeは製品候補に含めない。** `candidates/finalize_game_stats.test-only.sql` は
+owned隔離DBのread検証専用で、正式catalog/HTTPへ接続しない。任意UUIDを受け取る
+app実行可能なfinalizeは、終了receiptの真正性を検証できないためP0として採用しない。
+終了確定providerは自身の終了TX内で、真正receiptとともに`completion_state`/
+`completion_receipt_id`/`public_pointer_receipt_id`を更新する（下記ACLはそのprovider
+roleにだけ付与する）。
 
 ## 2. ACL/RLS（既存catalogへの追加）
 
@@ -27,8 +29,9 @@ GRANT SELECT(tenant_id,id,name,uniform_number,team_record_id,hidden_at)
   ON public.players TO pitchlog_sync_right_fn_owner;
 GRANT SELECT(tenant_id,id,name,kind,hidden_at)
   ON public.team_records TO pitchlog_sync_right_fn_owner;
+-- 終了確定providerのTX内UPDATE用。appへEXECUTEされるfinalize関数は作らない。
 GRANT UPDATE(completion_state,completion_receipt_id,public_pointer_receipt_id)
-  ON sync_fence.stats_fact_versions TO pitchlog_sync_right_fn_owner;
+  ON sync_fence.stats_fact_versions TO <終了確定provider role>;
 
 CREATE POLICY stats_basic_players ON public.players FOR SELECT TO
   pitchlog_sync_right_fn_owner USING (
@@ -39,7 +42,7 @@ CREATE POLICY stats_basic_teams ON public.team_records FOR SELECT TO
     tenant_id=NULLIF(pg_catalog.current_setting('app.tenant_id',true),'')::uuid
     AND session_user='pitchlog_app');
 CREATE POLICY stats_basic_finalize ON sync_fence.stats_fact_versions FOR UPDATE TO
-  pitchlog_sync_right_fn_owner USING (
+  <終了確定provider role> USING (
     tenant_id=NULLIF(pg_catalog.current_setting('app.tenant_id',true),'')::uuid
     AND session_user='pitchlog_app' AND completion_state='current_open')
   WITH CHECK (
@@ -82,6 +85,9 @@ native型検証には触れていない。
 - 本枝は要件/設計/ADRを変更しない。D02/D05は既採用、D03/D04は未接続として
   `source_unavailable` を返す。D03/D04の意味判断を戻さない。
 - 終了確定providerの正式TX接続は `mvp-integration-lead` の終了/再開資産で行う。
+  ここで `completion_state='confirmed_ended'` と真正receiptを同一TXで書き、
+  再開時は旧confirmed版の `is_current=false` 化＋新current_open版のSaveを行う。
+  本枝のtest-only finalize関数はこのproviderの代用にしない。
 - BF/登板の27項目化は `mvp-stats-bf-calculation` とnative 27 CHECK/migrationの
   別単位。本枝のAPIはmetric JSONに `appearances`/`batters_faced` が現れれば
   自動で表示するため、27接続後に再実装しない。

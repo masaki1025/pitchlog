@@ -310,13 +310,8 @@ def finalize_function_body() -> str:
     )
 
 
-def candidate_sql() -> str:
-    """read/finalize関数とACLを一つの候補install SQLへまとめる。"""
-    owner = "pitchlog_sync_right_fn_owner"
-    read_identity = f"{_FUNCTION_SCHEMA}.{_READ_FUNCTION}({_READ_ARGS})"
-    finalize_identity = (
-        f"{_FUNCTION_SCHEMA}.{_FINALIZE_FUNCTION}(uuid,uuid,uuid,uuid,text)"
-    )
+def _schema_sql() -> str:
+    """候補schemaの所有者/USAGEだけを返す。"""
     return (
         "-- 基本成績MVP候補: 正式authz catalogへ未登録。owned隔離DBの検証だけに使う。\n"
         "DO $schema$\nBEGIN\n"
@@ -330,11 +325,36 @@ def candidate_sql() -> str:
         " END IF;\nEND;$schema$;\n"
         "REVOKE ALL ON SCHEMA stats_basic_api FROM PUBLIC;\n"
         "GRANT USAGE ON SCHEMA stats_basic_api TO pitchlog_app;\n"
+    )
+
+
+def candidate_sql() -> str:
+    """製品候補のread関数だけを返す。
+
+    finalizeは製品関数として公開しない。終了確定providerが自身のTX内で
+    真正receiptとともにcompletion列を更新する。``finalize_candidate_sql`` は
+    owned隔離DBのread検証専用で、正式catalog/HTTPへ接続しない。
+    """
+    owner = "pitchlog_sync_right_fn_owner"
+    read_identity = f"{_FUNCTION_SCHEMA}.{_READ_FUNCTION}({_READ_ARGS})"
+    return (
+        _schema_sql()
         + read_function_body()
-        + finalize_function_body()
         + f"ALTER FUNCTION {read_identity} OWNER TO {owner};\n"
         + f"REVOKE ALL ON FUNCTION {read_identity} FROM PUBLIC,pitchlog_app;\n"
         + f"GRANT EXECUTE ON FUNCTION {read_identity} TO pitchlog_app;\n"
+    )
+
+
+def finalize_candidate_sql() -> str:
+    """owned隔離DBのread検証専用finalize。正式catalog/HTTPへ接続しない。"""
+    owner = "pitchlog_sync_right_fn_owner"
+    finalize_identity = (
+        f"{_FUNCTION_SCHEMA}.{_FINALIZE_FUNCTION}(uuid,uuid,uuid,uuid,text)"
+    )
+    return (
+        "-- TEST ONLY: 正式な終了確定providerではない。catalog/HTTPへ接続しない。\n"
+        + finalize_function_body()
         + f"ALTER FUNCTION {finalize_identity} OWNER TO {owner};\n"
         + f"REVOKE ALL ON FUNCTION {finalize_identity} FROM PUBLIC,pitchlog_app;\n"
         + f"GRANT EXECUTE ON FUNCTION {finalize_identity} TO pitchlog_app;\n"

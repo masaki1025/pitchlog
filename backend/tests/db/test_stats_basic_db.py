@@ -10,7 +10,7 @@ import psycopg
 import pytest
 
 from pitchlog.db import current_product_startup as current
-from pitchlog.stats.basic_sql import candidate_sql
+from pitchlog.stats.basic_sql import candidate_sql, finalize_candidate_sql
 
 from .test_stage_a_rule_candidates import _fresh_schema_database
 
@@ -36,13 +36,9 @@ def test_candidate_basic_stats_functions_install_on_current_product(
                 "JOIN pg_catalog.pg_roles r ON r.oid=p.proowner "
                 "WHERE n.nspname='stats_basic_api' ORDER BY p.proname"
             ).fetchall()
-            assert [row[1] for row in rows] == [
-                "finalize_game_stats",
-                "read_basic_stats",
-            ]
+            assert [row[1] for row in rows] == ["read_basic_stats"]
             assert all(row[3] is True for row in rows)
             assert {row[1]: row[4] for row in rows} == {
-                "finalize_game_stats": "v",
                 "read_basic_stats": "s",
             }
             assert all(row[5] == "pitchlog_sync_right_fn_owner" for row in rows)
@@ -50,12 +46,9 @@ def test_candidate_basic_stats_functions_install_on_current_product(
                 "SELECT has_function_privilege('pitchlog_app', "
                 "'stats_basic_api.read_basic_stats(uuid,text,text,text,text,text,"
                 "boolean,text,integer,text)', 'EXECUTE'), "
-                "has_function_privilege('pitchlog_app', "
-                "'stats_basic_api.finalize_game_stats(uuid,uuid,uuid,uuid,text)', "
-                "'EXECUTE'), "
                 "has_schema_privilege('pitchlog_app', 'stats_basic_api', 'USAGE')"
             ).fetchone()
-            assert acl == (True, True, True)
+            assert acl == (True, True)
 
 
 def test_candidate_finalize_promotes_only_current_opening_version(
@@ -73,6 +66,7 @@ def test_candidate_finalize_promotes_only_current_opening_version(
         receipt, pointer = uuid4(), uuid4()
         with psycopg.connect(admin) as connection:
             connection.execute(cast(LiteralString, candidate_sql()))
+            connection.execute(cast(LiteralString, finalize_candidate_sql()))
             connection.execute(
                 "INSERT INTO public.tenants(id,name) VALUES (%s,%s)",
                 (tenant, "basic-stats-" + tenant.hex),

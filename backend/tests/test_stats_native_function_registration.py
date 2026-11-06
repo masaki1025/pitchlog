@@ -59,11 +59,7 @@ def _descriptor(r):
 
 def test_old_all_twenty_two_keep_order_sql_types_decoder_and_values():
     """旧全登録・generic tenant契約を新familyのために緩めない。"""
-    old = tuple(
-        r
-        for r in registry.PRODUCT_FUNCTION_OPERATIONS
-        if r.operation_id != "STATS_BASIC:read"
-    )[:-5]
+    old = registry.PRODUCT_FUNCTION_OPERATIONS[:-5]
     assert len(old) == 22
     raw = (
         json.dumps(
@@ -255,7 +251,7 @@ def test_real_cold_import_orders_and_same_runtime_type(first):
             f"from pitchlog.repositories import {first}; "
             "from pitchlog.repositories import transaction, operation_registry, "
             "play_export_primitives; "
-            "assert len(operation_registry.PRODUCT_FUNCTION_OPERATIONS)==28",
+            "assert len(operation_registry.PRODUCT_FUNCTION_OPERATIONS)==27",
         ],
         env=os.environ.copy(),
         capture_output=True,

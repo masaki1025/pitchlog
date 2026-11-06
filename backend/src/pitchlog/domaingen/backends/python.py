@@ -402,7 +402,7 @@ def generate_ratio_formatter(program, source_hash: str) -> str:
     )
 
 
-def generate_display_rates(rows, source_hash: str) -> str:
+def generate_display_rates(rows, component_displays, source_hash: str) -> str:
     """T6専用の表示率だけを宣言から生成し、T5 artifactを変更しない。"""
     from pitchlog.domaingen.core import rate_metric_dependencies, typed_rate_expression
 
@@ -444,6 +444,7 @@ def generate_display_rates(rows, source_hash: str) -> str:
         "",
         rate_helpers_target("python"),
         "_DISPLAY_RATES = " + repr({row["id"]: row["display"] for row in rows}),
+        "_COMPONENT_DISPLAYS = " + repr(component_displays),
         "",
         "",
         "def _display_result(value, components, display, reason):",
@@ -484,6 +485,17 @@ def generate_display_rates(rows, source_hash: str) -> str:
         '        if row["state"] == "source_unavailable":',
         '            return row.get("reason") or "MISSING_OBSERVATION"',
         '    return "MISSING_OBSERVATION"',
+        "",
+        "",
+        "",
+        "",
+        "def format_component_rate(component_id, pair):",
+        '    """T5が計算した比componentを、T6の表示規則だけで表示する。"""',
+        "    if type(component_id) is not str or component_id not in _COMPONENT_DISPLAYS:",
+        '        raise ValueError("未知の表示componentです")',
+        '    display = _COMPONENT_DISPLAYS[component_id]',
+        '    result = _display_result(pair, {component_id: pair}, display, "MISSING_OBSERVATION")',
+        "    return result",
         "",
         "",
         "def derive_display_rates(metrics):",
