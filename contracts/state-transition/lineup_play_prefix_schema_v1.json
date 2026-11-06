@@ -1577,6 +1577,9 @@
         },
         {
           "$ref": "#/$defs/BattedHitT1Input"
+        },
+        {
+          "$ref": "#/$defs/IntentionalWalkT1Input"
         }
       ]
     },
@@ -2676,6 +2679,30 @@
           "$ref": "#/$defs/NonplaySuccess"
         }
       ]
+    },
+    "IntentionalWalkT1Input": {
+      "type": "object",
+      "properties": {
+        "eventKind": {
+          "const": "batting-result"
+        },
+        "resultId": {
+          "const": "batting-result.intentional-walk"
+        },
+        "pitchEventKind": {
+          "const": "non-pitch-event"
+        },
+        "before": {
+          "$ref": "#/$defs/Snapshot"
+        }
+      },
+      "required": [
+        "eventKind",
+        "resultId",
+        "pitchEventKind",
+        "before"
+      ],
+      "additionalProperties": false
     }
   },
   "oneOf": [

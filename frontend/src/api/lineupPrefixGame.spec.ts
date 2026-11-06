@@ -3,6 +3,7 @@ import { createPinia, setActivePinia, disposePinia, type Pinia } from 'pinia'
 import fixture from './fixtures/lineupPrefixGame.v3.json'
 import recordedFixture from './fixtures/lineupPrefixGame.recorded.v3.json'
 import { isLineupPrefixGame, readLineupPrefixGame } from './lineupPrefixGame'
+import { isLineupNonPitchPlayRow, isRecordedPrefixPlayRow } from './startedGame'
 import { setVerifiedAuthForTest } from './auth.test-support'
 import { useAuthStore } from '../stores/authStore'
 let pinia: Pinia,
@@ -168,4 +169,38 @@ it('既記録後DTOの打球6 nullable列/実座標を構造検証し、非有�
     row.hit_x = bad
     expect(isLineupPrefixGame(value)).toBe(false)
   }
+})
+
+it('v3の申告敬遠だけは投球観測NULLの閉rowとして受け、旧row型は拒否する', () => {
+  const value = structuredClone(recordedFixture.value)
+  const row: Record<string, unknown> = value.page.items[0]!.play_row
+  Object.assign(row, {
+    event_kind: 'non_pitch',
+    batting_result_key: 'batting-result.intentional-walk',
+    course: null,
+    pitch_type_key: null,
+  })
+  expect(isRecordedPrefixPlayRow(row)).toBe(false)
+  expect(isLineupNonPitchPlayRow(row)).toBe(true)
+  expect(isLineupPrefixGame(value)).toBe(true)
+  for (const [field, member] of [
+    ['course', { unit: '1/263', x: '132', y: '131' }],
+    ['pitch_type_key', 'fastball'],
+    ['pitch_speed', 100],
+    ['stance', '1'],
+    ['batting_side', '右'],
+    ['batted_ball_type', 'line'],
+  ] as const) {
+    row[field] = member
+    expect(isLineupPrefixGame(value), field).toBe(false)
+    row[field] = null
+  }
+  row.batting_result_key = 'batting-result.unknown'
+  expect(isLineupPrefixGame(value)).toBe(false)
+  row.batting_result_key = 'batting-result.intentional-walk'
+  row.event_kind = 'pitch'
+  expect(isLineupPrefixGame(value)).toBe(false)
+  row.event_kind = 'non_pitch'
+  row.unknown = true
+  expect(isLineupPrefixGame(value)).toBe(false)
 })

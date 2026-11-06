@@ -25,7 +25,9 @@ import {
   isStartedGameMetadata,
   isStartedGameTimestamp,
   isRecordedPrefixPlayRow,
+  isLineupNonPitchPlayRow,
   type RecordedPrefixPlayRow,
+  type LineupNonPitchPlayRow,
   type StartedGameMetadata,
 } from './startedGame'
 export type LineupPrefixGame = StartedGameMetadata &
@@ -55,7 +57,7 @@ export type LineupPrefixGame = StartedGameMetadata &
     last_saved_at: string
     page: Readonly<{
       items: readonly Readonly<{
-        play_row: RecordedPrefixPlayRow
+        play_row: RecordedPrefixPlayRow | LineupNonPitchPlayRow
         history_entry: HistoryEntry
         play_runners: readonly Record<string, unknown>[]
       }>[]
@@ -205,7 +207,8 @@ export function isLineupPrefixGame(v: unknown): v is LineupPrefixGame {
   for (const item of v.page.items) {
     if (
       !exactPlayObject(item, ['play_row', 'history_entry', 'play_runners']) ||
-      !isRecordedPrefixPlayRow(item.play_row) ||
+      (!isRecordedPrefixPlayRow(item.play_row) &&
+        !isLineupNonPitchPlayRow(item.play_row)) ||
       item.play_row.game_id !== v.id ||
       ids.has(item.play_row.id) ||
       !isLineupDefinition(item.history_entry, 'HistoryEntry') ||

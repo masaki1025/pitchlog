@@ -840,6 +840,64 @@ export async function prepareLineupPrefix(
     source: context.source,
   }
 }
+/** 申告敬遠は投球観測を要求せず、既v3の唯一T1/T2と保存封筒を使う。 */
+export async function prepareIntentionalWalk(
+  context: LineupRecordingContext,
+  tenantId: string,
+  playIdentity: LineupIdentity,
+  checkpointId: string,
+) {
+  if (
+    context.prefixRef.tenantId !== tenantId ||
+    !isStartedGameMetadata(context.game) ||
+    !isLineupDefinition(context.lineupSource, 'Source') ||
+    !sameOrdinaryWire(context.lineupSource.after, context.after) ||
+    !sameOrdinaryWire(context.lineupSource.prefixRef, context.prefixRef)
+  )
+    return invalid()
+  const candidate = {
+    version: '3',
+    prefixRef: context.prefixRef,
+    rules: context.rules,
+    t1: {
+      eventKind: 'batting-result',
+      resultId: 'batting-result.intentional-walk',
+      pitchEventKind: 'non-pitch-event',
+      before: context.after,
+    },
+    source: context.lineupSource,
+    playIdentity,
+    nextCheckpoint: {
+      id: checkpointId,
+      revision: String(BigInt(context.prefixRef.checkpoint.revision) + 1n),
+      digest: '0'.repeat(64),
+    },
+  }
+  if (!isLineupSpikeDefinition<LineupRequest>(candidate, 'Request'))
+    return invalid()
+  const request = candidate as LineupRequest
+  const response: LineupSuccess = {
+    ok: true,
+    value: invokeFirstBallDomain(
+      'deriveLineupPlayPrefixWithContinuation',
+      request,
+    ) as LineupSuccess['value'],
+  }
+  const sealed = await sealLineupMetadata(request, response)
+  const wire = await formatLineupPrefixWire(
+    sealed.request,
+    sealed.response,
+    { kind: 'intentional-walk' },
+    context.lineupSource.participants,
+  )
+  return {
+    ...wire,
+    gameId: context.game.id,
+    d4: context.game.current_d4,
+    nextPosition: context.nextPosition,
+    source: context.source,
+  }
+}
 export type PreparedLineupPrefix = Awaited<
   ReturnType<typeof prepareLineupPrefix>
 >
