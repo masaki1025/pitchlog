@@ -1,5 +1,5 @@
 ---
-status: approved
+status: in-review
 ---
 # 詳細設計: データモデル(論理モデル・識別子・一意性・削除の系統・移行の行き先)
 
@@ -7,6 +7,7 @@ status: approved
 
 | 版 | 日付 | 変更内容 | 状態 |
 | --- | --- | --- | --- |
+| **1.6** | 2026-11-06 | **FR-007追記再開の保存境界を最小起案**。本改訂で確定する範囲: 操作種別#13とD2必須、独立lifecycle admission/head、終了版失効・成績latest confirmed/current open・同TX receiptの論理構造。実装時に確定する範囲: 実DDL・列/制約/ACL・migration・manifest・契約/実PG/実機検証。既6-1-b/c実装値、#1〜#12、Should状態補正、D5/拒否順・野球意味は維持。要件v2.20/sync v0.13と一括7.3審査中。PO委任起案であり承認・製品成立ではない。 | in-review |
 | 1.5 | 2026-11-05 | **6-1-cの実装追随（成績private原本3表）**: 採用済みstatsモデルとmigration `0041_stats_fact_versions`の3表54列・制約・索引・削除系統・不変列を記載し、3-4へ実UNIQUEの有限3行を追記する。既本文・表・権限・野球計算の意味は不変。版は上げず設計書7.6-3前段を適用。非作者レビューと所有PGのPK/UNIQUE全6名照合後、PO委任によるCodex主担当/root判断で反映（本人の逐行確認・署名ではない）。table-classification・正式認可・実API/原子性の成立は別。 | **approved** |
 | 1.5 | 2026-11-04 | **6-1-bの実装追随(通常投球のprivate原本3表 — 版は上げない・設計書 7.6-3 前段)**: `sync_fence.ordinary_pitch_checkpoints`(14列・PK1・UNIQUE1・FK1・CHECK4)、`sync_fence.ordinary_pitch_write_admissions`(45列・PK1・UNIQUE3・FK4・CHECK7)、`sync_fence.ordinary_pitch_history`(8列・PK1・UNIQUE1・FK1・CHECK2)の構造・不変列・追記/更新・権限の限定と、`schema-manifest.json`・`table-classification.json`への表登録を記した。既存の2表・初球書込印・記録権・認可・D5消費規則は変更しない。PO委任による主担当判断による実装追随であり、本人の逐行確認・署名ではない。正式profile・runtime登録・activationは別未達。 | **approved** |
 | 1.5 | 2026-10-28 | **6-1-aの実装追随(書込印unit A+B結合 — 版は上げない・設計書 7.6-3 前段)**: 初球PlayRow INSERT用の書込印`sync_fence.first_ball_write_admissions`の構造(31列・PK・FK3・CHECK5)・状態・権限の限定と、`schema-manifest.json`の表登録への追随を記した。既存の2表・記録権・認可・D5消費規則は変更しない。PO委任Claude主担当判断による実装追随であり、本人の逐行確認・署名ではない。正式profile・runtime登録・activationは別未達。 | **approved** |
@@ -840,7 +841,7 @@ current transaction」(`set_config(setting_name text, new_value text, is_local b
 | --- | --- | --- |
 | 試合 / **記録権世代(`D4`)** / **連番(`D1`)** | **列と一意制約の定義は本節の「識別子と一意性の物理写像」**(11 周目 `P1-3` の是正 — 属性表では値を書かない) | [FR-012](../requirements/requirements-pitchlog-2026-07-22.md#FR-012)・[FR-013](../requirements/requirements-pitchlog-2026-07-22.md#FR-013) |
 | **べき等キー(`D5`)** | クライアント生成。再送の二重適用を防ぐ。**一意性の定義は 5-4 節**(10 周目 `P1-2`) | [FR-012](../requirements/requirements-pitchlog-2026-07-22.md#FR-012) |
-| 種別 | **Must は 6 種**(毎球入力 / undo / 交代 / タイブレーク開始 / 試合終了宣言 / 選手のその場登録)。**状態補正は FR-040 採用時のみ**で、**Must 前提として構造に組み込まない**(**P-58**) | [3](../requirements/requirements-pitchlog-2026-07-22.md#3)・[4.0-4](../requirements/requirements-pitchlog-2026-07-22.md#4.0-4) |
+| 種別 | **Must は 7 種**(毎球入力 / undo / 交代 / タイブレーク開始 / 試合終了宣言 / 選手のその場登録 / 追記再開)。**状態補正は FR-040 採用時のみ**で、**Must 前提として構造に組み込まない**(**P-58**) | [3](../requirements/requirements-pitchlog-2026-07-22.md#3)・[4.0-4](../requirements/requirements-pitchlog-2026-07-22.md#4.0-4) |
 | ペイロード | 種別ごとの内容。**取消可能な操作(確定プレイ・状態補正)は状態差分を持つ**(4-4 節・**P-57**) | [NFR-019](../requirements/requirements-pitchlog-2026-07-22.md#NFR-019) |
 | **置換・墓標の状態** | **同一連番の改訂版**(新しいべき等キー)で旧版を置換 / **墓標イベントが当該連番を消費** | [FR-012](../requirements/requirements-pitchlog-2026-07-22.md#FR-012) |
 | 適用水位(`D3`) | **操作イベント行には持たない** — **記録権世代行が持つ**(本節の「適用水位 `D3` の物理表現」。10 周目 `P1-3` の是正 — 属性表に掲げていたのは誤り) | [FR-012](../requirements/requirements-pitchlog-2026-07-22.md#FR-012) |
@@ -916,6 +917,7 @@ current transaction」(`set_config(setting_name text, new_value text, is_local b
 - **`V1`・`V4`・`V5`・`V7` は `NOT NULL`**(全イベントで無条件)。
   **`V2`(`D1`)・`V3`(`D4`)・`V6`(`D2`)・`V8`・`V9`・`V10`・`V11` は種別条件付き**なので
   **`NOT NULL` にできない**(同 影響差分 **13**)。→ **種別ごとの `CHECK` 制約で必須性を表す**
+- **#13追記再開**は`V2/D1`・`V3/D4`・`V6/D2`を必須、`V8/V9/V10/V11`を禁止し、V7内の最新終了版target全3値を照合する。#5終了宣言の`V6/D2`必須を維持する。正式な種別CHECK/enumは本ゲート後に閉集合を再導出する。
 - **`V12`(記録権証明)をイベント行に保存しない** — **個人利用者 ID・入力者識別列を作らない**
   (同 影響差分 **13**。8 節の「`created_by` のような入力者識別列は一切作らない」と同じ規律)
 
@@ -930,7 +932,7 @@ current transaction」(`set_config(setting_name text, new_value text, is_local b
 - **旧 FR-007 から継承した楽観ロック**([FR-007](../requirements/requirements-pitchlog-2026-07-22.md#FR-007))がここに対応する。
   **「幻の得点・アウトの禁止」「差分プレビュー」は投影の再計算側**で、本項の対象ではない
 
-#### 参加区分と `D2` の有無(**全 12 種** — `M02` の NULL 性の根拠)
+#### 参加区分と `D2` の有無(**全 13 種** — `M02` の NULL 性の根拠)
 
 **同期プロトコル設計 11-2 の参加区分表が正**である。**本書はそれを NULL 性と制約へ写すだけ**で、**参加区分の割り当てを決め直さない**。
 
@@ -948,6 +950,7 @@ current transaction」(`set_config(setting_name text, new_value text, is_local b
 | **#10** | プレイの修正 | **従属**・変更版順 | **持たない** | **`D2` は NULL**(5-3 節の変更イベント) |
 | **#11** | プレイ行の論理削除 | **従属**・変更版順 | **持たない** | 同上 |
 | **#12** | 交代イベントの修正 | **従属**・変更版順 | **持たない** | 同上 |
+| **#13** | 追記再開 (`game_reopen`) | **論理位置を持つ**・変更版順なし | **必須** | 自身の`D2`を持ち、P1または端末送信時P2。V10/V11ではなく閉V7の最新終了版targetを用いる |
 
 → **`D2` を `NOT NULL` にできない**(同 影響差分 **4**)。**別表に分ける判断もあり得るが、本書は同居させる**
 (5-3 節の変更イベント)。→ **部分一意の述語に `D2 IS NOT NULL` を置く**ことで、
@@ -1379,6 +1382,12 @@ migration単独ではRLS ENABLE/FORCE・PUBLIC権限撤去によるdefault-deny�
 - 削除系統は「親に従う」、追記専用、移行退役述語は持たない。保護列: `amount,credit_ordinal,fact_version_id,game_id,metric_id,player_id,source_event_id,state,tenant_id`。無条件更新列なし。条件付き更新列: なし。全列を分類済み（exhaustive）、未分類の受け取り先なし。
 
 版の条件付き更新は既実装のcurrent_open同frame CASに限定し、終了確定後の内容は凍結する。sourceとfactは全列追記専用である。親に従う削除系統は物理削除の許可を意味せず、migrationのdowngradeは履歴を失う操作を拒否する。migration単独では3表ともownerを`pitchlog_owner`とし、RLS ENABLE/FORCE、PUBLIC・app・sync binding actor・RG1 control actor・sync right関数ownerから全権限を撤去してdefault-denyに配置する。この構造記載から正式profile・runtime登録・同TX保存・真正RRRO・実PG成立や成績MVP全機能の完了を推定しない。
+
+#### 6-1-d. 終了・追記再開の版と制御原本（v1.6起案）
+
+同期プロトコル7-5-Aを保存構造へ写す。`lifecycle_write_admissions`はundoのtarget_playを偽装しない独立私有一回印、`game_lifecycle_heads`はtenant/gameごとの最新終了確定版・active event/receipt/stats版pointerの原本である。制御イベントのV7は閉形式で、`game_end_declaration`と`game_reopen`だけが対応する。新event_kindは閉集合に一値を加える。#13のD1/D2は両方必須、V8/V9/V10/V11は禁止する。旧#1〜#12の制約を緩めない。
+
+制御1件の同top-level TXで、CPの元source/完全stack、真正`controlBridges`の前後連鎖・実admission/唯一kernel入出力、`games.status`、head、stats新版本、D5保存結果・receiptを確定する。endは新`confirmed_ended`とactive pointerを作り、reopenは旧active終了版を失効して新`current_open`とactive=NULLを作る。再終了は版を進めて新しい確定版を作り、旧event・旧版・ACKは履歴として残す。最新active終了版の`version,eventId,receiptId`全値に一致しないreopenは全投影変更0で拒否する。`completion_receipt_id`と`public_pointer_receipt_id`は同じ複合receiptを指し、そのreceiptがstatus/head/終了版pointerの同TX確定を証明する。eventId単独をreceiptにしない。公開currentはlatest confirmedだけで、reopen中のactiveはNULLとする。既canonical S/credit全列は保持し、source集合・数学値を別実装で再計算しない。実DDL/ACL/booleans/列名・制約の実値は後続実装で確定し、本起案は実PG合格を示さない。
 
 ### 6-2. 交代はイベントとして永続化し、投影として「出場区間」を持つ(FR-011)
 
