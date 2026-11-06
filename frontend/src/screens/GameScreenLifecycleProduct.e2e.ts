@@ -273,6 +273,19 @@ test('実画面の新規作成→開始→1球→終了→再開→2球→再終
     await page.getByTestId('first-ball-save').click()
     const response = await posted
     syncDurationsMs.push(Date.now() - syncStarted)
+    const timing = response?.request().timing()
+    console.log(
+      'PITCHLOG_LIFECYCLE_REQUEST_TIMING=' +
+        JSON.stringify({
+          elapsedMs: syncDurationsMs.at(-1),
+          beforeRequestMs: timing
+            ? Math.round(timing.startTime - syncStarted)
+            : null,
+          wireToHeadersMs: timing
+            ? Math.round(timing.responseStart - timing.requestStart)
+            : null,
+        }),
+    )
     console.log(
       'PITCHLOG_LIFECYCLE_ORDINARY_HTTP=' +
         JSON.stringify({
