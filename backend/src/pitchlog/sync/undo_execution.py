@@ -314,7 +314,26 @@ def _reserved_undo_event_id(handle, event):
     if state is None:
         raise UndoExecutionError("取消評価が未発行です")
     _execution_live(state)
-    if event is not state.event or state.phase != "ready":
+    if (
+        type(event) is not SyncEvent
+        or state.phase != "ready"
+        or any(
+            not _same_wire_value(getattr(event, name), getattr(state.event, name))
+            for name in (
+                "d5",
+                "game_id",
+                "d1",
+                "d4",
+                "v5",
+                "v6",
+                "v7",
+                "v8",
+                "v9",
+                "v10",
+                "v11",
+            )
+        )
+    ):
         raise UndoExecutionError("取消の予約原本idが不一致です")
     return state.event_id
 
