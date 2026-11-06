@@ -44,6 +44,7 @@ class SavedLineupPitch:
     d2: int
     calculation: LineupPitchCalculation
     payload: LineupPitchPlayPayload | None = None
+    play_row: dict[str, object] | None = None
 
 
 @dataclass(frozen=True, slots=True)

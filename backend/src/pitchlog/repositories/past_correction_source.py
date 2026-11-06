@@ -128,6 +128,7 @@ def read_past_correction_v3_source(
                     event["d2"],
                     payload.calculation,
                     payload,
+                    item["play_row"],
                 )
             )
         last = projection["last_source"]

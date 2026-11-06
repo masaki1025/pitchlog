@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from pathlib import Path
 from uuid import UUID
 
@@ -23,6 +24,8 @@ from pitchlog.domainrt.past_correction_lineup import (
     build_corrected_lineup_payloads,
 )
 from pitchlog.sync.first_ball_payload import FirstBallObservations
+from pitchlog.sync.ordinary_pitch_physical import pitch_physical_row
+from pitchlog.sync.past_correction_physical import prepare_corrected_physical_pitches
 from pitchlog.sync.terminal_pitch_payload import (
     LineupPitchCalculation,
     LineupPitchPlayPayload,
@@ -41,6 +44,8 @@ _ID1 = UUID("10000000-0000-0000-0000-000000000700")
 _ID2 = UUID("10000000-0000-0000-0000-000000000703")
 _NEW1 = UUID("10000000-0000-0000-0000-000000000801")
 _NEW2 = UUID("10000000-0000-0000-0000-000000000802")
+_CAPSULE = UUID("10000000-0000-0000-0000-000000000900")
+_CHANGE = UUID("10000000-0000-0000-0000-000000000901")
 
 
 def _host() -> NodeDomainHost:
@@ -212,6 +217,68 @@ def test_v3_corrected_payload_rejects_missing_original_v7() -> None:
     with pytest.raises(LineupCorrectionUnsupported):
         build_corrected_lineup_payloads(
             (old[0], missing), frames, old[0].payload.observations
+        )
+
+
+def test_v3_physical_candidate_uses_existing_mappers_and_new_row_ids() -> None:
+    """旧play identityを保ちつつ訂正行PKを分離し後続行も新計算で作る。"""
+    with _host() as host:
+        old = _two_saved(host)
+        frames = _evaluate(old, "batting-result.ball", (_NEW1, _NEW2), host)
+    assert old[0].payload is not None and old[1].payload is not None
+    tenant = UUID(old[0].calculation.request.prefix_ref.tenant_id)
+    game = UUID(old[0].calculation.request.prefix_ref.game_id)
+    def with_row(saved: SavedLineupPitch, index: int) -> SavedLineupPitch:
+        assert saved.payload is not None
+        return replace(
+            saved,
+            play_row=pitch_physical_row(
+                saved.payload.observations,
+                saved.payload.participants,
+                saved.calculation.request.t1.result_id,
+                tenant_id=tenant,
+                game_id=game,
+                source_event_id=saved.source_event_id,
+                row_id=UUID(saved.calculation.request.play_identity.play_id),
+                play_number=index,
+            ),
+        )
+
+    original = tuple(with_row(saved, index) for index, saved in enumerate(old, start=1))
+    payloads = build_corrected_lineup_payloads(
+        original, frames, old[0].payload.observations
+    )
+    result = prepare_corrected_physical_pitches(
+        original,
+        frames,
+        payloads,
+        tenant_id=tenant,
+        game_id=game,
+        capsule_id=_CAPSULE,
+        change_event_id=_CHANGE,
+    )
+    assert len(result) == 2
+    assert result[0].effective_event_id == _CHANGE
+    assert result[1].effective_event_id == original[1].source_event_id
+    assert all(item.new_play_row_id != item.original_play_row_id for item in result)
+    assert [item.play_row["batting_result_key"] for item in result] == [
+        "batting-result.ball",
+        "batting-result.called-pitch",
+    ]
+    assert [item.play_row["play_number"] for item in result] == [1, 2]
+    assert all(item.play_row["id"] == str(item.new_play_row_id) for item in result)
+    assert original[1].play_row is not None
+    forged = dict(original[1].play_row)
+    forged["tenant_id"] = str(UUID(int=1))
+    with pytest.raises(LineupCorrectionUnsupported):
+        prepare_corrected_physical_pitches(
+            (original[0], replace(original[1], play_row=forged)),
+            frames,
+            payloads,
+            tenant_id=tenant,
+            game_id=game,
+            capsule_id=_CAPSULE,
+            change_event_id=_CHANGE,
         )
 
 
