@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from dataclasses import replace
 from pathlib import Path
+from typing import cast
 from uuid import UUID
 
 import pytest
@@ -23,7 +24,11 @@ from pitchlog.domainrt.past_correction_lineup import (
     _next_corrected_request,
     build_corrected_lineup_payloads,
 )
+from pitchlog.repositories.past_correction_source import PastCorrectionV3SourceSnapshot
+from pitchlog.repositories.transaction import _TenantTransaction
+from pitchlog.sync import past_correction_preparation
 from pitchlog.sync.first_ball_payload import FirstBallObservations
+from pitchlog.sync.model import SyncEvent
 from pitchlog.sync.ordinary_pitch_physical import pitch_physical_row
 from pitchlog.sync.past_correction_payload import (
     PastCorrectionPayloadError,
@@ -306,6 +311,106 @@ def _change_body(rows: tuple[SavedLineupPitch, ...], target: int) -> dict:
             mode="json", by_alias=True
         ),
     }
+
+
+def test_p3_preparation_binds_current_source_and_real_suffix(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """同scope真正原本から現在head/明示本文/既artifact/物理行を一度に束縛する。"""
+    with _host() as host:
+        old = _two_saved(host)
+    first = old[0]
+    tenant = UUID(first.calculation.request.prefix_ref.tenant_id)
+    game = UUID(first.calculation.request.prefix_ref.game_id)
+    rows = tuple(
+        replace(
+            saved,
+            play_row=pitch_physical_row(
+                saved.payload.observations,
+                saved.payload.participants,
+                saved.calculation.request.t1.result_id,
+                tenant_id=tenant,
+                game_id=game,
+                source_event_id=saved.source_event_id,
+                row_id=UUID(saved.calculation.request.play_identity.play_id),
+                play_number=index,
+            ),
+        )
+        for index, saved in enumerate(old, start=1)
+        if saved.payload is not None
+    )
+    assert len(rows) == 2
+
+    class Scope:
+        _bound_tenant_id = tenant
+
+    monkeypatch.setattr(past_correction_preparation, "_TenantTransaction", Scope)
+    monkeypatch.setattr(
+        past_correction_preparation,
+        "read_past_correction_v3_source_snapshot",
+        lambda *_: PastCorrectionV3SourceSnapshot(1, rows),
+    )
+    body = _change_body(rows, 1)
+    event = SyncEvent(
+        str(_CHANGE),
+        str(game),
+        v5="play_change",
+        v7=body,
+        v10={
+            "game": str(game),
+            "d4": 1,
+            "d1": 1,
+        },
+        v11=1,
+    )
+    prepared = past_correction_preparation.prepare_p3_lineup_correction(
+        cast(_TenantTransaction, Scope()),
+        event,
+        capsule_id=_CAPSULE,
+        change_event_id=_CHANGE,
+    )
+    assert prepared.target_d1 == 1
+    assert len(prepared.corrected) == len(prepared.physical) == 2
+    assert prepared.physical[0].effective_event_id == _CHANGE
+    assert prepared.corrected[1].corrected_request.prefix_ref == (
+        prepared.corrected[0].corrected_response.value.next_prefix_ref
+    )
+    monkeypatch.setattr(
+        past_correction_preparation,
+        "read_past_correction_v3_source_snapshot",
+        lambda *_: PastCorrectionV3SourceSnapshot(2, rows),
+    )
+    with pytest.raises(
+        past_correction_preparation.PastCorrectionPreparationUnavailable
+    ):
+        past_correction_preparation.prepare_p3_lineup_correction(
+            cast(_TenantTransaction, Scope()),
+            event,
+            capsule_id=_CAPSULE,
+            change_event_id=_CHANGE,
+        )
+    monkeypatch.setattr(
+        past_correction_preparation,
+        "read_past_correction_v3_source_snapshot",
+        lambda *_: PastCorrectionV3SourceSnapshot(1, rows),
+    )
+    forged = SyncEvent(
+        event.d5,
+        event.game_id,
+        v5="play_change",
+        v7={**body, "targetEventId": str(_CAPSULE)},
+        v10=event.v10,
+        v11=1,
+    )
+    with pytest.raises(
+        past_correction_preparation.PastCorrectionPreparationUnavailable
+    ):
+        past_correction_preparation.prepare_p3_lineup_correction(
+            cast(_TenantTransaction, Scope()),
+            forged,
+            capsule_id=_CAPSULE,
+            change_event_id=_CHANGE,
+        )
 
 
 def test_v3_change_payload_binds_real_target_and_current_head() -> None:

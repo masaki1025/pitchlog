@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from uuid import UUID
 
 from pitchlog.domainrt.past_correction_lineup import SavedLineupPitch
@@ -23,9 +24,17 @@ class PastCorrectionSourceUnavailable(RuntimeError):
     """限定v3の全原本と現在headを一取引へ束縛できない。"""
 
 
-def read_past_correction_v3_source(
+@dataclass(frozen=True, slots=True)
+class PastCorrectionV3SourceSnapshot:
+    """DB内部D4とTS上の不透明prefix generationを混同しない原本。"""
+
+    internal_generation: int
+    rows: tuple[SavedLineupPitch, ...]
+
+
+def read_past_correction_v3_source_snapshot(
     scope: _TenantTransaction, game_id: UUID, target_d1: int
-) -> tuple[SavedLineupPitch, ...]:
+) -> PastCorrectionV3SourceSnapshot:
     """既v3 current head/全物理行を再検証し、先頭対象の有限suffixを読む。
 
     既readerはpoint CP/ledger/物理投影/履歴を照合する。ここでは元D1/D2と
@@ -138,6 +147,13 @@ def read_past_correction_v3_source(
             or source[-1].calculation.response.value.next_prefix_ref != ref
         ):
             raise PastCorrectionSourceUnavailable("v3最終原本とcurrent headが不一致")
-        return tuple(source)
+        return PastCorrectionV3SourceSnapshot(generation, tuple(source))
     except (OrdinaryPrefixError, KeyError, TypeError, ValueError, AttributeError):
         raise PastCorrectionSourceUnavailable("v3原本を全値確認できない") from None
+
+
+def read_past_correction_v3_source(
+    scope: _TenantTransaction, game_id: UUID, target_d1: int
+) -> tuple[SavedLineupPitch, ...]:
+    """旧有限原本利用者へ同じ閉読取の行列だけを返す。"""
+    return read_past_correction_v3_source_snapshot(scope, game_id, target_d1).rows
