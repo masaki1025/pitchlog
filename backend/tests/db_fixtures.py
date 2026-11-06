@@ -1100,7 +1100,7 @@ def _fetch_snapshot_rows(
 def _snapshot_product_profile(
     selected: dict[str, object],
 ) -> tuple[tuple[str, ...], tuple[tuple[str, str], ...]]:
-    """既3profileとstats currentのschema/私有表の対だけを許す。"""
+    """既3profile・stats41・非play42の閉じたschema/私有表の対だけを許す。"""
     schema_names: list[str] = []
     for row in _asset_rows(selected, "schemas"):
         name = row.get("schema_name")
@@ -1164,6 +1164,25 @@ def _snapshot_product_profile(
                 "stats_primitive_facts",
             )
         }
+    guard_id = "FUNCTION:public:protect_nonplay_admission()"
+    function_rows = selected.get("functions", [])
+    if not isinstance(function_rows, list) or any(
+        type(row) is not dict for row in function_rows
+    ):
+        raise AssertionError("snapshotの関数宣言形が不一致")
+    guards = [row for row in function_rows if row.get("function_id") == guard_id]
+    nonplay = ("nonplay_write_admissions", "sync_fence")
+    if guards:
+        if len(guards) != 1 or set(schema_names) != current_schemas:
+            raise AssertionError("snapshotの0042 guard/schema閉集合が不一致")
+        from pitchlog.authz.first_ball_product import _exact
+        from pitchlog.authz.nonplay_storage_profile import declaration
+
+        if not _exact(guards[0], declaration()):
+            raise AssertionError("snapshotの0042 guard宣言が不一致")
+        expected_private.add(nonplay)
+    elif nonplay in private_rows:
+        raise AssertionError("snapshotの0042表には正規guard宣言が必要")
     if (
         len(set(private_rows)) != len(private_rows)
         or set(private_rows) != expected_private
@@ -1506,18 +1525,21 @@ def _prepare_current_product_baseline(
     applicator_dsn: str,
     applicator: psycopg.Connection[Any],
 ) -> None:
-    """current専用入口で0041/全認可を非公開配置し再適用基準を用意する。"""
+    """current専用入口で0042/全認可を非公開配置し再適用基準を用意する。"""
     from pitchlog.db.current_product_startup import advance_current_product_from_s0
+
     _close_owned_seed_database_access(cluster)
     result = advance_current_product_from_s0(
         owner_dsn=owner_dsn,
         applicator_dsn=applicator_dsn,
     )
-    assert (result.completed_revision == "0041_stats_fact_versions"
-            and result.publishable is False)
+    assert (
+        result.completed_revision == "0042_nonplay_write_admission"
+        and result.publishable is False
+    )
     with applicator.cursor() as cursor:
         cursor.execute("SELECT version_num FROM public.alembic_version")
-        assert cursor.fetchall() == [("0041_stats_fact_versions",)]
+        assert cursor.fetchall() == [("0042_nonplay_write_admission",)]
     applicator.rollback()
 
 

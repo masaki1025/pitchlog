@@ -156,7 +156,8 @@ WHERE namespace.nspname IN (
     'rg1_control', 'pitchlog_ledger_observer', 'initial_right_api',
     'sync_fence_api', 'sync_right_api', 'recording_vocab_api', 'stats_api'
 ) OR (namespace.nspname = 'public' AND routine.proname IN (
-    'protect_initial_right_storage', 'protect_recording_generations_updates'
+    'protect_initial_right_storage', 'protect_recording_generations_updates',
+    'protect_nonplay_admission'
 ))
 ORDER BY 1, 2, 3
 """
@@ -573,6 +574,7 @@ class CatalogQueryId(Enum):
     LIFECYCLE_FUNCTION_DETAILS = "lifecycle_function_details"
     FIRST_BALL_TRIGGERS = "first_ball_triggers"
     PLAY_PREFIX_TRIGGERS = "play_prefix_triggers"
+    NONPLAY_STORAGE_TRIGGERS = "nonplay_storage_triggers"
     MEMBERSHIPS = "memberships"
     DANGEROUS_LOGIN_ROLES = "dangerous_login_roles"
     UNAUTHORIZED_LOGIN_BYPASSRLS = "unauthorized_login_bypassrls"
@@ -1400,6 +1402,11 @@ def _catalog_requests(
             if "finish_play_prefix_projection" in expectations.function_names
             else ()
         ),
+        *(
+            (_CatalogRequest(CatalogQueryId.NONPLAY_STORAGE_TRIGGERS, ()),)
+            if "protect_nonplay_admission" in expectations.function_names
+            else ()
+        ),
         _CatalogRequest(CatalogQueryId.MEMBERSHIPS, (roles, roles)),
         _CatalogRequest(
             CatalogQueryId.DANGEROUS_LOGIN_ROLES,
@@ -1445,6 +1452,32 @@ def _migration_batch_catalog_requests(
     )
 
 
+def _actual_nonplay_storage_triggers(
+    observed: tuple[tuple[object, ...], ...],
+) -> tuple[tuple[object, ...], ...]:
+    """新triggerの16属性を型付きで保持し、bool/int同値も拒否する。"""
+    if any(len(row) != 1 or type(row[0]) is not list for row in observed):
+        raise ProductCatalogError("非play triggerのカタログ観測形が不一致")
+    actual_rows = []
+    for row in observed:
+        values = row[0]
+        assert isinstance(values, list)  # 閉じたJSON配列形は直前で検査済み。
+        actual_rows.append(tuple(values))
+    actual = tuple(actual_rows)
+    if any(
+        len(row) != 16
+        or any(type(row[i]) is not bool for i in (6, 8, 9, 10, 11))
+        or type(row[1]) is not int
+        or type(row[12]) is not int
+        or type(row[7]) is not list
+        or any(type(row[i]) is not str for i in (0, 2, 3, 4, 5, 13))
+        or any(row[i] is not None and type(row[i]) is not str for i in (14, 15))
+        for row in actual
+    ):
+        raise ProductCatalogError("非play triggerの全属性型が不一致")
+    return actual
+
+
 def _query_for_id(query_id: CatalogQueryId) -> LiteralString:
     """閉じた問い合わせ ID をモジュール固定 SQL へ対応付ける。"""
     if query_id is CatalogQueryId.INITIAL_VERIFIER_GLOBAL:
@@ -1475,6 +1508,10 @@ def _query_for_id(query_id: CatalogQueryId) -> LiteralString:
         return _FUNCTIONS_QUERY
     if query_id is CatalogQueryId.FUNCTION_ACL:
         return _FUNCTION_ACL_QUERY
+    if query_id is CatalogQueryId.NONPLAY_STORAGE_TRIGGERS:
+        from pitchlog.authz.nonplay_storage_profile import trigger_query
+
+        return trigger_query()
     if query_id is CatalogQueryId.PLAY_PREFIX_TRIGGERS:
         from pitchlog.authz.terminal_pitch_write_stamp import trigger_query
 
@@ -2363,6 +2400,17 @@ def inspect_product_authz_catalog(
                 for row in trigger_expectations()
             ),
             tuple(actual),
+        )
+    if "protect_nonplay_admission" in expectations.function_names:
+        from pitchlog.authz.nonplay_storage_profile import trigger_expectations
+
+        observed = _observed_rows(
+            frozen_observations, CatalogQueryId.NONPLAY_STORAGE_TRIGGERS
+        )
+        report.compare(
+            "PRODUCT-CATALOG:NONPLAY-STORAGE-TRIGGERS",
+            trigger_expectations(),
+            _actual_nonplay_storage_triggers(observed),
         )
     owner_oid = _owner_role_oid(role_rows, "pitchlog_owner")
     expected_dangerous_oids = tuple(sorted((*privileged_role_oids, owner_oid)))

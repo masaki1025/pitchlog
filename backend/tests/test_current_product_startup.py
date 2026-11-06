@@ -55,12 +55,13 @@ def test_expression_unknown_syntax_is_closed(bad):
         current._expression(bad)
 
 
-def test_old_and_stats_models_are_closed_nine_and_fifty_four():
+def test_old_stats_and_nonplay_models_are_closed_ten_with_54_and_43_columns():
     """既6表を落とさず、新3表54列の型元だけを利用する。"""
     tables = current._tables()
-    assert len(tables) == 9
+    assert len(tables) == 10
     assert [t.name for t in tables] == [
         "first_ball_write_admissions",
+        "nonplay_write_admissions",
         "ordinary_pitch_checkpoints",
         "ordinary_pitch_history",
         "ordinary_pitch_write_admissions",
@@ -70,6 +71,7 @@ def test_old_and_stats_models_are_closed_nine_and_fifty_four():
         "writer_admissions",
         "writer_bindings",
     ]
+    assert len(next(t for t in tables if t.name == "nonplay_write_admissions").c) == 43
     stats = [t for t in tables if t.name.startswith("stats_")]
     assert [len(t.c) for t in stats] == [20, 9, 25]
     for table in stats:
@@ -275,7 +277,7 @@ def test_pre_full_unknown_partial_or_extra_grants_are_rejected(monkeypatch, bad)
         current._require_pre_or_full_catalog(object())
 
 
-def _structural_connection(fault=None):
+def _structural_connection(fault=None, target_name="stats_fact_versions"):
     """型モデル原典をcatalog観測doubleへ投影し、比較対象だけを故障させる。"""
     from sqlalchemy import CheckConstraint
     from sqlalchemy.dialects.postgresql import dialect
@@ -309,7 +311,7 @@ def _structural_connection(fault=None):
                 return rows
             assert self.params is not None
             table = tables[self.params[0]]
-            target = table.name == "stats_fact_versions"
+            target = table.name == target_name
             if "a.attnum>0" in self.sql:
                 rows: list[Any] = [
                     (
@@ -362,11 +364,11 @@ def _structural_connection(fault=None):
                 if target and fault == "fk_action" and row[0] == "f":
                     row[5] = "c"
                 if target and fault == "fk_match" and row[0] == "f":
-                    row[8] = "f"
+                    row[8] = "f" if row[8] != "f" else "s"
                 if target and fault == "not_valid":
                     row[-4] = False
                 if target and fault == "deferrable":
-                    row[-2] = True
+                    row[-2] = not row[-2]
                 rows.append(tuple(row))
             if target and fault == "constraint_extra":
                 rows.append(rows[0])
@@ -745,7 +747,12 @@ def test_pre_full_keeps_only_the_verified_migration_guards(monkeypatch):
     """0036の関数と既投影identity triggerだけをpre-fullに含める。"""
     functions, *_ = current._pre_full_expected()
     assert ("public", "protect_initial_right_storage", "") in functions
+    assert ("public", "protect_nonplay_admission", "") in functions
     pairs = current._pre_full_catalog_pairs()
+    np_key = "PRODUCT-CATALOG:NONPLAY-STORAGE-TRIGGERS"
+    from pitchlog.authz.nonplay_storage_profile import trigger_expectations
+
+    assert pairs[np_key] == (trigger_expectations(), trigger_expectations())
     first_key = "PRODUCT-CATALOG:FIRST-BALL-TRIGGERS"
     play_key = "PRODUCT-CATALOG:PLAY-PREFIX-TRIGGERS"
     first = pairs[first_key][1]
@@ -1079,3 +1086,161 @@ def test_snapshot_keeps_old_builtin_exact_rejection(monkeypatch, mutation):
         asset["acl_expectations"][0]["privilege_ids"] = ["SELECT"]
     with pytest.raises(AssertionError, match="builtin exact"):
         fixtures._snapshot_product_catalog(cast(Any, object()), (), asset=asset)
+
+
+def test_nonplay_fk_full_and_deferred_flags_follow_actual_model():
+    """元stats制約を保ち、非playのFULL/遅延をNO ACTIONへ潰さない。"""
+    from sqlalchemy import ForeignKeyConstraint
+
+    table = next(t for t in current._tables() if t.name == "nonplay_write_admissions")
+    rows = {r[1]: r for r in current._expected_constraints(table) if r[0] == "f"}
+    fks = {c.name: c for c in table.constraints if isinstance(c, ForeignKeyConstraint)}
+    assert any(c.match == "FULL" for c in fks.values())
+    assert any(c.deferrable is True and c.initially == "DEFERRED" for c in fks.values())
+    for name, constraint in fks.items():
+        row = rows[name]
+        assert row[5] == row[7] == "a"
+        assert row[8] == ("f" if constraint.match == "FULL" else "s")
+        assert row[-2] is (constraint.deferrable is True)
+        assert row[-1] is (constraint.initially == "DEFERRED")
+
+
+@pytest.mark.parametrize("value", ["CASCADE wrong", "cascade", "UNKNOWN"])
+def test_unknown_fk_actions_are_not_coerced(value):
+    """未知actionを既定NO ACTIONへ補完しない。"""
+    with pytest.raises(current.CurrentProductStartupError):
+        current._fk_action(value)
+
+
+@pytest.mark.parametrize("value", ["PARTIAL", "full", "UNKNOWN"])
+def test_unknown_fk_match_is_not_simple(value):
+    """未採用MATCHをSIMPLEへ補完しない。"""
+    with pytest.raises(current.CurrentProductStartupError):
+        current._fk_match(value)
+
+
+def test_negative_regex_deparse_is_preserved_not_treated_as_positive():
+    """実modelの!~だけを追加し、演算の符号を保持する。"""
+    assert current._expression("value !~ '[0-9]'") == current._expression(
+        "(value !~ '[0-9]'::text)"
+    )
+    assert current._expression("value !~ '[0-9]'") != current._expression(
+        "value ~ '[0-9]'"
+    )
+
+
+def test_revision41_rejected_without_migration_or_repair(monkeypatch):
+    """旧41全catalogの独立供給前は、未知partialを現42へ修復しない。"""
+
+    class Cursor:
+        def execute(self, sql):
+            assert sql == "SELECT version_num FROM public.alembic_version"
+
+        def fetchall(self):
+            return [("0041_stats_fact_versions",)]
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+    connection = SimpleNamespace(cursor=Cursor)
+    with pytest.raises(current.CurrentProductStartupError, match="revision"):
+        current._revision(connection)
+
+
+@pytest.mark.parametrize(
+    "fault",
+    [
+        "schema_owner",
+        "table_extra",
+        "table_missing",
+        "table_owner",
+        "rls",
+        "force_rls",
+        "column_type",
+        "column_null",
+        "identity",
+        "generated",
+        "default",
+        "column_order",
+        "column_missing",
+        "check",
+        "fk_action",
+        "fk_match",
+        "not_valid",
+        "deferrable",
+        "constraint_extra",
+    ],
+)
+def test_nonplay_full_structure_refuses_each_changed_field(fault):
+    """追加表を存在確認だけへ縮小せず、全属性の閉拒否を保つ。"""
+    with pytest.raises(current.CurrentProductStartupError):
+        current._check_current_structure(
+            _structural_connection(fault, "nonplay_write_admissions")
+        )
+
+
+def _snapshot42_asset():
+    from pitchlog.authz.nonplay_storage_profile import declaration
+
+    asset = _snapshot_profile_asset("current")
+    asset["tables"].append(
+        {"table_id": "nonplay_write_admissions", "schema_name": "sync_fence"}
+    )
+    asset["functions"] = [declaration()]
+    return asset
+
+
+def test_snapshot42_preserves_full_old41_and_adds_only_closed_tenth_table():
+    """旧9表を同じまま残し、新10表は正規内部guardとの対でだけ許す。"""
+    import db_fixtures as fixtures
+
+    old = fixtures._snapshot_product_profile(_snapshot_profile_asset("current"))
+    new = fixtures._snapshot_product_profile(_snapshot42_asset())
+    assert new[0] == old[0]
+    assert new[1] == (*old[1], ("nonplay_write_admissions", "sync_fence"))
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        "missing",
+        "extra",
+        "duplicate",
+        "schema",
+        "guard-missing",
+        "guard-duplicate",
+        "owner",
+        "public-execute",
+        "guard-bool",
+    ],
+)
+def test_snapshot42_rejects_unknown_partial_table_or_guard(mutation):
+    """新profileの欠落・余剰・owner/権限違いは旧41として救済しない。"""
+    import db_fixtures as fixtures
+
+    asset = _snapshot42_asset()
+    if mutation == "missing":
+        asset["tables"].pop()
+    elif mutation == "extra":
+        asset["tables"].append({"table_id": "unknown", "schema_name": "sync_fence"})
+    elif mutation == "duplicate":
+        asset["tables"].append(dict(asset["tables"][-1]))
+    elif mutation == "schema":
+        asset["tables"][-1]["schema_name"] = "public"
+    elif mutation == "guard-missing":
+        asset["functions"].clear()
+    elif mutation == "guard-duplicate":
+        asset["functions"].append(dict(asset["functions"][0]))
+    elif mutation == "owner":
+        asset["functions"][0]["owner_role_id"] = "pitchlog_app"
+    elif mutation == "guard-bool":
+        asset["functions"][0]["revoked_acl_expectations"][0]["grantable"] = 0
+    else:
+        asset["functions"][0]["acl_expectations"] = [
+            {"grantee": "PUBLIC", "privilege": "EXECUTE", "grantable": False}
+        ]
+    with pytest.raises(AssertionError):
+        fixtures._snapshot_product_profile(asset)

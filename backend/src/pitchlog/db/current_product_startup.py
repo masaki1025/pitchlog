@@ -1,4 +1,4 @@
-"""旧0039段階を保ち、current0041の実構造と全認可を接合する。"""
+"""旧0039段階を保ち、current0042の実構造と全認可を接合する。"""
 
 from __future__ import annotations
 
@@ -31,8 +31,9 @@ from pitchlog.db.game_state.stats import (
     StatsPrimitiveFact,
     StatsPrimitiveSource,
 )
+from pitchlog.db.writer_binding.nonplay_models import NonplayWriteAdmission
 
-CURRENT_REVISION = "0041_stats_fact_versions"
+CURRENT_REVISION = "0042_nonplay_write_admission"
 _INDEX_REVISION = "0040_batted_vocabulary_index"
 _STATS_MODELS = (StatsFactVersion, StatsPrimitiveSource, StatsPrimitiveFact)
 
@@ -57,7 +58,7 @@ class CurrentProductStartupResult:
 
 
 _TOKEN = re.compile(
-    r"\s*(?:('(?:[^']|'')*')|([0-9]+)|([A-Za-z_][A-Za-z_0-9]*)|(::|<=|>=|<>|!=|<@|[(),\[\]~<>=+*/-]))"
+    r"\s*(?:('(?:[^']|'')*')|([0-9]+)|([A-Za-z_][A-Za-z_0-9]*)|(::|<=|>=|<>|!=|!~|<@|[(),\[\]~<>=+*/-]))"
 )
 
 
@@ -155,6 +156,7 @@ class _Expression:
                 ">=": 30,
                 "<=": 30,
                 "~": 30,
+                "!~": 30,
                 "<@": 30,
                 "+": 40,
                 "-": 40,
@@ -200,7 +202,7 @@ def _expression(value: str | None) -> Any:
 
 
 def _tables() -> tuple[Table, ...]:
-    """旧6表と新3表を既採用型定義から一度だけ取得する。"""
+    """旧6表と成績3表・非play1表を既採用型定義から一度だけ取得する。"""
     from pitchlog.db.all_models import IMPORTED_MODEL_MODULE_NAMES
     from pitchlog.db.game_state import models as game_models
     from pitchlog.db.writer_binding.ordinary_models import (
@@ -227,6 +229,7 @@ def _tables() -> tuple[Table, ...]:
         OrdinaryPitchWriteAdmission,
         OrdinaryPitchHistory,
         *_STATS_MODELS,
+        NonplayWriteAdmission,
     )
     return tuple(
         sorted((cast(Table, m.__table__) for m in models), key=lambda t: t.name)
@@ -245,6 +248,42 @@ def _revision(connection: Any) -> str:
     }:
         raise CurrentProductStartupError("current配置のrevisionが不一致です")
     return rows[0][0]
+
+
+def _fk_action(value: str | None) -> str:
+    """宣言済FK動作だけをPG catalogの記号へ対応させる。"""
+    mapping = {
+        None: "a",
+        "NO ACTION": "a",
+        "RESTRICT": "r",
+        "CASCADE": "c",
+        "SET NULL": "n",
+        "SET DEFAULT": "d",
+    }
+    if value not in mapping:
+        raise CurrentProductStartupError("未知のFK動作です")
+    return mapping[value]
+
+
+def _fk_match(value: str | None) -> str:
+    """MATCH FULL/SIMPLEの実宣言を保持し、未知を推測しない。"""
+    mapping = {None: "s", "SIMPLE": "s", "FULL": "f"}
+    if value not in mapping:
+        raise CurrentProductStartupError("未知のFK MATCHです")
+    return mapping[value]
+
+
+def _initially_deferred(constraint: Any) -> bool:
+    """遅延宣言の型と整合を失わず実catalog値へ対応させる。"""
+    if constraint.deferrable not in (None, False, True) or type(
+        constraint.deferrable
+    ) not in (type(None), bool):
+        raise CurrentProductStartupError("制約deferrableの型が不一致です")
+    if constraint.initially not in (None, "IMMEDIATE", "DEFERRED"):
+        raise CurrentProductStartupError("未知の初期遅延制約です")
+    if constraint.initially == "DEFERRED" and constraint.deferrable is not True:
+        raise CurrentProductStartupError("遅延制約の宣言が矛盾しています")
+    return constraint.initially == "DEFERRED"
 
 
 def _expected_constraints(table: Table) -> list[tuple[Any, ...]]:
@@ -271,7 +310,7 @@ def _expected_constraints(table: Table) -> list[tuple[Any, ...]]:
                 tuple(c.name for c in constraint.columns),
                 (remote.fullname if remote.schema else "public." + remote.name),
                 tuple(e.column.name for e in elements),
-                "a",
+                _fk_action(constraint.ondelete),
                 None,
             )
         elif isinstance(constraint, (PrimaryKeyConstraint, UniqueConstraint)):
@@ -289,11 +328,15 @@ def _expected_constraints(table: Table) -> list[tuple[Any, ...]]:
         rows.append(
             (
                 *fields,
-                *(("a", "s") if fields[0] == "f" else (None, None)),
+                *(
+                    (_fk_action(constraint.onupdate), _fk_match(constraint.match))
+                    if isinstance(constraint, ForeignKeyConstraint)
+                    else (None, None)
+                ),
                 True,
                 fields[0] != "c",
-                False,
-                False,
+                constraint.deferrable is True,
+                _initially_deferred(constraint),
             )
         )
     return sorted(rows, key=repr)
@@ -317,7 +360,7 @@ FROM pg_constraint k WHERE k.conrelid=%s::regclass ORDER BY k.conname
 
 
 def _check_current_structure(connection: Any) -> None:
-    """sync_fence全9表と承認済構造を不足/余剰とも拒否する。"""
+    """sync_fence全10表と承認済構造を不足/余剰とも拒否する。"""
     tables = _tables()
     with connection.cursor() as cursor:
         cursor.execute(
@@ -358,7 +401,9 @@ def _check_current_structure(connection: Any) -> None:
             ]
             if cursor.fetchall() != expected:
                 raise CurrentProductStartupError("current全列の型/属性が不一致です")
-            if not table.name.startswith("stats_"):
+            if table.name not in {
+                m.__table__.name for m in (*_STATS_MODELS, NonplayWriteAdmission)
+            }:
                 cursor.execute(
                     "SELECT c.relname,k.conname,pg_get_constraintdef(k.oid),"
                     "k.convalidated,k.connoinherit FROM pg_constraint k "
@@ -449,7 +494,7 @@ def _opclass(column):
 
 
 def _check_current_indexes(connection: Any) -> None:
-    """全9表の全indexと0040の固定keyset索引を閉じて照合する。"""
+    """全10表の全indexと0040の固定keyset索引を閉じて照合する。"""
     with connection.cursor() as cursor:
         for table in _tables():
             expected = []
@@ -657,6 +702,10 @@ def _pre_full_expected():
     if migration_function not in canonical_functions:
         raise CurrentProductStartupError("0036内部保護関数の正規宣言がありません")
     functions.add(migration_function)
+    nonplay_guard = ("public", "protect_nonplay_admission", "")
+    if nonplay_guard not in canonical_functions:
+        raise CurrentProductStartupError("0042内部保護関数の正規宣言がありません")
+    functions.add(nonplay_guard)
     schemas = {r.fields["schema_name"] for r in present if r.element_type == "schema"}
     # sync_fenceは0037/0041のowner migrationが配置する。権限は別に閉照合する。
     schemas.add("sync_fence")
@@ -783,6 +832,14 @@ def _pre_full_catalog_pairs():
     )
     if len(pairs["PRODUCT-CATALOG:PLAY-PREFIX-TRIGGERS"][1]) != 1:
         raise CurrentProductStartupError("migration由来のprefix保護宣言が不一致です")
+    from pitchlog.authz.nonplay_storage_profile import (
+        trigger_expectations as nonplay_triggers,
+    )
+
+    pairs["PRODUCT-CATALOG:NONPLAY-STORAGE-TRIGGERS"] = (
+        nonplay_triggers(),
+        nonplay_triggers(),
+    )
     return pairs
 
 
@@ -810,7 +867,7 @@ def _require_pre_or_full_catalog(connection: Any) -> str:
 
 
 def _apply_current_storage(owner_dsn: str) -> None:
-    """固定0040/0041を同owner transactionへ配置し、途中故障を全部戻す。"""
+    """固定0040/0041/0042を同owner transactionへ配置し、途中故障を全部戻す。"""
     engine = create_engine(legacy._owner_url(owner_dsn))
     try:
         with engine.begin() as connection:
@@ -885,7 +942,7 @@ def resume_current_product_after_placement(
     owner_dsn: str,
     applicator_dsn: str,
 ) -> CurrentProductStartupResult:
-    """既0041は再migrationせず、旧中間段階は元の有限前提で再開する。"""
+    """同版0042は再migrationせず、旧中間段階は元の有限前提で再開する。"""
     legacy._require_same_database(owner_dsn, applicator_dsn)
     with psycopg.connect(owner_dsn) as owner, owner.cursor() as cursor:
         cursor.execute("SELECT current_user,session_user")
@@ -906,7 +963,7 @@ def resume_current_product_after_placement(
 
 
 def _check_current_rules(connection: Any) -> None:
-    """0041でも同じ規則5行と配置owner/RLS/一時policy撤去を保持する。"""
+    """0042でも同じ規則5行と配置owner/RLS/一時policy撤去を保持する。"""
     rules = run_path(str(legacy._PLACEMENT_SOURCE))["_RULES"]
     if not isinstance(rules, tuple) or len(rules) != 5:
         raise CurrentProductStartupError("current固定規則が不一致です")
@@ -949,7 +1006,7 @@ def _check_current_rules(connection: Any) -> None:
 
 
 def _check_current_public_storage(connection: Any) -> None:
-    """0041後も既0035/36の全実構造期待を変えず再検査する。"""
+    """0042後も既0035/36の全実構造期待を変えず再検査する。"""
     with connection.cursor() as cursor:
         cursor.execute(
             (

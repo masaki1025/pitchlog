@@ -2013,6 +2013,27 @@ def _activate_stats_profile() -> None:
 
 _activate_stats_profile()
 _activate_ordinary_profile(nonplay=True)
+
+
+def _activate_nonplay_storage_guard() -> None:
+    """migration内部guardをACL-onlyで一意に登録し、既IDを上書きしない。"""
+    from pitchlog.authz.nonplay_storage_profile import FUNCTION_ID, acl_sql, declaration
+
+    row = declaration()
+    if any(
+        existing["function_id"] == FUNCTION_ID for existing in ADDITIONS["functions"]
+    ):
+        raise ValueError("非play内部guardの重複登録")
+    key = "function|" + FUNCTION_ID
+    if key in BODIES:
+        raise ValueError("非play内部guardの本文衝突")
+    ADDITIONS["functions"].append(row)
+    BODIES[key] = (
+        f"-- ELEMENT-TYPE: function\n-- ELEMENT-ID: {FUNCTION_ID}\n\n" + acl_sql()
+    )
+
+
+_activate_nonplay_storage_guard()
 ROLES = frozenset(row["role_id"] for row in ADDITIONS["roles"])
 
 TABLES = frozenset(
@@ -2257,6 +2278,11 @@ def function_details() -> tuple[tuple[object, ...], ...]:
 
     result = []
     for row in ADDITIONS["functions"]:
+        from pitchlog.authz.nonplay_storage_profile import FUNCTION_ID, guard_details
+
+        if row["function_id"] == FUNCTION_ID:
+            result.append(guard_details())
+            continue
         sql = body("function", row["function_id"])
         if sql is None:
             raise ValueError("初球関数本文がない")
@@ -2388,6 +2414,10 @@ def application_function_sql(function_id: str, sql: str) -> str | None:
     canonical = body("function", function_id)
     if canonical is None or sql != canonical:
         raise ValueError("初球関数の適用本文が凍結値と不一致")
+    from pitchlog.authz.nonplay_storage_profile import FUNCTION_ID
+
+    if function_id == FUNCTION_ID:
+        return canonical  # 関数作成は0042 migrationだけ。再適用もACL-only。
     identity = f"{row['schema_name']}.{row['function_name']}({row['identity_args']})"
     details = next(
         d
