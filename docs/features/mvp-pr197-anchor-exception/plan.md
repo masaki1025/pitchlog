@@ -1,7 +1,7 @@
 ---
 feature: mvp-pr197-anchor-exception
 status: active
-branch: feature/mvp-stats-native-foundation
+branch: feature/mvp-pr197-anchor-exception
 承認: PO委任によるCodex主担当/root判断（2026-11-06、既MVP・安全を維持するハーネス最小整合）
 計画レビュー周回: 0
 確定ゲート周回: 0
@@ -15,3 +15,25 @@ branch: feature/mvp-stats-native-foundation
 2. cache修復案を非作者レビューし、偽Git/同時改変/欠落/版違い/重大指摘の拒否と、他全allow-list追加禁止/既反例/旧基準を保持する。source固定後に正式派生/最終HEADレビュー・公開証拠・必須CIを通す。
 
 対象正本: docs/development/dev-harness-design-2026-08-07.md と docs/README.md索引。source対象はscripts/frozen_history.py/check_frozen_baselines.pyと関連型付き資産/試験の最小差分。source候補の独立P0は未採用のまま保持し、偽履歴を通した候補を緑としない。共有DB/運用秘密/本人署名には触れない。
+
+
+## 重さ・担当・影響する正本
+
+重さ: 重（凍結基準の保護・検査経路を含む）。rootが専用WT唯一writer。非作者の正本レビューとsourceレビューを別に固定し、正式資産追記はrootが直列処理する。正本対象はハーネス/索引、秘密・共有DB・署名・一般承認制度には変更なし。
+
+## 実装ステップ
+
+| ステップ | 内容 | 完了条件 |
+| --- | --- | --- |
+| 1/2 | v1.19適用の単一7.3ゲートで限定条文と索引を整合 | 全採否・適用条文・対象版/SHA・PO委任の最終判断を記録 |
+| 2/2 | 対象一件のみのsource/資産/検査を接合 | 独立レビュー・正負対向・7.7前後・公開証拠・必須CI。PR197本体は既mvp-stats-primitives step4へ引き渡す |
+
+## テスト計画
+
+正本はdocs-status/design-propagation/link/索引整合。sourceは固定Git不在/別祖先/偽初出・typed/source同時改変・未知値・別PR/branch/HEAD/diff・証拠欠落・自己レビュー・P0/P1未解消を拒否する。通常allow-list追加禁止・既ブートストラップ/除去規則・develop不変継承を保持。候補の単体成功を正式受理にしない。
+
+## DoD
+
+- [ ] 限定条文のゲート採否と委任判断、sourceの独立レビューを固定する。
+- [ ] 正負対向と公式派生の前後/履歴・最終HEAD証拠・必須CIを通す。
+- [ ] PR197へ受渡し、正式統合と未実施の製品/実機受入を区別する。
