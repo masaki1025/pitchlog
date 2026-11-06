@@ -432,3 +432,122 @@ def test_trigger_ten_reconfirmation_must_match_current_digest(
             evidence_path=_write_evidence(tmp_path, evidence),
             trigger_ids={10},
         )
+
+
+@pytest.fixture
+def pr197_delegation_candidate(tmp_path: Path) -> tuple[Path, dict[str, Any]]:
+    """実Gitを共有する私有cloneに試験用の非作者証拠を組む。正式受理でない。"""
+    import hashlib
+
+    root = tmp_path / "pr197-delegation"
+    subprocess.run(
+        ["git", "clone", "--shared", "--no-checkout", "--quiet", str(ROOT), str(root)],
+        check=True,
+    )
+    revision = subprocess.check_output(
+        ["git", "-C", str(ROOT), "rev-parse", "HEAD"]
+    ).decode().strip()
+    files = (
+        "backend/src/pitchlog/domaincheck/trigger_evaluation.py",
+        "tests/domain/test_review_triggers_complete.py", "backend/domain/model.schema.json",
+    )
+    policy = "docs/features/mvp-delegated-core-review/policy.json"
+    subprocess.run(
+        ["git", "-C", str(root), "checkout", revision, "--", *files, policy,
+         "contracts/tenant_boundary/frozen-inputs.json"], check=True,
+    )
+    evidence = json.loads(EVIDENCE_PATH.read_text())
+    decision = copy.deepcopy(next(
+        row for row in evidence["manualDecisions"] if row["triggerId"] == 1
+    ))
+    decision.pop("delegatedReconfirmation", None)
+    review = {
+        "author": "Codex /root", "reviewer": "/root/unit_test_reviewer",
+        "sourceRevision": revision, "p0": 0, "p1": 0,
+        "files": {name: hashlib.sha256((root / name).read_bytes()).hexdigest() for name in files},
+    }
+    relative = "docs/features/mvp-stats-primitives/trigger1-delegated-review.json"
+    target = root / relative
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(json.dumps(review, ensure_ascii=False, indent=2) + "\n")
+    decision["delegatedReconfirmation"] = {
+        "judge": "Codex /root", "decisionDate": "2026-11-07", "fired": False,
+        "previousEvidenceDigest": decision["evidenceDigest"],
+        "evidenceDigest": COMPLETION.trigger_evaluation.evidence_digest(
+            root, decision["evidenceLocation"]
+        ),
+        "reason": "単体試験専用。本人確認・正式レビュー・受理ではない。",
+        "pr": 197, "branch": "feature/mvp-stats-native-foundation", "sourceRevision": revision,
+        "authoritySha256": hashlib.sha256((root / policy).read_bytes()).hexdigest(),
+        "reviewPath": relative, "reviewSha256": hashlib.sha256(target.read_bytes()).hexdigest(),
+    }
+    return root, decision
+
+
+def test_pr197_delegated_reconfirmation_preserves_original_po_record(
+    pr197_delegation_candidate,
+) -> None:
+    """元本人記録を書換えず、現byteを確認する委任だけを別に受け付ける。"""
+    root, decision = pr197_delegation_candidate
+    assert COMPLETION.trigger_evaluation._pr197_delegated_digest(root, 1, decision) == (
+        decision["delegatedReconfirmation"]["evidenceDigest"]
+    )
+    assert decision["judge"] == "山田正輝"
+    assert decision["evidenceDigest"] != decision["delegatedReconfirmation"]["evidenceDigest"]
+
+
+@pytest.mark.parametrize("mutation", [
+    "other-trigger", "other-pr", "other-branch", "human-judge", "old-date", "fired",
+    "unknown-key", "original-record", "old-digest", "new-digest", "source-revision",
+    "authority-digest", "review-missing", "review-digest", "review-unresolved",
+    "review-self", "review-file", "source-byte", "policy-byte", "review-duplicate",
+])
+def test_pr197_delegated_reconfirmation_rejects_invalid_proof(
+    pr197_delegation_candidate, mutation,
+) -> None:
+    """委任欠落・別対象版・本人代記・未解消・全byte不一致を拒否する。"""
+    import hashlib
+
+    root, decision = pr197_delegation_candidate
+    record = decision["delegatedReconfirmation"]
+    identifier = 1
+    fields = {
+        "other-pr": ("pr", 198), "other-branch": ("branch", "feature/other"),
+        "human-judge": ("judge", "山田正輝"), "old-date": ("decisionDate", "2026-09-19"),
+        "fired": ("fired", True), "unknown-key": ("approved", True),
+        "old-digest": ("previousEvidenceDigest", "sha256:" + "0" * 64),
+        "new-digest": ("evidenceDigest", "sha256:" + "0" * 64),
+        "source-revision": ("sourceRevision", "0" * 40),
+        "authority-digest": ("authoritySha256", "0" * 64),
+        "review-digest": ("reviewSha256", "0" * 64),
+    }
+    if mutation in fields:
+        key, value = fields[mutation]
+        record[key] = value
+    elif mutation == "other-trigger":
+        identifier = 2
+    elif mutation == "original-record":
+        decision["evidenceDigest"] = record["evidenceDigest"]
+    elif mutation in {"source-byte", "policy-byte"}:
+        path = root / ("backend/domain/model.schema.json" if mutation == "source-byte" else
+                       "docs/features/mvp-delegated-core-review/policy.json")
+        path.write_bytes(path.read_bytes() + b"\n")
+    else:
+        path = root / record["reviewPath"]
+        if mutation == "review-missing":
+            path.unlink()
+        else:
+            review = json.loads(path.read_text())
+            if mutation == "review-unresolved":
+                review["p1"] = 1
+            elif mutation == "review-self":
+                review["reviewer"] = "Codex /root"
+            elif mutation == "review-file":
+                review["files"].pop("backend/domain/model.schema.json")
+            raw = json.dumps(review, ensure_ascii=False, indent=2) + "\n"
+            if mutation == "review-duplicate":
+                raw = raw.replace('"p1": 0,', '"p1": 1, "p1": 0,')
+            path.write_text(raw)
+            record["reviewSha256"] = hashlib.sha256(path.read_bytes()).hexdigest()
+    with pytest.raises(COMPLETION.trigger_evaluation.TriggerEvaluationError):
+        COMPLETION.trigger_evaluation._pr197_delegated_digest(root, identifier, decision)

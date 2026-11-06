@@ -138,6 +138,176 @@ def _trigger_id(value: object, label: str) -> int:
     return value
 
 
+def _pr197_delegated_digest(
+    root: Path,
+    identifier: int,
+    decision: Mapping[str, object],
+) -> str:
+    """欠落・不正JSON・Git資格失敗を含め、委任不成立を閉拒否する。"""
+    try:
+        return _pr197_delegated_digest_impl(root, identifier, decision)
+    except (OSError, ValueError, KeyError, TypeError, ImportError) as error:
+        raise TriggerEvaluationError(
+            "PR197 trigger1 の委任証拠 digest が不一致"
+        ) from error
+
+
+def _pr197_delegated_digest_impl(
+    root: Path,
+    identifier: int,
+    decision: Mapping[str, object],
+) -> str:
+    """旧本人記録を保存し、PR197のtrigger1だけを別の委任証拠で再確認する。"""
+    from scripts import frozen_history
+
+    def fail() -> TriggerEvaluationError:
+        return TriggerEvaluationError("PR197 trigger1 の委任再確認証拠が不一致")
+
+    def git(*arguments: str) -> bytes:
+        try:
+            result = subprocess.run(
+                ["git", "--no-replace-objects", "-C", str(root), *arguments],
+                check=True,
+                capture_output=True,
+                timeout=10,
+            )
+        except (OSError, subprocess.SubprocessError) as error:
+            raise fail() from error
+        return result.stdout
+
+    record = _object(decision.get("delegatedReconfirmation"), "委任再確認")
+    keys = {
+        "judge",
+        "decisionDate",
+        "fired",
+        "previousEvidenceDigest",
+        "evidenceDigest",
+        "reason",
+        "pr",
+        "branch",
+        "sourceRevision",
+        "authoritySha256",
+        "reviewPath",
+        "reviewSha256",
+    }
+    if (
+        identifier != 1
+        or set(record) != keys
+        or record["judge"] != "Codex /root"
+        or type(record["pr"]) is not int
+        or record["pr"] != 197
+        or record["branch"] != "feature/mvp-stats-native-foundation"
+        or record["fired"] is not False
+        or decision.get("fired") is not False
+        or decision.get("evidenceLocation") != "backend/domain/model.schema.json"
+        or not isinstance(record["reason"], str)
+        or not record["reason"].strip()
+    ):
+        raise fail()
+    try:
+        checked_date = date.fromisoformat(str(record["decisionDate"]))
+        original_date = date.fromisoformat(str(decision["decisionDate"]))
+    except ValueError as error:
+        raise fail() from error
+    if checked_date <= original_date:
+        raise fail()
+    # 既独立固定原典の資格検査を再利用し、自由指定Gitを委任元にしない。
+    frozen_history.read_original_pr197_pin("pr197_core_definition_ast_sha256", root)
+    origin = frozen_history.PR197_PIN_ORIGIN_COMMIT
+    git("merge-base", "--is-ancestor", origin, "HEAD")
+    original = json.loads(git("show", f"{origin}:{EVIDENCE_ASSET.as_posix()}"))
+    original_rows = [
+        item for item in original["manualDecisions"] if item["triggerId"] == 1
+    ]
+    preserved = {
+        key: value
+        for key, value in decision.items()
+        if key != "delegatedReconfirmation"
+    }
+    if original_rows != [preserved]:
+        raise fail()
+    authority_path = Path("docs/features/mvp-delegated-core-review/policy.json")
+    path = root / authority_path
+    authority = git("show", f"{origin}:{authority_path.as_posix()}")
+    if (
+        path.is_symlink()
+        or not path.is_file()
+        or path.read_bytes() != authority
+        or record["authoritySha256"] != hashlib.sha256(authority).hexdigest()
+    ):
+        raise fail()
+    policy = json.loads(authority)
+    if (
+        policy.get("enabled") is not True
+        or policy.get("schema_version") != 1
+        or policy.get("repository") != "masaki1025/pitchlog"
+        or policy.get("source_kind") != "local_goal_thread_not_ui_identity_proof"
+        or {"pr": 197, "branch": record["branch"]} not in policy.get("targets", [])
+    ):
+        raise fail()
+    revision = record["sourceRevision"]
+    if not isinstance(revision, str) or re.fullmatch(r"[0-9a-f]{40}", revision) is None:
+        raise fail()
+    if (
+        git("rev-parse", "--verify", revision + "^{commit}").decode().strip()
+        != revision
+    ):
+        raise fail()
+    git("merge-base", "--is-ancestor", revision, "HEAD")
+    review_relative = (
+        "docs/features/mvp-stats-primitives/trigger1-delegated-review.json"
+    )
+    if record["reviewPath"] != review_relative:
+        raise fail()
+    review_path = root / review_relative
+    if review_path.is_symlink() or not review_path.is_file():
+        raise fail()
+    raw_review = review_path.read_bytes()
+    if record["reviewSha256"] != hashlib.sha256(raw_review).hexdigest():
+        raise fail()
+    review = _object(json.loads(raw_review), "委任非作者確認")
+    if raw_review != (json.dumps(review, ensure_ascii=False, indent=2) + "\n").encode():
+        raise fail()
+    if (
+        set(review) != {"author", "reviewer", "sourceRevision", "p0", "p1", "files"}
+        or review["author"] != record["judge"]
+        or not isinstance(review["reviewer"], str)
+        or not review["reviewer"].startswith("/root/")
+        or review["sourceRevision"] != revision
+        or type(review["p0"]) is not int
+        or review["p0"] != 0
+        or type(review["p1"]) is not int
+        or review["p1"] != 0
+    ):
+        raise fail()
+    files = _object(review["files"], "委任対象全byte")
+    expected_files = {
+        "backend/src/pitchlog/domaincheck/trigger_evaluation.py",
+        "tests/domain/test_review_triggers_complete.py",
+        "backend/domain/model.schema.json",
+    }
+    if set(files) != expected_files:
+        raise fail()
+    for relative, digest in files.items():
+        target = root / relative
+        expected = git("show", f"{revision}:{relative}")
+        if (
+            target.is_symlink()
+            or not target.is_file()
+            or target.read_bytes() != expected
+            or digest != hashlib.sha256(expected).hexdigest()
+        ):
+            raise fail()
+    current = evidence_digest(root, "backend/domain/model.schema.json")
+    if (
+        record["previousEvidenceDigest"] != decision["evidenceDigest"]
+        or record["evidenceDigest"] != current
+        or current == decision["evidenceDigest"]
+    ):
+        raise fail()
+    return current
+
+
 def _validate_reconfirmations(
     decision: Mapping[str, object],
     *,
@@ -427,7 +597,11 @@ def validate_recorded_evaluations(
     manual_by_id: dict[int, dict[str, object]] = {}
     for index, raw in enumerate(manual_rows):
         item = _object(raw, f"manualDecisions[{index}]")
-        if set(item) not in (_MANUAL_KEYS, _MANUAL_KEYS | {"reconfirmations"}):
+        if set(item) not in (
+            _MANUAL_KEYS,
+            _MANUAL_KEYS | {"reconfirmations"},
+            _MANUAL_KEYS | {"delegatedReconfirmation"},
+        ):
             raise TriggerEvaluationError("manualDecisions のキー集合が不正")
         identifier = _trigger_id(item.get("triggerId"), "manual.triggerId")
         if identifier in manual_by_id:
@@ -483,7 +657,12 @@ def validate_recorded_evaluations(
                     f"トリガー {identifier} の PO 証拠パスが不一致"
                 )
             actual_digest = evidence_digest(root, location)
-            if decision.get("evidenceDigest") != actual_digest:
+            confirmed_digest = (
+                _pr197_delegated_digest(root, identifier, decision)
+                if "delegatedReconfirmation" in decision
+                else decision.get("evidenceDigest")
+            )
+            if confirmed_digest != actual_digest:
                 raise TriggerEvaluationError(
                     f"トリガー {identifier} の PO 証拠 digest が不一致"
                 )
