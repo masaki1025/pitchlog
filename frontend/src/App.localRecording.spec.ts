@@ -1,3 +1,4 @@
+import { ref } from 'vue'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { setActivePinia } from 'pinia'
@@ -11,16 +12,16 @@ import App from './App.vue'
 const game = '59c28087-e5d8-43e1-9e50-65833ad0cae6'
 // App/実routerの表示境界だけの対向。資格真正性は実IDB試験・owned画面で別検証。
 function scope() {
-  let current = true
+  const current = ref(true)
   const object = {
     gameId: game,
     get current() {
-      return current
+      return current.value
     },
     context: {},
     identity: () => ({ tenantId: game, epoch: 1, verified: false }),
     dispose: vi.fn(() => {
-      current = false
+      current.value = false
     }),
   }
   vi.spyOn(local, 'isLocalRecordingSession').mockImplementation(
@@ -72,7 +73,6 @@ it('未認証を認証済みにせず、guard受理済みの端末内記録だ�
 it('保存scope失効はApp表示を失効し、サーバー認証を補完しない', async () => {
   const { router, wrapper, saved } = await opened()
   saved.dispose()
-  useAuthStore(pinia).authEpoch += 1
   await flushPromises()
   expect(router.currentRoute.value.name).toBe('login')
   expect(useAuthStore(pinia).isAuthenticated).toBe(false)
@@ -96,5 +96,15 @@ it('同じ端末内記録からの再接続中は保護内容を隠し、guard�
   reject(new Error('401'))
   await flushPromises()
   expect(router.currentRoute.value.name).toBe('login')
+  wrapper.unmount()
+})
+
+it('端末内記録から公開ガイドへ移動しても中間状態でloginへ割り込まない', async () => {
+  const { router, wrapper } = await opened()
+  const verify = vi.spyOn(authApi, 'ensureSessionVerified')
+  await router.push('/help')
+  await flushPromises()
+  expect(router.currentRoute.value.name).toBe('help')
+  expect(verify).not.toHaveBeenCalled()
   wrapper.unmount()
 })

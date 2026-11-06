@@ -1,3 +1,4 @@
+import { computed } from 'vue'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { createContext, Script } from 'node:vm'
@@ -240,6 +241,10 @@ it('実local境界と単一artifactで未検証sessionの2球を保存しcold復
     ).toBe('queued-local')
     expect(local.context.after.stateFields['state.count.balls']).toBe('2')
   } finally {
+    const visible = computed(() => scope!.current)
+    expect(visible.value).toBe(true)
+    scope!.dispose()
+    expect(visible.value).toBe(false)
     local.dispose()
   }
   const restarted = await LocalRecordingSession.restore(head.id)
@@ -247,7 +252,7 @@ it('実local境界と単一artifactで未検証sessionの2球を保存しcold復
   const restored = new GameScreenOrdinaryPitchController(
     restarted!.context,
     () => restarted!.identity(),
-    writer,
+    { ...writer, revalidateSingleWriter: () => restarted!.current },
     restarted!,
   )
   try {

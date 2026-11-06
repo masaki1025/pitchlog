@@ -100,9 +100,7 @@ export function createAppRouter(history: RouterHistory = createWebHistory()) {
     transitioning.value =
       previous !== null &&
       previous.session.current &&
-      router.currentRoute.value.name === 'game-record' &&
-      to.name === 'game-record' &&
-      to.params.gameId === previous.session.gameId
+      router.currentRoute.value.name === 'game-record'
     previous?.session.dispose()
     localEntry.value = null
     if (to.meta.requiresAuth !== true) return true

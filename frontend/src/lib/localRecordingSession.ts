@@ -1,3 +1,4 @@
+import { shallowRef } from 'vue'
 import { sameOrdinaryWire } from '../api/ordinaryPitchWire'
 import {
   lineupContextFromRead,
@@ -33,8 +34,8 @@ const sessions = new WeakSet<object>()
 export class LocalRecordingSession implements LocalAcceptanceBoundary {
   readonly #row: LocalPermissionRow
   readonly #context: RecordingContext
-  #epoch = epoch()
-  #active = true
+  #epoch = shallowRef(epoch())
+  #active = shallowRef(true)
   private constructor(row: LocalPermissionRow, context: RecordingContext) {
     this.#row = structuredClone(row)
     this.#context = structuredClone(context)
@@ -54,15 +55,15 @@ export class LocalRecordingSession implements LocalAcceptanceBoundary {
     return structuredClone(this.#context)
   }
   get current() {
-    if (this.#active && !localIntentMatches(this.#row.correlation))
+    if (this.#active.value && !localIntentMatches(this.#row.correlation))
       this.dispose()
-    return this.#active
+    return this.#active.value
   }
   /** verified:falseのまま。これはサーバーsessionの成功ではない。 */
   identity() {
     return {
       tenantId: this.current ? this.#row.tenantId : null,
-      epoch: this.#epoch,
+      epoch: this.#epoch.value,
       verified: false,
     }
   }
@@ -73,9 +74,9 @@ export class LocalRecordingSession implements LocalAcceptanceBoundary {
     return structuredClone(page.value)
   }
   dispose() {
-    if (this.#active) {
-      this.#active = false
-      this.#epoch = epoch()
+    if (this.#active.value) {
+      this.#active.value = false
+      this.#epoch.value = epoch()
     }
   }
   async withinAcceptance<T>(
