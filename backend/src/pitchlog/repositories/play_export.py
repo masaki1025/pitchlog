@@ -1709,15 +1709,18 @@ def iter_play_rows(
 def iter_sidecar_rows(source: PlayExportSource, name: str) -> Iterator[SavedCsvRow]:
     """サイドカーを同名の固定ヘッダ順で返す。"""
     if name == "play_links.csv":
-        for play in source.iter_plays():
+        for ordinal, play in enumerate(source.iter_plays(), start=1):
+            event = source.events.get(cast(UUID, play["source_event_id"]))
             yield _row(
                 source,
                 name,
                 {
-                    "row_number": None,
+                    "row_number": ordinal,
                     "game_id": str(source.snapshot.game_id),
-                    "recording_generation": _generation(play),
-                    "event_sequence": None,
+                    "recording_generation": (
+                        None if event is None else event["generation"]
+                    ),
+                    "event_sequence": None if event is None else event["d2"],
                     "source_event_id": str(play["source_event_id"]),
                     "play_row_id": str(play["id"]),
                     "play_number": play["play_number"],
@@ -1758,14 +1761,17 @@ def iter_sidecar_rows(source: PlayExportSource, name: str) -> Iterator[SavedCsvR
     if name == "runners.csv":
         for play in source.iter_plays():
             play_id = cast(UUID, play["id"])
+            event = source.events.get(cast(UUID, play["source_event_id"]))
             for runner in source.iter_runners_for((play_id,)):
                 yield _row(
                     source,
                     name,
                     {
                         "game_id": str(source.snapshot.game_id),
-                        "recording_generation": None,
-                        "event_sequence": None,
+                        "recording_generation": (
+                            None if event is None else event["generation"]
+                        ),
+                        "event_sequence": None if event is None else event["d2"],
                         "source_event_id": str(play["source_event_id"]),
                         "play_row_id": str(play_id),
                         "runner_row_id": str(runner["id"]),
@@ -1783,7 +1789,7 @@ def iter_sidecar_rows(source: PlayExportSource, name: str) -> Iterator[SavedCsvR
                 )
         return
     if name == "lineups.csv":
-        for lineup in source.lineups:
+        for lineup in sorted(source.lineups, key=lambda row: str(row["id"])):
             yield _row(
                 source,
                 name,
@@ -1820,69 +1826,71 @@ def iter_sidecar_rows(source: PlayExportSource, name: str) -> Iterator[SavedCsvR
         )
         return
     if name == "references.csv":
-        for team_id, team in sorted(source.teams.items()):
+        references: list[tuple[str, str, object]] = []
+        for team_id, team in source.teams.items():
+            references.append(("team_record", str(team_id), team))
+        for player_id, player in source.players.items():
+            references.append(("player", str(player_id), player))
+        for (category, key), row in source.tenant_vocabularies.items():
+            references.append((f"tenant_vocabulary:{category}", key, row))
+        for reference_kind, reference_id, value in sorted(references):
             yield _row(
                 source,
                 name,
                 {
                     "game_id": str(source.snapshot.game_id),
-                    "reference_kind": "team_record",
-                    "reference_id": str(team_id),
-                    "source_json": _json_text(team),
-                },
-            )
-        for player_id, player in sorted(source.players.items()):
-            yield _row(
-                source,
-                name,
-                {
-                    "game_id": str(source.snapshot.game_id),
-                    "reference_kind": "player",
-                    "reference_id": str(player_id),
-                    "source_json": _json_text(player),
-                },
-            )
-        for (category, key), row in sorted(source.tenant_vocabularies.items()):
-            yield _row(
-                source,
-                name,
-                {
-                    "game_id": str(source.snapshot.game_id),
-                    "reference_kind": f"tenant_vocabulary:{category}",
-                    "reference_id": key,
-                    "source_json": _json_text(row),
+                    "reference_kind": reference_kind,
+                    "reference_id": reference_id,
+                    "source_json": _json_text(value),
                 },
             )
         return
     if name == "projections.csv":
+        projections: list[
+            tuple[str, str, int | None, int | None, dict[str, object]]
+        ] = []
         for play in source.iter_plays():
             play_id = cast(UUID, play["id"])
             runners = tuple(source.iter_runners_for((play_id,)))
             cells, missing = project_play_cells(source, play, runners)
+            event = source.events.get(cast(UUID, play["source_event_id"]))
+            projections.append(
+                (
+                    str(play["source_event_id"]),
+                    "play_export_projection",
+                    None if event is None else cast(int | None, event["generation"]),
+                    None if event is None else cast(int | None, event["d2"]),
+                    {
+                        "source_version": play["version"],
+                        "source_json": _json_text(
+                            {
+                                "values": cells,
+                                "missing": [
+                                    {
+                                        "header": item.header,
+                                        "column_index": item.column_index,
+                                        "supply_group": item.supply_group,
+                                        "producer": item.producer,
+                                    }
+                                    for item in missing
+                                ],
+                            }
+                        ),
+                    },
+                )
+            )
+        for source_event_id, kind, generation, sequence, body in sorted(projections):
             yield _row(
                 source,
                 name,
                 {
                     "game_id": str(source.snapshot.game_id),
-                    "recording_generation": _generation(play),
-                    "event_sequence": None,
-                    "source_event_id": str(play["source_event_id"]),
-                    "projection_kind": "play_export_projection",
-                    "source_version": play["version"],
-                    "source_json": _json_text(
-                        {
-                            "values": cells,
-                            "missing": [
-                                {
-                                    "header": item.header,
-                                    "column_index": item.column_index,
-                                    "supply_group": item.supply_group,
-                                    "producer": item.producer,
-                                }
-                                for item in missing
-                            ],
-                        }
-                    ),
+                    "recording_generation": generation,
+                    "event_sequence": sequence,
+                    "source_event_id": source_event_id,
+                    "projection_kind": kind,
+                    "source_version": cast(int, body["source_version"]),
+                    "source_json": cast(str, body["source_json"]),
                 },
             )
         return
@@ -1947,8 +1955,3 @@ def _json_value(value: object) -> object:
     if isinstance(value, MappingProxyType):
         return {str(key): _json_value(item) for key, item in value.items()}
     raise ValueError("JSONへ写せない保存値です")
-
-
-def _generation(play: Mapping[str, Any]) -> int | None:
-    """PlayRowから記録世代を引く補助。"""
-    return cast(int | None, play.get("generation"))

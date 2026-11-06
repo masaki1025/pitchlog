@@ -240,8 +240,8 @@ def _source() -> PlayExportSource:
         "id": EVENT,
         "tenant_id": TENANT,
         "game_id": GAME,
-        "generation": None,
-        "d1": None,
+        "generation": 1,
+        "d1": 1,
         "d2": 1,
         "d5": uuid4(),
         "ledger_kind": "accepted",
@@ -612,6 +612,7 @@ def test_all_88_columns_are_supplied_or_in_the_declared_gap() -> None:
     source = _source()
     play = _play(1)
     values, missing = project_play_cells(source, play, ())
+    assert set(values) <= set(CSV_HEADERS["plays.csv"])
     assert set(values) | {item.header for item in missing} == set(
         CSV_HEADERS["plays.csv"]
     )
@@ -656,3 +657,10 @@ def test_all_nine_sidecars_use_fixed_headers() -> None:
         assert rows
         for row in rows:
             assert set(row.values) == set(CSV_HEADERS[name])
+        if name == "play_links.csv":
+            assert rows[0].values["row_number"] == 1
+            assert rows[0].values["recording_generation"] == 1
+            assert rows[0].values["event_sequence"] == 1
+        if name == "references.csv":
+            kinds = [row.values["reference_kind"] for row in rows]
+            assert kinds == sorted(kinds)
