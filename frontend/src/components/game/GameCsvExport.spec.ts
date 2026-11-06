@@ -152,4 +152,28 @@ describe('GameCsvExport', () => {
       expect(URL.createObjectURL).not.toHaveBeenCalled()
     },
   )
+  it('試合変更前の旧要求finallyで新要求のbusyを解除しない', async () => {
+    let resolveOld!: (value: unknown) => void
+    downloadPlayCsv.mockReturnValueOnce(
+      new Promise((done) => {
+        resolveOld = done
+      }),
+    )
+    downloadPlayCsv.mockReturnValueOnce(new Promise(() => undefined))
+    const wrapper = mount(GameCsvExport, { props: { gameId: 'game-1' } })
+    await wrapper.find('button').trigger('click')
+    await wrapper.setProps({ gameId: 'game-2' })
+    await wrapper.find('button').trigger('click')
+    resolveOld({
+      blob: new Blob(['zipdata']),
+      filename: 'plays.zip',
+      contentLength: 7,
+      sha256: SHA,
+    })
+    await flushPromises()
+    expect(wrapper.find('button').attributes('disabled')).toBeDefined()
+    expect(wrapper.text()).toContain('取得中')
+    expect(URL.createObjectURL).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
 })

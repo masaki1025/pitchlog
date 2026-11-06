@@ -97,8 +97,10 @@ async function download(): Promise<void> {
       message.value = '毎球CSVを取得できませんでした（再試行できます）'
     }
   } finally {
-    if (controller.value === abort) controller.value = null
-    busy.value = false
+    if (controller.value === abort) {
+      controller.value = null
+      busy.value = false
+    }
   }
 }
 
