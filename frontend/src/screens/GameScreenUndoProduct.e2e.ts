@@ -259,7 +259,9 @@ test('実画面の新規作成→開始→2球→ACK喪失/reload/同要求再�
     { packet: undoPacket, requestId },
   )
   const probe = page.locator('#pitchlog-undo-read-probe')
-  await expect(probe).toHaveAttribute('data-request-id', requestId)
+  await expect(probe).toHaveAttribute('data-request-id', requestId, {
+    timeout: 15_000,
+  })
   console.log('PITCHLOG_UNDO_READ_DTO=' + (await probe.textContent()))
   await expect(panel.getByTestId('undo-product-balls')).toHaveText('2')
   await expect(panel.getByTestId('undo-product-depth')).toHaveText('2')
