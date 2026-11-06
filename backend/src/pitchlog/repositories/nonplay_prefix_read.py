@@ -241,7 +241,9 @@ def _make_page_cursor(anchor, point):
     return base64.urlsafe_b64encode(encoded.encode()).decode().rstrip("=")
 
 
-def _read_active_page_bound(handle, cp, *, generation, limit=25, cursor=None):
+def _read_active_page_bound(
+    handle, cp, *, generation, limit=25, cursor=None, viewer=False
+):
     """同CPの一page。全stack完成とは区別する。秘密を返さない。"""
     owner = _owner(handle)
 
@@ -251,7 +253,17 @@ def _read_active_page_bound(handle, cp, *, generation, limit=25, cursor=None):
     rawcp = cp.model_dump(mode="json", by_alias=True, exclude_unset=True)
     anchor = _page_anchor(cp)
     point = _read_page_cursor(cursor, anchor)
-    token = NonplayActiveHistoryReadToken(
+    if viewer:
+        from pitchlog.repositories.transaction import require_viewer_read_scope
+        from pitchlog.repositories.viewer_read import (
+            ViewerNonplayActiveHistoryReadToken,
+        )
+
+        require_viewer_read_scope(handle)
+        page_token = ViewerNonplayActiveHistoryReadToken
+    else:
+        page_token = NonplayActiveHistoryReadToken
+    token = page_token(
         game_id=UUID(cp.content.scope.game_id),
         generation=generation,
         checkpoint_id=UUID(cp.ref.id),
@@ -306,7 +318,7 @@ def _read_active_page_bound(handle, cp, *, generation, limit=25, cursor=None):
     return {"items": [frame for _, frame in selected], "next_cursor": next_cursor}
 
 
-def read_active_page(handle, cp, *, generation, limit=25, cursor=None):
+def read_active_page(handle, cp, *, generation, limit=25, cursor=None, viewer=False):
     """配置/原本破損は内容拒否へ落とさず、秘密なしの不可用として閉じる。"""
     from jsonschema import ValidationError
 
@@ -320,7 +332,8 @@ def read_active_page(handle, cp, *, generation, limit=25, cursor=None):
 
     try:
         return _read_active_page_bound(
-            handle, cp, generation=generation, limit=limit, cursor=cursor
+            handle, cp, generation=generation, limit=limit, cursor=cursor,
+            viewer=viewer,
         )
     except (
         ValueError,
