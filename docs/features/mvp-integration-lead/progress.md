@@ -1,5 +1,14 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 2026-11-06 19:39 JST：2時間試行の中間実証
+
+- **新たな実画面操作（候補環境）**: game-operations `2bdf48ec`＋cache正式資産overlayで、新規作成・開始後の一塁走者の単打→三塁、二塁打→生還、走者一二塁から本塁打3点が保存・再取得まで成功。owned PostgreSQL/実認証・記録権/実HTTPS Chromium、pytest wrapper 1成功162.38秒。再送・reload・他tenant404を含む。証拠 `~/.cache/pitchlog/game-operations-product-author-20261106/e2e-final/`、pytest SHA先頭2e8c9248/Playwright6acb46bb。overlayは未正式採用で、branch単体やdevelop成功ではない。
+- **実装の拡大**: 同候補には承認済み範囲の複数走者打球、満塁四死球、三振・限定SO-05併殺を追加。単体/実host照合と実画面成立範囲を区別する。交代は専用WT `43c9d9bb`以降の作者候補で、唯一artifact経由の計算・実GET adapterを接続中。交代の実PG保存はまだ未成立。
+- **取消の接続是正**: NP `34fe860266e7ada4342c7c1caef3a49afe547093`。実数列Doubleの閉型照合、同期核の投影cloneとの全11wire値照合、既GameLockToken下の不必要FOR SHARE撤去を実装し、公式prepare/consumeの両bodyを再生成。r35の最初の42501とr36の公式body不一致を区別して修正。r37は同固定版で実画面実行中、受理・全シーケンス成功は未確認。
+- **終了再開**: actual `2f8afd7a`には終了再開UIの実writer/mountとNP7fdまでを接合。作者cacheは真正0043/ACL/同TX入口を実PGで検証し、実create/start/2球/GETまで成功。終了POSTはSQL閉条件の型・演算子問題を修正中で、終了成功・追加球・再終了の完成ではない。
+- **再実行削減**: 別owned Docker network作成/撤去でChromium `ERR_NETWORK_CHANGED` が起きると実測。全担当のowned PG/画面は共通 `~/.cache/pitchlog/test-coordination/owned-pg-browser-network.lock` を環境全寿命で保持する運用へ統一。コード・型・単体は並行継続。検査条件は緩めない。
+- **次**: r37の真の最初の停止点を解消→取消2回/次球/reload。終了再開HTTPと交代の同TX入口を接続し、一つのartifact/正式資産候補へ直列統合する。20:37:31の評価時に新たな操作と残依存を比較し、MVP完成や正式受入は別判定とする。
+
 ## 2時間の実接続優先試行：2026-11-06 18:37:31〜20:37:31 JST
 
 POが「統合候補までまとめて実装し、その固定版をまとめてレビュー・検査」を採用し、今から2時間試すと指示。MVP全目標/認可/記録権/原子性/再送/正式統合前の品質ゲートは維持。途中は型/影響smokeと実接続、候補固定後に独立レビュー・全件をまとめる。新意味の裁定や共有DB/公開/秘密発行は委任しない。
