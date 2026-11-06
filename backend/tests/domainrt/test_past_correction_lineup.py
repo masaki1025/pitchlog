@@ -25,6 +25,11 @@ from pitchlog.domainrt.past_correction_lineup import (
 )
 from pitchlog.sync.first_ball_payload import FirstBallObservations
 from pitchlog.sync.ordinary_pitch_physical import pitch_physical_row
+from pitchlog.sync.past_correction_payload import (
+    PastCorrectionPayloadError,
+    bind_lineup_pitch_change_payload,
+    read_lineup_pitch_change_payload,
+)
 from pitchlog.sync.past_correction_physical import prepare_corrected_physical_pitches
 from pitchlog.sync.terminal_pitch_payload import (
     LineupPitchCalculation,
@@ -280,6 +285,68 @@ def test_v3_physical_candidate_uses_existing_mappers_and_new_row_ids() -> None:
             capsule_id=_CAPSULE,
             change_event_id=_CHANGE,
         )
+
+
+def _change_body(rows: tuple[SavedLineupPitch, ...], target: int) -> dict:
+    """実hostから得た現在headと対象identityを変更要求へ写す。"""
+    saved = rows[target - 1]
+    assert saved.payload is not None
+    assert rows[-1].payload is not None
+    return {
+        "formatVersion": "p3-lineup-pitch-change-v1",
+        "expectedPrefixRef": rows[-1]
+        .calculation.response.value.next_prefix_ref.model_dump(
+            mode="json", by_alias=True
+        ),
+        "targetEventId": str(saved.source_event_id),
+        "targetPlayId": saved.calculation.request.play_identity.play_id,
+        "originalResultId": saved.calculation.request.t1.result_id,
+        "replacementResultId": "batting-result.ball",
+        "replacementObservations": saved.payload.observations.model_dump(
+            mode="json", by_alias=True
+        ),
+    }
+
+
+def test_v3_change_payload_binds_real_target_and_current_head() -> None:
+    """対象2球目の明示変更が旧原本と現在headに一致した時だけ通す。"""
+    with _host() as host:
+        rows = _two_saved(host)
+    body = _change_body(rows, 2)
+    payload = read_lineup_pitch_change_payload(json.dumps(body))
+    bind_lineup_pitch_change_payload(
+        payload, rows, 2, rows[-1].calculation.response.value.next_prefix_ref
+    )
+    for field, changed in (
+        ("targetEventId", str(_CHANGE)),
+        ("originalResultId", "batting-result.ball"),
+    ):
+        forged = {**body, field: changed}
+        parsed = read_lineup_pitch_change_payload(json.dumps(forged))
+        with pytest.raises(PastCorrectionPayloadError):
+            bind_lineup_pitch_change_payload(
+                parsed, rows, 2, rows[-1].calculation.response.value.next_prefix_ref
+            )
+    stale_head = rows[0].calculation.response.value.next_prefix_ref
+    with pytest.raises(PastCorrectionPayloadError):
+        bind_lineup_pitch_change_payload(payload, rows, 2, stale_head)
+
+
+@pytest.mark.parametrize("malformed", ["duplicate", "unknown", "wrong-type"])
+def test_v3_change_payload_rejects_ambiguous_wire(malformed: str) -> None:
+    """重複key・未知member・数値化を本文で補修しない。"""
+    with _host() as host:
+        rows = _two_saved(host)
+    body = _change_body(rows, 1)
+    if malformed == "duplicate":
+        raw = json.dumps(body)[:-1] + ',"targetEventId":"' + str(_CHANGE) + '"}'
+    elif malformed == "unknown":
+        raw = json.dumps({**body, "future": True})
+    else:
+        body["expectedPrefixRef"]["length"] = 2
+        raw = json.dumps(body)
+    with pytest.raises(PastCorrectionPayloadError):
+        read_lineup_pitch_change_payload(raw)
 
 
 @pytest.mark.parametrize("target", [0, 3, True])
