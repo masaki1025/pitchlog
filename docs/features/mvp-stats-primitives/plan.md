@@ -548,3 +548,8 @@ trigger1型整理後の最終束縛（2026-11-07、PO委任Codex /root）: 実ba
 対象はe5b6fef5のrun42275253517で判明した検査資産の追随漏れ。製品計算・認可・原子性・core拒否条件は変更しない。実装ステップ4/5の資産整合範囲で、MC/DCのclaim map参照digestを公式git blob演算で実値へ更新し、既成立§6-1-cの成績3表をORM受入生成へ伝播する。生成器はTable宣言をモデル実行なしのASTで捕捉し、sync_fenceの参照を検証、schema逸脱と重複表名を拒否する。既判定は語/正本/実装が完全一致し変更stats3識別子に無関係な行だけ公式carry処理で保持し、同版重複keyの出現数が変わる群は全判定を失効させ、履歴4行を含む新規/変更12行を個別技術確認する。出現番号034、全件数107/129/68/108を現正本で固定する。人間確認済みを代記しない。
 
 rootの候補作成後、非作者へ前後差分・旧判定保持・3表/全列参照・対向試験を渡し、重大指摘解消後だけ採用する。関連pytest全件、Ruff/Tyと正式MC/DC CLIを実行し、最終source固定後に必要な7.7派生値だけ再導出、実CIを再確認する。この補足はPO委任の通常技術追随判断でありMVP縮小・既不変条件除外・CI失敗免除を含まない。
+
+
+### 公開操作/認可schemaの純検査追随（2026-11-07、PO委任root・step4/5）
+
+実CIで赤の `backend/tests/test_authz_app_layer_surface.py`、`test_authz_capability_registration.py`、`test_authz_product_database_schemas.py`、`test_authz_product_staging.py` と複製helper `test_authz_runtime_contract_repository.py` を追随する。既認証操作の全集合は保持し、採用済stats専用4moduleを別単位として固定、関数専用2capabilityをORM文token集合へ混ぜず別検査する。stats_apiの全field/ACLを独立literalへ追加し、既schema全値も完全一致を保持する。製品状態copyへ追加するのは実stats登録が実際に読む宣言/生成TSと依存sourceであり、生成検証をmockやpin置換で迂回しない。正式assetsは変更せず、差分の非作者確認後に採用する。

@@ -15,6 +15,7 @@ from typing import Any
 import pytest
 from test_authz_runtime_contract_repository import (
     PRODUCT_STATE_TEST_FILES,
+    _copy_stats_registration_inputs,
     copy_product_test_repository,
     product_spec_for_repository,
 )
@@ -137,6 +138,15 @@ def _copy_asset_to_spec_paths(
         package_destination / "authz",
         dirs_exist_ok=True,
     )
+
+    # authzの登録が実参照する生成器/SQL/事実と宣言を、無編集で供給する。
+    for package in ("domaingen", "exports/generated", "stats"):
+        shutil.copytree(
+            _REPOSITORY_ROOT / package_root / package,
+            package_destination / package,
+            dirs_exist_ok=True,
+        )
+    _copy_stats_registration_inputs(_REPOSITORY_ROOT, root)
 
 
 def test_product_spec_and_unfrozen_manifest_are_explicit() -> None:
