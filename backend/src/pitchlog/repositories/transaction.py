@@ -1570,9 +1570,7 @@ def _execute_port_command(handle, operation):
             accepted, reason = substitution_content_result(
                 handle, operation.event, operation.writer
             )
-            if type(accepted) is not bool or (
-                accepted and reason is not None
-            ):
+            if type(accepted) is not bool or (accepted and reason is not None):
                 raise TenantBindingError("交代内容の閉応答が不一致")
             return TenantOperationResult(((accepted, reason),))
         if phase is not None:

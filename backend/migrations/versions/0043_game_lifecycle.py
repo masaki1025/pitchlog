@@ -8,12 +8,12 @@ branch_labels = None
 depends_on = None
 
 _OPERATION_EVENT_13_CHECKS = {
-    'ck_operation_events_event_kind': (
+    "ck_operation_events_event_kind": (
         "event_kind IN ('play_input', 'undo', 'substitution', 'tiebreak_start',"
         " 'game_end_declaration', 'player_registration', 'play_change', 'play_d"
         "elete', 'substitution_change', 'game_reopen')"
     ),
-    'ck_operation_events_state_diff_by_kind': (
+    "ck_operation_events_state_diff_by_kind": (
         "(NOT (event_kind = 'play_input' AND NOT is_tombstone) OR (state_diff I"
         "S NOT NULL)) AND (NOT (event_kind = 'undo' AND NOT is_tombstone) OR (s"
         "tate_diff IS NULL)) AND (NOT (event_kind = 'substitution' AND NOT is_t"
@@ -22,20 +22,20 @@ _OPERATION_EVENT_13_CHECKS = {
         "nd = 'game_end_declaration' AND NOT is_tombstone) OR (state_diff IS NU"
         "LL)) AND (NOT (event_kind = 'player_registration' AND NOT is_tombstone"
         ") OR (state_diff IS NULL)) AND (NOT (event_kind = 'state_correction' A"
-        'ND NOT is_tombstone) OR (state_diff IS NOT NULL)) AND (NOT (is_tombsto'
+        "ND NOT is_tombstone) OR (state_diff IS NOT NULL)) AND (NOT (is_tombsto"
         "ne) OR (state_diff IS NULL)) AND (NOT (event_kind = 'play_change') OR "
         "(state_diff IS NULL)) AND (NOT (event_kind = 'play_delete') OR (state_"
         "diff IS NULL)) AND (NOT (event_kind = 'substitution_change') OR (state"
         "_diff IS NULL)) AND (NOT (event_kind = 'game_reopen' AND NOT is_tombst"
-        'one) OR (state_diff IS NULL))'
+        "one) OR (state_diff IS NULL))"
     ),
-    'ck_operation_events_tombstone': (
+    "ck_operation_events_tombstone": (
         "((NOT (event_kind = 'play_change') OR (NOT is_tombstone)) AND (NOT (ev"
         "ent_kind = 'play_delete') OR (NOT is_tombstone)) AND (NOT (event_kind "
         "= 'substitution_change') OR (NOT is_tombstone))) AND (NOT is_tombstone"
         " OR payload = '{}'::jsonb)"
     ),
-    'ck_operation_events_d2_by_kind': (
+    "ck_operation_events_d2_by_kind": (
         "(NOT (event_kind = 'play_input' AND NOT is_tombstone) OR (d2 IS NOT NU"
         "LL)) AND (NOT (event_kind = 'undo' AND NOT is_tombstone) OR (d2 IS NUL"
         "L)) AND (NOT (event_kind = 'substitution' AND NOT is_tombstone) OR (d2"
@@ -47,9 +47,9 @@ _OPERATION_EVENT_13_CHECKS = {
         "OR (d2 IS NULL)) AND (NOT (event_kind = 'play_delete') OR (d2 IS NULL)"
         ") AND (NOT (event_kind = 'substitution_change') OR (d2 IS NULL)) AND ("
         "NOT (event_kind = 'game_reopen' AND NOT is_tombstone) OR (d2 IS NOT NU"
-        'LL))'
+        "LL))"
     ),
-    'ck_operation_events_target_by_kind': (
+    "ck_operation_events_target_by_kind": (
         "(NOT (event_kind = 'undo' AND NOT is_tombstone) OR (target_generation "
         "IS NOT NULL AND target_d1 IS NOT NULL)) AND (NOT (event_kind = 'play_c"
         "hange') OR (target_generation IS NOT NULL AND target_d1 IS NOT NULL)) "
@@ -57,24 +57,24 @@ _OPERATION_EVENT_13_CHECKS = {
         "L AND target_d1 IS NOT NULL)) AND (NOT (event_kind = 'substitution_cha"
         "nge') OR (target_generation IS NOT NULL AND target_d1 IS NOT NULL)) AN"
         "D (NOT (event_kind = 'game_reopen' AND NOT is_tombstone) OR (target_ge"
-        'neration IS NULL AND target_d1 IS NULL))'
+        "neration IS NULL AND target_d1 IS NULL))"
     ),
-    'ck_operation_events_expected_version_by_kind': (
+    "ck_operation_events_expected_version_by_kind": (
         "(NOT (event_kind = 'play_input' AND NOT is_tombstone) OR (expected_ver"
         "sion IS NULL)) AND (NOT (event_kind = 'undo' AND NOT is_tombstone) OR "
         "(expected_version IS NULL)) AND (NOT (event_kind = 'substitution' AND "
-        'NOT is_tombstone) OR (expected_version IS NULL)) AND (NOT (event_kind '
+        "NOT is_tombstone) OR (expected_version IS NULL)) AND (NOT (event_kind "
         "= 'tiebreak_start' AND NOT is_tombstone) OR (expected_version IS NULL)"
         ") AND (NOT (event_kind = 'game_end_declaration' AND NOT is_tombstone) "
         "OR (expected_version IS NULL)) AND (NOT (event_kind = 'player_registra"
         "tion' AND NOT is_tombstone) OR (expected_version IS NULL)) AND (NOT (e"
         "vent_kind = 'state_correction' AND NOT is_tombstone) OR (expected_vers"
-        'ion IS NULL)) AND (NOT (is_tombstone) OR (expected_version IS NULL)) A'
+        "ion IS NULL)) AND (NOT (is_tombstone) OR (expected_version IS NULL)) A"
         "ND (NOT (event_kind = 'play_change') OR (expected_version IS NOT NULL)"
         ") AND (NOT (event_kind = 'play_delete') OR (expected_version IS NOT NU"
         "LL)) AND (NOT (event_kind = 'substitution_change') OR (expected_versio"
         "n IS NOT NULL)) AND (NOT (event_kind = 'game_reopen' AND NOT is_tombst"
-        'one) OR (expected_version IS NULL))'
+        "one) OR (expected_version IS NULL))"
     ),
 }
 

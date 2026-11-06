@@ -38,15 +38,15 @@ pytestmark = pytest.mark.requires_db
 def _v3_script():
     """既存v3作成実経路と終了再開実経路を同workerで接続する。"""
     script = _lineup_script()
-    old = '''        results = [
+    old = """        results = [
             "batting-result.called-pitch",
             "batting-result.called-pitch",
             "batting-result.called-strikeout",
-        ] * 3 + ["batting-result.ball"]'''
-    new = '''        results = [
+        ] * 3 + ["batting-result.ball"]"""
+    new = """        results = [
             "batting-result.called-pitch",
             "batting-result.called-pitch",
-        ]'''
+        ]"""
     assert script.count(old) == 1
     script = script.replace(old, new, 1)
     assert script.count("if index in (1, 9):") == 1
@@ -54,9 +54,9 @@ def _v3_script():
     start = _LIFECYCLE_SCRIPT.index("        import copy")
     end = _LIFECYCLE_SCRIPT.index("        current, _ = await read_full()", start)
     functions = _LIFECYCLE_SCRIPT[start:end]
-    marker = "        return {\n            \"game\": game,"
+    marker = '        return {\n            "game": game,'
     assert script.count(marker) == 1
-    flow = '''        current_lifecycle, _ = await read_full()
+    flow = """        current_lifecycle, _ = await read_full()
         assert current_lifecycle["lifecycle"]["lastVersion"] == "0"
         ended, _ = await lifecycle("end", current_lifecycle)
         assert ended["status"] == "finished"
@@ -67,7 +67,7 @@ def _v3_script():
         final, _ = await lifecycle("end", added)
         assert final["status"] == "finished"
         assert final["lifecycle"]["lastVersion"] == "2"
-'''
+"""
     return script.replace(marker, functions + flow + marker, 1)
 
 

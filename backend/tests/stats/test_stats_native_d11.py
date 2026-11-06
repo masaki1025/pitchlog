@@ -124,16 +124,12 @@ def test_d11_registration_and_all_legacy_current_normative_references():
 
 def test_d11_v3_keeps_every_historical_v2_expected_field():
     """旧v2の全期待を保存し、新v3はBF一欄だけを明示追加する。"""
-    old_alpha = runner.read_json(
-        ROOT, "contracts/stats/native_event_facts_d11_v2.json"
-    )
+    old_alpha = runner.read_json(ROOT, "contracts/stats/native_event_facts_d11_v2.json")
     old_beta = runner.read_json(
         ROOT, "contracts/stats/native_current_totals_d11_v2.json"
     )
     new_alpha = VECTORS
-    new_beta = runner.read_json(
-        ROOT, MANIFEST["calculations"][1]["vectors"][0]["path"]
-    )
+    new_beta = runner.read_json(ROOT, MANIFEST["calculations"][1]["vectors"][0]["path"])
     assert [case["caseId"] for case in old_alpha["cases"]] == [
         case["caseId"] for case in new_alpha["cases"]
     ]

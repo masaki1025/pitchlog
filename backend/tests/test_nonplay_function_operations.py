@@ -22,9 +22,9 @@ def test_exact_six_canonical_registry_and_real_renderer_abi():
     """旧registryの実objectを保持し、新6は同renderer ABIだけを指す。"""
     api._verify_renderer()
     assert len(api.NONPLAY_FUNCTION_OPERATIONS) == 7
-    assert {
-        row.function_id for row in api.NONPLAY_FUNCTION_OPERATIONS
-    } - {"sync_right_api.consume_nonplay_substitution"} == {
+    assert {row.function_id for row in api.NONPLAY_FUNCTION_OPERATIONS} - {
+        "sync_right_api.consume_nonplay_substitution"
+    } == {
         "sync_right_api." + name
         for name in (
             "bind_nonplay_device",

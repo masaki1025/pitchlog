@@ -53,9 +53,10 @@ def test_saved_pitch_context_keeps_substitution_and_matches_unique_artifact():
     assert after["substitutionState"] == _advance_substitution_after_pitch(
         restored, value, artifact
     )
-    assert after["substitutionState"]["exitedPlayerIds"] == restored[
-        "substitutionState"
-    ]["exitedPlayerIds"]
+    assert (
+        after["substitutionState"]["exitedPlayerIds"]
+        == restored["substitutionState"]["exitedPlayerIds"]
+    )
     assert after["current"] == value["t1"]["after"]
 
 

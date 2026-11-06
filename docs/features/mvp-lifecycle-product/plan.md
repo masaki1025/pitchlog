@@ -47,3 +47,11 @@ step3の実画面E2E追加（2026-11-06、PO委任Codex/root判断）: GameScree
 既step4の正式資産/独立確認/CI/通常統合準備の具体化に限り、repo/runtime候補原本・生成module、DB fixtureとnative登録試験の6競合をrootが直列解決する。既製品の認可・記録権・原子性・単一核と旧拒否対向を保持する。生成物は片側の完全byte選択または公式rendererから再導出し、手で生成moduleの値を作らない。旧候補payloadに残る未受理履歴を正式197受理へ読み替えず、次段の対象source固定と正式base確定後、公式helperで必要差分の完全前後値を導出し別非作者確認・委任受理を行う。
 
 この段階では申告敬遠/CSV/P3/復旧の後発実装を一括移植しない。各専用枝/証拠/編集所有を保持し、現在候補の開始・通常入力・取消・交代・終了再開の供給を197修復で失わないことを局所検査する。rootの統合準備をMVP完成や正式提供としない。
+
+
+接合検査の追補（2026-11-07、PO委任Codex/root判断）: 922e3d36で局所77件中8fail/69pass。旧22登録へ実追加verify_replay_deviceを含めた23を旧SHAと比較した1件、cold importの旧42件期待4件、後続終了再開のgames.status列ACL拡張後にPR197導入時点を再検査した3件を区別する。製品importは実43登録で成功。旧22全値/順序/SQL/型と旧導入時点の歴史試験を保持し、後発replay1登録・statusの限定SELECT/UPDATEを別に全値検査する。任意のsuperset/skipで通さない。必要な専用historical fixtureは固定Git原典と全byteに束縛し、現在値を自己期待にしない。現fixture15fileの書式追随はAST全一致を実測して同単位へ含める。製品意味・認可の一般緩和はせず、同候補の非作者確認と正式資産/全CIを別途必要とする。
+
+
+922接合検査の是正結果: 後継入力 `backend/tests/fixtures/nonplay_product_successors_v1.json` は既固定60f39f10を1値だけ保持し、重複key/型/余剰/非正準/シンボリックリンクを拒否する。旧a59原典の全宣言・323本文・29関数詳細/guardの旧検査を固定Gitの実moduleで実行し、現在木にも全旧値を比較する。許す差分は既取消で必要なplay_rows.hidden_at列ACL1と既NPのprepare/finish/runner guard3本文のみ、後継の完全byteへ束縛しowner/属性の変更は許さない。成績接合のgames.status ACLだけは既終了再開のSELECT/UPDATE完全値に対応する。旧22登録は元pinと一致、追加replay1は既製品registrationそのものへ束縛し、実cold import43を検査する。
+
+局所4suiteは85passed、backend791file書式・Ruff/Ty成功。初回8fail、JSON tuple/listの表現差、fixture展開に非依存snapshot保全庫まで含めた容量拒否などはcacheの失敗ログに保存し、検出を黙ってskipしていない。fixture展開は元検査/producerの依存入力のみで、正式凍結検査の走査対象は変更しない。**新後継fixtureは次PRのfrozen-inputs external_filesへ正式登録・完全値受理が必要。未登録のまま通常統合しない。** この追補とsourceは候補で、非作者レビュー/正式9資産/必須全件CI/通常mergeはまだ。

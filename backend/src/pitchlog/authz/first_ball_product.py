@@ -2076,8 +2076,7 @@ def _activate_basic_stats_profile() -> None:
             if body_key in BODIES:
                 raise ValueError("基本成績readの本文が既本文と衝突")
             BODIES[body_key] = (
-                f"-- ELEMENT-TYPE: {kind}\n-- ELEMENT-ID: {key}\n\n"
-                + bodies[body_key]
+                f"-- ELEMENT-TYPE: {kind}\n-- ELEMENT-ID: {key}\n\n" + bodies[body_key]
             )
 
 

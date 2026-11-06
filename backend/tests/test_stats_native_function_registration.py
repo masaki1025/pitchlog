@@ -66,8 +66,19 @@ def test_existing_registrations_keep_order_sql_types_decoder_and_values():
     start = registry.PRODUCT_FUNCTION_OPERATIONS.index(
         api.STATS_NATIVE_FUNCTION_OPERATIONS[0]
     )
-    old = registry.PRODUCT_FUNCTION_OPERATIONS[:start]
-    assert len(old) == 23
+    prefix = registry.PRODUCT_FUNCTION_OPERATIONS[:start]
+    replay = tuple(
+        row
+        for row in prefix
+        if row.operation_id == "SYNC_FIRST_BALL:verify_replay_device"
+    )
+    assert len(prefix) == 23 and len(replay) == 1
+    from pitchlog.repositories.first_ball import REPLAY_DEVICE_VERIFY_OPERATION
+
+    assert replay[0] is REPLAY_DEVICE_VERIFY_OPERATION
+    assert replay[0].operation_id == "SYNC_FIRST_BALL:verify_replay_device"
+    old = tuple(row for row in prefix if row is not replay[0])
+    assert len(old) == 22
     raw = (
         json.dumps(
             [_descriptor(r) for r in old],
@@ -259,7 +270,7 @@ def test_real_cold_import_orders_and_same_runtime_type(first):
             f"from pitchlog.repositories import {first}; "
             "from pitchlog.repositories import transaction, operation_registry, "
             "play_export_primitives; "
-            "assert len(operation_registry.PRODUCT_FUNCTION_OPERATIONS)==42",
+            "assert len(operation_registry.PRODUCT_FUNCTION_OPERATIONS)==43",
         ],
         env=os.environ.copy(),
         capture_output=True,

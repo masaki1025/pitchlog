@@ -230,14 +230,13 @@ def test_bf_quantity_mutation_is_killed_by_independent_d11_expectation():
     vector = json.loads(
         (ROOT / "contracts/stats/native_event_facts_d11_v3.json").read_text()
     )
-    case = next(
-        item for item in vector["cases"] if item["caseId"].endswith("-walk")
-    )
+    case = next(item for item in vector["cases"] if item["caseId"].endswith("-walk"))
     expected = case["expected"]["expected"]["metrics"]["batters_faced"]
     assert expected["state"] == "available" and expected["value"] == "1"
-    assert api["_pitchlog_generated"](case["request"])["metrics"][
-        "batters_faced"
-    ]["value"] != expected["value"]
+    assert (
+        api["_pitchlog_generated"](case["request"])["metrics"]["batters_faced"]["value"]
+        != expected["value"]
+    )
 
 
 def test_typed_model_schema_and_property_catalog_are_closed():

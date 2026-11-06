@@ -34,9 +34,7 @@ _ROOT = Path(__file__).parents[4]
 _V2_MODEL_SHA256 = (
     "sha256:60ab45878fdfc868efc15ddb0f9b84d6ab0f3583519c48a2202e3d9c3abac59d"
 )
-_V2_PROFILE_SHA256 = (
-    "b04fa3633dce29902c2484ce2e0f028bc27eae04a06426190947baa6feddc8c6"
-)
+_V2_PROFILE_SHA256 = "b04fa3633dce29902c2484ce2e0f028bc27eae04a06426190947baa6feddc8c6"
 _HISTORICAL_METRIC_IDS = tuple(
     metric for metric in METRIC_IDS if metric != "batters_faced"
 )
