@@ -525,3 +525,8 @@ core6f17の同時変更回復は別WT fix/pr197-identical-definition-recovery（
 ### CI追随の限定追加（2026-11-07、PO委任によるCodex /root判断）
 
 step4の既検査追随へ `tests/domain/test_vocabulary_schema.py`、`contracts/authz/failure-injection-points.json`、`contracts/authz/shared-preconditions.json` を追加する。確定済み成績正本の登板数/BF/OPSの表示行追加による付録A母集合33→36を、追加の実名とA-2/A-3内訳まで照合する。後二資産は元の失敗注入点・共有前提全値を保持して参照元Git blob digestだけを公式 `git_blob_digest` で再導出し、全構造/原文抽出/負例検査を実施する。入力更新を根拠とする追随であり、機械検査や拒否条件の除外ではない。trigger1証拠は旧本人判断を代記せず、真正な委任による再確認の記録方法と独立レビューを別途整えるまで未成立として残す。
+
+
+### trigger1のMVP限定委任再確認（2026-11-07、PO委任Codex /root起案）
+
+旧`review-trigger-evidence.json`のtrigger1本人記録は全値保持する。今回のPR197についてのみ、別の`delegatedReconfirmation`を追加できる最小手続きを実装する。対象exact3は `backend/src/pitchlog/domaincheck/trigger_evaluation.py`、`backend/domain/review-trigger-evidence.json`、`tests/domain/test_review_triggers_complete.py`、非作者結果の新1 `docs/features/mvp-stats-primitives/trigger1-delegated-review.json`。元trigger1記録とpolicyを既独立固定2faのGit原本へ全byte束縛し、対象PR/branch/委任元・判定者・日付・原本からの証拠差・現source版/byte・非作者レビューの実固定結果を要求する。他trigger/PO本人欄の上書き・未知key・欠証拠/版不一致/未解消P0/P1を拒否する。旧記録のdigestを現値へ書き換えて本人確認済みと偽らない。候補sourceを非作者へ渡し、反映/正式派生/最終公開HEAD証拠は別に確認する。MVP限定の既委任を表現するための追加であり、全般の人間承認統制を改めない。
