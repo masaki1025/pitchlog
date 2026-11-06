@@ -1,5 +1,12 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 2026-11-06 23:20 JST：交代・成績の同版接合と断中復帰の指摘是正
+
+- **交代/成績の固定候補**: feature/mvp-substitution-stats-connection はLC afd74ea9起点。交代最終94path（patch7c8367e0…/manifest245bbd62…）を3wayで9a8afb38へ、stats作者7fbc5c4eを通常mergeして043591c37ddf833553300f36d04940bb40b452e1へ固定。B5/LC/C2/静的shellの後発差分を保持。生成4競合は公式ADDITIONS/BODIES+runtime helperから958 entryを再派生、validate/runtime/body照合成功。backend168/FE57/型、stats関連初回613成功29失敗→NP fixtureのexclude_unset追随後当該170成功。数学期待/拒否条件は不変。
+- **owned実測の停止点**: substitution-stats-http-r1は043591c3・source前後同一、HTTP前の初期0038 fixtureでfullprofile report.ok=false、共通初期化3error/cleanup済み（root session16140はterminal1）。交代後次球・27項目/API/CSVの実成功とはしない。stats作者が別fix WTで違反ID/段階配置を診断、初期歴史fixtureの基線を勝手に最新化/検査緩和しない。
+- **断中復帰の是正**: local candidate f046cea8（E2E準備追補02ff07a5）。非作者5dのsource P1=2（同水位別head上書き/online flagだけでhealth省略）、7796のUI P1=2（ACK後unmountで自動同期停止/同URL再接続無効）を同周修復。head全値照合、毎回publichealth、ACK後同game/D4/tenant/epochの子をsuspendedで停止保持、force:true+有限queryで再接続。旧否決を可決へ読み替えず別非作者再レビュー中。root4suite68/型/lint、作者UI+親66/型成功。HTTP認証はverified:falseのまま、未送信本文/D5/attemptをstrict保持。
+- **次の実測**: offline-cold-recording-r1を同固定02ff07a5で実行中（root session38311、再開時は同handle/result確認）。production build/preview+SWで完全断中cold reload→端末内2球→再reload→真正session/C2復帰→同本文/同attempt順序再送→実GET/DBを検査。共通owned lock全寿命・DSN unset・module source preflight、現時点未実証。全FE検査も別logへ開始（source編集せず）。通常9回163球の既実証と、一般操作/全MVP/正式統合/性能・実機未完を分離する。
+
 ## 2026-11-06 22:54 JST：通常9回163球の画面記録・終了・再読込を実証
 
 - **新たに完了できた操作**: 同一候補・同一owned環境で実画面の新規作成→9回制開始→先攻本塁打1球＋両軍27三振ずつ（計163球/18half）→終了宣言v1→reloadを実施。途中82球後のreloadも通過。通常9回の狭いシナリオであり、全操作・全MVP完成とはしない。
