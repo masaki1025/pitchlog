@@ -213,7 +213,9 @@ test('実画面の新規作成→開始→2球→ACK喪失/reload/同要求再�
             }
           }),
           http: response?.status() ?? null,
-          status: await page.getByTestId('first-ball-status').textContent(),
+          status: await page
+            .getByTestId('first-ball-status')
+            .evaluateAll((elements) => elements[0]?.textContent ?? 'unmounted'),
         }),
     )
     expect(response).not.toBeNull()
