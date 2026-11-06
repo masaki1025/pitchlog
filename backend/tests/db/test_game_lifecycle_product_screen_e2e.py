@@ -56,10 +56,6 @@ def test_screen_create_end_reopen_append_reend_reload(vertical_database):
                     "PITCHLOG_E2E_HOME_TEAM": str(teams[1]),
                 },
             )
-            assert result.returncode == 0, (
-                result.stdout[-12000:],
-                result.stderr[-2000:],
-            )
     lines = re.findall(r"PITCHLOG_LIFECYCLE_FINAL=(\{[^\n]+\})", result.stdout)
     assert len(lines) == 1
     observed = json.loads(lines[0])
@@ -96,3 +92,22 @@ def test_screen_create_end_reopen_append_reend_reload(vertical_database):
             "game_end_declaration",
         )
     ]
+
+    # 画面の機能完走と保存原本照合を、最後の性能判定失敗でも観測する。
+    print(
+        "PITCHLOG_LIFECYCLE_DB_FINAL="
+        + json.dumps(
+            {
+                "status": final[0][0],
+                "version": final[0][1],
+                "completionState": final[0][3],
+                "sourceCount": final[0][5],
+                "acceptedEventCount": len(events),
+                "syncDurationsMs": observed["syncDurationsMs"],
+            }
+        )
+    )
+    assert result.returncode == 0, (
+        result.stdout[-12000:],
+        result.stderr[-2000:],
+    )

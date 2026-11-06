@@ -398,8 +398,7 @@ test('実画面の新規作成→開始→1球→終了→再開→2球→再終
     '2',
   )
   expect(requests).toHaveLength(6)
-  // 初回投球の性能判定は機能待機とは独立して維持する。
-  expect(syncDurationsMs.every((elapsed) => elapsed <= 5000)).toBe(true)
+  // 性能失敗でも機能到達点と実時間を診断できるよう、判定前に観測値を固定する。
   console.log(
     'PITCHLOG_LIFECYCLE_FINAL=' +
       JSON.stringify({
@@ -407,6 +406,9 @@ test('実画面の新規作成→開始→1球→終了→再開→2球→再終
         requests: requests.length,
         balls: 3,
         version: 2,
+        syncDurationsMs,
       }),
   )
+  // 5秒条件は維持し、機能成功だけで試験全体を緑にしない。
+  expect(syncDurationsMs.every((elapsed) => elapsed <= 5000)).toBe(true)
 })
