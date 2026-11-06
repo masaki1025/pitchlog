@@ -85,7 +85,11 @@ def _metrics(payload: object) -> dict[str, dict[str, Any]]:
                 raise ValueError("不足metricに値があります")
             result[metric_id] = {"state": "source_unavailable", "value": None}
         else:
-            if type(value) is not str or re.fullmatch(r"0|[1-9][0-9]*", value) is None:
+            if (
+                type(value) is not str
+                or len(value) > 10000
+                or re.fullmatch(r"0|[1-9][0-9]*", value) is None
+            ):
                 raise ValueError("成績metricの値が非正準です")
             result[metric_id] = {"state": "available", "value": int(value)}
     return result
