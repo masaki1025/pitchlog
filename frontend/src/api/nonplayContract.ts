@@ -1,4 +1,5 @@
 /** 既閉契約の形だけを読む。計算・原本資格・保存成功を導出しない。 */
+import lifecycle from '../../../contracts/state-transition/game_lifecycle_schema_v1.json'
 import nonplay from '../../../contracts/state-transition/nonplay_prefix_bridge_schema_v1.json'
 import undo from '../../../contracts/state-transition/undo_schema_v1.json'
 import lineup from '../../../contracts/state-transition/lineup_play_prefix_schema_v1.json'
@@ -29,12 +30,14 @@ type Rule = {
   pattern?: string
 }
 const schemas = {
+  game_lifecycle_schema_v1: lifecycle,
   nonplay_prefix_bridge_schema_v1: nonplay,
   undo_schema_v1: undo,
   lineup_play_prefix_schema_v1: lineup,
   lineup_play_prefix_payload_schema_v1: payload,
 } as unknown as Record<string, Rule>
 export type NonplaySchema =
+  | 'game_lifecycle_schema_v1'
   | 'nonplay_prefix_bridge_schema_v1'
   | 'undo_schema_v1'
   | 'lineup_play_prefix_schema_v1'
