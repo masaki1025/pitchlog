@@ -39,3 +39,7 @@ plan b75adacfの非作者REPORT fcc707cb…の3 P1を採用し、実装条件を
 - 再接続は許可済みrecording queryだけを使い、router.replace force:trueで同じURLでも毎回guardを再実行する。reconnect=1を認証戻り先へ追加しない。実VueRouterで2回押下のguard2増分・query有限を固定。
 
 root対象4suite68件・型成功、元作者UI/親66件・型成功。これらはmock/IDB単体で実認証/PG/完全断中ブラウザの証明ではない。67264062にはproduction build/preview/SWを使うowned E2E source準備があり、実行・最終非作者再確認・正式受理は未了。ソース固定後に実測し、NP/LCqueued/開始ACK直後GET前断の未充足は維持する。
+
+## 全体表示ゲートの接合追補（2026-11-06、PO委任Codex/root）
+
+r2は実create/start/C2 cap/語彙とSW制御まで進み、cold画面非表示で停止。source確認でApp.vueがauth=falseの全protected routeを描画せずloginへ戻すため、routerだけのlocal資格接合では成立しないと判明。App.vueを編集範囲へ最小追加する。router内private WeakMap/shallowRefで保持する真正brand付き・同fullPath/game-record/current scopeだけをAppへread-only公開する。protectedReady/authStore/server sessionは変更せず、local専用branchの表示だけ許可し他protected画面へ流用しない。同localから再接続中は内容を隠してguardの真正認証結果を待つ。失効/別scope/取得失敗は既loginへ。3 App/実Router境界を追加し既routerと58件通過、型成功。r3の別停止はlogin POST未発行であり、このApp修復の成功証拠とはしない。後発source再レビューと実画面は未了。
