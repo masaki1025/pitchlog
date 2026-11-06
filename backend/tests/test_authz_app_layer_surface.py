@@ -43,6 +43,10 @@ _OTHER_AUTHZ_MODULES = frozenset(
     {
         "authz",
         "authz.asset_spec",
+        "authz.function_result_type",
+        "authz.stats_primitive_product",
+        "authz.stats_primitive_sql",
+        "authz.stats_primitive_write_state",
         "authz.capability_catalog",
         "authz.capability_registration",
         "authz.catalog",

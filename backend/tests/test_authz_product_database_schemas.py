@@ -114,6 +114,33 @@ _EXPECTED_FIRST_BALL_SCHEMAS = [
     },
 ]
 
+# PR197正式stats_apiの全fieldを独立固定し、任意ACL追加を拒否する。
+_EXPECTED_STATS_SCHEMA = {
+    "schema_id": "stats_api",
+    "schema_name": "stats_api",
+    "creation": "product_ddl",
+    "owner": "pitchlog_owner",
+    "ownership_path": "direct",
+    "acl_expectations": [
+        {"grantee": "pitchlog_app", "privilege": "USAGE", "grantable": False},
+        {
+            "grantee": "pitchlog_sync_right_fn_owner",
+            "privilege": "USAGE",
+            "grantable": False,
+        },
+    ],
+    "revoked_acl_expectations": [
+        {"grantee": "PUBLIC", "privilege": "USAGE", "grantable": False},
+        {"grantee": "PUBLIC", "privilege": "CREATE", "grantable": False},
+        {"grantee": "pitchlog_app", "privilege": "CREATE", "grantable": False},
+        {
+            "grantee": "pitchlog_sync_right_fn_owner",
+            "privilege": "CREATE",
+            "grantable": False,
+        },
+    ],
+}
+
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 _BODY_CHECKER = _REPOSITORY_ROOT / "scripts/check_authz_function_bodies.py"
 _CATALOG_CHECKER = _REPOSITORY_ROOT / "scripts/check_authz_catalog.py"
@@ -441,7 +468,7 @@ def test_product_database_and_schema_assets_match_design() -> None:
     assert (
         isinstance(schemas, list)
         and len(schemas)
-        == len(_EXPECTED_SCHEMAS) + 2 + len(_EXPECTED_FIRST_BALL_SCHEMAS) + 1
+        == len(_EXPECTED_SCHEMAS) + 2 + len(_EXPECTED_FIRST_BALL_SCHEMAS) + 2
     )
     assert _normalized_object(databases[0], "database_id") == _EXPECTED_DATABASE
     normalized = {
@@ -453,6 +480,7 @@ def test_product_database_and_schema_assets_match_design() -> None:
         "authn",
         "authn_crypto",
         "recording_vocab_api",
+        "stats_api",
         *(row["schema_id"] for row in _EXPECTED_FIRST_BALL_SCHEMAS),
     }
     assert [
@@ -462,6 +490,9 @@ def test_product_database_and_schema_assets_match_design() -> None:
     ] == _EXPECTED_FIRST_BALL_SCHEMAS
     assert [row for row in schemas if row["schema_id"] == "recording_vocab_api"] == [
         _EXPECTED_RECORDING_VOCAB_SCHEMA
+    ]
+    assert [row for row in schemas if row["schema_id"] == "stats_api"] == [
+        _EXPECTED_STATS_SCHEMA
     ]
     assert normalized["authn"]["owner"] == "pitchlog_owner"
     assert normalized["authn"]["acl_expectations"] == {

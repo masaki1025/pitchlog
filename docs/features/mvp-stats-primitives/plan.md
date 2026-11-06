@@ -568,3 +568,8 @@ R-9の型境界検査が、採用済D05の分母0未定義値と旧移行フィ�
 反映7周目の対向追補: 非作者が指摘した新stats3 uniqueの負例被覆不足を閉じる。`backend/tests/test_product_authz_tenant_owned_cases.py` の旧6件を残し、新3件それぞれで columns/source_row/roles/predicate の改変を拒否する全36対向へ拡張する。旧行数/対象外集合の全一致も維持する。
 
 反映8周目: 非作者P1のprivate許可表間移設反例を修復。9制約の名称→所属tableを独立literalで固定し、row全fieldに加えて対応も完全一致を要求する。新旧9件それぞれを他の許可表4つへ移す全36負例を追加する。元05bbeの失敗反例はcacheへ保持し、修復版の再レビュー前に採用しない。
+
+
+### 公開操作/認可schemaの純検査追随（2026-11-07、PO委任root・step4/5）
+
+実CIで赤の `backend/tests/test_authz_app_layer_surface.py`、`test_authz_capability_registration.py`、`test_authz_product_database_schemas.py`、`test_authz_product_staging.py` と複製helper `test_authz_runtime_contract_repository.py` を追随する。既認証操作の全集合は保持し、採用済stats専用4moduleを別単位として固定、関数専用2capabilityをORM文token集合へ混ぜず別検査する。stats_apiの全field/ACLを独立literalへ追加し、既schema全値も完全一致を保持する。製品状態copyへ追加するのは実stats登録が実際に読む宣言/生成TSと依存sourceであり、生成検証をmockやpin置換で迂回しない。正式assetsは変更せず、差分の非作者確認後に採用する。
