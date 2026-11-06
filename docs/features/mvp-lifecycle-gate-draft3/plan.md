@@ -4,7 +4,7 @@ status: in-review
 branch: feature/mvp-lifecycle-product-connection
 承認: 未
 計画レビュー周回: 0
-確定ゲート周回: 0
+確定ゲート周回: 1
 ---
 
 # 終了・追記再開の最小7.3確定ゲート案
