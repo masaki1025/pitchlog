@@ -113,22 +113,13 @@ test('実画面の新規作成→開始→1球→終了→再開→2球→再終
         if (value === null || typeof value !== 'object') return
         const row = value as Record<string, unknown>
         const validation = await page.evaluate(async (packet) => {
-          const lifecycleUrl = '/src/api/gameLifecycle.ts'
-          const nativeUrl = '/src/api/nativeUndoGame.ts'
-          const life = await import(lifecycleUrl)
-          const native = await import(nativeUrl)
-          const { status, lifecycle, ...prefix } = packet as Record<
-            string,
-            unknown
-          >
-          return {
-            full: life.isGameLifecycleGame(packet),
-            metadata: life.isGameLifecycleMeta(lifecycle, status),
-            prefix: native.isNativeUndoGame({
-              ...prefix,
-              status: 'in_progress',
-            }),
-          }
+          document.dispatchEvent(
+            new CustomEvent('pitchlog-lifecycle-dto-probe', { detail: packet }),
+          )
+          const text = document.getElementById(
+            'pitchlog-lifecycle-dto-probe',
+          )?.textContent
+          return text ? (JSON.parse(text) as unknown) : null
         }, value)
         const meta =
           row.lifecycle !== null && typeof row.lifecycle === 'object'
@@ -156,6 +147,10 @@ test('実画面の新規作成→開始→1球→終了→再開→2球→再終
   if (new URL(baseURL!).protocol !== 'https:')
     throw new Error('実HTTPSが必要です')
   await login(page)
+  await page.addScriptTag({
+    type: 'module',
+    url: '/src/screens/GameScreenLifecycleProduct.e2e-probe.ts',
+  })
   await page.getByRole('button', { name: '新規作成', exact: true }).click()
   const form = page.getByRole('region', {
     name: '試合の新規作成',
