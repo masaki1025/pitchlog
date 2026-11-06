@@ -100,6 +100,54 @@ test('実画面の新規作成→開始→1球→終了→再開→2球→再終
           }),
       )
   })
+  page.on('response', (response) => {
+    const url = new URL(response.url())
+    if (
+      url.searchParams.get('projection') !== 'lifecycle-prefix-v1' ||
+      response.status() !== 200
+    )
+      return
+    void response
+      .json()
+      .then(async (value: unknown) => {
+        if (value === null || typeof value !== 'object') return
+        const row = value as Record<string, unknown>
+        const validation = await page.evaluate(async (packet) => {
+          const lifecycleUrl = '/src/api/gameLifecycle.ts'
+          const nativeUrl = '/src/api/nativeUndoGame.ts'
+          const life = await import(lifecycleUrl)
+          const native = await import(nativeUrl)
+          const { status, lifecycle, ...prefix } = packet as Record<
+            string,
+            unknown
+          >
+          return {
+            full: life.isGameLifecycleGame(packet),
+            metadata: life.isGameLifecycleMeta(lifecycle, status),
+            prefix: native.isNativeUndoGame({
+              ...prefix,
+              status: 'in_progress',
+            }),
+          }
+        }, value)
+        const meta =
+          row.lifecycle !== null && typeof row.lifecycle === 'object'
+            ? (row.lifecycle as Record<string, unknown>)
+            : {}
+        console.log(
+          'PITCHLOG_LIFECYCLE_DTO=' +
+            JSON.stringify({
+              readKind: row.read_kind,
+              profile: row.profile,
+              status: row.status,
+              lastVersion: meta.lastVersion,
+              format: meta.formatVersion,
+              validation,
+            }),
+        )
+      })
+      .catch(() => console.log('PITCHLOG_LIFECYCLE_DTO=unavailable'))
+  })
   page.on('console', (message) => {
     if (message.text().startsWith('PITCHLOG_LIFECYCLE_CLIENT_STAGE='))
       console.log(message.text())
@@ -286,9 +334,27 @@ test('実画面の新規作成→開始→1球→終了→再開→2球→再終
     expect(response.status()).toBe(200)
     const ack = await response.json()
     expect(ack.eventResults?.[0]?.a5Result).toBe('受理')
-    await expect(
-      lifecycle.getByTestId('lifecycle-confirmed-status'),
-    ).toHaveText(expectedStatus, { timeout: 30_000 })
+    try {
+      await expect(
+        lifecycle.getByTestId('lifecycle-confirmed-status'),
+      ).toHaveText(expectedStatus, { timeout: 30_000 })
+    } catch (error) {
+      const diagnostics: Record<string, string | null> = {}
+      for (const name of [
+        'status',
+        'confirmed-status',
+        'last-version',
+        'failure',
+        'blocked-reason',
+        'save-ack',
+        'refresh-state',
+      ])
+        diagnostics[name] = await lifecycle
+          .getByTestId(`lifecycle-${name}`)
+          .evaluateAll((elements) => elements[0]?.textContent ?? null)
+      console.log('PITCHLOG_LIFECYCLE_VIEW=' + JSON.stringify(diagnostics))
+      throw error
+    }
   }
   await lifecycleOperation('end', '終了')
   await expect(lifecycle.getByTestId('lifecycle-last-version')).toContainText(
