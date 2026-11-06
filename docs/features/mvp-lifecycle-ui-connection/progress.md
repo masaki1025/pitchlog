@@ -13,8 +13,8 @@
 - ステップ1: `e0717de2`（閉union V7＋読取transport＋plan）
 - ステップ2: `c381219d`（実writer・断中base・依存順controller）
 - ステップ3: `b98909f8`（パネル・断中E2E・不可視fixture）
-- ステップ4: 本progressを含むdocs commit（branch tip。`git log -1` で固定）
-- コードHEAD（progressを除く）: `b98909f8`
+- ステップ4: `28ac0390`（本progress）＋`da72922a`（確定済み終了の再開対象/prefix連続性のfix）
+- コードHEAD: `da72922a`（branch tip。`git log -1` で固定）
 
 ## レビュー指摘への実装
 
@@ -51,7 +51,7 @@ mock ACK/IndexedDBの成功は実認可・実PG・実HTTP・実画面の成功�
 ```
 e37f2b566b22c287986a570e5b704ebe686cba4e5077f45f8c6fd3c2f76bf2bd  frontend/src/api/gameLifecycle.ts
 ff5565963ffae47fd54a4d8ecae0c8dfae34304cc697c0fedb39be4b1445770b  frontend/src/api/gameLifecycle.spec.ts
-e5ea0399468ab6cb2a6bee8523b1bed3c65145520b0f1d4c30e7bf62df31892f  frontend/src/screens/gameLifecycleController.ts
+5f6e8f42adbd8e6f405a95dd1fa2d064b870e09aa4110b18db78d12ecd71bde2  frontend/src/screens/gameLifecycleController.ts
 bbac9a18a2decf804e4d670ac93bad7aabe762f1cd01518f47170b39ab4fdb77  frontend/src/screens/gameLifecycleController.spec.ts
 5909afbdffc0298371b9724c48f5d901cde1c6ebc71c91cd02c1696e180245ba  frontend/src/screens/GameScreenLifecyclePanel.vue
 d2041b5c7ced458f3ce696c8ae1cf887f88c8dcc319fbba2a972f7999e8cfa6c  frontend/src/screens/GameScreenLifecycle.e2e.ts
