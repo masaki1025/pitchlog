@@ -774,6 +774,7 @@ export async function postGameLifecycleRequestBody(
       'POST',
       `/games/${encodeURIComponent(gameId)}/sync/events`,
       {
+        tenantBound: true,
         body,
         ...(credentials === undefined ? {} : { syncCredentials: credentials }),
       },

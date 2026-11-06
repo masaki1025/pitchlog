@@ -35,3 +35,6 @@ step3の実画面E2E追加（2026-11-06、PO委任Codex/root判断）: GameScree
 
 
 単一artifact再束縛（2026-11-06、PO委任Codex/root判断）: root合成source9805045fをcache作者が公式builderで生成し、唯一artifact9ae9d16db1f2fa48905eb0ac951c8cb3ce5704dfe308df95a7a0bba155f33d19へ接合。patch55abded5a39fea258876884ea99d5b3c66efa7d10b89d00dc635d8b3be8c695dの22pathを全before/after SHA照合し採用候補とする。旧数学D11 134＋prefix19、旧Git4e8の53witnessを新hostと全値比較し、数学期待を採取し直していない。7manifest/識別値/lineup digest/有限v2witnessを公式派生、authz547body全byte一致・checker/限定33成功は作者証拠。正式7.7/最終非作者確認/全CI/同版実画面は未了、旧NP CPと未掲載候補artifactの互換は自動拡張しない。
+
+
+合成実画面r1: 同版94baでUI新規作成→開始→1球保存は通過、終了POST404で停止。同期C2登録へLC transportのPOSTだけtenantBoundが追随せず期待tenant/challengeを送っていないと特定。GET/通常球/取消と同じtenantBound:trueをLC POSTへ加え、原body/attempt不変を既API spec完全一致期待でも固定する。API-only候補成功を画面完走へ広げない。

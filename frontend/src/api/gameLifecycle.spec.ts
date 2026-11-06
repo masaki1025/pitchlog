@@ -598,6 +598,7 @@ describe('lifecycle wire rewrite', () => {
       'POST',
       `/games/${gameId}/sync/events`,
       {
+        tenantBound: true,
         body: built.body,
         syncCredentials: {
           deviceId: tenant,
