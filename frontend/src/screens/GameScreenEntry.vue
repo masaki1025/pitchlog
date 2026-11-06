@@ -195,7 +195,12 @@ function returnToPriorPage(): void {
             <RouterLink
               :to="{ name: 'game-record', params: { gameId: game.gameId } }"
               class="inline-block min-h-11 rounded-lg border px-3 py-2 underline"
-              >閲覧画面へ</RouterLink
+              >記録画面へ</RouterLink
+            >
+            <RouterLink
+              :to="{ name: 'game-viewer', params: { gameId: game.gameId } }"
+              class="inline-block min-h-11 rounded-lg border px-3 py-2 underline"
+              >ライブ閲覧へ</RouterLink
             >
             <button
               type="button"

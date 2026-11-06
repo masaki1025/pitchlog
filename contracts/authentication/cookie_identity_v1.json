@@ -8,6 +8,16 @@
       "path": "/vocabularies/batted-balls"
     },
     {
+      "operationId": "game_viewer_head",
+      "method": "GET",
+      "path": "/games/{game_id}/viewer-head"
+    },
+    {
+      "operationId": "game_viewer_saved",
+      "method": "GET",
+      "path": "/games/{game_id}/viewer"
+    },
+    {
       "operationId": "initial_device_enroll",
       "method": "POST",
       "path": "/devices/enroll"

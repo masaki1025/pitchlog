@@ -183,6 +183,15 @@ describe('登録済みrouteと認証境界', () => {
     expect(router.currentRoute.value.query.redirect).toBe(expected)
   })
 
+  it('閲覧URLだけを認証後戻り先として保持し、追加queryを拒否する', () => {
+    expect(resolveGameEntryReturnPath(`/games/${gameId}/view`)).toBe(
+      `/games/${gameId}/view`,
+    )
+    for (const suffix of ['?x=1', '#part', '/..'])
+      expect(resolveGameEntryReturnPath(`/games/${gameId}/view${suffix}`)).toBe(
+        '/team',
+      )
+  })
   it.each(['ordinary-prefix-v1', 'play-prefix-v2', 'play-prefix-v3'])(
     '認証不確実時も有限な%s入口だけを保持し保護画面は描画しない',
     async (mode) => {

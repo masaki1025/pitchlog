@@ -3,6 +3,7 @@
 import re
 
 from pitchlog.authz.terminal_pitch_write_stamp import candidate_function_bodies
+from pitchlog.authz.viewer_read_sql import candidate_viewer_function_bodies
 
 OWNER = "pitchlog_sync_right_fn_owner"
 FUNCTIONS = {
@@ -22,6 +23,12 @@ FUNCTIONS = {
         True,
     ),
     "read_play_prefix_history_page": (
+        "uuid, uuid, bigint, bigint, uuid, bigint, bigint, bigin"
+        "t, bigint, bigint, uuid, integer",
+        "TABLE(record_json text)",
+        True,
+    ),
+    "read_viewer_play_prefix_history_page": (
         "uuid, uuid, bigint, bigint, uuid, bigint, bigint, bigin"
         "t, bigint, bigint, uuid, integer",
         "TABLE(record_json text)",
@@ -66,7 +73,7 @@ TRIGGERS = (
 
 def _v2_candidate_declarations():
     """既asset形式に合う宣言/実SQLだけを返し、書込/適用しない。"""
-    functions = candidate_function_bodies()
+    functions = {**candidate_function_bodies(), **candidate_viewer_function_bodies()}
     result = {n: [] for n in ("functions", "policies", "column_acl_expectations")}
     bodies = {}
     for name, (args, returns, app) in FUNCTIONS.items():

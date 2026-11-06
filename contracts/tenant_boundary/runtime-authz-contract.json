@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "runtime_contract_revision": 34,
+  "runtime_contract_revision": 35,
   "baseline_control": {
     "identity": {
       "scheme": "integer_revision_field",
       "field": "runtime_contract_revision",
       "current_identifiers": [
-        "runtime_contract_revision:34"
+        "runtime_contract_revision:35"
       ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
@@ -1008,6 +1008,16 @@
       ],
       [
         "sync_right_api",
+        "read_viewer_nonplay_active_history",
+        "uuid, uuid, bigint, uuid, bigint, bigint, bigint, bigint, bigint, bigint, uuid, integer"
+      ],
+      [
+        "sync_right_api",
+        "read_viewer_play_prefix_history_page",
+        "uuid, uuid, bigint, bigint, uuid, bigint, bigint, bigint, bigint, bigint, uuid, integer"
+      ],
+      [
+        "sync_right_api",
         "verify_replay_device",
         "uuid, uuid, bytea"
       ]
@@ -1036,5 +1046,5 @@
     }
   ],
   "derived_from": "contracts/authz/product/ddl-elements.json",
-  "source_digest": "e99b8e47e9878dd6d4ac8b9fdf737d1588144bfa9c70e65e58fda518cdb531b6"
+  "source_digest": "3aabec39420ac51d931ffb55cfb0b9553ce9f8cfe25b380831ff3594ce7ab0c9"
 }

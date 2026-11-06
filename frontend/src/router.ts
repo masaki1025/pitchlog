@@ -14,6 +14,7 @@ import LoginScreen from './screens/LoginScreen.vue'
 import TeamScreen from './screens/TeamScreen.vue'
 import GameScreenEntryHost from './screens/GameScreenEntryHost.vue'
 import GameStatsScreen from './screens/GameStatsScreen.vue'
+import GameScreenViewerLive from './screens/GameScreenViewerLive.vue'
 import SeasonStats from './screens/SeasonStats.vue'
 import GameScreenRecordModeHost from './screens/GameScreenRecordModeHost.vue'
 import {
@@ -86,6 +87,12 @@ export function createAppRouter(history: RouterHistory = createWebHistory()) {
               ? localEntry.value.session
               : undefined,
         }),
+        meta: { requiresAuth: true },
+      },
+      {
+        path: '/games/:gameId/view',
+        name: 'game-viewer',
+        component: GameScreenViewerLive,
         meta: { requiresAuth: true },
       },
       {

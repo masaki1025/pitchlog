@@ -1,11 +1,11 @@
 """リポジトリ基底の公開面と不変戻り値規約を提供する生成モジュール。"""
 
 SCHEMA_VERSION = 1
-CONTRACT_REVISION = 38
+CONTRACT_REVISION = 39
 ASSET_KIND = "tenant_repository_contract"
 CANONICALIZATION = "json-sort-keys-utf8-v1"
 SOURCE_ASSET = "contracts/tenant_boundary/repository-contract.json"
-SOURCE_DIGEST = "41ff0691f2d86030263ea43e5be3badf5e33da3db67557920c6b4260209ea067"
+SOURCE_DIGEST = "501220f58132765380e2ebd373454a391c823a4b4c7eed51f70928614f31bf3c"
 
 REPOSITORY_TYPE = "pitchlog.repositories.base.TenantRepositoryBase"
 CONTEXT_BINDING_ENTRY = "pitchlog.repositories.base.TenantRepositoryBase.execute"
@@ -119,6 +119,8 @@ PRODUCT_CAPABILITY_IDS = (
     "CAP:recording_vocabularies:read",
     "CAP:stats_primitives:save_source",
     "CAP:stats_primitives:read",
+    "CAP:sync_play_prefix:read_viewer_play_prefix_history_page",
+    "CAP:sync_ordinary_pitch:read_viewer_nonplay_active_history",
 )
 PRODUCT_OPERATION_TOKEN_TYPES = (
     "pitchlog.repositories.roster.PlayerReadToken",
@@ -193,6 +195,8 @@ PRODUCT_OPERATION_TOKEN_TYPES = (
     "pitchlog.repositories.play_export_primitives.OpenPrimitiveSnapshotToken",
     "pitchlog.repositories.play_export_primitives.ReadPrimitivePageToken",
     "pitchlog.repositories.stats.ReadPrimitiveTotalsToken",
+    "pitchlog.repositories.viewer_read.ViewerPlayPrefixHistoryPageToken",
+    "pitchlog.repositories.viewer_read.ViewerNonplayActiveHistoryReadToken",
 )
 CROSS_TENANT_FUNCTIONS = ()
 PRODUCT_FUNCTION_OPERATION_IDS = (
@@ -224,4 +228,6 @@ PRODUCT_FUNCTION_OPERATION_IDS = (
     "STATS_PRIMITIVES:open_snapshot",
     "STATS_PRIMITIVES:read_page",
     "STATS_PRIMITIVES:read_totals",
+    "SYNC_PLAY_PREFIX:read_viewer_play_prefix_history_page",
+    "SYNC_ORDINARY_PITCH:read_viewer_nonplay_active_history",
 )

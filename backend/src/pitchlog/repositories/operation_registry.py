@@ -72,6 +72,7 @@ from pitchlog.repositories.stats_native_operations import (
 )
 from pitchlog.repositories.sync_apply import SYNC_APPLY_OPERATIONS
 from pitchlog.repositories.tenant_profile import TENANT_PROFILE_OPERATIONS
+from pitchlog.repositories.viewer_read import VIEWER_READ_OPERATIONS
 from pitchlog.repositories.writer_binding import (
     _UNREGISTERED_DECLARATIONS as _WRITER_BINDING_FUNCTION_OPERATIONS,
 )
@@ -111,6 +112,8 @@ _STATIC_PRODUCT_FUNCTION_BINDING_IDS = frozenset(
         "SYNC_PLAY_PREFIX:read_play_prefix_checkpoint",
         "SYNC_PLAY_PREFIX:lock_play_prefix_checkpoint",
         "SYNC_PLAY_PREFIX:read_play_prefix_history_page",
+        "SYNC_PLAY_PREFIX:read_viewer_play_prefix_history_page",
+        "SYNC_ORDINARY_PITCH:read_viewer_nonplay_active_history",
         "SYNC_PLAY_PREFIX:prepare_play_prefix_projection",
         "SYNC_LINEUP_PREFIX:read_lineup_started_origin",
     }
@@ -265,6 +268,14 @@ PRODUCT_FUNCTION_OPERATIONS: tuple[FunctionOperationRegistration, ...] = (
     _registered_product_function(
         NONPLAY_READ_OPERATIONS[0],
         operation_id="SYNC_ORDINARY_PITCH:read_nonplay_active_history",
+    ),
+    _registered_product_function(
+        VIEWER_READ_OPERATIONS[0],
+        operation_id="SYNC_PLAY_PREFIX:read_viewer_play_prefix_history_page",
+    ),
+    _registered_product_function(
+        VIEWER_READ_OPERATIONS[1],
+        operation_id="SYNC_ORDINARY_PITCH:read_viewer_nonplay_active_history",
     ),
 )
 FUNCTION_OPERATION_REGISTRY = build_function_registry(

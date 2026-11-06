@@ -254,7 +254,7 @@ def test_real_cold_import_orders_and_same_runtime_type(first):
             f"from pitchlog.repositories import {first}; "
             "from pitchlog.repositories import transaction, operation_registry, "
             "play_export_primitives; "
-            "assert len(operation_registry.PRODUCT_FUNCTION_OPERATIONS)==42",
+            "assert len(operation_registry.PRODUCT_FUNCTION_OPERATIONS)==45",
         ],
         env=os.environ.copy(),
         capture_output=True,

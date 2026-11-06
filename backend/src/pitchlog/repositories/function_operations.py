@@ -389,6 +389,22 @@ _SYNC_PLAY_PREFIX_FUNCTION_TYPES = MappingProxyType(
 )
 
 
+_VIEWER_READ_FUNCTION_TYPES = MappingProxyType(
+    {
+        "sync_right_api.read_viewer_play_prefix_history_page": (
+            _SYNC_PLAY_PREFIX_FUNCTION_TYPES[
+                "sync_right_api.read_play_prefix_history_page"
+            ]
+        ),
+        "sync_right_api.read_viewer_nonplay_active_history": (
+            _SYNC_ORDINARY_PREFIX_FUNCTION_TYPES[
+                "sync_right_api.read_nonplay_active_history"
+            ]
+        ),
+    }
+)
+
+
 _SYNC_WRITER_BINDING_FUNCTION_TYPES = MappingProxyType(
     {
         "sync_fence_api.read_writer_identity": (
@@ -588,6 +604,7 @@ class FunctionOperationRegistration:
         ordinary = _SYNC_ORDINARY_PITCH_FUNCTION_TYPES.get(self.function_id)
         ordinary_prefix = _SYNC_ORDINARY_PREFIX_FUNCTION_TYPES.get(self.function_id)
         play_prefix = _SYNC_PLAY_PREFIX_FUNCTION_TYPES.get(self.function_id)
+        viewer_read = _VIEWER_READ_FUNCTION_TYPES.get(self.function_id)
         writer_binding = _SYNC_WRITER_BINDING_FUNCTION_TYPES.get(self.function_id)
         recording_vocab = (
             self.function_id == "recording_vocab_api.read_batted_ball_options"
@@ -628,6 +645,26 @@ class FunctionOperationRegistration:
                 or self.nonempty_inputs
             ):
                 raise FunctionOperationError("通常投球関数の有限型宣言が不一致")
+        elif viewer_read is not None:
+            name = self.function_id.rsplit(".", 1)[1]
+            family = (
+                "SYNC_PLAY_PREFIX"
+                if name == "read_viewer_play_prefix_history_page"
+                else "SYNC_ORDINARY_PITCH"
+            )
+            capability = (
+                "sync_play_prefix"
+                if family == "SYNC_PLAY_PREFIX"
+                else "sync_ordinary_pitch"
+            )
+            if (
+                extended != viewer_read[:4]
+                or (self.min_rows, self.max_rows) != viewer_read[4:]
+                or self.operation_id != f"{family}:{name}"
+                or self.capability_id != f"CAP:{capability}:{name}"
+                or self.nonempty_inputs
+            ):
+                raise FunctionOperationError("閲覧page関数の有限型宣言が不一致")
         elif ordinary_prefix is not None:
             name = self.function_id.rsplit(".", 1)[1]
             if (
@@ -1000,12 +1037,16 @@ def prepare_function_operation(
         if (
             spec.function_id in _SYNC_ORDINARY_PREFIX_FUNCTION_TYPES
             or spec.function_id in _SYNC_PLAY_PREFIX_FUNCTION_TYPES
+            or spec.function_id in _VIEWER_READ_FUNCTION_TYPES
         ):
             if expected_type is bytes and len(value) != 32:
                 raise FunctionOperationError("通常prefixのnonce長が不一致")
             if expected_type is int:
                 zero_based = name in {"upper_watermark", "after_d1", "after_d2"} or (
-                    spec.function_id == "sync_right_api.read_nonplay_active_history"
+                    spec.function_id in {
+                        "sync_right_api.read_nonplay_active_history",
+                        "sync_right_api.read_viewer_nonplay_active_history",
+                    }
                     and name == "after_order"
                 )
                 lower = 0 if zero_based else 1
@@ -1036,12 +1077,16 @@ def prepare_function_operation(
             or spec.function_id in _SYNC_ORDINARY_PITCH_FUNCTION_TYPES
             or spec.function_id in _SYNC_WRITER_BINDING_FUNCTION_TYPES
             or spec.function_id in _SYNC_PLAY_PREFIX_FUNCTION_TYPES
+            or spec.function_id == "sync_right_api.read_viewer_play_prefix_history_page"
         ):
             if expected_type is bytes and len(value) != 32:
                 raise FunctionOperationError("初球の固定byte長が不一致")
             if expected_type is int and not (
                 0 <= value < 2**63
-                if spec.function_id == "sync_right_api.read_play_prefix_history_page"
+                if spec.function_id in {
+                    "sync_right_api.read_play_prefix_history_page",
+                    "sync_right_api.read_viewer_play_prefix_history_page",
+                }
                 and name in {"upper_watermark", "after_d1", "after_d2"}
                 else 0 < value < 2**63
             ):

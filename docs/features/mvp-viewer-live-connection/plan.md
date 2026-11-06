@@ -36,3 +36,8 @@ created: 2026-11-06
 実DB対向で、既v3履歴page関数と非play active page関数の `FOR SHARE` は PostgreSQL の `READ ONLY` と両立しないことを確認した。writer既関数の行ロック契約を残し、同一SQL生成元からアンカ・行数・原本照合を維持して行ロック句だけを除く閲覧専用の有限2関数を追加する。専用tokenと閉登録を使い、RR READ ONLY以外からは呼ばない。新関数の正式宣言・EXECUTE ACL・catalog照合・manifest/bodyはroot向け別patchとし、独立確認まで製品受理としない。
 
 正式router/registry/DDL/認可/manifest/pin、他WT、共有DBはこのWTのwriter対象外。既routeのロックreadを閲覧から呼ぶ実装は禁止。FR-020全イニング/H/E/K/BやFR-021〜023成績の完成へ拡張して主張しない。全件/正式CI/人間確認/本番性能はroot統合後の別判定。
+
+
+## root結合採用（2026-11-07、候補）
+
+PO委任によるCodex/root判断で、作者0e0ae00bのowned20path（01dda49d…）とshared19path（67393842…）をconnected60fへ通常接合する。全18shared pathのbefore SHAを実木に照合し一致、routerだけは後発local modeのため手動で/viewを追加し既記録host/成績/公開helpを保持する。元の記録routeを旧EntryRecordHostへ戻さない。正式資産の個別受理やPG/画面成功は後続固定版で再確認し、作者r6をこの合成版の成功とはしない。root sole writer、CSVは別237f9be0起点をlifecycle担当が所有する。P3/CSV後発sourceは本枝へまだ接合していない。

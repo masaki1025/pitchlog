@@ -7115,6 +7115,66 @@
           "grantable": false
         }
       ]
+    },
+    {
+      "function_id": "FUNCTION:sync_right_api:read_viewer_nonplay_active_history(uuid, uuid, bigint, uuid, bigint, bigint, bigint, bigint, bigint, bigint, uuid, integer)",
+      "schema_name": "sync_right_api",
+      "function_name": "read_viewer_nonplay_active_history",
+      "identity_args": "uuid, uuid, bigint, uuid, bigint, bigint, bigint, bigint, bigint, bigint, uuid, integer",
+      "function_kind": "definer",
+      "owner_role_id": "pitchlog_sync_right_fn_owner",
+      "language": "plpgsql",
+      "returns": "TABLE(record_json text)",
+      "security_mode": "definer",
+      "volatility": "volatile",
+      "search_path": [
+        "pg_catalog",
+        "pg_temp"
+      ],
+      "acl_expectations": [
+        {
+          "grantee": "pitchlog_app",
+          "privilege": "EXECUTE",
+          "grantable": false
+        }
+      ],
+      "revoked_acl_expectations": [
+        {
+          "grantee": "PUBLIC",
+          "privilege": "EXECUTE",
+          "grantable": false
+        }
+      ]
+    },
+    {
+      "function_id": "FUNCTION:sync_right_api:read_viewer_play_prefix_history_page(uuid, uuid, bigint, bigint, uuid, bigint, bigint, bigint, bigint, bigint, uuid, integer)",
+      "schema_name": "sync_right_api",
+      "function_name": "read_viewer_play_prefix_history_page",
+      "identity_args": "uuid, uuid, bigint, bigint, uuid, bigint, bigint, bigint, bigint, bigint, uuid, integer",
+      "function_kind": "definer",
+      "owner_role_id": "pitchlog_sync_right_fn_owner",
+      "language": "plpgsql",
+      "returns": "TABLE(record_json text)",
+      "security_mode": "definer",
+      "volatility": "volatile",
+      "search_path": [
+        "pg_catalog",
+        "pg_temp"
+      ],
+      "acl_expectations": [
+        {
+          "grantee": "pitchlog_app",
+          "privilege": "EXECUTE",
+          "grantable": false
+        }
+      ],
+      "revoked_acl_expectations": [
+        {
+          "grantee": "PUBLIC",
+          "privilege": "EXECUTE",
+          "grantable": false
+        }
+      ]
     }
   ],
   "acl_expectations": [

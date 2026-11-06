@@ -20,6 +20,7 @@ from pitchlog.api.routers import (
     started_games,
     sync,
     team_records,
+    viewer,
 )
 from pitchlog.api.tenant_access import tenant_match_response_headers
 from pitchlog.authz.signing_key_config import require_signing_key_configuration
@@ -39,6 +40,7 @@ ROUTERS: tuple[APIRouter, ...] = (
     batted_ball_options.router,
     basic_stats.router,
     started_games.router,
+    viewer.router,
     sync.router,
 )
 _SIGNING_KEY_VARIABLE = "PITCHLOG_TOKEN_SIGNING_KEY_B64"

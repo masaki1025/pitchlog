@@ -15,6 +15,7 @@ from pitchlog.authz.ordinary_order_sql import candidate_order_function_bodies
 from pitchlog.authz.ordinary_pitch_write_stamp import candidate_function_bodies
 from pitchlog.authz.ordinary_prefix_sql import candidate_read_function_bodies
 from pitchlog.authz.sync_right_sql import render_ordinary_stamped_function_sql
+from pitchlog.authz.viewer_read_sql import candidate_viewer_function_bodies
 
 _OWNER = "pitchlog_sync_right_fn_owner"
 _TABLES = (
@@ -24,6 +25,7 @@ _TABLES = (
 )
 _FUNCTIONS = {
     "read_nonplay_active_history": (IDENTITY_ARGS, "TABLE(record_json text)"),
+    "read_viewer_nonplay_active_history": (IDENTITY_ARGS, "TABLE(record_json text)"),
     "read_ordinary_order_summary": ("uuid, uuid", "TABLE(record_json text)"),
     "bind_ordinary_device": (
         "uuid, uuid, uuid, bytea, uuid, uuid, bytea",
@@ -164,6 +166,9 @@ def candidate_profile():
         **candidate_read_function_bodies(),
         **candidate_order_function_bodies(),
         **nonplay_read_bodies(),
+        "read_viewer_nonplay_active_history": candidate_viewer_function_bodies()[
+            "read_viewer_nonplay_active_history"
+        ],
     }
     if bodies.keys() != _FUNCTIONS.keys():
         raise ValueError("通常投球関数候補の閉集合が不一致")
