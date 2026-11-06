@@ -264,6 +264,9 @@ _SYNC_ORDINARY_PITCH_FUNCTION_TYPES = MappingProxyType(
 
 _SYNC_P3_FUNCTION_TYPES = MappingProxyType(
     {
+        "sync_right_api.bind_p3_device": _SYNC_FIRST_BALL_FUNCTION_TYPES[
+            "sync_right_api.bind_device"
+        ],
         "sync_right_api.check_p3_right": _SYNC_FIRST_BALL_FUNCTION_TYPES[
             "sync_right_api.check_current_right"
         ]
@@ -639,10 +642,11 @@ class FunctionOperationRegistration:
             ):
                 raise FunctionOperationError("通常投球関数の有限型宣言が不一致")
         elif p3 is not None:
+            name = self.function_id.rsplit(".", 1)[1]
             if (
                 extended != p3
-                or self.operation_id != "SYNC_P3:check_p3_right"
-                or self.capability_id != "CAP:sync_p3:check_p3_right"
+                or self.operation_id != f"SYNC_P3:{name}"
+                or self.capability_id != f"CAP:sync_p3:{name}"
                 or self.min_rows != 1
                 or self.max_rows != 1
                 or self.nonempty_inputs

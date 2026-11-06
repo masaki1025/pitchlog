@@ -1347,6 +1347,7 @@ def _require_port_function(phase, operation, function_id):
         ("device"): {
             ("sync_right_api.bind_device"),
             ("sync_right_api.bind_ordinary_device"),
+            ("sync_right_api.bind_p3_device"),
         },
         "rights": {
             "sync_right_api.check_current_right",
@@ -1364,6 +1365,7 @@ def _require_port_function(phase, operation, function_id):
         "sync_right_api.bind_device",
         "sync_right_api.check_current_right",
         "sync_right_api.bind_ordinary_device",
+        "sync_right_api.bind_p3_device",
         "sync_right_api.check_ordinary_right",
         "sync_right_api.check_p3_right",
         "sync_fence_api.assert_writer_binding",
@@ -1823,6 +1825,20 @@ def _execute_port_command(handle, operation):
         ):
             raise TenantBindingError("端末資格digestの型が不正")
         _PORT_DEVICE_BIND_USED.add(handle._state_key)
+        if json.loads(phase.snapshot)["phase"].get("phase_kind") == "d1less":
+            from pitchlog.repositories.past_correction_right import (
+                _BindP3DeviceToken,
+            )
+
+            token = _BindP3DeviceToken(
+                lease.attempt_id,
+                lease.phase_id,
+                lease.nonce,
+                lease.device_id,
+                lease.game_id,
+                operation.credential_digest,
+            )
+            return handle.run(token)
         from pitchlog.repositories.ordinary_pitch_qualification import (
             BindOrdinaryDeviceToken,
         )

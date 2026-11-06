@@ -15,7 +15,10 @@ from pitchlog.repositories.function_operations import (
     prepare_function_operation,
 )
 from pitchlog.repositories.operation_registry import FUNCTION_OPERATION_REGISTRY
-from pitchlog.repositories.past_correction_right import _CheckP3RightToken
+from pitchlog.repositories.past_correction_right import (
+    _BindP3DeviceToken,
+    _CheckP3RightToken,
+)
 from pitchlog.repositories.tokens import TenantOperationResult
 from pitchlog.sync import port_guard  # noqa: F401 - 実Port verifierを起動する。
 from pitchlog.sync.past_correction_rights import PastCorrectionRecordingRightsPort
@@ -88,3 +91,23 @@ def test_p3_private_right_registration_preserves_exact_types() -> None:
             UUID(int=4),
             FUNCTION_OPERATION_REGISTRY,
         )
+
+
+def test_p3_private_device_registration_has_no_stamp_parameter() -> None:
+    """P3端末関数は同writer資格とdigest以外を受け取らない。"""
+    token = _BindP3DeviceToken(
+        UUID(int=1), UUID(int=2), bytes(32), UUID(int=3), _GAME, bytes(32)
+    )
+    registration, params = prepare_function_operation(
+        token, UUID(int=4), FUNCTION_OPERATION_REGISTRY
+    )
+    assert registration.function_id == "sync_right_api.bind_p3_device"
+    assert set(params) == {
+        "tenant_id",
+        "attempt_id",
+        "phase_id",
+        "binding_nonce",
+        "device_id",
+        "game_id",
+        "credential_digest",
+    }
