@@ -874,6 +874,152 @@ def validate_stats_foundation_area_path_layers(
         raise GuardError("成績基盤core層の削除は許可しない")
 
 
+PR197_TENANT_SOURCE_CORE_ADDITIONS: tuple[str, str] = (
+    "tests/fixtures/pr197_tenant_source_expected_v1.json",
+    "tests/test_pr197_tenant_source_registration.py",
+)
+_PR197_CORE_DEFINITION_AST_SHA256 = (
+    "c5c017a19e6c5c196d198fc6f6c8258807068f7c9ca1680d77e7036fbb5c6d79"
+)
+
+
+def _project_pr197_tenant_source_layer(
+    document: Mapping[str, Any], label: str,
+) -> tuple[dict[str, Any], bool]:
+    """PR197の2pathがtenant領域の完全suffixなら射影する。"""
+    paths_by_id = _area_paths_by_id(document, label)
+    known = set(PR197_TENANT_SOURCE_CORE_ADDITIONS)
+    observed = {(area_id, path) for area_id, paths in paths_by_id.items()
+                for path in paths if path in known}
+    guard_paths = document.get("guard_paths", [])
+    if isinstance(guard_paths, list) and any(path in known for path in guard_paths):
+        raise GuardError(f"{label} のPR197 core層をguard_pathsへ代用できない")
+    projected = copy.deepcopy(dict(document))
+    if not observed:
+        return projected, False
+    expected = {("tenant-isolation", path) for path in known}
+    if (observed != expected
+            or tuple(paths_by_id) != tuple(STATS_FOUNDATION_CORE_ADDITIONS)):
+        raise GuardError(f"{label} のPR197 core層の完全2pair又は領域順序が不一致")
+    paths = paths_by_id["tenant-isolation"]
+    suffix = PR197_TENANT_SOURCE_CORE_ADDITIONS
+    if paths[-len(suffix):] != suffix:
+        raise GuardError(f"{label} のPR197 core層が完全suffixに不一致")
+    stats_pairs = {(area_id, path) for area_id, additions in
+                   STATS_FOUNDATION_CORE_ADDITIONS.items() for path in additions}
+    stats_known = {path for _, path in stats_pairs}
+    observed_stats = {(area_id, path) for area_id, additions in paths_by_id.items()
+                      for path in additions if path in stats_known}
+    if observed_stats != stats_pairs:
+        raise GuardError(f"{label} のPR197 core層には成績基盤全32pairが必要")
+    prefix = paths[:-len(suffix)]
+    if any(path in known for path in prefix):
+        raise GuardError(f"{label} のPR197 core層が旧prefixへ混入している")
+    for area in projected["areas"]:
+        if area["id"] == "tenant-isolation":
+            area["paths"] = list(prefix)
+    return projected, True
+
+
+def validate_pr197_tenant_source_area_path_layers(
+    baseline: Mapping[str, Any], candidate: Mapping[str, Any],
+    *, root: Path | None = None, base_revision: str | None = None,
+    head_sha: str | None = None,
+) -> None:
+    """旧29/32を保ち、PR197全2pathの有限追加と単調性を確認する。"""
+    old_baseline, before = _project_pr197_tenant_source_layer(baseline, "merge-base")
+    old_candidate, after = _project_pr197_tenant_source_layer(candidate, "PR head")
+    validate_stats_foundation_area_path_layers(old_baseline, old_candidate)
+    if before and not after:
+        raise GuardError("PR197 tenant source core層の削除は許可しない")
+    if root is not None:
+        if base_revision is None or head_sha is None:
+            raise GuardError("PR197 core層のGit基線情報が不足")
+        _verify_pr197_definition_order(root, base_revision, head_sha)
+
+
+def _pr197_definition_fingerprint(source: str) -> str:
+    """新2path定義と実入口callのASTを固定指紋にする。"""
+    import ast
+
+    tree = ast.parse(source)
+    constants = [node for node in tree.body if isinstance(node, ast.AnnAssign)
+                 and isinstance(node.target, ast.Name)
+                 and node.target.id == "PR197_TENANT_SOURCE_CORE_ADDITIONS"]
+    names = ("_project_pr197_tenant_source_layer",
+             "validate_pr197_tenant_source_area_path_layers",
+             "_pr197_definition_fingerprint", "_pr197_registered_paths",
+             "_verify_pr197_definition_order")
+    functions = [node for name in names for node in tree.body
+                 if isinstance(node, ast.FunctionDef) and node.name == name]
+    verify = [node for node in tree.body if isinstance(node, ast.FunctionDef)
+              and node.name == "verify_area_path_baseline"]
+    if len(constants) != 1 or len(functions) != 5 or len(verify) != 1:
+        raise GuardError("PR197定義ASTの定数/関数が不一致")
+    if (constants[0].value is None
+            or ast.literal_eval(constants[0].value) != PR197_TENANT_SOURCE_CORE_ADDITIONS):
+        raise GuardError("PR197定義ASTの定数/関数が不一致")
+    calls = [node for node in ast.walk(verify[0]) if isinstance(node, ast.Call)
+             and isinstance(node.func, ast.Name)
+             and node.func.id == "validate_pr197_tenant_source_area_path_layers"]
+    if len(calls) != 1 or ast.unparse(calls[0]) != (
+        "validate_pr197_tenant_source_area_path_layers(baseline, candidate, "
+        "root=root, base_revision=baseline_revision, head_sha=head_sha)"
+    ):
+        raise GuardError("PR197定義のverify入口callが不一致")
+    projection = "\n".join(ast.get_source_segment(source, node) or ""
+                           for node in (*constants, *functions, *calls))
+    return hashlib.sha256(projection.encode()).hexdigest()
+
+
+def _pr197_registered_paths(document: Mapping[str, Any], label: str) -> frozenset[str]:
+    """文書中の新2path全出現を領域とguard経路から拾う。"""
+    known = set(PR197_TENANT_SOURCE_CORE_ADDITIONS)
+    areas = _area_paths_by_id(document, label)
+    guard_paths = document.get("guard_paths", [])
+    found = {path for paths in areas.values() for path in paths if path in known}
+    if isinstance(guard_paths, list):
+        found.update(path for path in guard_paths if path in known)
+    return frozenset(found)
+
+
+def _verify_pr197_definition_order(root: Path, base_revision: str, head_sha: str) -> None:
+    """新path初登場commitの全親で固定定義と入口が先行したことを確認する。"""
+    complete = frozenset(PR197_TENANT_SOURCE_CORE_ADDITIONS)
+    if (_pr197_definition_fingerprint(Path(__file__).read_text())
+            != _PR197_CORE_DEFINITION_AST_SHA256):
+        raise GuardError("PR197実行中の定義ASTが固定値と不一致")
+    for revision in _commits_between(root, base_revision, head_sha):
+        document = load_core_areas_at_revision(root, revision)
+        present = _pr197_registered_paths(document, revision)
+        if present and present != complete:
+            raise GuardError(f"{revision} のPR197 core層が部分追加")
+        if present:
+            _project_pr197_tenant_source_layer(document, revision)
+        parents = _run_git(root, ["show", "-s", "--format=%P", revision],
+                           f"{revision} の親コミット列挙").split()
+        for parent in parents:
+            before = _pr197_registered_paths(
+                load_core_areas_at_revision(root, parent), parent,
+            )
+            if before and before != complete:
+                raise GuardError(f"{parent} のPR197 core層が部分追加")
+            if before and not present:
+                raise GuardError(f"{revision} のPR197 core層の削除は許可しない")
+            if not present or not present - before:
+                continue
+            source = _run_git(
+                root, ["show", f"{parent}:scripts/core_guard.py"],
+                f"{parent} のPR197定義読取り",
+            )
+            try:
+                fingerprint = _pr197_definition_fingerprint(source)
+            except (SyntaxError, ValueError, GuardError) as error:
+                raise GuardError("PR197親定義のAST/入口が不一致") from error
+            if fingerprint != _PR197_CORE_DEFINITION_AST_SHA256:
+                raise GuardError(f"{revision} の新PR197 pathが親の固定定義より先に登録された")
+
+
 def _commits_between(root: Path, base_revision: str, head_sha: str) -> tuple[str, ...]:
     """基線より後から head までのコミットを古い順で返す。"""
     output = _run_git(
@@ -943,7 +1089,9 @@ def verify_area_path_baseline(root: Path, base_sha: str, head_sha: str) -> str:
     baseline_revision = merge_base_revision(root, base_sha, head_sha)
     baseline = load_core_areas_at_revision(root, baseline_revision)
     candidate = load_core_areas_at_revision(root, head_sha)
-    validate_stats_foundation_area_path_layers(baseline, candidate)
+    validate_pr197_tenant_source_area_path_layers(
+        baseline, candidate, root=root, base_revision=baseline_revision, head_sha=head_sha,
+    )
 
     for revision in _commits_between(root, baseline_revision, head_sha):
         changed = _changed_paths_in_commit(root, revision)

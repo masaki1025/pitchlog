@@ -7117,6 +7117,16 @@ _STATS_FOUNDATION_EXPECTED: dict[str, tuple[str, ...]] = {
 def _stats_foundation_historical_fixture(document):
     """独立literal全26を検査してから既fixtureへ渡す。未知fieldは残す。"""
     raw = json.loads(json.dumps(document))
+    pr197_known = set(_PR197_TENANT_SOURCE_EXPECTED)
+    pr197_seen = {(a['id'], p) for a in raw['areas'] for p in a['paths']
+                  if p in pr197_known}
+    assert not pr197_known.intersection(raw.get('guard_paths', [])), 'PR197 guard代用'
+    if pr197_seen:
+        assert pr197_seen == {('tenant-isolation', p) for p in pr197_known}, 'PR197全2pair'
+        assert [a['id'] for a in raw['areas']] == list(_STATS_FOUNDATION_EXPECTED)
+        tenant = next(a for a in raw['areas'] if a['id'] == 'tenant-isolation')
+        assert tuple(tenant['paths'][-2:]) == _PR197_TENANT_SOURCE_EXPECTED, 'PR197 suffix'
+        tenant['paths'] = tenant['paths'][:-2]
     expected = {(a, p) for a, paths in _STATS_FOUNDATION_EXPECTED.items() for p in paths}
     known = {p for _, p in expected}
     assert not known.intersection(raw.get('guard_paths', [])), '成績guard代用'
@@ -7136,8 +7146,40 @@ def _stats_foundation_historical_fixture(document):
 
 
 def _stats_foundation_legacy_guard_source(source):
-    """今回2helper/定数/入口1call以外の全ASTを比較へ残す。"""
+    """PR197と成績の有限層だけを外し、旧guard全ASTを比較へ残す。"""
     tree = ast.parse(source)
+    pr197_names = {'_project_pr197_tenant_source_layer',
+                   'validate_pr197_tenant_source_area_path_layers',
+                   '_pr197_definition_fingerprint', '_pr197_registered_paths',
+                   '_verify_pr197_definition_order'}
+    pr197_found = {n.name for n in tree.body if isinstance(n, ast.FunctionDef)
+                   and n.name in pr197_names}
+    assert pr197_found in (set(), pr197_names)
+    pr197_constants = [n for n in tree.body if isinstance(n, ast.AnnAssign)
+                       and isinstance(n.target, ast.Name)
+                       and n.target.id == 'PR197_TENANT_SOURCE_CORE_ADDITIONS']
+    pr197_constants.extend(n for n in tree.body if isinstance(n, ast.Assign)
+                           and len(n.targets) == 1 and isinstance(n.targets[0], ast.Name)
+                           and n.targets[0].id == '_PR197_CORE_DEFINITION_AST_SHA256')
+    assert len(pr197_constants) == 2 * int(bool(pr197_found))
+    verify = next(n for n in tree.body if isinstance(n, ast.FunctionDef)
+                  and n.name == 'verify_area_path_baseline')
+    pr197_calls = [n for n in ast.walk(verify) if isinstance(n, ast.Call)
+                   and isinstance(n.func, ast.Name)
+                   and n.func.id == 'validate_pr197_tenant_source_area_path_layers']
+    assert len(pr197_calls) == int(bool(pr197_found))
+    for call in pr197_calls:
+        assert ast.dump(call) == ast.dump(ast.parse(
+            'validate_pr197_tenant_source_area_path_layers('
+            'baseline, candidate, root=root, base_revision=baseline_revision, '
+            'head_sha=head_sha)',
+            mode='eval').body)
+        assert isinstance(call.func, ast.Name)
+        call.func.id = 'validate_stats_foundation_area_path_layers'
+        call.keywords = []
+    tree.body = [n for n in tree.body if not (
+        isinstance(n, ast.FunctionDef) and n.name in pr197_names
+        or n in pr197_constants)]
     names = {'_project_stats_foundation_layer', 'validate_stats_foundation_area_path_layers'}
     found = {n.name for n in tree.body if isinstance(n, ast.FunctionDef) and n.name in names}
     assert found in (set(), names)
@@ -7198,7 +7240,10 @@ def test_stats_foundation29_exact_paths_detection_and_full_ast_preservation():
         p for a in new['areas'] for p in a['paths']), guard_paths=frozenset())
     assert set(guard.matched_paths(sorted(expected), configured)) == expected
     actual = json.loads(CORE_AREAS_PATH.read_text())
-    assert actual in (old, new)
+    pr197 = json.loads(json.dumps(new))
+    next(a for a in pr197['areas'] if a['id'] == 'tenant-isolation')['paths'].extend(
+        guard.PR197_TENANT_SOURCE_CORE_ADDITIONS)
+    assert actual in (old, new, pr197)
 
 
 @pytest.mark.parametrize(('before', 'after'), [(False, False), (False, True),
@@ -7360,3 +7405,262 @@ def test_stats_foundation_complete_old29_to_new32_and_partial_history_are_closed
             guard.validate_stats_foundation_area_path_layers(old29, candidate)
         with pytest.raises(guard.GuardError):
             guard.validate_stats_foundation_area_path_layers(candidate, complete)
+
+
+_PR197_TENANT_SOURCE_EXPECTED = (
+    'tests/fixtures/pr197_tenant_source_expected_v1.json',
+    'tests/test_pr197_tenant_source_registration.py',
+)
+
+
+def _pr197_tenant_source_config():
+    """正式JSONが旧32の間も検査できる34候補を作る。"""
+    _, old32 = _stats_foundation_config()
+    new34 = json.loads(json.dumps(old32))
+    next(a for a in new34['areas'] if a['id'] == 'tenant-isolation')['paths'].extend(
+        _PR197_TENANT_SOURCE_EXPECTED)
+    return old32, new34
+
+
+def test_pr197_tenant_source_exact_two_paths_and_predefinition_detection():
+    """新2pathを実ファイル未配置でもtenant領域で検出し、旧32を残す。"""
+    guard = load_core_guard_module()
+    assert guard.PR197_TENANT_SOURCE_CORE_ADDITIONS == _PR197_TENANT_SOURCE_EXPECTED
+    old32, new34 = _pr197_tenant_source_config()
+    tenant = next(a for a in new34['areas'] if a['id'] == 'tenant-isolation')
+    assert tenant['paths'][-2:] == list(_PR197_TENANT_SOURCE_EXPECTED)
+    projected, present = guard._project_pr197_tenant_source_layer(new34, 'test')
+    assert present and projected == old32
+    assert not guard._project_pr197_tenant_source_layer(old32, 'test')[1]
+    configured = guard.CoreAreas(
+        tuple(path for area in new34['areas'] for path in area['paths']),
+        frozenset(new34['guard_paths']),
+    )
+    assert guard.matched_paths(_PR197_TENANT_SOURCE_EXPECTED, configured) == list(
+        _PR197_TENANT_SOURCE_EXPECTED)
+    assert len({p for a in new34['areas'] for p in a['paths']}
+               - {p for a in old32['areas'] for p in a['paths']}) == 2
+    guard.validate_pr197_tenant_source_area_path_layers(old32, new34)
+
+
+def test_pr197_tenant_source_keeps_old29_32_and_adds_monotonic34():
+    """旧29→32と新34を保持し、34からの縮小を拒否する。"""
+    guard = load_core_guard_module()
+    old32, new34 = _pr197_tenant_source_config()
+    old29 = json.loads(json.dumps(old32))
+    historical = {
+        'backend/tests/stage_a_0039_profile.py',
+        'backend/tests/test_stage_a_0039_profile.py',
+        'backend/tests/fixtures/product_authz_stage_a_profile_v0039.json',
+    }
+    for area in old29['areas']:
+        area['paths'] = [path for path in area['paths'] if path not in historical]
+    for before, after in ((old29, old29), (old29, old32), (old29, new34),
+                          (old32, old32), (old32, new34), (new34, new34)):
+        guard.validate_pr197_tenant_source_area_path_layers(before, after)
+    for after in (old32, old29):
+        with pytest.raises(guard.GuardError):
+            guard.validate_pr197_tenant_source_area_path_layers(new34, after)
+    old31 = json.loads(json.dumps(old29))
+    next(a for a in old31['areas'] if a['id'] == 'tenant-isolation')['paths'].extend(
+        _PR197_TENANT_SOURCE_EXPECTED)
+    with pytest.raises(guard.GuardError, match='全32pair'):
+        guard.validate_pr197_tenant_source_area_path_layers(old29, old31)
+
+
+@pytest.mark.parametrize('mutation', [
+    'missing-first', 'missing-second', 'wrong-area', 'cross-area-duplicate',
+    'order', 'duplicate',
+    'old-prefix', 'unknown-extra', 'unknown-before-suffix', 'guard-only',
+    'guard-plus-area', 'missing-prior32', 'missing-historical3', 'area-order',
+])
+def test_pr197_tenant_source_rejects_partial_and_extra_layers(mutation):
+    """片欠け、誤領域、順序、重複、旧prefix、未知追加を拒否する。"""
+    guard = load_core_guard_module()
+    old32, new34 = _pr197_tenant_source_config()
+    bad = json.loads(json.dumps(new34))
+    areas = {area['id']: area['paths'] for area in bad['areas']}
+    first, second = _PR197_TENANT_SOURCE_EXPECTED
+    tenant = areas['tenant-isolation']
+    if mutation == 'missing-first':
+        tenant.remove(first)
+    elif mutation == 'missing-second':
+        tenant.remove(second)
+    elif mutation == 'wrong-area':
+        tenant.remove(first)
+        areas['game-state'].append(first)
+    elif mutation == 'cross-area-duplicate':
+        areas['game-state'].append(first)
+    elif mutation == 'order':
+        tenant[-2:] = [second, first]
+    elif mutation == 'duplicate':
+        tenant.append(first)
+    elif mutation == 'old-prefix':
+        tenant.remove(first)
+        tenant.insert(0, first)
+    elif mutation == 'unknown-extra':
+        tenant.append('tests/fixtures/unknown_pr197.json')
+    elif mutation == 'unknown-before-suffix':
+        tenant.insert(-2, 'tests/fixtures/unknown_pr197.json')
+    elif mutation == 'guard-only':
+        tenant.remove(first)
+        tenant.remove(second)
+        bad['guard_paths'].extend((first, second))
+    elif mutation == 'guard-plus-area':
+        bad['guard_paths'].append(first)
+    elif mutation == 'missing-prior32':
+        tenant.remove(_STATS_FOUNDATION_EXPECTED['tenant-isolation'][0])
+    elif mutation == 'missing-historical3':
+        for path in ('backend/tests/stage_a_0039_profile.py',
+                     'backend/tests/test_stage_a_0039_profile.py'):
+            tenant.remove(path)
+        areas['data-migration'].remove(
+            'backend/tests/fixtures/product_authz_stage_a_profile_v0039.json')
+    else:
+        bad['areas'].reverse()
+    with pytest.raises(guard.GuardError):
+        guard.validate_pr197_tenant_source_area_path_layers(old32, bad)
+
+
+def test_pr197_tenant_source_git_order_and_deletion(tmp_path):
+    """旧32→34のJSON後置を検証し、同commit定義変更/縮小を拒否する。"""
+    guard = load_core_guard_module()
+    old32, new34 = _pr197_tenant_source_config()
+    root, base = _first_ball_git_repo(tmp_path, old32)
+    _, head = commit_change(root, '.claude/core-areas.json', json.dumps(new34))
+    assert guard.verify_area_path_baseline(root, base, head) == base
+    _, smaller = commit_change(root, '.claude/core-areas.json', json.dumps(old32))
+    with pytest.raises(guard.GuardError):
+        guard.verify_area_path_baseline(root, head, smaller)
+    (tmp_path / 'cochange').mkdir()
+    root2, base2 = _first_ball_git_repo(tmp_path / 'cochange', old32)
+    definition = 'scripts/core_guard.py'
+    write_text(root2, definition, (root2 / definition).read_text() + '\n# cochange\n')
+    write_text(root2, '.claude/core-areas.json', json.dumps(new34))
+    run_git(root2, 'add', definition, '.claude/core-areas.json')
+    run_git(root2, '-c', 'user.email=test@example.com', '-c', 'user.name=test',
+            'commit', '-m', 'cochange')
+    with pytest.raises(guard.GuardError, match='同一コミット'):
+        revision = run_git(root2, 'rev-parse', 'HEAD').stdout.strip()
+        guard.verify_area_path_baseline(root2, base2, revision)
+
+
+def _pr197_old_definition_repo(tmp_path, old32):
+    """PR197定義前のa59 sourceと旧32JSONを実Gitへ固定する。"""
+    root = make_repo(tmp_path)
+    commit_change(root, '.claude/core-areas.json', json.dumps(old32))
+    old_source = run_git(
+        REPO, 'show',
+        'a59c654e3366d2be9c6456e47b07118e1674bce2:scripts/core_guard.py',
+    ).stdout
+    _, base = commit_change(root, 'scripts/core_guard.py', old_source)
+    return root, base
+
+
+@pytest.mark.parametrize('order', [
+    'definition-first', 'json-first', 'same-commit', 'definition-no-entry',
+    'definition-broken-order-helper', 'definition-broken-helper',
+])
+def test_pr197_tenant_source_requires_prior_definition_commit(tmp_path, order):
+    """新2path初登場時の親に固定定義と入口が無ければ閉拒否する。"""
+    guard = load_core_guard_module()
+    old32, new34 = _pr197_tenant_source_config()
+    root, base = _pr197_old_definition_repo(tmp_path, old32)
+    if order == 'definition-first':
+        commit_change(root, 'scripts/core_guard.py', SCRIPT.read_text())
+        _, head = commit_change(root, '.claude/core-areas.json', json.dumps(new34))
+        assert guard.verify_area_path_baseline(root, base, head) == base
+        return
+    if order == 'json-first':
+        commit_change(root, '.claude/core-areas.json', json.dumps(new34))
+        _, head = commit_change(root, 'scripts/core_guard.py', SCRIPT.read_text())
+    elif order == 'definition-no-entry':
+        source = SCRIPT.read_text()
+        broken = source.replace(
+            'validate_pr197_tenant_source_area_path_layers(\n'
+            '        baseline, candidate, root=root, base_revision=baseline_revision, '
+            'head_sha=head_sha,\n    )',
+            'validate_stats_foundation_area_path_layers(baseline, candidate)', 1,
+        )
+        assert broken != source
+        commit_change(root, 'scripts/core_guard.py', broken)
+        commit_change(root, '.claude/core-areas.json', json.dumps(new34))
+        _, head = commit_change(root, 'scripts/core_guard.py', source)
+    elif order == 'definition-broken-order-helper':
+        source = SCRIPT.read_text()
+        node = next(n for n in ast.parse(source).body
+                    if isinstance(n, ast.FunctionDef)
+                    and n.name == '_verify_pr197_definition_order')
+        position = node.body[0].end_lineno
+        lines = source.splitlines(keepends=True)
+        lines.insert(position, '    return\n')
+        broken = ''.join(lines)
+        commit_change(root, 'scripts/core_guard.py', broken)
+        commit_change(root, '.claude/core-areas.json', json.dumps(new34))
+        _, head = commit_change(root, 'scripts/core_guard.py', source)
+    elif order == 'definition-broken-helper':
+        source = SCRIPT.read_text()
+        broken = source.replace(
+            'if before and not after:\n'
+            '        raise GuardError("PR197 tenant source core層の削除は許可しない")',
+            'if False:\n'
+            '        raise GuardError("PR197 tenant source core層の削除は許可しない")', 1,
+        )
+        assert broken != source
+        commit_change(root, 'scripts/core_guard.py', broken)
+        commit_change(root, '.claude/core-areas.json', json.dumps(new34))
+        _, head = commit_change(root, 'scripts/core_guard.py', source)
+    else:
+        write_text(root, '.claude/core-areas.json', json.dumps(new34))
+        write_text(root, 'scripts/core_guard.py', SCRIPT.read_text())
+        run_git(root, 'add', '.claude/core-areas.json', 'scripts/core_guard.py')
+        run_git(root, '-c', 'user.email=test@example.com', '-c', 'user.name=test',
+                'commit', '-m', 'same commit')
+        head = run_git(root, 'rev-parse', 'HEAD').stdout.strip()
+    with pytest.raises(guard.GuardError, match='定義'):
+        guard.verify_area_path_baseline(root, base, head)
+
+
+def test_pr197_tenant_source_merge_requires_definition_in_every_parent(tmp_path):
+    """片親だけ旧定義のmergeで新2pathを引き継げない。"""
+    guard = load_core_guard_module()
+    old32, new34 = _pr197_tenant_source_config()
+    root, base = _pr197_old_definition_repo(tmp_path, old32)
+    run_git(root, 'branch', 'without-definition', base)
+    commit_change(root, 'scripts/core_guard.py', SCRIPT.read_text())
+    commit_change(root, '.claude/core-areas.json', json.dumps(new34))
+    run_git(root, 'checkout', 'without-definition')
+    commit_change(root, 'README.md', 'other parent\n')
+    run_git(root, 'checkout', 'feature/test')
+    run_git(root, '-c', 'user.email=test@example.com', '-c', 'user.name=test',
+            'merge', '-s', 'ours', '--no-ff', 'without-definition', '-m', 'merge')
+    head = run_git(root, 'rev-parse', 'HEAD').stdout.strip()
+    with pytest.raises(guard.GuardError, match='親定義'):
+        guard.verify_area_path_baseline(root, base, head)
+
+
+def test_pr197_tenant_source_rejects_delete_then_readd(tmp_path):
+    """最終34でも中間commitで新2pathを削除した履歴を拒否する。"""
+    guard = load_core_guard_module()
+    old32, new34 = _pr197_tenant_source_config()
+    root, base = _pr197_old_definition_repo(tmp_path, old32)
+    commit_change(root, 'scripts/core_guard.py', SCRIPT.read_text())
+    commit_change(root, '.claude/core-areas.json', json.dumps(new34))
+    commit_change(root, '.claude/core-areas.json', json.dumps(old32))
+    _, head = commit_change(root, '.claude/core-areas.json', json.dumps(new34))
+    with pytest.raises(guard.GuardError, match='削除'):
+        guard.verify_area_path_baseline(root, base, head)
+
+
+def test_pr197_tenant_source_rejects_intermediate_partial_json(tmp_path):
+    """最終34でも途中commitの片path登録を履歴から拒否する。"""
+    guard = load_core_guard_module()
+    old32, new34 = _pr197_tenant_source_config()
+    root, base = _pr197_old_definition_repo(tmp_path, old32)
+    commit_change(root, 'scripts/core_guard.py', SCRIPT.read_text())
+    partial = json.loads(json.dumps(new34))
+    next(a for a in partial['areas'] if a['id'] == 'tenant-isolation')['paths'].pop()
+    commit_change(root, '.claude/core-areas.json', json.dumps(partial))
+    _, head = commit_change(root, '.claude/core-areas.json', json.dumps(new34))
+    with pytest.raises(guard.GuardError, match='部分追加'):
+        guard.verify_area_path_baseline(root, base, head)
