@@ -10,11 +10,13 @@ import {
   buildGameLifecycleSyncEvent,
   gameLifecycleEventKind,
   isGameLifecycleGame,
-  isGameLifecycleRequestBody,
   isGameLifecycleMeta,
+  isGameLifecycleRequestBody,
   postGameLifecycleRequestBody,
   readGameLifecycle,
+  type GameLifecycleCheckpointRef,
   type GameLifecycleGame,
+  type GameLifecycleReopenTarget,
 } from './gameLifecycle'
 import { queueStateId } from '../lib/sync/queueState'
 import type { DurableQueueSlot } from '../lib/sync/durableQueue'
@@ -24,6 +26,45 @@ const tenant = '11111111-1111-4111-8111-111111111111'
 const gameId = '22222222-2222-4222-8222-222222222222'
 const d4 = 'd4.1.' + 'A'.repeat(55)
 const proof = 'unit-only-proof'
+const event = {
+  eventId: '77777777-7777-4777-8777-777777777777',
+  receiptId: '88888888-8888-4888-8888-888888888888',
+}
+const confirmedRef: GameLifecycleCheckpointRef = {
+  kind: 'confirmed',
+  id: '66666666-6666-4666-8666-666666666666',
+  revision: '2',
+  digest: 'a'.repeat(64),
+}
+const queuedRef: GameLifecycleCheckpointRef = {
+  kind: 'queued_predecessor',
+  d4,
+  d1: '4',
+  d5: '12121212-1212-4212-8212-121212121212',
+}
+const prefixRef: GameLifecycleCheckpointRef = {
+  kind: 'confirmed_prefix',
+  id: '66666666-6666-4666-8666-666666666666',
+  revision: '2',
+  digest: 'a'.repeat(64),
+  d4,
+  d1: '4',
+  d5: '12121212-1212-4212-8212-121212121212',
+}
+const confirmedTarget: GameLifecycleReopenTarget = {
+  kind: 'confirmed',
+  version: '4',
+  eventId: '33333333-3333-4333-8333-333333333333',
+  receiptId: '44444444-4444-4444-8444-444444444444',
+}
+const queuedTarget: GameLifecycleReopenTarget = {
+  kind: 'queued_end',
+  d4,
+  d1: '4',
+  d5: '12121212-1212-4212-8212-121212121212',
+  eventId: '33333333-3333-4333-8333-333333333333',
+  receiptId: '44444444-4444-4444-8444-444444444444',
+}
 
 function inProgress(): GameLifecycleGame {
   const base = undoRead()
@@ -78,38 +119,31 @@ function finished(from: GameLifecycleGame = inProgress()): GameLifecycleGame {
   return value
 }
 
-function slot(action: 'end' | 'reopen' = 'end'): DurableQueueSlot {
+function slot(
+  action: 'end' | 'reopen' = 'end',
+  checkpointRef: GameLifecycleCheckpointRef = confirmedRef,
+  target: GameLifecycleReopenTarget | null = action === 'reopen'
+    ? confirmedTarget
+    : null,
+): DurableQueueSlot {
   const kind = kindForTest(action)
   const payload = buildGameLifecyclePayload({
     action,
-    checkpointRef: {
-      id: '66666666-6666-4666-8666-666666666666',
-      revision: '2',
-      digest: 'a'.repeat(64),
-    },
-    target:
-      action === 'reopen'
-        ? {
-            version: '4',
-            eventId: '33333333-3333-4333-8333-333333333333',
-            receiptId: '44444444-4444-4444-8444-444444444444',
-          }
-        : null,
-    event: {
-      eventId: '77777777-7777-4777-8777-777777777777',
-      receiptId: '88888888-8888-4888-8888-888888888888',
-    },
+    checkpointRef,
+    target,
+    event,
   })
+  const d5 = '99999999-9999-4999-8999-999999999999'
   return {
     game: gameId,
     d4,
     d1: 5,
-    d5: '99999999-9999-4999-8999-999999999999',
+    d5,
     version: 1,
     event: buildGameLifecycleSyncEvent({
       gameId,
       d4,
-      d5: '99999999-9999-4999-8999-999999999999',
+      d5,
       d2: 2001,
       payload,
       eventKind: kind,
@@ -250,41 +284,95 @@ describe('lifecycle read', () => {
   })
 })
 
-describe('lifecycle payload', () => {
-  it('終了はtargetを持たず、再開は最新active全3値を要求する', () => {
-    const event = {
-      eventId: '77777777-7777-4777-8777-777777777777',
-      receiptId: '88888888-8888-4888-8888-888888888888',
-    }
-    const checkpointRef = {
-      id: '66666666-6666-4666-8666-666666666666',
-      revision: '2',
-      digest: 'b'.repeat(64),
-    }
+describe('lifecycle payload（閉union）', () => {
+  it('endはcheckpointRefの閉unionとtarget=nullだけを許す', () => {
     expect(
       buildGameLifecyclePayload({
         action: 'end',
-        checkpointRef,
+        checkpointRef: confirmedRef,
         target: null,
         event,
       }),
-    ).toMatchObject({ action: 'end', target: null })
+    ).toMatchObject({
+      action: 'end',
+      target: null,
+      checkpointRef: confirmedRef,
+    })
+    expect(
+      buildGameLifecyclePayload({
+        action: 'end',
+        checkpointRef: queuedRef,
+        target: null,
+        event,
+      }),
+    ).toMatchObject({ checkpointRef: queuedRef })
+    expect(
+      buildGameLifecyclePayload({
+        action: 'end',
+        checkpointRef: prefixRef,
+        target: null,
+        event,
+      }),
+    ).toMatchObject({ checkpointRef: prefixRef })
     expect(() =>
       buildGameLifecyclePayload({
         action: 'end',
-        checkpointRef,
-        target: {
-          version: '1',
-          eventId: event.eventId,
-          receiptId: event.receiptId,
-        },
+        checkpointRef: confirmedRef,
+        target: confirmedTarget,
         event,
       }),
     ).toThrow('end-target')
+  })
+
+  it('旧flat checkpointRefとtargetを閉拒否する', () => {
+    expect(() =>
+      buildGameLifecyclePayload({
+        action: 'end',
+        checkpointRef: {
+          id: confirmedRef.kind === 'confirmed' ? confirmedRef.id : '',
+          revision: '2',
+          digest: 'a'.repeat(64),
+        } as unknown as GameLifecycleCheckpointRef,
+        target: null,
+        event,
+      }),
+    ).toThrow('invalid-checkpoint-ref')
     expect(() =>
       buildGameLifecyclePayload({
         action: 'reopen',
-        checkpointRef,
+        checkpointRef: confirmedRef,
+        target: {
+          version: '4',
+          eventId:
+            confirmedTarget.kind === 'confirmed' ? confirmedTarget.eventId : '',
+          receiptId: '44444444-4444-4444-8444-444444444444',
+        } as unknown as GameLifecycleReopenTarget,
+        event,
+      }),
+    ).toThrow('reopen-target')
+  })
+
+  it('reopenはconfirmed/queued_endのtargetとCP参照を要求する', () => {
+    expect(
+      buildGameLifecyclePayload({
+        action: 'reopen',
+        checkpointRef: confirmedRef,
+        target: confirmedTarget,
+        event,
+      }),
+    ).toMatchObject({ target: confirmedTarget })
+    expect(
+      buildGameLifecyclePayload({
+        action: 'reopen',
+        checkpointRef: queuedRef,
+        target: queuedTarget,
+        event,
+      }),
+    ).toMatchObject({ target: queuedTarget })
+    expect(() =>
+      buildGameLifecyclePayload({
+        action: 'reopen',
+        checkpointRef: confirmedRef,
         target: null,
         event,
       }),
@@ -292,32 +380,43 @@ describe('lifecycle payload', () => {
     expect(() =>
       buildGameLifecyclePayload({
         action: 'reopen',
-        checkpointRef: { ...checkpointRef, revision: '02' },
-        target: {
-          version: '1',
-          eventId: event.eventId,
-          receiptId: event.receiptId,
-        },
+        checkpointRef: {
+          ...confirmedRef,
+          revision: '02',
+        } as GameLifecycleCheckpointRef,
+        target: confirmedTarget,
         event,
       }),
-    ).toThrow('invalid-reference')
+    ).toThrow('invalid-checkpoint-ref')
     expect(() =>
       buildGameLifecyclePayload({
         action: 'reopen',
-        checkpointRef: { ...checkpointRef, digest: 'z'.repeat(64) },
-        target: {
-          version: '1',
-          eventId: event.eventId,
-          receiptId: event.receiptId,
-        },
+        checkpointRef: {
+          ...prefixRef,
+          d1: '0',
+        } as GameLifecycleCheckpointRef,
+        target: confirmedTarget,
         event,
       }),
-    ).toThrow('invalid-reference')
+    ).toThrow('invalid-checkpoint-ref')
+    expect(() =>
+      buildGameLifecyclePayload({
+        action: 'reopen',
+        checkpointRef: {
+          ...queuedTarget,
+          d4: 'd4.1.short',
+        } as unknown as GameLifecycleCheckpointRef,
+        target: confirmedTarget,
+        event,
+      }),
+    ).toThrow('invalid-checkpoint-ref')
   })
+})
 
+describe('lifecycle wire rewrite', () => {
   it('イベントはV1/V3/V4/V5/V6/V7だけで、V2/V8を持たない', () => {
-    const event = slot('end').event
-    expect(Object.keys(event.fields).sort()).toEqual([
+    const built = slot('end')
+    expect(Object.keys(built.event.fields).sort()).toEqual([
       'V1',
       'V3',
       'V4',
@@ -325,12 +424,10 @@ describe('lifecycle payload', () => {
       'V6',
       'V7',
     ])
-    expect(event.fields.V5).toBe('5')
-    expect(event.fields.V6).toBe(2001)
+    expect(built.event.fields.V5).toBe('5')
+    expect(built.event.fields.V6).toBe(2001)
   })
-})
 
-describe('lifecycle wire rewrite', () => {
   it('終了のordinal 5だけをgame_end_declarationへ写し、他は変えない', () => {
     const built = buildGameLifecycleRequestBody({
       gameId,
@@ -348,11 +445,15 @@ describe('lifecycle wire rewrite', () => {
       game_id: gameId,
       event_kind: GAME_LIFECYCLE_WIRE_EVENT_KIND.end,
       d2: 2001,
+      payload: {
+        checkpointRef: confirmedRef,
+        target: null,
+        event,
+      },
     })
     expect(built.body.events[0]).not.toHaveProperty('state_diff')
     expect(built.body.events[0]).not.toHaveProperty('target_reference')
     expect(built.body.recording_right_proof).toBe(proof)
-    // 同じ入力からは同じ本文。送信前の耐久固定と再送で使う。
     expect(
       buildGameLifecycleRequestBody({
         gameId,
@@ -378,6 +479,36 @@ describe('lifecycle wire rewrite', () => {
     expect(built.body.events[0]?.event_kind).toBe(
       GAME_LIFECYCLE_WIRE_EVENT_KIND.reopen,
     )
+    expect(built.body.events[0]?.payload).toMatchObject({
+      target: confirmedTarget,
+    })
+  })
+
+  it('queued_predecessor/queued_endをwireで保持する', () => {
+    const built = buildGameLifecycleRequestBody({
+      gameId,
+      recordingRightProof: proof,
+      slot: slot('reopen', queuedRef, queuedTarget),
+      action: 'reopen',
+      eventKind: kindForTest('reopen'),
+    })
+    if (!built.ok) throw new Error('body invalid')
+    expect(built.body.events[0]?.payload).toMatchObject({
+      checkpointRef: {
+        kind: 'queued_predecessor',
+        d4,
+        d1: '4',
+        d5: '12121212-1212-4212-8212-121212121212',
+      },
+      target: {
+        kind: 'queued_end',
+        d4,
+        d1: '4',
+        d5: '12121212-1212-4212-8212-121212121212',
+        eventId: '33333333-3333-4333-8333-333333333333',
+        receiptId: '44444444-4444-4444-8444-444444444444',
+      },
+    })
   })
 
   it('操作と種別の食い違いを写像しない', () => {
@@ -420,6 +551,12 @@ describe('lifecycle wire rewrite', () => {
         events: built.body.events,
       }),
     ).toBe(false)
+    const flat = structuredClone(built.body) as unknown as {
+      events: { payload: Record<string, unknown> }[]
+    }
+    delete (flat.events[0]!.payload.checkpointRef as Record<string, unknown>)
+      .kind
+    expect(isGameLifecycleRequestBody(flat)).toBe(false)
   })
 
   it('POSTは本文を変更せず、通信断/HTTP失敗を送信成功にしない', async () => {

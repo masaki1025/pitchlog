@@ -32,12 +32,63 @@ export const GAME_LIFECYCLE_PAYLOAD_FORMAT = 'native-game-lifecycle-v1' as const
 export type GameLifecycleStatus = 'in_progress' | 'finished'
 export type GameLifecycleAction = 'end' | 'reopen'
 
-/** 終了確定版の表示pointer。値だけでは認可/保存資格にならない。 */
+/** 終了確定版の表示pointer（読取DTO）。値だけでは認可/保存資格にならない。 */
 export type GameLifecycleTarget = Readonly<{
   version: string
   eventId: string
   receiptId: string
 }>
+
+/**
+ * 書込V7の checkpointRef（gate候補 7-5-A の閉union）。
+ *
+ * - confirmed: 現在の完全stack・配置・成績に一致する既確定CP
+ * - confirmed_prefix: 既確定CPの後に実受理済みの終端D1/D5までを復元する
+ * - queued_predecessor: 同一端末の順序付き耐久キューで直前に先行するD1操作
+ */
+export type GameLifecycleConfirmedCheckpointRef = Readonly<{
+  kind: 'confirmed'
+  id: string
+  revision: string
+  digest: string
+}>
+export type GameLifecycleConfirmedPrefixRef = Readonly<{
+  kind: 'confirmed_prefix'
+  id: string
+  revision: string
+  digest: string
+  d4: string
+  d1: string
+  d5: string
+}>
+export type GameLifecycleQueuedPredecessorRef = Readonly<{
+  kind: 'queued_predecessor'
+  d4: string
+  d1: string
+  d5: string
+}>
+export type GameLifecycleCheckpointRef =
+  | GameLifecycleConfirmedCheckpointRef
+  | GameLifecycleConfirmedPrefixRef
+  | GameLifecycleQueuedPredecessorRef
+
+/** 書込V7の reopen target（gate候補 7-5-A の閉union）。 */
+export type GameLifecycleConfirmedReopenTarget = Readonly<{
+  kind: 'confirmed'
+  version: string
+  eventId: string
+  receiptId: string
+}>
+export type GameLifecycleQueuedEndTarget = Readonly<{
+  kind: 'queued_end'
+  d4: string
+  d1: string
+  d5: string
+  eventId: string
+  receiptId: string
+}>
+export type GameLifecycleReopenTarget =
+  GameLifecycleConfirmedReopenTarget | GameLifecycleQueuedEndTarget
 
 export type GameLifecycleMeta = Readonly<{
   formatVersion: typeof GAME_LIFECYCLE_READ_FORMAT
@@ -69,8 +120,8 @@ export type GameLifecycleReadResult =
 export type GameLifecycleWirePayload = Readonly<{
   formatVersion: typeof GAME_LIFECYCLE_PAYLOAD_FORMAT
   action: GameLifecycleAction
-  checkpointRef: Readonly<{ id: string; revision: string; digest: string }>
-  target: GameLifecycleTarget | null
+  checkpointRef: GameLifecycleCheckpointRef
+  target: GameLifecycleReopenTarget | null
   event: Readonly<{ eventId: string; receiptId: string }>
 }>
 
@@ -187,6 +238,11 @@ function positiveDecimal(value: unknown): value is string {
 
 function digest(value: unknown): value is string {
   return typeof value === 'string' && /^[0-9a-f]{64}$/.test(value)
+}
+
+/** 既V3のwire正規形（D4）。 */
+function wireD4(value: unknown): value is string {
+  return typeof value === 'string' && /^d4\.1\.[A-Za-z0-9_-]{55}$/.test(value)
 }
 
 function isStatus(value: unknown): value is GameLifecycleStatus {
@@ -327,7 +383,11 @@ export function gameLifecycleEventKind(
 }
 
 /**
- * V7 payloadを閉じた形で組み立てる。
+ * V7 payloadを閉じた形で組み立てる（gate候補 7-5-A の閉union）。
+ *
+ * 旧MINIMUM-INTERFACEのflat形（kind無し）は受理しない。`checkpointRef`は
+ * confirmed / confirmed_prefix / queued_predecessor のいずれか、`end`の
+ * targetはnull、`reopen`のtargetは confirmed / queued_end のいずれかである。
  *
  * Args:
  *     input: 操作・CP参照・再開対象・予約ID。
@@ -341,44 +401,133 @@ export function gameLifecycleEventKind(
 export function buildGameLifecyclePayload(
   input: Readonly<{
     action: GameLifecycleAction
-    checkpointRef: Readonly<{ id: string; revision: string; digest: string }>
-    target: GameLifecycleTarget | null
+    checkpointRef: GameLifecycleCheckpointRef
+    target: GameLifecycleReopenTarget | null
     event: Readonly<{ eventId: string; receiptId: string }>
   }>,
 ): GameLifecycleWirePayload {
+  const checkpointRef = buildCheckpointRef(input.checkpointRef)
   if (
-    !exact(input.checkpointRef, ['id', 'revision', 'digest']) ||
-    !uuid(input.checkpointRef.id) ||
-    !positiveDecimal(input.checkpointRef.revision) ||
-    !digest(input.checkpointRef.digest) ||
     !exact(input.event, ['eventId', 'receiptId']) ||
     !uuid(input.event.eventId) ||
     !uuid(input.event.receiptId)
   )
-    throw new GameLifecycleWireError('invalid-reference')
+    throw new GameLifecycleWireError('invalid-event')
+  let target: GameLifecycleReopenTarget | null = null
   if (input.action === 'end') {
     if (input.target !== null) throw new GameLifecycleWireError('end-target')
-  } else if (
-    !exact(input.target, ['version', 'eventId', 'receiptId']) ||
-    !positiveDecimal(input.target.version) ||
-    !uuid(input.target.eventId) ||
-    !uuid(input.target.receiptId)
-  )
-    throw new GameLifecycleWireError('reopen-target')
+  } else {
+    if (input.target === null) throw new GameLifecycleWireError('reopen-target')
+    target = buildReopenTarget(input.target)
+  }
   return {
     formatVersion: GAME_LIFECYCLE_PAYLOAD_FORMAT,
     action: input.action,
-    checkpointRef: { ...input.checkpointRef },
-    target:
-      input.action === 'end'
-        ? null
-        : {
-            version: input.target!.version,
-            eventId: input.target!.eventId,
-            receiptId: input.target!.receiptId,
-          },
+    checkpointRef,
+    target,
     event: { ...input.event },
   }
+}
+
+function buildCheckpointRef(
+  value: GameLifecycleCheckpointRef,
+): GameLifecycleCheckpointRef {
+  const row = object(value)
+  if (row === null) throw new GameLifecycleWireError('invalid-checkpoint-ref')
+  if (row.kind === 'confirmed') {
+    if (
+      !exact(row, ['kind', 'id', 'revision', 'digest']) ||
+      !uuid(row.id) ||
+      !positiveDecimal(row.revision) ||
+      !digest(row.digest)
+    )
+      throw new GameLifecycleWireError('invalid-checkpoint-ref')
+    return {
+      kind: 'confirmed',
+      id: row.id,
+      revision: row.revision,
+      digest: row.digest,
+    }
+  }
+  if (row.kind === 'confirmed_prefix') {
+    if (
+      !exact(row, ['kind', 'id', 'revision', 'digest', 'd4', 'd1', 'd5']) ||
+      !uuid(row.id) ||
+      !positiveDecimal(row.revision) ||
+      !digest(row.digest) ||
+      !wireD4(row.d4) ||
+      !positiveDecimal(row.d1) ||
+      !uuid(row.d5)
+    )
+      throw new GameLifecycleWireError('invalid-checkpoint-ref')
+    return {
+      kind: 'confirmed_prefix',
+      id: row.id,
+      revision: row.revision,
+      digest: row.digest,
+      d4: row.d4,
+      d1: row.d1,
+      d5: row.d5,
+    }
+  }
+  if (row.kind === 'queued_predecessor') {
+    if (
+      !exact(row, ['kind', 'd4', 'd1', 'd5']) ||
+      !wireD4(row.d4) ||
+      !positiveDecimal(row.d1) ||
+      !uuid(row.d5)
+    )
+      throw new GameLifecycleWireError('invalid-checkpoint-ref')
+    return {
+      kind: 'queued_predecessor',
+      d4: row.d4,
+      d1: row.d1,
+      d5: row.d5,
+    }
+  }
+  throw new GameLifecycleWireError('invalid-checkpoint-ref')
+}
+
+function buildReopenTarget(
+  value: GameLifecycleReopenTarget,
+): GameLifecycleReopenTarget {
+  const row = object(value)
+  if (row === null) throw new GameLifecycleWireError('reopen-target')
+  if (row.kind === 'confirmed') {
+    if (
+      !exact(row, ['kind', 'version', 'eventId', 'receiptId']) ||
+      !positiveDecimal(row.version) ||
+      !uuid(row.eventId) ||
+      !uuid(row.receiptId)
+    )
+      throw new GameLifecycleWireError('reopen-target')
+    return {
+      kind: 'confirmed',
+      version: row.version,
+      eventId: row.eventId,
+      receiptId: row.receiptId,
+    }
+  }
+  if (row.kind === 'queued_end') {
+    if (
+      !exact(row, ['kind', 'd4', 'd1', 'd5', 'eventId', 'receiptId']) ||
+      !wireD4(row.d4) ||
+      !positiveDecimal(row.d1) ||
+      !uuid(row.d5) ||
+      !uuid(row.eventId) ||
+      !uuid(row.receiptId)
+    )
+      throw new GameLifecycleWireError('reopen-target')
+    return {
+      kind: 'queued_end',
+      d4: row.d4,
+      d1: row.d1,
+      d5: row.d5,
+      eventId: row.eventId,
+      receiptId: row.receiptId,
+    }
+  }
+  throw new GameLifecycleWireError('reopen-target')
 }
 
 /**
@@ -485,9 +634,8 @@ function isGameLifecyclePayloadObject(value: unknown): boolean {
   try {
     buildGameLifecyclePayload({
       action: value.action,
-      checkpointRef:
-        value.checkpointRef as GameLifecycleWirePayload['checkpointRef'],
-      target: value.target as GameLifecycleTarget | null,
+      checkpointRef: value.checkpointRef as GameLifecycleCheckpointRef,
+      target: value.target as GameLifecycleReopenTarget | null,
       event: value.event as GameLifecycleWirePayload['event'],
     })
     return true
