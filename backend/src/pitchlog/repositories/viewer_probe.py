@@ -76,8 +76,8 @@ def _current(generation: dict | None, tenant: UUID, game_id: UUID) -> bool:
 def read_viewer_probe(handle, game_id: UUID) -> ViewerProbe:
     """非ロックの点読取を二度照合し、混在版を503へ閉じる。
 
-    この値は履歴・スコアの表示原本でも記録資格でもない。版が変わったら既の
-    閉じた `/started` 読取を行う。writer行ロックやNode計算を定期呼出しない。
+    この値は履歴・スコアの表示原本でも記録資格でもない。版が変わったら
+    RR READ ONLY のviewer本体で保存値を確認する。
     """
     if type(game_id) is not UUID or type(handle._bound_tenant_id) is not UUID:
         raise ViewerProbeUnavailable("閲覧対象が不正です")

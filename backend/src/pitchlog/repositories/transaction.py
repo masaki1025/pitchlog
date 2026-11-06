@@ -54,6 +54,7 @@ _INITIAL_ACTOR_STATES: dict[
 ] = {}
 _RG1_LOANS: dict[object, _GateLoan] = {}
 _STATS_READ_HANDLES: dict[object, _TenantTransaction] = {}
+_VIEWER_READ_HANDLES: dict[object, _TenantTransaction] = {}
 
 
 @dataclass(slots=True)
@@ -164,6 +165,7 @@ class _TenantTransaction:
         _PORT_DEVICE_BIND_USED.discard(state_key)
         _STATS_READ_HANDLES.pop(state_key, None)
         _PLAY_EXPORT_HANDLES.pop(state_key, None)
+        _VIEWER_READ_HANDLES.pop(state_key, None)
         return state_key
 
     def run(self, operation: TenantOperationToken) -> TenantOperationResult:
@@ -196,6 +198,8 @@ class _TenantTransaction:
                 "TenantContext の発行証跡が不一致のため業務 SQL を開始できない"
             )
 
+        if state_key in _VIEWER_READ_HANDLES:
+            _require_viewer_read_token(self, operation, function=False)
         session, _ = runtime
         if _play_export_source_operation(operation):
             from pitchlog.repositories.play_export_source_operations import (
@@ -254,6 +258,8 @@ class _TenantTransaction:
             raise TenantBindingError(
                 "TenantContext の発行証跡が不一致のため業務 SQL を開始できない"
             )
+        if state_key in _VIEWER_READ_HANDLES:
+            _require_viewer_read_token(self, operation, function=True)
         if _play_export_source_operation(operation):
             from pitchlog.repositories.play_export_source_operations import (
                 run_qualified_source_read,
@@ -578,6 +584,7 @@ class _TenantTransactionScope(AbstractContextManager[_TenantTransaction]):
         "_actor_phase",
         "_stats_read",
         "_play_export_read",
+        "_viewer_read",
     )
 
     def __init__(
@@ -588,6 +595,7 @@ class _TenantTransactionScope(AbstractContextManager[_TenantTransaction]):
         _actor_phase: Literal["intent", "business", "enroll"] | None = None,
         _stats_read: bool = False,
         _play_export_read: bool = False,
+        _viewer_read: bool = False,
     ) -> None:
         """スコープへ一度だけ渡されたテナント文脈を保持する。
 
@@ -600,8 +608,9 @@ class _TenantTransactionScope(AbstractContextManager[_TenantTransaction]):
         self._actor_phase = _actor_phase
         self._stats_read = _stats_read
         self._play_export_read = _play_export_read
-        if _stats_read and _play_export_read:
-            raise TenantBindingError("成績と毎球CSVのread scopeを混在できない")
+        self._viewer_read = _viewer_read
+        if sum((_stats_read, _play_export_read, _viewer_read)) > 1:
+            raise TenantBindingError("異なるread scopeを混在できない")
 
     def __enter__(self) -> _TenantTransaction:
         """Session を生成し、トランザクション先頭で文脈を束縛する。
@@ -635,7 +644,7 @@ class _TenantTransactionScope(AbstractContextManager[_TenantTransaction]):
             if self._actor_phase not in ("intent", "business", "enroll"):
                 raise TenantBindingError("actor phaseが未登録")
             engine = _initial_actor_engine(self._actor_runtime)
-        if self._stats_read or self._play_export_read:
+        if self._stats_read or self._play_export_read or self._viewer_read:
             if self._actor_runtime is not None or self._actor_phase is not None:
                 raise TenantBindingError("readと書込actorを同じscopeへ混在できない")
             # tenant bindingの最初のSELECTより前にRR/ROを固定する。
@@ -679,6 +688,8 @@ class _TenantTransactionScope(AbstractContextManager[_TenantTransaction]):
             _STATS_READ_HANDLES[state_key] = handle
         if self._play_export_read:
             _PLAY_EXPORT_HANDLES[state_key] = handle
+        if self._viewer_read:
+            _VIEWER_READ_HANDLES[state_key] = handle
         return handle
 
     def __exit__(
@@ -965,6 +976,93 @@ def _run_stats_primitive_read(
     else:
         decoded = decode_totals_rows(rows)
     return _materialize_rows(decoded)
+
+
+def _require_viewer_read_token(
+    handle: _TenantTransaction, operation: TenantOperationToken, *, function: bool
+) -> None:
+    """閲覧scopeの読取能力を既登録tokenの有限集合に絞る。"""
+    require_viewer_read_scope(handle)
+    if function:
+        from pitchlog.repositories.lifecycle_function_operations import (
+            LifecycleDisplayToken,
+        )
+        from pitchlog.repositories.nonplay_prefix_read_operations import (
+            NonplayActiveHistoryReadToken,
+        )
+        from pitchlog.repositories.ordinary_order import OrdinaryOrderSummaryToken
+        from pitchlog.repositories.ordinary_prefix_operations import (
+            OrdinaryCheckpointReadToken,
+        )
+        from pitchlog.sync.terminal_pitch_tokens import (
+            LineupStartedOriginReadToken,
+            PlayPrefixCheckpointReadToken,
+            PlayPrefixHistoryPageToken,
+        )
+
+        allowed = {
+            LifecycleDisplayToken,
+            NonplayActiveHistoryReadToken,
+            OrdinaryOrderSummaryToken,
+            OrdinaryCheckpointReadToken,
+            LineupStartedOriginReadToken,
+            PlayPrefixCheckpointReadToken,
+            PlayPrefixHistoryPageToken,
+        }
+    else:
+        from pitchlog.repositories.roster import PlayerReadToken
+        from pitchlog.repositories.started_snapshot_operations import (
+            StartedEventSlotsExistenceToken,
+            StartedLineupsReadToken,
+            StartedOperationEventsExistenceToken,
+            StartedPlayRowsExistenceToken,
+        )
+        from pitchlog.sync.first_ball_tokens import FirstBallPlayRowReadToken
+        from pitchlog.sync.tokens import (
+            GameReadToken,
+            IdempotencyLedgerReadToken,
+            OperationEventReadToken,
+            RecordingGenerationReadToken,
+        )
+
+        allowed = {
+            PlayerReadToken,
+            StartedEventSlotsExistenceToken,
+            StartedLineupsReadToken,
+            StartedOperationEventsExistenceToken,
+            StartedPlayRowsExistenceToken,
+            FirstBallPlayRowReadToken,
+            GameReadToken,
+            IdempotencyLedgerReadToken,
+            OperationEventReadToken,
+            RecordingGenerationReadToken,
+        }
+    if type(operation) not in allowed:
+        raise TenantBindingError("閲覧scopeで未承認の読取能力")
+
+
+def require_viewer_read_scope(handle: object) -> None:
+    """実RR/READ ONLYの閲覧handleとtenant証跡を確認する。"""
+    if type(handle) is not _TenantTransaction:
+        raise TenantBindingError("閲覧readに真正handleが必要")
+    key = handle._state_key
+    if (
+        key is None
+        or key not in _TRANSACTION_RUNTIMES
+        or _VIEWER_READ_HANDLES.get(key) is not handle
+        or type(handle._context) is not TenantContext
+        or handle._context.tenant_id != handle._bound_tenant_id
+        or handle._context._integrity_proof != handle._bound_integrity_proof
+        or not handle._context._has_valid_integrity_proof()
+    ):
+        raise TenantBindingError("閲覧read scopeが失効又は別tenant")
+
+
+def viewer_read_scope(
+    context: TenantContext,
+) -> AbstractContextManager[_TenantTransaction]:
+    """真正tenantを非ロックRR/READ ONLYの閲覧readへ束縛する。"""
+    return _TenantTransactionScope(context, _viewer_read=True)
 
 
 def stats_primitive_read_scope(
