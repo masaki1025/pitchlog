@@ -197,7 +197,7 @@ sync_right_api.read_nonplay_active_history(
 RETURNS TABLE(record_json text) LANGUAGE plpgsql VOLATILE SECURITY DEFINER
 SET search_path=pg_catalog,pg_temp AS $nonplayread$
 DECLARE cp sync_fence.ordinary_pitch_checkpoints%ROWTYPE; x record; j jsonb;
- items jsonb:='[]'::jsonb; total bigint; chain jsonb;
+ items jsonb:='[]'::jsonb; total bigint; chain jsonb; physical_xmin xid;
 BEGIN
 {_READ_ASSERT}
  IF p_checkpoint_id IS NULL OR p_revision IS NULL OR p_epoch IS NULL OR p_d3 IS NULL
@@ -229,6 +229,12 @@ BEGIN
  AND c.content->'prefix_ref'->>'tenantId'=p_tenant_id::text
  AND c.content->'prefix_ref'->>'gameId'=p_game_id::text
  FOR SHARE OF c;
+ -- JOINで形成したROWTYPEのtuple headerを保存行xminとして使わない。
+ -- 直前のCP行lockを保持した同TXで、物理表のsystem列を明示取得する。
+ SELECT c.xmin INTO STRICT physical_xmin
+ FROM sync_fence.ordinary_pitch_checkpoints c
+ WHERE c.tenant_id=p_tenant_id AND c.game_id=p_game_id
+ AND c.internal_generation=p_generation AND c.id=cp.id AND c.revision=cp.revision;
  -- 最新CPも全raw event/ledger/slot/全physicalと同じ受理取引の保存印へ束縛する。
  IF NOT EXISTS(SELECT 1 FROM sync_fence.ordinary_pitch_write_admissions a
  JOIN public.operation_events e ON e.tenant_id=a.tenant_id
@@ -241,7 +247,7 @@ BEGIN
  AND a.state='consumed' AND a.consumed_at=cp.saved_at
  AND a.checkpoint_id=cp.id AND a.checkpoint_revision+1=cp.revision
  AND a.next_checkpoint_content=cp.content AND a.roster_snapshot=cp.roster
- AND a.xmin=cp.xmin AND e.xmin=a.xmin AND l.xmin=a.xmin AND es.xmin=a.xmin
+ AND a.xmin=physical_xmin AND e.xmin=a.xmin AND l.xmin=a.xmin AND es.xmin=a.xmin
  AND a.xmin::text::numeric=pg_catalog.mod(a.transaction_id::numeric,4294967296)
  AND e.generation=p_generation AND e.d1=p_d3 AND e.d2=a.source_d2
  AND e.d5=a.d5 AND e.event_kind='play_input' AND e.ledger_kind='accepted'

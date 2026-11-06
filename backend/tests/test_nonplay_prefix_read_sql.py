@@ -23,7 +23,10 @@ def test_bootstrap_legacy_branch_keeps_signature_and_all_saved_qualification():
     assert sql.count("CREATE FUNCTION") == 1
     assert "c.content->>'version'='3'" in sql
     assert "a.next_checkpoint_content=cp.content" in sql
-    assert "a.xmin=cp.xmin" in sql and "es.xmin=a.xmin" in sql
+    assert "a.xmin=physical_xmin" in sql and "es.xmin=a.xmin" in sql
+    assert "SELECT c.xmin INTO STRICT physical_xmin" in sql
+    assert "c.id=cp.id AND c.revision=cp.revision" in sql
+    assert "a.xmin=cp.xmin" not in sql
     assert "l.source_fingerprint=a.event_fingerprint" in sql
     assert "c.content->'storage_anchor'->>'history_epoch'=p_epoch::text" in sql
     assert "'generationChain',chain" in sql
@@ -35,7 +38,7 @@ def test_bootstrap_legacy_branch_keeps_signature_and_all_saved_qualification():
 
 
 def test_generation_join_and_both_branch_guards_remain():
-    """g rowlockだけを外し、NP/旧v3のtenant/世代/水位条件を保持する。"""
+    """世代行の重複lockだけを外し、NP/旧v3のtenant/世代/水位条件を保持する。"""
     sql = candidate_read_function_bodies()["read_nonplay_active_history"]
     assert sql.count("FOR SHARE OF c;") == 2
     assert sql.count("JOIN public.recording_generations g") == 2
