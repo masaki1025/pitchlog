@@ -335,3 +335,6 @@ xid8型表現の接合受理（2026-11-06 JST、PO委任Codex /root判断）: �
 
 
 取消panelの記録画面mount（2026-11-06 JST、PO委任Codex /root判断）: root sole-owned既GameScreenRecordedRestore.vueと同specのexact2をstep3へ接続する。採用済みGameScreenUndoProductを既record routeへ埋め込み、真正NP保存sourceのstateイベントでだけ旧表示を隠す。auto=falseの手動取得設定を維持し、game単位keyで古いpanelを再利用しない。ACKだけで成功状態を捏造せず、保存後は既restore.reloadへ接続する。旧host検査では新panelを明示stubとして旧read回数/値の保証を保持し、state false/true切替・saved後実既read再実行・auto=false未起動を追加検証する。スタブ検査はhostの表示配線だけで実認可/DB/画面成功へ広げない。外部reserved lifecycle FE6とは別path。
+
+
+xmin観測反映1の受理（2026-11-06 JST、PO委任Codex /root判断）: 初版query1/DBtest1に旧pure exact4追随不足があり、初版8失敗22成功を保持。scopeへbackend/tests/test_stats_catalog_pg_representation.py1だけ追加、既4表/対向は保持してevent_slotsの5表へ正確追随し、新tableの別schema/他system列3拒否を追加した。非作者09bb98562205cb4de48aa3b8bfd61f5b81838b8ee484658ee2729b77e4493890で全3SHA・元2afterbyte保持・33純成功/pglast/33DBcollect/型lintを確認し新P0/P1=0。root固定隔離candidateのowned新規起動/同版再開・新3権限改変/旧SELECT改変は5成功49.93秒、source前後同一・owned撤去。反映1はDB関連source2が同byteでpure期待test1だけを追加する。本体制御/GRANTは不変。広域product_catalog旧59→現60表等のstale失敗は別残件でgreenに含めず、正式全検査/実画面は後段で実施する。
