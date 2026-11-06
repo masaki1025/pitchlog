@@ -29,3 +29,6 @@ step1の入力codec部分を採用（2026-11-06、PO委任Codex /root判断）: 
 
 
 2時間試行の終了再開R2同版接合（2026-11-06、PO委任Codex/root判断）: cache基線ec23＋R1固定packetからR2全163pathを照合し、154をactualへ接合。source3競合は旧省略保持の同義format・JSONB括弧・有限互換validatorの型狭化として解決。衝突したartifact2・witness/manifest/数学case5・旧profile test1・公式prepare body1の計9はroot既修復を保持して合成sourceから再生成する。root P0修復/物理走者P1/同期C2/取消D5先行再掲を失わない。cache実HTTP v3 end→reopen→追加play→reendはrun25 clean 1passed131秒だが、actual合成版/画面/全CI/正式7.7はまだ未成立。R2 Ty/Ruff成功、独立最終確認は同版固定後。0042→0043既設resume、v1/v2/nonCP/P3は未達として維持する。
+
+
+step3の実画面E2E追加（2026-11-06、PO委任Codex/root判断）: GameScreenLifecycleProduct.e2e.ts/専用Playwright config/backend実DB wrapperを追加。UIで新規作成→開始→1球→終了v1→再開→既NP画面から2球→再終了v2→reloadを同じ候補で実測し、DBの6accepted原本と真正confirmed_ended/source_count3を別literalで照合する。既外部E2Eの未接続driverを成功stubで置換せず、実画面のボタン/唯一核/実APIを使用。まだ実行前で、準備完了を実証成功にしない。
