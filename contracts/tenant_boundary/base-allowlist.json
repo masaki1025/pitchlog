@@ -38450,8 +38450,8 @@
               },
               {
                 "path": "tests/test_check_tenant_boundary_bypass.py",
-                "sha256": "91e8957a2b32d4b8d1d26f9673fd404bb578d638700f37fcfef7c97add736904",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/91e8957a2b32d4b8d1d26f9673fd404bb578d638700f37fcfef7c97add736904"
+                "sha256": "71ce6c9695d91a318063d2dc8f779c40725382cbab4609c241f990a23bf4f147",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/71ce6c9695d91a318063d2dc8f779c40725382cbab4609c241f990a23bf4f147"
               },
               {
                 "path": "tests/test_ci_wiring.py",
@@ -38517,8 +38517,8 @@
               },
               {
                 "path": "contracts/tenant_boundary/frozen-inputs.json",
-                "sha256": "d4fdc0d9d6ce6c8d4df77452bd95d1085004686929642a692496d34f0df403ce",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/d4fdc0d9d6ce6c8d4df77452bd95d1085004686929642a692496d34f0df403ce"
+                "sha256": "cac533d138d3872cd29528f9f6dee7d080aa422d83e94d8504a70e532b01cab0",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/cac533d138d3872cd29528f9f6dee7d080aa422d83e94d8504a70e532b01cab0"
               },
               {
                 "path": "contracts/tenant_boundary/negative-fixtures.json",
@@ -38544,9 +38544,9 @@
           }
         },
         "movement_fact": "正式51bcb4e1から新規保存/readの有限公開面、0039歴史原典とCI/core登録が移動。利用者の本人署名ではない。",
-        "reason": "実記録から成績事実を同TX保存し真正RRROで取得する製品基盤とD11/CI/coreの受理候補。旧境界/履歴/拒否を維持。",
-        "approved_by": "PO委任によるCodex主担当/root判断（独立値確認後に受理）",
-        "approved_on": "2026-11-06"
+        "reason": "非作者独立値確認 REPORT SHA-256 b091a8d3aa3a64e6dc9e89f78ced117b61b5cae390c40d3226dd69a8dabccaf3 に基づき、実記録から成績事実を同TX保存し真正RRROで取得するPR197製品基盤とD11/CI/coreを受理。旧境界/履歴/拒否を維持。本人署名ではない。",
+        "approved_by": "PO委任によるCodex主担当/root判断",
+        "approved_on": "2026-11-07"
       }
     ]
   },

@@ -4005,7 +4005,25 @@ def test_public_function_production_reachability_and_movement_result_usage() -> 
                 ):
                     discarded_movement_results.append((caller, node.lineno))
 
-    reachable = {"checker.check_repository"}
+    # module 初期化で真正の source revision を読む呼出だけを到達根に含める。
+    source_revision_initializers = [
+        statement.value
+        for statement in trees["checker"].body
+        if isinstance(statement, ast.Assign)
+        and len(statement.targets) == 1
+        and isinstance(statement.targets[0], ast.Name)
+        and statement.targets[0].id == "_PR197_SOURCE_REVISION"
+    ]
+    assert len(source_revision_initializers) == 1
+    source_revision_initializer = source_revision_initializers[0]
+    assert isinstance(source_revision_initializer, ast.Call)
+    assert resolve("checker", source_revision_initializer) == (
+        "frozen_history.read_original_pr197_pin"
+    )
+    reachable = {
+        "checker.check_repository",
+        "frozen_history.read_original_pr197_pin",
+    }
     pending = deque(reachable)
     while pending:
         caller = pending.popleft()
@@ -4013,6 +4031,16 @@ def test_public_function_production_reachability_and_movement_result_usage() -> 
             if callee not in reachable:
                 reachable.add(callee)
                 pending.append(callee)
+    assert any(
+        caller.startswith("checker.")
+        and any(
+            isinstance(node, ast.Name)
+            and isinstance(node.ctx, ast.Load)
+            and node.id == "_PR197_SOURCE_REVISION"
+            for node in ast.walk(functions[caller])
+        )
+        for caller in reachable
+    )
 
     public_functions = {
         name for name in functions if not name.split(".", 1)[1].startswith("_")
