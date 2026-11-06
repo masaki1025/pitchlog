@@ -134,6 +134,11 @@ def test_metrics_json_rejects_duplicate_and_unknown():
     unknown["unknown"] = {"state": "available", "value": "0"}
     with pytest.raises(ValueError):
         _metrics(json.dumps(unknown))
+    extended = json.loads(payload)
+    extended["appearances"] = {"state": "available", "value": "1"}
+    extended["batters_faced"] = {"state": "available", "value": "3"}
+    parsed_extended = _metrics(json.dumps(extended))
+    assert parsed_extended["appearances"]["value"] == 1
 
 
 def test_jst_calendar_year_boundaries():

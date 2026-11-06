@@ -48,7 +48,7 @@ def test_candidate_basic_stats_functions_install_on_current_product(
             assert all(row[5] == "pitchlog_sync_right_fn_owner" for row in rows)
             acl = connection.execute(
                 "SELECT has_function_privilege('pitchlog_app', "
-                "'stats_basic_api.read_basic_stats(uuid,uuid,text,text,text,text,"
+                "'stats_basic_api.read_basic_stats(uuid,text,text,text,text,text,"
                 "boolean,text,integer,text)', 'EXECUTE'), "
                 "has_function_privilege('pitchlog_app', "
                 "'stats_basic_api.finalize_game_stats(uuid,uuid,uuid,uuid,text)', "

@@ -65,7 +65,10 @@ def _metrics(payload: object) -> dict[str, dict[str, Any]]:
         object_pairs_hook=_unique_object,
         parse_constant=_invalid_constant,
     )
-    if type(data) is not dict or set(data) != set(COUNT_METRIC_IDS):
+    # 26十分統計に、27番目以降の正式metric（登板/打者数）が加わっても
+    # 同じ表示層で消費できる。未知metricは拒否する。
+    allowed = set(COUNT_METRIC_IDS) | {"appearances", "batters_faced"}
+    if type(data) is not dict or not set(COUNT_METRIC_IDS) <= set(data) <= allowed:
         raise ValueError("成績JSONの閉集合が不一致です")
     result: dict[str, dict[str, Any]] = {}
     for metric_id, row in data.items():
