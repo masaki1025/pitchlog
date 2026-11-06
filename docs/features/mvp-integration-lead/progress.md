@@ -1,5 +1,15 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 再開現在地：2026-11-06 17:45 JST（取消CP照合修復・実画面r23開始）
+
+- **利用者操作と実証**: 正式develop51bcb/#196の既実証は維持。候補の実画面2球保存は成立、2取消→次球→reload全列はまだ未達。owned r17は直接PG3成功・画面1失敗、r22は取消GET200・全構造/完全原本true、通常readとの16照合のうちcheckpointIdだけfalseと特定。入力CPを保存後CPと取り違えたclient比較が原因。
+- **実装**: NP `ed249414` に保存済みcheckpoint_anchor照合2行・正負対向・診断probe・計画採用を保存。非作者REPORT SHA296ecf6981aca3b432efa5dbaa0f3eccfbc5ae246a2a085f22d5ca7c783b2e1aは全重要度0、旧コードへの変異で新2件とも赤、root17件/ESLint/vue-tsc成功。PO委任Codex/root判断で採用、本人逐行確認ではない。同一HEAD/owned PG実画面 `undo-current-checkpoint-r23` を開始し結果未確定。共有DSNを外し、前後source一致/所有container除去を確認するrunnerを使用。
+- **PR197**: native2953103d。1efb3611でAST不変format/rootTy/独立Gitfixture/専用carryを保存、carry22件成功。固定Git期待の限定手続きは正式base51b起点の専用枝795b92daでPO委任の最終差分確認を経て確定しnativeへ通常merge。基本2+限定追加2/反映4を保持、形式修正の無限再レビューを行わない。新sourceは未push、旧CI赤は未解消扱い。
+- **凍結literal**: 初回候補の自己申告Git起点を非作者がP0で拒否。R2は固定2fa Gitobject/祖先/導入版/公開委任証拠を照合し独立78件成功・新P0/P1なし。ただし旧core4/tenant2の合成回帰を調査中でactual未適用。公式資産再導出/最終版レビュー/CIはこれから。backend旧0039fixture11pathも候補段階、新2literalを無許可登録しない。
+- **終了再開・成績**: lifecycle ec23d437、閉codec57件と真正閉unionを採用済み。cache reflection1の59path（33製品+26正式提案）は非作者確認中、一般非CP先行prefix/P3/実PGは未達。外部FEはa36c323bのままで修復指示をユーザーへ提示、送付・受諾は未確認。成績96ed0995の未登録候補25/27・関連266成功を保持し、真正終了provider/旧版互換/登板BF/両CSV/実画面は別残件。
+- **次**: r23結果に応じた実経路修復、凍結pin候補と旧fixture回帰を閉じて正式派生を一括再導出、終了再開backendの実装・同TX・追加球を接続。MVP全操作/実機/運用復旧/負荷の完成は未成立。試験数・候補環境を正式提供へ読み替えない。
+
+
 ## 成績基盤PR197提出・終了再開ゲート確定と入力実装（2026-11-06）
 
 - **正式統合**: develop51bcb4e1以降の新mergeは未実施。native2fa42d65を通常pushしIssue197をDraft PRへ変換、証拠 https://github.com/masaki1025/pitchlog/pull/197#issuecomment-6678937192 を掲載。最終非作者REPORT8c542276…はP0/P1=0/P2空白1、267path/diffSHA f1894aba…。実木関連150とbackend566成功。CI42176247660と本文42176293773は赤を検出、成功扱いしない。
