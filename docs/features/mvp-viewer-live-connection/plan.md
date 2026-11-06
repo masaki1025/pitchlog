@@ -31,6 +31,8 @@ created: 2026-11-06
 | 2 | 非ロック本体と閲覧画面/有限履歴 | `backend/src/pitchlog/repositories/{transaction,started_snapshot,ordinary_prefix_read,viewer_read}.py`、`backend/src/pitchlog/api/routers/viewer.py`、`frontend/src/api/viewerGame.ts`、`frontend/src/screens/GameScreenViewerLive.vue`、専用pytest/Vitest。RR READ ONLYと閉tokenで既保存CP/履歴を同snapshotに束縛し、3秒単一poll、版変更時だけ非ロック本体GET、25件pageと既cursor、対象ID限定GET、認証世代/tenant/ゲーム切替で中断・旧表示破棄。共有`frontend/src/router.ts`・入口、`api/app.py`・`api/tenant_access.py`、Cookie同提示token宣言はroot向け別patch。 |
 | 3 | 実2context検査と固定引渡し | rootの所有PG/browser lockが空いた後に共通flockで実HTTPS/ownedPG。新規UI試合→開始→別context閲覧→保存→10秒計測→reload→閲覧側通信断未更新→越境拒否。候補全SHA/パッチ/正式共有path追補を封印し、非作者レビューへ渡す。 |
 
+閲覧route追加に伴う認証後の安全な戻り先は `/games/<canonical UUID>/view` の1形だけを共有FE追補とする。未知query・fragment・末尾は既規則どおり拒否し、記録入口の許可集合を広げない。
+
 実DB対向で、既v3履歴page関数と非play active page関数の `FOR SHARE` は PostgreSQL の `READ ONLY` と両立しないことを確認した。writer既関数の行ロック契約を残し、同一SQL生成元からアンカ・行数・原本照合を維持して行ロック句だけを除く閲覧専用の有限2関数を追加する。専用tokenと閉登録を使い、RR READ ONLY以外からは呼ばない。新関数の正式宣言・EXECUTE ACL・catalog照合・manifest/bodyはroot向け別patchとし、独立確認まで製品受理としない。
 
 正式router/registry/DDL/認可/manifest/pin、他WT、共有DBはこのWTのwriter対象外。既routeのロックreadを閲覧から呼ぶ実装は禁止。FR-020全イニング/H/E/K/BやFR-021〜023成績の完成へ拡張して主張しない。全件/正式CI/人間確認/本番性能はroot統合後の別判定。
