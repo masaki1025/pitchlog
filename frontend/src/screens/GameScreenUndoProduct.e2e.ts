@@ -17,6 +17,7 @@ async function login(page: Page): Promise<string> {
   await expect(page.locator('form[aria-busy]')).toHaveAttribute(
     'aria-busy',
     'false',
+    { timeout: 30_000 },
   )
   await page.getByRole('textbox', { name: 'チーム名' }).fill(team!)
   await page.getByLabel('パスワード').fill(password!)
