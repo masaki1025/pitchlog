@@ -225,8 +225,8 @@ export async function readCompleteUndoGame(
     standard.prefix_ref.tenantId !== tenantId ||
     standard.id !== game.id ||
     standard.current_d4 !== game.current_d4 ||
-    standard.prefix_ref.checkpoint.id !== game.checkpoint.ref.id ||
-    standard.prefix_ref.checkpoint.revision !== game.checkpoint.ref.revision ||
+    standard.checkpoint_anchor?.id !== game.checkpoint.ref.id ||
+    standard.checkpoint_anchor?.revision !== game.checkpoint.ref.revision ||
     standard.next_position.d1 !== game.next_position.d1 ||
     standard.recovery_generation !== game.recovery_generation ||
     !sameOrdinaryWire(standard.after, game.after) ||

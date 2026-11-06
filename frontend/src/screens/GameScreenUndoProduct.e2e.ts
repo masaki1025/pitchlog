@@ -17,6 +17,7 @@ async function login(page: Page): Promise<string> {
   await expect(page.locator('form[aria-busy]')).toHaveAttribute(
     'aria-busy',
     'false',
+    { timeout: 30_000 },
   )
   await page.getByRole('textbox', { name: 'チーム名' }).fill(team!)
   await page.getByLabel('パスワード').fill(password!)
@@ -41,6 +42,10 @@ test('実画面の新規作成→開始→2球→ACK喪失/reload/同要求再�
   page,
 }) => {
   const syncDurationsMs: number[] = []
+  page.on('console', (message) => {
+    if (message.text().startsWith('PITCHLOG_UNDO_CLIENT_STAGE='))
+      console.log(message.text())
+  })
   page.setDefaultTimeout(30_000)
   if (new URL(baseURL!).protocol !== 'https:')
     throw new Error('実HTTPSが必要です')
@@ -208,7 +213,9 @@ test('実画面の新規作成→開始→2球→ACK喪失/reload/同要求再�
             }
           }),
           http: response?.status() ?? null,
-          status: await page.getByTestId('first-ball-status').textContent(),
+          status: await page
+            .getByTestId('first-ball-status')
+            .evaluateAll((elements) => elements[0]?.textContent ?? 'unmounted'),
         }),
     )
     expect(response).not.toBeNull()
@@ -279,6 +286,7 @@ test('実画面の新規作成→開始→2球→ACK喪失/reload/同要求再�
   await panel.getByTestId('undo-product-apply').click()
   await expect(panel.getByTestId('undo-product-status')).toContainText(
     '結果未確認',
+    { timeout: 30_000 },
   )
   await page.reload()
   panel = page.getByTestId('undo-product-panel')

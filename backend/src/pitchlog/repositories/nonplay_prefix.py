@@ -246,12 +246,21 @@ class ConfirmedNonplayPrefix:
         raise NonplaySourceUnavailable("取消原本参照は自由生成できません")
 
 
-def _read_prefix(prefix, handle, source, event):
+def _read_prefix(prefix, handle, source, event, *, include_head_position=False):
     """全値をコピー返却し、実identityと同scopeを繰返し検査する。"""
     state = _READS.get(prefix)
     if state is None:
         raise NonplaySourceUnavailable("取消原本参照が失効しています")
-    actual_handle, actual_source, actual_event, lifetime, runtime, raw, evidence = state
+    (
+        actual_handle,
+        actual_source,
+        actual_event,
+        lifetime,
+        runtime,
+        raw,
+        evidence,
+        head_position,
+    ) = state
     if (
         handle is not actual_handle
         or source is not actual_source
@@ -259,6 +268,8 @@ def _read_prefix(prefix, handle, source, event):
     ):
         raise NonplaySourceUnavailable("取消原本参照の移植です")
     _live(handle, source, event, lifetime, runtime)
+    if include_head_position:
+        return _load(raw), _load(evidence), head_position
     return _load(raw), _load(evidence)
 
 
@@ -373,6 +384,7 @@ def read_confirmed_nonplay_prefix(handle, event, source, *, artifact_sha256):
     ):
         raise NonplaySourceUnavailable("取消CPのtenant/game/世代/連番が不一致です")
     stack = []
+    head_position = None
     cursor = None
     seen = set()
     while True:
@@ -389,10 +401,12 @@ def read_confirmed_nonplay_prefix(handle, event, source, *, artifact_sha256):
                 raise NonplaySourceUnavailable("取消page応答形が不一致です")
             item = _load(row[0])
             stored_profile = False
+            saved_generation = None
             if type(item) is dict and item.get("kind") in {
                 "legacy-first-ball-v1",
                 "accepted-ordinary-admission-v1",
             }:
+                saved_event = item.get("event")
                 key = handle._state_key
                 _PAGE_ITEMS[key] = (
                     item,
@@ -412,6 +426,15 @@ def read_confirmed_nonplay_prefix(handle, event, source, *, artifact_sha256):
                         item = _stored_ordinary_item(
                             handle, event, source, item, lifetime, runtime
                         )
+                    if (
+                        type(saved_event) is not dict
+                        or type(saved_event.get("generation")) is not int
+                        or saved_event["generation"] <= 0
+                    ):
+                        raise NonplaySourceUnavailable(
+                            "取消対象の保存内部世代が不正です"
+                        )
+                    saved_generation = saved_event["generation"]
                     stored_profile = True
                 finally:
                     _PAGE_ITEMS.pop(key, None)
@@ -441,7 +464,16 @@ def read_confirmed_nonplay_prefix(handle, event, source, *, artifact_sha256):
                 raise NonplaySourceUnavailable("取消page cursor/全physicalが不一致です")
             seen.add(raw_cursor)
             frame = item["frame"]
-            src = frame["play"]["source"]
+            try:
+                src = frame["play"]["source"]
+                source_d1 = int(src["d1"])
+                source_event_id = src["eventId"]
+            except (KeyError, TypeError, ValueError) as error:
+                raise NonplaySourceUnavailable(
+                    "取消pageのactive位置が不正です"
+                ) from error
+            if position[1] != source_d1 or position[2] != source_event_id:
+                raise NonplaySourceUnavailable("取消page位置とactive原本が不一致です")
             if src["fingerprint"] != item["storedFingerprint"] or _canonical_json(
                 item["original"].get("state_diff")
             ) != _canonical_json(frame["historyEntry"]["difference"]):
@@ -494,6 +526,9 @@ def read_confirmed_nonplay_prefix(handle, event, source, *, artifact_sha256):
             )
             if type(database_kind) is not str or database_kind != "play_input":
                 raise NonplaySourceUnavailable("歴史原本の種別が不一致です")
+            if not stack and saved_generation is not None:
+                # cursor先頭はissuance_order。内部世代は検証済みevent保存行から取る。
+                head_position = (saved_generation, position[1])
             stack.append(frame)
             cursor = item["cursor"]
         _live(handle, source, event, lifetime, runtime)
@@ -533,6 +568,7 @@ def read_confirmed_nonplay_prefix(handle, event, source, *, artifact_sha256):
         runtime,
         _canonical_json(value),
         _canonical_json(envelope),
+        head_position,
     )
     try:
         yield prefix
@@ -900,6 +936,14 @@ def _check_saved_evidence(handle, event, source, item, lifetime, runtime, *, fir
     ev, ledger, slot, admission = (
         item[n] for n in ("event", "ledger", "slot", "admission")
     )
+    cursor = item.get("cursor")
+    if (
+        type(ev) is not dict
+        or type(cursor) is not list
+        or len(cursor) != 3
+        or cursor[1:] != [ev.get("d1"), ev.get("id")]
+    ):
+        raise NonplaySourceUnavailable("取消page位置と保存済みイベントが不一致です")
     expected = {"tenant_id": str(handle._bound_tenant_id), "game_id": event.game_id}
     if any(
         row[k] != value
