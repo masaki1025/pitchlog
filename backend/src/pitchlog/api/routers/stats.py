@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import json
 import re
+import tempfile
 from collections.abc import Iterator
 from datetime import datetime, timedelta, timezone
-from typing import Annotated, Any
+from typing import Annotated, Any, NoReturn
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -127,7 +128,7 @@ def _players(
     return players, cursor
 
 
-def _reject_as_not_found(error: Exception) -> None:
+def _reject_as_not_found(error: Exception) -> NoReturn:
     """関数境界の拒否/未存在を、値を漏らさない404へ写す。"""
     original = getattr(error, "orig", None)
     if getattr(original, "sqlstate", None) == "42501":
@@ -218,6 +219,48 @@ def _iter_players(
             cursor = next_cursor
 
 
+def _csv_stream_response(
+    context: TenantContext,
+    *,
+    game_id: UUID | None,
+    mode: str,
+    year: int | None,
+    category: Category,
+    filename: str,
+) -> StreamingResponse:
+    """全ページを一時ファイルへ完成させてから返し、部分CSVを成功保存しない。"""
+    spool = tempfile.SpooledTemporaryFile(max_size=8 * 1024 * 1024)
+    try:
+        players = _iter_players(
+            context, game_id=game_id, mode=mode, year=year, category=category
+        )
+        for chunk in stream_csv(_CSV_HEADERS, (_csv_row(p) for p in players)):
+            spool.write(chunk)
+        spool.seek(0)
+    except BaseException:
+        spool.close()
+        raise
+
+    def chunks() -> Iterator[bytes]:
+        try:
+            while True:
+                data = spool.read(65536)
+                if not data:
+                    return
+                yield data
+        finally:
+            spool.close()
+
+    return StreamingResponse(
+        chunks(),
+        media_type="text/csv; charset=utf-8",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Cache-Control": "no-store",
+        },
+    )
+
+
 @router.get(
     "/games/{game_id}/stats.csv",
     operation_id="game_basic_stats_csv",
@@ -227,27 +270,20 @@ def download_game_basic_stats_csv(
     context: Annotated[TenantContext, Depends(require_tenant_access)],
     mode: Annotated[str, Query(pattern="^(current|official)$")] = "current",
 ) -> StreamingResponse:
-    """試合別成績CSVを同じRR snapshotからstreamする。"""
-    rows = (
-        _csv_row(player)
-        for player in _iter_players(
-            context, game_id=game_id, mode=mode, year=None, category="all"
+    """試合別成績CSVを同じRR snapshotから完成させて返す。"""
+    try:
+        return _csv_stream_response(
+            context,
+            game_id=game_id,
+            mode=mode,
+            year=None,
+            category="all",
+            filename=f"game-basic-stats-{game_id}-{mode}.csv",
         )
-    )
-    return StreamingResponse(
-        stream_csv(_CSV_HEADERS, rows),
-        media_type="text/csv; charset=utf-8",
-        headers={
-            "Content-Disposition": (
-                'attachment; filename="game-basic-stats-'
-                + str(game_id)
-                + "-"
-                + mode
-                + '.csv"'
-            ),
-            "Cache-Control": "no-store",
-        },
-    )
+    except HTTPException:
+        raise
+    except Exception as error:
+        _reject_as_not_found(error)
 
 
 @router.get(
@@ -259,29 +295,22 @@ def download_season_basic_stats_csv(
     context: Annotated[TenantContext, Depends(require_tenant_access)],
     category: Annotated[Category, Query()] = "all",
 ) -> StreamingResponse:
-    """JST暦年成績CSVを終了確定した最新版だけでstreamする。"""
+    """JST暦年成績CSVを終了確定した最新版だけで完成させて返す。"""
     if not 1 <= year <= 9999 or category not in _CATEGORY_KEYS:
         raise HTTPException(status_code=400)
-    rows = (
-        _csv_row(player)
-        for player in _iter_players(
-            context, game_id=None, mode="official", year=year, category=category
+    try:
+        return _csv_stream_response(
+            context,
+            game_id=None,
+            mode="official",
+            year=year,
+            category=category,
+            filename=f"season-basic-stats-{year}-{category}.csv",
         )
-    )
-    return StreamingResponse(
-        stream_csv(_CSV_HEADERS, rows),
-        media_type="text/csv; charset=utf-8",
-        headers={
-            "Content-Disposition": (
-                'attachment; filename="season-basic-stats-'
-                + str(year)
-                + "-"
-                + category
-                + '.csv"'
-            ),
-            "Cache-Control": "no-store",
-        },
-    )
+    except HTTPException:
+        raise
+    except Exception as error:
+        _reject_as_not_found(error)
 
 
 @router.get(
