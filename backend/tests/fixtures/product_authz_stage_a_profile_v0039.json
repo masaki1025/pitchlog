@@ -996,6 +996,10 @@
       "sha256": "b52aa33568a5a909a0013222561756559351962a0b178f73fa70ad496392524e"
     },
     {
+      "path": "contracts/authz/ddl-elements.json",
+      "sha256": "5e5bb68e4bb8777c11195846e60f84b28cb827feec389f65540a00524fae8a2d"
+    },
+    {
       "path": "contracts/authz/product/application-steps.json",
       "sha256": "a665575457b6b87c7a259baf97b7aa4d0139cbb36a9ba735edef570d04bbd508"
     },
