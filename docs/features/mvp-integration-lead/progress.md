@@ -1,5 +1,13 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 次回評価と毎球CSV候補受領（2026-11-06）
+
+- **次回評価**: PO指示により、接続候補を一つにまとめて実装・実測し固定後レビューする方式を継続し、2026-11-07 00:00 JSTに再評価する。安全性/全MVP条件/正式統合ゲートは維持する。担当はCodex/root、PO本人の検査・署名ではない。
+- **毎球CSV**: `feature/mvp-play-csv-product@d00f925a290b976247d943734e944a2cfb88fa99`、受領時cleanをGitで確認。起点14b96546のstep1を再利用し、RR同一snapshot抽出・ZIP API候補・長さ/SHA検査後DL画面を実装したとの作者報告を受領。非作者read-only確認を依頼。実gameは88列producer未供給で409、fixture投入時の200は製品完成証拠としない。製品app/正式ACL等は未登録。
+- **CSVの次の作業**: 記録時の真正before/after/lineup/player名snapshot等を同一TXで88列projectionへ渡すproducer、正式migration/ACL/registry、画面導線を主担当が直列接合し、事前投入なし新規記録→ZIP 200を実測する。現在名簿・0・NULLの代替補完をしない。作者から共通owned PG/network lock全fixture保持の反映報告を受領（前の中継文の未送達扱いを更新、実装自体は非作者確認待ち）。
+- **終了/再開の実画面**: LC `3e2b45a5`のr4では新規作成→開始→1球→終了POST200/受理→finished GET200まで到達。GETのlifecycle metadataは検査true、非play prefix検査falseで画面確定版はv0のまま。終了保存成功と再読込全経路成功を分け、不一致箇所を診断中。
+- **断中継続**: Cookie更新不確実性の既処理が通信断で確認済み認証まで失効し次入力を止める問題を再現。別WT `feature/mvp-offline-auth-continuity`（計画fb087cf1）で同提示token更新限定の閉route宣言とserver強制・client条件分岐を実装中。401/C2異常/旧epoch/認証変更時の保護は維持。初回0件v3の真正GET seed耐久化は別作者cache候補、実PG/UI未検証。B5独立レビューの失効窓P1は解消前であり正式採用不可。
+
 ## 2時間試行の評価：2026-11-06 20:37 JST（18:37:31開始）
 
 **判断**: 部品の閉鎖を直列に待つ方式から、既成果を一つの隔離候補へまとめて実装・実測し、固定差分を独立確認する方式を継続する。実際の接続欠落を発見して利用者操作を増やせた。ただし1試合完成・性能合格・正式MVP提供は未達。認可・記録権・同TX・冪等性・既拒否順・通常統合ゲートを緩めない。PO委任によるCodex/root判断であり、人間の逐行確認/署名ではない。
