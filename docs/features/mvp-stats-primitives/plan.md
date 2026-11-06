@@ -67,7 +67,8 @@ G04-A列34は `event_kind='pitch'` を1投球としてtenant/game/実pitcherで�
 | `docs/adr/ADR-003-domain-calc-method.md` | **反映なし**。D-1の既射程内で型付き有限参照/primitive/reducerを実行可能にする。表現不能が具体入力で判明した場合だけ、その対象の最小正式変更をrootへ返し、手書き式やD-2へ逃げない |
 | `docs/requirements/requirements-pitchlog-2026-07-22.md` | **反映**: 既PO採用のJST暦年整合。4/1年度の残存箇所・期間ラベル/bindingを同一ゲートで追随。新しい期間裁定ではない。D02〜05回答時も該当する最小節のみ正式化 |
 | `docs/design/data-model.md` / `docs/design/sync-protocol.md` | **反映**: canonical事実/版/公開pointer、取消訂正/再開/再終了と既TX・読取snapshotの接合。現source_versionの実写像を確定して該当節だけ更新 |
-| `docs/development/dev-harness-design-2026-08-07.md` | **反映なし**。既3層/core/7.7/段階実装を利用 |
+| `docs/development/dev-harness-design-2026-08-07.md` | **反映**: PR197限定の固定Git期待1件の既レビュー済み追補を7.7節へ反映。一般のallow-list追加禁止・旧拒否条件は維持。既3層/core/段階実装を利用 |
+| `docs/README.md` | **反映**: 本候補の要件・data-model・ハーネス設計書の既改訂状況を索引へ追随 |
 
 本plan作成時は正本を編集しない。正本改訂は7.6決定表による既ゲート、正式asset受理はrootが最終差分から導出する。暦年正式追随をpure schema/独立期待/生成器準備の開始条件へ前倒しせず、該当する製品提供の前に閉じる。
 
@@ -598,3 +599,8 @@ owned r7で旧migration等141件成功、残7件は不変性検査が0039版を�
 正式CLIが新規Python固定参照6箇所を未宣言として拒否した。allow-list追加/走査除外/hex分割は行わず、既 `backend/tests/first_ball_expected_source_pins.py` の閉読取方式を新4値の別schemaへ再利用する。新 `backend/tests/fixtures/pr197_ci_followup_inputs_v1.json` は旧705比較のGit前後40桁2値と既採用ratio/rate全AST64桁2値をそのまま宣言し、frozen-inputsの正式external_filesへ登録して7.7の対象へ含める。旧first-ball fixture/schema/全値は変えない。`backend/tests/test_product_authz_provisioning.py`、`test_sync_apply_product_supply.py`、`type_boundary_contract.py` はこの固定期待を消費するだけで旧比較/AST拒否条件を保持。新readerの欠落/未知/重複/型/桁/非正準を `backend/tests/test_pr197_ci_followup_inputs.py` で拒否、製品copy helperへ読取依存だけ追加する。実装差分を非作者再確認し、source固定後に9資産を正式base51bから一度再導出する。既a44値受理は当該版だけの記録として保全し、新版へ自動拡張しない。
 
 反映22周目: 非作者の全関連4module検査で、旧schema全集合へのstats_api追随漏れ1件を基線でも再現。正式stats_apiを13件全集合へ追加し、実SQLへの完全包含・正規owner・既存wrong-owner例外・ALTER SCHEMA禁止を明示検査する。旧schema/全拒否条件は保持する。
+
+
+### 2026-11-07 PR197公開前の正本宣言照合（PO委任によるCodex主担当判断）
+
+最終検査で、既レビュー・実反映済みのハーネス7.7追補と索引が3節に未宣言であることを検出し、実差分に合わせて宣言のみ補正した。正本本文・検査条件・正式値は変更しない。sync-protocolの後続接合宣言は全MVP計画に残し、PR197のnative成績基盤提供を全27成績/終了再開の完成へ読み替えない。全体planはactiveのまま、PR197部分だけ最終確認へ進む。ハーネス運用評価台帳への新規追記なし: 今回は既存の宣言漏れを修復する実例であり、新たな制御目的や傾向の確定ではない。旧レビュー・受理・失敗履歴を保持する。
