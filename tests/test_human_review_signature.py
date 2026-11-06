@@ -4359,6 +4359,7 @@ def test_pr197_formal_ledger_binding_successor_is_exact() -> None:
 @pytest.mark.parametrize("mutation", [
     "wrong-pr", "bool-pr", "wrong-branch", "wrong-repository", "wrong-base",
     "math-worktree", "math-commit", "typed-pin", "typed-and-fixture",
+    "typed-new-value",
     "policy-worktree", "ledger-worktree",
     "coreguard-worktree", "unknown-scope", "unknown-math-path", "missing-proof",
     "self-review", "publisher", "unresolved-p1",
@@ -4397,6 +4398,11 @@ def test_pr197_gate6_rejects_event_scope_and_public_proof(
         path.write_text(json.dumps(value))
         fixture = root / "tests/fixtures/pr197_tenant_source_expected_v1.json"
         fixture.write_bytes(fixture.read_bytes() + b" ")
+    elif mutation == "typed-new-value":
+        path = root / "contracts/tenant_boundary/frozen-inputs.json"
+        value = json.loads(path.read_bytes())
+        value["frozen_inputs"]["stats_native_old_registry_sha256"]["value"] = "0" * 64
+        path.write_text(json.dumps(value))
     elif mutation in {"policy-worktree", "ledger-worktree", "coreguard-worktree"}:
         path = root / {
             "policy-worktree": "docs/features/mvp-delegated-core-review/policy.json",

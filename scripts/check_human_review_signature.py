@@ -3124,6 +3124,26 @@ _PR197_GATE6_NEW_TYPED = frozenset({
     "pr197_source_revision", "pr197_expectation_revision",
     "pr197_expectation_fixture_sha256",
 })
+_PR197_GATE6_MIGRATED_TYPED = frozenset({
+    "pr197_core_definition_ast_sha256",
+    "pr197_generated_facts_sha256",
+    "stats_foundation_legacy_core_revision",
+    "stats_native_old_product_additions_sha256",
+    "stats_native_old_product_bodies_sha256",
+    "stats_native_old_product_details_sha256",
+    "stats_native_old_product_guards_sha256",
+    "stats_native_old_registry_sha256",
+    "stats_primitive_sql_open_snapshot_sha256",
+    "stats_primitive_sql_read_page_sha256",
+    "stats_primitive_sql_read_totals_sha256",
+    "stats_primitive_sql_save_source_sha256",
+    "stats_primitive_v1_bodies_sha256",
+    "stats_primitive_v1_declarations_sha256",
+    "stats_primitive_v1_installer_sha256",
+    "stats_primitive_v1_operations_sha256",
+    "stats_season_source_set_game_a_sha256",
+    "stats_season_source_set_game_b_sha256",
+})
 
 
 def _pr197_formal_ledger_binding_successor(
@@ -3211,6 +3231,7 @@ def _pr197_gate6_body(root: Path, head_sha: str) -> dict[str, Any]:
         )
         if changed_math.returncode != 0 or changed_math.stdout.strip():
             raise HumanReviewSignatureRecordError("PR197で未知を含む数学pathが変更")
+        guard = _carry_core_guard(root)
         for path in sorted(scope):
             baseline = _carry_git_bytes(root, ["show", f"{base_sha}:{path}"])
             source = _carry_git_bytes(root, ["show", f"{source_sha}:{path}"])
@@ -3225,9 +3246,21 @@ def _pr197_gate6_body(root: Path, head_sha: str) -> dict[str, Any]:
                     object_pairs_hook=descriptor_checker._reject_duplicate_keys), "PR197現typed")
                 before = _object(old["frozen_inputs"], "PR197旧入力")
                 after = _object(new["frozen_inputs"], "PR197現入力")
+                expected_added = (
+                    _PR197_GATE6_NEW_TYPED
+                    | _PR197_GATE6_MIGRATED_TYPED
+                    | {"pr197_pin_origin_commit"}
+                )
                 if (not all(after.get(key) == value for key, value in before.items())
-                        or set(after) - set(before) != _PR197_GATE6_NEW_TYPED):
-                    raise HumanReviewSignatureRecordError("PR197旧typed入力または追加3が不一致")
+                        or set(after) - set(before) != expected_added):
+                    raise HumanReviewSignatureRecordError("PR197旧typed入力または追加22が不一致")
+                try:
+                    for key in _PR197_GATE6_MIGRATED_TYPED:
+                        guard.frozen_history.read_original_pr197_pin(key, root)
+                except guard.frozen_history.ContractError as error:
+                    raise HumanReviewSignatureRecordError(
+                        "PR197新typed入力の固定Git原典が不一致"
+                    ) from error
                 baseline_inputs = _object(json.loads(baseline,
                     object_pairs_hook=descriptor_checker._reject_duplicate_keys)["frozen_inputs"],
                     "PR197正式base typed")
@@ -3255,7 +3288,6 @@ def _pr197_gate6_body(root: Path, head_sha: str) -> dict[str, Any]:
         if ((root / checker_path).read_bytes() != committed_checker
                 or Path(__file__).read_bytes() != committed_checker):
             raise HumanReviewSignatureRecordError("PR197実行checkerがhead全byteと不一致")
-        guard = _carry_core_guard(root)
         before_core = guard.load_core_areas_at_revision(root, base_sha)
         after_core = guard.load_core_areas_at_revision(root, head_sha)
         guard.validate_pr197_tenant_source_area_path_layers(

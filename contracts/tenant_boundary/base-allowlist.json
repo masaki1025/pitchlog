@@ -38385,8 +38385,8 @@
               },
               {
                 "path": "scripts/check_human_review_signature.py",
-                "sha256": "742045c161820f1139a97699b157ef4dd0d711932e8819b1fec9aa9301e2e809",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/742045c161820f1139a97699b157ef4dd0d711932e8819b1fec9aa9301e2e809"
+                "sha256": "1d4632ebe27dcdc05cf4366345b4f716cad58900f5c6336ebd52d0fbc58d623d",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/1d4632ebe27dcdc05cf4366345b4f716cad58900f5c6336ebd52d0fbc58d623d"
               },
               {
                 "path": "scripts/check_tenant_boundary_bypass.py",
@@ -38465,8 +38465,8 @@
               },
               {
                 "path": "tests/test_human_review_signature.py",
-                "sha256": "bc6edcc7f251173fff8192c61bbccf91a3d4b61d29ef00d46a418e3eb79d6838",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/bc6edcc7f251173fff8192c61bbccf91a3d4b61d29ef00d46a418e3eb79d6838"
+                "sha256": "33cb470fbf6c32201f933c686b316eb79162d93477ab63144d39a8a1d89721e4",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/33cb470fbf6c32201f933c686b316eb79162d93477ab63144d39a8a1d89721e4"
               },
               {
                 "path": "tests/test_plan_generation.py",
@@ -38517,8 +38517,8 @@
               },
               {
                 "path": "contracts/tenant_boundary/frozen-inputs.json",
-                "sha256": "7238b4dc779bff0d67a8ba1c1a806df5ac2f9157ad6f3266dc23d753cea430bc",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/7238b4dc779bff0d67a8ba1c1a806df5ac2f9157ad6f3266dc23d753cea430bc"
+                "sha256": "88acd2c72d3d143e347bb2e8cdfc26ccc67a6325e6d542b7b4751257dd53e4f6",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/88acd2c72d3d143e347bb2e8cdfc26ccc67a6325e6d542b7b4751257dd53e4f6"
               },
               {
                 "path": "contracts/tenant_boundary/negative-fixtures.json",
