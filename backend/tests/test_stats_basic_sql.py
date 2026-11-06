@@ -54,6 +54,17 @@ def test_basic_stats_has_16_batting_and_11_pitching_items():
     assert result["pending"] == ["D03_SOURCE_PENDING", None]
 
 
+def test_basic_stats_function_is_observed_by_catalog_detail_query():
+    """製品で宣言した読取関数を実カタログの本文検査へ含める。"""
+    from pitchlog.authz import first_ball_product, product_catalog
+
+    identities = {
+        (row[0], row[1]) for row in first_ball_product.function_details()
+    }
+    assert ("stats_basic_api", "read_basic_stats") in identities
+    assert "'stats_basic_api'" in product_catalog._LIFECYCLE_FUNCTION_DETAILS_QUERY
+
+
 def test_basic_stats_missing_bf_attribution_stays_unavailable():
     """真正な帰属が欠けたBFを0や現任へ補完しない。"""
     result = build_basic_stats(
