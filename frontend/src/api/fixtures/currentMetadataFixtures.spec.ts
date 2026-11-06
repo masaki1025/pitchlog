@@ -104,3 +104,27 @@ it('初球87例と打球19例は旧JSON文字列のpinだけを可逆置換す�
     expect(after.replaceAll(current, prior)).toBe(before)
   }
 })
+
+it('取消4例は旧数学と履歴を保持し実行pin三欄・CP digest三欄だけを変える', () => {
+  const old = JSON.parse(
+    read('frontend/src/api/fixtures/nativeUndoProduct.v1.json'),
+  )
+  const next = JSON.parse(
+    read('frontend/src/api/fixtures/nativeUndoProduct.current.v1.json'),
+  )
+  const changed = differences(old, next)
+  expect(changed).toHaveLength(4 * 6)
+  expect(
+    changed.every((path) =>
+      /^\/samples\/\d+\/payload\/calculation\/(?:artifactSha256|request\/(?:prefixRef\/digest|source\/checkpoint\/(?:ref\/digest|content\/executionArtifactSha256))|response\/value\/(?:executionArtifactSha256|previousPrefixRef\/digest))$/.test(
+        path,
+      ),
+    ),
+  ).toBe(true)
+  expect(
+    next.samples.every(
+      (row: { payload: { calculation: { artifactSha256: string } } }) =>
+        row.payload.calculation.artifactSha256 === current,
+    ),
+  ).toBe(true)
+})

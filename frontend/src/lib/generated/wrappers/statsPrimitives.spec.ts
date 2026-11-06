@@ -136,7 +136,19 @@ const current: CurrentMathCase[] = JSON.parse(
 it.each(current.filter((c) => c.expected.status !== 'rejected'))(
   '$case_id v2の比・実分母・最後の表示を全値比較する',
   (c) => {
-    expect(api.deriveRates(c.expected.totals)).toEqual(c.expected.rates)
+    // 旧v2候補にはBF原本が無い。現行27欄へ0を仮補完せず、
+    // 旧候補の数学期待を保持したまま源本未対応を明示する。
+    expect(Object.hasOwn(c.expected.totals, 'batters_faced')).toBe(false)
+    const currentTotals = {
+      ...c.expected.totals,
+      batters_faced: {
+        state: 'source_unavailable',
+        value: null,
+        display: null,
+        reason: 'UNSUPPORTED_SOURCE_VARIANT',
+      },
+    }
+    expect(api.deriveRates(currentTotals)).toEqual(c.expected.rates)
     expect(
       api.selectGameTypeKeys(
         c.input.named_category,

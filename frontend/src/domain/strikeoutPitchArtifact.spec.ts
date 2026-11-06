@@ -19,10 +19,11 @@ const assets = (name: string) =>
   )
 
 describe('三振を追加した単一artifact', () => {
-  it('旧11口を全保持し打球1名だけ追加した完全集合を凍結する', () => {
+  it('現行18口の完全集合と旧数学口を凍結する', () => {
     expect(Object.isFrozen(api)).toBe(true)
     expect(Object.keys(api)).toEqual([
       'ping',
+      'applyGameLifecycle',
       'deriveState',
       'deriveOrdinaryPitch',
       'deriveTerminalPitch',
@@ -35,6 +36,10 @@ describe('三振を追加した単一artifact', () => {
       'validateInitialGameRoster',
       'quantizeCourse',
       'applyUndo',
+      'applySubstitutionV1',
+      'deriveInitialSubstitutionStateV1',
+      'transitionSubstitutionV1',
+      'advanceSubstitutionAfterPitchV1',
     ])
   })
   it('旧通常37・BB/HBP15・新24の全応答を受理caseから比較する', () => {

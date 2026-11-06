@@ -2,7 +2,7 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { Script, createContext } from 'node:vm'
-import fixture from '../api/fixtures/nativeUndoProduct.v1.json'
+import fixture from '../api/fixtures/nativeUndoProduct.current.v1.json'
 import metadata from '../api/fixtures/lineupPrefixGame.v3.json'
 import { STARTED_GAME_BASE_KEYS } from '../api/startedGame'
 import { isNativeUndoGame, type NativeUndoGame } from '../api/nativeUndoGame'

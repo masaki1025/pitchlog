@@ -151,12 +151,24 @@ function dependencies(
   }
 }
 
+function c2Response(
+  body: string,
+  status: number,
+  init?: RequestInit,
+): Response {
+  return new Response(body, {
+    status,
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Pitchlog-Tenant-Match': '1',
+      'X-Pitchlog-Tenant-Challenge':
+        new Headers(init?.headers).get('X-Pitchlog-Tenant-Challenge') ?? '',
+    },
+  })
+}
 function respond(body: string, status = 200): void {
-  vi.mocked(fetch).mockResolvedValue(
-    new Response(body, {
-      status,
-      headers: { 'Content-Type': 'application/json' },
-    }),
+  vi.mocked(fetch).mockImplementation(async (_url, init) =>
+    c2Response(body, status, init),
   )
 }
 
@@ -193,12 +205,9 @@ describe('確定の経路を 1 つの排他で包む', () => {
     const queue = await openIsolatedQueue()
     const order: string[] = []
     respond('{}')
-    vi.mocked(fetch).mockImplementation(async () => {
+    vi.mocked(fetch).mockImplementation(async (_url, init) => {
       order.push('send')
-      return new Response('{}', {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-      })
+      return c2Response('{}', 200, init)
     })
 
     await commitPitchEvent(
@@ -247,6 +256,7 @@ describe('確定の経路を 1 つの排他で包む', () => {
     const queue = await openIsolatedQueue()
     const lockLog: string[] = []
     let resolveResponse!: (value: Response) => void
+    let sendInit: RequestInit | undefined
     let markSending!: () => void
     const response = new Promise<Response>((resolve) => {
       resolveResponse = resolve
@@ -254,7 +264,8 @@ describe('確定の経路を 1 つの排他で包む', () => {
     const sending = new Promise<void>((resolve) => {
       markSending = resolve
     })
-    vi.mocked(fetch).mockImplementation(() => {
+    vi.mocked(fetch).mockImplementation((_url, init) => {
+      sendInit = init
       markSending()
       return response
     })
@@ -277,12 +288,7 @@ describe('確定の経路を 1 つの排他で包む', () => {
       expect(await queue.readNextD1(scope)).toBe(2)
       expect(lockLog).toEqual([`acquire:pitchlog:game:${gameId}`])
     } finally {
-      resolveResponse(
-        new Response('{}', {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' },
-        }),
-      )
+      resolveResponse(c2Response('{}', 200, sendInit))
     }
 
     const result = await pending
