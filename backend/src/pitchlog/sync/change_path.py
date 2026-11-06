@@ -116,6 +116,30 @@ def _accepted_from_candidate(candidate: D5Candidate, d5: str) -> ChangeResult | 
     return AcceptedChangeResult(reference, version, d5, content, accepted_at)
 
 
+def _prebound_p3_replay(
+    scope: _TenantTransaction, request: SyncRequest
+) -> ChangeResult | None:
+    """実RG1借用の現世代を先に照合し、V10/V11/V12前にD5だけ分類する。"""
+    if (
+        type(scope) is not _TenantTransaction
+        or type(request) is not SyncRequest
+        or request.path != "P3"
+        or len(request.events) != 1
+    ):
+        raise ValueError("P3再掲の入力が不正")
+    event = request.events[0]
+    supplied = request.recovery_generation
+    if (
+        type(supplied) is not str
+        or supplied != str(scope._current_rg1_recovery_generation())
+    ):
+        return RejectedChangeResult("B9", event.d5, "要求作成時の復旧世代が旧世代")
+    candidate = classify_d5(
+        scope, UUID(event.d5), operation_fingerprint(event, "P3", None), "P3"
+    )
+    return _accepted_from_candidate(candidate, event.d5)
+
+
 def _apply_locked(
     scope: _TenantTransaction,
     request: SyncRequest,

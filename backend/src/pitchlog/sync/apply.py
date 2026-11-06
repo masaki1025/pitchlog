@@ -352,6 +352,41 @@ def _is_replay(result: D1Result) -> bool:
     return result.replayed
 
 
+def _replay_p3_without_binding(
+    context: TenantContext,
+    request: SyncRequest,
+    reference_device: UUID,
+    credential_digest: bytes,
+) -> ChangeResult | Literal["B10", "B11", "B12"] | None:
+    """P3の②端末→③認可/RG1/復旧世代→④D5を実DBで先行分類する。"""
+    from pitchlog.repositories.rg1 import RG1Unavailable, read_rg1_open
+    from pitchlog.sync.change_path import _prebound_p3_replay
+    from pitchlog.sync.source_binding import SourceBindingError
+
+    if (
+        type(context) is not TenantContext
+        or not context._has_valid_integrity_proof()
+        or type(request) is not SyncRequest
+        or request.path != "P3"
+        or len(request.events) != 1
+        or type(reference_device) is not UUID
+        or type(credential_digest) is not bytes
+        or len(credential_digest) != 32
+    ):
+        raise SourceBindingError("P3再掲の入力が不正")
+    game_id = UUID(request.game_id)
+    with tenant_transaction_scope(context) as scope:
+        if not _verify_replay_device(scope, reference_device, credential_digest):
+            return "B11"
+        if not game_accessible(context, game_id, lambda _: nullcontext(scope)):
+            return "B12"
+        try:
+            read_rg1_open(scope)
+        except RG1Unavailable:
+            return "B10"
+        return _prebound_p3_replay(scope, request)
+
+
 def _replay_e1_without_binding(
     context: TenantContext,
     request: SyncRequest,

@@ -19,6 +19,7 @@ from pitchlog.db.game_state.models import Game
 from pitchlog.repositories.context import TenantContext
 from pitchlog.repositories.tokens import ImmutableValue, TenantOperationResult
 from pitchlog.repositories.transaction import _TenantTransaction
+from pitchlog.sync import apply as sync_apply
 from pitchlog.sync import change_path, invalidation, ports
 from pitchlog.sync.idempotency import D5Candidate, StoredResult
 from pitchlog.sync.model import AcceptedChangeResult, SyncEvent, SyncRequest
@@ -85,6 +86,112 @@ def test_p3_replay_keeps_original_accepted_at() -> None:
     assert result.accepted_at == "2026-10-14T00:00:00+00:00"
     conflict = change_path._accepted_from_candidate(D5Candidate("conflict"), event.d5)
     assert conflict is not None and conflict.boundary == "B13"
+
+
+def test_p3_prebound_recovery_precedes_d5_and_malformed_v10(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """旧復旧世代は台帳を読まず、現世代の衝突は不正V10より先に決める。"""
+    calls: list[str] = []
+
+    class Scope:
+        def _current_rg1_recovery_generation(self) -> int:
+            calls.append("recovery")
+            return 7
+
+    monkeypatch.setattr(change_path, "_TenantTransaction", Scope)
+
+    def classify(*_args: object) -> D5Candidate:
+        calls.append("d5")
+        return D5Candidate("conflict")
+
+    monkeypatch.setattr(change_path, "classify_d5", classify)
+    game_id = str(uuid4())
+    event = SyncEvent(str(uuid4()), game_id, v10={"malformed": True})
+    old = SyncRequest("P3", game_id, (event,), recovery_generation="6")
+    rejected = change_path._prebound_p3_replay(cast(_TenantTransaction, Scope()), old)
+    assert rejected is not None and rejected.boundary == "B9"
+    assert calls == ["recovery"]
+    current = SyncRequest("P3", game_id, (event,), recovery_generation="7")
+    conflict = change_path._prebound_p3_replay(
+        cast(_TenantTransaction, Scope()), current
+    )
+    assert conflict is not None and conflict.boundary == "B13"
+    assert calls == ["recovery", "recovery", "d5"]
+
+
+def test_p3_prebound_device_access_rg1_order(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """②失効と③他tenant/RG1は後段D5へ進ませない。"""
+    from pitchlog.repositories import rg1
+
+    calls: list[str] = []
+
+    class Context:
+        def _has_valid_integrity_proof(self) -> bool:
+            return True
+
+    class Scope:
+        pass
+
+    @contextmanager
+    def transaction(_context: object) -> Iterator[Scope]:
+        yield Scope()
+
+    monkeypatch.setattr(sync_apply, "TenantContext", Context)
+    monkeypatch.setattr(sync_apply, "tenant_transaction_scope", transaction)
+    monkeypatch.setattr(
+        sync_apply,
+        "_verify_replay_device",
+        lambda *_: calls.append("device") or device_ok,
+    )
+    monkeypatch.setattr(
+        sync_apply,
+        "game_accessible",
+        lambda *_: calls.append("access") or access_ok,
+    )
+
+    def gate(_scope: object) -> None:
+        calls.append("rg1")
+        if not gate_ok:
+            raise rg1.RG1Unavailable("closed")
+
+    monkeypatch.setattr(rg1, "read_rg1_open", gate)
+    monkeypatch.setattr(
+        change_path,
+        "_prebound_p3_replay",
+        lambda *_: calls.append("recovery+d5") or None,
+    )
+    game_id = str(uuid4())
+    request = SyncRequest(
+        "P3", game_id, (SyncEvent(str(uuid4()), game_id),),
+        recovery_generation="1",
+    )
+    context = cast(TenantContext, Context())
+    device_ok, access_ok, gate_ok = False, True, True
+    result = sync_apply._replay_p3_without_binding(
+        context, request, uuid4(), bytes(32)
+    )
+    assert result == "B11" and calls == ["device"]
+    calls.clear()
+    device_ok, access_ok, gate_ok = True, False, True
+    result = sync_apply._replay_p3_without_binding(
+        context, request, uuid4(), bytes(32)
+    )
+    assert result == "B12" and calls == ["device", "access"]
+    calls.clear()
+    device_ok, access_ok, gate_ok = True, True, False
+    result = sync_apply._replay_p3_without_binding(
+        context, request, uuid4(), bytes(32)
+    )
+    assert result == "B10" and calls == ["device", "access", "rg1"]
+    calls.clear()
+    device_ok, access_ok, gate_ok = True, True, True
+    result = sync_apply._replay_p3_without_binding(
+        context, request, uuid4(), bytes(32)
+    )
+    assert result is None and calls == ["device", "access", "rg1", "recovery+d5"]
 
 
 def test_p3_rejects_unregistered_ports_before_any_call(

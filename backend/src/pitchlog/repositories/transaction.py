@@ -503,6 +503,26 @@ class _TenantTransaction:
         except RG1ControlUnavailable as error:
             raise RG1Unavailable("復元ゲートの実保持を確認できない") from error
 
+    def _current_rg1_recovery_generation(self) -> int:
+        """同一業務scopeの保持中loanから現復旧世代だけを読む。"""
+        from pitchlog.recording_rights.rg1_lifecycle import _Activation, _GateLoan
+        from pitchlog.repositories.rg1 import RG1Unavailable
+
+        self._assert_rg1_lease()
+        key = self._state_key
+        loan = None if key is None else _RG1_LOANS.get(key)
+        if (
+            type(loan) is not _GateLoan
+            or type(loan._activation) is not _Activation
+            or type(loan._activation.epoch) is not int
+            or not 0 < loan._activation.epoch < 2**63
+        ):
+            raise RG1Unavailable("復旧世代の実借用が不正")
+        loan.assert_held()
+        if _RG1_LOANS.get(key) is not loan:
+            raise RG1Unavailable("復旧世代の実借用が失効")
+        return loan._activation.epoch
+
     def _writer_lifetime(self) -> tuple[object, object]:
         """所有するtop-level TXの不透明な寿命だけを返す。"""
         key = self._state_key
