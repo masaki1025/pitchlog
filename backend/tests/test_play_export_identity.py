@@ -70,7 +70,9 @@ def test_recorded_v3_course_uses_only_generated_b7_target() -> None:
     """真正V3保存観測をDouble逆算せず表示targetへ渡す。"""
     payload = _CASES[0]["V7"]
     assert payload["observations"]["course"] == {
-        "unit": "1/263", "x": "131", "y": "132"
+        "unit": "1/263",
+        "x": "131",
+        "y": "132",
     }
     assert _course_screen(payload) == ("131", "131")
 
@@ -88,3 +90,48 @@ def test_recorded_course_rejects_unknown_shape(invalid: str) -> None:
         del course["unit"]
     with pytest.raises(PlayExportIdentityUnavailable):
         _course_screen(payload)
+
+
+def test_intentional_walk_course_requires_closed_non_pitch_source_and_saved_null():
+    """申告敬遠の座標未観測だけを保存PlayRowのNULL二欄へ束縛する。"""
+    payload = json.loads(json.dumps(_CASES[0]["V7"]))
+    payload["observations"] = {"kind": "intentional-walk"}
+    payload["calculation"]["request"]["t1"]["pitchEventKind"] = "non-pitch-event"
+    payload["calculation"]["request"]["t1"]["resultId"] = (
+        "batting-result.intentional-walk"
+    )
+    play = {
+        "event_kind": "non_pitch",
+        "batting_result_key": "batting-result.intentional-walk",
+        "course_x": None,
+        "course_y": None,
+    }
+    assert _course_screen(payload, play) == (None, None)
+    for field, bad in (
+        ("course_x", 0.0),
+        ("course_y", 0.0),
+        ("event_kind", "pitch"),
+    ):
+        broken = play | {field: bad}
+        with pytest.raises(PlayExportIdentityUnavailable):
+            _course_screen(payload, broken)
+    payload["observations"] = {"kind": "intentional-walk", "course": None}
+    with pytest.raises(PlayExportIdentityUnavailable):
+        _course_screen(payload, play)
+    payload["observations"] = {"kind": "intentional-walk"}
+    payload["calculation"]["request"]["t1"]["pitchEventKind"] = "pitch-event"
+    with pytest.raises(PlayExportIdentityUnavailable):
+        _course_screen(payload, play)
+    payload["calculation"]["request"]["t1"]["pitchEventKind"] = "non-pitch-event"
+    play["batting_result_key"] = "batting-result.walk"
+    with pytest.raises(PlayExportIdentityUnavailable):
+        _course_screen(payload, play)
+
+
+def test_pitch_course_missing_is_not_converted_to_non_pitch_null():
+    """投球の正準座標欠測を非投球の未観測へ混同しない。"""
+    payload = json.loads(json.dumps(_CASES[0]["V7"]))
+    del payload["observations"]["course"]
+    play = {"event_kind": "pitch", "course_x": None, "course_y": None}
+    with pytest.raises(PlayExportIdentityUnavailable):
+        _course_screen(payload, play)

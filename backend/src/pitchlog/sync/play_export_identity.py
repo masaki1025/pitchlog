@@ -46,9 +46,32 @@ class RecordedPlayIdentity:
     runners: tuple[dict[str, Any], ...] = ()
 
 
-def _course_screen(payload: dict[str, Any]) -> tuple[str | None, str | None]:
-    """受理済V7の正準kだけを唯一生成targetへ渡す。"""
+def _course_screen(
+    payload: dict[str, Any], play: dict[str, Any] | None = None
+) -> tuple[str | None, str | None]:
+    """受理済V7の正準k、又は非投球の未観測を保存行へ照合する。"""
     observations = payload.get("observations")
+    if play is not None and play.get("event_kind") == "non_pitch":
+        try:
+            if (
+                payload["formatVersion"] != "play-prefix-play-v3"
+                or observations != {"kind": "intentional-walk"}
+                or payload["calculation"]["request"]["t1"]["pitchEventKind"]
+                != "non-pitch-event"
+                or payload["calculation"]["request"]["t1"]["resultId"]
+                != "batting-result.intentional-walk"
+                or play["batting_result_key"] != "batting-result.intentional-walk"
+                or play["course_x"] is not None
+                or play["course_y"] is not None
+            ):
+                raise PlayExportIdentityUnavailable
+        except (KeyError, TypeError):
+            raise PlayExportIdentityUnavailable from None
+        return None, None
+    if (play is not None and play.get("event_kind") != "pitch") or observations == {
+        "kind": "intentional-walk"
+    }:
+        raise PlayExportIdentityUnavailable
     if type(observations) is not dict or type(observations.get("course")) is not dict:
         raise PlayExportIdentityUnavailable
     course = observations["course"]
@@ -210,7 +233,7 @@ def capture_recorded_play_identity(scope, receipt, source) -> RecordedPlayIdenti
         payload = json.loads(source.native_payload_json)
         if type(payload) is not dict:
             raise PlayExportIdentityUnavailable
-        screen = _course_screen(payload)
+        screen = _course_screen(payload, play)
         clock = _rows(scope, select(func.clock_timestamp().label("accepted_at")), 1)
         if (
             len(clock) != 1

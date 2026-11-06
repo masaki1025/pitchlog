@@ -254,6 +254,8 @@ def test_recorded_non_pitch_uses_saved_kind_without_pitch_only_fill():
     """非投球の保存区分を有限表示し、投球だけの観測を補わない。"""
     identity = _identity()
     identity.play["event_kind"] = "non_pitch"
+    identity = replace(identity, course_screen=(None, None))
+    identity.payload["observations"] = {"kind": "intentional-walk"}
     identity.payload["calculation"]["request"]["t1"]["pitchEventKind"] = (
         "non-pitch-event"
     )
@@ -261,6 +263,11 @@ def test_recorded_non_pitch_uses_saved_kind_without_pitch_only_fill():
     assert values["プレイの種類"] == "非投球"
     assert values["球速"] is None
     assert values["球種"] is None
+    assert values["コースX"] is None and values["コースY"] is None
+    identity.play["pitch_speed"] = 1.0
+    with pytest.raises(RecordedExportProjectionUnavailable):
+        project_recorded_direct(identity)
+    identity.play["pitch_speed"] = None
     identity.play["event_kind"] = "control"
     with pytest.raises(RecordedExportProjectionUnavailable):
         project_recorded_direct(identity)

@@ -406,6 +406,23 @@ def _batted_coordinates(identity: RecordedPlayIdentity) -> dict[str, str | None]
 def _accepted_pitch_speed(identity: RecordedPlayIdentity) -> str | None:
     """物理Doubleと一致する受理済km/h原字面だけを写す。"""
     try:
+        if identity.play["event_kind"] == "non_pitch":
+            if (
+                identity.payload["observations"] != {"kind": "intentional-walk"}
+                or any(
+                    identity.play[field] is not None
+                    for field in (
+                        "pitch_speed",
+                        "pitch_type_key",
+                        "course_x",
+                        "course_y",
+                        "stance",
+                    )
+                )
+                or identity.course_screen != (None, None)
+            ):
+                raise RecordedExportProjectionUnavailable
+            return None
         value = identity.payload["observations"]["pitchSpeed"]["kmh"]
         stored = identity.play["pitch_speed"]
         if value is None:

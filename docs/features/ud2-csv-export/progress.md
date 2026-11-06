@@ -134,3 +134,5 @@
 監査eventの業務JSONは有限event kindと版付きredactionへ写し、D4・既知資格鍵は表示可能な置換形へ、未知秘密様鍵は閉拒否する。別JSON欄も同じ鍵検査を通す。真正lifecycle D4を含むZIPの実DB対向と正式contract受理は未了。
 
 score専用D-1候補は、保存T5の `pitch_count` state・0/1 credit配列と同版fact行を照合する。`pitch`/`non_pitch`の保存PlayRow区分とT1原本区分が一致する行だけを読ませ、非投球の0球を強制1球へ変えない。既T5 model・生成facts・旧pitch vectorの値は変更しない。真正 `non_pitch` PlayRowの製品保存経路と、それを経由した88列ZIPは別枝で実装中であり、この候補の純試験成功を実接続成功へ読み替えない。正式score資産・writer関数・0047の受理はrootが直列で扱う。
+
+固定 `554f502b` の owned `score-r1` では既3球のscore/球数全値と交代後ZIPの2件が成功し、source前後全byte一致・owned container削除済み。後続の非投球専用観測は `observations={"kind":"intentional-walk"}` で投球座標/速度を持たないため、保存PlayRowの `event_kind=non_pitch`、T1 `non-pitch-event`、course_x/y・速度等のNULLへ閉照合する候補を別コミットで追加した。通常投球の座標欠測、未知variant、片側だけのNULLは拒否する。これは非投球の実DB通過証拠ではない。
