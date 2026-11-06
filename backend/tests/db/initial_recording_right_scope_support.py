@@ -25,6 +25,7 @@ from pitchlog.authz.product_provisioning import (
     apply_product_authz_before_rule_placement,
     apply_product_authz_ddl,
 )
+from pitchlog.db.current_product_startup import CURRENT_REVISION
 from pitchlog.repositories.initial_recording_right import _credential_digest
 
 from . import durable_rights_ledger_support as ledger_support
@@ -36,7 +37,7 @@ from .durable_rights_ledger_support import (
 from .rg1_lifecycle_support import observed_identity
 
 _BACKEND = Path(__file__).resolve().parents[2]
-_INITIAL_REVISION = "0039_ordinary_pitch_storage"
+_INITIAL_REVISION = CURRENT_REVISION
 _ACTOR_UID = 20002
 _CONTROLLER_UID = 20004
 # 既initial候補の公開vector。運用資格/鍵を新発行しない。
@@ -91,6 +92,17 @@ def _install_initial_business(dsn: str) -> None:
     finally:
         engine.dispose()
     with psycopg.connect(dsn) as admin:
+        assert admin.execute(
+            "SELECT version_num FROM public.alembic_version"
+        ).fetchall() == [(_INITIAL_REVISION,)]
+        for table in (
+            "stats_fact_versions",
+            "stats_primitive_sources",
+            "stats_primitive_facts",
+        ):
+            assert admin.execute(
+                "SELECT pg_catalog.to_regclass(%s)", ("sync_fence." + table,)
+            ).fetchone() == ("sync_fence." + table,)
         apply_product_authz_ddl(admin)
     # 初期scope用installer。RG1の0035までのS3完了証明を偽造しない。
     # rootの9SQL/fullprofile供給が不十分なら実適用/検査を失敗させる。

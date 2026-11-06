@@ -609,3 +609,6 @@ owned r7で旧migration等141件成功、残7件は不変性検査が0039版を�
 ### PR197公開CIの外部凍結対象期待追随（2026-11-07、PO委任Codex/root判断）
 
 実CI42308513249のharness-shard0は8236passed/2skip/1fail、`test_all_assets_freeze_mode_wiring_and_declare_single_authority` の明示リストに、既に正式宣言・独立確認済みの `backend/tests/fixtures/pr197_ci_followup_inputs_v1.json` が1件不足した。製品/認可/旧数学・拒否条件を変更せず、その1項目を実凍結対象の末尾と同じ位置へ追加する。source listの部分集合化・順序無視・未知file受入はしない。候補は別fix WTへ固定し、非作者確認後にこの検査sourceを外部凍結する正式値だけ公式再導出・前後値確認を行う。公開d8と旧CIを成功へ読み替えず、他shard結果の追加失敗も同じ最終修復単位へまとめる。
+
+
+PR197同runのbackend-shard1は初期権/開始系10setup error（stats_fact_versions未作成）。`initial_recording_right_scope_support._install_initial_business` がfull現catalogを配備する前に0039だけへmigrationしていたことを実traceで確認。正規startupのCURRENT_REVISIONへ依存を揃え、実alembic版/私有3表の存在をproduct DDL前に照合する。手書き表・fixture関数・app権限を足さず、RG1のS3証明を偽造しない旧installer目的も維持する。owned PGの新規準備と同じ失敗caseを限定実行し、他shard失敗とまとめてsource固定する。
