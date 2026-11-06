@@ -18,3 +18,7 @@ branch: fix/mvp-play-csv-delivery
 | 3 | connected-rehearsal固定候補との通常接合、同TX88列producer/正式資産/実画面導線 | 事前fixture投入なし実新規記録からZIP、旧source無補完、正式資産/独立レビュー/CI。正式受理前は候補扱い |
 
 rootへの既PO委任と2026-11-06の速度優先・品質維持指示に基づく範囲具体化。承認者はCodex/rootでありPO本人の逐行確認や署名ではない。ステップ1の実装を開始する。6指摘とproducerが未解消の間、CSV完成や正式提供とはしない。送出検査を緩めず、既一般apiDownloadの非CSV呼出しとの互換性を維持する。
+
+## ステップ1実装結果（2026-11-07）
+
+既apiDownloadへtenantBoundを後方互換で伝達し、毎球CSVに限ってtrueを必須とした。Content-Lengthの非安全整数はnullへ閉じ、componentは正の安全整数長さ・小文字64桁SHAの両方と実bytes一致を要求する。破棄/試合変更/認証世代変更後は保存を止める。実crypto SHAで長さだけ正しい破損も拒否し、実clientのchallenge応答欠落/不一致はBlob未消費を確認。対象3suite76passed、Vue型・対象ESLint成功。最初の2失敗はnative async digest終了前の試験観測をvi.waitForで是正したもので、検査/期待を緩和していない。backend C2登録はステップ2で行うため、現時点で製品CSV成功とはしない。非作者確認は未実施。

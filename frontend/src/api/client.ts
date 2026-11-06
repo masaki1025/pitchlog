@@ -432,6 +432,7 @@ export async function apiDownload(
     query?: RequestOptions['query']
     signal?: AbortSignal
     noAuthExpiry?: boolean
+    tenantBound?: boolean
   } = {},
 ): Promise<{
   blob: Blob
@@ -452,7 +453,10 @@ export async function apiDownload(
   return {
     blob,
     filename: downloadFilename(res.headers.get('content-disposition')),
-    contentLength: parsedLength,
+    contentLength:
+      parsedLength !== null && Number.isSafeInteger(parsedLength)
+        ? parsedLength
+        : null,
     sha256: sha !== null && /^[a-f0-9]{64}$/.test(sha) ? sha : null,
   }
 }

@@ -1,9 +1,12 @@
 <script setup lang="ts">
-import { onBeforeUnmount, ref } from 'vue'
+import { onBeforeUnmount, ref, watch } from 'vue'
 import { ApiError } from '../../api/client'
 import { downloadPlayCsv } from '../../api/gameExports'
+import { useAuthStore } from '../../stores/authStore'
 
 const props = defineProps<{ gameId: string }>()
+const auth = useAuthStore()
+let alive = true
 const busy = ref(false)
 const message = ref<string | null>(null)
 const missing = ref<string[]>([])
@@ -20,17 +23,20 @@ async function verify(
   contentLength: number | null,
   expectedSha: string | null,
 ): Promise<boolean> {
-  if (contentLength !== null && blob.size !== contentLength) return false
-  if (expectedSha !== null) {
-    if (globalThis.crypto?.subtle === undefined) return false
-    const actual = bytesToHex(
-      await globalThis.crypto.subtle.digest(
-        'SHA-256',
-        await blob.arrayBuffer(),
-      ),
-    )
-    if (actual !== expectedSha) return false
-  }
+  if (
+    contentLength === null ||
+    !Number.isSafeInteger(contentLength) ||
+    contentLength <= 0 ||
+    blob.size !== contentLength ||
+    expectedSha === null ||
+    !/^[a-f0-9]{64}$/.test(expectedSha) ||
+    globalThis.crypto?.subtle === undefined
+  )
+    return false
+  const actual = bytesToHex(
+    await globalThis.crypto.subtle.digest('SHA-256', await blob.arrayBuffer()),
+  )
+  if (actual !== expectedSha) return false
   return true
 }
 
@@ -49,16 +55,33 @@ async function download(): Promise<void> {
   message.value = null
   missing.value = []
   const abort = new AbortController()
+  const gameId = props.gameId
+  auth.syncFromStorage()
+  const epoch = auth.authEpoch
+  const current = (): boolean => {
+    auth.syncFromStorage()
+    return (
+      alive &&
+      !abort.signal.aborted &&
+      controller.value === abort &&
+      props.gameId === gameId &&
+      auth.authEpoch === epoch
+    )
+  }
   controller.value = abort
   try {
-    const result = await downloadPlayCsv(props.gameId, abort.signal)
-    if (!(await verify(result.blob, result.contentLength, result.sha256))) {
+    const result = await downloadPlayCsv(gameId, abort.signal)
+    if (!current()) return
+    const valid = await verify(result.blob, result.contentLength, result.sha256)
+    if (!current()) return
+    if (!valid) {
       message.value = '完成ZIPの長さまたはSHA-256が一致しないため保存しません'
       return
     }
     save(result.blob, result.filename)
     message.value = '毎球CSVを保存しました'
   } catch (error) {
+    if (!current()) return
     if (error instanceof ApiError) {
       if (error.status === 401) {
         message.value = 'ログイン状態を確認してください'
@@ -83,7 +106,19 @@ function retry(): void {
   void download()
 }
 
+watch(
+  () => props.gameId,
+  () => {
+    controller.value?.abort()
+    controller.value = null
+    busy.value = false
+    message.value = null
+    missing.value = []
+  },
+)
+
 onBeforeUnmount(() => {
+  alive = false
   controller.value?.abort()
 })
 </script>

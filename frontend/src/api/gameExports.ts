@@ -11,5 +11,8 @@ export async function downloadPlayCsv(
   gameId: string,
   signal?: AbortSignal,
 ): Promise<PlayCsvDownload> {
-  return apiDownload(`/games/${gameId}/exports/plays.zip`, { signal })
+  return apiDownload(`/games/${gameId}/exports/plays.zip`, {
+    signal,
+    tenantBound: true,
+  })
 }
