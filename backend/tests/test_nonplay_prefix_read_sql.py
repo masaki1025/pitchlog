@@ -23,11 +23,32 @@ def test_bootstrap_legacy_branch_keeps_signature_and_all_saved_qualification():
     assert sql.count("CREATE FUNCTION") == 1
     assert "c.content->>'version'='3'" in sql
     assert "a.next_checkpoint_content=cp.content" in sql
-    assert "a.xmin=cp.xmin" in sql and "es.xmin=a.xmin" in sql
+    assert "a.xmin=physical_xmin" in sql and "es.xmin=a.xmin" in sql
+    assert "SELECT c.xmin INTO STRICT physical_xmin" in sql
+    assert "c.id=cp.id AND c.revision=cp.revision" in sql
+    assert "a.xmin=cp.xmin" not in sql
     assert "l.source_fingerprint=a.event_fingerprint" in sql
     assert "c.content->'storage_anchor'->>'history_epoch'=p_epoch::text" in sql
     assert "'generationChain',chain" in sql
+    assert "jsonb_agg(chain_row.wire_d4 ORDER BY chain_row.issuance_order)" in sql
+    assert "GROUP BY r.issuance_order,b.wire_d4) chain_row;" in sql
     assert "total::text IS DISTINCT FROM cp.content->>'history_depth'" in sql
-    assert "FOR SHARE OF c,g" in sql
+    assert "FOR SHARE OF c,g" not in sql
+    assert sql.count("FOR SHARE OF c;") == 2
     assert "LIMIT p_page_size+1" in sql
     assert "LIMIT 100;" not in sql
+
+
+def test_generation_join_and_both_branch_guards_remain():
+    """世代行の重複lockだけを外し、NP/旧v3のtenant/世代/水位条件を保持する。"""
+    sql = candidate_read_function_bodies()["read_nonplay_active_history"]
+    assert sql.count("FOR SHARE OF c;") == 2
+    assert sql.count("JOIN public.recording_generations g") == 2
+    assert sql.count("g.recovery_generation=c.recovery_generation") == 2
+    assert sql.count("g.confirmed_watermark=p_d3 AND g.applied_prefix=p_d3") == 2
+    assert sql.count("g.kind='normal'") == 2
+    assert sql.count("g.revoked_at IS NULL AND g.retired_at IS NULL") == 2
+    assert sql.count("g.import_batch_id IS NULL") == 2
+    assert sql.count("p_tenant_id IS DISTINCT FROM") == 2
+    assert sql.count("p_after_order=0 AND (p_after_d1<>0") == 2
+    assert sql.count("LIMIT p_page_size+1") == 2

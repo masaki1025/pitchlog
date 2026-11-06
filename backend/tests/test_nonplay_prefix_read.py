@@ -724,3 +724,87 @@ async def test_bootstrap_http_legacy_returns_np_checkpoint_and_bounded_pages(
     assert first["checkpoint"]["content"]["activeDepth"] == "2"
     raw = json.dumps((first, second))
     assert all(key not in raw for key in ("binding_nonce", "lease_id", "admission"))
+
+
+def test_zero_cursor_uses_real_public_function_dispatcher():
+    """先頭cursor0を偽handleでなく実token/registry/dispatcher全体へ通す。"""
+    from pitchlog.repositories.function_operations import prepare_function_operation
+    from pitchlog.repositories.operation_registry import FUNCTION_OPERATION_REGISTRY
+
+    token = NonplayActiveHistoryReadToken(
+        game_id=UUID(int=1),
+        generation=1,
+        checkpoint_id=UUID(int=2),
+        revision=1,
+        epoch=1,
+        d3=1,
+        logical_version=1,
+        after_order=0,
+        after_d1=0,
+        after_id=UUID(int=0),
+        page_size=100,
+    )
+    _, parameters = prepare_function_operation(
+        token,
+        UUID(int=3),
+        FUNCTION_OPERATION_REGISTRY,
+    )
+    assert parameters["after_order"] == 0
+    assert parameters["after_d1"] == 0
+    assert parameters["tenant_id"] == UUID(int=3)
+
+
+@pytest.mark.parametrize(
+    "field", ["generation", "revision", "epoch", "d3", "logical_version", "page_size"]
+)
+def test_real_dispatcher_keeps_non_cursor_zero_closed(field):
+    """constructor迂回の改変でも、cursor以外の0を新たに通さない。"""
+    from pitchlog.repositories.function_operations import (
+        FunctionOperationError,
+        prepare_function_operation,
+    )
+    from pitchlog.repositories.operation_registry import FUNCTION_OPERATION_REGISTRY
+
+    token = NonplayActiveHistoryReadToken(
+        game_id=UUID(int=1),
+        generation=1,
+        checkpoint_id=UUID(int=2),
+        revision=1,
+        epoch=1,
+        d3=1,
+        logical_version=1,
+        after_order=0,
+        after_d1=0,
+        after_id=UUID(int=0),
+        page_size=100,
+    )
+    object.__setattr__(token, field, 0)
+    with pytest.raises(FunctionOperationError):
+        prepare_function_operation(token, UUID(int=3), FUNCTION_OPERATION_REGISTRY)
+
+
+@pytest.mark.parametrize("bad", [-1, True, 0.0, 2**63])
+def test_real_dispatcher_keeps_invalid_cursor_closed(bad):
+    """正規tokenの私有値を改変しても型/負値/上限を拒否する。"""
+    from pitchlog.repositories.function_operations import (
+        FunctionOperationError,
+        prepare_function_operation,
+    )
+    from pitchlog.repositories.operation_registry import FUNCTION_OPERATION_REGISTRY
+
+    token = NonplayActiveHistoryReadToken(
+        game_id=UUID(int=1),
+        generation=1,
+        checkpoint_id=UUID(int=2),
+        revision=1,
+        epoch=1,
+        d3=1,
+        logical_version=1,
+        after_order=0,
+        after_d1=0,
+        after_id=UUID(int=0),
+        page_size=100,
+    )
+    object.__setattr__(token, "after_order", bad)
+    with pytest.raises(FunctionOperationError):
+        prepare_function_operation(token, UUID(int=3), FUNCTION_OPERATION_REGISTRY)

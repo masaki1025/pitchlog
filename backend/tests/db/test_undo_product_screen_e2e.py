@@ -75,6 +75,45 @@ def test_screen_create_two_pitches_two_undo_next_pitch_reload(vertical_database)
                             "GROUP BY kind,reason ORDER BY kind,reason",
                             (db.tenant_id,),
                         ).fetchall()
+                        integrity = diagnostic.execute(
+                            "SELECT jsonb_build_object("
+                            "'state',a.state='consumed',"
+                            "'saved_at',a.consumed_at=c.saved_at,"
+                            "'checkpoint_id',a.checkpoint_id=c.id,"
+                            "'revision',a.checkpoint_revision+1=c.revision,"
+                            "'content',a.next_checkpoint_content=c.content,"
+                            "'roster',a.roster_snapshot=c.roster,"
+                            "'tx_cp',a.xmin=c.xmin,"
+                            "'tx_event',e.xmin=a.xmin,"
+                            "'tx_ledger',l.xmin=a.xmin,"
+                            "'tx_slot',es.xmin=a.xmin,"
+                            "'top_xid',a.xmin::text::numeric=mod(a.transaction_id::numeric,4294967296),"
+                            "'source_d2',e.d2=a.source_d2,"
+                            "'source_d5',e.d5=a.d5,"
+                            "'ledger_fingerprint',l.source_fingerprint=a.event_fingerprint,"
+                            "'head_id',c.content->'last_source'->>'id'=e.id::text,"
+                            "'head_d5',c.content->'last_source'->>'d5'=e.d5::text,"
+                            "'head_fingerprint',c.content->'last_source'->>'source_fingerprint'=l.source_fingerprint,"
+                            "'wire_d4',c.content->>'wire_d4'=a.wire_d4,"
+                            "'confirmed_version',es.confirmed_version=1) "
+                            "FROM sync_fence.ordinary_pitch_checkpoints c "
+                            "JOIN sync_fence.ordinary_pitch_write_admissions a "
+                            "ON a.tenant_id=c.tenant_id AND a.game_id=c.game_id "
+                            "AND a.internal_generation=c.internal_generation "
+                            "AND a.source_d1=c.confirmed_watermark "
+                            "JOIN public.operation_events e ON e.tenant_id=a.tenant_id "
+                            "AND e.game_id=a.game_id AND e.id=a.source_event_id "
+                            "JOIN public.idempotency_ledger l "
+                            "ON l.tenant_id=e.tenant_id "
+                            "AND l.d5=e.d5 "
+                            "JOIN public.event_slots es ON "
+                            "(es.tenant_id,es.game_id,es.generation,es.d1)="
+                            "(e.tenant_id,e.game_id,e.generation,e.d1) "
+                            "WHERE c.tenant_id=%s AND c.game_id=%s "
+                            "AND c.state='current' LIMIT 2",
+                            (db.tenant_id, UUID(attempted[0])),
+                        ).fetchall()
+                    print("PITCHLOG_UNDO_FAILURE_INTEGRITY=" + json.dumps(integrity))
                     print(
                         "PITCHLOG_UNDO_FAILURE_DB="
                         + json.dumps(
