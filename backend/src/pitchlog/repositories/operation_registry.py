@@ -42,6 +42,7 @@ from pitchlog.repositories.ordinary_prefix_operations import (
     ORDINARY_PREFIX_OPERATIONS,
     PLAY_PREFIX_OPERATIONS,
 )
+from pitchlog.repositories.past_correction_right import P3_RIGHT_CHECK_OPERATION
 from pitchlog.repositories.pitch_type_options import PITCH_TYPE_OPTIONS_OPERATIONS
 from pitchlog.repositories.preparing_game_creation import (
     PREPARING_GAME_CREATE_OPERATIONS,
@@ -113,6 +114,7 @@ _STATIC_PRODUCT_FUNCTION_BINDING_IDS = frozenset(
         "SYNC_PLAY_PREFIX:read_play_prefix_history_page",
         "SYNC_PLAY_PREFIX:prepare_play_prefix_projection",
         "SYNC_LINEUP_PREFIX:read_lineup_started_origin",
+        "SYNC_P3:check_p3_right",
     }
 )
 
@@ -256,6 +258,9 @@ PRODUCT_FUNCTION_OPERATIONS: tuple[FunctionOperationRegistration, ...] = (
     _registered_product_function(
         LINEUP_START_ORIGIN_OPERATIONS[0],
         operation_id="SYNC_LINEUP_PREFIX:read_lineup_started_origin",
+    ),
+    _registered_product_function(
+        P3_RIGHT_CHECK_OPERATION, operation_id="SYNC_P3:check_p3_right"
     ),
     *STATS_NATIVE_FUNCTION_OPERATIONS,
     *STATS_BASIC_FUNCTION_OPERATIONS,

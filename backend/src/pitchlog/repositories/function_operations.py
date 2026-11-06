@@ -262,6 +262,15 @@ _SYNC_ORDINARY_PITCH_FUNCTION_TYPES = MappingProxyType(
 )
 
 
+_SYNC_P3_FUNCTION_TYPES = MappingProxyType(
+    {
+        "sync_right_api.check_p3_right": _SYNC_FIRST_BALL_FUNCTION_TYPES[
+            "sync_right_api.check_current_right"
+        ]
+    }
+)
+
+
 _SYNC_ORDINARY_PREFIX_FUNCTION_TYPES = MappingProxyType(
     {
         "sync_right_api.read_ordinary_order_summary": (
@@ -586,6 +595,7 @@ class FunctionOperationRegistration:
             initial = _INITIAL_RESOLVE_FUNCTION_TYPES.get(self.function_id)
         first_ball = _SYNC_FIRST_BALL_FUNCTION_TYPES.get(self.function_id)
         ordinary = _SYNC_ORDINARY_PITCH_FUNCTION_TYPES.get(self.function_id)
+        p3 = _SYNC_P3_FUNCTION_TYPES.get(self.function_id)
         ordinary_prefix = _SYNC_ORDINARY_PREFIX_FUNCTION_TYPES.get(self.function_id)
         play_prefix = _SYNC_PLAY_PREFIX_FUNCTION_TYPES.get(self.function_id)
         writer_binding = _SYNC_WRITER_BINDING_FUNCTION_TYPES.get(self.function_id)
@@ -628,6 +638,16 @@ class FunctionOperationRegistration:
                 or self.nonempty_inputs
             ):
                 raise FunctionOperationError("通常投球関数の有限型宣言が不一致")
+        elif p3 is not None:
+            if (
+                extended != p3
+                or self.operation_id != "SYNC_P3:check_p3_right"
+                or self.capability_id != "CAP:sync_p3:check_p3_right"
+                or self.min_rows != 1
+                or self.max_rows != 1
+                or self.nonempty_inputs
+            ):
+                raise FunctionOperationError("P3権利関数の有限型宣言が不一致")
         elif ordinary_prefix is not None:
             name = self.function_id.rsplit(".", 1)[1]
             if (
@@ -779,6 +799,7 @@ class FunctionOperationRegistration:
                         initial is not None
                         or first_ball is not None
                         or ordinary is not None
+                        or p3 is not None
                         or ordinary_prefix is not None
                         or play_prefix is not None
                         or writer_binding is not None
@@ -798,6 +819,7 @@ class FunctionOperationRegistration:
                             and self.function_id
                             == "sync_right_api.check_ordinary_right"
                         )
+                        or p3 is not None
                     )
                     and argument.key in ("internal_generation", "recovery_generation")
                     and expected_type is int
@@ -857,7 +879,11 @@ def _build_fixed_function_statement(
                 and (
                     (
                         function_name
-                        in {("check_current_right"), ("check_ordinary_right")}
+                        in {
+                            "check_current_right",
+                            "check_ordinary_right",
+                            "check_p3_right",
+                        }
                         and name in ("internal_generation", "recovery_generation")
                     )
                     or (
@@ -1034,6 +1060,7 @@ def prepare_function_operation(
         if (
             spec.function_id in _SYNC_FIRST_BALL_FUNCTION_TYPES
             or spec.function_id in _SYNC_ORDINARY_PITCH_FUNCTION_TYPES
+            or spec.function_id in _SYNC_P3_FUNCTION_TYPES
             or spec.function_id in _SYNC_WRITER_BINDING_FUNCTION_TYPES
             or spec.function_id in _SYNC_PLAY_PREFIX_FUNCTION_TYPES
         ):
