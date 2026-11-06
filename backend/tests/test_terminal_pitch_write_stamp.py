@@ -72,9 +72,15 @@ def test_prepare_parenthesizes_five_case_expressions_without_other_sql_changes()
     import re
     from pathlib import Path
 
-    from pitchlog.authz.terminal_pitch_write_stamp import _v2_function_bodies
-
-    sql = _v2_function_bodies()["prepare_play_prefix_projection"]
+    # immutable Git 8712866dの当時rendererから抽出。現行製品の期待ではない。
+    sql = (
+        Path(__file__).parent
+        / "fixtures/pr191-historical-sql-proof/prepare-corrected.sql"
+    ).read_text(encoding="utf-8")
+    assert (
+        hashlib.sha256(sql.encode()).hexdigest()
+        == "6a51bc53df61ecd37262d8fa3b05c4f702f4861f419376d752062de170bce6b6"
+    )
     removed = []
 
     def original_case(match):
@@ -97,6 +103,17 @@ def test_prepare_parenthesizes_five_case_expressions_without_other_sql_changes()
     expected = frozen["frozen_inputs"]["terminal_prepare_original_sql_sha256"]["value"]
     assert type(expected) is str and re.fullmatch(r"[0-9a-f]{64}", expected)
     assert hashlib.sha256(previous.encode()).hexdigest() == expected
+
+
+def test_current_prepare_keeps_case_operand_parentheses():
+    """現行v2/v3の演算子右辺CASEを括弧なしに退行させない。"""
+    import re
+
+    from pitchlog.authz.terminal_pitch_write_stamp import _v2_function_bodies
+
+    for bodies in (_v2_function_bodies(), candidate_function_bodies()):
+        sql = bodies["prepare_play_prefix_projection"]
+        assert not re.search(r"IS DISTINCT FROM\s+CASE\b|>\s*CASE\b", sql)
 
 
 def test_lineup_origin_minimal_columns_and_historical_device_no_current_role():
