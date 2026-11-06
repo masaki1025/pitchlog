@@ -44,9 +44,9 @@ def metadata_root(tmp_path: Path) -> Path:
 
 
 def test_real_immutable_profile_and_parent_whole_module(immutable_profile_expectation):
-    """971blob/31caseと元全ASTは固定Gitから得られ、現在木期待へ変えない。"""
+    """972blob/31caseと元全ASTは固定Gitから得られ、現在木期待へ変えない。"""
     profile = immutable_profile_expectation
-    assert len(profile["files"]) == 971 and len(profile["case_ids"]) == 31
+    assert len(profile["files"]) == 972 and len(profile["case_ids"]) == 31
     api._verify_parent(api._ROOT, profile)
 
 
