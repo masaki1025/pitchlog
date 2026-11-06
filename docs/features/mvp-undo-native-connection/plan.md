@@ -394,3 +394,6 @@ r38は真正DBでundo D1=3・accepted台帳3件まで成功、SQL例外なし。
 
 
 r40再認証後の試験遷移是正: login helperが既routerの元試合redirectを/gamesへ上書きし、一覧のCookie更新可能GET中に強制page.gotoでrecordへ移動していた。中断したGETを既clientがCookie不確実として再認証へ戻すため、実login redirectを元の試合URLへ直接指定する。保存・認可・authStore・拒否条件は変更しない。r40はaccepted undo維持だが全列1failed、成功へ読み替えない。
+
+
+r41で真正取消後の1ball/履歴1・認証再確認・reloadまで成立、同要求再送は503。原因は既DI1〜DI3のwriter前D5再掲helperがP2のみを対象とし、新接続の取消P1を除外していたこと。通常保存済要求に不要な新writer publicationへ入り、同attempt/同phaseの不変PKで拒否する。既認可後・RG1/tenant照合・V12前のD5順序を維持し、helperの対象へ接続済単一P1 undoだけを加え、classify_d5へ真正request.pathを渡す。未使用D5はNoneで通常の記録権/連番/内容/取消評価へ戻り、既存P1/P3一般操作を成功させない。writerの不変PK・旧lease・認証・冪等性を緩めず、D5を新attemptへ置換しない。rootがP2/取消P1の受理/未使用/異内容・D3対向を共通試験し、最終独立確認と実画面r42へ進む。PO委任rootの既契約実装接続修復。

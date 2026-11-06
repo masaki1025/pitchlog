@@ -390,10 +390,12 @@ def _replay_e1_without_binding(
         or any(type(value) is not str for value in fingerprints)
     ):
         raise SourceBindingError("E1再掲の入力が不正")
-    if request.path != "P2" or len(request.events) != 1:
-        # 単球F1入口の範囲外は流儀どおり後段（_E1OutOfScope）へ委ねる。
+    if len(request.events) != 1:
         return None
     event = request.events[0]
+    if request.path != "P2" and not (request.path == "P1" and event.v5 == "undo"):
+        # 接続済み単一取消以外のP1/P3は既存の範囲外拒否へ委ねる。
+        return None
     if (
         type(event.d1) is not int
         or not 0 < event.d1 <= 2**53 - 1
@@ -414,7 +416,7 @@ def _replay_e1_without_binding(
         d3 = _cell(rows[0], _GENERATION_COLUMNS, "confirmed_watermark")
         if type(d3) is not int:
             raise RuntimeError("D3 の型が不正")
-        candidate = classify_d5(scope, UUID(event.d5), fingerprints[0], "P2")
+        candidate = classify_d5(scope, UUID(event.d5), fingerprints[0], request.path)
     if candidate.kind == "unused":
         # 未使用 D5 は ⑤ 以降（V12・content・order）が正本の段階順。
         return None
