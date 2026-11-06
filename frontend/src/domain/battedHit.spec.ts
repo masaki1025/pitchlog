@@ -334,3 +334,243 @@ describe('無走者4安打の唯一前進核', () => {
     expect(Object.keys(first)).not.toContain('t2')
   })
 })
+
+describe('走者あり打球の明示進塁だけを接続する', () => {
+  function runnerFixture() {
+    const before: StateFields = {
+      half: 'top',
+      strikes: 1n,
+      balls: 2n,
+      outs: 0n,
+      runners: 'first',
+      battingOrder: 2n,
+      tiebreakActive: false,
+      gameEnded: false,
+      inning: 1n,
+      home: 0n,
+      away: 0n,
+    }
+    const board: Scoreboard = {
+      home: 0n,
+      away: 0n,
+      hits: 1n,
+      errors: 0n,
+      strikeouts: 0n,
+      walks: 0n,
+    }
+    return { before, board, cursors: { away: 2n, home: 1n } }
+  }
+  function runnerObservation(
+    resultId: BattedHitResultId,
+    destination: '2' | '3' | '4',
+  ): BattedHitObservation {
+    return {
+      ...observation(resultId),
+      runnerAdvanceOverrides: {
+        kind: 'applied',
+        overrides: [{ runnerBase: '1', destination }],
+      },
+    }
+  }
+  it('単打で一塁走者を三塁へ明示し、打者一塁・得点0を返す', () => {
+    const f = runnerFixture()
+    expect(
+      deriveBattedHit(
+        f.before,
+        f.board,
+        runnerObservation('batting-result.single', '3'),
+        f.cursors,
+      ),
+    ).toEqual({
+      countEffect: {
+        strikes: { kind: 'reset', value: 0n },
+        balls: { kind: 'reset', value: 0n },
+      },
+      plateAppearanceEnded: true,
+      batterDestination: { kind: 'reach', base: 1n },
+      runnerDefaultAdvance: {
+        first: { modality: 'forced', destination: 3n },
+        second: { modality: 'not-applicable', destination: null },
+        third: { modality: 'not-applicable', destination: null },
+      },
+      outEffect: { count: 0n, targets: [] },
+      statFlags: { ...FLAGS },
+      history: {
+        ballsBefore: 2n,
+        ballsAfter: 0n,
+        strikesBefore: 1n,
+        strikesAfter: 0n,
+      },
+      after: {
+        stateFields: {
+          ...f.before,
+          strikes: 0n,
+          balls: 0n,
+          runners: 'first-third',
+          battingOrder: 3n,
+        },
+        scoreboard: { ...f.board, hits: 2n },
+        battingOrderBySide: { away: 3n, home: 1n },
+      },
+    })
+  })
+  it('二塁打で一塁走者の生還を明示し、得点1・RBI-08の打点1を返す', () => {
+    const f = runnerFixture()
+    expect(
+      deriveBattedHit(
+        f.before,
+        f.board,
+        runnerObservation('batting-result.double', '4'),
+        f.cursors,
+      ),
+    ).toEqual({
+      countEffect: {
+        strikes: { kind: 'reset', value: 0n },
+        balls: { kind: 'reset', value: 0n },
+      },
+      plateAppearanceEnded: true,
+      batterDestination: { kind: 'reach', base: 2n },
+      runnerDefaultAdvance: {
+        first: { modality: 'forced', destination: 4n },
+        second: { modality: 'not-applicable', destination: null },
+        third: { modality: 'not-applicable', destination: null },
+      },
+      outEffect: { count: 0n, targets: [] },
+      statFlags: { ...FLAGS, 得点: true, 失点: true, 打点: true },
+      history: {
+        ballsBefore: 2n,
+        ballsAfter: 0n,
+        strikesBefore: 1n,
+        strikesAfter: 0n,
+      },
+      after: {
+        stateFields: {
+          ...f.before,
+          strikes: 0n,
+          balls: 0n,
+          runners: 'second',
+          battingOrder: 3n,
+          away: 1n,
+        },
+        scoreboard: { ...f.board, away: 1n, hits: 2n },
+        battingOrderBySide: { away: 3n, home: 1n },
+      },
+    })
+  })
+  it('未確認・後退・不在塁・重複・打者との塁衝突を拒否する', () => {
+    const f = runnerFixture()
+    const single = observation('batting-result.single')
+    expect(deriveBattedHit(f.before, f.board, single, f.cursors)).toBeNull()
+    for (const overrides of [
+      [],
+      [{ runnerBase: '1', destination: '1' }],
+      [{ runnerBase: '2', destination: '3' }],
+      [
+        { runnerBase: '1', destination: '3' },
+        { runnerBase: '1', destination: '2' },
+      ],
+    ]) {
+      expect(
+        deriveBattedHit(
+          f.before,
+          f.board,
+          {
+            ...single,
+            runnerAdvanceOverrides: { kind: 'applied', overrides },
+          } as BattedHitObservation,
+          f.cursors,
+        ),
+      ).toBeNull()
+    }
+    // このspikeの成功入力は一塁走者1人だけ。二塁走者・複数走者は成功にしない。
+    for (const runners of [
+      'second',
+      'third',
+      'first-second',
+      'first-third',
+      'second-third',
+      'loaded',
+    ] as const) {
+      const before = { ...f.before, runners }
+      const overrides = [{ runnerBase: '1', destination: '3' }]
+      expect(
+        deriveBattedHit(
+          before,
+          f.board,
+          {
+            ...single,
+            runnerAdvanceOverrides: { kind: 'applied', overrides },
+          } as BattedHitObservation,
+          f.cursors,
+        ),
+      ).toBeNull()
+    }
+    // 三塁打・本塁打は走者ありの成功入力にしない。
+    for (const resultId of [
+      'batting-result.triple',
+      'batting-result.home-run',
+    ] as const)
+      expect(
+        deriveBattedHit(
+          f.before,
+          f.board,
+          runnerObservation(resultId, '4'),
+          f.cursors,
+        ),
+      ).toBeNull()
+    // 二塁打で一塁走者を二塁に止めると打者と衝突する。
+    expect(
+      deriveBattedHit(
+        f.before,
+        f.board,
+        runnerObservation('batting-result.double', '2'),
+        f.cursors,
+      ),
+    ).toBeNull()
+  })
+  it('overrideのgetter/余剰field/未知kindを実行せず拒否する', () => {
+    const f = runnerFixture()
+    let calls = 0
+    const overrides: Record<string, unknown> = {
+      kind: 'applied',
+      overrides: [{ runnerBase: '1', destination: '3' }],
+    }
+    Object.defineProperty(overrides, 'kind', {
+      get: () => {
+        calls++
+        return 'applied'
+      },
+    })
+    expect(
+      deriveBattedHit(
+        f.before,
+        f.board,
+        {
+          ...observation('batting-result.single'),
+          runnerAdvanceOverrides: overrides,
+        } as unknown as BattedHitObservation,
+        f.cursors,
+      ),
+    ).toBeNull()
+    expect(calls).toBe(0)
+    for (const value of [
+      { kind: 'unknown', overrides: [] },
+      { kind: 'applied', overrides: [], extra: true },
+      {
+        kind: 'applied',
+        overrides: [{ runnerBase: '1', destination: '3', extra: true }],
+      },
+    ])
+      expect(
+        deriveBattedHit(
+          f.before,
+          f.board,
+          {
+            ...observation('batting-result.single'),
+            runnerAdvanceOverrides: value,
+          } as unknown as BattedHitObservation,
+          f.cursors,
+        ),
+      ).toBeNull()
+  })
+})
