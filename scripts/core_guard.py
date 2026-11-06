@@ -1347,26 +1347,29 @@ def _pr197_merge_carry_pins(root: Path, head_sha: str) -> tuple[str, str]:
         if resolved.strip() != revision:
             raise GuardError("PR197文書mergeの固定Git objectが不一致")
         _pr197_merge_git(root, "merge-base", "--is-ancestor", revision, head_sha)
+    recovery = _pr197_recovery_pins(root, head_sha)
+    successor = recovery["pr197_recovery_source_revision"]
+    _pr197_merge_git(root, "merge-base", "--is-ancestor", source_revision, successor)
     introductions = _pr197_merge_git(
         root, "log", "--reverse", "--format=%H", "-S_pr197_merge_carry_pins",
         "HEAD", "--", "scripts/core_guard.py",
     ).splitlines()
-    if introductions != [source_revision]:
+    if (len(introductions) != 2 or introductions[0] != source_revision
+            or introductions[1] == source_revision):
         raise GuardError("PR197文書mergeのsource導入commitが不一致")
+    first_recovery = introductions[1]
+    _pr197_merge_git(root, "merge-base", "--is-ancestor", first_recovery, successor)
     current = (root / "scripts/core_guard.py").read_bytes()
     old_source = _pr197_merge_git(root, "show", f"{source_revision}:scripts/core_guard.py")
     if _pr197_definition_fingerprint(old_source) != values[
         "pr197_core_carry_definition_sha256"
     ]:
         raise GuardError("PR197旧5a定義ASTが不一致")
-    recovery = _pr197_recovery_pins(root, head_sha)
-    successor = recovery["pr197_recovery_source_revision"]
-    _pr197_merge_git(root, "merge-base", "--is-ancestor", source_revision, successor)
     introductions = _pr197_merge_git(
         root, "log", "--reverse", "--format=%H", "-S_pr197_identical_cochange",
         "HEAD", "--", "scripts/core_guard.py",
     ).splitlines()
-    if introductions != [successor]:
+    if introductions != [first_recovery]:
         raise GuardError("PR197回復source導入commitが一意でない")
     source = _pr197_merge_git(root, "show", f"{successor}:scripts/core_guard.py")
     if (current != source.encode("utf-8")
