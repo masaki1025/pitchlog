@@ -2,6 +2,8 @@ import type {
   BattedHitObservations,
   BattedHitResult,
 } from '../../../contracts/state-transition/lineup_play_prefix_payload_v1'
+import type { RunnerAdvanceOverrides } from '../domain/battedHit'
+import type { RunnerAdvanceOverridesByRunner } from '../api/runnerAdvanceWire'
 import type {
   Source as LineupSource,
   PrefixRef as LineupRef,
@@ -16,6 +18,7 @@ import {
 } from '../api/lineupPrefixGame'
 import {
   isLineupDefinition,
+  isLineupSpikeDefinition,
   sealLineupMetadata,
   formatLineupPrefixWire,
 } from '../api/lineupPrefixWire'
@@ -255,6 +258,11 @@ export function isPlayRecordingContext(
 ): c is PlayRecordingContext {
   return 'mode' in c && c.mode === 'play-prefix-v2'
 }
+export type BattedHitConfirmation = Omit<
+  BattedHitObservations,
+  'runnerAdvanceOverridesByRunner'
+> & { runnerAdvanceOverridesByRunner: RunnerAdvanceOverridesByRunner }
+
 export type PlayScreenObservation = Omit<
   OrdinaryScreenObservation,
   'resultId'
@@ -266,8 +274,10 @@ export type PlayScreenObservation = Omit<
       | 'batting-result.hit-by-pitch'
       | 'batting-result.called-strikeout'
       | 'batting-result.swinging-strikeout'
+      | 'batting-result.k3'
+      | 'batting-result.strikeout-double-play'
       | BattedHitResult
-    battedHit?: Omit<BattedHitObservations, keyof FirstBallObservations> | null
+    battedHit?: Omit<BattedHitConfirmation, keyof FirstBallObservations> | null
     nextBatter?: NextBatter | null
   }>
 /** 同じ保存roster/lineup照合を旧v1とv2で共有する。 */
@@ -679,6 +689,34 @@ export async function lineupContextFromRead(
     source: 'server-confirmed',
   })
 }
+/** 走者ありは記録者の明示確認だけをT1へ渡し、既定進塁を補わない。 */
+function requestRunnerOverrides(
+  hit: Omit<BattedHitConfirmation, keyof FirstBallObservations>,
+  before: Snapshot,
+  sourceRunners: LineupSource['runners'],
+): RunnerAdvanceOverrides {
+  const runners = before.stateFields['state.runners']
+  if (runners === 'empty') {
+    if (
+      sourceRunners.length !== 0 ||
+      hit.runnerAdvanceOverridesByRunner.kind !== 'not-applied'
+    )
+      invalid()
+    return 'not-applied'
+  }
+  const applied = hit.runnerAdvanceOverridesByRunner
+  if (applied.kind !== 'applied' || applied.overrides.length === 0) invalid()
+  const occupied = new Set<string>(sourceRunners.map((runner) => runner.base))
+  const seen = new Set<string>()
+  for (const override of applied.overrides) {
+    const base = override.runnerBase
+    if (!occupied.has(base) || seen.has(base)) invalid()
+    seen.add(base)
+  }
+  // 衝突・フォース連鎖・本塁打の全生還は唯一T1核で判定する。
+  return { kind: 'applied', overrides: applied.overrides.slice() }
+}
+
 export async function prepareLineupPrefix(
   context: LineupRecordingContext,
   observation: PlayScreenObservation,
@@ -716,7 +754,6 @@ export async function prepareLineupPrefix(
     if (
       !hit ||
       hit.resultId !== observation.resultId ||
-      context.after.stateFields['state.runners'] !== 'empty' ||
       context.after.stateFields['state.tiebreakActive'] !== false ||
       context.after.stateFields['state.gameEnded'] !== false ||
       [hit.battedBall.hitX, hit.battedBall.hitY].some(
@@ -732,6 +769,13 @@ export async function prepareLineupPrefix(
     )
       return invalid()
   } else if (observation.battedHit != null) return invalid()
+  const runnerAdvanceOverrides = batted
+    ? requestRunnerOverrides(
+        observation.battedHit!,
+        context.after,
+        context.lineupSource.runners,
+      )
+    : null
   const candidate = {
     version: '3',
     prefixRef: context.prefixRef,
@@ -745,7 +789,7 @@ export async function prepareLineupPrefix(
         ? {
             officialScoringPayload: 'no-error',
             interferenceRuling: 'not-required',
-            runnerAdvanceOverrides: 'not-applied',
+            runnerAdvanceOverrides: runnerAdvanceOverrides,
             thirdOutObservation: 'none',
           }
         : {}),
@@ -758,8 +802,9 @@ export async function prepareLineupPrefix(
       digest: '0'.repeat(64),
     },
   }
-  if (!isLineupDefinition<LineupRequest>(candidate, 'Request')) return invalid()
-  const request = candidate
+  if (!isLineupSpikeDefinition<LineupRequest>(candidate, 'Request'))
+    return invalid()
+  const request = candidate as unknown as LineupRequest
   const response: LineupSuccess = {
     ok: true,
     value: invokeFirstBallDomain(

@@ -22,7 +22,6 @@ from pitchlog.domainrt.first_pitch_continuation import (
     _check_frozen_members,
 )
 from pitchlog.domainrt.host import open_domain_host
-from pitchlog.domainrt.ordinary_pitch_continuation import _RunnerHolds
 from pitchlog.domainrt.play_prefix_continuation import (
     CanonicalUuid,
     Checkpoint,
@@ -285,8 +284,22 @@ class T1Input(_LineupWire):
     before: StrikeoutSnapshot
 
 
+class RunnerAdvanceOverride(_LineupWire):
+    """記録者が確定した1走者の実到達塁。停止は写像へ含めない。"""
+
+    runner_base: Literal["1", "2", "3"] = Field(alias="runnerBase")
+    destination: Literal["2", "3", "4"]
+
+
+class AppliedRunnerAdvanceOverrides(_LineupWire):
+    """空配列を未確認として受理しない明示override。"""
+
+    kind: Literal["applied"]
+    overrides: tuple[RunnerAdvanceOverride, ...] = Field(min_length=1, max_length=3)
+
+
 class BattedHitT1Input(_LineupWire):
-    """結果から補完しない4つの明示観測を要求する無走者安打入力。"""
+    """結果から補完しない4つの明示観測を要求する安打入力。"""
 
     event_kind: Literal["batting-result"] = Field(alias="eventKind")
     result_id: Literal[
@@ -301,8 +314,8 @@ class BattedHitT1Input(_LineupWire):
         alias="officialScoringPayload"
     )
     interference_ruling: Literal["not-required"] = Field(alias="interferenceRuling")
-    runner_advance_overrides: Literal["not-applied"] = Field(
-        alias="runnerAdvanceOverrides"
+    runner_advance_overrides: Literal["not-applied"] | AppliedRunnerAdvanceOverrides = (
+        Field(alias="runnerAdvanceOverrides")
     )
     third_out_observation: Literal["none"] = Field(alias="thirdOutObservation")
 
@@ -332,6 +345,41 @@ class _BattedScore(_LineupWire):
     kind: Literal["score"]
 
 
+class _LineupRunnerHold(_LineupWire):
+    """移動を伴わない走者効果の閉形。"""
+
+    modality: Literal["hold", "not-applicable"]
+    destination: None
+
+
+class _LineupRunnerMove(_LineupWire):
+    """記録者が確定した明示進塁の閉形。"""
+
+    modality: Literal["optional", "forced"]
+    destination: Literal["1", "2", "3", "4"]
+
+
+class _LineupRunnerAdvances(_LineupWire):
+    """3塁分の実T1進塁計画。Pythonで再計算しない。"""
+
+    first: _LineupRunnerHold | _LineupRunnerMove
+    second: _LineupRunnerHold | _LineupRunnerMove
+    third: _LineupRunnerHold | _LineupRunnerMove
+
+
+class _FirstRunnerOut(_LineupWire):
+    """SO-05の固定一死一塁行でアウトになった起点走者。"""
+
+    runner: Literal["1"]
+
+
+class _StrikeoutDoublePlayOut(_LineupWire):
+    """打者と一塁走者の2アウトを閉形で保持する。"""
+
+    count: Literal["2"]
+    targets: tuple[Literal["batter"], _FirstRunnerOut]
+
+
 class T1(_LineupWire):
     """一回核の全比較面。算式/結果lookupを持たない。"""
 
@@ -340,8 +388,10 @@ class T1(_LineupWire):
     batter_destination: (
         _Out | _Reach | _BattedReach | _BattedScore | BatterDestination
     ) = Field(alias="batterDestination")
-    runner_default_advance: _RunnerHolds = Field(alias="runnerDefaultAdvance")
-    out_effect: _OneOut | _ZeroOut = Field(alias="outEffect")
+    runner_default_advance: _LineupRunnerAdvances = Field(alias="runnerDefaultAdvance")
+    out_effect: _OneOut | _ZeroOut | _StrikeoutDoublePlayOut = Field(
+        alias="outEffect"
+    )
     stat_flags: StatFlags = Field(alias="statFlags")
     after: StrikeoutSnapshot
 

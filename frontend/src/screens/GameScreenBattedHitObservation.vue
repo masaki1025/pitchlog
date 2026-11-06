@@ -4,6 +4,7 @@ import type {
   BattedHitObservations,
   BattedHitResult,
 } from '../../../contracts/state-transition/lineup_play_prefix_payload_v1.d.ts'
+import type { RunnerAdvanceOverridesByRunner } from '../api/runnerAdvanceWire'
 import {
   readBattedBallOptions,
   type BattedBallOption,
@@ -13,14 +14,24 @@ import { useAuthStore } from '../stores/authStore'
 
 type Confirmation = Omit<
   BattedHitObservations,
-  'pitchTypeKey' | 'course' | 'pitchSpeed' | 'stance' | 'battingSide'
->
-const props = defineProps<{
-  contextKey: string
-  resultId: BattedHitResult
-  fielders: readonly { id: string; label: string }[]
-  disabled?: boolean
-}>()
+  | 'pitchTypeKey'
+  | 'course'
+  | 'pitchSpeed'
+  | 'stance'
+  | 'battingSide'
+  | 'runnerAdvanceOverridesByRunner'
+> & { runnerAdvanceOverridesByRunner: RunnerAdvanceOverridesByRunner }
+type Base = '1' | '2' | '3'
+const props = withDefaults(
+  defineProps<{
+    contextKey: string
+    resultId: BattedHitResult
+    fielders: readonly { id: string; label: string }[]
+    runners?: readonly { base: Base; label: string }[]
+    disabled?: boolean
+  }>(),
+  { runners: () => [] },
+)
 const emit = defineEmits<{ change: [value: Confirmation | null] }>()
 const auth = useAuthStore()
 const fields = [
@@ -42,7 +53,9 @@ const labels = {
 const modes = ref<Record<string, string>>({})
 const values = ref<Record<string, string>>({})
 const confirmations = ref<Record<string, string>>({})
-const questions = [
+const runnerDestinations = ref<Record<string, string>>({})
+const runnerConfirmed = ref(false)
+const questions = computed(() => [
   {
     key: 'scoring',
     label: '公式記録：失策なし・失策数0を確認',
@@ -57,7 +70,10 @@ const questions = [
   },
   {
     key: 'overrides',
-    label: '走者進塁の手動上書きなしを確認',
+    label:
+      props.runners.length === 0
+        ? '走者なし（進塁上書きなし）を確認'
+        : '走者の実結果を確認',
     required: true,
     options: [{ id: 'confirmed', label: '確認した' }],
   },
@@ -67,7 +83,13 @@ const questions = [
     required: true,
     options: [{ id: 'confirmed', label: '確認した' }],
   },
-]
+])
+function destinations(base: Base): ReadonlyArray<'2' | '3' | '4'> {
+  if (props.resultId === 'batting-result.home-run') return ['4']
+  if (base === '1') return ['2', '3', '4']
+  if (base === '2') return ['3', '4']
+  return ['4']
+}
 const items = ref<readonly BattedBallOption[]>([])
 // 実ページから選んだ2欄の値だけを保持し、未取得ページを蓄積しない。
 const retained = ref<
@@ -97,6 +119,8 @@ function reset() {
   modes.value = {}
   values.value = {}
   confirmations.value = {}
+  runnerDestinations.value = {}
+  runnerConfirmed.value = false
   emit('change', null)
 }
 async function load(page: string | null) {
@@ -135,6 +159,7 @@ watch(
   { immediate: true },
 )
 watch(() => props.fielders, reset, { deep: true })
+watch(() => props.runners, reset, { deep: true })
 watch(
   values,
   () => {
@@ -157,9 +182,32 @@ function changeMode(key: string) {
 const observation = computed<Confirmation | null>(() => {
   if (
     props.disabled ||
-    questions.some((q) => confirmations.value[q.key] !== 'confirmed')
+    questions.value.some((q) => confirmations.value[q.key] !== 'confirmed')
   )
     return null
+  let runnerOverrides: RunnerAdvanceOverridesByRunner
+  if (props.runners.length === 0) {
+    runnerOverrides = { kind: 'not-applied', overrides: [] }
+  } else {
+    if (!runnerConfirmed.value) return null
+    const overrides: Array<{
+      runnerBase: Base
+      destination: '2' | '3' | '4'
+    }> = []
+    for (const runner of props.runners) {
+      const destination = runnerDestinations.value[runner.base]
+      if (destination === undefined || destination === '') return null
+      if (destination === 'hold') continue
+      if (!destinations(runner.base).includes(destination as '2' | '3' | '4'))
+        return null
+      overrides.push({
+        runnerBase: runner.base,
+        destination: destination as '2' | '3' | '4',
+      })
+    }
+    if (overrides.length === 0) return null
+    runnerOverrides = { kind: 'applied', overrides }
+  }
   const ball: Record<string, string | null> = {}
   for (const key of fields) {
     if (modes.value[key] === 'unobserved') {
@@ -201,7 +249,7 @@ const observation = computed<Confirmation | null>(() => {
     },
     officialScoringPayload: { kind: 'no-error', errorCount: '0', fielders: [] },
     interferenceRuling: { kind: 'not-required' },
-    runnerAdvanceOverridesByRunner: { kind: 'not-applied', overrides: [] },
+    runnerAdvanceOverridesByRunner: runnerOverrides,
     thirdOutObservation: { kind: 'none' },
     thirdOutTimingByRunner: {},
   }
@@ -298,6 +346,46 @@ async function previous() {
         :data-testid="'batted-value-' + key"
       />
     </div>
+    <fieldset
+      v-if="runners.length"
+      class="space-y-2 rounded border p-2"
+      data-testid="batted-runner-advances"
+    >
+      <legend>走者の実結果</legend>
+      <p>既定進塁は適用しません。各走者の実際の到達塁を選択してください。</p>
+      <label v-for="runner in runners" :key="runner.base" class="block">
+        {{ runner.label }}
+        <select
+          v-model="runnerDestinations[runner.base]"
+          :data-testid="`batted-runner-${runner.base}-destination`"
+          class="min-h-11 rounded border p-2"
+        >
+          <option value="">到達塁を選択</option>
+          <option v-if="resultId !== 'batting-result.home-run'" value="hold">
+            その塁に停止
+          </option>
+          <option
+            v-for="dest in destinations(runner.base)"
+            :key="dest"
+            :value="dest"
+          >
+            {{
+              dest === '4'
+                ? '本塁（生還）'
+                : ['', '一', '二', '三'][Number(dest)] + '塁'
+            }}
+          </option>
+        </select>
+      </label>
+      <label class="block">
+        <input
+          v-model="runnerConfirmed"
+          type="checkbox"
+          data-testid="batted-runner-confirmed"
+        />
+        上記の走者結果を確認した
+      </label>
+    </fieldset>
     <GameScreenObservationField
       v-for="q in questions"
       :key="q.key"

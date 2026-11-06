@@ -48,7 +48,7 @@ export const TERMINAL_REACH_RULE: Rule = {
   ballDelta: 0n,
 }
 
-/** SO-01/02: 正規捕球の三振。振逃げ・K3・併発走塁へ拡張しない。 */
+/** SO-01/02: 正規捕球の三振。K3/SO-05も同じT1核に閉規則を渡す。 */
 export const TERMINAL_OUT_RULE: Rule = {
   pa: true,
   batter: 'out',

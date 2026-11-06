@@ -274,6 +274,20 @@ class _NoRunnerOverride(_Frozen):
     overrides: tuple[()]
 
 
+class _RunnerAdvanceOverride(_Frozen):
+    """記録者が確定した1走者の実到達塁。"""
+
+    runner_base: Literal["1", "2", "3"] = Field(alias="runnerBase")
+    destination: Literal["2", "3", "4"]
+
+
+class _AppliedRunnerOverrides(_Frozen):
+    """空配列を未確認として受理しない明示override。"""
+
+    kind: Literal["applied"]
+    overrides: tuple[_RunnerAdvanceOverride, ...] = Field(min_length=1, max_length=3)
+
+
 class _NoThirdOut(_Frozen):
     """今回第三アウトがない明示観測。"""
 
@@ -331,7 +345,7 @@ class BattedHitPlayObservations(FirstBallObservations):
     batted_ball: _BattedBall = Field(alias="battedBall")
     official_scoring_payload: _NoErrorScoring = Field(alias="officialScoringPayload")
     interference_ruling: _NoInterference = Field(alias="interferenceRuling")
-    runner_advance_overrides: _NoRunnerOverride = Field(
+    runner_advance_overrides: _NoRunnerOverride | _AppliedRunnerOverrides = Field(
         alias="runnerAdvanceOverridesByRunner"
     )
     third_out_observation: _NoThirdOut = Field(alias="thirdOutObservation")

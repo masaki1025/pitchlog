@@ -12,6 +12,8 @@ import type {
   Observations,
   Participants,
 } from '../../../contracts/state-transition/play_prefix_v2_payload_v1'
+import type { RunnerAdvanceOverridesByRunner } from './runnerAdvanceWire'
+import { lineupPrefixSpikeSchema } from './lineupPrefixSpikeSchema'
 import identity from '../../public/domain/pitchlog-domain.json'
 import {
   isClosedPlaySchema,
@@ -20,17 +22,30 @@ import {
 } from './terminalPitchWire'
 import { sameOrdinaryWire } from './ordinaryPitchWire'
 
+type BattedHitWireObservations = Omit<
+  BattedHitObservations,
+  'runnerAdvanceOverridesByRunner'
+> & { runnerAdvanceOverridesByRunner: RunnerAdvanceOverridesByRunner }
+
 export function isLineupDefinition<T>(
   value: unknown,
   name: string,
 ): value is T {
   return isClosedPlaySchema<T>(value, schema, name)
 }
+
+/** spike候補の明示進塁を、原値のまま拡張schemaで厳格に検証する。 */
+export function isLineupSpikeDefinition<T>(
+  value: unknown,
+  name: string,
+): value is T {
+  return isClosedPlaySchema<T>(value, lineupPrefixSpikeSchema, name)
+}
 /** 自己echo二欄以外の正式32fieldを保存側と同じ形で束縛する。 */
 export function lineupWireHead(q: Request, response: Success) {
   if (
-    !isLineupDefinition<Request>(q, 'Request') ||
-    !isLineupDefinition<Success>(response, 'Success')
+    !isLineupSpikeDefinition<Request>(q, 'Request') ||
+    !isLineupSpikeDefinition<Success>(response, 'Success')
   )
     throw new Error('打席の要求・応答を確認できません')
   const v = response.value,
@@ -104,7 +119,8 @@ export async function sealLineupMetadata(request: Request, response: Success) {
 export async function formatLineupPrefixWire(
   request: Request,
   response: Success,
-  observations: Observations | BattedHitObservations,
+  observations:
+    Observations | BattedHitObservations | BattedHitWireObservations,
   participants: Participants,
 ): Promise<{ payload: LineupPlayPrefixV7; stateDiff: LineupPlayPrefixV8 }> {
   const digest = await playHash(lineupWireHead(request, response))
@@ -120,7 +136,7 @@ export async function formatLineupPrefixWire(
     },
   }
   if (
-    !isClosedPlaySchema<LineupPlayPrefixV7>(payload, schema) ||
+    !isClosedPlaySchema<LineupPlayPrefixV7>(payload, lineupPrefixSpikeSchema) ||
     !observationsValid({
       pitchTypeKey: observations.pitchTypeKey,
       course: observations.course,
@@ -149,7 +165,7 @@ export async function formatLineupPrefixWire(
   )
     throw new Error('打席の保存値を確認できません')
   return structuredClone({
-    payload,
+    payload: payload as unknown as LineupPlayPrefixV7,
     stateDiff: response.value.newHistoryEntry.difference,
   })
 }
