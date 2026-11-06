@@ -177,7 +177,7 @@ def test_loaded_forced_reach_keeps_all_three_before_physical_rows():
                 }
             )
         )
-        for base in (1, 2, 3)
+        for base in (2, 1, 3)
     )
     tenant = UUID("10000000-0000-0000-0000-000000000001")
     play = UUID("10000000-0000-0000-0000-000000000002")
@@ -185,8 +185,9 @@ def test_loaded_forced_reach_keeps_all_three_before_physical_rows():
         runners, t1=t1, tenant_id=tenant, play_id=play
     )
     assert len(rows) == 3
+    assert [row["base"] for row in rows] == [1, 2, 3]
     assert {row["base"]: row["runner_id"] for row in rows} == {
-        1: runners[0].runner_id,
-        2: runners[1].runner_id,
+        1: runners[1].runner_id,
+        2: runners[0].runner_id,
         3: runners[2].runner_id,
     }

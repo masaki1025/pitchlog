@@ -54,7 +54,7 @@ def runner_physical_rows(before_runners, *, t1, tenant_id, play_id):
             "import_batch_id": None,
             "retired_at": None,
         }
-        for runner in before_runners
+        for runner in sorted(before_runners, key=lambda item: int(item.base))
     ]
 
 
