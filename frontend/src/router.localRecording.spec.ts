@@ -23,6 +23,7 @@ beforeEach(() => {
 })
 afterEach(() => {
   vi.restoreAllMocks()
+  vi.unstubAllGlobals()
 })
 describe('断中の記録入口だけを端末内へ戻す', () => {
   it('真正保存scopeと不達の組合せだけで、HTTP認証未確認のまま記録入口へ入る', async () => {
@@ -80,5 +81,41 @@ describe('断中の記録入口だけを端末内へ戻す', () => {
     await router.push('/team')
     expect(restore).not.toHaveBeenCalled()
     expect(router.currentRoute.value.name).toBe('login')
+  })
+})
+
+describe('public到達確認は認証の代替にしない', () => {
+  it.each([
+    [200, 'available'],
+    [401, 'available'],
+    [403, 'available'],
+    [503, 'unavailable'],
+    [302, 'unknown'],
+  ] as const)(
+    'HTTP %iの扱いを閉じ、Cookieを送信しない',
+    async (status, expected) => {
+      vi.stubGlobal('navigator', { onLine: true })
+      const request = vi.fn().mockResolvedValue(new Response(null, { status }))
+      vi.stubGlobal('fetch', request)
+      expect(await local.recordingBackendReachability()).toBe(expected)
+      expect(request).toHaveBeenCalledWith(
+        '/api/health',
+        expect.objectContaining({
+          credentials: 'omit',
+          redirect: 'manual',
+          cache: 'no-store',
+        }),
+      )
+    },
+  )
+  it('network TypeErrorだけを不達へ写す', async () => {
+    vi.stubGlobal('navigator', { onLine: true })
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('network')))
+    expect(await local.recordingBackendReachability()).toBe('unavailable')
+  })
+  it('実装内部の未知例外を断中成功へ写さない', async () => {
+    vi.stubGlobal('navigator', { onLine: true })
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('internal')))
+    expect(await local.recordingBackendReachability()).toBe('unknown')
   })
 })
