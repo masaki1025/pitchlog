@@ -1,5 +1,16 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 実画面2球の保存・取消GET修復と終了再開ゲート（2026-11-06）
+
+- **利用者操作の候補実証**: cc9系～d118のowned HTTPS/実認証/実記録権/実DBで、画面新規作成→開始→通常ボール2球の受理と2行保存を実測（r8/r9/r10/r11）。取消のGET503で停止し、2取消/次球/reloadや正式develop提供には広げない。外側PGだけの無blocking監視は内側業務PGの保証でないと訂正済み。
+- **実修復**: R9のtraceで共通dispatcherが既token/SQL規定の先頭after_order=0を拒否すると特定。source exact2を非作者8979f7aa77d34f19129bb9bb5ea347591ab7f5df96ab2472f749f480588eaae0（321pure＋独立異型/別関数/偽token拒否）後、9566d313の計画受理→d1189787へ採用。初回影試験はvenv editableがactual旧sourceを読み320成功1失敗、明示PYTHONPATHと__file__固定後の候補321成功13.81秒と区別した。
+- **次の直接原因**: R11はSQLまで進みInsufficientPrivilege42501、対象recording_generations、PLPGSQL line22 SQL。SQLはFOR SHARE OF c,gとg.import_batch_idを使う一方、既owner列SELECT/UPDATEと整合を確認中。必要列不足とrowlock権限を区別し、便宜的な広いUPDATEや認可省略を採らない。非作者が全callsiteの同handle事前generation lockとdirect token経路を監査中。
+- **性能**: R5でbinding_check192回/合計7880.61ms、単回35.19～53.87ms。前後guard半減は任意Mapping副作用と失敗順、check間poolはendpoint置換見逃しの反例から不採用（report698a3a7b…）。機能列を観測後もtest末尾5秒閾値を残し、性能未達をgreenにしない。p95/全負荷受入は未実施。
+- **native正式化**: a59c654eで静的reader入口を非作者9194e9a…後採用。71登録/保留3のreflection2は非作者2fc6295a…でexact74確認。保留3の後継qualificationはcache reflection3（未知source拒否/旧3AST・9/3tuple保持、E未供給None）を作者作成、独立採用未了。core新2pathの候補は旧29+新2=31/JSON先→定義後の2反例で未採用、作者修復中。正式E/tenant受理/PR197はまだ未成立。
+- **終了再開**: 専用WT feature/mvp-lifecycle-product-connectionで3正本を0962102aへin-review起案。初回全文0/6/1を全採用、PO委任によるroot技術選択（不変queued依存union/P3 completionとpublic pointer receipt分離）を記録しe7af4801へ反映1。第2回は0/3/0で否決。投球→交代→終了のprefix参照、ADR003 D8/10-2へのFR007伝播、9-2 CL1表内責務を全反映対象とし、追加限定1回の裁定/同一ゲートへのADR追補を準備する。回数をリセットせず、未承認/未実装/未DBを保持する。
+- **次**: 取消GETの最小権限/lock整合→owned実2取消/原要求再送/次球。native前置Eと有限source資格/派生の一括受理→通常PR。終了再開の残P1是正・必要伝播→backend40接合。外部成績25/27候補・reflection19は再利用対象、正式manifest/P3終了provider/登板BF/毎球CSV/実機復旧は未完。
+
+
 ## 取消画面の待ちは遅延応答へ切分け（2026-11-06、f5bffebf）
 
 - test-only追補で元の10秒失敗を保持し、後着HTTPだけ追加観測。owned同版 `undo-screen-stack-observation-r4` は1失敗55.18秒だが、後着HTTP200と実DBのplay_input1行/accepted台帳1行を確認。恒久的な無応答・未保存という仮説は棄却する。2球/取消/再送/reload未到達なので画面取消成功とはしない。
