@@ -34,7 +34,7 @@ pytestmark = pytest.mark.requires_db
 def _stats_script() -> str:
     """真正v3二球のLC実経路に成績read/CSVだけを加える。"""
     script = _v3_script()
-    helper = '''        async def stats_read():
+    helper = """        async def stats_read():
             response = await client.get(
                 "/games/" + game + "/stats?mode=official&limit=200",
                 headers=headers(),
@@ -56,7 +56,7 @@ def _stats_script() -> str:
                 and item["state"] == "available"
             )
 
-'''
+"""
     marker = "        current_lifecycle, _ = await read_full()\n"
     assert script.count(marker) == 1
     script = script.replace(marker, helper + marker, 1)
@@ -65,8 +65,8 @@ def _stats_script() -> str:
     script = script.replace(
         marker,
         marker
-        + '        first_stats = await stats_read()\n'
-        + '        assert pitch_count(first_stats) == 2\n',
+        + "        first_stats = await stats_read()\n"
+        + "        assert pitch_count(first_stats) == 2\n",
         1,
     )
     marker = '        assert reopened["status"] == "in_progress"\n'
@@ -74,13 +74,13 @@ def _stats_script() -> str:
     script = script.replace(
         marker,
         marker
-        + '        reopened_stats = await stats_read()\n'
+        + "        reopened_stats = await stats_read()\n"
         + '        assert reopened_stats["players"] == []\n',
         1,
     )
     marker = '        assert final["lifecycle"]["lastVersion"] == "2"\n'
     assert script.count(marker) == 1
-    final_reads = '''        final_stats = await stats_read()
+    final_reads = """        final_stats = await stats_read()
         assert pitch_count(final_stats) == 3
         season_response = await client.get(
             "/stats/seasons/" + str(case["year"])
@@ -110,33 +110,32 @@ def _stats_script() -> str:
             season_csv_response.content.decode("utf-8-sig")
         )))
         assert len(season_csv_rows) == len(season_stats["players"])
-'''
+"""
     script = script.replace(marker, marker + final_reads, 1)
     marker = '            "after": current["after"]["stateFields"],\n'
     assert script.count(marker) == 1
     script = script.replace(
         marker,
-        marker
-        + '            "stats_pitch_counts": [pitch_count(first_stats), '
-        'pitch_count(final_stats)],\n'
+        marker + '            "stats_pitch_counts": [pitch_count(first_stats), '
+        "pitch_count(final_stats)],\n"
         + '            "stats_csv_rows": len(csv_rows),\n'
         + '            "season_csv_rows": len(season_csv_rows),\n',
         1,
     )
-    foreign = '''            assert denied_read.status_code == 404, (
+    foreign = """            assert denied_read.status_code == 404, (
                 "foreign-read", denied_read.status_code, denied_read.text
             )
-'''
+"""
     assert script.count(foreign) == 1
     script = script.replace(
         foreign,
         foreign
-        + '''            foreign_stats = await foreign_client.get(
+        + """            foreign_stats = await foreign_client.get(
                 "/games/" + game + "/stats?mode=official",
                 headers=foreign_headers,
             )
             assert foreign_stats.status_code == 404
-''',
+""",
         1,
     )
     return script
