@@ -195,6 +195,15 @@ test('実画面の新規作成→開始→2球→ACK喪失/reload/同要求再�
       'PITCHLOG_UNDO_ORDINARY_HTTP=' +
         JSON.stringify({
           pitch: n,
+          postedRequests: requests.length,
+          locks: await page.evaluate(async () => {
+            if (!navigator.locks) return null
+            const snapshot = await navigator.locks.query()
+            return {
+              held: snapshot.held?.length ?? 0,
+              pending: snapshot.pending?.length ?? 0,
+            }
+          }),
           http: response?.status() ?? null,
           status: await page.getByTestId('first-ball-status').textContent(),
         }),
