@@ -1,5 +1,13 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 2026-11-06 22:54 JST：通常9回163球の画面記録・終了・再読込を実証
+
+- **新たに完了できた操作**: 同一候補・同一owned環境で実画面の新規作成→9回制開始→先攻本塁打1球＋両軍27三振ずつ（計163球/18half）→終了宣言v1→reloadを実施。途中82球後のreloadも通過。通常9回の狭いシナリオであり、全操作・全MVP完成とはしない。
+- **固定点と実証**: feature/mvp-full-game-rehearsal@64fc0b338f1ac862b4f00068cb089a310cce6fb6（試験対象source）、報告のみad7a9f8e。normal-full-game-r2 はPlaywright 1 passed/36.6分、pytest 1 passed/2240.02秒。実DBでgames.status=finished、終了版v1、最新成績fact confirmed_ended/source_count=163、受理event164（play163＋end1）をexact assert。事前投入試合・仮成功ではない。source前後一致・owned cleanup/共通lock解放済み、旧session54349はterminal exit0で再起動不要。
+- **性能は別の未達**: 全163球が5秒を超過、最大14,748ms。POの「難しければ5秒以内は後回し」を適用し機能接続を先行する。既LC性能assertは保持し、5秒達成やMVP性能受入とは記録しない。
+- **証拠**: cache mvp-resume-20261104/normal-full-game-r2-evidence.json、normal-full-game-r2-playwright.log、normal-full-game-r2.log/.xml/-result.json/-source-before.json/-source-after.json。passed DB assertの根拠は固定test_full_game_screen_e2e.pyであり、未出力の生DB行を採取済みとはしない。
+- **次の依存**: 交代のcorrected-source owned HTTPはACK/GET/replayまで成功、次球は旧T5のchanged-mid-PA拒否で停止。stats担当のnative27単一計算/0045を0044交代源と接合して次球まで再確認する。断中cold再起動はrootの真正C2由来local permission＋verified:false専用modeと既controller耐久queueを接合中。成績/両CSV・一般取消/訂正/全ルール・正式資産/独立最終確認/必須CI/負荷/実機/運用復旧は残る。
+
 ## 2026-11-06 22:06 JST：PO指示で性能最適化を後段へ、通常9回の実画面試験を開始
 
 - **試験準備修復・現在handle**: normal-full-game-r1（8d965e3a）は78秒で打球語彙fixture不足に停止しcleanup済、1球HRは未保存。既打球/三振試験と同じ有限5語彙をowned DBへ配置し、163球×5秒でも超える既runner総期限600秒を後方互換keyword化（本試験だけ3600秒、各要求期限不変）。64fc0b33でRuff/Ty/lint/Vue成功、normal-full-game-r2をroot exec session54349で実行中。session5714はterminalで再poll不要。無根拠な再試行ではなく、停止原因に必要な試験準備を修復した。
