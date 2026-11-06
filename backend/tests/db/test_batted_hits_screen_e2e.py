@@ -126,6 +126,7 @@ def _verify_saved_rows(admin, tenant, game, result) -> None:
         expected_runners = runner_physical_rows(
             request.source.runners,
             t1=response.t1,
+            t1_input=request.t1,
             tenant_id=tenant,
             play_id=UUID(actual["id"]),
         )

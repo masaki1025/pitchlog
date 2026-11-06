@@ -1063,3 +1063,48 @@ def validate_derived_program(program: Mapping[str, Any]) -> None:
                 )
             ):
                 raise ValueError("分母表示の閉型が不正")
+
+
+def validate_undo_selection_profile(profile: object) -> None:
+    """数学式を持たない取消S選択の唯一閉宣言だけを許可する。"""
+    expected = {
+        "version": 1,
+        "kind": "accepted-play-slot-consumed-undo-v1",
+        "admissions": "sync_fence.nonplay_write_admissions",
+        "bindings": "sync_fence.writer_bindings",
+        "bindingIdentity": [
+            "tenant_id",
+            "attempt_id",
+            "phase_id",
+            "authority_id",
+            "control_instance",
+            "business_instance",
+            "restore_epoch",
+            "control_version",
+            "issuer",
+            "lease_id",
+            "device_id",
+            "game_id",
+            "wire_d4",
+            "internal_generation",
+            "recovery_generation",
+            "codec_version",
+            "request_fingerprint",
+            "d5",
+            "event_fingerprint",
+            "system_identifier",
+            "database_oid",
+            "postmaster_started_at",
+            "backend_pid",
+            "backend_start",
+            "transaction_id",
+            "nonce_digest",
+            "expires_at",
+        ],
+    }
+    if (
+        type(profile) is not dict
+        or profile != expected
+        or type(profile.get("version")) is not int
+    ):
+        raise ValueError("未登録の取消canonical S選択profileです")

@@ -22,6 +22,7 @@ from pitchlog.repositories.initial_recording_right import (
     InitialGrantUnavailable,
     _credential_digest,
 )
+from pitchlog.repositories.nonplay_prefix import NonplaySourceUnavailable
 from pitchlog.repositories.ordinary_pitch_operations import OrdinaryPlayRowError
 from pitchlog.repositories.ordinary_prefix import OrdinaryPrefixError
 from pitchlog.sync.apply import (
@@ -48,6 +49,7 @@ from pitchlog.sync.first_ball_ports import FirstBallContentValidationPort
 from pitchlog.sync.first_ball_projection import FirstBallProjectionPort
 from pitchlog.sync.first_ball_recording_rights import FirstBallRecordingRightsPort
 from pitchlog.sync.http_recording_key import _decode_recording_key
+from pitchlog.sync.lifecycle_execution import LifecycleExecutionError
 from pitchlog.sync.model import AckResult, RequestShapeError, SyncRequest
 from pitchlog.sync.ordinary_pitch_execution import OrdinaryPitchExecutionError
 from pitchlog.sync.ordinary_pitch_ports import (
@@ -64,6 +66,8 @@ from pitchlog.sync.source_binding import (
     e1_event_source,
     selected_event_fingerprint,
 )
+from pitchlog.sync.undo_execution import UndoExecutionError
+from pitchlog.sync.undo_ports import UndoContentValidationPort, UndoProjectionPort
 from pitchlog.sync.wire_source import WireSourceError, freeze_wire_source
 
 router = APIRouter(tags=["同期"], route_class=TenantMatchedRoute)
@@ -87,8 +91,8 @@ def _phase_id(attempt: UUID, request_fingerprint: str) -> UUID:
     return uuid5(_PHASE_NAMESPACE, f"{attempt}:{request_fingerprint}")
 
 
-def _request_path(payload: object) -> Literal["P2"]:
-    """本文の外形からP2だけを選び、他の経路は閉拒否する。"""
+def _request_path(payload: object) -> Literal["P1", "P2"]:
+    """既P2と単一取消P1だけを選ぶ。V7の意味検査はD5照合後に行う。"""
     if not isinstance(payload, dict):
         raise RequestShapeError("S-1: 本文が object ではない")
     if "change" in payload:
@@ -96,6 +100,13 @@ def _request_path(payload: object) -> Literal["P2"]:
     events = payload.get("events")
     if not isinstance(events, list) or not events:
         raise RequestShapeError("S-1: イベント列が必要")
+    if any(
+        isinstance(event, dict) and event.get("event_kind") == "undo"
+        for event in events
+    ):
+        if len(events) == 1:
+            return "P1"
+        raise _E1OutOfScope("取消は単一イベントP1だけを提供する")
     if any(isinstance(event, dict) and "d2" in event for event in events):
         return "P2"
     raise _E1OutOfScope("本入口は初球P2に限定する")
@@ -157,25 +168,32 @@ def sync_events(
         )
     except (_E1OutOfScope, RequestShapeError, WireSourceError, KeyError, TypeError):
         raise HTTPException(status_code=422) from None
-    if sync_request.v12 is None:
-        raise HTTPException(status_code=422)
+    # ②B5の実端末資格を確認してから、③B6/④D5の再掲分類へ進む。
+    try:
+        credential_digest = _credential_digest(device_credential)
+    except InitialGrantUnavailable:
+        raise HTTPException(status_code=401) from None
     # DI1/DI2/DI3: ③認可後・V12前に D5 を分類し、保存済み結果だけを再掲する。
     try:
         replayed = _replay_e1_without_binding(
-            context, sync_request, source.event_fingerprints
+            context,
+            sync_request,
+            source.event_fingerprints,
+            device_id,
+            credential_digest,
         )
     except DATABASE_ERRORS:
         raise HTTPException(status_code=503) from None
+    if replayed == "B5":
+        raise HTTPException(status_code=401)
     if replayed == "B6":
         raise HTTPException(status_code=404)
     if replayed == "B7":
         raise HTTPException(status_code=503)
     if replayed is not None:
         return JSONResponse(_ack_body(replayed))
-    try:
-        credential_digest = _credential_digest(device_credential)
-    except InitialGrantUnavailable:
-        raise HTTPException(status_code=422) from None
+    if sync_request.v12 is None:
+        raise HTTPException(status_code=422)
     entry_token = object()
     rights = FirstBallRecordingRightsPort()
     try:
@@ -235,12 +253,29 @@ def sync_events(
                 isinstance(event.v7, Mapping)
                 and event.v7.get("formatVersion") == "play-prefix-play-v3"
             )
-            if isinstance(event.v7, Mapping) and event.v7.get("formatVersion") not in {
-                "first-ball-play-v1",
-                "ordinary-pitch-play-v1",
-                "play-prefix-play-v2",
-                "play-prefix-play-v3",
-            }:
+            undo = event.v5 == "undo"
+            from pitchlog.sync.lifecycle_ports import (
+                LifecycleContentValidationPort,
+                LifecycleProjectionPort,
+            )
+
+            lifecycle = (
+                event.v5 in {"game_end_declaration", "game_reopen"}
+                and isinstance(event.v7, Mapping)
+                and event.v7.get("formatVersion") == "native-game-lifecycle-v1"
+            )
+            if (
+                not undo
+                and not lifecycle
+                and isinstance(event.v7, Mapping)
+                and event.v7.get("formatVersion")
+                not in {
+                    "first-ball-play-v1",
+                    "ordinary-pitch-play-v1",
+                    "play-prefix-play-v2",
+                    "play-prefix-play-v3",
+                }
+            ):
                 raise _E1OutOfScope("未知payload mode")
             result = _apply_e1_f1(
                 receipt,
@@ -253,7 +288,11 @@ def sync_events(
                 control=BindingControl(configuration.broker_endpoint),
                 rights=rights,
                 projection=(
-                    LineupPrefixProjectionPort()
+                    LifecycleProjectionPort()
+                    if lifecycle
+                    else UndoProjectionPort()
+                    if undo
+                    else LineupPrefixProjectionPort()
                     if lineup_prefix
                     else PlayPrefixProjectionPort()
                     if play_prefix
@@ -262,7 +301,11 @@ def sync_events(
                     else FirstBallProjectionPort()
                 ),
                 validator=(
-                    LineupPrefixContentValidationPort()
+                    LifecycleContentValidationPort()
+                    if lifecycle
+                    else UndoContentValidationPort()
+                    if undo
+                    else LineupPrefixContentValidationPort()
                     if lineup_prefix
                     else PlayPrefixContentValidationPort()
                     if play_prefix
@@ -279,6 +322,9 @@ def sync_events(
         OrdinaryPrefixError,
         OrdinaryPitchExecutionError,
         OrdinaryPlayRowError,
+        UndoExecutionError,
+        LifecycleExecutionError,
+        NonplaySourceUnavailable,
         *DATABASE_ERRORS,
     ):
         # 同TXのprefix/frame/投影不成立にACKや新要求置換可否を付与しない。

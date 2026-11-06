@@ -307,6 +307,18 @@
       ],
       [
         "sync_fence",
+        "game_lifecycle_heads"
+      ],
+      [
+        "sync_fence",
+        "lifecycle_write_admissions"
+      ],
+      [
+        "sync_fence",
+        "nonplay_write_admissions"
+      ],
+      [
+        "sync_fence",
         "ordinary_pitch_checkpoints"
       ],
       [
@@ -666,7 +678,22 @@
       ],
       [
         "public",
+        "protect_game_lifecycle_heads",
+        ""
+      ],
+      [
+        "public",
         "protect_initial_right_storage",
+        ""
+      ],
+      [
+        "public",
+        "protect_lifecycle_write_admissions",
+        ""
+      ],
+      [
+        "public",
+        "protect_nonplay_admission",
         ""
       ],
       [
@@ -761,6 +788,11 @@
       ],
       [
         "stats_api",
+        "rebuild_after_nonplay_undo",
+        "uuid, uuid, uuid, bytea, uuid, uuid, text"
+      ],
+      [
+        "stats_api",
         "save_primitive_source",
         "uuid, uuid, uuid, text, bigint, text, jsonb, bytea"
       ],
@@ -811,6 +843,11 @@
       ],
       [
         "sync_right_api",
+        "bind_nonplay_device",
+        "uuid, uuid, uuid, bytea, uuid, uuid, bytea"
+      ],
+      [
+        "sync_right_api",
         "bind_ordinary_device",
         "uuid, uuid, uuid, bytea, uuid, uuid, bytea"
       ],
@@ -821,8 +858,23 @@
       ],
       [
         "sync_right_api",
+        "check_nonplay_right",
+        "uuid, uuid, uuid, bytea, uuid, uuid, bigint, bigint, bytea"
+      ],
+      [
+        "sync_right_api",
         "check_ordinary_right",
         "uuid, uuid, uuid, bytea, uuid, uuid, bigint, bigint, bytea"
+      ],
+      [
+        "sync_right_api",
+        "consume_game_lifecycle",
+        "uuid, uuid, uuid, bytea, uuid, uuid, text"
+      ],
+      [
+        "sync_right_api",
+        "consume_nonplay_undo",
+        "uuid, uuid, uuid, bytea, uuid, uuid, text"
       ],
       [
         "sync_right_api",
@@ -851,6 +903,11 @@
       ],
       [
         "sync_right_api",
+        "lock_nonplay_checkpoint",
+        "uuid, uuid, uuid, bytea, uuid, uuid, text"
+      ],
+      [
+        "sync_right_api",
         "lock_ordinary_checkpoint",
         "uuid, uuid, uuid, bytea, uuid, uuid, bigint"
       ],
@@ -858,6 +915,16 @@
         "sync_right_api",
         "lock_play_prefix_checkpoint",
         "uuid, uuid, uuid, bytea, uuid, uuid, bigint"
+      ],
+      [
+        "sync_right_api",
+        "prepare_game_lifecycle",
+        "uuid, uuid, uuid, bytea, uuid, uuid, text"
+      ],
+      [
+        "sync_right_api",
+        "prepare_nonplay_undo",
+        "uuid, uuid, uuid, bytea, uuid, uuid, text"
       ],
       [
         "sync_right_api",
@@ -876,8 +943,28 @@
       ],
       [
         "sync_right_api",
+        "read_lifecycle_display",
+        "uuid, uuid"
+      ],
+      [
+        "sync_right_api",
+        "read_lifecycle_state",
+        "uuid, uuid, uuid, bytea, uuid, uuid, text"
+      ],
+      [
+        "sync_right_api",
         "read_lineup_started_origin",
         "uuid, uuid, bigint"
+      ],
+      [
+        "sync_right_api",
+        "read_nonplay_active_history",
+        "uuid, uuid, bigint, uuid, bigint, bigint, bigint, bigint, bigint, bigint, uuid, integer"
+      ],
+      [
+        "sync_right_api",
+        "read_nonplay_history_page",
+        "uuid, uuid, uuid, bytea, uuid, uuid, text"
       ],
       [
         "sync_right_api",
@@ -903,6 +990,11 @@
         "sync_right_api",
         "read_play_prefix_history_page",
         "uuid, uuid, bigint, bigint, uuid, bigint, bigint, bigint, bigint, bigint, uuid, integer"
+      ],
+      [
+        "sync_right_api",
+        "verify_replay_device",
+        "uuid, uuid, bytea"
       ]
     ]
   },
@@ -929,5 +1021,5 @@
     }
   ],
   "derived_from": "contracts/authz/product/ddl-elements.json",
-  "source_digest": "42cb1868e7298bc14eb36a51823b6dedb5eef0fb37b91fc67cee7dc8e00892bb"
+  "source_digest": "c3ebfa7432cab33c0fd6b4bbbf256890aa6802369646e6645e1830cf65a1f107"
 }

@@ -499,6 +499,11 @@ GRANT EXECUTE ON FUNCTION {identity} TO PUBLIC;
             == "FUNCTION:public:protect_initial_right_storage()"
         ):
             return f"REVOKE EXECUTE ON FUNCTION {identity} FROM PUBLIC;"
+        if (
+            element.fields.get("function_id")
+            == "FUNCTION:public:protect_nonplay_admission()"
+        ):
+            return f"REVOKE EXECUTE ON FUNCTION {identity} FROM PUBLIC, pitchlog_app;"
         if function_kind == "migration_trigger":
             return f"GRANT EXECUTE ON FUNCTION {identity} TO PUBLIC;"
         raise ProductProvisioningError(f"未知の製品関数種別: {function_kind}")

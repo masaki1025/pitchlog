@@ -177,6 +177,60 @@ def _participants(roster: InitialRosterProjection) -> FirstBallParticipants:
         raise RecordedSnapshotUnavailable from None
 
 
+def _historical_start_inputs(run, game, tenant, game_id, away, home):
+    """実開始名簿/選手/保存規則を読む共通private射影。水位資格は発行しない。"""
+    rows = _rows(run(StartedLineupsReadToken(game_id)), LINEUP_COLUMNS)
+    if len(rows) != 2:
+        raise RecordedSnapshotUnavailable
+    for row in rows:
+        _same(row, dict(tenant_id=tenant, game_id=game_id))
+    lineups = tuple(_saved_lineup(row) for row in rows)
+    if len({x.id for x in lineups}) != 2 or {x.team_id for x in lineups} != {
+        away,
+        home,
+    }:
+        raise RecordedSnapshotUnavailable
+    sides = tuple(
+        next(x for x in lineups if x.team_id == team) for team in (away, home)
+    )
+    players = set()
+    for lineup in sides:
+        for entry in lineup.entries:
+            identifier = UUID(entry.roster.player_id)
+            if identifier in players:
+                raise RecordedSnapshotUnavailable
+            players.add(identifier)
+            token = PlayerReadToken(
+                1,
+                record_id=identifier,
+                team_record_id=lineup.team_id,
+                include_hidden=True,
+            )
+            columns = tuple(player_read_statement(token).selected_columns.keys())
+            player = _one(run(token), columns)
+            _same(player, dict(id=identifier, team_record_id=lineup.team_id))
+    rules = _saved_start_rule_wire(_plain(game["applied_rules"]))
+    roster_request = InitialGameRosterRequest.model_validate_json(
+        json.dumps(
+            {
+                "dh": rules.dh,
+                **{
+                    name: {
+                        "team_id": str(lineup.team_id),
+                        "entries": [
+                            x.roster.model_dump(mode="json") for x in lineup.entries
+                        ],
+                    }
+                    for name, lineup in zip(("away", "home"), sides, strict=True)
+                },
+            }
+        ),
+        by_alias=True,
+        by_name=False,
+    )
+    return sides, roster_request, rules
+
+
 def _read_recorded_calculation(
     handle: _TenantTransaction,
     game_id: UUID,
@@ -335,54 +389,8 @@ def _read_recorded_calculation(
             is None
         ):
             raise RecordedSnapshotUnavailable
-        rows = _rows(run(StartedLineupsReadToken(game_id)), LINEUP_COLUMNS)
-        if len(rows) != 2:
-            raise RecordedSnapshotUnavailable
-        for row in rows:
-            _same(row, dict(tenant_id=tenant, game_id=game_id))
-        lineups = tuple(_saved_lineup(row) for row in rows)
-        if len({x.id for x in lineups}) != 2 or {x.team_id for x in lineups} != {
-            away,
-            home,
-        }:
-            raise RecordedSnapshotUnavailable
-        sides = tuple(
-            next(x for x in lineups if x.team_id == team) for team in (away, home)
-        )
-        players = set()
-        for lineup in sides:
-            for entry in lineup.entries:
-                identifier = UUID(entry.roster.player_id)
-                if identifier in players:
-                    raise RecordedSnapshotUnavailable
-                players.add(identifier)
-                token = PlayerReadToken(
-                    1,
-                    record_id=identifier,
-                    team_record_id=lineup.team_id,
-                    include_hidden=True,
-                )
-                columns = tuple(player_read_statement(token).selected_columns.keys())
-                player = _one(run(token), columns)
-                _same(player, dict(id=identifier, team_record_id=lineup.team_id))
-        rules = _saved_start_rule_wire(_plain(game["applied_rules"]))
-        roster_request = InitialGameRosterRequest.model_validate_json(
-            json.dumps(
-                {
-                    "dh": rules.dh,
-                    **{
-                        name: {
-                            "team_id": str(lineup.team_id),
-                            "entries": [
-                                x.roster.model_dump(mode="json") for x in lineup.entries
-                            ],
-                        }
-                        for name, lineup in zip(("away", "home"), sides, strict=True)
-                    },
-                }
-            ),
-            by_alias=True,
-            by_name=False,
+        sides, roster_request, rules = _historical_start_inputs(
+            run, game, tenant, game_id, away, home
         )
         # 全履歴exact1/水位1/開始原典確認後にだけ共有の開始beforeを得る。
         request = CombinedRequest(
@@ -521,6 +529,16 @@ def _assert_play_row_matches_payload(
     Raises:
         RecordedSnapshotCorrupt: 保存値と再評価値が一致しない場合。
     """
+    expected = _first_ball_payload_columns(payload)
+    if any(
+        type(play.get(key)) is not type(value) or play.get(key) != value
+        for key, value in expected.items()
+    ):
+        raise RecordedSnapshotCorrupt
+
+
+def _first_ball_payload_columns(payload):
+    """既writerの物理列期待を単一のpayload射影から得る。野球計算はしない。"""
     from pitchlog.sync.first_ball_course import course_unit_to_double
 
     observations = payload.v7.observations
@@ -546,11 +564,7 @@ def _assert_play_row_matches_payload(
             "batting_side": observations.batting_side,
         }
     )
-    if any(
-        type(play.get(key)) is not type(value) or play.get(key) != value
-        for key, value in expected.items()
-    ):
-        raise RecordedSnapshotCorrupt
+    return expected
 
 
 def try_read_recorded_snapshot(
@@ -582,3 +596,593 @@ def try_read_recorded_snapshot(
         return _read_recorded_calculation(handle, game_id)
     except RecordedSnapshotUnavailable:
         return RecordedSnapshotNotAvailable()
+
+
+@dataclass(frozen=True, slots=True, repr=False)
+class HistoricalFirstBallFrame:
+    """真正歴史貸与を独立評価した内部frame。原wire/公開保存資格ではない。"""
+
+    source_event_id: UUID
+    generation: int
+    d1: int
+    frame_json: str
+    semantic_event_json: str
+    stored_fingerprint: str
+    physical_json: str
+    expected_physical_json: str
+
+
+def _typed_historical_row(raw, table):
+    """機械変換の不成立を保存値を持たない固定外形へ閉じる。"""
+    try:
+        return _decode_historical_row(raw, table)
+    except (ValueError, TypeError, OverflowError):
+        raise RecordedSnapshotUnavailable from None
+
+
+def _decode_historical_row(raw, table):
+    """全JSON列を実DB列型へ機械変換し、欠落/余剰/曖昧型を拒否する。"""
+    import math
+
+    from sqlalchemy import (
+        BigInteger,
+        Boolean,
+        DateTime,
+        Float,
+        Integer,
+        LargeBinary,
+        String,
+        Uuid,
+    )
+    from sqlalchemy.dialects.postgresql import JSONB
+
+    from pitchlog.repositories.base import _materialize_value
+
+    if type(raw) is not dict or set(raw) != set(table.c.keys()):
+        raise RecordedSnapshotUnavailable
+    result = {}
+    for c in table.c:
+        v = raw[c.name]
+        if v is None:
+            if not c.nullable:
+                raise RecordedSnapshotUnavailable
+            result[c.name] = None
+            continue
+        if isinstance(c.type, Uuid):
+            if type(v) is not str or str(UUID(v)) != v:
+                raise RecordedSnapshotUnavailable
+            value = UUID(v)
+        elif isinstance(c.type, Boolean):
+            if type(v) is not bool:
+                raise RecordedSnapshotUnavailable
+            value = v
+        elif isinstance(c.type, Integer):
+            bits = 64 if isinstance(c.type, BigInteger) else 32
+            if type(v) is not int or not -(2 ** (bits - 1)) <= v < 2 ** (bits - 1):
+                raise RecordedSnapshotUnavailable
+            value = v
+        elif isinstance(c.type, Float):
+            if type(v) not in {int, float} or not math.isfinite(v) or float(v) != v:
+                raise RecordedSnapshotUnavailable
+            value = float(v)
+        elif isinstance(c.type, DateTime):
+            if type(v) is not str:
+                raise RecordedSnapshotUnavailable
+            value = datetime.fromisoformat(v)
+            if value.utcoffset() is None:
+                raise RecordedSnapshotUnavailable
+        elif isinstance(c.type, LargeBinary):
+            if type(v) is not str or not v.startswith("\\x"):
+                raise RecordedSnapshotUnavailable
+            value = bytes.fromhex(v[2:])
+            if value.hex() != v[2:] or len(value) != 32:
+                raise RecordedSnapshotUnavailable
+        elif isinstance(c.type, JSONB):
+
+            def finite_json(item):
+                """JSONBの巨大有限整数を保持し、浮動小数の非有限化を拒否する。"""
+                if type(item) is float:
+                    if not math.isfinite(item):
+                        raise RecordedSnapshotUnavailable
+                elif type(item) is dict:
+                    if any(type(k) is not str for k in item):
+                        raise RecordedSnapshotUnavailable
+                    for member in item.values():
+                        finite_json(member)
+                elif type(item) is list:
+                    for member in item:
+                        finite_json(member)
+                elif item is not None and type(item) not in {str, int, bool}:
+                    raise RecordedSnapshotUnavailable
+
+            finite_json(v)
+            value = _materialize_value(v)
+        elif isinstance(c.type, String):
+            if type(v) is not str:
+                raise RecordedSnapshotUnavailable
+            value = v
+        else:
+            raise RecordedSnapshotUnavailable
+        result[str(c.name)] = value
+    return result
+
+
+def _read_nonplay_first_ball_frame(
+    handle, event, source, *, source_event_id, generation, d1
+):
+    """同scopeで一回貸与された歴史初球だけを真正開始原典から再評価する。"""
+    from pitchlog.db.game_state.models import PlayRow
+    from pitchlog.db.sync_protocol.models import EventSlot, OperationEvent
+    from pitchlog.repositories.nonplay_prefix import (
+        HistoricalFirstBallEvidence,
+        _live,
+        _read_historical_first_ball_evidence,
+    )
+    from pitchlog.sync.control_provider.writer_binding_models import (
+        FirstBallWriteAdmission,
+    )
+    from pitchlog.sync.model import SyncEvent
+    from pitchlog.sync.source_binding import _E1CoreSource
+    from pitchlog.sync.undo_payload import _load
+
+    if (
+        type(handle) is not _TenantTransaction
+        or type(event) is not SyncEvent
+        or type(source) is not _E1CoreSource
+        or type(source_event_id) is not UUID
+        or type(generation) is not int
+        or generation <= 0
+        or type(d1) is not int
+        or d1 != 1
+    ):
+        raise RecordedSnapshotUnavailable
+    runtime = _TRANSACTION_RUNTIMES.get(handle._state_key)
+    lifetime = handle._writer_lifetime()
+
+    def live():
+        """getter後も各実read/hostの前後で同Session/source/leaseを再確認する。"""
+        _live(handle, source, event, lifetime, runtime)
+
+    def run(token):
+        """既read能力だけを同handleで実行する。"""
+        live()
+        value = handle.run(token)
+        live()
+        return value
+
+    live()
+    evidence = _read_historical_first_ball_evidence(
+        handle,
+        event,
+        source,
+        source_event_id=source_event_id,
+        generation=generation,
+        d1=d1,
+    )
+    if type(evidence) is not HistoricalFirstBallEvidence:
+        raise RecordedSnapshotUnavailable
+    ev_raw, ledger_raw, slot_raw, admission_raw, play_raw, runners_raw = (
+        _load(getattr(evidence, name))
+        for name in (
+            "event_json",
+            "ledger_json",
+            "slot_json",
+            "admission_json",
+            "play_json",
+            "runners_json",
+        )
+    )
+    ev = _typed_historical_row(ev_raw, OperationEvent.__table__)
+    ledger = _typed_historical_row(ledger_raw, IdempotencyLedger.__table__)
+    slot = _typed_historical_row(slot_raw, EventSlot.__table__)
+    admission = _typed_historical_row(admission_raw, FirstBallWriteAdmission.__table__)
+    play = _typed_historical_row(play_raw, PlayRow.__table__)
+    if type(runners_raw) is not list or runners_raw:
+        raise RecordedSnapshotCorrupt
+    tenant = handle._bound_tenant_id
+    game_id = UUID(event.game_id)
+    identity = dict(tenant_id=tenant, game_id=game_id, generation=generation, d1=1)
+    _same(
+        ev,
+        {
+            **identity,
+            "id": source_event_id,
+            "ledger_kind": "accepted",
+            "event_kind": "play_input",
+            "is_tombstone": False,
+            "replaced_at": None,
+            "retired_at": None,
+            "import_batch_id": None,
+            "legacy_row_identifier": None,
+            "migration_unverified": False,
+            "target_generation": None,
+            "target_d1": None,
+            "expected_version": None,
+            "change_order": None,
+        },
+    )
+    _same(slot, {**identity, "confirmed_version": 1})
+    _same(
+        ledger,
+        dict(
+            tenant_id=tenant,
+            d5=ev["d5"],
+            kind="accepted",
+            retired_at=None,
+            import_batch_id=None,
+        ),
+    )
+    _same(
+        admission,
+        dict(
+            tenant_id=tenant,
+            game_id=game_id,
+            d5=ev["d5"],
+            state="consumed",
+            internal_generation=generation,
+            source_event_id=source_event_id,
+            play_row_id=play["id"],
+            event_fingerprint=ledger["source_fingerprint"],
+        ),
+    )
+    if (
+        admission["consumed_at"] is None
+        or type(admission["wire_d4"]) is not str
+        or type(ledger["source_fingerprint"]) is not str
+        or re.fullmatch(r"(?:wire-v1:)?[a-f0-9]{64}", ledger["source_fingerprint"])
+        is None
+        or type(ev["d2"]) is not int
+        or not 0 <= ev["d2"] < 2**63
+    ):
+        raise RecordedSnapshotUnavailable
+    return _evaluate_historical_first_ball_frame(
+        handle,
+        ev=ev,
+        admission=admission,
+        play=play,
+        play_raw=play_raw,
+        runners_raw=runners_raw,
+        ledger=ledger,
+        source_event_id=source_event_id,
+        generation=generation,
+        d1=d1,
+        tenant=tenant,
+        game_id=game_id,
+        live=live,
+        run=run,
+    )
+
+
+def _evaluate_historical_first_ball_frame(
+    handle,
+    *,
+    ev,
+    admission,
+    play,
+    play_raw,
+    runners_raw,
+    ledger,
+    source_event_id,
+    generation,
+    d1,
+    tenant,
+    game_id,
+    live,
+    run,
+):
+    """実SQL貸与で照合済みの保存値を同hostへ渡す。独立資格はcallerが検査する。"""
+    from pitchlog.db.game_state.models import PlayRow
+    from pitchlog.domainrt.first_ball_projection import _canonical_json
+    from pitchlog.domainrt.lineup_play_prefix_continuation import (
+        NonplayLineupPrefixRequest,
+        NonplayLineupPrefixSuccess,
+        SourcePosition,
+        decode_nonplay_lineup_prefix_response,
+    )
+    from pitchlog.domainrt.lineup_prefix_source import initial_lineup_source
+    from pitchlog.repositories.play_prefix import (
+        _lineup_started_origin,
+        _require_legacy_compatibility,
+    )
+    from pitchlog.sync.idempotency import source_fingerprint
+    from pitchlog.sync.undo_payload import _validate_value
+
+    metadata = dict(
+        tenant_id=tenant,
+        game_id=game_id,
+        id=play["id"],
+        source_event_id=source_event_id,
+        play_number=1,
+        batting_order=1,
+        event_kind="pitch",
+        version=1,
+        hidden_at=None,
+        import_batch_id=None,
+        legacy_row_identifier=None,
+        migration_unverified=False,
+    )
+    _same(play, metadata)
+    game = _one(run(GameReadToken(game_id)), tuple(Game.__table__.c.keys()))
+    _same(
+        game,
+        dict(
+            tenant_id=tenant,
+            id=game_id,
+            status="in_progress",
+            trashed_at=None,
+            hidden_at=None,
+            import_batch_id=None,
+        ),
+    )
+    if (
+        type(game["started_at"]) is not datetime
+        or game["started_at"].utcoffset() is None
+    ):
+        raise RecordedSnapshotUnavailable
+    away, home = (
+        _uuid(game[k]) for k in ("away_team_record_id", "home_team_record_id")
+    )
+    if away == home:
+        raise RecordedSnapshotUnavailable
+    _sides, roster_request, rules = _historical_start_inputs(
+        run, game, tenant, game_id, away, home
+    )
+    live()
+    origin = _lineup_started_origin(handle, game_id, generation)
+    live()
+    request = CombinedRequest(
+        t1=FirstPitchRequest(
+            eventKind="batting-result",
+            resultId="batting-result.ball",
+            pitchEventKind="pitch-event",
+            before=_initial_before(),
+        ),
+        rules=rules,
+    )
+    raw_payload = _plain(ev["payload"])
+    if (
+        type(raw_payload) is not dict
+        or raw_payload.get("formatVersion") != "first-ball-play-v1"
+    ):
+        raise RecordedSnapshotUnavailable
+    prior = raw_payload["calculation"]["artifactSha256"]
+    with open_domain_host() as host:
+        if type(host) is not NodeDomainHost or type(host._source) is not str:
+            raise RecordedSnapshotUnavailable
+        artifact_text = host._source
+        actual = host.artifact_sha256
+        if prior != actual:
+            _require_legacy_compatibility(
+                prior, actual, source_format="first-ball-play-v1"
+            )
+
+        def call(operation, raw):
+            """同一loaded sourceだけを実行し、代替hostへ付け替えない。"""
+            live()
+            if host._source != artifact_text:
+                raise RecordedSnapshotUnavailable
+            value = host.call(operation, raw)
+            live()
+            if host._source != artifact_text:
+                raise RecordedSnapshotUnavailable
+            return value
+
+        roster_result = decode_initial_roster_response(
+            call(
+                "validateInitialGameRoster",
+                roster_request.model_dump_json(by_alias=True),
+            )
+        )
+        if type(roster_result) is not InitialRosterSuccess:
+            raise RecordedSnapshotUnavailable
+        combined = decode_combined_response(
+            call(
+                "deriveFirstPitchWithContinuation",
+                request.model_dump_json(by_alias=True),
+            )
+        )
+        if type(combined) is not CombinedSuccess:
+            raise RecordedSnapshotUnavailable
+        expected = read_first_ball_calculation(
+            format_first_ball_calculation(request, combined, artifact_sha256=prior),
+            expected_request=request,
+            expected_response=combined,
+            expected_artifact_sha256=prior,
+        )
+        payload = _saved_payload(ev, expected, roster_result.value)
+        _assert_play_row_matches_payload(play, payload)
+        initial = initial_lineup_source(
+            tenant_id=tenant,
+            game_id=game_id,
+            generation=admission["wire_d4"],
+            origin_id=origin,
+            initial=_initial_before(),
+            roster=roster_result.value,
+            rules=rules,
+            position=SourcePosition(d1="1", d2=str(ev["d2"]), appliedWatermark="0"),
+            artifact_sha256=actual,
+        )
+        sw = initial.model_dump(mode="json", by_alias=True, exclude_unset=True)
+        # 歴史初球beforeだけの数学profile。current DBのD3/資格は変更しない。
+        # この局所proposalは返却/保存/同期sourceへ再発行しない。
+        initial_context = {
+            "current": sw["after"],
+            **{
+                k: sw[k]
+                for k in (
+                    "rules",
+                    "rulesDigest",
+                    "layoutDigest",
+                    "rosterDigest",
+                    "lineup",
+                    "participants",
+                    "runners",
+                    "responsibility",
+                )
+            },
+            "lastPlayEvaluation": None,
+        }
+        math_content = {
+            "scope": {
+                "tenantId": str(tenant),
+                "gameId": str(game_id),
+                "generation": admission["wire_d4"],
+            },
+            "origin": sw["prefixRef"]["origin"],
+            "d3": "0",
+            "d1Head": None,
+            "projectionHead": sw["prefixRef"]["origin"],
+            "activeHead": None,
+            "activeDepth": "0",
+            "historyVersion": "0",
+            "storageHistoryEpoch": "1",
+            "nextPhysicalPlayNumber": "1",
+            "executionArtifactSha256": actual,
+            "restored": initial_context,
+        }
+        math_ref = {
+            "id": origin,
+            "revision": "1",
+            "digest": source_fingerprint(math_content),
+        }
+        math_source = {
+            "formatVersion": "nonplay-prefix-source-v1",
+            "activeStack": [],
+            "checkpoint": {
+                "formatVersion": "nonplay-prefix-checkpoint-v1",
+                "ref": math_ref,
+                "content": math_content,
+            },
+        }
+        proposal = dict(
+            version="nonplay-continuation-v1",
+            prefixRef=math_ref,
+            rules=sw["rules"],
+            source=math_source,
+            sourcePosition=sw["position"],
+            t1={
+                "eventKind": "batting-result",
+                "resultId": "batting-result.ball",
+                "pitchEventKind": "pitch-event",
+                "before": sw["after"],
+            },
+            playIdentity={
+                "eventId": str(source_event_id),
+                "playId": str(play["id"]),
+                "d5": str(ev["d5"]),
+            },
+            nextCheckpoint={
+                "id": str(source_event_id),
+                "revision": "2",
+                "digest": source_fingerprint(
+                    {"historicalEvent": str(source_event_id), "d1": "1"}
+                ),
+            },
+        )
+        validated = NonplayLineupPrefixRequest.model_validate_json(
+            _canonical_json(proposal), by_alias=True, by_name=False
+        )
+        v3 = decode_nonplay_lineup_prefix_response(
+            call(
+                "deriveLineupPlayPrefixWithContinuation",
+                validated.model_dump_json(by_alias=True, exclude_unset=True),
+            )
+        )
+        if type(v3) is not NonplayLineupPrefixSuccess:
+            raise RecordedSnapshotUnavailable
+    legacy = combined.value.t1.model_dump(mode="json", by_alias=True)
+    value = v3.value.model_dump(mode="json", by_alias=True, exclude_unset=True)
+    current = dict(value["t1"]["after"])
+    current.pop("battingOrderBySide")
+    common = {k: v for k, v in legacy.items() if k not in {"after", "historyContext"}}
+    if (
+        _canonical_json(common) != _canonical_json({k: value["t1"][k] for k in common})
+        or _canonical_json(legacy["after"]) != _canonical_json(current)
+        or len(legacy["historyContext"]) != 1
+    ):
+        raise RecordedSnapshotCorrupt
+    entry = legacy["historyContext"][0]
+    difference = dict(value["newHistoryEntry"]["difference"])
+    if difference.pop("battingOrderBySide", None) != {} or _canonical_json(
+        difference
+    ) != _canonical_json(entry["difference"]):
+        raise RecordedSnapshotCorrupt
+    before = {
+        "current": sw["after"],
+        **{
+            k: sw[k]
+            for k in (
+                "rules",
+                "rulesDigest",
+                "layoutDigest",
+                "rosterDigest",
+                "lineup",
+                "participants",
+                "runners",
+                "responsibility",
+            )
+        },
+        "lastPlayEvaluation": None,
+    }
+    after = {
+        "current": value["t1"]["after"],
+        **{k: before[k] for k in ("rules", "rulesDigest", "layoutDigest")},
+        **{k: value[k] for k in ("rosterDigest", "lineup", "participants", "runners")},
+        "responsibility": value["nextResponsibility"],
+        "lastPlayEvaluation": value["t2"],
+    }
+    frame = {
+        "play": {
+            "source": {
+                "eventId": str(source_event_id),
+                "gameId": str(game_id),
+                "generation": admission["wire_d4"],
+                "d1": "1",
+                "d5": str(ev["d5"]),
+                "fingerprint": ledger["source_fingerprint"],
+                "eventKind": "play_input",
+            },
+            "playId": str(play["id"]),
+            "d2": str(ev["d2"]),
+            "physicalPlayNumber": "1",
+        },
+        "historyEntry": entry,
+        "beforeContext": before,
+        "afterContext": after,
+    }
+    _validate_value(frame, "ActiveFrame")
+    expected_play = {**metadata, **_first_ball_payload_columns(payload)}
+    if set(expected_play) != set(PlayRow.__table__.c.keys()):
+        raise RecordedSnapshotUnavailable
+
+    def wire_scalar(value):
+        """照合済みDB型をJSONB列の表現へ戻す。資格/算式を追加しない。"""
+        return str(value) if type(value) is UUID else value
+
+    expected_wire = {k: wire_scalar(v) for k, v in expected_play.items()}
+    for k, v in expected_wire.items():
+        if type(v) is float and type(play_raw[k]) is int:
+            if float(play_raw[k]) != v:
+                raise RecordedSnapshotCorrupt
+            expected_wire[k] = int(v)
+    semantic = {
+        "d5": str(ev["d5"]),
+        "game_id": str(game_id),
+        "d1": 1,
+        "d4": admission["wire_d4"],
+        "event_kind": "play_input",
+        "d2": ev["d2"],
+        "payload": _plain(ev["payload"]),
+        "state_diff": _plain(ev["state_diff"]),
+    }
+    live()
+    return HistoricalFirstBallFrame(
+        source_event_id,
+        generation,
+        d1,
+        _canonical_json(frame),
+        _canonical_json(semantic),
+        ledger["source_fingerprint"],
+        _canonical_json({"play_row": play_raw, "play_runners": runners_raw}),
+        _canonical_json({"play_row": expected_wire, "play_runners": []}),
+    )

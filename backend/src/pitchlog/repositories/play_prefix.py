@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass
+from functools import lru_cache
 from typing import Literal
 from uuid import UUID
 
@@ -157,6 +158,9 @@ def _require_legacy_compatibility(
                 "ibility_v1.json"
             ).read_text()
         )
+        if source_format == "play-prefix-play-v3":
+            _require_v3_compatibility(root, digest, execution_digest)
+            return
         operations = ["deriveState", "deriveFirstPitchWithContinuation"]
         if source_format == "ordinary-pitch-play-v1":
             operations += ["deriveOrdinaryPitch", "deriveOrdinaryPitchWithContinuation"]
@@ -983,6 +987,7 @@ def _read_native_lineup_head_bound(handle, game, tenant, row, doc):
     expected_runners = runner_physical_rows(
         request.source.runners,
         t1=value.t1,
+        t1_input=request.t1,
         tenant_id=tenant,
         play_id=UUID(request.play_identity.play_id),
     )
@@ -1067,3 +1072,576 @@ def _check_native_lineup_row(row, doc, *, tenant, game, generation, epoch, water
         or row.get("saved_at") is None
     ):
         raise OrdinaryPrefixError
+
+
+def _require_v3_compatibility(root, prior, execution):
+    """既2形式から分離し、実artifact/旧anchor/固定witnessと有限2pairを確認する。"""
+    import hashlib
+
+    base = root / "contracts/state-transition"
+    registry_raw = (base / "play_prefix_v2_source_compatibility_v1.json").read_bytes()
+    registry = json.loads(
+        registry_raw, object_pairs_hook=_unique_object, parse_constant=_invalid_constant
+    )
+    raw = (base / "nonplay_v3_compatibility_witness_v1.json").read_bytes()
+    anchor = (base / "batted_current_identity_witness_v1.json").read_bytes()
+    artifact = (root / "frontend/public/domain/pitchlog-domain.js").read_bytes()
+    current = hashlib.sha256(artifact).hexdigest()
+    declaration = json.loads(
+        (root / "frontend/public/domain/pitchlog-domain.json").read_bytes(),
+        object_pairs_hook=_unique_object,
+        parse_constant=_invalid_constant,
+    )
+    if declaration.get("sha256") != current or execution != current:
+        raise ValueError
+    if current != "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1":
+        _require_v3_compatibility_v2(root, prior, current, raw, anchor)
+        return
+    legacy, original_registry_sha = _validated_v3_witness(raw, anchor, current)
+    rows = registry["cases"]
+    legacy_anchor = json.loads(
+        anchor, object_pairs_hook=_unique_object, parse_constant=_invalid_constant
+    )
+    if (
+        set(registry) != {"version", "cases"}
+        or registry["version"] != "1"
+        or type(rows) is not list
+        or hashlib.sha256(
+            json.dumps(rows[:55], ensure_ascii=False, separators=(",", ":")).encode()
+        ).hexdigest()
+        != legacy_anchor["oldRegistryCasesSha256"]
+    ):
+        raise ValueError
+    old_ops = ["deriveState", "deriveFirstPitchWithContinuation"]
+    old_rows = [
+        {
+            "priorArtifactSha256": legacy,
+            "executionArtifactSha256": legacy,
+            "sourceFormat": f,
+            "compatibleOperations": ops,
+            "witnessSha256": hashlib.sha256(anchor).hexdigest(),
+        }
+        for f, ops in (
+            ("first-ball-play-v1", old_ops),
+            (
+                "ordinary-pitch-play-v1",
+                old_ops
+                + ["deriveOrdinaryPitch", "deriveOrdinaryPitchWithContinuation"],
+            ),
+        )
+    ]
+    if _canonical_json(rows[55:57]) != _canonical_json(old_rows):
+        raise ValueError
+    original = {k: v for k, v in registry.items() if k != "cases"}
+    original["cases"] = rows[:57]
+    original_raw = (json.dumps(original, ensure_ascii=False, indent=2) + "\n").encode()
+    if hashlib.sha256(original_raw).hexdigest() != original_registry_sha:
+        raise ValueError
+    operations = ["deriveLineupPlayPrefixWithContinuation"]
+    witness_sha = hashlib.sha256(raw).hexdigest()
+    expected = [
+        {
+            "priorArtifactSha256": p,
+            "executionArtifactSha256": current,
+            "sourceFormat": "play-prefix-play-v3",
+            "compatibleOperations": operations,
+            "witnessSha256": witness_sha,
+        }
+        for p in (legacy, current)
+    ]
+    four_ops = ["deriveState", "deriveFirstPitchWithContinuation"]
+    joined = [
+        {
+            "priorArtifactSha256": p,
+            "executionArtifactSha256": current,
+            "sourceFormat": fmt,
+            "compatibleOperations": ops,
+            "witnessSha256": witness_sha,
+        }
+        for p in (current, legacy)
+        for fmt, ops in (
+            ("first-ball-play-v1", four_ops),
+            (
+                "ordinary-pitch-play-v1",
+                four_ops
+                + ["deriveOrdinaryPitch", "deriveOrdinaryPitchWithContinuation"],
+            ),
+        )
+    ]
+    if _canonical_json(rows[57:]) != _canonical_json(expected + joined):
+        raise ValueError
+    selected = [r for r in rows if r.get("sourceFormat") == "play-prefix-play-v3"]
+    if _canonical_json(selected) != _canonical_json(expected) or (
+        prior,
+        execution,
+    ) not in {(legacy, current), (current, current)}:
+        raise ValueError
+
+
+def _require_v3_compatibility_v2(root, prior, current, old_raw, anchor_raw):
+    """旧witnessを固定したまま、新bundleとの53件だけを別版で資格化する。"""
+    import hashlib
+
+    from pitchlog.authz.terminal_pitch_product import require_registered_product
+
+    base = root / "contracts/state-transition"
+    old = "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1"
+    if (
+        hashlib.sha256(old_raw).hexdigest()
+        != "cd21ba1138c37820a6b80e8f3c506a462d961a8a745c537012cb72ca876c6df4"
+        or prior not in {old, current}
+    ):
+        raise ValueError
+    _validated_v3_witness(old_raw, anchor_raw, old)
+    raw = (base / "nonplay_v3_compatibility_witness_v2.json").read_bytes()
+    witness_sha = hashlib.sha256(raw).hexdigest()
+    if (
+        witness_sha
+        != "c325d5174ca260f45489a6589351104cbe96cb14d30b123fa03a495a4b2375a5"
+    ):
+        raise ValueError
+    registry_raw = (base / "play_prefix_v3_source_compatibility_v2.json").read_bytes()
+    _validated_v3_witness_v2(raw, registry_raw, old_raw, current)
+    require_registered_product(artifact_sha256=current, mode="play-prefix-play-v3")
+
+
+@lru_cache(maxsize=4)
+def _validated_v3_witness_v2(raw, registry_raw, old_raw, current):
+    """旧53原本との全値一致と識別値/digestだけの正規化を閉検査する。"""
+    import copy
+    import hashlib
+
+    from pitchlog.domainrt.lineup_play_prefix_continuation import (
+        LineupPrefixRequest,
+        LineupPrefixSuccess,
+        decode_lineup_prefix_response,
+        lineup_wire_digest,
+    )
+
+    old = "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1"
+    data = json.loads(
+        raw, object_pairs_hook=_unique_object, parse_constant=_invalid_constant
+    )
+    registry = json.loads(
+        registry_raw, object_pairs_hook=_unique_object, parse_constant=_invalid_constant
+    )
+    old_witness = json.loads(
+        old_raw, object_pairs_hook=_unique_object, parse_constant=_invalid_constant
+    )
+    if raw != (json.dumps(data, ensure_ascii=False, indent=2) + "\n").encode():
+        raise ValueError
+    if (
+        registry_raw
+        != (json.dumps(registry, ensure_ascii=False, indent=2) + "\n").encode()
+    ):
+        raise ValueError
+    witness_sha = hashlib.sha256(raw).hexdigest()
+    expected_rows = [
+        {
+            "priorArtifactSha256": p,
+            "executionArtifactSha256": current,
+            "sourceFormat": "play-prefix-play-v3",
+            "compatibleOperations": ["deriveLineupPlayPrefixWithContinuation"],
+            "witnessSha256": witness_sha,
+        }
+        for p in (old, current)
+    ]
+    if registry != {
+        "version": "2",
+        "sourceFormat": "play-prefix-play-v3",
+        "historicalWitnessSha256": hashlib.sha256(old_raw).hexdigest(),
+        "currentWitnessSha256": witness_sha,
+        "cases": expected_rows,
+    }:
+        raise ValueError
+    if set(data) != {
+        "version",
+        "sourceFormat",
+        "compatibleOperations",
+        "historicalArtifactCommit",
+        "historicalArtifactSha256",
+        "historicalWitnessSha256",
+        "executionArtifactSha256",
+        "normalization",
+        "scope",
+        "samplesSha256",
+        "samples",
+    }:
+        raise ValueError
+    if any(
+        (
+            data["version"] != "2",
+            data["sourceFormat"] != "play-prefix-play-v3",
+            data["compatibleOperations"] != ["deriveLineupPlayPrefixWithContinuation"],
+            data["historicalArtifactCommit"]
+            != "177de16a31df723c69595bc659839f46b3fc71ac",
+            data["historicalArtifactSha256"] != old,
+            data["historicalWitnessSha256"] != hashlib.sha256(old_raw).hexdigest(),
+            data["executionArtifactSha256"] != current,
+            data["normalization"]
+            != {
+                "requestPointers": [
+                    "/source/executionArtifactSha256",
+                    "/nextCheckpoint/digest",
+                ],
+                "responsePointers": [
+                    "/value/executionArtifactSha256",
+                    "/value/nextPrefixRef/checkpoint/digest",
+                ],
+                "allOtherValuesUnchanged": True,
+            },
+            data["scope"]
+            != {
+                "caseCount": 53,
+                "operationCount": 1,
+                "HTTPorDB": False,
+                "P6Blind": False,
+            },
+        )
+    ):
+        raise ValueError
+    samples = data["samples"]
+    if (
+        type(samples) is not list
+        or len(samples) != 53
+        or len(old_witness["samples"]) != 53
+        or hashlib.sha256(
+            json.dumps(
+                samples, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+            ).encode()
+        ).hexdigest()
+        != data["samplesSha256"]
+    ):
+        raise ValueError
+    for before, sample in zip(old_witness["samples"], samples, strict=True):
+        if not isinstance(sample, dict) or type(sample) is not dict:
+            raise ValueError
+        if (
+            set(sample)
+            != {
+                "sourcePath",
+                "caseId",
+                "priorRequest",
+                "priorExpected",
+                "priorActual",
+                "currentRequest",
+                "currentExpected",
+                "currentActual",
+            }
+            or sample["sourcePath"] != before["sourcePath"]
+            or sample["caseId"] != before["caseId"]
+            or sample["priorRequest"] != before["currentRequest"]
+            or sample["priorExpected"] != before["currentExpected"]
+            or sample["priorActual"] != before["currentActual"]
+            or sample["currentActual"] != sample["currentExpected"]
+        ):
+            raise ValueError
+        request = copy.deepcopy(sample["priorRequest"])
+        expected = copy.deepcopy(sample["priorExpected"])
+        if (
+            request["source"]["executionArtifactSha256"] != old
+            or expected["value"]["executionArtifactSha256"] != old
+        ):
+            raise ValueError
+        request["source"]["executionArtifactSha256"] = current
+        expected["value"]["executionArtifactSha256"] = current
+        response = decode_lineup_prefix_response(_canonical_json(expected))
+        if type(response) is not LineupPrefixSuccess:
+            raise ValueError
+        digest = lineup_wire_digest(
+            LineupPrefixRequest.model_validate_json(_canonical_json(request)),
+            response,
+        )
+        request["nextCheckpoint"]["digest"] = digest
+        expected["value"]["nextPrefixRef"]["checkpoint"]["digest"] = digest
+        if request != sample["currentRequest"] or expected != sample["currentExpected"]:
+            raise ValueError
+
+
+@lru_cache(maxsize=4)
+def _validated_v3_witness(raw, anchor_raw, current):
+    """固定証拠の全bytesを検査し、宣言metadata/全応答の閉比較を行う。"""
+    import copy
+    import hashlib
+
+    data = json.loads(
+        raw, object_pairs_hook=_unique_object, parse_constant=_invalid_constant
+    )
+    anchor = json.loads(
+        anchor_raw, object_pairs_hook=_unique_object, parse_constant=_invalid_constant
+    )
+    legacy = anchor["executionArtifactSha256"]
+    if raw != (json.dumps(data, ensure_ascii=False, indent=2) + "\n").encode():
+        raise ValueError
+    if set(data) != {
+        "version",
+        "sourceFormat",
+        "compatibleOperations",
+        "historicalContext",
+        "executionArtifactSha256",
+        "priorArtifacts",
+        "normativeSources",
+        "normalization",
+        "scope",
+        "separateFourOperationEvidence",
+        "fourOperationJoinEvidence",
+        "samplesSha256",
+        "samples",
+    }:
+        raise ValueError
+    if (
+        type(legacy) is not str
+        or re.fullmatch(r"[a-f0-9]{64}", legacy) is None
+        or data["version"] != "1"
+        or data["sourceFormat"] != "play-prefix-play-v3"
+        or data["compatibleOperations"] != ["deriveLineupPlayPrefixWithContinuation"]
+        or data["executionArtifactSha256"] != current
+        or data["priorArtifacts"] != [legacy, current]
+    ):
+        raise ValueError
+    historical = data["historicalContext"]
+    if (
+        _canonical_json(
+            {
+                k: v
+                for k, v in historical.items()
+                if k not in {"revision", "registrySha256"}
+            }
+        )
+        != _canonical_json(
+            {
+                "artifactPath": "frontend/public/domain/pitchlog-domain.js",
+                "artifactSha256": legacy,
+                "registryCaseCount": 57,
+                "legacyWitnessPath": (
+                    "contracts/state-transition/batted_current_identity_witness_v1.json"
+                ),
+                "legacyWitnessSha256": hashlib.sha256(anchor_raw).hexdigest(),
+            }
+        )
+        or type(historical["revision"]) is not str
+        or re.fullmatch(r"[a-f0-9]{40}", historical["revision"]) is None
+        or type(historical["registrySha256"]) is not str
+        or re.fullmatch(r"[a-f0-9]{64}", historical["registrySha256"]) is None
+    ):
+        raise ValueError
+    if _canonical_json(data["scope"]) != _canonical_json(
+        {
+            "caseCount": 53,
+            "operationCount": 1,
+            "HTTPorDB": False,
+            "wholeDomainCompatibility": False,
+            "P6Blind": False,
+        }
+    ):
+        raise ValueError
+    normalization = {
+        "requestPointers": [
+            "/source/executionArtifactSha256",
+            "/nextCheckpoint/digest",
+        ],
+        "responsePointers": [
+            "/value/executionArtifactSha256",
+            "/value/nextPrefixRef/checkpoint/digest",
+        ],
+        "allOtherValuesUnchanged": True,
+        "sealHelper": "lineup_wire_digest/verify_lineup_wire_seal",
+    }
+    if _canonical_json(data["normalization"]) != _canonical_json(normalization):
+        raise ValueError
+    separate = data["separateFourOperationEvidence"]
+    if (
+        set(separate)
+        != {"sha256", "caseCount", "notV3Evidence", "notAllPublicOperations"}
+        or type(separate["caseCount"]) is not int
+        or separate["caseCount"] != 1878
+        or separate["notV3Evidence"] is not True
+        or separate["notAllPublicOperations"] is not True
+        or type(separate["sha256"]) is not str
+        or re.fullmatch(r"[a-f0-9]{64}", separate["sha256"]) is None
+    ):
+        raise ValueError
+    sources = data["normativeSources"]
+    if (
+        type(sources) is not list
+        or len(sources) != 2
+        or [(r["path"], r["caseCount"]) for r in sources]
+        != [
+            ("contracts/state-transition/lineup_play_prefix_cases_v1.json", 34),
+            ("contracts/state-transition/batted_hit_prefix_cases_v1.json", 19),
+        ]
+        or any(
+            set(r) != {"path", "revision", "sha256", "caseCount"}
+            or type(r["caseCount"]) is not int
+            or r["revision"] != historical["revision"]
+            or type(r["sha256"]) is not str
+            or re.fullmatch(r"[a-f0-9]{64}", r["sha256"]) is None
+            for r in sources
+        )
+    ):
+        raise ValueError
+    samples = data["samples"]
+    if (
+        type(samples) is not list
+        or len(samples) != 53
+        or hashlib.sha256(_canonical_json(samples).encode()).hexdigest()
+        != data["samplesSha256"]
+        or len({(s["sourcePath"], s["caseId"]) for s in samples}) != 53
+    ):
+        raise ValueError
+    if [sum(s["sourcePath"] == r["path"] for s in samples) for r in sources] != [
+        34,
+        19,
+    ]:
+        raise ValueError
+    for sample in samples:
+        if (
+            set(sample)
+            != {
+                "sourcePath",
+                "caseId",
+                "originalRequest",
+                "oldExpected",
+                "currentRequest",
+                "currentExpected",
+                "oldActual",
+                "currentActual",
+                "selfActual",
+            }
+            or type(sample["caseId"]) is not str
+            or not sample["caseId"]
+        ):
+            raise ValueError
+        if (
+            _canonical_json(sample["oldActual"])
+            != _canonical_json(sample["oldExpected"])
+            or _canonical_json(sample["currentActual"])
+            != _canonical_json(sample["currentExpected"])
+            or _canonical_json(sample["selfActual"])
+            != _canonical_json(sample["currentExpected"])
+        ):
+            raise ValueError
+        before = copy.deepcopy(sample["originalRequest"])
+        after = copy.deepcopy(sample["currentRequest"])
+        if (
+            before["source"]["executionArtifactSha256"] != legacy
+            or after["source"]["executionArtifactSha256"] != current
+        ):
+            raise ValueError
+        before["source"]["executionArtifactSha256"] = after["source"][
+            "executionArtifactSha256"
+        ] = "SELF"
+        before["nextCheckpoint"]["digest"] = after["nextCheckpoint"]["digest"] = "SELF"
+        if _canonical_json(before) != _canonical_json(after):
+            raise ValueError
+        before = copy.deepcopy(sample["oldExpected"])
+        after = copy.deepcopy(sample["currentExpected"])
+        if (
+            before["value"]["executionArtifactSha256"] != legacy
+            or after["value"]["executionArtifactSha256"] != current
+        ):
+            raise ValueError
+        before["value"]["executionArtifactSha256"] = after["value"][
+            "executionArtifactSha256"
+        ] = "SELF"
+        before["value"]["nextPrefixRef"]["checkpoint"]["digest"] = after["value"][
+            "nextPrefixRef"
+        ]["checkpoint"]["digest"] = "SELF"
+        if _canonical_json(before) != _canonical_json(after):
+            raise ValueError
+    if (
+        data["fourOperationJoinEvidence"]["rawInputSha256"]
+        != data["separateFourOperationEvidence"]["sha256"]
+    ):
+        raise ValueError
+    _validate_four_operation_join(data["fourOperationJoinEvidence"], legacy, current)
+    return legacy, historical["registrySha256"]
+
+
+def _validate_four_operation_join(join, legacy, current):
+    """v3証明と分離した旧51d/currentの正確な4操作join根拠だけを検査する。"""
+    from typing import cast
+
+    if (
+        set(join)
+        != {
+            "rawInputSha256",
+            "comparisonArtifactSha256",
+            "executionArtifactSha256",
+            "fullCaseCount",
+            "groups",
+            "measurementSha256",
+            "normalizationPointers",
+            "scope",
+        }
+        or join["comparisonArtifactSha256"] != legacy
+        or join["executionArtifactSha256"] != current
+        or type(join["fullCaseCount"]) is not int
+        or join["fullCaseCount"] != 1878
+        or join["normalizationPointers"] != []
+    ):
+        raise ValueError
+    for key in ("rawInputSha256", "measurementSha256"):
+        if (
+            type(join[key]) is not str
+            or re.fullmatch(r"[a-f0-9]{64}", join[key]) is None
+        ):
+            raise ValueError
+    expected_scope = {
+        "sourceFormats": ["first-ball-play-v1", "ordinary-pitch-play-v1"],
+        "onlyFourOperations": True,
+        "notV3Evidence": True,
+        "notAllPublicOperations": True,
+        "HTTPorDB": False,
+        "P6Blind": False,
+    }
+    if _canonical_json(join["scope"]) != _canonical_json(expected_scope):
+        raise ValueError
+    groups = join["groups"]
+    if type(groups) is not list or len(groups) != 2:
+        raise ValueError
+    operations = ["deriveState", "deriveFirstPitchWithContinuation"]
+    for raw_group, fmt, count, ops in zip(
+        groups,
+        ["first-ball-play-v1", "ordinary-pitch-play-v1"],
+        [24, 1854],
+        [
+            operations,
+            operations + ["deriveOrdinaryPitch", "deriveOrdinaryPitchWithContinuation"],
+        ],
+        strict=True,
+    ):
+        if type(raw_group) is not dict or any(type(k) is not str for k in raw_group):
+            raise ValueError
+        group = cast(dict[str, object], raw_group)
+        if (
+            set(group)
+            != {
+                "sourceFormat",
+                "caseCount",
+                "operations",
+                "priorFullResponsesSha256",
+                "currentFullResponsesSha256",
+                "selfFullResponsesSha256",
+            }
+            or group["sourceFormat"] != fmt
+            or type(group["caseCount"]) is not int
+            or group["caseCount"] != count
+            or group["operations"] != ops
+        ):
+            raise ValueError
+        a, b, c = (
+            group[k]
+            for k in (
+                "priorFullResponsesSha256",
+                "currentFullResponsesSha256",
+                "selfFullResponsesSha256",
+            )
+        )
+        if (
+            type(a) is not str
+            or re.fullmatch(r"[a-f0-9]{64}", a) is None
+            or a != b
+            or a != c
+        ):
+            raise ValueError

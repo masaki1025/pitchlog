@@ -411,6 +411,23 @@ class _TenantTransaction:
                     raise TenantBindingError("初期権actorのphaseに未登録の操作")
         elif type(operation) in _INITIAL_FUNCTION_REGISTRY:
             raise TenantBindingError("app scopeは初期権関数を実行できない")
+        from pitchlog.repositories.lifecycle_function_operations import (
+            execute_lifecycle_function,
+            is_lifecycle_operation,
+        )
+        from pitchlog.repositories.nonplay_function_operations import (
+            execute_nonplay_function,
+            is_nonplay_operation,
+        )
+
+        if is_lifecycle_operation(operation):
+            if actor is not None:
+                raise TenantBindingError("初期権actorに終了再開関数を公開しません")
+            return execute_lifecycle_function(self, operation, registry)
+        if is_nonplay_operation(operation):
+            if actor is not None:
+                raise TenantBindingError("初期権actorに取消関数を公開しません")
+            return execute_nonplay_function(self, operation, registry)
         spec, parameters = prepare_function_operation(
             operation, self._bound_tenant_id, registry
         )
@@ -546,7 +563,13 @@ class _TenantTransaction:
 class _TenantTransactionScope(AbstractContextManager[_TenantTransaction]):
     """Session の生成から close までを所有する内部 context manager。"""
 
-    __slots__ = ("_context", "_handle", "_actor_runtime", "_actor_phase", "_stats_read")
+    __slots__ = (
+        ("_context"),
+        ("_handle"),
+        ("_actor_runtime"),
+        ("_actor_phase"),
+        ("_stats_read"),
+    )
 
     def __init__(
         self,
@@ -1299,7 +1322,10 @@ def _require_port_function(phase, operation, function_id):
             "rg1_api.rg1_assert_open_before_commit",
             "rg1_control.scope_binding",
         },
-        "device": {"sync_right_api.bind_device", "sync_right_api.bind_ordinary_device"},
+        ("device"): {
+            ("sync_right_api.bind_device"),
+            ("sync_right_api.bind_ordinary_device"),
+        },
         "rights": {
             "sync_right_api.check_current_right",
             "sync_right_api.check_ordinary_right",
@@ -1331,6 +1357,10 @@ def _require_port_function(phase, operation, function_id):
 
 
 def _is_port_command(operation):
+    from pitchlog.sync.lifecycle_ports import (
+        ProjectLifecycleToken,
+        ValidateLifecycleToken,
+    )
     from pitchlog.sync.ordinary_pitch_tokens import (
         ProjectOrdinaryPitchToken,
         ValidateOrdinaryPitchToken,
@@ -1350,7 +1380,12 @@ def _is_port_command(operation):
         PortRG1PrecheckToken,
         PortValidateFirstBallToken,
     )
+    from pitchlog.sync.undo_ports import ProjectUndoToken, ValidateUndoToken
 
+    if type(operation) in {ProjectLifecycleToken, ValidateLifecycleToken}:
+        return True
+    if type(operation) in {ProjectUndoToken, ValidateUndoToken}:
+        return True
     return isinstance(
         operation,
         (
@@ -1444,8 +1479,103 @@ def _execute_port_command(handle, operation):
         PortRG1PrecheckToken,
         PortValidateFirstBallToken,
     )
+    from pitchlog.sync.undo_ports import (
+        _UNDO_CONTENT_REJECTION_REASON,
+        ProjectUndoToken,
+        ValidateUndoToken,
+    )
 
     phase = _port_phase(handle)
+    from pitchlog.sync.lifecycle_ports import (
+        _LIFECYCLE_CONTENT_REJECTION_REASON,
+        ProjectLifecycleToken,
+        ValidateLifecycleToken,
+    )
+
+    if type(operation) in {ProjectLifecycleToken, ValidateLifecycleToken}:
+        from pitchlog.sync.lifecycle_execution import (
+            _lifecycle_content_result,
+        )
+        from pitchlog.sync.model import SyncEvent
+        from pitchlog.sync.ports import PortWriter
+
+        if (
+            type(operation.event) is not SyncEvent
+            or type(operation.writer) is not PortWriter
+            or type(operation.game_id) is not UUID
+            or type(operation.d5) is not UUID
+            or operation.game_id != UUID(operation.event.game_id)
+            or operation.d5 != UUID(operation.event.d5)
+        ):
+            raise TenantBindingError("取消Port命令の元参照/型が不一致")
+        if type(operation) is ValidateLifecycleToken:
+            if phase is None or phase.kind != "content":
+                raise TenantBindingError("取消内容命令は実content phaseだけで使う")
+            content = _lifecycle_content_result(
+                handle, operation.event, operation.writer
+            )
+            if (
+                type(content) is not tuple
+                or len(content) != 2
+                or type(content[0]) is not bool
+                or (content[0] and content[1] is not None)
+                or (
+                    not content[0]
+                    and (
+                        type(content[1]) is not str
+                        or content[1] != _LIFECYCLE_CONTENT_REJECTION_REASON
+                    )
+                )
+            ):
+                raise TenantBindingError("取消内容hookの閉tupleが不一致")
+            return TenantOperationResult((content,))
+        if phase is not None:
+            raise TenantBindingError("取消投影命令は判定phase外だけで使う")
+        from pitchlog.sync.lifecycle_prefix_bridge import project_game_lifecycle
+
+        project_game_lifecycle(handle, operation.event, operation.writer)
+        return TenantOperationResult(((True,),))
+    if type(operation) in {ProjectUndoToken, ValidateUndoToken}:
+        from pitchlog.sync.model import SyncEvent
+        from pitchlog.sync.ports import PortWriter
+        from pitchlog.sync.undo_execution import (
+            _undo_content_result,
+        )
+
+        if (
+            type(operation.event) is not SyncEvent
+            or type(operation.writer) is not PortWriter
+            or type(operation.game_id) is not UUID
+            or type(operation.d5) is not UUID
+            or operation.game_id != UUID(operation.event.game_id)
+            or operation.d5 != UUID(operation.event.d5)
+        ):
+            raise TenantBindingError("取消Port命令の元参照/型が不一致")
+        if type(operation) is ValidateUndoToken:
+            if phase is None or phase.kind != "content":
+                raise TenantBindingError("取消内容命令は実content phaseだけで使う")
+            content = _undo_content_result(handle, operation.event, operation.writer)
+            if (
+                type(content) is not tuple
+                or len(content) != 2
+                or type(content[0]) is not bool
+                or (content[0] and content[1] is not None)
+                or (
+                    not content[0]
+                    and (
+                        type(content[1]) is not str
+                        or content[1] != _UNDO_CONTENT_REJECTION_REASON
+                    )
+                )
+            ):
+                raise TenantBindingError("取消内容hookの閉tupleが不一致")
+            return TenantOperationResult((content,))
+        if phase is not None:
+            raise TenantBindingError("取消投影命令は判定phase外だけで使う")
+        from pitchlog.sync.nonplay_prefix_bridge import project_nonplay_undo
+
+        project_nonplay_undo(handle, operation.event, operation.writer)
+        return TenantOperationResult(((True,),))
     if type(operation) in {ProjectPlayPrefixToken, ProjectLineupPrefixToken}:
         if phase is not None:
             raise TenantBindingError("v2投影命令は判定phase外だけで使う")
@@ -1556,10 +1686,28 @@ def _execute_port_command(handle, operation):
         from pitchlog.repositories.ordinary_pitch_qualification import (
             BindOrdinaryDeviceToken,
         )
+        from pitchlog.sync.lifecycle_execution import _lifecycle_qualification_active
         from pitchlog.sync.ordinary_pitch_execution import (
             _ordinary_qualification_active,
         )
+        from pitchlog.sync.undo_execution import _undo_qualification_active
 
+        if _lifecycle_qualification_active(handle):
+            if _undo_qualification_active(handle) or _ordinary_qualification_active(
+                handle
+            ):
+                raise TenantBindingError("終了再開と通常投球の資格を併用できません")
+            from pitchlog.repositories.lifecycle_qualification import (
+                run_lifecycle_device,
+            )
+
+            return run_lifecycle_device(handle, operation.credential_digest)
+        if _undo_qualification_active(handle):
+            if _ordinary_qualification_active(handle):
+                raise TenantBindingError("取消と通常投球の資格を併用できません")
+            from pitchlog.repositories.nonplay_qualification import run_nonplay_device
+
+            return run_nonplay_device(handle, operation.credential_digest)
         if _ordinary_qualification_active(handle):
             token = BindOrdinaryDeviceToken(
                 lease.attempt_id,
@@ -1594,10 +1742,32 @@ def _execute_port_command(handle, operation):
         from pitchlog.repositories.ordinary_pitch_qualification import (
             CheckOrdinaryRightToken,
         )
+        from pitchlog.sync.lifecycle_execution import _lifecycle_qualification_active
         from pitchlog.sync.ordinary_pitch_execution import (
             _ordinary_qualification_active,
         )
+        from pitchlog.sync.undo_execution import _undo_qualification_active
 
+        if _lifecycle_qualification_active(handle):
+            if _undo_qualification_active(handle) or _ordinary_qualification_active(
+                handle
+            ):
+                raise TenantBindingError("終了再開と通常投球の資格を併用できません")
+            from pitchlog.repositories.lifecycle_qualification import (
+                run_lifecycle_right,
+            )
+
+            return run_lifecycle_right(
+                handle, operation.recovery_generation, operation.proof_digest
+            )
+        if _undo_qualification_active(handle):
+            if _ordinary_qualification_active(handle):
+                raise TenantBindingError("取消と通常投球の資格を併用できません")
+            from pitchlog.repositories.nonplay_qualification import run_nonplay_right
+
+            return run_nonplay_right(
+                handle, operation.recovery_generation, operation.proof_digest
+            )
         if _ordinary_qualification_active(handle):
             token = CheckOrdinaryRightToken(
                 lease.attempt_id,

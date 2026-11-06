@@ -50,13 +50,19 @@ def test_before_v2_assert_never_consumes_old_stamp():
     assert "PERFORM sync_right_api.consume_ordinary_projection" in sql
 
 
-def test_physical_runner_uses_before_slots_and_actual_hold_not_after_occupancy():
-    """空BB/HBPをphysical1へ誤写像した旧候補を拒否する比較面を固定する。"""
+def test_physical_runner_uses_before_slots_and_observed_result_status():
+    """起点塁、T1進塁先、明示override由来をSQLで結び、旧holdを保つ。"""
     sql = candidate_function_bodies()["prepare_play_prefix_projection"]
     assert "pg_catalog.jsonb_array_length(after_cp->'runners')" not in sql
     assert "request'->'source'->'runners')" in sql
     assert "runnerDefaultAdvance'->(CASE m->>'base'" in sql
-    assert "r->>'status'='継続'" in sql
+    assert "THEN '継続'" in sql
+    assert "THEN '二進'" in sql
+    assert "THEN '三進'" in sql
+    assert "THEN '本進'" in sql
+    assert "o->>'runnerBase'=m->>'base'" in sql
+    assert "THEN 'manual' ELSE 'auto'" in sql
+    assert "target ? 'runner'" in sql
 
 
 def test_prepare_parenthesizes_five_case_expressions_without_other_sql_changes():
@@ -66,9 +72,15 @@ def test_prepare_parenthesizes_five_case_expressions_without_other_sql_changes()
     import re
     from pathlib import Path
 
-    from pitchlog.authz.terminal_pitch_write_stamp import _v2_function_bodies
-
-    sql = _v2_function_bodies()["prepare_play_prefix_projection"]
+    # immutable Git 8712866dの当時rendererから抽出。現行製品の期待ではない。
+    sql = (
+        Path(__file__).parent
+        / "fixtures/pr191-historical-sql-proof/prepare-corrected.sql"
+    ).read_text(encoding="utf-8")
+    assert (
+        hashlib.sha256(sql.encode()).hexdigest()
+        == "6a51bc53df61ecd37262d8fa3b05c4f702f4861f419376d752062de170bce6b6"
+    )
     removed = []
 
     def original_case(match):
@@ -91,6 +103,17 @@ def test_prepare_parenthesizes_five_case_expressions_without_other_sql_changes()
     expected = frozen["frozen_inputs"]["terminal_prepare_original_sql_sha256"]["value"]
     assert type(expected) is str and re.fullmatch(r"[0-9a-f]{64}", expected)
     assert hashlib.sha256(previous.encode()).hexdigest() == expected
+
+
+def test_current_prepare_keeps_case_operand_parentheses():
+    """現行v2/v3の演算子右辺CASEを括弧なしに退行させない。"""
+    import re
+
+    from pitchlog.authz.terminal_pitch_write_stamp import _v2_function_bodies
+
+    for bodies in (_v2_function_bodies(), candidate_function_bodies()):
+        sql = bodies["prepare_play_prefix_projection"]
+        assert not re.search(r"IS DISTINCT FROM\s+CASE\b|>\s*CASE\b", sql)
 
 
 def test_lineup_origin_minimal_columns_and_historical_device_no_current_role():
@@ -130,3 +153,12 @@ def test_lineup_origin_minimal_columns_and_historical_device_no_current_role():
         "lineup physical source rejected",
     ):
         assert required in sql
+
+
+def test_nonplay_checkpoint_subtraction_extracts_jsonb_before_removing_keys():
+    """文字列literal同士の減算へ誤解釈させず既JSONB差分比較を保持する。"""
+    sql = candidate_function_bodies()["prepare_play_prefix_projection"]
+    assert "(((after_cp->'checkpoint')-'content')-'ref')" in sql
+    assert "((after_cp->'checkpoint'->'ref')-'digest')" in sql
+    assert "(after_cp->'checkpoint'-'content'-'ref')" not in sql
+    assert "(after_cp->'checkpoint'->'ref'-'digest')" not in sql

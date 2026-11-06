@@ -29,6 +29,8 @@ from pitchlog.domainrt.lineup_play_prefix_continuation import (
 )
 from pitchlog.domainrt.lineup_play_prefix_continuation import (
     Lineup,
+    NonplayActiveFrame,
+    NonplayCheckpoint,
 )
 from pitchlog.domainrt.lineup_play_prefix_continuation import (
     Participants as LineupParticipants,
@@ -53,6 +55,7 @@ from pitchlog.domainrt.ordinary_wire import (
 )
 from pitchlog.domainrt.play_prefix_continuation import (
     BridgeEvidence,
+    CanonicalUuid,
     Checkpoint,
     Digest,
     Participants,
@@ -327,9 +330,32 @@ class StartedPlayRunner(_FrozenSchema):
     play_id: EntityId
     base: Annotated[int, Field(strict=True, ge=1, le=3)]
     runner_id: EntityId
-    status: Literal["継続"]
-    status_source: Literal["auto"]
+    status: Literal[
+        "継続",
+        "二進",
+        "三進",
+        "本進",
+        "封殺",
+        "投手牽制死",
+        "捕手牽制死",
+        "盗塁死",
+        "走塁死",
+    ]
+    status_source: Literal["auto", "manual"]
     responsible_pitcher_id: EntityId
+
+    @model_validator(mode="after")
+    def _base_status(self):
+        """起点塁ごとの既語彙だけを公開する。"""
+        destinations = {
+            1: {"二進", "三進", "本進"},
+            2: {"三進", "本進"},
+            3: {"本進"},
+        }
+        outcomes = {"継続", "封殺", "投手牽制死", "捕手牽制死", "盗塁死", "走塁死"}
+        if self.status not in destinations[self.base] | outcomes:
+            raise ValueError("起点塁と走者状況が不一致")
+        return self
 
 
 class PlayPrefixPageItem(_FrozenSchema):
@@ -508,12 +534,89 @@ class StartedLineupPrefixGameRead(StartedGameRead):
         return self
 
 
+class NonplayActivePage(BaseSchema):
+    """部分pageを完全Sourceと混同しない。"""
+
+    items: Annotated[list[NonplayActiveFrame], Field(max_length=100)]
+    next_cursor: Annotated[str, Field(max_length=2048)] | None
+
+
+class LifecycleFinalizationRead(_FrozenSchema):
+    """表示pointerだけ。書込資格/署名ではない。"""
+
+    version: PositivePrefixInteger
+    event_id: CanonicalUuid = Field(alias="eventId")
+    receipt_id: CanonicalUuid = Field(alias="receiptId")
+
+
+class LifecycleDisplayRead(_FrozenSchema):
+    """終了状態は同TX実head/消費印/確定版へ束縛されてから公開される。"""
+
+    format_version: Literal["native-game-lifecycle-read-v1"] = Field(
+        alias="formatVersion"
+    )
+    status: Literal["in_progress", "finished"]
+    last_version: DecimalInteger = Field(alias="lastVersion")
+    active: LifecycleFinalizationRead | None
+    active_stats_version_id: CanonicalUuid | None = Field(alias="activeStatsVersionId")
+
+    @model_validator(mode="after")
+    def _binding(self):
+        if self.status == "finished":
+            if (
+                self.active is None
+                or self.active_stats_version_id is None
+                or self.active.version != self.last_version
+            ):
+                raise ValueError("終了pointerが最新確定版と不一致")
+        elif self.active is not None or self.active_stats_version_id is not None:
+            raise ValueError("進行中にactive確定版を返せない")
+        return self
+
+
+class StartedNonplayPrefixGameRead(StartedGameRead):
+    """正式CP/三headと有限active履歴。秘密の保存資格は返さない。"""
+
+    read_kind: Literal["nonplay-prefix"]
+    status: Literal["in_progress", "finished"]
+    lifecycle: LifecycleDisplayRead | None = Field(
+        default=None, exclude_if=lambda v: v is None
+    )
+    profile: Literal["nonplay-prefix-read-v1"]
+    checkpoint: NonplayCheckpoint
+    after: StrikeoutSnapshot
+    next_position: PrefixNextPosition
+    recovery: PositivePrefixInteger = Field(alias=RECOVERY_WIRE_FIELD)
+    page: NonplayActivePage
+    append_policy: OrdinaryAppendPolicy
+    last_saved_at: Timestamp
+
+    @model_validator(mode="after")
+    def _anchor(self):
+        """空activeでも実D3/epochを保持し、別試合やbefore偽装を拒否する。"""
+        if self.lifecycle is None:
+            if self.status != "in_progress":
+                raise ValueError("終了状態には真正lifecycle表示が必要")
+        elif self.lifecycle.status != self.status:
+            raise ValueError("試合statusと終了head表示が不一致")
+        c = self.checkpoint.content
+        if (
+            c.scope.game_id != str(self.id)
+            or self.after != c.restored.current
+            or int(self.next_position.d1) != int(c.d3) + 1
+            or len(self.page.items) > int(c.active_depth)
+        ):
+            raise ValueError("非play公開CP/位置が不一致")
+        return self
+
+
 StartedGameReadResponse = Annotated[
     StartedGameRead
     | StartedRecordedGameRead
     | StartedRecordedPrefixGameRead
     | StartedPlayPrefixGameRead
-    | StartedLineupPrefixGameRead,
+    | StartedLineupPrefixGameRead
+    | StartedNonplayPrefixGameRead,
     Field(discriminator="read_kind"),
 ]
 """`read_kind` で判別する記録前後の応答。既存 `initial` の形は変えない。"""

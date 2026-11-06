@@ -170,13 +170,30 @@ def _read_values(handle, writer, event, projected, generation):
     ) != _json(event.v8):
         raise StatsNativeSourceError
     request = payload.calculation.request
+    from pitchlog.domainrt.lineup_play_prefix_continuation import (
+        NonplayLineupPrefixRequest,
+    )
+
+    nonplay = type(request) is NonplayLineupPrefixRequest
+    position = (
+        request.source_position
+        if nonplay
+        else getattr(request.source, "position", None)
+        if hasattr(request, "source")
+        else None
+    )
     rule = request.rules.model_dump(mode="json", by_alias=True)
     rule_hash = source_fingerprint(rule)
     if hasattr(state, "prefix"):
         if request.rules != state.prefix.checkpoint.rules:
             raise StatsNativeSourceError
         if native["formatVersion"] in ("play-prefix-play-v2", "play-prefix-play-v3"):
-            if request.source.rules_digest != rule_hash:
+            rules_digest = (
+                request.source.checkpoint.content.restored.rules_digest
+                if nonplay
+                else request.source.rules_digest
+            )
+            if rules_digest != rule_hash:
                 raise StatsNativeSourceError
     event_row = _one_row(
         handle,
@@ -212,11 +229,13 @@ def _read_values(handle, writer, event, projected, generation):
     ):
         raise StatsNativeSourceError
     if native["formatVersion"] in ("play-prefix-play-v2", "play-prefix-play-v3"):
+        if position is None:
+            raise StatsNativeSourceError
         if (
             request.play_identity.event_id != str(saved["id"])
             or request.play_identity.d5 != event.d5
-            or request.source.position.d1 != str(event.d1)
-            or request.source.position.d2 != str(projected.v6)
+            or position.d1 != str(event.d1)
+            or position.d2 != str(projected.v6)
         ):
             raise StatsNativeSourceError
     ledger_row = _one_row(

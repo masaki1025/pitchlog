@@ -1028,3 +1028,112 @@ it.each(['single', 'double', 'triple', 'home-run'] as const)(
     )
   },
 )
+
+it.each(['nonplay-prefix-calculation-v1', 'unknown-inner-v1'])(
+  '%sを旧v3slotへ混入してもpublic inspectは数学/UUID/新要求を発行しない',
+  async (inner) => {
+    const post = vi
+      .spyOn(transport, 'postSyncEvents')
+      .mockResolvedValue({ sent: false, reason: 'no-response' })
+    const original = await lineupController()
+    expect(await original.submit(observation, vocabulary)).toBe('pending')
+    const first = post.mock.calls[0]![0]
+    original.dispose()
+    const database = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open('pitchlog-first-ball-queue-' + tenant)
+      request.onsuccess = () => resolve(request.result)
+      request.onerror = () => reject(request.error)
+    })
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const tx = database.transaction('queue', 'readwrite'),
+          store = tx.objectStore('queue')
+        tx.oncomplete = () => resolve()
+        tx.onabort = () => reject(tx.error)
+        tx.onerror = () => reject(tx.error)
+        const request = store.getAll()
+        request.onsuccess = () => {
+          const records = request.result as unknown[]
+          expect(records).toHaveLength(1)
+          const record = records[0]
+          if (!record || typeof record !== 'object' || !('event' in record))
+            throw new Error('試験slot不正')
+          const event = record.event
+          if (!event || typeof event !== 'object' || !('fields' in event))
+            throw new Error('試験event不正')
+          const fields = event.fields
+          if (!fields || typeof fields !== 'object' || !('V7' in fields))
+            throw new Error('試験fields不正')
+          const payload = fields.V7
+          if (
+            !payload ||
+            typeof payload !== 'object' ||
+            !('calculation' in payload)
+          )
+            throw new Error('試験payload不正')
+          if (!payload.calculation || typeof payload.calculation !== 'object')
+            throw new Error('試験calculation不正')
+          Object.defineProperty(payload.calculation, 'formatVersion', {
+            value: inner,
+            enumerable: true,
+            writable: true,
+          })
+          store.put(record)
+        }
+        request.onerror = () => reject(request.error)
+      })
+    } finally {
+      database.close()
+    }
+    const restarted = await lineupController()
+    const math = vi.spyOn(domainWrapper, 'invokeFirstBallDomain')
+    const uuid = vi.spyOn(crypto, 'randomUUID')
+    expect(await restarted.inspect()).toBe('pending')
+    expect(restarted.canAppend).toBe(false)
+    expect(math).not.toHaveBeenCalled()
+    expect(uuid).not.toHaveBeenCalled()
+    expect(post).toHaveBeenCalledTimes(1)
+    expect(post.mock.calls[0]![0]).toBe(first)
+    expect(await slots()).toBe(1)
+  },
+)
+
+it('0件の真正v3 seedから初球送信失敗後も2球目を耐久appendし原要求だけを再送する', async () => {
+  const seed = structuredClone(lineupFixture.value)
+  if (
+    !isLineupPrefixGame(seed) ||
+    seed.prefix_ref.length !== '0' ||
+    seed.next_position.d1 !== '1'
+  )
+    throw new Error('0件の読取seedではありません')
+  const post = vi
+    .spyOn(transport, 'postSyncEvents')
+    .mockResolvedValue({ sent: false, reason: 'no-response' })
+  const c = await lineupController()
+  expect(await c.inspect()).toBe('ready')
+  const pitch = {
+    ...observation,
+    resultId: 'batting-result.called-pitch' as const,
+  }
+  expect(await c.submit(pitch, vocabulary)).toBe('pending')
+  const first = post.mock.calls[0]![0]
+  const original = transport.buildSyncEventRequestBody(first)
+  expect(await c.submit(pitch, vocabulary)).toBe('pending')
+  expect(post).toHaveBeenCalledOnce()
+  expect(await slots()).toBe(2)
+  expect(c.context.source).toBe('local-provisional')
+  expect(c.context.prefixRef.length).toBe('2')
+  expect(c.context.nextPosition.d1).toBe('3')
+  c.dispose()
+  const restored = await lineupController()
+  expect(await restored.inspect()).toBe('pending')
+  expect(restored.context.prefixRef.length).toBe('2')
+  expect(await restored.retry()).toBe('pending')
+  expect(transport.buildSyncEventRequestBody(post.mock.calls[1]![0])).toEqual(
+    original,
+  )
+  expect(post.mock.calls[1]![0].syncCredentials?.attempt).toBe(
+    first.syncCredentials?.attempt,
+  )
+  expect(post.mock.calls[1]![0].slots[0]!.d5).toBe(first.slots[0]!.d5)
+})

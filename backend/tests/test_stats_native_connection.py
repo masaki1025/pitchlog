@@ -44,6 +44,25 @@ MODES = (
 
 def _payload(mode, rig):
     """既固定封筒から値だけを供給し、本testで数学期待を生成しない。"""
+    if mode == "nonplay-prefix-calculation-v1":
+        from test_nonplay_normal_payload import fixture_values
+
+        from pitchlog.sync.terminal_pitch_payload import (
+            LineupPitchPlayPayload,
+            read_lineup_pitch_payload,
+        )
+
+        raw, diff = fixture_values()
+        value = LineupPitchPlayPayload.model_validate_json(json.dumps(raw))
+        return (
+            read_lineup_pitch_payload(
+                json.dumps(raw),
+                json.dumps(diff),
+                expected_calculation=value.calculation,
+            ),
+            raw,
+            diff,
+        )
     if mode == MODES[0]:
         value = FirstBallPlayPayload.model_validate_json(json.dumps(rig.v7))
         return (
@@ -139,17 +158,26 @@ def _payload(mode, rig):
     )
 
 
-@pytest.fixture(params=MODES)
+@pytest.fixture(params=(*MODES, "nonplay-prefix-calculation-v1"))
 def native(request, monkeypatch):
     """認可/実consume/DBは合成と明記し、生存型と原本の拒否だけを検査する。"""
     generator = cast(Any, base_rig).__wrapped__(monkeypatch)
     r = next(generator)
-    mode = request.param
-    payload, raw, diff = _payload(mode, r)
+    profile = request.param
+    mode = MODES[3] if profile == "nonplay-prefix-calculation-v1" else profile
+    payload, raw, diff = _payload(profile, r)
     request_raw = raw["calculation"]["request"]
     prefix = request_raw.get("prefixRef", {})
-    tenant = UUID(prefix.get("tenantId", str(r.context.tenant_id)))
-    game = UUID(prefix.get("gameId", str(r.rows.game_id)))
+    scope = (
+        request_raw.get("source", {})
+        .get("checkpoint", {})
+        .get("content", {})
+        .get("scope", {})
+    )
+    tenant = UUID(
+        scope.get("tenantId", prefix.get("tenantId", str(r.context.tenant_id)))
+    )
+    game = UUID(scope.get("gameId", prefix.get("gameId", str(r.rows.game_id))))
     context = TenantContext(tenant, _ISSUANCE_CAPABILITY)
     r.handle._context, r.handle._bound_tenant_id, r.handle._bound_integrity_proof = (
         context,
@@ -157,8 +185,11 @@ def native(request, monkeypatch):
         context._integrity_proof,
     )
     r.context = context
-    d1 = int(request_raw.get("source", {}).get("position", {}).get("d1", "1"))
-    d2 = int(request_raw.get("source", {}).get("position", {}).get("d2", "1"))
+    position = request_raw.get(
+        "sourcePosition", request_raw.get("source", {}).get("position", {})
+    )
+    d1 = int(position.get("d1", "1"))
+    d2 = int(position.get("d2", "1"))
     identity = request_raw.get("playIdentity", {})
     d5 = UUID(identity.get("d5", str(uuid4())))
     event = SyncEvent(str(d5), str(game), d1, "pure-wire-d4", "1", 0, raw, diff)
@@ -306,11 +337,52 @@ def native(request, monkeypatch):
         )
         state.stats_source_reference = (fr, state.frame_id, payload, *refs)
         monkeypatch.setitem(ordinary._EXECUTIONS, r.key, state)
+    if profile == "nonplay-prefix-calculation-v1":
+        from pitchlog.domainrt.first_ball_projection import _canonical_json
+        from pitchlog.repositories import nonplay_prefix_read as npread
+
+        q = payload.calculation.request
+        original = q.source
+        cp = npread.NonplayCheckpointView(original.checkpoint, 1, 1)
+        roster = SimpleNamespace(model_dump=lambda **_: {"pure": "saved-roster"})
+        prefix = object.__new__(npread.ConfirmedNonplayNormalPrefix)
+        for k, v in dict(
+            checkpoint=cp,
+            source=original,
+            next_play_number=int(original.checkpoint.content.next_physical_play_number),
+            roster=roster,
+            previous_payload=None,
+        ).items():
+            object.__setattr__(prefix, k, v)
+        assert type(state) is ordinary._Execution
+        state.prefix = prefix
+        monkeypatch.setitem(
+            npread._PREFIX_READS,
+            r.key,
+            (
+                prefix,
+                state,
+                _canonical_json(original.model_dump(mode="json", by_alias=True)),
+                _canonical_json({"pure": "saved-roster"}),
+                npread._owner(r.handle),
+                _canonical_json(
+                    {"generation": 1, "epoch": 1, "next": prefix.next_play_number}
+                ),
+                original,
+                cp,
+                roster,
+            ),
+        )
     r.state = state
     try:
         with tx._sync_apply_active():
             yield r
     finally:
+        from pitchlog.repositories.nonplay_prefix_read import (
+            _release_nonplay_normal_prefix,
+        )
+
+        _release_nonplay_normal_prefix(r.handle)
         state.stats_source_reference = None
         state.phase = "closed"
         first._EXECUTIONS.pop(r.key, None)

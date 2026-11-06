@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import copy
+import json
 import subprocess
 import sys
 from dataclasses import FrozenInstanceError
@@ -251,3 +253,129 @@ def test_formal_stamp_invoker_is_the_exact_closed_declaration(field: str) -> Non
         row[field] = "unregistered"
     with pytest.raises(AuthzApplicationStepsError):
         validate_product_application_steps(steps, changed, PRODUCT_SPEC)
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    (
+        "function_id",
+        "function_name",
+        "identity_args",
+        "schema_name",
+        "owner_role_id",
+        "language",
+        "returns",
+        "security_mode",
+        "volatility",
+        "search_path",
+        "acl_expectations",
+        "revoked_acl_expectations",
+        "function_kind_definer",
+        "function_kind_migration",
+        "extra_field",
+        "missing_field",
+        "boolean_as_integer",
+        "tuple_instead_of_list",
+    ),
+)
+def test_formal_nonplay_undo_invoker_requires_all_fields(mutation: str) -> None:
+    """取消用の私有invoker一件だけを全field・全型一致で受理する。"""
+    from pitchlog.authz.asset_spec import (
+        AuthzApplicationStepsError,
+        validate_product_application_steps,
+    )
+    from pitchlog.authz.stats_primitive_product import undo_candidate_declarations
+
+    asset = json.loads((_REPOSITORY_ROOT / PRODUCT_SPEC.ddl_elements_path).read_text())
+    steps_path = PRODUCT_SPEC.application_steps_path
+    assert steps_path is not None
+    steps = json.loads((_REPOSITORY_ROOT / steps_path).read_text())
+    canonical_rows, _ = undo_candidate_declarations()
+    assert len(canonical_rows["functions"]) == 1
+    canonical = canonical_rows["functions"][0]
+    assert (
+        sum(
+            row["function_id"] == canonical["function_id"] for row in asset["functions"]
+        )
+        == 1
+    )
+    assert validate_product_application_steps(steps, asset, PRODUCT_SPEC)
+
+    changed = copy.deepcopy(asset)
+    row = next(
+        item
+        for item in changed["functions"]
+        if item["function_id"] == canonical["function_id"]
+    )
+    if mutation in {
+        "function_id",
+        "function_name",
+        "identity_args",
+        "language",
+        "returns",
+        "security_mode",
+        "volatility",
+    }:
+        row[mutation] = "unregistered"
+    elif mutation == "schema_name":
+        row[mutation] = "public"
+    elif mutation == "owner_role_id":
+        row[mutation] = "pitchlog_owner"
+    elif mutation == "search_path":
+        row[mutation] = ["public"]
+    elif mutation == "acl_expectations":
+        row[mutation] = [
+            {"grantee": "pitchlog_app", "privilege": "EXECUTE", "grantable": False}
+        ]
+    elif mutation == "revoked_acl_expectations":
+        row[mutation] = []
+    elif mutation == "function_kind_definer":
+        row["function_kind"] = "definer"
+        row["security_mode"] = "definer"
+    elif mutation == "function_kind_migration":
+        row["function_kind"] = "migration_function"
+    elif mutation == "extra_field":
+        row["unexpected"] = "value"
+    elif mutation == "missing_field":
+        del row["volatility"]
+    elif mutation == "boolean_as_integer":
+        row["revoked_acl_expectations"][0]["grantable"] = 0
+    else:
+        row["search_path"] = tuple(row["search_path"])
+
+    with pytest.raises(AuthzApplicationStepsError):
+        validate_product_application_steps(steps, changed, PRODUCT_SPEC)
+
+
+def test_unknown_nonplay_named_definer_and_arbitrary_invoker_are_rejected() -> None:
+    """名前だけのdefiner偽装と任意invoker増加を拒否する。"""
+    from pitchlog.authz.asset_spec import (
+        AuthzApplicationStepsError,
+        validate_product_application_steps,
+    )
+
+    asset = json.loads((_REPOSITORY_ROOT / PRODUCT_SPEC.ddl_elements_path).read_text())
+    steps_path = PRODUCT_SPEC.application_steps_path
+    assert steps_path is not None
+    steps = json.loads((_REPOSITORY_ROOT / steps_path).read_text())
+    invoker = next(
+        row
+        for row in asset["functions"]
+        if row["function_name"] == "rebuild_after_nonplay_undo"
+    )
+    for name, kind in (
+        ("rebuild_after_nonplay_undo", "definer"),
+        ("unregistered_invoker", "invoker"),
+    ):
+        changed = copy.deepcopy(asset)
+        row = next(
+            item
+            for item in changed["functions"]
+            if item["function_id"] == invoker["function_id"]
+        )
+        row["function_id"] = "FUNCTION:stats_api:other()"
+        row["function_name"] = name
+        row["function_kind"] = kind
+        row["security_mode"] = kind
+        with pytest.raises(AuthzApplicationStepsError):
+            validate_product_application_steps(steps, changed, PRODUCT_SPEC)

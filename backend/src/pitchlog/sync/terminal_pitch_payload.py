@@ -14,6 +14,8 @@ from pitchlog.domainrt.lineup_play_prefix_continuation import (
     Digest,
     LineupPrefixRequest,
     LineupPrefixSuccess,
+    NonplayLineupPrefixRequest,
+    NonplayLineupPrefixSuccess,
     verify_lineup_wire_seal,
 )
 from pitchlog.domainrt.play_prefix_continuation import (
@@ -229,6 +231,28 @@ class LineupPitchCalculation(_Frozen):
     response: LineupPrefixSuccess
 
 
+class NonplayPitchCalculation(_Frozen):
+    """非play原本からの通常投球。数学提案と保存CPの発行を区別する。"""
+
+    format_version: Literal["nonplay-prefix-calculation-v1"] = Field(
+        alias="formatVersion"
+    )
+    artifact_sha256: Digest = Field(alias="artifactSha256")
+    request: NonplayLineupPrefixRequest
+    response: NonplayLineupPrefixSuccess
+
+    @model_validator(mode="after")
+    def _normal_only(self):
+        """閉normal profileで未提供の打球/非投球を暗黙有効化しない。"""
+        if (
+            self.request.t1.result_id != "batting-result.ball"
+            or self.request.t1.pitch_event_kind != "pitch-event"
+            or self.response.value.t1.plate_appearance_ended is not False
+        ):
+            raise ValueError("非play後normal profile外")
+        return self
+
+
 class _NoErrorScoring(_Frozen):
     """失策なしの明示採用観測。件数や野手を結果から推測しない。"""
 
@@ -248,6 +272,20 @@ class _NoRunnerOverride(_Frozen):
 
     kind: Literal["not-applied"]
     overrides: tuple[()]
+
+
+class _RunnerAdvanceOverride(_Frozen):
+    """記録者が確定した1走者の実到達塁。"""
+
+    runner_base: Literal["1", "2", "3"] = Field(alias="runnerBase")
+    destination: Literal["2", "3", "4"]
+
+
+class _AppliedRunnerOverrides(_Frozen):
+    """空配列を未確認として受理しない明示override。"""
+
+    kind: Literal["applied"]
+    overrides: tuple[_RunnerAdvanceOverride, ...] = Field(min_length=1, max_length=3)
 
 
 class _NoThirdOut(_Frozen):
@@ -307,7 +345,7 @@ class BattedHitPlayObservations(FirstBallObservations):
     batted_ball: _BattedBall = Field(alias="battedBall")
     official_scoring_payload: _NoErrorScoring = Field(alias="officialScoringPayload")
     interference_ruling: _NoInterference = Field(alias="interferenceRuling")
-    runner_advance_overrides: _NoRunnerOverride = Field(
+    runner_advance_overrides: _NoRunnerOverride | _AppliedRunnerOverrides = Field(
         alias="runnerAdvanceOverridesByRunner"
     )
     third_out_observation: _NoThirdOut = Field(alias="thirdOutObservation")
@@ -322,7 +360,19 @@ class LineupPitchPlayPayload(_Frozen):
     format_version: Literal["play-prefix-play-v3"] = Field(alias="formatVersion")
     observations: FirstBallObservations | BattedHitPlayObservations
     participants: OrdinaryPitchParticipants
-    calculation: LineupPitchCalculation
+    calculation: LineupPitchCalculation | NonplayPitchCalculation = Field(
+        discriminator="format_version"
+    )
+
+    @model_validator(mode="after")
+    def _closed_nonplay_observation(self):
+        """通常観測を別profileの打球裁定で代用しない。"""
+        if (
+            type(self.calculation) is NonplayPitchCalculation
+            and type(self.observations) is not FirstBallObservations
+        ):
+            raise ValueError("非play後normal観測以外")
+        return self
 
 
 def read_lineup_pitch_payload(raw_v7, raw_v8, *, expected_calculation):
@@ -331,10 +381,9 @@ def read_lineup_pitch_payload(raw_v7, raw_v8, *, expected_calculation):
         payload = LineupPitchPlayPayload.model_validate_json(raw_v7)
         if _canonical_json(_raw_json(raw_v7)) != _canonical_json(_dump(payload)):
             raise ValueError
-        if (
-            type(payload) is not LineupPitchPlayPayload
-            or type(expected_calculation) is not LineupPitchCalculation
-        ):
+        if type(payload) is not LineupPitchPlayPayload or type(
+            expected_calculation
+        ) not in {LineupPitchCalculation, NonplayPitchCalculation}:
             raise ValueError
         if _canonical_json(_dump(payload.calculation)) != _canonical_json(
             _dump(expected_calculation)
@@ -352,7 +401,27 @@ def read_lineup_pitch_payload(raw_v7, raw_v8, *, expected_calculation):
             != response.value.execution_artifact_sha256
         ):
             raise ValueError
-        verify_lineup_wire_seal(request, response)
+        if type(payload.calculation) is NonplayPitchCalculation:
+            request = payload.calculation.request
+            response = payload.calculation.response
+            if (
+                type(payload.observations) is not FirstBallObservations
+                or request.t1.result_id != "batting-result.ball"
+                or request.prefix_ref != request.source.checkpoint.ref
+                or response.value.previous_prefix_ref != request.prefix_ref
+                or response.value.next_prefix_ref != request.next_checkpoint
+                or response.value.play_identity != request.play_identity
+                or response.value.source_position != request.source_position
+                or payload.calculation.artifact_sha256
+                != request.source.checkpoint.content.execution_artifact_sha256
+            ):
+                raise ValueError
+        elif type(payload.calculation) is LineupPitchCalculation:
+            verify_lineup_wire_seal(
+                payload.calculation.request, payload.calculation.response
+            )
+        else:
+            raise ValueError
         if _canonical_json(_dump(payload.participants)) != _canonical_json(
             _dump(response.value.before_participants)
         ):

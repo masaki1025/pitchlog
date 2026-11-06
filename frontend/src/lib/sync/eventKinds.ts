@@ -111,6 +111,13 @@ export const EVENT_KIND_RULES = [
     hasRevisionOrder: true,
     group: EVENT_KIND_GROUP.B,
   },
+  {
+    id: '13',
+    name: '追記再開',
+    participation: EVENT_PARTICIPATION.LOGICAL_POSITION,
+    hasRevisionOrder: false,
+    group: EVENT_KIND_GROUP.A,
+  },
 ] as const satisfies readonly EventKindDefinition[]
 
 export type EventKind = (typeof EVENT_KIND_RULES)[number]

@@ -2,7 +2,10 @@ import {
   formatLineupPrefixWire,
   isLineupDefinition,
 } from '../api/lineupPrefixWire'
-import type { LineupPlayPrefixV7 } from '../../../contracts/state-transition/lineup_play_prefix_payload_v1'
+import type {
+  LineupPlayPrefixV7,
+  NonplayNormalV7,
+} from '../../../contracts/state-transition/lineup_play_prefix_payload_v1'
 import {
   isLineupRecordingContext,
   prepareLineupPrefix,
@@ -72,6 +75,12 @@ import {
   preparePlayPrefix,
   playPrefixEvent,
 } from './GameScreenOrdinaryPitchProvider'
+/** 旧画面は旧v3計算だけを扱う。NPを旧Source/物理CPへ変換しない。 */
+function isLegacyLineupPayload(
+  value: LineupPlayPrefixV7,
+): value is Exclude<LineupPlayPrefixV7, NonplayNormalV7> {
+  return value.calculation.formatVersion === 'play-prefix-calculation-v3'
+}
 export type OrdinaryOperationResult = 'ready' | 'saved' | 'pending' | 'blocked'
 type Resources = {
   queue: DurableQueue
@@ -263,7 +272,10 @@ export class GameScreenOrdinaryPitchController {
     slot: DurableQueueSlot,
   ): void {
     if (prepared.payload.formatVersion === 'play-prefix-play-v3') {
-      if (!isLineupRecordingContext(this.#context))
+      if (
+        !isLineupRecordingContext(this.#context) ||
+        !isLegacyLineupPayload(prepared.payload)
+      )
         throw new Error('記録形式が一致しません')
       const r = prepared.payload.calculation.response.value,
         q = prepared.payload.calculation.request
@@ -379,6 +391,7 @@ export class GameScreenOrdinaryPitchController {
     try {
       const play = slot.event.fields.V7 as PlayPrefixV7 | LineupPlayPrefixV7
       if (play?.formatVersion === 'play-prefix-play-v3') {
+        if (!isLegacyLineupPayload(play)) return false
         if (
           !isLineupRecordingContext(this.#context) ||
           !isLineupDefinition(play.calculation.request, 'Request') ||
@@ -401,7 +414,7 @@ export class GameScreenOrdinaryPitchController {
           )
         )
           return false
-        const payload = play as unknown as LineupPlayPrefixV7,
+        const payload = play,
           q = payload.calculation.request
         if (
           q.playIdentity.d5 !== slot.d5 ||

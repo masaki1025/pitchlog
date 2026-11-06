@@ -213,6 +213,29 @@ GRANT EXECUTE ON FUNCTION sync_right_api.read_device_state(uuid,uuid) TO pitchlo
     )
 
 
+def render_replay_device_verify_create_sql() -> str:
+    """再掲の資格行を既bind_deviceと同じ述語と行lockで確かめる。"""
+    return f"""CREATE OR REPLACE FUNCTION sync_right_api.verify_replay_device(
+ p_tenant_id uuid,p_device_id uuid,p_credential_digest bytea)
+RETURNS TABLE(device_matches boolean) LANGUAGE plpgsql VOLATILE SECURITY DEFINER
+SET search_path=pg_catalog,pg_temp AS $verify_replay_device$
+DECLARE {_BIND_DECL}
+BEGIN
+ IF session_user <> 'pitchlog_app' OR current_user <> 'pitchlog_sync_right_fn_owner'
+  OR p_tenant_id IS NULL OR p_device_id IS NULL
+  OR p_credential_digest IS NULL
+  OR pg_catalog.octet_length(p_credential_digest) <> 32
+  OR p_tenant_id IS DISTINCT FROM
+   NULLIF(pg_catalog.current_setting('app.tenant_id',true),'')::uuid THEN
+  RAISE EXCEPTION 'sync replay device input rejected' USING ERRCODE='42501';
+ END IF;
+{_BIND_HEAD}
+ RETURN QUERY SELECT {_BIND_MATCH};
+END;
+$verify_replay_device$;
+"""
+
+
 def render_ordinary_stamped_function_sql() -> dict[str, str]:
     """同じ実device/right述語から独立ordinary資格の2関数だけを描画する。
 

@@ -26,7 +26,7 @@ def test_actual_current_s0_and_current_resume_keep_all_structure_and_catalog(
     disposable_postgres_cluster: Any,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """S0から実0041へ配置し、同版再開のmigration0と全catalogを確認する。"""
+    """S0から実0042へ配置し、同版再開のmigration0と全catalogを確認する。"""
     with _fresh_schema_database(disposable_postgres_cluster, monkeypatch) as (
         owner,
         admin,
@@ -46,7 +46,7 @@ def test_actual_current_s0_and_current_resume_keep_all_structure_and_catalog(
             patch.setattr(
                 current.command,
                 "upgrade",
-                lambda *a, **kw: pytest.fail("0041再開でmigrationを呼出した"),
+                lambda *a, **kw: pytest.fail("0042再開でmigrationを呼出した"),
             )
             resumed = current.resume_current_product_after_placement(
                 owner_dsn=owner,
@@ -62,6 +62,10 @@ def test_actual_current_s0_and_current_resume_keep_all_structure_and_catalog(
         "CREATE TABLE sync_fence.stats_fact_versions",
         "CREATE TABLE sync_fence.stats_primitive_sources",
         "CREATE INDEX ix_stats_fact_player_metric",
+        "CREATE TABLE sync_fence.nonplay_write_admissions",
+        "CREATE FUNCTION public.protect_nonplay_admission()",
+        "CREATE TRIGGER trg_nonplay_admission_guard",
+        "CREATE TRIGGER trg_nonplay_admission_no_truncate",
     ],
 )
 def test_actual_current_migration_fault_rolls_back_to_real0039(
@@ -69,7 +73,7 @@ def test_actual_current_migration_fault_rolls_back_to_real0039(
     monkeypatch: pytest.MonkeyPatch,
     statement: str,
 ) -> None:
-    """0040/0041内の途中故障はindex/全3表/revisionを同時に0039へ戻す。"""
+    """0040/0041/0042内の途中故障はindex/全3表/revisionを同時に0039へ戻す。"""
     with _fresh_schema_database(disposable_postgres_cluster, monkeypatch) as (
         owner,
         admin,
@@ -99,8 +103,10 @@ def test_actual_current_migration_fault_rolls_back_to_real0039(
                 "SELECT to_regclass('sync_fence.stats_fact_versions'),"
                 "to_regclass('sync_fence.stats_primitive_sources'),"
                 "to_regclass('sync_fence.stats_primitive_facts'),"
-                "to_regclass('public.ix_admin_vocabularies_batted_ball_key_c')"
-            ).fetchone() == (None, None, None, None)
+                "to_regclass('public.ix_admin_vocabularies_batted_ball_key_c'),"
+                "to_regclass('sync_fence.nonplay_write_admissions'),"
+                "to_regprocedure('public.protect_nonplay_admission()')"
+            ).fetchone() == (None, None, None, None, None, None)
         # 旧0039からの実再開で同じ固定currentを完了する。
         result = current.resume_current_product_after_placement(
             owner_dsn=owner,
@@ -112,7 +118,40 @@ def test_actual_current_migration_fault_rolls_back_to_real0039(
 @pytest.mark.parametrize(
     "tamper",
     [
+        (
+            "REVOKE SELECT (xmin) ON public.event_slots "
+            "FROM pitchlog_sync_right_fn_owner"
+        ),
+        "GRANT SELECT (xmin) ON public.event_slots TO pitchlog_app",
+        (
+            "GRANT SELECT (xmin) ON public.event_slots TO "
+            "pitchlog_sync_right_fn_owner WITH GRANT OPTION"
+        ),
         "ALTER TABLE sync_fence.stats_primitive_facts NO FORCE ROW LEVEL SECURITY",
+        "ALTER TABLE sync_fence.nonplay_write_admissions NO FORCE ROW LEVEL SECURITY",
+        (
+            "ALTER TABLE sync_fence.nonplay_write_admissions ADD CO"
+            "LUMN unknown_value bigint"
+        ),
+        "ALTER TABLE sync_fence.nonplay_write_admissions OWNER TO pitchlog_app",
+        (
+            "ALTER TABLE sync_fence.nonplay_write_admissions DROP C"
+            "ONSTRAINT fk_nonplay_admission_binding"
+        ),
+        "GRANT EXECUTE ON FUNCTION public.protect_nonplay_admission() TO PUBLIC",
+        "GRANT EXECUTE ON FUNCTION public.protect_nonplay_admission() TO pitchlog_app",
+        "ALTER FUNCTION public.protect_nonplay_admission() SECURITY DEFINER",
+        "ALTER TABLE sync_fence.nonplay_write_admissions "
+        "ALTER CONSTRAINT fk_nonplay_admission_event NOT DEFERRABLE",
+        "DROP INDEX sync_fence.uq_nonplay_consumed_target",
+        (
+            "ALTER TABLE sync_fence.nonplay_write_admissions DISABL"
+            "E TRIGGER trg_nonplay_admission_guard"
+        ),
+        (
+            "DROP TRIGGER trg_nonplay_admission_no_truncate ON sync"
+            "_fence.nonplay_write_admissions"
+        ),
         "ALTER TABLE sync_fence.stats_primitive_facts ADD COLUMN unknown_value bigint",
         "ALTER TABLE sync_fence.stats_primitive_facts "
         "DROP CONSTRAINT ck_stats_fact_ordinal",
@@ -154,12 +193,12 @@ def test_actual_current_resume_rejects_structure_or_acl_tamper_without_repair(
 
 
 @pytest.mark.parametrize("partial", [False, True])
-def test_actual_prefull0041_resume_has_no_migration_and_rejects_partial_acl(
+def test_actual_prefull0042_resume_has_no_migration_and_rejects_partial_acl(
     disposable_postgres_cluster: Any,
     monkeypatch: pytest.MonkeyPatch,
     partial: bool,
 ) -> None:
-    """真0041/default-denyは再開し、canonicalの一部grantだけでも混合は拒否する。"""
+    """真0042/default-denyは再開し、canonicalの一部grantだけでも混合は拒否する。"""
     with _fresh_schema_database(disposable_postgres_cluster, monkeypatch) as (
         owner,
         admin,
@@ -186,7 +225,7 @@ def test_actual_prefull0041_resume_has_no_migration_and_rejects_partial_acl(
             patch.setattr(
                 current.command,
                 "upgrade",
-                lambda *a, **kw: pytest.fail("0041再開migration"),
+                lambda *a, **kw: pytest.fail("0042再開migration"),
             )
             if partial:
                 patch.setattr(

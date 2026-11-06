@@ -283,7 +283,7 @@ it('storage同期とは独立にteamId不一致を本文前に拒否する', asy
 })
 
 it.each(['/games', '/games/33333333-3333-4333-8333-333333333333'])(
-  '%sの通信/abortはCookie不確実性を一度通知し再送しない',
+  '%sの同提示token限定routeは通信断でも確認済み認証を保持する',
   async (path) => {
     const auth = useAuthStore()
     const notice = vi.spyOn(auth, 'invalidateUncertainCookie')
@@ -291,11 +291,22 @@ it.each(['/games', '/games/33333333-3333-4333-8333-333333333333'])(
     await expect(
       apiRequest('GET', path, { tenantBound: true }),
     ).rejects.toThrow()
-    expect(notice).toHaveBeenCalledTimes(1)
+    expect(notice).not.toHaveBeenCalled()
     expect(fetch).toHaveBeenCalledTimes(1)
-    expect(auth.isAuthenticated).toBe(false)
+    expect(auth.isAuthenticated).toBe(true)
   },
 )
+it.each([
+  '/games/33333333-3333-4333-8333-333333333333/unknown',
+  '/games/unknown',
+])('%sの未宣言routeはCookie不確実性を通知する', async (path) => {
+  const auth = useAuthStore()
+  const notice = vi.spyOn(auth, 'invalidateUncertainCookie')
+  vi.mocked(fetch).mockRejectedValue(new TypeError('通信失敗'))
+  await expect(apiRequest('GET', path, { tenantBound: true })).rejects.toThrow()
+  expect(notice).toHaveBeenCalledTimes(1)
+  expect(auth.isAuthenticated).toBe(false)
+})
 it('gamesに似た別経路をCookie更新分類へ広げない', async () => {
   const notice = vi.spyOn(useAuthStore(), 'invalidateUncertainCookie')
   vi.mocked(fetch).mockRejectedValue(new TypeError('通信失敗'))

@@ -10,6 +10,7 @@ from fastapi.routing import APIRoute
 from starlette.concurrency import run_in_threadpool
 from starlette.types import Receive, Scope, Send
 
+from pitchlog.api.cookie_identity import mark_same_token_cookie_route
 from pitchlog.api.request_presentation import RequestGateError, require_presented_token
 from pitchlog.repositories.context import TenantContext
 
@@ -28,6 +29,7 @@ _MATCH_OPERATIONS = frozenset(
         "pitch_type_options",
         "batted_ball_options",
         "started_game_detail",
+        "sync_events",
         "initial_device_enroll",
         "initial_game_start",
         "initial_game_start_resolve",
@@ -73,6 +75,9 @@ class TenantMatchedRoute(APIRoute):
         if self.operation_id in _MATCH_OPERATIONS and (
             self.methods is None or scope["method"] in self.methods
         ):
+            mark_same_token_cookie_route(
+                scope, self.operation_id, scope["method"], self.path
+            )
             request = Request(scope, receive)
             request.scope.setdefault("state", {})[_MATCH_ROUTE_STATE] = True
             value = await require_presented_token(request)

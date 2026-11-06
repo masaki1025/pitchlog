@@ -8,12 +8,12 @@
     "backend/domain/model.schema.json": "ec6b8b9c90e37a22e4f57005df4e227380a0fc20d397a02cdee317e02892ac9a",
     "backend/domain/play-export.model.json": "3ee265ce3586b793f8e48853e07548dfd700bd94fe988af1a63190e8626e073b",
     "backend/domain/stats.model.json": "a3a7643780f7e430309b909d4c1b23a72da87b327afc5e1be2ff7c9da8244773",
-    "backend/src/pitchlog/domaingen/core.py": "70a4daf7661700dce294a38cfb6b8c82a7283a68f70ba2b136df6b60a6578224",
-    "backend/src/pitchlog/domaingen/pregen_checks.py": "72f558898fb535107e588eb03724ae106b8484544c0ccd50123d54df1621ba15",
-    "backend/src/pitchlog/domaingen/formatter.py": "30eddd35a628e7fcd17aae607dd6ad5a1349b322c814d2a68fa46c8d41ae18ef",
+    "backend/src/pitchlog/domaingen/core.py": "1f790cbfb3081d60913196047ac959ddedd956521b411d518fadc0f26dcec8e0",
+    "backend/src/pitchlog/domaingen/pregen_checks.py": "7204dce977848430c2d9268d22ec88c3ef3f888a2c1f8a930a873d0bd3fbb52a",
+    "backend/src/pitchlog/domaingen/formatter.py": "024e19d69f1f02f90219e165c299ab860f981cf5a8ae0813668767214631abf0",
     "backend/src/pitchlog/domaingen/backends/python.py": "9d7aeaca7fba1458bb20bcf1a3b7fcfbd735fe9d7511a7f2c1a4fd3c20cb51bd",
     "backend/src/pitchlog/domaingen/backends/typescript.py": "b9c4458d10a3e872c45dcd5b5d24bbaf6f01f86df5ea71c84002b81b1213d468",
-    "backend/src/pitchlog/domaingen/backends/sql.py": "e0fb3a4956a47eafd6bca64c19740b6d6432c3dafda8668d4234e144ca270ffb"
+    "backend/src/pitchlog/domaingen/backends/sql.py": "ca1aae6dd6738ada2d52bf4ec806a3a7ee17dd997f94cff9b6e4ade1c97091eb"
   },
   "generatedFiles": {
     "backend/src/pitchlog/stats/generated/facts.py": "a7ca0116a1bcb53af2cfe77f9535af08da635a53b1bbe0b06bf7bd241bb31ce6",
@@ -179,9 +179,9 @@
     "generatedSha256": "15c204f47a30789180e2866153ea787cc422b3e4c1ee8a47950698bcac3d6cd8",
     "generatorInputs": {
       "backend/domain/play-export.model.json": "3ee265ce3586b793f8e48853e07548dfd700bd94fe988af1a63190e8626e073b",
-      "backend/src/pitchlog/domaingen/core.py": "70a4daf7661700dce294a38cfb6b8c82a7283a68f70ba2b136df6b60a6578224",
+      "backend/src/pitchlog/domaingen/core.py": "1f790cbfb3081d60913196047ac959ddedd956521b411d518fadc0f26dcec8e0",
       "backend/src/pitchlog/domaingen/backends/python.py": "9d7aeaca7fba1458bb20bcf1a3b7fcfbd735fe9d7511a7f2c1a4fd3c20cb51bd",
-      "backend/src/pitchlog/domaingen/formatter.py": "30eddd35a628e7fcd17aae607dd6ad5a1349b322c814d2a68fa46c8d41ae18ef"
+      "backend/src/pitchlog/domaingen/formatter.py": "024e19d69f1f02f90219e165c299ab860f981cf5a8ae0813668767214631abf0"
     },
     "t5ArtifactSetUnchanged": false,
     "note": "共通OPSのcomponent accessorを同一生成核へ追加。既OPS数学/TS/SQL/receiver/formatterは不変だがPython生成byteとT5 artifact set IDは更新。旧版を新しいcurrentへ暗黙に刻印しない。"
@@ -200,5 +200,16 @@
       "usage": "historical identity only; no automatic current write qualification or series relabeling",
       "sourceRevision": "a59c654e3366d2be9c6456e47b07118e1674bce2"
     }
-  ]
+  ],
+  "nativeCanonicalSelection": {
+    "version": 1,
+    "profilePath": "backend/domain/play-export-undo-selection.model.json",
+    "profileFileSha256": "d118c68e066da1a0496696e54e5bf36d86d301dd66c293347061ed79f050cb53",
+    "profileSha256": "sha256:1bb498c4f426e0d9d8437e99ea09d6241a328643f4f0bd88d2e1aa09589dfcc9",
+    "generatedFiles": {
+      "backend/src/pitchlog/exports/generated/play_primitives_native.sql": "4f41e399ed26cd1d42d588317e55f2c61f9930ab3d81ee4fc1928dd204ee7bc2",
+      "backend/src/pitchlog/stats/generated/stats_native.sql": "7fef393ccb140bbc82ff4044ef6d575f9c45ca6e85e3389677b8562cf4a5e93d",
+      "backend/src/pitchlog/stats/generated/stats_rates_native.sql": "71339a72654343577c4d92c1627aff0e0fb5cf4bbecb2c325baa93a8682efd0d"
+    }
+  }
 }

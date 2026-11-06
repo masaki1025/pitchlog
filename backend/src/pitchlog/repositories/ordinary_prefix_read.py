@@ -143,7 +143,15 @@ def read_ordinary_prefix(
     game = games[0]
     if game["tenant_id"] != tenant or game["id"] != game_id:
         raise OrdinaryPrefixError
-    if game["status"] != "in_progress" or any(
+    from pitchlog.repositories.game_lifecycle import _finished_lifecycle_read_allowed
+
+    if (
+        game["status"] != "in_progress"
+        and not (
+            game["status"] == "finished"
+            and _finished_lifecycle_read_allowed(handle, game_id)
+        )
+    ) or any(
         game[key] is not None for key in ("trashed_at", "hidden_at", "import_batch_id")
     ):
         return StartedReadNotVisible()
@@ -182,6 +190,28 @@ def read_ordinary_prefix(
     if type(epoch) is not int or not 0 < epoch < 2**63:
         raise OrdinaryPrefixError
     tail = summary["tail"]
+    if _lineup_prefix:
+        probe = _function_one(handle, OrdinaryCheckpointReadToken(game_id, generation))
+        if (
+            type(probe) is dict
+            and probe.get("kind") == "checkpoint"
+            and probe.get("row", {}).get("content", {}).get("formatVersion")
+            == "nonplay-prefix-checkpoint-v1"
+        ):
+            return _read_nonplay_projection(
+                handle,
+                game_id,
+                tenant,
+                game,
+                generation,
+                epoch,
+                n,
+                d4,
+                probe["row"],
+                tail,
+                limit,
+                cursor,
+            )
     if (n == 0 and tail is not None) or (
         n > 0
         and (
@@ -673,7 +703,11 @@ def _verify_v2_read_packet(item, tenant, game_id, *, lineup=False):
         play_number=p["play_number"],
     )
     runners = runner_physical_rows(
-        q.source.runners, t1=value.t1, tenant_id=tenant, play_id=UUID(p["id"])
+        q.source.runners,
+        t1=value.t1,
+        t1_input=q.t1,
+        tenant_id=tenant,
+        play_id=UUID(p["id"]),
     )
     if (
         p != expected
@@ -880,6 +914,10 @@ def _evaluate_lineup_payload(raw):
     )
 
     payload = LineupPitchPlayPayload.model_validate_json(_canonical_json(raw))
+    from pitchlog.sync.terminal_pitch_payload import LineupPitchCalculation
+
+    if type(payload.calculation) is not LineupPitchCalculation:
+        raise OrdinaryPrefixError
     actual = evaluate_lineup_prefix_continuation(payload.calculation.request)
     if _canonical_json(
         actual.model_dump(mode="json", by_alias=True, exclude_unset=True)
@@ -1135,3 +1173,63 @@ def _read_lineup_projection(
         page={"items": items, "next_cursor": next_cursor},
     )
     return OrdinaryPrefixView(metadata, projection)
+
+
+def _read_nonplay_projection(
+    handle, game_id, tenant, game, generation, epoch, n, d4, row, tail, limit, cursor
+):
+    """非play後D3を実head/active/物理採番と分離したreadonly projection。"""
+    from pitchlog.domainrt.initial_game_roster import InitialRosterProjection
+    from pitchlog.repositories.nonplay_prefix_read import (
+        check_storage_row,
+        checked_checkpoint,
+        read_active_page,
+    )
+
+    cp = checked_checkpoint(
+        row["content"], tenant=tenant, game=game_id, generation=d4, d3=n
+    )
+    check_storage_row(
+        row, cp, tenant=tenant, game=game_id, generation=generation, epoch=epoch, d3=n
+    )
+    if (
+        type(tail) is not dict
+        or tail.get("tenant_id") != str(tenant)
+        or tail.get("game_id") != str(game_id)
+        or type(tail.get("d2")) is not int
+        or not 0 <= tail["d2"] < 2**63 - 1000
+    ):
+        raise OrdinaryPrefixError
+    page = read_active_page(
+        handle, cp, generation=generation, limit=limit, cursor=cursor
+    )
+    roster = InitialRosterProjection.model_validate_json(_canonical_json(row["roster"]))
+    saved = _rows(handle.run(StartedLineupsReadToken(game_id)), LINEUP_COLUMNS)
+    if len(saved) != 2 or any(
+        x["tenant_id"] != tenant or x["game_id"] != game_id for x in saved
+    ):
+        raise OrdinaryPrefixError
+    lineups = tuple(_saved_lineup(x) for x in saved)
+    sides = tuple(
+        next(x for x in lineups if x.team_id == game[k])
+        for k in ("away_team_record_id", "home_team_record_id")
+    )
+    metadata = _prefix_metadata(game, game_id, d4, sides, roster)
+    return OrdinaryPrefixView(
+        metadata,
+        {
+            "profile": "nonplay-prefix-read-v1",
+            "checkpoint": cp,
+            "after": cp.content.restored.current,
+            "next_position": {"d1": str(n + 1), "d2": str(tail["d2"] + 1000)},
+            "recovery_generation": str(epoch),
+            "last_saved_at": row["saved_at"],
+            "page": page,
+            "append_policy": {
+                "version": "ordinary-append-v1",
+                "first_d2": "1",
+                "d2_gap": "1000",
+                "max_d2": "9007199254740991",
+            },
+        },
+    )

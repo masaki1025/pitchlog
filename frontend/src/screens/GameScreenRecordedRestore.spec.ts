@@ -11,7 +11,9 @@ import { createAppRouter } from '../router'
 import { useAuthStore } from '../stores/authStore'
 import GameScreenRecordedRestore from './GameScreenRecordedRestore.vue'
 import GameScreenOrdinaryPitch from './GameScreenOrdinaryPitch.vue'
-import { ApiError } from '../api/client'
+import GameScreenUndoProduct from './GameScreenUndoProduct.vue'
+import { ApiError, ApiNetworkError } from '../api/client'
+import { IDBFactory, IDBKeyRange } from 'fake-indexeddb'
 import { GameStartPersistence } from '../lib/gameStartPersistence'
 
 vi.mock('../api/startedGame', async (importOriginal) => ({
@@ -84,8 +86,12 @@ async function mountRestore(
   await router.push(`/games/${game}/record`)
   await router.isReady()
   const wrapper = mount(GameScreenRecordedRestore, {
+    attachTo: document.body,
     props,
-    global: { plugins: [pinia, router] },
+    global: {
+      plugins: [pinia, router],
+      stubs: { GameScreenUndoProduct: true },
+    },
   })
   wrappers.push(wrapper)
   await flushPromises()
@@ -107,6 +113,7 @@ beforeEach(() => {
 afterEach(() => {
   for (const wrapper of wrappers.splice(0)) wrapper.unmount()
   vi.restoreAllMocks()
+  vi.unstubAllGlobals()
 })
 
 it('記録済みはafterを現在として表示し、beforeへ戻さない', async () => {
@@ -691,7 +698,34 @@ function lineupReadFixture() {
   if (!lineupRead.isLineupPrefixGame(value)) throw new Error('構造fixture不正')
   return value
 }
+function mockLineupStart() {
+  const source = lineupReadFixture()
+  vi.stubGlobal('indexedDB', new IDBFactory())
+  vi.stubGlobal('IDBKeyRange', IDBKeyRange)
+  vi.stubGlobal('isSecureContext', true)
+  vi.spyOn(GameStartPersistence, 'open').mockResolvedValue({
+    readDevice: async () => ({
+      tenant_id: tenant,
+      device_id: tenant,
+      device_credential: 'unit-only',
+    }),
+    readStart: async () => ({
+      status: 'received',
+      grant: {
+        device_id: tenant,
+        start_request_id: source.prefix_ref.origin.eventId,
+        d4: source.current_d4,
+        away_lineup_id: source.lineups.away.lineup_id,
+        home_lineup_id: source.lineups.home.lineup_id,
+        recovery_generation: source.recovery_generation,
+        recording_right_proof: 'unit-only-proof',
+      },
+    }),
+    close: () => {},
+  } as unknown as GameStartPersistence)
+}
 it('明示入口から新projectionを読み、query保持で再取得しても旧GETへ戻らない', async () => {
+  mockLineupStart()
   const read = vi
     .spyOn(lineupRead, 'readLineupPrefixGame')
     .mockResolvedValue({ kind: 'found', game: lineupReadFixture() })
@@ -706,7 +740,9 @@ it('明示入口から新projectionを読み、query保持で再取得しても�
     .trigger('click')
   await flushPromises()
   await vi.waitFor(() => expect(read).toHaveBeenCalledTimes(1))
-  expect(wrapper.get('[data-testid="restore-balls"]').text()).toBe('0')
+  await vi.waitFor(() =>
+    expect(wrapper.get('[data-testid="restore-balls"]').text()).toBe('0'),
+  )
   expect(ordinaryRead.readPlayPrefixGame).toHaveBeenCalledTimes(oldCalls)
   expect(wrapper.text()).not.toContain('play-prefix-v3')
 })
@@ -761,4 +797,105 @@ it('読取途中の入口変更はauto=falseでも旧v3応答を採用しない'
   await flushPromises()
   expect(wrapper.find('[data-testid="restore-balls"]').exists()).toBe(false)
   expect(wrapper.text()).not.toContain('を取得しました')
+})
+
+it('真正NP sourceの通知で旧表示を隠し、取得失敗通知なら再び旧表示へ戻す', async () => {
+  vi.mocked(readStartedGame).mockResolvedValue({
+    kind: 'found',
+    game: recorded(),
+  })
+  const wrapper = await mountRestore()
+  const panel = wrapper.findComponent(GameScreenUndoProduct)
+  expect(panel.exists()).toBe(true)
+  expect(panel.props('gameId')).toBe(game)
+  const old = wrapper.get('section[aria-label="サーバーから復元した状態"]')
+  expect(old.isVisible()).toBe(true)
+  panel.vm.$emit('state', true)
+  await flushPromises()
+  expect(old.isVisible()).toBe(false)
+  panel.vm.$emit('state', false)
+  await flushPromises()
+  expect(old.isVisible()).toBe(true)
+})
+
+it('取消保存通知後は既サーバー再取得へ接続し、通知だけで値を変更しない', async () => {
+  vi.mocked(readStartedGame).mockResolvedValue({
+    kind: 'found',
+    game: recorded(),
+  })
+  const wrapper = await mountRestore()
+  const before = vi.mocked(readStartedGame).mock.calls.length
+  wrapper.findComponent(GameScreenUndoProduct).vm.$emit('saved')
+  await flushPromises()
+  expect(vi.mocked(readStartedGame).mock.calls.length).toBe(before + 1)
+  expect(wrapper.get('[data-testid="restore-balls"]').text()).toBe('1')
+})
+
+it('auto=falseでは取消panelの自動取得を起動しない', async () => {
+  const wrapper = await mountRestore({ auto: false })
+  expect(wrapper.findComponent(GameScreenUndoProduct).exists()).toBe(false)
+  expect(readStartedGame).not.toHaveBeenCalled()
+})
+
+it('開始ACK後の真正0件v3 GETを保存後readyにし、通信断reloadで同seedから通常入力を復元する', async () => {
+  mockLineupStart()
+  const read = vi
+    .spyOn(lineupRead, 'readLineupPrefixGame')
+    .mockResolvedValueOnce({ kind: 'found', game: lineupReadFixture() })
+    .mockRejectedValue(new ApiNetworkError(new TypeError('offline')))
+  const wrapper = await mountRestore({ auto: false })
+  await wrapper.vm.$router.replace({ query: { recording: 'play-prefix-v3' } })
+  await wrapper.get('button').trigger('click')
+  await vi.waitFor(() =>
+    expect(wrapper.findComponent(GameScreenOrdinaryPitch).exists()).toBe(true),
+  )
+  expect(wrapper.text()).toContain('サーバーの記録を取得しました')
+  wrapper.unmount()
+  const again = await mountRestore({ auto: false })
+  await again.vm.$router.replace({ query: { recording: 'play-prefix-v3' } })
+  await again.get('button').trigger('click')
+  await vi.waitFor(() => expect(again.text()).toContain('通信断中です'))
+  await vi.waitFor(() =>
+    expect(again.findComponent(GameScreenOrdinaryPitch).exists()).toBe(true),
+  )
+  expect(again.text()).toContain('開始済み（記録前）')
+  expect(read).toHaveBeenCalledTimes(2)
+  expect(
+    again.getComponent(GameScreenOrdinaryPitch).props('context').prefixRef
+      .length,
+  ).toBe('0')
+})
+
+it('真正seed保存失敗では開始受理と断中入力準備未了を分け、HTTP拒否をoffline成功へ変えない', async () => {
+  mockLineupStart()
+  vi.stubGlobal('isSecureContext', false)
+  const read = vi
+    .spyOn(lineupRead, 'readLineupPrefixGame')
+    .mockResolvedValueOnce({ kind: 'found', game: lineupReadFixture() })
+    .mockRejectedValue(new ApiError(401, 'unauthorized', [], undefined, null))
+  const wrapper = await mountRestore({ auto: false })
+  await wrapper.vm.$router.replace({ query: { recording: 'play-prefix-v3' } })
+  await wrapper.get('button').trigger('click')
+  await vi.waitFor(() =>
+    expect(wrapper.text()).toContain('断中入力の準備は未完了'),
+  )
+  expect(wrapper.findComponent(GameScreenOrdinaryPitch).exists()).toBe(false)
+  vi.stubGlobal('isSecureContext', true)
+  await wrapper.get('button').trigger('click')
+  await vi.waitFor(() => expect(read).toHaveBeenCalledTimes(2))
+  expect(wrapper.findComponent(GameScreenOrdinaryPitch).exists()).toBe(false)
+})
+
+it('開始ACK済みでseed未取得の通信断は入力準備未了を示し、仮seedを作らない', async () => {
+  mockLineupStart()
+  vi.spyOn(lineupRead, 'readLineupPrefixGame').mockRejectedValue(
+    new ApiNetworkError(new TypeError('offline')),
+  )
+  const wrapper = await mountRestore({ auto: false })
+  await wrapper.vm.$router.replace({ query: { recording: 'play-prefix-v3' } })
+  await wrapper.get('button').trigger('click')
+  await vi.waitFor(() =>
+    expect(wrapper.text()).toContain('断中入力の準備は未完了'),
+  )
+  expect(wrapper.findComponent(GameScreenOrdinaryPitch).exists()).toBe(false)
 })

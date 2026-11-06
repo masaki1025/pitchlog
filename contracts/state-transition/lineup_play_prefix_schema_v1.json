@@ -1513,6 +1513,745 @@
         }
       ]
     },
+    "T1Input": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/PitchT1Input"
+        },
+        {
+          "$ref": "#/$defs/BattedHitT1Input"
+        }
+      ]
+    },
+    "T1": {
+      "type": "object",
+      "properties": {
+        "countEffect": {
+          "type": "object",
+          "properties": {
+            "strikes": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "const": "reset"
+                    }
+                  },
+                  "required": [
+                    "kind"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "const": "unchanged"
+                    }
+                  },
+                  "required": [
+                    "kind"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "const": "delta"
+                    },
+                    "value": {
+                      "const": "1"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "value"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "balls": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "const": "reset"
+                    }
+                  },
+                  "required": [
+                    "kind"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "const": "unchanged"
+                    }
+                  },
+                  "required": [
+                    "kind"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "const": "delta"
+                    },
+                    "value": {
+                      "const": "1"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "value"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            }
+          },
+          "required": [
+            "strikes",
+            "balls"
+          ],
+          "additionalProperties": false
+        },
+        "plateAppearanceEnded": {
+          "type": "boolean"
+        },
+        "batterDestination": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "continue"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "reach"
+                },
+                "base": {
+                  "const": "1"
+                }
+              },
+              "required": [
+                "kind",
+                "base"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "out"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "reach"
+                },
+                "base": {
+                  "const": "2"
+                }
+              },
+              "required": [
+                "kind",
+                "base"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "reach"
+                },
+                "base": {
+                  "const": "3"
+                }
+              },
+              "required": [
+                "kind",
+                "base"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "score"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        },
+        "runnerDefaultAdvance": {
+          "type": "object",
+          "properties": {
+            "first": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "modality": {
+                      "enum": [
+                        "hold",
+                        "not-applicable"
+                      ]
+                    },
+                    "destination": {
+                      "const": null
+                    }
+                  },
+                  "required": [
+                    "modality",
+                    "destination"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "modality": {
+                      "enum": [
+                        "optional",
+                        "forced"
+                      ]
+                    },
+                    "destination": {
+                      "enum": [
+                        "1",
+                        "2",
+                        "3",
+                        "4"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "modality",
+                    "destination"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "second": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "modality": {
+                      "enum": [
+                        "hold",
+                        "not-applicable"
+                      ]
+                    },
+                    "destination": {
+                      "const": null
+                    }
+                  },
+                  "required": [
+                    "modality",
+                    "destination"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "modality": {
+                      "enum": [
+                        "optional",
+                        "forced"
+                      ]
+                    },
+                    "destination": {
+                      "enum": [
+                        "1",
+                        "2",
+                        "3",
+                        "4"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "modality",
+                    "destination"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "third": {
+              "oneOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "modality": {
+                      "enum": [
+                        "hold",
+                        "not-applicable"
+                      ]
+                    },
+                    "destination": {
+                      "const": null
+                    }
+                  },
+                  "required": [
+                    "modality",
+                    "destination"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "modality": {
+                      "enum": [
+                        "optional",
+                        "forced"
+                      ]
+                    },
+                    "destination": {
+                      "enum": [
+                        "1",
+                        "2",
+                        "3",
+                        "4"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "modality",
+                    "destination"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            }
+          },
+          "required": [
+            "first",
+            "second",
+            "third"
+          ],
+          "additionalProperties": false
+        },
+        "outEffect": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "count": {
+                  "const": "0"
+                },
+                "targets": {
+                  "const": []
+                }
+              },
+              "required": [
+                "count",
+                "targets"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "count": {
+                  "const": "1"
+                },
+                "targets": {
+                  "const": [
+                    "batter"
+                  ]
+                }
+              },
+              "required": [
+                "count",
+                "targets"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "count": {
+                  "const": "2"
+                },
+                "targets": {
+                  "const": [
+                    "batter",
+                    {
+                      "runner": "1"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "count",
+                "targets"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        },
+        "statFlags": {
+          "$ref": "#/$defs/StatFlags"
+        },
+        "after": {
+          "$ref": "#/$defs/Snapshot"
+        }
+      },
+      "required": [
+        "countEffect",
+        "plateAppearanceEnded",
+        "batterDestination",
+        "runnerDefaultAdvance",
+        "outEffect",
+        "statFlags",
+        "after"
+      ],
+      "additionalProperties": false
+    },
+    "Success": {
+      "type": "object",
+      "properties": {
+        "ok": {
+          "const": true
+        },
+        "value": {
+          "$ref": "#/$defs/Value"
+        }
+      },
+      "required": [
+        "ok",
+        "value"
+      ],
+      "additionalProperties": false
+    },
+    "Failure": {
+      "type": "object",
+      "properties": {
+        "ok": {
+          "const": false
+        },
+        "error": {
+          "type": "object",
+          "properties": {
+            "code": {
+              "enum": [
+                "INVALID_JSON",
+                "INVALID_REQUEST",
+                "INVALID_DECIMAL_INTEGER",
+                "UNSUPPORTED_T1_SCOPE",
+                "T2_NOT_EVALUATED",
+                "PREFIX_SOURCE_MISMATCH"
+              ]
+            }
+          },
+          "required": [
+            "code"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "ok",
+        "error"
+      ],
+      "additionalProperties": false
+    },
+    "Response": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/Success"
+        },
+        {
+          "$ref": "#/$defs/Failure"
+        }
+      ]
+    },
+    "PitchT1Input": {
+      "type": "object",
+      "properties": {
+        "eventKind": {
+          "const": "batting-result"
+        },
+        "resultId": {
+          "enum": [
+            "batting-result.called-pitch",
+            "batting-result.swinging-strike",
+            "batting-result.ball",
+            "batting-result.foul",
+            "batting-result.walk",
+            "batting-result.hit-by-pitch",
+            "batting-result.called-strikeout",
+            "batting-result.swinging-strikeout",
+            "batting-result.k3",
+            "batting-result.strikeout-double-play"
+          ]
+        },
+        "pitchEventKind": {
+          "const": "pitch-event"
+        },
+        "before": {
+          "$ref": "#/$defs/Snapshot"
+        }
+      },
+      "required": [
+        "eventKind",
+        "resultId",
+        "pitchEventKind",
+        "before"
+      ],
+      "additionalProperties": false
+    },
+    "BattedHitT1Input": {
+      "type": "object",
+      "properties": {
+        "eventKind": {
+          "const": "batting-result"
+        },
+        "resultId": {
+          "enum": [
+            "batting-result.single",
+            "batting-result.double",
+            "batting-result.triple",
+            "batting-result.home-run"
+          ]
+        },
+        "pitchEventKind": {
+          "const": "pitch-event"
+        },
+        "before": {
+          "$ref": "#/$defs/Snapshot"
+        },
+        "officialScoringPayload": {
+          "const": "no-error"
+        },
+        "interferenceRuling": {
+          "const": "not-required"
+        },
+        "runnerAdvanceOverrides": {
+          "oneOf": [
+            {
+              "const": "not-applied"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "applied"
+                },
+                "overrides": {
+                  "type": "array",
+                  "minItems": 1,
+                  "maxItems": 3,
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "runnerBase": {
+                        "enum": [
+                          "1",
+                          "2",
+                          "3"
+                        ]
+                      },
+                      "destination": {
+                        "enum": [
+                          "2",
+                          "3",
+                          "4"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "runnerBase",
+                      "destination"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              },
+              "required": [
+                "kind",
+                "overrides"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        },
+        "thirdOutObservation": {
+          "const": "none"
+        }
+      },
+      "required": [
+        "eventKind",
+        "resultId",
+        "pitchEventKind",
+        "before",
+        "officialScoringPayload",
+        "interferenceRuling",
+        "runnerAdvanceOverrides",
+        "thirdOutObservation"
+      ],
+      "additionalProperties": false
+    },
+    "NonplaySource": {
+      "$ref": "https://pitchlog.example/contracts/state-transition/nonplay_prefix_bridge_schema_v1.json#/$defs/Source"
+    },
+    "NonplayRequest": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "const": "nonplay-continuation-v1"
+        },
+        "prefixRef": {
+          "$ref": "#/$defs/Checkpoint"
+        },
+        "rules": {
+          "$ref": "#/$defs/SavedRuleWire"
+        },
+        "t1": {
+          "$ref": "#/$defs/T1Input"
+        },
+        "source": {
+          "$ref": "#/$defs/NonplaySource"
+        },
+        "playIdentity": {
+          "$ref": "#/$defs/PlayIdentity"
+        },
+        "nextCheckpoint": {
+          "$ref": "#/$defs/Checkpoint"
+        },
+        "sourcePosition": {
+          "$ref": "#/$defs/Position"
+        }
+      },
+      "required": [
+        "version",
+        "prefixRef",
+        "rules",
+        "t1",
+        "source",
+        "playIdentity",
+        "nextCheckpoint",
+        "sourcePosition"
+      ],
+      "additionalProperties": false
+    },
+    "NonplayValue": {
+      "type": "object",
+      "properties": {
+        "t1": {
+          "$ref": "#/$defs/T1"
+        },
+        "t2": {
+          "$ref": "#/$defs/T2"
+        },
+        "newHistoryEntry": {
+          "$ref": "#/$defs/HistoryEntry"
+        },
+        "previousPrefixRef": {
+          "$ref": "#/$defs/Checkpoint"
+        },
+        "nextPrefixRef": {
+          "$ref": "#/$defs/Checkpoint"
+        },
+        "runners": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Runner"
+          }
+        },
+        "beforeParticipants": {
+          "$ref": "#/$defs/Participant"
+        },
+        "participants": {
+          "$ref": "#/$defs/Participant"
+        },
+        "lineup": {
+          "$ref": "#/$defs/Lineup"
+        },
+        "rosterDigest": {
+          "$ref": "#/$defs/Digest"
+        },
+        "responsibility": {
+          "$ref": "#/$defs/Responsibility"
+        },
+        "nextResponsibility": {
+          "$ref": "#/$defs/Responsibility"
+        },
+        "playIdentity": {
+          "$ref": "#/$defs/PlayIdentity"
+        },
+        "sourcePosition": {
+          "$ref": "#/$defs/Position"
+        },
+        "executionArtifactSha256": {
+          "$ref": "#/$defs/Digest"
+        }
+      },
+      "required": [
+        "t1",
+        "t2",
+        "newHistoryEntry",
+        "previousPrefixRef",
+        "nextPrefixRef",
+        "runners",
+        "beforeParticipants",
+        "participants",
+        "lineup",
+        "rosterDigest",
+        "responsibility",
+        "nextResponsibility",
+        "playIdentity",
+        "sourcePosition",
+        "executionArtifactSha256"
+      ],
+      "additionalProperties": false
+    },
+    "ContinuationSource": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/Source"
+        },
+        {
+          "$ref": "#/$defs/NonplaySource"
+        }
+      ]
+    },
     "Source": {
       "oneOf": [
         {
@@ -1728,13 +2467,13 @@
         }
       ]
     },
-    "T1Input": {
+    "ContinuationRequest": {
       "oneOf": [
         {
-          "$ref": "#/$defs/PitchT1Input"
+          "$ref": "#/$defs/Request"
         },
         {
-          "$ref": "#/$defs/BattedHitT1Input"
+          "$ref": "#/$defs/NonplayRequest"
         }
       ]
     },
@@ -1774,321 +2513,15 @@
       ],
       "additionalProperties": false
     },
-    "T1": {
-      "type": "object",
-      "properties": {
-        "countEffect": {
-          "type": "object",
-          "properties": {
-            "strikes": {
-              "anyOf": [
-                {
-                  "type": "object",
-                  "properties": {
-                    "kind": {
-                      "const": "reset"
-                    }
-                  },
-                  "required": [
-                    "kind"
-                  ],
-                  "additionalProperties": false
-                },
-                {
-                  "type": "object",
-                  "properties": {
-                    "kind": {
-                      "const": "unchanged"
-                    }
-                  },
-                  "required": [
-                    "kind"
-                  ],
-                  "additionalProperties": false
-                },
-                {
-                  "type": "object",
-                  "properties": {
-                    "kind": {
-                      "const": "delta"
-                    },
-                    "value": {
-                      "const": "1"
-                    }
-                  },
-                  "required": [
-                    "kind",
-                    "value"
-                  ],
-                  "additionalProperties": false
-                }
-              ]
-            },
-            "balls": {
-              "anyOf": [
-                {
-                  "type": "object",
-                  "properties": {
-                    "kind": {
-                      "const": "reset"
-                    }
-                  },
-                  "required": [
-                    "kind"
-                  ],
-                  "additionalProperties": false
-                },
-                {
-                  "type": "object",
-                  "properties": {
-                    "kind": {
-                      "const": "unchanged"
-                    }
-                  },
-                  "required": [
-                    "kind"
-                  ],
-                  "additionalProperties": false
-                },
-                {
-                  "type": "object",
-                  "properties": {
-                    "kind": {
-                      "const": "delta"
-                    },
-                    "value": {
-                      "const": "1"
-                    }
-                  },
-                  "required": [
-                    "kind",
-                    "value"
-                  ],
-                  "additionalProperties": false
-                }
-              ]
-            }
-          },
-          "required": [
-            "strikes",
-            "balls"
-          ],
-          "additionalProperties": false
+    "ContinuationValue": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/Value"
         },
-        "plateAppearanceEnded": {
-          "type": "boolean"
-        },
-        "batterDestination": {
-          "oneOf": [
-            {
-              "type": "object",
-              "properties": {
-                "kind": {
-                  "const": "continue"
-                }
-              },
-              "required": [
-                "kind"
-              ],
-              "additionalProperties": false
-            },
-            {
-              "type": "object",
-              "properties": {
-                "kind": {
-                  "const": "reach"
-                },
-                "base": {
-                  "const": "1"
-                }
-              },
-              "required": [
-                "kind",
-                "base"
-              ],
-              "additionalProperties": false
-            },
-            {
-              "type": "object",
-              "properties": {
-                "kind": {
-                  "const": "out"
-                }
-              },
-              "required": [
-                "kind"
-              ],
-              "additionalProperties": false
-            },
-            {
-              "type": "object",
-              "properties": {
-                "kind": {
-                  "const": "reach"
-                },
-                "base": {
-                  "const": "2"
-                }
-              },
-              "required": [
-                "kind",
-                "base"
-              ],
-              "additionalProperties": false
-            },
-            {
-              "type": "object",
-              "properties": {
-                "kind": {
-                  "const": "reach"
-                },
-                "base": {
-                  "const": "3"
-                }
-              },
-              "required": [
-                "kind",
-                "base"
-              ],
-              "additionalProperties": false
-            },
-            {
-              "type": "object",
-              "properties": {
-                "kind": {
-                  "const": "score"
-                }
-              },
-              "required": [
-                "kind"
-              ],
-              "additionalProperties": false
-            }
-          ]
-        },
-        "runnerDefaultAdvance": {
-          "type": "object",
-          "properties": {
-            "first": {
-              "type": "object",
-              "properties": {
-                "modality": {
-                  "enum": [
-                    "hold",
-                    "not-applicable"
-                  ]
-                },
-                "destination": {
-                  "const": null
-                }
-              },
-              "required": [
-                "modality",
-                "destination"
-              ],
-              "additionalProperties": false
-            },
-            "second": {
-              "type": "object",
-              "properties": {
-                "modality": {
-                  "enum": [
-                    "hold",
-                    "not-applicable"
-                  ]
-                },
-                "destination": {
-                  "const": null
-                }
-              },
-              "required": [
-                "modality",
-                "destination"
-              ],
-              "additionalProperties": false
-            },
-            "third": {
-              "type": "object",
-              "properties": {
-                "modality": {
-                  "enum": [
-                    "hold",
-                    "not-applicable"
-                  ]
-                },
-                "destination": {
-                  "const": null
-                }
-              },
-              "required": [
-                "modality",
-                "destination"
-              ],
-              "additionalProperties": false
-            }
-          },
-          "required": [
-            "first",
-            "second",
-            "third"
-          ],
-          "additionalProperties": false
-        },
-        "outEffect": {
-          "oneOf": [
-            {
-              "type": "object",
-              "properties": {
-                "count": {
-                  "const": "0"
-                },
-                "targets": {
-                  "const": []
-                }
-              },
-              "required": [
-                "count",
-                "targets"
-              ],
-              "additionalProperties": false
-            },
-            {
-              "type": "object",
-              "properties": {
-                "count": {
-                  "const": "1"
-                },
-                "targets": {
-                  "const": [
-                    "batter"
-                  ]
-                }
-              },
-              "required": [
-                "count",
-                "targets"
-              ],
-              "additionalProperties": false
-            }
-          ]
-        },
-        "statFlags": {
-          "$ref": "#/$defs/StatFlags"
-        },
-        "after": {
-          "$ref": "#/$defs/Snapshot"
+        {
+          "$ref": "#/$defs/NonplayValue"
         }
-      },
-      "required": [
-        "countEffect",
-        "plateAppearanceEnded",
-        "batterDestination",
-        "runnerDefaultAdvance",
-        "outEffect",
-        "statFlags",
-        "after"
-      ],
-      "additionalProperties": false
+      ]
     },
     "Value": {
       "type": "object",
@@ -2161,14 +2594,14 @@
       ],
       "additionalProperties": false
     },
-    "Success": {
+    "NonplaySuccess": {
       "type": "object",
       "properties": {
         "ok": {
           "const": true
         },
         "value": {
-          "$ref": "#/$defs/Value"
+          "$ref": "#/$defs/NonplayValue"
         }
       },
       "required": [
@@ -2177,133 +2610,23 @@
       ],
       "additionalProperties": false
     },
-    "Failure": {
-      "type": "object",
-      "properties": {
-        "ok": {
-          "const": false
-        },
-        "error": {
-          "type": "object",
-          "properties": {
-            "code": {
-              "enum": [
-                "INVALID_JSON",
-                "INVALID_REQUEST",
-                "INVALID_DECIMAL_INTEGER",
-                "UNSUPPORTED_T1_SCOPE",
-                "T2_NOT_EVALUATED",
-                "PREFIX_SOURCE_MISMATCH"
-              ]
-            }
-          },
-          "required": [
-            "code"
-          ],
-          "additionalProperties": false
-        }
-      },
-      "required": [
-        "ok",
-        "error"
-      ],
-      "additionalProperties": false
-    },
-    "Response": {
+    "ContinuationResponse": {
       "oneOf": [
         {
-          "$ref": "#/$defs/Success"
+          "$ref": "#/$defs/Response"
         },
         {
-          "$ref": "#/$defs/Failure"
+          "$ref": "#/$defs/NonplaySuccess"
         }
       ]
-    },
-    "PitchT1Input": {
-      "type": "object",
-      "properties": {
-        "eventKind": {
-          "const": "batting-result"
-        },
-        "resultId": {
-          "enum": [
-            "batting-result.called-pitch",
-            "batting-result.swinging-strike",
-            "batting-result.ball",
-            "batting-result.foul",
-            "batting-result.walk",
-            "batting-result.hit-by-pitch",
-            "batting-result.called-strikeout",
-            "batting-result.swinging-strikeout"
-          ]
-        },
-        "pitchEventKind": {
-          "const": "pitch-event"
-        },
-        "before": {
-          "$ref": "#/$defs/Snapshot"
-        }
-      },
-      "required": [
-        "eventKind",
-        "resultId",
-        "pitchEventKind",
-        "before"
-      ],
-      "additionalProperties": false
-    },
-    "BattedHitT1Input": {
-      "type": "object",
-      "properties": {
-        "eventKind": {
-          "const": "batting-result"
-        },
-        "resultId": {
-          "enum": [
-            "batting-result.single",
-            "batting-result.double",
-            "batting-result.triple",
-            "batting-result.home-run"
-          ]
-        },
-        "pitchEventKind": {
-          "const": "pitch-event"
-        },
-        "before": {
-          "$ref": "#/$defs/Snapshot"
-        },
-        "officialScoringPayload": {
-          "const": "no-error"
-        },
-        "interferenceRuling": {
-          "const": "not-required"
-        },
-        "runnerAdvanceOverrides": {
-          "const": "not-applied"
-        },
-        "thirdOutObservation": {
-          "const": "none"
-        }
-      },
-      "required": [
-        "eventKind",
-        "resultId",
-        "pitchEventKind",
-        "before",
-        "officialScoringPayload",
-        "interferenceRuling",
-        "runnerAdvanceOverrides",
-        "thirdOutObservation"
-      ],
-      "additionalProperties": false
     }
   },
   "oneOf": [
     {
-      "$ref": "#/$defs/Request"
+      "$ref": "#/$defs/ContinuationRequest"
     },
     {
-      "$ref": "#/$defs/Response"
+      "$ref": "#/$defs/ContinuationResponse"
     }
   ]
 }

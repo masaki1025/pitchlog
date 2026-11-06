@@ -24,7 +24,7 @@ describe('eventKinds', () => {
       EVENT_KIND_RULES.filter(
         (eventKind) => eventKind.group === EVENT_KIND_GROUP.A,
       ).map((eventKind) => eventKind.id),
-    ).toEqual(['1', '2', '3', '4', '5', '6', '7', '8', '9'])
+    ).toEqual(['1', '2', '3', '4', '5', '6', '7', '8', '9', '13'])
     expect(
       EVENT_KIND_RULES.filter(
         (eventKind) => eventKind.group === EVENT_KIND_GROUP.B,

@@ -1784,6 +1784,7 @@ def _activate_stamp_profile() -> None:
     )
     from pitchlog.authz.sync_right_sql import (
         render_device_state_read_create_sql,
+        render_replay_device_verify_create_sql,
         render_stamped_function_sql,
     )
 
@@ -1857,9 +1858,33 @@ def _activate_stamp_profile() -> None:
             ],
         }
     )
+    ADDITIONS["functions"].append(
+        {
+            "function_id": (
+                "FUNCTION:sync_right_api:verify_replay_device(uuid, uuid, bytea)"
+            ),
+            "schema_name": "sync_right_api",
+            "function_name": "verify_replay_device",
+            "identity_args": "uuid, uuid, bytea",
+            "function_kind": "definer",
+            "owner_role_id": "pitchlog_sync_right_fn_owner",
+            "language": "plpgsql",
+            "returns": "TABLE(device_matches boolean)",
+            "security_mode": "definer",
+            "volatility": "volatile",
+            "search_path": ["pg_catalog", "pg_temp"],
+            "acl_expectations": [
+                {"grantee": "pitchlog_app", "privilege": "EXECUTE", "grantable": False}
+            ],
+            "revoked_acl_expectations": [
+                {"grantee": "PUBLIC", "privilege": "EXECUTE", "grantable": False}
+            ],
+        }
+    )
     stamped = {
         **render_stamped_function_sql(),
         "read_device_state": render_device_state_read_create_sql(),
+        "verify_replay_device": render_replay_device_verify_create_sql(),
     }
     for row in ADDITIONS["functions"]:
         if (
@@ -1885,9 +1910,18 @@ def _activate_stamp_profile() -> None:
 _activate_stamp_profile()
 
 
-def _activate_ordinary_profile(*, play_prefix=False, recording_vocab=False) -> None:
+def _activate_ordinary_profile(
+    *, play_prefix=False, recording_vocab=False, nonplay=False, lifecycle=False
+) -> None:
     """承認対象の有限ordinary宣言だけを同じ正式installerへ接合する。"""
-    if recording_vocab:
+    if nonplay or lifecycle:
+        if play_prefix or recording_vocab or (nonplay and lifecycle):
+            raise ValueError("非play接合のprofileが重複")
+        if lifecycle:
+            from pitchlog.authz.lifecycle_product import candidate_declarations
+        else:
+            from pitchlog.authz.nonplay_product import candidate_declarations
+    elif recording_vocab:
         from pitchlog.authz.recording_vocabulary_product import candidate_declarations
     elif play_prefix:
         from pitchlog.authz.terminal_pitch_product import candidate_declarations
@@ -1895,6 +1929,31 @@ def _activate_ordinary_profile(*, play_prefix=False, recording_vocab=False) -> N
         from pitchlog.authz.ordinary_pitch_product import candidate_declarations
 
     declarations, bodies = candidate_declarations()
+    if nonplay or lifecycle:
+        kinds = {
+            "functions": "function",
+            "tables": "table",
+            "policies": "policy",
+            "acl_expectations": "acl_expectation",
+            "column_acl_expectations": "column_acl_expectation",
+        }
+        if set(declarations) != set(kinds) or set(bodies) != {
+            kinds[section] + "|" + row[IDS[section]]
+            for section, rows in declarations.items()
+            for row in rows
+        }:
+            raise ValueError("非play接合の宣言と本文集合が不一致")
+        for section, rows in declarations.items():
+            if section == "column_acl_expectations":
+                continue
+            for row in rows:
+                key = kinds[section] + "|" + row[IDS[section]]
+                expected_body = (
+                    f"-- ELEMENT-TYPE: {kinds[section]}\n"
+                    f"-- ELEMENT-ID: {row[IDS[section]]}\n\n" + bodies[key]
+                )
+                if key in BODIES and BODIES[key] != expected_body:
+                    raise ValueError("非play接合の既本文と不一致")
     for section, rows in declarations.items():
         identifier = IDS[section]
         existing = {row[identifier]: row for row in ADDITIONS[section]}
@@ -1981,6 +2040,48 @@ def _activate_stats_profile() -> None:
 
 
 _activate_stats_profile()
+_activate_ordinary_profile(nonplay=True)
+_activate_ordinary_profile(lifecycle=True)
+
+
+def _activate_nonplay_storage_guard() -> None:
+    """migration内部guardをACL-onlyで一意に登録し、既IDを上書きしない。"""
+    from pitchlog.authz.nonplay_storage_profile import FUNCTION_ID, acl_sql, declaration
+
+    row = declaration()
+    if any(
+        existing["function_id"] == FUNCTION_ID for existing in ADDITIONS["functions"]
+    ):
+        raise ValueError("非play内部guardの重複登録")
+    key = "function|" + FUNCTION_ID
+    if key in BODIES:
+        raise ValueError("非play内部guardの本文衝突")
+    ADDITIONS["functions"].append(row)
+    BODIES[key] = (
+        f"-- ELEMENT-TYPE: function\n-- ELEMENT-ID: {FUNCTION_ID}\n\n" + acl_sql()
+    )
+
+
+_activate_nonplay_storage_guard()
+
+
+def _activate_lifecycle_storage_guards() -> None:
+    """0043内部guard二件をmigration所有のACL-only関数として登録する。"""
+    from pitchlog.authz.lifecycle_storage_profile import declarations
+
+    for row, sql in declarations():
+        key = "function|" + row["function_id"]
+        if key in BODIES or any(
+            x["function_id"] == row["function_id"] for x in ADDITIONS["functions"]
+        ):
+            raise ValueError("終了再開内部guardの重複登録")
+        ADDITIONS["functions"].append(row)
+        BODIES[key] = (
+            f"-- ELEMENT-TYPE: function\n-- ELEMENT-ID: {row['function_id']}\n\n" + sql
+        )
+
+
+_activate_lifecycle_storage_guards()
 ROLES = frozenset(row["role_id"] for row in ADDITIONS["roles"])
 
 TABLES = frozenset(
@@ -1994,6 +2095,9 @@ TABLES = frozenset(
         "stats_fact_versions",
         "stats_primitive_sources",
         "stats_primitive_facts",
+        "nonplay_write_admissions",
+        "lifecycle_write_admissions",
+        "game_lifecycle_heads",
     }
 )
 SCHEMAS = frozenset(row["schema_name"] for row in ADDITIONS["schemas"])
@@ -2224,6 +2328,21 @@ def function_details() -> tuple[tuple[object, ...], ...]:
 
     result = []
     for row in ADDITIONS["functions"]:
+        from pitchlog.authz.nonplay_storage_profile import FUNCTION_ID, guard_details
+
+        if row["function_id"] == FUNCTION_ID:
+            result.append(guard_details())
+            continue
+        from pitchlog.authz.lifecycle_storage_profile import (
+            guard_details as lifecycle_guard,
+        )
+
+        if row["function_id"] in {
+            "FUNCTION:public:protect_lifecycle_write_admissions()",
+            "FUNCTION:public:protect_game_lifecycle_heads()",
+        }:
+            result.append(lifecycle_guard(row["function_name"]))
+            continue
         sql = body("function", row["function_id"])
         if sql is None:
             raise ValueError("初球関数本文がない")
@@ -2355,6 +2474,14 @@ def application_function_sql(function_id: str, sql: str) -> str | None:
     canonical = body("function", function_id)
     if canonical is None or sql != canonical:
         raise ValueError("初球関数の適用本文が凍結値と不一致")
+    from pitchlog.authz.nonplay_storage_profile import FUNCTION_ID
+
+    if function_id == FUNCTION_ID or function_id in {
+        "FUNCTION:public:protect_lifecycle_write_admissions()",
+        "FUNCTION:public:protect_game_lifecycle_heads()",
+    }:
+        # 三件ともmigrationがCREATEする。適用器はACL-onlyを再適用する。
+        return canonical
     identity = f"{row['schema_name']}.{row['function_name']}({row['identity_args']})"
     details = next(
         d
@@ -2393,19 +2520,24 @@ def application_function_sql(function_id: str, sql: str) -> str | None:
     )
     # 新readは別署名の同名関数を既APIの代替として残さない。
     overload_guard = ""
-    if (row["schema_name"], row["function_name"]) == (
-        "sync_right_api",
+    if row["schema_name"] == "sync_right_api" and row["function_name"] in {
         "read_device_state",
-    ):
-        overload_guard = """
+        "verify_replay_device",
+    }:
+        function_name = row["function_name"]
+        overload_guard = (
+            """
     IF EXISTS (
         SELECT 1 FROM pg_catalog.pg_proc other
         JOIN pg_catalog.pg_namespace n ON n.oid=other.pronamespace
-        WHERE n.nspname='sync_right_api' AND other.proname='read_device_state'
+        WHERE n.nspname='sync_right_api' AND other.proname='"""
+            + function_name
+            + """'
           AND other.oid IS DISTINCT FROM existing
     ) THEN
         RAISE EXCEPTION 'first ball function definition collision';
     END IF;"""
+        )
     lookup = f"pg_catalog.to_regprocedure({_sql_literal(identity)})::pg_catalog.oid"
     volatility = _sql_literal(str(details[7]))
     return f"""DO $first_ball_reapply$

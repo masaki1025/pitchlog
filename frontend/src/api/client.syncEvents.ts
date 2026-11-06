@@ -265,6 +265,7 @@ export async function postSyncEvents(
       'POST',
       `/games/${encodeURIComponent(request.gameId)}/sync/events`,
       {
+        tenantBound: true,
         body: built,
         ...(request.syncCredentials === undefined
           ? {}

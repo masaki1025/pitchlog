@@ -106,6 +106,15 @@ def _live(state):
     handle._assert_writer_lifetime(state.lifetime)
     state.source.read(handle, state.event)
     handle._assert_writer_lifetime(state.lifetime)
+    if state.phase in {"ready", "consumed", "projected"} and state.payload is not None:
+        from pitchlog.sync.terminal_pitch_payload import NonplayPitchCalculation
+
+        if type(state.payload.calculation) is NonplayPitchCalculation:
+            from pitchlog.repositories.nonplay_prefix_read import (
+                _assert_nonplay_normal_prefix,
+            )
+
+            _assert_nonplay_normal_prefix(state)
 
 
 @contextmanager
@@ -230,6 +239,11 @@ def _bind_ordinary_pitch_execution(
         _live(state)
         yield
     finally:
+        from pitchlog.repositories.nonplay_prefix_read import (
+            _release_nonplay_normal_prefix,
+        )
+
+        _release_nonplay_normal_prefix(handle)
         if _EXECUTIONS.get(key) is state:
             del _EXECUTIONS[key]
         state.stats_source_reference = None
@@ -726,6 +740,10 @@ def _evaluate_lineup_prefix_bound(state):
     except (TypeError, ValueError, RecursionError):
         state.phase = "rejected"
         return
+    from pitchlog.sync.terminal_pitch_payload import NonplayPitchCalculation
+
+    if type(supplied.calculation) is NonplayPitchCalculation:
+        return _evaluate_nonplay_normal_bound(state, supplied, raw_v7, raw_v8)
     with open_domain_host() as host:
         if type(host) is not NodeDomainHost:
             raise OrdinaryPitchExecutionError
@@ -816,9 +834,8 @@ def _reserved_play_event_id(handle, event):
     ):
         raise OrdinaryPitchExecutionError
     request = state.payload.calculation.request
-    if request.source.position.d1 != str(event.d1) or request.source.position.d2 != str(
-        event.v6
-    ):
+    position = _lineup_position(request)
+    if position.d1 != str(event.d1) or position.d2 != str(event.v6):
         raise OrdinaryPitchExecutionError
     return UUID(request.play_identity.event_id)
 
@@ -885,3 +902,87 @@ def _read_ordinary_stats_source(handle, writer, event, projected):
     ):
         raise OrdinaryPitchExecutionError
     return state
+
+
+def _lineup_position(request):
+    """実閉型から位置を選択する。NPを旧Sourceへ変換しない。"""
+    from pitchlog.domainrt.lineup_play_prefix_continuation import (
+        NonplayLineupPrefixRequest,
+    )
+
+    return (
+        request.source_position
+        if type(request) is NonplayLineupPrefixRequest
+        else request.source.position
+    )
+
+
+def _evaluate_nonplay_normal_bound(state, supplied, raw_v7, raw_v8):
+    """真正NP sourceを再読取し、唯一hostを一回実行して既frameへ結合する。"""
+    from pitchlog.domainrt.lineup_play_prefix_continuation import (
+        NonplayLineupPrefixSuccess,
+        decode_nonplay_lineup_prefix_response,
+    )
+    from pitchlog.repositories.nonplay_prefix_read import read_confirmed_nonplay_normal
+    from pitchlog.sync.terminal_pitch_payload import (
+        NonplayPitchCalculation,
+        TerminalPitchPayloadError,
+        read_lineup_pitch_payload,
+    )
+
+    request = supplied.calculation.request
+    with open_domain_host() as host:
+        if type(host) is not NodeDomainHost:
+            raise OrdinaryPitchExecutionError
+        prefix = read_confirmed_nonplay_normal(
+            state.handle,
+            state.event,
+            state.source,
+            proposal=request,
+            artifact_sha256=host.artifact_sha256,
+        )
+        _live(state)
+        response = decode_nonplay_lineup_prefix_response(
+            host.call(
+                "deriveLineupPlayPrefixWithContinuation",
+                request.model_dump_json(by_alias=True, exclude_unset=True),
+            )
+        )
+        _live(state)
+        if type(response) is not NonplayLineupPrefixSuccess:
+            raise OrdinaryPitchExecutionError
+        calculation = NonplayPitchCalculation.model_validate_json(
+            json.dumps(
+                {
+                    "formatVersion": "nonplay-prefix-calculation-v1",
+                    "artifactSha256": host.artifact_sha256,
+                    "request": request.model_dump(
+                        mode="json", by_alias=True, exclude_unset=True
+                    ),
+                    "response": response.model_dump(
+                        mode="json", by_alias=True, exclude_unset=True
+                    ),
+                }
+            )
+        )
+        try:
+            state.payload = read_lineup_pitch_payload(
+                raw_v7, raw_v8, expected_calculation=calculation
+            )
+        except TerminalPitchPayloadError:
+            state.phase = "rejected"
+            return
+        state.prefix = prefix
+        state.frame = object.__new__(OrdinaryPitchFrame)
+        state.frame_id = uuid4()
+        state.stats_source_reference = (
+            state.frame,
+            state.frame_id,
+            state.payload,
+            state.source.bound,
+            state.source.bound._lease,
+            state.source.phase,
+            state.source.bound._lease.nonce,
+            state.source.bound._phase_snapshot,
+        )
+        state.phase = "ready"

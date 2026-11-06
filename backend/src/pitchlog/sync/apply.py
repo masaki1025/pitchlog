@@ -356,7 +356,9 @@ def _replay_e1_without_binding(
     context: TenantContext,
     request: SyncRequest,
     fingerprints: tuple[str, ...],
-) -> AckResult | Literal["B6", "B7"] | None:
+    reference_device: UUID,
+    credential_digest: bytes,
+) -> AckResult | Literal["B5", "B6", "B7"] | None:
     """③認可後・V12前の D5 先行分類を writer binding 前に一度だけ行う。
 
     正本 sync-protocol DI1〜DI3 と 7-3 の再掲を、単球入口（1要求1イベント）
@@ -368,14 +370,18 @@ def _replay_e1_without_binding(
         context: 実認証済みのテナント文脈。
         request: S-1 外形を通過した同期要求。
         fingerprints: 原wireから凍結した各イベントの指紋（要求順）。
+        reference_device: 実要求の端末ID。
+        credential_digest: 実要求credentialの32 byte digest。
 
     Returns:
-        再掲 ACK、ACK を返さない境界 ``"B6"``/``"B7"``、または通常経路へ戻す
+        再掲 ACK、ACK を返さない境界 ``"B5"``/``"B6"``/``"B7"``、または通常経路へ戻す
         ``None``。
 
     Raises:
         SourceBindingError: 入力が単球F1入口の閉形式に合わない場合。
     """
+    from contextlib import nullcontext
+
     from pitchlog.repositories.rg1 import RG1Unavailable, read_rg1_open
     from pitchlog.sync.idempotency import classify_d5
     from pitchlog.sync.prefix_path import _candidate_result
@@ -390,10 +396,12 @@ def _replay_e1_without_binding(
         or any(type(value) is not str for value in fingerprints)
     ):
         raise SourceBindingError("E1再掲の入力が不正")
-    if request.path != "P2" or len(request.events) != 1:
-        # 単球F1入口の範囲外は流儀どおり後段（_E1OutOfScope）へ委ねる。
+    if len(request.events) != 1:
         return None
     event = request.events[0]
+    if request.path != "P2" and not (request.path == "P1" and event.v5 == "undo"):
+        # 接続済み単一取消以外のP1/P3は既存の範囲外拒否へ委ねる。
+        return None
     if (
         type(event.d1) is not int
         or not 0 < event.d1 <= 2**53 - 1
@@ -401,9 +409,12 @@ def _replay_e1_without_binding(
     ):
         return None
     game_id = UUID(request.game_id)
-    if not game_accessible(context, game_id, tenant_transaction_scope):
-        return "B6"
     with tenant_transaction_scope(context) as scope:
+        # 同取引の行lockをD5読取完了まで保持し、資格失効との隙間を作らない。
+        if not _verify_replay_device(scope, reference_device, credential_digest):
+            return "B5"
+        if not game_accessible(context, game_id, lambda _: nullcontext(scope)):
+            return "B6"
         try:
             read_rg1_open(scope)
         except RG1Unavailable:
@@ -414,7 +425,7 @@ def _replay_e1_without_binding(
         d3 = _cell(rows[0], _GENERATION_COLUMNS, "confirmed_watermark")
         if type(d3) is not int:
             raise RuntimeError("D3 の型が不正")
-        candidate = classify_d5(scope, UUID(event.d5), fingerprints[0], "P2")
+        candidate = classify_d5(scope, UUID(event.d5), fingerprints[0], request.path)
     if candidate.kind == "unused":
         # 未使用 D5 は ⑤ 以降（V12・content・order）が正本の段階順。
         return None
@@ -650,6 +661,26 @@ def _read_reference_device_state(context, reference_device):
         return result.rows[0][0]
 
 
+def _verify_replay_device(scope, reference_device, credential_digest):
+    """②B5の端末資格を読取専用SQLで照合し、異型結果は閉拒否する。"""
+    from pitchlog.repositories.first_ball import _VerifyReplayDeviceToken
+
+    if type(credential_digest) is not bytes or len(credential_digest) != 32:
+        raise ValueError("端末資格digestが不正")
+    result = scope.run_function(
+        _VerifyReplayDeviceToken(reference_device, credential_digest)
+    )
+    if (
+        type(result.rows) is not tuple
+        or len(result.rows) != 1
+        or type(result.rows[0]) is not tuple
+        or len(result.rows[0]) != 1
+        or type(result.rows[0][0]) is not bool
+    ):
+        raise RuntimeError("再掲端末資格の読取結果が不正")
+    return result.rows[0][0]
+
+
 def _apply_e1_f1(
     receipt,
     context,
@@ -712,7 +743,15 @@ def _apply_e1_f1(
         PlayPrefixContentValidationPort,
         LineupPrefixContentValidationPort,
     }
-    if len(request.events) != 1 or (not ordinary and request.events[0].d1 != 1):
+    from pitchlog.sync.undo_ports import UndoContentValidationPort
+
+    undo = type(validator) is UndoContentValidationPort
+    from pitchlog.sync.lifecycle_ports import LifecycleContentValidationPort
+
+    lifecycle = type(validator) is LifecycleContentValidationPort
+    if len(request.events) != 1 or (
+        not ordinary and not undo and not lifecycle and request.events[0].d1 != 1
+    ):
         raise _E1OutOfScope("E1要求はF1の範囲外")
     event = request.events[0]
     registrations = registrations or {}
@@ -735,7 +774,10 @@ def _apply_e1_f1(
                 except RG1Unavailable:
                     return "B7"
                 bound = control.bind_writer(scope, context, phase, cookie=cookie)
-                with gated_e1_writer(scope, rights) as gated:
+                with (
+                    gated_e1_writer(scope, rights) as gated,
+                    ExitStack() as undo_qualification_stack,
+                ):
                     source = _E1CoreSource(
                         binding,
                         scope=scope,
@@ -753,6 +795,44 @@ def _apply_e1_f1(
                         qualification_stack.enter_context(
                             _ordinary_qualification_scope(scope, source)
                         )
+                    if undo:
+                        # SQL familyの既E1資格に入る前にD5だけを内部分類する。
+                        # 返却は既device検証後。host/CP/frameはfresh内容段だけ。
+                        from pitchlog.sync.source_binding import (
+                            read_selected_event_source,
+                        )
+                        from pitchlog.sync.undo_execution import (
+                            _undo_qualification_scope,
+                        )
+
+                        selected = read_selected_event_source(
+                            binding, context=context, request=request, event=event
+                        )
+                        classify_request_d5(
+                            scope, request, (selected.event_fingerprint,)
+                        )
+                        undo_qualification_stack.enter_context(
+                            _undo_qualification_scope(scope, source)
+                        )
+                    if lifecycle:
+                        # SQL familyの既E1資格に入る前にD5だけを内部分類する。
+                        # 返却は既device検証後。host/CP/frameはfresh内容段だけ。
+                        from pitchlog.sync.lifecycle_execution import (
+                            _lifecycle_qualification_scope,
+                        )
+                        from pitchlog.sync.source_binding import (
+                            read_selected_event_source,
+                        )
+
+                        selected = read_selected_event_source(
+                            binding, context=context, request=request, event=event
+                        )
+                        classify_request_d5(
+                            scope, request, (selected.event_fingerprint,)
+                        )
+                        undo_qualification_stack.enter_context(
+                            _lifecycle_qualification_scope(scope, source)
+                        )
                     device = _verify_bound_device(
                         bound,
                         reference_device,
@@ -760,7 +840,9 @@ def _apply_e1_f1(
                         presentation=state.device_presentation,
                     )
                     if device != "match":
-                        rejected_boundary = "B6" if device == "different_game" else "B5"
+                        rejected_boundary = (
+                            ("B6") if device == ("different_game") else ("B5")
+                        )
                         raise rollback_marker
                     preflight = _preflight_in_scope(
                         scope,

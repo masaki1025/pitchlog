@@ -3,9 +3,16 @@
 from __future__ import annotations
 
 import json
-from typing import Annotated, Literal, Self, TypeAlias
+import re
+from typing import Annotated, Any, Literal, Self, TypeAlias
 
-from pydantic import Field, TypeAdapter, ValidationError, model_validator
+from pydantic import (
+    Field,
+    TypeAdapter,
+    ValidationError,
+    field_validator,
+    model_validator,
+)
 
 from pitchlog.domainrt.first_pitch import (
     BatterDestination,
@@ -21,7 +28,6 @@ from pitchlog.domainrt.first_pitch_continuation import (
     _check_frozen_members,
 )
 from pitchlog.domainrt.host import open_domain_host
-from pitchlog.domainrt.ordinary_pitch_continuation import _RunnerHolds
 from pitchlog.domainrt.play_prefix_continuation import (
     CanonicalUuid,
     Checkpoint,
@@ -284,8 +290,22 @@ class T1Input(_LineupWire):
     before: StrikeoutSnapshot
 
 
+class RunnerAdvanceOverride(_LineupWire):
+    """記録者が確定した1走者の実到達塁。停止は写像へ含めない。"""
+
+    runner_base: Literal["1", "2", "3"] = Field(alias="runnerBase")
+    destination: Literal["2", "3", "4"]
+
+
+class AppliedRunnerAdvanceOverrides(_LineupWire):
+    """空配列を未確認として受理しない明示override。"""
+
+    kind: Literal["applied"]
+    overrides: tuple[RunnerAdvanceOverride, ...] = Field(min_length=1, max_length=3)
+
+
 class BattedHitT1Input(_LineupWire):
-    """結果から補完しない4つの明示観測を要求する無走者安打入力。"""
+    """結果から補完しない4つの明示観測を要求する安打入力。"""
 
     event_kind: Literal["batting-result"] = Field(alias="eventKind")
     result_id: Literal[
@@ -300,8 +320,8 @@ class BattedHitT1Input(_LineupWire):
         alias="officialScoringPayload"
     )
     interference_ruling: Literal["not-required"] = Field(alias="interferenceRuling")
-    runner_advance_overrides: Literal["not-applied"] = Field(
-        alias="runnerAdvanceOverrides"
+    runner_advance_overrides: Literal["not-applied"] | AppliedRunnerAdvanceOverrides = (
+        Field(alias="runnerAdvanceOverrides")
     )
     third_out_observation: Literal["none"] = Field(alias="thirdOutObservation")
 
@@ -331,6 +351,41 @@ class _BattedScore(_LineupWire):
     kind: Literal["score"]
 
 
+class _LineupRunnerHold(_LineupWire):
+    """移動を伴わない走者効果の閉形。"""
+
+    modality: Literal["hold", "not-applicable"]
+    destination: None
+
+
+class _LineupRunnerMove(_LineupWire):
+    """記録者が確定した明示進塁の閉形。"""
+
+    modality: Literal["optional", "forced"]
+    destination: Literal["1", "2", "3", "4"]
+
+
+class _LineupRunnerAdvances(_LineupWire):
+    """3塁分の実T1進塁計画。Pythonで再計算しない。"""
+
+    first: _LineupRunnerHold | _LineupRunnerMove
+    second: _LineupRunnerHold | _LineupRunnerMove
+    third: _LineupRunnerHold | _LineupRunnerMove
+
+
+class _FirstRunnerOut(_LineupWire):
+    """SO-05の固定一死一塁行でアウトになった起点走者。"""
+
+    runner: Literal["1"]
+
+
+class _StrikeoutDoublePlayOut(_LineupWire):
+    """打者と一塁走者の2アウトを閉形で保持する。"""
+
+    count: Literal["2"]
+    targets: tuple[Literal["batter"], _FirstRunnerOut]
+
+
 class T1(_LineupWire):
     """一回核の全比較面。算式/結果lookupを持たない。"""
 
@@ -339,8 +394,10 @@ class T1(_LineupWire):
     batter_destination: (
         _Out | _Reach | _BattedReach | _BattedScore | BatterDestination
     ) = Field(alias="batterDestination")
-    runner_default_advance: _RunnerHolds = Field(alias="runnerDefaultAdvance")
-    out_effect: _OneOut | _ZeroOut = Field(alias="outEffect")
+    runner_default_advance: _LineupRunnerAdvances = Field(alias="runnerDefaultAdvance")
+    out_effect: _OneOut | _ZeroOut | _StrikeoutDoublePlayOut = Field(
+        alias="outEffect"
+    )
     stat_flags: StatFlags = Field(alias="statFlags")
     after: StrikeoutSnapshot
 
@@ -571,3 +628,270 @@ def seal_lineup_wire(
         raise LineupPrefixProtocolError("v3成功出力が必要です")
     verify_lineup_wire_seal(sealed_request, sealed_response)
     return sealed_request, sealed_response
+
+
+class NonplayScope(_LineupWire):
+    """世代はopaque値として保持し、連結資格を自称しない。"""
+
+    tenant_id: CanonicalUuid = Field(alias="tenantId")
+    game_id: CanonicalUuid = Field(alias="gameId")
+    generation: Annotated[str, Field(min_length=1, max_length=128)]
+
+
+class NonplayEventSource(_LineupWire):
+    """実eventの識別値。型成功だけでは原本資格にならない。"""
+
+    event_id: CanonicalUuid = Field(alias="eventId")
+    game_id: CanonicalUuid = Field(alias="gameId")
+    generation: Annotated[str, Field(min_length=1, max_length=128)]
+    d1: PositiveInteger
+    d5: CanonicalUuid
+    fingerprint: Annotated[
+        str, Field(pattern=re.compile(r"^(?:wire-v1:)?[a-f0-9]{64}\Z"))
+    ]
+    event_kind: Literal[
+        ("play_input"), ("undo"), ("game_end_declaration"), ("game_reopen")
+    ] = Field(alias="eventKind")
+
+
+class NonplayD1Head(_LineupWire):
+    """最新受理headをprojection/activeと分離する。"""
+
+    kind: Literal["accepted-event"]
+    source: NonplayEventSource
+
+
+class NonplayProjectionHead(_LineupWire):
+    """保存projectionの実event参照。"""
+
+    kind: Literal["d1-event"]
+    source: NonplayEventSource
+
+
+class NonplayActivePlay(_LineupWire):
+    """論理D2と物理番号は独立した保存値である。"""
+
+    source: NonplayEventSource
+    play_id: CanonicalUuid = Field(alias="playId")
+    d2: DecimalInteger
+    physical_play_number: PositiveInteger = Field(alias="physicalPlayNumber")
+
+
+class NonplayRestoreContext(_LineupWire):
+    """採用Sourceの全復元文脈を不変保持する。"""
+
+    current: StrikeoutSnapshot
+    rules: SavedRuleWire
+    rules_digest: Digest = Field(alias="rulesDigest")
+    layout_digest: Digest = Field(alias="layoutDigest")
+    roster_digest: Digest = Field(alias="rosterDigest")
+    lineup: Lineup
+    participants: Participants
+    runners: tuple[Runner, ...]
+    responsibility: Responsibility
+    last_play_evaluation: T2 | None = Field(alias="lastPlayEvaluation")
+
+
+class LifecycleKernel(_LineupWire):
+    """唯一kernelの全入出力。shapeは正式ABIを参照する。"""
+
+    request: dict[str, Any]
+    response: dict[str, Any]
+
+    @field_validator("request", mode="before")
+    @classmethod
+    def _request(cls, value):
+        from pitchlog.domainrt.game_lifecycle import LifecycleRequest
+
+        return LifecycleRequest(json.dumps(value, ensure_ascii=False)).to_wire()
+
+    @field_validator("response", mode="before")
+    @classmethod
+    def _response(cls, value):
+        from pitchlog.domainrt.game_lifecycle import LifecycleResponse
+
+        return LifecycleResponse(json.dumps(value, ensure_ascii=False)).to_wire()
+
+
+class LifecycleControlBridge(_LineupWire):
+    """全contextと実SQL証拠の参照。UUID型だけでは真正資格にならない。"""
+
+    source: NonplayEventSource
+    action: Literal["end", "reopen"]
+    anchor_event_id: CanonicalUuid = Field(alias="anchorEventId")
+    before_context: NonplayRestoreContext = Field(alias="beforeContext")
+    after_context: NonplayRestoreContext = Field(alias="afterContext")
+    kernel: LifecycleKernel
+    frame_id: CanonicalUuid = Field(alias="frameId")
+    checkpoint_before: Checkpoint = Field(alias="checkpointBefore")
+
+
+class NonplayContent(_LineupWire):
+    """空activeでもD3/履歴版/epoch/物理番号を保持する。"""
+
+    scope: NonplayScope
+    origin: Origin
+    d3: DecimalInteger
+    d1_head: NonplayD1Head | None = Field(alias="d1Head")
+    projection_head: Origin | NonplayProjectionHead = Field(alias="projectionHead")
+    active_head: NonplayActivePlay | None = Field(alias="activeHead")
+    active_depth: DecimalInteger = Field(alias="activeDepth")
+    history_version: DecimalInteger = Field(alias="historyVersion")
+    storage_history_epoch: DecimalInteger = Field(alias="storageHistoryEpoch")
+    next_physical_play_number: PositiveInteger = Field(alias="nextPhysicalPlayNumber")
+    execution_artifact_sha256: Digest = Field(alias="executionArtifactSha256")
+    restored: NonplayRestoreContext
+    control_bridges: tuple[LifecycleControlBridge, ...] | None = Field(
+        default=None, alias="controlBridges", exclude_if=lambda v: v is None
+    )
+
+
+class NonplayCheckpoint(_LineupWire):
+    """真正CP供給はruntimeの別要件。UUID/digestをこの層で発行しない。"""
+
+    format_version: Literal["nonplay-prefix-checkpoint-v1"] = Field(
+        alias="formatVersion"
+    )
+    ref: Checkpoint
+    content: NonplayContent
+
+
+class NonplayActiveFrame(_LineupWire):
+    """全tailを保持して欠落や推測補完をしない。"""
+
+    play: NonplayActivePlay
+    history_entry: StrikeoutHistoryEntry = Field(alias="historyEntry")
+    before_context: NonplayRestoreContext = Field(alias="beforeContext")
+    after_context: NonplayRestoreContext = Field(alias="afterContext")
+
+
+class NonplaySource(_LineupWire):
+    """採用済nonplay Sourceの閉構造。"""
+
+    format_version: Literal["nonplay-prefix-source-v1"] = Field(alias="formatVersion")
+    checkpoint: NonplayCheckpoint
+    active_stack: tuple[NonplayActiveFrame, ...] = Field(alias="activeStack")
+
+
+class NonplayLineupPrefixRequest(_LineupWire):
+    """取消後の実allocator位置を明示する独立variant。"""
+
+    version: Literal["nonplay-continuation-v1"]
+    prefix_ref: Checkpoint = Field(alias="prefixRef")
+    rules: SavedRuleWire
+    t1: T1Input | BattedHitT1Input
+    source: NonplaySource
+    play_identity: PlayIdentity = Field(alias="playIdentity")
+    next_checkpoint: Checkpoint = Field(alias="nextCheckpoint")
+    source_position: SourcePosition = Field(alias="sourcePosition")
+
+
+class NonplayValue(_LineupWire):
+    """全数学出力と実identityを保持する。"""
+
+    t1: T1
+    t2: T2
+    new_history_entry: StrikeoutHistoryEntry = Field(alias="newHistoryEntry")
+    previous_prefix_ref: Checkpoint = Field(alias="previousPrefixRef")
+    next_prefix_ref: Checkpoint = Field(alias="nextPrefixRef")
+    runners: tuple[Runner, ...] = Field(max_length=3)
+    before_participants: Participants = Field(alias="beforeParticipants")
+    participants: Participants
+    lineup: Lineup
+    roster_digest: Digest = Field(alias="rosterDigest")
+    responsibility: Responsibility
+    next_responsibility: Responsibility = Field(alias="nextResponsibility")
+    play_identity: PlayIdentity = Field(alias="playIdentity")
+    source_position: SourcePosition = Field(alias="sourcePosition")
+    execution_artifact_sha256: Digest = Field(alias="executionArtifactSha256")
+
+    @model_validator(mode="after")
+    def _require_new_cursor_head(self) -> NonplayValue:
+        """v3新headのcursor面は必須。過去tail互換型を欠落許可へ流用しない。"""
+        cursors = self.new_history_entry.difference.batting_order_by_side
+        if cursors is None or (
+            self.t1.plate_appearance_ended and not cursors.model_fields_set
+        ):
+            raise ValueError("v3新headのcursor差分が必要です")
+        return self
+
+
+class NonplayLineupPrefixSuccess(_Envelope):
+    """新refは提案値であり保存成功/正式CP発行ではない。"""
+
+    ok: Literal[True]
+    value: NonplayValue
+
+
+NonplayLineupPrefixResponse: TypeAlias = (
+    NonplayLineupPrefixSuccess | LineupPrefixFailure
+)
+_NONPLAY_RESPONSE = TypeAdapter(NonplayLineupPrefixResponse)
+
+
+def decode_nonplay_lineup_prefix_request(raw: str) -> NonplayLineupPrefixRequest:
+    """実wire入力を重複/非有限/型変更なしで読む。"""
+    try:
+        if type(raw) is not str:
+            raise ValueError("JSON文字列が必要")
+        wire = json.loads(
+            raw, object_pairs_hook=_unique_object, parse_constant=_invalid_constant
+        )
+        result = NonplayLineupPrefixRequest.model_validate_json(
+            raw, by_alias=True, by_name=False
+        )
+        if json.dumps(wire, sort_keys=True) != json.dumps(
+            result.model_dump(mode="json", by_alias=True, exclude_unset=True),
+            sort_keys=True,
+        ):
+            raise ValueError("JSON型/全値の不一致")
+        return result
+    except (ValueError, TypeError, ValidationError):
+        raise LineupPrefixProtocolError("nonplay要求が閉ABIに適合しません") from None
+
+
+def decode_nonplay_lineup_prefix_response(raw: str) -> NonplayLineupPrefixResponse:
+    """JSON型を保存し、重複/非有限/余剰/alias/coercionを拒否する。"""
+    try:
+        if type(raw) is not str:
+            raise ValueError("JSON文字列が必要")
+        wire = json.loads(
+            raw, object_pairs_hook=_unique_object, parse_constant=_invalid_constant
+        )
+        result = _NONPLAY_RESPONSE.validate_json(raw, by_alias=True, by_name=False)
+        if json.dumps(wire, sort_keys=True) != json.dumps(
+            result.model_dump(mode="json", by_alias=True, exclude_unset=True),
+            sort_keys=True,
+        ):
+            raise ValueError("JSON型/全値の不一致")
+        return result
+    except (ValueError, TypeError, ValidationError):
+        raise LineupPrefixProtocolError("nonplay応答が閉ABIに適合しません") from None
+
+
+def evaluate_nonplay_lineup_prefix_continuation(
+    request: NonplayLineupPrefixRequest,
+) -> NonplayLineupPrefixResponse:
+    """実loaded source照合後、固定製品hostを一回だけ呼ぶ。"""
+    if type(request) is not NonplayLineupPrefixRequest:
+        raise TypeError("NonplayLineupPrefixRequestの実型が必要です")
+    _check_frozen_members(request)
+    validated = NonplayLineupPrefixRequest.model_validate_json(
+        request.model_dump_json(by_alias=True, exclude_unset=True),
+        by_alias=True,
+        by_name=False,
+    )
+    with open_domain_host() as host:
+        if (
+            validated.source.checkpoint.content.execution_artifact_sha256
+            != host.artifact_sha256
+        ):
+            raise LineupPrefixProtocolError(
+                "実loaded artifactとexecution hashが一致しません"
+            )
+        return decode_nonplay_lineup_prefix_response(
+            host.call(
+                "deriveLineupPlayPrefixWithContinuation",
+                validated.model_dump_json(by_alias=True, exclude_unset=True),
+            )
+        )

@@ -204,7 +204,13 @@ def _locked_prefix_context(handle, event, source):
         or any(
             game[k] is not None for k in ("trashed_at", "hidden_at", "import_batch_id")
         )
-        or game["status"] != "in_progress"
+        or (
+            game["status"] != "in_progress"
+            and not (
+                game["status"] == "finished"
+                and _finished_lifecycle_read_allowed(handle, game_id)
+            )
+        )
     ):
         raise OrdinaryPrefixError
     current = _one(run(RecordingGenerationReadToken(game_id)), _GENERATION_READ_COLUMNS)
@@ -617,3 +623,12 @@ def bootstrap_checkpoint_document(
     }
     content["content_digest"] = source_fingerprint(content)
     return read_checkpoint_document(_canonical_json(content))
+
+
+def _finished_lifecycle_read_allowed(handle, game_id):
+    """真正lifecycle read loan以外は従来通りfinishedを閉じる。"""
+    from pitchlog.repositories.game_lifecycle import (
+        _finished_lifecycle_read_allowed as allowed,
+    )
+
+    return allowed(handle, game_id)

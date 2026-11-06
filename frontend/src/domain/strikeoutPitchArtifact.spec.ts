@@ -34,6 +34,7 @@ describe('三振を追加した単一artifact', () => {
       'deriveOrdinaryPitchWithContinuation',
       'validateInitialGameRoster',
       'quantizeCourse',
+      'applyUndo',
     ])
   })
   it('旧通常37・BB/HBP15・新24の全応答を受理caseから比較する', () => {

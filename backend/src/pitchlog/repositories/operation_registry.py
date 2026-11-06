@@ -8,7 +8,10 @@ from pitchlog.repositories.batted_ball_options import BATTED_BALL_OPTIONS_OPERAT
 from pitchlog.repositories.first_ball import (
     _UNREGISTERED_DECLARATIONS as _FIRST_BALL_FUNCTION_OPERATIONS,
 )
-from pitchlog.repositories.first_ball import DEVICE_STATE_READ_OPERATION
+from pitchlog.repositories.first_ball import (
+    DEVICE_STATE_READ_OPERATION,
+    REPLAY_DEVICE_VERIFY_OPERATION,
+)
 from pitchlog.repositories.first_ball_operations import FIRST_BALL_PLAY_OPERATIONS
 from pitchlog.repositories.function_operations import (
     FunctionOperationRegistration,
@@ -16,7 +19,15 @@ from pitchlog.repositories.function_operations import (
 )
 from pitchlog.repositories.games import PREPARING_GAME_READ_OPERATIONS
 from pitchlog.repositories.invalidation_intents import INVALIDATION_INTENT_OPERATIONS
+from pitchlog.repositories.lifecycle_function_operations import (
+    LIFECYCLE_FUNCTION_OPERATIONS,
+    display_registration,
+)
 from pitchlog.repositories.lineup_memory import LINEUP_MEMORY_OPERATIONS
+from pitchlog.repositories.nonplay_function_operations import (
+    NONPLAY_FUNCTION_OPERATIONS,
+)
+from pitchlog.repositories.nonplay_prefix_read_operations import NONPLAY_READ_OPERATIONS
 from pitchlog.repositories.operation_registration import OperationRegistration
 from pitchlog.repositories.ordinary_order import ORDINARY_ORDER_OPERATIONS
 from pitchlog.repositories.ordinary_pitch_operations import (
@@ -82,11 +93,13 @@ PRODUCT_OPERATIONS: tuple[OperationRegistration, ...] = (
 
 _STATIC_PRODUCT_FUNCTION_BINDING_IDS = frozenset(
     {
+        "SYNC_ORDINARY_PITCH:read_nonplay_active_history",
         "SYNC_FIRST_BALL:bind_device",
         "SYNC_FIRST_BALL:check_current_right",
         "SYNC_WRITER_BINDING:read_writer_identity",
         "SYNC_WRITER_BINDING:assert_writer_binding",
         "SYNC_FIRST_BALL:read_device_state",
+        "SYNC_FIRST_BALL:verify_replay_device",
         "SYNC_ORDINARY_PITCH:bind_ordinary_device",
         "SYNC_ORDINARY_PITCH:check_ordinary_right",
         "SYNC_ORDINARY_PITCH:prepare_ordinary_projection",
@@ -192,6 +205,10 @@ PRODUCT_FUNCTION_OPERATIONS: tuple[FunctionOperationRegistration, ...] = (
         DEVICE_STATE_READ_OPERATION, operation_id="SYNC_FIRST_BALL:read_device_state"
     ),
     _registered_product_function(
+        REPLAY_DEVICE_VERIFY_OPERATION,
+        operation_id="SYNC_FIRST_BALL:verify_replay_device",
+    ),
+    _registered_product_function(
         ORDINARY_QUALIFICATION_OPERATIONS[0],
         operation_id="SYNC_ORDINARY_PITCH:bind_ordinary_device",
     ),
@@ -240,6 +257,13 @@ PRODUCT_FUNCTION_OPERATIONS: tuple[FunctionOperationRegistration, ...] = (
         operation_id="SYNC_LINEUP_PREFIX:read_lineup_started_origin",
     ),
     *STATS_NATIVE_FUNCTION_OPERATIONS,
+    *NONPLAY_FUNCTION_OPERATIONS,
+    *LIFECYCLE_FUNCTION_OPERATIONS,
+    display_registration(),
+    _registered_product_function(
+        NONPLAY_READ_OPERATIONS[0],
+        operation_id="SYNC_ORDINARY_PITCH:read_nonplay_active_history",
+    ),
 )
 FUNCTION_OPERATION_REGISTRY = build_function_registry(
     PRODUCT_FUNCTION_OPERATIONS,

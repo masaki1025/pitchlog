@@ -18,6 +18,7 @@ import {
 } from './ordinaryAppendPolicy'
 import { sameOrdinaryWire, isOrdinarySavedRules } from './ordinaryPitchWire'
 import { exactPlayObject } from './terminalPitchWire'
+import { isPlayRunnerStatus } from './playRunnerStatus'
 import { isLineupDefinition } from './lineupPrefixWire'
 import {
   STARTED_GAME_BASE_KEYS,
@@ -230,8 +231,7 @@ export function isLineupPrefixGame(v: unknown): v is LineupPrefixGame {
         !uuid(row.responsible_pitcher_id) ||
         typeof row.base !== 'number' ||
         ![1, 2, 3].includes(row.base) ||
-        row.status !== '継続' ||
-        row.status_source !== 'auto'
+        !isPlayRunnerStatus(row.base, row.status, row.status_source)
       )
         return false
   }

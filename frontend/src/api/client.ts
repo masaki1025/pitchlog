@@ -1,3 +1,4 @@
+import { hasSameTokenCookiePolicy } from './cookieIdentityPolicy'
 import { getActivePinia } from 'pinia'
 import { useAuthStore } from '../stores/authStore'
 import type { ApiErrorBody } from './types'
@@ -228,7 +229,9 @@ async function requestResponse<T>(
       !auth.isAuthenticated)
 
   // 現存するtenant認証付き経路はCookieを更新し得る。認可の判定には使わない。
+  const sameTokenCookiePolicy = hasSameTokenCookiePolicy(method, path)
   const cookieMayRenew =
+    sameTokenCookiePolicy ||
     ['/auth/session', '/auth/password', '/auth/login', '/auth/logout'].includes(
       path,
     ) ||
@@ -286,7 +289,18 @@ async function requestResponse<T>(
     auth.syncFromStorage()
     // 結果不明なら現世代でもCookieが変わり得る。要求につき通知経路は一つ。
     if (options.onAuthCookieUncertain) await options.onAuthCookieUncertain(true)
-    else if (cookieMayRenew) await auth.invalidateUncertainCookie()
+    else if (
+      cookieMayRenew &&
+      !(
+        sameTokenCookiePolicy &&
+        options.tenantBound &&
+        auth.authEpoch === epoch &&
+        auth.teamId === expectedTenant &&
+        auth.isAuthenticated
+      )
+    )
+      await auth.invalidateUncertainCookie()
+    // 同token更新でも、旧要求が新login後のCookieを巻き戻す可能性は別に扱う。
     if (tenantChanged()) throw new ApiTenantVerificationError(method, path)
     if (isAbortError(error)) {
       throw error

@@ -217,6 +217,12 @@ _SYNC_FIRST_BALL_FUNCTION_TYPES = MappingProxyType(
             (),
             (),
         ),
+        "sync_right_api.verify_replay_device": (
+            (("device_id", UUID), ("credential_digest", bytes)),
+            (("device_matches", bool),),
+            (),
+            (),
+        ),
         "sync_right_api.bind_device": (
             (*_SYNC_FIRST_BALL_COMMON, ("credential_digest", bytes)),
             (("device_matches", bool),),
@@ -260,6 +266,26 @@ _SYNC_ORDINARY_PREFIX_FUNCTION_TYPES = MappingProxyType(
     {
         "sync_right_api.read_ordinary_order_summary": (
             (("game_id", UUID),),
+            (("record_json", str),),
+            (),
+            (),
+            1,
+            1,
+        ),
+        "sync_right_api.read_nonplay_active_history": (
+            (
+                ("game_id", UUID),
+                ("generation", int),
+                ("checkpoint_id", UUID),
+                ("revision", int),
+                ("epoch", int),
+                ("d3", int),
+                ("logical_version", int),
+                ("after_order", int),
+                ("after_d1", int),
+                ("after_id", UUID),
+                ("page_size", int),
+            ),
             (("record_json", str),),
             (),
             (),
@@ -431,6 +457,52 @@ def _stats_native_family(registration) -> bool:
     }
 
 
+def _lifecycle_native_family(registration) -> bool:
+    """private3 SQL IDとprivate名前空間を閉じ、公的read1は別tokenとする。"""
+    return registration.function_id in {
+        "sync_right_api.read_lifecycle_state",
+        "sync_right_api.prepare_game_lifecycle",
+        "sync_right_api.consume_game_lifecycle",
+    } or any(
+        isinstance(value, str) and value.startswith(prefix)
+        for value, prefix in (
+            (registration.operation_id, "SYNC_LIFECYCLE:"),
+            (registration.capability_id, "CAP:sync_lifecycle:"),
+        )
+    )
+
+
+def _nonplay_native_family(registration) -> bool:
+    """新6の予約名だけを閉検査し、旧familyの許容範囲を変更しない。"""
+    names = {
+        "bind_nonplay_device",
+        "check_nonplay_right",
+        "lock_nonplay_checkpoint",
+        "read_nonplay_history_page",
+        "prepare_nonplay_undo",
+        "consume_nonplay_undo",
+    }
+    return (
+        (
+            type(registration.function_id) is str
+            and registration.function_id
+            in {("sync_right_api.") + name for name in names}
+        )
+        or any(
+            isinstance(value, str) and value.startswith(prefix)
+            for value, prefix in (
+                (registration.operation_id, "SYNC_NONPLAY:"),
+                (registration.capability_id, "CAP:sync_nonplay:"),
+            )
+        )
+        or getattr(registration.token_type, "__module__", None)
+        in {
+            "pitchlog.repositories.nonplay_prefix",
+            "pitchlog.repositories.nonplay_qualification",
+        }
+    )
+
+
 @dataclass(frozen=True, slots=True)
 class FunctionOperationRegistration:
     """単一のschema修飾関数、exact bind、戻りdecoderを固定する。"""
@@ -464,6 +536,20 @@ class FunctionOperationRegistration:
             raise FunctionOperationError("固定関数tokenはfrozen dataclassが必要")
         if type(self.statement) is not Select or not callable(self.decoder):
             raise FunctionOperationError("固定関数には固定Selectとdecoderが必要")
+        if _lifecycle_native_family(self):
+            from pitchlog.repositories.lifecycle_function_operations import (
+                validate_registration,
+            )
+
+            validate_registration(self)
+            return
+        if _nonplay_native_family(self):
+            from pitchlog.repositories.nonplay_function_operations import (
+                validate_registration,
+            )
+
+            validate_registration(self)
+            return
         if _stats_native_family(self):
             from pitchlog.repositories.stats_native_operations import (
                 validate_registration,
@@ -703,7 +789,8 @@ class FunctionOperationRegistration:
                     (
                         (
                             first_ball is not None
-                            and self.function_id == "sync_right_api.check_current_right"
+                            and self.function_id
+                            == ("sync_right_api.check_current_right")
                         )
                         or (
                             ordinary is not None
@@ -768,7 +855,8 @@ def _build_fixed_function_statement(
                 schema == "sync_right_api"
                 and (
                     (
-                        function_name in {"check_current_right", "check_ordinary_right"}
+                        function_name
+                        in {("check_current_right"), ("check_ordinary_right")}
                         and name in ("internal_generation", "recovery_generation")
                     )
                     or (
@@ -836,6 +924,18 @@ def build_function_registry(
     registry: dict[type[TenantOperationToken], FunctionOperationRegistration] = {}
     operation_ids: set[str] = set()
     for registration in registrations:
+        if _lifecycle_native_family(registration):
+            from pitchlog.repositories.lifecycle_function_operations import (
+                validate_registration,
+            )
+
+            validate_registration(registration)
+        elif _nonplay_native_family(registration):
+            from pitchlog.repositories.nonplay_function_operations import (
+                validate_registration,
+            )
+
+            validate_registration(registration)
         if _stats_native_family(registration):
             from pitchlog.repositories.stats_native_operations import (
                 validate_registration,
@@ -864,6 +964,24 @@ def prepare_function_operation(
     spec = registry.get(type(operation))
     if spec is None:
         raise FunctionOperationError("未登録または偽造された固定関数token")
+    if _lifecycle_native_family(spec):
+        from pitchlog.repositories.lifecycle_function_operations import (
+            validate_registration,
+        )
+
+        validate_registration(spec)
+        raise FunctionOperationError(
+            "終了再開の私有固定関数は真正dispatcher以外では使えません"
+        )
+    if _nonplay_native_family(spec):
+        from pitchlog.repositories.nonplay_function_operations import (
+            validate_registration,
+        )
+
+        validate_registration(spec)
+        raise FunctionOperationError(
+            "取消固定6関数は真正私有dispatcherだけで実行できます"
+        )
     if _stats_native_family(spec):
         from pitchlog.repositories.stats_native_operations import validate_registration
 
@@ -885,7 +1003,11 @@ def prepare_function_operation(
             if expected_type is bytes and len(value) != 32:
                 raise FunctionOperationError("通常prefixのnonce長が不一致")
             if expected_type is int:
-                lower = 0 if name in {"upper_watermark", "after_d1", "after_d2"} else 1
+                zero_based = name in {"upper_watermark", "after_d1", "after_d2"} or (
+                    spec.function_id == "sync_right_api.read_nonplay_active_history"
+                    and name == "after_order"
+                )
+                lower = 0 if zero_based else 1
                 upper = 100 if name == "page_size" else 2**63 - 1
                 if not lower <= value <= upper:
                     raise FunctionOperationError("通常prefixの整数範囲が不一致")

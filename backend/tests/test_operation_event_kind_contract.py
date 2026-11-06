@@ -164,7 +164,7 @@ def test_event_kind_mapping_exactly_covers_canonical_participation_kinds() -> No
 
     assert code_contract == canonical
     assert len(EVENT_KIND_LITERALS) == len(set(EVENT_KIND_LITERALS))
-    assert len(EVENT_KIND_LITERALS) == 9
+    assert len(EVENT_KIND_LITERALS) == 10
     assert CONDITIONAL_EVENT_KIND_LITERALS == (STATE_CORRECTION_EVENT_KIND,)
     assert {"state_correction", "tombstone", "revision"}.isdisjoint(EVENT_KIND_LITERALS)
     assert all(
@@ -218,7 +218,7 @@ def test_c12_matrix_exactly_covers_participation_value_product() -> None:
 
     validate_c12_requirement_matrix(C12_REQUIREMENT_MATRIX)
     assert set(C12_REQUIREMENT_MATRIX) == expected_keys
-    assert len(expected_keys) == 84
+    assert len(expected_keys) == 91
     assert all(
         cell.requirement in C12Requirement for cell in C12_REQUIREMENT_MATRIX.values()
     )
@@ -236,7 +236,7 @@ def test_c12_unrepresentable_cells_have_explicit_handoffs() -> None:
         for participation in OPERATION_EVENT_PARTICIPATIONS
         if participation.event_kind_literal is not None
         and participation.event_kind_literal not in CHANGE_EVENT_KIND_LITERALS
-        and participation.canonical_name != "undo"
+        and participation.canonical_name not in {"undo", "追記再開 (game_reopen)"}
     }
     expected_keys = {(number, C12Value.V10) for number in ordinary_v10} | {
         (
@@ -284,7 +284,7 @@ def test_c12_first_seven_kind_predicates_exclude_tombstones() -> None:
         and participation.event_kind_literal not in CHANGE_EVENT_KIND_LITERALS
     )
 
-    assert len(queued_kind_participations) == 7
+    assert len(queued_kind_participations) == 8
     assert all(
         C12_REQUIREMENT_MATRIX[
             (participation.participation_number, value)

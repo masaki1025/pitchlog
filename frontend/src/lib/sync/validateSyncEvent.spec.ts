@@ -87,6 +87,7 @@ const VALID_FIELDS_BY_KIND: Record<EventKindId, EventFields> = {
   '10': p3Fields('10'),
   '11': p3Fields('11'),
   '12': p3Fields('12'),
+  '13': { ...d1Fields('13'), V6: 'position-13' },
 }
 
 const logicalCancellableSource: SourceEventContextResolver = () => ({

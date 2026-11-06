@@ -195,7 +195,13 @@ def _assemble(handle: _TenantTransaction, game_id: UUID) -> StartedReadResult:
 
     # (2) 不可視の条件は0球readerの4条件と同一。以後のSQLは実行しない。
     if (
-        game["status"] != "in_progress"
+        (
+            game["status"] != "in_progress"
+            and not (
+                game["status"] == "finished"
+                and _finished_lifecycle_read_allowed(handle, game_id)
+            )
+        )
         or game["trashed_at"] is not None
         or game["hidden_at"] is not None
         or game["import_batch_id"] is not None
@@ -296,3 +302,12 @@ def _assemble(handle: _TenantTransaction, game_id: UUID) -> StartedReadResult:
             snapshot.tenant_id, snapshot.game_id, snapshot.generation
         ),
     )
+
+
+def _finished_lifecycle_read_allowed(handle, game_id):
+    """同TXの真正表示受領証がないfinishedを旧readへ開かない。"""
+    from pitchlog.repositories.game_lifecycle import (
+        _finished_lifecycle_read_allowed as allowed,
+    )
+
+    return allowed(handle, game_id)

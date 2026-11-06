@@ -7,7 +7,7 @@ RUNTIME_CONTRACT_REVISION = 32
 PROVISIONAL = False
 SUPERSEDED_BY = None
 SOURCE_ASSET = "contracts/tenant_boundary/runtime-authz-contract.json"
-SOURCE_DIGEST = "42cb1868e7298bc14eb36a51823b6dedb5eef0fb37b91fc67cee7dc8e00892bb"
+SOURCE_DIGEST = "c3ebfa7432cab33c0fd6b4bbbf256890aa6802369646e6645e1830cf65a1f107"
 DERIVED_FROM = "contracts/authz/product/ddl-elements.json"
 
 
@@ -102,6 +102,9 @@ PROTECTED_TABLES = (
     ("public", "tournament_rule_assignments"),
     ("public", "trusted_devices"),
     ("sync_fence", "first_ball_write_admissions"),
+    ("sync_fence", "game_lifecycle_heads"),
+    ("sync_fence", "lifecycle_write_admissions"),
+    ("sync_fence", "nonplay_write_admissions"),
     ("sync_fence", "ordinary_pitch_checkpoints"),
     ("sync_fence", "ordinary_pitch_history"),
     ("sync_fence", "ordinary_pitch_write_admissions"),
@@ -193,7 +196,10 @@ PROTECTED_FUNCTIONS = (
     ("public", "prevent_tenant_credentials_subject_update", ""),
     ("public", "prevent_tenant_tokens_identity_update", ""),
     ("public", "prevent_tenant_vocabularies_identity_update", ""),
+    ("public", "protect_game_lifecycle_heads", ""),
     ("public", "protect_initial_right_storage", ""),
+    ("public", "protect_lifecycle_write_admissions", ""),
+    ("public", "protect_nonplay_admission", ""),
     ("public", "protect_recording_generations_updates", ""),
     ("public", "resolve_stage_a_rule", "uuid, text, text, boolean"),
     ("public", "verify_games_applied_rules_final", ""),
@@ -222,6 +228,11 @@ PROTECTED_FUNCTIONS = (
     ("stats_api", "read_primitive_writer_state", "uuid, uuid, uuid, text, bytea"),
     (
         "stats_api",
+        "rebuild_after_nonplay_undo",
+        "uuid, uuid, uuid, bytea, uuid, uuid, text",
+    ),
+    (
+        "stats_api",
         "save_primitive_source",
         "uuid, uuid, uuid, text, bigint, text, jsonb, bytea",
     ),
@@ -236,6 +247,11 @@ PROTECTED_FUNCTIONS = (
     ("sync_right_api", "bind_device", "uuid, uuid, uuid, bytea, uuid, uuid, bytea"),
     (
         "sync_right_api",
+        "bind_nonplay_device",
+        "uuid, uuid, uuid, bytea, uuid, uuid, bytea",
+    ),
+    (
+        "sync_right_api",
         "bind_ordinary_device",
         "uuid, uuid, uuid, bytea, uuid, uuid, bytea",
     ),
@@ -246,14 +262,34 @@ PROTECTED_FUNCTIONS = (
     ),
     (
         "sync_right_api",
+        "check_nonplay_right",
+        "uuid, uuid, uuid, bytea, uuid, uuid, bigint, bigint, bytea",
+    ),
+    (
+        "sync_right_api",
         "check_ordinary_right",
         "uuid, uuid, uuid, bytea, uuid, uuid, bigint, bigint, bytea",
+    ),
+    (
+        "sync_right_api",
+        "consume_game_lifecycle",
+        "uuid, uuid, uuid, bytea, uuid, uuid, text",
+    ),
+    (
+        "sync_right_api",
+        "consume_nonplay_undo",
+        "uuid, uuid, uuid, bytea, uuid, uuid, text",
     ),
     ("sync_right_api", "consume_ordinary_projection", "jsonb"),
     ("sync_right_api", "finish_play_prefix_projection", ""),
     ("sync_right_api", "guard_first_ball_projection_admission", ""),
     ("sync_right_api", "guard_first_ball_projection_lock", ""),
     ("sync_right_api", "guard_play_prefix_runner_insert", ""),
+    (
+        "sync_right_api",
+        "lock_nonplay_checkpoint",
+        "uuid, uuid, uuid, bytea, uuid, uuid, text",
+    ),
     (
         "sync_right_api",
         "lock_ordinary_checkpoint",
@@ -266,6 +302,16 @@ PROTECTED_FUNCTIONS = (
     ),
     (
         "sync_right_api",
+        "prepare_game_lifecycle",
+        "uuid, uuid, uuid, bytea, uuid, uuid, text",
+    ),
+    (
+        "sync_right_api",
+        "prepare_nonplay_undo",
+        "uuid, uuid, uuid, bytea, uuid, uuid, text",
+    ),
+    (
+        "sync_right_api",
         "prepare_ordinary_projection",
         "uuid, uuid, uuid, bytea, uuid, uuid, text",
     ),
@@ -275,7 +321,26 @@ PROTECTED_FUNCTIONS = (
         "uuid, uuid, uuid, bytea, uuid, uuid, text",
     ),
     ("sync_right_api", "read_device_state", "uuid, uuid"),
+    ("sync_right_api", "read_lifecycle_display", "uuid, uuid"),
+    (
+        "sync_right_api",
+        "read_lifecycle_state",
+        "uuid, uuid, uuid, bytea, uuid, uuid, text",
+    ),
     ("sync_right_api", "read_lineup_started_origin", "uuid, uuid, bigint"),
+    (
+        "sync_right_api",
+        "read_nonplay_active_history",
+        (
+            "uuid, uuid, bigint, uuid, bigint, bigint, bigint, bigint, bigint, bigint, "
+            "uuid, integer"
+        ),
+    ),
+    (
+        "sync_right_api",
+        "read_nonplay_history_page",
+        "uuid, uuid, uuid, bytea, uuid, uuid, text",
+    ),
     ("sync_right_api", "read_ordinary_checkpoint", "uuid, uuid, bigint"),
     (
         "sync_right_api",
@@ -295,6 +360,7 @@ PROTECTED_FUNCTIONS = (
             "uuid, integer"
         ),
     ),
+    ("sync_right_api", "verify_replay_device", "uuid, uuid, bytea"),
 )
 
 DANGEROUS_ENDPOINT_FIXTURES = (

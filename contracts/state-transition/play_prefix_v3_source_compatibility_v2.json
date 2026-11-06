@@ -1,0 +1,26 @@
+{
+  "version": "2",
+  "sourceFormat": "play-prefix-play-v3",
+  "historicalWitnessSha256": "cd21ba1138c37820a6b80e8f3c506a462d961a8a745c537012cb72ca876c6df4",
+  "currentWitnessSha256": "c325d5174ca260f45489a6589351104cbe96cb14d30b123fa03a495a4b2375a5",
+  "cases": [
+    {
+      "priorArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
+      "executionArtifactSha256": "9ae9d16db1f2fa48905eb0ac951c8cb3ce5704dfe308df95a7a0bba155f33d19",
+      "sourceFormat": "play-prefix-play-v3",
+      "compatibleOperations": [
+        "deriveLineupPlayPrefixWithContinuation"
+      ],
+      "witnessSha256": "c325d5174ca260f45489a6589351104cbe96cb14d30b123fa03a495a4b2375a5"
+    },
+    {
+      "priorArtifactSha256": "9ae9d16db1f2fa48905eb0ac951c8cb3ce5704dfe308df95a7a0bba155f33d19",
+      "executionArtifactSha256": "9ae9d16db1f2fa48905eb0ac951c8cb3ce5704dfe308df95a7a0bba155f33d19",
+      "sourceFormat": "play-prefix-play-v3",
+      "compatibleOperations": [
+        "deriveLineupPlayPrefixWithContinuation"
+      ],
+      "witnessSha256": "c325d5174ca260f45489a6589351104cbe96cb14d30b123fa03a495a4b2375a5"
+    }
+  ]
+}

@@ -5,7 +5,7 @@ CONTRACT_REVISION = 38
 ASSET_KIND = "tenant_repository_contract"
 CANONICALIZATION = "json-sort-keys-utf8-v1"
 SOURCE_ASSET = "contracts/tenant_boundary/repository-contract.json"
-SOURCE_DIGEST = "a66c333bc3c0895fae46da8d5d8f7655c82cab05fc02a13a40b530447c8995fc"
+SOURCE_DIGEST = "41ff0691f2d86030263ea43e5be3badf5e33da3db67557920c6b4260209ea067"
 
 REPOSITORY_TYPE = "pitchlog.repositories.base.TenantRepositoryBase"
 CONTEXT_BINDING_ENTRY = "pitchlog.repositories.base.TenantRepositoryBase.execute"
@@ -206,6 +206,7 @@ PRODUCT_FUNCTION_OPERATION_IDS = (
     "SYNC_WRITER_BINDING:read_writer_identity",
     "SYNC_WRITER_BINDING:assert_writer_binding",
     "SYNC_FIRST_BALL:read_device_state",
+    "SYNC_FIRST_BALL:verify_replay_device",
     "SYNC_ORDINARY_PITCH:bind_ordinary_device",
     "SYNC_ORDINARY_PITCH:check_ordinary_right",
     "SYNC_ORDINARY_PITCH:prepare_ordinary_projection",

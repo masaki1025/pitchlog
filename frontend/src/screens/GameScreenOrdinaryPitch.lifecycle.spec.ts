@@ -454,8 +454,11 @@ it('単打の画面は全観測を確認するまで送信せず、同じControl
     ).toBe('first')
     expect(w.get('[data-testid="lineup-local-state"]').text()).toContain('2番')
     expect(w.find('[data-testid="batted-hit-observation"]').exists()).toBe(
-      false,
+      true,
     )
+    expect(
+      w.find('[data-testid="batted-runner-1-destination"]').exists(),
+    ).toBe(true)
   } finally {
     w.unmount()
   }

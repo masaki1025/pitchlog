@@ -6,6 +6,266 @@ p_tenant_id uuid,p_attempt_id uuid,p_phase_id uuid,p_binding_nonce bytea,p_devic
 RETURNS TABLE(prepared boolean) LANGUAGE plpgsql VOLATILE SECURITY DEFINER
 SET search_path=pg_catalog,pg_temp AS $dispatch$
 BEGIN
+ IF p_preparation_json::jsonb->'next_checkpoint'->>'formatVersion'='nonplay-normal-storage-v1' THEN
+DECLARE p jsonb; before_cp jsonb; after_cp jsonb; source_row record;
+ stamp sync_fence.ordinary_pitch_write_admissions%ROWTYPE;
+ current_cp sync_fence.ordinary_pitch_checkpoints%ROWTYPE;
+ own_xid text; row_xmin text; previous_d1 bigint; q jsonb; v jsonb; expected_cp jsonb; expected_head jsonb; expected_context jsonb;
+BEGIN
+
+IF session_user <> 'pitchlog_app' OR current_user <> 'pitchlog_sync_right_fn_owner'
+ OR p_tenant_id IS NULL OR p_tenant_id IS DISTINCT FROM
+ NULLIF(pg_catalog.current_setting('app.tenant_id',true),'')::uuid
+ OR p_attempt_id IS NULL OR p_phase_id IS NULL OR p_device_id IS NULL
+ OR p_game_id IS NULL OR p_binding_nonce IS NULL
+ OR pg_catalog.octet_length(p_binding_nonce) <> 32 THEN
+ RAISE EXCEPTION 'sync writer binding rejected' USING ERRCODE='42501';
+END IF;
+-- 実関数未供給なら例外で閉じる。callerのnonceだけでは成功しない。
+PERFORM sync_fence_api.assert_writer_binding(p_tenant_id,p_attempt_id,
+ p_phase_id,p_binding_nonce,p_device_id,p_game_id);
+
+ own_xid:=pg_catalog.pg_current_xact_id()::text;
+ IF p_preparation_json IS NULL THEN RAISE EXCEPTION 'ordinary pitch admission rejected' USING ERRCODE='42501'; END IF;
+ p:=p_preparation_json::jsonb;
+ IF pg_catalog.jsonb_typeof(p) IS DISTINCT FROM 'object'
+ OR (SELECT pg_catalog.array_agg(k ORDER BY k) FROM pg_catalog.jsonb_object_keys(p) k)
+ IS DISTINCT FROM ARRAY['artifact_sha256','checkpoint','frame_digest','frame_id',
+ 'history_entry','next_checkpoint','play_row','roster','source']::text[]
+ THEN RAISE EXCEPTION 'ordinary pitch admission rejected' USING ERRCODE='42501'; END IF;
+ before_cp:=p->'checkpoint'; after_cp:=p->'next_checkpoint';
+ SELECT s.* INTO STRICT stamp FROM sync_fence.ordinary_pitch_write_admissions s
+ JOIN sync_fence.writer_bindings b
+ ON (b.tenant_id,b.attempt_id,b.phase_id)=(s.tenant_id,s.attempt_id,s.phase_id)
+ JOIN sync_fence.writer_admissions a
+ ON (a.tenant_id,a.attempt_id,a.phase_id)=(s.tenant_id,s.attempt_id,s.phase_id)
+ WHERE (s.tenant_id,s.attempt_id,s.phase_id)=(p_tenant_id,p_attempt_id,p_phase_id)
+ AND s.state='right_verified' AND s.transaction_id=own_xid
+ AND b.state='open' AND b.expires_at>pg_catalog.clock_timestamp()
+ AND b.transaction_id=own_xid AND a.transaction_id=own_xid AND a.lease_id=b.lease_id
+ AND a.xmin::text::numeric=pg_catalog.mod(own_xid::numeric,4294967296::numeric)
+ AND s.tenant_id IS NOT DISTINCT FROM b.tenant_id AND s.attempt_id IS NOT DISTINCT FROM b.attempt_id AND s.phase_id IS NOT DISTINCT FROM b.phase_id AND s.authority_id IS NOT DISTINCT FROM b.authority_id AND s.control_instance IS NOT DISTINCT FROM b.control_instance AND s.business_instance IS NOT DISTINCT FROM b.business_instance AND s.restore_epoch IS NOT DISTINCT FROM b.restore_epoch AND s.control_version IS NOT DISTINCT FROM b.control_version AND s.issuer IS NOT DISTINCT FROM b.issuer AND s.lease_id IS NOT DISTINCT FROM b.lease_id AND s.device_id IS NOT DISTINCT FROM b.device_id AND s.game_id IS NOT DISTINCT FROM b.game_id AND s.wire_d4 IS NOT DISTINCT FROM b.wire_d4 AND s.internal_generation IS NOT DISTINCT FROM b.internal_generation AND s.recovery_generation IS NOT DISTINCT FROM b.recovery_generation AND s.codec_version IS NOT DISTINCT FROM b.codec_version AND s.request_fingerprint IS NOT DISTINCT FROM b.request_fingerprint AND s.d5 IS NOT DISTINCT FROM b.d5 AND s.event_fingerprint IS NOT DISTINCT FROM b.event_fingerprint AND s.system_identifier IS NOT DISTINCT FROM b.system_identifier AND s.database_oid IS NOT DISTINCT FROM b.database_oid AND s.postmaster_started_at IS NOT DISTINCT FROM b.postmaster_started_at AND s.backend_pid IS NOT DISTINCT FROM b.backend_pid AND s.backend_start IS NOT DISTINCT FROM b.backend_start AND s.transaction_id IS NOT DISTINCT FROM b.transaction_id AND s.nonce_digest IS NOT DISTINCT FROM b.nonce_digest AND s.expires_at IS NOT DISTINCT FROM b.expires_at FOR UPDATE OF s;
+ SELECT e.* INTO STRICT source_row FROM public.operation_events e
+ WHERE e.tenant_id=p_tenant_id AND e.game_id=p_game_id
+ AND e.id=(p->'source'->>'id')::uuid AND e.d5=stamp.d5
+ AND e.generation=stamp.internal_generation AND e.ledger_kind='accepted'
+ AND e.event_kind='play_input' AND NOT e.is_tombstone AND e.d1>0 AND e.d2 IS NOT NULL
+ AND e.replaced_at IS NULL AND e.retired_at IS NULL AND e.import_batch_id IS NULL
+ AND e.legacy_row_identifier IS NULL AND NOT e.migration_unverified;
+ previous_d1:=source_row.d1-1;
+
+ q:=source_row.payload->'calculation'->'request';
+ v:=source_row.payload->'calculation'->'response'->'value';
+ SELECT c.* INTO STRICT current_cp FROM sync_fence.ordinary_pitch_checkpoints c
+ WHERE c.tenant_id=p_tenant_id AND c.game_id=p_game_id
+ AND c.internal_generation=stamp.internal_generation AND c.state='current' FOR UPDATE;
+ expected_head:=pg_catalog.jsonb_build_object('eventId',source_row.id::text,
+ 'gameId',p_game_id::text,'generation',stamp.wire_d4,'d1',source_row.d1::text,
+ 'd5',source_row.d5::text,'fingerprint',stamp.event_fingerprint,'eventKind',
+ 'play_input');
+ expected_context:=pg_catalog.jsonb_build_object('current',v->'t1'->'after',
+ 'rules',before_cp->'content'->'restored'->'rules',
+ 'rulesDigest',before_cp->'content'->'restored'->'rulesDigest',
+ 'layoutDigest',before_cp->'content'->'restored'->'layoutDigest',
+ 'rosterDigest',v->'rosterDigest','lineup',v->'lineup','participants',v->'participants',
+ 'runners',v->'runners','responsibility',v->'nextResponsibility','lastPlayEvaluation',
+ v->'t2');
+ expected_cp:=before_cp->'content'||pg_catalog.jsonb_build_object(
+ 'd3',source_row.d1::text,'d1Head',pg_catalog.jsonb_build_object('kind',
+ 'accepted-event','source',expected_head),
+ 'projectionHead',pg_catalog.jsonb_build_object('kind','d1-event','source',
+ expected_head),
+ 'activeHead',pg_catalog.jsonb_build_object('source',expected_head,'playId',
+ p->'play_row'->>'id',
+ 'd2',source_row.d2::text,'physicalPlayNumber',p->'play_row'->>'play_number'),
+ 'activeDepth',((before_cp->'content'->>'activeDepth')::bigint+1)::text,
+ 'historyVersion',((before_cp->'content'->>'historyVersion')::bigint+1)::text,
+ 'nextPhysicalPlayNumber',
+ ((before_cp->'content'->>'nextPhysicalPlayNumber')::bigint+1)::text,
+ 'restored',expected_context);
+ IF source_row.payload->>'formatVersion' IS DISTINCT FROM 'play-prefix-play-v3'
+ OR source_row.payload->'calculation'->>'formatVersion' IS DISTINCT FROM
+ 'nonplay-prefix-calculation-v1'
+ OR source_row.payload->'calculation'->>'artifactSha256' IS DISTINCT FROM
+ p->>'artifact_sha256'
+ OR q->>'version' IS DISTINCT FROM 'nonplay-continuation-v1'
+ OR q->'source'->'checkpoint' IS DISTINCT FROM before_cp
+ OR q->'prefixRef' IS DISTINCT FROM before_cp->'ref'
+ OR q->'rules' IS DISTINCT FROM before_cp->'content'->'restored'->'rules'
+ OR q->'t1'->'before' IS DISTINCT FROM before_cp->'content'->'restored'->'current'
+ OR q->'t1'->>'resultId' IS DISTINCT FROM 'batting-result.ball'
+ OR q->'sourcePosition' IS DISTINCT FROM pg_catalog.jsonb_build_object(
+ 'd1',source_row.d1::text,'d2',source_row.d2::text,'appliedWatermark',previous_d1::text)
+ OR q->'playIdentity' IS DISTINCT FROM pg_catalog.jsonb_build_object(
+ 'eventId',source_row.id::text,'d5',source_row.d5::text,'playId',p->'play_row'->>'id')
+ OR v->'previousPrefixRef' IS DISTINCT FROM before_cp->'ref'
+ OR v->'nextPrefixRef' IS DISTINCT FROM q->'nextCheckpoint'
+ OR v->'playIdentity' IS DISTINCT FROM q->'playIdentity'
+ OR v->'sourcePosition' IS DISTINCT FROM q->'sourcePosition'
+ OR v->>'executionArtifactSha256' IS DISTINCT FROM p->>'artifact_sha256'
+ OR before_cp->>'formatVersion' IS DISTINCT FROM 'nonplay-prefix-checkpoint-v1'
+ OR before_cp->'content'->'scope' IS DISTINCT FROM pg_catalog.jsonb_build_object(
+ 'tenantId',p_tenant_id::text,'gameId',p_game_id::text,'generation',stamp.wire_d4)
+ OR before_cp->'content'->>'executionArtifactSha256' IS DISTINCT FROM
+ p->>'artifact_sha256'
+ OR current_cp.content IS DISTINCT FROM before_cp OR current_cp.roster IS DISTINCT FROM
+ p->'roster'
+ OR current_cp.id::text IS DISTINCT FROM before_cp->'ref'->>'id'
+ OR current_cp.revision::text IS DISTINCT FROM before_cp->'ref'->>'revision'
+ OR current_cp.content_digest IS DISTINCT FROM before_cp->'ref'->>'digest'
+ OR current_cp.confirmed_watermark IS DISTINCT FROM previous_d1
+ OR current_cp.applied_watermark IS DISTINCT FROM previous_d1
+ OR current_cp.recovery_generation IS DISTINCT FROM stamp.recovery_generation
+ OR current_cp.history_version::text IS DISTINCT FROM
+ before_cp->'content'->>'storageHistoryEpoch'
+ OR before_cp->'content'->>'d3' IS DISTINCT FROM previous_d1::text
+ OR after_cp->>'formatVersion' IS DISTINCT FROM 'nonplay-normal-storage-v1'
+ OR (SELECT pg_catalog.array_agg(k ORDER BY k) FROM
+ pg_catalog.jsonb_object_keys(after_cp) k)
+ IS DISTINCT FROM ARRAY['checkpoint','formatVersion','projection_snapshot']::text[]
+ OR after_cp->'checkpoint'->'content' IS DISTINCT FROM expected_cp
+ OR (((after_cp->'checkpoint')-'content')-'ref') IS DISTINCT FROM
+ ((before_cp-'content')-'ref')
+ OR ((after_cp->'checkpoint'->'ref')-'digest') IS DISTINCT FROM
+ pg_catalog.jsonb_build_object('id',current_cp.id::text,'revision',
+ (current_cp.revision+1)::text)
+ OR after_cp->'checkpoint'->'ref'->>'digest' !~ '^[a-f0-9]{64}$'
+ OR p->'source' IS DISTINCT FROM pg_catalog.jsonb_build_object('id',source_row.id::text,
+ 'tenant_id',p_tenant_id::text,'game_id',p_game_id::text,'generation',
+ source_row.generation::text,
+ 'd1',source_row.d1::text,'d2',source_row.d2::text,'d5',source_row.d5::text,
+ 'source_fingerprint',stamp.event_fingerprint,'event_fingerprint',
+ stamp.event_fingerprint)
+ OR p->'history_entry' IS DISTINCT FROM v->'newHistoryEntry'
+ OR source_row.state_diff IS DISTINCT FROM v->'newHistoryEntry'->'difference'
+ OR after_cp->'projection_snapshot'->'play_row' IS DISTINCT FROM p->'play_row'
+ OR p->'play_row'->>'source_event_id' IS DISTINCT FROM source_row.id::text
+ OR p->'play_row'->>'tenant_id' IS DISTINCT FROM p_tenant_id::text
+ OR p->'play_row'->>'game_id' IS DISTINCT FROM p_game_id::text
+ OR p->'play_row'->>'play_number' IS DISTINCT FROM
+ before_cp->'content'->>'nextPhysicalPlayNumber'
+ OR (p->'play_row'->>'play_number')::bigint IS DISTINCT FROM
+ (SELECT COALESCE(pg_catalog.max(pr.play_number),0)+1 FROM public.play_rows pr
+ WHERE pr.tenant_id=p_tenant_id AND pr.game_id=p_game_id)
+ OR NOT EXISTS(SELECT 1 FROM public.idempotency_ledger l WHERE l.tenant_id=p_tenant_id
+ AND l.d5=stamp.d5 AND l.kind='accepted' AND
+ l.source_fingerprint=stamp.event_fingerprint
+ AND l.retired_at IS NULL AND l.import_batch_id IS NULL)
+ OR NOT EXISTS(SELECT 1 FROM public.recording_generations g WHERE
+ g.tenant_id=p_tenant_id
+ AND g.game_id=p_game_id AND g.generation=stamp.internal_generation AND g.kind='normal'
+ AND g.holder_device=stamp.device_id::text AND g.revoked_at IS NULL AND g.retired_at IS
+ NULL
+ AND g.recovery_generation=stamp.recovery_generation AND
+ g.confirmed_watermark=source_row.d1
+ AND g.applied_prefix=source_row.d1)
+ OR EXISTS(SELECT 1 FROM sync_fence.first_ball_write_admissions f WHERE
+ f.tenant_id=p_tenant_id
+ AND f.game_id=p_game_id AND f.d5=stamp.d5 AND f.state IN ('device_verified',
+ 'right_verified','consumed'))
+ THEN RAISE EXCEPTION 'play prefix admission rejected' USING ERRCODE='42501'; END IF;
+
+ IF pg_catalog.jsonb_typeof(after_cp->'projection_snapshot') IS DISTINCT FROM 'object'
+ OR (SELECT pg_catalog.array_agg(k ORDER BY k)
+ FROM pg_catalog.jsonb_object_keys(after_cp->'projection_snapshot') k)
+ IS DISTINCT FROM ARRAY['play_row','play_runners']::text[]
+ OR pg_catalog.jsonb_typeof(after_cp->'projection_snapshot'->'play_runners')
+ IS DISTINCT FROM 'array'
+ OR pg_catalog.jsonb_array_length(after_cp->'projection_snapshot'->'play_runners')
+ IS DISTINCT FROM pg_catalog.jsonb_array_length(
+ before_cp->'content'->'restored'->'runners')
+ OR source_row.payload->'participants' IS DISTINCT FROM
+ before_cp->'content'->'restored'->'participants'
+ OR v->'beforeParticipants' IS DISTINCT FROM source_row.payload->'participants'
+ OR v->'responsibility' IS DISTINCT FROM
+ before_cp->'content'->'restored'->'responsibility'
+ OR before_cp->'content'->'restored'->'responsibility'->>'kind'
+ IS DISTINCT FROM 'no-change'
+ OR p->'play_row'->>'batter_id' IS DISTINCT FROM
+ before_cp->'content'->'restored'->'participants'->>'batterId'
+ OR p->'play_row'->>'pitcher_id' IS DISTINCT FROM
+ before_cp->'content'->'restored'->'participants'->>'pitcherId'
+ OR p->'play_row'->>'catcher_id' IS DISTINCT FROM
+ before_cp->'content'->'restored'->'participants'->>'catcherId'
+ OR EXISTS(SELECT 1 FROM pg_catalog.jsonb_array_elements(
+ after_cp->'projection_snapshot'->'play_runners') r WHERE
+ (SELECT pg_catalog.array_agg(k ORDER BY k) FROM pg_catalog.jsonb_object_keys(r) k)
+ IS DISTINCT FROM ARRAY['base','id','import_batch_id','play_id',
+ 'responsible_pitcher_id','retired_at','runner_id','status','status_source','tenant_id']::text[]
+ OR r->>'tenant_id' IS DISTINCT FROM p_tenant_id::text
+ OR r->>'play_id' IS DISTINCT FROM p->'play_row'->>'id'
+ OR r->>'id' IS NULL OR r->'retired_at' IS DISTINCT FROM 'null'::jsonb
+ OR r->'import_batch_id' IS DISTINCT FROM 'null'::jsonb
+ OR NOT EXISTS(SELECT 1 FROM pg_catalog.jsonb_array_elements(
+ source_row.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored'->'runners') m
+ WHERE r->>'base'=m->>'base' AND r->>'runner_id'=m->>'runnerId'
+ AND r->>'responsible_pitcher_id'=m->>'responsiblePitcherId'
+ AND r->>'status'=(CASE
+ WHEN source_row.payload->'calculation'->'response'->'value'->'t1'
+ ->'runnerDefaultAdvance'->(CASE m->>'base' WHEN '1' THEN 'first'
+ WHEN '2' THEN 'second' WHEN '3' THEN 'third' END)->>'modality'='hold'
+ THEN '継続'
+ WHEN m->>'base'='1' AND source_row.payload->'calculation'->'response'
+ ->'value'->'t1'->'runnerDefaultAdvance'->'first'->>'destination'='2' THEN '二進'
+ WHEN m->>'base' IN ('1','2') AND source_row.payload->'calculation'
+ ->'response'->'value'->'t1'->'runnerDefaultAdvance'
+ ->(CASE m->>'base' WHEN '1' THEN 'first' ELSE 'second' END)
+ ->>'destination'='3' THEN '三進'
+ WHEN source_row.payload->'calculation'->'response'->'value'->'t1'
+ ->'runnerDefaultAdvance'->(CASE m->>'base' WHEN '1' THEN 'first'
+ WHEN '2' THEN 'second' WHEN '3' THEN 'third' END)->>'destination'='4'
+ THEN '本進' ELSE NULL END)
+ AND r->>'status_source'=(CASE WHEN EXISTS(SELECT 1 FROM
+ pg_catalog.jsonb_array_elements(CASE WHEN pg_catalog.jsonb_typeof(
+ source_row.payload->'calculation'->'request'->'t1'
+ ->'runnerAdvanceOverrides'->'overrides')='array' THEN
+ source_row.payload->'calculation'->'request'->'t1'
+ ->'runnerAdvanceOverrides'->'overrides' ELSE '[]'::jsonb END) o
+ WHERE o->>'runnerBase'=m->>'base' AND o->>'destination'=
+ source_row.payload->'calculation'->'response'->'value'->'t1'
+ ->'runnerDefaultAdvance'->(CASE m->>'base' WHEN '1' THEN 'first'
+ WHEN '2' THEN 'second' WHEN '3' THEN 'third' END)->>'destination')
+ THEN 'manual' ELSE 'auto' END)
+ AND NOT EXISTS(SELECT 1 FROM pg_catalog.jsonb_array_elements(CASE WHEN
+ pg_catalog.jsonb_typeof(source_row.payload->'calculation'->'request'
+ ->'t1'->'runnerAdvanceOverrides'->'overrides')='array' THEN
+ source_row.payload->'calculation'->'request'->'t1'
+ ->'runnerAdvanceOverrides'->'overrides' ELSE '[]'::jsonb END) o
+ WHERE o->>'runnerBase'=m->>'base' AND o->>'destination' IS DISTINCT FROM
+ source_row.payload->'calculation'->'response'->'value'->'t1'
+ ->'runnerDefaultAdvance'->(CASE m->>'base' WHEN '1' THEN 'first'
+ WHEN '2' THEN 'second' WHEN '3' THEN 'third' END)->>'destination')
+ AND source_row.payload->'calculation'->'response'->'value'->'t1'
+ ->'runnerDefaultAdvance'->(CASE m->>'base' WHEN '1' THEN 'first'
+ WHEN '2' THEN 'second' WHEN '3' THEN 'third' END)->>'modality'
+ IN ('hold','optional','forced')))
+ OR EXISTS(SELECT 1 FROM pg_catalog.jsonb_array_elements(
+ source_row.payload->'calculation'->'response'->'value'->'t1'
+ ->'outEffect'->'targets') target WHERE pg_catalog.jsonb_typeof(target)='object'
+ AND target ? 'runner')
+ THEN RAISE EXCEPTION 'play prefix admission rejected' USING ERRCODE='42501'; END IF;
+ UPDATE sync_fence.ordinary_pitch_write_admissions a SET state='evaluated',
+ checkpoint_id=current_cp.id,checkpoint_revision=current_cp.revision,
+ checkpoint_digest=current_cp.content_digest,
+ prefix_length=(before_cp->'content'->>'activeDepth')::bigint,
+ frame_id=(p->>'frame_id')::uuid,frame_digest=p->>'frame_digest',
+ artifact_sha256=p->>'artifact_sha256',
+ source_event_id=source_row.id,source_d1=source_row.d1,source_d2=source_row.d2,
+ play_row_id=(p->'play_row'->>'id')::uuid,checkpoint_content=before_cp,
+ next_checkpoint_content=after_cp,
+ roster_snapshot=p->'roster',history_entry=p->'history_entry',
+ expected_play_row=p->'play_row'
+ WHERE (a.tenant_id,a.attempt_id,a.phase_id)=(p_tenant_id,p_attempt_id,p_phase_id)
+ AND a.state='right_verified' AND a.transaction_id=own_xid
+ RETURNING a.xmin::text INTO row_xmin;
+ IF NOT FOUND OR row_xmin::numeric IS DISTINCT FROM pg_catalog.mod(own_xid::numeric,
+ 4294967296::numeric)
+ THEN RAISE EXCEPTION 'play prefix admission rejected' USING ERRCODE='42501'; END IF;
+ RETURN QUERY SELECT true;
+END;
+
+ ELSE
+BEGIN
  IF p_preparation_json::jsonb->'next_checkpoint'->>'version'='3' THEN
 DECLARE p jsonb; batted_obs jsonb; before_cp jsonb; after_cp jsonb; source_row record;
  stamp sync_fence.ordinary_pitch_write_admissions%ROWTYPE;
@@ -203,13 +463,49 @@ source_row.payload->'calculation'->'request'->'source'->'responsibility'
  source_row.payload->'calculation'->'request'->'source'->'runners') m
  WHERE r->>'base'=m->>'base' AND r->>'runner_id'=m->>'runnerId'
  AND r->>'responsible_pitcher_id'=m->>'responsiblePitcherId'
- AND r->>'status'='継続' AND r->>'status_source'='auto'
- AND source_row.payload->'calculation'->'response'->'value'->'t1'
+ AND r->>'status'=(CASE
+ WHEN source_row.payload->'calculation'->'response'->'value'->'t1'
  ->'runnerDefaultAdvance'->(CASE m->>'base' WHEN '1' THEN 'first'
  WHEN '2' THEN 'second' WHEN '3' THEN 'third' END)->>'modality'='hold'
+ THEN '継続'
+ WHEN m->>'base'='1' AND source_row.payload->'calculation'->'response'
+ ->'value'->'t1'->'runnerDefaultAdvance'->'first'->>'destination'='2' THEN '二進'
+ WHEN m->>'base' IN ('1','2') AND source_row.payload->'calculation'
+ ->'response'->'value'->'t1'->'runnerDefaultAdvance'
+ ->(CASE m->>'base' WHEN '1' THEN 'first' ELSE 'second' END)
+ ->>'destination'='3' THEN '三進'
+ WHEN source_row.payload->'calculation'->'response'->'value'->'t1'
+ ->'runnerDefaultAdvance'->(CASE m->>'base' WHEN '1' THEN 'first'
+ WHEN '2' THEN 'second' WHEN '3' THEN 'third' END)->>'destination'='4'
+ THEN '本進' ELSE NULL END)
+ AND r->>'status_source'=(CASE WHEN EXISTS(SELECT 1 FROM
+ pg_catalog.jsonb_array_elements(CASE WHEN pg_catalog.jsonb_typeof(
+ source_row.payload->'calculation'->'request'->'t1'
+ ->'runnerAdvanceOverrides'->'overrides')='array' THEN
+ source_row.payload->'calculation'->'request'->'t1'
+ ->'runnerAdvanceOverrides'->'overrides' ELSE '[]'::jsonb END) o
+ WHERE o->>'runnerBase'=m->>'base' AND o->>'destination'=
+ source_row.payload->'calculation'->'response'->'value'->'t1'
+ ->'runnerDefaultAdvance'->(CASE m->>'base' WHEN '1' THEN 'first'
+ WHEN '2' THEN 'second' WHEN '3' THEN 'third' END)->>'destination')
+ THEN 'manual' ELSE 'auto' END)
+ AND NOT EXISTS(SELECT 1 FROM pg_catalog.jsonb_array_elements(CASE WHEN
+ pg_catalog.jsonb_typeof(source_row.payload->'calculation'->'request'
+ ->'t1'->'runnerAdvanceOverrides'->'overrides')='array' THEN
+ source_row.payload->'calculation'->'request'->'t1'
+ ->'runnerAdvanceOverrides'->'overrides' ELSE '[]'::jsonb END) o
+ WHERE o->>'runnerBase'=m->>'base' AND o->>'destination' IS DISTINCT FROM
+ source_row.payload->'calculation'->'response'->'value'->'t1'
+ ->'runnerDefaultAdvance'->(CASE m->>'base' WHEN '1' THEN 'first'
+ WHEN '2' THEN 'second' WHEN '3' THEN 'third' END)->>'destination')
  AND source_row.payload->'calculation'->'response'->'value'->'t1'
  ->'runnerDefaultAdvance'->(CASE m->>'base' WHEN '1' THEN 'first'
- WHEN '2' THEN 'second' WHEN '3' THEN 'third' END)->'destination'='null'::jsonb))
+ WHEN '2' THEN 'second' WHEN '3' THEN 'third' END)->>'modality'
+ IN ('hold','optional','forced')))
+ OR EXISTS(SELECT 1 FROM pg_catalog.jsonb_array_elements(
+ source_row.payload->'calculation'->'response'->'value'->'t1'
+ ->'outEffect'->'targets') target WHERE pg_catalog.jsonb_typeof(target)='object'
+ AND target ? 'runner')
  THEN RAISE EXCEPTION 'lineup physical source rejected' USING ERRCODE='42501'; END IF;
 
  -- 新安打だけの閉分岐。旧writer/原本/nonce検査は変更しない。
@@ -232,16 +528,22 @@ source_row.payload->'calculation'->'request'->'source'->'responsibility'
   OR batted_obs->'officialScoringPayload' IS DISTINCT FROM
   '{"kind":"no-error","errorCount":"0","fielders":[]}'::jsonb
   OR batted_obs->'interferenceRuling' IS DISTINCT FROM '{"kind":"not-required"}'::jsonb
-  OR batted_obs->'runnerAdvanceOverridesByRunner' IS DISTINCT FROM
-  '{"kind":"not-applied","overrides":[]}'::jsonb
+  OR (
+   batted_obs->'runnerAdvanceOverridesByRunner' IS DISTINCT FROM
+   '{"kind":"not-applied","overrides":[]}'::jsonb
+   AND batted_obs->'runnerAdvanceOverridesByRunner' IS DISTINCT FROM
+   source_row.payload->'calculation'->'request'->'t1'->'runnerAdvanceOverrides')
+  OR (
+   batted_obs->'runnerAdvanceOverridesByRunner' =
+   '{"kind":"not-applied","overrides":[]}'::jsonb
+   AND source_row.payload->'calculation'->'request'->'t1'
+   ->>'runnerAdvanceOverrides' IS DISTINCT FROM 'not-applied')
   OR batted_obs->'thirdOutObservation' IS DISTINCT FROM '{"kind":"none"}'::jsonb
   OR batted_obs->'thirdOutTimingByRunner' IS DISTINCT FROM '{}'::jsonb
   OR source_row.payload->'calculation'->'request'->'t1'->>'officialScoringPayload'
   IS DISTINCT FROM 'no-error'
   OR source_row.payload->'calculation'->'request'->'t1'->>'interferenceRuling'
   IS DISTINCT FROM 'not-required'
-  OR source_row.payload->'calculation'->'request'->'t1'->>'runnerAdvanceOverrides'
-  IS DISTINCT FROM 'not-applied'
   OR source_row.payload->'calculation'->'request'->'t1'->>'thirdOutObservation'
   IS DISTINCT FROM 'none'
   OR pg_catalog.jsonb_typeof(batted_obs->'battedBall') IS DISTINCT FROM 'object'
@@ -539,13 +841,49 @@ END IF;
  source_row.payload->'calculation'->'request'->'source'->'runners') m
  WHERE r->>'base'=m->>'base' AND r->>'runner_id'=m->>'runnerId'
  AND r->>'responsible_pitcher_id'=m->>'responsiblePitcherId'
- AND r->>'status'='継続' AND r->>'status_source'='auto'
- AND source_row.payload->'calculation'->'response'->'value'->'t1'
+ AND r->>'status'=(CASE
+ WHEN source_row.payload->'calculation'->'response'->'value'->'t1'
  ->'runnerDefaultAdvance'->(CASE m->>'base' WHEN '1' THEN 'first'
  WHEN '2' THEN 'second' WHEN '3' THEN 'third' END)->>'modality'='hold'
+ THEN '継続'
+ WHEN m->>'base'='1' AND source_row.payload->'calculation'->'response'
+ ->'value'->'t1'->'runnerDefaultAdvance'->'first'->>'destination'='2' THEN '二進'
+ WHEN m->>'base' IN ('1','2') AND source_row.payload->'calculation'
+ ->'response'->'value'->'t1'->'runnerDefaultAdvance'
+ ->(CASE m->>'base' WHEN '1' THEN 'first' ELSE 'second' END)
+ ->>'destination'='3' THEN '三進'
+ WHEN source_row.payload->'calculation'->'response'->'value'->'t1'
+ ->'runnerDefaultAdvance'->(CASE m->>'base' WHEN '1' THEN 'first'
+ WHEN '2' THEN 'second' WHEN '3' THEN 'third' END)->>'destination'='4'
+ THEN '本進' ELSE NULL END)
+ AND r->>'status_source'=(CASE WHEN EXISTS(SELECT 1 FROM
+ pg_catalog.jsonb_array_elements(CASE WHEN pg_catalog.jsonb_typeof(
+ source_row.payload->'calculation'->'request'->'t1'
+ ->'runnerAdvanceOverrides'->'overrides')='array' THEN
+ source_row.payload->'calculation'->'request'->'t1'
+ ->'runnerAdvanceOverrides'->'overrides' ELSE '[]'::jsonb END) o
+ WHERE o->>'runnerBase'=m->>'base' AND o->>'destination'=
+ source_row.payload->'calculation'->'response'->'value'->'t1'
+ ->'runnerDefaultAdvance'->(CASE m->>'base' WHEN '1' THEN 'first'
+ WHEN '2' THEN 'second' WHEN '3' THEN 'third' END)->>'destination')
+ THEN 'manual' ELSE 'auto' END)
+ AND NOT EXISTS(SELECT 1 FROM pg_catalog.jsonb_array_elements(CASE WHEN
+ pg_catalog.jsonb_typeof(source_row.payload->'calculation'->'request'
+ ->'t1'->'runnerAdvanceOverrides'->'overrides')='array' THEN
+ source_row.payload->'calculation'->'request'->'t1'
+ ->'runnerAdvanceOverrides'->'overrides' ELSE '[]'::jsonb END) o
+ WHERE o->>'runnerBase'=m->>'base' AND o->>'destination' IS DISTINCT FROM
+ source_row.payload->'calculation'->'response'->'value'->'t1'
+ ->'runnerDefaultAdvance'->(CASE m->>'base' WHEN '1' THEN 'first'
+ WHEN '2' THEN 'second' WHEN '3' THEN 'third' END)->>'destination')
  AND source_row.payload->'calculation'->'response'->'value'->'t1'
  ->'runnerDefaultAdvance'->(CASE m->>'base' WHEN '1' THEN 'first'
- WHEN '2' THEN 'second' WHEN '3' THEN 'third' END)->'destination'='null'::jsonb))
+ WHEN '2' THEN 'second' WHEN '3' THEN 'third' END)->>'modality'
+ IN ('hold','optional','forced')))
+ OR EXISTS(SELECT 1 FROM pg_catalog.jsonb_array_elements(
+ source_row.payload->'calculation'->'response'->'value'->'t1'
+ ->'outEffect'->'targets') target WHERE pg_catalog.jsonb_typeof(target)='object'
+ AND target ? 'runner')
  THEN RAISE EXCEPTION 'play prefix source or runners rejected'
  USING ERRCODE='42501'; END IF;
  SELECT c.* INTO current_cp FROM sync_fence.ordinary_pitch_checkpoints c
@@ -594,6 +932,9 @@ next_checkpoint_content=after_cp,roster_snapshot=p->'roster',history_entry=p->'h
 pg_catalog.mod(own_xid::numeric,4294967296::numeric)
  THEN RAISE EXCEPTION 'ordinary pitch admission rejected' USING ERRCODE='42501'; END IF;
  RETURN QUERY SELECT true;
+END;
+
+ END IF;
 END;
 
  END IF;

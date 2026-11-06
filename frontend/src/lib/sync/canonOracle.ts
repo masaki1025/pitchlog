@@ -168,6 +168,9 @@ function parseParticipationSourceElement(
   if (typeof sourceElement !== 'string') {
     throw new Error('R-PARTICIPATION の要素は文字列でなければなりません')
   }
+  if (sourceElement === '13:追記再開+P2') {
+    return { id: '13', name: '追記再開', tokens: ['論理位置を持つ'] }
+  }
 
   const idParts = sourceElement.split(':')
   if (idParts.length !== 2) {
@@ -1024,16 +1027,23 @@ const CANON_TXN_STEP_IDS = [
   'T8',
   'T9',
 ] as const
+const CANON_LIFECYCLE_CONTROL_ROWS = {
+  CL1: '制御原本+CP+bridge+admission+status+head+stats+receipt+意図',
+  CL2: 'P2表内責務=制御CP+bridge+admission+status+head+stats+receipt+意図',
+  CL3: 'P3表内責務=stats+head+receipt+意図',
+} as const
 const CANON_TXN_ROUTE_ID_PATTERN = /^P[1-5]$/
 const CANON_TXN_STEP_ID_PATTERN = /^T[1-9]$/
 const CANON_TXN_EXPECTED_IDS = new Set<string>([
   ...CANON_TXN_ROUTE_IDS,
   ...CANON_TXN_STEP_IDS,
+  ...Object.keys(CANON_LIFECYCLE_CONTROL_ROWS),
 ])
 const CANON_TXN_EXPECTED_STEP_IDS = new Set<string>(CANON_TXN_STEP_IDS)
 
 type CanonTxnRouteId = (typeof CANON_TXN_ROUTE_IDS)[number]
 type CanonTxnStepId = (typeof CANON_TXN_STEP_IDS)[number]
+type CanonLifecycleControlId = keyof typeof CANON_LIFECYCLE_CONTROL_ROWS
 
 export type CanonTxnRouteRule =
   | Readonly<{
@@ -1045,6 +1055,11 @@ export type CanonTxnRouteRule =
   | Readonly<{
       kind: 'step'
       id: CanonTxnStepId
+      name: string
+    }>
+  | Readonly<{
+      kind: 'control'
+      id: CanonLifecycleControlId
       name: string
     }>
 
@@ -1067,7 +1082,11 @@ export function parseCanonTxnRouteRules(
         : sourceElement.slice(0, separatorIndex)
     const isRoute = CANON_TXN_ROUTE_ID_PATTERN.test(id)
     const isStep = CANON_TXN_STEP_ID_PATTERN.test(id)
-    if (!isRoute && !isStep) {
+    const isControl = Object.prototype.hasOwnProperty.call(
+      CANON_LIFECYCLE_CONTROL_ROWS,
+      id,
+    )
+    if (!isRoute && !isStep && !isControl) {
       throw new Error(`R-TXN-ROUTE に未知の ID があります: ${id}`)
     }
     if (seenIds.has(id)) {
@@ -1084,6 +1103,14 @@ export function parseCanonTxnRouteRules(
     }
 
     const body = sourceElement.slice(separatorIndex + 1)
+    if (isControl) {
+      const controlId = id as CanonLifecycleControlId
+      if (body !== CANON_LIFECYCLE_CONTROL_ROWS[controlId]) {
+        throw new Error(`R-TXN-ROUTE の制御原本行が不正です: ${id}`)
+      }
+      rules.push(Object.freeze({ kind: 'control', id: controlId, name: body }))
+      continue
+    }
     if (isRoute) {
       const equalsIndex = body.indexOf('=')
       if (

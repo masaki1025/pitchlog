@@ -184,10 +184,25 @@ it('実hostから利用者選択→要求保存→POST→応答保存を接ぎ�
     }
   }
   await first.find('form').trigger('submit')
-  await vi.waitFor(() =>
-    expect(first.text()).toContain('開始応答を保存しました'),
-  )
+  await vi.waitFor(() => expect(first.text()).toContain('前回受領した開始応答'))
   expect(first.findComponent(GameScreen).exists()).toBe(false)
+  await vi.waitFor(() =>
+    expect(first.vm.$router.currentRoute.value.query.recording).toBe(
+      'play-prefix-v3',
+    ),
+  )
+  await vi.waitFor(() =>
+    expect(
+      vi.mocked(fetch).mock.calls.some(([url, init]) => {
+        const target = new URL(String(url), 'https://test')
+        return (
+          target.pathname === `/api/games/${game}/started` &&
+          target.searchParams.get('projection') === 'play-prefix-v3' &&
+          init?.method === 'GET'
+        )
+      }),
+    ).toBe(true),
+  )
   for (const value of [credential, proof, 'opaque-host-reference'])
     expect(first.text()).not.toContain(value)
   const store = await GameStartPersistence.open()

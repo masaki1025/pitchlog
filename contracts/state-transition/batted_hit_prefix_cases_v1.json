@@ -41,12 +41,8 @@
         },
         "t1": {
           "eventKind": "batting-result",
-          "pitchEventKind": "pitch-event",
-          "officialScoringPayload": "no-error",
-          "interferenceRuling": "not-required",
-          "runnerAdvanceOverrides": "not-applied",
-          "thirdOutObservation": "none",
           "resultId": "batting-result.single",
+          "pitchEventKind": "pitch-event",
           "before": {
             "stateFields": {
               "state.half": "top",
@@ -77,7 +73,11 @@
               "away": "1",
               "home": "6"
             }
-          }
+          },
+          "officialScoringPayload": "no-error",
+          "interferenceRuling": "not-required",
+          "runnerAdvanceOverrides": "not-applied",
+          "thirdOutObservation": "none"
         },
         "source": {
           "kind": "evaluated-prefix-v3",
@@ -176,7 +176,7 @@
             "appliedWatermark": "100"
           },
           "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-          "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+          "executionArtifactSha256": "9ae9d16db1f2fa48905eb0ac951c8cb3ce5704dfe308df95a7a0bba155f33d19",
           "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
           "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
           "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -254,7 +254,7 @@
         "nextCheckpoint": {
           "id": "30000000-0000-0000-0000-000000000001",
           "revision": "2",
-          "digest": "6bfded0dbe1b5867fc0c8ea7de838d46cb96af3b4cfc3a5b96bd46b636740f07"
+          "digest": "8951d4f229ebc558c550cf318c6d2e5508b9e12816780c9d8058c73d6ea4e3e6"
         }
       },
       "expected": {
@@ -387,13 +387,13 @@
                   "before": "3",
                   "after": "0"
                 },
-                "state.battingOrder": {
-                  "before": "1",
-                  "after": "2"
-                },
                 "state.runners": {
                   "before": "empty",
                   "after": "first"
+                },
+                "state.battingOrder": {
+                  "before": "1",
+                  "after": "2"
                 }
               },
               "scoreboard": {
@@ -463,7 +463,7 @@
             "checkpoint": {
               "id": "30000000-0000-0000-0000-000000000001",
               "revision": "2",
-              "digest": "6bfded0dbe1b5867fc0c8ea7de838d46cb96af3b4cfc3a5b96bd46b636740f07"
+              "digest": "8951d4f229ebc558c550cf318c6d2e5508b9e12816780c9d8058c73d6ea4e3e6"
             },
             "historyVersion": "101",
             "origin": {
@@ -557,7 +557,7 @@
             "d2": "101",
             "appliedWatermark": "100"
           },
-          "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400"
+          "executionArtifactSha256": "9ae9d16db1f2fa48905eb0ac951c8cb3ce5704dfe308df95a7a0bba155f33d19"
         }
       }
     },
@@ -598,12 +598,8 @@
         },
         "t1": {
           "eventKind": "batting-result",
-          "pitchEventKind": "pitch-event",
-          "officialScoringPayload": "no-error",
-          "interferenceRuling": "not-required",
-          "runnerAdvanceOverrides": "not-applied",
-          "thirdOutObservation": "none",
           "resultId": "batting-result.single",
+          "pitchEventKind": "pitch-event",
           "before": {
             "stateFields": {
               "state.half": "top",
@@ -634,7 +630,11 @@
               "away": "9",
               "home": "6"
             }
-          }
+          },
+          "officialScoringPayload": "no-error",
+          "interferenceRuling": "not-required",
+          "runnerAdvanceOverrides": "not-applied",
+          "thirdOutObservation": "none"
         },
         "source": {
           "kind": "evaluated-prefix-v3",
@@ -733,7 +733,7 @@
             "appliedWatermark": "100"
           },
           "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-          "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+          "executionArtifactSha256": "9ae9d16db1f2fa48905eb0ac951c8cb3ce5704dfe308df95a7a0bba155f33d19",
           "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
           "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
           "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -811,7 +811,7 @@
         "nextCheckpoint": {
           "id": "30000000-0000-0000-0000-000000000002",
           "revision": "2",
-          "digest": "1ffa831818570ae3ed4fadbd4af0970b1ced6e5b3d04689c16e02eede8ad6cc7"
+          "digest": "7bf8b5c16782a091dcb51d0137d3b2e6d7a5049916b946c67914a20de63842d8"
         }
       },
       "expected": {
@@ -944,13 +944,13 @@
                   "before": "3",
                   "after": "0"
                 },
-                "state.battingOrder": {
-                  "before": "9",
-                  "after": "1"
-                },
                 "state.runners": {
                   "before": "empty",
                   "after": "first"
+                },
+                "state.battingOrder": {
+                  "before": "9",
+                  "after": "1"
                 }
               },
               "scoreboard": {
@@ -1020,7 +1020,7 @@
             "checkpoint": {
               "id": "30000000-0000-0000-0000-000000000002",
               "revision": "2",
-              "digest": "1ffa831818570ae3ed4fadbd4af0970b1ced6e5b3d04689c16e02eede8ad6cc7"
+              "digest": "7bf8b5c16782a091dcb51d0137d3b2e6d7a5049916b946c67914a20de63842d8"
             },
             "historyVersion": "101",
             "origin": {
@@ -1114,7 +1114,7 @@
             "d2": "101",
             "appliedWatermark": "100"
           },
-          "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400"
+          "executionArtifactSha256": "9ae9d16db1f2fa48905eb0ac951c8cb3ce5704dfe308df95a7a0bba155f33d19"
         }
       }
     },
@@ -1155,12 +1155,8 @@
         },
         "t1": {
           "eventKind": "batting-result",
-          "pitchEventKind": "pitch-event",
-          "officialScoringPayload": "no-error",
-          "interferenceRuling": "not-required",
-          "runnerAdvanceOverrides": "not-applied",
-          "thirdOutObservation": "none",
           "resultId": "batting-result.single",
+          "pitchEventKind": "pitch-event",
           "before": {
             "stateFields": {
               "state.half": "bottom",
@@ -1191,7 +1187,11 @@
               "away": "6",
               "home": "1"
             }
-          }
+          },
+          "officialScoringPayload": "no-error",
+          "interferenceRuling": "not-required",
+          "runnerAdvanceOverrides": "not-applied",
+          "thirdOutObservation": "none"
         },
         "source": {
           "kind": "evaluated-prefix-v3",
@@ -1290,7 +1290,7 @@
             "appliedWatermark": "100"
           },
           "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-          "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+          "executionArtifactSha256": "9ae9d16db1f2fa48905eb0ac951c8cb3ce5704dfe308df95a7a0bba155f33d19",
           "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
           "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
           "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -1368,7 +1368,7 @@
         "nextCheckpoint": {
           "id": "30000000-0000-0000-0000-000000000003",
           "revision": "2",
-          "digest": "30c0c123097acf307150e83945cded7bd123cc20ca5f5c3e013aee137beb7953"
+          "digest": "967dc44be3f38c95d20ea466a090e5b982d460967b8d38db6fcd676fb0c7e196"
         }
       },
       "expected": {
@@ -1501,13 +1501,13 @@
                   "before": "3",
                   "after": "0"
                 },
-                "state.battingOrder": {
-                  "before": "1",
-                  "after": "2"
-                },
                 "state.runners": {
                   "before": "empty",
                   "after": "first"
+                },
+                "state.battingOrder": {
+                  "before": "1",
+                  "after": "2"
                 }
               },
               "scoreboard": {
@@ -1577,7 +1577,7 @@
             "checkpoint": {
               "id": "30000000-0000-0000-0000-000000000003",
               "revision": "2",
-              "digest": "30c0c123097acf307150e83945cded7bd123cc20ca5f5c3e013aee137beb7953"
+              "digest": "967dc44be3f38c95d20ea466a090e5b982d460967b8d38db6fcd676fb0c7e196"
             },
             "historyVersion": "101",
             "origin": {
@@ -1671,7 +1671,7 @@
             "d2": "101",
             "appliedWatermark": "100"
           },
-          "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400"
+          "executionArtifactSha256": "9ae9d16db1f2fa48905eb0ac951c8cb3ce5704dfe308df95a7a0bba155f33d19"
         }
       }
     },
@@ -1712,12 +1712,8 @@
         },
         "t1": {
           "eventKind": "batting-result",
-          "pitchEventKind": "pitch-event",
-          "officialScoringPayload": "no-error",
-          "interferenceRuling": "not-required",
-          "runnerAdvanceOverrides": "not-applied",
-          "thirdOutObservation": "none",
           "resultId": "batting-result.single",
+          "pitchEventKind": "pitch-event",
           "before": {
             "stateFields": {
               "state.half": "bottom",
@@ -1748,7 +1744,11 @@
               "away": "6",
               "home": "9"
             }
-          }
+          },
+          "officialScoringPayload": "no-error",
+          "interferenceRuling": "not-required",
+          "runnerAdvanceOverrides": "not-applied",
+          "thirdOutObservation": "none"
         },
         "source": {
           "kind": "evaluated-prefix-v3",
@@ -1847,7 +1847,7 @@
             "appliedWatermark": "100"
           },
           "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-          "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+          "executionArtifactSha256": "9ae9d16db1f2fa48905eb0ac951c8cb3ce5704dfe308df95a7a0bba155f33d19",
           "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
           "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
           "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -1925,7 +1925,7 @@
         "nextCheckpoint": {
           "id": "30000000-0000-0000-0000-000000000004",
           "revision": "2",
-          "digest": "8850ac8aff17011908bc77dea954de271a58afff0a43e255b42f90a0c349a385"
+          "digest": "78373fbde0889a2fbff5179543e6a088e80e352a93fe9f29b12f61cb643d7100"
         }
       },
       "expected": {
@@ -2058,13 +2058,13 @@
                   "before": "3",
                   "after": "0"
                 },
-                "state.battingOrder": {
-                  "before": "9",
-                  "after": "1"
-                },
                 "state.runners": {
                   "before": "empty",
                   "after": "first"
+                },
+                "state.battingOrder": {
+                  "before": "9",
+                  "after": "1"
                 }
               },
               "scoreboard": {
@@ -2134,7 +2134,7 @@
             "checkpoint": {
               "id": "30000000-0000-0000-0000-000000000004",
               "revision": "2",
-              "digest": "8850ac8aff17011908bc77dea954de271a58afff0a43e255b42f90a0c349a385"
+              "digest": "78373fbde0889a2fbff5179543e6a088e80e352a93fe9f29b12f61cb643d7100"
             },
             "historyVersion": "101",
             "origin": {
@@ -2228,7 +2228,7 @@
             "d2": "101",
             "appliedWatermark": "100"
           },
-          "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400"
+          "executionArtifactSha256": "9ae9d16db1f2fa48905eb0ac951c8cb3ce5704dfe308df95a7a0bba155f33d19"
         }
       }
     },
@@ -2269,12 +2269,8 @@
         },
         "t1": {
           "eventKind": "batting-result",
-          "pitchEventKind": "pitch-event",
-          "officialScoringPayload": "no-error",
-          "interferenceRuling": "not-required",
-          "runnerAdvanceOverrides": "not-applied",
-          "thirdOutObservation": "none",
           "resultId": "batting-result.double",
+          "pitchEventKind": "pitch-event",
           "before": {
             "stateFields": {
               "state.half": "top",
@@ -2305,7 +2301,11 @@
               "away": "1",
               "home": "6"
             }
-          }
+          },
+          "officialScoringPayload": "no-error",
+          "interferenceRuling": "not-required",
+          "runnerAdvanceOverrides": "not-applied",
+          "thirdOutObservation": "none"
         },
         "source": {
           "kind": "evaluated-prefix-v3",
@@ -2404,7 +2404,7 @@
             "appliedWatermark": "100"
           },
           "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-          "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+          "executionArtifactSha256": "9ae9d16db1f2fa48905eb0ac951c8cb3ce5704dfe308df95a7a0bba155f33d19",
           "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
           "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
           "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -2482,7 +2482,7 @@
         "nextCheckpoint": {
           "id": "30000000-0000-0000-0000-000000000005",
           "revision": "2",
-          "digest": "e4385d28494d5ac61a0fbe4ba229e0c3524cc2bc5d2b70b9dac0f541ad7faba7"
+          "digest": "d8abf55c6a9c8765ef8cc5fbd527a6be90551f5a211189a7dd7a6bda2479ad73"
         }
       },
       "expected": {
@@ -2615,13 +2615,13 @@
                   "before": "3",
                   "after": "0"
                 },
-                "state.battingOrder": {
-                  "before": "1",
-                  "after": "2"
-                },
                 "state.runners": {
                   "before": "empty",
                   "after": "second"
+                },
+                "state.battingOrder": {
+                  "before": "1",
+                  "after": "2"
                 }
               },
               "scoreboard": {
@@ -2691,7 +2691,7 @@
             "checkpoint": {
               "id": "30000000-0000-0000-0000-000000000005",
               "revision": "2",
-              "digest": "e4385d28494d5ac61a0fbe4ba229e0c3524cc2bc5d2b70b9dac0f541ad7faba7"
+              "digest": "d8abf55c6a9c8765ef8cc5fbd527a6be90551f5a211189a7dd7a6bda2479ad73"
             },
             "historyVersion": "101",
             "origin": {
@@ -2785,7 +2785,7 @@
             "d2": "101",
             "appliedWatermark": "100"
           },
-          "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400"
+          "executionArtifactSha256": "9ae9d16db1f2fa48905eb0ac951c8cb3ce5704dfe308df95a7a0bba155f33d19"
         }
       }
     },
@@ -2826,12 +2826,8 @@
         },
         "t1": {
           "eventKind": "batting-result",
-          "pitchEventKind": "pitch-event",
-          "officialScoringPayload": "no-error",
-          "interferenceRuling": "not-required",
-          "runnerAdvanceOverrides": "not-applied",
-          "thirdOutObservation": "none",
           "resultId": "batting-result.double",
+          "pitchEventKind": "pitch-event",
           "before": {
             "stateFields": {
               "state.half": "top",
@@ -2862,7 +2858,11 @@
               "away": "9",
               "home": "6"
             }
-          }
+          },
+          "officialScoringPayload": "no-error",
+          "interferenceRuling": "not-required",
+          "runnerAdvanceOverrides": "not-applied",
+          "thirdOutObservation": "none"
         },
         "source": {
           "kind": "evaluated-prefix-v3",
@@ -2961,7 +2961,7 @@
             "appliedWatermark": "100"
           },
           "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-          "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+          "executionArtifactSha256": "9ae9d16db1f2fa48905eb0ac951c8cb3ce5704dfe308df95a7a0bba155f33d19",
           "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
           "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
           "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -3039,7 +3039,7 @@
         "nextCheckpoint": {
           "id": "30000000-0000-0000-0000-000000000006",
           "revision": "2",
-          "digest": "8b3f2d6025eac0eebd42ce60bd9a2f8d75efc8860af947176033a079453744ba"
+          "digest": "e115bd09814e1eeb0563f4390bdbb06dedce032bf7d67f5588d5fb92fb66bba7"
         }
       },
       "expected": {
@@ -3172,13 +3172,13 @@
                   "before": "3",
                   "after": "0"
                 },
-                "state.battingOrder": {
-                  "before": "9",
-                  "after": "1"
-                },
                 "state.runners": {
                   "before": "empty",
                   "after": "second"
+                },
+                "state.battingOrder": {
+                  "before": "9",
+                  "after": "1"
                 }
               },
               "scoreboard": {
@@ -3248,7 +3248,7 @@
             "checkpoint": {
               "id": "30000000-0000-0000-0000-000000000006",
               "revision": "2",
-              "digest": "8b3f2d6025eac0eebd42ce60bd9a2f8d75efc8860af947176033a079453744ba"
+              "digest": "e115bd09814e1eeb0563f4390bdbb06dedce032bf7d67f5588d5fb92fb66bba7"
             },
             "historyVersion": "101",
             "origin": {
@@ -3342,7 +3342,7 @@
             "d2": "101",
             "appliedWatermark": "100"
           },
-          "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400"
+          "executionArtifactSha256": "9ae9d16db1f2fa48905eb0ac951c8cb3ce5704dfe308df95a7a0bba155f33d19"
         }
       }
     },
@@ -3383,12 +3383,8 @@
         },
         "t1": {
           "eventKind": "batting-result",
-          "pitchEventKind": "pitch-event",
-          "officialScoringPayload": "no-error",
-          "interferenceRuling": "not-required",
-          "runnerAdvanceOverrides": "not-applied",
-          "thirdOutObservation": "none",
           "resultId": "batting-result.double",
+          "pitchEventKind": "pitch-event",
           "before": {
             "stateFields": {
               "state.half": "bottom",
@@ -3419,7 +3415,11 @@
               "away": "6",
               "home": "1"
             }
-          }
+          },
+          "officialScoringPayload": "no-error",
+          "interferenceRuling": "not-required",
+          "runnerAdvanceOverrides": "not-applied",
+          "thirdOutObservation": "none"
         },
         "source": {
           "kind": "evaluated-prefix-v3",
@@ -3518,7 +3518,7 @@
             "appliedWatermark": "100"
           },
           "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-          "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+          "executionArtifactSha256": "9ae9d16db1f2fa48905eb0ac951c8cb3ce5704dfe308df95a7a0bba155f33d19",
           "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
           "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
           "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -3596,7 +3596,7 @@
         "nextCheckpoint": {
           "id": "30000000-0000-0000-0000-000000000007",
           "revision": "2",
-          "digest": "2a1c8d596468fcd8a5440d4fb67605d98abcf1a6bed62d88c357bdbd56b51ba7"
+          "digest": "d9678dc31d6a42dab232c5180a64879b625f29df07df53684e3501f603121a24"
         }
       },
       "expected": {
@@ -3729,13 +3729,13 @@
                   "before": "3",
                   "after": "0"
                 },
-                "state.battingOrder": {
-                  "before": "1",
-                  "after": "2"
-                },
                 "state.runners": {
                   "before": "empty",
                   "after": "second"
+                },
+                "state.battingOrder": {
+                  "before": "1",
+                  "after": "2"
                 }
               },
               "scoreboard": {
@@ -3805,7 +3805,7 @@
             "checkpoint": {
               "id": "30000000-0000-0000-0000-000000000007",
               "revision": "2",
-              "digest": "2a1c8d596468fcd8a5440d4fb67605d98abcf1a6bed62d88c357bdbd56b51ba7"
+              "digest": "d9678dc31d6a42dab232c5180a64879b625f29df07df53684e3501f603121a24"
             },
             "historyVersion": "101",
             "origin": {
@@ -3899,7 +3899,7 @@
             "d2": "101",
             "appliedWatermark": "100"
           },
-          "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400"
+          "executionArtifactSha256": "9ae9d16db1f2fa48905eb0ac951c8cb3ce5704dfe308df95a7a0bba155f33d19"
         }
       }
     },
@@ -3940,12 +3940,8 @@
         },
         "t1": {
           "eventKind": "batting-result",
-          "pitchEventKind": "pitch-event",
-          "officialScoringPayload": "no-error",
-          "interferenceRuling": "not-required",
-          "runnerAdvanceOverrides": "not-applied",
-          "thirdOutObservation": "none",
           "resultId": "batting-result.double",
+          "pitchEventKind": "pitch-event",
           "before": {
             "stateFields": {
               "state.half": "bottom",
@@ -3976,7 +3972,11 @@
               "away": "6",
               "home": "9"
             }
-          }
+          },
+          "officialScoringPayload": "no-error",
+          "interferenceRuling": "not-required",
+          "runnerAdvanceOverrides": "not-applied",
+          "thirdOutObservation": "none"
         },
         "source": {
           "kind": "evaluated-prefix-v3",
@@ -4075,7 +4075,7 @@
             "appliedWatermark": "100"
           },
           "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-          "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+          "executionArtifactSha256": "9ae9d16db1f2fa48905eb0ac951c8cb3ce5704dfe308df95a7a0bba155f33d19",
           "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
           "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
           "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -4153,7 +4153,7 @@
         "nextCheckpoint": {
           "id": "30000000-0000-0000-0000-000000000008",
           "revision": "2",
-          "digest": "d7b13ebff958cf3b4015d22ed327e3b1f43e174735c41a010f1a182fcef93233"
+          "digest": "29a819b12cecd981c3e6d30060f14aae8e5edbfb27bc5a7b6e4e9af4967354d6"
         }
       },
       "expected": {
@@ -4286,13 +4286,13 @@
                   "before": "3",
                   "after": "0"
                 },
-                "state.battingOrder": {
-                  "before": "9",
-                  "after": "1"
-                },
                 "state.runners": {
                   "before": "empty",
                   "after": "second"
+                },
+                "state.battingOrder": {
+                  "before": "9",
+                  "after": "1"
                 }
               },
               "scoreboard": {
@@ -4362,7 +4362,7 @@
             "checkpoint": {
               "id": "30000000-0000-0000-0000-000000000008",
               "revision": "2",
-              "digest": "d7b13ebff958cf3b4015d22ed327e3b1f43e174735c41a010f1a182fcef93233"
+              "digest": "29a819b12cecd981c3e6d30060f14aae8e5edbfb27bc5a7b6e4e9af4967354d6"
             },
             "historyVersion": "101",
             "origin": {
@@ -4456,7 +4456,7 @@
             "d2": "101",
             "appliedWatermark": "100"
           },
-          "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400"
+          "executionArtifactSha256": "9ae9d16db1f2fa48905eb0ac951c8cb3ce5704dfe308df95a7a0bba155f33d19"
         }
       }
     },
@@ -4497,12 +4497,8 @@
         },
         "t1": {
           "eventKind": "batting-result",
-          "pitchEventKind": "pitch-event",
-          "officialScoringPayload": "no-error",
-          "interferenceRuling": "not-required",
-          "runnerAdvanceOverrides": "not-applied",
-          "thirdOutObservation": "none",
           "resultId": "batting-result.triple",
+          "pitchEventKind": "pitch-event",
           "before": {
             "stateFields": {
               "state.half": "top",
@@ -4533,7 +4529,11 @@
               "away": "1",
               "home": "6"
             }
-          }
+          },
+          "officialScoringPayload": "no-error",
+          "interferenceRuling": "not-required",
+          "runnerAdvanceOverrides": "not-applied",
+          "thirdOutObservation": "none"
         },
         "source": {
           "kind": "evaluated-prefix-v3",
@@ -4632,7 +4632,7 @@
             "appliedWatermark": "100"
           },
           "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-          "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+          "executionArtifactSha256": "9ae9d16db1f2fa48905eb0ac951c8cb3ce5704dfe308df95a7a0bba155f33d19",
           "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
           "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
           "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -4710,7 +4710,7 @@
         "nextCheckpoint": {
           "id": "30000000-0000-0000-0000-000000000009",
           "revision": "2",
-          "digest": "cbc7f6ed5bd14b20d0bbd21d9b53607f558a61e8cf9cfdaa51602d63fb10250f"
+          "digest": "4e8620cf5963baf0937b4e24fb7edd9b3a73165a98d70ba7f0780d7606c746f7"
         }
       },
       "expected": {
@@ -4843,13 +4843,13 @@
                   "before": "3",
                   "after": "0"
                 },
-                "state.battingOrder": {
-                  "before": "1",
-                  "after": "2"
-                },
                 "state.runners": {
                   "before": "empty",
                   "after": "third"
+                },
+                "state.battingOrder": {
+                  "before": "1",
+                  "after": "2"
                 }
               },
               "scoreboard": {
@@ -4919,7 +4919,7 @@
             "checkpoint": {
               "id": "30000000-0000-0000-0000-000000000009",
               "revision": "2",
-              "digest": "cbc7f6ed5bd14b20d0bbd21d9b53607f558a61e8cf9cfdaa51602d63fb10250f"
+              "digest": "4e8620cf5963baf0937b4e24fb7edd9b3a73165a98d70ba7f0780d7606c746f7"
             },
             "historyVersion": "101",
             "origin": {
@@ -5013,7 +5013,7 @@
             "d2": "101",
             "appliedWatermark": "100"
           },
-          "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400"
+          "executionArtifactSha256": "9ae9d16db1f2fa48905eb0ac951c8cb3ce5704dfe308df95a7a0bba155f33d19"
         }
       }
     },
@@ -5054,12 +5054,8 @@
         },
         "t1": {
           "eventKind": "batting-result",
-          "pitchEventKind": "pitch-event",
-          "officialScoringPayload": "no-error",
-          "interferenceRuling": "not-required",
-          "runnerAdvanceOverrides": "not-applied",
-          "thirdOutObservation": "none",
           "resultId": "batting-result.triple",
+          "pitchEventKind": "pitch-event",
           "before": {
             "stateFields": {
               "state.half": "top",
@@ -5090,7 +5086,11 @@
               "away": "9",
               "home": "6"
             }
-          }
+          },
+          "officialScoringPayload": "no-error",
+          "interferenceRuling": "not-required",
+          "runnerAdvanceOverrides": "not-applied",
+          "thirdOutObservation": "none"
         },
         "source": {
           "kind": "evaluated-prefix-v3",
@@ -5189,7 +5189,7 @@
             "appliedWatermark": "100"
           },
           "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-          "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+          "executionArtifactSha256": "9ae9d16db1f2fa48905eb0ac951c8cb3ce5704dfe308df95a7a0bba155f33d19",
           "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
           "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
           "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -5267,7 +5267,7 @@
         "nextCheckpoint": {
           "id": "30000000-0000-0000-0000-00000000000a",
           "revision": "2",
-          "digest": "bbd07a660dd0aabe1e20f07b1797d92fe04a65c91e4c66f72ff005ae033047d9"
+          "digest": "a4930c2e65b76d465d13e744675f9aa0618f636d63be3192f5b8c169fe07bf75"
         }
       },
       "expected": {
@@ -5400,13 +5400,13 @@
                   "before": "3",
                   "after": "0"
                 },
-                "state.battingOrder": {
-                  "before": "9",
-                  "after": "1"
-                },
                 "state.runners": {
                   "before": "empty",
                   "after": "third"
+                },
+                "state.battingOrder": {
+                  "before": "9",
+                  "after": "1"
                 }
               },
               "scoreboard": {
@@ -5476,7 +5476,7 @@
             "checkpoint": {
               "id": "30000000-0000-0000-0000-00000000000a",
               "revision": "2",
-              "digest": "bbd07a660dd0aabe1e20f07b1797d92fe04a65c91e4c66f72ff005ae033047d9"
+              "digest": "a4930c2e65b76d465d13e744675f9aa0618f636d63be3192f5b8c169fe07bf75"
             },
             "historyVersion": "101",
             "origin": {
@@ -5570,7 +5570,7 @@
             "d2": "101",
             "appliedWatermark": "100"
           },
-          "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400"
+          "executionArtifactSha256": "9ae9d16db1f2fa48905eb0ac951c8cb3ce5704dfe308df95a7a0bba155f33d19"
         }
       }
     },
@@ -5611,12 +5611,8 @@
         },
         "t1": {
           "eventKind": "batting-result",
-          "pitchEventKind": "pitch-event",
-          "officialScoringPayload": "no-error",
-          "interferenceRuling": "not-required",
-          "runnerAdvanceOverrides": "not-applied",
-          "thirdOutObservation": "none",
           "resultId": "batting-result.triple",
+          "pitchEventKind": "pitch-event",
           "before": {
             "stateFields": {
               "state.half": "bottom",
@@ -5647,7 +5643,11 @@
               "away": "6",
               "home": "1"
             }
-          }
+          },
+          "officialScoringPayload": "no-error",
+          "interferenceRuling": "not-required",
+          "runnerAdvanceOverrides": "not-applied",
+          "thirdOutObservation": "none"
         },
         "source": {
           "kind": "evaluated-prefix-v3",
@@ -5746,7 +5746,7 @@
             "appliedWatermark": "100"
           },
           "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-          "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+          "executionArtifactSha256": "9ae9d16db1f2fa48905eb0ac951c8cb3ce5704dfe308df95a7a0bba155f33d19",
           "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
           "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
           "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -5824,7 +5824,7 @@
         "nextCheckpoint": {
           "id": "30000000-0000-0000-0000-00000000000b",
           "revision": "2",
-          "digest": "6683b028aacc504c1d1126cfeb10ce45514a4294c597fd4240db5dc7eddc139b"
+          "digest": "1d7868377a614e71e16fa8a16978f19b60664ae2f8e1bbf1f37d5f2e49a7e14b"
         }
       },
       "expected": {
@@ -5957,13 +5957,13 @@
                   "before": "3",
                   "after": "0"
                 },
-                "state.battingOrder": {
-                  "before": "1",
-                  "after": "2"
-                },
                 "state.runners": {
                   "before": "empty",
                   "after": "third"
+                },
+                "state.battingOrder": {
+                  "before": "1",
+                  "after": "2"
                 }
               },
               "scoreboard": {
@@ -6033,7 +6033,7 @@
             "checkpoint": {
               "id": "30000000-0000-0000-0000-00000000000b",
               "revision": "2",
-              "digest": "6683b028aacc504c1d1126cfeb10ce45514a4294c597fd4240db5dc7eddc139b"
+              "digest": "1d7868377a614e71e16fa8a16978f19b60664ae2f8e1bbf1f37d5f2e49a7e14b"
             },
             "historyVersion": "101",
             "origin": {
@@ -6127,7 +6127,7 @@
             "d2": "101",
             "appliedWatermark": "100"
           },
-          "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400"
+          "executionArtifactSha256": "9ae9d16db1f2fa48905eb0ac951c8cb3ce5704dfe308df95a7a0bba155f33d19"
         }
       }
     },
@@ -6168,12 +6168,8 @@
         },
         "t1": {
           "eventKind": "batting-result",
-          "pitchEventKind": "pitch-event",
-          "officialScoringPayload": "no-error",
-          "interferenceRuling": "not-required",
-          "runnerAdvanceOverrides": "not-applied",
-          "thirdOutObservation": "none",
           "resultId": "batting-result.triple",
+          "pitchEventKind": "pitch-event",
           "before": {
             "stateFields": {
               "state.half": "bottom",
@@ -6204,7 +6200,11 @@
               "away": "6",
               "home": "9"
             }
-          }
+          },
+          "officialScoringPayload": "no-error",
+          "interferenceRuling": "not-required",
+          "runnerAdvanceOverrides": "not-applied",
+          "thirdOutObservation": "none"
         },
         "source": {
           "kind": "evaluated-prefix-v3",
@@ -6303,7 +6303,7 @@
             "appliedWatermark": "100"
           },
           "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-          "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+          "executionArtifactSha256": "9ae9d16db1f2fa48905eb0ac951c8cb3ce5704dfe308df95a7a0bba155f33d19",
           "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
           "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
           "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -6381,7 +6381,7 @@
         "nextCheckpoint": {
           "id": "30000000-0000-0000-0000-00000000000c",
           "revision": "2",
-          "digest": "7a2091159280293f6ab85a7ac3cd9ff6784e86713e7e6c25ca511c6495075d09"
+          "digest": "ef83526c11d05ea61927aa288accf052371e438d5a86df646266826e17107679"
         }
       },
       "expected": {
@@ -6514,13 +6514,13 @@
                   "before": "3",
                   "after": "0"
                 },
-                "state.battingOrder": {
-                  "before": "9",
-                  "after": "1"
-                },
                 "state.runners": {
                   "before": "empty",
                   "after": "third"
+                },
+                "state.battingOrder": {
+                  "before": "9",
+                  "after": "1"
                 }
               },
               "scoreboard": {
@@ -6590,7 +6590,7 @@
             "checkpoint": {
               "id": "30000000-0000-0000-0000-00000000000c",
               "revision": "2",
-              "digest": "7a2091159280293f6ab85a7ac3cd9ff6784e86713e7e6c25ca511c6495075d09"
+              "digest": "ef83526c11d05ea61927aa288accf052371e438d5a86df646266826e17107679"
             },
             "historyVersion": "101",
             "origin": {
@@ -6684,7 +6684,7 @@
             "d2": "101",
             "appliedWatermark": "100"
           },
-          "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400"
+          "executionArtifactSha256": "9ae9d16db1f2fa48905eb0ac951c8cb3ce5704dfe308df95a7a0bba155f33d19"
         }
       }
     },
@@ -6725,12 +6725,8 @@
         },
         "t1": {
           "eventKind": "batting-result",
-          "pitchEventKind": "pitch-event",
-          "officialScoringPayload": "no-error",
-          "interferenceRuling": "not-required",
-          "runnerAdvanceOverrides": "not-applied",
-          "thirdOutObservation": "none",
           "resultId": "batting-result.home-run",
+          "pitchEventKind": "pitch-event",
           "before": {
             "stateFields": {
               "state.half": "top",
@@ -6761,7 +6757,11 @@
               "away": "1",
               "home": "6"
             }
-          }
+          },
+          "officialScoringPayload": "no-error",
+          "interferenceRuling": "not-required",
+          "runnerAdvanceOverrides": "not-applied",
+          "thirdOutObservation": "none"
         },
         "source": {
           "kind": "evaluated-prefix-v3",
@@ -6860,7 +6860,7 @@
             "appliedWatermark": "100"
           },
           "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-          "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+          "executionArtifactSha256": "9ae9d16db1f2fa48905eb0ac951c8cb3ce5704dfe308df95a7a0bba155f33d19",
           "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
           "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
           "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -6938,7 +6938,7 @@
         "nextCheckpoint": {
           "id": "30000000-0000-0000-0000-00000000000d",
           "revision": "2",
-          "digest": "0da71124bd0c8ef2818790c0b02953eb9b12400c7c687b970aa18a4eaff8c1b6"
+          "digest": "6ab3236cd13b948e958cda5efa323a1081c42b85d3523826249e81c38257ce11"
         }
       },
       "expected": {
@@ -7086,10 +7086,6 @@
                 }
               },
               "scoreboard": {
-                "hits": {
-                  "before": "12",
-                  "after": "13"
-                },
                 "inningScores": {
                   "before": {
                     "home": "3",
@@ -7099,6 +7095,10 @@
                     "home": "3",
                     "away": "6"
                   }
+                },
+                "hits": {
+                  "before": "12",
+                  "after": "13"
                 }
               },
               "statFlags": {
@@ -7162,7 +7162,7 @@
             "checkpoint": {
               "id": "30000000-0000-0000-0000-00000000000d",
               "revision": "2",
-              "digest": "0da71124bd0c8ef2818790c0b02953eb9b12400c7c687b970aa18a4eaff8c1b6"
+              "digest": "6ab3236cd13b948e958cda5efa323a1081c42b85d3523826249e81c38257ce11"
             },
             "historyVersion": "101",
             "origin": {
@@ -7248,7 +7248,7 @@
             "d2": "101",
             "appliedWatermark": "100"
           },
-          "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400"
+          "executionArtifactSha256": "9ae9d16db1f2fa48905eb0ac951c8cb3ce5704dfe308df95a7a0bba155f33d19"
         }
       }
     },
@@ -7289,12 +7289,8 @@
         },
         "t1": {
           "eventKind": "batting-result",
-          "pitchEventKind": "pitch-event",
-          "officialScoringPayload": "no-error",
-          "interferenceRuling": "not-required",
-          "runnerAdvanceOverrides": "not-applied",
-          "thirdOutObservation": "none",
           "resultId": "batting-result.home-run",
+          "pitchEventKind": "pitch-event",
           "before": {
             "stateFields": {
               "state.half": "top",
@@ -7325,7 +7321,11 @@
               "away": "9",
               "home": "6"
             }
-          }
+          },
+          "officialScoringPayload": "no-error",
+          "interferenceRuling": "not-required",
+          "runnerAdvanceOverrides": "not-applied",
+          "thirdOutObservation": "none"
         },
         "source": {
           "kind": "evaluated-prefix-v3",
@@ -7424,7 +7424,7 @@
             "appliedWatermark": "100"
           },
           "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-          "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+          "executionArtifactSha256": "9ae9d16db1f2fa48905eb0ac951c8cb3ce5704dfe308df95a7a0bba155f33d19",
           "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
           "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
           "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -7502,7 +7502,7 @@
         "nextCheckpoint": {
           "id": "30000000-0000-0000-0000-00000000000e",
           "revision": "2",
-          "digest": "c9a5874b31b3b79af515f8f7801b54a7b2e667beefe2297b822ea7ea91a0cb18"
+          "digest": "93a533dff5e1cc8a8e8a171a196f852599359f470ab1cd2984a9d1855a4f4873"
         }
       },
       "expected": {
@@ -7650,10 +7650,6 @@
                 }
               },
               "scoreboard": {
-                "hits": {
-                  "before": "12",
-                  "after": "13"
-                },
                 "inningScores": {
                   "before": {
                     "home": "3",
@@ -7663,6 +7659,10 @@
                     "home": "3",
                     "away": "6"
                   }
+                },
+                "hits": {
+                  "before": "12",
+                  "after": "13"
                 }
               },
               "statFlags": {
@@ -7726,7 +7726,7 @@
             "checkpoint": {
               "id": "30000000-0000-0000-0000-00000000000e",
               "revision": "2",
-              "digest": "c9a5874b31b3b79af515f8f7801b54a7b2e667beefe2297b822ea7ea91a0cb18"
+              "digest": "93a533dff5e1cc8a8e8a171a196f852599359f470ab1cd2984a9d1855a4f4873"
             },
             "historyVersion": "101",
             "origin": {
@@ -7812,7 +7812,7 @@
             "d2": "101",
             "appliedWatermark": "100"
           },
-          "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400"
+          "executionArtifactSha256": "9ae9d16db1f2fa48905eb0ac951c8cb3ce5704dfe308df95a7a0bba155f33d19"
         }
       }
     },
@@ -7853,12 +7853,8 @@
         },
         "t1": {
           "eventKind": "batting-result",
-          "pitchEventKind": "pitch-event",
-          "officialScoringPayload": "no-error",
-          "interferenceRuling": "not-required",
-          "runnerAdvanceOverrides": "not-applied",
-          "thirdOutObservation": "none",
           "resultId": "batting-result.home-run",
+          "pitchEventKind": "pitch-event",
           "before": {
             "stateFields": {
               "state.half": "bottom",
@@ -7889,7 +7885,11 @@
               "away": "6",
               "home": "1"
             }
-          }
+          },
+          "officialScoringPayload": "no-error",
+          "interferenceRuling": "not-required",
+          "runnerAdvanceOverrides": "not-applied",
+          "thirdOutObservation": "none"
         },
         "source": {
           "kind": "evaluated-prefix-v3",
@@ -7988,7 +7988,7 @@
             "appliedWatermark": "100"
           },
           "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-          "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+          "executionArtifactSha256": "9ae9d16db1f2fa48905eb0ac951c8cb3ce5704dfe308df95a7a0bba155f33d19",
           "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
           "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
           "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -8066,7 +8066,7 @@
         "nextCheckpoint": {
           "id": "30000000-0000-0000-0000-00000000000f",
           "revision": "2",
-          "digest": "0ba5c34fb7d9034c8f79f5083292104d47f5104c252b7b55d5cb3495d0d7086a"
+          "digest": "84f58493e9006208e7f20738b4881f26f41a690dbe105cef23bb384ab06c2cbd"
         }
       },
       "expected": {
@@ -8214,10 +8214,6 @@
                 }
               },
               "scoreboard": {
-                "hits": {
-                  "before": "12",
-                  "after": "13"
-                },
                 "inningScores": {
                   "before": {
                     "home": "3",
@@ -8227,6 +8223,10 @@
                     "home": "4",
                     "away": "5"
                   }
+                },
+                "hits": {
+                  "before": "12",
+                  "after": "13"
                 }
               },
               "statFlags": {
@@ -8290,7 +8290,7 @@
             "checkpoint": {
               "id": "30000000-0000-0000-0000-00000000000f",
               "revision": "2",
-              "digest": "0ba5c34fb7d9034c8f79f5083292104d47f5104c252b7b55d5cb3495d0d7086a"
+              "digest": "84f58493e9006208e7f20738b4881f26f41a690dbe105cef23bb384ab06c2cbd"
             },
             "historyVersion": "101",
             "origin": {
@@ -8376,7 +8376,7 @@
             "d2": "101",
             "appliedWatermark": "100"
           },
-          "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400"
+          "executionArtifactSha256": "9ae9d16db1f2fa48905eb0ac951c8cb3ce5704dfe308df95a7a0bba155f33d19"
         }
       }
     },
@@ -8417,12 +8417,8 @@
         },
         "t1": {
           "eventKind": "batting-result",
-          "pitchEventKind": "pitch-event",
-          "officialScoringPayload": "no-error",
-          "interferenceRuling": "not-required",
-          "runnerAdvanceOverrides": "not-applied",
-          "thirdOutObservation": "none",
           "resultId": "batting-result.home-run",
+          "pitchEventKind": "pitch-event",
           "before": {
             "stateFields": {
               "state.half": "bottom",
@@ -8453,7 +8449,11 @@
               "away": "6",
               "home": "9"
             }
-          }
+          },
+          "officialScoringPayload": "no-error",
+          "interferenceRuling": "not-required",
+          "runnerAdvanceOverrides": "not-applied",
+          "thirdOutObservation": "none"
         },
         "source": {
           "kind": "evaluated-prefix-v3",
@@ -8552,7 +8552,7 @@
             "appliedWatermark": "100"
           },
           "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-          "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+          "executionArtifactSha256": "9ae9d16db1f2fa48905eb0ac951c8cb3ce5704dfe308df95a7a0bba155f33d19",
           "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
           "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
           "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -8630,7 +8630,7 @@
         "nextCheckpoint": {
           "id": "30000000-0000-0000-0000-000000000010",
           "revision": "2",
-          "digest": "6b0b1ae7a91385638a9c413959984d3b621e58378bcc6852a27fc90567f612b0"
+          "digest": "5491aa71aa6d4b8297231e802fc4405c93d08e3b331ba7f81bf8aff7b2608a94"
         }
       },
       "expected": {
@@ -8778,10 +8778,6 @@
                 }
               },
               "scoreboard": {
-                "hits": {
-                  "before": "12",
-                  "after": "13"
-                },
                 "inningScores": {
                   "before": {
                     "home": "3",
@@ -8791,6 +8787,10 @@
                     "home": "4",
                     "away": "5"
                   }
+                },
+                "hits": {
+                  "before": "12",
+                  "after": "13"
                 }
               },
               "statFlags": {
@@ -8854,7 +8854,7 @@
             "checkpoint": {
               "id": "30000000-0000-0000-0000-000000000010",
               "revision": "2",
-              "digest": "6b0b1ae7a91385638a9c413959984d3b621e58378bcc6852a27fc90567f612b0"
+              "digest": "5491aa71aa6d4b8297231e802fc4405c93d08e3b331ba7f81bf8aff7b2608a94"
             },
             "historyVersion": "101",
             "origin": {
@@ -8940,7 +8940,7 @@
             "d2": "101",
             "appliedWatermark": "100"
           },
-          "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400"
+          "executionArtifactSha256": "9ae9d16db1f2fa48905eb0ac951c8cb3ce5704dfe308df95a7a0bba155f33d19"
         }
       }
     },
@@ -8981,12 +8981,8 @@
         },
         "t1": {
           "eventKind": "batting-result",
-          "pitchEventKind": "pitch-event",
-          "officialScoringPayload": "no-error",
-          "interferenceRuling": "not-required",
-          "runnerAdvanceOverrides": "not-applied",
-          "thirdOutObservation": "none",
           "resultId": "batting-result.home-run",
+          "pitchEventKind": "pitch-event",
           "before": {
             "stateFields": {
               "state.half": "bottom",
@@ -9017,7 +9013,11 @@
               "away": "6",
               "home": "1"
             }
-          }
+          },
+          "officialScoringPayload": "no-error",
+          "interferenceRuling": "not-required",
+          "runnerAdvanceOverrides": "not-applied",
+          "thirdOutObservation": "none"
         },
         "source": {
           "kind": "evaluated-prefix-v3",
@@ -9116,7 +9116,7 @@
             "appliedWatermark": "100"
           },
           "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-          "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+          "executionArtifactSha256": "9ae9d16db1f2fa48905eb0ac951c8cb3ce5704dfe308df95a7a0bba155f33d19",
           "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
           "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
           "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -9194,7 +9194,7 @@
         "nextCheckpoint": {
           "id": "30000000-0000-0000-0000-000000000011",
           "revision": "2",
-          "digest": "2398d88df36e43958baff766bb04d0e8c5900670e9402e5e128d451dde0c50c6"
+          "digest": "ca1937115eb31ff97f0f714e45644245634b40b1a5c0a870644e5b24f1fa6487"
         }
       },
       "expected": {
@@ -9305,11 +9305,11 @@
               "priorOpen": true
             },
             "decision": {
-              "outcome": "walk-off",
               "endConditionDetected": true,
               "lockFurtherPlayInput": true,
               "promptEndDeclaration": true,
               "automaticallyEndsGame": false,
+              "outcome": "walk-off",
               "xMark": "recorded-score"
             },
             "tiebreakStartRequired": false
@@ -9342,10 +9342,6 @@
                 }
               },
               "scoreboard": {
-                "hits": {
-                  "before": "12",
-                  "after": "13"
-                },
                 "inningScores": {
                   "before": {
                     "home": "3",
@@ -9355,6 +9351,10 @@
                     "home": "4",
                     "away": "3"
                   }
+                },
+                "hits": {
+                  "before": "12",
+                  "after": "13"
                 }
               },
               "statFlags": {
@@ -9418,7 +9418,7 @@
             "checkpoint": {
               "id": "30000000-0000-0000-0000-000000000011",
               "revision": "2",
-              "digest": "2398d88df36e43958baff766bb04d0e8c5900670e9402e5e128d451dde0c50c6"
+              "digest": "ca1937115eb31ff97f0f714e45644245634b40b1a5c0a870644e5b24f1fa6487"
             },
             "historyVersion": "101",
             "origin": {
@@ -9504,7 +9504,7 @@
             "d2": "101",
             "appliedWatermark": "100"
           },
-          "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400"
+          "executionArtifactSha256": "9ae9d16db1f2fa48905eb0ac951c8cb3ce5704dfe308df95a7a0bba155f33d19"
         }
       }
     },
@@ -9550,12 +9550,8 @@
         },
         "t1": {
           "eventKind": "batting-result",
-          "pitchEventKind": "pitch-event",
-          "officialScoringPayload": "no-error",
-          "interferenceRuling": "not-required",
-          "runnerAdvanceOverrides": "not-applied",
-          "thirdOutObservation": "none",
           "resultId": "batting-result.home-run",
+          "pitchEventKind": "pitch-event",
           "before": {
             "stateFields": {
               "state.half": "bottom",
@@ -9586,7 +9582,11 @@
               "away": "6",
               "home": "1"
             }
-          }
+          },
+          "officialScoringPayload": "no-error",
+          "interferenceRuling": "not-required",
+          "runnerAdvanceOverrides": "not-applied",
+          "thirdOutObservation": "none"
         },
         "source": {
           "kind": "evaluated-prefix-v3",
@@ -9690,7 +9690,7 @@
             "appliedWatermark": "100"
           },
           "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-          "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+          "executionArtifactSha256": "9ae9d16db1f2fa48905eb0ac951c8cb3ce5704dfe308df95a7a0bba155f33d19",
           "rulesDigest": "6c0a73b9946c8c730441e9f06b61c583447886f2c83eda9b55e359cb196a3a4e",
           "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
           "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -9768,7 +9768,7 @@
         "nextCheckpoint": {
           "id": "30000000-0000-0000-0000-000000000012",
           "revision": "2",
-          "digest": "173d82bc6fe196a4910b100ad63953604da721dc8a8a706a90bb6cf58a514fdd"
+          "digest": "a58f92cb891a22582a987042c3c6144a93ca3673f8e13a96bc75ee05ec8c6160"
         }
       },
       "expected": {
@@ -9879,11 +9879,11 @@
               "priorOpen": true
             },
             "decision": {
-              "outcome": "cold-end",
               "endConditionDetected": true,
               "lockFurtherPlayInput": true,
               "promptEndDeclaration": true,
               "automaticallyEndsGame": false,
+              "outcome": "cold-end",
               "xMark": "recorded-score"
             },
             "tiebreakStartRequired": false
@@ -9916,10 +9916,6 @@
                 }
               },
               "scoreboard": {
-                "hits": {
-                  "before": "12",
-                  "after": "13"
-                },
                 "inningScores": {
                   "before": {
                     "home": "4",
@@ -9929,6 +9925,10 @@
                     "home": "5",
                     "away": "0"
                   }
+                },
+                "hits": {
+                  "before": "12",
+                  "after": "13"
                 }
               },
               "statFlags": {
@@ -9992,7 +9992,7 @@
             "checkpoint": {
               "id": "30000000-0000-0000-0000-000000000012",
               "revision": "2",
-              "digest": "173d82bc6fe196a4910b100ad63953604da721dc8a8a706a90bb6cf58a514fdd"
+              "digest": "a58f92cb891a22582a987042c3c6144a93ca3673f8e13a96bc75ee05ec8c6160"
             },
             "historyVersion": "101",
             "origin": {
@@ -10078,7 +10078,7 @@
             "d2": "101",
             "appliedWatermark": "100"
           },
-          "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400"
+          "executionArtifactSha256": "9ae9d16db1f2fa48905eb0ac951c8cb3ce5704dfe308df95a7a0bba155f33d19"
         }
       }
     },
@@ -10124,12 +10124,8 @@
         },
         "t1": {
           "eventKind": "batting-result",
-          "pitchEventKind": "pitch-event",
-          "officialScoringPayload": "no-error",
-          "interferenceRuling": "not-required",
-          "runnerAdvanceOverrides": "not-applied",
-          "thirdOutObservation": "none",
           "resultId": "batting-result.home-run",
+          "pitchEventKind": "pitch-event",
           "before": {
             "stateFields": {
               "state.half": "bottom",
@@ -10160,7 +10156,11 @@
               "away": "6",
               "home": "1"
             }
-          }
+          },
+          "officialScoringPayload": "no-error",
+          "interferenceRuling": "not-required",
+          "runnerAdvanceOverrides": "not-applied",
+          "thirdOutObservation": "none"
         },
         "source": {
           "kind": "evaluated-prefix-v3",
@@ -10264,7 +10264,7 @@
             "appliedWatermark": "100"
           },
           "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
-          "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400",
+          "executionArtifactSha256": "9ae9d16db1f2fa48905eb0ac951c8cb3ce5704dfe308df95a7a0bba155f33d19",
           "rulesDigest": "05b9daa9832c4261483faf9eb265f3a4840a204178b055da4029991d7592a74a",
           "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
           "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
@@ -10342,7 +10342,7 @@
         "nextCheckpoint": {
           "id": "30000000-0000-0000-0000-000000000013",
           "revision": "2",
-          "digest": "6c1609e12eb48d3cba3c90b007beb3e47277b049d9f61644bf7fe1f0e784ca23"
+          "digest": "09488bbfbdf5ddd2cc42f8639c9f7417756c9bd006d2ac5b8c49f2fe97c6c376"
         }
       },
       "expected": {
@@ -10453,11 +10453,11 @@
               "priorOpen": true
             },
             "decision": {
-              "outcome": "walk-off",
               "endConditionDetected": true,
               "lockFurtherPlayInput": true,
               "promptEndDeclaration": true,
               "automaticallyEndsGame": false,
+              "outcome": "walk-off",
               "xMark": "recorded-score"
             },
             "tiebreakStartRequired": false
@@ -10490,10 +10490,6 @@
                 }
               },
               "scoreboard": {
-                "hits": {
-                  "before": "12",
-                  "after": "13"
-                },
                 "inningScores": {
                   "before": {
                     "home": "0",
@@ -10503,6 +10499,10 @@
                     "home": "1",
                     "away": "0"
                   }
+                },
+                "hits": {
+                  "before": "12",
+                  "after": "13"
                 }
               },
               "statFlags": {
@@ -10566,7 +10566,7 @@
             "checkpoint": {
               "id": "30000000-0000-0000-0000-000000000013",
               "revision": "2",
-              "digest": "6c1609e12eb48d3cba3c90b007beb3e47277b049d9f61644bf7fe1f0e784ca23"
+              "digest": "09488bbfbdf5ddd2cc42f8639c9f7417756c9bd006d2ac5b8c49f2fe97c6c376"
             },
             "historyVersion": "101",
             "origin": {
@@ -10652,7 +10652,7 @@
             "d2": "101",
             "appliedWatermark": "100"
           },
-          "executionArtifactSha256": "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400"
+          "executionArtifactSha256": "9ae9d16db1f2fa48905eb0ac951c8cb3ce5704dfe308df95a7a0bba155f33d19"
         }
       }
     }

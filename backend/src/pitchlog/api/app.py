@@ -6,6 +6,7 @@ from pathlib import Path
 from fastapi import APIRouter, FastAPI
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
+from pitchlog.api.cookie_identity import same_token_cookie_headers
 from pitchlog.api.errors import register_exception_handlers
 from pitchlog.api.routers import (
     auth,
@@ -65,14 +66,15 @@ class _RenewedCookieMiddleware:
                         name.lower() == b"set-cookie" for name, _ in headers
                     ):
                         headers.append((b"set-cookie", cookie.encode("latin-1")))
+                headers = same_token_cookie_headers(scope, message["status"], headers)
                 if any(name.lower() == b"set-cookie" for name, _ in headers):
-                    message["headers"] = [
+                    headers = [
                         (name, value)
                         for name, value in headers
                         if name.lower() != b"cache-control"
                     ] + [(b"cache-control", b"no-store")]
                 message["headers"] = tenant_match_response_headers(
-                    scope, message["status"], list(message.get("headers", headers))
+                    scope, message["status"], headers
                 )
             await send(message)
 

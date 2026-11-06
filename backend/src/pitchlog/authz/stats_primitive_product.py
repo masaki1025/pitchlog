@@ -317,6 +317,13 @@ def candidate_schema_body() -> str:
 
 def declaration(section: str, key: str) -> dict[str, Any] | None:
     """正式installerが既guardへ渡す閉じた宣言。未知IDを発行しない。"""
+    if section == "functions" and key.startswith(
+        "FUNCTION:stats_api:rebuild_after_nonplay_undo("
+    ):
+        rows, _bodies = undo_candidate_declarations()
+        return next(
+            (row for row in rows["functions"] if row["function_id"] == key), None
+        )
     declarations, _ = candidate_declarations()
     identity = {
         "functions": "function_id",
@@ -330,6 +337,10 @@ def declaration(section: str, key: str) -> dict[str, Any] | None:
 
 def body(kind: str, key: str) -> str | None:
     """既guardが照合するcanonical本文。適用や再封印はしない。"""
+    if kind == "function" and key.startswith(
+        "FUNCTION:stats_api:rebuild_after_nonplay_undo("
+    ):
+        return undo_candidate_declarations()[1].get(kind + "|" + key)
     return candidate_declarations()[1].get(kind + "|" + key)
 
 
@@ -482,6 +493,68 @@ def connection_declarations() -> tuple[dict[str, list[dict[str, Any]]], dict[str
     tables, table_bodies = candidate_table_declarations()
     declarations["tables"] = tables
     bodies.update(table_bodies)
-    if len(declarations["functions"]) != 5 or len(tables) != 3:
+    undo_rows, undo_bodies = undo_candidate_declarations()
+    if len(undo_rows["functions"]) != 1:
+        raise ValueError("取消S helperの集合が不一致")
+    declarations["functions"].extend(undo_rows["functions"])
+    undo_row = undo_rows["functions"][0]
+    bodies["function|" + undo_row["function_id"]] = undo_candidate_install_sql()
+    if len(declarations["functions"]) != 6 or len(tables) != 3:
         raise ValueError("成績接合の固定関数/表集合が不一致")
     return declarations, bodies
+
+
+def undo_candidate_declarations():
+    """appにEXECUTEを与えない同owner invoker helper一件だけを正式writerへ渡す。"""
+    from pitchlog.authz.stats_undo_sql import candidate_function_body
+
+    text = candidate_function_body()
+    match = re.match(
+        r"CREATE FUNCTION stats_api\.(rebuild_after_nonplay_undo)\((.*?)\)\n"
+        r"RETURNS TABLE\((.*?)\) LANGUAGE plpgsql VOLATILE SECURITY INVOKER",
+        text,
+        re.S,
+    )
+    if match is None:
+        raise ValueError("取消S私有helperの閉署名が不一致です")
+    args = ", ".join(" ".join(arg.strip().split()[1:]) for arg in match[2].split(","))
+    key = "FUNCTION:stats_api:" + match[1] + "(" + args + ")"
+    row = {
+        "function_id": key,
+        "schema_name": "stats_api",
+        "function_name": match[1],
+        "identity_args": args,
+        "function_kind": "invoker",
+        "owner_role_id": OWNER,
+        "language": "plpgsql",
+        "returns": "TABLE(" + match[3] + ")",
+        "security_mode": "invoker",
+        "volatility": "volatile",
+        "search_path": ["pg_catalog", "pg_temp"],
+        "acl_expectations": [],
+        "revoked_acl_expectations": [
+            {"grantee": role, "privilege": "EXECUTE", "grantable": False}
+            for role in ("PUBLIC", APP)
+        ],
+    }
+    return {"functions": [row]}, {"function|" + key: text}
+
+
+def undo_candidate_install_sql():
+    """正式installerが別途登録するhelperを描画し、DBには適用しない。"""
+    declarations, bodies = undo_candidate_declarations()
+    row = declarations["functions"][0]
+    signature = "stats_api." + row["function_name"] + "(" + row["identity_args"] + ")"
+    return (
+        bodies["function|" + row["function_id"]]
+        + "ALTER FUNCTION "
+        + signature
+        + " OWNER TO "
+        + OWNER
+        + ";\n"
+        + "REVOKE ALL ON FUNCTION "
+        + signature
+        + " FROM PUBLIC,"
+        + APP
+        + ";\n"
+    )

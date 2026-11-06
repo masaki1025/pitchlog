@@ -131,3 +131,46 @@ def _device_state_read_declaration() -> FunctionOperationRegistration:
 
 # 既_UNREGISTERED_DECLARATIONSのexact2とは別に正式registryへ渡す。
 DEVICE_STATE_READ_OPERATION = _device_state_read_declaration()
+
+
+@dataclass(frozen=True, slots=True)
+class _VerifyReplayDeviceToken(TenantOperationToken):
+    """再掲前の端末IDと秘密digestを読取専用関数へ渡す。"""
+
+    device_id: UUID
+    credential_digest: bytes = field(repr=False)
+
+    @property
+    def capability_id(self) -> str:
+        """固定能力だけを返す。"""
+        return "CAP:sync_first_ball:verify_replay_device"
+
+
+def _replay_device_verify_declaration() -> FunctionOperationRegistration:
+    """Writer phaseを持たないexact型の読取宣言を作る。"""
+    inputs, outputs, nullable, aware = _SYNC_FIRST_BALL_FUNCTION_TYPES[
+        "sync_right_api.verify_replay_device"
+    ]
+    return FunctionOperationRegistration(
+        operation_id="SYNC_FIRST_BALL:verify_replay_device",
+        capability_id="CAP:sync_first_ball:verify_replay_device",
+        token_type=_VerifyReplayDeviceToken,
+        function_id="sync_right_api.verify_replay_device",
+        statement=_build_fixed_function_statement(
+            "sync_right_api",
+            "verify_replay_device",
+            inputs,
+            tuple(name for name, _ in outputs),
+            True,
+        ),
+        input_fields=inputs,
+        result_fields=outputs,
+        decoder=_identity,
+        min_rows=1,
+        max_rows=1,
+        nullable_results=nullable,
+        aware_datetime_results=aware,
+    )
+
+
+REPLAY_DEVICE_VERIFY_OPERATION = _replay_device_verify_declaration()

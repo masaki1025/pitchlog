@@ -11,7 +11,7 @@ from pitchlog.authz.ordinary_pitch_product import (
 
 
 def test_function_set_and_app_execute_are_closed():
-    """consumeのapp直接呼出を開けず、限定六入口だけ公開する。"""
+    """consumeのapp直接呼出を開けず、9関数中8入口だけ公開する。"""
     declarations, bodies = candidate_declarations()
     names = {row["function_name"] for row in declarations["functions"]}
     assert names == {
@@ -23,6 +23,7 @@ def test_function_set_and_app_execute_are_closed():
         "read_ordinary_checkpoint",
         "lock_ordinary_checkpoint",
         "read_ordinary_history_page",
+        "read_nonplay_active_history",
     }
     for row in declarations["functions"]:
         assert row["owner_role_id"] == "pitchlog_sync_right_fn_owner"
@@ -110,7 +111,7 @@ def test_all_eight_bodies_use_existing_installer_parser():
     from pitchlog.authz.first_ball_product import application_function_sql, body
 
     declarations, _ = candidate_declarations()
-    assert len(declarations["functions"]) == 8
+    assert len(declarations["functions"]) == 9
     for row in declarations["functions"]:
         key = row["function_id"]
         sql = body("function", key)
@@ -119,18 +120,28 @@ def test_all_eight_bodies_use_existing_installer_parser():
         assert application_function_sql(key, sql) is not None
 
 
-def test_prefix_guard_receives_only_actual_watermark_read_columns():
-    """実PGで不足した二水位だけSELECTし、app権限/DMLを広げない。"""
-    declarations, _ = candidate_declarations()
+def test_prefix_guard_receives_only_actual_generation_read_columns():
+    """水位2列とlegacy chain順序1列だけを関数ownerへSELECTする。"""
+    declarations, bodies = candidate_declarations()
     rows = [
         row
         for row in declarations["column_acl_expectations"]
         if row["object_id"] == "recording_generations"
     ]
+    assert len(rows) == 3
     assert {row["column_id"] for row in rows} == {
         "confirmed_watermark",
         "applied_prefix",
+        "issuance_order",
     }
     for row in rows:
         assert row["grantee_role_id"] == "pitchlog_sync_right_fn_owner"
         assert row["privilege_ids"] == ["SELECT"]
+    key = (
+        "COLUMN-ACL:public:recording_generations:issuance_order:"
+        "pitchlog_sync_right_fn_owner"
+    )
+    assert bodies["column_acl_expectation|" + key] == (
+        "GRANT SELECT (issuance_order) ON TABLE public.recording_generations "
+        "TO pitchlog_sync_right_fn_owner;\n"
+    )

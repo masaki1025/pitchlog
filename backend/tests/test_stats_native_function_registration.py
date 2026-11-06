@@ -59,7 +59,7 @@ def _descriptor(r):
 
 def test_old_all_twenty_two_keep_order_sql_types_decoder_and_values():
     """旧全登録・generic tenant契約を新familyのために緩めない。"""
-    old = registry.PRODUCT_FUNCTION_OPERATIONS[:-5]
+    old = registry.PRODUCT_FUNCTION_OPERATIONS[:-12]
     assert len(old) == 22
     raw = (
         json.dumps(
@@ -75,7 +75,7 @@ def test_old_all_twenty_two_keep_order_sql_types_decoder_and_values():
         == "71fe06530c38e265d8d56d815748bc4da480a3864611876b040641df0c1b453b"
     )
     assert (
-        registry.PRODUCT_FUNCTION_OPERATIONS[-5:]
+        registry.PRODUCT_FUNCTION_OPERATIONS[-12:-7]
         == api.STATS_NATIVE_FUNCTION_OPERATIONS
     )
     for r in old:
@@ -251,7 +251,7 @@ def test_real_cold_import_orders_and_same_runtime_type(first):
             f"from pitchlog.repositories import {first}; "
             "from pitchlog.repositories import transaction, operation_registry, "
             "play_export_primitives; "
-            "assert len(operation_registry.PRODUCT_FUNCTION_OPERATIONS)==27",
+            "assert len(operation_registry.PRODUCT_FUNCTION_OPERATIONS)==34",
         ],
         env=os.environ.copy(),
         capture_output=True,

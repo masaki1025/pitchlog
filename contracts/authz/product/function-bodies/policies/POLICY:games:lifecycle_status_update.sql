@@ -1,0 +1,4 @@
+-- ELEMENT-TYPE: policy
+-- ELEMENT-ID: POLICY:games:lifecycle_status_update
+
+CREATE POLICY lifecycle_status_update ON public.games AS PERMISSIVE FOR UPDATE TO pitchlog_sync_right_fn_owner USING (tenant_id = NULLIF(pg_catalog.current_setting('app.tenant_id',true),'')::uuid AND session_user = 'pitchlog_app' AND EXISTS(SELECT 1 FROM sync_fence.lifecycle_write_admissions a WHERE a.tenant_id=games.tenant_id AND a.game_id=games.id AND a.state='consumed' AND a.transaction_id=pg_catalog.pg_current_xact_id()::text)) WITH CHECK (tenant_id = NULLIF(pg_catalog.current_setting('app.tenant_id',true),'')::uuid AND session_user = 'pitchlog_app' AND EXISTS(SELECT 1 FROM sync_fence.lifecycle_write_admissions a WHERE a.tenant_id=games.tenant_id AND a.game_id=games.id AND a.state='consumed' AND a.transaction_id=pg_catalog.pg_current_xact_id()::text));

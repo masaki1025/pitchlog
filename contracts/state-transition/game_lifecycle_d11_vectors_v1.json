@@ -1,0 +1,390 @@
+{
+  "calculation": "native-game-lifecycle-v1",
+  "sourcePath": "contracts/state-transition/game_lifecycle_cases_v1.json",
+  "sourceSha256": "5551ca069b050696028984e7f05e8ad8f175372e6d95bd798418254f0a01498d",
+  "executionArtifactSha256": "9ae9d16db1f2fa48905eb0ac951c8cb3ce5704dfe308df95a7a0bba155f33d19",
+  "cases": [
+    {
+      "caseId": "auto-ended-declaration-preserves-all-current",
+      "request": {
+        "formatVersion": "native-game-lifecycle-v1",
+        "action": "end",
+        "current": {
+          "stateFields": {
+            "state.inning": "9",
+            "state.half": "bottom",
+            "state.outs": "1",
+            "state.count.strikes": "2",
+            "state.count.balls": "1",
+            "state.runners": "second-third",
+            "state.battingOrder": "5",
+            "state.tiebreakActive": false,
+            "state.gameEnded": true,
+            "state.score": {
+              "home": "3",
+              "away": "2"
+            }
+          },
+          "scoreboard": {
+            "inningScores": {
+              "home": "1",
+              "away": "0"
+            },
+            "hits": "9",
+            "errors": "1",
+            "strikeouts": "3",
+            "walks": "2"
+          },
+          "battingOrderBySide": {
+            "home": "5",
+            "away": "7"
+          }
+        },
+        "lifecycle": {
+          "status": "in_progress",
+          "lastVersion": "0",
+          "active": null
+        },
+        "target": null,
+        "event": {
+          "eventId": "10000000-0000-0000-0000-000000000001",
+          "receiptId": "20000000-0000-0000-0000-000000000001"
+        }
+      },
+      "expected": {
+        "comparison": "exact",
+        "expected": {
+          "ok": true,
+          "value": {
+            "current": {
+              "stateFields": {
+                "state.inning": "9",
+                "state.half": "bottom",
+                "state.outs": "1",
+                "state.count.strikes": "2",
+                "state.count.balls": "1",
+                "state.runners": "second-third",
+                "state.battingOrder": "5",
+                "state.tiebreakActive": false,
+                "state.gameEnded": true,
+                "state.score": {
+                  "home": "3",
+                  "away": "2"
+                }
+              },
+              "scoreboard": {
+                "inningScores": {
+                  "home": "1",
+                  "away": "0"
+                },
+                "hits": "9",
+                "errors": "1",
+                "strikeouts": "3",
+                "walks": "2"
+              },
+              "battingOrderBySide": {
+                "home": "5",
+                "away": "7"
+              }
+            },
+            "lifecycle": {
+              "status": "finished",
+              "lastVersion": "1",
+              "active": {
+                "version": "1",
+                "eventId": "10000000-0000-0000-0000-000000000001",
+                "receiptId": "20000000-0000-0000-0000-000000000001"
+              }
+            },
+            "stateEffect": {
+              "gameEnded": {
+                "kind": "unchanged",
+                "before": true,
+                "after": true
+              }
+            }
+          }
+        },
+        "provenance": "FR-007 追記再開"
+      }
+    },
+    {
+      "caseId": "reopen-only-releases-end-condition-lock",
+      "request": {
+        "formatVersion": "native-game-lifecycle-v1",
+        "action": "reopen",
+        "current": {
+          "stateFields": {
+            "state.inning": "9",
+            "state.half": "bottom",
+            "state.outs": "1",
+            "state.count.strikes": "2",
+            "state.count.balls": "1",
+            "state.runners": "second-third",
+            "state.battingOrder": "5",
+            "state.tiebreakActive": false,
+            "state.gameEnded": true,
+            "state.score": {
+              "home": "3",
+              "away": "2"
+            }
+          },
+          "scoreboard": {
+            "inningScores": {
+              "home": "1",
+              "away": "0"
+            },
+            "hits": "9",
+            "errors": "1",
+            "strikeouts": "3",
+            "walks": "2"
+          },
+          "battingOrderBySide": {
+            "home": "5",
+            "away": "7"
+          }
+        },
+        "lifecycle": {
+          "status": "finished",
+          "lastVersion": "1",
+          "active": {
+            "version": "1",
+            "eventId": "10000000-0000-0000-0000-000000000001",
+            "receiptId": "20000000-0000-0000-0000-000000000001"
+          }
+        },
+        "target": {
+          "version": "1",
+          "eventId": "10000000-0000-0000-0000-000000000001",
+          "receiptId": "20000000-0000-0000-0000-000000000001"
+        },
+        "event": {
+          "eventId": "10000000-0000-0000-0000-000000000002",
+          "receiptId": "20000000-0000-0000-0000-000000000002"
+        }
+      },
+      "expected": {
+        "comparison": "exact",
+        "expected": {
+          "ok": true,
+          "value": {
+            "current": {
+              "stateFields": {
+                "state.inning": "9",
+                "state.half": "bottom",
+                "state.outs": "1",
+                "state.count.strikes": "2",
+                "state.count.balls": "1",
+                "state.runners": "second-third",
+                "state.battingOrder": "5",
+                "state.tiebreakActive": false,
+                "state.gameEnded": false,
+                "state.score": {
+                  "home": "3",
+                  "away": "2"
+                }
+              },
+              "scoreboard": {
+                "inningScores": {
+                  "home": "1",
+                  "away": "0"
+                },
+                "hits": "9",
+                "errors": "1",
+                "strikeouts": "3",
+                "walks": "2"
+              },
+              "battingOrderBySide": {
+                "home": "5",
+                "away": "7"
+              }
+            },
+            "lifecycle": {
+              "status": "in_progress",
+              "lastVersion": "1",
+              "active": null
+            },
+            "stateEffect": {
+              "gameEnded": {
+                "kind": "set",
+                "before": true,
+                "after": false
+              }
+            }
+          }
+        },
+        "provenance": "FR-007 追記再開"
+      }
+    },
+    {
+      "caseId": "early-declaration-preserves-score-and-detection",
+      "request": {
+        "formatVersion": "native-game-lifecycle-v1",
+        "action": "end",
+        "current": {
+          "stateFields": {
+            "state.inning": "9",
+            "state.half": "bottom",
+            "state.outs": "1",
+            "state.count.strikes": "2",
+            "state.count.balls": "1",
+            "state.runners": "second-third",
+            "state.battingOrder": "5",
+            "state.tiebreakActive": false,
+            "state.gameEnded": false,
+            "state.score": {
+              "home": "3",
+              "away": "2"
+            }
+          },
+          "scoreboard": {
+            "inningScores": {
+              "home": "1",
+              "away": "0"
+            },
+            "hits": "9",
+            "errors": "1",
+            "strikeouts": "3",
+            "walks": "2"
+          },
+          "battingOrderBySide": {
+            "home": "5",
+            "away": "7"
+          }
+        },
+        "lifecycle": {
+          "status": "in_progress",
+          "lastVersion": "0",
+          "active": null
+        },
+        "target": null,
+        "event": {
+          "eventId": "10000000-0000-0000-0000-000000000001",
+          "receiptId": "20000000-0000-0000-0000-000000000001"
+        }
+      },
+      "expected": {
+        "comparison": "exact",
+        "expected": {
+          "ok": true,
+          "value": {
+            "current": {
+              "stateFields": {
+                "state.inning": "9",
+                "state.half": "bottom",
+                "state.outs": "1",
+                "state.count.strikes": "2",
+                "state.count.balls": "1",
+                "state.runners": "second-third",
+                "state.battingOrder": "5",
+                "state.tiebreakActive": false,
+                "state.gameEnded": false,
+                "state.score": {
+                  "home": "3",
+                  "away": "2"
+                }
+              },
+              "scoreboard": {
+                "inningScores": {
+                  "home": "1",
+                  "away": "0"
+                },
+                "hits": "9",
+                "errors": "1",
+                "strikeouts": "3",
+                "walks": "2"
+              },
+              "battingOrderBySide": {
+                "home": "5",
+                "away": "7"
+              }
+            },
+            "lifecycle": {
+              "status": "finished",
+              "lastVersion": "1",
+              "active": {
+                "version": "1",
+                "eventId": "10000000-0000-0000-0000-000000000001",
+                "receiptId": "20000000-0000-0000-0000-000000000001"
+              }
+            },
+            "stateEffect": {
+              "gameEnded": {
+                "kind": "unchanged",
+                "before": false,
+                "after": false
+              }
+            }
+          }
+        },
+        "provenance": "FR-007 追記再開"
+      }
+    },
+    {
+      "caseId": "stale-target-version-rejected",
+      "request": {
+        "formatVersion": "native-game-lifecycle-v1",
+        "action": "reopen",
+        "current": {
+          "stateFields": {
+            "state.inning": "9",
+            "state.half": "bottom",
+            "state.outs": "1",
+            "state.count.strikes": "2",
+            "state.count.balls": "1",
+            "state.runners": "second-third",
+            "state.battingOrder": "5",
+            "state.tiebreakActive": false,
+            "state.gameEnded": true,
+            "state.score": {
+              "home": "3",
+              "away": "2"
+            }
+          },
+          "scoreboard": {
+            "inningScores": {
+              "home": "1",
+              "away": "0"
+            },
+            "hits": "9",
+            "errors": "1",
+            "strikeouts": "3",
+            "walks": "2"
+          },
+          "battingOrderBySide": {
+            "home": "5",
+            "away": "7"
+          }
+        },
+        "lifecycle": {
+          "status": "finished",
+          "lastVersion": "1",
+          "active": {
+            "version": "1",
+            "eventId": "10000000-0000-0000-0000-000000000001",
+            "receiptId": "20000000-0000-0000-0000-000000000001"
+          }
+        },
+        "target": {
+          "version": "2",
+          "eventId": "10000000-0000-0000-0000-000000000001",
+          "receiptId": "20000000-0000-0000-0000-000000000001"
+        },
+        "event": {
+          "eventId": "10000000-0000-0000-0000-000000000002",
+          "receiptId": "20000000-0000-0000-0000-000000000002"
+        }
+      },
+      "expected": {
+        "comparison": "exact",
+        "expected": {
+          "ok": false,
+          "error": {
+            "code": "LIFECYCLE_STATE_MISMATCH"
+          }
+        },
+        "provenance": "FR-007 追記再開"
+      }
+    }
+  ]
+}
