@@ -5,8 +5,9 @@
 // 場合は、黙ってskipせず不足を列挙して失敗する。固定応答で成功を作らない。
 //
 // 実行条件（rootが隔離PG・専用tenantで用意する。値はrepoへ保存しない）:
-//   PITCHLOG_LIFECYCLE_E2E_BASE_URL  実HTTPSのVite/アプリURL
-//   PITCHLOG_LIFECYCLE_E2E_GAME_ID   実作成・開始済みの試合ID（未終了）
+//   PITCHLOG_LIFECYCLE_E2E_BASE_URL          実HTTPSのVite/アプリURL
+//   PITCHLOG_LIFECYCLE_E2E_GAME_ID           実作成・開始済みの試合ID（未終了）
+//   PITCHLOG_LIFECYCLE_E2E_INVISIBLE_GAME_ID 同じtenantから不可視/不存在の試合ID
 import { expect, test } from '@playwright/test'
 
 test.describe.configure({ mode: 'serial' })
@@ -14,9 +15,14 @@ test.describe.configure({ mode: 'serial' })
 const MISSING = [
   'PITCHLOG_LIFECYCLE_E2E_BASE_URL',
   'PITCHLOG_LIFECYCLE_E2E_GAME_ID',
+  'PITCHLOG_LIFECYCLE_E2E_INVISIBLE_GAME_ID',
 ] as const
 
-function requiredEnvironment(): { baseUrl: string; gameId: string } {
+function requiredEnvironment(): {
+  baseUrl: string
+  gameId: string
+  invisibleGameId: string
+} {
   const missing = MISSING.filter((key) => !process.env[key])
   if (missing.length > 0)
     throw new Error(
@@ -27,11 +33,15 @@ function requiredEnvironment(): { baseUrl: string; gameId: string } {
   return {
     baseUrl: process.env.PITCHLOG_LIFECYCLE_E2E_BASE_URL!,
     gameId: process.env.PITCHLOG_LIFECYCLE_E2E_GAME_ID!,
+    invisibleGameId: process.env.PITCHLOG_LIFECYCLE_E2E_INVISIBLE_GAME_ID!,
   }
 }
 
-async function openLifecycleGame(page: import('@playwright/test').Page) {
-  const { baseUrl, gameId } = requiredEnvironment()
+async function openLifecycleGame(
+  page: import('@playwright/test').Page,
+  gameId = requiredEnvironment().gameId,
+) {
+  const { baseUrl } = requiredEnvironment()
   await page.goto(`${baseUrl}/games/${gameId}`, {
     waitUntil: 'domcontentloaded',
   })
@@ -45,12 +55,18 @@ test('終了v1→再開→2球→再終了v2→reloadを実server/実PGで通す
 }) => {
   const panel = await openLifecycleGame(page)
 
-  await test.step('実GETで進行中・確定版v0を表示する', async () => {
+  await test.step('実GETで進行中・サーバー確認済みを表示する', async () => {
     await expect(panel.getByTestId('lifecycle-status')).toHaveText('進行中')
+    await expect(panel.getByTestId('lifecycle-confirmed-status')).toHaveText(
+      '進行中',
+    )
     await expect(panel.getByTestId('lifecycle-refresh-state')).toContainText(
       '取得済み',
     )
     await expect(panel.getByTestId('lifecycle-unknown-count')).toHaveText('0件')
+    await expect(panel.getByTestId('lifecycle-server-unconfirmed')).toHaveCount(
+      0,
+    )
   })
 
   await test.step('終了v1を宣言し、実GET再取得で終了とv1を確認する', async () => {
@@ -58,6 +74,9 @@ test('終了v1→再開→2球→再終了v2→reloadを実server/実PGで通す
     await expect(panel.getByTestId('lifecycle-status')).toHaveText('終了', {
       timeout: 20_000,
     })
+    await expect(panel.getByTestId('lifecycle-confirmed-status')).toHaveText(
+      '終了',
+    )
     await expect(panel.getByTestId('lifecycle-last-version')).toHaveText('v1')
     await expect(panel.getByTestId('lifecycle-active')).toHaveText('v1')
     await expect(panel.getByTestId('lifecycle-save-ack')).toContainText('受理')
@@ -119,6 +138,59 @@ test('終了v1→再開→2球→再終了v2→reloadを実server/実PGで通す
   })
 })
 
+test('通信断中に終了→再開→再終了を端末へ保存し、復帰後に順に送る', async ({
+  page,
+  context,
+}) => {
+  const panel = await openLifecycleGame(page)
+  await expect(panel.getByTestId('lifecycle-status')).toHaveText('進行中')
+
+  await context.setOffline(true)
+  await test.step('断中でも終了v1を端末へ保存する', async () => {
+    await panel.getByTestId('lifecycle-end').click()
+    await expect(panel.getByTestId('lifecycle-status')).toHaveText('終了', {
+      timeout: 20_000,
+    })
+    await expect(
+      panel.getByTestId('lifecycle-server-unconfirmed'),
+    ).toContainText('1件')
+    await expect(panel.getByTestId('lifecycle-confirmed-status')).toHaveText(
+      '進行中',
+    )
+  })
+
+  await test.step('断中に再開し、さらに再終了する', async () => {
+    await panel.getByTestId('lifecycle-reopen').click()
+    await expect(panel.getByTestId('lifecycle-status')).toHaveText('進行中', {
+      timeout: 20_000,
+    })
+    await expect(
+      panel.getByTestId('lifecycle-server-unconfirmed'),
+    ).toContainText('2件')
+    await panel.getByTestId('lifecycle-end').click()
+    await expect(panel.getByTestId('lifecycle-status')).toHaveText('終了', {
+      timeout: 20_000,
+    })
+    await expect(
+      panel.getByTestId('lifecycle-server-unconfirmed'),
+    ).toContainText('3件')
+  })
+
+  await context.setOffline(false)
+  await test.step('復帰後に同本文で順に送り、v2を実GETで確認する', async () => {
+    await panel.getByTestId('lifecycle-retry').click()
+    await expect(panel.getByTestId('lifecycle-confirmed-status')).toHaveText(
+      '終了',
+      { timeout: 30_000 },
+    )
+    await expect(panel.getByTestId('lifecycle-last-version')).toHaveText('v2')
+    await expect(panel.getByTestId('lifecycle-active')).toHaveText('v2')
+    await expect(panel.getByTestId('lifecycle-server-unconfirmed')).toHaveCount(
+      0,
+    )
+  })
+})
+
 test('同一D5/同本文の再送は確定版を増やさない（ACK喪失）', async ({ page }) => {
   await openLifecycleGame(page)
   const panel = page.getByTestId('lifecycle-panel')
@@ -141,9 +213,10 @@ test('同一D5/同本文の再送は確定版を増やさない（ACK喪失）',
   await expect(panel.getByTestId('lifecycle-save-ack')).toHaveText('未確認')
 
   await panel.getByTestId('lifecycle-retry').click()
-  await expect(panel.getByTestId('lifecycle-status')).toHaveText('終了', {
-    timeout: 20_000,
-  })
+  await expect(panel.getByTestId('lifecycle-confirmed-status')).toHaveText(
+    '終了',
+    { timeout: 20_000 },
+  )
   // 再送は同D5/同本文だけなので v2 へ増えない。
   await expect(panel.getByTestId('lifecycle-last-version')).toHaveText('v1')
 })
@@ -174,16 +247,14 @@ test('二重タブでは非所有タブが追記しない', async ({ browser }) 
   await context.close()
 })
 
-test('不可視試合/取得失敗は状態を表示しない', async ({ page }) => {
-  const { baseUrl, gameId } = requiredEnvironment()
-  await page.goto(`${baseUrl}/games/${gameId}`, {
-    waitUntil: 'domcontentloaded',
-  })
-  const panel = page.getByTestId('lifecycle-panel')
+test('不可視/不存在の試合は状態を表示しない', async ({ page }) => {
+  const { invisibleGameId } = requiredEnvironment()
+  const panel = await openLifecycleGame(page, invisibleGameId)
   await expect(panel.getByTestId('lifecycle-status')).toHaveText('未取得', {
     timeout: 20_000,
   })
   await expect(panel.getByTestId('lifecycle-failure')).toContainText(
     '取得できません',
   )
+  await expect(panel.getByTestId('lifecycle-end')).toBeDisabled()
 })

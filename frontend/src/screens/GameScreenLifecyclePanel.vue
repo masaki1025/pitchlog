@@ -33,8 +33,12 @@ const REASON_TEXT: Record<GameLifecycleReason, string> = {
   'read-unavailable': '試合がこの読取では閉じません。再読込してください。',
   'read-unsupported': 'このサーバーは終了再開の読取に対応していません。',
   'read-failed': '状態を取得できません。通信を確認してください。',
+  'read-required':
+    '一度もサーバー確認済みの状態がないため、終了/再開の前提を作れません。通信のある場所で再読込してください。',
   'status-mismatch':
     '表示とサーバーの状態が食い違うため操作していません。再読込してください。',
+  'target-unavailable':
+    '追記再開の対象となる終了版を確認できません。再読込してください。',
   'reopen-kind-unavailable':
     '追記再開のイベント種別が正式裁定されるまで実行できません（接合待ち）。',
   'pending-predecessor': '先に同期すべき未送信の操作があります。',
@@ -59,7 +63,13 @@ const REASON_TEXT: Record<GameLifecycleReason, string> = {
   'ack-not-applied':
     '受理を確認できないため同期済みにしていません。結果は未確定です。',
   'requires-operator': '要操作の未確定操作が残っています。自動再送しません。',
-  'nothing-pending': '再送する操作はありません。',
+  'invalid-order':
+    '終了後の追加操作など、端末キューの順序が正本と合いません。再読込して確認してください。',
+  'invalid-local-state':
+    '端末に保存した状態とキューの連鎖を確認できません。新しい要求で置き換えません。',
+  'd2-exhausted': '次のD2を採番できません。記録位置を確認してください。',
+  'stale-read':
+    '保存応答は確認しましたが、サーバーの再取得がまだ追いついていません。再読込してください。',
   'operation-failed': '操作を完了できませんでした。記録は変更していません。',
   'scan-truncated': '未送信の確認が上限に達しました。先頭のみ表示しています。',
 }
@@ -72,18 +82,26 @@ const STATUS_TEXT = {
 const REFRESH_TEXT = {
   idle: '未取得',
   done: '取得済み',
-  failed: '再取得失敗',
+  failed: '要再取得',
 } as const
 
 const view = computed(() => props.view)
 const statusText = computed(() =>
   view.value?.status ? STATUS_TEXT[view.value.status] : '未取得',
 )
+const confirmedStatusText = computed(() =>
+  view.value?.confirmedStatus
+    ? STATUS_TEXT[view.value.confirmedStatus]
+    : '未取得',
+)
 const refreshText = computed(() =>
   view.value ? REFRESH_TEXT[view.value.refresh] : REFRESH_TEXT.idle,
 )
 const failureText = computed(() =>
   view.value?.lastFailure ? REASON_TEXT[view.value.lastFailure] : null,
+)
+const blockedText = computed(() =>
+  view.value?.blockedReason ? REASON_TEXT[view.value.blockedReason] : null,
 )
 const ackText = computed(() => {
   const ack = view.value?.saveAck
@@ -95,6 +113,13 @@ const canRefresh = computed(() => !view.value?.busy)
 const hasUnknown = computed(() => (view.value?.unknownCount ?? 0) > 0)
 const retryLabel = computed(() =>
   hasUnknown.value ? '結果不明の要求を再送' : '未確定の要求を再送',
+)
+const serverUnconfirmed = computed(
+  () =>
+    view.value !== null &&
+    (view.value.pendingLifecycleCount > 0 ||
+      (view.value.status !== null &&
+        view.value.status !== view.value.confirmedStatus)),
 )
 
 function resume(): void {
@@ -126,14 +151,33 @@ function resume(): void {
         class="rounded-lg border border-amber-500 bg-amber-50 p-2 text-sm font-bold dark:bg-amber-950/40"
         data-testid="lifecycle-stale"
       >
-        表示は最終取得時点のままです。保存の有無と最新状態は再読込で確認してください。
+        サーバー再取得が確認できていません。表示は最後に確認した状態と端末の耐久操作から導いた期待値です。
+      </p>
+
+      <p
+        v-if="serverUnconfirmed"
+        class="rounded-lg border border-sky-500 bg-sky-50 p-2 text-sm font-bold dark:bg-sky-950/40"
+        data-testid="lifecycle-server-unconfirmed"
+      >
+        端末に保存済みで、サーバー未確認の終了/再開が{{
+          view.pendingLifecycleCount
+        }}件あります。
       </p>
 
       <dl class="grid min-w-0 gap-2 sm:grid-cols-2">
         <div class="min-w-0">
-          <dt class="text-sm">試合状態</dt>
+          <dt class="text-sm">試合状態（期待）</dt>
           <dd class="font-bold wrap-anywhere" data-testid="lifecycle-status">
             {{ statusText }}
+          </dd>
+        </div>
+        <div class="min-w-0">
+          <dt class="text-sm">サーバー確認済み状態</dt>
+          <dd
+            class="font-bold wrap-anywhere"
+            data-testid="lifecycle-confirmed-status"
+          >
+            {{ confirmedStatusText }}
           </dd>
         </div>
         <div class="min-w-0">
@@ -178,7 +222,7 @@ function resume(): void {
           </dd>
         </div>
         <div class="min-w-0">
-          <dt class="text-sm">未送信</dt>
+          <dt class="text-sm">未送信の終了/再開</dt>
           <dd
             class="font-bold wrap-anywhere"
             data-testid="lifecycle-unsent-count"
@@ -218,7 +262,7 @@ function resume(): void {
         class="text-sm"
         data-testid="lifecycle-scan-truncated"
       >
-        未送信の確認が上限（1000件）に達しました。表示は先頭のみです。
+        未送信の確認が上限に達しました。表示は先頭のみです。
       </p>
 
       <p
@@ -228,6 +272,14 @@ function resume(): void {
         data-testid="lifecycle-failure"
       >
         {{ failureText }}
+      </p>
+
+      <p
+        v-if="blockedText"
+        class="text-sm"
+        data-testid="lifecycle-blocked-reason"
+      >
+        {{ blockedText }}
       </p>
 
       <p
@@ -295,9 +347,8 @@ function resume(): void {
       </div>
 
       <p class="text-xs" data-testid="lifecycle-next-position">
-        次の記録位置: D1={{ view.nextPosition?.d1 ?? '未取得' }} / D2={{
-          view.nextPosition?.d2 ?? '未取得'
-        }}
+        サーバー確認済みの次の位置: D1={{ view.nextPosition?.d1 ?? '未取得' }} /
+        D2={{ view.nextPosition?.d2 ?? '未取得' }}
       </p>
     </template>
   </section>
