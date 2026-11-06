@@ -43,6 +43,11 @@ import { invokeFirstBallDomain } from '../lib/generated/wrappers/domainArtifact'
 import { GameStartPersistence } from '../lib/gameStartPersistence'
 import { FirstBallAttemptPersistence } from '../lib/firstBallAttemptPersistence'
 import { OrdinaryPitchAttemptPersistence } from '../lib/ordinaryPitchAttemptPersistence'
+import {
+  OrdinaryPreparedEnvelopePersistence,
+  type PreparedEnvelope,
+} from '../lib/ordinaryPreparedEnvelopePersistence'
+import type { LocalAcceptanceBoundary } from '../lib/localRecordingScope'
 import type {
   InitialDeviceEnrollmentResponse,
   InitialGameStartResponse,
@@ -56,10 +61,12 @@ import {
   singleWriterLockName,
   runAsSingleWriter,
   type SingleWriterInjections,
+  type SingleWriterRevalidationContext,
 } from '../lib/sync/singleWriter'
 import { queueStateId } from '../lib/sync/queueState'
 import { PITCH_EVENT_KIND } from './GameScreenPitchEvent'
 import { commitPitchEvent } from './GameScreenPitchCommit'
+import { appendPitchEventUnderLock } from './GameScreenPitchAcceptance'
 import { applyAckToSlot } from './GameScreenAckApplication'
 import { withNonBlockingSingleWriter } from './GameScreenSingleWriter'
 import type { FirstBallIdentity } from './GameScreenFirstBallController'
@@ -82,6 +89,7 @@ function isLegacyLineupPayload(
   return value.calculation.formatVersion === 'play-prefix-calculation-v3'
 }
 export type OrdinaryOperationResult = 'ready' | 'saved' | 'pending' | 'blocked'
+export type LocalOrdinaryResult = 'queued-local' | 'pending' | 'blocked'
 type Resources = {
   queue: DurableQueue
   attempts: OrdinaryPitchAttemptPersistence
@@ -112,10 +120,13 @@ export class GameScreenOrdinaryPitchController {
   #head: number
   #canAppend = true
   #retryEvidenceUnavailable = false
+  #localBoundary: LocalAcceptanceBoundary | null
+  #localAcceptanceActive = false
   constructor(
     context: RecordingContext,
     readIdentity: () => FirstBallIdentity,
     writer: SingleWriterInjections = {},
+    localBoundary: LocalAcceptanceBoundary | null = null,
   ) {
     this.#context = structuredClone(context)
     if (
@@ -126,6 +137,7 @@ export class GameScreenOrdinaryPitchController {
     this.#readIdentity = readIdentity
     this.#identity = { ...readIdentity() }
     this.#writer = writer
+    this.#localBoundary = localBoundary
     this.#head = sequence(context.nextPosition.d1)
   }
   get context(): RecordingContext {
@@ -142,12 +154,20 @@ export class GameScreenOrdinaryPitchController {
       this.#resources !== null
     )
   }
+  /** local表示の入口用。実際の受理資格は毎回withinAcceptance内で判定する。 */
+  get canAppendLocal(): boolean {
+    return this.#localBoundary !== null && this.#canAppend && !this.#disposed
+  }
   #current(): boolean {
     const now = this.#readIdentity()
+    const local = this.#localBoundary !== null
     return (
       !this.#disposed &&
-      now.verified &&
-      this.#identity.verified &&
+      (local
+        ? this.#localAcceptanceActive &&
+          !now.verified &&
+          !this.#identity.verified
+        : now.verified && this.#identity.verified) &&
       now.tenantId !== null &&
       now.tenantId === this.#identity.tenantId &&
       now.epoch === this.#identity.epoch &&
@@ -646,6 +666,7 @@ export class GameScreenOrdinaryPitchController {
     }
   }
   async inspect(): Promise<OrdinaryOperationResult> {
+    if (this.#localBoundary) return 'blocked'
     try {
       await this.#open()
       this.#assert()
@@ -717,6 +738,23 @@ export class GameScreenOrdinaryPitchController {
       )
         throw new Error('元要求の耐久attemptを確認できません')
       attemptId = fixed.attemptId
+      if (mode === 'retry' && payload.formatVersion === 'play-prefix-play-v3') {
+        // local受理はV12を含む本文全体を固定済み。復帰後も置換せず照合する。
+        const envelopes = await OrdinaryPreparedEnvelopePersistence.open()
+        try {
+          const prepared = await envelopes.read(key)
+          if (
+            prepared &&
+            (prepared.d5 !== slot.d5 ||
+              prepared.attemptId !== attemptId ||
+              !sameOrdinaryWire(prepared.event, slot.event) ||
+              !sameOrdinaryWire(prepared.requestBody, body))
+          )
+            throw new Error('端末準備済み原文が一致しません')
+        } finally {
+          envelopes.close()
+        }
+      }
     }
     this.#assert()
     return {
@@ -732,6 +770,7 @@ export class GameScreenOrdinaryPitchController {
       pitchTypeKeys: readonly string[]
     }>,
   ): Promise<OrdinaryOperationResult> {
+    if (this.#localBoundary) return 'blocked'
     if (this.#busy || !this.#canAppend) return 'blocked'
     this.#busy = true
     try {
@@ -833,8 +872,244 @@ export class GameScreenOrdinaryPitchController {
       this.#closeIfDisposed()
     }
   }
+  /** 同ゲーム排他と読取専用auth lease内で原文を先に耐久固定し、HTTPなしでE0追記する。 */
+  async localEnqueue(
+    observation: PlayScreenObservation,
+    vocabulary: Readonly<{
+      tenantId: string
+      pitchTypeKeys: readonly string[]
+    }>,
+  ): Promise<LocalOrdinaryResult> {
+    if (!this.#localBoundary || this.#busy || this.#disposed) return 'blocked'
+    this.#busy = true
+    let appendStarted = false
+    let accepted = false
+    try {
+      let held: SingleWriterRevalidationContext | null = null
+      const injection = withNonBlockingSingleWriter(this.#writer)
+      const started = await runAsSingleWriter<LocalOrdinaryResult>(
+        { gameIdentifier: this.#context.game.id },
+        async () => {
+          if (held === null) return 'blocked'
+          return this.#localBoundary!.withinAcceptance(held, async () => {
+            this.#localAcceptanceActive = true
+            let envelopes: OrdinaryPreparedEnvelopePersistence | null = null
+            try {
+              this.#assert()
+              await this.#open()
+              this.#assert()
+              if (!this.#canAppend || !isLineupRecordingContext(this.#context))
+                return 'blocked'
+              const r = this.#resources!
+              const expected = sequence(this.#context.nextPosition.d1)
+              const scope = this.#scope()
+              if (
+                (await r.queue.readNextD1(scope)) !== expected ||
+                (await r.queue.readSlot(scope, expected)) !== undefined
+              )
+                return 'blocked'
+              this.#assert()
+              envelopes = await OrdinaryPreparedEnvelopePersistence.open()
+              const key = {
+                tenantId: this.#identity.tenantId!,
+                gameId: this.#context.game.id,
+                d4: this.#context.game.current_d4,
+                d1: expected,
+              }
+              const prior = await envelopes.read(key)
+              this.#assert()
+              if (
+                prior &&
+                (!sameOrdinaryWire(prior.observation, observation) ||
+                  !sameOrdinaryWire(prior.vocabulary, vocabulary))
+              )
+                return 'blocked'
+              let d5: string
+              let eventId: string
+              let playId: string
+              let checkpointId: string
+              let attemptId: string
+              if (prior) {
+                const payload = prior.event.fields.V7 as LineupPlayPrefixV7
+                if (
+                  !isLegacyLineupPayload(payload) ||
+                  !isLineupDefinition(payload.calculation.request, 'Request') ||
+                  !isLineupDefinition(payload.calculation.response, 'Success')
+                )
+                  return 'blocked'
+                const request = payload.calculation.request
+                d5 = prior.d5
+                eventId = request.playIdentity.eventId
+                playId = request.playIdentity.playId
+                checkpointId = request.nextCheckpoint.id
+                attemptId = prior.attemptId
+              } else {
+                d5 = crypto.randomUUID()
+                eventId = crypto.randomUUID()
+                playId = crypto.randomUUID()
+                checkpointId = crypto.randomUUID()
+                attemptId = crypto.randomUUID()
+              }
+              const prepared = await prepareLineupPrefix(
+                this.#context,
+                observation,
+                vocabulary,
+                this.#identity.tenantId!,
+                { d5, eventId, playId },
+                checkpointId,
+              )
+              this.#assert()
+              const event = lineupPrefixEvent(prepared, d5)
+              const provisional: DurableQueueSlot = {
+                game: scope.game,
+                d4: scope.d4,
+                d1: expected,
+                d5,
+                version: 1,
+                event,
+                state: queueStateId('未送信'),
+              }
+              const body = buildSyncEventRequestBody({
+                gameId: this.#context.game.id,
+                recordingRightProof: r.grant.recording_right_proof,
+                slots: [provisional],
+                eventKinds: kinds,
+              })
+              if ('sent' in body) return 'blocked'
+              const candidate: PreparedEnvelope = {
+                schemaVersion: 1,
+                ...key,
+                d5,
+                attemptId,
+                observation: structuredClone(observation),
+                vocabulary: structuredClone(vocabulary),
+                event: structuredClone(event),
+                requestBody: structuredClone(body),
+              }
+              if (prior && !sameOrdinaryWire(prior, candidate)) return 'blocked'
+              const fixed = await envelopes.save(candidate)
+              this.#assert()
+              if (!sameOrdinaryWire(fixed, candidate)) return 'blocked'
+              const attempt = await r.attempts.prepare(
+                { ...key, d5, events: body.events },
+                attemptId,
+              )
+              this.#assert()
+              if (
+                attempt.attemptId !== attemptId ||
+                !sameOrdinaryWire(
+                  JSON.parse(attempt.requestJson),
+                  body.events,
+                ) ||
+                (await r.queue.readNextD1(scope)) !== expected ||
+                (await r.queue.readSlot(scope, expected)) !== undefined
+              )
+                return 'blocked'
+              this.#assert()
+              appendStarted = true
+              const result = await appendPitchEventUnderLock(
+                {
+                  gameIdentifier: this.#context.game.id,
+                  scope,
+                  d5,
+                  version: 1,
+                  event,
+                },
+                r.queue,
+              )
+              this.#assert()
+              if (
+                result.outcome !== 'accepted' ||
+                result.slot.d1 !== expected ||
+                !sameOrdinaryWire(result.slot.event, event) ||
+                result.slot.state !== queueStateId('未送信')
+              ) {
+                if (
+                  result.outcome === 'undetermined' ||
+                  result.outcome === 'accepted'
+                )
+                  this.#canAppend = false
+                return result.outcome === 'not-accepted' ? 'blocked' : 'pending'
+              }
+              if (!(await this.#restoreLocal(result.slot))) {
+                this.#canAppend = false
+                return 'pending'
+              }
+              this.#assert()
+              accepted = true
+              return 'queued-local'
+            } finally {
+              envelopes?.close()
+              this.#localAcceptanceActive = false
+            }
+          })
+        },
+        {
+          ...injection,
+          revalidateSingleWriter: async (context) => {
+            const allowed = await injection.revalidateSingleWriter?.(context)
+            if (allowed === true) held = context
+            return allowed
+          },
+        },
+      )
+      return started.recordingStarted ? started.value : 'blocked'
+    } catch {
+      // E0後の結果不明は既slotを保持し、次の独立操作を止める。
+      if (appendStarted || accepted) this.#canAppend = false
+      return appendStarted ? 'pending' : 'blocked'
+    } finally {
+      this.#busy = false
+      this.#closeIfDisposed()
+    }
+  }
+  /** cold reload時の未送信suffix復元。local資格境界の外で旧slotを採用しない。 */
+  async inspectLocal(): Promise<OrdinaryOperationResult> {
+    if (!this.#localBoundary || this.#busy || this.#disposed) return 'blocked'
+    this.#busy = true
+    try {
+      let held: SingleWriterRevalidationContext | null = null
+      const injection = withNonBlockingSingleWriter(this.#writer)
+      const started = await runAsSingleWriter<OrdinaryOperationResult>(
+        { gameIdentifier: this.#context.game.id },
+        async () => {
+          if (held === null) return 'blocked'
+          return this.#localBoundary!.withinAcceptance(held, async () => {
+            this.#localAcceptanceActive = true
+            try {
+              this.#assert()
+              await this.#open()
+              this.#assert()
+              if (!this.#canAppend || !isLineupRecordingContext(this.#context))
+                return 'blocked'
+              return (await this.#oldestUnsettledD1()) === null
+                ? 'ready'
+                : 'pending'
+            } finally {
+              this.#localAcceptanceActive = false
+            }
+          })
+        },
+        {
+          ...injection,
+          revalidateSingleWriter: async (context) => {
+            const allowed = await injection.revalidateSingleWriter?.(context)
+            if (allowed === true) held = context
+            return allowed
+          },
+        },
+      )
+      return started.recordingStarted ? started.value : 'blocked'
+    } catch {
+      return 'blocked'
+    } finally {
+      this.#busy = false
+      this.#closeIfDisposed()
+    }
+  }
   /** 同じslot/body/attemptだけを送る。新規D1/D5は作らない。 */
   async retry(): Promise<OrdinaryOperationResult> {
+    if (this.#localBoundary) return 'blocked'
     if (this.#busy) return 'blocked'
     this.#busy = true
     try {

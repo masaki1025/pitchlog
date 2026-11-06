@@ -20,6 +20,10 @@ import { ordinaryContextFromRead } from '../api/recordedPrefixGame'
 import { GameStartPersistence } from '../lib/gameStartPersistence'
 import { openDurableQueue } from '../lib/sync/durableQueue'
 import { OrdinaryPitchAttemptPersistence } from '../lib/ordinaryPitchAttemptPersistence'
+import {
+  OrdinaryPreparedEnvelopePersistence,
+  type PreparedEnvelope,
+} from '../lib/ordinaryPreparedEnvelopePersistence'
 import * as transport from '../api/client.syncEvents'
 import type { SingleWriterInjections } from '../lib/sync/singleWriter'
 import type { OrdinaryScreenObservation } from './GameScreenOrdinaryPitchProvider'
@@ -897,6 +901,242 @@ async function lineupController() {
   controllers.push(c)
   return c
 }
+async function localLineupController() {
+  const raw = structuredClone(lineupFixture.value)
+  if (!isLineupPrefixGame(raw)) throw new Error('独立DTO不正')
+  identity = { tenantId: tenant, epoch: 1, verified: false }
+  const boundary = {
+    withinAcceptance: async <T>(
+      held: { gameIdentifier: string; lockName: string; lock: unknown },
+      operation: () => Promise<T>,
+    ): Promise<T> => {
+      expect(held.gameIdentifier).toBe(raw.id)
+      expect(held.lockName).toContain(raw.id)
+      return operation()
+    },
+  }
+  const c = new GameScreenOrdinaryPitchController(
+    await lineupContextFromRead(raw, tenant),
+    () => identity,
+    writer,
+    boundary,
+  )
+  controllers.push(c)
+  return c
+}
+it('断中の通常球は本文全体/attemptを先に固定してE0へ追記し、HTTPを呼ばない', async () => {
+  const post = vi
+    .spyOn(transport, 'postSyncEvents')
+    .mockRejectedValue(new Error('HTTP禁止'))
+  const c = await localLineupController()
+  const pitch = {
+    ...observation,
+    resultId: 'batting-result.called-pitch' as const,
+  }
+  expect(await c.localEnqueue(pitch, vocabulary)).toBe('queued-local')
+  expect(
+    await c.localEnqueue(
+      { ...pitch, resultId: 'batting-result.ball' },
+      vocabulary,
+    ),
+  ).toBe('queued-local')
+  expect(post).not.toHaveBeenCalled()
+  expect(await slots()).toBe(2)
+  expect(c.context.source).toBe('local-provisional')
+  const envelopeStore = await OrdinaryPreparedEnvelopePersistence.open()
+  const attemptStore = await OrdinaryPitchAttemptPersistence.open()
+  let savedEnvelope: PreparedEnvelope | null = null
+  let savedAttemptId: string | null = null
+  try {
+    const envelope = await envelopeStore.read({
+      tenantId: tenant,
+      gameId: lineupFixture.value.id,
+      d4: lineupFixture.value.current_d4,
+      d1: 1,
+    })
+    expect(envelope).not.toBeNull()
+    savedEnvelope = envelope
+    expect(envelope!.requestBody.recording_right_proof).toBe('unit-only-proof')
+    expect(envelope!.requestBody.events).toHaveLength(1)
+    const attempt = await attemptStore.read({
+      tenantId: tenant,
+      gameId: lineupFixture.value.id,
+      d4: lineupFixture.value.current_d4,
+      d1: 1,
+      d5: envelope!.d5,
+    })
+    expect(attempt?.attemptId).toBe(envelope!.attemptId)
+    savedAttemptId = attempt?.attemptId ?? null
+    expect(JSON.parse(attempt!.requestJson)).toEqual(
+      envelope!.requestBody.events,
+    )
+  } finally {
+    envelopeStore.close()
+    attemptStore.close()
+  }
+  c.dispose()
+  const reloaded = await localLineupController()
+  expect(await reloaded.inspectLocal()).toBe('pending')
+  expect(reloaded.context.prefixRef.length).toBe('2')
+  expect(reloaded.context.source).toBe('local-provisional')
+  expect(post).not.toHaveBeenCalled()
+  reloaded.dispose()
+  identity = { tenantId: tenant, epoch: 1, verified: true }
+  const online = await lineupController()
+  expect(await online.inspect()).toBe('pending')
+  post.mockRestore()
+  const sent = vi
+    .spyOn(transport, 'postSyncEvents')
+    .mockResolvedValue({ sent: false, reason: 'no-response' })
+  expect(await online.retry()).toBe('pending')
+  expect(sent).toHaveBeenCalledOnce()
+  expect(sent.mock.calls[0]![0].syncCredentials?.attempt).toBe(savedAttemptId)
+  expect(transport.buildSyncEventRequestBody(sent.mock.calls[0]![0])).toEqual(
+    savedEnvelope!.requestBody,
+  )
+})
+it('準備済orphanから元ID/本文で再開し、新しいD5を作らない', async () => {
+  const post = vi
+    .spyOn(transport, 'postSyncEvents')
+    .mockRejectedValue(new Error('HTTP禁止'))
+  const c = await localLineupController()
+  const pitch = {
+    ...observation,
+    resultId: 'batting-result.called-pitch' as const,
+  }
+  const prepare = vi.spyOn(OrdinaryPitchAttemptPersistence.prototype, 'prepare')
+  prepare.mockRejectedValueOnce(new Error('attemptを一時停止'))
+  expect(await c.localEnqueue(pitch, vocabulary)).toBe('blocked')
+  expect(await slots()).toBe(0)
+  const store = await OrdinaryPreparedEnvelopePersistence.open()
+  const first = await store.read({
+    tenantId: tenant,
+    gameId: lineupFixture.value.id,
+    d4: lineupFixture.value.current_d4,
+    d1: 1,
+  })
+  store.close()
+  expect(first).not.toBeNull()
+  c.dispose()
+  const resumed = await localLineupController()
+  const uuid = vi.spyOn(crypto, 'randomUUID')
+  expect(await resumed.localEnqueue(pitch, vocabulary)).toBe('queued-local')
+  expect(uuid).not.toHaveBeenCalled()
+  expect(post).not.toHaveBeenCalled()
+  const attemptStore = await OrdinaryPitchAttemptPersistence.open()
+  try {
+    const attempt = await attemptStore.read({
+      tenantId: tenant,
+      gameId: lineupFixture.value.id,
+      d4: lineupFixture.value.current_d4,
+      d1: 1,
+      d5: first!.d5,
+    })
+    expect(attempt?.attemptId).toBe(first!.attemptId)
+    expect(JSON.parse(attempt!.requestJson)).toEqual(first!.requestBody.events)
+  } finally {
+    attemptStore.close()
+  }
+})
+it('準備済orphanのV12が変われば原文を置換せず追記を拒む', async () => {
+  const post = vi
+    .spyOn(transport, 'postSyncEvents')
+    .mockRejectedValue(new Error('HTTP禁止'))
+  const c = await localLineupController()
+  const pitch = {
+    ...observation,
+    resultId: 'batting-result.called-pitch' as const,
+  }
+  vi.spyOn(
+    OrdinaryPitchAttemptPersistence.prototype,
+    'prepare',
+  ).mockRejectedValueOnce(new Error('attemptを一時停止'))
+  expect(await c.localEnqueue(pitch, vocabulary)).toBe('blocked')
+  c.dispose()
+  vi.mocked(GameStartPersistence.open).mockResolvedValue({
+    readDevice: async () => ({
+      tenant_id: tenant,
+      device_id: tenant,
+      device_credential: 'unit-only-credential',
+    }),
+    readStart: async () => ({
+      status: 'received',
+      grant: {
+        device_id: tenant,
+        d4: lineupFixture.value.current_d4,
+        away_lineup_id: lineupFixture.value.lineups.away.lineup_id,
+        home_lineup_id: lineupFixture.value.lineups.home.lineup_id,
+        recording_right_proof: 'changed-proof',
+        recovery_generation: lineupFixture.value.recovery_generation,
+      },
+    }),
+    close: () => {},
+  } as unknown as GameStartPersistence)
+  const resumed = await localLineupController()
+  const uuid = vi.spyOn(crypto, 'randomUUID')
+  expect(await resumed.localEnqueue(pitch, vocabulary)).toBe('blocked')
+  expect(uuid).not.toHaveBeenCalled()
+  expect(post).not.toHaveBeenCalled()
+  expect(await slots()).toBe(0)
+})
+it('local受理後にV12が変わればonline retryを送出前に拒む', async () => {
+  const post = vi
+    .spyOn(transport, 'postSyncEvents')
+    .mockRejectedValue(new Error('HTTP禁止'))
+  const local = await localLineupController()
+  expect(await local.localEnqueue(observation, vocabulary)).toBe('queued-local')
+  local.dispose()
+  vi.mocked(GameStartPersistence.open).mockResolvedValue({
+    readDevice: async () => ({
+      tenant_id: tenant,
+      device_id: tenant,
+      device_credential: 'unit-only-credential',
+    }),
+    readStart: async () => ({
+      status: 'received',
+      grant: {
+        device_id: tenant,
+        d4: lineupFixture.value.current_d4,
+        away_lineup_id: lineupFixture.value.lineups.away.lineup_id,
+        home_lineup_id: lineupFixture.value.lineups.home.lineup_id,
+        recording_right_proof: 'changed-proof',
+        recovery_generation: lineupFixture.value.recovery_generation,
+      },
+    }),
+    close: () => {},
+  } as unknown as GameStartPersistence)
+  identity = { tenantId: tenant, epoch: 1, verified: true }
+  const online = await lineupController()
+  expect(await online.inspect()).toBe('pending')
+  expect(await online.retry()).toBe('blocked')
+  expect(online.retryEvidenceUnavailable).toBe(true)
+  expect(post).not.toHaveBeenCalled()
+  expect(await slots()).toBe(1)
+})
+it('local入力前にidentity epochが変われば準備/queue/HTTPを始めない', async () => {
+  const post = vi
+    .spyOn(transport, 'postSyncEvents')
+    .mockRejectedValue(new Error('HTTP禁止'))
+  const c = await localLineupController()
+  identity = { tenantId: tenant, epoch: 2, verified: false }
+  expect(await c.inspectLocal()).toBe('blocked')
+  expect(await c.localEnqueue(observation, vocabulary)).toBe('blocked')
+  expect(post).not.toHaveBeenCalled()
+  expect(await slots()).toBe(0)
+  const store = await OrdinaryPreparedEnvelopePersistence.open()
+  try {
+    expect(
+      await store.read({
+        tenantId: tenant,
+        gameId: lineupFixture.value.id,
+        d4: lineupFixture.value.current_d4,
+        d1: 1,
+      }),
+    ).toBeNull()
+  } finally {
+    store.close()
+  }
+})
 it('同じ耐久経路で三振3PA→反対側球を唯一artifactから進める', async () => {
   const post = accepted(),
     c = await lineupController()
