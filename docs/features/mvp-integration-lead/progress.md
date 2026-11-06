@@ -1,5 +1,14 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 再開時の現在地：2026-11-06T11:20:25.493764+09:00（固定点再照合、成績基盤1033成功・取消画面の耐久修復継続）
+
+- **再照合**: native基盤の実HEADは `3f8e414c`、clean。旧セッション41336はハンドルなしで終了済み、Gitにcore定義 `bbcdf6e6` →JSON後置 `3f8e414c` が存在することを確認。旧agentはlive登録がなく、未完cacheを完成扱いにせず、新作者へscopeを限定して引継ぎ直した。
+- **増えた証拠**: 同HEADのroot `tests/test_ci_wiring.py tests/test_core_guard.py` が **1033 passed / 21.08秒**（`~/.cache/pitchlog/mvp-resume-20261104/native-foundation-ci-core-actual-r5.log`）。旧29層を保持したcore32追随とCIの局所検査であり、必須CI全件/製品全操作の合格ではない。歴史0039固定原典は `3e625e00` のowned実DB31成功240.82秒を根拠に `cd836cf4` で通常merge済み、anchor祖先を維持。
+- **取消の現在地**: nonplay接合WT `3049ff3a` へcurrent42 source9を非作者 `70d015cc…` 後に採用済み。正式資産/0042実起動/実2球2取消次球は未完。bootstrap GET6とUI17の非作者 `4b97a4c3…` はUI接合/attempt保存順のP1を2件指摘、初回反例を保持し作者reflection1を再開。全本文・attemptをqueue受理前に耐久固定する方針で、孤児保存/ACK喪失/reloadも検査する。取消画面の実測成功はまだない。
+- **成績正式化**: Issue #197を作成済み（PR未作成）。最終値確定後に同番号を製品PRへ変換し、番号取得のための中間赤CIを避ける予定。oracle8候補とpolicy197対象追記はactual未反映、別非作者が確認中。tenant/corpus/正式7.7/必須CI/通常mergeは未完。
+- **所有/並行**: root=実WT・正式資産・台帳sole writer、oracle_policy_review=cache-only非作者、undo_ui_finish=既UI17の反映作者、lifecycle_finish=既scope内backend/kernel候補作者。外部成績担当への依頼はPOから送付済み、受諾・編集WT・HEADは未受領。終了再開FE6は未送付/未受諾として保持する。既存成果を再利用し共有書込みを重複させない。
+- **次**: 非作者確認後の正式派生をまとめて反映し成績基盤を通常PRへ。取消GET/UIのP1解消→current42の正式実接続→owned同一版で2球2取消次球/画面recoveryへ進む。終了再開backendと成績27/両CSVは並行。正式develop51bcb/#196の新規画面4試合/4安打/通常球/再送/reloadの既証拠は維持するが、取消/全試合/MVP完成へ広げない。
+
 ## 再開時の現在地：2026-11-06T10:01:05.445499+09:00（安全な2〜3日集中方針、成績D11/CI2を採用・取消/終了再開を並行実装）
 
 - **PO追補/担当**: POは利用制限リセットを通知し「できるだけ安全に2〜3日で完成させる方針」を採用。MVP全機能/安全/実機・復旧受入は削減しない。既存ハーネスも安全に結び付かない重複・不要な再受理/過細な確定を最小変更で簡素化可。日数は目標で完成保証ではない。成績27/画面/毎球・成績CSVの完成担当向け指示をPOへ渡し、POが別LLMへ**送付済み**と通知。担当名/受諾/編集範囲/成果HEADはまだ未受領、受諾済みとしない。root共通同期/取消/current42/正式資産とは別WTで担当する依頼。
