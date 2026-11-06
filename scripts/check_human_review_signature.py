@@ -3265,7 +3265,7 @@ def _pr197_gate6_body(root: Path, head_sha: str) -> dict[str, Any]:
                 )
                 if (not all(after.get(key) == value for key, value in before.items())
                         or set(after) - set(before) != expected_added):
-                    raise HumanReviewSignatureRecordError("PR197旧typed入力または追加25が不一致")
+                    raise HumanReviewSignatureRecordError("PR197旧typed入力または追加28が不一致")
                 try:
                     for key in _PR197_GATE6_MIGRATED_TYPED:
                         guard.frozen_history.read_original_pr197_pin(key, root)
