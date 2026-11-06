@@ -1,3 +1,17 @@
+---
+feature: mvp-basic-stats-csv
+status: in-review
+承認: 候補（既mvp-stats-primitives計画の再利用・PO委任範囲。新規意味判断なし）
+重さ分類: コア領域
+worktree: ../../..
+branch: feature/mvp-basic-stats-csv
+created: 2026-11-06
+計画レビュー周回: 0
+確定ゲート周回: 0
+実行方式: 通常
+反映周コミット: 適用
+---
+
 # 基本成績・CSV MVP接続（最小追補）
 
 状態: **in-review（候補・未統合）**。承認は既 `mvp-stats-primitives` 計画とPO委任の範囲で行い、
