@@ -1,5 +1,13 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 取消画面の待ちは遅延応答へ切分け（2026-11-06、f5bffebf）
+
+- test-only追補で元の10秒失敗を保持し、後着HTTPだけ追加観測。owned同版 `undo-screen-stack-observation-r4` は1失敗55.18秒だが、後着HTTP200と実DBのplay_input1行/accepted台帳1行を確認。恒久的な無応答・未保存という仮説は棄却する。2球/取消/再送/reload未到達なので画面取消成功とはしない。
+- app stackはwriter生存照合RPC待ちから `stats_native_flush._flush_native_stats` の実preflight SQLまで進行。中継brokerも上流authority待ち/認証commit待ちが観測される。次は内側業務PGとRPCの時間を測り、遅延を是正する。NFR-001/002を満たす証拠はなく、timeoutだけ延長してgreenにしない。
+- 元失敗r2/r3、追加r4各log/前後source一致/所有容器撤去はcacheに保全。正式developの提供範囲は増えていない。
+- native71登録候補に非作者が「同byte後続E2へtyped pin置換を拒否できない」P1を再現。actual未採用、固定Eの独立literal照合へ作者reflectionを依頼。保留4/未知source拒否は維持。
+
+
 ## 取消画面の停止位置を実観測（2026-11-06、4f7fc65e）
 
 - 同固定HEADの所有隔離PG・実HTTPS画面試験 `undo-screen-stack-observation-r2` は失敗。新規作成/開始後の通常第1球POSTは送信済みだが、まだ応答/保存を確認できず、取消成功とはしない。
