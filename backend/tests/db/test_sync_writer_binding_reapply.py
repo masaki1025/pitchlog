@@ -1,9 +1,9 @@
-"""Owned PGだけで製品認可の再適用と旧20+終端7関数・writer4trigger衝突を検査する。"""
+"""Owned PGで製品認可34関数とwriter4triggerの再適用衝突を検査する。"""
 
 from __future__ import annotations
 
 import re
-from typing import Any
+from typing import Any, LiteralString, cast
 
 import psycopg
 import pytest
@@ -79,6 +79,62 @@ _EXPECTED_RECORDING_VOCAB_FUNCTION = {
         {"grantee": "PUBLIC", "privilege": "EXECUTE", "grantable": False}
     ],
 }
+
+
+def _expected_stats_function(name: str, args: str, returns: str) -> dict[str, Any]:
+    """正式stats5の共通属性を省略せず静的な期待行へ置く。"""
+    return {
+        "function_id": f"FUNCTION:stats_api:{name}({args})",
+        "schema_name": "stats_api",
+        "function_name": name,
+        "identity_args": args,
+        "function_kind": "definer",
+        "owner_role_id": "pitchlog_sync_right_fn_owner",
+        "language": "plpgsql",
+        "returns": returns,
+        "security_mode": "definer",
+        "volatility": "volatile",
+        "search_path": ["pg_catalog", "pg_temp"],
+        "acl_expectations": [
+            {"grantee": "pitchlog_app", "privilege": "EXECUTE", "grantable": False}
+        ],
+        "revoked_acl_expectations": [
+            {"grantee": "PUBLIC", "privilege": "EXECUTE", "grantable": False}
+        ],
+    }
+
+
+_EXPECTED_STATS_FUNCTIONS = (
+    _expected_stats_function(
+        "save_primitive_source",
+        "uuid, uuid, uuid, text, bigint, text, jsonb, bytea",
+        "TABLE(fact_version_id uuid,source_event_id uuid,"
+        "model_sha256 text,source_set_sha256 text)",
+    ),
+    _expected_stats_function(
+        "open_primitive_snapshot",
+        "uuid, uuid, text",
+        "TABLE(fact_version_id uuid,revision bigint,source_set_sha256 text,"
+        "model_sha256 text,source_count bigint,row_count bigint,"
+        "transaction_id text,completion_state text)",
+    ),
+    _expected_stats_function(
+        "read_play_export_primitives",
+        "uuid, uuid, uuid, bigint, text, text, text, bigint, uuid, text, integer",
+        "TABLE(metric_id text,state text,value numeric,d2 bigint,source_event_id uuid)",
+    ),
+    _expected_stats_function(
+        "read_primitive_totals",
+        "uuid, uuid, uuid, bigint, text, text, text",
+        "TABLE(metric_id text,state text,value numeric)",
+    ),
+    _expected_stats_function(
+        "read_primitive_writer_state",
+        "uuid, uuid, uuid, text, bytea",
+        "TABLE(revision bigint,source_set_sha256 text)",
+    ),
+)
+_STATS_NAMES = frozenset(row["function_name"] for row in _EXPECTED_STATS_FUNCTIONS)
 
 
 _TRIGGERS = (
@@ -221,22 +277,28 @@ def _subject(applicator: psycopg.Connection[Any], expected: str) -> None:
         applicator.rollback()
 
 
-def test_owned_full_apply_repeats_and_rejects_nine_functions_four_triggers(
+def test_owned_full_apply_repeats_and_rejects_34_functions_four_triggers(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """単一所有clusterで本文29（旧20+終端7+原本1+語彙1）・writer4衝突を直列に実証する。"""
+    """単一所有clusterで旧29＋stats5の本文/ACLとwriter4衝突を検査する。"""
     functions = ADDITIONS["functions"]
     assert len(_NAMES) == 20 and len(_TERMINAL_NAMES) == 7
     assert len(_LINEUP_NAMES) == 1
     assert {row["function_name"] for row in functions} == (
-        _NAMES | _TERMINAL_NAMES | _LINEUP_NAMES | _RECORDING_VOCAB_NAMES
+        _NAMES | _TERMINAL_NAMES | _LINEUP_NAMES | _RECORDING_VOCAB_NAMES | _STATS_NAMES
     )
     assert len(_RECORDING_VOCAB_NAMES) == 1
     assert [r for r in functions if r["function_name"] in _RECORDING_VOCAB_NAMES] == [
         _EXPECTED_RECORDING_VOCAB_FUNCTION
     ]
-    assert len(functions) == 28 + 1
+    assert len(_EXPECTED_STATS_FUNCTIONS) == len(_STATS_NAMES) == 5
+    assert (
+        tuple(row for row in functions if row["function_name"] in _STATS_NAMES)
+        == _EXPECTED_STATS_FUNCTIONS
+    )
+    assert len(functions) == 29 + 5
     visited_functions: set[str] = set()
+    visited_acl_functions: set[str] = set()
     visited_triggers: set[str] = set()
     with owned_binding_database(monkeypatch) as owner:
         # 外部供給fixture/共有DSNを受け取らず、生成直後の所有資源だけを使う。
@@ -321,6 +383,56 @@ def test_owned_full_apply_repeats_and_rejects_nine_functions_four_triggers(
                 assert _snapshot(observer) == pristine, case
                 assert _report(observer, privileged_oid).ok, case
 
+                # 本文が同一でもPUBLIC EXECUTEの追加は正式ACLと衝突する。
+                assert {
+                    "grantee": "PUBLIC",
+                    "privilege": "EXECUTE",
+                    "grantable": False,
+                } in row["revoked_acl_expectations"], case
+                args = row["identity_args"]
+                assert type(args) is str and re.fullmatch(
+                    r"(?:(?:uuid|integer|text|jsonb|bigint|bytea)"
+                    r"(?:, (?:uuid|integer|text|jsonb|bigint|bytea))*)?",
+                    args,
+                ), case
+                identity_fragment = sql.SQL("{}.{}({})").format(
+                    sql.Identifier(row["schema_name"]),
+                    sql.Identifier(row["function_name"]),
+                    sql.SQL(cast(LiteralString, args)),
+                )
+                grant_public = sql.SQL("GRANT EXECUTE ON FUNCTION {} TO PUBLIC").format(
+                    identity_fragment
+                )
+                revoke_public = sql.SQL(
+                    "REVOKE EXECUTE ON FUNCTION {} FROM PUBLIC"
+                ).format(identity_fragment)
+                try:
+                    applicator.execute(grant_public)
+                    applicator.commit()
+                    contaminated = _snapshot(observer)
+                    assert contaminated != pristine, case
+                    report = _report(observer, privileged_oid)
+                    assert not report.ok, case
+                    assert any(
+                        v.check_id == "PRODUCT-CATALOG:FUNCTION-ACL"
+                        for v in report.violations
+                    ), case
+                    with pytest.raises(
+                        psycopg.errors.RaiseException,
+                        match="first ball function privilege collision",
+                    ) as error:
+                        apply_product_authz_ddl(applicator)
+                    assert error.value.sqlstate == "P0001", case
+                    _subject(applicator, subject)
+                    assert _snapshot(observer) == contaminated, case
+                    visited_acl_functions.add(case)
+                finally:
+                    applicator.rollback()
+                    applicator.execute(revoke_public)
+                    applicator.commit()
+                assert _snapshot(observer) == pristine, case
+                assert _report(observer, privileged_oid).ok, case
+
             for table, name, _ in _TRIGGERS:
                 case = f"sync_fence.{table}/{name}"
                 target = sql.Identifier("sync_fence", table)
@@ -364,6 +476,7 @@ def test_owned_full_apply_repeats_and_rejects_nine_functions_four_triggers(
                 _assert_triggers(observer)
                 assert _report(observer, privileged_oid).ok, case
             assert visited_functions == {str(row["function_id"]) for row in functions}
+            assert visited_acl_functions == visited_functions
             assert visited_triggers == {
                 f"sync_fence.{table}/{name}" for table, name, _ in _TRIGGERS
             }
