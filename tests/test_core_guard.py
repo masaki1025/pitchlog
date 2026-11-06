@@ -7635,9 +7635,10 @@ def test_pr197_tenant_source_rejects_partial_and_extra_layers(mutation):
 
 def test_pr197_tenant_source_git_order_and_deletion(tmp_path):
     """旧32→34のJSON後置を検証し、同commit定義変更/縮小を拒否する。"""
-    guard = load_core_guard_module()
+    guard, fixed_source = _pr197_pre_carry_guard(tmp_path)
     old32, new34 = _pr197_tenant_source_config()
     root, base = _first_ball_git_repo(tmp_path, old32)
+    _, base = commit_change(root, 'scripts/core_guard.py', fixed_source)
     _, head = commit_change(root, '.claude/core-areas.json', json.dumps(new34))
     assert guard.verify_area_path_baseline(root, base, head) == base
     _, smaller = commit_change(root, '.claude/core-areas.json', json.dumps(old32))
@@ -7645,6 +7646,7 @@ def test_pr197_tenant_source_git_order_and_deletion(tmp_path):
         guard.verify_area_path_baseline(root, head, smaller)
     (tmp_path / 'cochange').mkdir()
     root2, base2 = _first_ball_git_repo(tmp_path / 'cochange', old32)
+    _, base2 = commit_change(root2, 'scripts/core_guard.py', fixed_source)
     definition = 'scripts/core_guard.py'
     write_text(root2, definition, (root2 / definition).read_text() + '\n# cochange\n')
     write_text(root2, '.claude/core-areas.json', json.dumps(new34))
@@ -7670,7 +7672,7 @@ def _pr197_old_definition_repo(tmp_path, old32):
 
 def _pr197_pre_carry_guard(tmp_path):
     """旧every-parent反例を、2faで固定済みの旧検査器で再演する。"""
-    revision = '2fa42d653e44bba8586c0afe831421402247fd30'
+    revision = frozen_history.PR197_PIN_ORIGIN_COMMIT
     source = run_git(REPO, 'show', revision + ':scripts/core_guard.py').stdout
     path = tmp_path / 'pr197_pre_carry_core_guard.py'
     path.write_text(source)
@@ -7790,10 +7792,13 @@ def test_pr197_tenant_source_rejects_intermediate_partial_json(tmp_path):
 def test_pr197_approved_doc_merge_is_one_exact_carry():
     """実295だけを全履歴に残し、先行定義と文書限定carryを照合する。"""
     guard = load_core_guard_module()
-    base = '51bcb4e11b4d8d1e51327ca3e1e10ef2e6214d56'
+    base = json.loads(
+        (REPO / 'tests/fixtures/pr197_tenant_source_expected_v1.json').read_text()
+    )['formal_base_revision']
     head = run_git(REPO, 'rev-parse', 'HEAD').stdout.strip()
     revision, fingerprint = guard._pr197_merge_carry_pins(REPO, head)
-    assert revision == '2953103d4e280dff42ee1d8c356bc3e888799651'
+    typed = json.loads((REPO / 'contracts/tenant_boundary/frozen-inputs.json').read_text())
+    assert revision == typed['frozen_inputs']['pr197_approved_doc_merge_revision']['value']
     assert revision in guard._commits_between(REPO, base, head)
     assert guard._pr197_definition_fingerprint(SCRIPT.read_text()) == fingerprint
     guard._verify_pr197_approved_doc_merge(REPO, base, revision)
@@ -7809,8 +7814,11 @@ def test_pr197_approved_doc_merge_rejects_nonidentical_carry(
 ):
     """親・第二親の製品混入・core原本・承認本文の改変を拒否する。"""
     guard = load_core_guard_module()
-    base = '51bcb4e11b4d8d1e51327ca3e1e10ef2e6214d56'
-    revision = '2953103d4e280dff42ee1d8c356bc3e888799651'
+    base = json.loads(
+        (REPO / 'tests/fixtures/pr197_tenant_source_expected_v1.json').read_text()
+    )['formal_base_revision']
+    typed = json.loads((REPO / 'contracts/tenant_boundary/frozen-inputs.json').read_text())
+    revision = typed['frozen_inputs']['pr197_approved_doc_merge_revision']['value']
     actual = guard._pr197_merge_git
 
     def altered(root, *arguments):
@@ -7857,8 +7865,26 @@ def test_pr197_approved_doc_merge_rejects_changed_typed_pin(tmp_path, key):
     asset['frozen_inputs'][key]['value'] = '0' * len(asset['frozen_inputs'][key]['value'])
     path.write_text(json.dumps(asset, ensure_ascii=False, indent=2) + '\n')
     with pytest.raises(guard.GuardError):
-        guard._pr197_merge_carry_pins(clone, head)
+        if key == 'pr197_core_carry_definition_sha256':
+            base = json.loads(
+                (clone / 'tests/fixtures/pr197_tenant_source_expected_v1.json').read_text()
+            )['formal_base_revision']
+            guard._verify_pr197_definition_order(clone, base, head)
+        else:
+            guard._pr197_merge_carry_pins(clone, head)
     del asset['frozen_inputs'][key]
     path.write_text(json.dumps(asset, ensure_ascii=False, indent=2) + '\n')
     with pytest.raises(guard.GuardError):
         guard._pr197_merge_carry_pins(clone, head)
+    asset = json.loads((REPO / 'contracts/tenant_boundary/frozen-inputs.json').read_text())
+    asset['frozen_inputs'][key]['value'] = (
+        frozen_history.read_original_pr197_pin('pr197_core_definition_ast_sha256')
+        if key == 'pr197_core_carry_definition_sha256'
+        else frozen_history.PR197_PIN_ORIGIN_COMMIT
+    )
+    path.write_text(json.dumps(asset, ensure_ascii=False, indent=2) + '\n')
+    base = json.loads(
+        (clone / 'tests/fixtures/pr197_tenant_source_expected_v1.json').read_text()
+    )['formal_base_revision']
+    with pytest.raises(guard.GuardError):
+        guard._verify_pr197_definition_order(clone, base, head)
