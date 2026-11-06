@@ -315,10 +315,30 @@ _EXTRA = r"""
                 headers=foreign_write_headers,
                 json=payload,
             )
-            assert denied_replay.status_code == 404, (
-                "foreign-replay", denied_replay.status_code, denied_replay.text
+            # 元tenantの端末提示は②B5で拒否し、D5の再掲へ到達しない。
+            assert denied_replay.status_code == 401, (
+                "foreign-device-replay", denied_replay.status_code, denied_replay.text
             )
             assert "eventResults" not in denied_replay.json()
+            # 別tenant自身の真正端末では②を通るが③B6で不可視404となる。
+            foreign_enrolled = await foreign_client.post(
+                "/devices/enroll", headers=foreign_headers
+            )
+            assert foreign_enrolled.status_code == 200, (
+                "foreign-device-enroll", foreign_enrolled.status_code
+            )
+            own_foreign_headers = device_headers(foreign_enrolled.json(), str(uuid4()))
+            own_foreign_headers["X-Pitchlog-Expected-Tenant"] = case["other_tenant_id"]
+            invisible_replay = await foreign_client.post(
+                "/games/" + game + "/sync/events",
+                headers=own_foreign_headers,
+                json=payload,
+            )
+            assert invisible_replay.status_code == 404, (
+                "foreign-valid-device-replay", invisible_replay.status_code,
+                invisible_replay.text
+            )
+            assert "eventResults" not in invisible_replay.json()
         owner_again = await client.get(
             "/games/" + game + "/started?projection=play-prefix-v2&limit=100",
             headers=headers(),
