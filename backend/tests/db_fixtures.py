@@ -1508,13 +1508,16 @@ def _prepare_current_product_baseline(
 ) -> None:
     """current専用入口で0041/全認可を非公開配置し再適用基準を用意する。"""
     from pitchlog.db.current_product_startup import advance_current_product_from_s0
+
     _close_owned_seed_database_access(cluster)
     result = advance_current_product_from_s0(
         owner_dsn=owner_dsn,
         applicator_dsn=applicator_dsn,
     )
-    assert (result.completed_revision == "0041_stats_fact_versions"
-            and result.publishable is False)
+    assert (
+        result.completed_revision == "0041_stats_fact_versions"
+        and result.publishable is False
+    )
     with applicator.cursor() as cursor:
         cursor.execute("SELECT version_num FROM public.alembic_version")
         assert cursor.fetchall() == [("0041_stats_fact_versions",)]

@@ -7592,6 +7592,7 @@ def test_pr197_tenant_source_requires_prior_definition_commit(tmp_path, order):
                     if isinstance(n, ast.FunctionDef)
                     and n.name == '_verify_pr197_definition_order')
         position = node.body[0].end_lineno
+        assert position is not None
         lines = source.splitlines(keepends=True)
         lines.insert(position, '    return\n')
         broken = ''.join(lines)

@@ -503,3 +503,6 @@ fixtureを先にGit固定してEとし（全byte SHA a14381644954dc8bf918c574810
 
 
 PR197正式派生の実木反映（2026-11-06T15:34:52.580511+09:00、PO委任によるCodex /root判断）: source ba59b627、E42bda907を固定し、final-source-closure候補31pathとcorpus digest-onlyを採用する。非作者REPORT SHA256 2963fa62ab83a94b9c8961b0293ce19053f64bd29701578673d9b0fdda3ad663、P0/P1/P2各0。9revision+1・旧履歴・既352snapshot保持・新19snapshot・公式3renderer/9projection/全acceptance値を独立再導出。本人署名/逐行確認ではない。実木CLI/必須CI/最終差分確認と通常PR統合は後続であり、本判断だけで製品提供やMVP成立とはしない。
+
+
+PR197のgate6後継修復（2026-11-06、PO委任Codex/root判断）: 実base51bは旧187数学9のうち4が既191/192後継であり、PR197を旧187への新受理と誤認する検査を修復する。作者exact2 main fa49c1998b023eb96da5f6248b16d62f3cafbda5f98c350385d13e1dc78d495d/test8e51ab44ded5d29d4cc249fb7360b1d7add9f9a032e8b2210f78d140234106ca、非作者REPORT SHA256 da7d4581e14727055692b758d16eeda74a440d6c3dfc957fed8ef3dad7b56ec4、P0/P1/P2各0、独立full702・新22・追加3拒否を根拠に採用。旧本体11/49scope/数学9不変、既E/S typed・公開委任proofを必須、PR197/branch/base/未知path/同時改変を閉拒否する。旧local技術入口の未成立を成功としない。backend format3 AST不変/rootTy end_lineno assert/CI空白除去と、旧合成Git fixtureへE/fixture/固定S製品依存を供給するroot修復7pathも同step4の検査追随へ含む。全てsource固定後に正式7.7/metadata/corpus/新HEAD証拠を一括再導出する。凍結literal移設reflection1は別独立P0で不採用、最終PR/CI成立とはしない。本人署名/P6blindでない。

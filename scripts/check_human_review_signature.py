@@ -2123,7 +2123,61 @@ def _ordinary_policy_origins(root: Path, guard: Any, anchor: _OrdinaryAcceptedRe
         public, _ = guard._load_delegation_policy(root, pins["public_base"])
         if public != legacy:
             raise HumanReviewSignatureRecordError("通常33の実公開base policyが不一致")
-        fixed, _ = guard._load_delegation_policy(root, _ordinary_authority_revision(root))
+        current_authority = _ordinary_authority_revision(root)
+        fixed, _ = guard._load_delegation_policy(root, current_authority)
+        if len(fixed["targets"]) == 19:
+            # 後発197 oracle台帳は196末尾を含む。旧18の出典は実台帳の直前identity。
+            ledger = _object(json.loads(
+                (root / _ORDINARY_BASELINE_LEDGER_PATH).read_bytes(),
+                object_pairs_hook=descriptor_checker._reject_duplicate_keys,
+            ), "通常33 oracle台帳")
+            history = ledger.get("history")
+            if type(history) is not list or not history:
+                raise HumanReviewSignatureRecordError("通常33 oracle履歴が不正")
+            tail = _object(history[-1], "通常33 oracle末尾")
+            _exact_keys(tail, {
+                "acceptance_id", "changes", "moved", "new_identity",
+                "placement_change", "prior_identity", "reason", "series",
+                "approved_by", "approved_at",
+            }, "通常33 oracle末尾")
+            prior = _object(tail["prior_identity"], "通常33 oracle直前")
+            after = _object(tail["new_identity"], "通常33 oracle現行")
+            placement = _object(tail["placement_change"], "通常33 oracle配置")
+            _exact_keys(prior, {"present", "values"}, "通常33 oracle直前")
+            _exact_keys(after, {"present", "values"}, "通常33 oracle現行")
+            _exact_keys(placement, {"before", "after"}, "通常33 oracle配置")
+            prior_values = prior["values"]
+            after_values = after["values"]
+            series_location = [{
+                "kind": "ledger_series",
+                "path": str(_ORDINARY_BASELINE_LEDGER_PATH),
+                "series": "oracle_input",
+            }]
+            if (tail["acceptance_id"] != "masaki1025/pitchlog#197"
+                    or tail["series"] != "oracle_input"
+                    or tail["changes"] != [] or tail["moved"] is not False
+                    or placement["before"] != series_location
+                    or placement["after"] != series_location
+                    or prior["present"] is not True or after["present"] is not True
+                    or type(prior_values) is not list or len(prior_values) != 1
+                    or type(after_values) is not list or len(after_values) != 1
+                    or after_values[0] != {
+                        "kind": "literal_commit_string", "value": current_authority,
+                    }):
+                raise HumanReviewSignatureRecordError("通常33 oracle後継の閉履歴が不一致")
+            previous = _object(prior_values[0], "通常33 oracle旧identity")
+            previous_rev = previous.get("value")
+            if (previous.get("kind") != "literal_commit_string"
+                    or type(previous_rev) is not str
+                    or re.fullmatch(r"[0-9a-f]{40}", previous_rev) is None):
+                raise HumanReviewSignatureRecordError("通常33 oracle旧identityの型が不一致")
+            prior_policy, _ = guard._load_delegation_policy(root, previous_rev)
+            if (not _ordinary_policy_matches(fixed, prior_policy, allow_append=True)
+                    or fixed["targets"] != prior_policy["targets"] + [{
+                        "pr": 196, "branch": "feature/mvp-batted-hits",
+                    }]):
+                raise HumanReviewSignatureRecordError("通常33 oracle19の196単一末尾が不一致")
+            fixed = prior_policy
     except guard.GuardError as error:
         raise HumanReviewSignatureRecordError(str(error)) from error
     suffix = [
@@ -2979,6 +3033,216 @@ _BATTED_CARRY_FROZEN_KEYS = frozenset({
 })
 
 
+# 旧187/191/192/196の実入力path集合を閉じ、後継の取りこぼしを拒否する。
+_PR197_GATE6_SCOPE_PATHS = frozenset({
+    "contracts/authz/frozen-baselines.json",
+    "contracts/state-transition/appendix_e_consumer_handoff_v1.json",
+    "contracts/state-transition/branch_row_mapping_v1.json",
+    "contracts/state-transition/game_end_contract_schema_v1.json",
+    "contracts/state-transition/game_end_contract_v1.json",
+    "contracts/state-transition/game_end_coverage_declaration_v1.json",
+    "contracts/state-transition/gate6_subject_carry_schema_v1.json",
+    "contracts/state-transition/gate6_subject_carry_v1.json",
+    "contracts/state-transition/gate6_t1_input_append_schema_v1.json",
+    "contracts/state-transition/gate6_t1_input_append_v1.json",
+    "contracts/state-transition/gate6_t1_ordinary_pitch_pins_v1.json",
+    "contracts/state-transition/gate6_t1_ordinary_pitch_schema_v1.json",
+    "contracts/state-transition/gate6_t1_ordinary_pitch_v1.json",
+    "contracts/state-transition/human_review_signature_schema_v1.json",
+    "contracts/state-transition/input_axes_descriptor_schema_v1.json",
+    "contracts/state-transition/input_axes_descriptor_v1.json",
+    "contracts/state-transition/ordinary_pitch_request_schema_v1.json",
+    "contracts/state-transition/ordinary_pitch_response_schema_v1.json",
+    "contracts/state-transition/ordinary_pitch_v1.d.ts",
+    "contracts/state-transition/ordinary_pitch_vectors_v1.json",
+    "contracts/state-transition/required_set_input_coverage_v1.json",
+    "contracts/state-transition/state_transition_contract_schema_v1.json",
+    "contracts/state-transition/state_transition_contract_v1.json",
+    "contracts/state-transition/strikeout_pitch_cases_v1.json",
+    "contracts/state-transition/strikeout_pitch_schema_v1.json",
+    "contracts/state-transition/terminal_pitch_cases_v1.json",
+    "contracts/tenant_boundary/frozen-inputs.json",
+    "docs/features/adr003-stage2-runtime/signatures/gate6-game-end.json",
+    "docs/features/adr003-stage2-runtime/signatures/gate6-state-transition.json",
+    "docs/features/adr003-stage2-runtime/step33_line_review.md",
+    "docs/features/appendix-e-golden-vectors/matrix_rows_line_review.md",
+    "docs/features/mvp-delegated-core-review/policy.json",
+    "scripts/check_branch_row_mapping.py",
+    "scripts/check_deriver_dependencies.py",
+    "scripts/check_expander_dependencies.py",
+    "scripts/check_gap_register.py",
+    "scripts/check_input_axes_descriptor.py",
+    "scripts/check_required_set_coverage.py",
+    "scripts/core_guard.py",
+    "scripts/expand_game_end_cases.py",
+    "scripts/expand_state_transition_cases.py",
+    "scripts/frozen_baselines.py",
+    "scripts/representative_selection.py",
+    "scripts/state_transition_freeze.py",
+    "scripts/state_transition_normalization.py",
+    "tests/fixtures/pr191_ordinary_extension_reference_v1.json",
+    "tests/fixtures/pr192_ordinary_extension_reference_v1.json",
+    "tests/fixtures/pr192_tenant_source_expected_v1.json",
+    "tests/test_human_review_signature.py",
+})
+_PR197_GATE6_CONTROLLED = frozenset({
+    "contracts/authz/frozen-baselines.json",
+    "contracts/tenant_boundary/frozen-inputs.json",
+    "docs/features/mvp-delegated-core-review/policy.json",
+    "scripts/core_guard.py",
+})
+_PR197_GATE6_TEST_PATH = "tests/test_human_review_signature.py"
+_PR197_GATE6_NEW_TYPED = frozenset({
+    "pr197_source_revision", "pr197_expectation_revision",
+    "pr197_expectation_fixture_sha256",
+})
+
+
+def _pr197_gate6_body(root: Path, head_sha: str) -> dict[str, Any]:
+    """前置Eで固定した正式baseから旧scopeとPR197数学不変を検査する。"""
+    try:
+        try:
+            import check_tenant_boundary_bypass as tenant_checker
+        except ModuleNotFoundError:  # pragma: no cover - package読取経路
+            from scripts import check_tenant_boundary_bypass as tenant_checker
+        expected = tenant_checker._pr197_fixed_expectations(root)
+        base_sha = _string(expected["formal_base_revision"], "PR197正式base")
+        source_sha = _string(expected["source_revision"], "PR197固定source")
+        expectation_sha = _string(
+            expected["identity_successor"]["source_revision"], "PR197 identity source",
+        )
+        if source_sha != expectation_sha:
+            raise HumanReviewSignatureRecordError("PR197 source/identity参照が不一致")
+        for older, newer in (
+            (base_sha, source_sha), (source_sha, head_sha),
+        ):
+            _carry_git_bytes(root, ["merge-base", "--is-ancestor", older, newer])
+        # Eはtyped fixtureで固定済み。HEADで期待を再生成しない。
+        expectation_rev = tenant_checker._PR197_FIXED_EXPECTATION_REVISION
+        if type(expectation_rev) is not str:
+            raise HumanReviewSignatureRecordError("PR197前置Eが未固定")
+        _carry_git_bytes(root, ["merge-base", "--is-ancestor", expectation_rev, head_sha])
+        record = _ordinary_record(root)
+        scope = {
+            *record["assets"], *_ORDINARY_FIXED_INPUTS, *_ORDINARY_EXECUTION_INPUTS,
+            *_TERMINAL_EXTENSION_INPUTS, *_STRIKEOUT_EXTENSION_INPUTS,
+            *_STRIKEOUT_AUXILIARY_INPUTS, *_BATTED_PROJECTION_PATHS,
+            str(GATE6_ORDINARY_PATH), str(GATE6_ORDINARY_SCHEMA_PATH),
+            str(ORDINARY_PINS_PATH), str(_TERMINAL_REFERENCE_PATH),
+            str(_STRIKEOUT_REFERENCE_PATH), _BATTED_HANDOFF_PATH,
+            "docs/features/mvp-delegated-core-review/policy.json",
+        }
+        if scope != _PR197_GATE6_SCOPE_PATHS or len(record["assets"]) != 9:
+            raise HumanReviewSignatureRecordError("PR197旧49path scopeが不一致")
+        changed_math = subprocess.run(
+            ["git", "diff", "--name-only", base_sha, head_sha, "--",
+             "contracts/state-transition/"],
+            cwd=root, capture_output=True, check=False, timeout=30,
+        )
+        if changed_math.returncode != 0 or changed_math.stdout.strip():
+            raise HumanReviewSignatureRecordError("PR197で未知を含む数学pathが変更")
+        for path in sorted(scope):
+            baseline = _carry_git_bytes(root, ["show", f"{base_sha}:{path}"])
+            source = _carry_git_bytes(root, ["show", f"{source_sha}:{path}"])
+            head = _carry_git_bytes(root, ["show", f"{head_sha}:{path}"])
+            if path == _PR197_GATE6_TEST_PATH:
+                # 新負対向の追記はreview対象。現実行byteとGit headの一致は下で必須。
+                pass
+            elif path == "contracts/tenant_boundary/frozen-inputs.json":
+                old = _object(json.loads(source,
+                    object_pairs_hook=descriptor_checker._reject_duplicate_keys), "PR197旧typed")
+                new = _object(json.loads(head,
+                    object_pairs_hook=descriptor_checker._reject_duplicate_keys), "PR197現typed")
+                before = _object(old["frozen_inputs"], "PR197旧入力")
+                after = _object(new["frozen_inputs"], "PR197現入力")
+                if (not all(after.get(key) == value for key, value in before.items())
+                        or set(after) - set(before) != _PR197_GATE6_NEW_TYPED):
+                    raise HumanReviewSignatureRecordError("PR197旧typed入力または追加3が不一致")
+                baseline_inputs = _object(json.loads(baseline,
+                    object_pairs_hook=descriptor_checker._reject_duplicate_keys)["frozen_inputs"],
+                    "PR197正式base typed")
+                if not all(after.get(key) == value for key, value in baseline_inputs.items()):
+                    raise HumanReviewSignatureRecordError("PR197正式baseの旧typed入力が変更")
+            elif path in {"contracts/authz/frozen-baselines.json",
+                          "docs/features/mvp-delegated-core-review/policy.json"}:
+                if head != source:
+                    raise HumanReviewSignatureRecordError("PR197旧台帳/policyのS固定byteが変更")
+            elif path == "scripts/core_guard.py":
+                # 32→34の順序/全helperはcore guard自身の固定AST検査に委ねる。
+                pass
+            elif baseline != source or baseline != head:
+                raise HumanReviewSignatureRecordError(
+                    "PR197旧scopeのbase/S/head全byteが不一致: " + path,
+                )
+            if (root / path).read_bytes() != head:
+                raise HumanReviewSignatureRecordError(
+                    "PR197旧scopeの実行byteがheadと不一致: " + path,
+                )
+        # 実行checkerもGit headへ束縛し、private helperだけを差し替える検査を拒否する。
+        checker_path = "scripts/check_human_review_signature.py"
+        committed_checker = _carry_git_bytes(root, ["show", f"{head_sha}:{checker_path}"])
+        if ((root / checker_path).read_bytes() != committed_checker
+                or Path(__file__).read_bytes() != committed_checker):
+            raise HumanReviewSignatureRecordError("PR197実行checkerがhead全byteと不一致")
+        guard = _carry_core_guard(root)
+        before_core = guard.load_core_areas_at_revision(root, base_sha)
+        after_core = guard.load_core_areas_at_revision(root, head_sha)
+        guard.validate_pr197_tenant_source_area_path_layers(
+            before_core, after_core, root=root, base_revision=base_sha, head_sha=head_sha,
+        )
+        policy_path = "docs/features/mvp-delegated-core-review/policy.json"
+        policy_raw = _carry_git_bytes(root, ["show", f"{head_sha}:{policy_path}"])
+        policy = _object(json.loads(
+            policy_raw, object_pairs_hook=descriptor_checker._reject_duplicate_keys,
+        ), "PR197 policy")
+        if (policy["targets"][-1] != {"pr": 197, "branch": "feature/mvp-stats-native-foundation"}
+                or len(policy["targets"]) != 20):
+            raise HumanReviewSignatureRecordError("PR197 policyの末尾/件数が不一致")
+        return record
+    except HumanReviewSignatureRecordError:
+        raise
+    except (KeyError, TypeError, ValueError, RuntimeError, OSError, UnicodeError,
+            subprocess.CalledProcessError, subprocess.TimeoutExpired,
+            descriptor_checker.DescriptorCheckError) as error:
+        raise HumanReviewSignatureRecordError("PR197旧scopeのGit/型検査が不成立") from error
+
+
+def _ordinary_pr197_carry_ci(root: Path, event: Any) -> str:
+    """PR197実eventだけで数学不変と委任公開証拠を検査する。"""
+    if (type(event.number) is not int or event.number != 197
+            or event.head_branch != "feature/mvp-stats-native-foundation"
+            or event.repository != "masaki1025/pitchlog"
+            or event.head_repository != event.repository):
+        raise HumanReviewSignatureRecordError("PR197 carryの実eventが不一致")
+    _validate_gate6_checkout(root, event)
+    if event.base_sha != _string(
+        _pr197_formal_base(root), "PR197前置base",
+    ):
+        raise HumanReviewSignatureRecordError("PR197 carryの実baseが前置Eと不一致")
+    record = _pr197_gate6_body(root, event.head_sha)
+    _ordinary_head(root, event, record)
+    _validate_gate6_head_bytes(root, event, {"path": str(GATE6_ORDINARY_PATH)})
+    guard = _carry_core_guard(root)
+    try:
+        guard.verify_delegated_confirmation(root, event)
+    except guard.GuardError as error:
+        raise HumanReviewSignatureRecordError(str(error)) from error
+    return ("gate6 PR197 carry: HISTORICAL ordinary33/PR191/PR192/PR196 PRESERVED; "
+            "DELEGATED VERIFIED; no new historical acceptance; not a personal signature")
+
+
+def _pr197_formal_base(root: Path) -> str:
+    """既前置Eとtyped pinで検証済みの正式baseだけを返す。"""
+    try:
+        import check_tenant_boundary_bypass as tenant_checker
+    except ModuleNotFoundError:  # pragma: no cover - package読取経路
+        from scripts import check_tenant_boundary_bypass as tenant_checker
+    try:
+        return _string(tenant_checker._pr197_fixed_expectations(root)["formal_base_revision"],
+                       "PR197正式base")
+    except tenant_checker.ContractError as error:
+        raise HumanReviewSignatureRecordError("PR197前置Eが不一致") from error
+
 def _ordinary_batted_carry_ci(root: Path, event: Any) -> str:
     """実PR196だけで既191/192全検査をbaseへ適用し、署名scopeを拡張しない。"""
     try:
@@ -3208,6 +3472,8 @@ def validate_gate6_ci_event(root: Path, event: Any) -> str:
     """PR183の新受理と、別PRの変更を伴わない継承を区別する。"""
     if event is None:
         raise HumanReviewSignatureRecordError("最終PR eventが未提供")
+    if event.number == 197:
+        return _ordinary_pr197_carry_ci(root, event)
     if event.number == 196:
         return _ordinary_batted_carry_ci(root, event)
     if event.number == 192:

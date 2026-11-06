@@ -2643,6 +2643,16 @@ def integration_origin() -> tuple[str, dict[str, Any]]:
     revision = checker._ordinary_authority_revision(repository)
     guard = checker._carry_core_guard(repository)
     expected, _ = guard._load_delegation_policy(repository, revision)
+    if len(expected['targets']) == 19:
+        # 後発197台帳の現行19ではなく、直前の実承認policy18から旧189を作る。
+        ledger = json.loads((repository / checker._ORDINARY_BASELINE_LEDGER_PATH).read_bytes())
+        tail = ledger['history'][-1]
+        assert tail['acceptance_id'] == 'masaki1025/pitchlog#197'
+        assert tail['new_identity']['values'] == [
+            {'kind': 'literal_commit_string', 'value': revision}]
+        revision = tail['prior_identity']['values'][0]['value']
+        expected, _ = guard._load_delegation_policy(repository, revision)
+        assert len(expected['targets']) == 18
     queue = [revision]
     seen: set[str] = set()
     while queue and len(seen) < 256:
@@ -3565,6 +3575,11 @@ def batted_carry_fixture(ordinary_fixture: Any, monkeypatch: pytest.MonkeyPatch)
                  *checker._BATTED_METADATA_PATHS,
                  str(checker.GATE6_ORDINARY_PATH), str(checker.GATE6_ORDINARY_SCHEMA_PATH)}:
         (root / path).write_bytes(baseline[path])
+    # 後発197を合成196のhead policyへ持ち込まず、実196 base18の単一追記にする。
+    policy_path = root / guard.DELEGATION_POLICY_PATH
+    policy = base_reader.load_json(guard.DELEGATION_POLICY_PATH, '安打base policy')
+    policy['targets'].append({'pr': 196, 'branch': 'feature/mvp-batted-hits'})
+    _write_t1_append_json(policy_path, policy)
     url = 'https://github.com/masaki1025/pitchlog/pull/196#issuecomment-196'
     event = guard.PullRequestEvent(revision, prior.head_sha, 'PO-DELEGATION-EVIDENCE: ' + url,
         196, prior.repository, prior.head_repository, 'feature/mvp-batted-hits')
@@ -4224,3 +4239,181 @@ def test_batted_projection_preserves_actual_metadata_decoder_boundary(
             checker.validate_gate6_ci_event(root, event)
     assert observed
     assert fetches == []
+
+
+@pytest.fixture
+def pr197_gate6_candidate(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> tuple[Path, Any, Any, dict[str, Any]]:
+    """固定51bと実Git headを隔離し、公開commentだけを合成する。"""
+    import subprocess
+
+    root = tmp_path / "pr197"
+    subprocess.run(
+        ["git", "clone", "--quiet", "--shared", str(REPOSITORY_ROOT), str(root)],
+        check=True,
+    )
+    guard = _load_module("pr197_candidate_core_guard", root / "scripts/core_guard.py")
+    monkeypatch.setattr(checker, "_carry_core_guard", lambda _root: guard)
+    expected = json.loads(
+        (root / "tests/fixtures/pr197_tenant_source_expected_v1.json").read_bytes(),
+    )
+    base = expected["formal_base_revision"]
+    head = subprocess.check_output(
+        ["git", "-C", str(root), "rev-parse", "HEAD"], text=True,
+    ).strip()
+    url = "https://github.com/masaki1025/pitchlog/pull/197#issuecomment-197"
+    event = guard.PullRequestEvent(
+        base, head, "PO-DELEGATION-EVIDENCE: " + url, 197,
+        "masaki1025/pitchlog", "masaki1025/pitchlog",
+        "feature/mvp-stats-native-foundation",
+    )
+    _, digest = guard._load_delegation_policy(root, head)
+    evidence = {
+        "authority_sha256": digest, "pr": 197, "base": base, "head": head,
+        "diff_sha256": guard._delegation_diff(root, event),
+        "paths": guard.changed_paths(root, base, head),
+        "reviewer_agent": "synthetic-pr197-reviewer",
+        "candidate_agents": ["synthetic-pr197-author"],
+        "independent": True, "verdict": "approved", "findings": [],
+        "report": {
+            "task": "synthetic-pr197-reviewer", "reviewed_head": head,
+            "text": "隔離合成proof。実公開確認・本人署名ではない。",
+        },
+    }
+    comment = {
+        "id": 197, "html_url": url,
+        "issue_url": "https://api.github.com/repos/masaki1025/pitchlog/issues/197",
+        "author_association": "OWNER", "user": {"login": "masaki1025"},
+        "body": guard.DELEGATION_COMMENT_MARKER + json.dumps(evidence),
+    }
+    monkeypatch.setattr(guard, "_fetch_delegation_comment", lambda _id: comment)
+    return root, guard, event, comment
+
+
+def test_pr197_gate6_success_uses_existing_typed_e_and_real_git_event(
+    pr197_gate6_candidate: tuple[Path, Any, Any, dict[str, Any]],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """旧記録を書き換えず51bから数学9/旧49を保ち公開委任を照合する。"""
+    root, guard, event, _ = pr197_gate6_candidate
+    value = checker.validate_gate6_ci_event(root, event)
+    assert "PR197 carry: HISTORICAL ordinary33/PR191/PR192/PR196 PRESERVED" in value
+    assert "not a personal signature" in value
+    monkeypatch.setattr(guard, "load_pull_request_event", lambda: event)
+    assert checker.main(["--root", str(root), "--gate6-carry", "--ci"]) == 0
+
+
+@pytest.mark.parametrize("mutation", [
+    "wrong-pr", "bool-pr", "wrong-branch", "wrong-repository", "wrong-base",
+    "math-worktree", "math-commit", "typed-pin", "typed-and-fixture",
+    "policy-worktree", "ledger-worktree",
+    "coreguard-worktree", "unknown-scope", "unknown-math-path", "missing-proof",
+    "self-review", "publisher", "unresolved-p1",
+])
+def test_pr197_gate6_rejects_event_scope_and_public_proof(
+    pr197_gate6_candidate: tuple[Path, Any, Any, dict[str, Any]],
+    monkeypatch: pytest.MonkeyPatch, mutation: str,
+) -> None:
+    """PR番号skipやbase/head同時追随、未知path、署名流用を閉拒否する。"""
+    import subprocess
+
+    root, guard, event, comment = pr197_gate6_candidate
+    fields = vars(event).copy()
+    if mutation == "wrong-pr":
+        fields["number"] = 198
+    elif mutation == "bool-pr":
+        fields["number"] = True
+    elif mutation == "wrong-branch":
+        fields["head_branch"] = "feature/other"
+    elif mutation == "wrong-repository":
+        fields["repository"] = "other/pitchlog"
+    elif mutation == "wrong-base":
+        fields["base_sha"] = event.head_sha
+    elif mutation == "math-worktree":
+        path = root / "contracts/state-transition/state_transition_contract_v1.json"
+        path.write_bytes(path.read_bytes() + b" ")
+    elif mutation == "typed-pin":
+        path = root / "contracts/tenant_boundary/frozen-inputs.json"
+        value = json.loads(path.read_bytes())
+        value["frozen_inputs"]["pr197_expectation_revision"]["value"] = "0" * 40
+        path.write_text(json.dumps(value))
+    elif mutation == "typed-and-fixture":
+        path = root / "contracts/tenant_boundary/frozen-inputs.json"
+        value = json.loads(path.read_bytes())
+        value["frozen_inputs"]["pr197_expectation_fixture_sha256"]["value"] = "0" * 64
+        path.write_text(json.dumps(value))
+        fixture = root / "tests/fixtures/pr197_tenant_source_expected_v1.json"
+        fixture.write_bytes(fixture.read_bytes() + b" ")
+    elif mutation in {"policy-worktree", "ledger-worktree", "coreguard-worktree"}:
+        path = root / {
+            "policy-worktree": "docs/features/mvp-delegated-core-review/policy.json",
+            "ledger-worktree": "contracts/authz/frozen-baselines.json",
+            "coreguard-worktree": "scripts/core_guard.py",
+        }[mutation]
+        path.write_bytes(path.read_bytes() + b" ")
+    elif mutation == "unknown-scope":
+        monkeypatch.setattr(
+            checker, "_ORDINARY_FIXED_INPUTS",
+            checker._ORDINARY_FIXED_INPUTS | {"contracts/state-transition/unknown.json"},
+        )
+    elif mutation in {"unknown-math-path", "math-commit"}:
+        path = root / (
+            "contracts/state-transition/pr197-unknown.json"
+            if mutation == "unknown-math-path"
+            else "contracts/state-transition/state_transition_contract_v1.json"
+        )
+        path.write_bytes(path.read_bytes() + b" " if path.exists() else b"{}\n")
+        subprocess.run(["git", "-C", str(root), "add", str(path.relative_to(root))], check=True)
+        subprocess.run([
+            "git", "-C", str(root), "-c", "user.name=Candidate",
+            "-c", "user.email=candidate@local.invalid", "commit", "--quiet",
+            "-m", "test: 数学未知pathを追加",
+        ], check=True)
+        fields["head_sha"] = subprocess.check_output(
+            ["git", "-C", str(root), "rev-parse", "HEAD"], text=True,
+        ).strip()
+    else:
+        evidence = json.loads(comment["body"][len(guard.DELEGATION_COMMENT_MARKER):])
+        if mutation == "missing-proof":
+            fields["body"] = ""
+        elif mutation == "self-review":
+            evidence["candidate_agents"].append(evidence["reviewer_agent"])
+        elif mutation == "publisher":
+            comment["user"]["login"] = "other"
+        elif mutation == "unresolved-p1":
+            evidence["findings"] = [{"severity": "P1", "resolved": False, "detail": "未解消"}]
+        comment["body"] = guard.DELEGATION_COMMENT_MARKER + json.dumps(evidence)
+    if mutation not in {"missing-proof", "self-review", "publisher", "unresolved-p1"}:
+        def forbidden_fetch(_: str) -> Any:
+            raise AssertionError("旧scope失敗より前に公開commentを取得した")
+        monkeypatch.setattr(guard, "_fetch_delegation_comment", forbidden_fetch)
+    with pytest.raises(checker.HumanReviewSignatureRecordError) as error:
+        checker.validate_gate6_ci_event(root, guard.PullRequestEvent(**fields))
+    if mutation == "unknown-scope":
+        assert "旧49path" in str(error.value)
+    if mutation in {"unknown-math-path", "math-commit"}:
+        assert "数学path" in str(error.value)
+
+
+@pytest.mark.parametrize("mutation", ["prior", "extra-key", "placement"])
+def test_pr197_old_policy_origin_rejects_mutated_ledger_predecessor(
+    pr197_gate6_candidate: tuple[Path, Any, Any, dict[str, Any]],
+    mutation: str,
+) -> None:
+    """後発19から旧18を求める際も台帳の直前identityと配置を閉じる。"""
+    root, guard, _, _ = pr197_gate6_candidate
+    path = root / checker._ORDINARY_BASELINE_LEDGER_PATH
+    ledger = json.loads(path.read_bytes())
+    tail = ledger["history"][-1]
+    if mutation == "prior":
+        tail["prior_identity"]["values"][0]["value"] = "0" * 40
+    elif mutation == "extra-key":
+        tail["unreviewed"] = True
+    else:
+        tail["placement_change"]["after"] = []
+    path.write_text(json.dumps(ledger))
+    pins = checker._ordinary_pins(root)
+    anchor = checker._OrdinaryAcceptedReader(root)
+    with pytest.raises(checker.HumanReviewSignatureRecordError):
+        checker._ordinary_policy_origins(root, guard, anchor, pins)

@@ -2674,8 +2674,10 @@ def test_current_and_legacy_owned_baselines_do_not_forge_stage(
     revision = "0036_initial_right_storage"
     with pytest.raises(AssertionError):
         db_fixtures._prepare_current_product_baseline(
-            cluster=cluster, owner_dsn="synthetic-owner",
-            applicator_dsn="synthetic-applicator", applicator=connection,
+            cluster=cluster,
+            owner_dsn="synthetic-owner",
+            applicator_dsn="synthetic-applicator",
+            applicator=connection,
         )
     trace.clear()
     monkeypatch.setattr(

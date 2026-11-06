@@ -208,16 +208,13 @@ def test_pr197_identity_successor_only_resolves_three_old_diagnostics(
         tmp_path, declaration, {"pr196_source_registration": {}},
     )
     monkeypatch.setattr(checker, "_load_pr196_source_owners", pr196_loader)
-    shadow = Path(
-        "/home/ymdms/.cache/pitchlog/"
-        "native-foundation-tenant197-candidate-20261106/reflection2/shadow"
-    )
+    shadow = SOURCE_ROOT
     pr192 = json.loads(
         (SOURCE_ROOT / "tests/fixtures/pr192_tenant_source_expected_v1.json").read_text()
     )
     metadata = checker._pr192_expected_metadata(shadow, pr192)
     monkeypatch.setattr(checker, "_pr192_trusted_materials", lambda: (pr192, metadata))
-    contract = checker.load_contract(shadow)
+    contract = replace(checker.load_contract(shadow), pr197_source_registration=None)
     monkeypatch.setattr(
         checker, "_pr191_trusted_source_owners", lambda: contract.pr191_source_owners,
     )

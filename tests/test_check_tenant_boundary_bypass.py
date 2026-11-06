@@ -1135,11 +1135,51 @@ def _initialize_test_repository(
         destination = repository / relative_path
         destination.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(REPOSITORY_ROOT / relative_path, destination)
+    if "pr197_source_registration" in allowlist:
+        expected_path = Path(allowlist["pr197_source_registration"]["expected_fixture"])
+        expected = json.loads((REPOSITORY_ROOT / expected_path).read_text())
+        source_revision = expected["source_revision"]
+        sql = expected["sql_generation"]
+        manifest_path = sql["manifest_path"]
+        manifest = json.loads(subprocess.check_output(
+            ["git", "-C", str(REPOSITORY_ROOT), "show", f"{source_revision}:{manifest_path}"],
+        ))
+        product_paths = subprocess.check_output(
+            ["git", "-C", str(REPOSITORY_ROOT), "ls-tree", "-r", "--name-only",
+             source_revision, "--", "backend/src"],
+        ).decode().splitlines()
+        assert all(path.startswith("backend/src/") and ".env" not in Path(path).parts
+                   for path in product_paths)
+        # 固定原典のimport/re-export閉包を欠かさず、変更sourceだけを後で重ねる。
+        closure = (set(product_paths) | set(expected["owners"])
+                   | set(manifest["generationInputFiles"])
+                   | set(manifest["generatedFiles"]) | {manifest_path}
+                   | set(checker._PR197_GENERATOR_IMPORT_FILES))
+        # 宣言を満たす固定原典を先に置き、試験の変更sourceはその後に適用する。
+        for relative in sorted(closure):
+            destination = repository / relative
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_bytes(subprocess.check_output(
+                ["git", "-C", str(REPOSITORY_ROOT), "show", f"{source_revision}:{relative}"],
+            ))
     _write_test_repository_sources(repository, sources)
     checker._run_git(repository, ["init"])
     if "pr191_source_registration" in allowlist or "pr192_source_registration" in allowlist:
         # 合成repoも実原典のobject/祖先を保持する。元repoのrefsやobjectは変更しない。
-        if "pr196_source_registration" in allowlist:
+        if "pr197_source_registration" in allowlist:
+            frozen = json.loads(
+                (REPOSITORY_ROOT / "contracts/tenant_boundary/frozen-inputs.json").read_text()
+            )
+            revision = frozen["frozen_inputs"]["pr197_expectation_revision"]["value"]
+            fixture = Path(allowlist["pr197_source_registration"]["expected_fixture"])
+            destination = repository / fixture
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(REPOSITORY_ROOT / fixture, destination)
+            generated = Path(checker._PR197_GENERATED_FACTS)
+            destination = repository / generated
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(REPOSITORY_ROOT / generated, destination)
+        elif "pr196_source_registration" in allowlist:
             frozen = json.loads(
                 (REPOSITORY_ROOT / "contracts/tenant_boundary/frozen-inputs.json").read_text()
             )
@@ -4375,6 +4415,13 @@ def test_all_negative_fixtures_are_red_through_real_commit_diff(
         **REEXPORT_SUPPORT_SOURCES,
         **{fixture.path: "pass\n" for fixture in fixtures},
     }
+    base_path = "pitchlog/repositories/base.py"
+    if base_path in baseline_sources:
+        # 製品profileの依存基底をpassで消さず、負例適用前は固定原典を置く。
+        baseline_sources[base_path] = checker._run_git(
+            REPOSITORY_ROOT,
+            ["show", f"{checker._PR197_SOURCE_REVISION}:backend/src/{base_path}"],
+        )
     repository, base_ref = _initialize_test_repository(
         tmp_path,
         baseline_sources,
