@@ -1,5 +1,14 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 2026-11-07 02:53 JST：trigger1を閉鎖、毎球CSVの実sourceとP3保存へ接続中
+
+- **root CI候補の固定**: `fix/pr197-ci-finalization@dc133d2c` clean・通常push済み。旧本人trigger1記録を2fa全値で保持し、別のPO委任確認をsource3944ee11のexact3 blob・非作者JSONへ束縛した。非作者初回/反映1/拒否理由1行/型整理の履歴を保持し、reflection3 REPORT `021420e4c5e65fd088a5837b98a36834163c11823a0c5001a2a1b9126bedc974`、JSON `b066cbdad9a0e5534087b1149a038fff3be2bd680eb49dcc33b5d888b1db5b0b`。root最終全55passed12.35秒、root/backend Ruff/Ty・backend format672成功。途中の旧理由regex1fail/型診断8件は隠さず修復履歴へ残した。本人署名・新P6blindではない。
+- **残るPR197停止点**: census専用作者は旧証明/現PR197後継の分離を修復。初回279pass+6fail=285 collected、残6は旧frame歴史と現removed集合の混同、旧ownerの現抑止0、仮cloneへの固定SQL/DSL/FE供給漏れの3群。該当6/CLI再実行中で、成功へ読み替えない。rootは候補固定後の非作者確認、PR197対象source固定後の公式9資産/認可/corpus一括再導出、実PR事前検査と公開CIを担当。#197はまだDraft/未merge。
+- **毎球CSV**: D1表示exact11pathを11b405b7で固定後、root非作者が正解vector生成入力/PUB境界の2指摘を返し、a5ae1e63の反映1で解消。非作者cache `play-csv-display-d1-independent-20261107/REPORT-reflection1.md` SHA `01493a4cb6cbe0a4c92df4cd152b8a56e12f71d5f6f247944a660db7da54bed0`、独立Python21/FE8・TS既規範16/不正9、旧T5 model/manifest/generated差分0。後発elapsed追加は別差分レビュー対象で未受理。
+- **CSVの進め方**: 72は実V7/profile/artifact/source_eventに束縛するversioned入力経路、75は自動started_at→同TX受理clockのh:mm（現場の観測時刻ではない）、50/51は保存済normalized-bottom-left正準文字列＋manifest単位/geometryを、既原典と照合しPO委任rootが技術採用。旧pixel/旧入力フラグのbyte互換やTag機能を主張しない。欠落値を0/NULLへ補完しない。作者lifecycle_gate_first_reviewが同TX88列source表/producer→実ZIPを接合中で、現時点のZIP200はfixture投入版のみ。
+- **P3**: 作者game_operations_final_independentのowned HTTPは新規作成/開始/通常3球/GET、真正writer/B5/RG1/V12、唯一核の変更評価/T2を越え、実persistへ到達。physical anchor IDとwire prefix IDの誤比較を是正し、現在はSQL42501（binding owner表の権限境界）を診断。全表SELECTを広げず必要5値だけ同TX/expiry/既assertで返す閉候補関数を接続中。P3保存成功/次球/成績整合/原子性成功はまだ未実証。rootのcontext chain型/行のみ診断で反復を減らし、原値/資格をログに出さない。
+- **利用者操作の実証の正**: 前節のconnected60f（断中2球復帰/交代/終了再開追加球/成績CSV）とviewer f69（別画面10秒更新/reload）を維持。通常9回163球は別固定64fcの限定操作実証。正式developの全操作・全MVP・実機/運用復旧/負荷/性能は未完。次はCSVの事前投入なし200とP3実保存、#197の通常統合を並行して閉じる。
+
 ## 2026-11-07 02:30 JST：PR197のCI修復とCSV・過去訂正を継続
 
 - **利用者操作の到達点は維持**: connected60fの断中cold再起動→2球→復帰順序同期、終了/再開/追加球/再終了→成績CSV、viewer f69の実二画面自動更新/reloadは前節の同版owned証拠を正とする。今回の純検査を新しい実画面成功へ加算しない。正式develop・全MVPは未完。
