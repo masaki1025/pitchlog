@@ -20,3 +20,8 @@ REPORT SHA256 39ff452d29a6b4abdd510a9a797c0a9acd34b13eec453e297cbf22abfa2e8070�
 
 
 第2回の個別分類/採否: P1-1=起因(-)/採用（wrapperの承認・worktree・重さ・整数表）、P1-2=起因(-)/採用（反映カウンタ2へ実履歴整合）、P2-3=起因(-)/採用（前周分類と未実施記述訂正）。B送り先なし。実codex_runのparse_frontmatter/active/承認/登録WT/重さ/step_table_statusを呼び全て成立を確認、run_codex自体は呼んでいない。
+
+
+## 限定追加1の採否・反映3周目と限定追加2の委任判断
+
+追加1は否決P0=0/P1=1/P2=0、REPORT SHA256 b2d791e759adc5741f0985fc16f335fe422a4ad5f7231df7e758c0dfd09326ef。P1起因(-)を採用、不採用0。テンプレの必須反映周コミット=適用を記載し、実反映3周にcounterを3へ整合する。公式テンプレ全frontmatterと実codex_run/feature_statusのパーサを合わせて確認し、notion未取得/created/通常方式も正確に明示。基本2＋追加1の実施回数を維持し、PO委任の必要な限定追加レビュー権限により、このメタデータ差分と実機構突合だけを追加2回目の対象に許可する。v1.20本文は不変。本人署名・未実施Notion同期・source/CI成立を代記しない。

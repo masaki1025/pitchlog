@@ -4,9 +4,13 @@ status: active
 branch: feature/mvp-pr197-anchor-exception
 worktree: /home/ymdms/projects/pitchlog-worktrees/feature-mvp-pr197-anchor-exception
 重さ分類: コア領域
+notion: 未接続（既ユーザーGoal・PR197を作業根拠とする）
+created: 2026-11-06
+実行方式: 通常
+反映周コミット: 適用
 承認: 済（PO委任によるCodex主担当/root判断、2026-11-06。本人署名ではない）
 計画レビュー周回: 0
-確定ゲート周回: 2
+確定ゲート周回: 3
 ---
 
 # PR197の固定Git期待1件の例外
@@ -39,3 +43,6 @@ worktree: /home/ymdms/projects/pitchlog-worktrees/feature-mvp-pr197-anchor-excep
 - [ ] 限定条文のゲート採否と委任判断、sourceの独立レビューを固定する。
 - [ ] 正負対向と公式派生の前後/履歴・最終HEAD証拠・必須CIを通す。
 - [ ] PR197へ受渡し、正式統合と未実施の製品/実機受入を区別する。
+
+
+背景・追跡: 既ユーザーMVP Goalと[PR197](https://github.com/masaki1025/pitchlog/pull/197)の継承修復であり、[NFR-015](../../requirements/requirements-pitchlog-2026-07-22.md#NFR-015)の正本整合と[NFR-019](../../requirements/requirements-pitchlog-2026-07-22.md#NFR-019)の拒否検査を保つ。Notionタスクは未取得で、同期したとは記録しない。
