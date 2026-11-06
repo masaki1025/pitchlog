@@ -28,3 +28,14 @@ plan b75adacfの非作者REPORT fcc707cb…の3 P1を採用し、実装条件を
 - オンライン復帰は実session/C2成功後だけ、最古slotを同本文/D5/attemptで再送し、ACK適用→真正GET→次の最古を自動反復する。非成功ACK/HTTP不明/再取得不明/資格変更で止まり、手動押下無しで全suffixが空になる正例と件数通知を確認する。health成功直後session通信断は安全に閉じる未充足として残す。5秒最適化はPO指示で後段だが安全/自動順序条件は維持。
 
 所有分割: rootはpermission store/readonly intent lease/health gate/router/local host/RecordedRestoreと文書。別作者game_operations_final_independentはOrdinaryPitchController・PitchCommit/PitchAcceptance・必要なprepared envelope補助・OrdinaryPitch.vueと対応spec（22:54 JST追加移管）。共有同一fileへ並行書込みせず、coreの最終候補は別レビュアーへ渡す。
+
+## source非作者初回4指摘の反映（2026-11-06、PO委任Codex/root）
+
+固定5d46ec3aのsource REPORT SHA77e523089c8eeed408be7f3e1b7bac5e416bb40e344eec3ad03a1855ac420209はP1=2で未受理、固定7796e3b3のUI REPORT SHAe8f49cdb246b2703229ca2b71c6440710d35d882247925b40cef7b03f6672ea5はP1=2で未受理。これらを可決とせず同じ反映周で是正する。
+
+- 同D1/refの別headはprefix_refのみでなく閉head全値一致を要求する。独立反例と同じstate/afterの両balls変更（構造valid）を拒否し、旧保存原本が全値不変、同head再供給は可の対向を追加。
+- navigator.onLine=falseはhintとしても不達成立に使わず、必ずCookie無しの有限publichealthを試す。hint=false/実health200の対向で通信を実行し既session検証へ戻す。
+- 最古ACK後の真正GET+新context解析中は、ACK起点の同game/D4/tenant/authEpochだけ旧子instanceを保持する。suspendedで操作・HTTP・語彙採用を閉じ、fresh原本解析完了後だけ解除。別scope/取得失敗/手動別DTO更新は従来通り破棄。作者UIはsuspended同値で未送信観測と四確認を保持し、解除時再inspectする。
+- 再接続は許可済みrecording queryだけを使い、router.replace force:trueで同じURLでも毎回guardを再実行する。reconnect=1を認証戻り先へ追加しない。実VueRouterで2回押下のguard2増分・query有限を固定。
+
+root対象4suite68件・型成功、元作者UI/親66件・型成功。これらはmock/IDB単体で実認証/PG/完全断中ブラウザの証明ではない。67264062にはproduction build/preview/SWを使うowned E2E source準備があり、実行・最終非作者再確認・正式受理は未了。ソース固定後に実測し、NP/LCqueued/開始ACK直後GET前断の未充足は維持する。

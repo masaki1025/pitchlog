@@ -148,7 +148,6 @@ export function isLocalRecordingSession(
 export async function recordingBackendReachability(): Promise<
   'available' | 'unavailable' | 'unknown'
 > {
-  if (navigator.onLine === false) return 'unavailable'
   const abort = new AbortController()
   const timeout = setTimeout(() => abort.abort(), 2000)
   try {

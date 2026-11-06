@@ -119,3 +119,11 @@ describe('public到達確認は認証の代替にしない', () => {
     expect(await local.recordingBackendReachability()).toBe('unknown')
   })
 })
+
+it('onLine=falseというhintだけで到達可能なhealthを省略しない', async () => {
+  vi.stubGlobal('navigator', { onLine: false })
+  const fetcher = vi.fn().mockResolvedValue(new Response(null, { status: 200 }))
+  vi.stubGlobal('fetch', fetcher)
+  expect(await local.recordingBackendReachability()).toBe('available')
+  expect(fetcher).toHaveBeenCalledOnce()
+})

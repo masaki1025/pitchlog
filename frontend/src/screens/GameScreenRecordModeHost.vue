@@ -36,7 +36,8 @@ async function reconnect() {
   await router.replace({
     name: 'game-record',
     params: { gameId: session.value.gameId },
-    query: { recording: 'play-prefix-v3', reconnect: '1' },
+    query: { recording: 'play-prefix-v3' },
+    force: true,
   })
 }
 </script>

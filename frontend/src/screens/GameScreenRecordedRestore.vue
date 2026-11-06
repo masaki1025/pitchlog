@@ -75,6 +75,28 @@ const recorded = computed(
       BigInt(restore.game.value.prefix_ref.length) > 0n),
 )
 const prefixContext = ref<RecordingContext | null>(null)
+const contextRefreshing = ref(false)
+let contextScope: {
+  gameId: string
+  tenant: string
+  epoch: number
+  d4: string
+} | null = null
+let retainConfirmedInput = false
+async function pitchSaved() {
+  retainConfirmedInput = true
+  try {
+    await restore.reload()
+  } finally {
+    retainConfirmedInput = false
+  }
+}
+const inputSuspended = computed(
+  () =>
+    contextRefreshing.value ||
+    (restore.status.value !== 'ready' &&
+      restore.status.value !== 'offline-ready'),
+)
 let contextSequence = 0
 // pending/確認済みの同値入力だけを保持し、失敗値を再利用しない。
 let watchedContextInput: unknown = null
@@ -114,6 +136,8 @@ watch(
       contextSequence++
       watchedContextInput = null
       prefixContext.value = null
+      contextScope = null
+      contextRefreshing.value = false
       return
     }
     // 全受信値と認証scopeが同じなら、進行中のasync/子の入力を失効させない。
@@ -124,7 +148,25 @@ watch(
       return
     const own = ++contextSequence
     watchedContextInput = null
-    prefixContext.value = null
+    // 同じ記録端末scopeの新GET解析中だけ子を保持し、入力は明示的に止める。
+    // 確認値を別試合・別認証世代へ持ち越さない。
+    const keep =
+      retainConfirmedInput &&
+      prefixContext.value !== null &&
+      contextScope !== null &&
+      input.game?.id === contextScope.gameId &&
+      'current_d4' in input.game &&
+      input.game.current_d4 === contextScope.d4 &&
+      input.tenant === contextScope.tenant &&
+      input.epoch === contextScope.epoch &&
+      input.hydrated &&
+      input.authenticated &&
+      !input.readFailed
+    if (!keep) {
+      prefixContext.value = null
+      contextScope = null
+    }
+    contextRefreshing.value = true
     if (
       (restore.status.value !== 'ready' &&
         restore.status.value !== 'offline-ready') ||
@@ -133,8 +175,10 @@ watch(
       !input.tenant ||
       !input.hydrated ||
       !input.authenticated
-    )
+    ) {
+      contextRefreshing.value = false
       return
+    }
     watchedContextInput = input
     try {
       const source = input.game
@@ -154,12 +198,23 @@ watch(
           },
         }
       }
+      if (own === contextSequence && prefixContext.value) {
+        contextScope = {
+          gameId: source.id,
+          tenant: input.tenant,
+          epoch: input.epoch,
+          d4: 'current_d4' in source ? source.current_d4 : '',
+        }
+      }
     } catch {
       if (own === contextSequence) {
+        contextScope = null
         prefixContext.value = null
         // 同値再取得でも再試行できる。pending同値の二重開始とは区別する。
         watchedContextInput = null
       }
+    } finally {
+      if (own === contextSequence) contextRefreshing.value = false
     }
   },
   { immediate: true },
@@ -185,8 +240,9 @@ const history = computed(() =>
     <p role="status">{{ restore.message.value }}</p>
     <GameScreenOrdinaryPitch
       v-if="prefixContext"
+      :suspended="inputSuspended"
       :context="prefixContext"
-      @saved="restore.reload()"
+      @saved="pitchSaved"
     />
     <GameScreenFirstBall
       v-else-if="

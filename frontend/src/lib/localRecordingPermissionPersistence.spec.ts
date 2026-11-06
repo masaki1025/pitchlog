@@ -261,3 +261,18 @@ it('実local境界と単一artifactで未検証sessionの2球を保存しcold復
     restarted!.dispose()
   }
 })
+
+it('同水位・同refでも異なる状態のsourceで保存基点を上書きしない', async () => {
+  const epoch = useAuthStore().authEpoch
+  await captureLocalRecordingSource(head, epoch)
+  await captureLocalPitchPage(head.id, head.current_d4, null, page, epoch)
+  const changed = structuredClone(head)
+  changed.after.stateFields['state.count.balls'] = '1'
+  changed.state.stateFields['state.count.balls'] = '1'
+  expect(isLineupPrefixGame(changed)).toBe(true)
+  await expect(captureLocalRecordingSource(changed, epoch)).rejects.toThrow()
+  expect((await readLocalPermission(head.id))?.head).toEqual(head)
+  await expect(
+    captureLocalRecordingSource(structuredClone(head), epoch),
+  ).resolves.toBe('captured')
+})

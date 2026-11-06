@@ -902,3 +902,45 @@ it('開始ACK済みでseed未取得の通信断は入力準備未了を示し、
   )
   expect(wrapper.findComponent(GameScreenOrdinaryPitch).exists()).toBe(false)
 })
+
+it('ACK後の新GET解析中は同scopeの子を停止して保持し、確認値を保って新原本へ切り替える', async () => {
+  // 入力寿命の試験であり、mock ACK/GETを実同期成功とはしない。
+  const { wrapper, child, read } = await filledParent()
+  const actual = recordingProvider.playContextFromRead
+  let finish!: (v: recordingProvider.PlayRecordingContext) => void
+  const changed = {
+    ...structuredClone(read),
+    bridge_checkpoint: { ...read.bridge_checkpoint!, digest: 'b'.repeat(64) },
+  }
+  vi.spyOn(recordingProvider, 'playContextFromRead').mockReturnValueOnce(
+    new Promise((r) => {
+      finish = r
+    }),
+  )
+  vi.mocked(ordinaryRead.readPlayPrefixGame).mockResolvedValueOnce({
+    kind: 'found',
+    game: changed,
+  })
+  child.$emit('saved')
+  await flushPromises()
+  const kept = wrapper.getComponent(GameScreenOrdinaryPitch)
+  expect(kept.vm.$).toBe(child.$)
+  expect(kept.props('suspended')).toBe(true)
+  finish(await actual(changed, tenant))
+  await flushPromises()
+  expect(wrapper.getComponent(GameScreenOrdinaryPitch).vm.$).toBe(child.$)
+  expect(wrapper.getComponent(GameScreenOrdinaryPitch).props('suspended')).toBe(
+    false,
+  )
+  for (const key of ['profile', 'mode', 'bucket', 'lockdown'])
+    expect(
+      (
+        wrapper.get(`[data-testid="first-ball-env-${key}"]`)
+          .element as HTMLInputElement
+      ).checked,
+    ).toBe(true)
+  const context = wrapper.getComponent(GameScreenOrdinaryPitch).props('context')
+  expect(context.prefixRef.version).toBe('2')
+  if (context.prefixRef.version !== '2') throw new Error('v2 context missing')
+  expect(context.prefixRef.checkpoint.digest).toBe('b'.repeat(64))
+})

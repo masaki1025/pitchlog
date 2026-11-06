@@ -339,7 +339,7 @@ export async function captureLocalRecordingSource(
           (BigInt(head.next_position.d1) <
             BigInt(previous.head.next_position.d1) ||
             (head.next_position.d1 === previous.head.next_position.d1 &&
-              !sameOrdinaryWire(head.prefix_ref, previous.head.prefix_ref)))
+              !sameOrdinaryWire(head, previous.head)))
         )
           unavailable()
         const row: LocalPermissionRow = {
