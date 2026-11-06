@@ -643,6 +643,40 @@ def test_saved_profile_keeps_fingerprint_without_recreating_wire(rig):
         assert actual == rig.value
 
 
+def test_saved_profile_accepts_finite_saved_course_and_rejects_boolean(rig):
+    """実数座標の保存原本を保持し、bool偽装を型境界で拒否する。"""
+    rig.records[:] = [saved_item(r, rig) for r in rig.records]
+    item = rig.records[0]
+    for value in (
+        item["physical"],
+        item["expectedPhysical"],
+        item["admission"]["next_checkpoint_content"]["projection_snapshot"],
+    ):
+        value["play_row"]["course_x"] = 0.375
+    with api.read_confirmed_nonplay_prefix(
+        rig.handle,
+        rig.event,
+        rig.source,
+        artifact_sha256=rig.raw["payload"]["artifactSha256"],
+    ) as prefix:
+        actual, _ = api._read_prefix(prefix, rig.handle, rig.source, rig.event)
+        assert actual == rig.value
+    for value in (
+        item["physical"],
+        item["expectedPhysical"],
+        item["admission"]["next_checkpoint_content"]["projection_snapshot"],
+    ):
+        value["play_row"]["course_x"] = True
+    with pytest.raises(api.NonplaySourceUnavailable):
+        with api.read_confirmed_nonplay_prefix(
+            rig.handle,
+            rig.event,
+            rig.source,
+            artifact_sha256=rig.raw["payload"]["artifactSha256"],
+        ):
+            pytest.fail("bool座標を保存済みDoubleとして受理しました")
+
+
 @pytest.mark.parametrize(
     "mutation",
     [
