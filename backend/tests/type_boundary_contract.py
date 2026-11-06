@@ -8,6 +8,7 @@ TSK-250 が所有する列単位の写像や値変換を先取りしない。
 from __future__ import annotations
 
 import ast
+import hashlib
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -402,6 +403,25 @@ def regular_schema_violations(
     return violations
 
 
+# 採用済D05の比/率の未定義値は、移行フィールドのセンチネルとは別である。
+# 許容するのは既生成された下記4関数の全AST一致だけ。ファイル全体を除外しない。
+# 意味変更はこの固定を失効させ、通常の非作者レビューで再確認する。
+_RATIO_AST = "dd71adba42a73be3b081d96ec41cd9d6fcb4aeaa8d36ce9aabe58e593b08eb03"
+_RATE_AST = "0398dd9e9b9557c6a6cce89542e0157a3d8fe08615b43f4e3603702094550fa2"
+_ADOPTED_RATE_NULL_FUNCTIONS = {
+    "pitchlog/stats/generated/facts.py": {
+        "_ratio_add": _RATIO_AST,
+        "_rate_result": _RATE_AST,
+    },
+    "pitchlog/stats/generated/formatter.py": {
+        "_rate_result": _RATE_AST,
+    },
+    "pitchlog/stats/generated/receiver.py": {
+        "_rate_result": _RATE_AST,
+    },
+}
+
+
 def sentinel_conversion_hits(source_root: Path) -> list[str]:
     """製品コードを全走査し、フィールド別センチネル変換候補を返す。
 
@@ -414,9 +434,11 @@ def sentinel_conversion_hits(source_root: Path) -> list[str]:
     hits: list[str] = []
     for path in sorted(source_root.rglob("*.py")):
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
-        visitor = _SentinelConversionVisitor()
-        visitor.visit(tree)
         relative = path.relative_to(source_root)
+        visitor = _SentinelConversionVisitor(
+            _ADOPTED_RATE_NULL_FUNCTIONS.get(relative.as_posix(), {})
+        )
+        visitor.visit(tree)
         hits.extend(f"{relative}:{line}:{reason}" for line, reason in visitor.hits)
     return hits
 
@@ -424,12 +446,19 @@ def sentinel_conversion_hits(source_root: Path) -> list[str]:
 class _SentinelConversionVisitor(ast.NodeVisitor):
     """センチネル値から NULL を作る構造だけを抽出する。"""
 
-    def __init__(self) -> None:
+    def __init__(self, adopted_rate_functions: dict[str, str] | None = None) -> None:
         self.hits: list[tuple[int, str]] = []
+        self.adopted_rate_functions = adopted_rate_functions or {}
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:  # noqa: N802
         """明示的なセンチネル変換名と条件分岐を検査する。"""
         self._record_function_name(node.name, node.lineno)
+        expected = self.adopted_rate_functions.get(node.name)
+        actual = hashlib.sha256(
+            ast.dump(node, include_attributes=False).encode()
+        ).hexdigest()
+        if expected is not None and actual == expected:
+            return
         self.generic_visit(node)
 
     def visit_AsyncFunctionDef(  # noqa: N802

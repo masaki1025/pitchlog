@@ -177,6 +177,38 @@ def test_product_code_has_no_field_sentinel_conversion(tmp_path: Path) -> None:
     ]
 
 
+def test_generated_rate_null_exceptions_are_exact_bodies_not_file_exclusions(
+    tmp_path: Path,
+):
+    """分母0の既生成4関数だけを認め、同fileの変換/本文変更を拒否する。"""
+    relative = Path("pitchlog/stats/generated/facts.py")
+    original = (_PRODUCT_SOURCE_ROOT / relative).read_text()
+    target = tmp_path / relative
+    target.parent.mkdir(parents=True)
+    target.write_text(original)
+    assert sentinel_conversion_hits(tmp_path) == []
+    target.write_text(
+        original + "\ndef convert(raw):\n    return None if raw == 0 else raw\n"
+    )
+    assert any("センチネル比較" in hit for hit in sentinel_conversion_hits(tmp_path))
+    changed = original.replace(
+        "def _ratio_add(*values):", "def convert_ratio(*values):", 1
+    )
+    target.write_text(changed)
+    assert any("センチネル比較" in hit for hit in sentinel_conversion_hits(tmp_path))
+    target.write_text(
+        original.replace(
+            "return None\n    numerator, denominator",
+            "return None\n    raw = None if 0 == 0 else 1\n    numerator, denominator",
+            1,
+        )
+    )
+    assert any("センチネル比較" in hit for hit in sentinel_conversion_hits(tmp_path))
+    target.unlink()
+    (tmp_path / "unregistered.py").write_text(original)
+    assert any("センチネル比較" in hit for hit in sentinel_conversion_hits(tmp_path))
+
+
 def test_raw_payload_negative_cases_are_detected_by_pure_functions() -> None:
     """A の部分潰しとバイト変化が純関数で red になることを示す。"""
     expected = {1: b'0|"0"|""|null', 2: b"\xff\xfe"}
