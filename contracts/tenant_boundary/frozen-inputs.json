@@ -247,8 +247,8 @@
       ]
     },
     "stage_a_0039_profile_reference_revision": {
-      "value": "d51306b2c86a6c4e331f83fb855cc5d6c4a8b8e5",
-      "purpose": "正式51bcbの0039歴史検証profile970file/31caseをroot前置Git全byteへ束縛し、現木/fixture/任意revision同時改変を拒否。current製品loader・任意profile許可・署名・一般受理へ流用しない。",
+      "value": "c7e665ab40176104603ed2462f38ed47c47756f4",
+      "purpose": "正式51bcbの0039歴史検証profile971file/31caseをroot前置Git全byteへ束縛し、現木/fixture/任意revision同時改変を拒否。current製品loader・任意profile許可・署名・一般受理へ流用しない。",
       "sources": [
         "backend/tests/stage_a_0039_profile.py:immutable_stage_a_0039_profile",
         "backend/tests/test_stage_a_0039_profile.py:immutable_profile_expectation"

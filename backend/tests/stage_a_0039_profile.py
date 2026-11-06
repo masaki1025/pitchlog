@@ -25,9 +25,9 @@ import pytest
 _ROOT = Path(__file__).resolve().parents[2]
 _FIXTURE = "backend/tests/fixtures/product_authz_stage_a_profile_v0039.json"
 _REFERENCE = "stage_a_0039_profile_reference_revision"
-_FIXED_REFERENCE = "d51306b2c86a6c4e331f83fb855cc5d6c4a8b8e5"
+_FIXED_REFERENCE = "c7e665ab40176104603ed2462f38ed47c47756f4"
 _PURPOSE = (
-    "正式51bcbの0039歴史検証profile970file/31caseをroot前置Git全byteへ束縛し、"
+    "正式51bcbの0039歴史検証profile971file/31caseをroot前置Git全byteへ束縛し、"
     "現木/fixture/任意revision同時改変を拒否。current製品loader・任意profile許可・"
     "署名・一般受理へ流用しない。"
 )
@@ -150,7 +150,7 @@ def _read_profile(root: Path) -> dict[str, Any]:
         or re.fullmatch("[a-f0-9]{40}", value["revision"]) is None
         or value["test_module"] != _MODULE
         or type(value["files"]) is not list
-        or len(value["files"]) != 970
+        or len(value["files"]) != 971
         or type(value["case_ids"]) is not list
         or len(value["case_ids"]) != 31
     ):
