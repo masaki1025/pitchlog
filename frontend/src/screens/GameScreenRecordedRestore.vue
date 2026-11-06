@@ -3,6 +3,7 @@ import { computed, toRaw, ref, watch } from 'vue'
 import GameScreenFirstBall from './GameScreenFirstBall.vue'
 import GameScreenOrdinaryPitch from './GameScreenOrdinaryPitch.vue'
 import GameScreenUndoProduct from './GameScreenUndoProduct.vue'
+import GameScreenLifecycleProduct from './GameScreenLifecycleProduct.vue'
 import { ordinaryContextFromRead } from '../api/recordedPrefixGame'
 import { sameOrdinaryWire } from '../api/ordinaryPitchWire'
 import {
@@ -356,5 +357,11 @@ const history = computed(() =>
     :game-id="gameId"
     @state="undoNative = $event"
     @saved="restore.reload()"
+  />
+  <GameScreenLifecycleProduct
+    v-if="gameId && auto !== false"
+    :key="gameId"
+    :game-id="gameId"
+    @resume-recording="restore.reload()"
   />
 </template>
