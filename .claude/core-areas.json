@@ -788,7 +788,9 @@
         "backend/tests/test_stats_native_read_receipts.py",
         "backend/tests/test_stats_primitive_product.py",
         "backend/tests/test_stats_primitive_write_state.py",
-        "tests/test_stats_native_dependency_columns.py"
+        "tests/test_stats_native_dependency_columns.py",
+        "backend/tests/stage_a_0039_profile.py",
+        "backend/tests/test_stage_a_0039_profile.py"
       ]
     },
     {
@@ -878,7 +880,8 @@
         "backend/tests/test_alembic_index_comparison.py",
         "backend/src/pitchlog/db/current_product_startup.py",
         "backend/tests/test_current_product_startup.py",
-        "backend/tests/test_stats_catalog_pg_representation.py"
+        "backend/tests/test_stats_catalog_pg_representation.py",
+        "backend/tests/fixtures/product_authz_stage_a_profile_v0039.json"
       ]
     }
   ]
