@@ -463,3 +463,6 @@ D11新8の反映1（2026-11-06 JST、PO委任Codex /root判断）: 初回packet4
 
 
 歴史profile前置E2（2026-11-06 JST、PO委任Codex /root判断）: 実子の標準autouseが_authz_login_role_idsから読むcontracts/authz/ddl-elements.jsonが旧970原典集合に欠けていた。安全観測はFileNotFoundErrorと当該relative pathだけを確認し、資格原文は記録しない。正式51bcbから当該通常blob1を追加し971へ閉拡張、他970/31case/DDL706・pre259/full705期待は保持する。前置E2のfixtureを先にcommitしhelper独立anchorとtyped entryは同E2だけへ一致させる。旧E d51306b2/970版と全失敗履歴を保全し、原典版更新を新P6blindや全PG成立としない。scope追加は当該fixture1の正式Git由来追随だけで、規範や共有DBを変更しない。
+
+
+歴史profile前置E3（同日、PO委任Codex /root判断）: fixed0bbf19b5のowned全31は28成功/3失敗233.75秒、正式PG成立ではない。safe観測で3caseのRuleSnapshot validatorが要求するcontracts/state-transition/game_end_contract_schema_v1.json不足を確認（2caseは同契約不可用をoutcome_unconfirmedへ写像）。正式51bcbの当該schema通常blob1だけを971へ追加して972に閉じ、全内包refが同schema内であることを照合した。旧971/全31case/706・259・705期待不変、P6封印/期待入力は読まない。前置E3へhelper独立anchor/typed参照を同時に正確追随する。原初2P1は非作者14f8a5d2…で解消確認済みだが、必要原典の追加に対する限定再確認と全31実成功まではrelease保留を維持する。

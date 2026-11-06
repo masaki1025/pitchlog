@@ -3872,6 +3872,10 @@
       "sha256": "f191eb3df7d2dfb784fef24ee704ba6aaa96c8a790825170ec4a7297d8ba51a5"
     },
     {
+      "path": "contracts/state-transition/game_end_contract_schema_v1.json",
+      "sha256": "dbc08f45d27d2758982307eddc8ae48fcf844eed55e8f5756911ea0c3b536460"
+    },
+    {
       "path": "scripts/check_authz_catalog.py",
       "sha256": "2250a80ca42a56dc6ba08be60cdd4bd95db95e1df1389ffa72c52da2bd4e4ec2"
     },
