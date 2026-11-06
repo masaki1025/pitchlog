@@ -10,7 +10,7 @@ BEGIN
  tenant:=NULLIF(pg_catalog.current_setting('app.tenant_id',true),'')::uuid;
  IF session_user IS DISTINCT FROM 'pitchlog_app' OR current_user IS DISTINCT FROM 'pitchlog_sync_right_fn_owner'
  OR tenant IS NULL OR p_game_id IS NULL OR p_player_id IS NULL
- OR p_model_sha256 IS DISTINCT FROM 'sha256:60ab45878fdfc868efc15ddb0f9b84d6ab0f3583519c48a2202e3d9c3abac59d'
+ OR p_model_sha256 IS DISTINCT FROM 'sha256:882acb95c08d88deb724a77f2fdfb184de48a2252cd03f5ca44df5cd8b48f4c6'
  OR pg_catalog.current_setting('transaction_isolation') IS DISTINCT FROM 'repeatable read'
  OR pg_catalog.current_setting('transaction_read_only') IS DISTINCT FROM 'on'
  THEN RAISE EXCEPTION 'stats primitive boundary rejected' USING ERRCODE='42501'; END IF;
@@ -21,7 +21,7 @@ BEGIN
  FROM sync_fence.stats_fact_versions v WHERE v.tenant_id=tenant AND v.game_id=p_game_id
  AND v.model_sha256=p_model_sha256 AND v.is_current AND v.invalidated_at IS NULL
  AND v.rule_sha256 ~ '^[a-f0-9]{64}$'
- AND v.t5_artifact_set_sha256='28af30fd1b1300c805b7dcb243fc7b32ab9d6db9fc10c38bdcbc63fa85c3a0de' AND v.completion_state='current_open';
+ AND v.t5_artifact_set_sha256='b551ca128619674a5fc87efe44eba1acae329ed5979353600149dd4226e8dad2' AND v.completion_state='current_open';
  SELECT * INTO STRICT health FROM (WITH canonical_scope AS (
  SELECT g.tenant_id,g.id AS game_id FROM public.games g
  WHERE g.tenant_id=tenant AND g.hidden_at IS NULL AND g.trashed_at IS NULL
@@ -127,7 +127,7 @@ BEGIN
 )
 SELECT COALESCE(ch.game_count,0) AS game_count,COALESCE(ch.canonical_source_count,0) AS canonical_source_count,COALESCE(ch.unavailable_count,0) AS unavailable_count,COALESCE(ch.canonical_source_set_sha256,encode(sha256(convert_to('accepted-play-slot-v1:empty','UTF8')),'hex')) AS canonical_source_set_sha256 FROM (VALUES(1)) singleton(n) LEFT JOIN canonical_health ch ON true) canonical_result;
  IF health.game_count IS DISTINCT FROM 1::bigint THEN RAISE EXCEPTION 'stats primitive boundary rejected' USING ERRCODE='42501'; END IF;
- SELECT * INTO STRICT audit FROM (WITH requested_metrics(metric_id) AS (VALUES ('pitch_count'), ('pa'), ('ab'), ('h'), ('hr'), ('bb'), ('hbp'), ('k'), ('sh'), ('sf'), ('catcher_interference_reached'), ('runner_interference_reached'), ('doubles'), ('triples'), ('total_bases'), ('runs'), ('rbi'), ('stolen_bases'), ('pitching_outs'), ('pitcher_k'), ('pitcher_bb'), ('pitcher_hbp'), ('hits_allowed'), ('home_runs_allowed'), ('fielding_errors'), ('runs_allowed')),
+ SELECT * INTO STRICT audit FROM (WITH requested_metrics(metric_id) AS (VALUES ('pitch_count'), ('pa'), ('ab'), ('h'), ('hr'), ('bb'), ('hbp'), ('k'), ('sh'), ('sf'), ('catcher_interference_reached'), ('runner_interference_reached'), ('doubles'), ('triples'), ('total_bases'), ('runs'), ('rbi'), ('stolen_bases'), ('pitching_outs'), ('pitcher_k'), ('pitcher_bb'), ('batters_faced'), ('pitcher_hbp'), ('hits_allowed'), ('home_runs_allowed'), ('fielding_errors'), ('runs_allowed')),
 canonical_scope AS (
  SELECT g.tenant_id,g.id AS game_id FROM public.games g
  WHERE g.tenant_id=tenant AND g.hidden_at IS NULL AND g.trashed_at IS NULL
@@ -303,7 +303,7 @@ JOIN canonical_health ch ON ch.tenant_id=v.tenant_id AND ch.game_id=v.game_id) s
  OR audit.source_count IS DISTINCT FROM audit.canonical_source_count
  OR audit.unavailable_count IS DISTINCT FROM 0::bigint
  OR audit.source_set_sha256 IS DISTINCT FROM audit.canonical_source_set_sha256
- OR audit.row_count IS DISTINCT FROM audit.source_count*26
+ OR audit.row_count IS DISTINCT FROM audit.source_count*27
  OR (SELECT COUNT(*) FROM sync_fence.stats_primitive_sources s WHERE s.tenant_id=tenant
  AND s.game_id=p_game_id AND s.fact_version_id=p_fact_version_id) IS DISTINCT FROM audit.source_count
  OR audit.transaction_id IS DISTINCT FROM pg_catalog.pg_current_snapshot()::text

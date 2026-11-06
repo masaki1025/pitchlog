@@ -53,8 +53,6 @@ _INITIAL_ACTOR_STATES: dict[
 ] = {}
 _RG1_LOANS: dict[object, _GateLoan] = {}
 _STATS_READ_HANDLES: dict[object, _TenantTransaction] = {}
-# 候補検証専用の追加read token predicate。製品起動ではNoneのまま。
-_EXTRA_STATS_READ_OPERATION = None
 
 
 @dataclass(slots=True)
@@ -197,9 +195,7 @@ class _TenantTransaction:
             )
 
         session, _ = runtime
-        if _EXTRA_STATS_READ_OPERATION is not None and _EXTRA_STATS_READ_OPERATION(
-            operation
-        ):
+        if _basic_stats_read_operation(operation):
             _require_stats_primitive_read_scope(self)
             return self.run_function(operation)
         if _stats_read_operation(operation):
@@ -250,9 +246,7 @@ class _TenantTransaction:
             raise TenantBindingError(
                 "TenantContext の発行証跡が不一致のため業務 SQL を開始できない"
             )
-        if _EXTRA_STATS_READ_OPERATION is not None and _EXTRA_STATS_READ_OPERATION(
-            operation
-        ):
+        if _basic_stats_read_operation(operation):
             _require_stats_primitive_read_scope(self)
         elif _stats_read_operation(operation):
             _require_stats_primitive_read_scope(self)
@@ -829,6 +823,13 @@ def _stats_read_operation(operation: TenantOperationToken) -> bool:
     }
 
 
+def _basic_stats_read_operation(operation: TenantOperationToken) -> bool:
+    """基本成績readの実型を厳密に識別し、候補hookへ委ねない。"""
+    from pitchlog.repositories.stats_basic import ReadBasicStatsToken
+
+    return type(operation) is ReadBasicStatsToken
+
+
 def _require_stats_primitive_read_scope(handle: object) -> None:
     """実RR/READ ONLY scope発行の同handleと真正tenantだけを許可する。"""
     if type(handle) is not _TenantTransaction:
@@ -869,6 +870,7 @@ def _run_stats_primitive_read(
         require_read_registration,
         require_registered_call,
     )
+    from pitchlog.stats.generated.receiver import METRIC_IDS
 
     _require_stats_primitive_read_scope(handle)
     registration = require_read_registration(operation, FUNCTION_OPERATION_REGISTRY)
@@ -913,7 +915,7 @@ def _run_stats_primitive_read(
             operation.model_sha256,
             transaction_id=transaction_id,
         )
-        maximum_rows = 26
+        maximum_rows = len(METRIC_IDS)
     else:
         raise TenantBindingError("成績readの登録実型が不一致")
     require_registered_call(registration, call, FUNCTION_OPERATION_REGISTRY)

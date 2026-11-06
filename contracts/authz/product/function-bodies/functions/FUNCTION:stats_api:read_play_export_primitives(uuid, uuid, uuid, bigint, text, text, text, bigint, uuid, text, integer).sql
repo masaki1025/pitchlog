@@ -10,7 +10,7 @@ BEGIN
  tenant:=NULLIF(pg_catalog.current_setting('app.tenant_id',true),'')::uuid;
  IF session_user IS DISTINCT FROM 'pitchlog_app' OR current_user IS DISTINCT FROM 'pitchlog_sync_right_fn_owner'
  OR tenant IS NULL OR p_game_id IS NULL OR p_player_id IS NULL
- OR p_model_sha256 IS DISTINCT FROM 'sha256:60ab45878fdfc868efc15ddb0f9b84d6ab0f3583519c48a2202e3d9c3abac59d'
+ OR p_model_sha256 IS DISTINCT FROM 'sha256:882acb95c08d88deb724a77f2fdfb184de48a2252cd03f5ca44df5cd8b48f4c6'
  OR pg_catalog.current_setting('transaction_isolation') IS DISTINCT FROM 'repeatable read'
  OR pg_catalog.current_setting('transaction_read_only') IS DISTINCT FROM 'on'
  THEN RAISE EXCEPTION 'stats primitive boundary rejected' USING ERRCODE='42501'; END IF;
@@ -29,9 +29,9 @@ BEGIN
 
  IF p_page_size IS NULL OR p_page_size<1 OR p_page_size>500
  OR NOT ((p_after_d2 IS NULL AND p_after_source_event_id IS NULL AND p_after_metric_id IS NULL)
- OR (p_after_d2 IS NOT NULL AND p_after_source_event_id IS NOT NULL AND p_after_metric_id IS NOT NULL AND p_after_metric_id=ANY(ARRAY['ab','bb','catcher_interference_reached','doubles','fielding_errors','h','hbp','hits_allowed','home_runs_allowed','hr','k','pa','pitch_count','pitcher_bb','pitcher_hbp','pitcher_k','pitching_outs','rbi','runner_interference_reached','runs','runs_allowed','sf','sh','stolen_bases','total_bases','triples']::text[])))
+ OR (p_after_d2 IS NOT NULL AND p_after_source_event_id IS NOT NULL AND p_after_metric_id IS NOT NULL AND p_after_metric_id=ANY(ARRAY['ab','batters_faced','bb','catcher_interference_reached','doubles','fielding_errors','h','hbp','hits_allowed','home_runs_allowed','hr','k','pa','pitch_count','pitcher_bb','pitcher_hbp','pitcher_k','pitching_outs','rbi','runner_interference_reached','runs','runs_allowed','sf','sh','stolen_bases','total_bases','triples']::text[])))
  THEN RAISE EXCEPTION 'stats primitive boundary rejected' USING ERRCODE='42501'; END IF;
- RETURN QUERY WITH requested_metrics(metric_id) AS (VALUES ('pitch_count'), ('pa'), ('ab'), ('h'), ('hr'), ('bb'), ('hbp'), ('k'), ('sh'), ('sf'), ('catcher_interference_reached'), ('runner_interference_reached'), ('doubles'), ('triples'), ('total_bases'), ('runs'), ('rbi'), ('stolen_bases'), ('pitching_outs'), ('pitcher_k'), ('pitcher_bb'), ('pitcher_hbp'), ('hits_allowed'), ('home_runs_allowed'), ('fielding_errors'), ('runs_allowed')),
+ RETURN QUERY WITH requested_metrics(metric_id) AS (VALUES ('pitch_count'), ('pa'), ('ab'), ('h'), ('hr'), ('bb'), ('hbp'), ('k'), ('sh'), ('sf'), ('catcher_interference_reached'), ('runner_interference_reached'), ('doubles'), ('triples'), ('total_bases'), ('runs'), ('rbi'), ('stolen_bases'), ('pitching_outs'), ('pitcher_k'), ('pitcher_bb'), ('batters_faced'), ('pitcher_hbp'), ('hits_allowed'), ('home_runs_allowed'), ('fielding_errors'), ('runs_allowed')),
 canonical_scope AS (
  SELECT g.tenant_id,g.id AS game_id FROM public.games g
  WHERE g.tenant_id=tenant AND g.hidden_at IS NULL AND g.trashed_at IS NULL

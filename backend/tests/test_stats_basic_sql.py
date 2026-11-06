@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import cast
 
 import pytest
 from stats_api_candidate import _jst_boundaries, _metrics
@@ -31,7 +32,7 @@ def _metrics_available(**overrides):
 
 
 def test_basic_stats_has_16_batting_and_11_pitching_items():
-    """27項目を打撃16・投手11へ閉じ、D03/D04は0でなく未取得にする。"""
+    """27項目を閉じ、供給済BFと未供給登板を区別する。"""
     result = build_basic_stats(_metrics_available())
     assert len(result["batting"]) == 16
     assert len(result["pitching"]) == 11
@@ -48,8 +49,57 @@ def test_basic_stats_has_16_batting_and_11_pitching_items():
     pitches = {item["metric_id"]: item for item in result["pitching"]}
     assert pitches["appearances"]["state"] == "source_unavailable"
     assert pitches["appearances"]["reason"] == "D03_SOURCE_PENDING"
-    assert pitches["batters_faced"]["reason"] == "D04_SOURCE_PENDING"
+    assert pitches["batters_faced"]["state"] == "available"
+    assert pitches["batters_faced"]["value"] == 0
+    assert result["pending"] == ["D03_SOURCE_PENDING", None]
+
+
+def test_basic_stats_missing_bf_attribution_stays_unavailable():
+    """真正な帰属が欠けたBFを0や現任へ補完しない。"""
+    result = build_basic_stats(
+        _metrics_available(
+            batters_faced={
+                "state": "source_unavailable",
+                "reason": "MISSING_ATTRIBUTION",
+            }
+        )
+    )
+    bf = {row["metric_id"]: row for row in result["pitching"]}["batters_faced"]
+    assert bf["state"] == "source_unavailable"
+    assert bf["value"] is None
+    assert bf["reason"] == "MISSING_ATTRIBUTION"
     assert result["pending"] == ["D03_SOURCE_PENDING", "D04_SOURCE_PENDING"]
+
+
+def test_appearance_normal_game_source_is_distinct_from_unsupported_history():
+    """開始同TX原本の限定1件と、非対応履歴の未供給を混同しない。"""
+    from pitchlog.stats.basic_sql import read_function_body
+
+    body = read_function_body()
+    assert "FROM public.game_start_attempts s" in body
+    assert "s.outcome='committed'" in body
+    assert "FROM public.game_lineups l" in body
+    assert "entry.value->'fielding_position'->>'position'='1'" in body
+    assert "count(DISTINCT entry.value->>'player_id')" in body
+    assert "e.event_kind NOT IN ('play_input','game_end_declaration')" in body
+    assert "IF game_uuid IS NOT NULL THEN" in body
+    assert "IF appearance_ready THEN" in body
+    assert "'state','source_unavailable','value',NULL" in body
+    assert "appearance_count>1" in body
+    for appearances in (0, 1):
+        row = build_basic_stats(_metrics_available(), appearances=appearances)
+        item = next(
+            part for part in row["pitching"] if part["metric_id"] == "appearances"
+        )
+        assert item["state"] == "available" and item["value"] == appearances
+    unknown = build_basic_stats(
+        _metrics_available(appearances={"state": "source_unavailable", "value": None})
+    )
+    item = next(
+        part for part in unknown["pitching"] if part["metric_id"] == "appearances"
+    )
+    assert item["state"] == "source_unavailable" and item["value"] is None
+    assert "D03_SOURCE_PENDING" in unknown["pending"]
 
 
 def test_basic_stats_rates_use_generated_single_rule():
@@ -170,6 +220,12 @@ def test_candidate_sql_matches_committed_candidate_and_scope():
     assert ":tenant_id" not in query and ":player_id" not in query
     assert "$9" in query and "confirmed_ended" in query and "current_open" in query
     assert "g.id=$8" in query
+    assert "h.active_stats_version_id=v.id" in query
+    assert "h.active_receipt_id=v.completion_receipt_id" in query
+    assert "h.active_end_event_id IS NOT NULL" in query
+    assert "a.action='end' AND a.state='consumed'" in query
+    assert "e.event_kind='game_end_declaration'" in query
+    assert "e.ledger_kind='accepted' AND NOT e.is_tombstone" in query
     assert "stats_basic_api" in committed
     assert "SECURITY DEFINER" in committed
     # finalizeは製品候補に含めず、owned検証専用の別fileへ分離する。
@@ -180,6 +236,43 @@ def test_candidate_sql_matches_committed_candidate_and_scope():
     ).read_text()
     assert finalize == _test_only_finalize_sql()
     assert "TEST ONLY" in finalize
+
+
+def test_product_basic_read_uses_exact_registry_and_lifecycle_head():
+    """製品入口は候補hookを使わず、真正RR readの実tokenだけを登録する。"""
+    from pitchlog.authz.stats_basic_product import connection_declarations
+    from pitchlog.repositories import operation_registry, transaction
+    from pitchlog.repositories.stats_basic import (
+        ReadBasicStatsToken as ProductReadToken,
+    )
+    from pitchlog.repositories.tokens import TenantOperationToken
+
+    token = ProductReadToken(
+        "",
+        "2026-01-01T00:00:00+09:00",
+        "2027-01-01T00:00:00+09:00",
+        "all",
+        True,
+        "",
+        10,
+    )
+    assert transaction._basic_stats_read_operation(token)
+    assert not transaction._basic_stats_read_operation(
+        cast(TenantOperationToken, object())
+    )
+    assert ProductReadToken in operation_registry.FUNCTION_OPERATION_REGISTRY
+    assert (
+        operation_registry.FUNCTION_OPERATION_REGISTRY[ProductReadToken].operation_id
+        == "STATS_BASIC:read"
+    )
+    assert not hasattr(transaction, "_EXTRA_STATS_READ_OPERATION")
+    declarations, bodies = connection_declarations()
+    assert len(declarations["functions"]) == 1
+    assert len(declarations["policies"]) == 2
+    assert (
+        "game_lifecycle_heads"
+        in bodies["function|" + declarations["functions"][0]["function_id"]]
+    )
 
 
 def test_display_rates_generation_is_reproducible():

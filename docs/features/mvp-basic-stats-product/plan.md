@@ -25,3 +25,9 @@ branch: feature/mvp-basic-stats-product
 
 
 step1候補接合の確認（2026-11-06、PO委任Codex /root判断）: 固定patch0fdf982c1a16e205b8feb13c35e70c00879f2575bda69330d809a2c5a686643bに非作者REPORT SHA256 f5de81b1ba957f2f8263adeb149d59198e1a03fa4fa618a3be855e56fb85960f。未登録候補として採用可。旧v2保存set互換・mutable read hook廃止/正式認可・真正終了receipt/pointer・登板/BF・88列CSVは製品提供前の未解消として残す。生成T5 8/T6 1と旧v1保持、preexec pin/legacy API保持を検算済み。root対象266成功25.87秒、frontend既50成功、formatter表記のE501を隣接literal分割で修正しmodule AST/生成出力は不変。正式SQL3bodyは未採用、製品registryも未登録。今回の候補保存はMVP/27項目/製品提供/実ブラウザ成立ではない。
+
+## ステップ2・3の作者候補固定（2026-11-06）
+
+ステップ2は native27 と BF の責任帰属、旧 v1/v2 profile と旧 D11 v2 全値を保持する新 D11 v3、0045 migration（`down_revision=0044_substitution_write_receipt`）を候補固定した。現実の交代 0044 は別作者の暫定版で、完成版と同一生成物には未結合である。純試験422件、D11/基本試験255件、read dispatcher修復後344件、authz function body check、backend Ty/Ruff は通過。これらは旧数学期待を実装出力で再作成した証拠ではなく、旧 v2 全値と新 BF の独立期待を照合した作者検査である。
+
+ステップ3は真正 lifecycle head・終了 receipt・public pointer の一致を必須とする成績 read/CSV と認可・registry・同一 RR snapshot を候補固定した。旧 `test_only_finalize` を製品起動へ登録せず、既LC実HTTPへ成績 GET/CSV を差し込む試験へ置き換えた。0044 の正式接合、同版での全生成物再派生、owned PG の実記録→終了→成績→再開→追加球→再終了→再取得、P3 終了後 pointer、取消/訂正を含む版付き登板 source、暦年 D03 の証明、core-areas の新 D11 v3 path 登録、正式7.7/独立確認は未了であり、候補成功を製品充足へ読み替えない。

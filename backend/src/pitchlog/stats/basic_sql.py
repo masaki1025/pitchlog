@@ -12,6 +12,8 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+from pitchlog.stats.generated.receiver import SOURCE_MODEL_HASH
+
 ROOT = Path(__file__).resolve().parents[4]
 _STATS_SQL = ROOT / "backend/src/pitchlog/stats/generated/stats.sql"
 _MODEL = ROOT / "backend/domain/play-export.model.json"
@@ -72,8 +74,35 @@ def read_query() -> str:
         "v.public_pointer_receipt_id IS NOT NULL",
         "AND (($9 AND v.completion_state='confirmed_ended'\n"
         "   AND v.completion_receipt_id IS NOT NULL AND "
-        "v.public_pointer_receipt_id IS NOT NULL)\n"
-        "   OR (NOT $9 AND v.completion_state='current_open'))",
+        "v.public_pointer_receipt_id=v.completion_receipt_id\n"
+        "   AND h.is_finished AND h.active_stats_version_id=v.id\n"
+        "   AND h.active_receipt_id=v.completion_receipt_id\n"
+        "   AND h.active_end_event_id IS NOT NULL\n"
+        "   AND EXISTS (SELECT 1 FROM sync_fence.lifecycle_write_admissions a\n"
+        "     JOIN public.operation_events e ON e.tenant_id=a.tenant_id\n"
+        "       AND e.game_id=a.game_id AND e.id=a.source_event_id\n"
+        "     WHERE a.tenant_id=v.tenant_id AND a.game_id=v.game_id\n"
+        "       AND a.source_event_id=h.active_end_event_id\n"
+        "       AND a.receipt_id=h.active_receipt_id\n"
+        "       AND a.action='end' AND a.state='consumed'\n"
+        "       AND e.event_kind='game_end_declaration'\n"
+        "       AND e.ledger_kind='accepted' AND NOT e.is_tombstone\n"
+        "       AND e.replaced_at IS NULL AND e.retired_at IS NULL))\n"
+        "   OR (NOT $9 AND v.completion_state='current_open'\n"
+        "       AND g.status='in_progress'\n"
+        "       AND (h.game_id IS NULL OR (NOT h.is_finished\n"
+        "         AND h.active_end_event_id IS NULL\n"
+        "         AND h.active_receipt_id IS NULL\n"
+        "         AND h.active_stats_version_id IS NULL))))",
+    )
+    text = _replace_once(
+        text,
+        ", version_scope AS (\n SELECT v.* FROM sync_fence.stats_fact_versions v\n"
+        " JOIN public.games g ON g.tenant_id=v.tenant_id AND g.id=v.game_id\n",
+        ", version_scope AS (\n SELECT v.* FROM sync_fence.stats_fact_versions v\n"
+        " JOIN public.games g ON g.tenant_id=v.tenant_id AND g.id=v.game_id\n"
+        " LEFT JOIN sync_fence.game_lifecycle_heads h\n"
+        "   ON h.tenant_id=v.tenant_id AND h.game_id=v.game_id\n",
     )
     scope = (
         "AND ((($8 IS NOT NULL) AND g.id=$8) OR "
@@ -122,6 +151,53 @@ def _category_case() -> str:
         + array(groups["all"])
         + " ELSE NULL::text[] END"
     )
+
+
+def _normal_appearance_sql() -> str:
+    """開始原本だけで証明できる通常試合のD03へ範囲を閉じる。"""
+    return """
+ appearance_ready:=false;
+ IF game_uuid IS NOT NULL THEN
+  SELECT (
+    g.import_batch_id IS NULL AND g.started_at IS NOT NULL
+    AND (SELECT count(*) FROM public.game_start_attempts s
+         WHERE s.tenant_id=tenant AND s.game_id=game_uuid
+           AND s.outcome='committed')=1
+    AND NOT EXISTS(SELECT 1 FROM public.game_start_attempts s
+         WHERE s.tenant_id=tenant AND s.game_id=game_uuid
+           AND s.outcome='pending')
+    AND (SELECT count(*) FROM public.game_lineups l
+         WHERE l.tenant_id=tenant AND l.game_id=game_uuid)=2
+    AND NOT EXISTS(SELECT 1 FROM public.game_lineups l
+         WHERE l.tenant_id=tenant AND l.game_id=game_uuid
+           AND (l.import_batch_id IS NOT NULL OR l.team_record_id NOT IN
+           (g.away_team_record_id,g.home_team_record_id)))
+    AND (SELECT count(DISTINCT l.team_record_id) FROM public.game_lineups l
+         WHERE l.tenant_id=tenant AND l.game_id=game_uuid)=2
+    AND (SELECT count(*) FROM public.game_lineups l
+         CROSS JOIN LATERAL pg_catalog.jsonb_array_elements(
+           CASE WHEN pg_catalog.jsonb_typeof(l.entries_with_uniform_number_snapshot)
+             ='array' THEN l.entries_with_uniform_number_snapshot
+             ELSE '[]'::jsonb END) entry(value)
+         WHERE l.tenant_id=tenant AND l.game_id=game_uuid
+           AND entry.value->'fielding_position'->>'kind'='fielding'
+           AND entry.value->'fielding_position'->>'position'='1')=2
+    AND (SELECT count(DISTINCT entry.value->>'player_id')
+         FROM public.game_lineups l
+         CROSS JOIN LATERAL pg_catalog.jsonb_array_elements(
+           CASE WHEN pg_catalog.jsonb_typeof(l.entries_with_uniform_number_snapshot)
+             ='array' THEN l.entries_with_uniform_number_snapshot
+             ELSE '[]'::jsonb END) entry(value)
+         WHERE l.tenant_id=tenant AND l.game_id=game_uuid
+           AND entry.value->'fielding_position'->>'kind'='fielding'
+           AND entry.value->'fielding_position'->>'position'='1')=2
+    AND NOT EXISTS(SELECT 1 FROM public.operation_events e
+         WHERE e.tenant_id=tenant AND e.game_id=game_uuid
+           AND e.event_kind NOT IN ('play_input','game_end_declaration'))
+  ) INTO appearance_ready FROM public.games g
+   WHERE g.tenant_id=tenant AND g.id=game_uuid;
+ END IF;
+"""
 
 
 def read_function_body() -> str:
@@ -216,6 +292,24 @@ def read_function_body() -> str:
        'value',CASE WHEN metric.value IS NULL THEN NULL
                     ELSE metric.value::text END));
   END LOOP;
+  IF appearance_ready THEN
+   SELECT count(*) INTO appearance_count FROM public.game_lineups l
+    CROSS JOIN LATERAL pg_catalog.jsonb_array_elements(
+      l.entries_with_uniform_number_snapshot) entry(value)
+    WHERE l.tenant_id=tenant AND l.game_id=game_uuid
+      AND entry.value->'fielding_position'->>'kind'='fielding'
+      AND entry.value->'fielding_position'->>'position'='1'
+      AND entry.value->>'player_id'=player.id::text;
+   IF appearance_count>1 THEN
+    RAISE EXCEPTION 'basic stats appearance source rejected' USING ERRCODE='42501';
+   END IF;
+   metrics:=metrics || pg_catalog.jsonb_build_object('appearances',
+     pg_catalog.jsonb_build_object('state','available',
+       'value',appearance_count::text));
+  ELSE
+   metrics:=metrics || pg_catalog.jsonb_build_object('appearances',
+     pg_catalog.jsonb_build_object('state','source_unavailable','value',NULL));
+  END IF;
   RETURN QUERY SELECT player.id,player.name,
     COALESCE(player.uniform_number,''),player.team_record_id,player.team_name,
     metrics::text;
@@ -228,20 +322,22 @@ def read_function_body() -> str:
         "SET search_path=pg_catalog,pg_temp AS $basic$\n"
         "#variable_conflict use_column\n"
         "DECLARE tenant uuid; game_uuid uuid; game_count bigint; raw_keys text[]; "
-        "player record; metric record; metrics jsonb; query text:=$q$"
+        "player record; metric record; metrics jsonb; "
+        "appearance_ready boolean; appearance_count bigint; query text:=$q$"
         + query
         + "$q$;\nBEGIN\n"
         " tenant:=NULLIF(pg_catalog.current_setting('app.tenant_id',true),'')::uuid;\n"
         " IF session_user IS DISTINCT FROM 'pitchlog_app' OR current_user IS DISTINCT FROM "
         "'pitchlog_sync_right_fn_owner'\n"
         "  OR tenant IS NULL OR p_tenant_id IS DISTINCT FROM tenant\n"
-        "  OR p_model_sha256 IS DISTINCT FROM 'sha256:60ab45878fdfc868efc15ddb0f9b84d6ab0f3583519c48a2202e3d9c3abac59d'\n"
+        f"  OR p_model_sha256 IS DISTINCT FROM '{SOURCE_MODEL_HASH}'\n"
         "  OR pg_catalog.current_setting('transaction_isolation') IS DISTINCT FROM 'repeatable read'\n"
         "  OR pg_catalog.current_setting('transaction_read_only') IS DISTINCT FROM 'on'\n"
         " THEN "
         + _REJECT
         + "\n END IF;\n"
         + player_scope
+        + _normal_appearance_sql()
         + " raw_keys:=string_to_array(p_raw_game_type_keys,',');\n"
         " IF raw_keys IS NULL OR pg_catalog.array_position(raw_keys,NULL) IS NOT NULL\n"
         "  OR raw_keys IS DISTINCT FROM ("
