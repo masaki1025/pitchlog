@@ -1,5 +1,17 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 2時間の実接続優先試行：2026-11-06 18:37:31〜20:37:31 JST
+
+POが「統合候補までまとめて実装し、その固定版をまとめてレビュー・検査」を採用し、今から2時間試すと指示。MVP全目標/認可/記録権/原子性/再送/正式統合前の品質ゲートは維持。途中は型/影響smokeと実接続、候補固定後に独立レビュー・全件をまとめる。新意味の裁定や共有DB/公開/秘密発行は委任しない。
+
+- **評価基線**: 正式develop51bcb/#196。取消候補67218adb（target修復bce75bbb）、成績基盤6f17f72d（PR197公開は旧2fa）、終了再開UI48d61a8b、終了再開backend実木ec23d437＋cache候補、成績96ed0995。1試合全体の正式完成は未成立。
+- **実装所有**: root=統合/取消実画面/正式資産/台帳。native_tenant_source_disposition=新専用WT feature/mvp-game-operations-product@4900ef9cで走者あり打球/走者アウト等、nonplay_generation_acl_independent=新専用WT feature/mvp-substitution-product@1b667899で交代、lifecycle_gate_first_review=既cacheで終了再開実HTTP/PG。各前置planをPO委任rootで最小固定、共有資産の正式編集はrootへ直列化。
+- **現在の実証**: target反映bce75は別非作者d92614b7867ec4a2ad805ae92578d38eb41af895db9b13c56d2f9a476d11bde5で0/0/0、独立230+追加2。r28は作成/開始/2球/原本完全照合/端末保存→取消HTTPまで進み、reloadでballs2のまま失敗。accepted undoは無く部分保存も無い。r29は実例外位置の透過観測中。起動だけのr27失敗を保存成否へ広げない。
+- **UI/CI**: UI fce1b4bcの全3499成功後、base喪失で版0を採るP1を確認。根拠版を耐久本文から導く修正を48d61a8bへ候補保存、50件/型/静的成功、正式採用/実PG未成立。native6f17のsource15＋用途付きpin19を接合しroot979試験/型/静的成功、正式9資産/corpus/認可code binding/全CIは未完。
+- **外部CSV**: 毎球CSVは既14b96546(step1)を確認、ユーザーへ継続依頼指示を提示した段階。送付/受諾/新HEADは未確認で、稼働中とは記録しない。
+- **20:37評価**: PR数/試験数だけでなく、新たに通った利用者操作、同じ固定版の実画面/DB証拠、未実装と接続不良、性能/正式受入の残り、手戻りを比較。2時間は評価区切りでGoal完了や自動停止ではない。cache two-hour-product-trial-20261106.jsonに再開条件を保存。
+
+
 ## 2026-11-06 17:55 JST 次の実接合の停止原因を特定
 
 - **取消**: owned r25はprepare/envelope-read完了後にHTTP待機。r26（actual a865f440677e280763c226abc253fcccbfa09d6d、114.94秒で失敗）で真の保存結果を確認し、ledgerに rejected /「undo の V10 と照合済み対象が一致しない」が1件記録された。play_input2件維持、undo acceptedではない。source前後同一・owned container除去済み。証拠cache nonplay-current-checkpoint-compare-root-20261106/r25,r26。
