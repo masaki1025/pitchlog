@@ -167,8 +167,6 @@ def sync_events(
         )
     except (_E1OutOfScope, RequestShapeError, WireSourceError, KeyError, TypeError):
         raise HTTPException(status_code=422) from None
-    if sync_request.v12 is None:
-        raise HTTPException(status_code=422)
     # DI1/DI2/DI3: ③認可後・V12前に D5 を分類し、保存済み結果だけを再掲する。
     try:
         replayed = _replay_e1_without_binding(
@@ -182,6 +180,8 @@ def sync_events(
         raise HTTPException(status_code=503)
     if replayed is not None:
         return JSONResponse(_ack_body(replayed))
+    if sync_request.v12 is None:
+        raise HTTPException(status_code=422)
     try:
         credential_digest = _credential_digest(device_credential)
     except InitialGrantUnavailable:
