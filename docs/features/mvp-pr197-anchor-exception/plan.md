@@ -2,9 +2,11 @@
 feature: mvp-pr197-anchor-exception
 status: active
 branch: feature/mvp-pr197-anchor-exception
-承認: PO委任によるCodex主担当/root判断（2026-11-06、既MVP・安全を維持するハーネス最小整合）
+worktree: /home/ymdms/projects/pitchlog-worktrees/feature-mvp-pr197-anchor-exception
+重さ分類: コア領域
+承認: 済（PO委任によるCodex主担当/root判断、2026-11-06。本人署名ではない）
 計画レビュー周回: 0
-確定ゲート周回: 0
+確定ゲート周回: 2
 ---
 
 # PR197の固定Git期待1件の例外
@@ -23,10 +25,10 @@ branch: feature/mvp-pr197-anchor-exception
 
 ## 実装ステップ
 
-| ステップ | 内容 | 完了条件 |
+| # | ステップ | 合格条件 |
 | --- | --- | --- |
-| 1/2 | v1.19適用の単一7.3ゲートで限定条文と索引を整合 | 全採否・適用条文・対象版/SHA・PO委任の最終判断を記録 |
-| 2/2 | 対象一件のみのsource/資産/検査を接合 | 独立レビュー・正負対向・7.7前後・公開証拠・必須CI。PR197本体は既mvp-stats-primitives step4へ引き渡す |
+| 1 | v1.19適用の単一7.3ゲートで限定条文と索引を整合 | 全採否・適用条文・対象版/SHA・PO委任の最終判断を記録 |
+| 2 | 対象一件のみのsource/資産/検査を接合 | 独立レビュー・正負対向・7.7前後・公開証拠・必須CI。PR197本体は既mvp-stats-primitives step4へ引き渡す |
 
 ## テスト計画
 
