@@ -9987,17 +9987,29 @@ def test_historical_checker_does_not_accept_missing_or_self_consistent_tampered_
         historical.load_contract(root)
 
 
-def _registry_static_tuple_case(tmp_path):
+def _registry_static_tuple_case(tmp_path, *, native=False):
     """実4sourceを専有tmpへ複写し、ID順序だけの局所読取を試す。"""
     module_root = tmp_path / "backend/src/pitchlog/repositories"
     module_root.mkdir(parents=True)
-    for name in ("function_operations", "operation_registry", "transaction", "batted_ball_options"):
-        (module_root / f"{name}.py").write_bytes(
-            (REPOSITORY_ROOT / "backend/src/pitchlog/repositories" / f"{name}.py").read_bytes()
-        )
+    names = ["function_operations", "operation_registry", "transaction", "batted_ball_options"]
+    if native:
+        names.extend(["stats_native_operations", "stats_function_codec"])
+    for name in names:
+        relative = "backend/src/pitchlog/repositories/" + name + ".py"
+        raw = (REPOSITORY_ROOT / relative).read_bytes()
+        if name == "operation_registry" and not native:
+            revision = checker._pr196_read_fixed_expectations(REPOSITORY_ROOT)["source_revision"]
+            raw = checker._pr192_git_bytes(REPOSITORY_ROOT, revision, relative)
+        (module_root / f"{name}.py").write_bytes(raw)
     asset = json.loads(
         (REPOSITORY_ROOT / "contracts/tenant_boundary/repository-contract.json").read_text()
     )
+    if not native:
+        # 旧22経路は真正PR196原典で試し、新5を除く以外は期待を緩めない。
+        asset["product_function_operation_ids"] = [
+            item for item in asset["product_function_operation_ids"]
+            if not item.startswith("STATS_PRIMITIVES:")
+        ]
     # 真正固定Gitを独立rootへread-only供給し、現在木を期待原典にしない。
     for relative in (
         "contracts/tenant_boundary/frozen-inputs.json",
@@ -10006,15 +10018,23 @@ def _registry_static_tuple_case(tmp_path):
         target = tmp_path / relative
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes((REPOSITORY_ROOT / relative).read_bytes())
+    if not native:
+        frozen_path = tmp_path / "contracts/tenant_boundary/frozen-inputs.json"
+        frozen = json.loads(frozen_path.read_text())
+        frozen["frozen_inputs"].pop("stats_native_registry_reference_revision", None)
+        frozen_path.write_text(json.dumps(frozen))
     subprocess.run(["git", "init", "--quiet", str(tmp_path)], check=True)
     common = subprocess.check_output(
         ["git", "-C", str(REPOSITORY_ROOT), "rev-parse", "--path-format=absolute",
          "--git-common-dir"], text=True,
     ).strip()
     (tmp_path / ".git/objects/info/alternates").write_text(str(Path(common) / "objects") + "\n")
-    head = subprocess.check_output(
-        ["git", "-C", str(REPOSITORY_ROOT), "rev-parse", "HEAD"], text=True,
-    ).strip()
+    if native:
+        head = subprocess.check_output(
+            ["git", "-C", str(REPOSITORY_ROOT), "rev-parse", "HEAD"], text=True,
+        ).strip()
+    else:
+        head = frozen["frozen_inputs"]["pr196_source_expectation_revision"]["value"]
     (tmp_path / ".git/HEAD").write_text(head + "\n")
     return tmp_path, module_root, asset
 
@@ -10330,3 +10350,170 @@ def test_current0040_catalog_hook_does_not_allow_other_scope_or_api() -> None:
     findings = checker.scan_source(extra, path=path, contract=contract)
     assert any(item.code == "TB005" and item.scope.endswith(
         "._require_catalog") for item in findings)
+
+
+def test_registry_native_tuple_current_exact27(tmp_path, monkeypatch):
+    """新5を純ASTで読み、旧22順序と製品import/eval/exec禁止を保つ。"""
+    import builtins
+
+    root, _modules, asset = _registry_static_tuple_case(tmp_path, native=True)
+    assert len(asset["product_function_operation_ids"]) == 27
+    assert asset["product_function_operation_ids"][-5:] == [
+        "STATS_PRIMITIVES:save_source",
+        "STATS_PRIMITIVES:read_writer_state",
+        "STATS_PRIMITIVES:open_snapshot",
+        "STATS_PRIMITIVES:read_page",
+        "STATS_PRIMITIVES:read_totals",
+    ]
+    original_import = builtins.__import__
+
+    def no_product_import(name, *args, **kwargs):
+        if name.startswith("pitchlog.repositories"):
+            raise AssertionError("製品moduleを実行した")
+        return original_import(name, *args, **kwargs)
+
+    def no_evaluation(*args, **kwargs):
+        raise AssertionError("製品codeを評価した")
+
+    monkeypatch.setattr(builtins, "__import__", no_product_import)
+    monkeypatch.setattr(builtins, "eval", no_evaluation)
+    monkeypatch.setattr(builtins, "exec", no_evaluation)
+    checker._validate_function_operation_surface(root, asset)
+
+
+@pytest.mark.parametrize("fault", [
+    "missing_pin", "pin_value", "pin_purpose", "pin_source", "pin_extra",
+    "unknown_star", "star_position", "star_duplicate", "import_alias", "extra_import",
+    "registry_rebind", "registry_namespace", "old_inline_id", "old_inline_order",
+    "owner_changed", "owner_family", "owner_new_family", "codec_changed", "codec_missing",
+    "owner_symlink", "codec_symlink", "owner_missing", "legacy_owner_changed",
+    "fixture_changed", "anchor_and_fixture", "nonancestor", "declared_id", "declared_order",
+    "other_area", "lifecycle_family", "undo_family", "inline_all",
+    "inline_all_undo_asset", "native_old_profile_claim",
+])
+def test_registry_native_tuple_rejects_unapproved_sources(tmp_path, fault):
+    """真正祖先の有限追加以外を、自己一致asset/fixture付きでも拒否する。"""
+    root, modules, asset = _registry_static_tuple_case(tmp_path, native=True)
+    registry = modules / "operation_registry.py"
+    owner = modules / "stats_native_operations.py"
+    codec = modules / "stats_function_codec.py"
+    frozen_path = root / "contracts/tenant_boundary/frozen-inputs.json"
+    frozen = json.loads(frozen_path.read_text())
+    pin = frozen["frozen_inputs"]["stats_native_registry_reference_revision"]
+    if fault == "missing_pin":
+        del frozen["frozen_inputs"]["stats_native_registry_reference_revision"]
+    elif fault == "pin_value":
+        pin["value"] = "0" * 40
+    elif fault == "pin_purpose":
+        pin["purpose"] += " extra"
+    elif fault == "pin_source":
+        pin["sources"].pop()
+    elif fault == "pin_extra":
+        pin["unknown"] = True
+    elif fault == "unknown_star":
+        registry.write_text(registry.read_text().replace(
+            "*STATS_NATIVE_FUNCTION_OPERATIONS", "*OTHER_OPERATIONS"))
+    elif fault == "star_position":
+        text = registry.read_text().replace("    *STATS_NATIVE_FUNCTION_OPERATIONS,\n", "")
+        registry.write_text(text.replace(
+            "    *BATTED_BALL_OPTIONS_OPERATIONS,\n",
+            "    *BATTED_BALL_OPTIONS_OPERATIONS,\n    *STATS_NATIVE_FUNCTION_OPERATIONS,\n"))
+    elif fault == "star_duplicate":
+        registry.write_text(registry.read_text().replace(
+            "    *STATS_NATIVE_FUNCTION_OPERATIONS,\n",
+            "    *STATS_NATIVE_FUNCTION_OPERATIONS,\n    *STATS_NATIVE_FUNCTION_OPERATIONS,\n"))
+    elif fault == "import_alias":
+        registry.write_text(registry.read_text().replace(
+            "    STATS_NATIVE_FUNCTION_OPERATIONS,\n",
+            "    STATS_NATIVE_FUNCTION_OPERATIONS as STATS_NATIVE_FUNCTION_OPERATIONS,\n"))
+    elif fault == "extra_import":
+        registry.write_text(registry.read_text() + "\nfrom unknown import *\n")
+    elif fault == "registry_rebind":
+        registry.write_text(registry.read_text() + "\nSTATS_NATIVE_FUNCTION_OPERATIONS = ()\n")
+    elif fault == "registry_namespace":
+        registry.write_text(
+            registry.read_text() + "\nvars()['STATS_NATIVE_FUNCTION_OPERATIONS'] = ()\n")
+    elif fault == "old_inline_id":
+        registry.write_text(registry.read_text().replace("RG1:precheck", "RG1:changed"))
+        asset["product_function_operation_ids"][1] = "RG1:changed"
+    elif fault == "old_inline_order":
+        registry.write_text(registry.read_text().replace("RG1:precheck", "RG1:check_commit"))
+    elif fault in {"inline_all", "inline_all_undo_asset"}:
+        tree = ast.parse(registry.read_text())
+        value = next(node.value for node in tree.body if isinstance(node, ast.AnnAssign)
+                     and isinstance(node.target, ast.Name)
+                     and node.target.id == "PRODUCT_FUNCTION_OPERATIONS")
+        assert isinstance(value, ast.Tuple)
+        template = value.elts[1]
+        assert isinstance(template, ast.Call)
+        if fault == "inline_all_undo_asset":
+            asset["product_function_operation_ids"][-1] = "STATS_PRIMITIVES:undo"
+
+        def cloned(operation_id: str) -> ast.Call:
+            call = copy.deepcopy(template)
+            next(item for item in call.keywords if item.arg == "operation_id").value = (
+                ast.Constant(operation_id))
+            return call
+
+        value.elts = [cloned(asset["product_function_operation_ids"][0]),
+                      *value.elts[1:-1],
+                      *(cloned(item) for item in asset["product_function_operation_ids"][-5:])]
+        assert len(value.elts) == 27
+        registry.write_text(ast.unparse(ast.fix_missing_locations(tree)))
+    elif fault == "native_old_profile_claim":
+        del frozen["frozen_inputs"]["stats_native_registry_reference_revision"]
+        owner.unlink()
+        codec.unlink()
+        source_revision = checker._pr196_read_fixed_expectations(REPOSITORY_ROOT)[
+            "source_revision"]
+        relative = "backend/src/pitchlog/repositories/operation_registry.py"
+        registry.write_bytes(checker._pr192_git_bytes(REPOSITORY_ROOT,
+                                                        source_revision, relative))
+        asset["product_function_operation_ids"] = asset[
+            "product_function_operation_ids"][:-5]
+    elif fault in {
+        "owner_changed", "owner_family", "owner_new_family", "lifecycle_family", "undo_family",
+    }:
+        if fault == "owner_changed":
+            text = owner.read_text() + "\nunknown_runtime_mutation()\n"
+        else:
+            changed = {"owner_family": "read_unknown", "owner_new_family": "new_family",
+                       "lifecycle_family": "lifecycle", "undo_family": "undo"}[fault]
+            text = owner.read_text().replace('"read_totals"', '"' + changed + '"')
+            asset["product_function_operation_ids"][-1] = "STATS_PRIMITIVES:" + changed
+        owner.write_text(text)
+    elif fault == "codec_changed":
+        codec.write_text(codec.read_text() + "\n_SPECS = {}\n")
+    elif fault == "codec_missing":
+        codec.unlink()
+    elif fault in {"owner_symlink", "codec_symlink"}:
+        path = owner if fault == "owner_symlink" else codec
+        saved = path.with_suffix(".saved")
+        path.rename(saved)
+        path.symlink_to(saved)
+    elif fault == "owner_missing":
+        owner.unlink()
+    elif fault == "legacy_owner_changed":
+        path = modules / "batted_ball_options.py"
+        path.write_text(path.read_text() + "\nunknown_runtime_mutation()\n")
+    elif fault in {"fixture_changed", "anchor_and_fixture"}:
+        path = root / "tests/fixtures/pr196_tenant_source_expected_v1.json"
+        fixture = json.loads(path.read_text())
+        fixture["source_revision"] = "0" * 40
+        path.write_text(json.dumps(fixture))
+        if fault == "anchor_and_fixture":
+            pin["value"] = fixture["source_revision"]
+            frozen["frozen_inputs"]["pr196_source_registration_revision"]["value"] = pin["value"]
+    elif fault == "nonancestor":
+        (root / ".git/HEAD").write_text(
+            checker._pr196_read_fixed_expectations(REPOSITORY_ROOT)["formal_base_revision"] + "\n")
+    elif fault == "declared_id":
+        asset["product_function_operation_ids"][-1] = "STATS_PRIMITIVES:unknown"
+    elif fault == "declared_order":
+        asset["product_function_operation_ids"][-2:] = reversed(
+            asset["product_function_operation_ids"][-2:])
+    else:
+        pin["value"] = checker._pr196_read_fixed_expectations(REPOSITORY_ROOT)["source_revision"]
+    frozen_path.write_text(json.dumps(frozen))
+    with pytest.raises(checker.ContractError):
+        checker._validate_function_operation_surface(root, asset)
