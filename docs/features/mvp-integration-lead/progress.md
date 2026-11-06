@@ -1,5 +1,24 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 2時間試行の評価：2026-11-06 20:37 JST（18:37:31開始）
+
+**判断**: 部品の閉鎖を直列に待つ方式から、既成果を一つの隔離候補へまとめて実装・実測し、固定差分を独立確認する方式を継続する。実際の接続欠落を発見して利用者操作を増やせた。ただし1試合完成・性能合格・正式MVP提供は未達。認可・記録権・同TX・冪等性・既拒否順・通常統合ゲートを緩めない。PO委任によるCodex/root判断であり、人間の逐行確認/署名ではない。
+
+| 利用者操作 | 今回の到達と実証 | 残り |
+| --- | --- | --- |
+| 走者あり打球 | 隔離実画面で単打一塁→三塁、二塁打一塁→生還、一二塁HR3点の保存・再取得/reload、同要求再送、他tenant404。さらにphysical statusの三進/本進/二進とmanualを実DBの独立literal期待で確認。gameops2bdf＋正式overlay、status packet43cdde37…のowned試験。 | 最終合成版の全回帰/正式受理。一般併殺/失策/走者アウト等は未実装、SO05は原因未供給の物理保存を閉拒否。 |
+| 取消 | NP70fdda4cのr45で実画面新規作成→開始→2球→ACKヘッダー喪失→実loginで元試合へ→1ball/履歴1/reload→同本文/D5/attempt再送→2回取消→次球/reloadまで機能assert通過。DB診断はplay2+undo2+次球1のaccepted原本。 | 試験全体は性能末尾でfailed。診断付き投球16,161/17,504ms、5秒条件保持。診断無し合成版r46はERR_NETWORK_CHANGEDで初球未成立、通常性能未算定。正式採用/故障全件/負荷は未了。 |
+| 終了・再開 | LC作者cache同版run26で2球→end→finished GET→同/別attempt再送→reopen→GET/再送→追加球→reend→GETが実HTTP/ownedPGで1passed136.10秒。 | 合成実画面r1は新規作成/開始/1球後にLC POSTのC2 metadata不足404。660a0e4eで修復・API16成功。r2はlogin form未表示で失敗し、修復後の画面経路未実証。API成功を画面成功としない。 |
+| 交代 | 専用WT43c9d9bb以降のowned/shared候補をreflection1 packetへ封印。唯一核・UI/耐久送信・E1/P2/同TXSQL・receipt宣言・次球状態保持/GET証拠を作成。 | 正式asset生成、ownedPG/HTTP保存・再取得は未実証。kernel/型の成功を利用者操作の完成に数えない。 |
+
+**同版の固定点**: actual LC `d335e239874023a172b593ba204d5219ee85ea74`（clean）、唯一artifact `9ae9d16db1f2fa48905eb0ac951c8cb3ce5704dfe308df95a7a0bba155f33d19`。root R1/R2接合154path/生成衝突再派生22pathを各SHA照合。旧数学D11 134＋prefix19・旧Git4e8 witness53を新hostと全値比較、authz547body一致、最終7.7/全CI/非作者合成確認はPENDING。正式develop51bcb/#196以降のmergeは今回行っていない。PR197は別の正式派生/CI修復が未完。
+
+**レビューの効果と未解消**: ef992初回REPORT308a8a51…のP0重複計算/P1物理statusを反映。別非作者がe4bc公式artifact733…と旧fbcfの164実入力を正規化なし全値一致として確認、source statusも独立確認。反映REPORTc2a4ef62…は null V12のD5前拒否、再掲前B5端末資格欠落、SQL括弧固定検査の旧CASE5対現8を新P1として検出。null順はNP6b714f86/合成d335で4新対向＋既38成功/型を反映。B5は未解消で別作者が閉read/token/ACL最小候補を作成中、正式マージ不可。SQL固定検査も赤のまま。旧保存NP CP互換は条件付きP1を保持し、候補旧SHAを無根拠に現版へ読み替えない。
+
+**次の順序**: (1) B5真正端末資格をD5前へ接続し、偽端末・失効・異tenant・同要求再送を独立確認。(2) 合成実画面終了/再開/2球/再終了を完走、診断無しで取消と性能を再測。(3) 交代の正式asset/同TX/実GETと保存後次球を接合。(4) 未操作・過去訂正/P3・閲覧/断中復旧・成績27/両CSVを同じ終了版へつなぐ。(5) 正式派生/最終レビュー/必須CIを揃えてPR通常統合、実機・運用復旧/負荷は未実施として別証拠を揃える。2時間区切りでGoalを完了/停止扱いにしない。
+
+**再開資料**: `~/.cache/pitchlog/mvp-resume-20261104/two-hour-product-trial-20261106.json`、`two-hour-trial-resume-heads.json`、各r38〜r46の固定HEAD/owned cleanup証拠。LC最終packet `mvp-lifecycle-composite-author-20261106` patch55abded5…、交代 `substitution-product-packet-20261106/reflection1` ownedcea1f4c6…/shared59bb5a34…。共有台帳は本書へ集約する。
+
 ## 2026-11-06 19:49 JST：取消の真正受理・終了GETと同版接合
 
 - **取消の新到達点**: NP9afeb341のr38は実画面2球の後にundo D1=3、operation_eventsにplay_input×2+undo×1、accepted台帳3件を確認。初回取消と成績版の同TX更新まで通過した。外側E2EはACKヘッダー喪失後の認証再確認へ遷移し失敗、再取得/reload/再送全列は未成立。既Cookie不確実性の認証保護を維持して実再login→元試合復帰を試験へ加え、e48937c2でr39を開始。故障を本文喪失へ弱めていない。
