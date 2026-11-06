@@ -1,6 +1,12 @@
 # 初回MVP 主担当引受・進捗台帳
 
-## 2026-11-07 08:02 JST：PR197最終HEADを公開、実CI開始
+## 2026-11-07 07:59 JST：公開イベント本文の不一致を是正、復旧競合を非作者検出
+
+- **PR197のイベント訂正**: 最初の実CI42308269517のharness-staticはpush時点の旧本文pointerをeventに保持し、正しく拒否。最新本文のcore-guard42308286132は成功したが旧eventの失敗を成功へ読み替えない。rootの公開順が原因（本文更新をpushより先にすべきだった）。同HEAD/全source/正式値/証拠を変えず、本文更新済みPRを一時close→reopenして新pull_request eventを発行。新実CI **42308513249** は現在queued、本文 **42308513519** はsuccess。旧runはcancelled終結。新pushや検査変更は無し、Draft/openのまま。古いeventの再実行を反復しない。
+- **復旧の非作者指摘**: rootは作者固定68a4a459/ad90662eを読取確認し、epoch_fenceはFOR SHAREでありRPC排出の証明ではない点を検出。旧register完了・journal intent前にrecoverが入り、records0からretire/retry_allowed後に旧publishが遅着しうる競合をP1候補として作者へ送付。cache `attempt-recovery-step1-root-independent-20261107/REPORT.md`。同attemptの旧open全寿命/borrowとrecoverの同排他、または同等の原子的後着遮断とbarrier実試験が解除条件。全候補を採用していない。UNKNOWN terminalの防御は既journal型検査に加えhandler閉集合をad90662eで追加、作者純10対向成功報告は実DB証拠と区別する。
+
+
+## 2026-11-07 07:56 JST：PR197最終HEADを公開、実CI開始
 
 - `fix/pr197-harness-followup@d8e8b34d8a5f12665530226ec0f539804c06791c` を通常push1回で `origin/feature/mvp-stats-native-foundation` へ送達。PR197は同HEAD/base51bcb4e1・Draft/openを実APIで確認。full342path SHA `986e292d8a5bdb33ea0d31e87dcc0869f872802dda6c098588750c532fafb536`、後発plan宣言1file以外の製品/検査/正式値は286と不変。
 - 先行286の全source/正式値レビューを継承した最終非作者REPORT SHA `5c8d1044736ea29aa6ff0ad3cc78dc7ca96661f7d8610370d4370ca5d1b38d1e`、新P0/P1なし・既P2保持。PO委任証拠を最終HEAD/全path/実差分SHAへ束縛して https://github.com/masaki1025/pitchlog/pull/197#issuecomment-6697840284 に掲載し本文pointerを更新。本人署名/人間逐行確認ではない。
