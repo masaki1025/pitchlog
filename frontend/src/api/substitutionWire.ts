@@ -150,7 +150,7 @@ export async function postSubstitution(
     const response = await apiRequest<unknown>(
       'POST',
       `/games/${encodeURIComponent(String(slotValue.game))}/sync/events`,
-      { body: requestBody, syncCredentials: credentials },
+      { tenantBound: true, body: requestBody, syncCredentials: credentials },
     )
     return { sent: true, requestBody, response }
   } catch (error) {
