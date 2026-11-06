@@ -149,6 +149,7 @@ export function deriveLineupPitch(
       resultId,
       pitchEventKind,
       cursors,
+      true,
     ) as StrikeoutDerived | null
   return deriveOrdinaryCore(
     before,
@@ -198,18 +199,19 @@ function deriveOrdinaryCore(
   return applyCountRule(before, board, ORDINARY_STRIKE_RULE, resultId, cursors)
 }
 
-/** 受理済みの無走者BB/HBPだけを共有核へ渡す。 */
+/** 旧終端ABIは無走者を保ち、v3だけはADV-02/RBI-07の連鎖を渡す。 */
 function deriveTerminalCore(
   before: StateFields,
   board: Scoreboard,
   resultId: string,
   pitchEventKind: string,
   cursors?: BattingOrderBySide,
+  lineupRunners: boolean = false,
 ): Derived | StrikeoutDerived | null {
   if (
     pitchEventKind !== 'pitch-event' ||
     !ordinaryStateSupported(before, board) ||
-    before.runners !== 'empty' ||
+    (!lineupRunners && before.runners !== 'empty') ||
     before.strikes < 0n ||
     before.strikes > 2n ||
     before.balls < 0n ||
