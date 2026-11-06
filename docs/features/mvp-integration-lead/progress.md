@@ -1,5 +1,15 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 2026-11-07 06:00 JST：真正世代の訂正と実画面CSVを実証、公開CI修復を継続
+
+- **訂正の証拠更新**: 過去の数値D4=1による試験は開始時発行の真正D4を通した製品証拠から除外する。`feature/mvp-past-correction-product@d6a639b3ba949691bf8f7ef5858c6cf2519eae44`で実発行D4を内部世代へ既存decodeで束縛し、owned R4 1passed147.23秒。三振→ボール訂正で旧成績K1/現版K0、同要求再掲、改変/越境/途中故障全取消まで実証。step3の真正対象版GET→訂正もR5 1passed146.82秒。実画面・D1なし耐久再送は実装中、まだ未コミット/未実測。旧世代・複数訂正・25件超等を完成扱いにしない。証拠cache `mvp-past-correction-product-20261106/canonical-d4-t5-success-20261107/`。
+- **毎球CSVの利用者操作**: `feature/mvp-play-csv-screen-acceptance@324a7963`で実画面新規作成/開始/2球→CSVボタン→実ZIP59,346bytesをowned95.01秒で実証。11CSV/88列/2行、HTTPとDLのSHA一致、source920件前後同一。初回timeout失敗も保持。独立レビューP1=3に対し、別修復候補 `fix/mvp-play-csv-substitution-snapshots@2b3f5a02e55ef65029c2d5bfb93126dc3aab2c59`で交代後の実選手名/背番号snapshot、raw資格の出力除外、保存T5に沿う非投球0-creditを修復。交代→次球→旧2行不変/新3行目更新のowned110.74秒成功。非投球実保存→ZIP・最終独立レビュー・正式0047/7.7は未達。反映2 REPORT SHA9780e195a8908fdb330b4461dd66c127ba5a1c569e62db5451df3f779807834d。
+- **申告敬遠の次の依存**: 単一artifact/既存T1/T2を使う候補 `feature/mvp-nonpitch-vertical-candidate`で計算/閉union/保存入口/画面を接続中。実E2E r1は旧UI driver、r2は先行する通常単打の503で停止し、非投球POSTは未達。作者が503を診断中で成功を代記しない。CSV担当の実非投球ZIPはこの固定候補成立後に接合する。
+- **公開PR197の正**: 公開HEAD e5b6fef5、Draft/open。run42275253517はbackend/harness全shard失敗でterminal、同入力再実行はしない。root179883b1、別作者synthetic歴史試験b51a0680（全2696成功）、backend catalog試験b71a6de9、probe map19原子b83eb19f、実DB fixture修復を私有worktreeで分担。最終source採用→公式派生値再導出→非作者固定HEAD確認→証拠/push→全必須CI/通常mergeの順は維持。
+- **DB検査修復**: `fix/pr197-backend-current-fixtures`の旧0039履歴と現行0041 fixtureを分離。実PGで現行再開・installer故障全取消・0040索引照合は3件成功。全schemaの日時型名同義語差だけ残り、同じ正準化をmanifest/DB両側へ適用する修復と純負例106passed3.63秒を確認。owned r3(session78087)で全schema/現行epoch差分/旧migration roundtripを固定source再検証中、共通lock・共有DSN未使用。
+- **全体到達条件**: connected60f39f10の断中cold復帰/交代/終了再開成績CSV、viewer f69b4083の10秒更新、限定9回163球の証拠を維持。全操作・全断中操作・27成績供給・両CSVの正式統合、実機/負荷/運用復旧は未了。MVP Goalはactive。上記はPO委任による主担当記録であり、本人署名/人間逐行確認/P6blind成立ではない。
+
+
 ## 2026-11-07 04:37 JST：実CI全shardの追随を修復中、毎球CSV実producer候補を固定
 
 - **root source**: fix/pr197-harness-followup@179883b15aa2bfd3853ca1bb18cc5c5a9d8c3a70 clean。45042までの10pathは非作者REPORT `4a02c8fb97b6e3daf151c60c29406d6b0e8d4eb7e0e850c1625db2aec27645f8`でP0/P1なし、後発2testはREPORT `51468e4833eb6bc303b98e25ca2e23ecf8feba80d3265ad6eb3333b26792832e`で確認し、rootがPO委任でsource限定採用。旧dynamic schema/Match再束縛、同版重複key誤carry、典拠行ずれのP1と全反映履歴を保持。成績3表54列を実Table/manifest/正本へ照合、旧判定400行保持・履歴4を含む12行個別再確認。root36関連成功、全frozen負例module+1247変異15成功。実7.7派生値/公開CI成功とは別。
