@@ -185,9 +185,7 @@ def _assert_external_import_shape(
                 else frozenset()
             )
             unexpected_names = {
-                alias.name
-                for alias in node.names
-                if alias.name not in permitted
+                alias.name for alias in node.names if alias.name not in permitted
             }
             if unexpected_names:
                 raise AssertionError(

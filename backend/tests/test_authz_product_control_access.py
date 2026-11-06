@@ -1765,8 +1765,7 @@ def test_runtime_entry_normal_profile_remains_accepted() -> None:
         for r in batted_acls
     )
     assert (
-        len(acls) - len(terminal_acls) - len(lineup_acls) - len(batted_acls)
-        == 342 + 70
+        len(acls) - len(terminal_acls) - len(lineup_acls) - len(batted_acls) == 342 + 70
     )
 
 

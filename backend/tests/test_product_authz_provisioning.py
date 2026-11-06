@@ -1016,9 +1016,7 @@ def _assert_external_import_shape(
                 else frozenset()
             )
             unexpected_names = {
-                alias.name
-                for alias in node.names
-                if alias.name not in permitted
+                alias.name for alias in node.names if alias.name not in permitted
             }
             if unexpected_names:
                 raise AssertionError(
@@ -2113,8 +2111,7 @@ def test_pre_rule_preserves_old16_and_defers_exact_epoch_acl() -> None:
         value.startswith("FUNCTION:stats_api:") for value in stats_function_ids
     )
     assert len(stats_column_ids) == 70 and all(
-        value.endswith(":pitchlog_sync_right_fn_owner")
-        for value in stats_column_ids
+        value.endswith(":pitchlog_sync_right_fn_owner") for value in stats_column_ids
     )
     expected_extra = (
         {

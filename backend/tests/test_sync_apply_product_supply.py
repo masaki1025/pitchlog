@@ -437,9 +437,10 @@ def _project_stats_source_extension(rows):
         json.loads(subprocess.check_output(["git", "show", f"{rev}:{path}"], cwd=ROOT))
         for rev in revisions
     )
-    assert subprocess.check_output(
-        ["git", "show", f"{revisions[1]}:{path}"], cwd=ROOT
-    ) == (ROOT / path).read_bytes()
+    assert (
+        subprocess.check_output(["git", "show", f"{revisions[1]}:{path}"], cwd=ROOT)
+        == (ROOT / path).read_bytes()
+    )
     section_sizes = {
         "roles": 0,
         "databases": 0,

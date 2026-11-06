@@ -796,6 +796,7 @@ def _assert_stats_primitive_policies(
         "AND session_user = 'pitchlog_app'"
     )
     current_open = tenant + " AND completion_state='current_open'"
+
     def source_open(table: str) -> str:
         return (
             tenant + " AND EXISTS(SELECT 1 FROM sync_fence.stats_fact_versions v "
