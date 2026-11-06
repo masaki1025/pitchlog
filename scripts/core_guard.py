@@ -1016,11 +1016,26 @@ def _pr197_registered_paths(document: Mapping[str, Any], label: str) -> frozense
 def _verify_pr197_definition_order(root: Path, base_revision: str, head_sha: str) -> None:
     """新path初登場commitの全親で固定定義と入口が先行したことを確認する。"""
     complete = frozenset(PR197_TENANT_SOURCE_CORE_ADDITIONS)
+    revisions = _commits_between(root, base_revision, head_sha)
+    documents = {
+        revision: load_core_areas_at_revision(root, revision)
+        for revision in revisions
+    }
+    baseline = load_core_areas_at_revision(root, base_revision)
+    if (not _pr197_registered_paths(baseline, base_revision)
+            and not any(_pr197_registered_paths(document, revision)
+                        for revision, document in documents.items())):
+        # PR197未登場の旧履歴にはcarry例外を適用しない。
+        return
+    docs_merge, current_definition = _pr197_merge_carry_pins(root, head_sha)
     if (_pr197_definition_fingerprint(Path(__file__).read_text())
-            != _PR197_CORE_DEFINITION_AST_SHA256):
+            != current_definition):
         raise GuardError("PR197実行中の定義ASTが固定値と不一致")
-    for revision in _commits_between(root, base_revision, head_sha):
-        document = load_core_areas_at_revision(root, revision)
+    for revision in revisions:
+        if revision == docs_merge:
+            _verify_pr197_approved_doc_merge(root, base_revision, revision)
+            continue
+        document = documents[revision]
         present = _pr197_registered_paths(document, revision)
         if present and present != complete:
             raise GuardError(f"{revision} のPR197 core層が部分追加")
@@ -1058,6 +1073,129 @@ def _commits_between(root: Path, base_revision: str, head_sha: str) -> tuple[str
         "基線以後のコミット列挙",
     )
     return tuple(output.splitlines())
+
+
+_PR197_DOC_MERGE_TYPED = {
+    "pr197_approved_doc_merge_revision": (
+        "PR197承認済み7.7-1文書だけを接合した実mergeを一件に固定する。",
+        "scripts/core_guard.py:_verify_pr197_approved_doc_merge",
+        40,
+    ),
+    "pr197_core_carry_source_revision": (
+        "PR197限定merge carry実装の先行Git全byteを固定する。",
+        "scripts/core_guard.py:_pr197_merge_carry_pins",
+        40,
+    ),
+    "pr197_core_carry_definition_sha256": (
+        "PR197限定merge carryを含む定義ASTを旧固定値と区別して固定する。",
+        "scripts/core_guard.py:_verify_pr197_definition_order",
+        64,
+    ),
+}
+_PR197_DOC_MERGE_PATHS = frozenset({
+    "docs/README.md",
+    "docs/development/dev-harness-design-2026-08-07.md",
+    "docs/features/mvp-pr197-anchor-exception/plan.md",
+    "docs/features/mvp-pr197-anchor-exception/worklog.md",
+})
+
+
+def _pr197_merge_git(root: Path, *arguments: str) -> str:
+    """置換Git objectを使わず有限mergeの実原典を読む。"""
+    try:
+        result = subprocess.run(
+            ["git", *arguments], cwd=root, capture_output=True,
+            encoding="utf-8", errors="strict", timeout=DIFF_TIMEOUT_SECONDS,
+            check=False, env={**os.environ, "GIT_NO_REPLACE_OBJECTS": "1"},
+        )
+    except (OSError, UnicodeError, subprocess.TimeoutExpired) as error:
+        raise GuardError("PR197文書mergeのGit原典を読めない") from error
+    if result.returncode != 0:
+        raise GuardError("PR197文書mergeのGit原典が不一致")
+    return result.stdout
+
+
+def _pr197_merge_carry_pins(root: Path, head_sha: str) -> tuple[str, str]:
+    """別コミットで固定した限定carryの版と定義指紋を読む。"""
+    asset_path = root / "contracts/tenant_boundary/frozen-inputs.json"
+    if not asset_path.is_file() or asset_path.is_symlink():
+        raise GuardError("PR197文書mergeのtyped資産がない")
+    try:
+        asset = _strict_json_object(asset_path.read_text(), "PR197文書merge typed資産")
+        frozen = asset["frozen_inputs"]
+    except (OSError, UnicodeError, KeyError, TypeError) as error:
+        raise GuardError("PR197文書mergeのtyped資産を読めない") from error
+    if type(frozen) is not dict:
+        raise GuardError("PR197文書mergeのtyped欄が不正")
+    values: dict[str, str] = {}
+    for key, (purpose, source, length) in _PR197_DOC_MERGE_TYPED.items():
+        entry = frozen.get(key)
+        if (type(entry) is not dict or set(entry) != {"value", "purpose", "sources"}
+                or entry["purpose"] != purpose or entry["sources"] != [source]
+                or type(entry["value"]) is not str
+                or re.fullmatch(rf"[0-9a-f]{{{length}}}", entry["value"]) is None):
+            raise GuardError("PR197文書mergeのtyped値/用途が不一致")
+        values[key] = entry["value"]
+    source_revision = values["pr197_core_carry_source_revision"]
+    for revision in (source_revision, values["pr197_approved_doc_merge_revision"]):
+        resolved = _pr197_merge_git(root, "rev-parse", "--verify", f"{revision}^{{commit}}")
+        if resolved.strip() != revision:
+            raise GuardError("PR197文書mergeの固定Git objectが不一致")
+        _pr197_merge_git(root, "merge-base", "--is-ancestor", revision, head_sha)
+    introductions = _pr197_merge_git(
+        root, "log", "--reverse", "--format=%H", "-S_pr197_merge_carry_pins",
+        "HEAD", "--", "scripts/core_guard.py",
+    ).splitlines()
+    if introductions != [source_revision]:
+        raise GuardError("PR197文書mergeのsource導入commitが不一致")
+    current = (root / "scripts/core_guard.py").read_bytes()
+    source = _pr197_merge_git(root, "show", f"{source_revision}:scripts/core_guard.py")
+    if (current != source.encode("utf-8")
+            or current != _pr197_merge_git(
+                root, "show", f"{head_sha}:scripts/core_guard.py",
+            ).encode("utf-8")):
+        raise GuardError("PR197文書mergeのcore checker全byteが固定Gitと不一致")
+    return (values["pr197_approved_doc_merge_revision"],
+            values["pr197_core_carry_definition_sha256"])
+
+
+def _verify_pr197_approved_doc_merge(
+    root: Path, base_revision: str, revision: str,
+) -> None:
+    """実mergeの未登録親からcore定義・製品sourceを流入させない。"""
+    parents = _pr197_merge_git(root, "show", "-s", "--format=%P", revision).split()
+    if len(parents) != 2:
+        raise GuardError("PR197文書mergeの親が二件でない")
+    first, second = parents
+    common = _pr197_merge_git(root, "merge-base", first, second).strip()
+    if common != base_revision:
+        raise GuardError("PR197文書mergeが正式基線から分岐していない")
+    complete = frozenset(PR197_TENANT_SOURCE_CORE_ADDITIONS)
+    if (_pr197_registered_paths(load_core_areas_at_revision(root, first), first) != complete
+            or _pr197_registered_paths(load_core_areas_at_revision(root, second), second)
+            or _pr197_registered_paths(load_core_areas_at_revision(root, revision), revision)
+            != complete):
+        raise GuardError("PR197文書mergeのcore登録前後が不一致")
+    for before, after in ((common, second), (first, revision)):
+        changed = frozenset(_pr197_merge_git(
+            root, "diff", "--name-only", before, after,
+        ).splitlines())
+        if changed != _PR197_DOC_MERGE_PATHS:
+            raise GuardError("PR197文書mergeへdocs以外が混入")
+    # README索引は両親の項目を統合した本文。実merge OIDとdocs-only差分で固定する。
+    for path in _PR197_DOC_MERGE_PATHS - {"docs/README.md"}:
+        if _pr197_merge_git(root, "show", f"{revision}:{path}") != _pr197_merge_git(
+            root, "show", f"{second}:{path}",
+        ):
+            raise GuardError("PR197文書mergeの承認文書byteが第二親と不一致")
+    for path in (CORE_AREAS_RELATIVE_PATH, "scripts/core_guard.py"):
+        if _pr197_merge_git(root, "show", f"{revision}:{path}") != _pr197_merge_git(
+            root, "show", f"{first}:{path}",
+        ):
+            raise GuardError("PR197文書mergeのcore原本が第一親と不一致")
+    first_source = _pr197_merge_git(root, "show", f"{first}:scripts/core_guard.py")
+    if _pr197_definition_fingerprint(first_source) != _PR197_CORE_DEFINITION_AST_SHA256:
+        raise GuardError("PR197文書mergeの第一親に旧固定core定義がない")
 
 
 def _changed_paths_in_commit(root: Path, revision: str) -> frozenset[str]:
