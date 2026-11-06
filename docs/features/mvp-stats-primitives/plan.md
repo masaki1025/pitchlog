@@ -519,6 +519,8 @@ PR197承認文書mergeの限定carry追随（2026-11-07、PO委任によるCodex
 
 census反実ツリーの固定PR197 fixtureが複製されない漏れを修復。resolution ownerは歴史登録line949と現全AST同値owner1108を区別し実位置を照合するよう追随中。ただしCLIは現在単一抑止集合の期待で不一致のまま。診断で現188件/registration除去時188件・増減0を確認し、既owner登録が実際に抑止したという期待を推測で0へ変更しない。旧PR191 source byte固定を現在の正規T5追加源へ広げる後継証明と、authz git_blob_digest/要件参照件数等のCI failureも継続切分けする。
 
+PO委任rootの単独writer追補: `tests/test_census_baseline_check.py` は専用WTで現PR197 sourceに追随する。旧51/90/37・旧owner1は歴史Git原典で測り続け、現行のPR197 identity後継2path・条件付き71（Python実抑止、生成SQL、非発火siteを区別）を固定期待/全byte/反実差で測る。held3をsite許可へ混ぜず、旧siteと現siteの二重計上・source同時改変・未知siteを拒否する。既census宣言/正式assetはrootが別に所有し、旧履歴値や失敗期待の緩和をしない。同一3a系sourceのCLI/関連負例が通るまで採用判定しない。
+
 core6f17の同時変更回復は別WT fix/pr197-identical-definition-recovery（nonplay担当）が所有し、rootのこの7pathと並行編集しない。新6 guard_pathsを補強し、OID/親/全byte/AST/固定pin同値に限定、一般skip禁止。正式9資産/公開証拠は全候補固定後rootが直列再導出・再確認し、同入力失敗のCI再試行だけで緑を狙わない。MVP機能/保存/認可を縮小しない。今回もPO委任root判断であり本人確認/署名を代記しない。
 
 
