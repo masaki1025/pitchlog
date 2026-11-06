@@ -7102,11 +7102,14 @@ _STATS_FOUNDATION_EXPECTED: dict[str, tuple[str, ...]] = {
         'backend/tests/test_stats_primitive_product.py',
         'backend/tests/test_stats_primitive_write_state.py',
         'tests/test_stats_native_dependency_columns.py',
+        'backend/tests/stage_a_0039_profile.py',
+        'backend/tests/test_stage_a_0039_profile.py',
     ),
     'data-migration': (
         'backend/src/pitchlog/db/current_product_startup.py',
         'backend/tests/test_current_product_startup.py',
         'backend/tests/test_stats_catalog_pg_representation.py',
+        'backend/tests/fixtures/product_authz_stage_a_profile_v0039.json',
     ),
 }
 
@@ -7121,7 +7124,7 @@ def _stats_foundation_historical_fixture(document):
     if not observed:
         return raw
     assert observed == expected and [a['id'] for a in raw['areas']] == list(
-        _STATS_FOUNDATION_EXPECTED), '成績全29pair/領域順序'
+        _STATS_FOUNDATION_EXPECTED), '成績全32pair/領域順序'
     for area in raw['areas']:
         paths, suffix = area['paths'], _STATS_FOUNDATION_EXPECTED[area['id']]
         assert len(paths) == len(set(paths)), '成績重複'
@@ -7159,7 +7162,7 @@ def _stats_foundation_legacy_guard_source(source):
 
 
 def _stats_foundation_config():
-    """旧schema2を前提に全29だけを後置した非採取fixture。"""
+    """旧schema2を前提に全32だけを後置した非採取fixture。"""
     _, old = _schema_comparison_config()
     new = json.loads(json.dumps(old))
     for area in new['areas']:
@@ -7173,7 +7176,7 @@ def test_stats_foundation29_exact_paths_detection_and_full_ast_preservation():
     assert dict(guard.STATS_FOUNDATION_CORE_ADDITIONS) == _STATS_FOUNDATION_EXPECTED
     old, new = _stats_foundation_config()
     expected = {p for ps in _STATS_FOUNDATION_EXPECTED.values() for p in ps}
-    assert len(expected) == 29
+    assert len(expected) == 32
     # 定義前置→D11 source8→JSON後置の順。未来3の実体はD11側runnerで必須検査する。
     pending_d11 = {
         'contracts/stats/native_event_facts_d11_v2.json',
@@ -7219,7 +7222,7 @@ def test_stats_foundation29_monotonic_real_git(tmp_path, before, after):
     'prefix', 'unknown-suffix', 'unknown-prefix', 'guard-only', 'guard-plus-area',
     'missing-prior2', 'missing-prior3', 'area-order', 'path-type', 'area-type'])
 def test_stats_foundation29_rejects_partial_or_extra_layers(tmp_path, mutation):
-    """旧層/全29/領域/順序/guard代用/未知混入を拒否する。"""
+    """旧層/全32/領域/順序/guard代用/未知混入を拒否する。"""
     guard = load_core_guard_module()
     old, new = _stats_foundation_config()
     bad = json.loads(json.dumps(new))
@@ -7265,7 +7268,7 @@ def test_stats_foundation29_rejects_partial_or_extra_layers(tmp_path, mutation):
 
 @pytest.mark.parametrize('definition', ['scripts/core_guard.py', 'tests/test_core_guard.py'])
 def test_stats_foundation29_keeps_ordered_definition_commits(tmp_path, definition):
-    """完全29でも定義とJSONの同commitは受理しない。"""
+    """完全32でも定義とJSONの同commitは受理しない。"""
     guard = load_core_guard_module()
     old, new = _stats_foundation_config()
     root, base = _first_ball_git_repo(tmp_path, old)
@@ -7327,3 +7330,33 @@ def test_stats_foundation_projection_keeps_unknown_fields_and_input_unchanged():
     saved = json.loads(json.dumps(new))
     projected, present = guard._project_stats_foundation_layer(new, 'test')
     assert present and projected == old and new == saved
+
+
+@pytest.mark.parametrize("mask", range(8))
+def test_stats_foundation_complete_old29_to_new32_and_partial_history_are_closed(mask):
+    """真正な旧29を保ち、新3の部分追加と逆向き縮小を拒否する。"""
+    guard = load_core_guard_module()
+    _, complete = _stats_foundation_config()
+    extra = (
+        ("tenant-isolation", "backend/tests/stage_a_0039_profile.py"),
+        ("tenant-isolation", "backend/tests/test_stage_a_0039_profile.py"),
+        ("data-migration", "backend/tests/fixtures/product_authz_stage_a_profile_v0039.json"),
+    )
+    old29 = json.loads(json.dumps(complete))
+    for area in old29["areas"]:
+        area["paths"] = [p for p in area["paths"] if (area["id"], p) not in extra]
+    guard.validate_stats_foundation_area_path_layers(old29, old29)
+    guard.validate_stats_foundation_area_path_layers(old29, complete)
+    with pytest.raises(guard.GuardError):
+        guard.validate_stats_foundation_area_path_layers(complete, old29)
+    candidate = json.loads(json.dumps(old29))
+    for index, (area_id, path) in enumerate(extra):
+        if mask & (1 << index):
+            next(a for a in candidate["areas"] if a["id"] == area_id)["paths"].append(path)
+    if mask in {0, 7}:
+        guard.validate_stats_foundation_area_path_layers(old29, candidate)
+    else:
+        with pytest.raises(guard.GuardError):
+            guard.validate_stats_foundation_area_path_layers(old29, candidate)
+        with pytest.raises(guard.GuardError):
+            guard.validate_stats_foundation_area_path_layers(candidate, complete)

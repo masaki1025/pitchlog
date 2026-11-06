@@ -805,11 +805,14 @@ STATS_FOUNDATION_CORE_ADDITIONS: Mapping[str, tuple[str, ...]] = {
         'backend/tests/test_stats_primitive_product.py',
         'backend/tests/test_stats_primitive_write_state.py',
         'tests/test_stats_native_dependency_columns.py',
+        'backend/tests/stage_a_0039_profile.py',
+        'backend/tests/test_stage_a_0039_profile.py',
     ),
     'data-migration': (
         'backend/src/pitchlog/db/current_product_startup.py',
         'backend/tests/test_current_product_startup.py',
         'backend/tests/test_stats_catalog_pg_representation.py',
+        'backend/tests/fixtures/product_authz_stage_a_profile_v0039.json',
     ),
 }
 
@@ -817,7 +820,7 @@ STATS_FOUNDATION_CORE_ADDITIONS: Mapping[str, tuple[str, ...]] = {
 def _project_stats_foundation_layer(
     document: Mapping[str, Any], label: str,
 ) -> tuple[dict[str, Any], bool]:
-    """全29pairの完全suffixだけを外し、旧全field/登録を保持する。"""
+    """全32pairの完全suffixだけを外し、旧全field/登録を保持する。"""
     paths_by_id = _area_paths_by_id(document, label)
     expected = {(area, path) for area, paths in
                 STATS_FOUNDATION_CORE_ADDITIONS.items() for path in paths}
@@ -830,11 +833,19 @@ def _project_stats_foundation_layer(
     projected = copy.deepcopy(dict(document))
     if not observed:
         return projected, False
-    if observed != expected or tuple(paths_by_id) != tuple(STATS_FOUNDATION_CORE_ADDITIONS):
-        raise GuardError(f"{label} の成績基盤core層の全29pair/領域順序が不一致")
+    history_pairs = {
+        ("tenant-isolation", "backend/tests/stage_a_0039_profile.py"),
+        ("tenant-isolation", "backend/tests/test_stage_a_0039_profile.py"),
+        ("data-migration", "backend/tests/fixtures/product_authz_stage_a_profile_v0039.json"),
+    }
+    legacy_expected = expected - history_pairs
+    if (observed != expected and observed != legacy_expected
+            or tuple(paths_by_id) != tuple(STATS_FOUNDATION_CORE_ADDITIONS)):
+        raise GuardError(f"{label} の成績基盤core層の完全29/32pair又は領域順序が不一致")
     for area in projected["areas"]:
         paths = paths_by_id[area["id"]]
-        suffix = STATS_FOUNDATION_CORE_ADDITIONS[area["id"]]
+        suffix = tuple(path for path in STATS_FOUNDATION_CORE_ADDITIONS[area["id"]]
+                       if (area["id"], path) in observed)
         if suffix and paths[-len(suffix):] != suffix:
             raise GuardError(f"{label} の成績基盤core層が完全suffixに不一致")
         prefix = paths[:-len(suffix)] if suffix else paths
@@ -850,11 +861,16 @@ def _project_stats_foundation_layer(
 def validate_stats_foundation_area_path_layers(
     baseline: Mapping[str, Any], candidate: Mapping[str, Any],
 ) -> None:
-    """成績29の完全性/単調追加を閉確認し、既schema2以下へ委譲する。"""
+    """成績32の完全性/単調追加を閉確認し、既schema2以下へ委譲する。"""
     old_baseline, before = _project_stats_foundation_layer(baseline, "merge-base")
     old_candidate, after = _project_stats_foundation_layer(candidate, "PR head")
     validate_pr196_schema_comparison_area_path_layers(old_baseline, old_candidate)
-    if before and not after:
+    known = {path for paths in STATS_FOUNDATION_CORE_ADDITIONS.values() for path in paths}
+    before_count = sum(path in known for paths in _area_paths_by_id(baseline, "merge-base").values()
+                       for path in paths)
+    after_count = sum(path in known for paths in _area_paths_by_id(candidate, "PR head").values()
+                      for path in paths)
+    if before and (not after or after_count < before_count):
         raise GuardError("成績基盤core層の削除は許可しない")
 
 
