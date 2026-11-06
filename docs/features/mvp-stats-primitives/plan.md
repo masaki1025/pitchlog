@@ -573,3 +573,12 @@ R-9の型境界検査が、採用済D05の分母0未定義値と旧移行フィ�
 ### 公開操作/認可schemaの純検査追随（2026-11-07、PO委任root・step4/5）
 
 実CIで赤の `backend/tests/test_authz_app_layer_surface.py`、`test_authz_capability_registration.py`、`test_authz_product_database_schemas.py`、`test_authz_product_staging.py` と複製helper `test_authz_runtime_contract_repository.py` を追随する。既認証操作の全集合は保持し、採用済stats専用4moduleを別単位として固定、関数専用2capabilityをORM文token集合へ混ぜず別検査する。stats_apiの全field/ACLを独立literalへ追加し、既schema全値も完全一致を保持する。製品状態copyへ追加するのは実stats登録が実際に読む宣言/生成TSと依存sourceであり、生成検証をmockやpin置換で迂回しない。正式assetsは変更せず、差分の非作者確認後に採用する。
+
+
+
+### 残DB対向の追随（2026-11-07、PO委任root・step4/5）
+
+追加の実CI根因として `backend/tests/db/test_rg1_startup_epoch.py` の旧epoch故障→全認可再開は現current provider経路を使用し、0034故障時の未適用/rollback検証は保持、完了版だけ0041へ追随する。`backend/tests/db/test_product_authz_cross_cutting.py` のFORCE RLS検査はprivate9表を除外せず、正式assetのschema_nameに従って全manifest表を所有者・tenant未束縛で0行確認する。旧system語彙5行例外は維持する。製品ACL/保存計算に変更しない。非作者確認とowned実PGを必須とする。
+
+
+追加の2検査fixture追随: `backend/tests/db/test_play_export_primitives.py` は終端後に変わった次打者をPA完了者として照合していたため、実終端時点のparticipant IDを保存してその本人を照合する。PA/BB/HBPの期待値は変えない。`backend/tests/db/test_stats_queries.py` の直接psycopg呼出は製品固定関数ABIと同じnullable cursor 5型をSQLAlchemy bindで明示し、NULLのunknown OIDを防ぐ。生成SQL/計算/契約/期待数量には変更しない。実owned DBで元の全assertを再実行する。
