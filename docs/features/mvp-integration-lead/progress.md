@@ -1,5 +1,12 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 2026-11-07 01:12 JST：毎球CSVの6指摘を修復中
+
+- **固定点**: root単独WT `fix-mvp-play-csv-delivery`、元d00f925a不変更。33cdf計画→d06e8356 FE接続→22ade8c7 busy修復→cd7eeead 原本版/イベント/送出前認可→329f8f8a 順次formatter。正式app/DB/受理へ未接合であり、実gameからCSV200はまだ成立していない。
+- **修復**: CSV専用tenantBound、両方必須のContent-Length/SHAと実digest照合、試合/認証/破棄後の旧取得拒否。FE77対象/型/lint、非作者初回REPORT0b434a43…P0/P1=0、後発reflection1 f07ee585…P0/P1/P2=0。backendは全受理イベント500keyset/NULL別系列、保存snapshotの原本ID/版/generation/sequence/tenant/game一致、manifestの補助源全束縛、ZIP完成後の真正提示token再照合＋新RR可視性確認/拒否cleanup、全10CSV formatterをiterator化。backend関連95pytest/Ruff/Ty成功。SQLite境界/依存置換拒否試験をPG認可・実製品成功とは数えない。
+- **残り/次**: repositoryの全量RAM保持はまだ残るので6指摘の全解消とはしない。同RR中の有限ページ→archiveと88列同TXproducerを次に実装する。正式C2 registry/認可/7.7/非作者backend確認、事前投入なし実記録→ZIP/画面DLが必要。CSV内容をNULL/現在名簿で補わない。毎球CSV未完は成績CSVの同版実証と別に維持。
+- **並行**: viewer clean HTTP r14成功122.39秒後、実画面r1はfailed404.82秒でcleanup、10秒反映は未成立。P3は1527cc28以降の真正writer/receiptとcurrent capsule/T5を接合、公開router未提供。PR197私有r2は旧合成履歴の対向修復中で全CI/通常merge未完。再開cache `mvp-resume-20261104/active-connected-work-20261107.json` を参照し、terminal handleの再実行と同path二重編集を避ける。
+
 ## 2026-11-07 00:57 JST：同一結合候補で断中復帰・交代・成績CSVを実証
 
 - **同版の利用者操作**: `feature/mvp-connected-rehearsal@60f39f1042e18d2bfe3bf882dd24dc3caccda0ae`（通常push済み）で、新規作成/開始から完全断中cold再起動→2球端末保持→復帰後の同本文/同attempt順序送信→実GET/DB、交代→次球→reload、終了/再開/追加球/再終了→試合/シーズン成績・CSVを同sourceのowned環境群で検証。共通lock/実auth・権利・API・ownedPG、4passed325.23秒。別テスト間の同一試合/同一DBセッションまでは主張しない。固定source前後同一、owner cleanup済み、session80858はterminal0で再起動不要。
