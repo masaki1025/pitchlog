@@ -13,6 +13,7 @@ from uuid import UUID
 
 from pydantic import BaseModel
 
+from pitchlog.domainrt.first_ball_projection import _canonical_json
 from pitchlog.domainrt.host import NodeDomainHost, open_domain_host
 from pitchlog.domainrt.lineup_play_prefix_continuation import (
     LineupPrefixRequest,
@@ -22,7 +23,12 @@ from pitchlog.domainrt.lineup_play_prefix_continuation import (
     seal_lineup_wire,
     verify_lineup_wire_seal,
 )
-from pitchlog.sync.terminal_pitch_payload import LineupPitchCalculation
+from pitchlog.sync.first_ball_payload import FirstBallObservations
+from pitchlog.sync.terminal_pitch_payload import (
+    LineupPitchCalculation,
+    LineupPitchPlayPayload,
+    read_lineup_pitch_payload,
+)
 
 
 class LineupCorrectionUnsupported(RuntimeError):
@@ -37,6 +43,7 @@ class SavedLineupPitch:
     d1: int
     d2: int
     calculation: LineupPitchCalculation
+    payload: LineupPitchPlayPayload | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -81,6 +88,12 @@ def _bound_original(
         raise LineupCorrectionUnsupported("保存済みv3原本参照が不正")
     request = saved.calculation.request
     original = saved.calculation.response
+    if saved.payload is not None and (
+        type(saved.payload) is not LineupPitchPlayPayload
+        or saved.payload.calculation != saved.calculation
+        or type(saved.payload.observations) is not FirstBallObservations
+    ):
+        raise LineupCorrectionUnsupported("保存済みv3 V7と計算原本が不一致")
     if (
         request.play_identity.event_id != str(saved.source_event_id)
         or request.source.position.d1 != str(saved.d1)
@@ -258,3 +271,70 @@ def evaluate_lineup_pitch_result_correction(
             host,
             target_d1=target_d1,
         )
+
+
+def build_corrected_lineup_payloads(
+    rows: tuple[SavedLineupPitch, ...],
+    corrected: tuple[CorrectedLineupPitch, ...],
+    replacement_observations: FirstBallObservations,
+) -> tuple[LineupPitchPlayPayload, ...]:
+    """訂正観測と後続の保存観測を実再評価値へ厳密に束縛する。"""
+    if (
+        type(rows) is not tuple
+        or type(corrected) is not tuple
+        or not corrected
+        or type(replacement_observations) is not FirstBallObservations
+    ):
+        raise LineupCorrectionUnsupported("訂正v3観測原本が不正")
+    by_d1 = {row.d1: row for row in rows}
+    if len(by_d1) != len(rows):
+        raise LineupCorrectionUnsupported("訂正v3観測原本の位置が重複")
+    result: list[LineupPitchPlayPayload] = []
+    for index, frame in enumerate(corrected):
+        saved = by_d1.get(frame.d1)
+        if (
+            type(frame) is not CorrectedLineupPitch
+            or type(saved) is not SavedLineupPitch
+            or type(saved.payload) is not LineupPitchPlayPayload
+            or saved.source_event_id != frame.source_event_id
+            or saved.d2 != frame.d2
+            or saved.payload.calculation != saved.calculation
+            or frame.corrected_request.source.participants
+            != saved.calculation.request.source.participants
+            or frame.corrected_request.source.lineup
+            != saved.calculation.request.source.lineup
+        ):
+            raise LineupCorrectionUnsupported("訂正v3保存観測の参照が不一致")
+        observations = (
+            replacement_observations if index == 0 else saved.payload.observations
+        )
+        if type(observations) is not FirstBallObservations:
+            raise LineupCorrectionUnsupported("訂正v3後続観測が未対応")
+        calculation = LineupPitchCalculation.model_validate_json(
+            _canonical_json(
+                {
+                    "formatVersion": "play-prefix-calculation-v3",
+                    "artifactSha256": (
+                        frame.corrected_request.source.execution_artifact_sha256
+                    ),
+                    "request": _wire(frame.corrected_request),
+                    "response": _wire(frame.corrected_response),
+                }
+            )
+        )
+        payload = {
+            "formatVersion": "play-prefix-play-v3",
+            "observations": _wire(observations),
+            "participants": _wire(saved.payload.participants),
+            "calculation": _wire(calculation),
+        }
+        result.append(
+            read_lineup_pitch_payload(
+                _canonical_json(payload),
+                _canonical_json(
+                    _wire(frame.corrected_response.value.new_history_entry.difference)
+                ),
+                expected_calculation=calculation,
+            )
+        )
+    return tuple(result)

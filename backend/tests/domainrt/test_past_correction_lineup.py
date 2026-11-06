@@ -20,8 +20,13 @@ from pitchlog.domainrt.past_correction_lineup import (
     SavedLineupPitch,
     _evaluate,
     _next_corrected_request,
+    build_corrected_lineup_payloads,
 )
-from pitchlog.sync.terminal_pitch_payload import LineupPitchCalculation
+from pitchlog.sync.first_ball_payload import FirstBallObservations
+from pitchlog.sync.terminal_pitch_payload import (
+    LineupPitchCalculation,
+    LineupPitchPlayPayload,
+)
 
 _ROOT = Path(__file__).resolve().parents[3]
 _CASES = {
@@ -83,7 +88,27 @@ def _two_saved(host: NodeDomainHost) -> tuple[SavedLineupPitch, SavedLineupPitch
                 }
             )
         )
-        return SavedLineupPitch(identifier, d1, d1, calculation)
+        payload = LineupPitchPlayPayload.model_validate_json(
+            json.dumps(
+                {
+                    "formatVersion": "play-prefix-play-v3",
+                    "observations": {
+                        "pitchTypeKey": "pitch-type.straight",
+                        "course": {"unit": "1/263", "x": "131", "y": "132"},
+                        "pitchSpeed": {"kmh": None, "outsideRangeConfirmed": False},
+                        "stance": None,
+                        "battingSide": None,
+                    },
+                    "participants": response.value.before_participants.model_dump(
+                        mode="json", by_alias=True
+                    ),
+                    "calculation": calculation.model_dump(
+                        mode="json", by_alias=True, exclude_unset=True
+                    ),
+                }
+            )
+        )
+        return SavedLineupPitch(identifier, d1, d1, calculation, payload)
 
     return saved(_ID1, 1, q1, r1), saved(_ID2, 2, q2, r2)
 
@@ -151,6 +176,43 @@ def test_v3_second_pitch_correction_starts_at_verified_prior_checkpoint() -> Non
     assert result[0].corrected_request.prefix_ref == prior.next_prefix_ref
     assert result[0].corrected_response.value.t1.after.state_fields.strikes == "1"
     assert result[0].corrected_response.value.t1.after.state_fields.balls == "1"
+
+
+def test_v3_corrected_payload_keeps_downstream_observations_and_explicit_target() -> (
+    None
+):
+    """対象の新観測だけ明示値へ変え、後続は実保存V7を維持する。"""
+    with _host() as host:
+        old = _two_saved(host)
+        frames = _evaluate(old, "batting-result.ball", (_NEW1, _NEW2), host)
+    assert old[0].payload is not None and old[1].payload is not None
+    original_observation = old[0].payload.observations
+    changed = original_observation.model_dump(mode="json", by_alias=True)
+    changed["course"]["x"] = "130"
+    replacement = FirstBallObservations.model_validate(changed)
+    new = build_corrected_lineup_payloads(old, frames, replacement)
+    assert new[0].observations.course.x == "130"
+    assert new[1].observations == old[1].payload.observations
+    assert new[0].calculation.request.t1.result_id == "batting-result.ball"
+    assert new[1].calculation.request.t1.result_id == "batting-result.called-pitch"
+
+
+def test_v3_corrected_payload_rejects_missing_original_v7() -> None:
+    """計算だけの候補を物理投影の保存元として昇格させない。"""
+    with _host() as host:
+        old = _two_saved(host)
+        frames = _evaluate(old, "batting-result.ball", (_NEW1, _NEW2), host)
+    assert old[0].payload is not None
+    missing = SavedLineupPitch(
+        old[1].source_event_id,
+        old[1].d1,
+        old[1].d2,
+        old[1].calculation,
+    )
+    with pytest.raises(LineupCorrectionUnsupported):
+        build_corrected_lineup_payloads(
+            (old[0], missing), frames, old[0].payload.observations
+        )
 
 
 @pytest.mark.parametrize("target", [0, 3, True])
