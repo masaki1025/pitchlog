@@ -20,3 +20,6 @@ branch: feature/mvp-lifecycle-product-connection
 
 
 step1の入力codec部分を採用（2026-11-06、PO委任Codex /root判断）: packet reflection2の新2path、非作者REPORT SHA256 18b098878e303f43eaa94f731d8aaa965065ce22757341325f384cb88f346b2eで旧P1全2解消・後発P1なし。57unit/Ruff/Ty成功。D1は既WireD1整数、D2は既ordering上限を単一参照し、D4参照は既Generation純shape。旧flatや欠落/NaN/上限外を補修せず内容拒否する。型検査を権限・真正CP・先行実結果の成立と混同しない。残step1は予約/先行prefixのサーバー解決・唯一artifact・bridge/正式contract・接合、step2同TXprovider以降は未完。本人署名/P6blindでない。
+
+
+2026-11-06 2時間試行のstep3候補接合（PO委任Codex/root判断）: POが統合候補まで実装後にまとめてレビュー・検査する方式を18:37:31から採用。外部FE6修復48d61a8b（対象50件、版0拒否・耐久版根拠不足の非成功を含む）を未正式受理の接合候補として本WTへ移す。既step3の非作者確認は候補固定後へ移し、正式統合前に必須とする。追加所有はGameScreenLifecycleProduct.vueと専用spec、GameScreenRecordedRestore.vueのmountのみ。実HTTPS/4利用者環境確認/認証epoch/実WebLocks/耐久storeを供給し、常時trueのwriterや固定成功を使わない。元48d61枝・既レビュー連鎖を保持。NP ad7f3c8bを70f800a1へ通常mergeし取消後の接合を共通化、全MVP成立の主張ではない。
