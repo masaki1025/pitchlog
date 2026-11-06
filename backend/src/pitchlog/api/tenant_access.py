@@ -30,6 +30,7 @@ _MATCH_OPERATIONS = frozenset(
         "batted_ball_options",
         "started_game_detail",
         "sync_events",
+        "game_play_csv_export",
         "initial_device_enroll",
         "initial_game_start",
         "initial_game_start_resolve",
