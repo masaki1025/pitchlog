@@ -35,13 +35,39 @@ const hitResults: readonly string[] = [
 ]
 const batted = computed(() => hitResults.includes(resultId.value))
 const battedHit = ref<PlayScreenObservation['battedHit']>(null)
-const hitAvailable = computed(
-  () =>
-    isLineupRecordingContext(displayed.value) &&
-    displayed.value.after.stateFields['state.runners'] === 'empty' &&
+const hitAvailable = computed(() => {
+  if (!isLineupRecordingContext(displayed.value)) return false
+  return (
     !displayed.value.after.stateFields['state.tiebreakActive'] &&
-    !displayed.value.after.stateFields['state.gameEnded'],
-)
+    !displayed.value.after.stateFields['state.gameEnded']
+  )
+})
+const battedRunners = computed(() => {
+  const runners = displayed.value.after.stateFields['state.runners']
+  const result: Array<{ base: '1' | '2' | '3'; label: string }> = []
+  if (
+    runners === 'first' ||
+    runners === 'first-second' ||
+    runners === 'first-third' ||
+    runners === 'first-second-third'
+  )
+    result.push({ base: '1', label: '一塁走者' })
+  if (
+    runners === 'second' ||
+    runners === 'first-second' ||
+    runners === 'second-third' ||
+    runners === 'first-second-third'
+  )
+    result.push({ base: '2', label: '二塁走者' })
+  if (
+    runners === 'third' ||
+    runners === 'first-third' ||
+    runners === 'second-third' ||
+    runners === 'first-second-third'
+  )
+    result.push({ base: '3', label: '三塁走者' })
+  return result
+})
 const battedContextKey = computed(() => {
   const c = displayed.value
   return isLineupRecordingContext(c)
@@ -462,11 +488,33 @@ onScopeDispose(() => {
           >
             空振り三振
           </option>
+          <option
+            v-if="isLineupRecordingContext(displayed)"
+            value="batting-result.k3"
+          >
+            K3（スリーバント失敗）
+          </option>
+          <option
+            v-if="
+              isLineupRecordingContext(displayed) &&
+              displayed.after.stateFields['state.outs'] === '1' &&
+              displayed.after.stateFields['state.runners'] === 'first' &&
+              displayed.after.stateFields['state.count.strikes'] === '2' &&
+              displayed.after.stateFields['state.count.balls'] === '0'
+            "
+            value="batting-result.strikeout-double-play"
+          >
+            三振ゲッツー（一死一塁・一塁走者アウト）
+          </option>
           <template v-if="hitAvailable">
             <option value="batting-result.single">単打</option>
             <option value="batting-result.double">二塁打</option>
-            <option value="batting-result.triple">三塁打</option>
-            <option value="batting-result.home-run">本塁打</option>
+            <option value="batting-result.triple">
+              三塁打
+            </option>
+            <option value="batting-result.home-run">
+              本塁打
+            </option>
           </template>
           <option value="batting-result.foul">
             ファウル（通常・非バント）
@@ -478,11 +526,12 @@ onScopeDispose(() => {
         :context-key="battedContextKey"
         :result-id="resultId as BattedHitResult"
         :fielders="fielders"
+        :runners="battedRunners"
         :disabled="busy"
         @change="(value) => (battedHit = value)"
       />
       <p v-else-if="batted" role="alert">
-        この安打入力は無走者・タイブレークなし・試合継続中のみ対応しています。
+        この安打入力は試合継続中・タイブレークなしの状態だけに対応しています。
       </p>
       <label v-if="terminal" class="block"
         >次の打者を確認

@@ -35,6 +35,111 @@ const invoke = (request: unknown) =>
       JSON.stringify(request),
     ),
   )
+type Json = Record<string, unknown>
+const battedCases = JSON.parse(
+  readFileSync(
+    resolve('../contracts/state-transition/batted_hit_prefix_cases_v1.json'),
+    'utf8',
+  ),
+) as { cases: Array<{ caseId: string; request: Json }> }
+it('既v3 continuationは二走者本塁打の実T1進塁を次sourceへ保持する', () => {
+  const original = battedCases.cases.find(
+    (item) => item.caseId === 'BHP-BH-HomeRun-top-O1',
+  )!
+  const request = structuredClone(original.request)
+  const t1 = request.t1 as Json
+  const source = request.source as Json
+  const before = t1.before as Json
+  const state = before.stateFields as Json
+  state['state.runners'] = 'first-second'
+  ;((source.after as Json).stateFields as Json)['state.runners'] =
+    'first-second'
+  const lineup = source.lineup as Json
+  const away = lineup.away as Json
+  const order = away.battingOrder as Json
+  const participants = source.participants as Json
+  const pitcher = participants.pitcherId as string
+  source.runners = [
+    {
+      runnerId: order['8'],
+      responsiblePitcherId: pitcher,
+      base: '1',
+      status: '継続',
+      statusSource: 'auto',
+    },
+    {
+      runnerId: order['9'],
+      responsiblePitcherId: pitcher,
+      base: '2',
+      status: '継続',
+      statusSource: 'auto',
+    },
+  ]
+  t1.runnerAdvanceOverrides = {
+    kind: 'applied',
+    overrides: [
+      { runnerBase: '1', destination: '4' },
+      { runnerBase: '2', destination: '4' },
+    ],
+  }
+  const result = invoke(request)
+  expect(result.ok).toBe(true)
+  expect(result.value.t1.after.stateFields['state.score']).toEqual({
+    home: '3',
+    away: '8',
+  })
+  expect(result.value.t1.after.stateFields['state.runners']).toBe('empty')
+  expect(result.value.runners).toEqual([])
+  expect(result.value.t1.runnerDefaultAdvance).toEqual({
+    first: { modality: 'optional', destination: '4' },
+    second: { modality: 'optional', destination: '4' },
+    third: { modality: 'not-applicable', destination: null },
+  })
+})
+it('SO-05固定行をv3継続へ渡し、打者と一塁走者の2アウトで攻守交代する', () => {
+  const original = battedCases.cases[0]!
+  const request = structuredClone(original.request)
+  const t1 = request.t1 as Json
+  delete t1.officialScoringPayload
+  delete t1.interferenceRuling
+  delete t1.runnerAdvanceOverrides
+  delete t1.thirdOutObservation
+  t1.resultId = 'batting-result.strikeout-double-play'
+  const source = request.source as Json
+  const before = t1.before as Json
+  const state = before.stateFields as Json
+  state['state.outs'] = '1'
+  state['state.count.balls'] = '0'
+  state['state.runners'] = 'first'
+  const sourceAfter = source.after as Json
+  const sourceState = sourceAfter.stateFields as Json
+  sourceState['state.outs'] = '1'
+  sourceState['state.count.balls'] = '0'
+  sourceState['state.runners'] = 'first'
+  const facts = (source.t2 as Json).facts as Json
+  facts.beforeOuts = '1'
+  facts.afterOuts = '1'
+  const participants = source.participants as Json
+  source.runners = [
+    {
+      runnerId: '10000000-0000-0000-0000-000000000299',
+      responsiblePitcherId: participants.pitcherId,
+      base: '1',
+      status: '継続',
+      statusSource: 'auto',
+    },
+  ]
+  const result = invoke(request)
+  expect(result.ok).toBe(true)
+  expect(result.value.t1.outEffect).toEqual({
+    count: '2',
+    targets: ['batter', { runner: '1' }],
+  })
+  expect(result.value.t1.after.stateFields['state.half']).toBe('bottom')
+  expect(result.value.t1.after.stateFields['state.outs']).toBe('0')
+  expect(result.value.t1.after.stateFields['state.runners']).toBe('empty')
+  expect(result.value.runners).toEqual([])
+})
 describe('v3両cursor/実名簿の閉数学接続', () => {
   it.each(vectors.cases)('$caseId 全応答', (c) => {
     expect(invoke(c.request)).toStrictEqual(c.expected)

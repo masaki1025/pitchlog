@@ -228,6 +228,7 @@ def verify_and_evaluate_lineup_source(
                 raise LineupPrefixProtocolError(
                     "実artifact再生と保存全応答が一致しません"
                 )
+            _validate_runner_projection(prior, replayed)
             previous = replayed
         _bound(request, evidence.started, actual)
         _previous_binding(request, previous, evidence.started)
@@ -254,7 +255,75 @@ def verify_and_evaluate_lineup_source(
         )
         if response.ok:
             verify_lineup_wire_seal(request, response)
+            _validate_runner_projection(request, response)
         return response
+
+
+def _validate_runner_projection(
+    request: LineupPrefixRequest, response: LineupPrefixSuccess
+) -> None:
+    """after走者をbefore走者と実T1進塁計画だけから照合する。"""
+    value = response.value
+    t1 = value.t1
+    before = request.t1.before.state_fields
+    after = t1.after.state_fields
+    if before.half != after.half or before.inning != after.inning:
+        expected: dict[str, tuple[str, str]] = {}
+    else:
+        expected = {}
+        slots = {"1": "first", "2": "second", "3": "third"}
+        occupied = {runner.base for runner in request.source.runners}
+        for runner in request.source.runners:
+            effect = getattr(t1.runner_default_advance, slots[runner.base])
+            forced = t1.batter_destination.kind == "reach" and (
+                runner.base == "1"
+                or (runner.base == "2" and "1" in occupied)
+                or (runner.base == "3" and {"1", "2"} <= occupied)
+            )
+            if forced and effect.modality != "forced":
+                raise LineupPrefixProtocolError(
+                    "フォース連鎖の走者進塁がforcedではありません"
+                )
+            if not forced and effect.modality == "forced":
+                raise LineupPrefixProtocolError("非フォース走者がforcedです")
+            if effect.modality == "not-applicable":
+                raise LineupPrefixProtocolError("在塁走者の進塁計画がありません")
+            if effect.modality == "hold":
+                if effect.destination is not None:
+                    raise LineupPrefixProtocolError("停止走者へ到達塁があります")
+                expected[runner.base] = (
+                    runner.runner_id,
+                    runner.responsible_pitcher_id,
+                )
+            elif effect.modality in {"optional", "forced"}:
+                if int(effect.destination) <= int(runner.base):
+                    raise LineupPrefixProtocolError("走者の到達塁が起点以前です")
+                if effect.destination == "4":
+                    continue
+                if effect.destination not in {"1", "2", "3"}:
+                    raise LineupPrefixProtocolError("走者の到達塁が不正です")
+                if effect.destination in expected:
+                    raise LineupPrefixProtocolError("走者の到達塁が重複します")
+                expected[effect.destination] = (
+                    runner.runner_id,
+                    runner.responsible_pitcher_id,
+                )
+            else:
+                raise LineupPrefixProtocolError("走者の進塁計画が不正です")
+        if t1.plate_appearance_ended and t1.batter_destination.kind == "reach":
+            base = t1.batter_destination.base
+            if base in expected:
+                raise LineupPrefixProtocolError("打者と走者の到達塁が重複します")
+            expected[base] = (
+                request.source.participants.batter_id,
+                request.source.participants.pitcher_id,
+            )
+    actual = {
+        runner.base: (runner.runner_id, runner.responsible_pitcher_id)
+        for runner in value.runners
+    }
+    if actual != expected:
+        raise LineupPrefixProtocolError("after走者が実T1進塁計画と一致しません")
 
 
 def _previous_binding(
@@ -359,6 +428,7 @@ def verify_native_lineup_source(request, evidence, host):
         _dump(evidence.previous_response)
     ):
         raise LineupPrefixProtocolError("native headの独立全応答が一致しません")
+    _validate_runner_projection(prior, replayed)
     value = replayed.value
     source = request.source
     if (
@@ -459,7 +529,10 @@ def initial_lineup_source(
 
 def require_batted_hit_observations(t1, observations) -> None:
     """原本V7の全打球観測と数学入力のタグを照合する。DB資格は発行しない。"""
-    from pitchlog.domainrt.lineup_play_prefix_continuation import BattedHitT1Input
+    from pitchlog.domainrt.lineup_play_prefix_continuation import (
+        AppliedRunnerAdvanceOverrides,
+        BattedHitT1Input,
+    )
     from pitchlog.sync.first_ball_payload import FirstBallObservations
     from pitchlog.sync.terminal_pitch_payload import BattedHitPlayObservations
 
@@ -474,12 +547,26 @@ def require_batted_hit_observations(t1, observations) -> None:
     checked = BattedHitPlayObservations.model_validate_json(
         _canonical(_dump(observations))
     )
+    if t1.before.state_fields.runners != "empty":
+        if type(t1.runner_advance_overrides) is not AppliedRunnerAdvanceOverrides:
+            raise ValueError("走者あり安打には明示進塁が必要です")
+    elif t1.runner_advance_overrides != "not-applied":
+        raise ValueError("無走者安打に進塁指定を混在できません")
+    observation_override = checked.runner_advance_overrides
+    if observation_override.kind == "not-applied":
+        override_matches = t1.runner_advance_overrides == "not-applied"
+    else:
+        override_matches = type(
+            t1.runner_advance_overrides
+        ) is AppliedRunnerAdvanceOverrides and _canonical(
+            _dump(t1.runner_advance_overrides)
+        ) == _canonical(_dump(observation_override))
     if (
         _canonical(_dump(checked)) != _canonical(_dump(observations))
         or t1.result_id != checked.result_id
         or t1.official_scoring_payload != checked.official_scoring_payload.kind
         or t1.interference_ruling != checked.interference_ruling.kind
-        or t1.runner_advance_overrides != checked.runner_advance_overrides.kind
+        or not override_matches
         or t1.third_out_observation != checked.third_out_observation.kind
     ):
         raise ValueError("記録者の観測と今回安打計算が一致しません")

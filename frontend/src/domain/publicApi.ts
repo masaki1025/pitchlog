@@ -654,7 +654,10 @@ function evaluatePitch(
     battedHit &&
     (typeof request.officialScoringPayload !== 'string' ||
       typeof request.interferenceRuling !== 'string' ||
-      typeof request.runnerAdvanceOverrides !== 'string' ||
+      (typeof request.runnerAdvanceOverrides !== 'string' &&
+        (typeof request.runnerAdvanceOverrides !== 'object' ||
+          request.runnerAdvanceOverrides === null ||
+          Array.isArray(request.runnerAdvanceOverrides))) ||
       typeof request.thirdOutObservation !== 'string')
   )
     return errorResponse('INVALID_REQUEST')

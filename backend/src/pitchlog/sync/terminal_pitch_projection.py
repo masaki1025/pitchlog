@@ -29,11 +29,17 @@ from pitchlog.sync.tokens import OperationEventReadToken
 
 
 def runner_physical_rows(before_runners, *, t1, tenant_id, play_id):
-    """before各塁の実T1 hold結果だけを全10列へ写す。after占有は別保持する。"""
+    """before各塁の実T1進塁結果を全10列へ写す。after占有は別保持する。"""
     slots = {"1": "first", "2": "second", "3": "third"}
     for runner in before_runners:
         effect = getattr(t1.runner_default_advance, slots[runner.base])
-        if effect.modality != "hold" or effect.destination is not None:
+        if effect.modality == "not-applicable":
+            raise OrdinaryPitchExecutionError
+        if effect.modality == "hold" and effect.destination is not None:
+            raise OrdinaryPitchExecutionError
+        if effect.modality in {"optional", "forced"} and effect.destination not in {
+            "1", "2", "3", "4"
+        }:
             raise OrdinaryPitchExecutionError
     return [
         {
