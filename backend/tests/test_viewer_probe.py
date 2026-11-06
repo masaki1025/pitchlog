@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from contextlib import nullcontext
 from datetime import UTC, datetime
+from typing import cast
 from uuid import UUID, uuid4
 
 import pytest
@@ -12,6 +13,7 @@ from fastapi import HTTPException
 from pitchlog.api.routers import viewer
 from pitchlog.api.tenant_access import TenantMatchedRoute
 from pitchlog.db.game_state.models import Game
+from pitchlog.repositories.context import TenantContext
 from pitchlog.repositories.tokens import TenantOperationResult
 from pitchlog.repositories.viewer_probe import (
     ViewerProbe,
@@ -128,10 +130,10 @@ def test_route_uses_c2_and_distinguishes_invisible_from_failure(monkeypatch):
     """C2付きrouteの結果と固定非成功を分ける。"""
     assert all(type(route) is TenantMatchedRoute for route in viewer.router.routes)
     assert viewer.router.route_class is TenantMatchedRoute
-    tenant = object()
+    tenant = cast(TenantContext, object())
     game_id = UUID("22222222-2222-4222-8222-222222222222")
     monkeypatch.setattr(
-        viewer, "tenant_transaction_scope", lambda actual: nullcontext(actual)
+        viewer, "viewer_read_scope", lambda actual: nullcontext(actual)
     )
     monkeypatch.setattr(
         viewer,
@@ -156,3 +158,28 @@ def test_route_uses_c2_and_distinguishes_invisible_from_failure(monkeypatch):
     with pytest.raises(HTTPException) as error:
         viewer.read_game_viewer_head(game_id, tenant)
     assert error.value.status_code == 503
+
+
+def test_viewer_scope_rejects_writer_lock_and_unknown_functions(monkeypatch):
+    """RR設定だけに頼らず、scopeの実行能力も有限読取tokenへ絞る。"""
+    from pitchlog.repositories import transaction
+    from pitchlog.repositories.binding import TenantBindingError
+    from pitchlog.repositories.ordinary_order import OrdinaryOrderSummaryToken
+    from pitchlog.repositories.transaction import _TenantTransaction
+    from pitchlog.sync.tokens import GameLockToken
+
+    monkeypatch.setattr(transaction, "require_viewer_read_scope", lambda _: None)
+    handle = object.__new__(_TenantTransaction)
+    game = uuid4()
+    transaction._require_viewer_read_token(handle, GameReadToken(game), function=False)
+    transaction._require_viewer_read_token(
+        handle, OrdinaryOrderSummaryToken(game), function=True
+    )
+    with pytest.raises(TenantBindingError):
+        transaction._require_viewer_read_token(
+            handle, GameLockToken(game), function=False
+        )
+    with pytest.raises(TenantBindingError):
+        transaction._require_viewer_read_token(
+            handle, GameReadToken(game), function=True
+        )
