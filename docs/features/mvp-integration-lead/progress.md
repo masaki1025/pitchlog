@@ -1,5 +1,15 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 2026-11-07 04:37 JST：実CI全shardの追随を修復中、毎球CSV実producer候補を固定
+
+- **root source**: fix/pr197-harness-followup@179883b15aa2bfd3853ca1bb18cc5c5a9d8c3a70 clean。45042までの10pathは非作者REPORT `4a02c8fb97b6e3daf151c60c29406d6b0e8d4eb7e0e850c1625db2aec27645f8`でP0/P1なし、後発2testはREPORT `51468e4833eb6bc303b98e25ca2e23ecf8feba80d3265ad6eb3333b26792832e`で確認し、rootがPO委任でsource限定採用。旧dynamic schema/Match再束縛、同版重複key誤carry、典拠行ずれのP1と全反映履歴を保持。成績3表54列を実Table/manifest/正本へ照合、旧判定400行保持・履歴4を含む12行個別再確認。root36関連成功、全frozen負例module+1247変異15成功。実7.7派生値/公開CI成功とは別。
+- **別作者CI試験差分**: nonplayの18774cbc（2test path、SHA2baa73ad…）はrootのread-only確認/選択12対向20.39秒成功。作者全1680成功。さらにshard0/1で判明したpr192旧owner・allowlist clone供給漏れ・新typed3参照の追随を同作者へ割当て、正式base51b/実branch同treeのCI二親synthetic checkoutを実際に作る全module検証も依頼。rootは同pathを書かない。最終sourceが揃う前に再導出/pushしない。
+- **実CIの正**: e5公開run42275253517はharness4shard全て失敗が判明（root/nonplayが分類修復中）。backend4shardはpytest実行中をGitHub APIで確認。旧e5の正式mergeは行わず、他jobの結果収集を継続。同じ赤を入力無変更で再runしない。
+- **毎球CSVの固定**: author lifecycleの2706138c51f71bbe5136e05661bcca0255134b50（base75dc・37path・patch b77c133f1ac06e680983a38d40a8bd69d54998ff6794991f59b9baca177b3731）。実create/start/2球→同TX exact88 snapshot2→実ZIP200/11CSV・全SHA/行数/BOM・認可401/404・欠測409をowned89.76秒で実証、前後37path同一・cleanup。式セル無害化は保存済み選手名への試験注入後の別実HTTPで確認し、製品writerの観測成立とは分離。REPORT dc119c32…、旧fixture DB試験の全assert移管表をcache play-csv-product-candidate-20261107へ封印。正式0047/7.7・P3/取消/再終了・500境界は未達。
+- **次のCSV操作**: 固定270は保全、lifecycleを新feature/mvp-play-csv-screen-acceptanceへ移し、実画面新規作成/開始/2球→CSV導線→実DL検査を割当て（新E2E/config/docだけ、既fixture/共有製品変更はcache patchへ）。非作者CSV37pathレビューはnonplayがCI担当固定後に別実施。rootは初期CSV土台作者なので全候補の独立性を代記しない。
+- **P3の実不具合と修復**: 第3球三振でBF creditを入れると0045がfacts側CHECKを26-keyのまま残して23514。既採用27-keyへ3制約を揃える最小migration修復をP3作者へ割当て、実catalog3制約/未知metric拒否と通常三振保存が成功。P3寄与変更は次の原本世代照合で停止しており未達。世代/tenant/gameの閉boolean診断へ進む。新規意味裁定や権限緩和で通さない。
+- **全体条件**: connected60f/viewer f69/限定9回163球の既証拠を維持。全一般操作・全断中操作・成績27/両CSVの正式接続、対象実機/負荷/性能/復旧は未完。root43純試験で端末内終了/再開queueを再確認したが、LC後の次球の実同期成立とはしない。最終source固定→独立採否→必要な公式派生値→公開CI/通常統合と、実画面到達点を並行して進める。
+
 ## 2026-11-07 04:13 JST：PR197最終候補公開・実CIの5失敗修復、CSV/P3の実保存が前進
 
 - **正式統合の現在地**: developは51bcb4e1。PR197はe5b6fef580cfe2bf0791331db6ff08ce1742221fを通常push済み、Draft/未merge。base51b比291path・diff SHA256 `9d1e955b5fbc2bf1b99fd92251dd5bbd021343fa569b10982d78807b4c52be4e`。公式9資産を全再導出し各revision+1、旧352snapshotを保存、新9追加/非参照8だけ保全除去。非作者最終REPORT `6ad732643c0f6a49b577caf947725e39b3b2b6fa5a9ef079387e8759a714ae15`、100試験/実tenant CLI成功。rootはPO委任で実値受理、証拠 https://github.com/masaki1025/pitchlog/pull/197#issuecomment-6692860788 。本人逐行確認/署名ではない。
