@@ -1,5 +1,5 @@
 ---
-status: in-review
+status: approved
 ---
 # 詳細設計: データモデル(論理モデル・識別子・一意性・削除の系統・移行の行き先)
 
@@ -7,7 +7,7 @@ status: in-review
 
 | 版 | 日付 | 変更内容 | 状態 |
 | --- | --- | --- | --- |
-| **1.6** | 2026-11-06 | **FR-007追記再開の保存境界を最小起案**。本改訂で確定する範囲: 操作種別#13とD2必須、独立lifecycle admission/head、終了版失効・成績latest confirmed/current open・同TX receiptの論理構造。実装時に確定する範囲: 実DDL・列/制約/ACL・migration・manifest・契約/実PG/実機検証。既6-1-b/c実装値、#1〜#12、Should状態補正、D5/拒否順・野球意味は維持。初回敵対レビューP1=6/P2=1の全採用反映案に続き、第2回P1=3の全採用候補として非CP生成操作を含むprefix復元と制御CP保存を追補する。初回7件・第2回3件の回数と反例を保持する。要件v2.20/sync v0.13と一括7.3審査中。PO委任起案であり承認・製品成立ではない。 | in-review |
+| **1.6** | 2026-11-06 | **FR-007追記再開の保存境界を最小起案**。本改訂で確定する範囲: 操作種別#13とD2必須、独立lifecycle admission/head、終了版失効・成績latest confirmed/current open・同TX receiptの論理構造。実装時に確定する範囲: 実DDL・列/制約/ACL・migration・manifest・契約/実PG/実機検証。既6-1-b/c実装値、#1〜#12、Should状態補正、D5/拒否順・野球意味は維持。初回敵対レビューP1=6/P2=1の全採用反映案に続き、第2回P1=3の全採用候補として非CP生成操作を含むprefix復元と制御CP保存を追補する。初回7件・第2回3件の回数と反例を保持する。要件v2.20/sync v0.13と一括7.3審査中。PO委任起案であり承認・製品成立ではない。 以上の起案・審査中という記載は起案時の履歴。2026-11-06、対象291451965c3eabf2914aaedca3a01fb685617264、基本2回とPO委任限定追加2回の履歴を維持し、最終追加レビューP0/P1/P2各0を根拠にPO委任によるCodex主担当/root判断で本文確定。PO本人の逐行確認・署名ではない。正式contract/実装・実DB/実機/MVP完成は別。 | Codex主担当（PO委任・確定） |
 | 1.5 | 2026-11-05 | **6-1-cの実装追随（成績private原本3表）**: 採用済みstatsモデルとmigration `0041_stats_fact_versions`の3表54列・制約・索引・削除系統・不変列を記載し、3-4へ実UNIQUEの有限3行を追記する。既本文・表・権限・野球計算の意味は不変。版は上げず設計書7.6-3前段を適用。非作者レビューと所有PGのPK/UNIQUE全6名照合後、PO委任によるCodex主担当/root判断で反映（本人の逐行確認・署名ではない）。table-classification・正式認可・実API/原子性の成立は別。 | **approved** |
 | 1.5 | 2026-11-04 | **6-1-bの実装追随(通常投球のprivate原本3表 — 版は上げない・設計書 7.6-3 前段)**: `sync_fence.ordinary_pitch_checkpoints`(14列・PK1・UNIQUE1・FK1・CHECK4)、`sync_fence.ordinary_pitch_write_admissions`(45列・PK1・UNIQUE3・FK4・CHECK7)、`sync_fence.ordinary_pitch_history`(8列・PK1・UNIQUE1・FK1・CHECK2)の構造・不変列・追記/更新・権限の限定と、`schema-manifest.json`・`table-classification.json`への表登録を記した。既存の2表・初球書込印・記録権・認可・D5消費規則は変更しない。PO委任による主担当判断による実装追随であり、本人の逐行確認・署名ではない。正式profile・runtime登録・activationは別未達。 | **approved** |
 | 1.5 | 2026-10-28 | **6-1-aの実装追随(書込印unit A+B結合 — 版は上げない・設計書 7.6-3 前段)**: 初球PlayRow INSERT用の書込印`sync_fence.first_ball_write_admissions`の構造(31列・PK・FK3・CHECK5)・状態・権限の限定と、`schema-manifest.json`の表登録への追随を記した。既存の2表・記録権・認可・D5消費規則は変更しない。PO委任Claude主担当判断による実装追随であり、本人の逐行確認・署名ではない。正式profile・runtime登録・activationは別未達。 | **approved** |

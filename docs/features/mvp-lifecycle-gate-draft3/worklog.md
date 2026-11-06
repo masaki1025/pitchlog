@@ -77,3 +77,8 @@
 追加1回は否決P0=0/P1=2/P2=0、REPORT SHA256 b4c5515ce60dda48aff1739d44b6fd90124311720d7a818b0c7d0ddb1eb9c038。両P1を起因(A)として採用、不採用0。基本2回＋追加1回の履歴を維持する。第1指摘はADR D6契約表の全種/operationRows列挙、sync S2と引用表へFR-007を伝播。第2指摘はADR D8の行評価を先行実受理後freshに限定し、data-modelも先行未成立/gap/結果不明=既7-5-Aの未処理・D5未消費、成立後差違=既拒否順序と分離した。既DI2/認可/再送/連番/内容の先行順は変更しない。過去worklogの「結果不明は閉拒否」は成功させないという意図であり、D5確定拒否を意味せず本修正で明確化する。
 
 追加限定2回目をPO委任の必要な限定追加レビュー権限により許可する。対象は反映3周目差分とFR-007被覆・先行依存処理の影響節のみ。新意味裁定/基本回数リセット/本人署名を行わない。承認前は全4正本in-reviewを維持する。UI a36c323bdab235e51a480f43ecfc956bc04e1139 exact8の受領を確認、独立レビュー/正式種別13/backend/実PG接合は別進行で未成立。
+
+
+### 単一7.3ゲートの委任最終本文確定（2026-11-06、Codex主担当/root）
+
+承認対象HEAD 291451965c3eabf2914aaedca3a01fb685617264。本文前SHA256は {"docs/requirements/requirements-pitchlog-2026-07-22.md": "d861e6972a5df2310e88fab4bfc93aff7f848f1f0fafa257a0548a4a8fbf1a7e", "docs/design/sync-protocol.md": "18cbcbd77095d55205237866d2af60f9c75a0038ee38eaadc84a8d6188f8e3ae", "docs/design/data-model.md": "72329d8f4c756722f8cc9ded6467e5df9807fca562bbb607f8b418a79de077ee", "docs/adr/ADR-003-domain-calc-method.md": "7f1bf6eae8765ba7d4d1a107adce58a93f0eaa522228684eed6cff8efebfa434"}。基本2回＋限定追加2回の全採否を維持、未解消重大指摘0。最終追加REPORT SHA256 8a6aad1f9c6a724e3c66557a4dbee65118211ce19e00db6ecb91efe1deba7b0c。既PO委任の計画・最小整合変更/必要な追加レビュー/コア最終差分判断に基づき、要件2.20・同期0.13・data-model1.6・ADR003 0.11を単一ゲートで確定する。初回・第2回・追加1の否決を消去しない。適用7.3 v1.19/条文commit a7cc3c0baa05fd1a1639e1f98e8f8f7bb39ad229は不変。本文規範を変えずfrontmatter/最新履歴の委任確認/索引のみを変更した。本人暗号署名・人間逐行・P6blind・実装/実PG/実機成立ではない。正式contract/ACL/DDL/Port/画面の接合と最終PRレビュー/CI/統合は後続。索引更新scriptの列数assertで中断した操作は、実Git元の4本文SHAを再取得して索引と本記録を完備してからcommitする。
