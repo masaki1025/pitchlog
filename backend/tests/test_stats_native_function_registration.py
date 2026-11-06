@@ -57,10 +57,13 @@ def _descriptor(r):
     }
 
 
-def test_old_all_twenty_two_keep_order_sql_types_decoder_and_values():
-    """旧全登録・generic tenant契約を新familyのために緩めない。"""
-    old = registry.PRODUCT_FUNCTION_OPERATIONS[:-12]
-    assert len(old) == 22
+def test_existing_registrations_keep_order_sql_types_decoder_and_values():
+    """接合基線25367の登録・generic tenant契約を新familyのために緩めない。"""
+    start = registry.PRODUCT_FUNCTION_OPERATIONS.index(
+        api.STATS_NATIVE_FUNCTION_OPERATIONS[0]
+    )
+    old = registry.PRODUCT_FUNCTION_OPERATIONS[:start]
+    assert len(old) == 23
     raw = (
         json.dumps(
             [_descriptor(r) for r in old],
@@ -72,10 +75,10 @@ def test_old_all_twenty_two_keep_order_sql_types_decoder_and_values():
     )
     assert (
         hashlib.sha256(raw.encode()).hexdigest()
-        == "71fe06530c38e265d8d56d815748bc4da480a3864611876b040641df0c1b453b"
+        == "584c080ed163324875a0ecfff1dae8f76a247657e60cf8eecdabee6905609d5c"
     )
     assert (
-        registry.PRODUCT_FUNCTION_OPERATIONS[-12:-7]
+        registry.PRODUCT_FUNCTION_OPERATIONS[start : start + 5]
         == api.STATS_NATIVE_FUNCTION_OPERATIONS
     )
     for r in old:
@@ -100,7 +103,7 @@ def test_five_exact_metadata_typed_statements_and_no_tenant_injection():
         (1, 1),
         (1, 1),
         (0, 500),
-        (26, 26),
+        (27, 27),
     ]
     for r in rows:
         name = r.function_id.split(".")[1]
@@ -251,7 +254,7 @@ def test_real_cold_import_orders_and_same_runtime_type(first):
             f"from pitchlog.repositories import {first}; "
             "from pitchlog.repositories import transaction, operation_registry, "
             "play_export_primitives; "
-            "assert len(operation_registry.PRODUCT_FUNCTION_OPERATIONS)==34",
+            "assert len(operation_registry.PRODUCT_FUNCTION_OPERATIONS)==42",
         ],
         env=os.environ.copy(),
         capture_output=True,

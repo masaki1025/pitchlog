@@ -1,4 +1,4 @@
-# generated=sha256:60ab45878fdfc868efc15ddb0f9b84d6ab0f3583519c48a2202e3d9c3abac59d
+# generated=sha256:882acb95c08d88deb724a77f2fdfb184de48a2252cd03f5ca44df5cd8b48f4c6
 """自動生成されたT6表示率。T5 artifactのfacts.pyを変更しない。"""
 
 from pitchlog.stats.generated.formatter import _rate_result, format_count

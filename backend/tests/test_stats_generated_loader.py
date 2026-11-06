@@ -17,7 +17,7 @@ from pitchlog.stats.generated.receiver import SOURCE_MODEL_HASH
 
 ROOT = Path(__file__).resolve().parents[2]
 WRAPPER = ROOT / "backend/src/pitchlog/stats/facts.py"
-VECTORS = ROOT / "contracts/stats/native_event_facts_d11_v2.json"
+VECTORS = ROOT / "contracts/stats/native_event_facts_d11_v3.json"
 
 
 @pytest.fixture(scope="module")

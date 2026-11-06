@@ -17,8 +17,8 @@
     },
     "scope": {
       "const": [
-        "native-event-facts26-v2",
-        "native-current-totals26-v2"
+        "native-event-facts27-v3",
+        "native-current-totals27-v3"
       ]
     },
     "predicates": {

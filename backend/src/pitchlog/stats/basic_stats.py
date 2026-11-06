@@ -1,8 +1,8 @@
 """基本成績27項目を、単一のT5/T6十分統計から表示値へ写す。
 
 このmoduleは集計・率の再計算を持たない。打撃16・投手11の各項目は、
-保存済みの26十分統計と生成済みの表示率（OPS/打率/出塁率/長打率/WHIP）を
-参照するだけであり、未供給の登板・打者数を0へ補完しない。
+保存済みの27十分統計と生成済みの表示率（OPS/打率/出塁率/長打率/WHIP）を
+参照するだけであり、不足した登板・打者数を0へ補完しない。
 """
 
 from __future__ import annotations
@@ -20,7 +20,7 @@ from pitchlog.stats.generated.rates import (
     format_innings,
 )
 
-# 生成済みT5核が返す閉26十分統計。順序はmodel宣言順。
+# 生成済みT5核が返す閉27十分統計。順序はmodel宣言順。
 COUNT_METRIC_IDS = (
     "pitch_count",
     "pa",
@@ -43,6 +43,7 @@ COUNT_METRIC_IDS = (
     "pitching_outs",
     "pitcher_k",
     "pitcher_bb",
+    "batters_faced",
     "pitcher_hbp",
     "hits_allowed",
     "home_runs_allowed",
@@ -86,7 +87,6 @@ PITCHING_ITEMS: tuple[tuple[str, str, str], ...] = (
 
 _PENDING = {
     "appearances": ("D03_SOURCE_PENDING", "登板の正式出場sourceが未接続です"),
-    "batters_faced": ("D04_SOURCE_PENDING", "打者数の責任帰属sourceが未接続です"),
 }
 
 
@@ -116,12 +116,12 @@ class ItemValue:
 
 
 def _normalized_metrics(metrics: Mapping[str, Any]) -> dict[str, dict[str, Any]]:
-    """閉26十分統計だけを受け取り、余剰・欠落・型混同を拒否する。"""
+    """閉27十分統計だけを受け取り、余剰・欠落・型混同を拒否する。"""
     if type(metrics) is not dict:
         raise ValueError("十分統計はdictが必要です")
     required = set(COUNT_METRIC_IDS)
-    # 27番目以降の追加metric（BF等）は任意で受け取る。ただし未知IDは拒否。
-    optional = {"appearances", "batters_faced"}
+    # 登板は交代原本由来の補助事実。未知IDやBF欠落は受け取らない。
+    optional = {"appearances"}
     if not required <= set(metrics) or not set(metrics) <= required | optional:
         raise ValueError("十分統計の閉集合が不一致です")
     result: dict[str, dict[str, Any]] = {}
@@ -230,10 +230,10 @@ def _pending_item(metric_id: str) -> ItemValue:
 def build_basic_stats(
     metrics: Mapping[str, Any], *, appearances: int | None = None
 ) -> dict[str, Any]:
-    """26十分統計から打撃16・投手11の表示値を組み立てる。
+    """27十分統計から打撃16・投手11の表示値を組み立てる。
 
     Args:
-        metrics: metric_idごとの ``{"state", "value"}``。閉26を必須とする。
+        metrics: metric_idごとの ``{"state", "value"}``。閉27を必須とする。
         appearances: 正式な投手出場数が供給された場合だけ渡す。未供給はNone。
 
     Returns:
@@ -248,7 +248,7 @@ def build_basic_stats(
     if appearances is not None:
         normalized["appearances"] = {"state": "available", "value": appearances}
 
-    # 生成率は閉26を要求する。追加metricを混ぜず、元の26だけを渡す。
+    # 生成率は閉27を要求する。登板だけを含めず同じmodel順を渡す。
     count_metrics = {key: normalized[key] for key in COUNT_METRIC_IDS}
     rates = derive_display_rates(count_metrics)
     # 生成済みT5核のOPS入力はvalue/display/reasonの閉型を要求する。
@@ -304,15 +304,15 @@ def build_basic_stats(
         elif kind == "rate":
             pitching.append(_rate_item(metric_id, label, rates).as_dict())
         elif kind == "appearance":
-            if "appearances" in normalized:
+            if (
+                "appearances" in normalized
+                and normalized["appearances"]["state"] == "available"
+            ):
                 pitching.append(_count_item(metric_id, label, normalized).as_dict())
             else:
                 pitching.append(_pending_item(metric_id).as_dict())
         else:
-            if "batters_faced" in normalized:
-                pitching.append(_count_item(metric_id, label, normalized).as_dict())
-            else:
-                pitching.append(_pending_item(metric_id).as_dict())
+            pitching.append(_count_item(metric_id, label, normalized).as_dict())
 
     pitch_count = normalized["pitch_count"]
     is_pitcher = (
@@ -321,8 +321,15 @@ def build_basic_stats(
             normalized["pitching_outs"]["state"] == "available"
             and normalized["pitching_outs"]["value"] > 0
         )
-        or "appearances" in normalized
-        or "batters_faced" in normalized
+        or (
+            "appearances" in normalized
+            and normalized["appearances"]["state"] == "available"
+            and normalized["appearances"]["value"] > 0
+        )
+        or (
+            normalized["batters_faced"]["state"] == "available"
+            and normalized["batters_faced"]["value"] > 0
+        )
     )
 
     return {
@@ -330,7 +337,12 @@ def build_basic_stats(
         "pitching": pitching,
         "is_pitcher": is_pitcher,
         "pending": [
-            "D03_SOURCE_PENDING" if "appearances" not in normalized else None,
-            "D04_SOURCE_PENDING" if "batters_faced" not in normalized else None,
+            "D03_SOURCE_PENDING"
+            if "appearances" not in normalized
+            or normalized["appearances"]["state"] == "source_unavailable"
+            else None,
+            "D04_SOURCE_PENDING"
+            if normalized["batters_faced"]["state"] == "source_unavailable"
+            else None,
         ],
     }

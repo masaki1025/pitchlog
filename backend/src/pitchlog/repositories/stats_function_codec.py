@@ -31,6 +31,15 @@ from sqlalchemy.types import TypeDecorator
 from pitchlog.stats.generated.receiver import METRIC_IDS, SOURCE_MODEL_HASH
 
 _ROOT = Path(__file__).parents[4]
+_V2_MODEL_SHA256 = (
+    "sha256:60ab45878fdfc868efc15ddb0f9b84d6ab0f3583519c48a2202e3d9c3abac59d"
+)
+_V2_PROFILE_SHA256 = (
+    "b04fa3633dce29902c2484ce2e0f028bc27eae04a06426190947baa6feddc8c6"
+)
+_HISTORICAL_METRIC_IDS = tuple(
+    metric for metric in METRIC_IDS if metric != "batters_faced"
+)
 
 
 class StatsFunctionCodecError(ValueError):
@@ -63,11 +72,11 @@ def _hash(value: object) -> None:
 
 
 def _native_profiles(root: Path | None = None) -> dict[str, dict[str, Any]]:
-    """root前置の旧来歴と同版v2だけを閉読取し、runtime Gitは使わない。"""
+    """v1/v2保存来歴と現在v3を閉読取し、runtime Gitは使わない。"""
     root = _ROOT if root is None else root
     try:
         manifest = json.loads((root / "backend/domain/stats-manifest.json").read_text())
-        profiles = _object(manifest["nativeEvaluationProfiles"], {"v1", "v2"})
+        profiles = _object(manifest["nativeEvaluationProfiles"], {"v1", "v2", "v3"})
         for profile in profiles.values():
             row = _object(
                 profile, {"model_sha256", "generation_input_files", "artifact_binding"}
@@ -99,7 +108,19 @@ def _native_profiles(root: Path | None = None) -> dict[str, dict[str, Any]]:
             )
             for digest in artifacts.values():
                 _hash(digest)
-        _require(profiles["v2"]["model_sha256"] == SOURCE_MODEL_HASH)
+        _require(profiles["v3"]["model_sha256"] == SOURCE_MODEL_HASH)
+        _require(profiles["v2"]["model_sha256"] == _V2_MODEL_SHA256)
+        _require(
+            hashlib.sha256(
+                json.dumps(
+                    profiles["v2"],
+                    sort_keys=True,
+                    separators=(",", ":"),
+                    ensure_ascii=False,
+                ).encode()
+            ).hexdigest()
+            == _V2_PROFILE_SHA256
+        )
         _require(profiles["v1"]["model_sha256"] != SOURCE_MODEL_HASH)
         contract_path = (
             "docs/features/mvp-stats-primitives/primitive-output.candidate.json"
@@ -114,9 +135,9 @@ def _native_profiles(root: Path | None = None) -> dict[str, dict[str, Any]]:
             profiles["v1"]["generation_input_files"]
             == contract["x-v1-immutable-model-inputs"]["paths"]
         )
-        for path, digest in profiles["v2"]["generation_input_files"].items():
+        for path, digest in profiles["v3"]["generation_input_files"].items():
             _require(hashlib.sha256((root / path).read_bytes()).hexdigest() == digest)
-        for path, digest in profiles["v2"]["artifact_binding"]["artifacts"].items():
+        for path, digest in profiles["v3"]["artifact_binding"]["artifacts"].items():
             _require(hashlib.sha256((root / path).read_bytes()).hexdigest() == digest)
         return profiles
     except (OSError, KeyError, TypeError, UnicodeError, json.JSONDecodeError):
@@ -124,7 +145,7 @@ def _native_profiles(root: Path | None = None) -> dict[str, dict[str, Any]]:
 
 
 def _model(value: object) -> None:
-    """現在のSQL sinkはv2専用。旧履歴の存在を新規書込資格へしない。"""
+    """現在のSQL sinkはv3専用。旧履歴の存在を新規書込資格へしない。"""
     _require(type(value) is str)
     _require(value == SOURCE_MODEL_HASH)
 
@@ -221,7 +242,7 @@ def _invalid_number(_: str) -> None:
 
 
 def parse_evaluation_json(value: object) -> dict[str, Any]:
-    """全26metric/nullable PA11/pending4を検査し、T5を再計算しない。"""
+    """全27metric/nullable PA11/pending4を検査し、T5を再計算しない。"""
     _text(value)
     try:
         data = json.loads(
@@ -249,7 +270,10 @@ def parse_evaluation_json(value: object) -> dict[str, Any]:
     _require(data["selected"] is True)
     _json_uuid(data["source_event_id"])
     _hash(data["native_rule_sha256"])
-    metrics = _object(data["metrics"], set(METRIC_IDS))
+    metrics = _object(
+        data["metrics"],
+        set(_HISTORICAL_METRIC_IDS if version == "v1" else METRIC_IDS),
+    )
     for metric in metrics.values():
         row = _object(metric, {"state", "value", "display", "reason", "credits"})
         _require(type(row["credits"]) is list and len(row["credits"]) <= 4)
@@ -700,7 +724,7 @@ def decode_page_rows(rows: object, *, page_size: int) -> tuple[tuple[Any, ...], 
 
 
 def decode_totals_rows(rows: object) -> tuple[tuple[Any, ...], ...]:
-    """既固定26群の全行を保持し、欠落/重複を0で埋めない。"""
+    """現行27群の全行を保持し、欠落/重複を0で埋めない。"""
     result = _rows(rows, 3, len(METRIC_IDS), len(METRIC_IDS))
     for metric, state, value in result:
         _metric(metric, state, value)

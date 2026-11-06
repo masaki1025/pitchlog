@@ -7,7 +7,7 @@
         "kind": "primitive-refs",
         "version": 2,
         "commonCalculationId": "canonicalEventFacts",
-        "commonModelHash": "sha256:60ab45878fdfc868efc15ddb0f9b84d6ab0f3583519c48a2202e3d9c3abac59d",
+        "commonModelHash": "sha256:882acb95c08d88deb724a77f2fdfb184de48a2252cd03f5ca44df5cd8b48f4c6",
         "refs": [
           {
             "id": "pitch_count",
@@ -91,6 +91,10 @@
           },
           {
             "id": "pitcher_bb",
+            "type": "integer"
+          },
+          {
+            "id": "batters_faced",
             "type": "integer"
           },
           {

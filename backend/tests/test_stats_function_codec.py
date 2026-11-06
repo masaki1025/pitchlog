@@ -34,6 +34,7 @@ def envelope():
                 "credits": [],
             }
             for key in METRIC_IDS
+            if key != "batters_faced"
         },
         "pa_row": None,
         "pending": {
@@ -469,6 +470,13 @@ def test_contract_valid_129_digits_metric_and_credit_are_lossless():
     assert result["metrics"]["runs"]["credits"][0]["quantity"] == amount
     current = current_envelope()
     current["metrics"] = copy.deepcopy(data["metrics"])
+    current["metrics"]["batters_faced"] = {
+        "state": "available",
+        "value": "0",
+        "display": "0",
+        "reason": None,
+        "credits": [],
+    }
     call = save(evaluation_json=json.dumps(current))
     assert call.parameters["evaluation_json"] == json.dumps(current)
     with pytest.raises(codec.StatsFunctionCodecError):
@@ -527,6 +535,13 @@ def test_explicit_pa_rbi_and_inning_lengths_are_retained():
 def current_envelope():
     """採用済みv2のmetadataを規範から手置きし、計算出力を採取しない。"""
     data = envelope()
+    data["metrics"]["batters_faced"] = {
+        "state": "available",
+        "value": "0",
+        "display": "0",
+        "reason": None,
+        "credits": [],
+    }
     del data["pending"]
     data["decisions"] = {
         "D02": {

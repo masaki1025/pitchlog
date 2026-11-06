@@ -115,7 +115,7 @@ class StatsFactVersion(LifecycleMixin, Base):
         ),
         CheckConstraint(
             "array_position(computed_metric_keys,NULL) IS NULL AND "
-            "cardinality(computed_metric_keys)<=26 AND "
+            "cardinality(computed_metric_keys)<=27 AND "
             f"computed_metric_keys <@ {_METRIC_SQL}",
             name="ck_stats_version_metric_keys",
         ),
@@ -273,7 +273,7 @@ class StatsPrimitiveSource(LifecycleMixin, Base):
         ),
         CheckConstraint(
             "array_position(computed_metric_keys,NULL) IS NULL AND "
-            "cardinality(computed_metric_keys)<=26 AND "
+            "cardinality(computed_metric_keys)<=27 AND "
             f"computed_metric_keys <@ {_METRIC_SQL}",
             name="ck_stats_source_metric_keys",
         ),

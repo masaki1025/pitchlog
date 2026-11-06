@@ -161,7 +161,7 @@ def _pitchlog_generated(event, requested_metrics=None):
         [
             f"    known_metrics = {names!r}",
             "    if requested_metrics is not None:",
-            "        if type(requested_metrics) not in (list, tuple) or len(requested_metrics)>26:",  # noqa: E501 — 生成targetのliteral
+            f"        if type(requested_metrics) not in (list, tuple) or len(requested_metrics)>{len(names)}:",  # noqa: E501 — 生成targetのliteral
             "            raise ValueError('primitive射影の有限型違い')",
             "        if any(type(x) is not str or x not in known_metrics for x in requested_metrics):",  # noqa: E501 — 生成targetのliteral
             "            raise ValueError('未知primitive射影')",

@@ -1,4 +1,4 @@
-"""native26の有限D11を独立規範・実生成Python/TSの全fieldへ接続する。"""
+"""native27の有限D11を独立規範・実生成Python/TSの全fieldへ接続する。"""
 
 from __future__ import annotations
 
@@ -50,7 +50,7 @@ def _record(record_property, case, direct, target, kind):
             "selected",
             "source_event_id",
         }
-        assert len(actual["metrics"]) == 26
+        assert len(actual["metrics"]) == 27
         assert type(actual["selected"]) is bool
         for value in actual["metrics"].values():
             assert set(value) == {"state", "value", "display", "reason", "credits"}
@@ -97,7 +97,7 @@ def test_d11_evidence_all_fields_credits_pa_and_display(
     actual_ts,
     record_property,
 ):
-    """全26×全field・帰属・PA・状態・表示を丸め/無視なしで比較する。"""
+    """全27×全field・帰属・PA・状態・表示を丸め/無視なしで比較する。"""
     target = CALC["directTargets"][target_index]
     direct = (
         runner.execute_python(case["request"])
@@ -120,6 +120,46 @@ def test_d11_registration_and_all_legacy_current_normative_references():
     assert used | remaining == set(VECTORS["sourceReferences"]["currentCaseIds"])
     # 残りは既test_primitive_facts.pyの旧55/現75比較で引き続き必須。
     # source fixtureの拒否を、本物SQL資格や本native子計算の成功には数えない。
+
+
+def test_d11_v3_keeps_every_historical_v2_expected_field():
+    """旧v2の全期待を保存し、新v3はBF一欄だけを明示追加する。"""
+    old_alpha = runner.read_json(
+        ROOT, "contracts/stats/native_event_facts_d11_v2.json"
+    )
+    old_beta = runner.read_json(
+        ROOT, "contracts/stats/native_current_totals_d11_v2.json"
+    )
+    new_alpha = VECTORS
+    new_beta = runner.read_json(
+        ROOT, MANIFEST["calculations"][1]["vectors"][0]["path"]
+    )
+    assert [case["caseId"] for case in old_alpha["cases"]] == [
+        case["caseId"] for case in new_alpha["cases"]
+    ]
+    for before, after in zip(old_alpha["cases"], new_alpha["cases"], strict=True):
+        assert before["request"] == after["request"]
+        old_expected = before["expected"]["expected"]
+        new_expected = copy.deepcopy(after["expected"]["expected"])
+        assert set(new_expected["metrics"]) == set(old_expected["metrics"]) | {
+            "batters_faced"
+        }
+        del new_expected["metrics"]["batters_faced"]
+        assert new_expected == old_expected
+    old_case = old_beta["cases"][0]
+    new_case = new_beta["cases"][0]
+    assert old_case["request"] == new_case["request"]
+    old_rows = old_case["expected"]["expected"]
+    new_rows = new_case["expected"]["expected"]
+    assert [r for r in new_rows if r["metric_id"] != "batters_faced"] == old_rows
+    assert [r for r in new_rows if r["metric_id"] == "batters_faced"] == [
+        {
+            "metric_id": "batters_faced",
+            "state": "available",
+            "value": "0",
+            "display": "0",
+        }
+    ]
 
 
 @pytest.mark.parametrize(
@@ -287,7 +327,7 @@ def test_d11_existing_collector_rejects_zero_and_incomplete_documents(tmp_path):
 
 @pytest.mark.parametrize("metric_index", range(26))
 def test_d11_existing_non_equivalent_generated_quantity_mutations(metric_index):
-    """既生成器の26数量変異を再利用し、出力書換えだけを変異killに数えない。"""
+    """旧26数量式の変異killを保持し、新BFは別の対向で検証する。"""
     import importlib.util
 
     path = ROOT / "backend/tests/stats/test_basic_stats.py"

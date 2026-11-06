@@ -51,14 +51,14 @@ def _json_exact(value):
 
 
 @pytest.mark.parametrize("kind", ["invariant", "equivalence"])
-def test_d11_evidence_real_sql_rrro_receiver_and_formatter_all26(
+def test_d11_evidence_real_sql_rrro_receiver_and_formatter_all27(
     vertical_database,
     monkeypatch,
     tmp_path,
     record_property,
     kind,
 ):
-    """事前投入accepted源なしに3球保存し、同DBの全26fieldと3段を比較する。"""
+    """事前投入accepted源なしに3球保存し、同DBの全27fieldと3段を比較する。"""
     db = vertical_database
     manifest = runner.validate_registration(ROOT)
     calc = manifest["calculations"][1]
@@ -94,12 +94,12 @@ def test_d11_evidence_real_sql_rrro_receiver_and_formatter_all26(
             "WHERE tenant_id=%s AND game_id=%s ORDER BY d2,source_event_id",
             (db.tenant_id, scope["game_id"]),
         ).fetchall()
-    assert len(raw_rows) == len(actual) == 26
+    assert len(raw_rows) == len(actual) == 27
     assert runner.full_values_match(
         calc["calculation"], case["caseId"], expected, product, actual
     )
     if kind == "invariant":
-        assert len({row["metric_id"] for row in actual}) == 26
+        assert len({row["metric_id"] for row in actual}) == 27
         for row in actual:
             if row["state"] == "available":
                 assert type(row["value"]) is str and row["value"].isdigit()
@@ -121,7 +121,7 @@ def test_d11_evidence_real_sql_rrro_receiver_and_formatter_all26(
         assert evaluation["selected"] is True and evaluation["source_event_id"] == str(
             source_id
         )
-        assert evaluation["pa_row"] is None and len(evaluation["metrics"]) == 26
+        assert evaluation["pa_row"] is None and len(evaluation["metrics"]) == 27
         for mid, value in evaluation["metrics"].items():
             assert set(value) == {"state", "value", "display", "reason", "credits"}
             wanted = next(row for row in expected if row["metric_id"] == mid)
@@ -209,7 +209,7 @@ def test_d11_evidence_real_sql_rrro_receiver_and_formatter_all26(
                     "receiver returns None without calling format_count; "
                     "no product-call claim"
                 ),
-                "scope": "current_open native26 only; not official27/season/UI/CSV",
+                "scope": "current_open native27 only; not official-ended/season/UI/CSV",
             },
             ensure_ascii=False,
             indent=2,

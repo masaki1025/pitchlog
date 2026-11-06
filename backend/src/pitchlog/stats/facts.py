@@ -14,7 +14,7 @@ from pitchlog.repositories.tokens import TenantOperationToken
 from pitchlog.stats.generated.receiver import METRIC_IDS, SOURCE_MODEL_HASH
 
 _GENERATED_FACTS_SHA256 = (
-    "a7ca0116a1bcb53af2cfe77f9535af08da635a53b1bbe0b06bf7bd241bb31ce6"
+    "d39e5caf86a44bd8a52bc9b7cdb61f4707376aac9b797de36530abd5fb3e9e9f"
 )
 
 
@@ -126,8 +126,11 @@ def native_projection(payload, *, source_event_id):
             ]
         else:
             responsibility = native_source["responsibility"]
-        if responsibility["kind"] != "no-change":
-            raise ValueError("native継承責任variantは本接合の対象外です")
+        if responsibility["kind"] not in (
+            "no-change",
+            "changed-mid-plate-appearance",
+        ):
+            raise ValueError("native責任variantが未対応です")
         if (
             variant == "play-prefix-play-v3"
             and value["responsibility"] != responsibility
@@ -135,10 +138,26 @@ def native_projection(payload, *, source_event_id):
             raise ValueError("今回責任の原本が不一致です")
         pa["pa_id"] = responsibility["paStartSource"]["id"]
         completeness["pa"] = "complete"
-        # 対応variantの明示no-change原本だけをaliasする。A-2再判定はしない。
+        # 打席途中の交代でも今回の実投球者・非四球帰属は今回の参加者に従う。
+        # 四球時は唯一artifactが出した打者走者の保存責任IDをそのまま写す。
+        walk_owner = people["pitcherId"]
+        if (
+            responsibility["kind"] == "changed-mid-plate-appearance"
+            and t1["statFlags"]["四球"] is True
+        ):
+            runner_matches = [
+                runner
+                for runner in value["runners"]
+                if runner["runnerId"] == people["batterId"]
+            ]
+            walk_owner = (
+                runner_matches[0]["responsiblePitcherId"]
+                if len(runner_matches) == 1
+                else None
+            )
+        participants["walk_pitcher_id"] = walk_owner
         for name in (
             "strikeout_pitcher_id",
-            "walk_pitcher_id",
             "hbp_pitcher_id",
             "hit_pitcher_id",
             "home_run_pitcher_id",
@@ -158,7 +177,7 @@ def native_projection(payload, *, source_event_id):
 
 
 def evaluate_native_projection(payload, *, source_event_id):
-    """全26群を同じ生成核で評価する。認可/保存成功は発行しない。"""
+    """全27群を同じ生成核で評価する。認可/保存成功は発行しない。"""
     projection = native_projection(payload, source_event_id=source_event_id)
     # PA表示のordinal/語彙等を仮生成せず、count/creditだけを有限射影する。
     return _EVENT_FACTS(projection, METRIC_IDS)

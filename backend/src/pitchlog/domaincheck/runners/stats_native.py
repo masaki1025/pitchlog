@@ -1,4 +1,4 @@
-"""native26の実生成物と有限D11証跡を接続する。製品の計算を複製しない。"""
+"""native27の実生成物と有限D11証跡を接続する。製品の計算を複製しない。"""
 
 from __future__ import annotations
 
@@ -10,6 +10,7 @@ import sys
 import tempfile
 import xml.etree.ElementTree as ET
 from pathlib import Path
+from typing import cast
 
 from pitchlog.domaincheck.cli import canonical_json, validate_asset
 from pitchlog.domaincheck.collect_layers import (
@@ -41,7 +42,7 @@ _FINITE_MANIFEST_JSON = json.dumps(
         },
         "calculations": [
             {
-                "calculation": "native-event-facts26-v2",
+                "calculation": "native-event-facts27-v3",
                 "source": {
                     "path": "backend/domain/play-export.model.json",
                     "provenance": "NFR-018 (b)② 差分の検出可能性",
@@ -101,8 +102,8 @@ _FINITE_MANIFEST_JSON = json.dumps(
                 "vectors": [
                     {
                         "vectorId": "nativeFactsVectors",
-                        "calculation": "native-event-facts26-v2",
-                        "path": ("contracts/stats/native_event_facts_d11_v2.json"),
+                        "calculation": "native-event-facts27-v3",
+                        "path": ("contracts/stats/native_event_facts_d11_v3.json"),
                         "runner": "pytest",
                         "expectedValueSchema": "#/$defs/ExpectedValue",
                         "provenance": "NFR-018 (b)② 差分の検出可能性",
@@ -110,13 +111,13 @@ _FINITE_MANIFEST_JSON = json.dumps(
                 ],
                 "properties": [
                     {
-                        "propertyId": "native-event-facts26-v2-invariant",
+                        "propertyId": "native-event-facts27-v3-invariant",
                         "propertyKind": "invariant",
                         "path": "backend/tests/stats/test_stats_native_d11.py",
                         "provenance": "NFR-018 (b)② 差分の検出可能性",
                     },
                     {
-                        "propertyId": "native-event-facts26-v2-equivalence",
+                        "propertyId": "native-event-facts27-v3-equivalence",
                         "propertyKind": "equivalence",
                         "path": "backend/tests/stats/test_stats_native_d11.py",
                         "provenance": "NFR-018 (b)② 差分の検出可能性",
@@ -124,14 +125,14 @@ _FINITE_MANIFEST_JSON = json.dumps(
                 ],
                 "mutation": [
                     {
-                        "mutationId": "native-event-facts26-v2-mutations",
+                        "mutationId": "native-event-facts27-v3-mutations",
                         "target": "backend/domain/play-export.model.json",
                         "operators": ["increment-quantity", "change-missing-to-zero"],
                     }
                 ],
             },
             {
-                "calculation": "native-current-totals26-v2",
+                "calculation": "native-current-totals27-v3",
                 "source": {
                     "path": "backend/domain/play-export.model.json",
                     "provenance": "NFR-018 (b)② 差分の検出可能性",
@@ -194,8 +195,8 @@ _FINITE_MANIFEST_JSON = json.dumps(
                 "vectors": [
                     {
                         "vectorId": "nativeTotalsVectors",
-                        "calculation": "native-current-totals26-v2",
-                        "path": ("contracts/stats/native_current_totals_d11_v2.json"),
+                        "calculation": "native-current-totals27-v3",
+                        "path": ("contracts/stats/native_current_totals_d11_v3.json"),
                         "runner": "pytest",
                         "expectedValueSchema": "#/$defs/ExpectedValue",
                         "provenance": "NFR-018 (b)② 差分の検出可能性",
@@ -203,13 +204,13 @@ _FINITE_MANIFEST_JSON = json.dumps(
                 ],
                 "properties": [
                     {
-                        "propertyId": "native-current-totals26-v2-invariant",
+                        "propertyId": "native-current-totals27-v3-invariant",
                         "propertyKind": "invariant",
                         "path": "backend/tests/db/test_stats_native_d11.py",
                         "provenance": "NFR-018 (b)② 差分の検出可能性",
                     },
                     {
-                        "propertyId": "native-current-totals26-v2-equivalence",
+                        "propertyId": "native-current-totals27-v3-equivalence",
                         "propertyKind": "equivalence",
                         "path": "backend/tests/db/test_stats_native_d11.py",
                         "provenance": "NFR-018 (b)② 差分の検出可能性",
@@ -217,7 +218,7 @@ _FINITE_MANIFEST_JSON = json.dumps(
                 ],
                 "mutation": [
                     {
-                        "mutationId": "native-current-totals26-v2-mutations",
+                        "mutationId": "native-current-totals27-v3-mutations",
                         "target": ("backend/src/pitchlog/stats/generated/receiver.py"),
                         "operators": ["replace-display", "break-stage-link"],
                     }
@@ -239,19 +240,19 @@ _FINITE_PROPERTIES_JSON = json.dumps(
     {
         "schemaVersion": 1,
         "catalogId": "stats-native-d11-properties",
-        "scope": ["native-event-facts26-v2", "native-current-totals26-v2"],
+        "scope": ["native-event-facts27-v3", "native-current-totals27-v3"],
         "predicates": [
             {
-                "propertyId": "native-event-facts26-v2-invariant",
+                "propertyId": "native-event-facts27-v3-invariant",
                 "propertyKind": "invariant",
                 "authorityId": "NFR-018 (b)② 差分の検出可能性",
                 "predicate": (
-                    "全26metricの非負整数/全credit総量一致/kno"
+                    "全27metricの非負整数/全credit総量一致/kno"
                     "wn0とunavailable-nullを区別"
                 ),
             },
             {
-                "propertyId": "native-event-facts26-v2-equivalence",
+                "propertyId": "native-event-facts27-v3-equivalence",
                 "propertyKind": "equivalence",
                 "authorityId": "NFR-018 (b)② 差分の検出可能性",
                 "predicate": "".join(
@@ -259,13 +260,13 @@ _FINITE_PROPERTIES_JSON = json.dumps(
                 ),
             },
             {
-                "propertyId": "native-current-totals26-v2-invariant",
+                "propertyId": "native-current-totals27-v3-invariant",
                 "propertyKind": "invariant",
                 "authorityId": "NFR-018 (b)② 差分の検出可能性",
-                "predicate": "実SQL全26行/全field/非負整数/NULL状態/重複なし",
+                "predicate": "実SQL全27行/全field/非負整数/NULL状態/重複なし",
             },
             {
-                "propertyId": "native-current-totals26-v2-equivalence",
+                "propertyId": "native-current-totals27-v3-equivalence",
                 "propertyKind": "equivalence",
                 "authorityId": "NFR-018 (b)② 差分の検出可能性",
                 "predicate": (
@@ -280,7 +281,7 @@ _FINITE_PROPERTIES_JSON = json.dumps(
 _ALPHA_META_JSON = json.dumps(
     {
         "schemaVersion": 1,
-        "calculation": "native-event-facts26-v2",
+        "calculation": "native-event-facts27-v3",
         "scope": "single observed event facts; native qualification is separate; "
         "other old/current cases remain original regression obligations",
     }
@@ -289,13 +290,13 @@ _ALPHA_META_JSON = json.dumps(
 _BETA_NORMATIVE_JSON = json.dumps(
     {
         "schemaVersion": 1,
-        "calculation": "native-current-totals26-v2",
+        "calculation": "native-current-totals27-v3",
         "scope": "current_open one real created game, same pitcher, three "
         "nonterminal pitches, no observation of runs/RBI/steal; not "
-        "official-ended/season/27 metrics",
+        "official-ended/season",
         "cases": [
             {
-                "caseId": "native-three-pitch-current-open-pitcher26",
+                "caseId": "native-three-pitch-current-open-pitcher27",
                 "request": {
                     "native_variant": "ordinary-v1",
                     "event_count": 3,
@@ -308,6 +309,12 @@ _BETA_NORMATIVE_JSON = json.dumps(
                     "expected": [
                         {
                             "metric_id": "ab",
+                            "state": "available",
+                            "value": "0",
+                            "display": "0",
+                        },
+                        {
+                            "metric_id": "batters_faced",
                             "state": "available",
                             "value": "0",
                             "display": "0",
@@ -497,6 +504,57 @@ def _finite_manifest(profile):
     return expected
 
 
+_BF_ZERO_CASES = frozenset(
+    {
+        "incomplete-pa-one-pitch",
+        "nonpitch-steal-incomplete-pa",
+        "cancelled-play-excluded",
+        "device-before-apply-is-provisional",
+    }
+)
+_BF_CURRENT_CASES = frozenset({"walk", "intentional-walk"})
+_BF_PREVIOUS_CASES = frozenset({"inherited-ball-dominant-walk"})
+_BF_CURRENT_ID = "00000000-0000-0000-0000-000000000004"
+_BF_PREVIOUS_ID = "00000000-0000-0000-0000-000000000005"
+_HISTORICAL_V2_SHA256 = {
+    "contracts/stats/native_event_facts_d11_v2.json": (
+        "253a51fc6cdb107a0aebeba3503fee0f4ba9c599b282d514342abc5418099f89"
+    ),
+    "contracts/stats/native_current_totals_d11_v2.json": (
+        "d35d35caa678dfe50c0fe0b6a4db3b749ab47cd0bdf279179b3c28660d5ffd5c"
+    ),
+}
+
+
+def _bf_normative(case_id: str) -> dict:
+    """旧規範入力の閉じたcase分類からBFの独立期待を返す。"""
+    suffix = case_id.removeprefix("current-v2-regression-")
+    if suffix in _BF_ZERO_CASES:
+        return {
+            "state": "available",
+            "value": "0",
+            "display": "0",
+            "reason": None,
+            "credits": [],
+        }
+    if suffix in _BF_CURRENT_CASES | _BF_PREVIOUS_CASES:
+        pitcher_id = _BF_PREVIOUS_ID if suffix in _BF_PREVIOUS_CASES else _BF_CURRENT_ID
+        return {
+            "state": "available",
+            "value": "1",
+            "display": "1",
+            "reason": None,
+            "credits": [{"player_id": pitcher_id, "quantity": "1"}],
+        }
+    return {
+        "state": "source_unavailable",
+        "value": None,
+        "display": None,
+        "reason": "MISSING_ATTRIBUTION",
+        "credits": [],
+    }
+
+
 def _finite_vectors(original, source_digest):
     """原独立期待から構造射影だけを行い、製品出力/数式を使わない。"""
     current = original["current_v2_followup"]
@@ -535,6 +593,9 @@ def _finite_vectors(original, source_digest):
             }
             for mid, value in expected["totals"].items()
         }
+        if "batters_faced" in metrics:
+            raise ValueError("旧26期待がBFを既に含みます")
+        metrics["batters_faced"] = _bf_normative(case["case_id"])
         cases.append(
             {
                 "caseId": case["case_id"],
@@ -558,6 +619,11 @@ def _finite_vectors(original, source_digest):
         )
     if len(cases) != 27:
         raise ValueError("独立単一eventの全27caseが不一致です")
+    suffixes = {
+        cast(str, c["caseId"]).removeprefix("current-v2-regression-") for c in cases
+    }
+    if not (_BF_ZERO_CASES | _BF_CURRENT_CASES | _BF_PREVIOUS_CASES) <= suffixes:
+        raise ValueError("BFの独立期待caseが欠けています")
     alpha["cases"] = cases
     ids = {c["caseId"] for c in cases}
     alpha["notDeclaredAsExecutedHere"] = [
@@ -572,6 +638,9 @@ def validate_registration(root):
     """独立源本/生成8/finite registry/原規範の全実値へ閉じて確認する。"""
     root = Path(root)
     profile = read_json(root, "backend/domain/stats-manifest.json")
+    for path, historical_hash in _HISTORICAL_V2_SHA256.items():
+        if digest(root / path) != "sha256:" + historical_hash:
+            raise ValueError("旧v2有限期待の全byteが変化しました")
     expected_generated = {
         "backend/src/pitchlog/stats/generated/facts.py",
         "frontend/src/lib/generated/statsPrimitives.ts",
@@ -772,7 +841,7 @@ def validate_stage_trace(trace, calculation, target):
     root = Path(__file__).resolve().parents[5]
     manifest = validate_registration(root)
     matches = [c for c in manifest["calculations"] if c["calculation"] == calculation]
-    if len(matches) != 1 or calculation != "native-current-totals26-v2":
+    if len(matches) != 1 or calculation != "native-current-totals27-v3":
         raise ValueError("未知の複合計算です")
     fixed = matches[0]["directTargets"][0]
     if canonical_json(target) != canonical_json(fixed):
@@ -810,7 +879,7 @@ def collect_execution_evidence(root, junit_path, *, require_sql=True):
     expectations = {}
     expected = set()
     for calc in manifest["calculations"]:
-        if not require_sql and calc["calculation"] == "native-current-totals26-v2":
+        if not require_sql and calc["calculation"] == "native-current-totals27-v3":
             continue
         vectors = read_json(root, calc["vectors"][0]["path"])
         for target in calc["directTargets"]:
@@ -909,7 +978,7 @@ def collect_execution_evidence(root, junit_path, *, require_sql=True):
     ):
         raise ValueError("D11の全case/target/property/hash/連鎖が未成立です")
     return {
-        "scope": "native26-D11" if require_sql else "alpha-only; real SQL pending",
+        "scope": "native27-D11" if require_sql else "alpha-only; real SQL pending",
         "evidence_count": len(observed),
         "real_sql_required": require_sql,
         "source_junit_sha256": digest(junit_path),

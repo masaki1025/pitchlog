@@ -175,7 +175,8 @@ def test_each_metric_non_equivalent_quantity_mutation_is_killed(metric_index):
     """26群の数量式変異を原典の独立期待が検出する。"""
     common, consumer = _models()
     p = common["calculations"][0]["typedProgram"]
-    metric = p["metrics"][metric_index]
+    # 原典26群の順序を保持し、新BFは別の27番目対向で検証する。
+    metric = p["metrics"][metric_index + (metric_index >= 21)]
     mid = metric["id"]
     cases = json.loads(
         (
@@ -206,6 +207,34 @@ def test_each_metric_non_equivalent_quantity_mutation_is_killed(metric_index):
         for event in case["input"]["events"]
     )
     assert observed != int(case["expected"]["totals"][mid]["value"])
+
+
+def test_bf_quantity_mutation_is_killed_by_independent_d11_expectation():
+    """新BFの数量式を変え、旧規範から独立したv3期待で検出する。"""
+    common, consumer = _models()
+    metric = next(
+        item
+        for item in common["calculations"][0]["typedProgram"]["metrics"]
+        if item["id"] == "batters_faced"
+    )
+    metric["quantity"] = {"op": "literal", "value": 2}
+    _rehash(common, consumer)
+    api = _load_python(
+        generate_primitive_bundle(common, consumer)[
+            "backend/src/pitchlog/stats/generated/facts.py"
+        ]
+    )
+    vector = json.loads(
+        (ROOT / "contracts/stats/native_event_facts_d11_v3.json").read_text()
+    )
+    case = next(
+        item for item in vector["cases"] if item["caseId"].endswith("-walk")
+    )
+    expected = case["expected"]["expected"]["metrics"]["batters_faced"]
+    assert expected["state"] == "available" and expected["value"] == "1"
+    assert api["_pitchlog_generated"](case["request"])["metrics"][
+        "batters_faced"
+    ]["value"] != expected["value"]
 
 
 def test_typed_model_schema_and_property_catalog_are_closed():
@@ -476,6 +505,7 @@ def test_native_no_change_copy_supplies_pa_k_and_out_without_future_participants
         "formatVersion": "play-prefix-play-v3",
         "participants": people,
         "calculation": {
+            "formatVersion": "play-prefix-calculation-v3",
             "request": {
                 "t1": {
                     "pitchEventKind": "pitch-event",
@@ -821,7 +851,7 @@ def test_generated_season_joins_each_game_health_to_its_own_version(
     assert "GROUP BY g.tenant_id,g.game_id" in health
     assert "FROM canonical_scope g LEFT JOIN canonical_s c" in health
     rows = _execute_generated_season_health(sql, mode)
-    assert len(rows) == 26
+    assert len(rows) == 27
     assert all(state == "available" for _, state, _ in rows)
     assert (
         next(value for metric, _, value in rows if metric == "pitch_count")
@@ -844,7 +874,7 @@ def test_generated_season_rejects_one_game_health_gap(generated, mode):
     rows = _execute_generated_season_health(
         generated["backend/src/pitchlog/stats/generated/stats.sql"], mode
     )
-    assert len(rows) == 26
+    assert len(rows) == 27
     assert all(
         state == "source_unavailable" and value is None for _, state, value in rows
     )
@@ -868,7 +898,7 @@ def test_generated_sql_cannot_turn_invalid_named_selection_into_zero(
         category,
         raw,
     )
-    assert len(rows) == 26 and all(
+    assert len(rows) == 27 and all(
         state == "source_unavailable" and value is None for _, state, value in rows
     )
 
