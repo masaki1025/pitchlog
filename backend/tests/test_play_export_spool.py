@@ -106,3 +106,21 @@ def test_disk_indexes_and_rows_do_not_grow_python_heap_with_all_data() -> None:
             assert peak < 4_000_000
     finally:
         tracemalloc.stop()
+
+
+@pytest.mark.parametrize("value", ["a" * 8_000_000, "\x00" * 1_000_000])
+def test_oversized_single_row_is_rejected_before_encoding(value: str) -> None:
+    """巨大単一行/escape膨張をコピー前に拒否し追加heapを有限にする。"""
+    row = {"id": UUID(int=1), "payload": value}
+    tracemalloc.start()
+    try:
+        with ExportRowStore() as store:
+            path = Path(store.directory.name)
+            with pytest.raises(ValueError, match="容量"):
+                store.rows((row,))
+            assert store.bytes == 0
+            _, peak = tracemalloc.get_traced_memory()
+            assert peak < 1_000_000
+        assert not path.exists()
+    finally:
+        tracemalloc.stop()

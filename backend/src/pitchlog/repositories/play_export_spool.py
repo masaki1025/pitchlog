@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import math
 import sqlite3
+import sys
 import tempfile
 from collections.abc import Iterable, Iterator, Mapping, Sequence
 from contextlib import contextmanager
@@ -17,6 +18,42 @@ from uuid import UUID
 _CURRENT: ContextVar[ExportRowStore | None] = ContextVar(
     "play_export_row_store", default=None
 )
+
+
+def _check_budget(value: Any, remaining: int, depth: int = 0) -> int:
+    """型付き木/JSONを作る前に最悪容量を有限ノード走査で検査する。"""
+    # UTF-8は最大4byte、JSON control escapingは最大6byte/文字。
+    # 64byte/ノードを見込み、タグ/区切りとencoder作業領域も保守的に制限する。
+    remaining -= 64
+    if remaining < 0 or depth > 64:
+        raise ValueError("CSV退避容量の上限を超えました")
+    if type(value) is str:
+        remaining -= 6 * len(value)
+    elif type(value) is int:
+        remaining -= value.bit_length() // 3 + 2
+    elif value is None or type(value) in (bool, UUID, date, datetime):
+        pass
+    elif type(value) is float:
+        if not math.isfinite(value):
+            raise ValueError("CSV読取元の保存型が不正です")
+    elif type(value) is Decimal:
+        if not value.is_finite():
+            raise ValueError("CSV読取元の保存型が不正です")
+        remaining -= 8 * sys.getsizeof(value)
+    elif type(value) in (list, tuple):
+        for item in value:
+            remaining = _check_budget(item, remaining, depth + 1)
+    elif type(value) is dict:
+        for key, item in value.items():
+            if type(key) is not str:
+                raise ValueError("CSV読取元の保存型が不正です")
+            remaining = _check_budget(key, remaining, depth + 1)
+            remaining = _check_budget(item, remaining, depth + 1)
+    else:
+        raise ValueError("CSV読取元の保存型が不正です")
+    if remaining < 0:
+        raise ValueError("CSV退避容量の上限を超えました")
+    return remaining
 
 
 def _encode(value: Any, depth: int = 0) -> list[Any]:
@@ -152,6 +189,10 @@ class DiskKeys:
         """UUID/文字列だけを重複排除して追加する。"""
         if type(value) not in (UUID, str):
             raise ValueError("CSV参照キーが不正です")
+        _check_budget(
+            value,
+            min(self.store.max_row_bytes, self.store.max_bytes - self.store.bytes),
+        )
         payload = json.dumps(_encode(value), ensure_ascii=False).encode()
         if (
             len(payload) > self.store.max_row_bytes
@@ -186,6 +227,10 @@ class DiskRows(Sequence[dict[str, Any]]):
     def extend(self, source: Iterable[dict[str, Any]]) -> None:
         """有限行/全体上限を各INSERTより先に検査する。"""
         for row in source:
+            _check_budget(
+                row,
+                min(self.store.max_row_bytes, self.store.max_bytes - self.store.bytes),
+            )
             payload = json.dumps(
                 _encode(row), ensure_ascii=False, allow_nan=False, separators=(",", ":")
             ).encode()

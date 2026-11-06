@@ -4,11 +4,12 @@ from __future__ import annotations
 
 import tempfile
 from collections.abc import Iterator
-from typing import Annotated
+from typing import Annotated, BinaryIO
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import JSONResponse, StreamingResponse
+from starlette.types import Receive, Scope, Send
 
 from pitchlog.api.request_presentation import require_presented_token
 from pitchlog.api.tenant_access import TenantMatchedRoute, require_tenant_access
@@ -28,6 +29,22 @@ from pitchlog.repositories.play_export_spool import ExportRowStore
 from pitchlog.repositories.transaction import play_export_read_scope
 
 router = APIRouter(tags=["毎球CSV"], route_class=TenantMatchedRoute)
+
+
+class _CompletedArchiveResponse(StreamingResponse):
+    """ASGI送出の全出口で完成一時ファイルを閉じる。"""
+
+    def __init__(self, output: BinaryIO, content: Iterator[bytes], **kwargs):
+        """完成ファイルの所有を応答へ移す。"""
+        self._output = output
+        super().__init__(content, **kwargs)
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        """iteratorのGC/loop終了を待たず切断・送出例外でも閉じる。"""
+        try:
+            await super().__call__(scope, receive, send)
+        finally:
+            self._output.close()
 
 
 def _unavailable_response(columns: tuple[int, ...]) -> JSONResponse:
@@ -122,7 +139,8 @@ def download_play_csv(
         finally:
             output.close()
 
-    return StreamingResponse(
+    return _CompletedArchiveResponse(
+        output,
         chunks(),
         media_type="application/zip",
         headers={

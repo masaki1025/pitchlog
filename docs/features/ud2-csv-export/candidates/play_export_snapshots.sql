@@ -28,3 +28,9 @@ CREATE POLICY play_export_snapshots_select ON public.play_export_snapshots
     tenant_id = NULLIF(pg_catalog.current_setting('app.tenant_id', true), '')::uuid
     AND session_user = 'pitchlog_app'
   );
+
+-- active-only replay索引では置換/退役原本を含む監査keysetを支えない。
+-- 正式0047と実PG EXPLAINの受理前は候補であり、既共有DBには適用しない。
+CREATE INDEX ix_operation_events_export_audit
+  ON public.operation_events (tenant_id, game_id, d2 ASC NULLS LAST, id)
+  WHERE ledger_kind = 'accepted';

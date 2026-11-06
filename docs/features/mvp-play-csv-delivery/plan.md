@@ -1,7 +1,7 @@
 ---
 feature: mvp-play-csv-delivery
 status: active
-branch: fix/mvp-play-csv-delivery
+branch: feature/mvp-play-csv-real-source
 承認: PO委任によるCodex/root判断（2026-11-07、既MVP内の欠陥修復・接続）
 計画レビュー周回: 0
 確定ゲート周回: 0
@@ -40,3 +40,15 @@ rootへの既PO委任と2026-11-06の速度優先・品質維持指示に基づ�
 追加path `repositories/play_export_spool.py` は既ステップ2の有限ディスク抽出の具体化で、root単独編集。SQLAlchemy server-side cursor/yield_per500から同一RR原本を要求私有SQLiteへ逐次退避し、PlayRow/event/snapshot参照索引と参照ID集合もディスクへ置く。pickle/evalを使わず全ノード型タグでUUID/日付/日時/有限numeric/JSONを保持する。256MiB総量・4MiB行・集合100万行・SQLite有限cache/ディスク上限を各書込前に検査し、全出口で私有ファイルを閉じる。ZIP完成までstoreを保持し、保存原本を全量dict/list/tupleへ戻さず既formatterへ供給する。出力時のT1再計算/名簿補完はしない。
 
 関連102pytest、Ruff/Ty成功。500/501/2001 SQL検査を退避あり/なし両方で実行し、disk bundleと同値memory bundleのsource拒否・manifest一致を確認。2001件・20MB超sourceの単体ではPython heap peakを4MB未満に抑える対向、容量拒否とcleanupを追加。これはtracemallocのPython heap検証でありnative SQLite/PG/RSS全量性能・実PG・製品88列供給の証拠ではない。後続非作者確認と実接合が必要。
+
+## ステップ3接合と反映1（2026-11-07）
+
+元CSV修復ad8b0cf3は非作者 `play-csv-ad8-independent-20261107/REPORT.md` でP0=0/P1=3（全監査index、巨大単一行の事前コピー、ASGI切断cleanup）として不採用中間を保持。rootは別WT feature/mvp-play-csv-real-sourceへconnected60fと通常mergeして4fb27253へ接合。transactionのstats/read/CSV readをそれぞれ保持し同時指定を拒否、C2両operation/既local route/成績routeを維持した。元レビュー固定WTは不変更。
+
+反映: _encode前に深さ/ノード/最悪escaped bytesの有限予算を走査し、8MB行とcontrol escape膨張をコピー前に拒否。ASGI response自身のtry/finallyで出力fileを所有し、start/body送出例外がlive event loop内でも確実にclose。全監査用(tenant,game,d2,id) accepted部分indexを候補SQLへ追加したが、0047/実PG EXPLAIN前はindex指摘を解消扱いにしない。巨大行/切断の対象12pytest、Ruff/Ty成功、全関連は継続検査。Python追加heapとDB client/native RSSは分離する。
+
+closed registryの旧6赤は60f同名6caseで同じ失敗を再現（cache csv-merge-closed-registry-base60f.log）。実現在43件の全operation literal順序と実token集合を追随し、旧42件/末尾offsetを修復、部分集合や期待値の無視はしない。対象2suite276passed。これは製品計算/認可変更ではない。正式資産・最終非作者・必須CIの追随は未了。
+
+次の主作業は同TX88列producer、既D-1単一計算/生成器を用いる表示・座標・共通DBprimitive、記録時人名/背番号/roster metadata保存、正式0047+route/ACL、事前投入なし新規記録→ZIP/画面DL。sourceの欠測を0/NULL/現在名簿で補わない。P3有効source/取消/終了再開版へ連動し、未対応操作は成功にしない。
+
+反映1固定前の結合検査: CSV/RowStore/ASGI拒否＋stats/function registryの全9suite **382passed18.69秒**、Ruff/Ty・Vue型・FE対象77成功。ASGI送出故障はClientDisconnectの型と発生phaseを明示し、loopを生かしたままcloseを確認する。候補監査indexの実PG EXPLAINは未実施のまま。sourceは次のproducer担当移管時に固定し、正式受理を既レビューへ拡張しない。

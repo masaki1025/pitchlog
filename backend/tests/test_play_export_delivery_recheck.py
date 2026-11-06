@@ -1,5 +1,7 @@
 """完成ZIPの送出直前拒否と一時ファイルcleanupの単体検査。"""
 
+import asyncio
+import tempfile
 from contextlib import contextmanager
 from types import SimpleNamespace
 from unittest.mock import Mock
@@ -7,7 +9,7 @@ from uuid import UUID
 
 import pytest
 from fastapi import HTTPException
-from starlette.requests import Request
+from starlette.requests import ClientDisconnect, Request
 
 from pitchlog.api.routers import game_exports
 from pitchlog.exports.archive import ExportSnapshot
@@ -84,3 +86,39 @@ def test_rejected_delivery_closes_completed_files(
     assert failure.value.status_code == status
     assert order[0] == "fresh-authorization"
     assert all(file.closed for file in files)
+
+
+@pytest.mark.parametrize("phase", ["http.response.start", "http.response.body"])
+def test_stream_failure_closes_file_inside_live_event_loop(phase: str) -> None:
+    """開始/本文の送出例外でloop終了やiterator GC前に完成ZIPを閉じる。"""
+
+    async def exercise():
+        output = tempfile.TemporaryFile(mode="w+b")
+        output.write(b"PK-completed-archive")
+        output.seek(0)
+
+        def chunks():
+            while chunk := output.read(4):
+                yield chunk
+
+        async def receive():
+            await asyncio.Future()
+
+        sent = []
+
+        async def send(message):
+            sent.append(message["type"])
+            if message["type"] == phase:
+                raise OSError("unit disconnect")
+
+        response = game_exports._CompletedArchiveResponse(output, chunks())
+        with pytest.raises(ClientDisconnect):
+            await response(
+                {"type": "http", "asgi": {"spec_version": "2.4"}}, receive, send
+            )
+        assert phase in sent
+        assert output.closed
+        await asyncio.sleep(0)
+        assert output.closed
+
+    asyncio.run(exercise())
