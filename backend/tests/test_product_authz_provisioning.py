@@ -16,6 +16,7 @@ from typing import Any, cast
 
 import psycopg
 import pytest
+from first_ball_expected_source_pins import read_ci_followup_inputs
 from psycopg import pq
 
 from pitchlog.authz import product_provisioning
@@ -2076,14 +2077,15 @@ def test_pre_rule_preserves_old16_and_defers_exact_epoch_acl() -> None:
     import subprocess
 
     asset_path = "contracts/authz/product/ddl-elements.json"
+    pins = read_ci_followup_inputs()
     parent = json.loads(
         subprocess.check_output(
-            ["git", "show", "40a01434dc19bfe9dcfc51e9a66064e48eb7b4a9:" + asset_path],
+            ["git", "show", pins["catalog_before_revision"] + ":" + asset_path],
             cwd=_REPOSITORY_ROOT,
         )
     )
     stats_bytes = subprocess.check_output(
-        ["git", "show", "fae7fd6ee8f3254604132bb20a714c133c5e42d3:" + asset_path],
+        ["git", "show", pins["catalog_after_revision"] + ":" + asset_path],
         cwd=_REPOSITORY_ROOT,
     )
     assert stats_bytes == (_REPOSITORY_ROOT / asset_path).read_bytes()

@@ -192,6 +192,8 @@ def copy_product_test_repository(
         Path("backend/tests/test_authz_runtime_contract_repository.py"),
         Path("backend/tests/test_schema_manifest.py"),
         Path("backend/tests/type_boundary_contract.py"),
+        Path("backend/tests/first_ball_expected_source_pins.py"),
+        Path("backend/tests/fixtures/pr197_ci_followup_inputs_v1.json"),
         *PRODUCT_STATE_TEST_FILES,
     ):
         target = destination_root / relative_path

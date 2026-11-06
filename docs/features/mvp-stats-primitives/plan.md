@@ -591,3 +591,8 @@ run42275253517の `test_sync_writer_binding_reapply.py` は旧29関数だけを�
 ### public不変性検査のcurrent追随（2026-11-07、PO委任root・step4/5）
 
 owned r7で旧migration等141件成功、残7件は不変性検査が0039版を固定していた。`backend/tests/db/test_immutability_enforcement.py` と `test_immutability_matrix.py` の現行正例を0041へ追随する。0032の歴史2列RG1検証と既public全50表/全trigger/故障負例を保持し、既private6と同じ別担当の正式stats3表だけpublic母集団から分離する（public上の実表と照合する検査なのでschemaを混同しない）。private9の有限名は正式DDLのschema集合と独立に照合し、未知のstats名を除外しない純対向 `backend/tests/test_immutability_population_scope.py` を付ける。privateの保護は正式catalogのACL/policy/構造とnative受理/再送/CASの既試験が別途担い、public trigger検査の成功へ読み替えない。製品/DDL/保存保証を変更せず、非作者レビューとownedで失敗7件だけ再検証する。
+
+
+### CI固定参照6箇所の宣言追随（2026-11-07、PO委任root・step4/5）
+
+正式CLIが新規Python固定参照6箇所を未宣言として拒否した。allow-list追加/走査除外/hex分割は行わず、既 `backend/tests/first_ball_expected_source_pins.py` の閉読取方式を新4値の別schemaへ再利用する。新 `backend/tests/fixtures/pr197_ci_followup_inputs_v1.json` は旧705比較のGit前後40桁2値と既採用ratio/rate全AST64桁2値をそのまま宣言し、frozen-inputsの正式external_filesへ登録して7.7の対象へ含める。旧first-ball fixture/schema/全値は変えない。`backend/tests/test_product_authz_provisioning.py`、`test_sync_apply_product_supply.py`、`type_boundary_contract.py` はこの固定期待を消費するだけで旧比較/AST拒否条件を保持。新readerの欠落/未知/重複/型/桁/非正準を `backend/tests/test_pr197_ci_followup_inputs.py` で拒否、製品copy helperへ読取依存だけ追加する。実装差分を非作者再確認し、source固定後に9資産を正式base51bから一度再導出する。既a44値受理は当該版だけの記録として保全し、新版へ自動拡張しない。

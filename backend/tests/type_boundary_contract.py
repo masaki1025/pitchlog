@@ -14,6 +14,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from first_ball_expected_source_pins import read_ci_followup_inputs
+
 _DESTINATION_CATEGORY_ALIASES = {
     "スタメンのみ": "スタメン・出場区間",
 }
@@ -406,8 +408,8 @@ def regular_schema_violations(
 # 採用済D05の比/率の未定義値は、移行フィールドのセンチネルとは別である。
 # 許容するのは既生成された下記4関数の全AST一致だけ。ファイル全体を除外しない。
 # 意味変更はこの固定を失効させ、通常の非作者レビューで再確認する。
-_RATIO_AST = "dd71adba42a73be3b081d96ec41cd9d6fcb4aeaa8d36ce9aabe58e593b08eb03"
-_RATE_AST = "0398dd9e9b9557c6a6cce89542e0157a3d8fe08615b43f4e3603702094550fa2"
+_RATIO_AST = read_ci_followup_inputs()["ratio_ast_sha256"]
+_RATE_AST = read_ci_followup_inputs()["rate_ast_sha256"]
 _ADOPTED_RATE_NULL_FUNCTIONS = {
     "pitchlog/stats/generated/facts.py": {
         "_ratio_add": _RATIO_AST,
