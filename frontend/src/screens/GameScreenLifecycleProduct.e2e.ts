@@ -43,14 +43,28 @@ test('実画面の新規作成→開始→1球→終了→再開→2球→再終
 }) => {
   const syncDurationsMs: number[] = []
   page.on('requestfailed', (request) => {
-    if (apiPath(request.url()).endsWith('/sync/events'))
+    if (new URL(request.url()).origin === baseURL)
       console.log(
         'PITCHLOG_LIFECYCLE_TRANSPORT_FAILURE=' +
           JSON.stringify({
             method: request.method(),
+            path: apiPath(request.url()),
             failure: request.failure()?.errorText ?? 'unknown',
           }),
       )
+  })
+  page.on('pageerror', (error) => {
+    console.log(
+      'PITCHLOG_LIFECYCLE_PAGE_ERROR=' +
+        JSON.stringify({
+          type: error.name,
+          moduleLoadFailed: error.message.includes(
+            'dynamically imported module',
+          ),
+          initializationFailed: error.message.includes('before initialization'),
+          isSyntaxError: error instanceof SyntaxError,
+        }),
+    )
   })
   page.on('response', (response) => {
     if (apiPath(response.url()).endsWith('/sync/events'))
