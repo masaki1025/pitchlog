@@ -91,6 +91,10 @@ _READ_SCRIPT = _script(
             names=sorted(bundle.namelist())
             manifest=json.loads(bundle.read('manifest.json'))
             out['archive_b64']=base64.b64encode(result.content).decode()
+            import csv
+            plays_text=bundle.read('plays.csv').decode('utf-8-sig')
+            parsed_rows=list(csv.reader(io.StringIO(plays_text)))
+            out['plays_first_row']=[parsed_rows[1][63]] if len(parsed_rows)>1 else []
             out['files']={name:{
                 'size':len(bundle.read(name)),
                 'header':bundle.read(name).decode('utf-8-sig').splitlines()[0]
@@ -129,6 +133,7 @@ def _insert_complete_snapshots(
     """88列projectionの試験fixture。実記録producerの成功を意味しない。"""
     headers = CSV_HEADERS["plays.csv"]
     values = {header: "" for header in headers}
+    values["打者登録名"] = "=1+1"
     rows = admin.execute(
         "SELECT p.id, e.generation, e.d2 FROM public.play_rows p "
         "JOIN public.operation_events e "
@@ -218,3 +223,4 @@ def test_play_export_404_409_then_complete_snapshot_200(
     payload = base64.b64decode(complete["archive_b64"])
     assert len(payload) == int(complete["content_length"])
     assert hashlib.sha256(payload).hexdigest() == complete["archive_sha"]
+    assert "'=1+1" in complete["plays_first_row"][0]
