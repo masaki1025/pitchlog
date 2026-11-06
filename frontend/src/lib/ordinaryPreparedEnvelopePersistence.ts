@@ -157,6 +157,26 @@ function checked(value: unknown, key: PreparedEnvelopeKey): PreparedEnvelope {
   return row as PreparedEnvelope
 }
 
+/** 元観測・予約ID・V12込み本文を同一の耐久originへ結び付ける。 */
+export async function digestPreparedEnvelope(
+  value: PreparedEnvelope,
+): Promise<string> {
+  checked(value, value)
+  if (!globalThis.isSecureContext || !globalThis.crypto?.subtle?.digest)
+    invalid()
+  try {
+    const digest = await crypto.subtle.digest(
+      'SHA-256',
+      new TextEncoder().encode(canonical(value)),
+    )
+    return Array.from(new Uint8Array(digest), (byte) =>
+      byte.toString(16).padStart(2, '0'),
+    ).join('')
+  } catch {
+    return invalid()
+  }
+}
+
 /** 1 D1の準備済み原文をstrict保存し、既行の異値上書きを拒否する。 */
 export class OrdinaryPreparedEnvelopePersistence {
   readonly #database: IDBDatabase

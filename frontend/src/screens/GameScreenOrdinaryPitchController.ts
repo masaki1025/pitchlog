@@ -44,6 +44,7 @@ import { GameStartPersistence } from '../lib/gameStartPersistence'
 import { FirstBallAttemptPersistence } from '../lib/firstBallAttemptPersistence'
 import { OrdinaryPitchAttemptPersistence } from '../lib/ordinaryPitchAttemptPersistence'
 import {
+  digestPreparedEnvelope,
   OrdinaryPreparedEnvelopePersistence,
   type PreparedEnvelope,
 } from '../lib/ordinaryPreparedEnvelopePersistence'
@@ -261,6 +262,31 @@ export class GameScreenOrdinaryPitchController {
       cursor = page.nextCursorD1
     } while (cursor !== null)
     return null
+  }
+  /** localで次球へ進む前に、既E0全件の同attempt/原文を有限ページで確認する。 */
+  async #verifyLocalPendingAttempts(): Promise<boolean> {
+    const r = this.#resources!
+    let cursor: number | null = null
+    do {
+      const page = await r.queue.readSlotsPage(this.#scope(), cursor, 100)
+      this.#assert()
+      for (const slot of page.items) {
+        if (slot.state === queueStateId('要操作')) return false
+        if (slot.state !== queueStateId('未送信')) continue
+        await this.#credentials(
+          {
+            gameId: this.#context.game.id,
+            recordingRightProof: r.grant.recording_right_proof,
+            slots: [slot],
+            eventKinds: kinds,
+          },
+          'retry',
+        )
+        this.#assert()
+      }
+      cursor = page.nextCursorD1
+    } while (cursor !== null)
+    return true
   }
   #advanceValues(
     prefixRef: OrdinaryPrefixRef,
@@ -744,11 +770,16 @@ export class GameScreenOrdinaryPitchController {
         try {
           const prepared = await envelopes.read(key)
           if (
-            prepared &&
-            (prepared.d5 !== slot.d5 ||
-              prepared.attemptId !== attemptId ||
-              !sameOrdinaryWire(prepared.event, slot.event) ||
-              !sameOrdinaryWire(prepared.requestBody, body))
+            (fixed.localOrigin !== undefined && !prepared) ||
+            (fixed.localOrigin === undefined && prepared !== null) ||
+            (prepared !== null &&
+              (prepared.d5 !== slot.d5 ||
+                prepared.attemptId !== attemptId ||
+                !sameOrdinaryWire(prepared.event, slot.event) ||
+                !sameOrdinaryWire(prepared.requestBody, body) ||
+                (fixed.localOrigin !== undefined &&
+                  fixed.localOrigin.envelopeSha256 !==
+                    (await digestPreparedEnvelope(prepared)))))
           )
             throw new Error('端末準備済み原文が一致しません')
         } finally {
@@ -900,6 +931,15 @@ export class GameScreenOrdinaryPitchController {
               this.#assert()
               if (!this.#canAppend || !isLineupRecordingContext(this.#context))
                 return 'blocked'
+              try {
+                if (!(await this.#verifyLocalPendingAttempts())) {
+                  this.#canAppend = false
+                  return 'blocked'
+                }
+              } catch {
+                this.#canAppend = false
+                return 'blocked'
+              }
               const r = this.#resources!
               const expected = sequence(this.#context.nextPosition.d1)
               const scope = this.#scope()
@@ -990,13 +1030,17 @@ export class GameScreenOrdinaryPitchController {
               const fixed = await envelopes.save(candidate)
               this.#assert()
               if (!sameOrdinaryWire(fixed, candidate)) return 'blocked'
+              const envelopeSha256 = await digestPreparedEnvelope(fixed)
+              this.#assert()
               const attempt = await r.attempts.prepare(
                 { ...key, d5, events: body.events },
                 attemptId,
+                { kind: 'local-prepared-envelope-v1', envelopeSha256 },
               )
               this.#assert()
               if (
                 attempt.attemptId !== attemptId ||
+                attempt.localOrigin?.envelopeSha256 !== envelopeSha256 ||
                 !sameOrdinaryWire(
                   JSON.parse(attempt.requestJson),
                   body.events,
@@ -1082,6 +1126,15 @@ export class GameScreenOrdinaryPitchController {
               this.#assert()
               if (!this.#canAppend || !isLineupRecordingContext(this.#context))
                 return 'blocked'
+              try {
+                if (!(await this.#verifyLocalPendingAttempts())) {
+                  this.#canAppend = false
+                  return 'blocked'
+                }
+              } catch {
+                this.#canAppend = false
+                return 'blocked'
+              }
               return (await this.#oldestUnsettledD1()) === null
                 ? 'ready'
                 : 'pending'

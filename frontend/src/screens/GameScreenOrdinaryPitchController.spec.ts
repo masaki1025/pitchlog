@@ -1113,6 +1113,130 @@ it('local受理後にV12が変わればonline retryを送出前に拒む', async
   expect(post).not.toHaveBeenCalled()
   expect(await slots()).toBe(1)
 })
+it('local envelopeだけ選択的に欠損しても旧online行へ読み替えずHTTP0で止める', async () => {
+  const post = vi
+    .spyOn(transport, 'postSyncEvents')
+    .mockRejectedValue(new Error('HTTP禁止'))
+  const local = await localLineupController()
+  expect(await local.localEnqueue(observation, vocabulary)).toBe('queued-local')
+  local.dispose()
+  await new Promise<void>((resolve, reject) => {
+    const request = indexedDB.deleteDatabase(
+      'pitchlog-ordinary-prepared-envelope-v1',
+    )
+    request.onsuccess = () => resolve()
+    request.onerror = () => reject(request.error)
+    request.onblocked = () =>
+      reject(new Error('envelopeのhandleが残っています'))
+  })
+  identity = { tenantId: tenant, epoch: 1, verified: true }
+  const online = await lineupController()
+  expect(await online.inspect()).toBe('pending')
+  expect(await online.retry()).toBe('blocked')
+  expect(online.retryEvidenceUnavailable).toBe(true)
+  expect(post).not.toHaveBeenCalled()
+  expect(await slots()).toBe(1)
+})
+it('local envelope本文以外の元観測改変もdigest不一致でHTTP0に止める', async () => {
+  const post = vi
+    .spyOn(transport, 'postSyncEvents')
+    .mockRejectedValue(new Error('HTTP禁止'))
+  const local = await localLineupController()
+  expect(await local.localEnqueue(observation, vocabulary)).toBe('queued-local')
+  local.dispose()
+  const db = await new Promise<IDBDatabase>((resolve, reject) => {
+    const request = indexedDB.open('pitchlog-ordinary-prepared-envelope-v1')
+    request.onsuccess = () => resolve(request.result)
+    request.onerror = () => reject(request.error)
+  })
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction('prepared', 'readwrite')
+      const store = tx.objectStore('prepared')
+      tx.oncomplete = () => resolve()
+      tx.onabort = () => reject(tx.error)
+      const request = store.get([
+        tenant,
+        lineupFixture.value.id,
+        lineupFixture.value.current_d4,
+        1,
+      ])
+      request.onsuccess = () => {
+        const row = request.result as { observation: { screenX: number } }
+        row.observation.screenX += 1
+        store.put(row)
+      }
+    })
+  } finally {
+    db.close()
+  }
+  identity = { tenantId: tenant, epoch: 1, verified: true }
+  const online = await lineupController()
+  expect(await online.inspect()).toBe('pending')
+  expect(await online.retry()).toBe('blocked')
+  expect(post).not.toHaveBeenCalled()
+})
+it('local attemptのorigin metadataが消えた行を旧onlineとして送らない', async () => {
+  const post = vi
+    .spyOn(transport, 'postSyncEvents')
+    .mockRejectedValue(new Error('HTTP禁止'))
+  const local = await localLineupController()
+  expect(await local.localEnqueue(observation, vocabulary)).toBe('queued-local')
+  local.dispose()
+  const db = await new Promise<IDBDatabase>((resolve, reject) => {
+    const request = indexedDB.open('pitchlog-ordinary-pitch-attempt')
+    request.onsuccess = () => resolve(request.result)
+    request.onerror = () => reject(request.error)
+  })
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction('attempts', 'readwrite')
+      const store = tx.objectStore('attempts')
+      tx.oncomplete = () => resolve()
+      tx.onabort = () => reject(tx.error)
+      const request = store.getAll()
+      request.onsuccess = () => {
+        const rows = request.result as { localOrigin?: unknown }[]
+        expect(rows).toHaveLength(1)
+        delete rows[0]!.localOrigin
+        store.put(rows[0]!)
+      }
+    })
+  } finally {
+    db.close()
+  }
+  identity = { tenantId: tenant, epoch: 1, verified: true }
+  const online = await lineupController()
+  expect(await online.inspect()).toBe('pending')
+  expect(await online.retry()).toBe('blocked')
+  expect(post).not.toHaveBeenCalled()
+})
+it('既E0のattemptが欠けたらlocal次球を追記しない', async () => {
+  const post = vi
+    .spyOn(transport, 'postSyncEvents')
+    .mockRejectedValue(new Error('HTTP禁止'))
+  const local = await localLineupController()
+  expect(await local.localEnqueue(observation, vocabulary)).toBe('queued-local')
+  const db = await new Promise<IDBDatabase>((resolve, reject) => {
+    const request = indexedDB.open('pitchlog-ordinary-pitch-attempt')
+    request.onsuccess = () => resolve(request.result)
+    request.onerror = () => reject(request.error)
+  })
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction('attempts', 'readwrite')
+      tx.oncomplete = () => resolve()
+      tx.onabort = () => reject(tx.error)
+      tx.objectStore('attempts').clear()
+    })
+  } finally {
+    db.close()
+  }
+  expect(await local.localEnqueue(observation, vocabulary)).toBe('blocked')
+  expect(local.canAppendLocal).toBe(false)
+  expect(await slots()).toBe(1)
+  expect(post).not.toHaveBeenCalled()
+})
 it('local入力前にidentity epochが変われば準備/queue/HTTPを始めない', async () => {
   const post = vi
     .spyOn(transport, 'postSyncEvents')
