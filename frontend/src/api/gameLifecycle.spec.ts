@@ -152,23 +152,11 @@ function slot(
   }
 }
 
-/**
- * 正本の写しに再開種別がまだ無いため、順序検査のためだけに構造だけを差し込む。
- * 実認可/DB成功の証拠ではなく、正式裁定後に実在する予定の種別である。
- */
+/** 正本の実在種別を使い、未裁定候補のcastを差し込まない。 */
 function kindForTest(action: 'end' | 'reopen') {
-  if (action === 'end') {
-    const kind = gameLifecycleEventKind('end')
-    if (!kind) throw new Error('終了種別が正本の写しにありません')
-    return kind
-  }
-  return {
-    id: '13',
-    name: '試合再開',
-    participation: '論理位置を持つ',
-    hasRevisionOrder: false,
-    group: 'A',
-  } as never
+  const kind = gameLifecycleEventKind(action)
+  if (!kind) throw new Error('種別が正本の写しにありません')
+  return kind
 }
 
 beforeEach(() => {
@@ -465,8 +453,14 @@ describe('lifecycle wire rewrite', () => {
     ).toEqual(built)
   })
 
-  it('再開はgame_reopenへ写すが、種別が未裁定なら閉拒否する', () => {
-    expect(gameLifecycleEventKind('reopen')).toBeUndefined()
+  it('正本の追記再開#13をgame_reopenへ写す', () => {
+    expect(gameLifecycleEventKind('reopen')).toEqual({
+      id: '13',
+      name: '追記再開',
+      participation: '論理位置を持つ',
+      hasRevisionOrder: false,
+      group: 'A',
+    })
     const built = buildGameLifecycleRequestBody({
       gameId,
       recordingRightProof: proof,

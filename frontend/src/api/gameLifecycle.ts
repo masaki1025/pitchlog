@@ -174,7 +174,7 @@ export type GameLifecycleRequestBodyResult =
 /** 種別名は正本の写しにだけ置く。値の追加は正本の改訂で行う。 */
 export const GAME_LIFECYCLE_EVENT_KIND_NAME = {
   end: '試合終了宣言',
-  reopen: '試合再開',
+  reopen: '追記再開',
 } as const satisfies Readonly<Record<GameLifecycleAction, string>>
 
 /** backend V5 が要求する literal。ordinal ID はここでだけ写像する。 */

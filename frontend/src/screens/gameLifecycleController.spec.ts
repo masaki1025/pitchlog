@@ -17,7 +17,7 @@ import {
 import * as lifecycle from '../api/gameLifecycle'
 import { NativeEnvelopePersistence } from '../api/nativeUndoWire'
 import { readCanonBoundaryResults } from '../lib/sync/canonOracle'
-import { EVENT_KIND_RULES, type EventKind } from '../lib/sync/eventKinds'
+import { type EventKind } from '../lib/sync/eventKinds'
 import { GameStartPersistence } from '../lib/gameStartPersistence'
 import { openDurableQueue } from '../lib/sync/durableQueue'
 import type { SingleWriterInjections } from '../lib/sync/singleWriter'
@@ -177,35 +177,6 @@ const writer: SingleWriterInjections = {
   },
 }
 
-/**
- * 正本の写しに再開種別が無い間の順序検査だけに使う構造。
- * 製品codeはこれを既知種別と偽装しない。共有queueの遷移表も同じ表を読むため、
- * 「正式裁定patchが入った後」の遷移だけをこの spec 内で再現する。
- */
-const pendingReopenKind = {
-  id: '13',
-  name: '試合再開',
-  participation: '論理位置を持つ',
-  hasRevisionOrder: false,
-  group: 'A',
-} as unknown as EventKind
-
-let installedReopenKind = false
-
-function installPendingReopenKind(): void {
-  if (installedReopenKind) return
-  ;(EVENT_KIND_RULES as unknown as EventKind[]).push(pendingReopenKind)
-  installedReopenKind = true
-}
-
-function restoreEventKindTable(): void {
-  if (!installedReopenKind) return
-  const table = EVENT_KIND_RULES as unknown as EventKind[]
-  const index = table.findIndex((kind) => kind.id === pendingReopenKind.id)
-  if (index >= 0) table.splice(index, 1)
-  installedReopenKind = false
-}
-
 function controller(
   options: {
     writer?: SingleWriterInjections
@@ -215,11 +186,7 @@ function controller(
   const value = new GameLifecycleController(gameId, () => identity, {
     writer: options.writer ?? writer,
     resolveEventKind:
-      options.resolveEventKind ??
-      ((action) =>
-        action === 'end'
-          ? lifecycle.gameLifecycleEventKind('end')
-          : pendingReopenKind),
+      options.resolveEventKind ?? lifecycle.gameLifecycleEventKind,
   })
   controllers.push(value)
   return value
@@ -367,7 +334,6 @@ beforeEach(() => {
 })
 
 afterEach(() => {
-  restoreEventKindTable()
   controllers.forEach((value) => value.dispose())
   controllers = []
   vi.restoreAllMocks()
@@ -437,7 +403,6 @@ describe('実writer接続', () => {
 describe('オンラインの終了から再終了まで', () => {
   it('終了v1→再開→2球→再終了v2→reloadを、同queue/閉union/実GET復元で接続する', async () => {
     // 再開種別の正式裁定patchが入った後の遷移を、表への一時追加で再現する。
-    installPendingReopenKind()
     const c = controller()
     const first = await c.refresh()
     expect(first.status).toBe('in_progress')
@@ -557,7 +522,6 @@ describe('オンラインの終了から再終了まで', () => {
   })
 
   it('サーバー確定済みの終了は、端末に終了slotが無くてもconfirmed targetで再開できる', async () => {
-    installPendingReopenKind()
     server = {
       status: 'finished',
       lastVersion: '1',
@@ -593,7 +557,6 @@ describe('オンラインの終了から再終了まで', () => {
   })
 
   it('ACK後のGETが古い間はconfirmed_prefix/queued_endで次の再開を表現する', async () => {
-    installPendingReopenKind()
     const c = controller()
     await c.refresh()
     const stale = currentRead()
@@ -635,7 +598,6 @@ describe('オンラインの終了から再終了まで', () => {
 
 describe('通信断中の終了・再開', () => {
   it('実GET不能でも未送信プレイ→終了→再開→再終了を順序どおり耐久保存する', async () => {
-    installPendingReopenKind()
     const c = controller()
     await c.refresh()
     const baseD2Value = Number(baseD2)
@@ -928,7 +890,6 @@ describe('非成功と結果不明', () => {
   })
 
   it('独立反例: base欠落の再開ACK後に確定版0のGETを採用しない', async () => {
-    installPendingReopenKind()
     const c = controller()
     await c.refresh()
     expect(await c.end()).toMatchObject({ outcome: 'acked', refresh: 'done' })
@@ -963,7 +924,6 @@ describe('非成功と結果不明', () => {
   })
 
   it('queued_endの初期版根拠を失った場合はGETを確定扱いしない', async () => {
-    installPendingReopenKind()
     server.lastVersion = '7'
     const c = controller()
     await c.refresh()
@@ -997,7 +957,6 @@ describe('非成功と結果不明', () => {
   })
 
   it('confirmed版基点から後続queued_endの正確な版を復元する', async () => {
-    installPendingReopenKind()
     const c = controller()
     await c.refresh()
     expect(await c.end()).toMatchObject({ outcome: 'acked', refresh: 'done' })
@@ -1057,7 +1016,6 @@ describe('非成功と結果不明', () => {
   })
 
   it('reload後に同版の真正な再開GETが追いついたら次位置を渡す', async () => {
-    installPendingReopenKind()
     const c = controller()
     await c.refresh()
     await c.end()
@@ -1074,7 +1032,6 @@ describe('非成功と結果不明', () => {
   })
 
   it('再開ACKより新しい真正な終了版は後続結果として採用する', async () => {
-    installPendingReopenKind()
     const c = controller()
     await c.refresh()
     await c.end()
@@ -1147,7 +1104,6 @@ describe('非成功と結果不明', () => {
   })
 
   it('独立対向: 再開ACK後のstale GETで通常入力へhandoffしない', async () => {
-    installPendingReopenKind()
     const c = controller()
     await c.refresh()
     expect(await c.end()).toMatchObject({ outcome: 'acked', refresh: 'done' })
@@ -1161,7 +1117,6 @@ describe('非成功と結果不明', () => {
   })
 
   it('独立対向: 再開ACK後のreloadでもstale GETをhandoffへ昇格しない', async () => {
-    installPendingReopenKind()
     const c = controller()
     await c.refresh()
     expect(await c.end()).toMatchObject({ outcome: 'acked', refresh: 'done' })
