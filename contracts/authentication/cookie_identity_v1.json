@@ -1,0 +1,101 @@
+{
+  "schemaVersion": 1,
+  "semantics": "same-presented-token-renewal-only",
+  "operations": [
+    {
+      "operationId": "batted_ball_options",
+      "method": "GET",
+      "path": "/vocabularies/batted-balls"
+    },
+    {
+      "operationId": "initial_device_enroll",
+      "method": "POST",
+      "path": "/devices/enroll"
+    },
+    {
+      "operationId": "initial_game_start",
+      "method": "POST",
+      "path": "/games/{game_id}/start"
+    },
+    {
+      "operationId": "initial_game_start_resolve",
+      "method": "POST",
+      "path": "/games/{game_id}/start/resolve"
+    },
+    {
+      "operationId": "pitch_type_options",
+      "method": "GET",
+      "path": "/vocabularies/pitch-types"
+    },
+    {
+      "operationId": "preparing_game_create",
+      "method": "POST",
+      "path": "/games"
+    },
+    {
+      "operationId": "preparing_game_detail",
+      "method": "GET",
+      "path": "/games/{game_id}"
+    },
+    {
+      "operationId": "preparing_game_list",
+      "method": "GET",
+      "path": "/games"
+    },
+    {
+      "operationId": "preparing_game_preparation_options",
+      "method": "GET",
+      "path": "/games/preparation-options"
+    },
+    {
+      "operationId": "roster_player_create",
+      "method": "POST",
+      "path": "/players"
+    },
+    {
+      "operationId": "roster_player_list",
+      "method": "GET",
+      "path": "/players"
+    },
+    {
+      "operationId": "roster_player_read",
+      "method": "GET",
+      "path": "/players/{player_id:uuid}"
+    },
+    {
+      "operationId": "roster_player_update",
+      "method": "PATCH",
+      "path": "/players/{player_id:uuid}"
+    },
+    {
+      "operationId": "roster_self_team_read",
+      "method": "GET",
+      "path": "/team-records/self"
+    },
+    {
+      "operationId": "roster_team_create",
+      "method": "POST",
+      "path": "/team-records"
+    },
+    {
+      "operationId": "roster_team_list",
+      "method": "GET",
+      "path": "/team-records"
+    },
+    {
+      "operationId": "roster_team_update",
+      "method": "PATCH",
+      "path": "/team-records/{team_record_id:uuid}"
+    },
+    {
+      "operationId": "started_game_detail",
+      "method": "GET",
+      "path": "/games/{game_id}/started"
+    },
+    {
+      "operationId": "sync_events",
+      "method": "POST",
+      "path": "/games/{game_id}/sync/events"
+    }
+  ]
+}
