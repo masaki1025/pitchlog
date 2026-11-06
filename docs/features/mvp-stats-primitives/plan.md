@@ -586,3 +586,8 @@ run42275253517の `test_sync_writer_binding_reapply.py` は旧29関数だけを�
 
 
 追加の2検査fixture追随: `backend/tests/db/test_play_export_primitives.py` は終端後に変わった次打者をPA完了者として照合していたため、実終端時点のparticipant IDを保存してその本人を照合する。PA/BB/HBPの期待値は変えない。`backend/tests/db/test_stats_queries.py` の直接psycopg呼出は製品固定関数ABIと同じnullable cursor 5型をSQLAlchemy bindで明示し、NULLのunknown OIDを防ぐ。生成SQL/計算/契約/期待数量には変更しない。実owned DBで元の全assertを再実行する。
+
+
+### public不変性検査のcurrent追随（2026-11-07、PO委任root・step4/5）
+
+owned r7で旧migration等141件成功、残7件は不変性検査が0039版を固定していた。`backend/tests/db/test_immutability_enforcement.py` と `test_immutability_matrix.py` の現行正例を0041へ追随する。0032の歴史2列RG1検証と既public全50表/全trigger/故障負例を保持し、既private6と同じ別担当の正式stats3表だけpublic母集団から分離する（public上の実表と照合する検査なのでschemaを混同しない）。private9の有限名は正式DDLのschema集合と独立に照合し、未知のstats名を除外しない純対向 `backend/tests/test_immutability_population_scope.py` を付ける。privateの保護は正式catalogのACL/policy/構造とnative受理/再送/CASの既試験が別途担い、public trigger検査の成功へ読み替えない。製品/DDL/保存保証を変更せず、非作者レビューとownedで失敗7件だけ再検証する。
