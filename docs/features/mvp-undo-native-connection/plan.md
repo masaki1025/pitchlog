@@ -321,3 +321,6 @@ current42 whole source9反映1の受理（2026-11-06 JST、PO委任Codex /root�
 
 
 current42正式資産供給候補exact71（2026-11-06 JST、PO委任によるCodex主担当/root判断）: 現e4b70882の公式first_ball_product.ADDITIONS/BODIES/validateからproduct ddl-elements1＋SQLbody70（新61/更新9）を導出し、非作者report2a1da53f5377f189eed28296fc7284e88269b6031984a8da2eeac4ba0a0551e9のP0/P1=0を根拠に隔離統合候補へ配置する。全71before/afterを照合、旧ID多重集合/非対象全値・旧本文を保持し、10表/43関数/42policy/365列権限の宣言・所有/RLS/FORCE・最小ACLと公式473bodyの差分一致を確認した。現read bootstrap追加により43関数で、0042はDDLrevisionを指す。scopeはcache nonplay-product42-root-assets-20261106/files.jsonに限定。公式sourceを唯一の描画元としSQL手修正しない。正式tenant/repo/runtime/authz/7.7/manifest/pin・owned PG・HTTP/画面は別の成立条件として残し、局所宣言受理を正式公開やMVP完成としない。
+
+
+公式invoker再構築1の検査接合（2026-11-06 JST、PO委任Codex /root判断）: 45f2e6dcでasset71を配置後、局所219は207成功/12失敗、owned current42 S0→resumeは1失敗4.00秒・source前後同一/owned撤去を記録。失敗はasset_specの既invoker exact2が正規新stats_api.rebuild_after_nonplay_undoを未登録のためであり、拒否除去で隠さない。root初期推測protect_nonplay_admissionは誤りで、同guardはmigration_triggerとして旧経路で処理される。scopeはbackend/src/pitchlog/authz/asset_spec.py/対応test_authz_asset_spec.py/test_authz_product_application_steps.pyの必要最小、新rebuild helper宣言全fieldのexact1だけ既公式sourceへ照合して追加する候補を許可する。既identity/正式lock/未知invoker/別owner/schema/ACL/型/余剰欠落の拒否は維持。新helperは既一回消費CPと真正sourceに束縛したouter definerからだけ呼出し、appの直接EXECUTEや一般helper資格を追加しない。cache-only作者修復→別非作者確認→root採用後に同owned検査を新固定版で行う。正式7.7/HTTP/UI成功とはしない。
