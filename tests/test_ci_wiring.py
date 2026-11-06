@@ -43,17 +43,25 @@ REQUIRED_FULL_CHECKS = ("check_design_propagation", "check_doc_coverage")
 FORBIDDEN_SELECTORS = ("--defects", "--checks")
 ALEMBIC_CI_COMMANDS = (
     "uv run alembic upgrade 0033_game_rules_immutable",
-    "uv run alembic upgrade 0040_batted_vocabulary_index",
     "uv run alembic current --check-heads",
     "uv run alembic check",
 )
-STAGE_A_CI_MARKERS = (
-    "from pitchlog.db.stage_a_startup import advance_stage_a_from_s0",
-    "stage_admin_dsn = make_conninfo(admin_dsn, dbname=stage_db)",
-    "result = advance_stage_a_from_s0(",
-    "assert result.completed_stage == 'S3'",
-    "assert result.publishable is False",
+CURRENT_PRODUCT_CI_COMMAND = """uv run python - <<'PY'
+import os
+from psycopg.conninfo import conninfo_to_dict, make_conninfo
+from pitchlog.db.current_product_startup import advance_current_product_from_s0
+
+admin_dsn = os.environ['PITCHLOG_TEST_ADMIN_DSN']
+owner_dsn = os.environ['PITCHLOG_STAGE_A_OWNER_DSN']
+stage_db = conninfo_to_dict(owner_dsn)['dbname']
+stage_admin_dsn = make_conninfo(admin_dsn, dbname=stage_db)
+result = advance_current_product_from_s0(
+    owner_dsn=owner_dsn, applicator_dsn=stage_admin_dsn
 )
+assert result.completed_revision == '0041_stats_fact_versions'
+assert result.publishable is False
+PY
+"""
 STAGE_A_BOOTSTRAP_MARKERS = (
     "CREATE ROLE pitchlog_owner LOGIN NOSUPERUSER NOBYPASSRLS",
     "NOCREATEROLE NOCREATEDB NOREPLICATION NOINHERIT",
@@ -1397,11 +1405,19 @@ def _ci_wiring_errors(
         marker not in bootstrap_commands[0] for marker in STAGE_A_BOOTSTRAP_MARKERS
     ):
         errors.append("backend の段階起動用DBがowner所有で初期化されない")
-    stage_a_commands = [command for command in commands if "advance_stage_a_from_s0" in command]
-    if len(stage_a_commands) != 1 or any(
-        marker not in stage_a_commands[0] for marker in STAGE_A_CI_MARKERS
-    ):
-        errors.append("backend の段階起動 S1〜S3 が固定の閉鎖経路でない")
+    current_commands = [
+        command for command in commands if "advance_current_product_from_s0" in command
+    ]
+    current_steps = [
+        step for step in backend.get("steps", [])
+        if isinstance(step, dict) and step.get("run") == CURRENT_PRODUCT_CI_COMMAND
+    ]
+    if (current_commands != [CURRENT_PRODUCT_CI_COMMAND]
+            or len(current_steps) != 1 or set(current_steps[0]) != {"run"}
+            or any("advance_stage_a_from_s0" in command
+                   or "resume_current_product_after_placement" in command
+                   for command in commands)):
+        errors.append("backend のcurrent0041が固定owner/全構造catalog検査の閉入口でない")
     shard_commands = _backend_commands(_backend_pytest_job(workflow))
     required_shard_commands = [
         "corepack enable",
@@ -1424,14 +1440,14 @@ def _ci_wiring_errors(
         "uv run python ../scripts/pytest_shards.py verify --suite backend --require-db",
         *(bootstrap_commands[:1] or ["<専用DBなし>"]),
         ALEMBIC_CI_COMMANDS[0],
-        *(stage_a_commands[:1] or ["<段階起動なし>"]),
+        CURRENT_PRODUCT_CI_COMMAND,
         *ALEMBIC_CI_COMMANDS[1:],
     ]
     if gate_commands[: len(required_gate_commands)] != required_gate_commands:
         errors.append("backend 集約ジョブの順序が期待値と異なる")
     expected_alembic_locations = [("backend", command) for command in ALEMBIC_CI_COMMANDS]
     if _alembic_command_locations(workflow) != expected_alembic_locations:
-        errors.append("Alembic 4 段は既存 backend ジョブだけで一度ずつ実行する")
+        errors.append("Alembic 3 段は既存 backend ジョブだけで一度ずつ実行する")
     for command in ALEMBIC_CI_COMMANDS:
         matches = [
             step for step in backend.get("steps", [])
@@ -1440,7 +1456,7 @@ def _ci_wiring_errors(
         if len(matches) != 1 or matches[0].get("env") != {
             "PITCHLOG_MIGRATION_DATABASE_URL": "${{ env.PITCHLOG_STAGE_A_OWNER_DSN }}"
         }:
-            errors.append("Alembic 4段は固定owner専用DBの同接続先だけを使う")
+            errors.append("Alembic 3段は固定owner専用DBの同接続先だけを使う")
             break
     if "shard_commands" not in locals():
         shard_commands = _backend_commands(_backend_pytest_job(workflow))
@@ -3397,7 +3413,7 @@ def test_consistency_does_not_prepare_other_job_runtimes() -> None:
     ),
 )
 def test_alembic_ci_command_negative_cases_are_red(mutation: str) -> None:
-    """Alembic 4 段の欠落・重複・順序違い・別ジョブ追加を拒否する。"""
+    """Alembic 3 段の欠落・重複・順序違い・別ジョブ追加を拒否する。"""
     workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8"))
     mutated = copy.deepcopy(workflow)
     backend = _backend_job(mutated)
@@ -3415,8 +3431,8 @@ def test_alembic_ci_command_negative_cases_are_red(mutation: str) -> None:
     if mutation.startswith("missing-"):
         missing_command = {
             "missing-upgrade": ALEMBIC_CI_COMMANDS[0],
-            "missing-current": ALEMBIC_CI_COMMANDS[2],
-            "missing-check": ALEMBIC_CI_COMMANDS[3],
+            "missing-current": "uv run alembic current --check-heads",
+            "missing-check": "uv run alembic check",
         }[mutation]
         steps.pop(alembic_indexes[ALEMBIC_CI_COMMANDS.index(missing_command)])
     elif mutation == "duplicate":
@@ -3441,7 +3457,7 @@ def test_alembic_ci_command_negative_cases_are_red(mutation: str) -> None:
         _load_yaml_mapping(COMPOSE_PATH),
     )
 
-    assert "Alembic 4 段は既存 backend ジョブだけで一度ずつ実行する" in errors
+    assert "Alembic 3 段は既存 backend ジョブだけで一度ずつ実行する" in errors
 
 
 def test_stage_a_ci_startup_omission_is_red() -> None:
@@ -3456,11 +3472,11 @@ def test_stage_a_ci_startup_omission_is_red() -> None:
         if not (
             isinstance(step, dict)
             and isinstance(step.get("run"), str)
-            and "advance_stage_a_from_s0" in step["run"]
+            and "advance_current_product_from_s0" in step["run"]
         )
     ]
     errors = _ci_wiring_errors(mutated, _load_expectations(), _load_yaml_mapping(COMPOSE_PATH))
-    assert "backend の段階起動 S1〜S3 が固定の閉鎖経路でない" in errors
+    assert "backend のcurrent0041が固定owner/全構造catalog検査の閉入口でない" in errors
 
 
 def test_stage_a_ci_migrations_use_owner_database() -> None:
@@ -3800,48 +3816,60 @@ def test_pr_body_gate6_connection_cannot_be_omitted_or_made_optional(mutation: s
 
 
 @pytest.mark.parametrize(
-    'mutation',
-    ['missing', 'duplicate', 'before-S3', 'after-current', 'wrong-owner', 'wrong-revision'],
+    "mutation",
+    ["missing", "duplicate", "before-baseline", "after-current", "wrong-owner",
+     "wrong-revision", "skip-catalog", "wrong-applicator", "publishable",
+     "wrong-same-db", "generic-upgrade", "old-stage", "step-env", "step-if",
+     "step-continue", "step-shell"],
 )
-def test_current0040_is_a_single_closed_owner_step_after_legacy_S3(mutation: str) -> None:
-    """旧S3を変更せず0040を必須にし、欠落/別revision/接続先改変を拒否する。"""
-    workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding='utf-8'))
-    steps = _backend_job(workflow)['steps']
-    command = 'uv run alembic upgrade 0040_batted_vocabulary_index'
-    positions = [
-        i for i, step in enumerate(steps)
-        if isinstance(step, dict) and step.get('run') == command
-    ]
+def test_current0041_is_a_single_closed_owner_step_from_s0(mutation: str) -> None:
+    """既段階実検査を内包するcurrent一入口と、全主体/版/順序の閉性を要求する。"""
+    workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8"))
+    steps = _backend_job(workflow)["steps"]
+    positions = [i for i, step in enumerate(steps)
+                 if isinstance(step, dict) and step.get("run") == CURRENT_PRODUCT_CI_COMMAND]
     assert len(positions) == 1
     pos = positions[0]
-    if mutation == 'missing':
+    if mutation == "missing":
         steps.pop(pos)
-    elif mutation == 'duplicate':
+    elif mutation == "duplicate":
         steps.insert(pos, copy.deepcopy(steps[pos]))
-    elif mutation == 'wrong-owner':
-        steps[pos]['env'] = {
-            'PITCHLOG_MIGRATION_DATABASE_URL': '${{ env.PITCHLOG_TEST_ADMIN_DSN }}',
-        }
-    elif mutation == 'wrong-revision':
-        steps[pos]['run'] = 'uv run alembic upgrade head'
+    elif mutation == "wrong-owner":
+        steps[pos]["run"] = steps[pos]["run"].replace(
+            "owner_dsn=owner_dsn", "owner_dsn=admin_dsn")
+    elif mutation == "wrong-revision":
+        steps[pos]["run"] = steps[pos]["run"].replace(
+            "'0041_stats_fact_versions'", "'0040_batted_vocabulary_index'")
+    elif mutation == "skip-catalog":
+        steps[pos]["run"] = steps[pos]["run"].replace(
+            "result = advance_current_product_from_s0(", "result = fake_current_result(")
+    elif mutation == "wrong-applicator":
+        steps[pos]["run"] = steps[pos]["run"].replace(
+            "applicator_dsn=stage_admin_dsn", "applicator_dsn=admin_dsn")
+    elif mutation == "publishable":
+        steps[pos]["run"] = steps[pos]["run"].replace(
+            "assert result.publishable is False", "assert result.publishable is True")
+    elif mutation == "wrong-same-db":
+        steps[pos]["run"] = steps[pos]["run"].replace(
+            "dbname=stage_db", "dbname='pitchlog_test'")
+    elif mutation == "generic-upgrade":
+        steps[pos]["run"] = "uv run alembic upgrade head"
+    elif mutation == "old-stage":
+        steps.insert(pos, {"run": "uv run python -c 'advance_stage_a_from_s0()'"})
+    elif mutation.startswith("step-"):
+        field = {"step-env": "env", "step-if": "if", "step-continue": "continue-on-error",
+                 "step-shell": "shell"}[mutation]
+        steps[pos][field] = {"PITCHLOG_STAGE_A_OWNER_DSN": "changed"} if field == "env" else True
     else:
         step = steps.pop(pos)
-        if mutation == 'before-S3':
-            loc = next(
-                i for i, s in enumerate(steps)
-                if isinstance(s, dict)
-                and 'advance_stage_a_from_s0' in str(s.get('run', ''))
-            )
-        else:
-            loc = next(
-                i for i, s in enumerate(steps)
-                if isinstance(s, dict)
-                and s.get('run') == 'uv run alembic current --check-heads'
-            ) + 1
-        steps.insert(loc, step)
+        command = ("uv run alembic upgrade 0033_game_rules_immutable"
+                   if mutation == "before-baseline" else "uv run alembic current --check-heads")
+        loc = next(i for i, item in enumerate(steps)
+                   if isinstance(item, dict) and item.get("run") == command)
+        steps.insert(loc if mutation == "before-baseline" else loc + 1, step)
     errors = _ci_wiring_errors(workflow, _load_expectations(), _load_yaml_mapping(COMPOSE_PATH))
-    assert any(x in errors for x in [
-        'backend 集約ジョブの順序が期待値と異なる',
-        'Alembic 4 段は既存 backend ジョブだけで一度ずつ実行する',
-        'Alembic 4段は固定owner専用DBの同接続先だけを使う',
+    assert any(error in errors for error in [
+        "backend 集約ジョブの順序が期待値と異なる",
+        "backend のcurrent0041が固定owner/全構造catalog検査の閉入口でない",
+        "Alembic 3 段は既存 backend ジョブだけで一度ずつ実行する",
     ])
