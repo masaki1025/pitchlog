@@ -28,6 +28,7 @@ import {
 const props = defineProps<{
   context: RecordingContext
   localSession?: LocalRecordingSession | null
+  suspended?: boolean
 }>()
 const emit = defineEmits<{ saved: [] }>()
 const auth = useAuthStore()
@@ -185,26 +186,38 @@ const writer = {
 const localWriter = {
   resolvePreconditions: writer.resolvePreconditions,
   revalidateSingleWriter: () =>
-    confirmed.value && activeLocalSession()?.current === true,
+    !props.suspended &&
+    confirmed.value &&
+    activeLocalSession()?.current === true,
 }
 
 let controller: GameScreenOrdinaryPitchController | null = null
 let generation = 0
 let request: AbortController | null = null
 const identity = () =>
-  localRequested.value
-    ? (activeLocalSession()?.identity() ?? {
+  props.suspended
+    ? {
         tenantId: null,
-        epoch: 0,
+        epoch: localRequested.value
+          ? (activeLocalSession()?.identity().epoch ?? 0)
+          : auth.authEpoch,
         verified: false,
-      })
-    : {
-        tenantId: auth.teamId,
-        epoch: auth.authEpoch,
-        verified:
-          auth.hasHydrated && auth.isAuthenticated && auth.teamId !== null,
       }
+    : localRequested.value
+      ? (activeLocalSession()?.identity() ?? {
+          tenantId: null,
+          epoch: 0,
+          verified: false,
+        })
+      : {
+          tenantId: auth.teamId,
+          epoch: auth.authEpoch,
+          verified:
+            auth.hasHydrated && auth.isAuthenticated && auth.teamId !== null,
+        }
 const message = computed(() => {
+  if (props.suspended)
+    return 'サーバーの最新記録を確認しています。入力と再送を一時停止します'
   if (retryEvidenceUnavailable.value)
     return '再送に必要な元要求の送信記録を確認できません。新しい要求に置き換えず、運用責任者に確認してください'
   if (busy.value)
@@ -231,6 +244,7 @@ const message = computed(() => {
   return '投球を記録できます'
 })
 async function load(page: string | null) {
+  if (props.suspended) return
   const own = ++generation
   request?.abort()
   request = new AbortController()
@@ -245,7 +259,12 @@ async function load(page: string | null) {
       ? local?.page(page)
       : await readPitchTypeOptions(page, 25, request.signal)
     if (!result) throw new Error('保存済み球種ページがありません')
-    if (own !== generation || !sameOrdinaryWire(captured, identity())) return
+    if (
+      props.suspended ||
+      own !== generation ||
+      !sameOrdinaryWire(captured, identity())
+    )
+      return
     if (!localRequested.value && isLineupRecordingContext(displayed.value)) {
       try {
         await captureLocalPitchPage(
@@ -259,12 +278,17 @@ async function load(page: string | null) {
         // onlineの実ページは使用可能。端末内資格としては採用しない。
       }
     }
-    if (own !== generation || !sameOrdinaryWire(captured, identity())) return
+    if (
+      props.suspended ||
+      own !== generation ||
+      !sameOrdinaryWire(captured, identity())
+    )
+      return
     items.value = result.items
     cursor.value = page
     nextCursor.value = result.next_cursor
   } catch {
-    if (own === generation) {
+    if (own === generation && !props.suspended) {
       failed.value = true
       nextCursor.value = null
     }
@@ -284,6 +308,7 @@ async function previous() {
 async function save() {
   if (
     !controller ||
+    props.suspended ||
     busy.value ||
     !canAppend.value ||
     !confirmed.value ||
@@ -329,7 +354,7 @@ async function save() {
     const result = localRequested.value
       ? await current.localEnqueue(observation, vocabulary)
       : await current.submit(observation, vocabulary)
-    if (controller !== current) return
+    if (controller !== current || props.suspended) return
     status.value = result
     displayed.value = current.context
     canAppend.value = localRequested.value
@@ -346,6 +371,7 @@ async function save() {
 async function retry(): Promise<OrdinaryOperationResult | null> {
   if (
     localRequested.value ||
+    props.suspended ||
     !controller ||
     busy.value ||
     !confirmed.value ||
@@ -356,7 +382,7 @@ async function retry(): Promise<OrdinaryOperationResult | null> {
   busy.value = true
   try {
     const result = await current.retry()
-    if (controller !== current) return null
+    if (controller !== current || props.suspended) return null
     status.value = result
     displayed.value = current.context
     canAppend.value = current.canAppend
@@ -369,12 +395,12 @@ async function retry(): Promise<OrdinaryOperationResult | null> {
   }
 }
 watch(confirmed, async (ready) => {
-  if (!ready || !controller || busy.value) return
+  if (!ready || props.suspended || !controller || busy.value) return
   const current = controller
   if (localRequested.value) {
     if (!activeLocalSession()) return
     const result = await current.inspectLocal()
-    if (controller !== current) return
+    if (controller !== current || props.suspended) return
     status.value = result
     displayed.value = current.context
     canAppend.value = current.canAppendLocal
@@ -389,6 +415,7 @@ let watchedInput: {
   identity: ReturnType<typeof identity>
   hydrated: boolean
   local: boolean
+  suspended: boolean
 } | null = null
 watch(
   () =>
@@ -403,6 +430,7 @@ watch(
       auth.isAuthenticated,
       auth.hasHydrated,
       props.localSession,
+      props.suspended,
     ] as const,
   async () => {
     const input = {
@@ -410,6 +438,7 @@ watch(
       identity: identity(),
       hydrated: auth.hasHydrated,
       local: localRequested.value,
+      suspended: props.suspended === true,
     }
     // 親の同値DTO再供給では送信中の所有者を失効させない。
     // anchor/世代/状態/位置を含む全値と認証scopeが変われば必ず失効する。
@@ -427,6 +456,7 @@ watch(
     busy.value = false
     status.value = 'blocked'
     if (localRequested.value) resultId.value = 'batting-result.ball'
+    if (props.suspended) return
     if (localRequested.value ? !activeLocalSession() : !identity().verified)
       return
     try {
@@ -445,7 +475,7 @@ watch(
       const result = localRequested.value
         ? await current.inspectLocal()
         : await current.inspect()
-      if (controller !== current) return
+      if (controller !== current || props.suspended) return
       status.value = result
       displayed.value = current.context
       canAppend.value = localRequested.value
@@ -478,7 +508,10 @@ onScopeDispose(() => {
 <template>
   <section aria-label="通常投球を記録" class="space-y-3 rounded-xl border p-4">
     <h2 class="text-lg font-bold">通常投球を記録</h2>
-    <fieldset class="space-y-1 rounded border p-2" :disabled="busy">
+    <fieldset
+      class="space-y-1 rounded border p-2"
+      :disabled="busy || suspended"
+    >
       <legend>この記録端末の利用条件</legend>
       <label class="block"
         ><input
@@ -552,7 +585,7 @@ onScopeDispose(() => {
         displayed.lineupSource.participants.battingOrder
       }}番
     </p>
-    <template v-if="canAppend">
+    <template v-if="canAppend && !suspended">
       <label class="block"
         >結果<select
           v-model="resultId"
@@ -737,7 +770,7 @@ onScopeDispose(() => {
       </button>
     </template>
     <button
-      v-if="status === 'pending' && !isLocalMode"
+      v-if="status === 'pending' && !isLocalMode && !suspended"
       type="button"
       :disabled="busy || !confirmed"
       class="min-h-11 rounded border px-4 py-2"

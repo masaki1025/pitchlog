@@ -660,3 +660,65 @@ it('online復帰後は確認済み条件の後だけ先頭同attemptを1回再�
     resumed.unmount()
   }
 })
+
+it('同mountのGET停止中は入力/再送/語彙採用を閉じ、解除後に最古の同本文を一回再送する', async () => {
+  const post = vi
+    .spyOn(transport, 'postSyncEvents')
+    .mockResolvedValueOnce({ sent: false, reason: 'no-response' })
+    .mockImplementation(async (request) => {
+      const body = transport.buildSyncEventRequestBody(request)
+      if (!('events' in body)) throw new Error('単体要求不正')
+      const slot = request.slots[0]!
+      return {
+        sent: true,
+        requestBody: body,
+        response: {
+          advancedD3: slot.d1,
+          eventResults: [
+            { d4: slot.d4, d1: slot.d1, d5: slot.d5, a5Result: '受理' },
+          ],
+        },
+      }
+    })
+  const wrapper = mount(GameScreenOrdinaryPitch, {
+    props: { context: reactive(context()) },
+    global: { plugins: [pinia] },
+  })
+  try {
+    await vi.waitFor(() =>
+      expect(wrapper.find('[data-testid="first-ball-save"]').exists()).toBe(
+        true,
+      ),
+    )
+    for (const name of ['profile', 'mode', 'bucket', 'lockdown'])
+      await wrapper.get(`[data-testid="first-ball-env-${name}"]`).setValue(true)
+    await wrapper
+      .get('[data-testid="first-ball-pitch-type"]')
+      .setValue('tenant.pitch.straight')
+    wrapper.getComponent(StrikeZone).vm.$emit('tap', 131.5, 124)
+    await flushPromises()
+    await wrapper.get('[data-testid="first-ball-save"]').trigger('click')
+    await vi.waitFor(() => expect(post).toHaveBeenCalledTimes(1))
+    await wrapper.setProps({ suspended: true })
+    await flushPromises()
+    expect(wrapper.find('[data-testid="first-ball-save"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="first-ball-retry"]').exists()).toBe(
+      false,
+    )
+    expect(wrapper.get('[data-testid="first-ball-status"]').text()).toContain(
+      '一時停止',
+    )
+    expect(post).toHaveBeenCalledTimes(1)
+    await wrapper.setProps({ suspended: false })
+    await vi.waitFor(() => expect(wrapper.emitted('saved')).toHaveLength(1))
+    expect(post).toHaveBeenCalledTimes(2)
+    expect(post.mock.calls[1]![0].syncCredentials?.attempt).toBe(
+      post.mock.calls[0]![0].syncCredentials?.attempt,
+    )
+    expect(transport.buildSyncEventRequestBody(post.mock.calls[1]![0])).toEqual(
+      transport.buildSyncEventRequestBody(post.mock.calls[0]![0]),
+    )
+  } finally {
+    wrapper.unmount()
+  }
+})
