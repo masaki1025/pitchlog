@@ -254,13 +254,23 @@ def test_recorded_non_pitch_uses_saved_kind_without_pitch_only_fill():
     """非投球の保存区分を有限表示し、投球だけの観測を補わない。"""
     identity = _identity()
     identity.play["event_kind"] = "non_pitch"
-    identity = replace(identity, course_screen=(None, None))
+    identity.play["batting_result_key"] = "batting-result.intentional-walk"
+    identity = replace(
+        identity,
+        course_screen=(None, None),
+        admin_vocabularies=identity.admin_vocabularies
+        + ({"key": "batting-result.intentional-walk", "display_name": "申告敬遠"},),
+    )
     identity.payload["observations"] = {"kind": "intentional-walk"}
     identity.payload["calculation"]["request"]["t1"]["pitchEventKind"] = (
         "non-pitch-event"
     )
+    identity.payload["calculation"]["request"]["t1"]["resultId"] = (
+        "batting-result.intentional-walk"
+    )
     values = project_recorded_direct(identity)
     assert values["プレイの種類"] == "非投球"
+    assert values["打席結果"] == "申告敬遠"
     assert values["球速"] is None
     assert values["球種"] is None
     assert values["コースX"] is None and values["コースY"] is None
