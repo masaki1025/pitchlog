@@ -350,3 +350,9 @@ xmin観測反映1の受理（2026-11-06 JST、PO委任Codex /root判断）: 初�
 
 
 物理CP保存印の修復を条件付き製品PGへ接合（2026-11-06、PO委任Codex /root判断）: sourceSQL/既unitと新backend/tests/db/test_nonplay_checkpoint_xmin.py、公式同identity SQL body1を対象にする。独立b1bddbfbac186b36b46a3680dd824831028d7eabcec2e22790b989d560b0c37bはsource delta P0/P1=0。root owned PG17でJOIN前の一表ROWTYPE xminは物理と一致する一方、JOIN/行lock後のROWTYPE headerは不一致、同じlock下の明示physical xminは一致することを実証。legacy readだけCP行lock後の同tenant/game/gen/id/revisionから物理xminをscalar取得し、全保存印比較を維持する。根拠cache nonplay-rowtype-xmin-probe-20261106/join-fixed-result.json（自前容器撤去）。製品実role/正式bodyでのPG回帰と同版UI再測が最終受理条件、probe成功を製品成功へ拡張しない。既generation direct snapshot/性能ゲートは別途未成立のまま保持する。
+
+
+世代chain順序列の最小読取ACL（2026-11-06、PO委任Codex/root判断）: r16でlegacy generationChainが読むissuance_orderがfnownerの列SELECTから欠落した実PG原因に対し、既ownerへSELECT1列のみ追加する。main patch5072b8fa117ea255074ed2e2f106d7c181de88de7c4cee6a9c5abb9812bbd65d、非作者reflection1 REPORT SHA256 9acb1b58e5133842e9fd7c95deedb71aaf6bd96d6c24bb96862b1e8ad79e59e9、P0/P1/P2各0を根拠にsource/unit/owned DBtest3を採用する。既appのSELECT/UPDATEは不変、fnowner UPDATEを追加しない。正式DDL/manifest/bodyはfirst_ball_product公式ADDITIONS/BODIESから再導出する。collectをPG成功とせず実PGと実画面は後続。本人署名/P6blindではない。
+
+
+実画面観測の最小追補（2026-11-06、PO委任Codex/root判断）: r17で新ACL等PG3成功・GET200まで前進、frontend原本検査の閉拒否を観測するためE2E専用GameScreenUndoProduct.e2e-probe.tsを対象へ加える。既純validatorを同一origin外部moduleのstatic importで使い、requestId一致のshape/completeSource booleanだけを返す。r18のNode JSON import失敗、r19のinline CSP拒否は観測未達として保全し、CSP/検査/期待を緩めない。製品bundle/writer/資格/保存結果に代替を入れず、実画面の成功は従来の全assertionで判定する。

@@ -120,18 +120,28 @@ def test_all_eight_bodies_use_existing_installer_parser():
         assert application_function_sql(key, sql) is not None
 
 
-def test_prefix_guard_receives_only_actual_watermark_read_columns():
-    """実PGで不足した二水位だけSELECTし、app権限/DMLを広げない。"""
-    declarations, _ = candidate_declarations()
+def test_prefix_guard_receives_only_actual_generation_read_columns():
+    """水位2列とlegacy chain順序1列だけを関数ownerへSELECTする。"""
+    declarations, bodies = candidate_declarations()
     rows = [
         row
         for row in declarations["column_acl_expectations"]
         if row["object_id"] == "recording_generations"
     ]
+    assert len(rows) == 3
     assert {row["column_id"] for row in rows} == {
         "confirmed_watermark",
         "applied_prefix",
+        "issuance_order",
     }
     for row in rows:
         assert row["grantee_role_id"] == "pitchlog_sync_right_fn_owner"
         assert row["privilege_ids"] == ["SELECT"]
+    key = (
+        "COLUMN-ACL:public:recording_generations:issuance_order:"
+        "pitchlog_sync_right_fn_owner"
+    )
+    assert bodies["column_acl_expectation|" + key] == (
+        "GRANT SELECT (issuance_order) ON TABLE public.recording_generations "
+        "TO pitchlog_sync_right_fn_owner;\n"
+    )

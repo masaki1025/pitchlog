@@ -11328,6 +11328,18 @@
       "grant_option": false
     },
     {
+      "expectation_id": "COLUMN-ACL:public:recording_generations:issuance_order:pitchlog_sync_right_fn_owner",
+      "object_kind": "column",
+      "object_schema": "public",
+      "object_id": "recording_generations",
+      "column_id": "issuance_order",
+      "grantee_role_id": "pitchlog_sync_right_fn_owner",
+      "privilege_ids": [
+        "SELECT"
+      ],
+      "grant_option": false
+    },
+    {
       "expectation_id": "COLUMN-ACL:public:play_runners:tenant_id:pitchlog_sync_right_fn_owner",
       "object_kind": "column",
       "object_schema": "public",

@@ -119,7 +119,7 @@ def candidate_profile():
             "public",
             "recording_generations",
             "SELECT",
-            ["confirmed_watermark", "applied_prefix"],
+            ["confirmed_watermark", "applied_prefix", "issuance_order"],
         )
     )
     predicate = (

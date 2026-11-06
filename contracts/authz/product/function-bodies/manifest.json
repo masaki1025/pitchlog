@@ -3293,6 +3293,11 @@
       "element_id": "COLUMN-ACL:public:recording_generations:applied_prefix:pitchlog_sync_right_fn_owner"
     },
     {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:recording_generations:issuance_order:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:recording_generations:issuance_order:pitchlog_sync_right_fn_owner"
+    },
+    {
       "path": "contracts/authz/product/function-bodies/functions/FUNCTION:sync_right_api:read_play_prefix_checkpoint(uuid, uuid, bigint).sql",
       "element_type": "function",
       "element_id": "FUNCTION:sync_right_api:read_play_prefix_checkpoint(uuid, uuid, bigint)"
