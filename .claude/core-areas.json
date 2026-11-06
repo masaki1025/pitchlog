@@ -790,7 +790,9 @@
         "backend/tests/test_stats_primitive_write_state.py",
         "tests/test_stats_native_dependency_columns.py",
         "backend/tests/stage_a_0039_profile.py",
-        "backend/tests/test_stage_a_0039_profile.py"
+        "backend/tests/test_stage_a_0039_profile.py",
+        "tests/fixtures/pr197_tenant_source_expected_v1.json",
+        "tests/test_pr197_tenant_source_registration.py"
       ]
     },
     {
