@@ -133,9 +133,32 @@ async function waitForPreparedScope(page: Page, gameId: string): Promise<void> {
               request.result.some(
                 (row: {
                   gameId?: string
+                  tenantId?: string
+                  correlation?: {
+                    intentId?: string
+                    uncertaintyNotice?: string | null
+                  }
                   pages?: { cursor: string | null }[]
                 }) =>
                   row.gameId === game &&
+                  (() => {
+                    const marker = JSON.parse(
+                      localStorage.getItem('bb.auth.intent') ?? 'null',
+                    ) as {
+                      phase?: string
+                      tenantId?: string
+                      intentId?: string
+                    } | null
+                    return (
+                      marker?.phase === 'expected' &&
+                      row.tenantId === marker.tenantId &&
+                      row.correlation?.intentId === marker.intentId &&
+                      row.correlation?.uncertaintyNotice ===
+                        localStorage.getItem('bb.auth.uncertain') &&
+                      localStorage.getItem('bb.auth.uncertain') ===
+                        localStorage.getItem('bb.auth.uncertain.ack')
+                    )
+                  })() &&
                   row.pages?.some((page) => page.cursor === null),
               ),
             )
@@ -211,6 +234,12 @@ test('production SWで真の断中cold再起動から2球を同原文順で同�
   )
   await page.reload()
   await page.waitForFunction(() => navigator.serviceWorker.controller !== null)
+  // オンラインreload自身のsession/C2と新nonceの準備完了後に切断する。
+  await expect(page.getByTestId('ordinary-pitch-result')).toBeVisible()
+  await expect(
+    page.getByTestId('first-ball-pitch-type').locator('option'),
+  ).not.toHaveCount(1)
+  await waitForPreparedScope(page, gameId)
   const syncPath = `/api/games/${gameId}/sync/events`
   const requests: { body: string; attempt: string }[] = []
   page.on('request', (request) => {
