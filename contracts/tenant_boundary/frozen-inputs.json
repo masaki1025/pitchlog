@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "contract_revision": 17,
+  "contract_revision": 18,
   "baseline_control": {
     "identity": {
       "scheme": "integer_revision_field",
       "field": "contract_revision",
       "current_identifiers": [
-        "contract_revision:17"
+        "contract_revision:18"
       ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
@@ -260,6 +260,30 @@
       "sources": [
         "scripts/check_tenant_boundary_bypass.py:_stats_native_static_registrations",
         "tests/test_check_tenant_boundary_bypass.py:test_registry_native_tuple_current_exact27"
+      ]
+    },
+    "pr197_source_revision": {
+      "value": "a59c654e3366d2be9c6456e47b07118e1674bce2",
+      "purpose": "PR197実sourceの条件付き71siteのみを固定Git全byteへ束縛する。旧診断3は別profileで後継成立だけを判定する。",
+      "sources": [
+        "scripts/check_tenant_boundary_bypass.py:_load_pr197_source_owners",
+        "tests/test_pr197_tenant_source_registration.py:test_pr197_source_registration_is_finite_and_holds_three"
+      ]
+    },
+    "pr197_expectation_revision": {
+      "value": "42bda907cb54355552f4022ccf948cca7995617c",
+      "purpose": "PR197非作者分類と旧identity後継profileの前置Git全byteを束縛し、現木自己期待を拒否する。",
+      "sources": [
+        "scripts/check_tenant_boundary_bypass.py:_pr197_fixed_expectations",
+        "tests/test_pr197_tenant_source_registration.py:test_pr197_absent_root_pin_fails_closed"
+      ]
+    },
+    "pr197_expectation_fixture_sha256": {
+      "value": "a14381644954dc8bf918c574810e49656f8e01ee3e21ef64c13955984a037ab4",
+      "purpose": "PR197非作者分類と旧identity後継profileの前置Git全byteを束縛し、現木自己期待を拒否する。",
+      "sources": [
+        "scripts/check_tenant_boundary_bypass.py:_pr197_fixed_expectations",
+        "tests/test_pr197_tenant_source_registration.py:test_pr197_absent_root_pin_fails_closed"
       ]
     }
   }
