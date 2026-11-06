@@ -500,7 +500,7 @@ def test_selected_immutability_update_behavior(
     with psycopg.connect(admin_dsn, autocommit=True) as connection:
         assert connection.execute(
             "SELECT version_num FROM public.alembic_version"
-        ).fetchall() == [("0039_ordinary_pitch_storage",)]
+        ).fetchall() == [("0041_stats_fact_versions",)]
         probes = _seed_behavior_rows(connection)
         assert set(probes) == set(_BEHAVIOR_TABLES)
         _assert_update_behavior(connection, matrix, probes)
