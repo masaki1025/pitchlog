@@ -374,3 +374,353 @@ def test_nonappend_or_wrong_type_never_enters_legacy_reorder(
             epoch=1,
         )
     assert len(calls) == 1
+
+
+@pytest.fixture
+def bootstrap_rig(monkeypatch):
+    """保存行だけを明示doubleにする。writer/getter/型/frame/mapperは製品を使う。"""
+    from test_nonplay_prefix import rig as original_rig
+
+    yield from getattr(original_rig, "__wrapped__")(monkeypatch)
+
+
+def _bootstrap_read_setup(
+    r, monkeypatch, *, count=2, mutation=None, wire_generation=None
+):
+    """既前置手例を再利用し、>100はページ制御だけの合成原本と明示する。"""
+    from test_nonplay_prefix import legacy_profile_fixture, saved_item
+
+    from pitchlog.repositories.play_prefix import read_lineup_prefix_document
+
+    artifact = r.value["checkpoint"]["content"]["executionArtifactSha256"]
+    if count != 2:
+        # これはDBの成功/野球計算の期待ではなく、同一型contextのページ境界fixture。
+        template = copy.deepcopy(r.records[0])
+        context = copy.deepcopy(template["frame"]["afterContext"])
+        records = []
+        for number in range(count, 0, -1):
+            record = copy.deepcopy(template)
+            frame = record["frame"]
+            frame["beforeContext"] = copy.deepcopy(context)
+            frame["afterContext"] = copy.deepcopy(context)
+            src = frame["play"]["source"]
+            src.update(
+                eventId=str(UUID(int=10000 + number)),
+                d5=str(UUID(int=20000 + number)),
+                d1=str(number),
+                fingerprint="wire-v1:" + source_fingerprint({"page-case": number}),
+            )
+            frame["play"].update(
+                playId=str(UUID(int=30000 + number)),
+                d2=str(number * 1024),
+                physicalPlayNumber=str(number),
+            )
+            record["cursor"] = [1, number, src["eventId"]]
+            records.append(record)
+        r.records[:] = records
+        r.value["activeStack"] = [record["frame"] for record in records]
+        c = r.value["checkpoint"]["content"]
+        c.update(d3=str(count), activeDepth=str(count), historyVersion=str(count))
+        r.actual_next_physical = str(count + 1)
+    if wire_generation is not None:
+        r.value["checkpoint"]["content"]["scope"]["generation"] = wire_generation
+        for record in r.records:
+            record["frame"]["play"]["source"]["generation"] = wire_generation
+        r.chain = [wire_generation]
+    raw, row = legacy_profile_fixture(r, monkeypatch, artifact)
+    doc = read_lineup_prefix_document(json.dumps(raw))
+    original = tx._TenantTransaction.run_function
+    calls = []
+    items = []
+    for record in r.records:
+        numeric_record = copy.deepcopy(record)
+        numeric_record["frame"]["play"]["source"]["generation"] = "1"
+        saved = saved_item(numeric_record, r)
+        saved["frame"] = record["frame"]
+        saved["admission"]["wire_d4"] = record["frame"]["play"]["source"]["generation"]
+        items.append(
+            {
+                "kind": saved["kind"],
+                "cursor": saved["cursor"],
+                "frame": saved["frame"],
+                "event": saved["event"],
+                "fingerprint": saved["ledger"]["source_fingerprint"],
+                "wireD4": saved["admission"]["wire_d4"],
+                "physical": saved["physical"],
+            }
+        )
+
+    def run(handle, token):
+        if type(token) is not NonplayActiveHistoryReadToken:
+            return original(handle, token)
+        assert handle is r.handle and token.page_size == 100
+        calls.append(token)
+        point = (token.after_order, token.after_d1, str(token.after_id))
+        selected = [
+            item for item in items if point[0] == 0 or tuple(item["cursor"]) < point
+        ][:101]
+        packet: dict[str, Any] = copy.deepcopy(
+            {
+                "checkpoint": raw,
+                "total": count,
+                "items": selected,
+                "storage": {
+                    "row": row,
+                    "nextPhysicalPlayNumber": r.actual_next_physical,
+                },
+                "generationChain": r.chain,
+            }
+        )
+        if mutation == "missing-page" and len(calls) == 1:
+            packet["items"] = packet["items"][:30]
+        elif mutation == "anchor-drift" and len(calls) == 2:
+            packet["checkpoint"]["revision"] = "999"
+        elif mutation == "storage-drift" and len(calls) == 2:
+            packet["storage"]["row"]["saved_at"] = "2026-11-07T00:00:00+00:00"
+        elif mutation == "ledger":
+            packet["items"][0]["fingerprint"] = "wire-v1:" + "a" * 64
+        elif mutation == "raw-wire":
+            packet["items"][0]["event"]["state_diff"] = {}
+        elif mutation == "tenant":
+            packet["items"][0]["event"]["tenant_id"] = str(UUID(int=999))
+        elif mutation == "profile":
+            packet["items"][0]["kind"] = "unknown"
+        elif mutation == "generation-chain":
+            packet["generationChain"] = ["unknown-generation"]
+        elif mutation == "total-bool":
+            packet["total"] = True
+        return TenantOperationResult(((json.dumps(packet),),))
+
+    monkeypatch.setattr(tx._TenantTransaction, "run_function", run)
+    return SimpleNamespace(
+        doc=doc, row=row, calls=calls, artifact=artifact, items=items
+    )
+
+
+def test_bootstrap_get_ref_equals_actual_writer_mapper(bootstrap_rig, monkeypatch):
+    """初回GETのexpectedCheckpointは、同writer原本readerが生成するNP refと一致。"""
+    from pitchlog.repositories import nonplay_prefix as writer
+
+    r = bootstrap_rig
+    setup = _bootstrap_read_setup(r, monkeypatch)
+    cp, values = api._read_legacy_undo_source(
+        r.handle, setup.doc, setup.row, setup.artifact
+    )
+    with writer.read_confirmed_nonplay_prefix(
+        r.handle, r.event, r.source, artifact_sha256=setup.artifact
+    ) as prefix:
+        actual, _ = writer._read_prefix(prefix, r.handle, r.source, r.event)
+    assert cp.model_dump(mode="json", by_alias=True) == actual["checkpoint"]
+    assert [frame for _, frame in values] == actual["activeStack"]
+    assert cp.ref.digest != setup.doc.content_digest
+    assert len(setup.calls) == 1
+    assert r.handle._state_key not in api._PREFIX_READS
+
+
+def test_bootstrap_over_100_qualifies_whole_stack_with_bounded_pages(
+    bootstrap_rig, monkeypatch
+):
+    """通常1試合の205原本を100+1ずつ読み、100件上限で不適格にしない。"""
+    r = bootstrap_rig
+    setup = _bootstrap_read_setup(r, monkeypatch, count=205)
+    cp, values = api._read_legacy_undo_source(
+        r.handle, setup.doc, setup.row, setup.artifact
+    )
+    assert len(values) == 205 and cp.content.active_depth == "205"
+    assert [t.after_d1 for t in setup.calls] == [0, 106, 6]
+    assert all(t.page_size == 100 for t in setup.calls)
+    assert len({frame["play"]["source"]["eventId"] for _, frame in values}) == 205
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        "missing-page",
+        "anchor-drift",
+        "storage-drift",
+        "ledger",
+        "raw-wire",
+        "tenant",
+        "profile",
+        "generation-chain",
+        "total-bool",
+    ],
+)
+def test_bootstrap_incomplete_changed_or_unqualified_page_is_not_a_source(
+    bootstrap_rig, monkeypatch, mutation
+):
+    """一部ページ・別anchor・原wire/受理指紋不一致を完全Sourceへ昇格しない。"""
+    r = bootstrap_rig
+    setup = _bootstrap_read_setup(r, monkeypatch, count=205, mutation=mutation)
+    with pytest.raises(api.NonplaySourceUnavailable):
+        api._read_legacy_undo_source(r.handle, setup.doc, setup.row, setup.artifact)
+    assert r.handle._state_key not in api._PREFIX_READS
+
+
+def _bootstrap_service_setup(r, monkeypatch, *, count):
+    """scope/headメタデータ境界はdouble、新service/fullpage/既DTOは実物。"""
+    from dataclasses import replace
+
+    from test_api_started_game import _bundle_for
+
+    from pitchlog.repositories import ordinary_prefix_read as ordinary
+    from pitchlog.repositories.started_read import StartedGameView, read_started_game
+    from pitchlog.sync.d4_reference import encode_d4_reference
+
+    wire = encode_d4_reference(
+        r.handle._bound_tenant_id,
+        UUID(r.value["checkpoint"]["content"]["scope"]["gameId"]),
+        1,
+    )
+    setup = _bootstrap_read_setup(r, monkeypatch, count=count, wire_generation=wire)
+    doc = setup.doc
+    with pytest.MonkeyPatch.context() as local:
+        bundle = _bundle_for(r.handle._bound_tenant_id, local)
+        initial = read_started_game(bundle.handle, bundle.game_id)
+    assert type(initial) is StartedGameView
+    metadata = replace(
+        initial, game_id=UUID(doc.prefix_ref.game_id), current_d4=doc.wire_d4
+    )
+    snapshot = {
+        "row": setup.row,
+        "generation": 1,
+        "epoch": 1,
+        "d3": count,
+        "d4": doc.wire_d4,
+        "tail": {"d2": count * 1024},
+        "game": {},
+    }
+    monkeypatch.setattr(api, "_read_undo_snapshot", lambda *a: snapshot)
+    monkeypatch.setattr(api, "_legacy_undo_metadata", lambda *a: metadata)
+    monkeypatch.setattr(
+        ordinary,
+        "read_lineup_prefix",
+        lambda *a, **kw: pytest.fail("legacyの旧公開history-page経路を流用しました"),
+    )
+    return setup, metadata
+
+
+def test_bootstrap_service_returns_only_requested_pages_with_same_writer_checkpoint(
+    bootstrap_rig, monkeypatch
+):
+    """内部全205資格と公開100/100/5を区別し、全pageだけで完全Sourceを組める。"""
+    from pitchlog.repositories.nonplay_prefix import _check_source
+
+    r = bootstrap_rig
+    setup, metadata = _bootstrap_service_setup(r, monkeypatch, count=205)
+    game = UUID(setup.doc.prefix_ref.game_id)
+    cursor = None
+    items = []
+    refs = []
+    sizes = []
+    for _ in range(3):
+        view = api.read_undo_prefix(r.handle, game, limit=100, cursor=cursor)
+        assert view.metadata is metadata
+        cp = view.projection["checkpoint"]
+        refs.append(cp.ref)
+        page = view.projection["page"]
+        sizes.append(len(page["items"]))
+        items.extend(page["items"])
+        cursor = page["next_cursor"]
+    assert sizes == [100, 100, 5] and cursor is None
+    assert refs[0] == refs[1] == refs[2]
+    source = {
+        "formatVersion": "nonplay-prefix-source-v1",
+        "checkpoint": cp.model_dump(mode="json", by_alias=True),
+        "activeStack": items,
+    }
+    assert _check_source(source) == source
+    assert len(setup.calls) == 9  # 各HTTP readの内部pageも同100+1 bounded。
+    assert r.handle._state_key not in api._PREFIX_READS
+
+
+def test_bootstrap_service_rejects_public_cursor_from_another_checkpoint(
+    bootstrap_rig, monkeypatch
+):
+    """cursorを別NP refへ差替えても数学提案や保存資格へ転用しない。"""
+    r = bootstrap_rig
+    setup, _ = _bootstrap_service_setup(r, monkeypatch, count=2)
+    game = UUID(setup.doc.prefix_ref.game_id)
+    first = api.read_undo_prefix(r.handle, game, limit=1)
+    cursor = first.projection["page"]["next_cursor"]
+    import base64
+
+    packet = json.loads(base64.urlsafe_b64decode(cursor + "=" * ((-len(cursor)) % 4)))
+    packet["anchor"]["checkpoint"]["digest"] = "a" * 64
+    bad = (
+        base64.urlsafe_b64encode(api._canonical_json(packet).encode())
+        .decode()
+        .rstrip("=")
+    )
+    with pytest.raises(api.NonplaySourceUnavailable):
+        api.read_undo_prefix(r.handle, game, limit=1, cursor=bad)
+
+
+@pytest.mark.anyio
+async def test_bootstrap_http_legacy_returns_np_checkpoint_and_bounded_pages(
+    bootstrap_rig, monkeypatch
+):
+    """認証/SQLは明示double、HTTP/router/実reader/同mapper/DTOの接続を通す。"""
+    from contextlib import contextmanager
+
+    import fastapi.dependencies.utils
+    import fastapi.routing
+    from fastapi import FastAPI
+    from httpx import ASGITransport, AsyncClient
+    from test_roster_boundary import _metadata_headers
+
+    from pitchlog.api import tenant_access
+    from pitchlog.api.routers import started_games
+
+    r = bootstrap_rig
+
+    async def inline(function, *args, **kwargs):
+        return function(*args, **kwargs)
+
+    monkeypatch.setattr(fastapi.routing, "run_in_threadpool", inline)
+    monkeypatch.setattr(fastapi.dependencies.utils, "run_in_threadpool", inline)
+    monkeypatch.setattr(tenant_access, "run_in_threadpool", inline)
+    monkeypatch.setattr(
+        tenant_access, "require_tenant_access", lambda *a, **kw: r.handle._context
+    )
+    setup, _ = _bootstrap_service_setup(r, monkeypatch, count=2)
+    app = FastAPI()
+    app.include_router(started_games.router)
+    app.dependency_overrides[started_games.require_tenant_access] = lambda: (
+        r.handle._context
+    )
+
+    @contextmanager
+    def scope(context):
+        assert context is r.handle._context
+        yield r.handle
+
+    monkeypatch.setattr(started_games, "tenant_transaction_scope", scope)
+    game = setup.doc.prefix_ref.game_id
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="https://test"
+    ) as client:
+        client.cookies.set("__Host-pitchlog_token", "explicit-auth-double")
+        client.headers.update(_metadata_headers(r.handle._bound_tenant_id))
+        response = await client.get(
+            f"/games/{game}/started?projection=undo-prefix-v1&limit=1"
+        )
+        assert response.status_code == 200, response.text
+        first = response.json()
+        cursor = first["page"]["next_cursor"]
+        assert type(cursor) is str
+        response = await client.get(
+            f"/games/{game}/started",
+            params={"projection": "undo-prefix-v1", "limit": 1, "cursor": cursor},
+        )
+        assert response.status_code == 200, response.text
+        second = response.json()
+    assert first["read_kind"] == "nonplay-prefix"
+    assert first["profile"] == "nonplay-prefix-read-v1"
+    assert first["checkpoint"] == second["checkpoint"]
+    assert first["checkpoint"]["ref"]["digest"] != setup.doc.content_digest
+    assert len(first["page"]["items"]) == len(second["page"]["items"]) == 1
+    assert second["page"]["next_cursor"] is None
+    assert first["checkpoint"]["content"]["activeDepth"] == "2"
+    raw = json.dumps((first, second))
+    assert all(key not in raw for key in ("binding_nonce", "lease_id", "admission"))

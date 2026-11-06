@@ -147,7 +147,9 @@ def _read_recorded(view: StartedRecordedView) -> StartedRecordedGameRead:
 def read_started_game_detail(
     game_id: UUID,
     context: Annotated[TenantContext, Depends(require_tenant_access)],
-    projection: Literal["ordinary-prefix-v1", "play-prefix-v2", "play-prefix-v3"]
+    projection: Literal[
+        "ordinary-prefix-v1", "play-prefix-v2", "play-prefix-v3", "undo-prefix-v1"
+    ]
     | None = None,
     limit: Annotated[int, Query(ge=1, le=100)] = 25,
     cursor: Annotated[str | None, Query(min_length=1, max_length=2048)] = None,
@@ -155,8 +157,21 @@ def read_started_game_detail(
     """不可視・別tenant・不存在は404、保存初球は200、他の記録は409を返す。"""
     try:
         with tenant_transaction_scope(context) as scope:
-            if projection in {"ordinary-prefix-v1", "play-prefix-v2", "play-prefix-v3"}:
-                if projection == "play-prefix-v3":
+            if projection in {
+                "ordinary-prefix-v1",
+                "play-prefix-v2",
+                "play-prefix-v3",
+                "undo-prefix-v1",
+            }:
+                if projection == "undo-prefix-v1":
+                    from pitchlog.repositories.nonplay_prefix_read import (
+                        read_undo_prefix,
+                    )
+
+                    prefix = read_undo_prefix(
+                        scope, game_id, limit=limit, cursor=cursor
+                    )
+                elif projection == "play-prefix-v3":
                     prefix = read_lineup_prefix(
                         scope, game_id, limit=limit, cursor=cursor
                     )
@@ -220,7 +235,11 @@ def read_started_game_detail(
                             for key in ("bridge_checkpoint", "bridge_origin"):
                                 projected.pop(key, None)
                     packet = {**metadata, "read_kind": kind, **projected}
-                    if projection in {"play-prefix-v2", "play-prefix-v3"}:
+                    if projection in {
+                        "play-prefix-v2",
+                        "play-prefix-v3",
+                        "undo-prefix-v1",
+                    }:
                         value = model.model_validate_json(
                             TypeAdapter(dict).dump_json(
                                 packet, by_alias=True, exclude_unset=True

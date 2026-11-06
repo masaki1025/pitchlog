@@ -190,13 +190,8 @@ def _frame(handle, item, live):
     return frame
 
 
-def _read_active_page_bound(handle, cp, *, generation, limit=25, cursor=None):
-    """同CPの一page。全stack完成とは区別する。秘密を返さない。"""
-    owner = _owner(handle)
-
-    def live():
-        _live(handle, owner)
-
+def _page_anchor(cp):
+    """全pageを同CP/refと3水位へ束縛する。秘密の資格は含めない。"""
     rawcp = cp.model_dump(mode="json", by_alias=True)
     anchor = {
         "checkpoint": rawcp["ref"],
@@ -205,6 +200,11 @@ def _read_active_page_bound(handle, cp, *, generation, limit=25, cursor=None):
         "epoch": cp.content.storage_history_epoch,
         "historyVersion": cp.content.history_version,
     }
+    return anchor
+
+
+def _read_page_cursor(cursor, anchor):
+    """旧NPとbootstrapで同じ閉cursorを使い、別anchorへ移植しない。"""
     point = (0, 0, UUID(int=0))
     if cursor is not None:
         if type(cursor) is not str or len(cursor) > 2048:
@@ -230,6 +230,27 @@ def _read_active_page_bound(handle, cp, *, generation, limit=25, cursor=None):
             point = _point(packet["position"])
         except (ValueError, TypeError, KeyError):
             raise NonplaySourceUnavailable("非play cursor anchorが不一致") from None
+    return point
+
+
+def _make_page_cursor(anchor, point):
+    """実在するpage境界だけを公開opaque cursorへ写す。"""
+    encoded = _canonical_json(
+        {"anchor": anchor, "position": [point[0], point[1], str(point[2])]}
+    )
+    return base64.urlsafe_b64encode(encoded.encode()).decode().rstrip("=")
+
+
+def _read_active_page_bound(handle, cp, *, generation, limit=25, cursor=None):
+    """同CPの一page。全stack完成とは区別する。秘密を返さない。"""
+    owner = _owner(handle)
+
+    def live():
+        _live(handle, owner)
+
+    rawcp = cp.model_dump(mode="json", by_alias=True)
+    anchor = _page_anchor(cp)
+    point = _read_page_cursor(cursor, anchor)
     token = NonplayActiveHistoryReadToken(
         game_id=UUID(cp.content.scope.game_id),
         generation=generation,
@@ -281,11 +302,7 @@ def _read_active_page_bound(handle, cp, *, generation, limit=25, cursor=None):
     selected = values[:limit]
     next_cursor = None
     if more:
-        p = selected[-1][0]
-        encoded = _canonical_json(
-            {"anchor": anchor, "position": [p[0], p[1], str(p[2])]}
-        )
-        next_cursor = base64.urlsafe_b64encode(encoded.encode()).decode().rstrip("=")
+        next_cursor = _make_page_cursor(anchor, selected[-1][0])
     return {"items": [frame for _, frame in selected], "next_cursor": next_cursor}
 
 
@@ -585,3 +602,388 @@ def _read_nonplay_append_d2(handle, event, proposal, *, epoch):
         raise NonplaySourceUnavailable("非play実D2 allocatorの結果が不一致")
     _live(handle, owner)
     return assigned
+
+
+def _read_legacy_undo_source(handle, doc, stored, artifact_sha256):
+    """各100+1原本を同TXで全検証し、writerと唯一のmapperから同refを得る。"""
+    from pitchlog.db.writer_binding.ordinary_models import OrdinaryPitchCheckpoint
+    from pitchlog.repositories.nonplay_prefix import (
+        _checkpoint_from_legacy,
+        _require_nonplay_legacy_compatibility,
+    )
+    from pitchlog.repositories.recorded_snapshot import _typed_historical_row
+    from pitchlog.sync.undo_payload import _load
+
+    _require_nonplay_legacy_compatibility(doc.artifact_sha256, artifact_sha256)
+    owner = _owner(handle)
+
+    def live():
+        _live(handle, owner)
+
+    rawcp = doc.model_dump(mode="json", by_alias=True, exclude_unset=True)
+    columns = set(OrdinaryPitchCheckpoint.__table__.c.keys())
+    expected_row = {k: stored[k] for k in columns}
+    _typed_historical_row(expected_row, OrdinaryPitchCheckpoint.__table__)
+    position = (0, 0, UUID(int=0))
+    all_values = []
+    envelope = None
+    while True:
+        token = NonplayActiveHistoryReadToken(
+            game_id=UUID(doc.prefix_ref.game_id),
+            generation=int(doc.internal_generation),
+            checkpoint_id=UUID(doc.id),
+            revision=int(doc.revision),
+            epoch=int(doc.history_version),
+            d3=int(doc.confirmed_watermark),
+            logical_version=int(doc.prefix_ref.history_version),
+            after_order=position[0],
+            after_d1=position[1],
+            after_id=position[2],
+            page_size=100,
+        )
+        live()
+        result = handle.run_function(token)
+        live()
+        if (
+            type(result) is not TenantOperationResult
+            or len(result.rows) != 1
+            or len(result.rows[0]) != 1
+            or type(result.rows[0][0]) is not str
+        ):
+            raise NonplaySourceUnavailable("取消bootstrapの実page応答が不一致")
+        packet = _load(result.rows[0][0])
+        if (
+            type(packet) is not dict
+            or set(packet)
+            != {"checkpoint", "total", "items", "storage", "generationChain"}
+            or not _same(packet["checkpoint"], rawcp)
+            or type(packet["total"]) is not int
+            or packet["total"] != int(doc.history_depth)
+            or type(packet["items"]) is not list
+            or not 1 <= len(packet["items"]) <= 101
+            or type(packet["storage"]) is not dict
+            or set(packet["storage"]) != {"row", "nextPhysicalPlayNumber"}
+            or not _same(packet["storage"]["row"], expected_row)
+        ):
+            raise NonplaySourceUnavailable("取消bootstrapのCP/物理版/pageが不一致")
+        binding = {
+            "storage": packet["storage"],
+            "generationChain": packet["generationChain"],
+        }
+        if envelope is None:
+            envelope = binding
+        elif not _same(envelope, binding):
+            raise NonplaySourceUnavailable("取消bootstrapのpage間anchorが変化")
+        values = []
+        previous = position if position[0] else None
+        for item in packet["items"]:
+            point = _point(item["cursor"])
+            if previous is not None and point >= previous:
+                raise NonplaySourceUnavailable("取消bootstrapのpage順序が不一致")
+            previous = point
+            values.append((point, _frame(handle, item, live)))
+        all_values.extend(values[:100])
+        if len(all_values) > int(doc.history_depth):
+            raise NonplaySourceUnavailable("取消bootstrapの履歴件数が過剰")
+        if len(values) <= 100:
+            break
+        position = values[99][0]
+    if envelope is None:
+        raise NonplaySourceUnavailable("取消bootstrapの保存原本が欠落")
+    chain = envelope["generationChain"]
+    if (
+        type(chain) is not list
+        or any(type(x) is not str for x in chain)
+        or not chain
+        or len(set(chain)) != len(chain)
+        or chain[-1] != doc.wire_d4
+        or any(v[1]["play"]["source"]["generation"] not in chain for v in all_values)
+    ):
+        raise NonplaySourceUnavailable("取消bootstrapの実世代連結が不一致")
+    stack = [frame for _, frame in all_values]
+    cp = _checkpoint_from_legacy(doc, stack, envelope["storage"], artifact_sha256)
+    _check_source(
+        {
+            "formatVersion": "nonplay-prefix-source-v1",
+            "checkpoint": cp,
+            "activeStack": stack,
+        }
+    )
+    checked = checked_checkpoint(
+        cp,
+        tenant=handle._bound_tenant_id,
+        game=doc.prefix_ref.game_id,
+        generation=doc.wire_d4,
+        d3=int(doc.confirmed_watermark),
+        artifact=artifact_sha256,
+    )
+    live()
+    return checked, all_values
+
+
+def _read_undo_snapshot(handle, game_id):
+    """既readと同じ実試合/世代lockとpoint原本だけを取得する。履歴は新能力で読む。"""
+    from pitchlog.db.game_state.models import Game
+    from pitchlog.repositories.ordinary_order import OrdinaryOrderSummaryToken
+    from pitchlog.repositories.ordinary_prefix_operations import (
+        OrdinaryCheckpointReadToken,
+    )
+    from pitchlog.repositories.ordinary_prefix_read import _function_one
+    from pitchlog.repositories.started_read import (
+        StartedReadNotVisible,
+        StartedReadRecorded,
+    )
+    from pitchlog.repositories.started_snapshot import _one, _rows
+    from pitchlog.repositories.sync_apply import _GENERATION_READ_COLUMNS
+    from pitchlog.sync.d4_reference import encode_d4_reference
+    from pitchlog.sync.tokens import (
+        GameLockToken,
+        GameReadToken,
+        RecordingGenerationLockToken,
+        RecordingGenerationReadToken,
+    )
+
+    owner = _owner(handle)
+    if type(game_id) is not UUID:
+        raise NonplaySourceUnavailable("取消GETの試合ID型が不一致")
+
+    def run(token):
+        _live(handle, owner)
+        result = handle.run(token)
+        _live(handle, owner)
+        return result
+
+    columns = tuple(Game.__table__.c.keys())
+    locked = _rows(run(GameLockToken(game_id)), columns)
+    games = _rows(run(GameReadToken(game_id)), columns)
+    if not locked and not games:
+        return StartedReadNotVisible()
+    if len(games) != 1 or locked != games:
+        raise NonplaySourceUnavailable("取消GETの実試合lockが不一致")
+    game = games[0]
+    if game["tenant_id"] != handle._bound_tenant_id or game["id"] != game_id:
+        raise NonplaySourceUnavailable("取消GETのtenant/gameが不一致")
+    if game["status"] != "in_progress" or any(
+        game[k] is not None for k in ("trashed_at", "hidden_at", "import_batch_id")
+    ):
+        return StartedReadNotVisible()
+    generation = _one(
+        run(RecordingGenerationReadToken(game_id)), _GENERATION_READ_COLUMNS
+    )
+    number = generation["generation"]
+    if type(number) is not int or not 0 < number < 2**63:
+        raise NonplaySourceUnavailable("取消GETの世代型が不一致")
+    again = _one(
+        run(RecordingGenerationLockToken(game_id, number)), _GENERATION_READ_COLUMNS
+    )
+    watermark = generation["confirmed_watermark"]
+    if (
+        again != generation
+        or generation["tenant_id"] != handle._bound_tenant_id
+        or generation["game_id"] != game_id
+        or generation["kind"] != "normal"
+        or any(
+            generation[k] is not None
+            for k in ("revoked_at", "retired_at", "import_batch_id")
+        )
+        or type(watermark) is not int
+        or watermark < 0
+        or generation["applied_prefix"] != watermark
+    ):
+        raise NonplaySourceUnavailable("取消GETの真正世代/watermarkが不一致")
+    summary = _function_one(handle, OrdinaryOrderSummaryToken(game_id))
+    stored = _function_one(handle, OrdinaryCheckpointReadToken(game_id, number))
+    _live(handle, owner)
+    if (
+        type(summary) is not dict
+        or set(summary) != {"tail", "duplicate", "recovery_generation"}
+        or summary["duplicate"] is not False
+        or type(summary["recovery_generation"]) is not int
+        or not 0 < summary["recovery_generation"] < 2**63
+    ):
+        raise NonplaySourceUnavailable("取消GETの実順序/epochが不一致")
+    if stored is None or (
+        type(stored) is dict and stored.get("kind") == "first-ball-save"
+    ):
+        return StartedReadRecorded()
+    if (
+        type(stored) is not dict
+        or set(stored) != {"kind", "row"}
+        or stored["kind"] != "checkpoint"
+        or type(stored["row"]) is not dict
+        or type(stored["row"].get("content")) is not dict
+    ):
+        raise NonplaySourceUnavailable("取消GETの保存CP形が不一致")
+    if stored["row"]["content"].get("version") == "3":
+        from pitchlog.authz.terminal_pitch_product import require_registered_product
+        from pitchlog.db.writer_binding.ordinary_models import OrdinaryPitchCheckpoint
+        from pitchlog.sync.terminal_pitch_tokens import PlayPrefixCheckpointReadToken
+
+        require_registered_product(mode="play-prefix-play-v3")
+        full = _function_one(handle, PlayPrefixCheckpointReadToken(game_id, number))
+        _live(handle, owner)
+        columns = OrdinaryPitchCheckpoint.__table__.c.keys()
+        if (
+            type(full) is not dict
+            or set(full) != {"kind", "row"}
+            or full["kind"] != "checkpoint"
+            or type(full["row"]) is not dict
+            or not _same(
+                {k: stored["row"][k] for k in columns},
+                {k: full["row"][k] for k in columns},
+            )
+        ):
+            raise NonplaySourceUnavailable("取消GETのv3全head/CP原本が不一致")
+        stored = full
+    return {
+        "game": game,
+        "row": stored["row"],
+        "generation": number,
+        "epoch": summary["recovery_generation"],
+        "d3": watermark,
+        "d4": encode_d4_reference(handle._bound_tenant_id, game_id, number),
+        "tail": summary["tail"],
+    }
+
+
+def _legacy_undo_metadata(handle, game_id, snapshot, doc):
+    """旧v3のpoint/head/開始名簿の既helperを使い、旧公開history pageは流用しない。"""
+    from pitchlog.domainrt.initial_game_roster import InitialRosterProjection
+    from pitchlog.domainrt.lineup_prefix_source import lineup_from_actual_roster
+    from pitchlog.repositories.ordinary_prefix_read import (
+        _evaluate_lineup_payload,
+        _prefix_metadata,
+    )
+    from pitchlog.repositories.play_prefix import (
+        _lineup_started_origin,
+        _read_native_lineup_head,
+    )
+    from pitchlog.repositories.started_snapshot import _rows, _saved_lineup
+    from pitchlog.repositories.started_snapshot_operations import (
+        LINEUP_COLUMNS,
+        StartedLineupsReadToken,
+    )
+
+    row, tail = snapshot["row"], snapshot["tail"]
+    expected = {
+        "tenant_id": str(handle._bound_tenant_id),
+        "game_id": str(game_id),
+        "internal_generation": snapshot["generation"],
+        "id": doc.id,
+        "revision": int(doc.revision),
+        "history_version": int(doc.history_version),
+        "recovery_generation": snapshot["epoch"],
+        "confirmed_watermark": snapshot["d3"],
+        "applied_watermark": snapshot["d3"],
+        "content_digest": doc.content_digest,
+        "state": "current",
+    }
+    if (
+        any(type(row.get(k)) is not type(v) or row[k] != v for k, v in expected.items())
+        or doc.wire_d4 != snapshot["d4"]
+        or doc.prefix_ref.tenant_id != str(handle._bound_tenant_id)
+        or doc.prefix_ref.game_id != str(game_id)
+        or row.get("saved_at") is None
+        or type(tail) is not dict
+        or tail.get("tenant_id") != str(handle._bound_tenant_id)
+        or tail.get("game_id") != str(game_id)
+        or tail.get("generation") != snapshot["generation"]
+        or type(tail.get("d1")) is not int
+        or tail["d1"] != snapshot["d3"]
+        or type(tail.get("d2")) is not int
+        or not 0 <= tail["d2"] < 2**63 - 1000
+        or source_fingerprint(row["roster"]) != doc.roster_source_digest
+        or doc.source_origin.event_id
+        != _lineup_started_origin(handle, game_id, snapshot["generation"])
+    ):
+        raise NonplaySourceUnavailable("取消GETのv3 CP/head/物理scopeが不一致")
+    roster = InitialRosterProjection.model_validate_json(_canonical_json(row["roster"]))
+    if lineup_from_actual_roster(roster) != doc.lineup:
+        raise NonplaySourceUnavailable("取消GETの実開始名簿が不一致")
+    payload, _ = _read_native_lineup_head(
+        handle, game_id, handle._bound_tenant_id, row, doc
+    )
+    _evaluate_lineup_payload(
+        payload.model_dump(mode="json", by_alias=True, exclude_unset=True)
+    )
+    saved = _rows(handle.run(StartedLineupsReadToken(game_id)), LINEUP_COLUMNS)
+    if len(saved) != 2 or any(
+        x["tenant_id"] != handle._bound_tenant_id or x["game_id"] != game_id
+        for x in saved
+    ):
+        raise NonplaySourceUnavailable("取消GETの保存済lineupが不一致")
+    lineups = tuple(_saved_lineup(x) for x in saved)
+    sides = tuple(
+        next(x for x in lineups if x.team_id == snapshot["game"][key])
+        for key in ("away_team_record_id", "home_team_record_id")
+    )
+    return _prefix_metadata(snapshot["game"], game_id, snapshot["d4"], sides, roster)
+
+
+def read_undo_prefix(handle, game_id, *, limit=25, cursor=None):
+    """初回取消前v3も正直なNP DTOへ写す。GETからwriter資格は発行しない。"""
+    from pitchlog.domainrt.host import open_domain_host
+    from pitchlog.repositories.ordinary_prefix_read import (
+        OrdinaryPrefixView,
+        read_lineup_prefix,
+    )
+    from pitchlog.repositories.play_prefix import read_lineup_prefix_document
+
+    if type(limit) is not int or not 1 <= limit <= 100:
+        raise NonplaySourceUnavailable("取消GET page上限が不一致")
+    owner = _owner(handle)
+    snapshot = _read_undo_snapshot(handle, game_id)
+    _live(handle, owner)
+    if type(snapshot) is not dict:
+        return snapshot
+    row = snapshot["row"]
+    if row["content"].get("formatVersion") == "nonplay-prefix-checkpoint-v1":
+        result = read_lineup_prefix(handle, game_id, limit=limit, cursor=cursor)
+        _live(handle, owner)
+        return result
+    if row["content"].get("version") != "3":
+        raise NonplaySourceUnavailable("取消GETの閉v3 profileが不一致")
+    doc = read_lineup_prefix_document(_canonical_json(row["content"]))
+    metadata = _legacy_undo_metadata(handle, game_id, snapshot, doc)
+    _live(handle, owner)
+    with open_domain_host() as host:
+        cp, values = _read_legacy_undo_source(handle, doc, row, host.artifact_sha256)
+    public_anchor = _page_anchor(cp)
+    point = _read_page_cursor(cursor, public_anchor)
+    start = 0
+    if point[0]:
+        matches = [i for i, (p, _) in enumerate(values) if p == point]
+        if len(matches) != 1:
+            raise NonplaySourceUnavailable("取消GET cursorの実境界が存在しない")
+        start = matches[0] + 1
+    selected = values[start : start + limit]
+    next_cursor = (
+        _make_page_cursor(public_anchor, selected[-1][0])
+        if start + limit < len(values) and selected
+        else None
+    )
+    _live(handle, owner)
+    return OrdinaryPrefixView(
+        metadata,
+        {
+            "profile": "nonplay-prefix-read-v1",
+            "checkpoint": cp,
+            "after": cp.content.restored.current,
+            "next_position": {
+                "d1": str(snapshot["d3"] + 1),
+                "d2": str(snapshot["tail"]["d2"] + 1000),
+            },
+            "recovery_generation": str(snapshot["epoch"]),
+            "last_saved_at": row["saved_at"],
+            "page": {
+                "items": [frame for _, frame in selected],
+                "next_cursor": next_cursor,
+            },
+            "append_policy": {
+                "version": "ordinary-append-v1",
+                "first_d2": "1",
+                "d2_gap": "1000",
+                "max_d2": "9007199254740991",
+            },
+        },
+    )

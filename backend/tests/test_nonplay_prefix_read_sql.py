@@ -15,3 +15,19 @@ def test_readonly_bounded_and_no_private_output():
     assert not any(
         x in sql for x in ("INSERT INTO", "UPDATE sync_fence", "DELETE FROM")
     )
+
+
+def test_bootstrap_legacy_branch_keeps_signature_and_all_saved_qualification():
+    """能力を増やさずv3の保存原本/全page/世代連結を同じSQL内で検査する。"""
+    sql = candidate_read_function_bodies()["read_nonplay_active_history"]
+    assert sql.count("CREATE FUNCTION") == 1
+    assert "c.content->>'version'='3'" in sql
+    assert "a.next_checkpoint_content=cp.content" in sql
+    assert "a.xmin=cp.xmin" in sql and "es.xmin=a.xmin" in sql
+    assert "l.source_fingerprint=a.event_fingerprint" in sql
+    assert "c.content->'storage_anchor'->>'history_epoch'=p_epoch::text" in sql
+    assert "'generationChain',chain" in sql
+    assert "total::text IS DISTINCT FROM cp.content->>'history_depth'" in sql
+    assert "FOR SHARE OF c,g" in sql
+    assert "LIMIT p_page_size+1" in sql
+    assert "LIMIT 100;" not in sql

@@ -156,3 +156,123 @@ async def test_foreign_tenant_request_never_uses_nonplay_read_capability(monkeyp
         )
     assert response.status_code in {403, 404}
     assert calls == []
+
+
+@pytest.mark.anyio
+async def test_undo_projection_reuses_existing_nonplay_dto_without_writer_qualification(
+    monkeypatch,
+):
+    """新projectionも既NPを正直に返し、既v3 GETや保存資格を変更しない。"""
+    app, bundle, checkpoint, calls = setup_view(monkeypatch)
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="https://test"
+    ) as client:
+        client.cookies.set("__Host-pitchlog_token", "token-a")
+        response = await client.get(
+            f"/games/{bundle.game_id}/started?projection=undo-prefix-v1",
+            headers=_metadata_headers(_TENANT_A),
+        )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["read_kind"] == "nonplay-prefix" and body["checkpoint"] == checkpoint
+    assert body["profile"] == "nonplay-prefix-read-v1"
+    assert body["next_position"] == {"d1": "5", "d2": "3024"}
+    assert calls == [
+        OrdinaryOrderSummaryToken,
+        OrdinaryCheckpointReadToken,
+        OrdinaryOrderSummaryToken,
+        OrdinaryCheckpointReadToken,
+        NonplayActiveHistoryReadToken,
+    ]
+
+
+def test_undo_snapshot_uses_real_game_generation_and_readonly_point_tokens(monkeypatch):
+    """新入口のscope helperも同じGame/generation lockと正規CPを検証する。"""
+    from pitchlog.repositories.nonplay_prefix_read import _read_undo_snapshot
+
+    _, bundle, checkpoint, calls = setup_view(monkeypatch)
+    snapshot = _read_undo_snapshot(bundle.handle, bundle.game_id)
+    assert type(snapshot) is dict
+    assert snapshot["row"]["content"] == checkpoint
+    assert snapshot["d3"] == 4 and snapshot["generation"] == 1
+    assert calls == [OrdinaryOrderSummaryToken, OrdinaryCheckpointReadToken]
+
+
+@pytest.mark.parametrize(
+    "mutation", ["tenant", "revoked", "generation-bool", "gap", "profile"]
+)
+def test_undo_snapshot_scope_and_unknown_profile_are_closed(monkeypatch, mutation):
+    """scope破損や未知profileを旧v3へ推測で補完しない。"""
+    from uuid import UUID
+
+    from pitchlog.repositories.nonplay_prefix import NonplaySourceUnavailable
+    from pitchlog.repositories.nonplay_prefix_read import read_undo_prefix
+
+    _, bundle, checkpoint, _ = setup_view(monkeypatch)
+    if mutation == "tenant":
+        bundle.game["tenant_id"] = UUID(int=999)
+    elif mutation == "revoked":
+        bundle.generation["revoked_at"] = bundle.game["started_at"]
+    elif mutation == "generation-bool":
+        bundle.generation["generation"] = True
+    elif mutation == "gap":
+        bundle.generation["applied_prefix"] = 3
+    else:
+        checkpoint["formatVersion"] = "unknown"
+    with pytest.raises(NonplaySourceUnavailable):
+        read_undo_prefix(bundle.handle, bundle.game_id)
+
+
+@pytest.mark.parametrize("drift", [False, True])
+def test_undo_snapshot_reads_full_v3_head_and_rejects_second_point_drift(
+    monkeypatch, drift
+):
+    """Raw point段は旧full-head入口を使い、後段の型/数学検査を省略しない。"""
+    from pitchlog.authz import terminal_pitch_product
+    from pitchlog.repositories.nonplay_prefix import NonplaySourceUnavailable
+    from pitchlog.repositories.nonplay_prefix_read import _read_undo_snapshot
+    from pitchlog.sync.terminal_pitch_tokens import PlayPrefixCheckpointReadToken
+
+    _, bundle, checkpoint, _ = setup_view(monkeypatch)
+    # このcaseは入口選択/二重点照合だけのdouble。完成したv3/DB原本とは扱わない。
+    checkpoint.clear()
+    checkpoint["version"] = "3"
+    original = tx._TenantTransaction.run_function
+    raw_point = original(
+        bundle.handle, OrdinaryCheckpointReadToken(bundle.game_id, 1)
+    ).rows[0][0]
+    assert isinstance(raw_point, str)
+    point = json.loads(raw_point)
+    seen = []
+    modes = []
+    monkeypatch.setattr(
+        terminal_pitch_product,
+        "require_registered_product",
+        lambda **kw: modes.append(kw["mode"]),
+    )
+
+    def run(handle, token):
+        seen.append(type(token))
+        if type(token) is PlayPrefixCheckpointReadToken:
+            full = copy.deepcopy(point)
+            full["row"].update(
+                last_history={"real-head-fixture": True}, last_play_runners=[]
+            )
+            if drift:
+                full["row"]["revision"] += 1
+            return TenantOperationResult(((json.dumps(full),),))
+        return original(handle, token)
+
+    monkeypatch.setattr(tx._TenantTransaction, "run_function", run)
+    if drift:
+        with pytest.raises(NonplaySourceUnavailable):
+            _read_undo_snapshot(bundle.handle, bundle.game_id)
+    else:
+        snapshot = _read_undo_snapshot(bundle.handle, bundle.game_id)
+        assert snapshot["row"]["last_history"] == {"real-head-fixture": True}
+    assert modes == ["play-prefix-play-v3"]
+    assert seen == [
+        OrdinaryOrderSummaryToken,
+        OrdinaryCheckpointReadToken,
+        PlayPrefixCheckpointReadToken,
+    ]
