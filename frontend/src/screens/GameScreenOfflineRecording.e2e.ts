@@ -215,6 +215,39 @@ async function preparedHashes(
   })
 }
 
+// 失敗時は公開UIと相関の状態だけを記録し、Cookie/本文/資格値は出さない。
+test.afterEach(async ({ page }, info) => {
+  if (info.status === info.expectedStatus || page.isClosed()) return
+  const diagnostic = await page
+    .evaluate(() => {
+      let phase: string | null = null
+      try {
+        phase =
+          JSON.parse(localStorage.getItem('bb.auth.intent') ?? 'null')?.phase ??
+          null
+      } catch {
+        /* 原文は出さない。 */
+      }
+      return {
+        path: location.pathname,
+        onlineHint: navigator.onLine,
+        secure: isSecureContext,
+        intentPhase: phase,
+        uncertaintyConfirmed:
+          localStorage.getItem('bb.auth.uncertain') ===
+          localStorage.getItem('bb.auth.uncertain.ack'),
+        headings: [...document.querySelectorAll('h1,h2')].map((n) =>
+          n.textContent?.slice(0, 100),
+        ),
+        notices: [
+          ...document.querySelectorAll('[role="status"],[role="alert"]'),
+        ].map((n) => n.textContent?.slice(0, 250)),
+      }
+    })
+    .catch(() => ({ unavailable: true }))
+  console.log('PITCHLOG_OFFLINE_UI_DIAGNOSTIC=' + JSON.stringify(diagnostic))
+})
+
 test('production SWで真の断中cold再起動から2球を同原文順で同期する', async ({
   page,
   context,
