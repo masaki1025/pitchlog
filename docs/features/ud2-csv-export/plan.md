@@ -78,6 +78,10 @@ DB読取中に一時ファイルへ各CSVを有限バッチで書き、ZIPを完
 
 step1はsupply-matrixの欠測を同計画で実装する。step1内の独立準備として88列/sidecar型・保存T1抽出・参照結合・キーセット/tenant/snapshot型・ZIP生成とhash/故障試験・HTTP/DLの応答検証部品を先行できる（実route成功登録はstep3）。これらは計算式を持たず、必要方式ゲート未完でもrootが指示したこのstep1範囲を進める。step1の契約/計算が全て揃う前に完了コミットや製品成功を記録しない。そこで規範に無い新しい記録結果が判明した場合だけrootへ具体的な列/入力/原典不足を返し、未知値を仮採用しない。plan全体の承認待ちを一律の作業停止にはせず、独立レビュー・候補整備・機械列照合を進める。同計画のproducerを未実装/未受理のままstep2以降の正式供給完了にはしない。
 
+### ステップ5の画面受入・限定技術配置（2026-11-07）
+
+PO委任によるCodex主担当/root判断で、固定基線 `2706138c51f71bbe5136e05661bcca0255134b50` から専用 `feature/mvp-play-csv-screen-acceptance` を作り、`backend/tests/db/test_play_export_screen_e2e.py`、`frontend/src/screens/GameScreenPlayCsv.e2e.ts`・専用Playwright configと本計画/progressだけを編集する。既画面の「毎球CSVへ」導線から、実Vite/Chromium・HTTPS loopback・真正login/端末登録/開始/v3通常2球/認可付き実API/同TX候補producerを通し、ダウンロードしたZIP bytesの長さ・SHA256・88列・全11CSV・2playを同owned PGの保存原本へ照合する。候補DDL・専用関数は使い捨てowned0045に試験中だけ直接設置し、正式0047/registry受理とは分ける。資格・ACK・PlayRow/CSV完成値をfixture供給しない。ソース集合とSQL/driverを実行前後全byte照合し、Docker/PG/browser全寿命は共通flockで直列化する。実機と運用TLS、P3等の全試合受入はこの画面検査に含まない。
+
 ## 6. 完了と検証
 
 全5ステップの製品経路が成立し、88列/全サイドカーの供給不足0、同一版・全記録の取り出し・数式無害化・有限DB抽出・認可が実測できたとき本feature完了。helper/DTO/スタブ/fixtureだけの成功、CSVのみで成績完成、未実機を実施済みとはしない。

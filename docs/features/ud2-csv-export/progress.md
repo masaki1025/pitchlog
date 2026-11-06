@@ -1,5 +1,9 @@
 # 毎球CSV ステップ2〜5 実装候補・引継ぎ
 
+## 2026-11-07 画面受入候補（基線2706138c、作者実測）
+
+旧節は当時の候補・fixture経路の履歴として保持する。新基線 `2706138c51f71bbe5136e05661bcca0255134b50` は現行v3 2球の同TX88列保存と全11 CSVの実HTTP ZIPまで所有PGで通過済み。専用枝 `feature/mvp-play-csv-screen-acceptance` の固定試験HEAD `d6ff4727c10eff25032762271fef7b66a8e89e93` で、実画面の「毎球CSVへ」からChromiumダウンロードした59,346 bytesをHTTP Content-Length/SHA256と突合し、同じowned PGの2球原本・88列・11 CSV・sidecar・各ファイルhash/行数へ照合した。BE試験1 pass/95.01秒、Playwright 1 pass/40.0秒。code/SQL/driver等920追跡pathの前後SHAは一致し、所有PGは回収済み。直前のr2は初球POST/GET待ち30秒で失敗し、同じ製品sourceのr3で通過したため、待ち超過履歴を消さない。試験用固定ACK/完成88列投入は行わない。候補DDL直接設置と正式0047/7.7、実機/運用TLS、P3等の全試合受入は別証拠。
+
 最終更新: 2026-11-06（候補・未統合）
 
 ## 1. 固定点
