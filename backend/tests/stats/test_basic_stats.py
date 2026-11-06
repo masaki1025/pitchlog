@@ -5,6 +5,7 @@ from __future__ import annotations
 import copy
 import hashlib
 import json
+import sys
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
@@ -15,6 +16,8 @@ from pitchlog.domaingen.backends.common import BackendGenerationError
 from pitchlog.domaingen.core import GenerationError, generate_primitive_bundle
 
 ROOT = Path(__file__).resolve().parents[3]
+sys.path.insert(0, str(ROOT / "scripts"))
+import frozen_history  # noqa: E402
 
 
 def _models():
@@ -634,8 +637,12 @@ def _execute_generated_season_health(sql, mode, category="official", raw_keys=No
     ]
     # 非作者の独立反例に固定されたゲーム別S。期待2球は人手の2入力から定める。
     digests = {
-        "game-a": "83d90fee5ed5ea852feb8dbd42001a0986bae0eb4fb6f439e78d5c96700d4bcf",
-        "game-b": "09c315e9312b3a8a259227641ee7600a6e62ccfd33832ef755fd885395ce0bcc",
+        "game-a": frozen_history.read_original_pr197_pin(
+            "stats_season_source_set_game_a_sha256"
+        ),
+        "game-b": frozen_history.read_original_pr197_pin(
+            "stats_season_source_set_game_b_sha256"
+        ),
     }
     conn = sqlite3.connect(":memory:")
     conn.execute("ATTACH DATABASE ':memory:' AS public")

@@ -15,9 +15,12 @@ from pathlib import Path
 import pytest
 
 TEST_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(TEST_ROOT / "scripts"))
+from scripts import frozen_history  # noqa: E402
+
 SOURCE_ROOT = Path(os.environ.get("PITCHLOG_PR197_SOURCE_ROOT", TEST_ROOT))
 FIXTURE = TEST_ROOT / "tests/fixtures/pr197_tenant_source_expected_v1.json"
-REVISION = "a59c654e3366d2be9c6456e47b07118e1674bce2"
+REVISION = frozen_history.read_original_pr197_pin("pr197_source_revision")
 
 
 def _checker():

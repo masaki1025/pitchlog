@@ -8,9 +8,13 @@ import os
 import subprocess
 import sys
 from dataclasses import replace
+from pathlib import Path
 from uuid import UUID
 
 import pytest
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "scripts"))
+import frozen_history
 from sqlalchemy import Integer, bindparam, column, select
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.sql.functions import Function
@@ -72,7 +76,7 @@ def test_old_all_twenty_two_keep_order_sql_types_decoder_and_values():
     )
     assert (
         hashlib.sha256(raw.encode()).hexdigest()
-        == "71fe06530c38e265d8d56d815748bc4da480a3864611876b040641df0c1b453b"
+        == frozen_history.read_original_pr197_pin("stats_native_old_registry_sha256")
     )
     assert (
         registry.PRODUCT_FUNCTION_OPERATIONS[-5:]

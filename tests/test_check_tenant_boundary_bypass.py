@@ -1167,10 +1167,14 @@ def _initialize_test_repository(
     if "pr191_source_registration" in allowlist or "pr192_source_registration" in allowlist:
         # 合成repoも実原典のobject/祖先を保持する。元repoのrefsやobjectは変更しない。
         if "pr197_source_registration" in allowlist:
+            checker.frozen_history.read_original_pr197_pin(
+                "pr197_expectation_revision", REPOSITORY_ROOT
+            )
             frozen = json.loads(
                 (REPOSITORY_ROOT / "contracts/tenant_boundary/frozen-inputs.json").read_text()
             )
-            revision = frozen["frozen_inputs"]["pr197_expectation_revision"]["value"]
+            revision = checker.frozen_history.PR197_PIN_ORIGIN_COMMIT
+            assert frozen["frozen_inputs"]["pr197_pin_origin_commit"]["value"] == revision
             fixture = Path(allowlist["pr197_source_registration"]["expected_fixture"])
             destination = repository / fixture
             destination.parent.mkdir(parents=True, exist_ok=True)
@@ -10564,3 +10568,191 @@ def test_registry_native_tuple_rejects_unapproved_sources(tmp_path, fault):
     frozen_path.write_text(json.dumps(frozen))
     with pytest.raises(checker.ContractError):
         checker._validate_function_operation_surface(root, asset)
+
+
+def test_pr197_frozen_literal_calls_are_exact_27_and_asset_cochange_is_rejected(monkeypatch):
+    """現在のsource参照先と真正Git旧値を分離し、同時改変を拒否する。"""
+    from collections import Counter
+
+    expected = Counter([
+        ('backend/tests/stage_a_0039_profile.py', 'stage_a_0039_profile_reference_revision'),
+        ('backend/tests/stats/test_basic_stats.py', 'stats_season_source_set_game_b_sha256'),
+        ('backend/tests/stats/test_basic_stats.py', 'stats_season_source_set_game_a_sha256'),
+        (
+            'backend/tests/test_stats_native_function_registration.py',
+            'stats_native_old_registry_sha256',
+        ),
+        (
+            'backend/tests/test_stats_native_product_connection.py',
+            'stats_native_old_product_details_sha256',
+        ),
+        (
+            'backend/tests/test_stats_native_product_connection.py',
+            'stats_native_old_product_guards_sha256',
+        ),
+        (
+            'backend/tests/test_stats_native_product_connection.py',
+            'stats_native_old_product_bodies_sha256',
+        ),
+        (
+            'backend/tests/test_stats_native_product_connection.py',
+            'stats_native_old_product_additions_sha256',
+        ),
+        (
+            'backend/tests/test_stats_primitive_product.py',
+            'stats_primitive_sql_open_snapshot_sha256',
+        ),
+        ('backend/tests/test_stats_primitive_product.py', 'stats_primitive_sql_read_totals_sha256'),
+        ('backend/tests/test_stats_primitive_product.py', 'stats_primitive_v1_bodies_sha256'),
+        ('backend/tests/test_stats_primitive_product.py', 'stats_primitive_v1_declarations_sha256'),
+        ('backend/tests/test_stats_primitive_product.py', 'stats_primitive_v1_operations_sha256'),
+        ('backend/tests/test_stats_primitive_product.py', 'stats_primitive_sql_read_page_sha256'),
+        ('backend/tests/test_stats_primitive_product.py', 'stats_primitive_v1_installer_sha256'),
+        ('backend/tests/test_stats_primitive_product.py', 'stats_primitive_sql_save_source_sha256'),
+        ('scripts/check_tenant_boundary_bypass.py', 'pr197_expectation_revision'),
+        ('scripts/check_tenant_boundary_bypass.py', 'pr191_source_registration_revision'),
+        ('scripts/check_tenant_boundary_bypass.py', 'pr197_generated_facts_sha256'),
+        ('scripts/check_tenant_boundary_bypass.py', 'pr192_source_registration_revision'),
+        ('scripts/check_tenant_boundary_bypass.py', 'pr197_expectation_fixture_sha256'),
+        ('scripts/check_tenant_boundary_bypass.py', 'pr197_source_revision'),
+        ('scripts/check_tenant_boundary_bypass.py', 'stats_native_registry_reference_revision'),
+        ('scripts/core_guard.py', 'pr197_core_definition_ast_sha256'),
+        ('tests/test_core_guard.py', 'pr197_source_revision'),
+        ('tests/test_core_guard.py', 'stats_foundation_legacy_core_revision'),
+        ('tests/test_pr197_tenant_source_registration.py', 'pr197_source_revision'),
+    ])
+    assert sum(expected.values()) == 27
+    actual = Counter()
+    for path in sorted({path for path, _key in expected}):
+        tree = ast.parse((REPOSITORY_ROOT / path).read_text())
+        for node in ast.walk(tree):
+            if (isinstance(node, ast.Call)
+                    and isinstance(node.func, ast.Attribute)
+                    and isinstance(node.func.value, ast.Name)
+                    and node.func.value.id == "frozen_history"
+                    and node.func.attr == "read_original_pr197_pin"
+                    and len(node.args) == 1
+                    and isinstance(node.args[0], ast.Constant)
+                    and isinstance(node.args[0].value, str)):
+                actual[path, node.args[0].value] += 1
+    assert actual == expected
+
+    asset_path = REPOSITORY_ROOT / "contracts/tenant_boundary/frozen-inputs.json"
+    original = Path.read_bytes
+    baseline = json.loads(original(asset_path))
+    for key in ("pr197_expectation_revision", "pr197_expectation_fixture_sha256",
+                "stats_primitive_sql_open_snapshot_sha256", "pr197_pin_origin_commit"):
+        changed = copy.deepcopy(baseline)
+        old = changed["frozen_inputs"][key]["value"]
+        changed["frozen_inputs"][key]["value"] = "0" * len(old)
+        altered = json.dumps(changed, ensure_ascii=False).encode()
+        def changed_read(path):
+            if path == asset_path:
+                return altered
+            return original(path)
+        with monkeypatch.context() as patch:
+            patch.setattr(Path, "read_bytes", changed_read)
+            with pytest.raises(checker.frozen_history.ContractError, match="固定Git"):
+                checker.frozen_history.read_original_pr197_pin(
+                    "pr197_expectation_revision" if key == "pr197_pin_origin_commit" else key,
+                    REPOSITORY_ROOT,
+                )
+    key = "stats_primitive_sql_open_snapshot_sha256"
+    for field, replacement in (
+        ("purpose", "別の用途"),
+        ("sources", ["tests/unknown.py:unknown"]),
+    ):
+        changed = copy.deepcopy(baseline)
+        changed["frozen_inputs"][key][field] = replacement
+        altered = json.dumps(changed, ensure_ascii=False).encode()
+
+        def changed_read(path):
+            if path == asset_path:
+                return altered
+            return original(path)
+
+        with monkeypatch.context() as patch:
+            patch.setattr(Path, "read_bytes", changed_read)
+            with pytest.raises(checker.frozen_history.ContractError, match="新用途"):
+                checker.frozen_history.read_original_pr197_pin(key, REPOSITORY_ROOT)
+    for field, replacement in (
+        ("purpose", "別の用途"),
+        ("sources", ["tests/unknown.py:unknown"]),
+    ):
+        changed = copy.deepcopy(baseline)
+        changed["frozen_inputs"]["pr197_pin_origin_commit"][field] = replacement
+        altered = json.dumps(changed, ensure_ascii=False).encode()
+
+        def changed_read(path):
+            if path == asset_path:
+                return altered
+            return original(path)
+
+        with monkeypatch.context() as patch:
+            patch.setattr(Path, "read_bytes", changed_read)
+            with pytest.raises(checker.frozen_history.ContractError, match="固定Git信頼根"):
+                checker.frozen_history.read_original_pr197_pin(
+                    "pr197_expectation_revision", REPOSITORY_ROOT,
+                )
+
+
+def test_pr197_fake_git_introduction_cannot_replace_fixed_origin(tmp_path: Path) -> None:
+    """偽の一意な初出Git履歴では旧pinも新pinも受理しない。"""
+    root = tmp_path / "fake-origin"
+    root.mkdir()
+    subprocess.run(["git", "init", "-q", str(root)], check=True)
+    asset = root / "contracts/tenant_boundary/frozen-inputs.json"
+    asset.parent.mkdir(parents=True)
+    asset.write_text(json.dumps({
+        "contract_revision": 18,
+        "frozen_inputs": {
+            "pr197_expectation_revision": {
+                "value": "a" * 40, "purpose": "偽の用途", "sources": [],
+            },
+        },
+    }))
+    subprocess.run(["git", "-C", str(root), "add", "."], check=True)
+    subprocess.run([
+        "git", "-C", str(root), "-c", "user.name=Fake",
+        "-c", "user.email=fake@example.invalid", "commit", "-q", "-m", "fake",
+    ], check=True)
+    assert subprocess.run([
+        "git", "-C", str(root), "cat-file", "-e",
+        f"{checker.frozen_history.PR197_PIN_ORIGIN_COMMIT}^{{commit}}",
+    ], capture_output=True, check=False).returncode != 0
+    for key in ("pr197_expectation_revision", "pr197_generated_facts_sha256"):
+        with pytest.raises(checker.frozen_history.ContractError, match="固定Git原典"):
+            checker.frozen_history.read_original_pr197_pin(key, root)
+
+
+def test_pr197_fixed_origin_ignores_git_replace_ref(tmp_path: Path) -> None:
+    """同一fullSHA名に別commitを重ねてもrawGit原典を差し替えない。"""
+    root = tmp_path / "replaced-origin"
+    subprocess.run(
+        ["git", "clone", "-q", "--shared", str(REPOSITORY_ROOT), str(root)], check=True,
+    )
+    relative = "contracts/tenant_boundary/frozen-inputs.json"
+    asset = root / relative
+    historical = json.loads(asset.read_text())
+    historical["frozen_inputs"]["pr197_expectation_revision"]["value"] = "a" * 40
+    asset.write_text(json.dumps(historical))
+    subprocess.run(["git", "-C", str(root), "add", relative], check=True)
+    tree = subprocess.check_output(
+        ["git", "-C", str(root), "write-tree"], text=True,
+    ).strip()
+    replacement = subprocess.check_output([
+        "git", "-C", str(root), "-c", "user.name=Fake",
+        "-c", "user.email=fake@example.invalid", "commit-tree", tree, "-m", "fake",
+    ], text=True).strip()
+    fixed = checker.frozen_history.PR197_PIN_ORIGIN_COMMIT
+    subprocess.run(["git", "-C", str(root), "replace", fixed, replacement], check=True)
+    assert b'"' + b"a" * 40 + b'"' in subprocess.check_output([
+        "git", "-C", str(root), "show", f"{fixed}:{relative}",
+    ])
+    current = json.loads((REPOSITORY_ROOT / relative).read_text())
+    current["frozen_inputs"]["pr197_expectation_revision"]["value"] = "a" * 40
+    asset.write_text(json.dumps(current))
+    with pytest.raises(checker.frozen_history.ContractError, match="固定Git"):
+        checker.frozen_history.read_original_pr197_pin(
+            "pr197_expectation_revision", root,
+        )

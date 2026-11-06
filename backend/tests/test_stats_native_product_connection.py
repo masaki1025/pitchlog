@@ -8,8 +8,12 @@ import json
 import os
 import subprocess
 import sys
+from pathlib import Path
 
 import pytest
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "scripts"))
+import frozen_history
 
 from pitchlog.authz import first_ball_product as product
 from pitchlog.authz import stats_primitive_product as stats
@@ -40,7 +44,9 @@ def test_all_old_declarations_bodies_details_and_guards_remain_exact():
         for section, rows in product.ADDITIONS.items()
     }
     assert (
-        _hash(old) == "a3f93dc47fda207da916e1d536514e95f7c517f2e467b1f424eb25979a24a338"
+        _hash(old) == frozen_history.read_original_pr197_pin(
+            "stats_native_old_product_additions_sha256"
+        )
     )
     old_bodies = {
         key: value for key, value in product.BODIES.items() if key not in bodies
@@ -48,13 +54,17 @@ def test_all_old_declarations_bodies_details_and_guards_remain_exact():
     assert len(old_bodies) == 323
     assert (
         _hash(old_bodies)
-        == "7290cd7d50e30cae9fa80d468af8c5dd36092cd16674231a1de70a6fed35d791"
+        == frozen_history.read_original_pr197_pin(
+            "stats_native_old_product_bodies_sha256"
+        )
     )
     details = [row for row in product.function_details() if row[0] != "stats_api"]
     assert len(details) == 29
     assert (
         _hash(details)
-        == "43fafefd825508ccfade581e0aa733c9dab1984a3698620ea23661cd5a679bc4"
+        == frozen_history.read_original_pr197_pin(
+            "stats_native_old_product_details_sha256"
+        )
     )
     guards = {}
     for row in product.ADDITIONS["functions"]:
@@ -67,7 +77,9 @@ def test_all_old_declarations_bodies_details_and_guards_remain_exact():
         )
     assert (
         _hash(guards)
-        == "4e07a3a3f9a6e08aedf370f6b345b4613aafcb0905ecb97d53c1b4d165f9a4bd"
+        == frozen_history.read_original_pr197_pin(
+            "stats_native_old_product_guards_sha256"
+        )
     )
 
 

@@ -16,6 +16,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
+import frozen_history
+
 REQUIRED_CHECK_TEXT = "コア領域/検査経路の変更: 人間による逐行確認を実施した"
 NON_PR_SKIP_MESSAGE = "PR イベントではない — スキップ"
 NO_CORE_PATHS_MESSAGE = (
@@ -879,7 +881,7 @@ PR197_TENANT_SOURCE_CORE_ADDITIONS: tuple[str, str] = (
     "tests/test_pr197_tenant_source_registration.py",
 )
 _PR197_CORE_DEFINITION_AST_SHA256 = (
-    "c5c017a19e6c5c196d198fc6f6c8258807068f7c9ca1680d77e7036fbb5c6d79"
+    frozen_history.read_original_pr197_pin("pr197_core_definition_ast_sha256")
 )
 
 
