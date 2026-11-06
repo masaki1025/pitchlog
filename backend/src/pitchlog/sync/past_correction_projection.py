@@ -25,7 +25,7 @@ class PastCorrectionProjectionError(RuntimeError):
 def project_p3_correction(
     handle: _TenantTransaction, event: SyncEvent, writer: PortWriter
 ) -> None:
-    """T2済み同TXで全投影を保存し、戻り値を実候補と全値照合する。"""
+    """T2済み同TXで全投影を保存し、評価集合digestを実候補と照合する。"""
     capsule, stats, source = p3_projection_candidate(handle, event, writer)
     lease = source.bound._lease
     phase = source.phase
@@ -77,7 +77,7 @@ def project_p3_correction(
             "version": "p3-current-stats-v1",
             "capsule_id": str(stats.capsule_id),
             "model_sha256": stats.model_sha256,
-            "source_set_digest": stats.source_set_digest,
+            "evaluation_set_digest": stats.evaluation_set_digest,
             "sources": [
                 {
                     "d1": source_item.d1,
@@ -110,7 +110,7 @@ def project_p3_correction(
         or len(result.rows[0]) != 4
         or result.rows[0][0] != capsule.capsule_id
         or result.rows[0][1] != capsule.next_checkpoint.content_digest
-        or result.rows[0][2] != stats.source_set_digest
+        or result.rows[0][2] != stats.evaluation_set_digest
         or type(result.rows[0][3]) is not UUID
         or result.rows[0][3] == UUID(int=0)
     ):

@@ -31,12 +31,12 @@ class P3StatsSourceCandidate:
 
 @dataclass(frozen=True, slots=True)
 class P3StatsCandidate:
-    """現在capsuleの全sourceと既モデル版への束縛。"""
+    """全評価のcapsule束縛。SQL canonical source-set SHAとは別値。"""
 
     capsule_id: UUID
     model_sha256: str
     sources: tuple[P3StatsSourceCandidate, ...]
-    source_set_digest: str
+    evaluation_set_digest: str
 
 
 def _member(value: object, key: str) -> object:
@@ -115,7 +115,7 @@ def evaluate_p3_capsule_stats(capsule: P3CurrentCapsule) -> P3StatsCandidate:
                 source_fingerprint(full),
             )
         )
-    source_set_digest = source_fingerprint(
+    evaluation_set_digest = source_fingerprint(
         {
             "capsule_id": str(capsule.capsule_id),
             "model_sha256": SOURCE_MODEL_HASH,
@@ -135,5 +135,5 @@ def evaluate_p3_capsule_stats(capsule: P3CurrentCapsule) -> P3StatsCandidate:
         capsule.capsule_id,
         SOURCE_MODEL_HASH,
         tuple(result),
-        source_set_digest,
+        evaluation_set_digest,
     )

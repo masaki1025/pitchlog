@@ -680,6 +680,7 @@ def test_v3_corrected_checkpoint_uses_native_chain_and_new_physical_head() -> No
         mode="json", by_alias=True, exclude_unset=True
     )
     stats = evaluate_p3_capsule_stats(capsule)
+    assert stats.evaluation_set_digest != capsule.source_set_digest
     assert [source.effective_event_id for source in stats.sources] == [_CHANGE, _ID2]
     assert all(source.evaluation for source in stats.sources)
     from pitchlog.stats.facts import evaluate_native_projection
