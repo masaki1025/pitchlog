@@ -722,3 +722,52 @@ it('同mountのGET停止中は入力/再送/語彙採用を閉じ、解除後に
     wrapper.unmount()
   }
 })
+
+it('同値contextのsuspended往復では球種・結果・course観測を消さない', async () => {
+  const post = vi.spyOn(transport, 'postSyncEvents')
+  const wrapper = mount(GameScreenOrdinaryPitch, {
+    props: { context: reactive(context()) },
+    global: { plugins: [pinia] },
+  })
+  try {
+    await vi.waitFor(() =>
+      expect(wrapper.find('[data-testid="first-ball-save"]').exists()).toBe(
+        true,
+      ),
+    )
+    for (const name of ['profile', 'mode', 'bucket', 'lockdown'])
+      await wrapper.get(`[data-testid="first-ball-env-${name}"]`).setValue(true)
+    await wrapper
+      .get('[data-testid="ordinary-pitch-result"]')
+      .setValue('batting-result.called-pitch')
+    await wrapper
+      .get('[data-testid="first-ball-pitch-type"]')
+      .setValue('tenant.pitch.straight')
+    wrapper.getComponent(StrikeZone).vm.$emit('tap', 131.5, 124)
+    await flushPromises()
+    expect(
+      wrapper.get('[data-testid="first-ball-save"]').attributes('disabled'),
+    ).toBeUndefined()
+    await wrapper.setProps({ suspended: true })
+    await wrapper.setProps({ context: structuredClone(context()) })
+    expect(wrapper.find('[data-testid="first-ball-save"]').exists()).toBe(false)
+    await wrapper.setProps({ suspended: false })
+    await vi.waitFor(() =>
+      expect(wrapper.find('[data-testid="first-ball-save"]').exists()).toBe(
+        true,
+      ),
+    )
+    expect(
+      wrapper.get('[data-testid="ordinary-pitch-result"]').element,
+    ).toHaveProperty('value', 'batting-result.called-pitch')
+    expect(
+      wrapper.get('[data-testid="first-ball-pitch-type"]').element,
+    ).toHaveProperty('value', 'tenant.pitch.straight')
+    expect(
+      wrapper.get('[data-testid="first-ball-save"]').attributes('disabled'),
+    ).toBeUndefined()
+    expect(post).not.toHaveBeenCalled()
+  } finally {
+    wrapper.unmount()
+  }
+})

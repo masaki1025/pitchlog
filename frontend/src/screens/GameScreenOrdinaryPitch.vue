@@ -194,27 +194,23 @@ const localWriter = {
 let controller: GameScreenOrdinaryPitchController | null = null
 let generation = 0
 let request: AbortController | null = null
+const baseIdentity = () =>
+  localRequested.value
+    ? (activeLocalSession()?.identity() ?? {
+        tenantId: null,
+        epoch: 0,
+        verified: false,
+      })
+    : {
+        tenantId: auth.teamId,
+        epoch: auth.authEpoch,
+        verified:
+          auth.hasHydrated && auth.isAuthenticated && auth.teamId !== null,
+      }
 const identity = () =>
   props.suspended
-    ? {
-        tenantId: null,
-        epoch: localRequested.value
-          ? (activeLocalSession()?.identity().epoch ?? 0)
-          : auth.authEpoch,
-        verified: false,
-      }
-    : localRequested.value
-      ? (activeLocalSession()?.identity() ?? {
-          tenantId: null,
-          epoch: 0,
-          verified: false,
-        })
-      : {
-          tenantId: auth.teamId,
-          epoch: auth.authEpoch,
-          verified:
-            auth.hasHydrated && auth.isAuthenticated && auth.teamId !== null,
-        }
+    ? { ...baseIdentity(), tenantId: null, verified: false }
+    : baseIdentity()
 const message = computed(() => {
   if (props.suspended)
     return 'サーバーの最新記録を確認しています。入力と再送を一時停止します'
@@ -415,8 +411,8 @@ let watchedInput: {
   identity: ReturnType<typeof identity>
   hydrated: boolean
   local: boolean
-  suspended: boolean
 } | null = null
+let observedSuspended = false
 watch(
   () =>
     [
@@ -433,16 +429,46 @@ watch(
       props.suspended,
     ] as const,
   async () => {
+    const wasSuspended = observedSuspended
+    observedSuspended = props.suspended === true
     const input = {
       context: toRaw(props.context),
-      identity: identity(),
+      identity: baseIdentity(),
       hydrated: auth.hasHydrated,
       local: localRequested.value,
-      suspended: props.suspended === true,
     }
     // 親の同値DTO再供給では送信中の所有者を失効させない。
     // anchor/世代/状態/位置を含む全値と認証scopeが変われば必ず失効する。
-    if (watchedInput !== null && sameOrdinaryWire(watchedInput, input)) return
+    if (watchedInput !== null && sameOrdinaryWire(watchedInput, input)) {
+      if (props.suspended) {
+        generation++
+        request?.abort()
+        loading.value = false
+        return
+      }
+      if (wasSuspended && controller) {
+        const current = controller
+        const result = localRequested.value
+          ? await current.inspectLocal()
+          : await current.inspect()
+        if (controller !== current || props.suspended) return
+        status.value = result
+        displayed.value = current.context
+        canAppend.value = localRequested.value
+          ? current.canAppendLocal
+          : current.canAppend
+        retryEvidenceUnavailable.value = current.retryEvidenceUnavailable
+        if (result === 'pending' && !localRequested.value && confirmed.value) {
+          if ((await retry()) === 'saved' || controller !== current) return
+        }
+        if (
+          items.value.length === 0 &&
+          (result === 'ready' || result === 'pending')
+        )
+          await load(null)
+      }
+      return
+    }
     controller?.dispose()
     controller = null
     watchedInput = null
