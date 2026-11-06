@@ -303,6 +303,7 @@ WHERE namespace.nspname = ANY(%s)
           attribute.attnum < 0 AND attribute.attname = 'xmin'
           AND (namespace.nspname, relation.relname) IN (
               ('public', 'idempotency_ledger'),
+              ('public', 'event_slots'),
               ('public', 'operation_events'),
               ('public', 'play_rows'),
               ('sync_fence', 'ordinary_pitch_checkpoints')

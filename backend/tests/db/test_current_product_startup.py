@@ -118,6 +118,15 @@ def test_actual_current_migration_fault_rolls_back_to_real0039(
 @pytest.mark.parametrize(
     "tamper",
     [
+        (
+            "REVOKE SELECT (xmin) ON public.event_slots "
+            "FROM pitchlog_sync_right_fn_owner"
+        ),
+        "GRANT SELECT (xmin) ON public.event_slots TO pitchlog_app",
+        (
+            "GRANT SELECT (xmin) ON public.event_slots TO "
+            "pitchlog_sync_right_fn_owner WITH GRANT OPTION"
+        ),
         "ALTER TABLE sync_fence.stats_primitive_facts NO FORCE ROW LEVEL SECURITY",
         "ALTER TABLE sync_fence.nonplay_write_admissions NO FORCE ROW LEVEL SECURITY",
         (

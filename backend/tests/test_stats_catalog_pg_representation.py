@@ -1,4 +1,4 @@
-"""成績5関数のPG表記と既system xmin4だけのACL採取を閉検査する。"""
+"""成績5関数のPG表記と既system xmin5だけのACL採取を閉検査する。"""
 
 from __future__ import annotations
 
@@ -11,21 +11,23 @@ from pitchlog.authz.product_catalog import CatalogQueryId, _query_for_id
 
 _XMIN_RELATIONS = {
     ("public", "idempotency_ledger"),
+    ("public", "event_slots"),
     ("public", "operation_events"),
     ("public", "play_rows"),
     ("sync_fence", "ordinary_pitch_checkpoints"),
 }
 
 
-def test_column_acl_preserves_positive_columns_and_only_adds_four_xmin_relations():
-    """正の全列/NULL ACL/owner除外を保持し、負列の採取だけexact4へ閉じる。"""
+def test_column_acl_preserves_positive_columns_and_only_adds_five_xmin_relations():
+    """正の全列/NULL ACL/owner除外を保持し、負列の採取だけexact5へ閉じる。"""
     query = _query_for_id(CatalogQueryId.COLUMN_ACL)
     normalized = " ".join(query.split())
     finite_predicate = (
         "AND ( attribute.attnum > 0 OR ( attribute.attnum < 0 "
         "AND attribute.attname = 'xmin' "
         "AND (namespace.nspname, relation.relname) IN ( "
-        "('public', 'idempotency_ledger'), ('public', 'operation_events'), "
+        "('public', 'idempotency_ledger'), ('public', 'event_slots'), "
+        "('public', 'operation_events'), "
         "('public', 'play_rows'), ('sync_fence', 'ordinary_pitch_checkpoints') "
         ") ) )"
     )
@@ -34,7 +36,7 @@ def test_column_acl_preserves_positive_columns_and_only_adds_four_xmin_relations
     assert normalized.count("attribute.attnum < 0") == 1
     assert normalized.count("attribute.attnum > 0") == 1
     pairs = re.findall(r"\('([^']+)', '([^']+)'\)", query)
-    assert len(pairs) == 4 and set(pairs) == _XMIN_RELATIONS
+    assert len(pairs) == 5 and set(pairs) == _XMIN_RELATIONS
     assert "pg_catalog.aclexplode(attribute.attacl)" in query
     assert "acldefault" not in query
     assert "AND NOT attribute.attisdropped" in query
@@ -51,6 +53,9 @@ def test_column_acl_preserves_positive_columns_and_only_adds_four_xmin_relations
     "schema,table,column",
     [
         ("public", "games", "xmin"),
+        ("other", "event_slots", "xmin"),
+        ("public", "event_slots", "xmax"),
+        ("public", "event_slots", "tableoid"),
         ("other", "play_rows", "xmin"),
         ("public", "ordinary_pitch_checkpoints", "xmin"),
         ("sync_fence", "play_rows", "xmin"),
