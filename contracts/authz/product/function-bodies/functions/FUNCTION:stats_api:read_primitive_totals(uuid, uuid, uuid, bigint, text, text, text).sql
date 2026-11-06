@@ -33,6 +33,46 @@ canonical_scope AS (
  WHERE g.tenant_id=tenant AND g.hidden_at IS NULL AND g.trashed_at IS NULL
    AND g.status NOT IN ('hidden','trashed')
    AND g.id=p_game_id
+), canonical_undos AS (
+ SELECT n.* FROM sync_fence.nonplay_write_admissions n
+ JOIN canonical_scope scope ON (scope.tenant_id,scope.game_id)=(n.tenant_id,n.game_id)
+ JOIN sync_fence.writer_bindings ub ON n.tenant_id IS NOT DISTINCT FROM ub.tenant_id AND n.attempt_id IS NOT DISTINCT FROM ub.attempt_id AND n.phase_id IS NOT DISTINCT FROM ub.phase_id AND n.authority_id IS NOT DISTINCT FROM ub.authority_id AND n.control_instance IS NOT DISTINCT FROM ub.control_instance AND n.business_instance IS NOT DISTINCT FROM ub.business_instance AND n.restore_epoch IS NOT DISTINCT FROM ub.restore_epoch AND n.control_version IS NOT DISTINCT FROM ub.control_version AND n.issuer IS NOT DISTINCT FROM ub.issuer AND n.lease_id IS NOT DISTINCT FROM ub.lease_id AND n.device_id IS NOT DISTINCT FROM ub.device_id AND n.game_id IS NOT DISTINCT FROM ub.game_id AND n.wire_d4 IS NOT DISTINCT FROM ub.wire_d4 AND n.internal_generation IS NOT DISTINCT FROM ub.internal_generation AND n.recovery_generation IS NOT DISTINCT FROM ub.recovery_generation AND n.codec_version IS NOT DISTINCT FROM ub.codec_version AND n.request_fingerprint IS NOT DISTINCT FROM ub.request_fingerprint AND n.d5 IS NOT DISTINCT FROM ub.d5 AND n.event_fingerprint IS NOT DISTINCT FROM ub.event_fingerprint AND n.system_identifier IS NOT DISTINCT FROM ub.system_identifier AND n.database_oid IS NOT DISTINCT FROM ub.database_oid AND n.postmaster_started_at IS NOT DISTINCT FROM ub.postmaster_started_at AND n.backend_pid IS NOT DISTINCT FROM ub.backend_pid AND n.backend_start IS NOT DISTINCT FROM ub.backend_start AND n.transaction_id IS NOT DISTINCT FROM ub.transaction_id AND n.nonce_digest IS NOT DISTINCT FROM ub.nonce_digest AND n.expires_at IS NOT DISTINCT FROM ub.expires_at
+ JOIN public.operation_events u ON (u.tenant_id,u.game_id,u.id)=(n.tenant_id,n.game_id,n.source_event_id)
+ JOIN public.idempotency_ledger ul ON ul.tenant_id=u.tenant_id AND ul.d5=u.d5
+ JOIN public.event_slots us ON (us.tenant_id,us.game_id,us.generation,us.d1)
+  =(u.tenant_id,u.game_id,u.generation,u.d1) AND us.confirmed_version=1
+ JOIN public.operation_events t ON (t.tenant_id,t.game_id,t.id)=(n.tenant_id,n.game_id,n.target_event_id)
+ JOIN public.idempotency_ledger tl ON tl.tenant_id=t.tenant_id AND tl.d5=t.d5
+ JOIN public.play_rows tp ON (tp.tenant_id,tp.game_id,tp.id)=(n.tenant_id,n.game_id,n.target_play_id)
+  AND tp.source_event_id=t.id AND tp.hidden_at IS NOT NULL
+ WHERE n.state='consumed' AND n.consumed_at IS NOT NULL
+ AND n.preparation_json::jsonb=n.preparation
+ AND n.frame_id=(n.preparation->>'frame_id')::uuid
+ AND n.frame_digest=n.preparation->>'frame_digest'
+ AND n.artifact_sha256=n.preparation->>'artifact_sha256'
+ AND n.source_event_id=(n.preparation->>'event_id')::uuid
+ AND n.target_event_id=(n.preparation->'target'->'source'->>'eventId')::uuid
+ AND n.target_play_id=(n.preparation->'target'->>'playId')::uuid
+ AND n.checkpoint_id=(n.preparation->'before_source'->'checkpoint'->'ref'->>'id')::uuid
+ AND n.checkpoint_revision=(n.preparation->'before_source'->'checkpoint'->'ref'->>'revision')::bigint
+ AND n.checkpoint_digest=n.preparation->'before_source'->'checkpoint'->'ref'->>'digest'
+ AND u.event_kind='undo' AND u.ledger_kind='accepted' AND ul.kind='accepted'
+ AND u.d5=n.d5 AND u.generation=n.internal_generation AND u.d1=n.source_d1
+ AND u.d2 IS NULL AND u.state_diff IS NULL AND NOT u.is_tombstone
+ AND u.replaced_at IS NULL AND u.retired_at IS NULL AND u.import_batch_id IS NULL
+ AND NOT u.migration_unverified AND ul.retired_at IS NULL AND ul.import_batch_id IS NULL
+ AND ul.source_fingerprint=n.event_fingerprint
+ AND u.payload=n.preparation->'event_original'->'payload'
+ AND u.payload->'calculation'->'response'=n.preparation->'response'
+ AND u.payload->>'artifactSha256'=n.artifact_sha256
+ AND u.target_generation=n.target_generation AND u.target_d1=n.target_d1
+ AND t.event_kind='play_input' AND t.ledger_kind='accepted' AND tl.kind='accepted'
+ AND t.generation=n.target_generation AND t.d1=n.target_d1
+ AND t.replaced_at IS NULL AND t.retired_at IS NULL AND t.import_batch_id IS NULL
+ AND NOT t.is_tombstone AND NOT t.migration_unverified
+ AND tl.retired_at IS NULL AND tl.import_batch_id IS NULL
+ AND tl.source_fingerprint=n.preparation->'target'->'source'->>'fingerprint'
+ AND tp.import_batch_id IS NULL AND NOT tp.migration_unverified
 ), canonical_raw AS (
  SELECT slot.tenant_id,slot.game_id,slot.generation AS recording_generation,
    slot.d1,e.d2,slot.confirmed_version AS slot_version,e.id AS base_event_id,
@@ -44,12 +84,14 @@ canonical_scope AS (
    COUNT(*) OVER (PARTITION BY slot.tenant_id,slot.game_id,slot.generation,slot.d1) AS match_count,
    CASE WHEN gen.retired_at IS NOT NULL THEN 'excluded_retired'
      WHEN e.id IS NULL OR current_event.id IS NULL THEN 'source_unavailable'
+     WHEN e.event_kind='undo' AND NOT EXISTS (SELECT 1 FROM canonical_undos verified WHERE verified.source_event_id=current_event.id) THEN 'source_unavailable'
      WHEN e.event_kind<>'play_input' THEN 'excluded_control'
      WHEN e.is_tombstone OR current_event.is_tombstone THEN 'excluded_tombstone'
      WHEN current_event.event_kind='play_delete' THEN 'excluded_delete'
      WHEN slot.d1>gen.confirmed_watermark OR slot.d1>gen.applied_prefix THEN 'source_unavailable'
+     WHEN undo.source_event_id IS NOT NULL AND undo.source_event_id IS DISTINCT FROM NULL::uuid /* restore-undo-event */ THEN 'excluded_undo'
      WHEN ledger.kind IS DISTINCT FROM 'accepted' OR ledger.retired_at IS NOT NULL
-       OR p.id IS NULL OR p.hidden_at IS NOT NULL THEN 'source_unavailable'
+       OR p.id IS NULL OR (p.hidden_at IS NOT NULL AND NOT COALESCE(undo.source_event_id=NULL::uuid /* restore-undo-event */,false)) THEN 'source_unavailable'
      ELSE 'included' END AS preliminary_state
  FROM public.event_slots slot JOIN canonical_scope g
    ON g.tenant_id=slot.tenant_id AND g.game_id=slot.game_id
@@ -69,6 +111,9 @@ canonical_scope AS (
    AND ledger.d5=current_event.d5
  LEFT JOIN public.play_rows p ON p.tenant_id=current_event.tenant_id
    AND p.game_id=current_event.game_id AND p.source_event_id=current_event.id
+ LEFT JOIN canonical_undos undo ON undo.tenant_id=current_event.tenant_id
+   AND undo.game_id=current_event.game_id AND undo.target_event_id=current_event.id
+   AND undo.target_play_id=p.id
 ), canonical_s AS (
  SELECT *,CASE WHEN match_count<>1 THEN 'source_unavailable'
                ELSE preliminary_state END AS source_state FROM canonical_raw
