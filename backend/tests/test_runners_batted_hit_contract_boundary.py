@@ -152,3 +152,41 @@ def test_so05_two_out_wire_is_exact_batter_and_first_runner():
         damaged["outEffect"] = effect
         with pytest.raises(ValueError):
             T1.model_validate_json(json.dumps(damaged))
+
+
+def test_loaded_forced_reach_keeps_all_three_before_physical_rows():
+    """満塁押し出しはT1の強制進塁後も3走者の起点物理行を保つ。"""
+    raw = copy.deepcopy(CASE["expected"]["value"]["t1"])
+    for base, slot, destination in (
+        ("1", "first", "2"),
+        ("2", "second", "3"),
+        ("3", "third", "4"),
+    ):
+        raw["runnerDefaultAdvance"][slot] = {
+            "modality": "forced",
+            "destination": destination,
+        }
+    t1 = T1.model_validate_json(json.dumps(raw))
+    runners = tuple(
+        Runner.model_validate_json(
+            json.dumps(
+                {
+                    **RUNNER,
+                    "runnerId": f"10000000-0000-0000-0000-{base:012d}",
+                    "base": str(base),
+                }
+            )
+        )
+        for base in (1, 2, 3)
+    )
+    tenant = UUID("10000000-0000-0000-0000-000000000001")
+    play = UUID("10000000-0000-0000-0000-000000000002")
+    rows = runner_physical_rows(
+        runners, t1=t1, tenant_id=tenant, play_id=play
+    )
+    assert len(rows) == 3
+    assert {row["base"]: row["runner_id"] for row in rows} == {
+        1: runners[0].runner_id,
+        2: runners[1].runner_id,
+        3: runners[2].runner_id,
+    }
