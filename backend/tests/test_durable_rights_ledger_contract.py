@@ -1510,6 +1510,8 @@ def _g20_open_intent():
         ("unknown_identity", "unresolved"),
         ("d5_conflict", "unresolved"),
         ("committed_without_d5", "unresolved"),
+        ("unknown_terminal", "unresolved"),
+        ("unadmitted_terminal", "unresolved"),
     ],
 )
 def test_attempt_recovery_requires_real_lease_terminal_and_d5(
@@ -1543,7 +1545,11 @@ def test_attempt_recovery_requires_real_lease_terminal_and_d5(
     )
     if change not in ("no_intent", "live"):
         outcome = (
-            "COMMITTED"
+            "UNKNOWN"
+            if change == "unknown_terminal"
+            else "ENTRY_CLOSED_UNADMITTED"
+            if change == "unadmitted_terminal"
+            else "COMMITTED"
             if change in ("closed_committed", "committed_without_d5")
             else "ROLLBACK_CONFIRMED"
         )

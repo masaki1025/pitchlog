@@ -1695,7 +1695,10 @@ class _AuthorityRuntime:
                     _send(channel, {"status": "ok", "result": outcome})
                     return
                 terminal.add(terminals[lease][0])
-            if len(terminal) > 1:
+            if len(terminal) > 1 or not terminal <= {
+                BindingOutcome.COMMITTED.value,
+                BindingOutcome.ROLLBACK_CONFIRMED.value,
+            }:
                 _send(channel, {"status": "ok", "result": outcome})
                 return
             d5_state = authority.observe_d5(tenant, d5, request["event_fingerprint"])
