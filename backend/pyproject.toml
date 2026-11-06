@@ -47,7 +47,8 @@ convention = "google"
 python-version = "3.12"
 # tests/conftest.py は一時ディレクトリ移送の単一実装をリポジトリ直下の
 # scripts/pytest_tmp_bootstrap.py から import する(実体は conftest 側で sys.path へ追加)。
-extra-paths = [".."]
+# 固定Git期待を読む試験は scripts/frozen_history.py を使う。型検査も実import先へ揃える。
+extra-paths = ["..", "../scripts"]
 
 [tool.ty.src]
 include = ["src", "tests"]

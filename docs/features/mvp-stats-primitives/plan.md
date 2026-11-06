@@ -67,7 +67,8 @@ G04-A列34は `event_kind='pitch'` を1投球としてtenant/game/実pitcherで�
 | `docs/adr/ADR-003-domain-calc-method.md` | **反映なし**。D-1の既射程内で型付き有限参照/primitive/reducerを実行可能にする。表現不能が具体入力で判明した場合だけ、その対象の最小正式変更をrootへ返し、手書き式やD-2へ逃げない |
 | `docs/requirements/requirements-pitchlog-2026-07-22.md` | **反映**: 既PO採用のJST暦年整合。4/1年度の残存箇所・期間ラベル/bindingを同一ゲートで追随。新しい期間裁定ではない。D02〜05回答時も該当する最小節のみ正式化 |
 | `docs/design/data-model.md` / `docs/design/sync-protocol.md` | **反映**: canonical事実/版/公開pointer、取消訂正/再開/再終了と既TX・読取snapshotの接合。現source_versionの実写像を確定して該当節だけ更新 |
-| `docs/development/dev-harness-design-2026-08-07.md` | **反映なし**。既3層/core/7.7/段階実装を利用 |
+| `docs/development/dev-harness-design-2026-08-07.md` | **反映**: PR197限定の固定Git期待1件の既レビュー済み追補を7.7節へ反映。一般のallow-list追加禁止・旧拒否条件は維持。既3層/core/段階実装を利用 |
+| `docs/README.md` | **反映**: 本候補の要件・data-model・ハーネス設計書の既改訂状況を索引へ追随 |
 
 本plan作成時は正本を編集しない。正本改訂は7.6決定表による既ゲート、正式asset受理はrootが最終差分から導出する。暦年正式追随をpure schema/独立期待/生成器準備の開始条件へ前倒しせず、該当する製品提供の前に閉じる。
 
@@ -495,3 +496,111 @@ native5固定registry反映1の受理（2026-11-06 JST、PO委任Codex /root判�
 
 
 RR RO readerの閉入口修復（2026-11-06、PO委任によるCodex /root判断）: step4の既対象 backend/src/pitchlog/repositories/play_export_primitives.py exact1、_require_root_read_scope関数だけを動的getattrから関数内静的importへ変更する。真正handle/marker、missing/noncallable、既例外causeまで保持。非作者report SHA9194e9a159ceff6f0e7e52642f677367c9836d844202e9c6458aad9ae8f1dc8d、候補全file SHA0fed153b7fc8d5f0896d103f8fb824ca7611445163d15fda0e5a0a02345763cf、対象beforeはfebe8bc4。初版のmissing helper原因露出と書式違反を是正後66pure/Ruff成功。DB成功とはしない。検査器の例外追加や認可条件の変更なし。実適用後にsource pin再導出対象へ含める。PO本人逐行確認/署名/P6blindの記録ではない。
+
+
+PR197 source登録の最小整合（2026-11-06T14:52:47.791935+09:00、PO委任によるCodex /root判断）: step4の検査器/正式資産追随として scripts/check_tenant_boundary_bypass.py、tests/test_pr197_tenant_source_registration.py、tests/fixtures/pr197_tenant_source_expected_v1.json、scripts/core_guard.py、tests/test_core_guard.py、.claude/core-areas.json、contracts/tenant_boundary/frozen-inputs.jsonの用途付きpin追記と既9assetの公式派生を対象にする。source S=a59c654e3366d2be9c6456e47b07118e1674bce2、条件付き71の全文Git固定と、旧PR191/192の3旧診断を別後継資格で解消。先行71 review2fc6295a…、後継profile独立reportSHA5902c76e73df18ba232465bf4dfccfa9b2ccfa7c43aa48db5916cace34752036（27pure/旧AST6/6・旧9/3/新read1・実call位置・614非callを検算）を採用根拠とする。旧75/71/3の審査と反例履歴は維持する。
+
+fixtureを先にGit固定してEとし（全byte SHA a14381644954dc8bf918c574810e49656f8e01ee3e21ef64c13955984a037ab4）、EのcheckerがSのcheckerと同byteであることを必須にする。その後checkerの独立fullE literal/fixtureSHA・typed用途を同じ値へ設定する。None/別E/同時改変/未知sourceは閉拒否。core追加2pathは旧29/32を保ち完全34のみ、core定義前置→JSON後置を維持する。core反例2周を反映した限定追加review b897d03a…（P0/P1=0,P2=1、独立120×2/旧反例拒否）を採用し、P2の直接順序helper改変ケースはtestだけを精密化する。本人署名/人間逐行/P6blindの確認ではない。正式7.7値・CLI/必須CIが揃うまでPR統合/製品提供にしない。
+
+
+PR197正式派生の実木反映（2026-11-06T15:34:52.580511+09:00、PO委任によるCodex /root判断）: source ba59b627、E42bda907を固定し、final-source-closure候補31pathとcorpus digest-onlyを採用する。非作者REPORT SHA256 2963fa62ab83a94b9c8961b0293ce19053f64bd29701578673d9b0fdda3ad663、P0/P1/P2各0。9revision+1・旧履歴・既352snapshot保持・新19snapshot・公式3renderer/9projection/全acceptance値を独立再導出。本人署名/逐行確認ではない。実木CLI/必須CI/最終差分確認と通常PR統合は後続であり、本判断だけで製品提供やMVP成立とはしない。
+
+
+PR197のgate6後継修復（2026-11-06、PO委任Codex/root判断）: 実base51bは旧187数学9のうち4が既191/192後継であり、PR197を旧187への新受理と誤認する検査を修復する。作者exact2 main fa49c1998b023eb96da5f6248b16d62f3cafbda5f98c350385d13e1dc78d495d/test8e51ab44ded5d29d4cc249fb7360b1d7add9f9a032e8b2210f78d140234106ca、非作者REPORT SHA256 da7d4581e14727055692b758d16eeda74a440d6c3dfc957fed8ef3dad7b56ec4、P0/P1/P2各0、独立full702・新22・追加3拒否を根拠に採用。旧本体11/49scope/数学9不変、既E/S typed・公開委任proofを必須、PR197/branch/base/未知path/同時改変を閉拒否する。旧local技術入口の未成立を成功としない。backend format3 AST不変/rootTy end_lineno assert/CI空白除去と、旧合成Git fixtureへE/fixture/固定S製品依存を供給するroot修復7pathも同step4の検査追随へ含む。全てsource固定後に正式7.7/metadata/corpus/新HEAD証拠を一括再導出する。凍結literal移設reflection1は別独立P0で不採用、最終PR/CI成立とはしない。本人署名/P6blindでない。
+
+
+PR197凍結期待値の正式配置とCI修復の接合（2026-11-06、PO委任Codex/root判断）: step4の既検査追随として、cache native-pr197-frozen-source-integration-root-20261106/source-merge.json のexact15 source/configと frozen-inputs.jsonへの用途付き19pin追加を候補接合する。R1自己申告Git起点のP0を維持し不採用、R2は固定2fa object/祖先/導入版と公開委任証拠を要求する。正式v1.20 7.7-1の限定例外は795b92daで確定済み。R2独立REPORT8346ef38479a7fcae50d23e8f7efafaee0fe3c0bccfa1083ff2ec1ee9157b30a（新P0/P1なし、78件）を保持。後発R3修復は作者REPORT77989f3b997b93a5642f4b399609650eeaeb9a7e4b25c9ecb61659cf5249c7bc、core945/tenant1成功、cache候補であり別非作者の最終確認前に正式受理やgreenとしない。rootの後発固定S import閉包/負例baseline基底修復を保持して3way接合する。core領域検出pathsは保持し、逆依存のみの有限除外13を宣言する。型付き期待の追加は原典27literalの移設であり、全byte/用途/cochange拒否を保持。正式9資産/認可code_assets/snapshot/corpusの後値は同じ最終sourceから公式再導出し、before=正式base51bの値を維持。中間rev19/20を正式beforeにしない。本人逐行/P6blind/実PGの代記をしない。
+
+PR197承認文書mergeの限定carry追随（2026-11-07、PO委任によるCodex /root実装指示）: step4のcore検査追随として、`2953103d4e280dff42ee1d8c356bc3e888799651` の実mergeだけを検査する。第一親に旧固定定義と完全なPR197 core登録が先行し、merge結果のcore JSON/guard全byteが第一親と一致すること、第二親が正式51bから承認文書exact4だけを変更し製品core・関連検査入力を持ち込まないことを閉検証する。旧`_commits_between`と他ゲートの全履歴検査は変えず、PR197定義順の対象呼出でだけ実mergeを有限carryとして扱う。旧2fa導入AST pinは履歴原典として保持し、新source先行commit・新定義AST・実mergeのtyped3を別コミットで資産に置く。source全byte・Git object/祖先/初出・用途・7.7正式前後値・未知/同時改変/別merge・byte差の拒否を要求し、候補の独立reviewと公開最終HEAD委任証拠まで受理済みと記さない。対象は`core_guard.py`、`check_human_review_signature.py`、両専用試験、`frozen-inputs.json`とその公式9資産/履歴snapshot/corpusの再派生に限る。本人署名・P6blind・人間逐行確認の記録ではない。
+
+
+## 2026-11-07 実CI停止点の追随（root、ステップ4継続）
+
+公開3a6bedfaのCI42255687354は不合格。root単独のfix/pr197-ci-finalizationで、backend2試験のformat（AST完全同値）、型探索を実scripts import先へ整合し不要ignoreを撤去、0039歴史子pluginのimport初期化を検証済みcontrol-root解決へ移動した。子は所有pipe/parent PID/plugin全byteを確認するまではcontrol helperを解決しない。既972blob/31caseや元全AST・不正pipe/原典拒否を変更せず、実子collect31一致/関連35pytest成功。Root/実機/実DB31件全完走とはしない。backend Ruff/format672/Tyは成功。
+
+census反実ツリーの固定PR197 fixtureが複製されない漏れを修復。resolution ownerは歴史登録line949と現全AST同値owner1108を区別し実位置を照合するよう追随中。ただしCLIは現在単一抑止集合の期待で不一致のまま。診断で現188件/registration除去時188件・増減0を確認し、既owner登録が実際に抑止したという期待を推測で0へ変更しない。旧PR191 source byte固定を現在の正規T5追加源へ広げる後継証明と、authz git_blob_digest/要件参照件数等のCI failureも継続切分けする。
+
+PO委任rootの単独writer追補: `tests/test_census_baseline_check.py` は専用WTで現PR197 sourceに追随する。旧51/90/37・旧owner1は歴史Git原典で測り続け、現行のPR197 identity後継2path・条件付き71（Python実抑止、生成SQL、非発火siteを区別）を固定期待/全byte/反実差で測る。held3をsite許可へ混ぜず、旧siteと現siteの二重計上・source同時改変・未知siteを拒否する。既census宣言/正式assetはrootが別に所有し、旧履歴値や失敗期待の緩和をしない。同一3a系sourceのCLI/関連負例が通るまで採用判定しない。
+
+core6f17の同時変更回復は別WT fix/pr197-identical-definition-recovery（nonplay担当）が所有し、rootのこの7pathと並行編集しない。新6 guard_pathsを補強し、OID/親/全byte/AST/固定pin同値に限定、一般skip禁止。正式9資産/公開証拠は全候補固定後rootが直列再導出・再確認し、同入力失敗のCI再試行だけで緑を狙わない。MVP機能/保存/認可を縮小しない。今回もPO委任root判断であり本人確認/署名を代記しない。
+
+
+### CI追随の限定追加（2026-11-07、PO委任によるCodex /root判断）
+
+step4の既検査追随へ `tests/domain/test_vocabulary_schema.py`、`contracts/authz/failure-injection-points.json`、`contracts/authz/shared-preconditions.json` を追加する。確定済み成績正本の登板数/BF/OPSの表示行追加による付録A母集合33→36を、追加の実名とA-2/A-3内訳まで照合する。後二資産は元の失敗注入点・共有前提全値を保持して参照元Git blob digestだけを公式 `git_blob_digest` で再導出し、全構造/原文抽出/負例検査を実施する。入力更新を根拠とする追随であり、機械検査や拒否条件の除外ではない。trigger1証拠は旧本人判断を代記せず、真正な委任による再確認の記録方法と独立レビューを別途整えるまで未成立として残す。
+
+
+### trigger1のMVP限定委任再確認（2026-11-07、PO委任Codex /root起案）
+
+旧`review-trigger-evidence.json`のtrigger1本人記録は全値保持する。今回のPR197についてのみ、別の`delegatedReconfirmation`を追加できる最小手続きを実装する。対象exact3は `backend/src/pitchlog/domaincheck/trigger_evaluation.py`、`backend/domain/review-trigger-evidence.json`、`tests/domain/test_review_triggers_complete.py`、非作者結果の新1 `docs/features/mvp-stats-primitives/trigger1-delegated-review.json`。元trigger1記録とpolicyを既独立固定2faのGit原本へ全byte束縛し、対象PR/branch/委任元・判定者・日付・原本からの証拠差・現source版/byte・非作者レビューの実固定結果を要求する。他trigger/PO本人欄の上書き・未知key・欠証拠/版不一致/未解消P0/P1を拒否する。旧記録のdigestを現値へ書き換えて本人確認済みと偽らない。候補sourceを非作者へ渡し、反映/正式派生/最終公開HEAD証拠は別に確認する。MVP限定の既委任を表現するための追加であり、全般の人間承認統制を改めない。
+
+
+trigger1反映1（2026-11-07、PO委任Codex /root判断）: 非作者REPORT `7de9cc58358fabae79a70dccb3c1373c2b83d25db1c31f16fa00020aa89a9133` はP0/P1=0、現policy全byte比較で将来target追記まで失効するP2を指摘。固定2fa原本/authority hashは全byte維持し、現policyは非targets全値＋既targets順序/型保持、未知fieldなし・一意PR/branchの正準targetを末尾へ追加する場合だけ許す。enabled/expiry/source/委任範囲変更・既target変更/削除/入替え・重複JSONは拒否する。これはPR197/trigger1/source3fileの適用範囲を増やさず、無関係な新PRの登録で同じ意味承認を再取得させないための最小是正。反映後の非作者差分確認前に実委任recordを作らない。
+
+
+trigger1限定委任の採用（2026-11-07、PO委任によるCodex /root判断）: source最終 `eb116a83`、非作者初回REPORT `7de9cc58358fabae79a70dccb3c1373c2b83d25db1c31f16fa00020aa89a9133`、反映1 `aaff6f53bf5d600060c36b4685f898274555b290bf713d4ccc6c37136aaea55d`、拒否文言1行後発の反映2 `ef045fbc337bcd1938ee6b4deed9494932505274a44cba506ccd13d5d9a11509` を確認。残P0/P1/P2=0、非作者36対向/生成3suite62・旧証拠改変拒否1、root最終全55passed11.08秒を根拠に採用する。元2fa本人記録を全値保持したまま別delegatedReconfirmationを実記録し、source3blob/実非作者JSON SHA `acd504e97dfa70db021b031d1e64e856d508078340e5bbccc99a964d2cf04694` へ束縛した。発火falseは既規範5項目と現有限D1の表現に反例なしという今回の限定判断であり、PO本人の現値確認・P6blind・製品全受入ではない。最終source固定後の正式9資産/全CI/PR197通常統合は別条件として残る。
+
+
+trigger1型整理後の最終束縛（2026-11-07、PO委任Codex /root）: 実backend Tyでpolicy target下付きのUnknown診断を検出したため、3944ee11でdict実型/閉key検査を保持した型束縛とpr/branch局所変数へ整理。非作者reflection3 REPORT `021420e4c5e65fd088a5837b98a36834163c11823a0c5001a2a1b9126bedc974` が意味/拒否集合不変と36対向成功を確認した。実record/reportを3944ee11のexact3 blob・JSON SHA `b066cbdad9a0e5534087b1149a038fff3be2bd680eb49dcc33b5d888b1db5b0b` へ再束縛し、root全55passed12.35秒、root Ruff/Ty・backend Ruff/format672/Ty成功。旧初回/反映1/反映2の履歴・旧本人記録は保持する。これを今回のtrigger1 source最終とし、公開CI/正式9資産/全MVPへ受理を拡張しない。
+
+
+## 2026-11-07 PR197 実CI追随の限定補足（PO委任root）
+
+対象はe5b6fef5のrun42275253517で判明した検査資産の追随漏れ。製品計算・認可・原子性・core拒否条件は変更しない。実装ステップ4/5の資産整合範囲で、MC/DCのclaim map参照digestを公式git blob演算で実値へ更新し、既成立§6-1-cの成績3表をORM受入生成へ伝播する。生成器はTable宣言をモデル実行なしのASTで捕捉し、sync_fenceの参照を検証、schema逸脱と重複表名を拒否する。既判定は語/正本/実装が完全一致し変更stats3識別子に無関係な行だけ公式carry処理で保持し、同版重複keyの出現数が変わる群は全判定を失効させ、履歴4行を含む新規/変更12行を個別技術確認する。出現番号034、全件数107/129/68/108を現正本で固定する。人間確認済みを代記しない。
+
+rootの候補作成後、非作者へ前後差分・旧判定保持・3表/全列参照・対向試験を渡し、重大指摘解消後だけ採用する。関連pytest全件、Ruff/Tyと正式MC/DC CLIを実行し、最終source固定後に必要な7.7派生値だけ再導出、実CIを再確認する。この補足はPO委任の通常技術追随判断でありMVP縮小・既不変条件除外・CI失敗免除を含まない。
+
+
+## 2026-11-07 backend実CIの技術追随（PO委任root・ステップ4/5）
+
+現在の耐久記録権の業務fixtureは0039専用の意味試験ではなく実業務providerを検証するため、current0041の正規起動と全schema認可照合を利用する。0039の固定31件・旧round-tripの物理範囲は別に保持する。歴史metadataでは0041の新private3表だけをcopyから除き、0040以前の全既存列・制約・索引を保存、current0041では3表を含む全Baseを使用する。部分的な3表の欠落は拒否し、FK参照モデルは正式all_modelsで明示登録する。業務scope/ACL/耐久性を緩めない。
+
+R-9の型境界検査が、採用済D05の分母0未定義値と旧移行フィールドのセンチネル変換を混同していた。検査の限定例外は、現生成物の `_ratio_add` 1件と `_rate_result` 3件だけ（module path＋関数全AST SHA256完全一致）。全fileやstats目录を除外しない。既登録D1/T5生成物・モデル・率の出力・独立goldenは変えない。同fileの新parser、別path、関数名/本文変更、実フィールド0→NULLは従前どおり拒否する。この技術具体化は既POのD05とハーネス限定緩和許可に基づくroot判断であり、例外手続き自体を非作者レビューへ渡し、未解消P0/P1があれば採用しない。将来の計算変更は既指紋から外れ、再確認なしに自動許容しない。
+
+関連pure検査は全103件を確認し、業務DBはowned隔離環境だけを使う。共有DB/運用公開は行わない。正式資産の再導出・受理・最終CIはsource固定後に行い、成功を先取りしない。
+
+
+### 現行fixture追随の固定範囲（2026-11-07 06:10 JST、PO委任root）
+
+実CIの同一根因を閉じるため、step4/5の検査追随に `backend/tests/db_fixtures.py`、`backend/tests/db/test_alembic_migrations.py`、`backend/tests/db/test_schema_audit.py`、`backend/tests/db/test_stage_a_writer_storage.py` と同義型の純負例 `backend/tests/test_schema_audit_normalized_types.py` を追加する。業務用fixtureは正式current0041で起動し、旧0033往復と0037〜39の歴史検査は保持する。現行installerの故障取消/再開先は0041、旧private物理配置の確認も残す。schema監査は成績3表の既正式business unique3件を全fieldで追加し、37→40とする。全スキーマの型比較は既同義語正準化を期待/実catalogの両側へ対称適用し、timezone/精度変更を拒否する。metadata比較は正式migrations/env.pyと同じpublic/sync_fenceに限定して全モデルを比較し、public epoch列とprivate stats列の欠落をそれぞれ実PGで検出してrollback復元する。別schemaの任意取込や不明revisionの許容はしない。
+
+検証は純106件成功、owned r2の現行再開/installer故障全取消/0040索引3件成功、r3の全schema/旧team往復2件成功、r4のpublic/private欠落検出2件成功（各source前後同一/cleanup/共有DSN未使用）。r1 bootstrap失敗・r2型表記差・r3 public-only比較失敗の履歴はcacheへ保持する。非作者最終確認・全CI・正式派生資産受理は別条件であり、本人による確認やP6blind成立を代記しない。
+
+反映7周目の対向追補: 非作者が指摘した新stats3 uniqueの負例被覆不足を閉じる。`backend/tests/test_product_authz_tenant_owned_cases.py` の旧6件を残し、新3件それぞれで columns/source_row/roles/predicate の改変を拒否する全36対向へ拡張する。旧行数/対象外集合の全一致も維持する。
+
+### CIの認可関数再適用試験追随（2026-11-07、PO委任root・ステップ4/5）
+
+run42275253517の `test_sync_writer_binding_reapply.py` は旧29関数だけを期待しており、正式 `first_ball_product.ADDITIONS` に登録済みの `stats_api` 5関数を検査集合へ含めていなかった。専用修復枝では同試験1pathだけを変更し、旧20＋終端7＋開始原本1＋語彙1を全値維持した上で、新5の署名・owner・volatility・return・search_path・EXECUTE ACLを閉じた全属性へ照合する。各34関数の本文とPUBLIC権限衝突、writer4 trigger衝突、再適用前後の全非system catalog比較を同じowned PGで検査する。件数の可変化、製品DDL/ACL/正式資産の変更、共有DBの利用は行わない。独立非作者確認と実CI緑は別条件とする。
+
+反映8周目: 非作者P1のprivate許可表間移設反例を修復。9制約の名称→所属tableを独立literalで固定し、row全fieldに加えて対応も完全一致を要求する。新旧9件それぞれを他の許可表4つへ移す全36負例を追加する。元05bbeの失敗反例はcacheへ保持し、修復版の再レビュー前に採用しない。
+
+
+### 公開操作/認可schemaの純検査追随（2026-11-07、PO委任root・step4/5）
+
+実CIで赤の `backend/tests/test_authz_app_layer_surface.py`、`test_authz_capability_registration.py`、`test_authz_product_database_schemas.py`、`test_authz_product_staging.py` と複製helper `test_authz_runtime_contract_repository.py` を追随する。既認証操作の全集合は保持し、採用済stats専用4moduleを別単位として固定、関数専用2capabilityをORM文token集合へ混ぜず別検査する。stats_apiの全field/ACLを独立literalへ追加し、既schema全値も完全一致を保持する。製品状態copyへ追加するのは実stats登録が実際に読む宣言/生成TSと依存sourceであり、生成検証をmockやpin置換で迂回しない。正式assetsは変更せず、差分の非作者確認後に採用する。
+
+
+
+### 残DB対向の追随（2026-11-07、PO委任root・step4/5）
+
+追加の実CI根因として `backend/tests/db/test_rg1_startup_epoch.py` の旧epoch故障→全認可再開は現current provider経路を使用し、0034故障時の未適用/rollback検証は保持、完了版だけ0041へ追随する。`backend/tests/db/test_product_authz_cross_cutting.py` のFORCE RLS検査はprivate9表を除外せず、正式assetのschema_nameに従って全manifest表を所有者・tenant未束縛で0行確認する。旧system語彙5行例外は維持する。製品ACL/保存計算に変更しない。非作者確認とowned実PGを必須とする。
+
+
+追加の2検査fixture追随: `backend/tests/db/test_play_export_primitives.py` は終端後に変わった次打者をPA完了者として照合していたため、実終端時点のparticipant IDを保存してその本人を照合する。PA/BB/HBPの期待値は変えない。`backend/tests/db/test_stats_queries.py` の直接psycopg呼出は製品固定関数ABIと同じnullable cursor 5型をSQLAlchemy bindで明示し、NULLのunknown OIDを防ぐ。生成SQL/計算/契約/期待数量には変更しない。実owned DBで元の全assertを再実行する。
+
+
+### public不変性検査のcurrent追随（2026-11-07、PO委任root・step4/5）
+
+owned r7で旧migration等141件成功、残7件は不変性検査が0039版を固定していた。`backend/tests/db/test_immutability_enforcement.py` と `test_immutability_matrix.py` の現行正例を0041へ追随する。0032の歴史2列RG1検証と既public全50表/全trigger/故障負例を保持し、既private6と同じ別担当の正式stats3表だけpublic母集団から分離する（public上の実表と照合する検査なのでschemaを混同しない）。private9の有限名は正式DDLのschema集合と独立に照合し、未知のstats名を除外しない純対向 `backend/tests/test_immutability_population_scope.py` を付ける。privateの保護は正式catalogのACL/policy/構造とnative受理/再送/CASの既試験が別途担い、public trigger検査の成功へ読み替えない。製品/DDL/保存保証を変更せず、非作者レビューとownedで失敗7件だけ再検証する。
+
+
+### CI固定参照6箇所の宣言追随（2026-11-07、PO委任root・step4/5）
+
+正式CLIが新規Python固定参照6箇所を未宣言として拒否した。allow-list追加/走査除外/hex分割は行わず、既 `backend/tests/first_ball_expected_source_pins.py` の閉読取方式を新4値の別schemaへ再利用する。新 `backend/tests/fixtures/pr197_ci_followup_inputs_v1.json` は旧705比較のGit前後40桁2値と既採用ratio/rate全AST64桁2値をそのまま宣言し、frozen-inputsの正式external_filesへ登録して7.7の対象へ含める。旧first-ball fixture/schema/全値は変えない。`backend/tests/test_product_authz_provisioning.py`、`test_sync_apply_product_supply.py`、`type_boundary_contract.py` はこの固定期待を消費するだけで旧比較/AST拒否条件を保持。新readerの欠落/未知/重複/型/桁/非正準を `backend/tests/test_pr197_ci_followup_inputs.py` で拒否、製品copy helperへ読取依存だけ追加する。実装差分を非作者再確認し、source固定後に9資産を正式base51bから一度再導出する。既a44値受理は当該版だけの記録として保全し、新版へ自動拡張しない。
+
+反映22周目: 非作者の全関連4module検査で、旧schema全集合へのstats_api追随漏れ1件を基線でも再現。正式stats_apiを13件全集合へ追加し、実SQLへの完全包含・正規owner・既存wrong-owner例外・ALTER SCHEMA禁止を明示検査する。旧schema/全拒否条件は保持する。
+
+
+### 2026-11-07 PR197公開前の正本宣言照合（PO委任によるCodex主担当判断）
+
+最終検査で、既レビュー・実反映済みのハーネス7.7追補と索引が3節に未宣言であることを検出し、実差分に合わせて宣言のみ補正した。正本本文・検査条件・正式値は変更しない。sync-protocolの後続接合宣言は全MVP計画に残し、PR197のnative成績基盤提供を全27成績/終了再開の完成へ読み替えない。全体planはactiveのまま、PR197部分だけ最終確認へ進む。ハーネス運用評価台帳への新規追記なし: 今回は既存の宣言漏れを修復する実例であり、新たな制御目的や傾向の確定ではない。旧レビュー・受理・失敗履歴を保持する。

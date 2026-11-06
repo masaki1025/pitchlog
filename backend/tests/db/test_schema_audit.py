@@ -63,8 +63,31 @@ _PRIVATE_BUSINESS_UNIQUE_TABLES = frozenset(
         "writer_bindings",
         "ordinary_pitch_write_admissions",
         "ordinary_pitch_history",
+        "stats_fact_versions",
+        "stats_primitive_sources",
     }
 )
+_PRIVATE_BUSINESS_UNIQUE_OWNERS = {
+    "uq_sync_writer_binding_lease": "writer_bindings",
+    "uq_sync_writer_binding_nonce": "writer_bindings",
+    "ordinary_pitch_write_admissions_tenant_id_frame_id_key": (
+        "ordinary_pitch_write_admissions"
+    ),
+    "ordinary_pitch_write_admissions_tenant_id_source_event_id_key": (
+        "ordinary_pitch_write_admissions"
+    ),
+    "ordinary_pitch_write_admissions_tenant_id_play_row_id_key": (
+        "ordinary_pitch_write_admissions"
+    ),
+    "ordinary_pitch_history_tenant_id_game_id_internal_generatio_key": (
+        "ordinary_pitch_history"
+    ),
+    "stats_fact_versions_tenant_id_id_key": "stats_fact_versions",
+    "uq_stats_current_game_model": "stats_fact_versions",
+    "stats_primitive_sources_tenant_id_game_id_fact_version_id_r_key": (
+        "stats_primitive_sources"
+    ),
+}
 _PRIVATE_BUSINESS_UNIQUES = {
     "uq_sync_writer_binding_lease": {
         "name": "uq_sync_writer_binding_lease",
@@ -155,7 +178,60 @@ _PRIVATE_BUSINESS_UNIQUES = {
             "scope": "scoped",
         },
     },
+    "stats_fact_versions_tenant_id_id_key": {
+        "name": "stats_fact_versions_tenant_id_id_key",
+        "kind": "UNIQUE",
+        "columns": ["tenant_id", "id"],
+        "predicate": None,
+        "roles": ["business_unique"],
+        "source_row": {
+            "section": "6-1-c",
+            "uniqueness": "成績版のtenant内IDは1件",
+            "key_shape": "UNIQUE (tenant_id, id)",
+            "scope": "scoped",
+        },
+    },
+    "uq_stats_current_game_model": {
+        "name": "uq_stats_current_game_model",
+        "kind": "UNIQUE INDEX",
+        "columns": ["tenant_id", "game_id", "model_sha256"],
+        "predicate": "is_current",
+        "roles": ["business_unique"],
+        "source_row": {
+            "section": "6-1-c",
+            "uniqueness": "成績のcurrent版は同game/modelで1件",
+            "key_shape": "UNIQUE (tenant_id, game_id, model_sha256) WHERE is_current",
+            "scope": "scoped",
+        },
+    },
+    "stats_primitive_sources_tenant_id_game_id_fact_version_id_r_key": {
+        "name": "stats_primitive_sources_tenant_id_game_id_fact_version_id_r_key",
+        "kind": "UNIQUE",
+        "columns": [
+            "tenant_id",
+            "game_id",
+            "fact_version_id",
+            "recording_generation",
+            "d1",
+            "slot_version",
+        ],
+        "predicate": None,
+        "roles": ["business_unique"],
+        "source_row": {
+            "section": "6-1-c",
+            "uniqueness": "成績sourceは同版/記録世代/D1/slot版で1件",
+            "key_shape": "UNIQUE "
+            "(tenant_id, "
+            "game_id, "
+            "fact_version_id, "
+            "recording_generation, "
+            "d1, "
+            "slot_version)",
+            "scope": "scoped",
+        },
+    },
 }
+
 _AUDIT_AUTHORITIES = {
     "1_tenant_owned_foreign_keys": (
         "manifest の composite 宣言。composite=false の意味上の閉域性は受入証跡"
@@ -359,7 +435,7 @@ def _manifest_columns(manifest: Mapping[str, Any]) -> set[_ColumnContract]:
         _ColumnContract(
             table=table["name"],
             name=column["name"],
-            data_type=column["type"],
+            data_type=_normalized_type(column["type"]),
             nullable=column["nullable"],
             default=_normalized_default(column["default"]),
         )
@@ -911,9 +987,11 @@ def _cross_table_audit_violations(
         )
     ]
     private_constraints = {row["name"]: row for _, row in private_rows}
+    private_owners = {row["name"]: table for table, row in private_rows}
     if (
         len(private_rows) != len(_PRIVATE_BUSINESS_UNIQUES)
         or private_constraints != _PRIVATE_BUSINESS_UNIQUES
+        or private_owners != _PRIVATE_BUSINESS_UNIQUE_OWNERS
         or any(
             table not in _PRIVATE_BUSINESS_UNIQUE_TABLES for table, _ in private_rows
         )
@@ -950,7 +1028,7 @@ def _cross_table_audit_violations(
     )
     if len(business_constraints) != 31 + len(_PRIVATE_BUSINESS_UNIQUES):
         global_uniqueness_violations.append(
-            f"business_unique が旧31件＋私有6件ではない: {len(business_constraints)} 件"
+            f"business_unique が旧31件＋私有9件ではない: {len(business_constraints)} 件"
         )
 
     outside_private = {
@@ -1050,22 +1128,29 @@ def _assert_current_batted_index(connection: psycopg.Connection[Any]) -> None:
 
 
 def _prepare_current_audit_index(catalog: ProvisionedProductCatalog) -> None:
-    """当該auditだけ同owner supplied TXで実0039から固定0040へ進める。"""
+    """同owner TXで旧0039は0040へ進め、current0041は既0040索引を厳密照合する。"""
     engine = create_engine(normalize_postgresql_url(_sqlalchemy_url(catalog.owner_dsn)))
     try:
         with engine.begin() as connection:
             assert connection.exec_driver_sql(
                 "SELECT current_user,session_user"
             ).one() == ("pitchlog_owner", "pitchlog_owner")
-            assert connection.exec_driver_sql(
-                "SELECT version_num FROM public.alembic_version"
-            ).scalars().all() == ["0039_ordinary_pitch_storage"]
-            config = _alembic_config()
-            config.attributes["connection"] = connection
-            command.upgrade(config, "0040_batted_vocabulary_index")
-            assert connection.exec_driver_sql(
-                "SELECT version_num FROM public.alembic_version"
-            ).scalars().all() == ["0040_batted_vocabulary_index"]
+            revisions = (
+                connection.exec_driver_sql(
+                    "SELECT version_num FROM public.alembic_version"
+                )
+                .scalars()
+                .all()
+            )
+            if revisions == ["0039_ordinary_pitch_storage"]:
+                config = _alembic_config()
+                config.attributes["connection"] = connection
+                command.upgrade(config, "0040_batted_vocabulary_index")
+                assert connection.exec_driver_sql(
+                    "SELECT version_num FROM public.alembic_version"
+                ).scalars().all() == ["0040_batted_vocabulary_index"]
+            else:
+                assert revisions == ["0041_stats_fact_versions"]
             raw = connection.connection.driver_connection
             assert raw is not None
             _assert_current_batted_index(raw)

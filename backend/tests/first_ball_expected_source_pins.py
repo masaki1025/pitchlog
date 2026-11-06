@@ -144,3 +144,51 @@ def read_expected_source_pins(
             if name == source_file:
                 result[key] = value
     return result
+
+
+_CI_FOLLOWUP_WIDTHS = {
+    "catalog_before_revision": 40,
+    "catalog_after_revision": 40,
+    "ratio_ast_sha256": 64,
+    "rate_ast_sha256": 64,
+}
+_CI_FOLLOWUP_FIXTURE = (
+    Path(__file__).parent / "fixtures/pr197_ci_followup_inputs_v1.json"
+)
+
+
+def read_ci_followup_inputs(*, path: Path = _CI_FOLLOWUP_FIXTURE) -> dict[str, str]:
+    """正式凍結projectionに登録したCI固定4値だけを閉読取する。
+
+    Args:
+        path: 固定入力。負例試験だけが別fixtureを渡す。
+
+    Returns:
+        独立採用済みのGit識別値と全関数AST SHA256。
+
+    Raises:
+        SourcePinError: 欠落・重複・未知key・型・桁・字句が不正な場合。
+    """
+    try:
+        if path.is_symlink() or not path.is_file():
+            raise SourcePinError("CI固定期待が通常ファイルでない")
+        raw = json.loads(path.read_text(), object_pairs_hook=_unique_object)
+    except (OSError, UnicodeError, json.JSONDecodeError) as error:
+        raise SourcePinError("CI固定期待を読めない") from error
+    if type(raw) is not dict or set(raw) != {"schema_version", "pins"}:
+        raise SourcePinError("CI固定期待のrootが不正")
+    if type(raw["schema_version"]) is not int or raw["schema_version"] != 1:
+        raise SourcePinError("CI固定期待の版が不正")
+    values = raw["pins"]
+    if type(values) is not dict or set(values) != set(_CI_FOLLOWUP_WIDTHS):
+        raise SourcePinError("CI固定期待のkey集合が不正")
+    result: dict[str, str] = {}
+    for key, width in _CI_FOLLOWUP_WIDTHS.items():
+        value = values[key]
+        if (
+            type(value) is not str
+            or re.fullmatch(rf"[0-9a-f]{{{width}}}", value) is None
+        ):
+            raise SourcePinError("CI固定期待の型・桁・字句が不正")
+        result[key] = value
+    return result

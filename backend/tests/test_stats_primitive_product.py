@@ -4,12 +4,16 @@ import hashlib
 import json
 import os
 import subprocess
+import sys
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from types import ModuleType
 from unittest.mock import patch
 
 import pytest
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "scripts"))
+import frozen_history
 from sqlalchemy import Column, Text
 from test_stats_native_undo import verified_native_root as verified_native_root
 
@@ -22,22 +26,30 @@ from pitchlog.domaingen.core import GenerationError
 # de9d8cb3の非作者採用対象。runtime生成結果から期待を更新しない。
 _SQL_SHA = {
     "open_primitive_snapshot": (
-        "1ad8be9a35bf0887d24e77f9fd10541e8c13b89e87e557dc1665e62bb1bea9aa"
+        frozen_history.read_original_pr197_pin(
+            "stats_primitive_sql_open_snapshot_sha256"
+        )
     ),
     "read_play_export_primitives": (
-        "c914af15584d7fc32c9d915f67cc979c74b88a41ae03e1c0a8d19c8a74db50cd"
+        frozen_history.read_original_pr197_pin("stats_primitive_sql_read_page_sha256")
     ),
     "read_primitive_totals": (
-        "2157a5fb5bba534f1bbbd3a770cc06c77d3c989d2aab2863edecace9d0f75c83"
+        frozen_history.read_original_pr197_pin("stats_primitive_sql_read_totals_sha256")
     ),
     "save_primitive_source": (
-        "d26495276d4060a16ff33bcb2a6d127a85c4b0608ec05e0d63f6844dcd4ad68b"
+        frozen_history.read_original_pr197_pin("stats_primitive_sql_save_source_sha256")
     ),
 }
-_DECLARATIONS_SHA = "93c0ef2811060437b51ad1f74f05a614913fa52e60bb7ddf8de9676ba44e69bc"
-_BODIES_SHA = "490600c54796286043cfe8317f9c5b5386792ee6bd86194566d26c6f88e70b45"
-_INSTALLER_SHA = "cca40e353ddca6b40ceedbb57ee3404013a279fefa826dd96709d26ed353b122"
-_OPERATIONS_SHA = "b79d2cae20e3a71028f10c0a4acb21a64be2a383eeedbcef286efaea9037a2a3"
+_DECLARATIONS_SHA = frozen_history.read_original_pr197_pin(
+    "stats_primitive_v1_declarations_sha256"
+)
+_BODIES_SHA = frozen_history.read_original_pr197_pin("stats_primitive_v1_bodies_sha256")
+_INSTALLER_SHA = frozen_history.read_original_pr197_pin(
+    "stats_primitive_v1_installer_sha256"
+)
+_OPERATIONS_SHA = frozen_history.read_original_pr197_pin(
+    "stats_primitive_v1_operations_sha256"
+)
 
 
 def _json_sha(value):

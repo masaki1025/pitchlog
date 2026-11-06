@@ -6,6 +6,7 @@ import ast
 import hashlib
 import importlib.abc
 import importlib.machinery
+import importlib.util
 import json
 import os
 import re
@@ -25,7 +26,7 @@ import pytest
 _ROOT = Path(__file__).resolve().parents[2]
 _FIXTURE = "backend/tests/fixtures/product_authz_stage_a_profile_v0039.json"
 _REFERENCE = "stage_a_0039_profile_reference_revision"
-_FIXED_REFERENCE = "45493c6669b5c1d6737fc41acb975b7f58f48289"
+_FIXED_REFERENCE: str | None = None
 _PURPOSE = (
     "正式51bcbの0039歴史検証profile972file/31caseをroot前置Git全byteへ束縛し、"
     "現木/fixture/任意revision同時改変を拒否。current製品loader・任意profile許可・"
@@ -106,6 +107,25 @@ def _path(value: Any) -> str:
     return value
 
 
+def _load_fixed_reference(control: Path) -> str:
+    """真正controlだけからpin readerを読み、歴史製品importへ混ぜない。"""
+    path = control / "scripts/frozen_history.py"
+    _plain(path)
+    raw = path.read_bytes()
+    name = "stage_a_0039_control_pin_" + _sha(str(path).encode() + raw)[:16]
+    frozen_history = sys.modules.get(name)
+    if frozen_history is None:
+        spec = importlib.util.spec_from_file_location(name, path)
+        if spec is None or spec.loader is None:
+            raise _fail()
+        frozen_history = importlib.util.module_from_spec(spec)
+        sys.modules[name] = frozen_history
+        spec.loader.exec_module(frozen_history)
+    return frozen_history.read_original_pr197_pin(
+        "stage_a_0039_profile_reference_revision", control
+    )
+
+
 def _read_profile(root: Path) -> dict[str, Any]:
     """Root前置Git Eのfixtureへ全byte束縛し、現木自己期待を拒否する。"""
     _plain(root)
@@ -120,7 +140,12 @@ def _read_profile(root: Path) -> dict[str, Any]:
         or reference["sources"] != _CONSUMERS
         or type(reference["value"]) is not str
         or re.fullmatch("[a-f0-9]{40}", reference["value"]) is None
-        or reference["value"] != _FIXED_REFERENCE
+        or reference["value"]
+        != (
+            _FIXED_REFERENCE
+            if _FIXED_REFERENCE is not None
+            else _load_fixed_reference(root)
+        )
     ):
         raise _fail()
     commit = reference["value"]
@@ -628,3 +653,9 @@ def pytest_collection_modifyitems(
         replacement = _closed_function(item, bound_call)
         replacements[item] = replacement
     items[:] = [replacements.get(item, item) for item in items]
+
+
+# 子pluginは最初のimportではcontrol_rootを知らない。所有pipeを消費・検証した
+# pytest_configure後の_profile(control)だけでpinを解決する。親は従来同じ固定値を保持。
+if _CHILD_FD not in os.environ:
+    _FIXED_REFERENCE = _load_fixed_reference(_ROOT)

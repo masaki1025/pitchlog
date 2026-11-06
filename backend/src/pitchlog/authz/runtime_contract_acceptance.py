@@ -18,7 +18,7 @@ _SCRIPTS_PATH = str(_SOURCE_ROOT / "scripts")
 if _SCRIPTS_PATH not in sys.path:
     sys.path.insert(0, _SCRIPTS_PATH)
 
-import frozen_history  # noqa: E402  # ty: ignore[unresolved-import]
+import frozen_history  # noqa: E402
 
 
 def _history_module() -> Any:

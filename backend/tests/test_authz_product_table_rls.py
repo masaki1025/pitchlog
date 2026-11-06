@@ -59,6 +59,19 @@ _EXPECTED_PRIVATE_TABLES = [
         "enable_row_level_security": True,
         "force_row_level_security": True,
     },
+    *(
+        {
+            "table_id": table,
+            "schema_name": "sync_fence",
+            "enable_row_level_security": True,
+            "force_row_level_security": True,
+        }
+        for table in (
+            "stats_fact_versions",
+            "stats_primitive_sources",
+            "stats_primitive_facts",
+        )
+    ),
 ]
 
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[2]

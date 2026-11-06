@@ -7,6 +7,7 @@ import importlib
 import json
 import sys
 from collections.abc import Callable, Mapping, Sequence
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
@@ -284,10 +285,106 @@ def test_repository_scan_has_the_declared_terminal_population() -> None:
     scan = checker.check_repository_source_scan(REPOSITORY_ROOT)
     entries = checker._load_worktree_scan_allowlist(REPOSITORY_ROOT)
 
-    assert scan.occurrences_40 == 13
+    assert scan.occurrences_40 == 14
     assert scan.occurrences_64 == 1
-    assert len({pair for pair in scan.pairs if len(pair.value) == 40}) == 9
+    assert len({pair for pair in scan.pairs if len(pair.value) == 40}) == 10
     assert len({pair for pair in scan.pairs if len(pair.value) == 64}) == 1
-    assert len(entries) == 10
+    assert len(entries) == 11
     assert sum(entry.pending_removal for entry in entries) == 4
-    assert sum(not entry.pending_removal for entry in entries) == 6
+    assert sum(not entry.pending_removal for entry in entries) == 7
+
+
+def test_pr197_single_anchor_requires_exact_event_and_public_proof(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """1件限定の追加でもPR識別と公開委任証拠の失敗を通さない。"""
+    from scripts import check_tenant_boundary_bypass, core_guard, frozen_history
+
+    monkeypatch.setitem(
+        sys.modules, "check_tenant_boundary_bypass", check_tenant_boundary_bypass,
+    )
+    monkeypatch.setitem(sys.modules, "core_guard", core_guard)
+    monkeypatch.setitem(sys.modules, "frozen_history", frozen_history)
+    anchor = frozen_history.PR197_PIN_ORIGIN_COMMIT
+    key = checker._ScanKey("scripts/frozen_history.py", anchor)
+    entries = checker._load_worktree_scan_allowlist(REPOSITORY_ROOT)
+    formal_base = check_tenant_boundary_bypass._pr197_fixed_expectations(
+        REPOSITORY_ROOT,
+    )["formal_base_revision"]
+    event = checker._PullRequestEvent(
+        "develop", formal_base, "b" * 40, core_guard.DELEGATION_REPOSITORY, 197,
+    )
+    guarded_event = core_guard.PullRequestEvent(
+        event.base_sha, event.head_sha, "proof", event.number,
+        event.repository, event.repository, "feature/mvp-stats-native-foundation",
+    )
+    monkeypatch.setattr(core_guard, "load_pull_request_event", lambda: guarded_event)
+    monkeypatch.setattr(
+        checker, "_git_file_bytes", lambda root, sha, path: (root / path).read_bytes(),
+    )
+    verified: list[str] = []
+    monkeypatch.setattr(
+        core_guard, "verify_delegated_confirmation",
+        lambda root, current: verified.append(current.head_sha),
+    )
+    assert checker._verify_pr197_pin_scan_exception(
+        REPOSITORY_ROOT, event, event.base_sha, entries, {key},
+    ) == key
+    assert verified == [event.head_sha]
+
+    for wrong in (
+        replace(event, number=198),
+        replace(event, repository="other/pitchlog"),
+        replace(event, base_ref="main"),
+        replace(event, base_sha="c" * 40),
+        replace(event, head_sha="c" * 40),
+    ):
+        with pytest.raises(checker.FrozenBaselineCheckError):
+            checker._verify_pr197_pin_scan_exception(
+                REPOSITORY_ROOT, wrong, wrong.base_sha, entries, {key},
+            )
+    monkeypatch.setattr(
+        core_guard, "load_pull_request_event",
+        lambda: replace(guarded_event, head_branch="feature/other"),
+    )
+    with pytest.raises(checker.FrozenBaselineCheckError, match="branch/head"):
+        checker._verify_pr197_pin_scan_exception(
+            REPOSITORY_ROOT, event, event.base_sha, entries, {key},
+        )
+    monkeypatch.setattr(core_guard, "load_pull_request_event", lambda: guarded_event)
+    monkeypatch.setattr(
+        core_guard, "verify_delegated_confirmation",
+        lambda root, current: (_ for _ in ()).throw(core_guard.GuardError("proof missing")),
+    )
+    with pytest.raises(checker.FrozenBaselineCheckError, match="公開委任証拠"):
+        checker._verify_pr197_pin_scan_exception(
+            REPOSITORY_ROOT, event, event.base_sha, entries, {key},
+        )
+    with pytest.raises(checker.FrozenBaselineCheckError, match="anchor以外"):
+        checker._verify_pr197_pin_scan_exception(
+            REPOSITORY_ROOT, event, event.base_sha, entries,
+            {checker._ScanKey("tests/unknown.py", anchor)},
+        )
+
+
+def test_pr197_anchor_inherited_on_develop_push_but_new_non_pr_addition_is_red(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """登録後の通常継承と、新規登録のPR文脈を分離する。"""
+    from scripts import frozen_history
+
+    entries = checker._load_worktree_scan_allowlist(REPOSITORY_ROOT)
+    anchor = checker._ScanKey(
+        "scripts/frozen_history.py", frozen_history.PR197_PIN_ORIGIN_COMMIT,
+    )
+    assert checker.check_repository_source_scan(REPOSITORY_ROOT).pairs >= {anchor}
+    checker._check_scan_allowlist_transition(
+        base_ledger_present=True, base_entries=entries, head_entries=entries,
+    )
+    monkeypatch.setenv("GITHUB_EVENT_NAME", "push")
+    assert checker._ci_requests_acceptance() is False
+    before = tuple(entry for entry in entries if entry.key != anchor)
+    with pytest.raises(checker.FrozenBaselineCheckError, match="エントリ追加は禁止"):
+        checker._check_scan_allowlist_transition(
+            base_ledger_present=True, base_entries=before, head_entries=entries,
+        )

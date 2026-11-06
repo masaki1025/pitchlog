@@ -359,19 +359,21 @@ def test_force_rls_applies_to_owner_with_unbound_context(
         with owner.cursor() as cursor:
             cursor.execute("SELECT pg_catalog.current_setting('app.tenant_id', true)")
             assert cursor.fetchone() == (None,)
+            tables = catalog.asset["tables"]
+            assert isinstance(tables, list)
+            schemas: dict[str, str] = {}
+            for row in tables:
+                assert isinstance(row, dict)
+                table_id = row["table_id"]
+                schema = row.get("schema_name", "public")
+                assert isinstance(table_id, str) and isinstance(schema, str)
+                assert table_id not in schemas
+                schemas[table_id] = schema
+            assert set(manifest_table_names()) <= set(schemas)
             for table in manifest_table_names():
-                if table in {
-                    "writer_bindings",
-                    "writer_admissions",
-                    "first_ball_write_admissions",
-                    "ordinary_pitch_checkpoints",
-                    "ordinary_pitch_write_admissions",
-                    "ordinary_pitch_history",
-                }:
-                    continue
                 cursor.execute(
                     sql.SQL("SELECT pg_catalog.count(*) FROM {}").format(
-                        sql.Identifier("public", table)
+                        sql.Identifier(schemas[table], table)
                     )
                 )
                 expected_count = 5 if table == "system_vocabularies" else 0

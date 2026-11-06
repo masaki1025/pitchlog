@@ -51,10 +51,10 @@ _STATS_PRIVATE_TABLES = frozenset(
     ("stats_fact_versions", "stats_primitive_sources", "stats_primitive_facts")
 )
 _STATS_STORAGE_QUOTE = (
-    'migration単独では3表ともownerを`pitchlog_owner`とし、'
-    'RLS ENABLE/FORCE、PUBLIC・app・sync binding ac'
-    'tor・RG1 control actor・sync right関数ownerから全権限を撤去して'
-    'default-denyに配置する。'
+    "migration単独では3表ともownerを`pitchlog_owner`とし、"
+    "RLS ENABLE/FORCE、PUBLIC・app・sync binding ac"
+    "tor・RG1 control actor・sync right関数ownerから全権限を撤去して"
+    "default-denyに配置する。"
 )
 
 

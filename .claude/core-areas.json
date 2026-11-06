@@ -29,17 +29,30 @@
       "paths": [
         "scripts/check_nfr021_append_only.py",
         "scripts/check_plan_docs_sync.py",
+        "scripts/check_tenant_boundary_bypass.py",
         "scripts/core_guard.py",
+        "scripts/frozen_history.py",
         "scripts/verify_nfr021_evidence.py",
         "tests/fixtures/frozen-archive-cases/runner.py",
+        "tests/test_census_baseline_check.py",
         "tests/test_check_plan_docs_sync.py",
         "tests/test_check_tenant_boundary_bypass.py",
+        "tests/test_first_ball_startup_boundary_registrations.py",
         "tests/test_frozen_archive.py",
         "tests/test_frozen_archive_case_runner.py",
+        "tests/test_frozen_baseline_declarations.py",
+        "tests/test_frozen_history.py",
         "tests/test_nfr021_append_only.py",
+        "tests/test_ordinary_boundary_registrations.py",
+        "tests/test_pr191_tenant_source_registration.py",
+        "tests/test_pr192_tenant_source_registration.py",
+        "tests/test_pr196_tenant_source_registration.py",
+        "tests/test_pr197_tenant_source_registration.py",
+        "tests/test_product_authz_tenant_boundary_allowlist.py",
+        "tests/test_stage_a_startup_tenant_boundary.py",
         "tests/test_verify_nfr021_evidence.py"
       ],
-      "reason": "scripts/core_guard.py の直接参照1件はTSK-236自身が宣言へ contracts/state-transition/* と書いたことによる自己参照。残り10件は逆依存閉包で文字列中に他ファイルのパスが現れる辺から巻き込まれた。いずれも状況判定契約の消費者ではない",
+      "reason": "scripts/core_guard.py の直接参照1件はTSK-236自身が宣言へ contracts/state-transition/* と書いたことによる自己参照。残り23件は逆依存閉包で文字列中に他ファイルのパスが現れる辺から巻き込まれた。いずれも状況判定契約の消費者ではない",
       "deferred_to": "TSK-540 送り（unresolved-report.md の S34・design.md 8-6）"
     },
     "claim": "静的に導出したPythonファイルからdeclared_exclusions.pathsを除いた全件がrequired_area_idsのpathsに登録されていなければfailする。除外は導出結果との差分の完全一致で固定する。検査はpathsを自動更新せず、not_detectedの経路を検出するとは主張しない"
@@ -99,7 +112,13 @@
     ".python-version",
     "conftest.py",
     "tests/conftest.py",
-    "docs/features/mvp-delegated-core-review/policy.json"
+    "docs/features/mvp-delegated-core-review/policy.json",
+    "tests/test_first_ball_startup_boundary_registrations.py",
+    "tests/test_ordinary_boundary_registrations.py",
+    "tests/test_pr191_tenant_source_registration.py",
+    "tests/test_pr192_tenant_source_registration.py",
+    "tests/test_product_authz_tenant_boundary_allowlist.py",
+    "tests/test_stage_a_startup_tenant_boundary.py"
   ],
   "areas": [
     {
@@ -790,7 +809,9 @@
         "backend/tests/test_stats_primitive_write_state.py",
         "tests/test_stats_native_dependency_columns.py",
         "backend/tests/stage_a_0039_profile.py",
-        "backend/tests/test_stage_a_0039_profile.py"
+        "backend/tests/test_stage_a_0039_profile.py",
+        "tests/fixtures/pr197_tenant_source_expected_v1.json",
+        "tests/test_pr197_tenant_source_registration.py"
       ]
     },
     {

@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "pins": {
+    "catalog_before_revision": "40a01434dc19bfe9dcfc51e9a66064e48eb7b4a9",
+    "catalog_after_revision": "fae7fd6ee8f3254604132bb20a714c133c5e42d3",
+    "ratio_ast_sha256": "dd71adba42a73be3b081d96ec41cd9d6fcb4aeaa8d36ce9aabe58e593b08eb03",
+    "rate_ast_sha256": "0398dd9e9b9557c6a6cce89542e0157a3d8fe08615b43f4e3603702094550fa2"
+  }
+}

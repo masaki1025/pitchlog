@@ -1472,7 +1472,7 @@ def test_repository_catalog_covers_the_entire_requirements_file() -> None:
     )
 
     assert result.returncode == 0, result.stderr
-    assert "total=1429 auth_claim=187 out_of_scope=1242" in result.stdout
+    assert "total=1434 auth_claim=187 out_of_scope=1247" in result.stdout
     assert {
         path: (REPOSITORY_ROOT / path).read_bytes() for path in derived_locks_before
     } == derived_locks_before
@@ -1949,7 +1949,7 @@ def test_all_auth_claim_layers_changed_to_every_other_layer_are_red() -> None:
 
 
 def test_all_out_of_scope_rows_moved_to_auth_claim_are_red() -> None:
-    """878行すべての AUTH への逆方向変異を守る。"""
+    """1247行すべての AUTH への逆方向変異を守る。"""
     catalog, lock = _repository_catalog_and_lock()
     out_claims = [
         claim for claim in catalog["claims"] if claim["classification"] == "out_of_scope"
@@ -1989,8 +1989,8 @@ def test_all_out_of_scope_rows_moved_to_auth_claim_are_red() -> None:
         claim.update(original)
         attempts += 1
 
-    assert len(out_claims) == 1242
-    assert attempts == 1242
+    assert len(out_claims) == 1247
+    assert attempts == 1247
     assert escaped == []
 
 

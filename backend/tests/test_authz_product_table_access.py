@@ -787,6 +787,85 @@ _EXPECTED_BATTED_POLICY_SQL = {
 }
 
 
+def _assert_stats_primitive_policies(
+    asset: dict[str, Any], actual_sql: dict[tuple[str, str], str]
+) -> set[str]:
+    """採用済み成績3表と参照3表の10policyを本文まで固定する。"""
+    tenant = (
+        "tenant_id = NULLIF(pg_catalog.current_setting('app.tenant_id',true),'')::uuid "
+        "AND session_user = 'pitchlog_app'"
+    )
+    current_open = tenant + " AND completion_state='current_open'"
+
+    def source_open(table: str) -> str:
+        return (
+            tenant + " AND EXISTS(SELECT 1 FROM sync_fence.stats_fact_versions v "
+            f"WHERE v.tenant_id={table}.tenant_id AND v.game_id={table}.game_id "
+            f"AND v.id={table}.fact_version_id AND v.is_current "
+            "AND v.invalidated_at IS NULL AND v.completion_state='current_open')"
+        )
+
+    rows = [
+        ("stats_fact_versions", "SELECT", tenant, None),
+        ("stats_fact_versions", "INSERT", None, current_open),
+        ("stats_fact_versions", "UPDATE", current_open, current_open),
+        ("stats_primitive_sources", "SELECT", tenant, None),
+        (
+            "stats_primitive_sources",
+            "INSERT",
+            None,
+            source_open("stats_primitive_sources"),
+        ),
+        ("stats_primitive_facts", "SELECT", tenant, None),
+        ("stats_primitive_facts", "INSERT", None, source_open("stats_primitive_facts")),
+        *(
+            (
+                table,
+                "SELECT",
+                tenant + " AND current_user = 'pitchlog_sync_right_fn_owner'",
+                None,
+            )
+            for table in ("players", "games", "event_slots")
+        ),
+    ]
+    ids: set[str] = set()
+    for table, command, using, check in rows:
+        name = f"stats_primitives_{command.lower()}"
+        policy_id = f"POLICY:{table}:{name}"
+        ids.add(policy_id)
+        expected = {
+            "policy_id": policy_id,
+            "table_id": table,
+            "profile": "function_only",
+            "policy_name": name,
+            "command": command,
+            "policy_mode": "permissive",
+            "role_ids": ["pitchlog_sync_right_fn_owner"],
+            "using_predicate_id": None,
+            "using_column": None,
+            "using_expression": using,
+            "with_check_predicate_id": None,
+            "with_check_column": None,
+            "with_check_expression": check,
+        }
+        assert [row for row in asset["policies"] if row["policy_id"] == policy_id] == [
+            expected
+        ]
+        schema = "sync_fence" if table.startswith("stats_") else "public"
+        sql = (
+            f"-- ELEMENT-TYPE: policy\n-- ELEMENT-ID: {policy_id}\n\n"
+            f"CREATE POLICY {name} ON {schema}.{table} AS PERMISSIVE "
+            f"FOR {command} TO pitchlog_sync_right_fn_owner"
+        )
+        if using is not None:
+            sql += f" USING ({using})"
+        if check is not None:
+            sql += f" WITH CHECK ({check})"
+        assert actual_sql[("policy", policy_id)] == sql + ";\n"
+    assert len(ids) == 10
+    return ids
+
+
 def test_product_policies_and_table_acls_match_all_five_profiles() -> None:
     """全5プロファイルのポリシー・ACL・展開SQLが設計へ一致する。"""
     asset = _product_asset()
@@ -1005,6 +1084,7 @@ def test_product_policies_and_table_acls_match_all_five_profiles() -> None:
         if key[0] == "policy" and key[1] in batted_ids
     } == {("policy", key): value for key, value in _EXPECTED_BATTED_POLICY_SQL.items()}
     owner_policy_ids |= batted_ids
+    owner_policy_ids |= _assert_stats_primitive_policies(asset, actual_sql)
     assert {
         element_id
         for element_type, element_id in actual_sql

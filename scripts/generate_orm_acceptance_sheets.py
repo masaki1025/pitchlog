@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import ast
 import json
 import re
 import subprocess
@@ -335,6 +336,76 @@ def _model_sources(repo_root: Path) -> dict[str, str]:
             match = _MODEL_TABLE_RE.match(line)
             if match:
                 sources[match.group("table")] = relative_path
+    # 成績3表はSQLAlchemyの __table__ 宣言でありmodels.pyの正規表現に現れない。
+    stats_path = source_root / "game_state" / "stats.py"
+    if stats_path.is_file():
+        tree = ast.parse(stats_path.read_text(encoding="utf-8"))
+        declarations = [
+            node
+            for node in tree.body
+            if isinstance(node, ast.Assign)
+            and len(node.targets) == 1
+            and isinstance(node.targets[0], ast.Name)
+            and node.targets[0].id == "_SCHEMA"
+        ]
+        if (
+            len(declarations) != 1
+            or not isinstance(declarations[0].value, ast.Constant)
+            or declarations[0].value.value != "sync_fence"
+        ):
+            raise ValueError("成績Table宣言のschemaが単一固定sync_fenceではない")
+        declaration_target = declarations[0].targets[0]
+        for binding in ast.walk(tree):
+            if isinstance(binding, ast.Match):
+                raise ValueError("成績モデル参照の構造パターンは未対応です")
+            if (
+                isinstance(binding, ast.Name)
+                and binding.id == "_SCHEMA"
+                and isinstance(binding.ctx, (ast.Store, ast.Del))
+                and binding is not declaration_target
+            ) or (
+                isinstance(binding, ast.alias)
+                and (binding.asname or binding.name) == "_SCHEMA"
+            ) or (
+                isinstance(binding, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))
+                and binding.name == "_SCHEMA"
+            ) or (
+                isinstance(binding, ast.arg) and binding.arg == "_SCHEMA"
+            ) or (
+                isinstance(binding, ast.ExceptHandler) and binding.name == "_SCHEMA"
+            ):
+                raise ValueError("成績schemaの再束縛は許可しません")
+        for node in tree.body:
+            if not isinstance(node, ast.ClassDef):
+                continue
+            for statement in node.body:
+                if not isinstance(statement, ast.Assign):
+                    continue
+                if not any(
+                    isinstance(t, ast.Name) and t.id == "__table__"
+                    for t in statement.targets
+                ):
+                    continue
+                value = statement.value
+                if (
+                    isinstance(value, ast.Call)
+                    and isinstance(value.func, ast.Name)
+                    and value.func.id == "Table"
+                    and value.args
+                    and isinstance(value.args[0], ast.Constant)
+                    and type(value.args[0].value) is str
+                ):
+                    if not any(
+                        item.arg == "schema"
+                        and isinstance(item.value, ast.Name)
+                        and item.value.id == "_SCHEMA"
+                        for item in value.keywords
+                    ):
+                        raise ValueError("成績Table宣言のschema参照が不正")
+                    table_name = value.args[0].value
+                    if table_name in sources:
+                        raise ValueError(f"ORM表名の定義が重複: {table_name}")
+                    sources[table_name] = stats_path.relative_to(repo_root).as_posix()
     return sources
 
 
@@ -360,11 +431,16 @@ def _implementation_references(
     for table in candidates:
         table_name = cast(str, table["name"])
         model_source = model_sources.get(table_name, "models.py 未検出")
+        schema = (
+            "sync_fence"
+            if model_source == "backend/src/pitchlog/db/game_state/stats.py"
+            else "public"
+        )
         rendered.append(
             f"manifest={table_name}(列契約ブロック); "
             f"models={model_source}::{table_name}; "
             f"実カタログ={SCHEMA_AUDIT_REFERENCE} が manifest 全列と照合済み"
-            f"(public.{table_name})"
+            f"({schema}.{table_name})"
         )
     return " / ".join(rendered)
 
@@ -1027,12 +1103,19 @@ def carry_forward_sheet(
         pending.setdefault(_row_match_key(previous_row), deque()).append(
             previous_row
         )
+    generated_counts = Counter(_row_match_key(row) for row in parse_sheet_rows(generated))
+    ambiguous_keys = {
+        key
+        for key, rows in pending.items()
+        if len(rows) != generated_counts[key]
+        and max(len(rows), generated_counts[key]) > 1
+    }
     carried_rows: list[SheetRow] = []
     counts: Counter[str] = Counter()
     for row in parse_sheet_rows(generated):
         candidates = pending.get(_row_match_key(row))
         previous_row = candidates.popleft() if candidates else None
-        key_changed = previous_row is None
+        key_changed = previous_row is None or _row_match_key(row) in ambiguous_keys
         was_difference = (
             previous_row is not None and previous_row.judgment == "差分"
         )
