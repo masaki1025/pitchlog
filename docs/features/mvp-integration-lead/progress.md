@@ -1,5 +1,13 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 2026-11-06 19:49 JST：取消の真正受理・終了GETと同版接合
+
+- **取消の新到達点**: NP9afeb341のr38は実画面2球の後にundo D1=3、operation_eventsにplay_input×2+undo×1、accepted台帳3件を確認。初回取消と成績版の同TX更新まで通過した。外側E2EはACKヘッダー喪失後の認証再確認へ遷移し失敗、再取得/reload/再送全列は未成立。既Cookie不確実性の認証保護を維持して実再login→元試合復帰を試験へ加え、e48937c2でr39を開始。故障を本文喪失へ弱めていない。
+- **原因と修復**: canonical_undosが旧v3物理digestをNP論理ref.digestと照合し、取消直後のhidden対象を真正取消と認定できなかった。既prepare全行照合を保ち物理storage.row.content_digestへ比較先を一致。生成器1・native SQL3/manifest・公式6bodyを一括再生成。関連65と型成功。実PG故障対向と固定候補の最終独立確認は残る。
+- **一つの接合候補**: LC ef992a5ad986a3fe29cdac809e8c9dd8ac6a92f6にNP9afeb、走者操作2bdf、終了再開UIを通常merge。走者正式overlay25pathの全before/after SHAを照合し保存。非作者game_operations_final_independentが固定版の閉条件/原典/数学217例/旧host互換を確認中。追加FE回帰は55成功・8失敗（旧固定NP fixtureのexecutionArtifact不一致）、製品旧保存互換との切分け中。未解消の赤を無視せず、最終artifact合成後に追随する。
+- **終了再開の候補**: cache owned v3でend 200/受理→finished GET200→同D5 replayまで成立。reopenはSQL aliasとROWTYPE変数hの衝突で拒否、作者が限定改名中。正式actualへ未採用。交代はkernel/唯一artifact/実GET adapterまで候補、同TX保存は未接続。
+- **次**: r39の認証再確認・同要求再送・2取消・次球を閉じる。LC再開/追加球の候補を受領し同じartifact/正式資産へ接合する。20:37の評価では実証範囲と未完を明記し、MVP完成とはしない。
+
 ## 2026-11-06 19:39 JST：2時間試行の中間実証
 
 - **新たな実画面操作（候補環境）**: game-operations `2bdf48ec`＋cache正式資産overlayで、新規作成・開始後の一塁走者の単打→三塁、二塁打→生還、走者一二塁から本塁打3点が保存・再取得まで成功。owned PostgreSQL/実認証・記録権/実HTTPS Chromium、pytest wrapper 1成功162.38秒。再送・reload・他tenant404を含む。証拠 `~/.cache/pitchlog/game-operations-product-author-20261106/e2e-final/`、pytest SHA先頭2e8c9248/Playwright6acb46bb。overlayは未正式採用で、branch単体やdevelop成功ではない。
