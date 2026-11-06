@@ -327,7 +327,7 @@ def test_new_game_substitution_saved_get_next_pitch_reload(vertical_database):
     assert "game" in result, result
     with psycopg.connect(db.authority.database.business_admin) as admin:
         rows = admin.execute(
-            "SELECT event_id FROM sync_fence.substitution_write_receipts "
+            "SELECT source_event_id FROM sync_fence.substitution_write_receipts "
             "WHERE tenant_id=%s AND game_id=%s",
             (db.tenant_id, UUID(result["game"])),
         ).fetchall()
