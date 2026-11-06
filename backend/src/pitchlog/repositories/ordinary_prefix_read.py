@@ -1035,6 +1035,44 @@ def _read_lineup_projection(
     roster = InitialRosterProjection.model_validate_json(_canonical_json(row["roster"]))
     if lineup_from_actual_roster(roster) != doc.lineup:
         raise OrdinaryPrefixError
+    from pitchlog.repositories.past_correction_right import _ReadP3CurrentToken
+
+    p3_packet = _function_one(handle, _ReadP3CurrentToken(game_id, generation))
+    if p3_packet is None or p3_packet.get("kind") not in {"none", "p3-current"}:
+        raise OrdinaryPrefixError
+    if p3_packet["kind"] == "p3-current":
+        from pitchlog.repositories.past_correction_current import (
+            PastCorrectionCurrentUnavailable,
+            verify_p3_current_packet,
+        )
+        from pitchlog.repositories.play_prefix import _verify_source_evidence
+
+        _verify_source_evidence(row, bridge=False)
+        if row["source_evidence"]["non_play_count"] != 0:
+            raise OrdinaryPrefixError
+        try:
+            verified = verify_p3_current_packet(
+                p3_packet, tenant=tenant, game=game_id, generation=generation
+            )
+        except PastCorrectionCurrentUnavailable:
+            raise OrdinaryPrefixError from None
+        if verified.checkpoint != doc:
+            raise OrdinaryPrefixError
+        saved = _rows(handle.run(StartedLineupsReadToken(game_id)), LINEUP_COLUMNS)
+        if len(saved) != 2 or any(
+            item["tenant_id"] != tenant or item["game_id"] != game_id
+            for item in saved
+        ):
+            raise OrdinaryPrefixError
+        lineups = tuple(_saved_lineup(item) for item in saved)
+        sides = tuple(
+            next(item for item in lineups if item.team_id == game[key])
+            for key in ("away_team_record_id", "home_team_record_id")
+        )
+        metadata = _prefix_metadata(game, game_id, d4, sides, roster)
+        return _read_p3_lineup_projection(
+            verified, metadata, projection, row, limit=limit, cursor=cursor
+        )
     last_payload, _ = _read_native_lineup_head(handle, game_id, tenant, row, doc)
     _evaluate_lineup_payload(
         last_payload.model_dump(mode="json", by_alias=True, exclude_unset=True)
@@ -1171,6 +1209,79 @@ def _read_lineup_projection(
         storage_anchor=doc.storage_anchor,
         last_saved_at=row["saved_at"],
         page={"items": items, "next_cursor": next_cursor},
+    )
+    return OrdinaryPrefixView(metadata, projection)
+
+
+def _read_p3_lineup_projection(verified, metadata, projection, row, *, limit, cursor):
+    """全値検証済みP3有効版から同じv3 page形を有限に切り出す。"""
+    doc = verified.checkpoint
+    scope = {
+        "version": "p3-current-v1",
+        "tenant": doc.prefix_ref.tenant_id,
+        "game": doc.prefix_ref.game_id,
+        "capsule_id": str(verified.capsule_id),
+        "head": doc.prefix_ref.model_dump(mode="json", by_alias=True),
+        "watermark": doc.confirmed_watermark,
+        "recovery_generation": doc.recovery_generation,
+    }
+    after = 0
+    if cursor is not None:
+        supplied = _cursor(cursor)
+        if (
+            type(supplied) is not dict
+            or set(supplied) != {*scope, "after_d1"}
+            or any(
+                _canonical_json(supplied[key]) != _canonical_json(value)
+                for key, value in scope.items()
+            )
+            or type(supplied["after_d1"]) is not int
+            or not 0 < supplied["after_d1"] < len(verified.items)
+        ):
+            raise OrdinaryPrefixError
+        after = supplied["after_d1"]
+    selected = verified.items[after : after + limit]
+    selected_payloads = verified.payloads[after : after + limit]
+    page_items = [
+        {
+            "play_row": _public_play(item["play_row"], payload.observations.course),
+            "history_entry": item["history_entry"],
+            "play_runners": item["play_runners"],
+        }
+        for item, payload in zip(selected, selected_payloads, strict=True)
+    ]
+    next_d1 = after + len(page_items)
+    next_cursor = None
+    if next_d1 < len(verified.items):
+        next_cursor = (
+            base64.urlsafe_b64encode(
+                _canonical_json({**scope, "after_d1": next_d1}).encode()
+            )
+            .decode()
+            .rstrip("=")
+        )
+    last_value = verified.payloads[-1].calculation.response.value
+    projection.update(
+        after=doc.after,
+        prefix_ref=doc.prefix_ref,
+        rules=doc.rules,
+        t2=doc.t2,
+        last_entry=last_value.new_history_entry,
+        last_source=last_value.play_identity,
+        prior_artifact_sha256=doc.artifact_sha256,
+        pa_start_source=doc.pa_start_source,
+        lineup=doc.lineup,
+        roster_digest=doc.roster_digest,
+        runners=doc.runners,
+        participants=doc.participants,
+        checkpoint_anchor={
+            "id": doc.id,
+            "revision": doc.revision,
+            "history_version": doc.history_version,
+        },
+        storage_anchor=doc.storage_anchor,
+        last_saved_at=row["saved_at"],
+        page={"items": page_items, "next_cursor": next_cursor},
     )
     return OrdinaryPrefixView(metadata, projection)
 

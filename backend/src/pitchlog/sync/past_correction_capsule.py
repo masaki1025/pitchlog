@@ -27,6 +27,7 @@ class P3CurrentCapsule:
     previous_checkpoint_id: UUID
     previous_checkpoint_revision: int
     previous_checkpoint_digest: str
+    previous_checkpoint: LineupPrefixDocument
     next_checkpoint: LineupPrefixDocument
     items: tuple[dict[str, object], ...]
     source_set_digest: str
@@ -179,6 +180,7 @@ def build_p3_current_capsule(
         UUID(prepared.original_checkpoint.id),
         int(prepared.original_checkpoint.revision),
         prepared.original_checkpoint.content_digest,
+        prepared.original_checkpoint,
         checkpoint,
         tuple(items),
         source_set_digest,

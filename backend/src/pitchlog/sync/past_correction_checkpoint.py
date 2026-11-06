@@ -36,8 +36,7 @@ def build_corrected_lineup_checkpoint(
     last_physical = prepared.physical[-1]
     next_ref = final.next_prefix_ref
     if (
-        next_ref.checkpoint.id == old.id
-        or next_ref.tenant_id != old.prefix_ref.tenant_id
+        next_ref.tenant_id != old.prefix_ref.tenant_id
         or next_ref.game_id != old.prefix_ref.game_id
         or next_ref.generation != old.prefix_ref.generation
         or next_ref.length != old.prefix_ref.length
@@ -48,12 +47,9 @@ def build_corrected_lineup_checkpoint(
         raise PastCorrectionCheckpointError("P3新headの位置が不一致")
     value = old.model_dump(mode="json", by_alias=True, exclude_unset=True)
     value.update(
-        id=next_ref.checkpoint.id,
+        id=old.id,
         revision=next_ref.checkpoint.revision,
-        storage_anchor={
-            "id": next_ref.checkpoint.id,
-            "history_epoch": old.history_version,
-        },
+        storage_anchor=old.storage_anchor.model_dump(mode="json", by_alias=True),
         prefix_ref=next_ref.model_dump(mode="json", by_alias=True),
         after=final.t1.after.model_dump(mode="json", by_alias=True),
         t2=final.t2.model_dump(mode="json", by_alias=True),

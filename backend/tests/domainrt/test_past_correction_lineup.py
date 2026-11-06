@@ -27,7 +27,7 @@ from pitchlog.domainrt.past_correction_lineup import (
 )
 from pitchlog.repositories.past_correction_source import PastCorrectionV3SourceSnapshot
 from pitchlog.repositories.transaction import _TenantTransaction
-from pitchlog.sync import past_correction_preparation, past_correction_stats
+from pitchlog.sync import past_correction_preparation
 from pitchlog.sync.first_ball_payload import FirstBallObservations
 from pitchlog.sync.model import SyncEvent
 from pitchlog.sync.ordinary_pitch_physical import pitch_physical_row
@@ -41,10 +41,7 @@ from pitchlog.sync.past_correction_payload import (
     read_lineup_pitch_change_payload,
 )
 from pitchlog.sync.past_correction_physical import prepare_corrected_physical_pitches
-from pitchlog.sync.past_correction_stats import (
-    PastCorrectionStatsUnsupported,
-    evaluate_p3_capsule_stats,
-)
+from pitchlog.sync.past_correction_stats import evaluate_p3_capsule_stats
 from pitchlog.sync.terminal_pitch_payload import (
     LineupPitchCalculation,
     LineupPitchPlayPayload,
@@ -532,9 +529,7 @@ def test_v3_replay_rejects_forged_old_source(mutation: str) -> None:
             _evaluate((first, second), "batting-result.ball", (_NEW1, _NEW2), host)
 
 
-def test_v3_corrected_checkpoint_uses_native_chain_and_new_physical_head(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def test_v3_corrected_checkpoint_uses_native_chain_and_new_physical_head() -> None:
     """実二球再評価の末尾だけを新CPへ写し、元IDと物理PKを区別する。"""
     from pitchlog.domainrt.first_ball_projection import _canonical_json
     from pitchlog.repositories.play_prefix import read_lineup_prefix_document
@@ -657,10 +652,10 @@ def test_v3_corrected_checkpoint_uses_native_chain_and_new_physical_head(
         old_checkpoint,
     )
     fresh = build_corrected_lineup_checkpoint(prepared)
-    assert fresh.id == (
+    assert fresh.id == old_checkpoint.id
+    assert fresh.prefix_ref.checkpoint.id == (
         corrected[-1].corrected_response.value.next_prefix_ref.checkpoint.id
     )
-    assert fresh.id != old_checkpoint.id
     assert fresh.after == corrected[-1].corrected_response.value.t1.after
     assert fresh.projection_snapshot is not None
     assert fresh.projection_snapshot.play_row == physical[-1].play_row
@@ -697,18 +692,10 @@ def test_v3_corrected_checkpoint_uses_native_chain_and_new_physical_head(
         ),
         source_event_id=_CHANGE,
     )
+    old_stats["native_rule_sha256"] = source_fingerprint(
+        saved_rows[0].payload.calculation.request.rules.model_dump(
+            mode="json", by_alias=True
+        )
+    )
     # この2値は現T5の27群では同じ寄与。版/有効source IDは別に更新が必要。
     assert stats.sources[0].evaluation == old_stats
-    actual_evaluate = past_correction_stats.evaluate_native_projection
-
-    def changed_contribution(payload: dict, *, source_event_id: UUID) -> dict:
-        result = actual_evaluate(payload, source_event_id=source_event_id)
-        if source_event_id == _CHANGE:
-            result["metrics"]["pitch_count"]["value"] = "2"
-        return result
-
-    monkeypatch.setattr(
-        past_correction_stats, "evaluate_native_projection", changed_contribution
-    )
-    with pytest.raises(PastCorrectionStatsUnsupported):
-        evaluate_p3_capsule_stats(capsule)

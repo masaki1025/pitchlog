@@ -887,7 +887,37 @@ def read_confirmed_lineup_prefix(handle, event, source, *, proposal, artifact_sh
     roster = InitialRosterProjection.model_validate_json(_canonical_json(row["roster"]))
     if source_fingerprint(row["roster"]) != doc.roster_source_digest:
         raise OrdinaryPrefixError
-    payload, play_number = _read_native_lineup_head(handle, game, tenant, row, doc)
+    from pitchlog.repositories.past_correction_right import _ReadP3CurrentToken
+
+    p3_packet = _function_one(handle, _ReadP3CurrentToken(game, generation))
+    if p3_packet is None or p3_packet.get("kind") not in {"none", "p3-current"}:
+        raise OrdinaryPrefixError
+    if p3_packet["kind"] == "p3-current":
+        from pitchlog.repositories.past_correction_current import (
+            PastCorrectionCurrentUnavailable,
+            verify_p3_current_packet,
+        )
+
+        _verify_source_evidence(row, bridge=False)
+        if row["source_evidence"]["non_play_count"] != 0:
+            raise OrdinaryPrefixError
+        try:
+            verified = verify_p3_current_packet(
+                p3_packet, tenant=tenant, game=game, generation=generation
+            )
+        except PastCorrectionCurrentUnavailable:
+            raise OrdinaryPrefixError from None
+        if verified.checkpoint != doc:
+            raise OrdinaryPrefixError
+        payload = verified.payloads[-1]
+        last_play = verified.items[-1]["play_row"]
+        if type(last_play) is not dict:
+            raise OrdinaryPrefixError
+        play_number = last_play.get("play_number")
+        if type(play_number) is not int or play_number < 1:
+            raise OrdinaryPrefixError
+    else:
+        payload, play_number = _read_native_lineup_head(handle, game, tenant, row, doc)
     actual_source = _source_from_lineup_document(
         doc, position, artifact_sha256, payload.calculation.request.play_identity
     )

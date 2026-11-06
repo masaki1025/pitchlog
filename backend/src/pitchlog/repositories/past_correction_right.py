@@ -67,6 +67,19 @@ class _PersistP3ProjectionToken(TenantOperationToken):
         return "CAP:sync_p3:persist_p3_projection"
 
 
+@dataclass(frozen=True, slots=True)
+class _ReadP3CurrentToken(TenantOperationToken):
+    """同tenantの有効capsuleと元/有効物理原本だけを読む。"""
+
+    game_id: UUID
+    generation: int
+
+    @property
+    def capability_id(self) -> str:
+        """P3現版読取の固定能力。"""
+        return "CAP:sync_p3:read_p3_current"
+
+
 def _identity(result: TenantOperationResult) -> TenantOperationResult:
     """共通decoderのexact結果を変形しない。"""
     return result
@@ -100,3 +113,4 @@ P3_RIGHT_CHECK_OPERATION = _registration("check_p3_right", _CheckP3RightToken)
 P3_PROJECTION_OPERATION = _registration(
     "persist_p3_projection", _PersistP3ProjectionToken
 )
+P3_CURRENT_READ_OPERATION = _registration("read_p3_current", _ReadP3CurrentToken)

@@ -112,6 +112,8 @@ def prepare_corrected_physical_pitches(
             tenant_id=tenant_id,
             play_id=new_play_row_id,
         )
+        if target and runners:
+            raise LineupCorrectionUnsupported("P3走者物理投影の保存は未接続")
         if not target and (
             saved.play_runners is None
             or physical != saved.play_row

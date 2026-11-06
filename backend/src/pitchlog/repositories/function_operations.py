@@ -281,6 +281,12 @@ _SYNC_P3_FUNCTION_TYPES = MappingProxyType(
             (),
             (),
         ),
+        "sync_right_api.read_p3_current": (
+            (("game_id", UUID), ("generation", int)),
+            (("record_json", str),),
+            (),
+            (),
+        ),
     }
 )
 
@@ -841,7 +847,11 @@ class FunctionOperationRegistration:
                     and type(argument.type) is BigInteger
                 )
                 and not (
-                    (ordinary_prefix is not None or play_prefix is not None)
+                    (
+                        ordinary_prefix is not None
+                        or play_prefix is not None
+                        or self.function_id == "sync_right_api.read_p3_current"
+                    )
                     and argument.key
                     in (
                         "generation",
@@ -907,6 +917,7 @@ def _build_fixed_function_statement(
                             in _SYNC_ORDINARY_PREFIX_FUNCTION_TYPES
                             or f"{schema}.{function_name}"
                             in _SYNC_PLAY_PREFIX_FUNCTION_TYPES
+                            or function_name == "read_p3_current"
                         )
                         and name
                         in (

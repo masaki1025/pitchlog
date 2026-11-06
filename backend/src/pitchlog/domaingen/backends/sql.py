@@ -166,6 +166,54 @@ def generate_typed_queries(
     def canonical_selection(game_scope):
         """実slot/原本/D5台帳から独立したSと未解決行を一度だけ生成する。"""
         undo_cte, undo_join, undo_excluded, undo_hidden = undo_selection()
+        p3 = selector_profile.get("p3") if selector_profile is not None else None
+        p3_join = ""
+        p3_missing = ""
+        p3_event = (
+            "CASE WHEN slot.confirmed_version=1 THEN e.id ELSE change.id END"
+        )
+        p3_variant = "current_event.payload->>'formatVersion'"
+        p3_artifact = "current_event.payload#>>'{calculation,artifactSha256}'"
+        if p3 is not None:
+            p3_join = f""" LEFT JOIN {p3['heads']} p3h
+   ON (p3h.tenant_id,p3h.game_id,p3h.internal_generation)
+   =(slot.tenant_id,slot.game_id,slot.generation)
+ LEFT JOIN {p3['capsules']} p3c
+   ON (p3c.tenant_id,p3c.game_id,p3c.internal_generation,p3c.id)
+   =(p3h.tenant_id,p3h.game_id,p3h.internal_generation,p3h.capsule_id)
+ LEFT JOIN {p3['items']} p3i
+   ON (p3i.tenant_id,p3i.game_id,p3i.internal_generation,p3i.capsule_id,p3i.d1)
+   =(p3h.tenant_id,p3h.game_id,p3h.internal_generation,p3h.capsule_id,slot.d1)
+"""  # noqa: E501 — 生成SQLの固定literal
+            p3_event = (
+                "CASE WHEN p3h.capsule_id IS NOT NULL AND slot.d1<=p3c.watermark "
+                "THEN p3i.effective_event_id "
+                "ELSE CASE WHEN slot.confirmed_version=1 THEN e.id "
+                "ELSE change.id END END"
+            )
+            p3_variant = (
+                "CASE WHEN p3h.capsule_id IS NOT NULL AND slot.d1<=p3c.watermark THEN "
+                "p3i.payload->>'formatVersion' "
+                "ELSE current_event.payload->>'formatVersion' END"
+            )
+            p3_artifact = (
+                "CASE WHEN p3h.capsule_id IS NOT NULL AND slot.d1<=p3c.watermark THEN "
+                "p3i.payload#>>'{calculation,artifactSha256}' "
+                "ELSE current_event.payload#>>'{calculation,artifactSha256}' END"
+            )
+            p3_missing = """     WHEN p3h.capsule_id IS NOT NULL AND (
+       p3c.id IS NULL OR p3c.source_set_digest IS DISTINCT FROM p3h.source_set_digest
+       OR p3c.stats_version_id IS DISTINCT FROM p3h.stats_version_id
+       OR (slot.d1<=p3c.watermark AND (
+       p3i.d1 IS NULL OR p3i.original_event_id IS DISTINCT FROM e.id
+       OR p3i.effective_event_id IS DISTINCT FROM
+         (CASE WHEN slot.confirmed_version=1 THEN e.id ELSE change.id END)
+       OR p3i.effective_play_row_id IS DISTINCT FROM p.id
+       OR p3i.original_payload IS DISTINCT FROM e.payload
+       OR p3i.play_row IS DISTINCT FROM pg_catalog.to_jsonb(p)
+       OR p3i.payload->>'formatVersion' IS DISTINCT FROM 'play-prefix-play-v3'))
+     ) THEN 'source_unavailable'
+"""  # noqa: E501 — 生成SQLの固定literal
         hidden = undo_hidden or "p.hidden_at IS NOT NULL"
         undo_control = (
             "     WHEN e.event_kind='undo' AND NOT EXISTS (SELECT 1 FROM "
@@ -182,15 +230,15 @@ def generate_typed_queries(
 ), {undo_cte}canonical_raw AS (
  SELECT slot.tenant_id,slot.game_id,slot.generation AS recording_generation,
    slot.d1,e.d2,slot.confirmed_version AS slot_version,e.id AS base_event_id,
-   CASE WHEN slot.confirmed_version=1 THEN e.id ELSE change.id END AS source_event_id,
+   {p3_event} AS source_event_id,
    p.id AS play_row_id,p.version AS play_row_version,
    current_event.d5,ledger.source_fingerprint,
-   current_event.payload->>'formatVersion' AS native_variant,
-   current_event.payload#>>'{{calculation,artifactSha256}}' AS artifact_sha256,
+   {p3_variant} AS native_variant,
+   {p3_artifact} AS artifact_sha256,
    COUNT(*) OVER (PARTITION BY slot.tenant_id,slot.game_id,slot.generation,slot.d1) AS match_count,
    CASE WHEN gen.retired_at IS NOT NULL THEN 'excluded_retired'
      WHEN e.id IS NULL OR current_event.id IS NULL THEN 'source_unavailable'
-{undo_control}     WHEN e.event_kind<>'play_input' THEN 'excluded_control'
+{p3_missing}{undo_control}     WHEN e.event_kind<>'play_input' THEN 'excluded_control'
      WHEN e.is_tombstone OR current_event.is_tombstone THEN 'excluded_tombstone'
      WHEN current_event.event_kind='play_delete' THEN 'excluded_delete'
      WHEN slot.d1>gen.confirmed_watermark OR slot.d1>gen.applied_prefix THEN 'source_unavailable'
@@ -208,9 +256,9 @@ def generate_typed_queries(
    AND change.target_generation=slot.generation AND change.target_d1=slot.d1
    AND change.expected_version=slot.confirmed_version-1 AND slot.confirmed_version>1
    AND change.ledger_kind='accepted' AND change.replaced_at IS NULL AND change.retired_at IS NULL
- LEFT JOIN {binding["events"]} current_event ON current_event.tenant_id=slot.tenant_id
+{p3_join} LEFT JOIN {binding["events"]} current_event ON current_event.tenant_id=slot.tenant_id
    AND current_event.game_id=slot.game_id
-   AND current_event.id=CASE WHEN slot.confirmed_version=1 THEN e.id ELSE change.id END
+   AND current_event.id={p3_event}
  LEFT JOIN {binding["ledger"]} ledger ON ledger.tenant_id=current_event.tenant_id
    AND ledger.d5=current_event.d5
  LEFT JOIN {binding["plays"]} p ON p.tenant_id=current_event.tenant_id

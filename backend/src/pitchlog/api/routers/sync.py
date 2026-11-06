@@ -1,7 +1,4 @@
-"""初球P2の同期HTTP入口。
-
-P3は本入口の対象外で、ACK P3形も発行しない（後続のMVP完成条件）。
-"""
+"""同期HTTPのP1/P2と、独立したP3変更入口。"""
 
 from __future__ import annotations
 
@@ -27,8 +24,10 @@ from pitchlog.repositories.ordinary_pitch_operations import OrdinaryPlayRowError
 from pitchlog.repositories.ordinary_prefix import OrdinaryPrefixError
 from pitchlog.sync.apply import (
     _apply_e1_f1,
+    _apply_e1_p3,
     _E1OutOfScope,
     _replay_e1_without_binding,
+    _replay_p3_without_binding,
 )
 from pitchlog.sync.control_provider.binding_client import (
     BindingClientConfiguration,
@@ -39,6 +38,7 @@ from pitchlog.sync.control_provider.binding_control import BindingControl
 from pitchlog.sync.control_provider.evidence import (
     AttemptBinding,
     AuthorityBinding,
+    D1lessPhaseBinding,
     EventPhaseBinding,
 )
 from pitchlog.sync.control_provider.writer_binding import (
@@ -49,8 +49,15 @@ from pitchlog.sync.first_ball_ports import FirstBallContentValidationPort
 from pitchlog.sync.first_ball_projection import FirstBallProjectionPort
 from pitchlog.sync.first_ball_recording_rights import FirstBallRecordingRightsPort
 from pitchlog.sync.http_recording_key import _decode_recording_key
+from pitchlog.sync.idempotency import _json_value
 from pitchlog.sync.lifecycle_execution import LifecycleExecutionError
-from pitchlog.sync.model import AckResult, RequestShapeError, SyncRequest
+from pitchlog.sync.model import (
+    AcceptedChangeResult,
+    AckResult,
+    RejectedChangeResult,
+    RequestShapeError,
+    SyncRequest,
+)
 from pitchlog.sync.ordinary_pitch_execution import OrdinaryPitchExecutionError
 from pitchlog.sync.ordinary_pitch_ports import (
     LineupPrefixContentValidationPort,
@@ -60,6 +67,16 @@ from pitchlog.sync.ordinary_pitch_ports import (
     PlayPrefixContentValidationPort,
     PlayPrefixProjectionPort,
 )
+from pitchlog.sync.past_correction_execution import PastCorrectionExecutionError
+from pitchlog.sync.past_correction_preparation import (
+    PastCorrectionPreparationUnavailable,
+)
+from pitchlog.sync.past_correction_ports import (
+    PastCorrectionContentValidationPort,
+    PastCorrectionProjectionPort,
+)
+from pitchlog.sync.past_correction_projection import PastCorrectionProjectionError
+from pitchlog.sync.past_correction_rights import PastCorrectionRecordingRightsPort
 from pitchlog.sync.source_binding import (
     SourceBindingError,
     _e1_receipt_scope,
@@ -141,6 +158,145 @@ def _ack_body(result: AckResult) -> dict[str, object]:
     return RecordingAckResponse.model_validate(body).model_dump(
         by_alias=True, exclude_unset=True
     )
+
+
+def _p3_body(result: AcceptedChangeResult | RejectedChangeResult) -> dict[str, object]:
+    """保存済みI6と拒否を別形にし、例外や資格を応答へ写さない。"""
+    if type(result) is AcceptedChangeResult:
+        return {
+            "boundary": result.boundary,
+            "target_reference": _json_value(result.target_reference),
+            "expected_version": result.expected_version,
+            "d5": result.d5,
+            "confirmed_content": _json_value(result.confirmed_content),
+            "accepted_at": result.accepted_at,
+        }
+    if type(result) is RejectedChangeResult:
+        return {"boundary": result.boundary, "d5": result.d5, "reason": result.reason}
+    raise TypeError("P3結果型が不一致")
+
+
+@router.post("/games/{game_id}/sync/change", operation_id="sync_change")
+def sync_change(
+    game_id: UUID,
+    payload: dict[str, object],
+    request: Request,
+    context: Annotated[TenantContext, Depends(require_tenant_access)],
+    cookie: Annotated[str, Depends(require_presented_token)],
+    device_id: Annotated[UUID, Header(alias="X-Pitchlog-Device-Id")],
+    device_credential: Annotated[str, Header(alias="X-Pitchlog-Device-Credential")],
+    attempt: Annotated[UUID, Header(alias="X-Pitchlog-Sync-Attempt")],
+) -> JSONResponse:
+    """P3原文1件を先行再掲判定後、同writer/TXの実投影へ渡す。"""
+    configuration = _configuration(request)
+    try:
+        sync_request = SyncRequest.from_payload("P3", str(game_id), payload)
+        change = payload["change"]
+        if not isinstance(change, dict):
+            raise RequestShapeError("S-1: P3変更原文が不正")
+        target = sync_request.events[0].v10
+        if not isinstance(target, Mapping):
+            raise RequestShapeError("S-1: P3対象が不正")
+        target_d4 = target["d4"]
+        if type(target_d4) not in (int, str):
+            raise RequestShapeError("S-1: P3対象世代が不正")
+        source = freeze_wire_source(
+            game_id=str(game_id),
+            d4=str(target_d4),
+            raw_events=(dict(change),),
+            d1less=True,
+        )
+    except (RequestShapeError, WireSourceError, KeyError, TypeError, ValueError):
+        raise HTTPException(status_code=422) from None
+    try:
+        credential_digest = _credential_digest(device_credential)
+    except InitialGrantUnavailable:
+        raise HTTPException(status_code=401) from None
+    try:
+        replay = _replay_p3_without_binding(
+            context, sync_request, device_id, credential_digest
+        )
+    except DATABASE_ERRORS:
+        raise HTTPException(status_code=503) from None
+    if replay == "B11":
+        raise HTTPException(status_code=401)
+    if replay == "B12":
+        raise HTTPException(status_code=404)
+    if replay == "B10":
+        raise HTTPException(status_code=503)
+    if replay is not None:
+        return JSONResponse(_p3_body(replay))
+    entry_token = object()
+    try:
+        with _e1_receipt_scope(
+            context=context,
+            request=sync_request,
+            source=source,
+            entry_token=entry_token,
+        ) as receipt:
+            binding = e1_event_source(receipt, 1)
+            _issue_device_presentation(
+                receipt,
+                entry_token,
+                reference_device=device_id,
+                credential_digest=credential_digest,
+            )
+            event = sync_request.events[0]
+            target_generation = int(str(target_d4))
+            attempt_binding = AttemptBinding(
+                AuthorityBinding(
+                    configuration.control_instance,
+                    configuration.business_instance,
+                    configuration.restore_epoch,
+                ),
+                context.tenant_id,
+                device_id,
+                game_id,
+                str(target_d4),
+                target_generation,
+                attempt,
+                1,
+                source.request_fingerprint,
+                1,
+            )
+            phase = D1lessPhaseBinding(
+                attempt_binding,
+                _phase_id(attempt, source.request_fingerprint),
+                1,
+                UUID(event.d5),
+                selected_event_fingerprint(binding, event),
+            )
+            result = _apply_e1_p3(
+                receipt,
+                context,
+                sync_request,
+                entry_token=entry_token,
+                phase=phase,
+                cookie=cookie,
+                reference_device=device_id,
+                control=BindingControl(configuration.broker_endpoint),
+                rights=PastCorrectionRecordingRightsPort(),
+                projection=PastCorrectionProjectionPort(),
+                validator=PastCorrectionContentValidationPort(),
+            )
+    except (SourceBindingError, ValueError, TypeError):
+        raise HTTPException(status_code=422) from None
+    except (
+        LedgerUnavailable,
+        WriterBindingUnavailable,
+        PastCorrectionExecutionError,
+        PastCorrectionPreparationUnavailable,
+        PastCorrectionProjectionError,
+        *DATABASE_ERRORS,
+    ):
+        raise HTTPException(status_code=503) from None
+    if result == "B11":
+        raise HTTPException(status_code=401)
+    if result == "B12":
+        raise HTTPException(status_code=404)
+    if result == "B10":
+        raise HTTPException(status_code=503)
+    return JSONResponse(_p3_body(result))
 
 
 @router.post(

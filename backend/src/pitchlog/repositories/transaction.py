@@ -1806,7 +1806,7 @@ def _execute_port_command(handle, operation):
         except FirstBallProofError:
             return TenantOperationResult(((False,),))
         epoch = _verified_recovery_epoch(handle, phase)
-        result = handle.run(
+        result = handle.run_function(
             _CheckP3RightToken(
                 lease.attempt_id,
                 lease.phase_id,
@@ -1898,7 +1898,7 @@ def _execute_port_command(handle, operation):
                 lease.game_id,
                 operation.credential_digest,
             )
-            return handle.run(token)
+            return handle.run_function(token)
         from pitchlog.repositories.ordinary_pitch_qualification import (
             BindOrdinaryDeviceToken,
         )

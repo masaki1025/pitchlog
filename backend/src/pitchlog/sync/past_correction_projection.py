@@ -10,6 +10,7 @@ from pitchlog.repositories.tokens import TenantOperationResult
 from pitchlog.repositories.transaction import _TenantTransaction
 from pitchlog.sync.change_path import _target
 from pitchlog.sync.control_provider.evidence import D1lessPhaseBinding
+from pitchlog.sync.idempotency import operation_fingerprint
 from pitchlog.sync.model import SyncEvent
 from pitchlog.sync.past_correction_execution import (
     bind_p3_persistence,
@@ -57,6 +58,7 @@ def project_p3_correction(
             "tenant_id": str(handle._bound_tenant_id),
             "game_id": event.game_id,
             "d5": event.d5,
+            "ledger_fingerprint": operation_fingerprint(event, "P3", None),
             "expected_version": event.v11,
             "internal_generation": capsule.internal_generation,
             "target_d1": capsule.target_d1,
@@ -65,6 +67,9 @@ def project_p3_correction(
             "previous_checkpoint_id": str(capsule.previous_checkpoint_id),
             "previous_checkpoint_revision": capsule.previous_checkpoint_revision,
             "previous_checkpoint_digest": capsule.previous_checkpoint_digest,
+            "previous_checkpoint": capsule.previous_checkpoint.model_dump(
+                mode="json", by_alias=True, exclude_unset=True
+            ),
             "next_checkpoint": capsule.next_checkpoint.model_dump(
                 mode="json", by_alias=True, exclude_unset=True
             ),

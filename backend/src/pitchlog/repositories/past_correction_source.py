@@ -86,7 +86,6 @@ def read_past_correction_v3_source_snapshot(
             or watermark != len(items)
             or watermark > 25
             or target_d1 > watermark
-            or anchor["id"] != ref.checkpoint.id
             or anchor["revision"] != ref.checkpoint.revision
             or storage.id != anchor["id"]
         ):
