@@ -480,3 +480,6 @@ current CI2の独立受理（2026-11-06 JST、PO委任Codex /root判断）: 作�
 
 
 歴史検査のcore検出追随exact3（2026-11-06 JST、PO委任Codex /root判断）: helper/testはtenant-isolation、前置fixtureはdata-migrationへ閉追記し、既成績29pairを全順/領域/値保持した32pairとする。許可はscripts/core_guard.py・tests/test_core_guard.pyの先行定義2、実.claude/core-areas.jsonの後置1のみ。旧型/必須context/未知・部分・領域替え・順序・guard代用・同commit禁止を保持し検出範囲を減らさない。初案は真正旧29baselineを拒否するP1（非作者91165784…）で不採用、反映1で完全0/旧29/新32だけを正確射影し、32→29/全撤去・3追加のpartial全6パターンを拒否する単調性を保持。非作者REPORTa2197e7d1d62ef0631e19ee0e7521636eca12ecea86454accf08eba2909dcb28/checks8589c3fdf8b4c9fc83d19c97e0441cc827337ebb61a7b435f9ac98869cddb618で元counter不変oldfail→newpass/独立95成功3.49秒を限定受理する。旧29作者による全core再承認ではなく新3/compat差分の非作者確認であり、旧29の既1d1b1db3受理を保持する。source2をcommitしてからJSON32を別commitし、最終構成の全関連検査を実施する。本人署名/P6blind/正式7.7/CI全成立にはしない。
+
+
+認可oracle8とPR対象197の限定受理（2026-11-06 JST、PO委任によるCodex /root判断）: 独立report dc74cc794edad166bf6061100f82759739c3abccc37f17b64f37d5e364a28bde、67照合/拒否成功、P0/P1=0を根拠に、contracts/authzの6context commit参照を真正source8の固定7c2abc98へ更新し、公式sealを再生成する。frozen-baselinesは旧20履歴・placementを保持して197の1履歴だけ追記。policy.jsonは既全値保持で197/feature-mvp-stats-native-foundationのtarget1だけ追記する。scopeはcacheのfiles.jsonのexact8＋policy1。本人の逐行確認や署名は実施していない。human_review_required=trueは保持し、本MVP限定の委任確認証拠を別途最終HEADへ束縛する。現時点197はIssueでPR未作成、変換後の実PR/HEAD/正式値/CIの確認は別条件として残す。tenant7.7や全成績/取消の受入へ広げない。
