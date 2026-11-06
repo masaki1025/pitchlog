@@ -16,3 +16,7 @@ branch: feature/mvp-full-game-rehearsal
 3. 実行結果・固定HEAD・実時間・未達を台帳へ渡す。通常9回経路が成立しても、取消/過去訂正/交代/走塁/故障/成績27/両CSV/実機等は別のMVP必須条件として残す。性能/失敗を緩めない。最終非作者確認とCIの前に正式提供としない。
 
 編集範囲はfrontend/src/screensの新E2E/helper/config、backend/tests/dbの新ownedwrapper、本feature文書。製品コード/正式assets/他WTを変更しない。rootのみwriter。
+
+## 優先順位の追補（2026-11-06、PO回答に基づくCodex/root判断）
+
+PO回答「むずかしそうなら5秒以内は後回しでもいいよ」に従い、まず通常1試合の機能証拠を揃える。本新試験は全投球時間/5秒超件数を出力して機能判定と分離する。既LCの5秒assertは削除・緩和せず、性能未達として残す。性能達成/MVP全完成の判定には使わない。
