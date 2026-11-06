@@ -85,3 +85,41 @@ def test_unused_null_v12_retains_existing_closed_rejection(monkeypatch):
             UUID(int=15),
         )
     assert error.value.status_code == 422 and seen == ["D5"]
+
+
+@pytest.mark.parametrize("credential,device_ok", [("", True), ("wrong", False)])
+def test_replay_never_classifies_d5_without_real_b5(monkeypatch, credential, device_ok):
+    """無効credentialはD5へ進まずACKも返さない。"""
+    game = UUID(int=12)
+    payload: dict[str, object] = {
+        "events": [
+            {
+                "d5": str(UUID(int=8)),
+                "game_id": str(game),
+                "d1": 3,
+                "d4": "generation-A",
+                "event_kind": "undo",
+                "payload": {},
+            }
+        ],
+    }
+    seen: list[str] = []
+    monkeypatch.setattr(sync, "_configuration", lambda request: SimpleNamespace())
+    monkeypatch.setattr(
+        sync,
+        "_replay_e1_without_binding",
+        lambda *args: seen.append("B5") or (None if device_ok else "B5"),
+    )
+    with pytest.raises(HTTPException) as error:
+        sync.sync_events(
+            game,
+            payload,
+            cast(Request, object()),
+            make_tenant_context(UUID(int=13)),
+            "public-unit-cookie",
+            UUID(int=999),
+            credential,
+            UUID(int=15),
+        )
+    assert error.value.status_code == 401
+    assert seen == ([] if credential == "" else ["B5"])

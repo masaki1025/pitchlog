@@ -132,20 +132,24 @@ def test_real_handler_selects_undo_and_returns_no_ack_on_unavailable(
     assert "private" not in str(caught.value.detail)
 
 
-def test_stored_replay_does_not_require_fresh_credentials_or_undo_ports(
+def test_stored_replay_checks_presented_credential_without_fresh_undo_ports(
     monkeypatch, route_setup
 ):
-    """既handlerのDI2経路を保持し、新しい原本やhostを要求しない。"""
+    """DI2再掲でも端末提示を検査し、新しい原本やhostは要求しない。"""
     stored = AckResult(
         "B1", 3, (A5Result("generation-A", 3, str(UUID(int=8)), "重複"),)
     )
     monkeypatch.setattr(sync, "_replay_e1_without_binding", lambda *args: stored)
+    seen_credentials = []
     monkeypatch.setattr(
-        sync, "_credential_digest", lambda value: pytest.fail("fresh credential")
+        sync,
+        "_credential_digest",
+        lambda value: seen_credentials.append(value) or b"d" * 32,
     )
     monkeypatch.setattr(
         sync, "_apply_e1_f1", lambda *args, **kwargs: pytest.fail("fresh kernel")
     )
     response = route_setup()
+    assert seen_credentials == ["test-credential"]
     assert response.status_code == 200
     assert b'"advancedD3":3' in response.body

@@ -1123,6 +1123,7 @@ def test_stage_a_function_registration_matches_exact_asset_and_retains_rg1() -> 
         "SYNC_WRITER_BINDING:read_writer_identity",
         "SYNC_WRITER_BINDING:assert_writer_binding",
         "SYNC_FIRST_BALL:read_device_state",
+        "SYNC_FIRST_BALL:verify_replay_device",
         "SYNC_ORDINARY_PITCH:bind_ordinary_device",
         "SYNC_ORDINARY_PITCH:check_ordinary_right",
         "SYNC_ORDINARY_PITCH:prepare_ordinary_projection",
@@ -1141,11 +1142,13 @@ def test_stage_a_function_registration_matches_exact_asset_and_retains_rg1() -> 
         "STATS_PRIMITIVES:read_page",
         "STATS_PRIMITIVES:read_totals",
     )
-    assert len(expected) == 27
+    assert len(expected) == 28
     assert tuple(asset["product_function_operation_ids"]) == expected
     assert repository_contract.PRODUCT_FUNCTION_OPERATION_IDS == expected
-    assert tuple(row.operation_id for row in PRODUCT_FUNCTION_OPERATIONS) == expected
-    assert tuple(row.function_id for row in PRODUCT_FUNCTION_OPERATIONS) == (
+    assert (
+        tuple(row.operation_id for row in PRODUCT_FUNCTION_OPERATIONS[:28]) == expected
+    )
+    assert tuple(row.function_id for row in PRODUCT_FUNCTION_OPERATIONS[:28]) == (
         "recording_vocab_api.read_batted_ball_options",
         "rg1_api.rg1_read_open",
         "rg1_api.rg1_assert_open_before_commit",
@@ -1156,6 +1159,7 @@ def test_stage_a_function_registration_matches_exact_asset_and_retains_rg1() -> 
         "sync_fence_api.read_writer_identity",
         "sync_fence_api.assert_writer_binding",
         "sync_right_api.read_device_state",
+        "sync_right_api.verify_replay_device",
         "sync_right_api.bind_ordinary_device",
         "sync_right_api.check_ordinary_right",
         "sync_right_api.prepare_ordinary_projection",
@@ -1174,7 +1178,37 @@ def test_stage_a_function_registration_matches_exact_asset_and_retains_rg1() -> 
         "stats_api.read_play_export_primitives",
         "stats_api.read_primitive_totals",
     )
-    stats_tail = PRODUCT_FUNCTION_OPERATIONS[-5:]
+    assert tuple(row.operation_id for row in PRODUCT_FUNCTION_OPERATIONS[28:]) == (
+        "SYNC_NONPLAY:bind_nonplay_device",
+        "SYNC_NONPLAY:check_nonplay_right",
+        "SYNC_NONPLAY:lock_nonplay_checkpoint",
+        "SYNC_NONPLAY:read_nonplay_history_page",
+        "SYNC_NONPLAY:prepare_nonplay_undo",
+        "SYNC_NONPLAY:consume_nonplay_undo",
+        "SYNC_LIFECYCLE:bind_nonplay_device",
+        "SYNC_LIFECYCLE:check_nonplay_right",
+        "SYNC_LIFECYCLE:read_lifecycle_state",
+        "SYNC_LIFECYCLE:prepare_game_lifecycle",
+        "SYNC_LIFECYCLE:consume_game_lifecycle",
+        "GAME_LIFECYCLE:read_display",
+        "SYNC_ORDINARY_PITCH:read_nonplay_active_history",
+    )
+    assert tuple(row.function_id for row in PRODUCT_FUNCTION_OPERATIONS[28:]) == (
+        "sync_right_api.bind_nonplay_device",
+        "sync_right_api.check_nonplay_right",
+        "sync_right_api.lock_nonplay_checkpoint",
+        "sync_right_api.read_nonplay_history_page",
+        "sync_right_api.prepare_nonplay_undo",
+        "sync_right_api.consume_nonplay_undo",
+        "sync_right_api.bind_nonplay_device",
+        "sync_right_api.check_nonplay_right",
+        "sync_right_api.read_lifecycle_state",
+        "sync_right_api.prepare_game_lifecycle",
+        "sync_right_api.consume_game_lifecycle",
+        "sync_right_api.read_lifecycle_display",
+        "sync_right_api.read_nonplay_active_history",
+    )
+    stats_tail = PRODUCT_FUNCTION_OPERATIONS[23:28]
     assert tuple(
         f"{row.token_type.__module__}.{row.token_type.__qualname__}"
         for row in stats_tail

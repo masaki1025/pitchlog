@@ -161,6 +161,7 @@ def test_device_state_read_exact_registration_and_fixed_sql(active, monkeypatch)
         "SYNC_WRITER_BINDING:read_writer_identity",
         "SYNC_WRITER_BINDING:assert_writer_binding",
         "SYNC_FIRST_BALL:read_device_state",
+        "SYNC_FIRST_BALL:verify_replay_device",
         "SYNC_ORDINARY_PITCH:bind_ordinary_device",
         "SYNC_ORDINARY_PITCH:check_ordinary_right",
         "SYNC_ORDINARY_PITCH:prepare_ordinary_projection",
@@ -178,6 +179,19 @@ def test_device_state_read_exact_registration_and_fixed_sql(active, monkeypatch)
         "STATS_PRIMITIVES:open_snapshot",
         "STATS_PRIMITIVES:read_page",
         "STATS_PRIMITIVES:read_totals",
+        "SYNC_NONPLAY:bind_nonplay_device",
+        "SYNC_NONPLAY:check_nonplay_right",
+        "SYNC_NONPLAY:lock_nonplay_checkpoint",
+        "SYNC_NONPLAY:read_nonplay_history_page",
+        "SYNC_NONPLAY:prepare_nonplay_undo",
+        "SYNC_NONPLAY:consume_nonplay_undo",
+        "SYNC_LIFECYCLE:bind_nonplay_device",
+        "SYNC_LIFECYCLE:check_nonplay_right",
+        "SYNC_LIFECYCLE:read_lifecycle_state",
+        "SYNC_LIFECYCLE:prepare_game_lifecycle",
+        "SYNC_LIFECYCLE:consume_game_lifecycle",
+        "GAME_LIFECYCLE:read_display",
+        "SYNC_ORDINARY_PITCH:read_nonplay_active_history",
     )
     assert PRODUCT_FUNCTION_OPERATIONS[9] is spec
     assert spec.operation_id == "SYNC_FIRST_BALL:read_device_state"
