@@ -1,5 +1,15 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 2026-11-07 06:52 JST：申告敬遠の画面保存を実証、PR197 sourceを固定して正式値候補を導出
+
+- **新たに通った利用者操作（候補）**: nonpitch作者r14、owned PG/HTTPS実画面1passed99.96秒。新規作成/開始→単打2球で一三塁→申告敬遠POST200/GET3→同V7/D5/attempt原本文再送で重複→次球POST200/GET4→reload。物理PlayRow41列と公開35keyを別全値照合、T5 source27/pitch_count available0・credits空/pa・bb・pitcher_bb・BF各1とfact4、runs/rbi未供給を確認。r13成功は106.06秒、r14は再送/T5のassertを追加。正式受理/非作者全候補確認/CSV接合はまだ。作者のstep commit/全SHA packet待ち。
+- **P3の正**: 真正POSTは変更受理、実current GETのafterも1ball/2strike。画面の保存確認だけがprefix checkpoint.revision増加を要求して止まる。P3は同D1再評価でrevision3→3が規範、真の版はslot1→2。rootは保存値を変更せず同TX slot版/ledger D5/sourceID/currentCP digestに確認を束縛する技術修復をPO委任で許可。旧版/別receipt/古いCPの拒否対向を保持、単にsuccess条件を削除しない。まだ訂正画面完走とはしない。
+- **PR197 source固定**: `fix/pr197-harness-followup@a44b7e54483c9ba19d19a5d7da9a72e6b94a7a9f` clean。根拠sourceの各非作者採用後、backend全Ruff/format674/Ty、root Ruff/Tyが成功。old29+stats5/全34body・ACL衝突と旧4triggerは771e6f6b owned1passed123.04秒、独立REPORT SHA2f495fe492c2f1383beaf7b6f1d0a2c80e9fb86f411e0e4e1301f6d2e9ae1750でP0/P1/P2なし。観測は選択catalogであり全pg_catalog/全表データ/全FK-CHECK-indexの完全比較ではない。
+- **不変性の閉鎖**: 広めの8module owned r7は141pass7fail280.80秒、旧0039固定の全7を7881388dでcurrent0041へ追随。旧0032歴史条件/public50と全trigger/field対向を保持、正式private9だけ別分担（未知stats名は母集団に残す）。owned r8 9passed52.78秒/2055source前後同一/cleanup。独立REPORT SHA55df340a56e3a769f3e9efe70efa4a197913ddced0d238ff62d36c2b23084bdbでP0/P1/P2なし。private全保護をpublic trigger成功へ合算しない。
+- **正式値の次段階**: 公式helperで固定sourceから9資産の候補を導出。base正式51b→後継各+1、未統合e5からは再加算しない。9snapshot/実10files（authority1＋snapshot9、残8と生成moduleは現e5と同値）。cache `native-pr197-harness-followup-assets-root-20261107/a44b7e54483c9ba19d19a5d7da9a72e6b94a7a9f/`。**未適用・未受理**、非作者前後値確認を依頼済み。352base/83pinned/現参照を保持し、未参照だけarchiveしてから差分適用する。正式CLI/全必須CI/委任最終HEAD証拠/通常push・mergeが残る。公開PR197は依然e5/Draft/openでCI失敗を成功へ読み替えない。
+- **保留する被覆**: 5957のprivate owner unbound SELECTは空表の場合vacuousという既存P2を残す。正式FORCE/policy照合を別根拠にし、実native非空3表のowner対向はMVP残件として追跡。全操作/全断中操作/27成績/両CSVの正式提供、実機/負荷/運用復旧は未完、Goal active。cache resume JSONのterminal handleを優先し、root r5〜r8は再実行しない。
+
+
 ## 2026-11-07 06:30 JST：PR197修復群を私有統合、残DB6件と製品複製を実証
 
 - **修復sourceの現在地**: `fix/pr197-harness-followup@b61b0c5d` clean。非作者確認済みb51a0680（CI合成履歴）、b71a6de9（catalog純対向）、b83eb19f（正式19原子のprobe map）、acd80874（current fixture/全schema監査）、db6930a0（公開操作/schema/製品copy）を通常merge。最後はplan末尾の2追補だけ衝突し、両方を保持して解決。5test sourceはdb6930と全byte一致。公開PR197はe5b6fef5のDraft/open/CI失敗のまま。正式source固定後の9資産導出・最終レビュー・証拠・push/必須CI/通常mergeは未了。
