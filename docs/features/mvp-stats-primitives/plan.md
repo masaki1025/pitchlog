@@ -596,3 +596,5 @@ owned r7で旧migration等141件成功、残7件は不変性検査が0039版を�
 ### CI固定参照6箇所の宣言追随（2026-11-07、PO委任root・step4/5）
 
 正式CLIが新規Python固定参照6箇所を未宣言として拒否した。allow-list追加/走査除外/hex分割は行わず、既 `backend/tests/first_ball_expected_source_pins.py` の閉読取方式を新4値の別schemaへ再利用する。新 `backend/tests/fixtures/pr197_ci_followup_inputs_v1.json` は旧705比較のGit前後40桁2値と既採用ratio/rate全AST64桁2値をそのまま宣言し、frozen-inputsの正式external_filesへ登録して7.7の対象へ含める。旧first-ball fixture/schema/全値は変えない。`backend/tests/test_product_authz_provisioning.py`、`test_sync_apply_product_supply.py`、`type_boundary_contract.py` はこの固定期待を消費するだけで旧比較/AST拒否条件を保持。新readerの欠落/未知/重複/型/桁/非正準を `backend/tests/test_pr197_ci_followup_inputs.py` で拒否、製品copy helperへ読取依存だけ追加する。実装差分を非作者再確認し、source固定後に9資産を正式base51bから一度再導出する。既a44値受理は当該版だけの記録として保全し、新版へ自動拡張しない。
+
+反映22周目: 非作者の全関連4module検査で、旧schema全集合へのstats_api追随漏れ1件を基線でも再現。正式stats_apiを13件全集合へ追加し、実SQLへの完全包含・正規owner・既存wrong-owner例外・ALTER SCHEMA禁止を明示検査する。旧schema/全拒否条件は保持する。

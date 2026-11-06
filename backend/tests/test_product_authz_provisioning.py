@@ -2330,7 +2330,7 @@ def test_startup_unknown_placed_revision_is_rejected(
 
 
 def test_new_schema_guards_preserve_other_five_and_exact_owner() -> None:
-    """新3schemaだけをowner不修復で保護し、旧5schemaのSQLを変えない。"""
+    """旧schemaのSQLを保持し、statsを含む新schemaのownerを保護する。"""
     generated = product_provisioning.generate_authz_ddl(
         product_provisioning._REPOSITORY_ROOT, PRODUCT_SPEC
     )
@@ -2353,9 +2353,16 @@ def test_new_schema_guards_preserve_other_five_and_exact_owner() -> None:
         "sync_fence_api",
         "sync_right_api",
         "recording_vocab_api",
+        "stats_api",
     }
-    assert len(schemas) == 8 + 3 + 1
+    assert len(schemas) == 8 + 3 + 1 + 1
     for row in schemas:
+        if row.element_id == "stats_api":
+            assert row.sql in sql_texts
+            assert "n.nspname='stats_api' AND r.rolname='pitchlog_owner'" in row.sql
+            assert "RAISE EXCEPTION 'stats schema owner collision'" in row.sql
+            assert "ALTER SCHEMA" not in row.sql
+            continue
         if row.element_id == "recording_vocab_api":
             assert row.sql in sql_texts
             assert (
