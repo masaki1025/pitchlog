@@ -15,15 +15,17 @@ import sys
 import tempfile
 import xml.etree.ElementTree as ET
 from collections.abc import Callable
+from contextlib import ExitStack
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
-from typing import Any
+from typing import Any, cast
 
 import pytest
 
 _ROOT = Path(__file__).resolve().parents[2]
 _FIXTURE = "backend/tests/fixtures/product_authz_stage_a_profile_v0039.json"
 _REFERENCE = "stage_a_0039_profile_reference_revision"
+_FIXED_REFERENCE = "d51306b2c86a6c4e331f83fb855cc5d6c4a8b8e5"
 _PURPOSE = (
     "正式51bcbの0039歴史検証profile970file/31caseをroot前置Git全byteへ束縛し、"
     "現木/fixture/任意revision同時改変を拒否。current製品loader・任意profile許可・"
@@ -118,6 +120,7 @@ def _read_profile(root: Path) -> dict[str, Any]:
         or reference["sources"] != _CONSUMERS
         or type(reference["value"]) is not str
         or re.fullmatch("[a-f0-9]{40}", reference["value"]) is None
+        or reference["value"] != _FIXED_REFERENCE
     ):
         raise _fail()
     commit = reference["value"]
@@ -509,6 +512,42 @@ def pytest_configure(config: pytest.Config) -> None:
     sys.meta_path.insert(0, finder)
     _CHILD = {"ticket": ticket, "profile": profile, "finder": finder}
     config.add_cleanup(lambda: sys.meta_path.remove(finder))
+    if not ticket["collect"]:
+        _start_child_database(config)
+
+
+def _start_child_database(config: pytest.Config) -> None:
+    """真正な子factoryだけでautouse用DBを配置し、親DSNを継承しない。"""
+    if _CHILD is None or _CHILD["ticket"]["collect"]:
+        raise _fail()
+    from db_fixtures import _dsn_names, disposable_postgres_cluster
+    from psycopg.conninfo import make_conninfo
+
+    names = _dsn_names()
+    if any(name in os.environ for name in names):
+        raise _fail()
+    stack = ExitStack()
+    try:
+        factory = cast(Any, disposable_postgres_cluster).__wrapped__()
+        cluster = stack.enter_context(factory())
+        os.environ[names[0]] = cluster.admin_dsn
+        os.environ[names[1]] = make_conninfo(
+            cluster.admin_dsn, user="pitchlog_stage_a_test_role"
+        )
+    except BaseException:
+        stack.close()
+        for name in names:
+            os.environ.pop(name, None)
+        raise
+
+    def cleanup_database() -> None:
+        try:
+            stack.close()
+        finally:
+            for name in names:
+                os.environ.pop(name, None)
+
+    config.add_cleanup(cleanup_database)
 
 
 def _closed_function(

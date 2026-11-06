@@ -80,6 +80,47 @@ def test_metadata_or_declared_reference_tampering_is_rejected(metadata_root, fau
         api._profile(metadata_root)
 
 
+def test_unapproved_ancestor_commit_and_fixture_cannot_rotate_anchor(metadata_root):
+    """fixtureと参照を同時に真正Gitへ保存しても、承認済E以外を拒否する。"""
+    path = metadata_root / api._FIXTURE
+    profile = json.loads(path.read_text())
+    profile["expected_generated_ddl_count"] += 1
+    path.write_text(json.dumps(profile))
+    subprocess.run(
+        ["git", "-C", str(metadata_root), "add", "--", api._FIXTURE], check=True
+    )
+    subprocess.run(
+        [
+            "git",
+            "-C",
+            str(metadata_root),
+            "-c",
+            "user.name=Fixture",
+            "-c",
+            "user.email=fixture@example.invalid",
+            "-c",
+            "commit.gpgsign=false",
+            "commit",
+            "-q",
+            "-m",
+            "unapproved fixture replacement",
+        ],
+        check=True,
+    )
+    revision = api._git(metadata_root, "rev-parse", "HEAD").decode().strip()
+    assert revision != api._FIXED_REFERENCE
+    assert (
+        api._git(metadata_root, "show", revision + ":" + api._FIXTURE)
+        == path.read_bytes()
+    )
+    frozen_path = metadata_root / "contracts/tenant_boundary/frozen-inputs.json"
+    frozen = json.loads(frozen_path.read_text())
+    frozen["frozen_inputs"][api._REFERENCE]["value"] = revision
+    frozen_path.write_text(json.dumps(frozen))
+    with pytest.raises(ValueError):
+        api.immutable_stage_a_0039_profile(metadata_root)
+
+
 @pytest.mark.parametrize(
     "value",
     [
