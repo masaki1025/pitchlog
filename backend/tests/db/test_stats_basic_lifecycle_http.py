@@ -17,58 +17,23 @@ from .test_first_ball_vertical_http import (
     _app_arguments,
     _prepare_app_configuration,
 )
-from .test_game_lifecycle_http import _SCRIPT as _LIFECYCLE_SCRIPT
-from .test_game_lifecycle_http import admin_connection as admin_connection
-from .test_game_lifecycle_http import (
+from .test_game_lifecycle_v3_http import _v3_script
+from .test_terminal_pitch_storage import admin_connection as admin_connection
+from .test_terminal_pitch_storage import (
     initial_scope_database as initial_scope_database,
 )
-from .test_game_lifecycle_http import product_node_binary as product_node_binary
-from .test_game_lifecycle_http import (
+from .test_terminal_pitch_storage import product_node_binary as product_node_binary
+from .test_terminal_pitch_storage import (
     tested_role_connection as tested_role_connection,
 )
-from .test_game_lifecycle_http import vertical_database as vertical_database
+from .test_terminal_pitch_storage import vertical_database as vertical_database
 
 pytestmark = pytest.mark.requires_db
 
 
 def _stats_script() -> str:
-    """既LC実経路の同一workerへ成績の真正readだけを追加する。"""
-    # 原testはserver側の最初のread障害を一律503へ畳むため、診断時だけ
-    # 同worker内の実read境界で型と関数位置を記録する。
-    diagnostic = '''from pitchlog.repositories import nonplay_prefix_read as np_read
-from pitchlog.repositories import game_lifecycle as lc_read
-from pitchlog.api.routers import started_games as started_route
-
-def trace_read(name, operation):
-    def traced(*args, **kwargs):
-        try:
-            return operation(*args, **kwargs)
-        except Exception as error:
-            original = getattr(error, "orig", error)
-            runtime_diagnostics["stats_read_error"] = {
-                "stage": name,
-                "type": type(error).__name__,
-                "sqlstate": getattr(original, "sqlstate", None),
-                "fixed_reason": (
-                    str(error)
-                    if type(error).__name__ == "NonplaySourceUnavailable"
-                    else None
-                ),
-                "frames": [
-                    (f.name, f.lineno)
-                    for f in traceback.extract_tb(error.__traceback__)
-                ][-8:],
-            }
-            raise
-    return traced
-
-np_read.read_undo_prefix = trace_read("nonplay", np_read.read_undo_prefix)
-lc_read._read_lifecycle_display = trace_read(
-    "lifecycle", lc_read._read_lifecycle_display)
-started_route.StartedNonplayPrefixGameRead.model_validate_json = trace_read(
-    "response", started_route.StartedNonplayPrefixGameRead.model_validate_json)
-
-'''
+    """真正v3二球のLC実経路に成績read/CSVだけを加える。"""
+    script = _v3_script()
     helper = '''        async def stats_read():
             response = await client.get(
                 "/games/" + game + "/stats?mode=official&limit=200",
@@ -92,29 +57,19 @@ started_route.StartedNonplayPrefixGameRead.model_validate_json = trace_read(
             )
 
 '''
-    marker = "        current, _ = await read_full()\n"
-    assert _LIFECYCLE_SCRIPT.count(marker) == 1
-    script = _LIFECYCLE_SCRIPT.replace(marker, helper + marker, 1)
-    status_guard = '                assert response.status_code == 200, (\n'
-    assert script.count(status_guard) >= 1
-    script = script.replace(
-        status_guard,
-        '                runtime_diagnostics["stats_read_status"] = '
-        'response.status_code\n' + status_guard,
-        1,
-    )
-    tail = "try:\n    out = asyncio.run(run())\n"
-    assert script.count(tail) == 1
-    script = script.replace(tail, diagnostic + tail, 1)
-    marker = '        reopened, reopen_d5 = await lifecycle("reopen", ended)\n'
+    marker = "        current_lifecycle, _ = await read_full()\n"
+    assert script.count(marker) == 1
+    script = script.replace(marker, helper + marker, 1)
+    marker = '        assert ended["status"] == "finished"\n'
     assert script.count(marker) == 1
     script = script.replace(
         marker,
-        '        first_stats = await stats_read()\n'
-        '        assert pitch_count(first_stats) == 1\n' + marker,
+        marker
+        + '        first_stats = await stats_read()\n'
+        + '        assert pitch_count(first_stats) == 2\n',
         1,
     )
-    marker = '        assert reopened["lifecycle"]["lastVersion"] == "1"\n'
+    marker = '        assert reopened["status"] == "in_progress"\n'
     assert script.count(marker) == 1
     script = script.replace(
         marker,
@@ -123,47 +78,41 @@ started_route.StartedNonplayPrefixGameRead.model_validate_json = trace_read(
         + '        assert reopened_stats["players"] == []\n',
         1,
     )
-    marker = '        reload, _ = await read_full()\n'
+    marker = '        assert final["lifecycle"]["lastVersion"] == "2"\n'
     assert script.count(marker) == 1
-    script = script.replace(
-        marker,
-        '        final_stats = await stats_read()\n'
-        '        assert pitch_count(final_stats) == 3\n'
-        '        season_response = await client.get(\n'
-        '            "/stats/seasons/" + str(case["year"]) '
-        '+ "?category=all&limit=200",\n'
-        '            headers=headers(),\n'
-        '        )\n'
-        '        assert season_response.status_code == 200\n'
-        '        season_stats = season_response.json()\n'
-        '        assert season_stats["category"] == "all"\n'
-        '        assert season_stats["players"]\n'
-        '        csv_response = await client.get(\n'
-        '            "/games/" + game + "/stats.csv?mode=official",\n'
-        '            headers=headers(),\n'
-        '        )\n'
-        '        assert csv_response.status_code == 200\n'
-        '        assert csv_response.content.startswith(bytes.fromhex("efbbbf"))\n'
-        '        import csv, io\n'
-        '        csv_rows = list(csv.DictReader(io.StringIO(\n'
-        '            csv_response.content.decode("utf-8-sig")\n'
-        '        )))\n'
-        '        assert len(csv_rows) == len(final_stats["players"])\n'
-        '        season_csv_response = await client.get(\n'
-        '            "/stats/seasons/" + str(case["year"])\n'
-        '            + "/stats.csv?category=all", headers=headers(),\n'
-        '        )\n'
-        '        assert season_csv_response.status_code == 200\n'
-        '        assert season_csv_response.content.startswith('
-        'bytes.fromhex("efbbbf"))\n'
-        '        season_csv_rows = list(csv.DictReader(io.StringIO(\n'
-        '            season_csv_response.content.decode("utf-8-sig")\n'
-        '        )))\n'
-        '        assert len(season_csv_rows) == len(season_stats["players"])\n'
-        + marker,
-        1,
-    )
-    marker = '            "controls": [end_d5, reopen_d5, reend_d5],\n'
+    final_reads = '''        final_stats = await stats_read()
+        assert pitch_count(final_stats) == 3
+        season_response = await client.get(
+            "/stats/seasons/" + str(case["year"])
+            + "?category=all&limit=200", headers=headers(),
+        )
+        assert season_response.status_code == 200
+        season_stats = season_response.json()
+        assert season_stats["category"] == "all"
+        assert season_stats["players"]
+        csv_response = await client.get(
+            "/games/" + game + "/stats.csv?mode=official", headers=headers(),
+        )
+        assert csv_response.status_code == 200
+        assert csv_response.content.startswith(bytes.fromhex("efbbbf"))
+        import csv, io
+        csv_rows = list(csv.DictReader(io.StringIO(
+            csv_response.content.decode("utf-8-sig")
+        )))
+        assert len(csv_rows) == len(final_stats["players"])
+        season_csv_response = await client.get(
+            "/stats/seasons/" + str(case["year"])
+            + "/stats.csv?category=all", headers=headers(),
+        )
+        assert season_csv_response.status_code == 200
+        assert season_csv_response.content.startswith(bytes.fromhex("efbbbf"))
+        season_csv_rows = list(csv.DictReader(io.StringIO(
+            season_csv_response.content.decode("utf-8-sig")
+        )))
+        assert len(season_csv_rows) == len(season_stats["players"])
+'''
+    script = script.replace(marker, marker + final_reads, 1)
+    marker = '            "after": current["after"]["stateFields"],\n'
     assert script.count(marker) == 1
     script = script.replace(
         marker,
@@ -174,19 +123,20 @@ started_route.StartedNonplayPrefixGameRead.model_validate_json = trace_read(
         + '            "season_csv_rows": len(season_csv_rows),\n',
         1,
     )
-    marker = (
-        '            assert invisible.status_code == 404, '
-        '("foreign", invisible.status_code)\n'
-    )
-    assert script.count(marker) == 1
+    foreign = '''            assert denied_read.status_code == 404, (
+                "foreign-read", denied_read.status_code, denied_read.text
+            )
+'''
+    assert script.count(foreign) == 1
     script = script.replace(
-        marker,
-        marker
-        + '            foreign_stats = await foreign.get(\n'
-        '                "/games/" + game + "/stats?mode=official",\n'
-        '                headers=foreign_headers,\n'
-        '            )\n'
-        '            assert foreign_stats.status_code == 404\n',
+        foreign,
+        foreign
+        + '''            foreign_stats = await foreign_client.get(
+                "/games/" + game + "/stats?mode=official",
+                headers=foreign_headers,
+            )
+            assert foreign_stats.status_code == 404
+''',
         1,
     )
     return script
@@ -195,13 +145,23 @@ started_route.StartedNonplayPrefixGameRead.model_validate_json = trace_read(
 def test_actual_end_reopen_append_reend_stats_and_csv(vertical_database):
     """偽finalizeなしの実HTTP/PGで終了版更新と二重加算なしを確認する。"""
     db = vertical_database
+    with psycopg.connect(db.authority.database.business_admin) as admin:
+        for key, name in (
+            ("batting-result.called-pitch", "見逃し"),
+            ("batting-result.ball", "ボール"),
+        ):
+            admin.execute(
+                "INSERT INTO public.admin_vocabularies(key,category,display_name) "
+                "VALUES (%s,'batting_result',%s) ON CONFLICT(key) DO NOTHING",
+                (key, name),
+            )
     case = {
         "tenant": str(db.tenant_id),
         "game": str(db.game_id),
         "team_name": db.team_name,
         "password": _PASSWORD,
         "pitch_type": _PITCH_TYPE,
-        "other_tenant": str(db.other_tenant_id),
+        "other_tenant_id": str(db.other_tenant_id),
         "other_team_name": db.other_team_name,
         "year": datetime.now(timezone(timedelta(hours=9))).year,
     }
@@ -216,8 +176,8 @@ def test_actual_end_reopen_append_reend_stats_and_csv(vertical_database):
         )
     assert process.returncode == 0, "基本成績実app workerが異常終了"
     result = json.loads(process.stdout)
-    assert "exception_type" not in result, result.get("runtime_diagnostics", {})
-    assert result["stats_pitch_counts"] == [1, 3]
+    assert "exception" not in result, result.get("runtime_diagnostics", {})
+    assert result["stats_pitch_counts"] == [2, 3]
     game_id = UUID(result["game"])
     with psycopg.connect(db.authority.database.business_admin) as connection:
         versions = connection.execute(
@@ -239,9 +199,10 @@ def test_stats_script_only_adds_reads_to_existing_lifecycle_flow():
     """元のLC送信/故障注入を変更せず、追加readの構文を閉じる。"""
     script = _stats_script()
     compile(script, "<basic-stats-lifecycle>", "exec")
-    assert script.count('await lifecycle("end",') == _LIFECYCLE_SCRIPT.count(
+    reference = _v3_script()
+    assert script.count('await lifecycle("end",') == reference.count(
         'await lifecycle("end",'
     )
-    assert script.count('await lifecycle("reopen",') == _LIFECYCLE_SCRIPT.count(
+    assert script.count('await lifecycle("reopen",') == reference.count(
         'await lifecycle("reopen",'
     )
