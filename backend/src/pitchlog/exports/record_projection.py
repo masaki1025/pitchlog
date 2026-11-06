@@ -112,10 +112,9 @@ def _recorded_context(
         if source.get("formatVersion") == "nonplay-prefix-source-v1":
             content = source["checkpoint"]["content"]
             scope = content["scope"]
-            if (
-                scope["tenantId"] != str(identity.source.tenant_id)
-                or scope["gameId"] != str(identity.source.game_id)
-            ):
+            if scope["tenantId"] != str(identity.source.tenant_id) or scope[
+                "gameId"
+            ] != str(identity.source.game_id):
                 raise RecordedExportProjectionUnavailable
             restored = content["restored"]
             lineup, runners = restored["lineup"], restored["runners"]
@@ -703,9 +702,9 @@ def project_recorded_direct(
         raise RecordedExportProjectionUnavailable
     result[_HEADER[28]] = _text(play["batting_side"])
     result[_HEADER[33]] = _text(pitcher["throws"])
-    if play["event_kind"] != "pitch":
+    if play["event_kind"] not in ("pitch", "non_pitch"):
         raise RecordedExportProjectionUnavailable
-    result[_HEADER[40]] = "投球"
+    result[_HEADER[40]] = "投球" if play["event_kind"] == "pitch" else "非投球"
     result[_HEADER[63]] = _text(batter["name"])
     batter_entry = _recorded_entry(identity, play["batter_id"], substitutes)
     pitcher_entry = _recorded_entry(identity, play["pitcher_id"], substitutes)

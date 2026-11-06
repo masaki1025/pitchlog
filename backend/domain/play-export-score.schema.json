@@ -21,11 +21,14 @@
     "pitchCount": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["kind", "metricId", "playerSource"],
+      "required": ["kind", "metricId", "playerSource", "metricStatePath", "creditShape", "sourceEventKinds"],
       "properties": {
-        "kind": {"const": "saved-primitive-credit-window"},
+        "kind": {"const": "saved-t5-state-credit-window"},
         "metricId": {"const": "pitch_count"},
-        "playerSource": {"const": "play_rows.pitcher_id"}
+        "playerSource": {"const": "play_rows.pitcher_id"},
+        "metricStatePath": {"const": ["metrics", "pitch_count"]},
+        "creditShape": {"const": "zero-or-one-same-actual-pitcher"},
+        "sourceEventKinds": {"const": [{"playRow":"pitch","t1":"pitch-event"},{"playRow":"non_pitch","t1":"non-pitch-event"}]}
       }
     },
     "scoreboard": {

@@ -1,15 +1,15 @@
 {
   "schemaVersion": 1,
   "status": "candidate-formal-acceptance-pending",
-  "modelSha256": "sha256:5a08d81f5cc739b09ee70a4538b9fd17117720e6c5bd296cd99c46a972f0aed3",
+  "modelSha256": "sha256:273208f14200e4eb437ba5d8478fe4ea1e81bf79af132e62855474767202ab68",
   "inputs": {
-    "backend/domain/play-export-score.model.json": "18716d8e0f21e979f76c2f72d7df11278c3693ab05172d5dd0459275d41a2360",
-    "backend/domain/play-export-score.schema.json": "238ec7bab24dd392c3d5be30fff4023ba7f3c0308d64198c51cfaecbc7f7a125",
+    "backend/domain/play-export-score.model.json": "04e728b2ebeb204558f03dac3e994c43a2fa9edb2b32cfd0c7cc04e0272b71f9",
+    "backend/domain/play-export-score.schema.json": "cb8384c7a21b25c4bbab34ba360390bd13abf526728250b8785485b8ccd39f92",
     "backend/src/pitchlog/exports/generated/play_primitives_native.sql": "275ddeaa88dea636b7c685253da486bed7b8029f0c8a21ada3eec7d54d4c1fb2",
-    "backend/src/pitchlog/domaingen/play_export_score.py": "72ca649b9e181b6afe8d76a8649992bd955d7d3f665b736a78f28db68c34a996"
+    "backend/src/pitchlog/domaingen/play_export_score.py": "71ad11d15b0fc164dd576c2a51d9c92ff8eb8e4a12ed97672189546dc969555c"
   },
   "generatedFiles": {
-    "backend/src/pitchlog/exports/generated/play_export_score.sql": "5fc8234255f871a2fb88c59083c8a06849094386689b9d9dbb4584ca9d191b24",
+    "backend/src/pitchlog/exports/generated/play_export_score.sql": "641dedf79966241bcc96b6e826b05db028c11a357b97c13f7184fb5294b3cafe",
     "backend/src/pitchlog/exports/generated/play_export_completion.py": "5ce2c7e1d6d2773758defb9a3d40667a2094fadca96f2f9962146ec200d2212c"
   },
   "t5ModelUnchanged": true

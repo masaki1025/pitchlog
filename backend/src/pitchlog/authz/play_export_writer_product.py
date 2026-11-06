@@ -171,7 +171,8 @@ BEGIN
    AND e.xmin::text::numeric=pg_catalog.mod(own_xid::numeric,4294967296::numeric);
  SELECT p.id,p.version INTO STRICT saved_play,saved_version FROM public.play_rows p
  WHERE p.tenant_id=tenant AND p.game_id=bound_game
-   AND p.source_event_id=p_source_event_id AND p.event_kind='pitch'
+   AND p.source_event_id=p_source_event_id
+   AND p.event_kind IN ('pitch','non_pitch')
    AND p.hidden_at IS NULL AND p.version=1
    AND p.xmin::text::numeric=pg_catalog.mod(own_xid::numeric,4294967296::numeric);
  SELECT s.pitcher_pitch_count,s.top_score,s.bottom_score,s.full_innings

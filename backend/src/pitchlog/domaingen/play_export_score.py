@@ -34,8 +34,7 @@ def _completion_sql(profiles: list[dict]) -> str:
             f"b.payload->>'formatVersion'='{profile['sourceFormat']}'",
             "b.payload#>>'{calculation,formatVersion}'="
             f"'{profile['calculationFormat']}'",
-            "b.payload#>>'{calculation,response,value,t2,kind}'="
-            f"'{profile['kind']}'",
+            f"b.payload#>>'{{calculation,response,value,t2,kind}}'='{profile['kind']}'",
         ]
         scope = profile["scope"]
         if scope is None:
@@ -44,17 +43,14 @@ def _completion_sql(profiles: list[dict]) -> str:
             )
         else:
             conditions.append(
-                "b.payload#>>'{calculation,response,value,t2,scope}'="
-                f"'{scope}'"
+                f"b.payload#>>'{{calculation,response,value,t2,scope}}'='{scope}'"
             )
         path = profile["path"]
         if path is None:
             value = "'false'::jsonb"
         else:
             value = (
-                "b.payload#>'{calculation,response,value,t2,"
-                + ",".join(path)
-                + "}'"
+                "b.payload#>'{calculation,response,value,t2," + ",".join(path) + "}'"
             )
         clauses.append("WHEN " + " AND ".join(conditions) + " THEN " + value)
     return "CASE\n    " + "\n    ".join(clauses) + "\n    ELSE NULL END"
@@ -127,6 +123,25 @@ def _score_query(model: dict, sections: dict[str, str]) -> str:
     prefix, member_query = _canonical_parts(sections)
     slots = model["scoreboard"]["legacyInningSlots"]
     metric = model["pitchCount"]["metricId"]
+    state_path = ",".join(model["pitchCount"]["metricStatePath"])
+    event_kinds = model["pitchCount"]["sourceEventKinds"]
+    row_kinds = ",".join(f"'{item['playRow']}'" for item in event_kinds)
+    kind_match = " OR ".join(
+        "(p.event_kind='"
+        + item["playRow"]
+        + "' AND e.payload#>>'{calculation,request,t1,pitchEventKind}'='"
+        + item["t1"]
+        + "')"
+        for item in event_kinds
+    )
+    bounded_kind_match = " OR ".join(
+        "(b.event_kind='"
+        + item["playRow"]
+        + "' AND b.payload#>>'{calculation,request,t1,pitchEventKind}'='"
+        + item["t1"]
+        + "')"
+        for item in event_kinds
+    )
     source_hash = _canonical_hash(model)
     complete = _completion_sql(model["scoreboard"]["completeProfiles"])
     # 保存T1のbefore/after以外から得点・H/E/K/Bを再判定しない。
@@ -157,8 +172,11 @@ def _score_query(model: dict, sections: dict[str, str]) -> str:
  SELECT s.source_event_id,s.d2,p.pitcher_id
  FROM source_members s JOIN public.play_rows p
    ON (p.tenant_id,p.game_id,p.id)=(s.tenant_id,s.game_id,s.play_row_id)
- WHERE s.source_event_id=:source_event_id AND p.event_kind='pitch'
+ JOIN public.operation_events e
+   ON (e.tenant_id,e.game_id,e.id)=(s.tenant_id,s.game_id,s.source_event_id)
+ WHERE s.source_event_id=:source_event_id AND p.event_kind IN ({row_kinds})
    AND p.source_event_id=s.source_event_id AND p.version=s.play_row_version
+   AND ({kind_match})
 ), bounded AS (
  SELECT s.*,e.payload,p.event_kind,p.pitcher_id
  FROM source_members s JOIN target t
@@ -270,20 +288,44 @@ def _score_query(model: dict, sections: dict[str, str]) -> str:
  FROM pg_catalog.generate_series(1,(SELECT MAX(inning)::int FROM score_rows)) i(n)
  CROSS JOIN (VALUES('top',1),('bottom',2)) side(half,ord)
  LEFT JOIN score_rows r ON r.inning=i.n AND r.half=side.half
-), pitch_source_health AS (
- SELECT b.source_event_id,b.event_kind,b.pitcher_id,
+), source_metric AS (
+ SELECT b.source_event_id,b.event_kind,b.pitcher_id,b.tenant_id,b.game_id,
+   b.fact_version_id,
+   ({bounded_kind_match}) AS kind_bound,
    b.computed_metric_keys @> ARRAY['{metric}']::text[] AS computed,
+   b.evaluation_sha256=pg_catalog.encode(pg_catalog.sha256(
+     pg_catalog.convert_to(b.metric_states::text,'UTF8')),'hex') AS bound,
+   b.metric_states#>>'{{{state_path},state}}' AS state,
+   b.metric_states#>>'{{{state_path},value}}' AS metric_value,
+   b.metric_states#>'{{{state_path},credits}}' AS saved_credits
+ FROM bounded b
+), pitch_source_health AS (
+ SELECT m.source_event_id,m.event_kind,m.pitcher_id,m.kind_bound,
+   m.computed,m.bound,
+   m.state,m.metric_value,m.saved_credits,
    COUNT(f.source_event_id) AS credits,
    BOOL_AND(f.state='available' AND f.amount=1
-     AND f.player_id=b.pitcher_id) AS valid
- FROM bounded b LEFT JOIN sync_fence.stats_primitive_facts f
+     AND f.player_id=m.pitcher_id AND f.credit_ordinal=0) AS valid_fact
+ FROM source_metric m LEFT JOIN sync_fence.stats_primitive_facts f
    ON (f.tenant_id,f.game_id,f.fact_version_id,f.source_event_id)
-    =(b.tenant_id,b.game_id,b.fact_version_id,b.source_event_id)
+    =(m.tenant_id,m.game_id,m.fact_version_id,m.source_event_id)
    AND f.metric_id='{metric}'
- GROUP BY b.source_event_id,b.event_kind,b.pitcher_id,b.computed_metric_keys
+ GROUP BY m.source_event_id,m.event_kind,m.pitcher_id,m.kind_bound,
+   m.computed,m.bound,
+   m.state,m.metric_value,m.saved_credits
 ), pitcher_total AS (
  SELECT COALESCE(SUM(f.amount),0)::bigint AS value,
-   BOOL_AND(h.computed AND h.credits=1 AND h.valid) AS valid
+   BOOL_AND(COALESCE(h.kind_bound AND h.computed AND h.bound
+     AND h.state='available'
+     AND h.event_kind IN ({row_kinds})
+     AND CASE WHEN h.metric_value='0' THEN
+       h.saved_credits='[]'::jsonb AND h.credits=0
+     WHEN h.metric_value='1' THEN
+       h.saved_credits=pg_catalog.jsonb_build_array(
+         pg_catalog.jsonb_build_object('player_id',h.pitcher_id::text,
+           'quantity','1'))
+       AND h.credits=1 AND h.valid_fact
+     ELSE false END,false)) AS valid
  FROM pitch_source_health h CROSS JOIN target t
  LEFT JOIN sync_fence.stats_primitive_facts f
    ON f.source_event_id=h.source_event_id AND f.fact_version_id=:fact_version_id
@@ -303,7 +345,7 @@ CROSS JOIN pitcher_total p CROSS JOIN score_totals z CROSS JOIN all_innings f
 JOIN legacy_arrays a ON a.half='top'
 JOIN legacy_arrays b ON b.half='bottom'
 WHERE h.actual_count=h.source_count AND sh.valid AND p.valid
-  AND p.value>=1 AND f.value IS NOT NULL;
+  AND p.value>=0 AND f.value IS NOT NULL;
 """
 
 

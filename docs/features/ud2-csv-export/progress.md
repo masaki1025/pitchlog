@@ -126,3 +126,11 @@
 - frontend `GameCsvExport.spec.ts`: **4 passed**
 - frontend `client.spec.ts`: **57 passed**
 - `vue-tsc`/ESLint: 成功
+
+## 2026-11-07 交代後snapshot・監査redaction・球数creditの限定修復候補
+
+専用枝 `fix/mvp-play-csv-substitution-snapshots` は旧 `2706138c` と画面枝 `324a7963` を変更せず、実記録時の出場者を受理済み交代event・0044 receipt・今回の保存sourceへ照合する。owned PostgreSQL の固定 `substitution-r5` では、交代 ACK、次球保存、交代前2球のZIP不変、交代後の新投手氏名・背番号、別リクエストでのZIP再読込、非投球交代の監査行を確認した。実行前後のsource全byteは同一で、owned containerは削除済み。`substitution-r4` では破損snapshot行と対象試合のsnapshot行欠測を別々の実HTTP 409として確認した。
+
+監査eventの業務JSONは有限event kindと版付きredactionへ写し、D4・既知資格鍵は表示可能な置換形へ、未知秘密様鍵は閉拒否する。別JSON欄も同じ鍵検査を通す。真正lifecycle D4を含むZIPの実DB対向と正式contract受理は未了。
+
+score専用D-1候補は、保存T5の `pitch_count` state・0/1 credit配列と同版fact行を照合する。`pitch`/`non_pitch`の保存PlayRow区分とT1原本区分が一致する行だけを読ませ、非投球の0球を強制1球へ変えない。既T5 model・生成facts・旧pitch vectorの値は変更しない。真正 `non_pitch` PlayRowの製品保存経路と、それを経由した88列ZIPは別枝で実装中であり、この候補の純試験成功を実接続成功へ読み替えない。正式score資産・writer関数・0047の受理はrootが直列で扱う。

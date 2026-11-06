@@ -8,9 +8,15 @@
     "factVersion": "current-same-transaction"
   },
   "pitchCount": {
-    "kind": "saved-primitive-credit-window",
+    "kind": "saved-t5-state-credit-window",
     "metricId": "pitch_count",
-    "playerSource": "play_rows.pitcher_id"
+    "playerSource": "play_rows.pitcher_id",
+    "metricStatePath": ["metrics", "pitch_count"],
+    "creditShape": "zero-or-one-same-actual-pitcher",
+    "sourceEventKinds": [
+      {"playRow": "pitch", "t1": "pitch-event"},
+      {"playRow": "non_pitch", "t1": "non-pitch-event"}
+    ]
   },
   "scoreboard": {
     "kind": "saved-t1-before-after-difference",

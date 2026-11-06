@@ -250,6 +250,22 @@ def test_recorded_direct_values_keep_old_header_and_real_meaning():
     assert project_recorded_direct(identity)["top_names"] is None
 
 
+def test_recorded_non_pitch_uses_saved_kind_without_pitch_only_fill():
+    """非投球の保存区分を有限表示し、投球だけの観測を補わない。"""
+    identity = _identity()
+    identity.play["event_kind"] = "non_pitch"
+    identity.payload["calculation"]["request"]["t1"]["pitchEventKind"] = (
+        "non-pitch-event"
+    )
+    values = project_recorded_direct(identity)
+    assert values["プレイの種類"] == "非投球"
+    assert values["球速"] is None
+    assert values["球種"] is None
+    identity.play["event_kind"] = "control"
+    with pytest.raises(RecordedExportProjectionUnavailable):
+        project_recorded_direct(identity)
+
+
 def test_first_half_legacy_order_uses_saved_active_and_started_inactive_only():
     """旧初球・通常の表1回だけ開始済み裏打順を1へ束縛する。"""
     identity = _identity()
@@ -357,9 +373,7 @@ def test_nonplay_saved_checkpoint_supplies_relief_lineup_without_start_guess():
     """交代後次球の真正CP.restoredだけから現役投手を照合する。"""
     identity, snapshot = _substituted_identity(RELIEF, "pitcher")
     lineup = identity.payload["calculation"]["request"]["source"]["lineup"]
-    identity.payload["calculation"]["formatVersion"] = (
-        "nonplay-prefix-calculation-v1"
-    )
+    identity.payload["calculation"]["formatVersion"] = "nonplay-prefix-calculation-v1"
     identity.payload["calculation"]["request"]["source"] = {
         "formatVersion": "nonplay-prefix-source-v1",
         "checkpoint": {
@@ -371,9 +385,9 @@ def test_nonplay_saved_checkpoint_supplies_relief_lineup_without_start_guess():
         "activeStack": [],
     }
     assert project_recorded_direct(identity, {RELIEF: snapshot})["投手番号"] == "11"
-    identity.payload["calculation"]["request"]["source"]["checkpoint"][
-        "content"
-    ]["scope"]["gameId"] = str(UUID(int=99))
+    identity.payload["calculation"]["request"]["source"]["checkpoint"]["content"][
+        "scope"
+    ]["gameId"] = str(UUID(int=99))
     with pytest.raises(RecordedExportProjectionUnavailable):
         project_recorded_direct(identity, {RELIEF: snapshot})
 
