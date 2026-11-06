@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Mapping
+from contextlib import nullcontext
 from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
@@ -147,9 +148,23 @@ def _apply_locked(
     projection: ProjectionPort,
     validator: ContentValidationPort,
     writer: PortWriter | None = None,
+    *,
+    bound_source: object | None = None,
 ) -> ChangeResult:
     """③〜⑨を順に判定し、未使用 D5 だけを一取引で確定する。"""
+    from pitchlog.repositories.transaction import _port_predecision_phase
+    from pitchlog.sync.source_binding import _E1CoreSource
+
+    if bound_source is not None and (
+        type(bound_source) is not _E1CoreSource
+        or bound_source.scope is not scope
+        or bound_source.request is not request
+        or bound_source.event is not request.events[0]
+    ):
+        raise ValueError("P3の実bound sourceが不一致")
     event = request.events[0]
+    if bound_source is not None:
+        bound_source.read(scope, event)
     game_id = UUID(request.game_id)
     locked = _lock_game_generation(scope, game_id)
     if locked is None:
@@ -165,9 +180,15 @@ def _apply_locked(
         writer = _issue_port_writer(scope.run)
     try:
         supplied = request.recovery_generation
-        if type(supplied) is not str or not rights.is_recovery_generation_current(
-            event.game_id, supplied, writer
+        with (
+            _port_predecision_phase(scope, "rights")
+            if bound_source is not None
+            else nullcontext()
         ):
+            recovery_current = type(supplied) is str and (
+                rights.is_recovery_generation_current(event.game_id, supplied, writer)
+            )
+        if not recovery_current:
             raise _NoWriteResult(
                 RejectedChangeResult("B9", event.d5, "要求作成時の復旧世代が旧世代")
             )
@@ -185,12 +206,18 @@ def _apply_locked(
                 )
             )
 
-        if status == "in_progress" and (
-            request.v12 is ABSENT
-            or not rights.holds_recording_right(
-                event.game_id, str(generation), request.v12, writer
-            )
+        with (
+            _port_predecision_phase(scope, "rights")
+            if bound_source is not None and status == "in_progress"
+            else nullcontext()
         ):
+            has_right = status != "in_progress" or (
+                request.v12 is not ABSENT
+                and rights.holds_recording_right(
+                    event.game_id, str(generation), request.v12, writer
+                )
+            )
+        if not has_right:
             raise _NoWriteResult(
                 RejectedChangeResult("B9", event.d5, "現在の記録権証明がない")
             )
@@ -212,7 +239,12 @@ def _apply_locked(
             raise _NoWriteResult(
                 RejectedChangeResult("B14", event.d5, "V11 の期待版が不正")
             )
-        valid, reason = validator.validate(event, writer)
+        with (
+            _port_predecision_phase(scope, "content")
+            if bound_source is not None
+            else nullcontext()
+        ):
+            valid, reason = validator.validate(event, writer)
         if not valid:
             raise _NoWriteResult(
                 RejectedChangeResult(
@@ -256,6 +288,8 @@ def _apply_locked(
             ensure_ascii=False,
             sort_keys=True,
         )
+        if bound_source is not None:
+            bound_source.begin_write(scope, event)
         raced = recheck_and_insert_result(
             scope,
             IdempotencyLedgerInsertToken(
@@ -292,7 +326,11 @@ def _apply_locked(
             )
         )
         reach("after_t2_event")
+        if bound_source is not None:
+            bound_source.read(scope, event)
         projection.apply(event, writer)
+        if bound_source is not None:
+            bound_source.read(scope, event)
         reach("after_t4_projection")
         record_p3_intents(scope, game_id, target[1], target[2], event.v11 + 1)
         reach("after_t7_intents")

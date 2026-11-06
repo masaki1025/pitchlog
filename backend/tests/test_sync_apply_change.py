@@ -221,6 +221,22 @@ def test_p3_rejects_unregistered_ports_before_any_call(
     assert validator.calls == 0
 
 
+def test_p3_bound_source_cannot_be_value_substituted() -> None:
+    """同じ値を持つ任意objectをE1同writer資格へ昇格させない。"""
+    game_id = str(uuid4())
+    event = SyncEvent(str(uuid4()), game_id)
+    request = SyncRequest("P3", game_id, (event,), recovery_generation="1")
+    with pytest.raises(ValueError, match="bound source"):
+        change_path._apply_locked(
+            cast(_TenantTransaction, object()),
+            request,
+            ChangeRights(),
+            ChangeProjection(),
+            ChangeValidator(),
+            bound_source=object(),
+        )
+
+
 def test_delivery_pages_past_b06_and_retries_pending(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
