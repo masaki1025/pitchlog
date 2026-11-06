@@ -1,5 +1,14 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 2026-11-07 00:57 JST：同一結合候補で断中復帰・交代・成績CSVを実証
+
+- **同版の利用者操作**: `feature/mvp-connected-rehearsal@60f39f1042e18d2bfe3bf882dd24dc3caccda0ae`（通常push済み）で、新規作成/開始から完全断中cold再起動→2球端末保持→復帰後の同本文/同attempt順序送信→実GET/DB、交代→次球→reload、終了/再開/追加球/再終了→試合/シーズン成績・CSVを同sourceのowned環境群で検証。共通lock/実auth・権利・API・ownedPG、4passed325.23秒。別テスト間の同一試合/同一DBセッションまでは主張しない。固定source前後同一、owner cleanup済み、session80858はterminal0で再起動不要。
+- **同版の回帰**: frontend180files/3687passed、backend Ruff/Ty、Vue型・対象lint成功。通常9回163球の既実証は64fc0b33、同testを本候補へ通常merge済みだが本候補での163球再測はまだ。正式develop/全MVP/実機/性能合格には拡張しない。
+- **失効指摘の閉鎖**: local63dd1025の非作者再確認REPORT SHA3c240e88a8f79b78c0b1f3c0f0b81b7668b22d53a44d7e3da835054f7bec4cb5はP0/P1=0。App失効をshallowRefで反映し、authEpochを人為更新しない対向を追加。同固定cold実測75.664秒も成功。交代UIは送信C2不足を2b755eacで修復後、実画面/DB91.028秒成功。失敗履歴は保全する。
+- **次の依存と所有**: rootは毎球CSV6指摘修復/記録時88列producerを新WT `fix-mvp-play-csv-delivery` で開始（元CSV WT不変更）。P3担当は真正receipt/RG1/実Portとcurrent capsule/T5読取の同TX接合中、公開routerは未接続。viewer担当のclean owned r14は122.39秒成功（0/1/2/finishedの別Cookie読取、越境拒否）、次に2-context実画面10秒更新/断中。PR197担当は限定history carry証拠と拒否条件を修復中。正式受理/独立最終レビュー/全必須CI/通常統合、全走者アウト等/訂正/毎球CSV/全27供給/負荷/実機/運用復旧は未了。
+- **証拠入口**: cache `mvp-resume-20261104/connected-three-paths-r1-summary.json` と同prefix log/xml/result/source-before/source-after、`connected-frontend-all-r1.log`。再開時はterminal記録を優先する。MVP全体Goalはactive、PO本人の確認/署名・P6blind検証とはしない。
+
+
 ## 2026-11-07 00:00 JST 再評価：結合実証方式を継続する
 
 PO指定の0時再評価。小部品の前閉じを全体条件にせず、既核/契約をまとめて候補へ接合→実画面/PGで停止点を修復→固定後非作者確認という方式を継続する。安全/全MVP範囲/正式統合条件は維持し、Goalを完了/停止としない。
