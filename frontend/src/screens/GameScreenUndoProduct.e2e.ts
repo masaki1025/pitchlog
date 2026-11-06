@@ -229,7 +229,19 @@ test('実画面の新規作成→開始→2球→ACK喪失/reload/同要求再�
     await expect(page.getByTestId('restore-history')).toHaveText(`${n}件`)
   }
   let panel = page.getByTestId('undo-product-panel')
+  const undoRead = page.waitForResponse(
+    (res) =>
+      res.request().method() === 'GET' &&
+      apiPath(res.url()) === `/api/games/${saved.id}/started` &&
+      new URL(res.url()).searchParams.get('projection') === 'undo-prefix-v1',
+  )
   await panel.getByTestId('undo-product-reload').click()
+  const undoReadResponse = await undoRead
+  console.log(
+    'PITCHLOG_UNDO_READ_HTTP=' +
+      JSON.stringify({ http: undoReadResponse.status() }),
+  )
+  expect(undoReadResponse.status()).toBe(200)
   await expect(panel.getByTestId('undo-product-balls')).toHaveText('2')
   await expect(panel.getByTestId('undo-product-depth')).toHaveText('2')
   for (const box of await panel.locator('input[type=checkbox]').all())
