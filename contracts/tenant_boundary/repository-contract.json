@@ -172,7 +172,9 @@
     "CAP:play_rows:insert",
     "CAP:games:insert",
     "CAP:tenant_vocabularies:insert",
-    "CAP:tenant_vocabularies:read"
+    "CAP:tenant_vocabularies:read",
+    "CAP:play_runners:read",
+    "CAP:participation_intervals:read"
   ],
   "product_operation_token_types": [
     "pitchlog.repositories.roster.PlayerReadToken",
@@ -239,7 +241,12 @@
     "pitchlog.repositories.preparing_game_creation.PreparingSelfTeamLockToken",
     "pitchlog.repositories.preparing_game_creation.PreparingOpponentTeamLockToken",
     "pitchlog.repositories.pitch_type_options.PitchTypeOptionsToken",
-    "pitchlog.sync.ordinary_pitch_tokens.OrdinaryPlayRowInsertToken"
+    "pitchlog.sync.ordinary_pitch_tokens.OrdinaryPlayRowInsertToken",
+    "pitchlog.repositories.play_export.PlayExportPlayRowsToken",
+    "pitchlog.repositories.play_export.PlayExportEventsToken",
+    "pitchlog.repositories.play_export.PlayExportRunnersToken",
+    "pitchlog.repositories.play_export.PlayExportParticipationsToken",
+    "pitchlog.repositories.play_export.PlayExportTenantVocabularyToken"
   ],
   "cross_tenant_functions": [],
   "function_executor": {
@@ -264,5 +271,5 @@
     "SYNC_ORDINARY_PITCH:read_ordinary_history_page",
     "SYNC_ORDINARY_PITCH:read_ordinary_order_summary"
   ],
-  "source_digest": "27f41deef37f99711b4597a1bba87234eb63b66c9f3144afdf70a46e8b3e4558"
+  "source_digest": "1842ab09d8aa4b40890d999d1a59c0cd2b2d135bf50960cbaedc0e4d2345f1e4"
 }

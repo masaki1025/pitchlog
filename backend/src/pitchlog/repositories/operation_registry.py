@@ -24,6 +24,7 @@ from pitchlog.repositories.ordinary_pitch_qualification import (
 )
 from pitchlog.repositories.ordinary_prefix_operations import ORDINARY_PREFIX_OPERATIONS
 from pitchlog.repositories.pitch_type_options import PITCH_TYPE_OPTIONS_OPERATIONS
+from pitchlog.repositories.play_export import PLAY_EXPORT_OPERATIONS
 from pitchlog.repositories.preparing_game_creation import (
     PREPARING_GAME_CREATE_OPERATIONS,
 )
@@ -66,6 +67,7 @@ PRODUCT_OPERATIONS: tuple[OperationRegistration, ...] = (
     *PREPARING_GAME_CREATE_OPERATIONS,
     *PITCH_TYPE_OPTIONS_OPERATIONS,
     *ORDINARY_PLAY_OPERATIONS,
+    *PLAY_EXPORT_OPERATIONS,
 )
 
 _STATIC_PRODUCT_FUNCTION_BINDING_IDS = frozenset(

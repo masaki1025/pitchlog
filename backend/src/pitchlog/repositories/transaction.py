@@ -43,7 +43,7 @@ if TYPE_CHECKING:
     from pitchlog.repositories.game_start import BoundInitialStartPayload
     from pitchlog.repositories.initial_recording_right import InitialRecordingRightScope
 
-__all__ = ("tenant_transaction_scope",)
+__all__ = ("tenant_export_read_scope", "tenant_transaction_scope")
 
 _HANDLE_CREATION_TOKEN = object()
 _TransactionRuntime = tuple[Session, ExitStack]
@@ -519,7 +519,13 @@ class _TenantTransaction:
 class _TenantTransactionScope(AbstractContextManager[_TenantTransaction]):
     """Session の生成から close までを所有する内部 context manager。"""
 
-    __slots__ = ("_context", "_handle", "_actor_runtime", "_actor_phase")
+    __slots__ = (
+        "_context",
+        "_handle",
+        "_actor_runtime",
+        "_actor_phase",
+        "_export_read",
+    )
 
     def __init__(
         self,
@@ -527,16 +533,21 @@ class _TenantTransactionScope(AbstractContextManager[_TenantTransaction]):
         *,
         _actor_runtime: object | None = None,
         _actor_phase: Literal["intent", "business", "enroll"] | None = None,
+        _export_read: bool = False,
     ) -> None:
         """スコープへ一度だけ渡されたテナント文脈を保持する。
 
         Args:
             context: API 層から引き渡されたテナント文脈。
+            _actor_runtime: 初期権 actor の閉じた実行状態。
+            _actor_phase: 初期権 actor の phase。
+            _export_read: 同一snapshotの読取専用トランザクションにするか。
         """
         self._context = context
         self._handle: _TenantTransaction | None = None
         self._actor_runtime = _actor_runtime
         self._actor_phase = _actor_phase
+        self._export_read = _export_read
 
     def __enter__(self) -> _TenantTransaction:
         """Session を生成し、トランザクション先頭で文脈を束縛する。
@@ -570,6 +581,13 @@ class _TenantTransactionScope(AbstractContextManager[_TenantTransaction]):
             if self._actor_phase not in ("intent", "business", "enroll"):
                 raise TenantBindingError("actor phaseが未登録")
             engine = _initial_actor_engine(self._actor_runtime)
+        if self._export_read:
+            if self._actor_runtime is not None or self._actor_phase is not None:
+                raise TenantBindingError("出力readと書込actorを同じscopeへ混在できない")
+            # tenant bindingの最初のSELECTより前にdriverのBEGIN設定を固定する。
+            engine = engine.execution_options(
+                isolation_level="REPEATABLE READ", postgresql_readonly=True
+            )
         session = Session(engine)
         exit_stack = ExitStack()
         state_key = object()
@@ -745,6 +763,23 @@ def tenant_transaction_scope(
         Session の生成・束縛・確定・取消・close を所有するスコープ。
     """
     return _TenantTransactionScope(context)
+
+
+def tenant_export_read_scope(
+    context: TenantContext,
+) -> AbstractContextManager[_TenantTransaction]:
+    """同一tenantのREPEATABLE READ・読取専用スコープを返す。
+
+    出力全体を同じDB snapshotから読むための最小拡張である。tenant binding と
+    RG1 の既存境界はそのまま通り、書込はDB側で拒否される。
+
+    Args:
+        context: API 層から引き渡されたテナント文脈。
+
+    Returns:
+        Session の生成・束縛・取消・close を所有する読取専用スコープ。
+    """
+    return _TenantTransactionScope(context, _export_read=True)
 
 
 def _assert_initial_actor_transaction(

@@ -616,6 +616,8 @@ def test_roster_capabilities_tokens_and_registry_are_exact() -> None:
         "CAP:games:insert",
         "CAP:tenant_vocabularies:insert",
         "CAP:tenant_vocabularies:read",
+        "CAP:play_runners:read",
+        "CAP:participation_intervals:read",
     )
     expected_sync_operations = (
         ("GameReadToken", "CAP:games:read"),
@@ -689,11 +691,16 @@ def test_roster_capabilities_tokens_and_registry_are_exact() -> None:
         "pitchlog.repositories.preparing_game_creation.PreparingOpponentTeamLockToken",
         "pitchlog.repositories.pitch_type_options.PitchTypeOptionsToken",
         "pitchlog.sync.ordinary_pitch_tokens.OrdinaryPlayRowInsertToken",
+        "pitchlog.repositories.play_export.PlayExportPlayRowsToken",
+        "pitchlog.repositories.play_export.PlayExportEventsToken",
+        "pitchlog.repositories.play_export.PlayExportRunnersToken",
+        "pitchlog.repositories.play_export.PlayExportParticipationsToken",
+        "pitchlog.repositories.play_export.PlayExportTenantVocabularyToken",
     )
-    assert len(expected_capabilities) == 36
+    assert len(expected_capabilities) == 38
     assert repository_contract.PRODUCT_CAPABILITY_IDS == expected_capabilities
     assert repository_contract.PRODUCT_OPERATION_TOKEN_TYPES == expected_token_types
-    assert len(expected_token_types) == 65
+    assert len(expected_token_types) == 70
     assert (
         repository_contract.CROSS_TENANT_FUNCTION_ENTRY
         == repository_contract.CONTEXT_BINDING_ENTRY
@@ -740,6 +747,11 @@ def test_roster_capabilities_tokens_and_registry_are_exact() -> None:
                 "CAP:team_records:read",
                 "CAP:tenant_vocabularies:read",
                 "CAP:play_rows:insert",
+                "CAP:play_rows:read",
+                "CAP:operation_events:read",
+                "CAP:play_runners:read",
+                "CAP:participation_intervals:read",
+                "CAP:tenant_vocabularies:read",
             ),
             strict=True,
         )
