@@ -250,6 +250,16 @@ class _TenantTransaction:
             raise TenantBindingError(
                 "TenantContext の発行証跡が不一致のため業務 SQL を開始できない"
             )
+        from pitchlog.repositories.viewer_read import (
+            ViewerNonplayActiveHistoryReadToken,
+            ViewerPlayPrefixHistoryPageToken,
+        )
+
+        if type(operation) in {
+            ViewerNonplayActiveHistoryReadToken,
+            ViewerPlayPrefixHistoryPageToken,
+        } and state_key not in _VIEWER_READ_HANDLES:
+            raise TenantBindingError("閲覧専用page関数はRR READ ONLY scopeが必要")
         if state_key in _VIEWER_READ_HANDLES:
             _require_viewer_read_token(self, operation, function=True)
         if _basic_stats_read_operation(operation):
@@ -968,6 +978,10 @@ def _require_viewer_read_token(
         from pitchlog.repositories.ordinary_prefix_operations import (
             OrdinaryCheckpointReadToken,
         )
+        from pitchlog.repositories.viewer_read import (
+            ViewerNonplayActiveHistoryReadToken,
+            ViewerPlayPrefixHistoryPageToken,
+        )
         from pitchlog.sync.terminal_pitch_tokens import (
             LineupStartedOriginReadToken,
             PlayPrefixCheckpointReadToken,
@@ -982,6 +996,8 @@ def _require_viewer_read_token(
             LineupStartedOriginReadToken,
             PlayPrefixCheckpointReadToken,
             PlayPrefixHistoryPageToken,
+            ViewerNonplayActiveHistoryReadToken,
+            ViewerPlayPrefixHistoryPageToken,
         }
     else:
         from pitchlog.repositories.roster import PlayerReadToken

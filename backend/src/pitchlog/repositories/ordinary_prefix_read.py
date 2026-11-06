@@ -229,6 +229,7 @@ def read_ordinary_prefix(
                 tail,
                 limit,
                 cursor,
+                viewer=_viewer,
             )
     if (n == 0 and tail is not None) or (
         n > 0
@@ -1137,7 +1138,13 @@ def _read_lineup_projection(
             raise OrdinaryPrefixError
         if [str(x) for x in point] != raw:
             raise OrdinaryPrefixError
-    token = PlayPrefixHistoryPageToken(
+    if _viewer:
+        from pitchlog.repositories.viewer_read import ViewerPlayPrefixHistoryPageToken
+
+        page_token = ViewerPlayPrefixHistoryPageToken
+    else:
+        page_token = PlayPrefixHistoryPageToken
+    token = page_token(
         game_id,
         generation,
         int(doc.history_version),
@@ -1243,7 +1250,8 @@ def _read_lineup_projection(
 
 
 def _read_nonplay_projection(
-    handle, game_id, tenant, game, generation, epoch, n, d4, row, tail, limit, cursor
+    handle, game_id, tenant, game, generation, epoch, n, d4, row, tail, limit, cursor,
+    *, viewer=False,
 ):
     """非play後D3を実head/active/物理採番と分離したreadonly projection。"""
     from pitchlog.domainrt.initial_game_roster import InitialRosterProjection
@@ -1268,7 +1276,8 @@ def _read_nonplay_projection(
     ):
         raise OrdinaryPrefixError
     page = read_active_page(
-        handle, cp, generation=generation, limit=limit, cursor=cursor
+        handle, cp, generation=generation, limit=limit, cursor=cursor,
+        viewer=viewer,
     )
     roster = InitialRosterProjection.model_validate_json(_canonical_json(row["roster"]))
     saved = _rows(handle.run(StartedLineupsReadToken(game_id)), LINEUP_COLUMNS)
