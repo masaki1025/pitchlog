@@ -130,3 +130,12 @@ def test_lineup_origin_minimal_columns_and_historical_device_no_current_role():
         "lineup physical source rejected",
     ):
         assert required in sql
+
+
+def test_nonplay_checkpoint_subtraction_extracts_jsonb_before_removing_keys():
+    """文字列literal同士の減算へ誤解釈させず既JSONB差分比較を保持する。"""
+    sql = candidate_function_bodies()["prepare_play_prefix_projection"]
+    assert "(((after_cp->'checkpoint')-'content')-'ref')" in sql
+    assert "((after_cp->'checkpoint'->'ref')-'digest')" in sql
+    assert "(after_cp->'checkpoint'-'content'-'ref')" not in sql
+    assert "(after_cp->'checkpoint'->'ref'-'digest')" not in sql

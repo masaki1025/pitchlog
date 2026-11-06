@@ -439,7 +439,10 @@ def read_confirmed_nonplay_normal(handle, event, source, *, proposal, artifact_s
     }
     _check_source(raw)
     if (
-        not _same(raw, proposal.source.model_dump(mode="json", by_alias=True))
+        not _same(
+            raw,
+            proposal.source.model_dump(mode="json", by_alias=True, exclude_unset=True),
+        )
         or proposal.prefix_ref != cp.ref
         or proposal.source_position.d1 != str(event.d1)
         or proposal.source_position.applied_watermark != cp.content.d3
@@ -512,7 +515,9 @@ def _assert_nonplay_normal_prefix(state):
             }
         )
         != entry[5]
-        or _canonical_json(prefix.source.model_dump(mode="json", by_alias=True))
+        or _canonical_json(
+            prefix.source.model_dump(mode="json", by_alias=True, exclude_unset=True)
+        )
         != entry[2]
         or prefix.checkpoint.document is not prefix.source.checkpoint
         or prefix.next_play_number

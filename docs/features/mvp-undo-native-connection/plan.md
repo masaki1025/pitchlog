@@ -397,3 +397,6 @@ r40再認証後の試験遷移是正: login helperが既routerの元試合redire
 
 
 r41で真正取消後の1ball/履歴1・認証再確認・reloadまで成立、同要求再送は503。原因は既DI1〜DI3のwriter前D5再掲helperがP2のみを対象とし、新接続の取消P1を除外していたこと。通常保存済要求に不要な新writer publicationへ入り、同attempt/同phaseの不変PKで拒否する。既認可後・RG1/tenant照合・V12前のD5順序を維持し、helperの対象へ接続済単一P1 undoだけを加え、classify_d5へ真正request.pathを渡す。未使用D5はNoneで通常の記録権/連番/内容/取消評価へ戻り、既存P1/P3一般操作を成功させない。writerの不変PK・旧lease・認証・冪等性を緩めず、D5を新attemptへ置換しない。rootがP2/取消P1の受理/未使用/異内容・D3対向を共通試験し、最終独立確認と実画面r42へ進む。PO委任rootの既契約実装接続修復。
+
+
+追加通常球の共有接続修復（2026-11-06、PO委任Codex/root判断）: 終了再開作者cacheの実PG run22/23が、raw履歴差分の省略欄をPydantic既定Noneで補う比較不一致と、JSONB抽出・キー削除の演算子優先順位42725を特定。NPにも同一sourceがあるため、read_confirmed_nonplay_normalと生存seal再照合の2dumpだけexclude_unset=Trueで原wireの省略/明示nullを保存する。SQLの抽出左辺を括弧化し全旧比較述語を保持。公式prepare bodyを全publisher出力照合して再生成し、旧source修復なしの同じ失敗再実行を避ける。認可/同TX/数学/取消範囲を変えない。
