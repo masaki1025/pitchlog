@@ -4,7 +4,7 @@
 """
 
 from dataclasses import replace
-from types import MappingProxyType
+from types import MappingProxyType, SimpleNamespace
 from typing import cast
 from uuid import uuid4
 
@@ -16,6 +16,8 @@ from pitchlog.sync.model import AckResult, SyncEvent, SyncRequest
 from pitchlog.sync.source_binding import SourceBindingError
 
 _D4 = "d4.1.example"
+_DEVICE = uuid4()
+_CREDENTIAL_DIGEST = b"d" * 32
 
 
 def _digest() -> str:
@@ -60,7 +62,9 @@ def test_missing_integrity_proof_is_rejected() -> None:
     """実認証の証跡が無い文脈を再掲へ使わない。"""
     forged = object.__new__(type(make_tenant_context(uuid4())))
     with pytest.raises(SourceBindingError):
-        _replay_e1_without_binding(forged, _p2(), (_digest(),))
+        _replay_e1_without_binding(
+            forged, _p2(), (_digest(),), _DEVICE, _CREDENTIAL_DIGEST
+        )
 
 
 @pytest.mark.parametrize(
@@ -74,6 +78,8 @@ def test_mismatched_fingerprints_are_rejected(fingerprints: object) -> None:
             make_tenant_context(uuid4()),
             _p2(),
             cast(tuple[str, ...], fingerprints),  # 意図的不正入力を補修せず渡す。
+            _DEVICE,
+            _CREDENTIAL_DIGEST,
         )
 
 
@@ -81,10 +87,17 @@ def test_multi_event_and_p3_are_left_to_the_existing_out_of_scope() -> None:
     """単球F1の範囲外は再掲で判定せず、既存の範囲外拒否へ戻す。"""
     context = make_tenant_context(uuid4())
     assert (
-        _replay_e1_without_binding(context, _p2(count=2), (_digest(), _digest()))
+        _replay_e1_without_binding(
+            context, _p2(count=2), (_digest(), _digest()), _DEVICE, _CREDENTIAL_DIGEST
+        )
         is None
     )
-    assert _replay_e1_without_binding(context, _p3(), (_digest(),)) is None
+    assert (
+        _replay_e1_without_binding(
+            context, _p3(), (_digest(),), _DEVICE, _CREDENTIAL_DIGEST
+        )
+        is None
+    )
 
 
 @pytest.mark.parametrize("path", ["P2", "P1"])
@@ -114,7 +127,15 @@ def test_positive_d1_classifies_saved_d5_before_any_binding(
     seen = []
 
     class Scope:
-        """D3一点のみ合成し、writer関数は提供しない。"""
+        """B5とD3の単一点を合成し、writer関数は提供しない。"""
+
+        def run_function(self, token):
+            """端末資格readを同scopeで合成する。"""
+            from pitchlog.repositories.first_ball import _VerifyReplayDeviceToken
+
+            assert type(token) is _VerifyReplayDeviceToken
+            seen.append("B5")
+            return SimpleNamespace(rows=((True,),))
 
         def run(self, token):
             """実原本照会の代替合成。実DB成立とは別。"""
@@ -125,9 +146,17 @@ def test_positive_d1_classifies_saved_d5_before_any_binding(
                 (tuple(values.get(key) for key in RECORDING_GENERATION_READ_COLUMNS),)
             )
 
+    held = Scope()
+
     @contextmanager
     def scope(context):
-        yield Scope()
+        yield held
+
+    def accessible(context, game_id, scope_factory):
+        with scope_factory(context) as checked:
+            assert checked is held
+        seen.append("B6")
+        return True
 
     def classify(handle, d5, fingerprint, path):
         seen.append("D5")
@@ -152,12 +181,14 @@ def test_positive_d1_classifies_saved_d5_before_any_binding(
             )
         return D5Candidate(kind, "B3b" if kind == "conflict" else None)
 
-    monkeypatch.setattr(apply, "game_accessible", lambda *args: True)
+    monkeypatch.setattr(apply, "game_accessible", accessible)
     monkeypatch.setattr(apply, "tenant_transaction_scope", scope)
     monkeypatch.setattr(rg1, "read_rg1_open", lambda scope: seen.append("RG1"))
     monkeypatch.setattr(idempotency, "classify_d5", classify)
-    result = _replay_e1_without_binding(context, request, (_digest(),))
-    assert seen == ["RG1", "D3", "D5"]
+    result = _replay_e1_without_binding(
+        context, request, (_digest(),), _DEVICE, _CREDENTIAL_DIGEST
+    )
+    assert seen == ["B5", "B6", "RG1", "D3", "D5"]
     if kind == "unused":
         assert result is None
     else:
@@ -167,10 +198,57 @@ def test_positive_d1_classifies_saved_d5_before_any_binding(
         assert result.a5[0].state == ("重複" if kind == "stored_result" else "拒否")
 
 
+def test_failed_b5_does_not_reach_game_right_or_d5(monkeypatch) -> None:
+    """端末資格不成立を同scopeの先頭で閉じ、後続の原本を読まない。"""
+    from contextlib import contextmanager
+
+    from pitchlog.repositories.first_ball import _VerifyReplayDeviceToken
+    from pitchlog.sync import apply, idempotency
+
+    seen = []
+
+    class Scope:
+        """B5偽だけを返す最小scope。"""
+
+        def run_function(self, token):
+            assert type(token) is _VerifyReplayDeviceToken
+            seen.append("B5")
+            return SimpleNamespace(rows=((False,),))
+
+    @contextmanager
+    def scope(context):
+        yield Scope()
+
+    monkeypatch.setattr(apply, "tenant_transaction_scope", scope)
+    monkeypatch.setattr(
+        apply, "game_accessible", lambda *args: pytest.fail("B5後にB6へ進んだ")
+    )
+    monkeypatch.setattr(
+        idempotency, "classify_d5", lambda *args: pytest.fail("B5後にD5へ進んだ")
+    )
+    assert (
+        _replay_e1_without_binding(
+            make_tenant_context(uuid4()),
+            _p2(),
+            (_digest(),),
+            _DEVICE,
+            _CREDENTIAL_DIGEST,
+        )
+        == "B5"
+    )
+    assert seen == ["B5"]
+
+
 def test_p1_non_undo_is_not_added_to_replay_entry():
     """接続対象外P1を新たな再掲成功経路へ拡張しない。"""
     request = replace(_p2(), path="P1")
     assert (
-        _replay_e1_without_binding(make_tenant_context(uuid4()), request, (_digest(),))
+        _replay_e1_without_binding(
+            make_tenant_context(uuid4()),
+            request,
+            (_digest(),),
+            _DEVICE,
+            _CREDENTIAL_DIGEST,
+        )
         is None
     )

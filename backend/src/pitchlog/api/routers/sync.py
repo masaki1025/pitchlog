@@ -168,13 +168,24 @@ def sync_events(
         )
     except (_E1OutOfScope, RequestShapeError, WireSourceError, KeyError, TypeError):
         raise HTTPException(status_code=422) from None
+    # ②B5の実端末資格を確認してから、③B6/④D5の再掲分類へ進む。
+    try:
+        credential_digest = _credential_digest(device_credential)
+    except InitialGrantUnavailable:
+        raise HTTPException(status_code=401) from None
     # DI1/DI2/DI3: ③認可後・V12前に D5 を分類し、保存済み結果だけを再掲する。
     try:
         replayed = _replay_e1_without_binding(
-            context, sync_request, source.event_fingerprints
+            context,
+            sync_request,
+            source.event_fingerprints,
+            device_id,
+            credential_digest,
         )
     except DATABASE_ERRORS:
         raise HTTPException(status_code=503) from None
+    if replayed == "B5":
+        raise HTTPException(status_code=401)
     if replayed == "B6":
         raise HTTPException(status_code=404)
     if replayed == "B7":
@@ -183,10 +194,6 @@ def sync_events(
         return JSONResponse(_ack_body(replayed))
     if sync_request.v12 is None:
         raise HTTPException(status_code=422)
-    try:
-        credential_digest = _credential_digest(device_credential)
-    except InitialGrantUnavailable:
-        raise HTTPException(status_code=422) from None
     entry_token = object()
     rights = FirstBallRecordingRightsPort()
     try:

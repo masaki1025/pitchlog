@@ -8,7 +8,10 @@ from pitchlog.repositories.batted_ball_options import BATTED_BALL_OPTIONS_OPERAT
 from pitchlog.repositories.first_ball import (
     _UNREGISTERED_DECLARATIONS as _FIRST_BALL_FUNCTION_OPERATIONS,
 )
-from pitchlog.repositories.first_ball import DEVICE_STATE_READ_OPERATION
+from pitchlog.repositories.first_ball import (
+    DEVICE_STATE_READ_OPERATION,
+    REPLAY_DEVICE_VERIFY_OPERATION,
+)
 from pitchlog.repositories.first_ball_operations import FIRST_BALL_PLAY_OPERATIONS
 from pitchlog.repositories.function_operations import (
     FunctionOperationRegistration,
@@ -96,6 +99,7 @@ _STATIC_PRODUCT_FUNCTION_BINDING_IDS = frozenset(
         "SYNC_WRITER_BINDING:read_writer_identity",
         "SYNC_WRITER_BINDING:assert_writer_binding",
         "SYNC_FIRST_BALL:read_device_state",
+        "SYNC_FIRST_BALL:verify_replay_device",
         "SYNC_ORDINARY_PITCH:bind_ordinary_device",
         "SYNC_ORDINARY_PITCH:check_ordinary_right",
         "SYNC_ORDINARY_PITCH:prepare_ordinary_projection",
@@ -199,6 +203,10 @@ PRODUCT_FUNCTION_OPERATIONS: tuple[FunctionOperationRegistration, ...] = (
     ),
     _registered_product_function(
         DEVICE_STATE_READ_OPERATION, operation_id="SYNC_FIRST_BALL:read_device_state"
+    ),
+    _registered_product_function(
+        REPLAY_DEVICE_VERIFY_OPERATION,
+        operation_id="SYNC_FIRST_BALL:verify_replay_device",
     ),
     _registered_product_function(
         ORDINARY_QUALIFICATION_OPERATIONS[0],

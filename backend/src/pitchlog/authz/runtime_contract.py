@@ -7,7 +7,7 @@ RUNTIME_CONTRACT_REVISION = 32
 PROVISIONAL = False
 SUPERSEDED_BY = None
 SOURCE_ASSET = "contracts/tenant_boundary/runtime-authz-contract.json"
-SOURCE_DIGEST = "f4661d1f0efe63cf0fa8c5a999f8e3ae424ab43fef392a5a254c97bd5ed2d077"
+SOURCE_DIGEST = "c3ebfa7432cab33c0fd6b4bbbf256890aa6802369646e6645e1830cf65a1f107"
 DERIVED_FROM = "contracts/authz/product/ddl-elements.json"
 
 
@@ -360,6 +360,7 @@ PROTECTED_FUNCTIONS = (
             "uuid, integer"
         ),
     ),
+    ("sync_right_api", "verify_replay_device", "uuid, uuid, bytea"),
 )
 
 DANGEROUS_ENDPOINT_FIXTURES = (

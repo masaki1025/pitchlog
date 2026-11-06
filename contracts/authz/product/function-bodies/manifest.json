@@ -2608,6 +2608,11 @@
       "element_id": "FUNCTION:sync_right_api:read_device_state(uuid, uuid)"
     },
     {
+      "path": "contracts/authz/product/function-bodies/functions/FUNCTION:sync_right_api:verify_replay_device(uuid, uuid, bytea).sql",
+      "element_type": "function",
+      "element_id": "FUNCTION:sync_right_api:verify_replay_device(uuid, uuid, bytea)"
+    },
+    {
       "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:operation_events:payload:pitchlog_sync_right_fn_owner.sql",
       "element_type": "column_acl_expectation",
       "element_id": "COLUMN-ACL:public:operation_events:payload:pitchlog_sync_right_fn_owner"
