@@ -361,3 +361,5 @@ xmin観測反映1の受理（2026-11-06 JST、PO委任Codex /root判断）: 初�
 ### 2026-11-06 保存済みcheckpoint照合の是正（step3付記）
 
 PO委任によるCodex主担当/root判断で、a099ff6b上の2path候補（差分SHA256 f9efd563a4eb17ded88665784f19cd00ab55b9455f4985e9996877d85b00709f）を採用する。非作者REPORTはcache nonplay-current-checkpoint-compare-independent-20261106/REPORT.md、SHA256 296ecf6981aca3b432efa5dbaa0f3eccfbc5ae246a2a085f22d5ca7c783b2e1a、P0/P1/P2各0。入力CPと保存後CPを混同せず、通常readのcheckpoint_anchorと取消readの現在CPを照合する。tenant/game/generation/状態/履歴/epoch等の既照合は保持。17試験と旧2行へ戻す反例2件を確認済み。診断probeは入力CP比較を別名として保持し保存CP比較を明示する（観測のみ）。本人確認・P6blind・実画面成功の代替ではない。次は同一固定HEAD・owned PGで2球→取消→連続取消→次球→reloadを検証する。
+
+実画面r23（ed249414）は原本取得/全照合trueへ進行、取消送信前のbusy状態でexpect既定5秒を超えて失敗（84.44秒、owned撤去/前後source一致）。機能待機を既page標準30秒へ明示し、末尾syncDurationsMs<=5000の性能合否は保持する。機能/性能の証拠を分離し、待機延長を性能成功に読み替えない。

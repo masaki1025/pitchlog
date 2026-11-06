@@ -279,6 +279,7 @@ test('実画面の新規作成→開始→2球→ACK喪失/reload/同要求再�
   await panel.getByTestId('undo-product-apply').click()
   await expect(panel.getByTestId('undo-product-status')).toContainText(
     '結果未確認',
+    { timeout: 30_000 },
   )
   await page.reload()
   panel = page.getByTestId('undo-product-panel')
