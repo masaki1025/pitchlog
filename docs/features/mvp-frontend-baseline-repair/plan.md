@@ -32,3 +32,9 @@ frontend試験と必要な有限fixture/metadata、対応する本計画のみ�
 現単一artifact公開口は lifecycle1＋旧13＋交代4の18口を `Object.keys` 完全一致で閉検査し、未提供の訂正等は加えていない。通常球commitは現C2で要求nonceに一致する応答mockだけを成功にし、ACK/排他の18試験が通過。warm authは同提示tokenの通信断でverifiedとauthEpochを維持し、記録/作成の保存成功や自動POST再掲へ変換しない。既401・別tenant・別epochの拒否試験も保持する。準備中詳細404/403の復元入口にある端末条件checkboxは記録入力と分け、GameScreen・記録select/入力/書込ボタンの閉鎖は継続確認した。
 
 旧 v2 成績fixtureにはBF原本がないため、現27欄の派生率入力では `batters_faced` を `UNSUPPORTED_SOURCE_VARIANT` の source_unavailable と明記する。0や実装計算結果で旧OPS期待を作らず、旧18例の比・実分母・表示全値を維持して25対象試験が通過。新v3 BF期待と旧数学goldenは編集しない。生成関数の例外文言「閉26項目」は現27欄に対し古い表記であり、生成sourceを手編集していない。
+
+## ステップ3の固定検査と留保
+
+基線 `b48a909d…` から本枝の編集は計画と frontend の試験/現行fixtureだけであり、製品実装・共有正本・旧fixture・生成assetは変更していない。旧Git hostと現 `ce6227…` の同要求全応答は v2 56/56、lineup 34/34、初球87/87、打球19/19、取消4/4が一致する。初球5例は元々閉拒否を含むため旧期待とは82/87一致で、旧/現同値を確認した。比較再現は cache `fe-baseline-repair-20261106/{compare_host_families.cjs,host-compatibility.json}`。
+
+現行版の全FE Vitestは174 file/3631 pass/0 fail。段階2の影響15 file/414 pass、FE `vue-tsc --noEmit` と対象 ESLint も通過。数学golden値を実装出力で再生成せず、各現行fixtureの旧原典からの差分欄を固定した。7.7の正式受理、実HTTP/DB/画面実測、製品全MVP完成、人間逐行確認/P6 blindはこの試験で主張しない。生成例外文言の項目数追随は別源generatorの表記残件である。
