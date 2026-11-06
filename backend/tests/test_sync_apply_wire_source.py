@@ -244,4 +244,40 @@ def test_old_dto_and_p3_paths_remain_independent() -> None:
         "game_id",
         "d4",
         "raw_events",
+        "d1less",
     }
+
+
+def test_p3_d1less_source_keeps_change_raw_without_inventing_d1_or_d4() -> None:
+    """P3元changeを独立指紋へ束縛し、D1付き索引へ偽装しない。"""
+    raw = {
+        "d5": _raw()["d5"],
+        "game_id": _GAME,
+        "event_kind": "play_change",
+        "payload": {"formatVersion": "p3-lineup-pitch-change-v1"},
+        "target_reference": {"game": _GAME, "d4": "3", "d1": 2},
+        "expected_version": 1,
+    }
+    value = freeze_wire_source(
+        game_id=_GAME, d4="3", raw_events=(raw,), d1less=True
+    )
+    assert checked_wire_source(value) is value
+    assert value.d1less is True
+    assert value.positions_by_d1 == ()
+    assert value.positions_by_d5 == {_raw()["d5"]: (1,)}
+    assert "d1" not in value.events[0].wire_event
+    assert "d4" not in value.events[0].wire_event
+    assert value.request_fingerprint.startswith("wire-request-v1:")
+    for changed in (
+        {**raw, "d1": 2},
+        {**raw, "d4": "3"},
+        {**raw, "target_reference": {"game": _GAME, "d4": "4", "d1": 2}},
+        {**raw, "event_kind": "play_input"},
+    ):
+        with pytest.raises(WireSourceError):
+            freeze_wire_source(
+                game_id=_GAME, d4="3", raw_events=(changed,), d1less=True
+            )
+    object.__setattr__(value, "d1less", False)
+    with pytest.raises(WireSourceError):
+        checked_wire_source(value)
