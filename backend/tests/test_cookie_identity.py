@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 import pytest
+from fastapi.routing import APIRoute
 
 from pitchlog.api.app import ROUTERS
 from pitchlog.api.cookie_identity import (
@@ -22,7 +23,9 @@ def test_declared_operations_are_exactly_tenant_matched_routes() -> None:
         route.operation_id: (next(iter(route.methods)), route.path)
         for router in ROUTERS
         for route in router.routes
-        if getattr(route, "operation_id", None) in _MATCH_OPERATIONS
+        if isinstance(route, APIRoute)
+        and route.methods is not None
+        and route.operation_id in _MATCH_OPERATIONS
     }
     assert dict(_OPERATIONS) == actual
 
