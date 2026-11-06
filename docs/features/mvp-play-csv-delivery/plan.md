@@ -52,3 +52,7 @@ closed registryの旧6赤は60f同名6caseで同じ失敗を再現（cache csv-m
 次の主作業は同TX88列producer、既D-1単一計算/生成器を用いる表示・座標・共通DBprimitive、記録時人名/背番号/roster metadata保存、正式0047+route/ACL、事前投入なし新規記録→ZIP/画面DL。sourceの欠測を0/NULL/現在名簿で補わない。P3有効source/取消/終了再開版へ連動し、未対応操作は成功にしない。
 
 反映1固定前の結合検査: CSV/RowStore/ASGI拒否＋stats/function registryの全9suite **382passed18.69秒**、Ruff/Ty・Vue型・FE対象77成功。ASGI送出故障はClientDisconnectの型と発生phaseを明示し、loopを生かしたままcloseを確認する。候補監査indexの実PG EXPLAINは未実施のまま。sourceは次のproducer担当移管時に固定し、正式受理を既レビューへ拡張しない。
+
+## ステップ3・申告敬遠との結合候補（2026-11-07）
+
+PO委任によるCodex/root判断で、既ステップ3の現行v3実画面縦断を非投球の申告敬遠まで具体化する。別固定 source `a0c192a0` を通常 merge した隔離 WT `feature/mvp-nonpitch-csv-connection` だけで、二単打→申告敬遠→同D5再送→次球→再読取→画面ZIPを検査する。CSVの同TX88列、非投球の未観測NULL、球数0credit、4行/11CSVとmanifestの実bytesを同じゲームで照合する。共有T5・非投球核、正本、正式資産はここで変更しない。候補SQLの局所適用と正式0047/7.7受理は分け、旧単独画面成功を結合成功へ流用しない。
