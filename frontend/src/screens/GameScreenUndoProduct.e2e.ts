@@ -1,6 +1,5 @@
 import { createHash } from 'node:crypto'
 import { expect, test, type Page } from '@playwright/test'
-import { isNativeUndoGame, completeUndoSource } from '../api/nativeUndoGame'
 
 const baseURL = process.env.PITCHLOG_E2E_BASE_URL
 const team = process.env.PITCHLOG_E2E_TEAM_NAME
@@ -244,22 +243,45 @@ test('実画面の新規作成→開始→2球→ACK喪失/reload/同要求再�
   )
   expect(undoReadResponse.status()).toBe(200)
   const undoPacket: unknown = await undoReadResponse.json()
-  const dtoChecks = {
-    shape: isNativeUndoGame(undoPacket),
-    completeSource: false,
-  }
-  if (isNativeUndoGame(undoPacket)) {
-    try {
-      await completeUndoSource(
-        undoPacket,
-        undoPacket.checkpoint.content.scope.tenantId,
+  await page.addScriptTag({
+    type: 'module',
+    content: `
+      import { isNativeUndoGame, completeUndoSource } from '/src/api/nativeUndoGame.ts';
+      document.getElementById('pitchlog-undo-read-probe')?.remove();
+      const output = document.createElement('output');
+      output.id = 'pitchlog-undo-read-probe';
+      output.hidden = true;
+      document.body.append(output);
+      document.addEventListener('pitchlog-undo-read-probe', async (event) => {
+        const { packet, requestId } = event.detail;
+        const checks = { shape: isNativeUndoGame(packet), completeSource: false };
+        if (checks.shape) {
+          try {
+            await completeUndoSource(packet, packet.checkpoint.content.scope.tenantId);
+            checks.completeSource = true;
+          } catch {
+            checks.completeSource = false;
+          }
+        }
+        output.textContent = JSON.stringify(checks);
+        output.dataset.requestId = requestId;
+      }, { once: true });
+    `,
+  })
+  const requestId = 'undo-read-' + Date.now()
+  await page.evaluate(
+    ({ packet, requestId }) => {
+      document.dispatchEvent(
+        new CustomEvent('pitchlog-undo-read-probe', {
+          detail: { packet, requestId },
+        }),
       )
-      dtoChecks.completeSource = true
-    } catch {
-      dtoChecks.completeSource = false
-    }
-  }
-  console.log('PITCHLOG_UNDO_READ_DTO=' + JSON.stringify(dtoChecks))
+    },
+    { packet: undoPacket, requestId },
+  )
+  const probe = page.locator('#pitchlog-undo-read-probe')
+  await expect(probe).toHaveAttribute('data-request-id', requestId)
+  console.log('PITCHLOG_UNDO_READ_DTO=' + (await probe.textContent()))
   await expect(panel.getByTestId('undo-product-balls')).toHaveText('2')
   await expect(panel.getByTestId('undo-product-depth')).toHaveText('2')
   for (const box of await panel.locator('input[type=checkbox]').all())
