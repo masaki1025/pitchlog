@@ -6,8 +6,7 @@
     "backend/domain/play-export-display.model.json": "5cc3bdd1bd37a1d54121e48083500cdc6b72d06a07645d7b08435e7bae6d2b6b",
     "backend/domain/play-export-display.schema.json": "a022f3fae0f4ca7a1834fd46aaad62cf503ebd71526123a9bfe08691e62c3d2c",
     "contracts/display_geometry_263_v1.json": "e0c4d336e169e567325c4fd645f595ae856b4bbd7e9be3e5cde53515ff8901f6",
-    "contracts/display-geometry/coordinate_transform_contract_v1.json": "130d374064d3b3d057f2730f61dcdc4521e0366eab70b744b76f478d736d43f1",
-    "backend/src/pitchlog/domaingen/export_coordinate.py": "a5321b1cb2ff7916f7eaaa5ee585562645e689c02bb8536bd7c843981aad5b5a"
+    "backend/src/pitchlog/domaingen/export_coordinate.py": "5307f47d9ceba025bb3fa11eda3ad2aa9685f5d30d186d58638069c04bb76b93"
   },
   "generatedFiles": {
     "backend/src/pitchlog/exports/generated/coordinate_transform.py": "ab5ba490d2b85c534063a6b982a4559ed95c2734b4843750d42ebb872d38e9e6",

@@ -15,7 +15,6 @@ _MODEL = "backend/domain/play-export-display.model.json"
 _SCHEMA = "backend/domain/play-export-display.schema.json"
 _GEOMETRY = "contracts/display_geometry_263_v1.json"
 _MANIFEST = "backend/domain/play-export-display.manifest.json"
-_VECTOR = "contracts/display-geometry/coordinate_transform_contract_v1.json"
 
 
 class ExportCoordinateDeclarationError(ValueError):
@@ -24,35 +23,48 @@ class ExportCoordinateDeclarationError(ValueError):
 
 def _declaration(model: Mapping[str, Any]) -> tuple[int, str, str, str]:
     """唯一のcourse画面変換を閉じた宣言から読む。"""
+    if type(model) is not dict or set(model) != {
+        "schemaVersion",
+        "geometryPath",
+        "geometrySha256",
+        "exportTransforms",
+    }:
+        raise ExportCoordinateDeclarationError("B-7 root宣言が不正")
     transforms = model.get("exportTransforms")
     if type(transforms) is not list or len(transforms) != 1:
         raise ExportCoordinateDeclarationError("座標変換宣言が一意でない")
     transform = transforms[0]
     if type(transform) is not dict or set(transform) != {
-        "id", "kind", "sourceUnit", "size", "axes"
+        "id",
+        "kind",
+        "sourceUnit",
+        "size",
+        "axes",
     }:
         raise ExportCoordinateDeclarationError("座標変換宣言の列が不正")
     size = transform["size"]
     axes = transform["axes"]
     if (
-        transform["id"] != "courseScreen"
+        model["schemaVersion"] != 1
+        or model["geometryPath"] != _GEOMETRY
+        or transform["id"] != "courseScreen"
         or transform["kind"] != "bounded-integer-axis-map"
         or type(size) is not int
         or size != 263
         or transform["sourceUnit"] != f"1/{size}"
         or type(axes) is not dict
         or set(axes) != {"x", "y"}
-        or axes["x"] not in {"identity", "complement"}
-        or axes["y"] not in {"identity", "complement"}
+        or axes["x"] != "identity"
+        or axes["y"] != "complement"
     ):
         raise ExportCoordinateDeclarationError("B-7の有限宣言ではない")
     return size, transform["sourceUnit"], axes["x"], axes["y"]
 
 
-def generate_course_export_targets(
+def _generate_course_export_targets(
     model: Mapping[str, Any], source_hash: str, geometry: Mapping[str, Any]
 ) -> dict[str, str]:
-    """単一宣言から両言語の固定小数点整数だけを生成する。
+    """bundle検査済み単一宣言から両言語の固定小数点整数だけを生成する。
 
     Args:
         model: T5共通式から独立した唯一のB-7宣言。
@@ -113,7 +125,7 @@ def course_screen(
     y_value = _number(y)
     return str({py_x}), str({py_y})
 '''
-    typescript = f'''/** 自動生成。B-7の正準座標から画面整数への一方向写像。 */
+    typescript = f"""/** 自動生成。B-7の正準座標から画面整数への一方向写像。 */
 export const SOURCE_MODEL_HASH = {source_hash!r}
 const SIZE = {size}
 const UNIT = {unit!r}
@@ -141,7 +153,7 @@ export function courseScreen(
   const yValue = number(y)
   return [String({ts_x}), String({ts_y})]
 }}
-'''
+"""
     return {
         "backend/src/pitchlog/exports/generated/coordinate_transform.py": python,
         "frontend/src/lib/generated/playExportCoordinate.ts": typescript,
@@ -166,22 +178,20 @@ def generate_course_export_bundle(root: Path = _ROOT) -> tuple[dict[str, str], d
         model_bytes = (root / _MODEL).read_bytes()
         schema_bytes = (root / _SCHEMA).read_bytes()
         geometry_bytes = (root / _GEOMETRY).read_bytes()
-        vector_bytes = (root / _VECTOR).read_bytes()
         model = json.loads(model_bytes)
         schema = json.loads(schema_bytes)
         geometry = json.loads(geometry_bytes)
         Draft202012Validator(schema).validate(model)
         if (
             type(model) is not dict
-            or set(model) != {
-                "schemaVersion", "geometryPath", "geometrySha256", "exportTransforms"
-            }
+            or set(model)
+            != {"schemaVersion", "geometryPath", "geometrySha256", "exportTransforms"}
             or model["geometryPath"] != _GEOMETRY
             or model["geometrySha256"] != hashlib.sha256(geometry_bytes).hexdigest()
         ):
             raise ExportCoordinateDeclarationError("B-7参照元が不一致")
         source_hash = _canonical_hash(model)
-        bundle = generate_course_export_targets(model, source_hash, geometry)
+        bundle = _generate_course_export_targets(model, source_hash, geometry)
         bundle = {
             path: _format_typed_target(path, content)
             for path, content in bundle.items()
@@ -196,7 +206,6 @@ def generate_course_export_bundle(root: Path = _ROOT) -> tuple[dict[str, str], d
                     (_MODEL, model_bytes),
                     (_SCHEMA, schema_bytes),
                     (_GEOMETRY, geometry_bytes),
-                    (_VECTOR, vector_bytes),
                     (
                         "backend/src/pitchlog/domaingen/export_coordinate.py",
                         (

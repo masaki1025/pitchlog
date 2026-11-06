@@ -10,8 +10,8 @@ import pytest
 from pitchlog.domaingen.core import _canonical_hash
 from pitchlog.domaingen.export_coordinate import (
     ExportCoordinateDeclarationError,
+    _generate_course_export_targets,
     generate_course_export_bundle,
-    generate_course_export_targets,
 )
 
 _ROOT = Path(__file__).resolve().parents[2]
@@ -74,7 +74,9 @@ def test_b7_malformed_or_unknown_source_is_rejected(saved) -> None:
         _generated_python().course_screen(*saved)
 
 
-@pytest.mark.parametrize("mutation", ["kind", "unit", "size", "extra"])
+@pytest.mark.parametrize(
+    "mutation", ["kind", "unit", "size", "extra", "root", "schema", "axis"]
+)
 def test_export_transform_is_closed(mutation: str) -> None:
     """未知式・単位・サイズ・追加変換を生成前に拒否する。"""
     changed = copy.deepcopy(_model())
@@ -85,10 +87,16 @@ def test_export_transform_is_closed(mutation: str) -> None:
         transform["sourceUnit"] = "1/262"
     elif mutation == "size":
         transform["size"] = 262
-    else:
+    elif mutation == "extra":
         changed["exportTransforms"].append(copy.deepcopy(transform))
+    elif mutation == "root":
+        changed["unknown"] = "new operation"
+    elif mutation == "schema":
+        changed["schemaVersion"] = 2
+    else:
+        transform["axes"]["x"] = "complement"
     with pytest.raises(ExportCoordinateDeclarationError):
-        generate_course_export_targets(changed, _canonical_hash(changed), _geometry())
+        _generate_course_export_targets(changed, _canonical_hash(changed), _geometry())
 
 
 def test_b7_generated_bundle_matches_checked_in_targets():
@@ -100,21 +108,23 @@ def test_b7_generated_bundle_matches_checked_in_targets():
     assert manifest == json.loads(
         (_ROOT / "backend/domain/play-export-display.manifest.json").read_text()
     )
+    assert (
+        "contracts/display-geometry/coordinate_transform_contract_v1.json"
+        not in manifest["inputs"]
+    )
 
 
 def test_b7_all_sixteen_independent_canonical_vectors():
     """既規範42例のうち正準保存→画面16例を全値で照合する。"""
     cases = json.loads(
         (
-            _ROOT
-            / "contracts/display-geometry/coordinate_transform_contract_v1.json"
+            _ROOT / "contracts/display-geometry/coordinate_transform_contract_v1.json"
         ).read_text()
     )["cases"]
     canonical = [
         case
         for case in cases
-        if case["input"]["coordinateSystem"]
-        == "normalized-bottom-left-units-1-263"
+        if case["input"]["coordinateSystem"] == "normalized-bottom-left-units-1-263"
     ]
     assert len(cases) == 42
     assert len(canonical) == 16
@@ -122,17 +132,21 @@ def test_b7_all_sixteen_independent_canonical_vectors():
     for case in canonical:
         source = case["input"]["coordinate"]
         expected = case["expected"]["coordinate"]
-        assert generated.course_screen(
-            str(source["x"]), str(source["y"]), "1/263"
-        ) == (str(expected["x"]), str(expected["y"])), case["caseId"]
+        assert generated.course_screen(str(source["x"]), str(source["y"]), "1/263") == (
+            str(expected["x"]),
+            str(expected["y"]),
+        ), case["caseId"]
 
 
 def test_b7_model_does_not_change_t5_model_or_profile():
     """旧v3 T5 hashとprofileをB-7表示宣言へ巻き込まない。"""
     manifest = json.loads((_ROOT / "backend/domain/stats-manifest.json").read_text())
-    assert _canonical_hash(
-        json.loads((_ROOT / "backend/domain/play-export.model.json").read_text())
-    ) == manifest["commonModelHash"]
+    assert (
+        _canonical_hash(
+            json.loads((_ROOT / "backend/domain/play-export.model.json").read_text())
+        )
+        == manifest["commonModelHash"]
+    )
     assert (
         manifest["nativeEvaluationProfiles"]["v3"]["model_sha256"]
         == manifest["commonModelHash"]
