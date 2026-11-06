@@ -7233,6 +7233,30 @@ def _stats_foundation_historical_fixture(document):
 def _stats_foundation_legacy_guard_source(source):
     """PR197と成績の有限層だけを外し、旧guard全ASTを比較へ残す。"""
     tree = ast.parse(source)
+    typed = json.loads((REPO / 'contracts/tenant_boundary/frozen-inputs.json').read_text())
+    fixed_revision = typed['frozen_inputs']['pr197_core_carry_source_revision']['value']
+    fixed_tree = ast.parse(run_git(
+        REPO, 'show', fixed_revision + ':scripts/core_guard.py',
+    ).stdout)
+    later_names = {'_load_frozen_history', '_pr197_merge_git',
+                   '_pr197_merge_carry_pins', '_verify_pr197_approved_doc_merge'}
+    later_constants = {'frozen_history', '_PR197_DOC_MERGE_TYPED',
+                       '_PR197_DOC_MERGE_PATHS'}
+    def later_nodes(module):
+        return [n for n in module.body if (
+            isinstance(n, ast.FunctionDef) and n.name in later_names
+            or isinstance(n, ast.Assign) and len(n.targets) == 1
+            and isinstance(n.targets[0], ast.Name)
+            and n.targets[0].id in later_constants
+            or isinstance(n, ast.Import)
+            and [(a.name, a.asname) for a in n.names] == [('importlib.util', None)]
+        )]
+    fixed_later = later_nodes(fixed_tree)
+    current_later = later_nodes(tree)
+    assert len(fixed_later) == len(current_later) == 8
+    assert ast.dump(ast.Module(body=current_later, type_ignores=[])) == ast.dump(
+        ast.Module(body=fixed_later, type_ignores=[]))
+    tree.body = [n for n in tree.body if n not in current_later]
     pr197_names = {'_project_pr197_tenant_source_layer',
                    'validate_pr197_tenant_source_area_path_layers',
                    '_pr197_definition_fingerprint', '_pr197_registered_paths',
@@ -7249,7 +7273,7 @@ def _stats_foundation_legacy_guard_source(source):
         and n.func.value.id == 'frozen_history'
         and n.func.attr == 'read_original_pr197_pin'
     ]
-    assert len(pin_imports) == len(pin_calls) <= 1
+    assert not pin_imports and len(pin_calls) == int(bool(pr197_found))
     if pin_calls:
         sha_assignment = next(n for n in tree.body if isinstance(n, ast.Assign)
                               and len(n.targets) == 1 and isinstance(n.targets[0], ast.Name)

@@ -38460,8 +38460,8 @@
               },
               {
                 "path": "tests/test_core_guard.py",
-                "sha256": "a20709f59814df262b855af9b8735c1d866383f8bc8057d2f526f12249eac3b9",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/a20709f59814df262b855af9b8735c1d866383f8bc8057d2f526f12249eac3b9"
+                "sha256": "08aab8ab76bef847689eedb776b4de9be7770e7e9734bbc658b4bf07070be800",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/08aab8ab76bef847689eedb776b4de9be7770e7e9734bbc658b4bf07070be800"
               },
               {
                 "path": "tests/test_human_review_signature.py",
@@ -38517,8 +38517,8 @@
               },
               {
                 "path": "contracts/tenant_boundary/frozen-inputs.json",
-                "sha256": "a2bb2bde4e740ffdd7f8f1e26baa8b8db0fc6b278bca4a46ac7a6381283827fc",
-                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/a2bb2bde4e740ffdd7f8f1e26baa8b8db0fc6b278bca4a46ac7a6381283827fc"
+                "sha256": "2003652bff65e217ceff23329a5b5bf502e9d0920e0a546977298f9f137a6496",
+                "snapshot_ref": "contracts/tenant_boundary/history-snapshots/2003652bff65e217ceff23329a5b5bf502e9d0920e0a546977298f9f137a6496"
               },
               {
                 "path": "contracts/tenant_boundary/negative-fixtures.json",
