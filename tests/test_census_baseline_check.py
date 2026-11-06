@@ -64,6 +64,7 @@ def _materialize_checker_revision_root(revision: str, destination: Path) -> Path
         "tests/fixtures/pr191_tenant_source_expected_v1.json",
         "tests/fixtures/pr192_tenant_source_expected_v1.json",
         "tests/fixtures/pr196_tenant_source_expected_v1.json",
+        "tests/fixtures/pr197_tenant_source_expected_v1.json",
         ".claude/core-areas.json", "backend/src",
     )
     entries = subprocess.check_output([
@@ -2079,11 +2080,13 @@ def _measured_resolution_owner_suppression(
     path = owner.path.removeprefix("backend/src/")
     tree = ast.parse((source_root / path).read_text(encoding="utf-8"))
     nodes = [n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == owner.symbol]
-    assert len(nodes) == 1 and nodes[0].lineno == owner.line
+    # 固定登録は歴史sourceの位置を保持する。現sourceでは全ASTで同じownerを
+    # 確認した上で、移動後の実位置を反事実の期待identityへ束縛する。
+    assert len(nodes) == 1
     assert ast.dump(nodes[0]) == ast.dump(checker._RESOLUTION_OWNER_EXPECTED_AST)
     assert nodes[0].end_lineno is not None
     expected: CensusIdentity = (
-        path, owner.line, nodes[0].end_lineno, owner.scope, code, owner.symbol,
+        path, nodes[0].lineno, nodes[0].end_lineno, owner.scope, code, owner.symbol,
         "条件 1 の禁止シンボルを検出",
     )
     counterfactual = frozenset(
@@ -7314,6 +7317,7 @@ def _copy_pr191_proof_inputs(destination: Path) -> None:
         Path("tests/fixtures/pr191_tenant_source_expected_v1.json"),
         Path("tests/fixtures/pr192_tenant_source_expected_v1.json"),
         Path("tests/fixtures/pr196_tenant_source_expected_v1.json"),
+        Path("tests/fixtures/pr197_tenant_source_expected_v1.json"),
     ):
         (destination / fixture).parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(REPOSITORY_ROOT / fixture, destination / fixture)

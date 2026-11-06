@@ -74,9 +74,10 @@ def test_old_all_twenty_two_keep_order_sql_types_decoder_and_values():
         )
         + "\n"
     )
-    assert (
-        hashlib.sha256(raw.encode()).hexdigest()
-        == frozen_history.read_original_pr197_pin("stats_native_old_registry_sha256")
+    assert hashlib.sha256(
+        raw.encode()
+    ).hexdigest() == frozen_history.read_original_pr197_pin(
+        "stats_native_old_registry_sha256"
     )
     assert (
         registry.PRODUCT_FUNCTION_OPERATIONS[-5:]

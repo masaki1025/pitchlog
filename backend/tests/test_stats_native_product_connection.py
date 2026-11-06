@@ -43,28 +43,20 @@ def test_all_old_declarations_bodies_details_and_guards_remain_exact():
         ]
         for section, rows in product.ADDITIONS.items()
     }
-    assert (
-        _hash(old) == frozen_history.read_original_pr197_pin(
-            "stats_native_old_product_additions_sha256"
-        )
+    assert _hash(old) == frozen_history.read_original_pr197_pin(
+        "stats_native_old_product_additions_sha256"
     )
     old_bodies = {
         key: value for key, value in product.BODIES.items() if key not in bodies
     }
     assert len(old_bodies) == 323
-    assert (
-        _hash(old_bodies)
-        == frozen_history.read_original_pr197_pin(
-            "stats_native_old_product_bodies_sha256"
-        )
+    assert _hash(old_bodies) == frozen_history.read_original_pr197_pin(
+        "stats_native_old_product_bodies_sha256"
     )
     details = [row for row in product.function_details() if row[0] != "stats_api"]
     assert len(details) == 29
-    assert (
-        _hash(details)
-        == frozen_history.read_original_pr197_pin(
-            "stats_native_old_product_details_sha256"
-        )
+    assert _hash(details) == frozen_history.read_original_pr197_pin(
+        "stats_native_old_product_details_sha256"
     )
     guards = {}
     for row in product.ADDITIONS["functions"]:
@@ -75,11 +67,8 @@ def test_all_old_declarations_bodies_details_and_guards_remain_exact():
         guards[row["function_id"]] = product.application_function_sql(
             row["function_id"], sql
         )
-    assert (
-        _hash(guards)
-        == frozen_history.read_original_pr197_pin(
-            "stats_native_old_product_guards_sha256"
-        )
+    assert _hash(guards) == frozen_history.read_original_pr197_pin(
+        "stats_native_old_product_guards_sha256"
     )
 
 

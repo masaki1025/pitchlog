@@ -279,3 +279,26 @@ def test_original(poison):
         assert "always_guard" in replacement.fixturenames
         replacement.obj()
     assert calls == [True, True]
+
+
+def test_real_child_collection_resolves_pin_after_owned_pipe(pytestconfig, tmp_path):
+    """実子pytestが検証済みcontrolを使い歴史31caseを正確に収集する。"""
+    profile = api._profile(api._ROOT)
+    root = tmp_path / "profile"
+    api._materialize(api._ROOT, root, profile)
+    plugin_dir, output = tmp_path / "plugin", tmp_path / "output"
+    plugin_dir.mkdir()
+    output.mkdir()
+    plugin = plugin_dir / "stage_a_0039_profile.py"
+    plugin.write_bytes(Path(api.__file__).read_bytes())
+    session = api._Session(pytestconfig, api._ROOT, root, plugin, output, profile)
+    api._SESSIONS[pytestconfig] = session
+    try:
+        result = api._child(session, None, collect=True)
+    finally:
+        api._SESSIONS.pop(pytestconfig, None)
+    assert result.returncode == 0, (result.stdout, result.stderr)
+    actual_ids = [
+        line for line in result.stdout.splitlines() if line.startswith(api._NODE_PREFIX)
+    ]
+    assert actual_ids == profile["case_ids"]

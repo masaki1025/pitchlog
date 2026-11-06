@@ -511,3 +511,12 @@ PR197のgate6後継修復（2026-11-06、PO委任Codex/root判断）: 実base51b
 PR197凍結期待値の正式配置とCI修復の接合（2026-11-06、PO委任Codex/root判断）: step4の既検査追随として、cache native-pr197-frozen-source-integration-root-20261106/source-merge.json のexact15 source/configと frozen-inputs.jsonへの用途付き19pin追加を候補接合する。R1自己申告Git起点のP0を維持し不採用、R2は固定2fa object/祖先/導入版と公開委任証拠を要求する。正式v1.20 7.7-1の限定例外は795b92daで確定済み。R2独立REPORT8346ef38479a7fcae50d23e8f7efafaee0fe3c0bccfa1083ff2ec1ee9157b30a（新P0/P1なし、78件）を保持。後発R3修復は作者REPORT77989f3b997b93a5642f4b399609650eeaeb9a7e4b25c9ecb61659cf5249c7bc、core945/tenant1成功、cache候補であり別非作者の最終確認前に正式受理やgreenとしない。rootの後発固定S import閉包/負例baseline基底修復を保持して3way接合する。core領域検出pathsは保持し、逆依存のみの有限除外13を宣言する。型付き期待の追加は原典27literalの移設であり、全byte/用途/cochange拒否を保持。正式9資産/認可code_assets/snapshot/corpusの後値は同じ最終sourceから公式再導出し、before=正式base51bの値を維持。中間rev19/20を正式beforeにしない。本人逐行/P6blind/実PGの代記をしない。
 
 PR197承認文書mergeの限定carry追随（2026-11-07、PO委任によるCodex /root実装指示）: step4のcore検査追随として、`2953103d4e280dff42ee1d8c356bc3e888799651` の実mergeだけを検査する。第一親に旧固定定義と完全なPR197 core登録が先行し、merge結果のcore JSON/guard全byteが第一親と一致すること、第二親が正式51bから承認文書exact4だけを変更し製品core・関連検査入力を持ち込まないことを閉検証する。旧`_commits_between`と他ゲートの全履歴検査は変えず、PR197定義順の対象呼出でだけ実mergeを有限carryとして扱う。旧2fa導入AST pinは履歴原典として保持し、新source先行commit・新定義AST・実mergeのtyped3を別コミットで資産に置く。source全byte・Git object/祖先/初出・用途・7.7正式前後値・未知/同時改変/別merge・byte差の拒否を要求し、候補の独立reviewと公開最終HEAD委任証拠まで受理済みと記さない。対象は`core_guard.py`、`check_human_review_signature.py`、両専用試験、`frozen-inputs.json`とその公式9資産/履歴snapshot/corpusの再派生に限る。本人署名・P6blind・人間逐行確認の記録ではない。
+
+
+## 2026-11-07 実CI停止点の追随（root、ステップ4継続）
+
+公開3a6bedfaのCI42255687354は不合格。root単独のfix/pr197-ci-finalizationで、backend2試験のformat（AST完全同値）、型探索を実scripts import先へ整合し不要ignoreを撤去、0039歴史子pluginのimport初期化を検証済みcontrol-root解決へ移動した。子は所有pipe/parent PID/plugin全byteを確認するまではcontrol helperを解決しない。既972blob/31caseや元全AST・不正pipe/原典拒否を変更せず、実子collect31一致/関連35pytest成功。Root/実機/実DB31件全完走とはしない。backend Ruff/format672/Tyは成功。
+
+census反実ツリーの固定PR197 fixtureが複製されない漏れを修復。resolution ownerは歴史登録line949と現全AST同値owner1108を区別し実位置を照合するよう追随中。ただしCLIは現在単一抑止集合の期待で不一致のまま。診断で現188件/registration除去時188件・増減0を確認し、既owner登録が実際に抑止したという期待を推測で0へ変更しない。旧PR191 source byte固定を現在の正規T5追加源へ広げる後継証明と、authz git_blob_digest/要件参照件数等のCI failureも継続切分けする。
+
+core6f17の同時変更回復は別WT fix/pr197-identical-definition-recovery（nonplay担当）が所有し、rootのこの7pathと並行編集しない。新6 guard_pathsを補強し、OID/親/全byte/AST/固定pin同値に限定、一般skip禁止。正式9資産/公開証拠は全候補固定後rootが直列再導出・再確認し、同入力失敗のCI再試行だけで緑を狙わない。MVP機能/保存/認可を縮小しない。今回もPO委任root判断であり本人確認/署名を代記しない。
