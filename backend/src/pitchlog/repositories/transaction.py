@@ -48,6 +48,7 @@ __all__ = ("tenant_transaction_scope",)
 _HANDLE_CREATION_TOKEN = object()
 _TransactionRuntime = tuple[Session, ExitStack]
 _TRANSACTION_RUNTIMES: dict[object, _TransactionRuntime] = {}
+_PLAY_EXPORT_HANDLES: dict[object, _TenantTransaction] = {}
 _INITIAL_ACTOR_STATES: dict[
     object, tuple[object, Literal["intent", "business", "enroll"]]
 ] = {}
@@ -160,6 +161,7 @@ class _TenantTransaction:
         self._state_key = None
         _PORT_PHASES.pop(state_key, None)
         _PORT_DEVICE_BIND_USED.discard(state_key)
+        _PLAY_EXPORT_HANDLES.pop(state_key, None)
         return state_key
 
     def run(self, operation: TenantOperationToken) -> TenantOperationResult:
@@ -519,7 +521,13 @@ class _TenantTransaction:
 class _TenantTransactionScope(AbstractContextManager[_TenantTransaction]):
     """Session の生成から close までを所有する内部 context manager。"""
 
-    __slots__ = ("_context", "_handle", "_actor_runtime", "_actor_phase")
+    __slots__ = (
+        "_context",
+        "_handle",
+        "_actor_runtime",
+        "_actor_phase",
+        "_play_export_read",
+    )
 
     def __init__(
         self,
@@ -527,6 +535,7 @@ class _TenantTransactionScope(AbstractContextManager[_TenantTransaction]):
         *,
         _actor_runtime: object | None = None,
         _actor_phase: Literal["intent", "business", "enroll"] | None = None,
+        _play_export_read: bool = False,
     ) -> None:
         """スコープへ一度だけ渡されたテナント文脈を保持する。
 
@@ -537,6 +546,7 @@ class _TenantTransactionScope(AbstractContextManager[_TenantTransaction]):
         self._handle: _TenantTransaction | None = None
         self._actor_runtime = _actor_runtime
         self._actor_phase = _actor_phase
+        self._play_export_read = _play_export_read
 
     def __enter__(self) -> _TenantTransaction:
         """Session を生成し、トランザクション先頭で文脈を束縛する。
@@ -570,6 +580,14 @@ class _TenantTransactionScope(AbstractContextManager[_TenantTransaction]):
             if self._actor_phase not in ("intent", "business", "enroll"):
                 raise TenantBindingError("actor phaseが未登録")
             engine = _initial_actor_engine(self._actor_runtime)
+        if self._play_export_read:
+            if self._actor_runtime is not None or self._actor_phase is not None:
+                raise TenantBindingError(
+                    "毎球CSV readと書込actorを同じscopeへ混在できない"
+                )
+            engine = engine.execution_options(
+                isolation_level="REPEATABLE READ", postgresql_readonly=True
+            )
         session = Session(engine)
         exit_stack = ExitStack()
         state_key = object()
@@ -603,6 +621,8 @@ class _TenantTransactionScope(AbstractContextManager[_TenantTransaction]):
             raise
         if handle is None:
             raise RuntimeError("トランザクションハンドルを生成できない")
+        if self._play_export_read:
+            _PLAY_EXPORT_HANDLES[state_key] = handle
         return handle
 
     def __exit__(
@@ -771,6 +791,26 @@ def _assert_initial_actor_transaction(
     ):
         raise TenantBindingError("初期権scopeは失効又は別文脈")
     _initial_actor_engine(actor[0])
+
+
+def play_export_read_scope(
+    context: TenantContext,
+) -> AbstractContextManager[_TenantTransaction]:
+    """毎球CSVの同一snapshot読取をRR/ROのtenant scopeへ閉じる。"""
+    return _TenantTransactionScope(context, _play_export_read=True)
+
+
+def _require_play_export_scope(handle: _TenantTransaction) -> None:
+    """毎球CSVの実scopeだけをrepositoryへ許可する。"""
+    if type(handle) is not _TenantTransaction or handle._state_key is None:
+        raise TenantBindingError("毎球CSV readに真正な同snapshot handleが必要")
+    key = handle._state_key
+    if (
+        key not in _TRANSACTION_RUNTIMES
+        or _PLAY_EXPORT_HANDLES.get(key) is not handle
+        or not handle._context._has_valid_integrity_proof()
+    ):
+        raise TenantBindingError("毎球CSV read scopeは失効/別handle")
 
 
 def _initial_actor_transaction_scope(
