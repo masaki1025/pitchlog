@@ -577,3 +577,35 @@ def test_stats_model_reference_is_static_and_rejects_schema_drift(tmp_path):
             pass
         else:
             raise AssertionError("schema変更を見逃した")
+
+
+def test_stats_schema_rebinding_forms_are_rejected(tmp_path):
+    """固定schema後の動的/注釈/拡張代入・別束縛を見逃さない。"""
+    directory = tmp_path / "backend/src/pitchlog/db/game_state"
+    directory.mkdir(parents=True)
+    model = directory / "stats.py"
+    declaration = (
+        '_SCHEMA = "sync_fence"\n'
+        'class Sample:\n'
+        '    __table__ = Table("sample", metadata, schema=_SCHEMA)\n'
+    )
+    mutations = (
+        '_SCHEMA = choose_schema_at_runtime()\n',
+        '_SCHEMA: str = choose_schema_at_runtime()\n',
+        '_SCHEMA += "_other"\n',
+        '(_SCHEMA := choose_schema_at_runtime())\n',
+        'for _SCHEMA in ["public"]: pass\n',
+        'import something as _SCHEMA\n',
+        'del _SCHEMA\n',
+        'def _SCHEMA(): pass\n',
+        'def helper(_SCHEMA): pass\n',
+        'try: pass\nexcept Exception as _SCHEMA: pass\n',
+    )
+    for mutation in mutations:
+        model.write_text(declaration + mutation)
+        try:
+            generator._model_sources(tmp_path)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError(f"schema再束縛を見逃した: {mutation}")

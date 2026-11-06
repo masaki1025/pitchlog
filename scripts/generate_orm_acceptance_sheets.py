@@ -340,15 +340,39 @@ def _model_sources(repo_root: Path) -> dict[str, str]:
     stats_path = source_root / "game_state" / "stats.py"
     if stats_path.is_file():
         tree = ast.parse(stats_path.read_text(encoding="utf-8"))
-        schemas = [
-            node.value.value
+        declarations = [
+            node
             for node in tree.body
             if isinstance(node, ast.Assign)
-            and any(isinstance(t, ast.Name) and t.id == "_SCHEMA" for t in node.targets)
-            and isinstance(node.value, ast.Constant)
+            and len(node.targets) == 1
+            and isinstance(node.targets[0], ast.Name)
+            and node.targets[0].id == "_SCHEMA"
         ]
-        if schemas != ["sync_fence"]:
-            raise ValueError("成績Table宣言のschemaがsync_fenceではない")
+        if (
+            len(declarations) != 1
+            or not isinstance(declarations[0].value, ast.Constant)
+            or declarations[0].value.value != "sync_fence"
+        ):
+            raise ValueError("成績Table宣言のschemaが単一固定sync_fenceではない")
+        declaration_target = declarations[0].targets[0]
+        for binding in ast.walk(tree):
+            if (
+                isinstance(binding, ast.Name)
+                and binding.id == "_SCHEMA"
+                and isinstance(binding.ctx, (ast.Store, ast.Del))
+                and binding is not declaration_target
+            ) or (
+                isinstance(binding, ast.alias)
+                and (binding.asname or binding.name) == "_SCHEMA"
+            ) or (
+                isinstance(binding, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))
+                and binding.name == "_SCHEMA"
+            ) or (
+                isinstance(binding, ast.arg) and binding.arg == "_SCHEMA"
+            ) or (
+                isinstance(binding, ast.ExceptHandler) and binding.name == "_SCHEMA"
+            ):
+                raise ValueError("成績schemaの再束縛は許可しません")
         for node in tree.body:
             if not isinstance(node, ast.ClassDef):
                 continue
