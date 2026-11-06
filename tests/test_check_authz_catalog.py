@@ -1949,7 +1949,7 @@ def test_all_auth_claim_layers_changed_to_every_other_layer_are_red() -> None:
 
 
 def test_all_out_of_scope_rows_moved_to_auth_claim_are_red() -> None:
-    """878行すべての AUTH への逆方向変異を守る。"""
+    """1247行すべての AUTH への逆方向変異を守る。"""
     catalog, lock = _repository_catalog_and_lock()
     out_claims = [
         claim for claim in catalog["claims"] if claim["classification"] == "out_of_scope"
