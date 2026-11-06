@@ -2,6 +2,8 @@
 
 ## 2026-11-06 22:06 JST：PO指示で性能最適化を後段へ、通常9回の実画面試験を開始
 
+- **試験準備修復・現在handle**: normal-full-game-r1（8d965e3a）は78秒で打球語彙fixture不足に停止しcleanup済、1球HRは未保存。既打球/三振試験と同じ有限5語彙をowned DBへ配置し、163球×5秒でも超える既runner総期限600秒を後方互換keyword化（本試験だけ3600秒、各要求期限不変）。64fc0b33でRuff/Ty/lint/Vue成功、normal-full-game-r2をroot exec session54349で実行中。session5714はterminalで再poll不要。無根拠な再試行ではなく、停止原因に必要な試験準備を修復した。
+
 - **優先変更**: PO回答「むずかしそうなら5秒以内は後回しでもいいよ」を受領。安全性/拒否条件は維持し、性能の追加反復・接続再利用案は止めて、1試合の機能接続を先行。5秒の既LC assertは削除/緩和せず未達を保持。新通常9回試験は全投球時間/5秒超件数を出力し、機能判定と分離する。MVP性能達成とはしない。
 - **最新結合実証**: LC f1e14b3d345d6b168458d85f2bef17b72ed4a95c のr10は、同TX B5資格と新startの自動v3/strict seed接合後も、UI新規create/start/ball/end/reopen/2ball/reend/reload＋DB finished/v2/confirmed_ended/source3/accepted6を再現。性能10,301ms（端末55/HTTP10,243）だけ赤。source前後一致・owned cleanup完了。
 - **性能の保全**: 作者cache binding-check-transport-20261106/REPORT.md とbinding-callers-summary.json。初球POSTは194 RPC/192 assert_current、うち80 source.read前後160check。Unix/DNS endpoint付替えで旧接続が古peerを見続ける反例のため無条件接続再利用は不採用、製品source変更0。専用WT feature-mvp-binding-check-transport はf1e14b3d＋未追跡planのみ。5秒は未達として後段。
