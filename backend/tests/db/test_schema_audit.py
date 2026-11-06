@@ -67,6 +67,27 @@ _PRIVATE_BUSINESS_UNIQUE_TABLES = frozenset(
         "stats_primitive_sources",
     }
 )
+_PRIVATE_BUSINESS_UNIQUE_OWNERS = {
+    "uq_sync_writer_binding_lease": "writer_bindings",
+    "uq_sync_writer_binding_nonce": "writer_bindings",
+    "ordinary_pitch_write_admissions_tenant_id_frame_id_key": (
+        "ordinary_pitch_write_admissions"
+    ),
+    "ordinary_pitch_write_admissions_tenant_id_source_event_id_key": (
+        "ordinary_pitch_write_admissions"
+    ),
+    "ordinary_pitch_write_admissions_tenant_id_play_row_id_key": (
+        "ordinary_pitch_write_admissions"
+    ),
+    "ordinary_pitch_history_tenant_id_game_id_internal_generatio_key": (
+        "ordinary_pitch_history"
+    ),
+    "stats_fact_versions_tenant_id_id_key": "stats_fact_versions",
+    "uq_stats_current_game_model": "stats_fact_versions",
+    "stats_primitive_sources_tenant_id_game_id_fact_version_id_r_key": (
+        "stats_primitive_sources"
+    ),
+}
 _PRIVATE_BUSINESS_UNIQUES = {
     "uq_sync_writer_binding_lease": {
         "name": "uq_sync_writer_binding_lease",
@@ -966,9 +987,11 @@ def _cross_table_audit_violations(
         )
     ]
     private_constraints = {row["name"]: row for _, row in private_rows}
+    private_owners = {row["name"]: table for table, row in private_rows}
     if (
         len(private_rows) != len(_PRIVATE_BUSINESS_UNIQUES)
         or private_constraints != _PRIVATE_BUSINESS_UNIQUES
+        or private_owners != _PRIVATE_BUSINESS_UNIQUE_OWNERS
         or any(
             table not in _PRIVATE_BUSINESS_UNIQUE_TABLES for table, _ in private_rows
         )

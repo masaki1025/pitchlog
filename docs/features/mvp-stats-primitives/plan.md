@@ -566,3 +566,5 @@ R-9の型境界検査が、採用済D05の分母0未定義値と旧移行フィ�
 検証は純106件成功、owned r2の現行再開/installer故障全取消/0040索引3件成功、r3の全schema/旧team往復2件成功、r4のpublic/private欠落検出2件成功（各source前後同一/cleanup/共有DSN未使用）。r1 bootstrap失敗・r2型表記差・r3 public-only比較失敗の履歴はcacheへ保持する。非作者最終確認・全CI・正式派生資産受理は別条件であり、本人による確認やP6blind成立を代記しない。
 
 反映7周目の対向追補: 非作者が指摘した新stats3 uniqueの負例被覆不足を閉じる。`backend/tests/test_product_authz_tenant_owned_cases.py` の旧6件を残し、新3件それぞれで columns/source_row/roles/predicate の改変を拒否する全36対向へ拡張する。旧行数/対象外集合の全一致も維持する。
+
+反映8周目: 非作者P1のprivate許可表間移設反例を修復。9制約の名称→所属tableを独立literalで固定し、row全fieldに加えて対応も完全一致を要求する。新旧9件それぞれを他の許可表4つへ移す全36負例を追加する。元05bbeの失敗反例はcacheへ保持し、修復版の再レビュー前に採用しない。
