@@ -295,9 +295,16 @@ uvicorn.run('pitchlog.api.app:create_app', factory=True, host='0.0.0.0',
 
 @contextmanager
 def _browser_environment(
-    db, spec_config: str, stem: str, *, https: bool = False
+    db,
+    spec_config: str,
+    stem: str,
+    *,
+    https: bool = False,
+    production: bool = False,
 ) -> Iterator[str]:
     """実appコンテナとViteを起動し、実ブラウザ用のoriginを返す。"""
+    if production and not https:
+        raise AssertionError("production断中再起動試験はHTTPSが必要")
     app_port, vite_port = _free_port(), _free_port()
     origin = f"{'https' if https else 'http'}://127.0.0.1:{vite_port}"
     _LOGS.mkdir(parents=True, exist_ok=True)
@@ -313,25 +320,41 @@ def _browser_environment(
     vite: subprocess.Popen[str] | None = None
     try:
         _wait(f"http://127.0.0.1:{app_port}/health", app, time.monotonic() + 90)
-        vite = subprocess.Popen(  # noqa: S603
+        frontend_env = {**os.environ, "PITCHLOG_E2E_BACKEND_PORT": str(app_port)}
+        vite_config = (
+            "src/screens/GameScreenFirstBall.e2e.vite.config.ts"
+            if https
+            else "src/screens/GameScreenStart.e2e.vite.config.ts"
+        )
+        if production:
+            built = subprocess.run(  # noqa: S603
+                ["pnpm", "exec", "vite", "build", "--config", vite_config],
+                cwd=_FRONTEND,
+                env=frontend_env,
+                capture_output=True,
+                text=True,
+                timeout=180,
+            )
+            (_LOGS / f"{stem}-build.log").write_text(built.stdout + "\n" + built.stderr)
+            assert built.returncode == 0, "production静的bundleを検証・生成できません"
+        vite_command = ["pnpm", "exec", "vite"]
+        if production:
+            vite_command.append("preview")
+        vite_command.extend(
             [
-                "pnpm",
-                "exec",
-                "vite",
                 "--config",
-                (
-                    "src/screens/GameScreenFirstBall.e2e.vite.config.ts"
-                    if https
-                    else "src/screens/GameScreenStart.e2e.vite.config.ts"
-                ),
+                vite_config,
                 "--host",
                 "127.0.0.1",
                 "--port",
                 str(vite_port),
                 "--strictPort",
-            ],
+            ]
+        )
+        vite = subprocess.Popen(  # noqa: S603
+            vite_command,
             cwd=_FRONTEND,
-            env={**os.environ, "PITCHLOG_E2E_BACKEND_PORT": str(app_port)},
+            env=frontend_env,
             stdout=(_LOGS / f"{stem}-vite.log").open("w"),
             stderr=subprocess.STDOUT,
             text=True,

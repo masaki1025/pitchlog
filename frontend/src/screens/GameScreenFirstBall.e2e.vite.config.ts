@@ -25,4 +25,15 @@ export default defineConfig({
       },
     },
   },
+  preview: {
+    host: '127.0.0.1',
+    https: { cert: readFileSync(cert), key: readFileSync(key) },
+    proxy: {
+      '/api': {
+        target: `http://127.0.0.1:${port}`,
+        changeOrigin: true,
+        rewrite: stripApiPrefix,
+      },
+    },
+  },
 })
