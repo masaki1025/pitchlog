@@ -1,5 +1,14 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 2026-11-06 22:06 JST：PO指示で性能最適化を後段へ、通常9回の実画面試験を開始
+
+- **優先変更**: PO回答「むずかしそうなら5秒以内は後回しでもいいよ」を受領。安全性/拒否条件は維持し、性能の追加反復・接続再利用案は止めて、1試合の機能接続を先行。5秒の既LC assertは削除/緩和せず未達を保持。新通常9回試験は全投球時間/5秒超件数を出力し、機能判定と分離する。MVP性能達成とはしない。
+- **最新結合実証**: LC f1e14b3d345d6b168458d85f2bef17b72ed4a95c のr10は、同TX B5資格と新startの自動v3/strict seed接合後も、UI新規create/start/ball/end/reopen/2ball/reend/reload＋DB finished/v2/confirmed_ended/source3/accepted6を再現。性能10,301ms（端末55/HTTP10,243）だけ赤。source前後一致・owned cleanup完了。
+- **性能の保全**: 作者cache binding-check-transport-20261106/REPORT.md とbinding-callers-summary.json。初球POSTは194 RPC/192 assert_current、うち80 source.read前後160check。Unix/DNS endpoint付替えで旧接続が古peerを見続ける反例のため無条件接続再利用は不採用、製品source変更0。専用WT feature-mvp-binding-check-transport はf1e14b3d＋未追跡planのみ。5秒は未達として後段。
+- **静的断中起動**: main LC afd74ea9caf7c87055ad77fd33355e80d5c1030cへSW候補を通常merge。7path patcha2482a15…のroot非作者読取/逆apply照合、Vitest14、別VM6対向でP0/P1なし。作者Chromiumはserver停止後help200/API非cache/保護record→login。結合後対象18/Vue成功。静的shellだけであり、再起動後のlocal入力資格/NP・LC queued後続/開始ACK直後GET前断は未完成。
+- **通常9回の試験中**: 専用WT feature-mvp-full-game-rehearsal、HEAD8d965e3a（clean）、先攻無走者HR1点＋両軍27三振ずつの163球/18half、終了宣言・reload・DB confirmed_ended/source163/受理164を検査する実UI driver/ownedwrapperを作成。frontend lint/Vue・backend Ruff/Ty成功、未実証。所有PG全寿命共通lockで normal-full-game-r1、root exec session5714 が進行中。再開時は同handle/resultを確認し、観測timeoutで再起動しない。現在約10秒/球のため30分規模を見込み、他担当はpure接合作業へ。単純通常9回成功も全操作/MVP受入には拡張しない。
+- **並行所有**: stats WT feature-mvp-basic-stats-product は担当lifecycle_gate_first_reviewへ移管、LC f1eをmergeした25367b44後の候補で27項目/真正終了readを接合中（0044交代源依存、0045以降使用）。交代作者nonplay_generation_acl_independentはcacheで修復継続、固定中間91pathをgame_operations_final_independentが非作者確認中。最新pg-http.logは初回GETからread_lifecycle_display未配備で503だったと行番号で訂正し、『次球後に関数消失』の旧解釈を撤回。交代ACK/GET/次球成功の別run証拠と混同しない。正式統合/最終core/全CI/全操作/27成績/両CSV/負荷/実機/復旧は未完。
+
 ## 2026-11-06 21:34 JST：実画面の終了・再開・追加球・再終了と実DB版一致
 
 - **21:38更新・次の固定点**: LC `f1e14b3d345d6b168458d85f2bef17b72ed4a95c` cleanでB5 f660/seed7afd＋route型test9c901を通常merge。結合後backend77/FE101・Ty/Vue/lint成功。新規開始は真正0件v3 GET・strict seedへ自動接合する実画面へ試験を追随し、owned `connected-lifecycle-seed-b5-r10` を実行中（root exec session39792、再開時はこのhandle/resultを確認し、観測timeoutで再起動しない）。正式asset受理/全CIはまだ未了。
