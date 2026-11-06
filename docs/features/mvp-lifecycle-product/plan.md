@@ -23,3 +23,6 @@ step1の入力codec部分を採用（2026-11-06、PO委任Codex /root判断）: 
 
 
 2026-11-06 2時間試行のstep3候補接合（PO委任Codex/root判断）: POが統合候補まで実装後にまとめてレビュー・検査する方式を18:37:31から採用。外部FE6修復48d61a8b（対象50件、版0拒否・耐久版根拠不足の非成功を含む）を未正式受理の接合候補として本WTへ移す。既step3の非作者確認は候補固定後へ移し、正式統合前に必須とする。追加所有はGameScreenLifecycleProduct.vueと専用spec、GameScreenRecordedRestore.vueのmountのみ。実HTTPS/4利用者環境確認/認証epoch/実WebLocks/耐久storeを供給し、常時trueのwriterや固定成功を使わない。元48d61枝・既レビュー連鎖を保持。NP ad7f3c8bを70f800a1へ通常mergeし取消後の接合を共通化、全MVP成立の主張ではない。
+
+
+2026-11-06 19:45 JSTの統合候補接合（PO委任Codex/root判断）: 2時間試行の一試合到達へ、root専有本WTに操作担当のfeature/mvp-game-operations-product@2bdf48ecを通常mergeする。担当plan（4900ef9c）と各操作の閉条件/限定実画面証拠を維持し、root本計画の終了再開を操作担当の成果と取り違えない。別枝を消さず、共有sourceの衝突だけrootが直列解決する。formal overlayは固定packet到着後に照合し、単一artifactは終了再開/交代との合成sourceから公式builderで再生成する。未完の正式資産・独立最終レビュー・全CIを通過済みとしない。
