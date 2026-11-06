@@ -71,8 +71,7 @@ def test_new_three_play_saved_t1_score_and_pitch_count(vertical_database):
                 cast(
                     LiteralString,
                     (
-                        _ROOT
-                        / "docs/features/ud2-csv-export/candidates/"
+                        _ROOT / "docs/features/ud2-csv-export/candidates/"
                         "play_export_snapshots.sql"
                     ).read_text(),
                 )
@@ -198,6 +197,36 @@ def test_new_three_play_saved_t1_score_and_pitch_count(vertical_database):
                 {"inning": 1, "half": "top", "state": "in-progress", "runs": 0},
                 {"inning": 1, "half": "bottom", "state": "unplayed", "runs": None},
             ]
+        # 保存stateとそのSHAを同時に書き換えても、fact原本との差を拒否する。
+        admin.execute("SAVEPOINT score_credit_mismatch")
+        changed = admin.execute(
+            "UPDATE sync_fence.stats_primitive_sources s SET "
+            "metric_states=pg_catalog.jsonb_set(s.metric_states,"
+            "'{metrics,pitch_count,value}', '\"2\"'::jsonb), "
+            "evaluation_sha256=pg_catalog.encode(pg_catalog.sha256("
+            "pg_catalog.convert_to(pg_catalog.jsonb_set(s.metric_states,"
+            "'{metrics,pitch_count,value}', '\"2\"'::jsonb)::text,'UTF8')),'hex') "
+            "WHERE s.tenant_id=%s AND s.game_id=%s AND s.fact_version_id=%s "
+            "AND s.source_event_id=%s",
+            (db.tenant_id, game, rows[-1][1], rows[0][0]),
+        )
+        assert changed.rowcount == 1
+        assert (
+            admin.execute(
+                sql.SQL(cast(LiteralString, query)),
+                {
+                    "tenant_id": db.tenant_id,
+                    "game_id": game,
+                    "fact_version_id": rows[-1][1],
+                    "source_set_sha256": rows[-1][3],
+                    "revision": rows[-1][2],
+                    "model_sha256": SOURCE_MODEL_HASH,
+                    "source_event_id": rows[-1][0],
+                },
+            ).fetchall()
+            == []
+        )
+        admin.execute("ROLLBACK TO SAVEPOINT score_credit_mismatch")
     with psycopg.connect(db.authority.database.business_admin) as admin:
         with pytest.raises(psycopg.errors.InsufficientPrivilege):
             admin.execute(
