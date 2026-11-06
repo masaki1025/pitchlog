@@ -1,0 +1,12 @@
+{
+  "author": "Codex /root",
+  "reviewer": "/root/nonplay_generation_acl_independent",
+  "sourceRevision": "eb116a8350cf5c5ea8ba1beb9da2804dc5b68dcd",
+  "p0": 0,
+  "p1": 0,
+  "files": {
+    "backend/src/pitchlog/domaincheck/trigger_evaluation.py": "bb8583f263a92d8ee83271858547ad0f2281f05e019397a5dda63183f81c9f15",
+    "tests/domain/test_review_triggers_complete.py": "e9d32d7dd07b16a4b3452192743c54792a9ee0575775e759ec6728c870dc48cb",
+    "backend/domain/model.schema.json": "ec6b8b9c90e37a22e4f57005df4e227380a0fc20d397a02cdee317e02892ac9a"
+  }
+}

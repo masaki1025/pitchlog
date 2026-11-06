@@ -533,3 +533,6 @@ step4の既検査追随へ `tests/domain/test_vocabulary_schema.py`、`contracts
 
 
 trigger1反映1（2026-11-07、PO委任Codex /root判断）: 非作者REPORT `7de9cc58358fabae79a70dccb3c1373c2b83d25db1c31f16fa00020aa89a9133` はP0/P1=0、現policy全byte比較で将来target追記まで失効するP2を指摘。固定2fa原本/authority hashは全byte維持し、現policyは非targets全値＋既targets順序/型保持、未知fieldなし・一意PR/branchの正準targetを末尾へ追加する場合だけ許す。enabled/expiry/source/委任範囲変更・既target変更/削除/入替え・重複JSONは拒否する。これはPR197/trigger1/source3fileの適用範囲を増やさず、無関係な新PRの登録で同じ意味承認を再取得させないための最小是正。反映後の非作者差分確認前に実委任recordを作らない。
+
+
+trigger1限定委任の採用（2026-11-07、PO委任によるCodex /root判断）: source最終 `eb116a83`、非作者初回REPORT `7de9cc58358fabae79a70dccb3c1373c2b83d25db1c31f16fa00020aa89a9133`、反映1 `aaff6f53bf5d600060c36b4685f898274555b290bf713d4ccc6c37136aaea55d`、拒否文言1行後発の反映2 `ef045fbc337bcd1938ee6b4deed9494932505274a44cba506ccd13d5d9a11509` を確認。残P0/P1/P2=0、非作者36対向/生成3suite62・旧証拠改変拒否1、root最終全55passed11.08秒を根拠に採用する。元2fa本人記録を全値保持したまま別delegatedReconfirmationを実記録し、source3blob/実非作者JSON SHA `acd504e97dfa70db021b031d1e64e856d508078340e5bbccc99a964d2cf04694` へ束縛した。発火falseは既規範5項目と現有限D1の表現に反例なしという今回の限定判断であり、PO本人の現値確認・P6blind・製品全受入ではない。最終source固定後の正式9資産/全CI/PR197通常統合は別条件として残る。
