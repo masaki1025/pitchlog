@@ -7927,7 +7927,8 @@ def test_pr197_approved_doc_merge_is_one_exact_carry():
     base = json.loads(
         (REPO / 'tests/fixtures/pr197_tenant_source_expected_v1.json').read_text()
     )['formal_base_revision']
-    head = run_git(REPO, 'rev-parse', 'HEAD').stdout.strip()
+    checkout_head = run_git(REPO, 'rev-parse', 'HEAD').stdout.strip()
+    head = _pr197_test_branch_head(REPO, base, checkout_head)
     revision, fingerprint = guard._pr197_merge_carry_pins(REPO, head)
     typed = json.loads((REPO / 'contracts/tenant_boundary/frozen-inputs.json').read_text())
     assert revision == typed['frozen_inputs']['pr197_approved_doc_merge_revision']['value']
@@ -7943,11 +7944,12 @@ def test_pr197_identical_cochange_is_one_git_object_and_head_guards_all_new_excl
     asset = json.loads((REPO / 'contracts/tenant_boundary/frozen-inputs.json').read_text())
     frozen = asset['frozen_inputs']
     revision = frozen['pr197_identical_cochange_revision']['value']
-    head = run_git(REPO, 'rev-parse', 'HEAD').stdout.strip()
-    guard._pr197_identical_cochange(REPO, revision, head)
     base = json.loads(
         (REPO / 'tests/fixtures/pr197_tenant_source_expected_v1.json').read_text()
     )['formal_base_revision']
+    checkout_head = run_git(REPO, 'rev-parse', 'HEAD').stdout.strip()
+    head = _pr197_test_branch_head(REPO, base, checkout_head)
+    guard._pr197_identical_cochange(REPO, revision, head)
     assert guard.verify_area_path_baseline(REPO, base, head) == base
     assert set(guard.matched_paths(
         tuple(sorted(guard._PR197_RECOVERY_EXCLUSIONS)),
