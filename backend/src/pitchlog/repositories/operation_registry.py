@@ -44,6 +44,7 @@ from pitchlog.repositories.ordinary_prefix_operations import (
 )
 from pitchlog.repositories.past_correction_right import (
     P3_DEVICE_BIND_OPERATION,
+    P3_PROJECTION_OPERATION,
     P3_RIGHT_CHECK_OPERATION,
 )
 from pitchlog.repositories.pitch_type_options import PITCH_TYPE_OPTIONS_OPERATIONS
@@ -119,6 +120,7 @@ _STATIC_PRODUCT_FUNCTION_BINDING_IDS = frozenset(
         "SYNC_LINEUP_PREFIX:read_lineup_started_origin",
         "SYNC_P3:check_p3_right",
         "SYNC_P3:bind_p3_device",
+        "SYNC_P3:persist_p3_projection",
     }
 )
 
@@ -268,6 +270,9 @@ PRODUCT_FUNCTION_OPERATIONS: tuple[FunctionOperationRegistration, ...] = (
     ),
     _registered_product_function(
         P3_DEVICE_BIND_OPERATION, operation_id="SYNC_P3:bind_p3_device"
+    ),
+    _registered_product_function(
+        P3_PROJECTION_OPERATION, operation_id="SYNC_P3:persist_p3_projection"
     ),
     *STATS_NATIVE_FUNCTION_OPERATIONS,
     *STATS_BASIC_FUNCTION_OPERATIONS,

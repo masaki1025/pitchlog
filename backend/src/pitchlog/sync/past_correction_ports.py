@@ -26,6 +26,21 @@ class ValidateP3CorrectionToken(TenantOperationToken):
         return "CAP:sync_past_correction:validate_p3"
 
 
+@dataclass(frozen=True, slots=True)
+class ProjectP3CorrectionToken(TenantOperationToken):
+    """T2済み実frameだけを同writerのT4へ渡す。"""
+
+    game_id: UUID
+    d5: UUID
+    event: SyncEvent
+    writer: PortWriter
+
+    @property
+    def capability_id(self) -> str:
+        """未登録の自由SQLではなくP3私有Port命令。"""
+        return "CAP:sync_past_correction:project_p3"
+
+
 @final
 class PastCorrectionContentValidationPort:
     """自由な正解値やframeを外から供給しないP3内容Port。"""
@@ -56,3 +71,18 @@ class PastCorrectionContentValidationPort:
         ):
             raise RuntimeError("P3内容Portの応答値が不一致")
         return accepted, reason if isinstance(reason, str) else None
+
+
+@final
+class PastCorrectionProjectionPort:
+    """真正capsule/T5全値の一括保存だけを要求する。"""
+
+    def apply(self, event: SyncEvent, writer: PortWriter) -> None:
+        """返却された実保存receiptの閉形を確認する。"""
+        result = writer.run(
+            ProjectP3CorrectionToken(
+                UUID(event.game_id), UUID(event.d5), event, writer
+            )
+        )
+        if type(result) is not TenantOperationResult or result.rows != ((True,),):
+            raise RuntimeError("P3 projection保存結果が不一致")

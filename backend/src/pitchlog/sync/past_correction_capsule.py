@@ -22,7 +22,10 @@ class P3CurrentCapsule:
 
     capsule_id: UUID
     change_event_id: UUID
+    internal_generation: int
+    target_d1: int
     previous_checkpoint_id: UUID
+    previous_checkpoint_revision: int
     previous_checkpoint_digest: str
     next_checkpoint: LineupPrefixDocument
     items: tuple[dict[str, object], ...]
@@ -37,6 +40,8 @@ def build_p3_current_capsule(
         type(prepared) is not PreparedP3LineupCorrection
         or type(prepared.original_checkpoint) is not LineupPrefixDocument
         or len(prepared.originals) < 1
+        or prepared.target_generation
+        != int(prepared.original_checkpoint.internal_generation)
         or not 1 <= prepared.target_d1 <= len(prepared.originals) <= 25
         or len(
             {
@@ -158,7 +163,10 @@ def build_p3_current_capsule(
     return P3CurrentCapsule(
         prepared.capsule_id,
         prepared.change_event_id,
+        prepared.target_generation,
+        prepared.target_d1,
         UUID(prepared.original_checkpoint.id),
+        int(prepared.original_checkpoint.revision),
         prepared.original_checkpoint.content_digest,
         checkpoint,
         tuple(items),

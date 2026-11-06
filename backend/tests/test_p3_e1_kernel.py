@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from contextlib import contextmanager
 from types import SimpleNamespace
-from typing import Iterator
+from typing import Iterator, cast
 from uuid import UUID
 
 import pytest
@@ -14,13 +14,14 @@ from test_authz_tenant_context import make_tenant_context
 from pitchlog.repositories import rg1
 from pitchlog.sync import apply, change_path
 from pitchlog.sync.control_provider import binding_control, writer_binding
+from pitchlog.sync.control_provider.binding_control import _BindingLease
 from pitchlog.sync.control_provider.evidence import (
     AttemptBinding,
     AuthorityBinding,
     D1lessPhaseBinding,
 )
 from pitchlog.sync.model import AcceptedChangeResult, SyncRequest
-from pitchlog.sync.source_binding import _e1_receipt_scope
+from pitchlog.sync.source_binding import _e1_receipt_scope, _E1CoreSource
 from pitchlog.sync.wire_source import freeze_wire_source
 
 
@@ -81,10 +82,13 @@ def _p3_flow(monkeypatch: pytest.MonkeyPatch, *, device_active: bool = True):
         bound._owner = (object(),)
         bound._used = False
         bound._phase_snapshot = snapshot
-        bound._lease = SimpleNamespace(
-            _phase_snapshot=snapshot,
-            device_id=device,
-            game_id=game,
+        bound._lease = cast(
+            _BindingLease,
+            SimpleNamespace(
+                _phase_snapshot=snapshot,
+                device_id=device,
+                game_id=game,
+            ),
         )
 
         @contextmanager
@@ -108,7 +112,7 @@ def _p3_flow(monkeypatch: pytest.MonkeyPatch, *, device_active: bool = True):
 
         def locked(_scope: object, _request: object, *args: object, **kwargs: object):
             trace.append("d5-and-change")
-            actual_source = kwargs["bound_source"]
+            actual_source = cast(_E1CoreSource, kwargs["bound_source"])
             actual_source.begin_write(scope, request.events[0])
             return AcceptedChangeResult(
                 {"試合": str(game), "対象の D4": 1, "対象の D1": 1},

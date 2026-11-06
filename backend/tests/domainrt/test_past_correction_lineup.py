@@ -46,6 +46,7 @@ from pitchlog.sync.terminal_pitch_payload import (
     LineupPitchCalculation,
     LineupPitchPlayPayload,
 )
+from pitchlog.sync.terminal_pitch_projection import runner_physical_rows
 
 _ROOT = Path(__file__).resolve().parents[3]
 _CASES = {
@@ -237,15 +238,18 @@ def test_v3_corrected_payload_rejects_missing_original_v7() -> None:
 
 
 def test_v3_physical_candidate_uses_existing_mappers_and_new_row_ids() -> None:
-    """旧play identityを保ちつつ訂正行PKを分離し後続行も新計算で作る。"""
+    """訂正対象を別PKで作り、後続の物理全値同一なら元行を再利用する。"""
     with _host() as host:
         old = _two_saved(host)
         frames = _evaluate(old, "batting-result.ball", (_NEW1, _NEW2), host)
     assert old[0].payload is not None and old[1].payload is not None
     tenant = UUID(old[0].calculation.request.prefix_ref.tenant_id)
     game = UUID(old[0].calculation.request.prefix_ref.game_id)
+
     def with_row(saved: SavedLineupPitch, index: int) -> SavedLineupPitch:
         assert saved.payload is not None
+        request = saved.calculation.request
+        row_id = UUID(request.play_identity.play_id)
         return replace(
             saved,
             play_row=pitch_physical_row(
@@ -255,8 +259,17 @@ def test_v3_physical_candidate_uses_existing_mappers_and_new_row_ids() -> None:
                 tenant_id=tenant,
                 game_id=game,
                 source_event_id=saved.source_event_id,
-                row_id=UUID(saved.calculation.request.play_identity.play_id),
+                row_id=row_id,
                 play_number=index,
+            ),
+            play_runners=tuple(
+                runner_physical_rows(
+                    request.source.runners,
+                    t1=saved.calculation.response.value.t1,
+                    t1_input=request.t1,
+                    tenant_id=tenant,
+                    play_id=row_id,
+                )
             ),
         )
 
@@ -276,7 +289,8 @@ def test_v3_physical_candidate_uses_existing_mappers_and_new_row_ids() -> None:
     assert len(result) == 2
     assert result[0].effective_event_id == _CHANGE
     assert result[1].effective_event_id == original[1].source_event_id
-    assert all(item.new_play_row_id != item.original_play_row_id for item in result)
+    assert result[0].new_play_row_id != result[0].original_play_row_id
+    assert result[1].new_play_row_id == result[1].original_play_row_id
     assert [item.play_row["batting_result_key"] for item in result] == [
         "batting-result.ball",
         "batting-result.called-pitch",
@@ -340,6 +354,15 @@ def test_p3_preparation_binds_current_source_and_real_suffix(
                 source_event_id=saved.source_event_id,
                 row_id=UUID(saved.calculation.request.play_identity.play_id),
                 play_number=index,
+            ),
+            play_runners=tuple(
+                runner_physical_rows(
+                    saved.calculation.request.source.runners,
+                    t1=saved.calculation.response.value.t1,
+                    t1_input=saved.calculation.request.t1,
+                    tenant_id=tenant,
+                    play_id=UUID(saved.calculation.request.play_identity.play_id),
+                )
             ),
         )
         for index, saved in enumerate(old, start=1)
@@ -513,6 +536,7 @@ def test_v3_corrected_checkpoint_uses_native_chain_and_new_physical_head() -> No
     from pitchlog.sync.idempotency import source_fingerprint
     from pitchlog.sync.ordinary_pitch_physical import pitch_physical_row
     from pitchlog.sync.past_correction_preparation import PreparedP3LineupCorrection
+    from pitchlog.sync.terminal_pitch_projection import runner_physical_rows
 
     with _host() as host:
         original = _two_saved(host)
@@ -531,7 +555,14 @@ def test_v3_corrected_checkpoint_uses_native_chain_and_new_physical_head() -> No
                 row_id=UUID(request.play_identity.play_id),
                 play_number=saved.d1,
             )
-            rows.append(replace(saved, play_row=physical))
+            runners = runner_physical_rows(
+                request.source.runners,
+                t1=saved.calculation.response.value.t1,
+                t1_input=request.t1,
+                tenant_id=UUID(request.prefix_ref.tenant_id),
+                play_id=UUID(request.play_identity.play_id),
+            )
+            rows.append(replace(saved, play_row=physical, play_runners=tuple(runners)))
         saved_rows = tuple(rows)
         last = saved_rows[-1]
         old_value = last.calculation.response.value
@@ -606,6 +637,16 @@ def test_v3_corrected_checkpoint_uses_native_chain_and_new_physical_head() -> No
             capsule_id=_CAPSULE,
             change_event_id=_CHANGE,
         )
+        with pytest.raises(LineupCorrectionUnsupported):
+            prepare_corrected_physical_pitches(
+                (saved_rows[0], replace(saved_rows[1], play_runners=None)),
+                corrected,
+                payloads,
+                tenant_id=UUID(old_ref.tenant_id),
+                game_id=UUID(old_ref.game_id),
+                capsule_id=_CAPSULE,
+                change_event_id=_CHANGE,
+            )
     prepared = PreparedP3LineupCorrection(
         _CAPSULE, _CHANGE, 1, 1, saved_rows, corrected, payloads, physical,
         old_checkpoint,
@@ -627,6 +668,8 @@ def test_v3_corrected_checkpoint_uses_native_chain_and_new_physical_head() -> No
     assert capsule.items[1]["original_event_id"] == str(_ID2)
     assert capsule.items[1]["effective_event_id"] == str(_ID2)
     assert capsule.items[1]["play_row"] == physical[-1].play_row
+    assert saved_rows[-1].play_row is not None
+    assert capsule.items[1]["effective_play_row_id"] == saved_rows[-1].play_row["id"]
     stats = evaluate_p3_capsule_stats(capsule)
     assert [source.effective_event_id for source in stats.sources] == [_CHANGE, _ID2]
     assert all(source.evaluation for source in stats.sources)

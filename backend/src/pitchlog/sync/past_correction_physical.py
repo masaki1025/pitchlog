@@ -17,7 +17,7 @@ from pitchlog.sync.terminal_pitch_projection import runner_physical_rows
 
 @dataclass(frozen=True, slots=True)
 class CorrectedPhysicalPitch:
-    """元identityと別PKの有効投影。DB保存・current選択は別の資格。"""
+    """元identityと有効投影。DB保存・current選択は別の資格。"""
 
     original_event_id: UUID
     effective_event_id: UUID
@@ -40,7 +40,7 @@ def prepare_corrected_physical_pitches(
     capsule_id: UUID,
     change_event_id: UUID,
 ) -> tuple[CorrectedPhysicalPitch, ...]:
-    """旧物理原本と新計算から別行PKを作り、各球の参照を閉じる。"""
+    """対象は別行PKで作り、後続は全値一致する元行だけ再利用する。"""
     if (
         type(rows) is not tuple
         or type(corrected) is not tuple
@@ -88,8 +88,13 @@ def prepare_corrected_physical_pitches(
             raise LineupCorrectionUnsupported("訂正v3元物理行IDが不正") from None
         if play_identity_id != original_play_row_id:
             raise LineupCorrectionUnsupported("訂正v3元play identityが不一致")
-        new_play_row_id = uuid5(capsule_id, f"play:{saved.source_event_id}")
-        effective_event_id = change_event_id if index == 0 else saved.source_event_id
+        target = index == 0
+        new_play_row_id = (
+            uuid5(capsule_id, f"play:{saved.source_event_id}")
+            if target
+            else original_play_row_id
+        )
+        effective_event_id = change_event_id if target else saved.source_event_id
         physical = pitch_physical_row(
             payload.observations,
             payload.participants,
@@ -107,6 +112,14 @@ def prepare_corrected_physical_pitches(
             tenant_id=tenant_id,
             play_id=new_play_row_id,
         )
+        if not target and (
+            saved.play_runners is None
+            or physical != saved.play_row
+            or tuple(runners) != saved.play_runners
+        ):
+            # 元eventの物理行を増やすと旧readerの一件性が破れる。将来の
+            # 全置換selector導入までは、同じ物理行に帰着する後続だけ受ける。
+            raise LineupCorrectionUnsupported("P3後続物理行の置換は未接続")
         result.append(
             CorrectedPhysicalPitch(
                 saved.source_event_id,

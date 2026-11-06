@@ -269,7 +269,18 @@ _SYNC_P3_FUNCTION_TYPES = MappingProxyType(
         ],
         "sync_right_api.check_p3_right": _SYNC_FIRST_BALL_FUNCTION_TYPES[
             "sync_right_api.check_current_right"
-        ]
+        ],
+        "sync_right_api.persist_p3_projection": (
+            (*_SYNC_FIRST_BALL_COMMON, ("capsule_json", str), ("stats_json", str)),
+            (
+                ("capsule_id", UUID),
+                ("checkpoint_digest", str),
+                ("source_set_digest", str),
+                ("stats_version_id", UUID),
+            ),
+            (),
+            (),
+        ),
     }
 )
 

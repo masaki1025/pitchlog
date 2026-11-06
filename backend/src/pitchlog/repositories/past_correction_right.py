@@ -49,13 +49,31 @@ class _CheckP3RightToken(TenantOperationToken):
         return "CAP:sync_p3:check_p3_right"
 
 
+@dataclass(frozen=True, slots=True)
+class _PersistP3ProjectionToken(TenantOperationToken):
+    """実frame限定のcapsule・T5一括保存関数への元参照。"""
+
+    attempt_id: UUID
+    phase_id: UUID
+    binding_nonce: bytes = field(repr=False)
+    device_id: UUID
+    game_id: UUID
+    capsule_json: str = field(repr=False)
+    stats_json: str = field(repr=False)
+
+    @property
+    def capability_id(self) -> str:
+        """P3以外から使えない固定保存能力。"""
+        return "CAP:sync_p3:persist_p3_projection"
+
+
 def _identity(result: TenantOperationResult) -> TenantOperationResult:
     """共通decoderのexact結果を変形しない。"""
     return result
 
 
 def _registration(name: str, token_type: type[TenantOperationToken]):
-    """P3の二つの有限関数宣言を同じ型核から作る。"""
+    """P3の有限関数宣言を同じ型核から作る。"""
     inputs, outputs, nullable, aware = _SYNC_P3_FUNCTION_TYPES[
         f"sync_right_api.{name}"
     ]
@@ -79,3 +97,6 @@ def _registration(name: str, token_type: type[TenantOperationToken]):
 
 P3_DEVICE_BIND_OPERATION = _registration("bind_p3_device", _BindP3DeviceToken)
 P3_RIGHT_CHECK_OPERATION = _registration("check_p3_right", _CheckP3RightToken)
+P3_PROJECTION_OPERATION = _registration(
+    "persist_p3_projection", _PersistP3ProjectionToken
+)

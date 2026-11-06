@@ -442,6 +442,16 @@ class _TenantTransaction:
             )
 
             _consume_ordinary_preparation(self, operation)
+        from pitchlog.repositories.past_correction_right import (
+            _PersistP3ProjectionToken,
+        )
+
+        if type(operation) is _PersistP3ProjectionToken:
+            from pitchlog.sync.past_correction_execution import (
+                consume_p3_persistence,
+            )
+
+            consume_p3_persistence(self, operation)
         session, _ = runtime
         execution_result = session.execute(spec.statement, parameters)
         rows = tuple(tuple(row) for row in islice(execution_result, spec.max_rows + 1))
@@ -1391,7 +1401,10 @@ def _is_port_command(operation):
         ProjectOrdinaryPitchToken,
         ValidateOrdinaryPitchToken,
     )
-    from pitchlog.sync.past_correction_ports import ValidateP3CorrectionToken
+    from pitchlog.sync.past_correction_ports import (
+        ProjectP3CorrectionToken,
+        ValidateP3CorrectionToken,
+    )
     from pitchlog.sync.substitution_ports import (
         ProjectSubstitutionToken,
         ValidateSubstitutionToken,
@@ -1423,6 +1436,7 @@ def _is_port_command(operation):
         ProjectSubstitutionToken,
         ValidateSubstitutionToken,
         ValidateP3CorrectionToken,
+        ProjectP3CorrectionToken,
     }:
         return True
     return isinstance(
@@ -1507,6 +1521,7 @@ def _execute_port_command(handle, operation):
     )
     from pitchlog.sync.past_correction_ports import (
         _CONTENT_REJECTION_REASON,
+        ProjectP3CorrectionToken,
         ValidateP3CorrectionToken,
     )
     from pitchlog.sync.substitution_ports import (
@@ -1563,6 +1578,24 @@ def _execute_port_command(handle, operation):
         return TenantOperationResult(
             ((accepted, None if accepted else _CONTENT_REJECTION_REASON),)
         )
+
+    if type(operation) is ProjectP3CorrectionToken:
+        from pitchlog.sync.model import SyncEvent
+        from pitchlog.sync.past_correction_projection import project_p3_correction
+        from pitchlog.sync.ports import PortWriter
+
+        if (
+            phase is not None
+            or type(operation.event) is not SyncEvent
+            or type(operation.writer) is not PortWriter
+            or type(operation.game_id) is not UUID
+            or type(operation.d5) is not UUID
+            or operation.game_id != UUID(operation.event.game_id)
+            or operation.d5 != UUID(operation.event.d5)
+        ):
+            raise TenantBindingError("P3投影Portが実scopeと不一致")
+        project_p3_correction(handle, operation.event, operation.writer)
+        return TenantOperationResult(((True,),))
 
     if type(operation) in {ProjectLifecycleToken, ValidateLifecycleToken}:
         from pitchlog.sync.lifecycle_execution import (

@@ -20,7 +20,10 @@ from pitchlog.repositories.past_correction_right import (
     _CheckP3RightToken,
 )
 from pitchlog.repositories.tokens import TenantOperationResult
-from pitchlog.sync import port_guard  # noqa: F401 - 実Port verifierを起動する。
+from pitchlog.sync import (
+    past_correction_ports,  # noqa: F401 - P3実Port閉包を読む。
+    port_guard,  # noqa: F401 - 実Port verifierを起動する。
+)
 from pitchlog.sync.past_correction_rights import PastCorrectionRecordingRightsPort
 from pitchlog.sync.ports import _issue_port_writer, require_registered_port
 from pitchlog.sync.tokens import (

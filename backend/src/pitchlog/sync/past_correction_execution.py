@@ -5,6 +5,7 @@ from __future__ import annotations
 from contextlib import contextmanager
 from copy import deepcopy
 from dataclasses import dataclass
+from typing import Iterator
 from uuid import UUID, uuid4
 
 from pitchlog.repositories import transaction
@@ -51,6 +52,8 @@ class _Execution:
     sealed_capsule: P3CurrentCapsule | None = None
     stats: P3StatsCandidate | None = None
     sealed_stats: P3StatsCandidate | None = None
+    persist_token: object = None
+    persist_used: bool = False
     rejected: bool = False
 
 
@@ -222,7 +225,7 @@ def p3_change_event_id(
 
 def p3_projection_candidate(
     handle: transaction._TenantTransaction, event: SyncEvent, writer: PortWriter
-) -> tuple[P3CurrentCapsule, P3StatsCandidate]:
+) -> tuple[P3CurrentCapsule, P3StatsCandidate, _E1CoreSource]:
     """T2済み実sourceの全item/新CP/唯一T5評価をT4へ貸す。"""
     state = _EXECUTIONS.get(handle._state_key)
     if (
@@ -235,4 +238,58 @@ def p3_projection_candidate(
     ):
         raise PastCorrectionExecutionError("P3 T4元参照が不一致")
     _live(state, projection=True)
-    return state.capsule, state.stats
+    return state.capsule, state.stats, state.source
+
+
+@contextmanager
+def bind_p3_persistence(
+    handle: transaction._TenantTransaction,
+    event: SyncEvent,
+    writer: PortWriter,
+    token: object,
+) -> Iterator[None]:
+    """実frameと同leaseの一個の保存命令だけを同TXへ貸す。"""
+    from pitchlog.repositories.past_correction_right import _PersistP3ProjectionToken
+
+    state = _EXECUTIONS.get(handle._state_key)
+    if (
+        type(state) is not _Execution
+        or state.event is not event
+        or state.writer is not writer
+        or state.persist_token is not None
+        or state.persist_used
+        or type(token) is not _PersistP3ProjectionToken
+    ):
+        raise PastCorrectionExecutionError("P3保存命令の実frameが不一致")
+    _live(state, projection=True)
+    lease = state.source.bound._lease
+    if (
+        token.attempt_id != lease.attempt_id
+        or token.phase_id != lease.phase_id
+        or token.binding_nonce != lease.nonce
+        or token.device_id != lease.device_id
+        or token.game_id != UUID(event.game_id)
+    ):
+        raise PastCorrectionExecutionError("P3保存命令の実leaseが不一致")
+    state.persist_token = token
+    try:
+        yield
+        if not state.persist_used:
+            raise PastCorrectionExecutionError("P3保存命令が未消費")
+    finally:
+        state.persist_token = None
+
+
+def consume_p3_persistence(
+    handle: transaction._TenantTransaction, token: object
+) -> None:
+    """同scopeの一度だけの関数実行直前にframeを消費する。"""
+    state = _EXECUTIONS.get(handle._state_key)
+    if (
+        type(state) is not _Execution
+        or state.persist_token is not token
+        or state.persist_used
+    ):
+        raise PastCorrectionExecutionError("P3保存関数に自由tokenを渡せない")
+    _live(state, projection=True)
+    state.persist_used = True

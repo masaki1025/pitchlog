@@ -11,6 +11,7 @@ from pitchlog.repositories.tokens import ImmutableValue, TenantOperationResult
 from pitchlog.sync.model import SyncEvent
 from pitchlog.sync.past_correction_ports import (
     PastCorrectionContentValidationPort,
+    ProjectP3CorrectionToken,
     ValidateP3CorrectionToken,
 )
 from pitchlog.sync.ports import _issue_port_writer
@@ -50,6 +51,26 @@ def test_p3_content_command_without_actual_phase_is_closed() -> None:
 
     try:
         with pytest.raises(transaction.TenantBindingError, match="P3内容Port"):
+            transaction._execute_port_command(Handle(), token)
+    finally:
+        writer._close()
+
+
+def test_p3_projection_without_real_e1_frame_is_closed() -> None:
+    """自由tokenと自由PortWriterからcapsule保存結果を発行しない。"""
+    from pitchlog.sync.past_correction_execution import PastCorrectionExecutionError
+
+    writer = _issue_port_writer(lambda _token: TenantOperationResult(((True,),)))
+    event = _event()
+    token = ProjectP3CorrectionToken(
+        UUID(event.game_id), UUID(event.d5), event, writer
+    )
+
+    class Handle:
+        _state_key = object()
+
+    try:
+        with pytest.raises(PastCorrectionExecutionError, match="P3 T4"):
             transaction._execute_port_command(Handle(), token)
     finally:
         writer._close()

@@ -153,7 +153,10 @@ def _apply_locked(
 ) -> ChangeResult:
     """③〜⑨を順に判定し、未使用 D5 だけを一取引で確定する。"""
     from pitchlog.repositories.transaction import _port_predecision_phase
-    from pitchlog.sync.past_correction_ports import PastCorrectionContentValidationPort
+    from pitchlog.sync.past_correction_ports import (
+        PastCorrectionContentValidationPort,
+        PastCorrectionProjectionPort,
+    )
     from pitchlog.sync.source_binding import _E1CoreSource
 
     if bound_source is not None and (
@@ -168,6 +171,11 @@ def _apply_locked(
         and type(validator) is not PastCorrectionContentValidationPort
     ):
         raise ValueError("P3実内容Portが不一致")
+    if (
+        bound_source is not None
+        and type(projection) is not PastCorrectionProjectionPort
+    ):
+        raise ValueError("P3実投影Portが不一致")
     event = request.events[0]
     if bound_source is not None:
         bound_source.read(scope, event)
