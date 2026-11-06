@@ -92,3 +92,26 @@ def test_native_overlay_has_no_other_language_or_format_execution(monkeypatch):
     result = core.generate_native_primitive_sql_bundle(common, consumer, profile)
     assert len(result) == 3
     assert result == {path: (ROOT / path).read_text() for path in result}
+
+
+def test_native_undo_binds_physical_checkpoint_digest_not_bootstrap_view():
+    """旧v3導出の論理digestと物理保存digestを混同せず原本全行へ束縛する。"""
+    from pitchlog.authz.nonplay_prefix_sql import candidate_function_bodies
+
+    profile = json.loads(
+        (ROOT / "backend/domain/play-export-undo-selection.model.json").read_text()
+    )
+    common, consumer = _models()
+    bundle = core.generate_native_primitive_sql_bundle(common, consumer, profile)
+    for sql in bundle.values():
+        assert (
+            "n.checkpoint_digest=n.preparation->'storage'->'row'->>'content_digest'"
+            in sql
+        )
+        assert (
+            "n.checkpoint_digest=n.preparation->'before_source'->'checkpoint'->'ref'->>'digest'"
+            not in sql
+        )
+    prepare = candidate_function_bodies()["prepare_nonplay_undo"]
+    assert "pg_catalog.to_jsonb(cp) IS DISTINCT FROM p->'storage'->'row'" in prepare
+    assert "checkpoint_digest=cp.content_digest" in prepare
