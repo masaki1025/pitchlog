@@ -2,6 +2,7 @@
 import { computed, toRaw, ref, watch } from 'vue'
 import GameScreenFirstBall from './GameScreenFirstBall.vue'
 import GameScreenOrdinaryPitch from './GameScreenOrdinaryPitch.vue'
+import GameScreenUndoProduct from './GameScreenUndoProduct.vue'
 import { ordinaryContextFromRead } from '../api/recordedPrefixGame'
 import { sameOrdinaryWire } from '../api/ordinaryPitchWire'
 import {
@@ -30,6 +31,7 @@ const auth = useAuthStore()
 const gameId = computed(() =>
   typeof route.params.gameId === 'string' ? route.params.gameId : undefined,
 )
+const undoNative = ref(false)
 const auto = computed(() => props.auto)
 // 旧版で保存した要求の復旧入口だけを閉じた内部queryで保持する。
 const legacy = computed(() => route.query.recording === 'ordinary-prefix-v1')
@@ -167,6 +169,7 @@ const history = computed(() =>
 
 <template>
   <section
+    v-show="!undoNative"
     aria-label="サーバーから復元した状態"
     class="space-y-2 rounded-xl border p-4"
   >
@@ -347,4 +350,11 @@ const history = computed(() =>
       三振・攻守交代を含む投球の記録へ
     </button>
   </section>
+  <GameScreenUndoProduct
+    v-if="gameId && auto !== false"
+    :key="gameId"
+    :game-id="gameId"
+    @state="undoNative = $event"
+    @saved="restore.reload()"
+  />
 </template>
