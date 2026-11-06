@@ -7902,7 +7902,7 @@ def test_pr197_approved_doc_merge_rejects_changed_typed_pin(tmp_path, key):
         guard._pr197_merge_carry_pins(clone, head)
     asset = json.loads((REPO / 'contracts/tenant_boundary/frozen-inputs.json').read_text())
     asset['frozen_inputs'][key]['value'] = (
-        frozen_history.read_original_pr197_pin('pr197_core_definition_ast_sha256')
+        guard._PR197_CORE_DEFINITION_AST_SHA256
         if key == 'pr197_core_carry_definition_sha256'
         else frozen_history.PR197_PIN_ORIGIN_COMMIT
     )
