@@ -435,9 +435,27 @@ def sentinel_conversion_hits(source_root: Path) -> list[str]:
     for path in sorted(source_root.rglob("*.py")):
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
         relative = path.relative_to(source_root)
-        visitor = _SentinelConversionVisitor(
-            _ADOPTED_RATE_NULL_FUNCTIONS.get(relative.as_posix(), {})
-        )
+        adopted = _ADOPTED_RATE_NULL_FUNCTIONS.get(relative.as_posix(), {})
+        approved: set[ast.FunctionDef] = set()
+        for name, expected in adopted.items():
+            matches = [
+                n
+                for n in tree.body
+                if isinstance(n, ast.FunctionDef) and n.name == name
+            ]
+            if len(matches) != 1:
+                hits.append(f"{relative}:0:採用済み比/率関数の欠落または重複: {name}")
+                continue
+            actual = hashlib.sha256(
+                ast.dump(matches[0], include_attributes=False).encode()
+            ).hexdigest()
+            if actual != expected:
+                hits.append(
+                    f"{relative}:{matches[0].lineno}:採用済み比/率ASTが不一致: {name}"
+                )
+                continue
+            approved.add(matches[0])
+        visitor = _SentinelConversionVisitor(frozenset(approved))
         visitor.visit(tree)
         hits.extend(f"{relative}:{line}:{reason}" for line, reason in visitor.hits)
     return hits
@@ -446,18 +464,16 @@ def sentinel_conversion_hits(source_root: Path) -> list[str]:
 class _SentinelConversionVisitor(ast.NodeVisitor):
     """センチネル値から NULL を作る構造だけを抽出する。"""
 
-    def __init__(self, adopted_rate_functions: dict[str, str] | None = None) -> None:
+    def __init__(
+        self, approved_rate_functions: frozenset[ast.FunctionDef] = frozenset()
+    ) -> None:
         self.hits: list[tuple[int, str]] = []
-        self.adopted_rate_functions = adopted_rate_functions or {}
+        self.approved_rate_functions = approved_rate_functions
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:  # noqa: N802
         """明示的なセンチネル変換名と条件分岐を検査する。"""
         self._record_function_name(node.name, node.lineno)
-        expected = self.adopted_rate_functions.get(node.name)
-        actual = hashlib.sha256(
-            ast.dump(node, include_attributes=False).encode()
-        ).hexdigest()
-        if expected is not None and actual == expected:
+        if node in self.approved_rate_functions:
             return
         self.generic_visit(node)
 
