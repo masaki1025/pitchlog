@@ -19,22 +19,26 @@ const head: ViewerHead = {
 beforeEach(() => {
   pinia = createPinia()
   setActivePinia(pinia)
-  setVerifiedAuthForTest(useAuthStore(), { teamId: tenant, teamName: '閲覧fixture' })
+  setVerifiedAuthForTest(useAuthStore(), {
+    teamId: tenant,
+    teamName: '閲覧fixture',
+  })
   payload = structuredClone(initial.value)
   status = 200
   vi.stubGlobal(
     'fetch',
-    vi.fn(async (_url, init) =>
-      new Response(JSON.stringify(payload), {
-        status,
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Pitchlog-Tenant-Match': '1',
-          'X-Pitchlog-Tenant-Challenge': new Headers(init?.headers).get(
-            'X-Pitchlog-Tenant-Challenge',
-          )!,
-        },
-      }),
+    vi.fn(
+      async (_url, init) =>
+        new Response(JSON.stringify(payload), {
+          status,
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Pitchlog-Tenant-Match': '1',
+            'X-Pitchlog-Tenant-Challenge': new Headers(init?.headers).get(
+              'X-Pitchlog-Tenant-Challenge',
+            )!,
+          },
+        }),
     ),
   )
 })
@@ -61,7 +65,7 @@ it('保存球の実watermarkを照合し、probeだけで表示成功にしな�
   const current = { ...head, watermark: recorded.value.prefix_ref.length }
   expect(await readViewerGame(target, owner, current)).toEqual(recorded.value)
 })
-it('終了済みlineupの保存済み全項目を閉検査し、未知keyを拒否する', async () => {
+it('終了済みlineupを拒否し、終了版はnonplayの閉契約だけに限定する', async () => {
   payload = { ...structuredClone(recorded.value), status: 'finished' }
   setVerifiedAuthForTest(useAuthStore(), {
     teamId: recorded.value.prefix_ref.tenantId,
@@ -74,8 +78,6 @@ it('終了済みlineupの保存済み全項目を閉検査し、未知keyを拒�
   }
   const target = recorded.value.id
   const owner = recorded.value.prefix_ref.tenantId
-  expect(await readViewerGame(target, owner, finishedHead)).toEqual(payload)
-  payload = { ...(payload as Record<string, unknown>), unknown: true }
   await expect(readViewerGame(target, owner, finishedHead)).rejects.toThrow()
 })
 it('別tenant、別game、未知key、破損履歴を拒否する', async () => {

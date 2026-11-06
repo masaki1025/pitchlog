@@ -19,7 +19,9 @@ const gameId = computed(() => String(route.params.gameId ?? ''))
 const game = shallowRef<ViewerGame | null>(null)
 const head = ref<ViewerHead | null>(null)
 const names = ref<Record<string, string>>({})
-const freshness = ref<'loading' | 'fresh' | 'unupdated' | 'not-found'>('loading')
+const freshness = ref<'loading' | 'fresh' | 'unupdated' | 'not-found'>(
+  'loading',
+)
 const checkedAt = ref<number | null>(null)
 const pageCursors = ref<(string | null)[]>([null])
 const pageIndex = computed(() => pageCursors.value.length - 1)
@@ -51,11 +53,11 @@ const periodLabel = computed(() => {
   if (source === null) return null
   const state = source.after.stateFields
   const half = (value: 'top' | 'bottom') => (value === 'top' ? '表' : '裏')
+  const t2 =
+    source.read_kind === 'lineup-prefix'
+      ? source.t2
+      : source.checkpoint.content.restored.lastPlayEvaluation
   if (source.status === 'finished') {
-    const t2 =
-      source.read_kind === 'lineup-prefix'
-        ? source.t2
-        : source.checkpoint.content.restored.lastPlayEvaluation
     if (t2?.decision.outcome === 'normal-end' && t2.facts.halfCompleted)
       return `試合終了（${t2.facts.beforeInning}回${half(t2.facts.beforeHalf)}終了）`
     return `試合終了（最終保存時 ${state['state.inning']}回${half(state['state.half'])}）`
@@ -65,12 +67,12 @@ const periodLabel = computed(() => {
 const lineup = computed(() =>
   game.value?.read_kind === 'lineup-prefix'
     ? game.value.lineup
-    : game.value?.checkpoint.content.restored.lineup ?? null,
+    : (game.value?.checkpoint.content.restored.lineup ?? null),
 )
 const runners = computed(() =>
   game.value?.read_kind === 'lineup-prefix'
     ? game.value.runners
-    : game.value?.checkpoint.content.restored.runners ?? [],
+    : (game.value?.checkpoint.content.restored.runners ?? []),
 )
 const savedAt = computed(() => game.value?.last_saved_at ?? null)
 const history = computed(() => {
@@ -174,7 +176,8 @@ async function loadNames(
   const expected = new Map<string, string>()
   for (const side of ['away', 'home'] as const) {
     const team = sourceLineup[side]
-    for (const id of Object.values(team.battingOrder)) expected.set(id, team.teamId)
+    for (const id of Object.values(team.battingOrder))
+      expected.set(id, team.teamId)
     expected.set(team.pitcherId, team.teamId)
     expected.set(team.catcherId, team.teamId)
   }
@@ -245,22 +248,71 @@ onUnmounted(() => {
     <h1 class="text-2xl font-bold">試合のライブ閲覧</h1>
     <p>サーバー確定分のみ表示。記録端末の未送信分は含まれません。</p>
     <p role="status" data-testid="viewer-status">
-      {{ freshness === 'fresh' ? '更新済み' : freshness === 'not-found' ? '閲覧できません' : freshness === 'loading' ? '確認中' : '未更新' }}
+      {{
+        freshness === 'fresh'
+          ? '更新済み'
+          : freshness === 'not-found'
+            ? '閲覧できません'
+            : freshness === 'loading'
+              ? '確認中'
+              : '未更新'
+      }}
     </p>
-    <p>最終保存: {{ savedAt ?? '未取得' }} / 閲覧確認: {{ checkedAt === null ? '未取得' : new Date(checkedAt).toLocaleString('ja-JP') }}</p>
-    <template v-if="freshness === 'fresh' && game !== null && current !== null && lineup !== null">
+    <p>
+      最終保存: {{ savedAt ?? '未取得' }} / 閲覧確認:
+      {{
+        checkedAt === null
+          ? '未取得'
+          : new Date(checkedAt).toLocaleString('ja-JP')
+      }}
+    </p>
+    <template
+      v-if="
+        freshness === 'fresh' &&
+        game !== null &&
+        current !== null &&
+        lineup !== null
+      "
+    >
       <section aria-label="スコア">
         <h2 class="text-lg font-bold">スコア</h2>
-        <p>先攻 {{ current['state.score'].away }} – 後攻 {{ current['state.score'].home }}</p>
-        <p>{{ periodLabel }} / {{ current['state.outs'] }}アウト / {{ current['state.count.balls'] }}ボール {{ current['state.count.strikes'] }}ストライク</p>
-        <p>走者: {{ runners.length === 0 ? 'なし' : runners.map((runner) => `${runner.base}塁 ${playerLabel(runner.runnerId)}`).join('、') }}</p>
+        <p>
+          先攻 {{ current['state.score'].away }} – 後攻
+          {{ current['state.score'].home }}
+        </p>
+        <p>
+          {{ periodLabel }} / {{ current['state.outs'] }}アウト /
+          {{ current['state.count.balls'] }}ボール
+          {{ current['state.count.strikes'] }}ストライク
+        </p>
+        <p>
+          走者:
+          {{
+            runners.length === 0
+              ? 'なし'
+              : runners
+                  .map(
+                    (runner) =>
+                      `${runner.base}塁 ${playerLabel(runner.runnerId)}`,
+                  )
+                  .join('、')
+          }}
+        </p>
       </section>
       <section aria-label="出場選手" class="grid gap-4 md:grid-cols-2">
-        <div v-for="side in (['away', 'home'] as const)" :key="side">
-          <h2 class="text-lg font-bold">{{ side === 'away' ? '先攻' : '後攻' }}の出場選手</h2>
-          <p>投手 {{ playerLabel(lineup[side].pitcherId) }} / 捕手 {{ playerLabel(lineup[side].catcherId) }}</p>
+        <div v-for="side in ['away', 'home'] as const" :key="side">
+          <h2 class="text-lg font-bold">
+            {{ side === 'away' ? '先攻' : '後攻' }}の出場選手
+          </h2>
+          <p>
+            投手 {{ playerLabel(lineup[side].pitcherId) }} / 捕手
+            {{ playerLabel(lineup[side].catcherId) }}
+          </p>
           <ol class="list-inside list-decimal">
-            <li v-for="[order, id] in Object.entries(lineup[side].battingOrder)" :key="order">
+            <li
+              v-for="[order, id] in Object.entries(lineup[side].battingOrder)"
+              :key="order"
+            >
               {{ order }}番 {{ playerLabel(id) }}
             </li>
           </ol>
@@ -270,10 +322,16 @@ onUnmounted(() => {
         <h2 class="text-lg font-bold">確定済み投球履歴（1ページ25件）</h2>
         <p v-if="history.length === 0">まだ確定済みの投球はありません。</p>
         <ol v-else class="list-inside list-decimal">
-          <li v-for="item in history" :key="item.key">第{{ item.number }}球: {{ item.result }}</li>
+          <li v-for="item in history" :key="item.key">
+            第{{ item.number }}球: {{ item.result }}
+          </li>
         </ol>
-        <button type="button" :disabled="pageIndex === 0" @click="previousPage">前のページ</button>
-        <button type="button" :disabled="nextCursor === null" @click="nextPage">次のページ</button>
+        <button type="button" :disabled="pageIndex === 0" @click="previousPage">
+          前のページ
+        </button>
+        <button type="button" :disabled="nextCursor === null" @click="nextPage">
+          次のページ
+        </button>
       </section>
     </template>
   </main>
