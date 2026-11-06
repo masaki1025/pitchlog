@@ -46,6 +46,22 @@ const validIdentity = computed(
     canonicalUuid.test(gameId.value),
 )
 const current = computed(() => game.value?.after.stateFields ?? null)
+const periodLabel = computed(() => {
+  const source = game.value
+  if (source === null) return null
+  const state = source.after.stateFields
+  const half = (value: 'top' | 'bottom') => (value === 'top' ? '表' : '裏')
+  if (source.status === 'finished') {
+    const t2 =
+      source.read_kind === 'lineup-prefix'
+        ? source.t2
+        : source.checkpoint.content.restored.lastPlayEvaluation
+    if (t2?.decision.outcome === 'normal-end' && t2.facts.halfCompleted)
+      return `試合終了（${t2.facts.beforeInning}回${half(t2.facts.beforeHalf)}終了）`
+    return `試合終了（最終保存時 ${state['state.inning']}回${half(state['state.half'])}）`
+  }
+  return `${state['state.inning']}回${half(state['state.half'])}`
+})
 const lineup = computed(() =>
   game.value?.read_kind === 'lineup-prefix'
     ? game.value.lineup
@@ -236,7 +252,7 @@ onUnmounted(() => {
       <section aria-label="スコア">
         <h2 class="text-lg font-bold">スコア</h2>
         <p>先攻 {{ current['state.score'].away }} – 後攻 {{ current['state.score'].home }}</p>
-        <p>{{ current['state.inning'] }}回 {{ current['state.half'] === 'top' ? '表' : '裏' }} / {{ current['state.outs'] }}アウト / {{ current['state.count.balls'] }}ボール {{ current['state.count.strikes'] }}ストライク</p>
+        <p>{{ periodLabel }} / {{ current['state.outs'] }}アウト / {{ current['state.count.balls'] }}ボール {{ current['state.count.strikes'] }}ストライク</p>
         <p>走者: {{ runners.length === 0 ? 'なし' : runners.map((runner) => `${runner.base}塁 ${playerLabel(runner.runnerId)}`).join('、') }}</p>
       </section>
       <section aria-label="出場選手" class="grid gap-4 md:grid-cols-2">

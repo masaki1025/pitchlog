@@ -58,3 +58,67 @@ it('単一pollは同版で本体を重複取得せず、通信断で旧表示を
   expect(wrapper.find('[aria-label="スコア"]').exists()).toBe(false)
   wrapper.unmount()
 })
+
+it('終了済みの第3アウトは保存T2の完了半回を示し、次の10回表を開始扱いしない', async () => {
+  setActivePinia(pinia)
+  setVerifiedAuthForTest(useAuthStore(pinia), {
+    teamId: tenant,
+    teamName: '閲覧試験',
+  })
+  vi.spyOn(viewerApi, 'readViewerHead').mockResolvedValue({
+    ...head,
+    status: 'finished',
+  })
+  vi.spyOn(viewerApi, 'readViewerGame').mockResolvedValue({
+    ...initial.value,
+    status: 'finished',
+    after: {
+      ...initial.value.after,
+      stateFields: {
+        ...initial.value.after.stateFields,
+        'state.inning': '10',
+        'state.half': 'top',
+      },
+    },
+    t2: {
+      kind: 'evaluated-end-condition',
+      scope: 'play-prefix-v3',
+      evaluation_point: 'post-play',
+      facts: {
+        beforeInning: '9',
+        beforeHalf: 'bottom',
+        beforeOuts: '2',
+        afterInning: '10',
+        afterHalf: 'top',
+        afterOuts: '0',
+        halfCompleted: true,
+        outsUnchanged: false,
+        scoreUnchanged: true,
+        priorOpen: true,
+      },
+      decision: {
+        outcome: 'normal-end',
+        endConditionDetected: true,
+        lockFurtherPlayInput: true,
+        promptEndDeclaration: true,
+        automaticallyEndsGame: false,
+        xMark: 'recorded-score',
+      },
+      tiebreakStartRequired: false,
+    },
+  } as unknown as viewerApi.ViewerGame)
+  vi.spyOn(rosterApi, 'getPlayer').mockRejectedValue(new Error('名簿名別試験'))
+  const router = createRouter({
+    history: createMemoryHistory(),
+    routes: [{ path: '/games/:gameId/view', component: GameScreenViewerLive }],
+  })
+  await router.push(`/games/${gameId}/view`)
+  await router.isReady()
+  const wrapper = mount(GameScreenViewerLive, {
+    global: { plugins: [{ install: installAppProviders }, router] },
+  })
+  await flushPromises()
+  expect(wrapper.find('[aria-label="スコア"]').text()).toContain('試合終了（9回裏終了）')
+  expect(wrapper.find('[aria-label="スコア"]').text()).not.toContain('10回表')
+  wrapper.unmount()
+})

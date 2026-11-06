@@ -61,6 +61,23 @@ it('保存球の実watermarkを照合し、probeだけで表示成功にしな�
   const current = { ...head, watermark: recorded.value.prefix_ref.length }
   expect(await readViewerGame(target, owner, current)).toEqual(recorded.value)
 })
+it('終了済みlineupの保存済み全項目を閉検査し、未知keyを拒否する', async () => {
+  payload = { ...structuredClone(recorded.value), status: 'finished' }
+  setVerifiedAuthForTest(useAuthStore(), {
+    teamId: recorded.value.prefix_ref.tenantId,
+    teamName: '終了済みfixture',
+  })
+  const finishedHead = {
+    ...head,
+    status: 'finished' as const,
+    watermark: recorded.value.prefix_ref.length,
+  }
+  const target = recorded.value.id
+  const owner = recorded.value.prefix_ref.tenantId
+  expect(await readViewerGame(target, owner, finishedHead)).toEqual(payload)
+  payload = { ...(payload as Record<string, unknown>), unknown: true }
+  await expect(readViewerGame(target, owner, finishedHead)).rejects.toThrow()
+})
 it('別tenant、別game、未知key、破損履歴を拒否する', async () => {
   const other = '33333333-3333-4333-8333-333333333333'
   await expect(readViewerGame(gameId, other, head)).rejects.toThrow()

@@ -10,7 +10,9 @@ export type ViewerHead = Readonly<{
   generation: string
   watermark: string
 }>
-export type ViewerGame = LineupPrefixGame | GameLifecycleGame
+export type ViewerLineupPrefixGame = Omit<LineupPrefixGame, 'status'> &
+  Readonly<{ status: 'in_progress' | 'finished' }>
+export type ViewerGame = ViewerLineupPrefixGame | GameLifecycleGame
 const positive = (value: unknown): value is string =>
   typeof value === 'string' && /^[1-9][0-9]*$/.test(value)
 const unsigned = (value: unknown): value is string =>
@@ -23,6 +25,18 @@ export function isViewerHead(value: unknown): value is ViewerHead {
     positive(value.generation) &&
     unsigned(value.watermark)
   )
+}
+
+/** 記録用DTOは進行中限定。閲覧の終了版は同じ全項目を閉検査する。 */
+export function isViewerLineupPrefixGame(
+  value: unknown,
+): value is ViewerLineupPrefixGame {
+  if (typeof value !== 'object' || value === null || Array.isArray(value))
+    return false
+  const row = value as Record<string, unknown>
+  if (row.status === 'in_progress') return isLineupPrefixGame(value)
+  if (row.status !== 'finished') return false
+  return isLineupPrefixGame({ ...row, status: 'in_progress' })
 }
 
 /** 認証済み同tenantの非ロック版hint。保存内容の原本には使わない。 */
@@ -59,7 +73,7 @@ export async function readViewerGame(
     signal,
   })
   if (
-    isLineupPrefixGame(value) &&
+    isViewerLineupPrefixGame(value) &&
     value.id === gameId &&
     value.prefix_ref.tenantId === tenantId &&
     value.status === head.status &&
