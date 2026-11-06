@@ -3149,6 +3149,11 @@ _PR197_GATE6_DOC_CARRY_TYPED = frozenset({
     "pr197_core_carry_source_revision",
     "pr197_core_carry_definition_sha256",
 })
+_PR197_GATE6_RECOVERY_TYPED = frozenset({
+    "pr197_identical_cochange_revision",
+    "pr197_recovery_source_revision",
+    "pr197_recovery_definition_sha256",
+})
 
 
 def _pr197_formal_ledger_binding_successor(
@@ -3255,11 +3260,12 @@ def _pr197_gate6_body(root: Path, head_sha: str) -> dict[str, Any]:
                     _PR197_GATE6_NEW_TYPED
                     | _PR197_GATE6_MIGRATED_TYPED
                     | _PR197_GATE6_DOC_CARRY_TYPED
+                    | _PR197_GATE6_RECOVERY_TYPED
                     | {"pr197_pin_origin_commit"}
                 )
                 if (not all(after.get(key) == value for key, value in before.items())
                         or set(after) - set(before) != expected_added):
-                    raise HumanReviewSignatureRecordError("PR197旧typed入力または追加25が不一致")
+                    raise HumanReviewSignatureRecordError("PR197旧typed入力または追加28が不一致")
                 try:
                     for key in _PR197_GATE6_MIGRATED_TYPED:
                         guard.frozen_history.read_original_pr197_pin(key, root)
