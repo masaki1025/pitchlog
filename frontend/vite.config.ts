@@ -1,11 +1,12 @@
 import { createHash } from 'node:crypto'
-import { readdirSync, readFileSync } from 'node:fs'
+import { readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { extname, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vite'
 import type { Plugin } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import tailwindcss from '@tailwindcss/vite'
+import { createOfflineBundle } from './offline-build.ts'
 
 const frontendRoot = fileURLToPath(new URL('.', import.meta.url))
 const contractsRoot = fileURLToPath(new URL('../contracts/', import.meta.url))
@@ -532,6 +533,24 @@ function frontendBuildClosure(): Plugin {
         throw new Error(`production build 閉域検査失敗: ${details.join(', ')}`)
       }
       verifyDomainArtifactDistribution(frontendRoot, buildOutputRoot)
+      const artifacts = readBuildArtifacts(buildOutputRoot)
+      if (typeof artifacts === 'string') throw new Error(artifacts)
+      const template = readFileSync(
+        resolve(frontendRoot, 'public/sw.js'),
+        'utf8',
+      )
+      const offline = createOfflineBundle(artifacts, template)
+      writeFileSync(
+        resolve(buildOutputRoot, 'offline-assets.json'),
+        offline.manifestSource,
+      )
+      writeFileSync(resolve(buildOutputRoot, 'sw.js'), offline.workerSource)
+      const completed = inspectBuildDirectory(buildOutputRoot)
+      if (completed.status !== 'conforming') {
+        throw new Error(
+          `offline shell 閉域検査失敗: ${completed.reasons.join(', ')}`,
+        )
+      }
       console.log(
         `[frontend-build-closure] status=${inspected.status} ` +
           `scannedFiles=${inspected.scannedFiles} ` +
