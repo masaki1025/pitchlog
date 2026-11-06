@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto'
 import { expect, test, type Page } from '@playwright/test'
+import { isNativeUndoGame, completeUndoSource } from '../api/nativeUndoGame'
 
 const baseURL = process.env.PITCHLOG_E2E_BASE_URL
 const team = process.env.PITCHLOG_E2E_TEAM_NAME
@@ -242,6 +243,23 @@ test('実画面の新規作成→開始→2球→ACK喪失/reload/同要求再�
       JSON.stringify({ http: undoReadResponse.status() }),
   )
   expect(undoReadResponse.status()).toBe(200)
+  const undoPacket: unknown = await undoReadResponse.json()
+  const dtoChecks = {
+    shape: isNativeUndoGame(undoPacket),
+    completeSource: false,
+  }
+  if (isNativeUndoGame(undoPacket)) {
+    try {
+      await completeUndoSource(
+        undoPacket,
+        undoPacket.checkpoint.content.scope.tenantId,
+      )
+      dtoChecks.completeSource = true
+    } catch {
+      dtoChecks.completeSource = false
+    }
+  }
+  console.log('PITCHLOG_UNDO_READ_DTO=' + JSON.stringify(dtoChecks))
   await expect(panel.getByTestId('undo-product-balls')).toHaveText('2')
   await expect(panel.getByTestId('undo-product-depth')).toHaveText('2')
   for (const box of await panel.locator('input[type=checkbox]').all())
