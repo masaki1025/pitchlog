@@ -248,7 +248,7 @@ async function requestResponse<T>(
   if (
     sync !== undefined &&
     (method !== 'POST' ||
-      !/^\/games\/[0-9a-f-]{36}\/sync\/events$/.test(path) ||
+      !/^\/games\/[0-9a-f-]{36}\/sync\/(?:events|change)$/.test(path) ||
       !isCanonicalUuid(sync.deviceId) ||
       !isCanonicalUuid(sync.attempt) ||
       !/^[\x21-\x7e]+$/.test(sync.deviceCredential))

@@ -5,6 +5,7 @@ import GameScreenOrdinaryPitch from './GameScreenOrdinaryPitch.vue'
 import GameScreenUndoProduct from './GameScreenUndoProduct.vue'
 import GameScreenLifecycleProduct from './GameScreenLifecycleProduct.vue'
 import GameScreenSubstitutionProduct from './GameScreenSubstitutionProduct.vue'
+import GameScreenPastCorrectionProduct from './GameScreenPastCorrectionProduct.vue'
 import { ordinaryContextFromRead } from '../api/recordedPrefixGame'
 import { sameOrdinaryWire } from '../api/ordinaryPitchWire'
 import {
@@ -198,6 +199,16 @@ const history = computed(() =>
       "
       :key="restore.game.value.id"
       :game="restore.game.value"
+      @saved="restore.reload()"
+    />
+    <GameScreenPastCorrectionProduct
+      v-if="
+        auto !== false &&
+        restore.game.value?.read_kind === 'lineup-prefix' &&
+        (restore.status.value === 'ready' || restore.status.value === 'loading')
+      "
+      :game="restore.game.value"
+      :suspended="restore.status.value !== 'ready'"
       @saved="restore.reload()"
     />
     <button

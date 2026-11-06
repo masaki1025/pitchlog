@@ -41,6 +41,7 @@ _PACKET = Path.home() / ".cache/pitchlog/mvp-past-correction-product-20261106"
 _STAGES = frozenset(
     {
         "p3-post",
+        "p3-target-read",
         "p3-invalid-numeric",
         "p3-invalid-tampered",
         "p3-invalid-other-game",
@@ -400,12 +401,34 @@ actual_started_router.read_lineup_prefix = traced_p3_read
             1,
         )
     p3 = """        target = current["page"]["items"][0]["play_row"]
+        target_d1 = 1
+        runtime_diagnostics.update(stage="p3-target-read", status=None)
+        target_read = await client.get(
+            "/games/" + game + "/sync/change-target/" + str(target_d1),
+            headers=headers())
+        runtime_diagnostics["status"] = target_read.status_code
+        assert target_read.status_code == 200, (
+            "p3-target-read", target_read.status_code)
+        offer = target_read.json()
+        assert set(offer) == {
+            "target_reference", "expected_version", "expected_prefix_ref",
+            "target_event_id", "target_play_id", "original_result_id"}
+        assert offer["target_reference"] == {
+            "game": game, "d4": started["d4"], "d1": target_d1}
+        assert offer["expected_version"] == 1
+        assert offer["expected_prefix_ref"] == current["prefix_ref"]
+        assert offer["target_event_id"] == target["source_event_id"]
+        assert offer["target_play_id"] == target["id"]
+        unconfirmed = await client.get(
+            "/games/" + game + "/sync/change-confirmation/" + str(target_d1),
+            headers=headers())
+        assert unconfirmed.status_code == 409
         assert (current["checkpoint_anchor"]["id"]
                 != current["prefix_ref"]["checkpoint"]["id"])
         change = {
             "d5": str(uuid4()), "game_id": game, "event_kind": "play_change",
-            "target_reference": {"game": game, "d4": started["d4"], "d1": 1},
-            "expected_version": 1,
+            "target_reference": offer["target_reference"],
+            "expected_version": offer["expected_version"],
             "payload": {
                 "formatVersion": "p3-lineup-pitch-change-v1",
                 "expectedPrefixRef": current["prefix_ref"],
@@ -424,6 +447,7 @@ actual_started_router.read_lineup_prefix = traced_p3_read
         p3_payload = {"recovery_generation": current["recovery_generation"],
                       "recording_right_proof": started["recording_right_proof"],
                       "change": change}
+        assert offer["original_result_id"] == change["payload"]["originalResultId"]
         negative_d5s = []
         for variant in ("numeric", "tampered", "other-game"):
             invalid = json.loads(json.dumps(p3_payload))
@@ -505,6 +529,29 @@ actual_started_router.read_lineup_prefix = traced_p3_read
                 == current["checkpoint_anchor"]["id"])
         assert (corrected_current["checkpoint_anchor"]["id"]
                 != corrected_current["prefix_ref"]["checkpoint"]["id"])
+        runtime_diagnostics.update(stage="p3-confirmation", status=None)
+        confirmation = await client.get(
+            "/games/" + game + "/sync/change-confirmation/" + str(target_d1),
+            headers=headers())
+        runtime_diagnostics["status"] = confirmation.status_code
+        assert confirmation.status_code == 200, (
+            "p3-confirmation", confirmation.status_code)
+        confirmed = confirmation.json()
+        assert set(confirmed) == {
+            "target_reference", "confirmed_version", "d5", "source_event_id",
+            "target_play_id", "stats_version_id", "current_prefix_ref",
+            "current_after"}
+        effective = corrected_current["page"]["items"][target_d1-1]["play_row"]
+        assert str(UUID(confirmed["stats_version_id"])) == confirmed["stats_version_id"]
+        assert {k: v for k, v in confirmed.items() if k != "stats_version_id"} == {
+            "target_reference": offer["target_reference"],
+            "confirmed_version": 2,
+            "d5": change["d5"],
+            "source_event_id": effective["source_event_id"],
+            "target_play_id": effective["id"],
+            "current_prefix_ref": corrected_current["prefix_ref"],
+            "current_after": corrected_current["after"],
+        }
         runtime_diagnostics.update(stage="p3-replay", status=None)
         replayed = await client.post("/games/" + game + "/sync/change",
                                      headers=device_headers(pair, str(uuid4())),
@@ -615,10 +662,7 @@ def _t5_changing_p3_script() -> str:
         '        target = current["page"]["items"][0]["play_row"]',
         third + '        target = current["page"]["items"][2]["play_row"]',
     )
-    once(
-        '"target_reference": {"game": game, "d4": started["d4"], "d1": 1}',
-        '"target_reference": {"game": game, "d4": started["d4"], "d1": 3}',
-    )
+    once('        target_d1 = 1', '        target_d1 = 3')
     once('"originalResultId": "batting-result.ball"',
          '"originalResultId": "batting-result.called-strikeout"')
     once('"replacementResultId": "batting-result.called-pitch"',

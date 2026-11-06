@@ -31,6 +31,10 @@ class VerifiedP3Current:
     checkpoint: LineupPrefixDocument
     original_checkpoint: LineupPrefixDocument
     capsule_id: UUID
+    change_event_id: UUID
+    d5: UUID
+    target_d1: int
+    stats_version_id: UUID
     items: tuple[dict[str, object], ...]
     payloads: tuple[LineupPitchPlayPayload, ...]
 
@@ -516,7 +520,15 @@ def verify_p3_current_packet(
             ):
                 raise PastCorrectionCurrentUnavailable("P3現T5原本が不一致")
         return VerifiedP3Current(
-            current, previous, capsule_id, tuple(items), tuple(payloads)
+            current,
+            previous,
+            capsule_id,
+            change_id,
+            _uuid(capsule["d5"]),
+            target_d1,
+            _uuid(stats_row["id"]),
+            tuple(items),
+            tuple(payloads),
         )
     except (KeyError, TypeError, ValueError, AttributeError, IndexError) as error:
         raise PastCorrectionCurrentUnavailable("P3 current全値照合が不成立") from error

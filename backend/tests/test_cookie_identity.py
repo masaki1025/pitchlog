@@ -17,8 +17,12 @@ from pitchlog.api.tenant_access import _MATCH_OPERATIONS
 
 
 def test_declared_operations_are_exactly_tenant_matched_routes() -> None:
-    """新しいC2 routeを宣言から取りこぼさない。"""
-    assert set(_OPERATIONS) == _MATCH_OPERATIONS
+    """既19 routeの同token宣言を保ち、新P3だけは通信不明時に失効させる。"""
+    assert _MATCH_OPERATIONS - set(_OPERATIONS) == {
+        "read_sync_change_target",
+        "read_sync_change_confirmation",
+        "sync_change",
+    }
     actual = {
         route.operation_id: (next(iter(route.methods)), route.path)
         for router in ROUTERS
@@ -27,7 +31,18 @@ def test_declared_operations_are_exactly_tenant_matched_routes() -> None:
         and route.methods is not None
         and route.operation_id in _MATCH_OPERATIONS
     }
-    assert dict(_OPERATIONS) == actual
+    assert dict(_OPERATIONS) == {
+        operation: route
+        for operation, route in actual.items()
+        if operation in _OPERATIONS
+    }
+    assert actual["read_sync_change_target"] == (
+        "GET", "/games/{game_id}/sync/change-target/{d1}"
+    )
+    assert actual["read_sync_change_confirmation"] == (
+        "GET", "/games/{game_id}/sync/change-confirmation/{d1}"
+    )
+    assert actual["sync_change"] == ("POST", "/games/{game_id}/sync/change")
 
 
 @pytest.mark.parametrize("status", [200, 201, 400, 404, 409, 422, 500, 503])

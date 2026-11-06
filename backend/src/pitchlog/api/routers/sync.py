@@ -12,6 +12,7 @@ from fastapi.responses import JSONResponse
 from pitchlog.api.request_presentation import require_presented_token
 from pitchlog.api.schemas.recording_ack import RecordingAckResponse
 from pitchlog.api.tenant_access import TenantMatchedRoute, require_tenant_access
+from pitchlog.db.sync_protocol.models import EventSlot
 from pitchlog.durable_rights_ledger.adapter import LedgerUnavailable
 from pitchlog.recording_rights.initial_grant_broker import InitialBrokerUnavailable
 from pitchlog.repositories.context import TenantContext
@@ -23,6 +24,21 @@ from pitchlog.repositories.initial_recording_right import (
 from pitchlog.repositories.nonplay_prefix import NonplaySourceUnavailable
 from pitchlog.repositories.ordinary_pitch_operations import OrdinaryPlayRowError
 from pitchlog.repositories.ordinary_prefix import OrdinaryPrefixError
+from pitchlog.repositories.ordinary_prefix_read import (
+    OrdinaryPrefixView,
+    _function_one,
+    read_lineup_prefix,
+)
+from pitchlog.repositories.past_correction_current import (
+    PastCorrectionCurrentUnavailable,
+    verify_p3_current_packet,
+)
+from pitchlog.repositories.past_correction_right import _ReadP3CurrentToken
+from pitchlog.repositories.past_correction_source import (
+    PastCorrectionSourceUnavailable,
+    read_past_correction_v3_source_snapshot,
+)
+from pitchlog.repositories.transaction import tenant_transaction_scope
 from pitchlog.sync.apply import (
     _apply_e1_f1,
     _apply_e1_p3,
@@ -91,6 +107,7 @@ from pitchlog.sync.substitution_ports import (
 )
 from pitchlog.sync.substitution_projection import SubstitutionProjectionError
 from pitchlog.sync.substitution_roster import SubstitutionRosterUnavailable
+from pitchlog.sync.tokens import EventSlotReadToken
 from pitchlog.sync.undo_execution import UndoExecutionError
 from pitchlog.sync.undo_ports import UndoContentValidationPort, UndoProjectionPort
 from pitchlog.sync.wire_source import WireSourceError, freeze_wire_source
@@ -175,6 +192,154 @@ def _p3_body(result: AcceptedChangeResult | RejectedChangeResult) -> dict[str, o
     if type(result) is RejectedChangeResult:
         return {"boundary": result.boundary, "d5": result.d5, "reason": result.reason}
     raise TypeError("P3結果型が不一致")
+
+
+@router.get(
+    "/games/{game_id}/sync/change-target/{d1}",
+    operation_id="read_sync_change_target",
+)
+def read_sync_change_target(
+    game_id: UUID,
+    d1: int,
+    context: Annotated[TenantContext, Depends(require_tenant_access)],
+) -> JSONResponse:
+    """同tenantの真正v3原本と対象slotを同TXで照合し、有限P3版だけを返す。"""
+    try:
+        with tenant_transaction_scope(context) as scope:
+            snapshot = read_past_correction_v3_source_snapshot(scope, game_id, d1)
+            checkpoint = snapshot.checkpoint
+            if checkpoint is None:
+                raise PastCorrectionSourceUnavailable("P3対象のCPがありません")
+            saved = snapshot.rows[d1 - 1]
+            rows = scope.run(
+                EventSlotReadToken(game_id, snapshot.internal_generation, d1)
+            ).rows
+            columns = tuple(EventSlot.__table__.c.keys())
+            if len(rows) != 1 or len(rows[0]) != len(columns):
+                raise PastCorrectionSourceUnavailable("P3対象版がありません")
+            slot = dict(zip(columns, rows[0], strict=True))
+            if (
+                slot["tenant_id"] != context.tenant_id
+                or slot["game_id"] != game_id
+                or slot["generation"] != snapshot.internal_generation
+                or slot["d1"] != d1
+                or type(slot["confirmed_version"]) is not int
+                or slot["confirmed_version"] != 1
+                or saved.play_row is None
+                or saved.play_row.get("source_event_id")
+                != str(saved.source_event_id)
+                or saved.play_row.get("id")
+                != saved.calculation.request.play_identity.play_id
+                or checkpoint.wire_d4
+                != saved.calculation.response.value.next_prefix_ref.generation
+            ):
+                raise PastCorrectionSourceUnavailable("P3対象版と原本が不一致")
+            current_ref = snapshot.rows[-1].calculation.response.value.next_prefix_ref
+            return JSONResponse(
+                {
+                    "target_reference": {
+                        "game": str(game_id),
+                        "d4": checkpoint.wire_d4,
+                        "d1": d1,
+                    },
+                    "expected_version": slot["confirmed_version"],
+                    "expected_prefix_ref": current_ref.model_dump(
+                        mode="json", by_alias=True, exclude_unset=True
+                    ),
+                    "target_event_id": str(saved.source_event_id),
+                    "target_play_id": saved.play_row["id"],
+                    "original_result_id": saved.calculation.request.t1.result_id,
+                }
+            )
+    except (PastCorrectionSourceUnavailable, OrdinaryPrefixError):
+        raise HTTPException(status_code=409) from None
+    except DATABASE_ERRORS:
+        raise HTTPException(status_code=503) from None
+
+
+@router.get(
+    "/games/{game_id}/sync/change-confirmation/{d1}",
+    operation_id="read_sync_change_confirmation",
+)
+def read_sync_change_confirmation(
+    game_id: UUID,
+    d1: int,
+    context: Annotated[TenantContext, Depends(require_tenant_access)],
+) -> JSONResponse:
+    """同read TXの現v3、P3受理原本と実slot版を結合する。"""
+    if d1 < 1 or d1 > 25:
+        raise HTTPException(status_code=409)
+    try:
+        with tenant_transaction_scope(context) as scope:
+            current = read_lineup_prefix(scope, game_id, limit=25)
+            if type(current) is not OrdinaryPrefixView:
+                raise PastCorrectionCurrentUnavailable("現v3がありません")
+            generation = _decode_recording_key(
+                current.metadata.current_d4, context.tenant_id, game_id
+            )
+            packet = _function_one(scope, _ReadP3CurrentToken(game_id, generation))
+            verified = verify_p3_current_packet(
+                packet, tenant=context.tenant_id, game=game_id, generation=generation
+            )
+            page = current.projection.get("page")
+            if (
+                verified.target_d1 != d1
+                or verified.checkpoint.prefix_ref
+                != current.projection.get("prefix_ref")
+                or verified.checkpoint.after != current.projection.get("after")
+                or type(page) is not dict
+                or page.get("next_cursor") is not None
+            ):
+                raise PastCorrectionCurrentUnavailable("P3現readとの照合が不一致")
+            rows = scope.run(EventSlotReadToken(game_id, generation, d1)).rows
+            columns = tuple(EventSlot.__table__.c.keys())
+            if len(rows) != 1 or len(rows[0]) != len(columns):
+                raise PastCorrectionCurrentUnavailable("P3対象slotがありません")
+            slot = dict(zip(columns, rows[0], strict=True))
+            target = verified.items[d1 - 1]["play_row"]
+            if (
+                slot["tenant_id"] != context.tenant_id
+                or slot["game_id"] != game_id
+                or slot["generation"] != generation
+                or slot["d1"] != d1
+                or type(slot["confirmed_version"]) is not int
+                or slot["confirmed_version"] != 2
+                or type(target) is not dict
+                or target.get("source_event_id") != str(verified.change_event_id)
+                or target.get("id")
+                != verified.items[d1 - 1]["effective_play_row_id"]
+            ):
+                raise PastCorrectionCurrentUnavailable("P3対象版が不一致")
+            play = cast(dict[str, object], target)
+            return JSONResponse(
+                {
+                    "target_reference": {
+                        "game": str(game_id),
+                        "d4": current.metadata.current_d4,
+                        "d1": d1,
+                    },
+                    "confirmed_version": slot["confirmed_version"],
+                    "d5": str(verified.d5),
+                    "source_event_id": str(verified.change_event_id),
+                    "target_play_id": play["id"],
+                    "stats_version_id": str(verified.stats_version_id),
+                    "current_prefix_ref": verified.checkpoint.prefix_ref.model_dump(
+                        mode="json", by_alias=True, exclude_unset=True
+                    ),
+                    "current_after": verified.checkpoint.after.model_dump(
+                        mode="json", by_alias=True, exclude_unset=True
+                    ),
+                }
+            )
+    except (
+        PastCorrectionCurrentUnavailable,
+        OrdinaryPrefixError,
+        InitialBrokerUnavailable,
+        ValueError,
+    ):
+        raise HTTPException(status_code=409) from None
+    except DATABASE_ERRORS:
+        raise HTTPException(status_code=503) from None
 
 
 @router.post("/games/{game_id}/sync/change", operation_id="sync_change")
