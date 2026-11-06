@@ -153,6 +153,8 @@ export function substitutionRequest(
     }
     if (kind === 'pinch-runner')
       c.state.runners.forEach((runner) => outgoing.add(runner.runnerId))
+    // 対象がいない操作を未取得の空候補として混ぜ、他の交代まで封鎖しない。
+    if (outgoing.size === 0) continue
     const incoming = [
       ...c.eligibleBySide.away,
       ...c.eligibleBySide.home,

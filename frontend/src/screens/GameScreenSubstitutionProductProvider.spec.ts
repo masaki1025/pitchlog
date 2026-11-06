@@ -1,3 +1,5 @@
+import { mount } from '@vue/test-utils'
+import GameScreenSubstitutions from './GameScreenSubstitutions.vue'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { createContext, Script } from 'node:vm'
@@ -137,4 +139,27 @@ describe('交代画面の真正文脈adapter', () => {
     const unregistered = { ...c, eligibleBySide: { away: [], home: [] } }
     expect(prepareSubstitution(unregistered, input, d5, eventId)).toBeNull()
   })
+})
+
+it('無走者で代走対象がなくても実画面の投手交代は選べる', () => {
+  const c = context()
+  expect(c.state.runners).toEqual([])
+  const request = substitutionRequest(c)
+  const wrapper = mount(GameScreenSubstitutions, {
+    props: {
+      request,
+      activeContextKey: request.contextKey,
+      lockState: { contextKey: request.contextKey, state: 'open' },
+    },
+  })
+  const types = wrapper
+    .get('[data-testid="substitution-kind"]')
+    .findAll('option')
+    .map((option) => (option.element as HTMLOptionElement).value)
+  expect(types).toContain('pitcher')
+  expect(types).not.toContain('pinch-runner')
+  expect(
+    wrapper.find('[data-testid="substitution-unavailable"]').exists(),
+  ).toBe(false)
+  wrapper.unmount()
 })
