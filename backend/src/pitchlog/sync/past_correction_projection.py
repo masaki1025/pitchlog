@@ -84,6 +84,10 @@ def project_p3_correction(
                     "original_event_id": str(source_item.original_event_id),
                     "effective_event_id": str(source_item.effective_event_id),
                     "effective_play_row_id": str(source_item.effective_play_row_id),
+                    "original_evaluation": source_item.original_evaluation,
+                    "original_evaluation_digest": (
+                        source_item.original_evaluation_digest
+                    ),
                     "evaluation": source_item.evaluation,
                     "evaluation_digest": source_item.evaluation_digest,
                 }

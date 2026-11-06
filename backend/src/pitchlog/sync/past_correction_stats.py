@@ -17,6 +17,10 @@ class PastCorrectionStatsError(RuntimeError):
     """有効原本とT5全件の結合が不成立。"""
 
 
+class PastCorrectionStatsUnsupported(PastCorrectionStatsError):
+    """元全sourceとの生成T5寄与が変わる後続再集計は未接続。"""
+
+
 @dataclass(frozen=True, slots=True)
 class P3StatsSourceCandidate:
     """唯一T5評価済みだが保存資格ではない各有効source。"""
@@ -25,6 +29,8 @@ class P3StatsSourceCandidate:
     original_event_id: UUID
     effective_event_id: UUID
     effective_play_row_id: UUID
+    original_evaluation: dict[str, object]
+    original_evaluation_digest: str
     evaluation: dict[str, object]
     evaluation_digest: str
 
@@ -94,23 +100,48 @@ def evaluate_p3_capsule_stats(capsule: P3CurrentCapsule) -> P3StatsCandidate:
             ):
                 raise ValueError
             payload = cast(dict[str, object], payload_value)
+            original_payload_value = _json_value(item["original_payload"])
+            if type(original_payload_value) is not dict:
+                raise ValueError
+            original_evaluation = evaluate_native_projection(
+                cast(dict[str, object], original_payload_value),
+                source_event_id=original,
+            )
             evaluation = evaluate_native_projection(
                 payload, source_event_id=effective
             )
-            if type(evaluation) is not dict:
+            if type(evaluation) is not dict or type(original_evaluation) is not dict:
                 raise ValueError
+            original_value = _json_value(original_evaluation)
             full_value = _json_value(evaluation)
-            if type(full_value) is not dict:
+            if type(full_value) is not dict or type(original_value) is not dict:
                 raise ValueError
+            original_full = cast(dict[str, object], original_value)
             full = cast(dict[str, object], full_value)
         except (ValueError, TypeError, KeyError, IndexError):
             raise PastCorrectionStatsError("P3 T5原本を評価できない") from None
+        if (
+            set(original_full) != {
+                "metrics", "pa_row", "source_event_id", "selected", "decisions"
+            }
+            or set(full) != set(original_full)
+            or original_full["source_event_id"] != str(original)
+            or full["source_event_id"] != str(effective)
+            or any(
+                original_full[key] != full[key]
+                for key in original_full
+                if key != "source_event_id"
+            )
+        ):
+            raise PastCorrectionStatsUnsupported("P3 T5全寄与変更の保存は未接続")
         result.append(
             P3StatsSourceCandidate(
                 d1,
                 original,
                 effective,
                 play_row,
+                original_full,
+                source_fingerprint(original_full),
                 full,
                 source_fingerprint(full),
             )
@@ -125,6 +156,7 @@ def evaluate_p3_capsule_stats(capsule: P3CurrentCapsule) -> P3StatsCandidate:
                     "d1": source.d1,
                     "event_id": str(source.effective_event_id),
                     "play_row_id": str(source.effective_play_row_id),
+                    "original_evaluation_digest": source.original_evaluation_digest,
                     "evaluation_digest": source.evaluation_digest,
                 }
                 for source in result

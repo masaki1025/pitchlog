@@ -22,6 +22,7 @@ from pitchlog.sync.past_correction_preparation import (
 )
 from pitchlog.sync.past_correction_stats import (
     P3StatsCandidate,
+    PastCorrectionStatsUnsupported,
     evaluate_p3_capsule_stats,
 )
 from pitchlog.sync.ports import PortWriter
@@ -169,14 +170,20 @@ def bind_p3_execution(
         except PastCorrectionContentRejected:
             state.rejected = True
         else:
-            state.preparation = prepared
-            state.sealed_preparation = deepcopy(prepared)
-            state.capsule = build_p3_current_capsule(prepared)
-            state.sealed_capsule = deepcopy(state.capsule)
-            state.stats = evaluate_p3_capsule_stats(state.capsule)
-            state.sealed_stats = deepcopy(state.stats)
-            state.checkpoint = state.capsule.next_checkpoint
-            state.sealed_checkpoint = deepcopy(state.checkpoint)
+            capsule = build_p3_current_capsule(prepared)
+            try:
+                stats = evaluate_p3_capsule_stats(capsule)
+            except PastCorrectionStatsUnsupported:
+                state.rejected = True
+            else:
+                state.preparation = prepared
+                state.sealed_preparation = deepcopy(prepared)
+                state.capsule = capsule
+                state.sealed_capsule = deepcopy(capsule)
+                state.stats = stats
+                state.sealed_stats = deepcopy(stats)
+                state.checkpoint = capsule.next_checkpoint
+                state.sealed_checkpoint = deepcopy(state.checkpoint)
         _live(state)
         yield
     finally:
