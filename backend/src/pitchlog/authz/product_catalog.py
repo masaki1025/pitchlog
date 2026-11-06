@@ -154,7 +154,8 @@ JOIN pg_catalog.pg_roles AS owner ON owner.oid = routine.proowner
 JOIN pg_catalog.pg_language AS language ON language.oid = routine.prolang
 WHERE namespace.nspname IN (
     'rg1_control', 'pitchlog_ledger_observer', 'initial_right_api',
-    'sync_fence_api', 'sync_right_api', 'recording_vocab_api', 'stats_api'
+    'sync_fence_api', 'sync_right_api', 'recording_vocab_api', 'stats_api',
+    'stats_basic_api'
 ) OR (namespace.nspname = 'public' AND routine.proname IN (
     'protect_initial_right_storage', 'protect_recording_generations_updates',
     'protect_nonplay_admission', 'protect_lifecycle_write_admissions',
