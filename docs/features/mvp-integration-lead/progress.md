@@ -1,5 +1,13 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 2026-11-07 08:02 JST：PR197最終HEADを公開、実CI開始
+
+- `fix/pr197-harness-followup@d8e8b34d8a5f12665530226ec0f539804c06791c` を通常push1回で `origin/feature/mvp-stats-native-foundation` へ送達。PR197は同HEAD/base51bcb4e1・Draft/openを実APIで確認。full342path SHA `986e292d8a5bdb33ea0d31e87dcc0869f872802dda6c098588750c532fafb536`、後発plan宣言1file以外の製品/検査/正式値は286と不変。
+- 先行286の全source/正式値レビューを継承した最終非作者REPORT SHA `5c8d1044736ea29aa6ff0ad3cc78dc7ca96661f7d8610370d4370ca5d1b38d1e`、新P0/P1なし・既P2保持。PO委任証拠を最終HEAD/全path/実差分SHAへ束縛して https://github.com/masaki1025/pitchlog/pull/197#issuecomment-6697840284 に掲載し本文pointerを更新。本人署名/人間逐行確認ではない。
+- 実CI `42308269517`、本文 `42308269541` は開始時点でin_progress。旧失敗run42275253517を成功へ読み替えず、完走前はDraft/未mergeを維持する。本文更新で重CIは再起動しない。cache `pr197-final-head-d8e8b34d-20261107/` にexact patch/JSON/本文/API応答を保全。
+- CI待ちにもP3終了接合・復旧入口・nonpitch独立レビューを継続。P3 R19の診断で証拠列を持たないraw CPへ既検証を適用した早期拒否を特定、証拠付き正式readとの全CP列一致へ是正中。安全検査を除去して503を消さない。
+
+
 ## 2026-11-07 07:51 JST：申告敬遠から実画面CSV、過去訂正後2球を実証、PR197公開前検査を完了
 
 - **新たに通った利用者操作（隔離候補）**: nonpitch `a0c192a0e282479790eb8daae6b025a4952022fc` は実画面作成/開始→単打2→申告敬遠→原要求再送（重複）→次球→reload、owned r15 1passed99.55秒。実物理41列/公開35key・T5 pitch_count available0/credits[]・PA/BB/投手BB/BF各1を照合。runs/RBIの不足を0補完しない。前後source同一、作者のみの検査で非作者49pathレビューは現在依頼中。
