@@ -1,5 +1,13 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 2026-11-07 02:10 JST：閲覧を同版実証、#197 CI停止点を修復中
+
+- **利用者が新たにできた操作**: `feature/mvp-viewer-live-product@f69b4083cbbb6e683ec560050bce47065f2838b2`（connected60f＋viewer0e0ae00b＋shared19接合）で、実新規作成/開始→別Cookie同チーム閲覧→0/1/2球/終了のGET、実二画面の初球保存→自動更新/reload→閲覧端末断中の未更新/score隠蔽を実証。root owned `viewer-joined-owned-r1` 2passed195.59秒（HTTP128.246、screen64.770）、source前後一致・cleanup済み、session31803 terminal0。作者r6の2818ms値をroot同版の時間へ転用しない。BE355/FE123・型/static成功。正式受理/3試合×閲覧10/実機は未了。
+- **CSV**: root修復ad8は非作者P1=3（監査index/巨大行事前複製/送出切断cleanup）。別WT `feature/mvp-play-csv-real-source@237f9be0` に60fと通常merge後、容量前置走査とASGI応答所有finally/closed registry追随を実装。関連382成功、FE77/型lint。非作者REPORT57c7c077…で後2件解消・新P0/P1なし、監査indexは候補のみなのでPG EXPLAIN未了。唯一writerはlifecycle_gate_first_reviewへ受諾移管済み、rootはこのWT編集停止。0047/同TX88列producer/D1有限生成器/source時点names/roster/実記録ZIPを担当継続。旧値/NULL/現在名で補完しない。
+- **#197公開**: 非作者b091a8d3＋後発e7b6197e、公式9資産の実値再導出（base51b→各+1/旧352snapshot保持）を確認し、2026-11-07のPO委任root判断として受理。公開branchを3a6bedfaへ通常push、委任証拠 comment6690215715/PR本文を実版へ更新（gh pr edit互換問題はRESTで解消、WSL credential helperの未送達pushはgh既存資格helperで通常再送し成功。force/新秘密なし）。採用値とCI/mergeは別。公開CI run42255687354は**失敗**、Draft維持/未merge。
+- **CIの具体停止点**: core-guardが過去6f17のJSON/検査定義同commitを拒否。追加除外13のうち6がguard未登録で現候補P1、一般skipせず既実OID/全byte/AST/固定pin同値＋新6 guard補強の限定回復を別WT `fix-pr197-identical-definition-recovery` でnonplay担当が実装中。root別WT `fix-pr197-ci-finalization` はbackend format（AST不変）、tyの正しいscripts探索/不要ignore撤去、0039子pluginのeager import失敗、census counterfactualの197fixture複製漏れを修復中。実子collect31一致・profile35passed、backend Ruff/format672/Ty成功。census CLIは次の旧resolution owner抑止/旧PR191 source固定の現版対応で赤、期待緩和で通さない。根拠logはcache native-pr197-formal-integration-root-20261107/ci-all-failed.log等。
+- **並行と次**: P3はgame_operations担当が0046/capsule/current selector/T5/次球writerを専用WTで実装。候補SQL配備1passed38.39秒は保存/HTTP成功ではない。同寄与限定をMVP完成条件へ縮めず、一般寄与変更にも既唯一T5を接合する。rootは#197の実PR事前検査/CI一括修復と閲覧の正式接合を継続。Goal active、全MVP・正常性能/負荷・実機/運用復旧は未完。
+
 ## 2026-11-07 01:12 JST：毎球CSVの6指摘を修復中
 
 - **固定点**: root単独WT `fix-mvp-play-csv-delivery`、元d00f925a不変更。33cdf計画→d06e8356 FE接続→22ade8c7 busy修復→cd7eeead 原本版/イベント/送出前認可→329f8f8a 順次formatter。正式app/DB/受理へ未接合であり、実gameからCSV200はまだ成立していない。
