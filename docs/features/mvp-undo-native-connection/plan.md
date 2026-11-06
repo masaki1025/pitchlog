@@ -347,3 +347,6 @@ xmin観測反映1の受理（2026-11-06 JST、PO委任Codex /root判断）: 初�
 
 
 取消GET世代ロックの条件付き隔離実測（2026-11-06、PO委任Codex /root）: 独立4d0abb9b603a3b074a78f4b8e7e422c2e707a8507afa4a864827f68a72736463を根拠に、authz/nonplay_prefix_read_sql.py・tests/test_nonplay_prefix_read_sql.pyと公式BODIESが生成するread_nonplay_active_history同一identityのSQL1を候補WTへ供給して実測する。SQL差分は2句のFOR SHARE OF c,g→cのみ、全WHERE/CPロック/既GUC/tenant/role/GRANTは不変、公式APIは同handleで先行g lockを保持する。直接token/SQLにもg lockがあるとは主張しない。直接経路の完全旧snapshotまたは閉拒否/次回閉拒否、真正app role/別tenant、fnowner UPDATEg0/既権限の負対向が最終採用条件。既UI性能5秒失敗は別redとして維持する。新DBfixtureのUI returncode前提P1は最終機能marker＋実原本照合/既sourcepin/性能失敗理由限定へ直してから実行する。現段階は非作者条件付きPG試行で、正式asset受理/通常統合/全MVP成立ではない。
+
+
+物理CP保存印の修復を条件付き製品PGへ接合（2026-11-06、PO委任Codex /root判断）: sourceSQL/既unitと新backend/tests/db/test_nonplay_checkpoint_xmin.py、公式同identity SQL body1を対象にする。独立b1bddbfbac186b36b46a3680dd824831028d7eabcec2e22790b989d560b0c37bはsource delta P0/P1=0。root owned PG17でJOIN前の一表ROWTYPE xminは物理と一致する一方、JOIN/行lock後のROWTYPE headerは不一致、同じlock下の明示physical xminは一致することを実証。legacy readだけCP行lock後の同tenant/game/gen/id/revisionから物理xminをscalar取得し、全保存印比較を維持する。根拠cache nonplay-rowtype-xmin-probe-20261106/join-fixed-result.json（自前容器撤去）。製品実role/正式bodyでのPG回帰と同版UI再測が最終受理条件、probe成功を製品成功へ拡張しない。既generation direct snapshot/性能ゲートは別途未成立のまま保持する。
