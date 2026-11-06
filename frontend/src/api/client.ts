@@ -426,6 +426,27 @@ function downloadFilename(header: string | null): string | null {
   return filename || null
 }
 
+export interface DownloadResult {
+  blob: Blob
+  filename: string | null
+  /** 完成ZIPのContent-Length。欠落・不正はnull。 */
+  contentLength: number | null
+  /** 完成ZIP全体のSHA256。欠落・不正はnull。 */
+  sha256: string | null
+}
+
+function downloadContentLength(header: string | null): number | null {
+  if (!header || !/^(?:0|[1-9][0-9]*)$/.test(header)) {
+    return null
+  }
+  const value = Number(header)
+  return Number.isSafeInteger(value) ? value : null
+}
+
+function downloadSha256(header: string | null): string | null {
+  return header && /^[a-f0-9]{64}$/.test(header) ? header : null
+}
+
 export async function apiDownload(
   path: string,
   options: {
@@ -433,7 +454,7 @@ export async function apiDownload(
     signal?: AbortSignal
     noAuthExpiry?: boolean
   } = {},
-): Promise<{ blob: Blob; filename: string | null }> {
+): Promise<DownloadResult> {
   const { res, body: blob } = await requestResponse(
     'GET',
     path,
@@ -443,5 +464,7 @@ export async function apiDownload(
   return {
     blob,
     filename: downloadFilename(res.headers.get('content-disposition')),
+    contentLength: downloadContentLength(res.headers.get('content-length')),
+    sha256: downloadSha256(res.headers.get('x-pitchlog-archive-sha256')),
   }
 }

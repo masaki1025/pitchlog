@@ -1,5 +1,6 @@
 import { shallowMount } from '@vue/test-utils'
 import { nextTick, shallowRef } from 'vue'
+import { createMemoryHistory, createRouter } from 'vue-router'
 import { expect, it, vi } from 'vitest'
 import GameScreenEntryRecordHost from './GameScreenEntryRecordHost.vue'
 
@@ -15,7 +16,20 @@ it('開始応答保存後だけ実準備中情報を再取得し、結果不明�
   bindings.retry.mockReset()
   const state = shallowRef({ phase: 'ready' })
   bindings.state = state
-  const wrapper = shallowMount(GameScreenEntryRecordHost)
+  const router = createRouter({
+    history: createMemoryHistory(),
+    routes: [
+      {
+        path: '/games/:gameId/record',
+        component: GameScreenEntryRecordHost,
+      },
+    ],
+  })
+  await router.push('/games/6efca380-dea3-5a4e-9749-40dfb1dbd65e/record')
+  await router.isReady()
+  const wrapper = shallowMount(GameScreenEntryRecordHost, {
+    global: { plugins: [router] },
+  })
   try {
     for (const phase of ['sending', 'unknown', 'failed']) {
       state.value = { phase }

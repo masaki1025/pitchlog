@@ -939,4 +939,32 @@ describe('apiDownload', () => {
     expect(localStorage.getItem(AUTH_STORAGE_KEY)).toBe(savedB)
     expect(auth.teamName).toBeNull()
   })
+
+  it('完成ZIPの長さとSHA256ヘッダを後方互換で返す', async () => {
+    const sha = 'a'.repeat(64)
+    respond('zip-data', 200, {
+      'Content-Type': 'application/zip',
+      'Content-Length': '8',
+      'X-Pitchlog-Archive-SHA256': sha,
+    })
+
+    const result = await apiDownload('/games/x/exports/plays.zip')
+
+    expect(result.contentLength).toBe(8)
+    expect(result.sha256).toBe(sha)
+    expect(result.blob).toBeInstanceOf(Blob)
+  })
+
+  it('長さ・SHA256の欠落や不正はnullにし、値を推測しない', async () => {
+    respond('zip-data', 200, {
+      'Content-Type': 'application/zip',
+      'Content-Length': 'not-a-number',
+      'X-Pitchlog-Archive-SHA256': 'A'.repeat(64),
+    })
+
+    const result = await apiDownload('/games/x/exports/plays.zip')
+
+    expect(result.contentLength).toBeNull()
+    expect(result.sha256).toBeNull()
+  })
 })
