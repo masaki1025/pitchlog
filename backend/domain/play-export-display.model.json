@@ -13,5 +13,42 @@
         "y": "complement"
       }
     }
-  ]
+  ],
+  "elapsedTransform": {
+    "id": "serverAcceptedElapsed",
+    "kind": "whole-minutes-h-mm",
+    "startSource": "games.started_at",
+    "endSource": "pg_catalog.clock_timestamp",
+    "negative": "reject"
+  },
+  "fieldingPositionLabels": {
+    "1": "P",
+    "2": "C",
+    "3": "1B",
+    "4": "2B",
+    "5": "3B",
+    "6": "SS",
+    "7": "LF",
+    "8": "CF",
+    "9": "RF",
+    "designated-hitter": "DH"
+  },
+  "plateResultDisplay": {
+    "kind": "finite-legacy-label",
+    "aliases": {
+      "見逃し三振": "見三振",
+      "空振り三振": "空三振",
+      "三振ゲッツー": "三振併",
+      "振り逃げ": "振逃",
+      "ファールフライ": "邪飛"
+    },
+    "fielderFormats": {
+      "併殺打": "fielder-balltype-double",
+      "ライナー併殺": "fielder-line-double",
+      "凡打死": "fielder-balltype",
+      "凡打出塁": "fielder-balltype"
+    },
+    "otherwise": "source-label",
+    "unfinished": "null"
+  }
 }

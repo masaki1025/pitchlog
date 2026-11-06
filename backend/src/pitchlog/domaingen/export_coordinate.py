@@ -28,8 +28,54 @@ def _declaration(model: Mapping[str, Any]) -> tuple[int, str, str, str]:
         "geometryPath",
         "geometrySha256",
         "exportTransforms",
+        "elapsedTransform",
+        "fieldingPositionLabels",
+        "plateResultDisplay",
     }:
         raise ExportCoordinateDeclarationError("B-7 root宣言が不正")
+    elapsed = model["elapsedTransform"]
+    if type(elapsed) is not dict or elapsed != {
+        "id": "serverAcceptedElapsed",
+        "kind": "whole-minutes-h-mm",
+        "startSource": "games.started_at",
+        "endSource": "pg_catalog.clock_timestamp",
+        "negative": "reject",
+    }:
+        raise ExportCoordinateDeclarationError("経過時間の有限宣言が不正")
+    labels = model["fieldingPositionLabels"]
+    if (
+        type(labels) is not dict
+        or set(labels) != {str(value) for value in range(1, 10)} | {"designated-hitter"}
+        or any(
+            type(value) is not str or not value or len(value) > 4
+            for value in labels.values()
+        )
+        or len(set(labels.values())) != 10
+    ):
+        raise ExportCoordinateDeclarationError("守備位置表示の有限宣言が不正")
+    plate = model["plateResultDisplay"]
+    if (
+        type(plate) is not dict
+        or set(plate)
+        != {"kind", "aliases", "fielderFormats", "otherwise", "unfinished"}
+        or plate["kind"] != "finite-legacy-label"
+        or plate["otherwise"] != "source-label"
+        or plate["unfinished"] != "null"
+        or type(plate["aliases"]) is not dict
+        or set(plate["aliases"])
+        != {"見逃し三振", "空振り三振", "三振ゲッツー", "振り逃げ", "ファールフライ"}
+        or any(
+            type(value) is not str or not value for value in plate["aliases"].values()
+        )
+        or plate["fielderFormats"]
+        != {
+            "併殺打": "fielder-balltype-double",
+            "ライナー併殺": "fielder-line-double",
+            "凡打死": "fielder-balltype",
+            "凡打出塁": "fielder-balltype",
+        }
+    ):
+        raise ExportCoordinateDeclarationError("打席結果表示の有限宣言が不正")
     transforms = model.get("exportTransforms")
     if type(transforms) is not list or len(transforms) != 1:
         raise ExportCoordinateDeclarationError("座標変換宣言が一意でない")
@@ -78,6 +124,7 @@ def _generate_course_export_targets(
         ExportCoordinateDeclarationError: 未知式や対象版の場合。
     """
     size, unit, x_axis, y_axis = _declaration(model)
+    labels = model["fieldingPositionLabels"]
     if (
         type(source_hash) is not str
         or source_hash != _canonical_hash(model)
@@ -93,9 +140,16 @@ def _generate_course_export_targets(
     py_y = "y_value" if y_axis == "identity" else "SIZE - y_value"
     ts_x = "xValue" if x_axis == "identity" else "SIZE - xValue"
     ts_y = "yValue" if y_axis == "identity" else "SIZE - yValue"
+    py_labels = {str(value): labels[str(value)] for value in range(1, 10)}
+    ts_labels = json.dumps(py_labels, ensure_ascii=False, sort_keys=True)
+    dh_label = labels["designated-hitter"]
+    plate_aliases = model["plateResultDisplay"]["aliases"]
+    py_plate_aliases = repr(plate_aliases)
+    ts_plate_aliases = json.dumps(plate_aliases, ensure_ascii=False, sort_keys=True)
     python = f'''"""自動生成。B-7の正準座標から画面整数への一方向写像。"""
 
 import re
+from datetime import datetime
 
 SOURCE_MODEL_HASH = {source_hash!r}
 SIZE = {size}
@@ -124,6 +178,68 @@ def course_screen(
     x_value = _number(x)
     y_value = _number(y)
     return str({py_x}), str({py_y})
+
+
+def server_accepted_elapsed(start: datetime, accepted: datetime) -> str:
+    """試合開始からサーバー受理までの完了分をh:mmで返す。"""
+    if (
+        type(start) is not datetime
+        or type(accepted) is not datetime
+        or start.utcoffset() is None
+        or accepted.utcoffset() is None
+        or accepted < start
+    ):
+        raise ValueError("開始/受理時刻が不正です")
+    elapsed = accepted - start
+    minutes = elapsed.days * 1440 + elapsed.seconds // 60
+    hours, minute = divmod(minutes, 60)
+    return f"{{hours}}:{{minute:02d}}"
+
+
+FIELDING_POSITION_LABELS = {py_labels!r}
+DH_LABEL = {dh_label!r}
+
+
+def fielding_position_label(role: dict[str, str]) -> str:
+    """保存された有限守備roleを旧表示欄へ写す。"""
+    if type(role) is not dict:
+        raise ValueError("守備位置roleが不正です")
+    if role == {{"kind": "designated-hitter"}}:
+        return DH_LABEL
+    if set(role) != {{"kind", "position"}} or role.get("kind") != "fielding":
+        raise ValueError("守備位置roleが不正です")
+    position = role["position"]
+    if type(position) is not str or position not in FIELDING_POSITION_LABELS:
+        raise ValueError("守備位置roleが不正です")
+    return FIELDING_POSITION_LABELS[position]
+
+
+PLATE_RESULT_ALIASES = {py_plate_aliases}
+
+
+def plate_result_display(
+    label: str | None, pa_ended: bool, fielder: str | None, ball_type: str | None
+) -> str | None:
+    """確定打席結果だけを旧有限表示へ写す。"""
+    if type(pa_ended) is not bool or (label is not None and type(label) is not str):
+        raise ValueError("打席結果原本が不正です")
+    if not pa_ended:
+        return None
+    if not label:
+        raise ValueError("完了打席の結果が欠測です")
+    if label in PLATE_RESULT_ALIASES:
+        return PLATE_RESULT_ALIASES[label]
+    if label in ("併殺打", "ライナー併殺", "凡打死", "凡打出塁"):
+        if type(fielder) is not str or fielder not in tuple(
+            str(n) for n in range(1, 10)
+        ):
+            raise ValueError("捕球選手が欠測です")
+        if label == "ライナー併殺":
+            return f"{{fielder}}ライナー併"
+        if type(ball_type) is not str or not ball_type:
+            raise ValueError("打球種類が欠測です")
+        return f"{{fielder}}{{ball_type}}" + ("併" if label == "併殺打" else "")
+    return label
 '''
     typescript = f"""/** 自動生成。B-7の正準座標から画面整数への一方向写像。 */
 export const SOURCE_MODEL_HASH = {source_hash!r}
@@ -152,6 +268,64 @@ export function courseScreen(
   const xValue = number(x)
   const yValue = number(y)
   return [String({ts_x}), String({ts_y})]
+}}
+
+/** 試合開始からサーバー受理までの完了分をh:mmで返す。 */
+export function serverAcceptedElapsed(start: Date, accepted: Date): string {{
+  if (!(start instanceof Date) || !(accepted instanceof Date))
+    throw new Error('開始/受理時刻が不正です')
+  const first = start.getTime()
+  const last = accepted.getTime()
+  if (!Number.isFinite(first) || !Number.isFinite(last) || last < first)
+    throw new Error('開始/受理時刻が不正です')
+  const minutes = Math.floor((last - first) / 60000)
+  if (!Number.isSafeInteger(minutes)) throw new Error('経過時間が範囲外です')
+  const hours = Math.floor(minutes / 60)
+  const minute = String(minutes % 60).padStart(2, '0')
+  return `${{hours}}:${{minute}}`
+}}
+
+const FIELDING_POSITION_LABELS: Readonly<Record<string, string>> = {ts_labels}
+const DH_LABEL = {dh_label!r}
+
+/** 保存された有限守備roleを旧表示欄へ写す。 */
+export function fieldingPositionLabel(role: Record<string, unknown>): string {{
+  if (role === null || typeof role !== 'object' || Array.isArray(role))
+    throw new Error('守備位置roleが不正です')
+  if (Object.keys(role).length === 1 && role.kind === 'designated-hitter')
+    return DH_LABEL
+  if (
+    Object.keys(role).length !== 2 || role.kind !== 'fielding' ||
+    typeof role.position !== 'string' ||
+    !Object.prototype.hasOwnProperty.call(FIELDING_POSITION_LABELS, role.position)
+  ) throw new Error('守備位置roleが不正です')
+  return FIELDING_POSITION_LABELS[role.position]!
+}}
+
+const PLATE_RESULT_ALIASES: Readonly<Record<string, string>> = {ts_plate_aliases}
+
+/** 確定打席結果だけを旧有限表示へ写す。 */
+export function plateResultDisplay(
+  label: string | null,
+  paEnded: boolean,
+  fielder: string | null,
+  ballType: string | null,
+): string | null {{
+  if (typeof paEnded !== 'boolean' || (label !== null && typeof label !== 'string'))
+    throw new Error('打席結果原本が不正です')
+  if (!paEnded) return null
+  if (!label) throw new Error('完了打席の結果が欠測です')
+  if (Object.prototype.hasOwnProperty.call(PLATE_RESULT_ALIASES, label))
+    return PLATE_RESULT_ALIASES[label]!
+  if (['併殺打', 'ライナー併殺', '凡打死', '凡打出塁'].includes(label)) {{
+    if (typeof fielder !== 'string' || !/^[1-9]$/.test(fielder))
+      throw new Error('捕球選手が欠測です')
+    if (label === 'ライナー併殺') return `${{fielder}}ライナー併`
+    if (typeof ballType !== 'string' || !ballType)
+      throw new Error('打球種類が欠測です')
+    return `${{fielder}}${{ballType}}${{label === '併殺打' ? '併' : ''}}`
+  }}
+  return label
 }}
 """
     return {
@@ -185,7 +359,15 @@ def generate_course_export_bundle(root: Path = _ROOT) -> tuple[dict[str, str], d
         if (
             type(model) is not dict
             or set(model)
-            != {"schemaVersion", "geometryPath", "geometrySha256", "exportTransforms"}
+            != {
+                "schemaVersion",
+                "geometryPath",
+                "geometrySha256",
+                "exportTransforms",
+                "elapsedTransform",
+                "fieldingPositionLabels",
+                "plateResultDisplay",
+            }
             or model["geometryPath"] != _GEOMETRY
             or model["geometrySha256"] != hashlib.sha256(geometry_bytes).hexdigest()
         ):

@@ -1,16 +1,16 @@
 {
   "schemaVersion": 1,
   "status": "candidate-formal-acceptance-pending",
-  "modelSha256": "sha256:0054a1bc629d86a638363589d1166acdbc78d6300411a097883ed5c80e50fc8c",
+  "modelSha256": "sha256:85113bca53ec9667f9bd3d90e997f0c82a8f30d93e3a46fc6c82c4f5f379fe67",
   "inputs": {
-    "backend/domain/play-export-display.model.json": "5cc3bdd1bd37a1d54121e48083500cdc6b72d06a07645d7b08435e7bae6d2b6b",
-    "backend/domain/play-export-display.schema.json": "a022f3fae0f4ca7a1834fd46aaad62cf503ebd71526123a9bfe08691e62c3d2c",
+    "backend/domain/play-export-display.model.json": "01afc62d873f2d9f046bd1037693ac2e6715b3357506321e651711564af4b690",
+    "backend/domain/play-export-display.schema.json": "8a1e9abc79de8a9c204f44239959d323d7a9654a08dc80a43b221fd8bfdc170e",
     "contracts/display_geometry_263_v1.json": "e0c4d336e169e567325c4fd645f595ae856b4bbd7e9be3e5cde53515ff8901f6",
-    "backend/src/pitchlog/domaingen/export_coordinate.py": "5307f47d9ceba025bb3fa11eda3ad2aa9685f5d30d186d58638069c04bb76b93"
+    "backend/src/pitchlog/domaingen/export_coordinate.py": "6b13736fd3574e0eb14be4d65355e2e4341e26589bcc6c69de7b758224530a7a"
   },
   "generatedFiles": {
-    "backend/src/pitchlog/exports/generated/coordinate_transform.py": "ab5ba490d2b85c534063a6b982a4559ed95c2734b4843750d42ebb872d38e9e6",
-    "frontend/src/lib/generated/playExportCoordinate.ts": "e72e9ec62c8b19de91fda2150883af8e1c3ebba8c9f1d6ec17bb964b751c285e"
+    "backend/src/pitchlog/exports/generated/coordinate_transform.py": "7dfc02b1f4a98b7f2c2bd62a54c1f1a7eb46f556b43d442b3f36e9530ed92ac3",
+    "frontend/src/lib/generated/playExportCoordinate.ts": "694e2cdfc7b1bf11029fc7d4dcbd33bab46c448549fdc119c50136f8736b07c1"
   },
   "t5ModelUnchanged": true
 }

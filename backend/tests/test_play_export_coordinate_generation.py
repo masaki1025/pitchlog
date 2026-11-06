@@ -3,6 +3,7 @@
 import copy
 import json
 import types
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
@@ -151,3 +152,68 @@ def test_b7_model_does_not_change_t5_model_or_profile():
         manifest["nativeEvaluationProfiles"]["v3"]["model_sha256"]
         == manifest["commonModelHash"]
     )
+
+
+def test_server_accepted_elapsed_uses_completed_minutes_and_rejects_bad_start():
+    """旧h:mm表示の境界をサーバー受理時刻へ明示束縛する。"""
+    target = _generated_python()
+    start = datetime(2026, 11, 7, 0, 0, tzinfo=timezone.utc)
+    assert (
+        target.server_accepted_elapsed(start, start + timedelta(seconds=59)) == "0:00"
+    )
+    assert (
+        target.server_accepted_elapsed(start, start + timedelta(minutes=61)) == "1:01"
+    )
+    with pytest.raises(ValueError):
+        target.server_accepted_elapsed(start, start - timedelta(seconds=1))
+    with pytest.raises(ValueError):
+        target.server_accepted_elapsed(start.replace(tzinfo=None), start)
+
+
+def test_historical_fielding_position_labels_are_finite():
+    """旧P/C/一二三遊外野の静的意味とDHを独立照合する。"""
+    target = _generated_python()
+    expected = ("P", "C", "1B", "2B", "3B", "SS", "LF", "CF", "RF")
+    assert (
+        tuple(
+            target.fielding_position_label({"kind": "fielding", "position": str(index)})
+            for index in range(1, 10)
+        )
+        == expected
+    )
+    assert target.fielding_position_label({"kind": "designated-hitter"}) == "DH"
+    with pytest.raises(ValueError):
+        target.fielding_position_label({"kind": "fielding", "position": "10"})
+
+
+@pytest.mark.parametrize(
+    "label,fielder,ball_type,expected",
+    [
+        ("見逃し三振", None, None, "見三振"),
+        ("空振り三振", None, None, "空三振"),
+        ("ファールフライ", None, None, "邪飛"),
+        ("併殺打", "6", "G", "6G併"),
+        ("ライナー併殺", "4", None, "4ライナー併"),
+        ("凡打死", "5", "F", "5F"),
+        ("凡打出塁", "3", "G", "3G"),
+        ("四球", None, None, "四球"),
+    ],
+)
+def test_plate_result_uses_independent_legacy_display_cases(
+    label, fielder, ball_type, expected
+):
+    """旧結果表示の静的例を実装から再導出せず照合する。"""
+    assert (
+        _generated_python().plate_result_display(label, True, fielder, ball_type)
+        == expected
+    )
+
+
+def test_plate_result_rejects_missing_complete_source():
+    """継続打席は欠測、完了打席の欠測/捕球選手不足は閉拒否する。"""
+    target = _generated_python()
+    assert target.plate_result_display(None, False, None, None) is None
+    with pytest.raises(ValueError):
+        target.plate_result_display(None, True, None, None)
+    with pytest.raises(ValueError):
+        target.plate_result_display("併殺打", True, None, "G")
