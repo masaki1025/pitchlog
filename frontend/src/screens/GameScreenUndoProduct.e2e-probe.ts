@@ -151,3 +151,37 @@ document.addEventListener(
   },
   { once: true },
 )
+
+// 実E2Eだけで公開controllerの終結と次取消の純計算可否を観測する。
+import { GameScreenUndoProductController } from './GameScreenUndoProductController'
+import { prepareNativeUndo } from './GameScreenUndoProductProvider'
+for (const action of ['undo', 'retry'] as const) {
+  const original = GameScreenUndoProductController.prototype[action]
+  GameScreenUndoProductController.prototype[action] = async function () {
+    const context = this.context
+    let build = 'no-context'
+    if (context) {
+      try {
+        build =
+          prepareNativeUndo(context, '00000000-0000-4000-8000-000000000999') ===
+          null
+            ? 'empty'
+            : 'formed'
+      } catch (error) {
+        build = error instanceof Error ? error.name : 'unknown'
+      }
+    }
+    const result = await original.call(this)
+    console.log(
+      'PITCHLOG_UNDO_CLIENT_STAGE=' +
+        JSON.stringify({
+          action,
+          result,
+          build,
+          depth: context?.source.activeStack.length ?? null,
+          nextD1: context?.game.next_position.d1 ?? null,
+        }),
+    )
+    return result
+  }
+}

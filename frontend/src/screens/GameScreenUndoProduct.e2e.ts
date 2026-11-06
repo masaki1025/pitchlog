@@ -353,6 +353,10 @@ test('実画面の新規作成→開始→2球→ACK喪失/reload/同要求再�
   )
   for (const box of await panel.locator('input[type=checkbox]').all())
     await box.check()
+  await page.addScriptTag({
+    type: 'module',
+    url: '/src/screens/GameScreenUndoProduct.e2e-probe.ts',
+  })
   await panel.getByTestId('undo-product-retry').click()
   await expect(panel.getByTestId('undo-product-status')).toContainText(
     'サーバーで確認',
@@ -360,8 +364,16 @@ test('実画面の新規作成→開始→2球→ACK喪失/reload/同要求再�
   const replay = requests.filter((x) => x.kind === 'undo')
   expect(replay).toHaveLength(2)
   expect(replay[1]).toEqual(replay[0])
+  // 保存後の親再取得を経た実パネルで環境条件を再確認する。
+  for (const box of await panel.locator('input[type=checkbox]').all())
+    await box.check()
+  await expect(panel.getByTestId('undo-product-apply')).toBeEnabled({
+    timeout: 30_000,
+  })
   await panel.getByTestId('undo-product-apply').click()
-  await expect(panel.getByTestId('undo-product-balls')).toHaveText('0')
+  await expect(panel.getByTestId('undo-product-balls')).toHaveText('0', {
+    timeout: 30_000,
+  })
   await expect(panel.getByTestId('undo-product-depth')).toHaveText('0')
   await expect(panel.getByTestId('undo-product-apply')).toBeDisabled()
   const pitch = panel.getByTestId('undo-product-pitch-type')
