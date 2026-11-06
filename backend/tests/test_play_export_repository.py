@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, datetime
 from typing import Any, cast
 from uuid import UUID, uuid4
@@ -22,6 +23,7 @@ from pitchlog.repositories.play_export import (
     PlayExportSourceUnavailable,
     PlayExportTenantVocabularyToken,
     _roster_arrays,
+    iter_sidecar_rows,
     project_play_cells,
     project_play_row,
 )
@@ -458,3 +460,199 @@ def test_roster_arrays_keep_legacy_lengths_and_saved_uniforms() -> None:
     assert arrays["nums"][0] == "001"
     assert arrays["names"][9] == "打者"
     assert arrays["names"][10] == "走者"
+
+
+class _FakeHandle:
+    """登録readの代わりに固定ページを返す。"""
+
+    def __init__(self, *, plays=(), runners=()):
+        self.plays = list(plays)
+        self.runners = list(runners)
+        self.calls = []
+
+    def run(self, operation):
+        from pitchlog.repositories.play_export import (
+            PLAY_ROW_COLUMNS,
+            PLAY_RUNNER_COLUMNS,
+        )
+        from pitchlog.repositories.tokens import TenantOperationResult
+
+        self.calls.append(operation)
+        if isinstance(operation, PlayExportPlayRowsToken):
+            page = self.plays.pop(0) if self.plays else []
+            columns = PLAY_ROW_COLUMNS
+        elif isinstance(operation, PlayExportRunnersToken):
+            page = self.runners.pop(0) if self.runners else []
+            columns = PLAY_RUNNER_COLUMNS
+        else:
+            raise AssertionError("未想定のoperation")
+        return TenantOperationResult(
+            tuple(tuple(row[column] for column in columns) for row in page)
+        )
+
+
+def _play(number: int, player_id: UUID = BATTER) -> dict:
+    """iter_playsが必要とするPlayRow全列。"""
+    return {
+        "id": uuid4(),
+        "tenant_id": TENANT,
+        "game_id": GAME,
+        "source_event_id": EVENT,
+        "play_number": number,
+        "batting_order": 1,
+        "batter_id": player_id,
+        "batting_side": "右",
+        "strategy_key": None,
+        "strategy_detail_key": None,
+        "strategy_result_key": None,
+        "pitcher_id": PITCHER,
+        "catcher_id": CATCHER,
+        "batter_status": None,
+        "event_kind": "pitch",
+        "stance": None,
+        "course_x": None,
+        "course_y": None,
+        "pitch_type_key": None,
+        "batting_result_key": None,
+        "secondary_batting_result_key": None,
+        "raw_fielder_position": None,
+        "resolved_fielder_id": None,
+        "batted_ball_type": None,
+        "batted_ball_strength": None,
+        "hit_x": None,
+        "hit_y": None,
+        "pickoff_type": None,
+        "pickoff_detail": None,
+        "error_type": None,
+        "raw_error_position": None,
+        "resolved_error_player_id": None,
+        "pitch_speed": None,
+        "press": None,
+        "fake_run": None,
+        "comment": None,
+        "version": 1,
+        "hidden_at": None,
+        "legacy_row_identifier": None,
+        "migration_unverified": False,
+        "import_batch_id": None,
+        "retired_at": None,
+    }
+
+
+def _runner(play_id: UUID) -> dict:
+    """iter_runners_forが必要とするPlayRunner全列。"""
+    return {
+        "id": uuid4(),
+        "tenant_id": TENANT,
+        "play_id": play_id,
+        "base": 1,
+        "runner_id": RUNNER,
+        "status": "継続",
+        "status_source": "auto",
+        "responsible_pitcher_id": PITCHER,
+        "retired_at": None,
+        "import_batch_id": None,
+    }
+
+
+def test_iter_plays_continues_keyset_across_500_boundary() -> None:
+    """500行の次ページが0から再開せず、重複欠落なく継続する。"""
+    first = [_play(number) for number in range(1, 501)]
+    second = [_play(501)]
+    handle = _FakeHandle(plays=[first, second])
+    source = replace(_source(), handle=handle)
+
+    plays = list(source.iter_plays())
+
+    assert len(plays) == 501
+    assert plays[0]["play_number"] == 1
+    assert plays[-1]["play_number"] == 501
+    tokens = [
+        call for call in handle.calls if isinstance(call, PlayExportPlayRowsToken)
+    ]
+    assert tokens[0].after_play_number is None
+    assert tokens[1].after_play_number == 500
+    assert tokens[1].after_id == first[-1]["id"]
+
+
+def test_iter_runners_batches_all_page_play_ids_once() -> None:
+    """ページ内play_id集合を1回の走者readへ渡し、N+1にしない。"""
+    first = _play(1)
+    second = _play(2)
+    handle = _FakeHandle(
+        plays=[[first, second]],
+        runners=[[_runner(first["id"]), _runner(second["id"])]],
+    )
+    source = replace(_source(), handle=handle)
+
+    runners = list(source.iter_runners_for((first["id"], second["id"])))
+
+    assert len(runners) == 2
+    tokens = [call for call in handle.calls if isinstance(call, PlayExportRunnersToken)]
+    assert tokens == [
+        PlayExportRunnersToken((first["id"], second["id"]), None, None, MAX_PAGE_SIZE)
+    ]
+
+
+def test_visibility_closes_hidden_trashed_and_other_tenant() -> None:
+    """可視判定はtenant・trashed・hidden・statusを同じ非成功へ閉じる。"""
+    from pitchlog.repositories.play_export import _visible_game
+
+    game = _game()
+    assert _visible_game(game, GAME, TENANT)
+    assert not _visible_game(game, GAME, uuid4())
+    assert not _visible_game({**game, "trashed_at": datetime.now(UTC)}, GAME, TENANT)
+    assert not _visible_game({**game, "hidden_at": datetime.now(UTC)}, GAME, TENANT)
+    assert not _visible_game({**game, "status": "trashed"}, GAME, TENANT)
+    assert not _visible_game({**game, "status": "hidden"}, GAME, TENANT)
+
+
+def test_all_88_columns_are_supplied_or_in_the_declared_gap() -> None:
+    """供給値と欠測の和が88列に一致し、暗黙の空欄を作らない。"""
+    source = _source()
+    play = _play(1)
+    values, missing = project_play_cells(source, play, ())
+    assert set(values) | {item.header for item in missing} == set(
+        CSV_HEADERS["plays.csv"]
+    )
+    assert len({item.header for item in missing}) == len(missing)
+    assert {item.header for item in missing} == {
+        "球数",
+        "コースX",
+        "コースY",
+        "打球位置X",
+        "打球位置Y",
+        "打席結果",
+        "Result_col",
+        "先攻打順",
+        "後攻打順",
+        "top_score",
+        "bottom_score",
+    }
+
+
+def test_all_nine_sidecars_use_fixed_headers() -> None:
+    """9サイドカーが固定ヘッダの全キーを返す。"""
+    play = _play(1)
+    runner = _runner(play["id"])
+
+    for name in (
+        "play_links.csv",
+        "events.csv",
+        "runners.csv",
+        "lineups.csv",
+        "participations.csv",
+        "game.csv",
+        "references.csv",
+        "projections.csv",
+        "preserved_sources.csv",
+    ):
+        handle = _FakeHandle(plays=[[play]], runners=[[runner]])
+        source = replace(_source(), handle=handle)
+        rows = list(iter_sidecar_rows(source, name))
+        if name == "preserved_sources.csv":
+            assert rows == []
+            continue
+        assert rows
+        for row in rows:
+            assert set(row.values) == set(CSV_HEADERS[name])

@@ -33,7 +33,11 @@ from pitchlog.repositories.operation_registration import (
     OperationRegistration,
     PreparedOperation,
 )
-from pitchlog.repositories.roster import PlayerReadToken, TeamRecordReadToken
+from pitchlog.repositories.roster import (
+    PlayerReadToken,
+    SelfTeamRecordReadToken,
+    TeamRecordReadToken,
+)
 from pitchlog.repositories.started_snapshot_operations import StartedLineupsReadToken
 from pitchlog.repositories.tokens import (
     TenantOperationResult,
@@ -132,29 +136,14 @@ class PlayExportSource:
 
     def iter_events(self) -> Iterator[Mapping[str, Any]]:
         """受理済みOperationEventを(d2 NULLS LAST,id)の順で返す。"""
-        for null_d2 in (False, True):
-            after_d2: int | None = None
-            after_id: UUID | None = None
-            while True:
-                rows = _read_rows(
-                    self.handle,
-                    PlayExportEventsToken(
-                        self.snapshot.game_id,
-                        null_d2,
-                        after_d2,
-                        after_id,
-                        MAX_PAGE_SIZE,
-                    ),
-                    EVENT_COLUMNS,
-                )
-                for row in rows:
-                    yield row
-                if len(rows) < MAX_PAGE_SIZE:
-                    break
-                last = rows[-1]
-                after_id = cast(UUID, last["id"])
-                if not null_d2:
-                    after_d2 = cast(int, last["d2"])
+        yield from sorted(
+            self.events.values(),
+            key=lambda event: (
+                event["d2"] is None,
+                event["d2"] if event["d2"] is not None else 0,
+                str(event["id"]),
+            ),
+        )
 
     def iter_participations(self) -> Iterator[Mapping[str, Any]]:
         """保存済み出場区間をid順で返す。"""
@@ -264,8 +253,18 @@ EVENT_COLUMNS = tuple(_EVENTS.c.keys())
 PLAY_RUNNER_COLUMNS = tuple(_RUNNERS.c.keys())
 PARTICIPATION_COLUMNS = tuple(_PARTICIPATIONS.c.keys())
 TENANT_VOCABULARY_COLUMNS = tuple(_TENANT_VOCABULARIES.c.keys())
-PLAYER_COLUMNS = tuple(_PLAYERS.c.keys())
-TEAM_RECORD_COLUMNS = tuple(_TEAM_RECORDS.c.keys())
+PLAYER_COLUMNS = (
+    "id",
+    "team_record_id",
+    "name",
+    "throws",
+    "bats",
+    "uniform_number",
+    "roster_status_key",
+    "roster_label_key",
+    "hidden_at",
+)
+TEAM_RECORD_COLUMNS = ("id", "kind", "name", "hidden_at")
 LINEUP_COLUMNS = (
     "tenant_id",
     "id",
@@ -800,15 +799,7 @@ def _read_reference_bundle(
 ]:
     """gameと参照資源を読み、同じsnapshotのdigestを先に確定する。"""
     game = _read_one(handle, GameReadToken(game_id), GAME_COLUMNS)
-    if game is None:
-        raise PlayExportNotVisible
-    if game["id"] != game_id or game["tenant_id"] != handle._bound_tenant_id:
-        raise PlayExportNotVisible
-    if (
-        game["trashed_at"] is not None
-        or game["hidden_at"] is not None
-        or game["status"] in {"trashed", "hidden"}
-    ):
+    if game is None or not _visible_game(game, game_id, handle._bound_tenant_id):
         raise PlayExportNotVisible
 
     lineups = tuple(
@@ -841,6 +832,14 @@ def _read_reference_bundle(
             TeamRecordReadToken(limit=1, record_id=team_id, include_hidden=True),
             TEAM_RECORD_COLUMNS,
         )
+        if row is None:
+            own = _read_one(
+                handle,
+                SelfTeamRecordReadToken(),
+                TEAM_RECORD_COLUMNS,
+            )
+            if own is not None and own["id"] == team_id:
+                row = own
         if row is None:
             raise ValueError("試合のチーム参照がありません")
         teams[team_id] = row
@@ -961,6 +960,17 @@ def _read_reference_bundle(
         vocabularies,
         events,
         PlayExportSnapshot(game_id, snapshot_id, source_versions, exported_at),
+    )
+
+
+def _visible_game(game: Mapping[str, Any], game_id: UUID, tenant_id: UUID) -> bool:
+    """不存在・別tenant・隠蔽・退避を同じ不可視へ閉じる。"""
+    return (
+        game.get("id") == game_id
+        and game.get("tenant_id") == tenant_id
+        and game.get("trashed_at") is None
+        and game.get("hidden_at") is None
+        and game.get("status") not in {"trashed", "hidden"}
     )
 
 
@@ -1512,15 +1522,11 @@ def project_play_cells(
         missing.append(_missing("投手左右"))
     else:
         values["投手左右"] = throws
-    for prefix, player_id in (
-        ("打者", play["batter_id"]),
-        ("投手", play["pitcher_id"]),
-    ):
-        name = _player_name(source, player_id)
-        if name is None:
-            missing.append(_missing(f"{prefix}登録名"))
-        else:
-            values[f"{prefix}登録名"] = name
+    batter_name = _player_name(source, play["batter_id"])
+    if batter_name is None:
+        missing.append(_missing("打者登録名"))
+    else:
+        values["打者登録名"] = batter_name
     for prefix, runner in (
         ("一走", _runner_by_base(runners, 1)),
         ("二走", _runner_by_base(runners, 2)),

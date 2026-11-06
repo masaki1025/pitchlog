@@ -1,0 +1,90 @@
+diff --git a/backend/src/pitchlog/repositories/operation_registry.py b/backend/src/pitchlog/repositories/operation_registry.py
+index e9f6a0d0..26e04312 100644
+--- a/backend/src/pitchlog/repositories/operation_registry.py
++++ b/backend/src/pitchlog/repositories/operation_registry.py
+@@ -24,6 +24,7 @@ from pitchlog.repositories.ordinary_pitch_qualification import (
+ )
+ from pitchlog.repositories.ordinary_prefix_operations import ORDINARY_PREFIX_OPERATIONS
+ from pitchlog.repositories.pitch_type_options import PITCH_TYPE_OPTIONS_OPERATIONS
++from pitchlog.repositories.play_export import PLAY_EXPORT_OPERATIONS
+ from pitchlog.repositories.preparing_game_creation import (
+     PREPARING_GAME_CREATE_OPERATIONS,
+ )
+@@ -66,6 +67,7 @@ PRODUCT_OPERATIONS: tuple[OperationRegistration, ...] = (
+     *PREPARING_GAME_CREATE_OPERATIONS,
+     *PITCH_TYPE_OPTIONS_OPERATIONS,
+     *ORDINARY_PLAY_OPERATIONS,
++    *PLAY_EXPORT_OPERATIONS,
+ )
+ 
+ _STATIC_PRODUCT_FUNCTION_BINDING_IDS = frozenset(
+diff --git a/backend/src/pitchlog/repositories/repository_contract.py b/backend/src/pitchlog/repositories/repository_contract.py
+index 753f9fec..653b95e7 100644
+--- a/backend/src/pitchlog/repositories/repository_contract.py
++++ b/backend/src/pitchlog/repositories/repository_contract.py
+@@ -5,7 +5,7 @@ CONTRACT_REVISION = 35
+ ASSET_KIND = "tenant_repository_contract"
+ CANONICALIZATION = "json-sort-keys-utf8-v1"
+ SOURCE_ASSET = "contracts/tenant_boundary/repository-contract.json"
+-SOURCE_DIGEST = "27f41deef37f99711b4597a1bba87234eb63b66c9f3144afdf70a46e8b3e4558"
++SOURCE_DIGEST = "1842ab09d8aa4b40890d999d1a59c0cd2b2d135bf50960cbaedc0e4d2345f1e4"
+ 
+ REPOSITORY_TYPE = "pitchlog.repositories.base.TenantRepositoryBase"
+ CONTEXT_BINDING_ENTRY = "pitchlog.repositories.base.TenantRepositoryBase.execute"
+@@ -116,6 +116,8 @@ PRODUCT_CAPABILITY_IDS = (
+     "CAP:games:insert",
+     "CAP:tenant_vocabularies:insert",
+     "CAP:tenant_vocabularies:read",
++    "CAP:play_runners:read",
++    "CAP:participation_intervals:read",
+ )
+ PRODUCT_OPERATION_TOKEN_TYPES = (
+     "pitchlog.repositories.roster.PlayerReadToken",
+@@ -183,6 +185,11 @@ PRODUCT_OPERATION_TOKEN_TYPES = (
+     "pitchlog.repositories.preparing_game_creation.PreparingOpponentTeamLockToken",
+     "pitchlog.repositories.pitch_type_options.PitchTypeOptionsToken",
+     "pitchlog.sync.ordinary_pitch_tokens.OrdinaryPlayRowInsertToken",
++    "pitchlog.repositories.play_export.PlayExportPlayRowsToken",
++    "pitchlog.repositories.play_export.PlayExportEventsToken",
++    "pitchlog.repositories.play_export.PlayExportRunnersToken",
++    "pitchlog.repositories.play_export.PlayExportParticipationsToken",
++    "pitchlog.repositories.play_export.PlayExportTenantVocabularyToken",
+ )
+ CROSS_TENANT_FUNCTIONS = ()
+ PRODUCT_FUNCTION_OPERATION_IDS = (
+diff --git a/contracts/tenant_boundary/repository-contract.json b/contracts/tenant_boundary/repository-contract.json
+index 60412baa..f20c970d 100644
+--- a/contracts/tenant_boundary/repository-contract.json
++++ b/contracts/tenant_boundary/repository-contract.json
+@@ -172,7 +172,9 @@
+     "CAP:play_rows:insert",
+     "CAP:games:insert",
+     "CAP:tenant_vocabularies:insert",
+-    "CAP:tenant_vocabularies:read"
++    "CAP:tenant_vocabularies:read",
++    "CAP:play_runners:read",
++    "CAP:participation_intervals:read"
+   ],
+   "product_operation_token_types": [
+     "pitchlog.repositories.roster.PlayerReadToken",
+@@ -239,7 +241,12 @@
+     "pitchlog.repositories.preparing_game_creation.PreparingSelfTeamLockToken",
+     "pitchlog.repositories.preparing_game_creation.PreparingOpponentTeamLockToken",
+     "pitchlog.repositories.pitch_type_options.PitchTypeOptionsToken",
+-    "pitchlog.sync.ordinary_pitch_tokens.OrdinaryPlayRowInsertToken"
++    "pitchlog.sync.ordinary_pitch_tokens.OrdinaryPlayRowInsertToken",
++    "pitchlog.repositories.play_export.PlayExportPlayRowsToken",
++    "pitchlog.repositories.play_export.PlayExportEventsToken",
++    "pitchlog.repositories.play_export.PlayExportRunnersToken",
++    "pitchlog.repositories.play_export.PlayExportParticipationsToken",
++    "pitchlog.repositories.play_export.PlayExportTenantVocabularyToken"
+   ],
+   "cross_tenant_functions": [],
+   "function_executor": {
+@@ -264,5 +271,5 @@
+     "SYNC_ORDINARY_PITCH:read_ordinary_history_page",
+     "SYNC_ORDINARY_PITCH:read_ordinary_order_summary"
+   ],
+-  "source_digest": "27f41deef37f99711b4597a1bba87234eb63b66c9f3144afdf70a46e8b3e4558"
++  "source_digest": "1842ab09d8aa4b40890d999d1a59c0cd2b2d135bf50960cbaedc0e4d2345f1e4"
+ }
