@@ -28,6 +28,22 @@ def test_bootstrap_legacy_branch_keeps_signature_and_all_saved_qualification():
     assert "c.content->'storage_anchor'->>'history_epoch'=p_epoch::text" in sql
     assert "'generationChain',chain" in sql
     assert "total::text IS DISTINCT FROM cp.content->>'history_depth'" in sql
-    assert "FOR SHARE OF c,g" in sql
+    assert "FOR SHARE OF c,g" not in sql
+    assert sql.count("FOR SHARE OF c;") == 2
     assert "LIMIT p_page_size+1" in sql
     assert "LIMIT 100;" not in sql
+
+
+def test_generation_join_and_both_branch_guards_remain():
+    """g rowlockだけを外し、NP/旧v3のtenant/世代/水位条件を保持する。"""
+    sql = candidate_read_function_bodies()["read_nonplay_active_history"]
+    assert sql.count("FOR SHARE OF c;") == 2
+    assert sql.count("JOIN public.recording_generations g") == 2
+    assert sql.count("g.recovery_generation=c.recovery_generation") == 2
+    assert sql.count("g.confirmed_watermark=p_d3 AND g.applied_prefix=p_d3") == 2
+    assert sql.count("g.kind='normal'") == 2
+    assert sql.count("g.revoked_at IS NULL AND g.retired_at IS NULL") == 2
+    assert sql.count("g.import_batch_id IS NULL") == 2
+    assert sql.count("p_tenant_id IS DISTINCT FROM") == 2
+    assert sql.count("p_after_order=0 AND (p_after_d1<>0") == 2
+    assert sql.count("LIMIT p_page_size+1") == 2

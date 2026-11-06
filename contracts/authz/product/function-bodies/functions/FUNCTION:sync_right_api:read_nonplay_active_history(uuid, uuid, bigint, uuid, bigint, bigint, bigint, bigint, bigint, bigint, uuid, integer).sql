@@ -49,7 +49,7 @@ BEGIN
  AND c.content->'prefix_ref'->>'historyVersion'=p_logical_version::text
  AND c.content->'prefix_ref'->>'tenantId'=p_tenant_id::text
  AND c.content->'prefix_ref'->>'gameId'=p_game_id::text
- FOR SHARE OF c,g;
+ FOR SHARE OF c;
  -- 最新CPも全raw event/ledger/slot/全physicalと同じ受理取引の保存印へ束縛する。
  IF NOT EXISTS(SELECT 1 FROM sync_fence.ordinary_pitch_write_admissions a
  JOIN public.operation_events e ON e.tenant_id=a.tenant_id
@@ -687,7 +687,7 @@ BEGIN
  AND c.content->'content'->>'historyVersion'=p_logical_version::text
  AND c.content->'content'->'scope'->>'tenantId'=p_tenant_id::text
  AND c.content->'content'->'scope'->>'gameId'=p_game_id::text
- FOR SHARE OF c,g;
+ FOR SHARE OF c;
  -- CP全文は最新受理印の実after原本へ束縛する。自己digestだけでは資格にしない。
  IF NOT EXISTS(SELECT 1 FROM sync_fence.nonplay_write_admissions n
  JOIN public.operation_events e ON e.tenant_id=n.tenant_id
