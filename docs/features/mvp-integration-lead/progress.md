@@ -1,5 +1,16 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 再開時の現在地：2026-11-06T10:01:05.445499+09:00（安全な2〜3日集中方針、成績D11/CI2を採用・取消/終了再開を並行実装）
+
+- **PO追補/担当**: POは利用制限リセットを通知し「できるだけ安全に2〜3日で完成させる方針」を採用。MVP全機能/安全/実機・復旧受入は削減しない。既存ハーネスも安全に結び付かない重複・不要な再受理/過細な確定を最小変更で簡素化可。日数は目標で完成保証ではない。成績27/画面/毎球・成績CSVの完成担当向け指示をPOへ渡し、POが別LLMへ**送付済み**と通知。担当名/受諾/編集範囲/成果HEADはまだ未受領、受諾済みとしない。root共通同期/取消/current42/正式資産とは別WTで担当する依頼。
+- **新しく確定した検証/正式提供**: 正式develop51bcb/#196・新規4試合実画面/無走者4安打/通常球/保存/再送/reloadは維持。今回増えたのは候補native26の実SQL全比較であり、成績画面/全27/CSVや取消の正式提供ではない。
+- **成績D11実接合**: fixeda524のowned pure+DB171成功146.36秒/collector110、source前後同一・自前PG撤去。初回余剰bind2で2失敗131.27秒も保持し、固定SQLの7bindを変えず検査を整合。非作者REPORT729b2ced6b104a8e3e4be976e4c63b3cdf71c6f20a7381d98da121533fdb2c49/checks674a10de…で初回P1×2解消/新指摘0、独立180成功16.50秒・実beta10改竄拒否・数学/生成8/入力9/規範3の20path保持。root3be91ac0で委任受理→dbda56c9/49bf535cに8source採用。rootと非作者のPG実行を混同しない。
+- **成績CI/coreの次段**: CI2を非作者REPORT6a06fa1dd5a4c0a6550ae9410339f0aaf5a6e6de0ad63ccb52a11c582b898330後82085e58へ採用（独立116/metadata10拒否/旧128AST・全他job保持）。旧S3は後述歴史検証を残す。core29定義source2は旧b5dd1feaを保持し、D11実在後のJSONだけ8349355bへ後置、strict stats-foundation層照合成功。root検査初回1017成功/2失敗95.81秒は未登録JSONのため。誤った別層validatorを呼びJSON未変更のまま再試験を起動したroot手順ミスは、同cwd/コマンドの自分のpytestだけSIGINTで停止。正しい層を照合しJSON配置後native-foundation-ci-core-actual-r4で再検査中。検査/拒否緩和なし。oracle/tenant/corpus/7.7/新PR/正式CIは未完。
+- **取消publisherとGET**: 固定2b228a14のsource2は非作者dcf9b281…で47成功/17追加拒否、全旧宣言/bodyはhidden_at同owner SELECT+UPDATE union1以外保持、GET P2test89fはac0a65c6…で9成功/逆射影旧byte一致を確認。actual取消integration89fはsource保存済み、publisherは専用feature-mvp-nonplay-product-connection@6f4cabf0に分離。初回Ty1197診断は他WT実行器だけ使って新WTの環境が未供給だった手順ミスで、ownuv locked環境を配置した全Ty成功を採る。
+- **current42/終了再開の並行実装**: undo_unit1_wholeがcache-only current42 exact11（rootplan6f4＋db_fixtures._snapshot_product_profile exact1追加承認）を作者実装中。表10/NP43列/19制約/guard AST/ACL-only/trigger2を厳密照合、旧41は不明partialを閉拒否。pr191は別cache mvp-lifecycle-product-author-20261106/scope.jsonのnew13/shared12/tests14=39をroot承認し、実end→reopen→追加play→reend→reloadを作者実装中。undo印に偽targetを作らずlifecycle admission/heads2表を0043候補へ分離、唯一artifactの閉操作と真正controlbridgeで旧stack等値条件を保持。共有current/catalog/provisioning/firstballは42作者だけ、lifecycleはproposal限定。rootはsource固定後に正式資産を一括導出する。純試験/候補buildを実製品成功にしない。
+- **歴史0039検証の実停止と修復**: root専用feature-mvp-stage-a0039-profile-root@94ecbfd5。固定970blob/旧31ASTを保持するhelper33純成功/collect31だが、非作者8bcf475c…は①fixture+typed参照を未承認commitへ同時変更すると期待707を受理、②子にDSNが無くautouseがsetup停止、をP1保留した。rootは承認済Eの独立anchorを明示し同時rotation対向追加（34純成功）、子の真正固定factoryで専用PGを起動して親DSNを継承せずautouseを通す修復中。最初のparent31ERROR6.84秒は必須DSN未供給、owned childsmoke1失敗8.18秒、診断は例外型/関数名だけを採り資格原文を記録しない。factoryのrole-template前提を補正後smoke1失敗9.40秒が残り、safe observation r5で次の停止箇所を回収中。同じ失敗の無根拠再実行や旧検査skipはしない。正式7.7未成立。
+- **次**: rootが歴史helper修復/独立再確認→成績基盤の正式資産/通常PR/CIへ。並行42作者完成→非作者→rootowned2球2取消次球、lifecycle39を同経路へ接合。外部成績担当の受諾・供給範囲を受領後に統合調整。全MVPの未完操作・耐久/交代/閲覧/負荷/実機/復旧は残し、途中成果のHEAD・証拠と別に管理する。
+
 ## PO追補と次の固定点：2026-11-06T09:34:55.505387+09:00
 
 - POは「安全性を担保したうえで既存ハーネスを緩めてもよい、開発速度が上がるなら」と追加委任した。今回MVP内で重複検査/不要な再受理/過細なゲート順の変更を検討・実装できる。認可/tenant/記録権/原子性/冪等性/結果不明・安全に必要な非作者レビュー/最終受入を無証拠に除外する指示とは解釈しない。ハーネス変更自体も具体的対象・省ける反復・代わりに守る保証・拒否対向を固定し独立レビューする。本人が実値確認/署名したとは記録しない。
