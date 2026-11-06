@@ -103,10 +103,14 @@ def test_screen_create_two_pitches_two_undo_next_pitch_reload(vertical_database)
                             "AND a.source_d1=c.confirmed_watermark "
                             "JOIN public.operation_events e ON e.tenant_id=a.tenant_id "
                             "AND e.game_id=a.game_id AND e.id=a.source_event_id "
-                            "JOIN public.idempotency_ledger l ON l.tenant_id=e.tenant_id AND l.d5=e.d5 "
-                            "JOIN public.event_slots es ON (es.tenant_id,es.game_id,es.generation,es.d1)="
+                            "JOIN public.idempotency_ledger l "
+                            "ON l.tenant_id=e.tenant_id "
+                            "AND l.d5=e.d5 "
+                            "JOIN public.event_slots es ON "
+                            "(es.tenant_id,es.game_id,es.generation,es.d1)="
                             "(e.tenant_id,e.game_id,e.generation,e.d1) "
-                            "WHERE c.tenant_id=%s AND c.game_id=%s AND c.state='current' LIMIT 2",
+                            "WHERE c.tenant_id=%s AND c.game_id=%s "
+                            "AND c.state='current' LIMIT 2",
                             (db.tenant_id, UUID(attempted[0])),
                         ).fetchall()
                     print("PITCHLOG_UNDO_FAILURE_INTEGRITY=" + json.dumps(integrity))
