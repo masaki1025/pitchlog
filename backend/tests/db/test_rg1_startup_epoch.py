@@ -57,7 +57,8 @@ def test_formal_stage_a_epoch_failure_resumes_from_0034(
     startup_database: tuple[str, str],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """0035適用前の故障は0034を保持し、同じ配置から35へ再開できる。"""
+    """0035適用前の故障は0034を保持し、同じ配置からcurrentへ再開できる。"""
+    from pitchlog.db import current_product_startup as current
     from pitchlog.db import stage_a_startup as startup
 
     original_epoch = startup._apply_epoch
@@ -68,7 +69,9 @@ def test_formal_stage_a_epoch_failure_resumes_from_0034(
 
     monkeypatch.setattr(startup, "_apply_epoch", fail_epoch)
     with pytest.raises(RuntimeError, match="0035故障注入"):
-        startup.advance_stage_a_from_s0(owner_dsn=owner_dsn, applicator_dsn=admin_dsn)
+        current.advance_current_product_from_s0(
+            owner_dsn=owner_dsn, applicator_dsn=admin_dsn
+        )
     with psycopg.connect(admin_dsn) as admin:
         assert admin.execute(
             "SELECT version_num FROM public.alembic_version"
@@ -78,18 +81,24 @@ def test_formal_stage_a_epoch_failure_resumes_from_0034(
             "'public.resolve_stage_a_rule(uuid,text,text,boolean)')"
         ).fetchone() == (None,)
     monkeypatch.setattr(startup, "_apply_epoch", original_epoch)
-    result = startup.resume_stage_a_after_placement(
+    result = current.resume_current_product_after_placement(
         owner_dsn=owner_dsn, applicator_dsn=admin_dsn
     )
-    assert result.completed_stage == "S3" and result.publishable is False
-    repeated = startup.resume_stage_a_after_placement(
+    assert (
+        result.completed_revision == "0041_stats_fact_versions"
+        and result.publishable is False
+    )
+    repeated = current.resume_current_product_after_placement(
         owner_dsn=owner_dsn, applicator_dsn=admin_dsn
     )
-    assert repeated.completed_stage == "S3" and repeated.publishable is False
+    assert (
+        repeated.completed_revision == "0041_stats_fact_versions"
+        and repeated.publishable is False
+    )
     with psycopg.connect(admin_dsn) as admin:
         assert admin.execute(
             "SELECT version_num FROM public.alembic_version"
-        ).fetchone() == ("0039_ordinary_pitch_storage",)
+        ).fetchone() == ("0041_stats_fact_versions",)
 
 
 def test_formal_stage_a_resume_rejects_epoch_marker_without_column(
