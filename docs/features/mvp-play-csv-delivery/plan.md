@@ -24,3 +24,9 @@ rootへの既PO委任と2026-11-06の速度優先・品質維持指示に基づ�
 既apiDownloadへtenantBoundを後方互換で伝達し、毎球CSVに限ってtrueを必須とした。Content-Lengthの非安全整数はnullへ閉じ、componentは正の安全整数長さ・小文字64桁SHAの両方と実bytes一致を要求する。破棄/試合変更/認証世代変更後は保存を止める。実crypto SHAで長さだけ正しい破損も拒否し、実clientのchallenge応答欠落/不一致はBlob未消費を確認。対象3suite76passed、Vue型・対象ESLint成功。最初の2失敗はnative async digest終了前の試験観測をvi.waitForで是正したもので、検査/期待を緩和していない。backend C2登録はステップ2で行うため、現時点で製品CSV成功とはしない。非作者確認は未実施。
 
 ステップ1固定d06e8356の非作者確認 `play-csv-fixed-independent-20261107/REPORT.md` SHA256 `0b434a4363e91626e2155c6db4e92f355c86443065ca4005794ae494ca3ec240` はP0/P1=0（read-only、独立試験再実行なし）。P2旧要求finallyのbusy上書きを同controller一致時だけへ限定し、A取得→Bへ切替/取得→A完了後もBがbusyを保つ対向を追加。対象3suite77passed。後発2path差分の確認は別記し、前レビューが後発HEAD全体を確認したとは扱わない。
+
+## ステップ2の途中固定（未完）
+
+全イベントをaccepted条件の500行keyset（d2 NULLはid独立系列）にし、2000件打切りを撤去。SQLite実SQLの500/501/2001件＋NULL3件/別tenant/退避混在で欠落・重複0を確認（PG ACL証拠ではない）。snapshotはtenant/game/source_event_id/play_version/generation/d2の全一致を要求し、候補DDLへ原本ID/版を追加した。旧fixtureの値を実原本へ追随しただけでproducer成功とはしない。manifestは全イベント/補助資源/保存projectionを束縛する。C2 route_class/閉operation追加と、完成ZIP後の提示token再照合・新RR可視性再確認/拒否cleanupを実装。関連94pytest、Ruff/Ty成功。送出拒否4caseは依存置換した単体試験であり真正認可の実DB証拠ではない。
+
+**未完**: 全量RAM materializationは残り、repository/formatterを有限ページ→ディスクZIPへ接ぐ修復を継続する。製品app/正式資産登録と既registry完全一致検査の追随、実PG/C2/認可撤回実測、88列producerは後続。6指摘が全解消した、正式readが提供されたとはしない。

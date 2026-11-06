@@ -92,30 +92,62 @@ def _play_by_id(bundle: PlayExportBundle) -> dict[UUID, dict[str, Any]]:
 
 def _source_digest(bundle: PlayExportBundle) -> str:
     """gameの確定source/slot/play版集合をmanifest用digestへ写す。"""
-    payload = [
-        {
-            "play_row_id": str(row["id"]),
-            "source_event_id": str(row["source_event_id"]),
-            "play_number": row["play_number"],
-            "version": row["version"],
-            "source_d2": event.get("d2") if event else None,
-        }
-        for row in bundle.plays
-        for event in [_event_by_id(bundle).get(row["source_event_id"])]
-    ]
+    # 監査イベント/出場/参照/保存projectionを含む同一RRの全供給版を束縛する。
+    payload = {
+        "game": bundle.game,
+        "plays": bundle.plays,
+        "runners": bundle.runners,
+        "events": bundle.events,
+        "lineups": bundle.lineups,
+        "participations": bundle.participations,
+        "players": bundle.players,
+        "teams": bundle.teams,
+        "tenant_vocabularies": bundle.tenant_vocabularies,
+        "admin_vocabularies": bundle.admin_vocabularies,
+        "snapshots": bundle.snapshots,
+        "runner_snapshots": bundle.runner_snapshots,
+    }
     return hashlib.sha256(_canonical_json(payload).encode("utf-8")).hexdigest()
 
 
 def _missing_snapshot(bundle: PlayExportBundle) -> tuple[str, ...]:
-    """88列projectionが全プレイに揃っているかだけを確認する。"""
+    """全88列と、その記録元/版の一致を閉検証する。"""
+    unavailable = tuple(str(index) for index in range(88))
     snapshots = {row["play_row_id"]: row for row in bundle.snapshots}
-    missing = [row["id"] for row in bundle.plays if row["id"] not in snapshots]
-    if missing:
-        return tuple(str(index) for index in range(88))
-    for row in bundle.snapshots:
-        value = row.get("plays_csv_json")
-        if type(value) is not dict or set(value) != set(_SNAPSHOT_COLUMNS):
-            return tuple(str(index) for index in range(88))
+    events = _event_by_id(bundle)
+    if len(snapshots) != len(bundle.snapshots) or len(events) != len(bundle.events):
+        return unavailable
+    if set(snapshots) != {play["id"] for play in bundle.plays}:
+        return unavailable
+    for play in bundle.plays:
+        snapshot = snapshots[play["id"]]
+        event = events.get(play["source_event_id"])
+        value = snapshot.get("plays_csv_json")
+        if (
+            event is None
+            or type(value) is not dict
+            or set(value) != set(_SNAPSHOT_COLUMNS)
+        ):
+            return unavailable
+        if (
+            snapshot.get("tenant_id") != bundle.game["tenant_id"]
+            or snapshot.get("game_id") != bundle.game["id"]
+            or snapshot.get("source_event_id") != event["id"]
+            or event.get("ledger_kind") != "accepted"
+        ):
+            return unavailable
+        for key, expected in (
+            ("recording_generation", event["generation"]),
+            ("event_sequence", event["d2"]),
+            ("play_version", play["version"]),
+        ):
+            actual = snapshot.get(key)
+            if (
+                type(actual) is not int
+                or type(expected) is not int
+                or actual != expected
+            ):
+                return unavailable
     return ()
 
 

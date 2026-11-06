@@ -7,10 +7,11 @@ from collections.abc import Iterator
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import JSONResponse, StreamingResponse
 
-from pitchlog.api.tenant_access import require_tenant_access
+from pitchlog.api.request_presentation import require_presented_token
+from pitchlog.api.tenant_access import TenantMatchedRoute, require_tenant_access
 from pitchlog.exports.archive import prepare_play_archive
 from pitchlog.exports.play_export_csv import (
     build_play_export_tables,
@@ -21,10 +22,11 @@ from pitchlog.repositories.context import TenantContext
 from pitchlog.repositories.play_export import (
     PlayExportNotFound,
     read_play_export,
+    require_visible_export_game,
 )
 from pitchlog.repositories.transaction import play_export_read_scope
 
-router = APIRouter(tags=["毎球CSV"])
+router = APIRouter(tags=["毎球CSV"], route_class=TenantMatchedRoute)
 
 
 def _unavailable_response(columns: tuple[int, ...]) -> JSONResponse:
@@ -55,6 +57,8 @@ def _copy_archive(archive, output) -> None:
 )
 def download_play_csv(
     game_id: UUID,
+    request: Request,
+    value: Annotated[str, Depends(require_presented_token)],
     context: Annotated[TenantContext, Depends(require_tenant_access)],
 ) -> Response:
     """記録済み1試合の88列と全9サイドカーを単一ZIPで返す。"""
@@ -82,6 +86,32 @@ def download_play_csv(
     except PlayExportSupplyError:
         output.close()
         return _unavailable_response(tuple(range(88)))
+    except Exception:
+        output.close()
+        raise HTTPException(status_code=503) from None
+
+    # C2が保持する入口contextを再利用して「再認可済み」とはしない。
+    from pitchlog.repositories.tenant_context_issuance import (
+        issue_tenant_context_from_presented_token,
+    )
+
+    try:
+        fresh = issue_tenant_context_from_presented_token(
+            value,
+            request.app.state.token_presentation,
+        )
+        if fresh is None:
+            raise HTTPException(status_code=401)
+        if fresh[0].tenant_id != context.tenant_id:
+            raise HTTPException(status_code=404)
+        with play_export_read_scope(fresh[0]) as handle:
+            require_visible_export_game(handle, game_id)
+    except PlayExportNotFound:
+        output.close()
+        raise HTTPException(status_code=404) from None
+    except HTTPException:
+        output.close()
+        raise
     except Exception:
         output.close()
         raise HTTPException(status_code=503) from None

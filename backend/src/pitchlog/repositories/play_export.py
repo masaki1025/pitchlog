@@ -146,15 +146,54 @@ def _read_runners(
 
 
 def _read_events(session: Session, tenant: UUID, game_id: UUID):
-    """全受理イベント（置換/退役前を含む監査用）を読む。"""
+    """全受理原本を500行keysetで読む。NULL位置は独立id系列とする。"""
     table = OperationEvent.__table__
-    statement = (
-        select(*table.c)
-        .where(table.c.tenant_id == tenant, table.c.game_id == game_id)
-        .order_by(table.c.d2.asc().nulls_last(), table.c.id.asc())
-        .limit(2000)
-    )
-    return _rows(session, statement)
+    result: list[dict[str, Any]] = []
+    for null_position in (False, True):
+        cursor = None
+        while True:
+            statement = select(*table.c).where(
+                table.c.tenant_id == tenant,
+                table.c.game_id == game_id,
+                table.c.ledger_kind == "accepted",
+                table.c.d2.is_(None) if null_position else table.c.d2.is_not(None),
+            )
+            if null_position:
+                statement = statement.order_by(table.c.id.asc())
+                if cursor is not None:
+                    statement = statement.where(table.c.id > cursor[1])
+            else:
+                statement = statement.order_by(table.c.d2.asc(), table.c.id.asc())
+                if cursor is not None:
+                    statement = statement.where(
+                        or_(
+                            table.c.d2 > cursor[0],
+                            and_(table.c.d2 == cursor[0], table.c.id > cursor[1]),
+                        )
+                    )
+            rows = _rows(session, statement.limit(_PAGE))
+            result.extend(rows)
+            if len(rows) < _PAGE:
+                break
+            cursor = (rows[-1]["d2"], rows[-1]["id"])
+    return tuple(result)
+
+
+def require_visible_export_game(handle: _TenantTransaction, game_id: UUID) -> None:
+    """送出直前の新しいtenant snapshotで可視性だけを再照合する。"""
+    session, tenant = _session(handle)
+    table = Game.__table__
+    visible = session.execute(
+        select(table.c.id).where(
+            table.c.tenant_id == tenant,
+            table.c.id == game_id,
+            table.c.hidden_at.is_(None),
+            table.c.trashed_at.is_(None),
+            table.c.status.not_in(("hidden", "trashed")),
+        )
+    ).scalar_one_or_none()
+    if visible is None:
+        raise PlayExportNotFound("対象試合を取得できません")
 
 
 def _read_references(

@@ -5,8 +5,10 @@ CREATE TABLE public.play_export_snapshots (
   game_id uuid NOT NULL,
   play_row_id uuid NOT NULL,
   plays_csv_json jsonb NOT NULL,
-  recording_generation bigint NULL,
-  event_sequence bigint NULL,
+  source_event_id uuid NOT NULL,
+  play_version bigint NOT NULL CHECK (play_version > 0),
+  recording_generation bigint NOT NULL,
+  event_sequence bigint NOT NULL,
   captured_at timestamptz NOT NULL DEFAULT pg_catalog.now(),
   PRIMARY KEY (tenant_id, play_row_id),
   FOREIGN KEY (tenant_id, game_id)

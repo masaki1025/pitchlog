@@ -27,6 +27,7 @@ _MATCH_OPERATIONS = frozenset(
         "preparing_game_preparation_options",
         "pitch_type_options",
         "started_game_detail",
+        "game_play_csv_export",
         "initial_device_enroll",
         "initial_game_start",
         "initial_game_start_resolve",

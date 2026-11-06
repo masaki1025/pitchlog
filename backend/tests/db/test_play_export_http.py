@@ -135,18 +135,28 @@ def _insert_complete_snapshots(
     values = {header: "" for header in headers}
     values["打者登録名"] = "=1+1"
     rows = admin.execute(
-        "SELECT p.id, e.generation, e.d2 FROM public.play_rows p "
+        "SELECT p.id, e.generation, e.d2, p.source_event_id, p.version FROM public.play_rows p "
         "JOIN public.operation_events e "
         "ON e.tenant_id=p.tenant_id AND e.id=p.source_event_id "
         "WHERE p.tenant_id=%s AND p.game_id=%s ORDER BY p.play_number, p.id",
         (tenant, game),
     ).fetchall()
-    for play_id, generation, d2 in rows:
+    for play_id, generation, d2, source_event_id, version in rows:
         admin.execute(
             "INSERT INTO public.play_export_snapshots"
             "(tenant_id,game_id,play_row_id,plays_csv_json,"
-            "recording_generation,event_sequence) VALUES(%s,%s,%s,%s,%s,%s)",
-            (tenant, game, play_id, json.dumps(values), generation, d2),
+            "recording_generation,event_sequence,source_event_id,play_version) "
+            "VALUES(%s,%s,%s,%s,%s,%s,%s,%s)",
+            (
+                tenant,
+                game,
+                play_id,
+                json.dumps(values),
+                generation,
+                d2,
+                source_event_id,
+                version,
+            ),
         )
     return len(rows)
 
