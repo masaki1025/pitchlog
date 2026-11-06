@@ -344,3 +344,6 @@ xmin観測反映1の受理（2026-11-06 JST、PO委任Codex /root判断）: 初�
 
 
 先頭カーソルの実dispatcher接合修復（2026-11-06、PO委任によるCodex /root判断）: step3の既読取接続へ backend/src/pitchlog/repositories/function_operations.py と backend/tests/test_nonplay_prefix_read.py exact2を追補する。実HTTPS cc9b02f6の新規作成/開始/通常2球受理後、取消GET503のtraceが共通dispatcherのafter_order=0拒否を示した。token/既SQLは先頭0を定義済み。function_id=sync_right_api.read_nonplay_active_history かつ after_orderだけ0を通し、他関数/他項目/型/負値/上限/偽token拒否とSQL/ACLを保持。非作者report SHA8979f7aa77d34f19129bb9bb5ea347591ab7f5df96ab2472f749f480588eaae0、321境界試験＋独立負例で新指摘0。候補2file全SHAはcache nonplay-read-cursor-zero-root-20261106/files.json。同一候補のowned実HTTPSで復旧を再測するまで製品成功としない。PO本人確認/署名ではない。
+
+
+取消GET世代ロックの条件付き隔離実測（2026-11-06、PO委任Codex /root）: 独立4d0abb9b603a3b074a78f4b8e7e422c2e707a8507afa4a864827f68a72736463を根拠に、authz/nonplay_prefix_read_sql.py・tests/test_nonplay_prefix_read_sql.pyと公式BODIESが生成するread_nonplay_active_history同一identityのSQL1を候補WTへ供給して実測する。SQL差分は2句のFOR SHARE OF c,g→cのみ、全WHERE/CPロック/既GUC/tenant/role/GRANTは不変、公式APIは同handleで先行g lockを保持する。直接token/SQLにもg lockがあるとは主張しない。直接経路の完全旧snapshotまたは閉拒否/次回閉拒否、真正app role/別tenant、fnowner UPDATEg0/既権限の負対向が最終採用条件。既UI性能5秒失敗は別redとして維持する。新DBfixtureのUI returncode前提P1は最終機能marker＋実原本照合/既sourcepin/性能失敗理由限定へ直してから実行する。現段階は非作者条件付きPG試行で、正式asset受理/通常統合/全MVP成立ではない。
