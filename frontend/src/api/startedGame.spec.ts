@@ -448,13 +448,17 @@ it.each([
     expect(fetch).toHaveBeenCalledTimes(1)
   },
 )
-it('abort/通信断は成功へ変換せず、既clientの不確実Cookie処理を維持する', async () => {
-  const notice = vi.spyOn(useAuthStore(), 'invalidateUncertainCookie')
+it('同tokenのabortはverifiedを保持し、読取成功へ変換しない', async () => {
+  const auth = useAuthStore()
+  const epoch = auth.authEpoch
+  const notice = vi.spyOn(auth, 'invalidateUncertainCookie')
   vi.mocked(fetch).mockRejectedValue(new DOMException('中断', 'AbortError'))
   await expect(
     readStartedGame(id, new AbortController().signal),
   ).rejects.toThrow()
-  expect(notice).toHaveBeenCalledTimes(1)
+  expect(notice).not.toHaveBeenCalled()
+  expect(auth.isAuthenticated).toBe(true)
+  expect(auth.authEpoch).toBe(epoch)
   expect(fetch).toHaveBeenCalledTimes(1)
 })
 

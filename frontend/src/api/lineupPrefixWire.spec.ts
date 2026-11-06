@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { webcrypto } from 'node:crypto'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
-import vectors from '../../../contracts/state-transition/lineup_play_prefix_payload_vectors_v1.json'
+import vectors from './fixtures/currentLineupPrefixPayload.v1.json'
 import type {
   Request,
   Success,
@@ -106,7 +106,7 @@ it.each([
   ).rejects.toThrow()
 })
 
-import hitVectors from '../../../contracts/state-transition/batted_hit_prefix_cases_v1.json'
+import hitVectors from './fixtures/currentBattedHitPrefixCases.v1.json'
 import { sealLineupMetadata } from './lineupPrefixWire'
 import type { BattedHitObservations } from '../../../contracts/state-transition/lineup_play_prefix_payload_v1'
 it('先置き19手例を全12観測と対応結果へ束縛し、相関違反を拒否する', async () => {

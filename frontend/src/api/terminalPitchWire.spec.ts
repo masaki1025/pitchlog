@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { runInNewContext } from 'node:vm'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
-import vectors from '../../../contracts/state-transition/play_prefix_v2_payload_vectors.json'
+import vectors from './fixtures/currentPlayPrefixV2Payload.v1.json'
 import type { PlayPrefixV7 } from '../../../contracts/state-transition/play_prefix_v2_payload_v1'
 import { invokeFirstBallDomain } from '../lib/generated/wrappers/domainArtifact'
 import {

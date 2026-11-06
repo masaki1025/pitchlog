@@ -86,7 +86,8 @@ function providerProbe(
 }
 function assertClosed(wrapper: VueWrapper) {
   expect(wrapper.findComponent(GameScreen).exists()).toBe(false)
-  expect(wrapper.find('input').exists()).toBe(false)
+  // 復元入口の端末条件checkboxは記録入力ではない。
+  expect(wrapper.find('input:not([type=checkbox])').exists()).toBe(false)
   expect(wrapper.find('select').exists()).toBe(false)
   for (const b of wrapper
     .findAll('button')
@@ -549,7 +550,7 @@ it('別ownerのpending queryは一方のunmount/完了で取消・掃除され�
   }
 })
 
-it('unmount後の通信結果不明も実apiRequestで認証を未確認へ移し成功に置換しない', async () => {
+it('unmount後の同token通信結果不明はverifiedを保持し成功に置換しない', async () => {
   let fail!: (e: Error) => void
   fetchMock.mockImplementation(
     async () =>
@@ -569,10 +570,12 @@ it('unmount後の通信結果不明も実apiRequestで認証を未確認へ移�
   wrapper.unmount()
   await flushPromises()
   expect(useAuthStore(pinia).isAuthenticated).toBe(true)
+  const epoch = useAuthStore(pinia).authEpoch
   fail(new TypeError('unit no response'))
   await flushPromises()
-  expect(useAuthStore(pinia).isAuthenticated).toBe(false)
-  expect(useAuthStore(pinia).automaticVerificationBlocked).toBe(true)
+  expect(useAuthStore(pinia).isAuthenticated).toBe(true)
+  expect(useAuthStore(pinia).authEpoch).toBe(epoch)
+  expect(useAuthStore(pinia).automaticVerificationBlocked).toBe(false)
   expect(queryClient.getQueryCache().getAll()).toHaveLength(0)
   expect(fetchMock).toHaveBeenCalledOnce()
 })

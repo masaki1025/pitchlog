@@ -175,15 +175,16 @@ it('GET3供給後もPOSTは明示操作だけ、送信中の二重呼出しを�
   expect(router.currentRoute.value.path).toBe(`/games/${gameId}/record`)
   expect(posts()).toHaveLength(1)
 })
-it('応答消失は通常clientが認証を未確認に戻し、focus/onlineでPOSTを再送しない', async () => {
+it('同token応答消失はverifiedを保持し、focus/onlineでPOSTを再送しない', async () => {
   await start()
   fetchMock.mockImplementation(async (url, init) => {
     if (init?.method === 'POST') throw new TypeError('通信中断')
     return normal(url, init)
   })
+  const epoch = useAuthStore(pinia).authEpoch
   await provider.submit(payload)
-  expect(useAuthStore(pinia).isAuthenticated).toBe(false)
-  expect(provider.choices.value).toBeNull()
+  expect(useAuthStore(pinia).isAuthenticated).toBe(true)
+  expect(useAuthStore(pinia).authEpoch).toBe(epoch)
   expect(provider.created.value).toBeNull()
   window.dispatchEvent(new Event('focus'))
   window.dispatchEvent(new Event('online'))

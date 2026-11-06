@@ -30,13 +30,14 @@ const built = context.PitchlogDomain as {
 const invoke = (request: unknown) =>
   JSON.parse(built.deriveOrdinaryPitchWithContinuation(JSON.stringify(request)))
 
-it('宣言SHA一致の単一artifactが旧11口と打球1口を保持する', () => {
+it('宣言SHA一致の単一artifactが現行18口と旧数学口を保持する', () => {
   expect(createHash('sha256').update(bytes).digest('hex')).toBe(
     declaration.sha256,
   )
   expect(Object.isFrozen(built)).toBe(true)
   expect(Object.keys(built)).toEqual([
     'ping',
+    'applyGameLifecycle',
     'deriveState',
     'deriveOrdinaryPitch',
     'deriveTerminalPitch',
@@ -49,6 +50,10 @@ it('宣言SHA一致の単一artifactが旧11口と打球1口を保持する', ()
     'validateInitialGameRoster',
     'quantizeCourse',
     'applyUndo',
+    'applySubstitutionV1',
+    'deriveInitialSubstitutionStateV1',
+    'transitionSubstitutionV1',
+    'advanceSubstitutionAfterPitchV1',
   ])
 })
 
