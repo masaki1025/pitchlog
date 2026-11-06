@@ -342,6 +342,39 @@ actual_started_router.read_lineup_prefix = traced_p3_read
         p3_payload = {"recovery_generation": current["recovery_generation"],
                       "recording_right_proof": started["recording_right_proof"],
                       "change": change}
+        class PlannedP3Rollback(Exception):
+            pass
+
+        for crash in ("after_t2_event", "after_t4_projection"):
+            reached = []
+
+            def fail(point):
+                if point == crash:
+                    reached.append(point)
+                    raise PlannedP3Rollback()
+
+            runtime_diagnostics.update(stage="p3-fault-" + crash, status=None)
+            failed = None
+            try:
+                with testing_crash_hook(fail):
+                    failed = await client.post(
+                        "/games/" + game + "/sync/change",
+                        headers=device_headers(pair, str(uuid4())),
+                        json=p3_payload)
+            except PlannedP3Rollback:
+                pass
+            assert reached == [crash], ("p3-fault-not-reached", crash)
+            if failed is not None:
+                assert failed.status_code in (500, 503), (
+                    "p3-fault-response", crash, failed.status_code)
+            runtime_diagnostics.update(stage="p3-fault-read-" + crash,
+                                       status=None)
+            rolled = await client.get(
+                "/games/" + game + "/started?projection=play-prefix-v3&limit=100",
+                headers=headers())
+            runtime_diagnostics["status"] = rolled.status_code
+            assert rolled.status_code == 200 and rolled.json() == current, (
+                "p3-fault-rollback", crash, rolled.status_code)
         p3_headers = device_headers(pair, str(uuid4()))
         runtime_diagnostics.update(stage="p3-post", status=None)
         changed = await client.post("/games/" + game + "/sync/change",
@@ -382,6 +415,48 @@ actual_started_router.read_lineup_prefix = traced_p3_read
             "p3-conflict", conflicted.status_code, conflicted.text[:300])
         current = corrected_current
 __THIRD_PITCH__
+        runtime_diagnostics.update(stage="foreign-login", status=None)
+        async with AsyncClient(
+            transport=ASGITransport(app=app), base_url="https://test"
+        ) as foreign_client:
+            foreign_login = await login(foreign_client, case["other_team_name"])
+            runtime_diagnostics["status"] = foreign_login.status_code
+            assert foreign_login.status_code == 200, (
+                "foreign-login", foreign_login.status_code)
+            foreign_headers = headers()
+            foreign_headers["X-Pitchlog-Expected-Tenant"] = (
+                case["other_tenant_id"])
+            runtime_diagnostics.update(stage="foreign-read", status=None)
+            denied_read = await foreign_client.get(
+                "/games/" + game + "/started?projection=play-prefix-v3&limit=100",
+                headers=foreign_headers)
+            runtime_diagnostics["status"] = denied_read.status_code
+            assert denied_read.status_code == 404, (
+                "foreign-read", denied_read.status_code)
+            assert not {"after", "runners", "prefix_ref", "page"} & set(
+                denied_read.json())
+            enrolled_foreign = await foreign_client.post(
+                "/devices/enroll", headers=foreign_headers)
+            assert enrolled_foreign.status_code == 200, (
+                "foreign-enroll", enrolled_foreign.status_code)
+            foreign_device = device_headers(enrolled_foreign.json(), str(uuid4()))
+            foreign_device["X-Pitchlog-Expected-Tenant"] = (
+                case["other_tenant_id"])
+            runtime_diagnostics.update(stage="foreign-p3-replay", status=None)
+            denied_replay = await foreign_client.post(
+                "/games/" + game + "/sync/change",
+                headers=foreign_device, json=p3_payload)
+            runtime_diagnostics["status"] = denied_replay.status_code
+            assert denied_replay.status_code == 404, (
+                "foreign-p3-replay", denied_replay.status_code)
+            assert "confirmedContent" not in denied_replay.json()
+        runtime_diagnostics.update(stage="owner-final-get", status=None)
+        owner_again = await client.get(
+            "/games/" + game + "/started?projection=play-prefix-v3&limit=100",
+            headers=headers())
+        runtime_diagnostics["status"] = owner_again.status_code
+        assert owner_again.status_code == 200 and owner_again.json() == current, (
+            "owner-final-get", owner_again.status_code)
         runtime_diagnostics.update(stage="complete", status=200)
         from pitchlog.authz import p3_projection_sql as actual_p3_sql
         from pitchlog.repositories import past_correction_source as actual_p3_source
