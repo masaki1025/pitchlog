@@ -417,6 +417,13 @@ def _accepted_pitch_speed(identity: RecordedPlayIdentity) -> str | None:
                         "course_x",
                         "course_y",
                         "stance",
+                        "batting_side",
+                        "batted_ball_type",
+                        "batted_ball_strength",
+                        "hit_x",
+                        "hit_y",
+                        "raw_fielder_position",
+                        "resolved_fielder_id",
                     )
                 )
                 or identity.course_screen != (None, None)

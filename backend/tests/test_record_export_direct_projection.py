@@ -81,6 +81,7 @@ def _identity():
             "batting_result_key": "strikeout_looking",
             "raw_error_position": "7",
             "comment": "記録時コメント",
+            "resolved_fielder_id": None,
         }
     )
     away_ids = [BATTER, *(UUID(int=100 + index) for index in range(2, 10))]
@@ -255,6 +256,8 @@ def test_recorded_non_pitch_uses_saved_kind_without_pitch_only_fill():
     identity = _identity()
     identity.play["event_kind"] = "non_pitch"
     identity.play["batting_result_key"] = "batting-result.intentional-walk"
+    identity.play["raw_error_position"] = None
+    identity.play["comment"] = None
     identity = replace(
         identity,
         course_screen=(None, None),
@@ -274,10 +277,16 @@ def test_recorded_non_pitch_uses_saved_kind_without_pitch_only_fill():
     assert values["球速"] is None
     assert values["球種"] is None
     assert values["コースX"] is None and values["コースY"] is None
-    identity.play["pitch_speed"] = 1.0
-    with pytest.raises(RecordedExportProjectionUnavailable):
-        project_recorded_direct(identity)
-    identity.play["pitch_speed"] = None
+    for field, value in (
+        ("pitch_speed", 1.0),
+        ("pitch_type_key", "pitch.fastball"),
+        ("batting_side", "右"),
+        ("hit_x", 0.5),
+    ):
+        identity.play[field] = value
+        with pytest.raises(RecordedExportProjectionUnavailable):
+            project_recorded_direct(identity)
+        identity.play[field] = None
     identity.play["event_kind"] = "control"
     with pytest.raises(RecordedExportProjectionUnavailable):
         project_recorded_direct(identity)
