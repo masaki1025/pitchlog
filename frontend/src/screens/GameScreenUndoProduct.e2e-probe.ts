@@ -80,10 +80,12 @@ document.addEventListener(
             tenant: standard.prefix_ref.tenantId === content.scope.tenantId,
             game: standard.id === packet.id,
             generation: standard.current_d4 === packet.current_d4,
-            checkpointId:
+            inputCheckpointId:
               standard.prefix_ref.checkpoint.id === packet.checkpoint.ref.id,
+            checkpointId:
+              standard.checkpoint_anchor?.id === packet.checkpoint.ref.id,
             checkpointRevision:
-              standard.prefix_ref.checkpoint.revision ===
+              standard.checkpoint_anchor?.revision ===
               packet.checkpoint.ref.revision,
             nextD1: standard.next_position.d1 === packet.next_position.d1,
             recovery:

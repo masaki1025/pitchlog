@@ -356,3 +356,8 @@ xmin観測反映1の受理（2026-11-06 JST、PO委任Codex /root判断）: 初�
 
 
 実画面観測の最小追補（2026-11-06、PO委任Codex/root判断）: r17で新ACL等PG3成功・GET200まで前進、frontend原本検査の閉拒否を観測するためE2E専用GameScreenUndoProduct.e2e-probe.tsを対象へ加える。既純validatorを同一origin外部moduleのstatic importで使い、requestId一致のshape/completeSource booleanだけを返す。r18のNode JSON import失敗、r19のinline CSP拒否は観測未達として保全し、CSP/検査/期待を緩めない。製品bundle/writer/資格/保存結果に代替を入れず、実画面の成功は従来の全assertionで判定する。
+
+
+### 2026-11-06 保存済みcheckpoint照合の是正（step3付記）
+
+PO委任によるCodex主担当/root判断で、a099ff6b上の2path候補（差分SHA256 f9efd563a4eb17ded88665784f19cd00ab55b9455f4985e9996877d85b00709f）を採用する。非作者REPORTはcache nonplay-current-checkpoint-compare-independent-20261106/REPORT.md、SHA256 296ecf6981aca3b432efa5dbaa0f3eccfbc5ae246a2a085f22d5ca7c783b2e1a、P0/P1/P2各0。入力CPと保存後CPを混同せず、通常readのcheckpoint_anchorと取消readの現在CPを照合する。tenant/game/generation/状態/履歴/epoch等の既照合は保持。17試験と旧2行へ戻す反例2件を確認済み。診断probeは入力CP比較を別名として保持し保存CP比較を明示する（観測のみ）。本人確認・P6blind・実画面成功の代替ではない。次は同一固定HEAD・owned PGで2球→取消→連続取消→次球→reloadを検証する。

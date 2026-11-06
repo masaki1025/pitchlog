@@ -224,3 +224,132 @@ it('independent: 新undo GETが完全Sourceを返すlegacy2球から初回取消
   expect(result.source.activeStack).toHaveLength(2)
   expect(result.storedNative).toBe(false)
 })
+
+import recordedLegacy from './fixtures/lineupPrefixGame.recorded.v3.json'
+import { STARTED_GAME_BASE_KEYS } from './startedGame'
+import { isLineupPrefixGame } from './lineupPrefixGame'
+
+function legacyUndoPair() {
+  // 既契約Sourceと既DTOを使う輸送試験。野球計算の期待値を生成しない。
+  const game = undoRead(2),
+    content = game.checkpoint.content
+  const standard: Record<string, unknown> = structuredClone(
+    recordedLegacy.value,
+  )
+  for (const key of STARTED_GAME_BASE_KEYS) standard[key] = game[key]
+  Object.assign(standard, {
+    read_kind: 'lineup-prefix',
+    after: game.after,
+    rules: content.restored.rules,
+    lineup: content.restored.lineup,
+    participants: content.restored.participants,
+    runners: content.restored.runners,
+    roster_digest: content.restored.rosterDigest,
+    prefix_ref: {
+      ...recordedLegacy.value.prefix_ref,
+      tenantId: content.scope.tenantId,
+      gameId: game.id,
+      generation: game.current_d4,
+      historyVersion: content.historyVersion,
+      checkpoint: {
+        ...recordedLegacy.value.prefix_ref.checkpoint,
+        revision: game.checkpoint.ref.revision,
+      },
+      origin: {
+        ...recordedLegacy.value.prefix_ref.origin,
+        eventId: game.checkpoint.ref.id,
+      },
+    },
+    checkpoint_anchor: {
+      id: game.checkpoint.ref.id,
+      revision: game.checkpoint.ref.revision,
+      history_version: content.storageHistoryEpoch,
+    },
+    storage_anchor: {
+      id: game.checkpoint.ref.id,
+      history_epoch: content.storageHistoryEpoch,
+    },
+    next_position: game.next_position,
+    recovery_generation: game.recovery_generation,
+    append_policy: game.append_policy,
+    last_saved_at: game.last_saved_at,
+    page: { items: [], next_cursor: null },
+  })
+  // この既SourceのDH・1番DH配置を、輸送metadataにも明示する。
+  standard.applied_rules = {
+    ...game.applied_rules,
+    regulationInnings: Number(content.restored.rules.regulationInnings),
+    extensionLimit: Number(content.restored.rules.extensionLimit),
+    dh: content.restored.rules.dh,
+  }
+  standard.roster = {
+    teams: (['away', 'home'] as const).map((side) => {
+      const lineup = content.restored.lineup[side]
+      return {
+        side,
+        team_id: lineup.teamId,
+        participants: [
+          ...Object.entries(lineup.battingOrder).map(([slot, playerId]) => ({
+            player: { kind: 'official', player_id: playerId },
+            batting_slot: { kind: 'slot', slot },
+            roles:
+              slot === '1'
+                ? [{ kind: 'designated-hitter' }]
+                : [{ kind: 'fielding', position: slot }],
+            entry_origin: { kind: 'initial' },
+          })),
+          {
+            player: { kind: 'official', player_id: lineup.pitcherId },
+            batting_slot: { kind: 'none' },
+            roles: [{ kind: 'fielding', position: '1' }],
+            entry_origin: { kind: 'initial' },
+          },
+        ],
+      }
+    }),
+  }
+  expect(isLineupPrefixGame(standard)).toBe(true)
+  if (!isLineupPrefixGame(standard)) throw new Error('試験用legacy DTOが不正')
+  expect(standard.prefix_ref.checkpoint.id).not.toBe(
+    standard.checkpoint_anchor?.id,
+  )
+  return { game, standard }
+}
+
+it('legacy入力CPと保存CPが異なっても実保存anchorで取消原本を照合する', async () => {
+  const { game, standard } = legacyUndoPair()
+  mockedFetch((_cursor, projection) =>
+    projection === 'play-prefix-v3' ? standard : game,
+  )
+  const value = await readCompleteUndoGame(
+    game.id,
+    game.checkpoint.content.scope.tenantId,
+  )
+  expect(value.source.checkpoint).toEqual(game.checkpoint)
+  expect(value.storedNative).toBe(false)
+})
+
+it('入力CPが一致しても保存CPが別なら取消原本へ接続しない', async () => {
+  const { game, standard } = legacyUndoPair()
+  const other = recordedLegacy.value.checkpoint_anchor.id
+  const wrong = {
+    ...standard,
+    prefix_ref: {
+      ...standard.prefix_ref,
+      checkpoint: {
+        ...standard.prefix_ref.checkpoint,
+        id: game.checkpoint.ref.id,
+      },
+      origin: { ...standard.prefix_ref.origin, eventId: other },
+    },
+    checkpoint_anchor: { ...standard.checkpoint_anchor!, id: other },
+    storage_anchor: { ...standard.storage_anchor!, id: other },
+  }
+  expect(isLineupPrefixGame(wrong)).toBe(true)
+  mockedFetch((_cursor, projection) =>
+    projection === 'play-prefix-v3' ? wrong : game,
+  )
+  await expect(
+    readCompleteUndoGame(game.id, game.checkpoint.content.scope.tenantId),
+  ).rejects.toThrow('派生CPと保存原本')
+})
