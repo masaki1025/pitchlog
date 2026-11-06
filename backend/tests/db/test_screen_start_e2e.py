@@ -380,6 +380,8 @@ def _run_playwright(
     origin: str,
     stem: str,
     extra_env: dict[str, str] | None = None,
+    *,
+    timeout_seconds: int = 600,
 ) -> subprocess.CompletedProcess[str]:
     """実ブラウザspecを実行し、失敗時は実測logを残す。"""
     result = subprocess.run(  # noqa: S603
@@ -402,7 +404,7 @@ def _run_playwright(
         },
         capture_output=True,
         text=True,
-        timeout=600,
+        timeout=timeout_seconds,
     )
     (_LOGS / f"{stem}-playwright.log").write_text(result.stdout + "\n" + result.stderr)
     return result
