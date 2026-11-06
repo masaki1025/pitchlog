@@ -245,28 +245,7 @@ test('実画面の新規作成→開始→2球→ACK喪失/reload/同要求再�
   const undoPacket: unknown = await undoReadResponse.json()
   await page.addScriptTag({
     type: 'module',
-    content: `
-      import { isNativeUndoGame, completeUndoSource } from '/src/api/nativeUndoGame.ts';
-      document.getElementById('pitchlog-undo-read-probe')?.remove();
-      const output = document.createElement('output');
-      output.id = 'pitchlog-undo-read-probe';
-      output.hidden = true;
-      document.body.append(output);
-      document.addEventListener('pitchlog-undo-read-probe', async (event) => {
-        const { packet, requestId } = event.detail;
-        const checks = { shape: isNativeUndoGame(packet), completeSource: false };
-        if (checks.shape) {
-          try {
-            await completeUndoSource(packet, packet.checkpoint.content.scope.tenantId);
-            checks.completeSource = true;
-          } catch {
-            checks.completeSource = false;
-          }
-        }
-        output.textContent = JSON.stringify(checks);
-        output.dataset.requestId = requestId;
-      }, { once: true });
-    `,
+    url: '/src/screens/GameScreenUndoProduct.e2e-probe.ts',
   })
   const requestId = 'undo-read-' + Date.now()
   await page.evaluate(
