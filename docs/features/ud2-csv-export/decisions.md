@@ -8,7 +8,7 @@
 
 新規コースの例は保存kx=132/ky=66（各単位1/263）→画面x=132/y=197。元の0.5/0.25例は新規正準表現ではなく、Y=65.75という例も反転漏れで削除。B-7の保存→画面/A-1丸めの唯一operationへ委譲し、CSVのPythonで換算/roundを再実装しない。NULLは保存NULL、正準0は有効点であり旧取り込みセンチネルにしない。
 
-既`courseQuantization.ts`はタップ→正準kの入力形成で、出力逆変換operationではない。未公開の保存→画面供給は**現行D-1の宣言モデル→Python/TSの生成target**として追加する。人手保守元は`backend/domain/play-export.model.json`、呼出targetは`backend/src/pitchlog/exports/generated/coordinate_transform.py`。B-7既規範と生成器実現方式を区別し、D-14-mの同JS artifact先行例外を出力変換へ広げない。対象別契約/独立期待値/検査基盤を先に受理し、正本/生成物/呼出部/3層を同一変更へ揃える。D-1表現不能が判明しD-2が必要な場合のみ、対象を名指すADR/要件正式化・該当確定ゲートを計算コード追加前に行う。詳細は[supply-matrix.md](supply-matrix.md) G03/G10と末尾方式表。
+既`courseQuantization.ts`はタップ→正準kの入力形成で、出力逆変換operationではない。未公開の保存→画面供給は**現行D-1の宣言モデル→Python/TSの生成target**として追加する。2026-11-07のPO委任によるCodex主担当/root技術判断では、人手保守元をT5正本と独立した`backend/domain/play-export-display.model.json`へ限定し、呼出targetは`backend/src/pitchlog/exports/generated/coordinate_transform.py`とする。旧T5 `play-export.model.json`/commonModelHash/v3保存profileと27数学値は変更しない。B-7既規範と生成器実現方式を区別し、D-14-mの同JS artifact先行例外を出力変換へ広げない。対象別契約/独立期待値/検査基盤を先に受理し、正本/生成物/呼出部/3層を同一変更へ揃える。D-1表現不能が判明しD-2が必要な場合のみ、対象を名指すADR/要件正式化・該当確定ゲートを計算コード追加前に行う。詳細は[supply-matrix.md](supply-matrix.md) G03/G10と末尾方式表。
 
 打球はB-6/field geometryの別適用領域をG10に固定し、コースのk263を領域頂点へ推測転用しない。具体的な型/geometry bindingは主担当の技術受理対象。規範に無い新しい記録結果が必要となる具体ケースだけを別に戻す。移行非正準値の原字面復元はB-7の往復恒等対象外で、今回新規MVPの条件に足さない。
 

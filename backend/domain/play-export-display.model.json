@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "geometryPath": "contracts/display_geometry_263_v1.json",
+  "geometrySha256": "e0c4d336e169e567325c4fd645f595ae856b4bbd7e9be3e5cde53515ff8901f6",
+  "exportTransforms": [
+    {
+      "id": "courseScreen",
+      "kind": "bounded-integer-axis-map",
+      "sourceUnit": "1/263",
+      "size": 263,
+      "axes": {
+        "x": "identity",
+        "y": "complement"
+      }
+    }
+  ]
+}

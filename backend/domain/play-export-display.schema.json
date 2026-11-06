@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "毎球CSV専用の有限画面変換宣言",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "geometryPath", "geometrySha256", "exportTransforms"],
+  "properties": {
+    "schemaVersion": {"const": 1},
+    "geometryPath": {"const": "contracts/display_geometry_263_v1.json"},
+    "geometrySha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "exportTransforms": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "kind", "sourceUnit", "size", "axes"],
+        "properties": {
+          "id": {"const": "courseScreen"},
+          "kind": {"const": "bounded-integer-axis-map"},
+          "sourceUnit": {"const": "1/263"},
+          "size": {"const": 263},
+          "axes": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["x", "y"],
+            "properties": {
+              "x": {"const": "identity"},
+              "y": {"const": "complement"}
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -26,6 +26,8 @@ created: 2026-11-04
 
 - `backend/src/pitchlog/exports/csv.py::stream_csv`と既54試験相当の契約を再利用。CSVの数式無害化・BOM/CRLF/NULLを作り直さない。
 - 旧`/home/ymdms/projects/Baseball_Scoring/config.py::COLUMN_NAMES`をAST literalで読み、**88列をそのまま**[columns.candidate.json](columns.candidate.json)に固定した。モジュール実行なし。列の意味は版固定`docs/legacy/research/data-layer.md` §2、保存先は正式`docs/design/data-model.md` §12-1/12-2。55はエラー野手、60はコメント、7=後攻/8=先攻を守る。
+
+- B-7表示座標の技術配置追補（2026-11-07、PO委任によるCodex主担当/root判断）: 既承認のD-1有限宣言/生成方式を維持し、T5 `canonicalEventFacts` から直交する表示宣言を `backend/domain/play-export-display.model.json` へ分離する。`play-export.model.json` のT5共通hash・旧v3保存profile・27数学goldenは変更しない。専用schema/manifestでgeometry契約と生成器/両targetを全byte束縛し、B-7既42例のうち正準保存→画面16例を独立期待として照合する。これはB-7の意味改訂ではなく、本計画の生成入力配置だけの追補である。新表示targetの正式受理・製品接続は候補検査と分ける。
 - TSK-271成果`docs/features/legacy-column-mapping/research.md`は意味・センチネル調査として利用し、調査の承認を88列正式写像の承認には読み替えない。旧U-G1/U-D2には利用可能な専用製品コード・正式schemaを今回の対象検索で確認できていない。
 - 正式PlayRowに保存列はあるが、10–19/33–34/59/61–62/73–75/77/86–87等は正規計算側の完成値、20–25/36–38は走者結合、63–71は履歴の選手名/背番号、78–85は各プレイ時点の名簿を要する。CSV側はT1をリプレイ/再判定せず、T1/表示/既存座標正本の**受理済み投影**を受け取る。公開投影の無い箇所は[supply-matrix.md](supply-matrix.md) G03/G04の現行D-1宣言/生成target・共通DB primitiveを本計画で追加する。既存保存状態を読み出す抽出と、入力から状態を再計算することを区別する。
 - 未供給をNULL・0・現在名簿・初期配列で埋めない。全88列のsource_receipt（提供者、型、保存場所、対象SHA、NULLの意味、照合fixture）を埋める。供給不足は構造化した非成功で返し、部分的88列を製品完成としない。供給の欠測はsupply-matrixへ列群単位で固定し、rootが所有する同計画の有限追加producer/adapterで閉じる。既ownerの未回答を無期限待機しない。既T1/T2の記録結果の意味は変更せず、その受理済み出力を利用する。
@@ -50,7 +52,7 @@ DB読取中に一時ファイルへ各CSVを有限バッチで書き、ZIPを完
 
 候補正式schema: `contracts/exports/{play_columns_v1,play_sidecars_v1}.json`と対応golden。実装前のstep1でこの候補から受理して配置する。契約追加に必要な個別ゲートを通し、TSK-250既所有を黙って上書きしない。
 
-追加単一供給の範囲は現行**ADR-003 D-1/D-1-d**へ固定する。唯一の人手保守元は`backend/domain/play-export.model.json`、必要な既生成器/型schemaの限定拡張は`backend/domain/model.schema.json`・`backend/src/pitchlog/domaingen/{core.py,backends/python.py,backends/typescript.py,backends/sql.py}`。生成targetは`backend/src/pitchlog/exports/generated/{coordinate_transform.py,play_primitives.sql,play_formatter.py}`と対応TS参照target、manifest。`exports/record_projection.py`は保存T1のfield抽出/型検証/完成値直列化だけを行う。新規`frontend/src/domain/coordinateTransform.ts`/`recordExportProjection.ts`の手書きTS正本や同JS artifact追加は**この計画から撤去**した。
+追加単一供給の範囲は現行**ADR-003 D-1/D-1-d**へ固定する。T5/DB primitiveの唯一の人手保守元は`backend/domain/play-export.model.json`、B-7表示座標だけは上記追補により`backend/domain/play-export-display.model.json`とする。B-7の必要な有限生成器/型schemaは`backend/src/pitchlog/domaingen/export_coordinate.py`・`backend/domain/play-export-display.schema.json`、DB primitiveの必要な既生成器/型schemaの限定拡張は`backend/domain/model.schema.json`・`backend/src/pitchlog/domaingen/{core.py,backends/python.py,backends/typescript.py,backends/sql.py}`。生成targetは`backend/src/pitchlog/exports/generated/{coordinate_transform.py,play_primitives.sql,play_formatter.py}`と対応TS参照target、manifest。`exports/record_projection.py`は保存T1のfield抽出/型検証/完成値直列化だけを行う。新規`frontend/src/domain/coordinateTransform.ts`/`recordExportProjection.ts`の手書きTS正本や同JS artifact追加は**この計画から撤去**した。
 
 球数/各回scoreはrootがT5の既確定primitive供給担当として、`repositories/play_export_primitives.py::ReadPlayExportPrimitives`の単一入口を提供する。宣言reducerから生成するSQLだけが同RR snapshot内でWHERE/GROUP BY/window+索引により計算する。CSV/T5はこの同じ事実供給を消費する。Python/JSへ全イベントをページで渡し累積することは禁止。型/選択集合/取消・訂正・世代/論理順序と500境界はsupply-matrix G04-Aへ固定。T5全体・未決OPS/登板/打者数は対象外。
 
