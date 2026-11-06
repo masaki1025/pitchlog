@@ -49,12 +49,23 @@ afterEach(() => {
 })
 
 function respond(body: string, status = 200): void {
-  vi.mocked(fetch).mockResolvedValue(
-    new Response(body, {
+  vi.mocked(fetch).mockImplementation(async (_input, init) => {
+    const challenge = new Headers(init?.headers).get(
+      'X-Pitchlog-Tenant-Challenge',
+    )
+    return new Response(body, {
       status,
-      headers: { 'Content-Type': 'application/json' },
-    }),
-  )
+      headers: {
+        'Content-Type': 'application/json',
+        ...(challenge === null
+          ? {}
+          : {
+              'X-Pitchlog-Tenant-Match': '1',
+              'X-Pitchlog-Tenant-Challenge': challenge,
+            }),
+      },
+    })
+  })
 }
 
 async function openIsolatedQueue(): Promise<DurableQueue> {
@@ -124,6 +135,13 @@ describe('E-1 への送信', () => {
     expect(vi.mocked(fetch)).toHaveBeenCalledTimes(1)
     expect(vi.mocked(fetch).mock.calls[0]?.[0]).toBe(
       `/api/games/${gameId}/sync/events`,
+    )
+    const headers = new Headers(vi.mocked(fetch).mock.calls[0]?.[1]?.headers)
+    expect(headers.get('X-Pitchlog-Expected-Tenant')).toBe(
+      useAuthStore().teamId,
+    )
+    expect(headers.get('X-Pitchlog-Tenant-Challenge')).toMatch(
+      /^[0-9a-f-]{36}$/,
     )
     expect((vi.mocked(fetch).mock.calls[0]?.[1] as RequestInit).method).toBe(
       'POST',

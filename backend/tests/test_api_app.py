@@ -303,3 +303,19 @@ def test_untrusted_rg1_configuration_does_not_enable_writes(
     with pytest.raises(rg1_lifecycle.RG1ControlUnavailable):
         api_app.create_app()
     assert rg1_lifecycle._runtime_client is None
+
+
+def test_sync_events_is_real_c2_matched_route():
+    """保存と保存済再掲の双方を同一認証・tenant照合済みrouteへ限定する。"""
+    from pitchlog.api.tenant_access import _MATCH_OPERATIONS, TenantMatchedRoute
+
+    routes = [
+        r
+        for router in api_app.ROUTERS
+        for r in router.routes
+        if isinstance(r, APIRoute) and r.operation_id == "sync_events"
+    ]
+    assert len(routes) == 1
+    assert isinstance(routes[0], TenantMatchedRoute)
+    assert routes[0].methods == {"POST"}
+    assert "sync_events" in _MATCH_OPERATIONS
