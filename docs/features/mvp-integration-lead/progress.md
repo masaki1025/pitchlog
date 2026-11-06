@@ -1,5 +1,13 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 受領と製品source接合：2026-11-06T12:30:14.312477+09:00
+
+- **外部成績成果を実受領**: feature/mvp-basic-stats-csv `41507aa09592ff8d7422008b6d2a88e79027eba5` をGit実照合、clean・basea018から28path/4228追加行。送付だけの状態から成果受領へ更新する。intake JSONに全path/SHA/diffを固定。候補25/27（登板/BF source不足）、試合別/暦年CSV、T5component再利用を含む。test-only finalize/試験注入router/tokenは製品提供としない。独立stats_external_intakeが共有generator/終了provider/既レビュー残件を確認中、actual採用/PR/正式提供は未了。
+- **取消sourceをactualへ保存**: 非作者01aeec0c/checks1eb7be22/seal d4931845後、plan48a251d1→bootstrap GET6+followup1を682d0c2a→UI反映1新17をe4b70882へコミット。全24before/after/独立sealを先に照合し、初回原反例と12不変pathを保持。root actual同版で読取3module89成功15.20秒・backend型0、UI6module58成功4.98秒・vue-tsc0。host mount/正式asset/owned実画面/断中新規連鎖は残る。
+- **次の実接合材料**: current42実sourceから公式ADDITIONS/BODIESでproduct asset/body71候補をcache導出、非作者np_assets_sol_independentが最小権限/全旧値/SQLを確認。repo/runtimeの新7宣言もproposalのみ。初回全function走査なら旧private21まで余分登録することをrootが検出し、actualへ適用せず保全、新NP7だけへ制限して再提案した。
+- **終了再開作者成果受領**: packet2f464208…の40path候補と実HTTP用testを受領。55新規/510旧pure・実artifact連結2成功は保持、PG/画面未実。正式契約/0043/ACL・bootstrap sharedjoinをrootが先に揃え、真正終了/再開→二追記→再終了の実測へ進む。
+- **混雑**: 一部旧非作者taskはSelected model is at capacityでterminal、完了扱いにしない。適用ADR-001決定表に従いsol xhighの新非作者を分離起動し、registry source2・product71・外部stats28を並行確認中。Goal active、正式developの提供範囲は変更なし。
+
 ## 続行固定点：2026-11-06T11:30:11.487187+09:00（認可oracle実反映、取消UI反映1の独立確認）
 
 - **実反映**: 成績nativeは `36d1e92b` の限定委任受理後、公式builder/validatorでoracleを再生成し、独立候補8全byte一致を確認、policy197追記と共に `b5669d3f` へ保存。通常認可CLIは total1434/auth187/out1247/db191/routes53/cells12/oracle202/probe33/contract169/mutants235/cutsets24で成功。初回CLI --reseal-oracleは旧sealのanchorを維持するためcontext不一致で停止し、その失敗を保持。承認対象のanchorだけseedへ供給して公式builderで再生成し照合した。人間署名や本人逐行確認にはしていない。
