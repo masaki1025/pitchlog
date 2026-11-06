@@ -40,6 +40,7 @@ async function login(page: Page): Promise<string> {
 test('実画面の新規作成→開始→2球→ACK喪失/reload/同要求再送→2取消→次球/reload', async ({
   page,
 }) => {
+  const syncDurationsMs: number[] = []
   page.setDefaultTimeout(30_000)
   if (new URL(baseURL!).protocol !== 'https:')
     throw new Error('実HTTPSが必要です')
@@ -181,16 +182,18 @@ test('実画面の新規作成→開始→2球→ACK喪失/reload/同要求再�
     await expect(pitch.locator('option')).not.toHaveCount(1)
     await pitch.selectOption({ index: 1 })
     await page.getByTestId('first-ball-course').locator('svg').click()
+    const syncStarted = Date.now()
     const posted = page
       .waitForResponse(
         (res) =>
           res.request().method() === 'POST' &&
           apiPath(res.url()) === `/api/games/${saved.id}/sync/events`,
-        { timeout: 10_000 },
+        { timeout: 30_000 },
       )
       .catch(() => null)
     await page.getByTestId('first-ball-save').click()
     const response = await posted
+    syncDurationsMs.push(Date.now() - syncStarted)
     console.log(
       'PITCHLOG_UNDO_ORDINARY_HTTP=' +
         JSON.stringify({
@@ -208,21 +211,6 @@ test('実画面の新規作成→開始→2球→ACK喪失/reload/同要求再�
           status: await page.getByTestId('first-ball-status').textContent(),
         }),
     )
-    if (response === null) {
-      // 元の10秒条件は失敗のまま保持し、遅延応答の有無だけ追加観測する。
-      const late = await page
-        .waitForResponse(
-          (res) =>
-            res.request().method() === 'POST' &&
-            apiPath(res.url()) === `/api/games/${saved.id}/sync/events`,
-          { timeout: 30_000 },
-        )
-        .catch(() => null)
-      console.log(
-        'PITCHLOG_UNDO_LATE_HTTP=' +
-          JSON.stringify({ pitch: n, http: late?.status() ?? null }),
-      )
-    }
     expect(response).not.toBeNull()
     expect(response!.status()).toBe(200)
     const ack = await response!.json()
@@ -291,4 +279,8 @@ test('実画面の新規作成→開始→2球→ACK喪失/reload/同要求再�
   await expect(panel.getByTestId('undo-product-balls')).toHaveText('1')
   await expect(panel.getByTestId('undo-product-depth')).toHaveText('1')
   console.log('PITCHLOG_UNDO_PRODUCT_GAME=' + saved.id)
+  console.log(
+    'PITCHLOG_UNDO_SYNC_DURATIONS_MS=' + JSON.stringify(syncDurationsMs),
+  )
+  expect(syncDurationsMs.every((elapsed) => elapsed <= 5_000)).toBe(true)
 })
