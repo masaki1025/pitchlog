@@ -391,3 +391,6 @@ r37の旧v3物理digest修復（2026-11-06、PO委任Codex/root判断）: stats_
 
 
 r38は真正DBでundo D1=3・accepted台帳3件まで成功、SQL例外なし。ACKをヘッダー前に喪失させる既E2E注入は、既clientのcookieMayRenew規定により認証再確認へ遷移するため、同画面でpendingを待つ試験前提が誤り。認証失効を緩めず、実画面loginで同tenant再確認→元試合へ戻る→耐久pending/保存後1ball→reload→同要求再送の経路へ変更。backend受理だけを全E2E成功へ広げず、r38外側試験は1failedのまま保持する。PO委任rootの検査接続是正、ヘッダー喪失の故障条件を本文喪失へ弱めない。
+
+
+r40再認証後の試験遷移是正: login helperが既routerの元試合redirectを/gamesへ上書きし、一覧のCookie更新可能GET中に強制page.gotoでrecordへ移動していた。中断したGETを既clientがCookie不確実として再認証へ戻すため、実login redirectを元の試合URLへ直接指定する。保存・認可・authStore・拒否条件は変更しない。r40はaccepted undo維持だが全列1failed、成功へ読み替えない。
