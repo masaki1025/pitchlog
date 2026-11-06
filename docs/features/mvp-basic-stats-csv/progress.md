@@ -101,6 +101,17 @@
 | 毎球/プレイCSV 88列 | 未接続 | `ud2-csv-export` step2〜5（DB抽出/HTTP/ZIP/画面DL）。step1の `play_rows.py`/`archive.py` を再利用 |
 | 実ブラウザ/実機/性能 | 未実施 | 実Vite/Chromium/端末、15万play/同時負荷、CSV大容量/切断 |
 
+## 5-1. マージ前ゲートの実測
+
+- `uv run python scripts/check_tenant_boundary_bypass.py --base-ref a018b896` は
+  **「固定tupleのreadonly原典全byteが不一致」で失敗**した。原因は新規
+  `ReadBasicStatsToken` を `contracts/tenant_boundary/repository-contract.json` と
+  生成 `repository_contract.py` に未登録のまま、runtime registryだけに追加しているため。
+  共有tenant資産を直接編集しない指示に従い、`candidates/authz-diff.md` の差分を主担当が
+  正式導出するまで本枝は**マージ不可**。この失敗を成功扱いしない。
+- `scripts/core_guard.py` はPRイベント外のためスキップ（判定不能）。
+- `contracts/`・seal・`first_ball_product`・`current_product_startup` の差分は0。
+
 ## 6. レビュー
 
 - 本枝の独立非作者レビューは依頼中（結果は最終報告に追記）。自己確認のみで正式採用・
