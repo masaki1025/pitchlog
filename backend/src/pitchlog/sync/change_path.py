@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Mapping
-from contextlib import nullcontext
+from contextlib import ExitStack, nullcontext
 from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
@@ -153,6 +153,7 @@ def _apply_locked(
 ) -> ChangeResult:
     """③〜⑨を順に判定し、未使用 D5 だけを一取引で確定する。"""
     from pitchlog.repositories.transaction import _port_predecision_phase
+    from pitchlog.sync.past_correction_ports import PastCorrectionContentValidationPort
     from pitchlog.sync.source_binding import _E1CoreSource
 
     if bound_source is not None and (
@@ -162,6 +163,11 @@ def _apply_locked(
         or bound_source.event is not request.events[0]
     ):
         raise ValueError("P3の実bound sourceが不一致")
+    if (
+        bound_source is not None
+        and type(validator) is not PastCorrectionContentValidationPort
+    ):
+        raise ValueError("P3実内容Portが不一致")
     event = request.events[0]
     if bound_source is not None:
         bound_source.read(scope, event)
@@ -178,6 +184,7 @@ def _apply_locked(
     own_writer = writer is None
     if writer is None:
         writer = _issue_port_writer(scope.run)
+    p3_stack = ExitStack()
     try:
         supplied = request.recovery_generation
         with (
@@ -238,6 +245,12 @@ def _apply_locked(
         if type(event.v11) is not int or not 0 < event.v11 < _MAX_BIGINT:
             raise _NoWriteResult(
                 RejectedChangeResult("B14", event.d5, "V11 の期待版が不正")
+            )
+        if bound_source is not None:
+            from pitchlog.sync.past_correction_execution import bind_p3_execution
+
+            p3_stack.enter_context(
+                bind_p3_execution(scope, writer, event, bound_source)
             )
         with (
             _port_predecision_phase(scope, "content")
@@ -336,6 +349,7 @@ def _apply_locked(
         reach("after_t7_intents")
         return result
     finally:
+        p3_stack.close()
         if own_writer:
             writer._close()
 

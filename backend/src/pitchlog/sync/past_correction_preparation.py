@@ -38,6 +38,10 @@ class PastCorrectionPreparationUnavailable(RuntimeError):
     """P3保存前の真正原本・本文・再評価を結べない。"""
 
 
+class PastCorrectionContentRejected(PastCorrectionPreparationUnavailable):
+    """真正原本は読めたが提示変更または有限対応範囲が不成立。"""
+
+
 @dataclass(frozen=True, slots=True)
 class PreparedP3LineupCorrection:
     """同TXにだけ渡す旧原本と訂正後系列。保存・ACKの証明ではない。"""
@@ -121,12 +125,7 @@ def prepare_p3_lineup_correction(
             payloads,
             physical,
         )
-    except (
-        ValueError,
-        TypeError,
-        KeyError,
-        PastCorrectionSourceUnavailable,
-        PastCorrectionPayloadError,
-        LineupCorrectionUnsupported,
-    ):
+    except (PastCorrectionPayloadError, LineupCorrectionUnsupported):
+        raise PastCorrectionContentRejected("P3変更内容を受理できない") from None
+    except (ValueError, TypeError, KeyError, PastCorrectionSourceUnavailable):
         raise PastCorrectionPreparationUnavailable("P3原本と変更系列が不成立") from None

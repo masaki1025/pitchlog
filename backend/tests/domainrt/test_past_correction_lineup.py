@@ -403,7 +403,7 @@ def test_p3_preparation_binds_current_source_and_real_suffix(
         v11=1,
     )
     with pytest.raises(
-        past_correction_preparation.PastCorrectionPreparationUnavailable
+        past_correction_preparation.PastCorrectionContentRejected
     ):
         past_correction_preparation.prepare_p3_lineup_correction(
             cast(_TenantTransaction, Scope()),

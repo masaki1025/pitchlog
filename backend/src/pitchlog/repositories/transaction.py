@@ -1391,6 +1391,7 @@ def _is_port_command(operation):
         ProjectOrdinaryPitchToken,
         ValidateOrdinaryPitchToken,
     )
+    from pitchlog.sync.past_correction_ports import ValidateP3CorrectionToken
     from pitchlog.sync.substitution_ports import (
         ProjectSubstitutionToken,
         ValidateSubstitutionToken,
@@ -1421,6 +1422,7 @@ def _is_port_command(operation):
         ValidateUndoToken,
         ProjectSubstitutionToken,
         ValidateSubstitutionToken,
+        ValidateP3CorrectionToken,
     }:
         return True
     return isinstance(
@@ -1503,6 +1505,10 @@ def _execute_port_command(handle, operation):
         ProjectOrdinaryPitchToken,
         ValidateOrdinaryPitchToken,
     )
+    from pitchlog.sync.past_correction_ports import (
+        _CONTENT_REJECTION_REASON,
+        ValidateP3CorrectionToken,
+    )
     from pitchlog.sync.substitution_ports import (
         ProjectSubstitutionToken,
         ValidateSubstitutionToken,
@@ -1536,6 +1542,27 @@ def _execute_port_command(handle, operation):
         ProjectLifecycleToken,
         ValidateLifecycleToken,
     )
+
+    if type(operation) is ValidateP3CorrectionToken:
+        from pitchlog.sync.model import SyncEvent
+        from pitchlog.sync.past_correction_execution import p3_content_result
+        from pitchlog.sync.ports import PortWriter
+
+        if (
+            phase is None
+            or phase.kind != "content"
+            or type(operation.event) is not SyncEvent
+            or type(operation.writer) is not PortWriter
+            or type(operation.game_id) is not UUID
+            or type(operation.d5) is not UUID
+            or operation.game_id != UUID(operation.event.game_id)
+            or operation.d5 != UUID(operation.event.d5)
+        ):
+            raise TenantBindingError("P3内容Portが実phaseと不一致")
+        accepted = p3_content_result(handle, operation.event, operation.writer)
+        return TenantOperationResult(
+            ((accepted, None if accepted else _CONTENT_REJECTION_REASON),)
+        )
 
     if type(operation) in {ProjectLifecycleToken, ValidateLifecycleToken}:
         from pitchlog.sync.lifecycle_execution import (
