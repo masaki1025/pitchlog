@@ -75,21 +75,13 @@ def test_modified_generated_file_cannot_execute(
     ).encode()
     _replace_generated(monkeypatch, facts_module, tmp_path, source)
     if mutation == "manifest":
-        manifest = tmp_path / "backend/domain/stats-native-d11-manifest.json"
+        manifest = tmp_path / "backend/domain/stats-manifest.json"
         manifest.parent.mkdir(parents=True)
-        manifest.write_text(
-            json.dumps(
-                {
-                    "calculations": [
-                        {
-                            "directTargets": [
-                                {"hash": "sha256:" + hashlib.sha256(source).hexdigest()}
-                            ]
-                        }
-                    ]
-                }
-            )
+        payload = json.loads((ROOT / "backend/domain/stats-manifest.json").read_text())
+        payload["generatedFiles"]["backend/src/pitchlog/stats/generated/facts.py"] = (
+            hashlib.sha256(source).hexdigest()
         )
+        manifest.write_text(json.dumps(payload))
     _assert_rejected_before_exec(monkeypatch, facts_module)
     assert not sentinel.exists()
 
