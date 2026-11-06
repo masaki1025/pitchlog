@@ -42,6 +42,27 @@ test('実画面の新規作成→開始→2球→ACK喪失/reload/同要求再�
   page,
 }) => {
   const syncDurationsMs: number[] = []
+  page.on('requestfailed', (request) => {
+    if (apiPath(request.url()).endsWith('/sync/events'))
+      console.log(
+        'PITCHLOG_UNDO_TRANSPORT_FAILURE=' +
+          JSON.stringify({
+            method: request.method(),
+            failure: request.failure()?.errorText ?? 'unknown',
+          }),
+      )
+  })
+  page.on('response', (response) => {
+    if (apiPath(response.url()).endsWith('/sync/events'))
+      console.log(
+        'PITCHLOG_UNDO_TRANSPORT_RESPONSE=' +
+          JSON.stringify({
+            method: response.request().method(),
+            http: response.status(),
+          }),
+      )
+  })
+
   page.on('console', (message) => {
     if (message.text().startsWith('PITCHLOG_UNDO_CLIENT_STAGE='))
       console.log(message.text())

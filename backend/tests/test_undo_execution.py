@@ -2,6 +2,7 @@
 
 import json
 from contextlib import contextmanager
+from dataclasses import replace
 from types import SimpleNamespace
 
 import pytest
@@ -305,3 +306,31 @@ def test_minimum_sql_qualification_retains_scope_refusals(rig, fault):
         with pytest.raises(api.UndoExecutionError):
             with api._undo_qualification_scope(rig.handle, rig.source):
                 pytest.fail("不正scopeを許可しました")
+
+
+def test_reserved_id_accepts_only_unchanged_core_projection(rig):
+    """核が複製した同値投影を許し、原要求の各field変更は拒否する。"""
+    from pitchlog.sync import prefix_path
+
+    with prepared(rig) as state:
+        projected = prefix_path._projection_event(rig.handle, rig.event, {})
+        assert projected is not rig.event
+        assert api._reserved_undo_event_id(rig.handle, projected) == state.event_id
+        changes = {
+            "d5": "00000000-0000-4000-8000-000000000099",
+            "game_id": "00000000-0000-4000-8000-000000000099",
+            "d1": 99,
+            "d4": "different",
+            "v5": "play_input",
+            "v6": 99,
+            "v7": {},
+            "v8": {},
+            "v9": {},
+            "v10": {},
+            "v11": {},
+        }
+        for field, value in changes.items():
+            with pytest.raises(UndoExecutionError, match="予約原本"):
+                api._reserved_undo_event_id(
+                    rig.handle, replace(projected, **{field: value})
+                )

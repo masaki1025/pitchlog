@@ -840,6 +840,7 @@ def _check_saved_evidence(handle, event, source, item, lifetime, runtime, *, fir
         BigInteger,
         Boolean,
         DateTime,
+        Double,
         Integer,
         LargeBinary,
         String,
@@ -905,6 +906,10 @@ def _check_saved_evidence(handle, event, source, item, lifetime, runtime, *, fir
                 ok = type(value) is int
             elif isinstance(column.type, Boolean):
                 ok = type(value) is bool
+            elif isinstance(column.type, Double):
+                from math import isfinite
+
+                ok = type(value) in {int, float} and isfinite(value)
             elif isinstance(column.type, (String, Uuid)):
                 ok = type(value) is str
                 if ok and isinstance(column.type, Uuid):
