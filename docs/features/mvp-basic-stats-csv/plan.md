@@ -62,8 +62,9 @@ created: 2026-11-06
 
 - 新規: `backend/src/pitchlog/stats/basic_stats.py`（27項目の写像）
 - 新規: `backend/src/pitchlog/stats/basic_sql.py`（候補SQLビルダー）
-- 新規: `backend/src/pitchlog/repositories/stats_basic.py`（固定read operation）
-- 新規: `backend/src/pitchlog/api/schemas/stats.py`、`backend/src/pitchlog/api/routers/stats.py`
+- 候補（tests隔離、正式受理時に製品pathへ移す）:
+  `backend/tests/stats_basic_candidate.py`（固定read operation）、
+  `backend/tests/stats_schemas_candidate.py`、`backend/tests/stats_api_candidate.py`
 - 新規: `backend/src/pitchlog/stats/generated/rates.py`（T6表示率の派生物）
 - 新規: `backend/domain/stats-display.model.json`
 - 変更: `backend/src/pitchlog/domaingen/core.py`、`backends/python.py`、`formatter.py`

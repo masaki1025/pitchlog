@@ -11,7 +11,7 @@
     "backend/src/pitchlog/domaingen/core.py": "8fda72d6618d3a9eb1c24032ddfca0254b1b556567d5eb769ee135200f45d18d",
     "backend/src/pitchlog/domaingen/pregen_checks.py": "72f558898fb535107e588eb03724ae106b8484544c0ccd50123d54df1621ba15",
     "backend/src/pitchlog/domaingen/formatter.py": "30eddd35a628e7fcd17aae607dd6ad5a1349b322c814d2a68fa46c8d41ae18ef",
-    "backend/src/pitchlog/domaingen/backends/python.py": "aac07708a79893418ba3aec949a9c66c77e81b899a4223017341a2f152fcd72b",
+    "backend/src/pitchlog/domaingen/backends/python.py": "6733a9d859a58cff7d652d09bd7a3100f8d63a072c982642d94af3408001a046",
     "backend/src/pitchlog/domaingen/backends/typescript.py": "b9c4458d10a3e872c45dcd5b5d24bbaf6f01f86df5ea71c84002b81b1213d468",
     "backend/src/pitchlog/domaingen/backends/sql.py": "e0fb3a4956a47eafd6bca64c19740b6d6432c3dafda8668d4234e144ca270ffb"
   },
@@ -180,7 +180,7 @@
     "generatorInputs": {
       "backend/domain/play-export.model.json": "3ee265ce3586b793f8e48853e07548dfd700bd94fe988af1a63190e8626e073b",
       "backend/src/pitchlog/domaingen/core.py": "8fda72d6618d3a9eb1c24032ddfca0254b1b556567d5eb769ee135200f45d18d",
-      "backend/src/pitchlog/domaingen/backends/python.py": "aac07708a79893418ba3aec949a9c66c77e81b899a4223017341a2f152fcd72b",
+      "backend/src/pitchlog/domaingen/backends/python.py": "6733a9d859a58cff7d652d09bd7a3100f8d63a072c982642d94af3408001a046",
       "backend/src/pitchlog/domaingen/formatter.py": "30eddd35a628e7fcd17aae607dd6ad5a1349b322c814d2a68fa46c8d41ae18ef"
     },
     "t5ArtifactSetUnchanged": true,

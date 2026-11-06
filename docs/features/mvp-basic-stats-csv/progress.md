@@ -10,7 +10,7 @@
 | 作業worktree | `/home/ymdms/projects/pitchlog-worktrees/feature-mvp-basic-stats-csv` |
 | 作業branch | `feature/mvp-basic-stats-csv` |
 | 起点（指示の固定HEAD） | `a018b896bfc1ee49efc5b0912f1b6a04fd24e363` |
-| 本枝の候補commit | `（最終反映commitを下記に追記）` |
+| 本枝の候補commit | 本節の最終反映commit（push済み・PR未作成） |
 | 成績基盤worktreeの実HEAD（開始時） | `49bf535ce73c51ab843217e2dab706a0d257b2f6` |
 | 差 | 固定HEADの子3コミット（`3be91ac0`/`dbda56c9`/`49bf535c`。D11比較資産9path）。本枝は取り込んでいない |
 | 主担当台帳のD11固定候補 | `a524277f`（別枝 `feature/mvp-stats-d11-reflection-root`）。本枝へ未統合 |
@@ -75,7 +75,7 @@
 ### 3-3. 純検査
 
 - stats/生成runtime/function boundary/native registration/function codec/contract/API conventions:
-  **643 passed**。
+  **643 passed**（候補moduleのtests隔離・製品registry/app非登録の状態）。
 - `backend/tests/test_stats_basic_sql.py`: **8 passed**（候補SQL byte固定、27項目、率、重複JSON拒否、
   JST境界、任意の登板/打者数metric受理）。
 - `tests/domain/gen`: **87 passed**（`PYTHONDONTWRITEBYTECODE=1`。未設定だとpycacheで

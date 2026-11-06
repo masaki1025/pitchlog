@@ -405,35 +405,6 @@ def generate_ratio_formatter(program, source_hash: str) -> str:
 def generate_display_rates(rows, component_displays, source_hash: str) -> str:
     """T6専用の表示率だけを宣言から生成し、T5 artifactを変更しない。"""
     from pitchlog.domaingen.core import rate_metric_dependencies, typed_rate_expression
-
-    def ops(node):
-        """式で使う生成済み比helperだけを列挙する。"""
-        found = set()
-
-        def walk(value):
-            if isinstance(value, dict):
-                op = value.get("op")
-                if op in ("add", "ratio", "ratio-add"):
-                    found.add(op)
-                for child in value.values():
-                    walk(child)
-            elif isinstance(value, list):
-                for child in value:
-                    walk(child)
-
-        walk(node)
-        return found
-
-    used = set()
-    for row in rows:
-        for component in row["components"]:
-            used |= ops(component["expression"])
-        used |= ops(row["expression"])
-    helper_names = {
-        "add": "_rate_add",
-        "ratio": "_ratio",
-        "ratio-add": "_ratio_add",
-    }
     from pitchlog.domaingen.formatter import rate_helpers_target
 
     lines = [
@@ -491,10 +462,10 @@ def generate_display_rates(rows, component_displays, source_hash: str) -> str:
         "",
         "def format_component_rate(component_id, pair):",
         '    """T5が計算した比componentを、T6の表示規則だけで表示する。"""',
-        "    if type(component_id) is not str or component_id not in _COMPONENT_DISPLAYS:",
+        "    if type(component_id) is not str or component_id not in _COMPONENT_DISPLAYS:",  # noqa: E501
         '        raise ValueError("未知の表示componentです")',
-        '    display = _COMPONENT_DISPLAYS[component_id]',
-        '    result = _display_result(pair, {component_id: pair}, display, "MISSING_OBSERVATION")',
+        "    display = _COMPONENT_DISPLAYS[component_id]",
+        '    result = _display_result(pair, {component_id: pair}, display, "MISSING_OBSERVATION")',  # noqa: E501
         "    return result",
         "",
         "",
@@ -521,7 +492,7 @@ def generate_display_rates(rows, component_displays, source_hash: str) -> str:
         lines.append("    " + parts + " = {" + ", ".join(component_items) + "}")
         expression = typed_rate_expression(row["expression"], "python", parts)
         lines.append(
-            f"    results[{row['id']!r}] = _display_result({expression}, {parts}, _DISPLAY_RATES[{row['id']!r}], _reason(metrics, {dependencies!r}))"
+            f"    results[{row['id']!r}] = _display_result({expression}, {parts}, _DISPLAY_RATES[{row['id']!r}], _reason(metrics, {dependencies!r}))"  # noqa: E501
         )
     lines.append("    return results")
     return "\n".join(lines) + "\n"

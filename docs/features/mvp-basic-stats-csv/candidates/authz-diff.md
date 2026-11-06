@@ -63,8 +63,18 @@ CREATE POLICY stats_basic_finalize ON sync_fence.stats_fact_versions FOR UPDATE 
 `pitchlog.repositories.stats_basic.ReadBasicStatsToken`、
 `product_function_operation_ids` に `STATS_BASIC:read` を追加し、
 `backend/src/pitchlog/repositories/repository_contract.py` を公式helperで再生成する
-（`CONTRACT_REVISION`/`SOURCE_DIGEST` 追随）。本枝の`stats_basic.py`は
-`FunctionOperationRegistration` の汎用型で登録しており、既存`stats_api` 5関数の
+（`CONTRACT_REVISION`/`SOURCE_DIGEST` 追随）。
+
+本枝では候補token/router/schemaを製品pathへ置かず、
+`backend/tests/stats_basic_candidate.py`・`stats_api_candidate.py`・
+`stats_schemas_candidate.py` に隔離している。正式受理時に以下へ移し、
+`operation_registry.py`/`api/app.py` へ登録する。
+
+- `backend/tests/stats_basic_candidate.py` → `backend/src/pitchlog/repositories/stats_basic.py`
+- `backend/tests/stats_api_candidate.py` → `backend/src/pitchlog/api/routers/stats.py`
+- `backend/tests/stats_schemas_candidate.py` → `backend/src/pitchlog/api/schemas/stats.py`
+
+`FunctionOperationRegistration` の汎用型で登録し、既存`stats_api` 5関数の
 native型検証には触れていない。
 
 ## 4. route registry / capability
