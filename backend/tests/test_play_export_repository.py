@@ -662,5 +662,5 @@ def test_all_nine_sidecars_use_fixed_headers() -> None:
             assert rows[0].values["recording_generation"] == 1
             assert rows[0].values["event_sequence"] == 1
         if name == "references.csv":
-            kinds = [row.values["reference_kind"] for row in rows]
+            kinds = [cast(str, row.values["reference_kind"]) for row in rows]
             assert kinds == sorted(kinds)
