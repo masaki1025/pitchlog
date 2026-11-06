@@ -20,7 +20,7 @@ from pitchlog.repositories.past_correction_source import (
 )
 from pitchlog.repositories.play_prefix import LineupPrefixDocument
 from pitchlog.repositories.transaction import _TenantTransaction
-from pitchlog.sync.change_path import _target
+from pitchlog.sync.change_path import _bound_target, _target
 from pitchlog.sync.idempotency import _json_value
 from pitchlog.sync.model import SyncEvent
 from pitchlog.sync.past_correction_payload import (
@@ -64,6 +64,7 @@ def prepare_p3_lineup_correction(
     *,
     capsule_id: UUID,
     change_event_id: UUID,
+    bound_source: object | None = None,
 ) -> PreparedP3LineupCorrection:
     """対象版検査前に同一scopeの原本を閉じ、T4へ渡す候補を作る。"""
     if (
@@ -79,7 +80,11 @@ def prepare_p3_lineup_correction(
     ):
         raise PastCorrectionPreparationUnavailable("P3準備の識別が不正")
     try:
-        game_id, generation, target_d1 = _target(event)
+        game_id, generation, target_d1 = (
+            _bound_target(scope, event, bound_source)[:3]
+            if bound_source is not None
+            else _target(event)
+        )
         if game_id != UUID(event.game_id):
             raise PastCorrectionPreparationUnavailable("P3対象試合が不一致")
         snapshot = read_past_correction_v3_source_snapshot(scope, game_id, target_d1)

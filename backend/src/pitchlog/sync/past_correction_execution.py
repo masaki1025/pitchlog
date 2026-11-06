@@ -166,6 +166,7 @@ def bind_p3_execution(
                 event,
                 capsule_id=state.capsule_id,
                 change_event_id=state.change_event_id,
+                bound_source=source,
             )
         except PastCorrectionContentRejected:
             state.rejected = True

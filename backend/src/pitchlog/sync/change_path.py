@@ -93,6 +93,49 @@ def _target(event: SyncEvent) -> tuple[UUID, int, int]:
     return UUID(event.game_id), generation, d1
 
 
+def _bound_target(
+    scope: _TenantTransaction, event: SyncEvent, source: object
+) -> tuple[UUID, int, int, str]:
+    """P3実E1の原wire D4と内部世代を混同せず対象slotへ束縛する。"""
+    from pitchlog.sync.control_provider.evidence import D1lessPhaseBinding
+    from pitchlog.sync.d4_reference import D4ReferenceInvalid, encode_d4_reference
+    from pitchlog.sync.source_binding import _E1CoreSource
+
+    if (
+        type(scope) is not _TenantTransaction
+        or type(event) is not SyncEvent
+        or type(source) is not _E1CoreSource
+        or source.scope is not scope
+        or source.event is not event
+        or type(source.phase) is not D1lessPhaseBinding
+    ):
+        raise ValueError("P3実対象の受付が不一致")
+    source.read(scope, event)
+    target = event.v10
+    attempt = source.phase.attempt
+    if (
+        not isinstance(target, Mapping)
+        or set(target) != {"game", "d4", "d1"}
+        or target["game"] != event.game_id
+        or type(target["d4"]) is not str
+        or type(target["d1"]) is not int
+        or not 0 < target["d1"] <= _MAX_BIGINT
+        or attempt.tenant_id != scope._bound_tenant_id
+        or attempt.game_id != UUID(event.game_id)
+        or target["d4"] != attempt.wire_d4
+    ):
+        raise ValueError("P3実対象とE1原文が不一致")
+    try:
+        canonical_wire = encode_d4_reference(
+            scope._bound_tenant_id, attempt.game_id, attempt.internal_generation
+        )
+    except D4ReferenceInvalid:
+        raise ValueError("P3実対象の内部世代が不正") from None
+    if target["d4"] != canonical_wire:
+        raise ValueError("P3実対象のD4原本が不一致")
+    return attempt.game_id, attempt.internal_generation, target["d1"], canonical_wire
+
+
 def _accepted_from_candidate(candidate: D5Candidate, d5: str) -> ChangeResult | None:
     """I2/I3 の再掲または D5 衝突を新たな書き込みなしで返す。"""
     if candidate.kind == "unused":
@@ -245,11 +288,18 @@ def _apply_locked(
                 RejectedChangeResult("B14", event.d5, "P3 の内容は JSON object が必要")
             )
         try:
-            target = _target(event)
+            bound_target = (
+                _bound_target(scope, event, bound_source)
+                if bound_source is not None
+                else None
+            )
+            target = bound_target[:3] if bound_target is not None else _target(event)
         except ValueError:
             raise _NoWriteResult(
                 RejectedChangeResult("B14", event.d5, "V10 の対象参照が不正")
             ) from None
+        if bound_target is not None and bound_target[1] != generation:
+            raise RuntimeError("P3実対象の内部世代が現世代と不一致")
         if type(event.v11) is not int or not 0 < event.v11 < _MAX_BIGINT:
             raise _NoWriteResult(
                 RejectedChangeResult("B14", event.d5, "V11 の期待版が不正")
@@ -299,7 +349,7 @@ def _apply_locked(
         accepted_at = datetime.now(UTC).isoformat()
         reference = {
             "試合": event.game_id,
-            "対象の D4": target[1],
+            "対象の D4": bound_target[3] if bound_target is not None else target[1],
             "対象の D1": target[2],
         }
         result = AcceptedChangeResult(

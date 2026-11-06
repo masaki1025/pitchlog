@@ -296,7 +296,7 @@ BEGIN
  old_cp.content->'storage_anchor'
  OR c->'next_checkpoint'->>'wire_d4' IS DISTINCT FROM
  old_cp.content->>'wire_d4'
- OR target_d1>=watermark
+ OR target_d1>watermark
  THEN RAISE EXCEPTION 'P3 projection rejected' USING ERRCODE='42501'; END IF;
  IF c->'next_checkpoint'->>'content_digest' !~ '^[a-f0-9]{64}$'
  OR c->'next_checkpoint'->'prefix_ref'->'checkpoint'->>'digest'

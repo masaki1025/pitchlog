@@ -32,7 +32,9 @@ class LineupPitchChangePayload(_Frozen):
     target_event_id: CanonicalUuid = Field(alias="targetEventId")
     target_play_id: CanonicalUuid = Field(alias="targetPlayId")
     original_result_id: Literal[
-        "batting-result.ball", "batting-result.called-pitch"
+        "batting-result.ball",
+        "batting-result.called-pitch",
+        "batting-result.called-strikeout",
     ] = Field(alias="originalResultId")
     replacement_result_id: Literal[
         "batting-result.ball", "batting-result.called-pitch"

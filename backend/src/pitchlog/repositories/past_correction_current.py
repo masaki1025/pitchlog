@@ -126,7 +126,7 @@ def verify_p3_current_packet(
         target_d1 = capsule["target_d1"]
         if (
             type(target_d1) is not int
-            or target_d1 not in range(1, len(members))
+            or target_d1 not in range(1, len(members) + 1)
             or head["tenant_id"] != str(tenant)
             or head["game_id"] != str(game)
             or head["internal_generation"] != generation

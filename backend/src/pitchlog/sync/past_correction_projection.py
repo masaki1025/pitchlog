@@ -8,7 +8,7 @@ from pitchlog.domainrt.first_ball_projection import _canonical_json
 from pitchlog.repositories.past_correction_right import _PersistP3ProjectionToken
 from pitchlog.repositories.tokens import TenantOperationResult
 from pitchlog.repositories.transaction import _TenantTransaction
-from pitchlog.sync.change_path import _target
+from pitchlog.sync.change_path import _bound_target
 from pitchlog.sync.control_provider.evidence import D1lessPhaseBinding
 from pitchlog.sync.idempotency import operation_fingerprint
 from pitchlog.sync.model import SyncEvent
@@ -30,7 +30,7 @@ def project_p3_correction(
     capsule, stats, source = p3_projection_candidate(handle, event, writer)
     lease = source.bound._lease
     phase = source.phase
-    target = _target(event)
+    target = _bound_target(handle, event, source)[:3]
     if (
         type(handle) is not _TenantTransaction
         or type(event) is not SyncEvent

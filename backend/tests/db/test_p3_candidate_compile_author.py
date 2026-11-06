@@ -20,6 +20,7 @@ from pitchlog.authz.p3_projection_trigger_patch import candidate_sql as trigger_
 from pitchlog.authz.p3_right_sql import candidate_sql as right_sql
 from pitchlog.authz.stats_primitive_sql import candidate_function_bodies
 from pitchlog.domaingen.core import generate_native_primitive_sql_bundle
+from pitchlog.stats.generated.receiver import METRIC_IDS
 
 from .sync_writer_binding_support import binding_broker
 from .test_first_ball_vertical_http import (
@@ -40,13 +41,25 @@ _PACKET = Path.home() / ".cache/pitchlog/mvp-past-correction-product-20261106"
 _STAGES = frozenset(
     {
         "p3-post",
+        "p3-invalid-numeric",
+        "p3-invalid-tampered",
+        "p3-invalid-other-game",
+        "p3-invalid-read",
         "p3-get",
         "p3-replay",
         "p3-conflict",
+        "p3-fault-after_t2_event",
+        "p3-fault-after_t4_projection",
+        "p3-fault-read-after_t2_event",
+        "p3-fault-read-after_t4_projection",
         "next-pitch-math",
         "next-pitch-post",
         "next-pitch-replay",
         "next-pitch-get",
+        "foreign-login",
+        "foreign-read",
+        "foreign-p3-replay",
+        "owner-final-get",
         "complete",
     }
 )
@@ -91,8 +104,51 @@ def _write_stage(result: dict, path: Path) -> dict:
     return record
 
 
+def _assert_stats27_catalog(vertical_database) -> None:
+    """実0045後の版/source/credit全制約を単一生成27キーへ照合する。"""
+    with psycopg.connect(vertical_database.authority.database.business_admin) as admin:
+        for table, constraint in (
+            ("stats_fact_versions", "ck_stats_version_metric_keys"),
+            ("stats_primitive_sources", "ck_stats_source_metric_keys"),
+            ("stats_primitive_facts", "ck_stats_fact_metric"),
+        ):
+            rows = admin.execute(
+                "SELECT pg_catalog.pg_get_constraintdef(c.oid),c.convalidated "
+                "FROM pg_catalog.pg_constraint c "
+                "JOIN pg_catalog.pg_class t ON t.oid=c.conrelid "
+                "JOIN pg_catalog.pg_namespace n ON n.oid=t.relnamespace "
+                "WHERE n.nspname='sync_fence' AND t.relname=%s "
+                "AND c.conname=%s AND c.contype='c'",
+                (table, constraint),
+            ).fetchall()
+            assert len(rows) == 1 and rows[0][1] is True
+            definition = rows[0][0]
+            keys = tuple(re.findall(r"'([a-z][a-z0-9_]*)'::text", definition))
+            assert keys == METRIC_IDS and len(keys) == 27, (table, constraint)
+            if table == "stats_primitive_facts":
+                admin.execute("CREATE TEMP TABLE metric27_probe(metric_id text)")
+                admin.execute(
+                    sql.SQL("ALTER TABLE pg_temp.metric27_probe ADD CONSTRAINT "
+                            "ck_metric27_probe {}").format(
+                        sql.SQL(cast(LiteralString, definition))
+                    )
+                )
+                for metric in METRIC_IDS:
+                    admin.execute(
+                        "INSERT INTO pg_temp.metric27_probe(metric_id) VALUES (%s)",
+                        (metric,),
+                    )
+                with pytest.raises(psycopg.errors.CheckViolation):
+                    with admin.transaction():
+                        admin.execute(
+                            "INSERT INTO pg_temp.metric27_probe(metric_id) "
+                            "VALUES ('unknown_metric')"
+                        )
+
+
 def test_owned_candidate_0046_compiles(vertical_database) -> None:
     """正式profile/数学を差し替えず、候補のDB本文を別owned DBへ配備する。"""
+    _assert_stats27_catalog(vertical_database)
     ddl = (_PACKET / "0046-p3-projection.candidate.sql").read_text()
     selector = (_PACKET / "p3-play_primitives_native.sql").read_text()
     profile = json.loads(
@@ -163,11 +219,37 @@ def _three_ball_p3_script() -> str:
     assert script.count(marker) == 1
     trace = """_actual_p3_apply = actual_sync_router._apply_e1_p3
 import re
+from pitchlog.sync import past_correction_preparation as actual_p3_prep
+_actual_p3_snapshot = actual_p3_prep.read_past_correction_v3_source_snapshot
+_p3_source_scope = {}
+
+def traced_p3_snapshot(scope, game_id, target_d1):
+    snapshot = _actual_p3_snapshot(scope, game_id, target_d1)
+    _p3_source_scope["snapshot"] = snapshot
+    _p3_source_scope["tenant"] = scope._bound_tenant_id
+    return snapshot
+
+actual_p3_prep.read_past_correction_v3_source_snapshot = traced_p3_snapshot
 
 def traced_p3_apply(*args, **kwargs):
     try:
         return _actual_p3_apply(*args, **kwargs)
     except Exception as error:
+        try:
+            if "snapshot" in _p3_source_scope:
+                original_event = args[2].events[0]
+                expected_generation = kwargs["phase"].attempt.internal_generation
+                snapshot = _p3_source_scope["snapshot"]
+                last_ref = snapshot.rows[-1].calculation.response.value.next_prefix_ref
+                runtime_diagnostics["p3_binding_flags"] = {
+                    "generation_equal": (
+                        snapshot.internal_generation == expected_generation),
+                    "tenant_equal": (
+                        last_ref.tenant_id == str(_p3_source_scope["tenant"])),
+                    "game_equal": last_ref.game_id == original_event.game_id,
+                }
+        except (AttributeError, IndexError, KeyError, TypeError, ValueError):
+            runtime_diagnostics["p3_binding_flags"] = "unavailable"
         chain = []
         seen = set()
         current = error
@@ -322,7 +404,7 @@ actual_started_router.read_lineup_prefix = traced_p3_read
                 != current["prefix_ref"]["checkpoint"]["id"])
         change = {
             "d5": str(uuid4()), "game_id": game, "event_kind": "play_change",
-            "target_reference": {"game": game, "d4": 1, "d1": 1},
+            "target_reference": {"game": game, "d4": started["d4"], "d1": 1},
             "expected_version": 1,
             "payload": {
                 "formatVersion": "p3-lineup-pitch-change-v1",
@@ -342,6 +424,34 @@ actual_started_router.read_lineup_prefix = traced_p3_read
         p3_payload = {"recovery_generation": current["recovery_generation"],
                       "recording_right_proof": started["recording_right_proof"],
                       "change": change}
+        negative_d5s = []
+        for variant in ("numeric", "tampered", "other-game"):
+            invalid = json.loads(json.dumps(p3_payload))
+            invalid_d5 = str(uuid4())
+            invalid["change"]["d5"] = invalid_d5
+            negative_d5s.append(invalid_d5)
+            if variant == "numeric":
+                invalid["change"]["target_reference"]["d4"] = 1
+            elif variant == "tampered":
+                wire = started["d4"]
+                invalid["change"]["target_reference"]["d4"] = (
+                    wire[:5] + ("B" if wire[5] == "A" else "A") + wire[6:])
+            else:
+                invalid["change"]["target_reference"]["game"] = case["game"]
+            runtime_diagnostics.update(stage="p3-invalid-" + variant, status=None)
+            denied = await client.post(
+                "/games/" + game + "/sync/change",
+                headers=device_headers(pair, str(uuid4())), json=invalid)
+            runtime_diagnostics["status"] = denied.status_code
+            assert denied.status_code == 422, (
+                "p3-invalid-wire", variant, denied.status_code)
+        runtime_diagnostics.update(stage="p3-invalid-read", status=None)
+        after_invalid = await client.get(
+            "/games/" + game + "/started?projection=play-prefix-v3&limit=100",
+            headers=headers())
+        runtime_diagnostics["status"] = after_invalid.status_code
+        assert after_invalid.status_code == 200 and after_invalid.json() == current, (
+            "p3-invalid-no-write", after_invalid.status_code)
         class PlannedP3Rollback(Exception):
             pass
 
@@ -461,6 +571,7 @@ __THIRD_PITCH__
         from pitchlog.authz import p3_projection_sql as actual_p3_sql
         from pitchlog.repositories import past_correction_source as actual_p3_source
         return {"game": game, "change": changed.json(),
+                "negative_d5s": negative_d5s,
                 "prefix": current["prefix_ref"]["length"],
                 "source_origin": {
                     "sync_router": actual_sync_router.__file__,
@@ -472,6 +583,55 @@ __THIRD_PITCH__
     foreign_start = script.index("        # 別tenantの実ログイン")
     foreign_end = script.index("        target = current", foreign_start)
     return script[:foreign_start] + script[foreign_end:]
+
+
+def _t5_changing_p3_script() -> str:
+    """既同一driverで三振最終球をballへ改め、T5寄与差を実測する。"""
+    script = _three_ball_p3_script()
+
+    def once(old: str, new: str) -> None:
+        nonlocal script
+        assert script.count(old) == 1, old
+        script = script.replace(old, new, 1)
+
+    third_start = script.index(
+        '        for index, result in enumerate(["batting-result.ball"], 3):'
+    )
+    third_end = script.index(
+        '        runtime_diagnostics.update(stage="foreign-login"', third_start
+    )
+    third = script[third_start:third_end]
+    script = script[:third_start] + script[third_end:]
+    third = third.replace(
+        'enumerate(["batting-result.ball"], 3)',
+        'enumerate(["batting-result.called-strikeout"], 3)',
+        1,
+    )
+    once(
+        'results = ["batting-result.ball", "batting-result.called-pitch"]',
+        'results = ["batting-result.called-pitch", "batting-result.called-pitch"]',
+    )
+    once(
+        '        target = current["page"]["items"][0]["play_row"]',
+        third + '        target = current["page"]["items"][2]["play_row"]',
+    )
+    once(
+        '"target_reference": {"game": game, "d4": started["d4"], "d1": 1}',
+        '"target_reference": {"game": game, "d4": started["d4"], "d1": 3}',
+    )
+    once('"originalResultId": "batting-result.ball"',
+         '"originalResultId": "batting-result.called-strikeout"')
+    once('"replacementResultId": "batting-result.called-pitch"',
+         '"replacementResultId": "batting-result.ball"')
+    once('corrected_current["page"]["items"][0]["play_row"]["id"]',
+         'corrected_current["page"]["items"][2]["play_row"]["id"]')
+    once(
+        'conflict_payload["change"]["payload"]["replacementResultId"] = (\n'
+        '            "batting-result.ball")',
+        'conflict_payload["change"]["payload"]["replacementResultId"] = (\n'
+        '            "batting-result.called-strikeout")',
+    )
+    return script
 
 
 def test_owned_candidate_actual_http_p3(vertical_database) -> None:
@@ -509,6 +669,11 @@ def test_owned_candidate_actual_http_p3(vertical_database) -> None:
             "VALUES ('batting-result.called-pitch',"
             "'batting_result','見逃し') ON CONFLICT(key) DO NOTHING"
         )
+        admin.execute(
+            "INSERT INTO public.admin_vocabularies(key,category,display_name) "
+            "VALUES ('batting-result.called-strikeout',"
+            "'batting_result','見逃し三振') ON CONFLICT(key) DO NOTHING"
+        )
     case = {
         "tenant": str(db.tenant_id),
         "game": str(db.game_id),
@@ -523,6 +688,12 @@ def test_owned_candidate_actual_http_p3(vertical_database) -> None:
         _prepare_app_configuration(db)
         process = subprocess.run(
             ["docker", *_app_arguments(db, case), "-u", "-c", _three_ball_p3_script()],
+            capture_output=True,
+            text=True,
+            timeout=300,
+        )
+        t5_process = subprocess.run(
+            ["docker", *_app_arguments(db, case), "-u", "-c", _t5_changing_p3_script()],
             capture_output=True,
             text=True,
             timeout=300,
@@ -549,6 +720,12 @@ def test_owned_candidate_actual_http_p3(vertical_database) -> None:
     )
     with psycopg.connect(db.authority.database.business_admin) as admin:
         key = (db.tenant_id, UUID(result["game"]))
+        assert len(result["negative_d5s"]) == 3
+        assert admin.execute(
+            "SELECT count(*) FROM public.idempotency_ledger "
+            "WHERE tenant_id=%s AND d5=ANY(%s)",
+            (db.tenant_id, [UUID(value) for value in result["negative_d5s"]]),
+        ).fetchone() == (0,)
         assert admin.execute(
             "SELECT count(*) FROM public.operation_events "
             "WHERE tenant_id=%s AND game_id=%s", key
@@ -582,3 +759,77 @@ def test_owned_candidate_actual_http_p3(vertical_database) -> None:
             "WHERE tenant_id=%s AND game_id=%s", key
         ).fetchone()
         assert p3 is not None and sources[0][0] == p3[0]
+
+    try:
+        t5_result = json.loads(t5_process.stdout)
+    except json.JSONDecodeError:
+        t5_result = {"exception": "remote-json-unavailable"}
+    (_PACKET / "owned-http-t5-diagnostic.json").write_text(
+        json.dumps(t5_result.get("runtime_diagnostics", {}), indent=2)
+    )
+    _write_stage(t5_result, _PACKET / "owned-http-t5-failure-stage.json")
+    assert t5_process.returncode == 0, (
+        "t5-remote-process", t5_process.returncode
+    )
+    assert "exception" not in t5_result, t5_result
+    assert t5_result["prefix"] == "3"
+    with psycopg.connect(db.authority.database.business_admin) as admin:
+        key = (db.tenant_id, UUID(t5_result["game"]))
+        assert len(t5_result["negative_d5s"]) == 3
+        assert admin.execute(
+            "SELECT count(*) FROM public.idempotency_ledger "
+            "WHERE tenant_id=%s AND d5=ANY(%s)",
+            (db.tenant_id, [UUID(value) for value in t5_result["negative_d5s"]]),
+        ).fetchone() == (0,)
+        assert admin.execute(
+            "SELECT count(*) FROM public.operation_events "
+            "WHERE tenant_id=%s AND game_id=%s", key
+        ).fetchone() == (4,)
+        assert admin.execute(
+            "SELECT count(*) FROM public.play_rows "
+            "WHERE tenant_id=%s AND game_id=%s", key
+        ).fetchone() == (4,)
+        assert admin.execute(
+            "SELECT count(*) FROM sync_fence.p3_projection_capsules "
+            "WHERE tenant_id=%s AND game_id=%s", key
+        ).fetchone() == (1,)
+        assert admin.execute(
+            "SELECT count(*) FROM sync_fence.p3_projection_capsule_items "
+            "WHERE tenant_id=%s AND game_id=%s", key
+        ).fetchone() == (3,)
+        versions = admin.execute(
+            "SELECT id,is_current,source_count FROM sync_fence.stats_fact_versions "
+            "WHERE tenant_id=%s AND game_id=%s AND source_count=3 "
+            "ORDER BY created_at", key
+        ).fetchall()
+        assert len(versions) == 2 and [row[1] for row in versions] == [False, True]
+        assert [row[2] for row in versions] == [3, 3]
+        old_source = admin.execute(
+            "SELECT metric_states FROM sync_fence.stats_primitive_sources "
+            "WHERE tenant_id=%s AND game_id=%s AND fact_version_id=%s AND d1=3",
+            (*key, versions[0][0]),
+        ).fetchone()
+        new_source = admin.execute(
+            "SELECT metric_states FROM sync_fence.stats_primitive_sources "
+            "WHERE tenant_id=%s AND game_id=%s AND fact_version_id=%s AND d1=3",
+            (*key, versions[1][0]),
+        ).fetchone()
+        assert old_source is not None and new_source is not None
+        old_metrics = old_source[0]["metrics"]
+        new_metrics = new_source[0]["metrics"]
+        assert old_metrics["k"]["value"] == "1"
+        assert new_metrics["k"]["value"] == "0"
+        assert old_metrics["pitcher_k"]["value"] == "1"
+        assert new_metrics["pitcher_k"]["value"] == "0"
+        current_sources = admin.execute(
+            "SELECT source_event_id,d1 FROM sync_fence.stats_primitive_sources "
+            "WHERE tenant_id=%s AND game_id=%s AND fact_version_id=%s ORDER BY d1",
+            (*key, versions[1][0]),
+        ).fetchall()
+        assert len(current_sources) == 3
+        assert [row[1] for row in current_sources] == [1, 2, 3]
+        changed = admin.execute(
+            "SELECT change_event_id FROM sync_fence.p3_projection_capsules "
+            "WHERE tenant_id=%s AND game_id=%s", key
+        ).fetchone()
+        assert changed is not None and current_sources[2][0] == changed[0]

@@ -467,6 +467,27 @@ def test_v3_change_payload_binds_real_target_and_current_head() -> None:
         bind_lineup_pitch_change_payload(payload, rows, 2, stale_head)
 
 
+def test_v3_change_payload_accepts_saved_called_strikeout_only_as_original() -> None:
+    """既保存三振は元結果として読めるが、未知値と未接続の置換値は閉じる。"""
+    with _host() as host:
+        rows = _two_saved(host)
+    body = _change_body(rows, 1)
+    body["originalResultId"] = "batting-result.called-strikeout"
+    parsed = read_lineup_pitch_change_payload(json.dumps(body))
+    assert parsed.original_result_id == "batting-result.called-strikeout"
+    with pytest.raises(PastCorrectionPayloadError):
+        bind_lineup_pitch_change_payload(
+            parsed, rows, 1, rows[-1].calculation.response.value.next_prefix_ref
+        )
+    for field in ("originalResultId", "replacementResultId"):
+        forged = {**body, field: "batting-result.unknown"}
+        with pytest.raises(PastCorrectionPayloadError):
+            read_lineup_pitch_change_payload(json.dumps(forged))
+    forged = {**body, "replacementResultId": "batting-result.called-strikeout"}
+    with pytest.raises(PastCorrectionPayloadError):
+        read_lineup_pitch_change_payload(json.dumps(forged))
+
+
 @pytest.mark.parametrize("malformed", ["duplicate", "unknown", "wrong-type"])
 def test_v3_change_payload_rejects_ambiguous_wire(malformed: str) -> None:
     """重複key・未知member・数値化を本文で補修しない。"""

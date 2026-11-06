@@ -13,6 +13,7 @@ from pitchlog.api.request_presentation import require_presented_token
 from pitchlog.api.schemas.recording_ack import RecordingAckResponse
 from pitchlog.api.tenant_access import TenantMatchedRoute, require_tenant_access
 from pitchlog.durable_rights_ledger.adapter import LedgerUnavailable
+from pitchlog.recording_rights.initial_grant_broker import InitialBrokerUnavailable
 from pitchlog.repositories.context import TenantContext
 from pitchlog.repositories.database_errors import DATABASE_ERRORS
 from pitchlog.repositories.initial_recording_right import (
@@ -68,12 +69,12 @@ from pitchlog.sync.ordinary_pitch_ports import (
     PlayPrefixProjectionPort,
 )
 from pitchlog.sync.past_correction_execution import PastCorrectionExecutionError
-from pitchlog.sync.past_correction_preparation import (
-    PastCorrectionPreparationUnavailable,
-)
 from pitchlog.sync.past_correction_ports import (
     PastCorrectionContentValidationPort,
     PastCorrectionProjectionPort,
+)
+from pitchlog.sync.past_correction_preparation import (
+    PastCorrectionPreparationUnavailable,
 )
 from pitchlog.sync.past_correction_projection import PastCorrectionProjectionError
 from pitchlog.sync.past_correction_rights import PastCorrectionRecordingRightsPort
@@ -198,7 +199,7 @@ def sync_change(
         if not isinstance(target, Mapping):
             raise RequestShapeError("S-1: P3対象が不正")
         target_d4 = target["d4"]
-        if type(target_d4) not in (int, str):
+        if type(target_d4) is not str:
             raise RequestShapeError("S-1: P3対象世代が不正")
         source = freeze_wire_source(
             game_id=str(game_id),
@@ -242,7 +243,12 @@ def sync_change(
                 credential_digest=credential_digest,
             )
             event = sync_request.events[0]
-            target_generation = int(str(target_d4))
+            try:
+                target_generation = _decode_recording_key(
+                    target_d4, context.tenant_id, game_id
+                )
+            except InitialBrokerUnavailable:
+                raise HTTPException(status_code=422) from None
             attempt_binding = AttemptBinding(
                 AuthorityBinding(
                     configuration.control_instance,

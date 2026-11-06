@@ -17,7 +17,7 @@ _KEYS = (
 
 
 def upgrade() -> None:
-    """旧保存値を再刻印せず、二つの保存列の27閉集合だけを広げる。"""
+    """旧保存値を再刻印せず、source・版・creditの27閉集合を揃える。"""
     for table, constraint in (
         ("stats_fact_versions", "ck_stats_version_metric_keys"),
         ("stats_primitive_sources", "ck_stats_source_metric_keys"),
@@ -29,6 +29,12 @@ def upgrade() -> None:
             "cardinality(computed_metric_keys)<=27 AND "
             f"computed_metric_keys <@ {_KEYS})"
         )
+    op.execute(
+        "ALTER TABLE sync_fence.stats_primitive_facts "
+        "DROP CONSTRAINT ck_stats_fact_metric, "
+        "ADD CONSTRAINT ck_stats_fact_metric CHECK "
+        f"(metric_id=ANY({_KEYS}))"
+    )
 
 
 def downgrade() -> None:

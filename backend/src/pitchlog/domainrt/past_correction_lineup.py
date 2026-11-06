@@ -103,7 +103,11 @@ def _bound_original(
         or original.value.play_identity != request.play_identity
         or original.value.source_position != request.source.position
         or request.t1.result_id
-        not in {"batting-result.ball", "batting-result.called-pitch"}
+        not in {
+            "batting-result.ball",
+            "batting-result.called-pitch",
+            "batting-result.called-strikeout",
+        }
     ):
         raise LineupCorrectionUnsupported("保存済みv3原本と位置が不一致")
     verify_lineup_wire_seal(request, original)
