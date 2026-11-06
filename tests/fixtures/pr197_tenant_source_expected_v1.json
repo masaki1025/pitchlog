@@ -1,0 +1,1036 @@
+{
+  "schema_version": 1,
+  "source_revision": "a59c654e3366d2be9c6456e47b07118e1674bce2",
+  "formal_base_revision": "51bcb4e11b4d8d1e51327ca3e1e10ef2e6214d56",
+  "independent_sites_sha256": "c685a99b1fa572d54edb5a7f686f9db37a91a40a9489813b36f56fb977514a1e",
+  "purpose": "native197実scan74件のうち条件付き71実siteと、別資格の旧identity診断3件を固定E/実a59に束縛する。",
+  "owners": {
+    "backend/src/pitchlog/db/current_product_startup.py": {
+      "purpose": "0041 current非公開配置/構造・catalog検証専用のowner/applicator DBAPI。通常tenant業務の入口ではない。",
+      "source_sha256": "8e7467c9f4efc9cb2ee2591ed7c4ddf9e8927609f30846cf460ffaee7469414e",
+      "findings": [
+        {
+          "line": 237,
+          "condition": 5,
+          "code": "TB005",
+          "symbol": "psycopg.Connection.cursor",
+          "scope": "pitchlog.db.current_product_startup._revision"
+        },
+        {
+          "line": 238,
+          "condition": 5,
+          "code": "TB005",
+          "symbol": "psycopg.Cursor.execute",
+          "scope": "pitchlog.db.current_product_startup._revision"
+        },
+        {
+          "line": 322,
+          "condition": 5,
+          "code": "TB005",
+          "symbol": "psycopg.Connection.cursor",
+          "scope": "pitchlog.db.current_product_startup._check_current_structure"
+        },
+        {
+          "line": 323,
+          "condition": 5,
+          "code": "TB005",
+          "symbol": "psycopg.Cursor.execute",
+          "scope": "pitchlog.db.current_product_startup._check_current_structure"
+        },
+        {
+          "line": 329,
+          "condition": 5,
+          "code": "TB005",
+          "symbol": "psycopg.Cursor.execute",
+          "scope": "pitchlog.db.current_product_startup._check_current_structure"
+        },
+        {
+          "line": 340,
+          "condition": 5,
+          "code": "TB005",
+          "symbol": "psycopg.Cursor.execute",
+          "scope": "pitchlog.db.current_product_startup._check_current_structure"
+        },
+        {
+          "line": 362,
+          "condition": 5,
+          "code": "TB005",
+          "symbol": "psycopg.Cursor.execute",
+          "scope": "pitchlog.db.current_product_startup._check_current_structure"
+        },
+        {
+          "line": 375,
+          "condition": 5,
+          "code": "TB005",
+          "symbol": "psycopg.Cursor.execute",
+          "scope": "pitchlog.db.current_product_startup._check_current_structure"
+        },
+        {
+          "line": 453,
+          "condition": 5,
+          "code": "TB005",
+          "symbol": "psycopg.Connection.cursor",
+          "scope": "pitchlog.db.current_product_startup._check_current_indexes"
+        },
+        {
+          "line": 496,
+          "condition": 5,
+          "code": "TB005",
+          "symbol": "psycopg.Cursor.execute",
+          "scope": "pitchlog.db.current_product_startup._check_current_indexes"
+        },
+        {
+          "line": 539,
+          "condition": 5,
+          "code": "TB005",
+          "symbol": "psycopg.Cursor.execute",
+          "scope": "pitchlog.db.current_product_startup._check_current_indexes"
+        },
+        {
+          "line": 615,
+          "condition": 5,
+          "code": "TB005",
+          "symbol": "psycopg.Connection.cursor",
+          "scope": "pitchlog.db.current_product_startup._catalog"
+        },
+        {
+          "line": 616,
+          "condition": 5,
+          "code": "TB005",
+          "symbol": "psycopg.Cursor.execute",
+          "scope": "pitchlog.db.current_product_startup._catalog"
+        },
+        {
+          "line": 759,
+          "condition": 5,
+          "code": "TB007",
+          "symbol": "keep",
+          "scope": "pitchlog.db.current_product_startup._pre_full_catalog_pairs"
+        },
+        {
+          "line": 814,
+          "condition": 5,
+          "code": "TB005",
+          "symbol": "sqlalchemy.create_engine",
+          "scope": "pitchlog.db.current_product_startup._apply_current_storage"
+        },
+        {
+          "line": 816,
+          "condition": 5,
+          "code": "TB005",
+          "symbol": "sqlalchemy.engine.Engine.begin",
+          "scope": "pitchlog.db.current_product_startup._apply_current_storage"
+        },
+        {
+          "line": 834,
+          "condition": 5,
+          "code": "TB005",
+          "symbol": "psycopg.connect",
+          "scope": "pitchlog.db.current_product_startup._finish_current"
+        },
+        {
+          "line": 841,
+          "condition": 5,
+          "code": "TB005",
+          "symbol": "psycopg.connect",
+          "scope": "pitchlog.db.current_product_startup._finish_current"
+        },
+        {
+          "line": 847,
+          "condition": 5,
+          "code": "TB005",
+          "symbol": "psycopg.connect",
+          "scope": "pitchlog.db.current_product_startup._finish_current"
+        },
+        {
+          "line": 849,
+          "condition": 5,
+          "code": "TB005",
+          "symbol": "psycopg.connect",
+          "scope": "pitchlog.db.current_product_startup._finish_current"
+        },
+        {
+          "line": 869,
+          "condition": 5,
+          "code": "TB005",
+          "symbol": "psycopg.connect",
+          "scope": "pitchlog.db.current_product_startup.advance_current_product_from_s0"
+        },
+        {
+          "line": 890,
+          "condition": 5,
+          "code": "TB005",
+          "symbol": "psycopg.Connection.cursor",
+          "scope": "pitchlog.db.current_product_startup.resume_current_product_after_placement"
+        },
+        {
+          "line": 890,
+          "condition": 5,
+          "code": "TB005",
+          "symbol": "psycopg.connect",
+          "scope": "pitchlog.db.current_product_startup.resume_current_product_after_placement"
+        },
+        {
+          "line": 891,
+          "condition": 5,
+          "code": "TB005",
+          "symbol": "psycopg.Cursor.execute",
+          "scope": "pitchlog.db.current_product_startup.resume_current_product_after_placement"
+        },
+        {
+          "line": 913,
+          "condition": 5,
+          "code": "TB005",
+          "symbol": "psycopg.Connection.cursor",
+          "scope": "pitchlog.db.current_product_startup._check_current_rules"
+        },
+        {
+          "line": 914,
+          "condition": 5,
+          "code": "TB005",
+          "symbol": "psycopg.Cursor.execute",
+          "scope": "pitchlog.db.current_product_startup._check_current_rules"
+        },
+        {
+          "line": 924,
+          "condition": 5,
+          "code": "TB005",
+          "symbol": "psycopg.Cursor.execute",
+          "scope": "pitchlog.db.current_product_startup._check_current_rules"
+        },
+        {
+          "line": 932,
+          "condition": 5,
+          "code": "TB005",
+          "symbol": "psycopg.Cursor.execute",
+          "scope": "pitchlog.db.current_product_startup._check_current_rules"
+        },
+        {
+          "line": 943,
+          "condition": 5,
+          "code": "TB005",
+          "symbol": "psycopg.Cursor.execute",
+          "scope": "pitchlog.db.current_product_startup._check_current_rules"
+        },
+        {
+          "line": 953,
+          "condition": 5,
+          "code": "TB005",
+          "symbol": "psycopg.Connection.cursor",
+          "scope": "pitchlog.db.current_product_startup._check_current_public_storage"
+        },
+        {
+          "line": 954,
+          "condition": 5,
+          "code": "TB005",
+          "symbol": "psycopg.Cursor.execute",
+          "scope": "pitchlog.db.current_product_startup._check_current_public_storage"
+        },
+        {
+          "line": 966,
+          "condition": 5,
+          "code": "TB005",
+          "symbol": "psycopg.Cursor.execute",
+          "scope": "pitchlog.db.current_product_startup._check_current_public_storage"
+        },
+        {
+          "line": 982,
+          "condition": 5,
+          "code": "TB005",
+          "symbol": "psycopg.Cursor.execute",
+          "scope": "pitchlog.db.current_product_startup._check_current_public_storage"
+        },
+        {
+          "line": 998,
+          "condition": 5,
+          "code": "TB005",
+          "symbol": "psycopg.Cursor.execute",
+          "scope": "pitchlog.db.current_product_startup._check_current_public_storage"
+        },
+        {
+          "line": 1029,
+          "condition": 5,
+          "code": "TB005",
+          "symbol": "psycopg.Cursor.execute",
+          "scope": "pitchlog.db.current_product_startup._check_current_public_storage"
+        },
+        {
+          "line": 1043,
+          "condition": 5,
+          "code": "TB005",
+          "symbol": "psycopg.Cursor.execute",
+          "scope": "pitchlog.db.current_product_startup._check_current_public_storage"
+        },
+        {
+          "line": 1070,
+          "condition": 5,
+          "code": "TB005",
+          "symbol": "psycopg.Cursor.execute",
+          "scope": "pitchlog.db.current_product_startup._check_current_public_storage"
+        }
+      ],
+      "call_operations_sha256": {
+        "237": "d567352296076d8fec3283be5f043f524ceabba68b867ef1eb3edd25721612aa",
+        "238": "a783a34a18d3e6e27d45a373934c6d6b6faed5aa74d0aee1218cfe15658b7fff",
+        "322": "d567352296076d8fec3283be5f043f524ceabba68b867ef1eb3edd25721612aa",
+        "323": "8e7edfb2087cdd6c26153d1b74d415c4ba33aa352d3d697605c1ce8cc4a4f82b",
+        "329": "11a4ad81b3ad2abd4fc6213025a2eb9bbdec187892b2d09f79b3981487372fbc",
+        "340": "c02963b55d5c6e33afb7853098e743e59c1a43327805aa644ec2577a73ded2ed",
+        "362": "a877ed3a52cf9b0c549e40d8bd0b7ff2b812948dd56923a36b71e69b7173712c",
+        "375": "b71e41211e703973e14d055be0026b1efd2c49a6151b42781f9e153da40f86a6",
+        "453": "d567352296076d8fec3283be5f043f524ceabba68b867ef1eb3edd25721612aa",
+        "496": "e99193ae954e06b3642362d176223ba9ef96508510fddf521e3bcc7c3b46a665",
+        "539": "d120e11506213472641c77880c2217e1991c5cd330c4d50acd32289692c77d8b",
+        "615": "d567352296076d8fec3283be5f043f524ceabba68b867ef1eb3edd25721612aa",
+        "616": "041bc4d587bcda03e9f2010cc12c9fd2b1533e20a9e94d895907608cd20c1f5a",
+        "759": "c291d0bd3b9007d34d0d6445633011d0f5e1b2b7000d4ad5e8bb1f2ec50e225d",
+        "814": "6ff2e2e78e272d0f90d1b7d842f925982e20686fbf0049953f595aac3fdbf258",
+        "816": "a7ab7a9f205f13f55231fb7bb582383fa3c389faff278e95738f2ca9dbb57470",
+        "834": "c81fae47acf7ff6cf9eb80b6ba63859067573d53483d656fea6297ddf975765a",
+        "841": "c81fae47acf7ff6cf9eb80b6ba63859067573d53483d656fea6297ddf975765a",
+        "847": "c81fae47acf7ff6cf9eb80b6ba63859067573d53483d656fea6297ddf975765a",
+        "849": "c81fae47acf7ff6cf9eb80b6ba63859067573d53483d656fea6297ddf975765a",
+        "869": "c81fae47acf7ff6cf9eb80b6ba63859067573d53483d656fea6297ddf975765a",
+        "890": "5f4a88f821eed8e9c60bfc7a27ea4b34d536ec13e837ae1cce1d45891d41b026",
+        "891": "cbc141112ddfe47847e85ba4bd740c6a8cf1500f474844030b28fef80236b79c",
+        "913": "d567352296076d8fec3283be5f043f524ceabba68b867ef1eb3edd25721612aa",
+        "914": "f7ef9723a031d4f6c66c4bab5d8461f9d4066969dbda1daf9a94ea97ff811ab7",
+        "924": "5200821592cbb8683c573946d35a8499d2d0a73603ec5ed0aa1d5e4dd40cb441",
+        "932": "360418ffa609d59e094f444d59d536726dd9edfd1ca9e6856655a681e063c209",
+        "943": "ceb8181e500ce64be5737933cfbffdc671307837989fd4a4b875d80e668864a2",
+        "953": "d567352296076d8fec3283be5f043f524ceabba68b867ef1eb3edd25721612aa",
+        "954": "c77cf59dfea37169f83da2f63dae5fe56e77c7161ee7d1264a546c916d983e49",
+        "966": "7e03ce756ba72db972a2f93194dfb3196f43e4b4f941d8772f1d65bf6ed7909b",
+        "982": "3b9d52a67827cd2ad13195ca61fbcfafc3c097771996e7095c2b632358038403",
+        "998": "cfd6855cb8fc8ebf54a7998996b0ca635f3a4eb5a82d64fe77e108638ebc3591",
+        "1029": "ca1d324e5bf2b3faacff60b79e2c6f77b1892471d62567369acc152855663e0f",
+        "1043": "a15ca2c20697cee2be67d1c5b5ba3caa1ed0c8a07b57f4d52acde9549ceacfca",
+        "1070": "e77a167b45d684663fbde605b7b346afb7eb9e0d43901b9c203b28dc758a6d2a"
+      }
+    },
+    "backend/src/pitchlog/db/game_state/stats.py": {
+      "purpose": "stats_fact_versionsの固定partial index述語構築。実行時DB入口ではない。",
+      "source_sha256": "bf77b678086f332b19a6da8ab4d69560657547b3803d96dcfa92dae81c6648dc",
+      "findings": [
+        {
+          "line": 161,
+          "condition": 5,
+          "code": "TB005",
+          "symbol": "sqlalchemy.text",
+          "scope": "pitchlog.db.game_state.stats.<module>"
+        }
+      ],
+      "call_operations_sha256": {
+        "161": "da1801a5f2810a7ad06d1c8aa9c86fd9c9e27a58c590d0d56efbbe83cf9b1650"
+      }
+    },
+    "backend/src/pitchlog/domaincheck/runners/stats_native.py": {
+      "purpose": "D11検証runnerの固定SQL/生成Python呼出。製品DB資格とは区別する。",
+      "source_sha256": "c554a9ce5c65b2d46ed106fde3cbe0b1982e454ef58c682f0cea3771047ffbdd",
+      "findings": [
+        {
+          "line": 755,
+          "condition": 5,
+          "code": "TB005",
+          "symbol": "sqlalchemy.text",
+          "scope": "pitchlog.domaincheck.runners.stats_native.execute_sql_composite"
+        },
+        {
+          "line": 761,
+          "condition": 5,
+          "code": "TB005",
+          "symbol": "psycopg.Connection.execute",
+          "scope": "pitchlog.domaincheck.runners.stats_native.execute_sql_composite"
+        },
+        {
+          "line": 668,
+          "condition": 5,
+          "code": "TB007",
+          "symbol": "pitchlog.stats.facts._EVENT_FACTS",
+          "scope": "pitchlog.domaincheck.runners.stats_native.execute_python"
+        }
+      ],
+      "call_operations_sha256": {
+        "755": "8115a90c10ef75269dd6559efa2bf4f2a9799305bf2d59255f92f8fac0cad3a3",
+        "761": "c301c35524aea9bc1184945d67ede27e6062abf33a54ad40c52e4867edf22fe4",
+        "668": "7586ba085f388dda2f3df7fe0c57a254702563cc5207c42b3c21bbdec86fc396"
+      }
+    },
+    "backend/src/pitchlog/exports/generated/play_primitives.sql": {
+      "purpose": "唯一のtyped generatorが出すwindow SQL。manifest全byteと再生成が必要。",
+      "source_sha256": "6b76ca894f910a484aa8d130d07c61ab237a1737af0bec0e6a3b578a277b9552",
+      "findings": [
+        {
+          "line": 1,
+          "condition": 0,
+          "code": "TB000",
+          "symbol": "<unsupported>",
+          "scope": "<generated-sql>"
+        }
+      ],
+      "call_operations_sha256": {}
+    },
+    "backend/src/pitchlog/repositories/play_export_primitives.py": {
+      "purpose": "真正RRROのreceipt/cursor/同handle one-shot資格。root read scopeは静的入口に束縛済み、opaque型はTenantContextでないことを実型で証明する。",
+      "source_sha256": "0fed153b7fc8d5f0896d103f8fb824ca7611445163d15fda0e5a0a02345763cf",
+      "findings": [
+        {
+          "line": 142,
+          "condition": 5,
+          "code": "TB007",
+          "symbol": "entry",
+          "scope": "pitchlog.repositories.play_export_primitives._require_receipt"
+        },
+        {
+          "line": 160,
+          "condition": 5,
+          "code": "TB007",
+          "symbol": "entry",
+          "scope": "pitchlog.repositories.play_export_primitives._require_cursor"
+        },
+        {
+          "line": 162,
+          "condition": 5,
+          "code": "TB007",
+          "symbol": "entry",
+          "scope": "pitchlog.repositories.play_export_primitives._require_cursor"
+        },
+        {
+          "line": 506,
+          "condition": 5,
+          "code": "TB007",
+          "symbol": "builtins.object.__new__",
+          "scope": "pitchlog.repositories.play_export_primitives.ReadPlayExportPrimitives.open"
+        },
+        {
+          "line": 518,
+          "condition": 5,
+          "code": "TB007",
+          "symbol": "builtins.object.__setattr__",
+          "scope": "pitchlog.repositories.play_export_primitives.ReadPlayExportPrimitives.open"
+        }
+      ],
+      "call_operations_sha256": {
+        "142": "a0ec15db6915ecdcf35660da65e6ab117671c98a834a12940759112c0710921f",
+        "160": "a0ec15db6915ecdcf35660da65e6ab117671c98a834a12940759112c0710921f",
+        "162": "42b4c9cd940145862aabb8de2b551cbda6cb2dcbbba95025c748905530ae40dc",
+        "506": "2dd164c338aee5b606604df810acb8fe531909c3a02e785d693dbe1c059646ed",
+        "518": "2f69f073fa66a5b0da4c7036ee4f0505a2de86d9b17746d81b522ac696dcf6a8"
+      }
+    },
+    "backend/src/pitchlog/repositories/stats_function_codec.py": {
+      "purpose": "固定5関数の型付きselect構築のみ。caller SQLや任意tableを受けない。",
+      "source_sha256": "1f19d363296b935112b38f84d9c7594bf2f5612bf82b76002e84502d78ba72ca",
+      "findings": [
+        {
+          "line": 467,
+          "condition": 5,
+          "code": "TB005",
+          "symbol": "sqlalchemy.select",
+          "scope": "pitchlog.repositories.stats_function_codec._call"
+        }
+      ],
+      "call_operations_sha256": {
+        "467": "154c3830704a0f5ec84cce65676f4fab037f3c6bc916ba8f53108acc9e2a1fbd"
+      }
+    },
+    "backend/src/pitchlog/repositories/stats_native_operations.py": {
+      "purpose": "固定function registrationのstatementを正規値へ戻すobject.__setattr__。",
+      "source_sha256": "bada98f4a9ad54e7a0370616664fbdacab55b026adea410bd46411f269f7aedc",
+      "findings": [
+        {
+          "line": 204,
+          "condition": 5,
+          "code": "TB007",
+          "symbol": "builtins.object.__setattr__",
+          "scope": "pitchlog.repositories.stats_native_operations.validate_registration"
+        }
+      ],
+      "call_operations_sha256": {
+        "204": "0a937627f9d7d6274e703b2bc4eb3e194c249b4b9394dcb900b52ec4de22391e"
+      }
+    },
+    "backend/src/pitchlog/repositories/transaction.py": {
+      "purpose": "既PR192後継とRRRO固定読取、Port read generation資格。旧source/ownerを保持し追加参照を個別審査する。",
+      "source_sha256": "48864666b8f01f0ee753d4b1092bf43dc3ca8aa135011c4ee8b3798f6941b1f6",
+      "findings": [
+        {
+          "line": 893,
+          "condition": 5,
+          "code": "TB005",
+          "symbol": "sqlalchemy.orm.Session.execute",
+          "scope": "pitchlog.repositories.transaction._run_stats_primitive_read"
+        },
+        {
+          "line": 1108,
+          "condition": 1,
+          "code": "TB001",
+          "symbol": "_assert_existing_resolution_owner",
+          "scope": "pitchlog.repositories.transaction.<module>"
+        },
+        {
+          "line": 1242,
+          "condition": 2,
+          "code": "TB002",
+          "symbol": "RecordingGenerationByNumberReadToken",
+          "scope": "pitchlog.repositories.transaction._port_read_types"
+        },
+        {
+          "line": 1242,
+          "condition": 2,
+          "code": "TB002",
+          "symbol": "RecordingGenerationReadToken",
+          "scope": "pitchlog.repositories.transaction._port_read_types"
+        },
+        {
+          "line": 1254,
+          "condition": 2,
+          "code": "TB002",
+          "symbol": "pitchlog.sync.tokens.RecordingGenerationByNumberReadToken",
+          "scope": "pitchlog.repositories.transaction._port_read_types"
+        },
+        {
+          "line": 1254,
+          "condition": 2,
+          "code": "TB002",
+          "symbol": "pitchlog.sync.tokens.RecordingGenerationReadToken",
+          "scope": "pitchlog.repositories.transaction._port_read_types"
+        },
+        {
+          "line": 1577,
+          "condition": 2,
+          "code": "TB002",
+          "symbol": "pitchlog.repositories.tokens.TenantOperationToken.recovery_generation",
+          "scope": "pitchlog.repositories.transaction._execute_port_command"
+        },
+        {
+          "line": 1578,
+          "condition": 2,
+          "code": "TB002",
+          "symbol": "pitchlog.repositories.tokens.TenantOperationToken.recovery_generation",
+          "scope": "pitchlog.repositories.transaction._execute_port_command"
+        },
+        {
+          "line": 1598,
+          "condition": 2,
+          "code": "TB002",
+          "symbol": "pitchlog.repositories.tokens.TenantOperationToken.recovery_generation",
+          "scope": "pitchlog.repositories.transaction._execute_port_command"
+        },
+        {
+          "line": 1609,
+          "condition": 2,
+          "code": "TB002",
+          "symbol": "pitchlog.repositories.tokens.TenantOperationToken.recovery_generation",
+          "scope": "pitchlog.repositories.transaction._execute_port_command"
+        }
+      ],
+      "call_operations_sha256": {
+        "893": "0091c0f36b3e49fc44100d9b41997c47bf12556bc1d3c9b69ca33aee3cf9986a"
+      }
+    },
+    "backend/src/pitchlog/stats/generated/stats.sql": {
+      "purpose": "唯一のtyped generatorが出すgrouped SQL。manifest全byteと再生成が必要。",
+      "source_sha256": "b7a8837fb9efaf662a66a7b3c93ec977969139e93c58857716069a9b1329a541",
+      "findings": [
+        {
+          "line": 1,
+          "condition": 0,
+          "code": "TB000",
+          "symbol": "<unsupported>",
+          "scope": "<generated-sql>"
+        }
+      ],
+      "call_operations_sha256": {}
+    },
+    "backend/src/pitchlog/stats/generated/stats_rates.sql": {
+      "purpose": "唯一のtyped generatorが出すrates SQL。manifest全byteと再生成が必要。",
+      "source_sha256": "2cd641e8ab0c56ee029dd3e477ccecdface1e18fd97770c0dfd9f1f174814f81",
+      "findings": [
+        {
+          "line": 1,
+          "condition": 0,
+          "code": "TB000",
+          "symbol": "<unsupported>",
+          "scope": "<generated-sql>"
+        }
+      ],
+      "call_operations_sha256": {}
+    },
+    "backend/src/pitchlog/sync/native_ledger_insert.py": {
+      "purpose": "真正同TX/tenant/frame資格を満たすD5 INSERTの単一Session.execute。",
+      "source_sha256": "74f8b4ca9e47a268cdd853d382b4e8f16fe839733fe0fffcef74b26baa5bf913",
+      "findings": [
+        {
+          "line": 519,
+          "condition": 5,
+          "code": "TB005",
+          "symbol": "sqlalchemy.orm.Session.execute",
+          "scope": "pitchlog.sync.native_ledger_insert._recheck_and_insert_native_result"
+        }
+      ],
+      "call_operations_sha256": {
+        "519": "2b5d9b0137dc5b93e3a63e741df4ea9ef6653f7baacc514fca451b1fd6377e2e"
+      }
+    },
+    "backend/src/pitchlog/sync/ordinary_pitch_execution.py": {
+      "purpose": "既PR192後継と通常frame opaque作成。旧所有scopeを維持する。",
+      "source_sha256": "c6ad6360c3cc6c0f3afd6017a605d7c7d0f3a7df6434f6382912440b9175c9a4",
+      "findings": [
+        {
+          "line": 213,
+          "condition": 5,
+          "code": "TB007",
+          "symbol": "builtins.object.__new__",
+          "scope": "pitchlog.sync.ordinary_pitch_execution._bind_ordinary_pitch_execution"
+        },
+        {
+          "line": 644,
+          "condition": 5,
+          "code": "TB007",
+          "symbol": "builtins.object.__new__",
+          "scope": "pitchlog.sync.ordinary_pitch_execution._evaluate_play_prefix"
+        },
+        {
+          "line": 782,
+          "condition": 5,
+          "code": "TB007",
+          "symbol": "builtins.object.__new__",
+          "scope": "pitchlog.sync.ordinary_pitch_execution._evaluate_lineup_prefix_bound"
+        }
+      ],
+      "call_operations_sha256": {
+        "213": "d77e0cefb7edfce1ed85b4f82e3c1149277e1b8ad460508db2ee0721db3033e2",
+        "644": "d77e0cefb7edfce1ed85b4f82e3c1149277e1b8ad460508db2ee0721db3033e2",
+        "782": "d77e0cefb7edfce1ed85b4f82e3c1149277e1b8ad460508db2ee0721db3033e2"
+      }
+    },
+    "backend/src/pitchlog/sync/stats_native_flush.py": {
+      "purpose": "同一Sessionで固定preflightとSaveの2実行。source/nonce/lease/TX資格を前後で再検証する。",
+      "source_sha256": "a7c2e10cfd6fd6c4a4df8de8eb7397c29f9c3d0f0057a6a52c3c7aadb6ea8cd0",
+      "findings": [
+        {
+          "line": 207,
+          "condition": 5,
+          "code": "TB005",
+          "symbol": "sqlalchemy.orm.Session.execute",
+          "scope": "pitchlog.sync.stats_native_flush._flush_native_stats"
+        },
+        {
+          "line": 263,
+          "condition": 5,
+          "code": "TB005",
+          "symbol": "sqlalchemy.orm.Session.execute",
+          "scope": "pitchlog.sync.stats_native_flush._flush_native_stats"
+        }
+      ],
+      "call_operations_sha256": {
+        "207": "f6a6fb4ed3c5037ab84ddbba7ccf0bdb5d0624f02f72b68cb28288cee76479c2",
+        "263": "e8e5ab33f443001254944e3a0b19d2e1c7a6b8c1f8f5ef1195069ef722ff1a58"
+      }
+    },
+    "backend/src/pitchlog/sync/stats_native_hook.py": {
+      "purpose": "NativeStatsSourceReceipt opaque作成と一回発行。TenantContextの生成でないことを実型で証明する。",
+      "source_sha256": "336da66730ace784a6796011c4155117836193c4f1ae30809cb33305fbed47c5",
+      "findings": [
+        {
+          "line": 303,
+          "condition": 5,
+          "code": "TB007",
+          "symbol": "builtins.object.__new__",
+          "scope": "pitchlog.sync.stats_native_hook._issue_native_stats_source"
+        }
+      ],
+      "call_operations_sha256": {
+        "303": "1c586f229dc94f76b7b6d99eaa04bec8b24b31c58dc14eee5076fe103a128405"
+      }
+    },
+    "backend/src/pitchlog/stats/facts.py": {
+      "purpose": "実行前固定SHAで検証した生成facts核だけをロード・呼出する。TenantContextを生成しない。",
+      "source_sha256": "64a8ad3c7dbdd2bec60b60c36bcd23dff07195e99f9d8c0774b790e561324833",
+      "findings": [
+        {
+          "line": 38,
+          "condition": 5,
+          "code": "TB005",
+          "symbol": "exec",
+          "scope": "pitchlog.stats.facts._generated_api"
+        },
+        {
+          "line": 139,
+          "condition": 5,
+          "code": "TB007",
+          "symbol": "_EVENT_FACTS",
+          "scope": "pitchlog.stats.facts.evaluate_native_projection"
+        },
+        {
+          "line": 144,
+          "condition": 5,
+          "code": "TB007",
+          "symbol": "_EVENT_FACTS",
+          "scope": "pitchlog.stats.facts.evaluate_closed_projection"
+        }
+      ],
+      "call_operations_sha256": {
+        "38": "97cfda40234581aa642d2ec0b512d7401b1e8bbcb9267677d1f6954efebe3608",
+        "139": "e09c215a76bc9c770d44bd8e1911715e6ac7e4c45e6f55b1c365dd878a8c7901",
+        "144": "188f98f93c32e77c396c98ce5bf181f069ca753b41312cc35294185bee952733"
+      }
+    }
+  },
+  "held_findings": [
+    {
+      "path": "backend/src/pitchlog/repositories/transaction.py",
+      "line": 1,
+      "condition": 2,
+      "code": "TB002",
+      "symbol": "pr192-source-identity",
+      "scope": "pitchlog.repositories.transaction.<module>"
+    },
+    {
+      "path": "backend/src/pitchlog/sync/ordinary_pitch_execution.py",
+      "line": 1,
+      "condition": 2,
+      "code": "TB002",
+      "symbol": "pr192-source-identity",
+      "scope": "pitchlog.sync.ordinary_pitch_execution.<module>"
+    },
+    {
+      "path": "backend/src/pitchlog/sync/ordinary_pitch_execution.py",
+      "line": 614,
+      "condition": 7,
+      "code": "TB007",
+      "symbol": "builtins.object.__new__",
+      "scope": "pitchlog.sync.ordinary_pitch_execution._evaluate_play_prefix"
+    }
+  ],
+  "sql_generation": {
+    "paths": [
+      "backend/src/pitchlog/exports/generated/play_primitives.sql",
+      "backend/src/pitchlog/stats/generated/stats.sql",
+      "backend/src/pitchlog/stats/generated/stats_rates.sql"
+    ],
+    "manifest_path": "backend/domain/stats-manifest.json",
+    "manifest_sha256": "6194ba3c0d1ce9ca7a52194538d99f4cfb0899c6789f13a921763c3e8e9ea11d",
+    "generation_input_files": {
+      "backend/domain/model.schema.json": "ec6b8b9c90e37a22e4f57005df4e227380a0fc20d397a02cdee317e02892ac9a",
+      "backend/domain/play-export.model.json": "3ee265ce3586b793f8e48853e07548dfd700bd94fe988af1a63190e8626e073b",
+      "backend/domain/stats.model.json": "a3a7643780f7e430309b909d4c1b23a72da87b327afc5e1be2ff7c9da8244773",
+      "backend/src/pitchlog/domaingen/core.py": "761e60e3b10a09df5f5e5b32a39097094756a863bb13e6346abd3b44aa3967a5",
+      "backend/src/pitchlog/domaingen/pregen_checks.py": "72f558898fb535107e588eb03724ae106b8484544c0ccd50123d54df1621ba15",
+      "backend/src/pitchlog/domaingen/formatter.py": "11cbeae3b605add84eeebea9974b2e0b0449891601c84f62f9046ef36bd7dc3b",
+      "backend/src/pitchlog/domaingen/backends/python.py": "e1c29caa5dc121f977c3c2cec8e3c12dbfbdde33bd9c2e4258e9528cf84fcf0f",
+      "backend/src/pitchlog/domaingen/backends/typescript.py": "b9c4458d10a3e872c45dcd5b5d24bbaf6f01f86df5ea71c84002b81b1213d468",
+      "backend/src/pitchlog/domaingen/backends/sql.py": "e0fb3a4956a47eafd6bca64c19740b6d6432c3dafda8668d4234e144ca270ffb"
+    },
+    "generated_sha256": {
+      "backend/src/pitchlog/exports/generated/play_primitives.sql": "6b76ca894f910a484aa8d130d07c61ab237a1737af0bec0e6a3b578a277b9552",
+      "backend/src/pitchlog/stats/generated/stats.sql": "b7a8837fb9efaf662a66a7b3c93ec977969139e93c58857716069a9b1329a541",
+      "backend/src/pitchlog/stats/generated/stats_rates.sql": "2cd641e8ab0c56ee029dd3e477ccecdface1e18fd97770c0dfd9f1f174814f81"
+    }
+  },
+  "counts": {
+    "candidate": 71,
+    "held": 3,
+    "paths": 15,
+    "sql": 3,
+    "python": 12
+  },
+  "preexec_review_sha256": "989465e51aa7ef83ea0e80a8ddd3fdad1d0f7a54a9134afa7437cd8ba7032dce",
+  "facts_generated_sha256": "7673b5969d6ce3104b48d4f94f217c6b4a44ef1b9b08d06ebaeee935648497d4",
+  "identity_successor": {
+    "purpose": "PR197固定a59の2pathだけを旧PR191/192 identity後継として接合し、TB siteの許可とは分離する。",
+    "source_revision": "a59c654e3366d2be9c6456e47b07118e1674bce2",
+    "pr191_source_revision": "6939271e9edbe8c4b6bc2fcd69af59e3fcbe4d3a",
+    "pr192_source_revision": "9b76ab2fc4a6eb4d17ab956836bd7fc79dd4334e",
+    "pr191_ordinary_owner": {
+      "purpose": "sealed OrdinaryPitchFrame construction at the sole v2 binding site",
+      "source_sha256": "18f134daacffae1521cbc1f7a0456feb08888e6dae4479c4a67cf15ff984eb56",
+      "findings": [
+        {
+          "line": 614,
+          "code": "TB007",
+          "symbol": "builtins.object.__new__",
+          "scope": "pitchlog.sync.ordinary_pitch_execution._evaluate_play_prefix"
+        }
+      ]
+    },
+    "pr192_ordinary_owner": {
+      "purpose": "旧v2/v3に閉じたOrdinaryPitchFrameの唯一生成。TenantContext生成・自由frame公開ではない",
+      "source_sha256": "da6dac01ee85f908f0cbbaf9e900493fde0dd91ae84d9e470c1eb168af276b05",
+      "findings": [
+        {
+          "line": 628,
+          "condition": 5,
+          "code": "TB007",
+          "symbol": "builtins.object.__new__",
+          "scope": "pitchlog.sync.ordinary_pitch_execution._evaluate_play_prefix"
+        },
+        {
+          "line": 752,
+          "condition": 5,
+          "code": "TB007",
+          "symbol": "builtins.object.__new__",
+          "scope": "pitchlog.sync.ordinary_pitch_execution._evaluate_lineup_prefix_bound"
+        }
+      ]
+    },
+    "pr192_superseded_pr191_owners": [
+      "backend/src/pitchlog/repositories/ordinary_prefix_read.py",
+      "backend/src/pitchlog/repositories/play_prefix.py",
+      "backend/src/pitchlog/sync/ordinary_pitch_execution.py",
+      "backend/src/pitchlog/sync/terminal_pitch_projection.py"
+    ],
+    "paths": {
+      "backend/src/pitchlog/repositories/transaction.py": {
+        "purpose": "旧PR192 transaction identityの固定後継。旧owner3 AST同一/旧9移動/新read1を確認する。",
+        "source_sha256": "48864666b8f01f0ee753d4b1092bf43dc3ca8aa135011c4ee8b3798f6941b1f6",
+        "pr192_source_sha256": "bc511d12f0cc0ac66bb24da1c9014f04b37e5dd02d9e0d2b51df5ebf7c35cb9a",
+        "legacy_functions": [
+          "_assert_existing_resolution_owner",
+          "_port_read_types",
+          "_execute_port_command"
+        ],
+        "moved_followups": [
+          {
+            "diagnostic_id": "V116",
+            "old": {
+              "line": 949,
+              "condition": 1,
+              "code": "TB001",
+              "symbol": "_assert_existing_resolution_owner",
+              "scope": "pitchlog.repositories.transaction.<module>"
+            },
+            "current": {
+              "line": 1108,
+              "condition": 1,
+              "code": "TB001",
+              "symbol": "_assert_existing_resolution_owner",
+              "scope": "pitchlog.repositories.transaction.<module>"
+            }
+          },
+          {
+            "diagnostic_id": "V117",
+            "old": {
+              "line": 1083,
+              "condition": 2,
+              "code": "TB002",
+              "symbol": "RecordingGenerationByNumberReadToken",
+              "scope": "pitchlog.repositories.transaction._port_read_types"
+            },
+            "current": {
+              "line": 1242,
+              "condition": 2,
+              "code": "TB002",
+              "symbol": "RecordingGenerationByNumberReadToken",
+              "scope": "pitchlog.repositories.transaction._port_read_types"
+            }
+          },
+          {
+            "diagnostic_id": "V118",
+            "old": {
+              "line": 1083,
+              "condition": 2,
+              "code": "TB002",
+              "symbol": "RecordingGenerationReadToken",
+              "scope": "pitchlog.repositories.transaction._port_read_types"
+            },
+            "current": {
+              "line": 1242,
+              "condition": 2,
+              "code": "TB002",
+              "symbol": "RecordingGenerationReadToken",
+              "scope": "pitchlog.repositories.transaction._port_read_types"
+            }
+          },
+          {
+            "diagnostic_id": "V119",
+            "old": {
+              "line": 1095,
+              "condition": 2,
+              "code": "TB002",
+              "symbol": "pitchlog.sync.tokens.RecordingGenerationByNumberReadToken",
+              "scope": "pitchlog.repositories.transaction._port_read_types"
+            },
+            "current": {
+              "line": 1254,
+              "condition": 2,
+              "code": "TB002",
+              "symbol": "pitchlog.sync.tokens.RecordingGenerationByNumberReadToken",
+              "scope": "pitchlog.repositories.transaction._port_read_types"
+            }
+          },
+          {
+            "diagnostic_id": "V120",
+            "old": {
+              "line": 1095,
+              "condition": 2,
+              "code": "TB002",
+              "symbol": "pitchlog.sync.tokens.RecordingGenerationReadToken",
+              "scope": "pitchlog.repositories.transaction._port_read_types"
+            },
+            "current": {
+              "line": 1254,
+              "condition": 2,
+              "code": "TB002",
+              "symbol": "pitchlog.sync.tokens.RecordingGenerationReadToken",
+              "scope": "pitchlog.repositories.transaction._port_read_types"
+            }
+          },
+          {
+            "diagnostic_id": "V121",
+            "old": {
+              "line": 1418,
+              "condition": 2,
+              "code": "TB002",
+              "symbol": "pitchlog.repositories.tokens.TenantOperationToken.recovery_generation",
+              "scope": "pitchlog.repositories.transaction._execute_port_command"
+            },
+            "current": {
+              "line": 1577,
+              "condition": 2,
+              "code": "TB002",
+              "symbol": "pitchlog.repositories.tokens.TenantOperationToken.recovery_generation",
+              "scope": "pitchlog.repositories.transaction._execute_port_command"
+            }
+          },
+          {
+            "diagnostic_id": "V122",
+            "old": {
+              "line": 1419,
+              "condition": 2,
+              "code": "TB002",
+              "symbol": "pitchlog.repositories.tokens.TenantOperationToken.recovery_generation",
+              "scope": "pitchlog.repositories.transaction._execute_port_command"
+            },
+            "current": {
+              "line": 1578,
+              "condition": 2,
+              "code": "TB002",
+              "symbol": "pitchlog.repositories.tokens.TenantOperationToken.recovery_generation",
+              "scope": "pitchlog.repositories.transaction._execute_port_command"
+            }
+          },
+          {
+            "diagnostic_id": "V123",
+            "old": {
+              "line": 1439,
+              "condition": 2,
+              "code": "TB002",
+              "symbol": "pitchlog.repositories.tokens.TenantOperationToken.recovery_generation",
+              "scope": "pitchlog.repositories.transaction._execute_port_command"
+            },
+            "current": {
+              "line": 1598,
+              "condition": 2,
+              "code": "TB002",
+              "symbol": "pitchlog.repositories.tokens.TenantOperationToken.recovery_generation",
+              "scope": "pitchlog.repositories.transaction._execute_port_command"
+            }
+          },
+          {
+            "diagnostic_id": "V124",
+            "old": {
+              "line": 1450,
+              "condition": 2,
+              "code": "TB002",
+              "symbol": "pitchlog.repositories.tokens.TenantOperationToken.recovery_generation",
+              "scope": "pitchlog.repositories.transaction._execute_port_command"
+            },
+            "current": {
+              "line": 1609,
+              "condition": 2,
+              "code": "TB002",
+              "symbol": "pitchlog.repositories.tokens.TenantOperationToken.recovery_generation",
+              "scope": "pitchlog.repositories.transaction._execute_port_command"
+            }
+          }
+        ],
+        "new_read_finding": {
+          "line": 893,
+          "condition": 5,
+          "code": "TB005",
+          "symbol": "sqlalchemy.orm.Session.execute",
+          "scope": "pitchlog.repositories.transaction._run_stats_primitive_read"
+        },
+        "call_operations_sha256": {
+          "893": "0091c0f36b3e49fc44100d9b41997c47bf12556bc1d3c9b69ca33aee3cf9986a"
+        }
+      },
+      "backend/src/pitchlog/sync/ordinary_pitch_execution.py": {
+        "purpose": "旧PR191 ordinary ownerとPR192 identityの固定後継。旧owner3 AST同一と実frame3callを確認する。",
+        "source_sha256": "c6ad6360c3cc6c0f3afd6017a605d7c7d0f3a7df6434f6382912440b9175c9a4",
+        "pr192_source_sha256": "da6dac01ee85f908f0cbbaf9e900493fde0dd91ae84d9e470c1eb168af276b05",
+        "legacy_functions": [
+          "_live",
+          "_require_ordinary_projection_completed",
+          "_ordinary_qualification_scope"
+        ],
+        "moved_followups": [
+          {
+            "diagnostic_id": "V125",
+            "old": {
+              "line": 212,
+              "condition": 5,
+              "code": "TB007",
+              "symbol": "builtins.object.__new__",
+              "scope": "pitchlog.sync.ordinary_pitch_execution._bind_ordinary_pitch_execution"
+            },
+            "current": {
+              "line": 213,
+              "condition": 5,
+              "code": "TB007",
+              "symbol": "builtins.object.__new__",
+              "scope": "pitchlog.sync.ordinary_pitch_execution._bind_ordinary_pitch_execution"
+            }
+          }
+        ],
+        "moved_pr192_owner": [
+          {
+            "old": {
+              "line": 628,
+              "condition": 5,
+              "code": "TB007",
+              "symbol": "builtins.object.__new__",
+              "scope": "pitchlog.sync.ordinary_pitch_execution._evaluate_play_prefix"
+            },
+            "current": {
+              "line": 644,
+              "condition": 5,
+              "code": "TB007",
+              "symbol": "builtins.object.__new__",
+              "scope": "pitchlog.sync.ordinary_pitch_execution._evaluate_play_prefix"
+            }
+          },
+          {
+            "old": {
+              "line": 752,
+              "condition": 5,
+              "code": "TB007",
+              "symbol": "builtins.object.__new__",
+              "scope": "pitchlog.sync.ordinary_pitch_execution._evaluate_lineup_prefix_bound"
+            },
+            "current": {
+              "line": 782,
+              "condition": 5,
+              "code": "TB007",
+              "symbol": "builtins.object.__new__",
+              "scope": "pitchlog.sync.ordinary_pitch_execution._evaluate_lineup_prefix_bound"
+            }
+          }
+        ],
+        "call_operations_sha256": {
+          "213": "d77e0cefb7edfce1ed85b4f82e3c1149277e1b8ad460508db2ee0721db3033e2",
+          "644": "d77e0cefb7edfce1ed85b4f82e3c1149277e1b8ad460508db2ee0721db3033e2",
+          "782": "d77e0cefb7edfce1ed85b4f82e3c1149277e1b8ad460508db2ee0721db3033e2"
+        },
+        "pr192_call_operations_sha256": {
+          "212": "d77e0cefb7edfce1ed85b4f82e3c1149277e1b8ad460508db2ee0721db3033e2",
+          "628": "d77e0cefb7edfce1ed85b4f82e3c1149277e1b8ad460508db2ee0721db3033e2",
+          "752": "d77e0cefb7edfce1ed85b4f82e3c1149277e1b8ad460508db2ee0721db3033e2"
+        }
+      }
+    },
+    "pr191_ordinary_call_operation_sha256": "d77e0cefb7edfce1ed85b4f82e3c1149277e1b8ad460508db2ee0721db3033e2"
+  }
+}
