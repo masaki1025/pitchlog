@@ -242,6 +242,9 @@ test('production SWで真の断中cold再起動から2球を同原文順で同�
   await expect(
     page.getByRole('heading', { name: '端末内の記録' }),
   ).toBeVisible()
+  // 新しいpageの入力開始条件は再確認し、旧mountの確認を認証済みとして持ち越さない。
+  for (const name of ['profile', 'mode', 'bucket', 'lockdown'])
+    await page.getByTestId(`first-ball-env-${name}`).check()
   await expect(page.getByTestId('ordinary-local-balls')).toHaveText('2')
   const originals = await preparedHashes(page)
   expect(originals).toHaveLength(2)
@@ -272,7 +275,7 @@ test('production SWで真の断中cold再起動から2球を同原文順で同�
       response.status() === 200 &&
       (await response.json()).prefix_ref?.length === '2',
   )
-  await page.reload()
+  // 第2要求のACKと自動GETが終わるまでreloadで通信を中断しない。
   const final = (await (await finalRead).json()) as {
     read_kind: string
     prefix_ref: { length: string }
@@ -281,6 +284,17 @@ test('production SWで真の断中cold再起動から2球を同原文順で同�
   expect(final.read_kind).toBe('lineup-prefix')
   expect(final.prefix_ref.length).toBe('2')
   expect(final.after.stateFields['state.count.balls']).toBe('2')
+  const reloadedRead = page.waitForResponse(
+    async (response) =>
+      response.request().method() === 'GET' &&
+      path(response.url()) === `/api/games/${gameId}/started` &&
+      response.status() === 200 &&
+      (await response.json()).prefix_ref?.length === '2',
+  )
+  await page.reload()
+  expect(
+    (await (await reloadedRead).json()).after.stateFields['state.count.balls'],
+  ).toBe('2')
   await expect(page.getByTestId('ordinary-local-balls')).toHaveText('2')
   console.log('PITCHLOG_OFFLINE_RECORDING_GAME_ID=' + gameId)
 })
