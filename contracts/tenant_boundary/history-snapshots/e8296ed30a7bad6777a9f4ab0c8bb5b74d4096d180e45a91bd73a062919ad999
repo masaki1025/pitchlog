@@ -8,7 +8,10 @@ import re
 from pathlib import Path
 
 import pytest
-from first_ball_expected_source_pins import read_expected_source_pins
+from first_ball_expected_source_pins import (
+    read_ci_followup_inputs,
+    read_expected_source_pins,
+)
 
 from pitchlog.authz import product_catalog as cat
 from pitchlog.authz import product_provisioning as prov
@@ -429,10 +432,8 @@ def _project_stats_source_extension(rows):
     import subprocess
 
     path = "contracts/authz/product/ddl-elements.json"
-    revisions = (
-        "40a01434dc19bfe9dcfc51e9a66064e48eb7b4a9",
-        "fae7fd6ee8f3254604132bb20a714c133c5e42d3",
-    )
+    pins = read_ci_followup_inputs()
+    revisions = (pins["catalog_before_revision"], pins["catalog_after_revision"])
     before, after = (
         json.loads(subprocess.check_output(["git", "show", f"{rev}:{path}"], cwd=ROOT))
         for rev in revisions
@@ -470,6 +471,9 @@ def _project_stats_source_extension(rows):
     observed: set[str] = set()
     projected = []
     for row in rows:
+        # 既batted対向と同じ型拒否を、成績89文の射影前にも適用する。
+        assert type(row.sequence) is int
+        assert type(row.sql) is str
         markers = re.findall(r"(?m)^-- ELEMENT-ID: ([^\n]+)", row.sql)
         assert len(markers) == 1
         key = markers[0]
