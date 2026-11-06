@@ -36,3 +36,9 @@ created: 2026-11-07
 ## 操作単位採用後の明確化
 
 root の PO 委任による技術計画採用は cache `mvp-nonpitch-unit-adoption-root-20261107/ADOPTION.json` に元本文 SHA と判断を保持する。ここでいう「非投球 0 credit」は **投球数への今回寄与だけが 0** という意味であり、四球/与四球/BF 等の既裁定寄与を 0 としない。「全比面」は request/response、T1/T2、保存原本・receipt・checkpoint の対象全 member を同値照合する意味である。実正例は原典の一三塁座標へ真正に到達して検証し、他座標の正式成立へ拡大しない。
+
+## 隔離縦断候補の追補
+
+root の PO 委任による技術接合判断で、`feature/mvp-nonpitch-vertical-candidate` 専用 WT だけに、固定 shared patch（既物理mapper・V7読取・prefix reader）、v3 の閉 schema/d.ts、唯一 artifact の公式ビルド候補と従属 manifest/pin/witness/現行 fixture、v3 限定 GET 行型、既保存 PlayRow 挿入の閉分岐、投球画面の申告敬遠導線、専用試験を直列配置する。0045の27 metric CHECK追随は既採用差分の同欠落を再利用する。旧初球/v1/v2 の公開型、旧 golden の数学値、通常投球と未対応非投球の拒否は維持する。
+
+候補 WT の source commit・実 owned PG/HTTPS 成功は正式 contracts/pin/認可資産の採用、7.7記録、独立レビュー、公開 PR の成立とは別に記録する。root が候補全 path と SHA を直列に統合・再派生し、非作者が固定候補を確認する。実画面試験は新規試合の通常2球で正規一三塁へ到達し、申告敬遠・同本文再送・次球・GET/reloadを保存41列、公開35key、T5原本27群と照合する。

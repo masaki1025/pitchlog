@@ -47,8 +47,23 @@ def pitch_physical_row(
 ):
     """旧v1/v2の実観測を同じ全41列mapperへ渡す。数学は再計算しない。"""
     from pitchlog.sync.first_ball_payload import FirstBallObservations
+    from pitchlog.sync.nonpitch_payload import IntentionalWalkObservations
     from pitchlog.sync.ordinary_pitch_payload import OrdinaryPitchParticipants
     from pitchlog.sync.terminal_pitch_payload import BattedHitPlayObservations
+
+    if type(observations) is IntentionalWalkObservations:
+        from pitchlog.sync.nonpitch_execution import intentional_walk_physical_row
+
+        return intentional_walk_physical_row(
+            observations,
+            people,
+            result_id,
+            tenant_id=tenant_id,
+            game_id=game_id,
+            source_event_id=source_event_id,
+            row_id=row_id,
+            play_number=play_number,
+        )
 
     if (
         type(observations) not in {FirstBallObservations, BattedHitPlayObservations}

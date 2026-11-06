@@ -7,6 +7,7 @@ import type {
   LineupPlayPrefixV7,
   LineupPlayPrefixV8,
   BattedHitObservations,
+  IntentionalWalkPlayPrefixV7,
 } from '../../../contracts/state-transition/lineup_play_prefix_payload_v1'
 import type {
   Observations,
@@ -26,6 +27,7 @@ type BattedHitWireObservations = Omit<
   BattedHitObservations,
   'runnerAdvanceOverridesByRunner'
 > & { runnerAdvanceOverridesByRunner: RunnerAdvanceOverridesByRunner }
+type IntentionalWalkObservation = IntentionalWalkPlayPrefixV7['observations']
 
 export function isLineupDefinition<T>(
   value: unknown,
@@ -120,7 +122,10 @@ export async function formatLineupPrefixWire(
   request: Request,
   response: Success,
   observations:
-    Observations | BattedHitObservations | BattedHitWireObservations,
+    | Observations
+    | BattedHitObservations
+    | BattedHitWireObservations
+    | IntentionalWalkObservation,
   participants: Participants,
 ): Promise<{ payload: LineupPlayPrefixV7; stateDiff: LineupPlayPrefixV8 }> {
   const digest = await playHash(lineupWireHead(request, response))
@@ -135,15 +140,22 @@ export async function formatLineupPrefixWire(
       response,
     },
   }
+  const nonpitch =
+    'kind' in observations && observations.kind === 'intentional-walk'
+  const pitchObservations = 'kind' in observations ? null : observations
   if (
     !isClosedPlaySchema<LineupPlayPrefixV7>(payload, lineupPrefixSpikeSchema) ||
-    !observationsValid({
-      pitchTypeKey: observations.pitchTypeKey,
-      course: observations.course,
-      pitchSpeed: observations.pitchSpeed,
-      stance: observations.stance,
-      battingSide: observations.battingSide,
-    }) ||
+    (nonpitch &&
+      (request.t1.resultId !== 'batting-result.intentional-walk' ||
+        request.t1.pitchEventKind !== 'non-pitch-event')) ||
+    (pitchObservations !== null &&
+      !observationsValid({
+        pitchTypeKey: pitchObservations.pitchTypeKey,
+        course: pitchObservations.course,
+        pitchSpeed: pitchObservations.pitchSpeed,
+        stance: pitchObservations.stance,
+        battingSide: pitchObservations.battingSide,
+      })) ||
     ('battedBall' in observations &&
       [observations.battedBall.hitX, observations.battedBall.hitY].some(
         (value) =>

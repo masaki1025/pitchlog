@@ -24,6 +24,7 @@ from pitchlog.domainrt.play_prefix_continuation import (
 )
 from pitchlog.domainrt.terminal_pitch import TerminalHistoryEntry
 from pitchlog.sync.first_ball_payload import FirstBallObservations
+from pitchlog.sync.nonpitch_payload import IntentionalWalkObservations
 from pitchlog.sync.ordinary_pitch_payload import (
     OrdinaryPitchParticipants,
     _raw_json,
@@ -358,7 +359,9 @@ class LineupPitchPlayPayload(_Frozen):
     """V7のbefore参加者/実観測と実一回計算。V8は差分のまま。"""
 
     format_version: Literal["play-prefix-play-v3"] = Field(alias="formatVersion")
-    observations: FirstBallObservations | BattedHitPlayObservations
+    observations: (
+        FirstBallObservations | BattedHitPlayObservations | IntentionalWalkObservations
+    )
     participants: OrdinaryPitchParticipants
     calculation: LineupPitchCalculation | NonplayPitchCalculation = Field(
         discriminator="format_version"
@@ -395,7 +398,16 @@ def read_lineup_pitch_payload(raw_v7, raw_v8, *, expected_calculation):
             require_batted_hit_observations,
         )
 
-        require_batted_hit_observations(request.t1, payload.observations)
+        if type(payload.observations) is IntentionalWalkObservations:
+            from pitchlog.sync.nonpitch_payload import (
+                require_intentional_walk_observation,
+            )
+
+            if type(payload.calculation) is not LineupPitchCalculation:
+                raise ValueError
+            require_intentional_walk_observation(request.t1, payload.observations)
+        else:
+            require_batted_hit_observations(request.t1, payload.observations)
         if (
             payload.calculation.artifact_sha256
             != response.value.execution_artifact_sha256

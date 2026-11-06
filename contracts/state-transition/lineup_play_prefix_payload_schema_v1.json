@@ -11,6 +11,9 @@
         },
         {
           "$ref": "#/$defs/BattedHitObservations"
+        },
+        {
+          "$ref": "#/$defs/IntentionalWalkObservations"
         }
       ]
     },
@@ -1770,6 +1773,9 @@
         },
         {
           "$ref": "#/$defs/BattedHitT1Input"
+        },
+        {
+          "$ref": "#/$defs/IntentionalWalkT1Input"
         }
       ]
     },
@@ -2999,6 +3005,42 @@
         "response"
       ],
       "additionalProperties": false
+    },
+    "IntentionalWalkT1Input": {
+      "type": "object",
+      "properties": {
+        "eventKind": {
+          "const": "batting-result"
+        },
+        "resultId": {
+          "const": "batting-result.intentional-walk"
+        },
+        "pitchEventKind": {
+          "const": "non-pitch-event"
+        },
+        "before": {
+          "$ref": "#/$defs/Snapshot"
+        }
+      },
+      "required": [
+        "eventKind",
+        "resultId",
+        "pitchEventKind",
+        "before"
+      ],
+      "additionalProperties": false
+    },
+    "IntentionalWalkObservations": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "intentional-walk"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "additionalProperties": false
     }
   },
   "oneOf": [
@@ -3173,6 +3215,24 @@
                       }
                     }
                   ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "$ref": "#/$defs/IntentionalWalkObservations"
+        },
+        "calculation": {
+          "properties": {
+            "request": {
+              "properties": {
+                "t1": {
+                  "$ref": "#/$defs/IntentionalWalkT1Input"
                 }
               }
             }
