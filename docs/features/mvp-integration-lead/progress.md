@@ -1,5 +1,15 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 取消画面の停止位置を実観測（2026-11-06、4f7fc65e）
+
+- 同固定HEADの所有隔離PG・実HTTPS画面試験 `undo-screen-stack-observation-r2` は失敗。新規作成/開始後の通常第1球POSTは送信済みだが、まだ応答/保存を確認できず、取消成功とはしない。
+- test-only実app起動へのfaulthandler観測で、待ち位置が `ordinary_prefix._locked_prefix_context → source.read → writer_binding.assert_event_source → binding_control.check → durable_rights_ledger.adapter._request/_receive` と判明。単なる画面local保存待ちではない。先行readonly監視は外側の所有PGに限定されblockingなし。業務DBは内側の別PGなので、そのblockingを否定する証拠にはならない（監視範囲を訂正）。timeout延長/認可迂回を修正としない。
+- 初回観測pluginはcontextmanager wrapperのglobalsを誤参照しcollectionで失敗。inspect.unwrapと実起動引数の観測へ是正後に上記証拠を取得。製品sourceは無変更、source前後一致/所有PG撤去は結果JSONで追跡。cache mvp-resume-20261104/undo-screen-stack-observation-r2-* に実app/ブラウザlogを保全。
+- 次はbinding broker側のcheck応答/lease処理を同じ所有環境で観測して、実際の待ち原因を是正する。別担当のlifecycle-ui WTには6path未コミット成果が存在し、重複依頼せず既担当の完成/受領を待つ。
+- native生成前hash修復後のテスト追補を `febe8bc4` へ保存。実stats-manifestのgeneratedFiles参照値を書き換えても副作用前に拒否する9対向成功。製品loader/固定SHA自体は既独立確認版から変更なし。
+- native有限登録71候補（保留4未登録）はcache-onlyで非作者レビューへ渡した。正式tenant受理/全CI/MVP完成は未成立。
+
+
 ## 受領と製品source接合：2026-11-06T12:30:14.312477+09:00
 
 - **外部成績成果を実受領**: feature/mvp-basic-stats-csv `41507aa09592ff8d7422008b6d2a88e79027eba5` をGit実照合、clean・basea018から28path/4228追加行。送付だけの状態から成果受領へ更新する。intake JSONに全path/SHA/diffを固定。候補25/27（登板/BF source不足）、試合別/暦年CSV、T5component再利用を含む。test-only finalize/試験注入router/tokenは製品提供としない。独立stats_external_intakeが共有generator/終了provider/既レビュー残件を確認中、actual採用/PR/正式提供は未了。
