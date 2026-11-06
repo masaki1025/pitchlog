@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from copy import deepcopy
 from dataclasses import replace
 from pathlib import Path
 from typing import cast
@@ -30,6 +31,10 @@ from pitchlog.sync import past_correction_preparation
 from pitchlog.sync.first_ball_payload import FirstBallObservations
 from pitchlog.sync.model import SyncEvent
 from pitchlog.sync.ordinary_pitch_physical import pitch_physical_row
+from pitchlog.sync.past_correction_capsule import build_p3_current_capsule
+from pitchlog.sync.past_correction_checkpoint import (
+    build_corrected_lineup_checkpoint,
+)
 from pitchlog.sync.past_correction_payload import (
     PastCorrectionPayloadError,
     bind_lineup_pitch_change_payload,
@@ -370,6 +375,7 @@ def test_p3_preparation_binds_current_source_and_real_suffix(
         change_event_id=_CHANGE,
     )
     assert prepared.target_d1 == 1
+    assert deepcopy(prepared) == prepared
     assert len(prepared.corrected) == len(prepared.physical) == 2
     assert prepared.physical[0].effective_event_id == _CHANGE
     assert prepared.corrected[1].corrected_request.prefix_ref == (
@@ -497,3 +503,126 @@ def test_v3_replay_rejects_forged_old_source(mutation: str) -> None:
                 return
         with pytest.raises(LineupCorrectionUnsupported):
             _evaluate((first, second), "batting-result.ball", (_NEW1, _NEW2), host)
+
+
+def test_v3_corrected_checkpoint_uses_native_chain_and_new_physical_head() -> None:
+    """実二球再評価の末尾だけを新CPへ写し、元IDと物理PKを区別する。"""
+    from pitchlog.domainrt.first_ball_projection import _canonical_json
+    from pitchlog.repositories.play_prefix import read_lineup_prefix_document
+    from pitchlog.sync.idempotency import source_fingerprint
+    from pitchlog.sync.ordinary_pitch_physical import pitch_physical_row
+    from pitchlog.sync.past_correction_preparation import PreparedP3LineupCorrection
+
+    with _host() as host:
+        original = _two_saved(host)
+        rows = []
+        for saved in original:
+            payload = saved.payload
+            assert payload is not None
+            request = saved.calculation.request
+            physical = pitch_physical_row(
+                payload.observations,
+                payload.participants,
+                request.t1.result_id,
+                tenant_id=UUID(request.prefix_ref.tenant_id),
+                game_id=UUID(request.prefix_ref.game_id),
+                source_event_id=saved.source_event_id,
+                row_id=UUID(request.play_identity.play_id),
+                play_number=saved.d1,
+            )
+            rows.append(replace(saved, play_row=physical))
+        saved_rows = tuple(rows)
+        last = saved_rows[-1]
+        old_value = last.calculation.response.value
+        old_ref = old_value.next_prefix_ref
+        old_request = last.calculation.request
+        raw = {
+            "version": "3",
+            "id": old_ref.checkpoint.id,
+            "revision": old_ref.checkpoint.revision,
+            "history_version": "1",
+            "storage_anchor": {"id": old_ref.checkpoint.id, "history_epoch": "1"},
+            "prefix_ref": old_ref.model_dump(mode="json", by_alias=True),
+            "wire_d4": old_ref.generation,
+            "internal_generation": "1",
+            "recovery_generation": "1",
+            "confirmed_watermark": "2",
+            "applied_watermark": "2",
+            "last_source": {
+                "id": str(last.source_event_id),
+                "tenant_id": old_ref.tenant_id,
+                "game_id": old_ref.game_id,
+                "generation": "1",
+                "d1": "2",
+                "d2": "2",
+                "d5": old_request.play_identity.d5,
+                "source_fingerprint": "f" * 64,
+                "event_fingerprint": "f" * 64,
+            },
+            "history_depth": old_ref.length,
+            "after": old_value.t1.after.model_dump(mode="json", by_alias=True),
+            "rules": old_request.rules.model_dump(mode="json", by_alias=True),
+            "t2": old_value.t2.model_dump(mode="json", by_alias=True),
+            "runners": [
+                r.model_dump(mode="json", by_alias=True) for r in old_value.runners
+            ],
+            "participants": old_value.participants.model_dump(
+                mode="json", by_alias=True
+            ),
+            "pa_start_source": old_value.next_responsibility.pa_start_source.model_dump(
+                mode="json", by_alias=True
+            ),
+            "lineup": old_value.lineup.model_dump(mode="json", by_alias=True),
+            "roster_digest": old_value.roster_digest,
+            "roster_source_digest": "e" * 64,
+            "source_origin": old_ref.origin.model_dump(mode="json", by_alias=True),
+            "previous_prefix_ref": old_value.previous_prefix_ref.model_dump(
+                mode="json", by_alias=True
+            ),
+            "artifact_sha256": old_value.execution_artifact_sha256,
+            "state": "current",
+            "projection_snapshot": {
+                "play_row": last.play_row,
+                "play_runners": [],
+            },
+        }
+        raw["content_digest"] = source_fingerprint(raw)
+        old_checkpoint = read_lineup_prefix_document(_canonical_json(raw))
+        corrected = _evaluate(
+            saved_rows, "batting-result.ball", (_NEW1, _NEW2), host
+        )
+        assert saved_rows[0].payload is not None
+        observations = saved_rows[0].payload.observations
+        payloads = build_corrected_lineup_payloads(
+            saved_rows, corrected, observations
+        )
+        physical = prepare_corrected_physical_pitches(
+            saved_rows,
+            corrected,
+            payloads,
+            tenant_id=UUID(old_ref.tenant_id),
+            game_id=UUID(old_ref.game_id),
+            capsule_id=_CAPSULE,
+            change_event_id=_CHANGE,
+        )
+    prepared = PreparedP3LineupCorrection(
+        _CAPSULE, _CHANGE, 1, 1, saved_rows, corrected, payloads, physical,
+        old_checkpoint,
+    )
+    fresh = build_corrected_lineup_checkpoint(prepared)
+    assert fresh.id == (
+        corrected[-1].corrected_response.value.next_prefix_ref.checkpoint.id
+    )
+    assert fresh.id != old_checkpoint.id
+    assert fresh.after == corrected[-1].corrected_response.value.t1.after
+    assert fresh.projection_snapshot is not None
+    assert fresh.projection_snapshot.play_row == physical[-1].play_row
+    assert fresh.last_source == old_checkpoint.last_source
+    capsule = build_p3_current_capsule(prepared)
+    assert capsule.next_checkpoint == fresh
+    assert len(capsule.items) == 2
+    assert capsule.items[0]["original_event_id"] == str(_ID1)
+    assert capsule.items[0]["effective_event_id"] == str(_CHANGE)
+    assert capsule.items[1]["original_event_id"] == str(_ID2)
+    assert capsule.items[1]["effective_event_id"] == str(_ID2)
+    assert capsule.items[1]["play_row"] == physical[-1].play_row

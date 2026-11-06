@@ -5,18 +5,27 @@ from __future__ import annotations
 from dataclasses import dataclass
 from uuid import UUID
 
+from pitchlog.domainrt.first_ball_projection import _canonical_json
 from pitchlog.domainrt.past_correction_lineup import SavedLineupPitch
 from pitchlog.repositories.ordinary_prefix import OrdinaryPrefixError
 from pitchlog.repositories.ordinary_prefix_read import (
     OrdinaryPrefixView,
+    _function_one,
     _json,
     _verify_v2_read_packet,
     read_lineup_prefix,
 )
+from pitchlog.repositories.play_prefix import (
+    LineupPrefixDocument,
+    read_lineup_prefix_document,
+)
 from pitchlog.repositories.started_snapshot import _one
 from pitchlog.repositories.sync_apply import _GENERATION_READ_COLUMNS
 from pitchlog.repositories.transaction import _TenantTransaction
-from pitchlog.sync.terminal_pitch_tokens import PlayPrefixHistoryPageToken
+from pitchlog.sync.terminal_pitch_tokens import (
+    PlayPrefixCheckpointReadToken,
+    PlayPrefixHistoryPageToken,
+)
 from pitchlog.sync.tokens import RecordingGenerationReadToken
 
 
@@ -30,6 +39,7 @@ class PastCorrectionV3SourceSnapshot:
 
     internal_generation: int
     rows: tuple[SavedLineupPitch, ...]
+    checkpoint: LineupPrefixDocument | None = None
 
 
 def read_past_correction_v3_source_snapshot(
@@ -81,6 +91,32 @@ def read_past_correction_v3_source_snapshot(
             or storage.id != anchor["id"]
         ):
             raise PastCorrectionSourceUnavailable("current v3 headと履歴件数が不一致")
+        raw_checkpoint = _function_one(
+            scope, PlayPrefixCheckpointReadToken(game_id, generation)
+        )
+        if (
+            type(raw_checkpoint) is not dict
+            or raw_checkpoint.get("kind") != "checkpoint"
+            or type(raw_checkpoint.get("row")) is not dict
+        ):
+            raise PastCorrectionSourceUnavailable("current v3 checkpointが欠落")
+        checkpoint_row = raw_checkpoint["row"]
+        if type(checkpoint_row.get("content")) is not dict:
+            raise PastCorrectionSourceUnavailable("current v3 checkpoint本文が不正")
+        checkpoint = read_lineup_prefix_document(
+            _canonical_json(checkpoint_row["content"])
+        )
+        if (
+            checkpoint.id != anchor["id"]
+            or checkpoint.revision != anchor["revision"]
+            or checkpoint.prefix_ref != ref
+            or checkpoint.internal_generation != str(generation)
+            or checkpoint.confirmed_watermark != str(watermark)
+            or checkpoint.content_digest != checkpoint_row.get("content_digest")
+            or checkpoint_row.get("id") != checkpoint.id
+            or checkpoint_row.get("state") != "current"
+        ):
+            raise PastCorrectionSourceUnavailable("current v3 checkpoint原本が不一致")
         token = PlayPrefixHistoryPageToken(
             game_id,
             generation,
@@ -138,6 +174,7 @@ def read_past_correction_v3_source_snapshot(
                     payload.calculation,
                     payload,
                     item["play_row"],
+                    tuple(item["play_runners"]),
                 )
             )
         last = projection["last_source"]
@@ -147,7 +184,7 @@ def read_past_correction_v3_source_snapshot(
             or source[-1].calculation.response.value.next_prefix_ref != ref
         ):
             raise PastCorrectionSourceUnavailable("v3最終原本とcurrent headが不一致")
-        return PastCorrectionV3SourceSnapshot(generation, tuple(source))
+        return PastCorrectionV3SourceSnapshot(generation, tuple(source), checkpoint)
     except (OrdinaryPrefixError, KeyError, TypeError, ValueError, AttributeError):
         raise PastCorrectionSourceUnavailable("v3原本を全値確認できない") from None
 

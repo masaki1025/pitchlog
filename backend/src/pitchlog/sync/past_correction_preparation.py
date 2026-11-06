@@ -18,6 +18,7 @@ from pitchlog.repositories.past_correction_source import (
     PastCorrectionSourceUnavailable,
     read_past_correction_v3_source_snapshot,
 )
+from pitchlog.repositories.play_prefix import LineupPrefixDocument
 from pitchlog.repositories.transaction import _TenantTransaction
 from pitchlog.sync.change_path import _target
 from pitchlog.sync.idempotency import _json_value
@@ -54,6 +55,7 @@ class PreparedP3LineupCorrection:
     corrected: tuple[CorrectedLineupPitch, ...]
     payloads: tuple[LineupPitchPlayPayload, ...]
     physical: tuple[CorrectedPhysicalPitch, ...]
+    original_checkpoint: LineupPrefixDocument | None = None
 
 
 def prepare_p3_lineup_correction(
@@ -124,6 +126,7 @@ def prepare_p3_lineup_correction(
             corrected,
             payloads,
             physical,
+            snapshot.checkpoint,
         )
     except (PastCorrectionPayloadError, LineupCorrectionUnsupported):
         raise PastCorrectionContentRejected("P3変更内容を受理できない") from None

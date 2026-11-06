@@ -8,7 +8,12 @@ from dataclasses import dataclass
 from uuid import UUID, uuid4
 
 from pitchlog.repositories import transaction
+from pitchlog.repositories.play_prefix import LineupPrefixDocument
 from pitchlog.sync.model import SyncEvent
+from pitchlog.sync.past_correction_capsule import (
+    P3CurrentCapsule,
+    build_p3_current_capsule,
+)
 from pitchlog.sync.past_correction_preparation import (
     PastCorrectionContentRejected,
     PreparedP3LineupCorrection,
@@ -36,6 +41,10 @@ class _Execution:
     change_event_id: UUID
     preparation: PreparedP3LineupCorrection | None = None
     sealed_preparation: PreparedP3LineupCorrection | None = None
+    checkpoint: LineupPrefixDocument | None = None
+    sealed_checkpoint: LineupPrefixDocument | None = None
+    capsule: P3CurrentCapsule | None = None
+    sealed_capsule: P3CurrentCapsule | None = None
     rejected: bool = False
 
 
@@ -61,10 +70,19 @@ def _live(state: _Execution, *, content: bool = False) -> None:
         or state.source.write_started
         or (state.preparation is None) != state.rejected
         or (
+            state.rejected
+            and (state.checkpoint is not None or state.capsule is not None)
+        )
+        or (
             state.preparation is not None
             and (
                 state.sealed_preparation is None
                 or state.preparation != state.sealed_preparation
+                or type(state.checkpoint) is not LineupPrefixDocument
+                or state.sealed_checkpoint != state.checkpoint
+                or type(state.capsule) is not P3CurrentCapsule
+                or state.sealed_capsule != state.capsule
+                or state.capsule.next_checkpoint != state.checkpoint
                 or state.preparation.capsule_id != state.capsule_id
                 or state.preparation.change_event_id != state.change_event_id
             )
@@ -134,6 +152,10 @@ def bind_p3_execution(
         else:
             state.preparation = prepared
             state.sealed_preparation = deepcopy(prepared)
+            state.capsule = build_p3_current_capsule(prepared)
+            state.sealed_capsule = deepcopy(state.capsule)
+            state.checkpoint = state.capsule.next_checkpoint
+            state.sealed_checkpoint = deepcopy(state.checkpoint)
         _live(state)
         yield
     finally:
@@ -141,6 +163,10 @@ def bind_p3_execution(
             del _EXECUTIONS[key]
         state.preparation = None
         state.sealed_preparation = None
+        state.checkpoint = None
+        state.sealed_checkpoint = None
+        state.capsule = None
+        state.sealed_capsule = None
 
 
 def p3_content_result(
