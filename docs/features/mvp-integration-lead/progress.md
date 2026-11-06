@@ -1,5 +1,14 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 再開時の現在地：2026-11-06T09:30:59.082270+09:00（GET候補接合済み、D11反映1をrootで固定・実DB検査中）
+
+- **提供済み操作**: 正式develop51bcb4e1/#196の新規作成・開始・通常球/無走者4安打・保存/再送/reloadの証拠を維持。取消・成績を正式提供とはしない。直前の見積もり回答は状態説明であり実装前進に数えず、本節では候補commit/新拒否検査を前進として記録する。
+- **取消GET→次球候補の実接合**: 非作者REPORT46d9046bb3ddb32ddee95e8760b65f15523aef0a6397e0e6c580ccec7be53331、P0/P1=0/P2=1を根拠に34sourceをf43d88a7へ採用。P2の関数期待8→9はexact test集合へ新readを追加して89f0189cで追随、actual8module102成功5.05秒、frontend controller26成功2.25秒/vue-tsc成功。後発test追随の独立再確認は未完。新readの正式登録・nonplay composer・0042起動・実2球2取消次球・NP画面/耐久queueは未完。旧JS/Source6/唯一artifact4eを変更していない。
+- **成績release CIの実切分け**: 新CI2packet456d0952…の既current S0一本化本文を固定07a4ed9cのowned PGで実行し1成功7.17秒、source前後同一・owned撤去。旧S3/current本文の1失敗6.06秒を保持し、成功は新起動本文だけ（downstream alembic/check未実施）。新CI2の非作者は利用制限で完了報告なし、未採用。歴史0039は真正51bcbの970blob/31caseをroot照合し前置E d51306b2で供給、typed参照はcache供給だけでactual frozen未変更。helperは未封印draftのため採用しない。
+- **D11の実修復と作者移管**: 初回P1-FINITE/STAGEを保持。cache作者が利用制限で停止したため専用feature/mvp-stats-d11-reflection-rootへ移管し、docs2b897207→新8source5072b328へ保存した。既規範/生成hash/計算・target・property・case・入口全形の有限照合とlocal型lossless段間/両終端照合。元反例11を変更せず再実行し、恒久10対向を加えて177成功15.88秒、Ruff/Ty成功。書式変更前後4定数の解析後全値同一をconstant-format-equivalence.jsonへ固定。rootは作者で独立再レビュー未了、native統合WTへ未採用、正式D11全成立ではない。
+- **現在の実検証**: fixed5072b328のowned PGでtests/db/test_stats_native_d11.pyを実行中。共有DSNunset・root専用runner/native-d11-root-pg-r1、実新規作成/開始/3球保存→真正RRRO→実SQL/receiver/formatter全26比較を検査する。結果未確定、UI/全27/CSV/MVPの完成証拠へ広げない。
+- **並行担当/再開**: 既独立担当の一部は実usage-limitでterminal。partialを完成レビューとはせずrootが進行可能な修正・検査・保全を継続。agmsgで既存PitchLog担当を探索したが登録なし（別project todoappのみ）で、無関係teamへ参加/送信していない。次は同DB結果→候補packet/独立再確認→source固定後の正式資産一括導出。全操作・全27・両CSV・断中耐久・交代・閲覧・負荷・実機・運用復旧は未完、MVP目標を維持する。
+
 ## 再開時の現在地：2026-11-06T06:50:22.002052+09:00（取消Sを実候補へ接続、成績の認可出典派生を閉鎖）
 
 - **前turn分類/正式提供範囲**: 前turnはR1 actual修正＋同版owned保存/read/fault3成功の前進。本turnもsource4dd21ce3・profile020f3417・修復f9a82577/a67cc82b/adcf1250を実commitし前進。正式develop51bcb/#196/4新規試合実画面の提供範囲は不変、未統合の取消/成績を正式提供としない。MVP全体active。
