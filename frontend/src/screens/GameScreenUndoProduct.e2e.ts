@@ -305,9 +305,18 @@ test('実画面の新規作成→開始→2球→ACK喪失/reload/同要求再�
     descriptor.value()
   })
   await panel.getByTestId('undo-product-apply').click()
+  // ヘッダー到達前の通信結果不明ではCookie更新も未確認となる。
+  // 既認証失効を迂回せず実loginで同tenantを再確認し、耐久要求を復元する。
+  await expect(page.getByRole('textbox', { name: 'チーム名' })).toBeVisible({
+    timeout: 30_000,
+  })
+  await login(page)
+  await expect(page).toHaveURL(`${baseURL}/games`)
+  await page.goto(`${baseURL}/games/${saved.id}/record`)
+  panel = page.getByTestId('undo-product-panel')
+  await expect(panel.getByTestId('undo-product-balls')).toHaveText('1')
   await expect(panel.getByTestId('undo-product-status')).toContainText(
     '結果未確認',
-    { timeout: 30_000 },
   )
   await page.reload()
   panel = page.getByTestId('undo-product-panel')
