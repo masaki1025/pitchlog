@@ -1,4 +1,5 @@
 import { applyGameLifecycle } from './gameLifecycle'
+import { walkResponsiblePitcher } from './substitutionKernel'
 import { formatDecimalInteger, parseDecimalInteger } from './decimalCodec'
 import { readContinuationRules } from './firstPitchContinuation'
 import { evaluateEndCondition, validEndRules } from './endConditionCore'
@@ -187,14 +188,7 @@ function responsibility(v: unknown): Json | null {
     'strikesAtChange',
     'ballsAtChange',
   ])
-  if (
-    r === null ||
-    r.kind !== 'no-change' ||
-    r.previousPitcherId !== null ||
-    r.strikesAtChange !== null ||
-    r.ballsAtChange !== null
-  )
-    return null
+  if (r === null) return null
   const p = object(r.paStartSource, ['kind', 'id'])
   if (
     p === null ||
@@ -202,7 +196,23 @@ function responsibility(v: unknown): Json | null {
     !canonicalContinuationUuid(p.id)
   )
     return null
-  return r
+  if (r.kind === 'no-change') {
+    if (
+      r.previousPitcherId === null &&
+      r.strikesAtChange === null &&
+      r.ballsAtChange === null
+    )
+      return r
+    return null
+  }
+  if (
+    r.kind === 'changed-mid-plate-appearance' &&
+    canonicalContinuationUuid(r.previousPitcherId) &&
+    ['0', '1', '2'].includes(r.strikesAtChange as string) &&
+    ['0', '1', '2', '3'].includes(r.ballsAtChange as string)
+  )
+    return r
+  return null
 }
 /** T1の進塁計画を閉じた到達塁だけへ読む。 */
 function runnerDestination(
@@ -532,6 +542,7 @@ const nonplayShapes: Json = {
       executionArtifactSha256: { ref: 'np.Digest' },
       restored: { ref: 'np.RestoreContext' },
       controlBridges: { items: { ref: 'np.LifecycleControlBridge' } },
+      substitutionFrames: { items: { ref: 'np.SubstitutionFrame' } },
     },
     required: [
       'scope',
@@ -573,9 +584,7 @@ const nonplayShapes: Json = {
       d1: { ref: 'np.Positive' },
       d5: { ref: 'np.Uuid' },
       fingerprint: { ref: 'np.Fingerprint' },
-      eventKind: {
-        values: ['play_input', 'undo', 'game_end_declaration', 'game_reopen'],
-      },
+      eventKind: { values: ['play_input', 'undo', 'substitution', 'game_end_declaration', 'game_reopen'] },
     },
     required: [
       'eventId',
@@ -627,6 +636,7 @@ const nonplayShapes: Json = {
       runners: { items: { ref: 'lp.Runner' } },
       responsibility: { ref: 'lp.Responsibility' },
       lastPlayEvaluation: { choices: [{ ref: 'lp.T2' }, { type: 'null' }] },
+      substitutionState: { ref: 'np.SubstitutionState' },
     },
     required: [
       'current',
@@ -639,6 +649,88 @@ const nonplayShapes: Json = {
       'runners',
       'responsibility',
       'lastPlayEvaluation',
+    ],
+  },
+  'np.SubstitutionFrame': {
+    fields: {
+      source: { ref: 'np.EventSource' },
+      afterPlayId: { choices: [{ ref: 'np.Uuid' }, { type: 'null' }] },
+      beforeContext: { ref: 'np.RestoreContext' },
+      afterContext: { ref: 'np.RestoreContext' },
+    },
+    required: ['source', 'afterPlayId', 'beforeContext', 'afterContext'],
+  },
+  'np.SubstitutionTeam': {
+    fields: {
+      teamId: { ref: 'np.Uuid' },
+      battingOrder: {
+        fields: {
+          '1': { ref: 'np.Uuid' },
+          '2': { ref: 'np.Uuid' },
+          '3': { ref: 'np.Uuid' },
+          '4': { ref: 'np.Uuid' },
+          '5': { ref: 'np.Uuid' },
+          '6': { ref: 'np.Uuid' },
+          '7': { ref: 'np.Uuid' },
+          '8': { ref: 'np.Uuid' },
+          '9': { ref: 'np.Uuid' },
+        },
+        required: ['1', '2', '3', '4', '5', '6', '7', '8', '9'],
+      },
+      fielding: {
+        fields: {
+          '1': { choices: [{ ref: 'np.Uuid' }, { type: 'null' }] },
+          '2': { choices: [{ ref: 'np.Uuid' }, { type: 'null' }] },
+          '3': { choices: [{ ref: 'np.Uuid' }, { type: 'null' }] },
+          '4': { choices: [{ ref: 'np.Uuid' }, { type: 'null' }] },
+          '5': { choices: [{ ref: 'np.Uuid' }, { type: 'null' }] },
+          '6': { choices: [{ ref: 'np.Uuid' }, { type: 'null' }] },
+          '7': { choices: [{ ref: 'np.Uuid' }, { type: 'null' }] },
+          '8': { choices: [{ ref: 'np.Uuid' }, { type: 'null' }] },
+          '9': { choices: [{ ref: 'np.Uuid' }, { type: 'null' }] },
+        },
+        required: ['1', '2', '3', '4', '5', '6', '7', '8', '9'],
+      },
+      dhSlot: { choices: [{ ref: 'lp.Slot' }, { type: 'null' }] },
+    },
+    required: ['teamId', 'battingOrder', 'fielding', 'dhSlot'],
+  },
+  'np.SubstitutionState': {
+    fields: {
+      attackingSide: { values: ['away', 'home'] },
+      away: { ref: 'np.SubstitutionTeam' },
+      home: { ref: 'np.SubstitutionTeam' },
+      runners: { items: { ref: 'lp.Runner' } },
+      exitedPlayerIds: { items: { ref: 'np.Uuid' } },
+      responsibility: {
+        choices: [
+          { fields: { kind: { constant: 'unchanged' } }, required: ['kind'] },
+          {
+            fields: {
+              kind: { constant: 'changed-mid-plate-appearance' },
+              previousPitcherId: { ref: 'np.Uuid' },
+              reliefPitcherId: { ref: 'np.Uuid' },
+              strikesAtChange: { values: ['0', '1', '2'] },
+              ballsAtChange: { values: ['0', '1', '2', '3'] },
+            },
+            required: [
+              'kind',
+              'previousPitcherId',
+              'reliefPitcherId',
+              'strikesAtChange',
+              'ballsAtChange',
+            ],
+          },
+        ],
+      },
+    },
+    required: [
+      'attackingSide',
+      'away',
+      'home',
+      'runners',
+      'exitedPlayerIds',
+      'responsibility',
     ],
   },
   'np.Current': {
@@ -807,25 +899,51 @@ const nonplayShapes: Json = {
     ],
   },
   'lp.Responsibility': {
-    fields: {
-      kind: { constant: 'no-change' },
-      paStartSource: {
+    choices: [
+      {
         fields: {
-          kind: { values: ['started-game', 'confirmed-play'] },
-          id: { ref: 'lp.Uuid' },
+          kind: { constant: 'no-change' },
+          paStartSource: {
+            fields: {
+              kind: { values: ['started-game', 'confirmed-play'] },
+              id: { ref: 'lp.Uuid' },
+            },
+            required: ['kind', 'id'],
+          },
+          previousPitcherId: { constant: null },
+          strikesAtChange: { constant: null },
+          ballsAtChange: { constant: null },
         },
-        required: ['kind', 'id'],
+        required: [
+          'kind',
+          'paStartSource',
+          'previousPitcherId',
+          'strikesAtChange',
+          'ballsAtChange',
+        ],
       },
-      previousPitcherId: { constant: null },
-      strikesAtChange: { constant: null },
-      ballsAtChange: { constant: null },
-    },
-    required: [
-      'kind',
-      'paStartSource',
-      'previousPitcherId',
-      'strikesAtChange',
-      'ballsAtChange',
+      {
+        fields: {
+          kind: { constant: 'changed-mid-plate-appearance' },
+          paStartSource: {
+            fields: {
+              kind: { values: ['started-game', 'confirmed-play'] },
+              id: { ref: 'lp.Uuid' },
+            },
+            required: ['kind', 'id'],
+          },
+          previousPitcherId: { ref: 'lp.Uuid' },
+          strikesAtChange: { values: ['0', '1', '2'] },
+          ballsAtChange: { values: ['0', '1', '2', '3'] },
+        },
+        required: [
+          'kind',
+          'paStartSource',
+          'previousPitcherId',
+          'strikesAtChange',
+          'ballsAtChange',
+        ],
+      },
     ],
   },
   'lp.T2': {
@@ -1408,21 +1526,109 @@ function controlBridges(content: Json): Array<Json> | null {
   }
   return bridges
 }
-function controlContextMatches(
-  before: unknown,
-  after: unknown,
-  anchor: unknown,
+/** 交代と終了再開をD1順に各play間へ接続し、文脈の穴を閉じる。 */
+function substitutionGaps(
+  c: Json,
+  stack: Array<Json>,
   bridges: Array<Json>,
 ): boolean {
-  let current = before
-  for (const bridge of bridges) {
-    if (bridge.anchorEventId !== anchor) continue
-    if (!sameContinuationValue(current, bridge.beforeContext)) return false
-    current = bridge.afterContext
+  const raw = c.substitutionFrames ?? []
+  if (!Array.isArray(raw)) return false
+  const frames = raw as Array<Json>
+  let used: Array<string> = []
+  function gap(
+    playAnchor: string | null,
+    eventAnchor: string,
+    before: unknown,
+    after: unknown,
+  ): boolean {
+    let current = before
+    let pending: Array<Json> = []
+    for (const frame of frames) {
+      if (frame.afterPlayId === playAnchor) pending = pending.concat([frame])
+    }
+    for (const bridge of bridges) {
+      if (bridge.anchorEventId === eventAnchor)
+        pending = pending.concat([bridge])
+    }
+    let ordered: Array<Json> = []
+    for (const candidate of pending) {
+      const candidateD1 = unsigned((candidate.source as Json).d1)
+      if (candidateD1 === null) return false
+      let next: Array<Json> = []
+      let inserted = false
+      for (const prior of ordered) {
+        const priorD1 = unsigned((prior.source as Json).d1)
+        if (priorD1 === null) return false
+        if (!inserted && candidateD1 < priorD1) {
+          next = next.concat([candidate])
+          inserted = true
+        }
+        next = next.concat([prior])
+      }
+      if (!inserted) next = next.concat([candidate])
+      ordered = next
+    }
+    let lastD1: bigint | null = null
+    for (const frame of ordered) {
+      const src = frame.source as Json
+      const d1 = unsigned(src.d1)
+      if (d1 === null || (lastD1 !== null && d1 <= lastD1)) return false
+      if (
+        !canonicalContinuationUuid(src.eventId) ||
+        used.includes(src.eventId as string)
+      )
+        return false
+      if (
+        Object.prototype.hasOwnProperty.call(frame, 'afterPlayId') &&
+        (src.eventKind !== 'substitution' ||
+          !Object.prototype.hasOwnProperty.call(
+            frame.afterContext,
+            'substitutionState',
+          ))
+      )
+        return false
+      used = used.concat([src.eventId as string])
+      if (
+        current !== null &&
+        !sameContinuationValue(current, frame.beforeContext)
+      )
+        return false
+      current = frame.afterContext
+      lastD1 = d1
+    }
+    return current === null || sameContinuationValue(current, after)
   }
-  return sameContinuationValue(current, after)
+  let newer: Json | null = null
+  for (const older of stack) {
+    const play = older.play as Json
+    let target: unknown = c.restored
+    if (newer !== null) target = newer.beforeContext
+    if (
+      !gap(
+        play.playId as string,
+        (play.source as Json).eventId as string,
+        older.afterContext,
+        target,
+      )
+    )
+      return false
+    newer = older
+  }
+  let target: unknown = c.restored
+  if (newer !== null) target = newer.beforeContext
+  if (!gap(null, (c.origin as Json).eventId as string, null, target))
+    return false
+  let count = 0n
+  for (const item of used) {
+    if (item !== '') count = count + 1n
+  }
+  let all = 0n
+  for (const item of frames.concat(bridges)) {
+    if (item !== null) all = all + 1n
+  }
+  return count === all
 }
-
 /** 三headはそのまま保ち、旧v3/startedへ偽装せず共通計算に必要なviewだけを取る。 */
 function nonplayView(value: unknown, suppliedPosition: unknown): Json | null {
   if (!nonplayShape(value, read(nonplayShapes, 'np.Source') as Json))
@@ -1479,16 +1685,6 @@ function nonplayView(value: unknown, suppliedPosition: unknown): Json | null {
       )
         return null
     }
-    if (
-      previous !== null &&
-      !controlContextMatches(
-        frame.afterContext,
-        previous.beforeContext,
-        event.eventId,
-        bridges,
-      )
-    )
-      return null
     previous = frame
   }
   const first = stack.slice().shift()
@@ -1499,13 +1695,7 @@ function nonplayView(value: unknown, suppliedPosition: unknown): Json | null {
     d3 === null ||
     unsigned(c.activeDepth) !== depth ||
     headMismatch ||
-    (typeof first !== 'undefined' &&
-      !controlContextMatches(
-        first.afterContext,
-        c.restored,
-        ((first.play as Json).source as Json).eventId,
-        bridges,
-      )) ||
+    !substitutionGaps(c, stack, bridges) ||
     pos === null ||
     unsigned(pos.d1) !== d3 + 1n ||
     unsigned(pos.appliedWatermark) !== d3 ||
@@ -2082,6 +2272,22 @@ export function finishLineupContinuation(r: Json, raw: string): string {
   const l = source.lineup as Json
   const nextPeople = participant(after, l)
   if (nextPeople === null) return failure('PREFIX_SOURCE_MISMATCH')
+  let responsiblePitcherId = (source.participants as Json).pitcherId as string
+  const priorResponsibility = source.responsibility as Json
+  if (
+    (value.statFlags as Json).四球 === true &&
+    priorResponsibility.kind === 'changed-mid-plate-appearance'
+  )
+    responsiblePitcherId = walkResponsiblePitcher(
+      {
+        kind: 'changed-mid-plate-appearance',
+        previousPitcherId: priorResponsibility.previousPitcherId as string,
+        reliefPitcherId: responsiblePitcherId,
+        strikesAtChange: priorResponsibility.strikesAtChange as '0' | '1' | '2',
+        ballsAtChange: priorResponsibility.ballsAtChange as '0' | '1' | '2' | '3',
+      },
+      responsiblePitcherId,
+    )
   let nextRunners: Array<Json> = []
   if (completedHalf === null) {
     const advances = object(value.runnerDefaultAdvance, [
@@ -2110,7 +2316,7 @@ export function finishLineupContinuation(r: Json, raw: string): string {
         nextRunners = nextRunners.concat([
           {
             runnerId: (source.participants as Json).batterId,
-            responsiblePitcherId: (source.participants as Json).pitcherId,
+            responsiblePitcherId: responsiblePitcherId,
             base: batter.base,
             status: '継続',
             statusSource: 'auto',

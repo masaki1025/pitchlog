@@ -47,6 +47,7 @@ _FUNCTIONS = {
     "read_nonplay_history_page": (_COMMON + ", text", "record_json text"),
     "prepare_nonplay_undo": (_COMMON + ", text", "prepared boolean"),
     "consume_nonplay_undo": (_COMMON + ", text", "receipt_json text"),
+    "consume_nonplay_substitution": (_COMMON + ", text", "consumed boolean"),
 }
 _PREDICATE = (
     "tenant_id = NULLIF(pg_catalog.current_setting('app.tenant_id',true),'')::uuid"
@@ -97,9 +98,13 @@ def candidate_declarations():
             f"REVOKE ALL ON TABLE sync_fence.{_TABLE} FROM PUBLIC,pitchlog_app;\n"
         )
     }
-    sql_bodies = candidate_function_bodies()
+    from pitchlog.authz.substitution_sql import candidate_substitution_function_body
+
+    sql_bodies = candidate_function_bodies() | {
+        "consume_nonplay_substitution": candidate_substitution_function_body()
+    }
     if set(sql_bodies) != set(_FUNCTIONS):
-        raise ValueError("取消の固定6関数集合が不一致です")
+        raise ValueError("非playの固定関数集合が不一致です")
     for name, (identity, returns) in _FUNCTIONS.items():
         sql = sql_bodies[name]
         match = re.match(
@@ -184,6 +189,46 @@ def candidate_declarations():
             "sync_fence",
             _TABLE,
             "nonplay_" + command.lower(),
+            command,
+            _PREDICATE,
+        )
+    receipt_table = "substitution_write_receipts"
+    declarations["tables"].append(
+        {
+            "table_id": receipt_table,
+            "schema_name": "sync_fence",
+            "enable_row_level_security": True,
+            "force_row_level_security": True,
+        }
+    )
+    bodies["table|" + receipt_table] = (
+        f"ALTER TABLE sync_fence.{receipt_table} ENABLE ROW LEVEL SECURITY;\n"
+        f"ALTER TABLE sync_fence.{receipt_table} FORCE ROW LEVEL SECURITY;\n"
+        f"REVOKE ALL ON TABLE sync_fence.{receipt_table} FROM PUBLIC,pitchlog_app;\n"
+    )
+    receipt_acl = f"ACL:sync_fence:{receipt_table}:{_OWNER}"
+    declarations["acl_expectations"].append(
+        {
+            "acl_id": receipt_acl,
+            "object_kind": "table",
+            "object_schema": "sync_fence",
+            "object_id": receipt_table,
+            "profile": "function_only",
+            "grantee_role_id": _OWNER,
+            "privilege_ids": ["SELECT", "INSERT"],
+            "grant_option": False,
+        }
+    )
+    bodies["acl_expectation|" + receipt_acl] = (
+        f"GRANT SELECT,INSERT ON TABLE sync_fence.{receipt_table} TO {_OWNER};\n"
+    )
+    for command in ("SELECT", "INSERT"):
+        _add_policy(
+            declarations,
+            bodies,
+            "sync_fence",
+            receipt_table,
+            "substitution_receipt_" + command.lower(),
             command,
             _PREDICATE,
         )

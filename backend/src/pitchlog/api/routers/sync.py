@@ -66,6 +66,13 @@ from pitchlog.sync.source_binding import (
     e1_event_source,
     selected_event_fingerprint,
 )
+from pitchlog.sync.substitution_execution import SubstitutionExecutionError
+from pitchlog.sync.substitution_ports import (
+    SubstitutionContentValidationPort,
+    SubstitutionProjectionPort,
+)
+from pitchlog.sync.substitution_projection import SubstitutionProjectionError
+from pitchlog.sync.substitution_roster import SubstitutionRosterUnavailable
 from pitchlog.sync.undo_execution import UndoExecutionError
 from pitchlog.sync.undo_ports import UndoContentValidationPort, UndoProjectionPort
 from pitchlog.sync.wire_source import WireSourceError, freeze_wire_source
@@ -264,9 +271,15 @@ def sync_events(
                 and isinstance(event.v7, Mapping)
                 and event.v7.get("formatVersion") == "native-game-lifecycle-v1"
             )
+            substitution = (
+                event.v5 == "substitution"
+                and isinstance(event.v7, Mapping)
+                and event.v7.get("formatVersion") == "substitution-event-v1"
+            )
             if (
                 not undo
                 and not lifecycle
+                and not substitution
                 and isinstance(event.v7, Mapping)
                 and event.v7.get("formatVersion")
                 not in {
@@ -292,6 +305,8 @@ def sync_events(
                     if lifecycle
                     else UndoProjectionPort()
                     if undo
+                    else SubstitutionProjectionPort()
+                    if substitution
                     else LineupPrefixProjectionPort()
                     if lineup_prefix
                     else PlayPrefixProjectionPort()
@@ -305,6 +320,8 @@ def sync_events(
                     if lifecycle
                     else UndoContentValidationPort()
                     if undo
+                    else SubstitutionContentValidationPort()
+                    if substitution
                     else LineupPrefixContentValidationPort()
                     if lineup_prefix
                     else PlayPrefixContentValidationPort()
@@ -316,7 +333,9 @@ def sync_events(
             )
     except _E1OutOfScope:
         raise HTTPException(status_code=501) from None
-    except (SourceBindingError, ValueError):
+    except (SourceBindingError, ValueError) as error:
+        if isinstance(error, SubstitutionProjectionError):
+            raise HTTPException(status_code=503) from None
         raise HTTPException(status_code=422) from None
     except (
         OrdinaryPrefixError,
@@ -324,6 +343,8 @@ def sync_events(
         OrdinaryPlayRowError,
         UndoExecutionError,
         LifecycleExecutionError,
+        SubstitutionExecutionError,
+        SubstitutionRosterUnavailable,
         NonplaySourceUnavailable,
         *DATABASE_ERRORS,
     ):

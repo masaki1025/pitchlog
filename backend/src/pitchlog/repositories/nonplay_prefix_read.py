@@ -35,7 +35,7 @@ def checked_checkpoint(raw, *, tenant, game, generation, d3, artifact=None):
         )
     except (ValueError, TypeError):
         raise NonplaySourceUnavailable("非play CP閉型が不一致") from None
-    if not _same(cp.model_dump(mode="json", by_alias=True), raw):
+    if not _same(cp.model_dump(mode="json", by_alias=True, exclude_unset=True), raw):
         raise NonplaySourceUnavailable("非play CP型が不一致")
     c = cp.content
     if (
@@ -192,7 +192,7 @@ def _frame(handle, item, live):
 
 def _page_anchor(cp):
     """全pageを同CP/refと3水位へ束縛する。秘密の資格は含めない。"""
-    rawcp = cp.model_dump(mode="json", by_alias=True)
+    rawcp = cp.model_dump(mode="json", by_alias=True, exclude_unset=True)
     anchor = {
         "checkpoint": rawcp["ref"],
         "scope": rawcp["content"]["scope"],
@@ -248,7 +248,7 @@ def _read_active_page_bound(handle, cp, *, generation, limit=25, cursor=None):
     def live():
         _live(handle, owner)
 
-    rawcp = cp.model_dump(mode="json", by_alias=True)
+    rawcp = cp.model_dump(mode="json", by_alias=True, exclude_unset=True)
     anchor = _page_anchor(cp)
     point = _read_page_cursor(cursor, anchor)
     token = NonplayActiveHistoryReadToken(
@@ -434,14 +434,16 @@ def read_confirmed_nonplay_normal(handle, event, source, *, proposal, artifact_s
             break
     raw = {
         "formatVersion": "nonplay-prefix-source-v1",
-        "checkpoint": cp.model_dump(mode="json", by_alias=True),
+        "checkpoint": cp.model_dump(mode="json", by_alias=True, exclude_unset=True),
         "activeStack": frames,
     }
     _check_source(raw)
     if (
         not _same(
             raw,
-            proposal.source.model_dump(mode="json", by_alias=True, exclude_unset=True),
+            proposal.source.model_dump(
+                mode="json", by_alias=True, exclude_unset=True
+            ),
         )
         or proposal.prefix_ref != cp.ref
         or proposal.source_position.d1 != str(event.d1)

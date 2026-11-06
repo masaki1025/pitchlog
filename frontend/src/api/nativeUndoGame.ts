@@ -1,3 +1,4 @@
+import { substitutionGapsMatch } from './substitutionHistory'
 import type {
   Checkpoint,
   ActiveFrame,
@@ -150,17 +151,7 @@ export async function completeUndoSource(
     if (
       frame.play.source.gameId !== game.id ||
       frame.play.source.eventKind !== 'play_input' ||
-      (i === 0 &&
-        (!sameOrdinaryWire(frame.play, source.checkpoint.content.activeHead) ||
-          !sameOrdinaryWire(
-            frame.afterContext,
-            source.checkpoint.content.restored,
-          ))) ||
-      (i > 0 &&
-        !sameOrdinaryWire(
-          activeFrames[i - 1]!.beforeContext,
-          frame.afterContext,
-        ))
+      (i === 0 && !sameOrdinaryWire(frame.play, source.checkpoint.content.activeHead))
     )
       throw new Error('取消履歴の連結が不一致です')
   }
@@ -169,6 +160,8 @@ export async function completeUndoSource(
     (source.checkpoint.content.activeHead === null)
   )
     throw new Error('取消対象の有無が不一致です')
+  if (!substitutionGapsMatch(source))
+    throw new Error('交代frameの保存連結が不一致です')
   return source
 }
 

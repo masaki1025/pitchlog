@@ -15,6 +15,10 @@ from pitchlog.sync.first_ball_v5 import first_ball_database_kind
 from pitchlog.sync.idempotency import operation_fingerprint, source_fingerprint
 from pitchlog.sync.model import SyncEvent
 from pitchlog.sync.source_binding import _E1CoreSource
+from pitchlog.sync.substitution_history import (
+    SubstitutionHistoryError,
+    verify_substitution_gaps,
+)
 from pitchlog.sync.undo_payload import _load, _validate_value
 from pitchlog.sync.wire_fingerprint import freeze_wire_event, wire_event_fingerprint
 
@@ -71,12 +75,25 @@ class _ConsumeNonplayUndo(TenantOperationToken):
         return "CAP:sync_nonplay:consume_undo"
 
 
+@dataclass(frozen=True, slots=True)
+class _ConsumeNonplaySubstitution(TenantOperationToken):
+    """同writerの一回交代CP更新だけを要求する。"""
+
+    request_json: str
+
+    @property
+    def capability_id(self):
+        """交代専用の限定能力。"""
+        return "CAP:sync_nonplay:consume_substitution"
+
+
 _FUNCTIONS = MappingProxyType(
     {
         _LockNonplayCheckpoint: "lock_nonplay_checkpoint",
         _ReadNonplayHistoryPage: "read_nonplay_history_page",
         _PrepareNonplayUndo: "prepare_nonplay_undo",
         _ConsumeNonplayUndo: "consume_nonplay_undo",
+        _ConsumeNonplaySubstitution: "consume_nonplay_substitution",
     }
 )
 
@@ -138,6 +155,10 @@ def _call_scope(handle, source, event, operation):
         from pitchlog.sync.nonplay_prefix_bridge import _assert_undo_write_call
 
         _assert_undo_write_call(handle, operation)
+    if type(operation) is _ConsumeNonplaySubstitution:
+        from pitchlog.sync.substitution_bridge import assert_substitution_write_call
+
+        assert_substitution_write_call(handle, operation)
     lease = source.bound._lease
     parameters = {
         "tenant_id": handle._bound_tenant_id,
@@ -221,6 +242,10 @@ def _qualified_nonplay_call(handle, operation):
         from pitchlog.sync.nonplay_prefix_bridge import _consume_undo_write_call
 
         _consume_undo_write_call(handle, operation)
+    if type(operation) is _ConsumeNonplaySubstitution:
+        from pitchlog.sync.substitution_bridge import consume_substitution_write_call
+
+        consume_substitution_write_call(handle, operation)
     state[1] = True
     return QualifiedNonplayCall(
         operation, _FUNCTIONS[type(operation)], MappingProxyType(dict(params))
@@ -287,10 +312,7 @@ def _check_source(value):
         or (c["d3"] == "0") != (c["d1Head"] is None)
     ):
         raise NonplaySourceUnavailable("取消CPの全値相関が不一致です")
-    from pitchlog.sync.lifecycle_prefix_bridge import (
-        _context_chain_matches,
-        _validate_control_bridges,
-    )
+    from pitchlog.sync.lifecycle_prefix_bridge import _validate_control_bridges
 
     bridges = _validate_control_bridges(c)
     identities = set()
@@ -306,17 +328,10 @@ def _check_source(value):
         ):
             raise NonplaySourceUnavailable("取消active原本が重複又は別種別です")
         identities.add(identity)
-        if index == 0 and not _context_chain_matches(
-            frame["afterContext"], c["restored"], src["eventId"], bridges
-        ):
-            raise NonplaySourceUnavailable("取消head/current文脈が不一致です")
-        if index + 1 < len(stack) and not _context_chain_matches(
-            stack[index + 1]["afterContext"],
-            frame["beforeContext"],
-            stack[index + 1]["play"]["source"]["eventId"],
-            bridges,
-        ):
-            raise NonplaySourceUnavailable("取消tail文脈が不一致です")
+    try:
+        verify_substitution_gaps(value, bridges)
+    except SubstitutionHistoryError as error:
+        raise NonplaySourceUnavailable("交代frameの連結が不一致です") from error
     if c["d1Head"] is not None:
         head = c["d1Head"]["source"]
         if head["d1"] != c["d3"] or head["generation"] != c["scope"]["generation"]:
@@ -1054,8 +1069,36 @@ def _check_saved_evidence(handle, event, source, item, lifetime, runtime, *, fir
     return ev, ledger, admission
 
 
+def _advance_substitution_after_pitch(before, value, artifact_sha256):
+    """保存済み投球の全値から交代状態を唯一artifactで前進させる。"""
+    from pitchlog.domainrt.host import open_domain_host
+
+    request = {
+        "version": "substitution-pitch-advance-v1",
+        "state": before["substitutionState"],
+        "beforeHalf": before["current"]["stateFields"]["state.half"],
+        "afterHalf": value["t1"]["after"]["stateFields"]["state.half"],
+        "runners": value["runners"],
+        "plateAppearanceEnded": value["t1"]["plateAppearanceEnded"],
+    }
+    with open_domain_host() as host:
+        if host.artifact_sha256 != artifact_sha256:
+            raise NonplaySourceUnavailable("交代後投球の実artifactが不一致")
+        response = _load(
+            host.call("advanceSubstitutionAfterPitchV1", _canonical_json(request))
+        )
+    if (
+        type(response) is not dict
+        or set(response) != {"ok", "value"}
+        or response["ok"] is not True
+        or type(response["value"]) is not dict
+    ):
+        raise NonplaySourceUnavailable("交代後投球の唯一計算が不成立")
+    return response["value"]
+
+
 def _stored_contexts(payload):
-    """保存済みcalculationの全fieldを射影する。数学の再計算は行わない。"""
+    """保存済みcalculationを射影し、交代後状態だけ唯一artifactで前進する。"""
     try:
         source = payload["calculation"]["request"]["source"]
         value = payload["calculation"]["response"]["value"]
@@ -1089,6 +1132,8 @@ def _stored_contexts(payload):
             if nonplay
             else source["t2"],
         )
+        if nonplay and "substitutionState" in source:
+            before["substitutionState"] = source["substitutionState"]
         after = {key: before[key] for key in ("rules", "rulesDigest", "layoutDigest")}
         after.update(
             {
@@ -1101,6 +1146,10 @@ def _stored_contexts(payload):
             responsibility=value["nextResponsibility"],
             lastPlayEvaluation=value["t2"],
         )
+        if "substitutionState" in before:
+            after["substitutionState"] = _advance_substitution_after_pitch(
+                before, value, payload["calculation"]["artifactSha256"]
+            )
         return before, after
     except (KeyError, TypeError) as exc:
         raise NonplaySourceUnavailable(

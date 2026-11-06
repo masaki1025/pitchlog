@@ -1,6 +1,7 @@
 import { mount } from '@vue/test-utils'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import GameScreen from './GameScreen.vue'
+import GameScreenSubstitutions from './GameScreenSubstitutions.vue'
 import type {
   PastSubstitutionPreview,
   PastSubstitutionRequest,
@@ -160,6 +161,53 @@ afterEach(() => {
 })
 
 describe('交代とタイブレークの画面下書き', () => {
+  it('提供側の資格と同一draft検証が揃った時だけ通常交代を渡す', async () => {
+    const wrapper = mount(GameScreenSubstitutions, {
+      props: {
+        request,
+        activeContextKey: 'game-a',
+        lockState: { contextKey: 'game-a', state: 'open' },
+        commitEnabled: true,
+      },
+    })
+    await wrapper.get('[data-testid="substitution-kind"]').setValue('pitcher')
+    await wrapper
+      .get('[data-testid="substitution-outgoing"]')
+      .setValue('pitcher-out')
+    await wrapper
+      .get('[data-testid="substitution-incoming-mode"]')
+      .setValue('existing')
+    await wrapper
+      .get('[data-testid="substitution-incoming"]')
+      .setValue('pitcher-in')
+    await wrapper.get('[data-normal-question="place"]').setValue('provided-p')
+    await wrapper
+      .get('[data-normal-question="order"]')
+      .setValue('provided-order')
+    const drafts = wrapper.emitted('draft-change')!
+    const current = drafts.at(-1)![0] as SubstitutionDraftsSnapshot
+    const identity = current.normal!.identity
+    expect(
+      wrapper.get<HTMLButtonElement>('[data-testid="substitution-apply"]')
+        .element.disabled,
+    ).toBe(true)
+    await wrapper.setProps({ validation: { identity, kind: 'valid' } })
+    const button = wrapper.get<HTMLButtonElement>(
+      '[data-testid="substitution-apply"]',
+    )
+    expect(button.element.disabled).toBe(false)
+    await button.trigger('click')
+    expect(wrapper.emitted('apply-normal')?.[0]?.[0]).toEqual(current.normal)
+    await wrapper.setProps({
+      validation: {
+        identity: { ...identity, draftId: identity.draftId - 1 },
+        kind: 'valid',
+      },
+    })
+    expect(button.element.disabled).toBe(true)
+    expect(wrapper.emitted('apply-normal')).toHaveLength(1)
+    wrapper.unmount()
+  })
   it('候補・質問・交代種別・履歴の全供給配列の穴を未取得として閉じ、停止表示を保つ', () => {
     const base = operation('pitcher')
     const normal = (change: Partial<SubstitutionOperationSupply>) => ({

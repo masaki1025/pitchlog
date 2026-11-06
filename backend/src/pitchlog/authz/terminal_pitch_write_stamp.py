@@ -776,6 +776,15 @@ def _nonplay_normal_prepare_sql():
  'rosterDigest',v->'rosterDigest','lineup',v->'lineup','participants',v->'participants',
  'runners',v->'runners','responsibility',v->'nextResponsibility','lastPlayEvaluation',
  v->'t2');
+ IF before_cp->'content'->'restored' ? 'substitutionState' THEN
+ IF pg_catalog.jsonb_typeof(
+ after_cp->'checkpoint'->'content'->'restored'->'substitutionState')
+ IS DISTINCT FROM 'object' THEN {_REJECT} END IF;
+ expected_context:=expected_context||pg_catalog.jsonb_build_object(
+ 'substitutionState',
+ after_cp->'checkpoint'->'content'->'restored'->'substitutionState');
+ ELSIF after_cp->'checkpoint'->'content'->'restored' ? 'substitutionState'
+ THEN {_REJECT} END IF;
  expected_cp:=before_cp->'content'||pg_catalog.jsonb_build_object(
  'd3',source_row.d1::text,'d1Head',pg_catalog.jsonb_build_object('kind',
  'accepted-event','source',expected_head),
@@ -997,8 +1006,10 @@ def _nonplay_normal_runner_checks():
  OR v->'beforeParticipants' IS DISTINCT FROM source_row.payload->'participants'
  OR v->'responsibility' IS DISTINCT FROM
  before_cp->'content'->'restored'->'responsibility'
- OR before_cp->'content'->'restored'->'responsibility'->>'kind'
- IS DISTINCT FROM 'no-change'
+ OR (before_cp->'content'->'restored'->'responsibility'->>'kind'
+ IS DISTINCT FROM 'no-change' AND
+ before_cp->'content'->'restored'->'responsibility'->>'kind'
+ IS DISTINCT FROM 'changed-mid-plate-appearance')
  OR p->'play_row'->>'batter_id' IS DISTINCT FROM
  before_cp->'content'->'restored'->'participants'->>'batterId'
  OR p->'play_row'->>'pitcher_id' IS DISTINCT FROM

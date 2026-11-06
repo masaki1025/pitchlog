@@ -188,19 +188,39 @@ def _fresh(minimum, writer, event, token, expected: _Fresh | None = None) -> _Fr
     handle = minimum.handle
     _minimum(handle, minimum)
     from pitchlog.sync import lifecycle_execution as lifecycle
+    from pitchlog.sync import substitution_execution as substitution
     from pitchlog.sync import undo_execution as undo
 
     if minimum.key in lifecycle._EXECUTIONS:
         if any(
             x.get(minimum.key) is not None
-            for x in (first._EXECUTIONS, ordinary._EXECUTIONS, undo._EXECUTIONS)
+            for x in (
+                first._EXECUTIONS,
+                ordinary._EXECUTIONS,
+                undo._EXECUTIONS,
+                substitution._EXECUTIONS,
+            )
         ):
             raise NativeLedgerInsertError
         return _fresh_lifecycle(minimum, writer, event, token, expected)
+    if minimum.key in substitution._EXECUTIONS:
+        if any(
+            value is not None
+            for value in (
+                first._EXECUTIONS.get(minimum.key),
+                ordinary._EXECUTIONS.get(minimum.key),
+                undo._EXECUTIONS.get(minimum.key),
+                lifecycle._EXECUTIONS.get(minimum.key),
+            )
+        ):
+            raise NativeLedgerInsertError
+        return _fresh_substitution(minimum, writer, event, token, expected)
     if minimum.key in undo._EXECUTIONS:
         if (
             first._EXECUTIONS.get(minimum.key) is not None
             or ordinary._EXECUTIONS.get(minimum.key) is not None
+            or lifecycle._EXECUTIONS.get(minimum.key) is not None
+            or substitution._EXECUTIONS.get(minimum.key) is not None
         ):
             raise NativeLedgerInsertError
         return _fresh_undo(minimum, writer, event, token, expected)
@@ -543,8 +563,88 @@ def _fresh_lifecycle(minimum, writer, event, token, expected: _Fresh | None) -> 
         raise NativeLedgerInsertError
     _minimum(handle, minimum)
     return result
+def _fresh_substitution(
+    minimum, writer, event, token, expected: _Fresh | None
+) -> _Fresh:
+    """交代の同TX実評価・予約event id・元V7を台帳挿入へ束ねる。"""
+    from pitchlog.domainrt.first_ball_projection import _canonical_json
+    from pitchlog.sync import substitution_execution as substitution
 
-
+    handle = minimum.handle
+    _minimum(handle, minimum)
+    state = substitution._EXECUTIONS.get(minimum.key)
+    if type(state) is not substitution._Execution:
+        raise NativeLedgerInsertError
+    substitution._live(state)
+    source = state.source
+    bound, phase, anchor = source.bound, source.phase, state.anchor
+    if (
+        state.handle is not handle
+        or state.writer is not writer
+        or state.event is not event
+        or state.runtime is not minimum.runtime
+        or state.phase != "ready"
+        or source.scope is not handle
+        or source.context is not minimum.context
+        or source.event is not event
+        or source.write_started is not True
+        or type(bound) is not _LiveWriterBinding
+        or _LIVE_BINDINGS.get(minimum.key) is not bound
+        or bound._handle is not handle
+        or bound._used is not False
+        or bound._owner[0] is not minimum.lifetime[0]
+        or bound._owner[1] is not minimum.lifetime[1]
+        or type(phase) is not EventPhaseBinding
+        or phase.attempt.tenant_id != minimum.context.tenant_id
+        or phase.attempt.game_id != UUID(event.game_id)
+        or phase.d1 != event.d1
+        or phase.d5 != UUID(event.d5)
+        or type(anchor) is not tuple
+        or len(anchor) != 7
+        or type(bound._lease.nonce) is not bytes
+        or len(bound._lease.nonce) != 32
+        or bound._lease._phase_snapshot != bound._phase_snapshot
+        or state.frame is not anchor[0]
+        or state.prefix is not anchor[1]
+        or state.payload is not anchor[2]
+        or state.artifact != anchor[3]
+        or state.prefix is None
+        or _canonical_json(state.payload.to_wire())
+        != _canonical_json(_json_value(event.v7))
+        or event.v5 != "substitution"
+        or UUID(state.payload.to_wire()["eventId"])
+        != UUID(state.after["checkpoint"]["content"]["d1Head"]["source"]["eventId"])
+    ):
+        raise NativeLedgerInsertError
+    _check_token(token, event, phase.event_fingerprint)
+    result = _Fresh(
+        minimum,
+        writer,
+        event,
+        state,
+        source,
+        bound,
+        bound._lease,
+        phase,
+        anchor,
+        bound._lease.nonce,
+        bound._phase_snapshot,
+        "substitution-event-v1",
+    )
+    if expected is not None and (
+        result.state is not expected.state
+        or result.source is not expected.source
+        or result.bound is not expected.bound
+        or result.lease is not expected.lease
+        or result.phase is not expected.phase
+        or result.anchor is not expected.anchor
+        or result.nonce != expected.nonce
+        or result.snapshot != expected.snapshot
+        or result.mode != expected.mode
+    ):
+        raise NativeLedgerInsertError
+    _minimum(handle, minimum)
+    return result
 def _fixed_insert(token, tenant_id):
     """既plain INSERTを全検証した後、caller不可の単一拡張だけを構成する。"""
     spec = base._operation_spec(token)

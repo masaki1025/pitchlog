@@ -860,48 +860,105 @@
       "additionalProperties": false
     },
     "Responsibility": {
-      "type": "object",
-      "properties": {
-        "kind": {
-          "const": "no-change"
-        },
-        "paStartSource": {
+      "oneOf": [
+        {
           "type": "object",
           "properties": {
             "kind": {
-              "enum": [
-                "started-game",
-                "confirmed-play"
-              ]
+              "const": "no-change"
             },
-            "id": {
-              "$ref": "#/$defs/Uuid"
+            "paStartSource": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "enum": [
+                    "started-game",
+                    "confirmed-play"
+                  ]
+                },
+                "id": {
+                  "$ref": "#/$defs/Uuid"
+                }
+              },
+              "required": [
+                "kind",
+                "id"
+              ],
+              "additionalProperties": false
+            },
+            "previousPitcherId": {
+              "const": null
+            },
+            "strikesAtChange": {
+              "const": null
+            },
+            "ballsAtChange": {
+              "const": null
             }
           },
           "required": [
             "kind",
-            "id"
+            "paStartSource",
+            "previousPitcherId",
+            "strikesAtChange",
+            "ballsAtChange"
           ],
           "additionalProperties": false
         },
-        "previousPitcherId": {
-          "const": null
-        },
-        "strikesAtChange": {
-          "const": null
-        },
-        "ballsAtChange": {
-          "const": null
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "changed-mid-plate-appearance"
+            },
+            "paStartSource": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "enum": [
+                    "started-game",
+                    "confirmed-play"
+                  ]
+                },
+                "id": {
+                  "$ref": "#/$defs/Uuid"
+                }
+              },
+              "required": [
+                "kind",
+                "id"
+              ],
+              "additionalProperties": false
+            },
+            "previousPitcherId": {
+              "$ref": "#/$defs/Uuid"
+            },
+            "strikesAtChange": {
+              "enum": [
+                "0",
+                "1",
+                "2"
+              ]
+            },
+            "ballsAtChange": {
+              "enum": [
+                "0",
+                "1",
+                "2",
+                "3"
+              ]
+            }
+          },
+          "required": [
+            "kind",
+            "paStartSource",
+            "previousPitcherId",
+            "strikesAtChange",
+            "ballsAtChange"
+          ],
+          "additionalProperties": false
         }
-      },
-      "required": [
-        "kind",
-        "paStartSource",
-        "previousPitcherId",
-        "strikesAtChange",
-        "ballsAtChange"
-      ],
-      "additionalProperties": false
+      ]
     },
     "Slot": {
       "enum": [

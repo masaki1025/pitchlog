@@ -103,7 +103,31 @@ BEGIN
  'game_reopen' END
  AND a.action IN ('end','reopen') AND e.ledger_kind='accepted' AND e.xmin=a.xmin
  AND l.kind='accepted' AND l.source_fingerprint=a.event_fingerprint
- AND l.xmin=a.xmin AND l.retired_at IS NULL AND l.import_batch_id IS NULL)
+ AND l.xmin=a.xmin AND l.retired_at IS NULL AND l.import_batch_id IS NULL
+ UNION ALL SELECT 1 FROM sync_fence.substitution_write_receipts sr
+ JOIN sync_fence.nonplay_write_admissions n ON
+ (n.tenant_id,n.attempt_id,n.phase_id)=(sr.tenant_id,sr.attempt_id,sr.phase_id)
+ JOIN public.operation_events e ON e.tenant_id=sr.tenant_id
+ AND e.id=sr.source_event_id AND e.game_id=sr.game_id
+ JOIN public.idempotency_ledger l ON l.tenant_id=e.tenant_id AND l.d5=e.d5
+ JOIN public.event_slots es ON (es.tenant_id,es.game_id,es.generation,es.d1)=
+ (e.tenant_id,e.game_id,e.generation,e.d1)
+ JOIN sync_fence.ordinary_pitch_checkpoints c ON
+ (c.tenant_id,c.game_id,c.internal_generation)=
+ (sr.tenant_id,sr.game_id,n.internal_generation)
+ WHERE sr.tenant_id=p_tenant_id AND sr.game_id=p_game_id
+ AND sr.source_d1=p_d3 AND sr.checkpoint_id=cp.id
+ AND sr.after_revision=cp.revision AND sr.after_digest=cp.content_digest
+ AND c.id=cp.id AND c.revision=cp.revision AND c.content=cp.content
+ AND c.xmin=sr.xmin AND n.xmin=sr.xmin AND e.xmin=sr.xmin
+ AND l.xmin=sr.xmin AND es.xmin=sr.xmin AND es.confirmed_version=1
+ AND n.internal_generation=p_generation AND n.state='right_verified'
+ AND n.d5=e.d5 AND n.event_fingerprint=l.source_fingerprint
+ AND e.generation=p_generation AND e.d1=p_d3
+ AND e.event_kind='substitution' AND e.ledger_kind='accepted'
+ AND NOT e.is_tombstone AND e.replaced_at IS NULL AND e.retired_at IS NULL
+ AND e.import_batch_id IS NULL AND NOT e.migration_unverified
+ AND l.kind='accepted' AND l.retired_at IS NULL AND l.import_batch_id IS NULL)
  THEN {reject} END IF;
 {control_bridge_guard(generation="p_generation")}
  -- 非playを欠番として捨てず、真正受理印の完全参照だけを除外根拠にする。
@@ -113,7 +137,8 @@ BEGIN
  OR e.replaced_at IS NOT NULL OR e.retired_at IS NOT NULL OR e.import_batch_id IS NOT
  NULL
  OR e.migration_unverified OR e.legacy_row_identifier IS NOT NULL
- OR e.event_kind NOT IN ('play_input','undo','game_end_declaration','game_reopen')))
+ OR e.event_kind NOT IN ('play_input','undo','substitution',
+ 'game_end_declaration','game_reopen')))
  THEN {reject} END IF;
  IF (SELECT pg_catalog.count(*) FROM public.operation_events e
  WHERE e.tenant_id=p_tenant_id AND e.game_id=p_game_id AND e.generation=p_generation
@@ -132,7 +157,43 @@ BEGIN
  AND n.consumed_at IS NOT NULL AND n.target_generation=u.target_generation
  AND n.target_d1=u.target_d1 AND ul.kind='accepted'
  AND ul.source_fingerprint=n.event_fingerprint AND ul.retired_at IS NULL
- AND ul.import_batch_id IS NULL)) THEN {reject} END IF;
+ AND ul.import_batch_id IS NULL))
+ OR pg_catalog.jsonb_array_length(COALESCE(
+ cp.content->'content'->'substitutionFrames','[]'::jsonb))<>
+ (SELECT pg_catalog.count(*) FROM public.operation_events se
+ WHERE se.tenant_id=p_tenant_id AND se.game_id=p_game_id
+ AND se.generation=p_generation AND se.d1<=p_d3
+ AND se.event_kind='substitution')
+ OR EXISTS(SELECT 1 FROM public.operation_events se
+ WHERE se.tenant_id=p_tenant_id AND se.game_id=p_game_id
+ AND se.generation=p_generation AND se.d1<=p_d3
+ AND se.event_kind='substitution' AND NOT EXISTS(
+ SELECT 1 FROM sync_fence.substitution_write_receipts sr
+ JOIN sync_fence.nonplay_write_admissions n ON
+ (n.tenant_id,n.attempt_id,n.phase_id)=(sr.tenant_id,sr.attempt_id,sr.phase_id)
+ JOIN public.idempotency_ledger sl ON sl.tenant_id=se.tenant_id AND sl.d5=se.d5
+ JOIN public.event_slots ss ON (ss.tenant_id,ss.game_id,ss.generation,ss.d1)=
+ (se.tenant_id,se.game_id,se.generation,se.d1)
+ WHERE sr.tenant_id=se.tenant_id AND sr.game_id=se.game_id
+ AND sr.source_event_id=se.id AND sr.source_d1=se.d1
+ AND sr.checkpoint_id=cp.id AND sr.xmin=se.xmin
+ AND n.xmin=se.xmin AND sl.xmin=se.xmin AND ss.xmin=se.xmin
+ AND n.internal_generation=se.generation AND n.state='right_verified'
+ AND n.d5=se.d5 AND n.event_fingerprint=sl.source_fingerprint
+ AND sl.kind='accepted' AND sl.retired_at IS NULL AND sl.import_batch_id IS NULL
+ AND ss.confirmed_version=1 AND se.ledger_kind='accepted'
+ AND NOT se.is_tombstone AND se.replaced_at IS NULL AND se.retired_at IS NULL
+ AND se.import_batch_id IS NULL AND NOT se.migration_unverified
+ AND EXISTS(SELECT 1 FROM pg_catalog.jsonb_array_elements(
+ COALESCE(cp.content->'content'->'substitutionFrames','[]'::jsonb)) sf
+ WHERE sf->'source'->>'eventId'=se.id::text
+ AND sf->'source'->>'gameId'=se.game_id::text
+ AND sf->'source'->>'generation'=n.wire_d4
+ AND sf->'source'->>'d1'=se.d1::text
+ AND sf->'source'->>'d5'=se.d5::text
+ AND sf->'source'->>'fingerprint'=sl.source_fingerprint
+ AND sf->'source'->>'eventKind'='substitution')))
+ THEN {reject} END IF;
  IF EXISTS(SELECT 1 FROM pg_catalog.jsonb_array_elements(pg_catalog.jsonb_build_array(
  cp.content->'content'->'d1Head'->'source',
  cp.content->'content'->'projectionHead'->'source',
@@ -161,7 +222,16 @@ BEGIN
  AND a.state='consumed' AND a.consumed_at IS NOT NULL
  AND a.internal_generation=e.generation AND a.source_d1=e.d1 AND a.source_d2=e.d2
  AND a.d5=e.d5 AND a.event_fingerprint=l.source_fingerprint
- AND a.wire_d4=head->>'generation')))
+ AND a.wire_d4=head->>'generation'
+ UNION ALL SELECT 1 FROM sync_fence.substitution_write_receipts sr
+ JOIN sync_fence.nonplay_write_admissions n ON
+ (n.tenant_id,n.attempt_id,n.phase_id)=(sr.tenant_id,sr.attempt_id,sr.phase_id)
+ WHERE sr.tenant_id=e.tenant_id AND sr.source_event_id=e.id
+ AND sr.checkpoint_id=cp.id AND sr.source_d1=e.d1
+ AND n.internal_generation=e.generation AND n.d5=e.d5
+ AND n.wire_d4=head->>'generation' AND n.state='right_verified'
+ AND n.event_fingerprint=l.source_fingerprint
+ AND sr.xmin=e.xmin AND n.xmin=e.xmin AND l.xmin=e.xmin)))
  OR cp.content->'content'->'d1Head'->'source'->>'d1' IS DISTINCT FROM p_d3::text
  OR (cp.content->'content'->>'nextPhysicalPlayNumber')::bigint IS DISTINCT FROM
  (SELECT COALESCE(pg_catalog.max(pr.play_number),0)+1 FROM public.play_rows pr

@@ -17,6 +17,7 @@ from sqlalchemy.sql.functions import Function
 from sqlalchemy.sql.selectable import Select
 
 from pitchlog.authz.nonplay_prefix_sql import candidate_function_bodies
+from pitchlog.authz.substitution_sql import candidate_substitution_function_body
 from pitchlog.repositories.function_operations import (
     FunctionOperationError,
     FunctionOperationRegistration,
@@ -86,6 +87,16 @@ class _ConsumeNonplayUndoCall(_PrivateNonplayCall):
         return "CAP:sync_nonplay:consume_undo"
 
 
+@dataclass(frozen=True, slots=True, init=False)
+class _ConsumeNonplaySubstitutionCall(_PrivateNonplayCall):
+    """交代の一回CP更新site。"""
+
+    @property
+    def capability_id(self):
+        """交代専用能力。"""
+        return "CAP:sync_nonplay:consume_substitution"
+
+
 _COMMON = (
     ("attempt_id", UUID),
     ("phase_id", UUID),
@@ -148,6 +159,14 @@ _FAMILIES = MappingProxyType(
             1,
             1,
         ),
+        "consume_nonplay_substitution": (
+            _ConsumeNonplaySubstitutionCall,
+            "consume_substitution",
+            (*_COMMON, ("request_json", str)),
+            (("consumed", bool),),
+            1,
+            1,
+        ),
     }
 )
 _TYPES = {UUID: Uuid, bytes: LargeBinary, int: BigInteger, str: Text, bool: Boolean}
@@ -166,7 +185,9 @@ def _statement(name, inputs, outputs):
 
 def _verify_renderer():
     """実body rendererの全6 ABIと引数順/型/戻り列を照合する。"""
-    bodies = candidate_function_bodies()
+    bodies = candidate_function_bodies() | {
+        "consume_nonplay_substitution": candidate_substitution_function_body()
+    }
     if set(bodies) != set(_FAMILIES):
         raise FunctionOperationError("取消固定6関数のrenderer集合が不一致です")
     for name, (_token, _cap, inputs, outputs, _min, _max) in _FAMILIES.items():
@@ -291,6 +312,7 @@ NONPLAY_TOKEN_TYPES = frozenset(x.token_type for x in NONPLAY_FUNCTION_OPERATION
 def _actual_families():
     """循環importを避け、実呼出時にSource17 exact4型だけを解決する。"""
     from pitchlog.repositories.nonplay_prefix import (
+        _ConsumeNonplaySubstitution,
         _ConsumeNonplayUndo,
         _LockNonplayCheckpoint,
         _PrepareNonplayUndo,
@@ -304,6 +326,7 @@ def _actual_families():
         _ReadNonplayHistoryPage: "read_nonplay_history_page",
         _PrepareNonplayUndo: "prepare_nonplay_undo",
         _ConsumeNonplayUndo: "consume_nonplay_undo",
+        _ConsumeNonplaySubstitution: "consume_nonplay_substitution",
     }
 
 
@@ -347,6 +370,8 @@ def _decode(spec, rows):
             raise FunctionOperationError("取消固定関数の戻り全型が不一致です")
     if spec.token_type is _PrepareNonplayUndoCall and rows != ((True,),):
         raise FunctionOperationError("取消writeの実True応答がありません")
+    if spec.token_type is _ConsumeNonplaySubstitutionCall and rows != ((True,),):
+        raise FunctionOperationError("交代CP更新の実True応答がありません")
     if spec.token_type is _ConsumeNonplayUndoCall:
         from pitchlog.sync.stats_native_flush import (
             StatsNativeFlushError,

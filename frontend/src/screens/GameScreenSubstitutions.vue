@@ -34,9 +34,12 @@ const props = defineProps<{
   undoOffer?: UndoOffer | null
   validation?: SubstitutionValidation | null
   preview?: PastSubstitutionPreview | null
+  /** 提供側が実保存資格を照合した場合だけ通常交代を有効にする。 */
+  commitEnabled?: boolean
 }>()
 const emit = defineEmits<{
   'draft-change': [snapshot: SubstitutionDraftsSnapshot]
+  'apply-normal': [draft: RawSubstitutionDraft]
 }>()
 
 const kindLabels: Record<SubstitutionKind, string> = {
@@ -492,6 +495,21 @@ const currentValidation = computed(() =>
     ? props.validation
     : null,
 )
+const canApplyNormal = computed(
+  () =>
+    props.commitEnabled === true &&
+    currentLockState.value === 'open' &&
+    requestReady.value &&
+    normalFieldsSelected.value &&
+    incomingMode.value === 'existing' &&
+    currentValidation.value?.kind === 'valid',
+)
+
+function applyNormal(): void {
+  if (!canApplyNormal.value) return
+  const draft = getDrafts().normal
+  if (draft) emit('apply-normal', draft)
+}
 const currentPreview = computed(() =>
   sameIdentity(pastIdentity.value, props.preview?.identity) &&
   ['pending', 'failed', 'conflict', 'ready'].includes(props.preview!.kind) &&
@@ -850,15 +868,19 @@ onMounted(() => {
         </template>
       </template>
       <p id="substitution-blocked-reason" class="text-sm">
-        この画面ではまだ交代を記録できません。入力内容にかかわらず保存・送信されません。
+        {{
+          commitEnabled
+            ? '検証済みの交代だけを記録できます。'
+            : 'この画面ではまだ交代を記録できません。入力内容にかかわらず保存・送信されません。'
+        }}
       </p>
       <button
         type="button"
-        disabled
+        :disabled="!canApplyNormal"
         aria-describedby="substitution-blocked-reason"
         data-testid="substitution-apply"
         class="rounded border px-3 py-2 disabled:opacity-60"
-        @click.stop.prevent
+        @click.stop.prevent="applyNormal"
       >
         交代を記録
       </button>

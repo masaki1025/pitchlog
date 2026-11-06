@@ -2098,6 +2098,7 @@ TABLES = frozenset(
         "nonplay_write_admissions",
         "lifecycle_write_admissions",
         "game_lifecycle_heads",
+        "substitution_write_receipts",
     }
 )
 SCHEMAS = frozenset(row["schema_name"] for row in ADDITIONS["schemas"])

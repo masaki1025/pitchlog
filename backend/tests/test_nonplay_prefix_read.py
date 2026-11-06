@@ -192,7 +192,7 @@ def _issued_prefix(r, monkeypatch):
 
     raw = {
         "formatVersion": "nonplay-prefix-source-v1",
-        "checkpoint": r.cp.model_dump(mode="json", by_alias=True),
+        "checkpoint": r.cp.model_dump(mode="json", by_alias=True, exclude_unset=True),
         "activeStack": [],
     }
     source = NonplaySource.model_validate_json(json.dumps(raw))
@@ -270,7 +270,7 @@ def test_issuer_anchor_independent_of_mutable_receipt_target(
     elif mutation == "roster-clone":
         object.__setattr__(prefix, "roster", copy.copy(prefix.roster))
     elif mutation == "ref-follow":
-        raw = prefix.source.model_dump(mode="json", by_alias=True)
+        raw = prefix.source.model_dump(mode="json", by_alias=True, exclude_unset=True)
         raw["checkpoint"]["content"]["historyVersion"] = "99"
         raw["checkpoint"]["ref"]["digest"] = source_fingerprint(
             raw["checkpoint"]["content"]
@@ -526,7 +526,10 @@ def test_bootstrap_get_ref_equals_actual_writer_mapper(bootstrap_rig, monkeypatc
         r.handle, r.event, r.source, artifact_sha256=setup.artifact
     ) as prefix:
         actual, _ = writer._read_prefix(prefix, r.handle, r.source, r.event)
-    assert cp.model_dump(mode="json", by_alias=True) == actual["checkpoint"]
+    assert (
+        cp.model_dump(mode="json", by_alias=True, exclude_unset=True)
+        == actual["checkpoint"]
+    )
     assert [frame for _, frame in values] == actual["activeStack"]
     assert cp.ref.digest != setup.doc.content_digest
     assert len(setup.calls) == 1
@@ -642,7 +645,7 @@ def test_bootstrap_service_returns_only_requested_pages_with_same_writer_checkpo
     assert refs[0] == refs[1] == refs[2]
     source = {
         "formatVersion": "nonplay-prefix-source-v1",
-        "checkpoint": cp.model_dump(mode="json", by_alias=True),
+        "checkpoint": cp.model_dump(mode="json", by_alias=True, exclude_unset=True),
         "activeStack": items,
     }
     assert _check_source(source) == source

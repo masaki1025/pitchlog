@@ -221,14 +221,27 @@ class PaStart(_LineupWire):
     id: CanonicalUuid
 
 
-class Responsibility(_LineupWire):
-    """本実保存単位は真正PA開始以後の投手交代なし。"""
+class NoChangeResponsibility(_LineupWire):
+    """真正PA開始以後に投手交代のない閉形。"""
 
     kind: Literal["no-change"]
     pa_start_source: PaStart = Field(alias="paStartSource")
     previous_pitcher_id: None = Field(alias="previousPitcherId")
     strikes_at_change: None = Field(alias="strikesAtChange")
     balls_at_change: None = Field(alias="ballsAtChange")
+
+
+class ChangedResponsibility(_LineupWire):
+    """打席途中の投手交代事実を全値で保持する。"""
+
+    kind: Literal["changed-mid-plate-appearance"]
+    pa_start_source: PaStart = Field(alias="paStartSource")
+    previous_pitcher_id: CanonicalUuid = Field(alias="previousPitcherId")
+    strikes_at_change: Literal["0", "1", "2"] = Field(alias="strikesAtChange")
+    balls_at_change: Literal["0", "1", "2", "3"] = Field(alias="ballsAtChange")
+
+
+Responsibility: TypeAlias = NoChangeResponsibility | ChangedResponsibility
 
 
 class StartedProvenance(_LineupWire):
@@ -395,9 +408,7 @@ class T1(_LineupWire):
         _Out | _Reach | _BattedReach | _BattedScore | BatterDestination
     ) = Field(alias="batterDestination")
     runner_default_advance: _LineupRunnerAdvances = Field(alias="runnerDefaultAdvance")
-    out_effect: _OneOut | _ZeroOut | _StrikeoutDoublePlayOut = Field(
-        alias="outEffect"
-    )
+    out_effect: _OneOut | _ZeroOut | _StrikeoutDoublePlayOut = Field(alias="outEffect")
     stat_flags: StatFlags = Field(alias="statFlags")
     after: StrikeoutSnapshot
 
@@ -650,7 +661,7 @@ class NonplayEventSource(_LineupWire):
         str, Field(pattern=re.compile(r"^(?:wire-v1:)?[a-f0-9]{64}\Z"))
     ]
     event_kind: Literal[
-        ("play_input"), ("undo"), ("game_end_declaration"), ("game_reopen")
+        "play_input", "undo", "substitution", "game_end_declaration", "game_reopen"
     ] = Field(alias="eventKind")
 
 
@@ -677,6 +688,69 @@ class NonplayActivePlay(_LineupWire):
     physical_play_number: PositiveInteger = Field(alias="physicalPlayNumber")
 
 
+class SubstitutionFielding(_LineupWire):
+    """交代後の九守備枠。未配置はnullとして保持する。"""
+
+    one: CanonicalUuid | None = Field(alias="1")
+    two: CanonicalUuid | None = Field(alias="2")
+    three: CanonicalUuid | None = Field(alias="3")
+    four: CanonicalUuid | None = Field(alias="4")
+    five: CanonicalUuid | None = Field(alias="5")
+    six: CanonicalUuid | None = Field(alias="6")
+    seven: CanonicalUuid | None = Field(alias="7")
+    eight: CanonicalUuid | None = Field(alias="8")
+    nine: CanonicalUuid | None = Field(alias="9")
+
+
+class SubstitutionTeam(_LineupWire):
+    """打順と守備の保存形。配置の計算はartifactだけが行う。"""
+
+    team_id: CanonicalUuid = Field(alias="teamId")
+    batting_order: LineupOrders = Field(alias="battingOrder")
+    fielding: SubstitutionFielding
+    dh_slot: Literal["1", "2", "3", "4", "5", "6", "7", "8", "9"] | None = Field(
+        alias="dhSlot"
+    )
+
+
+class _UnchangedSubstitutionResponsibility(_LineupWire):
+    """投手責任が変化していない形。"""
+
+    kind: Literal["unchanged"]
+
+
+class _ChangedSubstitutionResponsibility(_LineupWire):
+    """途中交代時の責任事実。walk判定はartifact側へ委ねる。"""
+
+    kind: Literal["changed-mid-plate-appearance"]
+    previous_pitcher_id: CanonicalUuid = Field(alias="previousPitcherId")
+    relief_pitcher_id: CanonicalUuid = Field(alias="reliefPitcherId")
+    strikes_at_change: Literal["0", "1", "2"] = Field(alias="strikesAtChange")
+    balls_at_change: Literal["0", "1", "2", "3"] = Field(alias="ballsAtChange")
+
+
+class SubstitutionState(_LineupWire):
+    """交代状態の閉保存形。"""
+
+    attacking_side: Literal["away", "home"] = Field(alias="attackingSide")
+    away: SubstitutionTeam
+    home: SubstitutionTeam
+    runners: tuple[Runner, ...]
+    exited_player_ids: tuple[CanonicalUuid, ...] = Field(alias="exitedPlayerIds")
+    responsibility: (
+        _UnchangedSubstitutionResponsibility | _ChangedSubstitutionResponsibility
+    )
+
+
+class NonplaySubstitutionFrame(_LineupWire):
+    """真正event照合前の交代frame閉形。"""
+
+    source: NonplayEventSource
+    after_play_id: CanonicalUuid | None = Field(alias="afterPlayId")
+    before_context: NonplayRestoreContext = Field(alias="beforeContext")
+    after_context: NonplayRestoreContext = Field(alias="afterContext")
+
+
 class NonplayRestoreContext(_LineupWire):
     """採用Sourceの全復元文脈を不変保持する。"""
 
@@ -690,6 +764,19 @@ class NonplayRestoreContext(_LineupWire):
     runners: tuple[Runner, ...]
     responsibility: Responsibility
     last_play_evaluation: T2 | None = Field(alias="lastPlayEvaluation")
+    substitution_state: SubstitutionState | None = Field(
+        default=None, alias="substitutionState"
+    )
+
+    @model_validator(mode="after")
+    def _substitution_presence(self):
+        """省略と明示nullを区別し、交代状態のnullを拒否する。"""
+        if (
+            "substitution_state" in self.model_fields_set
+            and self.substitution_state is None
+        ):
+            raise ValueError("交代状態は省略又は閉objectが必要")
+        return self
 
 
 class LifecycleKernel(_LineupWire):
@@ -744,6 +831,19 @@ class NonplayContent(_LineupWire):
     control_bridges: tuple[LifecycleControlBridge, ...] | None = Field(
         default=None, alias="controlBridges", exclude_if=lambda v: v is None
     )
+    substitution_frames: tuple[NonplaySubstitutionFrame, ...] | None = Field(
+        default=None, alias="substitutionFrames"
+    )
+
+    @model_validator(mode="after")
+    def _substitution_frames_presence(self):
+        """交代frameの明示nullを拒否する。"""
+        if (
+            "substitution_frames" in self.model_fields_set
+            and self.substitution_frames is None
+        ):
+            raise ValueError("交代frameは省略又は配列が必要")
+        return self
 
 
 class NonplayCheckpoint(_LineupWire):

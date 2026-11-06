@@ -21,7 +21,20 @@ from pitchlog.repositories.tokens import TenantOperationResult
 def test_exact_six_canonical_registry_and_real_renderer_abi():
     """旧registryの実objectを保持し、新6は同renderer ABIだけを指す。"""
     api._verify_renderer()
-    assert len(api.NONPLAY_FUNCTION_OPERATIONS) == 6
+    assert len(api.NONPLAY_FUNCTION_OPERATIONS) == 7
+    assert {
+        row.function_id for row in api.NONPLAY_FUNCTION_OPERATIONS
+    } - {"sync_right_api.consume_nonplay_substitution"} == {
+        "sync_right_api." + name
+        for name in (
+            "bind_nonplay_device",
+            "check_nonplay_right",
+            "lock_nonplay_checkpoint",
+            "read_nonplay_history_page",
+            "prepare_nonplay_undo",
+            "consume_nonplay_undo",
+        )
+    }
     for registration in api.NONPLAY_FUNCTION_OPERATIONS:
         assert FUNCTION_OPERATION_REGISTRY[registration.token_type] is registration
         api.validate_registration(registration)
@@ -30,7 +43,7 @@ def test_exact_six_canonical_registry_and_real_renderer_abi():
         assert registration.min_rows in (0, 1)
         assert registration.max_rows in (1, 100)
     contracts = api.contract_candidates()
-    assert sum(x["metadata_only_token"] for x in contracts) == 4
+    assert sum(x["metadata_only_token"] for x in contracts) == 5
     assert all(x["actual_operation_token"] for x in contracts)
 
 

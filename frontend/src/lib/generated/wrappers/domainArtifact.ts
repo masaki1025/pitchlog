@@ -32,6 +32,10 @@ export type FirstBallDomainOperation =
   | 'deriveLineupPlayPrefixWithContinuation'
   | 'quantizeCourse'
   | 'applyUndo'
+  | 'applySubstitutionV1'
+  | 'deriveInitialSubstitutionStateV1'
+  | 'transitionSubstitutionV1'
+  | 'advanceSubstitutionAfterPitchV1'
 
 /** 計算を複製せず、配布物の閉じた操作へJSONを渡す。 */
 export function invokeFirstBallDomain(

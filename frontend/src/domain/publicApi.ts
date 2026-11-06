@@ -1,4 +1,10 @@
 import { applyGameLifecycle } from './gameLifecycle'
+import {
+  advanceSubstitutionAfterPitch,
+  calculateSubstitution,
+  deriveInitialSubstitutionState,
+  transitionSubstitution,
+} from './substitutionArtifact'
 import { applyUndo } from './undo'
 import type {
   HistoryEntry as UndoHistoryEntry,
@@ -1490,6 +1496,60 @@ function applyUndoJson(requestJson: string): string {
   })
 }
 
+/** 正式交代の唯一純kernelをJSON ABIに載せる。 */
+function applySubstitutionV1(requestJson: string): string {
+  if (typeof requestJson !== 'string') return errorResponse('INVALID_REQUEST')
+  try {
+    const value: unknown = JSON.parse(requestJson)
+    if (hasDuplicateKeys(requestJson)) return errorResponse('INVALID_JSON')
+    return JSON.stringify({ ok: true, value: calculateSubstitution(value) })
+  } catch {
+    return errorResponse('INVALID_JSON')
+  }
+}
+
+/** 実rosterをvalidated sourceへ写す純入口。 */
+function deriveInitialSubstitutionStateV1(requestJson: string): string {
+  if (typeof requestJson !== 'string') return errorResponse('INVALID_REQUEST')
+  try {
+    const value: unknown = JSON.parse(requestJson)
+    if (hasDuplicateKeys(requestJson)) return errorResponse('INVALID_JSON')
+    const state = deriveInitialSubstitutionState(value)
+    if (state === null) return errorResponse('INVALID_REQUEST')
+    return JSON.stringify({ ok: true, value: state })
+  } catch {
+    return errorResponse('INVALID_JSON')
+  }
+}
+
+/** 保存前の真正復元文脈を唯一計算で更新する純操作。 */
+function transitionSubstitutionV1(requestJson: string): string {
+  if (typeof requestJson !== 'string') return errorResponse('INVALID_REQUEST')
+  try {
+    const value: unknown = JSON.parse(requestJson)
+    if (hasDuplicateKeys(requestJson)) return errorResponse('INVALID_JSON')
+    const result = transitionSubstitution(value)
+    if (result === null) return errorResponse('INVALID_REQUEST')
+    return JSON.stringify({ ok: true, value: result })
+  } catch {
+    return errorResponse('INVALID_JSON')
+  }
+}
+
+/** 投球確定後の交代状態を唯一artifactで前進させる。 */
+function advanceSubstitutionAfterPitchV1(requestJson: string): string {
+  if (typeof requestJson !== 'string') return errorResponse('INVALID_REQUEST')
+  try {
+    const value: unknown = JSON.parse(requestJson)
+    if (hasDuplicateKeys(requestJson)) return errorResponse('INVALID_JSON')
+    const state = advanceSubstitutionAfterPitch(value)
+    if (state === null) return errorResponse('INVALID_REQUEST')
+    return JSON.stringify({ ok: true, value: state })
+  } catch {
+    return errorResponse('INVALID_JSON')
+  }
+}
+
 /** JSON文字列だけの公開表。採用済みの純取消を含み、未実装の訂正/他結果は公開しない。 */
 export const domainOperations = Object.freeze({
   ping,
@@ -1506,4 +1566,8 @@ export const domainOperations = Object.freeze({
   validateInitialGameRoster,
   quantizeCourse,
   applyUndo: applyUndoJson,
+  applySubstitutionV1,
+  deriveInitialSubstitutionStateV1,
+  transitionSubstitutionV1,
+  advanceSubstitutionAfterPitchV1,
 })

@@ -346,13 +346,20 @@ def _active_evidence_query():
  'participants',{before}->'participants','runners',{before}->'runners',
  'responsibility',{before}->'responsibility','lastPlayEvaluation',
  CASE WHEN {is_nonplay} THEN {before}->'lastPlayEvaluation'
- ELSE {before}->'t2' END)"""
+ ELSE {before}->'t2' END) ||
+ CASE WHEN {is_nonplay} AND {before} ? 'substitutionState' THEN
+ pg_catalog.jsonb_build_object('substitutionState',
+ {before}->'substitutionState') ELSE '{{}}'::jsonb END"""
     context_after = f"""pg_catalog.jsonb_build_object(
  'current',{value}->'t1'->'after','rules',{before}->'rules',
  'rulesDigest',{before}->'rulesDigest','layoutDigest',{before}->'layoutDigest',
  'rosterDigest',{value}->'rosterDigest','lineup',{value}->'lineup',
  'participants',{value}->'participants','runners',{value}->'runners',
- 'responsibility',{value}->'nextResponsibility','lastPlayEvaluation',{value}->'t2')"""
+ 'responsibility',{value}->'nextResponsibility','lastPlayEvaluation',{value}->'t2') ||
+ CASE WHEN {is_nonplay} AND {before} ? 'substitutionState' THEN
+ pg_catalog.jsonb_build_object('substitutionState',
+ a.next_checkpoint_content->'checkpoint'->'content'->'restored'->'substitutionState')
+ ELSE '{{}}'::jsonb END"""
     source = """pg_catalog.jsonb_build_object('eventId',e.id::text,
  'gameId',e.game_id::text,'generation',a.wire_d4,'d1',e.d1::text,
  'd5',e.d5::text,'fingerprint',l.source_fingerprint,'eventKind','play_input')"""

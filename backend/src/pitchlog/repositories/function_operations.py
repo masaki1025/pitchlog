@@ -481,6 +481,7 @@ def _nonplay_native_family(registration) -> bool:
         "read_nonplay_history_page",
         "prepare_nonplay_undo",
         "consume_nonplay_undo",
+        "consume_nonplay_substitution",
     }
     return (
         (

@@ -36,6 +36,7 @@ from pitchlog.db.writer_binding.lifecycle_models import (
     LifecycleWriteAdmission,
 )
 from pitchlog.db.writer_binding.nonplay_models import NonplayWriteAdmission
+from pitchlog.db.writer_binding.substitution_models import SubstitutionWriteReceipt
 
 CURRENT_REVISION = "0043_game_lifecycle"
 _INDEX_REVISION = "0040_batted_vocabulary_index"
@@ -236,6 +237,7 @@ def _tables() -> tuple[Table, ...]:
         NonplayWriteAdmission,
         LifecycleWriteAdmission,
         GameLifecycleHead,
+        SubstitutionWriteReceipt,
     )
     return tuple(
         sorted((cast(Table, m.__table__) for m in models), key=lambda t: t.name)
@@ -414,6 +416,7 @@ def _check_current_structure(connection: Any) -> None:
                     NonplayWriteAdmission,
                     LifecycleWriteAdmission,
                     GameLifecycleHead,
+                    SubstitutionWriteReceipt,
                 )
             }:
                 cursor.execute(

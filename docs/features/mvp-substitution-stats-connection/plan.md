@@ -18,3 +18,7 @@ branch: feature/mvp-substitution-stats-connection
 | 3 | 同じ版・owned環境で交代→次球→reload、終了→成績/CSV→再開→再終了→最新版を実測 | 実認証/記録権/同TX、重複/越境/故障、非作者最終レビュー。候補と正式受理は別 |
 
 rootがこのWTのsole writer。元の作者WT/cacheをrootから編集しない。実PG/browserは共通lockを全寿命保持、共有DSNをunsetしsource-preflightと前後SHAを保存する。共有DB/秘密発行/公開・main/develop直接変更なし。基線の混在や未解消の赤を成功へ読み替えない。記録後正式派生/7.7/全CI/PR通常統合は後続ゲートを維持する。
+
+## ステップ1の候補固定（2026-11-06）
+
+交代 final-candidate-20261106/candidate.patch SHA 7c8367e025fc9c050f1696f7f3e64a1f4e0a383549c2e5b67df135850b185738、94path manifest245bbd62…をd335共通祖先で3way接合。既LC/B5の実端末資格・schema登録・offline-ready表示を保持。重複したlifecycle import/schema/unionだけを一件化。生成runtime2pathは手修正せず現資産から公式rederive（変更ありexit3）→check成功。function-bodies check成功、backend168/型、frontend57/型成功。backend書式2pathをRuffで追随。source差分根拠はcache mvp-resume-20261104/substitution-root-3way-20261106.json。交代後の次球はstats27未接合のため未実証、旧作者P1留保と正式受理・最終非作者確認は未了。

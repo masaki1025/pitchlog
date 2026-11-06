@@ -2,25 +2,25 @@
   "version": "2",
   "sourceFormat": "play-prefix-play-v3",
   "historicalWitnessSha256": "cd21ba1138c37820a6b80e8f3c506a462d961a8a745c537012cb72ca876c6df4",
-  "currentWitnessSha256": "c325d5174ca260f45489a6589351104cbe96cb14d30b123fa03a495a4b2375a5",
+  "currentWitnessSha256": "b3ebead4d6c156f218fa6e323dfa0608935fcfbc6b2d6bbe5cae543b6280218e",
   "cases": [
     {
       "priorArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
-      "executionArtifactSha256": "9ae9d16db1f2fa48905eb0ac951c8cb3ce5704dfe308df95a7a0bba155f33d19",
+      "executionArtifactSha256": "ce622726b41f55f4f62c5db76241dc05499e9a53071ba134b5ce8da7a54d64fd",
       "sourceFormat": "play-prefix-play-v3",
       "compatibleOperations": [
         "deriveLineupPlayPrefixWithContinuation"
       ],
-      "witnessSha256": "c325d5174ca260f45489a6589351104cbe96cb14d30b123fa03a495a4b2375a5"
+      "witnessSha256": "b3ebead4d6c156f218fa6e323dfa0608935fcfbc6b2d6bbe5cae543b6280218e"
     },
     {
-      "priorArtifactSha256": "9ae9d16db1f2fa48905eb0ac951c8cb3ce5704dfe308df95a7a0bba155f33d19",
-      "executionArtifactSha256": "9ae9d16db1f2fa48905eb0ac951c8cb3ce5704dfe308df95a7a0bba155f33d19",
+      "priorArtifactSha256": "ce622726b41f55f4f62c5db76241dc05499e9a53071ba134b5ce8da7a54d64fd",
+      "executionArtifactSha256": "ce622726b41f55f4f62c5db76241dc05499e9a53071ba134b5ce8da7a54d64fd",
       "sourceFormat": "play-prefix-play-v3",
       "compatibleOperations": [
         "deriveLineupPlayPrefixWithContinuation"
       ],
-      "witnessSha256": "c325d5174ca260f45489a6589351104cbe96cb14d30b123fa03a495a4b2375a5"
+      "witnessSha256": "b3ebead4d6c156f218fa6e323dfa0608935fcfbc6b2d6bbe5cae543b6280218e"
     }
   ]
 }

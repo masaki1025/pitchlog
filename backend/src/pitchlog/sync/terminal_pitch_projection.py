@@ -7,6 +7,7 @@ from uuid import UUID, uuid5
 from pitchlog.db.sync_protocol.models import OperationEvent
 from pitchlog.domainrt.first_ball_projection import _canonical_json
 from pitchlog.repositories.first_ball_operations import _one
+from pitchlog.repositories.nonplay_prefix import _advance_substitution_after_pitch
 from pitchlog.repositories.play_prefix import read_play_prefix_document
 from pitchlog.repositories.tokens import TenantOperationResult
 from pitchlog.sync.idempotency import source_fingerprint
@@ -515,7 +516,7 @@ def build_nonplay_normal_preparation(state, record, tenant_id):
         tenant_id=tenant_id,
         play_id=UUID(q.play_identity.play_id),
     )
-    raw = cp.model_dump(mode="json", by_alias=True)
+    raw = cp.model_dump(mode="json", by_alias=True, exclude_unset=True)
     old = raw["content"]
     value = r.model_dump(mode="json", by_alias=True, exclude_unset=True)
     restored = {
@@ -525,6 +526,10 @@ def build_nonplay_normal_preparation(state, record, tenant_id):
         "responsibility": value["nextResponsibility"],
         "lastPlayEvaluation": value["t2"],
     }
+    if old["restored"].get("substitutionState") is not None:
+        restored["substitutionState"] = _advance_substitution_after_pitch(
+            old["restored"], value, calc.artifact_sha256
+        )
     head = {
         "source": identity,
         "playId": q.play_identity.play_id,

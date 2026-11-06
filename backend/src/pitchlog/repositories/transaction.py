@@ -1354,6 +1354,10 @@ def _is_port_command(operation):
         ProjectOrdinaryPitchToken,
         ValidateOrdinaryPitchToken,
     )
+    from pitchlog.sync.substitution_ports import (
+        ProjectSubstitutionToken,
+        ValidateSubstitutionToken,
+    )
     from pitchlog.sync.terminal_pitch_tokens import (
         ProjectLineupPrefixToken,
         ProjectPlayPrefixToken,
@@ -1373,7 +1377,12 @@ def _is_port_command(operation):
 
     if type(operation) in {ProjectLifecycleToken, ValidateLifecycleToken}:
         return True
-    if type(operation) in {ProjectUndoToken, ValidateUndoToken}:
+    if type(operation) in {
+        ProjectUndoToken,
+        ValidateUndoToken,
+        ProjectSubstitutionToken,
+        ValidateSubstitutionToken,
+    }:
         return True
     return isinstance(
         operation,
@@ -1453,6 +1462,10 @@ def _execute_port_command(handle, operation):
         ProjectOrdinaryPitchToken,
         ValidateOrdinaryPitchToken,
     )
+    from pitchlog.sync.substitution_ports import (
+        ProjectSubstitutionToken,
+        ValidateSubstitutionToken,
+    )
     from pitchlog.sync.terminal_pitch_tokens import (
         ProjectLineupPrefixToken,
         ProjectPlayPrefixToken,
@@ -1523,6 +1536,37 @@ def _execute_port_command(handle, operation):
         from pitchlog.sync.lifecycle_prefix_bridge import project_game_lifecycle
 
         project_game_lifecycle(handle, operation.event, operation.writer)
+        return TenantOperationResult(((True,),))
+    if type(operation) in {ProjectSubstitutionToken, ValidateSubstitutionToken}:
+        from pitchlog.sync.model import SyncEvent
+        from pitchlog.sync.ports import PortWriter
+        from pitchlog.sync.substitution_execution import substitution_content_result
+
+        if (
+            type(operation.event) is not SyncEvent
+            or type(operation.writer) is not PortWriter
+            or type(operation.game_id) is not UUID
+            or type(operation.d5) is not UUID
+            or operation.game_id != UUID(operation.event.game_id)
+            or operation.d5 != UUID(operation.event.d5)
+        ):
+            raise TenantBindingError("交代Portの実元参照が不一致")
+        if type(operation) is ValidateSubstitutionToken:
+            if phase is None or phase.kind != "content":
+                raise TenantBindingError("交代内容は実content phaseだけで使う")
+            accepted, reason = substitution_content_result(
+                handle, operation.event, operation.writer
+            )
+            if type(accepted) is not bool or (
+                accepted and reason is not None
+            ):
+                raise TenantBindingError("交代内容の閉応答が不一致")
+            return TenantOperationResult(((accepted, reason),))
+        if phase is not None:
+            raise TenantBindingError("交代投影は判定phase外だけで使う")
+        from pitchlog.sync.substitution_bridge import project_nonplay_substitution
+
+        project_nonplay_substitution(handle, operation.event, operation.writer)
         return TenantOperationResult(((True,),))
     if type(operation) in {ProjectUndoToken, ValidateUndoToken}:
         from pitchlog.sync.model import SyncEvent

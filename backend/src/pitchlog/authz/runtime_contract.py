@@ -3,11 +3,11 @@
 from dataclasses import dataclass
 
 SCHEMA_VERSION = 1
-RUNTIME_CONTRACT_REVISION = 32
+RUNTIME_CONTRACT_REVISION = 33
 PROVISIONAL = False
 SUPERSEDED_BY = None
 SOURCE_ASSET = "contracts/tenant_boundary/runtime-authz-contract.json"
-SOURCE_DIGEST = "c3ebfa7432cab33c0fd6b4bbbf256890aa6802369646e6645e1830cf65a1f107"
+SOURCE_DIGEST = "b3f09c77df3d992e4f64f77fddac494e436f37182ae0af4cf2c42de3213cea07"
 DERIVED_FROM = "contracts/authz/product/ddl-elements.json"
 
 
@@ -111,6 +111,7 @@ PROTECTED_TABLES = (
     ("sync_fence", "stats_fact_versions"),
     ("sync_fence", "stats_primitive_facts"),
     ("sync_fence", "stats_primitive_sources"),
+    ("sync_fence", "substitution_write_receipts"),
     ("sync_fence", "writer_admissions"),
     ("sync_fence", "writer_bindings"),
 )
@@ -273,6 +274,11 @@ PROTECTED_FUNCTIONS = (
     (
         "sync_right_api",
         "consume_game_lifecycle",
+        "uuid, uuid, uuid, bytea, uuid, uuid, text",
+    ),
+    (
+        "sync_right_api",
+        "consume_nonplay_substitution",
         "uuid, uuid, uuid, bytea, uuid, uuid, text",
     ),
     (

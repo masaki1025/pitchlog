@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "runtime_contract_revision": 32,
+  "runtime_contract_revision": 33,
   "baseline_control": {
     "identity": {
       "scheme": "integer_revision_field",
       "field": "runtime_contract_revision",
       "current_identifiers": [
-        "runtime_contract_revision:32"
+        "runtime_contract_revision:33"
       ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
@@ -340,6 +340,10 @@
       [
         "sync_fence",
         "stats_primitive_sources"
+      ],
+      [
+        "sync_fence",
+        "substitution_write_receipts"
       ],
       [
         "sync_fence",
@@ -873,6 +877,11 @@
       ],
       [
         "sync_right_api",
+        "consume_nonplay_substitution",
+        "uuid, uuid, uuid, bytea, uuid, uuid, text"
+      ],
+      [
+        "sync_right_api",
         "consume_nonplay_undo",
         "uuid, uuid, uuid, bytea, uuid, uuid, text"
       ],
@@ -1021,5 +1030,5 @@
     }
   ],
   "derived_from": "contracts/authz/product/ddl-elements.json",
-  "source_digest": "c3ebfa7432cab33c0fd6b4bbbf256890aa6802369646e6645e1830cf65a1f107"
+  "source_digest": "b3f09c77df3d992e4f64f77fddac494e436f37182ae0af4cf2c42de3213cea07"
 }

@@ -478,6 +478,14 @@ def _event_insert_token(
         reserved = _reserved_undo_event_id(scope, event)
         if type(reserved) is not UUID:
             raise P1PreconditionError("取消の予約原本idがありません")
+    if (
+        _event_kind(event) == "substitution"
+        and isinstance(event.v7, Mapping)
+        and event.v7.get("formatVersion") == "substitution-event-v1"
+    ):
+        from pitchlog.sync.substitution_execution import reserved_substitution_event_id
+
+        reserved = reserved_substitution_event_id(scope, event)
     return OperationEventInsertToken(
         reserved if reserved is not None else uuid4(),
         game_id,
@@ -758,6 +766,7 @@ def _apply_locked_in_scope(
                 "確定済み D1 は墓標・改訂で置換できない",
                 "w2_violation" if event.v9 is not ABSENT else "other",
             )
+        from pitchlog.sync.substitution_ports import SubstitutionContentValidationPort
         from pitchlog.sync.undo_ports import UndoContentValidationPort
 
         # ⑦の V 値と内容は、⑤の記録権・⑥の連番を通った後で判定する。
@@ -850,6 +859,12 @@ def _apply_locked_in_scope(
                 first_ball_stack.enter_context(
                     _bind_undo_execution(scope, writer, event, source)
                 )
+        if type(validator) is SubstitutionContentValidationPort:
+            from pitchlog.sync.substitution_execution import bind_substitution_execution
+
+            first_ball_stack.enter_context(
+                bind_substitution_execution(scope, writer, event, source)
+            )
         if type(validator) is FirstBallContentValidationPort:
             from pitchlog.sync.first_ball_execution import _bind_first_ball_execution
 
@@ -960,6 +975,7 @@ def _apply_locked_in_scope(
             LineupPrefixContentValidationPort,
             UndoContentValidationPort,
             LifecycleContentValidationPort,
+            SubstitutionContentValidationPort,
         }:
             from pitchlog.sync.native_ledger_insert import (
                 _recheck_and_insert_native_result,
@@ -1024,6 +1040,13 @@ def _apply_locked_in_scope(
 
             with _bind_undo_projection(scope, writer, event, projected_event):
                 projection.apply(projected_event, writer)
+        elif type(validator) is SubstitutionContentValidationPort:
+            from pitchlog.sync.substitution_execution import (
+                bind_substitution_projection,
+            )
+
+            with bind_substitution_projection(scope, writer, event, projected_event):
+                projection.apply(projected_event, writer)
         else:
             projection.apply(projected_event, writer)
         if type(validator) is LifecycleContentValidationPort:
@@ -1036,6 +1059,10 @@ def _apply_locked_in_scope(
             from pitchlog.sync.undo_execution import _require_undo_projection_completed
 
             _require_undo_projection_completed(scope, event)
+        if type(validator) is SubstitutionContentValidationPort:
+            from pitchlog.sync.substitution_bridge import require_substitution_projected
+
+            require_substitution_projected(scope, event)
         if type(validator) in {
             OrdinaryPitchContentValidationPort,
             PlayPrefixContentValidationPort,

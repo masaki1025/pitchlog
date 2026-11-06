@@ -96,7 +96,8 @@
             "play_input",
             "undo",
             "game_end_declaration",
-            "game_reopen"
+            "game_reopen",
+            "substitution"
           ]
         }
       },
@@ -249,6 +250,9 @@
               "type": "null"
             }
           ]
+        },
+        "substitutionState": {
+          "$ref": "#/$defs/SubstitutionState"
         }
       },
       "required": [
@@ -335,6 +339,12 @@
           "type": "array",
           "items": {
             "$ref": "#/$defs/LifecycleControlBridge"
+          }
+        },
+        "substitutionFrames": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SubstitutionFrame"
           }
         }
       },
@@ -661,6 +671,318 @@
         "kernel",
         "frameId",
         "checkpointBefore"
+      ],
+      "additionalProperties": false
+    },
+    "SubstitutionState": {
+      "type": "object",
+      "properties": {
+        "attackingSide": {
+          "enum": [
+            "away",
+            "home"
+          ]
+        },
+        "away": {
+          "$ref": "#/$defs/SubstitutionTeam"
+        },
+        "home": {
+          "$ref": "#/$defs/SubstitutionTeam"
+        },
+        "runners": {
+          "type": "array",
+          "items": {
+            "$ref": "https://pitchlog.local/contracts/lineup_play_prefix_schema_v1.json#/$defs/Runner"
+          }
+        },
+        "exitedPlayerIds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Uuid"
+          },
+          "uniqueItems": true
+        },
+        "responsibility": {
+          "$ref": "#/$defs/SubstitutionResponsibility"
+        }
+      },
+      "required": [
+        "attackingSide",
+        "away",
+        "home",
+        "runners",
+        "exitedPlayerIds",
+        "responsibility"
+      ],
+      "additionalProperties": false
+    },
+    "SubstitutionResponsibility": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "unchanged"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "changed-mid-plate-appearance"
+            },
+            "previousPitcherId": {
+              "$ref": "#/$defs/Uuid"
+            },
+            "reliefPitcherId": {
+              "$ref": "#/$defs/Uuid"
+            },
+            "strikesAtChange": {
+              "enum": [
+                "0",
+                "1",
+                "2"
+              ]
+            },
+            "ballsAtChange": {
+              "enum": [
+                "0",
+                "1",
+                "2",
+                "3"
+              ]
+            }
+          },
+          "required": [
+            "kind",
+            "previousPitcherId",
+            "reliefPitcherId",
+            "strikesAtChange",
+            "ballsAtChange"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "SubstitutionTeam": {
+      "type": "object",
+      "properties": {
+        "teamId": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "battingOrder": {
+          "type": "object",
+          "properties": {
+            "1": {
+              "$ref": "#/$defs/Uuid"
+            },
+            "2": {
+              "$ref": "#/$defs/Uuid"
+            },
+            "3": {
+              "$ref": "#/$defs/Uuid"
+            },
+            "4": {
+              "$ref": "#/$defs/Uuid"
+            },
+            "5": {
+              "$ref": "#/$defs/Uuid"
+            },
+            "6": {
+              "$ref": "#/$defs/Uuid"
+            },
+            "7": {
+              "$ref": "#/$defs/Uuid"
+            },
+            "8": {
+              "$ref": "#/$defs/Uuid"
+            },
+            "9": {
+              "$ref": "#/$defs/Uuid"
+            }
+          },
+          "required": [
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9"
+          ],
+          "additionalProperties": false
+        },
+        "fielding": {
+          "type": "object",
+          "properties": {
+            "1": {
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/Uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "2": {
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/Uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "3": {
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/Uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "4": {
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/Uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "5": {
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/Uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "6": {
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/Uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "7": {
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/Uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "8": {
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/Uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "9": {
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/Uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9"
+          ],
+          "additionalProperties": false
+        },
+        "dhSlot": {
+          "oneOf": [
+            {
+              "enum": [
+                "1",
+                "2",
+                "3",
+                "4",
+                "5",
+                "6",
+                "7",
+                "8",
+                "9"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "teamId",
+        "battingOrder",
+        "fielding",
+        "dhSlot"
+      ],
+      "additionalProperties": false
+    },
+    "SubstitutionFrame": {
+      "type": "object",
+      "properties": {
+        "source": {
+          "$ref": "#/$defs/EventSource"
+        },
+        "beforeContext": {
+          "$ref": "#/$defs/RestoreContext"
+        },
+        "afterContext": {
+          "$ref": "#/$defs/RestoreContext"
+        },
+        "afterPlayId": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Uuid"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "source",
+        "beforeContext",
+        "afterContext",
+        "afterPlayId"
       ],
       "additionalProperties": false
     }

@@ -28,6 +28,7 @@ type Rule = {
   minLength?: number
   maxLength?: number
   pattern?: string
+  uniqueItems?: boolean
 }
 const schemas = {
   game_lifecycle_schema_v1: lifecycle,
@@ -65,6 +66,7 @@ const allowed = new Set([
   'required',
   'title',
   'type',
+  'uniqueItems',
   'x-pitchlog-axis-id',
 ])
 function object(v: unknown): v is Record<string, unknown> {
@@ -140,6 +142,10 @@ function matches(v: unknown, rule: Rule, origin: string): boolean {
     Array.isArray(v) &&
     ((rule.minItems !== undefined && v.length < rule.minItems) ||
       (rule.maxItems !== undefined && v.length > rule.maxItems) ||
+      (rule.uniqueItems === true &&
+        v.some((item, index) =>
+          v.slice(index + 1).some((other) => sameOrdinaryWire(item, other)),
+        )) ||
       (rule.items !== undefined &&
         !v.every((x) => matches(x, rule.items!, origin))))
   )

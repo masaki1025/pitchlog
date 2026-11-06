@@ -4,6 +4,7 @@ import GameScreenFirstBall from './GameScreenFirstBall.vue'
 import GameScreenOrdinaryPitch from './GameScreenOrdinaryPitch.vue'
 import GameScreenUndoProduct from './GameScreenUndoProduct.vue'
 import GameScreenLifecycleProduct from './GameScreenLifecycleProduct.vue'
+import GameScreenSubstitutionProduct from './GameScreenSubstitutionProduct.vue'
 import { ordinaryContextFromRead } from '../api/recordedPrefixGame'
 import { sameOrdinaryWire } from '../api/ordinaryPitchWire'
 import {
@@ -372,5 +373,11 @@ const history = computed(() =>
     :key="gameId"
     :game-id="gameId"
     @resume-recording="restore.reload()"
+  />
+  <GameScreenSubstitutionProduct
+    v-if="gameId && auto !== false"
+    :key="gameId"
+    :game-id="gameId"
+    @saved="restore.reload()"
   />
 </template>
