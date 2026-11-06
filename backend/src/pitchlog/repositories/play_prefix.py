@@ -1093,6 +1093,9 @@ def _require_v3_compatibility(root, prior, execution):
     )
     if declaration.get("sha256") != current or execution != current:
         raise ValueError
+    if current != "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1":
+        _require_v3_compatibility_v2(root, prior, current, raw, anchor)
+        return
     legacy, original_registry_sha = _validated_v3_witness(raw, anchor, current)
     rows = registry["cases"]
     legacy_anchor = json.loads(
@@ -1172,6 +1175,184 @@ def _require_v3_compatibility(root, prior, execution):
         execution,
     ) not in {(legacy, current), (current, current)}:
         raise ValueError
+
+
+def _require_v3_compatibility_v2(root, prior, current, old_raw, anchor_raw):
+    """旧witnessを固定したまま、新bundleとの53件だけを別版で資格化する。"""
+    import hashlib
+
+    from pitchlog.authz.terminal_pitch_product import require_registered_product
+
+    base = root / "contracts/state-transition"
+    old = "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1"
+    if (
+        hashlib.sha256(old_raw).hexdigest()
+        != "cd21ba1138c37820a6b80e8f3c506a462d961a8a745c537012cb72ca876c6df4"
+        or prior not in {old, current}
+    ):
+        raise ValueError
+    _validated_v3_witness(old_raw, anchor_raw, old)
+    raw = (base / "nonplay_v3_compatibility_witness_v2.json").read_bytes()
+    witness_sha = hashlib.sha256(raw).hexdigest()
+    if (
+        witness_sha
+        != "6b3b29e545b4c0a09876bad1fc3dc4e8e207b2ad691a220b2322fca06cda9296"
+    ):
+        raise ValueError
+    registry_raw = (base / "play_prefix_v3_source_compatibility_v2.json").read_bytes()
+    _validated_v3_witness_v2(raw, registry_raw, old_raw, current)
+    require_registered_product(artifact_sha256=current, mode="play-prefix-play-v3")
+
+
+@lru_cache(maxsize=4)
+def _validated_v3_witness_v2(raw, registry_raw, old_raw, current):
+    """旧53原本との全値一致と識別値/digestだけの正規化を閉検査する。"""
+    import copy
+    import hashlib
+
+    from pitchlog.domainrt.lineup_play_prefix_continuation import (
+        LineupPrefixRequest,
+        LineupPrefixSuccess,
+        decode_lineup_prefix_response,
+        lineup_wire_digest,
+    )
+
+    old = "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1"
+    data = json.loads(
+        raw, object_pairs_hook=_unique_object, parse_constant=_invalid_constant
+    )
+    registry = json.loads(
+        registry_raw, object_pairs_hook=_unique_object, parse_constant=_invalid_constant
+    )
+    old_witness = json.loads(
+        old_raw, object_pairs_hook=_unique_object, parse_constant=_invalid_constant
+    )
+    if raw != (json.dumps(data, ensure_ascii=False, indent=2) + "\n").encode():
+        raise ValueError
+    if (
+        registry_raw
+        != (json.dumps(registry, ensure_ascii=False, indent=2) + "\n").encode()
+    ):
+        raise ValueError
+    witness_sha = hashlib.sha256(raw).hexdigest()
+    expected_rows = [
+        {
+            "priorArtifactSha256": p,
+            "executionArtifactSha256": current,
+            "sourceFormat": "play-prefix-play-v3",
+            "compatibleOperations": ["deriveLineupPlayPrefixWithContinuation"],
+            "witnessSha256": witness_sha,
+        }
+        for p in (old, current)
+    ]
+    if registry != {
+        "version": "2",
+        "sourceFormat": "play-prefix-play-v3",
+        "historicalWitnessSha256": hashlib.sha256(old_raw).hexdigest(),
+        "currentWitnessSha256": witness_sha,
+        "cases": expected_rows,
+    }:
+        raise ValueError
+    if set(data) != {
+        "version",
+        "sourceFormat",
+        "compatibleOperations",
+        "historicalArtifactCommit",
+        "historicalArtifactSha256",
+        "historicalWitnessSha256",
+        "executionArtifactSha256",
+        "normalization",
+        "scope",
+        "samplesSha256",
+        "samples",
+    }:
+        raise ValueError
+    if any(
+        (
+            data["version"] != "2",
+            data["sourceFormat"] != "play-prefix-play-v3",
+            data["compatibleOperations"] != ["deriveLineupPlayPrefixWithContinuation"],
+            data["historicalArtifactCommit"]
+            != "177de16a31df723c69595bc659839f46b3fc71ac",
+            data["historicalArtifactSha256"] != old,
+            data["historicalWitnessSha256"] != hashlib.sha256(old_raw).hexdigest(),
+            data["executionArtifactSha256"] != current,
+            data["normalization"]
+            != {
+                "requestPointers": [
+                    "/source/executionArtifactSha256",
+                    "/nextCheckpoint/digest",
+                ],
+                "responsePointers": [
+                    "/value/executionArtifactSha256",
+                    "/value/nextPrefixRef/checkpoint/digest",
+                ],
+                "allOtherValuesUnchanged": True,
+            },
+            data["scope"]
+            != {
+                "caseCount": 53,
+                "operationCount": 1,
+                "HTTPorDB": False,
+                "P6Blind": False,
+            },
+        )
+    ):
+        raise ValueError
+    samples = data["samples"]
+    if (
+        type(samples) is not list
+        or len(samples) != 53
+        or len(old_witness["samples"]) != 53
+        or hashlib.sha256(
+            json.dumps(
+                samples, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+            ).encode()
+        ).hexdigest()
+        != data["samplesSha256"]
+    ):
+        raise ValueError
+    for before, sample in zip(old_witness["samples"], samples, strict=True):
+        if (
+            set(sample)
+            != {
+                "sourcePath",
+                "caseId",
+                "priorRequest",
+                "priorExpected",
+                "priorActual",
+                "currentRequest",
+                "currentExpected",
+                "currentActual",
+            }
+            or sample["sourcePath"] != before["sourcePath"]
+            or sample["caseId"] != before["caseId"]
+            or sample["priorRequest"] != before["currentRequest"]
+            or sample["priorExpected"] != before["currentExpected"]
+            or sample["priorActual"] != before["currentActual"]
+            or sample["currentActual"] != sample["currentExpected"]
+        ):
+            raise ValueError
+        request = copy.deepcopy(sample["priorRequest"])
+        expected = copy.deepcopy(sample["priorExpected"])
+        if (
+            request["source"]["executionArtifactSha256"] != old
+            or expected["value"]["executionArtifactSha256"] != old
+        ):
+            raise ValueError
+        request["source"]["executionArtifactSha256"] = current
+        expected["value"]["executionArtifactSha256"] = current
+        response = decode_lineup_prefix_response(_canonical_json(expected))
+        if type(response) is not LineupPrefixSuccess:
+            raise ValueError
+        digest = lineup_wire_digest(
+            LineupPrefixRequest.model_validate_json(_canonical_json(request)),
+            response,
+        )
+        request["nextCheckpoint"]["digest"] = digest
+        expected["value"]["nextPrefixRef"]["checkpoint"]["digest"] = digest
+        if request != sample["currentRequest"] or expected != sample["currentExpected"]:
+            raise ValueError
 
 
 @lru_cache(maxsize=4)

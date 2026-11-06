@@ -22,7 +22,7 @@ export type BattedHitObservations = Readonly<{
   battedBall: Readonly<{typeKey:string|null;strengthKey:string|null;hitX:string|null;hitY:string|null;rawFielderPosition:string|null;resolvedFielderId:string|null}>;
   officialScoringPayload: Readonly<{kind:"no-error";errorCount:"0";fielders:readonly []}>;
   interferenceRuling: Readonly<{kind:"not-required"}>;
-  runnerAdvanceOverridesByRunner: Readonly<{kind:"not-applied";overrides:readonly []}>;
+  runnerAdvanceOverridesByRunner: (Readonly<{kind:"not-applied";overrides:readonly []}> | Readonly<{kind:"applied";overrides:readonly (Readonly<{runnerBase:"1"|"2"|"3";destination:"2"|"3"|"4"}>)[]}>);
   thirdOutObservation: Readonly<{kind:"none"}>;
   thirdOutTimingByRunner: Readonly<Record<string,never>>;
 }>;

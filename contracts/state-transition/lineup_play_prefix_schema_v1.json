@@ -1719,61 +1719,145 @@
           "type": "object",
           "properties": {
             "first": {
-              "type": "object",
-              "properties": {
-                "modality": {
-                  "enum": [
-                    "hold",
-                    "not-applicable"
-                  ]
+              "oneOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "modality": {
+                      "enum": [
+                        "hold",
+                        "not-applicable"
+                      ]
+                    },
+                    "destination": {
+                      "const": null
+                    }
+                  },
+                  "required": [
+                    "modality",
+                    "destination"
+                  ],
+                  "additionalProperties": false
                 },
-                "destination": {
-                  "const": null
+                {
+                  "type": "object",
+                  "properties": {
+                    "modality": {
+                      "enum": [
+                        "optional",
+                        "forced"
+                      ]
+                    },
+                    "destination": {
+                      "enum": [
+                        "1",
+                        "2",
+                        "3",
+                        "4"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "modality",
+                    "destination"
+                  ],
+                  "additionalProperties": false
                 }
-              },
-              "required": [
-                "modality",
-                "destination"
-              ],
-              "additionalProperties": false
+              ]
             },
             "second": {
-              "type": "object",
-              "properties": {
-                "modality": {
-                  "enum": [
-                    "hold",
-                    "not-applicable"
-                  ]
+              "oneOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "modality": {
+                      "enum": [
+                        "hold",
+                        "not-applicable"
+                      ]
+                    },
+                    "destination": {
+                      "const": null
+                    }
+                  },
+                  "required": [
+                    "modality",
+                    "destination"
+                  ],
+                  "additionalProperties": false
                 },
-                "destination": {
-                  "const": null
+                {
+                  "type": "object",
+                  "properties": {
+                    "modality": {
+                      "enum": [
+                        "optional",
+                        "forced"
+                      ]
+                    },
+                    "destination": {
+                      "enum": [
+                        "1",
+                        "2",
+                        "3",
+                        "4"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "modality",
+                    "destination"
+                  ],
+                  "additionalProperties": false
                 }
-              },
-              "required": [
-                "modality",
-                "destination"
-              ],
-              "additionalProperties": false
+              ]
             },
             "third": {
-              "type": "object",
-              "properties": {
-                "modality": {
-                  "enum": [
-                    "hold",
-                    "not-applicable"
-                  ]
+              "oneOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "modality": {
+                      "enum": [
+                        "hold",
+                        "not-applicable"
+                      ]
+                    },
+                    "destination": {
+                      "const": null
+                    }
+                  },
+                  "required": [
+                    "modality",
+                    "destination"
+                  ],
+                  "additionalProperties": false
                 },
-                "destination": {
-                  "const": null
+                {
+                  "type": "object",
+                  "properties": {
+                    "modality": {
+                      "enum": [
+                        "optional",
+                        "forced"
+                      ]
+                    },
+                    "destination": {
+                      "enum": [
+                        "1",
+                        "2",
+                        "3",
+                        "4"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "modality",
+                    "destination"
+                  ],
+                  "additionalProperties": false
                 }
-              },
-              "required": [
-                "modality",
-                "destination"
-              ],
-              "additionalProperties": false
+              ]
             }
           },
           "required": [
@@ -1810,6 +1894,27 @@
                 "targets": {
                   "const": [
                     "batter"
+                  ]
+                }
+              },
+              "required": [
+                "count",
+                "targets"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "count": {
+                  "const": "2"
+                },
+                "targets": {
+                  "const": [
+                    "batter",
+                    {
+                      "runner": "1"
+                    }
                   ]
                 }
               },
@@ -1912,7 +2017,9 @@
             "batting-result.walk",
             "batting-result.hit-by-pitch",
             "batting-result.called-strikeout",
-            "batting-result.swinging-strikeout"
+            "batting-result.swinging-strikeout",
+            "batting-result.k3",
+            "batting-result.strikeout-double-play"
           ]
         },
         "pitchEventKind": {
@@ -1957,7 +2064,53 @@
           "const": "not-required"
         },
         "runnerAdvanceOverrides": {
-          "const": "not-applied"
+          "oneOf": [
+            {
+              "const": "not-applied"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "applied"
+                },
+                "overrides": {
+                  "type": "array",
+                  "minItems": 1,
+                  "maxItems": 3,
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "runnerBase": {
+                        "enum": [
+                          "1",
+                          "2",
+                          "3"
+                        ]
+                      },
+                      "destination": {
+                        "enum": [
+                          "2",
+                          "3",
+                          "4"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "runnerBase",
+                      "destination"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              },
+              "required": [
+                "kind",
+                "overrides"
+              ],
+              "additionalProperties": false
+            }
+          ]
         },
         "thirdOutObservation": {
           "const": "none"

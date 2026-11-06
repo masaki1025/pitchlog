@@ -711,8 +711,11 @@ def _historical_v3_context(root, destination):
 
 
 def _v3_compatibility_root(tmp_path):
-    """実checker用の固定asset全組を物理copyし、個別の欠落/変異だけを与える。"""
+    """旧v1実checker用の固定asset全組を物理copyする。"""
+    import hashlib
+    import json
     import shutil
+    import subprocess
     from pathlib import Path
 
     root = Path(__file__).resolve().parents[2]
@@ -726,14 +729,31 @@ def _v3_compatibility_root(tmp_path):
     for name in paths:
         dest = tmp_path / name
         dest.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(root / name, dest)
+        if name.startswith("frontend/public/domain/"):
+            v2 = json.loads(
+                (
+                    root
+                    / "contracts/state-transition"
+                    / "nonplay_v3_compatibility_witness_v2.json"
+                ).read_bytes()
+            )
+            revision = v2["historicalArtifactCommit"]
+            assert revision == "177de16a31df723c69595bc659839f46b3fc71ac"
+            raw = subprocess.check_output(
+                ["git", "show", f"{revision}:{name}"], cwd=root
+            )
+            if name.endswith(".js"):
+                assert hashlib.sha256(raw).hexdigest() == v2["historicalArtifactSha256"]
+            dest.write_bytes(raw)
+        else:
+            shutil.copyfile(root / name, dest)
     module = tmp_path / "backend/src/pitchlog/repositories/play_prefix.py"
     module.parent.mkdir(parents=True)
     module.write_text("# test-only root, no implementation stub\n")
     return tmp_path, module
 
 
-def test_real_v3_fixed_witness_two_pairs_and_full_normative_vm(tmp_path):
+def test_real_v3_fixed_witness_two_pairs_and_full_normative_vm(tmp_path, monkeypatch):
     """旧53規範と現自己の実VM全応答、正規化だけの期待、真のgate成立を確認する。"""
     import hashlib
     import json
@@ -751,6 +771,7 @@ def test_real_v3_fixed_witness_two_pairs_and_full_normative_vm(tmp_path):
 
     root = Path(__file__).resolve().parents[2]
     base = root / "contracts/state-transition"
+    v1_root, v1_module = _v3_compatibility_root(tmp_path / "v1-execution")
     witness = json.loads(
         (base / "nonplay_v3_compatibility_witness_v1.json").read_bytes()
     )
@@ -813,7 +834,7 @@ def test_real_v3_fixed_witness_two_pairs_and_full_normative_vm(tmp_path):
                     historical / "frontend/public/domain/pitchlog-domain.js"
                 ),
                 "currentArtifact": str(
-                    root / "frontend/public/domain/pitchlog-domain.js"
+                    v1_root / "frontend/public/domain/pitchlog-domain.js"
                 ),
                 "samples": witness["samples"],
             }
@@ -840,6 +861,9 @@ process.stdout.write(JSON.stringify(p.samples.map(s=>({oldActual:JSON.parse(old.
                 sample["caseId"]
             )
     for prior in witness["priorArtifacts"]:
+        from pitchlog.repositories import play_prefix as reader
+
+        monkeypatch.setattr(reader, "__file__", str(v1_module))
         _require_legacy_compatibility(
             prior,
             witness["executionArtifactSha256"],
@@ -1066,3 +1090,60 @@ def test_current_four_operation_join_real_checker_rejects_missing_rows(
     path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n")
     with pytest.raises(OrdinaryPrefixError):
         reader._require_legacy_compatibility(prior, execution, source_format=fmt)
+
+
+def test_v3_v2_real_runtime_accepts_only_two_fixed_pairs():
+    """旧v1を残し、新bundleに実在する2組だけを実checkerで資格化する。"""
+    import json
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[2]
+    witness = json.loads(
+        (
+            root / "contracts/state-transition/nonplay_v3_compatibility_witness_v2.json"
+        ).read_bytes()
+    )
+    current = witness["executionArtifactSha256"]
+    for prior in (witness["historicalArtifactSha256"], current):
+        _require_legacy_compatibility(
+            prior, current, source_format="play-prefix-play-v3"
+        )
+    for prior, execution in (("0" * 64, current), (current, "0" * 64)):
+        with pytest.raises(OrdinaryPrefixError):
+            _require_legacy_compatibility(
+                prior, execution, source_format="play-prefix-play-v3"
+            )
+
+
+def test_v3_v2_followed_hash_still_rejects_changed_old_value():
+    """witnessとregistryを同時追随させても旧53値の改変を拒否する。"""
+    import hashlib
+    import json
+    from pathlib import Path
+
+    from pitchlog.repositories.play_prefix import _validated_v3_witness_v2
+
+    root = Path(__file__).resolve().parents[2]
+    base = root / "contracts/state-transition"
+    data = json.loads((base / "nonplay_v3_compatibility_witness_v2.json").read_bytes())
+    registry = json.loads(
+        (base / "play_prefix_v3_source_compatibility_v2.json").read_bytes()
+    )
+    old = (base / "nonplay_v3_compatibility_witness_v1.json").read_bytes()
+    current = data["executionArtifactSha256"]
+    data["samples"][0]["priorActual"]["value"]["t1"]["after"]["stateFields"][
+        "state.outs"
+    ] = "2"
+    data["samplesSha256"] = hashlib.sha256(
+        json.dumps(
+            data["samples"], ensure_ascii=False, sort_keys=True, separators=(",", ":")
+        ).encode()
+    ).hexdigest()
+    raw = (json.dumps(data, ensure_ascii=False, indent=2) + "\n").encode()
+    digest = hashlib.sha256(raw).hexdigest()
+    registry["currentWitnessSha256"] = digest
+    for row in registry["cases"]:
+        row["witnessSha256"] = digest
+    registry_raw = (json.dumps(registry, ensure_ascii=False, indent=2) + "\n").encode()
+    with pytest.raises(ValueError):
+        _validated_v3_witness_v2(raw, registry_raw, old, current)

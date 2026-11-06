@@ -1,0 +1,26 @@
+{
+  "version": "2",
+  "sourceFormat": "play-prefix-play-v3",
+  "historicalWitnessSha256": "cd21ba1138c37820a6b80e8f3c506a462d961a8a745c537012cb72ca876c6df4",
+  "currentWitnessSha256": "6b3b29e545b4c0a09876bad1fc3dc4e8e207b2ad691a220b2322fca06cda9296",
+  "cases": [
+    {
+      "priorArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
+      "executionArtifactSha256": "fbcf253b150daa0a382034e2c388a5e86c2a629d1566be30522921b4681bafdd",
+      "sourceFormat": "play-prefix-play-v3",
+      "compatibleOperations": [
+        "deriveLineupPlayPrefixWithContinuation"
+      ],
+      "witnessSha256": "6b3b29e545b4c0a09876bad1fc3dc4e8e207b2ad691a220b2322fca06cda9296"
+    },
+    {
+      "priorArtifactSha256": "fbcf253b150daa0a382034e2c388a5e86c2a629d1566be30522921b4681bafdd",
+      "executionArtifactSha256": "fbcf253b150daa0a382034e2c388a5e86c2a629d1566be30522921b4681bafdd",
+      "sourceFormat": "play-prefix-play-v3",
+      "compatibleOperations": [
+        "deriveLineupPlayPrefixWithContinuation"
+      ],
+      "witnessSha256": "6b3b29e545b4c0a09876bad1fc3dc4e8e207b2ad691a220b2322fca06cda9296"
+    }
+  ]
+}

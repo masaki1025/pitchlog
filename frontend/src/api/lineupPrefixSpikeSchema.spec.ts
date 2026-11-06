@@ -32,15 +32,15 @@ function t1Request(runnerAdvanceOverrides: unknown) {
   }
 }
 
-describe('spike候補schemaは原値を書き換えず厳格に検証する', () => {
-  it('SO-04のK3だけを既投球入力へ追加し、旧正準の結果集合を保つ', () => {
+describe('正式候補schemaは原値を書き換えず厳格に検証する', () => {
+  it('SO-04のK3を正式候補が受理し、未知結果を拒否する', () => {
     const pitch = {
       eventKind: 'batting-result',
       resultId: 'batting-result.k3',
       pitchEventKind: 'pitch-event',
       before,
     }
-    expect(isClosedPlaySchema(pitch, canonical, 'PitchT1Input')).toBe(false)
+    expect(isClosedPlaySchema(pitch, canonical, 'PitchT1Input')).toBe(true)
     expect(
       isClosedPlaySchema(pitch, lineupPrefixSpikeSchema, 'PitchT1Input'),
     ).toBe(true)
@@ -52,13 +52,13 @@ describe('spike候補schemaは原値を書き換えず厳格に検証する', ()
       ),
     ).toBe(false)
   })
-  it('SO-05の固定2アウトだけを候補T1へ追加し、対象欠落や3アウトを拒否する', () => {
+  it('SO-05の固定2アウトを受理し、対象欠落や3アウトを拒否する', () => {
     const value = structuredClone(caseT1)
     value.outEffect = {
       count: '2',
       targets: ['batter', { runner: '1' }],
     }
-    expect(isClosedPlaySchema(value, canonical, 'T1')).toBe(false)
+    expect(isClosedPlaySchema(value, canonical, 'T1')).toBe(true)
     expect(isClosedPlaySchema(value, lineupPrefixSpikeSchema, 'T1')).toBe(true)
     for (const outEffect of [
       { count: '2', targets: ['batter'] },
@@ -73,21 +73,21 @@ describe('spike候補schemaは原値を書き換えず厳格に検証する', ()
         ),
       ).toBe(false)
   })
-  it('canonical schemaはappliedを拒否し、spike schemaだけが受理する', () => {
+  it('正式候補はappliedを受理する', () => {
     const value = t1Request(applied([{ runnerBase: '1', destination: '3' }]))
-    expect(isClosedPlaySchema(value, canonical, 'BattedHitT1Input')).toBe(false)
+    expect(isClosedPlaySchema(value, canonical, 'BattedHitT1Input')).toBe(true)
     expect(
       isClosedPlaySchema(value, lineupPrefixSpikeSchema, 'BattedHitT1Input'),
     ).toBe(true)
   })
-  it('canonical schemaはforced/optional到達塁を拒否し、spike schemaだけが受理する', () => {
+  it('正式候補はforced/optional到達塁を受理する', () => {
     const value = structuredClone(caseT1)
     value.runnerDefaultAdvance = {
       first: { modality: 'forced', destination: '3' },
       second: { modality: 'not-applicable', destination: null },
       third: { modality: 'not-applicable', destination: null },
     }
-    expect(isClosedPlaySchema(value, canonical, 'T1')).toBe(false)
+    expect(isClosedPlaySchema(value, canonical, 'T1')).toBe(true)
     expect(isClosedPlaySchema(value, lineupPrefixSpikeSchema, 'T1')).toBe(true)
   })
   it('3走者までの閉形を受理し、4件目・未知到達塁・余剰fieldを拒否する', () => {
@@ -123,19 +123,15 @@ describe('spike候補schemaは原値を書き換えず厳格に検証する', ()
         ),
       ).toBe(false)
   })
-  it('検証は入力を書き換えず、canonical schemaの原値も変更しない', () => {
+  it('検証は入力も正式候補schemaも変更しない', () => {
     const value = t1Request(applied([{ runnerBase: '1', destination: '3' }]))
     const snapshot = structuredClone(value)
+    const schemaSnapshot = structuredClone(canonical)
     expect(
       isClosedPlaySchema(value, lineupPrefixSpikeSchema, 'BattedHitT1Input'),
     ).toBe(true)
     expect(value).toEqual(snapshot)
-    const canonicalDefinitions = canonical.$defs as unknown as Record<
-      string,
-      { properties: { runnerAdvanceOverrides: unknown } }
-    >
-    expect(
-      canonicalDefinitions.BattedHitT1Input.properties.runnerAdvanceOverrides,
-    ).toEqual({ const: 'not-applied' })
+    expect(canonical).toEqual(schemaSnapshot)
+    expect(lineupPrefixSpikeSchema).toBe(canonical)
   })
 })
