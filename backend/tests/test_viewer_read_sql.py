@@ -1,5 +1,6 @@
 """閲覧pageが既readerの照合面を共有し、行ロックだけを除く。"""
 
+from pitchlog.authz import product_catalog
 from pitchlog.authz.nonplay_prefix_read_sql import (
     candidate_read_function_bodies as nonplay_bodies,
 )
@@ -7,6 +8,7 @@ from pitchlog.authz.terminal_pitch_write_stamp import (
     candidate_function_bodies as play_bodies,
 )
 from pitchlog.authz.viewer_read_sql import candidate_viewer_function_bodies
+from pitchlog.repositories.viewer_read import VIEWER_READ_OPERATIONS
 
 
 def test_viewer_page_derivation_keeps_every_other_sql_clause() -> None:
@@ -30,3 +32,19 @@ def test_viewer_page_derivation_keeps_every_other_sql_clause() -> None:
         ).replace("FOR SHARE OF c", "").replace("FOR SHARE", "")
         assert "FOR SHARE" not in viewer[new]
         assert "FOR UPDATE" not in viewer[new]
+
+
+def test_viewer_functions_are_in_publisher_and_catalog_detail_scope() -> None:
+    """正式宣言2本と実catalog本文照合schemaが同じ境界を指す。"""
+    from pitchlog.authz.first_ball_product import ADDITIONS
+
+    names = {
+        row["function_name"]
+        for row in ADDITIONS["functions"]
+        if row["function_name"].startswith("read_viewer_")
+    }
+    assert names == set(candidate_viewer_function_bodies())
+    assert "'sync_right_api'" in product_catalog._LIFECYCLE_FUNCTION_DETAILS_QUERY
+    assert {entry.function_id for entry in VIEWER_READ_OPERATIONS} == {
+        f"sync_right_api.{name}" for name in names
+    }
