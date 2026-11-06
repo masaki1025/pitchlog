@@ -126,7 +126,8 @@ watch(
     watchedContextInput = null
     prefixContext.value = null
     if (
-      restore.status.value !== 'ready' ||
+      (restore.status.value !== 'ready' &&
+        restore.status.value !== 'offline-ready') ||
       input.readFailed ||
       !input.game ||
       !input.tenant ||
@@ -174,7 +175,13 @@ const history = computed(() =>
     aria-label="サーバーから復元した状態"
     class="space-y-2 rounded-xl border p-4"
   >
-    <h2 class="text-lg font-bold">サーバーから復元した状態</h2>
+    <h2 class="text-lg font-bold">
+      {{
+        restore.status.value === 'offline-ready'
+          ? '端末の未同期記録'
+          : 'サーバーから復元した状態'
+      }}
+    </h2>
     <p role="status">{{ restore.message.value }}</p>
     <GameScreenOrdinaryPitch
       v-if="prefixContext"
@@ -216,7 +223,9 @@ const history = computed(() =>
             restore.game.value.read_kind === 'recorded-prefix' ||
             restore.game.value.read_kind === 'play-prefix' ||
             restore.game.value.read_kind === 'lineup-prefix'
-              ? '保存済みの記録（表示履歴は有限ページ）'
+              ? recorded
+                ? '保存済みの記録（表示履歴は有限ページ）'
+                : '開始済み（記録前）'
               : recorded
                 ? '記録済み（保存初球1件）'
                 : '開始済み（記録前）'

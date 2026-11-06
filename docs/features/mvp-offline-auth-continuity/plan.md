@@ -16,3 +16,7 @@ branch: feature/mvp-offline-auth-continuity
 3. 既ordinary/NP/lifecycleの耐久queue/baseと接続し、実画面の開始→断中複数記録→reload→順序同期→再取得をowned環境で検証する。auth不整合修復だけで全操作の断中継続を完成扱いしない。最後の真正tenant/grant/baseを用い、未知履歴/世代/未確定結果を推測しない。必要なcontroller接合は固定候補の具体不足を根拠に本planへ最小追補し、T1の別実装を作らない。
 
 候補の対象HEAD・diff SHA・独立レビュー・対向・全件検査を揃えて通常統合する。共有DB/運用公開/秘密発行は対象外、実機とownedブラウザを区別する。独立確認前に正式受理/人間確認とは記録しない。
+
+## ステップ3の接合追補（PO委任によるCodex/root、2026-11-06）
+
+cache offline-recording-continuity-r2（base3e2b45a5、patch152d15ef）の既成果8pathを再利用する。対象は新lib/lineupOfflineSeedPersistenceとspec、GameScreenEntryRecordHost.vue、GameScreenRecordedRestore.ts/.vue/spec、OrdinaryPitchController.spec、StartHost.spec。新start受理遷移だけ実v3 GETで真正0件sourceを得てstrict seedに束縛し、旧復旧queryは維持。GET通信断だけ同資格seedへ復帰し、既唯一artifact/OrdinaryControllerの耐久suffixを使う。別タブの異なるseed同時保存は同readwrite TXのget/照合/addで後勝ち上書きを拒否する。authC2/世代変更/非通信拒否をfallbackで成功へ変えない。開始ACK直後初GET前断、NP/LC未確定後の次操作は未充足として残し、step3完了とは扱わない。非作者固定候補確認と実画面が必要。

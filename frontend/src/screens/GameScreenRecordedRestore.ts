@@ -2,7 +2,7 @@ import {
   readLineupPrefixGame,
   type LineupPrefixGame,
 } from '../api/lineupPrefixGame'
-import { ApiError } from '../api/client'
+import { ApiError, ApiNetworkError } from '../api/client'
 import {
   readRecordedPrefixGame,
   readPlayPrefixGame,
@@ -18,13 +18,25 @@ import {
 } from '../api/startedGame'
 import type { StateSnapshot } from '../../../contracts/state-transition/t2_first_pitch_continuation_v1'
 import { GameStartPersistence } from '../lib/gameStartPersistence'
+import {
+  readLineupOfflineSeed,
+  saveLineupOfflineSeed,
+} from '../lib/lineupOfflineSeedPersistence'
 import { useAuthStore } from '../stores/authStore'
+import { lineupContextFromRead } from './GameScreenOrdinaryPitchProvider'
 
 export type RecordingGameRead =
   StartedGameRead | RecordedPrefixGame | PlayPrefixGame | LineupPrefixGame
 
 export type RecordedRestoreStatus =
-  'idle' | 'loading' | 'ready' | 'not-found' | 'unavailable' | 'failed'
+  | 'idle'
+  | 'loading'
+  | 'ready'
+  | 'offline-ready'
+  | 'seed-unavailable'
+  | 'not-found'
+  | 'unavailable'
+  | 'failed'
 
 /** 記録画面の再読込で、サーバーの開始済み/記録済み状態だけを復元する。 */
 export function useRecordedRestore(
@@ -47,6 +59,21 @@ export function useRecordedRestore(
     try {
       store = await GameStartPersistence.open()
       return (await store.readStart(tenant, id)) !== null
+    } catch {
+      return false
+    } finally {
+      store?.close()
+    }
+  }
+
+  async function receivedStartExists(id: string): Promise<boolean> {
+    const tenant = auth.teamId
+    if (tenant === null) return false
+    let store: GameStartPersistence | null = null
+    try {
+      store = await GameStartPersistence.open()
+      const start = await store.readStart(tenant, id)
+      return start?.status === 'received' && start.grant !== null
     } catch {
       return false
     } finally {
@@ -97,6 +124,22 @@ export function useRecordedRestore(
         if (read.kind === 'found') {
           if (read.game.prefix_ref.tenantId !== auth.teamId)
             throw new Error('記録のtenantを確認できません')
+          if (read.game.prefix_ref.length === '0') {
+            message.value =
+              '開始は受理済みです。断中入力用の開始状態を保存しています'
+            try {
+              await lineupContextFromRead(read.game, auth.teamId!)
+              await saveLineupOfflineSeed(read.game, auth.teamId!)
+            } catch {
+              if (request !== sequence || auth.authEpoch !== epoch) return
+              game.value = read.game
+              status.value = 'seed-unavailable'
+              message.value =
+                '開始は受理済みです。断中入力の準備は未完了です。サーバーから再取得してください'
+              return
+            }
+            if (request !== sequence || auth.authEpoch !== epoch) return
+          }
           confirmedEpoch = epoch
           game.value = read.game
           status.value = 'ready'
@@ -172,6 +215,46 @@ export function useRecordedRestore(
       }
     } catch (error) {
       if (request !== sequence || auth.authEpoch !== epoch) return
+      if (
+        projection.value === 'play-prefix-v3' &&
+        auth.teamId !== null &&
+        (error instanceof ApiNetworkError ||
+          (typeof error === 'object' &&
+            error !== null &&
+            'name' in error &&
+            error.name === 'AbortError'))
+      ) {
+        try {
+          const seed = await readLineupOfflineSeed(auth.teamId, id)
+          if (request !== sequence || auth.authEpoch !== epoch || !authReady())
+            return
+          if (seed !== null) {
+            await lineupContextFromRead(seed, auth.teamId)
+            if (
+              request !== sequence ||
+              auth.authEpoch !== epoch ||
+              !authReady()
+            )
+              return
+            game.value = seed
+            status.value = 'offline-ready'
+            message.value =
+              '通信断中です。開始時に確認した状態と端末の未同期列から記録を続けます。最新のサーバー状態ではありません'
+            return
+          }
+        } catch {
+          if (request !== sequence || auth.authEpoch !== epoch) return
+        }
+        if (await receivedStartExists(id)) {
+          if (request !== sequence || auth.authEpoch !== epoch || !authReady())
+            return
+          game.value = null
+          status.value = 'seed-unavailable'
+          message.value =
+            '開始は受理済みです。断中入力の準備は未完了です。通信復帰後に開始状態を再取得してください'
+          return
+        }
+      }
       if (
         retained &&
         (error instanceof TypeError ||
