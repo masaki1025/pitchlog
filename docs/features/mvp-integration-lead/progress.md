@@ -1,5 +1,14 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 2026-11-06 21:34 JST：実画面の終了・再開・追加球・再終了と実DB版一致
+
+- **利用者操作の新到達**: 同一候補LC `b3899d592346152281785929c4aadb47056bac36`、同一owned環境のr8で、画面から新規作成→開始→1球→終了v1→追記再開→2球追加→再終了v2→reload後の終了/v2表示まで機能assert通過。実DBは `games.status=finished`、終了head version2、成績fact最新版 `confirmed_ended/is_current=true/source_count=3`、受理event6（play/end/reopen/play/play/end）を全値照合。事前投入gameではなく実UI作成ID。**試験全体は性能末尾failed**（初球10,869ms、5,000ms条件保持）。9回完遂・全操作・MVP・正式develop成功とは数えない。
+- **是正内容**: d7394e93で終了bridgeが参照する正本game_lifecycle_schema_v1をFE閉検証器に登録。aca7129cで候補名「試合再開」を正式#13「追記再開」へ接続し、specの仮enum挿入/castを実在する種別に置換（未供給時閉拒否の注入試験は維持）。関連26/50、型/lint成功。b389で性能失敗時にも機能到達→実DB照合を実行して区別。r8 source前後同一・owned cleanup完了。
+- **性能の次検証**: 端末側要求準備/HTTP到着待ち、Node起動/計算、binding RPCの高位呼出だけを時間観測するr9を実行中。全Python call profileは使わず、5秒を緩めない。候補runのobserver付き測定と通常受入を区別する。
+- **断中入力**: auth37e2の非作者P0/P1=0（独立backend22/FE123）。0件v3seed旧候補の同時保存P1をroot7afdで同strictTX get/照合/addへ修復、非作者の旧反例で1成功/1拒否・79tests成功、新P0/P1なし。9c901f12はroute照合testのAPIRoute型限定のみ。seedはまだLCへ未接合。開始ACK直後GET前断・NP/LC未確定後の追加球に加え、実reloadではauth再検証が通信必須・静的app shell/SW未実装も判明。APIのみ断の試験と完全断中起動を分け、未充足を保持。TSK533は分割起票のみでコード再利用物は無し。別作者が静的資産のみのSW候補を開始（API/tenant/cookie cache禁止、auth guard不変更）。
+- **B5とハーネス**: 専用WTfix-mvp-replay-device-atomicity `f6600e6d2917d813d294584ea9337161f3db2394`、真正端末FOR SHARE→B6/RG1/D5を同tenantTXに接合、unit238/ownedPG2成功、正式body一致。旧失効窓の非作者再確認中、正式asset/HTTP未受理。履歴SQL赤は immutable Git8712866dの当時SQL16,696byteをfixture固定し、5括弧戻しSHA18fb89b0…を不変で確認。現行v2/v3危険構文拒否を別に維持、独立7/7/P0P1=0、fixture改竄/危険構文注入を拒否。専用fix/pr191-historical-sql-proof19e1e884をLCへ通常merge済。
+- **証拠入口**: cache `mvp-resume-20261104/connected-lifecycle-dto-r8{.log,-result.json,-source-before.json,-source-after.json}`、`offline-auth-continuity-independent-20261106`、`offline-recording-continuity-r2-fixed-independent-20261106`、`b5-device-atomicity-author-20261106`、`pr191-historical-sql-independent-20261106`、`fr012-offline-restart-gap-20261106`。正式統合/全CI/通常性能/実機・運用復旧は未完のまま。
+
 ## 次回評価と毎球CSV候補受領（2026-11-06）
 
 - **21:16追補**: CSV d00f925a差分SHA26893e7875474ad25213af12c32a5255acb3eea6b68d1795216f91079571cffaを非作者が確認、P0=0/P1=6（イベント2000件切断、旧snapshot/版digest、C2未接続、送出前再認可、必須長さ/SHAなし保存成功、全RAM保持）。producer未供給と別の候補欠陥として修復必須。cache `play-csv-independent-intake-20261106/REPORT.md` SHAe2047785b0fe7b0fa80b660364c1aa7dfad493e3623e11882bf9598bf1502aec、別作者用REPAIR_REQUEST.mdを固定。
