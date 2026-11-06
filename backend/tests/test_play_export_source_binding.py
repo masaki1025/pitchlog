@@ -74,7 +74,7 @@ def test_duplicate_or_unaccepted_source_is_unavailable() -> None:
     """重複snapshotや未受理原本を拒否する。"""
     bundle = _bundle()
     assert missing_supply_columns(
-        replace(bundle, snapshots=bundle.snapshots * 2)
+        replace(bundle, snapshots=(*bundle.snapshots, *bundle.snapshots))
     ) == tuple(range(88))
     assert missing_supply_columns(replace(bundle, events=())) == tuple(range(88))
     assert missing_supply_columns(

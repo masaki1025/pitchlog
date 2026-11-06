@@ -9,10 +9,12 @@ from sqlalchemy.orm import Session
 
 from pitchlog.db.sync_protocol.models import OperationEvent
 from pitchlog.repositories.play_export import _read_events
+from pitchlog.repositories.play_export_spool import DiskRows, ExportRowStore
 
 
 @pytest.mark.parametrize("count", [500, 501, 2001])
-def test_event_keyset_has_no_gap_and_keeps_null_d2(count: int) -> None:
+@pytest.mark.parametrize("spool", [False, True])
+def test_event_keyset_has_no_gap_and_keeps_null_d2(count: int, spool: bool) -> None:
     """旧2000件上限を越え、同位置/NULL/退役原本を重複欠落なしで読む。"""
     # 実ORMの同じ列/同じSELECTをSQLiteでも実行し、fixtureの返し値でページを模倣しない。
     table = Table(
@@ -48,10 +50,17 @@ def test_event_keyset_has_no_gap_and_keeps_null_d2(count: int) -> None:
     try:
         with engine.begin() as connection:
             connection.execute(table.insert(), rows)
-        with Session(engine) as session:
-            actual = _read_events(session, tenant, game)
-        assert [row["id"] for row in actual] == [row["id"] for row in rows[:-2]]
-        assert len({row["id"] for row in actual}) == count + 3
-        assert [row["d2"] for row in actual[-3:]] == [None, None, None]
+        with ExportRowStore() as store, Session(engine) as session:
+            if spool:
+                with store.capture():
+                    actual = _read_events(session, tenant, game)
+                assert isinstance(actual, DiskRows)
+            else:
+                actual = _read_events(session, tenant, game)
+            actual_ids = [row["id"] for row in actual]
+            last = [row["d2"] for row in actual[-3:]]
+        assert actual_ids == [row["id"] for row in rows[:-2]]
+        assert len(set(actual_ids)) == count + 3
+        assert last == [None, None, None]
     finally:
         engine.dispose()

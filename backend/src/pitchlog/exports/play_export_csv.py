@@ -9,7 +9,8 @@ from __future__ import annotations
 import hashlib
 import json
 from collections.abc import Iterable, Iterator
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
+from decimal import Decimal
 from typing import Any, Mapping
 from uuid import UUID
 
@@ -21,6 +22,7 @@ from pitchlog.exports.play_rows import (
     SavedCsvRow,
 )
 from pitchlog.repositories.play_export import PlayExportBundle
+from pitchlog.repositories.play_export_spool import DiskRows
 
 _JST = timezone(timedelta(hours=9), "JST")
 _SECRET_KEYS = frozenset(
@@ -30,11 +32,15 @@ _SNAPSHOT_COLUMNS = tuple(CSV_HEADERS["plays.csv"])
 
 
 def _json_default(value: object) -> str:
-    """保存済みUUID/日時だけを決定的な文字列へ写す。"""
+    """保存済みUUID/日付/日時/有限numericを決定的な文字列へ写す。"""
     if type(value) is UUID:
         return str(value)
     if type(value) is datetime:
         return value.isoformat()
+    if type(value) is date:
+        return value.isoformat()
+    if type(value) is Decimal and value.is_finite():
+        return str(value)
     raise TypeError("JSONへ写せない保存値です")
 
 
@@ -81,14 +87,21 @@ def _row(game_id: UUID, snapshot_id: str, values: Mapping[str, object]) -> Saved
     )
 
 
-def _event_by_id(bundle: PlayExportBundle) -> dict[UUID, dict[str, Any]]:
-    """source_event_idから同snapshotのイベントを引く。"""
-    return {row["id"]: row for row in bundle.events}
+def _indexed_rows(rows, field: str):
+    """ディスク集合は索引へ照合し、全量dictへ戻さない。"""
+    if isinstance(rows, DiskRows):
+        return rows.index_by(field)
+    return {row[field]: row for row in rows}
 
 
-def _play_by_id(bundle: PlayExportBundle) -> dict[UUID, dict[str, Any]]:
-    """play_row_idから同snapshotのプレイを引く。"""
-    return {row["id"]: row for row in bundle.plays}
+def _event_by_id(bundle: PlayExportBundle) -> Mapping[UUID, dict[str, Any]]:
+    """source_event_idを同snapshotのイベント索引へ写す。"""
+    return _indexed_rows(bundle.events, "id")
+
+
+def _play_by_id(bundle: PlayExportBundle) -> Mapping[UUID, dict[str, Any]]:
+    """play_row_idを同snapshotのプレイ索引へ写す。"""
+    return _indexed_rows(bundle.plays, "id")
 
 
 def _source_digest(bundle: PlayExportBundle) -> str:
@@ -116,22 +129,43 @@ def _source_digest(bundle: PlayExportBundle) -> str:
         allow_nan=False,
         default=_json_default,
     )
-    for chunk in encoder.iterencode(payload):
-        digest.update(chunk.encode("utf-8"))
+
+    def write(value):
+        for chunk in encoder.iterencode(value):
+            digest.update(chunk.encode("utf-8"))
+
+    digest.update(b"{")
+    for index, key in enumerate(sorted(payload)):
+        if index:
+            digest.update(b",")
+        write(key)
+        digest.update(b":")
+        if key == "game":
+            write(payload[key])
+        else:
+            digest.update(b"[")
+            for row_index, row in enumerate(payload[key]):
+                if row_index:
+                    digest.update(b",")
+                write(row)
+            digest.update(b"]")
+    digest.update(b"}")
     return digest.hexdigest()
 
 
 def _missing_snapshot(bundle: PlayExportBundle) -> tuple[str, ...]:
     """全88列と、その記録元/版の一致を閉検証する。"""
     unavailable = tuple(str(index) for index in range(88))
-    snapshots = {row["play_row_id"]: row for row in bundle.snapshots}
+    snapshots = _indexed_rows(bundle.snapshots, "play_row_id")
     events = _event_by_id(bundle)
     if len(snapshots) != len(bundle.snapshots) or len(events) != len(bundle.events):
         return unavailable
-    if set(snapshots) != {play["id"] for play in bundle.plays}:
+    if len(snapshots) != len(bundle.plays):
         return unavailable
     for play in bundle.plays:
-        snapshot = snapshots[play["id"]]
+        snapshot = snapshots.get(play["id"])
+        if snapshot is None:
+            return unavailable
         event = events.get(play["source_event_id"])
         value = snapshot.get("plays_csv_json")
         if (
@@ -180,7 +214,7 @@ def export_snapshot(bundle: PlayExportBundle) -> ExportSnapshot:
 
 
 def _plays_rows(bundle: PlayExportBundle, snapshot_id: str) -> Iterator[SavedCsvRow]:
-    snapshots = {row["play_row_id"]: row for row in bundle.snapshots}
+    snapshots = _indexed_rows(bundle.snapshots, "play_row_id")
     for play in bundle.plays:
         values = snapshots[play["id"]]["plays_csv_json"]
         if set(values) != set(_SNAPSHOT_COLUMNS):

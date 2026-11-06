@@ -6,7 +6,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
+from itertools import islice
 from typing import Any
 from uuid import UUID
 
@@ -28,6 +30,7 @@ from pitchlog.db.tenant_isolation.models import (
     TenantVocabulary,
 )
 from pitchlog.repositories.binding import TenantBindingError
+from pitchlog.repositories.play_export_spool import DiskRows, current_row_store
 from pitchlog.repositories.transaction import (
     _TRANSACTION_RUNTIMES,
     _require_play_export_scope,
@@ -56,17 +59,17 @@ class PlayExportBundle:
     """同一RR snapshotから読んだ保存値。完成値への写像は別層。"""
 
     game: dict[str, Any]
-    plays: tuple[dict[str, Any], ...]
-    runners: tuple[dict[str, Any], ...]
-    events: tuple[dict[str, Any], ...]
-    lineups: tuple[dict[str, Any], ...]
-    participations: tuple[dict[str, Any], ...]
-    players: tuple[dict[str, Any], ...]
-    teams: tuple[dict[str, Any], ...]
-    tenant_vocabularies: tuple[dict[str, Any], ...]
-    admin_vocabularies: tuple[dict[str, Any], ...]
-    snapshots: tuple[dict[str, Any], ...]
-    runner_snapshots: tuple[dict[str, Any], ...]
+    plays: Sequence[dict[str, Any]]
+    runners: Sequence[dict[str, Any]]
+    events: Sequence[dict[str, Any]]
+    lineups: Sequence[dict[str, Any]]
+    participations: Sequence[dict[str, Any]]
+    players: Sequence[dict[str, Any]]
+    teams: Sequence[dict[str, Any]]
+    tenant_vocabularies: Sequence[dict[str, Any]]
+    admin_vocabularies: Sequence[dict[str, Any]]
+    snapshots: Sequence[dict[str, Any]]
+    runner_snapshots: Sequence[dict[str, Any]]
     snapshot_available: bool
 
 
@@ -79,9 +82,38 @@ def _session(handle: _TenantTransaction) -> tuple[Session, UUID]:
     return _TRANSACTION_RUNTIMES[key][0], handle._bound_tenant_id
 
 
-def _rows(session: Session, statement: Any) -> tuple[dict[str, Any], ...]:
-    """固定Selectの全列をdictへ写し、順序を保持する。"""
-    return tuple(dict(row) for row in session.execute(statement).mappings())
+def _new_rows():
+    """要求が退避scopeを持つ場合だけディスク集合を作る。"""
+    store = current_row_store()
+    return [] if store is None else store.rows()
+
+
+def _new_keys():
+    """参照キーも同じ有限退避へ束縛する。"""
+    store = current_row_store()
+    return set() if store is None else store.keys()
+
+
+def _freeze_rows(rows):
+    """ディスク集合を全量tupleへ戻さない。"""
+    return rows if isinstance(rows, DiskRows) else tuple(rows)
+
+
+def _chunks(values):
+    """入力を一度だけ走査し最大500keyずつ読む。"""
+    iterator = iter(values)
+    while chunk := tuple(islice(iterator, _PAGE)):
+        yield chunk
+
+
+def _rows(session: Session, statement: Any) -> Sequence[dict[str, Any]]:
+    """server-side有限cursorから私有ディスクへ一行ずつ写す。"""
+    result = _new_rows()
+    with session.execute(
+        statement.execution_options(stream_results=True, yield_per=_PAGE)
+    ) as cursor:
+        result.extend(dict(row) for row in cursor.mappings())
+    return _freeze_rows(result)
 
 
 def _page_plays(session: Session, tenant: UUID, game_id: UUID):
@@ -127,13 +159,12 @@ def _page_plays(session: Session, tenant: UUID, game_id: UUID):
 
 
 def _read_runners(
-    session: Session, tenant: UUID, play_ids: tuple[UUID, ...]
-) -> tuple[dict[str, Any], ...]:
+    session: Session, tenant: UUID, play_ids: Iterable[UUID]
+) -> Sequence[dict[str, Any]]:
     """ページ内play_idを一括結合し、N+1を作らない。"""
     table = PlayRunner.__table__
-    result: list[dict[str, Any]] = []
-    for offset in range(0, len(play_ids), _PAGE):
-        chunk = play_ids[offset : offset + _PAGE]
+    result = _new_rows()
+    for chunk in _chunks(play_ids):
         if not chunk:
             continue
         statement = (
@@ -142,13 +173,13 @@ def _read_runners(
             .order_by(table.c.play_id.asc(), table.c.base.asc(), table.c.id.asc())
         )
         result.extend(_rows(session, statement))
-    return tuple(result)
+    return _freeze_rows(result)
 
 
 def _read_events(session: Session, tenant: UUID, game_id: UUID):
     """全受理原本を500行keysetで読む。NULL位置は独立id系列とする。"""
     table = OperationEvent.__table__
-    result: list[dict[str, Any]] = []
+    result = _new_rows()
     for null_position in (False, True):
         cursor = None
         while True:
@@ -176,7 +207,7 @@ def _read_events(session: Session, tenant: UUID, game_id: UUID):
             if len(rows) < _PAGE:
                 break
             cursor = (rows[-1]["d2"], rows[-1]["id"])
-    return tuple(result)
+    return _freeze_rows(result)
 
 
 def require_visible_export_game(handle: _TenantTransaction, game_id: UUID) -> None:
@@ -199,68 +230,68 @@ def require_visible_export_game(handle: _TenantTransaction, game_id: UUID) -> No
 def _read_references(
     session: Session,
     tenant: UUID,
-    player_ids: set[UUID],
-    team_ids: set[UUID],
-    tenant_vocab_keys: set[str],
-    admin_vocab_keys: set[str],
+    player_ids: Iterable[UUID],
+    team_ids: Iterable[UUID],
+    tenant_vocab_keys: Iterable[str],
+    admin_vocab_keys: Iterable[str],
 ):
     """当該試合が参照する表示行だけを同snapshotで読む。"""
     players = Player.__table__
     teams = TeamRecord.__table__
     tenant_vocab = TenantVocabulary.__table__
     admin_vocab = AdminVocabulary.__table__
-    player_rows: list[dict[str, Any]] = []
-    team_rows: list[dict[str, Any]] = []
-    tenant_rows: list[dict[str, Any]] = []
-    admin_rows: list[dict[str, Any]] = []
-    for offset in range(0, len(player_ids), _PAGE):
-        chunk = tuple(player_ids)[offset : offset + _PAGE]
+    player_rows = _new_rows()
+    team_rows = _new_rows()
+    tenant_rows = _new_rows()
+    admin_rows = _new_rows()
+    for chunk in _chunks(player_ids):
         if chunk:
             player_rows.extend(
                 _rows(
                     session,
-                    select(*players.c).where(
-                        players.c.tenant_id == tenant, players.c.id.in_(chunk)
-                    ),
+                    select(*players.c)
+                    .where(players.c.tenant_id == tenant, players.c.id.in_(chunk))
+                    .order_by(players.c.id),
                 )
             )
-    for offset in range(0, len(team_ids), _PAGE):
-        chunk = tuple(team_ids)[offset : offset + _PAGE]
+    for chunk in _chunks(team_ids):
         if chunk:
             team_rows.extend(
                 _rows(
                     session,
-                    select(*teams.c).where(
-                        teams.c.tenant_id == tenant, teams.c.id.in_(chunk)
-                    ),
+                    select(*teams.c)
+                    .where(teams.c.tenant_id == tenant, teams.c.id.in_(chunk))
+                    .order_by(teams.c.id),
                 )
             )
-    for offset in range(0, len(tenant_vocab_keys), _PAGE):
-        chunk = tuple(tenant_vocab_keys)[offset : offset + _PAGE]
+    for chunk in _chunks(tenant_vocab_keys):
         if chunk:
             tenant_rows.extend(
                 _rows(
                     session,
-                    select(*tenant_vocab.c).where(
+                    select(*tenant_vocab.c)
+                    .where(
                         tenant_vocab.c.tenant_id == tenant,
                         tenant_vocab.c.key.in_(chunk),
-                    ),
+                    )
+                    .order_by(tenant_vocab.c.key),
                 )
             )
-    for offset in range(0, len(admin_vocab_keys), _PAGE):
-        chunk = tuple(admin_vocab_keys)[offset : offset + _PAGE]
+    for chunk in _chunks(admin_vocab_keys):
         if chunk:
             admin_rows.extend(
                 _rows(
                     session,
-                    select(*admin_vocab.c).where(admin_vocab.c.key.in_(chunk)),
+                    select(*admin_vocab.c)
+                    .where(admin_vocab.c.key.in_(chunk))
+                    .order_by(admin_vocab.c.key),
                 )
             )
     return (
-        tuple(player_rows),
-        tuple(team_rows),
-        tuple(tenant_rows),
-        tuple(admin_rows),
+        _freeze_rows(player_rows),
+        _freeze_rows(team_rows),
+        _freeze_rows(tenant_rows),
+        _freeze_rows(admin_rows),
     )
 
 
@@ -310,23 +341,27 @@ def read_play_export(handle: _TenantTransaction, game_id: UUID) -> PlayExportBun
         raise PlayExportNotFound("対象試合を取得できません")
     game = game_rows[0]
 
-    plays: list[dict[str, Any]] = []
+    plays = _new_rows()
     for page in _page_plays(session, tenant, game_id):
+        if len(plays) + len(page) > 100000:
+            raise PlayExportMissingSupply(
+                ("プレイ行",), "試合のプレイ行数が上限を超えました"
+            )
         plays.extend(page)
     if len(plays) > 100000:
         raise PlayExportMissingSupply(
             ("プレイ行",), "試合のプレイ行数が上限を超えました"
         )
-    play_ids = tuple(row["id"] for row in plays)
+    play_ids = (row["id"] for row in plays)
     runners = _read_runners(session, tenant, play_ids)
     events = _read_events(session, tenant, game_id)
 
     lineup_table = GameLineup.__table__
     lineups = _rows(
         session,
-        select(*lineup_table.c).where(
-            lineup_table.c.tenant_id == tenant, lineup_table.c.game_id == game_id
-        ),
+        select(*lineup_table.c)
+        .where(lineup_table.c.tenant_id == tenant, lineup_table.c.game_id == game_id)
+        .order_by(lineup_table.c.id),
     )
     participation_table = ParticipationInterval.__table__
     participations = _rows(
@@ -340,10 +375,11 @@ def read_play_export(handle: _TenantTransaction, game_id: UUID) -> PlayExportBun
             participation_table.c.valid_from_d2.asc(),
             participation_table.c.slot_kind.asc(),
             participation_table.c.slot.asc(),
+            participation_table.c.id.asc(),
         ),
     )
 
-    player_ids: set[UUID] = set()
+    player_ids = _new_keys()
     for row in plays:
         for key in ("batter_id", "pitcher_id", "catcher_id", "resolved_fielder_id"):
             if row.get(key) is not None:
@@ -364,8 +400,8 @@ def read_play_export(handle: _TenantTransaction, game_id: UUID) -> PlayExportBun
             player_ids.add(row["player_id"])
 
     team_ids = {game["away_team_record_id"], game["home_team_record_id"]}
-    tenant_vocab_keys: set[str] = set()
-    admin_vocab_keys: set[str] = set()
+    tenant_vocab_keys = _new_keys()
+    admin_vocab_keys = _new_keys()
     for row in plays:
         for key in (
             "strategy_key",
@@ -393,8 +429,8 @@ def read_play_export(handle: _TenantTransaction, game_id: UUID) -> PlayExportBun
     )
 
     snapshot_name, runner_snapshot_name = _optional_snapshot_tables(session)
-    snapshot_rows: tuple[dict[str, Any], ...] = ()
-    runner_snapshot_rows: tuple[dict[str, Any], ...] = ()
+    snapshot_rows: Sequence[dict[str, Any]] = ()
+    runner_snapshot_rows: Sequence[dict[str, Any]] = ()
     if snapshot_name is not None:
         snapshot_rows = _rows(
             session,
@@ -413,7 +449,7 @@ def read_play_export(handle: _TenantTransaction, game_id: UUID) -> PlayExportBun
         )
     return PlayExportBundle(
         game=game,
-        plays=tuple(plays),
+        plays=_freeze_rows(plays),
         runners=runners,
         events=events,
         lineups=lineups,

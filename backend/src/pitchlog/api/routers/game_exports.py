@@ -24,6 +24,7 @@ from pitchlog.repositories.play_export import (
     read_play_export,
     require_visible_export_game,
 )
+from pitchlog.repositories.play_export_spool import ExportRowStore
 from pitchlog.repositories.transaction import play_export_read_scope
 
 router = APIRouter(tags=["毎球CSV"], route_class=TenantMatchedRoute)
@@ -62,27 +63,25 @@ def download_play_csv(
     context: Annotated[TenantContext, Depends(require_tenant_access)],
 ) -> Response:
     """記録済み1試合の88列と全9サイドカーを単一ZIPで返す。"""
-    try:
-        with play_export_read_scope(context) as handle:
-            bundle = read_play_export(handle, game_id)
-            missing = missing_supply_columns(bundle)
-            if missing:
-                return _unavailable_response(missing)
-            snapshot, tables = build_play_export_tables(bundle)
-    except PlayExportNotFound:
-        raise HTTPException(status_code=404) from None
-    except PlayExportSupplyError:
-        return _unavailable_response(tuple(range(88)))
-    except Exception:
-        raise HTTPException(status_code=503) from None
-
     output = tempfile.TemporaryFile(mode="w+b")
     try:
-        with prepare_play_archive(snapshot, tables) as archive:
-            _copy_archive(archive, output)
-            filename = archive.filename
-            digest = archive.sha256
-            length = archive.byte_length
+        # store寿命内で同じRR原本だけからZIPを完成し、その後に再認可する。
+        with ExportRowStore() as store, store.capture():
+            with play_export_read_scope(context) as handle:
+                bundle = read_play_export(handle, game_id)
+                missing = missing_supply_columns(bundle)
+                if missing:
+                    output.close()
+                    return _unavailable_response(missing)
+                snapshot, tables = build_play_export_tables(bundle)
+            with prepare_play_archive(snapshot, tables) as archive:
+                _copy_archive(archive, output)
+                filename = archive.filename
+                digest = archive.sha256
+                length = archive.byte_length
+    except PlayExportNotFound:
+        output.close()
+        raise HTTPException(status_code=404) from None
     except PlayExportSupplyError:
         output.close()
         return _unavailable_response(tuple(range(88)))

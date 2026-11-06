@@ -34,3 +34,9 @@ rootへの既PO委任と2026-11-06の速度優先・品質維持指示に基づ�
 ステップ1後発22ade8c7の非作者反映確認 `play-csv-fixed-independent-20261107/reflection1/REPORT.md` SHA256 `f07ee585a6bf20de709c28fc6a36c03ccbf230df7e2b4b263c4c0421ad609ee1` はP0/P1/P2=0（実source読取、独立試験再実行なし）。
 
 ステップ2継続: CSV各formatterをiteratorに変更し、完成行を全10ファイル分list化して二重保持する経路を撤去。manifest hashもJSONEncoder.iterencodeのchunk更新とし、巨大な単一JSON文字列を作らない。2001イベントのsourceを最初の要求行まで消費しない/500境界/全件exact対向を追加、関連95pytest・Ruff/Ty成功。**repository自体の全量tuple/list保持は残るため、全量RAM指摘の全解消とはしない**。次は同RR内で有限ページを直接archiveへ渡す読取の接合（archive完成までRRを保持）と88列producerを優先する。
+
+## ステップ2・有限メモリ読取の接合（2026-11-07）
+
+追加path `repositories/play_export_spool.py` は既ステップ2の有限ディスク抽出の具体化で、root単独編集。SQLAlchemy server-side cursor/yield_per500から同一RR原本を要求私有SQLiteへ逐次退避し、PlayRow/event/snapshot参照索引と参照ID集合もディスクへ置く。pickle/evalを使わず全ノード型タグでUUID/日付/日時/有限numeric/JSONを保持する。256MiB総量・4MiB行・集合100万行・SQLite有限cache/ディスク上限を各書込前に検査し、全出口で私有ファイルを閉じる。ZIP完成までstoreを保持し、保存原本を全量dict/list/tupleへ戻さず既formatterへ供給する。出力時のT1再計算/名簿補完はしない。
+
+関連102pytest、Ruff/Ty成功。500/501/2001 SQL検査を退避あり/なし両方で実行し、disk bundleと同値memory bundleのsource拒否・manifest一致を確認。2001件・20MB超sourceの単体ではPython heap peakを4MB未満に抑える対向、容量拒否とcleanupを追加。これはtracemallocのPython heap検証でありnative SQLite/PG/RSS全量性能・実PG・製品88列供給の証拠ではない。後続非作者確認と実接合が必要。
