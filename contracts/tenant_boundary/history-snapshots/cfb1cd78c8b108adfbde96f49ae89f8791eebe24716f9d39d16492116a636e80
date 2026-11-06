@@ -22,8 +22,26 @@ from typing import Any
 import pytest
 
 REPO = Path(__file__).parent.parent
+sys.path.insert(0, str(REPO / "scripts"))
+from scripts import frozen_history  # noqa: E402
+
 SCRIPT = REPO / "scripts" / "core_guard.py"
 CORE_AREAS_PATH = REPO / ".claude" / "core-areas.json"
+_REFERENCE_REVERSE_CLOSURE_ADDITIONS = frozenset({
+    "scripts/check_tenant_boundary_bypass.py",
+    "scripts/frozen_history.py",
+    "tests/test_census_baseline_check.py",
+    "tests/test_first_ball_startup_boundary_registrations.py",
+    "tests/test_frozen_baseline_declarations.py",
+    "tests/test_frozen_history.py",
+    "tests/test_ordinary_boundary_registrations.py",
+    "tests/test_pr191_tenant_source_registration.py",
+    "tests/test_pr192_tenant_source_registration.py",
+    "tests/test_pr196_tenant_source_registration.py",
+    "tests/test_pr197_tenant_source_registration.py",
+    "tests/test_product_authz_tenant_boundary_allowlist.py",
+    "tests/test_stage_a_startup_tenant_boundary.py",
+})
 REQUIRED_CHECK_TEXT = "コア領域/検査経路の変更: 人間による逐行確認を実施した"
 GUARD_PATHS = [
     ".claude/core-areas.json",
@@ -1093,6 +1111,10 @@ def run_guard(
     env = os.environ.copy()
     env.pop("GITHUB_EVENT_NAME", None)
     env.pop("GITHUB_EVENT_PATH", None)
+    # 合成旧profileにも真正2faを持つ現Gitのpin読取器を供給する。
+    env["PYTHONPATH"] = os.pathsep.join(
+        part for part in (str(REPO / "scripts"), env.get("PYTHONPATH", "")) if part
+    )
     if event_name is not None:
         env["GITHUB_EVENT_NAME"] = event_name
     if event_path is not None:
@@ -1113,6 +1135,27 @@ def run_guard(
     )
 
 
+def test_synthetic_guard_imports_genuine_fixed_history(tmp_path: Path) -> None:
+    """旧一時Gitの実行器はcache rootの真正pin読取器を使う。"""
+    env = os.environ.copy()
+    env["PYTHONPATH"] = os.pathsep.join(
+        part for part in (str(REPO / "scripts"), env.get("PYTHONPATH", "")) if part
+    )
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "import frozen_history; print(frozen_history.__file__)",
+        ],
+        cwd=tmp_path,
+        env=env,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    assert Path(completed.stdout.strip()).resolve() == REPO / "scripts/frozen_history.py"
+
+
 def load_actual_core_areas() -> dict[str, Any]:
     """旧initial/HTTP試験向けに実JSONからfirst-ball suffixだけを投影する。
 
@@ -1122,6 +1165,28 @@ def load_actual_core_areas() -> dict[str, Any]:
     value = json.loads(CORE_AREAS_PATH.read_text(encoding="utf-8"))
     assert isinstance(value, dict)
     return _first_ball_historical_fixture(_terminal_historical_fixture(value))
+
+
+def _without_pr197_reverse_reference_closure(document: dict[str, Any]) -> dict[str, Any]:
+    """現行の逆依存13件だけを旧参照宣言へ逆射影する。"""
+    historical = json.loads(json.dumps(document))
+    policy = historical.get("reference_discovery")
+    if policy is None:
+        return historical
+    exclusions = policy["declared_exclusions"]
+    paths = exclusions["paths"]
+    present = _REFERENCE_REVERSE_CLOSURE_ADDITIONS.intersection(paths)
+    if not present:
+        return historical
+    assert present == _REFERENCE_REVERSE_CLOSURE_ADDITIONS
+    assert len(paths) == 24 and paths == sorted(set(paths))
+    old_paths = sorted(set(paths) - _REFERENCE_REVERSE_CLOSURE_ADDITIONS)
+    assert len(old_paths) == 11
+    reason = exclusions["reason"]
+    assert reason.count("残り23件") == 1
+    exclusions["paths"] = old_paths
+    exclusions["reason"] = reason.replace("残り23件", "残り10件")
+    return historical
 
 
 def _require_reference_discovery_policy(
@@ -1147,7 +1212,7 @@ def _require_reference_discovery_policy(
     exclusions = policy.get("declared_exclusions")
     assert isinstance(exclusions, dict), "declared_exclusions 宣言がない"
     paths = exclusions.get("paths")
-    assert isinstance(paths, list) and len(paths) == 11
+    assert isinstance(paths, list) and len(paths) == 24
     assert all(isinstance(path, str) and path for path in paths)
     assert paths == sorted(set(paths)), "declared_exclusions.paths に重複または順序違反"
     reason = exclusions.get("reason")
@@ -3615,7 +3680,7 @@ def test_vocabulary_assets_are_owned_by_data_migration_area() -> None:
 
 def test_contract_reference_python_paths_are_discovered_deterministically() -> None:
     """契約参照の導出と資産で宣言した除外の完全一致を固定する。"""
-    configuration = load_initial_scope_core_areas()
+    configuration = json.loads(CORE_AREAS_PATH.read_text())
     policy = _require_reference_discovery_policy(configuration)
     areas_by_id = {area["id"]: area for area in configuration["areas"]}
 
@@ -3648,6 +3713,25 @@ def test_contract_reference_python_paths_are_discovered_deterministically() -> N
     )
 
 
+def test_new_reference_exclusions_are_reverse_dependencies_only() -> None:
+    """追加13件は契約rootを直接参照せず、旧11件の除外を保つ。"""
+    configuration = json.loads(CORE_AREAS_PATH.read_text())
+    policy = _require_reference_discovery_policy(configuration)
+    excluded = set(policy["declared_exclusions"]["paths"])
+    additional = _REFERENCE_REVERSE_CLOSURE_ADDITIONS
+    assert len(additional) == 13 and additional <= excluded
+    assert len(excluded - additional) == 11
+    for relative in sorted(additional):
+        tree = ast.parse((REPO / relative).read_text(encoding="utf-8"))
+        static_paths = _normalized_static_paths(tree)
+        assert not any(
+            path == contract or path.startswith(f"{contract}/")
+            or f"{contract}/" in path
+            for path in static_paths
+            for contract in policy["contract_roots"]
+        ), relative
+
+
 @pytest.mark.parametrize(
     "relative_path",
     (
@@ -3664,7 +3748,7 @@ def test_unregistered_contract_reference_fails_without_updating_paths(
     root.mkdir()
     (root / "scripts").mkdir()
     (root / "tests").mkdir()
-    configuration = json.loads(json.dumps(load_initial_scope_core_areas()))
+    configuration = json.loads(CORE_AREAS_PATH.read_text())
     for area in configuration["areas"]:
         if area["id"] in configuration["reference_discovery"]["required_area_ids"]:
             area["paths"] = []
@@ -3689,7 +3773,7 @@ def test_reverse_dependency_closure_fails_for_unregistered_dependent(
     root.mkdir()
     (root / "scripts").mkdir()
     (root / "tests").mkdir()
-    configuration = json.loads(json.dumps(load_initial_scope_core_areas()))
+    configuration = json.loads(CORE_AREAS_PATH.read_text())
     for area in configuration["areas"]:
         if area["id"] in configuration["reference_discovery"]["required_area_ids"]:
             area["paths"] = []
@@ -5021,7 +5105,8 @@ def test_durable_ledger_core_actual_phase_preserves_initial_supplier(tmp_path: P
         if current['paths'] != expected:
             expected = expected + list(EXPECTED_AREA_PATH_ADDITIONS[area['id']])
         assert current == {**area, 'paths': expected}
-    assert {k: v for k, v in actual.items() if k != 'areas'} == {
+    historical_actual = _without_pr197_reverse_reference_closure(actual)
+    assert {k: v for k, v in historical_actual.items() if k != 'areas'} == {
         k: v for k, v in baseline.items() if k != 'areas'
     }
 
@@ -5576,7 +5661,7 @@ HTTP_COMPOSITE_ADDITIONS: dict[str, tuple[str, ...]] = {
 
 def http_core_configuration(*, registered: bool) -> dict[str, Any]:
     """旧initialの前へ戻し、合成層をexact suffixとして全件だけ足す。"""
-    document = load_actual_core_areas()
+    document = _without_pr197_reverse_reference_closure(load_actual_core_areas())
     for area in document["areas"]:
         if area["id"] == "recording-rights":
             present = [p in area["paths"] for p in INITIAL_GAME_START_HTTP_PATHS]
@@ -7116,7 +7201,7 @@ _STATS_FOUNDATION_EXPECTED: dict[str, tuple[str, ...]] = {
 
 def _stats_foundation_historical_fixture(document):
     """独立literal全26を検査してから既fixtureへ渡す。未知fieldは残す。"""
-    raw = json.loads(json.dumps(document))
+    raw = _without_pr197_reverse_reference_closure(document)
     pr197_known = set(_PR197_TENANT_SOURCE_EXPECTED)
     pr197_seen = {(a['id'], p) for a in raw['areas'] for p in a['paths']
                   if p in pr197_known}
@@ -7155,6 +7240,26 @@ def _stats_foundation_legacy_guard_source(source):
     pr197_found = {n.name for n in tree.body if isinstance(n, ast.FunctionDef)
                    and n.name in pr197_names}
     assert pr197_found in (set(), pr197_names)
+    pin_imports = [n for n in tree.body if isinstance(n, ast.Import)
+                   and [(a.name, a.asname) for a in n.names] == [('frozen_history', None)]]
+    pin_calls = [
+        n for n in ast.walk(tree) if isinstance(n, ast.Call)
+        and isinstance(n.func, ast.Attribute)
+        and isinstance(n.func.value, ast.Name)
+        and n.func.value.id == 'frozen_history'
+        and n.func.attr == 'read_original_pr197_pin'
+    ]
+    assert len(pin_imports) == len(pin_calls) <= 1
+    if pin_calls:
+        sha_assignment = next(n for n in tree.body if isinstance(n, ast.Assign)
+                              and len(n.targets) == 1 and isinstance(n.targets[0], ast.Name)
+                              and n.targets[0].id == '_PR197_CORE_DEFINITION_AST_SHA256')
+        expected_call = ast.parse(
+            'frozen_history.read_original_pr197_pin("pr197_core_definition_ast_sha256")',
+            mode='eval',
+        ).body
+        assert ast.dump(sha_assignment.value) == ast.dump(pin_calls[0]) == ast.dump(expected_call)
+    tree.body = [n for n in tree.body if n not in pin_imports]
     pr197_constants = [n for n in tree.body if isinstance(n, ast.AnnAssign)
                        and isinstance(n.target, ast.Name)
                        and n.target.id == 'PR197_TENANT_SOURCE_CORE_ADDITIONS']
@@ -7230,7 +7335,9 @@ def test_stats_foundation29_exact_paths_detection_and_full_ast_preservation():
     projected, present = guard._project_stats_foundation_layer(new, 'test')
     assert present and projected == old and _stats_foundation_historical_fixture(new) == old
     base_source = run_git(REPO, 'show',
-        'c8f1c1d679f79499d37c8cfbb3129fc5d82278b3:scripts/core_guard.py').stdout
+        frozen_history.read_original_pr197_pin(
+            "stats_foundation_legacy_core_revision"
+        ) + ":scripts/core_guard.py").stdout
     assert ast.dump(ast.parse(_stats_foundation_legacy_guard_source(SCRIPT.read_text()))) == (
         ast.dump(ast.parse(base_source)))
     added = SCRIPT.read_text() + '\n\ndef unknown_stats_helper():\n    return False\n'
@@ -7243,6 +7350,10 @@ def test_stats_foundation29_exact_paths_detection_and_full_ast_preservation():
     pr197 = json.loads(json.dumps(new))
     next(a for a in pr197['areas'] if a['id'] == 'tenant-isolation')['paths'].extend(
         guard.PR197_TENANT_SOURCE_CORE_ADDITIONS)
+    old_exclusions = pr197['reference_discovery']['declared_exclusions']
+    old_exclusions['paths'] = sorted(
+        set(old_exclusions['paths']) | _REFERENCE_REVERSE_CLOSURE_ADDITIONS)
+    old_exclusions['reason'] = old_exclusions['reason'].replace('残り10件', '残り23件')
     assert actual in (old, new, pr197)
 
 
@@ -7551,7 +7662,7 @@ def _pr197_old_definition_repo(tmp_path, old32):
     commit_change(root, '.claude/core-areas.json', json.dumps(old32))
     old_source = run_git(
         REPO, 'show',
-        'a59c654e3366d2be9c6456e47b07118e1674bce2:scripts/core_guard.py',
+        frozen_history.read_original_pr197_pin("pr197_source_revision") + ":scripts/core_guard.py",
     ).stdout
     _, base = commit_change(root, 'scripts/core_guard.py', old_source)
     return root, base
@@ -7592,6 +7703,7 @@ def test_pr197_tenant_source_requires_prior_definition_commit(tmp_path, order):
                     if isinstance(n, ast.FunctionDef)
                     and n.name == '_verify_pr197_definition_order')
         position = node.body[0].end_lineno
+        assert position is not None
         lines = source.splitlines(keepends=True)
         lines.insert(position, '    return\n')
         broken = ''.join(lines)

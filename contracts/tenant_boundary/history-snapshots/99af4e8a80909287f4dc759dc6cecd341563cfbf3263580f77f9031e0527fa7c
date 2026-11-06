@@ -22,10 +22,15 @@ from typing import Any, cast
 
 import pytest
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "scripts"))
+import frozen_history
+
 _ROOT = Path(__file__).resolve().parents[2]
 _FIXTURE = "backend/tests/fixtures/product_authz_stage_a_profile_v0039.json"
 _REFERENCE = "stage_a_0039_profile_reference_revision"
-_FIXED_REFERENCE = "45493c6669b5c1d6737fc41acb975b7f58f48289"
+_FIXED_REFERENCE = frozen_history.read_original_pr197_pin(
+    "stage_a_0039_profile_reference_revision"
+)
 _PURPOSE = (
     "正式51bcbの0039歴史検証profile972file/31caseをroot前置Git全byteへ束縛し、"
     "現木/fixture/任意revision同時改変を拒否。current製品loader・任意profile許可・"

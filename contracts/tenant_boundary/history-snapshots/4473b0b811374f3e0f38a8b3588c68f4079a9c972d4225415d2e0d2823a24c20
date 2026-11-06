@@ -590,7 +590,7 @@ jobs:
           import os
           from psycopg.conninfo import conninfo_to_dict, make_conninfo
           from pitchlog.db.current_product_startup import advance_current_product_from_s0
-          
+
           admin_dsn = os.environ['PITCHLOG_TEST_ADMIN_DSN']
           owner_dsn = os.environ['PITCHLOG_STAGE_A_OWNER_DSN']
           stage_db = conninfo_to_dict(owner_dsn)['dbname']

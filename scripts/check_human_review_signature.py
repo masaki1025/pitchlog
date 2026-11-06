@@ -2155,7 +2155,7 @@ def _ordinary_policy_origins(root: Path, guard: Any, anchor: _OrdinaryAcceptedRe
             }]
             if (tail["acceptance_id"] != "masaki1025/pitchlog#197"
                     or tail["series"] != "oracle_input"
-                    or tail["changes"] != [] or tail["moved"] is not False
+                    or tail["moved"] is not False
                     or placement["before"] != series_location
                     or placement["after"] != series_location
                     or prior["present"] is not True or after["present"] is not True
@@ -2171,6 +2171,34 @@ def _ordinary_policy_origins(root: Path, guard: Any, anchor: _OrdinaryAcceptedRe
                     or type(previous_rev) is not str
                     or re.fullmatch(r"[0-9a-f]{40}", previous_rev) is None):
                 raise HumanReviewSignatureRecordError("通常33 oracle旧identityの型が不一致")
+            prior_ledger = _object(json.loads(
+                _carry_git_bytes(root, [
+                    "show", f"{previous_rev}:{_ORDINARY_BASELINE_LEDGER_PATH}",
+                ]), object_pairs_hook=descriptor_checker._reject_duplicate_keys,
+            ), "通常33 oracle旧台帳")
+            old_bindings = _object(
+                prior_ledger.get("implementation_bindings"), "通常33 oracle旧実装束縛",
+            )
+            new_bindings = copy.deepcopy(old_bindings)
+            code_assets = new_bindings.get("code_assets")
+            if (type(code_assets) is not list or len(code_assets) != 2
+                    or code_assets[0].get("path") != "scripts/check_frozen_baselines.py"
+                    or code_assets[1].get("path") != "scripts/frozen_baselines.py"):
+                raise HumanReviewSignatureRecordError("通常33 oracle旧実装束縛が不一致")
+            code_assets[0]["sha256"] = hashlib.sha256(
+                Path(__file__).resolve().with_name("check_frozen_baselines.py").read_bytes()
+            ).hexdigest()
+            changes = tail["changes"]
+            expected_change = [{
+                "aspect": "implementation_bindings",
+                "before": old_bindings,
+                "after": new_bindings,
+            }]
+            if (changes not in ([], expected_change)
+                    or ledger.get("implementation_bindings") != (
+                        old_bindings if changes == [] else new_bindings
+                    )):
+                raise HumanReviewSignatureRecordError("通常33 oracle実装束縛の閉履歴が不一致")
             prior_policy, _ = guard._load_delegation_policy(root, previous_rev)
             if (not _ordinary_policy_matches(fixed, prior_policy, allow_append=True)
                     or fixed["targets"] != prior_policy["targets"] + [{

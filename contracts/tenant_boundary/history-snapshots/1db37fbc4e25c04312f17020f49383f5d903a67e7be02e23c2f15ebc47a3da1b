@@ -2611,7 +2611,9 @@ def _require_single_static_name_binding(
         raise ContractError("固定tuple参照名のimport/代入が単一でない")
 
 
-_STATS_NATIVE_REGISTRY_REFERENCE = "b5669d3f04541cd117bb876ec4e3ca9bbe07796c"
+_STATS_NATIVE_REGISTRY_REFERENCE = frozen_history.read_original_pr197_pin(
+    "stats_native_registry_reference_revision"
+)
 _STATS_NATIVE_REGISTRY_PURPOSE = (
     "採用済native5のregistry/owner/codec全byteを固定Git祖先へ束縛し、"
     "新import1と末尾Starred1だけを除くとPR196原典へ全byte一致する登録形に限定する。"
@@ -10913,15 +10915,17 @@ def _pr196_successor_matches(source: str, path: str, contract: Contract) -> bool
 
 
 # PR197の前置fixtureはrootが独立受理後にGitへ固定する。未供給なら閉拒否する。
-_PR197_SOURCE_REVISION = "a59c654e3366d2be9c6456e47b07118e1674bce2"
+_PR197_SOURCE_REVISION = frozen_history.read_original_pr197_pin("pr197_source_revision")
 _PR197_EXPECTED_FIXTURE = "tests/fixtures/pr197_tenant_source_expected_v1.json"
-_PR197_FIXED_EXPECTATION_REVISION: str | None = "42bda907cb54355552f4022ccf948cca7995617c"
+_PR197_FIXED_EXPECTATION_REVISION: str | None = frozen_history.read_original_pr197_pin(
+    "pr197_expectation_revision"
+)
 _PR197_EXPECTATION_FIXTURE_SHA256: str | None = (
-    "a14381644954dc8bf918c574810e49656f8e01ee3e21ef64c13955984a037ab4"
+    frozen_history.read_original_pr197_pin("pr197_expectation_fixture_sha256")
 )
 _PR197_GENERATED_FACTS = "backend/src/pitchlog/stats/generated/facts.py"
 _PR197_GENERATED_FACTS_SHA256 = (
-    "7673b5969d6ce3104b48d4f94f217c6b4a44ef1b9b08d06ebaeee935648497d4"
+    frozen_history.read_original_pr197_pin("pr197_generated_facts_sha256")
 )
 _PR197_OWNER_PATHS = frozenset({
     "backend/src/pitchlog/db/current_product_startup.py",
@@ -10980,8 +10984,12 @@ _PR197_IDENTITY_PURPOSE = (
     "PR197固定a59の2pathだけを旧PR191/192 identity後継として接合し、"
     "TB siteの許可とは分離する。"
 )
-_PR197_PR191_SOURCE_REVISION = "6939271e9edbe8c4b6bc2fcd69af59e3fcbe4d3a"
-_PR197_PR192_SOURCE_REVISION = "9b76ab2fc4a6eb4d17ab956836bd7fc79dd4334e"
+_PR197_PR191_SOURCE_REVISION = frozen_history.read_original_pr197_pin(
+    "pr191_source_registration_revision"
+)
+_PR197_PR192_SOURCE_REVISION = frozen_history.read_original_pr197_pin(
+    "pr192_source_registration_revision"
+)
 _PR197_IDENTITY_FUNCTIONS = {
     "backend/src/pitchlog/repositories/transaction.py": (
         "_assert_existing_resolution_owner", "_port_read_types", "_execute_port_command",

@@ -1885,6 +1885,26 @@ def test_ordinary_inherits_base_first_without_fetch(ordinary_fixture: Any) -> No
     assert fetches == []
 
 
+def test_ordinary_rejects_pr197_code_binding_history_cochange(
+    ordinary_fixture: Any,
+) -> None:
+    """PR197の検査器束縛と履歴を一緒に偽装しても旧33へ流用しない。"""
+    root, _, _, _, _, _, _, _ = ordinary_fixture
+    path = root / checker._ORDINARY_BASELINE_LEDGER_PATH
+    ledger = _load_object(path)
+    changed = ledger["history"][-1]["changes"]
+    assert len(changed) == 1
+    fake_sha = "0" * 64
+    changed[0]["after"]["code_assets"][0]["sha256"] = fake_sha
+    ledger["implementation_bindings"]["code_assets"][0]["sha256"] = fake_sha
+    path.write_text(json.dumps(ledger, ensure_ascii=False, indent=2) + "\n")
+    with pytest.raises(
+        checker.HumanReviewSignatureRecordError,
+        match="通常33 oracle実装束縛の閉履歴が不一致",
+    ):
+        checker.validate_gate6_subject_carry(root)
+
+
 @pytest.mark.parametrize('target', [
     'record', 'schema', 'subject', 'request', 'response', 'vectors', 'typescript',
     'coverage', 'mapping', 'game-coverage', 'handoff', 'old-record', 'descriptor',

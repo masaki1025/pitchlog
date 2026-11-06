@@ -2609,7 +2609,12 @@ def positive_fixture_qualification_contexts(
     assert registration is not None
     full = "backend/src/pitchlog/repositories/transaction.py"
     genuine = dict(registration.source_files)[full]
-    assert (REPOSITORY_ROOT / full).read_bytes() == genuine
+    successor_revision = checker._pr197_fixed_expectations(REPOSITORY_ROOT)[
+        "source_revision"
+    ]
+    assert (REPOSITORY_ROOT / full).read_bytes() == subprocess.check_output(
+        ["git", "show", successor_revision + ":" + full], cwd=REPOSITORY_ROOT,
+    ), "現製品sourceはPR197固定Git原本と一致する"
     qualified = parent / "current-positive"
     shutil.copytree(POSITIVE_ROOT, qualified)
     relative = "pitchlog/repositories/transaction.py"
@@ -3078,6 +3083,9 @@ def test_all_assets_freeze_mode_wiring_and_declare_single_authority() -> None:
             "backend/tests/fixtures/batted_source_extension_reference_v1.json",
             "tests/fixtures/pr196_tenant_source_expected_v1.json",
             "tests/test_pr196_tenant_source_registration.py",
+            "backend/tests/stage_a_0039_profile.py",
+            "backend/tests/fixtures/product_authz_stage_a_profile_v0039.json",
+            "backend/tests/test_stage_a_0039_profile.py",
         ],
         Path("contracts/tenant_boundary/negative-fixtures.json"): shared_external_files,
         Path("contracts/tenant_boundary/repository-contract.json"): shared_external_files,
