@@ -1,5 +1,17 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 2026-11-07 06:30 JST：PR197修復群を私有統合、残DB6件と製品複製を実証
+
+- **修復sourceの現在地**: `fix/pr197-harness-followup@b61b0c5d` clean。非作者確認済みb51a0680（CI合成履歴）、b71a6de9（catalog純対向）、b83eb19f（正式19原子のprobe map）、acd80874（current fixture/全schema監査）、db6930a0（公開操作/schema/製品copy）を通常merge。最後はplan末尾の2追補だけ衝突し、両方を保持して解決。5test sourceはdb6930と全byte一致。公開PR197はe5b6fef5のDraft/open/CI失敗のまま。正式source固定後の9資産導出・最終レビュー・証拠・push/必須CI/通常mergeは未了。
+- **非作者P1の是正**: 05bbe744のprivate unique9件はrow全fieldを比較していたが、許可済みprivate別表への移設を見逃した。acd80874で9名前→tableのliteralも完全一致にし、旧6/新3それぞれを他の許可表4つへ動かす全36負例を追加。独立51passed1.25秒・P0/P1/P2なし、REPORT SHA8de89ea7471f3a5ea4ca6d937ee9480a93c915b1ad346b8e536abe8c39eb3812。元反例と失敗履歴を保持。rootの採用はsource限定/PO委任で本人確認/P6blindではない。
+- **製品copyの接合**: db6930のexact6pathは別作者REPORT SHA6a916360209cc7336a05507f2ece8b322930c31c7674abe9c6d36c305960b9e4でP0/P1/P2なし。旧集合保持・stats専用4module/2function-only cap・stats_api全ACL・実入力copyを照合。初回158pass1nestedfail、schema/reference供給修復後のpreflight1passと全対象nested外側1pass422.67秒。root私有統合の別4pure modulesも171passed7.94秒。公開CI合格には読み替えない。
+- **残DB対向候補**: `fix/pr197-backend-db-remnants@5957f4b405b56cd40017e89e2ab755710f4aeed5` clean、exact4tests＋plan。owned r5 3passed23.84秒（0034故障→current再開/所有者unbound RLS/旧selector往復）、r6 3passed326.13秒（実四球/HBP native reader、唯一SQLのS/count/totals/window）。PAは実終端当人を参照し、終端後の次打者との誤照合を是正。NULL cursorは製品ABI通り5型をbind、期待値/計算式/生成SQL不変。両run2054source前後同一/cleanup/共有DSN不使用。packet `pr197-backend-db-remnants-final-20261107/`、非作者確認をCSV作者へ依頼済み。
+- **進行中の検査**: read-only detached `verify-pr197-backend-current-b61@b61b0c5d`で、CI失敗したmigration/不変性/語彙等8modulesのowned r7(session69666)を共通lockで投入。source固定、別WTのroot修復や他担当を止めず検証する。CSV作者は別WT `fix-pr197-binding-reapply-tests@771e6f6b`で旧29＋stats5関数の全body/ACL衝突と旧4trigger対向を追随、owned1test予定。最終独立採用は未了。
+- **P3画面の実測**: R4でC2対象2routeの登録不足を修復後、1球/3球の対象GET本文と画面表示まで実到達（16.71/41.35秒）。POSTはHTTP200でもB14正式拒否で訂正保存未達。既成功R5 HTTPとの入力差を作者が照合中。単に200を受理成功へ読まない。
+- **申告敬遠の接合**: 先行通常2単打保存は成功。IBBは投球専用repository validatorで非投球行を拒否していた実例外を確定し、PlayPrefix token＋intentional-walkだけ41列/非観測NULLを閉受理する候補へ修復。さらにv3 GET DTOのpitch専用型を発見し、backend/FEのv3 pageのみnon_pitch unionへ追随（v1/v2は不変）。実画面IBB保存/再取得は次、まだ成功扱いにしない。CSVの真正non_pitch→ZIP接合もこの後。
+- **再開入口**: cache `mvp-resume-20261104/active-connected-work-20261107.json`、各private adoption/report/owned before-afterへ参照。MVP全体の機能・品質・受入条件は維持し、正式統合/全操作/全27供給/実機/負荷/運用復旧は未了、Goal active。
+
+
 ## 2026-11-07 06:00 JST：真正世代の訂正と実画面CSVを実証、公開CI修復を継続
 
 - **訂正の証拠更新**: 過去の数値D4=1による試験は開始時発行の真正D4を通した製品証拠から除外する。`feature/mvp-past-correction-product@d6a639b3ba949691bf8f7ef5858c6cf2519eae44`で実発行D4を内部世代へ既存decodeで束縛し、owned R4 1passed147.23秒。三振→ボール訂正で旧成績K1/現版K0、同要求再掲、改変/越境/途中故障全取消まで実証。step3の真正対象版GET→訂正もR5 1passed146.82秒。実画面・D1なし耐久再送は実装中、まだ未コミット/未実測。旧世代・複数訂正・25件超等を完成扱いにしない。証拠cache `mvp-past-correction-product-20261106/canonical-d4-t5-success-20261107/`。
