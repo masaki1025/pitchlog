@@ -353,6 +353,10 @@ test('実画面の新規作成→開始→2球→ACK喪失/reload/同要求再�
   )
   for (const box of await panel.locator('input[type=checkbox]').all())
     await box.check()
+  await page.addScriptTag({
+    type: 'module',
+    url: '/src/screens/GameScreenUndoProduct.e2e-probe.ts',
+  })
   await panel.getByTestId('undo-product-retry').click()
   await expect(panel.getByTestId('undo-product-status')).toContainText(
     'サーバーで確認',
