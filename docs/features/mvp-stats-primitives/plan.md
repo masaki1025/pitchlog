@@ -495,3 +495,8 @@ native5固定registry反映1の受理（2026-11-06 JST、PO委任Codex /root判�
 
 
 RR RO readerの閉入口修復（2026-11-06、PO委任によるCodex /root判断）: step4の既対象 backend/src/pitchlog/repositories/play_export_primitives.py exact1、_require_root_read_scope関数だけを動的getattrから関数内静的importへ変更する。真正handle/marker、missing/noncallable、既例外causeまで保持。非作者report SHA9194e9a159ceff6f0e7e52642f677367c9836d844202e9c6458aad9ae8f1dc8d、候補全file SHA0fed153b7fc8d5f0896d103f8fb824ca7611445163d15fda0e5a0a02345763cf、対象beforeはfebe8bc4。初版のmissing helper原因露出と書式違反を是正後66pure/Ruff成功。DB成功とはしない。検査器の例外追加や認可条件の変更なし。実適用後にsource pin再導出対象へ含める。PO本人逐行確認/署名/P6blindの記録ではない。
+
+
+PR197 source登録の最小整合（2026-11-06T14:52:47.791935+09:00、PO委任によるCodex /root判断）: step4の検査器/正式資産追随として scripts/check_tenant_boundary_bypass.py、tests/test_pr197_tenant_source_registration.py、tests/fixtures/pr197_tenant_source_expected_v1.json、scripts/core_guard.py、tests/test_core_guard.py、.claude/core-areas.json、contracts/tenant_boundary/frozen-inputs.jsonの用途付きpin追記と既9assetの公式派生を対象にする。source S=a59c654e3366d2be9c6456e47b07118e1674bce2、条件付き71の全文Git固定と、旧PR191/192の3旧診断を別後継資格で解消。先行71 review2fc6295a…、後継profile独立reportSHA5902c76e73df18ba232465bf4dfccfa9b2ccfa7c43aa48db5916cace34752036（27pure/旧AST6/6・旧9/3/新read1・実call位置・614非callを検算）を採用根拠とする。旧75/71/3の審査と反例履歴は維持する。
+
+fixtureを先にGit固定してEとし（全byte SHA a14381644954dc8bf918c574810e49656f8e01ee3e21ef64c13955984a037ab4）、EのcheckerがSのcheckerと同byteであることを必須にする。その後checkerの独立fullE literal/fixtureSHA・typed用途を同じ値へ設定する。None/別E/同時改変/未知sourceは閉拒否。core追加2pathは旧29/32を保ち完全34のみ、core定義前置→JSON後置を維持する。core反例2周を反映した限定追加review b897d03a…（P0/P1=0,P2=1、独立120×2/旧反例拒否）を採用し、P2の直接順序helper改変ケースはtestだけを精密化する。本人署名/人間逐行/P6blindの確認ではない。正式7.7値・CLI/必須CIが揃うまでPR統合/製品提供にしない。
