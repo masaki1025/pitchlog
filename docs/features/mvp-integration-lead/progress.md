@@ -1,5 +1,17 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 成績基盤PR197提出・終了再開ゲート確定と入力実装（2026-11-06）
+
+- **正式統合**: develop51bcb4e1以降の新mergeは未実施。native2fa42d65を通常pushしIssue197をDraft PRへ変換、証拠 https://github.com/masaki1025/pitchlog/pull/197#issuecomment-6678937192 を掲載。最終非作者REPORT8c542276…はP0/P1=0/P2空白1、267path/diffSHA f1894aba…。実木関連150とbackend566成功。CI42176247660と本文42176293773は赤を検出、成功扱いしない。
+- **CIの実原因/回復**: staticは凍結literal27未登録、backend format3、rootTyのtest end_lineno None。format3はAST同一、rootTyはassertで修復、CI空白10byteも削除（未push）。backend672file format/ruff/tyとrootty成功。carryは187数学9のうち4が既191/192後継となった正式baseを旧値扱いする不整合、policy旧18対現19も特定。既E/Sから197限定後継を作者実装中。harness shard2は43failed/16errors、scratchGitの新E未供給とtestの作者ローカルcache参照等を調査。絶対cache参照1件はSOURCE_ROOTと旧登録なしbeforeへ直し単独1成功5.04秒。検査のskip/期待緩和では直さない。CI修正sourceが揃ってから7.7/snapshot/corpus・新HEADレビュー・証拠を一括更新する。
+- **終了再開の契約**: 29145196の反映3を非作者追加限定2回でP0/P1/P2各0（REPORT lifecycle-gate-additional2-independent-20261106）。98344baaで要件2.20/sync0.13/data-model1.6/ADR0030.11をPO委任root判断として本文確定、索引整合0違反。基本2回＋追加2回を保持、本人署名ではない。NP2b1533aeを通常merge e89ced6b、実装接合計画f6e14874を前置した。
+- **終了再開のコード**: rootが既40path候補を現基線へcache再基線（安全一致37/3way2/route1競合を特定、40丸ごとactual採用はしていない）。actual新2path lifecycle_payload.py/testを再利用し閉V7のconfirmed/confirmed_prefix/queued_predecessorとconfirmed/queued_endを実装。D1は既WireD1整数を補修せず使う。最初5失敗は試験がD1文字列を供給したためで、既wire正本へ訂正後44成功0.80秒、ruff/ty成功。root cache lifecycle-payload-closed-union-root-20261106へ保全、actual未追跡2path/非作者未確認であり、Port/HTTP/実PGの成功ではない。
+- **外部UIの受領**: feature-mvp-lifecycle-ui@a36c323bdab235e51a480f43ecfc956bc04e1139の8path/SHA/local remote/cleanを照合済み。非作者否決P0=1/P1=4（通信断/先行キュー/実writer不足/旧flatV7/ACKより古いGET/E2E前提）。既spec28成功は維持するが実画面成立としない。ユーザーへ修復継続指示とREPORT所在を渡した、修復依頼の送付/受諾は未確認。rootはFE6へ並行書込しない。
+- **取消の現在地**: r16 GET2回成功後の次SQLはg.issuance_orderのfnowner SELECT列不足（UPDATE rowlockではない）。作者案の+1列SELECTと公式+1ACL/bodyは非作者unit9/body検査成功。ただし新PGtestの既存app UPDATEFalse期待と正式DDL配置fixture不足のP1全2で否決、reflection1を作者修復中。実PG新試行は未実行。
+- **成績候補の保全**: merge中だった基本成績/CSVは96ed0995にstep1として通常merge commit済み。独立reviewの条件（旧v2互換/read可変hook/真正終了pointer/BF登板/CSV88）を保持。266関連成功、表記修復はAST不変。四つのHEAD full bundleはlatest-integration-bundles.jsonにverify済みで保持、後発lifecycle983/f6/codecは本Git/cacheにも保全。
+- **次**: ACL reflectionを独立確認→owned実画面を次へ、gate6/frozenliteral/CI fixtureを修復→PR197全CI、終了再開の閉codec/実sourcebridge/同TXproviderを接合し真正終了成績へ。MVP全機能/実機/復旧/負荷は未達、目標は縮小しない。
+
+
 ## 正式成績基盤の派生反映と取消SQLの実測更新（2026-11-06 15:40 JST）
 
 - **利用者操作**: 同一候補の実HTTPS新規作成→開始→通常2球保存は維持。取消の前段GETはr16でStartedReadRecordedを2回返すまで進んだが、後続SQLのrecording_generations権限で停止。2取消→次球→reload全列は未達。NFR性能5秒閾値も維持しており、成功扱いにしない。
