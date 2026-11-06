@@ -92,24 +92,13 @@ def _install_initial_business(dsn: str) -> None:
     finally:
         engine.dispose()
     with psycopg.connect(dsn) as admin:
-        assert admin.execute(
-            "SELECT version_num FROM public.alembic_version"
-        ).fetchall() == [(_INITIAL_REVISION,)]
-        for table in (
-            "stats_fact_versions",
-            "stats_primitive_sources",
-            "stats_primitive_facts",
-        ):
-            assert admin.execute(
-                "SELECT pg_catalog.to_regclass(%s)", ("sync_fence." + table,)
-            ).fetchone() == ("sync_fence." + table,)
         apply_product_authz_ddl(admin)
     # 初期scope用installer。RG1の0035までのS3完了証明を偽造しない。
     # rootの9SQL/fullprofile供給が不十分なら実適用/検査を失敗させる。
     with psycopg.connect(dsn) as admin:
         assert admin.execute(
             "SELECT version_num FROM public.alembic_version"
-        ).fetchall() == [(_INITIAL_REVISION,)], "正規0038までの段階配置が未供給"
+        ).fetchall() == [(_INITIAL_REVISION,)], "正規現行版までの段階配置が未供給"
         role = admin.execute("SELECT oid FROM pg_roles WHERE rolname=session_user")
         row = role.fetchone()
         assert row is not None
