@@ -30,6 +30,8 @@ def test_bootstrap_legacy_branch_keeps_signature_and_all_saved_qualification():
     assert "l.source_fingerprint=a.event_fingerprint" in sql
     assert "c.content->'storage_anchor'->>'history_epoch'=p_epoch::text" in sql
     assert "'generationChain',chain" in sql
+    assert "jsonb_agg(chain_row.wire_d4 ORDER BY chain_row.issuance_order)" in sql
+    assert "GROUP BY r.issuance_order,b.wire_d4) chain_row;" in sql
     assert "total::text IS DISTINCT FROM cp.content->>'history_depth'" in sql
     assert "FOR SHARE OF c,g" not in sql
     assert sql.count("FOR SHARE OF c;") == 2

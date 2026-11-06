@@ -34,3 +34,25 @@ def test_joined_checkpoint_uses_explicit_physical_xmin(
     record_property("rowtype_header_matches_physical", value["rowtype_matches"])
     assert value["physical_matches"] is True
     assert value["payload_preserved"] is True
+
+
+def test_generation_chain_alias_does_not_shadow_page_record(admin_connection):
+    """未初期化のpage recordとSQL別名を区別して順序付き連結を返す。"""
+    c = admin_connection
+    c.execute("""
+        CREATE FUNCTION pg_temp.check_generation_alias() RETURNS jsonb
+        LANGUAGE plpgsql AS $probe$
+        DECLARE x record; chain jsonb;
+        BEGIN
+          SELECT jsonb_agg(chain_row.wire_d4 ORDER BY chain_row.issuance_order)
+          INTO chain
+          FROM (VALUES (2,'second'::text),(1,'first'::text))
+            AS chain_row(issuance_order,wire_d4);
+          RETURN chain;
+        END;
+        $probe$;
+    """)
+    assert c.execute("SELECT pg_temp.check_generation_alias()").fetchone()[0] == [
+        "first",
+        "second",
+    ]

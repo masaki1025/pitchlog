@@ -272,7 +272,8 @@ BEGIN
  OR (SELECT pg_catalog.count(*) FROM public.operation_events e
  WHERE e.tenant_id=p_tenant_id AND e.game_id=p_game_id AND e.generation=p_generation
  AND e.d1<=p_d3)<>p_d3 THEN {reject} END IF;
- SELECT pg_catalog.jsonb_agg(x.wire_d4 ORDER BY x.issuance_order) INTO chain
+ SELECT pg_catalog.jsonb_agg(chain_row.wire_d4 ORDER BY chain_row.issuance_order)
+ INTO chain
  FROM (SELECT r.issuance_order,b.wire_d4 FROM public.recording_generations r
  JOIN sync_fence.writer_bindings b ON b.tenant_id=r.tenant_id
  AND b.game_id=r.game_id AND b.internal_generation=r.generation
@@ -280,7 +281,7 @@ BEGIN
  AND r.issuance_order<=(SELECT own.issuance_order
  FROM public.recording_generations own WHERE own.tenant_id=p_tenant_id
  AND own.game_id=p_game_id AND own.generation=p_generation)
- GROUP BY r.issuance_order,b.wire_d4) x;
+ GROUP BY r.issuance_order,b.wire_d4) chain_row;
  WITH active AS ({query}) SELECT pg_catalog.count(*) INTO total FROM active;
  IF total<1 OR total::text IS DISTINCT FROM cp.content->>'history_depth'
  OR cp.content->'prefix_ref'->>'length' IS DISTINCT FROM total::text
