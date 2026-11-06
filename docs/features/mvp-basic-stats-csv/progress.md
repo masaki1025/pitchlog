@@ -10,7 +10,7 @@
 | 作業worktree | `/home/ymdms/projects/pitchlog-worktrees/feature-mvp-basic-stats-csv` |
 | 作業branch | `feature/mvp-basic-stats-csv` |
 | 起点（指示の固定HEAD） | `a018b896bfc1ee49efc5b0912f1b6a04fd24e363` |
-| 本枝の候補commit | `05241ebc`（push済み・PR未作成） |
+| 本枝の候補commit | `6cb83584`（push済み・PR未作成。実装 `05241ebc`、27受理 `88b1cd42`、CSV一時ファイル `6cb83584`） |
 | 成績基盤worktreeの実HEAD（開始時） | `49bf535ce73c51ab843217e2dab706a0d257b2f6` |
 | 差 | 固定HEADの子3コミット（`3be91ac0`/`dbda56c9`/`49bf535c`。D11比較資産9path）。本枝は取り込んでいない |
 | 主担当台帳のD11固定候補 | `a524277f`（別枝 `feature/mvp-stats-d11-reflection-root`）。本枝へ未統合 |
@@ -52,7 +52,8 @@
 - `GET /stats/seasons/2026?category=all` 10名、`official` 0名（`game_other` のため）、
   `practice` 10名。D02写像の実測。
 - 同一finalize再実行は同一結果（冪等）。
-- 試合別/シーズンCSV 200・BOM `EFBBBF`・行数20/10・ヘッダ27項目・pended/unavailable列。
+- 試合別/シーズンCSV 200・BOM `EFBBBF`・行数20/10・ヘッダ27項目・pending/unavailable列。
+  CSVは全ページを一時ファイルへ完成させてから返し、途中失敗で部分CSVを200保存しない。
 - 保存factのplayer/metric合計とAPIのcount値を全件照合。
 - 試合は `game_other`。試合区分の公式/練習切替を実データで確認した。
 - 候補ACL（ownerのSELECT列/RLS policy/finalize UPDATE policy）は**owned DBにだけ**適用。
@@ -70,7 +71,8 @@
 
 - `backend/tests/stats/test_basic_stats.py` + 生成runtime + function boundary + native registration +
   function codec: **492 passed**。
-- `backend/tests/test_stats_basic_sql.py`: **8 passed**（候補SQL byte固定、27項目、率、重複JSON拒否、JST境界）。
+- `backend/tests/test_stats_basic_sql.py`: **8 passed**（候補SQL byte固定、27項目、率、重複JSON拒否、
+  JST境界、任意の登板/打者数metric受理）。
 - `tests/domain/gen`: **87 passed**（`PYTHONDONTWRITEBYTECODE=1`。未設定だとpycacheで
   formatterのtree監視が落ちる環境差がある）。
 - backend `ruff check`/`ruff format`/`ty check`: 成功。
