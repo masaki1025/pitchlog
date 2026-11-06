@@ -1,5 +1,14 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 2026-11-06 17:55 JST 次の実接合の停止原因を特定
+
+- **取消**: owned r25はprepare/envelope-read完了後にHTTP待機。r26（actual a865f440677e280763c226abc253fcccbfa09d6d、114.94秒で失敗）で真の保存結果を確認し、ledgerに rejected /「undo の V10 と照合済み対象が一致しない」が1件記録された。play_input2件維持、undo acceptedではない。source前後同一・owned container除去済み。証拠cache nonplay-current-checkpoint-compare-root-20261106/r25,r26。
+- **具体的接続欠落**: router sync.pyはtargetsを渡さず、apply.pyはtargets={}を使う。prefix_path.pyの初回_validate_v10がtarget=Noneを拒否し、その後の_bind_undo_execution/真正prefix readに到達しない。製品のP1Target構築実装は無く、純kernel検査だけが手渡しする。次は既D5/権利/連番/内容順を維持し、同TXの真正保存原本から対象を解決して既検査へ接続する。wire値の単純コピー/検査省略で解消しない。
+- **終了再開backend**: reflection1 59pathは非作者REPORT91a45c1dc99695602adf33a6f776b4fa2883abdef8c2eb97d2257fb4e140b38b、P0=0/P1=3、独立backend62/FE117成功。修正基礎受領、正式0043/ACL/起動接続・非CP先行prefix・P3後pointerは未達。作者役を明示してcache-only実装へ移管し、変更後は別非作者へ渡す。
+- **外部UI75fbb**: 旧5指摘の再確認中、後続refreshがACK後期待値なしで古いGETを採用してresumeHandoffへ古いD1を渡すP1を独立2対向で検出（作者既35件は維持）。非作者封印待ち、採用/実画面成功ではない。後続手動更新/reloadでも真正ACK期待水位を保持する修復が必要。
+- **PR197**: R2合成回帰はscratch Git親Eでは固定2faの祖先が無いこと、およびsubprocessが新helperを供給しないことを再現。期待値/拒否を緩めずfixture入力を正規化するcache修復を確認中。
+
+
 ## 2026-11-06 外部終了再開UI改訂受領・取消の次await診断
 
 - 外部 `feature/mvp-lifecycle-ui-connection@75fbb6670f9f65d69d210ca3c79c25bc9ea3fcab` はlocal/remote/clean、8path全SHAを報告と照合一致。旧a36cは保持。通信断耐久chain/実writer/閉union/古いGET/不可視E2Eの修復申告を受領し、前回5指摘を引き継いだ非作者確認を開始。35/全3490成功は作者証拠、実PG/実画面未実施。backend閉union codecはec23で既提供、作者の旧flatのみという記述は旧版参照であり、実行resolver/保存接続は別に残る。
