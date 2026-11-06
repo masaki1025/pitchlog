@@ -83,14 +83,6 @@ def test_d11_evidence_real_sql_rrro_receiver_and_formatter_all26(
         "fact_version_id": UUID(receipt["fact_version_id"]),
         "revision": receipt["revision"],
         "source_set_sha256": receipt["source_set_sha256"],
-        "named_category": "all",
-        "raw_game_type_keys": [
-            "game_official",
-            "game_semi_official",
-            "game_open",
-            "game_intrasquad",
-            "game_other",
-        ],
     }
     with psycopg.connect(db.authority.database.business_admin) as connection:
         actual, raw_rows, calls, execution = runner.execute_sql_composite(

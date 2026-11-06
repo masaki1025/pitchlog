@@ -395,3 +395,42 @@ def test_d11_sql_adapter_uses_fixed_producer_and_propagates_real_execution_failu
         with pytest.raises(ValueError, match="全bind集合"):
             runner.execute_sql_composite(failing, invalid, root=ROOT)
         assert len(failing.calls) == before
+
+
+@pytest.mark.parametrize("mutation", ["missing", "extra-category", "extra-game-types"])
+def test_d11_sql_adapter_rejects_wrong_bind_surface_before_execution(mutation):
+    """単一試合の固定SQLへ別集計の引数を混ぜず、欠落も実行前に拒否する。"""
+    from sqlalchemy import text
+    from sqlalchemy.dialects.postgresql.psycopg import dialect
+
+    from pitchlog.authz.stats_primitive_sql import _verified_inputs
+
+    _, sections, _, _ = _verified_inputs(ROOT)
+    compiled = text(sections["current_totals"]).compile(
+        dialect=dialect(paramstyle="pyformat")
+    )
+    assert set(compiled.params) == {
+        "tenant_id",
+        "game_id",
+        "player_id",
+        "model_sha256",
+        "fact_version_id",
+        "revision",
+        "source_set_sha256",
+    }
+    parameters = dict.fromkeys(compiled.params)
+    if mutation == "missing":
+        del parameters["revision"]
+    elif mutation == "extra-category":
+        parameters["named_category"] = "all"
+    else:
+        parameters["raw_game_type_keys"] = []
+
+    class NoExecution:
+        """引数拒否の後にSQLへ到達すれば失敗する。"""
+
+        def execute(self, *args):
+            pytest.fail("invalid bindings reached SQL")
+
+    with pytest.raises(ValueError, match="全bind集合"):
+        runner.execute_sql_composite(NoExecution(), parameters, root=ROOT)
