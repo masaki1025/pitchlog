@@ -262,22 +262,44 @@ def test_generation_secret_columns_are_separate_and_closed(monkeypatch) -> None:
 
 
 def test_private_function_only_fact_is_exact_and_never_seeded() -> None:
-    """新露出事実6表だけを関数限定へ加え、既public seedを保つ。"""
+    """私有9表だけを関数限定へ加え、既public seedを保つ。"""
     binding = {"writer_bindings", "writer_admissions", "first_ball_write_admissions"}
     ordinary = {
         "ordinary_pitch_checkpoints",
         "ordinary_pitch_write_admissions",
         "ordinary_pitch_history",
     }
-    expected = binding | ordinary
+    stats = {
+        "stats_fact_versions",
+        "stats_primitive_sources",
+        "stats_primitive_facts",
+    }
+    expected = binding | ordinary | stats
     assert (
         set(cases.exposure_fact_table_names("sync_writer_binding_storage")) == binding
     )
     assert set(cases.exposure_fact_table_names("ordinary_pitch_storage")) == ordinary
+    assert set(cases.exposure_fact_table_names("stats_primitive_storage")) == stats
     assert set(private_function_only_table_names()) == expected
     assert expected <= set(cases.function_only_table_names())
     assert expected.isdisjoint(cases.profile_table_names()["tenant_owned"])
     assert expected.isdisjoint(row.table for row in cases.other_profile_seed_rows())
+
+
+def test_stats_private_fact_cannot_be_relabelled_as_unknown_kind(monkeypatch) -> None:
+    """成績3表を未知kindへ移して関数限定のまま成功させない。"""
+    import copy
+
+    import pytest
+
+    value = copy.deepcopy(cases._load_object(cases._EXPOSURE_FACTS_PATH))
+    row = next(
+        row for row in value["facts"] if row["kind"] == "stats_primitive_storage"
+    )
+    row["kind"] = "unknown_stats_storage"
+    monkeypatch.setattr(cases, "_load_object", lambda path: value)
+    with pytest.raises(AssertionError, match="未知の露出事実 kind"):
+        cases.function_only_table_names()
 
 
 def test_schema_audit_catalog_preserves_namespace_and_fk_endpoints() -> None:

@@ -70,6 +70,15 @@ class _UnknownToken(TenantOperationToken):
 def test_rg1_keeps_two_fixed_functions_with_one_registered_rule_resolver() -> None:
     """resolver1件追加後も、RG1のtenant固定2関数と未知token拒否を保つ。"""
     from pitchlog.repositories.batted_ball_options import BattedBallOptionsToken
+    from pitchlog.repositories.play_export_primitives import (
+        OpenPrimitiveSnapshotToken,
+        ReadPrimitivePageToken,
+    )
+    from pitchlog.repositories.stats import ReadPrimitiveTotalsToken
+    from pitchlog.repositories.stats_native_operations import (
+        _ReadPrimitiveWriterStateCall,
+        _SavePrimitiveSourceCall,
+    )
     from pitchlog.sync.terminal_pitch_tokens import LineupStartedOriginReadToken
 
     assert set(FUNCTION_OPERATION_REGISTRY) == {
@@ -97,8 +106,13 @@ def test_rg1_keeps_two_fixed_functions_with_one_registered_rule_resolver() -> No
         # 固定9b76の同tenant・実started原本read1だけを閉追加する。
         LineupStartedOriginReadToken,
         BattedBallOptionsToken,
+        _SavePrimitiveSourceCall,
+        _ReadPrimitiveWriterStateCall,
+        OpenPrimitiveSnapshotToken,
+        ReadPrimitivePageToken,
+        ReadPrimitiveTotalsToken,
     }
-    assert len(FUNCTION_OPERATION_REGISTRY) == 22
+    assert len(FUNCTION_OPERATION_REGISTRY) == 27
     for token, function_name in (
         (RG1PrecheckToken(), "rg1_read_open"),
         (RG1CommitCheckToken(), "rg1_assert_open_before_commit"),

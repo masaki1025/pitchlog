@@ -157,6 +157,9 @@ def test_role_attributes_and_protected_identifiers_are_closed_sets() -> None:
                 "ordinary_pitch_checkpoints",
                 "ordinary_pitch_write_admissions",
                 "ordinary_pitch_history",
+                "stats_fact_versions",
+                "stats_primitive_sources",
+                "stats_primitive_facts",
             }
             else "public",
             str(row["name"]),

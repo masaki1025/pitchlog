@@ -424,6 +424,62 @@ def _batted_statement_id(sql: str) -> str:
     return markers[0]
 
 
+def _project_stats_source_extension(rows):
+    """真正Gitの成績89追加だけを外し、旧705文の全byte比較を維持する。"""
+    import subprocess
+
+    path = "contracts/authz/product/ddl-elements.json"
+    revisions = (
+        "40a01434dc19bfe9dcfc51e9a66064e48eb7b4a9",
+        "fae7fd6ee8f3254604132bb20a714c133c5e42d3",
+    )
+    before, after = (
+        json.loads(subprocess.check_output(["git", "show", f"{rev}:{path}"], cwd=ROOT))
+        for rev in revisions
+    )
+    assert subprocess.check_output(
+        ["git", "show", f"{revisions[1]}:{path}"], cwd=ROOT
+    ) == (ROOT / path).read_bytes()
+    section_sizes = {
+        "roles": 0,
+        "databases": 0,
+        "schemas": 1,
+        "extensions": 0,
+        "functions": 5,
+        "tables": 3,
+        "predicates": 0,
+        "policies": 10,
+        "acl_expectations": 0,
+        "column_acl_expectations": 70,
+    }
+    added: set[tuple[str, str]] = set()
+    for section in PRODUCT_SPEC.element_sections:
+        old = {row[section.id_field]: row for row in before[section.section_name]}
+        new = {row[section.id_field]: row for row in after[section.section_name]}
+        assert len(old) == len(before[section.section_name])
+        assert len(new) == len(after[section.section_name])
+        assert old.keys() <= new.keys()
+        assert all(new[key] == value for key, value in old.items())
+        fresh = new.keys() - old.keys()
+        assert len(fresh) == section_sizes[section.section_name]
+        added.update((section.element_type, key) for key in fresh)
+    assert len(added) == 89 and len(rows) == 794
+    added_ids = {identifier for _, identifier in added}
+    assert len(added_ids) == len(added)
+    observed: set[str] = set()
+    projected = []
+    for row in rows:
+        markers = re.findall(r"(?m)^-- ELEMENT-ID: ([^\n]+)", row.sql)
+        assert len(markers) == 1
+        key = markers[0]
+        assert key not in observed
+        observed.add(key)
+        if key not in added_ids:
+            projected.append(row)
+    assert added_ids <= observed and len(projected) == 705
+    return tuple(projected)
+
+
 def _project_batted_source_extension(rows):
     """実17追加と2文だけを全値照合し、旧署名検査用の原典へ戻す。"""
     from dataclasses import replace
@@ -730,7 +786,7 @@ def test_reapply_keeps_all_other_generated_statements_exact():
     import hashlib
 
     _, rows = prov._build_operation_statements(prov.ProductOperation.APPLY)
-    rows = _project_batted_source_extension(rows)
+    rows = _project_batted_source_extension(_project_stats_source_extension(rows))
     wrappers = [r for r in rows if r.sql.startswith("DO $first_ball_reapply$")]
     terminal_ids = (
         _TERMINAL_FUNCTION_IDS
