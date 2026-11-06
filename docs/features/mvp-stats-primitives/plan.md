@@ -530,3 +530,6 @@ step4の既検査追随へ `tests/domain/test_vocabulary_schema.py`、`contracts
 ### trigger1のMVP限定委任再確認（2026-11-07、PO委任Codex /root起案）
 
 旧`review-trigger-evidence.json`のtrigger1本人記録は全値保持する。今回のPR197についてのみ、別の`delegatedReconfirmation`を追加できる最小手続きを実装する。対象exact3は `backend/src/pitchlog/domaincheck/trigger_evaluation.py`、`backend/domain/review-trigger-evidence.json`、`tests/domain/test_review_triggers_complete.py`、非作者結果の新1 `docs/features/mvp-stats-primitives/trigger1-delegated-review.json`。元trigger1記録とpolicyを既独立固定2faのGit原本へ全byte束縛し、対象PR/branch/委任元・判定者・日付・原本からの証拠差・現source版/byte・非作者レビューの実固定結果を要求する。他trigger/PO本人欄の上書き・未知key・欠証拠/版不一致/未解消P0/P1を拒否する。旧記録のdigestを現値へ書き換えて本人確認済みと偽らない。候補sourceを非作者へ渡し、反映/正式派生/最終公開HEAD証拠は別に確認する。MVP限定の既委任を表現するための追加であり、全般の人間承認統制を改めない。
+
+
+trigger1反映1（2026-11-07、PO委任Codex /root判断）: 非作者REPORT `7de9cc58358fabae79a70dccb3c1373c2b83d25db1c31f16fa00020aa89a9133` はP0/P1=0、現policy全byte比較で将来target追記まで失効するP2を指摘。固定2fa原本/authority hashは全byte維持し、現policyは非targets全値＋既targets順序/型保持、未知fieldなし・一意PR/branchの正準targetを末尾へ追加する場合だけ許す。enabled/expiry/source/委任範囲変更・既target変更/削除/入替え・重複JSONは拒否する。これはPR197/trigger1/source3fileの適用範囲を増やさず、無関係な新PRの登録で同じ意味承認を再取得させないための最小是正。反映後の非作者差分確認前に実委任recordを作らない。
