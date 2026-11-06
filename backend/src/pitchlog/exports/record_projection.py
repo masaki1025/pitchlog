@@ -101,6 +101,97 @@ def _starting_entry(identity: RecordedPlayIdentity, identifier: UUID) -> dict[st
     return matches[0]
 
 
+def _recorded_context(
+    identity: RecordedPlayIdentity,
+) -> tuple[dict[str, Any] | None, list[dict[str, Any]] | None]:
+    """v3直系と非play真正CPの保存時文脈を同じ入口で読む。"""
+    try:
+        source = identity.payload["calculation"]["request"].get("source")
+        if type(source) is not dict:
+            return None, None
+        if source.get("formatVersion") == "nonplay-prefix-source-v1":
+            content = source["checkpoint"]["content"]
+            scope = content["scope"]
+            if (
+                scope["tenantId"] != str(identity.source.tenant_id)
+                or scope["gameId"] != str(identity.source.game_id)
+            ):
+                raise RecordedExportProjectionUnavailable
+            restored = content["restored"]
+            lineup, runners = restored["lineup"], restored["runners"]
+        else:
+            lineup, runners = source.get("lineup"), source.get("runners")
+        if lineup is None:
+            return None, None
+        if type(lineup) is not dict or type(runners) is not list:
+            raise RecordedExportProjectionUnavailable
+        return lineup, runners
+    except (KeyError, TypeError):
+        raise RecordedExportProjectionUnavailable from None
+
+
+def _recorded_entry(
+    identity: RecordedPlayIdentity,
+    identifier: UUID,
+    substitutes: dict[UUID, dict[str, Any]],
+) -> dict[str, Any]:
+    """開始名簿と受理交代の記録時snapshotを混同しない。"""
+    if identifier not in substitutes:
+        return _starting_entry(identity, identifier)
+    snapshot = substitutes[identifier]
+    player = _player(identity, identifier)
+    if (
+        type(snapshot) is not dict
+        or type(snapshot.get("event_id")) is not UUID
+        or type(snapshot.get("d2")) is not int
+        or snapshot["d2"] >= identity.source.d2
+        or snapshot.get("name") != player.get("name")
+        or snapshot.get("uniform_number_snapshot") != player.get("uniform_number")
+        or snapshot.get("side") not in ("away", "home")
+    ):
+        raise RecordedExportProjectionUnavailable
+    current, runners = _recorded_context(identity)
+    if current is None or runners is None:
+        raise RecordedExportProjectionUnavailable
+    side = snapshot["side"]
+    lineup = current.get(side)
+    if type(lineup) is not dict or lineup.get("teamId") != str(
+        identity.game[f"{side}_team_record_id"]
+    ):
+        raise RecordedExportProjectionUnavailable
+    active = set(lineup.get("battingOrder", {}).values()) | {
+        lineup.get("pitcherId"),
+        lineup.get("catcherId"),
+    }
+    active.update(row.get("runnerId") for row in runners if type(row) is dict)
+    if str(identifier) not in active:
+        raise RecordedExportProjectionUnavailable
+    operation = snapshot.get("operation")
+    if type(operation) is not dict or operation.get("side") != side:
+        raise RecordedExportProjectionUnavailable
+    kind = snapshot.get("kind")
+    role: dict[str, Any] | None = None
+    if kind == "pitcher":
+        role = {"kind": "fielding", "position": 1}
+    elif kind == "defense":
+        changes = operation.get("changes")
+        matches = (
+            [row for row in changes if row.get("incomingId") == str(identifier)]
+            if type(changes) is list
+            else []
+        )
+        if len(matches) != 1 or matches[0].get("position") not in tuple("123456789"):
+            raise RecordedExportProjectionUnavailable
+        role = {"kind": "fielding", "position": int(matches[0]["position"])}
+    elif kind not in ("pinch-hitter", "pinch-runner"):
+        raise RecordedExportProjectionUnavailable
+    return {
+        "player_id": str(identifier),
+        "uniform_number_snapshot": snapshot["uniform_number_snapshot"],
+        "fielding_position": role,
+    }
+
+
 def _saved_fielding_role(role: Any) -> dict[str, str]:
     """開始名簿の保存整数roleをD-1生成targetの正準文字列ABIへ写す。"""
     if type(role) is not dict:
@@ -398,7 +489,9 @@ def _input_origin(identity: RecordedPlayIdentity) -> str:
         raise RecordedExportProjectionUnavailable from None
 
 
-def _runner_columns(identity: RecordedPlayIdentity) -> dict[str, str | None]:
+def _runner_columns(
+    identity: RecordedPlayIdentity, substitutes: dict[UUID, dict[str, Any]]
+) -> dict[str, str | None]:
     """同TXのPlayRunnerと保存打順対応から走者欄を埋める。"""
     rows = identity.runners
     if type(rows) is not tuple or len(rows) > 3:
@@ -420,8 +513,7 @@ def _runner_columns(identity: RecordedPlayIdentity) -> dict[str, str | None]:
             "stateFields"
         ]
         side = {"top": "away", "bottom": "home"}[before["state.half"]]
-        source = identity.payload["calculation"]["request"].get("source")
-        current = source.get("lineup") if type(source) is dict else None
+        current, _ = _recorded_context(identity)
         if current is not None:
             order_map = current[side]["battingOrder"]
             if type(order_map) is not dict:
@@ -482,18 +574,24 @@ def _runner_columns(identity: RecordedPlayIdentity) -> dict[str, str | None]:
             result[_HEADER[36 + base - 1]] = row["status"]
             result[_HEADER[65 + offset]] = _text(player["name"])
             result[_HEADER[66 + offset]] = _text(
-                _starting_entry(identity, runner_id)["uniform_number_snapshot"]
+                _recorded_entry(identity, runner_id, substitutes)[
+                    "uniform_number_snapshot"
+                ]
             )
         return result
     except (KeyError, TypeError, ValueError):
         raise RecordedExportProjectionUnavailable from None
 
 
-def project_recorded_direct(identity: RecordedPlayIdentity) -> dict[str, str | None]:
+def project_recorded_direct(
+    identity: RecordedPlayIdentity,
+    substitutes: dict[UUID, dict[str, Any]] | None = None,
+) -> dict[str, str | None]:
     """保存値・記録時表示参照・B-7生成値の確定列だけを返す。
 
     Args:
         identity: 真正writerが同TXで捕捉したゲーム/プレイ/表示原本。
+        substitutes: 同TXで交代eventとreceiptを照合した途中出場者snapshot。
 
     Returns:
         直接供給済みの列だけ。残列は後段producerが埋める。
@@ -504,6 +602,10 @@ def project_recorded_direct(identity: RecordedPlayIdentity) -> dict[str, str | N
     if type(identity) is not RecordedPlayIdentity:
         raise RecordedExportProjectionUnavailable
     game, play = identity.game, identity.play
+    if substitutes is None:
+        substitutes = {}
+    if type(substitutes) is not dict:
+        raise RecordedExportProjectionUnavailable
     if (
         game.get("tenant_id") != identity.source.tenant_id
         or game.get("id") != identity.source.game_id
@@ -549,7 +651,7 @@ def project_recorded_direct(identity: RecordedPlayIdentity) -> dict[str, str | N
     result.update(_batted_coordinates(identity))
     result[_HEADER[56]] = _accepted_pitch_speed(identity)
     result[_HEADER[72]] = _input_origin(identity)
-    result.update(_runner_columns(identity))
+    result.update(_runner_columns(identity, substitutes))
     result.update(_starting_lineup_columns(identity))
     # 列番号は唯一の物理mapper metadataから取る。人手の列→fieldコピーを持たない。
     pairs = [
@@ -605,10 +707,13 @@ def project_recorded_direct(identity: RecordedPlayIdentity) -> dict[str, str | N
         raise RecordedExportProjectionUnavailable
     result[_HEADER[40]] = "投球"
     result[_HEADER[63]] = _text(batter["name"])
-    batter_entry = _starting_entry(identity, play["batter_id"])
-    pitcher_entry = _starting_entry(identity, play["pitcher_id"])
-    result[_HEADER[59]] = fielding_position_label(
-        _saved_fielding_role(batter_entry["fielding_position"])
+    batter_entry = _recorded_entry(identity, play["batter_id"], substitutes)
+    pitcher_entry = _recorded_entry(identity, play["pitcher_id"], substitutes)
+    batter_role = batter_entry["fielding_position"]
+    result[_HEADER[59]] = (
+        None
+        if batter_role is None
+        else fielding_position_label(_saved_fielding_role(batter_role))
     )
     result[_HEADER[64]] = _text(batter_entry["uniform_number_snapshot"])
     result[_HEADER[71]] = _text(pitcher_entry["uniform_number_snapshot"])

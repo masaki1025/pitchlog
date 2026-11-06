@@ -28,6 +28,8 @@ PITCHER = UUID(int=6)
 CATCHER = UUID(int=7)
 AWAY = UUID(int=8)
 HOME = UUID(int=9)
+RELIEF = UUID(int=211)
+PINCH = UUID(int=212)
 
 
 def _identity():
@@ -275,6 +277,107 @@ def test_foreign_or_missing_historical_reference_is_rejected():
         project_recorded_direct(identity)
 
 
+def _substituted_identity(identifier: UUID, kind: str):
+    """開始九人外を受理交代後の保存sourceへだけ追加する。"""
+    identity = _identity()
+    identity.play["play_number"] = 3
+    side = "home" if kind == "pitcher" else "away"
+    if kind == "pitcher":
+        identity.play["pitcher_id"] = identifier
+    else:
+        identity.play["batter_id"] = identifier
+    identity.payload["calculation"]["request"]["source"]["lineup"] = {
+        "away": {
+            "teamId": str(AWAY),
+            "battingOrder": {"1": str(identifier if side == "away" else BATTER)},
+            "pitcherId": str(UUID(int=102)),
+            "catcherId": str(UUID(int=103)),
+        },
+        "home": {
+            "teamId": str(HOME),
+            "battingOrder": {"1": str(PITCHER)},
+            "pitcherId": str(identifier if side == "home" else PITCHER),
+            "catcherId": str(CATCHER),
+        },
+    }
+    identity.payload["calculation"]["request"]["source"]["runners"] = []
+    players = identity.players + (
+        {
+            "id": identifier,
+            "name": "途中出場者",
+            "uniform_number": "11",
+            "team_record_id": HOME if side == "home" else AWAY,
+            "roster_status_key": "active",
+            "bats": "右",
+            "throws": "左",
+        },
+    )
+    snapshot = {
+        "event_id": UUID(int=210),
+        "d2": 3,
+        "name": "途中出場者",
+        "uniform_number_snapshot": "11",
+        "kind": kind,
+        "side": side,
+        "operation": {"kind": kind, "side": side, "incomingId": str(identifier)},
+    }
+    changed = replace(identity, source=replace(identity.source, d2=4), players=players)
+    return changed, snapshot
+
+
+def test_relief_pitcher_uses_verified_record_time_number_not_starting_lineup():
+    """初期九人外の救援投手は交代印で検証した背番号を保存する。"""
+    identity, snapshot = _substituted_identity(RELIEF, "pitcher")
+    values = project_recorded_direct(identity, {RELIEF: snapshot})
+    assert values["投手氏名"] == "途中出場者"
+    assert values["投手番号"] == "11"
+    assert values["top_names"] is None
+    with pytest.raises(RecordedExportProjectionUnavailable):
+        project_recorded_direct(identity)
+    snapshot["uniform_number_snapshot"] = "99"
+    with pytest.raises(RecordedExportProjectionUnavailable):
+        project_recorded_direct(identity, {RELIEF: snapshot})
+
+
+def test_pinch_hitter_keeps_known_absence_of_fielding_role_and_new_number():
+    """代打の守備位置を初期名簿から推定せず、番号は受理交代で固定する。"""
+    identity, snapshot = _substituted_identity(PINCH, "pinch-hitter")
+    values = project_recorded_direct(identity, {PINCH: snapshot})
+    assert values["打者氏名"] == "途中出場者"
+    assert values["打者番号"] == "11"
+    assert values["打者位置"] is None
+    identity.payload["calculation"]["request"]["source"]["lineup"]["away"][
+        "battingOrder"
+    ]["1"] = str(BATTER)
+    with pytest.raises(RecordedExportProjectionUnavailable):
+        project_recorded_direct(identity, {PINCH: snapshot})
+
+
+def test_nonplay_saved_checkpoint_supplies_relief_lineup_without_start_guess():
+    """交代後次球の真正CP.restoredだけから現役投手を照合する。"""
+    identity, snapshot = _substituted_identity(RELIEF, "pitcher")
+    lineup = identity.payload["calculation"]["request"]["source"]["lineup"]
+    identity.payload["calculation"]["formatVersion"] = (
+        "nonplay-prefix-calculation-v1"
+    )
+    identity.payload["calculation"]["request"]["source"] = {
+        "formatVersion": "nonplay-prefix-source-v1",
+        "checkpoint": {
+            "content": {
+                "scope": {"tenantId": str(TENANT), "gameId": str(GAME)},
+                "restored": {"lineup": lineup, "runners": []},
+            }
+        },
+        "activeStack": [],
+    }
+    assert project_recorded_direct(identity, {RELIEF: snapshot})["投手番号"] == "11"
+    identity.payload["calculation"]["request"]["source"]["checkpoint"][
+        "content"
+    ]["scope"]["gameId"] = str(UUID(int=99))
+    with pytest.raises(RecordedExportProjectionUnavailable):
+        project_recorded_direct(identity, {RELIEF: snapshot})
+
+
 def test_walkoff_finished_play_is_not_rejected_as_inning_guard():
     """裏攻撃中の終了は半回完了フラグを必須としない。"""
     identity = _identity()
@@ -327,6 +430,7 @@ def test_runner_columns_use_qualified_play_runner_and_historical_name():
     identity.payload["calculation"]["request"]["source"]["lineup"] = {
         "away": {"battingOrder": {"2": str(runner_id)}}
     }
+    identity.payload["calculation"]["request"]["source"]["runners"] = []
     identity = replace(
         identity,
         runners=(

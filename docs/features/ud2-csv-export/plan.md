@@ -82,6 +82,12 @@ step1はsupply-matrixの欠測を同計画で実装する。step1内の独立準
 
 PO委任によるCodex主担当/root判断で、固定基線 `2706138c51f71bbe5136e05661bcca0255134b50` から専用 `feature/mvp-play-csv-screen-acceptance` を作り、`backend/tests/db/test_play_export_screen_e2e.py`、`frontend/src/screens/GameScreenPlayCsv.e2e.ts`・専用Playwright configと本計画/progressだけを編集する。既画面の「毎球CSVへ」導線から、実Vite/Chromium・HTTPS loopback・真正login/端末登録/開始/v3通常2球/認可付き実API/同TX候補producerを通し、ダウンロードしたZIP bytesの長さ・SHA256・88列・全11CSV・2playを同owned PGの保存原本へ照合する。候補DDL・専用関数は使い捨てowned0045に試験中だけ直接設置し、正式0047/registry受理とは分ける。資格・ACK・PlayRow/CSV完成値をfixture供給しない。ソース集合とSQL/driverを実行前後全byte照合し、Docker/PG/browser全寿命は共通flockで直列化する。実機と運用TLS、P3等の全試合受入はこの画面検査に含まない。
 
+### 交代後snapshotと非投球の限定修復（2026-11-07）
+
+PO委任rootの既MVP修復指示により、`324a7963` から専用 `fix/mvp-play-csv-substitution-snapshots` を作る。初期名簿のsnapshotは初期9人の列にだけ残し、現役選手の氏名・背番号は真正writer同TXの保存native source、受理済み交代eventと0044 receipt、およびその時点のplayer行を照合して88列へ固定する。現在名簿で過去球を再構成しない。候補SQLとproducer/直写し投影、対象純試験、owned HTTPを一単位にし、正式catalog/0047はrootが別途受理する。非投球は既製品の実保存T1/PlayRow供給がある操作だけ同じ閉経路で確認し、未供給を仮PlayRowやNULLへ変換しない。
+
+同じ独立270レビュー反映として、監査eventの業務payloadは有限V5の版付きJSONへ写し、D4/既知資格keyを明示redaction、未知秘密様keyは出力全体を閉拒否する。`source_json`・`state_diff_json`等の別JSON出力も同じ秘密key検査を通す。内部generation・監査version・業務結果は黙って削除しない。既存行の破損409と、対象試合からsnapshot行が一件欠けた409をowned実HTTPで別々に照合する。
+
 ## 6. 完了と検証
 
 全5ステップの製品経路が成立し、88列/全サイドカーの供給不足0、同一版・全記録の取り出し・数式無害化・有限DB抽出・認可が実測できたとき本feature完了。helper/DTO/スタブ/fixtureだけの成功、CSVのみで成績完成、未実機を実施済みとはしない。

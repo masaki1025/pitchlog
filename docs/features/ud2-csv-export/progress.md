@@ -1,5 +1,9 @@
 # 毎球CSV ステップ2〜5 実装候補・引継ぎ
 
+## 2026-11-07 交代後snapshot修復候補（作者owned実測）
+
+専用枝 `fix/mvp-play-csv-substitution-snapshots` は画面受入 `324a7963` を基線とし、開始時名簿参照を現役選手へ無条件に流用していた失敗を是正中。受理済み交代eventと0044同TX receipt、記録時の保存native sourceとplayer氏名/背番号を同writer内で照合する候補を追加した。交代後次球は非play sourceの `checkpoint.content.restored` を使う。固定試験HEAD `41caa778f457008d01a9dcf7b41f19ae3a4d8d22` のowned PG `substitution-r3` は1 pass/110.74秒。真正交代→次球→旧2 CSV行不変・新3行目の交代投手氏名/番号11→別App再読込まで通過し、前後source選定SHA同一・所有PG回収済み。現 `participation_intervals` は交代writerから更新されないため、そこへ実在しない証拠を仮定しない。非投球PlayRowの実製品writer入口と唯一T5 credit 0に整合するD-1 score SQLは未供給、正式0047/registry/7.7受理も未成立。独立270レビューのD4漏出P1へ対する監査JSON redaction、snapshot行なし409の別対向を後発候補として実装・実測中。
+
 ## 2026-11-07 画面受入候補（基線2706138c、作者実測）
 
 旧節は当時の候補・fixture経路の履歴として保持する。新基線 `2706138c51f71bbe5136e05661bcca0255134b50` は現行v3 2球の同TX88列保存と全11 CSVの実HTTP ZIPまで所有PGで通過済み。専用枝 `feature/mvp-play-csv-screen-acceptance` の固定試験HEAD `d6ff4727c10eff25032762271fef7b66a8e89e93` で、実画面の「毎球CSVへ」からChromiumダウンロードした59,346 bytesをHTTP Content-Length/SHA256と突合し、同じowned PGの2球原本・88列・11 CSV・sidecar・各ファイルhash/行数へ照合した。BE試験1 pass/95.01秒、Playwright 1 pass/40.0秒。code/SQL/driver等920追跡pathの前後SHAは一致し、所有PGは回収済み。直前のr2は初球POST/GET待ち30秒で失敗し、同じ製品sourceのr3で通過したため、待ち超過履歴を消さない。試験用固定ACK/完成88列投入は行わない。候補DDL直接設置と正式0047/7.7、実機/運用TLS、P3等の全試合受入は別証拠。

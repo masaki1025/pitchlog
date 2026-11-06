@@ -314,3 +314,31 @@ def test_actual_v3_two_play_snapshot_and_zip_from_new_game(vertical_database):
         "code": "EXPORT_SOURCE_UNAVAILABLE",
         "export_b64": None,
     }
+
+    # 行内容の破損と別に、対象試合のsnapshot行が一件ない条件を実HTTPへ残す。
+    with psycopg.connect(db.authority.database.business_admin) as admin:
+        restored = admin.execute(
+            "UPDATE public.play_export_snapshots SET plays_csv_json=%s::jsonb "
+            "WHERE tenant_id=%s AND game_id=%s AND source_event_id=%s "
+            "RETURNING play_row_id",
+            (
+                json.dumps(snapshots[-1][1], ensure_ascii=False),
+                db.tenant_id,
+                game,
+                snapshots[-1][0],
+            ),
+        ).fetchall()
+        assert len(restored) == 1
+        moved = admin.execute(
+            "UPDATE public.play_export_snapshots SET game_id=%s "
+            "WHERE tenant_id=%s AND game_id=%s AND source_event_id=%s "
+            "RETURNING play_row_id",
+            (db.game_id, db.tenant_id, game, snapshots[0][0]),
+        ).fetchall()
+        assert len(moved) == 1
+    missing_row = _read_saved_export(db, case)
+    assert missing_row == {
+        "status": 409,
+        "code": "EXPORT_SOURCE_UNAVAILABLE",
+        "export_b64": None,
+    }

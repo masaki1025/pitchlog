@@ -8,12 +8,14 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from collections.abc import Iterable, Iterator
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Any, Mapping, cast
 from uuid import UUID
 
+from pitchlog.db.sync_protocol.event_kinds import EVENT_KIND_LITERALS
 from pitchlog.exports.archive import ExportSnapshot
 from pitchlog.exports.csv import CsvCell
 from pitchlog.exports.play_rows import (
@@ -25,9 +27,22 @@ from pitchlog.repositories.play_export import PlayExportBundle
 from pitchlog.repositories.play_export_spool import DiskRows
 
 _JST = timezone(timedelta(hours=9), "JST")
-_SECRET_KEYS = frozenset(
-    {"token", "credential", "nonce", "proof", "d4", "password", "secret"}
+_REDACTED_KEY_NAMES = frozenset(
+    {
+        "token",
+        "credential",
+        "nonce",
+        "proof",
+        "d4",
+        "wired4",
+        "password",
+        "secret",
+        "recordingrightproof",
+    }
 )
+_SECRET_FRAGMENTS = ("token", "credential", "nonce", "proof", "password", "secret")
+_REDACTION = {"redaction": "pitchlog-csv-redacted-v1"}
+_BUSINESS_FORMAT = "pitchlog-event-business-redacted-v1"
 _SNAPSHOT_COLUMNS = tuple(CSV_HEADERS["plays.csv"])
 
 
@@ -44,15 +59,59 @@ def _json_default(value: object) -> str:
     raise TypeError("JSONへ写せない保存値です")
 
 
+def _safe_json(value: object, *, depth: int = 0) -> object:
+    """全JSON出力で資格/D4を可視redactionし、未知秘密様keyを拒否する。"""
+    if depth > 40:
+        raise PlayExportSupplyError("監査JSONの深さが上限を超えました")
+    if isinstance(value, Mapping):
+        result: dict[str, object] = {}
+        for key, item in value.items():
+            if type(key) is not str:
+                raise PlayExportSupplyError("監査JSONのkeyが不正です")
+            compact = re.sub(r"[^a-z0-9]", "", key.casefold())
+            if compact in _REDACTED_KEY_NAMES:
+                result[key] = _REDACTION
+            elif (
+                any(fragment in compact for fragment in _SECRET_FRAGMENTS)
+                or compact.endswith("d4")
+            ):
+                raise PlayExportSupplyError("未知の資格様keyを出力できません")
+            else:
+                result[key] = _safe_json(item, depth=depth + 1)
+        return result
+    if isinstance(value, (list, tuple)):
+        return [_safe_json(item, depth=depth + 1) for item in value]
+    return value
+
+
 def _canonical_json(value: object) -> str:
     """保存済みJSONをkey順だけ正準化し、値を補完しない。"""
     return json.dumps(
-        value,
+        _safe_json(value),
         ensure_ascii=False,
         sort_keys=True,
         separators=(",", ":"),
         allow_nan=False,
         default=_json_default,
+    )
+
+
+def _business_event_json(event: Mapping[str, Any]) -> str:
+    """閉じたV5の業務payloadだけを版付きredaction形式へ写す。"""
+    kind = event.get("event_kind")
+    payload = event.get("payload")
+    if (
+        type(kind) is not str
+        or kind not in EVENT_KIND_LITERALS
+        or type(payload) is not dict
+    ):
+        raise PlayExportSupplyError("監査eventの閉じた種別/業務原本が不正です")
+    return _canonical_json(
+        {
+            "redactionFormatVersion": _BUSINESS_FORMAT,
+            "eventKind": kind,
+            "payload": payload,
+        }
     )
 
 
@@ -265,7 +324,7 @@ def _events_rows(bundle: PlayExportBundle, snapshot_id: str) -> Iterator[SavedCs
                 "is_tombstone": event["is_tombstone"],
                 "replaced_at": event["replaced_at"],
                 "retired_at": event["retired_at"],
-                "business_payload_json": _canonical_json(event["payload"]),
+                "business_payload_json": _business_event_json(event),
                 "state_diff_json": _canonical_json(event["state_diff"]),
             },
         )
