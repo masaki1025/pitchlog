@@ -28,18 +28,60 @@ from pitchlog.sync.terminal_pitch_tokens import (
 from pitchlog.sync.tokens import OperationEventReadToken
 
 
-def runner_physical_rows(before_runners, *, t1, tenant_id, play_id):
-    """before各塁の実T1進塁結果を全10列へ写す。after占有は別保持する。"""
+def runner_physical_rows(before_runners, *, t1, t1_input, tenant_id, play_id):
+    """起点塁と実T1進塁先・V7明示観測を物理10列へ写す。"""
+    from pitchlog.domainrt.lineup_play_prefix_continuation import (
+        AppliedRunnerAdvanceOverrides,
+        BattedHitT1Input,
+    )
+
     slots = {"1": "first", "2": "second", "3": "third"}
+    labels = {
+        "1": {"2": "二進", "3": "三進", "4": "本進"},
+        "2": {"3": "三進", "4": "本進"},
+        "3": {"4": "本進"},
+    }
+    overrides = {}
+    if type(t1_input) is BattedHitT1Input:
+        observed = t1_input.runner_advance_overrides
+        if type(observed) is AppliedRunnerAdvanceOverrides:
+            overrides = {
+                item.runner_base: item.destination for item in observed.overrides
+            }
+            if len(overrides) != len(observed.overrides):
+                raise OrdinaryPitchExecutionError
+        elif observed != "not-applied":
+            raise OrdinaryPitchExecutionError
+    if set(overrides) - {runner.base for runner in before_runners}:
+        raise OrdinaryPitchExecutionError
+    if any(
+        getattr(target, "runner", None) is not None for target in t1.out_effect.targets
+    ):
+        # SO-05のout対象だけでは盗塁死等の観測原因を固定できない。
+        raise OrdinaryPitchExecutionError
+    results = {}
     for runner in before_runners:
         effect = getattr(t1.runner_default_advance, slots[runner.base])
         if effect.modality == "not-applicable":
             raise OrdinaryPitchExecutionError
-        if effect.modality == "hold" and effect.destination is not None:
-            raise OrdinaryPitchExecutionError
-        if effect.modality in {"optional", "forced"} and effect.destination not in {
-            "1", "2", "3", "4"
-        }:
+        if effect.modality == "hold":
+            if effect.destination is not None or runner.base in overrides:
+                raise OrdinaryPitchExecutionError
+            results[runner.base] = ("継続", "auto")
+        elif effect.modality in {"optional", "forced"}:
+            destination = effect.destination
+            if destination not in labels[runner.base]:
+                raise OrdinaryPitchExecutionError
+            if (
+                type(t1_input) is BattedHitT1Input
+                and overrides.get(runner.base) != destination
+            ):
+                raise OrdinaryPitchExecutionError
+            results[runner.base] = (
+                labels[runner.base][destination],
+                "manual" if runner.base in overrides else "auto",
+            )
+        else:
             raise OrdinaryPitchExecutionError
     return [
         {
@@ -48,8 +90,8 @@ def runner_physical_rows(before_runners, *, t1, tenant_id, play_id):
             "play_id": str(play_id),
             "base": int(runner.base),
             "runner_id": runner.runner_id,
-            "status": runner.status,
-            "status_source": runner.status_source,
+            "status": results[runner.base][0],
+            "status_source": results[runner.base][1],
             "responsible_pitcher_id": runner.responsible_pitcher_id,
             "import_batch_id": None,
             "retired_at": None,
@@ -102,6 +144,7 @@ def build_play_prefix_preparation(state, record, tenant_id):
     runners = runner_physical_rows(
         request.source.runners,
         t1=response.t1,
+        t1_input=request.t1,
         tenant_id=tenant_id,
         play_id=UUID(identity.play_id),
     )
@@ -359,6 +402,7 @@ def build_lineup_prefix_preparation(state, record, tenant_id):
     runners = runner_physical_rows(
         request.source.runners,
         t1=response.t1,
+        t1_input=request.t1,
         tenant_id=tenant_id,
         play_id=UUID(identity.play_id),
     )
@@ -467,6 +511,7 @@ def build_nonplay_normal_preparation(state, record, tenant_id):
     runners = runner_physical_rows(
         before.runners,
         t1=r.t1,
+        t1_input=q.t1,
         tenant_id=tenant_id,
         play_id=UUID(q.play_identity.play_id),
     )

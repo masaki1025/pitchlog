@@ -109,11 +109,49 @@ END IF;
  source_row.payload->'calculation'->'request'->'source'->'runners') m
  WHERE r->>'base'=m->>'base' AND r->>'runner_id'=m->>'runnerId'
  AND r->>'responsible_pitcher_id'=m->>'responsiblePitcherId'
- AND r->>'status'='継続' AND r->>'status_source'='auto'
+ AND r->>'status'=(CASE
+ WHEN source_row.payload->'calculation'->'response'->'value'->'t1'
+ ->'runnerDefaultAdvance'->(CASE m->>'base' WHEN '1' THEN 'first'
+ WHEN '2' THEN 'second' WHEN '3' THEN 'third' END)->>'modality'='hold'
+ THEN '継続'
+ WHEN m->>'base'='1' AND source_row.payload->'calculation'->'response'
+ ->'value'->'t1'->'runnerDefaultAdvance'->'first'->>'destination'='2' THEN '二進'
+ WHEN m->>'base' IN ('1','2') AND source_row.payload->'calculation'
+ ->'response'->'value'->'t1'->'runnerDefaultAdvance'
+ ->(CASE m->>'base' WHEN '1' THEN 'first' ELSE 'second' END)
+ ->>'destination'='3' THEN '三進'
+ WHEN source_row.payload->'calculation'->'response'->'value'->'t1'
+ ->'runnerDefaultAdvance'->(CASE m->>'base' WHEN '1' THEN 'first'
+ WHEN '2' THEN 'second' WHEN '3' THEN 'third' END)->>'destination'='4'
+ THEN '本進' ELSE NULL END)
+ AND r->>'status_source'=(CASE WHEN EXISTS(SELECT 1 FROM
+ pg_catalog.jsonb_array_elements(CASE WHEN pg_catalog.jsonb_typeof(
+ source_row.payload->'calculation'->'request'->'t1'
+ ->'runnerAdvanceOverrides'->'overrides')='array' THEN
+ source_row.payload->'calculation'->'request'->'t1'
+ ->'runnerAdvanceOverrides'->'overrides' ELSE '[]'::jsonb END) o
+ WHERE o->>'runnerBase'=m->>'base' AND o->>'destination'=
+ source_row.payload->'calculation'->'response'->'value'->'t1'
+ ->'runnerDefaultAdvance'->(CASE m->>'base' WHEN '1' THEN 'first'
+ WHEN '2' THEN 'second' WHEN '3' THEN 'third' END)->>'destination')
+ THEN 'manual' ELSE 'auto' END)
+ AND NOT EXISTS(SELECT 1 FROM pg_catalog.jsonb_array_elements(CASE WHEN
+ pg_catalog.jsonb_typeof(source_row.payload->'calculation'->'request'
+ ->'t1'->'runnerAdvanceOverrides'->'overrides')='array' THEN
+ source_row.payload->'calculation'->'request'->'t1'
+ ->'runnerAdvanceOverrides'->'overrides' ELSE '[]'::jsonb END) o
+ WHERE o->>'runnerBase'=m->>'base' AND o->>'destination' IS DISTINCT FROM
+ source_row.payload->'calculation'->'response'->'value'->'t1'
+ ->'runnerDefaultAdvance'->(CASE m->>'base' WHEN '1' THEN 'first'
+ WHEN '2' THEN 'second' WHEN '3' THEN 'third' END)->>'destination')
  AND source_row.payload->'calculation'->'response'->'value'->'t1'
  ->'runnerDefaultAdvance'->(CASE m->>'base' WHEN '1' THEN 'first'
  WHEN '2' THEN 'second' WHEN '3' THEN 'third' END)->>'modality'
  IN ('hold','optional','forced')))
+ OR EXISTS(SELECT 1 FROM pg_catalog.jsonb_array_elements(
+ source_row.payload->'calculation'->'response'->'value'->'t1'
+ ->'outEffect'->'targets') target WHERE pg_catalog.jsonb_typeof(target)='object'
+ AND target ? 'runner')
  THEN RAISE EXCEPTION 'play prefix source or runners rejected'
  USING ERRCODE='42501'; END IF;
 """

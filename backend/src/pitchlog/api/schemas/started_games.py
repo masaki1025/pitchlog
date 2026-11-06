@@ -329,9 +329,32 @@ class StartedPlayRunner(_FrozenSchema):
     play_id: EntityId
     base: Annotated[int, Field(strict=True, ge=1, le=3)]
     runner_id: EntityId
-    status: Literal["継続"]
-    status_source: Literal["auto"]
+    status: Literal[
+        "継続",
+        "二進",
+        "三進",
+        "本進",
+        "封殺",
+        "投手牽制死",
+        "捕手牽制死",
+        "盗塁死",
+        "走塁死",
+    ]
+    status_source: Literal["auto", "manual"]
     responsible_pitcher_id: EntityId
+
+    @model_validator(mode="after")
+    def _base_status(self):
+        """起点塁ごとの既語彙だけを公開する。"""
+        destinations = {
+            1: {"二進", "三進", "本進"},
+            2: {"三進", "本進"},
+            3: {"本進"},
+        }
+        outcomes = {"継続", "封殺", "投手牽制死", "捕手牽制死", "盗塁死", "走塁死"}
+        if self.status not in destinations[self.base] | outcomes:
+            raise ValueError("起点塁と走者状況が不一致")
+        return self
 
 
 class PlayPrefixPageItem(_FrozenSchema):

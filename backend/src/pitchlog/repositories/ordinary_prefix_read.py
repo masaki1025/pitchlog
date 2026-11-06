@@ -695,7 +695,11 @@ def _verify_v2_read_packet(item, tenant, game_id, *, lineup=False):
         play_number=p["play_number"],
     )
     runners = runner_physical_rows(
-        q.source.runners, t1=value.t1, tenant_id=tenant, play_id=UUID(p["id"])
+        q.source.runners,
+        t1=value.t1,
+        t1_input=q.t1,
+        tenant_id=tenant,
+        play_id=UUID(p["id"]),
     )
     if (
         p != expected

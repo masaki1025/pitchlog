@@ -36,3 +36,6 @@ root接合候補反映（2026-11-06 19:46 JST、PO委任Codex/root判断）: act
 
 
 非作者のNFR-018指摘反映（2026-11-06、PO委任Codex/root判断）: ef992の敵対レビューでbackend projection検証内のフォース連鎖再計算とTS内の占有真理値表重複を検出、双方採用。backendは唯一hostの真正出力/再実行完全一致とmodalityの型付き投影検証を保持し、野球意味のforce再導出を削除。TSは既hasRunnerをrunnerOccupancy.tsへ移しstate/battedHitから共有、adapterは閉塁番号のBigInt変換だけとする。数学真理値表を変更しない。artifact/pin/manifestは合成source固定後に公式builderで一括追随し、更新未了の固定版は提供済みとしない。最終非作者反映確認が必要。
+
+
+非作者P1物理statusの反映（2026-11-06、PO委任Codex/root判断）: packet43cdde37e70a4e91fecc7842fa33ae10012821d1035bf2bace769051d8e4e97dの16pathを接合。起点baseと当該playの到達status/auto-manualを区別し、唯一T1の進塁計画から固定語彙へ写す。V7の明示overrideはmanual、規範による自動はauto。SQL・保存全値read・BE DTO・FE validatorを同時追随。作者owned実画面3試合ではhelperとの自己比較に加え、DBの(1,三進,manual)/(1,本進,manual)/一二塁HRの2行を独立literalで照合し1passed155.18秒。root実木75/FE34成功、全publisher body一致。SO05はアウト原因未供給のため物理保存は閉拒否、T1の純数学ケース成功を製品保存へ拡大しない。最終非作者反映確認/同版全ハーネス/正式受理は未了。

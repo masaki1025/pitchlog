@@ -20,12 +20,14 @@ def test_runner_all10_and_d5_stable_ids(case):
     rows = runner_physical_rows(
         calc.request.source.runners,
         t1=calc.response.value.t1,
+        t1_input=calc.request.t1,
         tenant_id=UUID(q.prefix_ref.tenant_id),
         play_id=UUID(q.play_identity.play_id),
     )
     assert rows == runner_physical_rows(
         calc.request.source.runners,
         t1=calc.response.value.t1,
+        t1_input=calc.request.t1,
         tenant_id=UUID(q.prefix_ref.tenant_id),
         play_id=UUID(q.play_identity.play_id),
     )
@@ -40,8 +42,8 @@ def test_runner_all10_and_d5_stable_ids(case):
             "play_id": q.play_identity.play_id,
             "base": int(runner.base),
             "runner_id": runner.runner_id,
-            "status": runner.status,
-            "status_source": runner.status_source,
+            "status": "継続",
+            "status_source": "auto",
             "responsible_pitcher_id": runner.responsible_pitcher_id,
             "import_batch_id": None,
             "retired_at": None,

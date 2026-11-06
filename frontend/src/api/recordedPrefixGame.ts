@@ -14,6 +14,7 @@ import type {
   Participant,
 } from '../../../contracts/state-transition/play_prefix_v2'
 import { isPlayDefinition, exactPlayObject } from './terminalPitchWire'
+import { isPlayRunnerStatus } from './playRunnerStatus'
 
 import {
   isOrdinaryAppendPolicy,
@@ -464,8 +465,7 @@ export function isPlayPrefixGame(v: unknown): v is PlayPrefixGame {
         !uuid(row.responsible_pitcher_id) ||
         ![1, 2, 3].includes(Number(row.base)) ||
         typeof row.base !== 'number' ||
-        row.status !== '継続' ||
-        row.status_source !== 'auto'
+        !isPlayRunnerStatus(row.base, row.status, row.status_source)
       )
         return false
   }

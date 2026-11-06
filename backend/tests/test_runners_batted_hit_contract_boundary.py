@@ -11,6 +11,7 @@ from pitchlog.domainrt.lineup_play_prefix_continuation import (
     T1,
     BattedHitT1Input,
     Runner,
+    T1Input,
 )
 from pitchlog.domainrt.lineup_prefix_source import require_batted_hit_observations
 from pitchlog.sync.ordinary_pitch_execution import OrdinaryPitchExecutionError
@@ -117,6 +118,9 @@ def test_physical_runner_row_keeps_before_base_when_t1_moves():
     rows = runner_physical_rows(
         (Runner.model_validate_json(json.dumps(RUNNER)),),
         t1=t1,
+        t1_input=_t1_input(
+            {"kind": "applied", "overrides": [{"runnerBase": "1", "destination": "3"}]}
+        ),
         tenant_id=tenant,
         play_id=play,
     )
@@ -124,6 +128,20 @@ def test_physical_runner_row_keeps_before_base_when_t1_moves():
     assert rows[0]["base"] == 1
     assert rows[0]["runner_id"] == RUNNER["runnerId"]
     assert rows[0]["responsible_pitcher_id"] == RUNNER["responsiblePitcherId"]
+    assert (rows[0]["status"], rows[0]["status_source"]) == ("三進", "manual")
+    with pytest.raises(OrdinaryPitchExecutionError):
+        runner_physical_rows(
+            (Runner.model_validate_json(json.dumps(RUNNER)),),
+            t1=t1,
+            t1_input=_t1_input(
+                {
+                    "kind": "applied",
+                    "overrides": [{"runnerBase": "1", "destination": "2"}],
+                }
+            ),
+            tenant_id=tenant,
+            play_id=play,
+        )
     raw["runnerDefaultAdvance"]["first"] = {
         "modality": "not-applicable",
         "destination": None,
@@ -132,6 +150,12 @@ def test_physical_runner_row_keeps_before_base_when_t1_moves():
         runner_physical_rows(
             (Runner.model_validate_json(json.dumps(RUNNER)),),
             t1=T1.model_validate_json(json.dumps(raw)),
+            t1_input=_t1_input(
+                {
+                    "kind": "applied",
+                    "overrides": [{"runnerBase": "1", "destination": "3"}],
+                }
+            ),
             tenant_id=tenant,
             play_id=play,
         )
@@ -143,6 +167,20 @@ def test_so05_two_out_wire_is_exact_batter_and_first_runner():
     raw["outEffect"] = {"count": "2", "targets": ["batter", {"runner": "1"}]}
     result = T1.model_validate_json(json.dumps(raw))
     assert result.out_effect.count == "2"
+    input_raw = copy.deepcopy(CASE["request"]["t1"])
+    input_raw["resultId"] = "batting-result.strikeout-double-play"
+    input_raw = {
+        key: input_raw[key]
+        for key in ("eventKind", "resultId", "pitchEventKind", "before")
+    }
+    with pytest.raises(OrdinaryPitchExecutionError):
+        runner_physical_rows(
+            (Runner.model_validate_json(json.dumps(RUNNER)),),
+            t1=result,
+            t1_input=T1Input.model_validate_json(json.dumps(input_raw)),
+            tenant_id=UUID("10000000-0000-0000-0000-000000000001"),
+            play_id=UUID("10000000-0000-0000-0000-000000000002"),
+        )
     for effect in (
         {"count": "2", "targets": ["batter"]},
         {"count": "2", "targets": ["batter", {"runner": "2"}]},
@@ -182,12 +220,53 @@ def test_loaded_forced_reach_keeps_all_three_before_physical_rows():
     tenant = UUID("10000000-0000-0000-0000-000000000001")
     play = UUID("10000000-0000-0000-0000-000000000002")
     rows = runner_physical_rows(
-        runners, t1=t1, tenant_id=tenant, play_id=play
+        runners,
+        t1=t1,
+        t1_input=_t1_input(
+            {
+                "kind": "applied",
+                "overrides": [
+                    {"runnerBase": "1", "destination": "2"},
+                    {"runnerBase": "2", "destination": "3"},
+                    {"runnerBase": "3", "destination": "4"},
+                ],
+            }
+        ),
+        tenant_id=tenant,
+        play_id=play,
     )
     assert len(rows) == 3
     assert [row["base"] for row in rows] == [1, 2, 3]
+    assert [(row["status"], row["status_source"]) for row in rows] == [
+        ("二進", "manual"),
+        ("三進", "manual"),
+        ("本進", "manual"),
+    ]
     assert {row["base"]: row["runner_id"] for row in rows} == {
         1: runners[1].runner_id,
         2: runners[0].runner_id,
         3: runners[2].runner_id,
     }
+
+
+def test_forced_reach_without_manual_override_keeps_auto_origin():
+    """四死球型のT1強制進塁は手動上書きと混同しない。"""
+    raw = copy.deepcopy(CASE["expected"]["value"]["t1"])
+    raw["runnerDefaultAdvance"]["first"] = {
+        "modality": "forced",
+        "destination": "2",
+    }
+    input_raw = copy.deepcopy(CASE["request"]["t1"])
+    input_raw["resultId"] = "batting-result.walk"
+    input_raw = {
+        key: input_raw[key]
+        for key in ("eventKind", "resultId", "pitchEventKind", "before")
+    }
+    row = runner_physical_rows(
+        (Runner.model_validate_json(json.dumps(RUNNER)),),
+        t1=T1.model_validate_json(json.dumps(raw)),
+        t1_input=T1Input.model_validate_json(json.dumps(input_raw)),
+        tenant_id=UUID("10000000-0000-0000-0000-000000000001"),
+        play_id=UUID("10000000-0000-0000-0000-000000000002"),
+    )[0]
+    assert (row["base"], row["status"], row["status_source"]) == (1, "二進", "auto")

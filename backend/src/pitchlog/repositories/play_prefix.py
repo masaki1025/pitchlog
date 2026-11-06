@@ -987,6 +987,7 @@ def _read_native_lineup_head_bound(handle, game, tenant, row, doc):
     expected_runners = runner_physical_rows(
         request.source.runners,
         t1=value.t1,
+        t1_input=request.t1,
         tenant_id=tenant,
         play_id=UUID(request.play_identity.play_id),
     )

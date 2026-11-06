@@ -50,13 +50,19 @@ def test_before_v2_assert_never_consumes_old_stamp():
     assert "PERFORM sync_right_api.consume_ordinary_projection" in sql
 
 
-def test_physical_runner_uses_before_slots_and_actual_hold_not_after_occupancy():
-    """空BB/HBPをphysical1へ誤写像した旧候補を拒否する比較面を固定する。"""
+def test_physical_runner_uses_before_slots_and_observed_result_status():
+    """起点塁、T1進塁先、明示override由来をSQLで結び、旧holdを保つ。"""
     sql = candidate_function_bodies()["prepare_play_prefix_projection"]
     assert "pg_catalog.jsonb_array_length(after_cp->'runners')" not in sql
     assert "request'->'source'->'runners')" in sql
     assert "runnerDefaultAdvance'->(CASE m->>'base'" in sql
-    assert "r->>'status'='継続'" in sql
+    assert "THEN '継続'" in sql
+    assert "THEN '二進'" in sql
+    assert "THEN '三進'" in sql
+    assert "THEN '本進'" in sql
+    assert "o->>'runnerBase'=m->>'base'" in sql
+    assert "THEN 'manual' ELSE 'auto'" in sql
+    assert "target ? 'runner'" in sql
 
 
 def test_prepare_parenthesizes_five_case_expressions_without_other_sql_changes():

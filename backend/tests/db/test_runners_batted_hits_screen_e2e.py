@@ -106,10 +106,25 @@ def _verify_saved_rows(admin, tenant, game, scenario: str) -> None:
         expected_runners = runner_physical_rows(
             request.source.runners,
             t1=response.t1,
+            t1_input=request.t1,
             tenant_id=tenant,
             play_id=UUID(actual["id"]),
         )
         assert [r[0] for r in runners] == expected_runners
+        # 独立した正本語彙期待。投影helper自身の値を期待へ再利用しない。
+        statuses = [
+            (r[0]["base"], r[0]["status"], r[0]["status_source"]) for r in runners
+        ]
+        expected_statuses = {
+            "single-first-to-third": {1: [], 2: [(1, "三進", "manual")]},
+            "double-first-to-home": {1: [], 2: [(1, "本進", "manual")]},
+            "home-run-first-second": {
+                1: [],
+                2: [(1, "二進", "manual")],
+                3: [(1, "本進", "manual"), (2, "本進", "manual")],
+            },
+        }
+        assert statuses == expected_statuses[scenario][index + 1]
         if index == 0:
             assert runners == []
             assert response.t1.after.state_fields.runners == "first"
