@@ -1,5 +1,14 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 2026-11-07 02:30 JST：PR197のCI修復とCSV・過去訂正を継続
+
+- **利用者操作の到達点は維持**: connected60fの断中cold再起動→2球→復帰順序同期、終了/再開/追加球/再終了→成績CSV、viewer f69の実二画面自動更新/reloadは前節の同版owned証拠を正とする。今回の純検査を新しい実画面成功へ加算しない。正式develop・全MVPは未完。
+- **root CI候補**: `fix/pr197-ci-finalization@7d7e6528`。backend全collectは15123件/22.06秒で停止解消を確認（DB実行の成功ではない）。成績正本の実追加3行（登板数/BF/OPS）を付録A母集合33→36/実名まで追随し、旧失敗注入点/共有前提の全値を保持したまま参照Git blob digestだけを再導出。関連44pytest/Ruff成功、50de9188に固定。backend初期修復dc1160の0039真正子collect31/関連35成功も保持。
+- **core履歴回復**: 別作者7642bf7fのexact6pathをrootが非作者確認。cache `native-pr197-identical-definition-root-review-20261107/REPORT.md` SHA256 `acc93c9c06e7bbd2a2efacb350a2f02e652e335c8d6f3f10cbfc88f543991a5a`、root再実行75/75・97.65秒・session29251 terminal0。旧共変更拒否/別OID/byte/誤typed/新6欠落を保持、2c43286aで私有結合。新typed3は未適用、正式9資産/公開CI/merge成立ではない。
+- **残るCI依存**: census専用WT `fix-pr197-census-current-source`（dc1160起点、nonplay単独writer）が旧51/90/37/owner1の歴史証明と現PR197後継の実抑止を分離して修復中。rootは同fileを書かない。trigger1の旧本人証拠はモデル更新でstale。本人欄を代記せず、固定2faの元記録/委任policyと全byte照合する別delegatedReconfirmationを7d7e6528で候補実装。21対向/Ruff/root・backend Ty成功。実委任記録/非作者reportは未作成、非作者確認待ちであり正式採用しない。
+- **並行の実装**: CSV作者は独立D1のB-7生成器（旧T5モデル/hash不変更）、記録時名前/背番号/物理metadataの閉写像、画面導線を接合中。owned既export試験83.65秒はfixture88列投入後ZIP200であり実producer成功ではない。P3作者はread/persist/triggerと真正B5/RG1述語の専用関数をowned PGへ配備成功（31.45秒）、次は実HTTP訂正→再取得/次球を接続。SQL compileと保存成功を区別する。
+- **次**: rootはtrigger限定手続きの非作者確認、census候補の非作者確認、全source固定後の正式9資産/認可/corpus一括再導出→実PR事前検査→最終HEAD公開CI。CI再試行だけで同じ失敗を反復しない。CSVの事前投入なし実記録ZIPとP3の実保存を並行継続。実機/運用復旧/負荷/性能/残操作は未完として保持。
+
 ## 2026-11-07 02:10 JST：閲覧を同版実証、#197 CI停止点を修復中
 
 - **利用者が新たにできた操作**: `feature/mvp-viewer-live-product@f69b4083cbbb6e683ec560050bce47065f2838b2`（connected60f＋viewer0e0ae00b＋shared19接合）で、実新規作成/開始→別Cookie同チーム閲覧→0/1/2球/終了のGET、実二画面の初球保存→自動更新/reload→閲覧端末断中の未更新/score隠蔽を実証。root owned `viewer-joined-owned-r1` 2passed195.59秒（HTTP128.246、screen64.770）、source前後一致・cleanup済み、session31803 terminal0。作者r6の2818ms値をroot同版の時間へ転用しない。BE355/FE123・型/static成功。正式受理/3試合×閲覧10/実機は未了。
