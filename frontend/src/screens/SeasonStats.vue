@@ -10,7 +10,12 @@ import {
 import BasicStatsTable from '../components/stats/BasicStatsTable.vue'
 
 const router = useRouter()
-const currentYear = new Date().getFullYear()
+const currentYear = Number(
+  new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Tokyo',
+    year: 'numeric',
+  }).format(new Date()),
+)
 const year = ref(currentYear)
 const category = ref<StatsCategory>('all')
 const data = ref<SeasonBasicStats | null>(null)
@@ -39,6 +44,11 @@ function categoryLabel(value: StatsCategory): string {
 
 async function load(): Promise<void> {
   if (loading.value) return
+  if (!Number.isInteger(year.value) || year.value < 1 || year.value > 9999) {
+    data.value = null
+    error.value = '年は1〜9999の整数で指定してください'
+    return
+  }
   loading.value = true
   error.value = null
   try {
