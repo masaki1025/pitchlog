@@ -125,7 +125,7 @@
       "10-3 の故障系資産契約",
       "11-2 のデータモデル影響差分"
     ],
-    "compare_key": "経路の行集合と各行のT要素集合。P3のT7が無効化意図を原子保存し、故障系資産が配信前クラッシュを観測できること。CL1は制御原本の内側保存単位と終了後P3公開pointerの同TX観測を各伝播先で要求する",
+    "compare_key": "経路の行集合と各行のT要素集合。P3のT7が無効化意図を原子保存し、故障系資産が配信前クラッシュを観測できること。CL1は制御原本の内側保存単位と終了後P3公開pointerの同TX観測を各伝播先で要求する。CL2/CL3は9-2のP2/P3表行の意味規則・永続化・強制点・テスト責務で検査し、表外注記だけでは成立しない",
     "source_elements": [
       "P1:D1付きイベント=T1,T2,T3,T4,T6",
       "P2:D2採番・再採番あり=T1,T2,T3,T4,T5,T6",
@@ -141,7 +141,9 @@
       "T7:V11照合・対象確定版更新・無効化意図保存",
       "T8:記録権不一致検出・退避永続化・B4応答の原子性",
       "T9:未使用D5の内容拒否原本・D5・拒否結果・理由の保存",
-      "CL1:制御原本+CP+bridge+admission+status+head+stats+receipt+意図"
+      "CL1:制御原本+CP+bridge+admission+status+head+stats+receipt+意図",
+      "CL2:P2表内責務=制御CP+bridge+admission+status+head+stats+receipt+意図",
+      "CL3:P3表内責務=stats+head+receipt+意図"
     ],
     "expected_elements": {
       "7-1 の A1": [
@@ -176,7 +178,9 @@
         "T7:V11照合・対象確定版更新・無効化意図保存",
         "T8:記録権不一致検出・退避永続化・B4応答の原子性",
         "T9:未使用D5の内容拒否原本・D5・拒否結果・理由の保存",
-        "CL1:制御原本+CP+bridge+admission+status+head+stats+receipt+意図"
+        "CL1:制御原本+CP+bridge+admission+status+head+stats+receipt+意図",
+        "CL2:P2表内責務=制御CP+bridge+admission+status+head+stats+receipt+意図",
+        "CL3:P3表内責務=stats+head+receipt+意図"
       ],
       "10-2 のクラッシュ注入": [
         "P1:D1付きイベント=T1,T2,T3,T4,T6",

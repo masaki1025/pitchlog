@@ -4,7 +4,7 @@ status: in-review
 branch: feature/mvp-lifecycle-product-connection
 承認: 未
 計画レビュー周回: 0
-確定ゲート周回: 1
+確定ゲート周回: 2
 ---
 
 # 終了・追記再開の最小7.3確定ゲート案
@@ -23,3 +23,8 @@ branch: feature/mvp-lifecycle-product-connection
 ## 完了条件
 
 ３正本の全文・差分・SHA、初回全対象、採否記録、受理scope、適用版/条文SHA、残余と実装伝播先が一つのpacketで追跡できること。正式contract/enum/CHECK/DDL/ACL/実PG/実機試験はゲート後の別作業であり、本計画で実施済みにしない。
+
+
+## 第2回後の射程整合追補
+
+ADR-003 v0.11のD-6/D-8・FR-007伝播を同一ゲートへ追加する。初回の3正本全文、第2回差分審査は実施済みで回数を維持。第2回P1全3の反映差分/影響節＋追加ADR全文を、PO委任による限定追加1回の対象とする。要件v2.20/syncv0.13/data-modelv1.6/ADR v0.11は全てin-reviewのまま、approved化/正式索引/contract/実装受理は別に判定する。
