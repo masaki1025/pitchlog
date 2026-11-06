@@ -1,7 +1,7 @@
 ---
 feature: mvp-lifecycle-ui
 status: active
-承認: PO委任による主担当root判断（2026-11-06、lifecycle-ui-delegation-20261106.md の受諾範囲。対象base e0be2483e29eecba478e5f4fca56d4cf4164711b）
+承認: 済（PO委任による主担当root判断、2026-11-06。lifecycle-ui-delegation-20261106.md の受諾範囲。対象base e0be2483e29eecba478e5f4fca56d4cf4164711b）
 重さ分類: コア領域
 branch: feature/mvp-lifecycle-ui
 worktree: /home/ymdms/projects/pitchlog-worktrees/feature-mvp-lifecycle-ui
