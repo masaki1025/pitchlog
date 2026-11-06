@@ -41,6 +41,7 @@ from pitchlog.sync.past_correction_payload import (
     read_lineup_pitch_change_payload,
 )
 from pitchlog.sync.past_correction_physical import prepare_corrected_physical_pitches
+from pitchlog.sync.past_correction_stats import evaluate_p3_capsule_stats
 from pitchlog.sync.terminal_pitch_payload import (
     LineupPitchCalculation,
     LineupPitchPlayPayload,
@@ -626,3 +627,17 @@ def test_v3_corrected_checkpoint_uses_native_chain_and_new_physical_head() -> No
     assert capsule.items[1]["original_event_id"] == str(_ID2)
     assert capsule.items[1]["effective_event_id"] == str(_ID2)
     assert capsule.items[1]["play_row"] == physical[-1].play_row
+    stats = evaluate_p3_capsule_stats(capsule)
+    assert [source.effective_event_id for source in stats.sources] == [_CHANGE, _ID2]
+    assert all(source.evaluation for source in stats.sources)
+    from pitchlog.stats.facts import evaluate_native_projection
+
+    assert saved_rows[0].payload is not None
+    old_stats = evaluate_native_projection(
+        saved_rows[0].payload.model_dump(
+            mode="json", by_alias=True, exclude_unset=True
+        ),
+        source_event_id=_CHANGE,
+    )
+    # この2値は現T5の27群では同じ寄与。版/有効source IDは別に更新が必要。
+    assert stats.sources[0].evaluation == old_stats

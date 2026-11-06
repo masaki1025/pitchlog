@@ -281,6 +281,13 @@ def _apply_locked(
                 RejectedChangeResult("B8", event.d5, f"現在版: {current_version}")
             )
 
+        if bound_source is not None:
+            from pitchlog.sync.past_correction_execution import p3_change_event_id
+
+            change_event_id = p3_change_event_id(scope, event, writer)
+        else:
+            change_event_id = uuid4()
+
         accepted_at = datetime.now(UTC).isoformat()
         reference = {
             "試合": event.game_id,
@@ -328,7 +335,7 @@ def _apply_locked(
         )
         scope.run(
             OperationEventInsertToken(
-                uuid4(),
+                change_event_id,
                 game_id,
                 UUID(event.d5),
                 event.v5,
