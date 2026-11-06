@@ -957,7 +957,11 @@ def prepare_function_operation(
             if expected_type is bytes and len(value) != 32:
                 raise FunctionOperationError("通常prefixのnonce長が不一致")
             if expected_type is int:
-                lower = 0 if name in {"upper_watermark", "after_d1", "after_d2"} else 1
+                zero_based = name in {"upper_watermark", "after_d1", "after_d2"} or (
+                    spec.function_id == "sync_right_api.read_nonplay_active_history"
+                    and name == "after_order"
+                )
+                lower = 0 if zero_based else 1
                 upper = 100 if name == "page_size" else 2**63 - 1
                 if not lower <= value <= upper:
                     raise FunctionOperationError("通常prefixの整数範囲が不一致")
