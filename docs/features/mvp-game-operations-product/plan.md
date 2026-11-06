@@ -33,3 +33,6 @@ POの「統合候補までまとめて実装し、その固定版をまとめて
 
 
 root接合候補反映（2026-11-06 19:46 JST、PO委任Codex/root判断）: actual LC a7ae1d40へsource2bdfを通常mergeした後、最終overlay patch SHA57556d3cf1ecba5aa51775c7c5dfa99ccb07766289839167971e55ed75941b08の25path全before/after SHAを照合して適用。正式schemaと唯一artifact fbcf253bの結合、有限v2旧host互換witness、公式SQL body/manifestの候補を揃える。過去数学期待217件を保持した作者証拠、独立clone再適用25/25、旧profile54・正式FE schema6成功を根拠とするが、root最終独立確認/全ハーネス/正式受理は未了。source単体merge後はroot backend107件/FE型成功。終了再開cache/交代は未合成であり、MVP全体/正式提供と記録しない。
+
+
+非作者のNFR-018指摘反映（2026-11-06、PO委任Codex/root判断）: ef992の敵対レビューでbackend projection検証内のフォース連鎖再計算とTS内の占有真理値表重複を検出、双方採用。backendは唯一hostの真正出力/再実行完全一致とmodalityの型付き投影検証を保持し、野球意味のforce再導出を削除。TSは既hasRunnerをrunnerOccupancy.tsへ移しstate/battedHitから共有、adapterは閉塁番号のBigInt変換だけとする。数学真理値表を変更しない。artifact/pin/manifestは合成source固定後に公式builderで一括追随し、更新未了の固定版は提供済みとしない。最終非作者反映確認が必要。

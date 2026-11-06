@@ -1,3 +1,4 @@
+import { hasRunner } from './runnerOccupancy'
 import { ordinaryStateSupported } from './ordinaryState'
 import type {
   BattingOrderBySide,
@@ -63,26 +64,9 @@ const OBSERVATION_KEYS: Array<string> = [
 
 type QualifiedBattedHitRule = Rule & { resultId: BattedHitResultId }
 
-/** 塁の占有を既存の8値から読み、新しい判定を増やさない。 */
+/** 閉検証済み塁番号を唯一の占有helperへ渡す。 */
 function occupied(runners: Runners, base: string): boolean {
-  if (runners === 'loaded') return true
-  if (base === '1')
-    return (
-      runners === 'first' ||
-      runners === 'first-second' ||
-      runners === 'first-third'
-    )
-  if (base === '2')
-    return (
-      runners === 'second' ||
-      runners === 'first-second' ||
-      runners === 'second-third'
-    )
-  return (
-    runners === 'third' ||
-    runners === 'first-third' ||
-    runners === 'second-third'
-  )
+  return hasRunner(runners, BigInt(base))
 }
 
 /** 3塁分の明示override。nullは未指定（hold）を表す。 */

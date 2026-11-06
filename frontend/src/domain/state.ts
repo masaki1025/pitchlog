@@ -1,3 +1,4 @@
+import { hasRunner } from './runnerOccupancy'
 import {
   battedHitRule,
   type BattedHitObservation,
@@ -136,7 +137,13 @@ export function deriveLineupPitch(
     resultId === 'batting-result.swinging-strikeout' ||
     resultId === 'batting-result.k3'
   )
-    return deriveClosedStrikeout(before, board, resultId, pitchEventKind, cursors)
+    return deriveClosedStrikeout(
+      before,
+      board,
+      resultId,
+      pitchEventKind,
+      cursors,
+    )
   if (resultId === 'batting-result.strikeout-double-play')
     return deriveStrikeoutDoublePlay(before, board, pitchEventKind, cursors)
   if (
@@ -318,28 +325,6 @@ export function deriveBattedHit(
 
 /** 塁番号の走査順（1塁から3塁）。 */
 const BASES: Array<bigint> = [1n, 2n, 3n]
-
-/** 起点塁の占有を既存8値から読む。 */
-function hasRunner(runners: Runners, base: bigint): boolean {
-  if (runners === 'loaded') return true
-  if (base === 1n)
-    return (
-      runners === 'first' ||
-      runners === 'first-second' ||
-      runners === 'first-third'
-    )
-  if (base === 2n)
-    return (
-      runners === 'second' ||
-      runners === 'first-second' ||
-      runners === 'second-third'
-    )
-  return (
-    runners === 'third' ||
-    runners === 'first-third' ||
-    runners === 'second-third'
-  )
-}
 
 /** 塁の占有を既存8値へ戻す。 */
 function runnersName(first: boolean, second: boolean, third: boolean): Runners {

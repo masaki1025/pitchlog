@@ -272,20 +272,9 @@ def _validate_runner_projection(
     else:
         expected = {}
         slots = {"1": "first", "2": "second", "3": "third"}
-        occupied = {runner.base for runner in request.source.runners}
         for runner in request.source.runners:
             effect = getattr(t1.runner_default_advance, slots[runner.base])
-            forced = t1.batter_destination.kind == "reach" and (
-                runner.base == "1"
-                or (runner.base == "2" and "1" in occupied)
-                or (runner.base == "3" and {"1", "2"} <= occupied)
-            )
-            if forced and effect.modality != "forced":
-                raise LineupPrefixProtocolError(
-                    "フォース連鎖の走者進塁がforcedではありません"
-                )
-            if not forced and effect.modality == "forced":
-                raise LineupPrefixProtocolError("非フォース走者がforcedです")
+            # forced/optionalの意味は唯一artifactで決定済み。ここでは再計算しない。
             if effect.modality == "not-applicable":
                 raise LineupPrefixProtocolError("在塁走者の進塁計画がありません")
             if effect.modality == "hold":
