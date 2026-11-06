@@ -36,6 +36,7 @@ beforeEach(() => {
   localStorage.clear()
   setVerifiedAuthForTest(useAuthStore(), { teamName: '試験チーム' })
   vi.stubGlobal('fetch', vi.fn())
+  vi.stubGlobal('isSecureContext', true)
 })
 
 afterEach(() => {
@@ -469,4 +470,131 @@ describe('同期POST専用の実資格輸送', () => {
       expect(fetch).not.toHaveBeenCalled()
     },
   )
+
+  it('応答喪失後は同旧attemptを照会し、許可後だけ新attemptで原本文を送る', async () => {
+    const differentD5 = '33333333-3333-4333-8333-333333333333'
+    const original = request({
+      syncCredentials: credentials,
+      slots: [
+        slot({ d5: differentD5, event: pitchEvent({ V1: differentD5 }) }),
+      ],
+    })
+    vi.mocked(fetch).mockImplementation(async (_url, init) => {
+      const index = vi.mocked(fetch).mock.calls.length
+      if (index === 1) throw new TypeError('fixture-network-loss')
+      const challenge = new Headers(init?.headers).get(
+        'X-Pitchlog-Tenant-Challenge',
+      )
+      return new Response(
+        index === 2 ? '{"resolution":"retry_allowed"}' : '{}',
+        {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Pitchlog-Tenant-Match': '1',
+            'X-Pitchlog-Tenant-Challenge': challenge ?? '',
+          },
+        },
+      )
+    })
+    expect((await postSyncEvents(original)).sent).toBe(false)
+    expect((await postSyncEvents(original)).sent).toBe(true)
+    const calls = vi.mocked(fetch).mock.calls
+    expect(calls.map((call) => call[0])).toEqual([
+      `/api/games/${gameId}/sync/events`,
+      `/api/games/${gameId}/sync/attempts/recover`,
+      `/api/games/${gameId}/sync/events`,
+    ])
+    expect(calls.map((call) => String(call[1]?.body))).toEqual([
+      String(calls[0]![1]?.body),
+      String(calls[0]![1]?.body),
+      String(calls[0]![1]?.body),
+    ])
+    const attempts = calls.map((call) =>
+      new Headers(call[1]?.headers).get('X-Pitchlog-Sync-Attempt'),
+    )
+    expect(attempts[0]).toBe(credentials.attempt)
+    expect(attempts[1]).toBe(credentials.attempt)
+    expect(attempts[2]).toMatch(/^[0-9a-f-]{36}$/)
+    expect(attempts[2]).not.toBe(credentials.attempt)
+  })
+
+  it('旧試行が未解決なら元要求も新attemptも送らない', async () => {
+    const differentD5 = '44444444-4444-4444-8444-444444444444'
+    const original = request({
+      syncCredentials: credentials,
+      slots: [
+        slot({ d5: differentD5, event: pitchEvent({ V1: differentD5 }) }),
+      ],
+    })
+    vi.mocked(fetch).mockImplementation(async (_url, init) => {
+      if (vi.mocked(fetch).mock.calls.length === 1)
+        throw new TypeError('fixture-network-loss')
+      const challenge = new Headers(init?.headers).get(
+        'X-Pitchlog-Tenant-Challenge',
+      )
+      return new Response('{"resolution":"unresolved"}', {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Pitchlog-Tenant-Match': '1',
+          'X-Pitchlog-Tenant-Challenge': challenge ?? '',
+        },
+      })
+    })
+    expect((await postSyncEvents(original)).sent).toBe(false)
+    expect((await postSyncEvents(original)).sent).toBe(false)
+    expect(vi.mocked(fetch).mock.calls.map((call) => call[0])).toEqual([
+      `/api/games/${gameId}/sync/events`,
+      `/api/games/${gameId}/sync/attempts/recover`,
+    ])
+  })
+
+  it('同D5の本文改変・別の元attempt・別端末は照会前に拒否する', async () => {
+    const distinctD5 = '55555555-5555-4555-8555-555555555555'
+    const original = request({
+      syncCredentials: credentials,
+      slots: [
+        slot({ d5: distinctD5, event: pitchEvent({ V1: distinctD5 }) }),
+      ],
+    })
+    vi.mocked(fetch).mockRejectedValueOnce(new TypeError('fixture-network-loss'))
+    expect((await postSyncEvents(original)).sent).toBe(false)
+    const changed = request({
+      ...original,
+      slots: [
+        slot({
+          d5: distinctD5,
+          event: pitchEvent({
+            V1: distinctD5,
+            V7: { resultId: 'called-pitch' },
+          }),
+        }),
+      ],
+    })
+    expect((await postSyncEvents(changed)).sent).toBe(false)
+    expect(
+      (
+        await postSyncEvents({
+          ...original,
+          syncCredentials: {
+            ...credentials,
+            attempt: '66666666-6666-4666-8666-666666666666',
+          },
+        })
+      ).sent,
+    ).toBe(false)
+    expect(
+      (
+        await postSyncEvents({
+          ...original,
+          syncCredentials: {
+            ...credentials,
+            deviceId: '77777777-7777-4777-8777-777777777777',
+          },
+        })
+      ).sent,
+    ).toBe(false)
+    expect(fetch).toHaveBeenCalledTimes(1)
+  })
 })

@@ -11,6 +11,7 @@ import type { SyncEvent } from '../lib/sync/syncEvent'
 import type { SyncEventViolation } from '../lib/sync/validateSyncEvent'
 import { EVENT_KIND_RULES } from '../lib/sync/eventKinds'
 import { ApiError, apiRequest, type SyncRequestCredentials } from './client'
+import { postRecoverableSyncRequest } from './recoverableSyncPost'
 import {
   buildSyncEventRequestBody,
   SYNC_EVENT_SEND_FAILURE,
@@ -770,16 +771,8 @@ export async function postGameLifecycleRequestBody(
       reason: GAME_LIFECYCLE_SEND_FAILURE.EVENT_SHAPE_MISMATCH,
     }
   try {
-    const response = await apiRequest<unknown>(
-      'POST',
-      `/games/${encodeURIComponent(gameId)}/sync/events`,
-      {
-        tenantBound: true,
-        body,
-        ...(credentials === undefined ? {} : { syncCredentials: credentials }),
-      },
-    )
-    return { sent: true, requestBody: body, response }
+    const sent = await postRecoverableSyncRequest(gameId, body, credentials)
+    return { sent: true, requestBody: sent.body, response: sent.response }
   } catch (error) {
     if (error instanceof ApiError) {
       return {

@@ -30,6 +30,7 @@ from pitchlog.sync.apply import (
     _E1OutOfScope,
     _replay_e1_without_binding,
 )
+from pitchlog.sync.attempt_recovery import recover_sync_attempt
 from pitchlog.sync.control_provider.binding_client import (
     BindingClientConfiguration,
     BindingClientConfigurationError,
@@ -141,6 +142,64 @@ def _ack_body(result: AckResult) -> dict[str, object]:
     return RecordingAckResponse.model_validate(body).model_dump(
         by_alias=True, exclude_unset=True
     )
+
+
+@router.post(
+    "/games/{game_id}/sync/attempts/recover",
+    operation_id="recover_sync_attempt",
+)
+def recover_attempt(
+    game_id: UUID,
+    payload: dict[str, object],
+    request: Request,
+    context: Annotated[TenantContext, Depends(require_tenant_access)],
+    cookie: Annotated[str, Depends(require_presented_token)],
+    device_id: Annotated[UUID, Header(alias="X-Pitchlog-Device-Id")],
+    device_credential: Annotated[str, Header(alias="X-Pitchlog-Device-Credential")],
+    attempt: Annotated[UUID, Header(alias="X-Pitchlog-Sync-Attempt")],
+) -> JSONResponse:
+    """元E-1要求の旧試行を照会し、実fence/PG終結後の再送資格だけを返す。"""
+    configuration = _configuration(request)
+    try:
+        path = _request_path(payload)
+        original = SyncRequest.from_payload(path, str(game_id), payload)
+        raw_events = payload["events"]
+        if not isinstance(raw_events, list):
+            raise RequestShapeError("S-1: イベント列が必要")
+        source = freeze_wire_source(
+            game_id=original.game_id,
+            d4=str(original.d4),
+            raw_events=tuple(
+                dict(event) for event in cast(list[Mapping[str, object]], raw_events)
+            ),
+        )
+        credential_digest = _credential_digest(device_credential)
+    except InitialGrantUnavailable:
+        raise HTTPException(status_code=401) from None
+    except (_E1OutOfScope, RequestShapeError, WireSourceError, KeyError, TypeError):
+        raise HTTPException(status_code=422) from None
+    try:
+        result = recover_sync_attempt(
+            context,
+            original,
+            source,
+            attempt_id=attempt,
+            device_id=device_id,
+            credential_digest=credential_digest,
+            cookie=cookie,
+            control=BindingControl(configuration.broker_endpoint),
+        )
+    except (LedgerUnavailable, WriterBindingUnavailable, *DATABASE_ERRORS):
+        raise HTTPException(status_code=503) from None
+    except ValueError:
+        raise HTTPException(status_code=422) from None
+    if result == "B5":
+        raise HTTPException(status_code=401)
+    if result == "B6":
+        raise HTTPException(status_code=404)
+    if result == "B7":
+        raise HTTPException(status_code=503)
+    return JSONResponse({"resolution": result})
 
 
 @router.post(

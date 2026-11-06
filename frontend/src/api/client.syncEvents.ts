@@ -14,7 +14,8 @@ import {
   checkSyncEvent,
   type SyncEventViolation,
 } from '../lib/sync/validateSyncEvent'
-import { ApiError, apiRequest, type SyncRequestCredentials } from './client'
+import { ApiError, type SyncRequestCredentials } from './client'
+import { postRecoverableSyncRequest } from './recoverableSyncPost'
 
 /** スロットと wire のキーの対応(sync-wire-schema/design.md 3-2・3-3 の表)。 */
 const WIRE_KEY_BY_SLOT_ID = {
@@ -261,18 +262,12 @@ export async function postSyncEvents(
   }
 
   try {
-    const response = await apiRequest<unknown>(
-      'POST',
-      `/games/${encodeURIComponent(request.gameId)}/sync/events`,
-      {
-        tenantBound: true,
-        body: built,
-        ...(request.syncCredentials === undefined
-          ? {}
-          : { syncCredentials: request.syncCredentials }),
-      },
+    const sent = await postRecoverableSyncRequest(
+      request.gameId,
+      built,
+      request.syncCredentials,
     )
-    return { sent: true, requestBody: built, response }
+    return { sent: true, requestBody: sent.body, response: sent.response }
   } catch (error) {
     // 応答が返った失敗(S-1 違反の 422 を含む)と、応答が返らなかった失敗を
     // 分ける。正本は前者を「顕在化する」と定める(design.md:110・:281)。

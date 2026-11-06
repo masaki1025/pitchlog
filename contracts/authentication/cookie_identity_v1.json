@@ -93,6 +93,11 @@
       "path": "/games/{game_id}/started"
     },
     {
+      "operationId": "recover_sync_attempt",
+      "method": "POST",
+      "path": "/games/{game_id}/sync/attempts/recover"
+    },
+    {
       "operationId": "sync_events",
       "method": "POST",
       "path": "/games/{game_id}/sync/events"

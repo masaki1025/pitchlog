@@ -3,7 +3,8 @@ import type {
   UndoEvent,
   UndoPayload,
 } from '../../../contracts/state-transition/nonplay_prefix_bridge_v1'
-import { apiRequest, type SyncRequestCredentials } from './client'
+import type { SyncRequestCredentials } from './client'
+import { postRecoverableSyncRequest } from './recoverableSyncPost'
 import { canonicalUuid } from './authIntent'
 import { canonicalPlayJson } from './terminalPitchWire'
 import type { DurableQueueSlot } from '../lib/sync/durableQueue'
@@ -73,11 +74,7 @@ export async function postNativeUndo(
     !isNonplayDefinition(body.events[0], 'UndoEvent')
   )
     throw new Error('取消の送信範囲が不一致です')
-  return apiRequest<unknown>('POST', `/games/${gameId}/sync/events`, {
-    tenantBound: true,
-    body,
-    syncCredentials: credentials,
-  })
+  return (await postRecoverableSyncRequest(gameId, body, credentials)).response
 }
 export function nativeUndoDraft(
   gameId: string,

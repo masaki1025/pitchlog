@@ -1,3 +1,5 @@
+import 'fake-indexeddb/auto'
+
 import { ApiTenantVerificationError } from './client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, disposePinia, setActivePinia, type Pinia } from 'pinia'
@@ -98,6 +100,7 @@ describe('交代の実client C2境界', () => {
     setActivePinia(pinia)
     localStorage.clear()
     setVerifiedAuthForTest(useAuthStore(), { teamId: tenant, teamName: 'unit' })
+    vi.stubGlobal('isSecureContext', true)
   })
   afterEach(() => {
     vi.unstubAllGlobals()
@@ -108,6 +111,7 @@ describe('交代の実client C2境界', () => {
     'tenant/challengeを実送信しC2一致=%sだけを解釈する',
     async (matches) => {
       const attempt = 'ffffffff-ffff-4fff-8fff-ffffffffffff'
+      const sentD5 = matches ? d5 : 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee'
       const device = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
       const calls: Headers[] = []
       vi.stubGlobal(
@@ -133,7 +137,7 @@ describe('交代の実client C2境界', () => {
       const event = substitutionEvent(
         game.id,
         game.current_d4,
-        d5,
+        sentD5,
         1000,
         payload,
       )
@@ -142,7 +146,7 @@ describe('交代の実client C2境界', () => {
           game: game.id,
           d4: game.current_d4,
           d1: 2,
-          d5,
+          d5: sentD5,
           version: 1,
           event,
           state: '未送信',

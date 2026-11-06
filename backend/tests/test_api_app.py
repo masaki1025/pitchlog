@@ -84,7 +84,12 @@ async def test_routers_register_meta_auth_player_and_team_routes() -> None:
         (("POST",), "/games/{game_id}/start/resolve"),
         (("GET",), "/vocabularies/pitch-types"),
         (("GET",), "/vocabularies/batted-balls"),
+        (("GET",), "/games/{game_id}/stats.csv"),
+        (("GET",), "/stats/seasons/{year}/stats.csv"),
+        (("GET",), "/games/{game_id}/stats"),
+        (("GET",), "/stats/seasons/{year}"),
         (("GET",), "/games/{game_id}/started"),
+        (("POST",), "/games/{game_id}/sync/attempts/recover"),
         (("POST",), "/games/{game_id}/sync/events"),
     )
     assert tuple(route.operation_id for route in routes) == (
@@ -115,7 +120,12 @@ async def test_routers_register_meta_auth_player_and_team_routes() -> None:
         "initial_game_start_resolve",
         "pitch_type_options",
         "batted_ball_options",
+        "game_basic_stats_csv",
+        "season_basic_stats_csv",
+        "game_basic_stats",
+        "season_basic_stats",
         "started_game_detail",
+        "recover_sync_attempt",
         "sync_events",
     )
 
@@ -319,3 +329,24 @@ def test_sync_events_is_real_c2_matched_route():
     assert isinstance(routes[0], TenantMatchedRoute)
     assert routes[0].methods == {"POST"}
     assert "sync_events" in _MATCH_OPERATIONS
+
+
+def test_attempt_recovery_is_real_c2_matched_route():
+    """照会口も保存入口と同じ認証/テナント照合とCookie宣言を通す。"""
+    from pitchlog.api.cookie_identity import _OPERATIONS
+    from pitchlog.api.tenant_access import _MATCH_OPERATIONS, TenantMatchedRoute
+
+    routes = [
+        route
+        for router in api_app.ROUTERS
+        for route in router.routes
+        if isinstance(route, APIRoute) and route.operation_id == "recover_sync_attempt"
+    ]
+    assert len(routes) == 1
+    assert isinstance(routes[0], TenantMatchedRoute)
+    assert routes[0].methods == {"POST"}
+    assert "recover_sync_attempt" in _MATCH_OPERATIONS
+    assert _OPERATIONS["recover_sync_attempt"] == (
+        "POST",
+        "/games/{game_id}/sync/attempts/recover",
+    )
