@@ -1,5 +1,16 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 2026-11-07 00:00 JST 再評価：結合実証方式を継続する
+
+PO指定の0時再評価。小部品の前閉じを全体条件にせず、既核/契約をまとめて候補へ接合→実画面/PGで停止点を修復→固定後非作者確認という方式を継続する。安全/全MVP範囲/正式統合条件は維持し、Goalを完了/停止としない。
+
+- **実証増分**: 通常9回163球（64fc0b33、UI+PG1passed2240秒）、終了/再開/再終了と成績・成績CSV（root結合ce72c345の対象case123.463秒passed、first/end count2→再開official空→reend count3、season/CSV/foreign404、DB最新版confirmed_ended/source3/pointer一致）、完全断中cold再起動→2球端末保持→reload→同本文/同attempt順序同期→実GET/PG（別local候補66d50b24、1passed73.504秒）が成立。全てowned loopback実環境・真正UI/API/DB、source前後一致・cleanup済み。単一最終版/全MVP/実機/正式developの成功には拡張しない。
+- **停止点修復**: cold r1はSW scriptの自己署名TLS拒否を、同distの静的browser対向（context ignoreのみ失敗/isolated process overrideで成功）で証明し試験条件だけ修復。r2はApp全体のauth gate漏れ、9b2cdb37で専用local branchへ接合。r3はlogin POST未発行という別失敗で推測成功とせず、r4でcold正経路全assert成功。HTTP認証verified:falseはlocal中維持する。
+- **現在の安全残件**: App9b2非作者REPORT2dc712db…はdisposeが非reactiveなP1を検出し未受理。rootはactive/epochをshallowRef化し、人為authEpoch操作を使わないApp失効・実scope computed対向を修復中。受理拒否は旧版でも維持されるが、表示失効の解決/再レビューまで完了としない。
+- **交代**: ce72c345実HTTPは交代ACK/GET/次球/reloadのscriptを通過、外側DB照合の誤列event_idで失敗。正式0044列source_event_idへ6794fcd0で修復、同版HTTP+実UIを共通lockで再測中（root session59030、観測timeoutで再起動しない）。部分成功をDB照合完了とはしない。
+- **並行して残機能を実装**: P3作者は旧v1を増やす方針から現v3同核反復へ移し、直前CP/全保存原本再生/後続責任・参加・T2保持を実host対向。任意挿入は新P3 kindという推定を撤回し、正本既決#1/P2・末尾D1/過去D2/T5に固定。真正P3 TX/current capsule/成績pointerは未接続。viewer作者はlocking started pollを不採用としRR READ ONLY専用read/有限history/0球既init単一核を接合中。FE基線作者は旧Git hostと現artifactの全値一致を示し、数学期待を保持する新current fixture/pinを整備中。毎球CSV producer/修復は未供給。
+- **正式状態**: GitHub readでdevelop51bcb4e1、openは#187/#197のDraft、#197公開2fa42d65は複数CI赤/BLOCKEDを再確認。ローカル候補の成功と区別し、正式資産/7.7/独立最終レビュー/全必須CI/通常統合を完了していない。5秒未達はPO指示で後段、閲覧10秒・3試合負荷・実機HTTPS・復旧も未実施。次は同じ最終候補への交代・成績・断中の接合、P3/閲覧/毎球CSV、その固定版の全受入を進める。
+
 ## 2026-11-06 23:20 JST：交代・成績の同版接合と断中復帰の指摘是正
 
 - **交代/成績の固定候補**: feature/mvp-substitution-stats-connection はLC afd74ea9起点。交代最終94path（patch7c8367e0…/manifest245bbd62…）を3wayで9a8afb38へ、stats作者7fbc5c4eを通常mergeして043591c37ddf833553300f36d04940bb40b452e1へ固定。B5/LC/C2/静的shellの後発差分を保持。生成4競合は公式ADDITIONS/BODIES+runtime helperから958 entryを再派生、validate/runtime/body照合成功。backend168/FE57/型、stats関連初回613成功29失敗→NP fixtureのexclude_unset追随後当該170成功。数学期待/拒否条件は不変。
