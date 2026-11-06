@@ -1,5 +1,12 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 2026-11-06 外部終了再開UI改訂受領・取消の次await診断
+
+- 外部 `feature/mvp-lifecycle-ui-connection@75fbb6670f9f65d69d210ca3c79c25bc9ea3fcab` はlocal/remote/clean、8path全SHAを報告と照合一致。旧a36cは保持。通信断耐久chain/実writer/閉union/古いGET/不可視E2Eの修復申告を受領し、前回5指摘を引き継いだ非作者確認を開始。35/全3490成功は作者証拠、実PG/実画面未実施。backend閉union codecはec23で既提供、作者の旧flatのみという記述は旧版参照であり、実行resolver/保存接続は別に残る。
+- NP実画面r23は全read照合trueへ進んだが取消処理busyで5秒超過、r24 ca22fb95は機能待機30秒でも同位置で失敗。r24 owned撤去・source前後一致。性能5秒判定は維持し、機能待機延長を性能成功に扱わない。a865f440でE2E専用の既耐久API開始/終結名だけを観測（値/資格/本文非表示）し、owned `undo-client-await-r25` を開始。固定応答/常時成功を追加していない。
+- 次: r25のawait停止点修復→2取消/同要求再送/次球/reload、外部UI非作者確認→backend59path候補との実接合。PR197旧profile合成回帰は別担当が修復候補を作成中。MVP完成/通常統合済みとはしない。
+
+
 ## 再開現在地：2026-11-06 17:45 JST（取消CP照合修復・実画面r23開始）
 
 - **利用者操作と実証**: 正式develop51bcb/#196の既実証は維持。候補の実画面2球保存は成立、2取消→次球→reload全列はまだ未達。owned r17は直接PG3成功・画面1失敗、r22は取消GET200・全構造/完全原本true、通常readとの16照合のうちcheckpointIdだけfalseと特定。入力CPを保存後CPと取り違えたclient比較が原因。
