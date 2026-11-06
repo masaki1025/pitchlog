@@ -190,7 +190,7 @@ class NonplayWriteAdmission(LifecycleMixin, Base):
         CheckConstraint(
             (
                 "transaction_id ~ '^[1-9][0-9]{0,19}$' AND transaction_id !~ "
-                "'[^0-9]' AND transaction_id::numeric<=18446744073709551615"
+                "'[^0-9]' AND transaction_id::numeric<='18446744073709551615'::numeric"
             ),
             name="ck_nonplay_admission_xid8",
         ),
