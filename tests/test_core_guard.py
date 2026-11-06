@@ -7914,6 +7914,26 @@ def test_pr197_identical_cochange_rejects_missing_new_guard_path(tmp_path):
         )
 
 
+def test_pr197_identical_cochange_does_not_allow_later_same_value_commit(tmp_path):
+    """JSON値が同じでも後発testとの共変更を別の6fに偽装できない。"""
+    guard = load_core_guard_module()
+    clone = tmp_path / 'pr197-later-cochange'
+    run_git(REPO, 'clone', '--shared', '--quiet', str(REPO), str(clone))
+    json_path = clone / '.claude/core-areas.json'
+    test_path = clone / 'tests/test_core_guard.py'
+    json_path.write_bytes(json_path.read_bytes() + b'\n')
+    test_path.write_bytes(test_path.read_bytes() + b'\n# later cochange\n')
+    run_git(clone, 'add', '.claude/core-areas.json', 'tests/test_core_guard.py')
+    run_git(clone, '-c', 'user.name=Test', '-c', 'user.email=test@local.invalid',
+            'commit', '-m', 'negative later cochange')
+    head = run_git(clone, 'rev-parse', 'HEAD').stdout.strip()
+    base = json.loads(
+        (clone / 'tests/fixtures/pr197_tenant_source_expected_v1.json').read_text()
+    )['formal_base_revision']
+    with pytest.raises(guard.GuardError, match='同一コミット'):
+        guard.verify_area_path_baseline(clone, base, head)
+
+
 @pytest.mark.parametrize('mutation', [
     'wrong-parent', 'product-from-second-parent', 'core-byte', 'json-byte',
     'approved-doc-byte',
