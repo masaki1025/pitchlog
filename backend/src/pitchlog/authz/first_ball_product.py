@@ -1885,9 +1885,15 @@ def _activate_stamp_profile() -> None:
 _activate_stamp_profile()
 
 
-def _activate_ordinary_profile(*, play_prefix=False, recording_vocab=False) -> None:
+def _activate_ordinary_profile(
+    *, play_prefix=False, recording_vocab=False, nonplay=False
+) -> None:
     """承認対象の有限ordinary宣言だけを同じ正式installerへ接合する。"""
-    if recording_vocab:
+    if nonplay:
+        if play_prefix or recording_vocab:
+            raise ValueError("非play接合のprofileが重複")
+        from pitchlog.authz.nonplay_product import candidate_declarations
+    elif recording_vocab:
         from pitchlog.authz.recording_vocabulary_product import candidate_declarations
     elif play_prefix:
         from pitchlog.authz.terminal_pitch_product import candidate_declarations
@@ -1895,6 +1901,31 @@ def _activate_ordinary_profile(*, play_prefix=False, recording_vocab=False) -> N
         from pitchlog.authz.ordinary_pitch_product import candidate_declarations
 
     declarations, bodies = candidate_declarations()
+    if nonplay:
+        kinds = {
+            "functions": "function",
+            "tables": "table",
+            "policies": "policy",
+            "acl_expectations": "acl_expectation",
+            "column_acl_expectations": "column_acl_expectation",
+        }
+        if set(declarations) != set(kinds) or set(bodies) != {
+            kinds[section] + "|" + row[IDS[section]]
+            for section, rows in declarations.items()
+            for row in rows
+        }:
+            raise ValueError("非play接合の宣言と本文集合が不一致")
+        for section, rows in declarations.items():
+            if section == "column_acl_expectations":
+                continue
+            for row in rows:
+                key = kinds[section] + "|" + row[IDS[section]]
+                expected_body = (
+                    f"-- ELEMENT-TYPE: {kinds[section]}\n"
+                    f"-- ELEMENT-ID: {row[IDS[section]]}\n\n" + bodies[key]
+                )
+                if key in BODIES and BODIES[key] != expected_body:
+                    raise ValueError("非play接合の既本文と不一致")
     for section, rows in declarations.items():
         identifier = IDS[section]
         existing = {row[identifier]: row for row in ADDITIONS[section]}
@@ -1981,6 +2012,7 @@ def _activate_stats_profile() -> None:
 
 
 _activate_stats_profile()
+_activate_ordinary_profile(nonplay=True)
 ROLES = frozenset(row["role_id"] for row in ADDITIONS["roles"])
 
 TABLES = frozenset(
@@ -1994,6 +2026,7 @@ TABLES = frozenset(
         "stats_fact_versions",
         "stats_primitive_sources",
         "stats_primitive_facts",
+        "nonplay_write_admissions",
     }
 )
 SCHEMAS = frozenset(row["schema_name"] for row in ADDITIONS["schemas"])

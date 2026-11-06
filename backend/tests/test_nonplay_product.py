@@ -5,6 +5,7 @@ import json
 
 import pytest
 
+from pitchlog.authz import first_ball_product as installer
 from pitchlog.authz import nonplay_product as publisher
 from pitchlog.authz.first_ball_product import _function_argument_names
 from pitchlog.authz.nonplay_prefix_sql import candidate_function_bodies
@@ -155,3 +156,72 @@ def test_consume_requires_exact_receipt_text_abi(monkeypatch, result_type):
     monkeypatch.setattr(publisher, "candidate_function_bodies", lambda: source)
     with pytest.raises(ValueError, match="固定SQL署名・実行属性"):
         publisher.candidate_declarations()
+
+
+def test_real_installer_contains_all_nonplay_declarations_and_exact_acl_union():
+    """候補宣言だけでなく製品installerへ接合し、appの表直接権限を開かない。"""
+    declarations, bodies = publisher.candidate_declarations()
+    assert "nonplay_write_admissions" in installer.TABLES
+    for section, rows in declarations.items():
+        identifier = installer.IDS[section]
+        for row in rows:
+            actual = next(
+                value
+                for value in installer.ADDITIONS[section]
+                if value[identifier] == row[identifier]
+            )
+            expected = copy.deepcopy(row)
+            if section == "column_acl_expectations" and row["object_id"] == "play_rows":
+                expected["privilege_ids"] = ["SELECT", "UPDATE"]
+            assert actual == expected
+    for key, sql in bodies.items():
+        kind, identifier = key.split("|", 1)
+        if key.startswith("column_acl_expectation|COLUMN-ACL:public:play_rows:"):
+            assert installer.BODIES[key] == (
+                f"-- ELEMENT-TYPE: {kind}\n-- ELEMENT-ID: {identifier}\n\n"
+                "GRANT SELECT (hidden_at),UPDATE (hidden_at) ON TABLE "
+                "public.play_rows TO pitchlog_sync_right_fn_owner;\n"
+            )
+        else:
+            assert installer.BODIES[key] == (
+                f"-- ELEMENT-TYPE: {kind}\n-- ELEMENT-ID: {identifier}\n\n" + sql
+            )
+
+
+def test_nonplay_installer_repeated_composition_preserves_every_value(monkeypatch):
+    """再接合で既列権限を重複・減少させず、全旧本文も変えない。"""
+    declarations, bodies = copy.deepcopy(installer.ADDITIONS), dict(installer.BODIES)
+    monkeypatch.setattr(installer, "ADDITIONS", copy.deepcopy(declarations))
+    monkeypatch.setattr(installer, "BODIES", dict(bodies))
+    installer._activate_ordinary_profile(nonplay=True)
+    assert installer.ADDITIONS == declarations
+    assert installer.BODIES == bodies
+
+
+@pytest.mark.parametrize(
+    "mutation", ["missing-body", "extra-body", "owner", "column-owner", "body"]
+)
+def test_nonplay_installer_refuses_conflicts_without_accepting_unknown_values(
+    monkeypatch, mutation
+):
+    """既IDの所有者/本文/列属性の衝突と、不完全な本文集合を拒否する。"""
+    declarations, bodies = publisher.candidate_declarations()
+    function = declarations["functions"][0]
+    body_key = "function|" + function["function_id"]
+    if mutation == "missing-body":
+        del bodies[body_key]
+    elif mutation == "extra-body":
+        bodies["function|unknown"] = "SELECT 1;"
+    elif mutation == "owner":
+        function["owner_role_id"] = "pitchlog_app"
+    elif mutation == "column-owner":
+        declarations["column_acl_expectations"][0]["grantee_role_id"] = "pitchlog_app"
+    else:
+        bodies[body_key] += "-- unaccepted replacement\n"
+    monkeypatch.setattr(installer, "ADDITIONS", copy.deepcopy(installer.ADDITIONS))
+    monkeypatch.setattr(installer, "BODIES", dict(installer.BODIES))
+    monkeypatch.setattr(
+        publisher, "candidate_declarations", lambda: (declarations, bodies)
+    )
+    with pytest.raises(ValueError):
+        installer._activate_ordinary_profile(nonplay=True)
