@@ -852,6 +852,30 @@ export function formatCount(value: unknown): string | null {
     raise FormatterGenerationError("未知の整数target言語")
 
 
+def rate_helpers_target(language: str) -> str:
+    """T6表示率が共有する比の整数演算helperを返す。"""
+    if language != "python":
+        raise ValueError("T6表示率helperはPythonだけを生成する")
+    return (
+        "def _rate_add(*values):\n"
+        "    return None if any(value is None for value in values) else sum(values)\n"
+        "\n\n"
+        "def _ratio(numerator, denominator):\n"
+        "    if numerator is None or denominator is None:\n"
+        "        return None\n"
+        "    return (numerator, denominator)\n"
+        "\n\n"
+        "def _ratio_add(*values):\n"
+        "    if any(value is None or value[1] == 0 for value in values):\n"
+        "        return None\n"
+        "    numerator, denominator = 0, 1\n"
+        "    for n, d in values:\n"
+        "        numerator, denominator = numerator * d + n * denominator, "
+        "denominator * d\n"
+        "    return numerator, denominator\n"
+    )
+
+
 def ratio_target(language: str, source_hash: str) -> str:
     """比の汎用演算と最終整数roundの生成helper。"""
     if language == "python":

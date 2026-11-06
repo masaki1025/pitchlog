@@ -2400,7 +2400,7 @@ def decision_metadata():
     }
 
 
-def derive_rates(metrics):
+def derive_rates_with_components(metrics):
     """生成された型検証・有限寄与処理。"""
     values = _rate_inputs(
         metrics,
@@ -2434,12 +2434,28 @@ def derive_rates(metrics):
         ),
     )
     results = {}
+    component_results = {}
     parts_0 = {
         "obp": _ratio(
             _rate_add(values["h"], values["bb"], values["hbp"]),
             _rate_add(values["ab"], values["bb"], values["hbp"], values["sf"]),
         ),
         "slg": _ratio(values["total_bases"], values["ab"]),
+    }
+    component_results["ops"] = {}
+    component_results["ops"]["obp"] = {
+        "state": "available" if parts_0["obp"] is not None else "source_unavailable",
+        "pair": parts_0["obp"],
+        "reason": None
+        if parts_0["obp"] is not None
+        else _rate_reason(metrics, ("h", "bb", "hbp", "ab", "sf")),
+    }
+    component_results["ops"]["slg"] = {
+        "state": "available" if parts_0["slg"] is not None else "source_unavailable",
+        "pair": parts_0["slg"],
+        "reason": None
+        if parts_0["slg"] is not None
+        else _rate_reason(metrics, ("total_bases", "ab")),
     }
     results["ops"] = _rate_result(
         _ratio_add(parts_0["obp"], parts_0["slg"]),
@@ -2456,4 +2472,9 @@ def derive_rates(metrics):
         },
         _rate_reason(metrics, ("h", "bb", "hbp", "ab", "sf", "total_bases")),
     )
-    return results
+    return (results, component_results)
+
+
+def derive_rates(metrics):
+    """生成された型検証・有限寄与処理。"""
+    return derive_rates_with_components(metrics)[0]

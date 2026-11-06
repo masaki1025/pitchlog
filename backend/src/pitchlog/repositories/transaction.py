@@ -53,6 +53,8 @@ _INITIAL_ACTOR_STATES: dict[
 ] = {}
 _RG1_LOANS: dict[object, _GateLoan] = {}
 _STATS_READ_HANDLES: dict[object, _TenantTransaction] = {}
+# 候補検証専用の追加read token predicate。製品起動ではNoneのまま。
+_EXTRA_STATS_READ_OPERATION = None
 
 
 @dataclass(slots=True)
@@ -195,6 +197,11 @@ class _TenantTransaction:
             )
 
         session, _ = runtime
+        if _EXTRA_STATS_READ_OPERATION is not None and _EXTRA_STATS_READ_OPERATION(
+            operation
+        ):
+            _require_stats_primitive_read_scope(self)
+            return self.run_function(operation)
         if _stats_read_operation(operation):
             _require_stats_primitive_read_scope(self)
             return self.run_function(operation)
@@ -243,7 +250,11 @@ class _TenantTransaction:
             raise TenantBindingError(
                 "TenantContext の発行証跡が不一致のため業務 SQL を開始できない"
             )
-        if _stats_read_operation(operation):
+        if _EXTRA_STATS_READ_OPERATION is not None and _EXTRA_STATS_READ_OPERATION(
+            operation
+        ):
+            _require_stats_primitive_read_scope(self)
+        elif _stats_read_operation(operation):
             _require_stats_primitive_read_scope(self)
             return _run_stats_primitive_read(self, operation)
         elif state_key in _STATS_READ_HANDLES:

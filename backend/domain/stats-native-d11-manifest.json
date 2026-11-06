@@ -37,7 +37,7 @@
           "targetClass": "alpha",
           "kind": "single",
           "generated": "nativeFactsPy",
-          "hash": "sha256:7673b5969d6ce3104b48d4f94f217c6b4a44ef1b9b08d06ebaeee935648497d4",
+          "hash": "sha256:a7ca0116a1bcb53af2cfe77f9535af08da635a53b1bbe0b06bf7bd241bb31ce6",
           "invocation": {
             "adapter": "backend/src/pitchlog/domaincheck/runners/stats_native.py",
             "operation": "execute_python"

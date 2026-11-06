@@ -8,15 +8,15 @@
     "backend/domain/model.schema.json": "ec6b8b9c90e37a22e4f57005df4e227380a0fc20d397a02cdee317e02892ac9a",
     "backend/domain/play-export.model.json": "3ee265ce3586b793f8e48853e07548dfd700bd94fe988af1a63190e8626e073b",
     "backend/domain/stats.model.json": "a3a7643780f7e430309b909d4c1b23a72da87b327afc5e1be2ff7c9da8244773",
-    "backend/src/pitchlog/domaingen/core.py": "761e60e3b10a09df5f5e5b32a39097094756a863bb13e6346abd3b44aa3967a5",
+    "backend/src/pitchlog/domaingen/core.py": "70a4daf7661700dce294a38cfb6b8c82a7283a68f70ba2b136df6b60a6578224",
     "backend/src/pitchlog/domaingen/pregen_checks.py": "72f558898fb535107e588eb03724ae106b8484544c0ccd50123d54df1621ba15",
-    "backend/src/pitchlog/domaingen/formatter.py": "11cbeae3b605add84eeebea9974b2e0b0449891601c84f62f9046ef36bd7dc3b",
-    "backend/src/pitchlog/domaingen/backends/python.py": "e1c29caa5dc121f977c3c2cec8e3c12dbfbdde33bd9c2e4258e9528cf84fcf0f",
+    "backend/src/pitchlog/domaingen/formatter.py": "30eddd35a628e7fcd17aae607dd6ad5a1349b322c814d2a68fa46c8d41ae18ef",
+    "backend/src/pitchlog/domaingen/backends/python.py": "9d7aeaca7fba1458bb20bcf1a3b7fcfbd735fe9d7511a7f2c1a4fd3c20cb51bd",
     "backend/src/pitchlog/domaingen/backends/typescript.py": "b9c4458d10a3e872c45dcd5b5d24bbaf6f01f86df5ea71c84002b81b1213d468",
     "backend/src/pitchlog/domaingen/backends/sql.py": "e0fb3a4956a47eafd6bca64c19740b6d6432c3dafda8668d4234e144ca270ffb"
   },
   "generatedFiles": {
-    "backend/src/pitchlog/stats/generated/facts.py": "7673b5969d6ce3104b48d4f94f217c6b4a44ef1b9b08d06ebaeee935648497d4",
+    "backend/src/pitchlog/stats/generated/facts.py": "a7ca0116a1bcb53af2cfe77f9535af08da635a53b1bbe0b06bf7bd241bb31ce6",
     "frontend/src/lib/generated/statsPrimitives.ts": "4ed903e416d2fbdf67d226b6e1f48a9dbfe8c9690feb7bd86485622be8078219",
     "backend/src/pitchlog/exports/generated/play_primitives.sql": "6b76ca894f910a484aa8d130d07c61ab237a1737af0bec0e6a3b578a277b9552",
     "backend/src/pitchlog/stats/generated/stats.sql": "b7a8837fb9efaf662a66a7b3c93ec977969139e93c58857716069a9b1329a541",
@@ -75,11 +75,11 @@
     "version": 1,
     "model_sha256": "sha256:60ab45878fdfc868efc15ddb0f9b84d6ab0f3583519c48a2202e3d9c3abac59d",
     "artifacts": {
-      "backend/src/pitchlog/stats/generated/facts.py": "7673b5969d6ce3104b48d4f94f217c6b4a44ef1b9b08d06ebaeee935648497d4",
+      "backend/src/pitchlog/stats/generated/facts.py": "a7ca0116a1bcb53af2cfe77f9535af08da635a53b1bbe0b06bf7bd241bb31ce6",
       "frontend/src/lib/generated/statsPrimitives.ts": "4ed903e416d2fbdf67d226b6e1f48a9dbfe8c9690feb7bd86485622be8078219"
     }
   },
-  "t5ArtifactSetSha256": "28af30fd1b1300c805b7dcb243fc7b32ab9d6db9fc10c38bdcbc63fa85c3a0de",
+  "t5ArtifactSetSha256": "cfc7bbb89a3612913f9503e4e2d11b72a090c37ba9315407a3ee73974d7bd2cc",
   "currentSeriesBinding": {
     "state": "current_open only same model/rule/t5_artifact_set",
     "conditionalMutable": [
@@ -150,7 +150,7 @@
         "version": 1,
         "model_sha256": "sha256:60ab45878fdfc868efc15ddb0f9b84d6ab0f3583519c48a2202e3d9c3abac59d",
         "artifacts": {
-          "backend/src/pitchlog/stats/generated/facts.py": "7673b5969d6ce3104b48d4f94f217c6b4a44ef1b9b08d06ebaeee935648497d4",
+          "backend/src/pitchlog/stats/generated/facts.py": "a7ca0116a1bcb53af2cfe77f9535af08da635a53b1bbe0b06bf7bd241bb31ce6",
           "frontend/src/lib/generated/statsPrimitives.ts": "4ed903e416d2fbdf67d226b6e1f48a9dbfe8c9690feb7bd86485622be8078219"
         }
       }
@@ -170,5 +170,35 @@
     "actual_pg_executed": false,
     "legacy_manifest_sha256": "dcdd901153ce70da08816391e2de3ed206f4a324bd63fc5fb63d8dfa01eaaafc",
     "legacy_profile_is_not_current_sql_capability": true
-  }
+  },
+  "t6DisplayRates": {
+    "status": "candidate",
+    "modelPath": "backend/domain/stats-display.model.json",
+    "modelSha256": "fa5221cc8c780d5b03df145d9f9b73862f9bf613662fc6b21e3a0751e02fe08e",
+    "generatedPath": "backend/src/pitchlog/stats/generated/rates.py",
+    "generatedSha256": "15c204f47a30789180e2866153ea787cc422b3e4c1ee8a47950698bcac3d6cd8",
+    "generatorInputs": {
+      "backend/domain/play-export.model.json": "3ee265ce3586b793f8e48853e07548dfd700bd94fe988af1a63190e8626e073b",
+      "backend/src/pitchlog/domaingen/core.py": "70a4daf7661700dce294a38cfb6b8c82a7283a68f70ba2b136df6b60a6578224",
+      "backend/src/pitchlog/domaingen/backends/python.py": "9d7aeaca7fba1458bb20bcf1a3b7fcfbd735fe9d7511a7f2c1a4fd3c20cb51bd",
+      "backend/src/pitchlog/domaingen/formatter.py": "30eddd35a628e7fcd17aae607dd6ad5a1349b322c814d2a68fa46c8d41ae18ef"
+    },
+    "t5ArtifactSetUnchanged": false,
+    "note": "共通OPSのcomponent accessorを同一生成核へ追加。既OPS数学/TS/SQL/receiver/formatterは不変だがPython生成byteとT5 artifact set IDは更新。旧版を新しいcurrentへ暗黙に刻印しない。"
+  },
+  "priorT5ArtifactBindings": [
+    {
+      "artifactSetSha256": "28af30fd1b1300c805b7dcb243fc7b32ab9d6db9fc10c38bdcbc63fa85c3a0de",
+      "binding": {
+        "version": 1,
+        "model_sha256": "sha256:60ab45878fdfc868efc15ddb0f9b84d6ab0f3583519c48a2202e3d9c3abac59d",
+        "artifacts": {
+          "backend/src/pitchlog/stats/generated/facts.py": "7673b5969d6ce3104b48d4f94f217c6b4a44ef1b9b08d06ebaeee935648497d4",
+          "frontend/src/lib/generated/statsPrimitives.ts": "4ed903e416d2fbdf67d226b6e1f48a9dbfe8c9690feb7bd86485622be8078219"
+        }
+      },
+      "usage": "historical identity only; no automatic current write qualification or series relabeling",
+      "sourceRevision": "a59c654e3366d2be9c6456e47b07118e1674bce2"
+    }
+  ]
 }

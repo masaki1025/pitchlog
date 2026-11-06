@@ -1,0 +1,257 @@
+{
+  "schemaVersion": 1,
+  "calculations": [
+    {
+      "calculationId": "displayRates",
+      "typedProgram": {
+        "kind": "primitive-refs",
+        "version": 2,
+        "commonCalculationId": "canonicalEventFacts",
+        "commonModelHash": "sha256:60ab45878fdfc868efc15ddb0f9b84d6ab0f3583519c48a2202e3d9c3abac59d",
+        "refs": [
+          {
+            "id": "pitch_count",
+            "type": "integer"
+          },
+          {
+            "id": "pa",
+            "type": "integer"
+          },
+          {
+            "id": "ab",
+            "type": "integer"
+          },
+          {
+            "id": "h",
+            "type": "integer"
+          },
+          {
+            "id": "hr",
+            "type": "integer"
+          },
+          {
+            "id": "bb",
+            "type": "integer"
+          },
+          {
+            "id": "hbp",
+            "type": "integer"
+          },
+          {
+            "id": "k",
+            "type": "integer"
+          },
+          {
+            "id": "sh",
+            "type": "integer"
+          },
+          {
+            "id": "sf",
+            "type": "integer"
+          },
+          {
+            "id": "catcher_interference_reached",
+            "type": "integer"
+          },
+          {
+            "id": "runner_interference_reached",
+            "type": "integer"
+          },
+          {
+            "id": "doubles",
+            "type": "integer"
+          },
+          {
+            "id": "triples",
+            "type": "integer"
+          },
+          {
+            "id": "total_bases",
+            "type": "integer"
+          },
+          {
+            "id": "runs",
+            "type": "integer"
+          },
+          {
+            "id": "rbi",
+            "type": "integer"
+          },
+          {
+            "id": "stolen_bases",
+            "type": "integer"
+          },
+          {
+            "id": "pitching_outs",
+            "type": "integer"
+          },
+          {
+            "id": "pitcher_k",
+            "type": "integer"
+          },
+          {
+            "id": "pitcher_bb",
+            "type": "integer"
+          },
+          {
+            "id": "pitcher_hbp",
+            "type": "integer"
+          },
+          {
+            "id": "hits_allowed",
+            "type": "integer"
+          },
+          {
+            "id": "home_runs_allowed",
+            "type": "integer"
+          },
+          {
+            "id": "fielding_errors",
+            "type": "integer"
+          },
+          {
+            "id": "runs_allowed",
+            "type": "integer"
+          }
+        ],
+        "derivedRefs": [
+          {
+            "id": "ops",
+            "type": "ratio"
+          }
+        ],
+        "displayRates": [
+          {
+            "id": "avg",
+            "type": "ratio",
+            "components": [
+              {
+                "id": "avg",
+                "expression": {
+                  "op": "ratio",
+                  "numerator": {
+                    "op": "metric",
+                    "id": "h"
+                  },
+                  "denominator": {
+                    "op": "metric",
+                    "id": "ab"
+                  }
+                }
+              }
+            ],
+            "expression": {
+              "op": "component",
+              "id": "avg"
+            },
+            "display": {
+              "scale": 3,
+              "rounding": "half-up",
+              "leadingZero": false,
+              "zeroDivisionGlyph": "−",
+              "denominators": [
+                {
+                  "component": "avg",
+                  "prefix": "打数",
+                  "suffix": ""
+                }
+              ]
+            }
+          },
+          {
+            "id": "whip",
+            "type": "ratio",
+            "components": [
+              {
+                "id": "whip",
+                "expression": {
+                  "op": "ratio",
+                  "numerator": {
+                    "op": "add",
+                    "args": [
+                      {
+                        "op": "metric",
+                        "id": "hits_allowed"
+                      },
+                      {
+                        "op": "metric",
+                        "id": "pitcher_bb"
+                      },
+                      {
+                        "op": "metric",
+                        "id": "hits_allowed"
+                      },
+                      {
+                        "op": "metric",
+                        "id": "pitcher_bb"
+                      },
+                      {
+                        "op": "metric",
+                        "id": "hits_allowed"
+                      },
+                      {
+                        "op": "metric",
+                        "id": "pitcher_bb"
+                      }
+                    ]
+                  },
+                  "denominator": {
+                    "op": "metric",
+                    "id": "pitching_outs"
+                  }
+                }
+              }
+            ],
+            "expression": {
+              "op": "component",
+              "id": "whip"
+            },
+            "display": {
+              "scale": 2,
+              "rounding": "half-up",
+              "leadingZero": true,
+              "zeroDivisionGlyph": "−",
+              "denominators": [
+                {
+                  "component": "whip",
+                  "prefix": "",
+                  "suffix": "",
+                  "format": "innings"
+                }
+              ]
+            }
+          }
+        ],
+        "componentDisplays": {
+          "obp": {
+            "scale": 3,
+            "rounding": "half-up",
+            "leadingZero": false,
+            "zeroDivisionGlyph": "−",
+            "denominators": [
+              {
+                "component": "obp",
+                "prefix": "打席",
+                "suffix": ""
+              }
+            ]
+          },
+          "slg": {
+            "scale": 3,
+            "rounding": "half-up",
+            "leadingZero": false,
+            "zeroDivisionGlyph": "−",
+            "denominators": [
+              {
+                "component": "slg",
+                "prefix": "打数",
+                "suffix": ""
+              }
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "displayRules": []
+}

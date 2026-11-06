@@ -22,3 +22,6 @@ branch: feature/mvp-basic-stats-product
 5. 同一版の実画面/実API/owned PGで記録→終了→成績/CSV→再開/訂正→再終了を確認し、原子性/再送/越境/切断/負荷を検証。運用公開/実機/復旧の未実施は別記する。
 
 各stepを別commit・非作者確認し、状態/実値/検証の対象版を記録する。step1の候補成功を27項目提供/正式統合/MVP全完成に読み替えない。PO本人署名・人間逐行確認を代記しない。
+
+
+step1候補接合の確認（2026-11-06、PO委任Codex /root判断）: 固定patch0fdf982c1a16e205b8feb13c35e70c00879f2575bda69330d809a2c5a686643bに非作者REPORT SHA256 f5de81b1ba957f2f8263adeb149d59198e1a03fa4fa618a3be855e56fb85960f。未登録候補として採用可。旧v2保存set互換・mutable read hook廃止/正式認可・真正終了receipt/pointer・登板/BF・88列CSVは製品提供前の未解消として残す。生成T5 8/T6 1と旧v1保持、preexec pin/legacy API保持を検算済み。root対象266成功25.87秒、frontend既50成功、formatter表記のE501を隣接literal分割で修正しmodule AST/生成出力は不変。正式SQL3bodyは未採用、製品registryも未登録。今回の候補保存はMVP/27項目/製品提供/実ブラウザ成立ではない。
