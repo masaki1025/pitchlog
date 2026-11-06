@@ -1,7 +1,7 @@
 """API 例外を共通のエラー封筒へ変換する。"""
 
 import logging
-from typing import Literal, cast
+from typing import Any, Literal, cast
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -27,6 +27,8 @@ _TEAM_GAME_ERROR_MESSAGE = (
 _TEAM_PLAYER_ERROR_MESSAGE = (
     "選手が紐づいているため削除できません。名前を変更してください"
 )
+_EXPORT_SOURCE_UNAVAILABLE_MESSAGE = "毎球CSVの供給が不足しています"
+_EXPORT_SNAPSHOT_CHANGED_MESSAGE = "毎球CSVの出力版が変わりました"
 
 
 class TeamRecordDeleteBlocked(Exception):
@@ -167,6 +169,37 @@ async def _team_delete_exception_handler(
     return _error_response(status_code=409, message=message)
 
 
+async def _play_export_source_unavailable_handler(
+    _request: Request, exception: Exception
+) -> JSONResponse:
+    """供給不足の列だけを返し、内部キーやpayloadを出さない。"""
+    unavailable = cast(Any, exception)
+    fields = [
+        ErrorField(
+            location=(
+                f"missing_column.{item.column_index}.{item.header}.{item.supply_group}"
+            )
+        )
+        for item in unavailable.missing
+    ]
+    return _error_response(
+        status_code=409,
+        message=_EXPORT_SOURCE_UNAVAILABLE_MESSAGE,
+        fields=fields,
+    )
+
+
+async def _play_export_snapshot_changed_handler(
+    _request: Request, _exception: Exception
+) -> JSONResponse:
+    """送出前の版変更を固定文言の409へ写す。"""
+    return _error_response(
+        status_code=409,
+        message=_EXPORT_SNAPSHOT_CHANGED_MESSAGE,
+        fields=[ErrorField(location="export_snapshot_changed")],
+    )
+
+
 async def _rg1_unavailable_exception_handler(
     _request: Request, _exception: Exception
 ) -> JSONResponse:
@@ -191,6 +224,19 @@ def register_exception_handlers(app: FastAPI) -> None:
     app.add_exception_handler(StarletteHTTPException, _http_exception_handler)
     app.add_exception_handler(RequestGateError, _request_gate_exception_handler)
     app.add_exception_handler(TeamRecordDeleteBlocked, _team_delete_exception_handler)
+    from pitchlog.repositories.play_export import (
+        PlayExportSnapshotChanged,
+        PlayExportSourceUnavailable,
+    )
+
+    app.add_exception_handler(
+        PlayExportSourceUnavailable,
+        _play_export_source_unavailable_handler,
+    )
+    app.add_exception_handler(
+        PlayExportSnapshotChanged,
+        _play_export_snapshot_changed_handler,
+    )
     app.add_exception_handler(RG1Unavailable, _rg1_unavailable_exception_handler)
     app.add_exception_handler(RG1ControlUnavailable, _rg1_unavailable_exception_handler)
     app.add_exception_handler(Exception, _unhandled_exception_handler)

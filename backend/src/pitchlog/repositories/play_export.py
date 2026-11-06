@@ -74,6 +74,14 @@ class PlayExportSourceUnavailable(Exception):
         super().__init__("毎球CSVの供給が不足しています")
 
 
+class PlayExportSnapshotChanged(Exception):
+    """出力準備後、送出前の再確認で版が変わった。"""
+
+    def __init__(self) -> None:
+        """内部値を持たない固定の非成功。"""
+        super().__init__("毎球CSVの出力版が変わりました")
+
+
 @dataclass(frozen=True, slots=True)
 class PlayExportSnapshot:
     """同一REPEATABLE READで確定した出力版。"""

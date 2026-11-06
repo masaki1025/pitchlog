@@ -315,10 +315,10 @@ async def test_forbidden_response_is_hidden_as_not_found() -> None:
 
 
 def test_router_routes_are_static_login_roster_and_meta() -> None:
-    """静的登録したメタ情報・認証・選手・チーム・試合・同期・語彙の28本を照合する。"""
+    """静的登録したメタ情報・認証・選手・チーム・試合・同期・語彙の29本を照合する。"""
     routes = _router_routes()
 
-    assert len(routes) == 28
+    assert len(routes) == 29
     assert tuple((route.path, frozenset(route.methods or ())) for route in routes) == (
         ("/health", frozenset({"GET"})),
         ("/version", frozenset({"GET"})),
@@ -345,11 +345,16 @@ def test_router_routes_are_static_login_roster_and_meta() -> None:
         ("/devices/enroll", frozenset({"POST"})),
         ("/games/{game_id}/start", frozenset({"POST"})),
         ("/games/{game_id}/start/resolve", frozenset({"POST"})),
+        ("/games/{game_id}/exports/plays.zip", frozenset({"GET"})),
         ("/vocabularies/pitch-types", frozenset({"GET"})),
         ("/games/{game_id}/started", frozenset({"GET"})),
         ("/games/{game_id}/sync/events", frozenset({"POST"})),
     )
-    assert all(route.response_model is not None for route in routes)
+    assert all(
+        route.response_model is not None
+        for route in routes
+        if route.path != "/games/{game_id}/exports/plays.zip"
+    )
 
 
 def test_error_envelope_models_have_no_code_field() -> None:
