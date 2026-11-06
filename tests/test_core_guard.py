@@ -7829,6 +7829,91 @@ def test_pr197_approved_doc_merge_is_one_exact_carry():
     guard._verify_pr197_definition_order(REPO, base, head)
 
 
+def test_pr197_identical_cochange_is_one_git_object_and_head_guards_all_new_exclusions():
+    """旧5aを残し、実6fだけとHEADの新13検査経路を受ける。"""
+    guard = load_core_guard_module()
+    asset = json.loads((REPO / 'contracts/tenant_boundary/frozen-inputs.json').read_text())
+    frozen = asset['frozen_inputs']
+    revision = frozen['pr197_identical_cochange_revision']['value']
+    head = run_git(REPO, 'rev-parse', 'HEAD').stdout.strip()
+    guard._pr197_identical_cochange(REPO, revision, head)
+    base = json.loads(
+        (REPO / 'tests/fixtures/pr197_tenant_source_expected_v1.json').read_text()
+    )['formal_base_revision']
+    assert guard.verify_area_path_baseline(REPO, base, head) == base
+    assert set(guard.matched_paths(
+        tuple(sorted(guard._PR197_RECOVERY_EXCLUSIONS)),
+        guard.load_core_areas(REPO),
+    )) == guard._PR197_RECOVERY_EXCLUSIONS
+
+
+@pytest.mark.parametrize('mutation', [
+    'wrong-revision', 'wrong-head', 'parent', 'json-byte', 'core-byte',
+    'test-byte', 'pin',
+])
+def test_pr197_identical_cochange_rejects_false_original(
+    monkeypatch: pytest.MonkeyPatch, mutation: str,
+) -> None:
+    """別履歴・親・全byte・固定2fa値のいずれも自己申告で救わない。"""
+    guard = load_core_guard_module()
+    frozen = json.loads(
+        (REPO / 'contracts/tenant_boundary/frozen-inputs.json').read_text()
+    )['frozen_inputs']
+    revision = frozen['pr197_identical_cochange_revision']['value']
+    head = run_git(REPO, 'rev-parse', 'HEAD').stdout.strip()
+    if mutation == 'wrong-revision':
+        revision = run_git(REPO, 'rev-parse', revision + '^').stdout.strip()
+    elif mutation == 'wrong-head':
+        head = frozen_history.PR197_PIN_ORIGIN_COMMIT
+    elif mutation == 'pin':
+        monkeypatch.setattr(
+            guard.frozen_history, 'read_original_pr197_pin',
+            lambda *_: '0' * 64,
+        )
+    else:
+        real = guard._pr197_merge_git
+
+        def altered(root, *arguments):
+            result = real(root, *arguments)
+            if mutation == 'parent' and arguments == (
+                'show', '-s', '--format=%P', revision,
+            ):
+                return result.strip() + ' ' + result
+            path = {
+                'json-byte': '.claude/core-areas.json',
+                'core-byte': 'scripts/core_guard.py',
+                'test-byte': 'tests/test_core_guard.py',
+            }.get(mutation)
+            if path and arguments == ('show', revision + ':' + path):
+                return result + '\n'
+            return result
+
+        monkeypatch.setattr(guard, '_pr197_merge_git', altered)
+    with pytest.raises(guard.GuardError):
+        guard._pr197_identical_cochange(REPO, revision, head)
+
+
+def test_pr197_identical_cochange_rejects_missing_new_guard_path(tmp_path):
+    """後続JSONで新6の一件を欠かすと旧共変更を救済しない。"""
+    guard = load_core_guard_module()
+    clone = tmp_path / 'pr197-missing-guard'
+    run_git(REPO, 'clone', '--shared', '--quiet', str(REPO), str(clone))
+    path = clone / '.claude/core-areas.json'
+    document = json.loads(path.read_text())
+    document['guard_paths'].remove(guard._PR197_RECOVERY_GUARD_PATHS[0])
+    path.write_text(json.dumps(document, ensure_ascii=False, indent=2) + '\n')
+    run_git(clone, 'add', '.claude/core-areas.json')
+    run_git(clone, '-c', 'user.name=Test', '-c', 'user.email=test@local.invalid',
+            'commit', '-m', 'negative missing guard')
+    head = run_git(clone, 'rev-parse', 'HEAD').stdout.strip()
+    frozen = json.loads((clone / 'contracts/tenant_boundary/frozen-inputs.json').read_text())
+    with pytest.raises(guard.GuardError):
+        guard._pr197_identical_cochange(
+            clone, frozen['frozen_inputs']['pr197_identical_cochange_revision']['value'],
+            head,
+        )
+
+
 @pytest.mark.parametrize('mutation', [
     'wrong-parent', 'product-from-second-parent', 'core-byte', 'json-byte',
     'approved-doc-byte',
@@ -7876,6 +7961,9 @@ def test_pr197_approved_doc_merge_rejects_nonidentical_carry(
     'pr197_approved_doc_merge_revision',
     'pr197_core_carry_source_revision',
     'pr197_core_carry_definition_sha256',
+    'pr197_identical_cochange_revision',
+    'pr197_recovery_source_revision',
+    'pr197_recovery_definition_sha256',
 ])
 def test_pr197_approved_doc_merge_rejects_changed_typed_pin(tmp_path, key):
     """新typed pinの欠落・別値を現HEADのまま受理しない。"""
@@ -7889,7 +7977,10 @@ def test_pr197_approved_doc_merge_rejects_changed_typed_pin(tmp_path, key):
     asset['frozen_inputs'][key]['value'] = '0' * len(asset['frozen_inputs'][key]['value'])
     path.write_text(json.dumps(asset, ensure_ascii=False, indent=2) + '\n')
     with pytest.raises(guard.GuardError):
-        if key == 'pr197_core_carry_definition_sha256':
+        if key in {
+            'pr197_core_carry_definition_sha256',
+            'pr197_recovery_definition_sha256',
+        }:
             base = json.loads(
                 (clone / 'tests/fixtures/pr197_tenant_source_expected_v1.json').read_text()
             )['formal_base_revision']
@@ -7903,7 +7994,7 @@ def test_pr197_approved_doc_merge_rejects_changed_typed_pin(tmp_path, key):
     asset = json.loads((REPO / 'contracts/tenant_boundary/frozen-inputs.json').read_text())
     asset['frozen_inputs'][key]['value'] = (
         guard._PR197_CORE_DEFINITION_AST_SHA256
-        if key == 'pr197_core_carry_definition_sha256'
+        if key.endswith('definition_sha256')
         else frozen_history.PR197_PIN_ORIGIN_COMMIT
     )
     path.write_text(json.dumps(asset, ensure_ascii=False, indent=2) + '\n')
