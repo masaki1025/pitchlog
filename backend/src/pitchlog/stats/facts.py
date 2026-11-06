@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 from dataclasses import dataclass
@@ -12,12 +13,29 @@ from uuid import UUID
 from pitchlog.repositories.tokens import TenantOperationToken
 from pitchlog.stats.generated.receiver import METRIC_IDS, SOURCE_MODEL_HASH
 
+_GENERATED_FACTS_SHA256 = (
+    "7673b5969d6ce3104b48d4f94f217c6b4a44ef1b9b08d06ebaeee935648497d4"
+)
+
 
 def _generated_api():
     """配置済み共通生成物だけをwrapper名で読み込む。"""
-    module = ModuleType("__pitchlog_generated_wrapper__")
     path = Path(__file__).parent / "generated/facts.py"
-    exec(compile(path.read_text(), str(path), "exec"), module.__dict__)
+    try:
+        source = path.read_bytes()
+    except OSError as exc:
+        raise RuntimeError("T5生成物を読み込めません") from exc
+    if (
+        type(source) is not bytes
+        or hashlib.sha256(source).hexdigest() != _GENERATED_FACTS_SHA256
+    ):
+        raise RuntimeError("T5生成物の固定SHA256が一致しません")
+    try:
+        text = source.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise RuntimeError("T5生成物がUTF-8ではありません") from exc
+    module = ModuleType("__pitchlog_generated_wrapper__")
+    exec(compile(text, str(path), "exec"), module.__dict__)
     if module.__dict__["SOURCE_MODEL_HASH"] != SOURCE_MODEL_HASH:
         raise RuntimeError("T5/typed receiverのモデル版が一致しません")
     return module.__dict__["_pitchlog_generated"]
