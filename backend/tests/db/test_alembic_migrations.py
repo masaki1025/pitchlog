@@ -9,6 +9,7 @@ import secrets
 from collections.abc import Callable
 from contextlib import AbstractContextManager
 from datetime import UTC, datetime
+from importlib import import_module
 from pathlib import Path
 from typing import Any, LiteralString
 from uuid import uuid4
@@ -38,6 +39,8 @@ from .conftest import DisposablePostgres, ProvisionedProductCatalog
 
 pytestmark = pytest.mark.requires_db
 
+# 比較開始時のBaseを完成させ、投影関数内で元metadataを増やさない。
+_ALL_MODELS = import_module("pitchlog.db.all_models")
 _BACKEND_ROOT = Path(__file__).resolve().parents[2]
 _SCHEMA_MANIFEST_PATH = (
     _BACKEND_ROOT.parent / "contracts" / "db" / "schema-manifest.json"
@@ -1060,19 +1063,41 @@ _WRITER_BINDING_TABLES = frozenset(
 )
 
 
+_STATS_PRIVATE_TABLES = frozenset(
+    {
+        "sync_fence.stats_fact_versions",
+        "sync_fence.stats_primitive_sources",
+        "sync_fence.stats_primitive_facts",
+    }
+)
+
+
+def _metadata_before_stats_revision() -> MetaData:
+    """0041の新3表だけをcopyから除き、現Baseと旧全列/制約を保持する。"""
+    present = _STATS_PRIVATE_TABLES & set(Base.metadata.tables)
+    assert not present or present == _STATS_PRIVATE_TABLES
+    historical = MetaData(naming_convention=Base.metadata.naming_convention)
+    for name, table in Base.metadata.tables.items():
+        if name not in _STATS_PRIVATE_TABLES:
+            table.to_metadata(historical)
+    assert set(Base.metadata.tables) - set(historical.tables) == present
+    return historical
+
+
 def _metadata_for_pre_batted_revision(revision: str) -> MetaData:
     """0035/0036/0037/0038の実migration差だけを逆射影し、他の差は保持する。"""
+    source_metadata = _metadata_before_stats_revision()
     if revision == "0039_ordinary_pitch_storage":
-        return Base.metadata
+        return source_metadata
     if revision == "0038_first_ball_write_admission":
-        historical = MetaData(naming_convention=Base.metadata.naming_convention)
-        for name, source in Base.metadata.tables.items():
+        historical = MetaData(naming_convention=source_metadata.naming_convention)
+        for name, source in source_metadata.tables.items():
             if name not in _ORDINARY_PITCH_TABLES:
                 source.to_metadata(historical)
         return historical
     if revision == "0037_sync_writer_binding":
-        historical = MetaData(naming_convention=Base.metadata.naming_convention)
-        for name, source in Base.metadata.tables.items():
+        historical = MetaData(naming_convention=source_metadata.naming_convention)
+        for name, source in source_metadata.tables.items():
             if name == "sync_fence.first_ball_write_admissions":
                 continue
             if name in _ORDINARY_PITCH_TABLES:
@@ -1086,10 +1111,10 @@ def _metadata_for_pre_batted_revision(revision: str) -> MetaData:
         "0036_initial_right_storage",
     }:
         raise AssertionError("未対応revisionのモデル比較を補完しない")
-    historical = MetaData(naming_convention=Base.metadata.naming_convention)
+    historical = MetaData(naming_convention=source_metadata.naming_convention)
     # 0037/0038のwriter binding 3表は後続migrationの新設なので除外する。
     # 0036の4表は0036より前のrevisionだけ除外する。
-    for name, source in Base.metadata.tables.items():
+    for name, source in source_metadata.tables.items():
         if name in _WRITER_BINDING_TABLES:
             continue
         if (
@@ -1156,6 +1181,8 @@ def _metadata_for_schema_revision(revision: str) -> MetaData:
     """旧revisionから承認0040の索引1だけをcopy上で逆射影する。"""
     from test_tenant_models import _batted_key_index_columns
 
+    if revision == "0041_stats_fact_versions":
+        return Base.metadata
     if revision == "0040_batted_vocabulary_index":
         indexes = [
             i
@@ -1164,7 +1191,7 @@ def _metadata_for_schema_revision(revision: str) -> MetaData:
         ]
         assert len(indexes) == 1
         _batted_key_index_columns(indexes[0])
-        return Base.metadata
+        return _metadata_before_stats_revision()
     source = _metadata_for_pre_batted_revision(revision)
     historical = MetaData(naming_convention=source.naming_convention)
     for table in source.tables.values():
