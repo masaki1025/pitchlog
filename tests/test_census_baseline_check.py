@@ -7469,6 +7469,54 @@ def _copy_pr191_proof_inputs(destination: Path) -> None:
 
 def _copy_current_contract_tree(destination: Path) -> None:
     """一時の現在ツリーへ、契約読取りに必要な資産と fixture を複写する。"""
+    # manifest の可変列挙を copy2 の対象にする前に、PR197固定Gitと独立Eを照合する。
+    manifest = Path("backend/domain/stats-manifest.json")
+    expected = checker._pr197_fixed_expectations(REPOSITORY_ROOT)["sql_generation"]
+    fixed = checker._pr192_git_bytes(
+        REPOSITORY_ROOT, checker._PR197_SOURCE_REVISION, manifest.as_posix()
+    )
+    source_manifest = REPOSITORY_ROOT / manifest
+    assert (
+        expected["manifest_path"] == manifest.as_posix()
+        and not source_manifest.is_symlink()
+        and source_manifest.is_file()
+        and source_manifest.read_bytes() == fixed
+        and hashlib.sha256(fixed).hexdigest() == expected["manifest_sha256"]
+    ), "PR197 manifest の固定原本が一致しない"
+    declared = json.loads(fixed, object_pairs_hook=checker._unique_json_object)
+    assert declared["generationInputFiles"] == expected["generation_input_files"]
+    assert {
+        path: declared["generatedFiles"][path]
+        for path in expected["generated_sha256"]
+    } == expected["generated_sha256"]
+    assets: list[tuple[Path, bytes]] = [(manifest, fixed)]
+    for path, digest in (
+        *declared["generationInputFiles"].items(),
+        *declared["generatedFiles"].items(),
+    ):
+        assert type(path) is str and type(digest) is str
+        relative = Path(path)
+        assert (
+            not relative.is_absolute()
+            and ".." not in relative.parts
+            and relative.parts
+            and relative.parts[0] in {"backend", "frontend"}
+        ), "PR197 manifest に不正な経路がある"
+        source = REPOSITORY_ROOT / relative
+        raw = checker._pr192_git_bytes(
+            REPOSITORY_ROOT, checker._PR197_SOURCE_REVISION, path
+        )
+        assert (
+            not source.is_symlink()
+            and source.is_file()
+            and source.read_bytes() == raw
+            and hashlib.sha256(raw).hexdigest() == digest
+        ), "PR197 manifest の生成資産が固定原本と一致しない"
+        assets.append((relative, raw))
+    assert (
+        not source_manifest.is_symlink()
+        and source_manifest.read_bytes() == fixed
+    ), "PR197 manifest が検証中に変更された"
     for relative in (
         Path("contracts/tenant_boundary"),
         Path("tests/fixtures/tenant_boundary"),
@@ -7478,17 +7526,65 @@ def _copy_current_contract_tree(destination: Path) -> None:
     core_areas = destination / ".claude" / "core-areas.json"
     core_areas.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(REPOSITORY_ROOT / ".claude" / "core-areas.json", core_areas)
-    # PR197のSQL3はmanifest・D1・生成FE出力まで全byte照合する。
-    # 元木の宣言した有限ファイルだけを同じ一時rootへ複写する。
-    manifest = Path("backend/domain/stats-manifest.json")
-    declared = json.loads((REPOSITORY_ROOT / manifest).read_text(encoding="utf-8"))
-    for relative in (manifest, *map(Path, declared["generationInputFiles"]),
-                     *map(Path, declared["generatedFiles"])):
-        source = REPOSITORY_ROOT / relative
+    # 以後は固定原本の bytes だけを書き出し、再読込した可変経路を使わない。
+    for relative, raw in assets:
         target = destination / relative
         target.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(source, target)
+        target.write_bytes(raw)
     _copy_pr191_proof_inputs(destination)
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    ["unregistered", "absolute", "parent", "symlink", "asset-symlink",
+     "changed-during-check"],
+)
+def test_current_contract_copy_rejects_unqualified_manifest_before_copy(
+    mutation: str, monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
+) -> None:
+    """可変manifestの列挙・リンク・検証中変更を複写前に拒否する。"""
+    manifest = REPOSITORY_ROOT / "backend/domain/stats-manifest.json"
+    linked_asset = REPOSITORY_ROOT / "backend/domain/stats.model.json"
+    original_read = Path.read_bytes
+    original_link = Path.is_symlink
+    raw = original_read(manifest)
+    reads = 0
+    requested: list[Path] = []
+
+    def read_bytes(path: Path) -> bytes:
+        nonlocal reads
+        if path != manifest:
+            return original_read(path)
+        reads += 1
+        if mutation == "changed-during-check" and reads == 1:
+            return raw
+        if mutation in {"unregistered", "absolute", "parent", "changed-during-check"}:
+            declared = json.loads(raw)
+            forged_path = {
+                "unregistered": "SAFE_UNREGISTERED_PROBE.txt",
+                "absolute": "/tmp/SAFE_UNREGISTERED_PROBE.txt",
+                "parent": "../SAFE_UNREGISTERED_PROBE.txt",
+                "changed-during-check": "SAFE_UNREGISTERED_PROBE.txt",
+            }[mutation]
+            declared["generationInputFiles"][forged_path] = "0" * 64
+            return json.dumps(declared).encode()
+        return raw
+
+    def is_symlink(path: Path) -> bool:
+        return ((path == manifest and mutation == "symlink")
+                or (path == linked_asset and mutation == "asset-symlink")
+                or original_link(path))
+
+    def forbidden_copy(source: Path, target: Path) -> None:
+        requested.append(source)
+
+    monkeypatch.setattr(Path, "read_bytes", read_bytes)
+    monkeypatch.setattr(Path, "is_symlink", is_symlink)
+    monkeypatch.setattr(shutil, "copy2", forbidden_copy)
+    with pytest.raises(AssertionError, match="PR197 manifest"):
+        _copy_current_contract_tree(tmp_path / "contract")
+    assert requested == []
+    assert not (tmp_path / "contract").exists()
 
 
 def _set_temporary_allowed_symbols(
