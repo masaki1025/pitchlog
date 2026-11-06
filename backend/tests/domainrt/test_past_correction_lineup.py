@@ -670,6 +670,15 @@ def test_v3_corrected_checkpoint_uses_native_chain_and_new_physical_head() -> No
     assert capsule.items[1]["play_row"] == physical[-1].play_row
     assert saved_rows[-1].play_row is not None
     assert capsule.items[1]["effective_play_row_id"] == saved_rows[-1].play_row["id"]
+    assert capsule.items[0]["original_play_row"] == saved_rows[0].play_row
+    assert saved_rows[0].play_runners is not None
+    assert capsule.items[0]["original_play_runners"] == list(
+        saved_rows[0].play_runners
+    )
+    assert saved_rows[0].payload is not None
+    assert capsule.items[0]["original_payload"] == saved_rows[0].payload.model_dump(
+        mode="json", by_alias=True, exclude_unset=True
+    )
     stats = evaluate_p3_capsule_stats(capsule)
     assert [source.effective_event_id for source in stats.sources] == [_CHANGE, _ID2]
     assert all(source.evaluation for source in stats.sources)

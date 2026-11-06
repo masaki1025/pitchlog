@@ -71,8 +71,10 @@ def build_p3_current_capsule(
             saved.d1 != index
             or type(saved.play_row) is not dict
             or type(saved.play_row.get("id")) is not str
+            or type(saved.payload) is not LineupPitchPlayPayload
+            or saved.play_runners is None
         ):
-            raise PastCorrectionCapsuleError("P3元履歴の位置又は物理原本が不正")
+            raise PastCorrectionCapsuleError("P3元履歴の全原本が不正")
         old_id = saved.play_row["id"]
         if type(old_id) is not str:
             raise PastCorrectionCapsuleError("P3元物理行IDが不正")
@@ -114,6 +116,7 @@ def build_p3_current_capsule(
             effective_event_id = projected.effective_event_id
             state = "corrected"
             entry = frame.corrected_response.value.new_history_entry
+        original_entry = saved.calculation.response.value.new_history_entry
         if (
             row.get("tenant_id")
             != str(prepared.original_checkpoint.prefix_ref.tenant_id)
@@ -130,6 +133,14 @@ def build_p3_current_capsule(
             "effective_event_id": str(effective_event_id),
             "original_play_row_id": old_id,
             "effective_play_row_id": row["id"],
+            "original_payload": saved.payload.model_dump(
+                mode="json", by_alias=True, exclude_unset=True
+            ),
+            "original_history_entry": original_entry.model_dump(
+                mode="json", by_alias=True, exclude_unset=True
+            ),
+            "original_play_row": _json_value(saved.play_row),
+            "original_play_runners": _json_value(list(saved.play_runners)),
             "payload": payload.model_dump(
                 mode="json", by_alias=True, exclude_unset=True
             ),
