@@ -433,15 +433,26 @@ export async function apiDownload(
     signal?: AbortSignal
     noAuthExpiry?: boolean
   } = {},
-): Promise<{ blob: Blob; filename: string | null }> {
+): Promise<{
+  blob: Blob
+  filename: string | null
+  contentLength: number | null
+  sha256: string | null
+}> {
   const { res, body: blob } = await requestResponse(
     'GET',
     path,
     options,
     (res) => res.blob(),
   )
+  const length = res.headers.get('content-length')
+  const parsedLength =
+    length !== null && /^[0-9]+$/.test(length) ? Number(length) : null
+  const sha = res.headers.get('x-pitchlog-archive-sha256')
   return {
     blob,
     filename: downloadFilename(res.headers.get('content-disposition')),
+    contentLength: parsedLength,
+    sha256: sha !== null && /^[a-f0-9]{64}$/.test(sha) ? sha : null,
   }
 }
