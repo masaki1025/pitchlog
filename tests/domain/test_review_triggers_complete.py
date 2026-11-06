@@ -499,6 +499,7 @@ def test_pr197_delegated_reconfirmation_preserves_original_po_record(
 @pytest.mark.parametrize("mutation", [
     "other-trigger", "other-pr", "other-branch", "human-judge", "old-date", "fired",
     "unknown-key", "original-record", "old-digest", "new-digest", "source-revision",
+    "integer-date", "compact-date", "empty-reviewer",
     "authority-digest", "review-missing", "review-digest", "review-unresolved",
     "review-self", "review-file", "source-byte", "policy-byte", "review-duplicate",
 ])
@@ -515,6 +516,8 @@ def test_pr197_delegated_reconfirmation_rejects_invalid_proof(
         "other-pr": ("pr", 198), "other-branch": ("branch", "feature/other"),
         "human-judge": ("judge", "山田正輝"), "old-date": ("decisionDate", "2026-09-19"),
         "fired": ("fired", True), "unknown-key": ("approved", True),
+        "integer-date": ("decisionDate", 20261107),
+        "compact-date": ("decisionDate", "20261107"),
         "old-digest": ("previousEvidenceDigest", "sha256:" + "0" * 64),
         "new-digest": ("evidenceDigest", "sha256:" + "0" * 64),
         "source-revision": ("sourceRevision", "0" * 40),
@@ -542,6 +545,8 @@ def test_pr197_delegated_reconfirmation_rejects_invalid_proof(
                 review["p1"] = 1
             elif mutation == "review-self":
                 review["reviewer"] = "Codex /root"
+            elif mutation == "empty-reviewer":
+                review["reviewer"] = "/root/"
             elif mutation == "review-file":
                 review["files"].pop("backend/domain/model.schema.json")
             raw = json.dumps(review, ensure_ascii=False, indent=2) + "\n"

@@ -204,12 +204,17 @@ def _pr197_delegated_digest_impl(
         or not record["reason"].strip()
     ):
         raise fail()
+    if type(record["decisionDate"]) is not str:
+        raise fail()
     try:
-        checked_date = date.fromisoformat(str(record["decisionDate"]))
+        checked_date = date.fromisoformat(record["decisionDate"])
         original_date = date.fromisoformat(str(decision["decisionDate"]))
     except ValueError as error:
         raise fail() from error
-    if checked_date <= original_date:
+    if (
+        checked_date.isoformat() != record["decisionDate"]
+        or checked_date <= original_date
+    ):
         raise fail()
     # 既独立固定原典の資格検査を再利用し、自由指定Gitを委任元にしない。
     frozen_history.read_original_pr197_pin("pr197_core_definition_ast_sha256", root)
@@ -272,7 +277,7 @@ def _pr197_delegated_digest_impl(
         set(review) != {"author", "reviewer", "sourceRevision", "p0", "p1", "files"}
         or review["author"] != record["judge"]
         or not isinstance(review["reviewer"], str)
-        or not review["reviewer"].startswith("/root/")
+        or re.fullmatch(r"/root/[a-z0-9_]+", review["reviewer"]) is None
         or review["sourceRevision"] != revision
         or type(review["p0"]) is not int
         or review["p0"] != 0
