@@ -2,6 +2,9 @@
 
 ## 2026-11-06 21:34 JST：実画面の終了・再開・追加球・再終了と実DB版一致
 
+- **21:38更新・次の固定点**: LC `f1e14b3d345d6b168458d85f2bef17b72ed4a95c` cleanでB5 f660/seed7afd＋route型test9c901を通常merge。結合後backend77/FE101・Ty/Vue/lint成功。新規開始は真正0件v3 GET・strict seedへ自動接合する実画面へ試験を追随し、owned `connected-lifecycle-seed-b5-r10` を実行中（root exec session39792、再開時はこのhandle/resultを確認し、観測timeoutで再起動しない）。正式asset受理/全CIはまだ未了。
+- **r9性能内訳**: fixedfa8e、機能/DB一致再現。初球12,311ms、端末準備56ms・HTTP headers待ち12,253ms。全シナリオ通算Node起動19回861ms、domain計算15回92ms、binding RPC1088回48,915ms。通算値を1球内訳とは扱わず、独立担当がRPCの接続/回数を調査中。高位observerのみで全call profileは無し、性能判定はfailed。cache `connected-lifecycle-latency-r9-app.log/-playwright.log/-result.json` に保全、source前後同一・cleanup完了。
+
 - **利用者操作の新到達**: 同一候補LC `b3899d592346152281785929c4aadb47056bac36`、同一owned環境のr8で、画面から新規作成→開始→1球→終了v1→追記再開→2球追加→再終了v2→reload後の終了/v2表示まで機能assert通過。実DBは `games.status=finished`、終了head version2、成績fact最新版 `confirmed_ended/is_current=true/source_count=3`、受理event6（play/end/reopen/play/play/end）を全値照合。事前投入gameではなく実UI作成ID。**試験全体は性能末尾failed**（初球10,869ms、5,000ms条件保持）。9回完遂・全操作・MVP・正式develop成功とは数えない。
 - **是正内容**: d7394e93で終了bridgeが参照する正本game_lifecycle_schema_v1をFE閉検証器に登録。aca7129cで候補名「試合再開」を正式#13「追記再開」へ接続し、specの仮enum挿入/castを実在する種別に置換（未供給時閉拒否の注入試験は維持）。関連26/50、型/lint成功。b389で性能失敗時にも機能到達→実DB照合を実行して区別。r8 source前後同一・owned cleanup完了。
 - **性能の次検証**: 端末側要求準備/HTTP到着待ち、Node起動/計算、binding RPCの高位呼出だけを時間観測するr9を実行中。全Python call profileは使わず、5秒を緩めない。候補runのobserver付き測定と通常受入を区別する。
