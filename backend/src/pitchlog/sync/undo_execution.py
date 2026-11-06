@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass
-from typing import Any
-from uuid import uuid4
+from typing import Any, Callable
+from uuid import UUID, uuid4
 
 from pitchlog.domainrt.first_ball_projection import _canonical_json
 from pitchlog.domainrt.host import NodeDomainHost, open_domain_host
@@ -117,8 +117,15 @@ def _execution_live(state, *, content=False):
 
 
 @contextmanager
-def _bind_undo_execution(handle, writer, event, source):
-    """核D5/権利/順序後の内容段でsourceとhostを一回だけ読む。"""
+def _bind_undo_execution(
+    handle,
+    writer,
+    event,
+    source,
+    *,
+    validate_target: Callable[[Any], None] | None = None,
+):
+    """核D5/権利/順序後に保存対象を照合し、同hostを一回評価する。"""
     if (
         type(handle) is not transaction._TenantTransaction
         or type(writer) is not PortWriter
@@ -166,15 +173,32 @@ def _bind_undo_execution(handle, writer, event, source):
                         handle, event, source, artifact_sha256=digest
                     )
                 )
-                value, _ = _read_prefix(prefix, handle, source, event)
+                value, _, head_position = _read_prefix(
+                    prefix, handle, source, event, include_head_position=True
+                )
                 cp = value["checkpoint"]
                 active = value["activeStack"]
                 target = event.v10
                 if not active:
                     # U4はevent/D1を作らない。既存eventをno-op成功にしない。
+                    if validate_target is not None:
+                        validate_target(None)
                     state.phase = "rejected"
                 else:
                     head = active[0]["play"]["source"]
+                    if validate_target is not None:
+                        if head_position is None:
+                            raise UndoExecutionError("取消対象の保存位置がありません")
+                        from pitchlog.sync.prefix_path import P1Target
+
+                        validate_target(
+                            P1Target(
+                                UUID(head["gameId"]),
+                                head_position[0],
+                                head_position[1],
+                                head["generation"],
+                            )
+                        )
                     genuine_target = {
                         "game": head["gameId"],
                         "d4": head["generation"],

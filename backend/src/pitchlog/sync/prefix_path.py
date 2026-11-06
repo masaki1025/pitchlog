@@ -122,6 +122,7 @@ class P1Target:
     game_id: UUID
     generation: int
     d1: int
+    wire_d4: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -405,21 +406,28 @@ def _validate_v10(
     reference = event.v10
     target_d4 = event.d4
     if (
-        target is not None
+        type(target) is P1Target
         and isinstance(event.v7, Mapping)
         and event.v7.get("formatVersion") == "native-undo-prefix-v1"
     ):
         # 閉native版は実解決target世代、旧opaque DTO口は既契約を保持する。
-        target_d4 = str(target.generation)
+        target_d4 = (
+            target.wire_d4 if target.wire_d4 is not None else str(target.generation)
+        )
     if (
         not isinstance(reference, Mapping)
         or set(reference) != {"game", "d4", "d1"}
         or target is None
+        or type(target) is not P1Target
         or target.game_id != UUID(event.game_id)
         or type(target.generation) is not int
         or target.generation <= 0
         or type(target.d1) is not int
         or target.d1 <= 0
+        or (
+            target.wire_d4 is not None
+            and (type(target.wire_d4) is not str or not target.wire_d4)
+        )
         or (reference["game"], reference["d4"], reference["d1"])
         != (event.game_id, target_d4, target.d1)
     ):
@@ -739,6 +747,8 @@ def _apply_locked_in_scope(
                 "確定済み D1 は墓標・改訂で置換できない",
                 "w2_violation" if event.v9 is not ABSENT else "other",
             )
+        from pitchlog.sync.undo_ports import UndoContentValidationPort
+
         # ⑦の V 値と内容は、⑤の記録権・⑥の連番を通った後で判定する。
         try:
             replacement, original_d5 = _replacement_state(event)
@@ -757,7 +767,16 @@ def _apply_locked_in_scope(
             payload_json = _json_object(event.v7)
             _state_diff(event, replacement)
             _validate_v11(event)
-            _validate_v10(event, replacement, target)
+            native_undo = (
+                source is not _LEGACY_LOCKED_SOURCE
+                and type(validator) is UndoContentValidationPort
+                and kind == "undo"
+                and replacement == "none"
+                and isinstance(event.v7, Mapping)
+                and event.v7.get("formatVersion") == "native-undo-prefix-v1"
+            )
+            if not native_undo:
+                _validate_v10(event, replacement, target)
             if replacement == "tombstone" and payload_json != "{}":
                 raise P1PreconditionError("墓標の payload は空 object が必要")
             if kind == "player_registration" and registration is None:
@@ -780,14 +799,39 @@ def _apply_locked_in_scope(
             OrdinaryPitchContentValidationPort,
             PlayPrefixContentValidationPort,
         )
-        from pitchlog.sync.undo_ports import UndoContentValidationPort
 
         if type(validator) is UndoContentValidationPort:
             from pitchlog.sync.undo_execution import _bind_undo_execution
 
-            first_ball_stack.enter_context(
-                _bind_undo_execution(scope, writer, event, source)
-            )
+            if native_undo:
+                supplied_target = target
+
+                def validate_saved_target(genuine: P1Target | None) -> None:
+                    """同TX保存原本の対象だけを初回V10検査へ渡す。"""
+                    nonlocal target
+                    if supplied_target is not None:
+                        raise P1PreconditionError("E1 の取消対象は保存原本から解決する")
+                    _validate_v10(event, replacement, genuine)
+                    target = genuine
+
+                try:
+                    first_ball_stack.enter_context(
+                        _bind_undo_execution(
+                            scope,
+                            writer,
+                            event,
+                            source,
+                            validate_target=validate_saved_target,
+                        )
+                    )
+                except P1PreconditionError as error:
+                    if error.category == "other":
+                        raise P1ContentRejection(str(error)) from error
+                    raise
+            else:
+                first_ball_stack.enter_context(
+                    _bind_undo_execution(scope, writer, event, source)
+                )
         if type(validator) is FirstBallContentValidationPort:
             from pitchlog.sync.first_ball_execution import _bind_first_ball_execution
 
