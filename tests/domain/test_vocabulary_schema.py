@@ -457,9 +457,9 @@ def test_appendix_a_binding_population_is_derived_from_authoritative_tables(
         section: _format_bindings_in_section(document, section) for section in policy["sections"]
     }
     assert {section: len(rows) for section, rows in by_section.items()} == {
-        "A-2": 12,
+        "A-2": 14,
         "A-2b": 4,
-        "A-3": 8,
+        "A-3": 9,
         "A-4": 1,
         "A-5": 8,
     }
@@ -472,7 +472,16 @@ def test_appendix_a_binding_population_is_derived_from_authoritative_tables(
         "イニング別得点・失点",
     }
     assert set(policy["compositeRows"]).issubset(derived_bindings)
-    assert len(derived_bindings) == 33
+    # 正式成績整合で追加された三表示行を名前でも凍結する。
+    assert by_section["A-2"] == [
+        "投球回", "投球数", "登板数", "打者数（BF）", "奪三振", "与四球", "与死球",
+        "被安打", "被本塁打", "被打率", "WHIP", "FIP", "失点", "最速・平均球速",
+    ]
+    assert by_section["A-3"] == [
+        "打数", "本塁打", "打点", "打率", "出塁率", "長打率", "OPS",
+        "コース別打率マップ", "打球方向",
+    ]
+    assert len(derived_bindings) == 36
 
 
 def test_authority_references_use_clause_ids(schema: dict[str, Any]) -> None:
