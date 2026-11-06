@@ -365,3 +365,8 @@ PO委任によるCodex主担当/root判断で、a099ff6b上の2path候補（差�
 実画面r23（ed249414）は原本取得/全照合trueへ進行、取消送信前のbusy状態でexpect既定5秒を超えて失敗（84.44秒、owned撤去/前後source一致）。機能待機を既page標準30秒へ明示し、末尾syncDurationsMs<=5000の性能合否は保持する。機能/性能の証拠を分離し、待機延長を性能成功に読み替えない。
 
 機能待機r24も同位置で30秒超過（非成功）。同入力の反復を止め、E2E専用probeで既耐久APIの開始/終結名だけを観測する。引数/返値/資格/本文を出さず、元処理と拒否を保持し、製品実装は変更しない。次試行は停止awaitを特定する診断で完成証拠ではない。
+
+
+### 2026-11-06 正式HTTPの取消対象解決を同TXへ接合（step2の修復）
+
+PO委任によるCodex主担当/root判断で、r26の実拒否原因を修復する候補の接合を許可する。対象はnonplay_prefix.py/prefix_path.py/undo_execution.py exact3とtest_undo_target_connection.py exact1。固定a865f440、作者source patch b83e90642665a4e183b68d1ede472d72eb7ff81ab268cff3724c8e8846803cae、REPORT1d9ad54fce06996ea8f1112ee99c0a7b00828d6ac78f28a8fa45663a848562cd。保存cursorの内部generationとwire D4を分け、既readerの同lease/同TX完全原本から対象を解決して初回V10検査へ渡す。D5/権利/連番/内容拒否の順序、旧legacy、host計算一回、同frame保存を保持する。作者229 pure成功は実PG成功としない。非作者が候補確認中で、正式受理/通常統合/画面成立はその結果とowned実測後に別記する。
