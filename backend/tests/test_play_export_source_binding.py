@@ -6,8 +6,12 @@ from uuid import UUID
 
 import pytest
 
-from pitchlog.exports.play_export_csv import missing_supply_columns, snapshot_id_for
-from pitchlog.exports.play_rows import CSV_HEADERS
+from pitchlog.exports.play_export_csv import (
+    build_play_export_tables,
+    missing_supply_columns,
+    snapshot_id_for,
+)
+from pitchlog.exports.play_rows import CSV_HEADERS, PlayExportSupplyError
 from pitchlog.repositories.play_export import PlayExportBundle
 
 TENANT, GAME, PLAY, EVENT = (UUID(int=value) for value in range(1, 5))
@@ -28,6 +32,10 @@ def _bundle() -> PlayExportBundle:
                 "recording_generation": 3,
                 "event_sequence": 1001,
                 "plays_csv_json": dict.fromkeys(CSV_HEADERS["plays.csv"], ""),
+                "full_innings_json": [
+                    {"inning": 1, "half": "top", "state": "in-progress", "runs": 0},
+                    {"inning": 1, "half": "bottom", "state": "unplayed", "runs": None},
+                ],
             },
         ),
         runners=(),
@@ -103,3 +111,49 @@ def test_changed_export_cell_changes_manifest() -> None:
     assert snapshot_id_for(replace(bundle, snapshots=(snapshot,))) != snapshot_id_for(
         bundle
     )
+
+
+def test_saved_full_innings_sidecar_preserves_state_and_source() -> None:
+    """同じ保存版の0/NULLとsourceを全回sidecarへ運ぶ。"""
+    snapshot, tables = build_play_export_tables(_bundle())
+    rows = list(tables["inning_scores.csv"])
+    assert len(rows) == 2
+    assert all(row.snapshot_id == snapshot.snapshot_id for row in rows)
+    assert [row.values["runs"] for row in rows] == [0, None]
+    assert [row.values["source_event_id"] for row in rows] == [str(EVENT)] * 2
+
+
+def test_thirteenth_inning_is_not_lost_in_twelve_slot_display() -> None:
+    """保存済み13回も旧12枠から再計算せず全回へ写す。"""
+    bundle = _bundle()
+    stored = deepcopy(bundle.snapshots[0])
+    stored["full_innings_json"] = [
+        {"inning": inning, "half": half, "state": "completed", "runs": 0}
+        for inning in range(1, 14)
+        for half in ("top", "bottom")
+    ]
+    _version, tables = build_play_export_tables(replace(bundle, snapshots=(stored,)))
+    rows = list(tables["inning_scores.csv"])
+    assert len(rows) == 26
+    assert [(row.values["inning"], row.values["half"]) for row in rows[-2:]] == [
+        (13, "top"),
+        (13, "bottom"),
+    ]
+
+
+@pytest.mark.parametrize("change", ["missing", "duplicate", "unplayed_zero"])
+def test_full_innings_missing_or_ambiguous_is_not_exported(change: str) -> None:
+    """欠測・重複回・未消化0補完は409相当の供給失敗へ閉じる。"""
+    bundle = _bundle()
+    snapshot = deepcopy(bundle.snapshots[0])
+    if change == "missing":
+        snapshot.pop("full_innings_json")
+    elif change == "duplicate":
+        snapshot["full_innings_json"][1]["inning"] = 2
+    else:
+        snapshot["full_innings_json"][1]["runs"] = 0
+    _version, tables = build_play_export_tables(
+        replace(bundle, snapshots=(snapshot,))
+    )
+    with pytest.raises(PlayExportSupplyError):
+        list(tables["inning_scores.csv"])

@@ -264,6 +264,9 @@ def _flush_native_stats(handle, writer, event, projected, *, generation):
     _assert_scope(scope, receipt, source)
     # 新Sは新canonical集合のhash。旧Sとの同値を求めず、前値はSaveのCASへ全値束縛する。
     decoded = decode_save_source_rows(rows, source_event_id=source.source_event_id)
+    from pitchlog.sync.play_export_producer import persist_accepted_play_export
+
+    persist_accepted_play_export(scope, receipt, source, decoded, revision + 1)
     return TenantOperationResult(decoded)
 
 

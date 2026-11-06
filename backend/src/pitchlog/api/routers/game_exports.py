@@ -79,7 +79,7 @@ def download_play_csv(
     value: Annotated[str, Depends(require_presented_token)],
     context: Annotated[TenantContext, Depends(require_tenant_access)],
 ) -> Response:
-    """記録済み1試合の88列と全9サイドカーを単一ZIPで返す。"""
+    """記録済み1試合の88列と全10サイドカーを単一ZIPで返す。"""
     output = tempfile.TemporaryFile(mode="w+b")
     try:
         # store寿命内で同じRR原本だけからZIPを完成し、その後に再認可する。

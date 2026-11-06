@@ -441,8 +441,21 @@ class _WriterAssertVoidResult(TypeDecorator[None]):
         return None
 
 
+def _play_export_writer_family(registration) -> bool:
+    """毎球CSVの私有保存1件だけを別の閉検証へ送る。"""
+    return (
+        registration.function_id == "stats_api.save_writer_play_export_snapshot"
+        or registration.operation_id == "PLAY_EXPORT_WRITER:save_snapshot"
+        or registration.capability_id == "CAP:play_export_writer:save_snapshot"
+        or getattr(registration.token_type, "__module__", None)
+        == "pitchlog.repositories.play_export_writer_operations"
+    )
+
+
 def _stats_native_family(registration) -> bool:
     """新5の予約namespaceだけを特別検証し、旧全型規約へ波及させない。"""
+    if _play_export_writer_family(registration):
+        return False
     return any(
         isinstance(value, str) and value.startswith(prefix)
         for value, prefix in (
@@ -553,6 +566,13 @@ class FunctionOperationRegistration:
             return
         if _stats_native_family(self):
             from pitchlog.repositories.stats_native_operations import (
+                validate_registration,
+            )
+
+            validate_registration(self)
+            return
+        if _play_export_writer_family(self):
+            from pitchlog.repositories.play_export_writer_operations import (
                 validate_registration,
             )
 
@@ -943,6 +963,12 @@ def build_function_registry(
             )
 
             validate_registration(registration)
+        if _play_export_writer_family(registration):
+            from pitchlog.repositories.play_export_writer_operations import (
+                validate_registration,
+            )
+
+            validate_registration(registration)
         if (
             registration.token_type in dml_token_types
             or registration.token_type in registry
@@ -990,6 +1016,13 @@ def prepare_function_operation(
         raise FunctionOperationError(
             "成績固定5関数は私有一回資格の経路だけで実行できます"
         )
+    if _play_export_writer_family(spec):
+        from pitchlog.repositories.play_export_writer_operations import (
+            validate_registration,
+        )
+
+        validate_registration(spec)
+        raise FunctionOperationError("毎球CSV保存は私有writerだけで実行できます")
     if operation.capability_id != spec.capability_id:
         raise FunctionOperationError("固定関数tokenのcapability IDが不一致")
     parameters: dict[str, object] = {"tenant_id": tenant_id}

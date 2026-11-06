@@ -1,6 +1,6 @@
 {
   "status": "candidate-not-approved",
-  "format_version": "pitchlog-play-export-v1-candidate",
+  "format_version": "pitchlog-play-export-v2-candidate",
   "container": "zip; untrusted path/name not accepted; fixed entry names",
   "main": "plays.csv",
   "join_rule": "game_id + recording_generation + event_sequence。D1なし補正はtarget pairで参照し自己pairはNULL。UUID/row_numberは補助キー",
@@ -332,6 +332,43 @@
           2
         ],
         "method": "stored business values/read binding; mathematical values only from D-1 generated targets and common DB primitive"
+      }
+    },
+    {
+      "file": "inning_scores.csv",
+      "headers": [
+        "game_id",
+        "recording_generation",
+        "event_sequence",
+        "source_event_id",
+        "play_row_id",
+        "inning",
+        "half",
+        "state",
+        "runs"
+      ],
+      "source": "last active play's same-TX saved full_innings_json from generated D-1 SQL",
+      "order": "inning,half(top,bottom)",
+      "notes": "12回表示枠を越す全回を保持。unplayedのrunsはNULL、in-progress/completedの0は整数0。現current selector未供給のP3では閉拒否",
+      "field_types": {
+        "game_id": "uuid",
+        "recording_generation": "decimal_integer_or_null",
+        "event_sequence": "decimal_integer_or_null",
+        "source_event_id": "uuid",
+        "play_row_id": "uuid",
+        "inning": "canonical_decimal_integer_or_null",
+        "half": "supplied_text_or_null",
+        "state": "supplied_text_or_null",
+        "runs": "canonical_decimal_integer_or_null"
+      },
+      "source_receipt": {
+        "status": "candidate-not-accepted",
+        "owner": "root Codex主担当（PO委任）",
+        "source_sha": null,
+        "matrix": "supply-matrix.md#G04-A",
+        "producer": "backend/src/pitchlog/exports/play_export_csv.py",
+        "implementation_steps": [1, 2, 3],
+        "method": "generated D-1 SQL result saved in play_export_snapshots; no Python score aggregation"
       }
     }
   ],

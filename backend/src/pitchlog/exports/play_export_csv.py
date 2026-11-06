@@ -1,4 +1,4 @@
-"""保存値から毎球CSV 88列と全9サイドカーを組み立てる。
+"""保存値から毎球CSV 88列と全10サイドカーを組み立てる。
 
 88列本体は、記録時に確定したprojection（``plays_csv_json``）だけを写す。
 このmoduleはT1の再計算・座標変換・全件集計をせず、未供給をNULL/0で補わない。
@@ -11,7 +11,7 @@ import json
 from collections.abc import Iterable, Iterator
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
-from typing import Any, Mapping
+from typing import Any, Mapping, cast
 from uuid import UUID
 
 from pitchlog.exports.archive import ExportSnapshot
@@ -392,16 +392,87 @@ def _projection_rows(
     return
 
 
+def _inning_score_rows(
+    bundle: PlayExportBundle, snapshot_id: str
+) -> Iterator[SavedCsvRow]:
+    """最後の有効playと同版の生成済み全回値を一行ずつ写す。"""
+    if not bundle.plays:
+        return
+    events = _event_by_id(bundle)
+    last_play = bundle.plays[-1]
+    last_event = events.get(last_play["source_event_id"])
+    if (
+        last_event is None
+        or type(last_event.get("generation")) is not int
+        or type(last_event.get("d2")) is not int
+    ):
+        raise PlayExportSupplyError("全回値のsource版が不正です")
+    play_sources = (
+        events.get(play["source_event_id"]) for play in bundle.plays
+    )
+    if any(
+        event is None
+        or type(event.get("generation")) is not int
+        or type(event.get("d2")) is not int
+        or (event["generation"], event["d2"])
+        > (last_event["generation"], last_event["d2"])
+        for event in play_sources
+    ):
+        raise PlayExportSupplyError("全回値のcurrent play順が未供給です")
+    snapshots = _indexed_rows(bundle.snapshots, "play_row_id")
+    snapshot = snapshots.get(last_play["id"])
+    if snapshot is None:
+        raise PlayExportSupplyError("全回値の保存原本がありません")
+    innings = snapshot.get("full_innings_json")
+    if type(innings) is not list or not innings or len(innings) % 2:
+        raise PlayExportSupplyError("全回値の保存形が不正です")
+    for position, inning in enumerate(innings):
+        expected_half = "top" if position % 2 == 0 else "bottom"
+        expected_inning = position // 2 + 1
+        if type(inning) is not dict or set(inning) != {
+            "inning", "half", "state", "runs"
+        }:
+            raise PlayExportSupplyError("全回値の保存形が不正です")
+        inning = cast(dict[str, object], inning)
+        state, runs = inning["state"], inning["runs"]
+        if (
+            type(inning["inning"]) is not int
+            or inning["inning"] != expected_inning
+            or inning["half"] != expected_half
+            or state not in ("unplayed", "in-progress", "completed")
+            or (
+                (state == "unplayed" and runs is not None)
+                or (state != "unplayed" and (type(runs) is not int or runs < 0))
+            )
+        ):
+            raise PlayExportSupplyError("全回値の保存形が不正です")
+        yield _row(
+            bundle.game["id"],
+            snapshot_id,
+            {
+                "game_id": bundle.game["id"],
+                "recording_generation": snapshot["recording_generation"],
+                "event_sequence": snapshot["event_sequence"],
+                "source_event_id": last_play["source_event_id"],
+                "play_row_id": last_play["id"],
+                "inning": expected_inning,
+                "half": expected_half,
+                "state": state,
+                "runs": runs,
+            },
+        )
+
+
 def build_play_export_tables(
     bundle: PlayExportBundle,
 ) -> tuple[ExportSnapshot, dict[str, Iterable[SavedCsvRow]]]:
-    """88列と全9サイドカーを同一snapshotの行集合へ写す。
+    """88列と全10サイドカーを同一snapshotの行集合へ写す。
 
     Args:
         bundle: ``read_play_export`` の同一RR snapshot。
 
     Returns:
-        manifest用snapshotと、10ファイルの供給行。
+        manifest用snapshotと、11ファイルの供給行。
 
     Raises:
         PlayExportSupplyError: 88列projectionが未供給/不正な場合。
@@ -422,6 +493,7 @@ def build_play_export_tables(
         "references.csv": _reference_rows(bundle, snapshot_id),
         "projections.csv": _projection_rows(bundle, snapshot_id),
         "preserved_sources.csv": [],
+        "inning_scores.csv": _inning_score_rows(bundle, snapshot_id),
     }
     if set(tables) != set(CSV_HEADERS):
         raise PlayExportSupplyError("出力ファイル集合が契約と不一致です")

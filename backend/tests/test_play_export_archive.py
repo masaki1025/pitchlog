@@ -1,4 +1,4 @@
-"""全10CSVのZIP完成・hash・故障cleanupを独立readerで検証する。"""
+"""全11CSVのZIP完成・hash・故障cleanupを独立readerで検証する。"""
 
 from __future__ import annotations
 
@@ -55,6 +55,21 @@ def test_completed_archive_manifest_hashes_and_independent_csv_reader() -> None:
             manifest = json.loads(bundle.read("manifest.json"))
             assert manifest["snapshot_id"] == SNAPSHOT.snapshot_id
             assert manifest["source_versions"] == SNAPSHOT.source_versions
+            assert manifest["column_semantics"]["打球位置X/打球位置Y"] == {
+                "coordinate_system": "normalized-bottom-left",
+                "unit": "0..1",
+                "value_source": "accepted-V7-decimal",
+                "legacy_pixel_bytes": False,
+            }
+            assert (
+                manifest["column_semantics"]["経過時間"]["clock"] == "server-accepted"
+            )
+            assert manifest["column_semantics"]["打席結果/Result_col"] == {
+                "value_source": "accepted-play-result-and-D1-display",
+                "same_value": True,
+                "independent_result_decision": False,
+                "legacy_default_zero": False,
+            }
             for item in manifest["files"]:
                 raw = bundle.read(item["name"])
                 assert item["byte_length"] == len(raw)
@@ -209,7 +224,7 @@ def test_invalid_snapshot_metadata_is_rejected(change) -> None:
 
 
 def test_every_sidecar_can_contain_typed_values_and_remains_in_manifest():
-    """全9sidecarに実行が到達し、明示NULLとJSONを元のまま運ぶ。"""
+    """全10sidecarに実行が到達し、明示NULLとJSONを元のまま運ぶ。"""
     tables = _empty_tables()
     for name, headers in CSV_HEADERS.items():
         if name == "plays.csv":
@@ -227,7 +242,7 @@ def test_every_sidecar_can_contain_typed_values_and_remains_in_manifest():
     with prepare_play_archive(SNAPSHOT, tables) as output:
         with zipfile.ZipFile(output.file) as bundle:
             manifest = json.loads(bundle.read("manifest.json"))
-            assert len(manifest["files"]) == 10
+            assert len(manifest["files"]) == 11
             for record in manifest["files"]:
                 assert record["data_row_count"] == (
                     0 if record["name"] == "plays.csv" else 1
@@ -345,7 +360,7 @@ class _CountedTableMapping(Mapping):
     "shape", ["large", "infinite", "duplicate", "missing", "extra_known"]
 )
 def test_outer_mapping_is_bounded_before_spool_and_value_reads(shape, monkeypatch):
-    """巨大/無限の外側供給は11キー以内で拒否しspoolを確保しない。"""
+    """巨大/無限の外側供給は12キー以内で拒否しspoolを確保しない。"""
     names = tuple(CSV_HEADERS)
     keys = {
         "large": chain(names, (f"extra-{i}" for i in range(10000))),
@@ -363,16 +378,16 @@ def test_outer_mapping_is_bounded_before_spool_and_value_reads(shape, monkeypatc
     with pytest.raises(PlayExportSupplyError):
         with prepare_play_archive(SNAPSHOT, mapping):
             pytest.fail("不正Mappingを成功にした")
-    assert mapping.key_reads <= 11
+    assert mapping.key_reads <= 12
     assert mapping.value_reads == 0
 
 
-def test_valid_outer_mapping_reads_only_ten_values_without_length():
-    """正しい10資源は長さ偽装に依存せず一回ずつ読める。"""
+def test_valid_outer_mapping_reads_only_eleven_values_without_length():
+    """正しい11資源は長さ偽装に依存せず一回ずつ読める。"""
     mapping = _CountedTableMapping(iter(CSV_HEADERS), _empty_tables())
     with prepare_play_archive(SNAPSHOT, mapping) as output:
         assert output.byte_length > 0
-    assert mapping.key_reads == mapping.value_reads == 10
+    assert mapping.key_reads == mapping.value_reads == 11
 
 
 def test_outer_value_read_failure_occurs_before_spooling(monkeypatch):

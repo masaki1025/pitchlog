@@ -120,14 +120,14 @@ def prepare_play_archive(
     *,
     limits: ExportLimits = ExportLimits(),
 ) -> Iterator[CompletedPlayArchive]:
-    """全10CSVを一時ファイルに完成し、manifestと全ZIPを検証する。
+    """全11CSVを一時ファイルに完成し、manifestと全ZIPを検証する。
 
     成功応答前の生成器でありHTTPを登録しない。失敗・切断・取消を含め、呼出側が
     contextを抜けたら一時ファイルを閉じる。ファイル名に利用者入力を使わない。
 
     Args:
         snapshot: callerが確定した同一読取版。
-        tables: 88列本体と全9サイドカー。実在0行も明示的に渡す。
+        tables: 88列本体と全10サイドカー。実在0行も明示的に渡す。
         limits: 行・文字・展開後バイト・ZIPバイトの上限。
 
     Yields:
@@ -192,12 +192,39 @@ def prepare_play_archive(
                 )
             manifest = json.dumps(
                 {
-                    "format_version": "pitchlog-play-export-v1-candidate",
+                    "format_version": "pitchlog-play-export-v2-candidate",
                     "game_id": str(snapshot.game_id),
                     "snapshot_id": snapshot.snapshot_id,
                     "source_versions": snapshot.source_versions,
                     "exported_at": snapshot.exported_at,
                     "timezone": "Asia/Tokyo",
+                    "column_semantics": {
+                        "打球位置X/打球位置Y": {
+                            "coordinate_system": "normalized-bottom-left",
+                            "unit": "0..1",
+                            "value_source": "accepted-V7-decimal",
+                            "legacy_pixel_bytes": False,
+                        },
+                        "入力項目": {
+                            "format_version": "play-export-input-origin-v1",
+                            "value_source": "qualified-event-and-V7",
+                        },
+                        "経過時間": {
+                            "clock": "server-accepted",
+                            "base": "games.started_at",
+                            "format": "h:mm-completed-minutes",
+                        },
+                        "現在時刻": {
+                            "clock": "server-accepted",
+                            "timezone": "Asia/Tokyo",
+                        },
+                        "打席結果/Result_col": {
+                            "value_source": "accepted-play-result-and-D1-display",
+                            "same_value": True,
+                            "independent_result_decision": False,
+                            "legacy_default_zero": False,
+                        },
+                    },
                     "files": file_records,
                 },
                 ensure_ascii=False,

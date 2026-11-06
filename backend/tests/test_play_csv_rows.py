@@ -43,7 +43,7 @@ def _read(rows, **limits):
 
 
 def test_candidate_headers_match_all_88_and_all_sidecars() -> None:
-    """製品の候補列が全88列/全9ファイルからずれない。"""
+    """製品の候補列が全88列/全10sidecarからずれない。"""
     feature = Path(__file__).resolve().parents[2] / "docs/features/ud2-csv-export"
     columns = json.loads((feature / "columns.candidate.json").read_text())
     sidecars = json.loads((feature / "sidecars.candidate.json").read_text())

@@ -59,5 +59,18 @@ async function reconnect() {
       接続を確認して未送信記録を同期する
     </button>
   </template>
-  <GameScreenEntryRecordHost v-else />
+  <template v-else>
+    <GameScreenEntryRecordHost />
+    <nav aria-label="試合データ出力" class="mx-auto max-w-4xl px-4 pb-6">
+      <RouterLink
+        :to="{
+          name: 'game-export',
+          params: { gameId: router.currentRoute.value.params.gameId },
+        }"
+        class="inline-block rounded border px-3 py-2 underline"
+        >毎球CSVへ</RouterLink
+      >
+      <p class="text-sm">未送信の記録はサーバーのCSVに含まれません。</p>
+    </nav>
+  </template>
 </template>

@@ -1,6 +1,6 @@
 {
   "status": "candidate-not-approved",
-  "format_version": "pitchlog-play-export-v1-candidate",
+  "format_version": "pitchlog-play-export-v2-candidate",
   "base_sha": "40ce2e312bc46435239f2a6d0ea0f1fb919a5de0",
   "header_source": {
     "path": "/home/ymdms/projects/Baseball_Scoring/config.py",
@@ -1384,8 +1384,8 @@
       "header": "打球位置X",
       "meaning": "打球落下点X（フィールド画像クリック）",
       "legacy_declared_type": "REAL",
-      "source_candidate": "play_rows.hit_x",
-      "binding_status": "coordinate_export_binding_required",
+      "source_candidate": "accepted V7 observations.battedBall.hitX/hitY + same-TX play_rows.hit_x/hit_y physical equality",
+      "binding_status": "candidate-normalized-bottom-left-v1-independent-review-pending",
       "source_receipt": {
         "status": "planned-not-accepted",
         "owner": "root Codex主担当（PO委任）",
@@ -1404,15 +1404,15 @@
       "legacy_code_reference": "Baseball_Scoring/config.py COLUMN_NAMES[50]; docs/legacy/research/data-layer.md §2 列50の旧参照。列別旧使用元はstep1受理fixtureで固定",
       "actual_content": "打球落下点X（フィールド画像クリック）",
       "destination_candidate": "play_rows.hit_x",
-      "transformation_rule": "既field geometryの型付き別計算を現行D-1から生成。コースk263を仮定しない。source完成値/NULL維持。"
+      "transformation_rule": "Accepted decimal string in normalized-bottom-left [0,1] is preserved byte-for-byte after equality with stored Double; no legacy pixel inverse conversion. Unit/axis are in ZIP manifest."
     },
     {
       "index": 51,
       "header": "打球位置Y",
       "meaning": "打球落下点Y",
       "legacy_declared_type": "REAL",
-      "source_candidate": "play_rows.hit_y",
-      "binding_status": "coordinate_export_binding_required",
+      "source_candidate": "accepted V7 observations.battedBall.hitX/hitY + same-TX play_rows.hit_x/hit_y physical equality",
+      "binding_status": "candidate-normalized-bottom-left-v1-independent-review-pending",
       "source_receipt": {
         "status": "planned-not-accepted",
         "owner": "root Codex主担当（PO委任）",
@@ -1431,7 +1431,7 @@
       "legacy_code_reference": "Baseball_Scoring/config.py COLUMN_NAMES[51]; docs/legacy/research/data-layer.md §2 列51の旧参照。列別旧使用元はstep1受理fixtureで固定",
       "actual_content": "打球落下点Y",
       "destination_candidate": "play_rows.hit_y",
-      "transformation_rule": "既field geometryの型付き別計算を現行D-1から生成。コースk263を仮定しない。source完成値/NULL維持。"
+      "transformation_rule": "Accepted decimal string in normalized-bottom-left [0,1] is preserved byte-for-byte after equality with stored Double; no legacy pixel inverse conversion. Unit/axis are in ZIP manifest."
     },
     {
       "index": 52,
@@ -1682,8 +1682,8 @@
       "header": "打席結果",
       "meaning": "打席の最終結果（正規化済み表記）",
       "legacy_declared_type": "TEXT",
-      "source_candidate": "G04-R accepted saved T1 before/after field/complete label read; missing mathematical/display rule through current D-1 generated target only",
-      "binding_status": "canonical_supply_required",
+      "source_candidate": "accepted same-TX PlayRow.batting_result_key + AdminVocabulary.display_name + saved T1 plateAppearanceEnded + D-1 display target",
+      "binding_status": "candidate-d1-product-integration-pending",
       "source_receipt": {
         "status": "planned-not-accepted",
         "owner": "root Codex主担当（PO委任）",
@@ -1701,17 +1701,17 @@
       "supply_group": "G04",
       "legacy_code_reference": "Baseball_Scoring/config.py COLUMN_NAMES[61]; docs/legacy/research/data-layer.md §2 列61の旧参照。列別旧使用元はstep1受理fixtureで固定",
       "actual_content": "打席の最終結果（正規化済み表記）",
-      "destination_candidate": "G04-R accepted saved T1 before/after field/complete label read; missing mathematical/display rule through current D-1 generated target only",
-      "transformation_rule": "supply-matrix G04-R/G04-Aの区分に従う。DB primitiveの対象集合/確定slot版/D2順序/取消訂正を固定。window後に出力ページ条件。CSV層は完成値をコピー、未供給を仮値化しない。",
-      "calculation_class": "stored T1 read/format binding; declared display calculation separated"
+      "destination_candidate": "accepted same-TX PlayRow.batting_result_key + AdminVocabulary.display_name + saved T1 plateAppearanceEnded + D-1 display target",
+      "transformation_rule": "D-1専用play-export-display.model.jsonのplateResultDisplay生成targetを使用。完了打席は受理済み打撃結果語彙・捕球選手・打球種類のみから旧有限表示へ写し、継続打席は明示NULL。欠測完了結果は拒否。",
+      "calculation_class": "D-1 generated finite display"
     },
     {
       "index": 62,
       "header": "Result_col",
-      "meaning": "結果表示用カラム（スコアカード表示用）",
+      "meaning": "列61と同じ受理済み打席結果表示（独立判定ではない）",
       "legacy_declared_type": "TEXT",
-      "source_candidate": "G04-R accepted saved T1 before/after field/complete label read; missing mathematical/display rule through current D-1 generated target only",
-      "binding_status": "canonical_supply_required",
+      "source_candidate": "accepted same-TX PlayRow.batting_result_key + AdminVocabulary.display_name + saved T1 plateAppearanceEnded + D-1 display target",
+      "binding_status": "candidate-d1-product-integration-pending",
       "source_receipt": {
         "status": "planned-not-accepted",
         "owner": "root Codex主担当（PO委任）",
@@ -1729,9 +1729,9 @@
       "supply_group": "G04",
       "legacy_code_reference": "Baseball_Scoring/config.py COLUMN_NAMES[62]; docs/legacy/research/data-layer.md §2 列62の旧参照。列別旧使用元はstep1受理fixtureで固定",
       "actual_content": "結果表示用カラム（スコアカード表示用）",
-      "destination_candidate": "G04-R accepted saved T1 before/after field/complete label read; missing mathematical/display rule through current D-1 generated target only",
-      "transformation_rule": "supply-matrix G04-R/G04-Aの区分に従う。DB primitiveの対象集合/確定slot版/D2順序/取消訂正を固定。window後に出力ページ条件。CSV層は完成値をコピー、未供給を仮値化しない。",
-      "calculation_class": "stored T1 read/format binding; declared display calculation separated"
+      "destination_candidate": "accepted same-TX PlayRow.batting_result_key + AdminVocabulary.display_name + saved T1 plateAppearanceEnded + D-1 display target",
+      "transformation_rule": "列61の同一完成表示値・同一原本・同一版をaliasとして保存。旧初期値0を新記録へ捏造しない。独立判定式を持たない。",
+      "calculation_class": "D-1 generated finite display; same-source alias"
     },
     {
       "index": 63,
@@ -1981,8 +1981,8 @@
       "header": "入力項目",
       "meaning": "入力経路/入力項目の識別値",
       "legacy_declared_type": "TEXT",
-      "source_candidate": "operation_events.payload input provenance (accepted field receipt required)",
-      "binding_status": "provenance_binding_required",
+      "source_candidate": "same-TX qualified V7 format/calculation source + source_event_id",
+      "binding_status": "candidate-play-export-input-origin-v1-independent-review-pending",
       "source_receipt": {
         "status": "planned-not-accepted",
         "owner": "root Codex主担当（PO委任）",
@@ -2001,7 +2001,7 @@
       "legacy_code_reference": "Baseball_Scoring/config.py COLUMN_NAMES[72]; docs/legacy/research/data-layer.md §2 列72の旧参照。列別旧使用元はstep1受理fixtureで固定",
       "actual_content": "入力経路/入力項目の識別値",
       "destination_candidate": "operation_events.payload input provenance (accepted field receipt required)",
-      "transformation_rule": "supply-matrix G07の単一producer/保存値参照。CSV Pythonでドメイン計算せず完成文字列をコピー。"
+      "transformation_rule": "Versioned closed JSON of actual V7 profile, calculation artifact/source kind, qualified operation kind and source event id; no legacy 0 flag or request-derived values."
     },
     {
       "index": 73,
@@ -2064,8 +2064,8 @@
       "header": "経過時間",
       "meaning": "試合経過時間",
       "legacy_declared_type": "TEXT",
-      "source_candidate": "accepted canonical per-event export projection (producer receipt required)",
-      "binding_status": "canonical_supply_required",
+      "source_candidate": "games.started_at + same-TX pg_catalog.clock_timestamp accepted_server_at",
+      "binding_status": "candidate-server-accepted-elapsed-h-mm-independent-review-pending",
       "source_receipt": {
         "status": "planned-not-accepted",
         "owner": "root Codex主担当（PO委任）",
@@ -2084,7 +2084,7 @@
       "legacy_code_reference": "Baseball_Scoring/config.py COLUMN_NAMES[75]; docs/legacy/research/data-layer.md §2 列75の旧参照。列別旧使用元はstep1受理fixtureで固定",
       "actual_content": "試合経過時間",
       "destination_candidate": "accepted canonical per-event export projection (producer receipt required)",
-      "transformation_rule": "supply-matrix G08の単一producer/保存値参照。CSV Pythonでドメイン計算せず完成文字列をコピー。"
+      "transformation_rule": "D-1 generated whole-minute h:mm from server start and server acceptance. Missing start or negative duration rejects; not device observation or retired Tag."
     },
     {
       "index": 76,
@@ -2424,5 +2424,17 @@
       "default NULL/zero for missing supply"
     ],
     "conditional_method_change": "only if D-1 cannot express a concrete case; named ADR/requirement formalization gate before that calculation code"
+  },
+  "technical_binding_judgment": {
+    "status": "candidate-independent-review-pending",
+    "decided_on": "2026-11-07",
+    "authority": "PO-delegated Codex/root technical decision; no direct human signature",
+    "columns": [
+      50,
+      51,
+      72,
+      75
+    ],
+    "legacy_byte_compatibility": "not claimed for values; 88 headers and order remain fixed"
   }
 }

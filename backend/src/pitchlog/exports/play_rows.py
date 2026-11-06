@@ -172,6 +172,17 @@ _HEADERS: dict[str, tuple[str, ...]] = {
         "preservation_kind",
         "source_json",
     ),
+    "inning_scores.csv": (
+        "game_id",
+        "recording_generation",
+        "event_sequence",
+        "source_event_id",
+        "play_row_id",
+        "inning",
+        "half",
+        "state",
+        "runs",
+    ),
 }
 CSV_HEADERS: Mapping[str, tuple[str, ...]] = MappingProxyType(_HEADERS)
 _SIDECAR_TYPES = {
@@ -251,6 +262,17 @@ _SIDECAR_TYPES = {
         "source_event_id": "uuid",
         "preservation_kind": "supplied_text_or_null",
         "source_json": "canonical_json_string",
+    },
+    "inning_scores.csv": {
+        "game_id": "uuid",
+        "recording_generation": "decimal_integer_or_null",
+        "event_sequence": "decimal_integer_or_null",
+        "source_event_id": "uuid",
+        "play_row_id": "uuid",
+        "inning": "canonical_decimal_integer_or_null",
+        "half": "supplied_text_or_null",
+        "state": "supplied_text_or_null",
+        "runs": "canonical_decimal_integer_or_null",
     },
 }
 SNAPSHOT_PATTERN = re.compile(r"[a-f0-9]{64}")

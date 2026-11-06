@@ -18,6 +18,39 @@ from pitchlog.repositories.context import TenantContext
 from pitchlog.repositories.play_export import PlayExportNotFound
 
 
+def test_missing_saved_projection_returns_409_and_closes_file(monkeypatch) -> None:
+    """実保存元が一つでも欠ければ空ZIPで成功せず409にする。"""
+    tenant, game = UUID(int=1), UUID(int=2)
+    context = Mock(spec=TenantContext, tenant_id=tenant)
+    files = []
+    original_file = game_exports.tempfile.TemporaryFile
+
+    def temporary_file(*args, **kwargs):
+        file = original_file(*args, **kwargs)
+        files.append(file)
+        return file
+
+    @contextmanager
+    def scope(_context):
+        yield object()
+
+    monkeypatch.setattr(game_exports.tempfile, "TemporaryFile", temporary_file)
+    monkeypatch.setattr(game_exports, "play_export_read_scope", scope)
+    monkeypatch.setattr(game_exports, "read_play_export", lambda *_args: object())
+    monkeypatch.setattr(game_exports, "missing_supply_columns", lambda _: (0,))
+    request = Request(
+        {
+            "type": "http",
+            "app": SimpleNamespace(state=SimpleNamespace(token_presentation=object())),
+        }
+    )
+    response = game_exports.download_play_csv(
+        game, request, "unit-only-not-a-real-credential", context
+    )
+    assert response.status_code == 409
+    assert files and all(file.closed for file in files)
+
+
 @pytest.mark.parametrize(
     "cause,status",
     [("revoked", 401), ("tenant", 404), ("hidden", 404), ("database", 503)],
