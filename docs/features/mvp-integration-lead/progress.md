@@ -3,6 +3,10 @@
 
 ## 2026-11-07：CSV通常配置の全故障対向を完了し、P3・復旧を同じ候補へ接合
 
+- **実PG接合の追加証拠**: root9848のP3候補0048 compileは **1passed35.05秒/source同一/owned cleanup**。通常47基盤に既cache P3 DDL/実関数を追加する候補検証で、標準0048成功ではない。次の真正P3旧生存拒否/終結後再送・ACK喪失/越境・T2/T4故障の実HTTPをexec12276で実行中、source凍結（旧compile33570は終端成功、再起動しない）。
+- **走者run6の重要な検出**: d4444710同sourceでPlaywright全9成功（正常7＋越境＋T4実500/未確認/GET一致）。末尾DBは正得点のT5 runs/rbi/runs_allowedが空で失敗、全DB/fault残存assert未到達。原因はstats/facts.py native_projectionのruns_rbi常時unavailableとrunner_scores未供給。期待を弱めず、担当の限定path追加計画ff207de5/SHAb04e47b3…を要件RBI06/08と照合しPO委任root採用。唯一artifactの到達/打点flag・元走者ID/責任投手を写し、得点差は整合拒否にのみ用いる。0補完/新RBI式は不可、生成核/正式assets非編集。scoreless/4安打対向→fault全T5集合→実DB全照合へ進行中。
+- **追加並行固定**: P3の25超は計画4c281e4f採用後、同核25+1carry1bc71f9a/原本bounded visitor c91b71ae/対象D1保持be0d33c6/target単位束縛ee409fb7までpure成功、製品26球は未成立。二走/私有begin-append-finalize/頁seal/途中commit拒否のSCHEMA-PACKET SHA f8a5065e…をroot技術採用し0048 packetへ継続。D03途中固定4a73b1cbは165pure/RuffTy成功、start/play/subの真正getter・entry単一SQL・候補3表・自由選手/半回JSONを受けないstart固定saveを実装、native/sub/member/readと正式0049/root hookは未接合。
+
 - **CSV通常47**: ae82631bの実owned startup全49件が **49passed504.58秒**、source前後同一/共有DSN未継承/owned cleanup。通常S0→47/同版resumeに加え、全migration途中故障→0039への全取消、列/default/全制約/index/owner/権限/RLS/退役guard等の改変拒否を同sourceで確認。後付3SQL無しの実画面2球→取消→全取消→再入力→ZIP/reload150.05秒の根拠と別に保持。sourceを正式develop45bへ通常mergeした5cb4407dは無競合/2pathのみ、通常push済み。fixture差分独立REPORT2bf44eef…、既35path source7c27d49a…を維持。正式7.7/PR統合/全MVPは未了。
 - **P3同居の新固定候補**: root専有新WT/枝feature-mvp-p3-current-startup、計画9a9f7233→P3 9687を通常merge e91f33a3→復旧e690を通常merge **9848f6da528db515f05e67f6a0b5d4b1a556214d**、clean。既枝/作者成果は不変更。初回6/第二16競合の実stage SHAと解消をp3-current48-startup-root-20261107へ固定。C2/transportはevents/change/recoverの閉集合、元本文/V12指紋とD1less kindの両方を保持、旧D5業務指紋とwire指紋を混同しない。root47 catalog/全26宣言/UUID parser/分類を旧candidateで上書きしない。
 - **供給漏れの修復と検証**: 初回271成功/10失敗は宣言18に対してcold Port loaderが13しか供給しない点を検出。既宣言済P3/交代5型だけを明示import/返却し、実クラス同一性/SQL-free閉包/未登録/未import拒否を保持。147対象成功。復旧後は402backend20.35秒、107frontend3.30秒、P3の実client→既耐久barrier/旧試行照会接合23件2.80秒、backend Ruff/Ty/FE型/lint成功。unsafe時fetch前拒否も固定。旧registry22追加のpin期待漏れ1failは未解消で比較維持、mock結果を実認証/PGへ拡張しない。
