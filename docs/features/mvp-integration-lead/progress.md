@@ -3,6 +3,8 @@
 
 ## 2026-11-07：197通常統合、P3再開後追記完走、CI8とCSV正規起動の接合
 
+- **最新PO指示・優先更新**: 8分割の追加正式化がMVP接続を遅らせるため保留し、正式developの既4分割を維持する。PR198はDraft/未merge、651の実8分割run42334599932は取消要求、本文赤の事実は保持。後継carry候補ca41ba22は18対向成功の未採用/未pushで保全（非作者コード確認・typed purpose閉全値・最終7.7再導出は未了）。8分割完了や検査緩和をMVPの前提にしない。root/非作者はCSV通常配置の故障対向・fixture追補/走者打球へ戻り、D03担当は既FR023/XMARKの開始済み・未開始規定から真正投手entryを実装中。Goal全体はactive。
+
 - **12:39の新たな候補実証**: CSV通常起動 ae82631b14a42c7a5c25088f0d7d4e9211c3935b で、初期scopeも実S0→advance_current_product_from_s0→0047へ統一し、既画面E2Eの後付snapshot/writer/source-reader SQL3件を削除。実画面create/start/2球→取消1→全取消→再入力→ZIP→reloadが **1passed150.05秒/source前後同一/clean/owned cleanup**。11CSV/88列と現行T5 source/version/Sの各段階完全照合は維持。証拠 csv-current47-startup-root-20261107/owned-screen/csv47-normal-screen-result.json。source通常push済み。通常起動9c0の限定独立REPORT SHA7c27d49add079d656cc9a307e304671c4bed073c9dcbc967ecfd37cff3d2b8ec、新P0/P1なし。ae8のfixture差分独立確認/故障matrixは実行待ち。正式seal/7.7/PR/全MVP未成立。
 - **CI198公開後**: 最終65113d252181bfa5718e35070b2d9be2d8f6c144はcomment6701705237→本文pointer→通常push。full41path diffSHA5cb9389a6bef2580702c345d98283ed1c032273dc0cb5bc20b1814abf43f2fef、最終限定非作者REPORT597b061b…。CI42334599932は実8+8分割を実行中、本文42334599829は旧ordinary33のbase数学9資産固定照合で拒否（197後の後継継承経路）。正当な赤として固定し同失敗の再実行なし、有限scopeと現在委任検査を維持する最小修復を別非作者と確認中。CI時間/merge成功としない。
 
