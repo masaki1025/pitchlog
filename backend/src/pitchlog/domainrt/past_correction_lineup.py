@@ -368,6 +368,8 @@ def build_corrected_lineup_payloads(
     rows: tuple[SavedLineupPitch, ...],
     corrected: tuple[CorrectedLineupPitch, ...],
     replacement_observations: FirstBallObservations,
+    *,
+    target_d1: int | None = None,
 ) -> tuple[LineupPitchPlayPayload, ...]:
     """訂正観測と後続の保存観測を実再評価値へ厳密に束縛する。"""
     if (
@@ -375,13 +377,17 @@ def build_corrected_lineup_payloads(
         or type(corrected) is not tuple
         or not corrected
         or type(replacement_observations) is not FirstBallObservations
+        or (target_d1 is not None and (type(target_d1) is not int or target_d1 < 1))
     ):
         raise LineupCorrectionUnsupported("訂正v3観測原本が不正")
+    target = corrected[0].d1 if target_d1 is None else target_d1
+    if target > corrected[-1].d1:
+        raise LineupCorrectionUnsupported("訂正v3対象がページ末尾を超過")
     by_d1 = {row.d1: row for row in rows}
     if len(by_d1) != len(rows):
         raise LineupCorrectionUnsupported("訂正v3観測原本の位置が重複")
     result: list[LineupPitchPlayPayload] = []
-    for index, frame in enumerate(corrected):
+    for frame in corrected:
         saved = by_d1.get(frame.d1)
         if (
             type(frame) is not CorrectedLineupPitch
@@ -397,7 +403,9 @@ def build_corrected_lineup_payloads(
         ):
             raise LineupCorrectionUnsupported("訂正v3保存観測の参照が不一致")
         observations = (
-            replacement_observations if index == 0 else saved.payload.observations
+            replacement_observations
+            if frame.d1 == target
+            else saved.payload.observations
         )
         if type(observations) is not FirstBallObservations:
             raise LineupCorrectionUnsupported("訂正v3後続観測が未対応")

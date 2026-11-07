@@ -354,6 +354,10 @@ def test_v3_corrected_payload_keeps_downstream_observations_and_explicit_target(
     assert new[1].observations == old[1].payload.observations
     assert new[0].calculation.request.t1.result_id == "batting-result.ball"
     assert new[1].calculation.request.t1.result_id == "batting-result.called-pitch"
+    suffix = build_corrected_lineup_payloads(
+        old[1:], frames[1:], replacement, target_d1=1
+    )
+    assert suffix == new[1:]
 
 
 def test_v3_corrected_payload_rejects_missing_original_v7() -> None:
@@ -434,6 +438,17 @@ def test_v3_physical_candidate_uses_existing_mappers_and_new_row_ids() -> None:
     ]
     assert [item.play_row["play_number"] for item in result] == [1, 2]
     assert all(item.play_row["id"] == str(item.new_play_row_id) for item in result)
+    suffix = prepare_corrected_physical_pitches(
+        original[1:],
+        frames[1:],
+        payloads[1:],
+        tenant_id=tenant,
+        game_id=game,
+        capsule_id=_CAPSULE,
+        change_event_id=_CHANGE,
+        target_d1=1,
+    )
+    assert suffix == result[1:]
     assert original[1].play_row is not None
     forged = dict(original[1].play_row)
     forged["tenant_id"] = str(UUID(int=1))
