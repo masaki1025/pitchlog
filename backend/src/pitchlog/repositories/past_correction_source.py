@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from uuid import UUID
 
@@ -40,6 +41,218 @@ class PastCorrectionV3SourceSnapshot:
     internal_generation: int
     rows: tuple[SavedLineupPitch, ...]
     checkpoint: LineupPrefixDocument | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class PastCorrectionV3PagedSource:
+    """全ページ読了後だけ得られる同取引の現head証明。"""
+
+    internal_generation: int
+    watermark: int
+    checkpoint: LineupPrefixDocument
+
+
+def _saved_from_packet(
+    packet: tuple[object, ...],
+    number: int,
+    tenant: UUID,
+    game_id: UUID,
+    generation: int,
+) -> SavedLineupPitch:
+    """既私有pageの1行を元event・物理・唯一計算の全値へ束縛する。"""
+    if len(packet) != 1:
+        raise PastCorrectionSourceUnavailable("v3原本packetが不正")
+    item = _json(packet[0])
+    if type(item) is not dict or set(item) != {
+        "history",
+        "event",
+        "play_row",
+        "expected_play_row",
+        "play_runners",
+        "expected_play_runners",
+    }:
+        raise PastCorrectionSourceUnavailable("v3原本packet形が不正")
+    history, event = item["history"], item["event"]
+    if (
+        type(history) is not dict
+        or type(event) is not dict
+        or history["d1"] != number
+        or event["d1"] != number
+        or event["d2"] != history["d2"]
+        or event["id"] != history["source_event_id"]
+        or event["event_kind"] != "play_input"
+        or event["generation"] != generation
+        or event["tenant_id"] != str(tenant)
+        or event["game_id"] != str(game_id)
+        or event["replaced_at"] is not None
+        or event["retired_at"] is not None
+    ):
+        raise PastCorrectionSourceUnavailable("v3原本の順序又は参照が不正")
+    payload = _verify_v2_read_packet(item, tenant, game_id, lineup=True)
+    return SavedLineupPitch(
+        UUID(event["id"]),
+        number,
+        event["d2"],
+        payload.calculation,
+        payload,
+        item["play_row"],
+        tuple(item["play_runners"]),
+    )
+
+
+def visit_past_correction_v3_source_pages(
+    scope: _TenantTransaction,
+    game_id: UUID,
+    target_d1: int,
+    consume: Callable[[tuple[SavedLineupPitch, ...]], None],
+) -> PastCorrectionV3PagedSource:
+    """同一scopeの25件keysetを全水位まで訪問し、全件RAM保持を避ける。"""
+    if (
+        type(scope) is not _TenantTransaction
+        or type(game_id) is not UUID
+        or type(target_d1) is not int
+        or target_d1 < 1
+        or not callable(consume)
+    ):
+        raise PastCorrectionSourceUnavailable("P3頁読取の入力が不正")
+    try:
+        current = _one(
+            scope.run(RecordingGenerationReadToken(game_id)),
+            _GENERATION_READ_COLUMNS,
+        )
+        generation = current["generation"]
+        watermark = current["confirmed_watermark"]
+        if (
+            type(generation) is not int
+            or generation < 1
+            or type(watermark) is not int
+            or watermark < target_d1
+        ):
+            raise PastCorrectionSourceUnavailable("P3頁読取の水位が不正")
+        cursor: str | None = None
+        after = (0, 0, UUID(int=0))
+        seen = 0
+        checkpoint: LineupPrefixDocument | None = None
+        head: object = None
+        storage_head: object = None
+        last: SavedLineupPitch | None = None
+        while seen < watermark:
+            view = read_lineup_prefix(scope, game_id, limit=25, cursor=cursor)
+            if type(view) is not OrdinaryPrefixView:
+                raise PastCorrectionSourceUnavailable("P3頁のv3 readが欠落")
+            projection = view.projection
+            page = projection["page"]
+            items = page["items"]
+            ref = projection["prefix_ref"]
+            anchor = projection["checkpoint_anchor"]
+            storage = projection["storage_anchor"]
+            if (
+                type(page) is not dict
+                or type(items) is not list
+                or not 1 <= len(items) <= 25
+                or seen + len(items) > watermark
+                or type(anchor) is not dict
+                or storage is None
+                or page["next_cursor"] is not None
+                and (type(page["next_cursor"]) is not str or not page["next_cursor"])
+                or (page["next_cursor"] is None) != (seen + len(items) == watermark)
+                or ref.length != str(watermark)
+                or ref.tenant_id != str(scope._bound_tenant_id)
+                or ref.game_id != str(game_id)
+                or storage.id != anchor["id"]
+            ):
+                raise PastCorrectionSourceUnavailable("P3頁のhead又は件数が不正")
+            if checkpoint is None:
+                raw_checkpoint = _function_one(
+                    scope, PlayPrefixCheckpointReadToken(game_id, generation)
+                )
+                if (
+                    type(raw_checkpoint) is not dict
+                    or raw_checkpoint.get("kind") != "checkpoint"
+                    or type(raw_checkpoint.get("row")) is not dict
+                    or type(raw_checkpoint["row"].get("content")) is not dict
+                ):
+                    raise PastCorrectionSourceUnavailable("P3頁のCPが欠落")
+                row = raw_checkpoint["row"]
+                checkpoint = read_lineup_prefix_document(
+                    _canonical_json(row["content"])
+                )
+                if (
+                    checkpoint.id != anchor["id"]
+                    or checkpoint.revision != anchor["revision"]
+                    or checkpoint.prefix_ref != ref
+                    or checkpoint.internal_generation != str(generation)
+                    or checkpoint.confirmed_watermark != str(watermark)
+                    or checkpoint.content_digest != row.get("content_digest")
+                    or row.get("id") != checkpoint.id
+                    or row.get("state") != "current"
+                ):
+                    raise PastCorrectionSourceUnavailable("P3頁のCP原本が不一致")
+                head = ref
+                storage_head = storage
+            elif (
+                ref != head
+                or storage != storage_head
+                or anchor["id"] != checkpoint.id
+                or anchor["revision"] != checkpoint.revision
+            ):
+                raise PastCorrectionSourceUnavailable("P3頁の途中headが変化")
+            token = PlayPrefixHistoryPageToken(
+                game_id,
+                generation,
+                int(storage.history_epoch),
+                UUID(ref.checkpoint.id),
+                int(anchor["revision"]),
+                int(ref.history_version),
+                watermark,
+                *after,
+                25,
+            )
+            packets = scope.run_function(token).rows
+            lookahead = 0 if page["next_cursor"] is None else 1
+            if len(packets) != len(items) + lookahead:
+                raise PastCorrectionSourceUnavailable("P3頁の私有原本件数が不一致")
+            source: list[SavedLineupPitch] = []
+            for offset, packet in enumerate(packets[: len(items)], start=1):
+                saved = _saved_from_packet(
+                    packet, seen + offset, scope._bound_tenant_id, game_id, generation
+                )
+                public = items[offset - 1]
+                if (
+                    type(public) is not dict
+                    or type(public.get("play_row")) is not dict
+                    or saved.play_row is None
+                    or public["play_row"].get("id") != saved.play_row.get("id")
+                    or public["play_row"].get("source_event_id")
+                    != str(saved.source_event_id)
+                    or public.get("history_entry")
+                    != saved.calculation.response.value.new_history_entry.model_dump(
+                        mode="json", by_alias=True, exclude_unset=True
+                    )
+                    or (last is not None and saved.d2 <= last.d2)
+                ):
+                    raise PastCorrectionSourceUnavailable("P3頁の公開/私有原本が不一致")
+                source.append(saved)
+                last = saved
+            consume(tuple(source))
+            seen += len(source)
+            assert last is not None
+            after = (last.d1, last.d2, last.source_event_id)
+            cursor = page["next_cursor"]
+        if (
+            checkpoint is None
+            or last is None
+            or cursor is not None
+            or last.calculation.response.value.next_prefix_ref != checkpoint.prefix_ref
+            or _one(
+                scope.run(RecordingGenerationReadToken(game_id)),
+                _GENERATION_READ_COLUMNS,
+            ) != current
+        ):
+            raise PastCorrectionSourceUnavailable("P3頁末尾とcurrent headが不一致")
+        return PastCorrectionV3PagedSource(generation, watermark, checkpoint)
+    except (OrdinaryPrefixError, KeyError, TypeError, ValueError, AttributeError):
+        raise PastCorrectionSourceUnavailable("P3原本頁を全値確認できない") from None
 
 
 def read_past_correction_v3_source_snapshot(
@@ -134,46 +347,9 @@ def read_past_correction_v3_source_snapshot(
             raise PastCorrectionSourceUnavailable("v3原本pageが欠落又は余剰")
         source: list[SavedLineupPitch] = []
         for number, packet in enumerate(packets, start=1):
-            if len(packet) != 1:
-                raise PastCorrectionSourceUnavailable("v3原本packetが不正")
-            item = _json(packet[0])
-            if type(item) is not dict or set(item) != {
-                "history",
-                "event",
-                "play_row",
-                "expected_play_row",
-                "play_runners",
-                "expected_play_runners",
-            }:
-                raise PastCorrectionSourceUnavailable("v3原本packet形が不正")
-            history, event = item["history"], item["event"]
-            if (
-                type(history) is not dict
-                or type(event) is not dict
-                or history["d1"] != number
-                or event["d1"] != number
-                or event["d2"] != history["d2"]
-                or event["id"] != history["source_event_id"]
-                or event["event_kind"] != "play_input"
-                or event["generation"] != generation
-                or event["tenant_id"] != str(scope._bound_tenant_id)
-                or event["game_id"] != str(game_id)
-                or event["replaced_at"] is not None
-                or event["retired_at"] is not None
-            ):
-                raise PastCorrectionSourceUnavailable("v3原本の順序又は参照が不正")
-            payload = _verify_v2_read_packet(
-                item, scope._bound_tenant_id, game_id, lineup=True
-            )
             source.append(
-                SavedLineupPitch(
-                    UUID(event["id"]),
-                    number,
-                    event["d2"],
-                    payload.calculation,
-                    payload,
-                    item["play_row"],
-                    tuple(item["play_runners"]),
+                _saved_from_packet(
+                    packet, number, scope._bound_tenant_id, game_id, generation
                 )
             )
         last = projection["last_source"]
