@@ -692,6 +692,22 @@ const multiRunnerCases = [
     count: '4',
     afterRunners: [],
   },
+  {
+    scenario: 'hit-by-pitch-loaded',
+    label: 'I',
+    result: 'batting-result.hit-by-pitch',
+    loaded: true,
+    destinations: {},
+    runners: 'first-second-third',
+    score: '1',
+    nextOrder: '5',
+    count: '4',
+    afterRunners: [
+      { order: '4', base: '1' },
+      { order: '3', base: '2' },
+      { order: '2', base: '3' },
+    ],
+  },
 ] as const
 
 for (const scenario of multiRunnerCases) {
@@ -740,12 +756,28 @@ for (const scenario of multiRunnerCases) {
         away: '0',
       })
     }
-    await selectAllRunnerResults(
-      page,
-      scenario.result,
-      fielder.player.player_id,
-      scenario.destinations,
-    )
+    const isAward = scenario.result === 'batting-result.hit-by-pitch'
+    if (isAward) {
+      await expect(page.getByTestId('ordinary-state-source')).toHaveText(
+        'サーバー確認済みの状態',
+      )
+      for (const name of ['profile', 'mode', 'bucket', 'lockdown'])
+        await page.getByTestId(`first-ball-env-${name}`).check()
+      await page
+        .getByTestId('first-ball-pitch-type')
+        .selectOption('u06-first-ball-fastball')
+      await page
+        .getByTestId('ordinary-pitch-result')
+        .selectOption(scenario.result)
+      await page.getByTestId('first-ball-course').locator('svg').click()
+    } else {
+      await selectAllRunnerResults(
+        page,
+        scenario.result,
+        fielder.player.player_id,
+        scenario.destinations,
+      )
+    }
     const read = readHead(page, saved.id, scenario.count)
     await save(page, saved.id)
     const final = (await (await read).json()) as Head
@@ -767,7 +799,7 @@ for (const scenario of multiRunnerCases) {
     })
     expect(final.after.scoreboard).toEqual({
       inningScores: { home: '0', away: scenario.score },
-      hits: scenario.count,
+      hits: isAward ? '3' : scenario.count,
       errors: '0',
       strikeouts: '0',
       walks: '0',
@@ -786,8 +818,9 @@ for (const scenario of multiRunnerCases) {
     const flags = (
       final.last_entry as { difference: { statFlags: Record<string, boolean> } }
     ).difference.statFlags
-    for (const name of ['得点', '失点', '打点', '安打'])
-      expect(flags[name]).toBe(true)
+    for (const name of ['得点', '失点', '打点']) expect(flags[name]).toBe(true)
+    expect(flags['安打']).toBe(!isAward)
+    if (isAward) expect(flags['死球']).toBe(true)
     expect(flags['本塁打']).toBe(scenario.result === 'batting-result.home-run')
     const original = Object.freeze({ ...requests.at(-1)! })
     const replay = await repeatWindow(page)

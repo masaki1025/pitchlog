@@ -103,3 +103,5 @@ root非作者確認の是正: 25ceの冒頭outEffect0限定は、正準Kの非�
 追加sourceは既専有facts.py/同adapter専用tests/planだけ。生成核・model・数学・正式assetは不変更。盗塁の空集合は単なるT1 false既定で作らず、FR-004の対象走者/企図/成否payloadを含められない閉V7と、既通常結果/非複合T1形の全値確認に限定。runner-event/未知結果/盗塁payload/三振ゲッツー等を通常Kへ読み替えない。既受理範囲内の不足だけを同周で閉じ、純正負の後に1回の実gameで全必要sourceを照合する。
 
 27入力追補採用: rootは既非steal分類とRBI-07 forced到達コピーをPO委任Codex/root・2026-11-07として採用。余剰禁止の既V7 codecを全値で通した原値だけを非走者・非複合の既結果へ分類する。event名だけ/盗塁false既定だけではcompleteにしない。SO-05/未知/余剰runner payloadは未供給または閉拒否を維持。hit_kindは既安打語彙/真正falseからの名前写像のみ。RBI07は実artifactが返すforced/4到達/打点boolとsource ID/責任IDだけを写し、force/責任を再計算しない。正準安打19＋通常K27は原始27すべてavailable、余剰/未知/複合/偽flag拒否、実artifact満塁通常四球/HBPの1点と前任責任コピー、既0死一三塁0-0申告敬遠の確定0をpureで照合。関連491件38.81s成功。満塁申告敬遠は現在state.tsの既閉条件外（UNSUPPORTED_T1_SCOPE）、数学は広げずMVP残操作としてrootへ通知した。
+
+全27の実game対向準備: 既正常7に実画面で単打3本から満塁を作るHBP1caseを追加し、RBI07のforced2/3/4到達・1点/打点・再送/reloadまで同じrunへまとめた。全8gameの各受理sourceが27キーすべてavailable、SB0は保存済みcomplete/emptyから確認し、2B/3B/TBの正量はDB GROUP BYで全値照合する（0credit欠落を0補完しない）。正常8＋T4＋404の10caseを--listで確認、BE/FE型lint成功。実測既7.4分に4play追加の機能検査上限として外側プロセス期限だけ900秒に設定し、個別HTTP/画面期待や性能受入閾値は緩めない。新source固定後1回で実行し、79fe/run9の旧成功証拠も保持する。

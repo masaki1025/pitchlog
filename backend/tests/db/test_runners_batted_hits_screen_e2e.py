@@ -41,6 +41,7 @@ _RESULTS = {
     "double-first-second": "batting-result.double",
     "triple-first-second": "batting-result.triple",
     "home-run-loaded": "batting-result.home-run",
+    "hit-by-pitch-loaded": "batting-result.hit-by-pitch",
 }
 
 _COUNTS = {
@@ -51,6 +52,7 @@ _COUNTS = {
     "double-first-second": 3,
     "triple-first-second": 3,
     "home-run-loaded": 4,
+    "hit-by-pitch-loaded": 4,
 }
 _SCORES = {
     "single-first-to-third": 0,
@@ -60,6 +62,7 @@ _SCORES = {
     "double-first-second": 1,
     "triple-first-second": 2,
     "home-run-loaded": 4,
+    "hit-by-pitch-loaded": 1,
 }
 _AFTER_RUNNERS = {
     "single-first-to-third": "first-third",
@@ -69,6 +72,7 @@ _AFTER_RUNNERS = {
     "double-first-second": "second-third",
     "triple-first-second": "third",
     "home-run-loaded": "empty",
+    "hit-by-pitch-loaded": "first-second-third",
 }
 _AFTER_IDENTITIES = {
     "single-first-to-third": [("batter", "1"), ("1", "3")],
@@ -78,6 +82,7 @@ _AFTER_IDENTITIES = {
     "double-first-second": [("batter", "2"), ("1", "3")],
     "triple-first-second": [("batter", "3")],
     "home-run-loaded": [],
+    "hit-by-pitch-loaded": [("batter", "1"), ("1", "2"), ("2", "3")],
 }
 _STATUSES = {
     "single-first-to-third": {1: [], 2: [(1, "三進", "manual")]},
@@ -108,6 +113,22 @@ _STATUSES = {
         3: [(1, "二進", "manual"), (2, "三進", "manual")],
         4: [(1, "本進", "manual"), (2, "本進", "manual"), (3, "本進", "manual")],
     },
+}
+
+
+_STATUSES["hit-by-pitch-loaded"] = {
+    **{key: _STATUSES["home-run-loaded"][key] for key in (1, 2, 3)},
+    4: [(1, "二進", "auto"), (2, "三進", "auto"), (3, "本進", "auto")],
+}
+_TOTAL_BASES = {
+    "single-first-to-third": 2,
+    "double-first-to-home": 3,
+    "home-run-first-second": 6,
+    "single-first-second": 3,
+    "double-first-second": 4,
+    "triple-first-second": 5,
+    "home-run-loaded": 7,
+    "hit-by-pitch-loaded": 3,
 }
 
 
@@ -254,6 +275,7 @@ def _run_runner_playwright(db, origin: str, extra_env: dict[str, str]):
             origin,
             "runners-batted-hits",
             extra_env,
+            timeout_seconds=900,
         )
     except subprocess.TimeoutExpired as error:
         try:
@@ -341,13 +363,26 @@ def _verify_saved_rows(admin, tenant, game, scenario: str) -> None:
                 assert response.t1.runner_default_advance.first.destination == "2"
             continue
         assert actual["batting_result_key"] == _RESULTS[scenario]
-        assert request.t1.runner_advance_overrides.kind == "applied"
-        observation = payload.observations.runner_advance_overrides
-        assert observation.kind == "applied"
-        assert [
-            (o.runner_base, o.destination)
-            for o in request.t1.runner_advance_overrides.overrides
-        ] == [(o.runner_base, o.destination) for o in observation.overrides]
+        if scenario == "hit-by-pitch-loaded":
+            assert response.t1.stat_flags.hit_by_pitch is True
+            assert "runnerAdvanceOverrides" not in request.t1.model_dump(
+                by_alias=True, exclude_unset=True
+            )
+            assert [
+                (
+                    getattr(response.t1.runner_default_advance, name).modality,
+                    getattr(response.t1.runner_default_advance, name).destination,
+                )
+                for name in ("first", "second", "third")
+            ] == [("forced", "2"), ("forced", "3"), ("forced", "4")]
+        else:
+            assert request.t1.runner_advance_overrides.kind == "applied"
+            observation = payload.observations.runner_advance_overrides
+            assert observation.kind == "applied"
+            assert [
+                (o.runner_base, o.destination)
+                for o in request.t1.runner_advance_overrides.overrides
+            ] == [(o.runner_base, o.destination) for o in observation.overrides]
         assert response.t1.after.state_fields.runners == _AFTER_RUNNERS[scenario]
         assert response.t1.after.state_fields.score.away == str(_SCORES[scenario])
         assert response.t1.after.scoreboard.inning_scores.away == str(_SCORES[scenario])
@@ -384,6 +419,43 @@ def _verify_saved_rows(admin, tenant, game, scenario: str) -> None:
     ).fetchall()
     assert len(versions) == 1
     assert versions[0][1:] == (count, "current_open")
+    saved_states = admin.execute(
+        "SELECT metric_states FROM sync_fence.stats_primitive_sources "
+        "WHERE tenant_id=%s AND game_id=%s AND fact_version_id=%s ORDER BY d2",
+        (tenant, game, versions[0][0]),
+    ).fetchall()
+    assert len(saved_states) == count
+    for (saved,) in saved_states:
+        metrics = saved["metrics"]
+        assert len(metrics) == 27
+        assert {
+            k: m["reason"] for k, m in metrics.items() if m["state"] != "available"
+        } == {}
+        assert metrics["stolen_bases"]["value"] == "0"
+    base_facts = admin.execute(
+        "SELECT metric_id,SUM(amount) FROM sync_fence.stats_primitive_facts "
+        "WHERE tenant_id=%s AND game_id=%s AND fact_version_id=%s "
+        "AND metric_id IN ('total_bases','doubles','triples','stolen_bases') "
+        "GROUP BY metric_id",
+        (tenant, game, versions[0][0]),
+    ).fetchall()
+    expected_bases = {"total_bases": _TOTAL_BASES[scenario]}
+    if scenario in ("double-first-to-home", "double-first-second"):
+        expected_bases["doubles"] = 1
+    if scenario == "triple-first-second":
+        expected_bases["triples"] = 1
+    assert dict(base_facts) == expected_bases
+    print(
+        "PITCHLOG_RUNNER_DB_STATS="
+        + json.dumps(
+            {
+                "scenario": scenario,
+                "sources": count,
+                "availableMetricsPerSource": 27,
+                "primitiveSums": {k: str(v) for k, v in base_facts},
+            }
+        )
+    )
     if _SCORES[scenario] == 0:
         return  # 0credit行の存在は本単位で仮定せず、T1の0得点/falseで照合済み。
     facts = admin.execute(
@@ -406,7 +478,7 @@ def _verify_saved_rows(admin, tenant, game, scenario: str) -> None:
 def test_screen_runner_batted_hits(
     vertical_database, tmp_path: Path, monkeypatch
 ) -> None:
-    """正常7/故障/越境と全DBをまとめた受入検証。"""
+    """正常8/故障/越境と全DBをまとめた受入検証。"""
     _screen_runner_batted_hits(
         vertical_database, tmp_path, monkeypatch, fault_only=False
     )
