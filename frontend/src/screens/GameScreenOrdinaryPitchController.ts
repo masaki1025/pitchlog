@@ -9,6 +9,7 @@ import type {
 import {
   isLineupRecordingContext,
   prepareLineupPrefix,
+  prepareIntentionalWalk,
   lineupPrefixEvent,
   type PreparedLineupPrefix,
 } from './GameScreenOrdinaryPitchProvider'
@@ -795,13 +796,18 @@ export class GameScreenOrdinaryPitchController {
     }
   }
   async submit(
-    observation: PlayScreenObservation,
+    observation: PlayScreenObservation | 'intentional-walk',
     vocabulary: Readonly<{
       tenantId: string
       pitchTypeKeys: readonly string[]
     }>,
   ): Promise<OrdinaryOperationResult> {
     if (this.#localBoundary) return 'blocked'
+    if (
+      observation === 'intentional-walk' &&
+      !isLineupRecordingContext(this.#context)
+    )
+      return 'blocked'
     if (this.#busy || !this.#canAppend) return 'blocked'
     this.#busy = true
     try {
@@ -811,18 +817,25 @@ export class GameScreenOrdinaryPitchController {
       const r = this.#resources!,
         d5 = crypto.randomUUID()
       const prepared = isLineupRecordingContext(this.#context)
-        ? await prepareLineupPrefix(
-            this.#context,
-            observation,
-            vocabulary,
-            this.#identity.tenantId!,
-            { d5, eventId: crypto.randomUUID(), playId: crypto.randomUUID() },
-            crypto.randomUUID(),
-          )
+        ? observation === 'intentional-walk'
+          ? await prepareIntentionalWalk(
+              this.#context,
+              this.#identity.tenantId!,
+              { d5, eventId: crypto.randomUUID(), playId: crypto.randomUUID() },
+              crypto.randomUUID(),
+            )
+          : await prepareLineupPrefix(
+              this.#context,
+              observation,
+              vocabulary,
+              this.#identity.tenantId!,
+              { d5, eventId: crypto.randomUUID(), playId: crypto.randomUUID() },
+              crypto.randomUUID(),
+            )
         : isPlayRecordingContext(this.#context)
           ? await preparePlayPrefix(
               this.#context,
-              observation,
+              observation as PlayScreenObservation,
               vocabulary,
               this.#identity.tenantId!,
               { d5, eventId: crypto.randomUUID(), playId: crypto.randomUUID() },

@@ -224,6 +224,37 @@ class RecordedPrefixPlayRow(StartedPlayRow):
     version: Annotated[int, Field(strict=True, ge=1, le=2**63 - 1)]
 
 
+class LineupNonPitchPlayRow(RecordedPrefixPlayRow):
+    """v3申告敬遠だけの公開行。投球観測を仮補完せず全NULLで閉じる。"""
+
+    event_kind: Literal["non_pitch"]
+    batting_result_key: Literal["batting-result.intentional-walk"]
+    course: None
+    pitch_type_key: None
+    pitch_speed: None
+    stance: None
+    batting_side: None
+    strategy_key: None
+    strategy_detail_key: None
+    strategy_result_key: None
+    batter_status: None
+    secondary_batting_result_key: None
+    raw_fielder_position: None
+    resolved_fielder_id: None
+    batted_ball_type: None
+    batted_ball_strength: None
+    hit_x: None
+    hit_y: None
+    pickoff_type: None
+    pickoff_detail: None
+    error_type: None
+    raw_error_position: None
+    resolved_error_player_id: None
+    press: None
+    fake_run: None
+    comment: None
+
+
 class OrdinaryAppendPolicy(_FrozenSchema):
     """初期D2とgapの限定送信方針。DB bigint上限を変更しない。"""
 
@@ -460,7 +491,7 @@ class StartedPlayPrefixGameRead(StartedGameRead):
 class LineupPrefixPageItem(_FrozenSchema):
     """実v3行/実差分/物理before走者の閉じたpage item。"""
 
-    play_row: RecordedPrefixPlayRow
+    play_row: RecordedPrefixPlayRow | LineupNonPitchPlayRow
     history_entry: StrikeoutHistoryEntry
     play_runners: Annotated[list[StartedPlayRunner], Field(max_length=3)]
 

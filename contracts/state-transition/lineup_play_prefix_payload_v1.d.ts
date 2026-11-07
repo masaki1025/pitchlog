@@ -1,5 +1,5 @@
 /** V8は実history差分。v2のbody再送は変更しない。 */
-import type {Request,Success,HistoryEntry,PitchT1Input,BattedHitT1Input} from "./lineup_play_prefix_v1";
+import type {Request,Success,HistoryEntry,PitchT1Input,BattedHitT1Input,IntentionalWalkT1Input} from "./lineup_play_prefix_v1";
 import type {Observations,Participants} from "./play_prefix_v2_payload_v1";
 export type Calculation=Readonly<{formatVersion:"play-prefix-calculation-v3";artifactSha256:string;request:Request;response:Success}>;
 type PitchOnlyT1 = PitchT1Input & Readonly<{officialScoringPayload?:never;interferenceRuling?:never;runnerAdvanceOverrides?:never;thirdOutObservation?:never}>;
@@ -8,7 +8,8 @@ type CalculationFor<T extends Request["t1"]> = Readonly<Omit<Calculation,"reques
 export type PitchPlayPrefixV7 = Readonly<{formatVersion:"play-prefix-play-v3";observations:PitchOnlyObservations;participants:Participants;calculation:CalculationFor<PitchOnlyT1>}>;
 export type BattedHitResult = BattedHitT1Input["resultId"];
 export type BattedHitPlayPrefixV7<R extends BattedHitResult> = Readonly<{formatVersion:"play-prefix-play-v3";observations:Readonly<Omit<BattedHitObservations,"resultId"> & {resultId:R}>;participants:Participants;calculation:CalculationFor<Readonly<Omit<BattedHitT1Input,"resultId"> & {resultId:R}>>}>;
-export type LineupPlayPrefixV7 = NonplayNormalV7 | PitchPlayPrefixV7 | {[R in BattedHitResult]:BattedHitPlayPrefixV7<R>}[BattedHitResult];
+export type IntentionalWalkPlayPrefixV7 = Readonly<{formatVersion:"play-prefix-play-v3";observations:Readonly<{kind:"intentional-walk"}>;participants:Participants;calculation:CalculationFor<IntentionalWalkT1Input>}>;
+export type LineupPlayPrefixV7 = NonplayNormalV7 | PitchPlayPrefixV7 | IntentionalWalkPlayPrefixV7 | {[R in BattedHitResult]:BattedHitPlayPrefixV7<R>}[BattedHitResult];
 export type LineupPlayPrefixV8=HistoryEntry["difference"];
 
 /** 無走者4安打の全明示観測。nullableは未観測の保持であり、値を推測しない。 */

@@ -1,0 +1,422 @@
+{
+  "status": "candidate-not-approved",
+  "format_version": "pitchlog-play-export-v2-candidate",
+  "container": "zip; untrusted path/name not accepted; fixed entry names",
+  "main": "plays.csv",
+  "join_rule": "game_id + recording_generation + event_sequence。D1なし補正はtarget pairで参照し自己pairはNULL。UUID/row_numberは補助キー",
+  "serializers": {
+    "csv": "stream_csv UTF-8 BOM/CRLF/QUOTE_ALL",
+    "null": "empty CSV cell; JSON null stays null",
+    "timestamp": "YYYY-MM-DD HH:MM:SS JST",
+    "decimal": "supplied period decimal text; no float conversion/rounding",
+    "json": "UTF-8 canonical business JSON text; string decimals keep original type; no domain projection/recalculation"
+  },
+  "files": [
+    {
+      "file": "play_links.csv",
+      "headers": [
+        "row_number",
+        "game_id",
+        "recording_generation",
+        "event_sequence",
+        "source_event_id",
+        "play_row_id",
+        "play_number",
+        "version"
+      ],
+      "source": "有効PlayRow JOIN 同tenantの有効生成元OperationEvent",
+      "order": "play_number,id",
+      "notes": "row_numberは出力行ordinal（1始まり）で業務連番ではない。88列のプレイ番号重複を結合キーに使わない",
+      "field_types": {
+        "row_number": "decimal_integer_or_null",
+        "game_id": "uuid",
+        "recording_generation": "decimal_integer_or_null",
+        "event_sequence": "decimal_integer_or_null",
+        "source_event_id": "uuid",
+        "play_row_id": "uuid",
+        "play_number": "decimal_integer_or_null",
+        "version": "decimal_integer_or_null"
+      },
+      "source_receipt": {
+        "status": "planned-not-accepted",
+        "owner": "root Codex主担当（PO委任）",
+        "source_sha": "40ce2e312bc46435239f2a6d0ea0f1fb919a5de0",
+        "matrix": "supply-matrix.md#全9サイドカーの供給",
+        "producer": "backend/src/pitchlog/repositories/play_export.py",
+        "implementation_steps": [
+          1,
+          2
+        ],
+        "method": "stored business values/read binding; mathematical values only from D-1 generated targets and common DB primitive"
+      }
+    },
+    {
+      "file": "events.csv",
+      "headers": [
+        "game_id",
+        "recording_generation",
+        "event_sequence",
+        "source_event_id",
+        "event_kind",
+        "d2",
+        "target_generation",
+        "target_event_sequence",
+        "expected_version",
+        "change_order",
+        "is_tombstone",
+        "replaced_at",
+        "retired_at",
+        "business_payload_json",
+        "state_diff_json"
+      ],
+      "source": "operation_events accepted 全記録（撤回/置換前を含む）",
+      "order": "d2 non-nullのキーセット→d2 nullのidキーセット",
+      "notes": "payloadは受理された業務schemaの全フィールドだけ。資格/secret/proofは別資源で出さない。未知フィールドは黙殺せずschema不足で失敗",
+      "field_types": {
+        "game_id": "uuid",
+        "recording_generation": "decimal_integer_or_null",
+        "event_sequence": "decimal_integer_or_null",
+        "source_event_id": "uuid",
+        "event_kind": "supplied_text_or_null",
+        "d2": "canonical_decimal_integer_or_null",
+        "target_generation": "decimal_integer_or_null",
+        "target_event_sequence": "decimal_integer_or_null",
+        "expected_version": "canonical_decimal_integer_or_null",
+        "change_order": "canonical_decimal_integer_or_null",
+        "is_tombstone": "canonical_boolean_text",
+        "replaced_at": "JST_timestamp_or_null",
+        "retired_at": "JST_timestamp_or_null",
+        "business_payload_json": "canonical_json_string",
+        "state_diff_json": "canonical_json_string"
+      },
+      "source_receipt": {
+        "status": "planned-not-accepted",
+        "owner": "root Codex主担当（PO委任）",
+        "source_sha": "40ce2e312bc46435239f2a6d0ea0f1fb919a5de0",
+        "matrix": "supply-matrix.md#全9サイドカーの供給",
+        "producer": "backend/src/pitchlog/repositories/play_export.py",
+        "implementation_steps": [
+          1,
+          2
+        ],
+        "method": "stored business values/read binding; mathematical values only from D-1 generated targets and common DB primitive"
+      }
+    },
+    {
+      "file": "runners.csv",
+      "headers": [
+        "game_id",
+        "recording_generation",
+        "event_sequence",
+        "source_event_id",
+        "play_row_id",
+        "runner_row_id",
+        "base",
+        "runner_id",
+        "responsible_pitcher_id",
+        "status",
+        "status_source",
+        "retired_at",
+        "source_json"
+      ],
+      "source": "play_runners JOIN 可視試合のsource/play",
+      "order": "play_row_id,runner_row_id",
+      "notes": "activeとretiredを区別。走者順・責任投手を推測しない",
+      "field_types": {
+        "game_id": "uuid",
+        "recording_generation": "decimal_integer_or_null",
+        "event_sequence": "decimal_integer_or_null",
+        "source_event_id": "uuid",
+        "play_row_id": "uuid",
+        "runner_row_id": "uuid",
+        "base": "canonical_decimal_integer_or_null",
+        "runner_id": "uuid",
+        "responsible_pitcher_id": "uuid",
+        "status": "supplied_text_or_null",
+        "status_source": "supplied_text_or_null",
+        "retired_at": "JST_timestamp_or_null",
+        "source_json": "canonical_json_string"
+      },
+      "source_receipt": {
+        "status": "planned-not-accepted",
+        "owner": "root Codex主担当（PO委任）",
+        "source_sha": "40ce2e312bc46435239f2a6d0ea0f1fb919a5de0",
+        "matrix": "supply-matrix.md#全9サイドカーの供給",
+        "producer": "backend/src/pitchlog/repositories/play_export.py",
+        "implementation_steps": [
+          1,
+          2
+        ],
+        "method": "stored business values/read binding; mathematical values only from D-1 generated targets and common DB primitive"
+      }
+    },
+    {
+      "file": "lineups.csv",
+      "headers": [
+        "game_id",
+        "lineup_id",
+        "team_record_id",
+        "entries_json"
+      ],
+      "source": "game_lineups",
+      "order": "lineup_id",
+      "notes": "保存済みuniform number snapshotをそのまま保持。配列長を旧固定長に切らない",
+      "field_types": {
+        "game_id": "uuid",
+        "lineup_id": "uuid",
+        "team_record_id": "uuid",
+        "entries_json": "canonical_json_string"
+      },
+      "source_receipt": {
+        "status": "planned-not-accepted",
+        "owner": "root Codex主担当（PO委任）",
+        "source_sha": "40ce2e312bc46435239f2a6d0ea0f1fb919a5de0",
+        "matrix": "supply-matrix.md#全9サイドカーの供給",
+        "producer": "backend/src/pitchlog/repositories/play_export.py",
+        "implementation_steps": [
+          1,
+          2
+        ],
+        "method": "stored business values/read binding; mathematical values only from D-1 generated targets and common DB primitive"
+      }
+    },
+    {
+      "file": "participations.csv",
+      "headers": [
+        "game_id",
+        "participation_id",
+        "source_json"
+      ],
+      "source": "participation_intervals",
+      "order": "participation_id",
+      "notes": "全保存フィールドを受理済みschemaで列挙してsource_jsonへ。区間不明と不在を区別、交代推測をしない",
+      "field_types": {
+        "game_id": "uuid",
+        "participation_id": "uuid",
+        "source_json": "canonical_json_string"
+      },
+      "source_receipt": {
+        "status": "planned-not-accepted",
+        "owner": "root Codex主担当（PO委任）",
+        "source_sha": "40ce2e312bc46435239f2a6d0ea0f1fb919a5de0",
+        "matrix": "supply-matrix.md#全9サイドカーの供給",
+        "producer": "backend/src/pitchlog/repositories/play_export.py",
+        "implementation_steps": [
+          1,
+          2
+        ],
+        "method": "stored business values/read binding; mathematical values only from D-1 generated targets and common DB primitive"
+      }
+    },
+    {
+      "file": "game.csv",
+      "headers": [
+        "game_id",
+        "source_json"
+      ],
+      "source": "gamesの業務フィールド、applied_rules/override/時刻/補助labelを含む",
+      "order": "game_id",
+      "notes": "tenant内部資格を含まない。大会/試合区分/シーズンlabelは別keyのまま保存",
+      "field_types": {
+        "game_id": "uuid",
+        "source_json": "canonical_json_string"
+      },
+      "source_receipt": {
+        "status": "planned-not-accepted",
+        "owner": "root Codex主担当（PO委任）",
+        "source_sha": "40ce2e312bc46435239f2a6d0ea0f1fb919a5de0",
+        "matrix": "supply-matrix.md#全9サイドカーの供給",
+        "producer": "backend/src/pitchlog/repositories/play_export.py",
+        "implementation_steps": [
+          1,
+          2
+        ],
+        "method": "stored business values/read binding; mathematical values only from D-1 generated targets and common DB primitive"
+      }
+    },
+    {
+      "file": "references.csv",
+      "headers": [
+        "game_id",
+        "reference_kind",
+        "reference_id",
+        "source_json"
+      ],
+      "source": "当該試合から参照されるteam_records/player識別表示/語彙の受理済業務値",
+      "order": "reference_kind,reference_id",
+      "notes": "関連しない選手や個人連絡先を出さない。履歴snapshotと現在参照を区別",
+      "field_types": {
+        "game_id": "uuid",
+        "reference_kind": "supplied_text_or_null",
+        "reference_id": "source_key_string",
+        "source_json": "canonical_json_string"
+      },
+      "source_receipt": {
+        "status": "planned-not-accepted",
+        "owner": "root Codex主担当（PO委任）",
+        "source_sha": "40ce2e312bc46435239f2a6d0ea0f1fb919a5de0",
+        "matrix": "supply-matrix.md#全9サイドカーの供給",
+        "producer": "backend/src/pitchlog/repositories/play_export.py",
+        "implementation_steps": [
+          1,
+          2
+        ],
+        "method": "stored business values/read binding; mathematical values only from D-1 generated targets and common DB primitive"
+      }
+    },
+    {
+      "file": "projections.csv",
+      "headers": [
+        "game_id",
+        "recording_generation",
+        "event_sequence",
+        "source_event_id",
+        "projection_kind",
+        "source_version",
+        "source_json"
+      ],
+      "source": "saved T1 before/after + current D-1 generated coordinate/formatter + ReadPlayExportPrimitives DB facts + stored identity snapshots; no JS event accumulation",
+      "order": "source_event_id,projection_kind",
+      "notes": "計算はしない。旧配列16長を超える新イニング等もここに完全保存。未供給で空JSONを置かない",
+      "field_types": {
+        "game_id": "uuid",
+        "recording_generation": "decimal_integer_or_null",
+        "event_sequence": "decimal_integer_or_null",
+        "source_event_id": "uuid",
+        "projection_kind": "supplied_text_or_null",
+        "source_version": "canonical_decimal_integer_or_null",
+        "source_json": "canonical_json_string"
+      },
+      "source_receipt": {
+        "status": "planned-not-accepted",
+        "owner": "root Codex主担当（PO委任）",
+        "source_sha": "40ce2e312bc46435239f2a6d0ea0f1fb919a5de0",
+        "matrix": "supply-matrix.md#全9サイドカーの供給",
+        "producer": "backend/src/pitchlog/repositories/play_export.py",
+        "implementation_steps": [
+          1,
+          2
+        ],
+        "method": "stored business values/read binding; mathematical values only from D-1 generated targets and common DB primitive"
+      }
+    },
+    {
+      "file": "preserved_sources.csv",
+      "headers": [
+        "game_id",
+        "recording_generation",
+        "event_sequence",
+        "source_event_id",
+        "preservation_kind",
+        "source_json"
+      ],
+      "source": "native records legitimately have no legacy sources; adopted business-event originals if present; no legacy recovery prerequisite",
+      "order": "source_event_id,preservation_kind",
+      "notes": "実在する保存物だけを出力。拒否/隔離raw・device証明は含めない。供給物の機械schema/業務allowlistをstep1で受理",
+      "field_types": {
+        "game_id": "uuid",
+        "recording_generation": "decimal_integer_or_null",
+        "event_sequence": "decimal_integer_or_null",
+        "source_event_id": "uuid",
+        "preservation_kind": "supplied_text_or_null",
+        "source_json": "canonical_json_string"
+      },
+      "source_receipt": {
+        "status": "planned-not-accepted",
+        "owner": "root Codex主担当（PO委任）",
+        "source_sha": "40ce2e312bc46435239f2a6d0ea0f1fb919a5de0",
+        "matrix": "supply-matrix.md#全9サイドカーの供給",
+        "producer": "backend/src/pitchlog/repositories/play_export.py",
+        "implementation_steps": [
+          1,
+          2
+        ],
+        "method": "stored business values/read binding; mathematical values only from D-1 generated targets and common DB primitive"
+      }
+    },
+    {
+      "file": "inning_scores.csv",
+      "headers": [
+        "game_id",
+        "recording_generation",
+        "event_sequence",
+        "source_event_id",
+        "play_row_id",
+        "inning",
+        "half",
+        "state",
+        "runs"
+      ],
+      "source": "last active play's same-TX saved full_innings_json from generated D-1 SQL",
+      "order": "inning,half(top,bottom)",
+      "notes": "12回表示枠を越す全回を保持。unplayedのrunsはNULL、in-progress/completedの0は整数0。現current selector未供給のP3では閉拒否",
+      "field_types": {
+        "game_id": "uuid",
+        "recording_generation": "decimal_integer_or_null",
+        "event_sequence": "decimal_integer_or_null",
+        "source_event_id": "uuid",
+        "play_row_id": "uuid",
+        "inning": "canonical_decimal_integer_or_null",
+        "half": "supplied_text_or_null",
+        "state": "supplied_text_or_null",
+        "runs": "canonical_decimal_integer_or_null"
+      },
+      "source_receipt": {
+        "status": "candidate-not-accepted",
+        "owner": "root Codex主担当（PO委任）",
+        "source_sha": null,
+        "matrix": "supply-matrix.md#G04-A",
+        "producer": "backend/src/pitchlog/exports/play_export_csv.py",
+        "implementation_steps": [1, 2, 3],
+        "method": "generated D-1 SQL result saved in play_export_snapshots; no Python score aggregation"
+      }
+    }
+  ],
+  "manifest": {
+    "file": "manifest.json",
+    "required": [
+      "format_version",
+      "game_id",
+      "snapshot_id",
+      "exported_at",
+      "source_versions",
+      "files"
+    ],
+    "snapshot_id": "accepted event/slot versions digest in one REPEATABLE READ; not writer credential/D4",
+    "files_item": [
+      "name",
+      "sha256",
+      "byte_length",
+      "data_row_count"
+    ],
+    "complete_rule": "all declared files, including header-only empty sidecars, must exist and validate; 88 receipts complete; unknown source kind/field is error"
+  },
+  "golden_requirements": [
+    "all 88 columns",
+    "same play_number different events",
+    "same D1 different recording generations",
+    "D1-null correction target",
+    "pitch/non_pitch/substitution/change/delete/tombstone",
+    "runner responsible pitcher",
+    "NULL vs zero vs JSON null vs empty string",
+    "quoted Japanese/newline/formula text exact JSON preservation",
+    "legacy arrays asymmetric length",
+    "extra inning canonical projection lossless",
+    "replaced/retired audit history",
+    "all business event kinds exhaustive"
+  ],
+  "supported_event_kinds_candidate": [
+    "play_input",
+    "undo",
+    "substitution",
+    "tiebreak_start",
+    "game_end_declaration",
+    "player_registration",
+    "state_correction",
+    "play_change",
+    "play_delete",
+    "substitution_change"
+  ],
+  "event_kind_rule": "step1でevent_kinds.pyのEVENT_KIND_LITERALS + CONDITIONAL_EVENT_KIND_LITERALSとexact set一致を確認。墓標/改訂はevent_kind追加でなくflags/版を保持",
+  "calculation_policy": "No full-event client reduction. SQL primitives from one current D-1 declaration are shared by CSV/T5. D-14-m does not authorize output transformations."
+}

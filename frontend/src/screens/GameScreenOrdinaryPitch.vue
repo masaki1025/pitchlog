@@ -44,6 +44,19 @@ const hitResults: readonly string[] = [
   'batting-result.home-run',
 ]
 const batted = computed(() => hitResults.includes(resultId.value))
+/** 原典で成立した一三塁0-0だけを画面に提示する。遷移値は唯一核が決める。 */
+const intentionalWalkAvailable = computed(() => {
+  const c = displayed.value
+  if (!isLineupRecordingContext(c) || localRequested.value) return false
+  const state = c.after.stateFields
+  return (
+    state['state.runners'] === 'first-third' &&
+    state['state.outs'] === '0' &&
+    state['state.count.strikes'] === '0' &&
+    state['state.count.balls'] === '0' &&
+    !state['state.gameEnded']
+  )
+})
 const battedHit = ref<PlayScreenObservation['battedHit']>(null)
 const hitAvailable = computed(() => {
   if (!isLineupRecordingContext(displayed.value)) return false
@@ -360,6 +373,35 @@ async function save() {
     if (result === 'saved' || result === 'pending' || result === 'queued-local')
       point.value = null
     if (result === 'saved' && !localRequested.value) emit('saved')
+  } finally {
+    if (controller === current) busy.value = false
+  }
+}
+async function saveIntentionalWalk() {
+  if (
+    !controller ||
+    props.suspended ||
+    busy.value ||
+    !canAppend.value ||
+    !confirmed.value ||
+    !intentionalWalkAvailable.value
+  )
+    return
+  const current = controller
+  const tenantId = identity().tenantId
+  if (!tenantId) return
+  busy.value = true
+  try {
+    const result = await current.submit('intentional-walk', {
+      tenantId,
+      pitchTypeKeys: [],
+    })
+    if (controller !== current || props.suspended) return
+    status.value = result
+    displayed.value = current.context
+    canAppend.value = current.canAppend
+    retryEvidenceUnavailable.value = current.retryEvidenceUnavailable
+    if (result === 'saved') emit('saved')
   } finally {
     if (controller === current) busy.value = false
   }
@@ -793,6 +835,16 @@ onScopeDispose(() => {
         @click="save"
       >
         {{ isLocalMode ? '投球を端末に記録' : '投球を確定・保存' }}
+      </button>
+      <button
+        v-if="intentionalWalkAvailable"
+        type="button"
+        data-testid="nonpitch-intentional-walk"
+        class="min-h-11 rounded border px-4 py-2"
+        :disabled="busy || !confirmed"
+        @click="saveIntentionalWalk"
+      >
+        申告敬遠を記録
       </button>
     </template>
     <button

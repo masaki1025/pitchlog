@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "毎球CSVの確定S・球数・回別スコアの有限D-1宣言",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "sourceSelection", "pitchCount", "scoreboard"],
+  "properties": {
+    "schemaVersion": {"const": 1},
+    "sourceSelection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "generatedTarget", "section", "order", "factVersion"],
+      "properties": {
+        "kind": {"const": "accepted-canonical-slot-v1"},
+        "generatedTarget": {"const": "backend/src/pitchlog/exports/generated/play_primitives_native.sql"},
+        "section": {"const": "canonical_members"},
+        "order": {"const": ["d2", "source_event_id"]},
+        "factVersion": {"const": "current-same-transaction"}
+      }
+    },
+    "pitchCount": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "metricId", "playerSource", "metricStatePath", "creditShape", "sourceEventKinds"],
+      "properties": {
+        "kind": {"const": "saved-t5-state-credit-window"},
+        "metricId": {"const": "pitch_count"},
+        "playerSource": {"const": "play_rows.pitcher_id"},
+        "metricStatePath": {"const": ["metrics", "pitch_count"]},
+        "creditShape": {"const": "zero-or-one-same-actual-pitcher"},
+        "sourceEventKinds": {"const": [{"playRow":"pitch","t1":"pitch-event"},{"playRow":"non_pitch","t1":"non-pitch-event"}]}
+      }
+    },
+    "scoreboard": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "inningSource", "halfSource", "completeProfiles", "counters", "offenseCounters", "defenseCounters", "legacyInningSlots", "legacyOverflow", "unplayed", "startedZero", "completedZero"],
+      "properties": {
+        "kind": {"const": "saved-t1-before-after-difference"},
+        "inningSource": {"const": "request.t1.before.stateFields.state.inning"},
+        "halfSource": {"const": "request.t1.before.stateFields.state.half"},
+        "completeProfiles": {"const": [{"sourceFormat":"first-ball-play-v1","calculationFormat":"first-ball-calculation-v1","kind":"evaluated-no-end-condition","scope":null,"path":null,"value":false},{"sourceFormat":"ordinary-pitch-play-v1","calculationFormat":"ordinary-pitch-calculation-v1","kind":"evaluated-no-end-condition","scope":"ordinary37","path":["basis","halfCompleted"],"value":false},{"sourceFormat":"play-prefix-play-v2","calculationFormat":"play-prefix-calculation-v2","kind":"evaluated-no-end-condition","scope":"play-prefix-v2","path":["basis","halfCompleted"],"value":false},{"sourceFormat":"play-prefix-play-v3","calculationFormat":"play-prefix-calculation-v3","kind":"evaluated-end-condition","scope":"play-prefix-v3","path":["facts","halfCompleted"],"value":null},{"sourceFormat":"play-prefix-play-v3","calculationFormat":"nonplay-prefix-calculation-v1","kind":"evaluated-end-condition","scope":"play-prefix-v3","path":["facts","halfCompleted"],"value":null}]},
+        "counters": {"const": ["inningScores", "hits", "errors", "strikeouts", "walks"]},
+        "offenseCounters": {"const": ["hits", "strikeouts", "walks"]},
+        "defenseCounters": {"const": ["errors"]},
+        "legacyInningSlots": {"const": 12},
+        "legacyOverflow": {"const": "fold-into-twelfth-with-full-sidecar"},
+        "unplayed": {"const": "empty-string"},
+        "startedZero": {"const": "empty-until-completed"},
+        "completedZero": {"const": "integer-zero"}
+      }
+    }
+  }
+}

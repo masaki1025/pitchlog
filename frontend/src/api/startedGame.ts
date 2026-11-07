@@ -389,6 +389,32 @@ const PLAY_ROW_KEYS = [
   'comment',
   'version',
 ] as const
+const NONPITCH_NULL_KEYS = [
+  'course',
+  'pitch_type_key',
+  'pitch_speed',
+  'stance',
+  'batting_side',
+  'strategy_key',
+  'strategy_detail_key',
+  'strategy_result_key',
+  'batter_status',
+  'secondary_batting_result_key',
+  'raw_fielder_position',
+  'resolved_fielder_id',
+  'batted_ball_type',
+  'batted_ball_strength',
+  'hit_x',
+  'hit_y',
+  'pickoff_type',
+  'pickoff_detail',
+  'error_type',
+  'raw_error_position',
+  'resolved_error_player_id',
+  'press',
+  'fake_run',
+  'comment',
+] as const
 function finiteNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value)
 }
@@ -419,7 +445,7 @@ function course(value: unknown): value is StartedPlayRow['course'] {
     BigInt(value.y) <= 263n
   )
 }
-function ordinaryPlayRow(value: unknown): value is RecordedPrefixPlayRow {
+function commonPlayRow(value: unknown): value is Record<string, unknown> {
   return (
     exact(value, PLAY_ROW_KEYS) &&
     uuid(value.id) &&
@@ -437,10 +463,6 @@ function ordinaryPlayRow(value: unknown): value is RecordedPrefixPlayRow {
     (value.batting_side === null ||
       value.batting_side === '右' ||
       value.batting_side === '左') &&
-    value.event_kind === 'pitch' &&
-    course(value.course) &&
-    typeof value.pitch_type_key === 'string' &&
-    value.pitch_type_key.length > 0 &&
     typeof value.batting_result_key === 'string' &&
     value.batting_result_key.length > 0 &&
     nullableString(value.stance) &&
@@ -464,6 +486,26 @@ function ordinaryPlayRow(value: unknown): value is RecordedPrefixPlayRow {
     pressState(value.press) &&
     pressState(value.fake_run) &&
     nullableString(value.comment)
+  )
+}
+function ordinaryPlayRow(value: unknown): value is RecordedPrefixPlayRow {
+  return (
+    commonPlayRow(value) &&
+    value.event_kind === 'pitch' &&
+    course(value.course) &&
+    typeof value.pitch_type_key === 'string' &&
+    value.pitch_type_key.length > 0
+  )
+}
+/** v3の申告敬遠だけを非投球行として閉受理する。旧初球/v1/v2には公開しない。 */
+export function isLineupNonPitchPlayRow(
+  value: unknown,
+): value is LineupNonPitchPlayRow {
+  return (
+    commonPlayRow(value) &&
+    value.event_kind === 'non_pitch' &&
+    value.batting_result_key === 'batting-result.intentional-walk' &&
+    NONPITCH_NULL_KEYS.every((key) => value[key] === null)
   )
 }
 function playRow(value: unknown): value is StartedPlayRow {
@@ -642,6 +684,15 @@ export type RecordedPrefixPlayRow = Readonly<
     play_number: number
     batting_order: number
   }
+>
+export type LineupNonPitchPlayRow = Readonly<
+  Omit<
+    RecordedPrefixPlayRow,
+    'event_kind' | 'batting_result_key' | (typeof NONPITCH_NULL_KEYS)[number]
+  > & {
+    event_kind: 'non_pitch'
+    batting_result_key: 'batting-result.intentional-walk'
+  } & Record<(typeof NONPITCH_NULL_KEYS)[number], null>
 >
 export type StartedGameMetadata = Omit<StartedGame, 'read_kind'>
 /** 新projectionでも共通metadataを再計算せず同じ検証で読む。 */

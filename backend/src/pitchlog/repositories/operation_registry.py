@@ -43,6 +43,9 @@ from pitchlog.repositories.ordinary_prefix_operations import (
     PLAY_PREFIX_OPERATIONS,
 )
 from pitchlog.repositories.pitch_type_options import PITCH_TYPE_OPTIONS_OPERATIONS
+from pitchlog.repositories.play_export_writer_operations import (
+    SAVE_EXPORT_SNAPSHOT_OPERATION,
+)
 from pitchlog.repositories.preparing_game_creation import (
     PREPARING_GAME_CREATE_OPERATIONS,
 )
@@ -258,6 +261,7 @@ PRODUCT_FUNCTION_OPERATIONS: tuple[FunctionOperationRegistration, ...] = (
         operation_id="SYNC_LINEUP_PREFIX:read_lineup_started_origin",
     ),
     *STATS_NATIVE_FUNCTION_OPERATIONS,
+    SAVE_EXPORT_SNAPSHOT_OPERATION,
     *STATS_BASIC_FUNCTION_OPERATIONS,
     *NONPLAY_FUNCTION_OPERATIONS,
     *LIFECYCLE_FUNCTION_OPERATIONS,

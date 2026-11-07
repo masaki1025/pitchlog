@@ -1097,6 +1097,8 @@ def _read_lineup_projection(
         *point,
         limit,
     )
+    from pitchlog.sync.nonpitch_payload import IntentionalWalkObservations
+
     packets = handle.run_function(token).rows
     if len(packets) > limit + 1:
         raise OrdinaryPrefixError
@@ -1135,7 +1137,12 @@ def _read_lineup_projection(
         last_point = current
         items.append(
             {
-                "play_row": _public_play(p, payload.observations.course),
+                "play_row": _public_play(
+                    p,
+                    None
+                    if type(payload.observations) is IntentionalWalkObservations
+                    else payload.observations.course,
+                ),
                 "history_entry": h["entry"],
                 "play_runners": item["play_runners"],
             }

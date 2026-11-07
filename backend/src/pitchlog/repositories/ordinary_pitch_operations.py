@@ -39,6 +39,10 @@ _BATTED_COLUMNS = frozenset(
 _BATTED_RESULTS = frozenset(
     f"batting-result.{result}" for result in ("single", "double", "triple", "home-run")
 )
+_INTENTIONAL_WALK = "batting-result.intentional-walk"
+_NONPITCH_NULL_COLUMNS = frozenset(
+    ("pitch_type_key", "course_x", "course_y", "pitch_speed", "stance", "batting_side")
+)
 
 
 def _ordinary_play_row_insert_statement() -> Insert:
@@ -91,6 +95,11 @@ def _row(token):
             type(token) is PlayPrefixPlayRowInsertToken
             and row["batting_result_key"] in _BATTED_RESULTS
         )
+        nonpitch = (
+            type(token) is PlayPrefixPlayRowInsertToken
+            and row["event_kind"] == "non_pitch"
+            and row["batting_result_key"] == _INTENTIONAL_WALK
+        )
         required_null = (
             set(_NULL_COLUMNS) - _BATTED_COLUMNS if batted else _NULL_COLUMNS
         )
@@ -122,7 +131,8 @@ def _row(token):
             or re.fullmatch(r"(?:wire-v1:)?[a-f0-9]{64}", token.source_fingerprint)
             is None
             or row["game_id"] != token.game_id
-            or row["event_kind"] != "pitch"
+            or (row["event_kind"] != "pitch" and not nonpitch)
+            or (row["batting_result_key"] == _INTENTIONAL_WALK and not nonpitch)
             or type(row["play_number"]) is not int
             or not 0 < row["play_number"] < 2**63
             or type(row["batting_order"]) is not int
@@ -133,14 +143,8 @@ def _row(token):
             or row["batter_id"] is None
             or row["pitcher_id"] is None
             or row["catcher_id"] is None
-            or type(row["pitch_type_key"]) is not str
-            or not row["pitch_type_key"]
             or type(row["batting_result_key"]) is not str
             or not row["batting_result_key"]
-            or type(row["course_x"]) is not float
-            or not 0 <= row["course_x"] <= 1
-            or type(row["course_y"]) is not float
-            or not 0 <= row["course_y"] <= 1
             or (
                 row["batting_side"] is not None
                 and row["batting_side"] not in ("右", "左")
@@ -149,6 +153,18 @@ def _row(token):
                 row["stance"] is not None
                 and re.fullmatch(r"(?:[1-9]|1[0-9]|2[0-5])", row["stance"]) is None
             )
+        ):
+            raise OrdinaryPlayRowError
+        if nonpitch:
+            if any(row[name] is not None for name in _NONPITCH_NULL_COLUMNS):
+                raise OrdinaryPlayRowError
+        elif (
+            type(row["pitch_type_key"]) is not str
+            or not row["pitch_type_key"]
+            or type(row["course_x"]) is not float
+            or not 0 <= row["course_x"] <= 1
+            or type(row["course_y"]) is not float
+            or not 0 <= row["course_y"] <= 1
         ):
             raise OrdinaryPlayRowError
         return row

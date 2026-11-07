@@ -148,7 +148,8 @@ export function deriveLineupPitch(
     return deriveStrikeoutDoublePlay(before, board, pitchEventKind, cursors)
   if (
     resultId === 'batting-result.walk' ||
-    resultId === 'batting-result.hit-by-pitch'
+    resultId === 'batting-result.hit-by-pitch' ||
+    resultId === 'batting-result.intentional-walk'
   )
     return deriveTerminalCore(
       before,
@@ -215,8 +216,19 @@ function deriveTerminalCore(
   cursors?: BattingOrderBySide,
   lineupRunners: boolean = false,
 ): Derived | StrikeoutDerived | null {
+  const intentional = resultId === 'batting-result.intentional-walk'
   if (
-    pitchEventKind !== 'pitch-event' ||
+    intentional &&
+    (pitchEventKind !== 'non-pitch-event' ||
+      !lineupRunners ||
+      before.outs !== 0n ||
+      before.runners !== 'first-third' ||
+      before.strikes !== 0n ||
+      before.balls !== 0n)
+  )
+    return null
+  if (
+    (!intentional && pitchEventKind !== 'pitch-event') ||
     !ordinaryStateSupported(before, board) ||
     (!lineupRunners && before.runners !== 'empty') ||
     before.strikes < 0n ||
@@ -229,7 +241,8 @@ function deriveTerminalCore(
     return null
   if (resultId === 'batting-result.walk') {
     if (before.balls !== 3n) return null
-  } else if (resultId !== 'batting-result.hit-by-pitch') return null
+  } else if (!intentional && resultId !== 'batting-result.hit-by-pitch')
+    return null
   return applyCountRule(before, board, TERMINAL_REACH_RULE, resultId, cursors)
 }
 
@@ -445,7 +458,8 @@ function applyCountRule(
   let strikes = before.strikes + rule.strikeDelta
   if (rule.ballEffect === 'reset') balls = 0n
   if (rule.strikeEffect === 'reset') strikes = 0n
-  const walk = resultId === 'batting-result.walk'
+  const intentional = resultId === 'batting-result.intentional-walk'
+  const walk = resultId === 'batting-result.walk' || intentional
   const hitByPitch = resultId === 'batting-result.hit-by-pitch'
   const strikeout =
     resultId === 'batting-result.called-strikeout' ||
@@ -459,7 +473,7 @@ function applyCountRule(
     resultId === 'batting-result.home-run'
   const homeRun = resultId === 'batting-result.home-run'
   const flags = emptyFlags()
-  flags.投球数 = true
+  flags.投球数 = !intentional
   flags.投球回算入アウト = rule.outs > 0n
   flags.打席 = rule.pa === true
   if (walk) {

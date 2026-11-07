@@ -118,8 +118,20 @@ def test_product_function_registry_keeps_rg1_and_adds_one_rule_operation() -> No
         _BindFirstBallDeviceToken,
         _CheckFirstBallRightToken,
         _ReadFirstBallDeviceStateToken,
+        _VerifyReplayDeviceToken,
+    )
+    from pitchlog.repositories.lifecycle_function_operations import (
+        LifecycleDisplayToken,
+        _ConsumeLifecycleCall,
+        _PrepareLifecycleCall,
+        _ReadLifecycleStateCall,
+    )
+    from pitchlog.repositories.lifecycle_qualification import (
+        BindLifecycleDeviceToken,
+        CheckLifecycleRightToken,
     )
     from pitchlog.repositories.nonplay_function_operations import (
+        _ConsumeNonplaySubstitutionCall,
         _ConsumeNonplayUndoCall,
         _LockNonplayCheckpointCall,
         _PrepareNonplayUndoCall,
@@ -153,6 +165,7 @@ def test_product_function_registry_keeps_rg1_and_adds_one_rule_operation() -> No
         RG1ScopeBindingToken,
     )
     from pitchlog.repositories.stats import ReadPrimitiveTotalsToken
+    from pitchlog.repositories.stats_basic import ReadBasicStatsToken
     from pitchlog.repositories.stats_native_operations import (
         _ReadPrimitiveWriterStateCall,
         _SavePrimitiveSourceCall,
@@ -182,6 +195,7 @@ def test_product_function_registry_keeps_rg1_and_adds_one_rule_operation() -> No
         "SYNC_WRITER_BINDING:read_writer_identity",
         "SYNC_WRITER_BINDING:assert_writer_binding",
         "SYNC_FIRST_BALL:read_device_state",
+        "SYNC_FIRST_BALL:verify_replay_device",
         "SYNC_ORDINARY_PITCH:bind_ordinary_device",
         "SYNC_ORDINARY_PITCH:check_ordinary_right",
         "SYNC_ORDINARY_PITCH:prepare_ordinary_projection",
@@ -199,12 +213,20 @@ def test_product_function_registry_keeps_rg1_and_adds_one_rule_operation() -> No
         "STATS_PRIMITIVES:open_snapshot",
         "STATS_PRIMITIVES:read_page",
         "STATS_PRIMITIVES:read_totals",
+        "STATS_BASIC:read",
         "SYNC_NONPLAY:bind_nonplay_device",
         "SYNC_NONPLAY:check_nonplay_right",
         "SYNC_NONPLAY:lock_nonplay_checkpoint",
         "SYNC_NONPLAY:read_nonplay_history_page",
         "SYNC_NONPLAY:prepare_nonplay_undo",
         "SYNC_NONPLAY:consume_nonplay_undo",
+        "SYNC_NONPLAY:consume_nonplay_substitution",
+        "SYNC_LIFECYCLE:bind_nonplay_device",
+        "SYNC_LIFECYCLE:check_nonplay_right",
+        "SYNC_LIFECYCLE:read_lifecycle_state",
+        "SYNC_LIFECYCLE:prepare_game_lifecycle",
+        "SYNC_LIFECYCLE:consume_game_lifecycle",
+        "GAME_LIFECYCLE:read_display",
         "SYNC_ORDINARY_PITCH:read_nonplay_active_history",
     )
     assert set(operation_registry.FUNCTION_OPERATION_REGISTRY) == {
@@ -218,6 +240,7 @@ def test_product_function_registry_keeps_rg1_and_adds_one_rule_operation() -> No
         _ReadWriterIdentityToken,
         _AssertWriterBindingToken,
         _ReadFirstBallDeviceStateToken,
+        _VerifyReplayDeviceToken,
         BindOrdinaryDeviceToken,
         CheckOrdinaryRightToken,
         PrepareOrdinaryProjectionToken,
@@ -242,7 +265,15 @@ def test_product_function_registry_keeps_rg1_and_adds_one_rule_operation() -> No
         _ReadNonplayHistoryPageCall,
         _PrepareNonplayUndoCall,
         _ConsumeNonplayUndoCall,
+        _ConsumeNonplaySubstitutionCall,
         NonplayActiveHistoryReadToken,
+        ReadBasicStatsToken,
+        BindLifecycleDeviceToken,
+        CheckLifecycleRightToken,
+        _ReadLifecycleStateCall,
+        _PrepareLifecycleCall,
+        _ConsumeLifecycleCall,
+        LifecycleDisplayToken,
     }
     assert operation_registry.PRODUCT_OPERATIONS
 
@@ -2096,9 +2127,8 @@ def test_literal_product_function_bindings_preserve_original_objects() -> None:
         *PLAY_PREFIX_OPERATIONS,
         *LINEUP_START_ORIGIN_OPERATIONS,
     )
-    registered = operation_registry.PRODUCT_FUNCTION_OPERATIONS[
-        -len(original) - 12 : -12
-    ]
+    # 再送端末照合を含む既11件の後ろに、この12件の同一object群を保持する。
+    registered = operation_registry.PRODUCT_FUNCTION_OPERATIONS[11:23]
     assert len(original) == len(registered) == 12
     assert all(
         actual is expected

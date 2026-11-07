@@ -7,7 +7,7 @@ const root = resolve(process.cwd(), '..')
 const old4 = '4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1'
 const old9 = '9ae9d16db1f2fa48905eb0ac951c8cb3ce5704dfe308df95a7a0bba155f33d19'
 const current =
-  'ce622726b41f55f4f62c5db76241dc05499e9a53071ba134b5ce8da7a54d64fd'
+  '4e7d4c8d8d010f1cebb5825272a1f7627fe779e62f0135540c7d79acdce90309'
 
 function read(path: string): string {
   return readFileSync(resolve(root, path), 'utf8')
