@@ -3,7 +3,7 @@ feature: ci-pytest-throughput
 status: active
 承認: PO委任によるCodex主担当/root判断（2026-11-07、原候補継承と非作者P1是正）
 重さ分類: 通常
-branch: feature/ci-pytest-throughput-integration
+branch: feature/ci-pytest-throughput-finalization
 created: 2026-11-07
 計画レビュー周回: 0
 確定ゲート周回: 0
@@ -107,3 +107,11 @@ created: 2026-11-07
 正式追随の編集宣言（PO委任Codex/root、実装追随）: backend/tests/db/environment-expectations.jsonのsingle_command/provenanceだけ8分割へ揃え、source_revisionは実CI配線を供給する固定a3c08753全長へ束縛する。DB image/initdb/DSN必須/marker禁止/期待比較方式は不変。正本はdocs/development/dev-harness-design-2026-08-07.mdの10.1現行配線・変更履歴とdocs/development/github-setup.mdの現行分割記述・変更履歴、docs/README.mdの両索引日付/注記へ追随（7.6-3、版不変/PRレビュー）。既過去4分割の履歴は改変しない。これは正式7.7受理前の候補編集で、完全値と新PR番号/実baseを確定後に公式導出/非作者確認を行う。独立P2の入力順説明は正規化一意の場合へ限定し、衝突群は同収集順前提を明記、割当コード自体は変更しない。
 
 新6path限定レビューのP2を採用し、10.1現行行に残るTSK-501のci.yml不変/触れない注記を当時の実装へ限定した。現在の8分割は7.7受理/corpus再導出を伴う追随と明示、過去変更履歴の本文・拒否条件・版番号は不変。
+
+### 分割実行入力の検査経路登録（2026-11-07、PO委任Codex/root判断）
+
+非作者分類REPORT-guard-scope.md（a741a26009df9ef0cad2f471dfef9cee1a548d075673c66be1b73f3bcb1c0d88）で実matcherが分割5入力を検出しないことを確認した。新しい意味コアを増やすのではなく、.claude/core-areas.json.guard_pathsへ設定JSON/唯一割当helper/plugin/verifyCLI/専用試験のexact5件を追加する。全既guard/areas/拒否を保持し、実matcherの各単独変更検出を対向へ固定。既197の歴史比較は旧基線を変更せず閉CI5拡張を別検証して逆射影し、欠落/余剰/重複/順序変更を拒否する。これはtest-only歴史オラクルの資格分離で、実core-guardから検出を除外しない。追加編集範囲は同JSON・tests/test_core_guard.py・本plan、source固定後に限定非作者確認/正式7.7/最終HEAD evidenceと全CIを行う。旧レビュー回数は保持する。
+
+### 検査定義先行と歴史資格の分離（2026-11-07、PO委任Codex/root判断）
+
+c8e32af6350fafa8235e2ec917fc9538c6998aa5は旧integration枝に未pushの保全候補として残す。同commitのJSON/基線試験共変更は既拒否対象のため正式採用せず、9b4f176eから本枝で試験/計画を先行commitし、次commitで宣言JSONだけを追加する。runtime有限例外は拡張しない。全件で見つかった2歴史試験は、閉CI5を検査した射影とtyped固定PR197原本のshadow実行へ限定して改訂し、現在のexact5/旧13検査経路の実matcher検査を維持する。旧979pass/2failと限定11成功を別記し、是正後の全件結果/限定独立レビューを追記する。正式PRは197通常merge後のbaseで旧PRの共変更を再承認しない。
