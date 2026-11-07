@@ -40,6 +40,7 @@ from pitchlog.sync.past_correction_checkpoint import (
 from pitchlog.sync.past_correction_payload import (
     PastCorrectionPayloadError,
     bind_lineup_pitch_change_payload,
+    bind_lineup_pitch_change_target,
     read_lineup_pitch_change_payload,
 )
 from pitchlog.sync.past_correction_physical import prepare_corrected_physical_pitches
@@ -604,6 +605,13 @@ def test_v3_change_payload_binds_real_target_and_current_head() -> None:
     bind_lineup_pitch_change_payload(
         payload, rows, 2, rows[-1].calculation.response.value.next_prefix_ref
     )
+    bind_lineup_pitch_change_target(
+        payload, rows[1], 2, 2, rows[-1].calculation.response.value.next_prefix_ref
+    )
+    with pytest.raises(PastCorrectionPayloadError):
+        bind_lineup_pitch_change_target(
+            payload, rows[1], 2, 3, rows[-1].calculation.response.value.next_prefix_ref
+        )
     for field, changed in (
         ("targetEventId", str(_CHANGE)),
         ("originalResultId", "batting-result.ball"),
