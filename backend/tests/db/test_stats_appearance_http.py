@@ -551,3 +551,134 @@ def test_actual_v3_half_and_zero_pitch_substitution_produce_true_entries(
             (path / "last-v3-zero-pitch-sub.json").write_text(
                 json.dumps(output, ensure_ascii=False, indent=2, default=str) + "\n"
             )
+
+
+def test_actual_lifecycle_game_and_season_appearance_has_one_current_version(
+    vertical_database,
+):
+    """実終了→通常再開→追記→再終了の試合/暦年/CSVで1登板を維持する。"""
+    from datetime import datetime, timedelta, timezone
+
+    from .test_stats_basic_lifecycle_http import _stats_script
+
+    db = vertical_database
+    with psycopg.connect(db.authority.database.business_admin) as admin:
+        _install_candidate(admin)
+        _install_csv_candidate(admin)
+        admin.execute(
+            "INSERT INTO public.admin_vocabularies(key,category,display_name) "
+            "VALUES ('batting-result.called-pitch','batting_result','見逃し') "
+            "ON CONFLICT(key) DO NOTHING"
+        )
+        scheduled_row = admin.execute(
+            "SELECT scheduled_at FROM public.games WHERE tenant_id=%s AND id=%s",
+            (db.tenant_id, db.game_id),
+        ).fetchone()
+        assert scheduled_row is not None and isinstance(scheduled_row[0], datetime)
+        scheduled = scheduled_row[0]
+    script = _stats_script()
+    # 正規POSTのチーム選択と開始入力を対で入替え、自チームを後攻にする。
+    teams = (
+        '"away_team_record_id": source["away_team_record_id"],\n'
+        '                "home_team_record_id": source["home_team_record_id"],'
+    )
+    swapped_teams = (
+        '"away_team_record_id": source["home_team_record_id"],\n'
+        '                "home_team_record_id": source["away_team_record_id"],'
+    )
+    assert script.count(teams) == 1
+    script = script.replace(teams, swapped_teams, 1)
+    anchor = "        body = _body(10)\n"
+    assert script.count(anchor) == 1
+    script = script.replace(
+        anchor,
+        anchor + '        body["away"], body["home"] = body["home"], body["away"]\n',
+        1,
+    )
+    helper = """        def assert_appearances(packet):
+            found = False
+            for row in packet["players"]:
+                item = next(m for m in row["pitching"]
+                            if m["metric_id"] == "appearances")
+                expected = int(row["player_id"] ==
+                               "00000000-0000-0000-0000-000000000065")
+                assert item["state"] == "available" and item["value"] == expected, item
+                found = found or expected == 1
+            assert found
+
+"""
+    anchor = "        current_lifecycle, _ = await read_full()\n"
+    assert script.count(anchor) == 1
+    script = script.replace(anchor, helper + anchor, 1)
+    for anchor in (
+        "        assert pitch_count(first_stats) == 2\n",
+        "        assert pitch_count(final_stats) == 3\n",
+    ):
+        assert script.count(anchor) == 1
+        packet = "first_stats" if "first_stats" in anchor else "final_stats"
+        script = script.replace(
+            anchor, anchor + f"        assert_appearances({packet})\n", 1
+        )
+    anchor = '        assert season_stats["players"]\n'
+    assert script.count(anchor) == 1
+    script = script.replace(
+        anchor,
+        anchor + "        assert_appearances(season_stats)\n",
+        1,
+    )
+    anchor = '        assert len(csv_rows) == len(final_stats["players"])\n'
+    assert script.count(anchor) == 1
+    script = script.replace(
+        anchor,
+        anchor + "        assert next(r for r in csv_rows if r['player_id'] == "
+        "'00000000-0000-0000-0000-000000000065')['pitching_appearances'] == '1'\n",
+        1,
+    )
+    anchor = '        assert len(season_csv_rows) == len(season_stats["players"])\n'
+    assert script.count(anchor) == 1
+    script = script.replace(
+        anchor,
+        anchor + "        assert next(r for r in season_csv_rows if r['player_id'] == "
+        "'00000000-0000-0000-0000-000000000065')['pitching_appearances'] == '1'\n"
+        + "        for category in ['official','practice']:\n"
+        + "            selected = await client.get('/stats/seasons/' "
+        "+ str(case['year']) "
+        "+ '?category=' + category + '&limit=200', headers=headers())\n"
+        + "            assert selected.status_code == 200\n"
+        + "            if category == 'official':\n"
+        + "                assert_appearances(selected.json())\n"
+        + "            else:\n"
+        + "                assert selected.json()['players'] == []\n",
+        1,
+    )
+    case = {
+        "tenant": str(db.tenant_id),
+        "game": str(db.game_id),
+        "team_name": db.team_name,
+        "other_team_name": db.other_team_name,
+        "other_tenant_id": str(db.other_tenant_id),
+        "password": _PASSWORD,
+        "pitch_type": _PITCH_TYPE,
+        "year": scheduled.astimezone(timezone(timedelta(hours=9))).year,
+    }
+    token = uuid4()
+    with db.broker_worker(token), binding_broker(db, token):
+        ordinary._prepare_app_configuration(db)
+        result = subprocess.run(
+            ["docker", *ordinary._app_arguments(db, case), "-u", "-c", script],
+            capture_output=True,
+            text=True,
+            timeout=400,
+            check=False,
+        )
+    assert result.returncode == 0, (result.stdout[-2000:], result.stderr[-2000:])
+    output = json.loads(result.stdout)
+    assert "exception" not in output and "exception_type" not in output, output
+    assert output["stats_pitch_counts"] == [2, 3]
+    cache = (
+        Path.home()
+        / ".cache/pitchlog/stats-d03-appearance-author-20261107/entry-connection"
+    )
+    (cache / "last-lifecycle-appearance.json").write_text(
+        json.dumps(output, ensure_ascii=False, indent=2) + "\n"
+    )

@@ -744,8 +744,8 @@ def test_real_source_provider_closes_unsupported_history_and_keeps_unique_count(
     assert "appearance_projected AS MATERIALIZED" in source
     assert "source_state='source_unavailable'" in source
     assert (
-        "e.event_kind NOT IN\n ('play_input','substitution','game_end_declaration')"
-        in source
+        "e.event_kind NOT IN\n "
+        "('play_input','substitution','game_end_declaration','game_reopen')" in source
     )
     assert "v.completion_receipt_id::text" in source
     assert "e.context_sha256=pg_catalog.encode(pg_catalog.sha256" in source

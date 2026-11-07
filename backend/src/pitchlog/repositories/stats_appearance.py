@@ -635,11 +635,14 @@ appearance_proofs AS MATERIALIZED (
 ), appearance_effective AS MATERIALIZED (
  SELECT e.* FROM appearance_valid_proofs e,appearance_cp cp
  WHERE e.origin_kind='start' AND e.generation=(cp.j->>'checkpoint_generation')::bigint
+ AND e.proof_kind='defensive-half-entry' AND e.defending_side='home'
+ AND e.inning=1 AND e.half='top' AND e.start_attempt_id IS NOT NULL
+ AND e.source_event_id IS NULL AND e.d1 IS NULL AND e.slot_version IS NULL
  UNION ALL
  SELECT e.* FROM appearance_valid_proofs e JOIN appearance_projected p ON
- (e.tenant_id,e.game_id,e.source_event_id,e.generation,e.d1,e.player_id,
+ (e.tenant_id,e.game_id,e.origin_kind,e.source_event_id,e.generation,e.d1,e.player_id,
  e.defending_side,e.inning,e.half,e.proof_kind,e.artifact_sha256,e.source_fingerprint)=
- (p.tenant_id,p.game_id,p.source_id,p.internal_generation,p.d1,p.player_id,
+ (p.tenant_id,p.game_id,p.origin_kind,p.source_id,p.internal_generation,p.d1,p.player_id,
  p.defending_side,p.inning,p.half,p.proof_kind,p.artifact_sha256,p.source_fingerprint)
  JOIN appearance_frames f ON f.id=p.source_id AND f.tenant_id=p.tenant_id
  AND f.game_id=p.game_id AND e.slot_version=f.slot_version
@@ -656,7 +659,24 @@ appearance_proofs AS MATERIALIZED (
  AND h.canonical_source_set_sha256=v.source_set_sha256
  AND v.source_count=(SELECT count(*) FROM appearance_native))
  AND NOT EXISTS(SELECT 1 FROM appearance_events e WHERE e.event_kind NOT IN
- ('play_input','substitution','game_end_declaration'))
+ ('play_input','substitution','game_end_declaration','game_reopen'))
+ AND NOT EXISTS(SELECT 1 FROM appearance_events e WHERE e.event_kind='game_reopen'
+ AND NOT EXISTS(SELECT 1 FROM sync_fence.lifecycle_write_admissions a
+ WHERE (a.tenant_id,a.game_id,a.source_event_id,a.internal_generation,
+ a.source_d1,a.source_d2,a.d5,a.event_fingerprint)=
+ (e.tenant_id,e.game_id,e.id,e.generation,e.d1,e.d2,e.d5,e.fingerprint)
+ AND a.action='reopen' AND a.state='consumed' AND a.consumed_at IS NOT NULL
+ AND a.receipt_id::text=e.payload#>>'{{event,receiptId}}'
+ AND a.preparation#>'{{before_source,checkpoint,content,restored,lastPlayEvaluation,
+ decision,lockFurtherPlayInput}}'='false'::jsonb
+ AND a.preparation#>'{{before_source,checkpoint,content,restored,current,
+ stateFields,state.gameEnded}}'='true'::jsonb
+ AND a.preparation#>'{{after_source,checkpoint,content,restored,current,
+ stateFields,state.gameEnded}}'='false'::jsonb
+ AND (a.preparation#>'{{before_source,checkpoint,content,restored}}')
+ #- '{{current,stateFields,state.gameEnded}}' =
+ (a.preparation#>'{{after_source,checkpoint,content,restored}}')
+ #- '{{current,stateFields,state.gameEnded}}'))
  AND (SELECT count(DISTINCT generation) FROM appearance_events)=1
  AND (SELECT count(*) FROM appearance_frames WHERE origin_kind='play')=
  (SELECT count(*) FROM appearance_native)
@@ -669,6 +689,10 @@ appearance_proofs AS MATERIALIZED (
  OR f.t2#>>'{{facts,afterHalf}}' IS DISTINCT FROM f.after_fields->>'state.half'
  OR f.t2#>>'{{facts,beforeInning}}' IS DISTINCT FROM f.before_fields->>'state.inning'
  OR f.t2#>>'{{facts,afterInning}}' IS DISTINCT FROM f.after_fields->>'state.inning'))
+ AND NOT EXISTS(SELECT 1 FROM appearance_frames
+ GROUP BY tenant_id,game_id,id HAVING count(*)<>1)
+ AND NOT EXISTS(SELECT 1 FROM appearance_effective
+ GROUP BY tenant_id,game_id,proof_sha256 HAVING count(*)<>1)
  AND NOT EXISTS(SELECT 1 FROM appearance_projected WHERE state<>'evaluated'
  OR state IS NULL)
  AND (SELECT count(*) FROM appearance_effective WHERE origin_kind='start')=1

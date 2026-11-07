@@ -10,6 +10,14 @@ branch: feature/mvp-stats-d03-appearance
 
 # D03・真正投手出場から試合別とシーズンの登板を供給する
 
+## 現在の候補到達点（2026-11-07）
+
+正常v3/0球投手交代の登板API/成績CSV接合は0f18c6f7231c932eee536b116b1af3d45411ce3eへ固定・push済み。r16は実新規作成→開始→二球→A1/B0→0球交代/同D5再掲→A1/B1→CSV各1を125.06秒で確認した。native版/S/source ID/slot不変とCP変更も実観測した。正式0049/catalog/通常起動/7.7の成立ではない。
+
+次は通常終了v1→再開→追加球→再終了v2・自チームseason/区分/CSVのowned接合。r17はfixtureのimmutable kind変更を拒否され製品未到達、次driverは正規POSTのチーム選択と開始選手列だけを対で入替える。root正常0048 r3（59a6ff50、3passed68.05秒）の受領後、r18を同lockへ投入済み。正常48/v2 Sへの移植はroot専有の後段packetで行う。取消/P3 effective context・複数世代・T2終端解放・試合全体0球は未供給を維持し、MVP残件から外さない。
+
+以下の「現物と開始条件」「step1・供給境界」は起票時の履歴を含む。別の人の守備観測を追加必須とした過剰前提は、下記c9cd54c9の既原典照合追補で撤回・root採用済み。新しいPO観測裁定を待つ状態へ戻さない。
+
 起点6a424a301a7acbc15fe55f9e25506f874e1ca1e1。PO採用済みD03は、実際に投手として出場した試合を1登板、再登板は同試合1、0球交代も1とする。球数/打者数から出場を推測しない。D02の公式=公式戦/準公式戦、練習=オープン戦/紅白戦/その他、allとJST暦年は既宣言を再利用する。本人署名・P6 blindや正式受理を代記しない。
 
 ## 現物と開始条件
@@ -134,4 +142,10 @@ read_pitcher_appearance_sourceは既_verified_inputs→_canonical_partsの唯一
 
 r16はshadow-r16固定sourceで1passed125.06秒。実新規作成→開始→v3二球のcurrent成績で開始投手A=1/交代予定B=0/他全員0、真正0球投手交代→同D5再掲後はA=1/B=1/他全員0、実試合成績CSVもA/Bのpitching_appearances=1を確認した。hostは前後のnative fact id/revision/S/countおよび全2sourceのeventID/gen/D1/D2/slot/play row/version/FPを読取観測し、全値不変を確認。CP参照は変化、B物理投球0、原entry2件である。APIへ観測DB値を入力したり0を補ったりしていない。r15は旧計数接合前に同じnative版不変/CP変更を確認した1passed835.11秒（大半lock待機）として別保存。途中の旧shadow import失敗は収集前停止であり成功に含めない。
 
-新read候補のpureは88passed4.89秒、Ruff/Ty成功。scopeは正常単一世代v3/0球交代の候補API/CSVであり、未実施の初回終了/season/再開、P3/Undo/混在世代、正式catalog/0049/通常起動/7.7へ拡張しない。候補SQLの公式再生成元は同じcandidate_sql、今回前SHA679e58e828c98eb2397db57f1dea8ec7b89703750d3887d799f3e6297c06f357から実fileSHAへ追随し、byte比較を保持した。実helperの旧start/write/guard3bodyと一表DDLは既候補から不変で、新しいread2bodyは別packetとしてrootへ渡す。
+新read候補のpureは88passed4.89秒、Ruff/Ty成功。scopeは正常単一世代v3/0球交代の候補API/CSVであり、未実施の初回終了/season/再開、P3/Undo/混在世代、正式catalog/0049/通常起動/7.7へ拡張しない。候補SQLの公式再生成元は同じcandidate_sql、今回前SHA679e58e828c98eb2397db57f1dea8ec7b89703750d3887d799f3e6297c06f357から新SHA24777b74fa6b965c22b16edd2a19613d479b8a791d3ba3c22a8c8a4635d9a2e6へ追随し、byte比較を保持した。実helperの旧start/write/guard3bodyと一表DDLは既候補から不変で、新しいread2bodyは別packetとしてrootへ渡す。
+
+root PO委任による通常再開の限定追補を採用。consumed LC原本のevent/gen/D1/D2/D5/FP/receiptを全値照合し、before/after restored全文がstate.gameEnded以外同一、前値lastPlayEvaluation.decision.lockFurtherPlayInput=falseの場合だけ、既半回の出場proofを維持する。新entryを生成せず、半回/lineup/責任原本の不変を全文で証明する。T2終端解放・真の半回変更・欠測はunavailableのままで、未開始半回を推測しない。実終了v1→再開（公式対象外）→追加球→再終了v2のAPI/season/区分/CSV、同D5再掲不増、旧終了版失効を独立ケースへ追加する。source固定後の非作者確認・実PG前の候補である。
+
+r17は1failed514.75秒（lock待機込み）。自チームを後攻へ設定するfixtureがteam_records.kindの既immutable triggerを正当に拒否し、新規作成/終了/APIへ未到達だった。triggerや検査を変更せずこの案を撤回する。次版では実POST /gamesのaway/home team選択を入替え、開始のaway/home選手入力も対応する正規の入力へ入替える。元fixtureのteam kind/選手所属/試合状態は直接変更しない。実saved gameはPOSTが返した新規UUIDのままで、fixture gameの読取を製品成功とは数えない。
+
+後発source完全性追補: 同じframe event IDや同じeffective proof IDの重複をGROUP BYで明示拒否し、proof origin_kindも唯一projector出力へ全値束縛する。開始proofは正規のstart union/null形/home/top1/defensive-half-entryへ限定する。旧sourceの全件数一致だけを完全性の根拠にせず、欠落を別proofの重複で埋めない。r16/r17の固定sourceとは分けて次owned版で確認する。
