@@ -729,11 +729,12 @@ def test_nonplay_normal_uses_same_projection_and_exact_restored_responsibility()
                 )
             },
         },
+        "runner_scores": [],
         "completeness": {
             "participants": "complete",
             "pa": "complete",
             "outs": "complete",
-            "runs_rbi": "unavailable",
+            "runs_rbi": "complete",
             "steals": "unavailable",
         },
     }

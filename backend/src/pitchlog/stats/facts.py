@@ -59,6 +59,150 @@ def derive_rates_with_components(metrics):
     return _generated_module()["derive_rates_with_components"](metrics)
 
 
+def _native_runner_scores(payload, value):
+    """真正artifactの到達と打点判定を写す。不足観測の結果は作らない。"""
+    try:
+        request = payload["calculation"]["request"]
+        t1 = value["t1"]
+        flags = t1["statFlags"]
+        before = request["t1"]["before"]["stateFields"]
+        after = t1["after"]["stateFields"]
+        advances = t1["runnerDefaultAdvance"]
+        batter = t1["batterDestination"]
+        if t1["outEffect"] != {"count": "0", "targets": []}:
+            return None
+        if set(advances) != {"first", "second", "third"}:
+            return None
+        for advance in advances.values():
+            if (
+                advance["modality"] not in ("not-applicable", "optional", "forced")
+                or advance["destination"] not in (None, "1", "2", "3", "4")
+                or (
+                    advance["modality"] == "not-applicable"
+                    and advance["destination"] is not None
+                )
+            ):
+                return None
+        score_before, score_after = before["state.score"], after["state.score"]
+        for score in (score_before, score_after):
+            if set(score) != {"home", "away"} or any(
+                type(v) is not str or re.fullmatch(r"0|[1-9][0-9]{0,19}", v) is None
+                for v in score.values()
+            ):
+                return None
+        # 確定した非生還・非得点結果の空集合であり、欠測の0補完ではない。
+        if (
+            batter["kind"] in ("continue", "reach", "out")
+            and all(a["destination"] != "4" for a in advances.values())
+            and all(flags[key] is False for key in ("得点", "打点", "失点"))
+            and score_before == score_after
+        ):
+            return []
+        if payload["formatVersion"] != "play-prefix-play-v3":
+            return None
+        observed = payload["observations"]
+        chosen = request["t1"]
+        # この閉範囲だけはRBI-06/08の既判定を全生還者へ写せる。
+        # resultIdは供給範囲を閉じるだけで、打点真偽を計算しない。
+        if (
+            chosen["resultId"]
+            not in (
+                "batting-result.single",
+                "batting-result.double",
+                "batting-result.triple",
+                "batting-result.home-run",
+            )
+            or observed["resultId"] != chosen["resultId"]
+            or chosen["officialScoringPayload"] != "no-error"
+            or observed["officialScoringPayload"]
+            != {"kind": "no-error", "errorCount": "0", "fielders": []}
+            or chosen["interferenceRuling"] != "not-required"
+            or observed["interferenceRuling"] != {"kind": "not-required"}
+            or chosen["thirdOutObservation"] != "none"
+            or observed["thirdOutObservation"] != {"kind": "none"}
+            or observed["thirdOutTimingByRunner"] != {}
+            or flags["失策"] is not False
+            or flags["打撃妨害出塁"] is not False
+            or flags["走塁妨害出塁"] is not False
+        ):
+            return None
+        source = request["source"]
+        runners = source["runners"]
+        if type(runners) is not list or len(runners) > 3:
+            return None
+        by_base = {runner["base"]: runner for runner in runners}
+        if len(by_base) != len(runners) or set(by_base) - {"1", "2", "3"}:
+            return None
+        people = payload["participants"]
+        identities = [r["runnerId"] for r in runners]
+        if len(set(identities)) != len(runners) or people["batterId"] in identities:
+            return None
+        observed_overrides = observed["runnerAdvanceOverridesByRunner"]
+        if runners:
+            if (
+                observed_overrides["kind"] != "applied"
+                or chosen["runnerAdvanceOverrides"] != observed_overrides
+            ):
+                return None
+            overrides = observed_overrides["overrides"]
+            if type(overrides) is not list or len(overrides) != len(runners):
+                return None
+            selected = {o["runnerBase"]: o["destination"] for o in overrides}
+            if len(selected) != len(overrides) or set(selected) != set(by_base):
+                return None
+            for base, name in (("1", "first"), ("2", "second"), ("3", "third")):
+                if base in selected and selected[base] != advances[name]["destination"]:
+                    return None
+        elif (
+            observed_overrides != {"kind": "not-applied", "overrides": []}
+            or chosen["runnerAdvanceOverrides"] != "not-applied"
+        ):
+            return None
+        scores = []
+
+        def append_score(runner_id, pitcher_id):
+            # 現在投手/打者への欠測ID補完をしない。
+            for identity in (runner_id, pitcher_id, people["batterId"]):
+                if type(identity) is not str or str(UUID(identity)) != identity:
+                    raise ValueError("生還者の原本識別子が不正です")
+            scores.append(
+                {
+                    "runner_id": runner_id,
+                    "responsible_pitcher_id": pitcher_id,
+                    "valid_run": flags["得点"],
+                    "rbi_credited": flags["打点"],
+                    "rbi_batter_id": people["batterId"],
+                }
+            )
+
+        for base, name in (("1", "first"), ("2", "second"), ("3", "third")):
+            advance = advances[name]
+            if (base in by_base) == (advance["modality"] == "not-applicable"):
+                return None
+            if advance["destination"] == "4":
+                runner = by_base[base]
+                append_score(runner["runnerId"], runner["responsiblePitcherId"])
+        if batter["kind"] == "score":
+            append_score(people["batterId"], people["pitcherId"])
+        elif batter["kind"] != "reach":
+            return None
+        # 人数は到達結果の列挙から。score差は不整合の拒否にのみ使用する。
+        if not scores or any(
+            flags[key] is not True for key in ("得点", "打点", "失点")
+        ):
+            return None
+        side = {"top": "away", "bottom": "home"}[before["state.half"]]
+        other = "home" if side == "away" else "away"
+        if (
+            score_after[side] != str(int(score_before[side]) + len(scores))
+            or score_after[other] != score_before[other]
+        ):
+            return None
+        return scores
+    except (KeyError, TypeError, ValueError):
+        return None
+
+
 def native_projection(payload, *, source_event_id):
     """保存原本から既観測だけを写す。戻り値は保存資格/receiptではない。
 
@@ -164,7 +308,10 @@ def native_projection(payload, *, source_event_id):
             "outs_pitcher_id",
         ):
             participants[name] = people["pitcherId"]
-    return {
+    runner_scores = _native_runner_scores(payload, value)
+    if runner_scores is not None:
+        completeness["runs_rbi"] = "complete"
+    projection = {
         "event_kind": event_kind,
         "source": {"lifecycle": "effective", "source_event_id": str(source_event_id)},
         "before": {"inning": before["state.inning"], "half": before["state.half"]},
@@ -174,6 +321,9 @@ def native_projection(payload, *, source_event_id):
         "participants": participants,
         "completeness": completeness,
     }
+    if runner_scores is not None:
+        projection["runner_scores"] = runner_scores
+    return projection
 
 
 def evaluate_native_projection(payload, *, source_event_id):

@@ -57,3 +57,5 @@ run6 d4444710は3032source不変/clean/DSNunset/cleanup、Playwright9case成功�
 専有pathへ`backend/src/pitchlog/stats/facts.py`、同adapter専用`backend/tests/stats/test_native_runner_scores.py`、既adapter期待の専用testを追加する。生成facts.py/model/SQL/math/正式assetは非編集。真正V7中の唯一artifactが確定したrunnerDefaultAdvance/batterDestination、明示source走者ID/責任投手、既打点判定だけを生成T5のrunner_scoresへ写す。得点差で人数・選手を推測しない。まず既通常球の確定ゼロと、RBI-06/08で閉じる失策/妨害/第3アウトなしの4安打を閉対象にする。第3アウト/不足観測/未対応causeはunavailableを維持し、D07は拡張しない。得点差はコピーした結果の整合拒否にしか使わない。
 
 正負pureでID/責任投手/打点・scoreless・不足観測・第3アウト拒否・原値非変更を固定し、rootの非作者source確認後に実game全7のDB集計を同候補で確認する。T4故障は全T5版/source/factの送信前実DB集合と故障後集合を読取専用で比較するfault単独試験を追加し、既UI9成功と混同しない。rootは正式pin/manifest/資産の所有を維持し、adapter実byte追随が必要ならcache packetで受け渡す。
+
+T5追補採用: rootはff207de5/plan SHA b04e47b3a193661c6b6d85c329e3824c841c39a40983a368e0149bc1bc1d6ce3全文とRBI-06/08を照合し、PO委任Codex/root・2026-11-07として着手可。adapterはT1到達/打点真偽と原本走者/責任IDを有限コピーし、生成核は不変更。正準19安打＋明示4配置＋欠測/因果/重複ID/override対向＋初球通常0の専用39件を含め、関連5群408件成功36.58s、BE Ruff/Ty成功。NP通常球の旧unavailable期待だけを真正complete空集合へ追随。新sourceの実DBは未実証、root限定非作者確認へ渡す。
