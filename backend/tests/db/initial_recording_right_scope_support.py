@@ -21,11 +21,10 @@ from psycopg.conninfo import make_conninfo
 from sqlalchemy import URL, create_engine
 
 from pitchlog.authz.product_catalog import inspect_product_authz_catalog
-from pitchlog.authz.product_provisioning import (
-    apply_product_authz_before_rule_placement,
-    apply_product_authz_ddl,
+from pitchlog.db.current_product_startup import (
+    CURRENT_REVISION,
+    advance_current_product_from_s0,
 )
-from pitchlog.db.current_product_startup import CURRENT_REVISION
 from pitchlog.repositories.initial_recording_right import _credential_digest
 
 from . import durable_rights_ledger_support as ledger_support
@@ -83,16 +82,10 @@ def _install_initial_business(dsn: str) -> None:
             configuration = Config(str(_BACKEND / "alembic.ini"))
             configuration.attributes["connection"] = connection
             command.upgrade(configuration, "0033_game_rules_immutable")
-        # 正規before-ruleが新表/列依存を保留できなければ、その拒否を維持する。
-        with psycopg.connect(dsn) as admin:
-            apply_product_authz_before_rule_placement(admin)
-        with engine.begin() as connection:
-            configuration.attributes["connection"] = connection
-            command.upgrade(configuration, _INITIAL_REVISION)
     finally:
         engine.dispose()
-    with psycopg.connect(dsn) as admin:
-        apply_product_authz_ddl(admin)
+    result = advance_current_product_from_s0(owner_dsn=owner_dsn, applicator_dsn=dsn)
+    assert result.publishable is False
     # 初期scope用installer。RG1の0035までのS3完了証明を偽造しない。
     # rootの9SQL/fullprofile供給が不十分なら実適用/検査を失敗させる。
     with psycopg.connect(dsn) as admin:

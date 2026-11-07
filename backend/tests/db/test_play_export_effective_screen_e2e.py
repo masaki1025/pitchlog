@@ -12,15 +12,11 @@ import threading
 import time
 import zipfile
 from pathlib import Path
-from typing import LiteralString, cast
 from uuid import UUID, uuid4
 
 import psycopg
 import pytest
-from psycopg import sql
 
-from pitchlog.authz.play_export_source_read_product import candidate_read_bundle
-from pitchlog.authz.play_export_writer_product import candidate_install_sql
 from pitchlog.authz.product_catalog import inspect_product_authz_catalog
 from pitchlog.authz.product_provisioning import apply_product_authz_ddl
 from pitchlog.exports.play_rows import CSV_HEADERS
@@ -131,13 +127,14 @@ def test_actual_undo_effective_csv_and_preserved_snapshot(vertical_database, tmp
             "WHERE tenant_id=%s AND id=%s",
             (db.tenant_id, db.game_id),
         ).fetchone()
-        ddl = (
-            _ROOT / "docs/features/ud2-csv-export/candidates/play_export_snapshots.sql"
-        ).read_text()
-        admin.execute(sql.SQL(cast(LiteralString, ddl)))
-        admin.execute(sql.SQL(cast(LiteralString, candidate_install_sql())))
-        _query, source_install = candidate_read_bundle()
-        admin.execute(sql.SQL(cast(LiteralString, source_install)))
+        assert admin.execute(
+            "SELECT version_num FROM public.alembic_version"
+        ).fetchall() == [("0047_play_export_snapshots",)]
+        assert admin.execute(
+            "SELECT pg_catalog.to_regprocedure("
+            "'stats_api.read_play_export_source_page(uuid,bigint,bigint,integer)') "
+            "IS NOT NULL"
+        ).fetchone() == (True,)
     assert teams is not None
     token = uuid4()
     config = "GameScreenPlayCsvEffective.playwright.config.ts"
