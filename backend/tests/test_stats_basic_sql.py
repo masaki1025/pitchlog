@@ -85,11 +85,12 @@ def test_appearance_requires_actual_complete_defensive_entry_source():
     from pitchlog.stats.basic_sql import read_function_body
 
     body = read_function_body()
-    assert "appearance_scope/member provider" in body
+    assert "stats_api.read_pitcher_appearance_source" in body
+    assert "COUNT(DISTINCT m.game_id)" in body
     assert "appearance_ready" not in body
     assert "SELECT count(*) INTO appearance_count FROM public.game_lineups" not in body
     assert (
-        "'appearances',\n"
+        "COALESCE(appearance_metrics->player.id::text,\n"
         "    pg_catalog.jsonb_build_object('state','source_unavailable','value',NULL)"
         in body
     )

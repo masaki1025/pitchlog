@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import selectors
 import subprocess
 from pathlib import Path
 from typing import LiteralString, cast
@@ -14,6 +15,7 @@ from psycopg import sql
 
 from pitchlog.authz.product_function_acl import generate_initial_function_sql
 from pitchlog.repositories.stats_appearance import (
+    candidate_appearance_read_install_sql,
     candidate_entry_table_install_sql,
     candidate_private_entry_install_sql,
 )
@@ -46,6 +48,7 @@ def _install_candidate(admin, *, fault=False):
     """正式catalogを更新せず、明示候補としてownedだけへ接合する。"""
     admin.execute(sql.SQL(cast(LiteralString, candidate_entry_table_install_sql())))
     admin.execute(sql.SQL(cast(LiteralString, candidate_private_entry_install_sql())))
+    admin.execute(sql.SQL(cast(LiteralString, candidate_appearance_read_install_sql())))
     identity = (
         "FUNCTION:initial_right_api:insert_initial_grant(uuid, uuid, "
         "uuid, uuid, uuid, bigint, bigint, bytea, text, bytea, bytea)"
@@ -361,9 +364,59 @@ def test_actual_v3_half_and_zero_pitch_substitution_produce_true_entries(
             marker,
             """        return {"game":game,"pitcher":incoming,
             "substitution_event_id":event["payload"]["eventId"],
-            "d3":after["checkpoint"]["content"]["d3"]}
+            "d3":after["checkpoint"]["content"]["d3"],
+            "checkpoint_before":cp["ref"],
+            "checkpoint_after":after["checkpoint"]["ref"]}
 """
             + marker,
+            1,
+        )
+    if scenario == "zero-pitch-sub":
+        helper = """        async def actual_appearance_stats():
+            response = await client.get(
+                "/games/" + game + "/stats?mode=current&limit=200", headers=headers())
+            assert response.status_code == 200, ("D03 stats HTTP", response.status_code,
+                                                response.text)
+            return {row["player_id"]: next(m for m in row["pitching"]
+                    if m["metric_id"] == "appearances")
+                    for row in response.json()["players"]}
+        before_appearances = await actual_appearance_stats()
+        assert before_appearances["00000000-0000-0000-0000-0000000000c9"]["value"] == 1
+        assert before_appearances["00000000-0000-0000-0000-0000000000d3"]["value"] == 0
+        assert all(item["state"] == "available" and item["value"] == 0
+                   for player_id,item in before_appearances.items()
+                   if player_id != "00000000-0000-0000-0000-0000000000c9")
+"""
+        anchor = '        incoming = "00000000-0000-0000-0000-0000000000d3"'
+        assert script.count(anchor) == 1
+        script = script.replace(anchor, helper + anchor, 1)
+        anchor = '        return {"game":game,"pitcher":incoming,'
+        assert script.count(anchor) == 1
+        after = """        after_appearances = await actual_appearance_stats()
+        assert after_appearances["00000000-0000-0000-0000-0000000000c9"]["value"] == 1
+        assert after_appearances["00000000-0000-0000-0000-0000000000d3"]["value"] == 1
+        assert all(item["state"] == "available" and item["value"] == 0
+                   for player_id,item in after_appearances.items() if player_id not in
+                   ["00000000-0000-0000-0000-0000000000c9",
+                    "00000000-0000-0000-0000-0000000000d3"])
+        csv_response = await client.get("/games/" + game + "/stats.csv?mode=current",
+                                        headers=headers())
+        assert csv_response.status_code == 200, ("D03 CSV", csv_response.status_code)
+        import csv, io
+        csv_rows = {r["player_id"]: r for r in csv.DictReader(
+                    io.StringIO(csv_response.content.decode("utf-8-sig")))}
+        for player_id in ["00000000-0000-0000-0000-0000000000c9",
+                          "00000000-0000-0000-0000-0000000000d3"]:
+            assert csv_rows[player_id]["pitching_appearances"] == "1"
+"""
+        script = script.replace(anchor, after + anchor, 1)
+    if scenario == "zero-pitch-sub":
+        marker = '        incoming = "00000000-0000-0000-0000-0000000000d3"'
+        assert script.count(marker) == 1
+        script = script.replace(
+            marker,
+            '        print("D03_OBSERVE:" + json.dumps({"game":game}), flush=True)\n'
+            '        assert input() == "continue"\n' + marker,
             1,
         )
     case = {
@@ -378,13 +431,60 @@ def test_actual_v3_half_and_zero_pitch_substitution_produce_true_entries(
     token = uuid4()
     with db.broker_worker(token), binding_broker(db, token):
         ordinary._prepare_app_configuration(db)
-        result = subprocess.run(
-            ["docker", *ordinary._app_arguments(db, case), "-u", "-c", script],
-            capture_output=True,
-            text=True,
-            timeout=400,
-            check=False,
-        )
+        arguments = ["docker", *ordinary._app_arguments(db, case), "-u", "-c", script]
+        native_before = None
+        native_sources_before = None
+        if scenario == "zero-pitch-sub":
+            assert arguments[1] == "run"
+            arguments.insert(2, "-i")
+            # 実HTTP二球と交代の間にhostが原本を読取るだけ。APIへDB値を渡さない。
+            with subprocess.Popen(
+                arguments,
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            ) as worker:
+                assert worker.stdout is not None
+                with selectors.DefaultSelector() as ready:
+                    ready.register(worker.stdout, selectors.EVENT_READ)
+                    if not ready.select(timeout=400):
+                        worker.kill()
+                        worker.communicate(timeout=10)
+                        pytest.fail("実二球後の観測地点へ400秒以内に到達しない")
+                observation = worker.stdout.readline()
+                assert observation.startswith("D03_OBSERVE:"), observation
+                observed_game = UUID(json.loads(observation.split(":", 1)[1])["game"])
+                with psycopg.connect(db.authority.database.business_admin) as admin:
+                    native_before = admin.execute(
+                        "SELECT id,revision,source_set_sha256,source_count "
+                        "FROM sync_fence.stats_fact_versions WHERE tenant_id=%s "
+                        "AND game_id=%s AND is_current AND invalidated_at IS NULL",
+                        (db.tenant_id, observed_game),
+                    ).fetchall()
+                    assert len(native_before) == 1
+                    native_sources_before = admin.execute(
+                        "SELECT source_event_id,recording_generation,d1,d2,"
+                        "slot_version,"
+                        "play_row_id,play_row_version,source_fingerprint "
+                        "FROM sync_fence.stats_primitive_sources WHERE tenant_id=%s "
+                        "AND game_id=%s AND fact_version_id=%s "
+                        "ORDER BY d1,d2,source_event_id",
+                        (db.tenant_id, observed_game, native_before[0][0]),
+                    ).fetchall()
+                    assert len(native_sources_before) == 2
+                stdout, stderr = worker.communicate("continue\n", timeout=400)
+                result = subprocess.CompletedProcess(
+                    arguments, worker.returncode, stdout, stderr
+                )
+        else:
+            result = subprocess.run(
+                arguments,
+                capture_output=True,
+                text=True,
+                timeout=400,
+                check=False,
+            )
     assert result.returncode == 0, (result.stdout[-1000:], result.stderr[-1000:])
     output = json.loads(result.stdout)
     path = (
@@ -412,6 +512,28 @@ def test_actual_v3_half_and_zero_pitch_substitution_produce_true_entries(
             assert entries[1][0] == "play" and entries[1][2] == 9
             assert entries[1][4:] == ("away", 1, "bottom")
         else:
+            native_after = admin.execute(
+                "SELECT id,revision,source_set_sha256,source_count "
+                "FROM sync_fence.stats_fact_versions WHERE tenant_id=%s "
+                "AND game_id=%s AND is_current AND invalidated_at IS NULL",
+                (db.tenant_id, game),
+            ).fetchall()
+            assert native_after == native_before
+            native_sources_after = admin.execute(
+                "SELECT source_event_id,recording_generation,d1,d2,slot_version,"
+                "play_row_id,play_row_version,source_fingerprint "
+                "FROM sync_fence.stats_primitive_sources WHERE tenant_id=%s "
+                "AND game_id=%s AND fact_version_id=%s ORDER BY d1,d2,source_event_id",
+                (db.tenant_id, game, native_after[0][0]),
+            ).fetchall()
+            assert native_sources_after == native_sources_before
+            output["native_observation"] = {
+                "before": native_before,
+                "after": native_after,
+                "sources_before": native_sources_before,
+                "sources_after": native_sources_after,
+            }
+            assert output["checkpoint_before"] != output["checkpoint_after"]
             assert output["d3"] == "3"
             assert entries[1][0] == "substitution" and entries[1][2] == 3
             assert entries[1][1] == UUID(output["substitution_event_id"])
@@ -425,3 +547,7 @@ def test_actual_v3_half_and_zero_pitch_substitution_produce_true_entries(
                 "AND game_id=%s AND pitcher_id=%s",
                 (db.tenant_id, game, UUID(int=211)),
             ).fetchone() == (0,)
+            output["source_observation_verified"] = True
+            (path / "last-v3-zero-pitch-sub.json").write_text(
+                json.dumps(output, ensure_ascii=False, indent=2, default=str) + "\n"
+            )

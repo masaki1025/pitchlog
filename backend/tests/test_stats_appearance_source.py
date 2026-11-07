@@ -689,3 +689,75 @@ def test_writer_saved_source_does_not_reenter_prior_state_or_undo_only_columns()
     assert "s.d2=v_event.d2 AND s.wire_d4=v_binding.wire_d4" in sql
     assert "v.is_current AND v.invalidated_at IS NULL" in sql
     assert "s.xmin=v_event_xmin AND v.xmin=v_event_xmin" in sql
+
+
+def test_context_reader_reuses_both_full_authority_guards_in_same_rr():
+    """既CP検査を同RRへ転用しても原本/物理印/越境拒否を落とさない。"""
+    from pitchlog.authz.nonplay_prefix_read_sql import (
+        _legacy_read_sql,
+        candidate_read_function_bodies,
+    )
+    from pitchlog.repositories.stats_appearance import (
+        _candidate_context_guards,
+        candidate_appearance_context_function,
+    )
+
+    legacy, normal = _candidate_context_guards()
+    original = candidate_read_function_bodies()["read_nonplay_active_history"]
+    marker = " SELECT c.* INTO STRICT cp FROM sync_fence.ordinary_pitch_checkpoints c"
+    original_normal = original[original.rindex(marker) :].split(" WITH active AS (", 1)[
+        0
+    ]
+    rejected = (
+        "RAISE EXCEPTION 'pitcher appearance context rejected' USING ERRCODE='42501';"
+    )
+    original_legacy = _legacy_read_sql("D03_ACTIVE_QUERY_NOT_EXECUTED", rejected)
+    original_legacy = original_legacy[original_legacy.index(marker) :].split(
+        " WITH active AS (", 1
+    )[0]
+    assert legacy == original_legacy.replace(" FOR SHARE OF c;", ";")
+    assert normal == original_normal.replace(" FOR SHARE OF c;", ";")
+    body = candidate_appearance_context_function()
+    assert legacy in body and normal in body
+    assert "LANGUAGE plpgsql STABLE SECURITY DEFINER" in body
+    assert "'transaction_isolation')\n IS DISTINCT FROM 'repeatable read'" in body
+    assert "'transaction_read_only') IS DISTINCT FROM 'on'" in body
+    assert "session_user IS DISTINCT FROM 'pitchlog_app'" in body
+    assert "p_tenant_id IS DISTINCT FROM NULLIF(" in body
+    assert "FOR SHARE" not in body and "FOR UPDATE" not in body
+    assert "GRANT EXECUTE" not in body
+    assert "'checkpoint_digest',cp.content_digest" in body
+    assert "'d3',cp.confirmed_watermark" in body
+
+
+def test_real_source_provider_closes_unsupported_history_and_keeps_unique_count():
+    """原本供給は独自replay/別COUNTを作らず、未知/P3/取消を未供給へ保つ。"""
+    from pitchlog.repositories.stats_appearance import (
+        candidate_appearance_read_install_sql,
+        candidate_appearance_source_query,
+    )
+    from pitchlog.stats.basic_sql import appearance_query
+
+    source = candidate_appearance_source_query()
+    assert "JOIN canonical_s c" in source
+    assert "c.source_state='included'" in source
+    assert "appearance_projected AS MATERIALIZED" in source
+    assert "source_state='source_unavailable'" in source
+    assert (
+        "e.event_kind NOT IN\n ('play_input','substitution','game_end_declaration')"
+        in source
+    )
+    assert "v.completion_receipt_id::text" in source
+    assert "e.context_sha256=pg_catalog.encode(pg_catalog.sha256" in source
+    assert "(pg_catalog.to_jsonb(e)-'proof_sha256')::text" in source
+    assert "h.canonical_source_set_sha256=v.source_set_sha256" in source
+    assert "COUNT(DISTINCT m.game_id)" not in source
+    count = appearance_query()
+    assert count.count("COUNT(DISTINCT m.game_id)") == 1
+    assert "SELECT DISTINCT game_id FROM version_scope" in count
+    assert "read_pitcher_appearance_source($1,g.game_id,$9)" in count
+    assert "appearance_packets AS MATERIALIZED" in count
+    assert "current_roster" not in source and "game_lineups" not in source
+    install = candidate_appearance_read_install_sql()
+    assert "GRANT EXECUTE" not in install
+    assert install.count("OWNER TO pitchlog_sync_right_fn_owner") == 2

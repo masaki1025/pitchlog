@@ -153,12 +153,50 @@ def _category_case() -> str:
     )
 
 
-def _normal_appearance_sql() -> str:
-    """完全な実出場providerが未供給の間はスタメンから登板を推測しない。"""
-    return """
- -- D03: game_lineupsは出場予定であり、実守備出場の完全原本ではない。
- -- 版付きappearance_scope/member providerの正式接合まで未供給を保持する。
+def appearance_query() -> str:
+    """既T6の対象版集合と同じRR原本を唯一D03計数へ供給する。"""
+    from pitchlog.domaingen.stats_appearance import generate_appearance_bundle
+
+    target, _ = generate_appearance_bundle()
+    count = target["backend/src/pitchlog/stats/generated/appearances.sql"]
+    source = read_query()
+    marker = "), source_members AS ("
+    if source.count(marker) != 1:
+        raise BasicSqlError("成績の対象版集合の閉位置が不一致")
+    prefix = source.split(marker, 1)[0] + ")"
+    keys = (
+        "tenant_id uuid,game_id uuid,fact_version_id uuid,revision bigint,"
+        "source_set_sha256 text,checkpoint_id uuid,checkpoint_generation bigint,"
+        "checkpoint_revision bigint,checkpoint_digest text,d3 bigint,"
+        "lifecycle_receipt_id uuid,entry_set_sha256 text"
+    )
+    count = (
+        count.replace(":tenant_id", "$1")
+        .replace(":player_id", "requested.player_id")
+        .replace(":expected_game_count", "(SELECT count(*) FROM appearance_games)")
+    )
+    return (
+        prefix
+        + f""",
+appearance_games AS MATERIALIZED (SELECT DISTINCT game_id FROM version_scope),
+appearance_packets AS MATERIALIZED (
+ SELECT g.game_id,s.record_json::jsonb AS packet FROM appearance_games g
+ CROSS JOIN LATERAL stats_api.read_pitcher_appearance_source($1,g.game_id,$9) s
+), appearance_scope AS MATERIALIZED (
+ SELECT s.* FROM appearance_packets packet CROSS JOIN LATERAL
+ pg_catalog.jsonb_to_record(packet.packet->'scope')
+ AS s({keys},supply_complete boolean,member_count bigint)
+ WHERE packet.packet->'scope'<>'null'::jsonb
+), appearance_members AS MATERIALIZED (
+ SELECT m.* FROM appearance_packets packet CROSS JOIN LATERAL
+ pg_catalog.jsonb_to_recordset(packet.packet->'members') AS m(
+ {keys},player_id uuid,proof_kind text,proof_source_id text)
+)
+SELECT requested.player_id,metric.metric_id,metric.state,metric.value
+FROM pg_catalog.unnest($10::uuid[]) requested(player_id)
+CROSS JOIN LATERAL ({count}) metric
 """
+    )
 
 
 def read_function_body() -> str:
@@ -254,12 +292,28 @@ def read_function_body() -> str:
                     ELSE metric.value::text END));
   END LOOP;
   metrics:=metrics || pg_catalog.jsonb_build_object('appearances',
-    pg_catalog.jsonb_build_object('state','source_unavailable','value',NULL));
+    COALESCE(appearance_metrics->player.id::text,
+    pg_catalog.jsonb_build_object('state','source_unavailable','value',NULL)));
   RETURN QUERY SELECT player.id,player.name,
     COALESCE(player.uniform_number,''),player.team_record_id,player.team_name,
     metrics::text;
  END LOOP;
 """
+    page_marker = " LOOP\n  metrics := '{}'::jsonb;\n"
+    if loop.count(page_marker) != 1 or not loop.startswith("\n FOR player IN\n"):
+        raise BasicSqlError("成績player pageの閉位置が不一致")
+    page = loop.split(page_marker, 1)[0].removeprefix("\n FOR player IN\n")
+    load_appearances = (
+        " SELECT pg_catalog.array_agg(page.id ORDER BY page.id) "
+        "INTO appearance_player_ids FROM (" + page + ") page;\n"
+        " FOR metric IN EXECUTE appearance_query USING tenant,NULL::uuid,"
+        "p_model_sha256,p_year_start,p_year_end,p_category,raw_keys,game_uuid,"
+        "p_official,appearance_player_ids LOOP\n"
+        "  appearance_metrics:=appearance_metrics || pg_catalog.jsonb_build_object("
+        "metric.player_id::text,pg_catalog.jsonb_build_object('state',metric.state,"
+        "'value',CASE WHEN metric.value IS NULL THEN NULL ELSE metric.value::text END));\n"
+        " END LOOP;\n"
+    )
     return (
         "CREATE FUNCTION "
         f"{_FUNCTION_SCHEMA}.{_READ_FUNCTION}({_READ_ARGS})\n"
@@ -268,6 +322,8 @@ def read_function_body() -> str:
         "#variable_conflict use_column\n"
         "DECLARE tenant uuid; game_uuid uuid; game_count bigint; raw_keys text[]; "
         "player record; metric record; metrics jsonb; "
+        "appearance_player_ids uuid[]; appearance_metrics jsonb:='{}'::jsonb; "
+        "appearance_query text:=$appearance$" + appearance_query() + "$appearance$;\n"
         "query text:=$q$" + query + "$q$;\nBEGIN\n"
         " tenant:=NULLIF(pg_catalog.current_setting('app.tenant_id',true),'')::uuid;\n"
         " IF session_user IS DISTINCT FROM 'pitchlog_app' OR current_user IS DISTINCT FROM "
@@ -280,7 +336,6 @@ def read_function_body() -> str:
         + _REJECT
         + "\n END IF;\n"
         + player_scope
-        + _normal_appearance_sql()
         + " raw_keys:=string_to_array(p_raw_game_type_keys,',');\n"
         " IF raw_keys IS NULL OR pg_catalog.array_position(raw_keys,NULL) IS NOT NULL\n"
         "  OR raw_keys IS DISTINCT FROM ("
@@ -288,6 +343,7 @@ def read_function_body() -> str:
         + ") THEN\n"
         + _REJECT
         + "\n END IF;\n"
+        + load_appearances
         + loop
         + "END;\n$basic$;\n"
     )
