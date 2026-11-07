@@ -1,12 +1,12 @@
 ---
 feature: mvp-viewer-current-connection-20261107
-status: planning
-承認: 未（rootの限定計画レビュー待ち）
+status: active
+承認: 済（PO委任root、2026-11-07 JST、固定80f652d9の限定計画レビュー）
 重さ分類: コア領域
 branch: feature/mvp-viewer-current-connection-20261107
 worktree: /home/ymdms/projects/pitchlog-worktrees/feature-mvp-viewer-current-connection-20261107
 固定基線: 18b31a839558bd6090e77e1a8c53cafcb39509b2
-計画レビュー周回: 0
+計画レビュー周回: 1
 確定ゲート周回: 0
 実行方式: 通常
 ---
@@ -27,4 +27,4 @@ worktree: /home/ymdms/projects/pitchlog-worktrees/feature-mvp-viewer-current-con
 
 ## 計画レビュー
 
-rootによる固定版レビューの対象HEAD・SHA・判断をここへ追記してから実装する。
+2026-11-07 JST、root が HEAD `80f652d98dbe886b89c948a5920b2475654f4a95` の plan SHA `36d1304b735f82fc73d0ce3aabb23d9a47a5104f53be08e0abaa32c0acaadb76` を全文確認し、P0/P1なしとしてPO委任で限定採用。真正RR scopeの有限登録とC2 gateは共有patchへ残す。終了版の未対応を成功で隠さず、P3のCP/capsule/slotの既結合、版・本文・cursorの同snapshot照合を維持する。実PGはrootとの時刻調整後に限定する。
