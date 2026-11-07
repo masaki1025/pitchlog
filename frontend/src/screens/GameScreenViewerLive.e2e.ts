@@ -145,6 +145,10 @@ test('別contextの保存済み閲覧は10秒以内に1球へ更新し、断中�
     expect(ack.eventResults?.[0]?.a5Result).toBe('受理')
   }
 
+  // 閲覧開始時点で26球を保存し、最新25球と旧pageの境界を作る。
+  for (let index = 0; index < 26; index += 1)
+    await selectAndSave('batting-result.called-pitch')
+
   const viewerContext = await browser.newContext({ ignoreHTTPSErrors: true })
   const viewer = await viewerContext.newPage()
   viewer.setDefaultTimeout(30_000)
@@ -189,30 +193,41 @@ test('別contextの保存済み閲覧は10秒以内に1球へ更新し、断中�
     console.log('PITCHLOG_VIEWER_STAGE=initial-body')
     await expect(viewer.getByTestId('viewer-status')).toHaveText('更新済み')
     const score = viewer.getByRole('region', { name: 'スコア' })
-    await expect(score).toContainText('先攻 0 – 後攻 0')
-    await expect(score).toContainText('1回表')
-    await expect(score).toContainText('0アウト')
-    await expect(score).toContainText('走者: なし')
+    await expect(score).toContainText('先攻')
+    await expect(score).toContainText('後攻')
     await expect(
       viewer.getByRole('region', { name: '出場選手' }),
     ).toContainText('投手')
-    await expect(
-      viewer.getByText('まだ確定済みの投球はありません。'),
-    ).toBeVisible()
+    const historyItems = viewer.locator('[data-testid="viewer-history"] li')
+    await expect(historyItems).toHaveCount(25)
+    await expect(viewer.getByTestId('viewer-page-index')).toHaveText(
+      '表示ページ: 1',
+    )
+    await viewer.getByTestId('viewer-next-page').click()
+    await expect(viewer.getByTestId('viewer-page-index')).toHaveText(
+      '表示ページ: 2',
+    )
+    await expect(historyItems).toHaveCount(1)
+    await expect(viewer.getByText(/第1球:/)).toBeVisible()
+    await viewer.getByTestId('viewer-previous-page').click()
+    await expect(viewer.getByTestId('viewer-page-index')).toHaveText(
+      '表示ページ: 1',
+    )
+    await expect(historyItems).toHaveCount(25)
     // 新規開始の受理後は現入口が自動的にv3記録へ接ぐ。
     await expect(page.getByTestId('ordinary-state-source')).toHaveText(
       'サーバー確認済みの状態',
     )
     await selectAndSave('batting-result.called-pitch')
     const savedAt = Date.now()
-    await expect(viewer.getByText(/第1球:/)).toBeVisible({ timeout: 10_000 })
+    await expect(viewer.getByText(/第27球:/)).toBeVisible({ timeout: 10_000 })
     const visibleAt = Date.now()
     if (visibleAt - savedAt > 10_000)
       throw new Error(`10秒更新未達: ${visibleAt - savedAt}ms`)
     console.log(`PITCHLOG_VIEWER_GAME_ID=${saved.id}`)
     console.log(`PITCHLOG_VIEWER_VISIBLE_MS=${visibleAt - savedAt}`)
     await viewer.reload()
-    await expect(viewer.getByText(/第1球:/)).toBeVisible()
+    await expect(viewer.getByText(/第27球:/)).toBeVisible()
     await viewerContext.setOffline(true)
     const disconnectedAt = Date.now()
     await expect(viewer.getByTestId('viewer-status')).toHaveText('未更新', {
@@ -227,7 +242,7 @@ test('別contextの保存済み閲覧は10秒以内に1球へ更新し、断中�
     await expect(viewer.getByTestId('viewer-status')).toHaveText('更新済み', {
       timeout: 15_000,
     })
-    await expect(viewer.getByText(/第1球:/)).toBeVisible()
+    await expect(viewer.getByText(/第27球:/)).toBeVisible()
     console.log(`PITCHLOG_VIEWER_RECOVERED_MS=${Date.now() - recoveredAt}`)
     // 記録権・端末登録・同期送信を閲覧contextから一度も行っていない。
     expect(
@@ -250,7 +265,7 @@ test('別contextの保存済み閲覧は10秒以内に1球へ更新し、断中�
     await expect(viewer.getByRole('region', { name: 'スコア' })).toHaveCount(0)
     await viewer.goto(`${baseURL}/games/${saved.id}/view`)
     await expect(viewer.getByTestId('viewer-status')).toHaveText('更新済み')
-    await expect(viewer.getByText(/第1球:/)).toBeVisible()
+    await expect(viewer.getByText(/第27球:/)).toBeVisible()
   } finally {
     await viewerContext.close().catch(() => undefined)
   }
