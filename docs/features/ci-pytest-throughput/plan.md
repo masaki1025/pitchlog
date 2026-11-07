@@ -1,6 +1,6 @@
 ---
 feature: ci-pytest-throughput
-status: active
+status: in-review
 承認: PO委任によるCodex主担当/root判断（2026-11-07、原候補継承と非作者P1是正）
 重さ分類: 通常
 branch: feature/ci-pytest-throughput-finalization
@@ -117,3 +117,9 @@ created: 2026-11-07
 c8e32af6350fafa8235e2ec917fc9538c6998aa5は旧integration枝に未pushの保全候補として残す。同commitのJSON/基線試験共変更は既拒否対象のため正式採用せず、9b4f176eから本枝で試験/計画を先行commitし、次commitで宣言JSONだけを追加する。runtime有限例外は拡張しない。全件で見つかった2歴史試験は、閉CI5を検査した射影とtyped固定PR197原本のshadow実行へ限定して改訂し、現在のexact5/旧13検査経路の実matcher検査を維持する。旧979pass/2failと限定11成功を別記し、是正後の全件結果/限定独立レビューを追記する。正式PRは197通常merge後のbaseで旧PRの共変更を再承認しない。
 
 是正固定4fb99cc15163560000fb264526ffe667e92cee69（9b4比3path diffSHA88261f3b61920a01f93e36fd3b5dd0ee94309af711a1016883b34b53981d7a5e）はroot全関連1122passed51.40秒/Ruff/Ty成功、非作者REPORT-guard-finalization.md SHA d4002bd25438afb2bfdfc7a2df682bd952c1b1ab19b9a5ce98f5780e972105ad・独立25passed30.37秒/新P0P1P2なしを根拠にPO委任Codex/rootが限定source採用（2026-11-07）。旧限定11/全979pass2failおよびc8保全は履歴保持。runtime全byte不変・既共変更拒否とguard検出維持を実Gitで確認済み。正式197merge後base/完全値7.7受理/corpus/PR最終証拠/全CIと実8分割所要計測は未成立で、本人署名/新blind/全MVP完成ではない。
+
+## 正式PR198の固定と受理ゲート（2026-11-07、PO委任Codex/root判断）
+
+PR197は45b74ac9320c43138a49215529c60bb685a8a977へ通常統合済み、source意味不変の同baseを7ea117d5で取込。PR198を実装済み候補97aでDraft作成し番号を確定、未受理の初回queued CI42330892555/body42330892629はcancel要求し完成証拠へ数えない。最終sourceを固定→公式helperによる全前後値候補→独立比較→PO委任受理→必要snapshot/生成module/corpusを公式導出→最終HEAD委任証拠を本文へ先に登録→通常push1回→実8分割全CIの順で閉じる。検査・必須contextを緩めない。
+
+限定委任policyのtargetsにPR198/本枝だけを追加し、既対象/期限/拒否/本人署名を代記しない属性は維持する。今回のsource/code/domain契約は変えず、実外部freeze入力の移動だけを正式7.7へ一度受理する。意味のないdevelop追随で同じ受理を反復しない。
