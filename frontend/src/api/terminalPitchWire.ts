@@ -88,6 +88,19 @@ function matches(
       !['object', 'array', 'string', 'boolean', 'null'].includes(rule.type))
   )
     return false
+  if (
+    (rule.format === 'uuid' &&
+      typeof value === 'string' &&
+      !canonicalUuid.test(value)) ||
+    (rule.uniqueItems === true &&
+      Array.isArray(value) &&
+      value.some((item, index) =>
+        value
+          .slice(0, index)
+          .some((previous) => sameOrdinaryWire(previous, item)),
+      ))
+  )
+    return false
   if (rule.$ref) {
     const key = rule.$ref.replace('#/$defs/', '')
     return (
@@ -114,7 +127,6 @@ function matches(
   if (rule.type === 'string')
     return (
       typeof value === 'string' &&
-      (rule.format === undefined || canonicalUuid.test(value)) &&
       (rule.minLength === undefined || value.length >= rule.minLength) &&
       (rule.maxLength === undefined || value.length <= rule.maxLength) &&
       (rule.pattern === undefined ||
@@ -124,12 +136,6 @@ function matches(
   if (rule.type === 'array')
     return (
       Array.isArray(value) &&
-      (rule.uniqueItems !== true ||
-        !value.some((item, index) =>
-          value
-            .slice(0, index)
-            .some((previous) => sameOrdinaryWire(previous, item)),
-        )) &&
       (rule.minItems === undefined || value.length >= rule.minItems) &&
       (rule.maxItems === undefined || value.length <= rule.maxItems) &&
       (!rule.items || value.every((v) => matches(v, rule.items!, defs)))

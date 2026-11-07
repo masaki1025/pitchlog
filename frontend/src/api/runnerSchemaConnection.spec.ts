@@ -76,3 +76,33 @@ it('uniqueItemsはキー順に依存せず重複objectを拒否し、値を補�
   ).toBe(true)
   expect(isClosedPlaySchema(['batter', 'batter'], document, 'Item')).toBe(false)
 })
+
+it('uuid制約はtype省略・allOf分割・参照と併記でも検査する', () => {
+  for (const rule of [
+    { format: 'uuid' },
+    { allOf: [{ type: 'string' }, { format: 'uuid' }] },
+    { $ref: '#/$defs/Text', format: 'uuid' },
+  ]) {
+    const document = { $defs: { Item: rule, Text: { type: 'string' } } }
+    expect(isClosedPlaySchema('bad', document, 'Item')).toBe(false)
+    expect(
+      isClosedPlaySchema(
+        'abcdef00-0000-0000-0000-000000000001',
+        document,
+        'Item',
+      ),
+    ).toBe(true)
+  }
+})
+
+it('uniqueItems制約はtype省略・allOf分割・参照と併記でも検査する', () => {
+  for (const rule of [
+    { uniqueItems: true },
+    { allOf: [{ type: 'array' }, { uniqueItems: true }] },
+    { $ref: '#/$defs/Items', uniqueItems: true },
+  ]) {
+    const document = { $defs: { Item: rule, Items: { type: 'array' } } }
+    expect(isClosedPlaySchema(['x', 'x'], document, 'Item')).toBe(false)
+    expect(isClosedPlaySchema(['x', 'y'], document, 'Item')).toBe(true)
+  }
+})
