@@ -6,7 +6,7 @@ if (scope !== undefined && scope !== 'all' && scope !== 'fault')
   throw new Error('未知の走者画面検証scope')
 
 export default defineConfig({
-  grep: scope === 'fault' ? /^走者あり打球のT4途中故障/ : undefined,
+  grep: scope === 'fault' ? /走者あり打球のT4途中故障/ : undefined,
   testDir: '.',
   testMatch: 'GameScreenRunnersBattedHits.e2e.ts',
   fullyParallel: false,

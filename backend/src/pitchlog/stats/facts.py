@@ -69,16 +69,21 @@ def _native_runner_scores(payload, value):
         after = t1["after"]["stateFields"]
         advances = t1["runnerDefaultAdvance"]
         batter = t1["batterDestination"]
-        if t1["outEffect"] != {"count": "0", "targets": []}:
+        out_effect = t1["outEffect"]
+        if (
+            out_effect["count"] not in ("0", "1", "2", "3")
+            or type(out_effect["targets"]) is not list
+        ):
             return None
         if set(advances) != {"first", "second", "third"}:
             return None
         for advance in advances.values():
             if (
-                advance["modality"] not in ("not-applicable", "optional", "forced")
+                advance["modality"]
+                not in ("not-applicable", "hold", "optional", "forced")
                 or advance["destination"] not in (None, "1", "2", "3", "4")
                 or (
-                    advance["modality"] == "not-applicable"
+                    advance["modality"] in ("not-applicable", "hold")
                     and advance["destination"] is not None
                 )
             ):
@@ -98,6 +103,8 @@ def _native_runner_scores(payload, value):
             and score_before == score_after
         ):
             return []
+        if out_effect != {"count": "0", "targets": []}:
+            return None
         if payload["formatVersion"] != "play-prefix-play-v3":
             return None
         observed = payload["observations"]

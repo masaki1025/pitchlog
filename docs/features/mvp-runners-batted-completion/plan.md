@@ -61,3 +61,5 @@ run6 d4444710は3032source不変/clean/DSNunset/cleanup、Playwright9case成功�
 T5追補採用: rootはff207de5/plan SHA b04e47b3a193661c6b6d85c329e3824c841c39a40983a368e0149bc1bc1d6ce3全文とRBI-06/08を照合し、PO委任Codex/root・2026-11-07として着手可。adapterはT1到達/打点真偽と原本走者/責任IDを有限コピーし、生成核は不変更。正準19安打＋明示4配置＋欠測/因果/重複ID/override対向＋初球通常0の専用39件を含め、関連5群408件成功36.58s、BE Ruff/Ty成功。NP通常球の旧unavailable期待だけを真正complete空集合へ追随。新sourceの実DBは未実証、root限定非作者確認へ渡す。
 
 T4全版対向追補: 画面が真正先行1球を保存した直後、unique pytest tmp内のgame ID通知をatomic renameで渡す。ownedホストの読取専用connectionが当該tenant/gameのstats_fact_versions（旧非current含む）/sources/facts全行を封印してから2球目送信を許可する。T4後は同3集合を全値比較し、新旧版の残存を拒否する。owner資格はapp/browserへ渡さず、通知に資格・本文を含めない。専用fault pytestは実画面で同前提1球を作って1caseのみ選択、通常受入pytestは正常7＋fault＋404の全9を維持する。範囲envはall/faultの閉2値で未知拒否。BE/FE型lint成功、実測は次。
+
+root非作者確認の是正: 25ceの冒頭outEffect0限定は、正準Kの非生還/3flag false/不変scoreで証明済み0も未供給にしていた。先にこの確定0を確認し、正得点供給だけoutEffect0へ限定する順に是正。正準hold/nullも値域内として扱う。K27行で走者保持・第3out・攻守交代・次回への実出力0と、score改変時のunavailableを固定し、専用67件/関連436件36.91s、BE/FE型lint成功。第3outの未観測正得点を補完しない。fault選択run7は^開始grepの誤りでNo tests found（53.17s/source不変/cleanup、故障証拠なし）。^だけを除去し、--listでexactly1を確認してから再実行する。

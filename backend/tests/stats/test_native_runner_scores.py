@@ -239,3 +239,58 @@ def test_canonical_ordinary_zero_is_complete_but_missing_destination_is_not(resu
             ]
             == "source_unavailable"
         )
+
+
+_K_CASES = [
+    c
+    for c in json.loads(
+        (
+            ROOT
+            / "contracts/state-transition/lineup_play_prefix_payload_vectors_v1.json"
+        ).read_text()
+    )["cases"]
+    if "strikeout" in c["V7"]["calculation"]["request"]["t1"]["resultId"]
+]
+
+
+@pytest.mark.parametrize("case", _K_CASES, ids=lambda c: c["caseId"])
+def test_canonical_strikeout_third_out_and_side_change_are_proven_zero(case):
+    """第3outを含む正準Kの不変score/非生還は欠測ではない。"""
+    raw = copy.deepcopy(case["V7"])
+    original = copy.deepcopy(raw)
+    result = evaluate_native_projection(raw, source_event_id=EVENT)
+    for metric in ("runs", "rbi", "runs_allowed"):
+        assert result["metrics"][metric] == {
+            "state": "available",
+            "value": "0",
+            "display": "0",
+            "reason": None,
+            "credits": [],
+        }
+    assert raw == original
+    # 正準0出力のscoreだけを改変した正得点を推測成立させない。
+    score = raw["calculation"]["response"]["value"]["t1"]["after"]["stateFields"][
+        "state.score"
+    ]
+    score["away"] = str(int(score["away"]) + 1)
+    for metric in ("runs", "rbi", "runs_allowed"):
+        assert (
+            evaluate_native_projection(raw, source_event_id=EVENT)["metrics"][metric][
+                "state"
+            ]
+            == "source_unavailable"
+        )
+
+
+def test_strikeout_goldens_include_third_out_and_inning_transition():
+    """3out/攻守交代/延長へのカバレッジをfixture名だけで推定しない。"""
+    pairs = [
+        (
+            c["V7"]["calculation"]["request"]["t1"]["before"]["stateFields"],
+            c["V7"]["calculation"]["response"]["value"]["t1"]["after"]["stateFields"],
+        )
+        for c in _K_CASES
+    ]
+    assert any(b["state.outs"] == "2" and a["state.outs"] == "0" for b, a in pairs)
+    assert any(b["state.half"] != a["state.half"] for b, a in pairs)
+    assert any(b["state.inning"] != a["state.inning"] for b, a in pairs)
