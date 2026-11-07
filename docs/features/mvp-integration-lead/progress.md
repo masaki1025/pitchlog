@@ -2,6 +2,8 @@
 
 ## 2026-11-07：通常0048の構造・権限・未完了guardを実DBで確認、操作接合を継続
 
+- **走塁の共有型依存を解消**: root `de3bfb27` にschema/d.tsの閉union、UUID/uniqueItemsの厳格検証、旧NP/通常計算の型分離を固定。旧53行の要求/全応答を両schemaでそのまま検証し、規範参照22定義を全値照合、キー順違いの重複object/未知format拒否を含む4spec **62passed4.70秒**、全frontend型0/対象lint0。作者7V7のoffline schema検証も成功（数学独立導出ではない）。旧formatterは新runnerObservationを明示拒否したまま、走塁担当へ真正封印/保存SDKの接合用commitを渡した。限定非作者レビュー依頼中、実走塁保存/正式受理として数えない。
+
 - **root固定点**: `feature/mvp-p3-current-startup@1e01ace3c311f17d51feb06b2e990be4cb4c4cec`。0048の6表/110列/全制約・索引、有限列ACL、未完成ページのcommit拒否を実装。`p3-storage48-guard-r7` は owned PGで **2passed24.56秒**、source前後同一・共有DSNunset・cleanup済み。列限定UPDATE triggerへの置換を含む改変を拒否。これは配置・防御の検証であり、新たな利用者操作の成功や通常CURRENT48/正式受理ではない。CURRENTは47のまま保持する。
 - **限定非作者確認**: tgattr未比較のP1を修復し、別検証者による同改変拒否 **1passed12.41秒**。さらに22関数の候補publisherを作り、旧11の宣言/body/ACLを固定照合、新11の署名/owner/EXECUTE先を限定。非作者REPORT SHA `9b9ca8943fb109614be478965d9841a2271ec75a8a466563c43de413f627bd40`、対象4path差分SHA `9783c8bec7816cd62f5e57b1d74332a14b2e6b7cc74eba0883956b687cf813a0`、独立13passed10.00秒/P0・P1なし。本限定範囲をPO委任のroot判断で採用し、元paged本体・実PG22関数一括・全catalog/7.7/CIへ拡張しない。
 - **利用者操作の現在地**: 既70cの訂正後追加球HTTP成功は維持。26件以上の作者隔離検証では通常26球保存/取得まで成立したが、訂正前段の閉拒否が未解消で、P3の26件成功とは数えない。例外型/関数行の安全診断で原因を限定し、同一失敗の再実行を減らす。別source・手動候補配置と正式統合の証拠を分離する。
