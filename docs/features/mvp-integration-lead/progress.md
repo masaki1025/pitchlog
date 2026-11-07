@@ -3,6 +3,8 @@
 
 ## 2026-11-07：CSV通常配置の全故障対向を完了し、P3・復旧を同じ候補へ接合
 
+- **実証済みsourceを同居候補へ反映**: rootが限定採用した79feのfacts adapter/専用対向/旧primitive比較3pathだけをpatch SHA17f30567d301b7d51b4b232d58c27f67d063989f5db0766e55abc6263f3f11d1で再利用し、各全byteをGit79と照合。P3接合候補 **2a64352b** に固定、同候補でも228passed7.71秒/RuffTy成功。生成核/model/math/contracts不変更。次のroot作業はP3後のCSV writer/reader/scoreを既P3 selectorと同じ唯一S・有効payloadへ揃える実装（9341計画追補）。新hit_kind/steals/RBI07とD03/25超は各作者が別WTで継続、全MVP/正式統合の未了を維持する。
+
 - **走者4安打・同版実画面/全DB完走**: 79fe5cca固定run9はPlaywright9＋pytest1 **passed495.88秒（driver496.83秒）**。正常7の実新規作成/開始/全41列・runner/責任投手・T5得点/打点/失点、元要求再送の非二重加算、reload、越境404、T4実500＋全T5旧/現版/source/fact送信前後完全一致まで末尾DBを完走。3033source前後同一/clean/共有DSNunset/owned cleanup。作者manifest run9 SHA f0bb0d849def35dbb148d562cf2cc5f9c161f0f181219035a099055c6e860897、run8 SHA be2a8c766eb19b3883a5bdd118724aaeccd2ddfdf4a07e1ad1d2ed5b3390f39bをrootが各全8/7artifact実SHA・終端・source前後まで読取再照合、owned-evidence-revalidated.jsonへ固定（rootのPG再実行ではない）。旧run5/6失敗は保全。9fea7fa3は記録のみ・製品source79と不変、通常push。正式統合/断中打球/実機は未了。
 - **次の供給を一括化**: 同担当はhit_kind（2B/3B/TB）・stealsのevent/codec閉分類・既RBI07のforced得点を全27表示対応表でまとめて修復する。生成式は追加せず既T1/観測/語彙・責任原本を写す。native原始キー27とMVP表示27を混同してfielding_errors等を新たな着手前提にしない。D03は別所有、1表＋複合資格readのDB内部hookを候補化中。
 
