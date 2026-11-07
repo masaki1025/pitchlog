@@ -58,10 +58,13 @@ test('別contextの保存済み閲覧は10秒以内に1球へ更新し、断中�
   let head = initial
   // 閲覧開始時点で26球を保存し、最新25球と旧pageの境界を作る。
   for (let index = 1; index <= 26; index += 1) {
+    console.log(`PITCHLOG_VIEWER_RECORDING=${index}`)
     const recorded = await recordRealPitch(
       page,
       head,
-      'batting-result.called-pitch',
+      index % 3 === 0
+        ? 'batting-result.called-strikeout'
+        : 'batting-result.called-pitch',
       index,
     )
     head = recorded.head

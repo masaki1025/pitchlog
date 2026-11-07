@@ -33,11 +33,15 @@ def test_viewer_https_two_context_auto_update_and_offline(vertical_database) -> 
             "WHERE tenant_id=%s AND id=%s",
             (db.tenant_id, db.game_id),
         ).fetchone()
-        admin.execute(
-            "INSERT INTO public.admin_vocabularies(key,category,display_name) "
-            "VALUES ('batting-result.called-pitch','batting_result','見逃し') "
-            "ON CONFLICT(key) DO NOTHING"
-        )
+        for key, name in (
+            ("batting-result.called-pitch", "見逃し"),
+            ("batting-result.called-strikeout", "空振り三振"),
+        ):
+            admin.execute(
+                "INSERT INTO public.admin_vocabularies(key,category,display_name) "
+                "VALUES (%s,'batting_result',%s) ON CONFLICT(key) DO NOTHING",
+                (key, name),
+            )
     assert teams is not None
     token = uuid4()
     with db.broker_worker(token), binding_broker(db, token):
