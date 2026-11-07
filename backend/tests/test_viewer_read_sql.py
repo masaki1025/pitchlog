@@ -20,18 +20,54 @@ def test_viewer_page_derivation_keeps_every_other_sql_clause() -> None:
         "read_viewer_play_prefix_history_page",
         "read_viewer_nonplay_active_history",
     }
-    for old, source, locks in (
-        ("read_play_prefix_history_page", play_bodies(), 1),
-        ("read_nonplay_active_history", nonplay_bodies(), 2),
+    for old, source, locks, descending in (
+        ("read_play_prefix_history_page", play_bodies(), 1, True),
+        ("read_nonplay_active_history", nonplay_bodies(), 2, False),
     ):
         original = source[old]
         assert original.count("FOR SHARE") == locks
         new = "read_viewer_" + old.removeprefix("read_")
-        assert viewer[new] == original.replace(
-            "sync_right_api." + old + "(",
-            "sync_right_api." + new + "(",
-            1,
-        ).replace("FOR SHARE OF c", "").replace("FOR SHARE", "")
+        expected = (
+            original.replace(
+                "sync_right_api." + old + "(",
+                "sync_right_api." + new + "(",
+                1,
+            )
+            .replace("FOR SHARE OF c", "")
+            .replace("FOR SHARE", "")
+        )
+        if descending:
+            expected = expected.replace(
+                "AND (x.d1,x.d2,x.source_event_id)>(p_after_d1,p_after_d2,p_after_id)",
+                "AND (p_after_d1=0 OR (x.d1,x.d2,x.source_event_id)<="
+                "(p_after_d1,p_after_d2,p_after_id))",
+                1,
+            ).replace(
+                "ORDER BY x.d1,x.d2,x.source_event_id LIMIT p_page_size+1",
+                "ORDER BY x.d1 DESC,x.d2 DESC,x.source_event_id DESC "
+                "LIMIT p_page_size+1",
+                1,
+            )
+            expected = (
+                expected.replace("next_d1:=p_after_d1;", "next_d1:=0;", 1)
+                .replace(
+                    " IF (item.history->>'d1')::bigint-next_d1<>1",
+                    " IF next_d1=0 THEN "
+                    "next_d1:=(item.history->>'d1')::bigint-1; END IF;\n"
+                    " IF (item.history->>'d1')::bigint-next_d1<>1",
+                    1,
+                )
+                .replace(
+                    " IF seen_count<=p_page_size AND "
+                    "next_d1<>p_upper_watermark THEN\n"
+                    " RAISE EXCEPTION 'ordinary prefix history tail rejected' "
+                    "USING ERRCODE='42501';\n"
+                    " END IF;",
+                    "",
+                    1,
+                )
+            )
+        assert viewer[new] == expected
         assert "FOR SHARE" not in viewer[new]
         assert "FOR UPDATE" not in viewer[new]
 

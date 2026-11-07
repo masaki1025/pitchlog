@@ -171,6 +171,17 @@ def _insert_unavailable_game(admin, game_id, tenant_id, source_game_id):
 def _pagination_script():
     """26球保存後、最新25球と旧pageを実HTTPで取得する。"""
     source = _script()
+    source = source.replace(
+        '\n        await verify_viewer("0", current["after"], "in_progress")',
+        "",
+        1,
+    )
+    source = source.replace(
+        '\n            await verify_viewer(str(index), current["after"], '
+        '"in_progress")',
+        "",
+        1,
+    )
     old_results = """        results = [
             "batting-result.called-pitch",
             "batting-result.called-pitch",
@@ -178,23 +189,33 @@ def _pagination_script():
     assert source.count(old_results) == 1
     source = source.replace(
         old_results,
-        '        results = ["batting-result.called-pitch"] * 26',
+        '        results = ["batting-result.called-pitch", '
+        '"batting-result.called-pitch", '
+        '"batting-result.called-strikeout", '
+        '"batting-result.called-pitch"]',
         1,
     )
+    replay_start = source.index("            replay = await client.post(")
+    replay_end = source.index("            previous_d5.append(d5)", replay_start)
+    source = source[:replay_start] + source[replay_end:]
+    assert_start = source.index(
+        '            assert current["prefix_ref"]["length"] == str(index)'
+    )
+    nine_start = source.index("            if index == 9:", assert_start)
+    source = source[:assert_start] + source[nine_start:]
     start = source.index("        current_lifecycle, _ = await read_full()")
     tail = source.index("try:\n    out = asyncio.run(run())")
-    page = """        current_lifecycle, _ = await read_full()
-        assert current_lifecycle["status"] == "in_progress"
-        first = await viewer.get(
-            "/games/" + game + "/viewer", headers=headers())
+    page = """        first = await viewer.get(
+            "/games/" + game + "/viewer",
+            params={"limit": 3}, headers=headers())
         assert first.status_code == 200, ("first-page", first.status_code)
         first_body = first.json()
-        assert len(first_body["page"]["items"]) == 25
+        assert len(first_body["page"]["items"]) == 3
         cursor = first_body["page"]["next_cursor"]
         assert isinstance(cursor, str) and cursor
         second = await viewer.get(
             "/games/" + game + "/viewer",
-            params={"cursor": cursor}, headers=headers())
+            params={"limit": 3, "cursor": cursor}, headers=headers())
         assert second.status_code == 200, ("second-page", second.status_code)
         second_body = second.json()
         assert len(second_body["page"]["items"]) == 1
@@ -257,17 +278,21 @@ def test_owned_viewer_separate_cookie_start_two_balls_and_end(vertical_database)
     assert [row["d3"] for row in result["viewer_checks"]] == ["0", "1", "2", "6"]
 
 
-def test_owned_viewer_paginates_latest_25_and_older_page(vertical_database):
-    """26球の保存値を、最新25球のpage1と旧page2へ有限取得する。"""
+def test_owned_viewer_paginates_latest_page_and_older_page(vertical_database):
+    """4球の保存値を、最新3球のpage1と旧page2へ有限取得する。"""
     assert len(_HOST_SOURCE_PATHS) == 3
     db = vertical_database
     unavailable_game = uuid4()
     with psycopg.connect(db.authority.database.business_admin) as admin:
-        admin.execute(
-            "INSERT INTO public.admin_vocabularies(key,category,display_name) "
-            "VALUES ('batting-result.called-pitch','batting_result','見逃し') "
-            "ON CONFLICT(key) DO NOTHING"
-        )
+        for key, name in (
+            ("batting-result.called-pitch", "見逃し"),
+            ("batting-result.called-strikeout", "空振り三振"),
+        ):
+            admin.execute(
+                "INSERT INTO public.admin_vocabularies(key,category,display_name) "
+                "VALUES (%s,'batting_result',%s) ON CONFLICT(key) DO NOTHING",
+                (key, name),
+            )
         _insert_unavailable_game(admin, unavailable_game, db.tenant_id, db.game_id)
     case = {
         "tenant": str(db.tenant_id),
@@ -276,6 +301,8 @@ def test_owned_viewer_paginates_latest_25_and_older_page(vertical_database):
         "password": _PASSWORD,
         "pitch_type": _PITCH_TYPE,
         "unavailable_game": str(unavailable_game),
+        "other_team_name": db.other_team_name,
+        "other_tenant_id": str(db.other_tenant_id),
     }
     token = uuid4()
     with db.broker_worker(token), binding_broker(db, token):
@@ -289,5 +316,5 @@ def test_owned_viewer_paginates_latest_25_and_older_page(vertical_database):
     assert process.returncode == 0, (process.stdout[-1000:], process.stderr[-1000:])
     result = json.loads(process.stdout)
     assert "exception" not in result, result.get("runtime_diagnostics", {})
-    assert [int(value) for value in result["first_numbers"]] == list(range(2, 27))
+    assert sorted(int(value) for value in result["first_numbers"]) == [2, 3, 4]
     assert [int(value) for value in result["second_numbers"]] == [1]

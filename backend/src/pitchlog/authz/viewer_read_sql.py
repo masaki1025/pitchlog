@@ -22,9 +22,52 @@ def candidate_viewer_function_bodies() -> dict[str, str]:
         new = "read_viewer_" + old.removeprefix("read_")
         if sql.count("sync_right_api." + old + "(") != 1:
             raise ValueError("閲覧関数の元宣言が変更されました")
-        result[new] = (
+        body = (
             sql.replace("sync_right_api." + old + "(", "sync_right_api." + new + "(", 1)
             .replace("FOR SHARE OF c", "")
             .replace("FOR SHARE", "")
         )
+        if old == "read_play_prefix_history_page":
+            # 最新pageから旧pageへ遡るため、境界は「以下」で降順に読む。
+            before = (
+                "AND (x.d1,x.d2,x.source_event_id)>(p_after_d1,p_after_d2,p_after_id)"
+            )
+            after = (
+                "AND (p_after_d1=0 OR (x.d1,x.d2,x.source_event_id)<="
+                "(p_after_d1,p_after_d2,p_after_id))"
+            )
+            if body.count(before) != 1:
+                raise ValueError("閲覧履歴の境界式が変更されました")
+            body = body.replace(before, after, 1)
+            order = "ORDER BY x.d1,x.d2,x.source_event_id LIMIT p_page_size+1"
+            if body.count(order) != 1:
+                raise ValueError("閲覧履歴の並びが変更されました")
+            body = body.replace(
+                order,
+                "ORDER BY x.d1 DESC,x.d2 DESC,x.source_event_id DESC "
+                "LIMIT p_page_size+1",
+                1,
+            )
+            if body.count("next_d1:=p_after_d1;") != 1:
+                raise ValueError("閲覧履歴の連続性初期値が変更されました")
+            body = body.replace("next_d1:=p_after_d1;", "next_d1:=0;", 1)
+            check = " IF (item.history->>'d1')::bigint-next_d1<>1"
+            if body.count(check) != 1:
+                raise ValueError("閲覧履歴の連続性検査が変更されました")
+            body = body.replace(
+                check,
+                " IF next_d1=0 THEN next_d1:=(item.history->>'d1')::bigint-1; "
+                "END IF;\n" + check,
+                1,
+            )
+            tail = (
+                " IF seen_count<=p_page_size AND next_d1<>p_upper_watermark THEN\n"
+                " RAISE EXCEPTION 'ordinary prefix history tail rejected' "
+                "USING ERRCODE='42501';\n"
+                " END IF;"
+            )
+            if body.count(tail) != 1:
+                raise ValueError("閲覧履歴の末尾検査が変更されました")
+            body = body.replace(tail, "", 1)
+        result[new] = body
     return result

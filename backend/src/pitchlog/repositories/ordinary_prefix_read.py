@@ -1119,7 +1119,7 @@ def _read_lineup_projection(
         "watermark": str(n),
         "recovery_generation": str(epoch),
     }
-    point = (max(0, n - limit), 0, UUID(int=0)) if _viewer else (0, 0, UUID(int=0))
+    point = (0, 0, UUID(int=0))
     if cursor is not None:
         supplied = _cursor(cursor)
         if (
@@ -1139,7 +1139,7 @@ def _read_lineup_projection(
         ):
             raise OrdinaryPrefixError
         point = (int(raw[0]), int(raw[1]), UUID(raw[2]))
-        if _viewer and (point[1] != 0 or point[2].int != 0 or point[0] >= n):
+        if _viewer and point[0] > n:
             raise OrdinaryPrefixError
         if [str(x) for x in point] != raw:
             raise OrdinaryPrefixError
@@ -1166,8 +1166,9 @@ def _read_lineup_projection(
     if len(packets) > limit + 1:
         raise OrdinaryPrefixError
     items = []
+    positions = []
     last_point = None
-    for packet in packets[:limit]:
+    for packet in packets if _viewer else packets[:limit]:
         if len(packet) != 1:
             raise OrdinaryPrefixError
         item = _json(packet[0])
@@ -1197,9 +1198,15 @@ def _read_lineup_projection(
             item, tenant, game_id, lineup=True, viewer=_viewer
         )
         current = (h["d1"], h["d2"], UUID(h["source_event_id"]))
-        if current <= point or last_point is not None and current <= last_point:
+        if _viewer:
+            if point[0] != 0 and current > point:
+                raise OrdinaryPrefixError
+            if last_point is not None and current <= last_point:
+                raise OrdinaryPrefixError
+        elif current <= point or (last_point is not None and current <= last_point):
             raise OrdinaryPrefixError
         last_point = current
+        positions.append(current)
         items.append(
             {
                 "play_row": _public_play(
@@ -1214,10 +1221,9 @@ def _read_lineup_projection(
         )
     next_cursor = None
     if _viewer:
-        if point[0] > 0:
-            if not items:
-                raise OrdinaryPrefixError
-            older = (max(0, point[0] - limit), 0, UUID(int=0))
+        if len(items) > limit:
+            older = positions.pop(0)
+            items.pop(0)
             next_cursor = (
                 base64.urlsafe_b64encode(
                     _canonical_json(

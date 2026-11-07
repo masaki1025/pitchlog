@@ -2259,10 +2259,10 @@ index 00000000..4e0d1fdb
 +GRANT EXECUTE ON FUNCTION sync_right_api.read_viewer_nonplay_active_history(uuid, uuid, bigint, uuid, bigint, bigint, bigint, bigint, bigint, bigint, uuid, integer) TO pitchlog_app;
 diff --git a/contracts/authz/product/function-bodies/functions/FUNCTION:sync_right_api:read_viewer_play_prefix_history_page(uuid, uuid, bigint, bigint, uuid, bigint, bigint, bigint, bigint, bigint, uuid, integer).sql b/contracts/authz/product/function-bodies/functions/FUNCTION:sync_right_api:read_viewer_play_prefix_history_page(uuid, uuid, bigint, bigint, uuid, bigint, bigint, bigint, bigint, bigint, uuid, integer).sql
 new file mode 100644
-index 00000000..195b7990
+index 00000000..1c50883c
 --- /dev/null
 +++ b/contracts/authz/product/function-bodies/functions/FUNCTION:sync_right_api:read_viewer_play_prefix_history_page(uuid, uuid, bigint, bigint, uuid, bigint, bigint, bigint, bigint, bigint, uuid, integer).sql	
-@@ -0,0 +1,114 @@
+@@ -0,0 +1,113 @@
 +-- ELEMENT-TYPE: function
 +-- ELEMENT-ID: FUNCTION:sync_right_api:read_viewer_play_prefix_history_page(uuid, uuid, bigint, bigint, uuid, bigint, bigint, bigint, bigint, bigint, uuid, integer)
 +
@@ -2311,7 +2311,7 @@ index 00000000..195b7990
 + RAISE EXCEPTION 'ordinary prefix page cursor rejected' USING ERRCODE='42501';
 + END IF;
 + -- ordinary-only版のD1連続性を有限page内で照合。h自体の欠落も隠さない。
-+ next_d1:=p_after_d1;
++ next_d1:=0;
 + -- 有限pageを一度のqueryで取得。欠落をINNER JOINで隠さない。
 + FOR item IN
 + SELECT pg_catalog.to_jsonb(h) AS history,
@@ -2321,8 +2321,8 @@ index 00000000..195b7990
 + WHERE x.tenant_id=p_tenant_id AND x.game_id=p_game_id
 + AND x.internal_generation=p_generation AND x.history_version=p_storage_history_epoch
 + AND x.d1<=p_upper_watermark
-+ AND (x.d1,x.d2,x.source_event_id)>(p_after_d1,p_after_d2,p_after_id)
-+ ORDER BY x.d1,x.d2,x.source_event_id LIMIT p_page_size+1) h
++ AND (p_after_d1=0 OR (x.d1,x.d2,x.source_event_id)<=(p_after_d1,p_after_d2,p_after_id))
++ ORDER BY x.d1 DESC,x.d2 DESC,x.source_event_id DESC LIMIT p_page_size+1) h
 + CROSS JOIN LATERAL (SELECT pg_catalog.jsonb_agg(pg_catalog.to_jsonb(e)) rows,
 + pg_catalog.count(*) n FROM public.operation_events e
 + WHERE e.tenant_id=h.tenant_id AND e.game_id=h.game_id AND e.id=h.source_event_id
@@ -2352,6 +2352,7 @@ index 00000000..195b7990
 + CROSS JOIN LATERAL (SELECT COALESCE(pg_catalog.jsonb_agg(pg_catalog.to_jsonb(r) ORDER BY r.base),'[]'::jsonb) rows FROM public.play_runners r WHERE r.tenant_id=h.tenant_id AND r.play_id=(pr.rows->0->>'id')::uuid) rn
 + ORDER BY h.d1,h.d2,h.source_event_id
 + LOOP
++ IF next_d1=0 THEN next_d1:=(item.history->>'d1')::bigint-1; END IF;
 + IF (item.history->>'d1')::bigint-next_d1<>1
 + OR item.event_count<>1 OR item.play_count<>1
 + OR NOT COALESCE((item.admission_count=1 AND item.first_count=0
@@ -2368,9 +2369,7 @@ index 00000000..195b7990
 + 'event',item.events->0,'play_row',item.plays->0,
 + 'expected_play_row',item.admissions->0,'play_runners',item.play_runners,'expected_play_runners',item.expected_play_runners->0)::text;
 + END LOOP;
-+ IF seen_count<=p_page_size AND next_d1<>p_upper_watermark THEN
-+ RAISE EXCEPTION 'ordinary prefix history tail rejected' USING ERRCODE='42501';
-+ END IF;
++
 +END;
 +$prefix$;
 +
