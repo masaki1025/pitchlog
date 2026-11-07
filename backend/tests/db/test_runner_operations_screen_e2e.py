@@ -293,10 +293,17 @@ def test_runner_operations_screen(
     """UI作成/開始から実走塁の保存・重複・reload・越境とDB全値を照合する。"""
     # 共通owned PG lockはrun_owned.pyがfixture作成からcleanupまで保持する。
     # 内側で再取得すると別fdの同一process lock待ちになるため重複取得しない。
-    assert "PITCHLOG_TEST_ADMIN_DSN" not in os.environ
-    assert "PITCHLOG_TEST_ROLE_DSN" not in os.environ
     _install_runner_fault_server(monkeypatch)
     db = vertical_database
+    # 外部DSNはlauncherが起動前に除外する。fixtureが設定したowned DSNだけを認める。
+    owned_admin = (
+        os.environ.get("PITCHLOG_TEST_ADMIN_DSN") == db.authority.database.primary_admin
+    )
+    owned_role = (
+        os.environ.get("PITCHLOG_TEST_ROLE_DSN")
+        == db.authority.database.endpoints.primary_dsn
+    )
+    assert owned_admin and owned_role, "隔離fixtureのDSNへ束縛されていません"
     with psycopg.connect(db.authority.database.business_admin) as admin:
         teams = admin.execute(
             "SELECT away_team_record_id,home_team_record_id FROM public.games "
