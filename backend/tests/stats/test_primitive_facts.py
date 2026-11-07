@@ -711,6 +711,7 @@ def test_nonplay_normal_uses_same_projection_and_exact_restored_responsibility()
         "out_effect": {"effective_count": "0"},
         "pa": {
             "ended_here": False,
+            "hit_kind": "none",
             "pa_id": before["responsibility"]["paStartSource"]["id"],
         },
         "participants": {
@@ -730,12 +731,13 @@ def test_nonplay_normal_uses_same_projection_and_exact_restored_responsibility()
             },
         },
         "runner_scores": [],
+        "steal_attempts": [],
         "completeness": {
             "participants": "complete",
             "pa": "complete",
             "outs": "complete",
             "runs_rbi": "complete",
-            "steals": "unavailable",
+            "steals": "complete",
         },
     }
     assert native_projection(raw, source_event_id=event) == expected

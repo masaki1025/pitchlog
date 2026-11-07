@@ -65,3 +65,41 @@ T4全版対向追補: 画面が真正先行1球を保存した直後、unique py
 root非作者確認の是正: 25ceの冒頭outEffect0限定は、正準Kの非生還/3flag false/不変scoreで証明済み0も未供給にしていた。先にこの確定0を確認し、正得点供給だけoutEffect0へ限定する順に是正。正準hold/nullも値域内として扱う。K27行で走者保持・第3out・攻守交代・次回への実出力0と、score改変時のunavailableを固定し、専用67件/関連436件36.91s、BE/FE型lint成功。第3outの未観測正得点を補完しない。fault選択run7は^開始grepの誤りでNo tests found（53.17s/source不変/cleanup、故障証拠なし）。^だけを除去し、--listでexactly1を確認してから再実行する。
 
 実到達点79fe5cca: root限定非作者REPORT SHA b53de3e4f794beb439a32713273acdc363da7376c3ce98d944f4b6934a69b398（独立228pass、新P0/P1なし、4sourcepath限定）をPO委任root採用。run8は故障単独1pass84.87s、run9は同79fe/同owned環境でPlaywright9＋pytest1pass495.88s。3033source不変/clean/共有DSNunset/cleanup。正常7全41列・物理runner・責任投手・T5 runs/rbi/runs_allowed実数、同原文再送/reload、別tenant404、runner T4実500/全取消と全T5旧現版/source/factのbefore/after一致を完了。証拠はcache t5-fault-only-run8/t5-all-nine-run9。正式受理/実機/運用TLS/断中打球/全MVPは別。
+
+## T5原始27入力の供給追補（root委任追補・2026-11-07）
+
+本表は生成T5の原始27キーであり、MVPの打撃16/投手11表示とは別集合。登板D03は別担当出場source、率/表示/CSVは既T6の責務。fielding_errors等の非必須値を基本成績の新前提にしない。唯一原典はbackend/domain/play-export.model.json canonicalEventFacts、機械抽出対応はcache t5-input-supply-audit-79fe.json。
+
+| 原始キー | 生成核の参照入力 | 供給/今回の追補 |
+|---|---|---|
+| pitch_count | `completeness.participants`, `event_kind`, `participants.actual_pitcher_id`, `stat_flags.投球数` | 既T1 flag/実参加者/PA責任/outsの供給を維持 |
+| pa | `completeness.pa`, `completeness.participants`, `pa.ended_here`, `participants.credited_batter_id`, `stat_flags.打席` | 既T1 flag/実参加者/PA責任/outsの供給を維持 |
+| ab | `completeness.pa`, `completeness.participants`, `pa.ended_here`, `participants.credited_batter_id`, `stat_flags.打数` | 既T1 flag/実参加者/PA責任/outsの供給を維持 |
+| h | `completeness.pa`, `completeness.participants`, `pa.ended_here`, `participants.credited_batter_id`, `stat_flags.安打` | 既T1 flag/実参加者/PA責任/outsの供給を維持 |
+| hr | `completeness.pa`, `completeness.participants`, `pa.ended_here`, `participants.credited_batter_id`, `stat_flags.本塁打` | 既T1 flag/実参加者/PA責任/outsの供給を維持 |
+| bb | `completeness.pa`, `completeness.participants`, `pa.ended_here`, `participants.credited_batter_id`, `stat_flags.四球` | 既T1 flag/実参加者/PA責任/outsの供給を維持 |
+| hbp | `completeness.pa`, `completeness.participants`, `pa.ended_here`, `participants.credited_batter_id`, `stat_flags.死球` | 既T1 flag/実参加者/PA責任/outsの供給を維持 |
+| k | `completeness.pa`, `completeness.participants`, `pa.ended_here`, `participants.credited_batter_id`, `stat_flags.三振` | 既T1 flag/実参加者/PA責任/outsの供給を維持 |
+| sh | `completeness.pa`, `completeness.participants`, `pa.ended_here`, `participants.credited_batter_id`, `stat_flags.犠打` | 既T1 flag/実参加者/PA責任/outsの供給を維持 |
+| sf | `completeness.pa`, `completeness.participants`, `pa.ended_here`, `participants.credited_batter_id`, `stat_flags.犠飛` | 既T1 flag/実参加者/PA責任/outsの供給を維持 |
+| catcher_interference_reached | `completeness.pa`, `completeness.participants`, `pa.ended_here`, `participants.credited_batter_id`, `stat_flags.打撃妨害出塁` | 既T1 flag/実参加者/PA責任/outsの供給を維持 |
+| runner_interference_reached | `completeness.pa`, `completeness.participants`, `pa.ended_here`, `participants.credited_batter_id`, `stat_flags.走塁妨害出塁` | 既T1 flag/実参加者/PA責任/outsの供給を維持 |
+| doubles | `completeness.pa`, `completeness.participants`, `pa.ended_here`, `pa.hit_kind`, `participants.credited_batter_id`, `stat_flags.安打` | 不足pa.hit_kindを既4安打語彙/真正安打flagから閉写像。非安打は真正falseからnone。式は生成核に委譲 |
+| triples | `completeness.pa`, `completeness.participants`, `pa.ended_here`, `pa.hit_kind`, `participants.credited_batter_id`, `stat_flags.安打` | 不足pa.hit_kindを既4安打語彙/真正安打flagから閉写像。非安打は真正falseからnone。式は生成核に委譲 |
+| total_bases | `completeness.pa`, `completeness.participants`, `pa.ended_here`, `pa.hit_kind`, `participants.credited_batter_id`, `stat_flags.塁打` | 不足pa.hit_kindを既4安打語彙/真正安打flagから閉写像。非安打は真正falseからnone。式は生成核に委譲 |
+| runs | `completeness.runs_rbi`, `item.runner_id`, `item.valid_run`, `stat_flags.得点` | 79fe実証済みのcanonical到達/責任/既RBI06/08をコピー。RBI07四死球のforced生還は既規定を根拠に追加照合 |
+| rbi | `completeness.runs_rbi`, `item.rbi_batter_id`, `item.rbi_credited`, `item.valid_run`, `stat_flags.打点` | 79fe実証済みのcanonical到達/責任/既RBI06/08をコピー。RBI07四死球のforced生還は既規定を根拠に追加照合 |
+| stolen_bases | `completeness.steals`, `item.attempted`, `item.runner_id`, `item.successful` | 不足steal_attempts。FR-004/E-1/SO-05と既閉V7 codecを照合し、明示的に非走者/非複合の既操作だけcomplete空集合。未知はunavailable |
+| pitching_outs | `completeness.outs`, `completeness.participants`, `out_effect.effective_count`, `participants.outs_pitcher_id`, `stat_flags.投球回算入アウト` | 既T1 flag/実参加者/PA責任/outsの供給を維持 |
+| pitcher_k | `completeness.participants`, `participants.strikeout_pitcher_id`, `stat_flags.奪三振` | 既T1 flag/実参加者/PA責任/outsの供給を維持 |
+| pitcher_bb | `completeness.participants`, `participants.walk_pitcher_id`, `stat_flags.与四球` | 既T1 flag/実参加者/PA責任/outsの供給を維持 |
+| batters_faced | `completeness.pa`, `completeness.participants`, `pa.ended_here`, `participants.walk_pitcher_id` | 既D04/A-2の5count/申告敬遠/真正四球責任を維持。新たな責任解釈をしない |
+| pitcher_hbp | `completeness.participants`, `participants.hbp_pitcher_id`, `stat_flags.与死球` | 既T1 flag/実参加者/PA責任/outsの供給を維持 |
+| hits_allowed | `completeness.participants`, `participants.hit_pitcher_id`, `stat_flags.被安打` | 既T1 flag/実参加者/PA責任/outsの供給を維持 |
+| home_runs_allowed | `completeness.participants`, `participants.home_run_pitcher_id`, `stat_flags.被本塁打` | 既T1 flag/実参加者/PA責任/outsの供給を維持 |
+| fielding_errors | `completeness.participants`, `participants.error_fielder_id`, `stat_flags.失策` | no-errorの真正falseは0。失策ありの野手帰属は現操作対象外で未供給を維持（MVP追加前提ではない） |
+| runs_allowed | `completeness.runs_rbi`, `item.responsible_pitcher_id`, `item.valid_run`, `stat_flags.失点` | 79fe実証済みのcanonical到達/責任/既RBI06/08をコピー。RBI07四死球のforced生還は既規定を根拠に追加照合 |
+
+追加sourceは既専有facts.py/同adapter専用tests/planだけ。生成核・model・数学・正式assetは不変更。盗塁の空集合は単なるT1 false既定で作らず、FR-004の対象走者/企図/成否payloadを含められない閉V7と、既通常結果/非複合T1形の全値確認に限定。runner-event/未知結果/盗塁payload/三振ゲッツー等を通常Kへ読み替えない。既受理範囲内の不足だけを同周で閉じ、純正負の後に1回の実gameで全必要sourceを照合する。
+
+27入力追補採用: rootは既非steal分類とRBI-07 forced到達コピーをPO委任Codex/root・2026-11-07として採用。余剰禁止の既V7 codecを全値で通した原値だけを非走者・非複合の既結果へ分類する。event名だけ/盗塁false既定だけではcompleteにしない。SO-05/未知/余剰runner payloadは未供給または閉拒否を維持。hit_kindは既安打語彙/真正falseからの名前写像のみ。RBI07は実artifactが返すforced/4到達/打点boolとsource ID/責任IDだけを写し、force/責任を再計算しない。正準安打19＋通常K27は原始27すべてavailable、余剰/未知/複合/偽flag拒否、実artifact満塁通常四球/HBPの1点と前任責任コピー、既0死一三塁0-0申告敬遠の確定0をpureで照合。関連491件38.81s成功。満塁申告敬遠は現在state.tsの既閉条件外（UNSUPPORTED_T1_SCOPE）、数学は広げずMVP残操作としてrootへ通知した。
