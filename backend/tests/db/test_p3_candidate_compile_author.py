@@ -22,6 +22,8 @@ from pitchlog.authz.p3_projection_sql import candidate_current_read_sql
 from pitchlog.authz.p3_projection_sql import candidate_sql as persist_sql
 from pitchlog.authz.p3_projection_trigger_patch import candidate_sql as trigger_sql
 from pitchlog.authz.p3_right_sql import candidate_sql as right_sql
+from pitchlog.authz.play_export_source_read_product import candidate_read_bundle
+from pitchlog.authz.play_export_writer_product import candidate_install_sql
 from pitchlog.authz.stats_primitive_sql import candidate_function_bodies
 from pitchlog.domaingen.core import generate_native_primitive_sql_bundle
 from pitchlog.stats.generated.receiver import METRIC_IDS
@@ -211,6 +213,23 @@ def test_owned_candidate_0048_compiles(vertical_database) -> None:
                 )
                 cursor.execute(
                     sql.SQL(cast(LiteralString, replacement)),
+                    prepare=False,
+                )
+            # 通常47の既関数を、実P3と同じ唯一Sで生成した候補全文へ置換する。
+            # 正式48/catalog受理の代替ではなく、同居時の接続実測だけに用いる。
+            for csv_body in (
+                candidate_install_sql(p3_selector_profile=profile),
+                candidate_read_bundle(p3_selector_profile=profile)[1],
+            ):
+                cursor.execute(
+                    sql.SQL(
+                        cast(
+                            LiteralString,
+                            csv_body.replace(
+                                "CREATE FUNCTION", "CREATE OR REPLACE FUNCTION"
+                            ),
+                        )
+                    ),
                     prepare=False,
                 )
             for body in candidate_function_bodies_p3_nonplay_bridge().values():

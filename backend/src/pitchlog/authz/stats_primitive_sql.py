@@ -200,11 +200,11 @@ def _credit_integrity_guard(scope: str) -> str:
     )
 
 
-def candidate_function_bodies(
-    *, p3_selector_profile: dict[str, object] | None = None
-) -> dict[str, str]:
-    """採用済みS/COUNT/window/totalsと同TX条件をSQL本文へ束縛する。"""
-    raw, sections, MODEL, ART = _verified_inputs(_ROOT)
+def _verified_candidate_inputs(
+    root: Path, *, p3_selector_profile: dict[str, object] | None = None
+) -> tuple[str, dict[str, str], str, str]:
+    """既確定入力を先に検査し、全consumerへ同じ閉P3 selectorを供給する。"""
+    raw, sections, MODEL, ART = _verified_inputs(root)
     if p3_selector_profile is not None:
         from pitchlog.domaingen.core import generate_native_primitive_sql_bundle
         from pitchlog.domaingen.pregen_checks import validate_undo_selection_profile
@@ -213,8 +213,8 @@ def candidate_function_bodies(
         if p3_selector_profile["version"] != 2:
             raise ValueError("P3成績selector版が不正")
         generated = generate_native_primitive_sql_bundle(
-            json.loads((_ROOT / _MODEL_PATH).read_text()),
-            json.loads((_ROOT / _CONSUMER_PATH).read_text()),
+            json.loads((root / _MODEL_PATH).read_text()),
+            json.loads((root / _CONSUMER_PATH).read_text()),
             p3_selector_profile,
         )
         raw = generated[
@@ -222,8 +222,7 @@ def candidate_function_bodies(
         ]
         parts = raw.split("-- pitchlog-query: ")[1:]
         sections = {
-            part.split("\n", 1)[0]: part.split("\n", 1)[1].strip()
-            for part in parts
+            part.split("\n", 1)[0]: part.split("\n", 1)[1].strip() for part in parts
         }
         if len(parts) != 6 or set(sections) != {
             "window",
@@ -234,6 +233,16 @@ def candidate_function_bodies(
             "canonical_source_members",
         }:
             raise ValueError("P3成績selector生成集合が不正")
+    return raw, sections, MODEL, ART
+
+
+def candidate_function_bodies(
+    *, p3_selector_profile: dict[str, object] | None = None
+) -> dict[str, str]:
+    """採用済みS/COUNT/window/totalsと同TX条件をSQL本文へ束縛する。"""
+    raw, sections, MODEL, ART = _verified_candidate_inputs(
+        _ROOT, p3_selector_profile=p3_selector_profile
+    )
     common, tail = sections["canonical_health"].rsplit("\nSELECT ", 1)
     anchor = "FROM canonical_scope g LEFT JOIN canonical_s c"
     if not common.startswith("WITH canonical_scope") or common.count(anchor) != 1:

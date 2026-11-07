@@ -37,3 +37,5 @@ root9848の標準controlを使う真正P3復旧HTTPは1failed186.54秒/source同
 追加編集候補はauthz/stats_primitive_sql.pyの候補profile入力の単一化、domaingen/play_export_score.py、authz/play_export_writer_product.py/play_export_source_read_product.py、対応する既pure/DB候補fixtureと本plan。旧defaultの生成本文全byteと認可拒否を維持し、version2/P3 source profileは既official validator/generatorで閉検証。candidate DBでは旧P3 DDL後に同profileの実SQL関数を配備し直す候補実測とし、正式CURRENT48/catalog/global manifestの成立とは区別する。未知profile/別phase/source不足/途中失敗は拒否のまま、生成物は公式builderのみ。標準0048配備時には全consumerを同source/pinへ固定する。
 
 既T5 source供給の限定再利用（PO委任root）: 走者候補79feのfacts adapter/専用67対向/旧primitive比較の3pathのみをcache accepted-native-run-scores.patchから適用する。rootの限定非作者REPORT b53de3e4…/独立228成功、同sourceの実画面9/全DB495.88秒/manifest f0bb0d84…を根拠にRBI06/08の4安打と確定0の供給を採用。元生成核/model/math/contractsは不変更、未知/不足観測はunavailableのまま。別作者のhit_kind/steals/RBI07追補は未受領、D03は別所有。P3/CSVのsource集合不一致をこのadapterだけで解消したとはしない。
+
+CSV/P3参照統一の初回検査: default4関数（owner/REVOKE/GRANTを含む）と既生成SQLの保存済み全byte一致、不正profile4種の全consumer拒否、同一S/effective payload境界を含む33passed4.99秒。限定Ruff/Tyは正しいbackend Python指定で0。候補DB fixtureにはP3原本DDLの後だけ同profileから生成した実CSV writer/read SQLを再配置する。正式catalogやCURRENT48を成立扱いせず、次の実HTTPで訂正後の次球保存を再確認する。

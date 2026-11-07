@@ -59,9 +59,13 @@ def _bound_generated_query(source: str) -> str:
     return sql.rstrip().rstrip(";")
 
 
-def candidate_function_body() -> str:
+def candidate_function_body(
+    *, p3_selector_profile: dict[str, object] | None = None
+) -> str:
     """既binding・source・xid・D5を同関数内で再確認する。"""
-    target, _ = generate_play_export_score_bundle()
+    target, _ = generate_play_export_score_bundle(
+        p3_selector_profile=p3_selector_profile
+    )
     query = _bound_generated_query(target)
     return f"""CREATE FUNCTION {_NAME}({_ARGS})
 RETURNS TABLE(pitcher_pitch_count bigint,top_score jsonb,bottom_score jsonb,
@@ -108,12 +112,14 @@ $export$;
 """
 
 
-def candidate_install_sql() -> str:
+def candidate_install_sql(
+    *, p3_selector_profile: dict[str, object] | None = None
+) -> str:
     """読取/保存2関数のowner/ACLを既統制と同型で描画する。"""
     identity = f"{_NAME}({_IDENTITY})"
     save_identity = f"{_SAVE_NAME}({_SAVE_IDENTITY})"
     return (
-        candidate_function_body()
+        candidate_function_body(p3_selector_profile=p3_selector_profile)
         + f"ALTER FUNCTION {identity} OWNER TO {_OWNER};\n"
         + f"REVOKE ALL ON FUNCTION {identity} FROM PUBLIC,{_APP};\n"
         + f"GRANT EXECUTE ON FUNCTION {identity} TO {_APP};\n"

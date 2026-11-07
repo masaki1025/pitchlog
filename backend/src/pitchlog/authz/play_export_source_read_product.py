@@ -3,16 +3,20 @@
 import re
 from pathlib import Path
 
-from pitchlog.authz.stats_primitive_sql import _verified_inputs
+from pitchlog.authz.stats_primitive_sql import _verified_candidate_inputs
 from pitchlog.domaingen.play_export_score import _canonical_parts
 from pitchlog.stats.generated.receiver import SOURCE_MODEL_HASH
 
 _ROOT = Path(__file__).resolve().parents[4]
 
 
-def candidate_read_bundle(root: Path = _ROOT) -> tuple[str, str]:
+def candidate_read_bundle(
+    root: Path = _ROOT, *, p3_selector_profile: dict[str, object] | None = None
+) -> tuple[str, str]:
     """検証済みの唯一Sを同RRの有限identity読取へ束縛する。"""
-    _, sections, _, _ = _verified_inputs(root)
+    _, sections, _, _ = _verified_candidate_inputs(
+        root, p3_selector_profile=p3_selector_profile
+    )
     prefix, members = _canonical_parts(sections)
     if members.count("s.fact_version_id=:fact_version_id") != 1:
         raise ValueError("唯一Sの会員版束縛位置が不正")

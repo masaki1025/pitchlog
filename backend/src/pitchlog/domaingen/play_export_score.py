@@ -10,7 +10,7 @@ from pprint import pformat
 
 from jsonschema import Draft202012Validator
 
-from pitchlog.authz.stats_primitive_sql import _verified_inputs
+from pitchlog.authz.stats_primitive_sql import _verified_candidate_inputs
 from pitchlog.domaingen.core import _canonical_hash
 
 _ROOT = Path(__file__).resolve().parents[4]
@@ -118,9 +118,33 @@ def _canonical_parts(sections: dict[str, str]) -> tuple[str, str]:
     return prefix, "SELECT s.* FROM " + from_source[:-1]
 
 
-def _score_query(model: dict, sections: dict[str, str]) -> str:
+def _score_query(
+    model: dict, sections: dict[str, str], *, p3_payload: bool = False
+) -> str:
     """確定会員に束縛したGROUP BY/windowだけをSQLへ下げる。"""
     prefix, member_query = _canonical_parts(sections)
+    # Sの所属判定は唯一selectorに委ね、所属済み行の保存payloadだけを取得する。
+    payload_column = "e.payload"
+    payload_joins = ""
+    if p3_payload:
+        payload_column = (
+            "CASE WHEN export_p3.id IS NOT NULL AND s.d1<=export_p3.watermark "
+            "THEN export_item.payload ELSE e.payload END AS payload"
+        )
+        payload_joins = """
+ LEFT JOIN sync_fence.p3_projection_heads export_head
+   ON (export_head.tenant_id,export_head.game_id,export_head.internal_generation)
+     =(s.tenant_id,s.game_id,s.recording_generation)
+ LEFT JOIN sync_fence.p3_projection_capsules export_p3
+   ON (export_p3.tenant_id,export_p3.game_id,export_p3.internal_generation,export_p3.id)
+     =(export_head.tenant_id,export_head.game_id,export_head.internal_generation,
+       export_head.capsule_id)
+ LEFT JOIN sync_fence.p3_projection_capsule_items export_item
+   ON (export_item.tenant_id,export_item.game_id,export_item.internal_generation,
+       export_item.capsule_id,export_item.d1,export_item.effective_event_id,
+       export_item.effective_play_row_id)
+     =(s.tenant_id,s.game_id,s.recording_generation,export_p3.id,s.d1,
+       s.source_event_id,s.play_row_id)"""
     slots = model["scoreboard"]["legacyInningSlots"]
     metric = model["pitchCount"]["metricId"]
     state_path = ",".join(model["pitchCount"]["metricStatePath"])
@@ -178,13 +202,13 @@ def _score_query(model: dict, sections: dict[str, str]) -> str:
    AND p.source_event_id=s.source_event_id AND p.version=s.play_row_version
    AND ({kind_match})
 ), bounded AS (
- SELECT s.*,e.payload,p.event_kind,p.pitcher_id
+ SELECT s.*,{payload_column},p.event_kind,p.pitcher_id
  FROM source_members s JOIN target t
    ON (s.d2,s.source_event_id)<=(t.d2,t.source_event_id)
  JOIN public.operation_events e
    ON (e.tenant_id,e.game_id,e.id)=(s.tenant_id,s.game_id,s.source_event_id)
  JOIN public.play_rows p
-   ON (p.tenant_id,p.game_id,p.id)=(s.tenant_id,s.game_id,s.play_row_id)
+   ON (p.tenant_id,p.game_id,p.id)=(s.tenant_id,s.game_id,s.play_row_id){payload_joins}
  WHERE p.version=s.play_row_version AND p.source_event_id=s.source_event_id
 ), raw_frame AS (
  SELECT b.*,b.payload#>>'{{calculation,request,t1,before,stateFields,state.inning}}'
@@ -349,15 +373,21 @@ WHERE h.actual_count=h.source_count AND sh.valid AND p.valid
 """
 
 
-def generate_play_export_score_bundle(root: Path = _ROOT) -> tuple[str, dict]:
+def generate_play_export_score_bundle(
+    root: Path = _ROOT, *, p3_selector_profile: dict[str, object] | None = None
+) -> tuple[str, dict]:
     """既採用T5/Sを検証し、独立D-1宣言のSQLを一対象へ生成する。"""
     try:
         model_bytes = (root / _MODEL).read_bytes()
         schema_bytes = (root / _SCHEMA).read_bytes()
         model = json.loads(model_bytes)
         Draft202012Validator(json.loads(schema_bytes)).validate(model)
-        _, sections, _, _ = _verified_inputs(root)
-        target = _score_query(model, sections)
+        raw_selector, sections, _, _ = _verified_candidate_inputs(
+            root, p3_selector_profile=p3_selector_profile
+        )
+        target = _score_query(
+            model, sections, p3_payload=p3_selector_profile is not None
+        )
         source = (root / _CANONICAL).read_bytes()
         completion = _completion_python(model["scoreboard"]["completeProfiles"])
         manifest = {
@@ -384,6 +414,12 @@ def generate_play_export_score_bundle(root: Path = _ROOT) -> tuple[str, dict]:
             },
             "t5ModelUnchanged": True,
         }
+        if p3_selector_profile is not None:
+            manifest["candidateNativeSelection"] = {
+                "profile": p3_selector_profile,
+                "profileSha256": _canonical_hash(p3_selector_profile),
+                "generatedSha256": hashlib.sha256(raw_selector.encode()).hexdigest(),
+            }
         return target, manifest
     except (OSError, KeyError, TypeError, ValueError) as error:
         raise PlayExportScoreDeclarationError("スコアD-1生成入力が不正") from error
