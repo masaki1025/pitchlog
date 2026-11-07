@@ -1,5 +1,13 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 2026-11-07 13時台：訂正後CSVの参照統一を実装、同版HTTPを再検証
+
+- **製品候補固定点**: feature/mvp-p3-current-startup@70c23c1ac855894c1e053fe48de96cae4036b160、通常push済み。P3後の次球保存がCSV save→NoDataFoundで止まった実原因に対し、成績/CSV score/sole-S readを既native生成器の同じ閉v2 profileへ接合。有効payloadは既Sの完全identityに一致するcapsule itemから読み、別の所属判定や得点計算を追加しない。従来play_input同TX save資格は維持。default生成SQL/4関数のowner/ACL込み全byte一致と不正profile拒否など33passed4.99秒、限定Ruff/Ty0。Ty初回の別venv指定漏れ4診断は環境是正後0として分離。
+- **利用者操作の実証**: この修復による「訂正後に次球を保存」はまだ未実証。共通owned PG lockを使う同版実HTTPをrun p3-csv-shared-selector（exec62036）へ投入、通常47＋既P3候補DDLの接続試験で、標準0048/正式catalog成立とは区別。再起動はせず同handleの終端を確認する。70c23c1aの9path限定非作者review依頼済み。
+- **並行成績供給**: f9c71376e0dc2e104fc074844187ddc9d7cdb7f0のfactsと専用2試験をroot detachedで独立283passed8.03秒。既語彙のhit_kind、exact codecで閉じた非盗塁、既RBI07到達結果の写しだけを確認しP0/P1なし限定採用可。REPORT SHA334682b3dcf321e59e2f03e84446250b54b6216e7f16a0780685f293b20cc79e。主候補は実HTTPsource固定中のため未反映。作者run10の原始27/満塁HBPを含む実画面10caseは実行中。原始27≠MVP表示27、登板D03は別残件。
+- **次**: 実HTTPの停止位置/終端とsource前後を確認→必要修復→同版で訂正/追加球/再送/復旧の成立を固定。並行のP3大量履歴は実SQL定義1passed32.52秒まで、26件保存/正式0048は未了。登板は1原表/owner-only helper候補7f1790e6、実開始200を確認したが通常球503の具体原因は未確定。0球登板の実DB原本と全取消を検証中。8分割CI198はPO指示どおり保留、通常4分割を維持。
+
+
 
 ## 2026-11-07：CSV通常配置の全故障対向を完了し、P3・復旧を同じ候補へ接合
 
