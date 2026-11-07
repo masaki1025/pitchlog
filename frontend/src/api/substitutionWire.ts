@@ -6,7 +6,8 @@ import {
   type SyncEventRequestBody,
   type SyncEventSendResult,
 } from './client.syncEvents'
-import { ApiError, apiRequest, type SyncRequestCredentials } from './client'
+import { ApiError, type SyncRequestCredentials } from './client'
+import { postRecoverableSyncRequest } from './recoverableSyncPost'
 import { canonicalUuid } from './authIntent'
 import type { DurableQueueSlot } from '../lib/sync/durableQueue'
 import { EVENT_KIND_RULES } from '../lib/sync/eventKinds'
@@ -147,12 +148,12 @@ export async function postSubstitution(
 ): Promise<SyncEventSendResult> {
   const requestBody = substitutionBody(slotValue, recordingRightProof)
   try {
-    const response = await apiRequest<unknown>(
-      'POST',
-      `/games/${encodeURIComponent(String(slotValue.game))}/sync/events`,
-      { body: requestBody, syncCredentials: credentials },
+    const sent = await postRecoverableSyncRequest(
+      String(slotValue.game),
+      requestBody,
+      credentials,
     )
-    return { sent: true, requestBody, response }
+    return { sent: true, requestBody: sent.body, response: sent.response }
   } catch (error) {
     if (error instanceof ApiError)
       return {

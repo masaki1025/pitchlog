@@ -194,14 +194,31 @@ def test_catalog_keeps_added_objects_and_actual_bodies():
         "read_writer_identity",
         "publish_writer_binding",
     }
-    assert {r[1] for r in rows} == old_names | {
+    recovery_names = {"read_attempt_d5", "retire_sync_attempt"}
+    preceding_names = {
+        "bind_nonplay_device",
+        "check_nonplay_right",
+        "consume_game_lifecycle",
+        "consume_nonplay_substitution",
+        "consume_nonplay_undo",
+        "lock_nonplay_checkpoint",
+        "prepare_game_lifecycle",
+        "prepare_nonplay_undo",
+        "read_lifecycle_display",
+        "read_lifecycle_state",
+        "read_nonplay_active_history",
+        "read_nonplay_history_page",
+        "verify_replay_device",
+    }
+    assert {r[1] for r in rows} == old_names | preceding_names | recovery_names | {
         value.split(":")[-1].split("(")[0]
         for value in _TERMINAL_FUNCTION_IDS | _LINEUP_FUNCTION_IDS
     }
     assert len(old_names) == 20
+    assert len(preceding_names) == 13
     assert len(_TERMINAL_FUNCTION_IDS) == 7 and len(_LINEUP_FUNCTION_IDS) == 1
-    assert len(rows) - len(_TERMINAL_FUNCTION_IDS) - len(_LINEUP_FUNCTION_IDS) == 20
-    assert len(rows) == 28
+    assert len(rows) - len(_TERMINAL_FUNCTION_IDS) - len(_LINEUP_FUNCTION_IDS) == 35
+    assert len(rows) == 43
     assert sum(r[4] is False for r in rows) == 2
     assert all(r[9] and r[8] == ("search_path=pg_catalog, pg_temp",) for r in rows)
 
@@ -216,20 +233,21 @@ def test_invoker_has_exact_helper_step_position():
     )
 
 
-def test_full_apply_has_nine_definitions_and_four_guards_without_execution():
+def test_full_apply_has_attempt_retirement_definitions_and_six_guards():
     """実認可資産の閉集合と失敗条件を検査する。"""
     _, s = prov._build_operation_statements(prov.ProductOperation.APPLY)
     sql = "\n".join(r.sql for r in s)
-    assert sql.count("CREATE FUNCTION sync_fence_api.") == 7
+    assert sql.count("CREATE FUNCTION sync_fence_api.") == 9
     assert (
         sql.count("CREATE FUNCTION sync_right_api.")
         - len(_TERMINAL_FUNCTION_IDS)
         - len(_LINEUP_FUNCTION_IDS)
-        == 13
+        == 26
     )
-    assert sql.count("CREATE FUNCTION sync_right_api.") == 21
+    assert sql.count("CREATE FUNCTION sync_right_api.") == 34
     assert sql.count("CREATE TRIGGER trg_play_prefix_") == 2
     assert sql.count("CREATE TRIGGER sync_writer_") == 4
+    assert sql.count("CREATE TRIGGER sync_attempt_retirement_") == 2
     assert sql.count("CREATE TRIGGER trg_first_ball_") == 2
 
 
@@ -325,7 +343,7 @@ def test_reapply_is_closed_to_exact_nine_and_preserves_frozen_first_apply():
     )
 
 
-def test_reapply_guard_retains_exact_four_triggers_and_refuses_collisions():
+def test_reapply_guard_retains_exact_six_triggers_and_refuses_collisions():
     """guardの対象/事象/行単位/関数/有効状態/余剰を検査し修復しない。"""
     from pitchlog.authz.first_ball_product import application_function_sql, body
 
@@ -340,13 +358,15 @@ def test_reapply_guard_retains_exact_four_triggers_and_refuses_collisions():
         ("sync_writer_binding_no_truncate", "writer_bindings", 34),
         ("sync_writer_admission_immutable", "writer_admissions", 27),
         ("sync_writer_admission_no_truncate", "writer_admissions", 34),
+        ("sync_attempt_retirement_immutable", "attempt_retirements", 27),
+        ("sync_attempt_retirement_no_truncate", "attempt_retirements", 34),
     ):
         assert (
             f"t.tgname='{name}' AND t.tgrelid='sync_fence.{table}'"
             f"::pg_catalog.regclass AND t.tgtype={tgtype}"
         ) in check
     for required in (
-        "<> 4",
+        "<> 6",
         "NOT t.tgisinternal",
         "t.tgfoid=existing",
         "t.tgenabled='O'",

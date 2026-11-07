@@ -33,6 +33,7 @@ _MATCH_OPERATIONS = frozenset(
         "read_sync_change_target",
         "read_sync_change_confirmation",
         "sync_change",
+        "recover_sync_attempt",
         "initial_device_enroll",
         "initial_game_start",
         "initial_game_start_resolve",

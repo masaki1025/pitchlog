@@ -394,6 +394,117 @@ print(json.dumps(out))
 """
 
 
+# 既製品の同じbootstrap/実artifact helperだけを再利用し、別の照会実行を作る。
+_RECOVERY_SCRIPT = (
+    _APP_SCRIPT.split("async def run():", 1)[0]
+    + r"""
+async def run():
+    async with AsyncClient(transport=ASGITransport(app=app),
+        base_url='https://test') as client:
+        login_result=await login(client,team)
+        out['stages'].append(['login',login_result.status_code])
+        if login_result.status_code!=200:
+            return out
+        cookie=client.cookies.get('__Host-pitchlog_token')
+        enrolled=await client.post('/devices/enroll',headers=headers())
+        out['stages'].append(['enroll',enrolled.status_code])
+        if enrolled.status_code!=200:
+            return out
+        pair=enrolled.json()
+        body=_body(10)
+        body.update(device_id=pair['device_id'],
+            device_credential=pair['device_credential'],
+            start_request_id=case['start_request_id'])
+        started=await client.post('/games/'+game+'/start',json=body,headers=headers())
+        out['stages'].append(['start',started.status_code])
+        if started.status_code!=200:
+            return out
+        first=started.json()
+        v7,v8,_=payload_from_artifact(cookie)
+        d5=str(uuid4())
+        event={'d5':d5,'d1':1,'d4':first['d4'],'game_id':game,
+            'event_kind':'1','d2':1,'payload':json.loads(v7),
+            'state_diff':json.loads(v8)}
+        payload={'recording_right_proof':first['recording_right_proof'],
+            'events':[event]}
+        original_attempt=str(uuid4())
+        if case.get('fault')=='before_http':
+            out['stages'].append(['never_sent',None])
+        elif case.get('fault')=='after_t4_projection':
+            from pitchlog.sync.crash_points import testing_crash_hook
+            class PlannedRollback(Exception):
+                pass
+            reached=[]
+            def fail_at(point):
+                if point=='after_t4_projection':
+                    reached.append(point)
+                    raise PlannedRollback()
+            failed=None
+            try:
+                with testing_crash_hook(fail_at):
+                    failed=await client.post('/games/'+game+'/sync/events',
+                        json=payload,headers=device_headers(pair,original_attempt))
+            except PlannedRollback:
+                pass
+            out['stages'].append(['sync_fault',
+                failed.status_code if failed is not None else None])
+            out['fault_reached']=reached
+            rollback_read=await client.get('/games/'+game+'/started',
+                headers=headers())
+            out['stages'].append(['rollback_read',rollback_read.status_code])
+            out['rollback_read_kind']=(rollback_read.json().get('read_kind')
+                if rollback_read.status_code==200 else None)
+        else:
+            accepted=await client.post('/games/'+game+'/sync/events',json=payload,
+                headers=device_headers(pair,original_attempt))
+            out['stages'].append(['sync',accepted.status_code])
+            if accepted.status_code!=200:
+                return out
+            out['accepted_ack']=accepted.json()
+        # 応答は端末へ渡さなかったものとして、原attempt/原本文だけで権威照会する。
+        recovered=await client.post('/games/'+game+'/sync/attempts/recover',
+            json=payload,headers=device_headers(pair,original_attempt))
+        out['stages'].append(['recover',recovered.status_code])
+        if recovered.status_code!=200:
+            return out
+        out['resolution']=recovered.json()
+        # 初回retirement確定後も、V12だけ異なる照会は元本文の資格にならない。
+        altered=json.loads(json.dumps(payload))
+        altered['recording_right_proof']=str(altered['recording_right_proof'])+'.altered'
+        mismatched=await client.post('/games/'+game+'/sync/attempts/recover',
+            json=altered,headers=device_headers(pair,original_attempt))
+        out['mismatched_body_status']=mismatched.status_code
+        out['mismatched_body_resolution']=(mismatched.json()
+            if mismatched.status_code==200 else None)
+        if case.get('fault') in ('before_http','after_t4_projection'):
+            late=await client.post('/games/'+game+'/sync/events',json=payload,
+                headers=device_headers(pair,original_attempt))
+            out['late_original_attempt_status']=late.status_code
+        repeated=await client.post('/games/'+game+'/sync/attempts/recover',
+            json=payload,headers=device_headers(pair,original_attempt))
+        out['stages'].append(['recover_again',repeated.status_code])
+        out['repeated_resolution']=(repeated.json()
+            if repeated.status_code==200 else None)
+        new_attempt=str(uuid4())
+        resent=await client.post('/games/'+game+'/sync/events',json=payload,
+            headers=device_headers(pair,new_attempt))
+        out['stages'].append(['resend_new_attempt',resent.status_code])
+        out['resent_ack']=resent.json() if resent.status_code==200 else None
+        out['d5']=d5
+        out['same_body_sha']=hashlib.sha256(json.dumps(payload,
+            separators=(',',':')).encode()).hexdigest()
+        out['attempt_distinct']=original_attempt!=new_attempt
+        return out
+try:
+    asyncio.run(run())
+except BaseException:
+    out['exception']=traceback.format_exc().splitlines()[-1]
+    out['frames']=[(f.name,f.lineno) for f in traceback.extract_tb(sys.exc_info()[2])]
+print(json.dumps(out))
+"""
+)
+
+
 def _app_arguments(db: Any, case: dict[str, Any]) -> list[str]:
     """製品app UID20003の容器へ公開設定と業務socketだけを渡す。"""
     args = db._broker_arguments(uid=20003)
@@ -525,6 +636,143 @@ _EXCLUDED_PLAY_COLUMNS = (
 def _exposed_columns(play: dict[str, Any]) -> set[str]:
     """応答の公開keyを物理列名へ戻す（座標2列はcourse 1値へ統合済み）。"""
     return (set(play) - {"course"}) | {"course_x", "course_y"}
+
+
+def test_first_ball_unknown_ack_recovery_replays_same_d5_once(
+    vertical_database: Any,
+) -> None:
+    """実HTTPで確定済み旧attemptを排除し、別attemptでDI2だけを再掲する。"""
+    db = vertical_database
+    token = uuid4()
+    case = {
+        "tenant": str(db.tenant_id),
+        "game": str(db.game_id),
+        "team_name": db.team_name,
+        "password": _PASSWORD,
+        "start_request_id": str(db.start_request_id),
+        "pitch_type": _PITCH_TYPE,
+        "course": list(_COURSE),
+    }
+    with db.broker_worker(token), binding_broker(db, token):
+        _prepare_app_configuration(db)
+        process = subprocess.run(
+            ["docker", *_app_arguments(db, case), "-u", "-c", _RECOVERY_SCRIPT],
+            capture_output=True,
+            text=True,
+            timeout=300,
+        )
+        assert process.returncode == 0, (process.stdout[-600:], process.stderr[-600:])
+        value = cast(dict[str, Any], json.loads(process.stdout))
+        assert value["stages"] == [
+            ["login", 200],
+            ["enroll", 200],
+            ["start", 200],
+            ["sync", 200],
+            ["recover", 200],
+            ["recover_again", 200],
+            ["resend_new_attempt", 200],
+        ], value
+        assert value["resolution"] == {"resolution": "retry_allowed"}, value
+        assert value["repeated_resolution"] == value["resolution"]
+        assert value["mismatched_body_status"] == 200
+        assert value["mismatched_body_resolution"] == {"resolution": "unresolved"}
+        assert value["attempt_distinct"] is True
+        assert value["accepted_ack"]["advancedD3"] == 1
+        assert value["resent_ack"]["eventResults"][0]["a5Result"] == "重複"
+        _assert_recorded_once(db, value["d5"])
+
+
+def test_first_ball_t4_rollback_recovery_retries_original_once(
+    vertical_database: Any,
+) -> None:
+    """T4到達の実全取消後だけ旧attemptを遮断し原D5を適用する。"""
+    db = vertical_database
+    token = uuid4()
+    case = {
+        "tenant": str(db.tenant_id),
+        "game": str(db.game_id),
+        "team_name": db.team_name,
+        "password": _PASSWORD,
+        "start_request_id": str(db.start_request_id),
+        "pitch_type": _PITCH_TYPE,
+        "course": list(_COURSE),
+        "fault": "after_t4_projection",
+    }
+    with db.broker_worker(token), binding_broker(db, token):
+        _prepare_app_configuration(db)
+        process = subprocess.run(
+            ["docker", *_app_arguments(db, case), "-u", "-c", _RECOVERY_SCRIPT],
+            capture_output=True,
+            text=True,
+            timeout=300,
+        )
+        assert process.returncode == 0, (process.stdout[-600:], process.stderr[-600:])
+        value = cast(dict[str, Any], json.loads(process.stdout))
+        assert value["stages"] == [
+            ["login", 200],
+            ["enroll", 200],
+            ["start", 200],
+            ["sync_fault", None],
+            ["rollback_read", 200],
+            ["recover", 200],
+            ["recover_again", 200],
+            ["resend_new_attempt", 200],
+        ], value
+        assert value["fault_reached"] == ["after_t4_projection"]
+        assert value["rollback_read_kind"] == "initial"
+        assert value["late_original_attempt_status"] == 503
+        assert value["resolution"] == {"resolution": "retry_allowed"}
+        assert value["repeated_resolution"] == value["resolution"]
+        assert value["mismatched_body_status"] == 200
+        assert value["mismatched_body_resolution"] == {"resolution": "unresolved"}
+        assert value["attempt_distinct"] is True
+        assert value["resent_ack"]["eventResults"][0]["a5Result"] == "受理"
+        _assert_recorded_once(db, value["d5"])
+
+
+def test_first_ball_unsent_barrier_attempt_can_be_retired_without_old_body_backfill(
+    vertical_database: Any,
+) -> None:
+    """HTTP前の耐久バリアだけが残る試行を遮断し、同原本/D5で1回保存する。"""
+    db = vertical_database
+    token = uuid4()
+    case = {
+        "tenant": str(db.tenant_id),
+        "game": str(db.game_id),
+        "team_name": db.team_name,
+        "password": _PASSWORD,
+        "start_request_id": str(db.start_request_id),
+        "pitch_type": _PITCH_TYPE,
+        "course": list(_COURSE),
+        "fault": "before_http",
+    }
+    with db.broker_worker(token), binding_broker(db, token):
+        _prepare_app_configuration(db)
+        process = subprocess.run(
+            ["docker", *_app_arguments(db, case), "-u", "-c", _RECOVERY_SCRIPT],
+            capture_output=True,
+            text=True,
+            timeout=300,
+        )
+        assert process.returncode == 0, (process.stdout[-600:], process.stderr[-600:])
+        value = cast(dict[str, Any], json.loads(process.stdout))
+        assert value["stages"] == [
+            ["login", 200],
+            ["enroll", 200],
+            ["start", 200],
+            ["never_sent", None],
+            ["recover", 200],
+            ["recover_again", 200],
+            ["resend_new_attempt", 200],
+        ], value
+        assert value["resolution"] == {"resolution": "retry_allowed"}
+        assert value["repeated_resolution"] == value["resolution"]
+        assert value["mismatched_body_status"] == 200
+        assert value["mismatched_body_resolution"] == {"resolution": "unresolved"}
+        assert value["late_original_attempt_status"] == 503
+        assert value["attempt_distinct"] is True
+        assert value["resent_ack"]["eventResults"][0]["a5Result"] == "受理"
+        _assert_recorded_once(db, value["d5"])
 
 
 def test_first_ball_vertical_http_records_and_refuses_reload(

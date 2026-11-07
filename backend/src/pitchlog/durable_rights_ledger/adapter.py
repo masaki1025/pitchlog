@@ -886,6 +886,7 @@ class _AuthorityRuntime:
         self._mutex = RLock()
         self._blocked = False
         self._active: set[int] = set()
+        self._binding_active: set[int] = set()
         self._pair = self._pair_from(value)
         metadata = self._verify_enrollment()
         self._verify_history(metadata)
@@ -1462,6 +1463,17 @@ class _AuthorityRuntime:
             # open期間全体では保持しない。通常D4 mutationは同じmutexで直列化できる。
             self._mutex.release()
 
+    def _start_binding_lease(self, fence: RecoveryEpochFence) -> tuple[int, object]:
+        """真正binding開始だけを同mutex内で実journal leaseへ結ぶ。"""
+        if not self._mutex.acquire(timeout=self._value["timeout"]):
+            raise LedgerUnavailable("ledger unavailable")
+        try:
+            lease, result = self._start_lease(fence, fresh=False)
+            self._binding_active.add(lease)
+            return lease, result
+        finally:
+            self._mutex.release()
+
     def _close_lease(self, lease: int) -> None:
         if not self._mutex.acquire(timeout=self._value["timeout"]):
             raise LedgerUnavailable("ledger unavailable")
@@ -1476,6 +1488,7 @@ class _AuthorityRuntime:
                 self._blocked = True
                 raise LedgerOutcomeUnconfirmed("ledger outcome unconfirmed") from None
             self._active.remove(lease)
+            self._binding_active.discard(lease)
         finally:
             self._mutex.release()
 
@@ -1496,7 +1509,7 @@ class _AuthorityRuntime:
         authority.validate_request(request)
         try:
             with self._pair.recovery_fence() as fence:
-                lease, _ = self._start_lease(fence, fresh=False)
+                lease, _ = self._start_binding_lease(fence)
                 record, binding, nonce = authority.prepare_writer_binding(
                     request, fence.generation
                 )
@@ -1582,6 +1595,7 @@ class _AuthorityRuntime:
                 self._close_lease(lease)
             except BaseException:
                 self._active.discard(lease)
+                self._binding_active.discard(lease)
                 self._blocked = True
                 raise LedgerOutcomeUnconfirmed("ledger outcome unconfirmed") from None
             raise LedgerUnavailable("ledger unavailable") from None
@@ -1593,8 +1607,193 @@ class _AuthorityRuntime:
                     )
                 finally:
                     self._active.discard(lease)
+                    self._binding_active.discard(lease)
                     self._blocked = True
             raise
+
+    @contextmanager
+    def _idle_binding_recovery(self):
+        """既lease/borrowの終結を要求し、遮断完了まで新規lease開始を止める。"""
+        held = self._mutex.acquire(timeout=self._value["timeout"])
+        if not held:
+            yield False
+            return
+        try:
+            yield not self._binding_active and not self._blocked
+        finally:
+            self._mutex.release()
+
+    def _handle_binding_recovery(
+        self, channel: socket.socket, request: dict[str, Any]
+    ) -> None:
+        """共有epochと終結証拠を照合し、業務publishの同鍵遮断を確定する。"""
+        from pitchlog.sync.control_provider.binding_control import (
+            BindingOutcome,
+            _BindingAuthority,
+        )
+        from pitchlog.sync.stop_contract import AttemptIdentity
+
+        if (
+            self._value.get("schema_version") != 3
+            or self._blocked
+            or set(request)
+            != {
+                "operation",
+                "tenant_id",
+                "device_id",
+                "identity",
+                "d5",
+                "event_fingerprint",
+                "body_fingerprint",
+            }
+            or request["operation"] != "binding_recover"
+            or type(request["tenant_id"]) is not str
+            or type(request["device_id"]) is not str
+            or type(request["d5"]) is not str
+            or type(request["event_fingerprint"]) is not str
+            or not request["event_fingerprint"]
+            or type(request["body_fingerprint"]) is not str
+            or len(request["body_fingerprint"]) != 64
+            or any(c not in "0123456789abcdef" for c in request["body_fingerprint"])
+        ):
+            raise LedgerUnavailable("ledger unavailable")
+        try:
+            tenant = UUID(request["tenant_id"])
+            device = UUID(request["device_id"])
+            d5 = UUID(request["d5"])
+            identity = AttemptIdentity.from_mapping(request["identity"])
+            if any(
+                str(value) != request[key]
+                for key, value in (
+                    ("tenant_id", tenant),
+                    ("device_id", device),
+                    ("d5", d5),
+                )
+            ):
+                raise ValueError
+        except (KeyError, TypeError, ValueError):
+            raise LedgerUnavailable("ledger unavailable") from None
+        authority = _BindingAuthority(self._value, self._journal.authority_id)
+        outcome: str = "unresolved"
+        with self._idle_binding_recovery() as idle:
+            if not idle:
+                _send(channel, {"status": "ok", "result": outcome})
+                return
+            with self._pair.recovery_fence() as fence:
+                fence.assert_held()
+                body_state = authority.read_attempt_body_state(
+                    tenant,
+                    device,
+                    identity,
+                    d5,
+                    request["event_fingerprint"],
+                    request["body_fingerprint"],
+                )
+                if body_state == "unresolved":
+                    _send(channel, {"status": "ok", "result": outcome})
+                    return
+                records: dict[int, dict[str, Any]] = {}
+                terminals: dict[int, list[str]] = {}
+                rejected: dict[int, int] = {}
+                closed: dict[int, int] = {}
+                for _ordinal, event in _events(self._journal):
+                    if (
+                        event["event"] == "binding_intent"
+                        and event["record"]["attempt_id"] == identity.attempt_id
+                    ):
+                        lease = event["lease"]
+                        if lease in records:
+                            _send(channel, {"status": "ok", "result": outcome})
+                            return
+                        records[lease] = event["record"]
+                        terminals[lease] = []
+                        rejected[lease] = 0
+                        closed[lease] = 0
+                        if len(records) > 16:
+                            _send(channel, {"status": "ok", "result": outcome})
+                            return
+                    elif (
+                        event["event"] == "binding_terminal"
+                        and event["lease"] in records
+                    ):
+                        terminals[event["lease"]].append(event["outcome"])
+                    elif (
+                        event["event"] == "binding_rejected"
+                        and event["lease"] in records
+                    ):
+                        rejected[event["lease"]] += 1
+                    elif event["event"] == "lease_close" and event["lease"] in records:
+                        closed[event["lease"]] += 1
+                if body_state == "absent" and records:
+                    _send(channel, {"status": "ok", "result": outcome})
+                    return
+                if any(
+                    record["tenant_id"] != str(tenant)
+                    or record["phase"].get("device_id") != str(device)
+                    or record["phase"].get("game_id") != identity.game_id
+                    or record["phase"].get("wire_d4") != identity.d4
+                    or record["phase"].get("codec_version") != identity.codec_version
+                    or record["phase"].get("request_fingerprint")
+                    != identity.wire_fingerprint
+                    or record["phase"].get("body_fingerprint")
+                    != request["body_fingerprint"]
+                    or record["phase"].get("d5") != str(d5)
+                    or record["phase"].get("event_fingerprint")
+                    != request["event_fingerprint"]
+                    for record in records.values()
+                ):
+                    _send(channel, {"status": "ok", "result": outcome})
+                    return
+                terminal: set[str] = set()
+                for lease in records:
+                    if (
+                        closed[lease] != 1
+                        or len(terminals[lease]) + rejected[lease] != 1
+                    ):
+                        _send(channel, {"status": "ok", "result": outcome})
+                        return
+                    if terminals[lease]:
+                        terminal.add(terminals[lease][0])
+                if len(terminal) > 1 or not terminal <= {
+                    BindingOutcome.COMMITTED.value,
+                    BindingOutcome.ROLLBACK_CONFIRMED.value,
+                }:
+                    _send(channel, {"status": "ok", "result": outcome})
+                    return
+                d5_state = authority.observe_d5(
+                    tenant, d5, request["event_fingerprint"]
+                )
+                if d5_state == "conflict" or (
+                    terminal == {BindingOutcome.COMMITTED.value}
+                    and d5_state != "matching"
+                ):
+                    _send(channel, {"status": "ok", "result": outcome})
+                    return
+                fence.assert_held()
+                if (
+                    authority.retire_business_attempt(
+                        tenant,
+                        device,
+                        identity,
+                        d5,
+                        request["event_fingerprint"],
+                        fence.generation,
+                    )
+                    != "retired"
+                ):
+                    _send(channel, {"status": "ok", "result": outcome})
+                    return
+                # 業務tombstone commit後にcontrolを遮断する。失敗時も旧publishは拒否。
+                authority.retire_attempt(
+                    tenant,
+                    device,
+                    identity,
+                    fence.generation,
+                    request["body_fingerprint"],
+                )
+                fence.assert_held()
+                outcome = "retry_allowed"
+        _send(channel, {"status": "ok", "result": outcome})
 
     def handle(self, channel: socket.socket, *, role: str | None = None) -> None:
         """実peer認証済みchannel上で閉じた要求と実fenceだけを実行する。"""
@@ -1606,7 +1805,10 @@ class _AuthorityRuntime:
             # PG/fence/journalに触れる前に能力外の操作を拒否する。
             _authorize_operation(role, operation)
             if role == "sync_binding":
-                self._handle_binding(channel, request)
+                if operation == "binding_recover":
+                    self._handle_binding_recovery(channel, request)
+                else:
+                    self._handle_binding(channel, request)
                 return
             if role is not None:
                 keys = (
@@ -1661,6 +1863,7 @@ class _AuthorityRuntime:
         finally:
             if lease is not None:
                 self._active.discard(lease)
+                self._binding_active.discard(lease)
                 self._blocked = True
 
 
@@ -1671,7 +1874,7 @@ def _authorize_operation(role: str | None, operation: object) -> None:
     allowed = {
         "generation": frozenset({"epoch", "reserve", "claim", "fence_open"}),
         "fresh_controller": frozenset({"fresh_activation_open"}),
-        "sync_binding": frozenset({"binding_open"}),
+        "sync_binding": frozenset({"binding_open", "binding_recover"}),
     }
     if (
         type(role) is not str

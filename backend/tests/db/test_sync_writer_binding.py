@@ -3,16 +3,25 @@
 from __future__ import annotations
 
 import hashlib
+import importlib
 import json
+import subprocess
+import threading
+import time
 from datetime import datetime, timedelta, timezone
-from uuid import uuid4
+from pathlib import Path
+from uuid import UUID, uuid4
 
+import psycopg
 import pytest
+import sqlalchemy as sa
 from psycopg import sql
 
+from .rg1_lifecycle_support import docker
 from .sync_writer_binding_support import (
     ACTOR,
     APP,
+    BindingPeer,
     _literal,
     assert_statement,
     owned_binding_database,
@@ -46,10 +55,234 @@ def binding_database(initial_scope_database):
     return prepare_binding_database(initial_scope_database)
 
 
-def _publish(db, writer, *, ttl=20):
+def test_control_retirement_blocks_old_attempt_and_keeps_new_attempt(
+    initial_scope_database,
+):
+    """実制御PGで旧試行を遮断し、別試行の同原文登録は維持する。"""
+    owner = initial_scope_database
+    cluster = owner.authority
+    issuer = docker(
+        "exec",
+        cluster.binding_control,
+        "psql",
+        "-X",
+        "-A",
+        "-t",
+        "-q",
+        "-U",
+        "postgres",
+        "-d",
+        "binding_control_fixture",
+        "-c",
+        "SELECT authority_id FROM sync_control.authorities WHERE state='active'",
+    ).strip()
+    authority = {
+        "authority_id": issuer,
+        "control_instance": str(UUID(int=7101)),
+        "business_instance": str(UUID(int=7102)),
+        "restore_epoch": str(UUID(int=7103)),
+        "control_version": 1,
+    }
+    tenant, device, game, attempt, phase, d5 = (uuid4() for _ in range(6))
+    original = {
+        **authority,
+        "attempt_id": str(attempt),
+        "device_id": str(device),
+        "game_id": str(game),
+        "wire_d4": "original-D4",
+        "internal_generation": 1,
+        "codec_version": 1,
+        "request_fingerprint": "original-request",
+        "phase_id": str(phase),
+        "d5": str(d5),
+        "event_fingerprint": "original-event",
+        "body_fingerprint": "a" * 64,
+    }
+    with BindingPeer(
+        cluster.binding_control, "binding_control_fixture", ACTOR
+    ) as actor:
+        registration = (
+            "SELECT sync_control.register_first_ball_phase("
+            + _literal(tenant)
+            + ","
+            + _literal(json.dumps(original))
+            + "::jsonb)"
+        )
+        assert actor.execute(registration)[1] == "00000"
+        retire = (
+            "SELECT sync_control.retire_sync_attempt("
+            + ",".join(
+                _literal(value)
+                for value in (
+                    tenant,
+                    attempt,
+                    device,
+                    game,
+                    "original-D4",
+                    1,
+                    "original-request",
+                    issuer,
+                    7,
+                    "a" * 64,
+                )
+            )
+            + ")"
+        )
+        assert actor.query(retire) == ("retired",)
+        assert actor.query(retire) == ("retired",)
+        assert actor.execute(registration)[1] == "42501"
+        altered = {**original, "request_fingerprint": "other-request"}
+        assert (
+            actor.execute(
+                registration.replace(json.dumps(original), json.dumps(altered))
+            )[1]
+            == "42501"
+        )
+        fresh = {**original, "attempt_id": str(uuid4()), "phase_id": str(uuid4())}
+        assert (
+            actor.execute(
+                registration.replace(json.dumps(original), json.dumps(fresh))
+            )[1]
+            == "00000"
+        )
+
+    # 未登録と旧NULLの差は、fixture側の推論でなく製品固定関数の実値で判定する。
+    def register(value):
+        return (
+            "SELECT sync_control.register_first_ball_phase("
+            + _literal(tenant)
+            + ","
+            + _literal(json.dumps(value))
+            + "::jsonb)"
+        )
+
+    def body_state(value, body="a" * 64):
+        values = (
+            tenant,
+            value["attempt_id"],
+            device,
+            game,
+            "original-D4",
+            1,
+            "original-request",
+            issuer,
+            d5,
+            "original-event",
+            body,
+        )
+        return (
+            "SELECT sync_control.read_attempt_recovery_state("
+            + ",".join(_literal(v) for v in values)
+            + ")"
+        )
+
+    def retirement(value, body="a" * 64):
+        values = (
+            tenant,
+            value["attempt_id"],
+            device,
+            game,
+            "original-D4",
+            1,
+            "original-request",
+            issuer,
+            7,
+            body,
+        )
+        return (
+            "SELECT sync_control.retire_sync_attempt("
+            + ",".join(_literal(v) for v in values)
+            + ")"
+        )
+
+    with BindingPeer(
+        cluster.binding_control, "binding_control_fixture", ACTOR
+    ) as actor:
+        legacy = {**original, "attempt_id": str(uuid4()), "phase_id": str(uuid4())}
+        legacy.pop("body_fingerprint")
+        assert actor.execute(register(legacy))[1] == "00000"
+        assert actor.query(body_state(legacy)) == ("unresolved",)
+        assert actor.execute(retirement(legacy))[1] == "42501"
+        never = {**original, "attempt_id": str(uuid4()), "phase_id": str(uuid4())}
+        assert actor.query(body_state(never)) == ("absent",)
+        assert actor.query(retirement(never)) == ("retired",)
+        assert actor.query(body_state(never)) == ("matching",)
+        assert actor.query(body_state(never, "b" * 64)) == ("unresolved",)
+        assert actor.execute(retirement(never, "b" * 64))[1] == "42501"
+        assert actor.execute(register(never))[1] == "42501"
+
+    def blocked(peer, statement):
+        pid = int(peer.query("SELECT pg_backend_pid()")[0])
+        done = threading.Event()
+        result = {}
+
+        def run():
+            try:
+                result["value"] = peer.execute(statement)
+            finally:
+                done.set()
+
+        worker = threading.Thread(target=run, daemon=True)
+        worker.start()
+        deadline = time.monotonic() + 3
+        while time.monotonic() < deadline:
+            observed = docker(
+                "exec",
+                cluster.binding_control,
+                "psql",
+                "-X",
+                "-A",
+                "-t",
+                "-q",
+                "-U",
+                "postgres",
+                "-d",
+                "binding_control_fixture",
+                "-c",
+                "SELECT wait_event_type||':'||wait_event "
+                "FROM pg_stat_activity WHERE pid=" + str(pid),
+            ).strip()
+            if observed == "Lock:advisory":
+                assert not done.is_set()
+                return worker, done, result
+            time.sleep(0.02)
+        pytest.fail("control登録/遮断が同じ鍵で実待機しない")
+
+    for register_first in (True, False):
+        value = {**original, "attempt_id": str(uuid4()), "phase_id": str(uuid4())}
+        with (
+            BindingPeer(
+                cluster.binding_control, "binding_control_fixture", ACTOR
+            ) as first,
+            BindingPeer(
+                cluster.binding_control, "binding_control_fixture", ACTOR
+            ) as second,
+        ):
+            first.query("BEGIN")
+            first.query(register(value) if register_first else retirement(value))
+            worker, done, result = blocked(
+                second, retirement(value) if register_first else register(value)
+            )
+            first.query("COMMIT")
+            assert done.wait(3)
+            worker.join(timeout=1)
+            assert result["value"][1] == ("00000" if register_first else "42501")
+            assert first.query(body_state(value)) == ("matching",)
+
+
+def _publish(
+    db,
+    writer,
+    *,
+    ttl=20,
+    attempt_id=None,
+    device_id=None,
+    authority_id=None,
+    publish=True,
+):
     """Actual writer自己観測とcontrol専用LOGINから限定SQLを検査する。"""
     tenant, game = db.owner.tenant_id, db.owner.game_id
-    attempt, phase, device = (uuid4() for _ in range(3))
+    attempt, phase, device = attempt_id or uuid4(), uuid4(), device_id or uuid4()
     writer.query("BEGIN")
     writer.query(
         "SELECT set_config('app.tenant_id'," + _literal(str(tenant)) + ",true)"
@@ -64,12 +297,12 @@ def _publish(db, writer, *, ttl=20):
     nonce = hashlib.sha256(b"public-disposable-sync-binding-vector").digest()
     assert len(nonce) == 32
     binding = {
-        "authority_id": str(uuid4()),
+        "authority_id": str(authority_id or uuid4()),
         "control_instance": str(uuid4()),
         "business_instance": str(uuid4()),
         "restore_epoch": str(uuid4()),
         "control_version": 1,
-        "issuer": str(uuid4()),
+        "issuer": str(authority_id or uuid4()),
         "lease_id": str(uuid4()),
         "device_id": str(device),
         "game_id": str(game),
@@ -83,27 +316,272 @@ def _publish(db, writer, *, ttl=20):
         "expires_at": (datetime.now(timezone.utc) + timedelta(seconds=ttl)).isoformat(),
         **identity,
     }
-    with db.peer(ACTOR) as actor:
-        statement = (
-            sql.SQL(
-                "SELECT sync_fence_api.publish_writer_binding({},{},{},{}::jsonb,{})"
-            )
-            .format(
-                *(
-                    sql.Literal(v)
-                    for v in (
-                        tenant,
-                        attempt,
-                        phase,
-                        json.dumps(binding),
-                        hashlib.sha256(nonce).digest(),
-                    )
+    if publish:
+        with db.peer(ACTOR) as actor:
+            actor.query(
+                _publish_statement(
+                    (tenant, attempt, phase, nonce, device, game, binding)
                 )
             )
-            .as_string()
-        )
-        actor.query(statement)
     return tenant, attempt, phase, nonce, device, game, binding
+
+
+def _publish_statement(values):
+    """同一実writer identityから固定publish SQLを組み立てる。"""
+    tenant, attempt, phase, nonce, _, _, binding = values
+    return (
+        sql.SQL("SELECT sync_fence_api.publish_writer_binding({},{},{},{}::jsonb,{})")
+        .format(
+            *(
+                sql.Literal(v)
+                for v in (
+                    tenant,
+                    attempt,
+                    phase,
+                    json.dumps(binding),
+                    hashlib.sha256(nonce).digest(),
+                )
+            )
+        )
+        .as_string()
+    )
+
+
+def _business_retirement_statement(
+    values, authority_id, *, d4="fixture-one", d5=None, event_fingerprint=None
+):
+    """既writer原本に対応する単一SQLだけをactor試験へ渡す。"""
+    tenant, attempt, _, _, device, game, binding = values
+    return (
+        "SELECT sync_fence_api.retire_sync_attempt("
+        + ",".join(
+            _literal(value)
+            for value in (
+                tenant,
+                attempt,
+                device,
+                game,
+                d5 or binding["d5"],
+                d4,
+                1,
+                binding["request_fingerprint"],
+                event_fingerprint or binding["event_fingerprint"],
+                authority_id,
+                1,
+            )
+        )
+        + ")"
+    )
+
+
+def test_business_retirement_serializes_publish_and_checks_actual_xid(
+    binding_database,
+):
+    """publish前後の同試行を実業務鍵で分離し、未終結を許可しない。"""
+    db = binding_database
+    from pitchlog.authz.product_catalog import inspect_product_authz_catalog
+
+    with psycopg.connect(db.owner.authority.database.business_admin) as admin:
+        role = admin.execute(
+            "SELECT oid FROM pg_roles WHERE rolname=current_user"
+        ).fetchone()
+        assert role is not None
+        catalog = inspect_product_authz_catalog(
+            admin,
+            privileged_role_oids=frozenset({role[0]}),
+        )
+        assert catalog.ok, [value.check_id for value in catalog.violations]
+        assert admin.execute(
+            "SELECT has_function_privilege('pitchlog_app',"
+            "'sync_fence_api.retire_sync_attempt("
+            "uuid,uuid,uuid,uuid,uuid,text,bigint,text,text,uuid,bigint)',"
+            "'EXECUTE'),has_function_privilege('pitchlog_sync_binding_actor',"
+            "'sync_fence_api.retire_sync_attempt("
+            "uuid,uuid,uuid,uuid,uuid,text,bigint,text,text,uuid,bigint)',"
+            "'EXECUTE')"
+        ).fetchone() == (False, True)
+    authority = uuid4()
+    with db.peer(APP) as writer:
+        before = _publish(db, writer, authority_id=authority, publish=False)
+        with db.peer(ACTOR) as actor:
+            retire = _business_retirement_statement(before, authority)
+            assert actor.query(retire) == ("retired",)
+            assert actor.query(retire) == ("retired",)
+            assert actor.execute(_publish_statement(before))[1] == "42501"
+            assert (
+                actor.execute(
+                    _business_retirement_statement(before, authority, d4="altered")
+                )[1]
+                == "42501"
+            )
+            assert (
+                actor.execute(
+                    _business_retirement_statement(before, authority, d5=uuid4())
+                )[1]
+                == "42501"
+            )
+            assert (
+                actor.execute(
+                    _business_retirement_statement(
+                        before, authority, event_fingerprint="other-event"
+                    )
+                )[1]
+                == "42501"
+            )
+        writer.query("ROLLBACK")
+    with db.peer(APP) as writer:
+        published = _publish(db, writer, authority_id=authority)
+        with db.peer(ACTOR) as actor:
+            assert actor.query(
+                _business_retirement_statement(published, authority)
+            ) == ("unresolved",)
+        writer.query("ROLLBACK")
+    assert _close_observe(db, published) == ("ROLLBACK_CONFIRMED",)
+    with db.peer(ACTOR) as actor:
+        assert actor.query(_business_retirement_statement(published, authority)) == (
+            "retired",
+        )
+
+
+def test_existing_writer_definition_upgrades_only_from_exact_old_source(
+    binding_database,
+):
+    """旧正式4trigger/2関数を同一DB内で再現し、限定migrationを実行する。"""
+    source_root = Path(__file__).resolve().parents[3]
+    revision = "a0c192a0e282479790eb8daae6b025a4952022fc"
+    function_paths = (
+        "FUNCTION:sync_fence_api:publish_writer_binding"
+        "(uuid, uuid, uuid, jsonb, bytea).sql",
+        "FUNCTION:sync_fence_api:guard_writer_records().sql",
+    )
+    previous: list[str] = []
+    for filename in function_paths:
+        value = subprocess.check_output(
+            [
+                "git",
+                "show",
+                f"{revision}:contracts/authz/product/function-bodies/functions/{filename}",
+            ],
+            cwd=source_root,
+            text=True,
+        )
+        previous.append(
+            value.split("\nALTER FUNCTION", 1)[0].replace(
+                "CREATE FUNCTION ", "CREATE OR REPLACE FUNCTION ", 1
+            )
+        )
+    migration = importlib.import_module(
+        "migrations.versions.0046_sync_attempt_retirement"
+    )
+    from psycopg.conninfo import conninfo_to_dict
+
+    engine = sa.create_engine(
+        "postgresql+psycopg://",
+        connect_args=conninfo_to_dict(
+            binding_database.owner.authority.database.business_admin
+        ),
+    )
+    try:
+        with engine.connect() as connection:
+            transaction = connection.begin()
+            try:
+
+                def execute_body(value: str) -> None:
+                    raw_connection = connection.connection.driver_connection
+                    assert raw_connection is not None
+                    with raw_connection.cursor() as cursor:
+                        cursor.execute(value.encode("utf-8"))
+
+                for trigger in (
+                    "sync_attempt_retirement_immutable",
+                    "sync_attempt_retirement_no_truncate",
+                ):
+                    connection.exec_driver_sql(
+                        f"DROP TRIGGER {trigger} ON sync_fence.attempt_retirements"
+                    )
+                for value in previous:
+                    execute_body(value)
+                altered = previous[0].replace(
+                    "writer publication rejected", "writer publication refused", 1
+                )
+                assert altered != previous[0]
+                execute_body(altered)
+                with pytest.raises(RuntimeError, match="定義・権限が一致しない"):
+                    migration._upgrade_existing_functions(connection)
+                execute_body(previous[0])
+                migration._upgrade_existing_functions(connection)
+                rows = connection.exec_driver_sql(
+                    "SELECT tgname FROM pg_trigger WHERE tgrelid="
+                    "'sync_fence.attempt_retirements'::regclass "
+                    "AND NOT tgisinternal ORDER BY tgname"
+                ).fetchall()
+                assert rows == [
+                    ("sync_attempt_retirement_immutable",),
+                    ("sync_attempt_retirement_no_truncate",),
+                ]
+            finally:
+                transaction.rollback()
+    finally:
+        engine.dispose()
+
+
+def _blocked_on_advisory(db, peer, statement):
+    """別実接続が同鍵のadvisory xact lockで待つ事実だけを返す。"""
+    pid = int(peer.query("SELECT pg_backend_pid()")[0])
+    done = threading.Event()
+    result = {}
+
+    def run():
+        try:
+            result["value"] = peer.execute(statement)
+        finally:
+            done.set()
+
+    worker = threading.Thread(target=run, daemon=True)
+    worker.start()
+    deadline = time.monotonic() + 3
+    with psycopg.connect(db.owner.authority.database.business_admin) as admin:
+        while time.monotonic() < deadline:
+            observed = admin.execute(
+                "SELECT wait_event_type,wait_event FROM pg_stat_activity WHERE pid=%s",
+                (pid,),
+            ).fetchone()
+            if observed == ("Lock", "advisory"):
+                assert not done.is_set()
+                return worker, done, result
+            time.sleep(0.02)
+    pytest.fail("旧試行のpublish/retireが同業務鍵で待機しない")
+
+
+def test_business_retirement_and_publish_are_actually_serialized(binding_database):
+    """両先行順を実二接続で競合させ、同鍵遮断が原子的なことを確認する。"""
+    db = binding_database
+    authority = uuid4()
+    with db.peer(APP) as writer, db.peer(ACTOR) as first, db.peer(ACTOR) as second:
+        values = _publish(db, writer, authority_id=authority, publish=False)
+        first.query("BEGIN")
+        first.query(_publish_statement(values))
+        worker, done, result = _blocked_on_advisory(
+            db, second, _business_retirement_statement(values, authority)
+        )
+        first.query("COMMIT")
+        assert done.wait(3)
+        worker.join(timeout=1)
+        assert result["value"] == (("unresolved",), "00000")
+        writer.query("ROLLBACK")
+    assert _close_observe(db, values) == ("ROLLBACK_CONFIRMED",)
+    with db.peer(APP) as writer, db.peer(ACTOR) as first, db.peer(ACTOR) as second:
+        values = _publish(db, writer, authority_id=authority, publish=False)
+        first.query("BEGIN")
+        first.query(_business_retirement_statement(values, authority))
+        worker, done, result = _blocked_on_advisory(
+            db, second, _publish_statement(values)
+        )
+        first.query("COMMIT")
+        assert done.wait(3)
+        worker.join(timeout=1)
+        assert result["value"][1] == "42501"
+        writer.query("ROLLBACK")
 
 
 def _close_observe(db, values):

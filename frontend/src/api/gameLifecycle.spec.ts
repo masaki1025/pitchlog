@@ -1,4 +1,9 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import 'fake-indexeddb/auto'
+
+import { createPinia, disposePinia, setActivePinia, type Pinia } from 'pinia'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { useAuthStore } from '../stores/authStore'
+import { setVerifiedAuthForTest } from './auth.test-support'
 import * as client from './client'
 import { ApiError } from './client'
 import {
@@ -159,8 +164,17 @@ function kindForTest(action: 'end' | 'reopen') {
   return kind
 }
 
+let pinia: Pinia
 beforeEach(() => {
   vi.restoreAllMocks()
+  pinia = createPinia()
+  setActivePinia(pinia)
+  setVerifiedAuthForTest(useAuthStore(), { teamId: tenant, teamName: 'unit' })
+  vi.stubGlobal('isSecureContext', true)
+})
+afterEach(() => {
+  vi.unstubAllGlobals()
+  disposePinia(pinia)
 })
 
 describe('lifecycle read', () => {

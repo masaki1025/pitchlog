@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from typing import Annotated, Literal, cast
-from uuid import UUID, uuid5
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from fastapi.responses import JSONResponse
@@ -46,6 +46,7 @@ from pitchlog.sync.apply import (
     _replay_e1_without_binding,
     _replay_p3_without_binding,
 )
+from pitchlog.sync.attempt_recovery import recover_sync_attempt
 from pitchlog.sync.control_provider.binding_client import (
     BindingClientConfiguration,
     BindingClientConfigurationError,
@@ -57,6 +58,7 @@ from pitchlog.sync.control_provider.evidence import (
     AuthorityBinding,
     D1lessPhaseBinding,
     EventPhaseBinding,
+    sync_event_phase_id,
 )
 from pitchlog.sync.control_provider.writer_binding import (
     WriterBindingUnavailable,
@@ -114,8 +116,6 @@ from pitchlog.sync.wire_source import WireSourceError, freeze_wire_source
 
 router = APIRouter(tags=["同期"], route_class=TenantMatchedRoute)
 
-_PHASE_NAMESPACE = UUID("00000000-0000-0000-0000-000000000000")
-
 
 def _configuration(request: Request) -> BindingClientConfiguration:
     """起動時設定だけを使い、未設定は書込入口を閉じる。"""
@@ -130,7 +130,7 @@ def _configuration(request: Request) -> BindingClientConfiguration:
 
 def _phase_id(attempt: UUID, request_fingerprint: str) -> UUID:
     """同一要求の再送で同一 phase を作り、新 attempt だけを別 phase にする。"""
-    return uuid5(_PHASE_NAMESPACE, f"{attempt}:{request_fingerprint}")
+    return sync_event_phase_id(attempt, request_fingerprint)
 
 
 def _request_path(payload: object) -> Literal["P1", "P2"]:
@@ -468,6 +468,64 @@ def sync_change(
     if result == "B10":
         raise HTTPException(status_code=503)
     return JSONResponse(_p3_body(result))
+
+
+@router.post(
+    "/games/{game_id}/sync/attempts/recover",
+    operation_id="recover_sync_attempt",
+)
+def recover_attempt(
+    game_id: UUID,
+    payload: dict[str, object],
+    request: Request,
+    context: Annotated[TenantContext, Depends(require_tenant_access)],
+    cookie: Annotated[str, Depends(require_presented_token)],
+    device_id: Annotated[UUID, Header(alias="X-Pitchlog-Device-Id")],
+    device_credential: Annotated[str, Header(alias="X-Pitchlog-Device-Credential")],
+    attempt: Annotated[UUID, Header(alias="X-Pitchlog-Sync-Attempt")],
+) -> JSONResponse:
+    """元E-1要求の旧試行を照会し、実fence/PG終結後の再送資格だけを返す。"""
+    configuration = _configuration(request)
+    try:
+        path = _request_path(payload)
+        original = SyncRequest.from_payload(path, str(game_id), payload)
+        raw_events = payload["events"]
+        if not isinstance(raw_events, list):
+            raise RequestShapeError("S-1: イベント列が必要")
+        source = freeze_wire_source(
+            game_id=original.game_id,
+            d4=str(original.d4),
+            raw_events=tuple(
+                dict(event) for event in cast(list[Mapping[str, object]], raw_events)
+            ),
+        )
+        credential_digest = _credential_digest(device_credential)
+    except InitialGrantUnavailable:
+        raise HTTPException(status_code=401) from None
+    except (_E1OutOfScope, RequestShapeError, WireSourceError, KeyError, TypeError):
+        raise HTTPException(status_code=422) from None
+    try:
+        result = recover_sync_attempt(
+            context,
+            original,
+            source,
+            attempt_id=attempt,
+            device_id=device_id,
+            credential_digest=credential_digest,
+            cookie=cookie,
+            control=BindingControl(configuration.broker_endpoint),
+        )
+    except (LedgerUnavailable, WriterBindingUnavailable, *DATABASE_ERRORS):
+        raise HTTPException(status_code=503) from None
+    except ValueError:
+        raise HTTPException(status_code=422) from None
+    if result == "B5":
+        raise HTTPException(status_code=401)
+    if result == "B6":
+        raise HTTPException(status_code=404)
+    if result == "B7":
+        raise HTTPException(status_code=503)
+    return JSONResponse({"resolution": result})
 
 
 @router.post(

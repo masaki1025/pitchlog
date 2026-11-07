@@ -35,6 +35,7 @@ CREATE TABLE sync_control.attempts (
 	internal_generation BIGINT NOT NULL,
 	codec_version BIGINT NOT NULL,
 	request_fingerprint TEXT NOT NULL,
+	body_fingerprint TEXT CHECK (body_fingerprint IS NULL OR body_fingerprint ~ '^[a-f0-9]{64}$'),
 	event_count BIGINT NOT NULL,
 	record_version BIGINT NOT NULL,
 	CONSTRAINT pk_attempts PRIMARY KEY (tenant_id, attempt_id),
@@ -76,4 +77,28 @@ ALTER TABLE sync_control.event_phases ENABLE ROW LEVEL SECURITY;
 ALTER TABLE sync_control.event_phases FORCE ROW LEVEL SECURITY;
 
 REVOKE ALL ON TABLE sync_control.event_phases FROM PUBLIC;
+
+-- 照会済みの旧attemptを永続遮断する。業務結果やACKを保存しない。
+CREATE TABLE sync_control.attempt_retirements (
+	tenant_id UUID NOT NULL,
+	attempt_id UUID NOT NULL,
+	device_id UUID NOT NULL,
+	game_id UUID NOT NULL,
+	authority_id UUID NOT NULL,
+	wire_d4 TEXT NOT NULL,
+	codec_version BIGINT NOT NULL,
+	request_fingerprint TEXT NOT NULL,
+	body_fingerprint TEXT CHECK (body_fingerprint IS NULL OR body_fingerprint ~ '^[a-f0-9]{64}$'),
+	recovery_generation BIGINT NOT NULL,
+	CONSTRAINT pk_attempt_retirements PRIMARY KEY (tenant_id, attempt_id),
+	CONSTRAINT fk_attempt_retirements_authority FOREIGN KEY (authority_id) REFERENCES sync_control.authorities (authority_id) MATCH FULL ON DELETE NO ACTION,
+	CONSTRAINT ck_attempt_retirements_text CHECK (wire_d4<>'' AND request_fingerprint<>''),
+	CONSTRAINT ck_attempt_retirements_positive CHECK (codec_version>0 AND recovery_generation>0)
+);
+
+ALTER TABLE sync_control.attempt_retirements ENABLE ROW LEVEL SECURITY;
+
+ALTER TABLE sync_control.attempt_retirements FORCE ROW LEVEL SECURITY;
+
+REVOKE ALL ON TABLE sync_control.attempt_retirements FROM PUBLIC;
 

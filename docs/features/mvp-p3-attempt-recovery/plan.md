@@ -24,7 +24,7 @@ branch: feature/mvp-p3-attempt-recovery
 
 対象は既P3と復旧の接合に必要な `api/routers/sync.py`、`sync/{apply.py,attempt_recovery.py,source_binding.py,wire_source.py,wire_fingerprint.py}`、`sync/control_provider/{evidence.py,binding_control.py,writer_binding.py,sql/control-phase-schema.sql,sql/writer-binding-control.sql}`、`durable_rights_ledger/{adapter.py,manifest.json}` と専用試験。FE共通 `api/{recoverableSyncPost.ts,syncAttemptRecovery.ts}` と `lib/syncAttemptBarrier.ts` の閉P3分岐を接続する。P3 FE本体はP3作者所有を維持し、`postP3Change`接合差分をcache patchでrootへ渡す。P3計算/投影を複製・再実装しない。
 
-既候補を通常mergeし、正式資産の衝突/不一致はrootへ渡す。生成module/正式authz・tenant・seal・7.7は手作業で受理しない。標準current起動/移行の正式追随はroot所有。appへDB表権限を追加せず、body source pinは実byteからの候補再計算として分離する。
+P3固定点と復旧起点が異なるため、復旧topic7commit（b3de166c/68a4a459/ad90662e/e1f8f6ea/a207d4a4/39ad4f20/6058888b）の差分だけを3-way接合する。計算/NP/断中画面/artifactの基線差分は取り込まない。復旧topicの既承認対象52pathを依存として再利用し、新しいP3の正式資産の衝突/不一致はrootへ渡す。生成module/正式authz・tenant・seal・7.7は手作業で受理しない。標準current起動/移行の正式追随はroot所有。appへDB表権限を追加せず、body source pinは実byteからの候補再計算として分離する。
 
 ## ステップ
 
@@ -39,3 +39,8 @@ branch: feature/mvp-p3-attempt-recovery
 source固定した各WTで共通owned PG/browser/network lockを全寿命保持し、外側の共有DSNをunsetする。作業中は影響範囲、統合候補固定後に必須全件を実行する。旧caseの期待値を現在出力から作り直さない。P3候補計算の一般化/旧世代/長prefixと、共通復旧の成立を別に報告する。
 
 候補source成功、正式受理/通常統合、実機/運用TLS/復旧、MVP全完成を区別する。本人逐行確認/本人署名/P6 blindを代記しない。rootのPO委任採否/最終独立レビュー/正式manifestと7.7は別ゲートとして保持する。
+
+
+step1接合記録: 4dへの605全mergeは起点差により無関係な約170pathを含むため未commitでabortした。復旧7topicだけを接合し、C2登録はP3 3操作とrecoverの両方、client資格の閉URL集合はevents/change/attempts-recover、交代POSTは既耐久barrier/C2経由を保持。P3 phase_kindと復旧body_fingerprintを同じ私有phaseへ保持し、business bindingへは両方を混入しない。既artifact/数学/保存値vectorには差分なし。標準P3専用2関数へ元候補SHAを照合して同鍵遮断/body保存を追加し、旧first-ball EventPhase分岐は維持する。正式受理/実PG/独立source確認はまだ。
+
+step1検査: backend関連307件・Ruff/Ty成功。FE関連51成功、Undo8件は起点4dのfixture artifact 4e8b3252…に対し実artifact ce622726…の既存不一致（対象資産の差分0）。期待値は変更しない。標準control owned初回は共有DSN未設定のままdefault admin fixtureが先に解決されたsetup errorで、DB確認には未到達。既owned admin/tested-role fixtureを明示importして再検証する。標準関数catalog照合は非作者cache patch 1da9acfd…を元byte照合して採用したが、正式受理・独立source採否は未了。

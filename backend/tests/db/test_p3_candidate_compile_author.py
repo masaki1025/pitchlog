@@ -34,6 +34,12 @@ from .test_first_ball_vertical_http import (
 )
 from .test_first_ball_vertical_http import vertical_database as vertical_database
 from .test_initial_game_start import product_node_binary as product_node_binary
+from .test_initial_recording_right_scope import (
+    admin_connection as admin_connection,
+)
+from .test_initial_recording_right_scope import (
+    tested_role_connection as tested_role_connection,
+)
 from .test_terminal_pitch_storage import _lineup_script
 
 pytestmark = pytest.mark.requires_db
@@ -76,7 +82,7 @@ def _diagnostic_stats_body(body: str) -> str:
         """固定の拒否位置ラベルだけを返す。"""
         nonlocal rejection_number
         rejection_number += 1
-        return "stats primitive boundary rejected " f"P3S{rejection_number:02d}"
+        return f"stats primitive boundary rejected P3S{rejection_number:02d}"
 
     return re.sub("stats primitive boundary rejected", label_rejection, body)
 
@@ -129,10 +135,10 @@ def _assert_stats27_catalog(vertical_database) -> None:
             if table == "stats_primitive_facts":
                 admin.execute("CREATE TEMP TABLE metric27_probe(metric_id text)")
                 admin.execute(
-                    sql.SQL("ALTER TABLE pg_temp.metric27_probe ADD CONSTRAINT "
-                            "ck_metric27_probe {}").format(
-                        sql.SQL(cast(LiteralString, definition))
-                    )
+                    sql.SQL(
+                        "ALTER TABLE pg_temp.metric27_probe ADD CONSTRAINT "
+                        "ck_metric27_probe {}"
+                    ).format(sql.SQL(cast(LiteralString, definition)))
                 )
                 for metric in METRIC_IDS:
                     admin.execute(
@@ -161,9 +167,12 @@ def test_owned_candidate_0046_compiles(vertical_database) -> None:
         json.loads((root / "backend/domain/stats.model.json").read_text()),
         profile,
     )
-    assert selector == generated[
-        "backend/src/pitchlog/exports/generated/play_primitives_native.sql"
-    ]
+    assert (
+        selector
+        == generated[
+            "backend/src/pitchlog/exports/generated/play_primitives_native.sql"
+        ]
+    )
     parts = selector.split("-- pitchlog-query: ")[1:]
     health = {part.split("\n", 1)[0]: part.split("\n", 1)[1].strip() for part in parts}[
         "canonical_health"
@@ -368,12 +377,12 @@ actual_started_router.read_lineup_prefix = traced_p3_read
         1,
     )
     third = third.replace(
-        '                response = decode_lineup_prefix_response(\n'
-        '                    host.call(',
-        '                runtime_diagnostics.update('
+        "                response = decode_lineup_prefix_response(\n"
+        "                    host.call(",
+        "                runtime_diagnostics.update("
         'stage="next-pitch-math", status=None)\n'
-        '                response = decode_lineup_prefix_response(\n'
-        '                    host.call(',
+        "                response = decode_lineup_prefix_response(\n"
+        "                    host.call(",
         1,
     )
     for needle, stage in (
@@ -662,13 +671,19 @@ def _t5_changing_p3_script() -> str:
         '        target = current["page"]["items"][0]["play_row"]',
         third + '        target = current["page"]["items"][2]["play_row"]',
     )
-    once('        target_d1 = 1', '        target_d1 = 3')
-    once('"originalResultId": "batting-result.ball"',
-         '"originalResultId": "batting-result.called-strikeout"')
-    once('"replacementResultId": "batting-result.called-pitch"',
-         '"replacementResultId": "batting-result.ball"')
-    once('corrected_current["page"]["items"][0]["play_row"]["id"]',
-         'corrected_current["page"]["items"][2]["play_row"]["id"]')
+    once("        target_d1 = 1", "        target_d1 = 3")
+    once(
+        '"originalResultId": "batting-result.ball"',
+        '"originalResultId": "batting-result.called-strikeout"',
+    )
+    once(
+        '"replacementResultId": "batting-result.called-pitch"',
+        '"replacementResultId": "batting-result.ball"',
+    )
+    once(
+        'corrected_current["page"]["items"][0]["play_row"]["id"]',
+        'corrected_current["page"]["items"][2]["play_row"]["id"]',
+    )
     once(
         'conflict_payload["change"]["payload"]["replacementResultId"] = (\n'
         '            "batting-result.ball")',
@@ -682,8 +697,7 @@ def test_owned_candidate_actual_http_p3(vertical_database) -> None:
     """候補DDL/本文をowned実DBへ適用し、真正開始後のHTTP訂正を検査する。"""
     test_owned_candidate_0046_compiles(vertical_database)
     db = vertical_database
-    control_sql = (_PACKET / "p3-d1less-control-functions.candidate.sql").read_text()
-    control_apply = subprocess.run(
+    control_catalog = subprocess.run(
         [
             "docker",
             "exec",
@@ -694,19 +708,77 @@ def test_owned_candidate_actual_http_p3(vertical_database) -> None:
             "psql",
             "-X",
             "-q",
+            "-A",
+            "-t",
             "-v",
             "ON_ERROR_STOP=1",
             "-U",
             "postgres",
             "-d",
             "binding_control_fixture",
+            "-c",
+            """
+            SELECT COALESCE(jsonb_agg(jsonb_build_object(
+                'signature', p.oid::regprocedure::text,
+                'owner', pg_get_userbyid(p.proowner),
+                'definer', p.prosecdef,
+                'volatile', p.provolatile,
+                'language', l.lanname,
+                'path', to_jsonb(p.proconfig),
+                'result', pg_get_function_result(p.oid),
+                'actor', has_function_privilege(
+                    'pitchlog_sync_binding_actor', p.oid, 'EXECUTE'),
+                'app', has_function_privilege('pitchlog_app', p.oid, 'EXECUTE'),
+                'unexpectedGrant', EXISTS (
+                    SELECT FROM aclexplode(
+                        COALESCE(p.proacl, acldefault('f', p.proowner))) AS acl
+                    WHERE acl.privilege_type = 'EXECUTE'
+                      AND acl.grantee NOT IN (
+                          p.proowner,
+                          (SELECT oid FROM pg_roles
+                           WHERE rolname = 'pitchlog_sync_binding_actor'))
+                )
+            ) ORDER BY p.proname), '[]'::jsonb)::text
+            FROM pg_proc AS p
+            JOIN pg_language AS l ON l.oid = p.prolang
+            WHERE p.oid IN (
+                to_regprocedure(
+                    'sync_control.register_d1less_phase(uuid,jsonb)'),
+                to_regprocedure(
+                    'sync_control.read_d1less_phase(uuid,uuid,uuid)'))
+            """,
         ],
-        input=control_sql,
         capture_output=True,
         text=True,
         check=False,
     )
-    assert control_apply.returncode == 0, control_apply.stderr[-500:]
+    assert control_catalog.returncode == 0, control_catalog.stderr[-500:]
+    assert json.loads(control_catalog.stdout) == [
+        {
+            "signature": "sync_control.read_d1less_phase(uuid,uuid,uuid)",
+            "owner": "pitchlog_sync_binding_fn_owner",
+            "definer": True,
+            "volatile": "v",
+            "language": "plpgsql",
+            "path": ["search_path=pg_catalog, pg_temp"],
+            "result": "TABLE(context_json text)",
+            "actor": True,
+            "app": False,
+            "unexpectedGrant": False,
+        },
+        {
+            "signature": "sync_control.register_d1less_phase(uuid,jsonb)",
+            "owner": "pitchlog_sync_binding_fn_owner",
+            "definer": True,
+            "volatile": "v",
+            "language": "plpgsql",
+            "path": ["search_path=pg_catalog, pg_temp"],
+            "result": "void",
+            "actor": True,
+            "app": False,
+            "unexpectedGrant": False,
+        },
+    ]
     with psycopg.connect(db.authority.database.business_admin) as admin:
         admin.execute(
             "INSERT INTO public.admin_vocabularies(key,category,display_name) "
@@ -772,24 +844,28 @@ def test_owned_candidate_actual_http_p3(vertical_database) -> None:
         ).fetchone() == (0,)
         assert admin.execute(
             "SELECT count(*) FROM public.operation_events "
-            "WHERE tenant_id=%s AND game_id=%s", key
+            "WHERE tenant_id=%s AND game_id=%s",
+            key,
         ).fetchone() == (4,)
         assert admin.execute(
-            "SELECT count(*) FROM public.play_rows "
-            "WHERE tenant_id=%s AND game_id=%s", key
+            "SELECT count(*) FROM public.play_rows WHERE tenant_id=%s AND game_id=%s",
+            key,
         ).fetchone() == (4,)
         assert admin.execute(
             "SELECT count(*) FROM sync_fence.p3_projection_capsules "
-            "WHERE tenant_id=%s AND game_id=%s", key
+            "WHERE tenant_id=%s AND game_id=%s",
+            key,
         ).fetchone() == (1,)
         assert admin.execute(
             "SELECT count(*) FROM sync_fence.p3_projection_capsule_items "
-            "WHERE tenant_id=%s AND game_id=%s", key
+            "WHERE tenant_id=%s AND game_id=%s",
+            key,
         ).fetchone() == (2,)
         current = admin.execute(
             "SELECT id,source_count FROM sync_fence.stats_fact_versions "
             "WHERE tenant_id=%s AND game_id=%s AND is_current "
-            "AND invalidated_at IS NULL", key
+            "AND invalidated_at IS NULL",
+            key,
         ).fetchall()
         assert len(current) == 1 and current[0][1] == 3
         sources = admin.execute(
@@ -800,7 +876,8 @@ def test_owned_candidate_actual_http_p3(vertical_database) -> None:
         assert len(sources) == 3 and [row[1] for row in sources] == [1, 2, 3]
         p3 = admin.execute(
             "SELECT change_event_id FROM sync_fence.p3_projection_capsules "
-            "WHERE tenant_id=%s AND game_id=%s", key
+            "WHERE tenant_id=%s AND game_id=%s",
+            key,
         ).fetchone()
         assert p3 is not None and sources[0][0] == p3[0]
 
@@ -812,9 +889,7 @@ def test_owned_candidate_actual_http_p3(vertical_database) -> None:
         json.dumps(t5_result.get("runtime_diagnostics", {}), indent=2)
     )
     _write_stage(t5_result, _PACKET / "owned-http-t5-failure-stage.json")
-    assert t5_process.returncode == 0, (
-        "t5-remote-process", t5_process.returncode
-    )
+    assert t5_process.returncode == 0, ("t5-remote-process", t5_process.returncode)
     assert "exception" not in t5_result, t5_result
     assert t5_result["prefix"] == "3"
     with psycopg.connect(db.authority.database.business_admin) as admin:
@@ -827,24 +902,28 @@ def test_owned_candidate_actual_http_p3(vertical_database) -> None:
         ).fetchone() == (0,)
         assert admin.execute(
             "SELECT count(*) FROM public.operation_events "
-            "WHERE tenant_id=%s AND game_id=%s", key
+            "WHERE tenant_id=%s AND game_id=%s",
+            key,
         ).fetchone() == (4,)
         assert admin.execute(
-            "SELECT count(*) FROM public.play_rows "
-            "WHERE tenant_id=%s AND game_id=%s", key
+            "SELECT count(*) FROM public.play_rows WHERE tenant_id=%s AND game_id=%s",
+            key,
         ).fetchone() == (4,)
         assert admin.execute(
             "SELECT count(*) FROM sync_fence.p3_projection_capsules "
-            "WHERE tenant_id=%s AND game_id=%s", key
+            "WHERE tenant_id=%s AND game_id=%s",
+            key,
         ).fetchone() == (1,)
         assert admin.execute(
             "SELECT count(*) FROM sync_fence.p3_projection_capsule_items "
-            "WHERE tenant_id=%s AND game_id=%s", key
+            "WHERE tenant_id=%s AND game_id=%s",
+            key,
         ).fetchone() == (3,)
         versions = admin.execute(
             "SELECT id,is_current,source_count FROM sync_fence.stats_fact_versions "
             "WHERE tenant_id=%s AND game_id=%s AND source_count=3 "
-            "ORDER BY created_at", key
+            "ORDER BY created_at",
+            key,
         ).fetchall()
         assert len(versions) == 2 and [row[1] for row in versions] == [False, True]
         assert [row[2] for row in versions] == [3, 3]
@@ -874,6 +953,7 @@ def test_owned_candidate_actual_http_p3(vertical_database) -> None:
         assert [row[1] for row in current_sources] == [1, 2, 3]
         changed = admin.execute(
             "SELECT change_event_id FROM sync_fence.p3_projection_capsules "
-            "WHERE tenant_id=%s AND game_id=%s", key
+            "WHERE tenant_id=%s AND game_id=%s",
+            key,
         ).fetchone()
         assert changed is not None and current_sources[2][0] == changed[0]
