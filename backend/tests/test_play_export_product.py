@@ -19,6 +19,7 @@ def test_closed_declarations_keep_exact_column_privileges_and_function_types():
         "tables": 1,
         "functions": 4,
         "policies": 2,
+        "acl_expectations": 0,
         "column_acl_expectations": 19,
     }
     assert len(bodies) == 26
@@ -26,6 +27,7 @@ def test_closed_declarations_keep_exact_column_privileges_and_function_types():
         "tables",
         "functions",
         "policies",
+        "acl_expectations",
         "column_acl_expectations",
     }
     assert declarations["tables"] == [
@@ -119,6 +121,18 @@ def test_all_four_function_bodies_reuse_the_only_provider_bytes():
         "ix_play_rows_export_audit",
         "ix_operation_events_export_audit",
     )
+    metadata = product.source_structure()
+    assert (
+        metadata["create_table"]
+        == source[
+            source.index("CREATE TABLE public.play_export_snapshots") : source.index(
+                "\nALTER TABLE public.play_export_snapshots"
+            )
+        ].rstrip()
+    )
+    for name, statement in metadata["indexes"].items():
+        start = source.index("CREATE INDEX " + name)
+        assert statement == source[start : source.index(";", start) + 1]
     assert "CREATE TABLE" not in bodies["table|play_export_snapshots"]
     assert "CREATE INDEX" not in bodies["table|play_export_snapshots"]
     assert bodies["table|play_export_snapshots"].count("ROW LEVEL SECURITY") == 2
@@ -141,4 +155,193 @@ def test_source_byte_change_is_not_silently_accepted(tmp_path, monkeypatch):
     changed.write_bytes(product._SOURCE.read_bytes() + b"\n")
     monkeypatch.setattr(product, "_SOURCE", changed)
     with pytest.raises(ValueError, match="固定byte"):
+        product.connection_declarations()
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        "table-rls",
+        "table-bool-as-int",
+        "function-owner",
+        "function-security",
+        "function-volatility",
+        "function-result",
+        "function-path",
+        "function-grant",
+        "column-update",
+        "column-grant-option",
+        "column-role",
+        "column-name",
+        "policy-role",
+        "policy-expression",
+        "extra-field",
+    ],
+)
+def test_full_field_mutations_are_rejected(case):
+    """既期待を部分一致へ弱めず、型/owner/権限/式の差を拒否する。"""
+    declarations, bodies = product.connection_declarations()
+    if case == "table-rls":
+        declarations["tables"][0]["force_row_level_security"] = False
+    elif case == "table-bool-as-int":
+        declarations["tables"][0]["force_row_level_security"] = 1
+    elif case.startswith("function-"):
+        field, value = {
+            "function-owner": ("owner_role_id", "pitchlog_app"),
+            "function-security": ("security_mode", "invoker"),
+            "function-volatility": ("volatility", "stable"),
+            "function-result": ("returns", "TABLE(pitcher_pitch_count text)"),
+            "function-path": ("search_path", ["pg_catalog", "public"]),
+            "function-grant": (
+                "acl_expectations",
+                [{"grantee": "PUBLIC", "privilege": "EXECUTE", "grantable": False}],
+            ),
+        }[case]
+        declarations["functions"][0][field] = value
+    elif case.startswith("column-"):
+        field, value = {
+            "column-update": ("privilege_ids", ["SELECT", "UPDATE"]),
+            "column-grant-option": ("grant_option", True),
+            "column-role": ("grantee_role_id", "PUBLIC"),
+            "column-name": ("column_id", "captured_at"),
+        }[case]
+        declarations["column_acl_expectations"][0][field] = value
+    elif case == "policy-role":
+        declarations["policies"][0]["role_ids"] = ["PUBLIC"]
+    elif case == "policy-expression":
+        declarations["policies"][0]["using_expression"] = "true"
+    else:
+        declarations["functions"][0]["unreviewed"] = True
+    with pytest.raises(ValueError, match="全field"):
+        product.validate(declarations, bodies)
+
+
+@pytest.mark.parametrize(
+    "section",
+    [
+        "tables",
+        "functions",
+        "policies",
+        "column_acl_expectations",
+    ],
+)
+@pytest.mark.parametrize("fault", ["missing", "duplicate", "unknown-id"])
+def test_partial_duplicate_and_extra_target_declarations_are_rejected(section, fault):
+    """対象table/objectを別名にしても、部分/重複/余剰を見逃さない。"""
+    declarations, bodies = product.connection_declarations()
+    if fault == "missing":
+        declarations[section].pop()
+    else:
+        extra = copy.deepcopy(declarations[section][0])
+        if fault == "unknown-id":
+            key = {
+                "tables": "table_id",
+                "functions": "function_id",
+                "policies": "policy_id",
+                "column_acl_expectations": "expectation_id",
+            }[section]
+            extra[key] += ":unreviewed"
+        declarations[section].append(extra)
+    with pytest.raises(ValueError, match="部分/余剰"):
+        product.validate(declarations, bodies)
+
+
+def test_extra_table_acl_is_rejected_even_without_any_function_only_role():
+    """app/PUBLIC向け表GRANTを、role名だけで対象外へ漏らさない。"""
+    declarations, bodies = product.connection_declarations()
+    declarations["acl_expectations"].append(
+        {
+            "acl_id": "ACL:public:play_export_snapshots:PUBLIC",
+            "object_kind": "table",
+            "object_schema": "public",
+            "object_id": "play_export_snapshots",
+            "profile": "function_only",
+            "grantee_role_id": "PUBLIC",
+            "privilege_ids": ["SELECT"],
+            "grant_option": False,
+        }
+    )
+    with pytest.raises(ValueError, match="acl_expectations"):
+        product.validate(declarations, bodies)
+
+
+@pytest.mark.parametrize("fault", ["body-change", "body-missing", "body-extra"])
+def test_body_equality_is_full_and_does_not_ignore_unknown_target_keys(fault):
+    """正文を一字も無視せず、余剰sourceも取り込まない。"""
+    declarations, bodies = product.connection_declarations()
+    key = next(k for k in bodies if k.startswith("function|"))
+    if fault == "body-change":
+        bodies[key] += "\n"
+    elif fault == "body-missing":
+        del bodies[key]
+    else:
+        bodies["function|FUNCTION:stats_api:read_play_export_unreviewed()"] = (
+            "SELECT true;"
+        )
+    with pytest.raises(ValueError, match="本文"):
+        product.validate(declarations, bodies)
+
+
+@pytest.mark.parametrize(
+    "fault",
+    [
+        "owner",
+        "grant-option",
+        "security",
+        "volatility",
+        "search-path",
+        "arg-type",
+        "result-type",
+        "duplicate",
+        "extra-sql",
+        "parallel",
+        "strict",
+        "body-change",
+    ],
+)
+def test_provider_attribute_or_unknown_sql_changes_are_rejected(fault, monkeypatch):
+    """唯一providerを名乗っても署名/実行属性/ACL/文数の差は通さない。"""
+    original = writer.candidate_install_sql()
+    altered = {
+        "owner": lambda: original.replace(
+            "OWNER TO pitchlog_sync_right_fn_owner", "OWNER TO pitchlog_app", 1
+        ),
+        "grant-option": lambda: original.replace(
+            "TO pitchlog_app;", "TO pitchlog_app WITH GRANT OPTION;", 1
+        ),
+        "security": lambda: original.replace("SECURITY DEFINER", "SECURITY INVOKER", 1),
+        "volatility": lambda: original.replace("VOLATILE", "STABLE", 1),
+        "search-path": lambda: original.replace(
+            "search_path=pg_catalog,pg_temp", "search_path=pg_catalog,public", 1
+        ),
+        "arg-type": lambda: original.replace(
+            "p_attempt_id uuid", "p_attempt_id text", 1
+        ),
+        "result-type": lambda: original.replace(
+            "pitcher_pitch_count bigint", "pitcher_pitch_count text", 1
+        ),
+        "duplicate": lambda: original + original,
+        "extra-sql": lambda: original + "\nGRANT SELECT ON public.games TO PUBLIC;\n",
+        "parallel": lambda: original.replace(
+            "SECURITY DEFINER", "SECURITY DEFINER PARALLEL SAFE", 1
+        ),
+        "strict": lambda: original.replace(
+            "SECURITY DEFINER", "SECURITY DEFINER STRICT", 1
+        ),
+        "body-change": lambda: original.replace("p_revision<1", "p_revision<2", 1),
+    }[fault]()
+    assert altered != original
+    monkeypatch.setattr(writer, "candidate_install_sql", lambda: altered)
+    with pytest.raises(ValueError):
+        product.connection_declarations()
+
+
+def test_reader_cannot_overwrite_another_provider_under_a_duplicate_function_name(
+    monkeypatch,
+):
+    """dict合成による別sourceへの置換を、各源の閉集合で拒否する。"""
+    query, original = source_read.candidate_read_bundle()
+    extra = original + writer.candidate_install_sql()
+    monkeypatch.setattr(source_read, "candidate_read_bundle", lambda: (query, extra))
+    with pytest.raises(ValueError, match="個別関数源"):
         product.connection_declarations()
