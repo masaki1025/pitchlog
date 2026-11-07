@@ -3,34 +3,30 @@ import { computed, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { pinia } from '../appProviders'
 import { getPlayer } from '../api/roster'
-import {
-  readViewerGame,
-  readViewerHead,
-  viewerFailure,
-  type ViewerGame,
-  type ViewerHead,
-} from '../api/viewerGame'
-import { canonicalUuid } from '../api/authIntent'
+import type { ViewerGame } from '../api/viewerGame'
 import { useAuthStore } from '../stores/authStore'
+import {
+  GameScreenViewerLiveController,
+  viewerCurrent,
+  viewerHistory,
+  viewerLineup,
+  viewerNextCursor,
+  viewerPeriodLabel,
+  viewerRunners,
+  viewerSavedAt,
+  viewerStatusLabel,
+  type ViewerFreshness,
+} from './GameScreenViewerLiveController'
 
 const route = useRoute()
 const auth = useAuthStore(pinia)
 const gameId = computed(() => String(route.params.gameId ?? ''))
 const game = shallowRef<ViewerGame | null>(null)
-const head = ref<ViewerHead | null>(null)
-const names = ref<Record<string, string>>({})
-const freshness = ref<'loading' | 'fresh' | 'unupdated' | 'not-found'>(
-  'loading',
-)
+const freshness = ref<ViewerFreshness>('loading')
+const refreshing = ref(false)
 const checkedAt = ref<number | null>(null)
-const pageCursors = ref<(string | null)[]>([null])
-const pageIndex = computed(() => pageCursors.value.length - 1)
-const nextCursor = computed(() => game.value?.page.next_cursor ?? null)
-let runId = 0
-let request: AbortController | null = null
-let pollTimer: ReturnType<typeof setTimeout> | null = null
-let staleTimer: ReturnType<typeof setInterval> | null = null
-let mounted = false
+const pageCursors = ref<readonly (string | null)[]>([null])
+const names = ref<Record<string, string>>({})
 
 const identity = computed(() =>
   JSON.stringify([
@@ -40,139 +36,57 @@ const identity = computed(() =>
     gameId.value,
   ]),
 )
-const validIdentity = computed(
-  () =>
-    auth.isAuthenticated &&
-    auth.teamId !== null &&
-    canonicalUuid.test(auth.teamId) &&
-    canonicalUuid.test(gameId.value),
+const controller = new GameScreenViewerLiveController(
+  () => ({
+    authenticated: auth.isAuthenticated,
+    tenantId: auth.teamId,
+    authEpoch: auth.authEpoch,
+    gameId: gameId.value,
+  }),
+  {
+    onChange: (state) => {
+      const previous = game.value
+      game.value = state.game
+      freshness.value = state.freshness
+      refreshing.value = state.refreshing
+      checkedAt.value = state.checkedAt
+      pageCursors.value = state.pageCursors
+      if (state.game === null) names.value = {}
+      else if (state.game !== previous) void loadNames(state.game)
+    },
+  },
 )
-const current = computed(() => game.value?.after.stateFields ?? null)
-const periodLabel = computed(() => {
-  const source = game.value
-  if (source === null) return null
-  const state = source.after.stateFields
-  const half = (value: 'top' | 'bottom') => (value === 'top' ? '表' : '裏')
-  const t2 =
-    source.read_kind === 'lineup-prefix'
-      ? source.t2
-      : source.checkpoint.content.restored.lastPlayEvaluation
-  if (source.status === 'finished') {
-    if (t2?.decision.outcome === 'normal-end' && t2.facts.halfCompleted)
-      return `試合終了（${t2.facts.beforeInning}回${half(t2.facts.beforeHalf)}終了）`
-    return `試合終了（最終保存時 ${state['state.inning']}回${half(state['state.half'])}）`
-  }
-  return `${state['state.inning']}回${half(state['state.half'])}`
-})
-const lineup = computed(() =>
-  game.value?.read_kind === 'lineup-prefix'
-    ? game.value.lineup
-    : (game.value?.checkpoint.content.restored.lineup ?? null),
+
+const current = computed(() => viewerCurrent(game.value))
+const lineup = computed(() => viewerLineup(game.value))
+const runners = computed(() => viewerRunners(game.value))
+const savedAt = computed(() => viewerSavedAt(game.value))
+const history = computed(() => viewerHistory(game.value))
+const nextCursor = computed(() => viewerNextCursor(game.value))
+const pageIndex = computed(() => pageCursors.value.length - 1)
+const periodLabel = computed(() => viewerPeriodLabel(game.value))
+const statusText = computed(() =>
+  viewerStatusLabel(freshness.value, refreshing.value),
 )
-const runners = computed(() =>
-  game.value?.read_kind === 'lineup-prefix'
-    ? game.value.runners
-    : (game.value?.checkpoint.content.restored.runners ?? []),
+const hasState = computed(
+  () => game.value !== null && current.value !== null && lineup.value !== null,
 )
-const savedAt = computed(() => game.value?.last_saved_at ?? null)
-const history = computed(() => {
-  const source = game.value
-  if (source === null) return []
-  return source.read_kind === 'lineup-prefix'
-    ? source.page.items.map((item) => ({
-        key: item.play_row.id,
-        number: String(item.play_row.play_number),
-        result: item.play_row.batting_result_key,
-      }))
-    : source.page.items.map((item) => ({
-        key: item.play.playId,
-        number: item.play.physicalPlayNumber,
-        result: '確定済みの投球',
-      }))
-})
+const canPreviousPage = computed(() => pageIndex.value > 0 && !refreshing.value)
+const canNextPage = computed(
+  () => nextCursor.value !== null && !refreshing.value,
+)
+
 function playerLabel(id: string): string {
   return names.value[id] ?? `選手 ${id.slice(0, 8)}`
 }
-function clearTimer(): void {
-  if (pollTimer !== null) clearTimeout(pollTimer)
-  pollTimer = null
-}
-function clearCurrent(status: typeof freshness.value): void {
-  game.value = null
-  head.value = null
-  names.value = {}
-  checkedAt.value = null
-  pageCursors.value = [null]
-  freshness.value = status
-}
-function stop(): void {
-  runId += 1
-  request?.abort()
-  request = null
-  clearTimer()
-}
-function schedule(): void {
-  clearTimer()
-  if (mounted && validIdentity.value)
-    pollTimer = setTimeout(() => void load(false), 3000)
-}
-async function load(force: boolean): Promise<void> {
-  if (!mounted || !validIdentity.value) return
-  const currentRun = ++runId
-  request?.abort()
-  const controller = new AbortController()
-  request = controller
-  const tenant = auth.teamId!
-  const target = gameId.value
-  const capturedIdentity = identity.value
-  try {
-    const nextHead = await readViewerHead(target, controller.signal)
-    if (currentRun !== runId || identity.value !== capturedIdentity) return
-    const changed =
-      head.value === null ||
-      head.value.status !== nextHead.status ||
-      head.value.generation !== nextHead.generation ||
-      head.value.watermark !== nextHead.watermark
-    if (changed) {
-      game.value = null
-      pageCursors.value = [null]
-      freshness.value = 'loading'
-    }
-    if (changed || force || game.value === null) {
-      const nextGame = await readViewerGame(
-        target,
-        tenant,
-        nextHead,
-        pageCursors.value.at(-1) ?? null,
-        controller.signal,
-      )
-      if (currentRun !== runId || identity.value !== capturedIdentity) return
-      game.value = nextGame
-      void loadNames(nextGame, tenant, capturedIdentity, controller.signal)
-    }
-    head.value = nextHead
-    checkedAt.value = Date.now()
-    freshness.value = 'fresh'
-  } catch (error) {
-    if (currentRun !== runId || identity.value !== capturedIdentity) return
-    clearCurrent(viewerFailure(error))
-  } finally {
-    if (currentRun === runId) {
-      request = null
-      schedule()
-    }
-  }
-}
-async function loadNames(
-  source: ViewerGame,
-  tenant: string,
-  capturedIdentity: string,
-  signal: AbortSignal,
-): Promise<void> {
+async function loadNames(source: ViewerGame): Promise<void> {
+  const tenant = auth.teamId
+  if (!auth.isAuthenticated || tenant === null) return
   const sourceLineup =
     source.read_kind === 'lineup-prefix'
       ? source.lineup
       : source.checkpoint.content.restored.lineup
+  if (sourceLineup === null) return
   const expected = new Map<string, string>()
   for (const side of ['away', 'home'] as const) {
     const team = sourceLineup[side]
@@ -185,10 +99,10 @@ async function loadNames(
   await Promise.all(
     missing.map(async ([id, teamId]) => {
       try {
-        const player = await getPlayer(id, { signal })
+        const player = await getPlayer(id)
         if (
-          identity.value === capturedIdentity &&
           auth.teamId === tenant &&
+          auth.isAuthenticated &&
           game.value === source &&
           player.id === id &&
           player.team_record_id === teamId &&
@@ -202,79 +116,50 @@ async function loadNames(
   )
 }
 function nextPage(): void {
-  const cursor = nextCursor.value
-  if (cursor === null || freshness.value !== 'fresh') return
-  if (pageCursors.value.includes(cursor)) return
-  pageCursors.value = [...pageCursors.value, cursor]
-  void load(true)
+  controller.nextPage()
 }
 function previousPage(): void {
-  if (pageIndex.value === 0 || freshness.value !== 'fresh') return
-  pageCursors.value = pageCursors.value.slice(0, -1)
-  void load(true)
+  controller.previousPage()
 }
-watch(
-  identity,
-  () => {
-    stop()
-    clearCurrent('loading')
-    if (mounted && validIdentity.value) void load(true)
-  },
-  { flush: 'sync' },
-)
-onMounted(() => {
-  mounted = true
-  staleTimer = setInterval(() => {
-    if (
-      freshness.value === 'fresh' &&
-      checkedAt.value !== null &&
-      Date.now() - checkedAt.value > 10000
-    ) {
-      game.value = null
-      freshness.value = 'unupdated'
-    }
-  }, 1000)
-  if (validIdentity.value) void load(true)
-})
-onUnmounted(() => {
-  mounted = false
-  stop()
-  if (staleTimer !== null) clearInterval(staleTimer)
-})
+function retry(): void {
+  controller.reload(true)
+}
+watch(identity, () => controller.resetAndLoad(), { flush: 'sync' })
+onMounted(() => controller.start())
+onUnmounted(() => controller.stop())
 </script>
 
 <template>
   <main class="mx-auto max-w-5xl space-y-5 p-4 pb-12">
     <h1 class="text-2xl font-bold">試合のライブ閲覧</h1>
-    <p>サーバー確定分のみ表示。記録端末の未送信分は含まれません。</p>
-    <p role="status" data-testid="viewer-status">
-      {{
-        freshness === 'fresh'
-          ? '更新済み'
-          : freshness === 'not-found'
-            ? '閲覧できません'
-            : freshness === 'loading'
-              ? '確認中'
-              : '未更新'
-      }}
+    <p data-testid="viewer-server-only-notice">
+      サーバー確定分のみ表示。記録端末の未送信分は含まれません。
+    </p>
+    <p role="status" aria-live="polite" data-testid="viewer-status">
+      {{ statusText }}
     </p>
     <p>
-      最終保存: {{ savedAt ?? '未取得' }} / 閲覧確認:
-      {{
-        checkedAt === null
-          ? '未取得'
-          : new Date(checkedAt).toLocaleString('ja-JP')
-      }}
+      最終保存:
+      <span data-testid="viewer-saved-at">{{ savedAt ?? '未取得' }}</span>
+      / 閲覧確認:
+      <span data-testid="viewer-checked-at">
+        {{
+          checkedAt === null
+            ? '未取得'
+            : new Date(checkedAt).toLocaleString('ja-JP')
+        }}
+      </span>
     </p>
-    <template
-      v-if="
-        freshness === 'fresh' &&
-        game !== null &&
-        current !== null &&
-        lineup !== null
-      "
+    <button
+      v-if="freshness === 'unupdated' || freshness === 'not-found'"
+      type="button"
+      class="min-h-11 rounded-lg border px-3 py-2"
+      @click="retry"
     >
-      <section aria-label="スコア">
+      再取得
+    </button>
+    <template v-if="hasState && current && lineup">
+      <section aria-label="スコア" data-testid="viewer-score">
         <h2 class="text-lg font-bold">スコア</h2>
         <p>
           先攻 {{ current['state.score'].away }} – 後攻
@@ -299,7 +184,11 @@ onUnmounted(() => {
           }}
         </p>
       </section>
-      <section aria-label="出場選手" class="grid gap-4 md:grid-cols-2">
+      <section
+        aria-label="出場選手"
+        class="grid gap-4 md:grid-cols-2"
+        data-testid="viewer-lineup"
+      >
         <div v-for="side in ['away', 'home'] as const" :key="side">
           <h2 class="text-lg font-bold">
             {{ side === 'away' ? '先攻' : '後攻' }}の出場選手
@@ -318,7 +207,7 @@ onUnmounted(() => {
           </ol>
         </div>
       </section>
-      <section aria-label="投球履歴">
+      <section aria-label="投球履歴" data-testid="viewer-history">
         <h2 class="text-lg font-bold">確定済み投球履歴（1ページ25件）</h2>
         <p v-if="history.length === 0">まだ確定済みの投球はありません。</p>
         <ol v-else class="list-inside list-decimal">
@@ -326,11 +215,22 @@ onUnmounted(() => {
             第{{ item.number }}球: {{ item.result }}
           </li>
         </ol>
-        <button type="button" :disabled="pageIndex === 0" @click="previousPage">
-          前のページ
+        <p data-testid="viewer-page-index">表示ページ: {{ pageIndex + 1 }}</p>
+        <button
+          type="button"
+          :disabled="!canPreviousPage"
+          data-testid="viewer-previous-page"
+          @click="previousPage"
+        >
+          新しい25球へ
         </button>
-        <button type="button" :disabled="nextCursor === null" @click="nextPage">
-          次のページ
+        <button
+          type="button"
+          :disabled="!canNextPage"
+          data-testid="viewer-next-page"
+          @click="nextPage"
+        >
+          古い25球へ
         </button>
       </section>
     </template>
