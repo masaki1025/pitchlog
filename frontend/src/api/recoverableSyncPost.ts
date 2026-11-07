@@ -9,6 +9,24 @@ export async function postRecoverableSyncRequest<TBody>(
   body: TBody,
   credentials?: SyncRequestCredentials,
 ): Promise<{ body: TBody; response: unknown }> {
+  return postOriginal(gameId, body, credentials, 'events')
+}
+
+/** P3専用入口。D1付きeventsへ変換せず元changeを保存・再送する。 */
+export async function postRecoverableP3Change<TBody>(
+  gameId: string,
+  body: TBody,
+  credentials: SyncRequestCredentials,
+): Promise<{ body: TBody; response: unknown }> {
+  return postOriginal(gameId, body, credentials, 'change')
+}
+
+async function postOriginal<TBody>(
+  gameId: string,
+  body: TBody,
+  credentials: SyncRequestCredentials | undefined,
+  endpoint: 'events' | 'change',
+): Promise<{ body: TBody; response: unknown }> {
   let current = credentials
   let original = body
   if (current !== undefined) {
@@ -25,6 +43,9 @@ export async function postRecoverableSyncRequest<TBody>(
         current.attempt,
       )
       original = JSON.parse(prepared.barrier.bodyJson) as TBody
+      const isChange = Object.prototype.hasOwnProperty.call(original, 'change')
+      if (isChange !== (endpoint === 'change'))
+        throw new Error('元要求と同期入口が一致しません')
       if (!prepared.created) {
         const resolution = await recoverSyncAttempt(gameId, original, {
           ...current,
@@ -42,7 +63,7 @@ export async function postRecoverableSyncRequest<TBody>(
   }
   const response = await apiRequest<unknown>(
     'POST',
-    `/games/${encodeURIComponent(gameId)}/sync/events`,
+    `/games/${encodeURIComponent(gameId)}/sync/${endpoint}`,
     {
       tenantBound: true,
       body: original,

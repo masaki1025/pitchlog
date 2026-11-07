@@ -54,3 +54,9 @@ step2接合: recover入口だけが元本文のS-1閉unionからP3を解析し�
 P3のcontrol/event FP（wire原値）とD5台帳FP（既operation_fingerprint(event, P3, None)）は異なる。式を変更せず、真正P3から既式を適用したD5 FPを私有d1less packetへ別値として渡し、observe_d5だけが使用する。control原本/journal/business binding/tombstoneのevent FPは既wire FPを維持する。旧Event recovery packetへこのフィールドを追加しない。
 
 実装追随source pinはadapter.py実byteのSHA-256のみ: 旧d9fcdfde31aeb49ab23d242fd7ef1bd913b5a9f412a4016a29ba38768c4c15c6 → 40d9b070365ffb1f6fdd583c46e3438fdd934ec869d9914537c54c1e418e228a。数学期待/正式authz/tenant/seal/7.7の受理は行わない。P3原本文digestの5対向とevent/P3両phaseの終結/異内容/他phase拒否の純粋試験を追加した。ownedの未登録/後着・T2/T4全取消・実受理後のACK喪失/同D5再掲・別V12拒否を既真正P3縦断へ挿入する検証を用意し、固定sourceで次に実行する。
+
+step2固定: da7a933c、backend関連333件/20.74s・Ruff/Ty成功。owned実証はdetached verify-mvp-p3-recovery-step2@da7a933cで共通lockを保持して実行中。結果前に成功とはしない。
+
+step3端末候補: 共通barrierは既D1付き要求を保持し、P3のchange/recovery_generation/V12/target/expected_version全原値をstrict IDBへ固定する。送信前再起動後も同body/D5の旧attemptだけを照会し、retry_allowed後だけCASで新attemptへ更新する。unresolvedはchange再送/成功を作らない。P3 wrapperは専用change URLのみ、元P3をeventsへ変換しない。入力getter/JSON補完/未知混在を拒否する。
+
+FE検査: 対象5file/66件成功、vue-tsc/ESLint成功。HTTP/IDB doubleであり実PG/実画面の証拠ではない。P3 FE本体は編集せず、cache ~/.cache/pitchlog/p3-recovery-fe-intake-20261107/candidate.patch（SHA d6a5576c4c34e717aaf6cbbb6f3963e9538b7a011173c8019d3f3f6d3438f645）をroot/P3 writerの直列接合用に渡した。適用/実画面/非作者再確認/正式受理は未了。P3 old-live/tenant及びP1/P2最終合成回帰も残り、step3全成立は宣言しない。

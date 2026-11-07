@@ -84,38 +84,83 @@ function fixed(
   deviceId: string,
   originAttemptId: string,
 ): AttemptBarrier {
-  if (!uuid(tenantId) || !uuid(gameId) || !uuid(deviceId) || !uuid(originAttemptId))
+  if (
+    !uuid(tenantId) ||
+    !uuid(gameId) ||
+    !uuid(deviceId) ||
+    !uuid(originAttemptId)
+  )
     invalid()
   if (!body || typeof body !== 'object' || Array.isArray(body)) invalid()
   const request = body as Record<string, unknown>
+  // getterや欠落補修を実行する前に全原値のJSON表現を確認する。
+  const checked = canonical(body)
+  const p3 =
+    Object.keys(request).sort().join(',') ===
+    'change,recording_right_proof,recovery_generation'
   if (
-    Object.keys(request).sort().join(',') !== 'events,recording_right_proof' ||
-    !Array.isArray(request.events) ||
-    request.events.length !== 1
+    !p3 &&
+    (Object.keys(request).sort().join(',') !== 'events,recording_right_proof' ||
+      !Array.isArray(request.events) ||
+      request.events.length !== 1)
   )
     invalid()
-  const eventValue: unknown = request.events[0]
-  if (!eventValue || typeof eventValue !== 'object' || Array.isArray(eventValue))
+  const eventValue: unknown = p3
+    ? request.change
+    : (request.events as unknown[])[0]
+  if (
+    !eventValue ||
+    typeof eventValue !== 'object' ||
+    Array.isArray(eventValue)
+  )
     invalid()
   const event = eventValue as Record<string, unknown>
+  let d4: unknown = event.d4
+  if (p3) {
+    const target = event.target_reference
+    if (
+      Object.keys(event).sort().join(',') !==
+        'd5,event_kind,expected_version,game_id,payload,target_reference' ||
+      event.event_kind !== 'play_change' ||
+      typeof request.recovery_generation !== 'string' ||
+      !/^[1-9][0-9]*$/.test(request.recovery_generation) ||
+      !Number.isSafeInteger(event.expected_version) ||
+      typeof event.expected_version !== 'number' ||
+      event.expected_version < 1 ||
+      !target ||
+      typeof target !== 'object' ||
+      Array.isArray(target)
+    )
+      invalid()
+    const reference = target as Record<string, unknown>
+    if (
+      Object.keys(reference).sort().join(',') !== 'd1,d4,game' ||
+      reference.game !== gameId ||
+      !Number.isSafeInteger(reference.d1) ||
+      typeof reference.d1 !== 'number' ||
+      reference.d1 < 1
+    )
+      invalid()
+    d4 = reference.d4
+  }
   if (
     !uuid(event.d5) ||
     event.game_id !== gameId ||
-    typeof event.d4 !== 'string' ||
-    event.d4.length === 0 ||
-    !Number.isSafeInteger(event.d1) ||
-    typeof event.d1 !== 'number' ||
-    event.d1 < 1
+    typeof d4 !== 'string' ||
+    d4.length === 0 ||
+    (!p3 &&
+      (!Number.isSafeInteger(event.d1) ||
+        typeof event.d1 !== 'number' ||
+        event.d1 < 1))
   )
     invalid()
-  const checked = canonical(body)
   const bodyJson = JSON.stringify(body)
   if (canonical(JSON.parse(bodyJson)) !== checked) invalid()
   return Object.freeze({
     tenantId,
     gameId,
     deviceId,
-    d4: event.d4,
+    d4,
     d5: event.d5,
     originAttemptId,
     currentAttemptId: originAttemptId,
