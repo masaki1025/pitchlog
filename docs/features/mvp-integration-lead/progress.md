@@ -3,6 +3,9 @@
 
 ## 2026-11-07：CSV通常配置の全故障対向を完了し、P3・復旧を同じ候補へ接合
 
+- **走者4安打・同版実画面/全DB完走**: 79fe5cca固定run9はPlaywright9＋pytest1 **passed495.88秒（driver496.83秒）**。正常7の実新規作成/開始/全41列・runner/責任投手・T5得点/打点/失点、元要求再送の非二重加算、reload、越境404、T4実500＋全T5旧/現版/source/fact送信前後完全一致まで末尾DBを完走。3033source前後同一/clean/共有DSNunset/owned cleanup。作者manifest run9 SHA f0bb0d849def35dbb148d562cf2cc5f9c161f0f181219035a099055c6e860897、run8 SHA be2a8c766eb19b3883a5bdd118724aaeccd2ddfdf4a07e1ad1d2ed5b3390f39bをrootが各全8/7artifact実SHA・終端・source前後まで読取再照合、owned-evidence-revalidated.jsonへ固定（rootのPG再実行ではない）。旧run5/6失敗は保全。9fea7fa3は記録のみ・製品source79と不変、通常push。正式統合/断中打球/実機は未了。
+- **次の供給を一括化**: 同担当はhit_kind（2B/3B/TB）・stealsのevent/codec閉分類・既RBI07のforced得点を全27表示対応表でまとめて修復する。生成式は追加せず既T1/観測/語彙・責任原本を写す。native原始キー27とMVP表示27を混同してfielding_errors等を新たな着手前提にしない。D03は別所有、1表＋複合資格readのDB内部hookを候補化中。
+
 - **13時台の更新**: P3標準control実HTTPは9848で1failed186.54秒、限定cause診断f84a7d02でも1failed205.29秒/source同一/cleanup。P3後の通常球がCSV save→ProgrammingError→NoDataFoundで閉拒否。P3のT5 selectorはv2だがCSV writer/score/sole-S readerが旧selectorという交差依存を特定し、9341ab7bで既native generator/profileの共通化と有効payload取得を計画追補採用。旧同TX play_input資格をP3へ一般緩和せず、P3自身の88列producerは別。実装は次、未解消赤を成功へ数えない。
 - **走者成績の限定source採用**: 25ce adapterで確定0の三振までoutEffect guardが未供給にする点をroot非作者が指摘、79fe5ccaでguard位置/holdを修正しK27の正負追加。root detached独立 **228passed8.67秒**、facts adapter/専用試験/旧primitive比較/plan4path限定REPORT SHA b53de3e4f794beb439a32713273acdc363da7376c3ce98d944f4b6934a69b398。生成核/model/math/contracts差分空、RBI06/08の4安打＋確定0のみPO委任限定採用。全27ではなくhit_kind/steals等の残供給をmodel対応表でまとめて修復する。初回shadowのprettier未配置160setuperrorは保全し、環境是正後161成功と最終228を分離。
 - **実faultの前進**: 同79feの走者T4単独run8はPlaywright1/pytest1 **84.87秒/source一致/共有DSNunset/cleanup**。全T5 versions（非currentを含む）/sources/facts送信前後全値一致、failed event/play/runner/D5/CSV無し、実GET完全復元。sourceの限定reviewとは別の作者実測。run9の正常7＋越境＋fault全9/全DBは実行中、終端未判定。run7のgrep ^不整合No tests foundは未実行として保全。
