@@ -166,14 +166,14 @@ HARNESS_PYTEST_COMMAND = (
     "--ignore=tests/test_step_history_audit.py "
     "--ignore=tests/test_packaging.py "
     "-p pytest_shard_plugin "
-    "--shard-count 4 "
+    "--shard-count 8 "
     "--shard-index ${{ matrix.shard }} "
     "--durations=25"
 )
 BACKEND_SHARD_PYTEST_COMMAND = (
     "uv run python -m pytest -c pyproject.toml "
     "-p pytest_shard_plugin "
-    "--shard-count 4 "
+    "--shard-count 8 "
     "--shard-index ${{ matrix.shard }} "
     "--cov "
     "--cov-report=term "
@@ -3732,12 +3732,12 @@ def test_aggregate_jobs_reject_non_success_needs() -> None:
 
 
 def test_pytest_shard_config_matches_the_ci_command() -> None:
-    """分割定義と CI の pytest コマンドが同じ対象・同じ分割数である。"""
+    """分割定義と CI の pytest コマンドが同じ対象・8 分割・同じ被覆検査を持つ。"""
     config = json.loads((REPOSITORY_ROOT / "ci" / "pytest-shards.json").read_text(encoding="utf-8"))
     harness = config["suites"]["harness"]
     backend = config["suites"]["backend"]
-    assert harness["shards"] == 4
-    assert backend["shards"] == 4
+    assert harness["shards"] == 8
+    assert backend["shards"] == 8
     assert harness["ignore"] == [
         "tests/domain/boot",
         "tests/domain/mut",
@@ -3745,24 +3745,60 @@ def test_pytest_shard_config_matches_the_ci_command() -> None:
         "tests/test_step_history_audit.py",
         "tests/test_packaging.py",
     ]
+    assert isinstance(harness["weights"], dict) and len(harness["weights"]) > 0
+    assert isinstance(backend["weights"], dict) and len(backend["weights"]) > 0
+    assert harness["default_weight_seconds"] > 0
+    assert backend["default_weight_seconds"] > 0
     tokens = shlex.split(HARNESS_PYTEST_COMMAND)
     assert tokens[tokens.index("--shard-count") + 1] == str(harness["shards"])
     assert "--shard-index ${{ matrix.shard }}" in HARNESS_PYTEST_COMMAND
     assert "--shard-index" in tokens
     assert harness["targets"] == ["tests/"]
+    backend_tokens = shlex.split(BACKEND_SHARD_PYTEST_COMMAND)
+    assert backend_tokens[backend_tokens.index("--shard-count") + 1] == str(backend["shards"])
+    assert "--shard-index ${{ matrix.shard }}" in BACKEND_SHARD_PYTEST_COMMAND
+    assert "--cov" in backend_tokens
     workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8"))
-    for job_name in ("harness-shard", "backend-shard"):
+    expected_matrix = list(range(8))
+    for job_name, suite in (
+        ("harness-shard", harness),
+        ("backend-shard", backend),
+    ):
         matrix = workflow["jobs"][job_name]["strategy"]["matrix"]["shard"]
-        assert len(matrix) == harness["shards"] == backend["shards"]
-    commands = [
+        assert matrix == expected_matrix
+        assert len(matrix) == suite["shards"]
+    harness_commands = [
         str(step.get("run"))
         for step in workflow["jobs"]["harness"]["steps"]
         if isinstance(step, dict)
     ]
-    assert "uv run python scripts/pytest_shards.py verify --suite harness" in commands
+    assert "uv run python scripts/pytest_shards.py verify --suite harness" in harness_commands
+    backend_commands = [
+        str(step.get("run"))
+        for step in workflow["jobs"]["backend"]["steps"]
+        if isinstance(step, dict)
+    ]
+    assert (
+        "uv run python ../scripts/pytest_shards.py verify --suite backend --require-db"
+        in backend_commands
+    )
     for ignored in harness["ignore"]:
         assert f"--ignore={ignored}" in tokens
     assert backend["targets"] == ["tests/"] and backend["ignore"] == []
+    backend_shard_runs = "\n".join(
+        str(step.get("run"))
+        for step in workflow["jobs"]["backend-shard"]["steps"]
+        if isinstance(step, dict) and "run" in step
+    )
+    assert "uv run coverage report" in backend_shard_runs
+    assert "uv run coverage json -o coverage-shard${{ matrix.shard }}.json" in backend_shard_runs
+    uploads = [
+        step
+        for step in workflow["jobs"]["backend-shard"]["steps"]
+        if isinstance(step, dict) and step.get("uses", "").startswith("actions/upload-artifact@")
+    ]
+    assert len(uploads) == 1
+    assert uploads[0]["with"]["name"] == "backend-coverage-${{ matrix.shard }}"
 
 
 def _assert_pr_body_gate6_connection(workflow: dict[str, Any]) -> None:
