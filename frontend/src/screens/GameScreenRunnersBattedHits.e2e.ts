@@ -69,7 +69,27 @@ async function login(page: Page, name: string = team!): Promise<void> {
     { timeout: httpTimeout },
   )
   await page.getByRole('button', { name: 'ログイン', exact: true }).click()
-  const response = await posted
+  let response
+  try {
+    response = await posted
+  } catch (error) {
+    // 機能診断は資格/本文を出さず、現在のUI状態だけを保存する。
+    console.log(
+      'PITCHLOG_RUNNER_SEND_STATE=' +
+        JSON.stringify({
+          path: new URL(page.url()).pathname,
+          status: await page
+            .getByTestId('first-ball-status')
+            .textContent()
+            .catch(() => null),
+          source: await page
+            .getByTestId('ordinary-state-source')
+            .textContent()
+            .catch(() => null),
+        }),
+    )
+    throw error
+  }
   expect(response.status()).toBe(200)
 }
 
@@ -315,6 +335,41 @@ test('走者一塁の単打→三塁明示→再送→reload', async ({ page }) 
       },
     })
   })
+  if (process.env.PITCHLOG_E2E_RUNNER_SCOPE === 'first') {
+    page.on('request', (request) => {
+      if (request.url().includes('/sync/events'))
+        console.log(
+          'PITCHLOG_RUNNER_TRANSPORT=' +
+            JSON.stringify({
+              phase: 'sent',
+              path: new URL(request.url()).pathname,
+              method: request.method(),
+            }),
+        )
+    })
+    page.on('requestfailed', (request) => {
+      console.log(
+        'PITCHLOG_RUNNER_TRANSPORT=' +
+          JSON.stringify({
+            phase: 'failed',
+            path: new URL(request.url()).pathname,
+            method: request.method(),
+            code: request.failure()?.errorText,
+          }),
+      )
+    })
+    page.on('response', (response) => {
+      if (response.url().includes('/sync/events'))
+        console.log(
+          'PITCHLOG_RUNNER_TRANSPORT=' +
+            JSON.stringify({
+              phase: 'response',
+              path: new URL(response.url()).pathname,
+              status: response.status(),
+            }),
+        )
+    })
+  }
   await login(page)
   const saved = await createGame(page, 'A')
   const requests = requestRecorder(page, saved.id)

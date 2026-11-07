@@ -2,11 +2,21 @@ import { defineConfig, devices } from '@playwright/test'
 import { gameScreenOutputDirectory } from './GameScreenE2eProcess'
 
 const scope = process.env.PITCHLOG_E2E_RUNNER_SCOPE
-if (scope !== undefined && scope !== 'all' && scope !== 'fault')
+if (
+  scope !== undefined &&
+  scope !== 'all' &&
+  scope !== 'fault' &&
+  scope !== 'first'
+)
   throw new Error('未知の走者画面検証scope')
 
 export default defineConfig({
-  grep: scope === 'fault' ? /走者あり打球のT4途中故障/ : undefined,
+  grep:
+    scope === 'fault'
+      ? /走者あり打球のT4途中故障/
+      : scope === 'first'
+        ? /走者一塁の単打→三塁明示/
+        : undefined,
   testDir: '.',
   testMatch: 'GameScreenRunnersBattedHits.e2e.ts',
   fullyParallel: false,

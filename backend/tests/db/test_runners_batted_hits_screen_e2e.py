@@ -498,7 +498,23 @@ def test_screen_runner_batted_fault(
     )
 
 
-def _screen_runner_batted_hits(vertical_database, tmp_path, monkeypatch, *, fault_only):
+@pytest.mark.skipif(
+    not os.environ.get("PITCHLOG_E2E_TLS_CERT_PATH")
+    and not os.environ.get("PITCHLOG_E2E_TLS_KEY_PATH"),
+    reason="明示TLS PATH未供給のため初回保存画面は未実証",
+)
+def test_screen_runner_batted_first(
+    vertical_database, tmp_path: Path, monkeypatch
+) -> None:
+    """初回送信/保存の診断を全10再走から分離し、同じ全値DB照合へ通す。"""
+    _screen_runner_batted_hits(
+        vertical_database, tmp_path, monkeypatch, fault_only=False, first_only=True
+    )
+
+
+def _screen_runner_batted_hits(
+    vertical_database, tmp_path, monkeypatch, *, fault_only, first_only=False
+):
     """走者状態は画面の先行単打だけで作り、DBへ事前投入しない。"""
     for name in ("PITCHLOG_E2E_TLS_CERT_PATH", "PITCHLOG_E2E_TLS_KEY_PATH"):
         path = os.environ.get(name)
@@ -559,7 +575,9 @@ def _screen_runner_batted_hits(vertical_database, tmp_path, monkeypatch, *, faul
                                 tmp_path / "result-game.txt"
                             ),
                             "PITCHLOG_E2E_RUNNER_FAULT_CHECKPOINT": str(checkpoint),
-                            "PITCHLOG_E2E_RUNNER_SCOPE": "fault"
+                            "PITCHLOG_E2E_RUNNER_SCOPE": "first"
+                            if first_only
+                            else "fault"
                             if fault_only
                             else "all",
                         },
@@ -578,7 +596,13 @@ def _screen_runner_batted_hits(vertical_database, tmp_path, monkeypatch, *, faul
                     completed.stdout,
                 )
             ]
-            expected = set() if fault_only else set(_RESULTS)
+            expected = (
+                {"single-first-to-third"}
+                if first_only
+                else set()
+                if fault_only
+                else set(_RESULTS)
+            )
             assert len(observed) == len(expected)
             assert {r["scenario"] for r in observed} == expected
             created_games = {r["game"] for r in observed}
@@ -604,6 +628,9 @@ def _screen_runner_batted_hits(vertical_database, tmp_path, monkeypatch, *, faul
                         r"PITCHLOG_RUNNER_FAULT_RESULT=(\{[^\n]+\})", completed.stdout
                     )
                 ]
+                if first_only:
+                    assert fault_results == [] and baseline is None
+                    return
                 assert len(fault_results) == 1
                 assert fault_results[0]["game"] not in created_games
                 assert fault_results[0]["game"] != str(db.game_id)
