@@ -37,11 +37,19 @@ def generate_appearance_bundle(
     # CTEの供給は真正providerの責務。このtargetは自由なSQL/Sessionを受け取らない。
     # scopeの欠測を投球数・開始名簿・現在名簿から補完しない。
     binding = model["source"]["binding"]
-    matches = " AND ".join(f"m.{name}=s.{name}" for name in binding)
+    nullable = model["source"]["nullableBinding"]
+    matches = " AND ".join(
+        f"m.{name} IS NOT DISTINCT FROM s.{name}"
+        if name in nullable
+        else f"m.{name}=s.{name}"
+        for name in binding
+    )
     proof_kinds = ",".join("'" + value + "'" for value in model["source"]["proofKinds"])
     member_count = model["source"]["memberCountColumn"]
     expected_game_count = model["source"]["expectedGameCountBind"]
-    invalid_scope = " OR ".join(f"s.{name} IS NULL" for name in binding)
+    invalid_scope = " OR ".join(
+        f"s.{name} IS NULL" for name in binding if name not in nullable
+    )
     query = f"""-- 生成元: {_MODEL}。真正scope/member CTEの供給前は製品提供不可。
 SELECT 'appearances' AS metric_id,
  CASE WHEN invalid_supply THEN 'source_unavailable' ELSE 'available' END AS state,

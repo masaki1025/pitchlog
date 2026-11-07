@@ -29,15 +29,22 @@ def _evaluate(scopes, members, *, player="p1", tenant="t1", expected_games=None)
     with sqlite3.connect(":memory:") as db:
         db.execute(
             "CREATE TABLE appearance_scope (tenant_id,game_id,fact_version_id,"
-            "revision,source_set_sha256,supply_complete,member_count)"
+            "revision,source_set_sha256,supply_complete,member_count,"
+            "checkpoint_id,checkpoint_generation,checkpoint_revision,checkpoint_digest,"
+            "d3,lifecycle_receipt_id,entry_set_sha256)"
         )
         db.execute(
             "CREATE TABLE appearance_members (tenant_id,game_id,fact_version_id,"
-            "revision,source_set_sha256,player_id,proof_kind,proof_source_id)"
+            "revision,source_set_sha256,player_id,proof_kind,proof_source_id,"
+            "checkpoint_id,checkpoint_generation,checkpoint_revision,checkpoint_digest,"
+            "d3,lifecycle_receipt_id,entry_set_sha256)"
         )
-        db.executemany("INSERT INTO appearance_scope VALUES (?,?,?,?,?,?,?)", scopes)
         db.executemany(
-            "INSERT INTO appearance_members VALUES (?,?,?,?,?,?,?,?)", members
+            "INSERT INTO appearance_scope VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)", scopes
+        )
+        db.executemany(
+            "INSERT INTO appearance_members VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            members,
         )
         return db.execute(
             _query(),
@@ -51,8 +58,26 @@ def _evaluate(scopes, members, *, player="p1", tenant="t1", expected_games=None)
         ).fetchone()
 
 
-def _scope(game="g1", *, version="v1", revision=1, digest="s1", count=1, complete=True):
-    return ("t1", game, version, revision, digest, complete, count)
+def _scope(
+    game="g1",
+    *,
+    version="v1",
+    revision=1,
+    digest="s1",
+    count=1,
+    complete=True,
+    context=None,
+):
+    return (
+        "t1",
+        game,
+        version,
+        revision,
+        digest,
+        complete,
+        count,
+        *(context or ("cp1", 1, 1, "cp-digest1", 0, None, "entry-set1")),
+    )
 
 
 def _member(
@@ -64,8 +89,19 @@ def _member(
     version="v1",
     revision=1,
     digest="s1",
+    context=None,
 ):
-    return ("t1", game, version, revision, digest, player, kind, proof)
+    return (
+        "t1",
+        game,
+        version,
+        revision,
+        digest,
+        player,
+        kind,
+        proof,
+        *(context or ("cp1", 1, 1, "cp-digest1", 0, None, "entry-set1")),
+    )
 
 
 def test_generated_target_is_reproducible_and_unconnected():
@@ -157,6 +193,36 @@ def test_incomplete_or_mismatched_supply_is_not_zero(fault):
     else:
         scopes = [_scope(), _scope(version="v2")]
     assert _evaluate(scopes, members) == ("appearances", "source_unavailable", None)
+
+
+@pytest.mark.parametrize("index", range(7))
+def test_same_native_version_does_not_authorize_old_checkpoint_or_entry_set(index):
+    """0球交代でnative版が同じでもCP/水位/終了receipt/集合の旧資格を拒否。"""
+    context = ["cp1", 1, 1, "cp-digest1", 0, None, "entry-set1"]
+    context[index] = 2 if index in {1, 2, 4} else "changed"
+    assert _evaluate([_scope()], [_member(context=context)]) == (
+        "appearances",
+        "source_unavailable",
+        None,
+    )
+
+
+def test_current_nullable_receipt_and_confirmed_receipt_are_distinct():
+    """未終了receiptのNULLは正当、終了後の別receiptに持ち越さない。"""
+    current = ["cp1", 1, 1, "cp-digest1", 0, None, "entry-set1"]
+    ended = [*current[:5], "receipt-v1", current[6]]
+    assert _evaluate([_scope(context=current)], [_member(context=current)])[1:] == (
+        "available",
+        1,
+    )
+    assert _evaluate([_scope(context=ended)], [_member(context=ended)])[1:] == (
+        "available",
+        1,
+    )
+    assert _evaluate([_scope(context=ended)], [_member(context=current)])[1:] == (
+        "source_unavailable",
+        None,
+    )
 
 
 def test_other_tenant_rows_cannot_create_an_appearance_or_poison_supply():

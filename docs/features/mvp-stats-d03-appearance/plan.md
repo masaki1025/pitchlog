@@ -117,3 +117,9 @@ R13は1passed/1failed384.29秒: v3実9投球SO3→裏10球目/reloadで、開始
 Save後は前値用read_primitive_writer_stateの再呼出をやめ、audit後のowner-only固定callから、実source/current_open現在版をevent/attempt/phase/gen/D1/D2/wireD4/slot/FP/modelと両物理xminへ全値照合する。旧profileの余分な前提やS完全性の再実装を追加せず、callerからS/成功boolを受けない。helper後の親最終binding assertは維持する。rootは共有3hookをまだ正式sourceへ適用していない。r13半回成功は旧lookup版、r14新SQLはv3二球と0球交代の証拠として分離し、最新source全半回再実証へ読み替えない。
 
 これらはsource producer候補の到達点。真正current版/S＋CP ref/revision/digest/D3＋LC receipt＋entry-setを同RRへ束縛するread、P3/Undo/LC、試合別/season/区分/CSVの登板提供、正式0049/catalog/7.7/独立レビューは引続き未了。原本producer候補をAPI登板の提供済みとは記録しない。
+
+### step2途中・同RR複合資格の計数境界（2026-11-07）
+
+root採用済みの1表＋複合資格を、既唯一計数宣言にも伝播する。従前のnative fact版/revision/Sの5キーだけでは、0球投手交代によってCP・D3・entry集合が変わっても同値となるため不十分だった。scope/memberに checkpoint_id/checkpoint_generation/checkpoint_revision/checkpoint_digest/d3/lifecycle_receipt_id/entry_set_sha256 を追加し、計12キーを全照合する。current未終了に限ってLC receiptのNULLは正当な値として同値比較し、他の資格NULL・旧CP・旧D3・旧集合・別終了receiptはsource_unavailableに閉じる。memberから都合よくscopeを採取する供給は認めず、真正providerが同RR内の現在原本でscopeを構成する。
+
+今回の途中到達点は宣言/schema/生成COUNT SQLと正負ケースだけ。実entry projector SQLはbyte不変を生成時に照合した。source producerのr8/r12/r13/r14証拠を計数provider成立へ広げず、実成績API/CSVはまだ未供給のまま。次は真正CP/LCと唯一Sから同RR内scope/memberを供給するowner-only readを接合する。P3/取消のcontextをraw event由来の旧proofで代替しない。
