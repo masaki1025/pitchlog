@@ -816,6 +816,111 @@ for (const scenario of multiRunnerCases) {
   })
 }
 
+test('走者あり打球のT4途中故障は成功表示せず、先行1球だけをサーバーに残す', async ({
+  page,
+}) => {
+  page.setDefaultTimeout(httpTimeout)
+  await login(page)
+  const saved = await createGame(page, 'H')
+  const zero = saved.initialHead
+  const fielder = zero.roster.teams
+    .find((t) => t.side === 'home')
+    ?.participants.find((p) =>
+      p.roles.some((r) => r.kind === 'fielding' && r.position === '9'),
+    )
+  if (!fielder) throw new Error('実守備rosterに位置9の野手がない')
+  await selectPitch(
+    page,
+    'batting-result.single',
+    fielder.player.player_id,
+    null,
+  )
+  const beforeRead = readHead(page, saved.id, '1')
+  await save(page, saved.id)
+  const beforeResponse = await beforeRead
+  const before = (await beforeResponse.json()) as Head
+  expect(before.after.stateFields['state.runners']).toBe('first')
+  let failedD5: string | undefined
+  let failedPlayId: string | undefined
+  let failedEventId: string | undefined
+  await page.route(`**/api/games/${saved.id}/sync/events`, async (route) => {
+    const original = route.request()
+    const value = original.postDataJSON() as {
+      events: Array<{
+        d5: string
+        payload: {
+          calculation: {
+            request: {
+              playIdentity: {
+                playId: string
+                eventId: string
+              }
+            }
+          }
+        }
+      }>
+    }
+    if (failedD5 !== undefined && failedD5 !== value.events[0]?.d5)
+      throw new Error('結果不明の要求を新D5へ置換している')
+    failedD5 = value.events[0]?.d5
+    failedPlayId =
+      value.events[0]?.payload.calculation.request.playIdentity.playId
+    failedEventId =
+      value.events[0]?.payload.calculation.request.playIdentity.eventId
+    // 公開test flagだけを追加する。元本文/Cookie/端末資格/attemptは変更しない。
+    await route.continue({
+      headers: {
+        ...(await original.allHeaders()),
+        'X-Pitchlog-Owned-Runner-Fault': 'after_t4_projection',
+      },
+    })
+  })
+  await selectPitch(
+    page,
+    'batting-result.single',
+    fielder.player.player_id,
+    '3',
+  )
+  const posted = page.waitForResponse(
+    (res) =>
+      res.request().method() === 'POST' &&
+      apiPath(res.url()) === `/api/games/${saved.id}/sync/events`,
+    { timeout: httpTimeout },
+  )
+  await expect(page.getByTestId('first-ball-save')).toBeEnabled()
+  await page.getByTestId('first-ball-save').click()
+  const failed = await posted
+  expect(failed.status()).toBe(500)
+  await expect(
+    page.getByText(/^未確認の要求が端末に残っています/),
+  ).toBeVisible()
+  const originalRead = beforeResponse.request()
+  const afterRead = await page.request.get(originalRead.url(), {
+    headers: await originalRead.allHeaders(),
+    timeout: httpTimeout,
+  })
+  expect(afterRead.status()).toBe(200)
+  const after = (await afterRead.json()) as Head
+  expect(after.after).toEqual(before.after)
+  expect(after.runners).toEqual(before.runners)
+  expect(after.prefix_ref).toEqual(before.prefix_ref)
+  expect(after.page.items).toEqual(before.page.items)
+  expect(after.last_entry).toEqual(before.last_entry)
+  if (!failedD5 || !failedPlayId || !failedEventId)
+    throw new Error('故障させた実要求のidentityがない')
+  console.log(
+    'PITCHLOG_RUNNER_FAULT_RESULT=' +
+      JSON.stringify({
+        game: saved.id,
+        failedD5,
+        failedPlayId,
+        failedEventId,
+        status: failed.status(),
+        prefix: after.prefix_ref.length,
+      }),
+  )
+})
+
 test('別tenantは対象試合のprefixを取得できない', async ({ page }) => {
   test.skip(!otherTeam || !resultFile, '他tenant資格または結果ファイルが未供給')
   const game = readFileSync(resultFile!, 'utf8')

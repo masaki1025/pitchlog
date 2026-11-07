@@ -109,6 +109,98 @@ _STATUSES = {
 }
 
 
+def _install_runner_fault_server(monkeypatch) -> None:
+    """隔離appだけに固定T4故障を注入し、実認可/実TX/元応答は変更しない。"""
+    from . import test_screen_start_e2e as screen
+
+    original = screen._app_container
+    bootstrap = r"""
+import sys,uvicorn
+from pitchlog.api.app import create_app
+from pitchlog.sync.crash_points import testing_crash_hook
+app=create_app()
+class OwnedRunnerT4Fault(RuntimeError):
+ pass
+@app.middleware('http')
+async def owned_runner_fault(request,call_next):
+ if (request.method=='POST'
+     and request.url.path.endswith('/sync/events')
+     and request.headers.get('X-Pitchlog-Owned-Runner-Fault')=='after_t4_projection'):
+  def fail(point):
+   if point=='after_t4_projection':
+    print('PITCHLOG_RUNNER_T4_REACHED',flush=True)
+    raise OwnedRunnerT4Fault('owned runner projection fault')
+  with testing_crash_hook(fail):
+   return await call_next(request)
+ return await call_next(request)
+uvicorn.run(app,host='0.0.0.0',port=int(sys.argv[1]),log_level='warning')
+"""
+
+    def app_arguments(db, app_port, origin):
+        command = original(db, app_port, origin)
+        positions = [
+            index
+            for index in range(len(command) - 1)
+            if command[index : index + 2] == ["-m", "uvicorn"]
+        ]
+        assert len(positions) == 1, "owned故障serverの既bootstrap形が不一致"
+        return [*command[: positions[0]], "-c", bootstrap, str(app_port)]
+
+    monkeypatch.setattr(screen, "_app_container", app_arguments)
+
+
+def _verify_runner_fault_rollback(admin, tenant, result):
+    """実故障要求のlogical IDを使い、runnerを含む全保存面の残存を拒否する。"""
+    game = UUID(result["game"])
+    failed_play = UUID(result["failedPlayId"])
+    failed_event = UUID(result["failedEventId"])
+    failed_d5 = UUID(result["failedD5"])
+    assert result["status"] == 500 and result["prefix"] == "1"
+    for table in ("play_rows", "operation_events", "event_slots"):
+        assert admin.execute(
+            sql.SQL(
+                "SELECT count(*) FROM public.{} WHERE tenant_id=%s AND game_id=%s"
+            ).format(sql.Identifier(table)),
+            (tenant, game),
+        ).fetchone() == (1,)
+    assert admin.execute(
+        "SELECT count(*) FROM public.play_rows WHERE tenant_id=%s AND id=%s",
+        (tenant, failed_play),
+    ).fetchone() == (0,)
+    assert admin.execute(
+        "SELECT count(*) FROM public.play_runners WHERE tenant_id=%s AND play_id=%s",
+        (tenant, failed_play),
+    ).fetchone() == (0,)
+    assert admin.execute(
+        "SELECT count(*) FROM public.operation_events WHERE tenant_id=%s AND id=%s",
+        (tenant, failed_event),
+    ).fetchone() == (0,)
+    assert admin.execute(
+        "SELECT count(*) FROM public.idempotency_ledger WHERE tenant_id=%s AND d5=%s",
+        (tenant, failed_d5),
+    ).fetchone() == (0,)
+    assert admin.execute(
+        "SELECT count(*) FROM sync_fence.stats_primitive_sources "
+        "WHERE tenant_id=%s AND source_event_id=%s",
+        (tenant, failed_event),
+    ).fetchone() == (0,)
+    assert admin.execute(
+        "SELECT count(*) FROM sync_fence.stats_primitive_facts "
+        "WHERE tenant_id=%s AND source_event_id=%s",
+        (tenant, failed_event),
+    ).fetchone() == (0,)
+    assert admin.execute(
+        "SELECT count(*) FROM public.play_export_snapshots "
+        "WHERE tenant_id=%s AND source_event_id=%s",
+        (tenant, failed_event),
+    ).fetchone() == (0,)
+    assert admin.execute(
+        "SELECT source_count FROM sync_fence.stats_fact_versions "
+        "WHERE tenant_id=%s AND game_id=%s AND is_current",
+        (tenant, game),
+    ).fetchall() == [(1,)]
+
+
 def _run_runner_playwright(db, origin: str, extra_env: dict[str, str]):
     """共通runnerの期限超過出力を既ログへ保存し、元の失敗を再送出する。"""
     try:
@@ -267,11 +359,14 @@ def _verify_saved_rows(admin, tenant, game, scenario: str) -> None:
     and not os.environ.get("PITCHLOG_E2E_TLS_KEY_PATH"),
     reason="明示TLS証明書/鍵PATH未供給のため走者あり打球の画面縦断は未実証",
 )
-def test_screen_runner_batted_hits(vertical_database, tmp_path: Path) -> None:
+def test_screen_runner_batted_hits(
+    vertical_database, tmp_path: Path, monkeypatch
+) -> None:
     """走者状態は画面の先行単打だけで作り、DBへ事前投入しない。"""
     for name in ("PITCHLOG_E2E_TLS_CERT_PATH", "PITCHLOG_E2E_TLS_KEY_PATH"):
         path = os.environ.get(name)
         assert path and Path(path).is_absolute() and Path(path).is_file()
+    _install_runner_fault_server(monkeypatch)
     db = vertical_database
     with psycopg.connect(db.authority.database.business_admin) as admin:
         apply_product_authz_ddl(admin)
@@ -349,3 +444,17 @@ def test_screen_runner_batted_hits(vertical_database, tmp_path: Path) -> None:
                         expected_count = _COUNTS[result["scenario"]]
                         assert count == (expected_count,), table
                     _verify_saved_rows(admin, db.tenant_id, game, result["scenario"])
+                fault_results = [
+                    json.loads(value)
+                    for value in re.findall(
+                        r"PITCHLOG_RUNNER_FAULT_RESULT=(\{[^\n]+\})", completed.stdout
+                    )
+                ]
+                assert len(fault_results) == 1
+                assert fault_results[0]["game"] not in created_games
+                assert fault_results[0]["game"] != str(db.game_id)
+                assert (
+                    "PITCHLOG_RUNNER_T4_REACHED"
+                    in (_LOGS / "runners-batted-hits-app.log").read_text()
+                )
+                _verify_runner_fault_rollback(admin, db.tenant_id, fault_results[0])
