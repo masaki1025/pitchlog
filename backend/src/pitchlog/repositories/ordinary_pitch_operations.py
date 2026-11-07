@@ -48,6 +48,16 @@ _NONPITCH_NULL_COLUMNS = frozenset(
 _RUNNER_NONPITCH_COLUMNS = frozenset(
     ("pickoff_type", "pickoff_detail", "secondary_batting_result_key")
 )
+_RUNNER_PITCH_SECONDARY = frozenset(
+    ("secondary-result.wild-pitch", "secondary-result.passed-ball")
+)
+_RUNNER_PITCH_PRIMARY = frozenset(
+    (
+        "batting-result.ball",
+        "batting-result.called-pitch",
+        "batting-result.swinging-strike",
+    )
+)
 
 
 def _runner_nonpitch_shape(token, row):
@@ -71,8 +81,18 @@ def _runner_nonpitch_shape(token, row):
     )
 
 
-def _validate_runner_nonpitch_source(token, row, event):
-    """受理原payloadの閉型から既唯一mapperへ写し全41列を照合する。"""
+def _runner_pitch_secondary_shape(token, row):
+    """既核で許された投球主結果とWP/PB副結果だけを有限識別する。"""
+    return (
+        type(token) is PlayPrefixPlayRowInsertToken
+        and row["event_kind"] == "pitch"
+        and row["batting_result_key"] in _RUNNER_PITCH_PRIMARY
+        and row["secondary_batting_result_key"] in _RUNNER_PITCH_SECONDARY
+    )
+
+
+def _validate_runner_source(token, row, event):
+    """原eventが走者観測なら既唯一mapperの全41列へ必ず再束縛する。"""
     from pitchlog.domainrt.lineup_play_prefix_continuation import RunnerEventT1Input
     from pitchlog.sync.idempotency import _json_value
     from pitchlog.sync.ordinary_pitch_physical import pitch_physical_row
@@ -80,11 +100,32 @@ def _validate_runner_nonpitch_source(token, row, event):
         LineupPitchCalculation,
         LineupPitchPlayPayload,
         RunnerNonpitchPlayObservations,
+        RunnerPitchPlayObservations,
     )
 
     try:
+        original = _json_value(event["payload"])
+        if type(original) is not dict:
+            if _runner_nonpitch_shape(token, row) or _runner_pitch_secondary_shape(
+                token, row
+            ):
+                raise OrdinaryPlayRowError
+            return
+        observations = original.get("observations")
+        calculation = original.get("calculation")
+        request = calculation.get("request") if type(calculation) is dict else None
+        t1 = request.get("t1") if type(request) is dict else None
+        runner_tagged = (
+            type(observations) is dict and "runnerObservation" in observations
+        ) or (type(t1) is dict and "runnerObservation" in t1)
+        if not (
+            runner_tagged
+            or _runner_nonpitch_shape(token, row)
+            or _runner_pitch_secondary_shape(token, row)
+        ):
+            return
         payload = LineupPitchPlayPayload.model_validate_json(
-            json.dumps(_json_value(event["payload"]), allow_nan=False)
+            json.dumps(original, allow_nan=False)
         )
         if type(payload.calculation) is not LineupPitchCalculation:
             raise OrdinaryPlayRowError
@@ -92,9 +133,17 @@ def _validate_runner_nonpitch_source(token, row, event):
         observed = payload.observations
         if (
             type(q.t1) is not RunnerEventT1Input
-            or type(observed) is not RunnerNonpitchPlayObservations
+            or type(observed)
+            not in (RunnerNonpitchPlayObservations, RunnerPitchPlayObservations)
+        ):
+            raise OrdinaryPlayRowError
+        observed = cast(
+            RunnerNonpitchPlayObservations | RunnerPitchPlayObservations, observed
+        )
+        nonpitch = type(observed) is RunnerNonpitchPlayObservations
+        if (
+            row["event_kind"] != ("non_pitch" if nonpitch else "pitch")
             or observed.runner_observation != q.t1.runner_observation
-            or observed.runner_observation.primary_result_id is not None
             or q.prefix_ref.tenant_id != str(row["tenant_id"])
             or q.prefix_ref.game_id != str(token.game_id)
             or q.play_identity.event_id != str(event["id"])
@@ -103,24 +152,37 @@ def _validate_runner_nonpitch_source(token, row, event):
         ):
             raise OrdinaryPlayRowError
         per = observed.runner_observation.per_pitch
-        if per.pitch_event_kind != "non-pitch-event":
+        if per.pitch_event_kind != (
+            "non-pitch-event" if nonpitch else "pitch-event"
+        ):
             raise OrdinaryPlayRowError
-        runner_event = per.runner_event_payload
-        if per.kind == "runner-event":
-            if (
-                runner_event.kind != "runner-event"
-                or per.result_id != runner_event.event_kind
-                or per.runner_advance_overrides.kind != "not-applied"
-            ):
+        if nonpitch:
+            if observed.runner_observation.primary_result_id is not None:
                 raise OrdinaryPlayRowError
-        elif per.kind == "secondary-result":
-            if (
-                per.result_id != "secondary-result.balk"
-                or runner_event.kind != "not-applicable"
-                or per.runner_advance_overrides.kind != "overridden"
-            ):
+            runner_event = per.runner_event_payload
+            if per.kind == "runner-event":
+                if (
+                    runner_event.kind != "runner-event"
+                    or per.result_id != runner_event.event_kind
+                    or per.runner_advance_overrides.kind != "not-applied"
+                ):
+                    raise OrdinaryPlayRowError
+            elif per.kind == "secondary-result":
+                if (
+                    per.result_id != "secondary-result.balk"
+                    or runner_event.kind != "not-applicable"
+                    or per.runner_advance_overrides.kind != "overridden"
+                ):
+                    raise OrdinaryPlayRowError
+            else:
                 raise OrdinaryPlayRowError
-        else:
+        elif per.kind == "secondary-result" and (
+            per.result_id not in _RUNNER_PITCH_SECONDARY
+            or observed.runner_observation.primary_result_id
+            not in _RUNNER_PITCH_PRIMARY
+            or per.runner_event_payload.kind != "not-applicable"
+            or per.runner_advance_overrides.kind != "overridden"
+        ):
             raise OrdinaryPlayRowError
         expected = pitch_physical_row(
             observed,
@@ -190,6 +252,7 @@ def _row(token):
             and row["batting_result_key"] in _BATTED_RESULTS
         )
         runner_nonpitch = _runner_nonpitch_shape(token, row)
+        runner_pitch_secondary = _runner_pitch_secondary_shape(token, row)
         nonpitch = runner_nonpitch or (
             type(token) is PlayPrefixPlayRowInsertToken
             and row["event_kind"] == "non_pitch"
@@ -200,6 +263,8 @@ def _row(token):
         )
         if runner_nonpitch:
             required_null = set(_NULL_COLUMNS) - _RUNNER_NONPITCH_COLUMNS
+        elif runner_pitch_secondary:
+            required_null = set(_NULL_COLUMNS) - {"secondary_batting_result_key"}
         if batted and (
             any(
                 row[name] is not None and not 0 <= row[name] <= 1
@@ -335,8 +400,8 @@ def _preflight(token, parameters):
                 for k, v in wanted.items()
             ):
                 raise OrdinaryPlayRowError
-        if _runner_nonpitch_shape(token, row):
-            _validate_runner_nonpitch_source(token, row, event)
+        if type(token) is PlayPrefixPlayRowInsertToken:
+            _validate_runner_source(token, row, event)
         if (
             type(results[2]) is not TenantOperationResult
             or type(results[2].rows) is not tuple
