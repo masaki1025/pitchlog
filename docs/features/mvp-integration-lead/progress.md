@@ -1,5 +1,14 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 2026-11-07：閲覧成果を受領、訂正時の更新検知を是正して接合へ
+
+- **受領固定点**: 外部閲覧枝 `feature/mvp-viewer-live-connection@40b3654538cd68a1a4c175d49ee2155ffc60b7c2` の現物HEAD/cleanと共有接合patch SHA `bf881c318747c8b48aa726c327821dc6606d0ef2ecbbcec63d3886b7bd6f9e49` を照合。作者は実HTTP/DB2件＋HTTPS別context1件、ACK→閲覧1516ms/断検知2802ms/復帰3304msを報告。正式統合・実機・本番性能へ読み替えない。最終3passed319.73秒の原ログ/source前後と独立2周REPORT保存先を照会済み、回答待ちで実装は止めない。
+- **独立受入で残る2件**: cache `viewer-intake-independent-csv-20261107/REPORT.md` SHA `099233a849089d8dd556d09c18ae8713f6c6c59729b25aa1e866fa29a659a484`。P0=0/P1=2。世代/D1が同じP3訂正でprobe版が変わらず古い状態を更新済み表示する対向を再現。真正な有効CP/P3/終了版の変更を軽量probeで検知する修復を別担当/専用WTへ割当。共有patchのrecover response_model検査除外は不採用、実DTOを付ける独立修復で閉じる。元成果を全面採用済みとはしない。
+- **走塁の実停止位置**: root `b7c0b64c65c31a76976f4bde436d86410749804f` の短い実走は実作成/開始/初回単打保存まで成功。次のNP盗塁がauthority `publish_prepared` で約2秒後QueryCanceled、T1/T4へ未到達。新D5/attempt/bodyであることを確認。run4は失敗として保存し、実blocker/lock/waitの有限・非秘密観測を次の単一runへ準備。10秒idle原因や17操作成立とは主張しない。
+- **成績接合**: 作者D03 r20は旧通常45＋候補helperで終了/再開/追加球/再終了/登板API・season・CSVを1passed225.83秒。root通常49枝は `c2ae2ddc09eeb6d74b6fe1499106320aa94ed2c2` 以降WIP、5helper/3hook/17列監査表/全catalogを通常起動へ接続し、閉ACL・policy検査を追随中。全profile原典一致が前提、未知列/権限拡大を許可しない。通常49の実PG・正式受理は未成立。
+- **次/継続条件**: 走塁publish待機原因の特定と修復、通常49起動と登板実証、閲覧P3更新検知を並行。重いowned PG/browserは共通lockで直列。POの追記に従い18時に連絡がなくても停止せず、帰着時点で成果・待ち時間・安全性を評価する。CI8分割は保留。MVP全体は未完成。
+
+
 ## 2026-11-07：走塁の接続候補を固定、全計算回帰を閉じて実画面へ
 
 - **固定版と新たな到達点**: root専有 `feature/mvp-runner-product-integration-20261107@ba561d91f493b7fcce2450837826ed5c863de3f6` clean。9ba1f966で既走塁核/SDK/画面と唯一ab8 artifact、現行5fixture/7manifest/D11/有限v3を同版へ接合。frontend全 **3846passed**、backend domain全 **984passed104.08秒**、後発関連 **114passed26.77秒**、型/lint0。29失敗は入力metadata25＋派生D11 4へ分類して是正、数学期待/規範原本は変更しない。source replayの現行連続試験copyと歴史原本の資格を分離、独立2path確認SHA2b557d13…。旧registry raw固定は独立追補SHAceb437ba…＋実raw改変負例1passで閉じた。新53全値/witness/3有限pairの独立REPORT282fbd1f…を継承、P6 blindや正式受理へ拡張しない。
