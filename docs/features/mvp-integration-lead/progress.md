@@ -1,5 +1,14 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 2026-11-07 11:10 JST：8分割入力の保護と歴史検査を是正、P3標準制御の実接続が前進
+
+- **CI候補**: 原候補1a0dea42は不変更。root同WTの新枝 `feature/ci-pytest-throughput-finalization@4fb99cc15163560000fb264526ffe667e92cee69` へ正式化候補を分離。旧c8e32af6は旧integration refへ未push保全（JSON/基線試験共変更を正式採用しない）。3a67fd5cでtest/plan先行→4fb99cc1でJSON5入力のみ追加、既実行時共変更拒否を維持。5入力は設定/唯一割当helper/plugin/verifyCLI/専用試験、全旧guardとareas/回復6suffix保持。旧全件979pass/2failは歴史比較への後発CI混入で、閉CI5射影＋固定実PR197最終0debのshadow正常先行→改変負例へ是正。旧runtimeを例外拡張せず、正式base候補0deb→4fbの実verify成功、runtime全byte不変。是正後 **coreguard/shard/wiring全1122passed51.40秒、root Ruff/Ty成功**。限定非作者最終結果待ち。正式197merge後base/7.7/corpus/PR/8分割実CI時間は未了、推定を実測としない。
+- **新たな製品接続**: 復旧専用P3枝固定3876ba3dで、cache SQL注入を廃した標準register_d1less/read_d1lessのcatalog/owner/SECURITY DEFINER/ACL閉照合と真正実P3 HTTP訂正/故障対向が **1passed168.07秒**。これは標準制御の成立、P3結果不明復旧や0046正規startup全成立ではない。P3制御wire指紋とD5台帳operation指紋は別の既値であり、同一視せず真正P3原本から各既関数で導出する接合を担当者が進める。
+- **次の障害**: P3訂正→通常suffix→終了→再開ACK/GET200→Undo画面B2/depth4まで進むが、再開後native ball POST503が未解消。P3作者R42はroute早期分岐を限定観測中、source固定/共通owned lockを維持。固定結果やFE guard削除で迂回しない。
+- **CSV固定更新**: 新接合HEAD6a424a301a7acbc15fe55f9e25506f874e1ca1e1、旧130依存全体レビュー/正式DDL0047・catalog/7.7は未成立。唯一SからZIPへ実接続したowned3検査成功と、固定期待追随後400pure成功は候補根拠。P3新有効物理行の88列producer、終了再開/過去訂正を跨ぐCSVは別残件。
+- **197**: 公開0deb/run42325737938は依然live、観測時failure0、harness2分割と静的/FE等success、残6分割進行。全必須とhead/base/evidence一致を確認してから通常mergeする。全MVP/実機/運用/延期性能を完了扱いにしない。
+
+
 ## 2026-11-07 10:55 JST：197残1fixtureを実PG是正・値不変で再公開、唯一S製品CSVと冷再起動復旧を実測
 
 - **公開197の正**: `0deb619e6fdd784e6c4ab4f5e8c6fee7bb821991`、base51b、全344path diffSHA f65b0417ed1bb983fbd26fbf71e3edc878dc7a5f22689c755473e374cc6aa221。旧12ccのCI42319349209は終端failure: harness各4/backend3分割成功、backend2は3792passed/2skip/1setup error（RG1専用旧S3起動でstats_fact_versions欠落、pytest49:08）。同じ失敗を再実行せずRG1 helperとplan2pathのみ修復。新owned対象 **1passed9.63秒/source同一/cleanup**、非作者REPORT14a231f446d8883a32dc5da9ab70863f163690518805abc7b17b4190a5ea6991、新P0/P1/P2なし。製品src/RG1本体/peer/ACL/liveness不変。公式9系列/全external byte比較は **変更0**、既7.7/corpus/381snapshotを維持、再受理無し。tenant/invariants/root・backend Ruff/Ty/format成功。
