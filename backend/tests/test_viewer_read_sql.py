@@ -51,4 +51,17 @@ def test_shared_authz_catalog_patch_declares_viewer_functions() -> None:
     for name in names:
         assert f"FUNCTION:sync_right_api:{name}(" in text
         assert f"function-bodies/functions/FUNCTION:sync_right_api:{name}(" in text
+    for required in (
+        "game_viewer_head",
+        "game_viewer_saved",
+        "backend/tests/test_api_app.py",
+        "backend/tests/test_api_conventions.py",
+        "CAP:sync_play_prefix:read_viewer_play_prefix_history_page",
+        "CAP:sync_ordinary_pitch:read_viewer_nonplay_active_history",
+        "SYNC_PLAY_PREFIX:read_viewer_play_prefix_history_page",
+        "SYNC_ORDINARY_PITCH:read_viewer_nonplay_active_history",
+        "frontend/src/router.ts",
+        "ライブ閲覧へ",
+    ):
+        assert required in text, required
     assert "'sync_right_api'" in product_catalog._LIFECYCLE_FUNCTION_DETAILS_QUERY

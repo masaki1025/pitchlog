@@ -313,6 +313,73 @@ index 6989c69e..1c9c1317 100644
 +    "SYNC_PLAY_PREFIX:read_viewer_play_prefix_history_page",
 +    "SYNC_ORDINARY_PITCH:read_viewer_nonplay_active_history",
  )
+diff --git a/backend/tests/test_api_app.py b/backend/tests/test_api_app.py
+index e7e2bbfc..a71caa28 100644
+--- a/backend/tests/test_api_app.py
++++ b/backend/tests/test_api_app.py
+@@ -90,6 +90,8 @@ async def test_routers_register_meta_auth_player_and_team_routes() -> None:
+         (("GET",), "/games/{game_id}/stats"),
+         (("GET",), "/stats/seasons/{year}"),
+         (("GET",), "/games/{game_id}/started"),
++        (("GET",), "/games/{game_id}/viewer-head"),
++        (("GET",), "/games/{game_id}/viewer"),
+         (("POST",), "/games/{game_id}/sync/attempts/recover"),
+         (("POST",), "/games/{game_id}/sync/events"),
+     )
+@@ -127,6 +129,8 @@ async def test_routers_register_meta_auth_player_and_team_routes() -> None:
+         "game_basic_stats",
+         "season_basic_stats",
+         "started_game_detail",
++        "game_viewer_head",
++        "game_viewer_saved",
+         "recover_sync_attempt",
+         "sync_events",
+     )
+diff --git a/backend/tests/test_api_conventions.py b/backend/tests/test_api_conventions.py
+index c7146ca7..244e7e4c 100644
+--- a/backend/tests/test_api_conventions.py
++++ b/backend/tests/test_api_conventions.py
+@@ -321,10 +321,10 @@ async def test_forbidden_response_is_hidden_as_not_found() -> None:
+ 
+ 
+ def test_router_routes_are_static_login_roster_and_meta() -> None:
+-    """静的登録したメタ情報・認証・選手・チーム・試合・同期・語彙の34本を照合する。"""
++    """静的登録したメタ情報・認証・選手・チーム・試合・同期・語彙の37本を照合する。"""
+     routes = _router_routes()
+ 
+-    assert len(routes) == 34
++    assert len(routes) == 37
+     assert tuple((route.path, frozenset(route.methods or ())) for route in routes) == (
+         ("/health", frozenset({"GET"})),
+         ("/version", frozenset({"GET"})),
+@@ -359,21 +359,25 @@ def test_router_routes_are_static_login_roster_and_meta() -> None:
+         ("/games/{game_id}/stats", frozenset({"GET"})),
+         ("/stats/seasons/{year}", frozenset({"GET"})),
+         ("/games/{game_id}/started", frozenset({"GET"})),
++        ("/games/{game_id}/viewer-head", frozenset({"GET"})),
++        ("/games/{game_id}/viewer", frozenset({"GET"})),
++        ("/games/{game_id}/sync/attempts/recover", frozenset({"POST"})),
+         ("/games/{game_id}/sync/events", frozenset({"POST"})),
+     )
+     downloads = frozenset(
+         {"game_play_csv_export", "game_basic_stats_csv", "season_basic_stats_csv"}
+     )
++    # recover_sync_attempt は固定基線で response_model 未宣言の既存差分。
+     assert (
+         frozenset(
+             route.operation_id for route in routes if route.response_model is None
+         )
+-        == downloads
++        == downloads | {"recover_sync_attempt"}
+     )
+     assert all(
+         route.response_model is not None
+         for route in routes
+-        if route.operation_id not in downloads
++        if route.operation_id not in downloads | {"recover_sync_attempt"}
+     )
+ 
+ 
 diff --git a/backend/tests/test_authz_repository_contract.py b/backend/tests/test_authz_repository_contract.py
 index 61c620ee..f491c2f6 100644
 --- a/backend/tests/test_authz_repository_contract.py
@@ -2473,23 +2540,22 @@ index f1bde3a3..e2ccc9a6 100644
      '認証不確実時も有限な%s入口だけを保持し保護画面は描画しない',
      async (mode) => {
 diff --git a/frontend/src/screens/GameScreenEntry.vue b/frontend/src/screens/GameScreenEntry.vue
-index 794e48bc..8d5240ed 100644
+index 794e48bc..2131cd12 100644
 --- a/frontend/src/screens/GameScreenEntry.vue
 +++ b/frontend/src/screens/GameScreenEntry.vue
-@@ -195,7 +195,12 @@ function returnToPriorPage(): void {
-             <RouterLink
-               :to="{ name: 'game-record', params: { gameId: game.gameId } }"
+@@ -197,6 +197,12 @@ function returnToPriorPage(): void {
                class="inline-block min-h-11 rounded-lg border px-3 py-2 underline"
--              >閲覧画面へ</RouterLink
-+              >記録画面へ</RouterLink
-+            >
+               >閲覧画面へ</RouterLink
+             >
 +            <RouterLink
++              v-if="game.stateLabel !== '準備中'"
 +              :to="{ name: 'game-viewer', params: { gameId: game.gameId } }"
 +              class="inline-block min-h-11 rounded-lg border px-3 py-2 underline"
 +              >ライブ閲覧へ</RouterLink
-             >
++            >
              <button
                type="button"
+               disabled
 diff --git a/frontend/src/screens/GameScreenEntryNavigation.ts b/frontend/src/screens/GameScreenEntryNavigation.ts
 index 17c5d217..18fa4712 100644
 --- a/frontend/src/screens/GameScreenEntryNavigation.ts
