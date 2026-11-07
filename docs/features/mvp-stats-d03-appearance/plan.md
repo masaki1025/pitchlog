@@ -1,10 +1,10 @@
 ---
 feature: mvp-stats-d03-appearance
-status: draft
+status: active
 branch: feature/mvp-stats-d03-appearance
-承認: 未（root限定レビュー/PO委任判断を依頼）
+承認: PO委任によるCodex/root判断（2026-11-07、対象8033f1d7全文）
 重さ分類: コア領域（成績source未正式除外）
-計画レビュー周回: 0
+計画レビュー周回: 1
 確定ゲート周回: 0
 ---
 
@@ -33,3 +33,6 @@ D03 readは既T6のcurrent版/唯一S/healthと同RR、既basic_sqlの真正終�
 編集候補: backend/src/pitchlog/stats/basic_sql.py、必要時basic_stats.py、backend/domain/stats-appearance.model.json/schema.json/manifest.json（全て新規候補）、backend/src/pitchlog/domaingen/stats_appearance.py、backend/src/pitchlog/stats/generated/appearances.sql、D03専用tests/test_stats_appearance_source.pyとtests/db/test_stats_appearance_http.py、既test_stats_basic_sql.pyの登板部分、本計画のみ。root採用後に実装する。新生成manifestは公式生成器の候補出力に限定し正式D11/共有manifestを編集しない。既計算modelやT5/T6の他指標を改変しない。
 
 source唯一writerは本新WT担当。共有sync/domain/認可source、contracts/正式assets/catalog/seal/history/7.7、共有台帳/他WT/main/developは非編集。実PGは共通owned-pg-browser-network.lockを全寿命保持しDSNをunset。未完のCSV依存130/0047と起動0046を正式成立へ読み替えない。既8/27項目等の見かけの件数を完了尺度にせず、登板を正しく取得できた操作/証拠/不足sourceを報告する。
+
+
+root非作者全文レビュー/委任採用の固定点: HEAD8033f1d7d06a1a5d7723cde93d29adf0897b3907、plan SHA2560107e26a9f284896ad0def521b15c12dfd009db2833f6d063606bad2fb606d51。新P0/P1なし、source不足時の具体producer境界提示と独立生成/対向準備を含め着手可。root留保は既D03の実出場境界を保持するもので、新しいPO意味裁定ではない。本人確認・P6blind・正式値受理は記録しない。
