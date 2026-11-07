@@ -6,6 +6,7 @@ status: active
 branch: feature/mvp-viewer-live-connection
 worktree: /home/ymdms/projects/pitchlog-worktrees/feature-mvp-viewer-live-connection
 created: 2026-11-06
+固定基線: 5cb4407d2f4df63428f15d8da8c576ff684e5a16
 計画レビュー周回: 0
 確定ゲート周回: 0
 実行方式: 通常
@@ -13,7 +14,7 @@ created: 2026-11-06
 
 # 別端末の保存済み試合を自動更新する
 
-固定基線 `043591c37ddf833553300f36d04940bb40b452e1`。PO委任rootが既MVP内技術接合の進行を承認。本人逐行確認・正式提供・製品受理を代記しない。
+固定基線 `5cb4407d2f4df63428f15d8da8c576ff684e5a16`。先行実装 `0e0ae00b` の閲覧専用成果を同基線へ rebase して再利用する。PO委任rootが既MVP内技術接合の進行を承認。本人逐行確認・正式提供・製品受理を代記しない。
 
 ## 範囲と既決境界
 
@@ -28,11 +29,22 @@ created: 2026-11-06
 | # | 単位 | 対象pathと到達条件 |
 |---|---|---|
 | 1 | 非ロック版probe | `backend/src/pitchlog/repositories/viewer_probe.py`、`backend/src/pitchlog/api/routers/viewer.py` と専用pytest。既token/C2/tenant境界だけを使い、404/503/不正世代を閉拒否。記録権・端末条件を導入しない。共有`api/app.py`のrouter追加はroot向け別patch。 |
-| 2 | 非ロック本体と閲覧画面/有限履歴 | `backend/src/pitchlog/repositories/{transaction,started_snapshot,ordinary_prefix_read,viewer_read}.py`、`backend/src/pitchlog/api/routers/viewer.py`、`frontend/src/api/viewerGame.ts`、`frontend/src/screens/GameScreenViewerLive.vue`、専用pytest/Vitest。RR READ ONLYと閉tokenで既保存CP/履歴を同snapshotに束縛し、3秒単一poll、版変更時だけ非ロック本体GET、25件pageと既cursor、対象ID限定GET、認証世代/tenant/ゲーム切替で中断・旧表示破棄。共有`frontend/src/router.ts`・入口、`api/app.py`・`api/tenant_access.py`、Cookie同提示token宣言はroot向け別patch。 |
-| 3 | 実2context検査と固定引渡し | rootの所有PG/browser lockが空いた後に共通flockで実HTTPS/ownedPG。新規UI試合→開始→別context閲覧→保存→10秒計測→reload→閲覧側通信断未更新→越境拒否。候補全SHA/パッチ/正式共有path追補を封印し、非作者レビューへ渡す。 |
+| 2 | 非ロック本体と閲覧画面/有限履歴 | `backend/src/pitchlog/repositories/{transaction,started_snapshot,ordinary_prefix_read,viewer_read}.py`、`backend/src/pitchlog/api/routers/viewer.py`、`frontend/src/api/viewerGame.ts`、`frontend/src/screens/GameScreenViewerLiveController.ts`、`frontend/src/screens/GameScreenViewerLive.vue`、専用pytest/Vitest。RR READ ONLYと閉tokenで既保存CP/履歴を同snapshotに束縛し、3秒単一poll、版変更時だけ非ロック本体GET、25件pageと既cursor、対象ID限定GET、認証世代/tenant/ゲーム切替で中断・旧表示破棄。controllerは「確認中/更新中/更新済み/未更新/閲覧できません」を区別し、最終成功10秒超過で未更新へ降ろす。共有`frontend/src/router.ts`・入口、`api/app.py`・`api/tenant_access.py`、Cookie同提示token宣言はroot向け別patch。 |
+| 3 | 実2context検査と固定引渡し | rootの所有PG/browser lockが空いた後に共通flockで実HTTPS/ownedPG。新規UI試合→開始→別context閲覧→保存→10秒計測→reload→閲覧側通信断→復帰→越境/不存在拒否。候補全SHA/パッチ/正式共有path追補を封印し、非作者レビューへ渡す。 |
 
 閲覧route追加に伴う認証後の安全な戻り先は `/games/<canonical UUID>/view` の1形だけを共有FE追補とする。未知query・fragment・末尾は既規則どおり拒否し、記録入口の許可集合を広げない。
 
 実DB対向で、既v3履歴page関数と非play active page関数の `FOR SHARE` は PostgreSQL の `READ ONLY` と両立しないことを確認した。writer既関数の行ロック契約を残し、同一SQL生成元からアンカ・行数・原本照合を維持して行ロック句だけを除く閲覧専用の有限2関数を追加する。専用tokenと閉登録を使い、RR READ ONLY以外からは呼ばない。新関数の正式宣言・EXECUTE ACL・catalog照合・manifest/bodyはroot向け別patchとし、独立確認まで製品受理としない。
 
 正式router/registry/DDL/認可/manifest/pin、他WT、共有DBはこのWTのwriter対象外。既routeのロックreadを閲覧から呼ぶ実装は禁止。FR-020全イニング/H/E/K/BやFR-021〜023成績の完成へ拡張して主張しない。全件/正式CI/人間確認/本番性能はroot統合後の別判定。
+
+## 共有接合patch
+
+`docs/features/mvp-viewer-live-connection/patches/shared-integration.patch` に、共有router・C2 operation宣言・認可catalog・固定関数登録・contracts・認証後戻り先・入口リンク・対応する既存試験期待値の接合差分だけを置く。このWTのコミットには共有pathの直接変更を含めない。接合検証はpatch適用済みの一時worktreeで行い、未適用のWT単体では共有catalog依存の試験をpatch内容の契約検査へ置き換える。
+
+## 検証結果（2026-11-07）
+
+- WT単体: backend focused pytest / frontend Vitest / `vue-tsc` / `ty` / ruff。
+- 接合検証: owned PG + 実app role + C2 の `test_viewer_live_owned.py`、実HTTPS 2 context の `test_viewer_screen_owned.py`。
+- 実測: 保存完了から閲覧表示まで 1807ms（10秒以内）。通信断→未更新→復帰の実測値はE2E logへ保存。
+- 未達/未確認: 503の実HTTP誘発は行わず、controller/transport単体で未更新写像を確認。正式CI・人間確認・本番性能は未実施。
