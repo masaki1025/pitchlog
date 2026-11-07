@@ -33,6 +33,7 @@ const point = ref<{ x: number; y: number } | null>(null),
 let controller: GameScreenUndoProductController | null = null,
   sequence = 0,
   request: AbortController | null = null
+let refreshPending = false
 const identity = () => ({
   tenantId: auth.teamId,
   epoch: auth.authEpoch,
@@ -121,8 +122,16 @@ async function act(action: () => Promise<UndoProductResult>) {
     emit('state', context.value?.storedNative === true)
     if (status.value === 'saved') emit('saved')
   } finally {
-    if (own === sequence) busy.value = false
+    if (own === sequence) {
+      busy.value = false
+      await drainRefresh(own, c)
+    }
   }
+}
+async function drainRefresh(own: number, c: GameScreenUndoProductController) {
+  if (own !== sequence || controller !== c || !refreshPending) return
+  refreshPending = false
+  await act(() => c.load())
 }
 async function undo() {
   if (canOperate.value) await act(() => controller!.undo())
@@ -166,8 +175,14 @@ async function retry() {
 }
 async function reload() {
   const c = controller
-  if (c) await act(() => c.load())
+  if (!c) return
+  if (busy.value) {
+    refreshPending = true
+    return
+  }
+  await act(() => c.load())
 }
+defineExpose({ reload })
 watch(
   () =>
     [
@@ -179,6 +194,7 @@ watch(
     ] as const,
   async () => {
     const own = ++sequence
+    refreshPending = false
     request?.abort()
     request = new AbortController()
     controller?.dispose()
@@ -206,7 +222,10 @@ watch(
       emit('state', context.value?.storedNative === true)
       await vocabulary()
     } finally {
-      if (own === sequence) busy.value = false
+      if (own === sequence) {
+        busy.value = false
+        await drainRefresh(own, c)
+      }
     }
   },
   { immediate: true },

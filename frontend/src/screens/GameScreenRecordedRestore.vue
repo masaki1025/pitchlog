@@ -34,6 +34,7 @@ const gameId = computed(() =>
   typeof route.params.gameId === 'string' ? route.params.gameId : undefined,
 )
 const undoNative = ref(false)
+const undoProduct = ref<{ reload: () => Promise<void> } | null>(null)
 const auto = computed(() => props.auto)
 // 旧版で保存した要求の復旧入口だけを閉じた内部queryで保持する。
 const legacy = computed(() => route.query.recording === 'ordinary-prefix-v1')
@@ -85,12 +86,20 @@ let contextScope: {
 } | null = null
 let retainConfirmedInput = false
 async function pitchSaved() {
+  const sourceScope = [gameId.value, auth.teamId, auth.authEpoch] as const
+  let ready = false
   retainConfirmedInput = true
   try {
     await restore.reload()
+    ready =
+      restore.status.value === 'ready' &&
+      gameId.value === sourceScope[0] &&
+      auth.teamId === sourceScope[1] &&
+      auth.authEpoch === sourceScope[2]
   } finally {
     retainConfirmedInput = false
   }
+  if (ready) await undoProduct.value?.reload?.()
 }
 const inputSuspended = computed(
   () =>
@@ -419,6 +428,7 @@ const history = computed(() =>
   </section>
   <GameScreenUndoProduct
     v-if="gameId && auto !== false"
+    ref="undoProduct"
     :key="gameId"
     :game-id="gameId"
     @state="undoNative = $event"

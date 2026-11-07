@@ -55,3 +55,10 @@ step3の実画面E2E追加（2026-11-06、PO委任Codex/root判断）: GameScree
 922接合検査の是正結果: 後継入力 `backend/tests/fixtures/nonplay_product_successors_v1.json` は既固定60f39f10を1値だけ保持し、重複key/型/余剰/非正準/シンボリックリンクを拒否する。旧a59原典の全宣言・323本文・29関数詳細/guardの旧検査を固定Gitの実moduleで実行し、現在木にも全旧値を比較する。許す差分は既取消で必要なplay_rows.hidden_at列ACL1と既NPのprepare/finish/runner guard3本文のみ、後継の完全byteへ束縛しowner/属性の変更は許さない。成績接合のgames.status ACLだけは既終了再開のSELECT/UPDATE完全値に対応する。旧22登録は元pinと一致、追加replay1は既製品registrationそのものへ束縛し、実cold import43を検査する。
 
 局所4suiteは85passed、backend791file書式・Ruff/Ty成功。初回8fail、JSON tuple/listの表現差、fixture展開に非依存snapshot保全庫まで含めた容量拒否などはcacheの失敗ログに保存し、検出を黙ってskipしていない。fixture展開は元検査/producerの依存入力のみで、正式凍結検査の走査対象は変更しない。**新後継fixtureは次PRのfrozen-inputs external_filesへ正式登録・完全値受理が必要。未登録のまま通常統合しない。** この追補とsourceは候補で、非作者レビュー/正式9資産/必須全件CI/通常mergeはまだ。
+
+
+### 記録後の取消原本の再取得接合（2026-11-07、PO委任Codex主担当/root判断）
+
+CSV担当が隔離shadowで作成したreflection2、patch SHA `2bc454d925488ec1bbd3567987ac95310f704c55164ef6e45cecdc3cd3be5b76` の4pathを本root WTへ接合候補として適用する。対象はGameScreenRecordedRestore/UndoProductのVueと各spec。開始0球時の409後に通常球を保存してもgameId/authが変わらず取消子が再取得しない欠陥を、通常球ACK後の親実GET ready・同game/tenant/authEpoch確認後の子の既load呼出で修復する。controller再生成・未終結要求破棄・D5置換はしない。busy中の要求は同scopeで1件へ束ね、完了後に既loadを実行し、scope変更では捨てる。
+
+4path before SHAは本67aと全一致。作者shadow54Vue/型/lint成功を根拠に接合するが、rootの再検査・実ブラウザ・別非作者確認と正式統合は別途必要。旧3path元byteの未保全は作者history.jsonへ記録済みで旧版を再現確認済みとしない。T1/T2/artifact/認可/保存/ACK判定は変更しない。

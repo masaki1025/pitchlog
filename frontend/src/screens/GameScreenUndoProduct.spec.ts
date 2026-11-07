@@ -83,3 +83,46 @@ it('確認後の結果不明を保存成功と表示せず、文字列は自動e
   expect(wrapper.emitted('saved')).toBeUndefined()
   wrapper.unmount()
 })
+
+it('初回GET中の複数再取得を同scopeの後続GET一回へ束ねる', async () => {
+  let finish!: (value: 'ready') => void
+  const first = new Promise<'ready'>((resolve) => {
+    finish = resolve
+  })
+  const load = vi
+    .spyOn(Controller.prototype, 'load')
+    .mockImplementationOnce(() => first)
+    .mockResolvedValue('ready')
+  const wrapper = mount(GameScreenUndoProduct, {
+    props: { gameId: undoRead(3).id },
+  })
+  await vi.waitFor(() => expect(load).toHaveBeenCalledTimes(1))
+  await (wrapper.vm as unknown as { reload: () => Promise<void> }).reload()
+  await (wrapper.vm as unknown as { reload: () => Promise<void> }).reload()
+  expect(load).toHaveBeenCalledTimes(1)
+  finish('ready')
+  await vi.waitFor(() => expect(load).toHaveBeenCalledTimes(2))
+  wrapper.unmount()
+})
+
+it('旧scopeで保留した再取得を別gameのcontrollerへ流さない', async () => {
+  let finish!: (value: 'ready') => void
+  const first = new Promise<'ready'>((resolve) => {
+    finish = resolve
+  })
+  const load = vi
+    .spyOn(Controller.prototype, 'load')
+    .mockImplementationOnce(() => first)
+    .mockResolvedValue('ready')
+  const wrapper = mount(GameScreenUndoProduct, {
+    props: { gameId: undoRead(3).id },
+  })
+  await vi.waitFor(() => expect(load).toHaveBeenCalledTimes(1))
+  await (wrapper.vm as unknown as { reload: () => Promise<void> }).reload()
+  await wrapper.setProps({ gameId: '10000000-0000-4000-8000-000000000003' })
+  await vi.waitFor(() => expect(load).toHaveBeenCalledTimes(2))
+  finish('ready')
+  await flushPromises()
+  expect(load).toHaveBeenCalledTimes(2)
+  wrapper.unmount()
+})
