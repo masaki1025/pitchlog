@@ -2254,6 +2254,72 @@ def _activate_p3_profile() -> None:
 
 
 _activate_p3_profile()
+
+# 旧P3の11本文pinは変更しない。D03は正規P3配置の後段だけへ接続する。
+_D03_BASELINE_BODIES = dict(BODIES)
+
+
+def _activate_d03_profile() -> None:
+    """実出場の有限保存原本を追加し、未知の既本文や権限を上書きしない。"""
+    from pitchlog.authz.pitcher_appearance_product import (
+        candidate_declarations,
+        guard_trigger_sql,
+        overlay_saved_function,
+        schema_body,
+    )
+    from pitchlog.domaingen.core import _canonical_hash
+
+    declarations, bodies = candidate_declarations()
+    kinds = {
+        "functions": "function",
+        "tables": "table",
+        "policies": "policy",
+        "column_acl_expectations": "column_acl_expectation",
+    }
+    for section, rows in declarations.items():
+        for row in rows:
+            identifier = row[IDS[section]]
+            kind = kinds[section]
+            key = kind + "|" + identifier
+            if key in BODIES or any(
+                old[IDS[section]] == identifier for old in ADDITIONS[section]
+            ):
+                raise ValueError("投手出場の追加資産が既宣言へ衝突")
+            ADDITIONS[section].append(copy.deepcopy(row))
+            sql = bodies.pop(key)
+            if identifier == "FUNCTION:stats_api:protect_pitcher_entry_sources()":
+                sql += guard_trigger_sql()
+            BODIES[key] = (
+                f"-- ELEMENT-TYPE: {kind}\n-- ELEMENT-ID: {identifier}\n\n" + sql
+            )
+    if bodies:
+        raise ValueError("投手出場の宣言外本文が残存")
+    for key, sql in _D03_BASELINE_BODIES.items():
+        if key.startswith("function|"):
+            BODIES[key] = overlay_saved_function(key.removeprefix("function|"), sql)
+    schemas = [r for r in ADDITIONS["schemas"] if r["schema_name"] == "sync_fence"]
+    if len(schemas) != 1 or _canonical_hash(schemas[0]) != (
+        "sha256:4c84cb0de3d9d218cd432f04aabda2434e89aad710c1f4944749b37781f97825"
+    ):
+        raise ValueError("投手出場の既schema権限が不一致")
+    schemas[0]["acl_expectations"].append(
+        {
+            "grantee": "pitchlog_initial_fn_owner",
+            "privilege": "USAGE",
+            "grantable": False,
+        }
+    )
+    schemas[0]["revoked_acl_expectations"].append(
+        {
+            "grantee": "pitchlog_initial_fn_owner",
+            "privilege": "CREATE",
+            "grantable": False,
+        }
+    )
+    BODIES["schema|sync_fence"] = schema_body()
+
+
+_activate_d03_profile()
 ROLES = frozenset(row["role_id"] for row in ADDITIONS["roles"])
 
 TABLES = frozenset(
@@ -2279,6 +2345,7 @@ TABLES = frozenset(
         "p3_projection_write_admissions",
         "p3_projection_page_progress",
         "p3_projection_page_rows",
+        "pitcher_entry_sources",
     }
 )
 SCHEMAS = frozenset(row["schema_name"] for row in ADDITIONS["schemas"])

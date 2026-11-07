@@ -64,6 +64,13 @@ BEGIN
        AND a.start_request_id=p_start_request_id AND a.device_id=p_device_id AND a.outcome='pending';
     GET DIAGNOSTICS v_count = ROW_COUNT;
     IF v_count<>1 THEN RAISE EXCEPTION 'initial right operation rejected' USING ERRCODE = '23514'; END IF;
+    IF EXISTS(
+      SELECT 1 FROM public.games g WHERE g.tenant_id=p_tenant_id
+      AND g.id=p_game_id AND g.status='in_progress' AND g.started_at IS NOT NULL
+    ) THEN
+      PERFORM initial_right_api.persist_start_pitcher_entry(
+        p_tenant_id,p_attempt_id,p_generation);
+    END IF;
     RETURN true;
 EXCEPTION WHEN integrity_constraint_violation OR too_many_rows THEN
     -- 制約detailへdigest/暗号文/owner行を露出せず、transactionは失敗のまま返す。

@@ -14,6 +14,7 @@ from pitchlog.repositories.stats_appearance import (
     candidate_appearance_context_function,
     candidate_appearance_source_function,
     candidate_private_entry_declarations,
+    candidate_private_entry_install_sql,
 )
 
 INITIAL_OWNER = "pitchlog_initial_fn_owner"
@@ -219,6 +220,39 @@ def overlay_initial_function(function_id: str, sql: str) -> str:
     END IF;
 """
     return sql.replace(marker, hook + marker)
+
+
+def guard_trigger_sql() -> str:
+    """既唯一配置factoryの監査guard二個だけを同じ本文へ結ぶ。"""
+    source = candidate_private_entry_install_sql()
+    marker = "CREATE TRIGGER d03_pitcher_entry_immutable\n"
+    if source.count(marker) != 1:
+        raise ValueError("投手出場guardの唯一配置原典が不一致")
+    triggers = source[source.index(marker) :]
+    if triggers.count("CREATE TRIGGER ") != 2 or (
+        "CREATE TRIGGER d03_pitcher_entry_no_truncate\n" not in triggers
+    ):
+        raise ValueError("投手出場guardの有限集合が不一致")
+    return triggers
+
+
+def schema_body() -> str:
+    """既schema所有の閉検査を保ち、初期fn ownerへUSAGEだけを供給する。"""
+    return (
+        "-- ELEMENT-TYPE: schema\n-- ELEMENT-ID: sync_fence\n\n"
+        "DO $schema_guard$\nBEGIN\n"
+        " IF NOT EXISTS(SELECT 1 FROM pg_catalog.pg_namespace n "
+        "JOIN pg_catalog.pg_roles r ON r.oid=n.nspowner "
+        "WHERE n.nspname='sync_fence' AND r.rolname='pitchlog_owner') THEN\n"
+        "  RAISE EXCEPTION 'migration schema missing or wrong owner: sync_fence';\n"
+        " END IF;\nEND;$schema_guard$;\n"
+        "REVOKE ALL ON SCHEMA sync_fence FROM PUBLIC;\n"
+        "REVOKE CREATE ON SCHEMA sync_fence FROM pitchlog_sync_binding_fn_owner;\n"
+        "GRANT USAGE ON SCHEMA sync_fence TO pitchlog_sync_binding_fn_owner;\n"
+        "GRANT USAGE ON SCHEMA sync_fence TO pitchlog_sync_right_fn_owner;\n"
+        "REVOKE CREATE ON SCHEMA sync_fence FROM pitchlog_initial_fn_owner;\n"
+        "GRANT USAGE ON SCHEMA sync_fence TO pitchlog_initial_fn_owner;\n"
+    )
 
 
 def overlay_saved_function(function_id: str, sql: str) -> str:

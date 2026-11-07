@@ -77,10 +77,10 @@ def test_expression_unknown_syntax_is_closed(bad):
         current._expression(bad)
 
 
-def test_current_models_are_closed_twenty_with_p3_storage():
-    """旧14表を落とさず、P3原本6表を型元へ加える。"""
+def test_current_models_are_closed_twenty_one_with_p3_and_pitcher_entry_storage():
+    """旧14表/P3原本6表を落とさず、出場原本1表を型元へ加える。"""
     tables = current._tables()
-    assert len(tables) == 20
+    assert len(tables) == 21
     assert [t.name for t in tables] == [
         "attempt_retirements",
         "first_ball_write_admissions",
@@ -96,6 +96,7 @@ def test_current_models_are_closed_twenty_with_p3_storage():
         "p3_projection_page_progress",
         "p3_projection_page_rows",
         "p3_projection_write_admissions",
+        "pitcher_entry_sources",
         "stats_fact_versions",
         "stats_primitive_facts",
         "stats_primitive_sources",
@@ -743,6 +744,7 @@ def test_all_index_shapes_reject_changes(fault):
 def test_current41_finish_never_calls_old_validators_or_migration(monkeypatch):
     """0041再開は新全構造/full判定だけで、旧0039markerを偽装しない。"""
     monkeypatch.setattr(current, "_check_attempt_retirement_guards", lambda *_: None)
+    monkeypatch.setattr(current, "_check_pitcher_entry_guards", lambda *_: None)
     trace = []
 
     @contextmanager
@@ -907,6 +909,7 @@ def test_pre_full_keeps_only_the_verified_migration_guards(monkeypatch):
 def test_current_finish_closes_read_transaction_before_idle_authz_apply(monkeypatch):
     """全事前read接続を終結し、別IDLE接続で既適用器を実行する。"""
     monkeypatch.setattr(current, "_check_attempt_retirement_guards", lambda *_: None)
+    monkeypatch.setattr(current, "_check_pitcher_entry_guards", lambda *_: None)
     trace = []
     connections = []
 

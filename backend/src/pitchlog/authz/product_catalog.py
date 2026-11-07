@@ -311,6 +311,9 @@ WHERE namespace.nspname = ANY(%s)
               ('public', 'operation_events'),
               ('public', 'play_rows'),
               ('sync_fence', 'ordinary_pitch_checkpoints'),
+              ('sync_fence', 'stats_primitive_sources'),
+              ('sync_fence', 'stats_fact_versions'),
+              ('sync_fence', 'pitcher_entry_sources'),
               ('sync_fence', 'p3_projection_capsules'),
               ('sync_fence', 'p3_projection_capsule_items'),
               ('sync_fence', 'p3_projection_heads'),
@@ -2515,6 +2518,22 @@ def _validated_initial_policy_rows(
         for row in (build_product_policy_declaration(table, "tenant_owned"),)
     }
     expected.update(app_policies)
+    from pitchlog.authz.first_ball_product import validate as validate_added
+    from pitchlog.authz.pitcher_appearance_product import candidate_declarations
+
+    added, _ = candidate_declarations()
+    d03_policies = {str(row["policy_id"]): row for row in added["policies"]}
+    d03_present = any(
+        row.get("table_id") == "pitcher_entry_sources" for row in _rows(asset, "tables")
+    ) or any(row.get("policy_id") in d03_policies for row in rows)
+    if d03_present:
+        try:
+            complete = validate_added(asset)
+        except ValueError as error:
+            raise ProductCatalogError("投手出場の初期policy profileが不一致") from error
+        if not complete:
+            raise ProductCatalogError("投手出場の初期policy profileが不完全")
+        expected.update(d03_policies)
     found: set[str] = set()
     for row in rows:
         key = row.get("policy_id")
@@ -2542,7 +2561,10 @@ def _validated_initial_policy_rows(
             or (isinstance(name, str) and name.startswith("initial_right_"))
         ):
             try:
-                if key in app_policies:
+                if key in d03_policies and d03_present:
+                    if not _exact_value(row, d03_policies[key]):
+                        raise ValueError("投手出場のtenant policy全fieldが不一致")
+                elif key in app_policies:
                     if not _exact_value(row, app_policies[key]):
                         raise ValueError("保護app12のtenant policy全fieldが不一致")
                 else:
@@ -2598,6 +2620,31 @@ def _validate_initial_function_declarations(asset: dict[str, object]) -> None:
         expected.update(build_enrollment_function_declarations())
     if start_assets_present(asset):
         expected.update(start_function_declarations())
+    # 新private helperは公開初期ABIへ混ぜず、D03全profileのexact成立時だけ許可する。
+    from pitchlog.authz.first_ball_product import (
+        declaration as added_declaration,
+    )
+    from pitchlog.authz.first_ball_product import (
+        validate as validate_added,
+    )
+
+    d03_id = (
+        "FUNCTION:initial_right_api:persist_start_pitcher_entry(uuid, uuid, bigint)"
+    )
+    d03_present = any(
+        r.get("function_id") == d03_id for r in _rows(asset, "functions")
+    ) or any(
+        r.get("table_id") == "pitcher_entry_sources" for r in _rows(asset, "tables")
+    )
+    if d03_present:
+        try:
+            complete = validate_added(asset)
+        except ValueError as error:
+            raise ProductCatalogError("投手出場の初期helper profileが不一致") from error
+        row = added_declaration("functions", d03_id)
+        if not complete or row is None:
+            raise ProductCatalogError("投手出場の初期helper profileが不完全")
+        expected[d03_id] = row
     actual: dict[str, dict[str, object]] = {}
     foreign_actor = {
         "FUNCTION:rg1_api:rg1_read_open(uuid)": ("rg1_api", "rg1_read_open"),
@@ -2689,6 +2736,30 @@ def _validated_initial_column_rows(
         expected.update(build_enrollment_column_acl_declarations())
     if start_assets_present(asset):
         expected.update(start_column_acl_declarations())
+    # D03追加列は全profileの原典一致時だけ初期ownerの有限集合へ含める。
+    from pitchlog.authz.first_ball_product import validate as validate_added
+    from pitchlog.authz.pitcher_appearance_product import candidate_declarations
+
+    added, _ = candidate_declarations()
+    initial_columns = {
+        str(row["expectation_id"]): row
+        for row in added["column_acl_expectations"]
+        if row["grantee_role_id"] == "pitchlog_initial_fn_owner"
+    }
+    d03_present = any(
+        row.get("table_id") == "pitcher_entry_sources" for row in _rows(asset, "tables")
+    ) or any(
+        row.get("expectation_id") in initial_columns
+        for row in _rows(asset, "column_acl_expectations")
+    )
+    if d03_present:
+        try:
+            complete = validate_added(asset)
+        except ValueError as error:
+            raise ProductCatalogError("投手出場の初期列profileが不一致") from error
+        if not complete:
+            raise ProductCatalogError("投手出場の初期列profileが不完全")
+        expected.update(initial_columns)
     actual: dict[str, dict[str, object]] = {}
     rows = _rows(asset, "column_acl_expectations")
     for row in rows:

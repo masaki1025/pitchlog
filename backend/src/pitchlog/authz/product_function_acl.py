@@ -2599,7 +2599,9 @@ def generate_initial_function_sql(function_id: str) -> str:
     if function_id in start_function_declarations():
         return generate_start_function_sql(function_id)
     if function_id in _INITIAL_API_SQL:
-        return _INITIAL_API_SQL[function_id]
+        from pitchlog.authz.pitcher_appearance_product import overlay_initial_function
+
+        return overlay_initial_function(function_id, _INITIAL_API_SQL[function_id])
     if function_id == "FUNCTION:public:protect_initial_right_storage()":
         return (
             "-- ELEMENT-TYPE: function\n"

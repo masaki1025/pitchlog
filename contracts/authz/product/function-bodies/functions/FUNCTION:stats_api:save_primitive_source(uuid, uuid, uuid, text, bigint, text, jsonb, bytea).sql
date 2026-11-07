@@ -830,7 +830,11 @@ JOIN canonical_health ch ON ch.tenant_id=v.tenant_id AND ch.game_id=v.game_id) i
  UNION ALL (SELECT * FROM actual_credits EXCEPT SELECT * FROM expected_credits)
  ) THEN RAISE EXCEPTION 'stats primitive boundary rejected' USING ERRCODE='42501'; END IF;
 
-   PERFORM sync_fence_api.assert_writer_binding(tenant,p_attempt_id,p_phase_id,p_binding_nonce,binding.device_id,binding.game_id);
+   IF event_row.event_kind='play_input' AND provider IN ('first_ball','ordinary') THEN
+ PERFORM stats_api.persist_writer_pitcher_entry(
+ p_attempt_id,p_phase_id,p_source_event_id,p_binding_nonce);
+ END IF;
+ PERFORM sync_fence_api.assert_writer_binding(tenant,p_attempt_id,p_phase_id,p_binding_nonce,binding.device_id,binding.game_id);
  RETURN QUERY SELECT series.id,p_source_event_id,p_model_sha256,series.source_set_sha256;
    RETURN;
   END IF;
@@ -1229,6 +1233,10 @@ JOIN canonical_health ch ON ch.tenant_id=v.tenant_id AND ch.game_id=v.game_id) c
  UNION ALL (SELECT * FROM actual_credits EXCEPT SELECT * FROM expected_credits)
  ) THEN RAISE EXCEPTION 'stats primitive boundary rejected' USING ERRCODE='42501'; END IF;
 
+ IF event_row.event_kind='play_input' AND provider IN ('first_ball','ordinary') THEN
+ PERFORM stats_api.persist_writer_pitcher_entry(
+ p_attempt_id,p_phase_id,p_source_event_id,p_binding_nonce);
+ END IF;
  PERFORM sync_fence_api.assert_writer_binding(tenant,p_attempt_id,p_phase_id,p_binding_nonce,binding.device_id,binding.game_id);
  RETURN QUERY SELECT series.id,p_source_event_id,p_model_sha256,series.source_set_sha256;
 

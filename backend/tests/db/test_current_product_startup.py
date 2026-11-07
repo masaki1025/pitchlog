@@ -61,6 +61,7 @@ def test_actual_current_s0_and_current_resume_keep_all_structure_and_catalog(
         "CREATE INDEX ix_admin_vocabularies_batted_ball_key_c",
         "CREATE TABLE sync_fence.stats_fact_versions",
         "CREATE TABLE sync_fence.stats_primitive_sources",
+        "CREATE TABLE sync_fence.pitcher_entry_sources",
         "CREATE INDEX ix_stats_fact_player_metric",
         "CREATE TABLE sync_fence.nonplay_write_admissions",
         "CREATE FUNCTION public.protect_nonplay_admission()",
@@ -144,6 +145,14 @@ def test_actual_current_migration_fault_rolls_back_to_real0039(
             "FROM pitchlog_sync_right_fn_owner"
         ),
         "GRANT SELECT (xmin) ON public.event_slots TO pitchlog_app",
+        (
+            "GRANT SELECT (xmin) ON sync_fence.pitcher_entry_sources "
+            "TO pitchlog_initial_fn_owner"
+        ),
+        (
+            "GRANT SELECT (xmin) ON sync_fence.pitcher_entry_sources "
+            "TO pitchlog_sync_right_fn_owner"
+        ),
         (
             "GRANT SELECT (xmin) ON public.event_slots TO "
             "pitchlog_sync_right_fn_owner WITH GRANT OPTION"

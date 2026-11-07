@@ -11,3 +11,5 @@ REVOKE ALL ON SCHEMA sync_fence FROM PUBLIC;
 REVOKE CREATE ON SCHEMA sync_fence FROM pitchlog_sync_binding_fn_owner;
 GRANT USAGE ON SCHEMA sync_fence TO pitchlog_sync_binding_fn_owner;
 GRANT USAGE ON SCHEMA sync_fence TO pitchlog_sync_right_fn_owner;
+REVOKE CREATE ON SCHEMA sync_fence FROM pitchlog_initial_fn_owner;
+GRANT USAGE ON SCHEMA sync_fence TO pitchlog_initial_fn_owner;

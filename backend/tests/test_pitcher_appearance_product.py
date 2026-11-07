@@ -83,14 +83,15 @@ def test_unknown_private_function_owner_is_not_promoted_to_a_declaration(monkeyp
 
 def test_normal_save_overlay_matches_reviewed_candidate_and_preserves_baseline():
     """正規P3適用後だけへ挿入し、入口/監査/親最終再確認を落とさない。"""
-    saved = copy.deepcopy(baseline.BODIES)
+    active = copy.deepcopy(baseline.BODIES)
+    saved = copy.deepcopy(baseline._D03_BASELINE_BODIES)
     changed = {}
     for key, sql in saved.items():
         if key.startswith("function|"):
             result = product.overlay_saved_function(key.removeprefix("function|"), sql)
             if result != sql:
                 changed[key] = result
-    assert baseline.BODIES == saved
+    assert baseline.BODIES == active
     assert len(changed) == 2
     save = next(v for k, v in changed.items() if ":save_primitive_source(" in k)
     assert hashlib.sha256(save.encode()).hexdigest() == (
@@ -115,11 +116,11 @@ def test_changed_parent_body_cannot_be_overlaid(name):
     """未知の元版や既適用版を文字列置換で補修しない。"""
     key = next(
         k
-        for k in baseline.BODIES
+        for k in baseline._D03_BASELINE_BODIES
         if k.startswith("function|FUNCTION:") and f":{name}(" in k
     )
     function_id = key.removeprefix("function|")
-    sql = baseline.BODIES[key]
+    sql = baseline._D03_BASELINE_BODIES[key]
     with pytest.raises(ValueError, match="保存元本文"):
         product.overlay_saved_function(function_id, sql + " ")
     with pytest.raises(ValueError, match="保存元本文"):

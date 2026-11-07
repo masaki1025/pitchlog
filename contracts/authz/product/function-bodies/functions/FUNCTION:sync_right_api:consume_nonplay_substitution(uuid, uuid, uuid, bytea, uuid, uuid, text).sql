@@ -132,6 +132,8 @@ PERFORM sync_fence_api.assert_writer_binding(p_tenant_id,p_attempt_id,
  VALUES (p_tenant_id,p_attempt_id,p_phase_id,p_game_id,own_event.id,
  own_event.d1,cp.id,cp.revision,(after_cp->'ref'->>'revision')::bigint,
  after_cp->'ref'->>'digest');
+ PERFORM stats_api.persist_writer_pitcher_entry(
+ p_attempt_id,p_phase_id,own_event.id,p_binding_nonce);
  RETURN QUERY SELECT true;
 
 END;
