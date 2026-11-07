@@ -139,6 +139,34 @@ def _owned_request(channel,value,*,mutation=False):
    with _owned_trace_lock:_owned_rpc_state.pop(id(channel),None)
 _owned_sync._phase_id=_owned_phase
 _owned_adapter._request=_owned_request
+from contextlib import contextmanager as _owned_contextmanager
+from pitchlog.api.routers import started_games as _owned_started_games
+from pitchlog.repositories import transaction as _owned_transaction
+_owned_original_started_scope=_owned_started_games.tenant_transaction_scope
+def _owned_started_pid(handle):
+ try:
+  runtime=_owned_transaction._TRANSACTION_RUNTIMES.get(handle._state_key)
+  if runtime is None:return None
+  pid=runtime[0].connection().connection.driver_connection.info.backend_pid
+  return pid if type(pid) is int and 0<pid<2147483648 else None
+ except Exception:
+  return None
+def _owned_get_scope_marker(event,pid):
+ try:
+  _owned_emit({'stage':'get-started-scope','event':event,'pid':pid})
+ except Exception:
+  pass
+@_owned_contextmanager
+def _owned_started_scope(*args,**kwargs):
+ pid=None
+ try:
+  with _owned_original_started_scope(*args,**kwargs) as handle:
+   pid=_owned_started_pid(handle)
+   _owned_get_scope_marker('start',pid)
+   yield handle
+ finally:
+  _owned_get_scope_marker('end',pid)
+_owned_started_games.tenant_transaction_scope=_owned_started_scope
 """
 
 
