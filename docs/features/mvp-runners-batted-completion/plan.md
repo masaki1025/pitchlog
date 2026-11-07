@@ -37,3 +37,5 @@ contracts/正本/根幹SQL/manifest/pin/fixtures/唯一artifact/共有台帳/roo
 | 3 | 同一候補の再送/reload/越境/途中故障・最終固定 | 同D5再送は非二重加算、実再読込はサーバーafter、別tenant拒否、走者ありpayload固有のT4故障でevent/play/runner/checkpoint/ledger全取消。非作者確認・source固定・証拠/残件をrootへ渡す |
 
 実PG/実HTTPS/browserは共有DSN unset、共通owned-pg-browser-network.lockを全寿命保持し、実行WT sourceを固定する。loopback Chromiumを実機/運用信頼TLSと混同しない。失敗を成功へ読み替えず、既提供範囲と今回追加実証を分ける。正式受理/全MVP完了は別。
+
+ステップ1初回実測: d1608585 detached、3003source前後一致、共有DSNunset/共通lock、152.97sで失敗。実画面の新規作成/開始後、既Hostが自然にv3へ遷移するのに旧driverが既に消えた記録入口buttonを待っていた（3case全て同じ）。越境caseも先行result ID未生成で未成立。API/計算/保存成功の証拠にはしない。開始button前から実prefix0 GETを捕捉して自然な記録画面へ従うdriverへ是正し、結果IDファイルをpytest tmp_pathへ分離する。製品source/値期待/認可/artifactは不変更。Node/pnpm/docker/既TLS/venvはpreflight済み。

@@ -194,7 +194,7 @@ def _verify_saved_rows(admin, tenant, game, scenario: str) -> None:
     and not os.environ.get("PITCHLOG_E2E_TLS_KEY_PATH"),
     reason="明示TLS証明書/鍵PATH未供給のため走者あり打球の画面縦断は未実証",
 )
-def test_screen_runner_batted_hits(vertical_database) -> None:
+def test_screen_runner_batted_hits(vertical_database, tmp_path: Path) -> None:
     """走者状態は画面の先行単打だけで作り、DBへ事前投入しない。"""
     for name in ("PITCHLOG_E2E_TLS_CERT_PATH", "PITCHLOG_E2E_TLS_KEY_PATH"):
         path = os.environ.get(name)
@@ -243,9 +243,7 @@ def test_screen_runner_batted_hits(vertical_database) -> None:
                     "PITCHLOG_E2E_AWAY_TEAM": str(teams[0]),
                     "PITCHLOG_E2E_HOME_TEAM": str(teams[1]),
                     "PITCHLOG_E2E_OTHER_TEAM": db.other_team_name,
-                    "PITCHLOG_E2E_RESULT_FILE": (
-                        "/tmp/opencode/pitchlog-runner-e2e/result-game.txt"
-                    ),
+                    "PITCHLOG_E2E_RESULT_FILE": str(tmp_path / "result-game.txt"),
                 },
             )
             assert completed.returncode == 0, (

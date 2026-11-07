@@ -78,7 +78,10 @@ type StartedGame = {
   status: string
   applied_rules: { dh: boolean }
 }
-async function createGame(page: Page, label: string): Promise<StartedGame> {
+async function createGame(
+  page: Page,
+  label: string,
+): Promise<StartedGame & { initialHead: Head }> {
   await page.getByRole('button', { name: '新規作成', exact: true }).click()
   const form = page.getByRole('region', {
     name: '試合の新規作成',
@@ -136,6 +139,7 @@ async function createGame(page: Page, label: string): Promise<StartedGame> {
         .selectOption(position)
     }
   }
+  const initialRead = readHead(page, saved.id, '0')
   const started = page.waitForResponse(
     (res) =>
       res.request().method() === 'POST' &&
@@ -144,7 +148,11 @@ async function createGame(page: Page, label: string): Promise<StartedGame> {
   )
   await page.getByRole('button', { name: '試合を開始', exact: true }).click()
   expect((await started).status()).toBe(200)
-  return saved
+  const initialHead = (await (await initialRead).json()) as Head
+  await expect(page.getByTestId('ordinary-state-source')).toHaveText(
+    'サーバー確認済みの状態',
+  )
+  return { ...saved, initialHead }
 }
 
 function readHead(page: Page, gameId: string, length: string) {
@@ -310,14 +318,7 @@ test('走者一塁の単打→三塁明示→再送→reload', async ({ page }) 
   await login(page)
   const saved = await createGame(page, 'A')
   const requests = requestRecorder(page, saved.id)
-  const zeroRead = readHead(page, saved.id, '0')
-  await page
-    .getByRole('button', {
-      name: '三振・攻守交代を含む投球の記録へ',
-      exact: true,
-    })
-    .click()
-  const zero = (await (await zeroRead).json()) as Head
+  const zero = saved.initialHead
   const fielder = zero.roster.teams
     .find((t) => t.side === 'home')
     ?.participants.find((p) =>
@@ -426,14 +427,7 @@ test('走者一塁の二塁打→生還明示→得点1・打点1→reload', asy
   page.setDefaultTimeout(httpTimeout)
   await login(page)
   const saved = await createGame(page, 'B')
-  const zeroRead = readHead(page, saved.id, '0')
-  await page
-    .getByRole('button', {
-      name: '三振・攻守交代を含む投球の記録へ',
-      exact: true,
-    })
-    .click()
-  const zero = (await (await zeroRead).json()) as Head
+  const zero = saved.initialHead
   const fielder = zero.roster.teams
     .find((t) => t.side === 'home')
     ?.participants.find((p) =>
@@ -508,30 +502,35 @@ test('走者一塁の二塁打→生還明示→得点1・打点1→reload', asy
   )
 })
 
-test('一二塁から本塁打の全生還を保存し、再取得とreloadで3点を保持する', async ({ page }) => {
+test('一二塁から本塁打の全生還を保存し、再取得とreloadで3点を保持する', async ({
+  page,
+}) => {
   page.setDefaultTimeout(httpTimeout)
   await login(page)
   const saved = await createGame(page, 'C')
-  const zeroRead = readHead(page, saved.id, '0')
-  await page
-    .getByRole('button', {
-      name: '三振・攻守交代を含む投球の記録へ',
-      exact: true,
-    })
-    .click()
-  const zero = (await (await zeroRead).json()) as Head
+  const zero = saved.initialHead
   const fielder = zero.roster.teams
     .find((t) => t.side === 'home')
     ?.participants.find((p) =>
       p.roles.some((r) => r.kind === 'fielding' && r.position === '9'),
     )
   if (!fielder) throw new Error('実守備rosterに位置9の野手がない')
-  await selectPitch(page, 'batting-result.single', fielder.player.player_id, null)
+  await selectPitch(
+    page,
+    'batting-result.single',
+    fielder.player.player_id,
+    null,
+  )
   const firstRead = readHead(page, saved.id, '1')
   await save(page, saved.id)
   const first = (await (await firstRead).json()) as Head
   expect(first.after.stateFields['state.runners']).toBe('first')
-  await selectPitch(page, 'batting-result.single', fielder.player.player_id, '2')
+  await selectPitch(
+    page,
+    'batting-result.single',
+    fielder.player.player_id,
+    '2',
+  )
   const secondRead = readHead(page, saved.id, '2')
   await save(page, saved.id)
   const second = (await (await secondRead).json()) as Head
@@ -543,7 +542,10 @@ test('一二塁から本塁打の全生還を保存し、再取得とreloadで3�
   expect(third.page.items).toHaveLength(3)
   expect(third.page.items.slice(0, 2)).toEqual(second.page.items)
   expect(third.after.stateFields['state.runners']).toBe('empty')
-  expect(third.after.stateFields['state.score']).toEqual({ home: '0', away: '3' })
+  expect(third.after.stateFields['state.score']).toEqual({
+    home: '0',
+    away: '3',
+  })
   expect(third.after.scoreboard).toEqual({
     inningScores: { home: '0', away: '3' },
     hits: '3',
