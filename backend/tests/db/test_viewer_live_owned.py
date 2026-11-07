@@ -150,6 +150,71 @@ def _script():
     return source
 
 
+def _insert_unavailable_game(admin, game_id, tenant_id, source_game_id):
+    """開始済みに見えるが確定世代を持たない実DB行を置く。"""
+    admin.execute(
+        "INSERT INTO public.games (id, scheduled_at, game_type_key, "
+        "game_type_category, tournament_key, away_team_record_id, "
+        "home_team_record_id, plate_umpire, section_label, week_label, "
+        "day_label, game_number_label, started_at, status, applied_rules, "
+        "rule_override, trashed_at, hidden_at, tenant_id, import_batch_id) "
+        "SELECT %s, scheduled_at, game_type_key, game_type_category, "
+        "tournament_key, away_team_record_id, home_team_record_id, "
+        "plate_umpire, section_label, week_label, day_label, "
+        "game_number_label, now(), 'in_progress', applied_rules, "
+        "rule_override, trashed_at, hidden_at, tenant_id, import_batch_id "
+        "FROM public.games WHERE tenant_id=%s AND id=%s",
+        (game_id, tenant_id, source_game_id),
+    )
+
+
+def _pagination_script():
+    """26球保存後、最新25球と旧pageを実HTTPで取得する。"""
+    source = _script()
+    old_results = """        results = [
+            "batting-result.called-pitch",
+            "batting-result.called-pitch",
+        ]"""
+    assert source.count(old_results) == 1
+    source = source.replace(
+        old_results,
+        '        results = ["batting-result.called-pitch"] * 26',
+        1,
+    )
+    start = source.index("        current_lifecycle, _ = await read_full()")
+    tail = source.index("try:\n    out = asyncio.run(run())")
+    page = """        current_lifecycle, _ = await read_full()
+        assert current_lifecycle["status"] == "in_progress"
+        first = await viewer.get(
+            "/games/" + game + "/viewer", headers=headers())
+        assert first.status_code == 200, ("first-page", first.status_code)
+        first_body = first.json()
+        assert len(first_body["page"]["items"]) == 25
+        cursor = first_body["page"]["next_cursor"]
+        assert isinstance(cursor, str) and cursor
+        second = await viewer.get(
+            "/games/" + game + "/viewer",
+            params={"cursor": cursor}, headers=headers())
+        assert second.status_code == 200, ("second-page", second.status_code)
+        second_body = second.json()
+        assert len(second_body["page"]["items"]) == 1
+        assert second_body["page"]["next_cursor"] is None
+        return {
+            "game": game,
+            "first_numbers": [
+                row["play_row"]["play_number"]
+                for row in first_body["page"]["items"]
+            ],
+            "second_numbers": [
+                row["play_row"]["play_number"]
+                for row in second_body["page"]["items"]
+            ],
+        }
+
+"""
+    return source[:start] + page + source[tail:]
+
+
 def test_owned_viewer_separate_cookie_start_two_balls_and_end(vertical_database):
     """共有DBを使わず、実app role/C2/保存CPを別Cookieで照合する。"""
     assert len(_HOST_SOURCE_PATHS) == 3
@@ -166,20 +231,7 @@ def test_owned_viewer_separate_cookie_start_two_balls_and_end(vertical_database)
                 (key, name),
             )
         # 開始済みに見えるが確定世代を持たない行を実DBへ置き、503を誘発する。
-        admin.execute(
-            "INSERT INTO public.games (id, scheduled_at, game_type_key, "
-            "game_type_category, tournament_key, away_team_record_id, "
-            "home_team_record_id, plate_umpire, section_label, week_label, "
-            "day_label, game_number_label, started_at, status, applied_rules, "
-            "rule_override, trashed_at, hidden_at, tenant_id, import_batch_id) "
-            "SELECT %s, scheduled_at, game_type_key, game_type_category, "
-            "tournament_key, away_team_record_id, home_team_record_id, "
-            "plate_umpire, section_label, week_label, day_label, "
-            "game_number_label, now(), 'in_progress', applied_rules, "
-            "rule_override, trashed_at, hidden_at, tenant_id, import_batch_id "
-            "FROM public.games WHERE tenant_id=%s AND id=%s",
-            (unavailable_game, db.tenant_id, db.game_id),
-        )
+        _insert_unavailable_game(admin, unavailable_game, db.tenant_id, db.game_id)
     case = {
         "tenant": str(db.tenant_id),
         "game": str(db.game_id),
@@ -203,3 +255,39 @@ def test_owned_viewer_separate_cookie_start_two_balls_and_end(vertical_database)
     result = json.loads(process.stdout)
     assert "exception" not in result, result.get("runtime_diagnostics", {})
     assert [row["d3"] for row in result["viewer_checks"]] == ["0", "1", "2", "6"]
+
+
+def test_owned_viewer_paginates_latest_25_and_older_page(vertical_database):
+    """26球の保存値を、最新25球のpage1と旧page2へ有限取得する。"""
+    assert len(_HOST_SOURCE_PATHS) == 3
+    db = vertical_database
+    unavailable_game = uuid4()
+    with psycopg.connect(db.authority.database.business_admin) as admin:
+        admin.execute(
+            "INSERT INTO public.admin_vocabularies(key,category,display_name) "
+            "VALUES ('batting-result.called-pitch','batting_result','見逃し') "
+            "ON CONFLICT(key) DO NOTHING"
+        )
+        _insert_unavailable_game(admin, unavailable_game, db.tenant_id, db.game_id)
+    case = {
+        "tenant": str(db.tenant_id),
+        "game": str(db.game_id),
+        "team_name": db.team_name,
+        "password": _PASSWORD,
+        "pitch_type": _PITCH_TYPE,
+        "unavailable_game": str(unavailable_game),
+    }
+    token = uuid4()
+    with db.broker_worker(token), binding_broker(db, token):
+        _prepare_app_configuration(db)
+        process = subprocess.run(
+            ["docker", *_app_arguments(db, case), "-u", "-c", _pagination_script()],
+            capture_output=True,
+            text=True,
+            timeout=450,
+        )
+    assert process.returncode == 0, (process.stdout[-1000:], process.stderr[-1000:])
+    result = json.loads(process.stdout)
+    assert "exception" not in result, result.get("runtime_diagnostics", {})
+    assert [int(value) for value in result["first_numbers"]] == list(range(2, 27))
+    assert [int(value) for value in result["second_numbers"]] == [1]
