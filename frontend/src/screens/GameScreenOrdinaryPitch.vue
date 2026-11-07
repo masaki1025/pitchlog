@@ -695,7 +695,7 @@ onScopeDispose(() => {
       }}番
     </p>
     <template v-if="canAppend && !suspended">
-      <label class="block"
+      <label v-if="!runnerNonpitch" class="block"
         >結果<select
           v-model="resultId"
           data-testid="ordinary-pitch-result"
@@ -779,6 +779,7 @@ onScopeDispose(() => {
         :primary-result-id="resultId"
         :source-key="battedContextKey"
         :disabled="busy"
+        @select-primary-result="(value) => (resultId = value)"
         @confirmed="(value) => (runnerObservation = value)"
       />
       <p

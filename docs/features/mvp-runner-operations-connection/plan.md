@@ -89,3 +89,8 @@ rootのPO委任による表示追随（同2026-11-07）: `backend/src/pitchlog/e
 - CSV NP course identityは新閉V7/原観測/実41列NP一致を確認して非該当None,Noneへ写す。runner-eventのPA:not-applicableは列17/61/62に明示NULL（CSV空欄）を渡し、元T1はsidecarへ保持。列18/19・旧bool表示・生成表示/座標関数は不変更。単体で旧fixtureへの参照共有が原因となる検査順依存を確認し、作者helperのdeepcopy不足を是正した（製品の期待値/codecを緩めていない）。
 - 現固定前検査: frontend全eslint/vue-tsc成功、8対象file/102passed/10.46秒。backend全Ruff/Ty成功、関連pure330passed/11.52秒（共有DSN unset、DBなし）。domain既固定35/943passed44.44秒を保持する。新SDK検査は作者の構造候補を現在pinの封筒へ載せる純検査であり、実host/実認可の成功ではない。
 - **未成立**: 唯一追跡artifact/現行pin・D11/manifestのroot接合、実PG/実画面/途中故障。既pin停止を根拠なく再走しない。rootは同受領sourceへ公式builder/現行pin/manifestを直列追随してから正規CURRENT48環境へ接合する方針。NPの球種未取得直後の断中受理は既保存器条件の未解消事項として保持する。終端球との複合・複数塁盗塁数量・SO05他配置・複数得点サヨナラ・エラー/妨害等もMVP残件であり、今回の実装範囲を正式な機能削減へ読み替えない。
+
+
+## 非作者P1の後発是正（aa8レビュー、2026-11-07）
+
+非作者レポート`/home/ymdms/.cache/pitchlog/runner-operations-independent-20261107/REPORT.md` SHA 91c1fa3a6c9818ba9af32e01bfe04af168850dd60e35b0ea5e32837f4adedd82の『親主結果ballと子SO05の相反観測』を是正した。子のSO05操作選択時点で親主結果も同じSO05へ変更し、親が後からball等へ変われば子SO05選択/確認を解除する。子自身もballのままSO05確定を拒否する。Providerはすべての投球batting-resultで親resultIdと実perPitch.resultIdの一致を必須にし、WP/PBは実primaryResultId一致、NPは主結果非該当をそれぞれ別条件で検査する。既計算/保存結果を補修せず、親から選べるSO05へ実際に整合させる。作者のUI正負/親観測対向と既SDK/controller/providerを7spec/99passed/8.93秒、eslint/vue-tsc0で確認。これは非作者再確認/実画面実PGではない。固定後に非作者へ再提示する。

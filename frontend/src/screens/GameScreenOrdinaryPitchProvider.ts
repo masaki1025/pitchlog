@@ -864,6 +864,31 @@ export async function prepareLineupPrefix(
     source: context.source,
   }
 }
+/** 同じ実投球の親結果と子perPitchを照合する。野球結果は再計算しない。 */
+export function runnerObservationMatchesParent(
+  observation: RecordingScreenObservation,
+  runner: RunnerObservationWire,
+): boolean {
+  const p = runner.perPitch
+  if ('kind' in observation)
+    return (
+      p.pitchEventKind === 'non-pitch-event' &&
+      p.kind !== 'batting-result' &&
+      runner.primaryResultId === null
+    )
+  if (p.pitchEventKind !== 'pitch-event') return false
+  if (p.kind === 'batting-result')
+    return (
+      observation.resultId === p.resultId &&
+      (p.resultId === 'batting-result.strikeout-double-play'
+        ? runner.primaryResultId === null
+        : runner.primaryResultId === observation.resultId)
+    )
+  return (
+    p.kind === 'secondary-result' &&
+    runner.primaryResultId === observation.resultId
+  )
+}
 /** 同じ実source/唯一artifact/封印/耐久イベント経路で走者操作を準備する。 */
 export async function prepareRunnerEvent(
   context: LineupRecordingContext,
@@ -877,6 +902,7 @@ export async function prepareRunnerEvent(
   if (
     !runner ||
     ('battedHit' in observation && observation.battedHit != null) ||
+    !runnerObservationMatchesParent(observation, runner) ||
     context.prefixRef.tenantId !== tenantId ||
     vocabulary.tenantId !== tenantId ||
     !isStartedGameMetadata(context.game) ||

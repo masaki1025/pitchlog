@@ -17,8 +17,28 @@ const props = defineProps<{
   sourceKey: string
   disabled?: boolean
 }>()
-const emit = defineEmits<{ confirmed: [observation: RunnerObservationWire] }>()
+const emit = defineEmits<{
+  confirmed: [observation: RunnerObservationWire]
+  'select-primary-result': [resultId: 'batting-result.strikeout-double-play']
+}>()
 const operation = ref('')
+watch(operation, (next) => {
+  if (
+    next === 'batting-result.strikeout-double-play' &&
+    props.primaryResultId !== next
+  )
+    emit('select-primary-result', next)
+})
+watch(
+  () => props.primaryResultId,
+  (next) => {
+    if (
+      operation.value === 'batting-result.strikeout-double-play' &&
+      next !== operation.value
+    )
+      operation.value = ''
+  },
+)
 const third = ref('')
 const thirdRunner = ref('')
 const noError = ref(false)
@@ -86,6 +106,13 @@ function confirm() {
   ) {
     error.value =
       '操作・走者結果・第3アウト・失策と妨害の有無を確認してください'
+    return
+  }
+  if (
+    operation.value === 'batting-result.strikeout-double-play' &&
+    props.primaryResultId !== operation.value
+  ) {
+    error.value = '主結果も三振と走者アウトへ合わせてください'
     return
   }
   const byRunner: RunnerOutcomeMap = {}

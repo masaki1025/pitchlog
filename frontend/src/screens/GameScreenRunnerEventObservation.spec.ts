@@ -120,3 +120,41 @@ it('同じ走者IDでも新sourceでは旧確認を再使用しない', async ()
       .value,
   ).toBe('')
 })
+
+it('SO05を選んだ時点で親主結果の変更を求め、ballのまま確定しない', async () => {
+  const w = make()
+  await w
+    .get('[data-testid="runner-operation-kind"]')
+    .setValue('batting-result.strikeout-double-play')
+  expect(w.emitted('select-primary-result')).toEqual([
+    ['batting-result.strikeout-double-play'],
+  ])
+  await w.get('[data-testid="runner-1-outcome"]').setValue('out')
+  await w.get('[data-testid="runner-1-destination"]').setValue('second')
+  await w.get('[data-testid="runner-1-cause"]').setValue('caught-stealing')
+  await w.get('[data-testid="runner-third-out"]').setValue('not-required')
+  await w.get('[data-testid="runner-no-error"]').setValue(true)
+  await w.get('[data-testid="runner-observation-confirm"]').trigger('click')
+  expect(w.emitted('confirmed')).toBeUndefined()
+  expect(w.get('[role="alert"]').text()).toContain('主結果')
+  await w.setProps({ primaryResultId: 'batting-result.strikeout-double-play' })
+  await w.get('[data-testid="runner-observation-confirm"]').trigger('click')
+  const p = w.emitted('confirmed')?.[0]?.[0]
+  expect(p).toMatchObject({
+    primaryResultId: null,
+    perPitch: {
+      kind: 'batting-result',
+      resultId: 'batting-result.strikeout-double-play',
+      pitchEventKind: 'pitch-event',
+    },
+  })
+  await w.setProps({ primaryResultId: 'batting-result.ball' })
+  expect(
+    (
+      w.get('[data-testid="runner-operation-kind"]')
+        .element as HTMLSelectElement
+    ).value,
+  ).toBe('')
+  await w.get('[data-testid="runner-observation-confirm"]').trigger('click')
+  expect(w.emitted('confirmed')).toHaveLength(1)
+})
