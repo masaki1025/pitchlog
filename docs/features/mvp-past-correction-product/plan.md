@@ -73,3 +73,13 @@ R32/R33で非play歴史anchor候補は終了後の再開ACKと現在GET 200ま�
 R46の隔離HTTPS/PGでは、正規D4の三球→過去KをballへP3訂正→同D5再掲→通常球→終了→再開→非play画面から通常球→再終了→再読込が1試合で成立した。旧T5版K/投手K各1、現行版各0、対象slot版2、最終current source 5件、二度の終了receiptと最新pointerをDBで照合した。通常球は現行open成績版のrevision/source_countを更新し、P3とLC end/reopenだけが新しい版IDを作る既実装に従い、総版数は5。R44/R45の失敗はそれぞれ再読込後の端末確認欠落とテスト版数の過剰期待として保持する。この実証は「終了後にP3訂正する」経路、複数P3、25件超、旧世代、後続交代/打球/走者、CSV88現在版、P3結果不明復旧、正式0048配備の完了を意味しない。
 
 現artifactに旧nativeUndo fixtureの実行SHAが追随していなかったため、P3と無関係の野球値を変えず、公式Node hostの4要求/応答全値一致とCP digest再導出を確認した固定24 leafのfixture追随候補を本ステップの回帰準備として含める。旧値と差分・検査器由来はcache packetに残す。
+
+### 25件超の同世代v3訂正（2026-11-07、ステップ4技術追補）
+
+25件はMVPの試合長ではなく現候補の一括入力上限である。現画面・Controller・API・routerは対象D1または全履歴が25超なら閉じ、`past_correction_source` は `limit=25` の一ページで `next_cursor=null` を要求する。v3の唯一数学は `deriveLineupPlayPrefixWithContinuation` の反復であり、旧ordinary v1用 `replayPastCorrectionPage` の25件ABIをv3で使用済みとは扱わない。v3のPython tuple/capsule/T5配列、私有SQLの `items<=25`・後続100件・全行 `jsonb_agg`、P3 current readerの全件配列も同時に上限となる。件数条件だけの除去、最初の25件だけの成功、全件RAM読込は不可。
+
+まず同一tenant・game・内部世代・recording right・P3 phase・**同一DB取引とgame lock**内で、現在CP/保存anchor/履歴版/確定水位を固定する。既 `PlayPrefixHistoryPageToken` の最大100を超えず一ページ25件以下の keyset を順に読む。各ページで `d1=前末尾+1`、`d2`単調増加、原event/ledger/history/PlayRow/走者/元計算全値と前後CP連鎖を確認し、実cursorと固定headを次ページへ渡す。最終 `next_cursor=null`、全ページ件数=固定水位、最後の元response=固定current CPを必須とする。ページ欠落/重複/逆順/混在版/途中更新/非playは保存前に閉拒否する。FEは対象を含むページだけ保持し、ページ番号からの推定版や旧headでの送信を許さない。対象offer・送信本文・確認は真正target行と同CP/slot版に再束縛する。
+
+数学は旧/訂正後の直前応答を両方持ち越して、対象以降を既唯一hostへ順に渡す。各ページの保存観測・物理行・唯一T5評価は同じページの元ID/D1/D2に束縛し、原本と有効版の順序付きdigestをページ間で継続する。候補は一括tupleを作らず有界ページ単位で同TX私有保存面へ渡す。SQLはtenant/game/generation/capsule/attempt/phaseに束縛した有界keyset読取とページ保存・最後の全件数/連鎖digest/current CP/T5 source/pointerの不可分確定へ分ける。既確定0042/0043は書換えず、0048のschema・関数・ACL・catalogはcache候補packetでroot唯一writerへ渡す。読取側も `read_p3_current` の全件 `jsonb_agg` を有界header/page読取へ置換し、全ページを同取引で検証しながら要求ページだけを返す。NFR-005の集計はDBのtenant/game/version絞込・索引・GROUP BYを維持し、Pythonの全件集計や別野球計算を置かない。
+
+最小正負対向は26球で対象D1=1/25/26、ページ境界25→26、同D5再掲・別本文、欠落/重複/順序逆転/古いcursor/異なるhead・tenant・世代/途中故障全取消、T5旧新版のsource件数・指標差/現在pointer、GET/reload/次球である。複数P3、旧世代、終了後訂正、後続非通常操作はこの25件超witnessから成功へ推測拡張しないが、MVP残件として引き続き実装する。
