@@ -68,6 +68,13 @@ def test_owned_p3_migration_and_all_structure_tamper_refusals(
                 "CREATE TABLE sync_fence.p3_projection_unknown(value text)",
                 "ALTER TABLE sync_fence.p3_projection_page_progress DISABLE TRIGGER "
                 "p3_page_progress_must_finalize",
+                "DROP TRIGGER p3_page_progress_must_finalize ON "
+                "sync_fence.p3_projection_page_progress; "
+                "CREATE CONSTRAINT TRIGGER p3_page_progress_must_finalize "
+                "AFTER INSERT OR UPDATE OF item_count ON "
+                "sync_fence.p3_projection_page_progress "
+                "DEFERRABLE INITIALLY DEFERRED FOR EACH ROW "
+                "EXECUTE FUNCTION sync_fence.p3_reject_unfinished_page_progress()",
                 "GRANT EXECUTE ON FUNCTION "
                 "sync_fence.p3_reject_unfinished_page_progress() TO pitchlog_app",
                 "DROP TRIGGER p3_page_progress_must_finalize ON "

@@ -204,7 +204,7 @@ def check_p3_page_guard(connection: Any) -> None:
             table = model.__table__
             cursor.execute(
                 "SELECT t.tgname,t.tgenabled,t.tgtype,t.tgdeferrable,"
-                "t.tginitdeferred,t.tgnargs,t.tgargs,"
+                "t.tginitdeferred,t.tgnargs,t.tgargs,t.tgattr::text,"
                 "pg_catalog.pg_get_expr(t.tgqual,t.tgrelid),"
                 "t.tgoldtable,t.tgnewtable,n.nspname,p.proname,"
                 "k.contype,k.condeferrable,k.condeferred,k.convalidated "
@@ -227,6 +227,7 @@ def check_p3_page_guard(connection: Any) -> None:
                         True,
                         0,
                         b"",
+                        "",
                         None,
                         None,
                         None,

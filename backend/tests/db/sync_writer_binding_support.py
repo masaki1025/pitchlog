@@ -16,6 +16,8 @@ from alembic.script import ScriptDirectory
 from psycopg import sql
 from psycopg.conninfo import conninfo_to_dict
 
+from pitchlog.db.current_product_startup import CURRENT_REVISION
+
 from . import initial_recording_right_scope_support as initial_support
 from .initial_recording_right_scope_support import InitialGrantDatabase
 from .rg1_lifecycle_support import PeerSession, docker
@@ -91,13 +93,17 @@ def owned_binding_database(
     config.set_main_option(
         "script_location", str(Path(__file__).resolve().parents[2] / "migrations")
     )
-    heads = ScriptDirectory.from_config(config).get_heads()
+    scripts = ScriptDirectory.from_config(config)
+    heads = scripts.get_heads()
     assert len(heads) == 1 and heads[0] != "0036_initial_right_storage", (
         "U2正規migrationが未供給"
     )
+    assert scripts.get_revision(CURRENT_REVISION) is not None
+    # 正規currentは後続候補headの祖先でもよいが、別branchへの取替は拒否する。
+    tuple(scripts.iterate_revisions(heads[0], CURRENT_REVISION))
     with monkeypatch.context() as patch:
-        # fixtureの旧固定targetだけをactual製品headへ追随。製品処理/ACLを差し替えない。
-        patch.setattr(initial_support, "_INITIAL_REVISION", heads[0])
+        # fixtureの旧固定targetだけを実currentへ追随。製品処理/ACLを差し替えない。
+        patch.setattr(initial_support, "_INITIAL_REVISION", CURRENT_REVISION)
         patch.setattr(
             initial_support.ledger_support,
             "AuthorityDatabase",
