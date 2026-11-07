@@ -80,6 +80,63 @@ def _recovery_script(original: str) -> str:
         assert recovered_replay.json() == changed.json()
         runtime_diagnostics.update(stage="p3-get", status=None)""",
     )
+    once(
+        '        changed = await client.post("/games/" + game + "/sync/change",\n'
+        "                                    headers=p3_headers, json=p3_payload)",
+        """        import threading
+        entered, release = threading.Event(), threading.Event()
+        def keep_p3_live(point):
+            if point == "after_t4_projection":
+                entered.set()
+                if not release.wait(30):
+                    raise RuntimeError("owned P3 live witness deadline exceeded")
+        with testing_crash_hook(keep_p3_live):
+            pending_p3 = asyncio.create_task(client.post(
+                "/games/" + game + "/sync/change",
+                headers=p3_headers, json=p3_payload))
+            try:
+                assert await asyncio.to_thread(entered.wait, 10), "P3 live not reached"
+                live = await client.post(
+                    "/games/" + game + "/sync/attempts/recover",
+                    headers=p3_headers, json=p3_payload)
+                assert live.status_code == 200, ("P3-live", live.status_code)
+                assert live.json() == {"resolution": "unresolved"}
+            finally:
+                release.set()
+            changed = await pending_p3""",
+    )
+    once(
+        "        await recover_original(p3_headers)",
+        """        async with AsyncClient(transport=ASGITransport(app=app),
+                               base_url="https://test") as anonymous:
+            denied = await anonymous.post(
+                "/games/" + game + "/sync/attempts/recover",
+                headers=p3_headers, json=p3_payload)
+            assert denied.status_code == 401, (
+                "P3-recovery-no-cookie", denied.status_code)
+        for wrong in ("device", "credential"):
+            wrong_headers = dict(p3_headers)
+            if wrong == "device":
+                wrong_headers["X-Pitchlog-Device-Id"] = str(uuid4())
+            else:
+                wrong_headers["X-Pitchlog-Device-Credential"] += ".changed"
+            denied = await client.post(
+                "/games/" + game + "/sync/attempts/recover",
+                headers=wrong_headers, json=p3_payload)
+            assert denied.status_code == 401, (
+                "P3-recovery-wrong-device", wrong, denied.status_code)
+        await recover_original(p3_headers)""",
+    )
+    once(
+        '            assert "confirmedContent" not in denied_replay.json()',
+        """            assert "confirmedContent" not in denied_replay.json()
+            denied_recovery = await foreign_client.post(
+                "/games/" + game + "/sync/attempts/recover",
+                headers=foreign_device, json=p3_payload)
+            assert denied_recovery.status_code == 404, (
+                "P3-recovery-foreign", denied_recovery.status_code)
+            assert set(denied_recovery.json()) == {"detail"}""",
+    )
     return original
 
 

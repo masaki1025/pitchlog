@@ -60,3 +60,7 @@ step2固定: da7a933c、backend関連333件/20.74s・Ruff/Ty成功。owned実証
 step3端末候補: 共通barrierは既D1付き要求を保持し、P3のchange/recovery_generation/V12/target/expected_version全原値をstrict IDBへ固定する。送信前再起動後も同body/D5の旧attemptだけを照会し、retry_allowed後だけCASで新attemptへ更新する。unresolvedはchange再送/成功を作らない。P3 wrapperは専用change URLのみ、元P3をeventsへ変換しない。入力getter/JSON補完/未知混在を拒否する。
 
 FE検査: 対象5file/66件成功、vue-tsc/ESLint成功。HTTP/IDB doubleであり実PG/実画面の証拠ではない。P3 FE本体は編集せず、cache ~/.cache/pitchlog/p3-recovery-fe-intake-20261107/candidate.patch（SHA d6a5576c4c34e717aaf6cbbb6f3963e9538b7a011173c8019d3f3f6d3438f645）をroot/P3 writerの直列接合用に渡した。適用/実画面/非作者再確認/正式受理は未了。P3 old-live/tenant及びP1/P2最終合成回帰も残り、step3全成立は宣言しない。
+
+step2実証結果: da7a933c detachedのtest_p3_original_body_recovery_uses_standard_controlが1 passed/171.41s。実login/開始/3球/真正P3に、未登録旧attempt退役と後着503、T2/T4故障後の同原本照会、実受理後ACK喪失からの新attempt同D5再掲、各段の別V12拒否を追加して通過した。標準control実catalogを使用し、cache CREATEは無い。元のP3再取得/後続球/越境の期待とDB照合も維持する。verify WT clean。
+
+step3追加対向（次固定で実施）: 同じ実P3のT4旧writerを実thread Eventで保持した間はunresolved、その実終結後だけretry_allowedとする。未ログイン/実端末違い/資格違い401、実別tenantのrecovery404を追加する。control既逆順競合・登録先勝ち/退役先勝ち・旧NULL/別body/後着の同じcaseをP3にもパラメータ化し、P3/旧Eventの互いのreaderが混同しないことと未知phase/混在D1の拒否も固定する。成功は実行後に追記する。
