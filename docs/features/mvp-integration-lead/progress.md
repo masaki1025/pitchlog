@@ -1,5 +1,14 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 2026-11-07：通常0048の実起動を完了、走塁を同じ製品候補へ接続中
+
+- **成立した配置と証拠**: `feature/mvp-p3-current-startup@59a6ff501975a89dcb41dad4d1d341c1cd6ce92f` の `full48-normal-r3` は実owned PostgreSQLで **3passed68.05秒**。S0→0048、同版再起動、全20私有表/全catalog/P3構造、補助2表の余剰xmin拒否、未完成commit拒否、第6表後故障の全取消を実測。source前後同一、共有DSNunset、owned container削除済み。guard詳細取得漏れと正規xmin取得漏れはそれぞれde2/707/59aで修復し、権限や拒否条件は削除していない。限定非作者の後発REPORT SHA `2e7cc1c06b8273a8abc7438cb9fed4d8bef6ece65e40c46442431a216d4737b4` は新P0/P1/P2なし。cache `p3-current48-startup-root-20261107/full48-normal-r3-{result,source-before,source-after}.json` とxmlが原典。正式7.7/seal/全CI/merge/既47から自動更新は別の未了。
+- **走塁の接合**: root専有 `feature/mvp-runner-product-integration-20261107@8af7fd6be63d2a5e86c2561d3612cf2b2a3b1e30`（後続step2 WIPあり）に作者aa8＋SO05修復5373と通常48の後発修復を接合。競合はlineupPrefixWireの1件で、旧常時拒否から作者の厳格SDKへ。公式builderの唯一JS **ab8e9de1e9a2b602b998b485cb44133ab7cd703309a1e5d72e2c5b8ceca2ff8c** は139290bytes、再現build一致。現行5fixtureと7manifestは実行pin/既封印派生だけを追随し、数学期待・prior/legacyは不変更。対象4spec87passed/型0。既P3公開操作を含む正確な19口一覧へ3試験を追随。旧fullfrontend handle45555は終端取得不能で成功に数えず、追加変更後はJSON成果物を保存する単一全件runへ移行。
+- **長い履歴の訂正**: 26球保存・訂正準備の後に503となる。test-only observerの実runは1failed550.77秒/source同一/cleanup。一次原因はRG1 `assert_live` の `fence.assert_held` がLedgerOutcomeUnconfirmed、controller exited1/OOMfalseで、app側BrokenPipeは二次。純計算/10秒idleを原因とする仮説は採用しない。作者が権威応答の条件を限定追跡、未知結果を成功へ置換せず、期限や認可を緩めない。
+- **並行と所有**: D03はr16の0球投手交代→登板API/CSV各1を維持し、終了/再開/追加/再終了r18を共通owned lockで検証中。外部閲覧担当は依頼送付済み、`verify-viewer-live-connected@5499065b` の実プロセス/作業差分を確認したが、正式受諾・固定成果は未受領。担当のWTへは編集しない。rootは共有source/正式資産の唯一writer、各作者は別WTと共通PG排他で継続。
+- **次の利用者到達点**: 新artifactの既数学全値/有限v3互換/現行pinを閉じ、同版で盗塁・走塁・非投球→保存→サーバー再取得→reloadを実測。その後一般アウト/併殺/失策/妨害等の未操作、長履歴/終了後訂正、成績27/両CSV、全断復旧/担当交代、閲覧10秒/同時負荷と正式統合/実機・運用復旧を閉じる。CI8分割は保留、限定成功を全MVP完成へ読み替えない。
+
+
 ## 2026-11-07：P3の通常0048全登録を固定、走塁の保存SDKを受領
 
 - **root候補固定点**: `feature/mvp-p3-current-startup@71e3eebe`。6表/21policy/114列ACL＋22実関数を通常起動へ一括登録し、全20私有表母集合/P3全構造・17属性guard検査を必須化。旧11関数の元全宣言/body pinを照合し、未知版・余剰権限・作成競合を補修しない。新152資産＋旧11 bodyを同publisherから描画、全163 bodyを再照合。CREATE OR REPLACE/宣言改行の3ヘッダだけを正規CREATEへ整え、全22件が既全属性/ACL再適用guardを通ることを確認。正式7.7/seal/全CI/通常mergeは未了。
