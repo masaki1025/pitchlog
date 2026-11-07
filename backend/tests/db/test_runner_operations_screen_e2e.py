@@ -33,6 +33,7 @@ _CONFIG = "GameScreenRunnerOperations.playwright.config.ts"
 
 _RUNNER_DIAGNOSTIC_BOOTSTRAP = r"""
 import json,threading,time
+_owned_observer_started=time.monotonic()
 _seen_probe_threads=set()
 _owned_trace_lock=threading.Lock()
 _owned_trace_count=0
@@ -57,7 +58,8 @@ def _owned_emit(value):
  with _owned_trace_lock:
   if _owned_trace_count<80:
    _owned_trace_count+=1
-   print('PITCHLOG_RUNNER_STAGE '+json.dumps(value),flush=True)
+   print('PITCHLOG_RUNNER_STAGE '+json.dumps(dict(value,observerMs=
+    min(3600000,max(0,int((time.monotonic()-_owned_observer_started)*1000))))),flush=True)
   elif not _owned_trace_truncated:
    _owned_trace_truncated=True
    print('PITCHLOG_RUNNER_STAGE '+json.dumps({'truncated':True,'limit':80}),flush=True)
@@ -111,7 +113,11 @@ def _owned_request(channel,value,*,mutation=False):
   state=dict(prior)
  def summary(event):
   last=state['lastCheck']
+  writer=value.get('writer')
+  pid=writer.get('backend_pid') if type(writer) is dict else None
+  if type(pid) is not int or not 0<pid<2147483648:pid=None
   _owned_emit({'stage':'binding-rpc','operation':operation,'event':event,
+   'writerPid':pid,
    'elapsedMs':min(3600000,max(0,int((time.monotonic()-started)*1000))),
    'checkCount':state['checkCount'],
    'sinceCheckMs':None if last is None else min(3600000,
@@ -230,6 +236,163 @@ def _capture_authority_diagnostic(db, destination: Path) -> None:
         + "\n"
     )
     assert ready and probe, "authority worker observer did not load"
+
+
+def _capture_owned_binding_locks(db, destination: Path, stop, comparison: Path) -> None:
+    """二要求目の有限窓でowned actorの待機列/lockだけを読み、原文を取得しない。"""
+    from time import monotonic
+
+    started = monotonic()
+    window_started = None
+    samples = []
+    error_kind = None
+    stop_reason = "stopped-before-second-request"
+    identifier = re.compile(r"^[A-Za-z_][A-Za-z0-9_]{0,95}$")
+    relation_name = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*\.[A-Za-z_][A-Za-z0-9_]*$")
+
+    def closed_identifier(value):
+        if value is not None and (
+            type(value) is not str or not identifier.fullmatch(value)
+        ):
+            raise ValueError("診断enumが閉identifierではありません")
+        return value
+
+    def positive_pid(value):
+        if type(value) is not int or not 0 < value < 2147483648:
+            raise ValueError("診断PIDの有限型が不正です")
+        return value
+
+    try:
+        while not stop.is_set():
+            try:
+                value = json.loads(comparison.read_text())
+            except (FileNotFoundError, json.JSONDecodeError):
+                stop.wait(0.01)
+                continue
+            if (
+                type(value) is dict
+                and type(value.get("comparisons")) is list
+                and any(
+                    type(row) is dict
+                    and type(row.get("ordinal")) is int
+                    and row["ordinal"] >= 2
+                    for row in value["comparisons"]
+                )
+            ):
+                window_started = monotonic()
+                break
+            stop.wait(0.01)
+        if window_started is None:
+            return
+        with psycopg.connect(
+            db.authority.database.business_admin, autocommit=True
+        ) as admin:
+            admin.execute("SET statement_timeout='250ms'")
+            while (
+                not stop.is_set()
+                and len(samples) < 40
+                and monotonic() - window_started < 4
+            ):
+                actors = admin.execute(
+                    "SELECT pid,usename,wait_event_type,wait_event,"
+                    "pg_blocking_pids(pid) "
+                    "FROM pg_catalog.pg_stat_activity "
+                    "WHERE datname=pg_catalog.current_database() AND ("
+                    "(usename='pitchlog_sync_binding_actor' AND state='active') OR "
+                    "(usename='pitchlog_app' AND "
+                    "pg_catalog.cardinality(pg_catalog.pg_blocking_pids(pid))>0)) "
+                    "ORDER BY pid LIMIT 9"
+                ).fetchall()
+                participants = []
+                pids = set()
+                for pid, role, wait_type, wait_event, blockers in actors[:8]:
+                    pid = positive_pid(pid)
+                    blockers = [positive_pid(blocker) for blocker in blockers]
+                    pids.update([pid, *blockers])
+                    participants.append(
+                        {
+                            "pid": pid,
+                            "role": closed_identifier(role),
+                            "waitEventType": closed_identifier(wait_type),
+                            "waitEvent": closed_identifier(wait_event),
+                            "blockingPids": blockers,
+                        }
+                    )
+                rows = []
+                if pids:
+                    rows = admin.execute(
+                        "SELECT l.pid,a.usename,l.locktype,l.mode,l.granted,"
+                        "CASE WHEN c.oid IS NULL THEN NULL "
+                        "ELSE n.nspname||'.'||c.relname END "
+                        "FROM pg_catalog.pg_locks l "
+                        "JOIN pg_catalog.pg_stat_activity a ON a.pid=l.pid "
+                        "LEFT JOIN pg_catalog.pg_class c ON c.oid=l.relation "
+                        "LEFT JOIN pg_catalog.pg_namespace n ON n.oid=c.relnamespace "
+                        "WHERE l.pid=ANY(%s) "
+                        "ORDER BY l.granted,CASE WHEN l.locktype IN "
+                        "('transactionid','advisory','tuple','virtualxid') "
+                        "THEN 0 ELSE 1 END,CASE WHEN n.nspname IN "
+                        "('pg_catalog','information_schema') THEN 1 ELSE 0 END,"
+                        "l.pid,l.locktype,l.mode LIMIT 61",
+                        (sorted(pids),),
+                    ).fetchall()
+                locks = []
+                for pid, role, kind, mode, granted, relation in rows[:60]:
+                    if type(granted) is not bool or (
+                        relation is not None
+                        and (
+                            type(relation) is not str
+                            or not relation_name.fullmatch(relation)
+                        )
+                    ):
+                        raise ValueError("診断lockの閉列が不正です")
+                    locks.append(
+                        {
+                            "pid": positive_pid(pid),
+                            "role": closed_identifier(role),
+                            "locktype": closed_identifier(kind),
+                            "mode": closed_identifier(mode),
+                            "granted": granted,
+                            "relation": relation,
+                        }
+                    )
+                samples.append(
+                    {
+                        "elapsedMs": round((monotonic() - started) * 1000),
+                        "windowElapsedMs": round((monotonic() - window_started) * 1000),
+                        "participants": participants,
+                        "participantsTruncated": len(actors) > 8,
+                        "locks": locks,
+                        "locksTruncated": len(rows) > 60,
+                    }
+                )
+                stop.wait(0.1)
+            stop_reason = (
+                "stopped-during-window" if stop.is_set() else "finite-window-complete"
+            )
+    except Exception as error:
+        error_kind = type(error).__name__
+        stop_reason = "observer-error"
+    finally:
+        destination.write_text(
+            json.dumps(
+                {
+                    "triggered": window_started is not None,
+                    "windowStartedMs": None
+                    if window_started is None
+                    else round((window_started - started) * 1000),
+                    "windowSecondsLimit": 4,
+                    "sampleLimit": 40,
+                    "sampleLimitReached": len(samples) >= 40,
+                    "lockRowsLimit": 60,
+                    "samples": samples,
+                    "stopReason": stop_reason,
+                    "errorKind": error_kind,
+                },
+                indent=2,
+            )
+            + "\n"
+        )
 
 
 def _all_runner_stats(admin, tenant, game):
@@ -498,10 +661,18 @@ def test_runner_operations_screen(
         ) as origin:
             checkpoint = tmp_path / "fault-before.json"
             stop = threading.Event()
-            with ThreadPoolExecutor(max_workers=1) as workers:
+            with ThreadPoolExecutor(max_workers=2) as workers:
                 captured = workers.submit(
                     _capture_runner_fault_baseline, db, checkpoint, stop
                 )
+                if os.environ.get("PITCHLOG_E2E_RUNNER_AUTHORITY_DIAGNOSTIC_SITE"):
+                    workers.submit(
+                        _capture_owned_binding_locks,
+                        db,
+                        tmp_path / "binding-locks-safe.json",
+                        stop,
+                        Path(str(result_file) + ".comparison.json"),
+                    )
                 try:
                     completed = _run_playwright(
                         db,
