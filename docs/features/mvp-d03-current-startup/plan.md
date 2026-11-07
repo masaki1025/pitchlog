@@ -2,7 +2,7 @@
 feature: mvp-d03-current-startup
 status: active
 branch: feature/mvp-d03-current-startup-20261107
-承認: 独立差分確認後にPO委任rootが採用する（既D03の意味判断は再照会しない）
+承認: PO委任によるCodex/root判断（2026-11-07、計画ce698e8dの非作者確認後に採用）
 重さ分類: コア領域
 計画レビュー周回: 1
 確定ゲート周回: 0
@@ -24,3 +24,5 @@ D03の実出場/0球交代/同試合再登板1、D02区分、JST暦年、既終�
 編集範囲は作者15path、既共有3hookの正式factory、専用migration0049/model/storage/起動catalog、公式assetsの生成差分とその正負試験、本計画だけ。旧migration/歴史pin/legacy/archiveを掃引せず、既modelの数学や他機能は範囲外。正式受理/通常mergeは最終HEADと依存/全必須CIの成立後、main/developへ直接commit/pushしない。共有DB/秘密/運用公開は適用しない。
 
 検査は各単位の影響と負例を先に、統合候補で必要全件を一括。基線だけの変化による同値の再承認は繰返さず、承認実対象/固定SHA/後発差分を記録する。source/P6blind/人間署名を代記せず、PO委任rootの判断として採否を記録する。大きなハーネス再設計をこの単位の前提へ追加しない。
+
+独立計画確認: game_operations_final_independent、対象ce698e8d0410e16917438a702b70d468f4378ebf/plan SHA7db912cb74a1ab5f22c34c482ea7d91fb0246c594dfc40d30139fcb01b3c305f、REPORT SHAb23c8abb34a2699650f6b56fb095937ef15dad3b8420f1d741868053f4566404、未解消P0/P1なし。rootは2026-11-07T17:22:13.501469+09:00にPO委任で採用。本人署名/実装・実PG/正式受理ではない。後発r20移植packet SHA7b9ae2d06a01cfbd80b27ed31a2051cd363b84d980d81e40c160ecd07b0e92b5は同15path/runtime同値、testのgame_other区分と結果文書だけを既D02へ整合。正式通常49はrootの次単位で実装する。
