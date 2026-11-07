@@ -67,7 +67,16 @@ it('保存球の実watermarkを照合し、probeだけで表示成功にしな�
   expect(await readViewerGame(target, owner, current)).toEqual(recorded.value)
 })
 it('非playの保存済み checkpoint は同じ版 watermark で受理する', async () => {
-  const nonplay = undoRead(2)
+  const nonplay = {
+    ...undoRead(2),
+    lifecycle: {
+      formatVersion: 'native-game-lifecycle-read-v1',
+      status: 'in_progress',
+      lastVersion: '0',
+      active: null,
+      activeStatsVersionId: null,
+    },
+  }
   payload = nonplay
   const owner = nonplay.checkpoint.content.scope.tenantId
   const target = nonplay.id
