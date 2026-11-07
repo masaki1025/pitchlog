@@ -107,3 +107,10 @@ rootのPO委任による表示追随（同2026-11-07）: `backend/src/pitchlog/e
 ### stage3初回の試験不具合是正
 
 root固定ba561d91のowned first実走は41.78秒で画面前に停止。tracked source3270は前後同一、launcherの共有DSN除外、正規S0→0048適用とcleanupを確認したが、作者wrapperがfixture後にもDSN不存在を要求していた。既vertical fixtureは外部DSNを除外して自分のprimary_admin/endpoints.primary_dsnを環境へ設定するため、そのowned同値へのexact束縛を検査する形へ直す。比較失敗でDSN原値を出力しないbool条件とし、外部DSNの入口除外はlauncher側に残す。製品source/認可/保存保証/画面期待は不変更。初回をUI/保存成功とは扱わず、修復版固定後に実測を継続する。
+
+### run2 NP503の閉診断準備
+
+root863bdd7bのfresh run2-firstは125.87秒で終了失敗。正規48起動・実画面作成/開始・故障前の先行安打ACK/GET1と実T5 source_count1 snapshotまで到達したが、NP盗塁POSTは正常/fault両方503で、T4故障marker未到達。全3270 tracked sourceは前後同一、cleanup後のshared logもrun2 cacheへ保存。正常2/重複/reload/41列全比較/故障全取消の成功へ読み替えない。
+
+rootの指示に従い、testserverだけへ任意有効の閉observerを足す。sys.settrace/threading.settraceでPython main/worker双方を起動時自己probeし、両方観測できなければ診断環境を閉失敗とする。pitchlog moduleの許可例外型・module/function/lineだけを表示し、例外本文・資格・SQL・locals・原本文は表示しない。計算・認可・権利・TX・応答は差し替えない。環境flag非設定なら既bootstrapは不変。作者の実Python3.12 main+worker probeは2thread観測、Ruff/Ty成功。root版固定と既不一致照合後に1診断runを行い、同じ503を無根拠に再試行しない。
+- observer読取追補: SQLのNoDataFound/TooManyRows/UndefinedTable/InvalidSchemaName/InvalidParameterValueとTimeoutErrorを許可型へ追加。SQLSTATE/本文/diag.contextは出力しない。thread mutex下で最大80例外record＋上限到達marker1件だけを出し、main/worker自己probeは維持。100回の例外を投げる実Python probeで80record/切捨てmarker1/資格想定メッセージ非表示を検査した。製品と実画面期待は変更しない。

@@ -30,6 +30,67 @@ pytestmark = pytest.mark.requires_db
 _CONFIG = "GameScreenRunnerOperations.playwright.config.ts"
 
 
+_RUNNER_DIAGNOSTIC_BOOTSTRAP = r"""
+import json,threading
+_seen_probe_threads=set()
+_owned_trace_lock=threading.Lock()
+_owned_trace_count=0
+_owned_trace_truncated=False
+_allowed_errors={
+ 'RuntimeError','ValueError','TypeError','KeyError','ValidationError',
+ 'OrdinaryPrefixError','OrdinaryPlayRowError','OrdinaryPitchExecutionError',
+ 'NonplaySourceUnavailable','PlayExportWriterUnavailable','WriterBindingUnavailable',
+ 'LineupPrefixProtocolError','TerminalPitchPayloadError','PlayExportIdentityUnavailable',
+ 'RecordedExportProjectionUnavailable','InsufficientPrivilege','CheckViolation',
+ 'RaiseException','UndefinedFunction','UndefinedColumn','UniqueViolation',
+ 'NotNullViolation','ForeignKeyViolation','InvalidTextRepresentation','IntegrityError',
+ 'ProgrammingError','DataError','OperationalError','StatementError','DomainRuntimeError',
+ 'LedgerUnavailable','RG1Unavailable','RG1Blocked','P1PreconditionError','SourceBindingError',
+ 'NoDataFound','TooManyRows','UndefinedTable','InvalidSchemaName',
+ 'InvalidParameterValue','TimeoutError',
+}
+def _owned_runner_trace(frame,event,arg):
+ global _owned_trace_count,_owned_trace_truncated
+ module=frame.f_globals.get('__name__','')
+ probe=module=='__main__' and frame.f_code.co_name=='_owned_runner_probe'
+ if not (probe or (type(module) is str and module.startswith('pitchlog.'))):
+  return None
+ if event=='exception':
+  error_type=arg[0].__name__
+  if probe and error_type=='RuntimeError':
+   _seen_probe_threads.add(threading.get_ident())
+  elif error_type in _allowed_errors:
+   with _owned_trace_lock:
+    if _owned_trace_count<80:
+     _owned_trace_count+=1
+     print('PITCHLOG_RUNNER_STAGE '+json.dumps({
+      'module':module,'function':frame.f_code.co_name,'line':frame.f_lineno,
+      'error':error_type,
+     }),flush=True)
+    elif not _owned_trace_truncated:
+     _owned_trace_truncated=True
+     print('PITCHLOG_RUNNER_STAGE '+json.dumps({
+      'truncated':True,'limit':80,
+     }),flush=True)
+ return _owned_runner_trace
+def _owned_runner_probe():
+ try:
+  raise RuntimeError()
+ except RuntimeError:
+  pass
+sys.settrace(_owned_runner_trace)
+threading.settrace(_owned_runner_trace)
+_owned_runner_probe()
+_probe_thread=threading.Thread(target=_owned_runner_probe)
+_probe_thread.start()
+_probe_thread.join(timeout=5)
+if _probe_thread.is_alive() or len(_seen_probe_threads)!=2:
+ raise RuntimeError('owned diagnostic main/thread trace unavailable')
+print('PITCHLOG_RUNNER_OBSERVER '+json.dumps(
+ {'probe':'main-and-worker','threads':2}),flush=True)
+"""
+
+
 def _install_runner_fault_server(monkeypatch) -> None:
     """隔離appだけに固定T4故障を注入し、実認可/実TX/元応答は変更しない。"""
     from . import test_screen_start_e2e as screen
@@ -56,6 +117,11 @@ async def owned_runner_fault(request,call_next):
  return await call_next(request)
 uvicorn.run(app,host='0.0.0.0',port=int(sys.argv[1]),log_level='warning')
 """
+
+    if os.environ.get("PITCHLOG_E2E_RUNNER_DIAGNOSTIC") == "1":
+        bootstrap = bootstrap.replace(
+            "app=create_app()", _RUNNER_DIAGNOSTIC_BOOTSTRAP + "\napp=create_app()", 1
+        )
 
     def app_arguments(db, app_port, origin):
         command = original(db, app_port, origin)
