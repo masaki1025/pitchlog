@@ -4836,6 +4836,136 @@
       "path": "contracts/authz/product/function-bodies/functions/FUNCTION:sync_fence_api:retire_sync_attempt(uuid, uuid, uuid, uuid, uuid, text, bigint, text, text, uuid, bigint).sql",
       "element_type": "function",
       "element_id": "FUNCTION:sync_fence_api:retire_sync_attempt(uuid, uuid, uuid, uuid, uuid, text, bigint, text, text, uuid, bigint)"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/tables/play_export_snapshots.sql",
+      "element_type": "table",
+      "element_id": "play_export_snapshots"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/policies/POLICY:play_export_snapshots:play_export_snapshots_select.sql",
+      "element_type": "policy",
+      "element_id": "POLICY:play_export_snapshots:play_export_snapshots_select"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/policies/POLICY:play_export_snapshots:play_export_snapshots_insert.sql",
+      "element_type": "policy",
+      "element_id": "POLICY:play_export_snapshots:play_export_snapshots_insert"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/functions/FUNCTION:stats_api:read_writer_play_export_aggregate(uuid, uuid, uuid, uuid, text, bigint, bytea).sql",
+      "element_type": "function",
+      "element_id": "FUNCTION:stats_api:read_writer_play_export_aggregate(uuid, uuid, uuid, uuid, text, bigint, bytea)"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/functions/FUNCTION:stats_api:save_writer_play_export_snapshot(uuid, uuid, uuid, uuid, text, bigint, bytea, jsonb).sql",
+      "element_type": "function",
+      "element_id": "FUNCTION:stats_api:save_writer_play_export_snapshot(uuid, uuid, uuid, uuid, text, bigint, bytea, jsonb)"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/functions/FUNCTION:stats_api:read_writer_play_export_substitute(uuid, uuid, uuid, uuid, bytea).sql",
+      "element_type": "function",
+      "element_id": "FUNCTION:stats_api:read_writer_play_export_substitute(uuid, uuid, uuid, uuid, bytea)"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/functions/FUNCTION:stats_api:read_play_export_source_page(uuid, bigint, bigint, integer).sql",
+      "element_type": "function",
+      "element_id": "FUNCTION:stats_api:read_play_export_source_page(uuid, bigint, bigint, integer)"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:play_export_snapshots:tenant_id:pitchlog_app.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:play_export_snapshots:tenant_id:pitchlog_app"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:play_export_snapshots:game_id:pitchlog_app.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:play_export_snapshots:game_id:pitchlog_app"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:play_export_snapshots:play_row_id:pitchlog_app.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:play_export_snapshots:play_row_id:pitchlog_app"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:play_export_snapshots:plays_csv_json:pitchlog_app.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:play_export_snapshots:plays_csv_json:pitchlog_app"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:play_export_snapshots:full_innings_json:pitchlog_app.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:play_export_snapshots:full_innings_json:pitchlog_app"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:play_export_snapshots:source_event_id:pitchlog_app.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:play_export_snapshots:source_event_id:pitchlog_app"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:play_export_snapshots:play_version:pitchlog_app.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:play_export_snapshots:play_version:pitchlog_app"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:play_export_snapshots:recording_generation:pitchlog_app.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:play_export_snapshots:recording_generation:pitchlog_app"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:play_export_snapshots:event_sequence:pitchlog_app.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:play_export_snapshots:event_sequence:pitchlog_app"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:play_export_snapshots:captured_at:pitchlog_app.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:play_export_snapshots:captured_at:pitchlog_app"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:play_export_snapshots:tenant_id:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:play_export_snapshots:tenant_id:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:play_export_snapshots:game_id:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:play_export_snapshots:game_id:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:play_export_snapshots:play_row_id:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:play_export_snapshots:play_row_id:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:play_export_snapshots:plays_csv_json:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:play_export_snapshots:plays_csv_json:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:play_export_snapshots:full_innings_json:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:play_export_snapshots:full_innings_json:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:play_export_snapshots:source_event_id:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:play_export_snapshots:source_event_id:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:play_export_snapshots:play_version:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:play_export_snapshots:play_version:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:play_export_snapshots:recording_generation:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:play_export_snapshots:recording_generation:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:play_export_snapshots:event_sequence:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:play_export_snapshots:event_sequence:pitchlog_sync_right_fn_owner"
     }
   ]
 }

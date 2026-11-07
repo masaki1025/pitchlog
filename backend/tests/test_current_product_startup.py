@@ -684,6 +684,7 @@ def test_current41_finish_never_calls_old_validators_or_migration(monkeypatch):
         "_check_current_indexes",
         "_check_current_rules",
         "_check_current_public_storage",
+        "_check_play_export_storage",
     ]:
         monkeypatch.setattr(current, name, lambda _, n=name: trace.append(n))
     monkeypatch.setattr(
@@ -718,6 +719,7 @@ def test_current41_finish_never_calls_old_validators_or_migration(monkeypatch):
         "_check_current_indexes",
         "_check_current_rules",
         "_check_current_public_storage",
+        "_check_play_export_storage",
         "_require_pre_or_full_catalog",
     ],
 )
@@ -735,6 +737,7 @@ def test_current41_failure_never_reaches_full_repair(monkeypatch, phase):
         "_check_current_indexes",
         "_check_current_rules",
         "_check_current_public_storage",
+        "_check_play_export_storage",
         "_require_pre_or_full_catalog",
     ]:
 
@@ -861,6 +864,7 @@ def test_current_finish_closes_read_transaction_before_idle_authz_apply(monkeypa
         "_check_current_indexes",
         "_check_current_rules",
         "_check_current_public_storage",
+        "_check_play_export_storage",
         "_require_pre_or_full_catalog",
     ]
     for name in names:

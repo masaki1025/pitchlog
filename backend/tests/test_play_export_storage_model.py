@@ -107,3 +107,71 @@ def test_actual_migration_and_play_export_model_match(monkeypatch):
     assert "pitchlog.db.play_export.models" in all_models.IMPORTED_MODEL_MODULE_NAMES
     with pytest.raises(RuntimeError, match="物理削除"):
         migration["downgrade"]()
+
+
+def test_whole_profile_keeps_legacy_primitives_and_rejects_export_grant():
+    """旧原始値readは全値保持し、未知のPUBLIC表権限を分類で拒否する。"""
+    import copy
+    import json
+
+    from pitchlog.authz.first_ball_product import _reserved, validate
+
+    asset = json.loads(
+        (
+            Path(__file__).parents[2] / "contracts/authz/product/ddl-elements.json"
+        ).read_text()
+    )
+    assert validate(asset) is True
+    unknown = {
+        "acl_id": "ACL:public:play_export_snapshots:PUBLIC",
+        "object_kind": "table",
+        "object_schema": "public",
+        "object_id": "play_export_snapshots",
+        "grantee_role_id": "PUBLIC",
+        "privilege_ids": ["UPDATE"],
+        "grant_option": False,
+    }
+    assert _reserved(unknown, "acl_expectations") is True
+    changed = copy.deepcopy(asset)
+    changed["acl_expectations"].append(unknown)
+    with pytest.raises(ValueError, match="余剰"):
+        validate(changed)
+    changed = copy.deepcopy(asset)
+    primitive = next(
+        row
+        for row in changed["functions"]
+        if row["function_name"] == "read_play_export_primitives"
+    )
+    primitive["security_mode"] = "invoker"
+    with pytest.raises(ValueError):
+        validate(changed)
+
+
+def test_export_scalar_uuid_reapply_retains_closed_signature():
+    """実CSV関数のuuid非集合型を再適用でき、似た未知型は拒否する。"""
+    from pitchlog.authz.first_ball_product import (
+        _function_argument_names,
+        application_function_sql,
+        body,
+    )
+
+    identifier = (
+        "FUNCTION:stats_api:save_writer_play_export_snapshot("
+        "uuid, uuid, uuid, uuid, text, bigint, bytea, jsonb)"
+    )
+    canonical = body("function", identifier)
+    assert canonical is not None and "RETURNS uuid" in canonical
+    names, returns_set = _function_argument_names(canonical)
+    assert len(names) == 8 and returns_set is False
+    wrapped = application_function_sql(identifier, canonical)
+    assert wrapped is not None
+    assert "p.proretset=FALSE" in wrapped
+    assert "pg_catalog.pg_get_function_result(p.oid)='uuid'" in wrapped
+    with pytest.raises(ValueError, match="固定引数宣言"):
+        _function_argument_names(
+            canonical.replace("RETURNS uuid", "RETURNS uuidx")
+        )
+    with pytest.raises(ValueError, match="適用本文"):
+        application_function_sql(
+            identifier, canonical.replace("RETURNS uuid", "RETURNS text")
+        )

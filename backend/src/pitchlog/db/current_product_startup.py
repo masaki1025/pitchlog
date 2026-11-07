@@ -1,4 +1,4 @@
-"""旧0039段階を保ち、current0046の実構造と全認可を接合する。"""
+"""旧0039段階を保ち、current0047の実構造と全認可を接合する。"""
 
 from __future__ import annotations
 
@@ -39,7 +39,7 @@ from pitchlog.db.writer_binding.lifecycle_models import (
 from pitchlog.db.writer_binding.nonplay_models import NonplayWriteAdmission
 from pitchlog.db.writer_binding.substitution_models import SubstitutionWriteReceipt
 
-CURRENT_REVISION = "0046_sync_attempt_retirement"
+CURRENT_REVISION = "0047_play_export_snapshots"
 _INDEX_REVISION = "0040_batted_vocabulary_index"
 _STATS_MODELS = (StatsFactVersion, StatsPrimitiveSource, StatsPrimitiveFact)
 
@@ -513,6 +513,7 @@ def _opclass(column):
         "bigint": "int8_ops",
         "integer": "int4_ops",
         "bytea": "bytea_ops",
+        "timestamp with time zone": "timestamptz_ops",
     }
     kind = column.type.compile(dialect=dialect()).lower()
     if kind not in names:
@@ -909,8 +910,15 @@ def _require_pre_or_full_catalog(connection: Any) -> str:
     return "pre-full"
 
 
+def _check_play_export_storage(connection: Any) -> None:
+    """CSV原本の全列・全制約・索引を、同じ通常起動に必須化する。"""
+    from pitchlog.db.play_export.startup import check_play_export_storage
+
+    check_play_export_storage(connection)
+
+
 def _apply_current_storage(owner_dsn: str) -> None:
-    """現行0046まで同owner transactionへ配置し、途中故障を全部戻す。"""
+    """現行0047まで同owner transactionへ配置し、途中故障を全部戻す。"""
     engine = create_engine(legacy._owner_url(owner_dsn))
     try:
         with engine.begin() as connection:
@@ -926,6 +934,7 @@ def _apply_current_storage(owner_dsn: str) -> None:
             _check_current_structure(raw)
             _check_current_indexes(raw)
             _check_current_public_storage(raw)
+            _check_play_export_storage(raw)
     finally:
         engine.dispose()
 
@@ -973,6 +982,7 @@ def _finish_current(owner_dsn: str, applicator_dsn: str) -> CurrentProductStartu
         _check_current_indexes(connection)
         _check_current_rules(connection)
         _check_current_public_storage(connection)
+        _check_play_export_storage(connection)
         phase = _require_pre_or_full_catalog(connection)
         _check_attempt_retirement_guards(connection, phase)
     with psycopg.connect(applicator_dsn) as connection:
@@ -984,6 +994,7 @@ def _finish_current(owner_dsn: str, applicator_dsn: str) -> CurrentProductStartu
         _check_current_indexes(connection)
         _check_current_rules(connection)
         _check_current_public_storage(connection)
+        _check_play_export_storage(connection)
         _check_attempt_retirement_guards(connection, "full")
         if not _catalog(connection).ok:
             raise CurrentProductStartupError("current全catalogが不一致です")
@@ -1017,7 +1028,7 @@ def resume_current_product_after_placement(
     owner_dsn: str,
     applicator_dsn: str,
 ) -> CurrentProductStartupResult:
-    """同版0046は再migrationせず、旧中間段階は元の有限前提で再開する。"""
+    """同版0047は再migrationせず、旧中間段階は元の有限前提で再開する。"""
     legacy._require_same_database(owner_dsn, applicator_dsn)
     with psycopg.connect(owner_dsn) as owner, owner.cursor() as cursor:
         cursor.execute("SELECT current_user,session_user")
