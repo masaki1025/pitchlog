@@ -89,6 +89,27 @@ def _function_one(handle, token):
     return None if not rows else _json(rows[0][0])
 
 
+def _play_observation_course(observed):
+    """閉じた非投球だけを非該当とし、実投球の原courseは変更しない。"""
+    from pitchlog.sync.first_ball_payload import FirstBallObservations
+    from pitchlog.sync.nonpitch_payload import IntentionalWalkObservations
+    from pitchlog.sync.terminal_pitch_payload import (
+        BattedHitPlayObservations,
+        RunnerNonpitchPlayObservations,
+        RunnerPitchPlayObservations,
+    )
+
+    if type(observed) in {IntentionalWalkObservations, RunnerNonpitchPlayObservations}:
+        return None
+    if type(observed) in {
+        FirstBallObservations,
+        BattedHitPlayObservations,
+        RunnerPitchPlayObservations,
+    }:
+        return observed.course
+    raise OrdinaryPrefixError
+
+
 def _public_play(row, course):
     """内部41全値確認済の行を既公開列へ写す。座標は原観測k。"""
     hidden = {
@@ -1246,8 +1267,6 @@ def _read_lineup_projection(
         *point,
         limit,
     )
-    from pitchlog.sync.nonpitch_payload import IntentionalWalkObservations
-
     packets = handle.run_function(token).rows
     if len(packets) > limit + 1:
         raise OrdinaryPrefixError
@@ -1295,9 +1314,7 @@ def _read_lineup_projection(
             {
                 "play_row": _public_play(
                     p,
-                    None
-                    if type(payload.observations) is IntentionalWalkObservations
-                    else payload.observations.course,
+                    _play_observation_course(payload.observations),
                 ),
                 "history_entry": h["entry"],
                 "play_runners": item["play_runners"],
@@ -1409,7 +1426,9 @@ def _read_p3_lineup_projection(
         selected_payloads = tuple(reversed(selected_payloads))
     page_items = [
         {
-            "play_row": _public_play(item["play_row"], payload.observations.course),
+            "play_row": _public_play(
+                item["play_row"], _play_observation_course(payload.observations)
+            ),
             "history_entry": item["history_entry"],
             "play_runners": item["play_runners"],
         }
