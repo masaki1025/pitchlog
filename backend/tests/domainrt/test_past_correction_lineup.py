@@ -6,6 +6,7 @@ import json
 from copy import deepcopy
 from dataclasses import replace
 from pathlib import Path
+from types import SimpleNamespace
 from typing import cast
 from uuid import UUID
 
@@ -29,7 +30,7 @@ from pitchlog.domainrt.past_correction_lineup import (
 )
 from pitchlog.repositories.past_correction_source import PastCorrectionV3SourceSnapshot
 from pitchlog.repositories.transaction import _TenantTransaction
-from pitchlog.sync import past_correction_preparation
+from pitchlog.sync import past_correction_paged, past_correction_preparation
 from pitchlog.sync.first_ball_payload import FirstBallObservations
 from pitchlog.sync.model import SyncEvent
 from pitchlog.sync.ordinary_pitch_physical import pitch_physical_row
@@ -37,6 +38,7 @@ from pitchlog.sync.past_correction_capsule import build_p3_current_capsule
 from pitchlog.sync.past_correction_checkpoint import (
     build_corrected_lineup_checkpoint,
 )
+from pitchlog.sync.past_correction_paged import PreparedP3Page, _page_seal
 from pitchlog.sync.past_correction_payload import (
     PastCorrectionPayloadError,
     bind_lineup_pitch_change_payload,
@@ -379,7 +381,9 @@ def test_v3_corrected_payload_rejects_missing_original_v7() -> None:
         )
 
 
-def test_v3_physical_candidate_uses_existing_mappers_and_new_row_ids() -> None:
+def test_v3_physical_candidate_uses_existing_mappers_and_new_row_ids(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """訂正対象を別PKで作り、後続の物理全値同一なら元行を再利用する。"""
     with _host() as host:
         old = _two_saved(host)
@@ -450,6 +454,72 @@ def test_v3_physical_candidate_uses_existing_mappers_and_new_row_ids() -> None:
         target_d1=1,
     )
     assert suffix == result[1:]
+    first_seal = _page_seal(
+        "0" * 64, PreparedP3Page(original[:1], frames[:1], payloads[:1], result[:1])
+    )
+    second_seal = _page_seal(
+        first_seal, PreparedP3Page(original[1:], frames[1:], payloads[1:], suffix)
+    )
+    assert second_seal == _page_seal(
+        first_seal, PreparedP3Page(original[1:], frames[1:], payloads[1:], suffix)
+    )
+    assert second_seal != _page_seal(
+        first_seal,
+        PreparedP3Page(
+            original[1:],
+            frames[1:],
+            payloads[1:],
+            (replace(suffix[0], effective_event_id=_CHANGE),),
+        ),
+    )
+    class Scope:
+        _bound_tenant_id = tenant
+
+    def read_pages(_scope, _game, _target, consume):
+        consume(original[:1])
+        consume(original[1:])
+        return SimpleNamespace(
+            internal_generation=1,
+            watermark=2,
+            checkpoint=SimpleNamespace(
+                prefix_ref=original[-1].calculation.response.value.next_prefix_ref
+            ),
+        )
+
+    monkeypatch.setattr(past_correction_paged, "_TenantTransaction", Scope)
+    monkeypatch.setattr(
+        past_correction_paged, "_bound_target", lambda *_: (game, 1, 1)
+    )
+    monkeypatch.setattr(
+        past_correction_paged, "visit_past_correction_v3_source_pages", read_pages
+    )
+    event = SyncEvent(
+        str(_CHANGE), str(game), v5="play_change", v7=_change_body(original, 1)
+    )
+    pages: list[PreparedP3Page] = []
+    proof = past_correction_paged.visit_p3_lineup_correction_pages(
+        cast(_TenantTransaction, Scope()),
+        event,
+        capsule_id=_CAPSULE,
+        change_event_id=_CHANGE,
+        bound_source=object(),
+        consume=pages.append,
+    )
+    assert proof.page_count == 2
+    assert proof.watermark == 2
+    assert [len(page.originals) for page in pages] == [1, 1]
+    assert pages[1].payloads[0].observations == original[1].payload.observations
+    assert pages[1].physical[0].effective_event_id == original[1].source_event_id
+    assert pages[1].physical[0].play_row == original[1].play_row
+    replay = past_correction_paged.visit_p3_lineup_correction_pages(
+        cast(_TenantTransaction, Scope()),
+        event,
+        capsule_id=_CAPSULE,
+        change_event_id=_CHANGE,
+        bound_source=object(),
+        consume=lambda _page: None,
+    )
+    assert replay == proof
     assert original[1].play_row is not None
     forged = dict(original[1].play_row)
     forged["tenant_id"] = str(UUID(int=1))
