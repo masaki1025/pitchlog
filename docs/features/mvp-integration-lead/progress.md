@@ -1,5 +1,13 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 2026-11-07：非投球保存の供給不足を修復し、走者実測へ
+
+- **主候補**: `feature/mvp-d03-current-startup-20261107@730536ebf676e826e2f7cf29c0e6307435df146c` clean/通常push済み。run11のSQL通過後停止を、既RunnerNPの物理形（主結果NULL/投球列NULL/牽制2列/ボーク副結果）と旧行gateの食い違いへ限定して修復。新語彙を打撃結果へ書き換えず、PlayPrefix tokenだけの有限候補形→既preflightの同event/ledger/未投影→閉原payload/既7literal＋balk→唯一mapper全41列一致を必須にした。通常Ordinary token・IW/pitch・SQLstamp/owner/ACL/計算核は不変更。3path diff SHA dd72d7eb6fd15c813317b7390df4c41bbc5c50670c7b8d7b178092cadd17d6d6。
+- **判断と検査**: 最小plan29a39523/SHA5bbb773713861cec0d80fbe12c8cf592d34f7eab01d4819464b46bb5a85c1496をroot非作者確認しPO委任判断で採用、実装119pure/RuffTy0。rootでも関連53passed2.26秒（初回は不存在1試験パス誤指定で0test、正規パスへ是正）。独立recoveryのREPORT SHA1dcb9b028df58d908bafb9698984e149e423aecf064a5c6625ac9ad3f07d6ba8/68pure2.28秒/新P0P1なしで限定候補採用。人間逐行確認・P-6blind・正式受理ではない。
+- **次の実証**: recovery担当が同固定730のowned shadowでfirst2正常保存・再送/reload・SB本人1件・別試合T4途中全取消を1回実行。成功時は同sourceの既full17へ拡大し、初球・限定操作だけで全MVPを完成扱いしない。現時点ではNP実保存/本人SBは未実証。非play後normalや断中全操作/長P3/正式統合/実機運用も残る。
+- **並行閲覧**: game_operations担当が現RR/current P3 selectorへ旧40b/f248を接続。step1 e28a3676/点probe12pure、P3履歴26→最新25＋旧1の純cursor対向と関連16pure、FE22pure/Vue/Lint0まで。追加SQLは実効pointer点読取＋正常v3降順keyset1本へ限定、NPは既read-only降順を再使用。共有packet未封印なのでroot正式資産へは未接合、実DB/画面の成功へ読み替えない。
+
+
 ## 2026-11-07 20:28 JST：GETの書込阻害を解消、走者SQLの実拒否へ到達
 
 - **run11で進んだ境界**: 修正版2f01の実CURRENT49 compileは成功し、新規画面作成→開始→単打ACK/GETまで両試合で通過。次NPは新prepare成功後、`ordinary_pitch_operations._row`の旧「非投球=申告敬遠のみ」gateでOrdinaryPlayRowError→503。1failed162.79秒/source3349一致/cleanup、manifest SHA29ba427db4fbf91c7f2019960dbe9d8258e8029887f79779b3f0b7f5146f7143。実結果key原値を未採取のため推測した文字列は記録しない。盗塁保存/SB本人/T4fault未到達。同SQLの同一失敗を反復せず、csv担当へ新WTで既RunnerNPだけの閉分類・原event結合・通常/IW保持の最小追補/修復を割当。viewerは別WTで継続。
