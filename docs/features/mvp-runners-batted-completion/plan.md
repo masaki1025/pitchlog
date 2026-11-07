@@ -1,10 +1,10 @@
 ---
 feature: mvp-runners-batted-completion
-status: draft
+status: active
 branch: feature/mvp-runners-batted-completion
-承認: 未（rootのPO委任レビュー待ち）
+承認: PO委任Codex/root、2026-11-07、対象c862a2e3、計画SHA 9fe83b5e922a23c482d959d28cb894103bfaeeb34ff077e8221129c1f7098447
 重さ分類: コア領域
-計画レビュー周回: 0
+計画レビュー周回: 1
 確定ゲート周回: 0
 ---
 
