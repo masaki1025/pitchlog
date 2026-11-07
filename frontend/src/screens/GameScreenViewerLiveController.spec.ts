@@ -8,6 +8,7 @@ import type { ViewerGame, ViewerHead } from '../api/viewerGame'
 import {
   GameScreenViewerLiveController,
   viewerLineup,
+  viewerPageLabels,
   viewerPeriodLabel,
   viewerStatusLabel,
   type ViewerLiveIdentity,
@@ -20,7 +21,7 @@ const tenant = initial.value.prefix_ref.tenantId
 const gameId = initial.value.id
 const head: ViewerHead = {
   status: 'in_progress',
-  generation: '1',
+  version: '1',
   watermark: '0',
 }
 let identity: ViewerLiveIdentity
@@ -139,6 +140,18 @@ it('503は未更新として旧表示を破棄し、復帰後のpollでサーバ
   expect(latest.freshness).toBe('fresh')
   expect(latest.game).toBe(game)
   expect(readGame).toHaveBeenCalledTimes(2)
+  c.stop()
+})
+it('不正なgame識別値は確認中のままにせず閲覧できませんへ閉じる', async () => {
+  identity = { ...identity, gameId: 'not-a-uuid' }
+  const readHead = vi.fn(async () => head)
+  const readGame = vi.fn(async () => game)
+  const c = controller(readHead, readGame)
+  c.start()
+  await flushPromises()
+  expect(latest.freshness).toBe('not-found')
+  expect(readHead).not.toHaveBeenCalled()
+  expect(readGame).not.toHaveBeenCalled()
   c.stop()
 })
 it('404は閲覧できません、401も未更新として区別する', async () => {
@@ -266,4 +279,64 @@ it('終了済みは保存T2の完了半回を表示し、lineupはclosed契約�
   } as unknown as ViewerGame
   expect(viewerPeriodLabel(finished)).toBe('試合終了（9回裏終了）')
   expect(viewerLineup(finished)).toBe(saved.lineup)
+})
+
+it('pagingの向きはv3と非playで取り違えない', () => {
+  expect(viewerPageLabels(game)).toEqual({
+    next: '古い25球へ',
+    previous: '新しい25球へ',
+  })
+  expect(
+    viewerPageLabels({ read_kind: 'nonplay-prefix' } as unknown as ViewerGame),
+  ).toEqual({ next: '新しい25球へ', previous: '古い25球へ' })
+})
+
+it.each(['cold-end', 'limit-draw'] as const)(
+  '完了半回のある終了は%sでも最終保存時より完了半回を表示する',
+  (outcome) => {
+    const finished = {
+      ...saved,
+      status: 'finished',
+      after: {
+        ...saved.after,
+        stateFields: {
+          ...saved.after.stateFields,
+          'state.inning': '8',
+          'state.half': 'top',
+        },
+      },
+      t2: {
+        ...saved.t2!,
+        facts: {
+          ...saved.t2!.facts,
+          beforeInning: '7',
+          beforeHalf: 'bottom',
+          halfCompleted: true,
+        },
+        decision: { ...saved.t2!.decision, outcome },
+      },
+    } as unknown as ViewerGame
+    expect(viewerPeriodLabel(finished)).toBe('試合終了（7回裏終了）')
+  },
+)
+
+it('完了半回のない終了は最終保存時の回・表裏を表示する', () => {
+  const finished = {
+    ...saved,
+    status: 'finished',
+    after: {
+      ...saved.after,
+      stateFields: {
+        ...saved.after.stateFields,
+        'state.inning': '10',
+        'state.half': 'top',
+      },
+    },
+    t2: {
+      ...saved.t2!,
+      facts: { ...saved.t2!.facts, halfCompleted: false },
+      decision: { ...saved.t2!.decision, outcome: 'walk-off' },
+    },
+  } as unknown as ViewerGame
+  expect(viewerPeriodLabel(finished)).toBe('試合終了（最終保存時 10回表）')
 })

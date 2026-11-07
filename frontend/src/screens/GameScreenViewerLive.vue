@@ -11,6 +11,7 @@ import {
   viewerHistory,
   viewerLineup,
   viewerNextCursor,
+  viewerPageLabels,
   viewerPeriodLabel,
   viewerRunners,
   viewerSavedAt,
@@ -63,10 +64,14 @@ const runners = computed(() => viewerRunners(game.value))
 const savedAt = computed(() => viewerSavedAt(game.value))
 const history = computed(() => viewerHistory(game.value))
 const nextCursor = computed(() => viewerNextCursor(game.value))
+const pageLabels = computed(() => viewerPageLabels(game.value))
 const pageIndex = computed(() => pageCursors.value.length - 1)
 const periodLabel = computed(() => viewerPeriodLabel(game.value))
 const statusText = computed(() =>
-  viewerStatusLabel(freshness.value, refreshing.value),
+  viewerStatusLabel(freshness.value, false),
+)
+const refreshingText = computed(() =>
+  refreshing.value && freshness.value === 'fresh' ? '更新中' : null,
 )
 const hasState = computed(
   () => game.value !== null && current.value !== null && lineup.value !== null,
@@ -137,6 +142,9 @@ onUnmounted(() => controller.stop())
     </p>
     <p role="status" aria-live="polite" data-testid="viewer-status">
       {{ statusText }}
+    </p>
+    <p v-if="refreshingText" data-testid="viewer-refreshing" aria-hidden="true">
+      {{ refreshingText }}
     </p>
     <p>
       最終保存:
@@ -222,7 +230,7 @@ onUnmounted(() => controller.stop())
           data-testid="viewer-previous-page"
           @click="previousPage"
         >
-          新しい25球へ
+          {{ pageLabels.previous }}
         </button>
         <button
           type="button"
@@ -230,7 +238,7 @@ onUnmounted(() => controller.stop())
           data-testid="viewer-next-page"
           @click="nextPage"
         >
-          古い25球へ
+          {{ pageLabels.next }}
         </button>
       </section>
     </template>

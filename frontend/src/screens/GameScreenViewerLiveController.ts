@@ -120,6 +120,16 @@ export function viewerNextCursor(game: ViewerGame | null): string | null {
   return game?.page.next_cursor ?? null
 }
 
+/** v3は最新pageから旧pageへ、非playは旧pageから新pageへ進む。 */
+export function viewerPageLabels(game: ViewerGame | null): {
+  next: string
+  previous: string
+} {
+  return game?.read_kind === 'lineup-prefix'
+    ? { next: '古い25球へ', previous: '新しい25球へ' }
+    : { next: '新しい25球へ', previous: '古い25球へ' }
+}
+
 export function viewerHistory(game: ViewerGame | null) {
   if (game === null) return []
   return game.read_kind === 'lineup-prefix'
@@ -145,7 +155,7 @@ export function viewerPeriodLabel(game: ViewerGame | null): string | null {
       ? game.t2
       : game.checkpoint.content.restored.lastPlayEvaluation
   if (game.status === 'finished') {
-    if (t2?.decision.outcome === 'normal-end' && t2.facts.halfCompleted)
+    if (t2?.facts.halfCompleted)
       return `試合終了（${t2.facts.beforeInning}回${half(t2.facts.beforeHalf)}終了）`
     return `試合終了（最終保存時 ${state['state.inning']}回${half(state['state.half'])}）`
   }
@@ -222,8 +232,12 @@ export class GameScreenViewerLiveController {
       return
     this.#cancel()
     this.#identity = identity
+    if (this.#mounted && !viewerIdentityValid(identity)) {
+      this.#reset('not-found')
+      return
+    }
     this.#reset('loading')
-    if (this.#mounted && viewerIdentityValid(identity)) void this.#load(true)
+    if (this.#mounted) void this.#load(true)
   }
 
   start(): void {
@@ -284,7 +298,7 @@ export class GameScreenViewerLiveController {
       const changed =
         this.#state.head === null ||
         this.#state.head.status !== nextHead.status ||
-        this.#state.head.generation !== nextHead.generation ||
+        this.#state.head.version !== nextHead.version ||
         this.#state.head.watermark !== nextHead.watermark
       if (changed) {
         this.#state = {
