@@ -108,7 +108,13 @@ def _runner_evidence_block() -> str:
        rp_per->>'resultId'='strategy-category.steal' AND
        rp_per->>'pitchEventKind'='non-pitch-event') OR
        (rp_per->>'kind'='batting-result' AND
-       rp_per->>'resultId'='batting-result.ball' AND
+       rp_per->>'resultId' IN ('batting-result.ball',
+        'batting-result.called-pitch','batting-result.swinging-strike',
+        'batting-result.walk','batting-result.hit-by-pitch',
+        'batting-result.called-strikeout','batting-result.swinging-strikeout',
+        'batting-result.k3','batting-result.foul') AND
+       rp_per->>'resultId' IS NOT DISTINCT FROM
+        rp_t1->'runnerObservation'->>'primaryResultId' AND
        rp_per->>'pitchEventKind'='pitch-event')))
      OR (rp_per->'runnerEventPayload'->>'event_kind'<>'strategy-category.steal'
       AND rp_per->>'kind'='runner-event' AND
@@ -142,7 +148,7 @@ def _runner_evidence_block() -> str:
     rp_observed:=rp_by->rp_slot;
     rp_effect:=source_row.payload->'calculation'->'response'->'value'->'t1'
      ->'runnerDefaultAdvance'->rp_slot;
-    SELECT pg_catalog.count(*),pg_catalog.jsonb_agg(value)->0
+    SELECT pg_catalog.count(*),(pg_catalog.jsonb_agg(value))->0
     INTO rp_target_count,rp_record
     FROM pg_catalog.jsonb_array_elements(rp_rows) value
     WHERE value->>'base'=rp_before->>'base';

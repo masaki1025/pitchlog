@@ -98,6 +98,8 @@ def test_only_v3_runner_check_is_wrapped_and_preserved():
     assert "rp_per->'runnerEventPayload'->'by_runner'" in result
     assert "rp_per->'runnerAdvanceOverridesByRunner'->'by_runner'" in result
     assert "rp_t1->'runnerObservation' IS DISTINCT FROM" in result
+    assert "'batting-result.called-pitch'" in result
+    assert "rp_t1->'runnerObservation'->>'primaryResultId'" in result
     assert "rp_target_count<>1" in result
 
 
