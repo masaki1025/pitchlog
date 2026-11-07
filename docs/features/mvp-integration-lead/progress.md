@@ -1,6 +1,16 @@
 # 初回MVP 主担当引受・進捗台帳
 
 
+## 2026-11-07：CSV通常配置の全故障対向を完了し、P3・復旧を同じ候補へ接合
+
+- **CSV通常47**: ae82631bの実owned startup全49件が **49passed504.58秒**、source前後同一/共有DSN未継承/owned cleanup。通常S0→47/同版resumeに加え、全migration途中故障→0039への全取消、列/default/全制約/index/owner/権限/RLS/退役guard等の改変拒否を同sourceで確認。後付3SQL無しの実画面2球→取消→全取消→再入力→ZIP/reload150.05秒の根拠と別に保持。sourceを正式develop45bへ通常mergeした5cb4407dは無競合/2pathのみ、通常push済み。fixture差分独立REPORT2bf44eef…、既35path source7c27d49a…を維持。正式7.7/PR統合/全MVPは未了。
+- **P3同居の新固定候補**: root専有新WT/枝feature-mvp-p3-current-startup、計画9a9f7233→P3 9687を通常merge e91f33a3→復旧e690を通常merge **9848f6da528db515f05e67f6a0b5d4b1a556214d**、clean。既枝/作者成果は不変更。初回6/第二16競合の実stage SHAと解消をp3-current48-startup-root-20261107へ固定。C2/transportはevents/change/recoverの閉集合、元本文/V12指紋とD1less kindの両方を保持、旧D5業務指紋とwire指紋を混同しない。root47 catalog/全26宣言/UUID parser/分類を旧candidateで上書きしない。
+- **供給漏れの修復と検証**: 初回271成功/10失敗は宣言18に対してcold Port loaderが13しか供給しない点を検出。既宣言済P3/交代5型だけを明示import/返却し、実クラス同一性/SQL-free閉包/未登録/未import拒否を保持。147対象成功。復旧後は402backend20.35秒、107frontend3.30秒、P3の実client→既耐久barrier/旧試行照会接合23件2.80秒、backend Ruff/Ty/FE型/lint成功。unsafe時fetch前拒否も固定。旧registry22追加のpin期待漏れ1failは未解消で比較維持、mock結果を実認証/PGへ拡張しない。
+- **次の実PG**: 同9848のtest_p3_candidate_compile_authorはexec33570で共通lock待ち（既handleを確認し再起動なし）。これは通常47基盤＋既cache P3 DDL候補の実接合検証で、標準0048成立とは異なる。既3cache入力のSHAをp3-candidate-schema-inputs.jsonへ固定。0048の通常migration/model/catalog/閉検査は新schema packet受領後root唯一writerで供給する。
+- **並行の進展**: 走者追加run5は正常7ケースと越境404、故障500/未確認まで実画面到達、fault後GETにHTTP/2 pseudo headerを渡すdriver誤りで最終DB未了。d4444710の`:*`だけ除去でrun6を同lock実行中、全9/DB終端は未判定。source限定独立REPORT d2d6b361…は既3pathのみ、新P0/P1なし、fault後T5非current全行比較P2を保持。P3作者は25超の計画4c281e4fをroot採用し、唯一kernelの25+1ページ/対象26carryを1bc71f9aで23pure実証、DB/SQL/FEは次。D03は既FR023/XMARK/FR011から実守備entryの単一SQL/projectorと真正start/play/sub資格、候補3表/read/saveを実装中。全source集合や新観測を仮定して完了にしない。
+- **正式化の不足を具体化**: CSV5cbのtenant CLIを一度実行し、旧PR197生成facts実行前pinとnative27-v3現source不一致を検出（formal-intake-tenant-cli.log）。受理9履歴のprefixは全保持、repository revision38対正式39/runtime34対33の候補差も棚卸し。旧期待を現sourceで無条件再生成せず、真正v3後継の正式source登録/独立比較と公式生成/受理が必要。source接合を先にまとめ、無関係な基線更新で受理を反復しない。8分割CIはPO指示で保留、現行4分割継続。全MVP/実機/負荷/運用復旧は未完、Goal active。
+
+
 ## 2026-11-07：197通常統合、P3再開後追記完走、CI8とCSV正規起動の接合
 
 - **最新PO指示・優先更新**: 8分割の追加正式化がMVP接続を遅らせるため保留し、正式developの既4分割を維持する。PR198はDraft/未merge、651の実8分割run42334599932は取消要求、本文赤の事実は保持。後継carry候補ca41ba22は18対向成功の未採用/未pushで保全（非作者コード確認・typed purpose閉全値・最終7.7再導出は未了）。8分割完了や検査緩和をMVPの前提にしない。root/非作者はCSV通常配置の故障対向・fixture追補/走者打球へ戻り、D03担当は既FR023/XMARKの開始済み・未開始規定から真正投手entryを実装中。Goal全体はactive。
