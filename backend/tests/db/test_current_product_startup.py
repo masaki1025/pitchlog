@@ -67,6 +67,7 @@ def test_actual_current_s0_and_current_resume_keep_all_structure_and_catalog(
         "CREATE TRIGGER trg_nonplay_admission_guard",
         "CREATE TRIGGER trg_nonplay_admission_no_truncate",
         "CREATE TABLE sync_fence.substitution_write_receipts",
+        "CREATE TABLE sync_fence.attempt_retirements",
         (
             "ALTER TABLE sync_fence.stats_primitive_facts "
             "DROP CONSTRAINT ck_stats_fact_metric"
@@ -115,8 +116,9 @@ def test_actual_current_migration_fault_rolls_back_to_real0039(
                 "to_regclass('public.ix_admin_vocabularies_batted_ball_key_c'),"
                 "to_regclass('sync_fence.nonplay_write_admissions'),"
                 "to_regprocedure('public.protect_nonplay_admission()'),"
-                "to_regclass('sync_fence.substitution_write_receipts')"
-            ).fetchone() == (None, None, None, None, None, None, None)
+                "to_regclass('sync_fence.substitution_write_receipts'),"
+                "to_regclass('sync_fence.attempt_retirements')"
+            ).fetchone() == (None, None, None, None, None, None, None, None)
         # 旧0039からの実再開で同じ固定currentを完了する。
         result = current.resume_current_product_after_placement(
             owner_dsn=owner,
@@ -138,6 +140,17 @@ def test_actual_current_migration_fault_rolls_back_to_real0039(
             "pitchlog_sync_right_fn_owner WITH GRANT OPTION"
         ),
         "ALTER TABLE sync_fence.stats_primitive_facts NO FORCE ROW LEVEL SECURITY",
+        "ALTER TABLE sync_fence.attempt_retirements NO FORCE ROW LEVEL SECURITY",
+        "ALTER TABLE sync_fence.attempt_retirements ADD COLUMN unexpected bigint",
+        "GRANT UPDATE ON sync_fence.attempt_retirements TO pitchlog_sync_binding_actor",
+        (
+            "ALTER TABLE sync_fence.attempt_retirements DISABLE TRIGGER "
+            "sync_attempt_retirement_immutable"
+        ),
+        (
+            "DROP TRIGGER sync_attempt_retirement_no_truncate "
+            "ON sync_fence.attempt_retirements"
+        ),
         "ALTER TABLE sync_fence.nonplay_write_admissions NO FORCE ROW LEVEL SECURITY",
         (
             "ALTER TABLE sync_fence.nonplay_write_admissions ADD CO"

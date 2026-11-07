@@ -1,4 +1,4 @@
-"""旧0039段階を保ち、current0042の実構造と全認可を接合する。"""
+"""旧0039段階を保ち、current0046の実構造と全認可を接合する。"""
 
 from __future__ import annotations
 
@@ -31,6 +31,7 @@ from pitchlog.db.game_state.stats import (
     StatsPrimitiveFact,
     StatsPrimitiveSource,
 )
+from pitchlog.db.writer_binding.attempt_recovery_models import SyncAttemptRetirement
 from pitchlog.db.writer_binding.lifecycle_models import (
     GameLifecycleHead,
     LifecycleWriteAdmission,
@@ -38,7 +39,7 @@ from pitchlog.db.writer_binding.lifecycle_models import (
 from pitchlog.db.writer_binding.nonplay_models import NonplayWriteAdmission
 from pitchlog.db.writer_binding.substitution_models import SubstitutionWriteReceipt
 
-CURRENT_REVISION = "0045_stats_native27_metric_keys"
+CURRENT_REVISION = "0046_sync_attempt_retirement"
 _INDEX_REVISION = "0040_batted_vocabulary_index"
 _STATS_MODELS = (StatsFactVersion, StatsPrimitiveSource, StatsPrimitiveFact)
 
@@ -216,7 +217,7 @@ def _expression(value: str | None) -> Any:
 
 
 def _tables() -> tuple[Table, ...]:
-    """旧6表と成績3表・非play1表を既採用型定義から一度だけ取得する。"""
+    """旧13表と旧試行遮断1表を既採用型定義から一度だけ取得する。"""
     from pitchlog.db.all_models import IMPORTED_MODEL_MODULE_NAMES
     from pitchlog.db.game_state import models as game_models
     from pitchlog.db.writer_binding.ordinary_models import (
@@ -247,6 +248,7 @@ def _tables() -> tuple[Table, ...]:
         LifecycleWriteAdmission,
         GameLifecycleHead,
         SubstitutionWriteReceipt,
+        SyncAttemptRetirement,
     )
     return tuple(
         sorted((cast(Table, m.__table__) for m in models), key=lambda t: t.name)
@@ -377,7 +379,7 @@ FROM pg_constraint k WHERE k.conrelid=%s::regclass ORDER BY k.conname
 
 
 def _check_current_structure(connection: Any) -> None:
-    """sync_fence全10表と承認済構造を不足/余剰とも拒否する。"""
+    """sync_fence全14表と承認済構造を不足/余剰とも拒否する。"""
     tables = _tables()
     with connection.cursor() as cursor:
         cursor.execute(
@@ -426,6 +428,7 @@ def _check_current_structure(connection: Any) -> None:
                     LifecycleWriteAdmission,
                     GameLifecycleHead,
                     SubstitutionWriteReceipt,
+                    SyncAttemptRetirement,
                 )
             }:
                 cursor.execute(
@@ -907,7 +910,7 @@ def _require_pre_or_full_catalog(connection: Any) -> str:
 
 
 def _apply_current_storage(owner_dsn: str) -> None:
-    """現行0045まで同owner transactionへ配置し、途中故障を全部戻す。"""
+    """現行0046まで同owner transactionへ配置し、途中故障を全部戻す。"""
     engine = create_engine(legacy._owner_url(owner_dsn))
     try:
         with engine.begin() as connection:
@@ -927,6 +930,36 @@ def _apply_current_storage(owner_dsn: str) -> None:
         engine.dispose()
 
 
+def _check_attempt_retirement_guards(connection: Any, phase: str) -> None:
+    """耐久遮断の全triggerを照合し、部分配置を全権限適用で補修しない。"""
+    if phase not in {"pre-full", "full"}:
+        raise CurrentProductStartupError("退役guardの配置段階が不一致です")
+    with connection.cursor() as cursor:
+        cursor.execute(
+            "SELECT t.tgname,t.tgtype,"
+            "t.tgfoid=pg_catalog.to_regprocedure("
+            "'sync_fence_api.guard_writer_records()') "
+            "AND t.tgenabled='O' AND NOT t.tgisinternal AND NOT t.tgdeferrable "
+            "AND NOT t.tginitdeferred AND t.tgconstraint=0 AND t.tgnargs=0 "
+            "AND t.tgattr::text='' AND t.tgqual IS NULL "
+            "AND t.tgargs=''::pg_catalog.bytea "
+            "AND t.tgoldtable IS NULL AND t.tgnewtable IS NULL "
+            "FROM pg_catalog.pg_trigger t WHERE "
+            "t.tgrelid='sync_fence.attempt_retirements'::pg_catalog.regclass "
+            "AND NOT t.tgisinternal ORDER BY t.tgname"
+        )
+        expected = (
+            []
+            if phase == "pre-full"
+            else [
+                ("sync_attempt_retirement_immutable", 27, True),
+                ("sync_attempt_retirement_no_truncate", 34, True),
+            ]
+        )
+        if cursor.fetchall() != expected:
+            raise CurrentProductStartupError("退役guardの全構造が不一致です")
+
+
 def _finish_current(owner_dsn: str, applicator_dsn: str) -> CurrentProductStartupResult:
     with psycopg.connect(applicator_dsn) as connection:
         revision = _revision(connection)
@@ -940,7 +973,8 @@ def _finish_current(owner_dsn: str, applicator_dsn: str) -> CurrentProductStartu
         _check_current_indexes(connection)
         _check_current_rules(connection)
         _check_current_public_storage(connection)
-        _require_pre_or_full_catalog(connection)
+        phase = _require_pre_or_full_catalog(connection)
+        _check_attempt_retirement_guards(connection, phase)
     with psycopg.connect(applicator_dsn) as connection:
         apply_product_authz_ddl(connection)
     with psycopg.connect(applicator_dsn) as connection:
@@ -950,6 +984,7 @@ def _finish_current(owner_dsn: str, applicator_dsn: str) -> CurrentProductStartu
         _check_current_indexes(connection)
         _check_current_rules(connection)
         _check_current_public_storage(connection)
+        _check_attempt_retirement_guards(connection, "full")
         if not _catalog(connection).ok:
             raise CurrentProductStartupError("current全catalogが不一致です")
     return CurrentProductStartupResult()
@@ -982,7 +1017,7 @@ def resume_current_product_after_placement(
     owner_dsn: str,
     applicator_dsn: str,
 ) -> CurrentProductStartupResult:
-    """同版0042は再migrationせず、旧中間段階は元の有限前提で再開する。"""
+    """同版0046は再migrationせず、旧中間段階は元の有限前提で再開する。"""
     legacy._require_same_database(owner_dsn, applicator_dsn)
     with psycopg.connect(owner_dsn) as owner, owner.cursor() as cursor:
         cursor.execute("SELECT current_user,session_user")

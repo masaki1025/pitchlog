@@ -77,11 +77,12 @@ def test_expression_unknown_syntax_is_closed(bad):
         current._expression(bad)
 
 
-def test_current_models_are_closed_thirteen_with_substitution_receipt():
+def test_current_models_are_closed_fourteen_with_retirement():
     """既12表を落とさず、交代receiptの型元を加える。"""
     tables = current._tables()
-    assert len(tables) == 13
+    assert len(tables) == 14
     assert [t.name for t in tables] == [
+        "attempt_retirements",
         "first_ball_write_admissions",
         "game_lifecycle_heads",
         "lifecycle_write_admissions",
@@ -669,6 +670,7 @@ def test_all_index_shapes_reject_changes(fault):
 
 def test_current41_finish_never_calls_old_validators_or_migration(monkeypatch):
     """0041再開は新全構造/full判定だけで、旧0039markerを偽装しない。"""
+    monkeypatch.setattr(current, "_check_attempt_retirement_guards", lambda *_: None)
     trace = []
 
     @contextmanager
@@ -828,6 +830,7 @@ def test_pre_full_keeps_only_the_verified_migration_guards(monkeypatch):
 
 def test_current_finish_closes_read_transaction_before_idle_authz_apply(monkeypatch):
     """全事前read接続を終結し、別IDLE接続で既適用器を実行する。"""
+    monkeypatch.setattr(current, "_check_attempt_retirement_guards", lambda *_: None)
     trace = []
     connections = []
 

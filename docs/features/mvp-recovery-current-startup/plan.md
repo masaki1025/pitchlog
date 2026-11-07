@@ -20,3 +20,7 @@ created: 2026-11-07
 | 3 | S0から起動/同版再開/旧版からの移行・故障全取消を隔離PGで検証する | source固定・共有DSNunset・共通lock・実owner/app/actorを使用。別非作者確認/7.7/CI後のみ通常統合 |
 
 編集範囲: db/writer_binding/attempt_recovery_models.py、同models.py、db/current_product_startup.py、関連backend model/startup試験・既migration0046の参照、必要な正式authz候補原本/公式派生と本計画。migration/bodyの新意味・sync/control/唯一数学/FEを変更しない。0046予約を維持、CSV0047/P3 0048と混同しない。CURRENT定数だけを変更して成功扱いにせず、標準認可資産と実配置が未成立なら正規起動未達とする。人間本人の確認/署名/P6blind/実機/運用公開を代記しない。
+
+ステップ1固定ff2ded1dは非作者REPORT SHA13ddf8ed20f41f7ce489532f027cac95009f9723954b960dfac74b4dc2a0e3f2/独立173passedを根拠にPO委任rootが限定採用。実移植1c7a7193/ecd20392/89b58526は元9d/f938/a122に対応し、既補助関数集合を保持、過剰削除の旧候補は不採用。
+
+ステップ2候補はCURRENT0046・全14表/全構造indexを閉比較し、既root45の全検査を保持。配備前の退役trigger0件と全配備のexact2件をcatalog段階に束縛し、部分/無効/余剰を権限適用前に拒否する。catalog/DDLは605に既供給されたconnection_declarations/公式builder由来候補を再利用し、正式7.7未受理のまま成功扱いにしない。175関連pure成功、既pre-full/full単体seamへ専用guardの検査を別に追加し旧呼出順/IDLE境界は維持。次に固定sourceで実S0→0046/同版resume/0046 table作成後故障全取消/構造・ACL・trigger改変拒否をowned PGへ渡す。0039以外の中間版からのcurrent直接移行は本候補で成立を主張しない。

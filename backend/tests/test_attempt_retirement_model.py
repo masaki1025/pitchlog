@@ -5,6 +5,7 @@ from runpy import run_path
 from types import SimpleNamespace
 from typing import Any, cast
 
+import pytest
 from sqlalchemy import MetaData, Table
 from sqlalchemy.dialects.postgresql import dialect
 
@@ -69,3 +70,50 @@ def test_retirement_model_matches_actual_migration(monkeypatch):
     from pitchlog.db.writer_binding import models
 
     assert models.sync_attempt_retirements is model
+
+
+@pytest.mark.parametrize("phase", ["pre-full", "full"])
+def test_retirement_guards_require_exact_phase(phase):
+    """配備前0件・全配備2件だけを受け、部分や無効guardを補修しない。"""
+    from contextlib import contextmanager
+
+    full = [
+        ("sync_attempt_retirement_immutable", 27, True),
+        ("sync_attempt_retirement_no_truncate", 34, True),
+    ]
+
+    class Connection:
+        def __init__(self, rows):
+            self.rows = rows
+
+        @contextmanager
+        def cursor(self):
+            yield self
+
+        def execute(self, statement):
+            assert "pg_catalog.pg_trigger" in statement
+
+        def fetchall(self):
+            return self.rows
+
+    valid = [] if phase == "pre-full" else full
+    current_product_startup._check_attempt_retirement_guards(Connection(valid), phase)
+    bad = [
+        full[:1],
+        full[1:],
+        list(reversed(full)),
+        [*full, full[0]],
+        [(full[0][0], 19, True), full[1]],
+        [(full[0][0], 27, False), full[1]],
+        [("unknown", 27, True), full[1]],
+        full if phase == "pre-full" else [],
+    ]
+    for rows in bad:
+        with pytest.raises(current_product_startup.CurrentProductStartupError):
+            current_product_startup._check_attempt_retirement_guards(
+                Connection(rows), phase
+            )
+    with pytest.raises(current_product_startup.CurrentProductStartupError):
+        current_product_startup._check_attempt_retirement_guards(
+            Connection(valid), "unknown"
+        )
