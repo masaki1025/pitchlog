@@ -615,3 +615,7 @@ PR197同runのbackend-shard1は初期権/開始系10setup error（stats_fact_ver
 
 
 初期fixture修復run1はmigration0041まで正常に進んだが、新規追加したDDL前のSELECT断言が読取TXを開始し、正規provisionerのidle接続条件で拒否（2setup error/15.83秒、source同一/owned cleanup）。当該追加断言は撤回し、元からあるDDL後の実alembic版とcatalog全値検査で実配置を確認する。provisionerの拒否条件は変更しない。既不正確な0038のエラー文言だけ現行版へ是正する。
+
+### 最終CIのRG1専用fixture追随（2026-11-07、PO委任Codex主担当/root判断）
+
+12cc公開CI42319349209はbackend3分割・harness4分割が成功、残backend2は3792pass/2skip/1setup error（49分08秒）。失敗はrg1_lifecycle_support.pyが旧advance_stage_a_from_s0で現行DDLを適用しstats_fact_versionsを欠く1件に限定された。初期権fixtureとは別の旧S3呼出が残っていた。fixtureを既正規advance_current_product_from_s0/CURRENT_REVISIONへ追随し、RG1 SQL/peer/ACL/liveness対向本体・製品DDL/認可/数学の拒否条件は変更しない。実schema/fullcatalogを満たしてから従来RG1対向を実行する。旧失敗と成功済各分割は保持し、同入力を無根拠に再実行しない。対象追加はbackend/tests/db/rg1_lifecycle_support.pyだけ、正式値の差分有無はsource固定後に公式比較し、最終HEAD/レビュー/CI前にmergeしない。本人逐行確認/署名ではない。
