@@ -7,7 +7,27 @@ from sqlalchemy.dialects.postgresql import dialect
 
 from pitchlog.db import current_product_startup as current
 from pitchlog.db.past_correction.models import P3_STORAGE_MODELS
-from pitchlog.db.play_export.startup import _default, _index_expected, _index_row
+from pitchlog.db.play_export.startup import _default, _index_row
+
+
+def _expected_index(index: Any) -> tuple[Any, ...]:
+    """文字列列の既定collationも含め、索引の全属性を保持する。"""
+    columns = list(index.columns)
+    predicate = index.dialect_options["postgresql"]["where"]
+    return current._index_shape(
+        index.name,
+        bool(index.unique),
+        False,
+        [column.name for column in columns],
+        [
+            "default"
+            if column.type.compile(dialect=dialect()).lower() == "text"
+            else None
+            for column in columns
+        ],
+        None if predicate is None else str(predicate),
+        opclasses=[current._opclass(column) for column in columns],
+    )
 
 
 def check_p3_storage(connection: Any) -> None:
@@ -89,7 +109,7 @@ def check_p3_storage(connection: Any) -> None:
                 raise current.CurrentProductStartupError("P3全制約が不一致です")
             cursor.execute(current._INDEX_SQL, (table.fullname,))
             actual_indexes = [_index_row(row) for row in cursor.fetchall()]
-            expected_indexes = [_index_expected(index) for index in table.indexes]
+            expected_indexes = [_expected_index(index) for index in table.indexes]
             for constraint in table.constraints:
                 if isinstance(constraint, (PrimaryKeyConstraint, UniqueConstraint)):
                     columns = list(constraint.columns)
@@ -108,4 +128,6 @@ def check_p3_storage(connection: Any) -> None:
                         )
                     )
             if sorted(actual_indexes, key=repr) != sorted(expected_indexes, key=repr):
-                raise current.CurrentProductStartupError("P3全indexが不一致です")
+                raise current.CurrentProductStartupError(
+                    f"P3全indexが不一致です: {table.name}"
+                )

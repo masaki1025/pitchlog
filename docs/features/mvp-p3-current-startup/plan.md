@@ -49,3 +49,5 @@ CSV/P3参照統一の初回検査: default4関数（owner/REVOKE/GRANTを含む�
 新規構造checkerは6表の全owner/RLS/列/型/default/制約/索引を閉比較する。現CURRENT47を48へ先に繰り上げず、まず実47→固定48 migration正常、10種類の構造改変拒否、第6表直後故障で全取消を所有PGで確認する。これを通常48の全関数配置/起動/7.7/製品実証と読み替えない。追加pathはdb/past_correction/{__init__,models,startup}.py、migrations/versions/0048_p3_projection_storage.py、tests/db/test_p3_storage_migration.py。
 
 fa1の実migrationは2failed24.89秒/source同一/cleanup、正常型検査に達する前にowner→right_fn_ownerのSET ROLE資格不足で停止。ここではrole権限を広げず、既通常migrationと同じpitchlog_ownerへ6表ownerを揃える。writer/readerへの必要な列ACL/RLSは正式catalogで限定供給し、初期migrationからactorを開かない。既候補SQLのowner指定をそのまま通常配置へ移した初回案は不採用履歴として保持。また純全CHECK probeで既parser未対応のBETWEEN/pg_catalog修飾を検出し、型元は同値な>=/<=・既組込関数名へ、単一INは=へ明示整合。既parserの拒否条件は変更しない。全64CHECKの純parseをDB前の対向に追加する。
+
+r2実PGは1passed/1failed21.66秒/source同一/cleanup。第6表後故障の全取消は成立、正規配置は全列/制約比較の後に索引の比較で停止。CSV用の既索引helperは非text列専用であり、P3 progress.state索引のdefault collationを期待側が落としていた。索引は削らず、P3でtext collation/opclassを完全保持する期待を追加し、COLLATE C改変拒否も実DB対向へ追加する。旧CHECK parser/拒否条件とDDLは不変更。

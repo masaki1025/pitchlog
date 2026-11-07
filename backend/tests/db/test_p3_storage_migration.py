@@ -58,6 +58,10 @@ def test_owned_p3_migration_and_all_structure_tamper_refusals(
                 "ALTER TABLE sync_fence.p3_projection_capsule_items "
                 "DROP CONSTRAINT fk_p3_capsule_items_01",
                 "DROP INDEX sync_fence.ix_p3_capsule_items_current_page",
+                "DROP INDEX sync_fence.ix_p3_page_progress_attempt; "
+                "CREATE INDEX ix_p3_page_progress_attempt ON "
+                "sync_fence.p3_projection_page_progress "
+                '(tenant_id,attempt_id,phase_id,state COLLATE "C")',
                 "CREATE INDEX extra_p3_index ON "
                 "sync_fence.p3_projection_heads(updated_at)",
                 "CREATE TABLE sync_fence.p3_projection_unknown(value text)",
