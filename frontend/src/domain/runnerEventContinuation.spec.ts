@@ -355,3 +355,71 @@ it('artifactまで通常球＋盗塁を1投球に合成しID/責任を維持す�
   expect(result.value.t1.statFlags.投球数).toBe(true)
   expect(result.value.runners).toEqual([{ ...q.source.runners[0], base: '2' }])
 })
+
+it.each(['safe-advance', 'out'])(
+  '普通foul＋走者%sは単一artifactでも閉拒否する',
+  (outcome) => {
+    const q = request()
+    const o = observation(
+      'batting-result.foul',
+      'batting-result',
+      'pitch-event',
+    ) as { primaryResultId: string | null; perPitch: Record<string, unknown> }
+    o.primaryResultId = 'batting-result.foul'
+    o.perPitch.runnerEventPayload = {
+      kind: 'runner-event',
+      event_kind: 'strategy-category.steal',
+      by_runner: {
+        first:
+          outcome === 'out'
+            ? {
+                kind: 'out',
+                runner: ref,
+                attempted_base: 'second',
+                out_kind: 'caught-stealing',
+              }
+            : { kind: 'safe-advance', runner: ref, destination: 'second' },
+      },
+    }
+    q.t1 = {
+      eventKind: 'batting-result',
+      resultId: 'batting-result.foul',
+      pitchEventKind: 'pitch-event',
+      before: q.t1.before,
+      runnerObservation: o,
+    }
+    expect(invoke(q)).toEqual({
+      ok: false,
+      error: { code: 'UNSUPPORTED_T1_SCOPE' },
+    })
+  },
+)
+it.each(['secondary-result.wild-pitch', 'secondary-result.passed-ball'])(
+  '普通foulを%sのlive球へ変更しない',
+  (operationId) => {
+    const q = request()
+    const o = observation(operationId, 'secondary-result', 'pitch-event') as {
+      primaryResultId: string | null
+      perPitch: Record<string, unknown>
+    }
+    o.primaryResultId = 'batting-result.foul'
+    o.perPitch.runnerEventPayload = { kind: 'not-applicable' }
+    o.perPitch.runnerAdvanceOverridesByRunner = {
+      kind: 'overridden',
+      by_runner: {
+        first: { kind: 'safe-advance', runner: ref, destination: 'second' },
+      },
+    }
+    q.t1 = {
+      eventKind: 'secondary-result',
+      resultId: operationId,
+      pitchEventKind: 'pitch-event',
+      before: q.t1.before,
+      runnerObservation: o,
+    }
+    expect(invoke(q)).toEqual({
+      ok: false,
+      error: { code: 'UNSUPPORTED_T1_SCOPE' },
+    })
+  },
+)

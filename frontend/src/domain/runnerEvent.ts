@@ -479,6 +479,12 @@ export function prepareRunnerRule(
       input.pitchEventKind,
     )
     if (primary === null) return null
+    // 通常ファウルはdead。投球のcountだけを抜いて走者効果で上書きしない。
+    if (
+      input.primaryResultId === 'batting-result.foul' &&
+      (special || bound.some((r) => r.outcome.kind !== 'hold'))
+    )
+      return null
     flagResultId = input.primaryResultId
     rule.strikeEffect = primary.strikeEffect
     rule.strikeDelta = primary.strikeDelta
@@ -532,6 +538,8 @@ export function prepareRunnerRule(
     } else if (observed.kind === 'safe-advance') {
       const destination = destinationBase(observed.destination)
       if (destination <= runner.base || target !== null) return null
+      // 次塁への単一盗塁だけを既T5 attempted/successful一件へ供給する。
+      if (steal && destination !== runner.base + 1n) return null
       if (
         input.operationId === 'secondary-result.balk' &&
         destination !== runner.base + 1n

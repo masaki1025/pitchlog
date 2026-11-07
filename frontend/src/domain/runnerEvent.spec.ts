@@ -397,7 +397,14 @@ describe('共通Ruleによる走者操作', () => {
       const c = context()
       c.before.outs = 2n
       const q = request({
-        byRunner: observed(),
+        eventKind: 'secondary-result',
+        operationId: 'secondary-result.wild-pitch',
+        pitchEventKind: 'pitch-event',
+        primaryResultId: 'batting-result.ball',
+        byRunner: {
+          ...observed(),
+          first: { ...observed().first, out_kind: 'running-out' },
+        },
         thirdOutObservation: {
           kind: 'other-third-out',
           out_person: ref(first),
@@ -422,6 +429,10 @@ describe('共通Ruleによる走者操作', () => {
     c.before.outs = 2n
     const people = [live[1]!, loadedLive[2]!]
     const q = request({
+      eventKind: 'secondary-result',
+      operationId: 'secondary-result.wild-pitch',
+      pitchEventKind: 'pitch-event',
+      primaryResultId: 'batting-result.ball',
       byRunner: {
         second: {
           kind: 'safe-advance',
@@ -538,4 +549,49 @@ describe('共通Ruleによる走者操作', () => {
       ),
     ).toBeNull()
   })
+})
+
+it('複数塁盗塁の数量供給が未接続の候補は一盗塁へ丸めず拒否する', () => {
+  const before: StateFields = {
+    half: 'top',
+    strikes: 0n,
+    balls: 0n,
+    outs: 0n,
+    runners: 'first',
+    battingOrder: 1n,
+    tiebreakActive: false,
+    gameEnded: false,
+    inning: 1n,
+    home: 0n,
+    away: 0n,
+  }
+  const board: Scoreboard = {
+    home: 0n,
+    away: 0n,
+    hits: 0n,
+    errors: 0n,
+    strikeouts: 0n,
+    walks: 0n,
+  }
+  const input: RunnerRuleRequest = {
+    eventKind: 'runner-event',
+    operationId: 'strategy-category.steal',
+    pitchEventKind: 'non-pitch-event',
+    primaryResultId: null,
+    byRunner: {
+      first: {
+        kind: 'safe-advance',
+        runner: { kind: 'official', player_id: first },
+        destination: 'third',
+      },
+    },
+    thirdOutObservation: { kind: 'not-required' },
+    thirdOutTimingByRunner: {},
+  }
+  expect(
+    deriveRunnerOperation(before, board, input, live.slice(0, 1), {
+      away: 1n,
+      home: 1n,
+    }),
+  ).toBeNull()
 })

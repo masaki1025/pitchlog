@@ -273,6 +273,11 @@ def _validate_runner_projection(
         expected = {}
         slots = {"1": "first", "2": "second", "3": "third"}
         for runner in request.source.runners:
+            if any(
+                getattr(target, "runner", None) == runner.base
+                for target in t1.out_effect.targets
+            ):
+                continue
             effect = getattr(t1.runner_default_advance, slots[runner.base])
             # forced/optionalの意味は唯一artifactで決定済み。ここでは再計算しない。
             if effect.modality == "not-applicable":
@@ -299,7 +304,7 @@ def _validate_runner_projection(
                 )
             else:
                 raise LineupPrefixProtocolError("走者の進塁計画が不正です")
-        if t1.plate_appearance_ended and t1.batter_destination.kind == "reach":
+        if t1.plate_appearance_ended is True and t1.batter_destination.kind == "reach":
             base = t1.batter_destination.base
             if base in expected:
                 raise LineupPrefixProtocolError("打者と走者の到達塁が重複します")

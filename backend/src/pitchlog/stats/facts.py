@@ -261,6 +261,91 @@ def _native_runner_scores(payload, value):
         return None
 
 
+def _native_explicit_runner_projection(payload, value):
+    """明示runner原本と唯一核の算入根拠を生成T5へ写す。規則を再判定しない。"""
+    try:
+        if payload["formatVersion"] != "play-prefix-play-v3" or not _closed_native_wire(
+            payload
+        ):
+            return None
+        request = payload["calculation"]["request"]
+        observed = request["t1"]["runnerObservation"]
+        if payload["observations"]["runnerObservation"] != observed:
+            return None
+        per_pitch = observed["perPitch"]
+        event = per_pitch["runnerEventPayload"]
+        by_runner = event.get("by_runner")
+        if by_runner is None:
+            by_runner = per_pitch["runnerAdvanceOverridesByRunner"]["by_runner"]
+        source = request["source"]
+        if request["version"] == "nonplay-continuation-v1":
+            runners = source["checkpoint"]["content"]["restored"]["runners"]
+        else:
+            runners = source["runners"]
+        by_base = {r["base"]: r for r in runners}
+        slots = {"1": "first", "2": "second", "3": "third"}
+        effects = value["runnerScoreEffects"]
+        if type(effects) is not list or len(effects) > 3:
+            return None
+        effect_by_base = {e["base"]: e for e in effects}
+        if len(effect_by_base) != len(effects):
+            return None
+        home_bases = {
+            base
+            for base, slot in slots.items()
+            if value["t1"]["runnerDefaultAdvance"][slot]["destination"] == "4"
+        }
+        if set(effect_by_base) != home_bases or not home_bases.issubset(by_base):
+            return None
+        scores = []
+        for base, effect in effect_by_base.items():
+            runner = by_base[base]
+            original = by_runner[slots[base]]
+            if (
+                original["kind"] != "safe-advance"
+                or original["destination"] != "home"
+                or original["runner"]
+                != {"kind": "official", "player_id": runner["runnerId"]}
+            ):
+                return None
+            scores.append(
+                {
+                    "runner_id": runner["runnerId"],
+                    "responsible_pitcher_id": runner["responsiblePitcherId"],
+                    "valid_run": effect["validRun"],
+                    "rbi_credited": effect["rbiCredited"],
+                    "rbi_batter_id": payload["participants"]["batterId"],
+                }
+            )
+        attempts = []
+        steal = event.get("event_kind") == "strategy-category.steal"
+        for base, runner in by_base.items():
+            original = by_runner.get(slots[base])
+            if original is None:
+                continue
+            if original["runner"] != {
+                "kind": "official",
+                "player_id": runner["runnerId"],
+            }:
+                return None
+            if original["kind"] == "hold":
+                continue
+            caught = (
+                original["kind"] == "out" and original["out_kind"] == "caught-stealing"
+            )
+            if steal or caught:
+                attempts.append(
+                    {
+                        "runner_id": runner["runnerId"],
+                        "attempted": True,
+                        "successful": original["kind"] == "safe-advance",
+                    }
+                )
+        return scores, attempts
+    except (KeyError, TypeError, ValueError):
+        return None
+
+
 def _native_no_steal(payload, value, runner_scores):
     """FR-004/E-1で別の走者操作を含まない、既閉V7結果の空集合。"""
     if not _closed_native_wire(payload):
@@ -362,7 +447,15 @@ def native_projection(payload, *, source_event_id):
         "actual_batter_id": people["batterId"],
         "credited_batter_id": people["batterId"],
     }
-    pa = {"ended_here": t1["plateAppearanceEnded"]}
+    ended_here = t1["plateAppearanceEnded"]
+    if ended_here == "not-applicable":
+        # 正式runner-eventの打席非該当は打席終了false。欠測値をfalse化しない。
+        if calc["request"]["t1"].get(
+            "eventKind"
+        ) != "runner-event" or not _closed_native_wire(payload):
+            raise ValueError("打席非該当の閉区分が不正です")
+        ended_here = False
+    pa = {"ended_here": ended_here}
     hit_kinds = {
         "batting-result.single": "single",
         "batting-result.double": "double",
@@ -441,11 +534,16 @@ def native_projection(payload, *, source_event_id):
             "outs_pitcher_id",
         ):
             participants[name] = people["pitcherId"]
+    explicit_runner = _native_explicit_runner_projection(payload, value)
+    if "runnerObservation" in calc["request"]["t1"] and explicit_runner is None:
+        raise ValueError("明示runner原本/実算入根拠の供給が不成立です")
     runner_scores = _native_runner_scores(payload, value)
+    if explicit_runner is not None:
+        runner_scores = explicit_runner[0]
     if runner_scores is not None:
         completeness["runs_rbi"] = "complete"
     no_steal = _native_no_steal(payload, value, runner_scores)
-    if no_steal:
+    if no_steal or explicit_runner is not None:
         completeness["steals"] = "complete"
     projection = {
         "event_kind": event_kind,
@@ -459,7 +557,9 @@ def native_projection(payload, *, source_event_id):
     }
     if runner_scores is not None:
         projection["runner_scores"] = runner_scores
-    if no_steal:
+    if explicit_runner is not None:
+        projection["steal_attempts"] = explicit_runner[1]
+    elif no_steal:
         projection["steal_attempts"] = []
     return projection
 

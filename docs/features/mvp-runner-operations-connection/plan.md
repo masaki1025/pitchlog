@@ -54,3 +54,14 @@ root専有（本担当は直接編集しない）: `contracts/`・正本・共�
 - 正式供給待ち: v3T1への閉観測variantと出力runnerScoreEffects、同unionの型/schema/case、唯一artifact/pin。rootへcache packetを渡す。root以外による正式資産の編集なし。
 - 今回の現成功範囲: 非終端通常球＋盗塁、非投球盗塁/牽制、通常球＋WP/PB、明示全員1塁のbalk、既固定SO-05（一死一塁/S2B0）。終端球との複合、SO-05他配置、複数得点サヨナラの順序反映、エラー/妨害等は未完として保持する。観測や自動既定の拡張は行わない。
 - 次: ステップ2の閉V7/型/物理runner原因/T5/画面接合、root直列の正式型・artifact供給後にステップ3実測。stage1だけをMVP完成に読み替えない。
+
+
+## ステップ2の中間固定（画面接続・実PGは未完）
+
+- Pythonは旧T1/Valueを一般緩和せずRunnerT1/RunnerValue（NP継続も独立variant）を追加。perPitchの全原値・V7観測と数学要求を全比較し、新wire-headだけにrunnerObservation/runnerScoreEffectsを束縛する。物理41列は主結果/副結果を各既列へ写し、非投球の球種/コース等は実際に非該当のNULL。out原因を既投手牽制死/捕手牽制死/盗塁死/走塁死語彙へ写し、責任IDはsourceのまま。API runner表示型は既にこれらを受理済みで、追加変更は不要だった（最初の不足推測は現物照合で解消、編集なし）。
+- T5は同codecを通った原V7と唯一artifactのrunnerScoreEffectsから生還者/責任/有効得点/RBI判定をコピーし、stealの明示実結果を既生成T5のattempted/successfulへ渡す。新しい得点/RBI/盗塁の算式を作らない。新variantの欠測根拠を旧ordinaryゼロへ落とす経路は拒否する。生成model/生成物は非編集。
+- 独立確認で01a6の通常foul＋走者進塁成功を再現したため、普通foul＋進塁/out/WP/PBを閉拒否する修復と4artifact対向を追加した。普通foul/ファウルチップ等を読み替えない。複数塁取得の盗塁数量は候補で未供給のため未対応拒否へ置き、正式合法入力を次塁だけへ変更したとは扱わない。既採用計数の追加照合/接合はMVP残件。
+- 中間作者検査: backend専用34passed/2.27秒、先行関連129passed/3.72秒、Ruff/Ty成功。FE domain全35file/943passed/44.44秒（foul修復4/未対応拒否1追加）、明示runner観測panel5passed/0.687秒、eslint/vue-tsc成功。panelの原観測・原因必須・source ID変更時の再確認だけの検証で、まだ既記録画面へmount/送信未接続。
+- 広げた実host回帰373件は331passed/42failed/15.19秒。2系統を診断すると数学前のpin不一致（fixture execution9ae9…、追跡artifact4e7d…）で停止した。両関連fileは91773ec0から全byte不変をGit比較した。残る失敗の全個別原因は未分類で、同じ42再実行をしない。正式pinのroot追随後に接合を検査する。全緑/実host成立へ読み替えない。
+- rootへ`formal-union-packet/manifest.json` SHA56c9643a68b1268fd4bf395f04c4b8f6677c9556174ee07dd69f75d160bd0e4dを送付。既正式perPitch定義再利用のschema/d.ts候補、新V7/Head7件、新旧正負、candidate rendererをcacheに固定。正式asset/追跡artifactは非編集。汎用checkerのuuid/uniqueItems厳格対応はcache patchのみで、sourceはroot直列対象。NP-source実ケース/FE型全件は未確認。
+- ステップ2は継続中: root受理した正式union/唯一artifactを同SDKへ接合し、既provider/耐久queue/ACK/GETへ観測panelをmountする。ステップ3の実画面/DB/再送/越境/故障は未実施である。
