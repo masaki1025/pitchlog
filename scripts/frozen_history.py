@@ -1989,5 +1989,245 @@ def main(argv: Sequence[str] | None = None) -> int:
     return 0
 
 
+# PR197 の直書き識別値は、独立受理時の Git 原文から再読する。現在資産だけを期待にしない。
+_PR197_PIN_ASSET = "contracts/tenant_boundary/frozen-inputs.json"
+# 7.7のPR197限定trust root。別値への追従は許さず、真正Git objectを要求する。
+PR197_PIN_ORIGIN_COMMIT = "2fa42d653e44bba8586c0afe831421402247fd30"
+_PR197_PIN_ORIGIN_ENTRY = {
+    "value": PR197_PIN_ORIGIN_COMMIT,
+    "purpose": "PR197凍結値27参照の真正Git導入commitを1件だけ固定する信頼根。",
+    "sources": [
+        "scripts/frozen_history.py:read_original_pr197_pin",
+        "scripts/check_frozen_baselines.py:_verify_pr197_pin_scan_exception",
+    ],
+}
+_PR197_PIN_ORIGINAL_LINES: Mapping[str, tuple[str, int, str, str]] = {
+    'pr197_generated_facts_sha256': (
+        'scripts/check_tenant_boundary_bypass.py',
+        10924,
+        '_pr197_fixed_expectations',
+        'PR197固定Sで生成済facts.pyの全byteをEの独立fixtureと一致させる。現木採取を許さない。',
+    ),
+    'pr197_core_definition_ast_sha256': (
+        'scripts/core_guard.py',
+        882,
+        '_verify_pr197_definition_order',
+        'PR197新2path登録に先行するcore定義と入口callのAST指紋。先行Git親で照合する。',
+    ),
+    'stats_foundation_legacy_core_revision': (
+        'tests/test_core_guard.py',
+        7233,
+        'test_stats_foundation29_exact_paths_detection_and_full_ast_preservation',
+        '成績有限層追加前の旧core_guard AST原文を固定Gitで比較する試験原典。',
+    ),
+    'stats_season_source_set_game_a_sha256': (
+        'backend/tests/stats/test_basic_stats.py',
+        637,
+        '_execute_generated_season_health',
+        '非作者独立反例のgame-a canonical source set S。有限SQLiteの入力値。',
+    ),
+    'stats_season_source_set_game_b_sha256': (
+        'backend/tests/stats/test_basic_stats.py',
+        638,
+        '_execute_generated_season_health',
+        '非作者独立反例のgame-b canonical source set S。有限SQLiteの入力値。',
+    ),
+    'stats_native_old_registry_sha256': (
+        'backend/tests/test_stats_native_function_registration.py',
+        75,
+        'test_old_all_twenty_two_keep_order_sql_types_decoder_and_values',
+        'native5追加前の製品関数登録旧22行の全descriptorと順序を保つ。',
+    ),
+    'stats_native_old_product_additions_sha256': (
+        'backend/tests/test_stats_native_product_connection.py',
+        43,
+        'test_all_old_declarations_bodies_details_and_guards_remain_exact',
+        'native成績追加を除いた旧製品宣言の全値を保つ。',
+    ),
+    'stats_native_old_product_bodies_sha256': (
+        'backend/tests/test_stats_native_product_connection.py',
+        51,
+        'test_all_old_declarations_bodies_details_and_guards_remain_exact',
+        'native成績追加を除いた旧323関数本文の全値を保つ。',
+    ),
+    'stats_native_old_product_details_sha256': (
+        'backend/tests/test_stats_native_product_connection.py',
+        57,
+        'test_all_old_declarations_bodies_details_and_guards_remain_exact',
+        'native成績追加を除いた旧29関数metadataの全値を保つ。',
+    ),
+    'stats_native_old_product_guards_sha256': (
+        'backend/tests/test_stats_native_product_connection.py',
+        70,
+        'test_all_old_declarations_bodies_details_and_guards_remain_exact',
+        'native成績追加を除いた旧29関数のapplication SQL guard全値を保つ。',
+    ),
+    'stats_primitive_sql_open_snapshot_sha256': (
+        'backend/tests/test_stats_primitive_product.py',
+        24,
+        '_assert_legacy_sql_values',
+        '独立採用de9d8cb3のimmutable v1 open_primitive_snapshot SQL全byte。',
+    ),
+    'stats_primitive_sql_read_page_sha256': (
+        'backend/tests/test_stats_primitive_product.py',
+        27,
+        '_assert_legacy_sql_values',
+        '独立採用de9d8cb3のimmutable v1 read_play_export_primitives SQL全byte。',
+    ),
+    'stats_primitive_sql_read_totals_sha256': (
+        'backend/tests/test_stats_primitive_product.py',
+        30,
+        '_assert_legacy_sql_values',
+        '独立採用de9d8cb3のimmutable v1 read_primitive_totals SQL全byte。',
+    ),
+    'stats_primitive_sql_save_source_sha256': (
+        'backend/tests/test_stats_primitive_product.py',
+        33,
+        '_assert_legacy_sql_values',
+        '独立採用de9d8cb3のimmutable v1 save_primitive_source SQL全byte。',
+    ),
+    'stats_primitive_v1_declarations_sha256': (
+        'backend/tests/test_stats_primitive_product.py',
+        36,
+        '_assert_legacy_sql_values',
+        '独立採用de9d8cb3のimmutable v1宣言54+16列/7+3policyを保つ。',
+    ),
+    'stats_primitive_v1_bodies_sha256': (
+        'backend/tests/test_stats_primitive_product.py',
+        37,
+        '_assert_legacy_sql_values',
+        '独立採用de9d8cb3のimmutable v1関数本文84全値を保つ。',
+    ),
+    'stats_primitive_v1_installer_sha256': (
+        'backend/tests/test_stats_primitive_product.py',
+        38,
+        'test_installer_and_operation_requirements_preserve_adopted_values',
+        '独立採用de9d8cb3の旧installer owner/ACL footer全byteを保つ。',
+    ),
+    'stats_primitive_v1_operations_sha256': (
+        'backend/tests/test_stats_primitive_product.py',
+        39,
+        'test_installer_and_operation_requirements_preserve_adopted_values',
+        '独立採用de9d8cb3の旧nonce/RRRO operation候補全値を保つ。',
+    ),
+}
+_PR197_PIN_EXISTING_KEYS = frozenset({
+    "stage_a_0039_profile_reference_revision",
+    "stats_native_registry_reference_revision",
+    "pr191_source_registration_revision",
+    "pr192_source_registration_revision",
+    "pr197_source_revision",
+    "pr197_expectation_revision",
+    "pr197_expectation_fixture_sha256",
+})
+
+
+def _pr197_pin_git(root: Path, *args: str) -> bytes:
+    """固定Git原典を例外時も原文を出さずに読む。"""
+    import subprocess
+
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(root), *args], capture_output=True, check=False,
+            timeout=30, env={**os.environ, "GIT_NO_REPLACE_OBJECTS": "1"},
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        raise ContractError("PR197凍結識別値の固定Git原典を検証できない") from exc
+    if result.returncode != 0:
+        raise ContractError("PR197凍結識別値の固定Git原典を検証できない")
+    return result.stdout
+
+
+def _pr197_pin_unique_json(raw: bytes) -> dict[str, Any]:
+    """凍結入力JSONの重複キーと非objectを拒否する。"""
+    def unique(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+        result: dict[str, Any] = {}
+        for key, value in pairs:
+            if key in result:
+                raise ContractError("PR197凍結入力JSONに重複キーがある")
+            result[key] = value
+        return result
+
+    try:
+        value = json.loads(raw, object_pairs_hook=unique)
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ContractError("PR197凍結入力JSONを解析できない") from exc
+    if type(value) is not dict:
+        raise ContractError("PR197凍結入力JSONのrootがobjectでない")
+    return value
+
+
+def read_original_pr197_pin(key: str, root: Path | None = None) -> str:
+    """現在のtyped識別値をPR197導入時の真正Git全値と照合して返す。
+
+    Args:
+        key: 用途を固定した凍結入力キー。
+        root: 対象リポジトリ。省略時はこの実装のリポジトリ。
+
+    Returns:
+        固定Git原典と一致した現在の資産値。
+
+    Raises:
+        ContractError: 未知キー、原典不在、同時値変更、用途変更の場合。
+    """
+    if key not in _PR197_PIN_EXISTING_KEYS and key not in _PR197_PIN_ORIGINAL_LINES:
+        raise ContractError("PR197凍結識別値の未知キー")
+    repository = (root or Path(__file__).resolve().parents[1]).resolve()
+    asset_path = repository / _PR197_PIN_ASSET
+    if asset_path.is_symlink() or not asset_path.is_file():
+        raise ContractError("PR197凍結入力資産が通常ファイルでない")
+    current = _pr197_pin_unique_json(asset_path.read_bytes())
+    # 真正の導入commit object、祖先性、履歴上の初出を別々に照合する。
+    resolved = _pr197_pin_git(
+        repository, "rev-parse", "--verify", f"{PR197_PIN_ORIGIN_COMMIT}^{{commit}}",
+    ).decode("ascii", errors="strict").strip()
+    if resolved != PR197_PIN_ORIGIN_COMMIT:
+        raise ContractError("PR197凍結入力の固定Git原典SHAが不一致")
+    _pr197_pin_git(
+        repository, "merge-base", "--is-ancestor", PR197_PIN_ORIGIN_COMMIT, "HEAD",
+    )
+    introductions = _pr197_pin_git(
+        repository, "log", "--reverse", "--format=%H",
+        '-S"pr197_expectation_revision"', "HEAD", "--", _PR197_PIN_ASSET,
+    ).decode().splitlines()
+    if introductions != [PR197_PIN_ORIGIN_COMMIT]:
+        raise ContractError("PR197凍結入力の導入Git commitが一意でない")
+    original = _pr197_pin_unique_json(
+        _pr197_pin_git(repository, "show", f"{PR197_PIN_ORIGIN_COMMIT}:{_PR197_PIN_ASSET}")
+    )
+    if original.get("contract_revision") != 18:
+        raise ContractError("PR197凍結入力の導入版が不一致")
+    current_inputs = current.get("frozen_inputs")
+    original_inputs = original.get("frozen_inputs")
+    if type(current_inputs) is not dict or type(original_inputs) is not dict:
+        raise ContractError("PR197凍結入力のtyped欄がobjectでない")
+    if current_inputs.get("pr197_pin_origin_commit") != _PR197_PIN_ORIGIN_ENTRY:
+        raise ContractError("PR197固定Git信頼根のtyped値または用途が不一致")
+    entry = current_inputs.get(key)
+    if type(entry) is not dict or set(entry) != {"value", "purpose", "sources"}:
+        raise ContractError("PR197凍結入力のtyped用途が不正")
+    value = entry["value"]
+    if type(value) is not str or not re.fullmatch(r"(?:[0-9a-f]{40}|[0-9a-f]{64})", value):
+        raise ContractError("PR197凍結入力の値が不正")
+    if key in _PR197_PIN_EXISTING_KEYS:
+        if entry != original_inputs.get(key):
+            raise ContractError("PR197凍結入力の既存値または用途が固定Gitと不一致")
+    else:
+        path, line, consumer, purpose = _PR197_PIN_ORIGINAL_LINES[key]
+        raw = _pr197_pin_git(repository, "show", f"{PR197_PIN_ORIGIN_COMMIT}:{path}")
+        try:
+            source_line = raw.decode("utf-8").splitlines()[line - 1]
+        except (UnicodeDecodeError, IndexError) as exc:
+            raise ContractError("PR197凍結入力の旧source位置を解決できない") from exc
+        originals = re.findall(r"\b(?:[0-9a-f]{40}|[0-9a-f]{64})\b", source_line)
+        if len(originals) != 1 or originals[0] != value:
+            raise ContractError("PR197凍結入力の新値が固定Git旧sourceと不一致")
+        if (
+            entry["sources"] != [path + ":" + consumer]
+            or entry["purpose"] != purpose
+        ):
+            raise ContractError("PR197凍結入力の新用途が不一致")
+    return value
+
 if __name__ == "__main__":
     raise SystemExit(main())

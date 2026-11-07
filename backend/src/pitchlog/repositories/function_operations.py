@@ -415,6 +415,22 @@ class _WriterAssertVoidResult(TypeDecorator[None]):
         return None
 
 
+def _stats_native_family(registration) -> bool:
+    """新5の予約namespaceだけを特別検証し、旧全型規約へ波及させない。"""
+    return any(
+        isinstance(value, str) and value.startswith(prefix)
+        for value, prefix in (
+            (registration.function_id, "stats_api."),
+            (registration.operation_id, "STATS_PRIMITIVES:"),
+            (registration.capability_id, "CAP:stats_primitives:"),
+        )
+    ) or getattr(registration.token_type, "__module__", None) in {
+        "pitchlog.repositories.stats_native_operations",
+        "pitchlog.repositories.play_export_primitives",
+        "pitchlog.repositories.stats",
+    }
+
+
 @dataclass(frozen=True, slots=True)
 class FunctionOperationRegistration:
     """単一のschema修飾関数、exact bind、戻りdecoderを固定する。"""
@@ -448,6 +464,13 @@ class FunctionOperationRegistration:
             raise FunctionOperationError("固定関数tokenはfrozen dataclassが必要")
         if type(self.statement) is not Select or not callable(self.decoder):
             raise FunctionOperationError("固定関数には固定Selectとdecoderが必要")
+        if _stats_native_family(self):
+            from pitchlog.repositories.stats_native_operations import (
+                validate_registration,
+            )
+
+            validate_registration(self)
+            return
         input_names = tuple(name for name, _ in self.input_fields)
         result_names = tuple(name for name, _ in self.result_fields)
         if (
@@ -813,6 +836,12 @@ def build_function_registry(
     registry: dict[type[TenantOperationToken], FunctionOperationRegistration] = {}
     operation_ids: set[str] = set()
     for registration in registrations:
+        if _stats_native_family(registration):
+            from pitchlog.repositories.stats_native_operations import (
+                validate_registration,
+            )
+
+            validate_registration(registration)
         if (
             registration.token_type in dml_token_types
             or registration.token_type in registry
@@ -835,6 +864,13 @@ def prepare_function_operation(
     spec = registry.get(type(operation))
     if spec is None:
         raise FunctionOperationError("未登録または偽造された固定関数token")
+    if _stats_native_family(spec):
+        from pitchlog.repositories.stats_native_operations import validate_registration
+
+        validate_registration(spec)
+        raise FunctionOperationError(
+            "成績固定5関数は私有一回資格の経路だけで実行できます"
+        )
     if operation.capability_id != spec.capability_id:
         raise FunctionOperationError("固定関数tokenのcapability IDが不一致")
     parameters: dict[str, object] = {"tenant_id": tenant_id}

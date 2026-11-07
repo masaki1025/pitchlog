@@ -864,7 +864,19 @@ def _apply_locked_in_scope(
             sort_keys=True,
         )
         token = IdempotencyLedgerInsertToken(d5, "accepted", fingerprint, result_json)
-        raced = recheck_and_insert_result(scope, token, path)
+        if type(validator) in {
+            FirstBallContentValidationPort,
+            OrdinaryPitchContentValidationPort,
+            PlayPrefixContentValidationPort,
+            LineupPrefixContentValidationPort,
+        }:
+            from pitchlog.sync.native_ledger_insert import (
+                _recheck_and_insert_native_result,
+            )
+
+            raced = _recheck_and_insert_native_result(scope, writer, event, token, path)
+        else:
+            raced = recheck_and_insert_result(scope, token, path)
         if raced is not None:
             outcome = _candidate_result(raced, d3)
             if outcome is None:
@@ -944,6 +956,17 @@ def _apply_locked_in_scope(
             record_d1_intents(scope, game_id, d5)
             # D3 を前進させたイベントの無効化意図も同じ原子境界に入ることを観測する。
             reach("after_d1_intents")
+        if type(validator) in {
+            FirstBallContentValidationPort,
+            OrdinaryPitchContentValidationPort,
+            PlayPrefixContentValidationPort,
+            LineupPrefixContentValidationPort,
+        }:
+            from pitchlog.sync.stats_native_flush import _flush_native_stats
+
+            _flush_native_stats(
+                scope, writer, event, projected_event, generation=generation
+            )
         return P1Result(None, new_d3, True, False, tuple(new_mapping.items()))
     finally:
         try:

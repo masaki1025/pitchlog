@@ -450,6 +450,53 @@
           ]
         }
       ]
+    },
+    {
+      "kind": "stats_primitive_storage",
+      "entries": [
+        {
+          "table": "stats_fact_versions",
+          "reason": "採用済み成績private原本3表。default-denyの私有保存構造として関数経路へ限定する。",
+          "evidence": [
+            {
+              "section": "6-1-c",
+              "quote": "| `sync_fence.stats_fact_versions` |"
+            },
+            {
+              "section": "6-1-c",
+              "quote": "migration単独では3表ともownerを`pitchlog_owner`とし、RLS ENABLE/FORCE、PUBLIC・app・sync binding actor・RG1 control actor・sync right関数ownerから全権限を撤去してdefault-denyに配置する。"
+            }
+          ]
+        },
+        {
+          "table": "stats_primitive_sources",
+          "reason": "採用済み成績private原本3表。default-denyの私有保存構造として関数経路へ限定する。",
+          "evidence": [
+            {
+              "section": "6-1-c",
+              "quote": "| `sync_fence.stats_primitive_sources` |"
+            },
+            {
+              "section": "6-1-c",
+              "quote": "migration単独では3表ともownerを`pitchlog_owner`とし、RLS ENABLE/FORCE、PUBLIC・app・sync binding actor・RG1 control actor・sync right関数ownerから全権限を撤去してdefault-denyに配置する。"
+            }
+          ]
+        },
+        {
+          "table": "stats_primitive_facts",
+          "reason": "採用済み成績private原本3表。default-denyの私有保存構造として関数経路へ限定する。",
+          "evidence": [
+            {
+              "section": "6-1-c",
+              "quote": "| `sync_fence.stats_primitive_facts` |"
+            },
+            {
+              "section": "6-1-c",
+              "quote": "migration単独では3表ともownerを`pitchlog_owner`とし、RLS ENABLE/FORCE、PUBLIC・app・sync binding actor・RG1 control actor・sync right関数ownerから全権限を撤去してdefault-denyに配置する。"
+            }
+          ]
+        }
+      ]
     }
   ]
 }

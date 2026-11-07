@@ -320,6 +320,30 @@
         "reason": "ordinary_pitch_storage",
         "owner_unit": "U-R1"
       }
+    },
+    {
+      "table": "stats_fact_versions",
+      "profile": "function_only",
+      "access_path": {
+        "reason": "stats_primitive_storage",
+        "owner_unit": "U-X1"
+      }
+    },
+    {
+      "table": "stats_primitive_sources",
+      "profile": "function_only",
+      "access_path": {
+        "reason": "stats_primitive_storage",
+        "owner_unit": "U-X1"
+      }
+    },
+    {
+      "table": "stats_primitive_facts",
+      "profile": "function_only",
+      "access_path": {
+        "reason": "stats_primitive_storage",
+        "owner_unit": "U-X1"
+      }
     }
   ]
 }

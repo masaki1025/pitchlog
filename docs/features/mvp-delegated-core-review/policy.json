@@ -90,6 +90,10 @@
     {
       "pr": 196,
       "branch": "feature/mvp-batted-hits"
+    },
+    {
+      "pr": 197,
+      "branch": "feature/mvp-stats-native-foundation"
     }
   ]
 }

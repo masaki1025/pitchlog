@@ -64,6 +64,7 @@ def _materialize_checker_revision_root(revision: str, destination: Path) -> Path
         "tests/fixtures/pr191_tenant_source_expected_v1.json",
         "tests/fixtures/pr192_tenant_source_expected_v1.json",
         "tests/fixtures/pr196_tenant_source_expected_v1.json",
+        "tests/fixtures/pr197_tenant_source_expected_v1.json",
         ".claude/core-areas.json", "backend/src",
     )
     entries = subprocess.check_output([
@@ -1436,7 +1437,11 @@ def _pr192_relocated_ordinary_frame(
         cwd=REPOSITORY_ROOT,
     )
     assert hashlib.sha256(old).hexdigest() == digest, "旧緩和SHAが正式191と不一致"
-    assert target.read_bytes() == current, "緩和site source SHAが固定192と不一致"
+    actual = target.read_bytes()
+    if actual != current:
+        assert checker._pr197_identity_successor_matches(
+            actual.decode("utf-8"), path, checker.load_contract(REPOSITORY_ROOT),
+        ), "緩和site sourceが固定192/PR197後継と不一致"
     def call(source: bytes) -> ast.Call:
         tree = ast.parse(source.decode(), filename=path)
         function = next(n for n in tree.body if isinstance(n, ast.FunctionDef)
@@ -1451,8 +1456,13 @@ def _pr192_relocated_ordinary_frame(
         return calls[0]
     before, after = call(old), call(current)
     assert (before.lineno, before.end_lineno) == identity[1:3]
-    assert after.end_lineno == after.lineno
-    return (path, after.lineno, after.end_lineno, *identity[3:])
+    assert (after.lineno, after.end_lineno) == (212, 212)
+    current_call = call(actual)
+    assert ast.dump(current_call, include_attributes=False) == ast.dump(
+        after, include_attributes=False,
+    )
+    assert current_call.end_lineno == current_call.lineno
+    return (path, current_call.lineno, current_call.end_lineno, *identity[3:])
 
 
 def _assert_removed_tb007_matches_declared_relaxations(
@@ -2079,11 +2089,13 @@ def _measured_resolution_owner_suppression(
     path = owner.path.removeprefix("backend/src/")
     tree = ast.parse((source_root / path).read_text(encoding="utf-8"))
     nodes = [n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == owner.symbol]
-    assert len(nodes) == 1 and nodes[0].lineno == owner.line
+    # 固定登録は歴史sourceの位置を保持する。現sourceでは全ASTで同じownerを
+    # 確認した上で、移動後の実位置を反事実の期待identityへ束縛する。
+    assert len(nodes) == 1
     assert ast.dump(nodes[0]) == ast.dump(checker._RESOLUTION_OWNER_EXPECTED_AST)
     assert nodes[0].end_lineno is not None
     expected: CensusIdentity = (
-        path, owner.line, nodes[0].end_lineno, owner.scope, code, owner.symbol,
+        path, nodes[0].lineno, nodes[0].end_lineno, owner.scope, code, owner.symbol,
         "条件 1 の禁止シンボルを検出",
     )
     counterfactual = frozenset(
@@ -2094,6 +2106,13 @@ def _measured_resolution_owner_suppression(
     )
     assert not current_census - counterfactual
     suppression = counterfactual - current_census
+    if checker._pr197_identity_successor_matches(
+        (source_root / path).read_text(encoding="utf-8"), path, current_contract,
+    ):
+        # 旧owner登録の949原典は歴史証明に残す。PR197の真正後継は
+        # V116で新位置を照合するため、この旧登録自身の現行抑止は0件。
+        assert not suppression and expected not in current_census
+        return frozenset()
     assert suppression == frozenset({expected})
     return suppression
 
@@ -5523,7 +5542,10 @@ def _validated_pr191_source_suppression(
             continue
         source = target.read_bytes()
         if owner.path in superseded:
-            assert source == new_sources[owner.path], "pr191後継sourceが固定9b76と不一致"
+            if source != new_sources[owner.path]:
+                assert checker._pr197_identity_successor_matches(
+                    source.decode("utf-8"), relative, current_contract,
+                ), "pr191後継sourceが固定9b76/PR197後継と不一致"
             continue
         assert owner.path in retained and source == owner.immutable_source
         def scan(contract: Any) -> frozenset[CensusIdentity]:
@@ -5566,6 +5588,15 @@ def _validated_pr192_legacy_followups(
             cwd=REPOSITORY_ROOT,
         )
         source = (source_root / relative).read_bytes()
+        if checker._pr197_identity_successor_matches(
+            source.decode("utf-8"), relative, current_contract,
+        ):
+            # 旧37は固定9b76の履歴siteを測る。現PR197のV116等へ
+            # 同じ旧ownerを再帰属させず、真正後継の全byteを先に確認する。
+            source = subprocess.check_output(
+                ["git", "show", expected["source_revision"] + ":" + full],
+                cwd=REPOSITORY_ROOT,
+            )
         tree = ast.parse(source.decode(), filename=relative)
         wanted: set[CensusIdentity] = set()
         for row in rows:
@@ -5655,7 +5686,15 @@ def _validated_pr192_source_suppression(
         assert target.is_file() and not target.is_symlink(), "pr192 source欠落/非regular"
         source = target.read_bytes()
         if source != raw:
-            source = _pr196_predecessor_bytes(full_path, source, current_contract, expected)
+            if checker._pr197_identity_successor_matches(
+                source.decode("utf-8"), full_path.removeprefix("backend/src/"),
+                current_contract,
+            ):
+                source = raw
+            else:
+                source = _pr196_predecessor_bytes(
+                    full_path, source, current_contract, expected,
+                )
         assert source == raw, "pr192 sourceは固定原典との全byte一致が必要"
     _validated_pr192_legacy_followups(
         expected, source_root=source_root, current_contract=current_contract,
@@ -5858,6 +5897,77 @@ def _validated_current_pr192_source_suppression(
     return current
 
 
+@contextmanager
+def _without_pr197_site_filter() -> Iterator[None]:
+    """PR197の資格を維持して実Python siteの最終filterだけを外す。"""
+    original = checker._pr197_source_evidence
+    setattr(checker, "_pr197_source_evidence", lambda *_args: frozenset())
+    try:
+        yield
+    finally:
+        setattr(checker, "_pr197_source_evidence", original)
+
+
+def _validated_pr197_source_suppression(
+    *, source_root: Path, current_contract: Any,
+) -> frozenset[CensusIdentity]:
+    """固定71の資格と実抑止を分け、他filterとの二重計上を拒否する。"""
+    assert checker._pr197_registration_is_trusted(current_contract)
+    expected = checker._pr197_fixed_expectations(REPOSITORY_ROOT)
+    registration = current_contract.pr197_source_registration
+    assert registration is not None and len(registration.owners) == 15
+    assert sum(len(owner.findings) for owner in registration.owners) == 71
+    assert len(registration.sql_paths) == 3
+    assert checker._pr197_generated_sql_matches(REPOSITORY_ROOT, current_contract)
+    held = {
+        (item["path"], item["line"], item["code"], item["symbol"])
+        for item in expected["held_findings"]
+    }
+    assert len(held) == 3
+    measured: set[CensusIdentity] = set()
+    non_emitting: set[tuple[str, int, str, str]] = set()
+    for owner in registration.owners:
+        relative = owner.path.removeprefix("backend/src/")
+        target = source_root / relative
+        assert target.is_file() and not target.is_symlink()
+        source = target.read_bytes()
+        assert source == owner.immutable_source
+        assert hashlib.sha256(source).hexdigest() == owner.source_sha256
+        assert all((owner.path, line, code, symbol) not in held
+                   for line, code, symbol, _scope in owner.findings)
+        if owner.path.endswith(".sql"):
+            assert len(owner.findings) == 1 and relative in registration.sql_paths
+            continue
+
+        def scan() -> frozenset[CensusIdentity]:
+            return frozenset(
+                (v.path, v.line, v.end_line, v.scope, v.code, v.symbol, v.message)
+                for v in checker.scan_source(
+                    source.decode("utf-8"), path=relative, contract=current_contract,
+                )
+            )
+
+        after = scan()
+        with _without_pr197_site_filter():
+            before = scan()
+        assert not after - before, "PR197 filterは新所見を作れない"
+        suppressed = before - after
+        observed = {(line, code, symbol, scope)
+                    for _path, line, _end, scope, code, symbol, _message in suppressed}
+        assert observed <= owner.findings
+        non_emitting.update(
+            (owner.path, line, code, symbol)
+            for line, code, symbol, scope in owner.findings - observed
+        )
+        measured.update(suppressed)
+    assert non_emitting == {
+        ("backend/src/pitchlog/domaincheck/runners/stats_native.py", 668,
+         "TB007", "pitchlog.stats.facts._EVENT_FACTS"),
+    }, "既に所見を出さないsiteを二重計上できない"
+    assert len(measured) == 67 and len(measured) + len(non_emitting) + 3 == 71
+    return frozenset(measured)
+
+
 def _assert_pr191_closed_meaning(source: str, path: str) -> None:
     """C3のbefore-copyとC5の同source callback/既封印型を個別に確認する。"""
     tree = ast.parse(source)
@@ -6008,6 +6118,11 @@ def _assert_removed_equals_measured_allowlist_suppression(
     suppression |= _validated_pr196_source_suppression(
         declaration, source_root=source_root, current_contract=current_contract,
     )
+    pr197 = _validated_pr197_source_suppression(
+        source_root=source_root, current_contract=current_contract,
+    )
+    assert not suppression & pr197, "PR197実抑止を旧siteへ二重計上できない"
+    suppression |= pr197
     code_index = identity_indexes["code"]
     for identity in data_sets[set_name]:
         code = identity[code_index]
@@ -6050,10 +6165,28 @@ def _assert_removed_matches_declared_relaxations(
     proof |= _validated_pr196_source_suppression(
         declaration, source_root=source_root, current_contract=current_contract,
     )
+    pr197 = _validated_pr197_source_suppression(
+        source_root=source_root, current_contract=current_contract,
+    )
+    assert not proof & pr197
+    proof |= pr197
+    declared = _declared_relaxation_identities(predicate, source_root=source_root)
+    frame_path = "pitchlog/sync/ordinary_pitch_execution.py"
+    frame_source = (source_root / frame_path).read_text(encoding="utf-8")
+    if checker._pr197_identity_successor_matches(
+        frame_source, frame_path, current_contract,
+    ):
+        # 旧198→212の緩和は上の固定Git/ASTで証明済み。現213の
+        # 減分はPR197の実siteであり、歴史緩和へ二重帰属させない。
+        historical = frozenset(i for i in declared if i[0] == frame_path)
+        assert len(historical) == 1
+        assert next(iter(historical))[1:3] == (213, 213)
+        assert historical <= pr197 and historical <= selected
+        declared -= historical
     _assert_removed_tb007_matches_declared_relaxations(
         selected - proof,
         expected_code=code,
-        declared=_declared_relaxation_identities(predicate, source_root=source_root),
+        declared=declared,
     )
 
 
@@ -6740,6 +6873,11 @@ def _assert_unadjudicated_removed_remains(
     pr191_removed |= _validated_pr196_source_suppression(
         declaration, source_root=source_root, current_contract=current_contract,
     )
+    pr197_removed = _validated_pr197_source_suppression(
+        source_root=source_root, current_contract=current_contract,
+    )
+    assert not pr191_removed & pr197_removed
+    pr191_removed |= pr197_removed
     for identity in data_sets[set_name]:
         if (
             identity in pr191_removed or identity in initial_removed
@@ -6920,6 +7058,11 @@ def _assert_added_equals_independently_derived_candidates(
     pr191_suppressed |= _validated_pr196_source_suppression(
         declaration, source_root=source_root, current_contract=current_contract,
     )
+    pr197_suppressed = _validated_pr197_source_suppression(
+        source_root=source_root, current_contract=current_contract,
+    )
+    assert not pr191_suppressed & pr197_suppressed
+    pr191_suppressed |= pr197_suppressed
     pr191_sites = {(i[0], i[1], i[4]) for i in pr191_suppressed if i[4] == "TB002"}
     expected = frozenset(i for i in expected if (i[0], i[1], i[4]) not in pr191_sites)
     actual = _canonical_proven_builtin_identities(data_sets[set_name], source_root)
@@ -7314,6 +7457,7 @@ def _copy_pr191_proof_inputs(destination: Path) -> None:
         Path("tests/fixtures/pr191_tenant_source_expected_v1.json"),
         Path("tests/fixtures/pr192_tenant_source_expected_v1.json"),
         Path("tests/fixtures/pr196_tenant_source_expected_v1.json"),
+        Path("tests/fixtures/pr197_tenant_source_expected_v1.json"),
     ):
         (destination / fixture).parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(REPOSITORY_ROOT / fixture, destination / fixture)
@@ -7325,6 +7469,54 @@ def _copy_pr191_proof_inputs(destination: Path) -> None:
 
 def _copy_current_contract_tree(destination: Path) -> None:
     """一時の現在ツリーへ、契約読取りに必要な資産と fixture を複写する。"""
+    # manifest の可変列挙を copy2 の対象にする前に、PR197固定Gitと独立Eを照合する。
+    manifest = Path("backend/domain/stats-manifest.json")
+    expected = checker._pr197_fixed_expectations(REPOSITORY_ROOT)["sql_generation"]
+    fixed = checker._pr192_git_bytes(
+        REPOSITORY_ROOT, checker._PR197_SOURCE_REVISION, manifest.as_posix()
+    )
+    source_manifest = REPOSITORY_ROOT / manifest
+    assert (
+        expected["manifest_path"] == manifest.as_posix()
+        and not source_manifest.is_symlink()
+        and source_manifest.is_file()
+        and source_manifest.read_bytes() == fixed
+        and hashlib.sha256(fixed).hexdigest() == expected["manifest_sha256"]
+    ), "PR197 manifest の固定原本が一致しない"
+    declared = json.loads(fixed, object_pairs_hook=checker._unique_json_object)
+    assert declared["generationInputFiles"] == expected["generation_input_files"]
+    assert {
+        path: declared["generatedFiles"][path]
+        for path in expected["generated_sha256"]
+    } == expected["generated_sha256"]
+    assets: list[tuple[Path, bytes]] = [(manifest, fixed)]
+    for path, digest in (
+        *declared["generationInputFiles"].items(),
+        *declared["generatedFiles"].items(),
+    ):
+        assert type(path) is str and type(digest) is str
+        relative = Path(path)
+        assert (
+            not relative.is_absolute()
+            and ".." not in relative.parts
+            and relative.parts
+            and relative.parts[0] in {"backend", "frontend"}
+        ), "PR197 manifest に不正な経路がある"
+        source = REPOSITORY_ROOT / relative
+        raw = checker._pr192_git_bytes(
+            REPOSITORY_ROOT, checker._PR197_SOURCE_REVISION, path
+        )
+        assert (
+            not source.is_symlink()
+            and source.is_file()
+            and source.read_bytes() == raw
+            and hashlib.sha256(raw).hexdigest() == digest
+        ), "PR197 manifest の生成資産が固定原本と一致しない"
+        assets.append((relative, raw))
+    assert (
+        not source_manifest.is_symlink()
+        and source_manifest.read_bytes() == fixed
+    ), "PR197 manifest が検証中に変更された"
     for relative in (
         Path("contracts/tenant_boundary"),
         Path("tests/fixtures/tenant_boundary"),
@@ -7334,7 +7526,65 @@ def _copy_current_contract_tree(destination: Path) -> None:
     core_areas = destination / ".claude" / "core-areas.json"
     core_areas.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(REPOSITORY_ROOT / ".claude" / "core-areas.json", core_areas)
+    # 以後は固定原本の bytes だけを書き出し、再読込した可変経路を使わない。
+    for relative, raw in assets:
+        target = destination / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(raw)
     _copy_pr191_proof_inputs(destination)
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    ["unregistered", "absolute", "parent", "symlink", "asset-symlink",
+     "changed-during-check"],
+)
+def test_current_contract_copy_rejects_unqualified_manifest_before_copy(
+    mutation: str, monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
+) -> None:
+    """可変manifestの列挙・リンク・検証中変更を複写前に拒否する。"""
+    manifest = REPOSITORY_ROOT / "backend/domain/stats-manifest.json"
+    linked_asset = REPOSITORY_ROOT / "backend/domain/stats.model.json"
+    original_read = Path.read_bytes
+    original_link = Path.is_symlink
+    raw = original_read(manifest)
+    reads = 0
+    requested: list[Path] = []
+
+    def read_bytes(path: Path) -> bytes:
+        nonlocal reads
+        if path != manifest:
+            return original_read(path)
+        reads += 1
+        if mutation == "changed-during-check" and reads == 1:
+            return raw
+        if mutation in {"unregistered", "absolute", "parent", "changed-during-check"}:
+            declared = json.loads(raw)
+            forged_path = {
+                "unregistered": "SAFE_UNREGISTERED_PROBE.txt",
+                "absolute": "/tmp/SAFE_UNREGISTERED_PROBE.txt",
+                "parent": "../SAFE_UNREGISTERED_PROBE.txt",
+                "changed-during-check": "SAFE_UNREGISTERED_PROBE.txt",
+            }[mutation]
+            declared["generationInputFiles"][forged_path] = "0" * 64
+            return json.dumps(declared).encode()
+        return raw
+
+    def is_symlink(path: Path) -> bool:
+        return ((path == manifest and mutation == "symlink")
+                or (path == linked_asset and mutation == "asset-symlink")
+                or original_link(path))
+
+    def forbidden_copy(source: Path, target: Path) -> None:
+        requested.append(source)
+
+    monkeypatch.setattr(Path, "read_bytes", read_bytes)
+    monkeypatch.setattr(Path, "is_symlink", is_symlink)
+    monkeypatch.setattr(shutil, "copy2", forbidden_copy)
+    with pytest.raises(AssertionError, match="PR197 manifest"):
+        _copy_current_contract_tree(tmp_path / "contract")
+    assert requested == []
+    assert not (tmp_path / "contract").exists()
 
 
 def _set_temporary_allowed_symbols(
@@ -9187,7 +9437,7 @@ def test_initial_broker_constructor_guard_loss_has_no_census_explanation(mutatio
     "missing-suppression", "unknown-field", "wrong-code",
 ])
 def test_resolution_owner_counterfactual_is_one_closed_identity(
-    mutation: str, monkeypatch: pytest.MonkeyPatch,
+    mutation: str, monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
 ) -> None:
     """owner抑止の測定宣言/真正scope/唯一identityを厳密に保つ。"""
     contract = checker.load_contract(REPOSITORY_ROOT)
@@ -9195,6 +9445,15 @@ def test_resolution_owner_counterfactual_is_one_closed_identity(
     assert owner is not None
     source_root = REPOSITORY_ROOT / "backend/src"
     path = owner.path.removeprefix("backend/src/")
+    if mutation == "missing-suppression":
+        # 現PR197 sourceでは旧ownerの実抑止は0。旧949原典を別rootへ
+        # 固定Gitから復元し、歴史owner1の欠落だけを拒否する。
+        source_root = tmp_path
+        target = source_root / path
+        target.parent.mkdir(parents=True)
+        target.write_bytes(subprocess.check_output([
+            "git", "show", checker._PR197_PR192_SOURCE_REVISION + ":" + owner.path,
+        ], cwd=REPOSITORY_ROOT))
     tree = ast.parse((source_root / path).read_text(encoding="utf-8"))
     function = next(
         node for node in tree.body
@@ -9227,6 +9486,34 @@ def test_resolution_owner_counterfactual_is_one_closed_identity(
             substituted_field=field, substituted_from="none", code=code,
             source_root=source_root, current_census=frozenset(), current_contract=contract,
         )
+
+
+def test_historical_resolution_owner_one_remains_measured(tmp_path: Path) -> None:
+    """旧949原典のowner1抑止を現1108の0件と独立に実測する。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    owner = contract.resolution_owner
+    assert owner is not None
+    path = owner.path.removeprefix("backend/src/")
+    target = tmp_path / path
+    target.parent.mkdir(parents=True)
+    original = subprocess.check_output([
+        "git", "show", checker._PR197_PR192_SOURCE_REVISION + ":" + owner.path,
+    ], cwd=REPOSITORY_ROOT)
+    assert hashlib.sha256(original).hexdigest() == owner.source_sha256
+    target.write_bytes(original)
+    current = frozenset(
+        (v.path, v.line, v.end_line, v.scope, v.code, v.symbol, v.message)
+        for v in checker.scan_directory(tmp_path, contract=contract)
+    )
+    measured = _measured_resolution_owner_suppression(
+        substituted_field=(
+            "contracts/tenant_boundary/base-allowlist.json#/"
+            "condition_1_resolve_scoped_finding"
+        ),
+        substituted_from="none", code="TB001", source_root=tmp_path,
+        current_census=current, current_contract=contract,
+    )
+    assert len(measured) == 1 and next(iter(measured))[1] == 949
 
 
 @pytest.mark.parametrize("binding", [
@@ -10018,7 +10305,7 @@ def test_pr192_census_relocated_frame_is_not_a_general_relaxation(
     target = tmp_path / "ordinary_pitch_execution.py"
     target.write_bytes((REPOSITORY_ROOT / "backend/src" / row["path"]).read_bytes())
     good = _pr192_relocated_ordinary_frame(identity, row["source_sha256"], target)
-    assert good[1:3] == (212, 212) and good[3:] == identity[3:]
+    assert good[1:3] == (213, 213) and good[3:] == identity[3:]
     changed = list(identity)
     digest = row["source_sha256"]
     if mutation in {"line", "scope", "symbol"}:
@@ -10265,3 +10552,44 @@ def test_pr196_census_proof_reads_every_declared_leaf() -> None:
     assert fields <= audit.read_fields
     assert fields <= audit.implementation_sources
     assert not audit.undeclared_inputs
+
+
+def test_pr197_census_keeps_71_qualified_and_held_three_separate() -> None:
+    """固定71のうち実Python抑止67だけを数え、SQL3と非発火1を分ける。"""
+    measured = _validated_pr197_source_suppression(
+        source_root=REPOSITORY_ROOT / "backend/src",
+        current_contract=checker.load_contract(REPOSITORY_ROOT),
+    )
+    assert len(measured) == 67
+    assert all(item[4] in {"TB001", "TB002", "TB005", "TB007"} for item in measured)
+
+
+@pytest.mark.parametrize("mutation", ["missing", "different-byte", "same-hash"])
+def test_pr197_census_rejects_current_source_change(tmp_path: Path, mutation: str) -> None:
+    """現在の固定sourceと登録を同時変更しても71資格を転用しない。"""
+    contract = checker.load_contract(REPOSITORY_ROOT)
+    registration = contract.pr197_source_registration
+    assert registration is not None
+    for owner in registration.owners:
+        target = tmp_path / owner.path.removeprefix("backend/src/")
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(owner.immutable_source)
+    owner = registration.owners[0]
+    target = tmp_path / owner.path.removeprefix("backend/src/")
+    if mutation == "missing":
+        target.unlink()
+    else:
+        changed = target.read_bytes() + b"\n# unauthorized\n"
+        target.write_bytes(changed)
+        if mutation == "same-hash":
+            owner = replace(
+                owner, immutable_source=changed,
+                source_sha256=hashlib.sha256(changed).hexdigest(),
+            )
+            contract = replace(contract, pr197_source_registration=replace(
+                registration, owners=(owner, *registration.owners[1:]),
+            ))
+    with pytest.raises(AssertionError):
+        _validated_pr197_source_suppression(
+            source_root=tmp_path, current_contract=contract,
+        )

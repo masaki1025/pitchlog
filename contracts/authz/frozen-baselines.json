@@ -42,7 +42,7 @@
     "code_assets": [
       {
         "path": "scripts/check_frozen_baselines.py",
-        "sha256": "2d45de24d8d2e48444ee2d0d43a66f13bf1f1146b940f5ba15f67ed9922cc6b9"
+        "sha256": "137cb9d8f6dc135a7fb2112c580f1ad87061ebd624bbc38a105cc3ac0b819dee"
       },
       {
         "path": "scripts/frozen_baselines.py",
@@ -1014,6 +1014,91 @@
       "series": "oracle_input",
       "approved_by": "PO委任によるCodex主担当/root判断（本人署名ではない）",
       "approved_at": "2026-11-05"
+    },
+    {
+      "acceptance_id": "masaki1025/pitchlog#197",
+      "changes": [
+        {
+          "aspect": "implementation_bindings",
+          "before": {
+            "code_assets": [
+              {
+                "path": "scripts/check_frozen_baselines.py",
+                "sha256": "2d45de24d8d2e48444ee2d0d43a66f13bf1f1146b940f5ba15f67ed9922cc6b9"
+              },
+              {
+                "path": "scripts/frozen_baselines.py",
+                "sha256": "8277e009a045768e2a0c7b08acba06782d7da2a02c69631b814940d09366da7c"
+              }
+            ],
+            "strategy_keys": [
+              "literal_commit_string/json_pointer_value"
+            ],
+            "registry": {
+              "path": "scripts/frozen_baselines.py",
+              "symbol": "COMPARISON_STRATEGIES"
+            }
+          },
+          "after": {
+            "code_assets": [
+              {
+                "path": "scripts/check_frozen_baselines.py",
+                "sha256": "137cb9d8f6dc135a7fb2112c580f1ad87061ebd624bbc38a105cc3ac0b819dee"
+              },
+              {
+                "path": "scripts/frozen_baselines.py",
+                "sha256": "8277e009a045768e2a0c7b08acba06782d7da2a02c69631b814940d09366da7c"
+              }
+            ],
+            "strategy_keys": [
+              "literal_commit_string/json_pointer_value"
+            ],
+            "registry": {
+              "path": "scripts/frozen_baselines.py",
+              "symbol": "COMPARISON_STRATEGIES"
+            }
+          }
+        }
+      ],
+      "moved": false,
+      "new_identity": {
+        "present": true,
+        "values": [
+          {
+            "kind": "literal_commit_string",
+            "value": "7c2abc9883cd0fc679516dc9d1f73de08efcb188"
+          }
+        ]
+      },
+      "placement_change": {
+        "after": [
+          {
+            "kind": "ledger_series",
+            "path": "contracts/authz/frozen-baselines.json",
+            "series": "oracle_input"
+          }
+        ],
+        "before": [
+          {
+            "kind": "ledger_series",
+            "path": "contracts/authz/frozen-baselines.json",
+            "series": "oracle_input"
+          }
+        ]
+      },
+      "prior_identity": {
+        "present": true,
+        "values": [
+          {
+            "kind": "literal_commit_string",
+            "value": "c3a3589dc9420769ddbc084dd018881ffa88997e"
+          }
+        ]
+      },
+      "reason": "成績native基盤の真正source/派生8を固定した7c2abc98へoracle_inputを前進する候補。非作者1c7bfe7bと76246aedでsource2/派生6の全前後・187認可判断保持を照合済み。6oracle意味本文/全期待/拒否/旧履歴/placementを保持しcontext commitと公式sealだけ整合する。新8差分の独立再確認/正式tenant7.7/最終CIは別証拠。PO本人の確認・署名やP6blind/実機/全MVP完了を代記しない。 同じ未受理PR197内で検査器実byteを改訂したため、code_assetsの固定SHAを正式base51bの前値から現実byteへ束縛し、履歴1件の変更として記録する。",
+      "series": "oracle_input",
+      "approved_by": "PO委任によるCodex主担当/root判断（本人署名ではない）",
+      "approved_at": "2026-11-06"
     }
   ]
 }

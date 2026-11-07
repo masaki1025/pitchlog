@@ -6,6 +6,7 @@ import argparse
 import copy
 import fnmatch
 import hashlib
+import importlib.util
 import json
 import os
 import re
@@ -15,6 +16,35 @@ import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping, Sequence
+
+
+def _load_frozen_history() -> Any:
+    """core_guard と同じ checkout の凍結履歴実装を読み込む。"""
+    path = Path(__file__).resolve().with_name("frozen_history.py")
+    if not path.is_file() or path.is_symlink():
+        # 旧profileの有限fixtureは本moduleだけを載せる。PR197照合は不合格にする。
+        class _UnavailableFrozenHistory:
+            """同じ checkout に原典が無い場合の閉拒否値。"""
+
+            @staticmethod
+            def read_original_pr197_pin(_name: str) -> None:
+                """固定期待が欠けたときは照合を成立させない。"""
+                return None
+
+        return _UnavailableFrozenHistory()
+    module_name = "core_guard_frozen_history_" + hashlib.sha256(
+        str(path).encode("utf-8")
+    ).hexdigest()[:16]
+    spec = importlib.util.spec_from_file_location(module_name, path)
+    if spec is None or spec.loader is None:
+        raise ImportError("同じ checkout の frozen_history を読めない")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[module_name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+frozen_history = _load_frozen_history()
 
 REQUIRED_CHECK_TEXT = "コア領域/検査経路の変更: 人間による逐行確認を実施した"
 NON_PR_SKIP_MESSAGE = "PR イベントではない — スキップ"
@@ -771,6 +801,278 @@ def validate_pr196_schema_comparison_area_path_layers(
         raise GuardError("schema比較core層の削除は許可しない")
 
 
+# 成績native基盤の未登録29pathだけ。旧schema2以下を変更しない有限外層。
+STATS_FOUNDATION_CORE_ADDITIONS: Mapping[str, tuple[str, ...]] = {
+    'sync-protocol': (
+        'backend/tests/test_native_ledger_insert.py',
+        'backend/tests/test_stats_native_connection.py',
+        'backend/tests/test_stats_native_flush.py',
+        'backend/tests/test_stats_native_prefix_connection.py',
+        'backend/tests/test_ordinary_pitch_payload.py',
+    ),
+    'game-state': (
+        'backend/src/pitchlog/exports/generated/play_primitives.sql',
+        'backend/src/pitchlog/stats/facts.py',
+        'backend/src/pitchlog/stats/generated/facts.py',
+        'backend/src/pitchlog/stats/generated/formatter.py',
+        'backend/src/pitchlog/stats/generated/receiver.py',
+        'backend/src/pitchlog/stats/generated/stats.sql',
+        'backend/src/pitchlog/stats/generated/stats_rates.sql',
+        'backend/tests/stats/test_basic_stats.py',
+        'backend/tests/stats/test_primitive_facts.py',
+        'backend/tests/test_stats_sql_generation_runtime.py',
+        'contracts/stats/native_event_facts_d11_v2.json',
+        'contracts/stats/native_current_totals_d11_v2.json',
+        'backend/tests/stats/test_stats_native_d11.py',
+    ),
+    'recording-rights': (),
+    'tenant-isolation': (
+        'backend/tests/test_stats_function_codec.py',
+        'backend/tests/test_stats_native_function_registration.py',
+        'backend/tests/test_stats_native_product_connection.py',
+        'backend/tests/test_stats_native_read_dispatch.py',
+        'backend/tests/test_stats_native_read_receipts.py',
+        'backend/tests/test_stats_primitive_product.py',
+        'backend/tests/test_stats_primitive_write_state.py',
+        'tests/test_stats_native_dependency_columns.py',
+        'backend/tests/stage_a_0039_profile.py',
+        'backend/tests/test_stage_a_0039_profile.py',
+    ),
+    'data-migration': (
+        'backend/src/pitchlog/db/current_product_startup.py',
+        'backend/tests/test_current_product_startup.py',
+        'backend/tests/test_stats_catalog_pg_representation.py',
+        'backend/tests/fixtures/product_authz_stage_a_profile_v0039.json',
+    ),
+}
+
+
+def _project_stats_foundation_layer(
+    document: Mapping[str, Any], label: str,
+) -> tuple[dict[str, Any], bool]:
+    """全32pairの完全suffixだけを外し、旧全field/登録を保持する。"""
+    paths_by_id = _area_paths_by_id(document, label)
+    expected = {(area, path) for area, paths in
+                STATS_FOUNDATION_CORE_ADDITIONS.items() for path in paths}
+    known = {path for _, path in expected}
+    observed = {(area, path) for area, paths in paths_by_id.items()
+                for path in paths if path in known}
+    guard_paths = document.get("guard_paths", [])
+    if isinstance(guard_paths, list) and any(path in known for path in guard_paths):
+        raise GuardError(f"{label} の成績基盤core層をguard_pathsへ代用できない")
+    projected = copy.deepcopy(dict(document))
+    if not observed:
+        return projected, False
+    history_pairs = {
+        ("tenant-isolation", "backend/tests/stage_a_0039_profile.py"),
+        ("tenant-isolation", "backend/tests/test_stage_a_0039_profile.py"),
+        ("data-migration", "backend/tests/fixtures/product_authz_stage_a_profile_v0039.json"),
+    }
+    legacy_expected = expected - history_pairs
+    if (observed != expected and observed != legacy_expected
+            or tuple(paths_by_id) != tuple(STATS_FOUNDATION_CORE_ADDITIONS)):
+        raise GuardError(f"{label} の成績基盤core層の完全29/32pair又は領域順序が不一致")
+    for area in projected["areas"]:
+        paths = paths_by_id[area["id"]]
+        suffix = tuple(path for path in STATS_FOUNDATION_CORE_ADDITIONS[area["id"]]
+                       if (area["id"], path) in observed)
+        if suffix and paths[-len(suffix):] != suffix:
+            raise GuardError(f"{label} の成績基盤core層が完全suffixに不一致")
+        prefix = paths[:-len(suffix)] if suffix else paths
+        if any(path in known for path in prefix):
+            raise GuardError(f"{label} の成績基盤core層が旧prefixへ混入している")
+        area["paths"] = list(prefix)
+    _, prior_present = _project_pr196_schema_comparison_layer(projected, label)
+    if not prior_present:
+        raise GuardError(f"{label} の成績基盤core層には既schema比較全2pairが必要")
+    return projected, True
+
+
+def validate_stats_foundation_area_path_layers(
+    baseline: Mapping[str, Any], candidate: Mapping[str, Any],
+) -> None:
+    """成績32の完全性/単調追加を閉確認し、既schema2以下へ委譲する。"""
+    old_baseline, before = _project_stats_foundation_layer(baseline, "merge-base")
+    old_candidate, after = _project_stats_foundation_layer(candidate, "PR head")
+    validate_pr196_schema_comparison_area_path_layers(old_baseline, old_candidate)
+    known = {path for paths in STATS_FOUNDATION_CORE_ADDITIONS.values() for path in paths}
+    before_count = sum(path in known for paths in _area_paths_by_id(baseline, "merge-base").values()
+                       for path in paths)
+    after_count = sum(path in known for paths in _area_paths_by_id(candidate, "PR head").values()
+                      for path in paths)
+    if before and (not after or after_count < before_count):
+        raise GuardError("成績基盤core層の削除は許可しない")
+
+
+PR197_TENANT_SOURCE_CORE_ADDITIONS: tuple[str, str] = (
+    "tests/fixtures/pr197_tenant_source_expected_v1.json",
+    "tests/test_pr197_tenant_source_registration.py",
+)
+_PR197_CORE_DEFINITION_AST_SHA256 = (
+    frozen_history.read_original_pr197_pin("pr197_core_definition_ast_sha256")
+)
+
+
+def _project_pr197_tenant_source_layer(
+    document: Mapping[str, Any], label: str,
+) -> tuple[dict[str, Any], bool]:
+    """PR197の2pathがtenant領域の完全suffixなら射影する。"""
+    paths_by_id = _area_paths_by_id(document, label)
+    known = set(PR197_TENANT_SOURCE_CORE_ADDITIONS)
+    observed = {(area_id, path) for area_id, paths in paths_by_id.items()
+                for path in paths if path in known}
+    guard_paths = document.get("guard_paths", [])
+    if isinstance(guard_paths, list) and any(path in known for path in guard_paths):
+        raise GuardError(f"{label} のPR197 core層をguard_pathsへ代用できない")
+    projected = copy.deepcopy(dict(document))
+    if not observed:
+        return projected, False
+    expected = {("tenant-isolation", path) for path in known}
+    if (observed != expected
+            or tuple(paths_by_id) != tuple(STATS_FOUNDATION_CORE_ADDITIONS)):
+        raise GuardError(f"{label} のPR197 core層の完全2pair又は領域順序が不一致")
+    paths = paths_by_id["tenant-isolation"]
+    suffix = PR197_TENANT_SOURCE_CORE_ADDITIONS
+    if paths[-len(suffix):] != suffix:
+        raise GuardError(f"{label} のPR197 core層が完全suffixに不一致")
+    stats_pairs = {(area_id, path) for area_id, additions in
+                   STATS_FOUNDATION_CORE_ADDITIONS.items() for path in additions}
+    stats_known = {path for _, path in stats_pairs}
+    observed_stats = {(area_id, path) for area_id, additions in paths_by_id.items()
+                      for path in additions if path in stats_known}
+    if observed_stats != stats_pairs:
+        raise GuardError(f"{label} のPR197 core層には成績基盤全32pairが必要")
+    prefix = paths[:-len(suffix)]
+    if any(path in known for path in prefix):
+        raise GuardError(f"{label} のPR197 core層が旧prefixへ混入している")
+    for area in projected["areas"]:
+        if area["id"] == "tenant-isolation":
+            area["paths"] = list(prefix)
+    return projected, True
+
+
+def validate_pr197_tenant_source_area_path_layers(
+    baseline: Mapping[str, Any], candidate: Mapping[str, Any],
+    *, root: Path | None = None, base_revision: str | None = None,
+    head_sha: str | None = None,
+) -> None:
+    """旧29/32を保ち、PR197全2pathの有限追加と単調性を確認する。"""
+    old_baseline, before = _project_pr197_tenant_source_layer(baseline, "merge-base")
+    old_candidate, after = _project_pr197_tenant_source_layer(candidate, "PR head")
+    validate_stats_foundation_area_path_layers(old_baseline, old_candidate)
+    if before and not after:
+        raise GuardError("PR197 tenant source core層の削除は許可しない")
+    if root is not None:
+        if base_revision is None or head_sha is None:
+            raise GuardError("PR197 core層のGit基線情報が不足")
+        _verify_pr197_definition_order(root, base_revision, head_sha)
+
+
+def _pr197_definition_fingerprint(source: str) -> str:
+    """旧2path原典と回復後の実入口を別指紋へ固定する。"""
+    import ast
+
+    tree = ast.parse(source)
+    constants = [node for node in tree.body if isinstance(node, ast.AnnAssign)
+                 and isinstance(node.target, ast.Name)
+                 and node.target.id == "PR197_TENANT_SOURCE_CORE_ADDITIONS"]
+    names = ("_project_pr197_tenant_source_layer",
+             "validate_pr197_tenant_source_area_path_layers",
+             "_pr197_definition_fingerprint", "_pr197_registered_paths",
+             "_verify_pr197_definition_order")
+    recovery_names = ("_pr197_commit_blob", "_pr197_recovery_pins",
+                      "_pr197_identical_cochange", "_pr197_merge_carry_pins")
+    present = any(isinstance(node, ast.FunctionDef)
+                  and node.name == "_pr197_identical_cochange"
+                  for node in tree.body)
+    if present:
+        names += recovery_names
+    functions = [node for name in names for node in tree.body
+                 if isinstance(node, ast.FunctionDef) and node.name == name]
+    verify = [node for node in tree.body if isinstance(node, ast.FunctionDef)
+              and node.name == "verify_area_path_baseline"]
+    if len(constants) != 1 or len(functions) != len(names) or len(verify) != 1:
+        raise GuardError("PR197定義ASTの定数/関数が不一致")
+    if (constants[0].value is None
+            or ast.literal_eval(constants[0].value) != PR197_TENANT_SOURCE_CORE_ADDITIONS):
+        raise GuardError("PR197定義ASTの定数/関数が不一致")
+    calls = [node for node in ast.walk(verify[0]) if isinstance(node, ast.Call)
+             and isinstance(node.func, ast.Name)
+             and node.func.id == "validate_pr197_tenant_source_area_path_layers"]
+    if len(calls) != 1 or ast.unparse(calls[0]) != (
+        "validate_pr197_tenant_source_area_path_layers(baseline, candidate, "
+        "root=root, base_revision=baseline_revision, head_sha=head_sha)"
+    ):
+        raise GuardError("PR197定義のverify入口callが不一致")
+    selected = (*constants, *functions, *(verify if present else calls))
+    projection = "\n".join(ast.get_source_segment(source, node) or ""
+                           for node in selected)
+    return hashlib.sha256(projection.encode()).hexdigest()
+
+
+def _pr197_registered_paths(document: Mapping[str, Any], label: str) -> frozenset[str]:
+    """文書中の新2path全出現を領域とguard経路から拾う。"""
+    known = set(PR197_TENANT_SOURCE_CORE_ADDITIONS)
+    areas = _area_paths_by_id(document, label)
+    guard_paths = document.get("guard_paths", [])
+    found = {path for paths in areas.values() for path in paths if path in known}
+    if isinstance(guard_paths, list):
+        found.update(path for path in guard_paths if path in known)
+    return frozenset(found)
+
+
+def _verify_pr197_definition_order(root: Path, base_revision: str, head_sha: str) -> None:
+    """新path初登場commitの全親で固定定義と入口が先行したことを確認する。"""
+    complete = frozenset(PR197_TENANT_SOURCE_CORE_ADDITIONS)
+    revisions = _commits_between(root, base_revision, head_sha)
+    documents = {
+        revision: load_core_areas_at_revision(root, revision)
+        for revision in revisions
+    }
+    baseline = load_core_areas_at_revision(root, base_revision)
+    if (not _pr197_registered_paths(baseline, base_revision)
+            and not any(_pr197_registered_paths(document, revision)
+                        for revision, document in documents.items())):
+        # PR197未登場の旧履歴にはcarry例外を適用しない。
+        return
+    docs_merge, current_definition = _pr197_merge_carry_pins(root, head_sha)
+    if (_pr197_definition_fingerprint(Path(__file__).read_text())
+            != current_definition):
+        raise GuardError("PR197実行中の定義ASTが固定値と不一致")
+    for revision in revisions:
+        if revision == docs_merge:
+            _verify_pr197_approved_doc_merge(root, base_revision, revision)
+            continue
+        document = documents[revision]
+        present = _pr197_registered_paths(document, revision)
+        if present and present != complete:
+            raise GuardError(f"{revision} のPR197 core層が部分追加")
+        if present:
+            _project_pr197_tenant_source_layer(document, revision)
+        parents = _run_git(root, ["show", "-s", "--format=%P", revision],
+                           f"{revision} の親コミット列挙").split()
+        for parent in parents:
+            before = _pr197_registered_paths(
+                load_core_areas_at_revision(root, parent), parent,
+            )
+            if before and before != complete:
+                raise GuardError(f"{parent} のPR197 core層が部分追加")
+            if before and not present:
+                raise GuardError(f"{revision} のPR197 core層の削除は許可しない")
+            if not present or not present - before:
+                continue
+            source = _run_git(
+                root, ["show", f"{parent}:scripts/core_guard.py"],
+                f"{parent} のPR197定義読取り",
+            )
+            try:
+                fingerprint = _pr197_definition_fingerprint(source)
+            except (SyntaxError, ValueError, GuardError) as error:
+                raise GuardError("PR197親定義のAST/入口が不一致") from error
+            if fingerprint != _PR197_CORE_DEFINITION_AST_SHA256:
+                raise GuardError(f"{revision} の新PR197 pathが親の固定定義より先に登録された")
+
+
 def _commits_between(root: Path, base_revision: str, head_sha: str) -> tuple[str, ...]:
     """基線より後から head までのコミットを古い順で返す。"""
     output = _run_git(
@@ -779,6 +1081,343 @@ def _commits_between(root: Path, base_revision: str, head_sha: str) -> tuple[str
         "基線以後のコミット列挙",
     )
     return tuple(output.splitlines())
+
+
+_PR197_DOC_MERGE_TYPED = {
+    "pr197_approved_doc_merge_revision": (
+        "PR197承認済み7.7-1文書だけを接合した実mergeを一件に固定する。",
+        "scripts/core_guard.py:_verify_pr197_approved_doc_merge",
+        40,
+    ),
+    "pr197_core_carry_source_revision": (
+        "PR197限定merge carry実装の先行Git全byteを固定する。",
+        "scripts/core_guard.py:_pr197_merge_carry_pins",
+        40,
+    ),
+    "pr197_core_carry_definition_sha256": (
+        "PR197限定merge carryを含む定義ASTを旧固定値と区別して固定する。",
+        "scripts/core_guard.py:_verify_pr197_definition_order",
+        64,
+    ),
+}
+_PR197_RECOVERY_TYPED = {
+    "pr197_identical_cochange_revision": (
+        "PR197のJSON/基線定義同時変更を実Git全byteの同値一件に限定する。",
+        "scripts/core_guard.py:_pr197_identical_cochange",
+        40,
+    ),
+    "pr197_recovery_source_revision": (
+        "PR197限定回復検査器の旧5a原典に続く先行source全byteを固定する。",
+        "scripts/core_guard.py:_pr197_merge_carry_pins",
+        40,
+    ),
+    "pr197_recovery_definition_sha256": (
+        "PR197限定回復後の定義ASTを旧5a定義と区別して固定する。",
+        "scripts/core_guard.py:_verify_pr197_definition_order",
+        64,
+    ),
+}
+_PR197_RECOVERY_EXCLUSIONS = frozenset({
+    "scripts/check_tenant_boundary_bypass.py",
+    "scripts/frozen_history.py",
+    "tests/test_census_baseline_check.py",
+    "tests/test_first_ball_startup_boundary_registrations.py",
+    "tests/test_frozen_baseline_declarations.py",
+    "tests/test_frozen_history.py",
+    "tests/test_ordinary_boundary_registrations.py",
+    "tests/test_pr191_tenant_source_registration.py",
+    "tests/test_pr192_tenant_source_registration.py",
+    "tests/test_pr196_tenant_source_registration.py",
+    "tests/test_pr197_tenant_source_registration.py",
+    "tests/test_product_authz_tenant_boundary_allowlist.py",
+    "tests/test_stage_a_startup_tenant_boundary.py",
+})
+_PR197_RECOVERY_GUARD_PATHS = (
+    "tests/test_first_ball_startup_boundary_registrations.py",
+    "tests/test_ordinary_boundary_registrations.py",
+    "tests/test_pr191_tenant_source_registration.py",
+    "tests/test_pr192_tenant_source_registration.py",
+    "tests/test_product_authz_tenant_boundary_allowlist.py",
+    "tests/test_stage_a_startup_tenant_boundary.py",
+)
+_PR197_IDENTICAL_COCHANGE_PATHS = frozenset({
+    ".claude/core-areas.json",
+    "backend/tests/stage_a_0039_profile.py",
+    "backend/tests/stats/test_basic_stats.py",
+    "backend/tests/test_stats_native_function_registration.py",
+    "backend/tests/test_stats_native_product_connection.py",
+    "backend/tests/test_stats_primitive_product.py",
+    "contracts/tenant_boundary/frozen-inputs.json",
+    "scripts/check_frozen_baselines.py",
+    "scripts/check_tenant_boundary_bypass.py",
+    "scripts/core_guard.py",
+    "scripts/frozen-baseline-scan-allowlist.json",
+    "scripts/frozen_history.py",
+    "tests/test_check_tenant_boundary_bypass.py",
+    "tests/test_core_guard.py",
+    "tests/test_frozen_baseline_declarations.py",
+    "tests/test_pr197_tenant_source_registration.py",
+})
+_PR197_DOC_MERGE_PATHS = frozenset({
+    "docs/README.md",
+    "docs/development/dev-harness-design-2026-08-07.md",
+    "docs/features/mvp-pr197-anchor-exception/plan.md",
+    "docs/features/mvp-pr197-anchor-exception/worklog.md",
+})
+
+
+def _pr197_merge_git(root: Path, *arguments: str) -> str:
+    """置換Git objectを使わず有限mergeの実原典を読む。"""
+    try:
+        result = subprocess.run(
+            ["git", *arguments], cwd=root, capture_output=True,
+            encoding="utf-8", errors="strict", timeout=DIFF_TIMEOUT_SECONDS,
+            check=False, env={**os.environ, "GIT_NO_REPLACE_OBJECTS": "1"},
+        )
+    except (OSError, UnicodeError, subprocess.TimeoutExpired) as error:
+        raise GuardError("PR197文書mergeのGit原典を読めない") from error
+    if result.returncode != 0:
+        raise GuardError("PR197文書mergeのGit原典が不一致")
+    return result.stdout
+
+
+def _pr197_commit_blob(root: Path, revision: str, path: str) -> str:
+    """置換を無効にした同一Git blobを二経路で全byte照合する。"""
+    object_name = f"{revision}:{path}"
+    shown = _pr197_merge_git(root, "show", object_name)
+    blob = _pr197_merge_git(root, "cat-file", "-p", object_name)
+    if shown != blob:
+        raise GuardError("PR197固定Git blob全byteが不一致")
+    return shown
+
+
+def _pr197_recovery_pins(root: Path, head_sha: str) -> dict[str, str]:
+    """正式typedの今回三値を用途と実Git祖先へ閉束縛する。"""
+    path = root / "contracts/tenant_boundary/frozen-inputs.json"
+    if not path.is_file() or path.is_symlink():
+        raise GuardError("PR197限定回復のtyped資産がない")
+    try:
+        asset = _strict_json_object(path.read_text(), "PR197限定回復typed資産")
+        frozen = asset["frozen_inputs"]
+    except (OSError, UnicodeError, KeyError, TypeError) as error:
+        raise GuardError("PR197限定回復のtyped資産を読めない") from error
+    if type(frozen) is not dict:
+        raise GuardError("PR197限定回復のtyped欄が不正")
+    values: dict[str, str] = {}
+    for key, (purpose, source, length) in _PR197_RECOVERY_TYPED.items():
+        entry = frozen.get(key)
+        if (type(entry) is not dict
+                or set(entry) != {"value", "purpose", "sources"}
+                or entry["purpose"] != purpose or entry["sources"] != [source]
+                or type(entry["value"]) is not str
+                or re.fullmatch(rf"[0-9a-f]{{{length}}}", entry["value"]) is None):
+            raise GuardError("PR197限定回復のtyped値/用途が不一致")
+        values[key] = entry["value"]
+    for key in ("pr197_identical_cochange_revision", "pr197_recovery_source_revision"):
+        revision = values[key]
+        resolved = _pr197_merge_git(
+            root, "rev-parse", "--verify", f"{revision}^{{commit}}",
+        ).strip()
+        if resolved != revision:
+            raise GuardError("PR197限定回復のGit objectが不一致")
+        _pr197_merge_git(root, "merge-base", "--is-ancestor", revision, head_sha)
+    return values
+
+
+def _pr197_identical_cochange(root: Path, revision: str, head_sha: str) -> None:
+    """実6f一件の同値だけを旧共変更拒否の有限例外として証明する。"""
+    import ast
+
+    values = _pr197_recovery_pins(root, head_sha)
+    if revision != values["pr197_identical_cochange_revision"]:
+        raise GuardError("PR197以外のJSON/基線定義共変更")
+    parents = _pr197_merge_git(root, "show", "-s", "--format=%P", revision).split()
+    if len(parents) != 1:
+        raise GuardError("PR197同値commitに唯一親がない")
+    parent = parents[0]
+    changed = frozenset(_pr197_merge_git(
+        root, "diff-tree", "--root", "--no-commit-id", "--name-only",
+        "-r", revision,
+    ).splitlines())
+    if changed != _PR197_IDENTICAL_COCHANGE_PATHS:
+        raise GuardError("PR197同値commitの全変更pathが不一致")
+    asset = _strict_json_object(
+        (root / "contracts/tenant_boundary/frozen-inputs.json").read_text(),
+        "PR197同値typed資産",
+    )
+    legacy = asset["frozen_inputs"]["pr197_core_carry_source_revision"]["value"]
+    _pr197_merge_git(root, "merge-base", "--is-ancestor", revision, legacy)
+    old_raw = _pr197_commit_blob(root, parent, CORE_AREAS_RELATIVE_PATH)
+    new_raw = _pr197_commit_blob(root, revision, CORE_AREAS_RELATIVE_PATH)
+    old = _strict_json_object(old_raw, "PR197同値親JSON")
+    new = _strict_json_object(new_raw, "PR197同値現JSON")
+    expected = copy.deepcopy(old)
+    exclusions = expected["reference_discovery"]["declared_exclusions"]
+    before = require_string_list(exclusions["paths"], "PR197旧除外")
+    if len(before) != 11 or before != sorted(set(before)):
+        raise GuardError("PR197同値親の除外11が不一致")
+    exclusions["paths"] = sorted(set(before) | _PR197_RECOVERY_EXCLUSIONS)
+    reason = exclusions["reason"]
+    if type(reason) is not str or reason.count("残り10件") != 1:
+        raise GuardError("PR197同値親の除外理由が不一致")
+    exclusions["reason"] = reason.replace("残り10件", "残り23件")
+    if (new != expected or len(exclusions["paths"]) != 24
+            or old["areas"] != new["areas"]
+            or old["guard_paths"] != new["guard_paths"]):
+        raise GuardError("PR197同値commitのJSON変更が限定13除外を超える")
+
+    old_source = _pr197_commit_blob(root, parent, "scripts/core_guard.py")
+    new_source = _pr197_commit_blob(root, revision, "scripts/core_guard.py")
+    pin = frozen_history.read_original_pr197_pin(
+        "pr197_core_definition_ast_sha256", root,
+    )
+    if type(pin) is not str or _pr197_definition_fingerprint(old_source) != pin:
+        raise GuardError("PR197同値親の2fa固定定義が不一致")
+    import_anchor = "from typing import Any, Mapping, Sequence\n\n"
+    old_value = f'    "{pin}"\n'
+    new_value = (
+        '    frozen_history.read_original_pr197_pin('
+        '"pr197_core_definition_ast_sha256")\n'
+    )
+    if (old_source.count(import_anchor) != 1 or old_source.count(old_value) != 1
+            or new_source != old_source.replace(
+                import_anchor, import_anchor + "import frozen_history\n\n", 1,
+            ).replace(old_value, new_value, 1)
+            or _pr197_definition_fingerprint(new_source) != pin):
+        raise GuardError("PR197同値commitのcore全byte/旧AST値が不一致")
+    def definitions(source: str) -> tuple[str, ...]:
+        """関数とクラスの全ASTを順序込みで比較する。"""
+        return tuple(ast.dump(node, include_attributes=False)
+                     for node in ast.parse(source).body
+                     if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef,
+                                          ast.ClassDef)))
+    if definitions(old_source) != definitions(new_source):
+        raise GuardError("PR197同値commitの関数/クラスASTが不一致")
+    # test全byteは上記一意OIDのGit treeへ束縛し、追加test AST同一とは言わない。
+    old_test = _pr197_commit_blob(root, parent, "tests/test_core_guard.py")
+    new_test = _pr197_commit_blob(root, revision, "tests/test_core_guard.py")
+    if not old_test or not new_test or old_test == new_test:
+        raise GuardError("PR197同値commitの試験Git原本が不一致")
+
+    candidate_raw = _pr197_commit_blob(root, head_sha, CORE_AREAS_RELATIVE_PATH)
+    if (root / CORE_AREAS_RELATIVE_PATH).read_text() != candidate_raw:
+        raise GuardError("PR197 HEADのcore宣言と実行byteが不一致")
+    candidate = _strict_json_object(candidate_raw, "PR197回復HEAD JSON")
+    if (candidate.get("areas") != new["areas"]
+            or candidate.get("reference_discovery") != new["reference_discovery"]
+            or candidate.get("guard_paths") != [
+                *new["guard_paths"], *_PR197_RECOVERY_GUARD_PATHS,
+            ]
+            or {k: v for k, v in candidate.items()
+                if k not in {"areas", "reference_discovery", "guard_paths"}}
+            != {k: v for k, v in new.items()
+                if k not in {"areas", "reference_discovery", "guard_paths"}}):
+        raise GuardError("PR197回復HEADのcore経路が限定6追加と不一致")
+    selected = matched_paths(
+        tuple(sorted(_PR197_RECOVERY_EXCLUSIONS)), load_core_areas(root),
+    )
+    if set(selected) != _PR197_RECOVERY_EXCLUSIONS:
+        raise GuardError("PR197回復HEADの追加13除外に未検査経路がある")
+
+
+def _pr197_merge_carry_pins(root: Path, head_sha: str) -> tuple[str, str]:
+    """旧5a原典と後続の回復sourceを順序付き全byteで読む。"""
+    asset_path = root / "contracts/tenant_boundary/frozen-inputs.json"
+    if not asset_path.is_file() or asset_path.is_symlink():
+        raise GuardError("PR197文書mergeのtyped資産がない")
+    try:
+        asset = _strict_json_object(asset_path.read_text(), "PR197文書merge typed資産")
+        frozen = asset["frozen_inputs"]
+    except (OSError, UnicodeError, KeyError, TypeError) as error:
+        raise GuardError("PR197文書mergeのtyped資産を読めない") from error
+    if type(frozen) is not dict:
+        raise GuardError("PR197文書mergeのtyped欄が不正")
+    values: dict[str, str] = {}
+    for key, (purpose, source, length) in _PR197_DOC_MERGE_TYPED.items():
+        entry = frozen.get(key)
+        if (type(entry) is not dict or set(entry) != {"value", "purpose", "sources"}
+                or entry["purpose"] != purpose or entry["sources"] != [source]
+                or type(entry["value"]) is not str
+                or re.fullmatch(rf"[0-9a-f]{{{length}}}", entry["value"]) is None):
+            raise GuardError("PR197文書mergeのtyped値/用途が不一致")
+        values[key] = entry["value"]
+    source_revision = values["pr197_core_carry_source_revision"]
+    for revision in (source_revision, values["pr197_approved_doc_merge_revision"]):
+        resolved = _pr197_merge_git(root, "rev-parse", "--verify", f"{revision}^{{commit}}")
+        if resolved.strip() != revision:
+            raise GuardError("PR197文書mergeの固定Git objectが不一致")
+        _pr197_merge_git(root, "merge-base", "--is-ancestor", revision, head_sha)
+    recovery = _pr197_recovery_pins(root, head_sha)
+    successor = recovery["pr197_recovery_source_revision"]
+    _pr197_merge_git(root, "merge-base", "--is-ancestor", source_revision, successor)
+    introductions = _pr197_merge_git(
+        root, "log", "--reverse", "--format=%H", "-S_pr197_merge_carry_pins",
+        "HEAD", "--", "scripts/core_guard.py",
+    ).splitlines()
+    if (len(introductions) != 2 or introductions[0] != source_revision
+            or introductions[1] == source_revision):
+        raise GuardError("PR197文書mergeのsource導入commitが不一致")
+    first_recovery = introductions[1]
+    _pr197_merge_git(root, "merge-base", "--is-ancestor", first_recovery, successor)
+    current = (root / "scripts/core_guard.py").read_bytes()
+    old_source = _pr197_merge_git(root, "show", f"{source_revision}:scripts/core_guard.py")
+    if _pr197_definition_fingerprint(old_source) != values[
+        "pr197_core_carry_definition_sha256"
+    ]:
+        raise GuardError("PR197旧5a定義ASTが不一致")
+    introductions = _pr197_merge_git(
+        root, "log", "--reverse", "--format=%H", "-S_pr197_identical_cochange",
+        "HEAD", "--", "scripts/core_guard.py",
+    ).splitlines()
+    if introductions != [first_recovery]:
+        raise GuardError("PR197回復source導入commitが一意でない")
+    source = _pr197_merge_git(root, "show", f"{successor}:scripts/core_guard.py")
+    if (current != source.encode("utf-8")
+            or current != _pr197_merge_git(
+                root, "show", f"{head_sha}:scripts/core_guard.py",
+            ).encode("utf-8")):
+        raise GuardError("PR197回復core checker全byteが先行Gitと不一致")
+    return (values["pr197_approved_doc_merge_revision"],
+            recovery["pr197_recovery_definition_sha256"])
+
+
+def _verify_pr197_approved_doc_merge(
+    root: Path, base_revision: str, revision: str,
+) -> None:
+    """実mergeの未登録親からcore定義・製品sourceを流入させない。"""
+    parents = _pr197_merge_git(root, "show", "-s", "--format=%P", revision).split()
+    if len(parents) != 2:
+        raise GuardError("PR197文書mergeの親が二件でない")
+    first, second = parents
+    common = _pr197_merge_git(root, "merge-base", first, second).strip()
+    if common != base_revision:
+        raise GuardError("PR197文書mergeが正式基線から分岐していない")
+    complete = frozenset(PR197_TENANT_SOURCE_CORE_ADDITIONS)
+    if (_pr197_registered_paths(load_core_areas_at_revision(root, first), first) != complete
+            or _pr197_registered_paths(load_core_areas_at_revision(root, second), second)
+            or _pr197_registered_paths(load_core_areas_at_revision(root, revision), revision)
+            != complete):
+        raise GuardError("PR197文書mergeのcore登録前後が不一致")
+    for before, after in ((common, second), (first, revision)):
+        changed = frozenset(_pr197_merge_git(
+            root, "diff", "--name-only", before, after,
+        ).splitlines())
+        if changed != _PR197_DOC_MERGE_PATHS:
+            raise GuardError("PR197文書mergeへdocs以外が混入")
+    # README索引は両親の項目を統合した本文。実merge OIDとdocs-only差分で固定する。
+    for path in _PR197_DOC_MERGE_PATHS - {"docs/README.md"}:
+        if _pr197_merge_git(root, "show", f"{revision}:{path}") != _pr197_merge_git(
+            root, "show", f"{second}:{path}",
+        ):
+            raise GuardError("PR197文書mergeの承認文書byteが第二親と不一致")
+    for path in (CORE_AREAS_RELATIVE_PATH, "scripts/core_guard.py"):
+        if _pr197_merge_git(root, "show", f"{revision}:{path}") != _pr197_merge_git(
+            root, "show", f"{first}:{path}",
+        ):
+            raise GuardError("PR197文書mergeのcore原本が第一親と不一致")
+    first_source = _pr197_merge_git(root, "show", f"{first}:scripts/core_guard.py")
+    if _pr197_definition_fingerprint(first_source) != _PR197_CORE_DEFINITION_AST_SHA256:
+        raise GuardError("PR197文書mergeの第一親に旧固定core定義がない")
 
 
 def _changed_paths_in_commit(root: Path, revision: str) -> frozenset[str]:
@@ -840,7 +1479,9 @@ def verify_area_path_baseline(root: Path, base_sha: str, head_sha: str) -> str:
     baseline_revision = merge_base_revision(root, base_sha, head_sha)
     baseline = load_core_areas_at_revision(root, baseline_revision)
     candidate = load_core_areas_at_revision(root, head_sha)
-    validate_pr196_schema_comparison_area_path_layers(baseline, candidate)
+    validate_pr197_tenant_source_area_path_layers(
+        baseline, candidate, root=root, base_revision=baseline_revision, head_sha=head_sha,
+    )
 
     for revision in _commits_between(root, baseline_revision, head_sha):
         changed = _changed_paths_in_commit(root, revision)
@@ -850,10 +1491,14 @@ def verify_area_path_baseline(root: Path, base_sha: str, head_sha: str) -> str:
             and changed_definitions
             and _parent_has_area_path_additions(root, revision)
         ):
-            raise GuardError(
-                "core-areas.json と基線定義を同一コミットで変更している: "
-                f"{revision}: {changed_definitions}"
-            )
+            try:
+                _pr197_identical_cochange(root, revision, head_sha)
+            except (GuardError, KeyError, TypeError, ValueError, OSError,
+                    UnicodeError) as error:
+                raise GuardError(
+                    "core-areas.json と基線定義を同一コミットで変更している: "
+                    f"{revision}: {changed_definitions}"
+                ) from error
     return baseline_revision
 
 

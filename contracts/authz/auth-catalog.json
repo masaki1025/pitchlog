@@ -3,9 +3,9 @@
   "asset_kind": "authz_catalog",
   "input_manifest": {
     "requirement_claims_path": "contracts/authz/requirement-claims.json",
-    "requirement_claims_blob_digest": "b1d62146af707c47b106c95ce4e742b6d8684bfe",
+    "requirement_claims_blob_digest": "d49f73da44cda5c1f637832154f6cc963f2f8a79",
     "requirement_claims_lock_path": "contracts/authz/requirement-claims.lock.json",
-    "requirement_claims_lock_blob_digest": "1b95f047fa7df49db1e31af5205cceb90ed711c1"
+    "requirement_claims_lock_blob_digest": "654c5b8a764b791fe30e8ba4faab168e88b9c384"
   },
   "origins": [
     "requirement",
@@ -3190,7 +3190,7 @@
       "origin": "requirement",
       "layer": "access_control",
       "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
-      "source_text_digest": "96bf6ac04a0250eb4480d3b1f4814ffd41fb8ecb9b3ab4177df7504f8db61d42",
+      "source_text_digest": "921b8284e2b7f9ecd34b15348b441c42630af3be2701a70c6f68a278c80148f5",
       "route_scope_id": "SCOPE:DATA_READ",
       "catalog_test_owner": {
         "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",

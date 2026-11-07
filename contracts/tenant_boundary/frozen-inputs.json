@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "contract_revision": 17,
+  "contract_revision": 18,
   "baseline_control": {
     "identity": {
       "scheme": "integer_revision_field",
       "field": "contract_revision",
       "current_identifiers": [
-        "contract_revision:17"
+        "contract_revision:18"
       ],
       "no_baseline_marker": "NO_BASELINE",
       "frozen_projection": {
@@ -44,7 +44,11 @@
           "backend/tests/test_sync_apply_product_supply.py",
           "backend/tests/fixtures/batted_source_extension_reference_v1.json",
           "tests/fixtures/pr196_tenant_source_expected_v1.json",
-          "tests/test_pr196_tenant_source_registration.py"
+          "tests/test_pr196_tenant_source_registration.py",
+          "backend/tests/stage_a_0039_profile.py",
+          "backend/tests/fixtures/product_authz_stage_a_profile_v0039.json",
+          "backend/tests/test_stage_a_0039_profile.py",
+          "backend/tests/fixtures/pr197_ci_followup_inputs_v1.json"
         ]
       }
     },
@@ -241,6 +245,222 @@
       "sources": [
         "scripts/check_tenant_boundary_bypass.py:_pr196_read_fixed_expectations",
         "tests/test_census_baseline_check.py:test_pr196_census_materializes_fixed_expectation_in_both_proof_contexts"
+      ]
+    },
+    "stage_a_0039_profile_reference_revision": {
+      "value": "45493c6669b5c1d6737fc41acb975b7f58f48289",
+      "purpose": "正式51bcbの0039歴史検証profile972file/31caseをroot前置Git全byteへ束縛し、現木/fixture/任意revision同時改変を拒否。current製品loader・任意profile許可・署名・一般受理へ流用しない。",
+      "sources": [
+        "backend/tests/stage_a_0039_profile.py:immutable_stage_a_0039_profile",
+        "backend/tests/test_stage_a_0039_profile.py:immutable_profile_expectation"
+      ]
+    },
+    "stats_native_registry_reference_revision": {
+      "value": "b5669d3f04541cd117bb876ec4e3ca9bbe07796c",
+      "purpose": "採用済native5のregistry/owner/codec全byteを固定Git祖先へ束縛し、新import1と末尾Starred1だけを除くとPR196原典へ全byte一致する登録形に限定する。任意Starred・別領域・将来lifecycle/undo・実行資格を許可しない。",
+      "sources": [
+        "scripts/check_tenant_boundary_bypass.py:_stats_native_static_registrations",
+        "tests/test_check_tenant_boundary_bypass.py:test_registry_native_tuple_current_exact27"
+      ]
+    },
+    "pr197_source_revision": {
+      "value": "a59c654e3366d2be9c6456e47b07118e1674bce2",
+      "purpose": "PR197実sourceの条件付き71siteのみを固定Git全byteへ束縛する。旧診断3は別profileで後継成立だけを判定する。",
+      "sources": [
+        "scripts/check_tenant_boundary_bypass.py:_load_pr197_source_owners",
+        "tests/test_pr197_tenant_source_registration.py:test_pr197_source_registration_is_finite_and_holds_three"
+      ]
+    },
+    "pr197_expectation_revision": {
+      "value": "42bda907cb54355552f4022ccf948cca7995617c",
+      "purpose": "PR197非作者分類と旧identity後継profileの前置Git全byteを束縛し、現木自己期待を拒否する。",
+      "sources": [
+        "scripts/check_tenant_boundary_bypass.py:_pr197_fixed_expectations",
+        "tests/test_pr197_tenant_source_registration.py:test_pr197_absent_root_pin_fails_closed"
+      ]
+    },
+    "pr197_expectation_fixture_sha256": {
+      "value": "a14381644954dc8bf918c574810e49656f8e01ee3e21ef64c13955984a037ab4",
+      "purpose": "PR197非作者分類と旧identity後継profileの前置Git全byteを束縛し、現木自己期待を拒否する。",
+      "sources": [
+        "scripts/check_tenant_boundary_bypass.py:_pr197_fixed_expectations",
+        "tests/test_pr197_tenant_source_registration.py:test_pr197_absent_root_pin_fails_closed"
+      ]
+    },
+    "pr197_generated_facts_sha256": {
+      "value": "7673b5969d6ce3104b48d4f94f217c6b4a44ef1b9b08d06ebaeee935648497d4",
+      "purpose": "PR197固定Sで生成済facts.pyの全byteをEの独立fixtureと一致させる。現木採取を許さない。",
+      "sources": [
+        "scripts/check_tenant_boundary_bypass.py:_pr197_fixed_expectations"
+      ]
+    },
+    "pr197_core_definition_ast_sha256": {
+      "value": "c5c017a19e6c5c196d198fc6f6c8258807068f7c9ca1680d77e7036fbb5c6d79",
+      "purpose": "PR197新2path登録に先行するcore定義と入口callのAST指紋。先行Git親で照合する。",
+      "sources": [
+        "scripts/core_guard.py:_verify_pr197_definition_order"
+      ]
+    },
+    "stats_foundation_legacy_core_revision": {
+      "value": "c8f1c1d679f79499d37c8cfbb3129fc5d82278b3",
+      "purpose": "成績有限層追加前の旧core_guard AST原文を固定Gitで比較する試験原典。",
+      "sources": [
+        "tests/test_core_guard.py:test_stats_foundation29_exact_paths_detection_and_full_ast_preservation"
+      ]
+    },
+    "stats_season_source_set_game_a_sha256": {
+      "value": "83d90fee5ed5ea852feb8dbd42001a0986bae0eb4fb6f439e78d5c96700d4bcf",
+      "purpose": "非作者独立反例のgame-a canonical source set S。有限SQLiteの入力値。",
+      "sources": [
+        "backend/tests/stats/test_basic_stats.py:_execute_generated_season_health"
+      ]
+    },
+    "stats_season_source_set_game_b_sha256": {
+      "value": "09c315e9312b3a8a259227641ee7600a6e62ccfd33832ef755fd885395ce0bcc",
+      "purpose": "非作者独立反例のgame-b canonical source set S。有限SQLiteの入力値。",
+      "sources": [
+        "backend/tests/stats/test_basic_stats.py:_execute_generated_season_health"
+      ]
+    },
+    "stats_native_old_registry_sha256": {
+      "value": "71fe06530c38e265d8d56d815748bc4da480a3864611876b040641df0c1b453b",
+      "purpose": "native5追加前の製品関数登録旧22行の全descriptorと順序を保つ。",
+      "sources": [
+        "backend/tests/test_stats_native_function_registration.py:test_old_all_twenty_two_keep_order_sql_types_decoder_and_values"
+      ]
+    },
+    "stats_native_old_product_additions_sha256": {
+      "value": "a3f93dc47fda207da916e1d536514e95f7c517f2e467b1f424eb25979a24a338",
+      "purpose": "native成績追加を除いた旧製品宣言の全値を保つ。",
+      "sources": [
+        "backend/tests/test_stats_native_product_connection.py:test_all_old_declarations_bodies_details_and_guards_remain_exact"
+      ]
+    },
+    "stats_native_old_product_bodies_sha256": {
+      "value": "7290cd7d50e30cae9fa80d468af8c5dd36092cd16674231a1de70a6fed35d791",
+      "purpose": "native成績追加を除いた旧323関数本文の全値を保つ。",
+      "sources": [
+        "backend/tests/test_stats_native_product_connection.py:test_all_old_declarations_bodies_details_and_guards_remain_exact"
+      ]
+    },
+    "stats_native_old_product_details_sha256": {
+      "value": "43fafefd825508ccfade581e0aa733c9dab1984a3698620ea23661cd5a679bc4",
+      "purpose": "native成績追加を除いた旧29関数metadataの全値を保つ。",
+      "sources": [
+        "backend/tests/test_stats_native_product_connection.py:test_all_old_declarations_bodies_details_and_guards_remain_exact"
+      ]
+    },
+    "stats_native_old_product_guards_sha256": {
+      "value": "4e07a3a3f9a6e08aedf370f6b345b4613aafcb0905ecb97d53c1b4d165f9a4bd",
+      "purpose": "native成績追加を除いた旧29関数のapplication SQL guard全値を保つ。",
+      "sources": [
+        "backend/tests/test_stats_native_product_connection.py:test_all_old_declarations_bodies_details_and_guards_remain_exact"
+      ]
+    },
+    "stats_primitive_sql_open_snapshot_sha256": {
+      "value": "1ad8be9a35bf0887d24e77f9fd10541e8c13b89e87e557dc1665e62bb1bea9aa",
+      "purpose": "独立採用de9d8cb3のimmutable v1 open_primitive_snapshot SQL全byte。",
+      "sources": [
+        "backend/tests/test_stats_primitive_product.py:_assert_legacy_sql_values"
+      ]
+    },
+    "stats_primitive_sql_read_page_sha256": {
+      "value": "c914af15584d7fc32c9d915f67cc979c74b88a41ae03e1c0a8d19c8a74db50cd",
+      "purpose": "独立採用de9d8cb3のimmutable v1 read_play_export_primitives SQL全byte。",
+      "sources": [
+        "backend/tests/test_stats_primitive_product.py:_assert_legacy_sql_values"
+      ]
+    },
+    "stats_primitive_sql_read_totals_sha256": {
+      "value": "2157a5fb5bba534f1bbbd3a770cc06c77d3c989d2aab2863edecace9d0f75c83",
+      "purpose": "独立採用de9d8cb3のimmutable v1 read_primitive_totals SQL全byte。",
+      "sources": [
+        "backend/tests/test_stats_primitive_product.py:_assert_legacy_sql_values"
+      ]
+    },
+    "stats_primitive_sql_save_source_sha256": {
+      "value": "d26495276d4060a16ff33bcb2a6d127a85c4b0608ec05e0d63f6844dcd4ad68b",
+      "purpose": "独立採用de9d8cb3のimmutable v1 save_primitive_source SQL全byte。",
+      "sources": [
+        "backend/tests/test_stats_primitive_product.py:_assert_legacy_sql_values"
+      ]
+    },
+    "stats_primitive_v1_declarations_sha256": {
+      "value": "93c0ef2811060437b51ad1f74f05a614913fa52e60bb7ddf8de9676ba44e69bc",
+      "purpose": "独立採用de9d8cb3のimmutable v1宣言54+16列/7+3policyを保つ。",
+      "sources": [
+        "backend/tests/test_stats_primitive_product.py:_assert_legacy_sql_values"
+      ]
+    },
+    "stats_primitive_v1_bodies_sha256": {
+      "value": "490600c54796286043cfe8317f9c5b5386792ee6bd86194566d26c6f88e70b45",
+      "purpose": "独立採用de9d8cb3のimmutable v1関数本文84全値を保つ。",
+      "sources": [
+        "backend/tests/test_stats_primitive_product.py:_assert_legacy_sql_values"
+      ]
+    },
+    "stats_primitive_v1_installer_sha256": {
+      "value": "cca40e353ddca6b40ceedbb57ee3404013a279fefa826dd96709d26ed353b122",
+      "purpose": "独立採用de9d8cb3の旧installer owner/ACL footer全byteを保つ。",
+      "sources": [
+        "backend/tests/test_stats_primitive_product.py:test_installer_and_operation_requirements_preserve_adopted_values"
+      ]
+    },
+    "stats_primitive_v1_operations_sha256": {
+      "value": "b79d2cae20e3a71028f10c0a4acb21a64be2a383eeedbcef286efaea9037a2a3",
+      "purpose": "独立採用de9d8cb3の旧nonce/RRRO operation候補全値を保つ。",
+      "sources": [
+        "backend/tests/test_stats_primitive_product.py:test_installer_and_operation_requirements_preserve_adopted_values"
+      ]
+    },
+    "pr197_pin_origin_commit": {
+      "value": "2fa42d653e44bba8586c0afe831421402247fd30",
+      "purpose": "PR197凍結値27参照の真正Git導入commitを1件だけ固定する信頼根。",
+      "sources": [
+        "scripts/frozen_history.py:read_original_pr197_pin",
+        "scripts/check_frozen_baselines.py:_verify_pr197_pin_scan_exception"
+      ]
+    },
+    "pr197_approved_doc_merge_revision": {
+      "value": "2953103d4e280dff42ee1d8c356bc3e888799651",
+      "purpose": "PR197承認済み7.7-1文書だけを接合した実mergeを一件に固定する。",
+      "sources": [
+        "scripts/core_guard.py:_verify_pr197_approved_doc_merge"
+      ]
+    },
+    "pr197_core_carry_source_revision": {
+      "value": "5a7e0479ade6230178d24876b3e3ec82d41ccb16",
+      "purpose": "PR197限定merge carry実装の先行Git全byteを固定する。",
+      "sources": [
+        "scripts/core_guard.py:_pr197_merge_carry_pins"
+      ]
+    },
+    "pr197_core_carry_definition_sha256": {
+      "value": "67ffc917c68d09cfbb16a431ecd0415a5e4ffa55de329b00bbd9c4ee30ae3e7e",
+      "purpose": "PR197限定merge carryを含む定義ASTを旧固定値と区別して固定する。",
+      "sources": [
+        "scripts/core_guard.py:_verify_pr197_definition_order"
+      ]
+    },
+    "pr197_identical_cochange_revision": {
+      "value": "6f17f72dbdb8778e62e5876902478ade55b2cbd4",
+      "purpose": "PR197のJSON/基線定義同時変更を実Git全byteの同値一件に限定する。",
+      "sources": [
+        "scripts/core_guard.py:_pr197_identical_cochange"
+      ]
+    },
+    "pr197_recovery_source_revision": {
+      "value": "3188b0f7736ac9093e111b4f6c9fb2fb32cd0275",
+      "purpose": "PR197限定回復検査器の旧5a原典に続く先行source全byteを固定する。",
+      "sources": [
+        "scripts/core_guard.py:_pr197_merge_carry_pins"
+      ]
+    },
+    "pr197_recovery_definition_sha256": {
+      "value": "4b9a49970bc3187cf7891563dd584f73e03cf0d00ea954899c38e05b09f628c9",
+      "purpose": "PR197限定回復後の定義ASTを旧5a定義と区別して固定する。",
+      "sources": [
+        "scripts/core_guard.py:_verify_pr197_definition_order"
       ]
     }
   }

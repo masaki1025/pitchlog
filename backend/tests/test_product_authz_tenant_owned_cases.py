@@ -103,6 +103,9 @@ _EXPECTED_PRIVATE_TABLES = (
     "ordinary_pitch_checkpoints",
     "ordinary_pitch_write_admissions",
     "ordinary_pitch_history",
+    "stats_fact_versions",
+    "stats_primitive_sources",
+    "stats_primitive_facts",
 )
 
 
@@ -598,13 +601,19 @@ def test_index_catalog_lookup_binds_schema_and_preserves_five_values(
             "ordinary_pitch_history",
             "ordinary_pitch_history_tenant_id_game_id_internal_generatio_key",
         ),
+        ("stats_fact_versions", "stats_fact_versions_tenant_id_id_key"),
+        ("stats_fact_versions", "uq_stats_current_game_model"),
+        (
+            "stats_primitive_sources",
+            "stats_primitive_sources_tenant_id_game_id_fact_version_id_r_key",
+        ),
     ),
 )
 @pytest.mark.parametrize("field", ("columns", "source_row", "roles", "predicate"))
 def test_schema_audit_private_unique_exception_is_exact(
     table_name: str, constraint: str, field: str
 ) -> None:
-    """旧31/対象外5を保ち、私有6制約だけへ全field例外を閉じる。"""
+    """旧31/対象外5を保ち、私有9制約だけへ全field例外を閉じる。"""
     import copy
 
     from db import test_schema_audit as audit
@@ -616,7 +625,7 @@ def test_schema_audit_private_unique_exception_is_exact(
         for c in t["unique_constraints"]
         if "business_unique" in c["roles"]
     ]
-    assert len(rows) == 31 + 6
+    assert len(rows) == 31 + 6 + 3
     assert len([c for c in rows if c["source_row"].get("scope") == "outside"]) == 5 + 2
     changed = copy.deepcopy(manifest)
     table = next(t for t in changed["tables"] if t["name"] == table_name)

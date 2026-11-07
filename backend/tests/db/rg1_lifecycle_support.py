@@ -1,4 +1,4 @@
-"""正式S3上でRG1制御primitiveだけを実行する隔離PG補助。"""
+"""現行製品DB上でRG1制御primitiveだけを実行する隔離PG補助。"""
 
 from __future__ import annotations
 
@@ -15,7 +15,10 @@ import psycopg
 import pytest
 from psycopg.conninfo import conninfo_to_dict, make_conninfo
 
-from pitchlog.db.stage_a_startup import advance_stage_a_from_s0
+from pitchlog.db.current_product_startup import (
+    CURRENT_REVISION,
+    advance_current_product_from_s0,
+)
 
 from .conftest import DisposablePostgres
 from .test_stage_a_rule_candidates import _fresh_schema_database
@@ -143,7 +146,7 @@ class PeerSession:
 
 @dataclass(frozen=True)
 class LifecycleDatabase:
-    """製品S3と候補SQLを適用した一時DB。fresh証明ではない。"""
+    """現行製品配置と候補SQLを適用した一時DB。fresh証明ではない。"""
 
     cluster: DisposablePostgres = field(repr=False)
     admin_dsn: str = field(repr=False)
@@ -171,7 +174,7 @@ def lifecycle_database(
     factory: Callable[[], AbstractContextManager[DisposablePostgres]],
     monkeypatch: pytest.MonkeyPatch,
 ) -> Iterator[LifecycleDatabase]:
-    """既存S0→正式S3で製品の単一生成DDLだけを適用する。"""
+    """既存S0から現行schemaと製品の単一生成DDLを適用する。"""
     clusters: list[DisposablePostgres] = []
 
     @contextmanager
@@ -181,8 +184,13 @@ def lifecycle_database(
             yield cluster
 
     with _fresh_schema_database(tracked_factory, monkeypatch) as (owner_dsn, admin_dsn):
-        result = advance_stage_a_from_s0(owner_dsn=owner_dsn, applicator_dsn=admin_dsn)
-        assert result.completed_stage == "S3" and result.publishable is False
+        result = advance_current_product_from_s0(
+            owner_dsn=owner_dsn, applicator_dsn=admin_dsn
+        )
+        assert (
+            result.completed_revision == CURRENT_REVISION
+            and result.publishable is False
+        )
         with psycopg.connect(admin_dsn) as admin:
             assert admin.execute(
                 "SELECT pg_catalog.to_regprocedure("

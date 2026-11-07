@@ -2,9 +2,9 @@
   "schema_version": 1,
   "asset_kind": "authz_catalog",
   "asset_path": "contracts/authz/auth-catalog.json",
-  "asset_digest": "7d2ecd55fc570c051ebfd41185e7be7c5e85059089a1968d815276323709228d",
+  "asset_digest": "435fcfbce37df8a0214fa239742948d4075b4309fb7465c869ece609482e3e9e",
   "entry_count": 191,
-  "aggregate_decision_digest": "77dea494e9e4a5a35098587cbcb7500b038c2cde3cbe6ae7d1f529a483857c08",
+  "aggregate_decision_digest": "7ec56ecc643ee5129db146fddbd53e24b639ce7b85f48a93e70f3dca99b83401",
   "entries": [
     {
       "entry_id": "catalog:CATALOG:SECTION-1.1/paragraph-002",
@@ -3899,7 +3899,7 @@
         "origin": "requirement",
         "layer": "access_control",
         "db_basis_rule_id": "DB_ROW_VISIBILITY_PREDICATE",
-        "source_text_digest": "96bf6ac04a0250eb4480d3b1f4814ffd41fb8ecb9b3ab4177df7504f8db61d42",
+        "source_text_digest": "921b8284e2b7f9ecd34b15348b441c42630af3be2701a70c6f68a278c80148f5",
         "route_scope_id": "SCOPE:DATA_READ",
         "catalog_test_owner": {
           "id": "tests/test_check_authz_catalog.py::test_repository_derived_assets_are_valid",
@@ -3910,7 +3910,7 @@
           "status": "planned"
         }
       },
-      "decision_digest": "a56343237882a013156446d81c83bd91e44fb7d283ccc831a9c92cc45b3816d3"
+      "decision_digest": "35466b9d79b9c8c0c569088d10f7c746a24da76adc31bff3033bed57d52ce5b8"
     },
     {
       "entry_id": "catalog:CATALOG:APPENDIX-C/blockquote-001",

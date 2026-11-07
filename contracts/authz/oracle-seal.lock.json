@@ -1,40 +1,40 @@
 {
   "schema_version": 1,
   "asset_kind": "authz_oracle_seal",
-  "oracle_commit": "c3a3589dc9420769ddbc084dd018881ffa88997e",
+  "oracle_commit": "7c2abc9883cd0fc679516dc9d1f73de08efcb188",
   "oracle_commit_semantics": "last_committed_step_4_input_baseline",
   "input_assets": [
     {
       "path": "contracts/authz/requirement-claims.json",
-      "git_blob_digest": "b1d62146af707c47b106c95ce4e742b6d8684bfe"
+      "git_blob_digest": "d49f73da44cda5c1f637832154f6cc963f2f8a79"
     },
     {
       "path": "contracts/authz/requirement-claims.lock.json",
-      "git_blob_digest": "1b95f047fa7df49db1e31af5205cceb90ed711c1"
+      "git_blob_digest": "654c5b8a764b791fe30e8ba4faab168e88b9c384"
     },
     {
       "path": "contracts/authz/route-registry.json",
-      "git_blob_digest": "41d57c5b7590882c71aef995aaaa9ec4fc260a5a"
+      "git_blob_digest": "547c0aaea9d9020d6e33f17fe905e8db322afc77"
     },
     {
       "path": "contracts/authz/route-registry.lock.json",
-      "git_blob_digest": "5e7c921b203c4fec2cae0ea507db80830cf5c060"
+      "git_blob_digest": "0af5d6f6208a9c248a94108045b484d354177a5d"
     },
     {
       "path": "contracts/authz/auth-catalog.json",
-      "git_blob_digest": "eef6b60c719e0fe5a9ac345ad13735235401bd13"
+      "git_blob_digest": "ee37d548b13e90be1d57e982f1a9b0367a530b43"
     },
     {
       "path": "contracts/authz/auth-catalog.lock.json",
-      "git_blob_digest": "56dc0b05a1cce6219c84b0fb3d88bf182b5ab20f"
+      "git_blob_digest": "a49748a4202cc7c050161c9d6271c1716a7035ff"
     },
     {
       "path": "contracts/authz/http-route-matrix.json",
-      "git_blob_digest": "bdf83dfe3d74dc45c7ce32666ff2463f279e4170"
+      "git_blob_digest": "431f8c998205d1ca07a60d12cec1751da800d389"
     },
     {
       "path": "contracts/authz/http-route-matrix.lock.json",
-      "git_blob_digest": "400d43871b3a4e526c3ea9e121d0f7fd0be1934b"
+      "git_blob_digest": "877193748b26b80524064ec9fae29aa73f5d895f"
     }
   ],
   "sealed_assets": [
@@ -42,37 +42,37 @@
       "path": "contracts/authz/ddl-elements.json",
       "asset_role": "expectation",
       "asset_kind": "authz_candidate_ddl_manifest",
-      "canonical_sha256": "237ba5400e7ba70191fe98c4ef013f48eb3077bcef3d18701db516e528f22cd8"
+      "canonical_sha256": "837e0cd659df90e1e9f810dc0f2ba0ca53ac41d15e0f4f8d651327a4acc56e87"
     },
     {
       "path": "contracts/authz/rejected-configs.json",
       "asset_role": "evidence",
       "asset_kind": "authz_rejected_configurations",
-      "canonical_sha256": "8448180dd6588f49a011b71bbc0e9c2c21c0f56a9d1d2d0ed04da257ec41d9f6"
+      "canonical_sha256": "c2d428cee0e7a1349adfa3100f0a60e288ac12bd41638b6b5f27d12bae3da74b"
     },
     {
       "path": "contracts/authz/claim-mutant-map.json",
       "asset_role": "expectation",
       "asset_kind": "authz_claim_mutant_map",
-      "canonical_sha256": "51d06cbd4547eafa1513a02c5c33cd84c8d58d39a74ffc25763ced4b913ffcd7"
+      "canonical_sha256": "a2f7e5fe434a492d7d27a308a3ef3a1e9ba80ca00e14e6268d4981381077e1c2"
     },
     {
       "path": "contracts/authz/attack-tree.json",
       "asset_role": "expectation",
       "asset_kind": "authz_attack_tree",
-      "canonical_sha256": "d9f794d1b764c8717f26fb7d070ac07aecb746745413b5fa77277a46f783f4e3"
+      "canonical_sha256": "679ad37235db1113a71690ed5d935af915a87f5dab89de74519755878d71eaa7"
     },
     {
       "path": "contracts/authz/boundary-proposal.json",
       "asset_role": "expectation",
       "asset_kind": "authz_boundary_proposal",
-      "canonical_sha256": "3b4b3b280a43f201a2cd87172793f255b7676d04ee3625f6728fa72f2a734b2e"
+      "canonical_sha256": "e12ff40556966f2755a38c6e996d236ddb6370fd02be03e70e41a36b464debc4"
     },
     {
       "path": "contracts/authz/verification-evidence.json",
       "asset_role": "evidence",
       "asset_kind": "authz_verification_evidence",
-      "canonical_sha256": "2459115de0a2142180dc626ff9edf7488152efee9e0cf75d97bb524d0ef800f7"
+      "canonical_sha256": "7037b279d6b34d8d39e98bc3157341ff44c14e6d887c97b32d934935f94a3d65"
     }
   ],
   "review_policy": {

@@ -63,6 +63,26 @@ _EXPECTED_LINEUP_FUNCTIONS = [
     ("sync_right_api", "read_lineup_started_origin", "uuid, uuid, bigint"),
 ]
 
+_EXPECTED_STATS_FUNCTIONS = [
+    (
+        "stats_api",
+        "save_primitive_source",
+        "uuid, uuid, uuid, text, bigint, text, jsonb, bytea",
+    ),
+    ("stats_api", "open_primitive_snapshot", "uuid, uuid, text"),
+    (
+        "stats_api",
+        "read_play_export_primitives",
+        "uuid, uuid, uuid, bigint, text, text, text, bigint, uuid, text, integer",
+    ),
+    (
+        "stats_api",
+        "read_primitive_totals",
+        "uuid, uuid, uuid, bigint, text, text, text",
+    ),
+    ("stats_api", "read_primitive_writer_state", "uuid, uuid, uuid, text, bytea"),
+]
+
 _EXPECTED_ORDINARY_FUNCTIONS = [
     (
         "sync_right_api",
@@ -1568,7 +1588,7 @@ def test_runtime_entry_normal_profile_remains_accepted() -> None:
 
     result = product_catalog._load_product_expectations()
     # 採用済data-model1.4/正式fullprofileの母集合を固定する。
-    assert len(result.table_names) == 50 + len(_EXPECTED_FIRST_BALL_TABLES) + 3
+    assert len(result.table_names) == 50 + len(_EXPECTED_FIRST_BALL_TABLES) + 6
     assert set(result.table_names) == {
         t["name"]
         for t in _read_json_object(
@@ -1582,18 +1602,20 @@ def test_runtime_entry_normal_profile_remains_accepted() -> None:
         "pitchlog_sync_right_fn_owner",
         "pitchlog_recording_vocab_fn_owner",
     }
-    assert len(result.schema_names) == 8 + 3 + 1
+    assert len(result.schema_names) == 8 + 3 + 1 + 1
     assert _EXPECTED_LEGACY_SCHEMA_NAMES | {
         "sync_fence",
         "sync_fence_api",
         "sync_right_api",
         "recording_vocab_api",
+        "stats_api",
     } == set(result.schema_names)
     assert len(_EXPECTED_TERMINAL_FUNCTIONS) == 7
     assert (
         len(result.functions)
         - len(_EXPECTED_TERMINAL_FUNCTIONS)
         - len(_EXPECTED_LINEUP_FUNCTIONS)
+        - len(_EXPECTED_STATS_FUNCTIONS)
         - 1
         == 79 + len(_EXPECTED_FIRST_BALL_FUNCTIONS) + 8
     )
@@ -1603,6 +1625,7 @@ def test_runtime_entry_normal_profile_remains_accepted() -> None:
         | set(_EXPECTED_ORDINARY_FUNCTIONS)
         | set(_EXPECTED_TERMINAL_FUNCTIONS)
         | set(_EXPECTED_LINEUP_FUNCTIONS)
+        | set(_EXPECTED_STATS_FUNCTIONS)
         | {("recording_vocab_api", "read_batted_ball_options", "uuid, integer, text")}
     ) == {tuple(r[:3]) for r in result.functions}
     assert {
@@ -1633,8 +1656,32 @@ def test_runtime_entry_normal_profile_remains_accepted() -> None:
         "batted_hit_select_tenant_vocabularies",
     }
     assert {r[2] for r in result.policies if r[2] in batted_policies} == batted_policies
-    assert len(result.policies) - 2 - len(lineup_policies) - len(batted_policies) == 91
-    assert len(result.policies) == 95 + 3
+    stats_policies = {
+        (row[1], row[2])
+        for row in result.policies
+        if isinstance(row[2], str) and row[2].startswith("stats_primitives_")
+    }
+    assert stats_policies == {
+        (table, "stats_primitives_" + command)
+        for table, commands in (
+            ("stats_fact_versions", ("select", "insert", "update")),
+            ("stats_primitive_sources", ("select", "insert")),
+            ("stats_primitive_facts", ("select", "insert")),
+            ("players", ("select",)),
+            ("games", ("select",)),
+            ("event_slots", ("select",)),
+        )
+        for command in commands
+    }
+    assert (
+        len(result.policies)
+        - 2
+        - len(lineup_policies)
+        - len(batted_policies)
+        - len(stats_policies)
+        == 91
+    )
+    assert len(result.policies) == 95 + 3 + 10
     terminal_columns = {
         "id",
         "status",
@@ -1717,7 +1764,9 @@ def test_runtime_entry_normal_profile_remains_accepted() -> None:
         and r["object_schema"] == "public"
         for r in batted_acls
     )
-    assert len(acls) - len(terminal_acls) - len(lineup_acls) - len(batted_acls) == 342
+    assert (
+        len(acls) - len(terminal_acls) - len(lineup_acls) - len(batted_acls) == 342 + 70
+    )
 
 
 @pytest.mark.parametrize(

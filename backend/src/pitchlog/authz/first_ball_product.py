@@ -5,6 +5,8 @@ from __future__ import annotations
 import copy
 from typing import Any
 
+from pitchlog.authz.function_result_type import pg_result_type
+
 ADDITIONS: dict[str, list[dict[str, Any]]] = {
     "roles": [
         {
@@ -1929,6 +1931,56 @@ def _activate_ordinary_profile(*, play_prefix=False, recording_vocab=False) -> N
 _activate_ordinary_profile()
 _activate_ordinary_profile(play_prefix=True)
 _activate_ordinary_profile(recording_vocab=True)
+
+
+def _activate_stats_profile() -> None:
+    """成績の固定集合だけを接合し既宣言/既本文の上書きを拒否する。"""
+    from pitchlog.authz.stats_primitive_product import connection_declarations
+
+    declarations, bodies = connection_declarations()
+    valid_keys = {
+        {
+            "functions": "function",
+            "policies": "policy",
+            "column_acl_expectations": "column_acl_expectation",
+            "tables": "table",
+            "schemas": "schema",
+        }[section]
+        + "|"
+        + row[IDS[section]]
+        for section, rows in declarations.items()
+        for row in rows
+    }
+    if set(bodies) != valid_keys:
+        raise ValueError("成績接合の本文集合が宣言と不一致")
+    for section, rows in declarations.items():
+        existing = {row[IDS[section]]: row for row in ADDITIONS[section]}
+        for row in rows:
+            key = row[IDS[section]]
+            old = existing.get(key)
+            if old is not None:
+                if old != row:
+                    raise ValueError("成績接合が既宣言と衝突")
+                # 同値の既ACL本文は空白も含めて旧byteをそのまま保持する。
+                continue
+            ADDITIONS[section].append(copy.deepcopy(row))
+            existing[key] = row
+            kind = {
+                "functions": "function",
+                "policies": "policy",
+                "column_acl_expectations": "column_acl_expectation",
+                "tables": "table",
+                "schemas": "schema",
+            }[section]
+            body_key = kind + "|" + key
+            if body_key in BODIES:
+                raise ValueError("成績接合の新本文が既本文と衝突")
+            BODIES[body_key] = (
+                f"-- ELEMENT-TYPE: {kind}\n-- ELEMENT-ID: {key}\n\n" + bodies[body_key]
+            )
+
+
+_activate_stats_profile()
 ROLES = frozenset(row["role_id"] for row in ADDITIONS["roles"])
 
 TABLES = frozenset(
@@ -1939,6 +1991,9 @@ TABLES = frozenset(
         "ordinary_pitch_checkpoints",
         "ordinary_pitch_write_admissions",
         "ordinary_pitch_history",
+        "stats_fact_versions",
+        "stats_primitive_sources",
+        "stats_primitive_facts",
     }
 )
 SCHEMAS = frozenset(row["schema_name"] for row in ADDITIONS["schemas"])
@@ -2197,9 +2252,7 @@ def function_details() -> tuple[tuple[object, ...], ...]:
 
 def _pg_result_type(value: str) -> str:
     """新9関数の戻り宣言をpg_get_function_resultの表記へ揃える。"""
-    import re
-
-    return re.sub(r"\bTABLE\s*\(", "TABLE(", value)
+    return pg_result_type(value)
 
 
 def _sql_literal(value: str) -> str:

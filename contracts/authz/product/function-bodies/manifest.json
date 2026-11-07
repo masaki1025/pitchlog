@@ -3531,6 +3531,451 @@
       "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:admin_vocabularies:disabled:pitchlog_recording_vocab_fn_owner.sql",
       "element_type": "column_acl_expectation",
       "element_id": "COLUMN-ACL:public:admin_vocabularies:disabled:pitchlog_recording_vocab_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/functions/FUNCTION:stats_api:save_primitive_source(uuid, uuid, uuid, text, bigint, text, jsonb, bytea).sql",
+      "element_type": "function",
+      "element_id": "FUNCTION:stats_api:save_primitive_source(uuid, uuid, uuid, text, bigint, text, jsonb, bytea)"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/functions/FUNCTION:stats_api:open_primitive_snapshot(uuid, uuid, text).sql",
+      "element_type": "function",
+      "element_id": "FUNCTION:stats_api:open_primitive_snapshot(uuid, uuid, text)"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/functions/FUNCTION:stats_api:read_play_export_primitives(uuid, uuid, uuid, bigint, text, text, text, bigint, uuid, text, integer).sql",
+      "element_type": "function",
+      "element_id": "FUNCTION:stats_api:read_play_export_primitives(uuid, uuid, uuid, bigint, text, text, text, bigint, uuid, text, integer)"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/functions/FUNCTION:stats_api:read_primitive_totals(uuid, uuid, uuid, bigint, text, text, text).sql",
+      "element_type": "function",
+      "element_id": "FUNCTION:stats_api:read_primitive_totals(uuid, uuid, uuid, bigint, text, text, text)"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/functions/FUNCTION:stats_api:read_primitive_writer_state(uuid, uuid, uuid, text, bytea).sql",
+      "element_type": "function",
+      "element_id": "FUNCTION:stats_api:read_primitive_writer_state(uuid, uuid, uuid, text, bytea)"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/policies/POLICY:stats_fact_versions:stats_primitives_select.sql",
+      "element_type": "policy",
+      "element_id": "POLICY:stats_fact_versions:stats_primitives_select"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/policies/POLICY:stats_fact_versions:stats_primitives_insert.sql",
+      "element_type": "policy",
+      "element_id": "POLICY:stats_fact_versions:stats_primitives_insert"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/policies/POLICY:stats_fact_versions:stats_primitives_update.sql",
+      "element_type": "policy",
+      "element_id": "POLICY:stats_fact_versions:stats_primitives_update"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/policies/POLICY:stats_primitive_sources:stats_primitives_select.sql",
+      "element_type": "policy",
+      "element_id": "POLICY:stats_primitive_sources:stats_primitives_select"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/policies/POLICY:stats_primitive_sources:stats_primitives_insert.sql",
+      "element_type": "policy",
+      "element_id": "POLICY:stats_primitive_sources:stats_primitives_insert"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/policies/POLICY:stats_primitive_facts:stats_primitives_select.sql",
+      "element_type": "policy",
+      "element_id": "POLICY:stats_primitive_facts:stats_primitives_select"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/policies/POLICY:stats_primitive_facts:stats_primitives_insert.sql",
+      "element_type": "policy",
+      "element_id": "POLICY:stats_primitive_facts:stats_primitives_insert"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/policies/POLICY:players:stats_primitives_select.sql",
+      "element_type": "policy",
+      "element_id": "POLICY:players:stats_primitives_select"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/policies/POLICY:games:stats_primitives_select.sql",
+      "element_type": "policy",
+      "element_id": "POLICY:games:stats_primitives_select"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/policies/POLICY:event_slots:stats_primitives_select.sql",
+      "element_type": "policy",
+      "element_id": "POLICY:event_slots:stats_primitives_select"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:stats_fact_versions:tenant_id:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:stats_fact_versions:tenant_id:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:stats_fact_versions:game_id:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:stats_fact_versions:game_id:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:stats_fact_versions:id:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:stats_fact_versions:id:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:stats_fact_versions:model_sha256:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:stats_fact_versions:model_sha256:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:stats_fact_versions:rule_sha256:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:stats_fact_versions:rule_sha256:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:stats_fact_versions:t5_artifact_set_sha256:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:stats_fact_versions:t5_artifact_set_sha256:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:stats_fact_versions:source_set_sha256:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:stats_fact_versions:source_set_sha256:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:stats_fact_versions:source_count:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:stats_fact_versions:source_count:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:stats_fact_versions:revision:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:stats_fact_versions:revision:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:stats_fact_versions:last_generation:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:stats_fact_versions:last_generation:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:stats_fact_versions:last_d1:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:stats_fact_versions:last_d1:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:stats_fact_versions:last_d2:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:stats_fact_versions:last_d2:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:stats_fact_versions:updated_at:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:stats_fact_versions:updated_at:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:stats_fact_versions:computed_metric_keys:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:stats_fact_versions:computed_metric_keys:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:stats_fact_versions:is_current:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:stats_fact_versions:is_current:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:stats_fact_versions:completion_state:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:stats_fact_versions:completion_state:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:stats_fact_versions:completion_receipt_id:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:stats_fact_versions:completion_receipt_id:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:stats_fact_versions:public_pointer_receipt_id:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:stats_fact_versions:public_pointer_receipt_id:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:stats_fact_versions:created_at:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:stats_fact_versions:created_at:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:stats_fact_versions:invalidated_at:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:stats_fact_versions:invalidated_at:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:stats_primitive_sources:tenant_id:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:stats_primitive_sources:tenant_id:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:stats_primitive_sources:game_id:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:stats_primitive_sources:game_id:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:stats_primitive_sources:fact_version_id:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:stats_primitive_sources:fact_version_id:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:stats_primitive_sources:source_event_id:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:stats_primitive_sources:source_event_id:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:stats_primitive_sources:play_row_id:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:stats_primitive_sources:play_row_id:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:stats_primitive_sources:recording_generation:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:stats_primitive_sources:recording_generation:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:stats_primitive_sources:d1:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:stats_primitive_sources:d1:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:stats_primitive_sources:d2:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:stats_primitive_sources:d2:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:stats_primitive_sources:slot_version:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:stats_primitive_sources:slot_version:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:stats_primitive_sources:play_row_version:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:stats_primitive_sources:play_row_version:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:stats_primitive_sources:provider_kind:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:stats_primitive_sources:provider_kind:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:stats_primitive_sources:attempt_id:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:stats_primitive_sources:attempt_id:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:stats_primitive_sources:phase_id:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:stats_primitive_sources:phase_id:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:stats_primitive_sources:wire_d4:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:stats_primitive_sources:wire_d4:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:stats_primitive_sources:source_fingerprint:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:stats_primitive_sources:source_fingerprint:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:stats_primitive_sources:checkpoint_id:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:stats_primitive_sources:checkpoint_id:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:stats_primitive_sources:checkpoint_revision:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:stats_primitive_sources:checkpoint_revision:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:stats_primitive_sources:checkpoint_digest:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:stats_primitive_sources:checkpoint_digest:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:stats_primitive_sources:frame_digest:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:stats_primitive_sources:frame_digest:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:stats_primitive_sources:evaluation_sha256:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:stats_primitive_sources:evaluation_sha256:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:stats_primitive_sources:artifact_sha256:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:stats_primitive_sources:artifact_sha256:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:stats_primitive_sources:rule_sha256:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:stats_primitive_sources:rule_sha256:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:stats_primitive_sources:metric_states:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:stats_primitive_sources:metric_states:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:stats_primitive_sources:computed_metric_keys:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:stats_primitive_sources:computed_metric_keys:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:stats_primitive_sources:saved_at:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:stats_primitive_sources:saved_at:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:stats_primitive_facts:tenant_id:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:stats_primitive_facts:tenant_id:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:stats_primitive_facts:game_id:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:stats_primitive_facts:game_id:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:stats_primitive_facts:fact_version_id:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:stats_primitive_facts:fact_version_id:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:stats_primitive_facts:source_event_id:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:stats_primitive_facts:source_event_id:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:stats_primitive_facts:metric_id:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:stats_primitive_facts:metric_id:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:stats_primitive_facts:player_id:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:stats_primitive_facts:player_id:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:stats_primitive_facts:credit_ordinal:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:stats_primitive_facts:credit_ordinal:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:stats_primitive_facts:state:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:stats_primitive_facts:state:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:stats_primitive_facts:amount:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:stats_primitive_facts:amount:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:players:tenant_id:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:players:tenant_id:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:players:id:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:players:id:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:games:tenant_id:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:games:tenant_id:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:games:id:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:games:id:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:games:status:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:games:status:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:games:hidden_at:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:games:hidden_at:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:games:trashed_at:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:games:trashed_at:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:event_slots:tenant_id:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:event_slots:tenant_id:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:event_slots:game_id:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:event_slots:game_id:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:event_slots:generation:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:event_slots:generation:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:event_slots:d1:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:event_slots:d1:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:event_slots:confirmed_version:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:event_slots:confirmed_version:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:operation_events:xmin:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:operation_events:xmin:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:play_rows:xmin:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:play_rows:xmin:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:idempotency_ledger:xmin:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:public:idempotency_ledger:xmin:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:sync_fence:ordinary_pitch_checkpoints:xmin:pitchlog_sync_right_fn_owner.sql",
+      "element_type": "column_acl_expectation",
+      "element_id": "COLUMN-ACL:sync_fence:ordinary_pitch_checkpoints:xmin:pitchlog_sync_right_fn_owner"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/schemas/stats_api.sql",
+      "element_type": "schema",
+      "element_id": "stats_api"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/tables/stats_fact_versions.sql",
+      "element_type": "table",
+      "element_id": "stats_fact_versions"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/tables/stats_primitive_sources.sql",
+      "element_type": "table",
+      "element_id": "stats_primitive_sources"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/tables/stats_primitive_facts.sql",
+      "element_type": "table",
+      "element_id": "stats_primitive_facts"
     }
   ]
 }

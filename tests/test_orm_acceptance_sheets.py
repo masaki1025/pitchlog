@@ -428,7 +428,7 @@ def test_rg1_fresh_open_invariant_is_captured_in_n3() -> None:
     ]
     assert len(fresh) == 1
     assert sentence in fresh[0].canonical
-    assert fresh[0].target == "出現 032: 不変"
+    assert fresh[0].target == "出現 034: 不変"
     assert fresh[0].implementation == (
         "rg1_restore_gate: protected=['singleton_id']; allowed=['state']; "
         "conditional=['recovery_generation']; coverage=exhaustive; "
@@ -444,10 +444,10 @@ def test_generated_row_counts_match_all_current_source_rows() -> None:
         filename: len(generator.parse_sheet_rows(expected[filename]))
         for filename in generator.SHEET_FILENAMES
     } == {
-        "N1-table-completeness.md": 106,
-        "N3-immutability-completeness.md": 127,
-        "N4-deletion-lifecycle.md": 65,
-        "N7-required-attributes.md": 105,
+        "N1-table-completeness.md": 107,
+        "N3-immutability-completeness.md": 129,
+        "N4-deletion-lifecycle.md": 68,
+        "N7-required-attributes.md": 108,
     }
 
 
@@ -536,3 +536,96 @@ def test_n4_supplement_requires_exact_source_target_lifecycle_and_real_column() 
         assert len(rows) == 9
         assert all("条件付き補助参照" not in row.implementation for row in rows)
         assert all(row.judgment == row.rationale == "" for row in rows)
+
+
+def test_stats_table_declarations_have_actual_model_and_private_schema():
+    """Table宣言の成績3表を実module/private schemaに束縛する。"""
+    sources = generator._model_sources(REPO_ROOT)
+    tables = {"stats_fact_versions", "stats_primitive_sources", "stats_primitive_facts"}
+    for table in tables:
+        assert sources[table] == "backend/src/pitchlog/db/game_state/stats.py"
+    rendered = generator.render_sheets(REPO_ROOT)["N7-required-attributes.md"]
+    for table in tables:
+        assert f"models=backend/src/pitchlog/db/game_state/stats.py::{table}" in rendered
+        assert f"(sync_fence.{table})" in rendered
+        assert f"(public.{table})" not in rendered
+
+
+def test_stats_model_reference_is_static_and_rejects_schema_drift(tmp_path):
+    """モデルを実行せずASTのみで発見しschema不一致を通さない。"""
+    directory = tmp_path / "backend/src/pitchlog/db/game_state"
+    directory.mkdir(parents=True)
+    model = directory / "stats.py"
+    source = (
+        'raise RuntimeError("モデルを実行してはいけない")\n'
+        '_SCHEMA = "sync_fence"\n'
+        'class Sample:\n'
+        '    __table__ = Table("sample", metadata, schema=_SCHEMA)\n'
+    )
+    model.write_text(source)
+    assert generator._model_sources(tmp_path) == {
+        "sample": "backend/src/pitchlog/db/game_state/stats.py"
+    }
+    for changed in (
+        source.replace('"sync_fence"', '"public"'),
+        source.replace('schema=_SCHEMA', 'schema="public"'),
+    ):
+        model.write_text(changed)
+        try:
+            generator._model_sources(tmp_path)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("schema変更を見逃した")
+
+
+def test_stats_schema_rebinding_forms_are_rejected(tmp_path):
+    """固定schema後の動的/注釈/拡張代入・別束縛を見逃さない。"""
+    directory = tmp_path / "backend/src/pitchlog/db/game_state"
+    directory.mkdir(parents=True)
+    model = directory / "stats.py"
+    declaration = (
+        '_SCHEMA = "sync_fence"\n'
+        'class Sample:\n'
+        '    __table__ = Table("sample", metadata, schema=_SCHEMA)\n'
+    )
+    mutations = (
+        '_SCHEMA = choose_schema_at_runtime()\n',
+        '_SCHEMA: str = choose_schema_at_runtime()\n',
+        '_SCHEMA += "_other"\n',
+        '(_SCHEMA := choose_schema_at_runtime())\n',
+        'for _SCHEMA in ["public"]: pass\n',
+        'import something as _SCHEMA\n',
+        'del _SCHEMA\n',
+        'def _SCHEMA(): pass\n',
+        'def helper(_SCHEMA): pass\n',
+        'try: pass\nexcept Exception as _SCHEMA: pass\n',
+        'match "public":\n    case _SCHEMA: pass\n',
+        'match ["public"]:\n    case [*_SCHEMA]: pass\n',
+        'match {}:\n    case {**_SCHEMA}: pass\n',
+    )
+    for mutation in mutations:
+        model.write_text(declaration + mutation)
+        try:
+            generator._model_sources(tmp_path)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError(f"schema再束縛を見逃した: {mutation}")
+
+
+def test_carry_resets_entire_duplicate_key_group_when_count_changes():
+    """同じ版の履歴挿入を旧出現順へ誤対応させて判定を継承しない。"""
+    one = _single_row_sheet("一致", "旧履歴の判断 根拠: data-model.md:10")
+    lines = one.splitlines()
+    row = lines[-1]
+    header = "\n".join(lines[:-1]) + "\n"
+    for old_count, new_count in ((2, 4), (4, 2), (1, 2)):
+        previous = header + "\n".join([row] * old_count) + "\n"
+        generated = generator.without_human_judgments(
+            header + "\n".join([row] * new_count) + "\n"
+        )
+        carried, stats = generator.carry_forward_sheet(generated, previous, set())
+        assert all(not r.judgment for r in generator.parse_sheet_rows(carried))
+        assert stats.carried == 0
+        assert stats.reset_count == new_count

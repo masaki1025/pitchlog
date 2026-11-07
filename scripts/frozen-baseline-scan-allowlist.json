@@ -15,6 +15,12 @@
       "pending_removal": true
     },
     {
+      "path": "scripts/frozen_history.py",
+      "value": "2fa42d653e44bba8586c0afe831421402247fd30",
+      "reason": "PR197の固定Git導入commitを1件だけ信頼根とし、真正object・祖先・初出・公開独立レビュー・PO委任に束縛する。",
+      "pending_removal": false
+    },
+    {
       "path": "tests/test_check_authz_catalog.py",
       "value": "56c281c409e972927940fad830aa38352df32f1e",
       "reason": "認可台帳の差分fixture基準値。後続タスクで台帳系列へ移設する",

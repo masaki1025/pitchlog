@@ -584,28 +584,23 @@ jobs:
       - run: uv run alembic upgrade 0033_game_rules_immutable
         env:
           PITCHLOG_MIGRATION_DATABASE_URL: ${{ env.PITCHLOG_STAGE_A_OWNER_DSN }}
-      # S1認可後にだけ0033をownerで適用する。S4公開判定は行わない。
+      # 旧S0〜0039を実検査し、同ownerで0040/0041と全current catalogを閉鎖配置する。
       - run: |
           uv run python - <<'PY'
           import os
-          import psycopg
           from psycopg.conninfo import conninfo_to_dict, make_conninfo
-          from pitchlog.db.stage_a_startup import advance_stage_a_from_s0
+          from pitchlog.db.current_product_startup import advance_current_product_from_s0
 
           admin_dsn = os.environ['PITCHLOG_TEST_ADMIN_DSN']
           owner_dsn = os.environ['PITCHLOG_STAGE_A_OWNER_DSN']
           stage_db = conninfo_to_dict(owner_dsn)['dbname']
           stage_admin_dsn = make_conninfo(admin_dsn, dbname=stage_db)
-          result = advance_stage_a_from_s0(
+          result = advance_current_product_from_s0(
               owner_dsn=owner_dsn, applicator_dsn=stage_admin_dsn
           )
-          assert result.completed_stage == 'S3'
+          assert result.completed_revision == '0041_stats_fact_versions'
           assert result.publishable is False
           PY
-      # 旧S3は0039で固定し、本PRのcurrent索引だけを同ownerで追加する。
-      - run: uv run alembic upgrade 0040_batted_vocabulary_index
-        env:
-          PITCHLOG_MIGRATION_DATABASE_URL: ${{ env.PITCHLOG_STAGE_A_OWNER_DSN }}
       - run: uv run alembic current --check-heads
         env:
           PITCHLOG_MIGRATION_DATABASE_URL: ${{ env.PITCHLOG_STAGE_A_OWNER_DSN }}

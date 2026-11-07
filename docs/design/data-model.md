@@ -7,6 +7,7 @@ status: approved
 
 | 版 | 日付 | 変更内容 | 状態 |
 | --- | --- | --- | --- |
+| 1.5 | 2026-11-05 | **6-1-cの実装追随（成績private原本3表）**: 採用済みstatsモデルとmigration `0041_stats_fact_versions`の3表54列・制約・索引・削除系統・不変列を記載し、3-4へ実UNIQUEの有限3行を追記する。既本文・表・権限・野球計算の意味は不変。版は上げず設計書7.6-3前段を適用。非作者レビューと所有PGのPK/UNIQUE全6名照合後、PO委任によるCodex主担当/root判断で反映（本人の逐行確認・署名ではない）。table-classification・正式認可・実API/原子性の成立は別。 | **approved** |
 | 1.5 | 2026-11-04 | **6-1-bの実装追随(通常投球のprivate原本3表 — 版は上げない・設計書 7.6-3 前段)**: `sync_fence.ordinary_pitch_checkpoints`(14列・PK1・UNIQUE1・FK1・CHECK4)、`sync_fence.ordinary_pitch_write_admissions`(45列・PK1・UNIQUE3・FK4・CHECK7)、`sync_fence.ordinary_pitch_history`(8列・PK1・UNIQUE1・FK1・CHECK2)の構造・不変列・追記/更新・権限の限定と、`schema-manifest.json`・`table-classification.json`への表登録を記した。既存の2表・初球書込印・記録権・認可・D5消費規則は変更しない。PO委任による主担当判断による実装追随であり、本人の逐行確認・署名ではない。正式profile・runtime登録・activationは別未達。 | **approved** |
 | 1.5 | 2026-10-28 | **6-1-aの実装追随(書込印unit A+B結合 — 版は上げない・設計書 7.6-3 前段)**: 初球PlayRow INSERT用の書込印`sync_fence.first_ball_write_admissions`の構造(31列・PK・FK3・CHECK5)・状態・権限の限定と、`schema-manifest.json`の表登録への追随を記した。既存の2表・記録権・認可・D5消費規則は変更しない。PO委任Claude主担当判断による実装追随であり、本人の逐行確認・署名ではない。正式profile・runtime登録・activationは別未達。 | **approved** |
 | 1.5 | 2026-10-27 | **同期writer資格の補助2表とnamespace・一意制約を限定7.3で確定**。6-1-aへ既採用N1-U2の`sync_fence.writer_bindings`/`writer_admissions`の構造・不変列・閉鎖/追記・権限・UNKNOWN隔離を記載し、3-4へlease/nonce一意2行と既初期権一意2行の参照を整合。初回の版上げ不要という分類を撤回し、非作者第1回P1=2を全採用・反映1周・第2回0/0/0。PO委任によるCodex /root判断で本文を確定（本人の個別確認・署名ではない）。既1.4までの本文・履歴と野球結果/D5/認可の意味を保持する。正式7.7/個別認可供給/実DB/HTTP/1球保存は別未達。 | **approved** |
@@ -490,6 +491,9 @@ current transaction」(`set_config(setting_name text, new_value text, is_local b
 | 6-1-b | 通常投球のsource eventは1 admissionだけが消費する | UNIQUE (tenant_id, source_event_id) | ✅ テナント内 |
 | 6-1-b | 通常投球のPlayRowは1 admissionだけが消費する | UNIQUE (tenant_id, play_row_id) | ✅ テナント内 |
 | 6-1-b | 通常投球の履歴は同game/世代/版/打順で1件 | UNIQUE (tenant_id, game_id, internal_generation, history_version, d1) | ✅ テナント内 |
+| 6-1-c | 成績版のtenant内IDは1件 | UNIQUE (tenant_id, id) | ✅ テナント内 |
+| 6-1-c | 成績のcurrent版は同game/modelで1件 | UNIQUE (tenant_id, game_id, model_sha256) WHERE is_current | ✅ テナント内 |
+| 6-1-c | 成績sourceは同版/記録世代/D1/slot版で1件 | UNIQUE (tenant_id, game_id, fact_version_id, recording_generation, d1, slot_version) | ✅ テナント内 |
 
 **一意制約を意図的に置かない箇所**(要件が「置かない」と定めているもの):
 
@@ -1323,6 +1327,58 @@ migration単独ではRLS ENABLE/FORCE・PUBLIC権限撤去によるdefault-deny�
 | `sync_fence.ordinary_pitch_history` | 非NULL uuid: `tenant_id,game_id,source_event_id`。非NULL bigint: `internal_generation,history_version,d1,d2`。非NULL jsonb: `entry` | PK `(tenant_id,source_event_id,history_version)`、一意`(tenant_id,game_id,internal_generation,history_version,d1)`。`(tenant_id,source_event_id)→operation_events(tenant_id,id)`はON DELETE NO ACTIONでDEFERRABLE INITIALLY DEFERRED。`internal_generation,history_version,d1`は正、`d2>=0`、`entry`はjsonb object |
 
 3表ともPK/一意制約以外の追加indexを持たない。checkpointsは`id/internal_generation`と`tenant_id/game_id`を不変とし、現在値の9列（`revision,history_version,confirmed_watermark,applied_watermark,content_digest,content,roster,state,saved_at`）だけを更新できる。write_admissionsは資格identityとnonce/期限を不変とし、評価・消費の18列だけを更新できる。historyは全列を不変とする追記専用である。3表とも業務オブジェクトの削除系統では対象外で、物理DELETE/TRUNCATEを許可せず、退役述語を持たず、履歴を失うdowngradeを拒否する。migration単独ではRLS ENABLE/FORCEとPUBLIC・app/control actor・right関数所有roleの権限撤去でdefault-denyに配置する。本項は構造の追随だけを定め、通常投球の保存成立・実DB故障系・正式7.7・runtime登録を意味しない。
+
+
+#### 6-1-c. 成績のprivate原本3表（実装追随）
+
+本項は採用済み実装計画`mvp-stats-primitives/plan.md`の保存構造とmigration `0041_stats_fact_versions`（親`0040_batted_vocabulary_index`）・`db/game_state/stats.py`への技術追随である。manifestの論理名は下表の裸名、物理schemaはすべて`sync_fence`である。対応要件はNFR-005・NFR-009・NFR-018。4-2の原本/投影、11-2の無効化、11-3の索引の原則は変更しない。新たな権限・共有・再計算手順・運用条件を定めない。設計書7.6-3前段の実装追随として、非作者レビュー・実catalog照合を経てPO委任によるCodex主担当/root判断で反映した。個別の正式認可・実API/原子性は別途検証する。
+
+| 表 | 全列と型（既定値はすべてなし） | PK・一意制約・索引 |
+| --- | --- | --- |
+| `sync_fence.stats_fact_versions` | `tenant_id` uuid NOT NULL。`game_id` uuid NOT NULL。`id` uuid NOT NULL。`model_sha256` text NOT NULL。`rule_sha256` text NOT NULL。`t5_artifact_set_sha256` text NOT NULL。`source_set_sha256` text NOT NULL。`source_count` bigint NOT NULL。`revision` bigint NOT NULL。`last_generation` bigint NULL可。`last_d1` bigint NULL可。`last_d2` bigint NULL可。`updated_at` timestamp with time zone NOT NULL。`computed_metric_keys` text[] NOT NULL。`is_current` boolean NOT NULL。`completion_state` text NOT NULL。`completion_receipt_id` uuid NULL可。`public_pointer_receipt_id` uuid NULL可。`created_at` timestamp with time zone NOT NULL。`invalidated_at` timestamp with time zone NULL可 | `stats_fact_versions_pkey` PRIMARY KEY `(tenant_id,game_id,id)`。`stats_fact_versions_tenant_id_game_id_id_rule_sha256_key` UNIQUE `(tenant_id,game_id,id,rule_sha256)`。`stats_fact_versions_tenant_id_id_key` UNIQUE `(tenant_id,id)`。`uq_stats_current_game_model` UNIQUE INDEX `(tenant_id,game_id,model_sha256)` WHERE `is_current`。追加非一意索引なし |
+| `sync_fence.stats_primitive_sources` | `tenant_id` uuid NOT NULL。`game_id` uuid NOT NULL。`fact_version_id` uuid NOT NULL。`source_event_id` uuid NOT NULL。`play_row_id` uuid NOT NULL。`recording_generation` bigint NOT NULL。`d1` bigint NOT NULL。`d2` bigint NOT NULL。`slot_version` bigint NOT NULL。`play_row_version` bigint NOT NULL。`provider_kind` text NOT NULL。`attempt_id` uuid NOT NULL。`phase_id` uuid NOT NULL。`wire_d4` text NOT NULL。`source_fingerprint` text NOT NULL。`checkpoint_id` uuid NULL可。`checkpoint_revision` bigint NULL可。`checkpoint_digest` text NULL可。`frame_digest` text NULL可。`evaluation_sha256` text NOT NULL。`artifact_sha256` text NOT NULL。`rule_sha256` text NOT NULL。`metric_states` jsonb NOT NULL。`computed_metric_keys` text[] NOT NULL。`saved_at` timestamp with time zone NOT NULL | `stats_primitive_sources_pkey` PRIMARY KEY `(tenant_id,game_id,fact_version_id,source_event_id)`。`stats_primitive_sources_tenant_id_game_id_fact_version_id_r_key` UNIQUE `(tenant_id,game_id,fact_version_id,recording_generation,d1,slot_version)`。`ix_stats_source_logical` `(tenant_id,game_id,fact_version_id,d2,source_event_id)`（range_sort） |
+| `sync_fence.stats_primitive_facts` | `tenant_id` uuid NOT NULL。`game_id` uuid NOT NULL。`fact_version_id` uuid NOT NULL。`source_event_id` uuid NOT NULL。`metric_id` text NOT NULL。`player_id` uuid NOT NULL。`credit_ordinal` bigint NOT NULL。`state` text NOT NULL。`amount` numeric NULL可 | `stats_primitive_facts_pkey` PRIMARY KEY `(tenant_id,game_id,fact_version_id,source_event_id,metric_id,player_id,credit_ordinal)`。`ix_stats_fact_player_metric` `(tenant_id,game_id,fact_version_id,player_id,metric_id,source_event_id)`（lookup） |
+
+以下のCHECKは実モデルの式全文であり、共有生成指標集合26個も省略しない。FKはすべてMATCH SIMPLE・ON DELETE NO ACTION・非cross-tenantで、DEFERRABLE指定はない。
+
+**`stats_fact_versions`**
+
+- FK `fk_stats_version_game`: `(tenant_id,game_id) → public.games(tenant_id,id)`。
+- CHECK `ck_stats_version_completion_shape`: `completion_state IN ('current_open','confirmed_ended') AND (completion_state<>'confirmed_ended' OR (completion_receipt_id IS NOT NULL AND public_pointer_receipt_id IS NOT NULL))`。
+- CHECK `ck_stats_version_count`: `source_count>=0 AND revision>0`。
+- CHECK `ck_stats_version_current`: `NOT is_current OR invalidated_at IS NULL`。
+- CHECK `ck_stats_version_hashes`: `model_sha256 ~ '^sha256:[a-f0-9]{64}$' AND rule_sha256 ~ '^[a-f0-9]{64}$' AND t5_artifact_set_sha256 ~ '^[a-f0-9]{64}$' AND source_set_sha256 ~ '^[a-f0-9]{64}$'`。
+- CHECK `ck_stats_version_metric_keys`: `array_position(computed_metric_keys,NULL) IS NULL AND cardinality(computed_metric_keys)<=26 AND computed_metric_keys <@ ARRAY['pitch_count','pa','ab','h','hr','bb','hbp','k','sh','sf','catcher_interference_reached','runner_interference_reached','doubles','triples','total_bases','runs','rbi','stolen_bases','pitching_outs','pitcher_k','pitcher_bb','pitcher_hbp','hits_allowed','home_runs_allowed','fielding_errors','runs_allowed']::text[]`。
+- CHECK `ck_stats_version_position`: `(source_count=0 AND last_generation IS NULL AND last_d1 IS NULL AND last_d2 IS NULL) OR (last_generation IS NOT NULL AND last_d1 IS NOT NULL AND last_d2 IS NOT NULL AND last_generation>0 AND last_d1>0)`。
+- 削除系統は「親に従う」、更新可、移行退役述語は持たない。保護列: `completion_receipt_id,completion_state,created_at,game_id,id,model_sha256,public_pointer_receipt_id,rule_sha256,t5_artifact_set_sha256,tenant_id`。無条件更新列なし。条件付き更新列: `computed_metric_keys,invalidated_at,is_current,last_d1,last_d2,last_generation,revision,source_count,source_set_sha256,updated_at`。全列を分類済み（exhaustive）、未分類の受け取り先なし。
+
+**`stats_primitive_sources`**
+
+- FK `fk_stats_source_binding`: `(tenant_id,attempt_id,phase_id) → sync_fence.writer_bindings(tenant_id,attempt_id,phase_id)`。
+- FK `fk_stats_source_event`: `(tenant_id,source_event_id) → public.operation_events(tenant_id,id)`。
+- FK `fk_stats_source_play`: `(tenant_id,play_row_id) → public.play_rows(tenant_id,id)`。
+- FK `fk_stats_source_slot`: `(tenant_id,game_id,recording_generation,d1) → public.event_slots(tenant_id,game_id,generation,d1)`。
+- FK `fk_stats_source_version`: `(tenant_id,game_id,fact_version_id,rule_sha256) → sync_fence.stats_fact_versions(tenant_id,game_id,id,rule_sha256)`。
+- CHECK `ck_stats_source_checkpoint`: `(checkpoint_id IS NULL AND checkpoint_revision IS NULL AND checkpoint_digest IS NULL) OR (checkpoint_id IS NOT NULL AND checkpoint_revision IS NOT NULL AND checkpoint_digest IS NOT NULL AND checkpoint_revision>0 AND checkpoint_digest ~ '^[a-f0-9]{64}$')`。
+- CHECK `ck_stats_source_evaluation`: `evaluation_sha256 ~ '^[a-f0-9]{64}$' AND artifact_sha256 ~ '^[a-f0-9]{64}$' AND rule_sha256 ~ '^[a-f0-9]{64}$' AND jsonb_typeof(metric_states)='object'`。
+- CHECK `ck_stats_source_fingerprint`: `source_fingerprint ~ '^(wire-v1:)?[a-f0-9]{64}$' AND length(wire_d4)>0`。
+- CHECK `ck_stats_source_frame`: `frame_digest IS NULL OR frame_digest ~ '^[a-f0-9]{64}$'`。
+- CHECK `ck_stats_source_metric_keys`: `array_position(computed_metric_keys,NULL) IS NULL AND cardinality(computed_metric_keys)<=26 AND computed_metric_keys <@ ARRAY['pitch_count','pa','ab','h','hr','bb','hbp','k','sh','sf','catcher_interference_reached','runner_interference_reached','doubles','triples','total_bases','runs','rbi','stolen_bases','pitching_outs','pitcher_k','pitcher_bb','pitcher_hbp','hits_allowed','home_runs_allowed','fielding_errors','runs_allowed']::text[]`。
+- CHECK `ck_stats_source_ordinary_proof`: `provider_kind<>'ordinary' OR (checkpoint_id IS NOT NULL AND frame_digest IS NOT NULL)`。
+- CHECK `ck_stats_source_positions`: `recording_generation>0 AND d1>0 AND slot_version>0 AND play_row_version>0`。
+- CHECK `ck_stats_source_provider`: `provider_kind IN ('first_ball','ordinary')`。
+- 削除系統は「親に従う」、追記専用、移行退役述語は持たない。保護列: `artifact_sha256,attempt_id,checkpoint_digest,checkpoint_id,checkpoint_revision,computed_metric_keys,d1,d2,evaluation_sha256,fact_version_id,frame_digest,game_id,metric_states,phase_id,play_row_id,play_row_version,provider_kind,recording_generation,rule_sha256,saved_at,slot_version,source_event_id,source_fingerprint,tenant_id,wire_d4`。無条件更新列なし。条件付き更新列: なし。全列を分類済み（exhaustive）、未分類の受け取り先なし。
+
+**`stats_primitive_facts`**
+
+- FK `fk_stats_fact_player`: `(tenant_id,player_id) → public.players(tenant_id,id)`。
+- FK `fk_stats_fact_source`: `(tenant_id,game_id,fact_version_id,source_event_id) → sync_fence.stats_primitive_sources(tenant_id,game_id,fact_version_id,source_event_id)`。
+- CHECK `ck_stats_fact_metric`: `metric_id=ANY(ARRAY['pitch_count','pa','ab','h','hr','bb','hbp','k','sh','sf','catcher_interference_reached','runner_interference_reached','doubles','triples','total_bases','runs','rbi','stolen_bases','pitching_outs','pitcher_k','pitcher_bb','pitcher_hbp','hits_allowed','home_runs_allowed','fielding_errors','runs_allowed']::text[])`。
+- CHECK `ck_stats_fact_ordinal`: `credit_ordinal>=0 AND credit_ordinal<4`。
+- CHECK `ck_stats_fact_value`: `(state='source_unavailable' AND amount IS NULL) OR (state='available' AND amount IS NOT NULL AND amount>=0 AND amount=trunc(amount) AND amount NOT IN ('NaN'::numeric,'Infinity'::numeric,'-Infinity'::numeric))`。
+- 削除系統は「親に従う」、追記専用、移行退役述語は持たない。保護列: `amount,credit_ordinal,fact_version_id,game_id,metric_id,player_id,source_event_id,state,tenant_id`。無条件更新列なし。条件付き更新列: なし。全列を分類済み（exhaustive）、未分類の受け取り先なし。
+
+版の条件付き更新は既実装のcurrent_open同frame CASに限定し、終了確定後の内容は凍結する。sourceとfactは全列追記専用である。親に従う削除系統は物理削除の許可を意味せず、migrationのdowngradeは履歴を失う操作を拒否する。migration単独では3表ともownerを`pitchlog_owner`とし、RLS ENABLE/FORCE、PUBLIC・app・sync binding actor・RG1 control actor・sync right関数ownerから全権限を撤去してdefault-denyに配置する。この構造記載から正式profile・runtime登録・同TX保存・真正RRRO・実PG成立や成績MVP全機能の完了を推定しない。
 
 ### 6-2. 交代はイベントとして永続化し、投影として「出場区間」を持つ(FR-011)
 

@@ -33,12 +33,15 @@ _PRIVATE_TABLE_NAMES = frozenset(
         "ordinary_pitch_checkpoints",
         "ordinary_pitch_write_admissions",
         "ordinary_pitch_history",
+        "stats_fact_versions",
+        "stats_primitive_sources",
+        "stats_primitive_facts",
     }
 )
 
 
 def _contract_table_name(schema: str | None, name: str) -> str:
-    """既publicと採用済み私有3表だけをmanifestのIDへ写像する。"""
+    """既publicと登録済み私有表だけをmanifestのIDへ写像する。"""
     expected_schema = "sync_fence" if name in _PRIVATE_TABLE_NAMES else "public"
     if ("public" if schema is None else schema) != expected_schema:
         raise AssertionError(f"未登録の表schema: {schema}.{name}")
@@ -737,7 +740,7 @@ def test_changed_canonical_digest_is_reported_as_stale() -> None:
 
 
 def test_all_manifest_tables_have_models_and_migrations() -> None:
-    """Manifest 全46表が models と migration の両方に存在する。"""
+    """Manifest 全59表が models と migration の両方に存在する。"""
     assert all_models.IMPORTED_MODEL_MODULE_NAMES
     manifest_tables = {table["name"] for table in _load_manifest()["tables"]}
     model_tables = _model_table_names(Base.metadata)
@@ -1081,6 +1084,9 @@ def test_historical_projection_keeps_unknown_table_and_missing_known_table(
         ("unknown", "games"),
         ("", "games"),
         ("public", "writer_bindings"),
+        ("public", "stats_fact_versions"),
+        ("public", "stats_primitive_sources"),
+        ("public", "stats_primitive_facts"),
         ("unknown", "writer_admissions"),
         ("sync_fence", "games"),
     ],

@@ -28,6 +28,7 @@ FACT_KINDS = frozenset(
         "initial_right_storage",
         "sync_writer_binding_storage",
         "ordinary_pitch_storage",
+        "stats_primitive_storage",
         "secret_column",
     }
 )
@@ -41,10 +42,20 @@ FUNCTION_ONLY_FACT_KINDS = frozenset(
         "initial_right_storage",
         "sync_writer_binding_storage",
         "ordinary_pitch_storage",
+        "stats_primitive_storage",
     }
 )
 FUNCTION_OWNER_UNITS = frozenset({"U-A1", "U-A2", "U-X1", "U-R1", "migration_batch"})
 CANONICAL_SOURCE_PATH = "docs/design/data-model.md"
+_STATS_PRIVATE_TABLES = frozenset(
+    ("stats_fact_versions", "stats_primitive_sources", "stats_primitive_facts")
+)
+_STATS_STORAGE_QUOTE = (
+    "migration単独では3表ともownerを`pitchlog_owner`とし、"
+    "RLS ENABLE/FORCE、PUBLIC・app・sync binding ac"
+    "tor・RG1 control actor・sync right関数ownerから全権限を撤去して"
+    "default-denyに配置する。"
+)
 
 
 class ProductClassificationError(ValueError):
@@ -211,6 +222,12 @@ def _classification_profiles(
         )
         if profile not in PROFILE_NAMES:
             violations.append(f"{label}.profileが閉じた列挙にない: {profile!r}")
+        if table_name in _STATS_PRIVATE_TABLES and row != {
+            "table": table_name,
+            "profile": "function_only",
+            "access_path": {"reason": "stats_primitive_storage", "owner_unit": "U-X1"},
+        }:
+            violations.append("成績private分類の全fieldが不一致")
         is_function_only = profile == "function_only"
         expected_keys = (
             frozenset({"table", "profile", "access_path"})
@@ -363,6 +380,15 @@ def _exposure_fact_sets(
                 canonical_source,
                 violations,
             )
+            if kind == "stats_primitive_storage" and (
+                table_name not in _STATS_PRIVATE_TABLES
+                or entry.get("evidence")
+                != [
+                    {"section": "6-1-c", "quote": f"| `sync_fence.{table_name}` |"},
+                    {"section": "6-1-c", "quote": _STATS_STORAGE_QUOTE},
+                ]
+            ):
+                violations.append("成績private原典の3表/6-1-c引用が不一致")
             if table_name is None:
                 continue
             if table_name not in manifest_columns:
@@ -407,6 +433,8 @@ def _exposure_fact_sets(
         optional_kinds.add("sync_writer_binding_storage")
     if not manifest_names & ordinary_tables:
         optional_kinds.add("ordinary_pitch_storage")
+    if not manifest_names & _STATS_PRIVATE_TABLES:
+        optional_kinds.add("stats_primitive_storage")
     required_kinds = FACT_KINDS - optional_kinds
     if seen_kinds != required_kinds:
         violations.append(
@@ -477,6 +505,12 @@ def _validate_assignment_conditions(
         }
     ):
         violations.append("通常投球保存資源はexact3表が必要")
+    stats_present = frozenset(manifest_columns) & _STATS_PRIVATE_TABLES
+    stats_facts = table_facts.get("stats_primitive_storage", frozenset())
+    if stats_present and (
+        stats_present != _STATS_PRIVATE_TABLES or stats_facts != _STATS_PRIVATE_TABLES
+    ):
+        violations.append("成績private保存はmanifest/事実ともexact3表が必要")
     for table_name, profile in profiles.items():
         columns = manifest_columns.get(table_name, frozenset())
         if table_name in special_tables and profile != "function_only":

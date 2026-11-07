@@ -1516,6 +1516,7 @@ def check_acceptance(root: Path, ledger_path: Path) -> tuple[str, ...]:
         root,
         base_sha,
         base_ledger_present=base_entry is not None,
+        event=event,
     )
     if base_entry is None:
         # head側の検査器を実行する循環は残る。初回の信頼根は人間の逐行確認である。
@@ -1688,6 +1689,7 @@ def _check_scan_allowlist_transition(
     base_ledger_present: bool,
     base_entries: tuple[_ScanAllowlistEntry, ...] | None,
     head_entries: tuple[_ScanAllowlistEntry, ...],
+    permitted_addition: _ScanKey | None = None,
 ) -> None:
     """bootstrapまたは通常規則でallow-listの遷移を検査する。"""
     if not base_ledger_present and base_entries is None:
@@ -1713,7 +1715,7 @@ def _check_scan_allowlist_transition(
     base_by_key = {entry.key: entry for entry in base_entries}
     head_by_key = {entry.key: entry for entry in head_entries}
     additions = frozenset(head_by_key.keys() - base_by_key.keys())
-    if additions:
+    if additions and additions != frozenset({permitted_addition}):
         raise FrozenBaselineCheckError(
             "allow-list通常規則: エントリ追加は禁止: "
             f"{_format_scan_keys(additions)}"
@@ -1798,6 +1800,83 @@ def _load_worktree_scan_allowlist(root: Path) -> tuple[_ScanAllowlistEntry, ...]
     return _parse_scan_allowlist(data, str(path))
 
 
+def _verify_pr197_pin_scan_exception(
+    root: Path,
+    event: _PullRequestEvent,
+    base_sha: str,
+    head_entries: tuple[_ScanAllowlistEntry, ...],
+    additions: set[_ScanKey],
+) -> _ScanKey:
+    """PR197の固定Git trust root 1件だけを公開委任証拠と照合する。"""
+    try:
+        import check_tenant_boundary_bypass
+        import core_guard
+        import frozen_history
+    except ModuleNotFoundError:  # pragma: no cover - package読取経路
+        from scripts import check_tenant_boundary_bypass, core_guard, frozen_history
+
+    anchor = frozen_history.PR197_PIN_ORIGIN_COMMIT
+    allowed = _ScanKey("scripts/frozen_history.py", anchor)
+    if additions != {allowed}:
+        raise FrozenBaselineCheckError(
+            "PR197固定Git anchor以外のallow-list追加は禁止: "
+            f"{_format_scan_keys(additions)}"
+        )
+    entry = next(item for item in head_entries if item.key == allowed)
+    if (
+        entry.pending_removal
+        or entry.reason != (
+            "PR197の固定Git導入commitを1件だけ信頼根とし、真正object・祖先・初出"
+            "・公開独立レビュー・PO委任に束縛する。"
+        )
+    ):
+        raise FrozenBaselineCheckError("PR197固定Git anchorの用途または除去状態が不一致")
+    if (
+        event.number != 197
+        or event.repository != core_guard.DELEGATION_REPOSITORY
+        or event.base_ref != "develop"
+        or event.base_sha != base_sha
+    ):
+        raise FrozenBaselineCheckError("PR197固定Git anchorのPR/base識別が不一致")
+    try:
+        guard_event = core_guard.load_pull_request_event()
+        if (
+            guard_event.number != event.number
+            or guard_event.repository != event.repository
+            or guard_event.base_sha != base_sha
+            or guard_event.head_sha != event.head_sha
+            or guard_event.head_branch != "feature/mvp-stats-native-foundation"
+        ):
+            raise FrozenBaselineCheckError("PR197固定Git anchorのbranch/head識別が不一致")
+        for path in (
+            "scripts/frozen_history.py",
+            "scripts/check_frozen_baselines.py",
+            SCAN_ALLOWLIST_PATH.as_posix(),
+        ):
+            if (root / path).read_bytes() != _git_file_bytes(root, event.head_sha, path):
+                raise FrozenBaselineCheckError(
+                    f"PR197固定Git anchorの実行byteとPR headが不一致: {path}"
+                )
+        frozen_history.read_original_pr197_pin("pr197_expectation_revision", root)
+        if (
+            check_tenant_boundary_bypass._pr197_fixed_expectations(root)[
+                "formal_base_revision"
+            ] != base_sha
+        ):
+            raise FrozenBaselineCheckError("PR197固定Git anchorの正式baseが不一致")
+        core_guard.verify_delegated_confirmation(root, guard_event)
+    except (
+        check_tenant_boundary_bypass.ContractError,
+        core_guard.GuardError,
+        frozen_history.ContractError,
+        OSError,
+    ) as exc:
+        raise FrozenBaselineCheckError(
+            "PR197固定Git anchorの真正原典または公開委任証拠を検証できない"
+        ) from exc
+    return allowed
+
+
 def check_repository_source_scan(root: Path) -> _SourceScan:
     """実リポジトリのPython本文走査をproduction allow-listと照合する。
 
@@ -1821,6 +1900,7 @@ def _check_acceptance_scan_transition(
     base_sha: str,
     *,
     base_ledger_present: bool,
+    event: _PullRequestEvent,
 ) -> None:
     """base treeと作業ツリーのproduction allow-list遷移を検査する。"""
     head_entries = _load_worktree_scan_allowlist(root)
@@ -1835,10 +1915,19 @@ def _check_acceptance_scan_transition(
             _git_file_bytes(root, base_sha, SCAN_ALLOWLIST_PATH.as_posix()),
             f"{base_sha}:{SCAN_ALLOWLIST_PATH.as_posix()}",
         )
+    permitted_addition = None
+    if base_entries is not None:
+        base_keys = {entry.key for entry in base_entries}
+        additions = {entry.key for entry in head_entries} - base_keys
+        if additions:
+            permitted_addition = _verify_pr197_pin_scan_exception(
+                root, event, base_sha, head_entries, additions,
+            )
     _check_scan_allowlist_transition(
         base_ledger_present=base_ledger_present,
         base_entries=base_entries,
         head_entries=head_entries,
+        permitted_addition=permitted_addition,
     )
 
 

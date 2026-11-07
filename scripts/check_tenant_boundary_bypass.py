@@ -988,6 +988,15 @@ class Pr196SourceRegistration:
 
 
 @dataclass(frozen=True)
+class Pr197SourceRegistration:
+    """native197の条件付き71siteと別資格のidentity後継2pathを保持する。"""
+
+    owners: tuple[Pr191SourceOwner, ...]
+    sql_paths: frozenset[str]
+    identity_successor_paths: frozenset[str]
+
+
+@dataclass(frozen=True)
 class Contract:
     """検査に必要な資産を読み合わせた契約を表す。"""
 
@@ -1020,6 +1029,7 @@ class Contract:
     pr191_source_owners: tuple[Pr191SourceOwner, ...] = ()
     pr192_source_registration: Pr192SourceRegistration | None = None
     pr196_source_registration: Pr196SourceRegistration | None = None
+    pr197_source_registration: Pr197SourceRegistration | None = None
 
 
 @dataclass(frozen=True, order=True)
@@ -1814,7 +1824,8 @@ def _load_allowlist(
             "writer_binding_deployment_assets",
             "baseline_control",
         } | ({"pr192_source_registration"} if "pr192_source_registration" in value else set())
-        | ({"pr196_source_registration"} if "pr196_source_registration" in value else set()),
+        | ({"pr196_source_registration"} if "pr196_source_registration" in value else set())
+        | ({"pr197_source_registration"} if "pr197_source_registration" in value else set()),
         "base-allowlist.json",
     )
     if _integer(value["schema_version"], "allowlist.schema_version") != 1:
@@ -2600,6 +2611,188 @@ def _require_single_static_name_binding(
         raise ContractError("固定tuple参照名のimport/代入が単一でない")
 
 
+_STATS_NATIVE_REGISTRY_REFERENCE = frozen_history.read_original_pr197_pin(
+    "stats_native_registry_reference_revision"
+)
+_STATS_NATIVE_REGISTRY_PURPOSE = (
+    "採用済native5のregistry/owner/codec全byteを固定Git祖先へ束縛し、"
+    "新import1と末尾Starred1だけを除くとPR196原典へ全byte一致する登録形に限定する。"
+    "任意Starred・別領域・将来lifecycle/undo・実行資格を許可しない。"
+)
+_STATS_NATIVE_REGISTRY_SOURCES = [
+    "scripts/check_tenant_boundary_bypass.py:_stats_native_static_registrations",
+    "tests/test_check_tenant_boundary_bypass.py:test_registry_native_tuple_current_exact27",
+]
+
+
+def _stats_native_registry_profile(
+    repository_root: Path, declared_ids: Sequence[str], registry_tree: ast.Module,
+) -> bool:
+    """固定Gitの導入境界と宣言からnative登録profileを選ぶ。
+
+    Args:
+        repository_root: 検査対象のroot。
+        declared_ids: 資産に宣言された製品operation ID。
+        registry_tree: 製品registryのAST。
+
+    Returns:
+        native固定原典の証明を要求する場合は真。
+
+    Raises:
+        ContractError: 凍結宣言またはGit導入境界を検証できない場合。
+    """
+    frozen, _ = _read_json(repository_root / "contracts/tenant_boundary/frozen-inputs.json")
+    inputs = _object(frozen.get("frozen_inputs"), "native5 frozen inputs")
+    result = subprocess.run(
+        ["git", "merge-base", "--is-ancestor", _STATS_NATIVE_REGISTRY_REFERENCE, "HEAD"],
+        cwd=repository_root, capture_output=True, text=True, check=False,
+    )
+    if result.returncode not in (0, 1):
+        raise ContractError("native5導入境界の真正Gitを検証できない")
+    module_root = repository_root / "backend/src/pitchlog/repositories"
+    native_sources = ("stats_native_operations.py", "stats_function_codec.py")
+    return (
+        result.returncode == 0
+        or "stats_native_registry_reference_revision" in inputs
+        or any(value.startswith("STATS_PRIMITIVES:") for value in declared_ids)
+        or any((module_root / name).exists() or (module_root / name).is_symlink()
+               for name in native_sources)
+        or any(isinstance(node, ast.ImportFrom)
+               and node.module == "pitchlog.repositories.stats_native_operations"
+               for node in registry_tree.body)
+    )
+
+
+def _stats_native_static_registrations(
+    repository_root: Path,
+) -> tuple[bytes, list[ast.Call]]:
+    """真正Gitのnative5だけを静的解決し、旧原典へのbyte射影を返す。
+
+    Args:
+        repository_root: typed参照と真正Gitを持つ対象root。
+
+    Returns:
+        有限追加2断片を除いた旧registry原典と、静的に得た5登録。
+
+    Raises:
+        ContractError: pin・祖先・全byte・有限登録のいずれかが不一致の場合。
+    """
+    try:
+        frozen, _ = _read_json(repository_root / "contracts/tenant_boundary/frozen-inputs.json")
+        inputs = _object(frozen.get("frozen_inputs"), "native5 frozen inputs")
+        entry = _object(inputs.get("stats_native_registry_reference_revision"), "native5 pin")
+        _strict_keys(entry, {"value", "purpose", "sources"}, "native5 pin")
+        if not _pr196_same_json(entry, {
+            "value": _STATS_NATIVE_REGISTRY_REFERENCE,
+            "purpose": _STATS_NATIVE_REGISTRY_PURPOSE,
+            "sources": _STATS_NATIVE_REGISTRY_SOURCES,
+        }):
+            raise ContractError("native5固定原典の全値/用途が不一致")
+        revision = _STATS_NATIVE_REGISTRY_REFERENCE
+        resolved = _run_git(
+            repository_root, ["rev-parse", "--verify", revision + "^{commit}"]
+        ).strip()
+        if resolved != revision:
+            raise ContractError("native5固定原典commitが不一致")
+        _run_git(repository_root, ["merge-base", "--is-ancestor", revision, "HEAD"])
+        sources: dict[str, bytes] = {}
+        for name in ("operation_registry", "stats_native_operations", "stats_function_codec"):
+            relative = "backend/src/pitchlog/repositories/" + name + ".py"
+            path = repository_root / relative
+            if path.is_symlink() or not path.is_file():
+                raise ContractError("native5原典は正規fileが必要")
+            raw = path.read_bytes()
+            if raw != _pr192_git_bytes(repository_root, revision, relative):
+                raise ContractError("native5のregistry/owner/codec原典全byteが不一致")
+            sources[name] = raw
+        registry = sources["operation_registry"]
+        added_import = (
+            b"from pitchlog.repositories.stats_native_operations import (\n"
+            b"    STATS_NATIVE_FUNCTION_OPERATIONS,\n)\n"
+        )
+        added_star = b"    *STATS_NATIVE_FUNCTION_OPERATIONS,\n"
+        if registry.count(added_import) != 1 or registry.count(added_star) != 1:
+            raise ContractError("native5登録の有限追加2断片が不一致")
+        projection = registry.replace(added_import, b"", 1).replace(added_star, b"", 1)
+        fixed = _pr196_read_fixed_expectations(repository_root)
+        old = _pr192_git_bytes(
+            repository_root, fixed["source_revision"],
+            "backend/src/pitchlog/repositories/operation_registry.py",
+        )
+        if projection != old:
+            raise ContractError("native5追加を除いた旧registry原典全byteが不一致")
+        tree = ast.parse(registry.decode("utf-8"))
+        name = "STATS_NATIVE_FUNCTION_OPERATIONS"
+        imports = [node for node in tree.body if isinstance(node, ast.ImportFrom)
+                   and node.module == "pitchlog.repositories.stats_native_operations"
+                   and node.level == 0 and len(node.names) == 1
+                   and node.names[0].name == name and node.names[0].asname is None]
+        if len(imports) != 1:
+            raise ContractError("native5の固定importが不一致")
+        _require_single_static_name_binding(tree, name, imports[0])
+        values = [node.value for node in tree.body if isinstance(node, ast.AnnAssign)
+                  and isinstance(node.target, ast.Name)
+                  and node.target.id == "PRODUCT_FUNCTION_OPERATIONS"]
+        if (len(values) != 1 or not isinstance(values[0], ast.Tuple)
+                or len(values[0].elts) != 23
+                or not isinstance(values[0].elts[-1], ast.Starred)
+                or not isinstance(values[0].elts[-1].value, ast.Name)
+                or values[0].elts[-1].value.id != name):
+            raise ContractError("native5の末尾tuple追加位置が不一致")
+        owner = ast.parse(sources["stats_native_operations"].decode("utf-8"))
+        families = [node for node in owner.body if isinstance(node, ast.Assign)
+                    and len(node.targets) == 1 and isinstance(node.targets[0], ast.Name)
+                    and node.targets[0].id == "_FAMILIES"]
+        if len(families) != 1 or not isinstance(families[0].value, ast.Dict):
+            raise ContractError("native5の有限family宣言が不一致")
+        _require_single_static_name_binding(owner, "_FAMILIES", families[0].targets[0])
+        rows = families[0].value
+        expected = (
+            ("save_primitive_source", "_SavePrimitiveSourceCall",
+             "save_source", "save_source", 1, 1, ()),
+            ("read_primitive_writer_state", "_ReadPrimitiveWriterStateCall",
+             "read_writer_state", "save_source", 1, 1, ("source_set_sha256",)),
+            ("open_primitive_snapshot", "OpenPrimitiveSnapshotToken",
+             "open_snapshot", "read", 1, 1, ()),
+            ("read_play_export_primitives", "ReadPrimitivePageToken",
+             "read_page", "read", 0, 500, ("value",)),
+            ("read_primitive_totals", "ReadPrimitiveTotalsToken",
+             "read_totals", "read", 26, 26, ("value",)),
+        )
+        if len(rows.keys) != len(expected):
+            raise ContractError("native5のfamily数が不一致")
+        registrations: list[ast.Call] = []
+        for key, value, required in zip(rows.keys, rows.values, expected, strict=True):
+            function, token, operation, capability, minimum, maximum, nullable = required
+            if (not isinstance(key, ast.Constant) or key.value != function
+                    or not isinstance(value, ast.Tuple) or len(value.elts) != 6
+                    or not isinstance(value.elts[0], ast.Name) or value.elts[0].id != token):
+                raise ContractError("native5のfamily順序/型が不一致")
+            actual = tuple(ast.literal_eval(item) for item in value.elts[1:])
+            if (type(actual[2]) is not int or type(actual[3]) is not int
+                    or actual != (operation, capability, minimum, maximum, nullable)):
+                raise ContractError("native5のoperation/能力/行数が不一致")
+            registrations.append(ast.Call(
+                func=ast.Name(id="FunctionOperationRegistration", ctx=ast.Load()), args=[],
+                keywords=[ast.keyword(
+                    arg="operation_id", value=ast.Constant("STATS_PRIMITIVES:" + operation)
+                )],
+            ))
+        codec = ast.parse(sources["stats_function_codec"].decode("utf-8"))
+        specs = [node for node in codec.body if isinstance(node, ast.Assign)
+                 and len(node.targets) == 1 and isinstance(node.targets[0], ast.Name)
+                 and node.targets[0].id == "_SPECS"]
+        if (len(specs) != 1 or not isinstance(specs[0].value, ast.Dict)
+                or len(specs[0].value.keys) != 5
+                or any(not isinstance(key, ast.Constant) for key in specs[0].value.keys)
+                or {key.value for key in specs[0].value.keys if isinstance(key, ast.Constant)}
+                != {row[0] for row in expected}):
+            raise ContractError("native5のcodec有限5関数が不一致")
+        return projection, registrations
+    except (OSError, ValueError, UnicodeError, subprocess.CalledProcessError) as error:
+        raise ContractError("native5固定原典を取得/検証できない") from error
+
+
 def _batted_options_static_registration(
     repository_root: Path, registry_tree: ast.Module, registry_value: ast.Tuple
 ) -> ast.Call:
@@ -2615,9 +2808,13 @@ def _batted_options_static_registration(
         _git_regular_blob(repository_root, source_revision, path)
         target = repository_root / path
         try:
-            if target.is_symlink() or target.read_bytes() != _pr192_git_bytes(
-                repository_root, source_revision, relative
-            ):
+            if target.is_symlink():
+                raise ContractError("固定tupleのreadonly原典は正規fileが必要")
+            actual = target.read_bytes()
+            expected = _pr192_git_bytes(repository_root, source_revision, relative)
+            if actual != expected and relative.endswith("/operation_registry.py"):
+                actual, _ = _stats_native_static_registrations(repository_root)
+            if actual != expected:
                 raise ContractError("固定tupleのreadonly原典全byteが不一致")
         except OSError as error:
             raise ContractError("固定tupleのreadonly原典が取得できない") from error
@@ -2790,12 +2987,23 @@ def _validate_function_operation_surface(
         raise ContractError("固定関数製品registryは静的tupleが必要")
     actual_ids: list[str] = []
     entries = registry_values[0].elts
+    native_entries: list[ast.Call] = []
+    if _stats_native_registry_profile(repository_root, declared_ids, registry_tree):
+        projection, native_entries = _stats_native_static_registrations(repository_root)
+        registry_tree = ast.parse(projection.decode("utf-8"))
+        registry_values = [node.value for node in registry_tree.body
+                           if isinstance(node, ast.AnnAssign)
+                           and isinstance(node.target, ast.Name)
+                           and node.target.id == registry_parts[3]]
+        if len(registry_values) != 1 or not isinstance(registry_values[0], ast.Tuple):
+            raise ContractError("native5射影の旧registryが不一致")
+        entries = registry_values[0].elts
     if any(isinstance(entry, ast.Starred) for entry in entries):
         resolved = _batted_options_static_registration(
             repository_root, registry_tree, registry_values[0]
         )
         entries = [resolved, *entries[1:]]
-    for entry in entries:
+    for entry in [*entries, *native_entries]:
         if not isinstance(entry, ast.Call):
             raise ContractError("固定関数製品registryの登録形式が不正")
         matches = [
@@ -2949,6 +3157,11 @@ def load_contract(repository_root: Path) -> Contract:
             _load_pr196_source_owners(
                 repository_root, allowlist_value["pr196_source_registration"], allowlist_value,
             ) if "pr196_source_registration" in allowlist_value else None
+        ),
+        pr197_source_registration=(
+            _load_pr197_source_owners(
+                repository_root, allowlist_value["pr197_source_registration"], allowlist_value,
+            ) if "pr197_source_registration" in allowlist_value else None
         ),
     )
 
@@ -8366,8 +8579,9 @@ def scan_source(
             if path != owner.path.removeprefix("backend/src/"):
                 continue
             if (contract.pr191_source_owners != _pr191_trusted_source_owners()
-                    or source.encode() != owner.immutable_source) and not _pr192_successor_matches(
-                        source, path, contract):
+                    or source.encode() != owner.immutable_source) and not (
+                        _pr192_successor_matches(source, path, contract)
+                        or _pr197_identity_successor_matches(source, path, contract)):
                 line, code, symbol, scope = min(owner.findings)
                 violation = Violation(
                     path, line, int(code.removeprefix("TB")), code, symbol,
@@ -8382,13 +8596,19 @@ def scan_source(
         trusted192 = _pr192_trusted_source_registration()
         for full_path, raw in trusted192.source_files:
             if path == full_path.removeprefix("backend/src/") and (
-                    not pr192_active or source.encode() != raw) and not _pr196_successor_matches(
-                        source, path, contract):
+                    not pr192_active or source.encode() != raw) and not (
+                        _pr196_successor_matches(source, path, contract)
+                        or _pr197_identity_successor_matches(source, path, contract)):
                 violations.append(Violation(path, 1, 2, "TB002", "pr192-source-identity",
                     "pr192の固定source8/完全ownerと不一致", scope=_module_name(path) + ".<module>"))
     pr196_evidence = _pr196_source_evidence(source, path, contract)
     violations = [item for item in violations
                   if (item.line, item.code, item.symbol, item.scope) not in pr196_evidence]
+    if not reject_all_db_calls:
+        pr197_evidence = _pr197_source_evidence(source, path, contract)
+        violations = [item for item in violations
+                      if (item.line, item.code, item.symbol, item.scope)
+                      not in pr197_evidence]
     return sorted(violations)
 
 
@@ -9751,9 +9971,17 @@ def _changed_source_violations(
     deployment_valid: bool | None = None
     rg1_deployment_valid: bool | None = None
     writer_binding_valid: bool | None = None
+    pr197_sql_valid: bool | None = None
     for relative, lines in sorted(population.items()):
         path = repository_root / "backend/src" / relative
         if path.suffix not in {".py", ".pyi"}:
+            if relative in _PR197_SQL_PATHS:
+                if pr197_sql_valid is None:
+                    pr197_sql_valid = _pr197_generated_sql_matches(
+                        repository_root, contract,
+                    )
+                if pr197_sql_valid:
+                    continue
             if relative in _LEDGER_DEPLOYMENT_ASSETS:
                 if deployment_valid is None:
                     deployment_valid = _validated_ledger_deployment_assets(
@@ -10684,6 +10912,548 @@ def _pr196_successor_matches(source: str, path: str, contract: Contract) -> bool
     return any(owner.path in registration.successor_paths
                and owner.path.removeprefix("backend/src/") == path
                and owner.immutable_source == source.encode() for owner in registration.owners)
+
+
+# PR197の前置fixtureはrootが独立受理後にGitへ固定する。未供給なら閉拒否する。
+_PR197_SOURCE_REVISION = frozen_history.read_original_pr197_pin("pr197_source_revision")
+_PR197_EXPECTED_FIXTURE = "tests/fixtures/pr197_tenant_source_expected_v1.json"
+_PR197_FIXED_EXPECTATION_REVISION: str | None = frozen_history.read_original_pr197_pin(
+    "pr197_expectation_revision"
+)
+_PR197_EXPECTATION_FIXTURE_SHA256: str | None = (
+    frozen_history.read_original_pr197_pin("pr197_expectation_fixture_sha256")
+)
+_PR197_GENERATED_FACTS = "backend/src/pitchlog/stats/generated/facts.py"
+_PR197_GENERATED_FACTS_SHA256 = (
+    frozen_history.read_original_pr197_pin("pr197_generated_facts_sha256")
+)
+_PR197_OWNER_PATHS = frozenset({
+    "backend/src/pitchlog/db/current_product_startup.py",
+    "backend/src/pitchlog/db/game_state/stats.py",
+    "backend/src/pitchlog/domaincheck/runners/stats_native.py",
+    "backend/src/pitchlog/exports/generated/play_primitives.sql",
+    "backend/src/pitchlog/repositories/play_export_primitives.py",
+    "backend/src/pitchlog/repositories/stats_function_codec.py",
+    "backend/src/pitchlog/repositories/stats_native_operations.py",
+    "backend/src/pitchlog/repositories/transaction.py",
+    "backend/src/pitchlog/stats/facts.py",
+    "backend/src/pitchlog/stats/generated/stats.sql",
+    "backend/src/pitchlog/stats/generated/stats_rates.sql",
+    "backend/src/pitchlog/sync/native_ledger_insert.py",
+    "backend/src/pitchlog/sync/ordinary_pitch_execution.py",
+    "backend/src/pitchlog/sync/stats_native_flush.py",
+    "backend/src/pitchlog/sync/stats_native_hook.py",
+})
+_PR197_SQL_PATHS = frozenset({
+    path.removeprefix("backend/src/") for path in _PR197_OWNER_PATHS
+    if path.endswith(".sql")
+})
+_PR197_GENERATOR_IMPORT_FILES = frozenset({
+    "backend/src/pitchlog/__init__.py",
+    "backend/src/pitchlog/domaingen/__init__.py",
+    "backend/src/pitchlog/domaingen/backends/__init__.py",
+    "backend/src/pitchlog/domaingen/backends/common.py",
+})
+_PR197_SOURCE_PURPOSE = (
+    "PR197実sourceの条件付き71siteのみを固定Git全byteへ束縛する。"
+    "旧診断3は別profileで後継成立だけを判定する。"
+)
+_PR197_EXPECTATION_PURPOSE = (
+    "PR197非作者分類と旧identity後継profileの前置Git全byteを束縛し、"
+    "現木自己期待を拒否する。"
+)
+_PR197_SOURCE_CONSUMERS = [
+    "scripts/check_tenant_boundary_bypass.py:_load_pr197_source_owners",
+    "tests/test_pr197_tenant_source_registration.py:test_pr197_source_registration_is_finite_and_holds_three",
+]
+_PR197_EXPECTATION_CONSUMERS = [
+    "scripts/check_tenant_boundary_bypass.py:_pr197_fixed_expectations",
+    "tests/test_pr197_tenant_source_registration.py:test_pr197_absent_root_pin_fails_closed",
+]
+_PR197_HELD_SITES = frozenset({
+    ("backend/src/pitchlog/repositories/transaction.py", 1, "TB002", "pr192-source-identity"),
+    ("backend/src/pitchlog/sync/ordinary_pitch_execution.py", 1, "TB002", "pr192-source-identity"),
+    ("backend/src/pitchlog/sync/ordinary_pitch_execution.py", 614,
+     "TB007", "builtins.object.__new__"),
+})
+_PR197_IDENTITY_PATHS = frozenset({
+    "backend/src/pitchlog/repositories/transaction.py",
+    "backend/src/pitchlog/sync/ordinary_pitch_execution.py",
+})
+_PR197_IDENTITY_PURPOSE = (
+    "PR197固定a59の2pathだけを旧PR191/192 identity後継として接合し、"
+    "TB siteの許可とは分離する。"
+)
+_PR197_PR191_SOURCE_REVISION = frozen_history.read_original_pr197_pin(
+    "pr191_source_registration_revision"
+)
+_PR197_PR192_SOURCE_REVISION = frozen_history.read_original_pr197_pin(
+    "pr192_source_registration_revision"
+)
+_PR197_IDENTITY_FUNCTIONS = {
+    "backend/src/pitchlog/repositories/transaction.py": (
+        "_assert_existing_resolution_owner", "_port_read_types", "_execute_port_command",
+    ),
+    "backend/src/pitchlog/sync/ordinary_pitch_execution.py": (
+        "_live", "_require_ordinary_projection_completed",
+        "_ordinary_qualification_scope",
+    ),
+}
+_PR197_IDENTITY_FOLLOWUPS = {
+    "backend/src/pitchlog/repositories/transaction.py": tuple(
+        f"V{number}" for number in range(116, 125)
+    ),
+    "backend/src/pitchlog/sync/ordinary_pitch_execution.py": ("V125",),
+}
+
+
+def _pr197_fixed_expectations(root: Path) -> dict[str, Any]:
+    """root前置Gitのfixtureとtyped用途を全byteで読み合わせる。"""
+    if (_PR197_FIXED_EXPECTATION_REVISION is None
+            or _PR197_EXPECTATION_FIXTURE_SHA256 is None):
+        raise ContractError("pr197前置E/SHAの独立固定値は未供給")
+    frozen, _ = _read_json(root / "contracts/tenant_boundary/frozen-inputs.json")
+    inputs = _object(frozen["frozen_inputs"], "pr197 frozen inputs")
+    source = _object(inputs.get("pr197_source_revision"), "pr197 source pin")
+    expectation = _object(inputs.get("pr197_expectation_revision"), "pr197 expectation pin")
+    digest = _object(inputs.get("pr197_expectation_fixture_sha256"), "pr197 fixture pin")
+    for row in (source, expectation, digest):
+        _strict_keys(row, {"value", "purpose", "sources"}, "pr197 typed pin")
+    if not _pr196_same_json(source, {
+        "value": _PR197_SOURCE_REVISION,
+        "purpose": _PR197_SOURCE_PURPOSE,
+        "sources": _PR197_SOURCE_CONSUMERS,
+    }):
+        raise ContractError("pr197 source pinの用途/全値が不一致")
+    if not _pr196_same_json(digest, {
+        "value": _PR197_EXPECTATION_FIXTURE_SHA256,
+        "purpose": _PR197_EXPECTATION_PURPOSE,
+        "sources": _PR197_EXPECTATION_CONSUMERS,
+    }):
+        raise ContractError("pr197 fixture SHA pinの用途/全値が不一致")
+    revision = expectation["value"]
+    if (type(revision) is not str or re.fullmatch(r"[0-9a-f]{40}", revision) is None
+            or revision != _PR197_FIXED_EXPECTATION_REVISION
+            or revision == _PR197_SOURCE_REVISION
+            or not _pr196_same_json(expectation, {
+                "value": revision,
+                "purpose": _PR197_EXPECTATION_PURPOSE,
+                "sources": _PR197_EXPECTATION_CONSUMERS,
+            })):
+        raise ContractError("pr197前置Git参照の型/用途が不一致")
+    try:
+        for rev in (_PR197_SOURCE_REVISION, revision):
+            if _run_git(root, ["rev-parse", "--verify", rev + "^{commit}"]).strip() != rev:
+                raise ContractError("pr197固定Git commitが不一致")
+        _run_git(root, ["merge-base", "--is-ancestor", _PR197_SOURCE_REVISION, revision])
+        _run_git(root, ["merge-base", "--is-ancestor", revision, "HEAD"])
+        # fixtureを先に固定し、その後の検査器実装を自己期待に混ぜない。
+        checker = "scripts/check_tenant_boundary_bypass.py"
+        if _pr192_git_bytes(root, revision, checker) != _pr192_git_bytes(
+            root, _PR197_SOURCE_REVISION, checker,
+        ):
+            raise ContractError("pr197前置Eに検査器変更が混入")
+        raw = _pr192_git_bytes(root, revision, _PR197_EXPECTED_FIXTURE)
+        target = root / _PR197_EXPECTED_FIXTURE
+        if (target.is_symlink() or target.read_bytes() != raw
+                or hashlib.sha256(raw).hexdigest() != _PR197_EXPECTATION_FIXTURE_SHA256):
+            raise ContractError("pr197前置fixture全byte/SHAが不一致")
+        expected = _object(json.loads(raw, object_pairs_hook=_unique_json_object), "pr197期待")
+    except (OSError, ValueError, UnicodeError, subprocess.CalledProcessError) as error:
+        raise ContractError("pr197固定期待を取得できない") from error
+    _strict_keys(expected, {"schema_version", "source_revision", "formal_base_revision",
+                            "independent_sites_sha256", "preexec_review_sha256",
+                            "facts_generated_sha256",
+                            "purpose", "owners", "held_findings",
+                            "sql_generation", "identity_successor", "counts"}, "pr197期待")
+    if (type(expected["schema_version"]) is not int or expected["schema_version"] != 1
+            or expected["source_revision"] != _PR197_SOURCE_REVISION
+            or expected["counts"] != {"candidate": 71, "held": 3, "paths": 15,
+                                      "sql": 3, "python": 12}
+            or type(expected["independent_sites_sha256"]) is not str
+            or re.fullmatch(r"[0-9a-f]{64}", expected["independent_sites_sha256"]) is None
+            or type(expected["preexec_review_sha256"]) is not str
+            or re.fullmatch(r"[0-9a-f]{64}", expected["preexec_review_sha256"]) is None
+            or expected["facts_generated_sha256"] != _PR197_GENERATED_FACTS_SHA256):
+        raise ContractError("pr197期待の固定型/件数が不一致")
+    base = expected["formal_base_revision"]
+    if type(base) is not str or re.fullmatch(r"[0-9a-f]{40}", base) is None:
+        raise ContractError("pr197正式baseの型が不一致")
+    try:
+        _run_git(root, ["merge-base", "--is-ancestor", base, _PR197_SOURCE_REVISION])
+    except subprocess.CalledProcessError as error:
+        raise ContractError("pr197 sourceが正式baseの子孫でない") from error
+    held = expected["held_findings"]
+    if (type(held) is not list or len(held) != 3
+            or {(row["path"], row["line"], row["code"], row["symbol"])
+                for row in held} != _PR197_HELD_SITES):
+        raise ContractError("pr197保留3の全位置が不一致")
+    return expected
+
+
+def _pr197_call_operation_sha256(tree: ast.Module, source: str, line: int) -> str:
+    """同一行に重なる全callの実source断片を固定する。"""
+    calls = sorted({segment for node in ast.walk(tree)
+                    if isinstance(node, ast.Call)
+                    and node.lineno <= line <= (node.end_lineno or node.lineno)
+                    if (segment := ast.get_source_segment(source, node)) is not None})
+    if not calls:
+        raise ContractError("pr197実call operationが存在しない")
+    return hashlib.sha256("\n".join(calls).encode()).hexdigest()
+
+
+def _pr197_identity_successor_paths(
+    root: Path, expected: Mapping[str, Any], owners: Mapping[str, Pr191SourceOwner],
+) -> frozenset[str]:
+    """旧ownerを残し、固定2pathだけのPR191/192後継資格を別に検証する。"""
+    profile = _object(expected["identity_successor"], "pr197 identity successor")
+    _strict_keys(profile, {
+        "purpose", "source_revision", "pr191_source_revision", "pr192_source_revision",
+        "pr191_ordinary_owner", "pr192_ordinary_owner",
+        "pr192_superseded_pr191_owners", "pr191_ordinary_call_operation_sha256",
+        "paths",
+    }, "pr197 identity successor")
+    if (profile["purpose"] != _PR197_IDENTITY_PURPOSE
+            or profile["source_revision"] != _PR197_SOURCE_REVISION
+            or profile["pr191_source_revision"] != _PR197_PR191_SOURCE_REVISION
+            or profile["pr192_source_revision"] != _PR197_PR192_SOURCE_REVISION):
+        raise ContractError("pr197 identity後継の用途/原典が不一致")
+    rows = _object(profile["paths"], "pr197 identity paths")
+    if set(rows) != _PR197_IDENTITY_PATHS:
+        raise ContractError("pr197 identity後継は固定2pathだけ")
+    pr192 = _pr192_read_fixed_expectations(root)
+    if (pr192["source_revision"] != _PR197_PR192_SOURCE_REVISION
+            or pr192["preserved_pr191_source_revision"] != _PR197_PR191_SOURCE_REVISION
+            or not _pr196_same_json(
+                profile["pr192_superseded_pr191_owners"],
+                pr192["superseded_pr191_owners"],
+            ) or len(pr192["superseded_pr191_owners"]) != 4):
+        raise ContractError("pr197 identity後継が旧PR192全supersessionを保持しない")
+    ordinary = "backend/src/pitchlog/sync/ordinary_pitch_execution.py"
+    if ordinary not in pr192["superseded_pr191_owners"]:
+        raise ContractError("pr197 ordinaryは旧4後継の対象外")
+    pr191_raw = _pr192_git_bytes(
+        root, _PR197_PR192_SOURCE_REVISION, _PR191_EXPECTED_FIXTURE,
+    )
+    if hashlib.sha256(pr191_raw).hexdigest() != pr192["preserved_pr191_fixture_sha256"]:
+        raise ContractError("pr197旧PR191 fixture全byteが不一致")
+    pr191 = _object(json.loads(pr191_raw, object_pairs_hook=_unique_json_object),
+                    "pr197旧PR191期待")
+    if (pr191["source_revision"] != _PR197_PR191_SOURCE_REVISION
+            or not _pr196_same_json(
+                profile["pr191_ordinary_owner"], pr191["owners"][ordinary],
+            ) or not _pr196_same_json(
+                profile["pr192_ordinary_owner"], pr192["owners"][ordinary],
+            )):
+        raise ContractError("pr197旧PR191/192 ordinary ownerが不一致")
+    pr191_source = _pr192_git_bytes(root, _PR197_PR191_SOURCE_REVISION, ordinary).decode()
+    pr191_tree = ast.parse(pr191_source)
+    if (hashlib.sha256(pr191_source.encode()).hexdigest()
+            != pr191["owners"][ordinary]["source_sha256"]
+            or _pr197_call_operation_sha256(pr191_tree, pr191_source, 614)
+            != profile["pr191_ordinary_call_operation_sha256"]):
+        raise ContractError("pr197旧PR191実call/原典が不一致")
+    followups = {row["diagnostic_id"]: row for row in pr192["existing_owner_followups"]}
+
+    def frame_calls(source: str, tree: ast.Module) -> dict[int, str]:
+        """object.__new__の全出現を型付きframeに限定する。"""
+        return {node.lineno: ast.get_source_segment(source, node) or ""
+                for node in ast.walk(tree) if isinstance(node, ast.Call)
+                and ast.unparse(node.func) == "object.__new__"}
+
+    if frame_calls(pr191_source, pr191_tree) != {
+        198: "object.__new__(OrdinaryPitchFrame)",
+        614: "object.__new__(OrdinaryPitchFrame)",
+    }:
+        raise ContractError("pr197旧PR191 frame型/全callが不一致")
+    for path in sorted(_PR197_IDENTITY_PATHS):
+        row = _object(rows[path], "pr197 identity path")
+        common = {"purpose", "source_sha256", "pr192_source_sha256",
+                  "legacy_functions", "moved_followups", "call_operations_sha256"}
+        if path == ordinary:
+            common |= {"moved_pr192_owner", "pr192_call_operations_sha256"}
+        else:
+            common |= {"new_read_finding"}
+        _strict_keys(row, common, "pr197 identity path")
+        owner = owners[path]
+        old_raw = _pr192_git_bytes(root, _PR197_PR192_SOURCE_REVISION, path)
+        new_raw = _pr192_git_bytes(root, _PR197_SOURCE_REVISION, path)
+        if (type(row["purpose"]) is not str or not row["purpose"]
+                or owner.immutable_source != new_raw
+                or row["source_sha256"] != owner.source_sha256
+                or hashlib.sha256(old_raw).hexdigest() != row["pr192_source_sha256"]):
+            raise ContractError("pr197 identity新旧source全byteが不一致")
+        old_source, new_source = old_raw.decode(), new_raw.decode()
+        old_tree, new_tree = ast.parse(old_source), ast.parse(new_source)
+        names = _PR197_IDENTITY_FUNCTIONS[path]
+        if row["legacy_functions"] != list(names):
+            raise ContractError("pr197旧owner3関数集合が不一致")
+        for name in names:
+            old_nodes = [node for node in ast.walk(old_tree)
+                         if isinstance(node, ast.FunctionDef) and node.name == name]
+            new_nodes = [node for node in ast.walk(new_tree)
+                         if isinstance(node, ast.FunctionDef) and node.name == name]
+            if (len(old_nodes) != 1 or len(new_nodes) != 1
+                    or ast.dump(old_nodes[0]) != ast.dump(new_nodes[0])):
+                raise ContractError(f"pr197旧owner ASTが不一致: {path}:{name}")
+        ids = _PR197_IDENTITY_FOLLOWUPS[path]
+        moved = _array(row["moved_followups"], "pr197旧followup移動")
+        if len(moved) != len(ids):
+            raise ContractError("pr197旧followup件数が不一致")
+        for item, diagnostic_id in zip(moved, ids, strict=True):
+            item = _object(item, "pr197旧followup")
+            _strict_keys(item, {"diagnostic_id", "old", "current"}, "pr197旧followup")
+            original = followups[diagnostic_id]
+            current = _object(item["current"], "pr197後継site")
+            if (item["diagnostic_id"] != diagnostic_id
+                    or original["path"] != path
+                    or original["after_source_sha256"] != row["pr192_source_sha256"]
+                    or not _pr196_same_json(item["old"], original["after"])
+                    or tuple(current[key] for key in ("line", "code", "symbol", "scope"))
+                    not in owner.findings
+                    or current["condition"] != original["after"]["condition"]
+                    or any(current[key] != original["after"][key]
+                           for key in ("code", "symbol", "scope"))):
+                raise ContractError("pr197旧followup実site/意味が不一致")
+        operations = _object(row["call_operations_sha256"], "pr197後継call")
+        if path == ordinary:
+            old_owner = pr192["owners"][ordinary]["findings"]
+            moved_owner = _array(row["moved_pr192_owner"], "pr197旧ordinary owner")
+            if len(old_owner) != 2 or len(moved_owner) != 2:
+                raise ContractError("pr197旧ordinary owner件数が不一致")
+            for item, old in zip(moved_owner, old_owner, strict=True):
+                item = _object(item, "pr197旧ordinary owner site")
+                _strict_keys(item, {"old", "current"}, "pr197旧ordinary owner site")
+                current = _object(item["current"], "pr197後継ordinary site")
+                if (not _pr196_same_json(item["old"], old)
+                        or tuple(current[key] for key in ("line", "code", "symbol", "scope"))
+                        not in owner.findings
+                        or any(current[key] != old[key]
+                               for key in ("condition", "code", "symbol", "scope"))):
+                    raise ContractError("pr197旧ordinary owner実siteが不一致")
+            if (frame_calls(old_source, old_tree) != {
+                    line: "object.__new__(OrdinaryPitchFrame)" for line in (212, 628, 752)
+                } or frame_calls(new_source, new_tree) != {
+                    line: "object.__new__(OrdinaryPitchFrame)" for line in (213, 644, 782)
+                } or set(operations) != {"213", "644", "782"}
+                    or set(row["pr192_call_operations_sha256"]) != {"212", "628", "752"}):
+                raise ContractError("pr197 frame型/全call集合が不一致")
+            old_operations = _object(row["pr192_call_operations_sha256"],
+                                     "pr197旧frame call")
+            for line, digest in old_operations.items():
+                if _pr197_call_operation_sha256(old_tree, old_source, int(line)) != digest:
+                    raise ContractError("pr197旧frame実callが不一致")
+            if any(isinstance(node, ast.Call) and node.lineno == 614
+                   for node in ast.walk(new_tree)):
+                raise ContractError("pr197旧614は現callではない")
+        else:
+            read = _object(row["new_read_finding"], "pr197新read1")
+            if (read != {"line": 893, "condition": 5, "code": "TB005",
+                         "symbol": "sqlalchemy.orm.Session.execute",
+                         "scope": "pitchlog.repositories.transaction._run_stats_primitive_read"}
+                    or tuple(read[key] for key in ("line", "code", "symbol", "scope"))
+                    not in owner.findings
+                    or set(operations) != {"893"}
+                    or not any(ast.get_source_segment(new_source, node)
+                               == "session.execute(call.statement, call.parameters)"
+                               for node in ast.walk(new_tree) if isinstance(node, ast.Call)
+                               and node.lineno == 893)):
+                raise ContractError("pr197新read1のscope/type/実operationが不一致")
+        if any(_pr197_call_operation_sha256(new_tree, new_source, int(line)) != digest
+               for line, digest in operations.items()):
+            raise ContractError("pr197後継実call operationが不一致")
+    return _PR197_IDENTITY_PATHS
+
+
+def _load_pr197_source_owners(
+    root: Path, declaration: object, asset: Mapping[str, Any],
+) -> Pr197SourceRegistration:
+    """旧全登録を保持したまま条件付き71の実sourceだけを受理候補にする。"""
+    expected = _pr197_fixed_expectations(root)
+    rows = _object(expected["owners"], "pr197 owners")
+    if set(rows) != _PR197_OWNER_PATHS:
+        raise ContractError("pr197 owner path集合が不一致")
+    declared = {path: {key: row[key] for key in ("purpose", "source_sha256", "findings")}
+                for path, row in rows.items()}
+    if not _pr196_same_json(declaration, {
+        "expected_fixture": _PR197_EXPECTED_FIXTURE, "owners": declared,
+    }):
+        raise ContractError("pr197宣言が前置fixtureと不一致")
+    # 旧PR191/192/196の各loaderとtrusted比較は既存経路を通す。
+    _load_pr196_source_owners(root, asset["pr196_source_registration"], asset)
+    generated = _pr192_git_bytes(root, _PR197_SOURCE_REVISION, _PR197_GENERATED_FACTS)
+    generated_path = root / _PR197_GENERATED_FACTS
+    if (generated_path.is_symlink() or generated_path.read_bytes() != generated
+            or hashlib.sha256(generated).hexdigest() != _PR197_GENERATED_FACTS_SHA256):
+        raise ContractError("pr197生成facts原典が実行前pinと不一致")
+    found: list[tuple[str, int, str, str]] = []
+    owners = []
+    for path, row in sorted(rows.items()):
+        _strict_keys(row, {"purpose", "source_sha256", "findings", "call_operations_sha256"},
+                     "pr197 owner")
+        raw = _pr192_git_bytes(root, _PR197_SOURCE_REVISION, path)
+        target = root / path
+        if (target.is_symlink() or target.read_bytes() != raw
+                or hashlib.sha256(raw).hexdigest() != row["source_sha256"]
+                or type(row["purpose"]) is not str or not row["purpose"]):
+            raise ContractError("pr197実source全byte/用途が不一致")
+        findings = row["findings"]
+        if type(findings) is not list or not findings:
+            raise ContractError("pr197 ownerの実siteが空")
+        operation_hashes = _object(row["call_operations_sha256"], "pr197 call operations")
+        operation_lines: set[str] = set()
+        source = raw.decode("utf-8") if path.endswith(".py") else ""
+        tree = ast.parse(source) if source else None
+        sites = []
+        for finding in findings:
+            site = _object(finding, "pr197 finding")
+            _strict_keys(site, {"line", "condition", "code", "symbol", "scope"}, "pr197 finding")
+            line, code, symbol, scope = (site[key] for key in ("line", "code", "symbol", "scope"))
+            expected_condition = 5 if code == "TB007" else int(code[2:]) if (
+                type(code) is str and re.fullmatch(r"TB\d{3}", code)
+            ) else None
+            if (type(line) is not int or line < 1 or type(code) is not str
+                    or code not in {"TB000", "TB001", "TB002", "TB005", "TB007"}
+                    or type(site["condition"]) is not int
+                    or site["condition"] != expected_condition):
+                raise ContractError("pr197 code/conditionの型が不一致")
+            if type(symbol) is not str or not symbol or type(scope) is not str or not scope:
+                raise ContractError("pr197 symbol/scopeが不一致")
+            if (path, line, code, symbol) in _PR197_HELD_SITES:
+                raise ContractError("pr197保留siteを登録している")
+            if path.endswith(".sql"):
+                if (line, site["condition"], code, symbol, scope) != (
+                    1, 0, "TB000", "<unsupported>", "<generated-sql>",
+                ):
+                    raise ContractError("pr197 SQLは固定TB000だけ")
+            elif code == "TB000":
+                raise ContractError("pr197 Python構文違反を登録できない")
+            if tree is not None and code in {"TB005", "TB007"}:
+                key = str(line)
+                if operation_hashes.get(key) != _pr197_call_operation_sha256(tree, source, line):
+                    raise ContractError(f"pr197実call operationが不一致: {path}:{line}")
+                operation_lines.add(key)
+            sites.append((line, code, symbol, scope))
+            found.append((path, line, code, symbol))
+        if (len(sites) != len(set(sites)) or set(operation_hashes) != operation_lines):
+            raise ContractError("pr197 site/call operationの重複/余剰")
+        owners.append(Pr191SourceOwner(path, row["purpose"], row["source_sha256"],
+                                       frozenset(sites), raw))
+    if (len(found) != 71 or len(set(found)) != 71
+            or Counter(code for _, _, code, _ in found)
+            != Counter({"TB000": 3, "TB001": 1, "TB002": 8, "TB005": 45, "TB007": 14})):
+        raise ContractError("pr197条件付き71のcode全集合が不一致")
+    successors = _pr197_identity_successor_paths(
+        root, expected, {owner.path: owner for owner in owners},
+    )
+    return Pr197SourceRegistration(tuple(owners), _PR197_SQL_PATHS, successors)
+
+
+@functools.lru_cache(maxsize=1)
+def _pr197_trusted_source_registration() -> Pr197SourceRegistration:
+    """合成Contractではなく固定repositoryから同一owner全体を読む。"""
+    root = Path(__file__).resolve().parents[1]
+    asset, _ = _read_json(root / DEFAULT_ALLOWLIST)
+    return _load_pr197_source_owners(root, asset["pr197_source_registration"], asset)
+
+
+def _pr197_registration_is_trusted(contract: Contract) -> bool:
+    """旧全ownerと新有限ownerの厳密型/全値が一致する場合だけ信頼する。"""
+    if type(contract) is not Contract:
+        return False
+    registration = contract.pr197_source_registration
+    if (type(registration) is not Pr197SourceRegistration
+            or type(registration.owners) is not tuple
+            or type(registration.sql_paths) is not frozenset
+            or type(registration.identity_successor_paths) is not frozenset
+            or any(type(p) is not str for p in registration.identity_successor_paths)
+            or any(not _pr196_owner_is_typed(o) for o in registration.owners)
+            or not _pr196_registration_is_trusted(contract)):
+        return False
+    return registration == _pr197_trusted_source_registration()
+
+
+def _pr197_identity_successor_matches(source: str, path: str, contract: Contract) -> bool:
+    """旧診断だけを固定2pathの全byte後継成立で解消する。"""
+    if not _pr197_registration_is_trusted(contract):
+        return False
+    registration = _pr197_trusted_source_registration()
+    return any(owner.path in registration.identity_successor_paths
+               and owner.path.removeprefix("backend/src/") == path
+               and source.encode() == owner.immutable_source
+               for owner in registration.owners)
+
+
+def _pr197_source_evidence(
+    source: str, path: str, contract: Contract,
+) -> frozenset[tuple[int, str, str, str]]:
+    """固定sourceの条件付きPython siteだけを返し、保留siteを残す。"""
+    if not _pr197_registration_is_trusted(contract):
+        return frozenset()
+    for owner in _pr197_trusted_source_registration().owners:
+        if (owner.path == "backend/src/" + path and owner.path.endswith(".py")
+                and source.encode() == owner.immutable_source):
+            return owner.findings
+    return frozenset()
+
+
+def _pr197_generated_sql_matches(root: Path, contract: Contract) -> bool:
+    """固定3SQLと型付きmanifest/生成器の全byte再現だけを受理する。"""
+    if not _pr197_registration_is_trusted(contract):
+        return False
+    try:
+        expected = _pr197_fixed_expectations(root)["sql_generation"]
+        _strict_keys(expected, {"paths", "manifest_path", "manifest_sha256",
+                                "generation_input_files", "generated_sha256"}, "pr197 SQL")
+        sql_paths = {"backend/src/" + path for path in _PR197_SQL_PATHS}
+        if set(expected["paths"]) != sql_paths or set(expected["generated_sha256"]) != sql_paths:
+            return False
+        manifest_path = expected["manifest_path"]
+        if manifest_path != "backend/domain/stats-manifest.json":
+            return False
+        manifest_raw = _pr192_git_bytes(root, _PR197_SOURCE_REVISION, manifest_path)
+        if ((root / manifest_path).is_symlink()
+                or (root / manifest_path).read_bytes() != manifest_raw
+                or hashlib.sha256(manifest_raw).hexdigest() != expected["manifest_sha256"]):
+            return False
+        manifest = json.loads(manifest_raw, object_pairs_hook=_unique_json_object)
+        if (not _pr196_same_json(
+                manifest["generationInputFiles"], expected["generation_input_files"])
+                or {path: manifest["generatedFiles"][path] for path in sql_paths}
+                != expected["generated_sha256"]):
+            return False
+        for path, digest in (*manifest["generationInputFiles"].items(),
+                             *manifest["generatedFiles"].items()):
+            raw = _pr192_git_bytes(root, _PR197_SOURCE_REVISION, path)
+            if ((root / path).is_symlink() or (root / path).read_bytes() != raw
+                    or hashlib.sha256(raw).hexdigest() != digest):
+                return False
+        # manifest外のimport closureも実行前に固定する。
+        for path in _PR197_GENERATOR_IMPORT_FILES:
+            raw = _pr192_git_bytes(root, _PR197_SOURCE_REVISION, path)
+            if (root / path).is_symlink() or (root / path).read_bytes() != raw:
+                return False
+        code = (
+            "import hashlib,json,sys; from pathlib import Path; "
+            "root=Path(sys.argv[1]); sys.path.insert(0,str(root/'backend/src')); "
+            "from pitchlog.domaingen.core import generate_primitive_sql_bundle; "
+            "a=json.loads((root/'backend/domain/play-export.model.json').read_text()); "
+            "b=json.loads((root/'backend/domain/stats.model.json').read_text()); "
+            "result=generate_primitive_sql_bundle(a,b); "
+            "expected=set(json.loads(sys.argv[2])); "
+            "assert set(result)==expected; "
+            "assert all(result[p].encode()==(root/p).read_bytes() for p in expected)"
+        )
+        done = subprocess.run(
+            [sys.executable, "-I", "-B", "-c", code, str(root),
+             json.dumps(sorted(sql_paths))],
+            cwd=root, env={"PYTHONDONTWRITEBYTECODE": "1"},
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False,
+        )
+        return done.returncode == 0
+    except (OSError, ValueError, KeyError, TypeError, ContractError,
+            subprocess.CalledProcessError):
+        return False
 
 
 if __name__ == "__main__":
