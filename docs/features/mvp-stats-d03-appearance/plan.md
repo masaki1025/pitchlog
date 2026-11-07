@@ -14,7 +14,7 @@ branch: feature/mvp-stats-d03-appearance
 
 正常v3/0球投手交代の登板API/成績CSV接合は0f18c6f7231c932eee536b116b1af3d45411ce3eへ固定・push済み。r16は実新規作成→開始→二球→A1/B0→0球交代/同D5再掲→A1/B1→CSV各1を125.06秒で確認した。native版/S/source ID/slot不変とCP変更も実観測した。正式0049/catalog/通常起動/7.7の成立ではない。
 
-次は通常終了v1→再開→追加球→再終了v2・自チームseason/区分/CSVのowned接合。r17はfixtureのimmutable kind変更を拒否され製品未到達、次driverは正規POSTのチーム選択と開始選手列だけを対で入替える。root正常0048 r3（59a6ff50、3passed68.05秒）の受領後、r18を同lockへ投入済み。正常48/v2 Sへの移植はroot専有の後段packetで行う。取消/P3 effective context・複数世代・T2終端解放・試合全体0球は未供給を維持し、MVP残件から外さない。
+通常終了v1→再開→追加3球目→再終了v2・自チームseason all/practice/CSVのowned接合はr20で1passed225.83秒、source前後SHA一致・cleanup済み。r17/r18/r19の失敗は履歴として下記へ保全した。次はroot正常0048/v2唯一Sへの所有15path接合と正式0049/私有hook/catalog・通常起動検査、非作者レビューである。取消/P3 effective context・複数世代・T2終端解放・試合全体0球は未供給を維持し、MVP残件から外さない。
 
 以下の「現物と開始条件」「step1・供給境界」は起票時の履歴を含む。別の人の守備観測を追加必須とした過剰前提は、下記c9cd54c9の既原典照合追補で撤回・root採用済み。新しいPO観測裁定を待つ状態へ戻さない。
 
@@ -155,3 +155,12 @@ r17は1failed514.75秒（lock待機込み）。自チームを後攻へ設定す
 
 
 r19は1failed/614.28秒（共通lock待機込み）。終了v1・通常再開・追加3球目・再終了v2の試合/season all/双方CSVの登板1まで成功し、最後の区分対向で失敗した。既fixtureは正規game_otherであり、driverがofficial成功/practice空と逆に期待していた。D02採用済みのpractice成功/official空へ修正し、元game_type_key=game_other自体も明示検査する。製品SQL/区分を変更せず、r19失敗を保全した上でr20を同source固定手順で実行する。
+
+
+## r20通常再開・終了最新版のowned成立（2026-11-07）
+
+実行sourceは7aa39f2531f76f025cf42f96a0ea592a3a5664a0相当のfresh shadow-r20（共有3hookと公式builderの4body候補のみcache適用）。共有DSNをunsetし共通lockを取得、1passed225.83秒。実認証HTTP新規作成→開始→通常2球→終了v1→同D5再掲→通常再開（公式成績対象外）→追加3球目→再終了v2→reloadを通し、試合別・JST暦年season all/practice・双方CSVの自チーム投手登板1とその他0、official空を確認した。再開は新entryを作らず既半回/lineup/責任の真正proofを維持する。
+
+cache `stats-d03-appearance-author-20261107/entry-connection/r20-{source-before,source-after,result}.json` に全source SHA一致と実結果を固定、owned fixture teardown後に共通lock解放。r18/r19失敗とr20初回wrong-cwdの自分の待機pytest停止は別に保全し、成功へ読み替えない。
+
+root正常48への移植は所有15pathのみのcache packet（normal48-transfer-packet.json）で準備し、同公式v2SへT6の選択節とD03を統一、既T6 scope/集計suffix全byte保持、89pure9.61秒/RuffTy0。正式root共有hook/0049 owner構造・guard・catalog・7.7・通常起動は未受理/未接合。実Vite/実機、P3 effective proof、取消、複数世代、T2終端解除、試合全体0球の初期native/CP供給は残件であり、この成功をD03全体/MVP完成とはしない。source固定後の非作者レビューも別途必要。
