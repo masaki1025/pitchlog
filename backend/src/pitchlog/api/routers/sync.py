@@ -11,6 +11,7 @@ from fastapi.responses import JSONResponse
 
 from pitchlog.api.request_presentation import require_presented_token
 from pitchlog.api.schemas.recording_ack import RecordingAckResponse
+from pitchlog.api.schemas.recovery_response import AttemptRecoveryResponse
 from pitchlog.api.tenant_access import TenantMatchedRoute, require_tenant_access
 from pitchlog.db.sync_protocol.models import EventSlot
 from pitchlog.durable_rights_ledger.adapter import LedgerUnavailable
@@ -523,6 +524,7 @@ def sync_change(
 @router.post(
     "/games/{game_id}/sync/attempts/recover",
     operation_id="recover_sync_attempt",
+    response_model=AttemptRecoveryResponse,
 )
 def recover_attempt(
     game_id: UUID,
@@ -533,7 +535,7 @@ def recover_attempt(
     device_id: Annotated[UUID, Header(alias="X-Pitchlog-Device-Id")],
     device_credential: Annotated[str, Header(alias="X-Pitchlog-Device-Credential")],
     attempt: Annotated[UUID, Header(alias="X-Pitchlog-Sync-Attempt")],
-) -> JSONResponse:
+) -> AttemptRecoveryResponse:
     """元E-1要求の旧試行を照会し、実fence/PG終結後の再送資格だけを返す。"""
     configuration = _configuration(request)
     try:
@@ -592,7 +594,7 @@ def recover_attempt(
         raise HTTPException(status_code=404)
     if result == "B7":
         raise HTTPException(status_code=503)
-    return JSONResponse({"resolution": result})
+    return AttemptRecoveryResponse(resolution=result)
 
 
 @router.post(

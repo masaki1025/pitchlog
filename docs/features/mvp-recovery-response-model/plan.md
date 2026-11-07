@@ -1,10 +1,10 @@
 ---
 feature: mvp-recovery-response-model
-status: proposed
+status: active
 branch: fix/mvp-recovery-response-model
-承認: 未（rootの限定採用待ち）
+承認: PO委任によるCodex/root判断（対象569014ba全文、2026-11-07T18:27:33.054930+09:00記録）
 重さ分類: コア領域（既復旧HTTP境界の型欠落修復）
-計画レビュー周回: 0
+計画レビュー周回: 1
 確定ゲート周回: 0
 ---
 
@@ -20,3 +20,6 @@ branch: fix/mvp-recovery-response-model
 | 2 | focused schema/route試験とconventions exactを照合し固定 | ルートresponse_model/openapi/実出力の閉検証、元downloads-only response_model=None集合を維持。基線のroute数/配列がrecover登録へ未追随なら、その既赤を残してrootへ報告し検査を除外しない。DB新起動なし。最終HEAD/差分SHA/残る独立確認点をcacheへ固定 |
 
 限定計画確認後にrootのPO委任判断でactiveとし、必要範囲を実装する。型検査/影響pytestで検証し、実DB/新しい復旧認可の成功証拠とは記録しない。旧応答の真正性は既実portの範囲のまま、sourceやissuerを自由stubで肯定しない。
+
+
+root非作者確認により対象569014ba/plan SHA9a5341e5042d5b9ae9e4850d0de7c21a9908b5d445cf3bb37cad1c712af3214fを既二値/既error分岐だけの修復としてPO委任採用。本人確認/署名を代記しない。最小範囲追補としてtest_api_conventions.pyのroute exact件数34→35とrecoverの既登録route期待配列への有限追加だけをrootが承認。元downloads-only response_model=None集合と全route型検査は不変更、除外・期待削除はしない。実装最終版の非作者レビューは別工程。
