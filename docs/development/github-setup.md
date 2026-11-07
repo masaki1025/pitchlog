@@ -6,6 +6,7 @@ status: approved
 
 | 版 | 日付 | 変更内容 | 状態 |
 | --- | --- | --- | --- |
+| 1.2 | 2026-11-07 | 実装追随・版不変: harness/backendの8分割と重み付き割当、分割入力によるbackend起動へ追随。必須context・保護・集約の拒否条件は不変。実CI時間は未測定。 | approved |
 | 1.2 | 2026-10-23 | 版不変・初回MVPのPO委任確認への限定参照を2章に追記。一般手続きは維持。 | approved |
 | 1.2 | 2026-10-11 | **TSK-538 ステップ 15 の実装追随(版は上げない)**: 既存 CI ジョブに D-2 artifact の再現ビルド、Node を使う Python 試験、x86_64 配布イメージの起動と `ping` を追加。2 章に 3 分類ごとの実行内容と paths filter の対象を追記。必須チェック名と分類は変更なし。 | **approved** |
 | 0.1 | 2026-08-10 | 初版起案(ci-foundation / Phase 3): ブランチ保護のプラン制約と実測・暫定運用・再開手順・CI 必須チェック名・Secrets 方針を正本化 | draft |
@@ -67,7 +68,7 @@ status: approved
      - **予約と結果証跡が混在する PR**: 含まれる各レコードについて上記をそれぞれ適用する
      - **ゲートキーが異なる予約は並行してよい**(`phase4` と `release-vX.Y.Z` は独立した排他単位)
      当面は**競合単位ごとに直列**に扱う。先行 PR のマージ後、後続 PR へ develop を取り込んで(= head SHA を更新して)CI を再実行してからマージする。**再実行が red になった場合はマージしない** — 例えば先行の予約が未閉塞のまま後続の予約を残していると (e-2) で red になる。その場合は**先行試行を結果証跡で閉じて develop へ統合し**、後続の予約を**新しい `attempt_seq`・`attempt_id`・ファイル名で作り直して**から取り込み・再実行する(不要になった重複 PR は閉じる)。**3 章の Ruleset を適用すれば `strict_required_status_checks_policy: true` が base 最新化を必須にするため、本手続きは終了できる**
-- **D-2 の CI 配線(TSK-538 ステップ 15)**: **常時実行**の `harness` は mise.toml の Node 24.16.0 で runtime/runner 試験を行う。**変更検知**の `frontend-changes` は適合ベクタ・runner・契約・D-2 資産の変更も検出し、`backend-changes` は配布 artifact・`.dockerignore`・mise.toml の変更も検出する。**paths filter 配下**の `frontend` は artifact を再生成してコミット済みファイルとの差分を検査し、`backend` は Node を使う DB/domainrt 試験と x86_64 配布イメージの FastAPI 起動・`ping` を検査する。ジョブ数は常時実行 6、変更検知 6、paths filter 又は集約 5 である(分類は重複を許すため合計は実ジョブ数 15 を超える。実体は `harness`/`backend` が 4 分割の集約)(`harness` / `backend` は分割ジョブを集約し、必須チェック名を維持する)。
+- **D-2 の CI 配線(TSK-538 ステップ 15)**: **常時実行**の `harness` は mise.toml の Node 24.16.0 で runtime/runner 試験を行う。**変更検知**の `frontend-changes` は適合ベクタ・runner・契約・D-2 資産の変更も検出し、`backend-changes` は配布 artifact・`.dockerignore`・mise.toml の変更も検出する。**paths filter 配下**の `frontend` は artifact を再生成してコミット済みファイルとの差分を検査し、`backend` は Node を使う DB/domainrt 試験と x86_64 配布イメージの FastAPI 起動・`ping` を検査する。ジョブ数は常時実行 6、変更検知 6、paths filter 又は集約 5 である(分類は重複を許すため合計は実ジョブ数 15 を超える。実体は `harness`/`backend` が 8 分割・重み付き割当の集約)(`harness` / `backend` は分割ジョブを集約し、必須チェック名を維持する)。
 - **core-guard の残余リスク(循環参照)**: `pull_request` は PR 側(head のマージブランチ)の workflow・スクリプトを実行するため、PR 自身が `ci.yml` / `core_guard.py` / `core-areas.json` を書き換えると検査そのものを無効化・形骸化できる(必須チェックは**ジョブ名の存在と結果**を強制するが、**ジョブの意味は固定しない**)。guard_paths は「未改変 PR への検知」であり防止ではない
 
 

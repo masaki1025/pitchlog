@@ -94,6 +94,10 @@
     {
       "pr": 197,
       "branch": "feature/mvp-stats-native-foundation"
+    },
+    {
+      "pr": 198,
+      "branch": "feature/ci-pytest-throughput-finalization"
     }
   ]
 }

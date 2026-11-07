@@ -16,18 +16,23 @@ import argparse
 import collections
 import json
 import os
-import re
 import subprocess
 import sys
 import tempfile
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
+
+from pytest_shard_plan import (
+    normalize_identifier,
+    validated_default_weight,
+    validated_weights,
+)
 
 CONFIG_RELATIVE_PATH = Path("ci") / "pytest-shards.json"
 SCRIPTS_RELATIVE_PATH = Path("scripts")
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 PLUGIN_NAME = "pytest_shard_plugin"
-UUID_RE = re.compile(r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}")
 SHARD_TOTAL_ENV = "PITCHLOG_SHARD_TOTAL_FILE"
 
 
@@ -44,6 +49,8 @@ class Suite:
     targets: tuple[str, ...]
     ignore: tuple[str, ...]
     shards: int
+    weights: Mapping[str, float]
+    default_weight_seconds: float
 
 
 def load_suites(root: Path) -> dict[str, Suite]:
@@ -90,12 +97,19 @@ def load_suites(root: Path) -> dict[str, Suite]:
             raise ShardError(f"{name}.ignore が文字列配列ではない")
         if type(shards) is not int or shards < 1:
             raise ShardError(f"{name}.shards が正の整数ではない")
+        try:
+            weights = validated_weights(item.get("weights"))
+            default_weight = validated_default_weight(item.get("default_weight_seconds"))
+        except ValueError as error:
+            raise ShardError(f"{name}.weights が不正: {error}") from error
         result[name] = Suite(
             name=name,
             root=(root / root_value).resolve(),
             targets=tuple(targets),
             ignore=tuple(ignore),
             shards=shards,
+            weights=weights,
+            default_weight_seconds=default_weight,
         )
     return result
 
@@ -113,10 +127,15 @@ def normalize(node_id: str) -> str:
     """乱数 UUID を伏せた比較用の識別子を返す。
 
     パラメータに乱数 UUID を含む試験があるため、node id の文字列そのものは
-    実行ごとに変わる。収集順の安定性を前提に、UUID だけを潰して多重集合で
-    欠落・重複を判定する。
+    実行ごとに変わる。UUID だけを潰して多重集合で欠落・重複を判定する。
+
+    Args:
+        node_id: pytest の node id。
+
+    Returns:
+        UUID を ``<uuid>`` に置換した文字列。
     """
-    return UUID_RE.sub("<uuid>", node_id)
+    return normalize_identifier(node_id)
 
 
 def collect(
@@ -209,9 +228,15 @@ def verify(suite: Suite, root: Path, *, require_db: bool = False) -> str:
         検証結果の要約。
 
     Raises:
-        ShardError: 0 件・欠落・重複・DB 未実行のいずれか。
+        ShardError: 0 件・欠落・重複・DB 未実行・重み定義の陳腐化のいずれか。
     """
     everything, _ = collect(suite, root)
+    normalized_everything = {normalize(node_id) for node_id in everything}
+    unknown_weights = sorted(set(suite.weights) - normalized_everything)
+    if unknown_weights:
+        raise ShardError(
+            f"{suite.name}: 重み定義に収集されないテストがある: {unknown_weights[:10]}"
+        )
     per_shard: dict[int, set[str]] = {}
     totals: set[int] = set()
     for index in range(suite.shards):
@@ -248,7 +273,21 @@ def verify(suite: Suite, root: Path, *, require_db: bool = False) -> str:
         db_shards = [index for index in range(suite.shards) if per_shard[index] & db_tests]
         if not db_shards:
             raise ShardError(f"{suite.name}: requires_db を含むシャードが無い")
-    return f"{suite.name}: {len(everything)} tests / {suite.shards} shards / sizes={sizes}"
+    loads = [
+        sum(
+            suite.weights.get(
+                normalize(node_id),
+                suite.default_weight_seconds,
+            )
+            for node_id in per_shard[index]
+        )
+        for index in range(suite.shards)
+    ]
+    rounded_loads = [round(load, 1) for load in loads]
+    return (
+        f"{suite.name}: {len(everything)} tests / {suite.shards} shards / "
+        f"sizes={sizes} / estimated_loads={rounded_loads}"
+    )
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
