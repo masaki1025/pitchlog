@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass
 from uuid import UUID, uuid5
 
@@ -62,6 +63,72 @@ class P3PagedPreparationProof:
     page_count: int
     page_seal: str
     target: SavedLineupPitch
+
+
+def fingerprint_p3_streaming_array(
+    before: Mapping[str, object],
+    array_key: str,
+    values: Iterable[object],
+    after: Mapping[str, object],
+) -> str:
+    """source_fingerprintの同じ正規JSONを配列だけ逐次SHAへ流す。"""
+    if (
+        type(array_key) is not str
+        or not array_key
+        or not isinstance(before, Mapping)
+        or not isinstance(after, Mapping)
+        or any(type(key) is not str or key >= array_key for key in before)
+        or any(type(key) is not str or key <= array_key for key in after)
+        or not isinstance(values, Iterable)
+        or isinstance(values, (str, bytes, Mapping))
+    ):
+        raise PastCorrectionPageUnavailable("P3逐次指紋の閉形が不正")
+
+    def encoded(value: object) -> bytes:
+        return json.dumps(
+            _json_value(value),
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+            allow_nan=False,
+        ).encode("utf-8")
+
+    sha = hashlib.sha256()
+    sha.update(b"{")
+    first = True
+
+    def field(key: str, value: object) -> None:
+        nonlocal first
+        if not first:
+            sha.update(b",")
+        sha.update(encoded(key))
+        sha.update(b":")
+        sha.update(encoded(value))
+        first = False
+
+    try:
+        for key in sorted(before):
+            field(key, before[key])
+        if not first:
+            sha.update(b",")
+        sha.update(encoded(array_key))
+        sha.update(b":[")
+        first = True
+        for value in values:
+            if not first:
+                sha.update(b",")
+            sha.update(encoded(value))
+            first = False
+        sha.update(b"]")
+        for key in sorted(after):
+            sha.update(b",")
+            sha.update(encoded(key))
+            sha.update(b":")
+            sha.update(encoded(after[key]))
+        sha.update(b"}")
+    except (TypeError, ValueError, OverflowError):
+        raise PastCorrectionPageUnavailable("P3逐次指紋の値が不正") from None
+    return sha.hexdigest()
 
 
 def _page_seal(previous: str, page: PreparedP3Page) -> str:
