@@ -1,17 +1,35 @@
 // @vitest-environment node
 import { readFileSync } from 'node:fs'
+import { createHash } from 'node:crypto'
 import { resolve } from 'node:path'
 import { expect, it } from 'vitest'
 
 const root = resolve(process.cwd(), '..')
 const old4 = '4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1'
 const old9 = '9ae9d16db1f2fa48905eb0ac951c8cb3ce5704dfe308df95a7a0bba155f33d19'
-const current =
-  '4e7d4c8d8d010f1cebb5825272a1f7627fe779e62f0135540c7d79acdce90309'
+const current: string = JSON.parse(
+  readFileSync(
+    resolve(root, 'frontend/public/domain/pitchlog-domain.json'),
+    'utf8',
+  ),
+).sha256
 
 function read(path: string): string {
   return readFileSync(resolve(root, path), 'utf8')
 }
+
+it('現行pinは実配布artifactの全bytesのSHAと一致する', () => {
+  expect(current).toMatch(/^[a-f0-9]{64}$/)
+  expect(
+    createHash('sha256')
+      .update(
+        readFileSync(
+          resolve(root, 'frontend/public/domain/pitchlog-domain.js'),
+        ),
+      )
+      .digest('hex'),
+  ).toBe(current)
+})
 
 function differences(a: unknown, b: unknown, path = ''): string[] {
   if (Object.is(a, b)) return []

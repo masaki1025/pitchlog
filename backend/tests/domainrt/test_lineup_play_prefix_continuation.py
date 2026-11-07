@@ -21,12 +21,59 @@ ACTUAL = hashlib.sha256(
 ).hexdigest()
 
 
+NORMATIVE_EXECUTION = "9ae9d16db1f2fa48905eb0ac951c8cb3ce5704dfe308df95a7a0bba155f33d19"
+
+
 def current_case(case):
-    """正式root pinが実artifactを指すことを確認し、期待を黙って更新しない。"""
+    """既規範の実行pin二欄と依存自己echoだけを現物へ束縛する。"""
     result = copy.deepcopy(case)
-    assert result["request"]["source"]["executionArtifactSha256"] == ACTUAL
-    assert result["expected"]["value"]["executionArtifactSha256"] == ACTUAL
+    # 不明な入力pinを修復しない。規範row以外の入力を現行互換へ格上げしない。
+    assert result["request"]["source"]["executionArtifactSha256"] == NORMATIVE_EXECUTION
+    assert result["expected"]["value"]["executionArtifactSha256"] == NORMATIVE_EXECUTION
+    result["request"]["source"]["executionArtifactSha256"] = ACTUAL
+    result["expected"]["value"]["executionArtifactSha256"] = ACTUAL
+    request = caller.decode_lineup_prefix_request(json.dumps(result["request"]))
+    response = caller.decode_lineup_prefix_response(json.dumps(result["expected"]))
+    assert response.ok
+    digest = caller.lineup_wire_digest(request, response)
+    result["request"]["nextCheckpoint"]["digest"] = digest
+    result["expected"]["value"]["nextPrefixRef"]["checkpoint"]["digest"] = digest
     return result
+
+
+def test_current_case_changes_only_execution_metadata_and_is_reversible():
+    """旧数学/保存元pin/全fieldを保持し、自己echo以外の緩和を拒否する。"""
+    for case in CASES:
+        original = copy.deepcopy(case)
+        bound = current_case(case)
+        assert case == original
+        assert bound["request"]["source"]["executionArtifactSha256"] == ACTUAL
+        assert bound["expected"]["value"]["executionArtifactSha256"] == ACTUAL
+        request = caller.decode_lineup_prefix_request(json.dumps(bound["request"]))
+        response = caller.decode_lineup_prefix_response(json.dumps(bound["expected"]))
+        assert response.ok
+        caller.verify_lineup_wire_seal(request, response)
+        bound["request"]["source"]["executionArtifactSha256"] = NORMATIVE_EXECUTION
+        bound["expected"]["value"]["executionArtifactSha256"] = NORMATIVE_EXECUTION
+        bound["request"]["nextCheckpoint"]["digest"] = original["request"][
+            "nextCheckpoint"
+        ]["digest"]
+        bound["expected"]["value"]["nextPrefixRef"]["checkpoint"]["digest"] = original[
+            "expected"
+        ]["value"]["nextPrefixRef"]["checkpoint"]["digest"]
+        assert bound == original
+
+
+@pytest.mark.parametrize("side", ["request", "expected"])
+def test_current_case_rejects_unknown_execution_pin(side):
+    """未知元pinの片側差替は実host呼出前にも閉拒否する。"""
+    case = copy.deepcopy(CASES[0])
+    if side == "request":
+        case["request"]["source"]["executionArtifactSha256"] = "0" * 64
+    else:
+        case["expected"]["value"]["executionArtifactSha256"] = "0" * 64
+    with pytest.raises(AssertionError):
+        current_case(case)
 
 
 @pytest.mark.parametrize("case", CASES, ids=lambda c: c["caseId"])
@@ -102,11 +149,12 @@ def test_all_34_wire_heads_and_only_self_echo_sealing():
     """正式head32fieldを実consumerで照合し自己echo以外を変更しない。"""
     vectors = json.loads(
         (
-            ROOT
-            / "contracts/state-transition/lineup_play_prefix_payload_vectors_v1.json"
+            ROOT / "frontend/src/api/fixtures/currentLineupPrefixPayload.v1.json"
         ).read_text()
     )["cases"]
-    for case, payload in zip(CASES, vectors, strict=True):
+    for original, payload in zip(CASES, vectors, strict=True):
+        case = current_case(original)
+        assert case["caseId"] == payload["caseId"]
         request = caller.decode_lineup_prefix_request(json.dumps(case["request"]))
         response = caller.decode_lineup_prefix_response(json.dumps(case["expected"]))
         assert response.ok
@@ -255,7 +303,7 @@ def test_actual_cold05_strikeout_completed_bottom_retains_recorded_score():
     """P1対向: 既COLD05の有効SOをschema/typed callerの両方が受理する。"""
     from jsonschema import Draft202012Validator
 
-    wire = copy.deepcopy(CASES[5]["request"])
+    wire = current_case(CASES[5])["request"]
     wire["rules"]["coldConditions"] = [{"pointDifference": "7", "startInning": "7"}]
     wire["source"]["rules"] = copy.deepcopy(wire["rules"])
     before = wire["t1"]["before"]

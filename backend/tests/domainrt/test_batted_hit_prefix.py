@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 from pydantic import ValidationError
+from test_lineup_play_prefix_continuation import current_case
 
 from pitchlog.domainrt import lineup_play_prefix_continuation as caller
 from pitchlog.domainrt.host import open_domain_host
@@ -19,6 +20,7 @@ CASES = json.loads(
 @pytest.mark.parametrize("case", CASES, ids=lambda c: c["caseId"])
 def test_all_19_actual_product_host_complete_values(case):
     """先置き規範を全field比較し、成功結果を期待として採取しない。"""
+    case = current_case(case)
     request = caller.decode_lineup_prefix_request(json.dumps(case["request"]))
     response = caller.evaluate_lineup_prefix_continuation(request)
     assert (
@@ -61,7 +63,9 @@ def test_batted_hit_uses_one_actual_loaded_operation_and_readonly(monkeypatch):
     """実hostへ先に委譲し一回呼出と型破損拒否を確認する。"""
     from contextlib import nullcontext
 
-    request = caller.decode_lineup_prefix_request(json.dumps(CASES[0]["request"]))
+    request = caller.decode_lineup_prefix_request(
+        json.dumps(current_case(CASES[0])["request"])
+    )
     with pytest.raises(ValidationError):
         setattr(request.t1, "result_id", "batting-result.double")
     calls = []

@@ -1092,8 +1092,9 @@ def test_current_four_operation_join_real_checker_rejects_missing_rows(
         reader._require_legacy_compatibility(prior, execution, source_format=fmt)
 
 
-def test_v3_v2_real_runtime_accepts_only_two_fixed_pairs():
-    """旧v1を残し、新bundleに実在する2組だけを実checkerで資格化する。"""
+def test_v3_v2_unloaded_execution_is_not_qualified_by_historical_witness():
+    """旧witnessを保存しても現在未loadedの旧実行版を成功へ格上げしない。"""
+    import hashlib
     import json
     from pathlib import Path
 
@@ -1104,10 +1105,15 @@ def test_v3_v2_real_runtime_accepts_only_two_fixed_pairs():
         ).read_bytes()
     )
     current = witness["executionArtifactSha256"]
+    actual = hashlib.sha256(
+        (root / "frontend/public/domain/pitchlog-domain.js").read_bytes()
+    ).hexdigest()
+    assert current != actual
     for prior in (witness["historicalArtifactSha256"], current):
-        _require_legacy_compatibility(
-            prior, current, source_format="play-prefix-play-v3"
-        )
+        with pytest.raises(OrdinaryPrefixError):
+            _require_legacy_compatibility(
+                prior, current, source_format="play-prefix-play-v3"
+            )
     for prior, execution in (("0" * 64, current), (current, "0" * 64)):
         with pytest.raises(OrdinaryPrefixError):
             _require_legacy_compatibility(

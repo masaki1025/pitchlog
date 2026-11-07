@@ -8,6 +8,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 from jsonschema import Draft202012Validator
+from test_lineup_play_prefix_continuation import current_case
 
 import pitchlog
 from pitchlog.domainrt.host import NodeDomainHost
@@ -48,11 +49,13 @@ def test_normative_34_actual_direct_and_product_factory_full_values(
         for case, row in zip(normative["cases"], wrapped["cases"], strict=True):
             assert set(row) == {"caseId", "request", "expected"}
             assert row["caseId"] == case["caseId"]
-            assert row["request"] == case["request"]
+            # 規範原本は保存し、現行実行metadata四欄だけの可逆変換へ照合する。
+            active = current_case(case)
+            assert row["request"] == active["request"]
             validator.validate(row["expected"])
             assert row["expected"] == {
                 "comparison": "exact",
-                "expected": case["expected"],
+                "expected": active["expected"],
                 "provenance": "NFR-018 (b)② 差分の検出可能性",
             }
             request = LineupPrefixRequest.model_validate_json(

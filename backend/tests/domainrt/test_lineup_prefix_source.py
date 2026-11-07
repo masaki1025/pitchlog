@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 
 import pytest
+from test_lineup_play_prefix_continuation import ACTUAL, current_case
 
 import pitchlog
 from pitchlog.domainrt import lineup_play_prefix_continuation as caller
@@ -21,7 +22,71 @@ def _chain():
             ROOT / "contracts/state-transition/lineup_play_prefix_cases_v1.json"
         ).read_text()
     )["cases"]
-    return [c for c in cases if c["caseId"].startswith("V3-STARTED-CHAIN-")]
+    originals = [c for c in cases if c["caseId"].startswith("V3-STARTED-CHAIN-")]
+    active = []
+    for original in originals:
+        case = copy.deepcopy(original)
+        if active:
+            previous = active[-1]["expected"]["value"]
+            # これは同じ現行実行版で連続記録する単体fixture。歴史原本は変更しない。
+            assert case["request"]["source"]["priorArtifactSha256"] == (
+                "51d4d0f347009a7a4e21751006c47ecda0fa400a5d2c48f81b55cd1d6e5de400"
+            )
+            case["request"]["source"]["priorArtifactSha256"] = ACTUAL
+            checkpoint = previous["nextPrefixRef"]["checkpoint"]
+            for target in (
+                case["request"]["prefixRef"]["checkpoint"],
+                case["request"]["source"]["prefixRef"]["checkpoint"],
+                case["request"]["source"]["provenance"]["checkpoint"],
+                case["expected"]["value"]["previousPrefixRef"]["checkpoint"],
+            ):
+                assert target["id"] == checkpoint["id"]
+                assert target["revision"] == checkpoint["revision"]
+                target["digest"] = checkpoint["digest"]
+        active.append(current_case(case))
+    return active
+
+
+def test_current_chain_rebinding_preserves_all_nonmetadata_values():
+    """現行連続fixtureのmetadata限定写像を全型値の可逆比較で拘束する。"""
+    path = ROOT / "contracts/state-transition/lineup_play_prefix_cases_v1.json"
+    raw = path.read_bytes()
+    originals = [
+        c
+        for c in json.loads(raw)["cases"]
+        if c["caseId"].startswith("V3-STARTED-CHAIN-")
+    ]
+    current = _chain()
+    allowed = [
+        ("request", "source", "executionArtifactSha256"),
+        ("request", "nextCheckpoint", "digest"),
+        ("expected", "value", "executionArtifactSha256"),
+        ("expected", "value", "nextPrefixRef", "checkpoint", "digest"),
+    ]
+    chained = [
+        ("request", "source", "priorArtifactSha256"),
+        ("request", "prefixRef", "checkpoint", "digest"),
+        ("request", "source", "prefixRef", "checkpoint", "digest"),
+        ("request", "source", "provenance", "checkpoint", "digest"),
+        ("expected", "value", "previousPrefixRef", "checkpoint", "digest"),
+    ]
+    for index, (original, bound) in enumerate(zip(originals, current, strict=True)):
+        restored = copy.deepcopy(bound)
+        for pointer in allowed + (chained if index else []):
+            old = original
+            new = restored
+            for key in pointer[:-1]:
+                old = old[key]
+                new = new[key]
+            new[pointer[-1]] = old[pointer[-1]]
+        assert json.dumps(restored, sort_keys=True) == json.dumps(
+            original, sort_keys=True
+        )
+        request = caller.decode_lineup_prefix_request(json.dumps(bound["request"]))
+        response = caller.decode_lineup_prefix_response(json.dumps(bound["expected"]))
+        assert response.ok
+        caller.verify_lineup_wire_seal(request, response)
+    assert path.read_bytes() == raw
 
 
 def _evidence(chain, count):
@@ -251,7 +316,8 @@ def test_batted_head_actual_replay_and_all_source_values():
     )["cases"][:16]
     roster = _evidence(_chain(), 0).started.roster
     with open_domain_host() as host:
-        for case in cases:
+        for original in cases:
+            case = current_case(original)
             wire = _batted_native_pair(case)
             request = caller.decode_lineup_prefix_request(json.dumps(wire))
             evidence = verifier.NativeLineupEvidence.model_validate_json(

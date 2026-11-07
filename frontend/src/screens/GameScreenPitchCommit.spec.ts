@@ -562,6 +562,8 @@ describe('HTTP前の耐久送信準備', () => {
     attempt: '22222222-2222-4222-8222-222222222222',
   }
   it('追記後の準備を同じ排他内で待ち、完了までHTTPを送らない', async () => {
+    // 実送信前バリアにもHTTPS相当の単体前提を渡す。製品の安全条件は迂回しない。
+    vi.stubGlobal('isSecureContext', true)
     const queue = await openIsolatedQueue()
     const lockLog: string[] = []
     let complete!: (value: typeof credentials) => void
@@ -601,7 +603,7 @@ describe('HTTP前の耐久送信準備', () => {
     const result = await pending
     expect(result.outcome).toBe('attempted')
     if (result.outcome !== 'attempted') return
-    expect(result.send?.sent).toBe(true)
+    expect(result.send).toMatchObject({ sent: true })
     expect(result.sendPreparation).toBeUndefined()
     expect(vi.mocked(fetch).mock.calls[0]![1]!.headers).toMatchObject({
       'X-Pitchlog-Sync-Attempt': credentials.attempt,

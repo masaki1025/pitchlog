@@ -20,6 +20,7 @@ from pitchlog.domainrt.play_prefix_continuation import (
     decode_play_prefix_response,
     evaluate_play_prefix_continuation,
 )
+from pitchlog.sync.terminal_pitch_payload import play_prefix_wire_digest
 
 _ROOT = Path(__file__).resolve().parents[3]
 _BASE = _ROOT / "contracts/state-transition"
@@ -51,6 +52,57 @@ def test_contract_closed_request_response_and_no_expected_output_generation() ->
         )
 
 
+NORMATIVE_EXECUTION = "9ae9d16db1f2fa48905eb0ac951c8cb3ce5704dfe308df95a7a0bba155f33d19"
+
+
+def _current_case(case):
+    """旧56規範の実行pin二欄と自己echo二欄だけを現物へ束縛する。"""
+    result = copy.deepcopy(case)
+    q, r = result["request"], result["expected"]
+    assert q["source"]["executionArtifactSha256"] == NORMATIVE_EXECUTION
+    assert r["value"]["executionArtifactSha256"] == NORMATIVE_EXECUTION
+    actual = hashlib.sha256(_ARTIFACT.read_bytes()).hexdigest()
+    q["source"]["executionArtifactSha256"] = actual
+    r["value"]["executionArtifactSha256"] = actual
+    response = decode_play_prefix_response(json.dumps(r))
+    assert response.ok
+    digest = play_prefix_wire_digest(
+        PlayPrefixRequest.model_validate_json(json.dumps(q)), response
+    )
+    q["nextCheckpoint"]["digest"] = digest
+    r["value"]["nextPrefixRef"]["checkpoint"]["digest"] = digest
+    return result
+
+
+def test_current_case_preserves_all_56_math_values_and_originals():
+    """規範原本を変更せず、許可metadataだけの全値逆変換を要求する。"""
+    for case in _VECTORS["cases"]:
+        original = copy.deepcopy(case)
+        bound = _current_case(case)
+        assert case == original
+        bound["request"]["source"]["executionArtifactSha256"] = NORMATIVE_EXECUTION
+        bound["expected"]["value"]["executionArtifactSha256"] = NORMATIVE_EXECUTION
+        bound["request"]["nextCheckpoint"]["digest"] = original["request"][
+            "nextCheckpoint"
+        ]["digest"]
+        bound["expected"]["value"]["nextPrefixRef"]["checkpoint"]["digest"] = original[
+            "expected"
+        ]["value"]["nextPrefixRef"]["checkpoint"]["digest"]
+        assert bound == original
+
+
+@pytest.mark.parametrize("side", ["request", "expected"])
+def test_current_case_rejects_unknown_original_execution(side):
+    """片側の未知実行pinを現在値で補修しない。"""
+    case = copy.deepcopy(_VECTORS["cases"][0])
+    if side == "request":
+        case["request"]["source"]["executionArtifactSha256"] = "0" * 64
+    else:
+        case["expected"]["value"]["executionArtifactSha256"] = "0" * 64
+    with pytest.raises(AssertionError):
+        _current_case(case)
+
+
 def test_all_56_through_product_host_and_typed_caller(
     record_property: Callable[[str, object], None],
 ) -> None:
@@ -77,14 +129,15 @@ def test_all_56_through_product_host_and_typed_caller(
         for case, envelope in zip(_VECTORS["cases"], wrapped["cases"], strict=True):
             assert set(envelope) == {"caseId", "request", "expected"}
             assert envelope["caseId"] == case["caseId"]
-            assert envelope["request"] == case["request"]
+            active = _current_case(case)
+            assert envelope["request"] == active["request"]
             expectation_schema.validate(envelope["expected"])
             assert envelope["expected"]["comparison"] == "exact"
             assert envelope["expected"]["provenance"] == (
                 "NFR-018 (b)② 差分の検出可能性"
             )
             expected = envelope["expected"]["expected"]
-            assert expected == case["expected"]
+            assert expected == active["expected"]
             typed = PlayPrefixRequest.model_validate_json(
                 json.dumps(envelope["request"])
             )
