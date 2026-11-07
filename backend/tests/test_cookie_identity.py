@@ -17,11 +17,12 @@ from pitchlog.api.tenant_access import _MATCH_OPERATIONS
 
 
 def test_declared_operations_are_exactly_tenant_matched_routes() -> None:
-    """既19 routeの同token宣言を保ち、新P3だけは通信不明時に失効させる。"""
+    """既同token対象とP3/毎球CSVの非対象を有限に照合する。"""
     assert _MATCH_OPERATIONS - set(_OPERATIONS) == {
         "read_sync_change_target",
         "read_sync_change_confirmation",
         "sync_change",
+        "game_play_csv_export",
     }
     actual = {
         route.operation_id: (next(iter(route.methods)), route.path)
@@ -37,12 +38,18 @@ def test_declared_operations_are_exactly_tenant_matched_routes() -> None:
         if operation in _OPERATIONS
     }
     assert actual["read_sync_change_target"] == (
-        "GET", "/games/{game_id}/sync/change-target/{d1}"
+        "GET",
+        "/games/{game_id}/sync/change-target/{d1}",
     )
     assert actual["read_sync_change_confirmation"] == (
-        "GET", "/games/{game_id}/sync/change-confirmation/{d1}"
+        "GET",
+        "/games/{game_id}/sync/change-confirmation/{d1}",
     )
     assert actual["sync_change"] == ("POST", "/games/{game_id}/sync/change")
+    assert actual["game_play_csv_export"] == (
+        "GET",
+        "/games/{game_id}/exports/plays.zip",
+    )
 
 
 @pytest.mark.parametrize("status", [200, 201, 400, 404, 409, 422, 500, 503])

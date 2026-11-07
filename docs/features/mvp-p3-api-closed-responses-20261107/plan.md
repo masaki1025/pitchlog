@@ -28,3 +28,6 @@ step1: 既opaque D4からAttemptBindingを形成する部分も同serviceへ機�
 
 
 step2: 3routeにstrict/extra-forbidな応答型と実model返却を接続。GETの英字対象参照とI6の日本語参照は別型で既aliasを保持、既PrefixRef/StrikeoutSnapshot/LineupPitchChangePayloadを再利用し、計算の再実装なし。受理/再掲の両経路が既boundaryの閉unionを検証し、post-accept検証例外を未受理422へ変換しない。全routeでexclude_unsetを指定し、nestedの元の省略と明示nullを保持。実route fieldのvalidate/serializeで4形全値一致、未知/余剰/欠落/型変換/既7拒否/不正boundaryを対向。API規約のexact-route/語彙/None例外は不変更で全件を含む146passed5.16秒、Ruff/Ty0。旧2赤は検査除外0で閉鎖。実PG・旧P3長履歴の障害解消・正式受理の証拠ではない。
+
+
+step3影響検査: API/既E1受付/Cookie/C2/roster exactの統合回帰は初回66pass2fail。追加2件は基線66d85fa6でも同名2failed3.22秒を確認した既有限集合の追随漏れ（既登録recover/毎球CSV）で、実registered routeとCookie非対象を照合して有限追記。製品C2/同Cookie policy/未知route検出は変更しない。影響8suiteを同候補で一括し214passed6.17秒。元全API規約の2赤はDTO/service修復で、別の既基線2赤は有限metadata整合で閉じた。最終非作者差分確認と実HTTP/正規統合後の接合は未了、必須CI/7.7/正式受理の代わりとはしない。

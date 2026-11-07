@@ -58,6 +58,8 @@ def test_tenant_match_operations_keep_old_routes_and_add_self() -> None:
             "read_sync_change_target",
             "read_sync_change_confirmation",
             "sync_change",
+            "recover_sync_attempt",
+            "game_play_csv_export",
         }
     )
 
