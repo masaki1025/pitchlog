@@ -44,7 +44,6 @@ from pitchlog.authz.product_provisioning import (
 )
 from pitchlog.authz.provisioning import ProvisioningResult, apply_authz_ddl
 from pitchlog.db import stage_a_startup
-from pitchlog.db.stage_a_startup import advance_stage_a_from_s0
 
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 _BACKEND_ROOT = _REPOSITORY_ROOT / "backend"

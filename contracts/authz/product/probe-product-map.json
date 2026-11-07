@@ -1413,6 +1413,82 @@
     {
       "product": "schema:recording_vocab_api",
       "reason": "product_only"
+    },
+    {
+      "product": "function:FUNCTION:stats_api:open_primitive_snapshot(uuid, uuid, text)",
+      "reason": "product_only"
+    },
+    {
+      "product": "function:FUNCTION:stats_api:read_play_export_primitives(uuid, uuid, uuid, bigint, text, text, text, bigint, uuid, text, integer)",
+      "reason": "product_only"
+    },
+    {
+      "product": "function:FUNCTION:stats_api:read_primitive_totals(uuid, uuid, uuid, bigint, text, text, text)",
+      "reason": "product_only"
+    },
+    {
+      "product": "function:FUNCTION:stats_api:read_primitive_writer_state(uuid, uuid, uuid, text, bytea)",
+      "reason": "product_only"
+    },
+    {
+      "product": "function:FUNCTION:stats_api:save_primitive_source(uuid, uuid, uuid, text, bigint, text, jsonb, bytea)",
+      "reason": "product_only"
+    },
+    {
+      "product": "policy:POLICY:event_slots:stats_primitives_select",
+      "reason": "product_only"
+    },
+    {
+      "product": "policy:POLICY:games:stats_primitives_select",
+      "reason": "product_only"
+    },
+    {
+      "product": "policy:POLICY:players:stats_primitives_select",
+      "reason": "product_only"
+    },
+    {
+      "product": "policy:POLICY:stats_fact_versions:stats_primitives_insert",
+      "reason": "product_only"
+    },
+    {
+      "product": "policy:POLICY:stats_fact_versions:stats_primitives_select",
+      "reason": "product_only"
+    },
+    {
+      "product": "policy:POLICY:stats_fact_versions:stats_primitives_update",
+      "reason": "product_only"
+    },
+    {
+      "product": "policy:POLICY:stats_primitive_facts:stats_primitives_insert",
+      "reason": "product_only"
+    },
+    {
+      "product": "policy:POLICY:stats_primitive_facts:stats_primitives_select",
+      "reason": "product_only"
+    },
+    {
+      "product": "policy:POLICY:stats_primitive_sources:stats_primitives_insert",
+      "reason": "product_only"
+    },
+    {
+      "product": "policy:POLICY:stats_primitive_sources:stats_primitives_select",
+      "reason": "product_only"
+    },
+    {
+      "product": "schema:stats_api",
+      "reason": "product_only"
+    },
+    {
+      "product": "table:stats_fact_versions",
+      "reason": "product_only"
+    },
+    {
+      "product": "table:stats_primitive_facts",
+      "reason": "product_only"
+    },
+    {
+      "product": "table:stats_primitive_sources",
+      "reason": "product_only"
     }
   ]
 }

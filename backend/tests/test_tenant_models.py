@@ -456,6 +456,9 @@ def test_vocabulary_migration_contains_no_seed_data() -> None:
 
 def _foreign_key_graph() -> dict[str, set[str]]:
     """モデルの FK を参照元から参照先へのグラフに変換する。"""
+    from importlib import import_module
+
+    import_module("pitchlog.db.all_models")
     return {
         table_name: {
             constraint.referred_table.name
@@ -702,9 +705,13 @@ def test_batted_historical_projection_only_removes_fixed_index(revision: str) ->
     assert before == {
         t.fullname: tuple(t.indexes) for t in Base.metadata.tables.values()
     }
-    assert (
-        _metadata_for_schema_revision("0040_batted_vocabulary_index") is Base.metadata
-    )
+    before_stats = _metadata_for_schema_revision("0040_batted_vocabulary_index")
+    assert set(Base.metadata.tables) - set(before_stats.tables) == {
+        "sync_fence.stats_fact_versions",
+        "sync_fence.stats_primitive_sources",
+        "sync_fence.stats_primitive_facts",
+    }
+    assert _metadata_for_schema_revision("0041_stats_fact_versions") is Base.metadata
     with pytest.raises(AssertionError, match="未対応revision"):
         _metadata_for_schema_revision("0040_unknown")
 

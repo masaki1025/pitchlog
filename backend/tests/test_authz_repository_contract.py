@@ -1179,12 +1179,16 @@ def test_stage_a_function_registration_matches_exact_asset_and_retains_rg1() -> 
         "stats_api.read_primitive_totals",
     )
     assert tuple(row.operation_id for row in PRODUCT_FUNCTION_OPERATIONS[28:]) == (
+        "PLAY_EXPORT_WRITER:save_snapshot",
+        "PLAY_EXPORT_SOURCES:read_page",
+        "STATS_BASIC:read",
         "SYNC_NONPLAY:bind_nonplay_device",
         "SYNC_NONPLAY:check_nonplay_right",
         "SYNC_NONPLAY:lock_nonplay_checkpoint",
         "SYNC_NONPLAY:read_nonplay_history_page",
         "SYNC_NONPLAY:prepare_nonplay_undo",
         "SYNC_NONPLAY:consume_nonplay_undo",
+        "SYNC_NONPLAY:consume_nonplay_substitution",
         "SYNC_LIFECYCLE:bind_nonplay_device",
         "SYNC_LIFECYCLE:check_nonplay_right",
         "SYNC_LIFECYCLE:read_lifecycle_state",
@@ -1194,12 +1198,16 @@ def test_stage_a_function_registration_matches_exact_asset_and_retains_rg1() -> 
         "SYNC_ORDINARY_PITCH:read_nonplay_active_history",
     )
     assert tuple(row.function_id for row in PRODUCT_FUNCTION_OPERATIONS[28:]) == (
+        "stats_api.save_writer_play_export_snapshot",
+        "stats_api.read_play_export_source_page",
+        "stats_basic_api.read_basic_stats",
         "sync_right_api.bind_nonplay_device",
         "sync_right_api.check_nonplay_right",
         "sync_right_api.lock_nonplay_checkpoint",
         "sync_right_api.read_nonplay_history_page",
         "sync_right_api.prepare_nonplay_undo",
         "sync_right_api.consume_nonplay_undo",
+        "sync_right_api.consume_nonplay_substitution",
         "sync_right_api.bind_nonplay_device",
         "sync_right_api.check_nonplay_right",
         "sync_right_api.read_lifecycle_state",

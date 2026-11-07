@@ -52,15 +52,21 @@ _REQUEST_ACCESS_PATTERNS: Final[tuple[str, ...]] = (
     "request.query_params",
     "cookies",
 )
-_ALLOWED_DATABASE_TERM_IDENTIFIERS: Final[tuple[str, ...]] = ("AuthSessionResponse",)
+_ALLOWED_DATABASE_TERM_IDENTIFIERS: Final[tuple[str, ...]] = (
+    "AuthSessionResponse",
+    "read_text",
+    "nullcontext",
+)
 
 
 def _has_database_term(source_text: str) -> bool:
-    """承認済みDTO名だけを除き、従来どおり部分一致でDB語彙を探す。"""
+    """承認済み完全識別子だけを除き、従来どおり部分一致でDB語彙を探す。"""
     inspected = source_text
     for identifier in _ALLOWED_DATABASE_TERM_IDENTIFIERS:
         inspected = re.sub(rf"\b{re.escape(identifier)}\b", "", inspected)
-    return any(term in inspected for term in _DATABASE_TERMS)
+    return any(term in inspected for term in _DATABASE_TERMS) or bool(
+        re.search(r"\b(?:text|select)\s*\(", inspected)
+    )
 
 
 _INITIAL_RESPONSE_PATH: Final[Path] = Path(
@@ -315,10 +321,10 @@ async def test_forbidden_response_is_hidden_as_not_found() -> None:
 
 
 def test_router_routes_are_static_login_roster_and_meta() -> None:
-    """静的登録したメタ情報・認証・選手・チーム・試合・同期・語彙の29本を照合する。"""
+    """静的登録したメタ情報・認証・選手・チーム・試合・同期・語彙の34本を照合する。"""
     routes = _router_routes()
 
-    assert len(routes) == 29
+    assert len(routes) == 34
     assert tuple((route.path, frozenset(route.methods or ())) for route in routes) == (
         ("/health", frozenset({"GET"})),
         ("/version", frozenset({"GET"})),
@@ -345,12 +351,30 @@ def test_router_routes_are_static_login_roster_and_meta() -> None:
         ("/devices/enroll", frozenset({"POST"})),
         ("/games/{game_id}/start", frozenset({"POST"})),
         ("/games/{game_id}/start/resolve", frozenset({"POST"})),
+        ("/games/{game_id}/exports/plays.zip", frozenset({"GET"})),
         ("/vocabularies/pitch-types", frozenset({"GET"})),
         ("/vocabularies/batted-balls", frozenset({"GET"})),
+        ("/games/{game_id}/stats.csv", frozenset({"GET"})),
+        ("/stats/seasons/{year}/stats.csv", frozenset({"GET"})),
+        ("/games/{game_id}/stats", frozenset({"GET"})),
+        ("/stats/seasons/{year}", frozenset({"GET"})),
         ("/games/{game_id}/started", frozenset({"GET"})),
         ("/games/{game_id}/sync/events", frozenset({"POST"})),
     )
-    assert all(route.response_model is not None for route in routes)
+    downloads = frozenset(
+        {"game_play_csv_export", "game_basic_stats_csv", "season_basic_stats_csv"}
+    )
+    assert (
+        frozenset(
+            route.operation_id for route in routes if route.response_model is None
+        )
+        == downloads
+    )
+    assert all(
+        route.response_model is not None
+        for route in routes
+        if route.operation_id not in downloads
+    )
 
 
 def test_error_envelope_models_have_no_code_field() -> None:
@@ -534,3 +558,27 @@ def test_sync_term_guard_unknown_position_is_closed(
     path, source = _transport_source()
     monkeypatch.setattr(sys.modules[__name__], "_node_span", lambda *_: (0, 1))
     assert _has_synchronization_term(path, source)
+
+
+@pytest.mark.parametrize("identifier", ("read_text", "nullcontext"))
+def test_database_guard_allows_closed_non_database_identifiers(identifier: str) -> None:
+    """ファイル読取・空context名だけを許し実DB呼出しの混在は拒否する。"""
+    assert not _has_database_term(identifier + "(value)")
+    assert _has_database_term("other_" + identifier + "(value)")
+    assert _has_database_term(identifier + "(value); text(sql)")
+    assert _has_database_term(identifier + "(value); select(table)")
+
+
+@pytest.mark.parametrize(
+    "source_text",
+    (
+        "text (sql)",
+        "select\n(table)",
+        "from sqlalchemy import text as read_text",
+        "import sqlalchemy as nullcontext",
+        "from sqlalchemy.sql import select as nullcontext",
+    ),
+)
+def test_database_guard_retains_spacing_and_alias_rejections(source_text: str) -> None:
+    """許可名へのSQLAlchemy aliasと空白を挟む直接DB呼出しを拒否する。"""
+    assert _has_database_term(source_text)

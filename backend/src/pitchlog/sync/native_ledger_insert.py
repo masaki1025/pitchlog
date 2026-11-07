@@ -563,6 +563,8 @@ def _fresh_lifecycle(minimum, writer, event, token, expected: _Fresh | None) -> 
         raise NativeLedgerInsertError
     _minimum(handle, minimum)
     return result
+
+
 def _fresh_substitution(
     minimum, writer, event, token, expected: _Fresh | None
 ) -> _Fresh:
@@ -645,6 +647,8 @@ def _fresh_substitution(
         raise NativeLedgerInsertError
     _minimum(handle, minimum)
     return result
+
+
 def _fixed_insert(token, tenant_id):
     """既plain INSERTを全検証した後、caller不可の単一拡張だけを構成する。"""
     spec = base._operation_spec(token)

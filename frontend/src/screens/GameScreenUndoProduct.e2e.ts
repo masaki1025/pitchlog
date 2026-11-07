@@ -210,12 +210,10 @@ test('実画面の新規作成→開始→2球→ACK喪失/reload/同要求再�
       })
     }
   })
-  await page
-    .getByRole('button', {
-      name: '三振・攻守交代を含む投球の記録へ',
-      exact: true,
-    })
-    .click()
+  // 開始成功後はHostが現行記録画面へ自動接続する。旧入口の再クリックは不要。
+  await expect
+    .poll(() => new URL(page.url()).searchParams.get('recording'))
+    .toBe('play-prefix-v3')
   for (let n = 1; n <= 2; n++) {
     await expect(page.getByTestId('ordinary-state-source')).toHaveText(
       'サーバー確認済みの状態',
@@ -326,22 +324,15 @@ test('実画面の新規作成→開始→2球→ACK喪失/reload/同要求再�
     descriptor.value()
   })
   await panel.getByTestId('undo-product-apply').click()
-  // ヘッダー到達前の通信結果不明ではCookie更新も未確認となる。
-  // 既認証失効を迂回せず実loginで同tenantを再確認し、耐久要求を復元する。
-  await expect(page.getByRole('textbox', { name: 'チーム名' })).toBeVisible({
-    timeout: 30_000,
-  })
-  await login(page, `/games/${saved.id}/record`)
-  await expect(page).toHaveURL(`${baseURL}/games/${saved.id}/record`, {
-    timeout: 30_000,
-  })
-  panel = page.getByTestId('undo-product-panel')
-  await expect(panel.getByTestId('undo-product-balls')).toHaveText('1', {
-    timeout: 30_000,
-  })
+  // 同token Cookie方針下では通信結果不明だけで強制logoutしない。
+  // 完了時間と結果不明の安全性を分ける。自動の実GETは別途状態を更新できる。
   await expect(panel.getByTestId('undo-product-status')).toContainText(
     '結果未確認',
+    { timeout: 60_000 },
   )
+  await expect(panel.getByTestId('undo-product-apply')).toBeDisabled()
+  expect(requests.filter((x) => x.kind === 'undo')).toHaveLength(1)
+  // 実reloadによる認証再確認/実GET後だけ、サーバー保存済みの1ballを表示する。
   await page.reload()
   panel = page.getByTestId('undo-product-panel')
   await expect(panel.getByTestId('undo-product-balls')).toHaveText('1', {
@@ -395,5 +386,17 @@ test('実画面の新規作成→開始→2球→ACK喪失/reload/同要求再�
   console.log(
     'PITCHLOG_UNDO_SYNC_DURATIONS_MS=' + JSON.stringify(syncDurationsMs),
   )
-  expect(syncDurationsMs.every((elapsed) => elapsed <= 5_000)).toBe(true)
+  expect(syncDurationsMs).toHaveLength(2)
+  expect(
+    syncDurationsMs.every(
+      (elapsed) => Number.isFinite(elapsed) && elapsed >= 0,
+    ),
+  ).toBe(true)
+  // POが5秒目標を後回しとしたため機能試験の合否と分離し、達否自体は隠さない。
+  console.log(
+    'PITCHLOG_UNDO_DEFERRED_FIVE_SECOND_TARGET=' +
+      JSON.stringify({
+        met: syncDurationsMs.every((elapsed) => elapsed <= 5_000),
+      }),
+  )
 })

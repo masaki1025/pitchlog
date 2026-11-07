@@ -441,9 +441,7 @@ def read_confirmed_nonplay_normal(handle, event, source, *, proposal, artifact_s
     if (
         not _same(
             raw,
-            proposal.source.model_dump(
-                mode="json", by_alias=True, exclude_unset=True
-            ),
+            proposal.source.model_dump(mode="json", by_alias=True, exclude_unset=True),
         )
         or proposal.prefix_ref != cp.ref
         or proposal.source_position.d1 != str(event.d1)

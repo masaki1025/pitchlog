@@ -128,11 +128,30 @@ def _run_native_reader(vertical_database, native_variant="ordinary-v1"):
                 (result, "四球" if native_variant == "v2-walk" else "死球"),
             )
         original = _script(result)
+        # 終端後の次打者ではなく、実終端入力の当人へPA寄与を照合する。
+        loop = '        for result in [terminal_result, "batting-result.ball"]:'
+        assert original.count(loop) == 1
+        original = original.replace(loop, "        completed_batter_id = None\n" + loop)
+        participants = (
+            "                roster, "
+            "StateSnapshot.model_validate_json(json.dumps(roster_before))\n"
+            "            )"
+        )
+        assert original.count(participants) == 1
+        original = original.replace(
+            participants,
+            participants + "\n            if result == terminal_result:\n"
+            "                completed_batter_id = people.batter_id",
+        )
+        completed_read = _READ.replace(
+            "UUID(people.batter_id)", "UUID(completed_batter_id)"
+        )
+        assert completed_read != _READ
         marker = '        return {\n            "game": game,'
         assert original.count(marker) == 1
         script = original.replace(
             marker,
-            _READ
+            completed_read
             + '        return {\n            "stats": read_summary,\n'
             + '            "game": game,',
             1,

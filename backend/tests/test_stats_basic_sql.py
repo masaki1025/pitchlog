@@ -58,9 +58,7 @@ def test_basic_stats_function_is_observed_by_catalog_detail_query():
     """製品で宣言した読取関数を実カタログの本文検査へ含める。"""
     from pitchlog.authz import first_ball_product, product_catalog
 
-    identities = {
-        (row[0], row[1]) for row in first_ball_product.function_details()
-    }
+    identities = {(row[0], row[1]) for row in first_ball_product.function_details()}
     assert ("stats_basic_api", "read_basic_stats") in identities
     assert "'stats_basic_api'" in product_catalog._LIFECYCLE_FUNCTION_DETAILS_QUERY
 

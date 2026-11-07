@@ -179,6 +179,7 @@ def copy_product_test_repository(
         source_root / "backend/migrations",
         destination_root / "backend/migrations",
     )
+    _copy_stats_registration_inputs(source_root, destination_root)
     data_model = Path("docs/design/data-model.md")
     (destination_root / data_model).parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(source_root / data_model, destination_root / data_model)
@@ -191,6 +192,8 @@ def copy_product_test_repository(
         Path("backend/tests/test_authz_runtime_contract_repository.py"),
         Path("backend/tests/test_schema_manifest.py"),
         Path("backend/tests/type_boundary_contract.py"),
+        Path("backend/tests/first_ball_expected_source_pins.py"),
+        Path("backend/tests/fixtures/pr197_ci_followup_inputs_v1.json"),
         *PRODUCT_STATE_TEST_FILES,
     ):
         target = destination_root / relative_path
@@ -201,6 +204,21 @@ def copy_product_test_repository(
     if evaluate_repository(source_root)[0] is RuntimeContractState.PENDING:
         _activate_product_asset_spec(repository)
     return repository
+
+
+def _copy_stats_registration_inputs(source_root: Path, destination_root: Path) -> None:
+    """stats登録の実入力だけを改変せず複製し、hash検証をそのまま通す。"""
+    for relative in (
+        "backend/domain/model.schema.json",
+        "backend/domain/play-export.model.json",
+        "backend/domain/stats.model.json",
+        "backend/domain/stats-manifest.json",
+        "frontend/src/lib/generated/statsPrimitives.ts",
+        "docs/features/mvp-stats-primitives/primitive-output.candidate.json",
+    ):
+        target = destination_root / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source_root / relative, target)
 
 
 def _activate_product_asset_spec(repository_root: Path) -> None:

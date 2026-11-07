@@ -62,6 +62,7 @@ from pitchlog.sync.ordinary_pitch_ports import (
     PlayPrefixContentValidationPort,
     PlayPrefixProjectionPort,
 )
+from pitchlog.sync.play_export_producer import PlayExportWriterUnavailable
 from pitchlog.sync.source_binding import (
     SourceBindingError,
     _e1_receipt_scope,
@@ -404,6 +405,7 @@ def sync_events(
         SubstitutionExecutionError,
         SubstitutionRosterUnavailable,
         NonplaySourceUnavailable,
+        PlayExportWriterUnavailable,
         *DATABASE_ERRORS,
     ):
         # 同TXのprefix/frame/投影不成立にACKや新要求置換可否を付与しない。

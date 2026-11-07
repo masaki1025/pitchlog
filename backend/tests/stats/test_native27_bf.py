@@ -20,9 +20,9 @@ EVENT = UUID("00000000-0000-0000-0000-0000000007d1")
 
 def _flags(case_id: str) -> dict:
     cases = json.loads(SOURCE.read_text())["cases"]
-    return next(row for row in cases if row["case_id"] == case_id)["input"][
-        "events"
-    ][0]["stat_flags"]
+    return next(row for row in cases if row["case_id"] == case_id)["input"]["events"][
+        0
+    ]["stat_flags"]
 
 
 def _payload(

@@ -38,7 +38,7 @@ pytestmark = pytest.mark.requires_db
 _BACKEND_ROOT = Path(__file__).resolve().parents[2]
 _MANIFEST_PATH = _BACKEND_ROOT.parent / "contracts" / "db" / "schema-manifest.json"
 
-# sync_fence の private 6表は専用の authz 試験が担う。
+# sync_fence の private 9表は専用の authz/native 受理試験が担う。
 _NON_PUBLIC_MANIFEST_TABLES = frozenset(
     {
         "writer_bindings",
@@ -47,6 +47,9 @@ _NON_PUBLIC_MANIFEST_TABLES = frozenset(
         "ordinary_pitch_checkpoints",
         "ordinary_pitch_write_admissions",
         "ordinary_pitch_history",
+        "stats_fact_versions",
+        "stats_primitive_sources",
+        "stats_primitive_facts",
     }
 )
 _CHECK_VIOLATION_PATTERN = re.compile(
@@ -586,7 +589,7 @@ def _observed_contract(
             conditional_update_columns=frozenset(),
         )
     else:
-        assert revision == [("0039_ordinary_pitch_storage",)]
+        assert revision == [("0041_stats_fact_versions",)]
         assert rg1_table.protected_columns == {"singleton_id"}
         assert rg1_table.allowed_update_columns == {"state"}
         assert rg1_table.conditional_update_columns == {"recovery_generation"}

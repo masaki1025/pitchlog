@@ -6,7 +6,7 @@ from uuid import UUID
 
 import psycopg
 import pytest
-from sqlalchemy import text
+from sqlalchemy import BigInteger, Text, Uuid, bindparam, text
 from sqlalchemy.dialects.postgresql.psycopg import dialect
 
 from pitchlog.stats.generated.receiver import SOURCE_MODEL_HASH
@@ -51,7 +51,24 @@ def _queries():
 
 def _execute(conn, sql, parameters):
     """SQLAlchemyの固定bind構文をpsycopg named bindへ下げる。"""
-    compiled = text(sql).compile(dialect=dialect(paramstyle="pyformat"))
+    statement = text(sql)
+    # 製品の固定関数ABIと同じ型を与え、NULL cursorをunknown OIDで送らない。
+    nullable_cursor_types = {
+        "after_d2": BigInteger(),
+        "after_source_event_id": Uuid(),
+        "after_metric_id": Text(),
+        "canonical_after_generation": BigInteger(),
+        "canonical_after_d1": BigInteger(),
+    }
+    names = statement.compile().params
+    statement = statement.bindparams(
+        *(
+            bindparam(name, type_=kind)
+            for name, kind in nullable_cursor_types.items()
+            if name in names
+        )
+    )
+    compiled = statement.compile(dialect=dialect(paramstyle="pyformat"))
     return conn.execute(str(compiled), parameters).fetchall()
 
 

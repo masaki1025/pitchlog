@@ -43,6 +43,9 @@ _PUBLIC_IMPORT_NAMES = frozenset(
         "inspect_product_authz_catalog",
     }
 )
+_CURRENT_STARTUP_INTERNAL_IMPORTS = frozenset(
+    {"_expected_lifecycle_function_details", "_load_product_expectations"}
+)
 _EXPECTED_TERMINAL_SIGNATURE = (
     "_fetch_catalog_rows(connection: psycopg.Connection[Any], "
     "query_id: CatalogQueryId, params: tuple[object, ...]) -> "
@@ -176,10 +179,13 @@ def _assert_external_import_shape(
         if imported_from == _TERMINAL_MODULE:
             if any(alias.name == "*" for alias in node.names):
                 raise AssertionError("製品カタログモジュールの import * は禁止")
+            permitted = _PUBLIC_IMPORT_NAMES | (
+                _CURRENT_STARTUP_INTERNAL_IMPORTS
+                if module_name == "pitchlog.db.current_product_startup"
+                else frozenset()
+            )
             unexpected_names = {
-                alias.name
-                for alias in node.names
-                if alias.name not in _PUBLIC_IMPORT_NAMES
+                alias.name for alias in node.names if alias.name not in permitted
             }
             if unexpected_names:
                 raise AssertionError(
@@ -1106,6 +1112,10 @@ def test_calling_fetch_terminal_through_an_alias_is_red(tmp_path: Path) -> None:
         pytest.param(
             "from pitchlog.authz.product_catalog import _CatalogRequest\n",
             id="other-private-import",
+        ),
+        pytest.param(
+            "from pitchlog.authz.product_catalog import _load_product_expectations\n",
+            id="current-startup-private-from-other-module",
         ),
         pytest.param(
             "from pitchlog.authz.product_catalog import PRODUCT_SPEC\n",

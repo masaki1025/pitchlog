@@ -16,6 +16,7 @@ from typing import Any, cast
 
 import psycopg
 import pytest
+from first_ball_expected_source_pins import read_ci_followup_inputs
 from psycopg import pq
 
 from pitchlog.authz import product_provisioning
@@ -780,6 +781,9 @@ _PUBLIC_IMPORT_NAMES = frozenset(
         "unapply_product_authz_ddl",
     }
 )
+_CURRENT_STARTUP_INTERNAL_IMPORTS = frozenset(
+    {"_load_product_elements", "_selected_product_ddl"}
+)
 _EXPECTED_TERMINAL_SIGNATURE = (
     "_run_product_operation(connection: psycopg.Connection[Any], "
     "operation: ProductOperation) -> None"
@@ -1007,10 +1011,13 @@ def _assert_external_import_shape(
         if imported_from == _TERMINAL_MODULE:
             if any(alias.name == "*" for alias in node.names):
                 raise AssertionError("製品適用器モジュールの import * は禁止")
+            permitted = _PUBLIC_IMPORT_NAMES | (
+                _CURRENT_STARTUP_INTERNAL_IMPORTS
+                if module_name == "pitchlog.db.current_product_startup"
+                else frozenset()
+            )
             unexpected_names = {
-                alias.name
-                for alias in node.names
-                if alias.name not in _PUBLIC_IMPORT_NAMES
+                alias.name for alias in node.names if alias.name not in permitted
             }
             if unexpected_names:
                 raise AssertionError(
@@ -1257,6 +1264,10 @@ def test_calling_terminal_through_an_alias_is_red(tmp_path: Path) -> None:
         pytest.param(
             "from pitchlog.authz.product_provisioning import _ProductStatement\n",
             id="other-private-import",
+        ),
+        pytest.param(
+            "from pitchlog.authz.product_provisioning import _load_product_elements\n",
+            id="current-startup-private-from-other-module",
         ),
         pytest.param(
             "from pitchlog.authz.product_provisioning import PRODUCT_SPEC\n",
@@ -2062,6 +2073,48 @@ def test_pre_rule_preserves_old16_and_defers_exact_epoch_acl() -> None:
         )
     )
     assert len(old) == 16
+    # 旧保留列はそのまま、採用済み成績5関数・70列だけを真正Gitの前後差で追加する。
+    import subprocess
+
+    asset_path = "contracts/authz/product/ddl-elements.json"
+    pins = read_ci_followup_inputs()
+    parent = json.loads(
+        subprocess.check_output(
+            ["git", "show", pins["catalog_before_revision"] + ":" + asset_path],
+            cwd=_REPOSITORY_ROOT,
+        )
+    )
+    stats_bytes = subprocess.check_output(
+        ["git", "show", pins["catalog_after_revision"] + ":" + asset_path],
+        cwd=_REPOSITORY_ROOT,
+    )
+    assert stats_bytes == (_REPOSITORY_ROOT / asset_path).read_bytes()
+    stats = json.loads(stats_bytes)
+    old_functions = {row["function_id"]: row for row in parent["functions"]}
+    old_columns = {
+        row["expectation_id"]: row for row in parent["column_acl_expectations"]
+    }
+    assert all(stats_row in stats["functions"] for stats_row in old_functions.values())
+    assert all(
+        stats_row in stats["column_acl_expectations"]
+        for stats_row in old_columns.values()
+    )
+    stats_function_ids = {
+        row["function_id"]
+        for row in stats["functions"]
+        if row["function_id"] not in old_functions
+    }
+    stats_column_ids = {
+        row["expectation_id"]
+        for row in stats["column_acl_expectations"]
+        if row["expectation_id"] not in old_columns
+    }
+    assert len(stats_function_ids) == 5 and all(
+        value.startswith("FUNCTION:stats_api:") for value in stats_function_ids
+    )
+    assert len(stats_column_ids) == 70 and all(
+        value.endswith(":pitchlog_sync_right_fn_owner") for value in stats_column_ids
+    )
     expected_extra = (
         {
             (
@@ -2078,6 +2131,8 @@ def test_pre_rule_preserves_old16_and_defers_exact_epoch_acl() -> None:
         | _LINEUP_COLUMN_ACL_IDS
         | _BATTED_FUNCTION_IDS
         | _BATTED_COLUMN_ACL_IDS
+        | stats_function_ids
+        | stats_column_ids
     )
     assert {row.element_id for row in withheld} - {
         row.element_id for row in old
@@ -2275,7 +2330,7 @@ def test_startup_unknown_placed_revision_is_rejected(
 
 
 def test_new_schema_guards_preserve_other_five_and_exact_owner() -> None:
-    """新3schemaだけをowner不修復で保護し、旧5schemaのSQLを変えない。"""
+    """旧schemaのSQLを保持し、statsを含む新schemaのownerを保護する。"""
     generated = product_provisioning.generate_authz_ddl(
         product_provisioning._REPOSITORY_ROOT, PRODUCT_SPEC
     )
@@ -2298,9 +2353,16 @@ def test_new_schema_guards_preserve_other_five_and_exact_owner() -> None:
         "sync_fence_api",
         "sync_right_api",
         "recording_vocab_api",
+        "stats_api",
     }
-    assert len(schemas) == 8 + 3 + 1
+    assert len(schemas) == 8 + 3 + 1 + 1
     for row in schemas:
+        if row.element_id == "stats_api":
+            assert row.sql in sql_texts
+            assert "n.nspname='stats_api' AND r.rolname='pitchlog_owner'" in row.sql
+            assert "RAISE EXCEPTION 'stats schema owner collision'" in row.sql
+            assert "ALTER SCHEMA" not in row.sql
+            continue
         if row.element_id == "recording_vocab_api":
             assert row.sql in sql_texts
             assert (
@@ -2674,8 +2736,10 @@ def test_current_and_legacy_owned_baselines_do_not_forge_stage(
     revision = "0036_initial_right_storage"
     with pytest.raises(AssertionError):
         db_fixtures._prepare_current_product_baseline(
-            cluster=cluster, owner_dsn="synthetic-owner",
-            applicator_dsn="synthetic-applicator", applicator=connection,
+            cluster=cluster,
+            owner_dsn="synthetic-owner",
+            applicator_dsn="synthetic-applicator",
+            applicator=connection,
         )
     trace.clear()
     monkeypatch.setattr(
@@ -2754,6 +2818,9 @@ def test_product_snapshot_uses_closed_current_schema_and_private_tables(
             "ordinary_pitch_checkpoints",
             "ordinary_pitch_write_admissions",
             "ordinary_pitch_history",
+            "stats_fact_versions",
+            "stats_primitive_sources",
+            "stats_primitive_facts",
         }
         for _, p in private_queries
     )

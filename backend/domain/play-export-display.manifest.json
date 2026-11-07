@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "status": "candidate-formal-acceptance-pending",
+  "modelSha256": "sha256:6be2f315e519fa8054ae6980ce8b5e161dbf197793d1400bbbe1e56ac15d7e14",
+  "inputs": {
+    "backend/domain/play-export-display.model.json": "e3421ed44921a093bf3532a0bdfdb0e8a9c43963feffd382c4094341c533f73e",
+    "backend/domain/play-export-display.schema.json": "94a2c420458f036a89e29b2f1d35992baeec0a2a50446b353131a39ef0591c0e",
+    "contracts/display_geometry_263_v1.json": "e0c4d336e169e567325c4fd645f595ae856b4bbd7e9be3e5cde53515ff8901f6",
+    "backend/src/pitchlog/domaingen/export_coordinate.py": "f2026b82a9a1d548fb979ff024d141b8dee3af54f0c34ee6369c291e1eb89f23"
+  },
+  "generatedFiles": {
+    "backend/src/pitchlog/exports/generated/coordinate_transform.py": "e0e4cc4b6f6a123dea74c3be687f469700fcd22418adbc66da253ba9892e0fc3",
+    "frontend/src/lib/generated/playExportCoordinate.ts": "635dca2e8314a791d1ab2bb5e559da357d6b069639699c213860db5796576984"
+  },
+  "t5ModelUnchanged": true
+}

@@ -25,6 +25,7 @@ from pitchlog.authz.product_provisioning import (
     apply_product_authz_before_rule_placement,
     apply_product_authz_ddl,
 )
+from pitchlog.db.current_product_startup import CURRENT_REVISION
 from pitchlog.repositories.initial_recording_right import _credential_digest
 
 from . import durable_rights_ledger_support as ledger_support
@@ -36,7 +37,7 @@ from .durable_rights_ledger_support import (
 from .rg1_lifecycle_support import observed_identity
 
 _BACKEND = Path(__file__).resolve().parents[2]
-_INITIAL_REVISION = "0039_ordinary_pitch_storage"
+_INITIAL_REVISION = CURRENT_REVISION
 _ACTOR_UID = 20002
 _CONTROLLER_UID = 20004
 # 既initial候補の公開vector。運用資格/鍵を新発行しない。
@@ -97,7 +98,7 @@ def _install_initial_business(dsn: str) -> None:
     with psycopg.connect(dsn) as admin:
         assert admin.execute(
             "SELECT version_num FROM public.alembic_version"
-        ).fetchall() == [(_INITIAL_REVISION,)], "正規0038までの段階配置が未供給"
+        ).fetchall() == [(_INITIAL_REVISION,)], "正規現行版までの段階配置が未供給"
         role = admin.execute("SELECT oid FROM pg_roles WHERE rolname=session_user")
         row = role.fetchone()
         assert row is not None

@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "sourceSelection": {
+    "kind": "accepted-canonical-slot-v1",
+    "generatedTarget": "backend/src/pitchlog/exports/generated/play_primitives_native.sql",
+    "section": "canonical_members",
+    "order": ["d2", "source_event_id"],
+    "factVersion": "current-same-transaction"
+  },
+  "pitchCount": {
+    "kind": "saved-t5-state-credit-window",
+    "metricId": "pitch_count",
+    "playerSource": "play_rows.pitcher_id",
+    "metricStatePath": ["metrics", "pitch_count"],
+    "creditShape": "zero-or-one-same-actual-pitcher",
+    "sourceEventKinds": [
+      {"playRow": "pitch", "t1": "pitch-event"},
+      {"playRow": "non_pitch", "t1": "non-pitch-event"}
+    ]
+  },
+  "scoreboard": {
+    "kind": "saved-t1-before-after-difference",
+    "inningSource": "request.t1.before.stateFields.state.inning",
+    "halfSource": "request.t1.before.stateFields.state.half",
+    "completeProfiles": [
+      {"sourceFormat": "first-ball-play-v1", "calculationFormat": "first-ball-calculation-v1", "kind": "evaluated-no-end-condition", "scope": null, "path": null, "value": false},
+      {"sourceFormat": "ordinary-pitch-play-v1", "calculationFormat": "ordinary-pitch-calculation-v1", "kind": "evaluated-no-end-condition", "scope": "ordinary37", "path": ["basis", "halfCompleted"], "value": false},
+      {"sourceFormat": "play-prefix-play-v2", "calculationFormat": "play-prefix-calculation-v2", "kind": "evaluated-no-end-condition", "scope": "play-prefix-v2", "path": ["basis", "halfCompleted"], "value": false},
+      {"sourceFormat": "play-prefix-play-v3", "calculationFormat": "play-prefix-calculation-v3", "kind": "evaluated-end-condition", "scope": "play-prefix-v3", "path": ["facts", "halfCompleted"], "value": null},
+      {"sourceFormat": "play-prefix-play-v3", "calculationFormat": "nonplay-prefix-calculation-v1", "kind": "evaluated-end-condition", "scope": "play-prefix-v3", "path": ["facts", "halfCompleted"], "value": null}
+    ],
+    "counters": ["inningScores", "hits", "errors", "strikeouts", "walks"],
+    "offenseCounters": ["hits", "strikeouts", "walks"],
+    "defenseCounters": ["errors"],
+    "legacyInningSlots": 12,
+    "legacyOverflow": "fold-into-twelfth-with-full-sidecar",
+    "unplayed": "empty-string",
+    "startedZero": "empty-until-completed",
+    "completedZero": "integer-zero"
+  }
+}

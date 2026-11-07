@@ -67,8 +67,7 @@ class SubstitutionWriteReceipt(Base):
             ondelete="NO ACTION",
         ),
         CheckConstraint(
-            "source_d1>0 AND before_revision>0 AND "
-            "after_revision=before_revision+1",
+            "source_d1>0 AND before_revision>0 AND after_revision=before_revision+1",
             name="ck_substitution_receipt_sequence",
         ),
         CheckConstraint(

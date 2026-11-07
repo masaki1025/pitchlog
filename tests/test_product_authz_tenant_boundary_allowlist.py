@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import ast
+import hashlib
 import importlib.util
 import json
 import shutil
+import subprocess
 import sys
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from types import ModuleType
 
 import pytest
@@ -139,13 +141,56 @@ def _initialize_repository(tmp_path: Path) -> tuple[Path, str]:
         json.dumps(authority, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
     )
+    if "pr197_source_registration" in authority:
+        fixture = Path(authority["pr197_source_registration"]["expected_fixture"])
+        assert fixture.as_posix() == "tests/fixtures/pr197_tenant_source_expected_v1.json"
+        destination = repository / fixture
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(_REPOSITORY_ROOT / fixture, destination)
+        expected = checker._pr197_fixed_expectations(_REPOSITORY_ROOT)
+        revision = expected["source_revision"]
+        manifest_path = expected["sql_generation"]["manifest_path"]
+        manifest_raw = subprocess.check_output(
+            ["git", "show", f"{revision}:{manifest_path}"], cwd=_REPOSITORY_ROOT,
+        )
+        assert hashlib.sha256(manifest_raw).hexdigest() == (
+            expected["sql_generation"]["manifest_sha256"]
+        )
+        manifest = json.loads(manifest_raw)
+        product_paths = subprocess.check_output(
+            ["git", "ls-tree", "-r", "--name-only", revision, "--", "backend/src"],
+            cwd=_REPOSITORY_ROOT, text=True,
+        ).splitlines()
+        unrelated_scan_paths = {
+            "backend/src/pitchlog/repositories/sync_apply.py",
+            "backend/src/pitchlog/sync/control_provider/binding_control.py",
+        }
+        assert unrelated_scan_paths.isdisjoint(expected["owners"])
+        source_paths = (
+            set(product_paths) - unrelated_scan_paths
+            | set(expected["owners"])
+            | set(manifest["generationInputFiles"])
+            | set(manifest["generatedFiles"])
+            | set(checker._PR197_GENERATOR_IMPORT_FILES)
+            | {manifest_path, checker._PR197_GENERATED_FACTS}
+        )
+        for relative in sorted(source_paths):
+            path = PurePosixPath(relative)
+            assert not path.is_absolute() and path.parts[0] in {"backend", "frontend"}
+            assert ".." not in path.parts and "." not in path.parts
+            destination = repository / path
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_bytes(subprocess.check_output(
+                ["git", "show", f"{revision}:{relative}"], cwd=_REPOSITORY_ROOT,
+            ))
 
     _run_git(repository, ["init"])
     # 正式固定原典を実objectのまま保持し、合成baselineにも本来の祖先を与える。
     # 現在木から別の原典を作ったり、検査器の祖先確認を省いたりしない。
     frozen_inputs = assets["contracts/tenant_boundary/frozen-inputs.json"]["frozen_inputs"]
     source_key = (
-        "pr196_source_expectation_revision"
+        "pr197_pin_origin_commit" if "pr197_source_registration" in authority
+        else "pr196_source_expectation_revision"
         if "pr196_source_expectation_revision" in frozen_inputs
         else "pr192_source_expectation_revision"
     )
@@ -163,7 +208,10 @@ def _initialize_repository(tmp_path: Path) -> tuple[Path, str]:
     _run_git(repository, ["update-ref", "HEAD", source_revision])
     baseline = _commit(repository, "baseline")
     _run_git(repository, ["merge-base", "--is-ancestor", source_revision, baseline])
-    for key in ("pr192_source_expectation_revision", "pr196_source_registration_revision"):
+    for key in (
+        "pr192_source_expectation_revision", "pr196_source_registration_revision",
+        "pr197_source_revision", "pr197_pin_origin_commit",
+    ):
         if key in frozen_inputs:
             _run_git(repository, [
                 "merge-base", "--is-ancestor", frozen_inputs[key]["value"], baseline,

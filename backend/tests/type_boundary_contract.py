@@ -8,10 +8,13 @@ TSK-250 が所有する列単位の写像や値変換を先取りしない。
 from __future__ import annotations
 
 import ast
+import hashlib
 import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+
+from first_ball_expected_source_pins import read_ci_followup_inputs
 
 _DESTINATION_CATEGORY_ALIASES = {
     "スタメンのみ": "スタメン・出場区間",
@@ -402,6 +405,25 @@ def regular_schema_violations(
     return violations
 
 
+# 採用済D05の比/率の未定義値は、移行フィールドのセンチネルとは別である。
+# 許容するのは既生成された下記4関数の全AST一致だけ。ファイル全体を除外しない。
+# 意味変更はこの固定を失効させ、通常の非作者レビューで再確認する。
+_RATIO_AST = read_ci_followup_inputs()["ratio_ast_sha256"]
+_RATE_AST = read_ci_followup_inputs()["rate_ast_sha256"]
+_ADOPTED_RATE_NULL_FUNCTIONS = {
+    "pitchlog/stats/generated/facts.py": {
+        "_ratio_add": _RATIO_AST,
+        "_rate_result": _RATE_AST,
+    },
+    "pitchlog/stats/generated/formatter.py": {
+        "_rate_result": _RATE_AST,
+    },
+    "pitchlog/stats/generated/receiver.py": {
+        "_rate_result": _RATE_AST,
+    },
+}
+
+
 def sentinel_conversion_hits(source_root: Path) -> list[str]:
     """製品コードを全走査し、フィールド別センチネル変換候補を返す。
 
@@ -414,9 +436,29 @@ def sentinel_conversion_hits(source_root: Path) -> list[str]:
     hits: list[str] = []
     for path in sorted(source_root.rglob("*.py")):
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
-        visitor = _SentinelConversionVisitor()
-        visitor.visit(tree)
         relative = path.relative_to(source_root)
+        adopted = _ADOPTED_RATE_NULL_FUNCTIONS.get(relative.as_posix(), {})
+        approved: set[ast.FunctionDef] = set()
+        for name, expected in adopted.items():
+            matches = [
+                n
+                for n in tree.body
+                if isinstance(n, ast.FunctionDef) and n.name == name
+            ]
+            if len(matches) != 1:
+                hits.append(f"{relative}:0:採用済み比/率関数の欠落または重複: {name}")
+                continue
+            actual = hashlib.sha256(
+                ast.dump(matches[0], include_attributes=False).encode()
+            ).hexdigest()
+            if actual != expected:
+                hits.append(
+                    f"{relative}:{matches[0].lineno}:採用済み比/率ASTが不一致: {name}"
+                )
+                continue
+            approved.add(matches[0])
+        visitor = _SentinelConversionVisitor(frozenset(approved))
+        visitor.visit(tree)
         hits.extend(f"{relative}:{line}:{reason}" for line, reason in visitor.hits)
     return hits
 
@@ -424,12 +466,17 @@ def sentinel_conversion_hits(source_root: Path) -> list[str]:
 class _SentinelConversionVisitor(ast.NodeVisitor):
     """センチネル値から NULL を作る構造だけを抽出する。"""
 
-    def __init__(self) -> None:
+    def __init__(
+        self, approved_rate_functions: frozenset[ast.FunctionDef] = frozenset()
+    ) -> None:
         self.hits: list[tuple[int, str]] = []
+        self.approved_rate_functions = approved_rate_functions
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:  # noqa: N802
         """明示的なセンチネル変換名と条件分岐を検査する。"""
         self._record_function_name(node.name, node.lineno)
+        if node in self.approved_rate_functions:
+            return
         self.generic_visit(node)
 
     def visit_AsyncFunctionDef(  # noqa: N802

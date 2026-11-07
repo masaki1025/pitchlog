@@ -944,3 +944,35 @@ it('ACK後の新GET解析中は同scopeの子を停止して保持し、確認�
   if (context.prefixRef.version !== '2') throw new Error('v2 context missing')
   expect(context.prefixRef.checkpoint.digest).toBe('b'.repeat(64))
 })
+
+it('通常球ACK後は親の実GET成功に続けて取消子の既readを再取得する', async () => {
+  const { wrapper, child } = await filledParent()
+  const refresh = vi.fn(async () => {})
+  Object.assign(wrapper.findComponent(GameScreenUndoProduct).vm, {
+    reload: refresh,
+  })
+  const previous = vi.mocked(ordinaryRead.readPlayPrefixGame).mock.calls.length
+  child.$emit('saved')
+  await vi.waitFor(() =>
+    expect(ordinaryRead.readPlayPrefixGame).toHaveBeenCalledTimes(previous + 1),
+  )
+  await vi.waitFor(() => expect(refresh).toHaveBeenCalledOnce())
+})
+
+it('親の再GET失敗を取消子の再取得成功として扱わない', async () => {
+  const { wrapper, child } = await filledParent()
+  const refresh = vi.fn(async () => {})
+  Object.assign(wrapper.findComponent(GameScreenUndoProduct).vm, {
+    reload: refresh,
+  })
+  vi.mocked(ordinaryRead.readPlayPrefixGame).mockRejectedValueOnce(
+    new ApiError(503, 'unavailable', [], undefined, null),
+  )
+  const previous = vi.mocked(ordinaryRead.readPlayPrefixGame).mock.calls.length
+  child.$emit('saved')
+  await vi.waitFor(() =>
+    expect(ordinaryRead.readPlayPrefixGame).toHaveBeenCalledTimes(previous + 1),
+  )
+  await flushPromises()
+  expect(refresh).not.toHaveBeenCalled()
+})

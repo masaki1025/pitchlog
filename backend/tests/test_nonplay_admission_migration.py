@@ -71,8 +71,7 @@ def test_invoker_guard_owner_and_revocation_are_explicit(monkeypatch):
     )
     assert any(
         "REVOKE ALL ON FUNCTION public.protect_nonplay_admission() FROM\n"
-        "        PUBLIC,pitchlog_app"
-        in sql
+        "        PUBLIC,pitchlog_app" in sql
         for sql in statements
     )
     triggers = [sql for sql in statements if "CREATE TRIGGER" in sql]

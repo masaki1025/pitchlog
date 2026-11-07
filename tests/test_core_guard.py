@@ -22,8 +22,26 @@ from typing import Any
 import pytest
 
 REPO = Path(__file__).parent.parent
+sys.path.insert(0, str(REPO / "scripts"))
+from scripts import frozen_history  # noqa: E402
+
 SCRIPT = REPO / "scripts" / "core_guard.py"
 CORE_AREAS_PATH = REPO / ".claude" / "core-areas.json"
+_REFERENCE_REVERSE_CLOSURE_ADDITIONS = frozenset({
+    "scripts/check_tenant_boundary_bypass.py",
+    "scripts/frozen_history.py",
+    "tests/test_census_baseline_check.py",
+    "tests/test_first_ball_startup_boundary_registrations.py",
+    "tests/test_frozen_baseline_declarations.py",
+    "tests/test_frozen_history.py",
+    "tests/test_ordinary_boundary_registrations.py",
+    "tests/test_pr191_tenant_source_registration.py",
+    "tests/test_pr192_tenant_source_registration.py",
+    "tests/test_pr196_tenant_source_registration.py",
+    "tests/test_pr197_tenant_source_registration.py",
+    "tests/test_product_authz_tenant_boundary_allowlist.py",
+    "tests/test_stage_a_startup_tenant_boundary.py",
+})
 REQUIRED_CHECK_TEXT = "コア領域/検査経路の変更: 人間による逐行確認を実施した"
 GUARD_PATHS = [
     ".claude/core-areas.json",
@@ -1093,6 +1111,10 @@ def run_guard(
     env = os.environ.copy()
     env.pop("GITHUB_EVENT_NAME", None)
     env.pop("GITHUB_EVENT_PATH", None)
+    # 合成旧profileにも真正2faを持つ現Gitのpin読取器を供給する。
+    env["PYTHONPATH"] = os.pathsep.join(
+        part for part in (str(REPO / "scripts"), env.get("PYTHONPATH", "")) if part
+    )
     if event_name is not None:
         env["GITHUB_EVENT_NAME"] = event_name
     if event_path is not None:
@@ -1113,6 +1135,27 @@ def run_guard(
     )
 
 
+def test_synthetic_guard_imports_genuine_fixed_history(tmp_path: Path) -> None:
+    """旧一時Gitの実行器はcache rootの真正pin読取器を使う。"""
+    env = os.environ.copy()
+    env["PYTHONPATH"] = os.pathsep.join(
+        part for part in (str(REPO / "scripts"), env.get("PYTHONPATH", "")) if part
+    )
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "import frozen_history; print(frozen_history.__file__)",
+        ],
+        cwd=tmp_path,
+        env=env,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    assert Path(completed.stdout.strip()).resolve() == REPO / "scripts/frozen_history.py"
+
+
 def load_actual_core_areas() -> dict[str, Any]:
     """旧initial/HTTP試験向けに実JSONからfirst-ball suffixだけを投影する。
 
@@ -1122,6 +1165,67 @@ def load_actual_core_areas() -> dict[str, Any]:
     value = json.loads(CORE_AREAS_PATH.read_text(encoding="utf-8"))
     assert isinstance(value, dict)
     return _first_ball_historical_fixture(_terminal_historical_fixture(value))
+
+
+_PR197_RECOVERY_GUARD_PATHS_EXPECTED = (
+    "tests/test_first_ball_startup_boundary_registrations.py",
+    "tests/test_ordinary_boundary_registrations.py",
+    "tests/test_pr191_tenant_source_registration.py",
+    "tests/test_pr192_tenant_source_registration.py",
+    "tests/test_product_authz_tenant_boundary_allowlist.py",
+    "tests/test_stage_a_startup_tenant_boundary.py",
+)
+
+
+def _without_pr197_reverse_reference_closure(document: dict[str, Any]) -> dict[str, Any]:
+    """回復時の逆依存13件とguard6件だけを旧宣言へ逆射影する。"""
+    historical = json.loads(json.dumps(document))
+    recovery_guard_paths = _PR197_RECOVERY_GUARD_PATHS_EXPECTED
+    assert recovery_guard_paths == load_core_guard_module()._PR197_RECOVERY_GUARD_PATHS
+    guard_paths = historical.get("guard_paths", [])
+    present_guard_paths = set(recovery_guard_paths).intersection(guard_paths)
+    if present_guard_paths:
+        assert present_guard_paths == set(recovery_guard_paths)
+        assert tuple(guard_paths[-len(recovery_guard_paths):]) == recovery_guard_paths
+        assert len(guard_paths) == len(set(guard_paths))
+        historical["guard_paths"] = guard_paths[:-len(recovery_guard_paths)]
+    policy = historical.get("reference_discovery")
+    if policy is None:
+        return historical
+    exclusions = policy["declared_exclusions"]
+    paths = exclusions["paths"]
+    present = _REFERENCE_REVERSE_CLOSURE_ADDITIONS.intersection(paths)
+    if not present:
+        return historical
+    assert present == _REFERENCE_REVERSE_CLOSURE_ADDITIONS
+    assert len(paths) == 24 and paths == sorted(set(paths))
+    old_paths = sorted(set(paths) - _REFERENCE_REVERSE_CLOSURE_ADDITIONS)
+    assert len(old_paths) == 11
+    reason = exclusions["reason"]
+    assert reason.count("残り23件") == 1
+    exclusions["paths"] = old_paths
+    exclusions["reason"] = reason.replace("残り23件", "残り10件")
+    return historical
+
+
+def test_pr197_recovery_guard_six_historical_projection_rejects_mutations() -> None:
+    """回復6件の欠落・順序変更・未知追加を旧宣言へ隠さない。"""
+    current = json.loads(CORE_AREAS_PATH.read_text())
+    projected = _without_pr197_reverse_reference_closure(current)
+    assert not set(_PR197_RECOVERY_GUARD_PATHS_EXPECTED).intersection(
+        projected["guard_paths"]
+    )
+    for mutation in ("missing", "order", "unknown"):
+        changed = json.loads(json.dumps(current))
+        paths = changed["guard_paths"]
+        if mutation == "missing":
+            paths.remove(_PR197_RECOVERY_GUARD_PATHS_EXPECTED[0])
+        elif mutation == "order":
+            paths[-2:] = reversed(paths[-2:])
+        else:
+            paths.append("tests/unknown_recovery_path.py")
+        with pytest.raises(AssertionError):
+            _without_pr197_reverse_reference_closure(changed)
 
 
 def _require_reference_discovery_policy(
@@ -1147,7 +1251,7 @@ def _require_reference_discovery_policy(
     exclusions = policy.get("declared_exclusions")
     assert isinstance(exclusions, dict), "declared_exclusions 宣言がない"
     paths = exclusions.get("paths")
-    assert isinstance(paths, list) and len(paths) == 11
+    assert isinstance(paths, list) and len(paths) == 24
     assert all(isinstance(path, str) and path for path in paths)
     assert paths == sorted(set(paths)), "declared_exclusions.paths に重複または順序違反"
     reason = exclusions.get("reason")
@@ -1789,8 +1893,18 @@ def test_actual_config_registers_fixed_authz_guard_candidates():
 
 
 def test_guard_paths_population_remains_unchanged():
-    """guard_paths を固定基準版と認可追加の和集合で exact に閉じる。"""
+    """旧和集合と現行の委任1・回復6の全経路を別々に exact 照合する。"""
     assert_authz_guard_paths_are_exact(load_initial_scope_core_areas())
+    current = json.loads(CORE_AREAS_PATH.read_text())
+    declaration = set(load_initial_scope_historical_guard().DELEGATION_GUARD_PATH_ADDITIONS)
+    recovery = set(_PR197_RECOVERY_GUARD_PATHS_EXPECTED)
+    assert tuple(_PR197_RECOVERY_GUARD_PATHS_EXPECTED) == (
+        load_core_guard_module()._PR197_RECOVERY_GUARD_PATHS
+    )
+    assert tuple(current["guard_paths"][-6:]) == _PR197_RECOVERY_GUARD_PATHS_EXPECTED
+    expected = expected_authz_guard_paths() | declaration | recovery
+    assert set(current["guard_paths"]) == expected
+    assert len(current["guard_paths"]) == len(expected)
 
 
 def test_guard_paths_reject_removal_and_same_size_replacement():
@@ -3615,7 +3729,7 @@ def test_vocabulary_assets_are_owned_by_data_migration_area() -> None:
 
 def test_contract_reference_python_paths_are_discovered_deterministically() -> None:
     """契約参照の導出と資産で宣言した除外の完全一致を固定する。"""
-    configuration = load_initial_scope_core_areas()
+    configuration = json.loads(CORE_AREAS_PATH.read_text())
     policy = _require_reference_discovery_policy(configuration)
     areas_by_id = {area["id"]: area for area in configuration["areas"]}
 
@@ -3648,6 +3762,25 @@ def test_contract_reference_python_paths_are_discovered_deterministically() -> N
     )
 
 
+def test_new_reference_exclusions_are_reverse_dependencies_only() -> None:
+    """追加13件は契約rootを直接参照せず、旧11件の除外を保つ。"""
+    configuration = json.loads(CORE_AREAS_PATH.read_text())
+    policy = _require_reference_discovery_policy(configuration)
+    excluded = set(policy["declared_exclusions"]["paths"])
+    additional = _REFERENCE_REVERSE_CLOSURE_ADDITIONS
+    assert len(additional) == 13 and additional <= excluded
+    assert len(excluded - additional) == 11
+    for relative in sorted(additional):
+        tree = ast.parse((REPO / relative).read_text(encoding="utf-8"))
+        static_paths = _normalized_static_paths(tree)
+        assert not any(
+            path == contract or path.startswith(f"{contract}/")
+            or f"{contract}/" in path
+            for path in static_paths
+            for contract in policy["contract_roots"]
+        ), relative
+
+
 @pytest.mark.parametrize(
     "relative_path",
     (
@@ -3664,7 +3797,7 @@ def test_unregistered_contract_reference_fails_without_updating_paths(
     root.mkdir()
     (root / "scripts").mkdir()
     (root / "tests").mkdir()
-    configuration = json.loads(json.dumps(load_initial_scope_core_areas()))
+    configuration = json.loads(CORE_AREAS_PATH.read_text())
     for area in configuration["areas"]:
         if area["id"] in configuration["reference_discovery"]["required_area_ids"]:
             area["paths"] = []
@@ -3689,7 +3822,7 @@ def test_reverse_dependency_closure_fails_for_unregistered_dependent(
     root.mkdir()
     (root / "scripts").mkdir()
     (root / "tests").mkdir()
-    configuration = json.loads(json.dumps(load_initial_scope_core_areas()))
+    configuration = json.loads(CORE_AREAS_PATH.read_text())
     for area in configuration["areas"]:
         if area["id"] in configuration["reference_discovery"]["required_area_ids"]:
             area["paths"] = []
@@ -5021,7 +5154,8 @@ def test_durable_ledger_core_actual_phase_preserves_initial_supplier(tmp_path: P
         if current['paths'] != expected:
             expected = expected + list(EXPECTED_AREA_PATH_ADDITIONS[area['id']])
         assert current == {**area, 'paths': expected}
-    assert {k: v for k, v in actual.items() if k != 'areas'} == {
+    historical_actual = _without_pr197_reverse_reference_closure(actual)
+    assert {k: v for k, v in historical_actual.items() if k != 'areas'} == {
         k: v for k, v in baseline.items() if k != 'areas'
     }
 
@@ -5576,7 +5710,7 @@ HTTP_COMPOSITE_ADDITIONS: dict[str, tuple[str, ...]] = {
 
 def http_core_configuration(*, registered: bool) -> dict[str, Any]:
     """旧initialの前へ戻し、合成層をexact suffixとして全件だけ足す。"""
-    document = load_actual_core_areas()
+    document = _without_pr197_reverse_reference_closure(load_actual_core_areas())
     for area in document["areas"]:
         if area["id"] == "recording-rights":
             present = [p in area["paths"] for p in INITIAL_GAME_START_HTTP_PATHS]
@@ -7116,7 +7250,17 @@ _STATS_FOUNDATION_EXPECTED: dict[str, tuple[str, ...]] = {
 
 def _stats_foundation_historical_fixture(document):
     """独立literal全26を検査してから既fixtureへ渡す。未知fieldは残す。"""
-    raw = json.loads(json.dumps(document))
+    raw = _without_pr197_reverse_reference_closure(document)
+    pr197_known = set(_PR197_TENANT_SOURCE_EXPECTED)
+    pr197_seen = {(a['id'], p) for a in raw['areas'] for p in a['paths']
+                  if p in pr197_known}
+    assert not pr197_known.intersection(raw.get('guard_paths', [])), 'PR197 guard代用'
+    if pr197_seen:
+        assert pr197_seen == {('tenant-isolation', p) for p in pr197_known}, 'PR197全2pair'
+        assert [a['id'] for a in raw['areas']] == list(_STATS_FOUNDATION_EXPECTED)
+        tenant = next(a for a in raw['areas'] if a['id'] == 'tenant-isolation')
+        assert tuple(tenant['paths'][-2:]) == _PR197_TENANT_SOURCE_EXPECTED, 'PR197 suffix'
+        tenant['paths'] = tenant['paths'][:-2]
     expected = {(a, p) for a, paths in _STATS_FOUNDATION_EXPECTED.items() for p in paths}
     known = {p for _, p in expected}
     assert not known.intersection(raw.get('guard_paths', [])), '成績guard代用'
@@ -7136,8 +7280,127 @@ def _stats_foundation_historical_fixture(document):
 
 
 def _stats_foundation_legacy_guard_source(source):
-    """今回2helper/定数/入口1call以外の全ASTを比較へ残す。"""
+    """PR197と成績の有限層だけを外し、旧guard全ASTを比較へ残す。"""
     tree = ast.parse(source)
+    typed = json.loads((REPO / 'contracts/tenant_boundary/frozen-inputs.json').read_text())
+    fixed_revision = typed['frozen_inputs']['pr197_core_carry_source_revision']['value']
+    recovery_revision = typed['frozen_inputs']['pr197_recovery_source_revision']['value']
+    fixed_tree = ast.parse(run_git(
+        REPO, 'show', fixed_revision + ':scripts/core_guard.py',
+    ).stdout)
+    recovery_tree = ast.parse(run_git(
+        REPO, 'show', recovery_revision + ':scripts/core_guard.py',
+    ).stdout)
+    recovery_added = {
+        '_PR197_IDENTICAL_COCHANGE_PATHS', '_PR197_RECOVERY_EXCLUSIONS',
+        '_PR197_RECOVERY_GUARD_PATHS', '_PR197_RECOVERY_TYPED',
+        '_pr197_commit_blob', '_pr197_identical_cochange', '_pr197_recovery_pins',
+    }
+    recovery_changed = {
+        '_pr197_definition_fingerprint', '_pr197_merge_carry_pins',
+        'verify_area_path_baseline',
+    }
+    def named_nodes(module):
+        result = {}
+        for node in module.body:
+            if isinstance(node, ast.FunctionDef):
+                name = node.name
+            elif (isinstance(node, ast.Assign) and len(node.targets) == 1
+                  and isinstance(node.targets[0], ast.Name)):
+                name = node.targets[0].id
+            else:
+                continue
+            if name in recovery_added | recovery_changed:
+                assert name not in result, '回復定義の重複'
+                result[name] = node
+        return result
+    current_recovery = named_nodes(tree)
+    fixed_recovery = named_nodes(fixed_tree)
+    approved_recovery = named_nodes(recovery_tree)
+    assert set(current_recovery) == set(approved_recovery) == (
+        recovery_added | recovery_changed)
+    assert set(fixed_recovery) == recovery_changed
+    for name, node in current_recovery.items():
+        assert ast.dump(node) == ast.dump(approved_recovery[name]), (
+            '固定回復定義のASTが不一致', name)
+    old_by_node = {
+        current_recovery[name]: fixed_recovery[name] for name in recovery_changed
+    }
+    added_nodes = {current_recovery[name] for name in recovery_added}
+    tree.body = [
+        old_by_node.get(node, node) for node in tree.body if node not in added_nodes
+    ]
+    later_names = {'_load_frozen_history', '_pr197_merge_git',
+                   '_pr197_merge_carry_pins', '_verify_pr197_approved_doc_merge'}
+    later_constants = {'frozen_history', '_PR197_DOC_MERGE_TYPED',
+                       '_PR197_DOC_MERGE_PATHS'}
+    def later_nodes(module):
+        return [n for n in module.body if (
+            isinstance(n, ast.FunctionDef) and n.name in later_names
+            or isinstance(n, ast.Assign) and len(n.targets) == 1
+            and isinstance(n.targets[0], ast.Name)
+            and n.targets[0].id in later_constants
+            or isinstance(n, ast.Import)
+            and [(a.name, a.asname) for a in n.names] == [('importlib.util', None)]
+        )]
+    fixed_later = later_nodes(fixed_tree)
+    current_later = later_nodes(tree)
+    assert len(fixed_later) == len(current_later) == 8
+    assert ast.dump(ast.Module(body=current_later, type_ignores=[])) == ast.dump(
+        ast.Module(body=fixed_later, type_ignores=[]))
+    tree.body = [n for n in tree.body if n not in current_later]
+    pr197_names = {'_project_pr197_tenant_source_layer',
+                   'validate_pr197_tenant_source_area_path_layers',
+                   '_pr197_definition_fingerprint', '_pr197_registered_paths',
+                   '_verify_pr197_definition_order'}
+    pr197_found = {n.name for n in tree.body if isinstance(n, ast.FunctionDef)
+                   and n.name in pr197_names}
+    assert pr197_found in (set(), pr197_names)
+    pin_imports = [n for n in tree.body if isinstance(n, ast.Import)
+                   and [(a.name, a.asname) for a in n.names] == [('frozen_history', None)]]
+    pin_calls = [
+        n for n in ast.walk(tree) if isinstance(n, ast.Call)
+        and isinstance(n.func, ast.Attribute)
+        and isinstance(n.func.value, ast.Name)
+        and n.func.value.id == 'frozen_history'
+        and n.func.attr == 'read_original_pr197_pin'
+    ]
+    assert not pin_imports and len(pin_calls) == int(bool(pr197_found))
+    if pin_calls:
+        sha_assignment = next(n for n in tree.body if isinstance(n, ast.Assign)
+                              and len(n.targets) == 1 and isinstance(n.targets[0], ast.Name)
+                              and n.targets[0].id == '_PR197_CORE_DEFINITION_AST_SHA256')
+        expected_call = ast.parse(
+            'frozen_history.read_original_pr197_pin("pr197_core_definition_ast_sha256")',
+            mode='eval',
+        ).body
+        assert ast.dump(sha_assignment.value) == ast.dump(pin_calls[0]) == ast.dump(expected_call)
+    tree.body = [n for n in tree.body if n not in pin_imports]
+    pr197_constants = [n for n in tree.body if isinstance(n, ast.AnnAssign)
+                       and isinstance(n.target, ast.Name)
+                       and n.target.id == 'PR197_TENANT_SOURCE_CORE_ADDITIONS']
+    pr197_constants.extend(n for n in tree.body if isinstance(n, ast.Assign)
+                           and len(n.targets) == 1 and isinstance(n.targets[0], ast.Name)
+                           and n.targets[0].id == '_PR197_CORE_DEFINITION_AST_SHA256')
+    assert len(pr197_constants) == 2 * int(bool(pr197_found))
+    verify = next(n for n in tree.body if isinstance(n, ast.FunctionDef)
+                  and n.name == 'verify_area_path_baseline')
+    pr197_calls = [n for n in ast.walk(verify) if isinstance(n, ast.Call)
+                   and isinstance(n.func, ast.Name)
+                   and n.func.id == 'validate_pr197_tenant_source_area_path_layers']
+    assert len(pr197_calls) == int(bool(pr197_found))
+    for call in pr197_calls:
+        assert ast.dump(call) == ast.dump(ast.parse(
+            'validate_pr197_tenant_source_area_path_layers('
+            'baseline, candidate, root=root, base_revision=baseline_revision, '
+            'head_sha=head_sha)',
+            mode='eval').body)
+        assert isinstance(call.func, ast.Name)
+        call.func.id = 'validate_stats_foundation_area_path_layers'
+        call.keywords = []
+    tree.body = [n for n in tree.body if not (
+        isinstance(n, ast.FunctionDef) and n.name in pr197_names
+        or n in pr197_constants)]
     names = {'_project_stats_foundation_layer', 'validate_stats_foundation_area_path_layers'}
     found = {n.name for n in tree.body if isinstance(n, ast.FunctionDef) and n.name in names}
     assert found in (set(), names)
@@ -7159,6 +7422,20 @@ def _stats_foundation_legacy_guard_source(source):
     tree.body = [n for n in tree.body if not (
         isinstance(n, ast.FunctionDef) and n.name in names or n in constants)]
     return ast.unparse(tree)
+
+
+@pytest.mark.parametrize('name', (
+    '_pr197_identical_cochange', '_pr197_merge_carry_pins',
+    'verify_area_path_baseline',
+))
+def test_pr197_recovery_source_projection_rejects_body_changes(name):
+    """回復で承認済みの関数だけを戻し、後発本文変異を拒否する。"""
+    tree = ast.parse(SCRIPT.read_text())
+    target = next(node for node in tree.body if isinstance(node, ast.FunctionDef)
+                  and node.name == name)
+    target.body.append(ast.Pass())
+    with pytest.raises(AssertionError, match='固定回復定義のASTが不一致'):
+        _stats_foundation_legacy_guard_source(ast.unparse(tree))
 
 
 def _stats_foundation_config():
@@ -7188,7 +7465,9 @@ def test_stats_foundation29_exact_paths_detection_and_full_ast_preservation():
     projected, present = guard._project_stats_foundation_layer(new, 'test')
     assert present and projected == old and _stats_foundation_historical_fixture(new) == old
     base_source = run_git(REPO, 'show',
-        'c8f1c1d679f79499d37c8cfbb3129fc5d82278b3:scripts/core_guard.py').stdout
+        frozen_history.read_original_pr197_pin(
+            "stats_foundation_legacy_core_revision"
+        ) + ":scripts/core_guard.py").stdout
     assert ast.dump(ast.parse(_stats_foundation_legacy_guard_source(SCRIPT.read_text()))) == (
         ast.dump(ast.parse(base_source)))
     added = SCRIPT.read_text() + '\n\ndef unknown_stats_helper():\n    return False\n'
@@ -7198,7 +7477,16 @@ def test_stats_foundation29_exact_paths_detection_and_full_ast_preservation():
         p for a in new['areas'] for p in a['paths']), guard_paths=frozenset())
     assert set(guard.matched_paths(sorted(expected), configured)) == expected
     actual = json.loads(CORE_AREAS_PATH.read_text())
-    assert actual in (old, new)
+    pr197 = json.loads(json.dumps(new))
+    next(a for a in pr197['areas'] if a['id'] == 'tenant-isolation')['paths'].extend(
+        guard.PR197_TENANT_SOURCE_CORE_ADDITIONS)
+    old_exclusions = pr197['reference_discovery']['declared_exclusions']
+    old_exclusions['paths'] = sorted(
+        set(old_exclusions['paths']) | _REFERENCE_REVERSE_CLOSURE_ADDITIONS)
+    old_exclusions['reason'] = old_exclusions['reason'].replace('残り10件', '残り23件')
+    recovered = json.loads(json.dumps(pr197))
+    recovered['guard_paths'].extend(_PR197_RECOVERY_GUARD_PATHS_EXPECTED)
+    assert actual in (old, new, pr197, recovered)
 
 
 @pytest.mark.parametrize(('before', 'after'), [(False, False), (False, True),
@@ -7360,3 +7648,552 @@ def test_stats_foundation_complete_old29_to_new32_and_partial_history_are_closed
             guard.validate_stats_foundation_area_path_layers(old29, candidate)
         with pytest.raises(guard.GuardError):
             guard.validate_stats_foundation_area_path_layers(candidate, complete)
+
+
+_PR197_TENANT_SOURCE_EXPECTED = (
+    'tests/fixtures/pr197_tenant_source_expected_v1.json',
+    'tests/test_pr197_tenant_source_registration.py',
+)
+
+
+def _pr197_tenant_source_config():
+    """正式JSONが旧32の間も検査できる34候補を作る。"""
+    _, old32 = _stats_foundation_config()
+    new34 = json.loads(json.dumps(old32))
+    next(a for a in new34['areas'] if a['id'] == 'tenant-isolation')['paths'].extend(
+        _PR197_TENANT_SOURCE_EXPECTED)
+    return old32, new34
+
+
+def test_pr197_tenant_source_exact_two_paths_and_predefinition_detection():
+    """新2pathを実ファイル未配置でもtenant領域で検出し、旧32を残す。"""
+    guard = load_core_guard_module()
+    assert guard.PR197_TENANT_SOURCE_CORE_ADDITIONS == _PR197_TENANT_SOURCE_EXPECTED
+    old32, new34 = _pr197_tenant_source_config()
+    tenant = next(a for a in new34['areas'] if a['id'] == 'tenant-isolation')
+    assert tenant['paths'][-2:] == list(_PR197_TENANT_SOURCE_EXPECTED)
+    projected, present = guard._project_pr197_tenant_source_layer(new34, 'test')
+    assert present and projected == old32
+    assert not guard._project_pr197_tenant_source_layer(old32, 'test')[1]
+    configured = guard.CoreAreas(
+        tuple(path for area in new34['areas'] for path in area['paths']),
+        frozenset(new34['guard_paths']),
+    )
+    assert guard.matched_paths(_PR197_TENANT_SOURCE_EXPECTED, configured) == list(
+        _PR197_TENANT_SOURCE_EXPECTED)
+    assert len({p for a in new34['areas'] for p in a['paths']}
+               - {p for a in old32['areas'] for p in a['paths']}) == 2
+    guard.validate_pr197_tenant_source_area_path_layers(old32, new34)
+
+
+def test_pr197_tenant_source_keeps_old29_32_and_adds_monotonic34():
+    """旧29→32と新34を保持し、34からの縮小を拒否する。"""
+    guard = load_core_guard_module()
+    old32, new34 = _pr197_tenant_source_config()
+    old29 = json.loads(json.dumps(old32))
+    historical = {
+        'backend/tests/stage_a_0039_profile.py',
+        'backend/tests/test_stage_a_0039_profile.py',
+        'backend/tests/fixtures/product_authz_stage_a_profile_v0039.json',
+    }
+    for area in old29['areas']:
+        area['paths'] = [path for path in area['paths'] if path not in historical]
+    for before, after in ((old29, old29), (old29, old32), (old29, new34),
+                          (old32, old32), (old32, new34), (new34, new34)):
+        guard.validate_pr197_tenant_source_area_path_layers(before, after)
+    for after in (old32, old29):
+        with pytest.raises(guard.GuardError):
+            guard.validate_pr197_tenant_source_area_path_layers(new34, after)
+    old31 = json.loads(json.dumps(old29))
+    next(a for a in old31['areas'] if a['id'] == 'tenant-isolation')['paths'].extend(
+        _PR197_TENANT_SOURCE_EXPECTED)
+    with pytest.raises(guard.GuardError, match='全32pair'):
+        guard.validate_pr197_tenant_source_area_path_layers(old29, old31)
+
+
+@pytest.mark.parametrize('mutation', [
+    'missing-first', 'missing-second', 'wrong-area', 'cross-area-duplicate',
+    'order', 'duplicate',
+    'old-prefix', 'unknown-extra', 'unknown-before-suffix', 'guard-only',
+    'guard-plus-area', 'missing-prior32', 'missing-historical3', 'area-order',
+])
+def test_pr197_tenant_source_rejects_partial_and_extra_layers(mutation):
+    """片欠け、誤領域、順序、重複、旧prefix、未知追加を拒否する。"""
+    guard = load_core_guard_module()
+    old32, new34 = _pr197_tenant_source_config()
+    bad = json.loads(json.dumps(new34))
+    areas = {area['id']: area['paths'] for area in bad['areas']}
+    first, second = _PR197_TENANT_SOURCE_EXPECTED
+    tenant = areas['tenant-isolation']
+    if mutation == 'missing-first':
+        tenant.remove(first)
+    elif mutation == 'missing-second':
+        tenant.remove(second)
+    elif mutation == 'wrong-area':
+        tenant.remove(first)
+        areas['game-state'].append(first)
+    elif mutation == 'cross-area-duplicate':
+        areas['game-state'].append(first)
+    elif mutation == 'order':
+        tenant[-2:] = [second, first]
+    elif mutation == 'duplicate':
+        tenant.append(first)
+    elif mutation == 'old-prefix':
+        tenant.remove(first)
+        tenant.insert(0, first)
+    elif mutation == 'unknown-extra':
+        tenant.append('tests/fixtures/unknown_pr197.json')
+    elif mutation == 'unknown-before-suffix':
+        tenant.insert(-2, 'tests/fixtures/unknown_pr197.json')
+    elif mutation == 'guard-only':
+        tenant.remove(first)
+        tenant.remove(second)
+        bad['guard_paths'].extend((first, second))
+    elif mutation == 'guard-plus-area':
+        bad['guard_paths'].append(first)
+    elif mutation == 'missing-prior32':
+        tenant.remove(_STATS_FOUNDATION_EXPECTED['tenant-isolation'][0])
+    elif mutation == 'missing-historical3':
+        for path in ('backend/tests/stage_a_0039_profile.py',
+                     'backend/tests/test_stage_a_0039_profile.py'):
+            tenant.remove(path)
+        areas['data-migration'].remove(
+            'backend/tests/fixtures/product_authz_stage_a_profile_v0039.json')
+    else:
+        bad['areas'].reverse()
+    with pytest.raises(guard.GuardError):
+        guard.validate_pr197_tenant_source_area_path_layers(old32, bad)
+
+
+def test_pr197_tenant_source_git_order_and_deletion(tmp_path):
+    """旧32→34のJSON後置を検証し、同commit定義変更/縮小を拒否する。"""
+    guard, fixed_source = _pr197_pre_carry_guard(tmp_path)
+    old32, new34 = _pr197_tenant_source_config()
+    root, base = _first_ball_git_repo(tmp_path, old32)
+    _, base = commit_change(root, 'scripts/core_guard.py', fixed_source)
+    _, head = commit_change(root, '.claude/core-areas.json', json.dumps(new34))
+    assert guard.verify_area_path_baseline(root, base, head) == base
+    _, smaller = commit_change(root, '.claude/core-areas.json', json.dumps(old32))
+    with pytest.raises(guard.GuardError):
+        guard.verify_area_path_baseline(root, head, smaller)
+    (tmp_path / 'cochange').mkdir()
+    root2, base2 = _first_ball_git_repo(tmp_path / 'cochange', old32)
+    _, base2 = commit_change(root2, 'scripts/core_guard.py', fixed_source)
+    definition = 'scripts/core_guard.py'
+    write_text(root2, definition, (root2 / definition).read_text() + '\n# cochange\n')
+    write_text(root2, '.claude/core-areas.json', json.dumps(new34))
+    run_git(root2, 'add', definition, '.claude/core-areas.json')
+    run_git(root2, '-c', 'user.email=test@example.com', '-c', 'user.name=test',
+            'commit', '-m', 'cochange')
+    with pytest.raises(guard.GuardError, match='同一コミット'):
+        revision = run_git(root2, 'rev-parse', 'HEAD').stdout.strip()
+        guard.verify_area_path_baseline(root2, base2, revision)
+
+
+def _pr197_old_definition_repo(tmp_path, old32):
+    """PR197定義前のa59 sourceと旧32JSONを実Gitへ固定する。"""
+    root = make_repo(tmp_path)
+    commit_change(root, '.claude/core-areas.json', json.dumps(old32))
+    old_source = run_git(
+        REPO, 'show',
+        frozen_history.read_original_pr197_pin("pr197_source_revision") + ":scripts/core_guard.py",
+    ).stdout
+    _, base = commit_change(root, 'scripts/core_guard.py', old_source)
+    return root, base
+
+
+def _pr197_pre_carry_guard(tmp_path):
+    """旧every-parent反例を、2faで固定済みの旧検査器で再演する。"""
+    revision = frozen_history.PR197_PIN_ORIGIN_COMMIT
+    source = run_git(REPO, 'show', revision + ':scripts/core_guard.py').stdout
+    path = tmp_path / 'pr197_pre_carry_core_guard.py'
+    path.write_text(source)
+    return load_core_guard_module(path, module_name='pr197_pre_carry_' + tmp_path.name), source
+
+
+@pytest.mark.parametrize('order', [
+    'definition-first', 'json-first', 'same-commit', 'definition-no-entry',
+    'definition-broken-order-helper', 'definition-broken-helper',
+])
+def test_pr197_tenant_source_requires_prior_definition_commit(tmp_path, order):
+    """新2path初登場時の親に固定定義と入口が無ければ閉拒否する。"""
+    guard, fixed_source = _pr197_pre_carry_guard(tmp_path)
+    old32, new34 = _pr197_tenant_source_config()
+    root, base = _pr197_old_definition_repo(tmp_path, old32)
+    if order == 'definition-first':
+        commit_change(root, 'scripts/core_guard.py', fixed_source)
+        _, head = commit_change(root, '.claude/core-areas.json', json.dumps(new34))
+        assert guard.verify_area_path_baseline(root, base, head) == base
+        return
+    if order == 'json-first':
+        commit_change(root, '.claude/core-areas.json', json.dumps(new34))
+        _, head = commit_change(root, 'scripts/core_guard.py', fixed_source)
+    elif order == 'definition-no-entry':
+        source = fixed_source
+        broken = source.replace(
+            'validate_pr197_tenant_source_area_path_layers(\n'
+            '        baseline, candidate, root=root, base_revision=baseline_revision, '
+            'head_sha=head_sha,\n    )',
+            'validate_stats_foundation_area_path_layers(baseline, candidate)', 1,
+        )
+        assert broken != source
+        commit_change(root, 'scripts/core_guard.py', broken)
+        commit_change(root, '.claude/core-areas.json', json.dumps(new34))
+        _, head = commit_change(root, 'scripts/core_guard.py', source)
+    elif order == 'definition-broken-order-helper':
+        source = fixed_source
+        node = next(n for n in ast.parse(source).body
+                    if isinstance(n, ast.FunctionDef)
+                    and n.name == '_verify_pr197_definition_order')
+        position = node.body[0].end_lineno
+        assert position is not None
+        lines = source.splitlines(keepends=True)
+        lines.insert(position, '    return\n')
+        broken = ''.join(lines)
+        commit_change(root, 'scripts/core_guard.py', broken)
+        commit_change(root, '.claude/core-areas.json', json.dumps(new34))
+        _, head = commit_change(root, 'scripts/core_guard.py', source)
+    elif order == 'definition-broken-helper':
+        source = fixed_source
+        broken = source.replace(
+            'if before and not after:\n'
+            '        raise GuardError("PR197 tenant source core層の削除は許可しない")',
+            'if False:\n'
+            '        raise GuardError("PR197 tenant source core層の削除は許可しない")', 1,
+        )
+        assert broken != source
+        commit_change(root, 'scripts/core_guard.py', broken)
+        commit_change(root, '.claude/core-areas.json', json.dumps(new34))
+        _, head = commit_change(root, 'scripts/core_guard.py', source)
+    else:
+        write_text(root, '.claude/core-areas.json', json.dumps(new34))
+        write_text(root, 'scripts/core_guard.py', fixed_source)
+        run_git(root, 'add', '.claude/core-areas.json', 'scripts/core_guard.py')
+        run_git(root, '-c', 'user.email=test@example.com', '-c', 'user.name=test',
+                'commit', '-m', 'same commit')
+        head = run_git(root, 'rev-parse', 'HEAD').stdout.strip()
+    with pytest.raises(guard.GuardError, match='定義'):
+        guard.verify_area_path_baseline(root, base, head)
+
+
+def test_pr197_tenant_source_merge_requires_definition_in_every_parent(tmp_path):
+    """片親だけ旧定義のmergeで新2pathを引き継げない。"""
+    guard, fixed_source = _pr197_pre_carry_guard(tmp_path)
+    old32, new34 = _pr197_tenant_source_config()
+    root, base = _pr197_old_definition_repo(tmp_path, old32)
+    run_git(root, 'branch', 'without-definition', base)
+    commit_change(root, 'scripts/core_guard.py', fixed_source)
+    commit_change(root, '.claude/core-areas.json', json.dumps(new34))
+    run_git(root, 'checkout', 'without-definition')
+    commit_change(root, 'README.md', 'other parent\n')
+    run_git(root, 'checkout', 'feature/test')
+    run_git(root, '-c', 'user.email=test@example.com', '-c', 'user.name=test',
+            'merge', '-s', 'ours', '--no-ff', 'without-definition', '-m', 'merge')
+    head = run_git(root, 'rev-parse', 'HEAD').stdout.strip()
+    with pytest.raises(guard.GuardError, match='親定義'):
+        guard.verify_area_path_baseline(root, base, head)
+
+
+def test_pr197_tenant_source_rejects_delete_then_readd(tmp_path):
+    """最終34でも中間commitで新2pathを削除した履歴を拒否する。"""
+    guard, fixed_source = _pr197_pre_carry_guard(tmp_path)
+    old32, new34 = _pr197_tenant_source_config()
+    root, base = _pr197_old_definition_repo(tmp_path, old32)
+    commit_change(root, 'scripts/core_guard.py', fixed_source)
+    commit_change(root, '.claude/core-areas.json', json.dumps(new34))
+    commit_change(root, '.claude/core-areas.json', json.dumps(old32))
+    _, head = commit_change(root, '.claude/core-areas.json', json.dumps(new34))
+    with pytest.raises(guard.GuardError, match='削除'):
+        guard.verify_area_path_baseline(root, base, head)
+
+
+def test_pr197_tenant_source_rejects_intermediate_partial_json(tmp_path):
+    """最終34でも途中commitの片path登録を履歴から拒否する。"""
+    guard, fixed_source = _pr197_pre_carry_guard(tmp_path)
+    old32, new34 = _pr197_tenant_source_config()
+    root, base = _pr197_old_definition_repo(tmp_path, old32)
+    commit_change(root, 'scripts/core_guard.py', fixed_source)
+    partial = json.loads(json.dumps(new34))
+    next(a for a in partial['areas'] if a['id'] == 'tenant-isolation')['paths'].pop()
+    commit_change(root, '.claude/core-areas.json', json.dumps(partial))
+    _, head = commit_change(root, '.claude/core-areas.json', json.dumps(new34))
+    with pytest.raises(guard.GuardError, match='部分追加'):
+        guard.verify_area_path_baseline(root, base, head)
+
+
+def test_pr197_approved_doc_merge_is_one_exact_carry():
+    """実295だけを全履歴に残し、先行定義と文書限定carryを照合する。"""
+    guard = load_core_guard_module()
+    base = json.loads(
+        (REPO / 'tests/fixtures/pr197_tenant_source_expected_v1.json').read_text()
+    )['formal_base_revision']
+    checkout_head = run_git(REPO, 'rev-parse', 'HEAD').stdout.strip()
+    head = _pr197_test_branch_head(REPO, base, checkout_head)
+    revision, fingerprint = guard._pr197_merge_carry_pins(REPO, head)
+    typed = json.loads((REPO / 'contracts/tenant_boundary/frozen-inputs.json').read_text())
+    assert revision == typed['frozen_inputs']['pr197_approved_doc_merge_revision']['value']
+    assert revision in guard._commits_between(REPO, base, head)
+    assert guard._pr197_definition_fingerprint(SCRIPT.read_text()) == fingerprint
+    guard._verify_pr197_approved_doc_merge(REPO, base, revision)
+    guard._verify_pr197_definition_order(REPO, base, head)
+
+
+def test_pr197_identical_cochange_is_one_git_object_and_head_guards_all_new_exclusions():
+    """旧5aを残し、実6fだけとHEADの新13検査経路を受ける。"""
+    guard = load_core_guard_module()
+    asset = json.loads((REPO / 'contracts/tenant_boundary/frozen-inputs.json').read_text())
+    frozen = asset['frozen_inputs']
+    revision = frozen['pr197_identical_cochange_revision']['value']
+    base = json.loads(
+        (REPO / 'tests/fixtures/pr197_tenant_source_expected_v1.json').read_text()
+    )['formal_base_revision']
+    checkout_head = run_git(REPO, 'rev-parse', 'HEAD').stdout.strip()
+    head = _pr197_test_branch_head(REPO, base, checkout_head)
+    guard._pr197_identical_cochange(REPO, revision, head)
+    assert guard.verify_area_path_baseline(REPO, base, head) == base
+    assert set(guard.matched_paths(
+        tuple(sorted(guard._PR197_RECOVERY_EXCLUSIONS)),
+        guard.load_core_areas(REPO),
+    )) == guard._PR197_RECOVERY_EXCLUSIONS
+
+
+@pytest.mark.parametrize('mutation', [
+    'wrong-revision', 'wrong-head', 'parent', 'json-byte', 'core-byte',
+    'test-byte', 'pin',
+])
+def test_pr197_identical_cochange_rejects_false_original(
+    monkeypatch: pytest.MonkeyPatch, mutation: str,
+) -> None:
+    """別履歴・親・全byte・固定2fa値のいずれも自己申告で救わない。"""
+    guard = load_core_guard_module()
+    frozen = json.loads(
+        (REPO / 'contracts/tenant_boundary/frozen-inputs.json').read_text()
+    )['frozen_inputs']
+    revision = frozen['pr197_identical_cochange_revision']['value']
+    head = run_git(REPO, 'rev-parse', 'HEAD').stdout.strip()
+    if mutation == 'wrong-revision':
+        revision = run_git(REPO, 'rev-parse', revision + '^').stdout.strip()
+    elif mutation == 'wrong-head':
+        head = frozen_history.PR197_PIN_ORIGIN_COMMIT
+    elif mutation == 'pin':
+        monkeypatch.setattr(
+            guard.frozen_history, 'read_original_pr197_pin',
+            lambda *_: '0' * 64,
+        )
+    else:
+        real = guard._pr197_merge_git
+
+        def altered(root, *arguments):
+            result = real(root, *arguments)
+            if mutation == 'parent' and arguments == (
+                'show', '-s', '--format=%P', revision,
+            ):
+                return result.strip() + ' ' + result
+            path = {
+                'json-byte': '.claude/core-areas.json',
+                'core-byte': 'scripts/core_guard.py',
+                'test-byte': 'tests/test_core_guard.py',
+            }.get(mutation)
+            if path and arguments == ('show', revision + ':' + path):
+                return result + '\n'
+            return result
+
+        monkeypatch.setattr(guard, '_pr197_merge_git', altered)
+    with pytest.raises(guard.GuardError):
+        guard._pr197_identical_cochange(REPO, revision, head)
+
+
+def test_pr197_identical_cochange_rejects_missing_new_guard_path(tmp_path):
+    """後続JSONで新6の一件を欠かすと旧共変更を救済しない。"""
+    guard = load_core_guard_module()
+    clone = tmp_path / 'pr197-missing-guard'
+    run_git(REPO, 'clone', '--shared', '--quiet', str(REPO), str(clone))
+    path = clone / '.claude/core-areas.json'
+    document = json.loads(path.read_text())
+    document['guard_paths'].remove(guard._PR197_RECOVERY_GUARD_PATHS[0])
+    path.write_text(json.dumps(document, ensure_ascii=False, indent=2) + '\n')
+    run_git(clone, 'add', '.claude/core-areas.json')
+    run_git(clone, '-c', 'user.name=Test', '-c', 'user.email=test@local.invalid',
+            'commit', '-m', 'negative missing guard')
+    head = run_git(clone, 'rev-parse', 'HEAD').stdout.strip()
+    frozen = json.loads((clone / 'contracts/tenant_boundary/frozen-inputs.json').read_text())
+    with pytest.raises(guard.GuardError):
+        guard._pr197_identical_cochange(
+            clone, frozen['frozen_inputs']['pr197_identical_cochange_revision']['value'],
+            head,
+        )
+
+
+def _pr197_test_branch_head(root: Path, base: str, head: str) -> str:
+    """試験専用の同tree二親CI mergeだけを実PR枝へ戻す。"""
+    parents = run_git(root, 'show', '-s', '--format=%P', head).stdout.split()
+    if len(parents) == 1:
+        return head
+    assert len(parents) == 2, 'PR197試験checkoutの親数が不正'
+    assert parents[0] == base, 'PR197試験checkoutの第1親が正式baseでない'
+    subject = run_git(root, 'show', '-s', '--format=%s', head).stdout.strip()
+    assert subject == f'Merge {parents[1]} into {base}', 'PR197試験checkoutのmerge名が不正'
+    run_git(root, 'merge-base', '--is-ancestor', base, parents[1])
+    run_git(root, 'diff', '--exit-code', head, parents[1], '--')
+    return parents[1]
+
+
+def test_pr197_test_branch_head_only_peels_exact_synthetic_merge(tmp_path):
+    """試験checkoutの同tree二親だけを戻し、偽merge等は通さない。"""
+    clone = tmp_path / 'pr197-checkout-shapes'
+    run_git(REPO, 'clone', '--shared', '--quiet', str(REPO), str(clone))
+    base = json.loads(
+        (clone / 'tests/fixtures/pr197_tenant_source_expected_v1.json').read_text()
+    )['formal_base_revision']
+    branch = _pr197_test_branch_head(
+        clone, base, run_git(clone, 'rev-parse', 'HEAD').stdout.strip(),
+    )
+    tree = run_git(clone, 'rev-parse', branch + '^{tree}').stdout.strip()
+    old_tree = run_git(clone, 'rev-parse', base + '^{tree}').stdout.strip()
+    older = run_git(clone, 'rev-parse', base + '^').stdout.strip()
+
+    def make_commit(value_tree, parents, subject):
+        arguments = [
+            '-c', 'user.name=Test', '-c', 'user.email=test@local.invalid',
+            'commit-tree', value_tree,
+        ]
+        for parent in parents:
+            arguments.extend(('-p', parent))
+        arguments.extend(('-m', subject))
+        return run_git(clone, *arguments).stdout.strip()
+
+    real_subject = f'Merge {branch} into {base}'
+    synthetic = make_commit(tree, (base, branch), real_subject)
+    assert _pr197_test_branch_head(clone, base, synthetic) == branch
+    ordinary = make_commit(tree, (branch,), 'ordinary child')
+    assert _pr197_test_branch_head(clone, base, ordinary) == ordinary
+    fake = make_commit(tree, (base, branch), 'fake merge')
+    wrong_parent = make_commit(tree, (older, branch), real_subject)
+    three_parents = make_commit(tree, (base, branch, older), real_subject)
+    for revision in (fake, wrong_parent, three_parents):
+        with pytest.raises(AssertionError):
+            _pr197_test_branch_head(clone, base, revision)
+    wrong_tree = make_commit(old_tree, (base, branch), real_subject)
+    with pytest.raises(subprocess.CalledProcessError):
+        _pr197_test_branch_head(clone, base, wrong_tree)
+    wrong_second = make_commit(tree, (base, older), f'Merge {older} into {base}')
+    with pytest.raises(subprocess.CalledProcessError):
+        _pr197_test_branch_head(clone, base, wrong_second)
+
+
+def test_pr197_identical_cochange_does_not_allow_later_same_value_commit(tmp_path):
+    """JSON値が同じでも後発testとの共変更を別の6fに偽装できない。"""
+    guard = load_core_guard_module()
+    clone = tmp_path / 'pr197-later-cochange'
+    run_git(REPO, 'clone', '--shared', '--quiet', str(REPO), str(clone))
+    base = json.loads(
+        (clone / 'tests/fixtures/pr197_tenant_source_expected_v1.json').read_text()
+    )['formal_base_revision']
+    checkout_head = run_git(clone, 'rev-parse', 'HEAD').stdout.strip()
+    branch_head = _pr197_test_branch_head(clone, base, checkout_head)
+    if branch_head != checkout_head:
+        run_git(clone, 'checkout', '--detach', branch_head)
+    json_path = clone / '.claude/core-areas.json'
+    test_path = clone / 'tests/test_core_guard.py'
+    json_path.write_bytes(json_path.read_bytes() + b'\n')
+    test_path.write_bytes(test_path.read_bytes() + b'\n# later cochange\n')
+    run_git(clone, 'add', '.claude/core-areas.json', 'tests/test_core_guard.py')
+    run_git(clone, '-c', 'user.name=Test', '-c', 'user.email=test@local.invalid',
+            'commit', '-m', 'negative later cochange')
+    head = run_git(clone, 'rev-parse', 'HEAD').stdout.strip()
+    with pytest.raises(guard.GuardError, match='同一コミット'):
+        guard.verify_area_path_baseline(clone, base, head)
+
+
+@pytest.mark.parametrize('mutation', [
+    'wrong-parent', 'product-from-second-parent', 'core-byte', 'json-byte',
+    'approved-doc-byte',
+])
+def test_pr197_approved_doc_merge_rejects_nonidentical_carry(
+    monkeypatch, mutation,
+):
+    """親・第二親の製品混入・core原本・承認本文の改変を拒否する。"""
+    guard = load_core_guard_module()
+    base = json.loads(
+        (REPO / 'tests/fixtures/pr197_tenant_source_expected_v1.json').read_text()
+    )['formal_base_revision']
+    typed = json.loads((REPO / 'contracts/tenant_boundary/frozen-inputs.json').read_text())
+    revision = typed['frozen_inputs']['pr197_approved_doc_merge_revision']['value']
+    actual = guard._pr197_merge_git
+
+    def altered(root, *arguments):
+        output = actual(root, *arguments)
+        if mutation == 'wrong-parent' and arguments == (
+            'show', '-s', '--format=%P', revision,
+        ):
+            return output.split()[0] + '\n'
+        if mutation == 'product-from-second-parent' and arguments[:2] == (
+            'diff', '--name-only',
+        ) and arguments[2] == base:
+            return output + 'backend/src/pitchlog/stats/facts.py\n'
+        if mutation in {'core-byte', 'json-byte'} and arguments == (
+            'show', revision + ':' + (
+                'scripts/core_guard.py' if mutation == 'core-byte'
+                else '.claude/core-areas.json'),
+        ):
+            return output + '\n'
+        if mutation == 'approved-doc-byte' and arguments == (
+            'show', revision + ':docs/development/dev-harness-design-2026-08-07.md',
+        ):
+            return output + '\n'
+        return output
+
+    monkeypatch.setattr(guard, '_pr197_merge_git', altered)
+    with pytest.raises(guard.GuardError):
+        guard._verify_pr197_approved_doc_merge(REPO, base, revision)
+
+
+@pytest.mark.parametrize('key', [
+    'pr197_approved_doc_merge_revision',
+    'pr197_core_carry_source_revision',
+    'pr197_core_carry_definition_sha256',
+    'pr197_identical_cochange_revision',
+    'pr197_recovery_source_revision',
+    'pr197_recovery_definition_sha256',
+])
+def test_pr197_approved_doc_merge_rejects_changed_typed_pin(tmp_path, key):
+    """新typed pinの欠落・別値を現HEADのまま受理しない。"""
+    guard = load_core_guard_module()
+    clone = tmp_path / 'pr197-carry-clone'
+    run_git(REPO, 'clone', '--shared', '--quiet', str(REPO), str(clone))
+    head = run_git(clone, 'rev-parse', 'HEAD').stdout.strip()
+    path = clone / 'contracts/tenant_boundary/frozen-inputs.json'
+    asset = json.loads(path.read_text())
+    assert key in asset['frozen_inputs']
+    asset['frozen_inputs'][key]['value'] = '0' * len(asset['frozen_inputs'][key]['value'])
+    path.write_text(json.dumps(asset, ensure_ascii=False, indent=2) + '\n')
+    with pytest.raises(guard.GuardError):
+        if key in {
+            'pr197_core_carry_definition_sha256',
+            'pr197_recovery_definition_sha256',
+        }:
+            base = json.loads(
+                (clone / 'tests/fixtures/pr197_tenant_source_expected_v1.json').read_text()
+            )['formal_base_revision']
+            guard._verify_pr197_definition_order(clone, base, head)
+        else:
+            guard._pr197_merge_carry_pins(clone, head)
+    del asset['frozen_inputs'][key]
+    path.write_text(json.dumps(asset, ensure_ascii=False, indent=2) + '\n')
+    with pytest.raises(guard.GuardError):
+        guard._pr197_merge_carry_pins(clone, head)
+    asset = json.loads((REPO / 'contracts/tenant_boundary/frozen-inputs.json').read_text())
+    asset['frozen_inputs'][key]['value'] = (
+        guard._PR197_CORE_DEFINITION_AST_SHA256
+        if key.endswith('definition_sha256')
+        else frozen_history.PR197_PIN_ORIGIN_COMMIT
+    )
+    path.write_text(json.dumps(asset, ensure_ascii=False, indent=2) + '\n')
+    base = json.loads(
+        (clone / 'tests/fixtures/pr197_tenant_source_expected_v1.json').read_text()
+    )['formal_base_revision']
+    with pytest.raises(guard.GuardError):
+        if key == 'pr197_identical_cochange_revision':
+            guard.verify_area_path_baseline(clone, base, head)
+        else:
+            guard._verify_pr197_definition_order(clone, base, head)

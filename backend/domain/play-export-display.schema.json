@@ -1,0 +1,220 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "毎球CSV専用の有限画面変換宣言",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "geometryPath",
+    "geometrySha256",
+    "exportTransforms",
+    "elapsedTransform",
+    "fieldingPositionLabels",
+    "plateResultDisplay"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "geometryPath": {
+      "const": "contracts/display_geometry_263_v1.json"
+    },
+    "geometrySha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "elapsedTransform": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "kind",
+        "startSource",
+        "endSource",
+        "runtime",
+        "precision",
+        "negative"
+      ],
+      "properties": {
+        "id": {
+          "const": "serverAcceptedElapsed"
+        },
+        "kind": {
+          "const": "whole-minutes-h-mm"
+        },
+        "startSource": {
+          "const": "games.started_at"
+        },
+        "endSource": {
+          "const": "pg_catalog.clock_timestamp"
+        },
+        "runtime": {
+          "const": "python-server-only"
+        },
+        "precision": {
+          "const": "postgres-timestamptz-microsecond"
+        },
+        "negative": {
+          "const": "reject"
+        }
+      }
+    },
+    "exportTransforms": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "kind",
+          "sourceUnit",
+          "size",
+          "axes"
+        ],
+        "properties": {
+          "id": {
+            "const": "courseScreen"
+          },
+          "kind": {
+            "const": "bounded-integer-axis-map"
+          },
+          "sourceUnit": {
+            "const": "1/263"
+          },
+          "size": {
+            "const": 263
+          },
+          "axes": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "x",
+              "y"
+            ],
+            "properties": {
+              "x": {
+                "const": "identity"
+              },
+              "y": {
+                "const": "complement"
+              }
+            }
+          }
+        }
+      }
+    },
+    "fieldingPositionLabels": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+        "designated-hitter"
+      ],
+      "properties": {
+        "1": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4
+        },
+        "2": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4
+        },
+        "3": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4
+        },
+        "4": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4
+        },
+        "5": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4
+        },
+        "6": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4
+        },
+        "7": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4
+        },
+        "8": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4
+        },
+        "9": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4
+        },
+        "designated-hitter": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4
+        }
+      }
+    },
+    "plateResultDisplay": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "aliases",
+        "fielderFormats",
+        "otherwise",
+        "unfinished"
+      ],
+      "properties": {
+        "kind": {
+          "const": "finite-legacy-label"
+        },
+        "aliases": {
+          "type": "object",
+          "minProperties": 5,
+          "maxProperties": 5,
+          "additionalProperties": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "fielderFormats": {
+          "type": "object",
+          "minProperties": 4,
+          "maxProperties": 4,
+          "additionalProperties": {
+            "enum": [
+              "fielder-balltype-double",
+              "fielder-line-double",
+              "fielder-balltype"
+            ]
+          }
+        },
+        "otherwise": {
+          "const": "source-label"
+        },
+        "unfinished": {
+          "const": "null"
+        }
+      }
+    }
+  }
+}
