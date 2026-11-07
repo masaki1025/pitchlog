@@ -88,11 +88,8 @@ def test_owned_p3_migration_and_all_structure_tamper_refusals(
             for table in ("p3_projection_page_progress", "p3_projection_page_rows"):
                 with connection.transaction(force_rollback=True):
                     connection.execute(
-                        cast(
-                            LiteralString,
-                            f"GRANT SELECT(xmin) ON sync_fence.{table} "
-                            "TO pitchlog_sync_right_fn_owner",
-                        )
+                        f"GRANT SELECT(xmin) ON sync_fence.{table} "
+                        "TO pitchlog_sync_right_fn_owner"
                     )
                     assert not current._catalog(connection).ok
                     with pytest.raises(current.CurrentProductStartupError):
