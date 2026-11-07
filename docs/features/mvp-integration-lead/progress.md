@@ -1,5 +1,16 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 2026-11-07 09:13 JST：P3後終了・取消再入力CSVを実測完走、197正式値を修復源へ反映
+
+- **P3→終了の実証**: 作者R29 **1passed162.78秒/source同一**。真正create/start3球→三振をballへP3訂正→同D5再掲→通常2球→実終了ACK/GET。旧T5 K/pitcherK1非現行、訂正後開放K/pitcherK0非現行、終了K/pitcherK0現行confirmed_ended、receipt/public pointer、終了control D1=6をDB照合。cache `mvp-past-correction-product-20261106/step4-end-r29-confirmed/` manifest SHA275a50fa74427529b809e77c6c839bedaf6923975fe7e2266a38f2154acf8d5c。R28の旧5slot期待による失敗は保持。次の再開→追加→再終了、25超/複数/旧世代/終了跨ぎは未成立。
+- **取消→CSVの実証**: 作者r9 **1passed129.13秒/source同一/owned cleanup**。同じ実画面/PGで2球→Undo1→同D5再掲→ZIP1行→Undo2→ZIP0行→Undo経由再入力→ZIP1行→reload→ZIP1行。各11CSV/plays88列、監査projection2→2→3→3/events3→4→5→5、DB旧2行hidden/新1行active・snapshot全3保持。T5最新版の段階別source/versionは次runで観測、P3/終了再開CSVは未実測。旧15秒待機の未達は60秒で本処理完了を観測したもので、性能受入とはしない。
+- **共有UI接合**: reflection2のexact4path before SHAをroot67aと全照合して `feature/mvp-nonplay-formal-connection` に適用候補（未commit）。親実GET ready/同scope後のUndo子既read、自動取得busy時のcoalesce、scope変更破棄を実装。T1/権限/保存を変更せず、controller再生成/未知要求破棄をしない。作者shadow54成功とは別にroot frontend環境準備・再検査中。別非作者確認/実画面自動取得検証は未了。
+- **復旧候補の正**: 旧固定版で T4 hook実到達→未保存GET→旧attempt照会retry_allowed→同原本文/D5・新attempt受理、DB各1をowned1passed64.81秒。これはV12全値束縛補修前の候補の限定証拠。既wire_request_fingerprint/業務D5 fingerprintは専用値であり変更しない。独立body_fingerprintを真正登録時にV12込み原本文へ束縛する修復へ進み、旧digest無しは現在V12から捏造せずunresolved。e1f8f6ea/a207d4a4はstep1/2候補固定だが、最終source受理/実画面冷再起動/越境故障系は未成立。
+- **PR197修復の実証/受理**: e6b55939の初期fixture修復owned run2は **2passed44.66秒/2063source同一/owned cleanup**。正常初期権commit/再送と開始途中故障全取消を確認。rootは正式値REPORT1b31…/表現追補df2c…・別sourceレビュー・実DB結果を根拠にPO委任で完全値を受理、公式applyでauthority1+snapshot2、未参照2だけarchive、base352/pinned83保持/最終381。corpus **c4c7bae2d0a84d5df5fb0abb5108913cdf9a9f5d961821fbbcda3917eeee1d0a**。本人確認/署名/P6blindではない。
+- **PR197最終候補**: `fix/pr197-declared-followup-fixture@12cc636dfaaea2ef6ecba2985492d3acb3f1dc30` clean。formal51b比343path diffSHA f2c12dde60cefed0f68b2533ae3c0c8c1ac8969aac5f01f5db34870b4b9266f7、d8以降9path SHA0af202cc21e2f5c7c374376bac68910e163eb07924477549871aa38eda6b1f67。frozen invariants/最終tenant+authz oracle/root Ruff/Ty成功、最終140関連pytestは **handle57322** で実行中、最終HEAD非作者結合確認も依頼中。公開#197はまだd8/Draft、旧CI失敗終端。本文を新証拠へ先に更新→通常push1回→新CI、全必須成功後にのみ通常merge。
+- 全MVP/全一般操作/全断中操作/成績27・両CSVの正式提供、実機/同時負荷/運用復旧を省かない。次の正式統合用後継fixtureのfrozen外部登録、根拠の正式追随も未受理のままrelease blockerとして保持。
+
+
 ## 2026-11-07 08:52 JST：P3後終了と取消後CSVが実経路で前進、PR197残CIを2原因へ集約
 
 - **P3の実画面前進**: R28は真正P3→後続2球→reload→終了のACK/GET200まで到達。実DBで旧T5 count3 noncurrent、訂正後count5 noncurrent、終了count5 current/confirmed_ended・終了receipt=公開pointer・LC head版/receiptを照合。総試験はその後の旧slots5件期待で失敗（終了control D1=6が正当に増える）。終了control6と投球T5 source5を別々に全値照合へ修復中、R28を全step4成功や正式版としない。SQL/Pythonのslot版1専用条件は真正P3 capsule/原元event/新有効行/slot2だけ別資格へ、旧行は旧全条件維持。D5 ledgerのxmin差は別外側TXでなく既begin_nestedの子XIDとsourceで確認し、同一xminの新過剰条件だけ撤回した。唯一生成SのLC埋込はlocal pとの名前衝突をp.*の厳密1箇所修飾で解消、野球式/選択集合は別実装しない。
