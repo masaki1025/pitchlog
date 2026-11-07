@@ -252,7 +252,15 @@ test('真正HTTPS画面で三球の末尾過去訂正、同要求再掲、再読
     if (response.request().method() !== 'GET') return
     const path = apiPath(response.url())
     if (path === `/api/games/${saved.id}/started`) {
-      stage(`current-get-${response.status()}`)
+      const raw = new URL(response.url()).searchParams.get('projection')
+      const projection = [
+        'play-prefix-v3',
+        'undo-prefix-v1',
+        'lifecycle-prefix-v1',
+      ].includes(raw ?? '')
+        ? raw
+        : 'other'
+      stage(`current-get-${projection}-${response.status()}`)
       if (diagnostic.postHeadersSeen && diagnostic.afterRead === null)
         diagnostic.afterRead = response
           .json()
@@ -284,6 +292,12 @@ test('真正HTTPS画面で三球の末尾過去訂正、同要求再掲、再読
       res.request().method() === 'POST' &&
       apiPath(res.url()) === `/api/games/${saved.id}/sync/change`,
   )
+  const confirmedRead = page.waitForResponse(
+    (res) =>
+      res.request().method() === 'GET' &&
+      apiPath(res.url()) ===
+        `/api/games/${saved.id}/sync/change-confirmation/3`,
+  )
   await expect(panel.getByTestId('p3-apply')).toBeEnabled()
   await panel.getByTestId('p3-apply').click()
   const applied = await posted
@@ -307,38 +321,52 @@ test('真正HTTPS画面で三球の末尾過去訂正、同要求再掲、再読
         read: read !== null,
         target: target !== null && target !== undefined,
         idChanged:
-          !!target && !!submitted &&
+          !!target &&
+          !!submitted &&
           target.id !== submitted.change.payload.targetPlayId,
         sourceChanged:
-          !!target && !!submitted &&
+          !!target &&
+          !!submitted &&
           target.source_event_id !== submitted.change.payload.targetEventId,
         resultMatched:
-          !!target && !!submitted &&
-          target.batting_result_key === submitted.change.payload.replacementResultId,
+          !!target &&
+          !!submitted &&
+          target.batting_result_key ===
+            submitted.change.payload.replacementResultId,
         headChanged:
-          !!read && !!submitted &&
+          !!read &&
+          !!submitted &&
           JSON.stringify(read.prefix_ref) !==
             JSON.stringify(submitted.change.payload.expectedPrefixRef),
         checkpointIdChanged:
-          !!read && !!submitted &&
+          !!read &&
+          !!submitted &&
           read.prefix_ref.checkpoint.id !==
             submitted.change.payload.expectedPrefixRef.checkpoint.id,
         checkpointDigestChanged:
-          !!read && !!submitted &&
+          !!read &&
+          !!submitted &&
           read.prefix_ref.checkpoint.digest !==
             submitted.change.payload.expectedPrefixRef.checkpoint.digest,
         revisionUnchanged:
-          !!read && !!submitted &&
+          !!read &&
+          !!submitted &&
           BigInt(read.prefix_ref.checkpoint.revision) ===
-            BigInt(submitted.change.payload.expectedPrefixRef.checkpoint.revision),
-        afterBall:
-          read?.after.stateFields['state.count.balls'] === '1',
-        afterStrikes:
-          read?.after.stateFields['state.count.strikes'] === '2',
+            BigInt(
+              submitted.change.payload.expectedPrefixRef.checkpoint.revision,
+            ),
+        afterBall: read?.after.stateFields['state.count.balls'] === '1',
+        afterStrikes: read?.after.stateFields['state.count.strikes'] === '2',
       }),
   )
   await expect(panel.getByTestId('p3-status')).toHaveText(
     '訂正を保存し、再取得と現行成績を確認しました。',
+  )
+  const confirmed = (await (await confirmedRead).json()) as {
+    stats_version_id: string
+  }
+  expect(confirmed.stats_version_id).toMatch(
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
   )
   stage('p3-screen-saved')
   await expect(page.getByTestId('restore-balls')).toHaveText('1')
@@ -352,12 +380,126 @@ test('真正HTTPS画面で三球の末尾過去訂正、同要求再掲、再読
     ),
   ).toBe(200)
   stage('p3-replayed')
-  await page.reload()
-  await expect(page.getByTestId('restore-balls')).toHaveText('1')
+  await expect(page.getByTestId('ordinary-state-source')).toHaveText(
+    'サーバー確認済みの状態',
+  )
+  for (let suffix = 1; suffix <= 1; suffix++) {
+    for (const name of ['profile', 'mode', 'bucket', 'lockdown'])
+      await page.getByTestId(`first-ball-env-${name}`).check()
+    await page.getByTestId('first-ball-pitch-type').selectOption({ index: 1 })
+    await page
+      .getByTestId('ordinary-pitch-result')
+      .selectOption('batting-result.ball')
+    await page.getByTestId('first-ball-course').locator('svg').click()
+    const suffixPosted = page.waitForResponse(
+      (res) =>
+        res.request().method() === 'POST' &&
+        apiPath(res.url()) === `/api/games/${saved.id}/sync/events`,
+    )
+    await page.getByTestId('first-ball-save').click()
+    expect((await suffixPosted).status()).toBe(200)
+    await expect(page.getByTestId('restore-history')).toHaveText(
+      `${3 + suffix}件`,
+    )
+    await expect(page.getByTestId('restore-balls')).toHaveText('2')
+    stage(`p3-suffix-pitch-${suffix}`)
+  }
   await expect(page.getByTestId('restore-strikes')).toHaveText('2')
+  await expect(panel.getByTestId('p3-status')).toHaveText(
+    '訂正を保存し、再取得と現行成績を確認しました。',
+  )
+  await page.reload()
+  await expect(page.getByTestId('restore-balls')).toHaveText('2')
+  await expect(page.getByTestId('restore-strikes')).toHaveText('2')
+  await expect(page.getByTestId('restore-history')).toHaveText('4件')
   stage('p3-reloaded')
+  const lifecycle = page.getByTestId('lifecycle-product')
+  await expect(lifecycle.getByTestId('lifecycle-status')).toHaveText('進行中')
+  for (const box of await lifecycle.locator('input[type=checkbox]').all())
+    await box.check()
+  const ended = page.waitForResponse(
+    (res) =>
+      res.request().method() === 'POST' &&
+      apiPath(res.url()) === `/api/games/${saved.id}/sync/events`,
+  )
+  await lifecycle.getByTestId('lifecycle-end').click()
+  expect((await ended).status()).toBe(200)
+  await expect(lifecycle.getByTestId('lifecycle-confirmed-status')).toHaveText(
+    '終了',
+  )
+  stage('p3-followed-by-end')
+  const reopened = page.waitForResponse(
+    (res) =>
+      res.request().method() === 'POST' &&
+      apiPath(res.url()) === `/api/games/${saved.id}/sync/events`,
+  )
+  await lifecycle.getByTestId('lifecycle-reopen').click()
+  expect((await reopened).status()).toBe(200)
+  await expect(lifecycle.getByTestId('lifecycle-confirmed-status')).toHaveText(
+    '進行中',
+  )
+  stage('p3-followed-by-reopen')
+  await lifecycle.getByTestId('lifecycle-resume').click()
+  await page.reload()
+  const undo = page.getByTestId('undo-product-panel')
+  await expect(undo.getByTestId('undo-product-pitch-type')).toBeVisible({
+    timeout: 15_000,
+  })
+  await expect(undo.getByTestId('undo-product-balls')).toHaveText('2', {
+    timeout: 30_000,
+  })
+  await expect(undo.getByTestId('undo-product-depth')).toHaveText('4')
+  for (const box of await undo.locator('input[type=checkbox]').all())
+    await box.check()
+  await undo.getByTestId('undo-product-pitch-type').selectOption({ index: 1 })
+  await undo.getByTestId('undo-product-course').locator('svg').click()
+  const afterReopen = page.waitForResponse(
+    (res) =>
+      res.request().method() === 'POST' &&
+      apiPath(res.url()) === `/api/games/${saved.id}/sync/events`,
+  )
+  await undo.getByTestId('undo-product-ball').click()
+  expect((await afterReopen).status()).toBe(200)
+  await expect(undo.getByTestId('undo-product-depth')).toHaveText('5')
+  await expect(undo.getByTestId('undo-product-balls')).toHaveText('3')
+  stage('p3-reopened-and-pitch-saved')
+  await lifecycle.getByTestId('lifecycle-refresh').click()
+  await expect(lifecycle.getByTestId('lifecycle-end')).toBeEnabled()
+  for (const box of await lifecycle.locator('input[type=checkbox]').all())
+    await box.check()
+  const reended = page.waitForResponse(
+    (res) =>
+      res.request().method() === 'POST' &&
+      apiPath(res.url()) === `/api/games/${saved.id}/sync/events`,
+  )
+  await lifecycle.getByTestId('lifecycle-end').click()
+  expect((await reended).status()).toBe(200)
+  await expect(lifecycle.getByTestId('lifecycle-confirmed-status')).toHaveText(
+    '終了',
+  )
+  await expect(lifecycle.getByTestId('lifecycle-last-version')).toContainText(
+    '2',
+  )
+  stage('p3-followed-by-reend')
+  await page.reload()
+  await expect(lifecycle.getByTestId('lifecycle-confirmed-status')).toHaveText(
+    '終了',
+  )
+  await expect(lifecycle.getByTestId('lifecycle-last-version')).toContainText(
+    '2',
+  )
+  stage('p3-reended-reloaded')
   console.log(
     'PITCHLOG_P3_SCREEN=' +
-      JSON.stringify({ gameId: saved.id, accepted: 1, replayStatus: 200 }),
+      JSON.stringify({
+        gameId: saved.id,
+        accepted: 1,
+        replayStatus: 200,
+        suffixPitch: 1,
+        endedAfterCorrection: true,
+        reopenedAndPitchSaved: true,
+        reendedAfterCorrection: true,
+        statsVersionId: confirmed.stats_version_id,
+      }),
   )
 })

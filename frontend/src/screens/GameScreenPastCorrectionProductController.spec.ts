@@ -154,28 +154,29 @@ it('別tenantの現行GETや認証世代変更を対象採用・送信成功へ�
 
 it('受理I6後の再生成はHTTP再送せず同D5・slot2・現headを再照合する', async () => {
   let acceptedHead: typeof server.prefix_ref | null = null
-  const post = vi.spyOn(change, 'postP3Change').mockImplementation(async (body) => {
-    server.prefix_ref.checkpoint.id = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc'
-    server.prefix_ref.checkpoint.digest = 'b'.repeat(64)
-    server.page.items[0]!.play_row.id =
-      'dddddddd-dddd-4ddd-8ddd-dddddddddddd'
-    server.page.items[0]!.play_row.source_event_id =
-      'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee'
-    server.page.items[0]!.play_row.batting_result_key = 'batting-result.ball'
-    acceptedHead = structuredClone(server.prefix_ref)
-    return {
-      kind: 'accepted',
-      targetReference: {
-        試合: gameId,
-        '対象の D4': original.current_d4,
-        '対象の D1': 1,
-      },
-      expectedVersion: 1,
-      d5: body.change.d5,
-      confirmedContent: body.change.payload,
-      acceptedAt: '2026-11-07T00:00:00+00:00',
-    }
-  })
+  const post = vi
+    .spyOn(change, 'postP3Change')
+    .mockImplementation(async (body) => {
+      server.prefix_ref.checkpoint.id = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc'
+      server.prefix_ref.checkpoint.digest = 'b'.repeat(64)
+      server.page.items[0]!.play_row.id = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd'
+      server.page.items[0]!.play_row.source_event_id =
+        'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee'
+      server.page.items[0]!.play_row.batting_result_key = 'batting-result.ball'
+      acceptedHead = structuredClone(server.prefix_ref)
+      return {
+        kind: 'accepted',
+        targetReference: {
+          試合: gameId,
+          '対象の D4': original.current_d4,
+          '対象の D1': 1,
+        },
+        expectedVersion: 1,
+        d5: body.change.d5,
+        confirmedContent: body.change.payload,
+        acceptedAt: '2026-11-07T00:00:00+00:00',
+      }
+    })
   vi.spyOn(change, 'readP3ChangeConfirmation').mockImplementation(
     async (_game, _d1, receivedD5) => ({
       target_reference: offer.target_reference,
@@ -201,7 +202,12 @@ it('受理I6後の再生成はHTTP再送せず同D5・slot2・現headを再照�
   const reloaded = controller()
   expect(await reloaded.inspectPending()).toBe('saved')
   expect(post).toHaveBeenCalledTimes(1)
+  server.prefix_ref.length = '2'
+  server.prefix_ref.checkpoint.revision = '2'
   server.prefix_ref.checkpoint.digest = 'c'.repeat(64)
+  acceptedHead = structuredClone(server.prefix_ref)
+  expect(await reloaded.inspectPending()).toBe('saved')
+  server.prefix_ref.checkpoint.digest = 'd'.repeat(64)
   expect(await reloaded.inspectPending()).toBe('saved-awaiting-read')
   expect(post).toHaveBeenCalledTimes(1)
 })

@@ -58,4 +58,18 @@ ADR-003 D-14-lは下流状態・帰属の再導出を既(α)の反復、成績�
 
 同じD1数のP3では唯一artifactの`PrefixRef.checkpoint.revision`が旧値と同じになる。画面は無関係な増加を要求せず、新checkpoint ID/digest、対象の新PlayRow/source、結果、現afterを確認する。別のtenant read TXで実slotの`confirmed_version=2`、受理D5とchange event/ledger、capsuleの現checkpoint・現T5 pointerを既完全検証関数で結合したP3専用確認応答を読み、同一要求・現GETと全値照合する。旧slot版・別D5・別head・後発変更は成功に写さない。確認APIはtenant/C2の閉操作として登録し、既19 routeの同token期限更新宣言は拡張しない。
 
+ステップ4中間の追加球読取は、P3時点の不変capsuleとその後の真正通常投球を別々に全値照合し、各球の前後文脈・D1/D2・物理行・T5 sourceを順に結合する。SQL/Pythonは後続100件を暫定有限上限として閉じる。これはMVPの件数上限ではなく、ページ化と25件超の対象・複数訂正は残件である。画面保存確認は追加球数を固定しないが、現CP・対象版・同D5/receipt・現T5 pointerを引き続き確認する。R16の真正HTTPS/PGで後続2球は成立した一方、旧Undo/LC/Sub読取は503のまま。終了後P3はLCがcurrent CPを非play形式へ更新するため、旧v3 CPを要求するP3の準備/CASは未到達である。既終了宣言の版/receiptを保ち、非play完全stackと訂正後current/成績を同TXへ結ぶ接合が必要であり、現中間成果を全P3の完了としない。
+
+P3対象の旧投球原本とその元admission/ledger/物理行の証明は保持し、slot確定版2だけをP3 capsule/item・変更event・有効PlayRow・書込印の別資格で照合する。R24のowned実DBではslot/event/有効PlayRow/capsule/item/headとP3書込印のxminが同一、変更D5 ledgerだけ別xminだった。`change_path.py`のD5 INSERTは`idempotency.py`の一意競合再照合用`run_in_savepoint`で行うため、同じ外側の原子取引内でもledger行は子XIDになる。変更ledgerはtenant/D5/accepted/source fingerprint/非退役を厳密に要求し、別xminという新設の過剰条件だけを撤回する。これは既DB全取消の証拠を変更しない。0042/0043の確定関数は改訂せず、後発0048候補でP3版read二関数を再描画し、正式asset採否はrootの直列ゲートに残す。
+
 端末のD1なし原要求は送信前に耐久保存し、I6受理結果を別に保持する。再読込時にI6がある場合も送信せず同要求・現read・成績を確認し、未確認なら明示表示する。今回の画面witnessは同一現D4の通常v3三球・対象版1・25件以内の1訂正であり、複数訂正、25件超、旧世代、終了/再開、後続交代と他操作の有効版接合をステップ4以降の必須残件として保持する。
+
+### LC後のP3旧原本と有効版の接続（2026-11-07、ステップ4技術追補）
+
+R29の真正HTTPS/PGでP3→通常2球→終了、終了T5現行版とreceiptは成立した。R31の再開は、LC後のnonplay CP下で旧投球slot版2をPython読取が版1として扱い503で閉じた。再開を成功扱いするには、同tenant・同TXで現在のnonplay CPとP3 head/capsule/変更event/元保存行/有効physical/T5旧確定版を別kindの歴史anchorとして照合し、既P3唯一検証器を共有する。現在v3 readの資格に歴史anchorを混ぜず、通常slot1の全条件、P3 slot2の同取引・同対象・有効物理行の条件を保持する。元frameのP3対象だけを有効版へ射影し、後続通常frameとLC control bridgeの前後連鎖を照合する。旧K原本と旧T5は監査用に残し、P3版の常時成功・slot2無条件通過を禁止する。0042/0043既確定関数を改訂せず、0048候補の後発read版として隔離し、rootの正式直列受理へ渡す。
+
+R32/R33で非play歴史anchor候補は終了後の再開ACKと現在GET 200まで進んだ。画面は非play CP後に既 `nonplay-prefix-read-v1` の取消・追記パネルへ切り替わるため、再開後の通常ボールは同パネルの真正read/既writerから追加する。R34で再開前の2球目をファウルに変える試行は通常writer POST 503で止まり、P3/LC接合の成功証拠には数えない。再開前は既実証済みの通常ボール1球に絞り、再開後に非playパネルからボール1球を追記して再終了する有限witnessを先に固定する。旧R29の通常2球実証は独立に保持し、ファウル・他操作の未接続を完了扱いしない。
+
+R46の隔離HTTPS/PGでは、正規D4の三球→過去KをballへP3訂正→同D5再掲→通常球→終了→再開→非play画面から通常球→再終了→再読込が1試合で成立した。旧T5版K/投手K各1、現行版各0、対象slot版2、最終current source 5件、二度の終了receiptと最新pointerをDBで照合した。通常球は現行open成績版のrevision/source_countを更新し、P3とLC end/reopenだけが新しい版IDを作る既実装に従い、総版数は5。R44/R45の失敗はそれぞれ再読込後の端末確認欠落とテスト版数の過剰期待として保持する。この実証は「終了後にP3訂正する」経路、複数P3、25件超、旧世代、後続交代/打球/走者、CSV88現在版、P3結果不明復旧、正式0048配備の完了を意味しない。
+
+現artifactに旧nativeUndo fixtureの実行SHAが追随していなかったため、P3と無関係の野球値を変えず、公式Node hostの4要求/応答全値一致とCP digest再導出を確認した固定24 leafのfixture追随候補を本ステップの回帰準備として含める。旧値と差分・検査器由来はcache packetに残す。

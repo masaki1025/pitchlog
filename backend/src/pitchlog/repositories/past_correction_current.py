@@ -26,7 +26,7 @@ class PastCorrectionCurrentUnavailable(RuntimeError):
 
 @dataclass(frozen=True, slots=True)
 class VerifiedP3Current:
-    """読取同TXのみに有効な検証済みcurrent投影。"""
+    """読取同TXのみに有効な検証済みcurrent又はLC前anchor。"""
 
     checkpoint: LineupPrefixDocument
     original_checkpoint: LineupPrefixDocument
@@ -37,6 +37,8 @@ class VerifiedP3Current:
     stats_version_id: UUID
     items: tuple[dict[str, object], ...]
     payloads: tuple[LineupPitchPlayPayload, ...]
+    historical_anchor: bool
+    first_control_preparation: dict[str, object] | None
 
 
 _ITEM_COLUMNS = (
@@ -76,9 +78,14 @@ def _uuid(value: object) -> UUID:
 
 
 def verify_p3_current_packet(
-    packet: object, *, tenant: UUID, game: UUID, generation: int
+    packet: object,
+    *,
+    tenant: UUID,
+    game: UUID,
+    generation: int,
+    nonplay_checkpoint_row: dict[str, object] | None = None,
 ) -> VerifiedP3Current:
-    """DB現head/元全原本/有効数学/物理/T5集合を同一値へ閉じる。"""
+    """DB現head又はLC前anchor/元原本/有効数学/物理/T5を同値へ閉じる。"""
     if (
         type(tenant) is not UUID
         or type(game) is not UUID
@@ -87,21 +94,38 @@ def verify_p3_current_packet(
     ):
         raise PastCorrectionCurrentUnavailable("P3 current scopeが不正")
     raw = _object(packet)
+    anchor = raw.get("kind") == "p3-anchor"
+    required = {
+        "kind",
+        "head",
+        "capsule",
+        "checkpoint",
+        "stats",
+        "change_event",
+        "change_ledger",
+        "members",
+        "suffix",
+        "stats_sources",
+    }
     if (
         set(raw)
-        != {
-            "kind",
-            "head",
-            "capsule",
-            "checkpoint",
-            "stats",
-            "change_event",
-            "change_ledger",
-            "members",
-            "suffix",
-            "stats_sources",
-        }
-        or raw["kind"] != "p3-current"
+        != (
+            required
+            | ({"nonplay_checkpoint", "first_control_preparation"} if anchor else set())
+        )
+        or raw["kind"] not in {"p3-current", "p3-anchor"}
+        or (
+            anchor
+            and (
+                type(nonplay_checkpoint_row) is not dict
+                or raw["nonplay_checkpoint"] != nonplay_checkpoint_row
+                or _object(raw["checkpoint"])
+                != _object(
+                    _object(_object(raw["first_control_preparation"])["storage"])["row"]
+                )
+            )
+        )
+        or (not anchor and nonplay_checkpoint_row is not None)
     ):
         raise PastCorrectionCurrentUnavailable("P3 current packetが不正")
     head = _object(raw["head"])
@@ -116,9 +140,19 @@ def verify_p3_current_packet(
     if type(members) is not list or not 1 <= len(members) <= 25:
         raise PastCorrectionCurrentUnavailable("P3 current件数が不正")
     try:
+        first_prep = None
+        source_upper = stats_row["source_count"] if anchor else None
+        if anchor and (
+            type(source_upper) is not int
+            or not len(members) <= source_upper <= len(members) + 100
+        ):
+            raise PastCorrectionCurrentUnavailable("P3歴史anchor水位が不正")
         current = read_lineup_prefix_document(
             _canonical_json(checkpoint_row["content"])
         )
+        source_upper = source_upper if anchor else int(current.confirmed_watermark)
+        if type(source_upper) is not int:
+            raise PastCorrectionCurrentUnavailable("P3 source水位が不正")
         at_change = read_lineup_prefix_document(
             _canonical_json(capsule["next_checkpoint_content"])
         )
@@ -140,9 +174,10 @@ def verify_p3_current_packet(
             or stats_row["id"] != head["stats_version_id"]
             or stats_row["tenant_id"] != str(tenant)
             or stats_row["game_id"] != str(game)
-            or stats_row["is_current"] is not True
-            or stats_row["invalidated_at"] is not None
-            or stats_row["source_count"] != int(current.confirmed_watermark)
+            or stats_row["is_current"] is not (not anchor)
+            or (anchor and stats_row["invalidated_at"] is None)
+            or (not anchor and stats_row["invalidated_at"] is not None)
+            or stats_row["source_count"] != source_upper
             or capsule["tenant_id"] != str(tenant)
             or capsule["game_id"] != str(game)
             or capsule["internal_generation"] != generation
@@ -165,7 +200,7 @@ def verify_p3_current_packet(
             or current.id != at_change.id
             or current.history_version != at_change.history_version
             or current.storage_anchor != at_change.storage_anchor
-            or int(current.confirmed_watermark) not in {len(members), len(members) + 1}
+            or not len(members) <= source_upper <= len(members) + 100
             or int(current.revision)
             != int(at_change.revision) + int(current.confirmed_watermark) - len(members)
             or change_event["tenant_id"] != str(tenant)
@@ -371,13 +406,26 @@ def verify_p3_current_packet(
         ):
             raise PastCorrectionCurrentUnavailable("P3 T5評価集合が不一致")
         source_evaluations = [source.evaluation for source in evaluated.sources]
-        if current.confirmed_watermark == at_change.confirmed_watermark:
-            if suffix_raw is not None or current != at_change:
-                raise PastCorrectionCurrentUnavailable("P3現headが不一致")
-        else:
-            suffix = _object(suffix_raw)
+        if type(suffix_raw) is not list or len(suffix_raw) != source_upper - len(
+            members
+        ):
+            raise PastCorrectionCurrentUnavailable("P3後続件数が不一致")
+        if not suffix_raw and current != at_change:
+            raise PastCorrectionCurrentUnavailable("P3現headが不一致")
+        prior_ref = at_change.prefix_ref
+        prior_after = at_change.after
+        prior_runners = at_change.runners
+        prior_participants = at_change.participants
+        prior_lineup = at_change.lineup
+        reconstructed = at_change
+        for offset, raw_suffix in enumerate(suffix_raw, start=1):
+            suffix = _object(raw_suffix)
             if set(suffix) != {
-                "event", "ledger", "history", "play_row", "play_runners"
+                "event",
+                "ledger",
+                "history",
+                "play_row",
+                "play_runners",
             }:
                 raise PastCorrectionCurrentUnavailable("P3後続読取形が不正")
             event = _object(suffix["event"])
@@ -388,7 +436,7 @@ def verify_p3_current_packet(
             payload = _evaluate_lineup_payload(event["payload"])
             value = payload.calculation.response.value
             request = payload.calculation.request
-            d1 = len(members) + 1
+            d1 = len(members) + offset
             if (
                 event["tenant_id"] != str(tenant)
                 or event["game_id"] != str(game)
@@ -432,23 +480,30 @@ def verify_p3_current_packet(
                 or request.play_identity.play_id != play["id"]
                 or request.source.position.d1 != str(d1)
                 or request.source.position.d2 != str(event["d2"])
-                or request.prefix_ref != at_change.prefix_ref
-                or request.t1.before != at_change.after
-                or request.source.runners != at_change.runners
-                or request.source.participants != at_change.participants
-                or request.source.lineup != at_change.lineup
+                or request.prefix_ref != prior_ref
+                or request.t1.before != prior_after
+                or request.source.runners != prior_runners
+                or request.source.participants != prior_participants
+                or request.source.lineup != prior_lineup
                 or request.rules != at_change.rules
-                or value.next_prefix_ref != current.prefix_ref
-                or value.t1.after != current.after
-                or value.t2 != current.t2
-                or value.runners != current.runners
-                or value.participants != current.participants
-                or value.lineup != current.lineup
-                or current.projection_snapshot is None
-                or current.projection_snapshot.play_row != play
-                or list(current.projection_snapshot.play_runners) != runners
             ):
                 raise PastCorrectionCurrentUnavailable("P3後続原本が不一致")
+            if (
+                not anchor
+                and offset == len(suffix_raw)
+                and (
+                    value.next_prefix_ref != current.prefix_ref
+                    or value.t1.after != current.after
+                    or value.t2 != current.t2
+                    or value.runners != current.runners
+                    or value.participants != current.participants
+                    or value.lineup != current.lineup
+                    or current.projection_snapshot is None
+                    or current.projection_snapshot.play_row != play
+                    or list(current.projection_snapshot.play_runners) != runners
+                )
+            ):
+                raise PastCorrectionCurrentUnavailable("P3後続現CPが不一致")
             expected_play = pitch_physical_row(
                 payload.observations,
                 payload.participants,
@@ -468,6 +523,29 @@ def verify_p3_current_packet(
             )
             if expected_play != play or expected_runners != runners:
                 raise PastCorrectionCurrentUnavailable("P3後続物理行が不一致")
+            if anchor:
+                from pitchlog.sync.terminal_pitch_projection import (
+                    build_lineup_next_checkpoint,
+                )
+
+                reconstructed = build_lineup_next_checkpoint(
+                    reconstructed,
+                    {
+                        "id": event["id"],
+                        "tenant_id": str(tenant),
+                        "game_id": str(game),
+                        "generation": str(generation),
+                        "d1": str(event["d1"]),
+                        "d2": str(event["d2"]),
+                        "d5": event["d5"],
+                        "source_fingerprint": ledger["source_fingerprint"],
+                        "event_fingerprint": ledger["source_fingerprint"],
+                    },
+                    value,
+                    payload.calculation.artifact_sha256,
+                    play,
+                    runners,
+                )
             from pitchlog.stats.facts import evaluate_native_projection
 
             native = evaluate_native_projection(
@@ -490,6 +568,33 @@ def verify_p3_current_packet(
             source_evaluations.append(native)
             ledger_fingerprints.append(ledger["source_fingerprint"])
             source_d2.append(event["d2"])
+            prior_ref = value.next_prefix_ref
+            prior_after = value.t1.after
+            prior_runners = value.runners
+            prior_participants = value.participants
+            prior_lineup = value.lineup
+        if anchor:
+            from pitchlog.repositories.nonplay_prefix import _stored_contexts
+
+            checkpoint = _object(nonplay_checkpoint_row)
+            nonplay_content = _object(_object(checkpoint["content"])["content"])
+            bridges = nonplay_content["controlBridges"]
+            if type(bridges) is not list or not bridges:
+                raise PastCorrectionCurrentUnavailable("P3歴史anchor制御が欠落")
+            first_bridge = _object(bridges[0])
+            first_prep = _object(raw["first_control_preparation"])
+            before_source = _object(first_prep["before_source"])
+            before_checkpoint = _object(before_source["checkpoint"])
+            _, last_after = _stored_contexts(
+                payloads[-1].model_dump(mode="json", by_alias=True, exclude_unset=True)
+            )
+            if (
+                reconstructed != current
+                or before_checkpoint["ref"] != first_bridge["checkpointBefore"]
+                or first_bridge["beforeContext"] != last_after
+                or current.confirmed_watermark != str(source_upper)
+            ):
+                raise PastCorrectionCurrentUnavailable("P3歴史anchorとLC制御が不一致")
         if type(sources_raw) is not list or len(sources_raw) != len(items):
             raise PastCorrectionCurrentUnavailable("P3現T5件数が不一致")
         for d1, (raw_source, item, evaluation) in enumerate(
@@ -498,7 +603,8 @@ def verify_p3_current_packet(
             source = _object(raw_source)
             play = _object(item["play_row"])
             effective_id = (
-                item["effective_event_id"] if d1 <= len(members)
+                item["effective_event_id"]
+                if d1 <= len(members)
                 else play["source_event_id"]
             )
             if (
@@ -529,6 +635,8 @@ def verify_p3_current_packet(
             _uuid(stats_row["id"]),
             tuple(items),
             tuple(payloads),
+            anchor,
+            first_prep,
         )
     except (KeyError, TypeError, ValueError, AttributeError, IndexError) as error:
         raise PastCorrectionCurrentUnavailable("P3 current全値照合が不成立") from error

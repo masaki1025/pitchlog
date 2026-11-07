@@ -241,7 +241,16 @@ def _make_page_cursor(anchor, point):
     return base64.urlsafe_b64encode(encoded.encode()).decode().rstrip("=")
 
 
-def _read_active_page_bound(handle, cp, *, generation, limit=25, cursor=None):
+def _read_active_page_bound(
+    handle,
+    cp,
+    *,
+    generation,
+    limit=25,
+    cursor=None,
+    checkpoint_row=None,
+    post_write=None,
+):
     """同CPの一page。全stack完成とは区別する。秘密を返さない。"""
     owner = _owner(handle)
 
@@ -249,6 +258,25 @@ def _read_active_page_bound(handle, cp, *, generation, limit=25, cursor=None):
         _live(handle, owner)
 
     rawcp = cp.model_dump(mode="json", by_alias=True, exclude_unset=True)
+    from pitchlog.repositories.past_correction_nonplay import (
+        p3_effective_nonplay_frame,
+        read_p3_nonplay_current,
+    )
+
+    physical_checkpoint = (
+        _checkpoint_physical_row(checkpoint_row, post_write=post_write)
+        if checkpoint_row is not None
+        else None
+    )
+    if checkpoint_row is None and post_write is not None:
+        raise NonplaySourceUnavailable("非play保存後pageのCPが欠落")
+    verified_p3 = read_p3_nonplay_current(
+        handle,
+        UUID(cp.content.scope.game_id),
+        generation,
+        nonplay_checkpoint_row=physical_checkpoint,
+    )
+    live()
     anchor = _page_anchor(cp)
     point = _read_page_cursor(cursor, anchor)
     token = NonplayActiveHistoryReadToken(
@@ -287,6 +315,18 @@ def _read_active_page_bound(handle, cp, *, generation, limit=25, cursor=None):
         or len(packet["items"]) > limit + 1
     ):
         raise NonplaySourceUnavailable("非play page版/件数が不一致")
+    if post_write is not None:
+        if point[0] != 0 or cursor is not None or not packet["items"]:
+            raise NonplaySourceUnavailable("非play保存後の最新pageが不一致")
+        latest = packet["items"][0]
+        if (
+            type(latest) is not dict
+            or type(latest.get("physical")) is not dict
+            or set(latest["physical"]) != {"play_row", "play_runners"}
+            or not _same(latest["physical"]["play_row"], post_write[0])
+            or not _same(latest["physical"]["play_runners"], post_write[1])
+        ):
+            raise NonplaySourceUnavailable("非play保存後の物理行が不一致")
     values = []
     seen = set()
     last = None
@@ -297,6 +337,8 @@ def _read_active_page_bound(handle, cp, *, generation, limit=25, cursor=None):
         seen.add(p)
         last = p
         frame = _frame(handle, item, live)
+        if verified_p3 is not None:
+            frame = p3_effective_nonplay_frame(frame, verified_p3)
         values.append((p, frame))
     more = len(values) > limit
     selected = values[:limit]
@@ -306,12 +348,24 @@ def _read_active_page_bound(handle, cp, *, generation, limit=25, cursor=None):
     return {"items": [frame for _, frame in selected], "next_cursor": next_cursor}
 
 
-def read_active_page(handle, cp, *, generation, limit=25, cursor=None):
+def read_active_page(
+    handle,
+    cp,
+    *,
+    generation,
+    limit=25,
+    cursor=None,
+    checkpoint_row=None,
+    post_write=None,
+):
     """配置/原本破損は内容拒否へ落とさず、秘密なしの不可用として閉じる。"""
     from jsonschema import ValidationError
 
     from pitchlog.domainrt.host import DomainRuntimeError
     from pitchlog.repositories.function_operations import FunctionOperationError
+    from pitchlog.repositories.past_correction_current import (
+        PastCorrectionCurrentUnavailable,
+    )
     from pitchlog.repositories.recorded_snapshot import (
         RecordedSnapshotCorrupt,
         RecordedSnapshotUnavailable,
@@ -320,7 +374,13 @@ def read_active_page(handle, cp, *, generation, limit=25, cursor=None):
 
     try:
         return _read_active_page_bound(
-            handle, cp, generation=generation, limit=limit, cursor=cursor
+            handle,
+            cp,
+            generation=generation,
+            limit=limit,
+            cursor=cursor,
+            checkpoint_row=checkpoint_row,
+            post_write=post_write,
         )
     except (
         ValueError,
@@ -333,6 +393,7 @@ def read_active_page(handle, cp, *, generation, limit=25, cursor=None):
         RecordedSnapshotUnavailable,
         DomainRuntimeError,
         UndoContractUnavailable,
+        PastCorrectionCurrentUnavailable,
     ):
         raise NonplaySourceUnavailable("非play実原本又は読取能力が不可用") from None
 
@@ -425,7 +486,12 @@ def read_confirmed_nonplay_normal(handle, event, source, *, proposal, artifact_s
     cursor = None
     while True:
         page = read_active_page(
-            handle, cp, generation=generation, limit=100, cursor=cursor
+            handle,
+            cp,
+            generation=generation,
+            limit=100,
+            cursor=cursor,
+            checkpoint_row=stored,
         )
         execution_live(state)
         frames.extend(page["items"])
@@ -441,9 +507,7 @@ def read_confirmed_nonplay_normal(handle, event, source, *, proposal, artifact_s
     if (
         not _same(
             raw,
-            proposal.source.model_dump(
-                mode="json", by_alias=True, exclude_unset=True
-            ),
+            proposal.source.model_dump(mode="json", by_alias=True, exclude_unset=True),
         )
         or proposal.prefix_ref != cp.ref
         or proposal.source_position.d1 != str(event.d1)
@@ -536,21 +600,48 @@ def _release_nonplay_normal_prefix(handle):
     _PREFIX_READS.pop(handle._state_key, None)
 
 
+def _checkpoint_physical_row(row, *, post_write=None):
+    """追加read証拠を閉検査し、SQLの実CP物理列だけを分離する。"""
+    from pitchlog.db.writer_binding.ordinary_models import OrdinaryPitchCheckpoint
+
+    columns = set(OrdinaryPitchCheckpoint.__table__.c.keys())
+    if type(row) is not dict:
+        raise NonplaySourceUnavailable("非play CP全物理列が不一致")
+    if post_write is None:
+        if set(row) != columns | {"last_play_row"} or row["last_play_row"] is not None:
+            raise NonplaySourceUnavailable("非play CP全物理列が不一致")
+    else:
+        evidence = row.get("source_evidence")
+        keys = {
+            "all_play_count",
+            "ordinary_play_count",
+            "invalid_count",
+            "non_play_count",
+            "history_count",
+            "pa_change_count",
+        }
+        if (
+            type(post_write) is not tuple
+            or len(post_write) != 2
+            or set(row)
+            != columns | {"last_play_row", "last_play_runners", "source_evidence"}
+            or row["last_play_row"] is not None
+            or row["last_play_runners"] != []
+            or type(evidence) is not dict
+            or set(evidence) != keys
+            or any(type(evidence[key]) is not int or evidence[key] < 0 for key in keys)
+        ):
+            raise NonplaySourceUnavailable("非play保存後CP読取profileが不一致")
+    return {k: row[k] for k in columns}
+
+
 def check_storage_row(row, cp, *, tenant, game, generation, epoch, d3):
     """実CP table全列/型とwireCPの全参照を照合する。形を資格へ変えない。"""
     from pitchlog.db.writer_binding.ordinary_models import OrdinaryPitchCheckpoint
     from pitchlog.repositories.recorded_snapshot import _typed_historical_row
 
-    columns = set(OrdinaryPitchCheckpoint.__table__.c.keys())
-    if (
-        type(row) is not dict
-        or set(row) != columns | {"last_play_row"}
-        or row["last_play_row"] is not None
-    ):
-        raise NonplaySourceUnavailable("非play CP全物理列が不一致")
-    _typed_historical_row(
-        {k: row[k] for k in columns}, OrdinaryPitchCheckpoint.__table__
-    )
+    physical = _checkpoint_physical_row(row)
+    _typed_historical_row(physical, OrdinaryPitchCheckpoint.__table__)
     expected = {
         "tenant_id": str(tenant),
         "game_id": str(game),
@@ -611,7 +702,7 @@ def _read_nonplay_append_d2(handle, event, proposal, *, epoch):
     return assigned
 
 
-def _read_legacy_undo_source(handle, doc, stored, artifact_sha256):
+def _read_legacy_undo_source(handle, doc, stored, artifact_sha256, verified_p3=None):
     """各100+1原本を同TXで全検証し、writerと唯一のmapperから同refを得る。"""
     from pitchlog.db.writer_binding.ordinary_models import OrdinaryPitchCheckpoint
     from pitchlog.repositories.nonplay_prefix import (
@@ -708,6 +799,17 @@ def _read_legacy_undo_source(handle, doc, stored, artifact_sha256):
     ):
         raise NonplaySourceUnavailable("取消bootstrapの実世代連結が不一致")
     stack = [frame for _, frame in all_values]
+    if verified_p3 is not None:
+        from pitchlog.repositories.past_correction_nonplay import (
+            p3_effective_nonplay_stack,
+        )
+
+        if verified_p3.checkpoint != doc:
+            raise NonplaySourceUnavailable("取消P3現CPが不一致")
+        stack = p3_effective_nonplay_stack(stack, verified_p3)
+        all_values = [
+            (point, frame) for (point, _), frame in zip(all_values, stack, strict=True)
+        ]
     cp = _checkpoint_from_legacy(doc, stack, envelope["storage"], artifact_sha256)
     _check_source(
         {
@@ -959,10 +1061,15 @@ def read_undo_prefix(handle, game_id, *, limit=25, cursor=None):
     if row["content"].get("version") != "3":
         raise NonplaySourceUnavailable("取消GETの閉v3 profileが不一致")
     doc = read_lineup_prefix_document(_canonical_json(row["content"]))
+    from pitchlog.repositories.past_correction_nonplay import read_p3_nonplay_current
+
+    verified_p3 = read_p3_nonplay_current(handle, game_id, int(doc.internal_generation))
     metadata = _legacy_undo_metadata(handle, game_id, snapshot, doc)
     _live(handle, owner)
     with open_domain_host() as host:
-        cp, values = _read_legacy_undo_source(handle, doc, row, host.artifact_sha256)
+        cp, values = _read_legacy_undo_source(
+            handle, doc, row, host.artifact_sha256, verified_p3
+        )
     public_anchor = _page_anchor(cp)
     point = _read_page_cursor(cursor, public_anchor)
     start = 0

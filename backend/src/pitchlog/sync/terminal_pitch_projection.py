@@ -327,6 +327,11 @@ def apply_play_prefix_projection(handle, operation):
             NonplayCheckpoint.model_validate_json(_canonical_json(actual)),
             generation=int(doc.internal_generation),
             limit=1,
+            checkpoint_row=saved,
+            post_write=(
+                prepared["play_row"],
+                prepared["next_checkpoint"]["projection_snapshot"]["play_runners"],
+            ),
         )
         if len(page["items"]) != 1 or page["items"][0]["play"]["source"][
             "eventId"
@@ -346,12 +351,44 @@ def apply_play_prefix_projection(handle, operation):
     return TenantOperationResult(((True,),))
 
 
+def build_lineup_next_checkpoint(doc, source, response, artifact_sha256, row, runners):
+    """v3 after文書を既writerとP3原本検証で一度だけ構成する。"""
+    from pitchlog.repositories.play_prefix import read_lineup_prefix_document
+
+    previous = doc.model_dump(mode="json", by_alias=True, exclude_unset=True)
+    after = {
+        **previous,
+        "revision": response.next_prefix_ref.checkpoint.revision,
+        "prefix_ref": response.next_prefix_ref.model_dump(mode="json", by_alias=True),
+        "confirmed_watermark": source["d1"],
+        "applied_watermark": source["d1"],
+        "last_source": source,
+        "history_depth": response.next_prefix_ref.length,
+        "after": response.t1.after.model_dump(mode="json", by_alias=True),
+        "t2": response.t2.model_dump(mode="json", by_alias=True),
+        "runners": [r.model_dump(mode="json", by_alias=True) for r in response.runners],
+        "participants": response.participants.model_dump(mode="json", by_alias=True),
+        "pa_start_source": response.next_responsibility.pa_start_source.model_dump(
+            mode="json", by_alias=True
+        ),
+        "lineup": response.lineup.model_dump(mode="json", by_alias=True),
+        "roster_digest": response.roster_digest,
+        "previous_prefix_ref": response.previous_prefix_ref.model_dump(
+            mode="json", by_alias=True
+        ),
+        "artifact_sha256": artifact_sha256,
+        "projection_snapshot": {"play_row": row, "play_runners": runners},
+    }
+    del after["content_digest"]
+    after["content_digest"] = source_fingerprint(after)
+    return read_lineup_prefix_document(_canonical_json(after))
+
+
 def build_lineup_prefix_preparation(state, record, tenant_id):
     """v3実frameのbefore物理行とafter両cursorを別の保存面へ写す。"""
     from pitchlog.domainrt.lineup_play_prefix_continuation import (
         verify_lineup_wire_seal,
     )
-    from pitchlog.repositories.play_prefix import read_lineup_prefix_document
     from pitchlog.sync.terminal_pitch_payload import LineupPitchPlayPayload
 
     if (
@@ -408,32 +445,9 @@ def build_lineup_prefix_preparation(state, record, tenant_id):
         play_id=UUID(identity.play_id),
     )
     previous = doc.model_dump(mode="json", by_alias=True, exclude_unset=True)
-    after = {
-        **previous,
-        "revision": response.next_prefix_ref.checkpoint.revision,
-        "prefix_ref": response.next_prefix_ref.model_dump(mode="json", by_alias=True),
-        "confirmed_watermark": str(projected.d1),
-        "applied_watermark": str(projected.d1),
-        "last_source": source,
-        "history_depth": response.next_prefix_ref.length,
-        "after": response.t1.after.model_dump(mode="json", by_alias=True),
-        "t2": response.t2.model_dump(mode="json", by_alias=True),
-        "runners": [r.model_dump(mode="json", by_alias=True) for r in response.runners],
-        "participants": response.participants.model_dump(mode="json", by_alias=True),
-        "pa_start_source": response.next_responsibility.pa_start_source.model_dump(
-            mode="json", by_alias=True
-        ),
-        "lineup": response.lineup.model_dump(mode="json", by_alias=True),
-        "roster_digest": response.roster_digest,
-        "previous_prefix_ref": response.previous_prefix_ref.model_dump(
-            mode="json", by_alias=True
-        ),
-        "artifact_sha256": calc.artifact_sha256,
-        "projection_snapshot": {"play_row": row, "play_runners": runners},
-    }
-    del after["content_digest"]
-    after["content_digest"] = source_fingerprint(after)
-    next_doc = read_lineup_prefix_document(_canonical_json(after))
+    next_doc = build_lineup_next_checkpoint(
+        doc, source, response, calc.artifact_sha256, row, runners
+    )
     prepared = {
         "checkpoint": previous,
         "next_checkpoint": next_doc.model_dump(

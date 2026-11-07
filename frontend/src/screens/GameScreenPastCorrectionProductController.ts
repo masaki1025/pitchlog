@@ -244,7 +244,7 @@ export class GameScreenPastCorrectionProductController {
         game.prefix_ref.checkpoint.id === prior.checkpoint.id ||
         game.prefix_ref.checkpoint.digest === prior.checkpoint.digest ||
         game.prefix_ref.generation !== prior.generation ||
-        game.prefix_ref.length !== prior.length ||
+        BigInt(game.prefix_ref.length) < BigInt(prior.length) ||
         BigInt(game.prefix_ref.checkpoint.revision) <
           BigInt(prior.checkpoint.revision)
       )

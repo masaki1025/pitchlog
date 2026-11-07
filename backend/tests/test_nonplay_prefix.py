@@ -24,6 +24,17 @@ from pitchlog.sync.ports import _issue_port_writer
 from pitchlog.sync.source_binding import _E1CoreSource
 from pitchlog.sync.wire_fingerprint import freeze_wire_event, wire_event_fingerprint
 
+
+@pytest.fixture(autouse=True)
+def _legacy_without_p3(monkeypatch):
+    """旧非play fixtureにはP3 headを供給しない。実製品の読取は変更しない。"""
+    from pitchlog.repositories import past_correction_nonplay
+
+    monkeypatch.setattr(
+        past_correction_nonplay, "read_p3_nonplay_current", lambda *_, **__: None
+    )
+
+
 ROOT = Path(__file__).resolve().parents[2]
 CASES = json.loads(
     (

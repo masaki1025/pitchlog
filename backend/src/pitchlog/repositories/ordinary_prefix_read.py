@@ -1060,8 +1060,7 @@ def _read_lineup_projection(
             raise OrdinaryPrefixError
         saved = _rows(handle.run(StartedLineupsReadToken(game_id)), LINEUP_COLUMNS)
         if len(saved) != 2 or any(
-            item["tenant_id"] != tenant or item["game_id"] != game_id
-            for item in saved
+            item["tenant_id"] != tenant or item["game_id"] != game_id for item in saved
         ):
             raise OrdinaryPrefixError
         lineups = tuple(_saved_lineup(item) for item in saved)
@@ -1312,7 +1311,12 @@ def _read_nonplay_projection(
     ):
         raise OrdinaryPrefixError
     page = read_active_page(
-        handle, cp, generation=generation, limit=limit, cursor=cursor
+        handle,
+        cp,
+        generation=generation,
+        limit=limit,
+        cursor=cursor,
+        checkpoint_row=row,
     )
     roster = InitialRosterProjection.model_validate_json(_canonical_json(row["roster"]))
     saved = _rows(handle.run(StartedLineupsReadToken(game_id)), LINEUP_COLUMNS)

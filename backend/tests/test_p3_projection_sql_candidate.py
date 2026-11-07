@@ -75,12 +75,19 @@ def test_p3_candidate_keeps_official_v1_exact_and_requires_v2_selector() -> None
     assert "CASE WHEN current_d1=target_d1 THEN binding.event_fingerprint" not in sql
     reader = candidate_current_read_sql(health_sql=health)
     assert "__HEALTH__" not in reader
-    assert "cp.confirmed_watermark NOT BETWEEN c.watermark AND c.watermark+1" in reader
+    assert (
+        "cp.confirmed_watermark NOT BETWEEN c.watermark AND c.watermark+100" in reader
+    )
     assert (
         "health.canonical_source_set_sha256 IS DISTINCT FROM v.source_set_sha256"
         in reader
     )
-    assert "'suffix',suffix_member,'stats_sources',source_rows" in reader
+    assert "suffix_count IS DISTINCT FROM source_upper-c.watermark" in reader
+    assert "source_upper:=cp.confirmed_watermark" in reader
+    assert "source_upper:=v.source_count" in reader
+    assert "'kind','p3-anchor'" in reader
+    assert "cp.content->'content'->'controlBridges'" in reader
+    assert "'suffix',suffix_members,'stats_sources',source_rows" in reader
     with pytest.raises(ValueError, match="P3生成canonical selector"):
         candidate_current_read_sql(
             health_sql=health.replace("p3_projection_heads p3h", "other p3h")

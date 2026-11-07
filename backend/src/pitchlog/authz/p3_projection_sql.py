@@ -56,9 +56,11 @@ def _bind_health(health_sql: str) -> str:
         raise ValueError("P3生成canonical selectorに未知bind")
     return re.sub(
         pattern,
-        lambda match: match[0]
-        if not match[1]
-        else ("p_tenant_id" if match[1] == "tenant_id" else "p_game_id"),
+        lambda match: (
+            match[0]
+            if not match[1]
+            else ("p_tenant_id" if match[1] == "tenant_id" else "p_game_id")
+        ),
         health_sql.rstrip(";"),
     )
 
@@ -74,7 +76,9 @@ DECLARE h sync_fence.p3_projection_heads%ROWTYPE;
  v sync_fence.stats_fact_versions%ROWTYPE;
  change_event public.operation_events%ROWTYPE;
  change_ledger public.idempotency_ledger%ROWTYPE;
- members jsonb; member_count bigint; suffix_member jsonb;
+ members jsonb; member_count bigint; suffix_members jsonb:='[]'::jsonb;
+ suffix_count bigint:=0; source_upper bigint; anchor_mode boolean;
+ first_control_preparation jsonb;
  source_rows jsonb; source_count bigint; health record;
 BEGIN
  IF session_user<>'pitchlog_app' OR current_user<>'pitchlog_sync_right_fn_owner'
@@ -97,8 +101,7 @@ BEGIN
  (p_tenant_id,p_game_id,p_generation) AND x.state='current';
  SELECT x.* INTO STRICT v FROM sync_fence.stats_fact_versions x
  WHERE (x.tenant_id,x.game_id,x.id)=
- (p_tenant_id,p_game_id,h.stats_version_id)
- AND x.is_current AND x.invalidated_at IS NULL;
+ (p_tenant_id,p_game_id,h.stats_version_id);
  SELECT x.* INTO STRICT change_event FROM public.operation_events x
  WHERE (x.tenant_id,x.game_id,x.id)=
  (p_tenant_id,p_game_id,c.change_event_id)
@@ -142,11 +145,76 @@ BEGIN
  AND r.play_id=i.effective_play_row_id) effective_runners
  WHERE (i.tenant_id,i.game_id,i.internal_generation,i.capsule_id)=
  (p_tenant_id,p_game_id,p_generation,h.capsule_id);
+ anchor_mode:=cp.content->>'formatVersion'='nonplay-prefix-checkpoint-v1';
+ IF anchor_mode THEN
+  -- P3当時のT5とLC現在版を分け、最初のcontrolより前だけを検証する。
+  IF member_count IS DISTINCT FROM c.watermark
+  OR member_count NOT BETWEEN 1 AND 25
+  OR cp.id IS DISTINCT FROM c.next_checkpoint_id
+  OR cp.history_version IS DISTINCT FROM
+  (c.next_checkpoint_content->>'history_version')::bigint
+  OR cp.content->'content'->'scope'->>'tenantId' IS DISTINCT FROM
+  p_tenant_id::text
+  OR cp.content->'content'->'scope'->>'gameId' IS DISTINCT FROM
+  p_game_id::text
+  OR cp.content->'content'->>'d3' IS DISTINCT FROM
+  cp.confirmed_watermark::text
+  OR cp.applied_watermark IS DISTINCT FROM cp.confirmed_watermark
+  OR pg_catalog.jsonb_typeof(cp.content->'content'->'controlBridges')
+  IS DISTINCT FROM 'array'
+  OR pg_catalog.jsonb_array_length(
+  cp.content->'content'->'controlBridges')<1
+  OR cp.content->'content'->'controlBridges'->0->'checkpointBefore'->>'id'
+  IS DISTINCT FROM c.next_checkpoint_id::text
+  OR (cp.content->'content'->'controlBridges'->0->'checkpointBefore'
+  ->>'revision')::bigint<c.next_checkpoint_revision
+  OR cp.content->'content'->'controlBridges'->0->'source'->>'d1'
+  IS DISTINCT FROM (v.source_count+1)::text
+  OR cp.confirmed_watermark<v.source_count+1
+  OR h.source_set_digest IS DISTINCT FROM c.source_set_digest
+  OR h.stats_version_id IS DISTINCT FROM c.stats_version_id
+  OR v.is_current OR v.invalidated_at IS NULL
+  OR v.source_count NOT BETWEEN c.watermark AND c.watermark+100
+  OR v.model_sha256 IS DISTINCT FROM c.stats_model_sha256
+  THEN RAISE EXCEPTION 'P3 anchor read rejected' USING ERRCODE='42501';
+  END IF;
+  SELECT a.preparation INTO STRICT first_control_preparation
+  FROM sync_fence.lifecycle_write_admissions a
+  JOIN public.operation_events e ON
+  (e.tenant_id,e.game_id,e.id)=(a.tenant_id,a.game_id,a.source_event_id)
+  JOIN public.event_slots slot ON
+  (slot.tenant_id,slot.game_id,slot.generation,slot.d1)=
+  (e.tenant_id,e.game_id,e.generation,e.d1)
+  JOIN public.idempotency_ledger l ON
+  (l.tenant_id,l.d5)=(e.tenant_id,e.d5)
+  WHERE (a.tenant_id,a.game_id,a.internal_generation)=
+  (p_tenant_id,p_game_id,p_generation)
+  AND a.source_event_id::text=cp.content->'content'->'controlBridges'
+  ->0->'source'->>'eventId'
+  AND a.action='end' AND a.state='consumed' AND a.consumed_at IS NOT NULL
+  AND a.preparation->'storage'->'row'->>'id'=cp.id::text
+  AND a.preparation->'storage'->'row'->'content'->>'version'='3'
+  AND a.preparation->'before_source'->'checkpoint'->'ref'=
+  cp.content->'content'->'controlBridges'->0->'checkpointBefore'
+  AND a.preparation->'after_source'->'checkpoint'->'content'
+  ->'controlBridges'->0=cp.content->'content'->'controlBridges'->0
+  AND e.event_kind='game_end_declaration' AND e.ledger_kind='accepted'
+  AND e.generation=p_generation AND e.d1=v.source_count+1
+  AND NOT e.is_tombstone AND e.replaced_at IS NULL AND e.retired_at IS NULL
+  AND e.import_batch_id IS NULL AND NOT e.migration_unverified
+  AND slot.confirmed_version=1 AND slot.xmin=a.xmin AND e.xmin=a.xmin
+  AND l.kind='accepted' AND l.source_fingerprint=a.event_fingerprint
+  AND l.retired_at IS NULL AND l.import_batch_id IS NULL
+  AND a.transaction_id ~ '^[1-9][0-9]{0,19}$'
+  AND a.xmin::text::numeric=pg_catalog.mod(
+  a.transaction_id::numeric,4294967296::numeric);
+  source_upper:=v.source_count;
+ ELSE
  IF member_count IS DISTINCT FROM c.watermark OR member_count NOT BETWEEN 1 AND 25
  OR cp.id IS DISTINCT FROM c.next_checkpoint_id
  OR cp.history_version IS DISTINCT FROM
  (c.next_checkpoint_content->>'history_version')::bigint
- OR cp.confirmed_watermark NOT BETWEEN c.watermark AND c.watermark+1
+ OR cp.confirmed_watermark NOT BETWEEN c.watermark AND c.watermark+100
  OR cp.applied_watermark IS DISTINCT FROM cp.confirmed_watermark
  OR cp.revision IS DISTINCT FROM
  c.next_checkpoint_revision+(cp.confirmed_watermark-c.watermark)
@@ -155,14 +223,19 @@ BEGIN
  cp.content_digest IS DISTINCT FROM c.next_checkpoint_digest))
  OR h.source_set_digest IS DISTINCT FROM c.source_set_digest
  OR h.stats_version_id IS DISTINCT FROM c.stats_version_id
+ OR NOT v.is_current OR v.invalidated_at IS NOT NULL
  OR v.model_sha256 IS DISTINCT FROM c.stats_model_sha256
  OR v.source_count IS DISTINCT FROM cp.confirmed_watermark
  THEN RAISE EXCEPTION 'P3 current read rejected' USING ERRCODE='42501'; END IF;
- IF cp.confirmed_watermark>c.watermark THEN
- SELECT pg_catalog.jsonb_build_object(
+ source_upper:=cp.confirmed_watermark;
+ END IF;
+ IF source_upper>c.watermark THEN
+ SELECT pg_catalog.count(*),COALESCE(pg_catalog.jsonb_agg(
+ pg_catalog.jsonb_build_object(
  'event',pg_catalog.to_jsonb(e),'ledger',pg_catalog.to_jsonb(l),
  'history',pg_catalog.to_jsonb(hi),'play_row',pg_catalog.to_jsonb(p),
- 'play_runners',r.rows) INTO STRICT suffix_member
+ 'play_runners',r.rows) ORDER BY slot.d1),'[]'::jsonb)
+ INTO suffix_count,suffix_members
  FROM public.event_slots slot
  JOIN public.operation_events e ON
  (e.tenant_id,e.game_id,e.generation,e.d1)=
@@ -183,15 +256,33 @@ BEGIN
  pg_catalog.to_jsonb(pr) ORDER BY pr.base),'[]'::jsonb) rows
  FROM public.play_runners pr WHERE pr.tenant_id=p.tenant_id
  AND pr.play_id=p.id) r
- WHERE (slot.tenant_id,slot.game_id,slot.generation,slot.d1)=
- (p_tenant_id,p_game_id,p_generation,c.watermark+1)
+ WHERE (slot.tenant_id,slot.game_id,slot.generation)=
+ (p_tenant_id,p_game_id,p_generation)
+ AND slot.d1>c.watermark AND slot.d1<=source_upper
  AND slot.confirmed_version=1;
+ IF suffix_count IS DISTINCT FROM source_upper-c.watermark THEN
+ RAISE EXCEPTION 'P3 current read rejected' USING ERRCODE='42501'; END IF;
  END IF;
  SELECT pg_catalog.count(*),COALESCE(pg_catalog.jsonb_agg(
  pg_catalog.to_jsonb(s) ORDER BY s.d1),'[]'::jsonb)
  INTO source_count,source_rows FROM sync_fence.stats_primitive_sources s
  WHERE (s.tenant_id,s.game_id,s.fact_version_id)=
  (p_tenant_id,p_game_id,v.id);
+ IF anchor_mode THEN
+  IF source_count IS DISTINCT FROM v.source_count THEN
+  RAISE EXCEPTION 'P3 anchor read rejected' USING ERRCODE='42501'; END IF;
+  RETURN QUERY SELECT pg_catalog.jsonb_build_object(
+  'kind','p3-anchor','head',pg_catalog.to_jsonb(h),
+  'capsule',pg_catalog.to_jsonb(c),'checkpoint',
+  first_control_preparation->'storage'->'row',
+  'nonplay_checkpoint',pg_catalog.to_jsonb(cp),
+  'first_control_preparation',first_control_preparation,
+  'stats',pg_catalog.to_jsonb(v),'change_event',
+  pg_catalog.to_jsonb(change_event),'change_ledger',
+  pg_catalog.to_jsonb(change_ledger),'members',members,
+  'suffix',suffix_members,'stats_sources',source_rows)::text;
+  RETURN;
+ END IF;
  SELECT * INTO STRICT health FROM (__HEALTH__) p3_current_health;
  IF source_count IS DISTINCT FROM v.source_count
  OR health.game_count IS DISTINCT FROM 1::bigint
@@ -205,7 +296,7 @@ BEGIN
  'stats',pg_catalog.to_jsonb(v),
  'change_event',pg_catalog.to_jsonb(change_event),
  'change_ledger',pg_catalog.to_jsonb(change_ledger),
- 'members',members,'suffix',suffix_member,'stats_sources',source_rows)::text;
+ 'members',members,'suffix',suffix_members,'stats_sources',source_rows)::text;
 END;
 $p3_current$;
 ALTER FUNCTION sync_right_api.read_p3_current(uuid,uuid,bigint)
