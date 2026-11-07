@@ -16,3 +16,5 @@ branch: feature/mvp-csv-effective-product-connection
 3. 同じ候補・owned実PG/実HTTP/実画面で2球→取消→全取消→再入力→reloadのZIP/T5同一性と、越境/不正scope/部分ZIPを拒否する。P3の88列producer、終了再開との結合、正式受理/全CI/通常統合/実機/負荷は別残件を維持する。仮Port/fixtureの88列投入だけを製品成功とはしない。
 
 owned実行は全寿命で共通lock `/home/ymdms/.cache/pitchlog/test-coordination/owned-pg-browser-network.lock` を保持し、共有DSNをunset、実行中sourceを固定する。root共有台帳だけを更新し、作者は専用planへ検査/固定版/未達を追記する。主担当台帳/他WT/公開環境/秘密は非編集。sourceの実装は正式値の受理とは分離し、本人署名/P6blindを記録しない。
+
+接合時の固定点差を確認: source base2dbaはroot c181の祖先ではなく、既CSV delivery/88列producer/単一生成器/IBB対応と関連資産がrootへ未接合だった。通常merge 0f79fcf1ca135cac13514baf24d505b1af00dfe1 は13pathではなく実130path（diffSHA 73d2598a40a9744c44a86e5c608ac060547b33e3d621fb76036b93a12fb5f5ae）で、cache csv-effective-root-connection-20261107/dependency-merge.jsonへ全パスを固定。新13pathの独立確認はこの依存基線全体の採用根拠にはしない。原枝・各成果/レビューを維持し、専用CSV枝だけで依存を照合/試験し、認可・artifact/pin/契約候補を未検証のまま正式統合しない。root現在木の既P0修復・起動0045/27キー・取消/終了再開/認証を失わないことを接合検査する。必要な単一artifactは合成sourceから公式builderで再生成し、旧期待値を出力から作り直さない。P3/復旧をまとめて移植する範囲拡張はせず、CSVの供給不足を閉じるための既依存再利用に限定する。
