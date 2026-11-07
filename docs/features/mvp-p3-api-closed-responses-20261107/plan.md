@@ -22,3 +22,6 @@ branch: fix/mvp-p3-api-closed-responses-20261107
 
 
 限定非作者計画確認: recovery_continue_20261107、対象7a7c82fc/plan SHA5d59b52aed06ff0dcdd90845796eaba7ecd0ddf5e7a2a9e5a2fea07d12928d23、REPORT SHAd77226548ff69b64fa811a5a95ebe62f68d55daf9257dab49630e82df8201fbc。P0/P1なし・必須追補なし。rootがPO委任で採用。受理/先行再掲双方のmodel返却、alias/null/省略全値、元query/TX順を保持し、post-accept型エラーを未受理へ雑写像しない。人間署名/実装レビュー/実PG検証ではない。
+
+
+step1: 既opaque D4からAttemptBindingを形成する部分も同serviceへ機械分離（復号→Authority→Attemptの順・引数/定数不変）、既I6 serializerは全AST同一で移管。内部同期codec/不変JSONの知識をtransportから分離し、識別子を伏せるためのrenameやguard除外は行わない。target/confirmationの同TX本文はJSONResponseの成功封筒だけを外した全ASTが元66d85fa6と一致、cache read-extraction-proof.jsonへ固定。未知contextは業務接続前に拒否、既owner codecの1/2/2^53/最大64bitと別tenant/game/破損拒否、旧409/503写像を検査。影響検査89passed5.70秒、残1赤はstep2対象の3route応答型欠落で、同期語彙guardは除外0で通過。元raw DB例外をAPI対象型と取り違えた試験2件は実際の既SQLAlchemyErrorへ是正し、製品の例外集合は変更しない。実PG/正式受理ではない。
