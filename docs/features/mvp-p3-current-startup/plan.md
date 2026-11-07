@@ -55,3 +55,5 @@ r2実PGは1passed/1failed21.66秒/source同一/cleanup。第6表後故障の全�
 3a1固定のr3は実PG2passed22.00秒/source一致/共有DSNunset/cleanup。固定48の全構造・11種類改変拒否・第6表後全取消が成立。非作者followup REPORT SHAはcache p3-storage-schema-independent-csv-20261107/REPORT-followup.md、構造候補採用可であり全起動ではない。
 
 次の限定接合はauthz/p3_storage_product.pyと専用pure/既owned対向: 型/nullable/defaultの固定pinを先に照合して6表/21policy/114列ACLを描画。ownerは保存owner、関数ownerにSELECT/INSERT＋head/印/progressの有限14更新列のみ。原本core4の同TX検証に必要なSELECT(xmin)を明示し、app/actor/公開へ直接DMLを付与しない。列が増えても暗黙GRANTしない。不変guard/実関数/registry/全catalog未供給のまま正常起動へ登録せず、実PGで候補権限の適用と閉じた結果まで先行照合する。正式assetsは公式導出段でまとめて更新する。
+
+26件以上の孤立接合候補: 作者ed493f2aの20pathを通常mergeし、cache root-2a-paging-register-r3/reader-root-3a patchを同じ候補へ接合する。原本20pathにはcontracts/正式artifact/共有registryは無いと照合済み。<=25は既prepare/readへ、>25は固定generation水位・25件keyset・全値検証・T2後同TX再走査・begin/append/finalize/未完了commit拒否へ限定。これは作者源を隔離環境へ接続して供給不足を実証する段階で、非作者最終review/26実HTTP/正常48全catalog/新blind成立とは扱わない。共有transaction/function registration/typesの有限5関数とgeneric読取3pathはroot専有、元WTは不変更。後発差分/実測は固定HEADごとに照合する。
