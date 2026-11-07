@@ -103,3 +103,5 @@ created: 2026-11-07
 原候補1a0dea42f149b8a76bff9cd868bd66f16a620511は不変更で保全し、専用WT/枝feature/ci-pytest-throughput-integrationでrootを唯一writerとしてstep2/3追補を進める。非作者レビューで、backendの分割入力4pathだけを変更したPRがbackend-changesで選ばれず検査をskipできるP1を受領・採用。設定JSON/割当helper/plugin/検証CLIの4実入力を既paths-filterに追加、各1欠落の対向を既CI配線検査へ追加する。集約/DB分離/検査範囲/coverage/required名/edited分離は変更しない。候補のsource採用と正式受理/実8分割CIは別であり、変更前環境4分割golden由来の既1failを成功へ読み替えない。
 
 主担当の後続正式追随は既報のenvironment-expectations、正本10.1/github-setup、frozen external/corpus/7.7へ限定して同枝で整合する。#197の通常統合と最終source固定後、実baseから完全値を公式導出し非作者確認/PO委任受理/最終HEAD証拠/全CIを行う。未統合候補の推定22～26分を実績へ読み替えず、実CIのqueue/16job同時実行効果も測定する。原作者が人間承認したとは記録しない。
+
+正式追随の編集宣言（PO委任Codex/root、実装追随）: backend/tests/db/environment-expectations.jsonのsingle_command/provenanceだけ8分割へ揃え、source_revisionは実CI配線を供給する固定a3c08753全長へ束縛する。DB image/initdb/DSN必須/marker禁止/期待比較方式は不変。正本はdocs/development/dev-harness-design-2026-08-07.mdの10.1現行配線・変更履歴とdocs/development/github-setup.mdの現行分割記述・変更履歴、docs/README.mdの両索引日付/注記へ追随（7.6-3、版不変/PRレビュー）。既過去4分割の履歴は改変しない。これは正式7.7受理前の候補編集で、完全値と新PR番号/実baseを確定後に公式導出/非作者確認を行う。独立P2の入力順説明は正規化一意の場合へ限定し、衝突群は同収集順前提を明記、割当コード自体は変更しない。
