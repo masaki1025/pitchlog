@@ -59,6 +59,32 @@ def derive_rates_with_components(metrics):
     return _generated_module()["derive_rates_with_components"](metrics)
 
 
+def _closed_native_wire(payload):
+    """既唯一codecのexact4封筒を通し、余剰の走者操作を空集合へ捨てない。"""
+    from pitchlog.sync.first_ball_payload import FirstBallPlayPayload
+    from pitchlog.sync.ordinary_pitch_payload import OrdinaryPitchPlayPayload
+    from pitchlog.sync.terminal_pitch_payload import (
+        LineupPitchPlayPayload,
+        TerminalPitchPlayPayload,
+    )
+
+    codecs = {
+        "first-ball-play-v1": FirstBallPlayPayload,
+        "ordinary-pitch-play-v1": OrdinaryPitchPlayPayload,
+        "play-prefix-play-v2": TerminalPitchPlayPayload,
+        "play-prefix-play-v3": LineupPitchPlayPayload,
+    }
+    try:
+        codec = codecs[payload["formatVersion"]]
+        checked = codec.model_validate_json(json.dumps(payload, allow_nan=False))
+        return (
+            checked.model_dump(mode="json", by_alias=True, exclude_unset=True)
+            == payload
+        )
+    except (KeyError, TypeError, ValueError):
+        return False
+
+
 def _native_runner_scores(payload, value):
     """真正artifactの到達と打点判定を写す。不足観測の結果は作らない。"""
     try:
@@ -105,33 +131,52 @@ def _native_runner_scores(payload, value):
             return []
         if out_effect != {"count": "0", "targets": []}:
             return None
-        if payload["formatVersion"] != "play-prefix-play-v3":
+        if payload["formatVersion"] not in (
+            "play-prefix-play-v2",
+            "play-prefix-play-v3",
+        ):
             return None
         observed = payload["observations"]
         chosen = request["t1"]
-        # この閉範囲だけはRBI-06/08の既判定を全生還者へ写せる。
-        # resultIdは供給範囲を閉じるだけで、打点真偽を計算しない。
-        if (
-            chosen["resultId"]
-            not in (
-                "batting-result.single",
-                "batting-result.double",
-                "batting-result.triple",
-                "batting-result.home-run",
+        result_id = chosen["resultId"]
+        is_hit = result_id in (
+            "batting-result.single",
+            "batting-result.double",
+            "batting-result.triple",
+            "batting-result.home-run",
+        )
+        # RBI-07でもforce/打点を再計算せず、閉四死球操作の既到達結果を写す。
+        is_award = (
+            result_id
+            in (
+                "batting-result.walk",
+                "batting-result.hit-by-pitch",
+                "batting-result.intentional-walk",
             )
-            or observed["resultId"] != chosen["resultId"]
-            or chosen["officialScoringPayload"] != "no-error"
-            or observed["officialScoringPayload"]
-            != {"kind": "no-error", "errorCount": "0", "fielders": []}
-            or chosen["interferenceRuling"] != "not-required"
-            or observed["interferenceRuling"] != {"kind": "not-required"}
-            or chosen["thirdOutObservation"] != "none"
-            or observed["thirdOutObservation"] != {"kind": "none"}
-            or observed["thirdOutTimingByRunner"] != {}
-            or flags["失策"] is not False
-            or flags["打撃妨害出塁"] is not False
-            or flags["走塁妨害出塁"] is not False
-        ):
+            and _closed_native_wire(payload)
+            and flags["安打"] is False
+            and flags["本塁打"] is False
+            and (flags["四球"] is True or flags["死球"] is True)
+            and batter == {"kind": "reach", "base": "1"}
+        )
+        if is_hit:
+            # resultIdは供給範囲だけを閉じる。打点真偽はT1の既判定を写す。
+            if (
+                observed["resultId"] != result_id
+                or chosen["officialScoringPayload"] != "no-error"
+                or observed["officialScoringPayload"]
+                != {"kind": "no-error", "errorCount": "0", "fielders": []}
+                or chosen["interferenceRuling"] != "not-required"
+                or observed["interferenceRuling"] != {"kind": "not-required"}
+                or chosen["thirdOutObservation"] != "none"
+                or observed["thirdOutObservation"] != {"kind": "none"}
+                or observed["thirdOutTimingByRunner"] != {}
+                or flags["失策"] is not False
+                or flags["打撃妨害出塁"] is not False
+                or flags["走塁妨害出塁"] is not False
+            ):
+                return None
+        elif not is_award:
             return None
         source = request["source"]
         runners = source["runners"]
@@ -144,8 +189,14 @@ def _native_runner_scores(payload, value):
         identities = [r["runnerId"] for r in runners]
         if len(set(identities)) != len(runners) or people["batterId"] in identities:
             return None
-        observed_overrides = observed["runnerAdvanceOverridesByRunner"]
-        if runners:
+        observed_overrides = observed.get("runnerAdvanceOverridesByRunner")
+        if is_award:
+            if any(
+                a["destination"] == "4" and a["modality"] != "forced"
+                for a in advances.values()
+            ):
+                return None
+        elif runners:
             if (
                 observed_overrides["kind"] != "applied"
                 or chosen["runnerAdvanceOverrides"] != observed_overrides
@@ -210,6 +261,65 @@ def _native_runner_scores(payload, value):
         return None
 
 
+def _native_no_steal(payload, value, runner_scores):
+    """FR-004/E-1で別の走者操作を含まない、既閉V7結果の空集合。"""
+    if not _closed_native_wire(payload):
+        return False
+    try:
+        request = payload["calculation"]["request"]["t1"]
+        if request["eventKind"] != "batting-result":
+            return False
+        result = request["resultId"]
+        t1 = value["t1"]
+        holds = all(
+            a["modality"] in ("hold", "not-applicable") and a["destination"] is None
+            for a in t1["runnerDefaultAdvance"].values()
+        )
+        # SO-05等の複合結果は含めない。runner targetを通常Kへ落とさない。
+        if result in (
+            "batting-result.called-strikeout",
+            "batting-result.swinging-strikeout",
+        ):
+            return (
+                holds
+                and t1["batterDestination"] == {"kind": "out"}
+                and t1["outEffect"] == {"count": "1", "targets": ["batter"]}
+            )
+        if result in (
+            "batting-result.ball",
+            "batting-result.called-pitch",
+            "batting-result.swinging-strike",
+            "batting-result.foul",
+        ):
+            return (
+                holds
+                and t1["batterDestination"] == {"kind": "continue"}
+                and t1["outEffect"] == {"count": "0", "targets": []}
+            )
+        if result in (
+            "batting-result.single",
+            "batting-result.double",
+            "batting-result.triple",
+            "batting-result.home-run",
+        ):
+            return (
+                payload["observations"]["resultId"] == result
+                and runner_scores is not None
+                and t1["outEffect"] == {"count": "0", "targets": []}
+            )
+        if result in (
+            "batting-result.walk",
+            "batting-result.hit-by-pitch",
+            "batting-result.intentional-walk",
+        ):
+            return t1["batterDestination"] == {"kind": "reach", "base": "1"} and t1[
+                "outEffect"
+            ] == {"count": "0", "targets": []}
+        return False
+    except (KeyError, TypeError, ValueError):
+        return False
+
+
 def native_projection(payload, *, source_event_id):
     """保存原本から既観測だけを写す。戻り値は保存資格/receiptではない。
 
@@ -253,6 +363,22 @@ def native_projection(payload, *, source_event_id):
         "credited_batter_id": people["batterId"],
     }
     pa = {"ended_here": t1["plateAppearanceEnded"]}
+    hit_kinds = {
+        "batting-result.single": "single",
+        "batting-result.double": "double",
+        "batting-result.triple": "triple",
+        "batting-result.home-run": "home_run",
+    }
+    # 安打種別は既語彙の名前だけを写す。塁打数の式は生成T5が持つ。
+    hit_result = calc["request"]["t1"].get("resultId")
+    if t1["statFlags"]["安打"] is False and t1["statFlags"]["塁打"] is False:
+        pa["hit_kind"] = "none"
+    elif (
+        t1["statFlags"]["安打"] is True
+        and t1["statFlags"]["塁打"] is True
+        and hit_result in hit_kinds
+    ):
+        pa["hit_kind"] = hit_kinds[hit_result]
     completeness = {
         "participants": "complete",
         "pa": "unavailable",
@@ -318,6 +444,9 @@ def native_projection(payload, *, source_event_id):
     runner_scores = _native_runner_scores(payload, value)
     if runner_scores is not None:
         completeness["runs_rbi"] = "complete"
+    no_steal = _native_no_steal(payload, value, runner_scores)
+    if no_steal:
+        completeness["steals"] = "complete"
     projection = {
         "event_kind": event_kind,
         "source": {"lifecycle": "effective", "source_event_id": str(source_event_id)},
@@ -330,6 +459,8 @@ def native_projection(payload, *, source_event_id):
     }
     if runner_scores is not None:
         projection["runner_scores"] = runner_scores
+    if no_steal:
+        projection["steal_attempts"] = []
     return projection
 
 
