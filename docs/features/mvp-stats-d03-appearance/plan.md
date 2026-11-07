@@ -72,3 +72,6 @@ TX境界: repositories/game_start._initialize_startの正式保存receiptと同T
 編集提案: 本担当は既stats-appearance.model/schema/生成器/専用testsと、stats/pitcher_appearance_source.py（新規・sourceの閉型/同一SQL呼出adapter）、db/game_state/pitcher_appearance_models.py（新規候補）、repositories/stats_appearance.py（新規・有限同RR読取候補）、D03専用DB testsを実装する。共有保存hook/正式migration/provisioning/catalog/D11/7.7はroot専有のままcache patchに分ける。単一SQL projectorで既kernel出力を照合/写像し、T1/T2/scoreboard/終了理由/D04責任計算のコピーを作らない。最終パス追加はrootの本追補採用後に着手する。
 
 独立case: 開始直後0球は後攻投手1/未守備先攻0、1回表の早期終了も同じ、表第3out→裏開始は先攻投手entry、表第3outでも終了条件成立で裏未開始はentry無し、守備中A→B→Cが0球でもB/Cを含む、攻撃中A→B→CはBを数えず次守備開始のCだけ、同試合再登板はgame/player1・別試合は2、同D5再送/ACK喪失でproof/member増加無し、取消/P3で元根拠だけ失効・再開/再終了で旧終了版を二重加算しない。故障点は原entry保存後/member挿入後/native公開pointer直前で全TX rollback。RR読取はfact版/S/entry集合hash/count/LC版と完全照合し、越境/旧版/未知kind/全体不足は拒否する。D04/BFは既27native metricの責任帰属を一切変更せず、登板はPA/BF/pitch_countを入力にしない別原事実集合とする。
+
+
+root PO委任判断で上記c9cd54c959b1a705a3e9da14da9e9f5a1cb5571c/plan SHAde13f47796b51fe518210495cb0924a9d86459b18c0dc6b378b9330697a7ebf7の追補/追加3path/cache hookを採用。新規モデル/限定source adapter/read候補と単一projectorの実装を開始する。0049はcache内の暫定候補に留め、正式slot/共有核/認可資産はrootだけが更新する。
