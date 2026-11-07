@@ -1,10 +1,10 @@
 ---
 feature: mvp-p3-api-closed-responses-20261107
-status: review
-承認: 未（PO委任rootの採用と非作者計画確認待ち）
+status: active
+承認: PO委任によるCodex/root判断（2026-11-07、7a7c82fc非作者計画確認後）
 重さ分類: コア領域
 branch: fix/mvp-p3-api-closed-responses-20261107
-計画レビュー周回: 0
+計画レビュー周回: 1
 確定ゲート周回: 0
 ---
 
@@ -19,3 +19,6 @@ branch: fix/mvp-p3-api-closed-responses-20261107
 | 3 | 既API conventions全件とP3/再送/対象参照の関連回帰を同版で実施、非作者差分確認後にroot候補へ接合 | downloads-only response_model例外と未知route検出は不変更、語彙guardの例外追加0。実PG/ブラウザはroot共通lock調整後、旧候補の成功を新固定版へ読み替えない |
 
 編集所有はapi/routers/sync.py、専用api/schema、専用sync読取service、専用/既API関連tests、本plan/progressのみ。正本/contracts/正式seal/manifest/共有台帳/started読取共通ファイルは変更しない。新たな意味や新境界結果を決めず、元の受理・拒否内容をそのまま型に束縛する。正式受理・独立検証・人間署名を型試験から成立扱いにしない。
+
+
+限定非作者計画確認: recovery_continue_20261107、対象7a7c82fc/plan SHA5d59b52aed06ff0dcdd90845796eaba7ecd0ddf5e7a2a9e5a2fea07d12928d23、REPORT SHAd77226548ff69b64fa811a5a95ebe62f68d55daf9257dab49630e82df8201fbc。P0/P1なし・必須追補なし。rootがPO委任で採用。受理/先行再掲双方のmodel返却、alias/null/省略全値、元query/TX順を保持し、post-accept型エラーを未受理へ雑写像しない。人間署名/実装レビュー/実PG検証ではない。
