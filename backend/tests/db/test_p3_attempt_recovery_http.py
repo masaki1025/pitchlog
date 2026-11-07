@@ -135,7 +135,7 @@ def _recovery_script(original: str) -> str:
                 headers=foreign_device, json=p3_payload)
             assert denied_recovery.status_code == 404, (
                 "P3-recovery-foreign", denied_recovery.status_code)
-            assert set(denied_recovery.json()) == {"detail"}""",
+            assert denied_recovery.json() == denied_read.json()""",
     )
     return original
 

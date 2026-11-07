@@ -66,3 +66,7 @@ step2実証結果: da7a933c detachedのtest_p3_original_body_recovery_uses_stand
 step3追加対向（次固定で実施）: 同じ実P3のT4旧writerを実thread Eventで保持した間はunresolved、その実終結後だけretry_allowedとする。未ログイン/実端末違い/資格違い401、実別tenantのrecovery404を追加する。control既逆順競合・登録先勝ち/退役先勝ち・旧NULL/別body/後着の同じcaseをP3にもパラメータ化し、P3/旧Eventの互いのreaderが混同しないことと未知phase/混在D1の拒否も固定する。成功は実行後に追記する。
 
 step3候補追補: P3/receipt関連とAPI appの回帰で、既P3 3routeがappへ登録済みなのに起点4dの完全期待集合へ未掲載だった差を確認した。routeの削除/部分一致化はせず、既実装のchange-target/change-confirmation/change 3件とoperation IDを完全期待集合へ追記し28件が成功した。barrierの配列要素getterがArray.mapの値読出しで検査前に実行される問題を、descriptorだけを調べるArray.fromへ修正し、getter未実行の対向を追加。FE対象5file/67件成功（1件追加）、既wire/数学/認可の成功条件は変えない。
+
+追加owned run1@f32454e6結果: 1 failed/2 passed、221.61s。controlのEvent/P3両caseは成功し、旧NULL不可/別body拒否/未登録後着/登録先勝ち・退役先勝ちの実advisory競合/相互reader非混同/未知phase・混在D1拒否を確認した。P3HTTPはold-live未解決・実終結後復旧・未ログイン/端末不一致401・別tenant404まで到達したが、作者が追加した最後の404 JSONをFastAPI既定detailと誤認し、実際の共通error envelopeとの不一致で失敗した（compiled行1028）。成功扱いにしない。製品応答を変えず、同一試合の既GET越境404本文とfull equalityに修正してP3HTTPだけを再実行する。成功済みcontrol2caseは同じsource/inputなので反復しない。
+
+製品sourceはbackend/controlがda7a933c、FE共通helper/barrierが31b95027から変更しない。rootの限定非作者確認は該当差分だけで、旧605レビューを保持する。最終合成/全path/人間逐行確認やP6 blindへ拡張しない。
