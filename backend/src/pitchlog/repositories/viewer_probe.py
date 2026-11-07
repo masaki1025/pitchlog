@@ -31,6 +31,11 @@ class ViewerProbe:
     generation: int
     watermark: int
 
+    @property
+    def version(self) -> str:
+        """APIへ同期語彙を出さない不透明な版文字列。"""
+        return str(self.generation)
+
 
 def _read_one(handle, token, columns: tuple[str, ...]) -> dict | None:
     """登録tokenの0/1行だけを採用する。"""

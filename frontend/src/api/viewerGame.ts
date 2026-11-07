@@ -7,7 +7,7 @@ import { exactPlayObject } from './terminalPitchWire'
 
 export type ViewerHead = Readonly<{
   status: 'in_progress' | 'finished'
-  generation: string
+  version: string
   watermark: string
 }>
 export type ViewerGame = LineupPrefixGame | GameLifecycleGame
@@ -18,9 +18,9 @@ const unsigned = (value: unknown): value is string =>
 
 export function isViewerHead(value: unknown): value is ViewerHead {
   return (
-    exactPlayObject(value, ['status', 'generation', 'watermark']) &&
+    exactPlayObject(value, ['status', 'version', 'watermark']) &&
     (value.status === 'in_progress' || value.status === 'finished') &&
-    positive(value.generation) &&
+    positive(value.version) &&
     unsigned(value.watermark)
   )
 }

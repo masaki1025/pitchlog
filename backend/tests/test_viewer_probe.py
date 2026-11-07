@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from contextlib import nullcontext
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import cast
 from uuid import UUID, uuid4
 
@@ -126,6 +127,15 @@ def test_unconfirmed_or_nonstarted_not_displayed():
         read_viewer_probe(scope, scope.game_id)
 
 
+def test_viewer_api_does_not_expose_synchronization_terms() -> None:
+    """API DTOはgeneration等の同期語彙を公開しない。"""
+    source = (
+        Path(__file__).parents[1] / "src/pitchlog/api/routers/viewer.py"
+    ).read_text(encoding="utf-8")
+    for term in ("idempotenc", "seq_no", "tombstone", "revision_no", "generation"):
+        assert term not in source
+
+
 def test_route_uses_c2_and_distinguishes_invisible_from_failure(monkeypatch):
     """C2付きrouteの結果と固定非成功を分ける。"""
     assert all(type(route) is TenantMatchedRoute for route in viewer.router.routes)
@@ -141,7 +151,7 @@ def test_route_uses_c2_and_distinguishes_invisible_from_failure(monkeypatch):
     value = viewer.read_game_viewer_head(game_id, tenant)
     assert value.model_dump() == {
         "status": "finished",
-        "generation": "2",
+        "version": "2",
         "watermark": "7",
     }
 

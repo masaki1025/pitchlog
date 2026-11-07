@@ -4,6 +4,7 @@ import initial from './fixtures/lineupPrefixGame.v3.json'
 import recorded from './fixtures/lineupPrefixGame.recorded.v3.json'
 import { setVerifiedAuthForTest } from './auth.test-support'
 import { useAuthStore } from '../stores/authStore'
+import { undoRead } from '../screens/GameScreenUndoProduct.test-support'
 import { readViewerGame, readViewerHead, type ViewerHead } from './viewerGame'
 
 let pinia: Pinia
@@ -13,7 +14,7 @@ const tenant = initial.value.prefix_ref.tenantId
 const gameId = initial.value.id
 const head: ViewerHead = {
   status: 'in_progress',
-  generation: '1',
+  version: '1',
   watermark: initial.value.prefix_ref.length,
 }
 beforeEach(() => {
@@ -64,6 +65,26 @@ it('保存球の実watermarkを照合し、probeだけで表示成功にしな�
   await expect(readViewerGame(target, owner, head)).rejects.toThrow()
   const current = { ...head, watermark: recorded.value.prefix_ref.length }
   expect(await readViewerGame(target, owner, current)).toEqual(recorded.value)
+})
+it('非playの保存済み checkpoint は同じ版 watermark で受理する', async () => {
+  const nonplay = undoRead(2)
+  payload = nonplay
+  const owner = nonplay.checkpoint.content.scope.tenantId
+  const target = nonplay.id
+  const watermark = nonplay.checkpoint.content.d3
+  setVerifiedAuthForTest(useAuthStore(), {
+    teamId: owner,
+    teamName: '非play閲覧fixture',
+  })
+  expect(
+    await readViewerGame(target, owner, {
+      ...head,
+      watermark,
+    }),
+  ).toEqual(nonplay)
+  await expect(
+    readViewerGame(target, owner, { ...head, watermark: '999' }),
+  ).rejects.toThrow()
 })
 it('終了済みlineupを拒否し、終了版はnonplayの閉契約だけに限定する', async () => {
   payload = { ...structuredClone(recorded.value), status: 'finished' }

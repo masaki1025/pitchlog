@@ -16,7 +16,7 @@ const tenant = initial.value.prefix_ref.tenantId
 const gameId = initial.value.id
 const head = {
   status: 'in_progress' as const,
-  generation: '1',
+  version: '1',
   watermark: '0',
 }
 afterEach(() => {

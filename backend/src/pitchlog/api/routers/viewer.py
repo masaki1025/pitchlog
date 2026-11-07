@@ -33,7 +33,7 @@ class ViewerHead(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
     status: Literal["in_progress", "finished"]
-    generation: str
+    version: str
     watermark: str
 
 
@@ -56,12 +56,16 @@ def read_game_viewer_head(
         raise HTTPException(status_code=503) from None
     return ViewerHead(
         status=value.status,
-        generation=str(value.generation),
+        version=value.version,
         watermark=str(value.watermark),
     )
 
 
-@router.get("/games/{game_id}/viewer", operation_id="game_viewer_saved")
+@router.get(
+    "/games/{game_id}/viewer",
+    response_model=StartedLineupPrefixGameRead | StartedNonplayPrefixGameRead,
+    operation_id="game_viewer_saved",
+)
 def read_game_viewer_saved(
     game_id: UUID,
     context: Annotated[TenantContext, Depends(require_tenant_access)],
