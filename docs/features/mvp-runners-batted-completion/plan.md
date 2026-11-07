@@ -49,3 +49,11 @@ contracts/正本/根幹SQL/manifest/pin/fixtures/唯一artifact/共有台帳/roo
 共通依存接合: runner 0f89fa8eへroot固定ae82631b（9c0f101aの標準0047/catalog26宣言＋canonical S0→current startup helper）を通常mergeし、1674459dで衝突0。取り込み40pathはroot原本を採用し、独自正式資産編集・SQL後付注入・artifact再生成は無し。既fixtureが実advance_current_product_from_s0を呼ぶため、本担当の重複fixture修復は不要。BE対象Ruff/Ty成功、既TLSの存在・Node24.16.0/pnpm11.22.0を確認し、同固定候補の正常7＋fault1＋越境1画面caseを実測する。
 
 標準47 run5: 3ce62069で457.20s、3032source前後一致/clean/共有DSNunset/cleanup。実画面の正常7case＋越境404は成功し、複数走者単打/二塁打/三塁打/満塁HRの明示結果・同本文再送・reloadを実証。T4故障caseは実500と未確認表示まで進んだが、その後の実GETをAPIRequestContextで行う際にHTTP/2 pseudo-header :authorityを転記したdriver TypeErrorで失敗。DB全照合は未到達なので全case成功にしない。HTTP header輸送で認められないpseudo-headerだけを除去し、Cookie/端末/その他原値を維持する最小是正を行う。元run5/log/正常7結果はcacheへ保存済み。
+
+## 実測からのT5供給追補（PO委任root・2026-11-07）
+
+run6 d4444710は3032source不変/clean/DSNunset/cleanup、Playwright9case成功。DBのruns/rbi/runs_allowed実数照合は、native_projectionがruns_rbiを一律unavailableにしてrunner_scoresを生成核へ渡さず失敗した（496.52s）。UI成功を成績完成へ読み替えない。
+
+専有pathへ`backend/src/pitchlog/stats/facts.py`、同adapter専用`backend/tests/stats/test_native_runner_scores.py`、既adapter期待の専用testを追加する。生成facts.py/model/SQL/math/正式assetは非編集。真正V7中の唯一artifactが確定したrunnerDefaultAdvance/batterDestination、明示source走者ID/責任投手、既打点判定だけを生成T5のrunner_scoresへ写す。得点差で人数・選手を推測しない。まず既通常球の確定ゼロと、RBI-06/08で閉じる失策/妨害/第3アウトなしの4安打を閉対象にする。第3アウト/不足観測/未対応causeはunavailableを維持し、D07は拡張しない。得点差はコピーした結果の整合拒否にしか使わない。
+
+正負pureでID/責任投手/打点・scoreless・不足観測・第3アウト拒否・原値非変更を固定し、rootの非作者source確認後に実game全7のDB集計を同候補で確認する。T4故障は全T5版/source/factの送信前実DB集合と故障後集合を読取専用で比較するfault単独試験を追加し、既UI9成功と混同しない。rootは正式pin/manifest/資産の所有を維持し、adapter実byte追随が必要ならcache packetで受け渡す。
