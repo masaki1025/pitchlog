@@ -1,10 +1,10 @@
 ---
 feature: mvp-play-export-source-publisher
-status: draft
+status: active
 branch: feature/mvp-play-export-source-publisher
-承認: 未（rootのPO委任レビュー待ち）
+承認: PO委任によるCodex/root（2026-11-07、対象6a0e910e、計画SHA a077123c667480f74da4123bedfca90d3809be5cd0fd71f771a1802068a30c86）
 重さ分類: コア領域
-計画レビュー周回: 0
+計画レビュー周回: 1
 確定ゲート周回: 0
 ---
 
@@ -31,3 +31,7 @@ branch: feature/mvp-play-export-source-publisher
 | 2 | 部分/余剰/変異の対向・型/lint・固定受渡し | 元資産positive、owner/属性/body/列ACL/policy/indexの変異negative。Ruff/Ty/専用pytest成功。固定HEAD/全差分SHA/原典SHAをrootへ渡す。正式受理・実DB・通常統合とは分離する |
 
 rootの計画レビュー後に実装へ移る。対象source以外の編集・DDL適用・共有DB/他WTの変更は行わない。本人逐行確認/署名/P6 blindを代記しない。必要な意味判断を増やさず、技術具体化と限定非作者確認は既PO委任として追跡する。
+
+root技術補足を採用: 正式assetへindexes節/新kindを追加しない。3indexとCREATE TABLEはsource構造metadataとして比較するだけで、BODIES tableは既producer同型のRLS/REVOKEのみ。関数本文は唯一providerの全byteを保持し、role/schema/0047の配置はrootに委ねる。
+
+ステップ1: 原典SHA0e8b9fd6…b86ca、declarations table1/function4/policy2/columnACL19、BODIES26を生成。全4関数の本文は唯一provider/候補末尾と全byte一致。CREATE TABLE/3indexはsource_structure metadataだけに保持し、認可table bodyはRLS/REVOKEのみ。専用positive/原典byte変更拒否4件、Ruff/Ty成功。正式asset/registry/0047/共有WTの変更0。次にfield/body/余剰/各provider属性の変異対向を追加する。
