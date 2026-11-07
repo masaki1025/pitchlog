@@ -53,3 +53,9 @@ step 1 の実装読取で、既 epoch fence は `FOR SHARE` であって旧 bind
 
 
 後着旧登録の確定拒否（2026-11-07）: run4で真正復旧/V12異内容拒否は実HTTPで成立したが、後着の旧attemptがcontrol固定SQLの42501/attempt retiredに到達した後、既分類器にこの新固定診断が無く全ledgerをUNKNOWN停止した。固定register実行/取得時のみ42501かつ完全一致attempt retiredを確定非登録拒否へ追加し、commit/timeout/別段階/文字列追記は拒否を維持する。この診断は登録関数の最初の退役判定（INSERT前）だけから出る。新D5の成功や全取消を推測しない。独立レビュー対象に含める。
+
+
+step3の実browser閉鎖対向（2026-11-07）: step2固定39ad4f20はdetached verify WTで最終4caseを検査し、主WTでは専用3path GameScreenAttemptRecovery.e2e.ts/同Playwright config/tests/db/test_attempt_recovery_screen_e2e.pyを追加する。実画面新規作成/開始/1球で実HTTP受理後ACKだけ喪失、およびHTTP到達前の断を注入する。Chromium persistent profileをcloseしてbrowser切断を確認し、同profileを別起動して端末原本/元attemptの権威照会→新attemptの同原本文/D5再送→実GET/reloadとDB各1件を確認する。応答/Portを固定成功へ置き換えず、実route.fetch応答を受けてから喪失させる。PC Chromium隔離TLSの成功を実機/運用TLSへ読み替えない。P3変更本文の復旧は本P1/P2候補に含めず全MVPの接合依存として残す。
+
+
+step3の実対向固定（2026-11-07、候補）: 専用 `tests/db/test_attempt_recovery_security_http.py` を既step3範囲へ追加し、実T4の旧writerをthread eventで生存保持した間の照会unresolved、実終結後の再送許可とDI2のみ、未ログイン/別device/別credential401、別tenant実login・自身の端末登録後の対象game404、未知field422を同owned caseで検証した（1passed52.52秒/source2901同一）。browser-cold-run4は実画面新規2試合でACK喪失/HTTP前断→persistent Chromium実close/別起動→元要求照会/新attempt同本文→GET/reloadとDB各1を1passed84.19秒/source2900同一で照合。旧run1/2の新3fileはSHAのみで完全patch未保全、run3以降はintent-to-addを含む完全patchを保全し、旧失敗を同版成功に読み替えない。独立レビュー/正式受理/必須CI/通常統合、実機/運用TLSは未了。P3復旧は別の専用追補に残す。
