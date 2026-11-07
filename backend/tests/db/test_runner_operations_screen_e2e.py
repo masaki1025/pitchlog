@@ -32,7 +32,9 @@ _CONFIG = "GameScreenRunnerOperations.playwright.config.ts"
 
 
 _RUNNER_DIAGNOSTIC_BOOTSTRAP = r"""
-import json,threading,time
+import json,threading,time,re
+import psycopg.errors as _owned_pg_errors
+from sqlalchemy.exc import DBAPIError as _OwnedDBAPIError
 _owned_observer_started=time.monotonic()
 _seen_probe_threads=set()
 _owned_trace_lock=threading.Lock()
@@ -73,8 +75,28 @@ def _owned_runner_trace(frame,event,arg):
   if probe and error_type=='RuntimeError':
    _seen_probe_threads.add(threading.get_ident())
   elif error_type in _allowed_errors:
-   _owned_emit({'module':module,'function':frame.f_code.co_name,
-    'line':frame.f_lineno,'error':error_type})
+   _owned_error_record={'module':module,'function':frame.f_code.co_name,
+    'line':frame.f_lineno,'error':error_type}
+   _owned_error=arg[1]
+   if isinstance(_owned_error,_OwnedDBAPIError):
+    _owned_orig=_owned_error.orig
+    _owned_orig_type=type(_owned_orig)
+    _owned_orig_name=_owned_orig_type.__name__
+    if (re.fullmatch(r'[A-Za-z][A-Za-z0-9_]{0,79}',_owned_orig_name)
+     and _owned_orig_type.__module__=='psycopg.errors'
+     and getattr(_owned_pg_errors,_owned_orig_name,None) is _owned_orig_type):
+     _owned_error_record['dbapiKind']=_owned_orig_name
+     _owned_state=_owned_orig.sqlstate
+     if type(_owned_state) is str and re.fullmatch(r'[A-Z0-9]{5}',_owned_state):
+      _owned_error_record['sqlstate']=_owned_state
+     _owned_primary=_owned_orig.diag.message_primary
+     _owned_fixed_tags={
+      'lineup physical source rejected':'lineup_physical',
+      'lineup source mismatch':'lineup_source',
+      'play prefix source or runners rejected':'play_prefix_runners'}
+     if type(_owned_primary) is str and _owned_primary in _owned_fixed_tags:
+      _owned_error_record['prepareRejection']=_owned_fixed_tags[_owned_primary]
+   _owned_emit(_owned_error_record)
  return _owned_runner_trace
 def _owned_runner_probe():
  try:raise RuntimeError()
