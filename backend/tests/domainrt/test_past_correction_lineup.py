@@ -37,6 +37,7 @@ from pitchlog.sync.ordinary_pitch_physical import pitch_physical_row
 from pitchlog.sync.past_correction_capsule import build_p3_current_capsule
 from pitchlog.sync.past_correction_checkpoint import (
     build_corrected_lineup_checkpoint,
+    build_corrected_lineup_checkpoint_from_head,
 )
 from pitchlog.sync.past_correction_paged import PreparedP3Page, _page_seal
 from pitchlog.sync.past_correction_payload import (
@@ -493,6 +494,11 @@ def test_v3_physical_candidate_uses_existing_mappers_and_new_row_ids(
     monkeypatch.setattr(
         past_correction_paged, "visit_past_correction_v3_source_pages", read_pages
     )
+    monkeypatch.setattr(
+        past_correction_paged,
+        "build_corrected_lineup_checkpoint_from_head",
+        lambda *_: SimpleNamespace(id="next"),
+    )
     event = SyncEvent(
         str(_CHANGE), str(game), v5="play_change", v7=_change_body(original, 1)
     )
@@ -508,6 +514,7 @@ def test_v3_physical_candidate_uses_existing_mappers_and_new_row_ids(
     assert proof.page_count == 2
     assert proof.watermark == 2
     assert [len(page.originals) for page in pages] == [1, 1]
+    assert original[1].payload is not None
     assert pages[1].payloads[0].observations == original[1].payload.observations
     assert pages[1].physical[0].effective_event_id == original[1].source_event_id
     assert pages[1].physical[0].play_row == original[1].play_row
@@ -903,6 +910,9 @@ def test_v3_corrected_checkpoint_uses_native_chain_and_new_physical_head() -> No
         old_checkpoint,
     )
     fresh = build_corrected_lineup_checkpoint(prepared)
+    assert fresh == build_corrected_lineup_checkpoint_from_head(
+        old_checkpoint, saved_rows[-1], corrected[-1], physical[-1], 2
+    )
     assert fresh.id == old_checkpoint.id
     assert fresh.prefix_ref.checkpoint.id == (
         corrected[-1].corrected_response.value.next_prefix_ref.checkpoint.id

@@ -3,11 +3,16 @@
 from __future__ import annotations
 
 from pitchlog.domainrt.first_ball_projection import _canonical_json
+from pitchlog.domainrt.past_correction_lineup import (
+    CorrectedLineupPitch,
+    SavedLineupPitch,
+)
 from pitchlog.repositories.play_prefix import (
     LineupPrefixDocument,
     read_lineup_prefix_document,
 )
 from pitchlog.sync.idempotency import source_fingerprint
+from pitchlog.sync.past_correction_physical import CorrectedPhysicalPitch
 from pitchlog.sync.past_correction_preparation import PreparedP3LineupCorrection
 
 
@@ -31,18 +36,49 @@ def build_corrected_lineup_checkpoint(
         != prepared.originals[-1].calculation.response.value.next_prefix_ref
     ):
         raise PastCorrectionCheckpointError("P3新headの真正原本が不一致")
-    old = prepared.original_checkpoint
-    final = prepared.corrected[-1].corrected_response.value
-    last_physical = prepared.physical[-1]
+    return build_corrected_lineup_checkpoint_from_head(
+        prepared.original_checkpoint,
+        prepared.originals[-1],
+        prepared.corrected[-1],
+        prepared.physical[-1],
+        len(prepared.originals),
+    )
+
+
+def build_corrected_lineup_checkpoint_from_head(
+    old: LineupPrefixDocument,
+    last_original: SavedLineupPitch,
+    last_corrected: CorrectedLineupPitch,
+    last_physical: CorrectedPhysicalPitch,
+    watermark: int,
+) -> LineupPrefixDocument:
+    """全履歴を保持せず真正末尾原本と唯一再評価値から同CPを作る。"""
+    if (
+        type(old) is not LineupPrefixDocument
+        or type(last_original) is not SavedLineupPitch
+        or type(last_corrected) is not CorrectedLineupPitch
+        or type(last_physical) is not CorrectedPhysicalPitch
+        or type(watermark) is not int
+        or watermark < 1
+        or last_original.d1 != watermark
+        or last_corrected.d1 != watermark
+        or last_physical.d1 != watermark
+        or last_original.source_event_id != last_corrected.source_event_id
+        or last_original.source_event_id != last_physical.original_event_id
+        or old.confirmed_watermark != str(watermark)
+        or old.prefix_ref
+        != last_original.calculation.response.value.next_prefix_ref
+    ):
+        raise PastCorrectionCheckpointError("P3有界末尾原本が不一致")
+    final = last_corrected.corrected_response.value
     next_ref = final.next_prefix_ref
     if (
         next_ref.tenant_id != old.prefix_ref.tenant_id
         or next_ref.game_id != old.prefix_ref.game_id
         or next_ref.generation != old.prefix_ref.generation
         or next_ref.length != old.prefix_ref.length
-        or last_physical.d1 != len(prepared.originals)
-        or last_physical.original_event_id
-        != prepared.originals[-1].source_event_id
+        or last_physical.d1 != watermark
+        or last_physical.original_event_id != last_original.source_event_id
     ):
         raise PastCorrectionCheckpointError("P3新headの位置が不一致")
     value = old.model_dump(mode="json", by_alias=True, exclude_unset=True)

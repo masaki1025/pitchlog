@@ -26,6 +26,10 @@ from pitchlog.repositories.transaction import _TenantTransaction
 from pitchlog.sync.change_path import _bound_target
 from pitchlog.sync.idempotency import _json_value, source_fingerprint
 from pitchlog.sync.model import SyncEvent
+from pitchlog.sync.past_correction_checkpoint import (
+    PastCorrectionCheckpointError,
+    build_corrected_lineup_checkpoint_from_head,
+)
 from pitchlog.sync.past_correction_payload import (
     PastCorrectionPayloadError,
     bind_lineup_pitch_change_target,
@@ -59,6 +63,7 @@ class P3PagedPreparationProof:
     internal_generation: int
     watermark: int
     checkpoint: LineupPrefixDocument
+    next_checkpoint: LineupPrefixDocument
     state: CorrectionPageState
     page_count: int
     page_seal: str
@@ -234,11 +239,15 @@ def visit_p3_lineup_correction_pages(
         page_count = 0
         seal = "0" * 64
         target: SavedLineupPitch | None = None
+        last_original: SavedLineupPitch | None = None
+        last_corrected: CorrectedLineupPitch | None = None
+        last_physical: CorrectedPhysicalPitch | None = None
 
         with open_domain_host() as host:
 
             def visit(rows: tuple[SavedLineupPitch, ...]) -> None:
                 nonlocal state, page_count, seal, target
+                nonlocal last_original, last_corrected, last_physical
                 for saved in rows:
                     if saved.d1 == target_d1:
                         if target is not None:
@@ -280,6 +289,10 @@ def visit_p3_lineup_correction_pages(
                 page = PreparedP3Page(rows, corrected, payloads, physical)
                 seal = _page_seal(seal, page)
                 page_count += 1
+                last_original = rows[-1]
+                if corrected:
+                    last_corrected = corrected[-1]
+                    last_physical = physical[-1]
                 consume(page)
 
             source = visit_past_correction_v3_source_pages(
@@ -289,6 +302,9 @@ def visit_p3_lineup_correction_pages(
             source.internal_generation != generation
             or state.last_d1 != source.watermark
             or type(target) is not SavedLineupPitch
+            or type(last_original) is not SavedLineupPitch
+            or type(last_corrected) is not CorrectedLineupPitch
+            or type(last_physical) is not CorrectedPhysicalPitch
             or state.previous_original is None
             or state.previous_corrected is None
             or state.previous_original.value.next_prefix_ref
@@ -298,10 +314,18 @@ def visit_p3_lineup_correction_pages(
         bind_lineup_pitch_change_target(
             payload, target, target_d1, source.watermark, source.checkpoint.prefix_ref
         )
+        next_checkpoint = build_corrected_lineup_checkpoint_from_head(
+            source.checkpoint,
+            last_original,
+            last_corrected,
+            last_physical,
+            source.watermark,
+        )
         return P3PagedPreparationProof(
             generation,
             source.watermark,
             source.checkpoint,
+            next_checkpoint,
             state,
             page_count,
             seal,
@@ -311,6 +335,7 @@ def visit_p3_lineup_correction_pages(
         LineupCorrectionUnsupported,
         PastCorrectionSourceUnavailable,
         PastCorrectionPayloadError,
+        PastCorrectionCheckpointError,
         ValueError,
         TypeError,
         KeyError,
