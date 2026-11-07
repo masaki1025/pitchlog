@@ -114,9 +114,7 @@ def test_nonlocking_probe_reads_only_registered_point_tokens():
     """版probeは既登録の非ロック点読取だけを使う。"""
     scope = _Scope(tenant=uuid4(), game_id=uuid4())
     result = read_viewer_probe(scope, scope.game_id)
-    assert (result.status, result.generation, result.watermark) == (
-        "in_progress", 1, 2
-    )
+    assert (result.status, result.generation, result.watermark) == ("in_progress", 1, 2)
     assert result.version.startswith("ve1_") and len(result.version) == 68
     assert [type(token) for token in scope.calls] == [
         GameReadToken,
@@ -162,10 +160,12 @@ def test_unconfirmed_or_nonstarted_not_displayed():
 def test_watermark_bool_and_float_are_not_ints(bad):
     """同値比較でbool/float水位を真正整数へ読み替えない。"""
     scope = _Scope(tenant=uuid4(), game_id=uuid4(), watermark=1)
-    scope.point["checkpoint"]["applied_watermark"] = bad
+    checkpoint = scope.point["checkpoint"]
+    assert type(checkpoint) is dict
+    checkpoint["applied_watermark"] = bad
     with pytest.raises(ViewerProbeUnavailable):
         read_viewer_probe(scope, scope.game_id)
-    scope.point["checkpoint"]["applied_watermark"] = 1
+    checkpoint["applied_watermark"] = 1
     scope.applied_override = bad
     with pytest.raises(ViewerProbeUnavailable):
         read_viewer_probe(scope, scope.game_id)
@@ -220,8 +220,8 @@ def test_unknown_or_duplicate_pointer_fails_closed():
     with pytest.raises(ViewerProbeUnavailable):
         read_viewer_probe(scope, scope.game_id)
     scope.raw_point = None
-    scope.point["checkpoint"]["content_digest"] = "not-a-digest"
+    checkpoint = scope.point["checkpoint"]
+    assert type(checkpoint) is dict
+    checkpoint["content_digest"] = "not-a-digest"
     with pytest.raises(ViewerProbeUnavailable):
         read_viewer_probe(scope, scope.game_id)
-
-

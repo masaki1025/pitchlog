@@ -4,6 +4,8 @@ import { canonicalUuid } from '../api/authIntent'
 export function resolveGameEntryReturnPath(value: unknown): string {
   if (value === '/team' || value === '/games') return value
   if (typeof value !== 'string') return '/team'
+  const viewer = /^\/games\/([^/]+)\/view$/.exec(value)
+  if (viewer && canonicalUuid.test(viewer[1] ?? '')) return value
   const match =
     /^\/games\/([^/]+)\/record(?:\?recording=(?:ordinary-prefix-v1|play-prefix-v2|play-prefix-v3))?$/.exec(
       value,

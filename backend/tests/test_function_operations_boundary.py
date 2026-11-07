@@ -192,6 +192,10 @@ def test_product_function_registry_keeps_rg1_and_adds_one_rule_operation() -> No
         _ReadPrimitiveWriterStateCall,
         _SavePrimitiveSourceCall,
     )
+    from pitchlog.repositories.viewer_read import (
+        ViewerEffectiveVersionReadToken,
+        ViewerPlayPrefixHistoryPageToken,
+    )
     from pitchlog.repositories.writer_binding import (
         _AssertWriterBindingToken,
         _ReadWriterIdentityToken,
@@ -264,6 +268,8 @@ def test_product_function_registry_keeps_rg1_and_adds_one_rule_operation() -> No
         "STARTED_SNAPSHOT:read_started_ordinary_history_page",
         "STARTED_SNAPSHOT:read_started_play_prefix_history_page",
         "STARTED_SNAPSHOT:read_started_nonplay_active_history",
+        "SYNC_PLAY_PREFIX:read_viewer_play_prefix_history_page",
+        "SYNC_PLAY_PREFIX:read_viewer_effective_version",
     )
     assert set(operation_registry.FUNCTION_OPERATION_REGISTRY) == {
         BattedBallOptionsToken,
@@ -324,6 +330,8 @@ def test_product_function_registry_keeps_rg1_and_adds_one_rule_operation() -> No
         StartedOrdinaryHistoryPageToken,
         StartedPlayPrefixHistoryPageToken,
         StartedNonplayActiveHistoryReadToken,
+        ViewerPlayPrefixHistoryPageToken,
+        ViewerEffectiveVersionReadToken,
     }
     assert operation_registry.PRODUCT_OPERATIONS
 

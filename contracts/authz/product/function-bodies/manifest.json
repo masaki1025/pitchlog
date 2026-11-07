@@ -5961,6 +5961,16 @@
       "path": "contracts/authz/product/function-bodies/functions/FUNCTION:sync_right_api:read_started_nonplay_active_history(uuid, uuid, bigint, uuid, bigint, bigint, bigint, bigint, bigint, bigint, uuid, integer).sql",
       "element_type": "function",
       "element_id": "FUNCTION:sync_right_api:read_started_nonplay_active_history(uuid, uuid, bigint, uuid, bigint, bigint, bigint, bigint, bigint, bigint, uuid, integer)"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/functions/FUNCTION:sync_right_api:read_viewer_play_prefix_history_page(uuid, uuid, bigint, bigint, uuid, bigint, bigint, bigint, bigint, bigint, uuid, integer).sql",
+      "element_type": "function",
+      "element_id": "FUNCTION:sync_right_api:read_viewer_play_prefix_history_page(uuid, uuid, bigint, bigint, uuid, bigint, bigint, bigint, bigint, bigint, uuid, integer)"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/functions/FUNCTION:sync_right_api:read_viewer_effective_version(uuid, uuid, bigint).sql",
+      "element_type": "function",
+      "element_id": "FUNCTION:sync_right_api:read_viewer_effective_version(uuid, uuid, bigint)"
     }
   ]
 }

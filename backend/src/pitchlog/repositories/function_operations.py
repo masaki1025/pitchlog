@@ -490,6 +490,25 @@ _STARTED_SNAPSHOT_FUNCTION_TYPES = MappingProxyType(
     }
 )
 
+_VIEWER_FUNCTION_TYPES = MappingProxyType(
+    {
+        "sync_right_api.read_viewer_play_prefix_history_page": (
+            _STARTED_SNAPSHOT_FUNCTION_TYPES[
+                "sync_right_api.read_started_play_prefix_history_page"
+            ][:4]
+            + (0, 26)
+        ),
+        "sync_right_api.read_viewer_effective_version": (
+            (("game_id", UUID), ("generation", int)),
+            (("record_json", str),),
+            (),
+            (),
+            1,
+            1,
+        ),
+    }
+)
+
 
 _SYNC_WRITER_BINDING_FUNCTION_TYPES = MappingProxyType(
     {
@@ -732,6 +751,7 @@ class FunctionOperationRegistration:
         ordinary_prefix = _SYNC_ORDINARY_PREFIX_FUNCTION_TYPES.get(self.function_id)
         play_prefix = _SYNC_PLAY_PREFIX_FUNCTION_TYPES.get(self.function_id)
         started_snapshot = _STARTED_SNAPSHOT_FUNCTION_TYPES.get(self.function_id)
+        viewer = _VIEWER_FUNCTION_TYPES.get(self.function_id)
         writer_binding = _SYNC_WRITER_BINDING_FUNCTION_TYPES.get(self.function_id)
         recording_vocab = (
             self.function_id == "recording_vocab_api.read_batted_ball_options"
@@ -818,6 +838,16 @@ class FunctionOperationRegistration:
                 or self.nonempty_inputs
             ):
                 raise FunctionOperationError("記録画面read関数の有限型宣言が不一致")
+        elif viewer is not None:
+            name = self.function_id.rsplit(".", 1)[1]
+            if (
+                extended != viewer[:4]
+                or (self.min_rows, self.max_rows) != viewer[4:]
+                or self.operation_id != f"SYNC_PLAY_PREFIX:{name}"
+                or self.capability_id != f"CAP:sync_play_prefix:{name}"
+                or self.nonempty_inputs
+            ):
+                raise FunctionOperationError("閲覧専用関数の有限型宣言が不一致")
         elif writer_binding is not None:
             name = self.function_id.rsplit(".", 1)[1]
             if (
@@ -948,6 +978,7 @@ class FunctionOperationRegistration:
                         or ordinary_prefix is not None
                         or play_prefix is not None
                         or started_snapshot is not None
+                        or viewer is not None
                         or writer_binding is not None
                     )
                     and expected_type is bytes
@@ -975,6 +1006,7 @@ class FunctionOperationRegistration:
                     (
                         ordinary_prefix is not None
                         or play_prefix is not None
+                        or viewer is not None
                         or self.function_id == "sync_right_api.read_p3_current"
                     )
                     and argument.key
@@ -1042,6 +1074,8 @@ def _build_fixed_function_statement(
                             in _SYNC_ORDINARY_PREFIX_FUNCTION_TYPES
                             or f"{schema}.{function_name}"
                             in _SYNC_PLAY_PREFIX_FUNCTION_TYPES
+                            or f"{schema}.{function_name}"
+                            in _VIEWER_FUNCTION_TYPES
                             or function_name == "read_p3_current"
                         )
                         and name
@@ -1204,6 +1238,7 @@ def prepare_function_operation(
             spec.function_id in _SYNC_ORDINARY_PREFIX_FUNCTION_TYPES
             or spec.function_id in _SYNC_PLAY_PREFIX_FUNCTION_TYPES
             or spec.function_id in _STARTED_SNAPSHOT_FUNCTION_TYPES
+            or spec.function_id in _VIEWER_FUNCTION_TYPES
         ):
             if expected_type is bytes and len(value) != 32:
                 raise FunctionOperationError("通常prefixのnonce長が不一致")
@@ -1217,7 +1252,13 @@ def prepare_function_operation(
                     and name == "after_order"
                 )
                 lower = 0 if zero_based else 1
-                upper = 100 if name == "page_size" else 2**63 - 1
+                upper = (
+                    25
+                    if name == "page_size"
+                    and spec.function_id
+                    == "sync_right_api.read_viewer_play_prefix_history_page"
+                    else 100 if name == "page_size" else 2**63 - 1
+                )
                 if not lower <= value <= upper:
                     raise FunctionOperationError("通常prefixの整数範囲が不一致")
         if (
