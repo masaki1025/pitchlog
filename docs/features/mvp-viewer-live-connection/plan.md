@@ -45,9 +45,9 @@ created: 2026-11-06
 ## 検証結果（2026-11-07）
 
 - WT単体: backend focused pytest / frontend Vitest / `vue-tsc` / `ty` / ruff。
-- 接合検証: patch適用済みclean worktreeで 530 passed（viewer/API/authz/repository契約）。
+- 接合検証: patch適用済みclean worktreeで 545 passed（viewer/API/authz/repository契約）。
 - 実HTTP/DB: owned PG + 実app role + C2 の `test_viewer_live_owned.py` 2件（2球終了・4球page境界）。401/404/503を実HTTPで確認。
 - 実HTTPS/2 context: `test_viewer_screen_owned.py` 1件。新規UI作成→開始→1球保存→別Cookie閲覧→reload→通信断→復帰→不存在404。
-- 実測: 保存ACKから閲覧表示まで **1532ms**（10秒以内）。通信断検知 3310ms、復帰 2815ms。閲覧contextのAPI要求は全てGETで、端末登録・開始・同期送信なし。
+- 実測: 保存ACKから閲覧表示まで **1516ms**（10秒以内）。通信断検知 2802ms、復帰 3304ms。閲覧contextのAPI要求は全てGETで、端末登録・開始・同期送信なし。
 - page境界: 4球を `limit=3` で取得し、page1=第2〜4球、page2=第1球、次cursorなしを実HTTP/DBで確認。UIは25件pageとcontroller Vitestで確認。
 - 未達/未確認: 正式CI・人間確認・本番性能は未実施。固定基線の全件suiteはauthz派生field stale等で既に赤（clean fixed HEADで再現済み）。

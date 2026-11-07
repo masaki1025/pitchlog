@@ -5,9 +5,9 @@
 - 固定HEAD: `5cb4407d2f4df63428f15d8da8c576ff684e5a16`
 - ブランチ: `feature/mvp-viewer-live-connection`
 - worktree: `/home/ymdms/projects/pitchlog-worktrees/feature-mvp-viewer-live-connection`
-- コード最終HEAD: `e71c36dbaf21c0415bb5fec5527fc8f73b38b9f1`（このhandoff文書のコミットはdocs-onlyで、その次）
+- コード/patch最終HEAD: `7f557ab5565e9168f5dd72d7aebc9ee92ff14780`（このhandoff文書の追随コミットはdocs-only）
 - 共有接合patch: `docs/features/mvp-viewer-live-connection/patches/shared-integration.patch`
-- patch SHA-256: `270683c7f85613f82f2f2b6463387dbf47d6dbfaaf11c4adf09086f432bc7968`
+- patch SHA-256: `bf881c318747c8b48aa726c327821dc6606d0ef2ecbbcec63d3886b7bd6f9e49`
 
 ## 完成した利用者操作
 
@@ -61,7 +61,7 @@
 
 - 3秒ごとに `/games/{id}/viewer-head` の小さな版probeだけを取得し、版変化時だけ `/games/{id}/viewer` を取得する。全試合・全イベントの定期全件取得はしない。
 - 本体はRR READ ONLY + `GameRead`/`RecordingGenerationRead` と閲覧専用有限page関数だけを使う。行ロックreaderを閲覧から呼ばない。
-- 履歴は最大25件/page。v3は最新25件から旧pageへ遡り、境界のsentinelをcursorにして有限に読む。非playは旧pageから新pageへ進む。
+- 履歴は最大25件/page。v3は降順の有限pageで最新25件から旧pageへ遡り、境界のsentinelをcursorにする。page1の最新d1が水位nと一致しない場合、最終pageの最古d1が1でない場合、空pageは503へ閉じる。非playは旧pageから新pageへ進む。
 - controllerは認証世代・tenant・gameの組で旧応答を破棄し、AbortControllerで中断する。401/404/503/通信断は「未更新」または「閲覧できません」へ閉じ、保存成功・更新完了に読み替えない。
 - 画面は常に「サーバー確定分のみ。記録端末の未送信分は含まれません。」を表示する。
 - 公開API DTOは同期語彙を出さず `version`（不透明値）を使う。
@@ -99,7 +99,7 @@ uv run pytest tests/test_viewer_read_sql.py tests/test_viewer_probe.py \
   tests/test_terminal_pitch_product.py \
   tests/test_stats_native_function_registration.py \
   tests/test_function_operations_boundary.py -q
-# 530 passed
+# 545 passed
 ```
 
 ### 2. 実HTTP・実DB（owned PG・実app role・C2）
@@ -110,7 +110,7 @@ export PITCHLOG_E2E_TLS_CERT_PATH=/home/ymdms/.cache/pitchlog/viewer-live-connec
 export PITCHLOG_E2E_TLS_KEY_PATH=/home/ymdms/.cache/pitchlog/viewer-live-connection-author-20261106/tls/key.pem
 flock -x /home/ymdms/.cache/pitchlog/test-coordination/owned-pg-browser-network.lock \
   -c 'uv run pytest tests/db/test_viewer_live_owned.py tests/db/test_viewer_screen_owned.py -q -s'
-# 3 passed in 354.61s
+# 3 passed in 319.73s
 ```
 
 確認内容:
@@ -127,9 +127,9 @@ flock -x /home/ymdms/.cache/pitchlog/test-coordination/owned-pg-browser-network.
 - 記録側: 新規UI作成→開始→1球保存（実POST）。
 - 閲覧側: 別Cookieでlogin→`/games/{id}/view`→自動表示→reload→offline→復帰→不存在404。
 - 実測:
-  - 保存ACK→閲覧表示: **1532ms**
-  - 通信断→未更新検知: **3310ms**
-  - 復帰→サーバー状態表示: **2815ms**
+  - 保存ACK→閲覧表示: **1516ms**
+  - 通信断→未更新検知: **2802ms**
+  - 復帰→サーバー状態表示: **3304ms**
 - 閲覧contextのAPI要求は全てGET。`/devices/enroll`・`/start`・`/sync/events`・`/sync/attempts/recover` は0件。
 - 生ログ: `/tmp/opencode/pitchlog-screen-e2e/viewer-https-playwright.log`
 
@@ -162,7 +162,7 @@ flock -x /home/ymdms/.cache/pitchlog/test-coordination/owned-pg-browser-network.
 
 ```bash
 sha256sum docs/features/mvp-viewer-live-connection/patches/shared-integration.patch
-# 270683c7f85613f82f2f2b6463387dbf47d6dbfaaf11c4adf09086f432bc7968
+# bf881c318747c8b48aa726c327821dc6606d0ef2ecbbcec63d3886b7bd6f9e49
 ```
 
 適用順・含むpathは `patches/README.md` を参照。patchはfeatureブランチに直接コミットせず、接合確認用の一時worktreeだけに適用する。
@@ -172,6 +172,7 @@ sha256sum docs/features/mvp-viewer-live-connection/patches/shared-integration.pa
 - 共有router/認可catalog/contractsはfeatureブランチに直接変更していない。製品へ入れるにはpatchの正式受理が必要。
 - 固定HEADの全件backend suiteは既に赤（`DERIVED_FIELDS_STALE`、複数のauthz/tenant model/migration検査）。clean fixed HEADでも再現し、本featureの変更起因ではない。全件greenを主張しない。
 - 全件frontend suiteは `GameScreenPitchCommit.spec.ts` の1件がclean fixed HEADでも失敗（本featureと無関係）。
+- `recover_sync_attempt` は固定基線で `response_model` 未宣言の既知差分。閲覧接合では変更せず、`test_api_conventions` のexact-setから明示的に除外している（別変更で解消）。
 - 実ブラウザE2Eは隔離loopback HTTPSで、実機の信頼済みTLS・本番性能の証拠にはしない。
 - 終了済みv3 lineupの閲覧は既契約どおり非対応。終了版はnonplay lifecycleの閉契約だけを表示する。
 - 記録端末の未送信件数をサーバーから動的検知する機構は現MVPにない。画面は常時注記し、viewer自身の通信不能だけを未更新として示す。
