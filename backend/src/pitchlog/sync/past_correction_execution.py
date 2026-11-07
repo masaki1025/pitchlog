@@ -5,7 +5,7 @@ from __future__ import annotations
 from contextlib import contextmanager
 from copy import deepcopy
 from dataclasses import dataclass
-from typing import Iterator
+from typing import Iterator, cast
 from uuid import UUID, uuid4
 
 from pitchlog.repositories import transaction
@@ -14,6 +14,11 @@ from pitchlog.sync.model import SyncEvent
 from pitchlog.sync.past_correction_capsule import (
     P3CurrentCapsule,
     build_p3_current_capsule,
+)
+from pitchlog.sync.past_correction_paged import (
+    P3PagedPreparationProof,
+    PastCorrectionPageUnavailable,
+    visit_p3_lineup_correction_pages,
 )
 from pitchlog.sync.past_correction_preparation import (
     PastCorrectionContentRejected,
@@ -53,8 +58,11 @@ class _Execution:
     sealed_capsule: P3CurrentCapsule | None = None
     stats: P3StatsCandidate | None = None
     sealed_stats: P3StatsCandidate | None = None
+    paged_proof: P3PagedPreparationProof | None = None
+    sealed_paged_proof: P3PagedPreparationProof | None = None
     persist_token: object = None
     persist_used: bool = False
+    paged_command_index: int = 0
     rejected: bool = False
 
 
@@ -81,13 +89,28 @@ def _live(
         or state.source.event is not state.event
         or (state.source.write_started and not projection)
         or (projection and not state.source.write_started)
-        or (state.preparation is None) != state.rejected
+        or (state.preparation is None and state.paged_proof is None)
+        != state.rejected
         or (
             state.rejected
             and (
                 state.checkpoint is not None
                 or state.capsule is not None
                 or state.stats is not None
+                or state.paged_proof is not None
+            )
+        )
+        or (
+            state.paged_proof is not None
+            and (
+                type(state.paged_proof) is not P3PagedPreparationProof
+                or state.sealed_paged_proof != state.paged_proof
+                or state.paged_proof.watermark <= 25
+                or state.preparation is not None
+                or state.capsule is not None
+                or state.stats is not None
+                or state.checkpoint != state.paged_proof.next_checkpoint
+                or state.sealed_checkpoint != state.checkpoint
             )
         )
         or (
@@ -161,30 +184,48 @@ def bind_p3_execution(
         handle._assert_writer_lifetime(state.lifetime)
         source.read(handle, event)
         try:
-            prepared = prepare_p3_lineup_correction(
+            paged = visit_p3_lineup_correction_pages(
                 handle,
                 event,
                 capsule_id=state.capsule_id,
                 change_event_id=state.change_event_id,
                 bound_source=source,
+                consume=lambda _page: None,
             )
-        except PastCorrectionContentRejected:
+        except PastCorrectionPageUnavailable:
             state.rejected = True
         else:
-            capsule = build_p3_current_capsule(prepared)
-            try:
-                stats = evaluate_p3_capsule_stats(capsule)
-            except PastCorrectionStatsUnsupported:
-                state.rejected = True
+            if paged.watermark > 25:
+                state.paged_proof = paged
+                state.sealed_paged_proof = deepcopy(paged)
+                state.checkpoint = paged.next_checkpoint
+                state.sealed_checkpoint = deepcopy(paged.next_checkpoint)
             else:
-                state.preparation = prepared
-                state.sealed_preparation = deepcopy(prepared)
-                state.capsule = capsule
-                state.sealed_capsule = deepcopy(capsule)
-                state.stats = stats
-                state.sealed_stats = deepcopy(stats)
-                state.checkpoint = capsule.next_checkpoint
-                state.sealed_checkpoint = deepcopy(state.checkpoint)
+                try:
+                    prepared = prepare_p3_lineup_correction(
+                        handle,
+                        event,
+                        capsule_id=state.capsule_id,
+                        change_event_id=state.change_event_id,
+                        bound_source=source,
+                    )
+                except PastCorrectionContentRejected:
+                    state.rejected = True
+                else:
+                    capsule = build_p3_current_capsule(prepared)
+                    try:
+                        stats = evaluate_p3_capsule_stats(capsule)
+                    except PastCorrectionStatsUnsupported:
+                        state.rejected = True
+                    else:
+                        state.preparation = prepared
+                        state.sealed_preparation = deepcopy(prepared)
+                        state.capsule = capsule
+                        state.sealed_capsule = deepcopy(capsule)
+                        state.stats = stats
+                        state.sealed_stats = deepcopy(stats)
+                        state.checkpoint = capsule.next_checkpoint
+                        state.sealed_checkpoint = deepcopy(state.checkpoint)
         _live(state)
         yield
     finally:
@@ -198,6 +239,8 @@ def bind_p3_execution(
         state.sealed_capsule = None
         state.stats = None
         state.sealed_stats = None
+        state.paged_proof = None
+        state.sealed_paged_proof = None
 
 
 def p3_content_result(
@@ -249,6 +292,41 @@ def p3_projection_candidate(
     return state.capsule, state.stats, state.source
 
 
+def p3_paged_projection_candidate(
+    handle: transaction._TenantTransaction, event: SyncEvent, writer: PortWriter
+) -> tuple[P3PagedPreparationProof, _E1CoreSource] | None:
+    """同一実frameの25件超準備sealだけをT4へ貸す。"""
+    state = _EXECUTIONS.get(handle._state_key)
+    if (
+        type(state) is not _Execution
+        or state.event is not event
+        or state.writer is not writer
+        or state.rejected
+    ):
+        raise PastCorrectionExecutionError("P3 T4頁元参照が不一致")
+    _live(state, projection=True)
+    if state.paged_proof is None:
+        return None
+    return state.paged_proof, state.source
+
+
+def p3_paged_ids(
+    handle: transaction._TenantTransaction, event: SyncEvent, writer: PortWriter
+) -> tuple[UUID, UUID]:
+    """T2前に同実frameが確保したcapsule/change event IDを返す。"""
+    state = _EXECUTIONS.get(handle._state_key)
+    if (
+        type(state) is not _Execution
+        or state.event is not event
+        or state.writer is not writer
+        or state.paged_proof is None
+        or state.rejected
+    ):
+        raise PastCorrectionExecutionError("P3頁元IDの実frameが不一致")
+    _live(state, projection=True)
+    return state.capsule_id, state.change_event_id
+
+
 @contextmanager
 def bind_p3_persistence(
     handle: transaction._TenantTransaction,
@@ -286,6 +364,106 @@ def bind_p3_persistence(
             raise PastCorrectionExecutionError("P3保存命令が未消費")
     finally:
         state.persist_token = None
+
+
+@contextmanager
+def bind_p3_paged_persistence(
+    handle: transaction._TenantTransaction,
+    event: SyncEvent,
+    writer: PortWriter,
+    token: object,
+) -> Iterator[None]:
+    """頁保存の各固定命令を同実frame/leaseへ一度だけ結ぶ。"""
+    from pitchlog.repositories.past_correction_paged_tokens import (
+        _AppendP3ProjectionPageToken,
+        _BeginP3ProjectionPageToken,
+        _FinalizeP3ProjectionPageToken,
+    )
+
+    state = _EXECUTIONS.get(handle._state_key)
+    if (
+        type(state) is not _Execution
+        or state.event is not event
+        or state.writer is not writer
+        or state.paged_proof is None
+        or state.persist_token is not None
+        or state.persist_used
+        or type(token)
+        not in {
+            _BeginP3ProjectionPageToken,
+            _AppendP3ProjectionPageToken,
+            _FinalizeP3ProjectionPageToken,
+        }
+    ):
+        raise PastCorrectionExecutionError("P3頁保存命令の実frameが不一致")
+    _live(state, projection=True)
+    typed_token = cast(
+        _BeginP3ProjectionPageToken
+        | _AppendP3ProjectionPageToken
+        | _FinalizeP3ProjectionPageToken,
+        token,
+    )
+    lease = state.source.bound._lease
+    if (
+        typed_token.attempt_id != lease.attempt_id
+        or typed_token.phase_id != lease.phase_id
+        or typed_token.binding_nonce != lease.nonce
+        or typed_token.device_id != lease.device_id
+        or typed_token.game_id != UUID(event.game_id)
+        or (
+            isinstance(
+                typed_token,
+                (_AppendP3ProjectionPageToken, _FinalizeP3ProjectionPageToken),
+            )
+            and typed_token.capsule_id != state.capsule_id
+        )
+    ):
+        raise PastCorrectionExecutionError("P3頁保存命令の実leaseが不一致")
+    prior_index = state.paged_command_index
+    state.persist_token = token
+    try:
+        yield
+        if state.paged_command_index != prior_index + 1:
+            raise PastCorrectionExecutionError("P3頁保存命令が未消費")
+    finally:
+        state.persist_token = None
+
+
+def consume_p3_paged_persistence(
+    handle: transaction._TenantTransaction, token: object
+) -> None:
+    """begin→全頁append→finalizeの順だけを実TXで消費する。"""
+    from pitchlog.repositories.past_correction_paged_tokens import (
+        _AppendP3ProjectionPageToken,
+        _BeginP3ProjectionPageToken,
+        _FinalizeP3ProjectionPageToken,
+    )
+
+    state = _EXECUTIONS.get(handle._state_key)
+    if (
+        type(state) is not _Execution
+        or state.paged_proof is None
+        or state.persist_token is not token
+        or state.persist_used
+    ):
+        raise PastCorrectionExecutionError("P3頁関数に自由tokenを渡せない")
+    _live(state, projection=True)
+    index = state.paged_command_index
+    if not (
+        (index == 0 and type(token) is _BeginP3ProjectionPageToken)
+        or (
+            1 <= index <= state.paged_proof.page_count
+            and type(token) is _AppendP3ProjectionPageToken
+        )
+        or (
+            index == state.paged_proof.page_count + 1
+            and type(token) is _FinalizeP3ProjectionPageToken
+        )
+    ):
+        raise PastCorrectionExecutionError("P3頁関数の順序が不一致")
+    state.paged_command_index += 1
+    if type(token) is _FinalizeP3ProjectionPageToken:
+        state.persist_used = True
 
 
 def consume_p3_persistence(
