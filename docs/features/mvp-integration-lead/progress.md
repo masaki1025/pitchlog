@@ -1,5 +1,12 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 2026-11-07：通常49の配置/再起動/故障対向を実証、走塁を止める並行GETを特定
+
+- **新たな実証**: `feature/mvp-d03-current-startup-20261107@9f7e4ad882557a0434e31fd4bc086f0d9dc68471` はowned実PGで **4passed97.45秒**。S0→0049/同版resume/全21私有表と全catalog、登板表CREATE直後故障の0039全取消/再開、初期fn ownerとsync-right fn owner各々の余剰SELECT(xmin)を補修せず拒否。source前後同一/共有DSNunset/owned cleanup。cache `d03-current49-startup-root-20261107/full49-normal-r2-{result,source-before,source-after}.json` とlog/xmlが根拠。初回r1の4failed82.36秒（5helperの実OWNER/REVOKE終端欠落）を保持し、生成側へ正規2文を加えて是正。修復は非作者追補REPORT SHA11539f5af7134e0d6c30a94b6a2dd6e26f9de4bbcc447f94958fb0e3287299faで5body完全可逆/元本文・guard不変/81pureを確認。元P1はsourceで解消し今回実catalogも一致。これを通常49の実HTTP登板/成績CSVや正式7.7成立へ拡張しない。
+- **走塁の停止原因を確定**: runner `7de86358c94dc2c35ea90216a3602f5f0a2607c9` のrun6は97.03秒で失敗、source3270同一/cleanup。GET scope PID1711が約5.86秒生存し、NP writer1736とは別のpublish actor1748が当該GET PID1711のtransactionidへShareLock待機、public.games tuple/FK取得で約2秒後QueryCanceled。単なる同時刻/推測ではなくPID/開始終結/PG blocker/worker行を突合した。静的なGET→GameLockTokenのFOR UPDATEと一致。期限・FK・書込lockを外すのでなく、GETを真正RR/READ ONLYの一貫したsnapshotへ分離する修復を主担当委任で着手。未だNP正常保存/17操作成立ではない。P3長runの10秒idleとは別証拠として保持。
+- **担当と次**: game_operations担当は既viewerのRR/有限readerを再利用してGET分離を専用WTで作成（writer lock/current P3 selector維持）。csv担当は上記正規49を起点に実開始/0球交代/終了再開/登板API・season・CSVの試験接続を担当し、候補installを追加しない。recovery担当はrun6証拠を封印。rootは共有source/正式資産の統合を直列で担う。閲覧版修復はf2488c71/共有patch SHA98bd916eba6df1e753ca46ee9afa18f2120e6dbcf8beee0e5ce93a2ec2d72ea4の候補として受領し、P3 body current selector/正式catalog/実PG接続は未了。通常49/runnerの作業版は通常pushで保全済み。
+
+
 ## 2026-11-07：閲覧成果を受領、訂正時の更新検知を是正して接合へ
 
 - **受領固定点**: 外部閲覧枝 `feature/mvp-viewer-live-connection@40b3654538cd68a1a4c175d49ee2155ffc60b7c2` の現物HEAD/cleanと共有接合patch SHA `bf881c318747c8b48aa726c327821dc6606d0ef2ecbbcec63d3886b7bd6f9e49` を照合。作者は実HTTP/DB2件＋HTTPS別context1件、ACK→閲覧1516ms/断検知2802ms/復帰3304msを報告。正式統合・実機・本番性能へ読み替えない。最終3passed319.73秒の原ログ/source前後と独立2周REPORT保存先を照会済み、回答待ちで実装は止めない。
