@@ -52,6 +52,31 @@ class PastCorrectionV3PagedSource:
     checkpoint: LineupPrefixDocument
 
 
+def read_past_correction_watermark(
+    scope: _TenantTransaction, game_id: UUID
+) -> tuple[int, int]:
+    """既E1読取資格で現在の内部世代と確定水位だけを閉じる。"""
+    if type(scope) is not _TenantTransaction or type(game_id) is not UUID:
+        raise PastCorrectionSourceUnavailable("P3水位読取の元参照が不正")
+    try:
+        current = _one(
+            scope.run(RecordingGenerationReadToken(game_id)),
+            _GENERATION_READ_COLUMNS,
+        )
+        generation = current["generation"]
+        watermark = current["confirmed_watermark"]
+        if (
+            type(generation) is not int
+            or generation < 1
+            or type(watermark) is not int
+            or watermark < 1
+        ):
+            raise PastCorrectionSourceUnavailable("P3確定水位が不正")
+        return generation, watermark
+    except (KeyError, TypeError, ValueError, OrdinaryPrefixError):
+        raise PastCorrectionSourceUnavailable("P3確定水位が利用できない") from None
+
+
 def _saved_from_packet(
     packet: tuple[object, ...],
     number: int,

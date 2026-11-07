@@ -9,6 +9,9 @@ from typing import Iterator, cast
 from uuid import UUID, uuid4
 
 from pitchlog.repositories import transaction
+from pitchlog.repositories.past_correction_source import (
+    read_past_correction_watermark,
+)
 from pitchlog.repositories.play_prefix import LineupPrefixDocument
 from pitchlog.sync.model import SyncEvent
 from pitchlog.sync.past_correction_capsule import (
@@ -183,49 +186,62 @@ def bind_p3_execution(
         # 準備中は未評価のため、同writer/sourceだけを先に照合する。
         handle._assert_writer_lifetime(state.lifetime)
         source.read(handle, event)
-        try:
-            paged = visit_p3_lineup_correction_pages(
-                handle,
-                event,
-                capsule_id=state.capsule_id,
-                change_event_id=state.change_event_id,
-                bound_source=source,
-                consume=lambda _page: None,
-            )
-        except PastCorrectionPageUnavailable:
-            state.rejected = True
-        else:
-            if paged.watermark > 25:
+        generation, watermark = read_past_correction_watermark(
+            handle, UUID(event.game_id)
+        )
+        if watermark > 25:
+            try:
+                paged = visit_p3_lineup_correction_pages(
+                    handle,
+                    event,
+                    capsule_id=state.capsule_id,
+                    change_event_id=state.change_event_id,
+                    bound_source=source,
+                    consume=lambda _page: None,
+                )
+            except PastCorrectionPageUnavailable:
+                state.rejected = True
+            else:
+                if (
+                    paged.internal_generation != generation
+                    or paged.watermark != watermark
+                ):
+                    raise PastCorrectionExecutionError("P3頁と資格水位が不一致")
                 state.paged_proof = paged
                 state.sealed_paged_proof = deepcopy(paged)
                 state.checkpoint = paged.next_checkpoint
                 state.sealed_checkpoint = deepcopy(paged.next_checkpoint)
+        else:
+            try:
+                prepared = prepare_p3_lineup_correction(
+                    handle,
+                    event,
+                    capsule_id=state.capsule_id,
+                    change_event_id=state.change_event_id,
+                    bound_source=source,
+                )
+            except PastCorrectionContentRejected:
+                state.rejected = True
             else:
+                if (
+                    prepared.target_generation != generation
+                    or len(prepared.originals) != watermark
+                ):
+                    raise PastCorrectionExecutionError("P3旧経路と資格水位が不一致")
+                capsule = build_p3_current_capsule(prepared)
                 try:
-                    prepared = prepare_p3_lineup_correction(
-                        handle,
-                        event,
-                        capsule_id=state.capsule_id,
-                        change_event_id=state.change_event_id,
-                        bound_source=source,
-                    )
-                except PastCorrectionContentRejected:
+                    stats = evaluate_p3_capsule_stats(capsule)
+                except PastCorrectionStatsUnsupported:
                     state.rejected = True
                 else:
-                    capsule = build_p3_current_capsule(prepared)
-                    try:
-                        stats = evaluate_p3_capsule_stats(capsule)
-                    except PastCorrectionStatsUnsupported:
-                        state.rejected = True
-                    else:
-                        state.preparation = prepared
-                        state.sealed_preparation = deepcopy(prepared)
-                        state.capsule = capsule
-                        state.sealed_capsule = deepcopy(capsule)
-                        state.stats = stats
-                        state.sealed_stats = deepcopy(stats)
-                        state.checkpoint = capsule.next_checkpoint
-                        state.sealed_checkpoint = deepcopy(state.checkpoint)
+                    state.preparation = prepared
+                    state.sealed_preparation = deepcopy(prepared)
+                    state.capsule = capsule
+                    state.sealed_capsule = deepcopy(capsule)
+                    state.stats = stats
+                    state.sealed_stats = deepcopy(stats)
+                    state.checkpoint = capsule.next_checkpoint
+                    state.sealed_checkpoint = deepcopy(state.checkpoint)
         _live(state)
         yield
     finally:
