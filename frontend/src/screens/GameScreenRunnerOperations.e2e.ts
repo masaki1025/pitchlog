@@ -251,6 +251,8 @@ async function save(page: Page, gameId: string) {
 
 function requestRecorder(page: Page, gameId: string) {
   const requests: Array<{ body: string; attempt: string }> = []
+  let previous: { d5: string; attempt: string; body: string } | null = null
+  const comparisons: Array<Record<string, boolean | number | null>> = []
   page.on('request', (request) => {
     if (
       request.method() === 'POST' &&
@@ -263,6 +265,30 @@ function requestRecorder(page: Page, gameId: string) {
         body: createHash('sha256').update(body).digest('hex'),
         attempt: createHash('sha256').update(attempt).digest('hex'),
       })
+      if (process.env.PITCHLOG_E2E_RUNNER_DIAGNOSTIC === '1') {
+        const value = JSON.parse(body) as { events?: Array<{ d5?: unknown }> }
+        const d5 = value.events?.[0]?.d5
+        if (typeof d5 !== 'string' || !resultFile)
+          throw Error('診断要求の構造が不正')
+        if (comparisons.length < 8)
+          comparisons.push({
+            ordinal: comparisons.length + 1,
+            prior: previous !== null,
+            sameD5: previous === null ? null : previous.d5 === d5,
+            sameAttempt:
+              previous === null ? null : previous.attempt === attempt,
+            sameBody: previous === null ? null : previous.body === body,
+          })
+        previous = { d5, attempt, body }
+        writeFileSync(
+          resultFile + '.comparison.json',
+          JSON.stringify({
+            comparisons,
+            limit: 8,
+            atLimit: comparisons.length >= 8,
+          }),
+        )
+      }
     }
   })
   return requests

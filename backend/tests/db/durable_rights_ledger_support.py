@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
+import os
 import socket
 import subprocess
 import sys
@@ -565,8 +568,28 @@ except PermissionError as error:
 
     def start(self, *, check: bool = True) -> bool:
         """既存の保護journalを照合して起動し、失敗を成功扱いしない。"""
+        arguments = self.command(root=True, persistent=True)
+        diagnostic_site = os.environ.get(
+            "PITCHLOG_E2E_RUNNER_AUTHORITY_DIAGNOSTIC_SITE"
+        )
+        if diagnostic_site is not None:
+            site = Path(diagnostic_site)
+            if not site.is_absolute() or hashlib.sha256(
+                site.read_bytes()
+            ).hexdigest() != (
+                "26741ac527c9bc944d5a406a3d47344e7d15ca2dc6bb951536a7720709230131"
+            ):
+                raise AssertionError("authority observer source changed")
+            image_index = arguments.index(_IMAGE)
+            arguments[image_index:image_index] = [
+                "--mount",
+                f"type=bind,src={site.parent},dst=/diag,readonly",
+            ]
+            arguments[arguments.index("PYTHONPATH=/code:/deps")] = (
+                "PYTHONPATH=/diag:/code:/deps"
+            )
         docker(
-            *self.command(root=True, persistent=True),
+            *arguments,
             "-m",
             "pitchlog.durable_rights_ledger.authority",
             "serve",
@@ -588,6 +611,22 @@ except PermissionError as error:
                 check=False,
             )
             if result == "AUTHORITY_READY":
+                if diagnostic_site is not None:
+                    markers = []
+                    for line in docker("logs", self.service, check=False).splitlines():
+                        try:
+                            markers.append(json.loads(line))
+                        except ValueError:
+                            continue
+                    if {"authority_diag_ready": 1} not in markers or not any(
+                        type(row) is dict
+                        and type(row.get("authority_diag")) is dict
+                        and row["authority_diag"].get("function")
+                        == "_authority_observer_probe"
+                        and row["authority_diag"].get("kind") == "ValueError"
+                        for row in markers
+                    ):
+                        raise AssertionError("authority worker observer did not load")
                 if self.dual_peer:
                     assert (
                         self.controller_client("print('CONTROLLER_READY')")

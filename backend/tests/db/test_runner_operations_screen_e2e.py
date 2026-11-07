@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -31,11 +32,13 @@ _CONFIG = "GameScreenRunnerOperations.playwright.config.ts"
 
 
 _RUNNER_DIAGNOSTIC_BOOTSTRAP = r"""
-import json,threading
+import json,threading,time
 _seen_probe_threads=set()
 _owned_trace_lock=threading.Lock()
 _owned_trace_count=0
 _owned_trace_truncated=False
+_owned_phase_previous=None
+_owned_rpc_state={}
 _allowed_errors={
  'RuntimeError','ValueError','TypeError','KeyError','ValidationError',
  'OrdinaryPrefixError','OrdinaryPlayRowError','OrdinaryPitchExecutionError',
@@ -49,8 +52,16 @@ _allowed_errors={
  'NoDataFound','TooManyRows','UndefinedTable','InvalidSchemaName',
  'InvalidParameterValue','TimeoutError',
 }
-def _owned_runner_trace(frame,event,arg):
+def _owned_emit(value):
  global _owned_trace_count,_owned_trace_truncated
+ with _owned_trace_lock:
+  if _owned_trace_count<80:
+   _owned_trace_count+=1
+   print('PITCHLOG_RUNNER_STAGE '+json.dumps(value),flush=True)
+  elif not _owned_trace_truncated:
+   _owned_trace_truncated=True
+   print('PITCHLOG_RUNNER_STAGE '+json.dumps({'truncated':True,'limit':80}),flush=True)
+def _owned_runner_trace(frame,event,arg):
  module=frame.f_globals.get('__name__','')
  probe=module=='__main__' and frame.f_code.co_name=='_owned_runner_probe'
  if not (probe or (type(module) is str and module.startswith('pitchlog.'))):
@@ -60,34 +71,68 @@ def _owned_runner_trace(frame,event,arg):
   if probe and error_type=='RuntimeError':
    _seen_probe_threads.add(threading.get_ident())
   elif error_type in _allowed_errors:
-   with _owned_trace_lock:
-    if _owned_trace_count<80:
-     _owned_trace_count+=1
-     print('PITCHLOG_RUNNER_STAGE '+json.dumps({
-      'module':module,'function':frame.f_code.co_name,'line':frame.f_lineno,
-      'error':error_type,
-     }),flush=True)
-    elif not _owned_trace_truncated:
-     _owned_trace_truncated=True
-     print('PITCHLOG_RUNNER_STAGE '+json.dumps({
-      'truncated':True,'limit':80,
-     }),flush=True)
+   _owned_emit({'module':module,'function':frame.f_code.co_name,
+    'line':frame.f_lineno,'error':error_type})
  return _owned_runner_trace
 def _owned_runner_probe():
- try:
-  raise RuntimeError()
- except RuntimeError:
-  pass
+ try:raise RuntimeError()
+ except RuntimeError:pass
 sys.settrace(_owned_runner_trace)
 threading.settrace(_owned_runner_trace)
 _owned_runner_probe()
 _probe_thread=threading.Thread(target=_owned_runner_probe)
-_probe_thread.start()
-_probe_thread.join(timeout=5)
+_probe_thread.start();_probe_thread.join(timeout=5)
 if _probe_thread.is_alive() or len(_seen_probe_threads)!=2:
  raise RuntimeError('owned diagnostic main/thread trace unavailable')
 print('PITCHLOG_RUNNER_OBSERVER '+json.dumps(
  {'probe':'main-and-worker','threads':2}),flush=True)
+from pitchlog.api.routers import sync as _owned_sync
+from pitchlog.durable_rights_ledger import adapter as _owned_adapter
+_owned_original_phase=_owned_sync._phase_id
+_owned_original_request=_owned_adapter._request
+def _owned_phase(attempt,fingerprint):
+ global _owned_phase_previous
+ phase=_owned_original_phase(attempt,fingerprint)
+ with _owned_trace_lock:
+  previous=_owned_phase_previous
+  _owned_phase_previous=(attempt,fingerprint,phase)
+ _owned_emit({'stage':'phase','prior':previous is not None,
+  'sameAttempt':None if previous is None else previous[0]==attempt,
+  'sameFingerprint':None if previous is None else previous[1]==fingerprint,
+  'samePhase':None if previous is None else previous[2]==phase})
+ return phase
+def _owned_request(channel,value,*,mutation=False):
+ operation=value.get('operation') if type(value) is dict else None
+ if operation not in {'binding_open','binding_check','binding_close'}:
+  return _owned_original_request(channel,value,mutation=mutation)
+ started=time.monotonic()
+ with _owned_trace_lock:
+  prior=_owned_rpc_state.get(id(channel),{'checkCount':0,'lastCheck':None})
+  state=dict(prior)
+ def summary(event):
+  last=state['lastCheck']
+  _owned_emit({'stage':'binding-rpc','operation':operation,'event':event,
+   'elapsedMs':min(3600000,max(0,int((time.monotonic()-started)*1000))),
+   'checkCount':state['checkCount'],
+   'sinceCheckMs':None if last is None else min(3600000,
+    max(0,int((started-last)*1000)))})
+ if operation!='binding_check':summary('start')
+ try:result=_owned_original_request(channel,value,mutation=mutation)
+ except BaseException:
+  summary('raised')
+  raise
+ else:
+  if operation=='binding_check':
+   with _owned_trace_lock:
+    state['checkCount']+=1;state['lastCheck']=time.monotonic()
+    _owned_rpc_state[id(channel)]=state
+  else:summary('done')
+  return result
+ finally:
+  if operation=='binding_close':
+   with _owned_trace_lock:_owned_rpc_state.pop(id(channel),None)
+_owned_sync._phase_id=_owned_phase
+_owned_adapter._request=_owned_request
 """
 
 
@@ -134,6 +179,57 @@ uvicorn.run(app,host='0.0.0.0',port=int(sys.argv[1]),log_level='warning')
         return [*command[: positions[0]], "-c", bootstrap, str(app_port)]
 
     monkeypatch.setattr(screen, "_app_container", app_arguments)
+
+
+def _capture_authority_diagnostic(db, destination: Path) -> None:
+    """Raw logは保存せず、別workerの閉JSON観測だけを最大200件で固定する。"""
+    from .durable_rights_ledger_support import docker
+
+    markers = []
+    ready = False
+    identifier = re.compile(r"^[A-Za-z_][A-Za-z0-9_]{0,95}$")
+    for line in docker("logs", db.authority.service, check=False).splitlines():
+        try:
+            value = json.loads(line)
+        except ValueError:
+            continue
+        if value == {"authority_diag_ready": 1}:
+            ready = True
+        if type(value) is not dict or set(value) != {"authority_diag"}:
+            continue
+        row = value["authority_diag"]
+        if (
+            type(row) is not dict
+            or set(row) != {"kind", "function", "line", "elapsed_ms"}
+            or any(
+                type(row[k]) is not str or not identifier.fullmatch(row[k])
+                for k in ("kind", "function")
+            )
+            or type(row["line"]) is not int
+            or not 0 < row["line"] < 1000000
+            or type(row["elapsed_ms"]) is not int
+            or not 0 <= row["elapsed_ms"] <= 3600000
+        ):
+            continue
+        if len(markers) < 200:
+            markers.append(row)
+    probe = any(
+        row["function"] == "_authority_observer_probe" and row["kind"] == "ValueError"
+        for row in markers
+    )
+    destination.write_text(
+        json.dumps(
+            {
+                "ready": ready,
+                "probe": probe,
+                "atLimit": len(markers) >= 200,
+                "records": markers,
+            },
+            indent=2,
+        )
+        + "\n"
+    )
+    assert ready and probe, "authority worker observer did not load"
 
 
 def _all_runner_stats(admin, tenant, game):
@@ -421,6 +517,10 @@ def test_runner_operations_screen(
                         },
                         timeout_seconds=1200,
                     )
+                    if os.environ.get("PITCHLOG_E2E_RUNNER_AUTHORITY_DIAGNOSTIC_SITE"):
+                        _capture_authority_diagnostic(
+                            db, tmp_path / "authority-safe.json"
+                        )
                     assert completed.returncode == 0, (
                         completed.stdout[-10000:],
                         completed.stderr[-3000:],
