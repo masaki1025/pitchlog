@@ -1,0 +1,72 @@
+{
+  "schemaVersion": 1,
+  "calculationId": "pitcherAppearances",
+  "source": {
+    "scopeRelation": "appearance_scope",
+    "memberRelation": "appearance_members",
+    "binding": [
+      "tenant_id",
+      "game_id",
+      "fact_version_id",
+      "revision",
+      "source_set_sha256",
+      "checkpoint_id",
+      "checkpoint_generation",
+      "checkpoint_revision",
+      "checkpoint_digest",
+      "d3",
+      "lifecycle_receipt_id",
+      "entry_set_sha256"
+    ],
+    "completeColumn": "supply_complete",
+    "proofKinds": [
+      "defensive-half-entry",
+      "pitcher-defensive-entry"
+    ],
+    "requiresCompleteSupply": true,
+    "memberCountColumn": "member_count",
+    "expectedGameCountBind": "expected_game_count",
+    "nullableBinding": [
+      "lifecycle_receipt_id"
+    ]
+  },
+  "aggregate": {
+    "operation": "count-distinct",
+    "key": "game_id",
+    "playerKey": "player_id",
+    "missingSupply": "source_unavailable"
+  },
+  "entryProjection": {
+    "sourceRelation": "appearance_transition",
+    "sourceKinds": [
+      "start",
+      "play",
+      "substitution",
+      "reopen"
+    ],
+    "halfDefender": {
+      "top": "home",
+      "bottom": "away"
+    },
+    "continueOutcomes": [
+      "no-end",
+      "extra-continue",
+      "tiebreak-continue"
+    ],
+    "halfReason": "defensive-half-entry",
+    "substitutionReason": "pitcher-defensive-entry",
+    "knownOutcomes": [
+      "no-end",
+      "normal-end",
+      "extra-continue",
+      "limit-draw",
+      "tiebreak-continue",
+      "cold-end",
+      "walk-off"
+    ],
+    "knownXMarks": [
+      "recorded-score",
+      "x-mark"
+    ]
+  }
+}

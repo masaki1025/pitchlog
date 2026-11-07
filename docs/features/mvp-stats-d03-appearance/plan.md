@@ -1,0 +1,166 @@
+---
+feature: mvp-stats-d03-appearance
+status: active
+branch: feature/mvp-stats-d03-appearance
+承認: PO委任によるCodex/root判断（2026-11-07、対象8033f1d7全文）
+重さ分類: コア領域（成績source未正式除外）
+計画レビュー周回: 1
+確定ゲート周回: 0
+---
+
+# D03・真正投手出場から試合別とシーズンの登板を供給する
+
+## 現在の候補到達点（2026-11-07）
+
+正常v3/0球投手交代の登板API/成績CSV接合は0f18c6f7231c932eee536b116b1af3d45411ce3eへ固定・push済み。r16は実新規作成→開始→二球→A1/B0→0球交代/同D5再掲→A1/B1→CSV各1を125.06秒で確認した。native版/S/source ID/slot不変とCP変更も実観測した。正式0049/catalog/通常起動/7.7の成立ではない。
+
+通常終了v1→再開→追加3球目→再終了v2・自チームseason all/practice/CSVのowned接合はr20で1passed225.83秒、source前後SHA一致・cleanup済み。r17/r18/r19の失敗は履歴として下記へ保全した。次はroot正常0048/v2唯一Sへの所有15path接合と正式0049/私有hook/catalog・通常起動検査、非作者レビューである。取消/P3 effective context・複数世代・T2終端解放・試合全体0球は未供給を維持し、MVP残件から外さない。
+
+以下の「現物と開始条件」「step1・供給境界」は起票時の履歴を含む。別の人の守備観測を追加必須とした過剰前提は、下記c9cd54c9の既原典照合追補で撤回・root採用済み。新しいPO観測裁定を待つ状態へ戻さない。
+
+起点6a424a301a7acbc15fe55f9e25506f874e1ca1e1。PO採用済みD03は、実際に投手として出場した試合を1登板、再登板は同試合1、0球交代も1とする。球数/打者数から出場を推測しない。D02の公式=公式戦/準公式戦、練習=オープン戦/紅白戦/その他、allとJST暦年は既宣言を再利用する。本人署名・P6 blindや正式受理を代記しない。
+
+## 現物と開始条件
+
+既basic_sql._normal_appearance_sqlは開始原本だけを確認し、試合別・交代/取消/再開なしに限定している。シーズンは常時source_unavailable。basic_statsは登板のoptional値と未供給理由を既実装しており、新しい表示式は不要。
+
+public.participation_intervalsはmutableでstats fact versionへの束縛が無く、その行だけのCOUNTは採用しない。新しいevent状態畳込も行わない。開始時game_lineupsとcommitted start原本、現在checkpointのsubstitutionFramesが持つbefore/afterContext、0044 substitution_write_receipts/nonplay admission/event/ledger/slotの同TX原本を再利用する。真正性の既境界はauthz/nonplay_prefix_read_sql.pyとsync/substitution_projection.pyに存在する。出場候補は検証済み文脈のfielding position1のplayer identity集合に、実際に守備へ出たことを証明する半回開始/投手出場原本を結合したものに限定する。開始スタメン掲載/交代登録だけでは出場成立にしない。1回表早期終了の先攻投手、守備開始前に交代した選手を除外し、実守備出場済みなら0球交代も保持する。投球creditの存在は出場の十分条件になる場合も必要条件にはしない。
+
+半回開始/投手出場原本の実供給可否は未確認であり、本plan全体の集計実装着手条件とは別にstep1で閉じる。既mvp-basic-stats-csv/plan.mdはlineup/payloadからの推測集計を禁止しており、既正常限定SQLもこの境界に対して再検査が必要。providerが無いと分かれば、必要な最小typed観測/生成タイミング/版付き保存先/原子的更新案をrootへ提示し、共有核を勝手に実装しない。
+
+D03 readは既T6のcurrent版/唯一S/healthと同RR、既basic_sqlの真正終了LC receipt/head照合と同じgame集合へ束縛する。再開中は公式対象外、再終了は同gameの現版だけを参照する。出場identity集合のCOUNT DISTINCT(game_id,player_id)を単一SQL宣言で一度だけ計算し、basic_sqlはscope/bind/形式へ接合する。別のPython/FE計算は作らない。
+
+着手はrootの本計画採用後。実checkpoint/frameを既guardと同等に照合できるread資格/版identityが不足する場合は、缺測を0にせずunavailableへ閉じ、必要な有限providerの引数/返却型/版条件をrootへ固定する。正式source providerを独自認証したことにしない。交代原本を含む現在版と開始原本を単にunionするだけで成功させず、source集合の完全性と取消/訂正による投手出場の除去/保持が既契約から確定する範囲を検査する。新しい意味判断はrootへ返す。
+
+| # | 実装単位 | 検査/成立条件 |
+|---|---|---|
+| 1 | 登板の閉source/SQL宣言と生成器を候補化し、既readへのsource境界を具体化する | 始投手/0球交代/再登板/守備変更で投手へ/無関係交代、欠落frame・別tenant・不正receipt・旧checkpoint・未供給の正負対向。野球状態の再計算はしない |
+| 2 | 唯一の生成SQLをbasic_sqlに接合し試合/season/category/表示/CSVへ同値供給する | 1試合1・2試合2・再開中除外・再終了1・JST境界・official/practice/all・ページ境界・供給不足はunavailable。表示/CSVは既DTOを使う |
+| 3 | owned実PGで真正開始/交代/終了/再開/再終了とreadを照合する | 同一source固定/同RR、実認証/記録権/同TXを維持しfixture投手出場だけの成功を製品接続と扱わない。正式DDL/catalog/7.7と全CIはrootへpacket |
+
+編集候補: backend/src/pitchlog/stats/basic_sql.py、必要時basic_stats.py、backend/domain/stats-appearance.model.json/schema.json/manifest.json（全て新規候補）、backend/src/pitchlog/domaingen/stats_appearance.py、backend/src/pitchlog/stats/generated/appearances.sql、D03専用tests/test_stats_appearance_source.pyとtests/db/test_stats_appearance_http.py、既test_stats_basic_sql.pyの登板部分、本計画のみ。root採用後に実装する。新生成manifestは公式生成器の候補出力に限定し正式D11/共有manifestを編集しない。既計算modelやT5/T6の他指標を改変しない。
+
+source唯一writerは本新WT担当。共有sync/domain/認可source、contracts/正式assets/catalog/seal/history/7.7、共有台帳/他WT/main/developは非編集。実PGは共通owned-pg-browser-network.lockを全寿命保持しDSNをunset。未完のCSV依存130/0047と起動0046を正式成立へ読み替えない。既8/27項目等の見かけの件数を完了尺度にせず、登板を正しく取得できた操作/証拠/不足sourceを報告する。
+
+
+root非作者全文レビュー/委任採用の固定点: HEAD8033f1d7d06a1a5d7723cde93d29adf0897b3907、plan SHA2560107e26a9f284896ad0def521b15c12dfd009db2833f6d063606bad2fb606d51。新P0/P1なし、source不足時の具体producer境界提示と独立生成/対向準備を含め着手可。root留保は既D03の実出場境界を保持するもので、新しいPO意味裁定ではない。本人確認・P6blind・正式値受理は記録しない。
+
+
+## step1・実source確認と必要なproducer（2026-11-07）
+
+現実装には実守備出場の完全供給がない。game_start_attemptsのcommitted/game_lineupsは開始承認/出場予定の原本、participation_intervalsはmutable投影でstats版FKなし、substitutionFrames/0044 receiptは割当変更と真正保存の原本で、未守備側が実際にposition1で出場したことを単独では証明しない。通常T1の攻守交代も計算結果であり、人が守備へ出た観測を補完しない。nativeの唯一Sはプレイ原本集合で、0球出場を完全列挙する別sourceはない。従って既_normal_appearance_sqlの両開始投手COUNTは早期終了時に誤計上し得る。閉じた実出場sourceが接続されるまでこの推測枝だけを除きsource_unavailableへ戻す（安全なavailable0へ置換しない）。
+
+rootへの最小producer要求: (a) 実守備出場の確認原本を、元event/観測ID、tenant/game/player、所属side、投手position1、対象半回/時点、元記録権世代/D1とともに同一TX保存する。(b) 0球出場を含む各試合の完全集合について、native fact_version_id/revision/source_set_sha256と出場集合source receipt/hash/countを束縛し、終了LC head/receipt/public pointerと同じ版へ公開する。(c) 取消/過去訂正は原本sourceから有効集合を正規providerで更新し、再登板の複数proofは保持しつつgame/player一意に計数する。再開中は公式集合から除外し、再終了は新current版だけを公開する。共有核の変更はrootのみで実装し、本担当は原本を独自に畳み込まない。
+
+候補入力CTEはappearance_scope（tenant/game/fact_version_id/revision/source_set_sha256/supply_complete/member_count）とappearance_members（同版5key＋player_id/proof_kind/proof_source_id）。proof_kindのdefensive-half-entry/pitcher-defensive-entryは供給境界の仮ラベルで、新しい記録操作/野球意味を正式採用したものではない。完全性boolだけを外から受けて成功資格にはせず、正式providerが元原本と集合hash/count/版を検証してこれらCTEを作る必要がある。生成targetはその後段の唯一COUNT DISTINCT(game_id)だけを担い、製品のSQL入口や任意Session APIを追加しない。未知種類/版不一致/件数不足/NULL/同game複数版は未供給で閉じる。
+
+現段階の成立: 新候補SQL宣言/schema/生成器/manifestと合成SQLite正負ケースを用意した。これは真正provider/実PG/画面/シーズンの提供成功ではない。step2の実接続とstep3のowned検査を閉じるには上記producerの供給が必要。既API/CSVのunavailable表示経路は維持する。旧candidate body固定fileの機械的追随1pathはrootへ編集所有を照会済み、正式assetsは編集しない。
+
+
+root PO委任判断で候補SQL1path（docs/features/mvp-basic-stats-csv/candidates/basic_stats_functions.sql）の機械的追随を追加承認。生成元はpitchlog.stats.basic_sql.candidate_sql、コマンドは `PYTHONPATH=backend/src <backend-venv>/python -c 'from pitchlog.stats.basic_sql import candidate_sql; ...write_text(candidate_sql())'`。旧SHAaeb11dcb1aca6e144e52f0606d2b33dd33456e91a4de2c7264fa2417672e1146→新SHA679e58e828c98eb2397db57f1dea8ec7b89703750d3887d799f3e6297c06f357。byte完全比較は維持し、正式contracts/catalog/sealは非編集。
+
+供給の全欠落対向も保持する。生成SQLのexpected_game_count bindは既真正可視/対象current版集合の実件数からproviderが供給し、利用者自由入力や入力scopeの件数だけから作らない。1対象試合に対するscope0件を空season0へ変えず未供給にする。真正対象0件のseasonだけはavailable0となる。
+
+
+step1途中固定: 最終凍結sourceでD03専用/基本SQL/既T6の3suiteが126passed22.67秒、Ruff/Ty成功、diff --check成功。宣言/生成SQL/manifestの再現比較と、0球実出場/再登板/2試合/未守備先発/他選手/別tenant/完全空集合/全scope欠落/版・件数・種類・NULL不一致の対向を含む。合成SQLiteの供給fixture成功は実PG/真正出場providerの証拠ではない。初回は本WTのprettier未配置で既生成suiteが失敗し、offline frozen install後に解消。candidate body byte不一致1件はroot許可後の公式再生成で解消し、比較を削除していない。2回のrootcwdからbackend testsを探した実行はno-testsであり成功件数に含めない。
+
+実装されたのはD03計数の候補と既誤計上枝の閉鎖であり、step1の完全source成立・step2/3・登板の製品提供は未完。rootが上記真正producerと版付き供給を接合できた時点で、本生成SQLを同RRへ接続し、実終了/再開/再終了/区分/暦年/CSVを再実証する。
+
+
+## 次単位の最小追補・既状態遷移からの真正entry（2026-11-07）
+
+前step1 packetは「計算上の半回遷移と別に、人の実守備確認を新設しなければならない」としたが、これは既原典照合が不足した過剰前提なので撤回する。FR-023/XMARK本文は攻撃回の開始を「当該チームの攻撃状態へ遷移した時点」、初球前も開始済みと既定義し、XMARK-02は表完了時終了により裏が未開始の場合を区別する。FR-003は第3outの攻守交代、FR-011は交代記録時点の効力を既定義する。D03はその時点の守備側position1出場を採用する。PO委任rootはこの既規定の技術接合を採用済みで、新たなPO意味裁定や観測操作を前提にしない。75112239の旧スタメン両投手推測枝の閉鎖は維持し、真正片側entryへ置き換える。
+
+推奨は既保存TX内の単一SQL entry projector＋版付き集合。開始保存receipt/committed start原本→初期T1の1回表が開始済みであること→後攻position1だけを保存する。既play/runner/non-pitch確定では既artifactのT1 before/afterとT2 facts/decisionを写し、次半回が開始済みと確定した場合だけ新守備側position1を保存する。表完了でもT2が終了を検知し裏未開始（XMARK-02）なら保存しない。終了理由の再計算やスコア/回/アウトからの別推測はしない。交代は唯一artifactのbeforeContext/afterContext/attackingSideと確定receiptを使い、現在守備側のposition1へ実際に就いたincomingだけを即時保存する。攻撃中の投手割当変更は予定変更でありentryを作らず、そのチームの守備半回が開始する時点に有効な選手だけを採る。0球交代もこのentryの存在で計数する。T2による未開始半回が再開操作で初めて開始済みとなる場合は、既LCのrelease済みcontextから同じprojectorへ供給する。単なる再開/再終了で既半回のentryを水増ししない。
+
+保存案: 原entry表はtenant/game/player、defending_side、inning/half、proof_kind、元start_attempt_idまたはsource_event_idの閉union、元generation/D1/slot版（開始は架空D1=0を作らない）、元fingerprint、唯一artifact hash、T1/T2/交代receiptの根拠IDを持つ追記専用。原本event/start receiptへの複合FKを持ち、同要求再送は同proofを再掲する。member/headerはtenant/game/native fact_version_id/revision/S＋entry集合hash/countを束縛する。全原entryは監査保存し、有効memberだけを現在集合へ供給する。自由なtrue/Session/JSONから真正資格を発行しない。候補migrationスロット/slugはrootが選び、0046/0047/0048を流用しない。
+
+TX境界: repositories/game_start._initialize_startの正式保存receiptと同TX、sync/stats_native_flush._flush_native_statsの既native Save/CSV producerと同TX、既substitution_execution/正式consume_substitutionのreceipt/checkpoint更新と同TX、既Undo/P3の唯一再計算結果/Saveと同TX、既lifecycleの終了/再開版更新と同TX。startはnative play sourceがまだ無いので原entryを保存し、最初のnative Saveで開始原本も含め完全memberへ束縛する。0プレイの終了も既LCが真正empty Sのnative版を確定できる必要があり、未供給ならその経路を別依存として具体化する（架空playやfinalize fixtureで補わない）。P3/取消のmemberは既canonical/capsuleと復元contextの有効原本から作り、別event列畳込を実装しない。
+
+編集提案: 本担当は既stats-appearance.model/schema/生成器/専用testsと、stats/pitcher_appearance_source.py（新規・sourceの閉型/同一SQL呼出adapter）、db/game_state/pitcher_appearance_models.py（新規候補）、repositories/stats_appearance.py（新規・有限同RR読取候補）、D03専用DB testsを実装する。共有保存hook/正式migration/provisioning/catalog/D11/7.7はroot専有のままcache patchに分ける。単一SQL projectorで既kernel出力を照合/写像し、T1/T2/scoreboard/終了理由/D04責任計算のコピーを作らない。最終パス追加はrootの本追補採用後に着手する。
+
+独立case: 開始直後0球は後攻投手1/未守備先攻0、1回表の早期終了も同じ、表第3out→裏開始は先攻投手entry、表第3outでも終了条件成立で裏未開始はentry無し、守備中A→B→Cが0球でもB/Cを含む、攻撃中A→B→CはBを数えず次守備開始のCだけ、同試合再登板はgame/player1・別試合は2、同D5再送/ACK喪失でproof/member増加無し、取消/P3で元根拠だけ失効・再開/再終了で旧終了版を二重加算しない。故障点は原entry保存後/member挿入後/native公開pointer直前で全TX rollback。RR読取はfact版/S/entry集合hash/count/LC版と完全照合し、越境/旧版/未知kind/全体不足は拒否する。D04/BFは既27native metricの責任帰属を一切変更せず、登板はPA/BF/pitch_countを入力にしない別原事実集合とする。
+
+
+root PO委任判断で上記c9cd54c959b1a705a3e9da14da9e9f5a1cb5571c/plan SHAde13f47796b51fe518210495cb0924a9d86459b18c0dc6b378b9330697a7ebf7の追補/追加3path/cache hookを採用。新規モデル/限定source adapter/read候補と単一projectorの実装を開始する。0049はcache内の暫定候補に留め、正式slot/共有核/認可資産はrootだけが更新する。
+
+
+追補の途中固定（実配備前）: entry projector/閉codec/原本・版header/memberの候補3modelを実装した。開始getterは実InitialRecordingRightScope/committed初期付与後、通常v3 getterは実NativeStats receipt/同writer、交代getterはconsume済み実Execution/anchor不変の原本だけを採る。Python独自Session SQL入口は増やさず、開始保存は同DB原本から同じ単一SQLprojectorを再利用する固定関数候補へ集約した。開始のsession_user/definerはpitchlog_initial_actor/pitchlog_initial_fn_owner、play/subのapp/sync writerと混同しない。関数は暗黙tenantとattempt/generationのみを受け、自由なplayer/半回/成功JSONを受けない。実DBで全own xmin/現初期grant/開始名簿を再確認し、原proof追記は完全一致の重複再掲だけを許す。未登録tokenは通常runが拒否しSQL直呼びへ落とさない。
+
+凍結sourceのD03専用/既基本SQL/既T6は165passed24.12秒、Ruff/Ty成功。SQL math/sourcecodec/モデルと不正scopeを含むが、DB save関数のPG実行やHTTP開始時のproof保存は未実施。cacheの開始hookはauthor WTへ適用せず、同cache shadowだけでcold import・旧private9保持/開始3・新token登録を確認した。正式0049/catalog/ACL/初期権有限型/同ownerゲートをrootが採用するまでは開始保存も製品未提供。通常v3/交代のgetterは成立したが対応save関数とnative版member公開、Undo/P3/LC連動、成績read接続は未完であり続行対象として保持する。
+
+
+## 保存内部hookへの最小化（PO委任root採用、2026-11-07）
+
+外部CAP/token/自由JSONを新設する構成を撤回し、既保存SQLのowner-only内部helperへ集約する。4a73b1cbまでのPython actor hook/新token案はcacheに比較用保全し不採用。未使用のgetter/直接Session実行/新token/read入口は現sourceから除き、値codecと唯一SQL/DB原本取得だけを残す。役割境界・実source/receipt/xmin・同TX保証は維持する。
+
+実開始呼出順を確認した。issue_initial_recording_right→scope.lock_preparing_game→_initialize_start→initial_right_api.persist_initial_startにより両名簿INSERT/games.in_progress/started_atが保存され、その後scope.insert_initial_grant→initial_right_api.insert_initial_grantでgeneration/配達行をINSERTしattempt.outcome=committedを更新する。従ってrootの開始hookはこのDB insert_initial_grantのROW_COUNT=1確認後/RETURN true直前が真正最終点となる。legacyの権利だけ付与してgamesが未開始の場合はhelperを呼ばず従前のまま。実開始済みで原本/表/function不足なら見逃して未生成とせずouter TXを失敗させる。
+
+nativeは既save_primitive_sourceの元event/全facts/版S/末尾binding照合後RETURN前（同値再掲分岐も含む）で内部helperへ、交代はconsume_nonplay_substitutionのCP更新と0044 receipt INSERT後RETURN前へ。LCはconsume_game_lifecycleのstatus/終了版/public pointer/CP更新後、Undo/P3は既canonical再計算とnative Saveを完了した公開直前が候補となる。各helperはparentと同ownerだけEXECUTE可能とし、actor/app/PUBLICへ新grantしない。新モデル/guard/関数/親bodyは公式catalog/起動構造へrootが一括接合するまで実提供とは呼ばない。
+
+
+## 1表と現在複合資格への追補（PO委任root採用、2026-11-07）
+
+0球の守備側交代ではnative fact版/revision/Sが変わらず、CP revision/digest/D3と出場集合は変わる。従って旧native版だけをPKとしたheader/member案は採用せず、原entry1表＋同RRの複合資格（native版/revision/S、current CP ref/revision/digest/D3、LC receipt、entry集合hash）へ最小化する。旧3表のmodel/DDLはcache比較用に保全する。原entryはimmutable監査とし、raw event IDがSに含まれるだけで古いproofを有効とせず、effective context digest/世代/slot版と既canonical sourceを完全照合する。P3で同eventの実効文脈が変われば旧proofを選ばず、新canonical proofの供給を要求する。必要entry欠落はunavailable。native版だけで現在readをキャッシュ同値扱いしない。終了版はLCの真正receiptと固定CPに束縛する。可変participation/current rosterの推測は禁止を維持する。
+
+開始helperは実insert_initial_grantのcommitted更新/件数検査後に置く。native Save helperは既末尾assert_writer_bindingより前（再掲分岐も同じ）、交代はCPとreceipt保存後へ置く。原entry/context digestを含め全て親TXで全取消し、外部CAP/token/自由JSONは追加しない。共有body/root正式適用までは候補。原表の単一化・閉codec/唯一projector・private helper/read候補・専用正負検査を既承認範囲で継続する。
+
+
+保存内部hookの実装追随: startは既column ACLだけを参照する。system xmin列やINSERT専用の初期水位を読むためのtable SELECT拡大は採用しない。owner-only helperの外部EXECUTEを拒否し、唯一の親呼出点をcommitted UPDATE/ROW_COUNT=1確認後に固定して同TXを保証する。原entry新表のためのsync_fence USAGEはinitial_fn_ownerへ1行だけ候補追加し、既表権限やactor/app EXECUTEは増やさない。play/subは既writer/実xid/xmin/nonceを維持する。モデルinfoだけをimmutable証拠とせず、UPDATE/DELETE/TRUNCATEを無条件拒否するguard関数と2triggerも候補SQLに含める。
+
+新1表/helper/codec/既生成SQLの影響範囲は89passed5.91秒。Ruff成功、Tyのindex name Optionalによる並べ替え1指摘はstr keyへ狭めて解消し再検査0。既正式bodyとの不一致は検査を迂回せずcache shadowでfirst_ball_product.body公式描画によってbasic_stats body1pathだけを追随し、manifest/全他body/role/ACL不変をassertした（正式受理ではない）。owned r1は初期catalog不一致、r4はcolumn ACL、r6はschema USAGEを正当に拒否し、r7は実新規作成と実開始200まで進んだが後続通常球503で検査失敗。これを3球接続成功へ読み替えない。開始0球の独立正負とentry後故障全取消をowned r8で実施中。完全な同RR複合資格read、LC/Undo/P3、登板のAPI/CSV提供は未接続のまま。
+
+
+owned r8確定: cacheの固定shadowで2passed732.32秒（共通lock待機を含む）。実HTTPで新規試合を作成して開始し、開始直後0球で後攻position1の原entry1件/未守備先攻0件を実DB照合した。ownerでもUPDATE/DELETE/TRUNCATEを拒否し、初期actorからhelper直接EXECUTEを拒否した。entry保存直後の故障ではgames.preparing/名簿0/世代0/原entry0/event0へ全TX取消した。author7f1790e6とowned shadowの生成DDL/private helper SQLのSHAを完全一致確認した（DDL78acfad6aaa74888c30bd79e1c79eedb81a5716efde3e0bd18cfad0742f81315、helper a8f082b3754a8dce9c021a0374e3a7444f190f4b54b1aca0e6851d89dd43b238）。shadowの公式body追随1pathは正式受理ではなく、共有3hook patchはroot適用前。
+
+次のread接合の実原典はroot固定70c23c1ac855894c1e053fe48de96cae4036b160の_verified_candidate_inputs(p3_selector_profile=v2)、fixture play_export_p3_selector_v2.json、唯一native生成器である。P3のeffective contextはp3_projection_heads→capsules→capsule_itemsのpayload/history_entryを同じS会員identityで参照し、旧raw event ID/旧payload hashだけへ戻さない。domaingen/play_export_score.pyのpayload_joinsとauthz/p3_projection_sql.py/repositories/past_correction_current.pyの真正CP/元ledger検査を再利用する。現P3 current providerは25以下で、超過paged providerは別担当であり未供給を閉拒否する。これを開始/通常/交代の実装着手条件に追加しない。
+
+今回成立したのは開始entry producerの候補正負だけであり、通常play/sub helper実行・同RR複合資格read・LC/Undo/P3・試合別/season/API/CSVの登板提供は次の実装対象として残る。step1全source完了やD03全体の製品提供、正式migration/catalog/7.7/独立レビューの代替へ拡張しない。
+
+
+次の実保存是正（PO委任root採用）: 新1表のstorage ownerはnormal migrationの制約に合わせpitchlog_ownerへ揃え、既private fn_owner2役へSELECT/INSERTだけを明示する。SET ROLE権限や広い既表SELECTは追加しない。writerの実source/version物理xminには既official列ACL builderでSELECT(xmin)2列だけを供給する。r10はその正当なACL不足、r11は6a基線CSV substitute providerの未配備を特定したもので、検査条件を削除せず既CSV候補3providerをownedだけへ配置した。r12は1passed97.27秒で実作成→開始→通常3球→同D5再送→reload/球数2-1/履歴3、開始proof1維持、actor helper直呼出拒否/adminのimmutable guard拒否を確認。正式47配備の成功へ拡張しない。
+
+R13は1passed/1failed384.29秒: v3実9投球SO3→裏10球目/reloadで、開始後攻proofとD1=9の先攻半回proofを保存した。一方0球交代は、right_verified admissionが保持しないsource_event_id/artifact列を誤って条件にしたためNoDataFoundを返した。正規nonplay読取と同じ0044 receipt/event/slot/nonce/xidへ束縛し、CP保存済executionArtifactSha256を用いる是正を採用。r14は1passed99.48秒で実二球→後攻投手交代→同D5再掲を通し、Bの球数0のままstart A＋substitution Bの2原entryを実DB照合した。
+
+Save後は前値用read_primitive_writer_stateの再呼出をやめ、audit後のowner-only固定callから、実source/current_open現在版をevent/attempt/phase/gen/D1/D2/wireD4/slot/FP/modelと両物理xminへ全値照合する。旧profileの余分な前提やS完全性の再実装を追加せず、callerからS/成功boolを受けない。helper後の親最終binding assertは維持する。rootは共有3hookをまだ正式sourceへ適用していない。r13半回成功は旧lookup版、r14新SQLはv3二球と0球交代の証拠として分離し、最新source全半回再実証へ読み替えない。
+
+これらはsource producer候補の到達点。真正current版/S＋CP ref/revision/digest/D3＋LC receipt＋entry-setを同RRへ束縛するread、P3/Undo/LC、試合別/season/区分/CSVの登板提供、正式0049/catalog/7.7/独立レビューは引続き未了。原本producer候補をAPI登板の提供済みとは記録しない。
+
+### step2途中・同RR複合資格の計数境界（2026-11-07）
+
+root採用済みの1表＋複合資格を、既唯一計数宣言にも伝播する。従前のnative fact版/revision/Sの5キーだけでは、0球投手交代によってCP・D3・entry集合が変わっても同値となるため不十分だった。scope/memberに checkpoint_id/checkpoint_generation/checkpoint_revision/checkpoint_digest/d3/lifecycle_receipt_id/entry_set_sha256 を追加し、計12キーを全照合する。current未終了に限ってLC receiptのNULLは正当な値として同値比較し、他の資格NULL・旧CP・旧D3・旧集合・別終了receiptはsource_unavailableに閉じる。memberから都合よくscopeを採取する供給は認めず、真正providerが同RR内の現在原本でscopeを構成する。
+
+今回の途中到達点は宣言/schema/生成COUNT SQLと正負ケースだけ。実entry projector SQLはbyte不変を生成時に照合した。source producerのr8/r12/r13/r14証拠を計数provider成立へ広げず、実成績API/CSVはまだ未供給のまま。次は真正CP/LCと唯一Sから同RR内scope/memberを供給するowner-only readを接合する。P3/取消のcontextをraw event由来の旧proofで代替しない。
+
+### step2実接続候補・唯一S/同RR原本供給（2026-11-07）
+
+既宣言範囲のrepositories/stats_appearance.pyへowner-onlyの2 read関数候補を追加する。read_pitcher_appearance_contextは既nonplay_prefix_read_sqlのlegacy/nonplay両CP資格検査を公式factoryから全文再利用し、同RR/ROを入口で強制したうえで行lock句1件だけを取り除く。既admission/event/ledger/slot/物理xmin/全CP/世代watermark/LC bridge/交代receiptの拒否条件はそのまま比較する。行lockで書込を止める代わりに、外側の全原本/全成績ページを同一RR snapshotで読む。app/actorへ直接EXECUTEを付けず、既基本成績definerからだけ呼ぶ候補とする。これは新たな書込資格/成功bool/自由JSONからの原本発行ではない。
+
+read_pitcher_appearance_sourceは既_verified_inputs→_canonical_partsの唯一S/source-membersをそのまま使い、native現在版の件数/Sと保存済み有効member全値を照合する。正常単一世代のv3 playは保存T1/T2/lineup、交代は真正CPのsubstitutionFrames/0044 receiptから同じ唯一entry projectorへ供給し、元immutable proof全hash/元event/gen/D1/slot/FP/artifact/contextを全値照合する。必要proof欠落、余剰proof、投影不一致は未供給。開始は真正start helperだけが作れる1件を使い、未守備先発は現在名簿から補わない。初回終了はLC正式readのactive版/真正receipt/native版と照合する。取消/P3/再開/複数世代/未対応旧payloadは未供給のまま残し、MVP必須機能から削除しない。rootのP3 v2 sourceへ移植する際は元Sをraw eventへ戻さず、profile差分を別照合する。
+
+基本成績readは既T6 queryのversion_scopeをそのまま使って同じ試合/JST年/公式区分/最新終了版だけを対象にする。source packetをDB内で試合ごと1回materializeし、現在player page全件の登板を唯一COUNT DISTINCT(game_id)で一括計算してから既表示/CSVへ渡す。全イベントをPythonで再集計せず、playerごとのsource再取得を追加しない。未知/不足はsource_unavailable、真正対象0件だけ0。候補SQL固定fileは既許可の公式builderによる機械追随のみ。正式catalog/登録/7.7/通常起動への適用はroot限定、現時点では実PG検証前の候補である。
+
+r16はshadow-r16固定sourceで1passed125.06秒。実新規作成→開始→v3二球のcurrent成績で開始投手A=1/交代予定B=0/他全員0、真正0球投手交代→同D5再掲後はA=1/B=1/他全員0、実試合成績CSVもA/Bのpitching_appearances=1を確認した。hostは前後のnative fact id/revision/S/countおよび全2sourceのeventID/gen/D1/D2/slot/play row/version/FPを読取観測し、全値不変を確認。CP参照は変化、B物理投球0、原entry2件である。APIへ観測DB値を入力したり0を補ったりしていない。r15は旧計数接合前に同じnative版不変/CP変更を確認した1passed835.11秒（大半lock待機）として別保存。途中の旧shadow import失敗は収集前停止であり成功に含めない。
+
+新read候補のpureは88passed4.89秒、Ruff/Ty成功。scopeは正常単一世代v3/0球交代の候補API/CSVであり、未実施の初回終了/season/再開、P3/Undo/混在世代、正式catalog/0049/通常起動/7.7へ拡張しない。候補SQLの公式再生成元は同じcandidate_sql、今回前SHA679e58e828c98eb2397db57f1dea8ec7b89703750d3887d799f3e6297c06f357から新SHA24777b74fa6b965c22b16edd2a19613d479b8a791d3ba3c22a8c8a4635d9a2e6へ追随し、byte比較を保持した。実helperの旧start/write/guard3bodyと一表DDLは既候補から不変で、新しいread2bodyは別packetとしてrootへ渡す。
+
+root PO委任による通常再開の限定追補を採用。consumed LC原本のevent/gen/D1/D2/D5/FP/receiptを全値照合し、before/after restored全文がstate.gameEnded以外同一、前値lastPlayEvaluation.decision.lockFurtherPlayInput=falseの場合だけ、既半回の出場proofを維持する。新entryを生成せず、半回/lineup/責任原本の不変を全文で証明する。T2終端解放・真の半回変更・欠測はunavailableのままで、未開始半回を推測しない。実終了v1→再開（公式対象外）→追加球→再終了v2のAPI/season/区分/CSV、同D5再掲不増、旧終了版失効を独立ケースへ追加する。source固定後の非作者確認・実PG前の候補である。
+
+r17は1failed514.75秒（lock待機込み）。自チームを後攻へ設定するfixtureがteam_records.kindの既immutable triggerを正当に拒否し、新規作成/終了/APIへ未到達だった。triggerや検査を変更せずこの案を撤回する。次版では実POST /gamesのaway/home team選択を入替え、開始のaway/home選手入力も対応する正規の入力へ入替える。元fixtureのteam kind/選手所属/試合状態は直接変更しない。実saved gameはPOSTが返した新規UUIDのままで、fixture gameの読取を製品成功とは数えない。
+
+後発source完全性追補: 同じframe event IDや同じeffective proof IDの重複をGROUP BYで明示拒否し、proof origin_kindも唯一projector出力へ全値束縛する。開始proofは正規のstart union/null形/home/top1/defensive-half-entryへ限定する。旧sourceの全件数一致だけを完全性の根拠にせず、欠落を別proofの重複で埋めない。r16/r17の固定sourceとは分けて次owned版で確認する。
+
+
+通常再開r18は1failed/584.48秒。実終了v1の登板API確認後、再終了v2で未供給となった。原因は候補readが終了前値gameEnded=trueを要求した過剰条件。既正式gameLifecycleの終了宣言はcurrentを変更せず、再開がgameEnded=falseへ写すため、前値は真正boolean（falseも可）へ整合する。consumed LC全identity、T2 nonlocked、after=false、当該field以外のrestored全値一致は維持する。r18失敗は保全し、新sourceのr19で同じ実経路を再実行する。正常48への移植/正式受理は別のまま。
+
+
+r19は1failed/614.28秒（共通lock待機込み）。終了v1・通常再開・追加3球目・再終了v2の試合/season all/双方CSVの登板1まで成功し、最後の区分対向で失敗した。既fixtureは正規game_otherであり、driverがofficial成功/practice空と逆に期待していた。D02採用済みのpractice成功/official空へ修正し、元game_type_key=game_other自体も明示検査する。製品SQL/区分を変更せず、r19失敗を保全した上でr20を同source固定手順で実行する。
+
+
+## r20通常再開・終了最新版のowned成立（2026-11-07）
+
+実行sourceは7aa39f2531f76f025cf42f96a0ea592a3a5664a0相当のfresh shadow-r20（共有3hookと公式builderの4body候補のみcache適用）。共有DSNをunsetし共通lockを取得、1passed225.83秒。実認証HTTP新規作成→開始→通常2球→終了v1→同D5再掲→通常再開（公式成績対象外）→追加3球目→再終了v2→reloadを通し、試合別・JST暦年season all/practice・双方CSVの自チーム投手登板1とその他0、official空を確認した。再開は新entryを作らず既半回/lineup/責任の真正proofを維持する。
+
+cache `stats-d03-appearance-author-20261107/entry-connection/r20-{source-before,source-after,result}.json` に全source SHA一致と実結果を固定、owned fixture teardown後に共通lock解放。r18/r19失敗とr20初回wrong-cwdの自分の待機pytest停止は別に保全し、成功へ読み替えない。
+
+root正常48への移植は所有15pathのみのcache packet（normal48-transfer-packet.json）で準備し、同公式v2SへT6の選択節とD03を統一、既T6 scope/集計suffix全byte保持、89pure9.61秒/RuffTy0。正式root共有hook/0049 owner構造・guard・catalog・7.7・通常起動は未受理/未接合。実Vite/実機、P3 effective proof、取消、複数世代、T2終端解除、試合全体0球の初期native/CP供給は残件であり、この成功をD03全体/MVP完成とはしない。source固定後の非作者レビューも別途必要。

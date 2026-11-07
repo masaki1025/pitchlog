@@ -80,21 +80,20 @@ def test_basic_stats_missing_bf_attribution_stays_unavailable():
     assert result["pending"] == ["D03_SOURCE_PENDING", "D04_SOURCE_PENDING"]
 
 
-def test_appearance_normal_game_source_is_distinct_from_unsupported_history():
-    """開始同TX原本の限定1件と、非対応履歴の未供給を混同しない。"""
+def test_appearance_requires_actual_complete_defensive_entry_source():
+    """スタメンだけの未守備投手を登板へ推測せず、未供給を残す。"""
     from pitchlog.stats.basic_sql import read_function_body
 
     body = read_function_body()
-    assert "FROM public.game_start_attempts s" in body
-    assert "s.outcome='committed'" in body
-    assert "FROM public.game_lineups l" in body
-    assert "entry.value->'fielding_position'->>'position'='1'" in body
-    assert "count(DISTINCT entry.value->>'player_id')" in body
-    assert "e.event_kind NOT IN ('play_input','game_end_declaration')" in body
-    assert "IF game_uuid IS NOT NULL THEN" in body
-    assert "IF appearance_ready THEN" in body
-    assert "'state','source_unavailable','value',NULL" in body
-    assert "appearance_count>1" in body
+    assert "stats_api.read_pitcher_appearance_source" in body
+    assert "COUNT(DISTINCT m.game_id)" in body
+    assert "appearance_ready" not in body
+    assert "SELECT count(*) INTO appearance_count FROM public.game_lineups" not in body
+    assert (
+        "COALESCE(appearance_metrics->player.id::text,\n"
+        "    pg_catalog.jsonb_build_object('state','source_unavailable','value',NULL)"
+        in body
+    )
     for appearances in (0, 1):
         row = build_basic_stats(_metrics_available(), appearances=appearances)
         item = next(
