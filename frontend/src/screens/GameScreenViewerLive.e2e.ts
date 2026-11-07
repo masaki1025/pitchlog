@@ -1,4 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
+import type { LineupPrefixGame } from '../api/lineupPrefixGame'
+import { nextRecordedHead } from './RealGameRecording.e2e-support'
 
 const baseURL = process.env.PITCHLOG_E2E_BASE_URL
 const team = process.env.PITCHLOG_E2E_TEAM_NAME
@@ -116,7 +118,10 @@ test('別contextの保存済み閲覧は10秒以内に1球へ更新し、断中�
   await page.getByRole('button', { name: '試合を開始', exact: true }).click()
   const startedResponse = await started
   expect(startedResponse.status()).toBe(200)
-  async function selectAndSave(result: string) {
+  async function selectAndSave(
+    result: string,
+    count: number,
+  ): Promise<LineupPrefixGame> {
     // 履歴表示と入力context再束縛は別の更新。実server由来の入力へ戻ってから操作する。
     await expect(page.getByTestId('ordinary-state-source')).toHaveText(
       'サーバー確認済みの状態',
@@ -130,6 +135,7 @@ test('別contextの保存済み閲覧は10秒以内に1球へ更新し、断中�
     await pitch.selectOption({ index: 1 })
     await page.getByTestId('ordinary-pitch-result').selectOption(result)
     await page.getByTestId('first-ball-course').locator('svg').click()
+    const confirmed = nextRecordedHead(page, saved.id, count)
     const posted = page.waitForResponse(
       (res) =>
         res.request().method() === 'POST' &&
@@ -143,6 +149,7 @@ test('別contextの保存済み閲覧は10秒以内に1球へ更新し、断中�
       eventResults?: readonly { a5Result?: string }[]
     }
     expect(ack.eventResults?.[0]?.a5Result).toBe('受理')
+    return (await (await confirmed).json()) as LineupPrefixGame
   }
 
   const viewerContext = await browser.newContext({ ignoreHTTPSErrors: true })
@@ -203,12 +210,20 @@ test('別contextの保存済み閲覧は10秒以内に1球へ更新し、断中�
     await expect(page.getByTestId('ordinary-state-source')).toHaveText(
       'サーバー確認済みの状態',
     )
-    await selectAndSave('batting-result.called-pitch')
     const savedAt = Date.now()
+    const head = await selectAndSave('batting-result.called-pitch', 1)
     await expect(viewer.getByText(/第1球:/)).toBeVisible({ timeout: 10_000 })
     const visibleAt = Date.now()
     if (visibleAt - savedAt > 10_000)
       throw new Error(`10秒更新未達: ${visibleAt - savedAt}ms`)
+    const state = head.after.stateFields
+    await expect(score).toContainText(
+      `先攻 ${state['state.score'].away} – 後攻 ${state['state.score'].home}`,
+    )
+    await expect(score).toContainText(`${state['state.outs']}アウト`)
+    await expect(score).toContainText(
+      `${state['state.count.balls']}ボール ${state['state.count.strikes']}ストライク`,
+    )
     console.log(`PITCHLOG_VIEWER_GAME_ID=${saved.id}`)
     console.log(`PITCHLOG_VIEWER_VISIBLE_MS=${visibleAt - savedAt}`)
     await viewer.reload()
@@ -235,9 +250,13 @@ test('別contextの保存済み閲覧は10秒以内に1球へ更新し、断中�
         (value) =>
           value.includes('/devices/enroll') ||
           value.includes('/start') ||
-          value.includes('/sync/events'),
+          value.includes('/sync/events') ||
+          value.includes('/sync/attempts/recover'),
       ),
     ).toEqual([])
+    expect(viewerApiRequests.every((value) => value.startsWith('GET '))).toBe(
+      true,
+    )
     console.log(
       'PITCHLOG_VIEWER_API_REQUESTS=' + JSON.stringify(viewerApiRequests),
     )
