@@ -1,5 +1,16 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 2026-11-07 10:55 JST：197残1fixtureを実PG是正・値不変で再公開、唯一S製品CSVと冷再起動復旧を実測
+
+- **公開197の正**: `0deb619e6fdd784e6c4ab4f5e8c6fee7bb821991`、base51b、全344path diffSHA f65b0417ed1bb983fbd26fbf71e3edc878dc7a5f22689c755473e374cc6aa221。旧12ccのCI42319349209は終端failure: harness各4/backend3分割成功、backend2は3792passed/2skip/1setup error（RG1専用旧S3起動でstats_fact_versions欠落、pytest49:08）。同じ失敗を再実行せずRG1 helperとplan2pathのみ修復。新owned対象 **1passed9.63秒/source同一/cleanup**、非作者REPORT14a231f446d8883a32dc5da9ab70863f163690518805abc7b17b4190a5ea6991、新P0/P1/P2なし。製品src/RG1本体/peer/ACL/liveness不変。公式9系列/全external byte比較は **変更0**、既7.7/corpus/381snapshotを維持、再受理無し。tenant/invariants/root・backend Ruff/Ty/format成功。
+- comment6700535464（marker+raw JSON、旧全体レビュー継承）→本文pointer→通常pushの順で公開。新CI **42325737938** は進行中、body42325738014成功、Draft/open/未merge。旧CIのfailed-only再実行ではなく、実修復後の新HEADで全必須を検証する。全greenとbase/head/evidence現存照合後に通常merge。
+- **CI8候補の追随**: 専用 `feature/ci-pytest-throughput-integration@9b4f176e4a6fb4651502f8d9db121fa76b8176e6` はb693へ197のRG1修復だけを通常merge。実分割/141検査/32977・15182の各1回被覆/独立128probeの既根拠を保持。8分割の実CI/正式7.7/PRは未実施。新分割helper/設定のguard_paths登録が未列挙なため、既6.3の検査経路方針から最低限の追加要否を非作者へ確認中（現割当の検査欠落は未検出、旧guardを除外しない）。CI専用枝を製品PRと混ぜず、#197後の正式baseで扱う。
+- **新たな利用者操作・唯一S製品CSV候補**: 新CSV WTでstep1 f3d67cc8（旧43を保持したwriter/read2追加・11拒否含む283pure）、step2 bdf5437c（同RR唯一S→有効物理源500keyset）を接合。実画面screen1-single-s **1passed131.12秒**: 新規開始2球→Undo1/原文重複→ZIP1→全Undo→ZIP0→再入力ZIP1→reloadZIP1、真正TenantContext→登録token→同RR source関数→物理源/ZIP、T5 source1/0/1/1・revision3/4/5/5・links全件一致。最終699c41335ea99363f032805cd475a015932733a5のHTTP対向も **1passed98.57秒/source同一/cleanup**: 全88列/11CSV/SHA、401/別tenant・不存在404、壊れ/不足snapshot409、数式無害化。候補SQL1関数をowned配置した検証で、正式catalog/0047/7.7・130依存全体の独立採用・P3 snapshot/終了再開CSVはまだ。公式builderの合成artifact全byte再現、fixture追随216pure/純245/生成44も別範囲で記録。
+- **実browser cold復旧候補**: 固定product39ad/試験step3 `6058888b89824be35bee19f75af80bb03cae4763`（後発5pathは試験/planだけ、通常push）。cold2故障モード1passed84.19秒に加え、live-security-run1 **1passed52.52秒/source同一/cleanup**。実旧writer稼働中はrecover200/unresolved、実commit後だけretry_allowed→同D5新attempt重複・DB各1。未ログイン/別device/別credential401、unknown field422、別tenant実login+端末登録後404。source39adの独立239検査/owned4case成功と合わせたP1/P2限定根拠で、P3と0046正規startupは未接合。
+- **次の実装**: P3既原本/control候補SQLを標準供給する閉D1less復旧を専用枝feature/mvp-p3-attempt-recoveryで準備（旧P1/P2枝不変、無関係170path mergeはabortしtopicのみ3way）。P3側はwriterだけの有効frame投影を公開nonplay GETへ共有し、FE gap-after/play-gapの妥当な拒否を残して原本を整合する修復中。物理CPに付随するlast_play_row列は既閉検査後に物理列と資格情報を分離して比較、unknown fieldを捨てない。再開後全一般操作/旧世代/複数訂正等を部分成功で充足にしない。
+- 正式統合・全一般/断中操作・版付き登板/27成績・両CSV・実機/同時負荷/運用復旧・延期中5秒達否は残る。Goal active、本人署名/P6blind/全MVP成立とはしない。
+
+
 ## 2026-11-07 10:30 JST：同版取消ACK喪失・再入力を実画面完走、8分割候補を独立確認、CSV製品read接合へ
 
 - **新たな実画面操作**: root `feature/mvp-nonplay-formal-connection@c181166c829298f2dd1ba240c94c1ca337729a72`、screen4 **1passed110.07秒/source同一/owned cleanup**。実新規作成→開始→2球→取消POST後ACK喪失→reloadで保存済み1ball確認→同本文/D5/attempt再送（重複非加算）→残1件取消→次球→reload1ball/depth1、最終DBを既完全期待で照合。game003cacd2-9b50-47da-acbd-cb645ebb193f。cache `nonplay-current45-startup-20261107/screen4-*`。root起動0045/fact27修復を含む同候補の成功、正式develop成功ではない。
