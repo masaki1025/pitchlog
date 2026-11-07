@@ -131,12 +131,12 @@ class P3ProjectionCapsule(Base):
             initially="DEFERRED",
         ),
         CheckConstraint(
-            "(watermark BETWEEN 1 AND 25 AND digest_format='p3-full-v1') OR "
+            "(watermark >= 1 AND watermark <= 25 AND digest_format='p3-full-v1') OR "
             "(watermark > 25 AND digest_format='p3-page-chain-v2')",
             name="ck_p3_capsules_13",
         ),
         schema="sync_fence",
-        info={"storage_owner": "pitchlog_sync_right_fn_owner"},
+        info={"storage_owner": "pitchlog_owner"},
     )
 
 
@@ -256,7 +256,7 @@ class P3ProjectionCapsuleItem(Base):
             initially="DEFERRED",
         ),
         schema="sync_fence",
-        info={"storage_owner": "pitchlog_sync_right_fn_owner"},
+        info={"storage_owner": "pitchlog_owner"},
     )
 
 
@@ -306,7 +306,7 @@ class P3ProjectionHead(Base):
             initially="DEFERRED",
         ),
         schema="sync_fence",
-        info={"storage_owner": "pitchlog_sync_right_fn_owner"},
+        info={"storage_owner": "pitchlog_owner"},
     )
 
 
@@ -382,7 +382,7 @@ class P3ProjectionWriteAdmission(Base):
             initially="DEFERRED",
         ),
         schema="sync_fence",
-        info={"storage_owner": "pitchlog_sync_right_fn_owner"},
+        info={"storage_owner": "pitchlog_owner"},
     )
 
 
@@ -402,7 +402,7 @@ class P3ProjectionPageProgress(Base):
         Column("device_id", Uuid, nullable=False),
         Column("binding_nonce", LargeBinary, nullable=False),
         CheckConstraint(
-            "pg_catalog.octet_length(binding_nonce)=32", name="ck_p3_page_progress_02"
+            "octet_length(binding_nonce)=32", name="ck_p3_page_progress_02"
         ),
         Column("transaction_id", Text, nullable=False),
         CheckConstraint("transaction_id ~ '^[0-9]+$'", name="ck_p3_page_progress_03"),
@@ -410,7 +410,7 @@ class P3ProjectionPageProgress(Base):
         CheckConstraint("watermark > 25", name="ck_p3_page_progress_04"),
         Column("digest_format", Text, nullable=False),
         CheckConstraint(
-            "digest_format IN ('p3-page-chain-v2')", name="ck_p3_page_progress_05"
+            "digest_format='p3-page-chain-v2'", name="ck_p3_page_progress_05"
         ),
         Column("target_d1", BigInteger, nullable=False),
         CheckConstraint(
@@ -420,12 +420,12 @@ class P3ProjectionPageProgress(Base):
         Column("old_stats_version_id", Uuid, nullable=False),
         Column("capsule_header", JSONB, nullable=False),
         CheckConstraint(
-            "pg_catalog.jsonb_typeof(capsule_header)='object'",
+            "jsonb_typeof(capsule_header)='object'",
             name="ck_p3_page_progress_07",
         ),
         Column("stats_header", JSONB, nullable=False),
         CheckConstraint(
-            "pg_catalog.jsonb_typeof(stats_header)='object'",
+            "jsonb_typeof(stats_header)='object'",
             name="ck_p3_page_progress_08",
         ),
         Column("state", Text, nullable=False),
@@ -505,9 +505,7 @@ class P3ProjectionPageRow(Base):
         Column("phase_id", Uuid, nullable=False),
         Column("device_id", Uuid, nullable=False),
         Column("binding_nonce", LargeBinary, nullable=False),
-        CheckConstraint(
-            "pg_catalog.octet_length(binding_nonce)=32", name="ck_p3_page_rows_02"
-        ),
+        CheckConstraint("octet_length(binding_nonce)=32", name="ck_p3_page_rows_02"),
         Column("transaction_id", Text, nullable=False),
         CheckConstraint("transaction_id ~ '^[0-9]+$'", name="ck_p3_page_rows_03"),
         Column("d5", Uuid, nullable=False),
@@ -523,12 +521,10 @@ class P3ProjectionPageRow(Base):
         Column("effective_event_id", Uuid, nullable=False),
         Column("effective_play_row_id", Uuid, nullable=False),
         Column("item", JSONB, nullable=False),
-        CheckConstraint(
-            "pg_catalog.jsonb_typeof(item)='object'", name="ck_p3_page_rows_07"
-        ),
+        CheckConstraint("jsonb_typeof(item)='object'", name="ck_p3_page_rows_07"),
         Column("original_evaluation", JSONB, nullable=False),
         CheckConstraint(
-            "pg_catalog.jsonb_typeof(original_evaluation)='object'",
+            "jsonb_typeof(original_evaluation)='object'",
             name="ck_p3_page_rows_08",
         ),
         Column("original_evaluation_digest", Text, nullable=False),
@@ -536,9 +532,7 @@ class P3ProjectionPageRow(Base):
             "original_evaluation_digest ~ '^[a-f0-9]{64}$'", name="ck_p3_page_rows_09"
         ),
         Column("evaluation", JSONB, nullable=False),
-        CheckConstraint(
-            "pg_catalog.jsonb_typeof(evaluation)='object'", name="ck_p3_page_rows_10"
-        ),
+        CheckConstraint("jsonb_typeof(evaluation)='object'", name="ck_p3_page_rows_10"),
         Column("evaluation_digest", Text, nullable=False),
         CheckConstraint(
             "evaluation_digest ~ '^[a-f0-9]{64}$'", name="ck_p3_page_rows_11"

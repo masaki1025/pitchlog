@@ -68,14 +68,13 @@ ACTION,
   CONSTRAINT fk_p3_capsules_04 FOREIGN KEY(tenant_id, game_id,
 stats_version_id) REFERENCES sync_fence.stats_fact_versions (tenant_id,
 game_id, id) ON DELETE NO ACTION DEFERRABLE INITIALLY DEFERRED,
-  CONSTRAINT ck_p3_capsules_13 CHECK ((watermark BETWEEN 1 AND 25 AND
+  CONSTRAINT ck_p3_capsules_13 CHECK ((watermark >= 1 AND watermark <= 25 AND
 digest_format='p3-full-v1') OR (watermark > 25 AND
 digest_format='p3-page-chain-v2'))
 )
 """,
     """
-ALTER TABLE sync_fence.p3_projection_capsules OWNER TO
-pitchlog_sync_right_fn_owner
+ALTER TABLE sync_fence.p3_projection_capsules OWNER TO pitchlog_owner
 """,
     """
 ALTER TABLE sync_fence.p3_projection_capsules ENABLE ROW LEVEL SECURITY
@@ -154,8 +153,7 @@ sync_fence.p3_projection_capsule_items (tenant_id, game_id,
 internal_generation, capsule_id, d1, d2)
 """,
     """
-ALTER TABLE sync_fence.p3_projection_capsule_items OWNER TO
-pitchlog_sync_right_fn_owner
+ALTER TABLE sync_fence.p3_projection_capsule_items OWNER TO pitchlog_owner
 """,
     """
 ALTER TABLE sync_fence.p3_projection_capsule_items ENABLE ROW LEVEL SECURITY
@@ -192,8 +190,7 @@ NO ACTION DEFERRABLE INITIALLY DEFERRED
 )
 """,
     """
-ALTER TABLE sync_fence.p3_projection_heads OWNER TO
-pitchlog_sync_right_fn_owner
+ALTER TABLE sync_fence.p3_projection_heads OWNER TO pitchlog_owner
 """,
     """
 ALTER TABLE sync_fence.p3_projection_heads ENABLE ROW LEVEL SECURITY
@@ -244,8 +241,7 @@ INITIALLY DEFERRED
 )
 """,
     """
-ALTER TABLE sync_fence.p3_projection_write_admissions OWNER TO
-pitchlog_sync_right_fn_owner
+ALTER TABLE sync_fence.p3_projection_write_admissions OWNER TO pitchlog_owner
 """,
     """
 ALTER TABLE sync_fence.p3_projection_write_admissions ENABLE ROW LEVEL
@@ -288,18 +284,16 @@ CREATE TABLE sync_fence.p3_projection_page_progress (
   CONSTRAINT pk_p3_page_progress PRIMARY KEY (tenant_id, game_id,
 internal_generation, capsule_id),
   CONSTRAINT ck_p3_page_progress_01 CHECK (internal_generation > 0),
-  CONSTRAINT ck_p3_page_progress_02 CHECK
-(pg_catalog.octet_length(binding_nonce)=32),
+  CONSTRAINT ck_p3_page_progress_02 CHECK (octet_length(binding_nonce)=32),
   CONSTRAINT ck_p3_page_progress_03 CHECK (transaction_id ~ '^[0-9]+$'),
   CONSTRAINT ck_p3_page_progress_04 CHECK (watermark > 25),
-  CONSTRAINT ck_p3_page_progress_05 CHECK (digest_format IN
-('p3-page-chain-v2')),
+  CONSTRAINT ck_p3_page_progress_05 CHECK (digest_format='p3-page-chain-v2'),
   CONSTRAINT ck_p3_page_progress_06 CHECK (target_d1 > 0 AND target_d1 <=
 watermark),
   CONSTRAINT ck_p3_page_progress_07 CHECK
-(pg_catalog.jsonb_typeof(capsule_header)='object'),
+(jsonb_typeof(capsule_header)='object'),
   CONSTRAINT ck_p3_page_progress_08 CHECK
-(pg_catalog.jsonb_typeof(stats_header)='object'),
+(jsonb_typeof(stats_header)='object'),
   CONSTRAINT ck_p3_page_progress_09 CHECK (state IN ('building','finalized')),
   CONSTRAINT ck_p3_page_progress_10 CHECK (item_count >= 0),
   CONSTRAINT ck_p3_page_progress_11 CHECK (last_d1 >= 0),
@@ -368,20 +362,17 @@ CREATE TABLE sync_fence.p3_projection_page_rows (
   CONSTRAINT pk_p3_page_rows PRIMARY KEY (tenant_id, game_id,
 internal_generation, capsule_id, d1),
   CONSTRAINT ck_p3_page_rows_01 CHECK (internal_generation > 0),
-  CONSTRAINT ck_p3_page_rows_02 CHECK
-(pg_catalog.octet_length(binding_nonce)=32),
+  CONSTRAINT ck_p3_page_rows_02 CHECK (octet_length(binding_nonce)=32),
   CONSTRAINT ck_p3_page_rows_03 CHECK (transaction_id ~ '^[0-9]+$'),
   CONSTRAINT ck_p3_page_rows_04 CHECK (ledger_fingerprint ~ '^[a-f0-9]{64}$'),
   CONSTRAINT ck_p3_page_rows_05 CHECK (d1 > 0),
   CONSTRAINT ck_p3_page_rows_06 CHECK (d2 > 0),
-  CONSTRAINT ck_p3_page_rows_07 CHECK
-(pg_catalog.jsonb_typeof(item)='object'),
+  CONSTRAINT ck_p3_page_rows_07 CHECK (jsonb_typeof(item)='object'),
   CONSTRAINT ck_p3_page_rows_08 CHECK
-(pg_catalog.jsonb_typeof(original_evaluation)='object'),
+(jsonb_typeof(original_evaluation)='object'),
   CONSTRAINT ck_p3_page_rows_09 CHECK (original_evaluation_digest ~
 '^[a-f0-9]{64}$'),
-  CONSTRAINT ck_p3_page_rows_10 CHECK
-(pg_catalog.jsonb_typeof(evaluation)='object'),
+  CONSTRAINT ck_p3_page_rows_10 CHECK (jsonb_typeof(evaluation)='object'),
   CONSTRAINT ck_p3_page_rows_11 CHECK (evaluation_digest ~ '^[a-f0-9]{64}$'),
   CONSTRAINT ck_p3_page_rows_12 CHECK (item_digest ~ '^[a-f0-9]{64}$'),
   CONSTRAINT uq_p3_page_rows_01 UNIQUE (tenant_id, game_id,

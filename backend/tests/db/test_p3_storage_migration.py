@@ -46,7 +46,8 @@ def test_owned_p3_migration_and_all_structure_tamper_refusals(
             changes = (
                 "ALTER TABLE sync_fence.p3_projection_capsules NO FORCE "
                 "ROW LEVEL SECURITY",
-                "ALTER TABLE sync_fence.p3_projection_capsules OWNER TO pitchlog_owner",
+                "ALTER TABLE sync_fence.p3_projection_capsules "
+                "OWNER TO pitchlog_sync_right_fn_owner",
                 "ALTER TABLE sync_fence.p3_projection_heads ADD COLUMN extra text",
                 "ALTER TABLE sync_fence.p3_projection_page_progress "
                 "ALTER COLUMN last_d2 TYPE numeric",
