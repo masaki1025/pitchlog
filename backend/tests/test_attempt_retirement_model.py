@@ -117,3 +117,29 @@ def test_retirement_guards_require_exact_phase(phase):
         current_product_startup._check_attempt_retirement_guards(
             Connection(valid), "unknown"
         )
+
+
+def test_retirement_profile_rejects_extra_policy_for_nonbinding_role():
+    """退役表への未知policyもlegacy側へ漏らさず閉じた全集合で拒否する。"""
+    import copy
+    import json
+
+    from pitchlog.authz.first_ball_product import TABLES, _reserved, validate
+
+    asset_path = Path(__file__).parents[2] / "contracts/authz/product/ddl-elements.json"
+    asset = json.loads(asset_path.read_text())
+    assert "attempt_retirements" in TABLES
+    assert validate(asset) is True
+    owner = next(
+        row for row in asset["policies"] if row["table_id"] == "attempt_retirements"
+    )
+    unknown = copy.deepcopy(owner)
+    unknown.update(
+        policy_id="POLICY:attempt_retirements:unreviewed",
+        policy_name="unreviewed",
+        role_ids=["pitchlog_app"],
+    )
+    assert _reserved(unknown, "policies") is True
+    asset["policies"].append(unknown)
+    with pytest.raises(ValueError, match="余剰"):
+        validate(asset)

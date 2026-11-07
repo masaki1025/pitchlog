@@ -24,3 +24,7 @@ created: 2026-11-07
 ステップ1固定ff2ded1dは非作者REPORT SHA13ddf8ed20f41f7ce489532f027cac95009f9723954b960dfac74b4dc2a0e3f2/独立173passedを根拠にPO委任rootが限定採用。実移植1c7a7193/ecd20392/89b58526は元9d/f938/a122に対応し、既補助関数集合を保持、過剰削除の旧候補は不採用。
 
 ステップ2候補はCURRENT0046・全14表/全構造indexを閉比較し、既root45の全検査を保持。配備前の退役trigger0件と全配備のexact2件をcatalog段階に束縛し、部分/無効/余剰を権限適用前に拒否する。catalog/DDLは605に既供給されたconnection_declarations/公式builder由来候補を再利用し、正式7.7未受理のまま成功扱いにしない。175関連pure成功、既pre-full/full単体seamへ専用guardの検査を別に追加し旧呼出順/IDLE境界は維持。次に固定sourceで実S0→0046/同版resume/0046 table作成後故障全取消/構造・ACL・trigger改変拒否をowned PGへ渡す。0039以外の中間版からのcurrent直接移行は本候補で成立を主張しない。
+
+固定f43のowned run1は4passed43.92秒、run2は5passed58.93秒、両方source前後同一/共有DSN未継承/owned cleanup。実S0→46/同版resume/46表作成後の全取消、RLS/未知列/余剰UPDATE/更新guard無効/TRUNCATE guard欠落拒否とpre-full正規再開・partial ACL拒否を確認。これは候補環境で、正式7.7/通常統合/運用公開ではない。
+
+同表の宣言分類の追補: first_ball_product.TABLESが13のままで、退役表の未知policyをpitchlog_appへ追加したメモリ内反例が_reserved=False/直接profile validate=Trueとなる不足を確認（母集合全検査が同変異を受理するかは未検証で、実越境の成立とはしない）。閉TABLESへ同表1件のみ追加し、元資産positiveと同変異negativeを固定する。DDL/権限そのものを追加せず、余剰を拒否する分類を元設計へ揃える。追加2pathを限定非作者確認し、最新HEADのS0/同版resumeを再確認してから候補最終版へ束縛する。
