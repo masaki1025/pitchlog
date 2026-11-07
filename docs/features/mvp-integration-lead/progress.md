@@ -1,5 +1,15 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 2026-11-07 09:39 JST：197最終版を公開、取消再入力CSVの成績source一致を実証、正規起動0045を是正
+
+- **利用者操作の候補実証**: CSV r12は実画面/実認証/owned PGで取消→全取消→再入力→reload/毎球ZIPを **1passed141.50秒**、source同一/owned cleanup。真正T5のcurrent source_countは1/0/1/1、revision3/4/5/5、current_open。CSV play_linksのsource_event/play_row/generation/D2/versionを各段階全値比較し、再入力とreloadのversionID/digest/sourceも一致。CSV候補435cb5180eb2c04aae28ef3c1d930a2967698209へ固定、恒久assert追加後r13は別途検証中。P3/終了再開CSV・正式提供はまだ。
+- **PR197公開**: 最終非作者REPORT b4eaa35966693dfb8a0e5224962b704c5bdc5669744519600117f7bddf89fb9e、新未解消P0/P1なし、既private非空残6表P2維持。root最終140passed245.04秒と全正式CLI/静的検査を確認。証拠comment6699697367→本文pointer更新→通常push1回の順で公開headを12cc636dfaaea2ef6ecba2985492d3acb3f1dc30へ。full343path SHA f2c12dde60cefed0f68b2533ae3c0c8c1ac8969aac5f01f5db34870b4b9266f7。CI42319349209は実行中、Draft/open、未merge。証拠JSONにrootが誤ってコード枠を付け本文guardが拒否したため、同commentをmarker+raw JSONへ修正し本文run42319349252のfailed jobだけ再実行。旧失敗/旧掲載byteはcache保持、検査を緩めていない。
+- **後続候補の正規起動**: root WT feature/mvp-nonplay-formal-connectionでe3c3aeのCURRENT0043→既migration0045へ整合。変更前でも旧12表期待/交代FK無名modelによる2unit失敗を再現。実PGの4自動FK名を観測し型元へ同名明示、閉13表/名前/属性拒否を保持、9d2e8097へ7path固定。164unitpassed51.96秒・backend Ruff/Ty成功、非作者sourceレビュー a225942e4ba27363cdc256f4b896303709719077c728e099aa3a9d669d8b53a6で新P0/P1/P2なし。
+- **実起動の未成立**: owned run1は3failed14.98秒。診断run2でLC CHECKのuint64上限のPG逆変換（quoted numeric）と型元integerの表記差だけを特定。f938f10fで正準十進整数::numericのみ同値化、値変更/別cast/小数/NaN/Infinity拒否を追加し49pure成功。正常S0→current/同版再開、0044/0045途中故障の全取消→0039再開をrun3/handle17367で共通lock待ち。実PG未通過を成功とはしない。#197のCURRENT0041は無変更、後続専用。
+- **並行担当**: P3担当は最終197確認完了後R30（訂正→終了→再開→1球→再終了）へ。復旧担当は既D5/業務FP/DI2順不変のままV12全値body_fingerprintを実装、32pure/Ruff/Ty成功、actual HTTP/旧登録拒否の最終証拠は未成立。CSVは唯一S由来の有限identity read候補をcacheに分離、正式認可/tenant/7.7はroot直列、原始イベントから別計算しない。
+- **次**: #197全必須CI/本文guard→通常統合、0045起動の実PG是正と非作者追補、P3/復旧/CSVの同版接合。後続fixtureのfrozen external正式登録・9資産受理・全操作/断中/27成績/両CSV・実機/同時負荷/運用復旧を引き続き残件とし、Goal active。
+
+
 ## 2026-11-07 09:13 JST：P3後終了・取消再入力CSVを実測完走、197正式値を修復源へ反映
 
 - **P3→終了の実証**: 作者R29 **1passed162.78秒/source同一**。真正create/start3球→三振をballへP3訂正→同D5再掲→通常2球→実終了ACK/GET。旧T5 K/pitcherK1非現行、訂正後開放K/pitcherK0非現行、終了K/pitcherK0現行confirmed_ended、receipt/public pointer、終了control D1=6をDB照合。cache `mvp-past-correction-product-20261106/step4-end-r29-confirmed/` manifest SHA275a50fa74427529b809e77c6c839bedaf6923975fe7e2266a38f2154acf8d5c。R28の旧5slot期待による失敗は保持。次の再開→追加→再終了、25超/複数/旧世代/終了跨ぎは未成立。
