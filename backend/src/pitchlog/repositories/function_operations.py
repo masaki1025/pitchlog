@@ -470,6 +470,26 @@ _SYNC_PLAY_PREFIX_FUNCTION_TYPES = MappingProxyType(
     }
 )
 
+_STARTED_SNAPSHOT_FUNCTION_TYPES = MappingProxyType(
+    {
+        "sync_right_api.read_started_ordinary_history_page": (
+            _SYNC_ORDINARY_PREFIX_FUNCTION_TYPES[
+                "sync_right_api.read_ordinary_history_page"
+            ]
+        ),
+        "sync_right_api.read_started_play_prefix_history_page": (
+            _SYNC_PLAY_PREFIX_FUNCTION_TYPES[
+                "sync_right_api.read_play_prefix_history_page"
+            ]
+        ),
+        "sync_right_api.read_started_nonplay_active_history": (
+            _SYNC_ORDINARY_PREFIX_FUNCTION_TYPES[
+                "sync_right_api.read_nonplay_active_history"
+            ]
+        ),
+    }
+)
+
 
 _SYNC_WRITER_BINDING_FUNCTION_TYPES = MappingProxyType(
     {
@@ -711,6 +731,7 @@ class FunctionOperationRegistration:
         p3 = _SYNC_P3_FUNCTION_TYPES.get(self.function_id)
         ordinary_prefix = _SYNC_ORDINARY_PREFIX_FUNCTION_TYPES.get(self.function_id)
         play_prefix = _SYNC_PLAY_PREFIX_FUNCTION_TYPES.get(self.function_id)
+        started_snapshot = _STARTED_SNAPSHOT_FUNCTION_TYPES.get(self.function_id)
         writer_binding = _SYNC_WRITER_BINDING_FUNCTION_TYPES.get(self.function_id)
         recording_vocab = (
             self.function_id == "recording_vocab_api.read_batted_ball_options"
@@ -787,6 +808,16 @@ class FunctionOperationRegistration:
                 or self.nonempty_inputs
             ):
                 raise FunctionOperationError("v2 prefix関数の有限型宣言が不一致")
+        elif started_snapshot is not None:
+            name = self.function_id.rsplit(".", 1)[1]
+            if (
+                extended != started_snapshot[:4]
+                or (self.min_rows, self.max_rows) != started_snapshot[4:]
+                or self.operation_id != f"STARTED_SNAPSHOT:{name}"
+                or self.capability_id != f"CAP:started_snapshot:{name}"
+                or self.nonempty_inputs
+            ):
+                raise FunctionOperationError("記録画面read関数の有限型宣言が不一致")
         elif writer_binding is not None:
             name = self.function_id.rsplit(".", 1)[1]
             if (
@@ -916,6 +947,7 @@ class FunctionOperationRegistration:
                         or p3 is not None
                         or ordinary_prefix is not None
                         or play_prefix is not None
+                        or started_snapshot is not None
                         or writer_binding is not None
                     )
                     and expected_type is bytes
@@ -1171,12 +1203,17 @@ def prepare_function_operation(
         if (
             spec.function_id in _SYNC_ORDINARY_PREFIX_FUNCTION_TYPES
             or spec.function_id in _SYNC_PLAY_PREFIX_FUNCTION_TYPES
+            or spec.function_id in _STARTED_SNAPSHOT_FUNCTION_TYPES
         ):
             if expected_type is bytes and len(value) != 32:
                 raise FunctionOperationError("通常prefixのnonce長が不一致")
             if expected_type is int:
                 zero_based = name in {"upper_watermark", "after_d1", "after_d2"} or (
-                    spec.function_id == "sync_right_api.read_nonplay_active_history"
+                    spec.function_id
+                    in {
+                        "sync_right_api.read_nonplay_active_history",
+                        "sync_right_api.read_started_nonplay_active_history",
+                    }
                     and name == "after_order"
                 )
                 lower = 0 if zero_based else 1

@@ -181,6 +181,11 @@ def test_product_function_registry_keeps_rg1_and_adds_one_rule_operation() -> No
         RG1PrecheckToken,
         RG1ScopeBindingToken,
     )
+    from pitchlog.repositories.started_snapshot_read_operations import (
+        StartedNonplayActiveHistoryReadToken,
+        StartedOrdinaryHistoryPageToken,
+        StartedPlayPrefixHistoryPageToken,
+    )
     from pitchlog.repositories.stats import ReadPrimitiveTotalsToken
     from pitchlog.repositories.stats_basic import ReadBasicStatsToken
     from pitchlog.repositories.stats_native_operations import (
@@ -256,6 +261,9 @@ def test_product_function_registry_keeps_rg1_and_adds_one_rule_operation() -> No
         "SYNC_LIFECYCLE:consume_game_lifecycle",
         "GAME_LIFECYCLE:read_display",
         "SYNC_ORDINARY_PITCH:read_nonplay_active_history",
+        "STARTED_SNAPSHOT:read_started_ordinary_history_page",
+        "STARTED_SNAPSHOT:read_started_play_prefix_history_page",
+        "STARTED_SNAPSHOT:read_started_nonplay_active_history",
     )
     assert set(operation_registry.FUNCTION_OPERATION_REGISTRY) == {
         BattedBallOptionsToken,
@@ -313,8 +321,41 @@ def test_product_function_registry_keeps_rg1_and_adds_one_rule_operation() -> No
         _PrepareLifecycleCall,
         _ConsumeLifecycleCall,
         LifecycleDisplayToken,
+        StartedOrdinaryHistoryPageToken,
+        StartedPlayPrefixHistoryPageToken,
+        StartedNonplayActiveHistoryReadToken,
     }
     assert operation_registry.PRODUCT_OPERATIONS
+
+
+def test_started_read_registry_reuses_three_closed_page_shapes() -> None:
+    """旧page型と限界値を保持し、別IDや変形宣言を拒否する。"""
+    from pitchlog.repositories.started_snapshot_read_operations import (
+        STARTED_SNAPSHOT_READ_OPERATIONS,
+        StartedNonplayActiveHistoryReadToken,
+        StartedOrdinaryHistoryPageToken,
+        StartedPlayPrefixHistoryPageToken,
+    )
+
+    u = UUID(int=1)
+    tokens = (
+        StartedOrdinaryHistoryPageToken(u, 1, 1, u, 1, 0, 0, 0, u, 25),
+        StartedPlayPrefixHistoryPageToken(u, 1, 1, u, 1, 1, 0, 0, 0, u, 25),
+        StartedNonplayActiveHistoryReadToken(u, 1, u, 1, 1, 1, 1, 0, 0, u, 25),
+    )
+    assert tuple(type(token) for token in tokens) == tuple(
+        spec.token_type for spec in STARTED_SNAPSHOT_READ_OPERATIONS
+    )
+    for token, spec in zip(tokens, STARTED_SNAPSHOT_READ_OPERATIONS, strict=True):
+        selected, params = prepare_function_operation(
+            token, _TENANT_ID, operation_registry.FUNCTION_OPERATION_REGISTRY
+        )
+        assert selected is spec
+        assert params["tenant_id"] == _TENANT_ID
+        with pytest.raises(FunctionOperationError):
+            replace(spec, capability_id="CAP:started_snapshot:unknown")
+        with pytest.raises(FunctionOperationError):
+            replace(spec, max_rows=spec.max_rows + 1)
 
 
 def test_stage_a_rule_registration_has_exact_inputs_and_fixed_sql() -> None:

@@ -142,7 +142,10 @@ _owned_adapter._request=_owned_request
 from contextlib import contextmanager as _owned_contextmanager
 from pitchlog.api.routers import started_games as _owned_started_games
 from pitchlog.repositories import transaction as _owned_transaction
-_owned_original_started_scope=_owned_started_games.tenant_transaction_scope
+_owned_started_scope_key=('started_snapshot_read_scope'
+ if hasattr(_owned_started_games,'started_snapshot_read_scope')
+ else 'tenant_transaction_scope')
+_owned_original_started_scope=getattr(_owned_started_games,_owned_started_scope_key)
 def _owned_started_pid(handle):
  try:
   runtime=_owned_transaction._TRANSACTION_RUNTIMES.get(handle._state_key)
@@ -166,7 +169,7 @@ def _owned_started_scope(*args,**kwargs):
    yield handle
  finally:
   _owned_get_scope_marker('end',pid)
-_owned_started_games.tenant_transaction_scope=_owned_started_scope
+setattr(_owned_started_games,_owned_started_scope_key,_owned_started_scope)
 """
 
 

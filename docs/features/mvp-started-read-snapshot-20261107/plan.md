@@ -46,3 +46,8 @@ worktree: /home/ymdms/projects/pitchlog-worktrees/feature-mvp-started-read-snaps
 同日 ステップ2: `/games/{game_id}/started` GETだけを専用scopeへ接続。defaultの0球/保存初球200と既C2/DTO対向、非playの別read token、scope内writer lock拒否を純試験で確認。共有関数と正式catalogが未配備なので、公開実PG成功の主張は行わない。
 
 同日 root の source review で、新3 readonly token が一般RW scopeの `run_function` へ達する余地を確認。PO委任の是正として、token型から真正started RR scopeを常時要求し、通常RWからはSQL0で拒否する。appが関数を直接呼んだ場合も同一snapshot保証を欠くため、新3関数本文の先頭に `transaction_isolation='repeatable read'` と `transaction_read_only='on'` の閉検査を追加する。元writer/NP/P3関数本文は不変更、別identityの導出差分を関数名・行lock句・このRR/RO条件だけに固定する。rootによる正式配置・実PG対向と非作者レビューは引き続き未了。
+
+
+root接合: author334412302758bbddf96f360f5588a60bf7e29e58と共有登録patch SHAf7e5018ed7ab0de0287d97c3f5cb2b02e696edce217506c849dfe78228a26831を通常49/登板HTTP/P3閉応答候補へ接合。generator f30922d12d0d355105c73e66e4d51c47a52970266e1a47ef91a6f444034a4876は全byte再利用し、旧3関数metadata全fieldのcanonical pinから同owner/ACLの新3宣言を生成。完全CREATE/OWNER/REVOKE/GRANTはauthor SQL SHA155c862bd39c07e6b54296a65e3dc53545aa167fa261d7ce2b39090a08550f15と全byte一致。新3DDL/3body/manifestだけ追加、旧writer/数学/親関数の本文と権限は不変更。未知親metadata/SQLの再導出拒否を含むroot308pure10.90秒＋publisher6pure3.06秒/Ty/公式body検査0。test-only GET observerは旧scope名又は新scope名の既factoryを包むだけへ追随、元scope/例外/接続を変えない。
+
+最終限定非作者recovery確認: cache started-read-snapshot-independent-20261107/REPORT.md SHA653fc56d1335e080cdcba991f60b9c30455a25d52006ca58828a64567b61865e、全30path/author13source/shared3前後/publisher metadata/bodyを照合、独立292passed9.58秒、新P0/P1なし。rootはこの固定版をPO委任で候補採用し実PGへ進む。6aaのreadonly token一般RW漏れは334で是正済み、新3SQLのRR/READ ONLY条件も閉確認。正式7.7/seal/CI/通常merge、実画面NP成功はまだ成立していない。

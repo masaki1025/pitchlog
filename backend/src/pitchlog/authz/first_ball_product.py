@@ -2320,6 +2320,30 @@ def _activate_d03_profile() -> None:
 
 
 _activate_d03_profile()
+
+
+def _activate_started_snapshot_read_profile() -> None:
+    """既writer/親本文を不変のまま、真正RRの専用3readerを追加する。"""
+    from pitchlog.authz.started_snapshot_read_product import candidate_declarations
+
+    rows, bodies = candidate_declarations(ADDITIONS["functions"])
+    for row in rows:
+        identifier = row["function_id"]
+        key = "function|" + identifier
+        if key in BODIES or any(
+            old["function_id"] == identifier for old in ADDITIONS["functions"]
+        ):
+            raise ValueError("記録画面GETの既関数宣言へ衝突")
+        ADDITIONS["functions"].append(copy.deepcopy(row))
+        BODIES[key] = (
+            f"-- ELEMENT-TYPE: function\n-- ELEMENT-ID: {identifier}\n\n"
+            + bodies.pop(key)
+        )
+    if bodies:
+        raise ValueError("記録画面GETの宣言外本文が残存")
+
+
+_activate_started_snapshot_read_profile()
 ROLES = frozenset(row["role_id"] for row in ADDITIONS["roles"])
 
 TABLES = frozenset(
