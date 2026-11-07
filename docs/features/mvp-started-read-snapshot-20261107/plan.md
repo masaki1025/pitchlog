@@ -1,12 +1,12 @@
 ---
 feature: mvp-started-read-snapshot-20261107
-status: review
-承認: 未了（PO委任rootによる技術計画レビュー待ち）
+status: active
+承認: 済（PO委任root、2026-11-07、固定af8c6ff9限定計画レビュー）
 重さ分類: コア領域
 branch: feature/mvp-started-read-snapshot-20261107
 worktree: /home/ymdms/projects/pitchlog-worktrees/feature-mvp-started-read-snapshot-20261107
 固定基線: 7de86358c94dc2c35ea90216a3602f5f0a2607c9
-計画レビュー周回: 0
+計画レビュー周回: 1
 確定ゲート周回: 0
 実行方式: 通常
 ---
@@ -32,3 +32,7 @@ worktree: /home/ymdms/projects/pitchlog-worktrees/feature-mvp-started-read-snaps
 | 3 | root直列接合・実対向 | source/実関数/正式catalog をrootへpacketで渡した後、共通lock下の owned PG/HTTP で同時GET→NP publish、CP/P3/LC/0球/旧cursor/tenant/故障全取消を確認。rootの正式 asset/7.7 受理と独立レビューは別。 |
 
 このWTでは共有正式asset・router以外のroot共有path・台帳を編集しない。既P3 paged reader の全履歴を一括 RAM 化せず、既有限page検証をそのまま通す。実 PID 原因を否定する後発証拠が出た場合は本計画の採用を取り下げる。
+
+## 計画レビュー記録
+
+2026-11-07、root が固定 `af8c6ff9` / plan SHA `c522c55b660dfb820a2d5a8b683c2919157a1b23b0cda5b2f4941b646a59681e` を全文確認し、P0/P1なしでPO委任採用。真正RR handle限定のread mode、writer lock不変更、現P3 selector/NP/LC/0球保持、固定SQLの行lock句以外全値比較と最小cache接合patchを条件としてstep1→2を進める。DB/browserはroot調整まで未実施。
