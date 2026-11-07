@@ -153,3 +153,5 @@ FROM checked
  RETURN QUERY SELECT v_digest;
 END;
 $d03_start$;
+ALTER FUNCTION initial_right_api.persist_start_pitcher_entry(uuid, uuid, bigint) OWNER TO pitchlog_initial_fn_owner;
+REVOKE ALL ON FUNCTION initial_right_api.persist_start_pitcher_entry(uuid, uuid, bigint) FROM PUBLIC,pitchlog_app,pitchlog_initial_actor,pitchlog_sync_binding_actor,pitchlog_sync_right_fn_owner;

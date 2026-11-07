@@ -473,3 +473,5 @@ BEGIN
  'd3',cp.confirmed_watermark,'checkpoint',cp.content)::text;
 END;
 $d03_context$;
+ALTER FUNCTION stats_api.read_pitcher_appearance_context(uuid, uuid) OWNER TO pitchlog_sync_right_fn_owner;
+REVOKE ALL ON FUNCTION stats_api.read_pitcher_appearance_context(uuid, uuid) FROM PUBLIC,pitchlog_app,pitchlog_initial_actor,pitchlog_sync_binding_actor,pitchlog_initial_fn_owner;

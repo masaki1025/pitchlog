@@ -131,6 +131,32 @@ def candidate_declarations() -> tuple[dict[str, list[dict[str, Any]]], dict[str,
         )
         declarations["functions"].append(row)
         bodies["function|" + identity] = sql
+    # 候補の生CREATEだけでは作成主体とPUBLICの既定EXECUTEが残る。
+    # 通常適用本文も既候補installと同じowner-only終端へ束縛する。
+    helper_roles = (
+        "PUBLIC",
+        "pitchlog_app",
+        "pitchlog_initial_actor",
+        "pitchlog_sync_binding_actor",
+        INITIAL_OWNER,
+        WRITER_OWNER,
+    )
+    for row in declarations["functions"]:
+        revoked_roles = [role for role in helper_roles if role != row["owner_role_id"]]
+        expected_revoked = [
+            {"grantee": role, "privilege": "EXECUTE", "grantable": False}
+            for role in revoked_roles
+        ]
+        if row["revoked_acl_expectations"] != expected_revoked:
+            raise ValueError("投手出場helperの閉REVOKE集合が不一致")
+        identity = (
+            f"{row['schema_name']}.{row['function_name']}({row['identity_args']})"
+        )
+        key = "function|" + row["function_id"]
+        bodies[key] += (
+            f"ALTER FUNCTION {identity} OWNER TO {row['owner_role_id']};\n"
+            f"REVOKE ALL ON FUNCTION {identity} FROM {','.join(revoked_roles)};\n"
+        )
     declarations["tables"] = [
         {
             "table_id": TABLE,

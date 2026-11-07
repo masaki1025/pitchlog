@@ -31,6 +31,15 @@ def test_only_owner_helpers_and_select_insert_columns_are_declared():
         }
         assert function["security_mode"] == "definer"
         assert function["search_path"] == ["pg_catalog", "pg_temp"]
+        identity = (
+            f"{function['schema_name']}.{function['function_name']}"
+            f"({function['identity_args']})"
+        )
+        body = bodies["function|" + function["function_id"]]
+        assert (
+            f"ALTER FUNCTION {identity} OWNER TO {function['owner_role_id']};" in body
+        )
+        assert f"REVOKE ALL ON FUNCTION {identity} FROM PUBLIC," in body
     entry_columns = [
         row
         for row in rows["column_acl_expectations"]
@@ -78,6 +87,17 @@ def test_unknown_private_function_owner_is_not_promoted_to_a_declaration(monkeyp
         product, "candidate_private_entry_declarations", lambda: (rows, bodies)
     )
     with pytest.raises(ValueError, match="既private helper集合"):
+        product.candidate_declarations()
+
+
+def test_unknown_or_missing_revoked_helper_role_is_rejected(monkeypatch):
+    """候補のowner-only集合が欠けたら通常配置へ昇格しない。"""
+    rows, bodies = product.candidate_private_entry_declarations()
+    rows["functions"][0]["revoked_acl_expectations"].pop(0)
+    monkeypatch.setattr(
+        product, "candidate_private_entry_declarations", lambda: (rows, bodies)
+    )
+    with pytest.raises(ValueError, match="閉REVOKE集合"):
         product.candidate_declarations()
 
 

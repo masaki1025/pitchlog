@@ -251,3 +251,5 @@ FROM checked
  RETURN QUERY SELECT v_digest;
 END;
 $d03_writer$;
+ALTER FUNCTION stats_api.persist_writer_pitcher_entry(uuid, uuid, uuid, bytea) OWNER TO pitchlog_sync_right_fn_owner;
+REVOKE ALL ON FUNCTION stats_api.persist_writer_pitcher_entry(uuid, uuid, uuid, bytea) FROM PUBLIC,pitchlog_app,pitchlog_initial_actor,pitchlog_sync_binding_actor,pitchlog_initial_fn_owner;

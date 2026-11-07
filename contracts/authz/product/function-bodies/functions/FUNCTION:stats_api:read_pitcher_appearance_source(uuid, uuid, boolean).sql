@@ -405,3 +405,5 @@ BEGIN
  END;
 END;
 $d03_source$;
+ALTER FUNCTION stats_api.read_pitcher_appearance_source(uuid, uuid, boolean) OWNER TO pitchlog_sync_right_fn_owner;
+REVOKE ALL ON FUNCTION stats_api.read_pitcher_appearance_source(uuid, uuid, boolean) FROM PUBLIC,pitchlog_app,pitchlog_initial_actor,pitchlog_sync_binding_actor,pitchlog_initial_fn_owner;
