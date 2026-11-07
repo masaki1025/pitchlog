@@ -2159,6 +2159,40 @@ def _activate_attempt_recovery_profile() -> None:
 
 
 _activate_attempt_recovery_profile()
+
+
+def _activate_play_export_profile() -> None:
+    """唯一CSV原典の閉宣言を追加し、構造DDLを認可適用へ混在しない。"""
+    from pitchlog.authz.play_export_product import connection_declarations, validate
+
+    declarations, raw_bodies = connection_declarations()
+    if not validate(declarations, raw_bodies):
+        raise ValueError("毎球CSVのsource宣言がありません")
+    kinds = {
+        "tables": "table",
+        "functions": "function",
+        "policies": "policy",
+        "acl_expectations": "acl_expectation",
+        "column_acl_expectations": "column_acl_expectation",
+    }
+    for section, rows in declarations.items():
+        if section not in kinds:
+            raise ValueError("毎球CSVの認可宣言節が不正")
+        for row in rows:
+            identifier = row[IDS[section]]
+            key = kinds[section] + "|" + identifier
+            if key in BODIES or any(
+                old[IDS[section]] == identifier for old in ADDITIONS[section]
+            ):
+                raise ValueError("毎球CSVの認可宣言が重複")
+            ADDITIONS[section].append(copy.deepcopy(row))
+            BODIES[key] = (
+                f"-- ELEMENT-TYPE: {kinds[section]}\n-- ELEMENT-ID: {identifier}\n\n"
+                + raw_bodies[key]
+            )
+
+
+_activate_play_export_profile()
 ROLES = frozenset(row["role_id"] for row in ADDITIONS["roles"])
 
 TABLES = frozenset(
@@ -2177,9 +2211,13 @@ TABLES = frozenset(
         "game_lifecycle_heads",
         "substitution_write_receipts",
         "attempt_retirements",
+        "play_export_snapshots",
     }
 )
 SCHEMAS = frozenset(row["schema_name"] for row in ADDITIONS["schemas"])
+TABLE_IDENTITIES = frozenset(
+    (row["schema_name"], row["table_id"]) for row in ADDITIONS["tables"]
+)
 BINDING_OWNER = "pitchlog_sync_binding_fn_owner"
 DB_GRANT = {
     "grantee": "pitchlog_sync_binding_actor",
@@ -2212,6 +2250,11 @@ def _reserved(row: dict[str, Any], section: str) -> bool:
         or row.get("schema_name") in SCHEMAS
         or row.get("object_schema") in SCHEMAS
         or row.get("table_id") in TABLES
+        or (
+            type(row.get("object_schema")) is str
+            and type(row.get("object_id")) is str
+            and (row["object_schema"], row["object_id"]) in TABLE_IDENTITIES
+        )
         or any(r in ROLES for r in row.get("role_ids", []))
         or (
             isinstance(key, str)

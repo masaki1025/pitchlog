@@ -68,6 +68,8 @@ def test_actual_current_s0_and_current_resume_keep_all_structure_and_catalog(
         "CREATE TRIGGER trg_nonplay_admission_no_truncate",
         "CREATE TABLE sync_fence.substitution_write_receipts",
         "CREATE TABLE sync_fence.attempt_retirements",
+        "CREATE TABLE public.play_export_snapshots",
+        "CREATE INDEX ix_operation_events_export_audit",
         (
             "ALTER TABLE sync_fence.stats_primitive_facts "
             "DROP CONSTRAINT ck_stats_fact_metric"
@@ -109,16 +111,23 @@ def test_actual_current_migration_fault_rolls_back_to_real0039(
             current.legacy._check_writer_storage(
                 connection, current.legacy._WRITER_REVISION
             )
-            assert connection.execute(
-                "SELECT to_regclass('sync_fence.stats_fact_versions'),"
-                "to_regclass('sync_fence.stats_primitive_sources'),"
-                "to_regclass('sync_fence.stats_primitive_facts'),"
-                "to_regclass('public.ix_admin_vocabularies_batted_ball_key_c'),"
-                "to_regclass('sync_fence.nonplay_write_admissions'),"
-                "to_regprocedure('public.protect_nonplay_admission()'),"
-                "to_regclass('sync_fence.substitution_write_receipts'),"
-                "to_regclass('sync_fence.attempt_retirements')"
-            ).fetchone() == (None, None, None, None, None, None, None, None)
+            assert (
+                connection.execute(
+                    "SELECT to_regclass('sync_fence.stats_fact_versions'),"
+                    "to_regclass('sync_fence.stats_primitive_sources'),"
+                    "to_regclass('sync_fence.stats_primitive_facts'),"
+                    "to_regclass('public.ix_admin_vocabularies_batted_ball_key_c'),"
+                    "to_regclass('sync_fence.nonplay_write_admissions'),"
+                    "to_regprocedure('public.protect_nonplay_admission()'),"
+                    "to_regclass('sync_fence.substitution_write_receipts'),"
+                    "to_regclass('sync_fence.attempt_retirements'),"
+                    "to_regclass('public.play_export_snapshots'),"
+                    "to_regclass('public.ix_play_export_snapshots_game_captured'),"
+                    "to_regclass('public.ix_play_rows_export_audit'),"
+                    "to_regclass('public.ix_operation_events_export_audit')"
+                ).fetchone()
+                == (None,) * 12
+            )
         # 旧0039からの実再開で同じ固定currentを完了する。
         result = current.resume_current_product_after_placement(
             owner_dsn=owner,
@@ -141,6 +150,14 @@ def test_actual_current_migration_fault_rolls_back_to_real0039(
         ),
         "ALTER TABLE sync_fence.stats_primitive_facts NO FORCE ROW LEVEL SECURITY",
         "ALTER TABLE sync_fence.attempt_retirements NO FORCE ROW LEVEL SECURITY",
+        "ALTER TABLE public.play_export_snapshots NO FORCE ROW LEVEL SECURITY",
+        "ALTER TABLE public.play_export_snapshots ADD COLUMN unexpected bigint",
+        (
+            "ALTER TABLE public.play_export_snapshots "
+            "ALTER COLUMN captured_at DROP DEFAULT"
+        ),
+        "GRANT UPDATE ON public.play_export_snapshots TO pitchlog_app",
+        "DROP INDEX public.ix_operation_events_export_audit",
         "ALTER TABLE sync_fence.attempt_retirements ADD COLUMN unexpected bigint",
         "GRANT UPDATE ON sync_fence.attempt_retirements TO pitchlog_sync_binding_actor",
         (

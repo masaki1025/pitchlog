@@ -107,3 +107,41 @@ def test_actual_migration_and_play_export_model_match(monkeypatch):
     assert "pitchlog.db.play_export.models" in all_models.IMPORTED_MODEL_MODULE_NAMES
     with pytest.raises(RuntimeError, match="物理削除"):
         migration["downgrade"]()
+
+
+def test_whole_profile_keeps_legacy_primitives_and_rejects_export_grant():
+    """旧原始値readは全値保持し、未知のPUBLIC表権限を分類で拒否する。"""
+    import copy
+    import json
+
+    from pitchlog.authz.first_ball_product import _reserved, validate
+
+    asset = json.loads(
+        (
+            Path(__file__).parents[2] / "contracts/authz/product/ddl-elements.json"
+        ).read_text()
+    )
+    assert validate(asset) is True
+    unknown = {
+        "acl_id": "ACL:public:play_export_snapshots:PUBLIC",
+        "object_kind": "table",
+        "object_schema": "public",
+        "object_id": "play_export_snapshots",
+        "grantee_role_id": "PUBLIC",
+        "privilege_ids": ["UPDATE"],
+        "grant_option": False,
+    }
+    assert _reserved(unknown, "acl_expectations") is True
+    changed = copy.deepcopy(asset)
+    changed["acl_expectations"].append(unknown)
+    with pytest.raises(ValueError, match="余剰"):
+        validate(changed)
+    changed = copy.deepcopy(asset)
+    primitive = next(
+        row
+        for row in changed["functions"]
+        if row["function_name"] == "read_play_export_primitives"
+    )
+    primitive["security_mode"] = "invoker"
+    with pytest.raises(ValueError):
+        validate(changed)
