@@ -1,5 +1,15 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 2026-11-07 11:36 JST：復旧0046の正規起動を実PGで接合、P3結果不明復旧と登板実装も並行
+
+- **新たに成立した配置経路**: root専有 `feature/mvp-recovery-current-startup@8deb51e1c7b5e022cb494fb767392fb5d1c68bef` clean/通常push。605の復旧候補に既0045起動修復3commitだけを再利用し、退役11列/全PK/FK/CHECK/index無しのモデルを実0046 migrationと完全照合。CURRENT46/全14私有表の構造・owner/FORCE RLS・全制約/indexを閉検査、pre-full退役guard0/full exact2をcatalog段階に束縛、部分を再適用で補修しない。f43固定のowned run1 **4passed43.92秒**（S0→46/同版resume/46表作成後全取消/NOFORCE/guard無効拒否）、run2 **5passed58.93秒**（未知列/余剰UPDATE/TRUNCATE guard欠落/pre-full正規再開とpartial拒否）。各source前後同一/共有DSN未継承/owned cleanup。新CURRENTだけで成功扱いにしていない。
+- **分類の閉集合修復**: first_ball_product.TABLESが13のままで、退役表の未知policy＋pitchlog_appをdirect validateが受理するメモリ反例を固定（母集合全体の受理/実越境成立は未検証）。同TABLESへ1件だけ追加し、元資産positive/余剰negativeを固定。e343製品sourceで実S0→46/同版resumeをrun3 **1passed18.49秒**、source同一/cleanup。後発8debは計画記録のみ。root175pure/独立175、限定分類4pure/Ruff/Tyも成功。非作者報告13ddf8ed…/64a306f5…/cfc6380d…を合成してPO委任による限定source採用。cache `recovery-current46-startup-root-20261107/ROOT-ADOPTION.json`。**正式7.7/全CI/通常merge/運用公開は未了**。0041/43/45の直接移行は本候補で成立を主張しない。旧過剰競合解消はローカルpreserved-conflict枝保全・不採用、605からやり直し補助関数全保持を独立確認。
+- **P3復旧の前進**: 最終 `feature/mvp-p3-attempt-recovery@e690dba8` は通常push/clean、真正P3標準control/旧writer実生存unresolved・終結後だけ許可・T2/T4全取消・ACK喪失→同D5新attempt再掲・別V12/認証越境拒否が最終HTTP **1passed160.02秒**。Event/P3 control競合2件/既P1実HTTP回帰3件成功を作者証拠として別保存。rootの限定非作者確認は選択13pathのGit31b全byte一致、268backend＋16FE成功、REPORT SHA26e3e25bedf37cc2329b3b2faf355969e4ae01cef082a619130e289a22259c41。全57/新blindへ拡張せず、標準control初導入の採否/P3 FE本体patch・実browser cold/最終正式受理が残る。
+- **現在のゲーム操作依存**: P3後終了/再開からの通常次球でnonplay CPにlast_play_rowが無いことを資格別に扱い、保存後の最新物理itemを同TX原本へ束縛する修復をP3作者が検証中。R44/R44aはvenv/TLSの環境不備で製品結果ではなく、R44bはsource固定の実画面進行中。rootは触れず、次の空走をDB起動前preflightで拒否するよう通知。
+- **D03並行実装**: CSV担当を新 `feature/mvp-stats-d03-appearance@8033f1d7` へ移管、専用計画をroot全文レビュー/PO委任採用。単なるスタメン/可変participation/球数から推測せず、実出場identityとfact/終了版/唯一Sの同RR束縛を実装開始条件として具体化。供給不足なら最小真正producerへ、既決D03/区分/暦年は再照会しない。計画だけで27項目完成としない。
+- **公開197/次**: run42325737938は全harness/backend3分割と全静的等success、backend2だけlive。公開0deb/base51b・全344path/diff f65b…・policy SHA/公開comment6700535464は再照合一致。実GitHub rulesetのrequired10context、classic保護404を読取確認（ルール変更なし）。CI source上の追加検査も全部成功が必要で、既報件数だけで条件を緩めない。全CIと最終証拠一致後に通常merge、続いてCI8の正式7.7/corpus/実CI、復旧・非play/CSVの順の通常統合へ。全MVP・実機・運用復旧・延期中5秒目標は未完成のまま。
+
+
 ## 2026-11-07 11:10 JST：8分割入力の保護と歴史検査を是正、P3標準制御の実接続が前進
 
 - **CI候補**: 原候補1a0dea42は不変更。root同WTの新枝 `feature/ci-pytest-throughput-finalization@4fb99cc15163560000fb264526ffe667e92cee69` へ正式化候補を分離。旧c8e32af6は旧integration refへ未push保全（JSON/基線試験共変更を正式採用しない）。3a67fd5cでtest/plan先行→4fb99cc1でJSON5入力のみ追加、既実行時共変更拒否を維持。5入力は設定/唯一割当helper/plugin/verifyCLI/専用試験、全旧guardとareas/回復6suffix保持。旧全件979pass/2failは歴史比較への後発CI混入で、閉CI5射影＋固定実PR197最終0debのshadow正常先行→改変負例へ是正。旧runtimeを例外拡張せず、正式base候補0deb→4fbの実verify成功、runtime全byte不変。是正後 **coreguard/shard/wiring全1122passed51.40秒、root Ruff/Ty成功**。限定非作者25passed30.37秒/新P0P1P2なし、REPORT SHA d4002bd25438afb2bfdfc7a2df682bd952c1b1ab19b9a5ce98f5780e972105ad。PO委任rootが限定source採用、後発docsだけ97a566d8に保存。正式197merge後base/7.7/corpus/PR/8分割実CI時間は未了、推定を実測としない。
