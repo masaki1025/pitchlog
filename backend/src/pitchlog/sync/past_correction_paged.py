@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass
 from uuid import UUID, uuid5
@@ -23,6 +24,7 @@ from pitchlog.repositories.past_correction_source import (
 )
 from pitchlog.repositories.play_prefix import LineupPrefixDocument
 from pitchlog.repositories.transaction import _TenantTransaction
+from pitchlog.stats.generated.receiver import SOURCE_MODEL_HASH
 from pitchlog.sync.change_path import _bound_target
 from pitchlog.sync.idempotency import _json_value, source_fingerprint
 from pitchlog.sync.model import SyncEvent
@@ -78,7 +80,27 @@ class P3PagedPreparationProof:
     state: CorrectionPageState
     page_count: int
     page_seal: str
+    digest_format: str
+    source_set_digest: str
+    evaluation_set_digest: str
     target: SavedLineupPitch
+
+
+def _chain_step(previous: str, d1: int, *digests: str) -> str:
+    """DB側も同じASCII式で再計算できる有界行digest連鎖。"""
+    if (
+        type(d1) is not int
+        or d1 < 1
+        or re.fullmatch(r"[a-f0-9]{64}", previous) is None
+        or any(
+            type(value) is not str or re.fullmatch(r"[a-f0-9]{64}", value) is None
+            for value in digests
+        )
+    ):
+        raise PastCorrectionPageUnavailable("P3連鎖digest入力が不正")
+    return hashlib.sha256(
+        ":".join((previous, str(d1), *digests)).encode("ascii")
+    ).hexdigest()
 
 
 def fingerprint_p3_streaming_array(
@@ -271,6 +293,10 @@ def visit_p3_lineup_correction_pages(
         state = CorrectionPageState()
         page_count = 0
         seal = "0" * 64
+        source_chain = "0" * 64
+        evaluation_chain = "0" * 64
+        legacy_items: list[dict[str, object]] | None = []
+        legacy_stats: list[P3StatsSourceCandidate] | None = []
         target: SavedLineupPitch | None = None
         last_original: SavedLineupPitch | None = None
         last_corrected: CorrectedLineupPitch | None = None
@@ -282,6 +308,8 @@ def visit_p3_lineup_correction_pages(
                 rows: tuple[SavedLineupPitch, ...], checkpoint: LineupPrefixDocument
             ) -> None:
                 nonlocal state, page_count, seal, target
+                nonlocal source_chain, evaluation_chain
+                nonlocal legacy_items, legacy_stats
                 nonlocal last_original, last_corrected, last_physical
                 for saved in rows:
                     if saved.d1 == target_d1:
@@ -352,6 +380,26 @@ def visit_p3_lineup_correction_pages(
                     rows, corrected, payloads, physical, items, stats_sources
                 )
                 seal = _page_seal(seal, page)
+                for item, stats_source in zip(items, stats_sources, strict=True):
+                    item_digest = item["digest"]
+                    if type(item_digest) is not str:
+                        raise PastCorrectionPageUnavailable("P3 item digestが不正")
+                    source_chain = _chain_step(
+                        source_chain, stats_source.d1, item_digest
+                    )
+                    evaluation_chain = _chain_step(
+                        evaluation_chain,
+                        stats_source.d1,
+                        stats_source.original_evaluation_digest,
+                        stats_source.evaluation_digest,
+                    )
+                if legacy_items is not None and legacy_stats is not None:
+                    if len(legacy_items) + len(items) <= 25:
+                        legacy_items.extend(items)
+                        legacy_stats.extend(stats_sources)
+                    else:
+                        legacy_items = None
+                        legacy_stats = None
                 page_count += 1
                 last_original = rows[-1]
                 if corrected:
@@ -385,6 +433,62 @@ def visit_p3_lineup_correction_pages(
             last_physical,
             source.watermark,
         )
+        if legacy_items is not None and legacy_stats is not None:
+            digest_format = "p3-full-v1"
+            source_set_digest = source_fingerprint(
+                {
+                    "capsule_id": str(capsule_id),
+                    "change_event_id": str(change_event_id),
+                    "old_checkpoint_digest": source.checkpoint.content_digest,
+                    "new_checkpoint_digest": next_checkpoint.content_digest,
+                    "item_digests": [item["digest"] for item in legacy_items],
+                }
+            )
+            evaluation_set_digest = source_fingerprint(
+                {
+                    "capsule_id": str(capsule_id),
+                    "model_sha256": SOURCE_MODEL_HASH,
+                    "capsule_source_set_digest": source_set_digest,
+                    "sources": [
+                        {
+                            "d1": item.d1,
+                            "event_id": str(item.effective_event_id),
+                            "play_row_id": str(item.effective_play_row_id),
+                            "original_evaluation_digest": (
+                                item.original_evaluation_digest
+                            ),
+                            "evaluation_digest": item.evaluation_digest,
+                        }
+                        for item in legacy_stats
+                    ],
+                }
+            )
+        else:
+            digest_format = "p3-page-chain-v2"
+            source_set_digest = hashlib.sha256(
+                ":".join(
+                    (
+                        digest_format,
+                        str(capsule_id),
+                        str(change_event_id),
+                        source.checkpoint.content_digest,
+                        next_checkpoint.content_digest,
+                        str(source.watermark),
+                        source_chain,
+                    )
+                ).encode("ascii")
+            ).hexdigest()
+            evaluation_set_digest = hashlib.sha256(
+                ":".join(
+                    (
+                        "p3-stats-chain-v2",
+                        str(capsule_id),
+                        SOURCE_MODEL_HASH,
+                        source_set_digest,
+                        evaluation_chain,
+                    )
+                ).encode("ascii")
+            ).hexdigest()
         return P3PagedPreparationProof(
             generation,
             source.watermark,
@@ -393,6 +497,9 @@ def visit_p3_lineup_correction_pages(
             state,
             page_count,
             seal,
+            digest_format,
+            source_set_digest,
+            evaluation_set_digest,
             target,
         )
     except (

@@ -490,7 +490,8 @@ def test_v3_physical_candidate_uses_existing_mappers_and_new_row_ids(
 
     def read_pages(_scope, _game, _target, consume):
         checkpoint = SimpleNamespace(
-            prefix_ref=original[-1].calculation.response.value.next_prefix_ref
+            prefix_ref=original[-1].calculation.response.value.next_prefix_ref,
+            content_digest="d" * 64,
         )
         consume(original[:1], checkpoint)
         consume(original[1:], checkpoint)
@@ -510,7 +511,7 @@ def test_v3_physical_candidate_uses_existing_mappers_and_new_row_ids(
     monkeypatch.setattr(
         past_correction_paged,
         "build_corrected_lineup_checkpoint_from_head",
-        lambda *_: SimpleNamespace(id="next"),
+        lambda *_: SimpleNamespace(id="next", content_digest="e" * 64),
     )
     monkeypatch.setattr(
         past_correction_paged,
