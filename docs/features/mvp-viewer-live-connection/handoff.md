@@ -54,8 +54,8 @@
 - `contracts/tenant_boundary/{repository-contract,runtime-authz-contract}.json`
 - `frontend/src/router.ts`: `/games/:gameId/view`
 - `frontend/src/screens/GameScreenEntryNavigation.ts`: 認証後戻り先
-- `frontend/src/screens/GameScreenEntry.{vue,spec.ts}`: 開始済み試合だけにライブ閲覧導線
-- `backend/tests/test_api_app.py` / `test_api_conventions.py` / `test_authz_repository_contract.py` / `test_function_operations_boundary.py` / `test_stats_native_function_registration.py` / `test_terminal_pitch_product.py`: 閲覧route/関数/tokenの期待値
+- `frontend/src/screens/GameScreenEntry.spec.ts`: 戻り先の有限形を検査
+- `backend/tests/test_api_app.py` / `test_api_conventions.py` / `test_authz_repository_contract.py` / `test_function_operations_boundary.py` / `test_roster_self_team_read.py` / `test_stats_native_function_registration.py` / `test_terminal_pitch_product.py`: 閲覧route/関数/token/C2対象の期待値
 
 ## 実装要点
 

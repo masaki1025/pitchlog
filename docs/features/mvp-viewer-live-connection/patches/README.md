@@ -21,8 +21,8 @@ git apply docs/features/mvp-viewer-live-connection/patches/shared-integration.pa
 - `contracts/tenant_boundary/{repository-contract,runtime-authz-contract}.json`: 能力・token・operation・保護関数
 - `frontend/src/router.ts`: `/games/:gameId/view`
 - `frontend/src/screens/GameScreenEntryNavigation.ts`: 認証後戻り先に `/view` を1形だけ追加
-- `frontend/src/screens/GameScreenEntry.{vue,spec.ts}`: 試合一覧からライブ閲覧への導線
-- 上記に伴う既存試験の期待値更新
+- `frontend/src/screens/GameScreenEntry.spec.ts`: 上記戻り先の有限形を検査
+- 上記に伴う既存試験の期待値更新（API経路・C2対象・authz/repository契約）
 
 閲覧専用のbackend実装・画面・controller・transport・試験は、このpatchではなくfeatureブランチ側にあります。
 
