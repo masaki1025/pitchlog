@@ -33,3 +33,59 @@ def test_unknown_fault_writer_is_closed():
     """未知writerを既成功経路へ補完しない。"""
     with pytest.raises(ValueError):
         fault_script("other")
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    (
+        "old",
+        "open",
+        "close_id",
+        "d5",
+        "attempt_id",
+        "event_fingerprint",
+        "request_fingerprint",
+        "extra",
+        "missing",
+    ),
+)
+def test_binding_audit_rejects_nonterminal_or_mismatched_new_request(mutation):
+    """監査を一律無視せず、新要求との一致/終結/旧行不変を個別に拒否する。"""
+    import json
+
+    from db.test_d03_normal49_faults import _assert_closed_binding_audit
+
+    output = {
+        "game": "game",
+        "d5": "d5",
+        "attempt": "attempt",
+        "event_fp": "event",
+        "request_fp": "request",
+    }
+    old = json.dumps({"state": "closed", "close_id": "old", "id": "old"})
+    new = {
+        "game_id": "game",
+        "d5": "d5",
+        "attempt_id": "attempt",
+        "event_fingerprint": "event",
+        "request_fingerprint": "request",
+        "state": "closed",
+        "close_id": "close",
+    }
+    name = "sync_fence.writer_bindings"
+    observed = {"before": {name: [old]}, "after": {name: [old, json.dumps(new)]}}
+    _assert_closed_binding_audit(observed, output)
+    if mutation == "old":
+        observed["after"][name][0] = json.dumps(
+            {"state": "closed", "close_id": "changed"}
+        )
+    elif mutation == "extra":
+        observed["after"][name].append(json.dumps({**new, "phase_id": "other"}))
+    elif mutation == "missing":
+        observed["after"][name].pop()
+    else:
+        key = "state" if mutation == "open" else mutation
+        new[key] = None if mutation == "close_id" else "wrong"
+        observed["after"][name][1] = json.dumps(new)
+    with pytest.raises(AssertionError):
+        _assert_closed_binding_audit(observed, output)

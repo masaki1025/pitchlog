@@ -17,3 +17,5 @@ status: active
 実login→新規create/start→baseline→新D5の故障要求を直列実行し、非成功/ACKなしと、event/slot/checkpoint/entry/native/CSV/bindingを含むgame所属全行の前後一致を比較する。control側の失敗試行監査は保存取引と別物として扱い、再送許可を推定しない。不正receiptは安全な既入口を分離できた場合のみ追加し、本単位の必須2writer対向と混同しない。
 
 owned PGはfixture全寿命の共通lock、共有DSN unset、実行前後source SHA一致、正常teardownを必須とする。rootへコード固定点を渡してから実行順を調整する。既scopeGET/RRの別問題やP3/全試合0球の未供給を、この試験で成立扱いにしない。
+
+反映: 初回2caseは実故障到達/業務全行一致まで進んだが、別actorの `writer_bindings` 終結監査追加を前後不変に含めた試験期待が誤っていたため2failed。root指摘に従い本表だけを別検査にする。旧行の全byte不変、新行1件の実D5/attempt/既単一fingerprint部品の要求FP/eventFP/closed/close_idを照合し、全行closed（生存資格なし）を必須とする。業務admission/CP/entry/native/CSV等の全行一致は不変。失敗証拠は成功へ読み替えず保存し、全snapshotをassertより先にcacheへ出す。sub1caseの再実走はroot主経路の後続とする。

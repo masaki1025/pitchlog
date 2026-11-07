@@ -136,6 +136,13 @@ def _fault_flow(kind, request):
     """baseline取得後だけarmし、例外到達と非成功を独立に確認する。"""
     return (
         _barrier("before")
+        + "        from pitchlog.sync.wire_fingerprint import (\n"
+        + "            freeze_wire_event, wire_event_fingerprint,\n"
+        + "            wire_request_fingerprint)\n"
+        + "        frozen = freeze_wire_event(event)\n"
+        + "        event_fp = wire_event_fingerprint(frozen)\n"
+        + "        request_fp = wire_request_fingerprint(\n"
+        + "            game_id=game, d4=event['d4'], events=(frozen,))\n"
         + "        fault_armed = True\n"
         + "        failed = None\n"
         + "        caught = False\n"
@@ -155,6 +162,10 @@ def _fault_flow(kind, request):
         + '        return {"game": game, "kind":'
         + repr(kind)
         + ',"reached":fault_reached,"exception_caught":caught,'
+        + '"event_fp":event_fp,"request_fp":request_fp,'
+        + '"d5":event["d5"],"attempt":'
+        + ('h["X-Pitchlog-Sync-Attempt"]' if kind == "native" else "attempt")
+        + ","
         + '"status":None if failed is None else failed.status_code}\n'
     )
 
@@ -307,14 +318,6 @@ def test_normal49_real_writer_failure_rolls_back_all_game_rows(vertical_database
             assert worker.returncode == 0, (stdout[-1500:], stderr[-1500:])
     output = json.loads(stdout)
     assert "exception" not in output and "exception_type" not in output, output
-    changed = [
-        name
-        for name in observed["before"]
-        if observed["before"][name] != observed["after"][name]
-    ]
-    assert changed == [], changed
-    assert len(observed["before"]["sync_fence.pitcher_entry_sources"]) == 1
-    assert len(observed["before"]["public.play_rows"]) == (8 if kind == "native" else 2)
     cache = Path.home() / ".cache/pitchlog/d03-normal49-faults-child-20261107"
     cache.mkdir(parents=True, exist_ok=True)
     (cache / (kind + "-result.json")).write_text(
@@ -323,3 +326,31 @@ def test_normal49_real_writer_failure_rolls_back_all_game_rows(vertical_database
         )
         + "\n"
     )
+    _assert_closed_binding_audit(observed, output)
+    changed = [
+        name
+        for name in observed["before"]
+        if name != "sync_fence.writer_bindings"
+        if observed["before"][name] != observed["after"][name]
+    ]
+    assert changed == [], changed
+    assert len(observed["before"]["sync_fence.pitcher_entry_sources"]) == 1
+    assert len(observed["before"]["public.play_rows"]) == (8 if kind == "native" else 2)
+
+
+def _assert_closed_binding_audit(observed, output):
+    """別actorで残す正規終結監査を、業務保存の全取消とは別に全値照合する。"""
+    name = "sync_fence.writer_bindings"
+    before = set(observed["before"][name])
+    after = set(observed["after"][name])
+    assert before <= after, "既監査行の変更/削除を許さない"
+    added = after - before
+    assert len(added) == 1, "新要求以外の監査行を許さない"
+    row = json.loads(added.pop())
+    assert row["game_id"] == output["game"]
+    assert row["d5"] == output["d5"]
+    assert row["attempt_id"] == output["attempt"]
+    assert row["event_fingerprint"] == output["event_fp"]
+    assert row["request_fingerprint"] == output["request_fp"]
+    assert row["state"] == "closed" and row["close_id"] is not None
+    assert all(json.loads(value)["state"] == "closed" for value in after)
