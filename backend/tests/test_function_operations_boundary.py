@@ -159,6 +159,10 @@ def test_product_function_registry_keeps_rg1_and_adds_one_rule_operation() -> No
         OpenPrimitiveSnapshotToken,
         ReadPrimitivePageToken,
     )
+    from pitchlog.repositories.play_export_source_codec import ReadExportSourcePageToken
+    from pitchlog.repositories.play_export_writer_operations import (
+        _SaveExportSnapshotCall,
+    )
     from pitchlog.repositories.rg1 import (
         RG1CommitCheckToken,
         RG1PrecheckToken,
@@ -213,6 +217,8 @@ def test_product_function_registry_keeps_rg1_and_adds_one_rule_operation() -> No
         "STATS_PRIMITIVES:open_snapshot",
         "STATS_PRIMITIVES:read_page",
         "STATS_PRIMITIVES:read_totals",
+        "PLAY_EXPORT_WRITER:save_snapshot",
+        "PLAY_EXPORT_SOURCES:read_page",
         "STATS_BASIC:read",
         "SYNC_NONPLAY:bind_nonplay_device",
         "SYNC_NONPLAY:check_nonplay_right",
@@ -259,6 +265,8 @@ def test_product_function_registry_keeps_rg1_and_adds_one_rule_operation() -> No
         OpenPrimitiveSnapshotToken,
         ReadPrimitivePageToken,
         ReadPrimitiveTotalsToken,
+        _SaveExportSnapshotCall,
+        ReadExportSourcePageToken,
         BindNonplayDeviceToken,
         CheckNonplayRightToken,
         _LockNonplayCheckpointCall,

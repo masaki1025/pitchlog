@@ -18,3 +18,8 @@ branch: feature/mvp-csv-effective-product-connection
 owned実行は全寿命で共通lock `/home/ymdms/.cache/pitchlog/test-coordination/owned-pg-browser-network.lock` を保持し、共有DSNをunset、実行中sourceを固定する。root共有台帳だけを更新し、作者は専用planへ検査/固定版/未達を追記する。主担当台帳/他WT/公開環境/秘密は非編集。sourceの実装は正式値の受理とは分離し、本人署名/P6blindを記録しない。
 
 接合時の固定点差を確認: source base2dbaはroot c181の祖先ではなく、既CSV delivery/88列producer/単一生成器/IBB対応と関連資産がrootへ未接合だった。通常merge 0f79fcf1ca135cac13514baf24d505b1af00dfe1 は13pathではなく実130path（diffSHA 73d2598a40a9744c44a86e5c608ac060547b33e3d621fb76036b93a12fb5f5ae）で、cache csv-effective-root-connection-20261107/dependency-merge.jsonへ全パスを固定。新13pathの独立確認はこの依存基線全体の採用根拠にはしない。原枝・各成果/レビューを維持し、専用CSV枝だけで依存を照合/試験し、認可・artifact/pin/契約候補を未検証のまま正式統合しない。root現在木の既P0修復・起動0045/27キー・取消/終了再開/認証を失わないことを接合検査する。必要な単一artifactは合成sourceから公式builderで再生成し、旧期待値を出力から作り直さない。P3/復旧をまとめて移植する範囲拡張はせず、CSVの供給不足を閉じるための既依存再利用に限定する。
+
+
+## ステップ1・現基線への接合（2026-11-07、接合作者記録）
+
+f8ed7f1cを実HEAD/cleanで引受。共有patchのfunction_operations/operation_registryはbefore一致で適用、transactionだけ既基線差を保ったまま真正TenantContext/handle検査直後へ新CSV source1型のdispatcherを接合した。初回preflightは271passed/1failedで、旧43登録のexact期待が既merge依存のwriter1件と今回source reader1件を欠いていた。旧43全順序を保持したまま既writerと今回readerの2固定ID/実token型だけをexact tuple/setへ追記し、subsetや件数だけの比較へ緩めない。対応するtests/test_function_operations_boundary.pyを本stepの接合検査対象へ明示追加する。Ty成功、Ruffのcache生成patch由来import順1箇所はbackend設定で修復する。正式catalog/7.7は未受理のまま。

@@ -197,6 +197,12 @@ class _TenantTransaction:
             )
 
         session, _ = runtime
+        if _play_export_source_operation(operation):
+            from pitchlog.repositories.play_export_source_operations import (
+                run_qualified_source_read,
+            )
+
+            return run_qualified_source_read(self, operation)
         if _basic_stats_read_operation(operation):
             _require_stats_primitive_read_scope(self)
             return self.run_function(operation)
@@ -248,6 +254,12 @@ class _TenantTransaction:
             raise TenantBindingError(
                 "TenantContext の発行証跡が不一致のため業務 SQL を開始できない"
             )
+        if _play_export_source_operation(operation):
+            from pitchlog.repositories.play_export_source_operations import (
+                run_qualified_source_read,
+            )
+
+            return run_qualified_source_read(self, operation)
         if _basic_stats_read_operation(operation):
             _require_stats_primitive_read_scope(self)
         elif _stats_read_operation(operation):
@@ -830,6 +842,13 @@ def _stats_read_operation(operation: TenantOperationToken) -> bool:
         ReadPrimitivePageToken,
         ReadPrimitiveTotalsToken,
     }
+
+
+def _play_export_source_operation(operation: TenantOperationToken) -> bool:
+    """CSV source1型だけを真正scope経路へ送る。"""
+    from pitchlog.repositories.play_export_source_codec import ReadExportSourcePageToken
+
+    return type(operation) is ReadExportSourcePageToken
 
 
 def _basic_stats_read_operation(operation: TenantOperationToken) -> bool:

@@ -441,6 +441,17 @@ class _WriterAssertVoidResult(TypeDecorator[None]):
         return None
 
 
+def _play_export_source_family(registration) -> bool:
+    """CSVのRR source読取だけを専用の閉検証へ送る。"""
+    return (
+        registration.function_id == "stats_api.read_play_export_source_page"
+        or registration.operation_id == "PLAY_EXPORT_SOURCES:read_page"
+        or registration.capability_id == "CAP:play_export_sources:read"
+        or getattr(registration.token_type, "__module__", None)
+        == "pitchlog.repositories.play_export_source_codec"
+    )
+
+
 def _play_export_writer_family(registration) -> bool:
     """毎球CSVの私有保存1件だけを別の閉検証へ送る。"""
     return (
@@ -454,7 +465,9 @@ def _play_export_writer_family(registration) -> bool:
 
 def _stats_native_family(registration) -> bool:
     """新5の予約namespaceだけを特別検証し、旧全型規約へ波及させない。"""
-    if _play_export_writer_family(registration):
+    if _play_export_writer_family(registration) or _play_export_source_family(
+        registration
+    ):
         return False
     return any(
         isinstance(value, str) and value.startswith(prefix)
@@ -559,6 +572,13 @@ class FunctionOperationRegistration:
             return
         if _nonplay_native_family(self):
             from pitchlog.repositories.nonplay_function_operations import (
+                validate_registration,
+            )
+
+            validate_registration(self)
+            return
+        if _play_export_source_family(self):
+            from pitchlog.repositories.play_export_source_operations import (
                 validate_registration,
             )
 
@@ -957,6 +977,12 @@ def build_function_registry(
             )
 
             validate_registration(registration)
+        if _play_export_source_family(registration):
+            from pitchlog.repositories.play_export_source_operations import (
+                validate_registration,
+            )
+
+            validate_registration(registration)
         if _stats_native_family(registration):
             from pitchlog.repositories.stats_native_operations import (
                 validate_registration,
@@ -1009,6 +1035,13 @@ def prepare_function_operation(
         raise FunctionOperationError(
             "取消固定6関数は真正私有dispatcherだけで実行できます"
         )
+    if _play_export_source_family(spec):
+        from pitchlog.repositories.play_export_source_operations import (
+            validate_registration,
+        )
+
+        validate_registration(spec)
+        raise FunctionOperationError("CSV sourceは真正RR scope専用です")
     if _stats_native_family(spec):
         from pitchlog.repositories.stats_native_operations import validate_registration
 
