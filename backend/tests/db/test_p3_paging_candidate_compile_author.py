@@ -9,6 +9,9 @@ import psycopg
 import pytest
 from psycopg import sql
 
+from pitchlog.authz.p3_projection_paged_read_sql import (
+    candidate_paged_current_read_sql,
+)
 from pitchlog.authz.p3_projection_paged_sql import (
     candidate_paged_append_sql,
     candidate_paged_begin_sql,
@@ -40,6 +43,7 @@ def test_owned_p3_paging_private_functions_compile(vertical_database) -> None:
         for part in selector.split("-- pitchlog-query: ")[1:]
     }
     health = sections["canonical_health"]
+    read_bodies = candidate_paged_current_read_sql(health_sql=health)
     bodies = (
         (_PAGING / "p3-capsule-paging-r6.candidate.sql").read_text(),
         (_PAGING / "p3-paging-progress-r3.candidate.sql").read_text(),
@@ -47,6 +51,7 @@ def test_owned_p3_paging_private_functions_compile(vertical_database) -> None:
         candidate_paged_begin_sql(),
         candidate_paged_append_sql(),
         candidate_paged_finalize_sql(health_sql=health),
+        *read_bodies.values(),
     )
     with psycopg.connect(vertical_database.authority.database.business_admin) as conn:
         for body in bodies:
@@ -57,7 +62,8 @@ def test_owned_p3_paging_private_functions_compile(vertical_database) -> None:
             "JOIN pg_catalog.pg_namespace n ON n.oid=p.pronamespace "
             "WHERE n.nspname='sync_right_api' AND p.proname IN "
             "('begin_p3_projection_page','append_p3_projection_page',"
-            "'finalize_p3_projection_page') ORDER BY p.proname"
+            "'finalize_p3_projection_page','read_p3_current_header',"
+            "'read_p3_current_page') ORDER BY p.proname"
         ).fetchall()
         assert rows == [
             (name, "pitchlog_sync_right_fn_owner", True)
@@ -65,5 +71,7 @@ def test_owned_p3_paging_private_functions_compile(vertical_database) -> None:
                 "append_p3_projection_page",
                 "begin_p3_projection_page",
                 "finalize_p3_projection_page",
+                "read_p3_current_header",
+                "read_p3_current_page",
             )
         ]
