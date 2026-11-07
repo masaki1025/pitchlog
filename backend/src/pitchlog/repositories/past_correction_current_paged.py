@@ -8,6 +8,7 @@ from typing import Iterable, cast
 from uuid import UUID
 
 from pitchlog.domainrt.first_ball_projection import _canonical_json
+from pitchlog.repositories.ordinary_prefix_read import _evaluate_lineup_payload
 from pitchlog.repositories.past_correction_current import (
     PastCorrectionCurrentUnavailable,
     _object,
@@ -23,10 +24,14 @@ from pitchlog.repositories.play_prefix import (
     read_lineup_prefix_document,
 )
 from pitchlog.repositories.transaction import _TenantTransaction
+from pitchlog.stats.facts import evaluate_native_projection
 from pitchlog.stats.generated.receiver import SOURCE_MODEL_HASH
+from pitchlog.sync.idempotency import source_fingerprint
+from pitchlog.sync.ordinary_pitch_physical import pitch_physical_row
 from pitchlog.sync.past_correction_paged import _chain_step
 from pitchlog.sync.past_correction_stats import evaluate_p3_current_item_stats
 from pitchlog.sync.terminal_pitch_payload import LineupPitchPlayPayload
+from pitchlog.sync.terminal_pitch_projection import runner_physical_rows
 
 
 @dataclass(frozen=True, slots=True)
@@ -83,7 +88,13 @@ def read_verified_p3_paged_current(
     checkpoint = _object(header.get("checkpoint"))
     head = _object(header.get("head"))
     watermark = capsule.get("watermark")
-    if type(watermark) is not int or watermark <= 25:
+    source_count = stats.get("source_count")
+    if (
+        type(watermark) is not int
+        or watermark <= 25
+        or type(source_count) is not int
+        or source_count < watermark
+    ):
         raise PastCorrectionCurrentUnavailable("P3頁水位が不正")
 
     def pages() -> Iterable[object]:
@@ -101,6 +112,21 @@ def read_verified_p3_paged_current(
                     "capsule",
                     after,
                     min(25, watermark - after),
+                ),
+            )
+        for after in range(watermark, source_count, 25):
+            yield _function_one(
+                scope,
+                _ReadP3CurrentPageToken(
+                    game,
+                    generation,
+                    _uuid(capsule["id"]),
+                    _uuid(stats["id"]),
+                    cast(str, checkpoint["content_digest"]),
+                    cast(str, head["source_set_digest"]),
+                    "suffix",
+                    after,
+                    min(25, source_count - after),
                 ),
             )
 
@@ -184,10 +210,10 @@ def verify_p3_paged_current(
             type(watermark) is not int
             or watermark <= 25
             or type(upper) is not int
-            or upper != watermark
+            or upper < watermark
             or type(target_d1) is not int
             or not 1 <= target_d1 <= watermark
-            or selected_after_d1 >= watermark
+            or selected_after_d1 >= upper
             or capsule["digest_format"] != "p3-page-chain-v2"
             or capsule["tenant_id"] != str(tenant)
             or capsule["game_id"] != str(game)
@@ -230,7 +256,13 @@ def verify_p3_paged_current(
             or at_change.revision != str(capsule["next_checkpoint_revision"])
             or at_change.content_digest != capsule["next_checkpoint_digest"]
             or at_change.confirmed_watermark != str(watermark)
-            or current != at_change
+            or current.id != at_change.id
+            or current.history_version != at_change.history_version
+            or current.storage_anchor != at_change.storage_anchor
+            or current.confirmed_watermark != str(upper)
+            or current.applied_watermark != str(upper)
+            or int(current.revision)
+            != int(at_change.revision) + upper - watermark
             or current.id != checkpoint_row["id"]
             or current.revision != str(checkpoint_row["revision"])
             or current.content_digest != checkpoint_row["content_digest"]
@@ -369,6 +401,196 @@ def verify_p3_paged_current(
                 last_item = item
                 prior_payload = payload
                 after = d1
+        if (
+            type(last_item) is not dict
+            or type(prior_payload) is not LineupPitchPlayPayload
+        ):
+            raise PastCorrectionCurrentUnavailable("P3頁末尾が欠落")
+        at_change_value = prior_payload.calculation.response.value
+        if (
+            at_change_value.next_prefix_ref != at_change.prefix_ref
+            or at_change_value.t1.after != at_change.after
+            or at_change_value.t2 != at_change.t2
+            or at_change_value.runners != at_change.runners
+            or at_change_value.participants != at_change.participants
+            or at_change_value.lineup != at_change.lineup
+            or at_change.projection_snapshot is None
+            or at_change.projection_snapshot.play_row != last_item["play_row"]
+            or list(at_change.projection_snapshot.play_runners)
+            != last_item["play_runners"]
+        ):
+            raise PastCorrectionCurrentUnavailable("P3頁訂正時CPが不一致")
+        while after < upper:
+            page = _object(next(iterator))
+            items_raw = page["items"]
+            page_last = page.get("last_d1")
+            if (
+                set(page)
+                != {
+                    "kind",
+                    "page_kind",
+                    "tenant_id",
+                    "game_id",
+                    "internal_generation",
+                    "capsule_id",
+                    "stats_version_id",
+                    "checkpoint_digest",
+                    "head_digest",
+                    "after_d1",
+                    "last_d1",
+                    "upper_d1",
+                    "items",
+                    "next_after_d1",
+                }
+                or page["kind"] != "p3-paged-page"
+                or page["page_kind"] != "suffix"
+                or page["tenant_id"] != str(tenant)
+                or page["game_id"] != str(game)
+                or page["internal_generation"] != generation
+                or page["capsule_id"] != str(capsule_id)
+                or page["stats_version_id"] != str(stats_id)
+                or page["checkpoint_digest"] != current.content_digest
+                or page["head_digest"] != head["source_set_digest"]
+                or page["after_d1"] != after
+                or page["upper_d1"] != upper
+                or type(items_raw) is not list
+                or not 1 <= len(items_raw) <= 25
+                or type(page_last) is not int
+                or page_last != after + len(items_raw)
+                or page["next_after_d1"]
+                != (page_last if page_last < upper else None)
+            ):
+                raise PastCorrectionCurrentUnavailable("P3後続頁境界が不一致")
+            for raw in items_raw:
+                d1 = after + 1
+                member = _object(raw)
+                if set(member) != {
+                    "event",
+                    "ledger",
+                    "history",
+                    "play_row",
+                    "play_runners",
+                    "stats_source",
+                }:
+                    raise PastCorrectionCurrentUnavailable("P3後続頁形が不正")
+                event = _object(member["event"])
+                event_ledger = _object(member["ledger"])
+                history = _object(member["history"])
+                play = _object(member["play_row"])
+                source = _object(member["stats_source"])
+                runners = member["play_runners"]
+                payload = _evaluate_lineup_payload(event["payload"])
+                value = payload.calculation.response.value
+                request = payload.calculation.request
+                prior = prior_payload.calculation.response.value
+                if (
+                    event["tenant_id"] != str(tenant)
+                    or event["game_id"] != str(game)
+                    or event["generation"] != generation
+                    or event["d1"] != d1
+                    or event["event_kind"] != "play_input"
+                    or event["ledger_kind"] != "accepted"
+                    or event["is_tombstone"] is not False
+                    or event["replaced_at"] is not None
+                    or event["retired_at"] is not None
+                    or event["import_batch_id"] is not None
+                    or event["migration_unverified"] is not False
+                    or event_ledger["tenant_id"] != str(tenant)
+                    or event_ledger["d5"] != event["d5"]
+                    or event_ledger["kind"] != "accepted"
+                    or event_ledger["retired_at"] is not None
+                    or event_ledger["import_batch_id"] is not None
+                    or history["tenant_id"] != str(tenant)
+                    or history["game_id"] != str(game)
+                    or history["internal_generation"] != generation
+                    or history["history_version"] != int(current.history_version)
+                    or history["source_event_id"] != event["id"]
+                    or history["d1"] != d1
+                    or history["d2"] != event["d2"]
+                    or history["entry"]
+                    != value.new_history_entry.model_dump(
+                        mode="json", by_alias=True, exclude_unset=True
+                    )
+                    or event["state_diff"]
+                    != value.new_history_entry.difference.model_dump(
+                        mode="json", by_alias=True, exclude_unset=True
+                    )
+                    or play["tenant_id"] != str(tenant)
+                    or play["game_id"] != str(game)
+                    or play["source_event_id"] != event["id"]
+                    or play["hidden_at"] is not None
+                    or play["import_batch_id"] is not None
+                    or play["migration_unverified"] is not False
+                    or request.play_identity.event_id != event["id"]
+                    or request.play_identity.d5 != event["d5"]
+                    or request.play_identity.play_id != play["id"]
+                    or request.source.position.d1 != str(d1)
+                    or request.source.position.d2 != str(event["d2"])
+                    or request.prefix_ref != prior.next_prefix_ref
+                    or request.t1.before != prior.t1.after
+                    or request.source.runners != prior.runners
+                    or request.source.participants != prior.participants
+                    or request.source.lineup != prior.lineup
+                    or request.rules != at_change.rules
+                ):
+                    raise PastCorrectionCurrentUnavailable("P3後続頁原本が不一致")
+                expected_play = pitch_physical_row(
+                    payload.observations,
+                    payload.participants,
+                    request.t1.result_id,
+                    tenant_id=tenant,
+                    game_id=game,
+                    source_event_id=_uuid(event["id"]),
+                    row_id=_uuid(play["id"]),
+                    play_number=play["play_number"],
+                )
+                expected_runners = runner_physical_rows(
+                    request.source.runners,
+                    t1=value.t1,
+                    t1_input=request.t1,
+                    tenant_id=tenant,
+                    play_id=_uuid(play["id"]),
+                )
+                native = evaluate_native_projection(
+                    _object(event["payload"]), source_event_id=_uuid(event["id"])
+                )
+                rule_sha = source_fingerprint(
+                    _object(request.rules.model_dump(mode="json", by_alias=True))
+                )
+                native["native_rule_sha256"] = rule_sha
+                if (
+                    expected_play != play
+                    or expected_runners != runners
+                    or request.source.rules_digest != rule_sha
+                    or source["tenant_id"] != str(tenant)
+                    or source["game_id"] != str(game)
+                    or source["fact_version_id"] != str(stats_id)
+                    or source["recording_generation"] != generation
+                    or source["d1"] != d1
+                    or source["d2"] != event["d2"]
+                    or source["source_event_id"] != event["id"]
+                    or source["source_fingerprint"]
+                    != event_ledger["source_fingerprint"]
+                    or source["play_row_id"] != play["id"]
+                    or source["play_row_version"] != play["version"]
+                    or source["slot_version"] != 1
+                    or source["artifact_sha256"]
+                    != payload.calculation.artifact_sha256
+                    or source["metric_states"] != native
+                    or source["rule_sha256"] != rule_sha
+                ):
+                    raise PastCorrectionCurrentUnavailable("P3後続頁物理/T5が不一致")
+                item = {
+                    "play_row": play,
+                    "play_runners": runners,
+                    "history_entry": history["entry"],
+                }
+                if selected_after_d1 < d1 <= selected_after_d1 + selected_limit:
+                    selected_items.append(item)
+                    selected_payloads.append(payload)
+                last_item = item
+                prior_payload = payload
+                after = d1
         try:
             next(iterator)
         except StopIteration:
@@ -380,22 +602,22 @@ def verify_p3_paged_current(
             or type(target_item) is not dict
             or type(prior_payload) is not LineupPitchPlayPayload
             or len(selected_items)
-            != min(selected_limit, watermark - selected_after_d1)
+            != min(selected_limit, upper - selected_after_d1)
             or progress["source_page_seal"] != source_chain
             or progress["evaluation_page_seal"] != evaluation_chain
         ):
             raise PastCorrectionCurrentUnavailable("P3頁全件sealが不一致")
         last = prior_payload.calculation.response.value
         if (
-            last.next_prefix_ref != at_change.prefix_ref
-            or last.t1.after != at_change.after
-            or last.t2 != at_change.t2
-            or last.runners != at_change.runners
-            or last.participants != at_change.participants
-            or last.lineup != at_change.lineup
-            or at_change.projection_snapshot is None
-            or at_change.projection_snapshot.play_row != last_item["play_row"]
-            or list(at_change.projection_snapshot.play_runners)
+            last.next_prefix_ref != current.prefix_ref
+            or last.t1.after != current.after
+            or last.t2 != current.t2
+            or last.runners != current.runners
+            or last.participants != current.participants
+            or last.lineup != current.lineup
+            or current.projection_snapshot is None
+            or current.projection_snapshot.play_row != last_item["play_row"]
+            or list(current.projection_snapshot.play_runners)
             != last_item["play_runners"]
         ):
             raise PastCorrectionCurrentUnavailable("P3頁末尾CPが不一致")
