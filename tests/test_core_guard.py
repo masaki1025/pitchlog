@@ -7964,7 +7964,14 @@ def test_pr197_approved_doc_merge_is_one_exact_carry(tmp_path: Path):
 def _pr197_fixed_shadow(tmp_path: Path) -> tuple[Path, str, str]:
     """現runtimeで正常を先に証明したPR197原本を対向試験へ供給する。"""
     guard = load_core_guard_module()
-    head = "0deb619e6fdd784e6c4ab4f5e8c6fee7bb821991"
+    reference = json.loads(
+        (REPO / "contracts/tenant_boundary/frozen-inputs.json").read_text()
+    )["frozen_inputs"]["pr197_final_verified_head"]
+    assert set(reference) == {"value", "purpose", "sources"}
+    assert reference["sources"] == ["tests/test_core_guard.py:_pr197_fixed_shadow"]
+    head = reference["value"]
+    assert type(head) is str and len(head) == 40
+    assert all(c in "0123456789abcdef" for c in head)
     run_git(REPO, 'merge-base', '--is-ancestor', head, 'HEAD')
     shadow = tmp_path / 'pr197-final-original'
     run_git(REPO, 'clone', '--shared', '--quiet', str(REPO), str(shadow))

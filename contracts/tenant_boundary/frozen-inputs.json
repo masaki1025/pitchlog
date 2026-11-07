@@ -462,6 +462,13 @@
       "sources": [
         "scripts/core_guard.py:_verify_pr197_definition_order"
       ]
+    },
+    "pr197_final_verified_head": {
+      "value": "0deb619e6fdd784e6c4ab4f5e8c6fee7bb821991",
+      "purpose": "PR197の最終CI全成功・正式統合対象を歴史検査の固定Git原本へ束縛し、後発CI宣言を旧有限例外へ混入させない。",
+      "sources": [
+        "tests/test_core_guard.py:_pr197_fixed_shadow"
+      ]
     }
   }
 }
