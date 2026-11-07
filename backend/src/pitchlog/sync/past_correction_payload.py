@@ -85,9 +85,28 @@ def bind_lineup_pitch_change_payload(
         or payload.expected_prefix_ref.length != str(len(rows))
     ):
         raise PastCorrectionPayloadError
-    saved = rows[target_d1 - 1]
+    bind_lineup_pitch_change_target(
+        payload, rows[target_d1 - 1], target_d1, len(rows), current_prefix_ref
+    )
+
+
+def bind_lineup_pitch_change_target(
+    payload: LineupPitchChangePayload,
+    saved: SavedLineupPitch,
+    target_d1: int,
+    watermark: int,
+    current_prefix_ref: PrefixRef,
+) -> None:
+    """全履歴を保持せず対象1件と固定headの元参照を照合する。"""
     if (
-        type(saved) is not SavedLineupPitch
+        type(payload) is not LineupPitchChangePayload
+        or type(saved) is not SavedLineupPitch
+        or type(target_d1) is not int
+        or type(watermark) is not int
+        or not 1 <= target_d1 <= watermark
+        or type(current_prefix_ref) is not PrefixRef
+        or payload.expected_prefix_ref != current_prefix_ref
+        or payload.expected_prefix_ref.length != str(watermark)
         or saved.d1 != target_d1
         or saved.payload is None
         or saved.payload.calculation != saved.calculation

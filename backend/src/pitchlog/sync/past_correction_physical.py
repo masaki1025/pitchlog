@@ -39,6 +39,7 @@ def prepare_corrected_physical_pitches(
     game_id: UUID,
     capsule_id: UUID,
     change_event_id: UUID,
+    target_d1: int | None = None,
 ) -> tuple[CorrectedPhysicalPitch, ...]:
     """対象は別行PKで作り、後続は全値一致する元行だけ再利用する。"""
     if (
@@ -51,13 +52,17 @@ def prepare_corrected_physical_pitches(
             type(value) is not UUID
             for value in (tenant_id, game_id, capsule_id, change_event_id)
         )
+        or (target_d1 is not None and (type(target_d1) is not int or target_d1 < 1))
     ):
         raise LineupCorrectionUnsupported("訂正v3物理系列の入力が不正")
+    target_position = corrected[0].d1 if target_d1 is None else target_d1
+    if target_position > corrected[-1].d1:
+        raise LineupCorrectionUnsupported("訂正v3物理対象がページ末尾を超過")
     by_d1 = {row.d1: row for row in rows}
     if len(by_d1) != len(rows):
         raise LineupCorrectionUnsupported("訂正v3物理原本の位置が重複")
     result: list[CorrectedPhysicalPitch] = []
-    for index, (frame, payload) in enumerate(zip(corrected, payloads, strict=True)):
+    for frame, payload in zip(corrected, payloads, strict=True):
         saved = by_d1.get(frame.d1)
         if (
             type(frame) is not CorrectedLineupPitch
@@ -88,7 +93,7 @@ def prepare_corrected_physical_pitches(
             raise LineupCorrectionUnsupported("訂正v3元物理行IDが不正") from None
         if play_identity_id != original_play_row_id:
             raise LineupCorrectionUnsupported("訂正v3元play identityが不一致")
-        target = index == 0
+        target = frame.d1 == target_position
         new_play_row_id = (
             uuid5(capsule_id, f"play:{saved.source_event_id}")
             if target

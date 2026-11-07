@@ -6,6 +6,7 @@ import json
 from copy import deepcopy
 from dataclasses import replace
 from pathlib import Path
+from types import SimpleNamespace
 from typing import cast
 from uuid import UUID
 
@@ -19,29 +20,46 @@ from pitchlog.domainrt.lineup_play_prefix_continuation import (
     seal_lineup_wire,
 )
 from pitchlog.domainrt.past_correction_lineup import (
+    CorrectionPageState,
     LineupCorrectionUnsupported,
     SavedLineupPitch,
     _evaluate,
+    _evaluate_page,
     _next_corrected_request,
     build_corrected_lineup_payloads,
 )
 from pitchlog.repositories.past_correction_source import PastCorrectionV3SourceSnapshot
 from pitchlog.repositories.transaction import _TenantTransaction
-from pitchlog.sync import past_correction_preparation
+from pitchlog.sync import past_correction_paged, past_correction_preparation
 from pitchlog.sync.first_ball_payload import FirstBallObservations
+from pitchlog.sync.idempotency import source_fingerprint
 from pitchlog.sync.model import SyncEvent
 from pitchlog.sync.ordinary_pitch_physical import pitch_physical_row
-from pitchlog.sync.past_correction_capsule import build_p3_current_capsule
+from pitchlog.sync.past_correction_capsule import (
+    build_p3_current_capsule,
+    build_p3_current_item,
+)
 from pitchlog.sync.past_correction_checkpoint import (
     build_corrected_lineup_checkpoint,
+    build_corrected_lineup_checkpoint_from_head,
+)
+from pitchlog.sync.past_correction_paged import (
+    PreparedP3Page,
+    _page_seal,
+    fingerprint_p3_streaming_array,
 )
 from pitchlog.sync.past_correction_payload import (
     PastCorrectionPayloadError,
     bind_lineup_pitch_change_payload,
+    bind_lineup_pitch_change_target,
     read_lineup_pitch_change_payload,
 )
 from pitchlog.sync.past_correction_physical import prepare_corrected_physical_pitches
-from pitchlog.sync.past_correction_stats import evaluate_p3_capsule_stats
+from pitchlog.sync.past_correction_stats import (
+    P3StatsSourceCandidate,
+    evaluate_p3_capsule_stats,
+    evaluate_p3_current_item_stats,
+)
 from pitchlog.sync.terminal_pitch_payload import (
     LineupPitchCalculation,
     LineupPitchPlayPayload,
@@ -135,6 +153,61 @@ def _two_saved(host: NodeDomainHost) -> tuple[SavedLineupPitch, SavedLineupPitch
     return saved(_ID1, 1, q1, r1), saved(_ID2, 2, q2, r2)
 
 
+def _twenty_six_saved(host: NodeDomainHost) -> tuple[SavedLineupPitch, ...]:
+    """既唯一hostの連続成功値だけから26球の旧原本を構成する。"""
+    saved = list(_two_saved(host))
+    previous = saved[-1].calculation.response
+    second = _CASES["V3-STARTED-CHAIN-02"]["request"]
+    for d1 in range(3, 27):
+        request_value = deepcopy(second)
+        request_value["source"]["position"] = {
+            "d1": str(d1),
+            "d2": str(d1),
+            "appliedWatermark": str(d1 - 1),
+        }
+        event_id = UUID(int=7000 + d1 * 3)
+        request_value["playIdentity"] = {
+            "eventId": str(event_id),
+            "d5": str(UUID(int=7001 + d1 * 3)),
+            "playId": str(UUID(int=7002 + d1 * 3)),
+        }
+        request_value["nextCheckpoint"]["revision"] = str(d1 + 1)
+        template = decode_lineup_prefix_request(json.dumps(request_value))
+        result = (
+            "batting-result.called-strikeout"
+            if previous.value.t1.after.state_fields.strikes == "2"
+            else "batting-result.called-pitch"
+        )
+        request = _next_corrected_request(
+            template, previous, result, UUID(int=600 + d1), host.artifact_sha256
+        )
+        response = decode_lineup_prefix_response(
+            host.call(
+                "deriveLineupPlayPrefixWithContinuation",
+                request.model_dump_json(by_alias=True, exclude_unset=True),
+            )
+        )
+        assert type(response) is LineupPrefixSuccess
+        request, response = seal_lineup_wire(request, response)
+        calculation = LineupPitchCalculation.model_validate_json(
+            json.dumps(
+                {
+                    "formatVersion": "play-prefix-calculation-v3",
+                    "artifactSha256": request.source.execution_artifact_sha256,
+                    "request": request.model_dump(
+                        mode="json", by_alias=True, exclude_unset=True
+                    ),
+                    "response": response.model_dump(
+                        mode="json", by_alias=True, exclude_unset=True
+                    ),
+                }
+            )
+        )
+        saved.append(SavedLineupPitch(event_id, d1, d1, calculation))
+        previous = response
+    return tuple(saved)
+
+
 def test_v3_two_pitch_correction_replays_real_artifact_and_preserves_source_ids() -> (
     None
 ):
@@ -200,6 +273,86 @@ def test_v3_second_pitch_correction_starts_at_verified_prior_checkpoint() -> Non
     assert result[0].corrected_response.value.t1.after.state_fields.balls == "1"
 
 
+@pytest.mark.parametrize("target", [1, 2])
+def test_v3_page_boundary_preserves_the_same_old_and_corrected_chain(
+    target: int,
+) -> None:
+    """対象が頁の前後どちらでも同じ唯一hostの旧/新連鎖を維持する。"""
+    with _host() as host:
+        old = _two_saved(host)
+        ids = (_NEW1, _NEW2) if target == 1 else (_NEW2,)
+        expected = _evaluate(old, "batting-result.ball", ids, host, target_d1=target)
+        state, first = _evaluate_page(
+            old[:1],
+            "batting-result.ball",
+            (_NEW1,) if target == 1 else (),
+            host,
+            CorrectionPageState(),
+            target_d1=target,
+        )
+        state, second = _evaluate_page(
+            old[1:],
+            "batting-result.ball",
+            (_NEW2,),
+            host,
+            state,
+            target_d1=target,
+        )
+    assert first + second == expected
+    assert state.last_d1 == 2
+    assert state.last_d2 == old[-1].d2
+    assert state.previous_original == old[-1].calculation.response
+    assert state.previous_corrected == expected[-1].corrected_response
+
+
+def test_v3_page_boundary_rejects_a_changed_target_and_missing_d1() -> None:
+    """頁間の対象差替えと位置欠落を次の成功へ読み替えない。"""
+    with _host() as host:
+        old = _two_saved(host)
+        state, _ = _evaluate_page(
+            old[:1], "batting-result.ball", (), host, CorrectionPageState(),
+            target_d1=2,
+        )
+        with pytest.raises(LineupCorrectionUnsupported):
+            _evaluate_page(
+                old[1:], "batting-result.ball", (), host, state, target_d1=3,
+            )
+        with pytest.raises(LineupCorrectionUnsupported):
+            _evaluate_page(
+                (replace(old[1], d1=3),), "batting-result.ball", (), host,
+                state, target_d1=2,
+            )
+        with pytest.raises(LineupCorrectionUnsupported):
+            _evaluate_page(
+                old[1:], "batting-result.ball", (_NEW2,), host,
+                replace(state, previous_original=None), target_d1=2,
+            )
+
+
+def test_v3_target_26_uses_two_bounded_pages_and_the_same_real_host() -> None:
+    """26球目を旧25件目の実応答から評価し、25件上限を試合上限にしない。"""
+    with _host() as host:
+        old = _twenty_six_saved(host)
+        state, first = _evaluate_page(
+            old[:25], "batting-result.ball", (), host, CorrectionPageState(),
+            target_d1=26,
+        )
+        state, second = _evaluate_page(
+            old[25:], "batting-result.ball", (UUID(int=9900),), host,
+            state, target_d1=26,
+        )
+    assert first == ()
+    assert len(second) == 1
+    assert second[0].source_event_id == old[25].source_event_id
+    assert second[0].corrected_request.prefix_ref == (
+        old[24].calculation.response.value.next_prefix_ref
+    )
+    assert second[0].corrected_request.t1.result_id == "batting-result.ball"
+    assert state.last_d1 == 26
+    assert state.previous_original == old[25].calculation.response
+    assert state.previous_corrected == second[0].corrected_response
+
+
 def test_v3_corrected_payload_keeps_downstream_observations_and_explicit_target() -> (
     None
 ):
@@ -218,6 +371,10 @@ def test_v3_corrected_payload_keeps_downstream_observations_and_explicit_target(
     assert new[1].observations == old[1].payload.observations
     assert new[0].calculation.request.t1.result_id == "batting-result.ball"
     assert new[1].calculation.request.t1.result_id == "batting-result.called-pitch"
+    suffix = build_corrected_lineup_payloads(
+        old[1:], frames[1:], replacement, target_d1=1
+    )
+    assert suffix == new[1:]
 
 
 def test_v3_corrected_payload_rejects_missing_original_v7() -> None:
@@ -239,7 +396,9 @@ def test_v3_corrected_payload_rejects_missing_original_v7() -> None:
         )
 
 
-def test_v3_physical_candidate_uses_existing_mappers_and_new_row_ids() -> None:
+def test_v3_physical_candidate_uses_existing_mappers_and_new_row_ids(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """訂正対象を別PKで作り、後続の物理全値同一なら元行を再利用する。"""
     with _host() as host:
         old = _two_saved(host)
@@ -300,6 +459,113 @@ def test_v3_physical_candidate_uses_existing_mappers_and_new_row_ids() -> None:
     ]
     assert [item.play_row["play_number"] for item in result] == [1, 2]
     assert all(item.play_row["id"] == str(item.new_play_row_id) for item in result)
+    suffix = prepare_corrected_physical_pitches(
+        original[1:],
+        frames[1:],
+        payloads[1:],
+        tenant_id=tenant,
+        game_id=game,
+        capsule_id=_CAPSULE,
+        change_event_id=_CHANGE,
+        target_d1=1,
+    )
+    assert suffix == result[1:]
+    first_seal = _page_seal(
+        "0" * 64, PreparedP3Page(original[:1], frames[:1], payloads[:1], result[:1])
+    )
+    second_seal = _page_seal(
+        first_seal, PreparedP3Page(original[1:], frames[1:], payloads[1:], suffix)
+    )
+    assert second_seal == _page_seal(
+        first_seal, PreparedP3Page(original[1:], frames[1:], payloads[1:], suffix)
+    )
+    assert second_seal != _page_seal(
+        first_seal,
+        PreparedP3Page(
+            original[1:],
+            frames[1:],
+            payloads[1:],
+            (replace(suffix[0], effective_event_id=_CHANGE),),
+        ),
+    )
+    class Scope:
+        _bound_tenant_id = tenant
+
+    def read_pages(_scope, _game, _target, consume):
+        checkpoint = SimpleNamespace(
+            prefix_ref=original[-1].calculation.response.value.next_prefix_ref,
+            content_digest="d" * 64,
+        )
+        consume(original[:1], checkpoint)
+        consume(original[1:], checkpoint)
+        return SimpleNamespace(
+            internal_generation=1,
+            watermark=2,
+            checkpoint=checkpoint,
+        )
+
+    monkeypatch.setattr(past_correction_paged, "_TenantTransaction", Scope)
+    monkeypatch.setattr(
+        past_correction_paged, "_bound_target", lambda *_: (game, 1, 1)
+    )
+    monkeypatch.setattr(
+        past_correction_paged, "visit_past_correction_v3_source_pages", read_pages
+    )
+    monkeypatch.setattr(
+        past_correction_paged,
+        "build_corrected_lineup_checkpoint_from_head",
+        lambda *_: SimpleNamespace(id="next", content_digest="e" * 64),
+    )
+    monkeypatch.setattr(
+        past_correction_paged,
+        "build_p3_current_item",
+        lambda saved, **_kwargs: {
+            "d1": saved.d1,
+            "digest": source_fingerprint({"d1": saved.d1}),
+        },
+    )
+    monkeypatch.setattr(
+        past_correction_paged,
+        "evaluate_p3_current_item_stats",
+        lambda item, d1: P3StatsSourceCandidate(
+            d1,
+            original[d1 - 1].source_event_id,
+            original[d1 - 1].source_event_id,
+            UUID(int=d1),
+            {},
+            "b" * 64,
+            {},
+            "c" * 64,
+        ),
+    )
+    event = SyncEvent(
+        str(_CHANGE), str(game), v5="play_change", v7=_change_body(original, 1)
+    )
+    pages: list[PreparedP3Page] = []
+    proof = past_correction_paged.visit_p3_lineup_correction_pages(
+        cast(_TenantTransaction, Scope()),
+        event,
+        capsule_id=_CAPSULE,
+        change_event_id=_CHANGE,
+        bound_source=object(),
+        consume=pages.append,
+    )
+    assert proof.page_count == 2
+    assert proof.watermark == 2
+    assert [len(page.originals) for page in pages] == [1, 1]
+    assert original[1].payload is not None
+    assert pages[1].payloads[0].observations == original[1].payload.observations
+    assert pages[1].physical[0].effective_event_id == original[1].source_event_id
+    assert pages[1].physical[0].play_row == original[1].play_row
+    replay = past_correction_paged.visit_p3_lineup_correction_pages(
+        cast(_TenantTransaction, Scope()),
+        event,
+        capsule_id=_CAPSULE,
+        change_event_id=_CHANGE,
+        bound_source=object(),
+        consume=lambda _page: None,
+    )
+    assert replay == proof
     assert original[1].play_row is not None
     forged = dict(original[1].play_row)
     forged["tenant_id"] = str(UUID(int=1))
@@ -454,6 +720,13 @@ def test_v3_change_payload_binds_real_target_and_current_head() -> None:
     bind_lineup_pitch_change_payload(
         payload, rows, 2, rows[-1].calculation.response.value.next_prefix_ref
     )
+    bind_lineup_pitch_change_target(
+        payload, rows[1], 2, 2, rows[-1].calculation.response.value.next_prefix_ref
+    )
+    with pytest.raises(PastCorrectionPayloadError):
+        bind_lineup_pitch_change_target(
+            payload, rows[1], 2, 3, rows[-1].calculation.response.value.next_prefix_ref
+        )
     for field, changed in (
         ("targetEventId", str(_CHANGE)),
         ("originalResultId", "batting-result.ball"),
@@ -556,7 +829,6 @@ def test_v3_corrected_checkpoint_uses_native_chain_and_new_physical_head() -> No
     """実二球再評価の末尾だけを新CPへ写し、元IDと物理PKを区別する。"""
     from pitchlog.domainrt.first_ball_projection import _canonical_json
     from pitchlog.repositories.play_prefix import read_lineup_prefix_document
-    from pitchlog.sync.idempotency import source_fingerprint
     from pitchlog.sync.ordinary_pitch_physical import pitch_physical_row
     from pitchlog.sync.past_correction_preparation import PreparedP3LineupCorrection
     from pitchlog.sync.terminal_pitch_projection import runner_physical_rows
@@ -679,6 +951,9 @@ def test_v3_corrected_checkpoint_uses_native_chain_and_new_physical_head() -> No
         old_checkpoint,
     )
     fresh = build_corrected_lineup_checkpoint(prepared)
+    assert fresh == build_corrected_lineup_checkpoint_from_head(
+        old_checkpoint, saved_rows[-1], corrected[-1], physical[-1], 2
+    )
     assert fresh.id == old_checkpoint.id
     assert fresh.prefix_ref.checkpoint.id == (
         corrected[-1].corrected_response.value.next_prefix_ref.checkpoint.id
@@ -695,6 +970,24 @@ def test_v3_corrected_checkpoint_uses_native_chain_and_new_physical_head() -> No
     assert capsule.items[1]["original_event_id"] == str(_ID2)
     assert capsule.items[1]["effective_event_id"] == str(_ID2)
     assert capsule.items[1]["play_row"] == physical[-1].play_row
+    assert capsule.items[1] == build_p3_current_item(
+        saved_rows[1],
+        target_d1=1,
+        change_event_id=_CHANGE,
+        checkpoint=old_checkpoint,
+        frame=corrected[1],
+        payload=payloads[1],
+        projected=physical[1],
+    )
+    assert capsule.source_set_digest == fingerprint_p3_streaming_array(
+        {"capsule_id": str(_CAPSULE), "change_event_id": str(_CHANGE)},
+        "item_digests",
+        (item["digest"] for item in capsule.items),
+        {
+            "new_checkpoint_digest": fresh.content_digest,
+            "old_checkpoint_digest": old_checkpoint.content_digest,
+        },
+    )
     assert saved_rows[-1].play_row is not None
     assert capsule.items[1]["effective_play_row_id"] == saved_rows[-1].play_row["id"]
     assert capsule.items[0]["original_play_row"] == saved_rows[0].play_row
@@ -705,6 +998,7 @@ def test_v3_corrected_checkpoint_uses_native_chain_and_new_physical_head() -> No
         mode="json", by_alias=True, exclude_unset=True
     )
     stats = evaluate_p3_capsule_stats(capsule)
+    assert stats.sources[0] == evaluate_p3_current_item_stats(capsule.items[0], 1)
     assert stats.evaluation_set_digest != capsule.source_set_digest
     assert [source.effective_event_id for source in stats.sources] == [_CHANGE, _ID2]
     assert all(source.evaluation for source in stats.sources)

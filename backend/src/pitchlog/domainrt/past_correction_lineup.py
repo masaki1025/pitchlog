@@ -60,6 +60,18 @@ class CorrectedLineupPitch:
     corrected_response: LineupPrefixSuccess
 
 
+@dataclass(frozen=True, slots=True)
+class CorrectionPageState:
+    """同一原本系列のページ境界で旧/新の直前応答だけを保持する。"""
+
+    last_d1: int = 0
+    last_d2: int = 0
+    previous_original: LineupPrefixSuccess | None = None
+    previous_corrected: LineupPrefixSuccess | None = None
+    target_d1: int | None = None
+    replacement_result_id: str | None = None
+
+
 def _wire(value: BaseModel) -> dict:
     """閉型値を表現を落とさずJSON objectへ戻す。"""
     return value.model_dump(mode="json", by_alias=True, exclude_unset=True)
@@ -185,57 +197,84 @@ def _next_corrected_request(
     return decode_lineup_prefix_request(json.dumps(request, ensure_ascii=False))
 
 
-def _evaluate(
+def _evaluate_page(
     rows: tuple[SavedLineupPitch, ...],
     replacement_result_id: Literal[
         "batting-result.ball", "batting-result.called-pitch"
     ],
     checkpoint_ids: tuple[UUID, ...],
     host: NodeDomainHost,
+    state: CorrectionPageState,
     *,
-    target_d1: int = 1,
-) -> tuple[CorrectedLineupPitch, ...]:
-    """旧正史を全照合後、訂正系列だけを同核で再導出する。"""
+    target_d1: int,
+) -> tuple[CorrectionPageState, tuple[CorrectedLineupPitch, ...]]:
+    """元/新直前値を持ち越し、25件以下を唯一hostで順に検証する。"""
     if (
         type(rows) is not tuple
         or not 1 <= len(rows) <= 25
+        or type(state) is not CorrectionPageState
+        or type(state.last_d1) is not int
+        or type(state.last_d2) is not int
+        or state.last_d1 < 0
+        or state.last_d2 < 0
+        or (state.last_d1 == 0) != (state.previous_original is None)
+        or (state.last_d1 == 0) != (state.previous_corrected is None)
+        or (
+            state.previous_original is not None
+            and type(state.previous_original) is not LineupPrefixSuccess
+        )
+        or (
+            state.previous_corrected is not None
+            and type(state.previous_corrected) is not LineupPrefixSuccess
+        )
+        or (
+            state.last_d1 > 0
+            and (
+                type(state.target_d1) is not int
+                or type(state.replacement_result_id) is not str
+            )
+        )
         or type(target_d1) is not int
-        or not 1 <= target_d1 <= len(rows)
-        or type(checkpoint_ids) is not tuple
-        or len(checkpoint_ids) != len(rows) - target_d1 + 1
-        or any(type(identifier) is not UUID for identifier in checkpoint_ids)
-        or len(set(checkpoint_ids)) != len(checkpoint_ids)
+        or target_d1 < 1
+        or type(host) is not NodeDomainHost
         or replacement_result_id
         not in {"batting-result.ball", "batting-result.called-pitch"}
-        or type(host) is not NodeDomainHost
+        or (state.target_d1 is not None and state.target_d1 != target_d1)
+        or (
+            state.replacement_result_id is not None
+            and state.replacement_result_id != replacement_result_id
+        )
+        or type(checkpoint_ids) is not tuple
+        or any(type(identifier) is not UUID for identifier in checkpoint_ids)
+        or len(set(checkpoint_ids)) != len(checkpoint_ids)
+        or len(checkpoint_ids)
+        != sum(state.last_d1 + index >= target_d1 for index in range(1, len(rows) + 1))
     ):
-        raise LineupCorrectionUnsupported("訂正v3有限pageの入力が不正")
-    originals: list[tuple[LineupPrefixRequest, LineupPrefixSuccess]] = []
-    previous_original: LineupPrefixSuccess | None = None
-    prior_d2 = 0
-    for number, saved in enumerate(rows, start=1):
-        if saved.d1 != number:
-            raise LineupCorrectionUnsupported("訂正v3原本D1の順序が不正")
-        if saved.d2 <= prior_d2:
-            raise LineupCorrectionUnsupported("訂正v3原本D2の順序が不正")
-        pair = _bound_original(saved, previous_original, host)
-        originals.append(pair)
-        previous_original = pair[1]
-        prior_d2 = saved.d2
+        raise LineupCorrectionUnsupported("訂正v3ページ境界が不正")
+    previous_original = state.previous_original
+    previous_corrected = state.previous_corrected
+    prior_d2 = state.last_d2
     corrected: list[CorrectedLineupPitch] = []
-    previous_corrected: LineupPrefixSuccess | None = (
-        originals[target_d1 - 2][1] if target_d1 > 1 else None
-    )
-    for index in range(target_d1 - 1, len(rows)):
-        saved = rows[index]
-        original_request, original_response = originals[index]
+    checkpoint_index = 0
+    for offset, saved in enumerate(rows, start=1):
+        if saved.d1 != state.last_d1 + offset or saved.d2 <= prior_d2:
+            raise LineupCorrectionUnsupported("訂正v3原本のページ順序が不正")
+        original_request, original_response = _bound_original(
+            saved, previous_original, host
+        )
+        previous_original = original_response
+        prior_d2 = saved.d2
+        if saved.d1 < target_d1:
+            previous_corrected = original_response
+            continue
         request = _next_corrected_request(
             original_request,
             previous_corrected,
-            replacement_result_id if index == target_d1 - 1 else None,
-            checkpoint_ids[index - target_d1 + 1],
+            replacement_result_id if saved.d1 == target_d1 else None,
+            checkpoint_ids[checkpoint_index],
             host.artifact_sha256,
         )
+        checkpoint_index += 1
         response = decode_lineup_prefix_response(
             host.call(
                 "deriveLineupPlayPrefixWithContinuation",
@@ -256,7 +295,53 @@ def _evaluate(
             )
         )
         previous_corrected = response
-    return tuple(corrected)
+    return (
+        CorrectionPageState(
+            state.last_d1 + len(rows),
+            prior_d2,
+            previous_original,
+            previous_corrected,
+            target_d1,
+            replacement_result_id,
+        ),
+        tuple(corrected),
+    )
+
+
+def _evaluate(
+    rows: tuple[SavedLineupPitch, ...],
+    replacement_result_id: Literal[
+        "batting-result.ball", "batting-result.called-pitch"
+    ],
+    checkpoint_ids: tuple[UUID, ...],
+    host: NodeDomainHost,
+    *,
+    target_d1: int = 1,
+) -> tuple[CorrectedLineupPitch, ...]:
+    """旧正史の各球を照合し、訂正系列だけを同核で再導出する。"""
+    if (
+        type(rows) is not tuple
+        or not 1 <= len(rows) <= 25
+        or type(target_d1) is not int
+        or not 1 <= target_d1 <= len(rows)
+        or type(checkpoint_ids) is not tuple
+        or len(checkpoint_ids) != len(rows) - target_d1 + 1
+        or any(type(identifier) is not UUID for identifier in checkpoint_ids)
+        or len(set(checkpoint_ids)) != len(checkpoint_ids)
+        or replacement_result_id
+        not in {"batting-result.ball", "batting-result.called-pitch"}
+        or type(host) is not NodeDomainHost
+    ):
+        raise LineupCorrectionUnsupported("訂正v3有限pageの入力が不正")
+    _, corrected = _evaluate_page(
+        rows,
+        replacement_result_id,
+        checkpoint_ids,
+        host,
+        CorrectionPageState(),
+        target_d1=target_d1,
+    )
+    return corrected
 
 
 def evaluate_lineup_pitch_result_correction(
@@ -283,6 +368,8 @@ def build_corrected_lineup_payloads(
     rows: tuple[SavedLineupPitch, ...],
     corrected: tuple[CorrectedLineupPitch, ...],
     replacement_observations: FirstBallObservations,
+    *,
+    target_d1: int | None = None,
 ) -> tuple[LineupPitchPlayPayload, ...]:
     """訂正観測と後続の保存観測を実再評価値へ厳密に束縛する。"""
     if (
@@ -290,13 +377,17 @@ def build_corrected_lineup_payloads(
         or type(corrected) is not tuple
         or not corrected
         or type(replacement_observations) is not FirstBallObservations
+        or (target_d1 is not None and (type(target_d1) is not int or target_d1 < 1))
     ):
         raise LineupCorrectionUnsupported("訂正v3観測原本が不正")
+    target = corrected[0].d1 if target_d1 is None else target_d1
+    if target > corrected[-1].d1:
+        raise LineupCorrectionUnsupported("訂正v3対象がページ末尾を超過")
     by_d1 = {row.d1: row for row in rows}
     if len(by_d1) != len(rows):
         raise LineupCorrectionUnsupported("訂正v3観測原本の位置が重複")
     result: list[LineupPitchPlayPayload] = []
-    for index, frame in enumerate(corrected):
+    for frame in corrected:
         saved = by_d1.get(frame.d1)
         if (
             type(frame) is not CorrectedLineupPitch
@@ -312,7 +403,9 @@ def build_corrected_lineup_payloads(
         ):
             raise LineupCorrectionUnsupported("訂正v3保存観測の参照が不一致")
         observations = (
-            replacement_observations if index == 0 else saved.payload.observations
+            replacement_observations
+            if frame.d1 == target
+            else saved.payload.observations
         )
         if type(observations) is not FirstBallObservations:
             raise LineupCorrectionUnsupported("訂正v3後続観測が未対応")
