@@ -1,0 +1,2510 @@
+diff --git a/backend/src/pitchlog/api/app.py b/backend/src/pitchlog/api/app.py
+index bcb93400..082a0e0f 100644
+--- a/backend/src/pitchlog/api/app.py
++++ b/backend/src/pitchlog/api/app.py
+@@ -21,6 +21,7 @@ from pitchlog.api.routers import (
+     started_games,
+     sync,
+     team_records,
++    viewer,
+ )
+ from pitchlog.api.tenant_access import tenant_match_response_headers
+ from pitchlog.authz.signing_key_config import require_signing_key_configuration
+@@ -41,6 +42,7 @@ ROUTERS: tuple[APIRouter, ...] = (
+     batted_ball_options.router,
+     basic_stats.router,
+     started_games.router,
++    viewer.router,
+     sync.router,
+ )
+ _SIGNING_KEY_VARIABLE = "PITCHLOG_TOKEN_SIGNING_KEY_B64"
+diff --git a/backend/src/pitchlog/api/tenant_access.py b/backend/src/pitchlog/api/tenant_access.py
+index 98afb4aa..77a98d6b 100644
+--- a/backend/src/pitchlog/api/tenant_access.py
++++ b/backend/src/pitchlog/api/tenant_access.py
+@@ -29,6 +29,8 @@ _MATCH_OPERATIONS = frozenset(
+         "pitch_type_options",
+         "batted_ball_options",
+         "started_game_detail",
++        "game_viewer_head",
++        "game_viewer_saved",
+         "sync_events",
+         "recover_sync_attempt",
+         "game_play_csv_export",
+diff --git a/backend/src/pitchlog/authz/ordinary_pitch_product.py b/backend/src/pitchlog/authz/ordinary_pitch_product.py
+index b1898606..6753ef33 100644
+--- a/backend/src/pitchlog/authz/ordinary_pitch_product.py
++++ b/backend/src/pitchlog/authz/ordinary_pitch_product.py
+@@ -15,6 +15,7 @@ from pitchlog.authz.ordinary_order_sql import candidate_order_function_bodies
+ from pitchlog.authz.ordinary_pitch_write_stamp import candidate_function_bodies
+ from pitchlog.authz.ordinary_prefix_sql import candidate_read_function_bodies
+ from pitchlog.authz.sync_right_sql import render_ordinary_stamped_function_sql
++from pitchlog.authz.viewer_read_sql import candidate_viewer_function_bodies
+ 
+ _OWNER = "pitchlog_sync_right_fn_owner"
+ _TABLES = (
+@@ -24,6 +25,7 @@ _TABLES = (
+ )
+ _FUNCTIONS = {
+     "read_nonplay_active_history": (IDENTITY_ARGS, "TABLE(record_json text)"),
++    "read_viewer_nonplay_active_history": (IDENTITY_ARGS, "TABLE(record_json text)"),
+     "read_ordinary_order_summary": ("uuid, uuid", "TABLE(record_json text)"),
+     "bind_ordinary_device": (
+         "uuid, uuid, uuid, bytea, uuid, uuid, bytea",
+@@ -164,6 +166,9 @@ def candidate_profile():
+         **candidate_read_function_bodies(),
+         **candidate_order_function_bodies(),
+         **nonplay_read_bodies(),
++        "read_viewer_nonplay_active_history": candidate_viewer_function_bodies()[
++            "read_viewer_nonplay_active_history"
++        ],
+     }
+     if bodies.keys() != _FUNCTIONS.keys():
+         raise ValueError("通常投球関数候補の閉集合が不一致")
+diff --git a/backend/src/pitchlog/authz/runtime_contract.py b/backend/src/pitchlog/authz/runtime_contract.py
+index 9152f92a..e1a744c5 100644
+--- a/backend/src/pitchlog/authz/runtime_contract.py
++++ b/backend/src/pitchlog/authz/runtime_contract.py
+@@ -3,11 +3,11 @@
+ from dataclasses import dataclass
+ 
+ SCHEMA_VERSION = 1
+-RUNTIME_CONTRACT_REVISION = 34
++RUNTIME_CONTRACT_REVISION = 35
+ PROVISIONAL = False
+ SUPERSEDED_BY = None
+ SOURCE_ASSET = "contracts/tenant_boundary/runtime-authz-contract.json"
+-SOURCE_DIGEST = "e99b8e47e9878dd6d4ac8b9fdf737d1588144bfa9c70e65e58fda518cdb531b6"
++SOURCE_DIGEST = "3aabec39420ac51d931ffb55cfb0b9553ce9f8cfe25b380831ff3594ce7ab0c9"
+ DERIVED_FROM = "contracts/authz/product/ddl-elements.json"
+ 
+ 
+@@ -372,6 +372,22 @@ PROTECTED_FUNCTIONS = (
+             "uuid, integer"
+         ),
+     ),
++    (
++        "sync_right_api",
++        "read_viewer_nonplay_active_history",
++        (
++            "uuid, uuid, bigint, uuid, bigint, bigint, bigint, bigint, bigint, bigint, "
++            "uuid, integer"
++        ),
++    ),
++    (
++        "sync_right_api",
++        "read_viewer_play_prefix_history_page",
++        (
++            "uuid, uuid, bigint, bigint, uuid, bigint, bigint, bigint, bigint, bigint, "
++            "uuid, integer"
++        ),
++    ),
+     ("sync_right_api", "verify_replay_device", "uuid, uuid, bytea"),
+ )
+ 
+diff --git a/backend/src/pitchlog/authz/terminal_pitch_product.py b/backend/src/pitchlog/authz/terminal_pitch_product.py
+index 0265732a..4cf0f4e9 100644
+--- a/backend/src/pitchlog/authz/terminal_pitch_product.py
++++ b/backend/src/pitchlog/authz/terminal_pitch_product.py
+@@ -3,6 +3,7 @@
+ import re
+ 
+ from pitchlog.authz.terminal_pitch_write_stamp import candidate_function_bodies
++from pitchlog.authz.viewer_read_sql import candidate_viewer_function_bodies
+ 
+ OWNER = "pitchlog_sync_right_fn_owner"
+ FUNCTIONS = {
+@@ -27,6 +28,12 @@ FUNCTIONS = {
+         "TABLE(record_json text)",
+         True,
+     ),
++    "read_viewer_play_prefix_history_page": (
++        "uuid, uuid, bigint, bigint, uuid, bigint, bigint, bigin"
++        "t, bigint, bigint, uuid, integer",
++        "TABLE(record_json text)",
++        True,
++    ),
+     "prepare_play_prefix_projection": (
+         "uuid, uuid, uuid, bytea, uuid, uuid, text",
+         "TABLE(prepared boolean)",
+@@ -66,7 +73,7 @@ TRIGGERS = (
+ 
+ def _v2_candidate_declarations():
+     """既asset形式に合う宣言/実SQLだけを返し、書込/適用しない。"""
+-    functions = candidate_function_bodies()
++    functions = {**candidate_function_bodies(), **candidate_viewer_function_bodies()}
+     result = {n: [] for n in ("functions", "policies", "column_acl_expectations")}
+     bodies = {}
+     for name, (args, returns, app) in FUNCTIONS.items():
+diff --git a/backend/src/pitchlog/repositories/function_operations.py b/backend/src/pitchlog/repositories/function_operations.py
+index 30c5989e..5e88a5ed 100644
+--- a/backend/src/pitchlog/repositories/function_operations.py
++++ b/backend/src/pitchlog/repositories/function_operations.py
+@@ -389,6 +389,22 @@ _SYNC_PLAY_PREFIX_FUNCTION_TYPES = MappingProxyType(
+ )
+ 
+ 
++_VIEWER_READ_FUNCTION_TYPES = MappingProxyType(
++    {
++        "sync_right_api.read_viewer_play_prefix_history_page": (
++            _SYNC_PLAY_PREFIX_FUNCTION_TYPES[
++                "sync_right_api.read_play_prefix_history_page"
++            ]
++        ),
++        "sync_right_api.read_viewer_nonplay_active_history": (
++            _SYNC_ORDINARY_PREFIX_FUNCTION_TYPES[
++                "sync_right_api.read_nonplay_active_history"
++            ]
++        ),
++    }
++)
++
++
+ _SYNC_WRITER_BINDING_FUNCTION_TYPES = MappingProxyType(
+     {
+         "sync_fence_api.read_writer_identity": (
+@@ -628,6 +644,7 @@ class FunctionOperationRegistration:
+         ordinary = _SYNC_ORDINARY_PITCH_FUNCTION_TYPES.get(self.function_id)
+         ordinary_prefix = _SYNC_ORDINARY_PREFIX_FUNCTION_TYPES.get(self.function_id)
+         play_prefix = _SYNC_PLAY_PREFIX_FUNCTION_TYPES.get(self.function_id)
++        viewer_read = _VIEWER_READ_FUNCTION_TYPES.get(self.function_id)
+         writer_binding = _SYNC_WRITER_BINDING_FUNCTION_TYPES.get(self.function_id)
+         recording_vocab = (
+             self.function_id == "recording_vocab_api.read_batted_ball_options"
+@@ -668,6 +685,26 @@ class FunctionOperationRegistration:
+                 or self.nonempty_inputs
+             ):
+                 raise FunctionOperationError("通常投球関数の有限型宣言が不一致")
++        elif viewer_read is not None:
++            name = self.function_id.rsplit(".", 1)[1]
++            family = (
++                "SYNC_PLAY_PREFIX"
++                if name == "read_viewer_play_prefix_history_page"
++                else "SYNC_ORDINARY_PITCH"
++            )
++            capability = (
++                "sync_play_prefix"
++                if family == "SYNC_PLAY_PREFIX"
++                else "sync_ordinary_pitch"
++            )
++            if (
++                extended != viewer_read[:4]
++                or (self.min_rows, self.max_rows) != viewer_read[4:]
++                or self.operation_id != f"{family}:{name}"
++                or self.capability_id != f"CAP:{capability}:{name}"
++                or self.nonempty_inputs
++            ):
++                raise FunctionOperationError("閲覧page関数の有限型宣言が不一致")
+         elif ordinary_prefix is not None:
+             name = self.function_id.rsplit(".", 1)[1]
+             if (
+@@ -1066,12 +1103,16 @@ def prepare_function_operation(
+         if (
+             spec.function_id in _SYNC_ORDINARY_PREFIX_FUNCTION_TYPES
+             or spec.function_id in _SYNC_PLAY_PREFIX_FUNCTION_TYPES
++            or spec.function_id in _VIEWER_READ_FUNCTION_TYPES
+         ):
+             if expected_type is bytes and len(value) != 32:
+                 raise FunctionOperationError("通常prefixのnonce長が不一致")
+             if expected_type is int:
+                 zero_based = name in {"upper_watermark", "after_d1", "after_d2"} or (
+-                    spec.function_id == "sync_right_api.read_nonplay_active_history"
++                    spec.function_id in {
++                        "sync_right_api.read_nonplay_active_history",
++                        "sync_right_api.read_viewer_nonplay_active_history",
++                    }
+                     and name == "after_order"
+                 )
+                 lower = 0 if zero_based else 1
+@@ -1102,12 +1143,16 @@ def prepare_function_operation(
+             or spec.function_id in _SYNC_ORDINARY_PITCH_FUNCTION_TYPES
+             or spec.function_id in _SYNC_WRITER_BINDING_FUNCTION_TYPES
+             or spec.function_id in _SYNC_PLAY_PREFIX_FUNCTION_TYPES
++            or spec.function_id == "sync_right_api.read_viewer_play_prefix_history_page"
+         ):
+             if expected_type is bytes and len(value) != 32:
+                 raise FunctionOperationError("初球の固定byte長が不一致")
+             if expected_type is int and not (
+                 0 <= value < 2**63
+-                if spec.function_id == "sync_right_api.read_play_prefix_history_page"
++                if spec.function_id in {
++                    "sync_right_api.read_play_prefix_history_page",
++                    "sync_right_api.read_viewer_play_prefix_history_page",
++                }
+                 and name in {"upper_watermark", "after_d1", "after_d2"}
+                 else 0 < value < 2**63
+             ):
+diff --git a/backend/src/pitchlog/repositories/operation_registry.py b/backend/src/pitchlog/repositories/operation_registry.py
+index 39f1041a..9573d9cb 100644
+--- a/backend/src/pitchlog/repositories/operation_registry.py
++++ b/backend/src/pitchlog/repositories/operation_registry.py
+@@ -76,6 +76,7 @@ from pitchlog.repositories.stats_native_operations import (
+ )
+ from pitchlog.repositories.sync_apply import SYNC_APPLY_OPERATIONS
+ from pitchlog.repositories.tenant_profile import TENANT_PROFILE_OPERATIONS
++from pitchlog.repositories.viewer_read import VIEWER_READ_OPERATIONS
+ from pitchlog.repositories.writer_binding import (
+     _UNREGISTERED_DECLARATIONS as _WRITER_BINDING_FUNCTION_OPERATIONS,
+ )
+@@ -115,6 +116,8 @@ _STATIC_PRODUCT_FUNCTION_BINDING_IDS = frozenset(
+         "SYNC_PLAY_PREFIX:read_play_prefix_checkpoint",
+         "SYNC_PLAY_PREFIX:lock_play_prefix_checkpoint",
+         "SYNC_PLAY_PREFIX:read_play_prefix_history_page",
++        "SYNC_PLAY_PREFIX:read_viewer_play_prefix_history_page",
++        "SYNC_ORDINARY_PITCH:read_viewer_nonplay_active_history",
+         "SYNC_PLAY_PREFIX:prepare_play_prefix_projection",
+         "SYNC_LINEUP_PREFIX:read_lineup_started_origin",
+     }
+@@ -272,6 +275,14 @@ PRODUCT_FUNCTION_OPERATIONS: tuple[FunctionOperationRegistration, ...] = (
+         NONPLAY_READ_OPERATIONS[0],
+         operation_id="SYNC_ORDINARY_PITCH:read_nonplay_active_history",
+     ),
++    _registered_product_function(
++        VIEWER_READ_OPERATIONS[0],
++        operation_id="SYNC_PLAY_PREFIX:read_viewer_play_prefix_history_page",
++    ),
++    _registered_product_function(
++        VIEWER_READ_OPERATIONS[1],
++        operation_id="SYNC_ORDINARY_PITCH:read_viewer_nonplay_active_history",
++    ),
+ )
+ FUNCTION_OPERATION_REGISTRY = build_function_registry(
+     PRODUCT_FUNCTION_OPERATIONS,
+diff --git a/backend/src/pitchlog/repositories/repository_contract.py b/backend/src/pitchlog/repositories/repository_contract.py
+index 6989c69e..1c9c1317 100644
+--- a/backend/src/pitchlog/repositories/repository_contract.py
++++ b/backend/src/pitchlog/repositories/repository_contract.py
+@@ -1,11 +1,11 @@
+ """リポジトリ基底の公開面と不変戻り値規約を提供する生成モジュール。"""
+ 
+ SCHEMA_VERSION = 1
+-CONTRACT_REVISION = 38
++CONTRACT_REVISION = 39
+ ASSET_KIND = "tenant_repository_contract"
+ CANONICALIZATION = "json-sort-keys-utf8-v1"
+ SOURCE_ASSET = "contracts/tenant_boundary/repository-contract.json"
+-SOURCE_DIGEST = "41ff0691f2d86030263ea43e5be3badf5e33da3db67557920c6b4260209ea067"
++SOURCE_DIGEST = "501220f58132765380e2ebd373454a391c823a4b4c7eed51f70928614f31bf3c"
+ 
+ REPOSITORY_TYPE = "pitchlog.repositories.base.TenantRepositoryBase"
+ CONTEXT_BINDING_ENTRY = "pitchlog.repositories.base.TenantRepositoryBase.execute"
+@@ -119,6 +119,8 @@ PRODUCT_CAPABILITY_IDS = (
+     "CAP:recording_vocabularies:read",
+     "CAP:stats_primitives:save_source",
+     "CAP:stats_primitives:read",
++    "CAP:sync_play_prefix:read_viewer_play_prefix_history_page",
++    "CAP:sync_ordinary_pitch:read_viewer_nonplay_active_history",
+ )
+ PRODUCT_OPERATION_TOKEN_TYPES = (
+     "pitchlog.repositories.roster.PlayerReadToken",
+@@ -193,6 +195,8 @@ PRODUCT_OPERATION_TOKEN_TYPES = (
+     "pitchlog.repositories.play_export_primitives.OpenPrimitiveSnapshotToken",
+     "pitchlog.repositories.play_export_primitives.ReadPrimitivePageToken",
+     "pitchlog.repositories.stats.ReadPrimitiveTotalsToken",
++    "pitchlog.repositories.viewer_read.ViewerPlayPrefixHistoryPageToken",
++    "pitchlog.repositories.viewer_read.ViewerNonplayActiveHistoryReadToken",
+ )
+ CROSS_TENANT_FUNCTIONS = ()
+ PRODUCT_FUNCTION_OPERATION_IDS = (
+@@ -224,4 +228,6 @@ PRODUCT_FUNCTION_OPERATION_IDS = (
+     "STATS_PRIMITIVES:open_snapshot",
+     "STATS_PRIMITIVES:read_page",
+     "STATS_PRIMITIVES:read_totals",
++    "SYNC_PLAY_PREFIX:read_viewer_play_prefix_history_page",
++    "SYNC_ORDINARY_PITCH:read_viewer_nonplay_active_history",
+ )
+diff --git a/backend/tests/test_authz_repository_contract.py b/backend/tests/test_authz_repository_contract.py
+index 61c620ee..f491c2f6 100644
+--- a/backend/tests/test_authz_repository_contract.py
++++ b/backend/tests/test_authz_repository_contract.py
+@@ -619,6 +619,8 @@ def test_roster_capabilities_tokens_and_registry_are_exact() -> None:
+         "CAP:recording_vocabularies:read",
+         "CAP:stats_primitives:save_source",
+         "CAP:stats_primitives:read",
++        "CAP:sync_play_prefix:read_viewer_play_prefix_history_page",
++        "CAP:sync_ordinary_pitch:read_viewer_nonplay_active_history",
+     )
+     expected_sync_operations = (
+         ("GameReadToken", "CAP:games:read"),
+@@ -699,19 +701,21 @@ def test_roster_capabilities_tokens_and_registry_are_exact() -> None:
+         "pitchlog.repositories.play_export_primitives.OpenPrimitiveSnapshotToken",
+         "pitchlog.repositories.play_export_primitives.ReadPrimitivePageToken",
+         "pitchlog.repositories.stats.ReadPrimitiveTotalsToken",
++        "pitchlog.repositories.viewer_read.ViewerPlayPrefixHistoryPageToken",
++        "pitchlog.repositories.viewer_read.ViewerNonplayActiveHistoryReadToken",
+     )
+-    assert len(expected_capabilities) == 39
++    assert len(expected_capabilities) == 41
+     assert repository_contract.PRODUCT_CAPABILITY_IDS == expected_capabilities
+     assert repository_contract.PRODUCT_OPERATION_TOKEN_TYPES == expected_token_types
+-    assert len(expected_token_types) == 72
++    assert len(expected_token_types) == 74
+     assert (
+         repository_contract.CROSS_TENANT_FUNCTION_ENTRY
+         == repository_contract.CONTEXT_BINDING_ENTRY
+     )
+     assert type(repository_base._OPERATION_REGISTRY) is MappingProxyType
+-    # 語彙1+成績5は固定関数/private専用。旧66DML登録の型/能力/順序を保持する。
+-    assert len(expected_token_types[:-6]) == 66
+-    assert expected_token_types[-6] == (
++    # 語彙1+成績5+閲覧2は固定関数/private専用。旧66DML登録の型/能力/順序を保持する。
++    assert len(expected_token_types[:-8]) == 66
++    assert expected_token_types[-8] == (
+         "pitchlog.repositories.batted_ball_options.BattedBallOptionsToken"
+     )
+     assert {
+@@ -719,7 +723,7 @@ def test_roster_capabilities_tokens_and_registry_are_exact() -> None:
+         for token_type, spec in repository_base._OPERATION_REGISTRY.items()
+     } == dict(
+         zip(
+-            expected_token_types[:-6],
++            expected_token_types[:-8],
+             (
+                 *expected_capabilities[:3],
+                 "CAP:players:update",
+@@ -1141,12 +1145,15 @@ def test_stage_a_function_registration_matches_exact_asset_and_retains_rg1() ->
+         "STATS_PRIMITIVES:open_snapshot",
+         "STATS_PRIMITIVES:read_page",
+         "STATS_PRIMITIVES:read_totals",
++        "SYNC_PLAY_PREFIX:read_viewer_play_prefix_history_page",
++        "SYNC_ORDINARY_PITCH:read_viewer_nonplay_active_history",
+     )
+-    assert len(expected) == 28
++    assert len(expected) == 30
+     assert tuple(asset["product_function_operation_ids"]) == expected
+     assert repository_contract.PRODUCT_FUNCTION_OPERATION_IDS == expected
+     assert (
+-        tuple(row.operation_id for row in PRODUCT_FUNCTION_OPERATIONS[:28]) == expected
++        tuple(row.operation_id for row in PRODUCT_FUNCTION_OPERATIONS[:28])
++        == expected[:28]
+     )
+     assert tuple(row.function_id for row in PRODUCT_FUNCTION_OPERATIONS[:28]) == (
+         "recording_vocab_api.read_batted_ball_options",
+@@ -1196,6 +1203,8 @@ def test_stage_a_function_registration_matches_exact_asset_and_retains_rg1() ->
+         "SYNC_LIFECYCLE:consume_game_lifecycle",
+         "GAME_LIFECYCLE:read_display",
+         "SYNC_ORDINARY_PITCH:read_nonplay_active_history",
++        "SYNC_PLAY_PREFIX:read_viewer_play_prefix_history_page",
++        "SYNC_ORDINARY_PITCH:read_viewer_nonplay_active_history",
+     )
+     assert tuple(row.function_id for row in PRODUCT_FUNCTION_OPERATIONS[28:]) == (
+         "stats_api.save_writer_play_export_snapshot",
+@@ -1215,6 +1224,8 @@ def test_stage_a_function_registration_matches_exact_asset_and_retains_rg1() ->
+         "sync_right_api.consume_game_lifecycle",
+         "sync_right_api.read_lifecycle_display",
+         "sync_right_api.read_nonplay_active_history",
++        "sync_right_api.read_viewer_play_prefix_history_page",
++        "sync_right_api.read_viewer_nonplay_active_history",
+     )
+     stats_tail = PRODUCT_FUNCTION_OPERATIONS[23:28]
+     assert tuple(
+diff --git a/backend/tests/test_function_operations_boundary.py b/backend/tests/test_function_operations_boundary.py
+index a548c036..b7be129e 100644
+--- a/backend/tests/test_function_operations_boundary.py
++++ b/backend/tests/test_function_operations_boundary.py
+@@ -174,6 +174,10 @@ def test_product_function_registry_keeps_rg1_and_adds_one_rule_operation() -> No
+         _ReadPrimitiveWriterStateCall,
+         _SavePrimitiveSourceCall,
+     )
++    from pitchlog.repositories.viewer_read import (
++        ViewerNonplayActiveHistoryReadToken,
++        ViewerPlayPrefixHistoryPageToken,
++    )
+     from pitchlog.repositories.writer_binding import (
+         _AssertWriterBindingToken,
+         _ReadWriterIdentityToken,
+@@ -234,6 +238,8 @@ def test_product_function_registry_keeps_rg1_and_adds_one_rule_operation() -> No
+         "SYNC_LIFECYCLE:consume_game_lifecycle",
+         "GAME_LIFECYCLE:read_display",
+         "SYNC_ORDINARY_PITCH:read_nonplay_active_history",
++        "SYNC_PLAY_PREFIX:read_viewer_play_prefix_history_page",
++        "SYNC_ORDINARY_PITCH:read_viewer_nonplay_active_history",
+     )
+     assert set(operation_registry.FUNCTION_OPERATION_REGISTRY) == {
+         BattedBallOptionsToken,
+@@ -282,6 +288,8 @@ def test_product_function_registry_keeps_rg1_and_adds_one_rule_operation() -> No
+         _PrepareLifecycleCall,
+         _ConsumeLifecycleCall,
+         LifecycleDisplayToken,
++        ViewerPlayPrefixHistoryPageToken,
++        ViewerNonplayActiveHistoryReadToken,
+     }
+     assert operation_registry.PRODUCT_OPERATIONS
+ 
+diff --git a/backend/tests/test_stats_native_function_registration.py b/backend/tests/test_stats_native_function_registration.py
+index e159609f..5094a999 100644
+--- a/backend/tests/test_stats_native_function_registration.py
++++ b/backend/tests/test_stats_native_function_registration.py
+@@ -270,7 +270,7 @@ def test_real_cold_import_orders_and_same_runtime_type(first):
+             f"from pitchlog.repositories import {first}; "
+             "from pitchlog.repositories import transaction, operation_registry, "
+             "play_export_primitives; "
+-            "assert len(operation_registry.PRODUCT_FUNCTION_OPERATIONS)==45",
++            "assert len(operation_registry.PRODUCT_FUNCTION_OPERATIONS)==47",
+         ],
+         env=os.environ.copy(),
+         capture_output=True,
+diff --git a/backend/tests/test_terminal_pitch_product.py b/backend/tests/test_terminal_pitch_product.py
+index 071c2343..df6c271c 100644
+--- a/backend/tests/test_terminal_pitch_product.py
++++ b/backend/tests/test_terminal_pitch_product.py
+@@ -16,7 +16,7 @@ from pitchlog.repositories.ordinary_prefix import OrdinaryPrefixError
+ def test_exact_product_surface_and_no_direct_runner_app_grant():
+     """私有3関数をappへ開かず、全列と新2triggerだけを描画する。"""
+     declarations, bodies = candidate_declarations()
+-    assert len(declarations["functions"]) == 8
++    assert len(declarations["functions"]) == 9
+     assert len(declarations["policies"]) == 6
+     assert len(declarations["column_acl_expectations"]) == 26
+     assert {
+@@ -157,7 +157,7 @@ def test_all_eight_function_bodies_pass_actual_installer_without_parser_relaxati
+     identifiers.append(
+         "FUNCTION:sync_right_api:guard_first_ball_projection_admission()"
+     )
+-    assert len(identifiers) == 9
++    assert len(identifiers) == 10
+     for identifier in identifiers:
+         canonical = body("function", identifier)
+         assert canonical is not None
+diff --git a/contracts/authentication/cookie_identity_v1.json b/contracts/authentication/cookie_identity_v1.json
+index 15b9d1eb..ad6eb180 100644
+--- a/contracts/authentication/cookie_identity_v1.json
++++ b/contracts/authentication/cookie_identity_v1.json
+@@ -7,6 +7,16 @@
+       "method": "GET",
+       "path": "/vocabularies/batted-balls"
+     },
++    {
++      "operationId": "game_viewer_head",
++      "method": "GET",
++      "path": "/games/{game_id}/viewer-head"
++    },
++    {
++      "operationId": "game_viewer_saved",
++      "method": "GET",
++      "path": "/games/{game_id}/viewer"
++    },
+     {
+       "operationId": "initial_device_enroll",
+       "method": "POST",
+diff --git a/contracts/authz/product/ddl-elements.json b/contracts/authz/product/ddl-elements.json
+index c574ddf0..2760528c 100644
+--- a/contracts/authz/product/ddl-elements.json
++++ b/contracts/authz/product/ddl-elements.json
+@@ -7385,6 +7385,66 @@
+           "grantable": false
+         }
+       ]
++    },
++    {
++      "function_id": "FUNCTION:sync_right_api:read_viewer_nonplay_active_history(uuid, uuid, bigint, uuid, bigint, bigint, bigint, bigint, bigint, bigint, uuid, integer)",
++      "schema_name": "sync_right_api",
++      "function_name": "read_viewer_nonplay_active_history",
++      "identity_args": "uuid, uuid, bigint, uuid, bigint, bigint, bigint, bigint, bigint, bigint, uuid, integer",
++      "function_kind": "definer",
++      "owner_role_id": "pitchlog_sync_right_fn_owner",
++      "language": "plpgsql",
++      "returns": "TABLE(record_json text)",
++      "security_mode": "definer",
++      "volatility": "volatile",
++      "search_path": [
++        "pg_catalog",
++        "pg_temp"
++      ],
++      "acl_expectations": [
++        {
++          "grantee": "pitchlog_app",
++          "privilege": "EXECUTE",
++          "grantable": false
++        }
++      ],
++      "revoked_acl_expectations": [
++        {
++          "grantee": "PUBLIC",
++          "privilege": "EXECUTE",
++          "grantable": false
++        }
++      ]
++    },
++    {
++      "function_id": "FUNCTION:sync_right_api:read_viewer_play_prefix_history_page(uuid, uuid, bigint, bigint, uuid, bigint, bigint, bigint, bigint, bigint, uuid, integer)",
++      "schema_name": "sync_right_api",
++      "function_name": "read_viewer_play_prefix_history_page",
++      "identity_args": "uuid, uuid, bigint, bigint, uuid, bigint, bigint, bigint, bigint, bigint, uuid, integer",
++      "function_kind": "definer",
++      "owner_role_id": "pitchlog_sync_right_fn_owner",
++      "language": "plpgsql",
++      "returns": "TABLE(record_json text)",
++      "security_mode": "definer",
++      "volatility": "volatile",
++      "search_path": [
++        "pg_catalog",
++        "pg_temp"
++      ],
++      "acl_expectations": [
++        {
++          "grantee": "pitchlog_app",
++          "privilege": "EXECUTE",
++          "grantable": false
++        }
++      ],
++      "revoked_acl_expectations": [
++        {
++          "grantee": "PUBLIC",
++          "privilege": "EXECUTE",
++          "grantable": false
++        }
++      ]
+     }
+   ],
+   "acl_expectations": [
+diff --git a/contracts/authz/product/function-bodies/functions/FUNCTION:sync_right_api:read_viewer_nonplay_active_history(uuid, uuid, bigint, uuid, bigint, bigint, bigint, bigint, bigint, bigint, uuid, integer).sql b/contracts/authz/product/function-bodies/functions/FUNCTION:sync_right_api:read_viewer_nonplay_active_history(uuid, uuid, bigint, uuid, bigint, bigint, bigint, bigint, bigint, bigint, uuid, integer).sql
+new file mode 100644
+index 00000000..4e0d1fdb
+--- /dev/null
++++ b/contracts/authz/product/function-bodies/functions/FUNCTION:sync_right_api:read_viewer_nonplay_active_history(uuid, uuid, bigint, uuid, bigint, bigint, bigint, bigint, bigint, bigint, uuid, integer).sql	
+@@ -0,0 +1,1626 @@
++-- ELEMENT-TYPE: function
++-- ELEMENT-ID: FUNCTION:sync_right_api:read_viewer_nonplay_active_history(uuid, uuid, bigint, uuid, bigint, bigint, bigint, bigint, bigint, bigint, uuid, integer)
++
++CREATE FUNCTION sync_right_api.read_viewer_nonplay_active_history(
++ p_tenant_id uuid,p_game_id uuid,p_generation bigint,p_checkpoint_id uuid,
++ p_revision bigint,p_epoch bigint,p_d3 bigint,p_logical_version bigint,
++ p_after_order bigint,p_after_d1 bigint,p_after_id uuid,p_page_size integer)
++RETURNS TABLE(record_json text) LANGUAGE plpgsql VOLATILE SECURITY DEFINER
++SET search_path=pg_catalog,pg_temp AS $dispatch$
++BEGIN
++ IF EXISTS(SELECT 1 FROM sync_fence.ordinary_pitch_checkpoints c WHERE c.tenant_id=p_tenant_id AND c.game_id=p_game_id AND c.internal_generation=p_generation AND c.id=p_checkpoint_id AND c.content->>'version'='3') THEN
++DECLARE cp sync_fence.ordinary_pitch_checkpoints%ROWTYPE; x record; j jsonb;
++ items jsonb:='[]'::jsonb; total bigint; chain jsonb; physical_xmin xid;
++BEGIN
++
++ IF session_user<>'pitchlog_app' OR current_user<>'pitchlog_sync_right_fn_owner'
++ OR p_tenant_id IS NULL OR p_game_id IS NULL
++ OR p_tenant_id IS DISTINCT FROM
++ NULLIF(pg_catalog.current_setting('app.tenant_id',true),'')::uuid
++ OR p_generation IS NULL OR p_generation<=0 THEN
++ RAISE EXCEPTION 'ordinary prefix read rejected' USING ERRCODE='42501';
++ END IF;
++
++ IF p_checkpoint_id IS NULL OR p_revision IS NULL OR p_epoch IS NULL OR p_d3 IS NULL
++ OR p_logical_version IS NULL OR p_page_size IS NULL OR p_after_order IS NULL
++ OR p_after_d1 IS NULL OR p_revision<1 OR p_epoch<1 OR p_d3<1
++ OR p_logical_version<1 OR p_page_size NOT BETWEEN 1 AND 100
++ OR p_after_order<0 OR p_after_d1<0 OR p_after_id IS NULL
++ THEN RAISE EXCEPTION 'nonplay read rejected' USING ERRCODE='42501'; END IF;
++ SELECT c.* INTO STRICT cp FROM sync_fence.ordinary_pitch_checkpoints c
++ JOIN public.recording_generations g ON (g.tenant_id,g.game_id,g.generation)=
++ (c.tenant_id,c.game_id,c.internal_generation)
++ WHERE c.tenant_id=p_tenant_id AND c.game_id=p_game_id
++ AND c.internal_generation=p_generation AND c.id=p_checkpoint_id
++ AND c.revision=p_revision AND c.history_version=p_epoch AND c.state='current'
++ AND c.confirmed_watermark=p_d3 AND c.applied_watermark=p_d3
++ AND g.recovery_generation=c.recovery_generation
++ AND g.confirmed_watermark=p_d3 AND g.applied_prefix=p_d3 AND g.kind='normal'
++ AND g.revoked_at IS NULL AND g.retired_at IS NULL AND g.import_batch_id IS NULL
++ AND c.content->>'version'='3'
++ AND c.content->>'id'=c.id::text AND c.content->>'revision'=p_revision::text
++ AND c.content->>'content_digest'=c.content_digest
++ AND c.content->>'internal_generation'=p_generation::text
++ AND c.content->>'recovery_generation'=c.recovery_generation::text
++ AND c.content->>'history_version'=p_epoch::text
++ AND c.content->'storage_anchor'->>'history_epoch'=p_epoch::text
++ AND c.content->>'confirmed_watermark'=p_d3::text
++ AND c.content->>'applied_watermark'=p_d3::text
++ AND c.content->'prefix_ref'->>'historyVersion'=p_logical_version::text
++ AND c.content->'prefix_ref'->>'tenantId'=p_tenant_id::text
++ AND c.content->'prefix_ref'->>'gameId'=p_game_id::text
++ ;
++ -- JOINで形成したROWTYPEのtuple headerを保存行xminとして使わない。
++ -- 直前のCP行lockを保持した同TXで、物理表のsystem列を明示取得する。
++ SELECT c.xmin INTO STRICT physical_xmin
++ FROM sync_fence.ordinary_pitch_checkpoints c
++ WHERE c.tenant_id=p_tenant_id AND c.game_id=p_game_id
++ AND c.internal_generation=p_generation AND c.id=cp.id AND c.revision=cp.revision;
++ -- 最新CPも全raw event/ledger/slot/全physicalと同じ受理取引の保存印へ束縛する。
++ IF NOT EXISTS(SELECT 1 FROM sync_fence.ordinary_pitch_write_admissions a
++ JOIN public.operation_events e ON e.tenant_id=a.tenant_id
++ AND e.game_id=a.game_id AND e.id=a.source_event_id
++ JOIN public.idempotency_ledger l ON l.tenant_id=e.tenant_id AND l.d5=e.d5
++ JOIN public.event_slots es ON (es.tenant_id,es.game_id,es.generation,es.d1)=
++ (e.tenant_id,e.game_id,e.generation,e.d1)
++ WHERE a.tenant_id=p_tenant_id AND a.game_id=p_game_id
++ AND a.internal_generation=p_generation AND a.source_d1=p_d3
++ AND a.state='consumed' AND a.consumed_at=cp.saved_at
++ AND a.checkpoint_id=cp.id AND a.checkpoint_revision+1=cp.revision
++ AND a.next_checkpoint_content=cp.content AND a.roster_snapshot=cp.roster
++ AND a.xmin=physical_xmin AND e.xmin=a.xmin AND l.xmin=a.xmin AND es.xmin=a.xmin
++ AND a.xmin::text::numeric=pg_catalog.mod(a.transaction_id::numeric,4294967296)
++ AND e.generation=p_generation AND e.d1=p_d3 AND e.d2=a.source_d2
++ AND e.d5=a.d5 AND e.event_kind='play_input' AND e.ledger_kind='accepted'
++ AND e.payload->>'formatVersion'='play-prefix-play-v3'
++ AND NOT e.is_tombstone AND e.replaced_at IS NULL AND e.retired_at IS NULL
++ AND e.import_batch_id IS NULL AND NOT e.migration_unverified
++ AND e.legacy_row_identifier IS NULL AND es.confirmed_version=1
++ AND l.kind='accepted' AND l.source_fingerprint=a.event_fingerprint
++ AND l.retired_at IS NULL AND l.import_batch_id IS NULL
++ AND cp.content->'last_source'->>'id'=e.id::text
++ AND cp.content->'last_source'->>'d5'=e.d5::text
++ AND cp.content->'last_source'->>'source_fingerprint'=l.source_fingerprint
++ AND cp.content->>'wire_d4'=a.wire_d4)
++ THEN RAISE EXCEPTION 'nonplay read rejected' USING ERRCODE='42501'; END IF;
++ -- v3はplay-only原典だけ。非play/gap/墓標を抜いて新版に偽装しない。
++ IF EXISTS(SELECT 1 FROM public.operation_events e
++ WHERE e.tenant_id=p_tenant_id AND e.game_id=p_game_id AND e.generation=p_generation
++ AND e.d1<=p_d3 AND (e.event_kind<>'play_input' OR e.ledger_kind<>'accepted'
++ OR e.is_tombstone OR e.replaced_at IS NOT NULL OR e.retired_at IS NOT NULL
++ OR e.import_batch_id IS NOT NULL OR e.migration_unverified
++ OR e.legacy_row_identifier IS NOT NULL))
++ OR (SELECT pg_catalog.count(*) FROM public.operation_events e
++ WHERE e.tenant_id=p_tenant_id AND e.game_id=p_game_id AND e.generation=p_generation
++ AND e.d1<=p_d3)<>p_d3 THEN RAISE EXCEPTION 'nonplay read rejected' USING ERRCODE='42501'; END IF;
++ SELECT pg_catalog.jsonb_agg(chain_row.wire_d4 ORDER BY chain_row.issuance_order)
++ INTO chain
++ FROM (SELECT r.issuance_order,b.wire_d4 FROM public.recording_generations r
++ JOIN sync_fence.writer_bindings b ON b.tenant_id=r.tenant_id
++ AND b.game_id=r.game_id AND b.internal_generation=r.generation
++ WHERE r.tenant_id=p_tenant_id AND r.game_id=p_game_id AND r.kind='normal'
++ AND r.issuance_order<=(SELECT own.issuance_order
++ FROM public.recording_generations own WHERE own.tenant_id=p_tenant_id
++ AND own.game_id=p_game_id AND own.generation=p_generation)
++ GROUP BY r.issuance_order,b.wire_d4) chain_row;
++ WITH active AS (SELECT h.tenant_id,h.game_id,c.id AS checkpoint_id,
++ c.revision AS checkpoint_revision,r.issuance_order,e.d1,e.id AS source_event_id,
++ CASE WHEN e.payload->>'formatVersion'='first-ball-play-v1' THEN
++ pg_catalog.jsonb_build_object('kind','legacy-first-ball-v1','qualified',COALESCE((
++ f.state='consumed' AND f.consumed_at IS NOT NULL
++ AND f.tenant_id=e.tenant_id AND f.game_id=e.game_id
++ AND f.source_event_id=e.id AND f.internal_generation=e.generation
++ AND f.d5=e.d5 AND f.play_row_id=pr.id
++ AND f.event_fingerprint=l.source_fingerprint
++ AND e.ledger_kind='accepted' AND e.event_kind='play_input' AND NOT e.is_tombstone
++ AND e.replaced_at IS NULL AND e.retired_at IS NULL AND e.import_batch_id IS NULL
++ AND e.legacy_row_identifier IS NULL AND NOT e.migration_unverified
++ AND l.tenant_id=e.tenant_id AND l.d5=e.d5 AND l.kind='accepted'
++ AND l.retired_at IS NULL AND l.import_batch_id IS NULL
++ AND es.tenant_id=e.tenant_id AND es.game_id=e.game_id
++ AND es.generation=e.generation AND es.d1=e.d1 AND es.confirmed_version=1
++ AND pr.tenant_id=e.tenant_id AND pr.game_id=e.game_id AND pr.source_event_id=e.id
++ AND pr.hidden_at IS NULL AND pr.import_batch_id IS NULL
++ AND pr.legacy_row_identifier IS NULL AND NOT pr.migration_unverified
++ AND f.xmin::text::numeric=
++ pg_catalog.mod(f.transaction_id::numeric,4294967296::numeric)
++ AND e.xmin=f.xmin AND l.xmin=f.xmin AND pr.xmin=f.xmin
++ AND es.xmin=f.xmin AND e.d1=1 AND e.payload->>'formatVersion'='first-ball-play-v1'),false),
++ 'xmins',pg_catalog.jsonb_build_object('event',e.xmin::text,'ledger',l.xmin::text,
++ 'slot',es.xmin::text,'admission',f.xmin::text,'play',pr.xmin::text),
++ 'cursor',pg_catalog.jsonb_build_array(r.issuance_order,e.d1,e.id::text),
++ 'event',pg_catalog.to_jsonb(e),'ledger',pg_catalog.to_jsonb(l),
++ 'slot',pg_catalog.to_jsonb(es),'admission',pg_catalog.to_jsonb(f),
++ 'play',pg_catalog.to_jsonb(pr),'runners',(SELECT COALESCE(
++ pg_catalog.jsonb_agg(pg_catalog.to_jsonb(rr) ORDER BY rr.base,rr.id),'[]'::jsonb)
++ FROM public.play_runners rr WHERE rr.tenant_id=pr.tenant_id AND rr.play_id=pr.id))
++ ELSE pg_catalog.jsonb_build_object('kind','accepted-ordinary-admission-v1',
++ 'qualified',COALESCE((
++ a.state='consumed' AND a.consumed_at IS NOT NULL
++ AND a.tenant_id=e.tenant_id AND a.game_id=e.game_id
++ AND a.source_event_id=e.id AND a.internal_generation=e.generation
++ AND a.d5=e.d5 AND a.play_row_id=pr.id
++ AND a.event_fingerprint=l.source_fingerprint
++ AND e.ledger_kind='accepted' AND e.event_kind='play_input' AND NOT e.is_tombstone
++ AND e.replaced_at IS NULL AND e.retired_at IS NULL AND e.import_batch_id IS NULL
++ AND e.legacy_row_identifier IS NULL AND NOT e.migration_unverified
++ AND l.tenant_id=e.tenant_id AND l.d5=e.d5 AND l.kind='accepted'
++ AND l.retired_at IS NULL AND l.import_batch_id IS NULL
++ AND es.tenant_id=e.tenant_id AND es.game_id=e.game_id
++ AND es.generation=e.generation AND es.d1=e.d1 AND es.confirmed_version=1
++ AND pr.tenant_id=e.tenant_id AND pr.game_id=e.game_id AND pr.source_event_id=e.id
++ AND pr.hidden_at IS NULL AND pr.import_batch_id IS NULL
++ AND pr.legacy_row_identifier IS NULL AND NOT pr.migration_unverified
++ AND a.xmin::text::numeric=
++ pg_catalog.mod(a.transaction_id::numeric,4294967296::numeric)
++ AND e.xmin=a.xmin AND l.xmin=a.xmin AND pr.xmin=a.xmin
++ AND es.xmin=a.xmin AND a.source_d1=e.d1 AND a.source_d2=e.d2 AND h.internal_generation=e.generation AND h.d1=e.d1 AND h.d2=e.d2 AND h.entry=a.history_entry AND a.next_checkpoint_content->'projection_snapshot' IS NOT NULL ),false),
++ 'xmins',pg_catalog.jsonb_build_object('event',e.xmin::text,'ledger',l.xmin::text,
++ 'slot',es.xmin::text,'admission',a.xmin::text,'play',pr.xmin::text),'frame',pg_catalog.jsonb_build_object(
++ 'play',pg_catalog.jsonb_build_object('source',pg_catalog.jsonb_build_object('eventId',e.id::text,
++ 'gameId',e.game_id::text,'generation',a.wire_d4,'d1',e.d1::text,
++ 'd5',e.d5::text,'fingerprint',l.source_fingerprint,'eventKind','play_input'),'playId',pr.id::text,
++ 'd2',e.d2::text,'physicalPlayNumber',pr.play_number::text),
++ 'historyEntry',h.entry,'beforeContext',pg_catalog.jsonb_build_object(
++ 'current',CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN (CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'current'
++ ELSE (CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'after' END,'rules',(CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'rules',
++ 'rulesDigest',(CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'rulesDigest','layoutDigest',(CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'layoutDigest',
++ 'rosterDigest',(CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'rosterDigest','lineup',(CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'lineup',
++ 'participants',(CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'participants','runners',(CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'runners',
++ 'responsibility',(CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'responsibility','lastPlayEvaluation',
++ CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN (CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'lastPlayEvaluation'
++ ELSE (CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'t2' END) ||
++ CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' AND (CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END) ? 'substitutionState' THEN
++ pg_catalog.jsonb_build_object('substitutionState',
++ (CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'substitutionState') ELSE '{}'::jsonb END,'afterContext',pg_catalog.jsonb_build_object(
++ 'current',e.payload->'calculation'->'response'->'value'->'t1'->'after','rules',(CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'rules',
++ 'rulesDigest',(CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'rulesDigest','layoutDigest',(CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'layoutDigest',
++ 'rosterDigest',e.payload->'calculation'->'response'->'value'->'rosterDigest','lineup',e.payload->'calculation'->'response'->'value'->'lineup',
++ 'participants',e.payload->'calculation'->'response'->'value'->'participants','runners',e.payload->'calculation'->'response'->'value'->'runners',
++ 'responsibility',e.payload->'calculation'->'response'->'value'->'nextResponsibility','lastPlayEvaluation',e.payload->'calculation'->'response'->'value'->'t2') ||
++ CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' AND (CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END) ? 'substitutionState' THEN
++ pg_catalog.jsonb_build_object('substitutionState',
++ a.next_checkpoint_content->'checkpoint'->'content'->'restored'->'substitutionState')
++ ELSE '{}'::jsonb END),
++ 'cursor',pg_catalog.jsonb_build_array(r.issuance_order,e.d1,e.id::text),
++ 'storedEvent',pg_catalog.jsonb_build_object('d5',e.d5::text,'d1',e.d1,
++ 'd4',a.wire_d4,'game_id',e.game_id::text,'event_kind','play_input',
++ 'd2',e.d2,'payload',e.payload,'state_diff',e.state_diff),
++ 'storedFingerprint',l.source_fingerprint,
++ 'event',pg_catalog.to_jsonb(e),'ledger',pg_catalog.to_jsonb(l),
++ 'slot',pg_catalog.to_jsonb(es),'admission',pg_catalog.to_jsonb(a),
++ 'physical',pg_catalog.jsonb_build_object('play_row',pg_catalog.to_jsonb(pr),
++ 'play_runners',(SELECT COALESCE(pg_catalog.jsonb_agg(pg_catalog.to_jsonb(rr)
++ ORDER BY rr.base,rr.id),'[]'::jsonb) FROM public.play_runners rr
++ WHERE rr.tenant_id=pr.tenant_id AND rr.play_id=pr.id)),
++ 'expectedPhysical',a.next_checkpoint_content->'projection_snapshot') END AS record_json
++ FROM sync_fence.ordinary_pitch_checkpoints c
++ JOIN sync_fence.ordinary_pitch_history h ON h.tenant_id=c.tenant_id
++ AND h.game_id=c.game_id AND h.history_version=c.history_version
++ LEFT JOIN public.operation_events e ON e.tenant_id=h.tenant_id
++ AND e.game_id=h.game_id AND e.id=h.source_event_id
++ AND e.ledger_kind='accepted' AND e.event_kind='play_input'
++ AND NOT e.is_tombstone AND e.replaced_at IS NULL AND e.retired_at IS NULL
++ AND e.import_batch_id IS NULL AND NOT e.migration_unverified
++ LEFT JOIN public.event_slots es ON (es.tenant_id,es.game_id,es.generation,es.d1)
++ =(e.tenant_id,e.game_id,e.generation,e.d1)
++ LEFT JOIN sync_fence.first_ball_write_admissions f ON f.tenant_id=e.tenant_id
++ AND f.game_id=e.game_id AND f.source_event_id=e.id AND f.state='consumed'
++ LEFT JOIN public.recording_generations r ON r.tenant_id=e.tenant_id
++ AND r.game_id=e.game_id AND r.generation=e.generation AND r.kind='normal'
++ LEFT JOIN public.idempotency_ledger l ON l.tenant_id=e.tenant_id AND l.d5=e.d5
++ AND l.kind='accepted' AND l.retired_at IS NULL AND l.import_batch_id IS NULL
++ LEFT JOIN public.play_rows pr ON pr.tenant_id=e.tenant_id AND pr.game_id=e.game_id
++ AND pr.source_event_id=e.id AND pr.hidden_at IS NULL
++ LEFT JOIN sync_fence.ordinary_pitch_write_admissions a ON a.tenant_id=e.tenant_id
++ AND a.game_id=e.game_id AND a.source_event_id=e.id AND a.state='consumed'
++ AND a.event_fingerprint=l.source_fingerprint
++ WHERE c.tenant_id=p_tenant_id AND c.game_id=p_game_id
++ AND c.internal_generation=p_generation
++ AND NOT EXISTS(SELECT 1 FROM sync_fence.nonplay_write_admissions n
++ JOIN public.operation_events u ON u.tenant_id=n.tenant_id
++ AND u.game_id=n.game_id AND u.id=n.source_event_id AND u.event_kind='undo'
++ JOIN public.idempotency_ledger ul ON ul.tenant_id=u.tenant_id AND ul.d5=u.d5
++ AND ul.kind='accepted' AND ul.source_fingerprint=n.event_fingerprint
++ WHERE n.tenant_id=e.tenant_id AND n.game_id=e.game_id
++ AND n.target_event_id=e.id AND n.state='consumed'
++ AND u.target_generation=e.generation AND u.target_d1=e.d1)
++
++UNION ALL
++SELECT c.tenant_id,c.game_id,c.id AS checkpoint_id,
++ c.revision AS checkpoint_revision,r.issuance_order,e.d1,e.id AS source_event_id,
++ pg_catalog.jsonb_build_object('kind','legacy-first-ball-v1','qualified',COALESCE((
++ f.state='consumed' AND f.consumed_at IS NOT NULL
++ AND f.tenant_id=e.tenant_id AND f.game_id=e.game_id
++ AND f.source_event_id=e.id AND f.internal_generation=e.generation
++ AND f.d5=e.d5 AND f.play_row_id=pr.id
++ AND f.event_fingerprint=l.source_fingerprint
++ AND e.ledger_kind='accepted' AND e.event_kind='play_input' AND NOT e.is_tombstone
++ AND e.replaced_at IS NULL AND e.retired_at IS NULL AND e.import_batch_id IS NULL
++ AND e.legacy_row_identifier IS NULL AND NOT e.migration_unverified
++ AND l.tenant_id=e.tenant_id AND l.d5=e.d5 AND l.kind='accepted'
++ AND l.retired_at IS NULL AND l.import_batch_id IS NULL
++ AND es.tenant_id=e.tenant_id AND es.game_id=e.game_id
++ AND es.generation=e.generation AND es.d1=e.d1 AND es.confirmed_version=1
++ AND pr.tenant_id=e.tenant_id AND pr.game_id=e.game_id AND pr.source_event_id=e.id
++ AND pr.hidden_at IS NULL AND pr.import_batch_id IS NULL
++ AND pr.legacy_row_identifier IS NULL AND NOT pr.migration_unverified
++ AND f.xmin::text::numeric=
++ pg_catalog.mod(f.transaction_id::numeric,4294967296::numeric)
++ AND e.xmin=f.xmin AND l.xmin=f.xmin AND pr.xmin=f.xmin
++ AND es.xmin=f.xmin AND e.d1=1 AND e.payload->>'formatVersion'='first-ball-play-v1'),false),
++ 'xmins',pg_catalog.jsonb_build_object('event',e.xmin::text,'ledger',l.xmin::text,
++ 'slot',es.xmin::text,'admission',f.xmin::text,'play',pr.xmin::text),
++ 'cursor',pg_catalog.jsonb_build_array(r.issuance_order,e.d1,e.id::text),
++ 'event',pg_catalog.to_jsonb(e),'ledger',pg_catalog.to_jsonb(l),
++ 'slot',pg_catalog.to_jsonb(es),'admission',pg_catalog.to_jsonb(f),
++ 'play',pg_catalog.to_jsonb(pr),'runners',(SELECT COALESCE(
++ pg_catalog.jsonb_agg(pg_catalog.to_jsonb(rr) ORDER BY rr.base,rr.id),'[]'::jsonb)
++ FROM public.play_runners rr WHERE rr.tenant_id=pr.tenant_id AND rr.play_id=pr.id))
++ AS record_json
++ FROM sync_fence.ordinary_pitch_checkpoints c
++ JOIN public.operation_events e ON e.tenant_id=c.tenant_id AND e.game_id=c.game_id
++ AND e.event_kind='play_input' AND e.payload->>'formatVersion'='first-ball-play-v1'
++ LEFT JOIN public.recording_generations r ON r.tenant_id=e.tenant_id
++ AND r.game_id=e.game_id AND r.generation=e.generation AND r.kind='normal'
++ LEFT JOIN public.event_slots es ON (es.tenant_id,es.game_id,es.generation,es.d1)
++ =(e.tenant_id,e.game_id,e.generation,e.d1)
++ LEFT JOIN public.idempotency_ledger l ON l.tenant_id=e.tenant_id AND l.d5=e.d5
++ LEFT JOIN sync_fence.first_ball_write_admissions f ON f.tenant_id=e.tenant_id
++ AND f.game_id=e.game_id AND f.source_event_id=e.id AND f.state='consumed'
++ LEFT JOIN public.play_rows pr ON pr.tenant_id=e.tenant_id AND pr.game_id=e.game_id
++ AND pr.source_event_id=e.id AND pr.hidden_at IS NULL
++ WHERE c.tenant_id=p_tenant_id AND c.game_id=p_game_id
++ AND c.internal_generation=p_generation
++ AND e.d1<=r.confirmed_watermark
++ AND NOT EXISTS(SELECT 1 FROM sync_fence.ordinary_pitch_history h
++ WHERE h.tenant_id=e.tenant_id AND h.game_id=e.game_id
++ AND h.source_event_id=e.id AND h.history_version=c.history_version)
++ AND NOT EXISTS(SELECT 1 FROM sync_fence.nonplay_write_admissions n
++ JOIN public.operation_events u ON u.tenant_id=n.tenant_id AND u.id=n.source_event_id
++ JOIN public.idempotency_ledger ul ON ul.tenant_id=u.tenant_id AND ul.d5=u.d5
++ AND ul.kind='accepted' AND ul.source_fingerprint=n.event_fingerprint
++ WHERE n.tenant_id=e.tenant_id AND n.game_id=e.game_id AND n.state='consumed'
++ AND n.target_event_id=e.id AND u.event_kind='undo'
++ AND u.target_generation=e.generation AND u.target_d1=e.d1)
++) SELECT pg_catalog.count(*) INTO total FROM active;
++ IF total<1 OR total::text IS DISTINCT FROM cp.content->>'history_depth'
++ OR cp.content->'prefix_ref'->>'length' IS DISTINCT FROM total::text
++ OR (p_after_order=0 AND (p_after_d1<>0 OR
++ p_after_id<>'00000000-0000-0000-0000-000000000000'::uuid))
++ OR (p_after_order>0 AND NOT EXISTS(WITH active AS (SELECT h.tenant_id,h.game_id,c.id AS checkpoint_id,
++ c.revision AS checkpoint_revision,r.issuance_order,e.d1,e.id AS source_event_id,
++ CASE WHEN e.payload->>'formatVersion'='first-ball-play-v1' THEN
++ pg_catalog.jsonb_build_object('kind','legacy-first-ball-v1','qualified',COALESCE((
++ f.state='consumed' AND f.consumed_at IS NOT NULL
++ AND f.tenant_id=e.tenant_id AND f.game_id=e.game_id
++ AND f.source_event_id=e.id AND f.internal_generation=e.generation
++ AND f.d5=e.d5 AND f.play_row_id=pr.id
++ AND f.event_fingerprint=l.source_fingerprint
++ AND e.ledger_kind='accepted' AND e.event_kind='play_input' AND NOT e.is_tombstone
++ AND e.replaced_at IS NULL AND e.retired_at IS NULL AND e.import_batch_id IS NULL
++ AND e.legacy_row_identifier IS NULL AND NOT e.migration_unverified
++ AND l.tenant_id=e.tenant_id AND l.d5=e.d5 AND l.kind='accepted'
++ AND l.retired_at IS NULL AND l.import_batch_id IS NULL
++ AND es.tenant_id=e.tenant_id AND es.game_id=e.game_id
++ AND es.generation=e.generation AND es.d1=e.d1 AND es.confirmed_version=1
++ AND pr.tenant_id=e.tenant_id AND pr.game_id=e.game_id AND pr.source_event_id=e.id
++ AND pr.hidden_at IS NULL AND pr.import_batch_id IS NULL
++ AND pr.legacy_row_identifier IS NULL AND NOT pr.migration_unverified
++ AND f.xmin::text::numeric=
++ pg_catalog.mod(f.transaction_id::numeric,4294967296::numeric)
++ AND e.xmin=f.xmin AND l.xmin=f.xmin AND pr.xmin=f.xmin
++ AND es.xmin=f.xmin AND e.d1=1 AND e.payload->>'formatVersion'='first-ball-play-v1'),false),
++ 'xmins',pg_catalog.jsonb_build_object('event',e.xmin::text,'ledger',l.xmin::text,
++ 'slot',es.xmin::text,'admission',f.xmin::text,'play',pr.xmin::text),
++ 'cursor',pg_catalog.jsonb_build_array(r.issuance_order,e.d1,e.id::text),
++ 'event',pg_catalog.to_jsonb(e),'ledger',pg_catalog.to_jsonb(l),
++ 'slot',pg_catalog.to_jsonb(es),'admission',pg_catalog.to_jsonb(f),
++ 'play',pg_catalog.to_jsonb(pr),'runners',(SELECT COALESCE(
++ pg_catalog.jsonb_agg(pg_catalog.to_jsonb(rr) ORDER BY rr.base,rr.id),'[]'::jsonb)
++ FROM public.play_runners rr WHERE rr.tenant_id=pr.tenant_id AND rr.play_id=pr.id))
++ ELSE pg_catalog.jsonb_build_object('kind','accepted-ordinary-admission-v1',
++ 'qualified',COALESCE((
++ a.state='consumed' AND a.consumed_at IS NOT NULL
++ AND a.tenant_id=e.tenant_id AND a.game_id=e.game_id
++ AND a.source_event_id=e.id AND a.internal_generation=e.generation
++ AND a.d5=e.d5 AND a.play_row_id=pr.id
++ AND a.event_fingerprint=l.source_fingerprint
++ AND e.ledger_kind='accepted' AND e.event_kind='play_input' AND NOT e.is_tombstone
++ AND e.replaced_at IS NULL AND e.retired_at IS NULL AND e.import_batch_id IS NULL
++ AND e.legacy_row_identifier IS NULL AND NOT e.migration_unverified
++ AND l.tenant_id=e.tenant_id AND l.d5=e.d5 AND l.kind='accepted'
++ AND l.retired_at IS NULL AND l.import_batch_id IS NULL
++ AND es.tenant_id=e.tenant_id AND es.game_id=e.game_id
++ AND es.generation=e.generation AND es.d1=e.d1 AND es.confirmed_version=1
++ AND pr.tenant_id=e.tenant_id AND pr.game_id=e.game_id AND pr.source_event_id=e.id
++ AND pr.hidden_at IS NULL AND pr.import_batch_id IS NULL
++ AND pr.legacy_row_identifier IS NULL AND NOT pr.migration_unverified
++ AND a.xmin::text::numeric=
++ pg_catalog.mod(a.transaction_id::numeric,4294967296::numeric)
++ AND e.xmin=a.xmin AND l.xmin=a.xmin AND pr.xmin=a.xmin
++ AND es.xmin=a.xmin AND a.source_d1=e.d1 AND a.source_d2=e.d2 AND h.internal_generation=e.generation AND h.d1=e.d1 AND h.d2=e.d2 AND h.entry=a.history_entry AND a.next_checkpoint_content->'projection_snapshot' IS NOT NULL ),false),
++ 'xmins',pg_catalog.jsonb_build_object('event',e.xmin::text,'ledger',l.xmin::text,
++ 'slot',es.xmin::text,'admission',a.xmin::text,'play',pr.xmin::text),'frame',pg_catalog.jsonb_build_object(
++ 'play',pg_catalog.jsonb_build_object('source',pg_catalog.jsonb_build_object('eventId',e.id::text,
++ 'gameId',e.game_id::text,'generation',a.wire_d4,'d1',e.d1::text,
++ 'd5',e.d5::text,'fingerprint',l.source_fingerprint,'eventKind','play_input'),'playId',pr.id::text,
++ 'd2',e.d2::text,'physicalPlayNumber',pr.play_number::text),
++ 'historyEntry',h.entry,'beforeContext',pg_catalog.jsonb_build_object(
++ 'current',CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN (CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'current'
++ ELSE (CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'after' END,'rules',(CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'rules',
++ 'rulesDigest',(CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'rulesDigest','layoutDigest',(CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'layoutDigest',
++ 'rosterDigest',(CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'rosterDigest','lineup',(CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'lineup',
++ 'participants',(CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'participants','runners',(CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'runners',
++ 'responsibility',(CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'responsibility','lastPlayEvaluation',
++ CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN (CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'lastPlayEvaluation'
++ ELSE (CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'t2' END) ||
++ CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' AND (CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END) ? 'substitutionState' THEN
++ pg_catalog.jsonb_build_object('substitutionState',
++ (CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'substitutionState') ELSE '{}'::jsonb END,'afterContext',pg_catalog.jsonb_build_object(
++ 'current',e.payload->'calculation'->'response'->'value'->'t1'->'after','rules',(CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'rules',
++ 'rulesDigest',(CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'rulesDigest','layoutDigest',(CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'layoutDigest',
++ 'rosterDigest',e.payload->'calculation'->'response'->'value'->'rosterDigest','lineup',e.payload->'calculation'->'response'->'value'->'lineup',
++ 'participants',e.payload->'calculation'->'response'->'value'->'participants','runners',e.payload->'calculation'->'response'->'value'->'runners',
++ 'responsibility',e.payload->'calculation'->'response'->'value'->'nextResponsibility','lastPlayEvaluation',e.payload->'calculation'->'response'->'value'->'t2') ||
++ CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' AND (CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END) ? 'substitutionState' THEN
++ pg_catalog.jsonb_build_object('substitutionState',
++ a.next_checkpoint_content->'checkpoint'->'content'->'restored'->'substitutionState')
++ ELSE '{}'::jsonb END),
++ 'cursor',pg_catalog.jsonb_build_array(r.issuance_order,e.d1,e.id::text),
++ 'storedEvent',pg_catalog.jsonb_build_object('d5',e.d5::text,'d1',e.d1,
++ 'd4',a.wire_d4,'game_id',e.game_id::text,'event_kind','play_input',
++ 'd2',e.d2,'payload',e.payload,'state_diff',e.state_diff),
++ 'storedFingerprint',l.source_fingerprint,
++ 'event',pg_catalog.to_jsonb(e),'ledger',pg_catalog.to_jsonb(l),
++ 'slot',pg_catalog.to_jsonb(es),'admission',pg_catalog.to_jsonb(a),
++ 'physical',pg_catalog.jsonb_build_object('play_row',pg_catalog.to_jsonb(pr),
++ 'play_runners',(SELECT COALESCE(pg_catalog.jsonb_agg(pg_catalog.to_jsonb(rr)
++ ORDER BY rr.base,rr.id),'[]'::jsonb) FROM public.play_runners rr
++ WHERE rr.tenant_id=pr.tenant_id AND rr.play_id=pr.id)),
++ 'expectedPhysical',a.next_checkpoint_content->'projection_snapshot') END AS record_json
++ FROM sync_fence.ordinary_pitch_checkpoints c
++ JOIN sync_fence.ordinary_pitch_history h ON h.tenant_id=c.tenant_id
++ AND h.game_id=c.game_id AND h.history_version=c.history_version
++ LEFT JOIN public.operation_events e ON e.tenant_id=h.tenant_id
++ AND e.game_id=h.game_id AND e.id=h.source_event_id
++ AND e.ledger_kind='accepted' AND e.event_kind='play_input'
++ AND NOT e.is_tombstone AND e.replaced_at IS NULL AND e.retired_at IS NULL
++ AND e.import_batch_id IS NULL AND NOT e.migration_unverified
++ LEFT JOIN public.event_slots es ON (es.tenant_id,es.game_id,es.generation,es.d1)
++ =(e.tenant_id,e.game_id,e.generation,e.d1)
++ LEFT JOIN sync_fence.first_ball_write_admissions f ON f.tenant_id=e.tenant_id
++ AND f.game_id=e.game_id AND f.source_event_id=e.id AND f.state='consumed'
++ LEFT JOIN public.recording_generations r ON r.tenant_id=e.tenant_id
++ AND r.game_id=e.game_id AND r.generation=e.generation AND r.kind='normal'
++ LEFT JOIN public.idempotency_ledger l ON l.tenant_id=e.tenant_id AND l.d5=e.d5
++ AND l.kind='accepted' AND l.retired_at IS NULL AND l.import_batch_id IS NULL
++ LEFT JOIN public.play_rows pr ON pr.tenant_id=e.tenant_id AND pr.game_id=e.game_id
++ AND pr.source_event_id=e.id AND pr.hidden_at IS NULL
++ LEFT JOIN sync_fence.ordinary_pitch_write_admissions a ON a.tenant_id=e.tenant_id
++ AND a.game_id=e.game_id AND a.source_event_id=e.id AND a.state='consumed'
++ AND a.event_fingerprint=l.source_fingerprint
++ WHERE c.tenant_id=p_tenant_id AND c.game_id=p_game_id
++ AND c.internal_generation=p_generation
++ AND NOT EXISTS(SELECT 1 FROM sync_fence.nonplay_write_admissions n
++ JOIN public.operation_events u ON u.tenant_id=n.tenant_id
++ AND u.game_id=n.game_id AND u.id=n.source_event_id AND u.event_kind='undo'
++ JOIN public.idempotency_ledger ul ON ul.tenant_id=u.tenant_id AND ul.d5=u.d5
++ AND ul.kind='accepted' AND ul.source_fingerprint=n.event_fingerprint
++ WHERE n.tenant_id=e.tenant_id AND n.game_id=e.game_id
++ AND n.target_event_id=e.id AND n.state='consumed'
++ AND u.target_generation=e.generation AND u.target_d1=e.d1)
++
++UNION ALL
++SELECT c.tenant_id,c.game_id,c.id AS checkpoint_id,
++ c.revision AS checkpoint_revision,r.issuance_order,e.d1,e.id AS source_event_id,
++ pg_catalog.jsonb_build_object('kind','legacy-first-ball-v1','qualified',COALESCE((
++ f.state='consumed' AND f.consumed_at IS NOT NULL
++ AND f.tenant_id=e.tenant_id AND f.game_id=e.game_id
++ AND f.source_event_id=e.id AND f.internal_generation=e.generation
++ AND f.d5=e.d5 AND f.play_row_id=pr.id
++ AND f.event_fingerprint=l.source_fingerprint
++ AND e.ledger_kind='accepted' AND e.event_kind='play_input' AND NOT e.is_tombstone
++ AND e.replaced_at IS NULL AND e.retired_at IS NULL AND e.import_batch_id IS NULL
++ AND e.legacy_row_identifier IS NULL AND NOT e.migration_unverified
++ AND l.tenant_id=e.tenant_id AND l.d5=e.d5 AND l.kind='accepted'
++ AND l.retired_at IS NULL AND l.import_batch_id IS NULL
++ AND es.tenant_id=e.tenant_id AND es.game_id=e.game_id
++ AND es.generation=e.generation AND es.d1=e.d1 AND es.confirmed_version=1
++ AND pr.tenant_id=e.tenant_id AND pr.game_id=e.game_id AND pr.source_event_id=e.id
++ AND pr.hidden_at IS NULL AND pr.import_batch_id IS NULL
++ AND pr.legacy_row_identifier IS NULL AND NOT pr.migration_unverified
++ AND f.xmin::text::numeric=
++ pg_catalog.mod(f.transaction_id::numeric,4294967296::numeric)
++ AND e.xmin=f.xmin AND l.xmin=f.xmin AND pr.xmin=f.xmin
++ AND es.xmin=f.xmin AND e.d1=1 AND e.payload->>'formatVersion'='first-ball-play-v1'),false),
++ 'xmins',pg_catalog.jsonb_build_object('event',e.xmin::text,'ledger',l.xmin::text,
++ 'slot',es.xmin::text,'admission',f.xmin::text,'play',pr.xmin::text),
++ 'cursor',pg_catalog.jsonb_build_array(r.issuance_order,e.d1,e.id::text),
++ 'event',pg_catalog.to_jsonb(e),'ledger',pg_catalog.to_jsonb(l),
++ 'slot',pg_catalog.to_jsonb(es),'admission',pg_catalog.to_jsonb(f),
++ 'play',pg_catalog.to_jsonb(pr),'runners',(SELECT COALESCE(
++ pg_catalog.jsonb_agg(pg_catalog.to_jsonb(rr) ORDER BY rr.base,rr.id),'[]'::jsonb)
++ FROM public.play_runners rr WHERE rr.tenant_id=pr.tenant_id AND rr.play_id=pr.id))
++ AS record_json
++ FROM sync_fence.ordinary_pitch_checkpoints c
++ JOIN public.operation_events e ON e.tenant_id=c.tenant_id AND e.game_id=c.game_id
++ AND e.event_kind='play_input' AND e.payload->>'formatVersion'='first-ball-play-v1'
++ LEFT JOIN public.recording_generations r ON r.tenant_id=e.tenant_id
++ AND r.game_id=e.game_id AND r.generation=e.generation AND r.kind='normal'
++ LEFT JOIN public.event_slots es ON (es.tenant_id,es.game_id,es.generation,es.d1)
++ =(e.tenant_id,e.game_id,e.generation,e.d1)
++ LEFT JOIN public.idempotency_ledger l ON l.tenant_id=e.tenant_id AND l.d5=e.d5
++ LEFT JOIN sync_fence.first_ball_write_admissions f ON f.tenant_id=e.tenant_id
++ AND f.game_id=e.game_id AND f.source_event_id=e.id AND f.state='consumed'
++ LEFT JOIN public.play_rows pr ON pr.tenant_id=e.tenant_id AND pr.game_id=e.game_id
++ AND pr.source_event_id=e.id AND pr.hidden_at IS NULL
++ WHERE c.tenant_id=p_tenant_id AND c.game_id=p_game_id
++ AND c.internal_generation=p_generation
++ AND e.d1<=r.confirmed_watermark
++ AND NOT EXISTS(SELECT 1 FROM sync_fence.ordinary_pitch_history h
++ WHERE h.tenant_id=e.tenant_id AND h.game_id=e.game_id
++ AND h.source_event_id=e.id AND h.history_version=c.history_version)
++ AND NOT EXISTS(SELECT 1 FROM sync_fence.nonplay_write_admissions n
++ JOIN public.operation_events u ON u.tenant_id=n.tenant_id AND u.id=n.source_event_id
++ JOIN public.idempotency_ledger ul ON ul.tenant_id=u.tenant_id AND ul.d5=u.d5
++ AND ul.kind='accepted' AND ul.source_fingerprint=n.event_fingerprint
++ WHERE n.tenant_id=e.tenant_id AND n.game_id=e.game_id AND n.state='consumed'
++ AND n.target_event_id=e.id AND u.event_kind='undo'
++ AND u.target_generation=e.generation AND u.target_d1=e.d1)
++) SELECT 1 FROM active
++ WHERE (issuance_order,d1,source_event_id)=(p_after_order,p_after_d1,p_after_id)))
++ THEN RAISE EXCEPTION 'nonplay read rejected' USING ERRCODE='42501'; END IF;
++ FOR x IN WITH active AS (SELECT h.tenant_id,h.game_id,c.id AS checkpoint_id,
++ c.revision AS checkpoint_revision,r.issuance_order,e.d1,e.id AS source_event_id,
++ CASE WHEN e.payload->>'formatVersion'='first-ball-play-v1' THEN
++ pg_catalog.jsonb_build_object('kind','legacy-first-ball-v1','qualified',COALESCE((
++ f.state='consumed' AND f.consumed_at IS NOT NULL
++ AND f.tenant_id=e.tenant_id AND f.game_id=e.game_id
++ AND f.source_event_id=e.id AND f.internal_generation=e.generation
++ AND f.d5=e.d5 AND f.play_row_id=pr.id
++ AND f.event_fingerprint=l.source_fingerprint
++ AND e.ledger_kind='accepted' AND e.event_kind='play_input' AND NOT e.is_tombstone
++ AND e.replaced_at IS NULL AND e.retired_at IS NULL AND e.import_batch_id IS NULL
++ AND e.legacy_row_identifier IS NULL AND NOT e.migration_unverified
++ AND l.tenant_id=e.tenant_id AND l.d5=e.d5 AND l.kind='accepted'
++ AND l.retired_at IS NULL AND l.import_batch_id IS NULL
++ AND es.tenant_id=e.tenant_id AND es.game_id=e.game_id
++ AND es.generation=e.generation AND es.d1=e.d1 AND es.confirmed_version=1
++ AND pr.tenant_id=e.tenant_id AND pr.game_id=e.game_id AND pr.source_event_id=e.id
++ AND pr.hidden_at IS NULL AND pr.import_batch_id IS NULL
++ AND pr.legacy_row_identifier IS NULL AND NOT pr.migration_unverified
++ AND f.xmin::text::numeric=
++ pg_catalog.mod(f.transaction_id::numeric,4294967296::numeric)
++ AND e.xmin=f.xmin AND l.xmin=f.xmin AND pr.xmin=f.xmin
++ AND es.xmin=f.xmin AND e.d1=1 AND e.payload->>'formatVersion'='first-ball-play-v1'),false),
++ 'xmins',pg_catalog.jsonb_build_object('event',e.xmin::text,'ledger',l.xmin::text,
++ 'slot',es.xmin::text,'admission',f.xmin::text,'play',pr.xmin::text),
++ 'cursor',pg_catalog.jsonb_build_array(r.issuance_order,e.d1,e.id::text),
++ 'event',pg_catalog.to_jsonb(e),'ledger',pg_catalog.to_jsonb(l),
++ 'slot',pg_catalog.to_jsonb(es),'admission',pg_catalog.to_jsonb(f),
++ 'play',pg_catalog.to_jsonb(pr),'runners',(SELECT COALESCE(
++ pg_catalog.jsonb_agg(pg_catalog.to_jsonb(rr) ORDER BY rr.base,rr.id),'[]'::jsonb)
++ FROM public.play_runners rr WHERE rr.tenant_id=pr.tenant_id AND rr.play_id=pr.id))
++ ELSE pg_catalog.jsonb_build_object('kind','accepted-ordinary-admission-v1',
++ 'qualified',COALESCE((
++ a.state='consumed' AND a.consumed_at IS NOT NULL
++ AND a.tenant_id=e.tenant_id AND a.game_id=e.game_id
++ AND a.source_event_id=e.id AND a.internal_generation=e.generation
++ AND a.d5=e.d5 AND a.play_row_id=pr.id
++ AND a.event_fingerprint=l.source_fingerprint
++ AND e.ledger_kind='accepted' AND e.event_kind='play_input' AND NOT e.is_tombstone
++ AND e.replaced_at IS NULL AND e.retired_at IS NULL AND e.import_batch_id IS NULL
++ AND e.legacy_row_identifier IS NULL AND NOT e.migration_unverified
++ AND l.tenant_id=e.tenant_id AND l.d5=e.d5 AND l.kind='accepted'
++ AND l.retired_at IS NULL AND l.import_batch_id IS NULL
++ AND es.tenant_id=e.tenant_id AND es.game_id=e.game_id
++ AND es.generation=e.generation AND es.d1=e.d1 AND es.confirmed_version=1
++ AND pr.tenant_id=e.tenant_id AND pr.game_id=e.game_id AND pr.source_event_id=e.id
++ AND pr.hidden_at IS NULL AND pr.import_batch_id IS NULL
++ AND pr.legacy_row_identifier IS NULL AND NOT pr.migration_unverified
++ AND a.xmin::text::numeric=
++ pg_catalog.mod(a.transaction_id::numeric,4294967296::numeric)
++ AND e.xmin=a.xmin AND l.xmin=a.xmin AND pr.xmin=a.xmin
++ AND es.xmin=a.xmin AND a.source_d1=e.d1 AND a.source_d2=e.d2 AND h.internal_generation=e.generation AND h.d1=e.d1 AND h.d2=e.d2 AND h.entry=a.history_entry AND a.next_checkpoint_content->'projection_snapshot' IS NOT NULL ),false),
++ 'xmins',pg_catalog.jsonb_build_object('event',e.xmin::text,'ledger',l.xmin::text,
++ 'slot',es.xmin::text,'admission',a.xmin::text,'play',pr.xmin::text),'frame',pg_catalog.jsonb_build_object(
++ 'play',pg_catalog.jsonb_build_object('source',pg_catalog.jsonb_build_object('eventId',e.id::text,
++ 'gameId',e.game_id::text,'generation',a.wire_d4,'d1',e.d1::text,
++ 'd5',e.d5::text,'fingerprint',l.source_fingerprint,'eventKind','play_input'),'playId',pr.id::text,
++ 'd2',e.d2::text,'physicalPlayNumber',pr.play_number::text),
++ 'historyEntry',h.entry,'beforeContext',pg_catalog.jsonb_build_object(
++ 'current',CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN (CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'current'
++ ELSE (CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'after' END,'rules',(CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'rules',
++ 'rulesDigest',(CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'rulesDigest','layoutDigest',(CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'layoutDigest',
++ 'rosterDigest',(CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'rosterDigest','lineup',(CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'lineup',
++ 'participants',(CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'participants','runners',(CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'runners',
++ 'responsibility',(CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'responsibility','lastPlayEvaluation',
++ CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN (CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'lastPlayEvaluation'
++ ELSE (CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'t2' END) ||
++ CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' AND (CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END) ? 'substitutionState' THEN
++ pg_catalog.jsonb_build_object('substitutionState',
++ (CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'substitutionState') ELSE '{}'::jsonb END,'afterContext',pg_catalog.jsonb_build_object(
++ 'current',e.payload->'calculation'->'response'->'value'->'t1'->'after','rules',(CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'rules',
++ 'rulesDigest',(CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'rulesDigest','layoutDigest',(CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'layoutDigest',
++ 'rosterDigest',e.payload->'calculation'->'response'->'value'->'rosterDigest','lineup',e.payload->'calculation'->'response'->'value'->'lineup',
++ 'participants',e.payload->'calculation'->'response'->'value'->'participants','runners',e.payload->'calculation'->'response'->'value'->'runners',
++ 'responsibility',e.payload->'calculation'->'response'->'value'->'nextResponsibility','lastPlayEvaluation',e.payload->'calculation'->'response'->'value'->'t2') ||
++ CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' AND (CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END) ? 'substitutionState' THEN
++ pg_catalog.jsonb_build_object('substitutionState',
++ a.next_checkpoint_content->'checkpoint'->'content'->'restored'->'substitutionState')
++ ELSE '{}'::jsonb END),
++ 'cursor',pg_catalog.jsonb_build_array(r.issuance_order,e.d1,e.id::text),
++ 'storedEvent',pg_catalog.jsonb_build_object('d5',e.d5::text,'d1',e.d1,
++ 'd4',a.wire_d4,'game_id',e.game_id::text,'event_kind','play_input',
++ 'd2',e.d2,'payload',e.payload,'state_diff',e.state_diff),
++ 'storedFingerprint',l.source_fingerprint,
++ 'event',pg_catalog.to_jsonb(e),'ledger',pg_catalog.to_jsonb(l),
++ 'slot',pg_catalog.to_jsonb(es),'admission',pg_catalog.to_jsonb(a),
++ 'physical',pg_catalog.jsonb_build_object('play_row',pg_catalog.to_jsonb(pr),
++ 'play_runners',(SELECT COALESCE(pg_catalog.jsonb_agg(pg_catalog.to_jsonb(rr)
++ ORDER BY rr.base,rr.id),'[]'::jsonb) FROM public.play_runners rr
++ WHERE rr.tenant_id=pr.tenant_id AND rr.play_id=pr.id)),
++ 'expectedPhysical',a.next_checkpoint_content->'projection_snapshot') END AS record_json
++ FROM sync_fence.ordinary_pitch_checkpoints c
++ JOIN sync_fence.ordinary_pitch_history h ON h.tenant_id=c.tenant_id
++ AND h.game_id=c.game_id AND h.history_version=c.history_version
++ LEFT JOIN public.operation_events e ON e.tenant_id=h.tenant_id
++ AND e.game_id=h.game_id AND e.id=h.source_event_id
++ AND e.ledger_kind='accepted' AND e.event_kind='play_input'
++ AND NOT e.is_tombstone AND e.replaced_at IS NULL AND e.retired_at IS NULL
++ AND e.import_batch_id IS NULL AND NOT e.migration_unverified
++ LEFT JOIN public.event_slots es ON (es.tenant_id,es.game_id,es.generation,es.d1)
++ =(e.tenant_id,e.game_id,e.generation,e.d1)
++ LEFT JOIN sync_fence.first_ball_write_admissions f ON f.tenant_id=e.tenant_id
++ AND f.game_id=e.game_id AND f.source_event_id=e.id AND f.state='consumed'
++ LEFT JOIN public.recording_generations r ON r.tenant_id=e.tenant_id
++ AND r.game_id=e.game_id AND r.generation=e.generation AND r.kind='normal'
++ LEFT JOIN public.idempotency_ledger l ON l.tenant_id=e.tenant_id AND l.d5=e.d5
++ AND l.kind='accepted' AND l.retired_at IS NULL AND l.import_batch_id IS NULL
++ LEFT JOIN public.play_rows pr ON pr.tenant_id=e.tenant_id AND pr.game_id=e.game_id
++ AND pr.source_event_id=e.id AND pr.hidden_at IS NULL
++ LEFT JOIN sync_fence.ordinary_pitch_write_admissions a ON a.tenant_id=e.tenant_id
++ AND a.game_id=e.game_id AND a.source_event_id=e.id AND a.state='consumed'
++ AND a.event_fingerprint=l.source_fingerprint
++ WHERE c.tenant_id=p_tenant_id AND c.game_id=p_game_id
++ AND c.internal_generation=p_generation
++ AND NOT EXISTS(SELECT 1 FROM sync_fence.nonplay_write_admissions n
++ JOIN public.operation_events u ON u.tenant_id=n.tenant_id
++ AND u.game_id=n.game_id AND u.id=n.source_event_id AND u.event_kind='undo'
++ JOIN public.idempotency_ledger ul ON ul.tenant_id=u.tenant_id AND ul.d5=u.d5
++ AND ul.kind='accepted' AND ul.source_fingerprint=n.event_fingerprint
++ WHERE n.tenant_id=e.tenant_id AND n.game_id=e.game_id
++ AND n.target_event_id=e.id AND n.state='consumed'
++ AND u.target_generation=e.generation AND u.target_d1=e.d1)
++
++UNION ALL
++SELECT c.tenant_id,c.game_id,c.id AS checkpoint_id,
++ c.revision AS checkpoint_revision,r.issuance_order,e.d1,e.id AS source_event_id,
++ pg_catalog.jsonb_build_object('kind','legacy-first-ball-v1','qualified',COALESCE((
++ f.state='consumed' AND f.consumed_at IS NOT NULL
++ AND f.tenant_id=e.tenant_id AND f.game_id=e.game_id
++ AND f.source_event_id=e.id AND f.internal_generation=e.generation
++ AND f.d5=e.d5 AND f.play_row_id=pr.id
++ AND f.event_fingerprint=l.source_fingerprint
++ AND e.ledger_kind='accepted' AND e.event_kind='play_input' AND NOT e.is_tombstone
++ AND e.replaced_at IS NULL AND e.retired_at IS NULL AND e.import_batch_id IS NULL
++ AND e.legacy_row_identifier IS NULL AND NOT e.migration_unverified
++ AND l.tenant_id=e.tenant_id AND l.d5=e.d5 AND l.kind='accepted'
++ AND l.retired_at IS NULL AND l.import_batch_id IS NULL
++ AND es.tenant_id=e.tenant_id AND es.game_id=e.game_id
++ AND es.generation=e.generation AND es.d1=e.d1 AND es.confirmed_version=1
++ AND pr.tenant_id=e.tenant_id AND pr.game_id=e.game_id AND pr.source_event_id=e.id
++ AND pr.hidden_at IS NULL AND pr.import_batch_id IS NULL
++ AND pr.legacy_row_identifier IS NULL AND NOT pr.migration_unverified
++ AND f.xmin::text::numeric=
++ pg_catalog.mod(f.transaction_id::numeric,4294967296::numeric)
++ AND e.xmin=f.xmin AND l.xmin=f.xmin AND pr.xmin=f.xmin
++ AND es.xmin=f.xmin AND e.d1=1 AND e.payload->>'formatVersion'='first-ball-play-v1'),false),
++ 'xmins',pg_catalog.jsonb_build_object('event',e.xmin::text,'ledger',l.xmin::text,
++ 'slot',es.xmin::text,'admission',f.xmin::text,'play',pr.xmin::text),
++ 'cursor',pg_catalog.jsonb_build_array(r.issuance_order,e.d1,e.id::text),
++ 'event',pg_catalog.to_jsonb(e),'ledger',pg_catalog.to_jsonb(l),
++ 'slot',pg_catalog.to_jsonb(es),'admission',pg_catalog.to_jsonb(f),
++ 'play',pg_catalog.to_jsonb(pr),'runners',(SELECT COALESCE(
++ pg_catalog.jsonb_agg(pg_catalog.to_jsonb(rr) ORDER BY rr.base,rr.id),'[]'::jsonb)
++ FROM public.play_runners rr WHERE rr.tenant_id=pr.tenant_id AND rr.play_id=pr.id))
++ AS record_json
++ FROM sync_fence.ordinary_pitch_checkpoints c
++ JOIN public.operation_events e ON e.tenant_id=c.tenant_id AND e.game_id=c.game_id
++ AND e.event_kind='play_input' AND e.payload->>'formatVersion'='first-ball-play-v1'
++ LEFT JOIN public.recording_generations r ON r.tenant_id=e.tenant_id
++ AND r.game_id=e.game_id AND r.generation=e.generation AND r.kind='normal'
++ LEFT JOIN public.event_slots es ON (es.tenant_id,es.game_id,es.generation,es.d1)
++ =(e.tenant_id,e.game_id,e.generation,e.d1)
++ LEFT JOIN public.idempotency_ledger l ON l.tenant_id=e.tenant_id AND l.d5=e.d5
++ LEFT JOIN sync_fence.first_ball_write_admissions f ON f.tenant_id=e.tenant_id
++ AND f.game_id=e.game_id AND f.source_event_id=e.id AND f.state='consumed'
++ LEFT JOIN public.play_rows pr ON pr.tenant_id=e.tenant_id AND pr.game_id=e.game_id
++ AND pr.source_event_id=e.id AND pr.hidden_at IS NULL
++ WHERE c.tenant_id=p_tenant_id AND c.game_id=p_game_id
++ AND c.internal_generation=p_generation
++ AND e.d1<=r.confirmed_watermark
++ AND NOT EXISTS(SELECT 1 FROM sync_fence.ordinary_pitch_history h
++ WHERE h.tenant_id=e.tenant_id AND h.game_id=e.game_id
++ AND h.source_event_id=e.id AND h.history_version=c.history_version)
++ AND NOT EXISTS(SELECT 1 FROM sync_fence.nonplay_write_admissions n
++ JOIN public.operation_events u ON u.tenant_id=n.tenant_id AND u.id=n.source_event_id
++ JOIN public.idempotency_ledger ul ON ul.tenant_id=u.tenant_id AND ul.d5=u.d5
++ AND ul.kind='accepted' AND ul.source_fingerprint=n.event_fingerprint
++ WHERE n.tenant_id=e.tenant_id AND n.game_id=e.game_id AND n.state='consumed'
++ AND n.target_event_id=e.id AND u.event_kind='undo'
++ AND u.target_generation=e.generation AND u.target_d1=e.d1)
++) SELECT * FROM active
++ WHERE p_after_order=0 OR (issuance_order,d1,source_event_id)<
++ (p_after_order,p_after_d1,p_after_id)
++ ORDER BY issuance_order DESC,d1 DESC,source_event_id DESC LIMIT p_page_size+1 LOOP
++ j:=x.record_json;
++ IF j->'qualified' IS DISTINCT FROM 'true'::jsonb
++ OR j->>'kind' NOT IN ('legacy-first-ball-v1','accepted-ordinary-admission-v1')
++ OR (j->>'kind'='accepted-ordinary-admission-v1' AND
++ j->'physical' IS DISTINCT FROM j->'expectedPhysical')
++ THEN RAISE EXCEPTION 'nonplay read rejected' USING ERRCODE='42501'; END IF;
++ items:=items||pg_catalog.jsonb_build_array(pg_catalog.jsonb_build_object(
++ 'kind',j->'kind','cursor',j->'cursor','frame',j->'frame',
++ 'event',j->'event','fingerprint',j->'ledger'->'source_fingerprint',
++ 'wireD4',j->'admission'->'wire_d4',
++ 'physical',CASE WHEN j->>'kind'='legacy-first-ball-v1' THEN
++ pg_catalog.jsonb_build_object('play_row',j->'play','play_runners',j->'runners')
++ ELSE j->'physical' END));
++ END LOOP;
++ RETURN QUERY SELECT pg_catalog.jsonb_build_object('checkpoint',cp.content,
++ 'total',total,'items',items,'storage',pg_catalog.jsonb_build_object(
++ 'row',pg_catalog.to_jsonb(cp),'nextPhysicalPlayNumber',
++ (SELECT (pg_catalog.max(pr.play_number)+1)::text FROM public.play_rows pr
++ WHERE pr.tenant_id=p_tenant_id AND pr.game_id=p_game_id)),
++ 'generationChain',chain)::text;
++END;
++
++ ELSE
++DECLARE cp sync_fence.ordinary_pitch_checkpoints%ROWTYPE; x record; j jsonb;
++ items jsonb:='[]'::jsonb; total bigint;
++BEGIN
++
++ IF session_user<>'pitchlog_app' OR current_user<>'pitchlog_sync_right_fn_owner'
++ OR p_tenant_id IS NULL OR p_game_id IS NULL
++ OR p_tenant_id IS DISTINCT FROM
++ NULLIF(pg_catalog.current_setting('app.tenant_id',true),'')::uuid
++ OR p_generation IS NULL OR p_generation<=0 THEN
++ RAISE EXCEPTION 'ordinary prefix read rejected' USING ERRCODE='42501';
++ END IF;
++
++ IF p_checkpoint_id IS NULL OR p_revision IS NULL OR p_epoch IS NULL OR p_d3 IS NULL
++ OR p_logical_version IS NULL OR p_page_size IS NULL OR p_after_order IS NULL
++ OR p_after_d1 IS NULL OR p_revision<1 OR p_epoch<1 OR p_d3<1
++ OR p_logical_version<1 OR p_page_size NOT BETWEEN 1 AND 100
++ OR p_after_order<0 OR p_after_d1<0 OR p_after_id IS NULL
++ THEN RAISE EXCEPTION 'nonplay read rejected' USING ERRCODE='42501'; END IF;
++ SELECT c.* INTO STRICT cp FROM sync_fence.ordinary_pitch_checkpoints c
++ JOIN public.recording_generations g ON (g.tenant_id,g.game_id,g.generation)=
++ (c.tenant_id,c.game_id,c.internal_generation)
++ WHERE g.recovery_generation=c.recovery_generation
++ AND c.tenant_id=p_tenant_id AND c.game_id=p_game_id
++ AND c.internal_generation=p_generation AND c.id=p_checkpoint_id
++ AND c.revision=p_revision AND c.history_version=p_epoch AND c.state='current'
++ AND c.confirmed_watermark=p_d3 AND c.applied_watermark=p_d3
++ AND g.confirmed_watermark=p_d3 AND g.applied_prefix=p_d3 AND g.kind='normal'
++ AND g.revoked_at IS NULL AND g.retired_at IS NULL AND g.import_batch_id IS NULL
++ AND c.content->>'formatVersion'='nonplay-prefix-checkpoint-v1'
++ AND c.content_digest=c.content->'ref'->>'digest'
++ AND c.content->'ref'->>'id'=c.id::text
++ AND c.content->'ref'->>'revision'=c.revision::text
++ AND c.content->'content'->>'d3'=p_d3::text
++ AND c.content->'content'->>'storageHistoryEpoch'=p_epoch::text
++ AND c.content->'content'->>'historyVersion'=p_logical_version::text
++ AND c.content->'content'->'scope'->>'tenantId'=p_tenant_id::text
++ AND c.content->'content'->'scope'->>'gameId'=p_game_id::text
++ ;
++ -- CP全文は最新受理印の実after原本へ束縛する。自己digestだけでは資格にしない。
++ IF NOT EXISTS(SELECT 1 FROM sync_fence.nonplay_write_admissions n
++ JOIN public.operation_events e ON e.tenant_id=n.tenant_id
++ AND e.game_id=n.game_id AND e.id=n.source_event_id
++ JOIN public.idempotency_ledger l ON l.tenant_id=e.tenant_id AND l.d5=e.d5
++ JOIN sync_fence.ordinary_pitch_checkpoints c ON c.tenant_id=n.tenant_id
++ AND c.game_id=n.game_id AND c.internal_generation=n.internal_generation
++ WHERE n.tenant_id=p_tenant_id AND n.game_id=p_game_id
++ AND n.internal_generation=p_generation AND n.source_d1=p_d3
++ AND n.state='consumed' AND n.consumed_at IS NOT NULL
++ AND n.preparation->'storage'->'row'->'roster'=cp.roster
++ AND n.preparation->'after_source'->'checkpoint'=cp.content
++ AND c.id=cp.id AND c.content=cp.content AND c.xmin=n.xmin
++ AND e.event_kind='undo' AND e.ledger_kind='accepted' AND e.xmin=n.xmin
++ AND l.kind='accepted' AND l.source_fingerprint=n.event_fingerprint
++ AND l.xmin=n.xmin AND l.retired_at IS NULL AND l.import_batch_id IS NULL
++ UNION ALL SELECT 1 FROM sync_fence.ordinary_pitch_write_admissions a
++ JOIN public.operation_events e ON e.tenant_id=a.tenant_id
++ AND e.game_id=a.game_id AND e.id=a.source_event_id
++ JOIN public.idempotency_ledger l ON l.tenant_id=e.tenant_id AND l.d5=e.d5
++ JOIN sync_fence.ordinary_pitch_checkpoints c ON c.tenant_id=a.tenant_id
++ AND c.game_id=a.game_id AND c.internal_generation=a.internal_generation
++ WHERE a.tenant_id=p_tenant_id AND a.game_id=p_game_id
++ AND a.internal_generation=p_generation AND a.source_d1=p_d3
++ AND a.state='consumed' AND a.consumed_at=cp.saved_at
++ AND a.next_checkpoint_content->>'formatVersion'='nonplay-normal-storage-v1'
++ AND a.next_checkpoint_content->'checkpoint'=cp.content AND a.roster_snapshot=cp.roster
++ AND c.id=cp.id AND c.content=cp.content AND c.xmin=a.xmin
++ AND e.event_kind='play_input' AND e.ledger_kind='accepted' AND e.xmin=a.xmin
++ AND l.kind='accepted' AND l.source_fingerprint=a.event_fingerprint
++ AND l.xmin=a.xmin AND l.retired_at IS NULL AND l.import_batch_id IS NULL
++ UNION ALL SELECT 1 FROM sync_fence.lifecycle_write_admissions a
++ JOIN public.operation_events e ON e.tenant_id=a.tenant_id
++ AND e.game_id=a.game_id AND e.id=a.source_event_id
++ JOIN public.idempotency_ledger l ON l.tenant_id=e.tenant_id AND l.d5=e.d5
++ JOIN public.event_slots slot ON (slot.tenant_id,slot.game_id,slot.generation,slot.d1)
++ =(e.tenant_id,e.game_id,e.generation,e.d1)
++ JOIN sync_fence.ordinary_pitch_checkpoints c ON c.tenant_id=a.tenant_id
++ AND c.game_id=a.game_id AND c.internal_generation=a.internal_generation
++ WHERE a.tenant_id=p_tenant_id AND a.game_id=p_game_id
++ AND a.internal_generation=p_generation AND a.source_d1=p_d3 AND a.source_d2=e.d2
++ AND a.state='consumed' AND a.consumed_at IS NOT NULL AND slot.confirmed_version=1
++ AND a.preparation->'storage'->'row'->'roster'=cp.roster
++ AND a.preparation->'after_source'->'checkpoint'=cp.content
++ AND c.id=cp.id AND c.content=cp.content AND c.xmin=a.xmin
++ AND e.event_kind=CASE WHEN a.action='end' THEN 'game_end_declaration' ELSE
++ 'game_reopen' END
++ AND a.action IN ('end','reopen') AND e.ledger_kind='accepted' AND e.xmin=a.xmin
++ AND l.kind='accepted' AND l.source_fingerprint=a.event_fingerprint
++ AND l.xmin=a.xmin AND l.retired_at IS NULL AND l.import_batch_id IS NULL
++ UNION ALL SELECT 1 FROM sync_fence.substitution_write_receipts sr
++ JOIN sync_fence.nonplay_write_admissions n ON
++ (n.tenant_id,n.attempt_id,n.phase_id)=(sr.tenant_id,sr.attempt_id,sr.phase_id)
++ JOIN public.operation_events e ON e.tenant_id=sr.tenant_id
++ AND e.id=sr.source_event_id AND e.game_id=sr.game_id
++ JOIN public.idempotency_ledger l ON l.tenant_id=e.tenant_id AND l.d5=e.d5
++ JOIN public.event_slots es ON (es.tenant_id,es.game_id,es.generation,es.d1)=
++ (e.tenant_id,e.game_id,e.generation,e.d1)
++ JOIN sync_fence.ordinary_pitch_checkpoints c ON
++ (c.tenant_id,c.game_id,c.internal_generation)=
++ (sr.tenant_id,sr.game_id,n.internal_generation)
++ WHERE sr.tenant_id=p_tenant_id AND sr.game_id=p_game_id
++ AND sr.source_d1=p_d3 AND sr.checkpoint_id=cp.id
++ AND sr.after_revision=cp.revision AND sr.after_digest=cp.content_digest
++ AND c.id=cp.id AND c.revision=cp.revision AND c.content=cp.content
++ AND c.xmin=sr.xmin AND n.xmin=sr.xmin AND e.xmin=sr.xmin
++ AND l.xmin=sr.xmin AND es.xmin=sr.xmin AND es.confirmed_version=1
++ AND n.internal_generation=p_generation AND n.state='right_verified'
++ AND n.d5=e.d5 AND n.event_fingerprint=l.source_fingerprint
++ AND e.generation=p_generation AND e.d1=p_d3
++ AND e.event_kind='substitution' AND e.ledger_kind='accepted'
++ AND NOT e.is_tombstone AND e.replaced_at IS NULL AND e.retired_at IS NULL
++ AND e.import_batch_id IS NULL AND NOT e.migration_unverified
++ AND l.kind='accepted' AND l.retired_at IS NULL AND l.import_batch_id IS NULL)
++ THEN RAISE EXCEPTION 'nonplay read rejected' USING ERRCODE='42501'; END IF;
++
++ -- 既legacy/undoには新defaultを補完しない。presentなら全consumed原本へ閉じる。
++ IF cp.content->>'formatVersion'='nonplay-prefix-checkpoint-v1' THEN
++ IF EXISTS(SELECT 1 FROM
++ pg_catalog.jsonb_array_elements(COALESCE(cp.content->'content'->'controlBridges','[]'::jsonb)) b(value)
++ WHERE NOT EXISTS(SELECT 1 FROM (SELECT a.*,e.id AS original_id,r.issuance_order AS generation_order
++ FROM sync_fence.lifecycle_write_admissions a
++ JOIN public.operation_events e ON e.tenant_id=a.tenant_id AND e.game_id=a.game_id
++ AND e.id=a.source_event_id AND e.generation=a.internal_generation AND e.d1=a.source_d1
++ JOIN public.event_slots slot ON (slot.tenant_id,slot.game_id,slot.generation,slot.d1)
++ =(e.tenant_id,e.game_id,e.generation,e.d1)
++ JOIN public.idempotency_ledger l ON l.tenant_id=e.tenant_id AND l.d5=e.d5
++ JOIN public.recording_generations r ON r.tenant_id=e.tenant_id AND r.game_id=e.game_id
++ AND r.generation=e.generation
++ JOIN public.recording_generations current_generation ON
++ current_generation.tenant_id=r.tenant_id
++ AND current_generation.game_id=r.game_id AND current_generation.generation=p_generation
++ JOIN sync_fence.writer_bindings original_binding
++ ON (original_binding.tenant_id,original_binding.attempt_id,original_binding.phase_id)
++ =(a.tenant_id,a.attempt_id,a.phase_id)
++ WHERE a.tenant_id=p_tenant_id AND a.game_id=p_game_id AND a.state='consumed'
++ AND a.consumed_at IS NOT NULL AND e.ledger_kind='accepted'
++ AND e.event_kind=CASE WHEN a.action='end' THEN 'game_end_declaration' ELSE
++ 'game_reopen' END
++ AND a.action IN ('end','reopen') AND e.d2=a.source_d2 AND e.d5=a.d5
++ AND NOT e.is_tombstone AND e.replaced_at IS NULL AND e.retired_at IS NULL
++ AND e.import_batch_id IS NULL AND slot.confirmed_version=1
++ AND l.kind='accepted' AND l.retired_at IS NULL AND l.import_batch_id IS NULL
++ AND l.source_fingerprint=a.event_fingerprint AND e.xmin=a.xmin AND l.xmin=a.xmin
++ AND a.tenant_id IS NOT DISTINCT FROM original_binding.tenant_id AND a.attempt_id IS NOT DISTINCT FROM original_binding.attempt_id AND a.phase_id IS NOT DISTINCT FROM original_binding.phase_id AND a.authority_id IS NOT DISTINCT FROM original_binding.authority_id AND a.control_instance IS NOT DISTINCT FROM original_binding.control_instance AND a.business_instance IS NOT DISTINCT FROM original_binding.business_instance AND a.restore_epoch IS NOT DISTINCT FROM original_binding.restore_epoch AND a.control_version IS NOT DISTINCT FROM original_binding.control_version AND a.issuer IS NOT DISTINCT FROM original_binding.issuer AND a.lease_id IS NOT DISTINCT FROM original_binding.lease_id AND a.device_id IS NOT DISTINCT FROM original_binding.device_id AND a.game_id IS NOT DISTINCT FROM original_binding.game_id AND a.wire_d4 IS NOT DISTINCT FROM original_binding.wire_d4 AND a.internal_generation IS NOT DISTINCT FROM original_binding.internal_generation AND a.recovery_generation IS NOT DISTINCT FROM original_binding.recovery_generation AND a.codec_version IS NOT DISTINCT FROM original_binding.codec_version AND a.request_fingerprint IS NOT DISTINCT FROM original_binding.request_fingerprint AND a.d5 IS NOT DISTINCT FROM original_binding.d5 AND a.event_fingerprint IS NOT DISTINCT FROM original_binding.event_fingerprint AND a.system_identifier IS NOT DISTINCT FROM original_binding.system_identifier AND a.database_oid IS NOT DISTINCT FROM original_binding.database_oid AND a.postmaster_started_at IS NOT DISTINCT FROM original_binding.postmaster_started_at AND a.backend_pid IS NOT DISTINCT FROM original_binding.backend_pid AND a.backend_start IS NOT DISTINCT FROM original_binding.backend_start AND a.transaction_id IS NOT DISTINCT FROM original_binding.transaction_id AND a.nonce_digest IS NOT DISTINCT FROM original_binding.nonce_digest AND a.expires_at IS NOT DISTINCT FROM original_binding.expires_at
++ AND r.issuance_order<=current_generation.issuance_order
++ AND (e.generation<>p_generation OR e.d1<=cp.confirmed_watermark)
++) a
++ WHERE a.source_event_id=(b.value->'source'->>'eventId')::uuid
++ AND a.frame_id=(b.value->>'frameId')::uuid
++ AND a.action=b.value->>'action' AND a.wire_d4=b.value->'source'->>'generation'
++ AND a.source_d1::text=b.value->'source'->>'d1'
++ AND a.d5::text=b.value->'source'->>'d5'
++ AND a.event_fingerprint=b.value->'source'->>'fingerprint'
++ AND a.checkpoint_id::text=b.value->'checkpointBefore'->>'id'
++ AND a.checkpoint_revision::text=b.value->'checkpointBefore'->>'revision'
++ AND a.checkpoint_digest=b.value->'checkpointBefore'->>'digest'
++ AND a.receipt_id::text=b.value->'kernel'->'request'->'event'->>'receiptId'
++ AND a.source_event_id::text=b.value->'kernel'->'request'->'event'->>'eventId'
++ AND b.value->'source'->>'gameId'=p_game_id::text
++ AND a.preparation->'after_source'->'checkpoint'->'content'->'controlBridges'->-1
++ =b.value
++ AND a.preparation->'event_original'->'payload'=(SELECT e.payload FROM
++ public.operation_events e
++ WHERE e.tenant_id=p_tenant_id AND e.id=a.source_event_id)))
++ OR EXISTS(SELECT 1 FROM (SELECT a.*,e.id AS original_id,r.issuance_order AS generation_order
++ FROM sync_fence.lifecycle_write_admissions a
++ JOIN public.operation_events e ON e.tenant_id=a.tenant_id AND e.game_id=a.game_id
++ AND e.id=a.source_event_id AND e.generation=a.internal_generation AND e.d1=a.source_d1
++ JOIN public.event_slots slot ON (slot.tenant_id,slot.game_id,slot.generation,slot.d1)
++ =(e.tenant_id,e.game_id,e.generation,e.d1)
++ JOIN public.idempotency_ledger l ON l.tenant_id=e.tenant_id AND l.d5=e.d5
++ JOIN public.recording_generations r ON r.tenant_id=e.tenant_id AND r.game_id=e.game_id
++ AND r.generation=e.generation
++ JOIN public.recording_generations current_generation ON
++ current_generation.tenant_id=r.tenant_id
++ AND current_generation.game_id=r.game_id AND current_generation.generation=p_generation
++ JOIN sync_fence.writer_bindings original_binding
++ ON (original_binding.tenant_id,original_binding.attempt_id,original_binding.phase_id)
++ =(a.tenant_id,a.attempt_id,a.phase_id)
++ WHERE a.tenant_id=p_tenant_id AND a.game_id=p_game_id AND a.state='consumed'
++ AND a.consumed_at IS NOT NULL AND e.ledger_kind='accepted'
++ AND e.event_kind=CASE WHEN a.action='end' THEN 'game_end_declaration' ELSE
++ 'game_reopen' END
++ AND a.action IN ('end','reopen') AND e.d2=a.source_d2 AND e.d5=a.d5
++ AND NOT e.is_tombstone AND e.replaced_at IS NULL AND e.retired_at IS NULL
++ AND e.import_batch_id IS NULL AND slot.confirmed_version=1
++ AND l.kind='accepted' AND l.retired_at IS NULL AND l.import_batch_id IS NULL
++ AND l.source_fingerprint=a.event_fingerprint AND e.xmin=a.xmin AND l.xmin=a.xmin
++ AND a.tenant_id IS NOT DISTINCT FROM original_binding.tenant_id AND a.attempt_id IS NOT DISTINCT FROM original_binding.attempt_id AND a.phase_id IS NOT DISTINCT FROM original_binding.phase_id AND a.authority_id IS NOT DISTINCT FROM original_binding.authority_id AND a.control_instance IS NOT DISTINCT FROM original_binding.control_instance AND a.business_instance IS NOT DISTINCT FROM original_binding.business_instance AND a.restore_epoch IS NOT DISTINCT FROM original_binding.restore_epoch AND a.control_version IS NOT DISTINCT FROM original_binding.control_version AND a.issuer IS NOT DISTINCT FROM original_binding.issuer AND a.lease_id IS NOT DISTINCT FROM original_binding.lease_id AND a.device_id IS NOT DISTINCT FROM original_binding.device_id AND a.game_id IS NOT DISTINCT FROM original_binding.game_id AND a.wire_d4 IS NOT DISTINCT FROM original_binding.wire_d4 AND a.internal_generation IS NOT DISTINCT FROM original_binding.internal_generation AND a.recovery_generation IS NOT DISTINCT FROM original_binding.recovery_generation AND a.codec_version IS NOT DISTINCT FROM original_binding.codec_version AND a.request_fingerprint IS NOT DISTINCT FROM original_binding.request_fingerprint AND a.d5 IS NOT DISTINCT FROM original_binding.d5 AND a.event_fingerprint IS NOT DISTINCT FROM original_binding.event_fingerprint AND a.system_identifier IS NOT DISTINCT FROM original_binding.system_identifier AND a.database_oid IS NOT DISTINCT FROM original_binding.database_oid AND a.postmaster_started_at IS NOT DISTINCT FROM original_binding.postmaster_started_at AND a.backend_pid IS NOT DISTINCT FROM original_binding.backend_pid AND a.backend_start IS NOT DISTINCT FROM original_binding.backend_start AND a.transaction_id IS NOT DISTINCT FROM original_binding.transaction_id AND a.nonce_digest IS NOT DISTINCT FROM original_binding.nonce_digest AND a.expires_at IS NOT DISTINCT FROM original_binding.expires_at
++ AND r.issuance_order<=current_generation.issuance_order
++ AND (e.generation<>p_generation OR e.d1<=cp.confirmed_watermark)
++) a WHERE NOT EXISTS(
++ SELECT 1 FROM pg_catalog.jsonb_array_elements(COALESCE(cp.content->'content'->'controlBridges','[]'::jsonb)) b(value)
++ WHERE b.value->'source'->>'eventId'=a.source_event_id::text))
++ OR EXISTS(SELECT 1 FROM public.operation_events control_event
++ JOIN public.recording_generations control_generation ON
++ (control_generation.tenant_id,control_generation.game_id,control_generation.generation)
++ =(control_event.tenant_id,control_event.game_id,control_event.generation)
++ JOIN public.recording_generations selected_generation ON
++ selected_generation.tenant_id=control_event.tenant_id
++ AND selected_generation.game_id=control_event.game_id AND
++ selected_generation.generation=p_generation
++ WHERE control_event.tenant_id=p_tenant_id AND control_event.game_id=p_game_id
++ AND control_event.event_kind IN ('game_end_declaration','game_reopen')
++ AND control_event.ledger_kind='accepted' AND control_event.replaced_at IS NULL
++ AND control_event.retired_at IS NULL
++ AND control_generation.issuance_order<=selected_generation.issuance_order
++ AND (control_event.generation<>p_generation OR
++ control_event.d1<=cp.confirmed_watermark)
++ AND NOT EXISTS(SELECT 1 FROM
++ pg_catalog.jsonb_array_elements(COALESCE(cp.content->'content'->'controlBridges','[]'::jsonb)) b(value)
++ WHERE b.value->'source'->>'eventId'=control_event.id::text))
++ OR EXISTS(SELECT 1 FROM (SELECT count(*) AS n,count(DISTINCT
++ value->'source'->>'eventId') AS unique_n
++ FROM pg_catalog.jsonb_array_elements(COALESCE(cp.content->'content'->'controlBridges','[]'::jsonb)))
++ duplicate_controls
++ WHERE n<>unique_n)
++ OR EXISTS(SELECT 1 FROM (
++ SELECT a.generation_order,a.source_d1,
++ lag(a.generation_order) OVER(ORDER BY b.ordinality) AS previous_generation,
++ lag(a.source_d1) OVER(ORDER BY b.ordinality) AS previous_d1
++ FROM pg_catalog.jsonb_array_elements(COALESCE(cp.content->'content'->'controlBridges','[]'::jsonb))
++ WITH ORDINALITY b(value,ordinality)
++ JOIN (SELECT a.*,e.id AS original_id,r.issuance_order AS generation_order
++ FROM sync_fence.lifecycle_write_admissions a
++ JOIN public.operation_events e ON e.tenant_id=a.tenant_id AND e.game_id=a.game_id
++ AND e.id=a.source_event_id AND e.generation=a.internal_generation AND e.d1=a.source_d1
++ JOIN public.event_slots slot ON (slot.tenant_id,slot.game_id,slot.generation,slot.d1)
++ =(e.tenant_id,e.game_id,e.generation,e.d1)
++ JOIN public.idempotency_ledger l ON l.tenant_id=e.tenant_id AND l.d5=e.d5
++ JOIN public.recording_generations r ON r.tenant_id=e.tenant_id AND r.game_id=e.game_id
++ AND r.generation=e.generation
++ JOIN public.recording_generations current_generation ON
++ current_generation.tenant_id=r.tenant_id
++ AND current_generation.game_id=r.game_id AND current_generation.generation=p_generation
++ JOIN sync_fence.writer_bindings original_binding
++ ON (original_binding.tenant_id,original_binding.attempt_id,original_binding.phase_id)
++ =(a.tenant_id,a.attempt_id,a.phase_id)
++ WHERE a.tenant_id=p_tenant_id AND a.game_id=p_game_id AND a.state='consumed'
++ AND a.consumed_at IS NOT NULL AND e.ledger_kind='accepted'
++ AND e.event_kind=CASE WHEN a.action='end' THEN 'game_end_declaration' ELSE
++ 'game_reopen' END
++ AND a.action IN ('end','reopen') AND e.d2=a.source_d2 AND e.d5=a.d5
++ AND NOT e.is_tombstone AND e.replaced_at IS NULL AND e.retired_at IS NULL
++ AND e.import_batch_id IS NULL AND slot.confirmed_version=1
++ AND l.kind='accepted' AND l.retired_at IS NULL AND l.import_batch_id IS NULL
++ AND l.source_fingerprint=a.event_fingerprint AND e.xmin=a.xmin AND l.xmin=a.xmin
++ AND a.tenant_id IS NOT DISTINCT FROM original_binding.tenant_id AND a.attempt_id IS NOT DISTINCT FROM original_binding.attempt_id AND a.phase_id IS NOT DISTINCT FROM original_binding.phase_id AND a.authority_id IS NOT DISTINCT FROM original_binding.authority_id AND a.control_instance IS NOT DISTINCT FROM original_binding.control_instance AND a.business_instance IS NOT DISTINCT FROM original_binding.business_instance AND a.restore_epoch IS NOT DISTINCT FROM original_binding.restore_epoch AND a.control_version IS NOT DISTINCT FROM original_binding.control_version AND a.issuer IS NOT DISTINCT FROM original_binding.issuer AND a.lease_id IS NOT DISTINCT FROM original_binding.lease_id AND a.device_id IS NOT DISTINCT FROM original_binding.device_id AND a.game_id IS NOT DISTINCT FROM original_binding.game_id AND a.wire_d4 IS NOT DISTINCT FROM original_binding.wire_d4 AND a.internal_generation IS NOT DISTINCT FROM original_binding.internal_generation AND a.recovery_generation IS NOT DISTINCT FROM original_binding.recovery_generation AND a.codec_version IS NOT DISTINCT FROM original_binding.codec_version AND a.request_fingerprint IS NOT DISTINCT FROM original_binding.request_fingerprint AND a.d5 IS NOT DISTINCT FROM original_binding.d5 AND a.event_fingerprint IS NOT DISTINCT FROM original_binding.event_fingerprint AND a.system_identifier IS NOT DISTINCT FROM original_binding.system_identifier AND a.database_oid IS NOT DISTINCT FROM original_binding.database_oid AND a.postmaster_started_at IS NOT DISTINCT FROM original_binding.postmaster_started_at AND a.backend_pid IS NOT DISTINCT FROM original_binding.backend_pid AND a.backend_start IS NOT DISTINCT FROM original_binding.backend_start AND a.transaction_id IS NOT DISTINCT FROM original_binding.transaction_id AND a.nonce_digest IS NOT DISTINCT FROM original_binding.nonce_digest AND a.expires_at IS NOT DISTINCT FROM original_binding.expires_at
++ AND r.issuance_order<=current_generation.issuance_order
++ AND (e.generation<>p_generation OR e.d1<=cp.confirmed_watermark)
++) a ON a.source_event_id::text=b.value->'source'->>'eventId'
++ ) ordered_controls WHERE previous_generation>generation_order
++ OR (previous_generation=generation_order AND previous_d1>=source_d1))
++ THEN RAISE EXCEPTION 'game lifecycle rejected' USING ERRCODE='42501'; END IF;
++ IF pg_catalog.jsonb_array_length(COALESCE(cp.content->'content'->'controlBridges','[]'::jsonb))>0 AND NOT EXISTS(
++ SELECT 1 FROM sync_fence.game_lifecycle_heads lifecycle_head WHERE lifecycle_head.tenant_id=p_tenant_id
++ AND lifecycle_head.game_id=p_game_id
++ AND lifecycle_head.last_control_event_id::text=(cp.content->'content'->'controlBridges'->-1)->'source'->>'eventId'
++ AND lifecycle_head.is_finished=((cp.content->'content'->'controlBridges'->-1)->>'action'='end')
++ ) THEN RAISE EXCEPTION 'game lifecycle rejected' USING ERRCODE='42501'; END IF;
++ END IF;
++
++ -- 非playを欠番として捨てず、真正受理印の完全参照だけを除外根拠にする。
++ IF EXISTS(SELECT 1 FROM public.operation_events e
++ WHERE e.tenant_id=p_tenant_id AND e.game_id=p_game_id AND e.generation=p_generation
++ AND e.d1<=p_d3 AND (e.ledger_kind<>'accepted' OR e.is_tombstone
++ OR e.replaced_at IS NOT NULL OR e.retired_at IS NOT NULL OR e.import_batch_id IS NOT
++ NULL
++ OR e.migration_unverified OR e.legacy_row_identifier IS NOT NULL
++ OR e.event_kind NOT IN ('play_input','undo','substitution',
++ 'game_end_declaration','game_reopen')))
++ THEN RAISE EXCEPTION 'nonplay read rejected' USING ERRCODE='42501'; END IF;
++ IF (SELECT pg_catalog.count(*) FROM public.operation_events e
++ WHERE e.tenant_id=p_tenant_id AND e.game_id=p_game_id AND e.generation=p_generation
++ AND e.d1<=p_d3 AND e.replaced_at IS NULL AND e.retired_at IS NULL)<>p_d3
++ OR EXISTS(SELECT 1 FROM public.operation_events u
++ WHERE u.tenant_id=p_tenant_id AND u.game_id=p_game_id AND u.generation=p_generation
++ AND u.d1<=p_d3 AND u.event_kind='undo' AND NOT EXISTS(
++ SELECT 1 FROM sync_fence.nonplay_write_admissions n
++ JOIN public.idempotency_ledger ul ON ul.tenant_id=n.tenant_id AND ul.d5=n.d5
++ JOIN public.event_slots us ON (us.tenant_id,us.game_id,us.generation,us.d1)=
++ (u.tenant_id,u.game_id,u.generation,u.d1)
++ WHERE us.confirmed_version=1 AND us.xmin=n.xmin AND u.xmin=n.xmin
++ AND ul.xmin=n.xmin AND n.tenant_id=u.tenant_id AND n.game_id=u.game_id
++ AND n.source_event_id=u.id
++ AND n.internal_generation=u.generation AND n.d5=u.d5 AND n.state='consumed'
++ AND n.consumed_at IS NOT NULL AND n.target_generation=u.target_generation
++ AND n.target_d1=u.target_d1 AND ul.kind='accepted'
++ AND ul.source_fingerprint=n.event_fingerprint AND ul.retired_at IS NULL
++ AND ul.import_batch_id IS NULL))
++ OR pg_catalog.jsonb_array_length(COALESCE(
++ cp.content->'content'->'substitutionFrames','[]'::jsonb))<>
++ (SELECT pg_catalog.count(*) FROM public.operation_events se
++ WHERE se.tenant_id=p_tenant_id AND se.game_id=p_game_id
++ AND se.generation=p_generation AND se.d1<=p_d3
++ AND se.event_kind='substitution')
++ OR EXISTS(SELECT 1 FROM public.operation_events se
++ WHERE se.tenant_id=p_tenant_id AND se.game_id=p_game_id
++ AND se.generation=p_generation AND se.d1<=p_d3
++ AND se.event_kind='substitution' AND NOT EXISTS(
++ SELECT 1 FROM sync_fence.substitution_write_receipts sr
++ JOIN sync_fence.nonplay_write_admissions n ON
++ (n.tenant_id,n.attempt_id,n.phase_id)=(sr.tenant_id,sr.attempt_id,sr.phase_id)
++ JOIN public.idempotency_ledger sl ON sl.tenant_id=se.tenant_id AND sl.d5=se.d5
++ JOIN public.event_slots ss ON (ss.tenant_id,ss.game_id,ss.generation,ss.d1)=
++ (se.tenant_id,se.game_id,se.generation,se.d1)
++ WHERE sr.tenant_id=se.tenant_id AND sr.game_id=se.game_id
++ AND sr.source_event_id=se.id AND sr.source_d1=se.d1
++ AND sr.checkpoint_id=cp.id AND sr.xmin=se.xmin
++ AND n.xmin=se.xmin AND sl.xmin=se.xmin AND ss.xmin=se.xmin
++ AND n.internal_generation=se.generation AND n.state='right_verified'
++ AND n.d5=se.d5 AND n.event_fingerprint=sl.source_fingerprint
++ AND sl.kind='accepted' AND sl.retired_at IS NULL AND sl.import_batch_id IS NULL
++ AND ss.confirmed_version=1 AND se.ledger_kind='accepted'
++ AND NOT se.is_tombstone AND se.replaced_at IS NULL AND se.retired_at IS NULL
++ AND se.import_batch_id IS NULL AND NOT se.migration_unverified
++ AND EXISTS(SELECT 1 FROM pg_catalog.jsonb_array_elements(
++ COALESCE(cp.content->'content'->'substitutionFrames','[]'::jsonb)) sf
++ WHERE sf->'source'->>'eventId'=se.id::text
++ AND sf->'source'->>'gameId'=se.game_id::text
++ AND sf->'source'->>'generation'=n.wire_d4
++ AND sf->'source'->>'d1'=se.d1::text
++ AND sf->'source'->>'d5'=se.d5::text
++ AND sf->'source'->>'fingerprint'=sl.source_fingerprint
++ AND sf->'source'->>'eventKind'='substitution')))
++ THEN RAISE EXCEPTION 'nonplay read rejected' USING ERRCODE='42501'; END IF;
++ IF EXISTS(SELECT 1 FROM pg_catalog.jsonb_array_elements(pg_catalog.jsonb_build_array(
++ cp.content->'content'->'d1Head'->'source',
++ cp.content->'content'->'projectionHead'->'source',
++ cp.content->'content'->'activeHead'->'source')) head
++ WHERE pg_catalog.jsonb_typeof(head)<>'null' AND NOT EXISTS(
++ SELECT 1 FROM public.operation_events e
++ JOIN public.idempotency_ledger l ON l.tenant_id=e.tenant_id AND l.d5=e.d5
++ WHERE e.tenant_id=p_tenant_id AND e.game_id=p_game_id AND e.id::text=head->>'eventId'
++ AND e.d5::text=head->>'d5' AND e.d1::text=head->>'d1'
++ AND e.game_id::text=head->>'gameId' AND e.event_kind=head->>'eventKind'
++ AND e.ledger_kind='accepted' AND NOT e.is_tombstone
++ AND e.replaced_at IS NULL AND e.retired_at IS NULL AND e.import_batch_id IS NULL
++ AND NOT e.migration_unverified AND l.kind='accepted'
++ AND l.source_fingerprint=head->>'fingerprint' AND l.retired_at IS NULL
++ AND l.import_batch_id IS NULL AND EXISTS(
++ SELECT 1 FROM sync_fence.first_ball_write_admissions a WHERE a.tenant_id=e.tenant_id
++ AND a.source_event_id=e.id AND a.state='consumed' AND a.wire_d4=head->>'generation'
++ UNION ALL SELECT 1 FROM sync_fence.ordinary_pitch_write_admissions a
++ WHERE a.tenant_id=e.tenant_id AND a.source_event_id=e.id AND a.state='consumed'
++ AND a.wire_d4=head->>'generation'
++ UNION ALL SELECT 1 FROM sync_fence.nonplay_write_admissions a
++ WHERE a.tenant_id=e.tenant_id AND a.source_event_id=e.id AND a.state='consumed'
++ AND a.wire_d4=head->>'generation'
++ UNION ALL SELECT 1 FROM sync_fence.lifecycle_write_admissions a
++ WHERE a.tenant_id=e.tenant_id AND a.game_id=e.game_id AND a.source_event_id=e.id
++ AND a.state='consumed' AND a.consumed_at IS NOT NULL
++ AND a.internal_generation=e.generation AND a.source_d1=e.d1 AND a.source_d2=e.d2
++ AND a.d5=e.d5 AND a.event_fingerprint=l.source_fingerprint
++ AND a.wire_d4=head->>'generation'
++ UNION ALL SELECT 1 FROM sync_fence.substitution_write_receipts sr
++ JOIN sync_fence.nonplay_write_admissions n ON
++ (n.tenant_id,n.attempt_id,n.phase_id)=(sr.tenant_id,sr.attempt_id,sr.phase_id)
++ WHERE sr.tenant_id=e.tenant_id AND sr.source_event_id=e.id
++ AND sr.checkpoint_id=cp.id AND sr.source_d1=e.d1
++ AND n.internal_generation=e.generation AND n.d5=e.d5
++ AND n.wire_d4=head->>'generation' AND n.state='right_verified'
++ AND n.event_fingerprint=l.source_fingerprint
++ AND sr.xmin=e.xmin AND n.xmin=e.xmin AND l.xmin=e.xmin)))
++ OR cp.content->'content'->'d1Head'->'source'->>'d1' IS DISTINCT FROM p_d3::text
++ OR (cp.content->'content'->>'nextPhysicalPlayNumber')::bigint IS DISTINCT FROM
++ (SELECT COALESCE(pg_catalog.max(pr.play_number),0)+1 FROM public.play_rows pr
++ WHERE pr.tenant_id=p_tenant_id AND pr.game_id=p_game_id)
++ THEN RAISE EXCEPTION 'nonplay read rejected' USING ERRCODE='42501'; END IF;
++ WITH active AS (SELECT h.tenant_id,h.game_id,c.id AS checkpoint_id,
++ c.revision AS checkpoint_revision,r.issuance_order,e.d1,e.id AS source_event_id,
++ CASE WHEN e.payload->>'formatVersion'='first-ball-play-v1' THEN
++ pg_catalog.jsonb_build_object('kind','legacy-first-ball-v1','qualified',COALESCE((
++ f.state='consumed' AND f.consumed_at IS NOT NULL
++ AND f.tenant_id=e.tenant_id AND f.game_id=e.game_id
++ AND f.source_event_id=e.id AND f.internal_generation=e.generation
++ AND f.d5=e.d5 AND f.play_row_id=pr.id
++ AND f.event_fingerprint=l.source_fingerprint
++ AND e.ledger_kind='accepted' AND e.event_kind='play_input' AND NOT e.is_tombstone
++ AND e.replaced_at IS NULL AND e.retired_at IS NULL AND e.import_batch_id IS NULL
++ AND e.legacy_row_identifier IS NULL AND NOT e.migration_unverified
++ AND l.tenant_id=e.tenant_id AND l.d5=e.d5 AND l.kind='accepted'
++ AND l.retired_at IS NULL AND l.import_batch_id IS NULL
++ AND es.tenant_id=e.tenant_id AND es.game_id=e.game_id
++ AND es.generation=e.generation AND es.d1=e.d1 AND es.confirmed_version=1
++ AND pr.tenant_id=e.tenant_id AND pr.game_id=e.game_id AND pr.source_event_id=e.id
++ AND pr.hidden_at IS NULL AND pr.import_batch_id IS NULL
++ AND pr.legacy_row_identifier IS NULL AND NOT pr.migration_unverified
++ AND f.xmin::text::numeric=
++ pg_catalog.mod(f.transaction_id::numeric,4294967296::numeric)
++ AND e.xmin=f.xmin AND l.xmin=f.xmin AND pr.xmin=f.xmin
++ AND es.xmin=f.xmin AND e.d1=1 AND e.payload->>'formatVersion'='first-ball-play-v1'),false),
++ 'xmins',pg_catalog.jsonb_build_object('event',e.xmin::text,'ledger',l.xmin::text,
++ 'slot',es.xmin::text,'admission',f.xmin::text,'play',pr.xmin::text),
++ 'cursor',pg_catalog.jsonb_build_array(r.issuance_order,e.d1,e.id::text),
++ 'event',pg_catalog.to_jsonb(e),'ledger',pg_catalog.to_jsonb(l),
++ 'slot',pg_catalog.to_jsonb(es),'admission',pg_catalog.to_jsonb(f),
++ 'play',pg_catalog.to_jsonb(pr),'runners',(SELECT COALESCE(
++ pg_catalog.jsonb_agg(pg_catalog.to_jsonb(rr) ORDER BY rr.base,rr.id),'[]'::jsonb)
++ FROM public.play_runners rr WHERE rr.tenant_id=pr.tenant_id AND rr.play_id=pr.id))
++ ELSE pg_catalog.jsonb_build_object('kind','accepted-ordinary-admission-v1',
++ 'qualified',COALESCE((
++ a.state='consumed' AND a.consumed_at IS NOT NULL
++ AND a.tenant_id=e.tenant_id AND a.game_id=e.game_id
++ AND a.source_event_id=e.id AND a.internal_generation=e.generation
++ AND a.d5=e.d5 AND a.play_row_id=pr.id
++ AND a.event_fingerprint=l.source_fingerprint
++ AND e.ledger_kind='accepted' AND e.event_kind='play_input' AND NOT e.is_tombstone
++ AND e.replaced_at IS NULL AND e.retired_at IS NULL AND e.import_batch_id IS NULL
++ AND e.legacy_row_identifier IS NULL AND NOT e.migration_unverified
++ AND l.tenant_id=e.tenant_id AND l.d5=e.d5 AND l.kind='accepted'
++ AND l.retired_at IS NULL AND l.import_batch_id IS NULL
++ AND es.tenant_id=e.tenant_id AND es.game_id=e.game_id
++ AND es.generation=e.generation AND es.d1=e.d1 AND es.confirmed_version=1
++ AND pr.tenant_id=e.tenant_id AND pr.game_id=e.game_id AND pr.source_event_id=e.id
++ AND pr.hidden_at IS NULL AND pr.import_batch_id IS NULL
++ AND pr.legacy_row_identifier IS NULL AND NOT pr.migration_unverified
++ AND a.xmin::text::numeric=
++ pg_catalog.mod(a.transaction_id::numeric,4294967296::numeric)
++ AND e.xmin=a.xmin AND l.xmin=a.xmin AND pr.xmin=a.xmin
++ AND es.xmin=a.xmin AND a.source_d1=e.d1 AND a.source_d2=e.d2 AND h.internal_generation=e.generation AND h.d1=e.d1 AND h.d2=e.d2 AND h.entry=a.history_entry AND a.next_checkpoint_content->'projection_snapshot' IS NOT NULL ),false),
++ 'xmins',pg_catalog.jsonb_build_object('event',e.xmin::text,'ledger',l.xmin::text,
++ 'slot',es.xmin::text,'admission',a.xmin::text,'play',pr.xmin::text),'frame',pg_catalog.jsonb_build_object(
++ 'play',pg_catalog.jsonb_build_object('source',pg_catalog.jsonb_build_object('eventId',e.id::text,
++ 'gameId',e.game_id::text,'generation',a.wire_d4,'d1',e.d1::text,
++ 'd5',e.d5::text,'fingerprint',l.source_fingerprint,'eventKind','play_input'),'playId',pr.id::text,
++ 'd2',e.d2::text,'physicalPlayNumber',pr.play_number::text),
++ 'historyEntry',h.entry,'beforeContext',pg_catalog.jsonb_build_object(
++ 'current',CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN (CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'current'
++ ELSE (CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'after' END,'rules',(CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'rules',
++ 'rulesDigest',(CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'rulesDigest','layoutDigest',(CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'layoutDigest',
++ 'rosterDigest',(CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'rosterDigest','lineup',(CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'lineup',
++ 'participants',(CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'participants','runners',(CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'runners',
++ 'responsibility',(CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'responsibility','lastPlayEvaluation',
++ CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN (CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'lastPlayEvaluation'
++ ELSE (CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'t2' END) ||
++ CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' AND (CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END) ? 'substitutionState' THEN
++ pg_catalog.jsonb_build_object('substitutionState',
++ (CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'substitutionState') ELSE '{}'::jsonb END,'afterContext',pg_catalog.jsonb_build_object(
++ 'current',e.payload->'calculation'->'response'->'value'->'t1'->'after','rules',(CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'rules',
++ 'rulesDigest',(CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'rulesDigest','layoutDigest',(CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'layoutDigest',
++ 'rosterDigest',e.payload->'calculation'->'response'->'value'->'rosterDigest','lineup',e.payload->'calculation'->'response'->'value'->'lineup',
++ 'participants',e.payload->'calculation'->'response'->'value'->'participants','runners',e.payload->'calculation'->'response'->'value'->'runners',
++ 'responsibility',e.payload->'calculation'->'response'->'value'->'nextResponsibility','lastPlayEvaluation',e.payload->'calculation'->'response'->'value'->'t2') ||
++ CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' AND (CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END) ? 'substitutionState' THEN
++ pg_catalog.jsonb_build_object('substitutionState',
++ a.next_checkpoint_content->'checkpoint'->'content'->'restored'->'substitutionState')
++ ELSE '{}'::jsonb END),
++ 'cursor',pg_catalog.jsonb_build_array(r.issuance_order,e.d1,e.id::text),
++ 'storedEvent',pg_catalog.jsonb_build_object('d5',e.d5::text,'d1',e.d1,
++ 'd4',a.wire_d4,'game_id',e.game_id::text,'event_kind','play_input',
++ 'd2',e.d2,'payload',e.payload,'state_diff',e.state_diff),
++ 'storedFingerprint',l.source_fingerprint,
++ 'event',pg_catalog.to_jsonb(e),'ledger',pg_catalog.to_jsonb(l),
++ 'slot',pg_catalog.to_jsonb(es),'admission',pg_catalog.to_jsonb(a),
++ 'physical',pg_catalog.jsonb_build_object('play_row',pg_catalog.to_jsonb(pr),
++ 'play_runners',(SELECT COALESCE(pg_catalog.jsonb_agg(pg_catalog.to_jsonb(rr)
++ ORDER BY rr.base,rr.id),'[]'::jsonb) FROM public.play_runners rr
++ WHERE rr.tenant_id=pr.tenant_id AND rr.play_id=pr.id)),
++ 'expectedPhysical',a.next_checkpoint_content->'projection_snapshot') END AS record_json
++ FROM sync_fence.ordinary_pitch_checkpoints c
++ JOIN sync_fence.ordinary_pitch_history h ON h.tenant_id=c.tenant_id
++ AND h.game_id=c.game_id AND h.history_version=c.history_version
++ LEFT JOIN public.operation_events e ON e.tenant_id=h.tenant_id
++ AND e.game_id=h.game_id AND e.id=h.source_event_id
++ AND e.ledger_kind='accepted' AND e.event_kind='play_input'
++ AND NOT e.is_tombstone AND e.replaced_at IS NULL AND e.retired_at IS NULL
++ AND e.import_batch_id IS NULL AND NOT e.migration_unverified
++ LEFT JOIN public.event_slots es ON (es.tenant_id,es.game_id,es.generation,es.d1)
++ =(e.tenant_id,e.game_id,e.generation,e.d1)
++ LEFT JOIN sync_fence.first_ball_write_admissions f ON f.tenant_id=e.tenant_id
++ AND f.game_id=e.game_id AND f.source_event_id=e.id AND f.state='consumed'
++ LEFT JOIN public.recording_generations r ON r.tenant_id=e.tenant_id
++ AND r.game_id=e.game_id AND r.generation=e.generation AND r.kind='normal'
++ LEFT JOIN public.idempotency_ledger l ON l.tenant_id=e.tenant_id AND l.d5=e.d5
++ AND l.kind='accepted' AND l.retired_at IS NULL AND l.import_batch_id IS NULL
++ LEFT JOIN public.play_rows pr ON pr.tenant_id=e.tenant_id AND pr.game_id=e.game_id
++ AND pr.source_event_id=e.id AND pr.hidden_at IS NULL
++ LEFT JOIN sync_fence.ordinary_pitch_write_admissions a ON a.tenant_id=e.tenant_id
++ AND a.game_id=e.game_id AND a.source_event_id=e.id AND a.state='consumed'
++ AND a.event_fingerprint=l.source_fingerprint
++ WHERE c.tenant_id=p_tenant_id AND c.game_id=p_game_id
++ AND c.internal_generation=p_generation
++ AND NOT EXISTS(SELECT 1 FROM sync_fence.nonplay_write_admissions n
++ JOIN public.operation_events u ON u.tenant_id=n.tenant_id
++ AND u.game_id=n.game_id AND u.id=n.source_event_id AND u.event_kind='undo'
++ JOIN public.idempotency_ledger ul ON ul.tenant_id=u.tenant_id AND ul.d5=u.d5
++ AND ul.kind='accepted' AND ul.source_fingerprint=n.event_fingerprint
++ WHERE n.tenant_id=e.tenant_id AND n.game_id=e.game_id
++ AND n.target_event_id=e.id AND n.state='consumed'
++ AND u.target_generation=e.generation AND u.target_d1=e.d1)
++
++UNION ALL
++SELECT c.tenant_id,c.game_id,c.id AS checkpoint_id,
++ c.revision AS checkpoint_revision,r.issuance_order,e.d1,e.id AS source_event_id,
++ pg_catalog.jsonb_build_object('kind','legacy-first-ball-v1','qualified',COALESCE((
++ f.state='consumed' AND f.consumed_at IS NOT NULL
++ AND f.tenant_id=e.tenant_id AND f.game_id=e.game_id
++ AND f.source_event_id=e.id AND f.internal_generation=e.generation
++ AND f.d5=e.d5 AND f.play_row_id=pr.id
++ AND f.event_fingerprint=l.source_fingerprint
++ AND e.ledger_kind='accepted' AND e.event_kind='play_input' AND NOT e.is_tombstone
++ AND e.replaced_at IS NULL AND e.retired_at IS NULL AND e.import_batch_id IS NULL
++ AND e.legacy_row_identifier IS NULL AND NOT e.migration_unverified
++ AND l.tenant_id=e.tenant_id AND l.d5=e.d5 AND l.kind='accepted'
++ AND l.retired_at IS NULL AND l.import_batch_id IS NULL
++ AND es.tenant_id=e.tenant_id AND es.game_id=e.game_id
++ AND es.generation=e.generation AND es.d1=e.d1 AND es.confirmed_version=1
++ AND pr.tenant_id=e.tenant_id AND pr.game_id=e.game_id AND pr.source_event_id=e.id
++ AND pr.hidden_at IS NULL AND pr.import_batch_id IS NULL
++ AND pr.legacy_row_identifier IS NULL AND NOT pr.migration_unverified
++ AND f.xmin::text::numeric=
++ pg_catalog.mod(f.transaction_id::numeric,4294967296::numeric)
++ AND e.xmin=f.xmin AND l.xmin=f.xmin AND pr.xmin=f.xmin
++ AND es.xmin=f.xmin AND e.d1=1 AND e.payload->>'formatVersion'='first-ball-play-v1'),false),
++ 'xmins',pg_catalog.jsonb_build_object('event',e.xmin::text,'ledger',l.xmin::text,
++ 'slot',es.xmin::text,'admission',f.xmin::text,'play',pr.xmin::text),
++ 'cursor',pg_catalog.jsonb_build_array(r.issuance_order,e.d1,e.id::text),
++ 'event',pg_catalog.to_jsonb(e),'ledger',pg_catalog.to_jsonb(l),
++ 'slot',pg_catalog.to_jsonb(es),'admission',pg_catalog.to_jsonb(f),
++ 'play',pg_catalog.to_jsonb(pr),'runners',(SELECT COALESCE(
++ pg_catalog.jsonb_agg(pg_catalog.to_jsonb(rr) ORDER BY rr.base,rr.id),'[]'::jsonb)
++ FROM public.play_runners rr WHERE rr.tenant_id=pr.tenant_id AND rr.play_id=pr.id))
++ AS record_json
++ FROM sync_fence.ordinary_pitch_checkpoints c
++ JOIN public.operation_events e ON e.tenant_id=c.tenant_id AND e.game_id=c.game_id
++ AND e.event_kind='play_input' AND e.payload->>'formatVersion'='first-ball-play-v1'
++ LEFT JOIN public.recording_generations r ON r.tenant_id=e.tenant_id
++ AND r.game_id=e.game_id AND r.generation=e.generation AND r.kind='normal'
++ LEFT JOIN public.event_slots es ON (es.tenant_id,es.game_id,es.generation,es.d1)
++ =(e.tenant_id,e.game_id,e.generation,e.d1)
++ LEFT JOIN public.idempotency_ledger l ON l.tenant_id=e.tenant_id AND l.d5=e.d5
++ LEFT JOIN sync_fence.first_ball_write_admissions f ON f.tenant_id=e.tenant_id
++ AND f.game_id=e.game_id AND f.source_event_id=e.id AND f.state='consumed'
++ LEFT JOIN public.play_rows pr ON pr.tenant_id=e.tenant_id AND pr.game_id=e.game_id
++ AND pr.source_event_id=e.id AND pr.hidden_at IS NULL
++ WHERE c.tenant_id=p_tenant_id AND c.game_id=p_game_id
++ AND c.internal_generation=p_generation
++ AND e.d1<=r.confirmed_watermark
++ AND NOT EXISTS(SELECT 1 FROM sync_fence.ordinary_pitch_history h
++ WHERE h.tenant_id=e.tenant_id AND h.game_id=e.game_id
++ AND h.source_event_id=e.id AND h.history_version=c.history_version)
++ AND NOT EXISTS(SELECT 1 FROM sync_fence.nonplay_write_admissions n
++ JOIN public.operation_events u ON u.tenant_id=n.tenant_id AND u.id=n.source_event_id
++ JOIN public.idempotency_ledger ul ON ul.tenant_id=u.tenant_id AND ul.d5=u.d5
++ AND ul.kind='accepted' AND ul.source_fingerprint=n.event_fingerprint
++ WHERE n.tenant_id=e.tenant_id AND n.game_id=e.game_id AND n.state='consumed'
++ AND n.target_event_id=e.id AND u.event_kind='undo'
++ AND u.target_generation=e.generation AND u.target_d1=e.d1)
++) SELECT pg_catalog.count(*) INTO total FROM active;
++ IF (p_after_order=0 AND (p_after_d1<>0 OR
++ p_after_id<>'00000000-0000-0000-0000-000000000000'::uuid))
++ OR (p_after_order>0 AND NOT EXISTS(WITH active AS (SELECT h.tenant_id,h.game_id,c.id AS checkpoint_id,
++ c.revision AS checkpoint_revision,r.issuance_order,e.d1,e.id AS source_event_id,
++ CASE WHEN e.payload->>'formatVersion'='first-ball-play-v1' THEN
++ pg_catalog.jsonb_build_object('kind','legacy-first-ball-v1','qualified',COALESCE((
++ f.state='consumed' AND f.consumed_at IS NOT NULL
++ AND f.tenant_id=e.tenant_id AND f.game_id=e.game_id
++ AND f.source_event_id=e.id AND f.internal_generation=e.generation
++ AND f.d5=e.d5 AND f.play_row_id=pr.id
++ AND f.event_fingerprint=l.source_fingerprint
++ AND e.ledger_kind='accepted' AND e.event_kind='play_input' AND NOT e.is_tombstone
++ AND e.replaced_at IS NULL AND e.retired_at IS NULL AND e.import_batch_id IS NULL
++ AND e.legacy_row_identifier IS NULL AND NOT e.migration_unverified
++ AND l.tenant_id=e.tenant_id AND l.d5=e.d5 AND l.kind='accepted'
++ AND l.retired_at IS NULL AND l.import_batch_id IS NULL
++ AND es.tenant_id=e.tenant_id AND es.game_id=e.game_id
++ AND es.generation=e.generation AND es.d1=e.d1 AND es.confirmed_version=1
++ AND pr.tenant_id=e.tenant_id AND pr.game_id=e.game_id AND pr.source_event_id=e.id
++ AND pr.hidden_at IS NULL AND pr.import_batch_id IS NULL
++ AND pr.legacy_row_identifier IS NULL AND NOT pr.migration_unverified
++ AND f.xmin::text::numeric=
++ pg_catalog.mod(f.transaction_id::numeric,4294967296::numeric)
++ AND e.xmin=f.xmin AND l.xmin=f.xmin AND pr.xmin=f.xmin
++ AND es.xmin=f.xmin AND e.d1=1 AND e.payload->>'formatVersion'='first-ball-play-v1'),false),
++ 'xmins',pg_catalog.jsonb_build_object('event',e.xmin::text,'ledger',l.xmin::text,
++ 'slot',es.xmin::text,'admission',f.xmin::text,'play',pr.xmin::text),
++ 'cursor',pg_catalog.jsonb_build_array(r.issuance_order,e.d1,e.id::text),
++ 'event',pg_catalog.to_jsonb(e),'ledger',pg_catalog.to_jsonb(l),
++ 'slot',pg_catalog.to_jsonb(es),'admission',pg_catalog.to_jsonb(f),
++ 'play',pg_catalog.to_jsonb(pr),'runners',(SELECT COALESCE(
++ pg_catalog.jsonb_agg(pg_catalog.to_jsonb(rr) ORDER BY rr.base,rr.id),'[]'::jsonb)
++ FROM public.play_runners rr WHERE rr.tenant_id=pr.tenant_id AND rr.play_id=pr.id))
++ ELSE pg_catalog.jsonb_build_object('kind','accepted-ordinary-admission-v1',
++ 'qualified',COALESCE((
++ a.state='consumed' AND a.consumed_at IS NOT NULL
++ AND a.tenant_id=e.tenant_id AND a.game_id=e.game_id
++ AND a.source_event_id=e.id AND a.internal_generation=e.generation
++ AND a.d5=e.d5 AND a.play_row_id=pr.id
++ AND a.event_fingerprint=l.source_fingerprint
++ AND e.ledger_kind='accepted' AND e.event_kind='play_input' AND NOT e.is_tombstone
++ AND e.replaced_at IS NULL AND e.retired_at IS NULL AND e.import_batch_id IS NULL
++ AND e.legacy_row_identifier IS NULL AND NOT e.migration_unverified
++ AND l.tenant_id=e.tenant_id AND l.d5=e.d5 AND l.kind='accepted'
++ AND l.retired_at IS NULL AND l.import_batch_id IS NULL
++ AND es.tenant_id=e.tenant_id AND es.game_id=e.game_id
++ AND es.generation=e.generation AND es.d1=e.d1 AND es.confirmed_version=1
++ AND pr.tenant_id=e.tenant_id AND pr.game_id=e.game_id AND pr.source_event_id=e.id
++ AND pr.hidden_at IS NULL AND pr.import_batch_id IS NULL
++ AND pr.legacy_row_identifier IS NULL AND NOT pr.migration_unverified
++ AND a.xmin::text::numeric=
++ pg_catalog.mod(a.transaction_id::numeric,4294967296::numeric)
++ AND e.xmin=a.xmin AND l.xmin=a.xmin AND pr.xmin=a.xmin
++ AND es.xmin=a.xmin AND a.source_d1=e.d1 AND a.source_d2=e.d2 AND h.internal_generation=e.generation AND h.d1=e.d1 AND h.d2=e.d2 AND h.entry=a.history_entry AND a.next_checkpoint_content->'projection_snapshot' IS NOT NULL ),false),
++ 'xmins',pg_catalog.jsonb_build_object('event',e.xmin::text,'ledger',l.xmin::text,
++ 'slot',es.xmin::text,'admission',a.xmin::text,'play',pr.xmin::text),'frame',pg_catalog.jsonb_build_object(
++ 'play',pg_catalog.jsonb_build_object('source',pg_catalog.jsonb_build_object('eventId',e.id::text,
++ 'gameId',e.game_id::text,'generation',a.wire_d4,'d1',e.d1::text,
++ 'd5',e.d5::text,'fingerprint',l.source_fingerprint,'eventKind','play_input'),'playId',pr.id::text,
++ 'd2',e.d2::text,'physicalPlayNumber',pr.play_number::text),
++ 'historyEntry',h.entry,'beforeContext',pg_catalog.jsonb_build_object(
++ 'current',CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN (CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'current'
++ ELSE (CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'after' END,'rules',(CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'rules',
++ 'rulesDigest',(CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'rulesDigest','layoutDigest',(CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'layoutDigest',
++ 'rosterDigest',(CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'rosterDigest','lineup',(CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'lineup',
++ 'participants',(CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'participants','runners',(CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'runners',
++ 'responsibility',(CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'responsibility','lastPlayEvaluation',
++ CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN (CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'lastPlayEvaluation'
++ ELSE (CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'t2' END) ||
++ CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' AND (CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END) ? 'substitutionState' THEN
++ pg_catalog.jsonb_build_object('substitutionState',
++ (CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'substitutionState') ELSE '{}'::jsonb END,'afterContext',pg_catalog.jsonb_build_object(
++ 'current',e.payload->'calculation'->'response'->'value'->'t1'->'after','rules',(CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'rules',
++ 'rulesDigest',(CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'rulesDigest','layoutDigest',(CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'layoutDigest',
++ 'rosterDigest',e.payload->'calculation'->'response'->'value'->'rosterDigest','lineup',e.payload->'calculation'->'response'->'value'->'lineup',
++ 'participants',e.payload->'calculation'->'response'->'value'->'participants','runners',e.payload->'calculation'->'response'->'value'->'runners',
++ 'responsibility',e.payload->'calculation'->'response'->'value'->'nextResponsibility','lastPlayEvaluation',e.payload->'calculation'->'response'->'value'->'t2') ||
++ CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' AND (CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END) ? 'substitutionState' THEN
++ pg_catalog.jsonb_build_object('substitutionState',
++ a.next_checkpoint_content->'checkpoint'->'content'->'restored'->'substitutionState')
++ ELSE '{}'::jsonb END),
++ 'cursor',pg_catalog.jsonb_build_array(r.issuance_order,e.d1,e.id::text),
++ 'storedEvent',pg_catalog.jsonb_build_object('d5',e.d5::text,'d1',e.d1,
++ 'd4',a.wire_d4,'game_id',e.game_id::text,'event_kind','play_input',
++ 'd2',e.d2,'payload',e.payload,'state_diff',e.state_diff),
++ 'storedFingerprint',l.source_fingerprint,
++ 'event',pg_catalog.to_jsonb(e),'ledger',pg_catalog.to_jsonb(l),
++ 'slot',pg_catalog.to_jsonb(es),'admission',pg_catalog.to_jsonb(a),
++ 'physical',pg_catalog.jsonb_build_object('play_row',pg_catalog.to_jsonb(pr),
++ 'play_runners',(SELECT COALESCE(pg_catalog.jsonb_agg(pg_catalog.to_jsonb(rr)
++ ORDER BY rr.base,rr.id),'[]'::jsonb) FROM public.play_runners rr
++ WHERE rr.tenant_id=pr.tenant_id AND rr.play_id=pr.id)),
++ 'expectedPhysical',a.next_checkpoint_content->'projection_snapshot') END AS record_json
++ FROM sync_fence.ordinary_pitch_checkpoints c
++ JOIN sync_fence.ordinary_pitch_history h ON h.tenant_id=c.tenant_id
++ AND h.game_id=c.game_id AND h.history_version=c.history_version
++ LEFT JOIN public.operation_events e ON e.tenant_id=h.tenant_id
++ AND e.game_id=h.game_id AND e.id=h.source_event_id
++ AND e.ledger_kind='accepted' AND e.event_kind='play_input'
++ AND NOT e.is_tombstone AND e.replaced_at IS NULL AND e.retired_at IS NULL
++ AND e.import_batch_id IS NULL AND NOT e.migration_unverified
++ LEFT JOIN public.event_slots es ON (es.tenant_id,es.game_id,es.generation,es.d1)
++ =(e.tenant_id,e.game_id,e.generation,e.d1)
++ LEFT JOIN sync_fence.first_ball_write_admissions f ON f.tenant_id=e.tenant_id
++ AND f.game_id=e.game_id AND f.source_event_id=e.id AND f.state='consumed'
++ LEFT JOIN public.recording_generations r ON r.tenant_id=e.tenant_id
++ AND r.game_id=e.game_id AND r.generation=e.generation AND r.kind='normal'
++ LEFT JOIN public.idempotency_ledger l ON l.tenant_id=e.tenant_id AND l.d5=e.d5
++ AND l.kind='accepted' AND l.retired_at IS NULL AND l.import_batch_id IS NULL
++ LEFT JOIN public.play_rows pr ON pr.tenant_id=e.tenant_id AND pr.game_id=e.game_id
++ AND pr.source_event_id=e.id AND pr.hidden_at IS NULL
++ LEFT JOIN sync_fence.ordinary_pitch_write_admissions a ON a.tenant_id=e.tenant_id
++ AND a.game_id=e.game_id AND a.source_event_id=e.id AND a.state='consumed'
++ AND a.event_fingerprint=l.source_fingerprint
++ WHERE c.tenant_id=p_tenant_id AND c.game_id=p_game_id
++ AND c.internal_generation=p_generation
++ AND NOT EXISTS(SELECT 1 FROM sync_fence.nonplay_write_admissions n
++ JOIN public.operation_events u ON u.tenant_id=n.tenant_id
++ AND u.game_id=n.game_id AND u.id=n.source_event_id AND u.event_kind='undo'
++ JOIN public.idempotency_ledger ul ON ul.tenant_id=u.tenant_id AND ul.d5=u.d5
++ AND ul.kind='accepted' AND ul.source_fingerprint=n.event_fingerprint
++ WHERE n.tenant_id=e.tenant_id AND n.game_id=e.game_id
++ AND n.target_event_id=e.id AND n.state='consumed'
++ AND u.target_generation=e.generation AND u.target_d1=e.d1)
++
++UNION ALL
++SELECT c.tenant_id,c.game_id,c.id AS checkpoint_id,
++ c.revision AS checkpoint_revision,r.issuance_order,e.d1,e.id AS source_event_id,
++ pg_catalog.jsonb_build_object('kind','legacy-first-ball-v1','qualified',COALESCE((
++ f.state='consumed' AND f.consumed_at IS NOT NULL
++ AND f.tenant_id=e.tenant_id AND f.game_id=e.game_id
++ AND f.source_event_id=e.id AND f.internal_generation=e.generation
++ AND f.d5=e.d5 AND f.play_row_id=pr.id
++ AND f.event_fingerprint=l.source_fingerprint
++ AND e.ledger_kind='accepted' AND e.event_kind='play_input' AND NOT e.is_tombstone
++ AND e.replaced_at IS NULL AND e.retired_at IS NULL AND e.import_batch_id IS NULL
++ AND e.legacy_row_identifier IS NULL AND NOT e.migration_unverified
++ AND l.tenant_id=e.tenant_id AND l.d5=e.d5 AND l.kind='accepted'
++ AND l.retired_at IS NULL AND l.import_batch_id IS NULL
++ AND es.tenant_id=e.tenant_id AND es.game_id=e.game_id
++ AND es.generation=e.generation AND es.d1=e.d1 AND es.confirmed_version=1
++ AND pr.tenant_id=e.tenant_id AND pr.game_id=e.game_id AND pr.source_event_id=e.id
++ AND pr.hidden_at IS NULL AND pr.import_batch_id IS NULL
++ AND pr.legacy_row_identifier IS NULL AND NOT pr.migration_unverified
++ AND f.xmin::text::numeric=
++ pg_catalog.mod(f.transaction_id::numeric,4294967296::numeric)
++ AND e.xmin=f.xmin AND l.xmin=f.xmin AND pr.xmin=f.xmin
++ AND es.xmin=f.xmin AND e.d1=1 AND e.payload->>'formatVersion'='first-ball-play-v1'),false),
++ 'xmins',pg_catalog.jsonb_build_object('event',e.xmin::text,'ledger',l.xmin::text,
++ 'slot',es.xmin::text,'admission',f.xmin::text,'play',pr.xmin::text),
++ 'cursor',pg_catalog.jsonb_build_array(r.issuance_order,e.d1,e.id::text),
++ 'event',pg_catalog.to_jsonb(e),'ledger',pg_catalog.to_jsonb(l),
++ 'slot',pg_catalog.to_jsonb(es),'admission',pg_catalog.to_jsonb(f),
++ 'play',pg_catalog.to_jsonb(pr),'runners',(SELECT COALESCE(
++ pg_catalog.jsonb_agg(pg_catalog.to_jsonb(rr) ORDER BY rr.base,rr.id),'[]'::jsonb)
++ FROM public.play_runners rr WHERE rr.tenant_id=pr.tenant_id AND rr.play_id=pr.id))
++ AS record_json
++ FROM sync_fence.ordinary_pitch_checkpoints c
++ JOIN public.operation_events e ON e.tenant_id=c.tenant_id AND e.game_id=c.game_id
++ AND e.event_kind='play_input' AND e.payload->>'formatVersion'='first-ball-play-v1'
++ LEFT JOIN public.recording_generations r ON r.tenant_id=e.tenant_id
++ AND r.game_id=e.game_id AND r.generation=e.generation AND r.kind='normal'
++ LEFT JOIN public.event_slots es ON (es.tenant_id,es.game_id,es.generation,es.d1)
++ =(e.tenant_id,e.game_id,e.generation,e.d1)
++ LEFT JOIN public.idempotency_ledger l ON l.tenant_id=e.tenant_id AND l.d5=e.d5
++ LEFT JOIN sync_fence.first_ball_write_admissions f ON f.tenant_id=e.tenant_id
++ AND f.game_id=e.game_id AND f.source_event_id=e.id AND f.state='consumed'
++ LEFT JOIN public.play_rows pr ON pr.tenant_id=e.tenant_id AND pr.game_id=e.game_id
++ AND pr.source_event_id=e.id AND pr.hidden_at IS NULL
++ WHERE c.tenant_id=p_tenant_id AND c.game_id=p_game_id
++ AND c.internal_generation=p_generation
++ AND e.d1<=r.confirmed_watermark
++ AND NOT EXISTS(SELECT 1 FROM sync_fence.ordinary_pitch_history h
++ WHERE h.tenant_id=e.tenant_id AND h.game_id=e.game_id
++ AND h.source_event_id=e.id AND h.history_version=c.history_version)
++ AND NOT EXISTS(SELECT 1 FROM sync_fence.nonplay_write_admissions n
++ JOIN public.operation_events u ON u.tenant_id=n.tenant_id AND u.id=n.source_event_id
++ JOIN public.idempotency_ledger ul ON ul.tenant_id=u.tenant_id AND ul.d5=u.d5
++ AND ul.kind='accepted' AND ul.source_fingerprint=n.event_fingerprint
++ WHERE n.tenant_id=e.tenant_id AND n.game_id=e.game_id AND n.state='consumed'
++ AND n.target_event_id=e.id AND u.event_kind='undo'
++ AND u.target_generation=e.generation AND u.target_d1=e.d1)
++) SELECT 1 FROM active
++ WHERE (issuance_order,d1,source_event_id)=(p_after_order,p_after_d1,p_after_id)))
++ THEN RAISE EXCEPTION 'nonplay read rejected' USING ERRCODE='42501'; END IF;
++ IF total::text IS DISTINCT FROM cp.content->'content'->>'activeDepth'
++ THEN RAISE EXCEPTION 'nonplay read rejected' USING ERRCODE='42501'; END IF;
++ FOR x IN WITH active AS (SELECT h.tenant_id,h.game_id,c.id AS checkpoint_id,
++ c.revision AS checkpoint_revision,r.issuance_order,e.d1,e.id AS source_event_id,
++ CASE WHEN e.payload->>'formatVersion'='first-ball-play-v1' THEN
++ pg_catalog.jsonb_build_object('kind','legacy-first-ball-v1','qualified',COALESCE((
++ f.state='consumed' AND f.consumed_at IS NOT NULL
++ AND f.tenant_id=e.tenant_id AND f.game_id=e.game_id
++ AND f.source_event_id=e.id AND f.internal_generation=e.generation
++ AND f.d5=e.d5 AND f.play_row_id=pr.id
++ AND f.event_fingerprint=l.source_fingerprint
++ AND e.ledger_kind='accepted' AND e.event_kind='play_input' AND NOT e.is_tombstone
++ AND e.replaced_at IS NULL AND e.retired_at IS NULL AND e.import_batch_id IS NULL
++ AND e.legacy_row_identifier IS NULL AND NOT e.migration_unverified
++ AND l.tenant_id=e.tenant_id AND l.d5=e.d5 AND l.kind='accepted'
++ AND l.retired_at IS NULL AND l.import_batch_id IS NULL
++ AND es.tenant_id=e.tenant_id AND es.game_id=e.game_id
++ AND es.generation=e.generation AND es.d1=e.d1 AND es.confirmed_version=1
++ AND pr.tenant_id=e.tenant_id AND pr.game_id=e.game_id AND pr.source_event_id=e.id
++ AND pr.hidden_at IS NULL AND pr.import_batch_id IS NULL
++ AND pr.legacy_row_identifier IS NULL AND NOT pr.migration_unverified
++ AND f.xmin::text::numeric=
++ pg_catalog.mod(f.transaction_id::numeric,4294967296::numeric)
++ AND e.xmin=f.xmin AND l.xmin=f.xmin AND pr.xmin=f.xmin
++ AND es.xmin=f.xmin AND e.d1=1 AND e.payload->>'formatVersion'='first-ball-play-v1'),false),
++ 'xmins',pg_catalog.jsonb_build_object('event',e.xmin::text,'ledger',l.xmin::text,
++ 'slot',es.xmin::text,'admission',f.xmin::text,'play',pr.xmin::text),
++ 'cursor',pg_catalog.jsonb_build_array(r.issuance_order,e.d1,e.id::text),
++ 'event',pg_catalog.to_jsonb(e),'ledger',pg_catalog.to_jsonb(l),
++ 'slot',pg_catalog.to_jsonb(es),'admission',pg_catalog.to_jsonb(f),
++ 'play',pg_catalog.to_jsonb(pr),'runners',(SELECT COALESCE(
++ pg_catalog.jsonb_agg(pg_catalog.to_jsonb(rr) ORDER BY rr.base,rr.id),'[]'::jsonb)
++ FROM public.play_runners rr WHERE rr.tenant_id=pr.tenant_id AND rr.play_id=pr.id))
++ ELSE pg_catalog.jsonb_build_object('kind','accepted-ordinary-admission-v1',
++ 'qualified',COALESCE((
++ a.state='consumed' AND a.consumed_at IS NOT NULL
++ AND a.tenant_id=e.tenant_id AND a.game_id=e.game_id
++ AND a.source_event_id=e.id AND a.internal_generation=e.generation
++ AND a.d5=e.d5 AND a.play_row_id=pr.id
++ AND a.event_fingerprint=l.source_fingerprint
++ AND e.ledger_kind='accepted' AND e.event_kind='play_input' AND NOT e.is_tombstone
++ AND e.replaced_at IS NULL AND e.retired_at IS NULL AND e.import_batch_id IS NULL
++ AND e.legacy_row_identifier IS NULL AND NOT e.migration_unverified
++ AND l.tenant_id=e.tenant_id AND l.d5=e.d5 AND l.kind='accepted'
++ AND l.retired_at IS NULL AND l.import_batch_id IS NULL
++ AND es.tenant_id=e.tenant_id AND es.game_id=e.game_id
++ AND es.generation=e.generation AND es.d1=e.d1 AND es.confirmed_version=1
++ AND pr.tenant_id=e.tenant_id AND pr.game_id=e.game_id AND pr.source_event_id=e.id
++ AND pr.hidden_at IS NULL AND pr.import_batch_id IS NULL
++ AND pr.legacy_row_identifier IS NULL AND NOT pr.migration_unverified
++ AND a.xmin::text::numeric=
++ pg_catalog.mod(a.transaction_id::numeric,4294967296::numeric)
++ AND e.xmin=a.xmin AND l.xmin=a.xmin AND pr.xmin=a.xmin
++ AND es.xmin=a.xmin AND a.source_d1=e.d1 AND a.source_d2=e.d2 AND h.internal_generation=e.generation AND h.d1=e.d1 AND h.d2=e.d2 AND h.entry=a.history_entry AND a.next_checkpoint_content->'projection_snapshot' IS NOT NULL ),false),
++ 'xmins',pg_catalog.jsonb_build_object('event',e.xmin::text,'ledger',l.xmin::text,
++ 'slot',es.xmin::text,'admission',a.xmin::text,'play',pr.xmin::text),'frame',pg_catalog.jsonb_build_object(
++ 'play',pg_catalog.jsonb_build_object('source',pg_catalog.jsonb_build_object('eventId',e.id::text,
++ 'gameId',e.game_id::text,'generation',a.wire_d4,'d1',e.d1::text,
++ 'd5',e.d5::text,'fingerprint',l.source_fingerprint,'eventKind','play_input'),'playId',pr.id::text,
++ 'd2',e.d2::text,'physicalPlayNumber',pr.play_number::text),
++ 'historyEntry',h.entry,'beforeContext',pg_catalog.jsonb_build_object(
++ 'current',CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN (CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'current'
++ ELSE (CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'after' END,'rules',(CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'rules',
++ 'rulesDigest',(CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'rulesDigest','layoutDigest',(CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'layoutDigest',
++ 'rosterDigest',(CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'rosterDigest','lineup',(CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'lineup',
++ 'participants',(CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'participants','runners',(CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'runners',
++ 'responsibility',(CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'responsibility','lastPlayEvaluation',
++ CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN (CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'lastPlayEvaluation'
++ ELSE (CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'t2' END) ||
++ CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' AND (CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END) ? 'substitutionState' THEN
++ pg_catalog.jsonb_build_object('substitutionState',
++ (CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'substitutionState') ELSE '{}'::jsonb END,'afterContext',pg_catalog.jsonb_build_object(
++ 'current',e.payload->'calculation'->'response'->'value'->'t1'->'after','rules',(CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'rules',
++ 'rulesDigest',(CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'rulesDigest','layoutDigest',(CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END)->'layoutDigest',
++ 'rosterDigest',e.payload->'calculation'->'response'->'value'->'rosterDigest','lineup',e.payload->'calculation'->'response'->'value'->'lineup',
++ 'participants',e.payload->'calculation'->'response'->'value'->'participants','runners',e.payload->'calculation'->'response'->'value'->'runners',
++ 'responsibility',e.payload->'calculation'->'response'->'value'->'nextResponsibility','lastPlayEvaluation',e.payload->'calculation'->'response'->'value'->'t2') ||
++ CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' AND (CASE WHEN e.payload->'calculation'->>'formatVersion'='nonplay-prefix-calculation-v1' THEN e.payload->'calculation'->'request'->'source'->'checkpoint'->'content'->'restored' ELSE e.payload->'calculation'->'request'->'source' END) ? 'substitutionState' THEN
++ pg_catalog.jsonb_build_object('substitutionState',
++ a.next_checkpoint_content->'checkpoint'->'content'->'restored'->'substitutionState')
++ ELSE '{}'::jsonb END),
++ 'cursor',pg_catalog.jsonb_build_array(r.issuance_order,e.d1,e.id::text),
++ 'storedEvent',pg_catalog.jsonb_build_object('d5',e.d5::text,'d1',e.d1,
++ 'd4',a.wire_d4,'game_id',e.game_id::text,'event_kind','play_input',
++ 'd2',e.d2,'payload',e.payload,'state_diff',e.state_diff),
++ 'storedFingerprint',l.source_fingerprint,
++ 'event',pg_catalog.to_jsonb(e),'ledger',pg_catalog.to_jsonb(l),
++ 'slot',pg_catalog.to_jsonb(es),'admission',pg_catalog.to_jsonb(a),
++ 'physical',pg_catalog.jsonb_build_object('play_row',pg_catalog.to_jsonb(pr),
++ 'play_runners',(SELECT COALESCE(pg_catalog.jsonb_agg(pg_catalog.to_jsonb(rr)
++ ORDER BY rr.base,rr.id),'[]'::jsonb) FROM public.play_runners rr
++ WHERE rr.tenant_id=pr.tenant_id AND rr.play_id=pr.id)),
++ 'expectedPhysical',a.next_checkpoint_content->'projection_snapshot') END AS record_json
++ FROM sync_fence.ordinary_pitch_checkpoints c
++ JOIN sync_fence.ordinary_pitch_history h ON h.tenant_id=c.tenant_id
++ AND h.game_id=c.game_id AND h.history_version=c.history_version
++ LEFT JOIN public.operation_events e ON e.tenant_id=h.tenant_id
++ AND e.game_id=h.game_id AND e.id=h.source_event_id
++ AND e.ledger_kind='accepted' AND e.event_kind='play_input'
++ AND NOT e.is_tombstone AND e.replaced_at IS NULL AND e.retired_at IS NULL
++ AND e.import_batch_id IS NULL AND NOT e.migration_unverified
++ LEFT JOIN public.event_slots es ON (es.tenant_id,es.game_id,es.generation,es.d1)
++ =(e.tenant_id,e.game_id,e.generation,e.d1)
++ LEFT JOIN sync_fence.first_ball_write_admissions f ON f.tenant_id=e.tenant_id
++ AND f.game_id=e.game_id AND f.source_event_id=e.id AND f.state='consumed'
++ LEFT JOIN public.recording_generations r ON r.tenant_id=e.tenant_id
++ AND r.game_id=e.game_id AND r.generation=e.generation AND r.kind='normal'
++ LEFT JOIN public.idempotency_ledger l ON l.tenant_id=e.tenant_id AND l.d5=e.d5
++ AND l.kind='accepted' AND l.retired_at IS NULL AND l.import_batch_id IS NULL
++ LEFT JOIN public.play_rows pr ON pr.tenant_id=e.tenant_id AND pr.game_id=e.game_id
++ AND pr.source_event_id=e.id AND pr.hidden_at IS NULL
++ LEFT JOIN sync_fence.ordinary_pitch_write_admissions a ON a.tenant_id=e.tenant_id
++ AND a.game_id=e.game_id AND a.source_event_id=e.id AND a.state='consumed'
++ AND a.event_fingerprint=l.source_fingerprint
++ WHERE c.tenant_id=p_tenant_id AND c.game_id=p_game_id
++ AND c.internal_generation=p_generation
++ AND NOT EXISTS(SELECT 1 FROM sync_fence.nonplay_write_admissions n
++ JOIN public.operation_events u ON u.tenant_id=n.tenant_id
++ AND u.game_id=n.game_id AND u.id=n.source_event_id AND u.event_kind='undo'
++ JOIN public.idempotency_ledger ul ON ul.tenant_id=u.tenant_id AND ul.d5=u.d5
++ AND ul.kind='accepted' AND ul.source_fingerprint=n.event_fingerprint
++ WHERE n.tenant_id=e.tenant_id AND n.game_id=e.game_id
++ AND n.target_event_id=e.id AND n.state='consumed'
++ AND u.target_generation=e.generation AND u.target_d1=e.d1)
++
++UNION ALL
++SELECT c.tenant_id,c.game_id,c.id AS checkpoint_id,
++ c.revision AS checkpoint_revision,r.issuance_order,e.d1,e.id AS source_event_id,
++ pg_catalog.jsonb_build_object('kind','legacy-first-ball-v1','qualified',COALESCE((
++ f.state='consumed' AND f.consumed_at IS NOT NULL
++ AND f.tenant_id=e.tenant_id AND f.game_id=e.game_id
++ AND f.source_event_id=e.id AND f.internal_generation=e.generation
++ AND f.d5=e.d5 AND f.play_row_id=pr.id
++ AND f.event_fingerprint=l.source_fingerprint
++ AND e.ledger_kind='accepted' AND e.event_kind='play_input' AND NOT e.is_tombstone
++ AND e.replaced_at IS NULL AND e.retired_at IS NULL AND e.import_batch_id IS NULL
++ AND e.legacy_row_identifier IS NULL AND NOT e.migration_unverified
++ AND l.tenant_id=e.tenant_id AND l.d5=e.d5 AND l.kind='accepted'
++ AND l.retired_at IS NULL AND l.import_batch_id IS NULL
++ AND es.tenant_id=e.tenant_id AND es.game_id=e.game_id
++ AND es.generation=e.generation AND es.d1=e.d1 AND es.confirmed_version=1
++ AND pr.tenant_id=e.tenant_id AND pr.game_id=e.game_id AND pr.source_event_id=e.id
++ AND pr.hidden_at IS NULL AND pr.import_batch_id IS NULL
++ AND pr.legacy_row_identifier IS NULL AND NOT pr.migration_unverified
++ AND f.xmin::text::numeric=
++ pg_catalog.mod(f.transaction_id::numeric,4294967296::numeric)
++ AND e.xmin=f.xmin AND l.xmin=f.xmin AND pr.xmin=f.xmin
++ AND es.xmin=f.xmin AND e.d1=1 AND e.payload->>'formatVersion'='first-ball-play-v1'),false),
++ 'xmins',pg_catalog.jsonb_build_object('event',e.xmin::text,'ledger',l.xmin::text,
++ 'slot',es.xmin::text,'admission',f.xmin::text,'play',pr.xmin::text),
++ 'cursor',pg_catalog.jsonb_build_array(r.issuance_order,e.d1,e.id::text),
++ 'event',pg_catalog.to_jsonb(e),'ledger',pg_catalog.to_jsonb(l),
++ 'slot',pg_catalog.to_jsonb(es),'admission',pg_catalog.to_jsonb(f),
++ 'play',pg_catalog.to_jsonb(pr),'runners',(SELECT COALESCE(
++ pg_catalog.jsonb_agg(pg_catalog.to_jsonb(rr) ORDER BY rr.base,rr.id),'[]'::jsonb)
++ FROM public.play_runners rr WHERE rr.tenant_id=pr.tenant_id AND rr.play_id=pr.id))
++ AS record_json
++ FROM sync_fence.ordinary_pitch_checkpoints c
++ JOIN public.operation_events e ON e.tenant_id=c.tenant_id AND e.game_id=c.game_id
++ AND e.event_kind='play_input' AND e.payload->>'formatVersion'='first-ball-play-v1'
++ LEFT JOIN public.recording_generations r ON r.tenant_id=e.tenant_id
++ AND r.game_id=e.game_id AND r.generation=e.generation AND r.kind='normal'
++ LEFT JOIN public.event_slots es ON (es.tenant_id,es.game_id,es.generation,es.d1)
++ =(e.tenant_id,e.game_id,e.generation,e.d1)
++ LEFT JOIN public.idempotency_ledger l ON l.tenant_id=e.tenant_id AND l.d5=e.d5
++ LEFT JOIN sync_fence.first_ball_write_admissions f ON f.tenant_id=e.tenant_id
++ AND f.game_id=e.game_id AND f.source_event_id=e.id AND f.state='consumed'
++ LEFT JOIN public.play_rows pr ON pr.tenant_id=e.tenant_id AND pr.game_id=e.game_id
++ AND pr.source_event_id=e.id AND pr.hidden_at IS NULL
++ WHERE c.tenant_id=p_tenant_id AND c.game_id=p_game_id
++ AND c.internal_generation=p_generation
++ AND e.d1<=r.confirmed_watermark
++ AND NOT EXISTS(SELECT 1 FROM sync_fence.ordinary_pitch_history h
++ WHERE h.tenant_id=e.tenant_id AND h.game_id=e.game_id
++ AND h.source_event_id=e.id AND h.history_version=c.history_version)
++ AND NOT EXISTS(SELECT 1 FROM sync_fence.nonplay_write_admissions n
++ JOIN public.operation_events u ON u.tenant_id=n.tenant_id AND u.id=n.source_event_id
++ JOIN public.idempotency_ledger ul ON ul.tenant_id=u.tenant_id AND ul.d5=u.d5
++ AND ul.kind='accepted' AND ul.source_fingerprint=n.event_fingerprint
++ WHERE n.tenant_id=e.tenant_id AND n.game_id=e.game_id AND n.state='consumed'
++ AND n.target_event_id=e.id AND u.event_kind='undo'
++ AND u.target_generation=e.generation AND u.target_d1=e.d1)
++) SELECT * FROM active
++ WHERE p_after_order=0 OR (issuance_order,d1,source_event_id)<
++ (p_after_order,p_after_d1,p_after_id)
++ ORDER BY issuance_order DESC,d1 DESC,source_event_id DESC LIMIT p_page_size+1 LOOP
++ j:=x.record_json;
++ IF j->'qualified' IS DISTINCT FROM 'true'::jsonb
++ OR j->>'kind' NOT IN ('legacy-first-ball-v1','accepted-ordinary-admission-v1')
++ OR (j->>'kind'='accepted-ordinary-admission-v1' AND
++ j->'physical' IS DISTINCT FROM j->'expectedPhysical')
++ THEN RAISE EXCEPTION 'nonplay read rejected' USING ERRCODE='42501'; END IF;
++ -- nonce/lease/admission/ledger本体は実SQL外へ出さない。
++ items:=items||pg_catalog.jsonb_build_array(pg_catalog.jsonb_build_object(
++ 'kind',j->'kind','cursor',j->'cursor','frame',j->'frame',
++ 'event',j->'event','fingerprint',j->'ledger'->'source_fingerprint',
++ 'wireD4',j->'admission'->'wire_d4',
++ 'physical',CASE WHEN j->>'kind'='legacy-first-ball-v1' THEN
++ pg_catalog.jsonb_build_object('play_row',j->'play','play_runners',j->'runners')
++ ELSE j->'physical' END));
++ END LOOP;
++ RETURN QUERY SELECT pg_catalog.jsonb_build_object('checkpoint',cp.content,
++ 'total',total,'items',items)::text;
++END;
++
++ END IF;
++END;
++$dispatch$;
++
++ALTER FUNCTION sync_right_api.read_viewer_nonplay_active_history(uuid, uuid, bigint, uuid, bigint, bigint, bigint, bigint, bigint, bigint, uuid, integer) OWNER TO pitchlog_sync_right_fn_owner;
++REVOKE ALL ON FUNCTION sync_right_api.read_viewer_nonplay_active_history(uuid, uuid, bigint, uuid, bigint, bigint, bigint, bigint, bigint, bigint, uuid, integer) FROM PUBLIC,pitchlog_app;
++GRANT EXECUTE ON FUNCTION sync_right_api.read_viewer_nonplay_active_history(uuid, uuid, bigint, uuid, bigint, bigint, bigint, bigint, bigint, bigint, uuid, integer) TO pitchlog_app;
+diff --git a/contracts/authz/product/function-bodies/functions/FUNCTION:sync_right_api:read_viewer_play_prefix_history_page(uuid, uuid, bigint, bigint, uuid, bigint, bigint, bigint, bigint, bigint, uuid, integer).sql b/contracts/authz/product/function-bodies/functions/FUNCTION:sync_right_api:read_viewer_play_prefix_history_page(uuid, uuid, bigint, bigint, uuid, bigint, bigint, bigint, bigint, bigint, uuid, integer).sql
+new file mode 100644
+index 00000000..195b7990
+--- /dev/null
++++ b/contracts/authz/product/function-bodies/functions/FUNCTION:sync_right_api:read_viewer_play_prefix_history_page(uuid, uuid, bigint, bigint, uuid, bigint, bigint, bigint, bigint, bigint, uuid, integer).sql	
+@@ -0,0 +1,114 @@
++-- ELEMENT-TYPE: function
++-- ELEMENT-ID: FUNCTION:sync_right_api:read_viewer_play_prefix_history_page(uuid, uuid, bigint, bigint, uuid, bigint, bigint, bigint, bigint, bigint, uuid, integer)
++
++CREATE FUNCTION sync_right_api.read_viewer_play_prefix_history_page(p_tenant_id uuid,p_game_id uuid,
++p_generation bigint,p_storage_history_epoch bigint,p_wire_checkpoint_id uuid,
++p_wire_checkpoint_revision bigint,p_wire_history_version bigint,p_upper_watermark bigint,p_after_d1 bigint,
++p_after_d2 bigint,p_after_id uuid,p_page_size integer)
++RETURNS TABLE(record_json text) LANGUAGE plpgsql VOLATILE SECURITY DEFINER
++SET search_path=pg_catalog,pg_temp AS $prefix$
++DECLARE item record; next_d1 bigint; seen_count integer:=0;
++BEGIN
++
++ IF session_user<>'pitchlog_app' OR current_user<>'pitchlog_sync_right_fn_owner'
++ OR p_tenant_id IS NULL OR p_game_id IS NULL
++ OR p_tenant_id IS DISTINCT FROM
++ NULLIF(pg_catalog.current_setting('app.tenant_id',true),'')::uuid
++ OR p_generation IS NULL OR p_generation<=0 THEN
++ RAISE EXCEPTION 'ordinary prefix read rejected' USING ERRCODE='42501';
++ END IF;
++
++ IF p_page_size IS NULL OR p_page_size<1 OR p_page_size>100
++ OR p_storage_history_epoch IS NULL OR p_storage_history_epoch<=0 OR p_wire_checkpoint_id IS NULL
++ OR p_wire_checkpoint_revision IS NULL OR p_wire_checkpoint_revision<=0
++ OR p_upper_watermark IS NULL OR p_upper_watermark<0
++ OR p_after_d1 IS NULL OR p_after_d1<0 OR p_after_d1>p_upper_watermark
++ OR p_after_d2 IS NULL OR p_after_d2<0 OR p_after_id IS NULL THEN
++ RAISE EXCEPTION 'ordinary prefix page rejected' USING ERRCODE='42501';
++ END IF;
++ -- cursorを権限にせず、版/水位を実point原本へ束縛する。
++ PERFORM 1 FROM sync_fence.ordinary_pitch_checkpoints c
++ WHERE c.tenant_id=p_tenant_id AND c.game_id=p_game_id
++ AND c.internal_generation=p_generation AND (c.content->'prefix_ref'->'checkpoint'->>'id')::uuid=p_wire_checkpoint_id
++ AND c.revision=p_wire_checkpoint_revision AND c.history_version=p_storage_history_epoch
++ AND c.confirmed_watermark=p_upper_watermark AND c.applied_watermark=p_upper_watermark
++ AND c.content->>'version' IN ('2','3') AND (c.content->'prefix_ref'->>'historyVersion')::bigint=p_wire_history_version AND c.state='current' ;
++ IF NOT FOUND THEN
++ RAISE EXCEPTION 'ordinary prefix page anchor rejected' USING ERRCODE='42501';
++ END IF;
++ IF (p_after_d1=0 AND (p_after_d2<>0 OR p_after_id<>
++ '00000000-0000-0000-0000-000000000000'::uuid))
++ OR (p_after_d1>0 AND NOT EXISTS(
++ SELECT 1 FROM sync_fence.ordinary_pitch_history h
++ WHERE h.tenant_id=p_tenant_id AND h.game_id=p_game_id
++ AND h.internal_generation=p_generation AND h.history_version=p_storage_history_epoch
++ AND (h.d1,h.d2,h.source_event_id)=(p_after_d1,p_after_d2,p_after_id))) THEN
++ RAISE EXCEPTION 'ordinary prefix page cursor rejected' USING ERRCODE='42501';
++ END IF;
++ -- ordinary-only版のD1連続性を有限page内で照合。h自体の欠落も隠さない。
++ next_d1:=p_after_d1;
++ -- 有限pageを一度のqueryで取得。欠落をINNER JOINで隠さない。
++ FOR item IN
++ SELECT pg_catalog.to_jsonb(h) AS history,
++ ev.rows AS events,ev.n AS event_count,pr.rows AS plays,pr.n AS play_count,
++ ad.rows AS admissions,ad.n AS admission_count,fb.n AS first_count, rn.rows AS play_runners, ad.runners AS expected_play_runners
++ FROM (SELECT * FROM sync_fence.ordinary_pitch_history x
++ WHERE x.tenant_id=p_tenant_id AND x.game_id=p_game_id
++ AND x.internal_generation=p_generation AND x.history_version=p_storage_history_epoch
++ AND x.d1<=p_upper_watermark
++ AND (x.d1,x.d2,x.source_event_id)>(p_after_d1,p_after_d2,p_after_id)
++ ORDER BY x.d1,x.d2,x.source_event_id LIMIT p_page_size+1) h
++ CROSS JOIN LATERAL (SELECT pg_catalog.jsonb_agg(pg_catalog.to_jsonb(e)) rows,
++ pg_catalog.count(*) n FROM public.operation_events e
++ WHERE e.tenant_id=h.tenant_id AND e.game_id=h.game_id AND e.id=h.source_event_id
++ AND e.generation=h.internal_generation AND e.d1=h.d1 AND e.d2=h.d2
++ AND e.ledger_kind='accepted' AND e.event_kind='play_input' AND NOT e.is_tombstone
++ AND e.replaced_at IS NULL AND e.retired_at IS NULL AND e.import_batch_id IS NULL
++ AND e.legacy_row_identifier IS NULL AND NOT e.migration_unverified) ev
++ CROSS JOIN LATERAL (SELECT pg_catalog.jsonb_agg(pg_catalog.to_jsonb(p)) rows,
++ pg_catalog.count(*) n FROM public.play_rows p
++ WHERE p.tenant_id=h.tenant_id AND p.game_id=h.game_id
++ AND p.source_event_id=h.source_event_id AND p.import_batch_id IS NULL
++ AND p.legacy_row_identifier IS NULL AND NOT p.migration_unverified) pr
++ CROSS JOIN LATERAL (SELECT pg_catalog.jsonb_agg(a.expected_play_row) rows, pg_catalog.jsonb_agg(a.next_checkpoint_content->'projection_snapshot'->'play_runners') runners,
++ pg_catalog.count(*) n FROM sync_fence.ordinary_pitch_write_admissions a
++ WHERE a.tenant_id=h.tenant_id AND a.game_id=h.game_id
++ AND a.internal_generation=h.internal_generation
++ AND a.source_event_id=h.source_event_id
++ AND a.source_d1=h.d1 AND a.source_d2=h.d2 AND a.state='consumed'
++ AND a.history_entry=h.entry AND a.consumed_at IS NOT NULL AND EXISTS(SELECT 1 FROM public.idempotency_ledger l WHERE l.tenant_id=a.tenant_id AND l.d5=a.d5 AND l.kind='accepted' AND l.source_fingerprint=a.event_fingerprint AND l.retired_at IS NULL AND l.import_batch_id IS NULL)) ad
++ CROSS JOIN LATERAL (SELECT pg_catalog.count(*) n
++ FROM sync_fence.first_ball_write_admissions f
++ WHERE f.tenant_id=h.tenant_id AND f.game_id=h.game_id
++ AND f.internal_generation=h.internal_generation
++ AND f.source_event_id=h.source_event_id
++ AND f.state='consumed' AND f.consumed_at IS NOT NULL
++ AND f.play_row_id=(pr.rows->0->>'id')::uuid) fb
++ CROSS JOIN LATERAL (SELECT COALESCE(pg_catalog.jsonb_agg(pg_catalog.to_jsonb(r) ORDER BY r.base),'[]'::jsonb) rows FROM public.play_runners r WHERE r.tenant_id=h.tenant_id AND r.play_id=(pr.rows->0->>'id')::uuid) rn
++ ORDER BY h.d1,h.d2,h.source_event_id
++ LOOP
++ IF (item.history->>'d1')::bigint-next_d1<>1
++ OR item.event_count<>1 OR item.play_count<>1
++ OR NOT COALESCE((item.admission_count=1 AND item.first_count=0
++ AND item.events->0->'payload'->>'formatVersion' IN ('ordinary-pitch-play-v1','play-prefix-play-v2','play-prefix-play-v3')
++ AND item.admissions->0=item.plays->0)
++ OR (item.admission_count=0 AND item.first_count=1
++ AND (item.history->>'d1')::bigint=1
++ AND item.events->0->'payload'->>'formatVersion'='first-ball-play-v1'),false) THEN
++ RAISE EXCEPTION 'ordinary prefix history origin rejected' USING ERRCODE='42501';
++ END IF;
++ next_d1:=(item.history->>'d1')::bigint;
++ seen_count:=seen_count+1;
++ RETURN QUERY SELECT pg_catalog.jsonb_build_object('history',item.history,
++ 'event',item.events->0,'play_row',item.plays->0,
++ 'expected_play_row',item.admissions->0,'play_runners',item.play_runners,'expected_play_runners',item.expected_play_runners->0)::text;
++ END LOOP;
++ IF seen_count<=p_page_size AND next_d1<>p_upper_watermark THEN
++ RAISE EXCEPTION 'ordinary prefix history tail rejected' USING ERRCODE='42501';
++ END IF;
++END;
++$prefix$;
++
++ALTER FUNCTION sync_right_api.read_viewer_play_prefix_history_page(uuid, uuid, bigint, bigint, uuid, bigint, bigint, bigint, bigint, bigint, uuid, integer) OWNER TO pitchlog_sync_right_fn_owner;
++REVOKE ALL ON FUNCTION sync_right_api.read_viewer_play_prefix_history_page(uuid, uuid, bigint, bigint, uuid, bigint, bigint, bigint, bigint, bigint, uuid, integer) FROM PUBLIC,pitchlog_app;
++GRANT EXECUTE ON FUNCTION sync_right_api.read_viewer_play_prefix_history_page(uuid, uuid, bigint, bigint, uuid, bigint, bigint, bigint, bigint, bigint, uuid, integer) TO pitchlog_app;
+diff --git a/contracts/authz/product/function-bodies/manifest.json b/contracts/authz/product/function-bodies/manifest.json
+index 689467eb..eb9da484 100644
+--- a/contracts/authz/product/function-bodies/manifest.json
++++ b/contracts/authz/product/function-bodies/manifest.json
+@@ -4966,6 +4966,16 @@
+       "path": "contracts/authz/product/function-bodies/column_acl_expectations/COLUMN-ACL:public:play_export_snapshots:event_sequence:pitchlog_sync_right_fn_owner.sql",
+       "element_type": "column_acl_expectation",
+       "element_id": "COLUMN-ACL:public:play_export_snapshots:event_sequence:pitchlog_sync_right_fn_owner"
++    },
++    {
++      "path": "contracts/authz/product/function-bodies/functions/FUNCTION:sync_right_api:read_viewer_nonplay_active_history(uuid, uuid, bigint, uuid, bigint, bigint, bigint, bigint, bigint, bigint, uuid, integer).sql",
++      "element_type": "function",
++      "element_id": "FUNCTION:sync_right_api:read_viewer_nonplay_active_history(uuid, uuid, bigint, uuid, bigint, bigint, bigint, bigint, bigint, bigint, uuid, integer)"
++    },
++    {
++      "path": "contracts/authz/product/function-bodies/functions/FUNCTION:sync_right_api:read_viewer_play_prefix_history_page(uuid, uuid, bigint, bigint, uuid, bigint, bigint, bigint, bigint, bigint, uuid, integer).sql",
++      "element_type": "function",
++      "element_id": "FUNCTION:sync_right_api:read_viewer_play_prefix_history_page(uuid, uuid, bigint, bigint, uuid, bigint, bigint, bigint, bigint, bigint, uuid, integer)"
+     }
+   ]
+ }
+diff --git a/contracts/tenant_boundary/repository-contract.json b/contracts/tenant_boundary/repository-contract.json
+index ade26771..b581680b 100644
+--- a/contracts/tenant_boundary/repository-contract.json
++++ b/contracts/tenant_boundary/repository-contract.json
+@@ -1,12 +1,12 @@
+ {
+   "schema_version": 1,
+-  "contract_revision": 38,
++  "contract_revision": 39,
+   "baseline_control": {
+     "identity": {
+       "scheme": "integer_revision_field",
+       "field": "contract_revision",
+       "current_identifiers": [
+-        "contract_revision:38"
++        "contract_revision:39"
+       ],
+       "no_baseline_marker": "NO_BASELINE",
+       "frozen_projection": {
+@@ -175,7 +175,9 @@
+     "CAP:tenant_vocabularies:read",
+     "CAP:recording_vocabularies:read",
+     "CAP:stats_primitives:save_source",
+-    "CAP:stats_primitives:read"
++    "CAP:stats_primitives:read",
++    "CAP:sync_play_prefix:read_viewer_play_prefix_history_page",
++    "CAP:sync_ordinary_pitch:read_viewer_nonplay_active_history"
+   ],
+   "product_operation_token_types": [
+     "pitchlog.repositories.roster.PlayerReadToken",
+@@ -249,7 +251,9 @@
+     "pitchlog.repositories.stats_native_operations._ReadPrimitiveWriterStateCall",
+     "pitchlog.repositories.play_export_primitives.OpenPrimitiveSnapshotToken",
+     "pitchlog.repositories.play_export_primitives.ReadPrimitivePageToken",
+-    "pitchlog.repositories.stats.ReadPrimitiveTotalsToken"
++    "pitchlog.repositories.stats.ReadPrimitiveTotalsToken",
++    "pitchlog.repositories.viewer_read.ViewerPlayPrefixHistoryPageToken",
++    "pitchlog.repositories.viewer_read.ViewerNonplayActiveHistoryReadToken"
+   ],
+   "cross_tenant_functions": [],
+   "function_executor": {
+@@ -284,7 +288,9 @@
+     "STATS_PRIMITIVES:read_writer_state",
+     "STATS_PRIMITIVES:open_snapshot",
+     "STATS_PRIMITIVES:read_page",
+-    "STATS_PRIMITIVES:read_totals"
++    "STATS_PRIMITIVES:read_totals",
++    "SYNC_PLAY_PREFIX:read_viewer_play_prefix_history_page",
++    "SYNC_ORDINARY_PITCH:read_viewer_nonplay_active_history"
+   ],
+-  "source_digest": "41ff0691f2d86030263ea43e5be3badf5e33da3db67557920c6b4260209ea067"
++  "source_digest": "501220f58132765380e2ebd373454a391c823a4b4c7eed51f70928614f31bf3c"
+ }
+diff --git a/contracts/tenant_boundary/runtime-authz-contract.json b/contracts/tenant_boundary/runtime-authz-contract.json
+index 6891a649..7b657ede 100644
+--- a/contracts/tenant_boundary/runtime-authz-contract.json
++++ b/contracts/tenant_boundary/runtime-authz-contract.json
+@@ -1,12 +1,12 @@
+ {
+   "schema_version": 1,
+-  "runtime_contract_revision": 34,
++  "runtime_contract_revision": 35,
+   "baseline_control": {
+     "identity": {
+       "scheme": "integer_revision_field",
+       "field": "runtime_contract_revision",
+       "current_identifiers": [
+-        "runtime_contract_revision:34"
++        "runtime_contract_revision:35"
+       ],
+       "no_baseline_marker": "NO_BASELINE",
+       "frozen_projection": {
+@@ -1006,6 +1006,16 @@
+         "read_play_prefix_history_page",
+         "uuid, uuid, bigint, bigint, uuid, bigint, bigint, bigint, bigint, bigint, uuid, integer"
+       ],
++      [
++        "sync_right_api",
++        "read_viewer_nonplay_active_history",
++        "uuid, uuid, bigint, uuid, bigint, bigint, bigint, bigint, bigint, bigint, uuid, integer"
++      ],
++      [
++        "sync_right_api",
++        "read_viewer_play_prefix_history_page",
++        "uuid, uuid, bigint, bigint, uuid, bigint, bigint, bigint, bigint, bigint, uuid, integer"
++      ],
+       [
+         "sync_right_api",
+         "verify_replay_device",
+@@ -1036,5 +1046,5 @@
+     }
+   ],
+   "derived_from": "contracts/authz/product/ddl-elements.json",
+-  "source_digest": "e99b8e47e9878dd6d4ac8b9fdf737d1588144bfa9c70e65e58fda518cdb531b6"
++  "source_digest": "3aabec39420ac51d931ffb55cfb0b9553ce9f8cfe25b380831ff3594ce7ab0c9"
+ }
+diff --git a/frontend/src/router.ts b/frontend/src/router.ts
+index ffeceb0f..7a20c7fe 100644
+--- a/frontend/src/router.ts
++++ b/frontend/src/router.ts
+@@ -14,6 +14,7 @@ import LoginScreen from './screens/LoginScreen.vue'
+ import TeamScreen from './screens/TeamScreen.vue'
+ import GameScreenEntryHost from './screens/GameScreenEntryHost.vue'
+ import GameStatsScreen from './screens/GameStatsScreen.vue'
++import GameScreenViewerLive from './screens/GameScreenViewerLive.vue'
+ import SeasonStats from './screens/SeasonStats.vue'
+ import GameScreenRecordModeHost from './screens/GameScreenRecordModeHost.vue'
+ import {
+@@ -95,6 +96,12 @@ export function createAppRouter(history: RouterHistory = createWebHistory()) {
+         }),
+         meta: { requiresAuth: true },
+       },
++      {
++        path: '/games/:gameId/view',
++        name: 'game-viewer',
++        component: GameScreenViewerLive,
++        meta: { requiresAuth: true },
++      },
+       {
+         path: '/games/:gameId/stats',
+         name: 'game-stats',
+diff --git a/frontend/src/screens/GameScreenEntry.spec.ts b/frontend/src/screens/GameScreenEntry.spec.ts
+index f1bde3a3..e2ccc9a6 100644
+--- a/frontend/src/screens/GameScreenEntry.spec.ts
++++ b/frontend/src/screens/GameScreenEntry.spec.ts
+@@ -183,6 +183,15 @@ describe('登録済みrouteと認証境界', () => {
+     expect(router.currentRoute.value.query.redirect).toBe(expected)
+   })
+ 
++  it('閲覧URLだけを認証後戻り先として保持し、追加queryを拒否する', () => {
++    expect(resolveGameEntryReturnPath(`/games/${gameId}/view`)).toBe(
++      `/games/${gameId}/view`,
++    )
++    for (const suffix of ['?x=1', '#part', '/..'])
++      expect(resolveGameEntryReturnPath(`/games/${gameId}/view${suffix}`)).toBe(
++        '/team',
++      )
++  })
+   it.each(['ordinary-prefix-v1', 'play-prefix-v2', 'play-prefix-v3'])(
+     '認証不確実時も有限な%s入口だけを保持し保護画面は描画しない',
+     async (mode) => {
+diff --git a/frontend/src/screens/GameScreenEntry.vue b/frontend/src/screens/GameScreenEntry.vue
+index 794e48bc..8d5240ed 100644
+--- a/frontend/src/screens/GameScreenEntry.vue
++++ b/frontend/src/screens/GameScreenEntry.vue
+@@ -195,7 +195,12 @@ function returnToPriorPage(): void {
+             <RouterLink
+               :to="{ name: 'game-record', params: { gameId: game.gameId } }"
+               class="inline-block min-h-11 rounded-lg border px-3 py-2 underline"
+-              >閲覧画面へ</RouterLink
++              >記録画面へ</RouterLink
++            >
++            <RouterLink
++              :to="{ name: 'game-viewer', params: { gameId: game.gameId } }"
++              class="inline-block min-h-11 rounded-lg border px-3 py-2 underline"
++              >ライブ閲覧へ</RouterLink
+             >
+             <button
+               type="button"
+diff --git a/frontend/src/screens/GameScreenEntryNavigation.ts b/frontend/src/screens/GameScreenEntryNavigation.ts
+index 17c5d217..18fa4712 100644
+--- a/frontend/src/screens/GameScreenEntryNavigation.ts
++++ b/frontend/src/screens/GameScreenEntryNavigation.ts
+@@ -1,11 +1,11 @@
+ import { canonicalUuid } from '../api/authIntent'
+ 
+-/** 認証前に保持できる登録済みの内部pathnameと有限な記録入口だけを返す。 */
++/** 認証前に保持できる登録済みの内部pathnameと有限な記録・閲覧入口だけを返す。 */
+ export function resolveGameEntryReturnPath(value: unknown): string {
+   if (value === '/team' || value === '/games') return value
+   if (typeof value !== 'string') return '/team'
+   const match =
+-    /^\/games\/([^/]+)\/record(?:\?recording=(?:ordinary-prefix-v1|play-prefix-v2|play-prefix-v3))?$/.exec(
++    /^\/games\/([^/]+)\/(?:view|record(?:\?recording=(?:ordinary-prefix-v1|play-prefix-v2|play-prefix-v3))?)$/.exec(
+       value,
+     )
+   return match && canonicalUuid.test(match[1] ?? '') ? value : '/team'

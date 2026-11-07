@@ -1,5 +1,7 @@
 """閲覧pageが既readerの照合面を共有し、行ロックだけを除く。"""
 
+from pathlib import Path
+
 from pitchlog.authz import product_catalog
 from pitchlog.authz.nonplay_prefix_read_sql import (
     candidate_read_function_bodies as nonplay_bodies,
@@ -34,17 +36,19 @@ def test_viewer_page_derivation_keeps_every_other_sql_clause() -> None:
         assert "FOR UPDATE" not in viewer[new]
 
 
-def test_viewer_functions_are_in_publisher_and_catalog_detail_scope() -> None:
-    """正式宣言2本と実catalog本文照合schemaが同じ境界を指す。"""
-    from pitchlog.authz.first_ball_product import ADDITIONS
-
-    names = {
-        row["function_name"]
-        for row in ADDITIONS["functions"]
-        if row["function_name"].startswith("read_viewer_")
-    }
-    assert names == set(candidate_viewer_function_bodies())
-    assert "'sync_right_api'" in product_catalog._LIFECYCLE_FUNCTION_DETAILS_QUERY
+def test_shared_authz_catalog_patch_declares_viewer_functions() -> None:
+    """共有認可catalogは直接編集せず、接合patchの宣言と実登録が一致する。"""
+    patch = (
+        Path(__file__).parents[2]
+        / "docs/features/mvp-viewer-live-connection/patches/shared-integration.patch"
+    )
+    assert patch.is_file(), "共有認可catalogへの接合patchがありません"
+    text = patch.read_text(encoding="utf-8")
+    names = set(candidate_viewer_function_bodies())
     assert {entry.function_id for entry in VIEWER_READ_OPERATIONS} == {
         f"sync_right_api.{name}" for name in names
     }
+    for name in names:
+        assert f"FUNCTION:sync_right_api:{name}(" in text
+        assert f"function-bodies/functions/FUNCTION:sync_right_api:{name}(" in text
+    assert "'sync_right_api'" in product_catalog._LIFECYCLE_FUNCTION_DETAILS_QUERY
