@@ -23,3 +23,6 @@ branch: fix/mvp-recovery-response-model
 
 
 root非作者確認により対象569014ba/plan SHA9a5341e5042d5b9ae9e4850d0de7c21a9908b5d445cf3bb37cad1c712af3214fを既二値/既error分岐だけの修復としてPO委任採用。本人確認/署名を代記しない。最小範囲追補としてtest_api_conventions.pyのroute exact件数34→35とrecoverの既登録route期待配列への有限追加だけをrootが承認。元downloads-only response_model=None集合と全route型検査は不変更、除外・期待削除はしない。実装最終版の非作者レビューは別工程。
+
+
+step2照合で元基線の実routeは38本（旧34＋既P3 GET2/POST1＋recover）と判明。rootは既登録P3の3route定義/operation_id/response_model照合を伴うfinite exact38追随を追加承認。未知route/response_model=None検出は保持する。API同期語彙generationは既P3 sourceにも存在するため、この修復で除外を追加せず基線差として記録する。
