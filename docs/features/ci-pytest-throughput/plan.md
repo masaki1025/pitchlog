@@ -125,3 +125,7 @@ PR197は45b74ac9320c43138a49215529c60bb685a8a977へ通常統合済み、source�
 限定委任policyのtargetsにPR198/本枝だけを追加し、既対象/期限/拒否/本人署名を代記しない属性は維持する。今回のsource/code/domain契約は変えず、実外部freeze入力の移動だけを正式7.7へ一度受理する。意味のないdevelop追随で同じ受理を反復しない。
 
 最終局所検査1127成功/2不合格は、歴史shadow参照のPR197最終SHAをtestへ直接置いたことによる凍結外出し検査の正当な拒否。検査/allowlistを緩めず、同0deb実値を既frozen-inputsのtyped行へ移し、型/源/祖先・旧有限例外の検査は保持する。旧反映1のinventory参照seal漏れ、反映2のこの掃引不足はcache保全し未push/未統合。sourceを再固定し、同正式45bから単一PR198の完全値を導出し直して限定非作者確認/CLI/局所全検査後に受理する。旧報告/周回は保持。
+
+### 完全値受理・反映3（2026-11-07、PO委任Codex/root判断）
+
+source02821914/base45b固定の全9系列/24path/新snapshot12を非作者が公式helperで全byte再導出一致（REPORT SHA6e240fcbcaf1475df057b40b01709f20b6a1d09114b9bd30893996b09d3d83c6、bundle a2c2b7b9654f4d3ca3e8c0134b0383eb6353120a4881232c6e1ee14e1d29a18c）。shadow1129＋歴史/不変99成功・CLI okを確認し、ROOT-ACCEPTANCE.jsonへ対象/判断/時刻/前周不採用を明記してPO委任rootが受理。公式applyで既381/pin83保持/削除0、inventory実byte seal02b8d354…と生成3moduleを反映、corpus61ff6281c67036f60605b3ec5ba5381bfe0bf3a238ce0f27233c8beca700a1a1。実配置でCLI/root Ruff/Ty/不変条件2成功。既history/拒否条件を維持、本人署名/新blindではない。最終HEAD委任証拠・実8分割全CI・時間計測・通常mergeは次段。
