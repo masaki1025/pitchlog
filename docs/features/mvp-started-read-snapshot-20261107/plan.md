@@ -44,3 +44,5 @@ worktree: /home/ymdms/projects/pitchlog-worktrees/feature-mvp-started-read-snaps
 2026-11-07 ステップ1: 実RR/READ ONLY scopeの発行印を同handle・top-level TX identity・tenant証跡・失効まで束縛。0球/保存初球/通常・非play・LCのreaderはこの印だけで行lock tokenを省き、旧writer経路を保持。行lockを除く別identity3関数と固定型/registryの共有差分はリポ外候補 `~/.cache/pitchlog/started-read-snapshot-author-20261107/` に分離。元関数の本文・権限は変更しない。実PG/正式登録/非作者確認は未了。
 
 同日 ステップ2: `/games/{game_id}/started` GETだけを専用scopeへ接続。defaultの0球/保存初球200と既C2/DTO対向、非playの別read token、scope内writer lock拒否を純試験で確認。共有関数と正式catalogが未配備なので、公開実PG成功の主張は行わない。
+
+同日 root の source review で、新3 readonly token が一般RW scopeの `run_function` へ達する余地を確認。PO委任の是正として、token型から真正started RR scopeを常時要求し、通常RWからはSQL0で拒否する。appが関数を直接呼んだ場合も同一snapshot保証を欠くため、新3関数本文の先頭に `transaction_isolation='repeatable read'` と `transaction_read_only='on'` の閉検査を追加する。元writer/NP/P3関数本文は不変更、別identityの導出差分を関数名・行lock句・このRR/RO条件だけに固定する。rootによる正式配置・実PG対向と非作者レビューは引き続き未了。

@@ -12,6 +12,11 @@ from pitchlog.repositories.past_correction_right import _ReadP3CurrentToken
 from pitchlog.repositories.recorded_snapshot_operations import (
     RecordedEventRowsReadToken,
 )
+from pitchlog.repositories.started_snapshot_read_operations import (
+    StartedNonplayActiveHistoryReadToken,
+    StartedOrdinaryHistoryPageToken,
+    StartedPlayPrefixHistoryPageToken,
+)
 from pitchlog.sync.tokens import GameLockToken, GameReadToken
 
 
@@ -37,6 +42,12 @@ class _Session:
         self.closed = False
         self.top = _Top()
         self.nested = False
+        self.execute_calls = 0
+
+    def execute(self, *_args, **_kwargs):
+        """新readonly tokenがSQLへ達したら検査を赤にする。"""
+        self.execute_calls += 1
+        raise AssertionError("新readonly tokenが一般scopeでSQLへ到達")
 
     def get_transaction(self):
         """同TX参照を返す。"""
@@ -116,3 +127,37 @@ def test_started_read_scope_is_rr_readonly_finite_and_expires(monkeypatch):
     assert not transaction.started_snapshot_read_mode(handle)
     with pytest.raises(TenantBindingError):
         transaction.require_started_snapshot_read_scope(handle)
+
+
+def test_started_page_tokens_cannot_execute_from_regular_rw_scope(monkeypatch):
+    """新3tokenの型そのものを閉じ、通常RW handleではSQL0で拒否する。"""
+    from pitchlog.sync.control_provider import writer_binding
+
+    engine = _Engine()
+    sessions = []
+
+    def new_session(value):
+        session = _Session(value)
+        sessions.append(session)
+        return session
+
+    monkeypatch.setattr(transaction, "create_database_engine", lambda: engine)
+    monkeypatch.setattr(transaction, "Session", new_session)
+    monkeypatch.setattr(
+        transaction, "_tenant_transaction", lambda session, context: nullcontext()
+    )
+    monkeypatch.setattr(writer_binding, "_before_writer_finish", lambda handle: None)
+    monkeypatch.setattr(writer_binding, "_after_writer_finish", lambda key: None)
+    u = uuid4()
+    tokens = (
+        StartedOrdinaryHistoryPageToken(u, 1, 1, u, 1, 0, 0, 0, u, 25),
+        StartedPlayPrefixHistoryPageToken(u, 1, 1, u, 1, 1, 0, 0, 0, u, 25),
+        StartedNonplayActiveHistoryReadToken(u, 1, u, 1, 1, 1, 1, 0, 0, u, 25),
+    )
+
+    with transaction.tenant_transaction_scope(make_tenant_context(uuid4())) as handle:
+        assert engine.options == []
+        for token in tokens:
+            with pytest.raises(TenantBindingError, match="記録画面read scope"):
+                handle.run_function(token)
+        assert sessions[0].execute_calls == 0

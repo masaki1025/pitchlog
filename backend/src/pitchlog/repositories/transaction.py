@@ -260,6 +260,19 @@ class _TenantTransaction:
             )
         if state_key in _STARTED_READ_HANDLES:
             _require_started_read_token(self, operation, function=True)
+        else:
+            from pitchlog.repositories.started_snapshot_read_operations import (
+                StartedNonplayActiveHistoryReadToken,
+                StartedOrdinaryHistoryPageToken,
+                StartedPlayPrefixHistoryPageToken,
+            )
+
+            if type(operation) in {
+                StartedOrdinaryHistoryPageToken,
+                StartedPlayPrefixHistoryPageToken,
+                StartedNonplayActiveHistoryReadToken,
+            }:
+                require_started_snapshot_read_scope(self)
         if _play_export_source_operation(operation):
             from pitchlog.repositories.play_export_source_operations import (
                 run_qualified_source_read,
