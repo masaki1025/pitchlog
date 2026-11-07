@@ -34,12 +34,19 @@ from pitchlog.sync import past_correction_paged, past_correction_preparation
 from pitchlog.sync.first_ball_payload import FirstBallObservations
 from pitchlog.sync.model import SyncEvent
 from pitchlog.sync.ordinary_pitch_physical import pitch_physical_row
-from pitchlog.sync.past_correction_capsule import build_p3_current_capsule
+from pitchlog.sync.past_correction_capsule import (
+    build_p3_current_capsule,
+    build_p3_current_item,
+)
 from pitchlog.sync.past_correction_checkpoint import (
     build_corrected_lineup_checkpoint,
     build_corrected_lineup_checkpoint_from_head,
 )
-from pitchlog.sync.past_correction_paged import PreparedP3Page, _page_seal
+from pitchlog.sync.past_correction_paged import (
+    PreparedP3Page,
+    _page_seal,
+    fingerprint_p3_streaming_array,
+)
 from pitchlog.sync.past_correction_payload import (
     PastCorrectionPayloadError,
     bind_lineup_pitch_change_payload,
@@ -929,6 +936,24 @@ def test_v3_corrected_checkpoint_uses_native_chain_and_new_physical_head() -> No
     assert capsule.items[1]["original_event_id"] == str(_ID2)
     assert capsule.items[1]["effective_event_id"] == str(_ID2)
     assert capsule.items[1]["play_row"] == physical[-1].play_row
+    assert capsule.items[1] == build_p3_current_item(
+        saved_rows[1],
+        target_d1=1,
+        change_event_id=_CHANGE,
+        checkpoint=old_checkpoint,
+        frame=corrected[1],
+        payload=payloads[1],
+        projected=physical[1],
+    )
+    assert capsule.source_set_digest == fingerprint_p3_streaming_array(
+        {"capsule_id": str(_CAPSULE), "change_event_id": str(_CHANGE)},
+        "item_digests",
+        (item["digest"] for item in capsule.items),
+        {
+            "new_checkpoint_digest": fresh.content_digest,
+            "old_checkpoint_digest": old_checkpoint.content_digest,
+        },
+    )
     assert saved_rows[-1].play_row is not None
     assert capsule.items[1]["effective_play_row_id"] == saved_rows[-1].play_row["id"]
     assert capsule.items[0]["original_play_row"] == saved_rows[0].play_row
