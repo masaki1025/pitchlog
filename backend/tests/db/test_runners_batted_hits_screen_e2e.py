@@ -6,6 +6,8 @@ import json
 import os
 import re
 import subprocess
+import threading
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from uuid import UUID, uuid4
 
@@ -149,9 +151,51 @@ uvicorn.run(app,host='0.0.0.0',port=int(sys.argv[1]),log_level='warning')
     monkeypatch.setattr(screen, "_app_container", app_arguments)
 
 
-def _verify_runner_fault_rollback(admin, tenant, result):
+def _all_runner_stats(admin, tenant, game):
+    """有効/旧版を含む実T5全行を、当該owned試合だけで閉じて読む。"""
+    return {
+        table: [
+            r[0]
+            for r in admin.execute(
+                sql.SQL(
+                    "SELECT to_jsonb(t) FROM sync_fence.{} AS t "
+                    "WHERE tenant_id=%s AND game_id=%s ORDER BY to_jsonb(t)::text"
+                ).format(sql.Identifier(table)),
+                (tenant, game),
+            ).fetchall()
+        ]
+        for table in (
+            "stats_fact_versions",
+            "stats_primitive_sources",
+            "stats_primitive_facts",
+        )
+    }
+
+
+def _capture_runner_fault_baseline(db, checkpoint, stop):
+    """実画面の先行1球後を読取専用で封印してから、2球目の送信を許可する。"""
+    while not checkpoint.is_file():
+        if stop.wait(0.05):
+            return None
+    game = UUID(json.loads(checkpoint.read_text())["game"])
+    with psycopg.connect(db.authority.database.business_admin) as admin:
+        admin.execute("SET TRANSACTION READ ONLY")
+        admin.execute("SET LOCAL statement_timeout='5s'")
+        before = _all_runner_stats(admin, db.tenant_id, game)
+    assert len(before["stats_fact_versions"]) == 1
+    assert before["stats_fact_versions"][0]["source_count"] == 1
+    checkpoint.with_suffix(".snapshot.json").write_text(
+        json.dumps(before, sort_keys=True)
+    )
+    Path(str(checkpoint) + ".ready").write_text(str(game))
+    return game, before
+
+
+def _verify_runner_fault_rollback(admin, tenant, result, baseline):
     """実故障要求のlogical IDを使い、runnerを含む全保存面の残存を拒否する。"""
     game = UUID(result["game"])
+    assert baseline is not None and baseline[0] == game
+    assert _all_runner_stats(admin, tenant, game) == baseline[1]
     failed_play = UUID(result["failedPlayId"])
     failed_event = UUID(result["failedEventId"])
     failed_d5 = UUID(result["failedD5"])
@@ -362,6 +406,27 @@ def _verify_saved_rows(admin, tenant, game, scenario: str) -> None:
 def test_screen_runner_batted_hits(
     vertical_database, tmp_path: Path, monkeypatch
 ) -> None:
+    """正常7/故障/越境と全DBをまとめた受入検証。"""
+    _screen_runner_batted_hits(
+        vertical_database, tmp_path, monkeypatch, fault_only=False
+    )
+
+
+@pytest.mark.skipif(
+    not os.environ.get("PITCHLOG_E2E_TLS_CERT_PATH")
+    and not os.environ.get("PITCHLOG_E2E_TLS_KEY_PATH"),
+    reason="明示TLS PATH未供給のため故障画面は未実証",
+)
+def test_screen_runner_batted_fault(
+    vertical_database, tmp_path: Path, monkeypatch
+) -> None:
+    """真正先行1球からT4故障だけを実行し、全T5版の不変を比較する。"""
+    _screen_runner_batted_hits(
+        vertical_database, tmp_path, monkeypatch, fault_only=True
+    )
+
+
+def _screen_runner_batted_hits(vertical_database, tmp_path, monkeypatch, *, fault_only):
     """走者状態は画面の先行単打だけで作り、DBへ事前投入しない。"""
     for name in ("PITCHLOG_E2E_TLS_CERT_PATH", "PITCHLOG_E2E_TLS_KEY_PATH"):
         path = os.environ.get(name)
@@ -404,16 +469,32 @@ def test_screen_runner_batted_hits(
             "runners-batted-hits",
             https=True,
         ) as origin:
-            completed = _run_runner_playwright(
-                db,
-                origin,
-                {
-                    "PITCHLOG_E2E_AWAY_TEAM": str(teams[0]),
-                    "PITCHLOG_E2E_HOME_TEAM": str(teams[1]),
-                    "PITCHLOG_E2E_OTHER_TEAM": db.other_team_name,
-                    "PITCHLOG_E2E_RESULT_FILE": str(tmp_path / "result-game.txt"),
-                },
-            )
+            checkpoint = tmp_path / "fault-before.json"
+            stop = threading.Event()
+            with ThreadPoolExecutor(max_workers=1) as workers:
+                captured = workers.submit(
+                    _capture_runner_fault_baseline, db, checkpoint, stop
+                )
+                try:
+                    completed = _run_runner_playwright(
+                        db,
+                        origin,
+                        {
+                            "PITCHLOG_E2E_AWAY_TEAM": str(teams[0]),
+                            "PITCHLOG_E2E_HOME_TEAM": str(teams[1]),
+                            "PITCHLOG_E2E_OTHER_TEAM": db.other_team_name,
+                            "PITCHLOG_E2E_RESULT_FILE": str(
+                                tmp_path / "result-game.txt"
+                            ),
+                            "PITCHLOG_E2E_RUNNER_FAULT_CHECKPOINT": str(checkpoint),
+                            "PITCHLOG_E2E_RUNNER_SCOPE": "fault"
+                            if fault_only
+                            else "all",
+                        },
+                    )
+                finally:
+                    stop.set()
+                baseline = captured.result()
             assert completed.returncode == 0, (
                 completed.stdout[-10000:],
                 completed.stderr[-3000:],
@@ -425,10 +506,11 @@ def test_screen_runner_batted_hits(
                     completed.stdout,
                 )
             ]
-            assert len(observed) == 7
-            assert {r["scenario"] for r in observed} == set(_RESULTS)
+            expected = set() if fault_only else set(_RESULTS)
+            assert len(observed) == len(expected)
+            assert {r["scenario"] for r in observed} == expected
             created_games = {r["game"] for r in observed}
-            assert len(created_games) == 7
+            assert len(created_games) == len(expected)
             assert str(db.game_id) not in created_games
             with psycopg.connect(db.authority.database.business_admin) as admin:
                 for result in observed:
@@ -457,4 +539,6 @@ def test_screen_runner_batted_hits(
                     "PITCHLOG_RUNNER_T4_REACHED"
                     in (_LOGS / "runners-batted-hits-app.log").read_text()
                 )
-                _verify_runner_fault_rollback(admin, db.tenant_id, fault_results[0])
+                _verify_runner_fault_rollback(
+                    admin, db.tenant_id, fault_results[0], baseline
+                )

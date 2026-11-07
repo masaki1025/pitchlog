@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { readFileSync, writeFileSync } from 'node:fs'
+import { readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { expect, test, type Page } from '@playwright/test'
 
 const baseURL = process.env.PITCHLOG_E2E_BASE_URL
@@ -840,6 +840,23 @@ test('走者あり打球のT4途中故障は成功表示せず、先行1球だ�
   const beforeResponse = await beforeRead
   const before = (await beforeResponse.json()) as Head
   expect(before.after.stateFields['state.runners']).toBe('first')
+  // ownedホストが実DB全T5版を読んだ後にだけ故障要求を出す。
+  const checkpoint = process.env.PITCHLOG_E2E_RUNNER_FAULT_CHECKPOINT
+  if (!checkpoint) throw new Error('故障前の実DB観測同期点が供給されていない')
+  writeFileSync(checkpoint + '.tmp', JSON.stringify({ game: saved.id }))
+  renameSync(checkpoint + '.tmp', checkpoint)
+  await expect
+    .poll(
+      () => {
+        try {
+          return readFileSync(checkpoint + '.ready', 'utf8')
+        } catch {
+          return null
+        }
+      },
+      { timeout: httpTimeout },
+    )
+    .toBe(saved.id)
   let failedD5: string | undefined
   let failedPlayId: string | undefined
   let failedEventId: string | undefined

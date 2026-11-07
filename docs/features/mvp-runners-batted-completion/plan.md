@@ -59,3 +59,5 @@ run6 d4444710は3032source不変/clean/DSNunset/cleanup、Playwright9case成功�
 正負pureでID/責任投手/打点・scoreless・不足観測・第3アウト拒否・原値非変更を固定し、rootの非作者source確認後に実game全7のDB集計を同候補で確認する。T4故障は全T5版/source/factの送信前実DB集合と故障後集合を読取専用で比較するfault単独試験を追加し、既UI9成功と混同しない。rootは正式pin/manifest/資産の所有を維持し、adapter実byte追随が必要ならcache packetで受け渡す。
 
 T5追補採用: rootはff207de5/plan SHA b04e47b3a193661c6b6d85c329e3824c841c39a40983a368e0149bc1bc1d6ce3全文とRBI-06/08を照合し、PO委任Codex/root・2026-11-07として着手可。adapterはT1到達/打点真偽と原本走者/責任IDを有限コピーし、生成核は不変更。正準19安打＋明示4配置＋欠測/因果/重複ID/override対向＋初球通常0の専用39件を含め、関連5群408件成功36.58s、BE Ruff/Ty成功。NP通常球の旧unavailable期待だけを真正complete空集合へ追随。新sourceの実DBは未実証、root限定非作者確認へ渡す。
+
+T4全版対向追補: 画面が真正先行1球を保存した直後、unique pytest tmp内のgame ID通知をatomic renameで渡す。ownedホストの読取専用connectionが当該tenant/gameのstats_fact_versions（旧非current含む）/sources/facts全行を封印してから2球目送信を許可する。T4後は同3集合を全値比較し、新旧版の残存を拒否する。owner資格はapp/browserへ渡さず、通知に資格・本文を含めない。専用fault pytestは実画面で同前提1球を作って1caseのみ選択、通常受入pytestは正常7＋fault＋404の全9を維持する。範囲envはall/faultの閉2値で未知拒否。BE/FE型lint成功、実測は次。
