@@ -553,29 +553,10 @@ def test_actual_v3_half_and_zero_pitch_substitution_produce_true_entries(
             )
 
 
-def test_actual_lifecycle_game_and_season_appearance_has_one_current_version(
-    vertical_database,
-):
-    """実終了→通常再開→追記→再終了の試合/暦年/CSVで1登板を維持する。"""
-    from datetime import datetime, timedelta, timezone
-
+def _lifecycle_appearance_script() -> str:
+    """既r20の実操作scriptを候補配置と通常49で同じbyteのまま共有する。"""
     from .test_stats_basic_lifecycle_http import _stats_script
 
-    db = vertical_database
-    with psycopg.connect(db.authority.database.business_admin) as admin:
-        _install_candidate(admin)
-        _install_csv_candidate(admin)
-        admin.execute(
-            "INSERT INTO public.admin_vocabularies(key,category,display_name) "
-            "VALUES ('batting-result.called-pitch','batting_result','見逃し') "
-            "ON CONFLICT(key) DO NOTHING"
-        )
-        scheduled_row = admin.execute(
-            "SELECT scheduled_at FROM public.games WHERE tenant_id=%s AND id=%s",
-            (db.tenant_id, db.game_id),
-        ).fetchone()
-        assert scheduled_row is not None and isinstance(scheduled_row[0], datetime)
-        scheduled = scheduled_row[0]
     script = _stats_script()
     # 正規POSTのチーム選択と開始入力を対で入替え、自チームを後攻にする。
     teams = (
@@ -658,6 +639,31 @@ def test_actual_lifecycle_game_and_season_appearance_has_one_current_version(
         + "                assert selected.json()['players'] == []\n",
         1,
     )
+    return script
+
+
+def test_actual_lifecycle_game_and_season_appearance_has_one_current_version(
+    vertical_database,
+):
+    """実終了→通常再開→追記→再終了の試合/暦年/CSVで1登板を維持する。"""
+    from datetime import datetime, timedelta, timezone
+
+    db = vertical_database
+    with psycopg.connect(db.authority.database.business_admin) as admin:
+        _install_candidate(admin)
+        _install_csv_candidate(admin)
+        admin.execute(
+            "INSERT INTO public.admin_vocabularies(key,category,display_name) "
+            "VALUES ('batting-result.called-pitch','batting_result','見逃し') "
+            "ON CONFLICT(key) DO NOTHING"
+        )
+        scheduled_row = admin.execute(
+            "SELECT scheduled_at FROM public.games WHERE tenant_id=%s AND id=%s",
+            (db.tenant_id, db.game_id),
+        ).fetchone()
+        assert scheduled_row is not None and isinstance(scheduled_row[0], datetime)
+        scheduled = scheduled_row[0]
+    script = _lifecycle_appearance_script()
     case = {
         "tenant": str(db.tenant_id),
         "game": str(db.game_id),
