@@ -148,7 +148,9 @@ def test_owned_p3_migration_and_all_structure_tamper_refusals(
                     )
                     if finalized:
                         connection.execute(
-                            "SET CONSTRAINTS p3_page_progress_must_finalize IMMEDIATE"
+                            "SET CONSTRAINTS "
+                            "sync_fence.p3_page_progress_must_finalize "
+                            "IMMEDIATE"
                         )
                     else:
                         with pytest.raises(
@@ -158,7 +160,8 @@ def test_owned_p3_migration_and_all_structure_tamper_refusals(
                             with connection.transaction():
                                 connection.execute(
                                     "SET CONSTRAINTS "
-                                    "p3_page_progress_must_finalize IMMEDIATE"
+                                    "sync_fence.p3_page_progress_must_finalize "
+                                    "IMMEDIATE"
                                 )
             assert connection.execute(
                 "SELECT count(*) FROM sync_fence.p3_projection_page_progress"

@@ -30,6 +30,30 @@ def _expected_index(index: Any) -> tuple[Any, ...]:
     )
 
 
+def _expected_storage_constraints(table: Any) -> list[tuple[Any, ...]]:
+    """通常制約と既知の遅延trigger制約を全属性のまま照合する。"""
+    rows = current._expected_constraints(table)
+    if table.name == "p3_projection_page_progress":
+        rows.append(
+            (
+                "t",
+                "p3_page_progress_must_finalize",
+                (),
+                None,
+                (),
+                None,
+                None,
+                None,
+                None,
+                True,
+                True,
+                True,
+                True,
+            )
+        )
+    return sorted(rows, key=repr)
+
+
 def check_p3_storage(connection: Any) -> None:
     """表/owner/RLS/列/default/全制約/indexの不足・余剰・改変を拒否する。
 
@@ -103,10 +127,12 @@ def check_p3_storage(connection: Any) -> None:
                         *flags,
                     )
                 )
-            if sorted(actual_constraints, key=repr) != current._expected_constraints(
+            if sorted(actual_constraints, key=repr) != _expected_storage_constraints(
                 table
             ):
-                raise current.CurrentProductStartupError("P3全制約が不一致です")
+                raise current.CurrentProductStartupError(
+                    f"P3全制約が不一致です: {table.name}"
+                )
             cursor.execute(current._INDEX_SQL, (table.fullname,))
             actual_indexes = [_index_row(row) for row in cursor.fetchall()]
             expected_indexes = [_expected_index(index) for index in table.indexes]
