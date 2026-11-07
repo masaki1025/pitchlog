@@ -18,7 +18,11 @@ from pitchlog.exports.generated.coordinate_transform import (
 )
 from pitchlog.exports.generated.play_export_completion import saved_half_completed
 from pitchlog.exports.play_rows import CSV_HEADERS
-from pitchlog.sync.play_export_identity import RecordedPlayIdentity
+from pitchlog.sync.play_export_identity import (
+    PlayExportIdentityUnavailable,
+    RecordedPlayIdentity,
+    _course_screen,
+)
 
 
 class RecordedExportProjectionUnavailable(ValueError):
@@ -342,7 +346,9 @@ def _native_before(payload: dict[str, Any]) -> dict[str, str]:
         raise RecordedExportProjectionUnavailable from None
 
 
-def _native_completion(payload: dict[str, Any]) -> dict[str, str]:
+def _native_completion(
+    payload: dict[str, Any], play: dict[str, Any] | None = None
+) -> dict[str, str | None]:
     """保存T1/T2の確定フラグを旧表示語へ写す。"""
     try:
         value = payload["calculation"]["response"]["value"]
@@ -350,12 +356,28 @@ def _native_completion(payload: dict[str, Any]) -> dict[str, str]:
         pa_ended = t1["plateAppearanceEnded"]
         half_completed = saved_half_completed(payload)
         game_ended = t1["after"]["stateFields"]["state.gameEnded"]
-        if any(
-            type(flag) is not bool for flag in (pa_ended, half_completed, game_ended)
-        ):
+        if type(half_completed) is not bool or type(game_ended) is not bool:
+            raise RecordedExportProjectionUnavailable
+        if type(pa_ended) is bool:
+            pa_display = "打席完了" if pa_ended else "打席継続"
+        elif pa_ended == "not-applicable":
+            if (
+                play is None
+                or payload["calculation"]["request"]["t1"]["eventKind"]
+                != "runner-event"
+                or t1["batterDestination"] != {"kind": "not-applicable"}
+            ):
+                raise RecordedExportProjectionUnavailable
+            try:
+                if _course_screen(payload, play) != (None, None):
+                    raise RecordedExportProjectionUnavailable
+            except PlayExportIdentityUnavailable:
+                raise RecordedExportProjectionUnavailable from None
+            pa_display = None
+        else:
             raise RecordedExportProjectionUnavailable
         return {
-            _HEADER[17]: "打席完了" if pa_ended else "打席継続",
+            _HEADER[17]: pa_display,
             _HEADER[18]: (
                 "試合終了"
                 if game_ended
@@ -606,6 +628,30 @@ def _runner_columns(
         raise RecordedExportProjectionUnavailable from None
 
 
+def _native_plate_display(identity: RecordedPlayIdentity) -> str | None:
+    """打席非該当だけは明示NULL、旧boolは同じ唯一表示生成器へ渡す。"""
+    play = identity.play
+    try:
+        plate_ended = identity.payload["calculation"]["response"]["value"]["t1"][
+            "plateAppearanceEnded"
+        ]
+        if plate_ended == "not-applicable":
+            if _native_completion(identity.payload, play)[_HEADER[17]] is not None:
+                raise RecordedExportProjectionUnavailable
+            return None
+        result_label = _lookup(identity.admin_vocabularies, play["batting_result_key"])
+        ball_type_label = _lookup(identity.admin_vocabularies, play["batted_ball_type"])
+        plate_display = plate_result_display(
+            result_label,
+            plate_ended,
+            _text(play["raw_error_position"]),
+            ball_type_label,
+        )
+    except (KeyError, TypeError, ValueError):
+        raise RecordedExportProjectionUnavailable from None
+    return plate_display
+
+
 def project_recorded_direct(
     identity: RecordedPlayIdentity,
     substitutes: dict[UUID, dict[str, Any]] | None = None,
@@ -670,7 +716,7 @@ def project_recorded_direct(
         _HEADER[43]: identity.course_screen[1],
     }
     result.update(_native_before(identity.payload))
-    result.update(_native_completion(identity.payload))
+    result.update(_native_completion(identity.payload, play))
     result.update(_batted_coordinates(identity))
     result[_HEADER[56]] = _accepted_pitch_speed(identity)
     result[_HEADER[72]] = _input_origin(identity)
@@ -698,20 +744,7 @@ def project_recorded_direct(
         if field not in play:
             raise RecordedExportProjectionUnavailable
         result[_HEADER[index]] = _lookup(identity.admin_vocabularies, play[field])
-    try:
-        plate_ended = identity.payload["calculation"]["response"]["value"]["t1"][
-            "plateAppearanceEnded"
-        ]
-        result_label = _lookup(identity.admin_vocabularies, play["batting_result_key"])
-        ball_type_label = _lookup(identity.admin_vocabularies, play["batted_ball_type"])
-        plate_display = plate_result_display(
-            result_label,
-            plate_ended,
-            _text(play["raw_error_position"]),
-            ball_type_label,
-        )
-    except (KeyError, TypeError, ValueError):
-        raise RecordedExportProjectionUnavailable from None
+    plate_display = _native_plate_display(identity)
     result[_HEADER[61]] = plate_display
     result[_HEADER[62]] = plate_display
     for index, field in ((27, "batter_id"), (32, "pitcher_id"), (35, "catcher_id")):

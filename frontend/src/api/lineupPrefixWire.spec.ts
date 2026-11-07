@@ -18,7 +18,7 @@ import {
 import { playHash } from './terminalPitchWire'
 beforeEach(() => vi.stubGlobal('crypto', webcrypto))
 afterEach(() => vi.unstubAllGlobals())
-it('走塁の型だけが接合された段階では旧封印処理へ流さない', async () => {
+it('走塁の不正観測を旧打席の封印処理へ流さない', async () => {
   const p = vectors.cases[0]!.V7
   const observations = {
     ...(p.observations as Observations),
@@ -31,7 +31,7 @@ it('走塁の型だけが接合された段階では旧封印処理へ流さな�
       observations,
       p.participants as Participants,
     ),
-  ).rejects.toThrow('走塁の保存接続は未供給です')
+  ).rejects.toThrow('走者操作の要求・実応答が不一致です')
 })
 it('正式34例の32field/wireSHA/V7/V8全値をそのまま照合する', async () => {
   expect(vectors.cases).toHaveLength(34)

@@ -339,13 +339,231 @@ class BattedHitT1Input(_LineupWire):
     third_out_observation: Literal["none"] = Field(alias="thirdOutObservation")
 
 
+class _RunnerOfficialRef(_LineupWire):
+    """実在sourceへ後段で束縛する正式選手参照。"""
+
+    kind: Literal["official"]
+    player_id: CanonicalUuid
+
+
+class _RunnerTemporaryRef(_LineupWire):
+    """未解決temporaryをofficialへ補完しない。"""
+
+    kind: Literal["temporary"]
+    temporary_id: CanonicalUuid
+
+
+RunnerPlayerRef: TypeAlias = _RunnerOfficialRef | _RunnerTemporaryRef
+RunnerDestination: TypeAlias = Literal["first", "second", "third", "home"]
+
+
+class _RunnerHold(_LineupWire):
+    """明示された停止。"""
+
+    kind: Literal["hold"]
+    runner: RunnerPlayerRef
+
+
+class _RunnerSafe(_LineupWire):
+    """観測された到達塁。進塁計算はartifactだけが行う。"""
+
+    kind: Literal["safe-advance"]
+    runner: RunnerPlayerRef
+    destination: RunnerDestination
+
+
+class _RunnerOut(_LineupWire):
+    """観測されたアウトの原因と企図塁。"""
+
+    kind: Literal["out"]
+    runner: RunnerPlayerRef
+    attempted_base: RunnerDestination
+    out_kind: Literal[
+        "force-out",
+        "pitcher-pickoff-out",
+        "catcher-pickoff-out",
+        "caught-stealing",
+        "running-out",
+    ]
+
+
+RunnerOutcome: TypeAlias = _RunnerHold | _RunnerSafe | _RunnerOut
+
+
+class RunnerOutcomeMap(_LineupWire):
+    """正式partial map。省略を観測された停止へ補完しない。"""
+
+    first: RunnerOutcome | None = None
+    second: RunnerOutcome | None = None
+    third: RunnerOutcome | None = None
+
+    @model_validator(mode="after")
+    def _no_explicit_null(self) -> Self:
+        """省略と明示nullを区別する。"""
+        if any(getattr(self, key) is None for key in self.model_fields_set):
+            raise ValueError("走者結果の明示nullは禁止です")
+        return self
+
+
+class _NotApplicableRunnerEvent(_LineupWire):
+    """走者イベントを含まない明示タグ。"""
+
+    kind: Literal["not-applicable"]
+
+
+class _ExplicitRunnerEvent(_LineupWire):
+    """正式runner-event payload。未知語彙を正規化しない。"""
+
+    kind: Literal["runner-event"]
+    event_kind: Literal[
+        "strategy-category.steal",
+        "pitcher-pickoff-destination.first",
+        "pitcher-pickoff-destination.second",
+        "pitcher-pickoff-destination.third",
+        "catcher-pickoff-destination.first",
+        "catcher-pickoff-destination.second",
+        "catcher-pickoff-destination.third",
+    ]
+    by_runner: RunnerOutcomeMap
+
+
+class _NotAppliedRunnerOverride(_LineupWire):
+    """明示されたoverrideなし。"""
+
+    kind: Literal["not-applied"]
+
+
+class _ExplicitRunnerOverride(_LineupWire):
+    """起点別実結果を持つ正式override。"""
+
+    kind: Literal["overridden"]
+    by_runner: RunnerOutcomeMap
+
+
+class _RunnerNotRequired(_LineupWire):
+    """不足観測ではなく非該当である明示タグ。"""
+
+    kind: Literal["not-required"]
+
+
+class _RunnerNoThird(_LineupWire):
+    """第3アウトなし。"""
+
+    kind: Literal["none"]
+
+
+class _RunnerThirdOther(_LineupWire):
+    """第3アウトの実対象。"""
+
+    kind: Literal["other-third-out"]
+    out_person: RunnerPlayerRef
+
+
+class _RunnerThirdAppeal(_LineupWire):
+    """アピールアウトの実対象。"""
+
+    kind: Literal["missed-base-appeal"]
+    runner: RunnerPlayerRef
+
+
+class _RunnerThirdTiming(_LineupWire):
+    """正式partial時機map。未観測をbeforeへ補完しない。"""
+
+    first: Literal["home-before-third-out", "not-before-third-out"] | None = None
+    second: Literal["home-before-third-out", "not-before-third-out"] | None = None
+    third: Literal["home-before-third-out", "not-before-third-out"] | None = None
+    batter: Literal["home-before-third-out", "not-before-third-out"] | None = None
+
+    @model_validator(mode="after")
+    def _no_explicit_null(self) -> Self:
+        """省略だけを許し明示nullは拒否する。"""
+        if any(getattr(self, key) is None for key in self.model_fields_set):
+            raise ValueError("第三アウト時機の明示nullは禁止です")
+        return self
+
+
+class _RunnerNoError(_LineupWire):
+    """今回接続する既no-error形。誤記録を補修しない。"""
+
+    kind: Literal["no-error"]
+
+
+class _RunnerRbiNotRequired(_LineupWire):
+    """RBI因果の追加観測を必要としない閉範囲。"""
+
+    double_play_relay_error: Literal["not-required"] = Field(
+        alias="doublePlayRelayError"
+    )
+    runner_continuity: _RunnerNotRequired = Field(alias="runnerContinuityByRunner")
+    without_error: _RunnerNotRequired = Field(alias="wouldScoreWithoutErrorByRunner")
+    cause_by_runner: _RunnerNotRequired
+    restart_by_runner: _RunnerNotRequired
+
+
+class RunnerPerPitch(_LineupWire):
+    """既T1PerPitchPayloadV2の今回の閉部分集合。新意味を定義しない。"""
+
+    kind: Literal["batting-result", "secondary-result", "runner-event"]
+    pitch_event_kind: Literal["pitch-event", "non-pitch-event"] = Field(
+        alias="pitchEventKind"
+    )
+    result_id: str = Field(alias="resultId")
+    runner_event_payload: _NotApplicableRunnerEvent | _ExplicitRunnerEvent = Field(
+        alias="runnerEventPayload"
+    )
+    runner_advance_overrides: _NotAppliedRunnerOverride | _ExplicitRunnerOverride = (
+        Field(alias="runnerAdvanceOverridesByRunner")
+    )
+    third_out_observation: (
+        _RunnerNotRequired | _RunnerNoThird | _RunnerThirdOther | _RunnerThirdAppeal
+    ) = Field(alias="thirdOutObservation")
+    third_out_timing: _RunnerThirdTiming = Field(alias="thirdOutTimingByRunner")
+    interference_ruling: _RunnerNotRequired = Field(alias="interferenceRuling")
+    official_scoring: _RunnerNoError = Field(alias="officialScoringPayload")
+    rbi: _RunnerRbiNotRequired
+    home_touch_order: _RunnerNotRequired = Field(alias="homeTouchOrder")
+
+
+class RunnerObservation(_LineupWire):
+    """元perPitchと実投球の主結果。V7原文と独立に照合する。"""
+
+    per_pitch: RunnerPerPitch = Field(alias="perPitch")
+    primary_result_id: str | None = Field(alias="primaryResultId")
+
+
+class RunnerEventT1Input(_LineupWire):
+    """既v3入力を一般緩和しない、明示runner観測付きvariant。"""
+
+    event_kind: Literal["batting-result", "secondary-result", "runner-event"] = Field(
+        alias="eventKind"
+    )
+    result_id: str = Field(alias="resultId")
+    pitch_event_kind: Literal["pitch-event", "non-pitch-event"] = Field(
+        alias="pitchEventKind"
+    )
+    before: StrikeoutSnapshot
+    runner_observation: RunnerObservation = Field(alias="runnerObservation")
+
+    @model_validator(mode="after")
+    def _same_original_tags(self) -> Self:
+        """外側タグを原観測と一致させ、値を書き換えない。"""
+        p = self.runner_observation.per_pitch
+        if (p.kind, p.result_id, p.pitch_event_kind) != (
+            self.event_kind,
+            self.result_id,
+            self.pitch_event_kind,
+        ):
+            raise ValueError("走者観測と外側タグが不一致です")
+        return self
+
+
 class LineupPrefixRequest(_LineupWire):
     """旧ABIへ追加せず独立した閉要求。"""
 
     version: Literal["3"]
     prefix_ref: PrefixRef = Field(alias="prefixRef")
     rules: SavedRuleWire
-    t1: T1Input | BattedHitT1Input
+    t1: T1Input | BattedHitT1Input | RunnerEventT1Input
     source: Source
     play_identity: PlayIdentity = Field(alias="playIdentity")
     next_checkpoint: Checkpoint = Field(alias="nextCheckpoint")
@@ -413,10 +631,57 @@ class T1(_LineupWire):
     after: StrikeoutSnapshot
 
 
-class Value(_LineupWire):
+class _RunnerOutTarget(_LineupWire):
+    """実artifactが返したアウト起点塁。"""
+
+    runner: Literal["1", "2", "3"]
+
+
+class _RunnerOutEffect(_LineupWire):
+    """一般走者アウトの閉形。算出済みcountを写す。"""
+
+    count: Literal["0", "1", "2", "3"]
+    targets: tuple[Literal["batter"] | _RunnerOutTarget, ...] = Field(max_length=3)
+
+
+class _RunnerBatterNotApplicable(_LineupWire):
+    """走者だけの操作に対する打者非該当。"""
+
+    kind: Literal["not-applicable"]
+
+
+class RunnerT1(_LineupWire):
+    """明示runner入力に対応する実計算結果。旧T1型を緩和しない。"""
+
+    count_effect: _CountEffects = Field(alias="countEffect")
+    plate_appearance_ended: bool | Literal["not-applicable"] = Field(
+        alias="plateAppearanceEnded"
+    )
+    batter_destination: (
+        _Out
+        | _Reach
+        | _BattedReach
+        | _BattedScore
+        | BatterDestination
+        | _RunnerBatterNotApplicable
+    ) = Field(alias="batterDestination")
+    runner_default_advance: _LineupRunnerAdvances = Field(alias="runnerDefaultAdvance")
+    out_effect: _RunnerOutEffect = Field(alias="outEffect")
+    stat_flags: StatFlags = Field(alias="statFlags")
+    after: StrikeoutSnapshot
+
+
+class RunnerScoreEffect(_LineupWire):
+    """唯一核の本塁到達判定をT5へ写す根拠。Pythonで再計算しない。"""
+
+    base: Literal["1", "2", "3"]
+    valid_run: bool = Field(alias="validRun")
+    rbi_credited: bool = Field(alias="rbiCredited")
+
+
+class _ValueMetadata(_LineupWire):
     """全数学出力と実identityを保持する。"""
 
-    t1: T1
     t2: T2
     new_history_entry: StrikeoutHistoryEntry = Field(alias="newHistoryEntry")
     previous_prefix_ref: PrefixRef = Field(alias="previousPrefixRef")
@@ -433,21 +698,37 @@ class Value(_LineupWire):
     execution_artifact_sha256: Digest = Field(alias="executionArtifactSha256")
 
     @model_validator(mode="after")
-    def _require_new_cursor_head(self) -> Value:
+    def _require_new_cursor_head(self) -> Self:
         """v3新headのcursor面は必須。過去tail互換型を欠落許可へ流用しない。"""
+        t1 = getattr(self, "t1")
         cursors = self.new_history_entry.difference.batting_order_by_side
         if cursors is None or (
-            self.t1.plate_appearance_ended and not cursors.model_fields_set
+            t1.plate_appearance_ended is True and not cursors.model_fields_set
         ):
             raise ValueError("v3新headのcursor差分が必要です")
         return self
+
+
+class Value(_ValueMetadata):
+    """旧v3の閉応答。runner根拠を省略して受理しない。"""
+
+    t1: T1
+
+
+class RunnerValue(_ValueMetadata):
+    """明示runner操作だけの計算根拠付き閉応答。"""
+
+    t1: RunnerT1
+    runner_score_effects: tuple[RunnerScoreEffect, ...] = Field(
+        alias="runnerScoreEffects", max_length=3
+    )
 
 
 class LineupPrefixSuccess(_Envelope):
     """数学成功。DB資格/ACK/Readyを生成しない。"""
 
     ok: Literal[True]
-    value: Value
+    value: Value | RunnerValue
 
 
 class Error(_LineupWire):
@@ -556,7 +837,7 @@ def lineup_wire_head(
     v = response.value.model_dump(mode="json", by_alias=True, exclude_unset=True)
     n = v["nextPrefixRef"]
     s = r["source"]
-    return {
+    head = {
         "formatVersion": "play-prefix-wire-head-v3",
         "version": n["version"],
         "scope": n["scope"],
@@ -590,6 +871,15 @@ def lineup_wire_head(
         "beforeParticipants": v["beforeParticipants"],
         "participants": v["participants"],
     }
+
+    if type(request.t1) is RunnerEventT1Input:
+        if type(response.value) is not RunnerValue:
+            raise LineupPrefixProtocolError("走者観測に実算入根拠がありません")
+        head["runnerObservation"] = r["t1"]["runnerObservation"]
+        head["runnerScoreEffects"] = v["runnerScoreEffects"]
+    elif type(response.value) is RunnerValue:
+        raise LineupPrefixProtocolError("旧入力に走者算入根拠を混在できません")
+    return head
 
 
 def lineup_wire_digest(
@@ -879,17 +1169,16 @@ class NonplayLineupPrefixRequest(_LineupWire):
     version: Literal["nonplay-continuation-v1"]
     prefix_ref: Checkpoint = Field(alias="prefixRef")
     rules: SavedRuleWire
-    t1: T1Input | BattedHitT1Input
+    t1: T1Input | BattedHitT1Input | RunnerEventT1Input
     source: NonplaySource
     play_identity: PlayIdentity = Field(alias="playIdentity")
     next_checkpoint: Checkpoint = Field(alias="nextCheckpoint")
     source_position: SourcePosition = Field(alias="sourcePosition")
 
 
-class NonplayValue(_LineupWire):
+class _NonplayValueMetadata(_LineupWire):
     """全数学出力と実identityを保持する。"""
 
-    t1: T1
     t2: T2
     new_history_entry: StrikeoutHistoryEntry = Field(alias="newHistoryEntry")
     previous_prefix_ref: Checkpoint = Field(alias="previousPrefixRef")
@@ -906,21 +1195,37 @@ class NonplayValue(_LineupWire):
     execution_artifact_sha256: Digest = Field(alias="executionArtifactSha256")
 
     @model_validator(mode="after")
-    def _require_new_cursor_head(self) -> NonplayValue:
+    def _require_new_cursor_head(self) -> Self:
         """v3新headのcursor面は必須。過去tail互換型を欠落許可へ流用しない。"""
+        t1 = getattr(self, "t1")
         cursors = self.new_history_entry.difference.batting_order_by_side
         if cursors is None or (
-            self.t1.plate_appearance_ended and not cursors.model_fields_set
+            t1.plate_appearance_ended is True and not cursors.model_fields_set
         ):
             raise ValueError("v3新headのcursor差分が必要です")
         return self
+
+
+class NonplayValue(_NonplayValueMetadata):
+    """旧NP継続の閉応答。"""
+
+    t1: T1
+
+
+class RunnerNonplayValue(_NonplayValueMetadata):
+    """runner操作後のNP継続結果。"""
+
+    t1: RunnerT1
+    runner_score_effects: tuple[RunnerScoreEffect, ...] = Field(
+        alias="runnerScoreEffects", max_length=3
+    )
 
 
 class NonplayLineupPrefixSuccess(_Envelope):
     """新refは提案値であり保存成功/正式CP発行ではない。"""
 
     ok: Literal[True]
-    value: NonplayValue
+    value: NonplayValue | RunnerNonplayValue
 
 
 NonplayLineupPrefixResponse: TypeAlias = (

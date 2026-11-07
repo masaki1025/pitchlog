@@ -5,6 +5,7 @@ import {
   isLineupRecordingContext,
   type RecordingContext,
   type PlayScreenObservation,
+  type RecordingScreenObservation,
 } from './GameScreenOrdinaryPitchProvider'
 import { sameOrdinaryWire } from '../api/ordinaryPitchWire'
 import {
@@ -17,6 +18,8 @@ import {
   type LocalRecordingSession,
 } from '../lib/localRecordingSession'
 import GameScreenBattedHitObservation from './GameScreenBattedHitObservation.vue'
+import GameScreenRunnerEventObservation from './GameScreenRunnerEventObservation.vue'
+import type { RunnerObservationWire } from '../api/runnerEventWire'
 import type { BattedHitResult } from '../../../contracts/state-transition/lineup_play_prefix_payload_v1.d.ts'
 import StrikeZone from '../components/zone/StrikeZone.vue'
 import { useAuthStore } from '../stores/authStore'
@@ -37,6 +40,13 @@ const viewpoint = ref<'catcher' | 'pitcher'>('catcher')
 const selected = ref('')
 const resultId = ref<PlayScreenObservation['resultId']>('batting-result.ball')
 const nextBatterId = ref('')
+const runnerMode = ref(false)
+const runnerObservation = ref<RunnerObservationWire | null>(null)
+const runnerNonpitch = computed(
+  () =>
+    runnerMode.value &&
+    runnerObservation.value?.perPitch.pitchEventKind === 'non-pitch-event',
+)
 const hitResults: readonly string[] = [
   'batting-result.single',
   'batting-result.double',
@@ -103,6 +113,17 @@ const battedContextKey = computed(() => {
         resultId.value
     : ''
 })
+const runnerPeople = computed(() => {
+  const c = displayed.value
+  return isLineupRecordingContext(c)
+    ? c.lineupSource.runners.map((r) => ({
+        base: r.base,
+        runnerId: r.runnerId,
+        responsiblePitcherId: r.responsiblePitcherId,
+      }))
+    : []
+})
+
 const fielders = computed(
   () =>
     displayed.value.game.roster.teams
@@ -144,6 +165,10 @@ const nextBatters = computed(() => {
 const canAppend = ref(false)
 const retryEvidenceUnavailable = ref(false)
 const displayed = ref<RecordingContext>(structuredClone(toRaw(props.context)))
+watch([runnerMode, battedContextKey], () => {
+  runnerObservation.value = null
+  if (batted.value) runnerMode.value = false
+})
 watch([resultId, battedContextKey], () => {
   battedHit.value = null
 })
@@ -322,37 +347,53 @@ async function save() {
     !canAppend.value ||
     !confirmed.value ||
     (localRequested.value && (!activeLocalSession() || batted.value)) ||
-    !point.value ||
+    (runnerMode.value && runnerObservation.value === null) ||
+    (!runnerNonpitch.value && !point.value) ||
     (batted.value && (!hitAvailable.value || !battedHit.value)) ||
-    !items.value.some((i) => i.key === selected.value)
+    (!runnerNonpitch.value &&
+      !items.value.some((i) => i.key === selected.value))
   )
     return
   const current = controller
   busy.value = true
   try {
-    const observation: PlayScreenObservation = {
-      resultId: resultId.value,
-      battedHit: batted.value ? structuredClone(toRaw(battedHit.value)) : null,
-      nextBatter: terminal.value
-        ? (() => {
-            const p = nextBatters.value.find(
-              (p) => p.player.player_id === nextBatterId.value,
-            )
-            return p?.batting_slot.kind === 'slot'
-              ? {
-                  batterId: p.player.player_id,
-                  battingOrder: p.batting_slot.slot,
-                }
-              : null
-          })()
-        : null,
-      pitchTypeKey: selected.value,
-      screenX: point.value.x,
-      screenY: point.value.y,
-      view: viewpoint.value,
-      pitchSpeed: { kmh: null, outsideRangeConfirmed: false },
-      stance: null,
-      battingSide: null,
+    let observation: RecordingScreenObservation
+    if (runnerNonpitch.value && runnerObservation.value) {
+      observation = {
+        kind: 'non-pitch-event',
+        runnerEvent: structuredClone(toRaw(runnerObservation.value)),
+      }
+    } else {
+      if (!point.value) return
+      observation = {
+        resultId: resultId.value,
+        runnerEvent: runnerMode.value
+          ? structuredClone(toRaw(runnerObservation.value))
+          : null,
+        battedHit: batted.value
+          ? structuredClone(toRaw(battedHit.value))
+          : null,
+        nextBatter: terminal.value
+          ? (() => {
+              const p = nextBatters.value.find(
+                (p) => p.player.player_id === nextBatterId.value,
+              )
+              return p?.batting_slot.kind === 'slot'
+                ? {
+                    batterId: p.player.player_id,
+                    battingOrder: p.batting_slot.slot,
+                  }
+                : null
+            })()
+          : null,
+        pitchTypeKey: selected.value,
+        screenX: point.value.x,
+        screenY: point.value.y,
+        view: viewpoint.value,
+        pitchSpeed: { kmh: null, outsideRangeConfirmed: false },
+        stance: null,
+        battingSide: null,
+      }
     }
     const tenantId = identity().tenantId
     if (!tenantId) return
@@ -724,6 +765,28 @@ onScopeDispose(() => {
           </option>
         </select></label
       >
+      <label v-if="isLineupRecordingContext(displayed) && !batted" class="block"
+        ><input
+          v-model="runnerMode"
+          type="checkbox"
+          data-testid="runner-operation-enable"
+          :disabled="busy"
+        />走者操作を記録する</label
+      >
+      <GameScreenRunnerEventObservation
+        v-if="runnerMode && isLineupRecordingContext(displayed) && !batted"
+        :runners="runnerPeople"
+        :primary-result-id="resultId"
+        :source-key="battedContextKey"
+        :disabled="busy"
+        @confirmed="(value) => (runnerObservation = value)"
+      />
+      <p
+        v-if="runnerMode && runnerObservation"
+        data-testid="runner-observation-ready"
+      >
+        走者の実結果を確認しました。確定・保存はこれからです。
+      </p>
       <GameScreenBattedHitObservation
         v-if="batted && hitAvailable && !isLocalMode"
         :context-key="battedContextKey"
@@ -808,7 +871,11 @@ onScopeDispose(() => {
           <option value="pitcher">投手後方視点</option>
         </select></label
       >
-      <div class="max-w-sm" data-testid="first-ball-course">
+      <div
+        v-if="!runnerNonpitch"
+        class="max-w-sm"
+        data-testid="first-ball-course"
+      >
         <StrikeZone
           :point="point"
           plate-side=""
@@ -825,16 +892,23 @@ onScopeDispose(() => {
         :disabled="
           busy ||
           !confirmed ||
-          loading ||
-          failed ||
+          (!runnerNonpitch && (loading || failed)) ||
           (terminal && nextBatterId === '') ||
           (batted && (!hitAvailable || battedHit == null)) ||
-          selected === '' ||
-          point === null
+          (runnerMode && runnerObservation === null) ||
+          (!runnerNonpitch && (selected === '' || point === null))
         "
         @click="save"
       >
-        {{ isLocalMode ? '投球を端末に記録' : '投球を確定・保存' }}
+        {{
+          runnerNonpitch
+            ? isLocalMode
+              ? '走者操作を端末に記録'
+              : '走者操作を確定・保存'
+            : isLocalMode
+              ? '投球を端末に記録'
+              : '投球を確定・保存'
+        }}
       </button>
       <button
         v-if="intentionalWalkAvailable"

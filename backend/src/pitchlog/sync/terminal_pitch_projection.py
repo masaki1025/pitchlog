@@ -34,6 +34,7 @@ def runner_physical_rows(before_runners, *, t1, t1_input, tenant_id, play_id):
     from pitchlog.domainrt.lineup_play_prefix_continuation import (
         AppliedRunnerAdvanceOverrides,
         BattedHitT1Input,
+        RunnerEventT1Input,
     )
 
     slots = {"1": "first", "2": "second", "3": "third"}
@@ -42,7 +43,7 @@ def runner_physical_rows(before_runners, *, t1, t1_input, tenant_id, play_id):
         "2": {"3": "三進", "4": "本進"},
         "3": {"4": "本進"},
     }
-    overrides = {}
+    overrides: dict[str, str] = {}
     if type(t1_input) is BattedHitT1Input:
         observed = t1_input.runner_advance_overrides
         if type(observed) is AppliedRunnerAdvanceOverrides:
@@ -55,14 +56,57 @@ def runner_physical_rows(before_runners, *, t1, t1_input, tenant_id, play_id):
             raise OrdinaryPitchExecutionError
     if set(overrides) - {runner.base for runner in before_runners}:
         raise OrdinaryPitchExecutionError
-    if any(
-        getattr(target, "runner", None) is not None for target in t1.out_effect.targets
-    ):
-        # SO-05のout対象だけでは盗塁死等の観測原因を固定できない。
+    runner_observed = {}
+    out_statuses = {
+        "force-out": "封殺",
+        "pitcher-pickoff-out": "投手牽制死",
+        "catcher-pickoff-out": "捕手牽制死",
+        "caught-stealing": "盗塁死",
+        "running-out": "走塁死",
+    }
+    out_bases = {
+        target.runner
+        for target in t1.out_effect.targets
+        if getattr(target, "runner", None) is not None
+    }
+    if type(t1_input) is RunnerEventT1Input:
+        p = t1_input.runner_observation.per_pitch
+        by_runner = getattr(p.runner_event_payload, "by_runner", None)
+        if by_runner is None:
+            by_runner = getattr(p.runner_advance_overrides, "by_runner", None)
+        if by_runner is None:
+            raise OrdinaryPitchExecutionError
+        for runner in before_runners:
+            observed = getattr(by_runner, slots[runner.base])
+            if observed is None:
+                continue
+            if (
+                observed.runner.kind != "official"
+                or observed.runner.player_id != runner.runner_id
+            ):
+                raise OrdinaryPitchExecutionError
+            runner_observed[runner.base] = observed
+            if observed.kind == "safe-advance":
+                overrides[runner.base] = {
+                    "first": "1",
+                    "second": "2",
+                    "third": "3",
+                    "home": "4",
+                }[observed.destination]
+        if out_bases != {
+            base for base, observed in runner_observed.items() if observed.kind == "out"
+        }:
+            raise OrdinaryPitchExecutionError
+    elif out_bases:
+        # 旧SO05のout対象だけでは観測原因を固定できない。
         raise OrdinaryPitchExecutionError
     results = {}
     for runner in before_runners:
         effect = getattr(t1.runner_default_advance, slots[runner.base])
+        if runner.base in out_bases:
+            observed = runner_observed[runner.base]
+            results[runner.base] = (out_statuses[observed.out_kind], "manual")
+            continue
         if effect.modality == "not-applicable":
             raise OrdinaryPitchExecutionError
         if effect.modality == "hold":
@@ -74,7 +118,7 @@ def runner_physical_rows(before_runners, *, t1, t1_input, tenant_id, play_id):
             if destination not in labels[runner.base]:
                 raise OrdinaryPitchExecutionError
             if (
-                type(t1_input) is BattedHitT1Input
+                type(t1_input) in {BattedHitT1Input, RunnerEventT1Input}
                 and overrides.get(runner.base) != destination
             ):
                 raise OrdinaryPitchExecutionError
@@ -156,12 +200,8 @@ def build_play_prefix_preparation(state, record, tenant_id):
     bridge = previous.get("bridge_origin") or request.source.bridge.model_dump(
         mode="json", by_alias=True
     )
-    pa_start = (
-        {"kind": "confirmed-play", "id": identity.event_id}
-        if response.t1.plate_appearance_ended
-        else request.source.responsibility.pa_start_source.model_dump(
-            mode="json", by_alias=True
-        )
+    pa_start = response.next_responsibility.pa_start_source.model_dump(
+        mode="json", by_alias=True
     )
     after = {
         "version": "2",

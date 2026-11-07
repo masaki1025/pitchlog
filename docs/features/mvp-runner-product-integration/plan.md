@@ -23,3 +23,5 @@ rootが本WTの唯一writer。編集対象は元35pathと後発同scope、唯一
 非投球の打席非該当は既XC-05/XC-07を保存し、CSV17/61/62は根拠付きNULL、半回/終了は既保存T2。盗塁複数塁など未対応、球種未取得の断中NP、一般併殺/失策/妨害等のMVP残件は単位成功と別に残す。単一実装/認可/記録権/原子性/冪等/再送/結果不明保証を省略せず、新しい意味判断だけを既判断票へ集約する。
 
 独立計画確認: game_operations_final_independentがb9b1dc60を確認し、旧count/RBI共有ループ変更に対する全既採用数学入力/出力の一致をstep2へ追記するよう要求。この指定どおり反映し、PO委任rootが本固定版を採用（本人の確認/署名ではない）。aa8 sourceのSO05 P1、通常48配置、artifact/実保存の未了は維持する。
+
+接合中の競合はlineupPrefixWire.tsだけ。rootの『未供給runner全拒否』を作者の原観測/実応答/schema/封印を確認する実SDK委譲へ置換し、同追加negativeは未供給文言でなく不正観測の拒否へ追随する。parent select/SO05 P1は作者後発修復待ち、まだsource採用/実画面成功ではない。root元71の診断は別WTで凍結し、本WTの型接合で実測sourceを変更しない。

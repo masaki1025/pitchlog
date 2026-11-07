@@ -49,7 +49,11 @@ def pitch_physical_row(
     from pitchlog.sync.first_ball_payload import FirstBallObservations
     from pitchlog.sync.nonpitch_payload import IntentionalWalkObservations
     from pitchlog.sync.ordinary_pitch_payload import OrdinaryPitchParticipants
-    from pitchlog.sync.terminal_pitch_payload import BattedHitPlayObservations
+    from pitchlog.sync.terminal_pitch_payload import (
+        BattedHitPlayObservations,
+        RunnerNonpitchPlayObservations,
+        RunnerPitchPlayObservations,
+    )
 
     if type(observations) is IntentionalWalkObservations:
         from pitchlog.sync.nonpitch_execution import intentional_walk_physical_row
@@ -65,13 +69,30 @@ def pitch_physical_row(
             play_number=play_number,
         )
 
+    runner_observation = None
+    nonpitch_runner = type(observations) is RunnerNonpitchPlayObservations
+    if type(observations) in {
+        RunnerPitchPlayObservations,
+        RunnerNonpitchPlayObservations,
+    }:
+        runner_observation = observations.runner_observation
+        per_pitch = runner_observation.per_pitch
+        if per_pitch.result_id != result_id or (
+            (per_pitch.pitch_event_kind == "non-pitch-event") != nonpitch_runner
+        ):
+            raise ValueError("走者操作の原値と投球区分が不一致")
     if (
-        type(observations) not in {FirstBallObservations, BattedHitPlayObservations}
+        type(observations)
+        not in {
+            FirstBallObservations,
+            BattedHitPlayObservations,
+            RunnerPitchPlayObservations,
+            RunnerNonpitchPlayObservations,
+        }
         or type(people) is not OrdinaryPitchParticipants
         or type(result_id) is not str
     ):
         raise ValueError("物理mapperの実型が不正")
-    speed = observations.pitch_speed.kmh
     row = {
         **dict.fromkeys(_NULL_COLUMNS),
         "tenant_id": str(tenant_id),
@@ -80,20 +101,56 @@ def pitch_physical_row(
         "source_event_id": str(source_event_id),
         "play_number": play_number,
         "batting_order": int(people.batting_order),
-        "event_kind": "pitch",
-        "batting_result_key": result_id,
+        "event_kind": "non_pitch" if nonpitch_runner else "pitch",
         "version": 1,
         "migration_unverified": False,
         "batter_id": people.batter_id,
         "pitcher_id": people.pitcher_id,
         "catcher_id": people.catcher_id,
-        "pitch_type_key": observations.pitch_type_key,
-        "course_x": course_unit_to_double(observations.course.x),
-        "course_y": course_unit_to_double(observations.course.y),
-        "pitch_speed": None if speed is None else float(speed),
-        "stance": observations.stance,
-        "batting_side": observations.batting_side,
     }
+    if nonpitch_runner:
+        row.update(
+            {
+                "pitch_type_key": None,
+                "course_x": None,
+                "course_y": None,
+                "pitch_speed": None,
+                "stance": None,
+                "batting_side": None,
+            }
+        )
+    if not nonpitch_runner:
+        speed = observations.pitch_speed.kmh
+        row.update(
+            {
+                "batting_result_key": result_id,
+                "pitch_type_key": observations.pitch_type_key,
+                "course_x": course_unit_to_double(observations.course.x),
+                "course_y": course_unit_to_double(observations.course.y),
+                "pitch_speed": None if speed is None else float(speed),
+                "stance": observations.stance,
+                "batting_side": observations.batting_side,
+            }
+        )
+    if runner_observation is not None:
+        per_pitch = runner_observation.per_pitch
+        # 正式主結果/副結果をそれぞれの列へ写し、走者語彙を打撃語彙へ偽装しない。
+        row["batting_result_key"] = runner_observation.primary_result_id
+        if per_pitch.kind == "batting-result":
+            row["batting_result_key"] = per_pitch.result_id
+        if per_pitch.kind == "secondary-result":
+            row["secondary_batting_result_key"] = per_pitch.result_id
+        event = getattr(per_pitch.runner_event_payload, "event_kind", None)
+        pickoffs = {
+            "pitcher-pickoff-destination.first": ("pitcher", "first"),
+            "pitcher-pickoff-destination.second": ("pitcher", "second"),
+            "pitcher-pickoff-destination.third": ("pitcher", "third"),
+            "catcher-pickoff-destination.first": ("catcher", "first"),
+            "catcher-pickoff-destination.second": ("catcher", "second"),
+            "catcher-pickoff-destination.third": ("catcher", "third"),
+        }
+        if event in pickoffs:
+            row["pickoff_type"], row["pickoff_detail"] = pickoffs[event]
     if type(observations) is BattedHitPlayObservations:
         if observations.result_id != result_id:
             raise ValueError("打球の結果原本が不一致")

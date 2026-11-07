@@ -1,6 +1,6 @@
 import { canonicalUuid } from '../api/authIntent'
 import type { SyncEventRequestBody } from '../api/client.syncEvents'
-import type { PlayScreenObservation } from '../screens/GameScreenOrdinaryPitchProvider'
+import type { RecordingScreenObservation } from '../screens/GameScreenOrdinaryPitchProvider'
 import type { SyncEvent } from './sync/syncEvent'
 
 const DATABASE = 'pitchlog-ordinary-prepared-envelope-v1'
@@ -20,7 +20,7 @@ export type PreparedEnvelope = PreparedEnvelopeKey &
     schemaVersion: 1
     d5: string
     attemptId: string
-    observation: PlayScreenObservation
+    observation: RecordingScreenObservation
     vocabulary: Readonly<{ tenantId: string; pitchTypeKeys: readonly string[] }>
     event: SyncEvent
     requestBody: SyncEventRequestBody

@@ -41,6 +41,11 @@ export type Rule = {
   strikeDelta: bigint
   ballEffect: CountEffectKind
   ballDelta: bigint
+  /** 明示操作の投球区分。旧規則は従前の結果区分を維持する。 */
+  pitchEventKind?: 'pitch-event' | 'non-pitch-event'
+  /** OUT3/T2が同じ唯一核で確定した有効生還だけを算入する内部mask。 */
+  validRunnerScoreBases?: Array<string>
+  scoringEvidence?: boolean
 }
 
 /** 遷移前後の状態（契約の `state.*` と同じ意味）。 */
@@ -115,6 +120,12 @@ export type Derived = {
   runnerDefaultAdvance: { first: Advance; second: Advance; third: Advance }
   outEffect: { count: bigint; targets: Array<Target> }
   statFlags: StatFlags
+  /** 同じ算入処理が出す根拠。旧T1の公開ABIへ無条件には追加しない。 */
+  runnerScoreEffects?: Array<{
+    base: bigint
+    validRun: boolean
+    rbiCredited: boolean
+  }>
   history: {
     ballsBefore: bigint
     ballsAfter: bigint

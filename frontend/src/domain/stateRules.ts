@@ -1,4 +1,4 @@
-import type { Rule } from './stateTypes'
+import type { Rule, StateFields } from './stateTypes'
 
 /** 正式ball行だけを再利用する。未対応結果は呼出前に拒否する。 */
 export const FIRST_BALL_RULE: Rule = {
@@ -62,4 +62,40 @@ export const TERMINAL_OUT_RULE: Rule = {
   strikeDelta: 0n,
   ballEffect: 'reset',
   ballDelta: 0n,
+}
+
+/** 既通常球のカウント規則を選ぶ。状態/boardの共通検査は呼出元で行う。 */
+export function ordinaryCountRule(
+  before: StateFields,
+  resultId: string,
+  pitchEventKind: string,
+): Rule | null {
+  if (
+    pitchEventKind !== 'pitch-event' ||
+    before.strikes < 0n ||
+    before.balls < 0n
+  )
+    return null
+  if (resultId === 'batting-result.ball') {
+    if (before.strikes > 2n || before.balls > 2n) return null
+    return FIRST_BALL_RULE
+  }
+  if (
+    resultId !== 'batting-result.called-pitch' &&
+    resultId !== 'batting-result.swinging-strike' &&
+    resultId !== 'batting-result.foul'
+  )
+    return null
+  if (
+    resultId === 'batting-result.foul' &&
+    before.strikes === 2n &&
+    before.balls <= 3n
+  ) {
+    const holdRule: Rule = Object.assign({}, ORDINARY_STRIKE_RULE)
+    holdRule.strikeEffect = 'unchanged'
+    holdRule.strikeDelta = 0n
+    return holdRule
+  }
+  if (before.strikes > 1n || before.balls > 3n) return null
+  return ORDINARY_STRIKE_RULE
 }

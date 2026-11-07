@@ -1,3 +1,9 @@
+import {
+  isRunnerRequest,
+  isRunnerSuccess,
+  formatRunnerEventWire,
+} from './runnerEventWire'
+import type { RunnerRequest, RunnerSuccess, RunnerV7 } from './runnerEventWire'
 import schema from '../../../contracts/state-transition/lineup_play_prefix_payload_schema_v1.json'
 import type {
   Request,
@@ -8,7 +14,6 @@ import type {
   LineupPlayPrefixV8,
   BattedHitObservations,
   IntentionalWalkPlayPrefixV7,
-  RunnerNormalPlayPrefixV7,
 } from '../../../contracts/state-transition/lineup_play_prefix_payload_v1'
 import type {
   Observations,
@@ -45,10 +50,13 @@ export function isLineupSpikeDefinition<T>(
   return isClosedPlaySchema<T>(value, lineupPrefixSpikeSchema, name)
 }
 /** 自己echo二欄以外の正式32fieldを保存側と同じ形で束縛する。 */
-export function lineupWireHead(q: Request, response: Success) {
+export function lineupWireHead(
+  q: Request | RunnerRequest,
+  response: Success | RunnerSuccess,
+) {
   if (
-    !isLineupSpikeDefinition<Request>(q, 'Request') ||
-    !isLineupSpikeDefinition<Success>(response, 'Success')
+    !isLineupSpikeDefinition<Request | RunnerRequest>(q, 'Request') ||
+    !isLineupSpikeDefinition<Success | RunnerSuccess>(response, 'Success')
   )
     throw new Error('打席の要求・応答を確認できません')
   const v = response.value,
@@ -65,7 +73,7 @@ export function lineupWireHead(q: Request, response: Success) {
     v.executionArtifactSha256 !== s.executionArtifactSha256
   )
     throw new Error('打席の実応答を確認できません')
-  return {
+  const head = {
     formatVersion: 'play-prefix-wire-head-v3',
     version: n.version,
     scope: n.scope,
@@ -99,24 +107,36 @@ export function lineupWireHead(q: Request, response: Success) {
     beforeParticipants: v.beforeParticipants,
     participants: v.participants,
   }
+  if ('runnerObservation' in q.t1) {
+    if (!('runnerScoreEffects' in v))
+      throw new Error('走者計算の算入根拠を確認できません')
+    return {
+      ...head,
+      runnerObservation: q.t1.runnerObservation,
+      runnerScoreEffects: v.runnerScoreEffects,
+    }
+  }
+  if ('runnerScoreEffects' in v)
+    throw new Error('旧入力に走者計算を混在できません')
+  return head
 }
-export async function sealLineupMetadata(request: Request, response: Success) {
+export async function sealLineupMetadata<
+  Q extends Request | RunnerRequest,
+  R extends Success | RunnerSuccess,
+>(request: Q, response: R) {
   const digest = await playHash(lineupWireHead(request, response))
   return {
-    request: {
-      ...structuredClone(request),
+    request: Object.assign(structuredClone(request), {
       nextCheckpoint: { ...request.nextCheckpoint, digest },
-    },
-    response: {
-      ok: true as const,
-      value: {
-        ...structuredClone(response.value),
+    }),
+    response: Object.assign(structuredClone(response), {
+      value: Object.assign(structuredClone(response.value), {
         nextPrefixRef: {
           ...response.value.nextPrefixRef,
           checkpoint: { ...response.value.nextPrefixRef.checkpoint, digest },
         },
-      },
-    },
+      }),
+    }),
   }
 }
 export async function formatLineupPrefixWire(
@@ -127,12 +147,14 @@ export async function formatLineupPrefixWire(
     | BattedHitObservations
     | BattedHitWireObservations
     | IntentionalWalkObservation
-    | RunnerNormalPlayPrefixV7['observations'],
+    | RunnerV7['observations'],
   participants: Participants,
 ): Promise<{ payload: LineupPlayPrefixV7; stateDiff: LineupPlayPrefixV8 }> {
-  // 型接合だけで未供給の走塁封印・保存を成功扱いにしない。
-  if ('runnerObservation' in observations)
-    throw new Error('走塁の保存接続は未供給です')
+  if ('runnerObservation' in observations) {
+    if (!isRunnerRequest(request) || !isRunnerSuccess(response))
+      throw new Error('走者操作の要求・実応答が不一致です')
+    return formatRunnerEventWire(request, response, observations, participants)
+  }
   const digest = await playHash(lineupWireHead(request, response))
   const payload = {
     formatVersion: 'play-prefix-play-v3',

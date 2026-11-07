@@ -76,6 +76,7 @@ import {
   type PreparedOrdinaryPitch,
   type RecordingContext,
   type PlayScreenObservation,
+  type RecordingScreenObservation,
   type PreparedPlayPrefix,
   isPlayRecordingContext,
   preparePlayPrefix,
@@ -796,13 +797,19 @@ export class GameScreenOrdinaryPitchController {
     }
   }
   async submit(
-    observation: PlayScreenObservation | 'intentional-walk',
+    observation: RecordingScreenObservation | 'intentional-walk',
     vocabulary: Readonly<{
       tenantId: string
       pitchTypeKeys: readonly string[]
     }>,
   ): Promise<OrdinaryOperationResult> {
     if (this.#localBoundary) return 'blocked'
+    if (
+      typeof observation === 'object' &&
+      'kind' in observation &&
+      !isLineupRecordingContext(this.#context)
+    )
+      return 'blocked'
     if (
       observation === 'intentional-walk' &&
       !isLineupRecordingContext(this.#context)
@@ -918,13 +925,15 @@ export class GameScreenOrdinaryPitchController {
   }
   /** 同ゲーム排他と読取専用auth lease内で原文を先に耐久固定し、HTTPなしでE0追記する。 */
   async localEnqueue(
-    observation: PlayScreenObservation,
+    observation: RecordingScreenObservation,
     vocabulary: Readonly<{
       tenantId: string
       pitchTypeKeys: readonly string[]
     }>,
   ): Promise<LocalOrdinaryResult> {
     if (!this.#localBoundary || this.#busy || this.#disposed) return 'blocked'
+    if ('kind' in observation && !isLineupRecordingContext(this.#context))
+      return 'blocked'
     this.#busy = true
     let appendStarted = false
     let accepted = false

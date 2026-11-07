@@ -16,6 +16,8 @@ from pitchlog.domainrt.lineup_play_prefix_continuation import (
     LineupPrefixSuccess,
     NonplayLineupPrefixRequest,
     NonplayLineupPrefixSuccess,
+    RunnerEventT1Input,
+    RunnerObservation,
     verify_lineup_wire_seal,
 )
 from pitchlog.domainrt.play_prefix_continuation import (
@@ -245,6 +247,8 @@ class NonplayPitchCalculation(_Frozen):
     @model_validator(mode="after")
     def _normal_only(self):
         """閉normal profileで未提供の打球/非投球を暗黙有効化しない。"""
+        if type(self.request.t1) is RunnerEventT1Input:
+            return self
         if (
             self.request.t1.result_id != "batting-result.ball"
             or self.request.t1.pitch_event_kind != "pitch-event"
@@ -355,12 +359,29 @@ class BattedHitPlayObservations(FirstBallObservations):
     )
 
 
+class RunnerPitchPlayObservations(FirstBallObservations):
+    """実投球観測と正式perPitchを持つ明示走者操作。"""
+
+    runner_observation: RunnerObservation = Field(alias="runnerObservation")
+
+
+class RunnerNonpitchPlayObservations(_Frozen):
+    """投球を行わない操作。球種/コースを仮値で補わない。"""
+
+    kind: Literal["non-pitch-event"]
+    runner_observation: RunnerObservation = Field(alias="runnerObservation")
+
+
 class LineupPitchPlayPayload(_Frozen):
     """V7のbefore参加者/実観測と実一回計算。V8は差分のまま。"""
 
     format_version: Literal["play-prefix-play-v3"] = Field(alias="formatVersion")
     observations: (
-        FirstBallObservations | BattedHitPlayObservations | IntentionalWalkObservations
+        FirstBallObservations
+        | BattedHitPlayObservations
+        | IntentionalWalkObservations
+        | RunnerPitchPlayObservations
+        | RunnerNonpitchPlayObservations
     )
     participants: OrdinaryPitchParticipants
     calculation: LineupPitchCalculation | NonplayPitchCalculation = Field(
@@ -370,10 +391,13 @@ class LineupPitchPlayPayload(_Frozen):
     @model_validator(mode="after")
     def _closed_nonplay_observation(self):
         """通常観測を別profileの打球裁定で代用しない。"""
-        if (
-            type(self.calculation) is NonplayPitchCalculation
-            and type(self.observations) is not FirstBallObservations
-        ):
+        if type(self.calculation) is NonplayPitchCalculation and type(
+            self.observations
+        ) not in {
+            FirstBallObservations,
+            RunnerPitchPlayObservations,
+            RunnerNonpitchPlayObservations,
+        }:
             raise ValueError("非play後normal観測以外")
         return self
 
@@ -398,7 +422,25 @@ def read_lineup_pitch_payload(raw_v7, raw_v8, *, expected_calculation):
             require_batted_hit_observations,
         )
 
-        if type(payload.observations) is IntentionalWalkObservations:
+        if type(request.t1) is RunnerEventT1Input:
+            if type(payload.observations) not in {
+                RunnerPitchPlayObservations,
+                RunnerNonpitchPlayObservations,
+            }:
+                raise ValueError
+            if not isinstance(
+                payload.observations,
+                (RunnerPitchPlayObservations, RunnerNonpitchPlayObservations),
+            ):
+                raise ValueError
+            observation = payload.observations.runner_observation
+            if observation != request.t1.runner_observation:
+                raise ValueError
+            if (request.t1.pitch_event_kind == "pitch-event") != (
+                type(payload.observations) is RunnerPitchPlayObservations
+            ):
+                raise ValueError
+        elif type(payload.observations) is IntentionalWalkObservations:
             from pitchlog.sync.nonpitch_payload import (
                 require_intentional_walk_observation,
             )
@@ -417,8 +459,13 @@ def read_lineup_pitch_payload(raw_v7, raw_v8, *, expected_calculation):
             request = payload.calculation.request
             response = payload.calculation.response
             if (
-                type(payload.observations) is not FirstBallObservations
-                or request.t1.result_id != "batting-result.ball"
+                (
+                    type(request.t1) is not RunnerEventT1Input
+                    and (
+                        type(payload.observations) is not FirstBallObservations
+                        or request.t1.result_id != "batting-result.ball"
+                    )
+                )
                 or request.prefix_ref != request.source.checkpoint.ref
                 or response.value.previous_prefix_ref != request.prefix_ref
                 or response.value.next_prefix_ref != request.next_checkpoint

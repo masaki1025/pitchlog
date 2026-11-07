@@ -52,6 +52,74 @@ def _course_screen(
     """受理済V7の正準k、又は非投球の未観測を保存行へ照合する。"""
     observations = payload.get("observations")
     if play is not None and play.get("event_kind") == "non_pitch":
+        if type(observations) is dict and observations.get("kind") == "non-pitch-event":
+            from pitchlog.domainrt.lineup_play_prefix_continuation import (
+                RunnerEventT1Input,
+            )
+            from pitchlog.sync.terminal_pitch_payload import (
+                LineupPitchPlayPayload,
+                RunnerNonpitchPlayObservations,
+            )
+
+            try:
+                raw = json.dumps(payload, allow_nan=False, sort_keys=True)
+                parsed = LineupPitchPlayPayload.model_validate_json(raw)
+                if (
+                    json.dumps(
+                        parsed.model_dump(
+                            mode="json", by_alias=True, exclude_unset=True
+                        ),
+                        sort_keys=True,
+                    )
+                    != raw
+                ):
+                    raise PlayExportIdentityUnavailable
+                request = parsed.calculation.request
+                if (
+                    type(parsed.observations) is not RunnerNonpitchPlayObservations
+                    or type(request.t1) is not RunnerEventT1Input
+                ):
+                    raise PlayExportIdentityUnavailable
+                original = request.t1.runner_observation
+                p = original.per_pitch
+                if (
+                    parsed.observations.runner_observation != original
+                    or original.primary_result_id is not None
+                    or request.t1.pitch_event_kind != "non-pitch-event"
+                ):
+                    raise PlayExportIdentityUnavailable
+                if any(
+                    column not in play or play[column] is not None
+                    for column in (
+                        "course_x",
+                        "course_y",
+                        "pitch_type_key",
+                        "pitch_speed",
+                        "stance",
+                        "batting_side",
+                    )
+                ):
+                    raise PlayExportIdentityUnavailable
+                if play["batting_result_key"] is not None:
+                    raise PlayExportIdentityUnavailable
+                if p.kind == "secondary-result":
+                    if (
+                        p.result_id != "secondary-result.balk"
+                        or play["secondary_batting_result_key"] != p.result_id
+                    ):
+                        raise PlayExportIdentityUnavailable
+                elif p.kind == "runner-event":
+                    event = getattr(p.runner_event_payload, "event_kind", None)
+                    if (
+                        p.result_id != event
+                        or play["secondary_batting_result_key"] is not None
+                    ):
+                        raise PlayExportIdentityUnavailable
+                else:
+                    raise PlayExportIdentityUnavailable
+                return None, None
+            except (ValueError, KeyError, TypeError):
+                raise PlayExportIdentityUnavailable from None
         try:
             if (
                 payload["formatVersion"] != "play-prefix-play-v3"
