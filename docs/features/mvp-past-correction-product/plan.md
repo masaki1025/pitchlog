@@ -85,3 +85,5 @@ R46の隔離HTTPS/PGでは、正規D4の三球→過去KをballへP3訂正→同
 最小正負対向は26球で対象D1=1/25/26、ページ境界25→26、同D5再掲・別本文、欠落/重複/順序逆転/古いcursor/異なるhead・tenant・世代/途中故障全取消、T5旧新版のsource件数・指標差/現在pointer、GET/reload/次球である。複数P3、旧世代、終了後訂正、後続非通常操作はこの25件超witnessから成功へ推測拡張しないが、MVP残件として引き続き実装する。
 
 T4接合は既content Portに書込関数を増やさない。第1走は読取専用で全ページを既唯一核に通し、固定CP/対象1件/元・有効系列の逐次sealだけ保持する。真正T2後の同TXで第2走を同一核へ通し、専用 `begin/append(最大25件)/finalize` の私有関数で候補を保存する。各関数は同attempt/phase/binding/transaction/game lockを再検査し、buildingのままのcommitをdeferred guardで拒否する。第2走のseal・元末尾・訂正後末尾・各原本/T5と第1走が一致した場合だけ、元CP CAS、現T5版/終了pointer、P3 headを不可分に公開する。`read_p3_current` は全件JSONを返さずheaderとkeyset pageへ分け、次球/LC/Undo/Sub/CSVも同じ選択規則を使う。実SQL/ACL/モデル/0048正式配置はroot直列、P3候補builderと私有ページ関数は本ステップの作者範囲へ追加する。旧凍結SQL候補は上書きせずpaging専用packetに分ける。
+
+実HTTPの26球（見逃し2球、通常ファウル23球、見逃し三振1球）は保存まで成立したが、P3準備の旧原本許容集合がファウルを拒否した。対象の置換結果は既有限ball/called pitchのまま、**元原本carryだけ**に既採用ファウルを追加し、唯一hostで元応答全値を再検証する。未知結果・偽造位置/応答は閉拒否を維持し、26球純対向で元結果全26件と対象K→ballを確かめる。これはSO-04のバント三振や新たな野球分岐の採用ではない。

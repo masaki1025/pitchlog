@@ -153,7 +153,9 @@ def _two_saved(host: NodeDomainHost) -> tuple[SavedLineupPitch, SavedLineupPitch
     return saved(_ID1, 1, q1, r1), saved(_ID2, 2, q2, r2)
 
 
-def _twenty_six_saved(host: NodeDomainHost) -> tuple[SavedLineupPitch, ...]:
+def _twenty_six_saved(
+    host: NodeDomainHost, *, fouls_before_target: bool = False
+) -> tuple[SavedLineupPitch, ...]:
     """既唯一hostの連続成功値だけから26球の旧原本を構成する。"""
     saved = list(_two_saved(host))
     previous = saved[-1].calculation.response
@@ -174,7 +176,9 @@ def _twenty_six_saved(host: NodeDomainHost) -> tuple[SavedLineupPitch, ...]:
         request_value["nextCheckpoint"]["revision"] = str(d1 + 1)
         template = decode_lineup_prefix_request(json.dumps(request_value))
         result = (
-            "batting-result.called-strikeout"
+            "batting-result.foul"
+            if fouls_before_target and d1 < 26
+            else "batting-result.called-strikeout"
             if previous.value.t1.after.state_fields.strikes == "2"
             else "batting-result.called-pitch"
         )
@@ -351,6 +355,44 @@ def test_v3_target_26_uses_two_bounded_pages_and_the_same_real_host() -> None:
     assert state.last_d1 == 26
     assert state.previous_original == old[25].calculation.response
     assert state.previous_corrected == second[0].corrected_response
+
+
+def test_v3_target_26_carries_real_two_strike_fouls_without_new_math() -> None:
+    """既保存ファウル23球を同じ唯一hostで照合し、対象三振だけを変更する。"""
+    with _host() as host:
+        old = _twenty_six_saved(host, fouls_before_target=True)
+        assert tuple(row.calculation.request.t1.result_id for row in old) == (
+            ("batting-result.called-pitch",) * 2
+            + ("batting-result.foul",) * 23
+            + ("batting-result.called-strikeout",)
+        )
+        state, first = _evaluate_page(
+            old[:25], "batting-result.ball", (), host, CorrectionPageState(),
+            target_d1=26,
+        )
+        state, second = _evaluate_page(
+            old[25:], "batting-result.ball", (UUID(int=9901),), host,
+            state, target_d1=26,
+        )
+    assert first == () and len(second) == 1
+    assert state.last_d1 == 26
+    assert second[0].corrected_request.t1.result_id == "batting-result.ball"
+
+
+def test_v3_original_unknown_result_remains_closed() -> None:
+    """原本結果の未知IDを既保存成功へ読み替えない。"""
+    with _host() as host:
+        first, second = _two_saved(host)
+        forged = first.calculation.model_dump(mode="json", by_alias=True)
+        forged["request"]["t1"]["resultId"] = "batting-result.unknown"
+        with pytest.raises((ValueError, LineupCorrectionUnsupported)):
+            calculation = LineupPitchCalculation.model_validate(forged)
+            _evaluate(
+                (replace(first, calculation=calculation), second),
+                "batting-result.ball",
+                (_NEW1, _NEW2),
+                host,
+            )
 
 
 def test_v3_corrected_payload_keeps_downstream_observations_and_explicit_target() -> (

@@ -119,6 +119,7 @@ def _bound_original(
             "batting-result.ball",
             "batting-result.called-pitch",
             "batting-result.called-strikeout",
+            "batting-result.foul",
         }
     ):
         raise LineupCorrectionUnsupported("保存済みv3原本と位置が不一致")
