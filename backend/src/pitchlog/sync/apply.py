@@ -713,6 +713,7 @@ def _apply_e1_f1(
         _E1CoreSource,
         _receipt_for_entry,
         e1_event_source,
+        receipt_body_fingerprint,
     )
 
     state = _receipt_for_entry(receipt, entry_token)
@@ -728,6 +729,15 @@ def _apply_e1_f1(
         or type(control) is not BindingControl
     ):
         raise SourceBindingError("E1の入力又は文脈が不正")
+    # 登録する全本文指紋をcallerの値から信用せず、真正受付から毎回導出する。
+    from dataclasses import replace
+
+    body_fingerprint = receipt_body_fingerprint(receipt, entry_token)
+    if phase.attempt.body_fingerprint not in (None, body_fingerprint):
+        raise SourceBindingError("E1の全本文束縛が不一致")
+    phase = replace(
+        phase, attempt=replace(phase.attempt, body_fingerprint=body_fingerprint)
+    )
     if not _read_reference_device_state(context, reference_device):
         return "B5"
     if not game_accessible(context, UUID(request.game_id), tenant_transaction_scope):

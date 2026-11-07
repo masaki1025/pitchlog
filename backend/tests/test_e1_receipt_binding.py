@@ -122,3 +122,94 @@ def test_missing_entry_token_is_rejected_at_issue() -> None:
     with pytest.raises(SourceBindingError):
         with _scope(entry_token=None):
             pass
+
+
+@pytest.mark.parametrize("changed", ["d4.2.changed", None, {"key": "different"}])
+def test_recovery_body_covers_v12_without_changing_event_identity(changed):
+    """V12変更を独立束縛し、業務D5/既要求指紋の算式は維持する。"""
+    from pitchlog.sync.source_binding import receipt_body_fingerprint
+
+    game, d5 = str(uuid4()), str(uuid4())
+    payload = _payload(game, d5)
+    source = _source(payload, game)
+    token = object()
+    request = SyncRequest.from_payload("P2", game, payload)
+    with _scope(request=request, source=source, entry_token=token) as receipt:
+        original = receipt_body_fingerprint(receipt, token)
+        assert original == receipt_body_fingerprint(receipt, token)
+    with pytest.raises(ValueError):
+        receipt_body_fingerprint(receipt, token)
+    payload["recording_right_proof"] = changed
+    changed_request = SyncRequest.from_payload("P2", game, payload)
+    changed_source = _source(payload, game)
+    assert source.request_fingerprint == changed_source.request_fingerprint
+    assert source.event_fingerprints == changed_source.event_fingerprints
+    with _scope(
+        request=changed_request, source=changed_source, entry_token=token
+    ) as changed_receipt:
+        assert receipt_body_fingerprint(changed_receipt, token) != original
+
+
+def test_recovery_body_cannot_be_read_with_another_entry_token(issued):
+    """自由なdigest発行口へせず、真正受付と同HTTP tokenを必須にする。"""
+    from pitchlog.sync.source_binding import receipt_body_fingerprint
+
+    receipt, _token = issued
+    with pytest.raises(ValueError):
+        receipt_body_fingerprint(receipt, object())
+
+
+@pytest.mark.parametrize(
+    "result", ["matching", "absent", "unresolved", "unknown", None]
+)
+def test_control_body_state_is_closed_and_keeps_all_identity(result, monkeypatch):
+    """専用固定関数への全識別供給と閉じた結果だけを検査する。"""
+    from pitchlog.sync.control_provider.binding_control import (
+        WriterBindingUnavailable,
+        _BindingAuthority,
+    )
+    from pitchlog.sync.stop_contract import AttemptIdentity
+
+    issuer, tenant, device, game, attempt, d5 = (uuid4() for _ in range(6))
+    authority = object.__new__(_BindingAuthority)
+    authority._issuer = issuer
+    identity = AttemptIdentity(str(attempt), str(game), "D4", 1, "request-original")
+    calls = []
+
+    def call(*args):
+        calls.append(args)
+        return () if result is None else (result,)
+
+    monkeypatch.setattr(authority, "_call", call)
+    if result in ("matching", "absent", "unresolved"):
+        assert (
+            authority.read_attempt_body_state(
+                tenant, device, identity, d5, "event-original", "a" * 64
+            )
+            == result
+        )
+    else:
+        with pytest.raises(WriterBindingUnavailable):
+            authority.read_attempt_body_state(
+                tenant, device, identity, d5, "event-original", "a" * 64
+            )
+    assert calls == [
+        (
+            "control",
+            "SELECT sync_control.read_attempt_recovery_state("
+            "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+            (
+                tenant,
+                attempt,
+                device,
+                game,
+                "D4",
+                1,
+                "request-original",
+                issuer,
+                d5,
+                "event-original",
+                "a" * 64,
+            ),
+        )
+    ]

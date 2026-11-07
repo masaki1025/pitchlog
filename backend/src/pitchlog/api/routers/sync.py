@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from typing import Annotated, Literal, cast
-from uuid import UUID, uuid5
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from fastapi.responses import JSONResponse
@@ -41,6 +41,7 @@ from pitchlog.sync.control_provider.evidence import (
     AttemptBinding,
     AuthorityBinding,
     EventPhaseBinding,
+    sync_event_phase_id,
 )
 from pitchlog.sync.control_provider.writer_binding import (
     WriterBindingUnavailable,
@@ -80,8 +81,6 @@ from pitchlog.sync.wire_source import WireSourceError, freeze_wire_source
 
 router = APIRouter(tags=["同期"], route_class=TenantMatchedRoute)
 
-_PHASE_NAMESPACE = UUID("00000000-0000-0000-0000-000000000000")
-
 
 def _configuration(request: Request) -> BindingClientConfiguration:
     """起動時設定だけを使い、未設定は書込入口を閉じる。"""
@@ -96,7 +95,7 @@ def _configuration(request: Request) -> BindingClientConfiguration:
 
 def _phase_id(attempt: UUID, request_fingerprint: str) -> UUID:
     """同一要求の再送で同一 phase を作り、新 attempt だけを別 phase にする。"""
-    return uuid5(_PHASE_NAMESPACE, f"{attempt}:{request_fingerprint}")
+    return sync_event_phase_id(attempt, request_fingerprint)
 
 
 def _request_path(payload: object) -> Literal["P1", "P2"]:

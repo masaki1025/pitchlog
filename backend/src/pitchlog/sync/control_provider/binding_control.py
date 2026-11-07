@@ -43,11 +43,12 @@ class _ConfirmedBindingRejection(WriterBindingUnavailable):
 def _is_confirmed_rejection(
     error: psycopg.Error, phase: Literal["register", "publish"]
 ) -> bool:
-    """採用済5診断だけ。commit/timeout/UNKNOWNは呼出側から渡さない。"""
+    """固定保存器の閉診断だけ。commit/timeout/UNKNOWNは分類しない。"""
     if phase == "register":
         return error.sqlstate == "42501" and error.diag.message_primary in (
             "attempt conflict",
             "phase conflict",
+            "attempt retired",
         )
     if phase == "publish":
         return (error.sqlstate, error.diag.constraint_name) in (
@@ -109,7 +110,7 @@ def _phase_wire(
     ):
         raise WriterBindingUnavailable("単球phaseが不正")
     a = phase.attempt
-    return {
+    value: dict[str, object] = {
         "authority_id": str(authority_id),
         "control_instance": str(a.authority.control_instance),
         "business_instance": str(a.authority.business_instance),
@@ -126,6 +127,9 @@ def _phase_wire(
         "d5": str(phase.d5),
         "event_fingerprint": phase.event_fingerprint,
     }
+    if a.body_fingerprint is not None:
+        value["body_fingerprint"] = a.body_fingerprint
+    return value
 
 
 def _phase_snapshot_value(
@@ -275,6 +279,7 @@ class _BindingAuthority:
                 phase["codec_version"],
                 phase["request_fingerprint"],
                 1,
+                phase.get("body_fingerprint"),
             )
             event = EventPhaseBinding(
                 attempt,
@@ -338,7 +343,9 @@ class _BindingAuthority:
         lease = uuid4()
         expires = datetime.now(timezone.utc) + timedelta(seconds=30)
         binding = {
-            k: v for k, v in phase.items() if k not in {"attempt_id", "phase_id"}
+            k: v
+            for k, v in phase.items()
+            if k not in {"attempt_id", "phase_id", "body_fingerprint"}
         }
         binding.update(writer.wire())
         binding.update(
@@ -441,12 +448,45 @@ class _BindingAuthority:
             raise WriterBindingUnavailable("D5照合結果が不正")
         return cast(str, row[0])
 
+    def read_attempt_body_state(
+        self,
+        tenant_id: UUID,
+        device_id: UUID,
+        identity: AttemptIdentity,
+        d5: UUID,
+        event_fingerprint: str,
+        body_fingerprint: str,
+    ) -> Literal["matching", "absent", "unresolved"]:
+        """未登録と旧原本のdigest欠落を同じcontrol鍵で区別する。"""
+        row = self._call(
+            "control",
+            "SELECT sync_control.read_attempt_recovery_state("
+            "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+            (
+                tenant_id,
+                UUID(identity.attempt_id),
+                device_id,
+                UUID(identity.game_id),
+                identity.d4,
+                identity.codec_version,
+                identity.wire_fingerprint,
+                self._issuer,
+                d5,
+                event_fingerprint,
+                body_fingerprint,
+            ),
+        )
+        if row not in (("matching",), ("absent",), ("unresolved",)):
+            raise WriterBindingUnavailable("元本文の照会結果が不正")
+        return cast(Literal["matching", "absent", "unresolved"], row[0])
+
     def retire_attempt(
         self,
         tenant_id: UUID,
         device_id: UUID,
         identity: AttemptIdentity,
         recovery_generation: int,
+        body_fingerprint: str,
     ) -> None:
         """同fence内の最終段で旧attemptの遅着を不可逆に遮断する。"""
         if (
@@ -456,7 +496,7 @@ class _BindingAuthority:
             raise WriterBindingUnavailable("旧試行識別が不正")
         row = self._call(
             "control",
-            "SELECT sync_control.retire_sync_attempt(%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+            "SELECT sync_control.retire_sync_attempt(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
             (
                 tenant_id,
                 UUID(identity.attempt_id),
@@ -467,6 +507,7 @@ class _BindingAuthority:
                 identity.wire_fingerprint,
                 self._issuer,
                 recovery_generation,
+                body_fingerprint,
             ),
             write=True,
         )
@@ -710,6 +751,7 @@ class _BindingBroker:
                         "identity",
                         "d5",
                         "event_fingerprint",
+                        "body_fingerprint",
                     }
                     if recovery
                     else {"operation", "cookie", "tenant_id", "phase", "writer"}
@@ -851,6 +893,7 @@ class BindingControl:
         event_fingerprint: str,
         *,
         cookie: str,
+        body_fingerprint: str,
     ) -> Literal["retry_allowed", "unresolved"]:
         """実Cookieと同端末照合済みの旧試行だけを専用peerへ照会する。"""
         from pitchlog.durable_rights_ledger.adapter import _request
@@ -877,6 +920,7 @@ class BindingControl:
                     "device_id": str(device_id),
                     "d5": str(d5),
                     "event_fingerprint": event_fingerprint,
+                    "body_fingerprint": body_fingerprint,
                     "identity": {
                         "attempt_id": identity.attempt_id,
                         "game_id": identity.game_id,

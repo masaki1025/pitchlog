@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import get_args
-from uuid import UUID
+from uuid import UUID, uuid5
 
 from pitchlog.sync.stop_contract import (
     AttemptIdentity,
@@ -72,6 +72,7 @@ class AttemptBinding:
     codec_version: int
     request_fingerprint: str
     event_count: int
+    body_fingerprint: str | None = None
 
     def __post_init__(self) -> None:
         """内部値の外形と C1 照会識別子の整合を検査する。"""
@@ -91,6 +92,14 @@ class AttemptBinding:
             or not _positive(self.codec_version)
             or not _ref(self.request_fingerprint)
             or not _positive(self.event_count)
+            or (
+                self.body_fingerprint is not None
+                and (
+                    type(self.body_fingerprint) is not str
+                    or len(self.body_fingerprint) != 64
+                    or any(c not in "0123456789abcdef" for c in self.body_fingerprint)
+                )
+            )
         ):
             raise ValueError("試行 binding が不正")
         self.identity()
@@ -306,3 +315,8 @@ class ClosedTransactionEvidence:
             or not _ref(self.termination_ref)
         ):
             raise ValueError("業務終了証拠が不正")
+
+
+def sync_event_phase_id(attempt: UUID, request_fingerprint: str) -> UUID:
+    """既HTTPとcontrol照会で同じ試行内phase識別を使用する。"""
+    return uuid5(UUID(int=0), f"{attempt}:{request_fingerprint}")

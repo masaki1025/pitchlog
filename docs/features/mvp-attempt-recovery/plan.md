@@ -38,3 +38,18 @@ step 1 の実装読取で、既 epoch fence は `FOR SHARE` であって旧 bind
 | 3 | owned PG/HTTPS と冷再起動の縦断・固定候補 | T4故障、ACK喪失、旧live、他tenant/device、照会排除、同本文/D5新attempt、二重加算なしを実値で照合。未成立の条件を別記し、全source SHA/patch/検査を封印して別非作者へ渡す |
 
 各 step は成果と関連試験を固定 commit する。共通 owned PG/browser lock を全寿命使い、共有 DB/運用秘密を使わない。root の正式受理と独立レビューを候補自身の成功へ代記しない。
+
+### 原本文全値の独立束縛（2026-11-07、既step1/2の安全条件の是正）
+
+既wire_request_fingerprintはイベント群用でtop-level V12を含まない。これを変更せず、真正E1受付の再検査済みrequest snapshot（V12を含む）と原wire全イベントから独立body_fingerprintを導出し、登録直前にもcaller値でなく実受付から再導出する。control attempt原本とjournal phaseへ耐久保持し、復旧時に同原本/同fingerprintを照合する。旧原本でdigestが無い場合はunresolvedとし、現在V12から補完しない。control登録後journal intent前の隙間はcontrol保存原本の照合で扱い、原本未登録なら再送資格を発行しない。business binding/D5の既指紋・DI2分類・既拒否優先順は変更しない。step1/2の対象にevidence/SQL schema/read、真正source_binding/apply、元phase IDの共通関数を含める。正式資産/7.7受理と独立レビューはrootへ渡す。
+
+実装追随のsource manifest: rootの2026-11-07許可に基づき `durable_rights_ledger/manifest.json` のauthority.adapter_sha256だけを実adapter.py全byteからSHA256再計算する。正式authz/tenant/seal/7.7の受理とは別で、候補全差分の独立レビュー対象へ含める。
+
+
+未登録attemptの送信前冷再起動を別に閉じる（2026-11-07、rootのPO委任技術判断）: 旧登録でbody_fingerprintがNULLなら引き続きunresolved。真正原本文digestに対しcontrol固定関数でmatching/absent/unresolvedを区別し、absentかつjournal intent無しの場合のみ、全live lease/借用無しと新規開始のmutex排除、業務同鍵の終結/永続遮断、その後control同鍵の不存在再確認を経てbody付きretirementを初回固定する。登録先勝ちは保存原本全値/非NULLdigestに一致する場合だけ、退役先勝ちは後着登録を拒否する。現在V12で旧NULLを更新しない。root要求の逆順競合・別V12・旧NULL・未登録後着を実PG対向へ追加し、未実測を完了にしない。
+
+
+実HTTPの自己RG1と旧bindingの区別（2026-11-07、rootのPO委任判断）: recovery自身は認可後read_rg1_openの真正read leaseを保持する。全_activeを拒否すると自身を止めるので、caller種別flagを受けず、唯一の_handle_binding入口が私有_start_binding_leaseで実journal leaseを同RLock下に発行/追跡する。_close_leaseの同mutex下で終結を解除し、recoveryは実binding集合が空の間だけmutexを保持して新規発行を止める。読取から後着する旧writerは両DBのtombstoneで登録/公開を拒否する。正規RG1 scope保持を解除して成功させない。全製品register/intent/publish/borrowのcallgraphと開始/終結/後着の対向を最終packetへ付ける。
+
+
+後着旧登録の確定拒否（2026-11-07）: run4で真正復旧/V12異内容拒否は実HTTPで成立したが、後着の旧attemptがcontrol固定SQLの42501/attempt retiredに到達した後、既分類器にこの新固定診断が無く全ledgerをUNKNOWN停止した。固定register実行/取得時のみ42501かつ完全一致attempt retiredを確定非登録拒否へ追加し、commit/timeout/別段階/文字列追記は拒否を維持する。この診断は登録関数の最初の退役判定（INSERT前）だけから出る。新D5の成功や全取消を推測しない。独立レビュー対象に含める。

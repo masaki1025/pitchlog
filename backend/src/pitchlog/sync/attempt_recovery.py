@@ -13,6 +13,7 @@ from pitchlog.sync.apply import _verify_replay_device
 from pitchlog.sync.control_provider.binding_control import BindingControl
 from pitchlog.sync.gate import game_accessible
 from pitchlog.sync.model import SyncRequest
+from pitchlog.sync.source_binding import _e1_receipt_scope, receipt_body_fingerprint
 from pitchlog.sync.stop_contract import AttemptIdentity
 from pitchlog.sync.wire_source import WireSourceValue
 
@@ -81,6 +82,11 @@ def recover_sync_attempt(
         source.codec_version,
         source.request_fingerprint,
     )
+    entry_token = object()
+    with _e1_receipt_scope(
+        context=context, request=request, source=source, entry_token=entry_token
+    ) as receipt:
+        body_fingerprint = receipt_body_fingerprint(receipt, entry_token)
     game_id = UUID(request.game_id)
     # 実端末状態と自テナント試合の照合を、broker照会終了まで同一scopeに保持する。
     with tenant_transaction_scope(context) as scope:
@@ -99,4 +105,5 @@ def recover_sync_attempt(
             UUID(event.d5),
             source.event_fingerprints[0],
             cookie=cookie,
+            body_fingerprint=body_fingerprint,
         )

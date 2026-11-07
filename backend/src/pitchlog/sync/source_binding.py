@@ -200,6 +200,23 @@ def _receipt(owner: E1Receipt) -> _ReceiptState:
     return state
 
 
+def receipt_body_fingerprint(receipt: E1Receipt, entry_token: object) -> str:
+    """真正受付の全本文をV12込みで束縛する。既D5/要求指紋は変更しない。"""
+    from hashlib import sha256
+
+    state = _receipt_for_entry(receipt, entry_token)
+    original = _canonical(
+        {
+            "format_version": "e1-recovery-body-v1",
+            "request_json": state.request_json,
+            "wire_events": [
+                encode_wire_original(event) for event in state.source.events
+            ],
+        }
+    )
+    return sha256(original.encode("utf-8")).hexdigest()
+
+
 def _select(selection: _Selection) -> EventSourceBinding:
     """既に照合した状態の選択参照だけを作る。受付issuerではない。"""
     binding = object.__new__(EventSourceBinding)

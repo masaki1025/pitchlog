@@ -1297,6 +1297,10 @@ def _g20_diagnostic(state, message=None, constraint=None):
     [
         ("register", "42501", "attempt conflict", None, True),
         ("register", "42501", "phase conflict", None, True),
+        ("register", "42501", "attempt retired", None, True),
+        ("register", "42501", "attempt retired extra", None, False),
+        ("register", "57014", "attempt retired", None, False),
+        ("publish", "42501", "attempt retired", None, False),
         ("publish", "23505", None, "pk_sync_writer_bindings", True),
         ("publish", "23503", None, "fk_sync_writer_binding_game", True),
         ("publish", "23503", None, "fk_sync_writer_binding_tenant", True),
@@ -1314,7 +1318,7 @@ def _g20_diagnostic(state, message=None, constraint=None):
         ("publish", None, None, None, False),
     ],
 )
-def test_g20_exact_five_diagnostics(phase, state, message, constraint, expected):
+def test_g20_exact_diagnostics(phase, state, message, constraint, expected):
     """段階とsqlstate/diagの完全一致以外を確定拒否にしない。"""
     from pitchlog.sync.control_provider.binding_control import _is_confirmed_rejection
 
@@ -1487,6 +1491,7 @@ def _g20_runtime(events=()):
     runtime._value = {"schema_version": 3, "timeout": 1.0}
     runtime._blocked = False
     runtime._active = set()
+    runtime._binding_active = set()
     runtime._mutex = RLock()
     runtime._journal = cast(Any, _G20Journal(events))
     return runtime
@@ -1516,6 +1521,10 @@ def _g20_open_intent():
         ("confirmed_rejection", "retry_allowed"),
         ("double_rejection", "unresolved"),
         ("double_close", "unresolved"),
+        ("v12_changed", "unresolved"),
+        ("old_body_missing", "unresolved"),
+        ("control_body_missing", "unresolved"),
+        ("control_body_changed", "unresolved"),
     ],
 )
 def test_attempt_recovery_requires_real_lease_terminal_and_d5(
@@ -1538,7 +1547,12 @@ def test_attempt_recovery_requires_real_lease_terminal_and_d5(
         "request_fingerprint": "request-original",
         "d5": d5,
         "event_fingerprint": "event-original",
+        "body_fingerprint": "a" * 64,
     }
+    if change == "v12_changed":
+        record["phase"]["body_fingerprint"] = "b" * 64
+    if change == "old_body_missing":
+        record["phase"].pop("body_fingerprint")
     events = (
         []
         if change == "no_intent"
@@ -1585,6 +1599,11 @@ def test_attempt_recovery_requires_real_lease_terminal_and_d5(
         def __init__(self, *_args):
             pass
 
+        def read_attempt_body_state(self, *_args):
+            if change in ("control_body_missing", "control_body_changed"):
+                return "unresolved"
+            return "absent" if change == "no_intent" else "matching"
+
         def observe_d5(self, *_args):
             calls.append("d5")
             if change == "d5_conflict":
@@ -1614,6 +1633,7 @@ def test_attempt_recovery_requires_real_lease_terminal_and_d5(
         },
         "d5": d5,
         "event_fingerprint": "event-original",
+        "body_fingerprint": "a" * 64,
     }
     client, server = socket.socketpair()
     try:
@@ -1623,6 +1643,9 @@ def test_attempt_recovery_requires_real_lease_terminal_and_d5(
         client.close()
         server.close()
     assert calls[0] == "fence-enter" and calls[-1] == "fence-exit"
+    assert ("business-retire" in calls) is (
+        expected == "retry_allowed" or change == "business_open"
+    )
     assert ("control-retire" in calls) is (expected == "retry_allowed")
     if expected == "retry_allowed":
         assert calls.index("business-retire") < calls.index("control-retire")
@@ -1661,6 +1684,8 @@ def test_g20_runtime_closes_only_confirmed_request(monkeypatch, stage):
             pass
 
         def prepare_writer_binding(self, *args):
+            assert len(runtime._binding_active) == 1
+            assert runtime._binding_active <= runtime._active
             if stage == "register":
                 raise binding._ConfirmedBindingRejection
             return _g20_record(), {}, bytes(32)
@@ -1690,6 +1715,7 @@ def test_g20_runtime_closes_only_confirmed_request(monkeypatch, stage):
     with pytest.raises(error):
         runtime._handle_binding(cast(Any, object()), {})
     names = [v["event"] for v in runtime._journal.events]
+    assert runtime._binding_active == set()
     if stage == "register":
         assert names == ["lease_open", "lease_close"]
     if stage == "publish":
@@ -1822,3 +1848,54 @@ def test_g20_only_prepare_publish_enable_classification():
         ("prepare_writer_binding", "register"),
         ("publish_prepared", "publish"),
     ]
+
+
+@pytest.mark.parametrize("active", [True, False])
+def test_recovery_admission_excludes_live_borrows_and_blocks_new_lease(active):
+    """row不在だけを未到達証拠にせず、既lease/借用と新規開始も排除する。"""
+    import threading
+
+    runtime = _g20_runtime()
+    if active:
+        runtime._active.add(1)
+        runtime._binding_active.add(1)
+    else:
+        # 実復旧HTTP自身のRG1 read leaseはbinding資格ではない。
+        runtime._active.add(2)
+    acquired = []
+
+    def borrower():
+        held = runtime._mutex.acquire(timeout=0.03)
+        acquired.append(held)
+        if held:
+            runtime._mutex.release()
+
+    with runtime._idle_binding_recovery() as idle:
+        assert idle is (not active)
+        worker = threading.Thread(target=borrower)
+        worker.start()
+        worker.join(timeout=1)
+        assert acquired == [False]
+    worker = threading.Thread(target=borrower)
+    worker.start()
+    worker.join(timeout=1)
+    assert acquired == [False, True]
+
+
+def test_opaque_binding_lease_blocks_recovery_until_real_close(monkeypatch):
+    """同mutexで発行/閉鎖した実leaseだけを追跡し、外部種別flagを使わない。"""
+    from types import SimpleNamespace
+
+    runtime = _g20_runtime()
+    monkeypatch.setattr(runtime, "_live_matches", lambda: None)
+    lease, generation = runtime._start_binding_lease(SimpleNamespace(generation=1))
+    assert generation == 1
+    assert runtime._active == {lease}
+    assert runtime._binding_active == {lease}
+    with runtime._idle_binding_recovery() as admitted:
+        assert admitted is False
+    runtime._close_lease(lease)
+    assert runtime._active == set()
+    assert runtime._binding_active == set()
+    with runtime._idle_binding_recovery() as admitted:
+        assert admitted is True

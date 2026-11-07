@@ -96,6 +96,7 @@ def test_control_retirement_blocks_old_attempt_and_keeps_new_attempt(
         "phase_id": str(phase),
         "d5": str(d5),
         "event_fingerprint": "original-event",
+        "body_fingerprint": "a" * 64,
     }
     with BindingPeer(
         cluster.binding_control, "binding_control_fixture", ACTOR
@@ -122,6 +123,7 @@ def test_control_retirement_blocks_old_attempt_and_keeps_new_attempt(
                     "original-request",
                     issuer,
                     7,
+                    "a" * 64,
                 )
             )
             + ")"
@@ -143,6 +145,129 @@ def test_control_retirement_blocks_old_attempt_and_keeps_new_attempt(
             )[1]
             == "00000"
         )
+
+    # 未登録と旧NULLの差は、fixture側の推論でなく製品固定関数の実値で判定する。
+    def register(value):
+        return (
+            "SELECT sync_control.register_first_ball_phase("
+            + _literal(tenant)
+            + ","
+            + _literal(json.dumps(value))
+            + "::jsonb)"
+        )
+
+    def body_state(value, body="a" * 64):
+        values = (
+            tenant,
+            value["attempt_id"],
+            device,
+            game,
+            "original-D4",
+            1,
+            "original-request",
+            issuer,
+            d5,
+            "original-event",
+            body,
+        )
+        return (
+            "SELECT sync_control.read_attempt_recovery_state("
+            + ",".join(_literal(v) for v in values)
+            + ")"
+        )
+
+    def retirement(value, body="a" * 64):
+        values = (
+            tenant,
+            value["attempt_id"],
+            device,
+            game,
+            "original-D4",
+            1,
+            "original-request",
+            issuer,
+            7,
+            body,
+        )
+        return (
+            "SELECT sync_control.retire_sync_attempt("
+            + ",".join(_literal(v) for v in values)
+            + ")"
+        )
+
+    with BindingPeer(
+        cluster.binding_control, "binding_control_fixture", ACTOR
+    ) as actor:
+        legacy = {**original, "attempt_id": str(uuid4()), "phase_id": str(uuid4())}
+        legacy.pop("body_fingerprint")
+        assert actor.execute(register(legacy))[1] == "00000"
+        assert actor.query(body_state(legacy)) == ("unresolved",)
+        assert actor.execute(retirement(legacy))[1] == "42501"
+        never = {**original, "attempt_id": str(uuid4()), "phase_id": str(uuid4())}
+        assert actor.query(body_state(never)) == ("absent",)
+        assert actor.query(retirement(never)) == ("retired",)
+        assert actor.query(body_state(never)) == ("matching",)
+        assert actor.query(body_state(never, "b" * 64)) == ("unresolved",)
+        assert actor.execute(retirement(never, "b" * 64))[1] == "42501"
+        assert actor.execute(register(never))[1] == "42501"
+
+    def blocked(peer, statement):
+        pid = int(peer.query("SELECT pg_backend_pid()")[0])
+        done = threading.Event()
+        result = {}
+
+        def run():
+            try:
+                result["value"] = peer.execute(statement)
+            finally:
+                done.set()
+
+        worker = threading.Thread(target=run, daemon=True)
+        worker.start()
+        deadline = time.monotonic() + 3
+        while time.monotonic() < deadline:
+            observed = docker(
+                "exec",
+                cluster.binding_control,
+                "psql",
+                "-X",
+                "-A",
+                "-t",
+                "-q",
+                "-U",
+                "postgres",
+                "-d",
+                "binding_control_fixture",
+                "-c",
+                "SELECT wait_event_type||':'||wait_event "
+                "FROM pg_stat_activity WHERE pid=" + str(pid),
+            ).strip()
+            if observed == "Lock:advisory":
+                assert not done.is_set()
+                return worker, done, result
+            time.sleep(0.02)
+        pytest.fail("control登録/遮断が同じ鍵で実待機しない")
+
+    for register_first in (True, False):
+        value = {**original, "attempt_id": str(uuid4()), "phase_id": str(uuid4())}
+        with (
+            BindingPeer(
+                cluster.binding_control, "binding_control_fixture", ACTOR
+            ) as first,
+            BindingPeer(
+                cluster.binding_control, "binding_control_fixture", ACTOR
+            ) as second,
+        ):
+            first.query("BEGIN")
+            first.query(register(value) if register_first else retirement(value))
+            worker, done, result = blocked(
+                second, retirement(value) if register_first else register(value)
+            )
+            first.query("COMMIT")
+            assert done.wait(3)
+            worker.join(timeout=1)
+            assert result["value"][1] == ("00000" if register_first else "42501")
+            assert first.query(body_state(value)) == ("matching",)
 
 
 def _publish(
@@ -360,6 +485,7 @@ def test_existing_writer_definition_upgrades_only_from_exact_old_source(
         with engine.connect() as connection:
             transaction = connection.begin()
             try:
+
                 def execute_body(value: str) -> None:
                     raw_connection = connection.connection.driver_connection
                     assert raw_connection is not None
