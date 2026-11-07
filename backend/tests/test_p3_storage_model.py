@@ -31,3 +31,16 @@ def test_progress_state_index_keeps_text_collation():
     assert signature[8] == ("tenant_id", "attempt_id", "phase_id", "state")
     assert signature[9] == (None, None, None, "default")
     assert signature[14] == ("uuid_ops", "uuid_ops", "uuid_ops", "text_ops")
+
+
+def test_migration_freezes_the_same_unfinished_commit_guard():
+    """後発factoryをmigration時importせず、固定原典との同一性を確認する。"""
+    from pathlib import Path
+    from runpy import run_path
+
+    from pitchlog.authz.p3_storage_guard import candidate_statements
+
+    migration = (
+        Path(__file__).parents[1] / "migrations/versions/0048_p3_projection_storage.py"
+    )
+    assert run_path(str(migration))["_GUARD_STATEMENTS"] == candidate_statements()

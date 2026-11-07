@@ -1,6 +1,7 @@
 """0048の実配置と全構造改変拒否を所有隔離PGで検証する。"""
 
 from typing import Any, LiteralString, cast
+from uuid import uuid4
 
 import psycopg
 import pytest
@@ -65,6 +66,15 @@ def test_owned_p3_migration_and_all_structure_tamper_refusals(
                 "CREATE INDEX extra_p3_index ON "
                 "sync_fence.p3_projection_heads(updated_at)",
                 "CREATE TABLE sync_fence.p3_projection_unknown(value text)",
+                "ALTER TABLE sync_fence.p3_projection_page_progress DISABLE TRIGGER "
+                "p3_page_progress_must_finalize",
+                "GRANT EXECUTE ON FUNCTION "
+                "sync_fence.p3_reject_unfinished_page_progress() TO pitchlog_app",
+                "DROP TRIGGER p3_page_progress_must_finalize ON "
+                "sync_fence.p3_projection_page_progress; "
+                "CREATE TRIGGER p3_page_progress_must_finalize AFTER INSERT OR UPDATE "
+                "ON sync_fence.p3_projection_page_progress FOR EACH ROW "
+                "EXECUTE FUNCTION sync_fence.p3_reject_unfinished_page_progress()",
             )
             for statement in changes:
                 with connection.transaction(force_rollback=True):
@@ -101,6 +111,58 @@ def test_owned_p3_migration_and_all_structure_tamper_refusals(
                         "SELECT pg_catalog.has_column_privilege(%s,%s,%s,%s)",
                         (row["grantee_role_id"], relation, row["column_id"], privilege),
                     ).fetchone() == (privilege in row["privilege_ids"],)
+            # 完成capsuleの代用品ではなく、guard単体の正負DB対向。
+            # capsule親FKは遅延のまま、指定guardだけを即時評価してから全て戻す。
+            for finalized in (False, True):
+                with connection.transaction(force_rollback=True):
+                    connection.execute(
+                        "INSERT INTO sync_fence.p3_projection_page_progress "
+                        "(tenant_id,game_id,internal_generation,capsule_id,"
+                        "attempt_id,phase_id,device_id,binding_nonce,transaction_id,"
+                        "watermark,digest_format,target_d1,d5,old_stats_version_id,"
+                        "capsule_header,stats_header,state,item_count,last_d1,"
+                        "last_d2,page_count,source_page_seal,evaluation_page_seal,"
+                        "created_at,finalized_at) VALUES "
+                        "(%s,%s,1,%s,%s,%s,%s,%s,pg_current_xact_id()::text,"
+                        "26,'p3-page-chain-v2',26,%s,%s,'{}','{}',%s,%s,%s,%s,%s,"
+                        "%s,%s,now(),CASE WHEN %s THEN now() ELSE NULL END)",
+                        (
+                            uuid4(),
+                            uuid4(),
+                            uuid4(),
+                            uuid4(),
+                            uuid4(),
+                            uuid4(),
+                            b"a" * 32,
+                            uuid4(),
+                            uuid4(),
+                            "finalized" if finalized else "building",
+                            26 if finalized else 0,
+                            26 if finalized else 0,
+                            26000 if finalized else 0,
+                            2 if finalized else 0,
+                            "0" * 64,
+                            "0" * 64,
+                            finalized,
+                        ),
+                    )
+                    if finalized:
+                        connection.execute(
+                            "SET CONSTRAINTS p3_page_progress_must_finalize IMMEDIATE"
+                        )
+                    else:
+                        with pytest.raises(
+                            psycopg.errors.InsufficientPrivilege,
+                            match="P3 page build unfinished",
+                        ):
+                            with connection.transaction():
+                                connection.execute(
+                                    "SET CONSTRAINTS "
+                                    "p3_page_progress_must_finalize IMMEDIATE"
+                                )
+            assert connection.execute(
+                "SELECT count(*) FROM sync_fence.p3_projection_page_progress"
+            ).fetchone() == (0,)
             check_p3_storage(connection)
 
 

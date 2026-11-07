@@ -131,3 +131,88 @@ def check_p3_storage(connection: Any) -> None:
                 raise current.CurrentProductStartupError(
                     f"P3全indexが不一致です: {table.name}"
                 )
+
+    check_p3_page_guard(connection)
+
+
+def check_p3_page_guard(connection: Any) -> None:
+    """遅延guard関数と全6表の非内部trigger集合を正確に照合する。"""
+    from pitchlog.authz.p3_storage_guard import candidate_statements
+
+    expected_source = candidate_statements()[0].split("$p3_page_guard$")[1].strip()
+    with connection.cursor() as cursor:
+        cursor.execute(
+            "SELECT r.rolname,l.lanname,p.prokind,p.provolatile,p.proparallel,"
+            "p.prosecdef,p.proisstrict,p.proleakproof,p.proretset,p.pronargs,"
+            "p.proconfig,pg_catalog.pg_get_function_result(p.oid),"
+            "pg_catalog.btrim(p.prosrc,E' \\t\\r\\n'),"
+            "(SELECT count(*) FROM pg_catalog.aclexplode(COALESCE("
+            "p.proacl,pg_catalog.acldefault('f',p.proowner))) a "
+            "WHERE a.grantee<>p.proowner) "
+            "FROM pg_catalog.pg_proc p "
+            "JOIN pg_catalog.pg_roles r ON r.oid=p.proowner "
+            "JOIN pg_catalog.pg_language l ON l.oid=p.prolang "
+            "WHERE p.oid=pg_catalog.to_regprocedure("
+            "'sync_fence.p3_reject_unfinished_page_progress()')"
+        )
+        if cursor.fetchall() != [
+            (
+                "pitchlog_owner",
+                "plpgsql",
+                "f",
+                "v",
+                "u",
+                True,
+                False,
+                False,
+                False,
+                0,
+                ["search_path=pg_catalog, pg_temp"],
+                "trigger",
+                expected_source,
+                0,
+            )
+        ]:
+            raise current.CurrentProductStartupError("P3未完了guard関数が不一致です")
+        for model in P3_STORAGE_MODELS:
+            table = model.__table__
+            cursor.execute(
+                "SELECT t.tgname,t.tgenabled,t.tgtype,t.tgdeferrable,"
+                "t.tginitdeferred,t.tgnargs,t.tgargs,"
+                "pg_catalog.pg_get_expr(t.tgqual,t.tgrelid),"
+                "t.tgoldtable,t.tgnewtable,n.nspname,p.proname,"
+                "k.contype,k.condeferrable,k.condeferred,k.convalidated "
+                "FROM pg_catalog.pg_trigger t "
+                "JOIN pg_catalog.pg_proc p ON p.oid=t.tgfoid "
+                "JOIN pg_catalog.pg_namespace n ON n.oid=p.pronamespace "
+                "LEFT JOIN pg_catalog.pg_constraint k ON k.oid=t.tgconstraint "
+                "WHERE t.tgrelid=%s::regclass AND NOT t.tgisinternal "
+                "ORDER BY t.tgname",
+                (table.fullname,),
+            )
+            expected = []
+            if table.name == "p3_projection_page_progress":
+                expected = [
+                    (
+                        "p3_page_progress_must_finalize",
+                        "O",
+                        21,
+                        True,
+                        True,
+                        0,
+                        b"",
+                        None,
+                        None,
+                        None,
+                        "sync_fence",
+                        "p3_reject_unfinished_page_progress",
+                        "t",
+                        True,
+                        True,
+                        True,
+                    )
+                ]
+            if cursor.fetchall() != expected:
+                raise current.CurrentProductStartupError(
+                    "P3未完了guardの全trigger属性が不一致です"
+                )

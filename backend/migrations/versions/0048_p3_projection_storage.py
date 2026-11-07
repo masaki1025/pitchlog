@@ -415,10 +415,42 @@ ck_stats_source_provider, ADD CONSTRAINT ck_stats_source_provider CHECK
 """,
 )
 
+# 初期配置から未完成ページのcommitを拒否する。後発factoryはimportしない。
+_GUARD_STATEMENTS = (
+    """CREATE FUNCTION sync_fence.p3_reject_unfinished_page_progress()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER
+SET search_path=pg_catalog,pg_temp AS $p3_page_guard$
+DECLARE current_state text;
+BEGIN
+ SELECT p.state INTO STRICT current_state
+ FROM sync_fence.p3_projection_page_progress p
+ WHERE (p.tenant_id,p.game_id,p.internal_generation,p.capsule_id)=
+   (NEW.tenant_id,NEW.game_id,NEW.internal_generation,NEW.capsule_id);
+ IF current_state IS DISTINCT FROM 'finalized' THEN
+  RAISE EXCEPTION 'P3 page build unfinished' USING ERRCODE='42501';
+ END IF;
+ RETURN NULL;
+END;
+$p3_page_guard$;""",
+    (
+        "ALTER FUNCTION sync_fence.p3_reject_unfinished_page_progress() OW"
+        "NER TO pitchlog_owner;"
+    ),
+    (
+        "REVOKE ALL ON FUNCTION sync_fence.p3_reject_unfinished_page_progr"
+        "ess() FROM PUBLIC,pitchlog_app,pitchlog_sync_right_fn_owner,pitch"
+        "log_sync_binding_actor,pitchlog_rg1_control_actor;"
+    ),
+    """CREATE CONSTRAINT TRIGGER p3_page_progress_must_finalize
+AFTER INSERT OR UPDATE ON sync_fence.p3_projection_page_progress
+DEFERRABLE INITIALLY DEFERRED FOR EACH ROW
+EXECUTE FUNCTION sync_fence.p3_reject_unfinished_page_progress();""",
+)
+
 
 def upgrade() -> None:
     """6原本表/全制約/3索引を作り、認可適用まではapp経路を閉じる。"""
-    for statement in _STATEMENTS:
+    for statement in (*_STATEMENTS, *_GUARD_STATEMENTS):
         op.execute(statement)
 
 
