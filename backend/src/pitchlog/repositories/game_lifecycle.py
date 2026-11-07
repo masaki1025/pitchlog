@@ -255,7 +255,8 @@ def lifecycle_display_scope(handle, game_id):
     from pitchlog.sync.tokens import GameLockToken
 
     # 既readerと同じ試合行を先に固定し、表示とprefixの観測を同TXに束縛する。
-    handle.run(GameLockToken(game_id))
+    if not transaction.started_snapshot_read_mode(handle):
+        handle.run(GameLockToken(game_id))
     value = _read_lifecycle_display(handle, game_id)
     key = handle._state_key
     runtime = transaction._TRANSACTION_RUNTIMES.get(key)

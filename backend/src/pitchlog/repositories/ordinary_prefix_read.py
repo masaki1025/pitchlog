@@ -129,16 +129,19 @@ def read_ordinary_prefix(
     ):
         raise OrdinaryPrefixError
     tenant = handle._bound_tenant_id
+    from pitchlog.repositories.transaction import started_snapshot_read_mode
+
+    readonly = started_snapshot_read_mode(handle)
 
     def run(token):
         return handle.run(token)
 
     columns = tuple(Game.__table__.c.keys())
-    locked = _rows(run(GameLockToken(game_id)), columns)
+    locked = None if readonly else _rows(run(GameLockToken(game_id)), columns)
     games = _rows(run(GameReadToken(game_id)), columns)
-    if not locked and not games:
+    if not games and (readonly or not locked):
         return StartedReadNotVisible()
-    if len(games) != 1 or locked != games:
+    if len(games) != 1 or (not readonly and locked != games):
         raise OrdinaryPrefixError
     game = games[0]
     if game["tenant_id"] != tenant or game["id"] != game_id:
@@ -159,12 +162,17 @@ def read_ordinary_prefix(
     generation = current["generation"]
     if type(generation) is not int or not 0 < generation < 2**63:
         raise OrdinaryPrefixError
-    locked_generation = _one(
-        run(RecordingGenerationLockToken(game_id, generation)), _GENERATION_READ_COLUMNS
+    locked_generation = (
+        None
+        if readonly
+        else _one(
+            run(RecordingGenerationLockToken(game_id, generation)),
+            _GENERATION_READ_COLUMNS,
+        )
     )
     n = current["confirmed_watermark"]
     if (
-        locked_generation != current
+        (not readonly and locked_generation != current)
         or current["tenant_id"] != tenant
         or current["game_id"] != game_id
         or current["kind"] != "normal"
@@ -485,9 +493,17 @@ def read_ordinary_prefix(
         from pitchlog.repositories.play_prefix import PlayPrefixDocument
 
         assert isinstance(doc, PlayPrefixDocument)
+        from pitchlog.repositories.started_snapshot_read_operations import (
+            StartedPlayPrefixHistoryPageToken,
+        )
         from pitchlog.sync.terminal_pitch_tokens import PlayPrefixHistoryPageToken
 
-        page_token = PlayPrefixHistoryPageToken(
+        page_token_type = (
+            StartedPlayPrefixHistoryPageToken
+            if readonly
+            else PlayPrefixHistoryPageToken
+        )
+        page_token = page_token_type(
             game_id,
             generation,
             int(doc.history_version),
@@ -500,8 +516,15 @@ def read_ordinary_prefix(
         )
         page_rows = handle.run_function(page_token).rows
     else:
+        from pitchlog.repositories.started_snapshot_read_operations import (
+            StartedOrdinaryHistoryPageToken,
+        )
+
+        page_token_type = (
+            StartedOrdinaryHistoryPageToken if readonly else OrdinaryHistoryPageToken
+        )
         page_rows = handle.run_function(
-            OrdinaryHistoryPageToken(
+            page_token_type(
                 game_id,
                 generation,
                 int(doc.history_version),
@@ -1155,7 +1178,17 @@ def _read_lineup_projection(
         point = (int(raw[0]), int(raw[1]), UUID(raw[2]))
         if [str(x) for x in point] != raw:
             raise OrdinaryPrefixError
-    token = PlayPrefixHistoryPageToken(
+    from pitchlog.repositories.started_snapshot_read_operations import (
+        StartedPlayPrefixHistoryPageToken,
+    )
+    from pitchlog.repositories.transaction import started_snapshot_read_mode
+
+    page_token_type = (
+        StartedPlayPrefixHistoryPageToken
+        if started_snapshot_read_mode(handle)
+        else PlayPrefixHistoryPageToken
+    )
+    token = page_token_type(
         game_id,
         generation,
         int(doc.history_version),

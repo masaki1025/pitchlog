@@ -245,7 +245,13 @@ def _read_recorded_calculation(
         tenant = _uuid(handle._bound_tenant_id)
         key = handle._state_key
         runtime = _TRANSACTION_RUNTIMES.get(key)
-        lifetime = handle._writer_lifetime()
+        from pitchlog.repositories.transaction import (
+            require_started_snapshot_read_scope,
+            started_snapshot_read_mode,
+        )
+
+        readonly = started_snapshot_read_mode(handle)
+        lifetime = None if readonly else handle._writer_lifetime()
 
         def live() -> None:
             """各readと実host呼出しの前後で同scopeを再確認する。"""
@@ -261,10 +267,15 @@ def _read_recorded_calculation(
                 or not context._has_valid_integrity_proof()
             ):
                 raise RecordedSnapshotUnavailable
-            now = handle._writer_lifetime()
-            if now[0] is not lifetime[0] or now[1] is not lifetime[1]:
-                raise RecordedSnapshotUnavailable
-            handle._assert_writer_lifetime(lifetime)
+            if readonly:
+                require_started_snapshot_read_scope(handle)
+            else:
+                if lifetime is None:
+                    raise RecordedSnapshotUnavailable
+                now = handle._writer_lifetime()
+                if now[0] is not lifetime[0] or now[1] is not lifetime[1]:
+                    raise RecordedSnapshotUnavailable
+                handle._assert_writer_lifetime(lifetime)
 
         def run(token: TenantOperationToken):
             """自由SQL/別scopeを受けず既宣言だけを同handleで実行する。"""
@@ -274,9 +285,12 @@ def _read_recorded_calculation(
             return value
 
         game_columns = tuple(Game.__table__.c.keys())
-        locked = _one(run(GameLockToken(game_id)), game_columns)
-        game = _one(run(GameReadToken(game_id)), game_columns)
-        _same(locked, game)
+        if readonly:
+            game = _one(run(GameReadToken(game_id)), game_columns)
+        else:
+            locked = _one(run(GameLockToken(game_id)), game_columns)
+            game = _one(run(GameReadToken(game_id)), game_columns)
+            _same(locked, game)
         _same(
             game,
             dict(
@@ -302,11 +316,12 @@ def _read_recorded_calculation(
             run(RecordingGenerationReadToken(game_id)), _GENERATION_READ_COLUMNS
         )
         generation = _positive(current["generation"])
-        locked_generation = _one(
-            run(RecordingGenerationLockToken(game_id, generation)),
-            _GENERATION_READ_COLUMNS,
-        )
-        _same(locked_generation, current)
+        if not readonly:
+            locked_generation = _one(
+                run(RecordingGenerationLockToken(game_id, generation)),
+                _GENERATION_READ_COLUMNS,
+            )
+            _same(locked_generation, current)
         _same(
             current,
             dict(
