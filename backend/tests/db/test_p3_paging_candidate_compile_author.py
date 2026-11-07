@@ -16,6 +16,12 @@ from pitchlog.authz.p3_projection_paged_sql import (
 )
 
 from .test_p3_candidate_compile_author import (
+    initial_scope_database as initial_scope_database,
+)
+from .test_p3_candidate_compile_author import (
+    product_node_binary as product_node_binary,
+)
+from .test_p3_candidate_compile_author import (
     test_owned_candidate_0048_compiles as _install_old_candidate,
 )
 from .test_p3_candidate_compile_author import vertical_database as vertical_database
