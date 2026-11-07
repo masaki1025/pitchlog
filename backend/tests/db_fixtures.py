@@ -1525,21 +1525,21 @@ def _prepare_current_product_baseline(
     applicator_dsn: str,
     applicator: psycopg.Connection[Any],
 ) -> None:
-    """current専用入口で0043/全認可を非公開配置し再適用基準を用意する。"""
-    from pitchlog.db.current_product_startup import advance_current_product_from_s0
+    """current専用入口で現行/全認可を非公開配置し再適用基準を用意する。"""
+    from pitchlog.db.current_product_startup import (
+        CURRENT_REVISION,
+        advance_current_product_from_s0,
+    )
 
     _close_owned_seed_database_access(cluster)
     result = advance_current_product_from_s0(
         owner_dsn=owner_dsn,
         applicator_dsn=applicator_dsn,
     )
-    assert (
-        result.completed_revision == "0043_game_lifecycle"
-        and result.publishable is False
-    )
+    assert result.completed_revision == CURRENT_REVISION and result.publishable is False
     with applicator.cursor() as cursor:
         cursor.execute("SELECT version_num FROM public.alembic_version")
-        assert cursor.fetchall() == [("0043_game_lifecycle",)]
+        assert cursor.fetchall() == [(CURRENT_REVISION,)]
     applicator.rollback()
 
 
@@ -2222,20 +2222,26 @@ def migration_only_product_catalog(
 
 
 def _advance_historical_product_catalog(catalog: ProvisionedProductCatalog) -> None:
-    """歴史往復を終えた実0033だけを正規S3へ進め、全catalogを照合する。"""
+    """歴史往復を終えた実0033だけをcurrentへ進め、全catalogを照合する。"""
     catalog.observer.rollback()
     catalog.applicator.rollback()
     assert catalog.applicator.execute(
         "SELECT version_num FROM public.alembic_version"
     ).fetchall() == [("0033_game_rules_immutable",)]
     catalog.applicator.rollback()
-    result = advance_stage_a_from_s0(
+    from pitchlog.db.current_product_startup import (
+        CURRENT_REVISION,
+        advance_current_product_from_s0,
+    )
+
+    result = advance_current_product_from_s0(
         owner_dsn=catalog.owner_dsn,
         applicator_dsn=make_conninfo(
             catalog.cluster.admin_dsn, dbname=catalog.applicator.info.dbname
         ),
     )
-    assert result.completed_stage == "S3" and result.publishable is False
+    assert result.completed_revision == CURRENT_REVISION
+    assert result.publishable is False
     role_oid = catalog.applicator.execute(
         "SELECT oid FROM pg_catalog.pg_roles WHERE rolname=session_user"
     ).fetchone()

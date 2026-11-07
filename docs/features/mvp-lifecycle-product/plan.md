@@ -38,3 +38,36 @@ step3の実画面E2E追加（2026-11-06、PO委任Codex/root判断）: GameScree
 
 
 合成実画面r1: 同版94baでUI新規作成→開始→1球保存は通過、終了POST404で停止。同期C2登録へLC transportのPOSTだけtenantBoundが追随せず期待tenant/challengeを送っていないと特定。GET/通常球/取消と同じtenantBound:trueをLC POSTへ加え、原body/attempt不変を既API spec完全一致期待でも固定する。API-only候補成功を画面完走へ広げない。
+
+
+### ステップ4・正式統合前の基線接合（2026-11-07、PO委任Codex主担当/root判断）
+
+既実画面結合候補60f39f1042e18d2bfe3bf882dd24dc3caccda0aeを不変更で保全し、root専有の新WT/枝feature/mvp-nonplay-formal-connectionで、PR197最終候補d8e8b34d8a5f12665530226ec0f539804c06791cのCI修復を通常mergeする。PR197はまだ公開CI中であり、ここで正式developの統合済みとは記録しない。公開197のbranch/HEADは変更しない。
+
+既step4の正式資産/独立確認/CI/通常統合準備の具体化に限り、repo/runtime候補原本・生成module、DB fixtureとnative登録試験の6競合をrootが直列解決する。既製品の認可・記録権・原子性・単一核と旧拒否対向を保持する。生成物は片側の完全byte選択または公式rendererから再導出し、手で生成moduleの値を作らない。旧候補payloadに残る未受理履歴を正式197受理へ読み替えず、次段の対象source固定と正式base確定後、公式helperで必要差分の完全前後値を導出し別非作者確認・委任受理を行う。
+
+この段階では申告敬遠/CSV/P3/復旧の後発実装を一括移植しない。各専用枝/証拠/編集所有を保持し、現在候補の開始・通常入力・取消・交代・終了再開の供給を197修復で失わないことを局所検査する。rootの統合準備をMVP完成や正式提供としない。
+
+
+接合検査の追補（2026-11-07、PO委任Codex/root判断）: 922e3d36で局所77件中8fail/69pass。旧22登録へ実追加verify_replay_deviceを含めた23を旧SHAと比較した1件、cold importの旧42件期待4件、後続終了再開のgames.status列ACL拡張後にPR197導入時点を再検査した3件を区別する。製品importは実43登録で成功。旧22全値/順序/SQL/型と旧導入時点の歴史試験を保持し、後発replay1登録・statusの限定SELECT/UPDATEを別に全値検査する。任意のsuperset/skipで通さない。必要な専用historical fixtureは固定Git原典と全byteに束縛し、現在値を自己期待にしない。現fixture15fileの書式追随はAST全一致を実測して同単位へ含める。製品意味・認可の一般緩和はせず、同候補の非作者確認と正式資産/全CIを別途必要とする。
+
+
+922接合検査の是正結果: 後継入力 `backend/tests/fixtures/nonplay_product_successors_v1.json` は既固定60f39f10を1値だけ保持し、重複key/型/余剰/非正準/シンボリックリンクを拒否する。旧a59原典の全宣言・323本文・29関数詳細/guardの旧検査を固定Gitの実moduleで実行し、現在木にも全旧値を比較する。許す差分は既取消で必要なplay_rows.hidden_at列ACL1と既NPのprepare/finish/runner guard3本文のみ、後継の完全byteへ束縛しowner/属性の変更は許さない。成績接合のgames.status ACLだけは既終了再開のSELECT/UPDATE完全値に対応する。旧22登録は元pinと一致、追加replay1は既製品registrationそのものへ束縛し、実cold import43を検査する。
+
+局所4suiteは85passed、backend791file書式・Ruff/Ty成功。初回8fail、JSON tuple/listの表現差、fixture展開に非依存snapshot保全庫まで含めた容量拒否などはcacheの失敗ログに保存し、検出を黙ってskipしていない。fixture展開は元検査/producerの依存入力のみで、正式凍結検査の走査対象は変更しない。**新後継fixtureは次PRのfrozen-inputs external_filesへ正式登録・完全値受理が必要。未登録のまま通常統合しない。** この追補とsourceは候補で、非作者レビュー/正式9資産/必須全件CI/通常mergeはまだ。
+
+
+### 記録後の取消原本の再取得接合（2026-11-07、PO委任Codex主担当/root判断）
+
+CSV担当が隔離shadowで作成したreflection2、patch SHA `2bc454d925488ec1bbd3567987ac95310f704c55164ef6e45cecdc3cd3be5b76` の4pathを本root WTへ接合候補として適用する。対象はGameScreenRecordedRestore/UndoProductのVueと各spec。開始0球時の409後に通常球を保存してもgameId/authが変わらず取消子が再取得しない欠陥を、通常球ACK後の親実GET ready・同game/tenant/authEpoch確認後の子の既load呼出で修復する。controller再生成・未終結要求破棄・D5置換はしない。busy中の要求は同scopeで1件へ束ね、完了後に既loadを実行し、scope変更では捨てる。
+
+4path before SHAは本67aと全一致。作者shadow54Vue/型/lint成功を根拠に接合するが、rootの再検査・実ブラウザ・別非作者確認と正式統合は別途必要。旧3path元byteの未保全は作者history.jsonへ記録済みで旧版を再現確認済みとしない。T1/T2/artifact/認可/保存/ACK判定は変更しない。
+
+
+### 正規起動のschema到達点の整合（2026-11-07、PO委任Codex主担当/root判断）
+
+本候補の実モデル/登録は0044交代receiptと0045成績27キーを既に含む一方、正規current起動だけ0043で停止する供給不一致を確認した。root所有の `db/current_product_startup.py` のCURRENT_REVISIONを既migration0045へ揃え、実schema/catalog検査とcurrent用fixtureの版期待を同じ正本constantへ束縛する。migration本文や旧0039/0041等の歴史期待は変更せず、未知旧partial版を修復して通す拒否条件も保持する。0033/0039→currentの正規起動とcurrent再開をowned PGで確認し、候補E2Eだけが0045へ事前migrationする成功に依存しない。これはsource/隔離検証だけで共有DB適用/運用公開ではない。正式197側のcurrent0041は変更せず、本後続候補だけの整合とする。
+
+起動検査2件は変更前e3c3aeでも同じ失敗を再現。閉表期待を既0044の交代印含む13表へ追随し、交代印の未命名FK4件を既migrationが実PGで生成する名前へ型元だけ明示する（migration本文・実DDL・FK参照/削除/遅延属性は不変）。型元とcatalogの全比較でNoneと実生成名が不一致になるための修復であり、名前照合の除外はしない。対象へ `writer_binding/substitution_models.py` と `tests/test_current_product_startup.py` を追加、4名前literalと全属性改変拒否を検査する。owned一時PGで4生成名を観測済みだが、全起動成功は別途実測する。
+
+既 `tests/db/test_current_product_startup.py` へ0044表作成直後/0045の2個目CHECK差替直後の実故障を追加し、0039版と追加表全不存在の全取消、そこからcurrentへ再開を検査する。実起動と同版再開の既テストを併用し、事前投入fixtureでは代用しない。

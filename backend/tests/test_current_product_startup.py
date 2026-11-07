@@ -55,10 +55,10 @@ def test_expression_unknown_syntax_is_closed(bad):
         current._expression(bad)
 
 
-def test_current_models_are_closed_twelve_with_lifecycle_tables():
-    """既10表を落とさず、終了再開2表の型元を加える。"""
+def test_current_models_are_closed_thirteen_with_substitution_receipt():
+    """既12表を落とさず、交代receiptの型元を加える。"""
     tables = current._tables()
-    assert len(tables) == 12
+    assert len(tables) == 13
     assert [t.name for t in tables] == [
         "first_ball_write_admissions",
         "game_lifecycle_heads",
@@ -70,9 +70,18 @@ def test_current_models_are_closed_twelve_with_lifecycle_tables():
         "stats_fact_versions",
         "stats_primitive_facts",
         "stats_primitive_sources",
+        "substitution_write_receipts",
         "writer_admissions",
         "writer_bindings",
     ]
+    receipt = next(t for t in tables if t.name == "substitution_write_receipts")
+    assert len(receipt.c) == 10
+    assert {r[1] for r in current._expected_constraints(receipt) if r[0] == "f"} == {
+        "substitution_write_receipts_tenant_id_attempt_id_phase_id_fkey",
+        "substitution_write_receipts_tenant_id_checkpoint_id_fkey",
+        "substitution_write_receipts_tenant_id_game_id_fkey",
+        "substitution_write_receipts_tenant_id_source_event_id_fkey",
+    }
     assert len(next(t for t in tables if t.name == "nonplay_write_admissions").c) == 43
     stats = [t for t in tables if t.name.startswith("stats_")]
     assert [len(t.c) for t in stats] == [20, 9, 25]
@@ -363,6 +372,8 @@ def _structural_connection(fault=None, target_name="stats_fact_versions"):
                 row[6] = checks[row[1]] if row[0] == "c" else None
                 if target and fault == "check" and row[0] == "c":
                     row[6] = "true"
+                if target and fault == "constraint_name" and row[0] == "f":
+                    row[1] = "foreign_constraint_name"
                 if target and fault == "fk_action" and row[0] == "f":
                     row[5] = "c"
                 if target and fault == "fk_match" and row[0] == "f":
@@ -419,6 +430,17 @@ def test_structural_comparison_refuses_every_changed_field(fault):
     """旧制約と新列/PKFKCHECK全属性の不足・余剰・変更を拒否する。"""
     with pytest.raises(current.CurrentProductStartupError):
         current._check_current_structure(_structural_connection(fault))
+
+
+@pytest.mark.parametrize(
+    "fault", ["constraint_name", "fk_action", "fk_match", "not_valid", "deferrable"]
+)
+def test_substitution_receipt_refuses_changed_foreign_key(fault):
+    """交代印の実FK名・参照属性・遅延属性を省略せず比較する。"""
+    with pytest.raises(current.CurrentProductStartupError):
+        current._check_current_structure(
+            _structural_connection(fault, target_name="substitution_write_receipts")
+        )
 
 
 @pytest.mark.parametrize(
