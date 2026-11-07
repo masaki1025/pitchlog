@@ -217,3 +217,24 @@ def test_all_p3_functions_use_the_strict_normal_reapply_guard():
         assert "IF existing IS NULL THEN" in wrapped
         assert "first ball function definition collision" in wrapped
         assert "first ball function privilege collision" in wrapped
+
+
+def test_every_declared_xmin_grant_is_visible_to_the_real_catalog_query():
+    """宣言を追加したのに検査queryが未取得のままになる往復を防ぐ。"""
+    from pitchlog.authz.first_ball_product import ADDITIONS
+    from pitchlog.authz.product_catalog import _COLUMN_ACL_QUERY
+    from pitchlog.db.past_correction.models import P3_STORAGE_MODELS
+
+    expected = {
+        (row["object_schema"], row["object_id"])
+        for row in ADDITIONS["column_acl_expectations"]
+        if row["column_id"] == "xmin"
+    }
+    collected = set(
+        re.findall(r"\('([a-z_][a-z_0-9]*)', '([a-z_][a-z_0-9]*)'\)", _COLUMN_ACL_QUERY)
+    )
+    assert expected <= collected
+    assert len({table for _, table in expected if table.startswith("p3_")}) == 4
+    assert {
+        (model.__table__.schema, model.__table__.name) for model in P3_STORAGE_MODELS
+    } <= collected
