@@ -121,7 +121,7 @@ test('別contextの保存済み閲覧は10秒以内に1球へ更新し、断中�
   async function selectAndSave(
     result: string,
     count: number,
-  ): Promise<LineupPrefixGame> {
+  ): Promise<{ head: LineupPrefixGame; savedAt: number }> {
     // 履歴表示と入力context再束縛は別の更新。実server由来の入力へ戻ってから操作する。
     await expect(page.getByTestId('ordinary-state-source')).toHaveText(
       'サーバー確認済みの状態',
@@ -144,12 +144,16 @@ test('別contextの保存済み閲覧は10秒以内に1球へ更新し、断中�
     await expect(page.getByTestId('first-ball-save')).toBeEnabled()
     await page.getByTestId('first-ball-save').click()
     const response = await posted
+    const savedAt = Date.now()
     expect(response.status()).toBe(200)
     const ack = (await response.json()) as {
       eventResults?: readonly { a5Result?: string }[]
     }
     expect(ack.eventResults?.[0]?.a5Result).toBe('受理')
-    return (await (await confirmed).json()) as LineupPrefixGame
+    return {
+      head: (await (await confirmed).json()) as LineupPrefixGame,
+      savedAt,
+    }
   }
 
   const viewerContext = await browser.newContext({ ignoreHTTPSErrors: true })
@@ -210,12 +214,12 @@ test('別contextの保存済み閲覧は10秒以内に1球へ更新し、断中�
     await expect(page.getByTestId('ordinary-state-source')).toHaveText(
       'サーバー確認済みの状態',
     )
-    const savedAt = Date.now()
-    const head = await selectAndSave('batting-result.called-pitch', 1)
+    const recorded = await selectAndSave('batting-result.called-pitch', 1)
+    const head = recorded.head
     await expect(viewer.getByText(/第1球:/)).toBeVisible({ timeout: 10_000 })
     const visibleAt = Date.now()
-    if (visibleAt - savedAt > 10_000)
-      throw new Error(`10秒更新未達: ${visibleAt - savedAt}ms`)
+    if (visibleAt - recorded.savedAt > 10_000)
+      throw new Error(`10秒更新未達: ${visibleAt - recorded.savedAt}ms`)
     const state = head.after.stateFields
     await expect(score).toContainText(
       `先攻 ${state['state.score'].away} – 後攻 ${state['state.score'].home}`,
@@ -225,7 +229,7 @@ test('別contextの保存済み閲覧は10秒以内に1球へ更新し、断中�
       `${state['state.count.balls']}ボール ${state['state.count.strikes']}ストライク`,
     )
     console.log(`PITCHLOG_VIEWER_GAME_ID=${saved.id}`)
-    console.log(`PITCHLOG_VIEWER_VISIBLE_MS=${visibleAt - savedAt}`)
+    console.log(`PITCHLOG_VIEWER_VISIBLE_MS=${visibleAt - recorded.savedAt}`)
     await viewer.reload()
     await expect(viewer.getByText(/第1球:/)).toBeVisible()
     await viewerContext.setOffline(true)
