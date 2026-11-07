@@ -145,3 +145,33 @@ def test_whole_profile_keeps_legacy_primitives_and_rejects_export_grant():
     primitive["security_mode"] = "invoker"
     with pytest.raises(ValueError):
         validate(changed)
+
+
+def test_export_scalar_uuid_reapply_retains_closed_signature():
+    """実CSV関数のuuid非集合型を再適用でき、似た未知型は拒否する。"""
+    from pitchlog.authz.first_ball_product import (
+        _function_argument_names,
+        application_function_sql,
+        body,
+    )
+
+    identifier = (
+        "FUNCTION:stats_api:save_writer_play_export_snapshot("
+        "uuid, uuid, uuid, uuid, text, bigint, bytea, jsonb)"
+    )
+    canonical = body("function", identifier)
+    assert canonical is not None and "RETURNS uuid" in canonical
+    names, returns_set = _function_argument_names(canonical)
+    assert len(names) == 8 and returns_set is False
+    wrapped = application_function_sql(identifier, canonical)
+    assert wrapped is not None
+    assert "p.proretset=FALSE" in wrapped
+    assert "pg_catalog.pg_get_function_result(p.oid)='uuid'" in wrapped
+    with pytest.raises(ValueError, match="固定引数宣言"):
+        _function_argument_names(
+            canonical.replace("RETURNS uuid", "RETURNS uuidx")
+        )
+    with pytest.raises(ValueError, match="適用本文"):
+        application_function_sql(
+            identifier, canonical.replace("RETURNS uuid", "RETURNS text")
+        )
