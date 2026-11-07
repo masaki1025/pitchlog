@@ -51,7 +51,19 @@ def traced_apply(*args, **kwargs):
             if code in {"42501", "42703", "42883", "42P01", "42804", "42702", "42601"}
             else None
         )
+        causes = []
+        seen = set()
+        current = error
+        while current is not None and len(causes) < 8 and id(current) not in seen:
+            seen.add(id(current))
+            causes.append({
+                "exception_type": type(current).__name__,
+                "frames": [(f.name, f.lineno) for f in
+                           traceback.extract_tb(current.__traceback__)[-16:]],
+            })
+            current = current.__cause__ or current.__context__
         runtime_diagnostics.update(
+            cause_frames=causes,
             exception_type=type(error).__name__,
             database_exception_type=type(original).__name__,
             sqlstate=code,

@@ -29,3 +29,5 @@ rootのみが本WT/共有接合を編集する。編集は既P3/recoveryの実so
 ステップ1第二接合はe690の標準control/P3 body fingerprintと旧要求照会・P3専用送信barrierを通常mergeで取り込む。16競合をcache p3-recovery-merge-resolutions.jsonへstage1/2/3と解消SHAで固定、root47 catalog/UUID parser/分類とP1実証browser条件を維持し、他の競合はP3 sourceを採用。phase_kindとbody_fingerprintの同一代入重複だけを除去、adapterは独立確認済40d9b070…とmanifestの全byte一致を別途照合。P3 APIには既cache patchのpostRecoverableP3Changeを接合、元body/D5/V12を改変せずsent.bodyと実応答でparseする。既wire単体にPinia/IndexedDB/安全context前提を明示し、unsafeではfetch前に拒否する負例追加。mock/単体成功を実認証/PGへ読み替えない。
 
 第二接合の局所検査は402backend/20.35秒、107frontend/3.30秒、P3送信/barrier境界23/2.80秒成功。P3単位の旧3failは新耐久前提を試験準備していなかったものとして保全、旧応答期待やC2拒否を削除していない。Ruff/Ty、独立sourceレビュー、正常0048/実owned・cold P3・CSV88・正式受理は後続。旧registry追加22件の期待不足1failは未解消。
+
+root9848の標準controlを使う真正P3復旧HTTPは1failed186.54秒/source同一/cleanup。P3後の通常球next-pitch-post(3)がCSV writerのPlayExportWriterUnavailableで503となり、単独P3候補と通常CSV接続の相互依存を検出した。T2/T4の計画故障も含むが、この末尾不成功を復旧全成立としない。内因のフレームを最大8段/各16件で型名と関数名/行番号だけ保存する診断を既ordinary HTTP helperへ追加する（本文/資格/例外文字列は追加出力しない）。同じ失敗の無根拠反復ではなく、次の限定実行でCSVのどの閉境界かを特定する。標準0048とP3の88列producer/唯一Sの完全接続は依然未了。
