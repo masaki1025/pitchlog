@@ -10,6 +10,8 @@ branch: feature/mvp-runner-nonpitch-read-dto-20261107
 
 編集範囲は `backend/src/pitchlog/api/schemas/started_games.py`、`frontend/src/api/startedGame.ts`、`frontend/src/api/lineupPrefixGame.ts`、新専用BE/FE試験、本計画のみ。旧初球/v1/v2/Ordinary型、共有reader/SQL/契約/正本/asset/他WTは不変更。実PG/ブラウザはroot共通lock調整後。
 
+実装中に `frontend/src/screens/GameScreenPastCorrectionProduct.vue` の既3種target表示filterが打撃結果を必須文字列として扱う型依存を確認。root の追加技術委任で同filter 1箇所のみ `batting_result_key !== null` の閉ガードを所有へ追加する。Runner NPを未対応の訂正として既3種集合へ混ぜず、P3全体のMVP対象から除外しない。元3種/既拒否は不変更。
+
 | ステップ | 内容 |
 |---|---|
 | 1/1 | 既IWを保持し、Runner NP公開行を別閉variantでv3 Lineup pageだけに追加。実41列mapperの8有限形と正負codecを照合する。 |

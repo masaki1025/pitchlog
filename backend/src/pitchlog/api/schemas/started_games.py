@@ -255,6 +255,25 @@ class LineupNonPitchPlayRow(RecordedPrefixPlayRow):
     comment: None
 
 
+class LineupRunnerNonPitchPlayRow(LineupNonPitchPlayRow):
+    """v3 Runner NPの公開行。保存済み有限3形だけを表す。"""
+
+    batting_result_key: None
+    secondary_batting_result_key: Literal["secondary-result.balk"] | None
+    pickoff_type: Literal["pitcher", "catcher"] | None
+    pickoff_detail: Literal["first", "second", "third"] | None
+
+    @model_validator(mode="after")
+    def _runner_nonpitch_shape(self):
+        """盗塁・牽制・ボークの物理付随列を混在させない。"""
+        if self.secondary_batting_result_key is not None:
+            if self.pickoff_type is not None or self.pickoff_detail is not None:
+                raise ValueError("ボークに牽制列を混在できない")
+        elif (self.pickoff_type is None) != (self.pickoff_detail is None):
+            raise ValueError("牽制種別と対象塁は同時に必要")
+        return self
+
+
 class OrdinaryAppendPolicy(_FrozenSchema):
     """初期D2とgapの限定送信方針。DB bigint上限を変更しない。"""
 
@@ -491,7 +510,9 @@ class StartedPlayPrefixGameRead(StartedGameRead):
 class LineupPrefixPageItem(_FrozenSchema):
     """実v3行/実差分/物理before走者の閉じたpage item。"""
 
-    play_row: RecordedPrefixPlayRow | LineupNonPitchPlayRow
+    play_row: (
+        RecordedPrefixPlayRow | LineupNonPitchPlayRow | LineupRunnerNonPitchPlayRow
+    )
     history_entry: StrikeoutHistoryEntry
     play_runners: Annotated[list[StartedPlayRunner], Field(max_length=3)]
 
