@@ -79,3 +79,11 @@ owned r9（source前後SHA一致、所有container cleanup）で実新規開始�
 r11は旧/tmpのTLS資材パス消失で画面開始前に失敗した。新規秘密を発行せず、既cacheの所有loopback TLS資材へcache runnerだけを差替え、旧runner/logを保存してr12を実行した。r12はsource前後SHA一致/owned cleanup。独立レビュー・正式0047/7.7/統合は別条件として残す。r12保存観測/ZIPへの事後完全比較をE2E内の恒久assertにも追補する。
 
 次のP3/終了再開接合には、唯一生成S/canonical_source_membersを再利用する閉じたsource identity読取を同RRへ供給する。既ReadPrimitivePageTokenはmetric/d2/eventだけで物理play/slotを返さないため代用しない。実装選択は既MVP内のDTO/保存読取具体化としてPO委任rootが許可済みだが、正式token/catalog/関数body/core境界はroot直列受理へ渡す。保存時88列snapshot不足を現在名簿/0/NULLで補完しない。
+
+### ステップ3・唯一Sの閉identity read候補（2026-11-07、PO委任rootの実装指示を反映）
+
+r13で435cb518の恒久assert入り画面縦断を再実行し、1passed136.17秒/source前後SHA一致/owned cleanupを確認してから新sourceへ進む。新設の `authz/play_export_source_read_product.py` は既 `_verified_inputs`/`play_export_score._canonical_parts` により検証済み唯一SのCTE/member JOINを再利用する。新しいeventの選択意味やT5再集計をCSV側へ追加せず、native現在版・health・digest/件数・全member数を照合した同RR/ROの500keyset identity read1関数を候補として描画する。0件も真正header sentinelで表し、未供給を0補完しない。
+
+`repositories/play_export_source_codec.py` は閉token/15列値契約・版/snapshot・cursor・余剰/欠落・部分NULLを検査する。`play_export_source_operations.py` は固定登録metadataと真正CSV scope専用の有限readerを候補化する。自由なSession/executorやUUIDだけを認可能力へ変えず、未登録の現registryでは実行を閉じる。共有function_operations/operation_registry/transactionへの必要差分はcache patchとしてrootへ渡し、正式関数body/catalog/ACL/seal/7.7はrootが直列で受理する。これらの共有sourceは本WTで編集しない。
+
+P3のeffective playに対する記録時88列producerは別供給として必要であり、identityのみを根拠に現在の名前/roster/0/NULLを埋めない。実PG・登録済token実経路・P3・終了/再開の接合が未成立の間、既P3 409を成功へ変更しない。計算・認可・保存保証は維持する。
