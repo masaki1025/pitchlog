@@ -71,3 +71,5 @@ CSV担当が隔離shadowで作成したreflection2、patch SHA `2bc454d925488ec1
 起動検査2件は変更前e3c3aeでも同じ失敗を再現。閉表期待を既0044の交代印含む13表へ追随し、交代印の未命名FK4件を既migrationが実PGで生成する名前へ型元だけ明示する（migration本文・実DDL・FK参照/削除/遅延属性は不変）。型元とcatalogの全比較でNoneと実生成名が不一致になるための修復であり、名前照合の除外はしない。対象へ `writer_binding/substitution_models.py` と `tests/test_current_product_startup.py` を追加、4名前literalと全属性改変拒否を検査する。owned一時PGで4生成名を観測済みだが、全起動成功は別途実測する。
 
 既 `tests/db/test_current_product_startup.py` へ0044表作成直後/0045の2個目CHECK差替直後の実故障を追加し、0039版と追加表全不存在の全取消、そこからcurrentへ再開を検査する。実起動と同版再開の既テストを併用し、事前投入fixtureでは代用しない。
+
+0045実起動run1は3failed14.98秒、診断run2はLC admissionの既CHECKで止まると確定。PGはbigint上限超の18446744073709551615をquoted numericとして逆変換するため、同じ正準十進整数のnumeric注記だけ構造parserで同値化する。上限値変更・numeric cast欠落/別型・小数・NaN/Infinityは別値のまま拒否する対向を追加する。旧失敗を保存し、実DB未通過を成功へ読み替えない。

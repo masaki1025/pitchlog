@@ -143,6 +143,14 @@ class _Expression:
                     and (left[0] == "text" or left == ("name", "null"))
                 )
                 harmless |= kind == "text[]" and left[0] == "array"
+                # bigint上限超の整数をPGはquoted numericへ逆変換する。
+                # 正準十進整数だけを同値化し、NaN/小数/指数/別型は捨てない。
+                if (
+                    kind == "numeric"
+                    and left[0] == "text"
+                    and re.fullmatch(r"0|[1-9][0-9]*", left[1])
+                ):
+                    left = ("integer", int(left[1]))
                 harmless |= kind == "numeric" and left[0] == "integer"
                 if not harmless:
                     left = ("cast", kind, left)

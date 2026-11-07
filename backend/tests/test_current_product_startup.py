@@ -27,6 +27,10 @@ from pitchlog.db import current_product_startup as current
             "((category = 'batted_ball'::text) AND (NOT disabled))",
         ),
         ("amount>=0", "amount >= (0)::numeric"),
+        (
+            "transaction_id::numeric<=18446744073709551615",
+            "transaction_id::numeric <= '18446744073709551615'::numeric",
+        ),
     ],
 )
 def test_expression_accepts_only_documented_pg_deparse(left, right):
@@ -46,6 +50,24 @@ def test_expression_accepts_only_documented_pg_deparse(left, right):
 def test_expression_does_not_ignore_precedence_types_or_values(bad):
     """括弧・cast・値を捨てたtoken一致へ緩めない。"""
     assert current._expression("a=1 AND (b=2 OR c=3)") != current._expression(bad)
+
+
+@pytest.mark.parametrize(
+    "bad",
+    [
+        "'18446744073709551616'::numeric",
+        "'18446744073709551615'",
+        "'18446744073709551615'::text",
+        "'18446744073709551615'::bigint",
+        "'18446744073709551615.1'::numeric",
+        "'NaN'::numeric",
+        "'Infinity'::numeric",
+    ],
+)
+def test_numeric_deparse_preserves_limit_value_and_cast(bad):
+    """実PGの整数注記だけを揃え、上限値・型・非有限値を捨てない。"""
+    expected = current._expression("transaction_id::numeric<=18446744073709551615")
+    assert current._expression("transaction_id::numeric<=" + bad) != expected
 
 
 @pytest.mark.parametrize("bad", ["a ; SELECT 1", "a @> b", "a IS DISTINCT FROM b"])
