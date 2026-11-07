@@ -1,14 +1,15 @@
 {
   "schemaVersion": 1,
   "status": "candidate-source-provider-pending",
-  "modelSha256": "25d660d74b450d7653ba0f6c570a99de6a567e9e010a61cf08bfef3301c568ca",
+  "modelSha256": "141c8a3230759705694e6cc920c11f5728e851a36402e929686db7143b8d98b4",
   "inputs": {
-    "backend/domain/stats-appearance.model.json": "affae4d13ff707c3315ef87754f911ed787b27b140cff87ed5241682d8f48a38",
-    "backend/domain/stats-appearance.schema.json": "9c4348a4f4c75ef031527245b26bd6460a8a20be451da5f25ac6dd6e146b411e",
-    "backend/src/pitchlog/domaingen/stats_appearance.py": "1449ad5562fc7b399ce949dd0c6264dcaaf43a478fccaf6ea2b62f7099e5a5c4"
+    "backend/domain/stats-appearance.model.json": "60a757557ba9b6f6ef8ff4abe7b2938f8e090965a65cccab05fe710fe1cb0504",
+    "backend/domain/stats-appearance.schema.json": "f8a7edbf9e3a059a0f245a5724483e05df0e3b403ce831ea2995ec42a805e47b",
+    "backend/src/pitchlog/domaingen/stats_appearance.py": "b6bde77a0c254357ed928e7fd6233ad8cd9d175f73a0a77498db9b25fe71ef4a"
   },
   "generatedFiles": {
-    "backend/src/pitchlog/stats/generated/appearances.sql": "e5109ab7c715ee6888d65a766265812c93e9904b4aabaa0b32e409d5a5237a81"
+    "backend/src/pitchlog/stats/generated/appearances.sql": "e5109ab7c715ee6888d65a766265812c93e9904b4aabaa0b32e409d5a5237a81",
+    "backend/src/pitchlog/stats/generated/pitcher_entry_projection.sql": "b7462afc65700a4bc1f315d3922858948f9ac4df86220feec6f8d3d3beac846d"
   },
   "providerInstalled": false
 }

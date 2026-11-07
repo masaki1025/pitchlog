@@ -5,7 +5,8 @@
     "schemaVersion",
     "calculationId",
     "source",
-    "aggregate"
+    "aggregate",
+    "entryProjection"
   ],
   "additionalProperties": false,
   "properties": {
@@ -86,6 +87,41 @@
         "missingSupply": {
           "const": "source_unavailable"
         }
+      }
+    },
+    "entryProjection": {
+      "const": {
+        "sourceRelation": "appearance_transition",
+        "sourceKinds": [
+          "start",
+          "play",
+          "substitution",
+          "reopen"
+        ],
+        "halfDefender": {
+          "top": "home",
+          "bottom": "away"
+        },
+        "continueOutcomes": [
+          "no-end",
+          "extra-continue",
+          "tiebreak-continue"
+        ],
+        "halfReason": "defensive-half-entry",
+        "substitutionReason": "pitcher-defensive-entry",
+        "knownOutcomes": [
+          "no-end",
+          "normal-end",
+          "extra-continue",
+          "limit-draw",
+          "tiebreak-continue",
+          "cold-end",
+          "walk-off"
+        ],
+        "knownXMarks": [
+          "recorded-score",
+          "x-mark"
+        ]
       }
     }
   }

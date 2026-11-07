@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import sqlite3
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -240,3 +241,339 @@ def test_missing_entire_scope_does_not_look_like_zero_season():
         None,
     )
     assert _evaluate([], [], expected_games=0) == ("appearances", "available", 0)
+
+
+def _entry_projection(**changes):
+    """既kernel結果の合成値を単一SQLへ渡す。真正writer資格とは別の試験。"""
+    values = dict(
+        tenant_id="tenant",
+        game_id="game",
+        source_id="start-attempt",
+        origin_kind="start",
+        internal_generation=1,
+        d1=None,
+        before_inning=None,
+        before_half=None,
+        after_inning=1,
+        after_half="top",
+        after_home_pitcher_id="home-starter",
+        after_away_pitcher_id="away-starter",
+        before_home_pitcher_id=None,
+        before_away_pitcher_id=None,
+        changed_side=None,
+        half_completed=None,
+        end_condition_detected=None,
+        lock_further_play=None,
+        outcome=None,
+        x_mark=None,
+        released_end_condition=None,
+        half_started_before=None,
+        artifact_sha256="a" * 64,
+        source_fingerprint="b" * 64,
+    )
+    values.update(changes)
+    bundle, _ = generate_appearance_bundle()
+    query = bundle["backend/src/pitchlog/stats/generated/pitcher_entry_projection.sql"]
+    with sqlite3.connect(":memory:") as db:
+        names = ",".join(values)
+        binds = ",".join("?" for _ in values)
+        return db.execute(
+            f"WITH appearance_transition({names}) AS (VALUES ({binds})) "
+            f"SELECT * FROM ({query}) projected",
+            tuple(values.values()),
+        ).fetchone()
+
+
+def _play_transition(**changes):
+    """第3out後のT1/T2既結果を固定する。期待をkernelで作り直さない。"""
+    values = dict(
+        origin_kind="play",
+        source_id="accepted-play",
+        d1=3,
+        before_inning=1,
+        before_half="top",
+        after_inning=1,
+        after_half="bottom",
+        half_completed=True,
+        end_condition_detected=False,
+        lock_further_play=False,
+        outcome="no-end",
+        x_mark="recorded-score",
+    )
+    values.update(changes)
+    return _entry_projection(**values)
+
+
+def test_start_enters_only_home_pitcher_before_any_pitch():
+    """開始TXの0球時点で後攻投手のみ。未守備先攻は生成しない。"""
+    row = _entry_projection()
+    assert row[0] == "evaluated"
+    assert row[6] is None
+    assert row[7:12] == ("home-starter", "home", 1, "top", "defensive-half-entry")
+
+
+def test_ordinary_half_transition_enters_next_defender():
+    """第三out後に既T2が継続を確定した半回だけを写す。"""
+    row = _play_transition()
+    assert row[0] == "evaluated"
+    assert row[7:12] == ("away-starter", "away", 1, "bottom", "defensive-half-entry")
+
+
+@pytest.mark.parametrize("outcome", ["normal-end", "cold-end", "limit-draw"])
+def test_terminal_top_completion_does_not_enter_unstarted_bottom(outcome):
+    """表完了でも裏未開始なら先攻投手の出場を推測しない。"""
+    row = _play_transition(
+        end_condition_detected=True,
+        lock_further_play=True,
+        outcome=outcome,
+        x_mark="x-mark",
+    )
+    assert row[0] == "evaluated" and row[7:12] == (None,) * 5
+
+
+def test_pitch_without_half_transition_does_not_create_another_entry():
+    """同じ半回の通常1球は既出場を増やさない。"""
+    row = _play_transition(before_half="top", after_half="top", half_completed=False)
+    assert row[0] == "evaluated" and row[7:12] == (None,) * 5
+
+
+@pytest.mark.parametrize("side,expected", [("home", "relief"), ("away", None)])
+def test_zero_pitch_substitution_counts_only_current_defending_side(side, expected):
+    """守備中の0球交代は出場、攻撃中の投手割当変更はまだ出場しない。"""
+    row = _entry_projection(
+        origin_kind="substitution",
+        source_id="sub",
+        d1=2,
+        before_inning=1,
+        before_half="top",
+        changed_side=side,
+        before_home_pitcher_id="home-starter",
+        after_home_pitcher_id="relief",
+    )
+    assert row[0] == "evaluated" and row[7] == expected
+    if expected is not None:
+        assert row[11] == "pitcher-defensive-entry"
+
+
+def test_pending_offensive_pitcher_changes_take_effect_only_when_defense_starts():
+    """攻撃中A→B→Cを数えず、次守備半回の有効Cを保存する。"""
+    row = _play_transition(after_away_pitcher_id="final-C")
+    assert row[0] == "evaluated" and row[7] == "final-C"
+
+
+@pytest.mark.parametrize("started,expected", [(False, "away-starter"), (True, None)])
+def test_reopen_enters_only_previously_unstarted_released_half(started, expected):
+    """未開始半回を開く再開のみ出場。既半回の再開で増やさない。"""
+    row = _play_transition(
+        origin_kind="reopen", released_end_condition=True, half_started_before=started
+    )
+    assert row[0] == "evaluated" and row[7] == expected
+
+
+@pytest.mark.parametrize(
+    "fault",
+    [
+        {"origin_kind": "unknown"},
+        {"d1": 1},
+        {"after_half": "bottom"},
+        {"after_home_pitcher_id": None},
+        {"internal_generation": 0},
+    ],
+)
+def test_invalid_start_entry_is_unavailable(fault):
+    """架空D1や未知origin/初期half/投手不足を成功へ補完しない。"""
+    assert _entry_projection(**fault)[0] == "source_unavailable"
+
+
+def _decoded_row(**changes):
+    """正準DB scalarから構成した固定期待。資格ではない。"""
+    from uuid import UUID
+
+    values = dict(
+        state="evaluated",
+        tenant_id=UUID(int=1),
+        game_id=UUID(int=2),
+        origin_kind="start",
+        source_id=UUID(int=3),
+        generation=1,
+        d1=None,
+        player_id=UUID(int=4),
+        side="home",
+        inning=1,
+        half="top",
+        kind="defensive-half-entry",
+        artifact="a" * 64,
+        fingerprint="b" * 64,
+    )
+    values.update(changes)
+    return (tuple(values.values()),)
+
+
+def test_projection_codec_does_not_turn_values_into_writer_authority():
+    """全値codecは型付き値だけを返し、開始D1を作らない。"""
+    from pitchlog.stats.pitcher_appearance_source import decode_projected_entry
+
+    entry = decode_projected_entry(_decoded_row())
+    assert entry is not None and entry.d1 is None and entry.defending_side == "home"
+    assert not hasattr(entry, "writer") and not hasattr(entry, "nonce")
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        {"generation": True},
+        {"d1": 0},
+        {"tenant_id": "1"},
+        {"side": "away"},
+        {"player_id": None},
+        {"origin_kind": "unknown"},
+        {"artifact": "A" * 64},
+        {"half": "bottom"},
+        {"kind": "pitcher-defensive-entry"},
+    ],
+)
+def test_projection_codec_refuses_noncanonical_or_inconsistent_values(change):
+    """型違い/部分NULL/偽開始positionを補完しない。"""
+    from pitchlog.stats.pitcher_appearance_source import (
+        PitcherAppearanceSourceUnavailable,
+        decode_projected_entry,
+    )
+
+    with pytest.raises(PitcherAppearanceSourceUnavailable):
+        decode_projected_entry(_decoded_row(**change))
+
+
+def test_actual_getters_reject_free_scopes_before_using_any_success_method():
+    """自由生成scopeやSession/JSONを成功資格へ昇格しない。"""
+    from pitchlog.stats.pitcher_appearance_source import (
+        PitcherAppearanceSourceUnavailable,
+        capture_play_transition,
+        capture_start_transition,
+        capture_substitution_transition,
+    )
+
+    class Fake:
+        def _check(self):
+            raise AssertionError("自由scopeへ委譲してはいけない")
+
+    with pytest.raises(PitcherAppearanceSourceUnavailable):
+        capture_start_transition(Fake())
+    with pytest.raises(PitcherAppearanceSourceUnavailable):
+        capture_play_transition(Fake(), object(), object())
+    with pytest.raises(PitcherAppearanceSourceUnavailable):
+        capture_substitution_transition(Fake(), object(), object())
+
+
+def test_appearance_read_requires_genuine_same_rr_handle():
+    """正準UUID tokenだけではreadを認可しない。"""
+    from uuid import UUID
+
+    from pitchlog.repositories.stats_appearance import (
+        ReadPitcherEntryPageToken,
+        read_pitcher_entry_page,
+    )
+    from pitchlog.repositories.transaction import TenantBindingError
+
+    token = ReadPitcherEntryPageToken(UUID(int=1), UUID(int=2), 1, "a" * 64)
+    with pytest.raises(TenantBindingError):
+        read_pitcher_entry_page(object(), token)
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        {"revision": True},
+        {"page_size": 501},
+        {"page_size": 0},
+        {"source_set_sha256": "wrong"},
+        {"after_proof_sha256": "A" * 64},
+    ],
+)
+def test_appearance_page_values_are_closed_before_root_registration(change):
+    """候補readも500上限/正準cursor/版型を緩めない。"""
+    from uuid import UUID
+
+    from pitchlog.repositories.stats_appearance import ReadPitcherEntryPageToken
+    from pitchlog.stats.pitcher_appearance_source import (
+        PitcherAppearanceSourceUnavailable,
+    )
+
+    values: dict[str, Any] = dict(
+        game_id=UUID(int=1),
+        fact_version_id=UUID(int=2),
+        revision=1,
+        source_set_sha256="a" * 64,
+    )
+    values.update(change)
+    with pytest.raises(PitcherAppearanceSourceUnavailable):
+        ReadPitcherEntryPageToken(**values)
+
+
+def test_candidate_models_keep_raw_proof_and_old_versions_immutable():
+    """全FK/閉union/原本の監査保存を候補DDLへ保持する。実配備証拠ではない。"""
+    from sqlalchemy.dialects.postgresql import dialect
+    from sqlalchemy.schema import CreateTable
+
+    from pitchlog.db import all_models
+    from pitchlog.db.game_state.pitcher_appearance_models import (
+        PitcherEntryMember,
+        PitcherEntrySource,
+        PitcherEntryVersion,
+    )
+    from pitchlog.db.game_state.stats import StatsFactVersion
+
+    assert (
+        all_models.IMPORTED_MODEL_MODULE_NAMES
+        and StatsFactVersion.__table__ is not None
+    )
+    for model in (PitcherEntrySource, PitcherEntryVersion, PitcherEntryMember):
+        table = model.__table__
+        ddl = str(CreateTable(table).compile(dialect=dialect()))
+        assert table.info["append_only"] is True
+        assert "ON DELETE NO ACTION" in ddl
+        assert not {"deleted_at", "updated_at", "created_at"}.intersection(
+            table.c.keys()
+        )
+    source = str(CreateTable(PitcherEntrySource.__table__).compile(dialect=dialect()))
+    assert "d1 IS NOT NULL AND slot_version IS NOT NULL" in source
+    assert "d1 IS NULL AND slot_version IS NULL" in source
+    assert "fk_pitcher_entry_generation" in source
+    member = str(CreateTable(PitcherEntryMember.__table__).compile(dialect=dialect()))
+    assert "source_set_sha256" in member and "proof_sha256" in member
+
+
+def test_start_entry_save_candidate_rechecks_actual_db_source_and_actor():
+    """callerの成功bool/自由選手を受けず同TX実原本へ束縛する候補。"""
+    from pitchlog.repositories.stats_appearance import candidate_start_entry_function
+
+    body = candidate_start_entry_function()
+    header = body.split("RETURNS TABLE", 1)[0]
+    assert "p_tenant_id uuid,p_attempt_id uuid,p_generation bigint" in header
+    assert "p_player" not in header and "p_success" not in body
+    assert "session_user IS DISTINCT FROM 'pitchlog_initial_actor'" in body
+    assert "current_user IS DISTINCT FROM 'pitchlog_initial_fn_owner'" in body
+    assert "p_tenant_id IS DISTINCT FROM v_tenant" in body
+    assert "a.outcome='committed'" in body
+    assert "rg.xmin::text::numeric=pg_catalog.mod(v_own_xid" in body
+    assert "l.xmin::text::numeric=pg_catalog.mod(v_own_xid" in body
+    assert "ON CONFLICT (tenant_id,game_id,proof_sha256) DO NOTHING" in body
+    assert "pg_catalog.to_jsonb(e)-'proof_sha256'=v_proof" in body
+    assert "DO UPDATE" not in body and "DELETE FROM" not in body
+    target = generate_appearance_bundle()[0][
+        "backend/src/pitchlog/stats/generated/pitcher_entry_projection.sql"
+    ]
+    assert body.count(target) == 1
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        {"outcome": "invented"},
+        {"x_mark": "blank"},
+        {"end_condition_detected": True, "lock_further_play": False},
+        {"half_completed": False, "before_half": "bottom", "before_inning": 2},
+    ],
+)
+def test_inconsistent_kernel_output_is_unavailable_without_reevaluating_rules(change):
+    """既出力の型/一致だけを拒否し、終了条件やスコアを再計算しない。"""
+    assert _play_transition(**change)[0] == "source_unavailable"
