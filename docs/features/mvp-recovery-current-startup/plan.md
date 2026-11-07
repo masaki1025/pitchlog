@@ -5,7 +5,7 @@ status: active
 重さ分類: コア領域
 branch: feature/mvp-recovery-current-startup
 created: 2026-11-07
-計画レビュー周回: 0
+計画レビュー周回: 1
 確定ゲート周回: 0
 ---
 
@@ -28,3 +28,5 @@ created: 2026-11-07
 固定f43のowned run1は4passed43.92秒、run2は5passed58.93秒、両方source前後同一/共有DSN未継承/owned cleanup。実S0→46/同版resume/46表作成後の全取消、RLS/未知列/余剰UPDATE/更新guard無効/TRUNCATE guard欠落拒否とpre-full正規再開・partial ACL拒否を確認。これは候補環境で、正式7.7/通常統合/運用公開ではない。
 
 同表の宣言分類の追補: first_ball_product.TABLESが13のままで、退役表の未知policyをpitchlog_appへ追加したメモリ内反例が_reserved=False/直接profile validate=Trueとなる不足を確認（母集合全検査が同変異を受理するかは未検証で、実越境の成立とはしない）。閉TABLESへ同表1件のみ追加し、元資産positiveと同変異negativeを固定する。DDL/権限そのものを追加せず、余剰を拒否する分類を元設計へ揃える。追加2pathを限定非作者確認し、最新HEADのS0/同版resumeを再確認してから候補最終版へ束縛する。
+
+ステップ3の実測固定: f43のrun1=4passed43.92秒/run2=5passed58.93秒に加え、分類是正e3433c2b42584915f97d3833ff6be766c5af67f7でも実S0→46/同版resumeをrun3=1passed18.49秒で再確認。各source前後同一・共有DSN未継承・所有container撤去。分類是正の限定非作者REPORT SHA cfc6380dd3bf71409bbae377151e0361dd82216fd30bae6aa14f4ade4843d45d/4pure/Ruff/Ty成功、旧605の自己レビューではなくroot追加deltaだけを対象とする。rootは全14構造/保護のf43非作者報告と本deltaを合成して、PO委任による限定source採用（2026-11-07）を記録する。候補正規起動の成立と、正式値7.7/最終CI/通常merge/運用適用の成立は別。証拠cache recovery-current46-startup-root-20261107のrun1/2/3-{source-before,source-after,result}.json・各log/xml・ROOT-ADOPTION.json。後発は本計画の記録だけで製品sourceを変えない。
