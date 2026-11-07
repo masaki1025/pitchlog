@@ -30,3 +30,9 @@ worktree: /home/ymdms/projects/pitchlog-worktrees/feature-mvp-viewer-current-con
 2026-11-07 JST、root が HEAD `80f652d98dbe886b89c948a5920b2475654f4a95` の plan SHA `36d1304b735f82fc73d0ce3aabb23d9a47a5104f53be08e0abaa32c0acaadb76` を全文確認し、P0/P1なしとしてPO委任で限定採用。真正RR scopeの有限登録とC2 gateは共有patchへ残す。終了版の未対応を成功で隠さず、P3のCP/capsule/slotの既結合、版・本文・cursorの同snapshot照合を維持する。実PGはrootとの時刻調整後に限定する。
 
 現行 `read_started_play_prefix_history_page` は昇順であり、元viewer計画の最新25件から旧頁へ遡る契約と同値ではない。2026-11-07 JST、root はこの具体差分を確認し、正常v3に必要な降順keyset/索引点範囲の有限reader 1本だけを共有patchへ追加する技術追補をPO委任で承認。NPは現行降順readerを再利用する。P3 paged currentも同じ最新頁・cursorを、既CP/capsule/slot/全頁seal検証を残したまま有界選択へ接ぐ。所有に新規 `backend/src/pitchlog/authz/{viewer_page_sql,viewer_product}.py` と専用pytestを加え、現行単一readerからの固定byte派生・2関数の宣言を供給する。共有 `ordinary_prefix_read.py`、`started_snapshot_read_operations.py` と関数登録はcache patchでrootへ渡し、このWTで直接編集しない。旧2関数の無条件追加、全履歴RAM取得、履歴欠落の成功化はしない。
+
+## rootのステップ3直列接合（2026-11-07 JST）
+
+元計画80f652d9/SHA36d1304b735f82fc73d0ce3aabb23d9a47a5104f53be08e0abaa32c0acaadb76のPO委任採用に基づき、root専用 `feature/mvp-viewer-product-integration-20261107`（730536eb起点）へ作者4b3339bcを接合する。共有13path patch SHA53991f6fcfc8ef279b2c725be8c80f6662ae42aa4af90caaca9ab3644f3d56aaを親18bの実byteと照合して適用し、生成器の2関数宣言/全SQLを正式product DDL・body manifestへ生成、Cookie対象と実有限期待集合を追随する。旧recover応答型除外・guard緩和は行わない。必要なrepository/runtime/7.7の派生受理は正規helperを使用し、実catalog/CI前に成立とはしない。編集をrootへ一本化し、作者と別WTで独立確認を継続する。
+
+ここでの接合は候補環境であり通常mergeや提供完成ではない。実PG/実画面は共通owned lockで走者主経路と分離し、終了v3の未提供を503のまま完成扱いにしない。
