@@ -77,6 +77,157 @@ def _uuid(value: object) -> UUID:
     return parsed
 
 
+def _verify_p3_current_member(
+    raw_member: object,
+    *,
+    d1: int,
+    tenant: UUID,
+    game: UUID,
+    generation: int,
+    capsule_id: UUID,
+    target_d1: int,
+    change_id: UUID,
+    change_event: dict[str, object],
+    change_ledger: dict[str, object],
+    prior_payload: LineupPitchPlayPayload | None,
+) -> tuple[dict[str, object], LineupPitchPlayPayload, object, object]:
+    """旧一括と新有界頁が共有する1行の原本・唯一計算・物理検証。"""
+    member = _object(raw_member)
+    if set(member) != {
+        "item",
+        "original_event",
+        "original_ledger",
+        "original_history",
+        "original_play_row",
+        "original_play_runners",
+        "effective_play_row",
+        "effective_play_runners",
+    }:
+        raise PastCorrectionCurrentUnavailable("P3 item読取形が不正")
+    row = _object(member["item"])
+    original_event = _object(member["original_event"])
+    original_ledger = _object(member["original_ledger"])
+    history = _object(member["original_history"])
+    old_play = _object(member["original_play_row"])
+    effective_play = _object(member["effective_play_row"])
+    original_runners = member["original_play_runners"]
+    effective_runners = member["effective_play_runners"]
+    item = {name: row[name] for name in _ITEM_COLUMNS}
+    item["digest"] = row["item_digest"]
+    old_payload = _evaluate_lineup_payload(item["original_payload"])
+    effective_payload = _evaluate_lineup_payload(item["payload"])
+    old_entry = old_payload.calculation.response.value.new_history_entry
+    effective_entry = (
+        effective_payload.calculation.response.value.new_history_entry
+    )
+    original_id = row["original_event_id"]
+    effective_id = row["effective_event_id"]
+    if (
+        row["tenant_id"] != str(tenant)
+        or row["game_id"] != str(game)
+        or row["internal_generation"] != generation
+        or row["capsule_id"] != str(capsule_id)
+        or row["d1"] != d1
+        or row["item_digest"]
+        != source_fingerprint(
+            {key: value for key, value in item.items() if key != "digest"}
+        )
+        or original_event["id"] != original_id
+        or original_event["tenant_id"] != str(tenant)
+        or original_event["game_id"] != str(game)
+        or original_event["generation"] != generation
+        or original_event["d1"] != d1
+        or original_event["d2"] != row["d2"]
+        or original_event["event_kind"] != "play_input"
+        or original_event["ledger_kind"] != "accepted"
+        or original_event["is_tombstone"] is not False
+        or original_event["replaced_at"] is not None
+        or original_event["retired_at"] is not None
+        or original_event["payload"] != item["original_payload"]
+        or original_ledger["tenant_id"] != str(tenant)
+        or original_ledger["d5"] != original_event["d5"]
+        or original_ledger["kind"] != "accepted"
+        or original_ledger["retired_at"] is not None
+        or history["entry"] != item["original_history_entry"]
+        or history["source_event_id"] != original_id
+        or history["d1"] != d1
+        or history["d2"] != row["d2"]
+        or old_play != item["original_play_row"]
+        or old_play["source_event_id"] != original_id
+        or original_runners != item["original_play_runners"]
+        or effective_play != item["play_row"]
+        or effective_play["source_event_id"] != effective_id
+        or effective_runners != item["play_runners"]
+        or old_entry.model_dump(mode="json", by_alias=True, exclude_unset=True)
+        != item["original_history_entry"]
+        or effective_entry.model_dump(
+            mode="json", by_alias=True, exclude_unset=True
+        )
+        != item["history_entry"]
+        or effective_payload.calculation.request.play_identity.event_id
+        != original_id
+        or effective_payload.calculation.request.play_identity.d5
+        != original_event["d5"]
+        or effective_payload.calculation.request.play_identity.play_id
+        != row["original_play_row_id"]
+    ):
+        raise PastCorrectionCurrentUnavailable("P3 item原本が不一致")
+    if d1 == target_d1:
+        if (
+            row["state"] != "corrected"
+            or effective_id != str(change_id)
+            or row["effective_play_row_id"] == row["original_play_row_id"]
+            or _object(change_event["payload"]).get("targetEventId")
+            != original_id
+        ):
+            raise PastCorrectionCurrentUnavailable("P3対象が不一致")
+    elif (
+        effective_id != original_id
+        or row["effective_play_row_id"] != row["original_play_row_id"]
+        or effective_play != old_play
+        or effective_runners != original_runners
+    ):
+        raise PastCorrectionCurrentUnavailable("P3後続原本が不一致")
+    if prior_payload is not None:
+        prior_value = prior_payload.calculation.response.value
+        request = effective_payload.calculation.request
+        if (
+            request.prefix_ref != prior_value.next_prefix_ref
+            or request.t1.before != prior_value.t1.after
+            or request.source.runners != prior_value.runners
+            or request.source.participants != prior_value.participants
+            or request.source.lineup != prior_value.lineup
+        ):
+            raise PastCorrectionCurrentUnavailable("P3有効連鎖が不一致")
+    expected_play = pitch_physical_row(
+        effective_payload.observations,
+        effective_payload.participants,
+        effective_payload.calculation.request.t1.result_id,
+        tenant_id=tenant,
+        game_id=game,
+        source_event_id=_uuid(effective_id),
+        row_id=_uuid(row["effective_play_row_id"]),
+        play_number=effective_play["play_number"],
+    )
+    expected_runners = runner_physical_rows(
+        effective_payload.calculation.request.source.runners,
+        t1=effective_payload.calculation.response.value.t1,
+        t1_input=effective_payload.calculation.request.t1,
+        tenant_id=tenant,
+        play_id=_uuid(row["effective_play_row_id"]),
+    )
+    if expected_play != effective_play or expected_runners != effective_runners:
+        raise PastCorrectionCurrentUnavailable("P3有効物理行が不一致")
+    return (
+        item,
+        effective_payload,
+        change_ledger["source_fingerprint"]
+        if d1 == target_d1
+        else original_ledger["source_fingerprint"],
+        row["d2"],
+    )
+
+
 def verify_p3_current_packet(
     packet: object,
     *,
@@ -226,140 +377,23 @@ def verify_p3_current_packet(
         source_d2: list[object] = []
         prior_payload: LineupPitchPlayPayload | None = None
         for d1, raw_member in enumerate(members, start=1):
-            member = _object(raw_member)
-            if set(member) != {
-                "item",
-                "original_event",
-                "original_ledger",
-                "original_history",
-                "original_play_row",
-                "original_play_runners",
-                "effective_play_row",
-                "effective_play_runners",
-            }:
-                raise PastCorrectionCurrentUnavailable("P3 item読取形が不正")
-            row = _object(member["item"])
-            original_event = _object(member["original_event"])
-            original_ledger = _object(member["original_ledger"])
-            history = _object(member["original_history"])
-            old_play = _object(member["original_play_row"])
-            effective_play = _object(member["effective_play_row"])
-            original_runners = member["original_play_runners"]
-            effective_runners = member["effective_play_runners"]
-            item = {name: row[name] for name in _ITEM_COLUMNS}
-            item["digest"] = row["item_digest"]
-            old_payload = _evaluate_lineup_payload(item["original_payload"])
-            effective_payload = _evaluate_lineup_payload(item["payload"])
-            old_entry = old_payload.calculation.response.value.new_history_entry
-            effective_entry = (
-                effective_payload.calculation.response.value.new_history_entry
+            item, effective_payload, fingerprint, d2 = _verify_p3_current_member(
+                raw_member,
+                d1=d1,
+                tenant=tenant,
+                game=game,
+                generation=generation,
+                capsule_id=capsule_id,
+                target_d1=target_d1,
+                change_id=change_id,
+                change_event=change_event,
+                change_ledger=change_ledger,
+                prior_payload=prior_payload,
             )
-            original_id = row["original_event_id"]
-            effective_id = row["effective_event_id"]
-            if (
-                row["tenant_id"] != str(tenant)
-                or row["game_id"] != str(game)
-                or row["internal_generation"] != generation
-                or row["capsule_id"] != str(capsule_id)
-                or row["d1"] != d1
-                or row["item_digest"]
-                != source_fingerprint(
-                    {key: value for key, value in item.items() if key != "digest"}
-                )
-                or original_event["id"] != original_id
-                or original_event["tenant_id"] != str(tenant)
-                or original_event["game_id"] != str(game)
-                or original_event["generation"] != generation
-                or original_event["d1"] != d1
-                or original_event["d2"] != row["d2"]
-                or original_event["event_kind"] != "play_input"
-                or original_event["ledger_kind"] != "accepted"
-                or original_event["is_tombstone"] is not False
-                or original_event["replaced_at"] is not None
-                or original_event["retired_at"] is not None
-                or original_event["payload"] != item["original_payload"]
-                or original_ledger["tenant_id"] != str(tenant)
-                or original_ledger["d5"] != original_event["d5"]
-                or original_ledger["kind"] != "accepted"
-                or original_ledger["retired_at"] is not None
-                or history["entry"] != item["original_history_entry"]
-                or history["source_event_id"] != original_id
-                or history["d1"] != d1
-                or history["d2"] != row["d2"]
-                or old_play != item["original_play_row"]
-                or old_play["source_event_id"] != original_id
-                or original_runners != item["original_play_runners"]
-                or effective_play != item["play_row"]
-                or effective_play["source_event_id"] != effective_id
-                or effective_runners != item["play_runners"]
-                or old_entry.model_dump(mode="json", by_alias=True, exclude_unset=True)
-                != item["original_history_entry"]
-                or effective_entry.model_dump(
-                    mode="json", by_alias=True, exclude_unset=True
-                )
-                != item["history_entry"]
-                or effective_payload.calculation.request.play_identity.event_id
-                != original_id
-                or effective_payload.calculation.request.play_identity.d5
-                != original_event["d5"]
-                or effective_payload.calculation.request.play_identity.play_id
-                != row["original_play_row_id"]
-            ):
-                raise PastCorrectionCurrentUnavailable("P3 item原本が不一致")
-            if d1 == target_d1:
-                if (
-                    row["state"] != "corrected"
-                    or effective_id != str(change_id)
-                    or row["effective_play_row_id"] == row["original_play_row_id"]
-                    or _object(change_event["payload"]).get("targetEventId")
-                    != original_id
-                ):
-                    raise PastCorrectionCurrentUnavailable("P3対象が不一致")
-            elif (
-                effective_id != original_id
-                or row["effective_play_row_id"] != row["original_play_row_id"]
-                or effective_play != old_play
-                or effective_runners != original_runners
-            ):
-                raise PastCorrectionCurrentUnavailable("P3後続原本が不一致")
-            if prior_payload is not None:
-                prior_value = prior_payload.calculation.response.value
-                request = effective_payload.calculation.request
-                if (
-                    request.prefix_ref != prior_value.next_prefix_ref
-                    or request.t1.before != prior_value.t1.after
-                    or request.source.runners != prior_value.runners
-                    or request.source.participants != prior_value.participants
-                    or request.source.lineup != prior_value.lineup
-                ):
-                    raise PastCorrectionCurrentUnavailable("P3有効連鎖が不一致")
-            expected_play = pitch_physical_row(
-                effective_payload.observations,
-                effective_payload.participants,
-                effective_payload.calculation.request.t1.result_id,
-                tenant_id=tenant,
-                game_id=game,
-                source_event_id=_uuid(effective_id),
-                row_id=_uuid(row["effective_play_row_id"]),
-                play_number=effective_play["play_number"],
-            )
-            expected_runners = runner_physical_rows(
-                effective_payload.calculation.request.source.runners,
-                t1=effective_payload.calculation.response.value.t1,
-                t1_input=effective_payload.calculation.request.t1,
-                tenant_id=tenant,
-                play_id=_uuid(row["effective_play_row_id"]),
-            )
-            if expected_play != effective_play or expected_runners != effective_runners:
-                raise PastCorrectionCurrentUnavailable("P3有効物理行が不一致")
             items.append(item)
             payloads.append(effective_payload)
-            ledger_fingerprints.append(
-                change_ledger["source_fingerprint"]
-                if d1 == target_d1
-                else original_ledger["source_fingerprint"]
-            )
-            source_d2.append(row["d2"])
+            ledger_fingerprints.append(fingerprint)
+            source_d2.append(d2)
             prior_payload = effective_payload
         last = payloads[-1].calculation.response.value
         if (
