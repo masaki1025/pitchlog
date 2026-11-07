@@ -67,12 +67,28 @@ def _script():
         logged = await login(client, team)"""
     after = """    ) as client, AsyncClient(
         transport=ASGITransport(app=app), base_url="https://test"
-    ) as viewer:
+    ) as viewer, AsyncClient(
+        transport=ASGITransport(app=app), base_url="https://test"
+    ) as anonymous:
         from time import perf_counter
         viewer_checks = []
         logged_viewer = await login(viewer, team)
         assert logged_viewer.status_code == 200, (
             "viewer-login", logged_viewer.status_code)
+        anonymous_head = await anonymous.get(
+            "/games/" + game + "/viewer-head")
+        assert anonymous_head.status_code == 401, (
+            "anonymous-viewer-head", anonymous_head.status_code)
+        unavailable_head = await viewer.get(
+            "/games/" + case["unavailable_game"] + "/viewer-head",
+            headers=headers())
+        assert unavailable_head.status_code == 503, (
+            "unavailable-viewer-head", unavailable_head.status_code)
+        unavailable_body = await viewer.get(
+            "/games/" + case["unavailable_game"] + "/viewer",
+            headers=headers())
+        assert unavailable_body.status_code == 503, (
+            "unavailable-viewer-body", unavailable_body.status_code)
 
         async def verify_viewer(expected, after, status):
             started = perf_counter()
@@ -138,6 +154,7 @@ def test_owned_viewer_separate_cookie_start_two_balls_and_end(vertical_database)
     """共有DBを使わず、実app role/C2/保存CPを別Cookieで照合する。"""
     assert len(_HOST_SOURCE_PATHS) == 3
     db = vertical_database
+    unavailable_game = uuid4()
     with psycopg.connect(db.authority.database.business_admin) as admin:
         for key, name in (
             ("batting-result.called-pitch", "見逃し"),
@@ -148,6 +165,21 @@ def test_owned_viewer_separate_cookie_start_two_balls_and_end(vertical_database)
                 "VALUES (%s,'batting_result',%s) ON CONFLICT(key) DO NOTHING",
                 (key, name),
             )
+        # 開始済みに見えるが確定世代を持たない行を実DBへ置き、503を誘発する。
+        admin.execute(
+            "INSERT INTO public.games (id, scheduled_at, game_type_key, "
+            "game_type_category, tournament_key, away_team_record_id, "
+            "home_team_record_id, plate_umpire, section_label, week_label, "
+            "day_label, game_number_label, started_at, status, applied_rules, "
+            "rule_override, trashed_at, hidden_at, tenant_id, import_batch_id) "
+            "SELECT %s, scheduled_at, game_type_key, game_type_category, "
+            "tournament_key, away_team_record_id, home_team_record_id, "
+            "plate_umpire, section_label, week_label, day_label, "
+            "game_number_label, now(), 'in_progress', applied_rules, "
+            "rule_override, trashed_at, hidden_at, tenant_id, import_batch_id "
+            "FROM public.games WHERE tenant_id=%s AND id=%s",
+            (unavailable_game, db.tenant_id, db.game_id),
+        )
     case = {
         "tenant": str(db.tenant_id),
         "game": str(db.game_id),
@@ -156,6 +188,7 @@ def test_owned_viewer_separate_cookie_start_two_balls_and_end(vertical_database)
         "other_tenant_id": str(db.other_tenant_id),
         "password": _PASSWORD,
         "pitch_type": _PITCH_TYPE,
+        "unavailable_game": str(unavailable_game),
     }
     token = uuid4()
     with db.broker_worker(token), binding_broker(db, token):
