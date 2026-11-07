@@ -36,3 +36,24 @@ source唯一writerは本新WT担当。共有sync/domain/認可source、contracts
 
 
 root非作者全文レビュー/委任採用の固定点: HEAD8033f1d7d06a1a5d7723cde93d29adf0897b3907、plan SHA2560107e26a9f284896ad0def521b15c12dfd009db2833f6d063606bad2fb606d51。新P0/P1なし、source不足時の具体producer境界提示と独立生成/対向準備を含め着手可。root留保は既D03の実出場境界を保持するもので、新しいPO意味裁定ではない。本人確認・P6blind・正式値受理は記録しない。
+
+
+## step1・実source確認と必要なproducer（2026-11-07）
+
+現実装には実守備出場の完全供給がない。game_start_attemptsのcommitted/game_lineupsは開始承認/出場予定の原本、participation_intervalsはmutable投影でstats版FKなし、substitutionFrames/0044 receiptは割当変更と真正保存の原本で、未守備側が実際にposition1で出場したことを単独では証明しない。通常T1の攻守交代も計算結果であり、人が守備へ出た観測を補完しない。nativeの唯一Sはプレイ原本集合で、0球出場を完全列挙する別sourceはない。従って既_normal_appearance_sqlの両開始投手COUNTは早期終了時に誤計上し得る。閉じた実出場sourceが接続されるまでこの推測枝だけを除きsource_unavailableへ戻す（安全なavailable0へ置換しない）。
+
+rootへの最小producer要求: (a) 実守備出場の確認原本を、元event/観測ID、tenant/game/player、所属side、投手position1、対象半回/時点、元記録権世代/D1とともに同一TX保存する。(b) 0球出場を含む各試合の完全集合について、native fact_version_id/revision/source_set_sha256と出場集合source receipt/hash/countを束縛し、終了LC head/receipt/public pointerと同じ版へ公開する。(c) 取消/過去訂正は原本sourceから有効集合を正規providerで更新し、再登板の複数proofは保持しつつgame/player一意に計数する。再開中は公式集合から除外し、再終了は新current版だけを公開する。共有核の変更はrootのみで実装し、本担当は原本を独自に畳み込まない。
+
+候補入力CTEはappearance_scope（tenant/game/fact_version_id/revision/source_set_sha256/supply_complete/member_count）とappearance_members（同版5key＋player_id/proof_kind/proof_source_id）。proof_kindのdefensive-half-entry/pitcher-defensive-entryは供給境界の仮ラベルで、新しい記録操作/野球意味を正式採用したものではない。完全性boolだけを外から受けて成功資格にはせず、正式providerが元原本と集合hash/count/版を検証してこれらCTEを作る必要がある。生成targetはその後段の唯一COUNT DISTINCT(game_id)だけを担い、製品のSQL入口や任意Session APIを追加しない。未知種類/版不一致/件数不足/NULL/同game複数版は未供給で閉じる。
+
+現段階の成立: 新候補SQL宣言/schema/生成器/manifestと合成SQLite正負ケースを用意した。これは真正provider/実PG/画面/シーズンの提供成功ではない。step2の実接続とstep3のowned検査を閉じるには上記producerの供給が必要。既API/CSVのunavailable表示経路は維持する。旧candidate body固定fileの機械的追随1pathはrootへ編集所有を照会済み、正式assetsは編集しない。
+
+
+root PO委任判断で候補SQL1path（docs/features/mvp-basic-stats-csv/candidates/basic_stats_functions.sql）の機械的追随を追加承認。生成元はpitchlog.stats.basic_sql.candidate_sql、コマンドは `PYTHONPATH=backend/src <backend-venv>/python -c 'from pitchlog.stats.basic_sql import candidate_sql; ...write_text(candidate_sql())'`。旧SHAaeb11dcb1aca6e144e52f0606d2b33dd33456e91a4de2c7264fa2417672e1146→新SHA679e58e828c98eb2397db57f1dea8ec7b89703750d3887d799f3e6297c06f357。byte完全比較は維持し、正式contracts/catalog/sealは非編集。
+
+供給の全欠落対向も保持する。生成SQLのexpected_game_count bindは既真正可視/対象current版集合の実件数からproviderが供給し、利用者自由入力や入力scopeの件数だけから作らない。1対象試合に対するscope0件を空season0へ変えず未供給にする。真正対象0件のseasonだけはavailable0となる。
+
+
+step1途中固定: 最終凍結sourceでD03専用/基本SQL/既T6の3suiteが126passed22.67秒、Ruff/Ty成功、diff --check成功。宣言/生成SQL/manifestの再現比較と、0球実出場/再登板/2試合/未守備先発/他選手/別tenant/完全空集合/全scope欠落/版・件数・種類・NULL不一致の対向を含む。合成SQLiteの供給fixture成功は実PG/真正出場providerの証拠ではない。初回は本WTのprettier未配置で既生成suiteが失敗し、offline frozen install後に解消。candidate body byte不一致1件はroot許可後の公式再生成で解消し、比較を削除していない。2回のrootcwdからbackend testsを探した実行はno-testsであり成功件数に含めない。
+
+実装されたのはD03計数の候補と既誤計上枝の閉鎖であり、step1の完全source成立・step2/3・登板の製品提供は未完。rootが上記真正producerと版付き供給を接合できた時点で、本生成SQLを同RRへ接続し、実終了/再開/再終了/区分/暦年/CSVを再実証する。

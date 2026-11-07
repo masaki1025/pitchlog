@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "status": "candidate-source-provider-pending",
+  "modelSha256": "25d660d74b450d7653ba0f6c570a99de6a567e9e010a61cf08bfef3301c568ca",
+  "inputs": {
+    "backend/domain/stats-appearance.model.json": "affae4d13ff707c3315ef87754f911ed787b27b140cff87ed5241682d8f48a38",
+    "backend/domain/stats-appearance.schema.json": "9c4348a4f4c75ef031527245b26bd6460a8a20be451da5f25ac6dd6e146b411e",
+    "backend/src/pitchlog/domaingen/stats_appearance.py": "1449ad5562fc7b399ce949dd0c6264dcaaf43a478fccaf6ea2b62f7099e5a5c4"
+  },
+  "generatedFiles": {
+    "backend/src/pitchlog/stats/generated/appearances.sql": "e5109ab7c715ee6888d65a766265812c93e9904b4aabaa0b32e409d5a5237a81"
+  },
+  "providerInstalled": false
+}

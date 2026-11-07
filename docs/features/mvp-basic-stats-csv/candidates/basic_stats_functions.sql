@@ -16,7 +16,7 @@ CREATE FUNCTION stats_basic_api.read_basic_stats(p_tenant_id uuid,p_game_id text
 RETURNS TABLE(player_id uuid,player_name text,uniform_number text,team_record_id uuid,team_name text,metrics_json text) LANGUAGE plpgsql STABLE SECURITY DEFINER
 SET search_path=pg_catalog,pg_temp AS $basic$
 #variable_conflict use_column
-DECLARE tenant uuid; game_uuid uuid; game_count bigint; raw_keys text[]; player record; metric record; metrics jsonb; appearance_ready boolean; appearance_count bigint; query text:=$q$-- 自動生成 model=sha256:882acb95c08d88deb724a77f2fdfb184de48a2252cd03f5ca44df5cd8b48f4c6
+DECLARE tenant uuid; game_uuid uuid; game_count bigint; raw_keys text[]; player record; metric record; metrics jsonb; query text:=$q$-- 自動生成 model=sha256:882acb95c08d88deb724a77f2fdfb184de48a2252cd03f5ca44df5cd8b48f4c6
 -- 正式operation/receiptはroot binding、実DB実行前は成功を主張しない。
 WITH requested_metrics(metric_id) AS (VALUES ('pitch_count'), ('pa'), ('ab'), ('h'), ('hr'), ('bb'), ('hbp'), ('k'), ('sh'), ('sf'), ('catcher_interference_reached'), ('runner_interference_reached'), ('doubles'), ('triples'), ('total_bases'), ('runs'), ('rbi'), ('stolen_bases'), ('pitching_outs'), ('pitcher_k'), ('pitcher_bb'), ('batters_faced'), ('pitcher_hbp'), ('hits_allowed'), ('home_runs_allowed'), ('fielding_errors'), ('runs_allowed')),
 canonical_scope AS (
@@ -246,47 +246,8 @@ BEGIN
   RAISE EXCEPTION 'basic stats category boundary rejected' USING ERRCODE='42501';
  END IF;
 
- appearance_ready:=false;
- IF game_uuid IS NOT NULL THEN
-  SELECT (
-    g.import_batch_id IS NULL AND g.started_at IS NOT NULL
-    AND (SELECT count(*) FROM public.game_start_attempts s
-         WHERE s.tenant_id=tenant AND s.game_id=game_uuid
-           AND s.outcome='committed')=1
-    AND NOT EXISTS(SELECT 1 FROM public.game_start_attempts s
-         WHERE s.tenant_id=tenant AND s.game_id=game_uuid
-           AND s.outcome='pending')
-    AND (SELECT count(*) FROM public.game_lineups l
-         WHERE l.tenant_id=tenant AND l.game_id=game_uuid)=2
-    AND NOT EXISTS(SELECT 1 FROM public.game_lineups l
-         WHERE l.tenant_id=tenant AND l.game_id=game_uuid
-           AND (l.import_batch_id IS NOT NULL OR l.team_record_id NOT IN
-           (g.away_team_record_id,g.home_team_record_id)))
-    AND (SELECT count(DISTINCT l.team_record_id) FROM public.game_lineups l
-         WHERE l.tenant_id=tenant AND l.game_id=game_uuid)=2
-    AND (SELECT count(*) FROM public.game_lineups l
-         CROSS JOIN LATERAL pg_catalog.jsonb_array_elements(
-           CASE WHEN pg_catalog.jsonb_typeof(l.entries_with_uniform_number_snapshot)
-             ='array' THEN l.entries_with_uniform_number_snapshot
-             ELSE '[]'::jsonb END) entry(value)
-         WHERE l.tenant_id=tenant AND l.game_id=game_uuid
-           AND entry.value->'fielding_position'->>'kind'='fielding'
-           AND entry.value->'fielding_position'->>'position'='1')=2
-    AND (SELECT count(DISTINCT entry.value->>'player_id')
-         FROM public.game_lineups l
-         CROSS JOIN LATERAL pg_catalog.jsonb_array_elements(
-           CASE WHEN pg_catalog.jsonb_typeof(l.entries_with_uniform_number_snapshot)
-             ='array' THEN l.entries_with_uniform_number_snapshot
-             ELSE '[]'::jsonb END) entry(value)
-         WHERE l.tenant_id=tenant AND l.game_id=game_uuid
-           AND entry.value->'fielding_position'->>'kind'='fielding'
-           AND entry.value->'fielding_position'->>'position'='1')=2
-    AND NOT EXISTS(SELECT 1 FROM public.operation_events e
-         WHERE e.tenant_id=tenant AND e.game_id=game_uuid
-           AND e.event_kind NOT IN ('play_input','game_end_declaration'))
-  ) INTO appearance_ready FROM public.games g
-   WHERE g.tenant_id=tenant AND g.id=game_uuid;
- END IF;
+ -- D03: game_lineupsは出場予定であり、実守備出場の完全原本ではない。
+ -- 版付きappearance_scope/member providerの正式接合まで未供給を保持する。
  raw_keys:=string_to_array(p_raw_game_type_keys,',');
  IF raw_keys IS NULL OR pg_catalog.array_position(raw_keys,NULL) IS NOT NULL
   OR raw_keys IS DISTINCT FROM (CASE p_category WHEN 'official' THEN ARRAY['game_official','game_semi_official']::text[] WHEN 'practice' THEN ARRAY['game_open','game_intrasquad','game_other']::text[] WHEN 'all' THEN ARRAY['game_official','game_semi_official','game_open','game_intrasquad','game_other']::text[] ELSE NULL::text[] END) THEN
@@ -324,24 +285,8 @@ RAISE EXCEPTION 'basic stats boundary rejected' USING ERRCODE='42501';
        'value',CASE WHEN metric.value IS NULL THEN NULL
                     ELSE metric.value::text END));
   END LOOP;
-  IF appearance_ready THEN
-   SELECT count(*) INTO appearance_count FROM public.game_lineups l
-    CROSS JOIN LATERAL pg_catalog.jsonb_array_elements(
-      l.entries_with_uniform_number_snapshot) entry(value)
-    WHERE l.tenant_id=tenant AND l.game_id=game_uuid
-      AND entry.value->'fielding_position'->>'kind'='fielding'
-      AND entry.value->'fielding_position'->>'position'='1'
-      AND entry.value->>'player_id'=player.id::text;
-   IF appearance_count>1 THEN
-    RAISE EXCEPTION 'basic stats appearance source rejected' USING ERRCODE='42501';
-   END IF;
-   metrics:=metrics || pg_catalog.jsonb_build_object('appearances',
-     pg_catalog.jsonb_build_object('state','available',
-       'value',appearance_count::text));
-  ELSE
-   metrics:=metrics || pg_catalog.jsonb_build_object('appearances',
-     pg_catalog.jsonb_build_object('state','source_unavailable','value',NULL));
-  END IF;
+  metrics:=metrics || pg_catalog.jsonb_build_object('appearances',
+    pg_catalog.jsonb_build_object('state','source_unavailable','value',NULL));
   RETURN QUERY SELECT player.id,player.name,
     COALESCE(player.uniform_number,''),player.team_record_id,player.team_name,
     metrics::text;

@@ -1,0 +1,92 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "calculationId",
+    "source",
+    "aggregate"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "calculationId": {
+      "const": "pitcherAppearances"
+    },
+    "source": {
+      "type": "object",
+      "required": [
+        "scopeRelation",
+        "memberRelation",
+        "binding",
+        "completeColumn",
+        "proofKinds",
+        "requiresCompleteSupply",
+        "memberCountColumn",
+        "expectedGameCountBind"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "scopeRelation": {
+          "const": "appearance_scope"
+        },
+        "memberRelation": {
+          "const": "appearance_members"
+        },
+        "binding": {
+          "const": [
+            "tenant_id",
+            "game_id",
+            "fact_version_id",
+            "revision",
+            "source_set_sha256"
+          ]
+        },
+        "completeColumn": {
+          "const": "supply_complete"
+        },
+        "proofKinds": {
+          "const": [
+            "defensive-half-entry",
+            "pitcher-defensive-entry"
+          ]
+        },
+        "requiresCompleteSupply": {
+          "const": true
+        },
+        "memberCountColumn": {
+          "const": "member_count"
+        },
+        "expectedGameCountBind": {
+          "const": "expected_game_count"
+        }
+      }
+    },
+    "aggregate": {
+      "type": "object",
+      "required": [
+        "operation",
+        "key",
+        "playerKey",
+        "missingSupply"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "operation": {
+          "const": "count-distinct"
+        },
+        "key": {
+          "const": "game_id"
+        },
+        "playerKey": {
+          "const": "player_id"
+        },
+        "missingSupply": {
+          "const": "source_unavailable"
+        }
+      }
+    }
+  }
+}

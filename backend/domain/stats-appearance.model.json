@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "calculationId": "pitcherAppearances",
+  "source": {
+    "scopeRelation": "appearance_scope",
+    "memberRelation": "appearance_members",
+    "binding": [
+      "tenant_id",
+      "game_id",
+      "fact_version_id",
+      "revision",
+      "source_set_sha256"
+    ],
+    "completeColumn": "supply_complete",
+    "proofKinds": [
+      "defensive-half-entry",
+      "pitcher-defensive-entry"
+    ],
+    "requiresCompleteSupply": true,
+    "memberCountColumn": "member_count",
+    "expectedGameCountBind": "expected_game_count"
+  },
+  "aggregate": {
+    "operation": "count-distinct",
+    "key": "game_id",
+    "playerKey": "player_id",
+    "missingSupply": "source_unavailable"
+  }
+}

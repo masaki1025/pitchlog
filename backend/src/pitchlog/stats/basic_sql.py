@@ -154,49 +154,10 @@ def _category_case() -> str:
 
 
 def _normal_appearance_sql() -> str:
-    """開始原本だけで証明できる通常試合のD03へ範囲を閉じる。"""
+    """完全な実出場providerが未供給の間はスタメンから登板を推測しない。"""
     return """
- appearance_ready:=false;
- IF game_uuid IS NOT NULL THEN
-  SELECT (
-    g.import_batch_id IS NULL AND g.started_at IS NOT NULL
-    AND (SELECT count(*) FROM public.game_start_attempts s
-         WHERE s.tenant_id=tenant AND s.game_id=game_uuid
-           AND s.outcome='committed')=1
-    AND NOT EXISTS(SELECT 1 FROM public.game_start_attempts s
-         WHERE s.tenant_id=tenant AND s.game_id=game_uuid
-           AND s.outcome='pending')
-    AND (SELECT count(*) FROM public.game_lineups l
-         WHERE l.tenant_id=tenant AND l.game_id=game_uuid)=2
-    AND NOT EXISTS(SELECT 1 FROM public.game_lineups l
-         WHERE l.tenant_id=tenant AND l.game_id=game_uuid
-           AND (l.import_batch_id IS NOT NULL OR l.team_record_id NOT IN
-           (g.away_team_record_id,g.home_team_record_id)))
-    AND (SELECT count(DISTINCT l.team_record_id) FROM public.game_lineups l
-         WHERE l.tenant_id=tenant AND l.game_id=game_uuid)=2
-    AND (SELECT count(*) FROM public.game_lineups l
-         CROSS JOIN LATERAL pg_catalog.jsonb_array_elements(
-           CASE WHEN pg_catalog.jsonb_typeof(l.entries_with_uniform_number_snapshot)
-             ='array' THEN l.entries_with_uniform_number_snapshot
-             ELSE '[]'::jsonb END) entry(value)
-         WHERE l.tenant_id=tenant AND l.game_id=game_uuid
-           AND entry.value->'fielding_position'->>'kind'='fielding'
-           AND entry.value->'fielding_position'->>'position'='1')=2
-    AND (SELECT count(DISTINCT entry.value->>'player_id')
-         FROM public.game_lineups l
-         CROSS JOIN LATERAL pg_catalog.jsonb_array_elements(
-           CASE WHEN pg_catalog.jsonb_typeof(l.entries_with_uniform_number_snapshot)
-             ='array' THEN l.entries_with_uniform_number_snapshot
-             ELSE '[]'::jsonb END) entry(value)
-         WHERE l.tenant_id=tenant AND l.game_id=game_uuid
-           AND entry.value->'fielding_position'->>'kind'='fielding'
-           AND entry.value->'fielding_position'->>'position'='1')=2
-    AND NOT EXISTS(SELECT 1 FROM public.operation_events e
-         WHERE e.tenant_id=tenant AND e.game_id=game_uuid
-           AND e.event_kind NOT IN ('play_input','game_end_declaration'))
-  ) INTO appearance_ready FROM public.games g
-   WHERE g.tenant_id=tenant AND g.id=game_uuid;
- END IF;
+ -- D03: game_lineupsは出場予定であり、実守備出場の完全原本ではない。
+ -- 版付きappearance_scope/member providerの正式接合まで未供給を保持する。
 """
 
 
@@ -292,24 +253,8 @@ def read_function_body() -> str:
        'value',CASE WHEN metric.value IS NULL THEN NULL
                     ELSE metric.value::text END));
   END LOOP;
-  IF appearance_ready THEN
-   SELECT count(*) INTO appearance_count FROM public.game_lineups l
-    CROSS JOIN LATERAL pg_catalog.jsonb_array_elements(
-      l.entries_with_uniform_number_snapshot) entry(value)
-    WHERE l.tenant_id=tenant AND l.game_id=game_uuid
-      AND entry.value->'fielding_position'->>'kind'='fielding'
-      AND entry.value->'fielding_position'->>'position'='1'
-      AND entry.value->>'player_id'=player.id::text;
-   IF appearance_count>1 THEN
-    RAISE EXCEPTION 'basic stats appearance source rejected' USING ERRCODE='42501';
-   END IF;
-   metrics:=metrics || pg_catalog.jsonb_build_object('appearances',
-     pg_catalog.jsonb_build_object('state','available',
-       'value',appearance_count::text));
-  ELSE
-   metrics:=metrics || pg_catalog.jsonb_build_object('appearances',
-     pg_catalog.jsonb_build_object('state','source_unavailable','value',NULL));
-  END IF;
+  metrics:=metrics || pg_catalog.jsonb_build_object('appearances',
+    pg_catalog.jsonb_build_object('state','source_unavailable','value',NULL));
   RETURN QUERY SELECT player.id,player.name,
     COALESCE(player.uniform_number,''),player.team_record_id,player.team_name,
     metrics::text;
@@ -323,9 +268,7 @@ def read_function_body() -> str:
         "#variable_conflict use_column\n"
         "DECLARE tenant uuid; game_uuid uuid; game_count bigint; raw_keys text[]; "
         "player record; metric record; metrics jsonb; "
-        "appearance_ready boolean; appearance_count bigint; query text:=$q$"
-        + query
-        + "$q$;\nBEGIN\n"
+        "query text:=$q$" + query + "$q$;\nBEGIN\n"
         " tenant:=NULLIF(pg_catalog.current_setting('app.tenant_id',true),'')::uuid;\n"
         " IF session_user IS DISTINCT FROM 'pitchlog_app' OR current_user IS DISTINCT FROM "
         "'pitchlog_sync_right_fn_owner'\n"
