@@ -18,7 +18,11 @@ from pitchlog.repositories.nonplay_prefix_read_operations import (
 )
 from pitchlog.repositories.ordinary_order import OrdinaryOrderSummaryToken
 from pitchlog.repositories.ordinary_prefix_operations import OrdinaryCheckpointReadToken
+from pitchlog.repositories.past_correction_right import _ReadP3CurrentToken
 from pitchlog.repositories.started_read import read_started_game
+from pitchlog.repositories.started_snapshot_read_operations import (
+    StartedNonplayActiveHistoryReadToken,
+)
 from pitchlog.repositories.tokens import TenantOperationResult
 from pitchlog.sync.d4_reference import encode_d4_reference
 from pitchlog.sync.idempotency import source_fingerprint
@@ -94,8 +98,13 @@ def setup_view(monkeypatch):
             }
         elif type(token) is OrdinaryCheckpointReadToken:
             value = {"kind": "checkpoint", "row": row}
-        elif type(token) is NonplayActiveHistoryReadToken:
+        elif type(token) in {
+            NonplayActiveHistoryReadToken,
+            StartedNonplayActiveHistoryReadToken,
+        }:
             value = {"checkpoint": cp, "total": 0, "items": []}
+        elif type(token) is _ReadP3CurrentToken:
+            value = {"kind": "none"}
         else:
             raise AssertionError("公開GETからwriter関数へ到達")
         return TenantOperationResult(((json.dumps(value),),))
@@ -103,6 +112,37 @@ def setup_view(monkeypatch):
     monkeypatch.setattr(tx._TenantTransaction, "run_function", run)
     app, _ = _app(monkeypatch, b)
     return app, b, cp, calls
+
+
+@pytest.mark.anyio
+async def test_nonplay_get_in_rr_scope_uses_unlocked_page(monkeypatch):
+    """同snapshotの非play原本を別read関数で照合し、行lockを発行しない。"""
+    from pitchlog.sync.tokens import GameLockToken, RecordingGenerationLockToken
+
+    app, bundle, _, calls = setup_view(monkeypatch)
+    session = tx._TRANSACTION_RUNTIMES[bundle.handle._state_key][0]
+    monkeypatch.setitem(
+        tx._STARTED_READ_HANDLES,
+        bundle.handle._state_key,
+        (bundle.handle, session.get_transaction()),
+    )
+    bundle.calls.clear()
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="https://test"
+    ) as client:
+        client.cookies.set("__Host-pitchlog_token", "token-a")
+        response = await client.get(
+            f"/games/{bundle.game_id}/started?projection=play-prefix-v3",
+            headers=_metadata_headers(_TENANT_A),
+        )
+    assert response.status_code == 200
+    assert response.json()["read_kind"] == "nonplay-prefix"
+    assert StartedNonplayActiveHistoryReadToken in calls
+    assert NonplayActiveHistoryReadToken not in calls
+    assert not any(
+        type(token) in {GameLockToken, RecordingGenerationLockToken}
+        for token in bundle.calls
+    )
 
 
 @pytest.mark.anyio
@@ -129,6 +169,7 @@ async def test_get_after_two_pops_preserves_real_heads_allocator_and_empty_page(
     assert calls == [
         OrdinaryOrderSummaryToken,
         OrdinaryCheckpointReadToken,
+        _ReadP3CurrentToken,
         NonplayActiveHistoryReadToken,
     ]
     raw = json.dumps(body)
@@ -182,6 +223,7 @@ async def test_undo_projection_reuses_existing_nonplay_dto_without_writer_qualif
         OrdinaryCheckpointReadToken,
         OrdinaryOrderSummaryToken,
         OrdinaryCheckpointReadToken,
+        _ReadP3CurrentToken,
         NonplayActiveHistoryReadToken,
     ]
 

@@ -49,6 +49,7 @@ _HANDLE_CREATION_TOKEN = object()
 _TransactionRuntime = tuple[Session, ExitStack]
 _TRANSACTION_RUNTIMES: dict[object, _TransactionRuntime] = {}
 _PLAY_EXPORT_HANDLES: dict[object, _TenantTransaction] = {}
+_STARTED_READ_HANDLES: dict[object, tuple[_TenantTransaction, object]] = {}
 _INITIAL_ACTOR_STATES: dict[
     object, tuple[object, Literal["intent", "business", "enroll"]]
 ] = {}
@@ -164,6 +165,7 @@ class _TenantTransaction:
         _PORT_DEVICE_BIND_USED.discard(state_key)
         _STATS_READ_HANDLES.pop(state_key, None)
         _PLAY_EXPORT_HANDLES.pop(state_key, None)
+        _STARTED_READ_HANDLES.pop(state_key, None)
         return state_key
 
     def run(self, operation: TenantOperationToken) -> TenantOperationResult:
@@ -197,6 +199,8 @@ class _TenantTransaction:
             )
 
         session, _ = runtime
+        if state_key in _STARTED_READ_HANDLES:
+            _require_started_read_token(self, operation, function=False)
         if _play_export_source_operation(operation):
             from pitchlog.repositories.play_export_source_operations import (
                 run_qualified_source_read,
@@ -254,6 +258,21 @@ class _TenantTransaction:
             raise TenantBindingError(
                 "TenantContext の発行証跡が不一致のため業務 SQL を開始できない"
             )
+        if state_key in _STARTED_READ_HANDLES:
+            _require_started_read_token(self, operation, function=True)
+        else:
+            from pitchlog.repositories.started_snapshot_read_operations import (
+                StartedNonplayActiveHistoryReadToken,
+                StartedOrdinaryHistoryPageToken,
+                StartedPlayPrefixHistoryPageToken,
+            )
+
+            if type(operation) in {
+                StartedOrdinaryHistoryPageToken,
+                StartedPlayPrefixHistoryPageToken,
+                StartedNonplayActiveHistoryReadToken,
+            }:
+                require_started_snapshot_read_scope(self)
         if _play_export_source_operation(operation):
             from pitchlog.repositories.play_export_source_operations import (
                 run_qualified_source_read,
@@ -601,6 +620,8 @@ class _TenantTransaction:
             raise TenantBindingError("Port判定phaseでsavepointを作れない")
         if state_key in _INITIAL_ACTOR_STATES:
             raise TenantBindingError("初期権actorへ汎用savepointを公開できない")
+        if state_key in _STARTED_READ_HANDLES:
+            raise TenantBindingError("記録画面read scopeにsavepointを公開できない")
         from pitchlog.sync.control_provider.writer_binding import _LIVE_BINDINGS
 
         bound = _LIVE_BINDINGS.get(state_key)
@@ -623,6 +644,7 @@ class _TenantTransactionScope(AbstractContextManager[_TenantTransaction]):
         "_actor_phase",
         "_stats_read",
         "_play_export_read",
+        "_started_read",
     )
 
     def __init__(
@@ -633,6 +655,7 @@ class _TenantTransactionScope(AbstractContextManager[_TenantTransaction]):
         _actor_phase: Literal["intent", "business", "enroll"] | None = None,
         _stats_read: bool = False,
         _play_export_read: bool = False,
+        _started_read: bool = False,
     ) -> None:
         """スコープへ一度だけ渡されたテナント文脈を保持する。
 
@@ -645,8 +668,9 @@ class _TenantTransactionScope(AbstractContextManager[_TenantTransaction]):
         self._actor_phase = _actor_phase
         self._stats_read = _stats_read
         self._play_export_read = _play_export_read
-        if _stats_read and _play_export_read:
-            raise TenantBindingError("成績と毎球CSVのread scopeを混在できない")
+        self._started_read = _started_read
+        if sum((_stats_read, _play_export_read, _started_read)) > 1:
+            raise TenantBindingError("異なるread scopeを混在できない")
 
     def __enter__(self) -> _TenantTransaction:
         """Session を生成し、トランザクション先頭で文脈を束縛する。
@@ -680,7 +704,7 @@ class _TenantTransactionScope(AbstractContextManager[_TenantTransaction]):
             if self._actor_phase not in ("intent", "business", "enroll"):
                 raise TenantBindingError("actor phaseが未登録")
             engine = _initial_actor_engine(self._actor_runtime)
-        if self._stats_read or self._play_export_read:
+        if self._stats_read or self._play_export_read or self._started_read:
             if self._actor_runtime is not None or self._actor_phase is not None:
                 raise TenantBindingError("readと書込actorを同じscopeへ混在できない")
             # tenant bindingの最初のSELECTより前にRR/ROを固定する。
@@ -724,6 +748,8 @@ class _TenantTransactionScope(AbstractContextManager[_TenantTransaction]):
             _STATS_READ_HANDLES[state_key] = handle
         if self._play_export_read:
             _PLAY_EXPORT_HANDLES[state_key] = handle
+        if self._started_read:
+            _STARTED_READ_HANDLES[state_key] = (handle, session.get_transaction())
         return handle
 
     def __exit__(
@@ -1063,6 +1089,134 @@ def _require_play_export_scope(handle: _TenantTransaction) -> None:
         or not handle._context._has_valid_integrity_proof()
     ):
         raise TenantBindingError("毎球CSV read scopeは失効/別handle")
+
+
+def started_snapshot_read_scope(
+    context: TenantContext,
+) -> AbstractContextManager[_TenantTransaction]:
+    """記録画面GETを同tenantのRR/READ ONLY snapshotへ閉じる。"""
+    return _TenantTransactionScope(context, _started_read=True)
+
+
+def require_started_snapshot_read_scope(handle: object) -> None:
+    """専用scopeが発行した同handle・tenant・有効TXだけを認める。"""
+    if type(handle) is not _TenantTransaction:
+        raise TenantBindingError("記録画面readに真正handleが必要")
+    key = handle._state_key
+    runtime = _TRANSACTION_RUNTIMES.get(key)
+    issued = _STARTED_READ_HANDLES.get(key)
+    if (
+        key is None
+        or runtime is None
+        or issued is None
+        or issued[0] is not handle
+        or type(handle._context) is not TenantContext
+        or handle._context.tenant_id != handle._bound_tenant_id
+        or handle._context._integrity_proof != handle._bound_integrity_proof
+        or not handle._context._has_valid_integrity_proof()
+    ):
+        raise TenantBindingError("記録画面read scopeが失効又は別tenant")
+    session = runtime[0]
+    top_tx = session.get_transaction()
+    if (
+        top_tx is not issued[1]
+        or top_tx is None
+        or not top_tx.is_active
+        or session.in_nested_transaction()
+    ):
+        raise TenantBindingError("記録画面readのtop-level TXが失効又は差替え")
+
+
+def started_snapshot_read_mode(handle: object) -> bool:
+    """真正専用scopeに限り非ロック読取modeを返す。"""
+    if type(handle) is not _TenantTransaction:
+        return False
+    key = handle._state_key
+    if key not in _STARTED_READ_HANDLES:
+        return False
+    require_started_snapshot_read_scope(handle)
+    return True
+
+
+def _require_started_read_token(
+    handle: _TenantTransaction, operation: TenantOperationToken, *, function: bool
+) -> None:
+    """GETから実行できる登録tokenを有限read集合に閉じる。"""
+    require_started_snapshot_read_scope(handle)
+    if function:
+        from pitchlog.repositories.lifecycle_function_operations import (
+            LifecycleDisplayToken,
+        )
+        from pitchlog.repositories.ordinary_order import OrdinaryOrderSummaryToken
+        from pitchlog.repositories.ordinary_prefix_operations import (
+            OrdinaryCheckpointReadToken,
+        )
+        from pitchlog.repositories.past_correction_right import (
+            _ReadP3CurrentHeaderToken,
+            _ReadP3CurrentPageToken,
+            _ReadP3CurrentToken,
+        )
+        from pitchlog.repositories.started_snapshot_read_operations import (
+            StartedNonplayActiveHistoryReadToken,
+            StartedOrdinaryHistoryPageToken,
+            StartedPlayPrefixHistoryPageToken,
+        )
+        from pitchlog.sync.terminal_pitch_tokens import (
+            LineupStartedOriginReadToken,
+            PlayPrefixCheckpointReadToken,
+        )
+
+        allowed = {
+            LifecycleDisplayToken,
+            OrdinaryOrderSummaryToken,
+            OrdinaryCheckpointReadToken,
+            PlayPrefixCheckpointReadToken,
+            LineupStartedOriginReadToken,
+            _ReadP3CurrentToken,
+            _ReadP3CurrentHeaderToken,
+            _ReadP3CurrentPageToken,
+            StartedOrdinaryHistoryPageToken,
+            StartedPlayPrefixHistoryPageToken,
+            StartedNonplayActiveHistoryReadToken,
+        }
+    else:
+        from pitchlog.repositories.recorded_snapshot_operations import (
+            RecordedEventRowsReadToken,
+            RecordedEventSlotsReadToken,
+            RecordedPlayRowsReadToken,
+        )
+        from pitchlog.repositories.roster import PlayerReadToken
+        from pitchlog.repositories.started_snapshot_operations import (
+            StartedEventSlotsExistenceToken,
+            StartedLineupsReadToken,
+            StartedOperationEventsExistenceToken,
+            StartedPlayRowsExistenceToken,
+        )
+        from pitchlog.sync.first_ball_tokens import FirstBallPlayRowReadToken
+        from pitchlog.sync.tokens import (
+            GameReadToken,
+            IdempotencyLedgerReadToken,
+            OperationEventReadToken,
+            RecordingGenerationReadToken,
+        )
+
+        allowed = {
+            GameReadToken,
+            RecordingGenerationReadToken,
+            PlayerReadToken,
+            RecordedEventRowsReadToken,
+            RecordedEventSlotsReadToken,
+            RecordedPlayRowsReadToken,
+            StartedEventSlotsExistenceToken,
+            StartedLineupsReadToken,
+            StartedOperationEventsExistenceToken,
+            StartedPlayRowsExistenceToken,
+            FirstBallPlayRowReadToken,
+            IdempotencyLedgerReadToken,
+            OperationEventReadToken,
+        }
+    if type(operation) not in allowed:
+        raise TenantBindingError("記録画面read scopeで未承認の能力")
 
 
 def _initial_actor_transaction_scope(

@@ -279,7 +279,16 @@ def _read_active_page_bound(
     live()
     anchor = _page_anchor(cp)
     point = _read_page_cursor(cursor, anchor)
-    token = NonplayActiveHistoryReadToken(
+    from pitchlog.repositories.started_snapshot_read_operations import (
+        StartedNonplayActiveHistoryReadToken,
+    )
+
+    token_type = (
+        StartedNonplayActiveHistoryReadToken
+        if transaction.started_snapshot_read_mode(handle)
+        else NonplayActiveHistoryReadToken
+    )
+    token = token_type(
         game_id=UUID(cp.content.scope.game_id),
         generation=generation,
         checkpoint_id=UUID(cp.ref.id),
@@ -726,7 +735,16 @@ def _read_legacy_undo_source(handle, doc, stored, artifact_sha256, verified_p3=N
     all_values = []
     envelope = None
     while True:
-        token = NonplayActiveHistoryReadToken(
+        from pitchlog.repositories.started_snapshot_read_operations import (
+            StartedNonplayActiveHistoryReadToken,
+        )
+
+        token_type = (
+            StartedNonplayActiveHistoryReadToken
+            if transaction.started_snapshot_read_mode(handle)
+            else NonplayActiveHistoryReadToken
+        )
+        token = token_type(
             game_id=UUID(doc.prefix_ref.game_id),
             generation=int(doc.internal_generation),
             checkpoint_id=UUID(doc.id),
@@ -862,12 +880,13 @@ def _read_undo_snapshot(handle, game_id):
         _live(handle, owner)
         return result
 
+    readonly = transaction.started_snapshot_read_mode(handle)
     columns = tuple(Game.__table__.c.keys())
-    locked = _rows(run(GameLockToken(game_id)), columns)
+    locked = None if readonly else _rows(run(GameLockToken(game_id)), columns)
     games = _rows(run(GameReadToken(game_id)), columns)
-    if not locked and not games:
+    if not games and (readonly or not locked):
         return StartedReadNotVisible()
-    if len(games) != 1 or locked != games:
+    if len(games) != 1 or (not readonly and locked != games):
         raise NonplaySourceUnavailable("取消GETの実試合lockが不一致")
     game = games[0]
     if game["tenant_id"] != handle._bound_tenant_id or game["id"] != game_id:
@@ -890,12 +909,17 @@ def _read_undo_snapshot(handle, game_id):
     number = generation["generation"]
     if type(number) is not int or not 0 < number < 2**63:
         raise NonplaySourceUnavailable("取消GETの世代型が不一致")
-    again = _one(
-        run(RecordingGenerationLockToken(game_id, number)), _GENERATION_READ_COLUMNS
+    again = (
+        None
+        if readonly
+        else _one(
+            run(RecordingGenerationLockToken(game_id, number)),
+            _GENERATION_READ_COLUMNS,
+        )
     )
     watermark = generation["confirmed_watermark"]
     if (
-        again != generation
+        (not readonly and again != generation)
         or generation["tenant_id"] != handle._bound_tenant_id
         or generation["game_id"] != game_id
         or generation["kind"] != "normal"

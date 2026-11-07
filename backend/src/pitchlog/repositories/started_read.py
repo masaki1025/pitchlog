@@ -181,13 +181,16 @@ def _assemble(handle: _TenantTransaction, game_id: UUID) -> StartedReadResult:
             raise StartedReadCorrupt
         return value
 
-    # (1) games の行を lock してから同じ行を読む。0行は別tenant・不存在。
+    from pitchlog.repositories.transaction import started_snapshot_read_mode
+
+    readonly = started_snapshot_read_mode(handle)
+    # GET専用RRでは点読取を使い、writer側では既行lockを維持する。
     columns = tuple(Game.__table__.c.keys())
-    locked_rows = _rows(run(GameLockToken(game_id)), columns)
+    locked_rows = None if readonly else _rows(run(GameLockToken(game_id)), columns)
     read_rows = _rows(run(GameReadToken(game_id)), columns)
-    if not locked_rows and not read_rows:
+    if not read_rows and (readonly or not locked_rows):
         return StartedReadNotVisible()
-    if len(locked_rows) != 1 or locked_rows != read_rows:
+    if len(read_rows) != 1 or (not readonly and locked_rows != read_rows):
         raise StartedReadCorrupt
     game = read_rows[0]
     if game["tenant_id"] != tenant or game["id"] != game_id:
@@ -213,10 +216,15 @@ def _assemble(handle: _TenantTransaction, game_id: UUID) -> StartedReadResult:
     number = current["generation"]
     if type(number) is not int or not 0 < number <= 2**63 - 1:
         raise StartedReadCorrupt
-    locked = _one(
-        run(RecordingGenerationLockToken(game_id, number)), _GENERATION_READ_COLUMNS
+    locked = (
+        None
+        if readonly
+        else _one(
+            run(RecordingGenerationLockToken(game_id, number)),
+            _GENERATION_READ_COLUMNS,
+        )
     )
-    if current != locked:
+    if not readonly and current != locked:
         raise StartedReadCorrupt
 
     # (4) 記録ありは0球readerより先に判定する。1件でも行があれば記録後。

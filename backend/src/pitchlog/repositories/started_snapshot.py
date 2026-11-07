@@ -234,10 +234,17 @@ def read_initial_started_snapshot(
                 raise StartedSnapshotUnavailable
             return value
 
+        from pitchlog.repositories.transaction import started_snapshot_read_mode
+
+        readonly = started_snapshot_read_mode(handle)
         columns = tuple(Game.__table__.c.keys())
-        locked = _one(run(GameLockToken(game_id)), columns)
+        locked = None if readonly else _one(run(GameLockToken(game_id)), columns)
         game = _one(run(GameReadToken(game_id)), columns)
-        if locked != game or game["tenant_id"] != tenant or game["id"] != game_id:
+        if (
+            (not readonly and locked != game)
+            or game["tenant_id"] != tenant
+            or game["id"] != game_id
+        ):
             raise StartedSnapshotUnavailable
         if (
             (
@@ -266,12 +273,16 @@ def read_initial_started_snapshot(
         generation = current["generation"]
         if type(generation) is not int or not 0 < generation <= 2**63 - 1:
             raise StartedSnapshotUnavailable
-        locked_generation = _one(
-            run(RecordingGenerationLockToken(game_id, generation)),
-            _GENERATION_READ_COLUMNS,
+        locked_generation = (
+            None
+            if readonly
+            else _one(
+                run(RecordingGenerationLockToken(game_id, generation)),
+                _GENERATION_READ_COLUMNS,
+            )
         )
         if (
-            current != locked_generation
+            (not readonly and current != locked_generation)
             or current["tenant_id"] != tenant
             or current["game_id"] != game_id
             or current["kind"] != "normal"

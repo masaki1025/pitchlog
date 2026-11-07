@@ -9,6 +9,7 @@ from __future__ import annotations
 import base64
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
+from types import SimpleNamespace
 from typing import Any, get_args
 from uuid import UUID, uuid4
 
@@ -43,10 +44,12 @@ from pitchlog.api.schemas.started_games import (
 )
 from pitchlog.domainrt import host as domainrt_host
 from pitchlog.repositories import started_read
+from pitchlog.repositories import transaction as tx
 from pitchlog.repositories.context import TenantContext
 from pitchlog.repositories.tokens import TenantOperationResult
 from pitchlog.repositories.transaction import _TenantTransaction
 from pitchlog.sync.d4_reference import encode_d4_reference
+from pitchlog.sync.tokens import GameLockToken, RecordingGenerationLockToken
 
 _ACK = "x-pitchlog-tenant-match"
 _CHALLENGE = "x-pitchlog-tenant-challenge"
@@ -100,7 +103,7 @@ def _app(
             raise AssertionError("transactionを開始してはならない")
         yield bundle.handle
 
-    monkeypatch.setattr(started_games, "tenant_transaction_scope", scope)
+    monkeypatch.setattr(started_games, "started_snapshot_read_scope", scope)
     return app, entered
 
 
@@ -431,6 +434,57 @@ def _recorded_for_tenant(
         plate_umpire="審判",
     )
     return bundle
+
+
+@pytest.mark.anyio
+async def test_initial_game_stays_200_in_readonly_scope(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """0球の開始原本を同RR modeで読み、writer行lockを発行しない。"""
+    bundle = _bundle_for(_TENANT_A, monkeypatch)
+    context = make_tenant_context(_TENANT_A)
+    bundle.handle._context = context
+    bundle.handle._bound_integrity_proof = context._integrity_proof
+    top = SimpleNamespace(is_active=True)
+    session = SimpleNamespace(
+        get_transaction=lambda: top, in_nested_transaction=lambda: False
+    )
+    monkeypatch.setitem(
+        tx._TRANSACTION_RUNTIMES, bundle.handle._state_key, (session, object())
+    )
+    monkeypatch.setitem(
+        tx._STARTED_READ_HANDLES, bundle.handle._state_key, (bundle.handle, top)
+    )
+    app, _ = _app(monkeypatch, bundle)
+    response = await _get(app, bundle.game_id)
+    assert response.status_code == 200
+    assert response.json()["read_kind"] == "initial"
+    assert not any(
+        type(token) in {GameLockToken, RecordingGenerationLockToken}
+        for token in bundle.calls
+    )
+
+
+@pytest.mark.anyio
+async def test_recorded_first_ball_stays_200_in_readonly_scope(
+    monkeypatch: pytest.MonkeyPatch, recorded_bundle: RecordedBundle
+) -> None:
+    """保存初球の同一再評価をRR modeでも行い、writer行lockは発行しない。"""
+    bundle = _recorded_for_tenant(monkeypatch, recorded_bundle)
+    session = tx._TRANSACTION_RUNTIMES[bundle.handle._state_key][0]
+    monkeypatch.setitem(
+        tx._STARTED_READ_HANDLES,
+        bundle.handle._state_key,
+        (bundle.handle, session.get_transaction()),
+    )
+    app, _ = _app(monkeypatch, bundle)
+    response = await _get(app, bundle.game_id)
+    assert response.status_code == 200
+    assert response.json()["read_kind"] == "recorded"
+    assert not any(
+        type(token) in {GameLockToken, RecordingGenerationLockToken}
+        for token in bundle.calls
+    )
 
 
 @pytest.mark.anyio

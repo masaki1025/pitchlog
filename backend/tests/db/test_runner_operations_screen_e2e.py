@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -28,6 +29,145 @@ from .test_screen_start_e2e import vertical_database as vertical_database
 
 pytestmark = pytest.mark.requires_db
 _CONFIG = "GameScreenRunnerOperations.playwright.config.ts"
+
+
+_RUNNER_DIAGNOSTIC_BOOTSTRAP = r"""
+import json,threading,time
+_owned_observer_started=time.monotonic()
+_seen_probe_threads=set()
+_owned_trace_lock=threading.Lock()
+_owned_trace_count=0
+_owned_trace_truncated=False
+_owned_phase_previous=None
+_owned_rpc_state={}
+_allowed_errors={
+ 'RuntimeError','ValueError','TypeError','KeyError','ValidationError',
+ 'OrdinaryPrefixError','OrdinaryPlayRowError','OrdinaryPitchExecutionError',
+ 'NonplaySourceUnavailable','PlayExportWriterUnavailable','WriterBindingUnavailable',
+ 'LineupPrefixProtocolError','TerminalPitchPayloadError','PlayExportIdentityUnavailable',
+ 'RecordedExportProjectionUnavailable','InsufficientPrivilege','CheckViolation',
+ 'RaiseException','UndefinedFunction','UndefinedColumn','UniqueViolation',
+ 'NotNullViolation','ForeignKeyViolation','InvalidTextRepresentation','IntegrityError',
+ 'ProgrammingError','DataError','OperationalError','StatementError','DomainRuntimeError',
+ 'LedgerUnavailable','RG1Unavailable','RG1Blocked','P1PreconditionError','SourceBindingError',
+ 'NoDataFound','TooManyRows','UndefinedTable','InvalidSchemaName',
+ 'InvalidParameterValue','TimeoutError',
+}
+def _owned_emit(value):
+ global _owned_trace_count,_owned_trace_truncated
+ with _owned_trace_lock:
+  if _owned_trace_count<80:
+   _owned_trace_count+=1
+   print('PITCHLOG_RUNNER_STAGE '+json.dumps(dict(value,observerMs=
+    min(3600000,max(0,int((time.monotonic()-_owned_observer_started)*1000))))),flush=True)
+  elif not _owned_trace_truncated:
+   _owned_trace_truncated=True
+   print('PITCHLOG_RUNNER_STAGE '+json.dumps({'truncated':True,'limit':80}),flush=True)
+def _owned_runner_trace(frame,event,arg):
+ module=frame.f_globals.get('__name__','')
+ probe=module=='__main__' and frame.f_code.co_name=='_owned_runner_probe'
+ if not (probe or (type(module) is str and module.startswith('pitchlog.'))):
+  return None
+ if event=='exception':
+  error_type=arg[0].__name__
+  if probe and error_type=='RuntimeError':
+   _seen_probe_threads.add(threading.get_ident())
+  elif error_type in _allowed_errors:
+   _owned_emit({'module':module,'function':frame.f_code.co_name,
+    'line':frame.f_lineno,'error':error_type})
+ return _owned_runner_trace
+def _owned_runner_probe():
+ try:raise RuntimeError()
+ except RuntimeError:pass
+sys.settrace(_owned_runner_trace)
+threading.settrace(_owned_runner_trace)
+_owned_runner_probe()
+_probe_thread=threading.Thread(target=_owned_runner_probe)
+_probe_thread.start();_probe_thread.join(timeout=5)
+if _probe_thread.is_alive() or len(_seen_probe_threads)!=2:
+ raise RuntimeError('owned diagnostic main/thread trace unavailable')
+print('PITCHLOG_RUNNER_OBSERVER '+json.dumps(
+ {'probe':'main-and-worker','threads':2}),flush=True)
+from pitchlog.api.routers import sync as _owned_sync
+from pitchlog.durable_rights_ledger import adapter as _owned_adapter
+_owned_original_phase=_owned_sync._phase_id
+_owned_original_request=_owned_adapter._request
+def _owned_phase(attempt,fingerprint):
+ global _owned_phase_previous
+ phase=_owned_original_phase(attempt,fingerprint)
+ with _owned_trace_lock:
+  previous=_owned_phase_previous
+  _owned_phase_previous=(attempt,fingerprint,phase)
+ _owned_emit({'stage':'phase','prior':previous is not None,
+  'sameAttempt':None if previous is None else previous[0]==attempt,
+  'sameFingerprint':None if previous is None else previous[1]==fingerprint,
+  'samePhase':None if previous is None else previous[2]==phase})
+ return phase
+def _owned_request(channel,value,*,mutation=False):
+ operation=value.get('operation') if type(value) is dict else None
+ if operation not in {'binding_open','binding_check','binding_close'}:
+  return _owned_original_request(channel,value,mutation=mutation)
+ started=time.monotonic()
+ with _owned_trace_lock:
+  prior=_owned_rpc_state.get(id(channel),{'checkCount':0,'lastCheck':None})
+  state=dict(prior)
+ def summary(event):
+  last=state['lastCheck']
+  writer=value.get('writer')
+  pid=writer.get('backend_pid') if type(writer) is dict else None
+  if type(pid) is not int or not 0<pid<2147483648:pid=None
+  _owned_emit({'stage':'binding-rpc','operation':operation,'event':event,
+   'writerPid':pid,
+   'elapsedMs':min(3600000,max(0,int((time.monotonic()-started)*1000))),
+   'checkCount':state['checkCount'],
+   'sinceCheckMs':None if last is None else min(3600000,
+    max(0,int((started-last)*1000)))})
+ if operation!='binding_check':summary('start')
+ try:result=_owned_original_request(channel,value,mutation=mutation)
+ except BaseException:
+  summary('raised')
+  raise
+ else:
+  if operation=='binding_check':
+   with _owned_trace_lock:
+    state['checkCount']+=1;state['lastCheck']=time.monotonic()
+    _owned_rpc_state[id(channel)]=state
+  else:summary('done')
+  return result
+ finally:
+  if operation=='binding_close':
+   with _owned_trace_lock:_owned_rpc_state.pop(id(channel),None)
+_owned_sync._phase_id=_owned_phase
+_owned_adapter._request=_owned_request
+from contextlib import contextmanager as _owned_contextmanager
+from pitchlog.api.routers import started_games as _owned_started_games
+from pitchlog.repositories import transaction as _owned_transaction
+_owned_original_started_scope=_owned_started_games.tenant_transaction_scope
+def _owned_started_pid(handle):
+ try:
+  runtime=_owned_transaction._TRANSACTION_RUNTIMES.get(handle._state_key)
+  if runtime is None:return None
+  pid=runtime[0].connection().connection.driver_connection.info.backend_pid
+  return pid if type(pid) is int and 0<pid<2147483648 else None
+ except Exception:
+  return None
+def _owned_get_scope_marker(event,pid):
+ try:
+  _owned_emit({'stage':'get-started-scope','event':event,'pid':pid})
+ except Exception:
+  pass
+@_owned_contextmanager
+def _owned_started_scope(*args,**kwargs):
+ pid=None
+ try:
+  with _owned_original_started_scope(*args,**kwargs) as handle:
+   pid=_owned_started_pid(handle)
+   _owned_get_scope_marker('start',pid)
+   yield handle
+ finally:
+  _owned_get_scope_marker('end',pid)
+_owned_started_games.tenant_transaction_scope=_owned_started_scope
+"""
 
 
 def _install_runner_fault_server(monkeypatch) -> None:
@@ -57,6 +197,11 @@ async def owned_runner_fault(request,call_next):
 uvicorn.run(app,host='0.0.0.0',port=int(sys.argv[1]),log_level='warning')
 """
 
+    if os.environ.get("PITCHLOG_E2E_RUNNER_DIAGNOSTIC") == "1":
+        bootstrap = bootstrap.replace(
+            "app=create_app()", _RUNNER_DIAGNOSTIC_BOOTSTRAP + "\napp=create_app()", 1
+        )
+
     def app_arguments(db, app_port, origin):
         command = original(db, app_port, origin)
         positions = [
@@ -68,6 +213,214 @@ uvicorn.run(app,host='0.0.0.0',port=int(sys.argv[1]),log_level='warning')
         return [*command[: positions[0]], "-c", bootstrap, str(app_port)]
 
     monkeypatch.setattr(screen, "_app_container", app_arguments)
+
+
+def _capture_authority_diagnostic(db, destination: Path) -> None:
+    """Raw logは保存せず、別workerの閉JSON観測だけを最大200件で固定する。"""
+    from .durable_rights_ledger_support import docker
+
+    markers = []
+    ready = False
+    identifier = re.compile(r"^[A-Za-z_][A-Za-z0-9_]{0,95}$")
+    for line in docker("logs", db.authority.service, check=False).splitlines():
+        try:
+            value = json.loads(line)
+        except ValueError:
+            continue
+        if value == {"authority_diag_ready": 1}:
+            ready = True
+        if type(value) is not dict or set(value) != {"authority_diag"}:
+            continue
+        row = value["authority_diag"]
+        if (
+            type(row) is not dict
+            or set(row) != {"kind", "function", "line", "elapsed_ms"}
+            or any(
+                type(row[k]) is not str or not identifier.fullmatch(row[k])
+                for k in ("kind", "function")
+            )
+            or type(row["line"]) is not int
+            or not 0 < row["line"] < 1000000
+            or type(row["elapsed_ms"]) is not int
+            or not 0 <= row["elapsed_ms"] <= 3600000
+        ):
+            continue
+        if len(markers) < 200:
+            markers.append(row)
+    probe = any(
+        row["function"] == "_authority_observer_probe" and row["kind"] == "ValueError"
+        for row in markers
+    )
+    destination.write_text(
+        json.dumps(
+            {
+                "ready": ready,
+                "probe": probe,
+                "atLimit": len(markers) >= 200,
+                "records": markers,
+            },
+            indent=2,
+        )
+        + "\n"
+    )
+    assert ready and probe, "authority worker observer did not load"
+
+
+def _capture_owned_binding_locks(db, destination: Path, stop, comparison: Path) -> None:
+    """二要求目の有限窓でowned actorの待機列/lockだけを読み、原文を取得しない。"""
+    from time import monotonic
+
+    started = monotonic()
+    window_started = None
+    samples = []
+    error_kind = None
+    stop_reason = "stopped-before-second-request"
+    identifier = re.compile(r"^[A-Za-z_][A-Za-z0-9_]{0,95}$")
+    relation_name = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*\.[A-Za-z_][A-Za-z0-9_]*$")
+
+    def closed_identifier(value):
+        if value is not None and (
+            type(value) is not str or not identifier.fullmatch(value)
+        ):
+            raise ValueError("診断enumが閉identifierではありません")
+        return value
+
+    def positive_pid(value):
+        if type(value) is not int or not 0 < value < 2147483648:
+            raise ValueError("診断PIDの有限型が不正です")
+        return value
+
+    try:
+        while not stop.is_set():
+            try:
+                value = json.loads(comparison.read_text())
+            except (FileNotFoundError, json.JSONDecodeError):
+                stop.wait(0.01)
+                continue
+            if (
+                type(value) is dict
+                and type(value.get("comparisons")) is list
+                and any(
+                    type(row) is dict
+                    and type(row.get("ordinal")) is int
+                    and row["ordinal"] >= 2
+                    for row in value["comparisons"]
+                )
+            ):
+                window_started = monotonic()
+                break
+            stop.wait(0.01)
+        if window_started is None:
+            return
+        with psycopg.connect(
+            db.authority.database.business_admin, autocommit=True
+        ) as admin:
+            admin.execute("SET statement_timeout='250ms'")
+            while (
+                not stop.is_set()
+                and len(samples) < 40
+                and monotonic() - window_started < 4
+            ):
+                actors = admin.execute(
+                    "SELECT pid,usename,wait_event_type,wait_event,"
+                    "pg_blocking_pids(pid) "
+                    "FROM pg_catalog.pg_stat_activity "
+                    "WHERE datname=pg_catalog.current_database() AND ("
+                    "(usename='pitchlog_sync_binding_actor' AND state='active') OR "
+                    "(usename='pitchlog_app' AND "
+                    "pg_catalog.cardinality(pg_catalog.pg_blocking_pids(pid))>0)) "
+                    "ORDER BY pid LIMIT 9"
+                ).fetchall()
+                participants = []
+                pids = set()
+                for pid, role, wait_type, wait_event, blockers in actors[:8]:
+                    pid = positive_pid(pid)
+                    blockers = [positive_pid(blocker) for blocker in blockers]
+                    pids.update([pid, *blockers])
+                    participants.append(
+                        {
+                            "pid": pid,
+                            "role": closed_identifier(role),
+                            "waitEventType": closed_identifier(wait_type),
+                            "waitEvent": closed_identifier(wait_event),
+                            "blockingPids": blockers,
+                        }
+                    )
+                rows = []
+                if pids:
+                    rows = admin.execute(
+                        "SELECT l.pid,a.usename,l.locktype,l.mode,l.granted,"
+                        "CASE WHEN c.oid IS NULL THEN NULL "
+                        "ELSE n.nspname||'.'||c.relname END "
+                        "FROM pg_catalog.pg_locks l "
+                        "JOIN pg_catalog.pg_stat_activity a ON a.pid=l.pid "
+                        "LEFT JOIN pg_catalog.pg_class c ON c.oid=l.relation "
+                        "LEFT JOIN pg_catalog.pg_namespace n ON n.oid=c.relnamespace "
+                        "WHERE l.pid=ANY(%s) "
+                        "ORDER BY l.granted,CASE WHEN l.locktype IN "
+                        "('transactionid','advisory','tuple','virtualxid') "
+                        "THEN 0 ELSE 1 END,CASE WHEN n.nspname IN "
+                        "('pg_catalog','information_schema') THEN 1 ELSE 0 END,"
+                        "l.pid,l.locktype,l.mode LIMIT 61",
+                        (sorted(pids),),
+                    ).fetchall()
+                locks = []
+                for pid, role, kind, mode, granted, relation in rows[:60]:
+                    if type(granted) is not bool or (
+                        relation is not None
+                        and (
+                            type(relation) is not str
+                            or not relation_name.fullmatch(relation)
+                        )
+                    ):
+                        raise ValueError("診断lockの閉列が不正です")
+                    locks.append(
+                        {
+                            "pid": positive_pid(pid),
+                            "role": closed_identifier(role),
+                            "locktype": closed_identifier(kind),
+                            "mode": closed_identifier(mode),
+                            "granted": granted,
+                            "relation": relation,
+                        }
+                    )
+                samples.append(
+                    {
+                        "elapsedMs": round((monotonic() - started) * 1000),
+                        "windowElapsedMs": round((monotonic() - window_started) * 1000),
+                        "participants": participants,
+                        "participantsTruncated": len(actors) > 8,
+                        "locks": locks,
+                        "locksTruncated": len(rows) > 60,
+                    }
+                )
+                stop.wait(0.1)
+            stop_reason = (
+                "stopped-during-window" if stop.is_set() else "finite-window-complete"
+            )
+    except Exception as error:
+        error_kind = type(error).__name__
+        stop_reason = "observer-error"
+    finally:
+        destination.write_text(
+            json.dumps(
+                {
+                    "triggered": window_started is not None,
+                    "windowStartedMs": None
+                    if window_started is None
+                    else round((window_started - started) * 1000),
+                    "windowSecondsLimit": 4,
+                    "sampleLimit": 40,
+                    "sampleLimitReached": len(samples) >= 40,
+                    "lockRowsLimit": 60,
+                    "samples": samples,
+                    "stopReason": stop_reason,
+                    "errorKind": error_kind,
+                },
+                indent=2,
+            )
+            + "\n"
+        )
 
 
 def _all_runner_stats(admin, tenant, game):
@@ -336,10 +689,18 @@ def test_runner_operations_screen(
         ) as origin:
             checkpoint = tmp_path / "fault-before.json"
             stop = threading.Event()
-            with ThreadPoolExecutor(max_workers=1) as workers:
+            with ThreadPoolExecutor(max_workers=2) as workers:
                 captured = workers.submit(
                     _capture_runner_fault_baseline, db, checkpoint, stop
                 )
+                if os.environ.get("PITCHLOG_E2E_RUNNER_AUTHORITY_DIAGNOSTIC_SITE"):
+                    workers.submit(
+                        _capture_owned_binding_locks,
+                        db,
+                        tmp_path / "binding-locks-safe.json",
+                        stop,
+                        Path(str(result_file) + ".comparison.json"),
+                    )
                 try:
                     completed = _run_playwright(
                         db,
@@ -355,6 +716,10 @@ def test_runner_operations_screen(
                         },
                         timeout_seconds=1200,
                     )
+                    if os.environ.get("PITCHLOG_E2E_RUNNER_AUTHORITY_DIAGNOSTIC_SITE"):
+                        _capture_authority_diagnostic(
+                            db, tmp_path / "authority-safe.json"
+                        )
                     assert completed.returncode == 0, (
                         completed.stdout[-10000:],
                         completed.stderr[-3000:],
