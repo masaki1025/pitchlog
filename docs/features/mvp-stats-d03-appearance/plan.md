@@ -149,3 +149,6 @@ root PO委任による通常再開の限定追補を採用。consumed LC原本�
 r17は1failed514.75秒（lock待機込み）。自チームを後攻へ設定するfixtureがteam_records.kindの既immutable triggerを正当に拒否し、新規作成/終了/APIへ未到達だった。triggerや検査を変更せずこの案を撤回する。次版では実POST /gamesのaway/home team選択を入替え、開始のaway/home選手入力も対応する正規の入力へ入替える。元fixtureのteam kind/選手所属/試合状態は直接変更しない。実saved gameはPOSTが返した新規UUIDのままで、fixture gameの読取を製品成功とは数えない。
 
 後発source完全性追補: 同じframe event IDや同じeffective proof IDの重複をGROUP BYで明示拒否し、proof origin_kindも唯一projector出力へ全値束縛する。開始proofは正規のstart union/null形/home/top1/defensive-half-entryへ限定する。旧sourceの全件数一致だけを完全性の根拠にせず、欠落を別proofの重複で埋めない。r16/r17の固定sourceとは分けて次owned版で確認する。
+
+
+通常再開r18は1failed/584.48秒。実終了v1の登板API確認後、再終了v2で未供給となった。原因は候補readが終了前値gameEnded=trueを要求した過剰条件。既正式gameLifecycleの終了宣言はcurrentを変更せず、再開がgameEnded=falseへ写すため、前値は真正boolean（falseも可）へ整合する。consumed LC全identity、T2 nonlocked、after=false、当該field以外のrestored全値一致は維持する。r18失敗は保全し、新sourceのr19で同じ実経路を再実行する。正常48への移植/正式受理は別のまま。

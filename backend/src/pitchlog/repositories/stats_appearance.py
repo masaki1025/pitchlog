@@ -669,8 +669,8 @@ appearance_proofs AS MATERIALIZED (
  AND a.receipt_id::text=e.payload#>>'{{event,receiptId}}'
  AND a.preparation#>'{{before_source,checkpoint,content,restored,lastPlayEvaluation,
  decision,lockFurtherPlayInput}}'='false'::jsonb
- AND a.preparation#>'{{before_source,checkpoint,content,restored,current,
- stateFields,state.gameEnded}}'='true'::jsonb
+ AND pg_catalog.jsonb_typeof(a.preparation#>'{{before_source,checkpoint,
+ content,restored,current,stateFields,state.gameEnded}}')='boolean'
  AND a.preparation#>'{{after_source,checkpoint,content,restored,current,
  stateFields,state.gameEnded}}'='false'::jsonb
  AND (a.preparation#>'{{before_source,checkpoint,content,restored}}')

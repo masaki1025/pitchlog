@@ -761,3 +761,18 @@ def test_real_source_provider_closes_unsupported_history_and_keeps_unique_count(
     install = candidate_appearance_read_install_sql()
     assert "GRANT EXECUTE" not in install
     assert install.count("OWNER TO pitchlog_sync_right_fn_owner") == 2
+
+
+def test_normal_reopen_keeps_actual_boolean_without_assuming_end_mutated_state():
+    """終了宣言はcurrentを変えず、再開だけgameEndedをfalseへする。"""
+    from pitchlog.repositories.stats_appearance import candidate_appearance_source_query
+
+    source = candidate_appearance_source_query()
+    assert (
+        "pg_catalog.jsonb_typeof(a.preparation#>'{before_source,checkpoint,"
+        "\n content,restored,current,stateFields,state.gameEnded}')='boolean'"
+    ) in source
+    assert "stateFields,state.gameEnded}'='true'::jsonb" not in source
+    assert "stateFields,state.gameEnded}'='false'::jsonb" in source
+    assert source.count("#- '{current,stateFields,state.gameEnded}'") == 2
+    assert "decision,lockFurtherPlayInput}'='false'::jsonb" in source
