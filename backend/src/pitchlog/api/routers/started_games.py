@@ -39,7 +39,7 @@ from pitchlog.repositories.started_read import (
     read_started_game,
 )
 from pitchlog.repositories.started_snapshot import SavedStartedLineup
-from pitchlog.repositories.transaction import tenant_transaction_scope
+from pitchlog.repositories.transaction import started_snapshot_read_scope
 
 router = APIRouter(tags=["開始済み試合"], route_class=TenantMatchedRoute)
 
@@ -160,7 +160,7 @@ def read_started_game_detail(
 ) -> StartedGameRead | StartedRecordedGameRead | Response:
     """不可視・別tenant・不存在は404、保存初球は200、他の記録は409を返す。"""
     try:
-        with tenant_transaction_scope(context) as scope:
+        with started_snapshot_read_scope(context) as scope:
             if projection in {
                 "ordinary-prefix-v1",
                 "play-prefix-v2",

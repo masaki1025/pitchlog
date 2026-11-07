@@ -42,3 +42,5 @@ worktree: /home/ymdms/projects/pitchlog-worktrees/feature-mvp-started-read-snaps
 ## 実装記録
 
 2026-11-07 ステップ1: 実RR/READ ONLY scopeの発行印を同handle・top-level TX identity・tenant証跡・失効まで束縛。0球/保存初球/通常・非play・LCのreaderはこの印だけで行lock tokenを省き、旧writer経路を保持。行lockを除く別identity3関数と固定型/registryの共有差分はリポ外候補 `~/.cache/pitchlog/started-read-snapshot-author-20261107/` に分離。元関数の本文・権限は変更しない。実PG/正式登録/非作者確認は未了。
+
+同日 ステップ2: `/games/{game_id}/started` GETだけを専用scopeへ接続。defaultの0球/保存初球200と既C2/DTO対向、非playの別read token、scope内writer lock拒否を純試験で確認。共有関数と正式catalogが未配備なので、公開実PG成功の主張は行わない。
