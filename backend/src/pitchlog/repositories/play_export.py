@@ -13,6 +13,7 @@ from typing import Any
 from uuid import UUID
 
 from sqlalchemy import and_, or_, select, text
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import Session
 
 from pitchlog.db.game_state.models import (
@@ -29,7 +30,14 @@ from pitchlog.db.tenant_isolation.models import (
     TeamRecord,
     TenantVocabulary,
 )
+from pitchlog.exports.play_rows import PlayExportSupplyError
 from pitchlog.repositories.binding import TenantBindingError
+from pitchlog.repositories.play_export_source_codec import (
+    PlayExportSourceError,
+    SourceIdentity,
+    SourceVersion,
+)
+from pitchlog.repositories.play_export_source_operations import ReadPlayExportSources
 from pitchlog.repositories.play_export_spool import DiskRows, current_row_store
 from pitchlog.repositories.transaction import (
     _TRANSACTION_RUNTIMES,
@@ -44,7 +52,7 @@ class PlayExportNotFound(Exception):
     """可視な試合が無い/別tenant。"""
 
 
-class PlayExportMissingSupply(Exception):
+class PlayExportMissingSupply(PlayExportSupplyError):
     """88列/サイドカーの提供元が不足している。"""
 
     def __init__(self, columns: tuple[str, ...], reason: str):
@@ -72,6 +80,8 @@ class PlayExportBundle:
     runner_snapshots: Sequence[dict[str, Any]]
     snapshot_available: bool
     audit_plays: Sequence[dict[str, Any]] | None = None
+    source_version: SourceVersion | None = None
+    source_identities: Sequence[dict[str, Any]] | None = None
 
 
 def _session(handle: _TenantTransaction) -> tuple[Session, UUID]:
@@ -117,48 +127,99 @@ def _rows(session: Session, statement: Any) -> Sequence[dict[str, Any]]:
     return _freeze_rows(result)
 
 
-def _page_plays(session: Session, tenant: UUID, game_id: UUID):
-    """有効PlayRowを(play_number,id)のkeysetで最大500行ずつ返す。"""
-    table = PlayRow.__table__
-    event = OperationEvent.__table__
-    cursor: tuple[int, UUID] | None = None
-    while True:
-        statement = (
-            select(*table.c)
-            .select_from(
-                table.join(
-                    event,
-                    and_(
-                        event.c.tenant_id == table.c.tenant_id,
-                        event.c.id == table.c.source_event_id,
-                        event.c.game_id == table.c.game_id,
-                        event.c.replaced_at.is_(None),
-                        event.c.retired_at.is_(None),
-                        event.c.ledger_kind == "accepted",
-                        event.c.is_tombstone.is_(False),
-                    ),
-                )
-            )
-            .where(table.c.tenant_id == tenant, table.c.game_id == game_id)
-            .where(table.c.hidden_at.is_(None))
-            .order_by(table.c.play_number.asc(), table.c.id.asc())
-            .limit(_PAGE)
+def _plays_for_source_page(
+    session: Session, tenant: UUID, game_id: UUID, page: tuple[SourceIdentity, ...]
+):
+    """唯一Sが渡した最大500の物理原本を同じtenant/game/source版へ結ぶ。"""
+    if not page or len(page) > _PAGE:
+        raise PlayExportMissingSupply(
+            ("有効source",), "current-source-page-unavailable"
         )
-        if cursor is not None:
-            number, identifier = cursor
-            statement = statement.where(
-                or_(
-                    table.c.play_number > number,
-                    and_(table.c.play_number == number, table.c.id > identifier),
-                )
+    table, event = PlayRow.__table__, OperationEvent.__table__
+    identifiers = tuple(source.play_row_id for source in page)
+    if len(set(identifiers)) != len(identifiers):
+        raise PlayExportMissingSupply(("有効source",), "duplicate-current-source")
+    rows = _rows(
+        session,
+        select(*table.c)
+        .select_from(
+            table.join(
+                event,
+                and_(
+                    event.c.tenant_id == table.c.tenant_id,
+                    event.c.game_id == table.c.game_id,
+                    event.c.id == table.c.source_event_id,
+                    event.c.ledger_kind == "accepted",
+                    event.c.is_tombstone.is_(False),
+                    event.c.replaced_at.is_(None),
+                    event.c.retired_at.is_(None),
+                ),
             )
-        rows = _rows(session, statement)
-        if not rows:
-            return
-        yield rows
-        if len(rows) < _PAGE:
-            return
-        cursor = (int(rows[-1]["play_number"]), rows[-1]["id"])
+        )
+        .where(
+            table.c.tenant_id == tenant,
+            table.c.game_id == game_id,
+            table.c.id.in_(identifiers),
+        ),
+    )
+    indexed = (
+        rows.index_by("id")
+        if isinstance(rows, DiskRows)
+        else {row["id"]: row for row in rows}
+    )
+    if len(rows) != len(page) or len(indexed) != len(page):
+        raise PlayExportMissingSupply(("有効source",), "current-source-row-unavailable")
+    for source in page:
+        row = indexed[source.play_row_id]
+        if (
+            row["source_event_id"] != source.source_event_id
+            or type(row["version"]) is not int
+            or row["version"] != source.play_row_version
+        ):
+            raise PlayExportMissingSupply(
+                ("有効source",), "current-source-row-mismatch"
+            )
+        yield row
+
+
+def _read_current_plays(handle, session: Session, tenant: UUID, game_id: UUID):
+    """Raw hidden走査をせず、真正同RR readerを全page消費して件数を閉じる。"""
+    plays, identities = _new_rows(), _new_rows()
+    reader = ReadPlayExportSources(handle, game_id)
+    try:
+        for page in reader.pages(page_size=_PAGE):
+            if len(plays) + len(page) > 100000:
+                raise PlayExportMissingSupply(("プレイ行",), "current-source-limit")
+            plays.extend(_plays_for_source_page(session, tenant, game_id, page))
+            for source in page:
+                identities.extend(
+                    (
+                        {
+                            "recording_generation": source.recording_generation,
+                            "d1": source.d1,
+                            "d2": source.d2,
+                            "source_event_id": source.source_event_id,
+                            "play_row_id": source.play_row_id,
+                            "slot_version": source.slot_version,
+                            "play_row_version": source.play_row_version,
+                            "base_event_id": source.base_event_id,
+                            "source_fingerprint": source.source_fingerprint,
+                        },
+                    )
+                )
+    except PlayExportSourceError as error:
+        raise PlayExportMissingSupply(
+            ("有効source",), "current-source-unavailable"
+        ) from error
+    except DBAPIError as error:
+        if getattr(error.orig, "sqlstate", None) == "22023":
+            raise PlayExportMissingSupply(
+                ("有効source",), "current-source-unavailable"
+            ) from error
+        raise
+    if len(plays) != reader.version.source_count or len(identities) != len(plays):
+        raise PlayExportMissingSupply(("有効source",), "current-source-count-mismatch")
+    return _freeze_rows(plays), _freeze_rows(identities), reader.version
 
 
 def _read_runners(
@@ -344,17 +405,9 @@ def read_play_export(handle: _TenantTransaction, game_id: UUID) -> PlayExportBun
         raise PlayExportNotFound("対象試合を取得できません")
     game = game_rows[0]
 
-    plays = _new_rows()
-    for page in _page_plays(session, tenant, game_id):
-        if len(plays) + len(page) > 100000:
-            raise PlayExportMissingSupply(
-                ("プレイ行",), "試合のプレイ行数が上限を超えました"
-            )
-        plays.extend(page)
-    if len(plays) > 100000:
-        raise PlayExportMissingSupply(
-            ("プレイ行",), "試合のプレイ行数が上限を超えました"
-        )
+    plays, source_identities, source_version = _read_current_plays(
+        handle, session, tenant, game_id
+    )
     # 取消・訂正前の物理行も同じRRから保持し、旧snapshotの原本を検証する。
     audit_plays = _rows(
         session,
@@ -475,4 +528,6 @@ def read_play_export(handle: _TenantTransaction, game_id: UUID) -> PlayExportBun
         runner_snapshots=runner_snapshot_rows,
         snapshot_available=snapshot_name is not None,
         audit_plays=audit_plays,
+        source_version=source_version,
+        source_identities=source_identities,
     )

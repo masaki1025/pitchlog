@@ -71,10 +71,9 @@ def _safe_json(value: object, *, depth: int = 0) -> object:
             compact = re.sub(r"[^a-z0-9]", "", key.casefold())
             if compact in _REDACTED_KEY_NAMES:
                 result[key] = _REDACTION
-            elif (
-                any(fragment in compact for fragment in _SECRET_FRAGMENTS)
-                or compact.endswith("d4")
-            ):
+            elif any(
+                fragment in compact for fragment in _SECRET_FRAGMENTS
+            ) or compact.endswith("d4"):
                 raise PlayExportSupplyError("未知の資格様keyを出力できません")
             else:
                 result[key] = _safe_json(item, depth=depth + 1)
@@ -166,7 +165,7 @@ def _play_by_id(bundle: PlayExportBundle) -> Mapping[UUID, dict[str, Any]]:
 def _source_digest(bundle: PlayExportBundle) -> str:
     """gameの確定source/slot/play版集合をmanifest用digestへ写す。"""
     # 監査イベント/出場/参照/保存projectionを含む同一RRの全供給版を束縛する。
-    payload = {
+    payload: dict[str, Any] = {
         "game": bundle.game,
         "plays": bundle.plays,
         "audit_plays": (
@@ -183,6 +182,18 @@ def _source_digest(bundle: PlayExportBundle) -> str:
         "snapshots": bundle.snapshots,
         "runner_snapshots": bundle.runner_snapshots,
     }
+    if bundle.source_version is not None:
+        if bundle.source_identities is None:
+            raise PlayExportSupplyError("同版source原本が不足しています")
+        version = bundle.source_version
+        payload["current_source_version"] = {
+            "fact_version_id": version.fact_version_id,
+            "revision": version.revision,
+            "source_set_sha256": version.source_set_sha256,
+            "source_count": version.source_count,
+            "completion_state": version.completion_state,
+        }
+        payload["current_source_identities"] = bundle.source_identities
     digest = hashlib.sha256()
     encoder = json.JSONEncoder(
         ensure_ascii=False,
@@ -202,7 +213,7 @@ def _source_digest(bundle: PlayExportBundle) -> str:
             digest.update(b",")
         write(key)
         digest.update(b":")
-        if key == "game":
+        if key in ("game", "current_source_version"):
             write(payload[key])
         else:
             digest.update(b"[")
@@ -218,9 +229,29 @@ def _source_digest(bundle: PlayExportBundle) -> str:
 def _missing_snapshot(bundle: PlayExportBundle) -> tuple[str, ...]:
     """有効行と監査原本を分け、全88列の記録元/版を閉検証する。"""
     unavailable = tuple(str(index) for index in range(88))
-    # P3は旧行が非hiddenのまま残る。現capsule selector未接合なら二重出力せず拒否。
+    # P3のS原本だけで88列/sidecar供給を推測せず、producer接合までは拒否する。
     if any(event.get("event_kind") == "play_change" for event in bundle.events):
         return unavailable
+    if (bundle.source_version is None) != (bundle.source_identities is None):
+        return unavailable
+    if bundle.source_version is not None:
+        source_rows = bundle.source_identities
+        if source_rows is None:
+            return unavailable
+        identities = _indexed_rows(source_rows, "play_row_id")
+        if (
+            bundle.source_version.source_count != len(bundle.plays)
+            or len(identities) != len(bundle.plays)
+            or len(source_rows) != len(bundle.plays)
+        ):
+            return unavailable
+        for play in bundle.plays:
+            identity = identities.get(play.get("id"))
+            if identity is None or (
+                identity.get("source_event_id") != play.get("source_event_id")
+                or identity.get("play_row_version") != play.get("version")
+            ):
+                return unavailable
     snapshots = _indexed_rows(bundle.snapshots, "play_row_id")
     events = _event_by_id(bundle)
     plays = _play_by_id(bundle)
@@ -231,10 +262,7 @@ def _missing_snapshot(bundle: PlayExportBundle) -> tuple[str, ...]:
         or len(events) != len(bundle.events)
         or len(plays) != len(bundle.plays)
         or len(audit_plays) != len(audit_rows)
-        or (
-            bundle.audit_plays is not None
-            and len(audit_plays) != len(snapshots)
-        )
+        or (bundle.audit_plays is not None and len(audit_plays) != len(snapshots))
     ):
         return unavailable
     current_count = 0
@@ -509,9 +537,7 @@ def _inning_score_rows(
         or type(last_event.get("d2")) is not int
     ):
         raise PlayExportSupplyError("全回値のsource版が不正です")
-    play_sources = (
-        events.get(play["source_event_id"]) for play in bundle.plays
-    )
+    play_sources = (events.get(play["source_event_id"]) for play in bundle.plays)
     if any(
         event is None
         or type(event.get("generation")) is not int
@@ -532,7 +558,10 @@ def _inning_score_rows(
         expected_half = "top" if position % 2 == 0 else "bottom"
         expected_inning = position // 2 + 1
         if type(inning) is not dict or set(inning) != {
-            "inning", "half", "state", "runs"
+            "inning",
+            "half",
+            "state",
+            "runs",
         }:
             raise PlayExportSupplyError("全回値の保存形が不正です")
         inning = cast(dict[str, object], inning)

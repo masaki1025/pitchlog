@@ -23,3 +23,12 @@ owned実行は全寿命で共通lock `/home/ymdms/.cache/pitchlog/test-coordinat
 ## ステップ1・現基線への接合（2026-11-07、接合作者記録）
 
 f8ed7f1cを実HEAD/cleanで引受。共有patchのfunction_operations/operation_registryはbefore一致で適用、transactionだけ既基線差を保ったまま真正TenantContext/handle検査直後へ新CSV source1型のdispatcherを接合した。初回preflightは271passed/1failedで、旧43登録のexact期待が既merge依存のwriter1件と今回source reader1件を欠いていた。旧43全順序を保持したまま既writerと今回readerの2固定ID/実token型だけをexact tuple/setへ追記し、subsetや件数だけの比較へ緩めない。対応するtests/test_function_operations_boundary.pyを本stepの接合検査対象へ明示追加する。Ty成功、Ruffのcache生成patch由来import順1箇所はbackend設定で修復する。正式catalog/7.7は未受理のまま。
+
+
+## ステップ2・有効CSVの唯一S読取（2026-11-07）
+
+CSV repositoryは可視gameを同handleで確認後、ReadPlayExportSourcesの真正同RR/RO source pageを全消費する。従前の独立raw hidden走査を撤去し、page内の最大500 physical IDをtenant/game/accepted source/event/play版へ実SQLで一括結合する。全会員数とreceipt source_countを完全比較し、旧監査行/snapshotは別の同RR集合へ全量保持する。ディスク退避中のphysical indexもDiskRows.index_byを用い、500件の巨大行dictを一括保持しない。
+
+bundleへsource版/identityを保存し、manifestのsource digestへfact_version/revision/S/count/completionと全identityを追加束縛する。同一値のRR開始番号は意味版に混ぜず、同版の再取得を無関係なtransaction snapshotで別版へ変えない。source/physical不一致は共通PlayExportSupplyError系へ閉じて既APIの409を維持する。真正scope/未登録関数等の技術失敗を成功や409へ一律変換せず、既503のまま。P3の88列/sidecar producer未供給の409は維持する。
+
+初回純選択検査は84passed/3failedでDiskRowsにappendが無いことを検出し、単行extendへ修正。SQLite実SQLの1/500/501件・ディスク有無・越境/別event/版/退避/不足・P3非hidden旧行の誤選択なし・版digest束縛を含めて87passed4.26秒、CSV/表示/単一生成器の全対象245passed8.79秒。旧DB資格の成功を模倣する試験ではなく、合成S入力から後段SQLの結合を確認した単位証拠として扱う。真正S/token/CSV製品routeの実PG/画面はstep3で検査する。
