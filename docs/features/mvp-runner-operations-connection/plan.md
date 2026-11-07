@@ -94,3 +94,12 @@ rootのPO委任による表示追随（同2026-11-07）: `backend/src/pitchlog/e
 ## 非作者P1の後発是正（aa8レビュー、2026-11-07）
 
 非作者レポート`/home/ymdms/.cache/pitchlog/runner-operations-independent-20261107/REPORT.md` SHA 91c1fa3a6c9818ba9af32e01bfe04af168850dd60e35b0ea5e32837f4adedd82の『親主結果ballと子SO05の相反観測』を是正した。子のSO05操作選択時点で親主結果も同じSO05へ変更し、親が後からball等へ変われば子SO05選択/確認を解除する。子自身もballのままSO05確定を拒否する。Providerはすべての投球batting-resultで親resultIdと実perPitch.resultIdの一致を必須にし、WP/PBは実primaryResultId一致、NPは主結果非該当をそれぞれ別条件で検査する。既計算/保存結果を補修せず、親から選べるSO05へ実際に整合させる。作者のUI正負/親観測対向と既SDK/controller/providerを7spec/99passed/8.93秒、eslint/vue-tsc0で確認。これは非作者再確認/実画面実PGではない。固定後に非作者へ再提示する。
+
+## ステップ3の実画面検査準備（実行未了）
+
+- 後発6pathは非作者が再確認し旧SO05相反観測P1解消・当該差分の新P0/P1なし。`/home/ymdms/.cache/pitchlog/runner-operations-independent-20261107/FOLLOWUP.md` の現物SHAは`f03471f6f236a425406151c7ad9d6aa9121279de6a4a72212d64af1b48442fa7`（独立2spec/11passed追記後）。全artifact/実PG/実画面の受理へ拡張しない。
+- 専用E2E/config/DB wrapperを追加する。画面から新規作成・実開始・安打・NP盗塁・WP・PB・投手牽制死・SO05・balk・捕手牽制死・盗塁死で2回表へ至る17操作を同試合で入力する。`scope=first`は先行安打＋NP盗塁2操作だけの部分検証として別記する。同本文再送の重複・reload原値・別tenant404を照合する。
+- 別の画面作成試合で先行安打後の全T5版を読取専用snapshotし、NP盗塁の同一TX T4故障を実appへ注入する。失敗表示・prefix不変・失敗event/play/D5の不存在・全T5版不変を照合する。既owned打球検査の故障bootstrap/observer/rollback補助だけを再利用し、製品計算・認可・権利・成功応答は置換しない。語彙fixtureだけ供給し、試合/走者/プレイは事前投入しない。
+- 作者静的検査は専用FE lint/vue-tsc、BE Ruff/Ty成功。**実画面・実PGは未実行**。rootの正規CURRENT48/唯一artifact/現行pin接合供給後、同固定sourceで実行する。共通owned lockは外側launcherがfixture作成〜cleanupまで保持し、内側重複lockは作らない。
+- root依頼でcurrent fixture5件のcache候補generatorを作成（`/home/ymdms/.cache/pitchlog/runner-current-fixtures-20261107/`）。既seal/hash/wire-headだけを再利用し現行4e→ab8の許可pointer280/272/102/38/24、全value逆変換一致・初球/打球はbyte逆変換一致を確認。root追跡資産は非編集、数学期待やprior/履歴pinを更新していない。
+- 実測前のschema照合で語彙fixtureカテゴリを是正した。`admin_vocabularies.category`の既CHECKはbatting_result/batted_ball/seasonの閉集合であり、WP/PB/balkも既結果語彙のbatting_resultへ配置する。存在しないsecondary_batting_resultカテゴリを新設しない。物理保存先は引き続き既secondary_batting_result_keyで、主結果へ値を書き換えない。実PG未走行の準備差分である。
