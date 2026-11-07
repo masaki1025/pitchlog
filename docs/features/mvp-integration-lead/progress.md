@@ -1,5 +1,14 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 2026-11-07 20:28 JST：GETの書込阻害を解消、走者SQLの実拒否へ到達
+
+- **現固定版**: 主候補 `feature/mvp-d03-current-startup-20261107@ecd47bc6f8bb511876bcce12a7be80b4ccdffb99`。旧GETの行ロックを真正RR READ ONLYの有限3readerへ分離し、既writer/P3 source検査は維持。独立REPORT SHA653fc56d1335e080cdcba991f60b9c30455a25d52006ca58828a64567b61865e、SQLパーサのASCII空白追随も独立追補f9765c9357e3b7bb444d520c74724ac7d73d1eecd75c2a34a7f6e6d244360ecbで確認。通常49の新規画面作成→開始→単打保存まで再実行済み。正式受理/CI/全操作完了ではない。
+- **利用者経路の次の実停止点**: run8（d83）ではGETと重なるNP binding publishが440msで成功し、旧約2秒QueryCanceledを越えた。run9（ecd、154.43秒）は実prepareで `InsufficientPrivilege/42501`、公開固定拒否タグ `lineup_physical` を確認。NP保存/T4故障検証は未到達。manifest SHA936c2757f303c4ec0799a5093a32281bfeda2bfd99a24fe7ed11c189bd0ca868、source前後一致/owned cleanup/lock解放。静的には旧SQLがrunnerAdvanceOverrides.overridesだけを見てautoを要求する一方、実RunnerEventは明示観測からmanualを生成する。OR群内の単独拒否項を実測したとは主張しない。
+- **担当/解除作業**: game_operations担当が専用WT `feature-mvp-runner-physical-evidence-20261107` で旧SQLのv3走者分岐だけを閉修復。全10物理列/元走者ID/観測原因/唯一T1を照合し、単一ラベル宣言をPython投影と共有する。rootが共有publisher/catalogを直列接合し、非作者確認後、同版first2正常保存・再送・reload・実途中故障へ進む。旧84ec packetはsteal-pitchの過度制限を作者が検出したため未適用で保全し、新版待ち。同じ失敗の再走はしない。
+- **並行の実証**: D03通常49 fault子候補 `dc2f623041e501c75f30ca80971182dc8b427e38` は0球交代の真正同TX末尾で例外を注入し1passed98.26秒。33業務表は全値不変、旧binding監査行も不変、新1監査行は実要求と全指紋一致してclosed/生存0。binding公開/closeの別TX監査まで消す誤った期待は是正し、監査を削除していない。native faultの是正後再走は未了。sub-run2 manifest SHA4b7dcaf943a8533bcd5aba7ac017d6a54a7b1b587368d4150cc6ef904f16b0b8。実画面/全故障完成とはしない。
+- **閲覧引渡し再照合**: 外部枝40b3654538cd68a1a4c175d49ee2155ffc60b7c2・patch bf881c318747c8b48aa726c327821dc6606d0ef2ecbbcec63d3886b7bd6f9e49は再度実SHA一致。既受入の同D1訂正版検知修復f2488c71を使用する。元patchのrecover応答型検査除外は採用せず、主候補で実DTO修復済み。閲覧の現行P3本文/正式catalog接合と同版実ブラウザは残る。引渡しの3passed319.73秒は作者報告として保持し、正式MVP提供とはしない。
+
+
 ## 2026-11-07：通常49で0球交代から登板成績/CSVまで実接続、API既赤を除外なしで閉鎖
 
 - **利用者操作の新しい実証**: D03子候補実行 `9e3fce868570a3c99cb50130d1c0716ea0114eb3` は正規CURRENT49の実app/実認証/実記録権/owned PGで **1passed216.80秒**。同一の新規作成試合で開始0球proof→3球→0球relief/同D5再掲→終了v1→再開中official対象外→4球目→再終了v2→GET再取得。両投手の登板が試合別/season all・practice/双方成績CSVで各1、game_otherのofficial空、旧v1失効とv2の真正receipt、交代前後でnative版/source集合は不変だがCP変更を確認。候補DDL/権限後差込なし。2864source前後一致/cleanup/lock解放を結果manifest SHA7c6457bf1d0ff5b2ff1d7334c463e944f63ed15ef676fdea52f440c372ea96f6に固定。報告e200489bはdocs-only後発。root非作者確認REPORT SHA8a4650a0f5f40fe23cc47d7772980b6f247ad45824cd29389ba74e97d93af79d＋独立driver3passで候補接合。ブラウザ/実機/P3 D03 source/全試合0球成績/全hook故障・不正receipt/正式受理へは拡張しない。
