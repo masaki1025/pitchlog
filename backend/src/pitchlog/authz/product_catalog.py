@@ -156,6 +156,8 @@ WHERE namespace.nspname IN (
     'rg1_control', 'pitchlog_ledger_observer', 'initial_right_api',
     'sync_fence_api', 'sync_right_api', 'recording_vocab_api', 'stats_api',
     'stats_basic_api'
+) OR (namespace.nspname = 'sync_fence'
+      AND routine.proname = 'p3_reject_unfinished_page_progress'
 ) OR (namespace.nspname = 'public' AND routine.proname IN (
     'protect_initial_right_storage', 'protect_recording_generations_updates',
     'protect_nonplay_admission', 'protect_lifecycle_write_admissions',
