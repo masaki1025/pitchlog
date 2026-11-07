@@ -45,11 +45,8 @@ class ChangeTargetResponse(_ChangeResponse):
     expected_prefix_ref: PrefixRef
     target_event_id: CanonicalUuid
     target_play_id: CanonicalUuid
-    original_result_id: Literal[
-        "batting-result.ball",
-        "batting-result.called-pitch",
-        "batting-result.called-strikeout",
-    ]
+    # 対象読取は既T1のstrを保持する。変更可能な3結果とは別の値域。
+    original_result_id: StrictStr
 
 
 class ChangeConfirmationResponse(_ChangeResponse):

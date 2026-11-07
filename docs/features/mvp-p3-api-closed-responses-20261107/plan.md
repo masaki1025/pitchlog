@@ -31,3 +31,6 @@ step2: 3routeにstrict/extra-forbidな応答型と実model返却を接続。GET�
 
 
 step3影響検査: API/既E1受付/Cookie/C2/roster exactの統合回帰は初回66pass2fail。追加2件は基線66d85fa6でも同名2failed3.22秒を確認した既有限集合の追随漏れ（既登録recover/毎球CSV）で、実registered routeとCookie非対象を照合して有限追記。製品C2/同Cookie policy/未知route検出は変更しない。影響8suiteを同候補で一括し214passed6.17秒。元全API規約の2赤はDTO/service修復で、別の既基線2赤は有限metadata整合で閉じた。最終非作者差分確認と実HTTP/正規統合後の接合は未了、必須CI/7.7/正式受理の代わりとはしない。
+
+
+実装非作者レビューの元cf847cfb REPORT SHA406f8d5073332d31e05af10787dfd2c1fe9e2f616fe488caabfb60764481514eでP1=1。rootが変更可能な3結果とtarget GETの読取結果を取り違え、後者DTOを3Literalへ狭めた。元T1/打球/走塁sourceはstrのまま返すため、target.original_result_idは補正のないStrictStrへ戻す。既source唯一validatorによる意味判定と、変更POSTの既3結果制限は保持する。4安打IDの読取正例/型不正4例/安打を変更対応へ昇格しない負例を追加し、同関連8suite223passed6.25秒/Ruff/Ty0。元P1を消したとは再確認前に記録せず、後発source版の限定確認を受ける。独立153pure/元query・serializer全AST一致の証拠は継承し、後発DTO1field差分と分離する。

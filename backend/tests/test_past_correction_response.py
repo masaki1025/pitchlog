@@ -172,3 +172,44 @@ def test_unknown_result_boundary_is_not_success(boundary):
     body["boundary"] = boundary
     with pytest.raises(ValidationError):
         validate_change_result_response(body)
+
+
+@pytest.mark.parametrize(
+    "result_id",
+    [
+        "batting-result.single",
+        "batting-result.double",
+        "batting-result.triple",
+        "batting-result.home-run",
+    ],
+)
+def test_target_read_keeps_existing_batted_hit_result_identifiers(result_id):
+    """読取対象の値域を変更payloadの3結果へ誤って狭めない。"""
+    body = _bodies()[0]
+    body["original_result_id"] = result_id
+    field = _route(0).response_field
+    assert field is not None
+    actual, errors = field.validate(body, {}, loc=("response",))
+    assert not errors
+    assert (
+        field.serialize(actual, mode="json", by_alias=True, exclude_unset=True) == body
+    )
+
+
+@pytest.mark.parametrize("value", [None, True, 1, ["batting-result.single"]])
+def test_target_result_remains_strict_text_without_coercion(value):
+    """元の文字列を補正せず、別型だけを拒否する。"""
+    body = _bodies()[0]
+    body["original_result_id"] = value
+    field = _route(0).response_field
+    assert field is not None
+    _, errors = field.validate(body, {}, loc=("response",))
+    assert errors
+
+
+def test_readable_batted_hit_is_not_promoted_to_supported_correction():
+    """対象の読取成功と変更POSTの既対応範囲を混同しない。"""
+    body = _bodies()[2]
+    body["confirmed_content"]["originalResultId"] = "batting-result.single"
+    with pytest.raises(ValidationError):
+        validate_change_result_response(body)
