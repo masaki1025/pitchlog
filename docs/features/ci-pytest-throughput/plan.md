@@ -1,9 +1,9 @@
 ---
 feature: ci-pytest-throughput
 status: active
-承認: 済（ユーザー指示 2026-11-07・CI短縮候補）
+承認: PO委任によるCodex主担当/root判断（2026-11-07、原候補継承と非作者P1是正）
 重さ分類: 通常
-branch: feature/ci-pytest-throughput
+branch: feature/ci-pytest-throughput-integration
 created: 2026-11-07
 計画レビュー周回: 0
 確定ゲート周回: 0
@@ -96,3 +96,10 @@ created: 2026-11-07
 - 8 分割の実 CI 所要時間は未実測（PR を作成しないため）。実測できるまでは推定と明記する。
 - `tests/test_ci_wiring.py` の変更に伴う凍結資産（受理 record・hash・snapshot）の
   再導出は主担当が直列で行う。
+
+
+## 非作者レビュー反映と正式接合（2026-11-07、PO委任Codex/root判断）
+
+原候補1a0dea42f149b8a76bff9cd868bd66f16a620511は不変更で保全し、専用WT/枝feature/ci-pytest-throughput-integrationでrootを唯一writerとしてstep2/3追補を進める。非作者レビューで、backendの分割入力4pathだけを変更したPRがbackend-changesで選ばれず検査をskipできるP1を受領・採用。設定JSON/割当helper/plugin/検証CLIの4実入力を既paths-filterに追加、各1欠落の対向を既CI配線検査へ追加する。集約/DB分離/検査範囲/coverage/required名/edited分離は変更しない。候補のsource採用と正式受理/実8分割CIは別であり、変更前環境4分割golden由来の既1failを成功へ読み替えない。
+
+主担当の後続正式追随は既報のenvironment-expectations、正本10.1/github-setup、frozen external/corpus/7.7へ限定して同枝で整合する。#197の通常統合と最終source固定後、実baseから完全値を公式導出し非作者確認/PO委任受理/最終HEAD証拠/全CIを行う。未統合候補の推定22～26分を実績へ読み替えず、実CIのqueue/16job同時実行効果も測定する。原作者が人間承認したとは記録しない。

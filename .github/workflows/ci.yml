@@ -374,6 +374,10 @@ jobs:
               - 'frontend/public/domain/**'
               - '.dockerignore'
               - 'mise.toml'
+              - 'ci/pytest-shards.json'
+              - 'scripts/pytest_shard_plan.py'
+              - 'scripts/pytest_shard_plugin.py'
+              - 'scripts/pytest_shards.py'
 
   # lint/型は 1 回だけ実行し、pytest の分割と並走させる。
   backend-static:

@@ -1394,6 +1394,10 @@ def _ci_wiring_errors(
             "frontend/public/domain/**",
             ".dockerignore",
             "mise.toml",
+            "ci/pytest-shards.json",
+            "scripts/pytest_shard_plan.py",
+            "scripts/pytest_shard_plugin.py",
+            "scripts/pytest_shards.py",
         ]:
             errors.append("backend-changes の paths-filter が期待値と異なる")
 
@@ -3909,3 +3913,31 @@ def test_current0041_is_a_single_closed_owner_step_from_s0(mutation: str) -> Non
         "backend のcurrent0041が固定owner/全構造catalog検査の閉入口でない",
         "Alembic 3 段は既存 backend ジョブだけで一度ずつ実行する",
     ])
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "ci/pytest-shards.json",
+        "scripts/pytest_shard_plan.py",
+        "scripts/pytest_shard_plugin.py",
+        "scripts/pytest_shards.py",
+    ],
+)
+def test_backend_sharding_inputs_cannot_be_removed_from_trigger(path: str) -> None:
+    """分割入力だけの変更でもbackend検査を飛ばさず、各欠落を拒否する。"""
+    workflow = _load_workflow(WORKFLOW_PATH.read_text(encoding="utf-8"))
+    expected = _load_expectations()
+    compose = _load_yaml_mapping(COMPOSE_PATH)
+    error = "backend-changes の paths-filter が期待値と異なる"
+    assert error not in _ci_wiring_errors(workflow, expected, compose)
+    changed = copy.deepcopy(workflow)
+    filter_step = next(
+        step for step in _named_job(changed, "backend-changes")["steps"]
+        if isinstance(step, dict) and step.get("id") == "filter"
+    )
+    filters = yaml.safe_load(filter_step["with"]["filters"])
+    assert path in filters["backend"]
+    filters["backend"].remove(path)
+    filter_step["with"]["filters"] = yaml.safe_dump(filters)
+    assert error in _ci_wiring_errors(changed, expected, compose)
