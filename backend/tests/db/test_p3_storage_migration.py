@@ -72,6 +72,36 @@ def test_owned_p3_migration_and_all_structure_tamper_refusals(
                     with pytest.raises(current.CurrentProductStartupError):
                         check_p3_storage(connection)
                 check_p3_storage(connection)
+            # 描画した候補ACLを実PGへ適用し、app/actorへ直接DMLを開かない。
+            # 正式catalog/関数/guard全配置とは区別する。
+            from pitchlog.authz.p3_storage_product import candidate_declarations
+
+            declarations, bodies = candidate_declarations()
+            for body in bodies.values():
+                connection.execute(cast(LiteralString, body), prepare=False)
+            for row in declarations["tables"]:
+                relation = "sync_fence." + row["table_id"]
+                for role in (
+                    "pitchlog_app",
+                    "pitchlog_sync_binding_actor",
+                    "pitchlog_rg1_control_actor",
+                ):
+                    assert connection.execute(
+                        "SELECT pg_catalog.has_table_privilege(%s,%s,%s)",
+                        (role, relation, "SELECT,INSERT,UPDATE,DELETE,TRUNCATE"),
+                    ).fetchone() == (False,)
+                assert connection.execute(
+                    "SELECT pg_catalog.has_table_privilege(%s,%s,%s)",
+                    ("pitchlog_sync_right_fn_owner", relation, "DELETE,TRUNCATE"),
+                ).fetchone() == (False,)
+            for row in declarations["column_acl_expectations"]:
+                relation = "sync_fence." + row["object_id"]
+                for privilege in ("SELECT", "INSERT", "UPDATE"):
+                    assert connection.execute(
+                        "SELECT pg_catalog.has_column_privilege(%s,%s,%s,%s)",
+                        (row["grantee_role_id"], relation, row["column_id"], privilege),
+                    ).fetchone() == (privilege in row["privilege_ids"],)
+            check_p3_storage(connection)
 
 
 def test_owned_p3_migration_fault_keeps_prior_revision_and_no_partial_tables(

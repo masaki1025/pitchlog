@@ -51,3 +51,7 @@ CSV/P3参照統一の初回検査: default4関数（owner/REVOKE/GRANTを含む�
 fa1の実migrationは2failed24.89秒/source同一/cleanup、正常型検査に達する前にowner→right_fn_ownerのSET ROLE資格不足で停止。ここではrole権限を広げず、既通常migrationと同じpitchlog_ownerへ6表ownerを揃える。writer/readerへの必要な列ACL/RLSは正式catalogで限定供給し、初期migrationからactorを開かない。既候補SQLのowner指定をそのまま通常配置へ移した初回案は不採用履歴として保持。また純全CHECK probeで既parser未対応のBETWEEN/pg_catalog修飾を検出し、型元は同値な>=/<=・既組込関数名へ、単一INは=へ明示整合。既parserの拒否条件は変更しない。全64CHECKの純parseをDB前の対向に追加する。
 
 r2実PGは1passed/1failed21.66秒/source同一/cleanup。第6表後故障の全取消は成立、正規配置は全列/制約比較の後に索引の比較で停止。CSV用の既索引helperは非text列専用であり、P3 progress.state索引のdefault collationを期待側が落としていた。索引は削らず、P3でtext collation/opclassを完全保持する期待を追加し、COLLATE C改変拒否も実DB対向へ追加する。旧CHECK parser/拒否条件とDDLは不変更。
+
+3a1固定のr3は実PG2passed22.00秒/source一致/共有DSNunset/cleanup。固定48の全構造・11種類改変拒否・第6表後全取消が成立。非作者followup REPORT SHAはcache p3-storage-schema-independent-csv-20261107/REPORT-followup.md、構造候補採用可であり全起動ではない。
+
+次の限定接合はauthz/p3_storage_product.pyと専用pure/既owned対向: 型/nullable/defaultの固定pinを先に照合して6表/21policy/114列ACLを描画。ownerは保存owner、関数ownerにSELECT/INSERT＋head/印/progressの有限14更新列のみ。原本core4の同TX検証に必要なSELECT(xmin)を明示し、app/actor/公開へ直接DMLを付与しない。列が増えても暗黙GRANTしない。不変guard/実関数/registry/全catalog未供給のまま正常起動へ登録せず、実PGで候補権限の適用と閉じた結果まで先行照合する。正式assetsは公式導出段でまとめて更新する。
