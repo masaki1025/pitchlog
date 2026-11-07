@@ -1,5 +1,14 @@
 # 初回MVP 主担当引受・進捗台帳
 
+
+## 2026-11-07：197通常統合、P3再開後追記完走、CI8とCSV正規起動の接合
+
+- **正式統合**: PR197 source0deb619eの全CI42325737938/21job成功、最終HEAD/base/全344path diff f65b0417…/公開委任証拠を再照合して通常merge。developは45b74ac9320c43138a49215529c60bb685a8a977。管理者迂回・保護変更なし。cache pr197-rg1-current-fixture-root-20261107/NORMAL-MERGE-DECISION.json。
+- **新たな利用者操作の候補実証**: 過去訂正候補9687caa038629409d024cac54270df3d186d5a27で実画面create/start3球→三振をballへ訂正→再送→通常追加→終了→再開→追加球→再終了→reloadをR47で1passed183.75秒、source前後同一/owned cleanup。最新版成績5版・sourceSlotsと失効版/真正receipt/公開pointerまでDB照合。証拠 mvp-past-correction-product-20261106/step4-reopen-r47-committed-confirmed/manifest.json SHA c7bf7d95f1e4bf8316116a9e4b05f016e9de2b24ad3fe66eaffd916a388fc9fa。25超・複数/終了後訂正・P3のCSV88producer・正式統合は残る。
+- **CI短縮候補**: 原1a0dea42は不変更。実PR198 Draft/feature/ci-pytest-throughput-finalizationのsource02821914、base45b。分割入力5件のcore検出/全件被覆/集約拒否を維持。reflection1のinventory seal漏れ/2の歴史SHA掃引拒否は保全し不採用、3で同既値をtyped参照へ移した。独立全9系列/24path/12新snapshotを全byte再計算一致、REPORT SHA6e240fcb…、shadow1129＋歴史/不変条件99成功、tenant CLI ok。PO委任rootがreflection3完全値を受理・公式適用、既381/pin83保持/削除0/corpus61ff6281…。公開最終HEAD証拠/8分割実CI時間/通常mergeは未了。推定22～26分を実測としない。
+- **毎球CSVの次依存**: feature/mvp-csv-current-startup@7d7caca4上のroot専有候補で、0047の10列/全制約/3indexと4実関数/権限26宣言を通常起動へ接続中。publisherの部分集合検証を全catalogの旧read_play_export_primitivesへ誤適用した失敗は是正、旧関数/未知PUBLIC grant拒否を維持し全型元から照合。関連227passed72.78秒。実PG通常S0→47/再開/故障・実UI記録からZIPはこの配置で未実測、旧後付DDLでの成功と分離する。formal/seal/7.7未了。
+- **並行**: 走者打球は現sourceが既に複数走者/HR対応と確認、専用4ケースを準備。旧b72の503はCSV関数未配置42883と特定し同失敗の再試行を止め、root通常47待ち。D03は真正守備出場producer不足を確認、スタメン/球数から推測する登板を閉じ、同版source資格・単一SQL生成/対向を進行。27項目完成とはしない。全MVP/実機/負荷/運用復旧は未完。
+
 ## 2026-11-07 11:36 JST：復旧0046の正規起動を実PGで接合、P3結果不明復旧と登板実装も並行
 
 - **新たに成立した配置経路**: root専有 `feature/mvp-recovery-current-startup@8deb51e1c7b5e022cb494fb767392fb5d1c68bef` clean/通常push。605の復旧候補に既0045起動修復3commitだけを再利用し、退役11列/全PK/FK/CHECK/index無しのモデルを実0046 migrationと完全照合。CURRENT46/全14私有表の構造・owner/FORCE RLS・全制約/indexを閉検査、pre-full退役guard0/full exact2をcatalog段階に束縛、部分を再適用で補修しない。f43固定のowned run1 **4passed43.92秒**（S0→46/同版resume/46表作成後全取消/NOFORCE/guard無効拒否）、run2 **5passed58.93秒**（未知列/余剰UPDATE/TRUNCATE guard欠落/pre-full正規再開とpartial拒否）。各source前後同一/共有DSN未継承/owned cleanup。新CURRENTだけで成功扱いにしていない。
