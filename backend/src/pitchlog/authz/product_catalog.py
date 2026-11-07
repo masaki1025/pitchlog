@@ -310,7 +310,13 @@ WHERE namespace.nspname = ANY(%s)
               ('public', 'event_slots'),
               ('public', 'operation_events'),
               ('public', 'play_rows'),
-              ('sync_fence', 'ordinary_pitch_checkpoints')
+              ('sync_fence', 'ordinary_pitch_checkpoints'),
+              ('sync_fence', 'p3_projection_capsules'),
+              ('sync_fence', 'p3_projection_capsule_items'),
+              ('sync_fence', 'p3_projection_heads'),
+              ('sync_fence', 'p3_projection_write_admissions'),
+              ('sync_fence', 'p3_projection_page_progress'),
+              ('sync_fence', 'p3_projection_page_rows')
           )
       )
   )

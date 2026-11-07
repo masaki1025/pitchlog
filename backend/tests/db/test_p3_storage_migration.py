@@ -84,6 +84,20 @@ def test_owned_p3_migration_and_all_structure_tamper_refusals(
             declarations, bodies = candidate_declarations()
             assert len(bodies) == 141
             assert current._catalog(connection).ok
+            # 正規xmin権限が無い補助2表も取得対象にし、余分GRANTを見逃さない。
+            for table in ("p3_projection_page_progress", "p3_projection_page_rows"):
+                with connection.transaction(force_rollback=True):
+                    connection.execute(
+                        cast(
+                            LiteralString,
+                            f"GRANT SELECT(xmin) ON sync_fence.{table} "
+                            "TO pitchlog_sync_right_fn_owner",
+                        )
+                    )
+                    assert not current._catalog(connection).ok
+                    with pytest.raises(current.CurrentProductStartupError):
+                        current._require_pre_or_full_catalog(connection)
+                assert current._catalog(connection).ok
             for row in declarations["tables"]:
                 relation = "sync_fence." + row["table_id"]
                 for role in (
