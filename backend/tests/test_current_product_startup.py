@@ -77,10 +77,10 @@ def test_expression_unknown_syntax_is_closed(bad):
         current._expression(bad)
 
 
-def test_current_models_are_closed_fourteen_with_retirement():
-    """既12表を落とさず、交代receiptの型元を加える。"""
+def test_current_models_are_closed_twenty_with_p3_storage():
+    """旧14表を落とさず、P3原本6表を型元へ加える。"""
     tables = current._tables()
-    assert len(tables) == 14
+    assert len(tables) == 20
     assert [t.name for t in tables] == [
         "attempt_retirements",
         "first_ball_write_admissions",
@@ -90,6 +90,12 @@ def test_current_models_are_closed_fourteen_with_retirement():
         "ordinary_pitch_checkpoints",
         "ordinary_pitch_history",
         "ordinary_pitch_write_admissions",
+        "p3_projection_capsule_items",
+        "p3_projection_capsules",
+        "p3_projection_heads",
+        "p3_projection_page_progress",
+        "p3_projection_page_rows",
+        "p3_projection_write_admissions",
         "stats_fact_versions",
         "stats_primitive_facts",
         "stats_primitive_sources",
@@ -313,7 +319,7 @@ def test_pre_full_unknown_partial_or_extra_grants_are_rejected(monkeypatch, bad)
 
 def _structural_connection(fault=None, target_name="stats_fact_versions"):
     """型モデル原典をcatalog観測doubleへ投影し、比較対象だけを故障させる。"""
-    from sqlalchemy import CheckConstraint
+    from sqlalchemy import CheckConstraint, DefaultClause
     from sqlalchemy.dialects.postgresql import dialect
 
     tables = {t.fullname: t for t in current._tables()}
@@ -323,6 +329,62 @@ def _structural_connection(fault=None, target_name="stats_fact_versions"):
             self.sql, self.params = statement, params
 
         def fetchall(self):
+            if "pg_catalog.starts_with(c.relname,'p3_projection_')" in self.sql:
+                return [
+                    (t.name, "pitchlog_owner", "r", "p", True, True)
+                    for t in tables.values()
+                    if t.name.startswith("p3_projection_")
+                ]
+            if "p.oid=pg_catalog.to_regprocedure(" in self.sql:
+                from pitchlog.authz.p3_storage_guard import candidate_statements
+
+                return [
+                    (
+                        "pitchlog_owner",
+                        "plpgsql",
+                        "f",
+                        "v",
+                        "u",
+                        True,
+                        False,
+                        False,
+                        False,
+                        0,
+                        ["search_path=pg_catalog, pg_temp"],
+                        "trigger",
+                        candidate_statements()[0].split("$p3_page_guard$")[1].strip(),
+                        0,
+                    )
+                ]
+            if "pg_catalog.pg_trigger t" in self.sql:
+                assert self.params is not None
+                if self.params[0] != "sync_fence.p3_projection_page_progress":
+                    return []
+                return [
+                    (
+                        "p3_page_progress_must_finalize",
+                        "O",
+                        21,
+                        True,
+                        True,
+                        0,
+                        b"",
+                        "",
+                        None,
+                        None,
+                        None,
+                        "sync_fence",
+                        "p3_reject_unfinished_page_progress",
+                        "t",
+                        True,
+                        True,
+                        True,
+                    )
+                ]
+            if self.sql == current._INDEX_SQL:
+                with _index_connection().cursor() as index_cursor:
+                    index_cursor.execute(self.sql, self.params)
+                    return index_cursor.fetchall()
             if "SELECT n.nspname,r.rolname" in self.sql:
                 return [
                     (
@@ -354,7 +416,9 @@ def _structural_connection(fault=None, target_name="stats_fact_versions"):
                         not c.nullable,
                         "",
                         "",
-                        None,
+                        str(c.server_default.arg)
+                        if isinstance(c.server_default, DefaultClause)
+                        else None,
                     )
                     for c in table.c
                 ]
@@ -388,7 +452,15 @@ def _structural_connection(fault=None, target_name="stats_fact_versions"):
                 if isinstance(x, CheckConstraint)
             }
             rows = []
-            for fields in current._expected_constraints(table):
+            if table.name.startswith("p3_projection_"):
+                from pitchlog.db.past_correction.startup import (
+                    _expected_storage_constraints,
+                )
+
+                constraint_rows = _expected_storage_constraints(table)
+            else:
+                constraint_rows = current._expected_constraints(table)
+            for fields in constraint_rows:
                 row = list(fields)
                 row[1] = row[1] or "automatic_name"
                 row[2], row[4] = list(row[2]), list(row[4])
@@ -419,7 +491,7 @@ def _structural_connection(fault=None, target_name="stats_fact_versions"):
     return SimpleNamespace(cursor=context)
 
 
-def test_structural_all_nine_tables_and_model_constraints_positive():
+def test_structural_all_twenty_tables_and_model_constraints_positive():
     """PG成功を代用せず、全閉比較への供給形だけを確認する。"""
     current._check_current_structure(_structural_connection())
 
@@ -799,6 +871,7 @@ def test_pre_full_keeps_only_the_verified_migration_guards(monkeypatch):
     functions, *_ = current._pre_full_expected()
     assert ("public", "protect_initial_right_storage", "") in functions
     assert ("public", "protect_nonplay_admission", "") in functions
+    assert ("sync_fence", "p3_reject_unfinished_page_progress", "") in functions
     pairs = current._pre_full_catalog_pairs()
     np_key = "PRODUCT-CATALOG:NONPLAY-STORAGE-TRIGGERS"
     from pitchlog.authz.nonplay_storage_profile import trigger_expectations

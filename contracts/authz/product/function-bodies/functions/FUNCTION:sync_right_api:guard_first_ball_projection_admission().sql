@@ -9,6 +9,51 @@ DECLARE own_xid text; row_xmin text;
  event_row record; binding sync_fence.writer_bindings%ROWTYPE;
  ordinary boolean:=false;
 BEGIN
+
+ IF current_user='pitchlog_sync_right_fn_owner' AND
+ EXISTS(SELECT 1 FROM sync_fence.p3_projection_write_admissions a
+ WHERE a.tenant_id=NEW.tenant_id AND a.game_id=NEW.game_id
+ AND a.play_row_id=NEW.id AND a.change_event_id=NEW.source_event_id
+ AND a.state='ready') THEN
+ IF TG_TABLE_SCHEMA<>'public' OR TG_TABLE_NAME<>'play_rows' OR TG_OP<>'INSERT'
+ OR TG_WHEN<>'BEFORE' OR TG_LEVEL<>'ROW' OR TG_NARGS<>0
+ OR session_user<>'pitchlog_app' OR NEW.tenant_id IS NULL
+ OR NEW.tenant_id IS DISTINCT FROM
+ NULLIF(pg_catalog.current_setting('app.tenant_id',true),'')::uuid
+ OR NEW.import_batch_id IS NOT NULL OR NEW.legacy_row_identifier IS NOT NULL
+ OR NEW.migration_unverified IS DISTINCT FROM false
+ OR NOT EXISTS(SELECT 1 FROM public.operation_events e
+ JOIN public.idempotency_ledger l ON l.tenant_id=e.tenant_id AND l.d5=e.d5
+ JOIN sync_fence.p3_projection_write_admissions a ON
+ (a.tenant_id,a.game_id,a.change_event_id)=(e.tenant_id,e.game_id,e.id)
+ JOIN sync_fence.writer_bindings b ON
+ (b.tenant_id,b.attempt_id,b.phase_id)=(a.tenant_id,a.attempt_id,a.phase_id)
+ WHERE (e.tenant_id,e.game_id,e.id)=(NEW.tenant_id,NEW.game_id,NEW.source_event_id)
+ AND e.event_kind='play_change' AND e.ledger_kind='accepted'
+ AND e.d1 IS NULL AND e.d2 IS NULL AND e.generation IS NULL
+ AND e.replaced_at IS NULL AND e.retired_at IS NULL AND NOT e.is_tombstone
+ AND l.kind='accepted' AND l.source_fingerprint=a.ledger_fingerprint
+ AND l.retired_at IS NULL AND b.state='open'
+ AND b.transaction_id=pg_catalog.pg_current_xact_id()::text
+ AND b.expires_at>pg_catalog.clock_timestamp()
+ AND a.expected_play_row=pg_catalog.to_jsonb(NEW)
+ AND a.transaction_id=b.transaction_id AND a.state='ready'
+ AND a.xmin::text::numeric=pg_catalog.mod(
+ pg_catalog.pg_current_xact_id()::text::numeric,4294967296::numeric))
+ THEN RAISE EXCEPTION 'P3 play row admission rejected' USING ERRCODE='42501';
+ END IF;
+ UPDATE sync_fence.p3_projection_write_admissions a SET state='consumed'
+ WHERE a.tenant_id=NEW.tenant_id AND a.game_id=NEW.game_id
+ AND a.play_row_id=NEW.id AND a.change_event_id=NEW.source_event_id
+ AND a.expected_play_row=pg_catalog.to_jsonb(NEW) AND a.state='ready'
+ AND a.transaction_id=pg_catalog.pg_current_xact_id()::text
+ RETURNING a.xmin::text INTO row_xmin;
+ IF NOT FOUND OR row_xmin::numeric IS DISTINCT FROM pg_catalog.mod(
+ pg_catalog.pg_current_xact_id()::text::numeric,4294967296::numeric)
+ THEN RAISE EXCEPTION 'P3 play row admission rejected' USING ERRCODE='42501';
+ END IF;
+ RETURN NEW;
+ END IF;
  -- 読取/照合だけをEXCEPTION付き内側blockへ閉じる。この内側はsubtransactionなので
  -- 印への書込とxmin照合は必ず外側(top-level)で行う。
  BEGIN

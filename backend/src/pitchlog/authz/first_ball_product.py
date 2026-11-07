@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import re
 from typing import Any
 
 from pitchlog.authz.function_result_type import pg_result_type
@@ -2193,6 +2194,66 @@ def _activate_play_export_profile() -> None:
 
 
 _activate_play_export_profile()
+
+# 正常47候補の完全値を、有限なP3置換の原典として保持する。
+_P3_BASELINE_FUNCTIONS = copy.deepcopy(ADDITIONS["functions"])
+_P3_BASELINE_BODIES = dict(BODIES)
+
+
+def _activate_p3_profile() -> None:
+    """実P3/成績/CSVを一組の宣言へ結合し、未知の旧版を上書きしない。"""
+    from pitchlog.authz.p3_function_product import candidate_declarations as functions
+    from pitchlog.authz.p3_storage_product import candidate_declarations as storage
+
+    function_rows, function_bodies = functions(
+        _P3_BASELINE_FUNCTIONS, _P3_BASELINE_BODIES
+    )
+    declarations, bodies = storage()
+    declarations.update(function_rows)
+    bodies.update(function_bodies)
+    kinds = {
+        "tables": "table",
+        "functions": "function",
+        "policies": "policy",
+        "column_acl_expectations": "column_acl_expectation",
+    }
+    for section, rows in declarations.items():
+        for row in rows:
+            identifier = row[IDS[section]]
+            kind = kinds[section]
+            key = kind + "|" + identifier
+            previous = [
+                old for old in ADDITIONS[section] if old[IDS[section]] == identifier
+            ]
+            if previous:
+                # functions()が元全宣言/body pinを照合した11件だけを置換する。
+                if (
+                    section != "functions"
+                    or previous != [row]
+                    or key not in _P3_BASELINE_BODIES
+                ):
+                    raise ValueError("P3既宣言の未知変更を拒否")
+            else:
+                if key in BODIES:
+                    raise ValueError("P3資産の本文衝突")
+                ADDITIONS[section].append(copy.deepcopy(row))
+            sql = bodies.pop(key)
+            if section == "functions":
+                # 再適用は既全値照合を通す。CREATE競合をOR REPLACEで補修しない。
+                sql = re.sub(
+                    r"^CREATE(?: OR REPLACE)?\s+FUNCTION\s+",
+                    "CREATE FUNCTION ",
+                    sql,
+                    count=1,
+                )
+            BODIES[key] = (
+                f"-- ELEMENT-TYPE: {kind}\n-- ELEMENT-ID: {identifier}\n\n" + sql
+            )
+    if bodies:
+        raise ValueError("P3宣言に属さない本文が残存")
+
+
+_activate_p3_profile()
 ROLES = frozenset(row["role_id"] for row in ADDITIONS["roles"])
 
 TABLES = frozenset(
@@ -2212,6 +2273,12 @@ TABLES = frozenset(
         "substitution_write_receipts",
         "attempt_retirements",
         "play_export_snapshots",
+        "p3_projection_capsules",
+        "p3_projection_capsule_items",
+        "p3_projection_heads",
+        "p3_projection_write_admissions",
+        "p3_projection_page_progress",
+        "p3_projection_page_rows",
     }
 )
 SCHEMAS = frozenset(row["schema_name"] for row in ADDITIONS["schemas"])

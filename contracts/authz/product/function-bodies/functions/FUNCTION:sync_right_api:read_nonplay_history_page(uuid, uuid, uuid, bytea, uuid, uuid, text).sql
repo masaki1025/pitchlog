@@ -104,14 +104,66 @@ PERFORM sync_fence_api.assert_writer_binding(p_tenant_id,p_attempt_id,
  AND l.tenant_id=e.tenant_id AND l.d5=e.d5 AND l.kind='accepted'
  AND l.retired_at IS NULL AND l.import_batch_id IS NULL
  AND es.tenant_id=e.tenant_id AND es.game_id=e.game_id
- AND es.generation=e.generation AND es.d1=e.d1 AND es.confirmed_version=1
+ AND es.generation=e.generation AND es.d1=e.d1 AND es.confirmed_version IN (1,2)
  AND pr.tenant_id=e.tenant_id AND pr.game_id=e.game_id AND pr.source_event_id=e.id
  AND pr.hidden_at IS NULL AND pr.import_batch_id IS NULL
  AND pr.legacy_row_identifier IS NULL AND NOT pr.migration_unverified
  AND a.xmin::text::numeric=
  pg_catalog.mod(a.transaction_id::numeric,4294967296::numeric)
  AND e.xmin=a.xmin AND l.xmin=a.xmin AND pr.xmin=a.xmin
- AND es.xmin=a.xmin AND a.source_d1=e.d1 AND a.source_d2=e.d2 AND h.internal_generation=e.generation AND h.d1=e.d1 AND h.d2=e.d2 AND h.entry=a.history_entry AND a.next_checkpoint_content->'projection_snapshot' IS NOT NULL ),false),
+ AND ((es.confirmed_version=1 AND es.xmin=a.xmin) OR (es.confirmed_version=2 AND EXISTS(
+ SELECT 1 FROM sync_fence.p3_projection_heads ph
+ JOIN sync_fence.p3_projection_capsules pc ON
+ (pc.tenant_id,pc.game_id,pc.internal_generation,pc.id)=
+ (ph.tenant_id,ph.game_id,ph.internal_generation,ph.capsule_id)
+ JOIN sync_fence.p3_projection_capsule_items pi ON
+ (pi.tenant_id,pi.game_id,pi.internal_generation,pi.capsule_id,pi.d1)=
+ (pc.tenant_id,pc.game_id,pc.internal_generation,pc.id,e.d1)
+ JOIN sync_fence.p3_projection_write_admissions pa ON
+ (pa.tenant_id,pa.game_id,pa.internal_generation,pa.capsule_id)=
+ (pc.tenant_id,pc.game_id,pc.internal_generation,pc.id)
+ JOIN public.operation_events ce ON
+ (ce.tenant_id,ce.game_id,ce.id)=(pc.tenant_id,pc.game_id,pc.change_event_id)
+ JOIN public.idempotency_ledger cl ON
+ (cl.tenant_id,cl.d5)=(ce.tenant_id,ce.d5)
+ JOIN public.play_rows ep ON
+ (ep.tenant_id,ep.game_id,ep.id)=
+ (pi.tenant_id,pi.game_id,pi.effective_play_row_id)
+ WHERE (ph.tenant_id,ph.game_id,ph.internal_generation)=
+ (e.tenant_id,e.game_id,e.generation)
+ AND pc.target_d1=e.d1 AND pc.expected_version=1
+ AND pc.next_checkpoint_id=c.id AND pc.watermark>=e.d1
+ AND ph.source_set_digest=pc.source_set_digest
+ AND ph.stats_version_id=pc.stats_version_id
+ AND pi.state='corrected' AND pi.original_event_id=e.id
+ AND pi.original_play_row_id=pr.id AND pi.effective_event_id=ce.id
+ AND pi.original_payload=e.payload AND pi.original_history_entry=h.entry
+ AND pi.original_play_row=pg_catalog.to_jsonb(pr)
+ AND pi.original_play_runners=(SELECT COALESCE(pg_catalog.jsonb_agg(
+ pg_catalog.to_jsonb(rr) ORDER BY rr.base,rr.id),'[]'::jsonb)
+ FROM public.play_runners rr WHERE rr.tenant_id=pr.tenant_id
+ AND rr.play_id=pr.id)
+ AND pi.play_row=pg_catalog.to_jsonb(ep)
+ AND pa.state='consumed' AND pa.play_row_id=ep.id
+ AND pa.change_event_id=ce.id AND pa.ledger_fingerprint=cl.source_fingerprint
+ AND pa.expected_play_row=pg_catalog.to_jsonb(ep)
+ AND pa.transaction_id ~ '^[1-9][0-9]{0,19}$'
+ AND pa.xmin::text::numeric=
+ pg_catalog.mod(pa.transaction_id::numeric,4294967296::numeric)
+ AND ce.event_kind='play_change' AND ce.ledger_kind='accepted'
+ AND ce.target_generation=e.generation AND ce.target_d1=e.d1
+ AND ce.expected_version=pc.expected_version AND ce.d5=pc.d5
+ AND ce.replaced_at IS NULL AND ce.retired_at IS NULL
+ AND NOT ce.is_tombstone AND ce.import_batch_id IS NULL
+ AND NOT ce.migration_unverified
+ AND cl.kind='accepted' AND cl.retired_at IS NULL
+ AND cl.import_batch_id IS NULL AND cl.source_fingerprint=pa.ledger_fingerprint
+ AND ep.source_event_id=ce.id AND ep.hidden_at IS NULL
+ AND ep.import_batch_id IS NULL AND NOT ep.migration_unverified
+ AND es.confirmed_version=pc.expected_version+1
+ AND es.xmin=pa.xmin AND ce.xmin=pa.xmin
+ AND ep.xmin=pa.xmin AND pc.xmin=pa.xmin AND pi.xmin=pa.xmin
+ AND ph.xmin=pa.xmin))) AND a.source_d1=e.d1 AND a.source_d2=e.d2 AND h.internal_generation=e.generation AND h.d1=e.d1 AND h.d2=e.d2 AND h.entry=a.history_entry AND a.next_checkpoint_content->'projection_snapshot' IS NOT NULL ),false),
  'xmins',pg_catalog.jsonb_build_object('event',e.xmin::text,'ledger',l.xmin::text,
  'slot',es.xmin::text,'admission',a.xmin::text,'play',pr.xmin::text),'frame',pg_catalog.jsonb_build_object(
  'play',pg_catalog.jsonb_build_object('source',pg_catalog.jsonb_build_object('eventId',e.id::text,

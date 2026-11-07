@@ -240,7 +240,7 @@ class StatsPrimitiveSource(LifecycleMixin, Base):
             name="ck_stats_source_positions",
         ),
         CheckConstraint(
-            "provider_kind IN ('first_ball','ordinary')",
+            "provider_kind IN ('first_ball','ordinary','past_correction')",
             name="ck_stats_source_provider",
         ),
         CheckConstraint(

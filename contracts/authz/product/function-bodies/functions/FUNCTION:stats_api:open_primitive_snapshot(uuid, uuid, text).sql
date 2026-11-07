@@ -70,14 +70,26 @@ BEGIN
 ), canonical_raw AS (
  SELECT slot.tenant_id,slot.game_id,slot.generation AS recording_generation,
    slot.d1,e.d2,slot.confirmed_version AS slot_version,e.id AS base_event_id,
-   CASE WHEN slot.confirmed_version=1 THEN e.id ELSE change.id END AS source_event_id,
+   CASE WHEN p3h.capsule_id IS NOT NULL AND slot.d1<=p3c.watermark THEN p3i.effective_event_id ELSE CASE WHEN slot.confirmed_version=1 THEN e.id ELSE change.id END END AS source_event_id,
    p.id AS play_row_id,p.version AS play_row_version,
    current_event.d5,ledger.source_fingerprint,
-   current_event.payload->>'formatVersion' AS native_variant,
-   current_event.payload#>>'{calculation,artifactSha256}' AS artifact_sha256,
+   CASE WHEN p3h.capsule_id IS NOT NULL AND slot.d1<=p3c.watermark THEN p3i.payload->>'formatVersion' ELSE current_event.payload->>'formatVersion' END AS native_variant,
+   CASE WHEN p3h.capsule_id IS NOT NULL AND slot.d1<=p3c.watermark THEN p3i.payload#>>'{calculation,artifactSha256}' ELSE current_event.payload#>>'{calculation,artifactSha256}' END AS artifact_sha256,
    COUNT(*) OVER (PARTITION BY slot.tenant_id,slot.game_id,slot.generation,slot.d1) AS match_count,
    CASE WHEN gen.retired_at IS NOT NULL THEN 'excluded_retired'
      WHEN e.id IS NULL OR current_event.id IS NULL THEN 'source_unavailable'
+     WHEN p3h.capsule_id IS NOT NULL AND (
+       p3c.id IS NULL OR p3c.source_set_digest IS DISTINCT FROM p3h.source_set_digest
+       OR p3c.stats_version_id IS DISTINCT FROM p3h.stats_version_id
+       OR (slot.d1<=p3c.watermark AND (
+       p3i.d1 IS NULL OR p3i.original_event_id IS DISTINCT FROM e.id
+       OR p3i.effective_event_id IS DISTINCT FROM
+         (CASE WHEN slot.confirmed_version=1 THEN e.id ELSE change.id END)
+       OR p3i.effective_play_row_id IS DISTINCT FROM p.id
+       OR p3i.original_payload IS DISTINCT FROM e.payload
+       OR p3i.play_row IS DISTINCT FROM pg_catalog.to_jsonb(p)
+       OR p3i.payload->>'formatVersion' IS DISTINCT FROM 'play-prefix-play-v3'))
+     ) THEN 'source_unavailable'
      WHEN e.event_kind='undo' AND NOT EXISTS (SELECT 1 FROM canonical_undos verified WHERE verified.source_event_id=current_event.id) THEN 'source_unavailable'
      WHEN e.event_kind<>'play_input' THEN 'excluded_control'
      WHEN e.is_tombstone OR current_event.is_tombstone THEN 'excluded_tombstone'
@@ -98,9 +110,18 @@ BEGIN
    AND change.target_generation=slot.generation AND change.target_d1=slot.d1
    AND change.expected_version=slot.confirmed_version-1 AND slot.confirmed_version>1
    AND change.ledger_kind='accepted' AND change.replaced_at IS NULL AND change.retired_at IS NULL
+ LEFT JOIN sync_fence.p3_projection_heads p3h
+   ON (p3h.tenant_id,p3h.game_id,p3h.internal_generation)
+   =(slot.tenant_id,slot.game_id,slot.generation)
+ LEFT JOIN sync_fence.p3_projection_capsules p3c
+   ON (p3c.tenant_id,p3c.game_id,p3c.internal_generation,p3c.id)
+   =(p3h.tenant_id,p3h.game_id,p3h.internal_generation,p3h.capsule_id)
+ LEFT JOIN sync_fence.p3_projection_capsule_items p3i
+   ON (p3i.tenant_id,p3i.game_id,p3i.internal_generation,p3i.capsule_id,p3i.d1)
+   =(p3h.tenant_id,p3h.game_id,p3h.internal_generation,p3h.capsule_id,slot.d1)
  LEFT JOIN public.operation_events current_event ON current_event.tenant_id=slot.tenant_id
    AND current_event.game_id=slot.game_id
-   AND current_event.id=CASE WHEN slot.confirmed_version=1 THEN e.id ELSE change.id END
+   AND current_event.id=CASE WHEN p3h.capsule_id IS NOT NULL AND slot.d1<=p3c.watermark THEN p3i.effective_event_id ELSE CASE WHEN slot.confirmed_version=1 THEN e.id ELSE change.id END END
  LEFT JOIN public.idempotency_ledger ledger ON ledger.tenant_id=current_event.tenant_id
    AND ledger.d5=current_event.d5
  LEFT JOIN public.play_rows p ON p.tenant_id=current_event.tenant_id
@@ -176,14 +197,26 @@ canonical_scope AS (
 ), canonical_raw AS (
  SELECT slot.tenant_id,slot.game_id,slot.generation AS recording_generation,
    slot.d1,e.d2,slot.confirmed_version AS slot_version,e.id AS base_event_id,
-   CASE WHEN slot.confirmed_version=1 THEN e.id ELSE change.id END AS source_event_id,
+   CASE WHEN p3h.capsule_id IS NOT NULL AND slot.d1<=p3c.watermark THEN p3i.effective_event_id ELSE CASE WHEN slot.confirmed_version=1 THEN e.id ELSE change.id END END AS source_event_id,
    p.id AS play_row_id,p.version AS play_row_version,
    current_event.d5,ledger.source_fingerprint,
-   current_event.payload->>'formatVersion' AS native_variant,
-   current_event.payload#>>'{calculation,artifactSha256}' AS artifact_sha256,
+   CASE WHEN p3h.capsule_id IS NOT NULL AND slot.d1<=p3c.watermark THEN p3i.payload->>'formatVersion' ELSE current_event.payload->>'formatVersion' END AS native_variant,
+   CASE WHEN p3h.capsule_id IS NOT NULL AND slot.d1<=p3c.watermark THEN p3i.payload#>>'{calculation,artifactSha256}' ELSE current_event.payload#>>'{calculation,artifactSha256}' END AS artifact_sha256,
    COUNT(*) OVER (PARTITION BY slot.tenant_id,slot.game_id,slot.generation,slot.d1) AS match_count,
    CASE WHEN gen.retired_at IS NOT NULL THEN 'excluded_retired'
      WHEN e.id IS NULL OR current_event.id IS NULL THEN 'source_unavailable'
+     WHEN p3h.capsule_id IS NOT NULL AND (
+       p3c.id IS NULL OR p3c.source_set_digest IS DISTINCT FROM p3h.source_set_digest
+       OR p3c.stats_version_id IS DISTINCT FROM p3h.stats_version_id
+       OR (slot.d1<=p3c.watermark AND (
+       p3i.d1 IS NULL OR p3i.original_event_id IS DISTINCT FROM e.id
+       OR p3i.effective_event_id IS DISTINCT FROM
+         (CASE WHEN slot.confirmed_version=1 THEN e.id ELSE change.id END)
+       OR p3i.effective_play_row_id IS DISTINCT FROM p.id
+       OR p3i.original_payload IS DISTINCT FROM e.payload
+       OR p3i.play_row IS DISTINCT FROM pg_catalog.to_jsonb(p)
+       OR p3i.payload->>'formatVersion' IS DISTINCT FROM 'play-prefix-play-v3'))
+     ) THEN 'source_unavailable'
      WHEN e.event_kind='undo' AND NOT EXISTS (SELECT 1 FROM canonical_undos verified WHERE verified.source_event_id=current_event.id) THEN 'source_unavailable'
      WHEN e.event_kind<>'play_input' THEN 'excluded_control'
      WHEN e.is_tombstone OR current_event.is_tombstone THEN 'excluded_tombstone'
@@ -204,9 +237,18 @@ canonical_scope AS (
    AND change.target_generation=slot.generation AND change.target_d1=slot.d1
    AND change.expected_version=slot.confirmed_version-1 AND slot.confirmed_version>1
    AND change.ledger_kind='accepted' AND change.replaced_at IS NULL AND change.retired_at IS NULL
+ LEFT JOIN sync_fence.p3_projection_heads p3h
+   ON (p3h.tenant_id,p3h.game_id,p3h.internal_generation)
+   =(slot.tenant_id,slot.game_id,slot.generation)
+ LEFT JOIN sync_fence.p3_projection_capsules p3c
+   ON (p3c.tenant_id,p3c.game_id,p3c.internal_generation,p3c.id)
+   =(p3h.tenant_id,p3h.game_id,p3h.internal_generation,p3h.capsule_id)
+ LEFT JOIN sync_fence.p3_projection_capsule_items p3i
+   ON (p3i.tenant_id,p3i.game_id,p3i.internal_generation,p3i.capsule_id,p3i.d1)
+   =(p3h.tenant_id,p3h.game_id,p3h.internal_generation,p3h.capsule_id,slot.d1)
  LEFT JOIN public.operation_events current_event ON current_event.tenant_id=slot.tenant_id
    AND current_event.game_id=slot.game_id
-   AND current_event.id=CASE WHEN slot.confirmed_version=1 THEN e.id ELSE change.id END
+   AND current_event.id=CASE WHEN p3h.capsule_id IS NOT NULL AND slot.d1<=p3c.watermark THEN p3i.effective_event_id ELSE CASE WHEN slot.confirmed_version=1 THEN e.id ELSE change.id END END
  LEFT JOIN public.idempotency_ledger ledger ON ledger.tenant_id=current_event.tenant_id
    AND ledger.d5=current_event.d5
  LEFT JOIN public.play_rows p ON p.tenant_id=current_event.tenant_id

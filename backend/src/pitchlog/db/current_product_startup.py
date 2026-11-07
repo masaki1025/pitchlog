@@ -1,4 +1,4 @@
-"""旧0039段階を保ち、current0047の実構造と全認可を接合する。"""
+"""旧0039段階を保ち、current0048の実構造と全認可を接合する。"""
 
 from __future__ import annotations
 
@@ -39,7 +39,7 @@ from pitchlog.db.writer_binding.lifecycle_models import (
 from pitchlog.db.writer_binding.nonplay_models import NonplayWriteAdmission
 from pitchlog.db.writer_binding.substitution_models import SubstitutionWriteReceipt
 
-CURRENT_REVISION = "0047_play_export_snapshots"
+CURRENT_REVISION = "0048_p3_projection_storage"
 _INDEX_REVISION = "0040_batted_vocabulary_index"
 _STATS_MODELS = (StatsFactVersion, StatsPrimitiveSource, StatsPrimitiveFact)
 
@@ -217,9 +217,10 @@ def _expression(value: str | None) -> Any:
 
 
 def _tables() -> tuple[Table, ...]:
-    """旧13表と旧試行遮断1表を既採用型定義から一度だけ取得する。"""
+    """旧14表とP3原本6表を既採用型定義から一度だけ取得する。"""
     from pitchlog.db.all_models import IMPORTED_MODEL_MODULE_NAMES
     from pitchlog.db.game_state import models as game_models
+    from pitchlog.db.past_correction.models import P3_STORAGE_MODELS
     from pitchlog.db.writer_binding.ordinary_models import (
         OrdinaryPitchCheckpoint,
         OrdinaryPitchHistory,
@@ -249,6 +250,7 @@ def _tables() -> tuple[Table, ...]:
         GameLifecycleHead,
         SubstitutionWriteReceipt,
         SyncAttemptRetirement,
+        *P3_STORAGE_MODELS,
     )
     return tuple(
         sorted((cast(Table, m.__table__) for m in models), key=lambda t: t.name)
@@ -379,8 +381,13 @@ FROM pg_constraint k WHERE k.conrelid=%s::regclass ORDER BY k.conname
 
 
 def _check_current_structure(connection: Any) -> None:
-    """sync_fence全14表と承認済構造を不足/余剰とも拒否する。"""
+    """sync_fence全20表と承認済構造を不足/余剰とも拒否する。"""
+    from pitchlog.db.past_correction.models import P3_STORAGE_MODELS
+    from pitchlog.db.past_correction.startup import check_p3_storage
+
     tables = _tables()
+    p3_names = {model.__table__.name for model in P3_STORAGE_MODELS}
+    check_p3_storage(connection)
     with connection.cursor() as cursor:
         cursor.execute(
             "SELECT n.nspname,r.rolname FROM pg_namespace n JOIN pg_roles r "
@@ -399,6 +406,9 @@ def _check_current_structure(connection: Any) -> None:
         ]:
             raise CurrentProductStartupError("current全表/owner/RLSが不一致です")
         for table in tables:
+            if table.name in p3_names:
+                # default/遅延trigger制約を含む全構造は専用閉検査済み。
+                continue
             cursor.execute(
                 "SELECT a.attname,format_type(a.atttypid,a.atttypmod),a.attnotnull,"
                 "a.attidentity,a.attgenerated,pg_get_expr(d.adbin,d.adrelid) "
@@ -734,6 +744,10 @@ def _pre_full_expected():
     if nonplay_guard not in canonical_functions:
         raise CurrentProductStartupError("0042内部保護関数の正規宣言がありません")
     functions.add(nonplay_guard)
+    p3_guard = ("sync_fence", "p3_reject_unfinished_page_progress", "")
+    if p3_guard not in canonical_functions:
+        raise CurrentProductStartupError("0048遅延guardの正規宣言がありません")
+    functions.add(p3_guard)
     for name in (
         "protect_lifecycle_write_admissions",
         "protect_game_lifecycle_heads",
@@ -918,7 +932,7 @@ def _check_play_export_storage(connection: Any) -> None:
 
 
 def _apply_current_storage(owner_dsn: str) -> None:
-    """現行0047まで同owner transactionへ配置し、途中故障を全部戻す。"""
+    """現行0048まで同owner transactionへ配置し、途中故障を全部戻す。"""
     engine = create_engine(legacy._owner_url(owner_dsn))
     try:
         with engine.begin() as connection:
@@ -1028,7 +1042,7 @@ def resume_current_product_after_placement(
     owner_dsn: str,
     applicator_dsn: str,
 ) -> CurrentProductStartupResult:
-    """同版0047は再migrationせず、旧中間段階は元の有限前提で再開する。"""
+    """同版0048は再migrationせず、旧中間段階は元の有限前提で再開する。"""
     legacy._require_same_database(owner_dsn, applicator_dsn)
     with psycopg.connect(owner_dsn) as owner, owner.cursor() as cursor:
         cursor.execute("SELECT current_user,session_user")

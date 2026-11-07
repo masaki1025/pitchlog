@@ -5,9 +5,6 @@ from uuid import uuid4
 
 import psycopg
 import pytest
-from alembic import command
-from alembic.config import Config
-from sqlalchemy import create_engine
 
 from pitchlog.db import current_product_startup as current
 from pitchlog.db.past_correction.startup import check_p3_storage
@@ -15,18 +12,6 @@ from pitchlog.db.past_correction.startup import check_p3_storage
 from .test_stage_a_rule_candidates import _fresh_schema_database
 
 pytestmark = pytest.mark.requires_db
-
-
-def _upgrade(owner: str) -> None:
-    """通常47を経て固定migrationだけで48構造を配置する。"""
-    engine = create_engine(current.legacy._owner_url(owner))
-    try:
-        with engine.begin() as connection:
-            config = Config(str(current.legacy._BACKEND_ROOT / "alembic.ini"))
-            config.attributes["connection"] = connection
-            command.upgrade(config, "0048_p3_projection_storage")
-    finally:
-        engine.dispose()
 
 
 def test_owned_p3_migration_and_all_structure_tamper_refusals(
@@ -38,7 +23,6 @@ def test_owned_p3_migration_and_all_structure_tamper_refusals(
         admin,
     ):
         current.advance_current_product_from_s0(owner_dsn=owner, applicator_dsn=admin)
-        _upgrade(owner)
         with psycopg.connect(admin) as connection:
             assert connection.execute(
                 "SELECT version_num FROM public.alembic_version"
@@ -89,13 +73,13 @@ def test_owned_p3_migration_and_all_structure_tamper_refusals(
                     with pytest.raises(current.CurrentProductStartupError):
                         check_p3_storage(connection)
                 check_p3_storage(connection)
-            # 描画した候補ACLを実PGへ適用し、app/actorへ直接DMLを開かない。
-            # 正式catalog/関数/guard全配置とは区別する。
+            # 同じ通常配置が全catalogを供給したうえで列ACLを全値確認する。
+            # 正式7.7/通常merge/製品P3成功とは区別する。
             from pitchlog.authz.p3_storage_product import candidate_declarations
 
             declarations, bodies = candidate_declarations()
-            for body in bodies.values():
-                connection.execute(cast(LiteralString, body), prepare=False)
+            assert len(bodies) == 141
+            assert current._catalog(connection).ok
             for row in declarations["tables"]:
                 relation = "sync_fence." + row["table_id"]
                 for role in (
@@ -186,7 +170,6 @@ def test_owned_p3_migration_fault_keeps_prior_revision_and_no_partial_tables(
         owner,
         admin,
     ):
-        current.advance_current_product_from_s0(owner_dsn=owner, applicator_dsn=admin)
 
         def fail_after_last_table(
             _conn: Any, _cursor: Any, statement: str, *_args: Any
@@ -199,13 +182,15 @@ def test_owned_p3_migration_fault_keeps_prior_revision_and_no_partial_tables(
         event.listen(Engine, "after_cursor_execute", fail_after_last_table)
         try:
             with pytest.raises(RuntimeError, match="owned P3 migration fault"):
-                _upgrade(owner)
+                current.advance_current_product_from_s0(
+                    owner_dsn=owner, applicator_dsn=admin
+                )
         finally:
             event.remove(Engine, "after_cursor_execute", fail_after_last_table)
         with psycopg.connect(admin) as connection:
             assert connection.execute(
                 "SELECT version_num FROM public.alembic_version"
-            ).fetchall() == [("0047_play_export_snapshots",)]
+            ).fetchall() == [(current.legacy._WRITER_REVISION,)]
             assert (
                 connection.execute(
                     "SELECT c.relname FROM pg_catalog.pg_class c "
@@ -215,4 +200,6 @@ def test_owned_p3_migration_fault_keeps_prior_revision_and_no_partial_tables(
                 ).fetchall()
                 == []
             )
-            current._check_current_structure(connection)
+            current.legacy._check_writer_storage(
+                connection, current.legacy._WRITER_REVISION
+            )

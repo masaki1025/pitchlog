@@ -111,3 +111,5 @@ FR-031・付録D・data-model §12-1/12-2の既定方針の実装であり、既
 判断者はCodex主担当/root、権限根拠は2026-10-23のMVP PO委任と、成立した操作/独立作業から実装を進める後続指示。対象は反映2の6file集合SHA256 `b17e4bf3f52f89527ba46014798819ef60d3cb81b061d1e381964ab9c89b42db`、計画本文SHA256 `16ba431d9167d35f0987da0d78786e942eb65704748d345ae71860ab66d2a87c`。非作者の第3回限定レビュー `ud2-plan-reflection2-review-20261104/REPORT.md` SHA256 `5577dfc511864d48ab9e0dea1c265f4b38b07c6372d6d724e18c940e2508ab64` でP0/P1未解消0、前2件の是正を確認し計画採用。これはPO本人の逐行確認・署名・正式CSV供給完了を意味しない。
 
 ステップ1を開始する。まず上記範囲の保存値参照・88列/9sidecar型/契約候補の機械照合、既writer再利用、ZIP/hash/障害検査を含む独立準備を進める。正式契約の配置は該当ゲートと非作者確認後。D-1新演算や集計実装は対象別独立期待値/方式の成立後で、未知値を仮値へ置換しない。DB/記録path・共有registryの変更、HTTP route登録やstep2以降はrootが別途指示し、並行writerと重複させない。source・試験・証拠を保全しステップ1全体の未成立を明記する。
+
+- 走塁NPの表示接合（2026-11-07、PO委任によるCodex主担当/root判断）: 既XC-05/XC-07のrunner-eventはplateAppearanceEnded=not-applicableであり、bool falseへの補修や新PA完了を推測しない。厳格に確認したRunner NP原本/実41列の同一性が成立する時だけ、列17/61/62を非該当の明示NULLとして写す。元T1のnot-applicableはsidecarに保持、列18/19は既保存T2の半回完了/実gameEndedを使う。既bool経路の生成表示targetは不変更、他のNA/未知は拒否。source/専用対向の実装はrunner担当、rootが最終差分/実PG/CSVと非作者レビューを接合する。
