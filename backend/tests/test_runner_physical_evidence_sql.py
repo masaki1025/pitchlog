@@ -35,7 +35,7 @@ def _parent() -> tuple[str, dict[str, object]]:
         if row["function_id"] == FUNCTION_ID
     ]
     assert len(rows) == 1
-    return first_ball_product.BODIES["function|" + FUNCTION_ID], rows[0]
+    return first_ball_product._D03_BASELINE_BODIES["function|" + FUNCTION_ID], rows[0]
 
 
 def test_runner_overlay_accepts_only_pinned_parent_and_keeps_other_functions():

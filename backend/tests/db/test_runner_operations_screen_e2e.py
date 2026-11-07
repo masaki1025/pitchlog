@@ -617,6 +617,28 @@ def _verify_rows(admin, tenant, game: str, result: dict) -> None:
         (tenant, game),
     ).fetchall()
     assert len(version) == 1 and version[0][1:] == (count, "current_open")
+    # 合計1だけでなく、明示走者本人への帰属と現打者への非加算を確認する。
+    # 全recordは上の唯一validatorで検証済み。新しいT5計算は作らない。
+    steal_payload = records[1][1]
+    steal_request = steal_payload["calculation"]["request"]
+    steal_runner = UUID(steal_request["source"]["runners"][0]["runnerId"])
+    steal_batter = UUID(steal_payload["participants"]["batterId"])
+    assert steal_runner == UUID(records[0][0]["batter_id"])
+    assert steal_runner != steal_batter
+    steal_credits = admin.execute(
+        "SELECT player_id,amount FROM sync_fence.stats_primitive_facts "
+        "WHERE tenant_id=%s AND game_id=%s AND fact_version_id=%s "
+        "AND source_event_id=%s AND metric_id='stolen_bases' AND amount<>0 "
+        "ORDER BY player_id,credit_ordinal LIMIT 5",
+        (
+            tenant,
+            game,
+            version[0][0],
+            UUID(steal_request["playIdentity"]["eventId"]),
+        ),
+    ).fetchall()
+    assert steal_credits == [(steal_runner, 1)]
+    assert all(player != steal_batter for player, _ in steal_credits)
     sums = dict(
         admin.execute(
             "SELECT metric_id,SUM(amount) FROM sync_fence.stats_primitive_facts "

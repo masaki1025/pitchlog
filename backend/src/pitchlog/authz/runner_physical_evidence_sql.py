@@ -5,6 +5,9 @@ import hashlib
 from pitchlog.domaingen.core import _canonical_hash
 from pitchlog.sync.runner_physical_labels import (
     ADVANCE_STATUS_BY_BASE_DESTINATION,
+    AUTO_STATUS_SOURCE,
+    HOLD_STATUS,
+    MANUAL_STATUS_SOURCE,
     OUT_STATUS_BY_OBSERVED_KIND,
 )
 
@@ -179,8 +182,8 @@ def _runner_evidence_block() -> str:
        pg_catalog.jsonb_object_keys(rp_observed) k) IS DISTINCT FROM
        ARRAY['kind','runner']::text[]
       THEN {_REJECT} END IF;
-     rp_status:='継続';
-     IF rp_record->>'status_source' IS DISTINCT FROM 'auto'
+     rp_status:={_quoted(HOLD_STATUS)};
+     IF rp_record->>'status_source' IS DISTINCT FROM {_quoted(AUTO_STATUS_SOURCE)}
       THEN {_REJECT} END IF;
     ELSIF rp_observed->>'kind'='safe-advance' THEN
      IF rp_target_count<>0 OR (rp_effect->>'modality' IS DISTINCT FROM 'optional'
@@ -193,7 +196,7 @@ def _runner_evidence_block() -> str:
        ARRAY['destination','kind','runner']::text[]
       THEN {_REJECT} END IF;
      rp_status:={_advance_status_case()};
-     IF rp_record->>'status_source' IS DISTINCT FROM 'manual'
+     IF rp_record->>'status_source' IS DISTINCT FROM {_quoted(MANUAL_STATUS_SOURCE)}
       THEN {_REJECT} END IF;
     ELSIF rp_observed->>'kind'='out' THEN
      IF rp_target_count<>1 OR rp_observed->>'attempted_base' IS NULL
@@ -205,7 +208,7 @@ def _runner_evidence_block() -> str:
       THEN {_REJECT} END IF;
      rp_status:={_out_status_case()};
      rp_out_count:=rp_out_count+1;
-     IF rp_record->>'status_source' IS DISTINCT FROM 'manual'
+     IF rp_record->>'status_source' IS DISTINCT FROM {_quoted(MANUAL_STATUS_SOURCE)}
       THEN {_REJECT} END IF;
     ELSE {_REJECT} END IF;
     IF rp_status IS NULL OR rp_record->>'status' IS DISTINCT FROM rp_status

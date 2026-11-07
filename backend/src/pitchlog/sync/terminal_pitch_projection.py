@@ -20,6 +20,9 @@ from pitchlog.sync.ordinary_pitch_execution import (
 from pitchlog.sync.ordinary_pitch_physical import pitch_physical_row
 from pitchlog.sync.runner_physical_labels import (
     ADVANCE_STATUS_BY_BASE_DESTINATION,
+    AUTO_STATUS_SOURCE,
+    HOLD_STATUS,
+    MANUAL_STATUS_SOURCE,
     OUT_STATUS_BY_OBSERVED_KIND,
 )
 from pitchlog.sync.terminal_pitch_payload import verify_play_prefix_seal
@@ -99,14 +102,17 @@ def runner_physical_rows(before_runners, *, t1, t1_input, tenant_id, play_id):
         effect = getattr(t1.runner_default_advance, slots[runner.base])
         if runner.base in out_bases:
             observed = runner_observed[runner.base]
-            results[runner.base] = (out_statuses[observed.out_kind], "manual")
+            results[runner.base] = (
+                out_statuses[observed.out_kind],
+                MANUAL_STATUS_SOURCE,
+            )
             continue
         if effect.modality == "not-applicable":
             raise OrdinaryPitchExecutionError
         if effect.modality == "hold":
             if effect.destination is not None or runner.base in overrides:
                 raise OrdinaryPitchExecutionError
-            results[runner.base] = ("継続", "auto")
+            results[runner.base] = (HOLD_STATUS, AUTO_STATUS_SOURCE)
         elif effect.modality in {"optional", "forced"}:
             destination = effect.destination
             if destination not in labels[runner.base]:
@@ -118,7 +124,9 @@ def runner_physical_rows(before_runners, *, t1, t1_input, tenant_id, play_id):
                 raise OrdinaryPitchExecutionError
             results[runner.base] = (
                 labels[runner.base][destination],
-                "manual" if runner.base in overrides else "auto",
+                MANUAL_STATUS_SOURCE
+                if runner.base in overrides
+                else AUTO_STATUS_SOURCE,
             )
         else:
             raise OrdinaryPitchExecutionError

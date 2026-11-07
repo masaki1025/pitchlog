@@ -461,7 +461,7 @@ DISTINCT FROM 'no-change'
  OR
 source_row.payload->'calculation'->'request'->'source'->'responsibility'
 ->'paStartSource' IS DISTINCT FROM before_cp->'pa_start_source'
- OR EXISTS(SELECT 1 FROM pg_catalog.jsonb_array_elements(
+ OR (CASE WHEN source_row.payload->'calculation'->'request'->'t1' ? 'runnerObservation' THEN false ELSE (EXISTS(SELECT 1 FROM pg_catalog.jsonb_array_elements(
  after_cp->'projection_snapshot'->'play_runners') r WHERE
  (SELECT pg_catalog.array_agg(k ORDER BY k) FROM pg_catalog.jsonb_object_keys(r) k)
  IS DISTINCT FROM ARRAY['base','id','import_batch_id','play_id',
@@ -516,8 +516,165 @@ source_row.payload->'calculation'->'request'->'source'->'responsibility'
  OR EXISTS(SELECT 1 FROM pg_catalog.jsonb_array_elements(
  source_row.payload->'calculation'->'response'->'value'->'t1'
  ->'outEffect'->'targets') target WHERE pg_catalog.jsonb_typeof(target)='object'
- AND target ? 'runner')
+ AND target ? 'runner')) END)
  THEN RAISE EXCEPTION 'lineup physical source rejected' USING ERRCODE='42501'; END IF;
+ IF source_row.payload->'calculation'->'request'->'t1' ? 'runnerObservation' THEN
+  DECLARE rp_t1 jsonb; rp_per jsonb; rp_by jsonb; rp_before_set jsonb;
+   rp_rows jsonb; rp_targets jsonb; rp_before jsonb; rp_observed jsonb;
+   rp_record jsonb; rp_effect jsonb; rp_slot text; rp_status text;
+   rp_target_count bigint; rp_out_count bigint:=0;
+  BEGIN
+   rp_t1:=source_row.payload->'calculation'->'request'->'t1';
+   rp_per:=rp_t1->'runnerObservation'->'perPitch';
+   rp_before_set:=source_row.payload->'calculation'->'request'->'source'->'runners';
+   rp_rows:=after_cp->'projection_snapshot'->'play_runners';
+   rp_targets:=source_row.payload->'calculation'->'response'->'value'->'t1'
+    ->'outEffect'->'targets';
+   IF pg_catalog.jsonb_typeof(rp_t1->'runnerObservation') IS DISTINCT FROM 'object'
+    OR rp_t1->'runnerObservation' IS DISTINCT FROM
+     source_row.payload->'observations'->'runnerObservation'
+    OR pg_catalog.jsonb_typeof(rp_per) IS DISTINCT FROM 'object'
+    OR rp_t1->>'eventKind' IS DISTINCT FROM rp_per->>'kind'
+    OR rp_t1->>'resultId' IS DISTINCT FROM rp_per->>'resultId'
+    OR rp_t1->>'pitchEventKind' IS DISTINCT FROM rp_per->>'pitchEventKind'
+    OR pg_catalog.jsonb_typeof(rp_before_set) IS DISTINCT FROM 'array'
+    OR pg_catalog.jsonb_typeof(rp_rows) IS DISTINCT FROM 'array'
+    OR pg_catalog.jsonb_typeof(rp_targets) IS DISTINCT FROM 'array'
+    THEN RAISE EXCEPTION 'runner physical evidence rejected' USING ERRCODE='42501'; END IF;
+   IF pg_catalog.jsonb_array_length(rp_before_set) NOT BETWEEN 1 AND 3
+    OR pg_catalog.jsonb_array_length(rp_rows)<>
+     pg_catalog.jsonb_array_length(rp_before_set)
+    OR (SELECT pg_catalog.count(DISTINCT m->>'base') FROM
+     pg_catalog.jsonb_array_elements(rp_before_set) m)<>
+     pg_catalog.jsonb_array_length(rp_before_set)
+    THEN RAISE EXCEPTION 'runner physical evidence rejected' USING ERRCODE='42501'; END IF;
+   IF rp_per->'runnerEventPayload'->>'kind'='runner-event'
+    AND rp_per->'runnerAdvanceOverridesByRunner'->>'kind'='not-applied'
+    AND rp_per->'runnerEventPayload'->>'event_kind' IN
+     ('strategy-category.steal','pitcher-pickoff-destination.first',
+      'pitcher-pickoff-destination.second','pitcher-pickoff-destination.third',
+      'catcher-pickoff-destination.first','catcher-pickoff-destination.second',
+      'catcher-pickoff-destination.third') THEN
+    rp_by:=rp_per->'runnerEventPayload'->'by_runner';
+    IF (rp_per->'runnerEventPayload'->>'event_kind'='strategy-category.steal'
+      AND ((rp_per->>'kind'='runner-event' AND
+       rp_per->>'resultId'='strategy-category.steal' AND
+       rp_per->>'pitchEventKind'='non-pitch-event') OR
+       (rp_per->>'kind'='batting-result' AND
+       rp_per->>'resultId' IN ('batting-result.ball',
+        'batting-result.called-pitch','batting-result.swinging-strike',
+        'batting-result.walk','batting-result.hit-by-pitch',
+        'batting-result.called-strikeout','batting-result.swinging-strikeout',
+        'batting-result.k3','batting-result.foul') AND
+       rp_per->>'resultId' IS NOT DISTINCT FROM
+        rp_t1->'runnerObservation'->>'primaryResultId' AND
+       rp_per->>'pitchEventKind'='pitch-event')))
+     OR (rp_per->'runnerEventPayload'->>'event_kind'<>'strategy-category.steal'
+      AND rp_per->>'kind'='runner-event' AND
+      rp_per->>'resultId'=rp_per->'runnerEventPayload'->>'event_kind' AND
+      rp_per->>'pitchEventKind'='non-pitch-event') THEN
+     NULL;
+    ELSE RAISE EXCEPTION 'runner physical evidence rejected' USING ERRCODE='42501'; END IF;
+   ELSIF rp_per->'runnerEventPayload'->>'kind'='not-applicable'
+    AND rp_per->'runnerAdvanceOverridesByRunner'->>'kind'='overridden'
+    AND ((rp_per->>'kind'='batting-result' AND
+     rp_per->>'resultId'='batting-result.strikeout-double-play' AND
+     rp_per->>'pitchEventKind'='pitch-event') OR
+     (rp_per->>'kind'='secondary-result' AND
+      ((rp_per->>'resultId' IN
+       ('secondary-result.wild-pitch','secondary-result.passed-ball')
+       AND rp_per->>'pitchEventKind'='pitch-event') OR
+       (rp_per->>'resultId'='secondary-result.balk' AND
+        rp_per->>'pitchEventKind'='non-pitch-event')))) THEN
+    rp_by:=rp_per->'runnerAdvanceOverridesByRunner'->'by_runner';
+   ELSE RAISE EXCEPTION 'runner physical evidence rejected' USING ERRCODE='42501'; END IF;
+   IF pg_catalog.jsonb_typeof(rp_by) IS DISTINCT FROM 'object'
+    OR (SELECT pg_catalog.count(*) FROM pg_catalog.jsonb_object_keys(rp_by))<>
+     pg_catalog.jsonb_array_length(rp_before_set)
+    THEN RAISE EXCEPTION 'runner physical evidence rejected' USING ERRCODE='42501'; END IF;
+   FOR rp_before IN SELECT value FROM pg_catalog.jsonb_array_elements(rp_before_set)
+   LOOP
+    rp_slot:=CASE rp_before->>'base' WHEN '1' THEN 'first'
+     WHEN '2' THEN 'second' WHEN '3' THEN 'third' ELSE NULL END;
+    IF rp_slot IS NULL OR pg_catalog.jsonb_typeof(rp_before) IS DISTINCT FROM 'object'
+     THEN RAISE EXCEPTION 'runner physical evidence rejected' USING ERRCODE='42501'; END IF;
+    rp_observed:=rp_by->rp_slot;
+    rp_effect:=source_row.payload->'calculation'->'response'->'value'->'t1'
+     ->'runnerDefaultAdvance'->rp_slot;
+    SELECT pg_catalog.count(*),(pg_catalog.jsonb_agg(value))->0
+    INTO rp_target_count,rp_record
+    FROM pg_catalog.jsonb_array_elements(rp_rows) value
+    WHERE value->>'base'=rp_before->>'base';
+    IF rp_target_count<>1 OR pg_catalog.jsonb_typeof(rp_observed) IS DISTINCT FROM
+     'object' OR pg_catalog.jsonb_typeof(rp_effect) IS DISTINCT FROM 'object'
+     OR rp_observed->'runner' IS DISTINCT FROM pg_catalog.jsonb_build_object(
+      'kind','official','player_id',rp_before->>'runnerId')
+     OR (SELECT pg_catalog.array_agg(k ORDER BY k) FROM
+      pg_catalog.jsonb_object_keys(rp_record) k) IS DISTINCT FROM
+      ARRAY['base','id','import_batch_id','play_id','responsible_pitcher_id',
+       'retired_at','runner_id','status','status_source','tenant_id']::text[]
+     OR rp_record->>'tenant_id' IS DISTINCT FROM p_tenant_id::text
+     OR rp_record->>'play_id' IS DISTINCT FROM p->'play_row'->>'id'
+     OR rp_record->>'runner_id' IS DISTINCT FROM rp_before->>'runnerId'
+     OR rp_record->>'responsible_pitcher_id' IS DISTINCT FROM
+      rp_before->>'responsiblePitcherId'
+     OR rp_record->'retired_at' IS DISTINCT FROM 'null'::jsonb
+     OR rp_record->'import_batch_id' IS DISTINCT FROM 'null'::jsonb
+     OR rp_record->>'id' IS NULL
+     THEN RAISE EXCEPTION 'runner physical evidence rejected' USING ERRCODE='42501'; END IF;
+    SELECT pg_catalog.count(*) INTO rp_target_count FROM
+     pg_catalog.jsonb_array_elements(rp_targets) target
+     WHERE target=pg_catalog.jsonb_build_object('runner',rp_before->>'base');
+    IF rp_observed->>'kind'='hold' THEN
+     IF rp_target_count<>0 OR rp_effect->>'modality' IS DISTINCT FROM 'hold'
+      OR rp_effect->'destination' IS DISTINCT FROM 'null'::jsonb
+      OR (SELECT pg_catalog.array_agg(k ORDER BY k) FROM
+       pg_catalog.jsonb_object_keys(rp_observed) k) IS DISTINCT FROM
+       ARRAY['kind','runner']::text[]
+      THEN RAISE EXCEPTION 'runner physical evidence rejected' USING ERRCODE='42501'; END IF;
+     rp_status:='継続';
+     IF rp_record->>'status_source' IS DISTINCT FROM 'auto'
+      THEN RAISE EXCEPTION 'runner physical evidence rejected' USING ERRCODE='42501'; END IF;
+    ELSIF rp_observed->>'kind'='safe-advance' THEN
+     IF rp_target_count<>0 OR (rp_effect->>'modality' IS DISTINCT FROM 'optional'
+      AND rp_effect->>'modality' IS DISTINCT FROM 'forced')
+      OR rp_effect->>'destination' IS DISTINCT FROM
+       CASE rp_observed->>'destination' WHEN 'second' THEN '2'
+        WHEN 'third' THEN '3' WHEN 'home' THEN '4' ELSE NULL END
+      OR (SELECT pg_catalog.array_agg(k ORDER BY k) FROM
+       pg_catalog.jsonb_object_keys(rp_observed) k) IS DISTINCT FROM
+       ARRAY['destination','kind','runner']::text[]
+      THEN RAISE EXCEPTION 'runner physical evidence rejected' USING ERRCODE='42501'; END IF;
+     rp_status:=CASE rp_before->>'base' WHEN '1' THEN (CASE rp_effect->>'destination' WHEN '2' THEN '二進' WHEN '3' THEN '三進' WHEN '4' THEN '本進' ELSE NULL END) WHEN '2' THEN (CASE rp_effect->>'destination' WHEN '3' THEN '三進' WHEN '4' THEN '本進' ELSE NULL END) WHEN '3' THEN (CASE rp_effect->>'destination' WHEN '4' THEN '本進' ELSE NULL END) ELSE NULL END;
+     IF rp_record->>'status_source' IS DISTINCT FROM 'manual'
+      THEN RAISE EXCEPTION 'runner physical evidence rejected' USING ERRCODE='42501'; END IF;
+    ELSIF rp_observed->>'kind'='out' THEN
+     IF rp_target_count<>1 OR rp_observed->>'attempted_base' IS NULL
+      OR rp_observed->>'attempted_base' NOT IN
+      ('first','second','third','home')
+      OR (SELECT pg_catalog.array_agg(k ORDER BY k) FROM
+       pg_catalog.jsonb_object_keys(rp_observed) k) IS DISTINCT FROM
+       ARRAY['attempted_base','kind','out_kind','runner']::text[]
+      THEN RAISE EXCEPTION 'runner physical evidence rejected' USING ERRCODE='42501'; END IF;
+     rp_status:=CASE rp_observed->>'out_kind' WHEN 'force-out' THEN '封殺' WHEN 'pitcher-pickoff-out' THEN '投手牽制死' WHEN 'catcher-pickoff-out' THEN '捕手牽制死' WHEN 'caught-stealing' THEN '盗塁死' WHEN 'running-out' THEN '走塁死' ELSE NULL END;
+     rp_out_count:=rp_out_count+1;
+     IF rp_record->>'status_source' IS DISTINCT FROM 'manual'
+      THEN RAISE EXCEPTION 'runner physical evidence rejected' USING ERRCODE='42501'; END IF;
+    ELSE RAISE EXCEPTION 'runner physical evidence rejected' USING ERRCODE='42501'; END IF;
+    IF rp_status IS NULL OR rp_record->>'status' IS DISTINCT FROM rp_status
+     THEN RAISE EXCEPTION 'runner physical evidence rejected' USING ERRCODE='42501'; END IF;
+   END LOOP;
+   IF rp_out_count IS DISTINCT FROM (SELECT pg_catalog.count(*) FROM
+    pg_catalog.jsonb_array_elements(rp_targets) target
+    WHERE pg_catalog.jsonb_typeof(target)='object')
+    OR EXISTS(SELECT 1 FROM pg_catalog.jsonb_array_elements(rp_targets) target
+     WHERE pg_catalog.jsonb_typeof(target)='object' AND
+     (SELECT pg_catalog.array_agg(k ORDER BY k) FROM
+      pg_catalog.jsonb_object_keys(target) k) IS DISTINCT FROM ARRAY['runner']::text[])
+    THEN RAISE EXCEPTION 'runner physical evidence rejected' USING ERRCODE='42501'; END IF;
+  END;
+ END IF;
+
 
  -- 新安打だけの閉分岐。旧writer/原本/nonce検査は変更しない。
  batted_obs:=source_row.payload->'observations';

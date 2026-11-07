@@ -2344,6 +2344,23 @@ def _activate_started_snapshot_read_profile() -> None:
 
 
 _activate_started_snapshot_read_profile()
+
+
+def _activate_runner_physical_evidence_profile() -> None:
+    """現行post-P3 prepareだけへ厳格pin付き走者物理証拠を接ぐ。"""
+    from pitchlog.authz.runner_physical_evidence_sql import (
+        FUNCTION_ID,
+        overlay_prepared_parent,
+    )
+
+    rows = [row for row in ADDITIONS["functions"] if row["function_id"] == FUNCTION_ID]
+    if len(rows) != 1:
+        raise ValueError("走者物理証拠の登録宣言が不一致")
+    key = "function|" + FUNCTION_ID
+    BODIES[key] = overlay_prepared_parent(BODIES[key], rows[0])
+
+
+_activate_runner_physical_evidence_profile()
 ROLES = frozenset(row["role_id"] for row in ADDITIONS["roles"])
 
 TABLES = frozenset(

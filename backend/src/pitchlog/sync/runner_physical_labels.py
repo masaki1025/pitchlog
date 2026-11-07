@@ -1,5 +1,9 @@
 """走者の既物理保存ラベル。唯一 T1 の再計算や新しい裁定は含まない。"""
 
+HOLD_STATUS = "継続"
+AUTO_STATUS_SOURCE = "auto"
+MANUAL_STATUS_SOURCE = "manual"
+
 ADVANCE_STATUS_BY_BASE_DESTINATION = {
     "1": {"2": "二進", "3": "三進", "4": "本進"},
     "2": {"3": "三進", "4": "本進"},
