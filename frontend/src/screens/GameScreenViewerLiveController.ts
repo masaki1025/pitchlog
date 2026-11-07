@@ -120,14 +120,14 @@ export function viewerNextCursor(game: ViewerGame | null): string | null {
   return game?.page.next_cursor ?? null
 }
 
-/** v3は最新pageから旧pageへ、非playは旧pageから新pageへ進む。 */
+/** 現行v3/非playの双方とも、最新pageから旧pageへ進む。 */
 export function viewerPageLabels(game: ViewerGame | null): {
   next: string
   previous: string
 } {
   return game?.read_kind === 'lineup-prefix'
     ? { next: '古い25球へ', previous: '新しい25球へ' }
-    : { next: '新しい25球へ', previous: '古い25球へ' }
+    : { next: '古い25球へ', previous: '新しい25球へ' }
 }
 
 export function viewerHistory(game: ViewerGame | null) {

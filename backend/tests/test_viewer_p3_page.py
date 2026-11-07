@@ -10,6 +10,7 @@ from pitchlog.repositories import ordinary_prefix_read as reader
 from pitchlog.repositories.past_correction_current_paged import VerifiedP3PagedCurrent
 from pitchlog.repositories.play_prefix import LineupPrefixDocument
 from pitchlog.sync.terminal_pitch_payload import LineupPitchPlayPayload
+from pitchlog.sync.first_ball_payload import FirstBallObservations
 
 
 def _verified(after: int, count: int, limit: int, *, stable: tuple):
@@ -42,7 +43,15 @@ def _verified(after: int, count: int, limit: int, *, stable: tuple):
         value=SimpleNamespace(new_history_entry="last", play_identity="last")
     )
     payload = SimpleNamespace(
-        observations=SimpleNamespace(course="course"),
+        observations=FirstBallObservations.model_validate(
+            {
+                "pitchTypeKey": "pitch-type.straight",
+                "course": {"unit": "1/263", "x": "131", "y": "132"},
+                "pitchSpeed": {"kmh": None, "outsideRangeConfirmed": False},
+                "stance": None,
+                "battingSide": None,
+            }
+        ),
         calculation=SimpleNamespace(response=response),
     )
     selected: tuple[dict[str, Any], ...] = tuple(

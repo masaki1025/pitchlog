@@ -129,7 +129,9 @@ it('同水位のP3訂正を12秒pollで検知し、本文確認前は更新済�
   } as ViewerGame
   const revised = { ...head, version: `ve1_${'b'.repeat(64)}` }
   let resolveBody: ((value: ViewerGame) => void) | null = null
-  const readHead = vi.fn(async () => (readHead.mock.calls.length < 5 ? head : revised))
+  const readHead = vi.fn(async () =>
+    readHead.mock.calls.length < 5 ? head : revised,
+  )
   const readGame = vi
     .fn(async () => game as ViewerGame)
     .mockImplementationOnce(async () => game)
@@ -155,7 +157,9 @@ it('同水位のP3訂正を12秒pollで検知し、本文確認前は更新済�
     expect.any(AbortSignal),
   )
   expect(latest.game).toBeNull()
-  expect(viewerStatusLabel(latest.freshness, latest.refreshing)).not.toBe('更新済み')
+  expect(viewerStatusLabel(latest.freshness, latest.refreshing)).not.toBe(
+    '更新済み',
+  )
   resolveBody!(corrected)
   await flushPromises()
   expect(latest.game?.after.stateFields['state.count.balls']).toBe('1')
@@ -332,7 +336,7 @@ it('pagingの向きはv3と非playで取り違えない', () => {
   })
   expect(
     viewerPageLabels({ read_kind: 'nonplay-prefix' } as unknown as ViewerGame),
-  ).toEqual({ next: '新しい25球へ', previous: '古い25球へ' })
+  ).toEqual({ next: '古い25球へ', previous: '新しい25球へ' })
 })
 
 it.each(['cold-end', 'limit-draw'] as const)(
