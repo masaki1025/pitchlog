@@ -430,8 +430,7 @@ def _accepted_pitch_speed(identity: RecordedPlayIdentity) -> str | None:
     try:
         if identity.play["event_kind"] == "non_pitch":
             if (
-                identity.payload["observations"] != {"kind": "intentional-walk"}
-                or any(
+                any(
                     identity.play[field] is not None
                     for field in (
                         "pitch_speed",
@@ -451,6 +450,11 @@ def _accepted_pitch_speed(identity: RecordedPlayIdentity) -> str | None:
                 or identity.course_screen != (None, None)
             ):
                 raise RecordedExportProjectionUnavailable
+            try:
+                if _course_screen(identity.payload, identity.play) != (None, None):
+                    raise RecordedExportProjectionUnavailable
+            except PlayExportIdentityUnavailable:
+                raise RecordedExportProjectionUnavailable from None
             return None
         value = identity.payload["observations"]["pitchSpeed"]["kmh"]
         stored = identity.play["pitch_speed"]
