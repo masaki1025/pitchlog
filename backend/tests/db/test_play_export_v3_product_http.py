@@ -17,6 +17,7 @@ import psycopg
 import pytest
 from psycopg import sql
 
+from pitchlog.authz.play_export_source_read_product import candidate_read_bundle
 from pitchlog.authz.play_export_writer_product import candidate_install_sql
 from pitchlog.exports.play_rows import CSV_HEADERS
 
@@ -51,15 +52,15 @@ _ROOT = Path(__file__).resolve().parents[3]
 def _v3_export_script() -> str:
     """既現行v3 HTTPの真の2球後に認可付きZIP GETを追加する。"""
     script = _lineup_script()
-    old = '''        results = [
+    old = """        results = [
             "batting-result.called-pitch",
             "batting-result.called-pitch",
             "batting-result.called-strikeout",
-        ] * 3 + ["batting-result.ball"]'''
-    new = '''        results = [
+        ] * 3 + ["batting-result.ball"]"""
+    new = """        results = [
             "batting-result.called-pitch",
             "batting-result.called-pitch",
-        ]'''
+        ]"""
     if script.count(old) != 1 or script.count("if index in (1, 9):") != 1:
         raise AssertionError("現行v3脚本の固定点が変化しました")
     script = script.replace(old, new, 1).replace(
@@ -70,7 +71,7 @@ def _v3_export_script() -> str:
         raise AssertionError("v3の閉診断固定点が変化しました")
     script = script.replace(
         diagnostic_anchor,
-        '''        chain = []
+        """        chain = []
         current_error = error
         for _ in range(8):
             if current_error is None:
@@ -87,13 +88,13 @@ def _v3_export_script() -> str:
             })
             current_error = current_error.__cause__ or current_error.__context__
         runtime_diagnostics.update(exception_chain=chain,
-''',
+""",
         1,
     )
     marker = '        return {\n            "game": game,'
     if script.count(marker) != 1:
         raise AssertionError("現行v3の実GET固定点が変化しました")
-    injected = '''        import base64
+    injected = """        import base64
         exported = await client.get(
             "/games/" + game + "/exports/plays.zip", headers=headers()
         )
@@ -128,7 +129,7 @@ def _v3_export_script() -> str:
             )
             assert foreign_export.status_code == 404
         export_b64 = base64.b64encode(exported.content).decode("ascii")
-'''
+"""
     script = script.replace(marker, injected + marker, 1)
     script = script.replace(
         '            "game": game,',
@@ -142,7 +143,9 @@ def _v3_export_script() -> str:
 def _read_saved_export_script() -> str:
     """保存原本を別HTTP要求で読み、200または409を検証する。"""
     setup = _lineup_script().split("async def run():", 1)[0]
-    return setup + '''
+    return (
+        setup
+        + """
 async def run():
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url="https://test"
@@ -165,7 +168,8 @@ async def run():
             ),
         }
 print(json.dumps(asyncio.run(run()), ensure_ascii=False))
-'''
+"""
+    )
 
 
 def _read_saved_export(db, case: dict[str, str]) -> dict[str, object]:
@@ -195,11 +199,12 @@ def test_actual_v3_two_play_snapshot_and_zip_from_new_game(vertical_database):
                 (key, name),
             )
         ddl = (
-            _ROOT
-            / "docs/features/ud2-csv-export/candidates/play_export_snapshots.sql"
+            _ROOT / "docs/features/ud2-csv-export/candidates/play_export_snapshots.sql"
         ).read_text()
         admin.execute(sql.SQL(cast(LiteralString, ddl)))
         admin.execute(sql.SQL(cast(LiteralString, candidate_install_sql())))
+        _source_query, source_install = candidate_read_bundle()
+        admin.execute(sql.SQL(cast(LiteralString, source_install)))
     case = {
         "tenant": str(db.tenant_id),
         "game": str(db.game_id),

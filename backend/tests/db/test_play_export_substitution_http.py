@@ -16,6 +16,7 @@ import psycopg
 import pytest
 from psycopg import sql
 
+from pitchlog.authz.play_export_source_read_product import candidate_read_bundle
 from pitchlog.authz.play_export_writer_product import candidate_install_sql
 
 from .sync_writer_binding_support import binding_broker
@@ -48,7 +49,7 @@ _ROOT = Path(__file__).resolve().parents[3]
 def _script() -> str:
     """既交代縦断へ前後の実ZIP取得だけを挿す。"""
     script = substitution_script()
-    trace = '''
+    trace = """
 from pitchlog.sync import play_export_producer as actual_csv_writer
 _actual_csv_persist = actual_csv_writer.persist_accepted_play_export
 def _trace_csv_persist(*args, **kwargs):
@@ -75,7 +76,7 @@ def _trace_csv_persist(*args, **kwargs):
         runtime_diagnostics["csv_chain"] = chain
         raise
 actual_csv_writer.persist_accepted_play_export = _trace_csv_persist
-'''
+"""
     if script.count("async def run():") != 1:
         raise AssertionError("交代縦断の起点が変わりました")
     script = script.replace("async def run():", trace + "\nasync def run():", 1)
@@ -85,7 +86,7 @@ actual_csv_writer.persist_accepted_play_export = _trace_csv_persist
         raise AssertionError("交代縦断の固定点が変わりました")
     script = script.replace(
         before_anchor,
-        '''        before_zip = await client.get(
+        """        before_zip = await client.get(
             "/games/" + game + "/exports/plays.zip", headers=headers()
         )
         assert before_zip.status_code == 200, (
@@ -93,27 +94,26 @@ actual_csv_writer.persist_accepted_play_export = _trace_csv_persist
         )
         import base64
         before_b64 = base64.b64encode(before_zip.content).decode("ascii")
-'''
+"""
         + before_anchor,
         1,
     )
     script = script.replace(
         after_anchor,
-        '''        after_zip = await client.get(
+        """        after_zip = await client.get(
             "/games/" + game + "/exports/plays.zip", headers=headers()
         )
         assert after_zip.status_code == 200, (
             "after-export", after_zip.status_code
         )
         after_b64 = base64.b64encode(after_zip.content).decode("ascii")
-'''
+"""
         + after_anchor,
         1,
     )
     script = script.replace(
         '            "game": game,',
-        '            "game": game, "before_b64": before_b64, '
-        '"after_b64": after_b64,',
+        '            "game": game, "before_b64": before_b64, "after_b64": after_b64,',
         1,
     )
     return script
@@ -132,9 +132,7 @@ def _events(raw: bytes) -> list[dict[str, str]]:
     """非投球の受理交代も監査sidecarの実行に残るか読む。"""
     with zipfile.ZipFile(io.BytesIO(raw)) as archive:
         return list(
-            csv.DictReader(
-                io.StringIO(archive.read("events.csv").decode("utf-8-sig"))
-            )
+            csv.DictReader(io.StringIO(archive.read("events.csv").decode("utf-8-sig")))
         )
 
 
@@ -150,8 +148,7 @@ def test_substitution_followed_by_pitch_keeps_old_csv_and_new_pitcher(
             "ON CONFLICT(key) DO NOTHING"
         )
         home = admin.execute(
-            "SELECT home_team_record_id FROM public.games "
-            "WHERE tenant_id=%s AND id=%s",
+            "SELECT home_team_record_id FROM public.games WHERE tenant_id=%s AND id=%s",
             (db.tenant_id, db.game_id),
         ).fetchone()
         assert home is not None
@@ -166,6 +163,8 @@ def test_substitution_followed_by_pitch_keeps_old_csv_and_new_pitcher(
         ).read_text()
         admin.execute(sql.SQL(cast(LiteralString, ddl)))
         admin.execute(sql.SQL(cast(LiteralString, candidate_install_sql())))
+        _source_query, source_install = candidate_read_bundle()
+        admin.execute(sql.SQL(cast(LiteralString, source_install)))
     case = {
         "tenant": str(db.tenant_id),
         "game": str(db.game_id),

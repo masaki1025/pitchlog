@@ -74,6 +74,8 @@ def flush_rig(request, monkeypatch):
     r.fail_at = None
     r.fail_fetch_at = None
     r.prepare_calls = []
+    r.csv_calls = []
+    r.csv_error = None
     r.transaction_controls = []
     prepare = api.prepare_native_evaluation
 
@@ -82,6 +84,20 @@ def flush_rig(request, monkeypatch):
         return prepare(payload, **kwargs)
 
     monkeypatch.setattr(api, "prepare_native_evaluation", preparing)
+
+    # このfixtureは無DBのT5境界。88列の真正物理原本はowned CSV検査で確認する。
+    # ここではproducer呼出しの順序/同scope/保存receiptと故障伝播だけを観測する。
+    from pitchlog.sync import play_export_producer
+
+    def recorded_export(scope, receipt, source, saved, revision):
+        api._assert_scope(scope, receipt, source)
+        r.csv_calls.append((scope, receipt, source, saved, revision))
+        if r.csv_error is not None:
+            raise r.csv_error
+
+    monkeypatch.setattr(
+        play_export_producer, "persist_accepted_play_export", recorded_export
+    )
 
     def execute(statement, parameters):
         # 明示した固定2statementの同Session呼出だけを合成する。
@@ -123,6 +139,11 @@ def test_actual_source_preflight_one_t5_save_same_session(flush_rig):
     result = _flush(r)
     assert result.rows == tuple(r.after)
     assert len(r.calls) == 2 and len(r.prepare_calls) == 1
+    assert len(r.csv_calls) == 1
+    scope, _receipt, source, saved, revision = r.csv_calls[0]
+    assert scope.session is r.session
+    assert source.source_event_id == r.event_row["id"]
+    assert saved == tuple(r.after) and revision == 1
     assert "stats_api.read_primitive_writer_state" in str(r.calls[0][0])
     assert "stats_api.save_primitive_source" in str(r.calls[1][0])
     assert set(r.calls[0][1]) == {
@@ -459,4 +480,15 @@ def test_actual_writer_registration_is_required_before_each_sql(
     expected_calls = 0 if site == "read_writer_state" else 1
     assert len(r.calls) == expected_calls
     assert len(r.prepare_calls) == expected_calls
+    assert all(result.closed for result in r.results)
+
+
+def test_recorded_export_failure_is_not_a_successful_t5_flush(flush_rig):
+    """CSV後段の故障を握り潰さず、同TX呼出しと故障伝播を観測する。"""
+    r = flush_rig
+    r.csv_error = _InjectedFailure("synthetic recorded export failure")
+    with pytest.raises(_InjectedFailure, match="recorded export failure"):
+        _flush(r)
+    assert len(r.calls) == 2 and len(r.csv_calls) == 1
+    assert r.transaction_controls == []
     assert all(result.closed for result in r.results)

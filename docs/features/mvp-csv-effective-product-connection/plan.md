@@ -32,3 +32,17 @@ CSV repositoryは可視gameを同handleで確認後、ReadPlayExportSourcesの�
 bundleへsource版/identityを保存し、manifestのsource digestへfact_version/revision/S/count/completionと全identityを追加束縛する。同一値のRR開始番号は意味版に混ぜず、同版の再取得を無関係なtransaction snapshotで別版へ変えない。source/physical不一致は共通PlayExportSupplyError系へ閉じて既APIの409を維持する。真正scope/未登録関数等の技術失敗を成功や409へ一律変換せず、既503のまま。P3の88列/sidecar producer未供給の409は維持する。
 
 初回純選択検査は84passed/3failedでDiskRowsにappendが無いことを検出し、単行extendへ修正。SQLite実SQLの1/500/501件・ディスク有無・越境/別event/版/退避/不足・P3非hidden旧行の誤選択なし・版digest束縛を含めて87passed4.26秒、CSV/表示/単一生成器の全対象245passed8.79秒。旧DB資格の成功を模倣する試験ではなく、合成S入力から後段SQLの結合を確認した単位証拠として扱う。真正S/token/CSV製品routeの実PG/画面はstep3で検査する。
+
+
+## ステップ3の実経路検査開始（2026-11-07）
+
+既owned画面wrapperのセットアップだけへ、同じ候補生成器が返すsource read1関数の実SQL配置を追加する。既真正current起動/全catalog検査・実writer/88列producerの後に候補readを配置し、固定応答や事前88列投入はしない。画面ZIP routeの真正TenantContext→play_export_read_scope→新登録token/同Session関数→S原本/物理行→完成ZIPへ初めて接続する実証が対象。候補SQLの局所配置と正式catalog/7.7受理は区別する。P3未供給は409を維持し、必要な正式差分はrootへ別packetで渡す。
+
+
+screen1-single-sは **1passed131.12秒/source前後SHA一致/owned cleanup**。同じ候補・実画面・実PGで新規作成/開始→通常2球→1取消/原文重複→ZIP1行→全取消ZIP0行→再入力ZIP1行→reload ZIP1行を完走し、全段階の真正T5 current/source count1/0/1/1・revision3/4/5/5とCSV linksのsource/play/generation/D2/play版を完全照合した。今回は製品CSV routeの真正TenantContextと新登録token/同RR source関数を実際に通過した。隔離候補read SQLの局所配置であり正式提供・P3/終了再開CSV・実機とは区別する。
+
+依存130の旧T5 flush単位8failは旧42dでも同じ8fail/204passを再現。無DBの旧T5単位fixtureに、新88列producerを成功済みと偽装せず「同scope/session/保存receipt/1回の呼出し」を記録する単位境界を置き、後段故障が成功へ変わらない4mode対向を追加する。cache候補は216passed33.37秒で確認後に本WTへ適用。製品hook・producer・認可・保存は変更しない。追加編集対象は既tests/test_stats_native_flush.pyのみ、実88列producerの証拠は上記owned画面で分離する。
+
+同じ候補read関数を必要とする既CSV DB/画面fixtureの4path（test_play_export_v3_product_http/test_play_export_screen_e2e/test_nonpitch_play_export_screen_e2e/test_play_export_substitution_http）へ、既writer候補SQL配置直後のsource read候補SQL配置だけを追随する。初回実証wrapperと同じ実体であり、88列の事前fixture投入や成功応答stubを追加しない。これら全DBケースの成功は未実行のまま保持し、実HTTPの越境/無cookie等の対象を追加確認する。
+
+本WT適用後のT5単位境界は実 `api._assert_scope` を記録前にも再確認し、216passed33.77秒、Ty/Ruff成功。CSV source/collector/単一生成器側の成功245件と合わせても、未実施のDB fixture全件や全MVP成功へは広げない。root c181の既起動0045/27キー、共有UIのsource差分は0を保持する。

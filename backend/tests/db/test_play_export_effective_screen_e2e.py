@@ -19,6 +19,7 @@ import psycopg
 import pytest
 from psycopg import sql
 
+from pitchlog.authz.play_export_source_read_product import candidate_read_bundle
 from pitchlog.authz.play_export_writer_product import candidate_install_sql
 from pitchlog.authz.product_catalog import inspect_product_authz_catalog
 from pitchlog.authz.product_provisioning import apply_product_authz_ddl
@@ -135,6 +136,8 @@ def test_actual_undo_effective_csv_and_preserved_snapshot(vertical_database, tmp
         ).read_text()
         admin.execute(sql.SQL(cast(LiteralString, ddl)))
         admin.execute(sql.SQL(cast(LiteralString, candidate_install_sql())))
+        _query, source_install = candidate_read_bundle()
+        admin.execute(sql.SQL(cast(LiteralString, source_install)))
     assert teams is not None
     token = uuid4()
     config = "GameScreenPlayCsvEffective.playwright.config.ts"

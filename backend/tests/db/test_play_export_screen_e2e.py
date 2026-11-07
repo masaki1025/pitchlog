@@ -17,6 +17,7 @@ import psycopg
 import pytest
 from psycopg import sql
 
+from pitchlog.authz.play_export_source_read_product import candidate_read_bundle
 from pitchlog.authz.play_export_writer_product import candidate_install_sql
 from pitchlog.exports.play_rows import CSV_HEADERS
 
@@ -62,11 +63,12 @@ def test_actual_screen_downloads_two_play_product_zip(vertical_database, tmp_pat
             "ON CONFLICT(key) DO NOTHING"
         )
         ddl = (
-            _ROOT
-            / "docs/features/ud2-csv-export/candidates/play_export_snapshots.sql"
+            _ROOT / "docs/features/ud2-csv-export/candidates/play_export_snapshots.sql"
         ).read_text()
         admin.execute(sql.SQL(cast(LiteralString, ddl)))
         admin.execute(sql.SQL(cast(LiteralString, candidate_install_sql())))
+        _source_query, source_install = candidate_read_bundle()
+        admin.execute(sql.SQL(cast(LiteralString, source_install)))
     assert teams is not None
     path = tmp_path / "play-csv-screen.zip"
     token = uuid4()
