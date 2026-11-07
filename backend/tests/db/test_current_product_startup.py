@@ -68,6 +68,10 @@ def test_actual_current_s0_and_current_resume_keep_all_structure_and_catalog(
         "CREATE TRIGGER trg_nonplay_admission_no_truncate",
         "CREATE TABLE sync_fence.substitution_write_receipts",
         (
+            "ALTER TABLE sync_fence.stats_primitive_facts "
+            "DROP CONSTRAINT ck_stats_fact_metric"
+        ),
+        (
             "ALTER TABLE sync_fence.stats_primitive_sources "
             "DROP CONSTRAINT ck_stats_source_metric_keys"
         ),

@@ -148,6 +148,7 @@ class _Expression:
                 if (
                     kind == "numeric"
                     and left[0] == "text"
+                    and isinstance(left[1], str)
                     and re.fullmatch(r"0|[1-9][0-9]*", left[1])
                 ):
                     left = ("integer", int(left[1]))
