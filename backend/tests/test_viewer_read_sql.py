@@ -1,6 +1,9 @@
 """閲覧pageが既readerの照合面を共有し、行ロックだけを除く。"""
 
 from pathlib import Path
+from uuid import UUID
+
+import pytest
 
 from pitchlog.authz import product_catalog
 from pitchlog.authz.nonplay_prefix_read_sql import (
@@ -10,6 +13,10 @@ from pitchlog.authz.terminal_pitch_write_stamp import (
     candidate_function_bodies as play_bodies,
 )
 from pitchlog.authz.viewer_read_sql import candidate_viewer_function_bodies
+from pitchlog.repositories.ordinary_prefix_read import (
+    OrdinaryPrefixError,
+    _assert_viewer_page_edges,
+)
 from pitchlog.repositories.viewer_read import VIEWER_READ_OPERATIONS
 
 
@@ -97,7 +104,22 @@ def test_shared_authz_catalog_patch_declares_viewer_functions() -> None:
         "SYNC_PLAY_PREFIX:read_viewer_play_prefix_history_page",
         "SYNC_ORDINARY_PITCH:read_viewer_nonplay_active_history",
         "frontend/src/router.ts",
-        "ライブ閲覧へ",
+        "GameScreenEntryNavigation.ts",
     ):
         assert required in text, required
     assert "'sync_right_api'" in product_catalog._LIFECYCLE_FUNCTION_DETAILS_QUERY
+
+
+def test_viewer_page_edges_fail_closed_on_missing_history() -> None:
+    """最新端・先頭端・空pageの欠落を成功にしない。"""
+    zero = (0, 0, UUID(int=0))
+    positions = [(value, 0, UUID(int=0)) for value in range(1, 27)]
+    _assert_viewer_page_edges(zero, positions, 26, has_next=True)
+    _assert_viewer_page_edges((1, 0, UUID(int=0)), positions[:1], 26, has_next=False)
+    for point, page, has_next in (
+        (zero, [], True),
+        (zero, positions[:-1], False),
+        ((1, 0, UUID(int=0)), [(2, 0, UUID(int=0))], False),
+    ):
+        with pytest.raises(OrdinaryPrefixError):
+            _assert_viewer_page_edges(point, page, 26, has_next=has_next)

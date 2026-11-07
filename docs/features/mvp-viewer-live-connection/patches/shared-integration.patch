@@ -336,7 +336,7 @@ index e7e2bbfc..a71caa28 100644
          "sync_events",
      )
 diff --git a/backend/tests/test_api_conventions.py b/backend/tests/test_api_conventions.py
-index c7146ca7..244e7e4c 100644
+index c7146ca7..4d234e25 100644
 --- a/backend/tests/test_api_conventions.py
 +++ b/backend/tests/test_api_conventions.py
 @@ -321,10 +321,10 @@ async def test_forbidden_response_is_hidden_as_not_found() -> None:
@@ -352,7 +352,7 @@ index c7146ca7..244e7e4c 100644
      assert tuple((route.path, frozenset(route.methods or ())) for route in routes) == (
          ("/health", frozenset({"GET"})),
          ("/version", frozenset({"GET"})),
-@@ -359,21 +359,25 @@ def test_router_routes_are_static_login_roster_and_meta() -> None:
+@@ -359,21 +359,26 @@ def test_router_routes_are_static_login_roster_and_meta() -> None:
          ("/games/{game_id}/stats", frozenset({"GET"})),
          ("/stats/seasons/{year}", frozenset({"GET"})),
          ("/games/{game_id}/started", frozenset({"GET"})),
@@ -364,7 +364,8 @@ index c7146ca7..244e7e4c 100644
      downloads = frozenset(
          {"game_play_csv_export", "game_basic_stats_csv", "season_basic_stats_csv"}
      )
-+    # recover_sync_attempt は固定基線で response_model 未宣言の既存差分。
++    # 固定基線の既知差分: recover_sync_attempt は response_model 未宣言。
++    # 閲覧接合では変更せず、別変更で解消するまで exact-set から除外する。
      assert (
          frozenset(
              route.operation_id for route in routes if route.response_model is None
@@ -497,6 +498,25 @@ index a548c036..b7be129e 100644
 +        ViewerNonplayActiveHistoryReadToken,
      }
      assert operation_registry.PRODUCT_OPERATIONS
+ 
+diff --git a/backend/tests/test_roster_self_team_read.py b/backend/tests/test_roster_self_team_read.py
+index 588a5bf3..f451a24f 100644
+--- a/backend/tests/test_roster_self_team_read.py
++++ b/backend/tests/test_roster_self_team_read.py
+@@ -51,9 +51,14 @@ def test_tenant_match_operations_keep_old_routes_and_add_self() -> None:
+             "preparing_game_preparation_options",
+             "pitch_type_options",
+             "batted_ball_options",
++            "game_play_csv_export",
++            "game_viewer_head",
++            "game_viewer_saved",
+             "initial_device_enroll",
+             "initial_game_start",
+             "initial_game_start_resolve",
++            "recover_sync_attempt",
++            "sync_events",
+         }
+     )
  
 diff --git a/backend/tests/test_stats_native_function_registration.py b/backend/tests/test_stats_native_function_registration.py
 index e159609f..5094a999 100644
@@ -2538,23 +2558,6 @@ index f1bde3a3..e2ccc9a6 100644
    it.each(['ordinary-prefix-v1', 'play-prefix-v2', 'play-prefix-v3'])(
      '認証不確実時も有限な%s入口だけを保持し保護画面は描画しない',
      async (mode) => {
-diff --git a/frontend/src/screens/GameScreenEntry.vue b/frontend/src/screens/GameScreenEntry.vue
-index 794e48bc..2131cd12 100644
---- a/frontend/src/screens/GameScreenEntry.vue
-+++ b/frontend/src/screens/GameScreenEntry.vue
-@@ -197,6 +197,12 @@ function returnToPriorPage(): void {
-               class="inline-block min-h-11 rounded-lg border px-3 py-2 underline"
-               >閲覧画面へ</RouterLink
-             >
-+            <RouterLink
-+              v-if="game.stateLabel !== '準備中'"
-+              :to="{ name: 'game-viewer', params: { gameId: game.gameId } }"
-+              class="inline-block min-h-11 rounded-lg border px-3 py-2 underline"
-+              >ライブ閲覧へ</RouterLink
-+            >
-             <button
-               type="button"
-               disabled
 diff --git a/frontend/src/screens/GameScreenEntryNavigation.ts b/frontend/src/screens/GameScreenEntryNavigation.ts
 index 17c5d217..18fa4712 100644
 --- a/frontend/src/screens/GameScreenEntryNavigation.ts

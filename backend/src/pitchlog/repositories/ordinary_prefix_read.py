@@ -975,6 +975,16 @@ def _evaluate_lineup_payload(raw):
     )
 
 
+def _assert_viewer_page_edges(point, positions, n, *, has_next):
+    """閲覧pageが確定水位の最新端と履歴先頭端を欠落させない。"""
+    if not positions:
+        raise OrdinaryPrefixError
+    if point[0] == 0 and positions[-1][0] != n:
+        raise OrdinaryPrefixError
+    if not has_next and positions[0][0] != 1:
+        raise OrdinaryPrefixError
+
+
 def _read_lineup_projection(
     handle,
     game_id,
@@ -1221,7 +1231,9 @@ def _read_lineup_projection(
         )
     next_cursor = None
     if _viewer:
-        if len(items) > limit:
+        has_next = len(items) > limit
+        _assert_viewer_page_edges(point, positions, n, has_next=has_next)
+        if has_next:
             older = positions.pop(0)
             items.pop(0)
             next_cursor = (
