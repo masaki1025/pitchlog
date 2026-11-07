@@ -250,7 +250,7 @@ RETURNS TABLE(proof_sha256 text) LANGUAGE plpgsql VOLATILE SECURITY DEFINER
 SET search_path=pg_catalog,pg_temp AS $d03_writer$
 #variable_conflict use_column
 DECLARE v_tenant uuid; v_xid text; v_binding sync_fence.writer_bindings%ROWTYPE;
- v_event public.operation_events%ROWTYPE;
+ v_event public.operation_events%ROWTYPE; v_event_xmin xid;
  v_source sync_fence.stats_primitive_sources%ROWTYPE;
  v_receipt sync_fence.substitution_write_receipts%ROWTYPE;
  v_cp sync_fence.ordinary_pitch_checkpoints%ROWTYPE; v_frame jsonb;
@@ -290,6 +290,11 @@ BEGIN
  AND s.confirmed_version=1
  AND e.xmin::text::numeric=pg_catalog.mod(v_xid::numeric,4294967296::numeric)
  AND l.xmin=e.xmin AND s.xmin=e.xmin;
+ -- ROWTYPEにsystem列は無い。同TXで物理表のxminを明示取得する。
+ SELECT e.xmin INTO STRICT v_event_xmin FROM public.operation_events e
+ WHERE e.tenant_id=v_tenant AND e.game_id=v_binding.game_id
+ AND e.id=p_source_event_id
+ AND e.xmin::text::numeric=pg_catalog.mod(v_xid::numeric,4294967296::numeric);
  v_slot:=1; v_fingerprint:=v_binding.event_fingerprint;
  IF v_event.event_kind='play_input' THEN
   SELECT r.revision,r.source_set_sha256 INTO STRICT v_revision,v_s
@@ -305,7 +310,7 @@ BEGIN
   AND s.source_fingerprint=v_fingerprint AND s.slot_version=v_slot
   AND v.is_current AND v.invalidated_at IS NULL AND v.completion_state='current_open'
   AND v.model_sha256='{SOURCE_MODEL_HASH}' AND v.revision=v_revision
-  AND v.source_set_sha256=v_s AND s.xmin=v_event.xmin AND v.xmin=v_event.xmin;
+  AND v.source_set_sha256=v_s AND s.xmin=v_event_xmin AND v.xmin=v_event_xmin;
   v_payload:=v_event.payload;
   v_before:=v_payload#>'{{calculation,request,t1,before,stateFields}}';
   v_after:=v_payload#>'{{calculation,response,value,t1,after,stateFields}}';
@@ -346,7 +351,7 @@ BEGIN
   WHERE sr.tenant_id=v_tenant AND sr.game_id=v_event.game_id
   AND sr.attempt_id=p_attempt_id AND sr.phase_id=p_phase_id
   AND sr.source_event_id=v_event.id AND sr.source_d1=v_event.d1
-  AND sr.xmin=v_event.xmin AND n.xmin=v_event.xmin
+  AND sr.xmin=v_event_xmin AND n.xmin=v_event_xmin
   AND n.state='right_verified' AND n.source_event_id=v_event.id
   AND n.game_id=v_event.game_id AND n.internal_generation=v_event.generation
   AND n.device_id=v_binding.device_id
@@ -356,7 +361,7 @@ BEGIN
   WHERE c.tenant_id=v_tenant AND c.game_id=v_event.game_id
   AND c.internal_generation=v_event.generation AND c.id=v_receipt.checkpoint_id
   AND c.revision=v_receipt.after_revision AND c.content_digest=v_receipt.after_digest
-  AND c.state='current' AND c.xmin=v_event.xmin;
+  AND c.state='current' AND c.xmin=v_event_xmin;
   SELECT frames.value INTO STRICT v_frame FROM pg_catalog.jsonb_array_elements(
    v_cp.content#>'{{content,substitutionFrames}}') AS frames(value)
   WHERE frames.value#>>'{{source,eventId}}'=v_event.id::text

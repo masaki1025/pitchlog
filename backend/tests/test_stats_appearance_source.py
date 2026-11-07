@@ -568,3 +568,15 @@ def test_immutable_entry_guards_are_actual_db_triggers_not_model_labels():
     assert "BEFORE TRUNCATE" in body
     assert "immutable boundary rejected" in body
     assert "GRANT EXECUTE" not in body
+
+
+def test_writer_entry_uses_physical_xmin_not_composite_row_header():
+    """ROWTYPEに存在しないsystem列/合成rowの擬似xminで同TXを認めない。"""
+    from pitchlog.repositories.stats_appearance import candidate_writer_entry_function
+
+    body = candidate_writer_entry_function()
+    assert "v_event.xmin" not in body
+    assert "SELECT e.xmin INTO STRICT v_event_xmin FROM public.operation_events" in body
+    assert "s.xmin=v_event_xmin AND v.xmin=v_event_xmin" in body
+    assert "sr.xmin=v_event_xmin AND n.xmin=v_event_xmin" in body
+    assert "c.state='current' AND c.xmin=v_event_xmin" in body
