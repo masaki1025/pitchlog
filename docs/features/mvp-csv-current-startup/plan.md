@@ -20,3 +20,7 @@ created: 2026-11-07
 | 3 | 同版実UI新規開始→記録→取消→再入力→ZIP/reloadと故障/越境を検証する | fixture投入だけの200を製品成功とせず、同source実行/DB完全値/独立確認/未了条件を固定 |
 
 編集範囲は既候補の正規merge、CSV tableの新0047 migration/専用model、current_product_startupと対応試験、authz/正式catalog候補原本・公式生成派生/registry/CSV repositoryの必要最小接合と本計画。根拠packetはcsv-effective-root-connection-20261107/final-intake/checks.json。新しい野球意味や独自T1集計を加えず、P3 snapshot・終了再開/成績CSVの未接合を無理に補完しない。formal/全MVP/実機の未了を維持し、PO本人の確認/署名を代記しない。
+
+ステップ1固定c4be7454の実merge差分は起点8deb比236path（計画1を含み、依存取込235path）。CSVの旧130依存だけでなく、197正式候補の祖先/凍結archiveも含む。cache csv-current47-startup-root-20261107/merge-intake.json・merge.patch SHA f5a360a4f90da76986cc1affa06cdf55322eeef9fccb0f6ec292398e848c2f0aへ実集合/5競合/解消を固定。CURRENT46とその起動unit/DB試験は8debと全byte不変、C2はrecoverとCSV両operationを保持、旧lifecycle画面検証履歴も保持。旧130/13レビューを236全体の受理にしない。正式197の最後0debのRG1 fixture追随は後続基線mergeで保持する。
+
+ステップ2初段: 新0047は既候補と同じ10列/5制約/3監査索引を正規migrationへ分離し、RLSを有効/FORCE・PUBLIC/app権限を撤去した状態で止める。policy/grant/四関数はsource publisherから正式適用へ別接合し、migrationに混在させない。専用型元db/play_export/models.pyを追加し、実upgradeの全列/default/制約/indexとのpure照合1件とRuff/Ty成功。namespace付きbuiltinの表示差は試験の既知jsonb_typeof/nowだけを正規化、任意SQLを同値扱いにしない。CURRENTは46のままで、この初段だけで47正規起動の成立を主張しない。
