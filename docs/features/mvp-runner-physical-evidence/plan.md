@@ -1,10 +1,10 @@
 ---
 feature: mvp-runner-physical-evidence
-status: proposed
+status: active
 branch: feature/mvp-runner-physical-evidence-20261107
-承認: root の PO 委任判断待ち（2026-11-07）
+承認: root の PO 委任判断（2026-11-07、f3627d50 全文確認）
 重さ分類: コア領域
-計画レビュー周回: 0
+計画レビュー周回: 1
 確定ゲート周回: 0
 ---
 
@@ -22,3 +22,5 @@ branch: feature/mvp-runner-physical-evidence-20261107
 `guard_play_prefix_runner_insert` は現行で保存予定10列と `NEW` を全値照合し、`finish_play_prefix_projection` は挿入後の走者集合を照合するため、旧 `runnerAdvanceOverrides` 条件の複写は見つからない。両関数および current P3/read/started RR の本文・pin は不変更を初期方針とし、変更が必要と判明した場合だけ plan 追補を root に提示する。旧 P3 の親11本文 pin、`read_started_play_prefix_history_page` の元 reader pin は維持する。
 
 本候補の純検査は実 DB 保存成功・正式受理を意味しない。走塁の未裁定配置、D07 の二死二三塁単打以外への補助拡張、未対応 Batted applied、打点・第3アウト因果の推測は含めない。
+
+計画確認: root が `f3627d5035de66dbda37275c5d5448cf6e0c6bad` の SHA33865403…を全読し、非作者の限定計画レビューで P0/P1 なし、PO 委任で採用（2026-11-07）。初期実装は v3 RunnerEvent のみ。非投球後 normal bridge は未対象の MVP 残件であり、今回の成功へ含めない。

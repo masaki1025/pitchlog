@@ -18,6 +18,10 @@ from pitchlog.sync.ordinary_pitch_execution import (
     _live,
 )
 from pitchlog.sync.ordinary_pitch_physical import pitch_physical_row
+from pitchlog.sync.runner_physical_labels import (
+    ADVANCE_STATUS_BY_BASE_DESTINATION,
+    OUT_STATUS_BY_OBSERVED_KIND,
+)
 from pitchlog.sync.terminal_pitch_payload import verify_play_prefix_seal
 from pitchlog.sync.terminal_pitch_tokens import (
     PlayPrefixCheckpointLockToken,
@@ -38,11 +42,7 @@ def runner_physical_rows(before_runners, *, t1, t1_input, tenant_id, play_id):
     )
 
     slots = {"1": "first", "2": "second", "3": "third"}
-    labels = {
-        "1": {"2": "二進", "3": "三進", "4": "本進"},
-        "2": {"3": "三進", "4": "本進"},
-        "3": {"4": "本進"},
-    }
+    labels = ADVANCE_STATUS_BY_BASE_DESTINATION
     overrides: dict[str, str] = {}
     if type(t1_input) is BattedHitT1Input:
         observed = t1_input.runner_advance_overrides
@@ -57,13 +57,7 @@ def runner_physical_rows(before_runners, *, t1, t1_input, tenant_id, play_id):
     if set(overrides) - {runner.base for runner in before_runners}:
         raise OrdinaryPitchExecutionError
     runner_observed = {}
-    out_statuses = {
-        "force-out": "封殺",
-        "pitcher-pickoff-out": "投手牽制死",
-        "catcher-pickoff-out": "捕手牽制死",
-        "caught-stealing": "盗塁死",
-        "running-out": "走塁死",
-    }
+    out_statuses = OUT_STATUS_BY_OBSERVED_KIND
     out_bases = {
         target.runner
         for target in t1.out_effect.targets
