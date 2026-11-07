@@ -1,5 +1,16 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 2026-11-07：P3の通常0048全登録を固定、走塁の保存SDKを受領
+
+- **root候補固定点**: `feature/mvp-p3-current-startup@71e3eebe`。6表/21policy/114列ACL＋22実関数を通常起動へ一括登録し、全20私有表母集合/P3全構造・17属性guard検査を必須化。旧11関数の元全宣言/body pinを照合し、未知版・余剰権限・作成競合を補修しない。新152資産＋旧11 bodyを同publisherから描画、全163 bodyを再照合。CREATE OR REPLACE/宣言改行の3ヘッダだけを正規CREATEへ整え、全22件が既全属性/ACL再適用guardを通ることを確認。正式7.7/seal/全CI/通常mergeは未了。
+- **検査と実DB**: 正常0048接合の純4file **196passed79.05秒**、全backend Ty0/対象Ruff0。初回3失敗（試験キー/旧表数/観測double）とCREATE構文拒否の途中結果を保持し、検査条件は緩和しない。source固定の `full48-normal-initial`（exec23498）を共通lockで投入、実S0→48/同版resume/全構造改変/未完成commit/第6表後全取消を検査中。未実測を成功としない。実47配置の自動更新はこの実装範囲へ追加していない。cache `p3-current48-startup-root-20261107` が原典。173pathの限定非作者レビューはCSV担当へ依頼済み。
+- **26球訂正の阻害**: 元原本検証のfoul carry漏れを作者ce1/root1e2a10a7で修復し、root関連34passed4.89秒。作者の修復後実HTTPでは通常26球→訂正準備が通過したが、直後の記録権確認channel切断で503、保存hook未到達。純26球の唯一host計算は64.4msで、10秒超の実区間を無原値の区間計時で限定中。数学や期限を推測で変更せず、page_limit1への安易なSQL増加/認可結果cache/timeout延長を避ける。26件P3成功には数えない。
+- **走塁source受領**: 作者 `aa8a538535fa4336c1fbc84324129ad7d803dbc6`、35path、packet manifest SHA `c430b2f7aecf70801110286f572cba0de0feeae4fc18efd43ba5565e48f00654`。共通型/SDK/画面/41列/CSVのNP写像を受領。作者対象FE102/BE330成功、artifact/現行pin/D11/実PG/実画面は未供給。rootにはまだ未結合で、非作者レビュー・唯一公式build・pin追随後に保存へ進む。NPのplateAppearanceEnded=not-applicableをfalseへ補修せず列17/61/62明示NULLへ写す委任内表示判断をUD2計画へ記録、半回/試合終了は既保存T2を使う。
+- **共有型の採用証拠**: de3/f290の限定非作者REPORT SHA `80658b7c91f760061cf8e337dda7fc5c6460712e04b764eede141dbef2e703df`をroot再照合。de3の一般化不足P2を独立再現し、f290で全6入力拒否へ修復、後発独立79passed3.02秒/新P0/P1/P2なし。PO委任root判断でこの型/閉matcher限定範囲を採用、走塁作者核/P6/実保存/正式受理へは拡張しない。
+- **登板の候補実証**: 作者0f18c6f7/r16は実二球→0球投手交代→GET/成績CSVでA/B各1、native fact版/rev/S/slot/source全値不変・CP更新・B投球0を実DB **1passed125.06秒**で照合。正常v3/交代の候補で、P3/Undo/全体0球終了/通常0049は未了。LC再開/再終了r17はfixtureのimmutable team kind変更で拒否され製品経路未到達、正規POSTで自チーム配置する試験へ是正中。安全条件は変更しない。
+- **次**: まず通常48実DBの終端/未一致を確認→走塁aa8を同候補へ接合・公式artifact/pinを一括追随→実画面で走塁/再読込・P3大量履歴・終了再開を同版で通す。外部閲覧担当は依頼送付済み/受諾未受領、CI8は保留。全MVP/対象実機/負荷/HTTPS/運用復旧は未完成のまま維持する。
+
+
 ## 2026-11-07：通常0048の構造・権限・未完了guardを実DBで確認、操作接合を継続
 
 - **走塁の共有型依存を解消**: root `de3bfb27` にschema/d.tsの閉union、UUID/uniqueItemsの厳格検証、旧NP/通常計算の型分離を固定。旧53行の要求/全応答を両schemaでそのまま検証し、規範参照22定義を全値照合、キー順違いの重複object/未知format拒否を含む4spec **62passed4.70秒**、全frontend型0/対象lint0。作者7V7のoffline schema検証も成功（数学独立導出ではない）。旧formatterは新runnerObservationを明示拒否したまま、走塁担当へ真正封印/保存SDKの接合用commitを渡した。限定非作者レビュー依頼中、実走塁保存/正式受理として数えない。
