@@ -87,3 +87,7 @@ r13で435cb518の恒久assert入り画面縦断を再実行し、1passed136.17�
 `repositories/play_export_source_codec.py` は閉token/15列値契約・版/snapshot・cursor・余剰/欠落・部分NULLを検査する。`play_export_source_operations.py` は固定登録metadataと真正CSV scope専用の有限readerを候補化する。自由なSession/executorやUUIDだけを認可能力へ変えず、未登録の現registryでは実行を閉じる。共有function_operations/operation_registry/transactionへの必要差分はcache patchとしてrootへ渡し、正式関数body/catalog/ACL/seal/7.7はrootが直列で受理する。これらの共有sourceは本WTで編集しない。
 
 P3のeffective playに対する記録時88列producerは別供給として必要であり、identityのみを根拠に現在の名前/roster/0/NULLを埋めない。実PG・登録済token実経路・P3・終了/再開の接合が未成立の間、既P3 409を成功へ変更しない。計算・認可・保存保証は維持する。
+
+唯一S source read候補の検査: `868e792a` の3新module/純specに、root宛共有3path接合patch SHA `682182260620d6c3754926bc3a2ea448faf491e0fab289305faa0f667aa5dc79` をdetached `verify-play-csv-source-registration` だけへ適用した。実registryへ45番目の新tokenを固定し、cap/function/行数/SQLの4変造登録とgeneric実行を拒否するprobeを確認。本作者WTの共有3pathは不変更。
+
+owned r14-identityは **1passed96.73秒/source同一/owned cleanup**。実HTTPで新規作成/開始/通常3球を保存した後、新source関数を実app session_user/current_user・同一RR/ROでpage_size1の終端まで読み、真正current T5の3source（世代/D1/D2/event/play/slot/play版/指紋）と全件一致。無tenant/別tenant/RC/書込TX/501page/片側cursorの6拒否はSQLSTATEまで照合した。これは候補SQLの実境界検証であり、実認証で発行したTenantContextから新token/readerを呼ぶ製品routeの成立や、CSV repositoryのP3選択解除を意味しない。新DB試験は恒久保存する。0件sentinelと500/501境界・余剰/旧版/未知completion・逆行等の24純対向を含めCSV関連111passed/Ty成功、正式資産/独立確認は未了。
