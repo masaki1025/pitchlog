@@ -43,3 +43,7 @@ CSV/P3参照統一の初回検査: default4関数（owner/REVOKE/GRANTを含む�
 70c固定のowned P3/標準control実HTTPは1passed184.77秒、source前後同一/共有DSNunset/owned cleanup。P3後の次球保存、同D5再掲、旧生存unresolved、終結後のみretry、ACK喪失/別V12/越境、T2/T4全取消の既assertを完走。通常47＋候補P3配備であり実browser/標準48/正式受理ではない。非作者9pathレビューREPORTはcache p3-csv-selector-independent-20261107、diffSHA84c324340bc7df274d85fda9be521aedb6518f96ab162572ecd305edc84b4d91、P0/P1なし/独立6pass。追加既存100pass28.12秒。
 
 次のsource追補はf9c71376の3pathをpatchSHA531f1ae04a2a4f1c1217bd779ea8ce30796beebc40c03cf7a65dc664f4443ddcで限定採用、全byte一致。安打種別・閉codecの非盗塁・RBI07の既結果の写し、生成T5式/モデル不変更。root独立283pass8.03秒/REPORT334682b3dcf321e59e2f03e84446250b54b6216e7f16a0780685f293b20cc79e。作者run10は初回HTTP timeout/依存case未実行で全成功ではなく、DB全assert未到達を保持。原始27/登板/全MVP27を混同しない。
+
+通常0048構造の具体化（PO委任root、既ステップ2内）: 原0048の4表＋作者paging progress-r3/page-rows-r5の2表を明示SQLAlchemy型元へ写し、110列/64CHECK/20FK/6PK/6UK/3索引を同じ固定migrationへ配置する。core4表ownerは候補原典どおりsync_right_fn_owner、補助2表はowner。全表ENABLE/FORCE RLS、app/actor/PUBLIC直接権限を初期REVOKE。関数/ACL/guardは後続全catalog供給まで書込成功としない。capsuleにはdigest_formatを初期CREATEで追加し、<=25は旧p3-full-v1、>25はp3-page-chain-v2の閉CHECK。旧25上限だけを外さない。migration時に後発モデルをimportせず、初版から凍結したDDLを実行する。候補cache原本は不変更、FK/CHECK名は正常0048で明示名に統一し制約内容を維持。stats sourceのproviderに既P3を追加、生成T5式は変えない。
+
+新規構造checkerは6表の全owner/RLS/列/型/default/制約/索引を閉比較する。現CURRENT47を48へ先に繰り上げず、まず実47→固定48 migration正常、10種類の構造改変拒否、第6表直後故障で全取消を所有PGで確認する。これを通常48の全関数配置/起動/7.7/製品実証と読み替えない。追加pathはdb/past_correction/{__init__,models,startup}.py、migrations/versions/0048_p3_projection_storage.py、tests/db/test_p3_storage_migration.py。
