@@ -39,3 +39,7 @@ contracts/正本/根幹SQL/manifest/pin/fixtures/唯一artifact/共有台帳/roo
 実PG/実HTTPS/browserは共有DSN unset、共通owned-pg-browser-network.lockを全寿命保持し、実行WT sourceを固定する。loopback Chromiumを実機/運用信頼TLSと混同しない。失敗を成功へ読み替えず、既提供範囲と今回追加実証を分ける。正式受理/全MVP完了は別。
 
 ステップ1初回実測: d1608585 detached、3003source前後一致、共有DSNunset/共通lock、152.97sで失敗。実画面の新規作成/開始後、既Hostが自然にv3へ遷移するのに旧driverが既に消えた記録入口buttonを待っていた（3case全て同じ）。越境caseも先行result ID未生成で未成立。API/計算/保存成功の証拠にはしない。開始button前から実prefix0 GETを捕捉して自然な記録画面へ従うdriverへ是正し、結果IDファイルをpytest tmp_pathへ分離する。製品source/値期待/認可/artifactは不変更。Node/pnpm/docker/既TLS/venvはpreflight済み。
+
+ステップ1追加診断: 7b5a7fd8の実新規作成/開始/prefix0は成立したが、最初の無走者単打保存が503。1caseだけの透過observerでPlayExportWriterUnavailable→UndefinedFunction/SQLSTATE42883、stats_native_flush:269→play_export_producer:149と確定（83.46s、source不変）。旧b72は0047 tableのみでCSV同TX4関数が未配備の共通依存であり、rootの正規47/provider固定供給を待つ。同基線の全case反復や保存hook迂回は行わない。途中の診断run3はgrep選択ずれでtest未実行、成功証拠にしない。
+
+ステップ2候補: 操作で走者を作る4case（複数走者単打/二塁打、走者あり三塁打、満塁HR）を追加。各走者実結果を入力し、全41列/物理runner/status語彙/ID/責任投手・得点/打点flag・同D5原文再送/reloadを照合する。正の得点caseでは実T5のruns/rbi/runs_allowedがavailableで実数一致することも確認し、未供給を0へ補完しない。既唯一計算/観測型/正式資産/artifactは変更せず再利用。型/lint・構文は成功したが、実測はroot依存解消後で未成立。

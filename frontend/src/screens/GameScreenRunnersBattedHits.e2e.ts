@@ -578,6 +578,244 @@ test('一二塁から本塁打の全生還を保存し、再取得とreloadで3�
   )
 })
 
+async function selectAllRunnerResults(
+  page: Page,
+  result: string,
+  fielderId: string,
+  destinations: Readonly<Record<string, 'hold' | '2' | '3' | '4'>>,
+) {
+  await selectPitch(page, result, fielderId, null)
+  for (const [base, destination] of Object.entries(destinations))
+    await page
+      .getByTestId(`batted-runner-${base}-destination`)
+      .selectOption(destination)
+  if (Object.keys(destinations).length)
+    await page.getByTestId('batted-runner-confirmed').check()
+}
+
+async function captureLastOriginalRequest(page: Page) {
+  await page.addInitScript(() => {
+    const original = window.fetch.bind(window)
+    let last: { url: string; init: RequestInit } | undefined
+    window.fetch = async (input, init) => {
+      const url =
+        typeof input === 'string'
+          ? input
+          : input instanceof URL
+            ? input.href
+            : input.url
+      if (
+        init?.method === 'POST' &&
+        typeof init.body === 'string' &&
+        /\/games\/[^/]+\/sync\/events$/.test(
+          new URL(url, location.href).pathname,
+        )
+      )
+        last = {
+          url,
+          init: {
+            ...init,
+            headers: new Headers(init.headers),
+            body: init.body,
+          },
+        }
+      return original(input, init)
+    }
+    Object.defineProperty(window, '__repeatRunnerBattedForTest', {
+      value: async () => {
+        if (!last) throw new Error('元要求がないため再送できません')
+        const response = await original(last.url, {
+          ...last.init,
+          signal: AbortSignal.timeout(30_000),
+        })
+        return {
+          status: response.status,
+          body: (await response.json()) as unknown,
+        }
+      },
+    })
+  })
+}
+
+const multiRunnerCases = [
+  {
+    scenario: 'single-first-second',
+    label: 'D',
+    result: 'batting-result.single',
+    loaded: false,
+    destinations: { '1': '3', '2': '4' },
+    runners: 'first-third',
+    score: '1',
+    nextOrder: '4',
+    count: '3',
+    afterRunners: [
+      { order: '3', base: '1' },
+      { order: '2', base: '3' },
+    ],
+  },
+  {
+    scenario: 'double-first-second',
+    label: 'E',
+    result: 'batting-result.double',
+    loaded: false,
+    destinations: { '1': '3', '2': '4' },
+    runners: 'second-third',
+    score: '1',
+    nextOrder: '4',
+    count: '3',
+    afterRunners: [
+      { order: '3', base: '2' },
+      { order: '2', base: '3' },
+    ],
+  },
+  {
+    scenario: 'triple-first-second',
+    label: 'F',
+    result: 'batting-result.triple',
+    loaded: false,
+    destinations: { '1': '4', '2': '4' },
+    runners: 'third',
+    score: '2',
+    nextOrder: '4',
+    count: '3',
+    afterRunners: [{ order: '3', base: '3' }],
+  },
+  {
+    scenario: 'home-run-loaded',
+    label: 'G',
+    result: 'batting-result.home-run',
+    loaded: true,
+    destinations: { '1': '4', '2': '4', '3': '4' },
+    runners: 'empty',
+    score: '4',
+    nextOrder: '5',
+    count: '4',
+    afterRunners: [],
+  },
+] as const
+
+for (const scenario of multiRunnerCases) {
+  test(`全走者の明示結果 ${scenario.scenario} を保存・再送・reloadする`, async ({
+    page,
+  }) => {
+    page.setDefaultTimeout(httpTimeout)
+    await captureLastOriginalRequest(page)
+    await login(page)
+    const saved = await createGame(page, scenario.label)
+    const zero = saved.initialHead
+    const fielder = zero.roster.teams
+      .find((t) => t.side === 'home')
+      ?.participants.find((p) =>
+        p.roles.some((r) => r.kind === 'fielding' && r.position === '9'),
+      )
+    if (!fielder) throw new Error('実守備rosterに位置9の野手がない')
+    const requests = requestRecorder(page, saved.id)
+    let before = zero
+    const preparation = [
+      { destinations: {}, length: '1', runners: 'first' },
+      { destinations: { '1': '2' }, length: '2', runners: 'first-second' },
+      ...(scenario.loaded
+        ? [
+            {
+              destinations: { '1': '2', '2': '3' } as const,
+              length: '3',
+              runners: 'first-second-third',
+            },
+          ]
+        : []),
+    ] as const
+    for (const step of preparation) {
+      await selectAllRunnerResults(
+        page,
+        'batting-result.single',
+        fielder.player.player_id,
+        step.destinations,
+      )
+      const read = readHead(page, saved.id, step.length)
+      await save(page, saved.id)
+      before = (await (await read).json()) as Head
+      expect(before.after.stateFields['state.runners']).toBe(step.runners)
+      expect(before.after.stateFields['state.score']).toEqual({
+        home: '0',
+        away: '0',
+      })
+    }
+    await selectAllRunnerResults(
+      page,
+      scenario.result,
+      fielder.player.player_id,
+      scenario.destinations,
+    )
+    const read = readHead(page, saved.id, scenario.count)
+    await save(page, saved.id)
+    const final = (await (await read).json()) as Head
+    expect(final.page.items.slice(0, -1)).toEqual(before.page.items)
+    expect(final.page.items).toHaveLength(Number(scenario.count))
+    expect(final.after.stateFields['state.runners']).toBe(scenario.runners)
+    expect(final.after.stateFields['state.score']).toEqual({
+      home: '0',
+      away: scenario.score,
+    })
+    expect(final.after.stateFields['state.outs']).toBe('0')
+    expect(final.after.stateFields['state.count.balls']).toBe('0')
+    expect(final.after.stateFields['state.count.strikes']).toBe('0')
+    expect(final.after.stateFields['state.inning']).toBe('1')
+    expect(final.after.stateFields['state.half']).toBe('top')
+    expect(final.after.battingOrderBySide).toEqual({
+      away: scenario.nextOrder,
+      home: '1',
+    })
+    expect(final.after.scoreboard).toEqual({
+      inningScores: { home: '0', away: scenario.score },
+      hits: scenario.count,
+      errors: '0',
+      strikeouts: '0',
+      walks: '0',
+    })
+    expect(
+      final.runners.slice().sort((a, b) => Number(a.base) - Number(b.base)),
+    ).toEqual(
+      scenario.afterRunners.map((r) => ({
+        runnerId: zero.lineup.away.battingOrder[r.order],
+        responsiblePitcherId: zero.lineup.home.pitcherId,
+        base: r.base,
+        status: '継続',
+        statusSource: 'auto',
+      })),
+    )
+    const flags = (
+      final.last_entry as { difference: { statFlags: Record<string, boolean> } }
+    ).difference.statFlags
+    for (const name of ['得点', '失点', '打点', '安打'])
+      expect(flags[name]).toBe(true)
+    expect(flags['本塁打']).toBe(scenario.result === 'batting-result.home-run')
+    const original = Object.freeze({ ...requests.at(-1)! })
+    const replay = await repeatWindow(page)
+    expect(replay.status).toBe(200)
+    expect(replay.body.eventResults[0]?.a5Result).toBe('重複')
+    expect(requests).toHaveLength(Number(scenario.count) + 1)
+    expect(requests.at(-1)).toEqual(original)
+    const restoredRead = readHead(page, saved.id, scenario.count)
+    await page.reload({ timeout: httpTimeout })
+    const restored = (await (await restoredRead).json()) as Head
+    expect(restored.after).toEqual(final.after)
+    expect(restored.runners).toEqual(final.runners)
+    expect(restored.prefix_ref).toEqual(final.prefix_ref)
+    expect(restored.page.items).toEqual(final.page.items)
+    expect(restored.last_entry).toEqual(final.last_entry)
+    console.log(
+      'PITCHLOG_RUNNER_SCREEN_RESULT=' +
+        JSON.stringify({
+          game: saved.id,
+          scenario: scenario.scenario,
+          rows: restored.page.items,
+          after: restored.after,
+          runners: restored.runners,
+        }),
+    )
+  })
+}
+
 test('別tenantは対象試合のprefixを取得できない', async ({ page }) => {
   test.skip(!otherTeam || !resultFile, '他tenant資格または結果ファイルが未供給')
   const game = readFileSync(resultFile!, 'utf8')

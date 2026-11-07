@@ -1,4 +1,4 @@
-"""走者あり打球2シナリオを実画面・owned PG・実同期で照合する。"""
+"""走者あり4安打を実画面・owned PG・実同期で照合する。"""
 
 from __future__ import annotations
 
@@ -35,6 +35,77 @@ _RESULTS = {
     "single-first-to-third": "batting-result.single",
     "double-first-to-home": "batting-result.double",
     "home-run-first-second": "batting-result.home-run",
+    "single-first-second": "batting-result.single",
+    "double-first-second": "batting-result.double",
+    "triple-first-second": "batting-result.triple",
+    "home-run-loaded": "batting-result.home-run",
+}
+
+_COUNTS = {
+    "single-first-to-third": 2,
+    "double-first-to-home": 2,
+    "home-run-first-second": 3,
+    "single-first-second": 3,
+    "double-first-second": 3,
+    "triple-first-second": 3,
+    "home-run-loaded": 4,
+}
+_SCORES = {
+    "single-first-to-third": 0,
+    "double-first-to-home": 1,
+    "home-run-first-second": 3,
+    "single-first-second": 1,
+    "double-first-second": 1,
+    "triple-first-second": 2,
+    "home-run-loaded": 4,
+}
+_AFTER_RUNNERS = {
+    "single-first-to-third": "first-third",
+    "double-first-to-home": "second",
+    "home-run-first-second": "empty",
+    "single-first-second": "first-third",
+    "double-first-second": "second-third",
+    "triple-first-second": "third",
+    "home-run-loaded": "empty",
+}
+_AFTER_IDENTITIES = {
+    "single-first-to-third": [("batter", "1"), ("1", "3")],
+    "double-first-to-home": [("batter", "2")],
+    "home-run-first-second": [],
+    "single-first-second": [("batter", "1"), ("1", "3")],
+    "double-first-second": [("batter", "2"), ("1", "3")],
+    "triple-first-second": [("batter", "3")],
+    "home-run-loaded": [],
+}
+_STATUSES = {
+    "single-first-to-third": {1: [], 2: [(1, "三進", "manual")]},
+    "double-first-to-home": {1: [], 2: [(1, "本進", "manual")]},
+    "home-run-first-second": {
+        1: [],
+        2: [(1, "二進", "manual")],
+        3: [(1, "本進", "manual"), (2, "本進", "manual")],
+    },
+    "single-first-second": {
+        1: [],
+        2: [(1, "二進", "manual")],
+        3: [(1, "三進", "manual"), (2, "本進", "manual")],
+    },
+    "double-first-second": {
+        1: [],
+        2: [(1, "二進", "manual")],
+        3: [(1, "三進", "manual"), (2, "本進", "manual")],
+    },
+    "triple-first-second": {
+        1: [],
+        2: [(1, "二進", "manual")],
+        3: [(1, "本進", "manual"), (2, "本進", "manual")],
+    },
+    "home-run-loaded": {
+        1: [],
+        2: [(1, "二進", "manual")],
+        3: [(1, "二進", "manual"), (2, "三進", "manual")],
+        4: [(1, "本進", "manual"), (2, "本進", "manual"), (3, "本進", "manual")],
+    },
 }
 
 
@@ -70,17 +141,17 @@ def _run_runner_playwright(db, origin: str, extra_env: dict[str, str]):
 
 
 def _verify_saved_rows(admin, tenant, game, scenario: str) -> None:
-    """実原本を唯一reader/projectorへ通し、親41列とrunner全列を照合する。"""
+    """実原本の41列/全走者と、独立した進塁/得点/credit期待を照合する。"""
+    count = _COUNTS[scenario]
     records = admin.execute(
         "SELECT to_jsonb(p), e.payload FROM public.play_rows AS p "
         "JOIN public.operation_events AS e "
         "ON e.tenant_id=p.tenant_id AND e.id=p.source_event_id "
         "WHERE p.tenant_id=%s AND p.game_id=%s "
-        "ORDER BY p.play_number LIMIT 3",
+        "ORDER BY p.play_number LIMIT 4",
         (tenant, game),
     ).fetchall()
-    expected_count = 3 if scenario == "home-run-first-second" else 2
-    assert len(records) == expected_count
+    assert len(records) == count
     for index, (actual, raw) in enumerate(records):
         payload = _evaluate_lineup_payload(raw)
         request = payload.calculation.request
@@ -111,82 +182,84 @@ def _verify_saved_rows(admin, tenant, game, scenario: str) -> None:
             play_id=UUID(actual["id"]),
         )
         assert [r[0] for r in runners] == expected_runners
-        # 独立した正本語彙期待。投影helper自身の値を期待へ再利用しない。
         statuses = [
             (r[0]["base"], r[0]["status"], r[0]["status_source"]) for r in runners
         ]
-        expected_statuses = {
-            "single-first-to-third": {1: [], 2: [(1, "三進", "manual")]},
-            "double-first-to-home": {1: [], 2: [(1, "本進", "manual")]},
-            "home-run-first-second": {
-                1: [],
-                2: [(1, "二進", "manual")],
-                3: [(1, "本進", "manual"), (2, "本進", "manual")],
-            },
-        }
-        assert statuses == expected_statuses[scenario][index + 1]
-        if index == 0:
-            assert runners == []
-            assert response.t1.after.state_fields.runners == "first"
-            assert response.t1.after.state_fields.balls == "0"
-            assert response.t1.after.state_fields.strikes == "0"
-            assert response.t1.after.state_fields.outs == "0"
-            assert response.t1.after.batting_order_by_side.away == "2"
-            assert response.t1.after.batting_order_by_side.home == "1"
-        elif scenario == "home-run-first-second" and index == 1:
+        assert statuses == _STATUSES[scenario][index + 1]
+        assert response.t1.after.state_fields.balls == "0"
+        assert response.t1.after.state_fields.strikes == "0"
+        assert response.t1.after.state_fields.outs == "0"
+        assert response.t1.after.batting_order_by_side.home == "1"
+        for runner in response.runners:
+            assert runner.responsible_pitcher_id == payload.participants.pitcher_id
+        if index < count - 1:
             assert actual["batting_result_key"] == "batting-result.single"
-            assert response.t1.after.state_fields.runners == "first-second"
+            assert (
+                response.t1.after.state_fields.runners
+                == ("first", "first-second", "first-second-third")[index]
+            )
             assert response.t1.after.state_fields.score.away == "0"
-            assert response.t1.runner_default_advance.first.modality == "forced"
-            assert response.t1.runner_default_advance.first.destination == "2"
-        else:
-            assert actual["batting_result_key"] == _RESULTS[scenario]
-            assert request.t1.runner_advance_overrides.kind == "applied"
-            observation = payload.observations.runner_advance_overrides
-            assert observation.kind == "applied"
-            assert [
-                (o.runner_base, o.destination)
-                for o in request.t1.runner_advance_overrides.overrides
-            ] == [(o.runner_base, o.destination) for o in observation.overrides]
-            if scenario == "single-first-to-third":
-                assert response.t1.after.state_fields.runners == "first-third"
-                assert response.t1.after.state_fields.score.away == "0"
-                assert response.t1.after.batting_order_by_side.away == "3"
-                assert sorted(
-                    (r.runner_id, r.base) for r in response.runners
-                ) == sorted(
-                    [
-                        (payload.participants.batter_id, "1"),
-                        (request.source.runners[0].runner_id, "3"),
-                    ]
+            assert response.t1.after.batting_order_by_side.away == str(index + 2)
+            if index:
+                assert response.t1.runner_default_advance.first.modality == "forced"
+                assert response.t1.runner_default_advance.first.destination == "2"
+            continue
+        assert actual["batting_result_key"] == _RESULTS[scenario]
+        assert request.t1.runner_advance_overrides.kind == "applied"
+        observation = payload.observations.runner_advance_overrides
+        assert observation.kind == "applied"
+        assert [
+            (o.runner_base, o.destination)
+            for o in request.t1.runner_advance_overrides.overrides
+        ] == [(o.runner_base, o.destination) for o in observation.overrides]
+        assert response.t1.after.state_fields.runners == _AFTER_RUNNERS[scenario]
+        assert response.t1.after.state_fields.score.away == str(_SCORES[scenario])
+        assert response.t1.after.scoreboard.inning_scores.away == str(_SCORES[scenario])
+        assert response.t1.after.batting_order_by_side.away == str(count + 1)
+        expected_after = []
+        for origin, base in _AFTER_IDENTITIES[scenario]:
+            runner_id = (
+                payload.participants.batter_id
+                if origin == "batter"
+                else next(
+                    r.runner_id for r in request.source.runners if r.base == origin
                 )
-            elif scenario == "double-first-to-home":
-                assert response.t1.after.state_fields.runners == "second"
-                assert response.t1.after.state_fields.score.away == "1"
-                assert response.t1.after.batting_order_by_side.away == "3"
-                assert [(r.runner_id, r.base) for r in response.runners] == [
-                    (payload.participants.batter_id, "2")
-                ]
-                assert response.t1.stat_flags.run is True
-                assert response.t1.stat_flags.rbi is True
-            else:
-                assert index == 2
-                assert len(request.source.runners) == 2
-                assert response.t1.after.state_fields.runners == "empty"
-                assert response.t1.after.state_fields.score.away == "3"
-                assert response.t1.after.scoreboard.inning_scores.away == "3"
-                assert response.runners == ()
-                assert response.t1.stat_flags.run is True
-                assert response.t1.stat_flags.rbi is True
-                assert response.t1.stat_flags.home_run is True
+            )
+            expected_after.append((runner_id, base))
+        assert sorted((r.runner_id, r.base) for r in response.runners) == sorted(
+            expected_after
+        )
+        assert response.t1.stat_flags.run is (_SCORES[scenario] > 0)
+        assert response.t1.stat_flags.rbi is (_SCORES[scenario] > 0)
+        assert response.t1.stat_flags.home_run is (
+            _RESULTS[scenario] == "batting-result.home-run"
+        )
     ledger = admin.execute(
         "SELECT count(*) FROM public.idempotency_ledger AS l "
-        "JOIN public.operation_events AS e "
-        "ON l.tenant_id=e.tenant_id AND l.d5=e.d5 "
+        "JOIN public.operation_events AS e ON l.tenant_id=e.tenant_id AND l.d5=e.d5 "
         "WHERE e.tenant_id=%s AND e.game_id=%s",
         (tenant, game),
     ).fetchone()
-    assert ledger == (expected_count,)
+    assert ledger == (count,)
+    versions = admin.execute(
+        "SELECT id,source_count,completion_state FROM sync_fence.stats_fact_versions "
+        "WHERE tenant_id=%s AND game_id=%s AND is_current",
+        (tenant, game),
+    ).fetchall()
+    assert len(versions) == 1
+    assert versions[0][1:] == (count, "current_open")
+    if _SCORES[scenario] == 0:
+        return  # 0credit行の存在は本単位で仮定せず、T1の0得点/falseで照合済み。
+    facts = admin.execute(
+        "SELECT metric_id,SUM(amount),COUNT(*) FILTER (WHERE state<>'available') "
+        "FROM sync_fence.stats_primitive_facts "
+        "WHERE tenant_id=%s AND game_id=%s AND fact_version_id=%s "
+        "AND metric_id IN ('runs','rbi','runs_allowed') GROUP BY metric_id",
+        (tenant, game, versions[0][0]),
+    ).fetchall()
+    assert {metric: (amount, unavailable) for metric, amount, unavailable in facts} == {
+        key: (_SCORES[scenario], 0) for key in ("runs", "rbi", "runs_allowed")
+    }
 
 
 @pytest.mark.skipif(
@@ -257,10 +330,10 @@ def test_screen_runner_batted_hits(vertical_database, tmp_path: Path) -> None:
                     completed.stdout,
                 )
             ]
-            assert len(observed) == 3
+            assert len(observed) == 7
             assert {r["scenario"] for r in observed} == set(_RESULTS)
             created_games = {r["game"] for r in observed}
-            assert len(created_games) == 3
+            assert len(created_games) == 7
             assert str(db.game_id) not in created_games
             with psycopg.connect(db.authority.database.business_admin) as admin:
                 for result in observed:
@@ -273,8 +346,6 @@ def test_screen_runner_batted_hits(vertical_database, tmp_path: Path) -> None:
                             ).format(sql.Identifier(table)),
                             (db.tenant_id, game),
                         ).fetchone()
-                        expected_count = (
-                            3 if result["scenario"] == "home-run-first-second" else 2
-                        )
+                        expected_count = _COUNTS[result["scenario"]]
                         assert count == (expected_count,), table
                     _verify_saved_rows(admin, db.tenant_id, game, result["scenario"])
