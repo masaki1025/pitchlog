@@ -1,6 +1,10 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { IDBFactory } from 'fake-indexeddb'
+import { createPinia, disposePinia, setActivePinia, type Pinia } from 'pinia'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import fixture from './fixtures/lineupPrefixGame.recorded.v3.json'
 import { apiRequest } from './client'
+import { setVerifiedAuthForTest } from './auth.test-support'
+import { useAuthStore } from '../stores/authStore'
 import {
   p3ChangeBody,
   postP3Change,
@@ -30,7 +34,22 @@ const observations = {
   battingSide: null,
 }
 
-beforeEach(() => request.mockReset())
+let pinia: Pinia
+beforeEach(() => {
+  request.mockReset()
+  pinia = createPinia()
+  setActivePinia(pinia)
+  setVerifiedAuthForTest(useAuthStore(), {
+    teamId: game.prefix_ref.tenantId,
+    teamName: 'wire単体の試験文脈',
+  })
+  vi.stubGlobal('indexedDB', new IDBFactory())
+  vi.stubGlobal('isSecureContext', true)
+})
+afterEach(() => {
+  disposePinia(pinia)
+  vi.unstubAllGlobals()
+})
 
 describe('実P3 wire', () => {
   it('真正GETの版と元参照を読んで、同本文の受理全組だけを採用する', async () => {

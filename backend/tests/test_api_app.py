@@ -90,6 +90,9 @@ async def test_routers_register_meta_auth_player_and_team_routes() -> None:
         (("GET",), "/games/{game_id}/stats"),
         (("GET",), "/stats/seasons/{year}"),
         (("GET",), "/games/{game_id}/started"),
+        (("GET",), "/games/{game_id}/sync/change-target/{d1}"),
+        (("GET",), "/games/{game_id}/sync/change-confirmation/{d1}"),
+        (("POST",), "/games/{game_id}/sync/change"),
         (("POST",), "/games/{game_id}/sync/attempts/recover"),
         (("POST",), "/games/{game_id}/sync/events"),
     )
@@ -127,6 +130,9 @@ async def test_routers_register_meta_auth_player_and_team_routes() -> None:
         "game_basic_stats",
         "season_basic_stats",
         "started_game_detail",
+        "read_sync_change_target",
+        "read_sync_change_confirmation",
+        "sync_change",
         "recover_sync_attempt",
         "sync_events",
     )

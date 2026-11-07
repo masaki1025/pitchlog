@@ -486,18 +486,35 @@ def recover_attempt(
     """元E-1要求の旧試行を照会し、実fence/PG終結後の再送資格だけを返す。"""
     configuration = _configuration(request)
     try:
-        path = _request_path(payload)
+        # 元本文の閉S-1 unionからだけ経路を決め、既events入口をP3へ広げない。
+        path = "P3" if "change" in payload else _request_path(payload)
         original = SyncRequest.from_payload(path, str(game_id), payload)
-        raw_events = payload["events"]
-        if not isinstance(raw_events, list):
-            raise RequestShapeError("S-1: イベント列が必要")
-        source = freeze_wire_source(
-            game_id=original.game_id,
-            d4=str(original.d4),
-            raw_events=tuple(
-                dict(event) for event in cast(list[Mapping[str, object]], raw_events)
-            ),
-        )
+        if path == "P3":
+            change = payload["change"]
+            target = original.events[0].v10
+            if not isinstance(change, dict) or not isinstance(target, Mapping):
+                raise RequestShapeError("S-1: P3変更原文が不正")
+            target_d4 = target.get("d4")
+            if type(target_d4) is not str:
+                raise RequestShapeError("S-1: P3対象世代が不正")
+            source = freeze_wire_source(
+                game_id=original.game_id,
+                d4=target_d4,
+                raw_events=(dict(change),),
+                d1less=True,
+            )
+        else:
+            raw_events = payload["events"]
+            if not isinstance(raw_events, list):
+                raise RequestShapeError("S-1: イベント列が必要")
+            source = freeze_wire_source(
+                game_id=original.game_id,
+                d4=str(original.d4),
+                raw_events=tuple(
+                    dict(event)
+                    for event in cast(list[Mapping[str, object]], raw_events)
+                ),
+            )
         credential_digest = _credential_digest(device_credential)
     except InitialGrantUnavailable:
         raise HTTPException(status_code=401) from None

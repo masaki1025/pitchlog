@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from contextlib import nullcontext
 from typing import Literal
 from uuid import UUID
@@ -12,6 +13,7 @@ from pitchlog.repositories.transaction import tenant_transaction_scope
 from pitchlog.sync.apply import _verify_replay_device
 from pitchlog.sync.control_provider.binding_control import BindingControl
 from pitchlog.sync.gate import game_accessible
+from pitchlog.sync.idempotency import operation_fingerprint
 from pitchlog.sync.model import SyncRequest
 from pitchlog.sync.source_binding import _e1_receipt_scope, receipt_body_fingerprint
 from pitchlog.sync.stop_contract import AttemptIdentity
@@ -58,18 +60,22 @@ def recover_sync_attempt(
         or type(cookie) is not str
         or not cookie
         or type(control) is not BindingControl
-        or request.path not in ("P1", "P2")
+        or request.path not in ("P1", "P2", "P3")
         or len(request.events) != 1
         or source.game_id != request.game_id
-        or source.d4 != request.d4
         or len(source.events) != 1
         or len(source.event_fingerprints) != 1
         or source.codec_version != 1
     ):
         raise ValueError("旧試行照会の元要求が不正")
     event = request.events[0]
+    p3 = request.path == "P3"
+    target = event.v10 if p3 else None
+    target_d4 = target.get("d4") if isinstance(target, Mapping) else None
     if (
-        event.d4 != request.d4
+        source.d1less is not p3
+        or (source.d4 != target_d4 if p3 else source.d4 != request.d4)
+        or (event.d4 is not None if p3 else event.d4 != request.d4)
         or event.game_id != request.game_id
         or source.events[0].wire_event.get("d5") != event.d5
         or source.events[0].wire_event.get("d1") != event.d1
@@ -106,4 +112,12 @@ def recover_sync_attempt(
             source.event_fingerprints[0],
             cookie=cookie,
             body_fingerprint=body_fingerprint,
+            **(
+                {
+                    "phase_kind": "d1less",
+                    "d5_fingerprint": operation_fingerprint(event, "P3", None),
+                }
+                if p3
+                else {}
+            ),
         )

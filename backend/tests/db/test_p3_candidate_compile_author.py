@@ -38,6 +38,12 @@ from .test_first_ball_vertical_http import (
 )
 from .test_first_ball_vertical_http import vertical_database as vertical_database
 from .test_initial_game_start import product_node_binary as product_node_binary
+from .test_initial_recording_right_scope import (
+    admin_connection as admin_connection,
+)
+from .test_initial_recording_right_scope import (
+    tested_role_connection as tested_role_connection,
+)
 from .test_terminal_pitch_storage import _lineup_script
 
 pytestmark = pytest.mark.requires_db
@@ -718,8 +724,7 @@ def test_owned_candidate_actual_http_p3(vertical_database) -> None:
     """候補DDL/本文をowned実DBへ適用し、真正開始後のHTTP訂正を検査する。"""
     test_owned_candidate_0048_compiles(vertical_database)
     db = vertical_database
-    control_sql = (_PACKET / "p3-d1less-control-functions.candidate.sql").read_text()
-    control_apply = subprocess.run(
+    control_catalog = subprocess.run(
         [
             "docker",
             "exec",
@@ -730,19 +735,79 @@ def test_owned_candidate_actual_http_p3(vertical_database) -> None:
             "psql",
             "-X",
             "-q",
+            "-A",
+            "-t",
             "-v",
             "ON_ERROR_STOP=1",
             "-U",
             "postgres",
             "-d",
             "binding_control_fixture",
+            "-c",
+            """
+            SELECT COALESCE(jsonb_agg(jsonb_build_object(
+                'signature', p.oid::regprocedure::text,
+                'owner', pg_get_userbyid(p.proowner),
+                'definer', p.prosecdef,
+                'volatile', p.provolatile,
+                'language', l.lanname,
+                'path', to_jsonb(p.proconfig),
+                'result', pg_get_function_result(p.oid),
+                'actor', has_function_privilege(
+                    'pitchlog_sync_binding_actor', p.oid, 'EXECUTE'),
+                'app', CASE WHEN to_regrole('pitchlog_app') IS NULL THEN false
+                    ELSE has_function_privilege(
+                        to_regrole('pitchlog_app'), p.oid, 'EXECUTE') END,
+                'unexpectedGrant', EXISTS (
+                    SELECT FROM aclexplode(
+                        COALESCE(p.proacl, acldefault('f', p.proowner))) AS acl
+                    WHERE acl.privilege_type = 'EXECUTE'
+                      AND acl.grantee NOT IN (
+                          p.proowner,
+                          (SELECT oid FROM pg_roles
+                           WHERE rolname = 'pitchlog_sync_binding_actor'))
+                )
+            ) ORDER BY p.proname), '[]'::jsonb)::text
+            FROM pg_proc AS p
+            JOIN pg_language AS l ON l.oid = p.prolang
+            WHERE p.oid IN (
+                to_regprocedure(
+                    'sync_control.register_d1less_phase(uuid,jsonb)'),
+                to_regprocedure(
+                    'sync_control.read_d1less_phase(uuid,uuid,uuid)'))
+            """,
         ],
-        input=control_sql,
         capture_output=True,
         text=True,
         check=False,
     )
-    assert control_apply.returncode == 0, control_apply.stderr[-500:]
+    assert control_catalog.returncode == 0, control_catalog.stderr[-500:]
+    assert json.loads(control_catalog.stdout) == [
+        {
+            "signature": "sync_control.read_d1less_phase(uuid,uuid,uuid)",
+            "owner": "pitchlog_sync_binding_fn_owner",
+            "definer": True,
+            "volatile": "v",
+            "language": "plpgsql",
+            "path": ["search_path=pg_catalog, pg_temp"],
+            "result": "TABLE(context_json text)",
+            "actor": True,
+            "app": False,
+            "unexpectedGrant": False,
+        },
+        {
+            "signature": "sync_control.register_d1less_phase(uuid,jsonb)",
+            "owner": "pitchlog_sync_binding_fn_owner",
+            "definer": True,
+            "volatile": "v",
+            "language": "plpgsql",
+            "path": ["search_path=pg_catalog, pg_temp"],
+            "result": "void",
+            "actor": True,
+            "app": False,
+            "unexpectedGrant": False,
+        },
+    ]
     with psycopg.connect(db.authority.database.business_admin) as admin:
         admin.execute(
             "INSERT INTO public.admin_vocabularies(key,category,display_name) "

@@ -1,6 +1,7 @@
 /** 実P3の対象版と独立応答だけを閉検証する。野球計算は行わない。 */
 import type { PrefixRef } from '../../../contracts/state-transition/lineup_play_prefix_v1'
 import { apiRequest, type SyncRequestCredentials } from './client'
+import { postRecoverableP3Change } from './recoverableSyncPost'
 import { canonicalUuid } from './authIntent'
 import { isLineupDefinition } from './lineupPrefixWire'
 import { sameOrdinaryWire } from './ordinaryPitchWire'
@@ -285,10 +286,10 @@ export async function postP3Change(
   body: P3ChangeBody,
   credentials: SyncRequestCredentials,
 ): Promise<P3ProductResult> {
-  const raw = await apiRequest<unknown>(
-    'POST',
-    `/games/${body.change.game_id}/sync/change`,
-    { tenantBound: true, syncCredentials: credentials, body },
+  const sent = await postRecoverableP3Change(
+    body.change.game_id,
+    body,
+    credentials,
   )
-  return parseResult(raw, body)
+  return parseResult(sent.response, sent.body)
 }

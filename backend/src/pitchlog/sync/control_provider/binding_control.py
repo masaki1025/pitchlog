@@ -132,10 +132,10 @@ def _phase_wire(
         "d5": str(phase.d5),
         "event_fingerprint": phase.event_fingerprint,
     }
-    if a.body_fingerprint is not None:
-        value["body_fingerprint"] = a.body_fingerprint
     if type(phase) is D1lessPhaseBinding:
         value["phase_kind"] = "d1less"
+    if a.body_fingerprint is not None:
+        value["body_fingerprint"] = a.body_fingerprint
     return value
 
 
@@ -342,15 +342,22 @@ class _BindingAuthority:
             raise WriterBindingUnavailable("phase権威が不一致")
         # 信頼された専用peerのみ到達する固定登録。部分上書きはSQLが拒否する。
         d1less = phase.get("phase_kind") == "d1less"
-        self._call(
-            "control",
-            "SELECT sync_control.register_d1less_phase(%s,%s)"
-            if d1less
-            else "SELECT sync_control.register_first_ball_phase(%s,%s)",
-            (tenant, Jsonb(phase)),
-            write=True,
-            confirmed_rejection="register_d1less" if d1less else "register",
-        )
+        if d1less:
+            self._call(
+                "control",
+                "SELECT sync_control.register_d1less_phase(%s,%s)",
+                (tenant, Jsonb(phase)),
+                write=True,
+                confirmed_rejection="register_d1less",
+            )
+        else:
+            self._call(
+                "control",
+                "SELECT sync_control.register_first_ball_phase(%s,%s)",
+                (tenant, Jsonb(phase)),
+                write=True,
+                confirmed_rejection="register",
+            )
         attempt, phase_id = UUID(phase["attempt_id"]), UUID(phase["phase_id"])
         saved = self._call(
             "control",
@@ -373,7 +380,7 @@ class _BindingAuthority:
         binding = {
             k: v
             for k, v in phase.items()
-            if k not in {"attempt_id", "phase_id", "body_fingerprint", "phase_kind"}
+            if k not in {"attempt_id", "phase_id", "phase_kind", "body_fingerprint"}
         }
         binding.update(writer.wire())
         binding.update(
@@ -488,12 +495,22 @@ class _BindingAuthority:
         d5: UUID,
         event_fingerprint: str,
         body_fingerprint: str,
+        *,
+        phase_kind: Literal["event", "d1less"] = "event",
     ) -> Literal["matching", "absent", "unresolved"]:
         """未登録と旧原本のdigest欠落を同じcontrol鍵で区別する。"""
+        if phase_kind not in ("event", "d1less"):
+            raise WriterBindingUnavailable("旧試行phaseが不正")
+        statement = (
+            "SELECT sync_control.read_p3_attempt_recovery_state("
+            "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"
+            if phase_kind == "d1less"
+            else "SELECT sync_control.read_attempt_recovery_state("
+            "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"
+        )
         row = self._call(
             "control",
-            "SELECT sync_control.read_attempt_recovery_state("
-            "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+            statement,
             (
                 tenant_id,
                 UUID(identity.attempt_id),
@@ -772,6 +789,7 @@ class _BindingBroker:
                 raise WriterBindingUnavailable("binding app主体が不正")
             request = _receive(channel)
             recovery = request.get("operation") == "binding_recover"
+            p3_recovery = recovery and request.get("phase_kind") == "d1less"
             if (
                 set(request)
                 != (
@@ -785,6 +803,7 @@ class _BindingBroker:
                         "event_fingerprint",
                         "body_fingerprint",
                     }
+                    | ({"phase_kind", "d5_fingerprint"} if p3_recovery else set())
                     if recovery
                     else {"operation", "cookie", "tenant_id", "phase", "writer"}
                 )
@@ -926,6 +945,8 @@ class BindingControl:
         *,
         cookie: str,
         body_fingerprint: str,
+        phase_kind: Literal["event", "d1less"] = "event",
+        d5_fingerprint: str | None = None,
     ) -> Literal["retry_allowed", "unresolved"]:
         """実Cookieと同端末照合済みの旧試行だけを専用peerへ照会する。"""
         from pitchlog.durable_rights_ledger.adapter import _request
@@ -940,6 +961,12 @@ class BindingControl:
             or not event_fingerprint
             or type(cookie) is not str
             or not cookie
+            or phase_kind not in ("event", "d1less")
+            or (
+                (type(d5_fingerprint) is not str or not d5_fingerprint)
+                if phase_kind == "d1less"
+                else d5_fingerprint is not None
+            )
         ):
             raise WriterBindingUnavailable("旧試行照会の資格が不正")
         with self._channel() as channel:
@@ -953,6 +980,11 @@ class BindingControl:
                     "d5": str(d5),
                     "event_fingerprint": event_fingerprint,
                     "body_fingerprint": body_fingerprint,
+                    **(
+                        {"phase_kind": "d1less", "d5_fingerprint": d5_fingerprint}
+                        if phase_kind == "d1less"
+                        else {}
+                    ),
                     "identity": {
                         "attempt_id": identity.attempt_id,
                         "game_id": identity.game_id,

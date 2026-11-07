@@ -55,10 +55,18 @@ def binding_database(initial_scope_database):
     return prepare_binding_database(initial_scope_database)
 
 
+@pytest.mark.parametrize("d1less", [False, True])
 def test_control_retirement_blocks_old_attempt_and_keeps_new_attempt(
     initial_scope_database,
+    d1less,
 ):
     """実制御PGで旧試行を遮断し、別試行の同原文登録は維持する。"""
+    register_function = (
+        "register_d1less_phase" if d1less else "register_first_ball_phase"
+    )
+    read_function = (
+        "read_p3_attempt_recovery_state" if d1less else "read_attempt_recovery_state"
+    )
     owner = initial_scope_database
     cluster = owner.authority
     issuer = docker(
@@ -98,17 +106,48 @@ def test_control_retirement_blocks_old_attempt_and_keeps_new_attempt(
         "event_fingerprint": "original-event",
         "body_fingerprint": "a" * 64,
     }
+    if d1less:
+        original["phase_kind"] = "d1less"
     with BindingPeer(
         cluster.binding_control, "binding_control_fixture", ACTOR
     ) as actor:
         registration = (
-            "SELECT sync_control.register_first_ball_phase("
+            f"SELECT sync_control.{register_function}("
             + _literal(tenant)
             + ","
             + _literal(json.dumps(original))
             + "::jsonb)"
         )
         assert actor.execute(registration)[1] == "00000"
+        own_reader = "read_d1less_phase" if d1less else "read_first_ball_phase"
+        other_reader = "read_first_ball_phase" if d1less else "read_d1less_phase"
+        read_args = ",".join(_literal(v) for v in (tenant, attempt, phase))
+        assert (
+            json.loads(
+                actor.query(
+                    f"SELECT context_json FROM sync_control.{own_reader}({read_args})"
+                )[0]
+            )
+            == original
+        )
+        assert actor.query(
+            f"SELECT count(*) FROM sync_control.{other_reader}({read_args})"
+        ) == ("0",)
+        invalid = {**original, "phase_kind": "unknown"}
+        assert (
+            actor.execute(
+                registration.replace(json.dumps(original), json.dumps(invalid))
+            )[1]
+            == "42501"
+        )
+        if d1less:
+            invalid = {**original, "d1": 1}
+            assert (
+                actor.execute(
+                    registration.replace(json.dumps(original), json.dumps(invalid))
+                )[1]
+                == "42501"
+            )
         retire = (
             "SELECT sync_control.retire_sync_attempt("
             + ",".join(
@@ -149,7 +188,7 @@ def test_control_retirement_blocks_old_attempt_and_keeps_new_attempt(
     # 未登録と旧NULLの差は、fixture側の推論でなく製品固定関数の実値で判定する。
     def register(value):
         return (
-            "SELECT sync_control.register_first_ball_phase("
+            f"SELECT sync_control.{register_function}("
             + _literal(tenant)
             + ","
             + _literal(json.dumps(value))
@@ -171,7 +210,7 @@ def test_control_retirement_blocks_old_attempt_and_keeps_new_attempt(
             body,
         )
         return (
-            "SELECT sync_control.read_attempt_recovery_state("
+            f"SELECT sync_control.{read_function}("
             + ",".join(_literal(v) for v in values)
             + ")"
         )

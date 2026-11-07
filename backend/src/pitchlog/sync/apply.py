@@ -1081,6 +1081,7 @@ def _apply_e1_p3(
         _E1CoreSource,
         _receipt_for_entry,
         e1_event_source,
+        receipt_body_fingerprint,
     )
 
     state = _receipt_for_entry(receipt, entry_token)
@@ -1099,6 +1100,14 @@ def _apply_e1_p3(
         or type(control) is not BindingControl
     ):
         raise SourceBindingError("P3 E1入口が不正")
+    from dataclasses import replace
+
+    body_fingerprint = receipt_body_fingerprint(receipt, entry_token)
+    if phase.attempt.body_fingerprint not in (None, body_fingerprint):
+        raise SourceBindingError("P3 E1の全本文束縛が不一致")
+    phase = replace(
+        phase, attempt=replace(phase.attempt, body_fingerprint=body_fingerprint)
+    )
     event = request.events[0]
     if (
         phase.d5 != UUID(event.d5)
