@@ -1,4 +1,4 @@
-"""D03の真正entry原本とnative版への追記専用束縛候補。未配備。"""
+"""D03の真正entry原本の追記専用候補。未配備。"""
 
 from sqlalchemy import (
     BigInteger,
@@ -9,7 +9,6 @@ from sqlalchemy import (
     PrimaryKeyConstraint,
     Table,
     Text,
-    UniqueConstraint,
     Uuid,
 )
 
@@ -17,7 +16,7 @@ from pitchlog.db.base import Base
 
 
 class PitcherEntrySource(Base):
-    """原本は消さず、現在版への採否はmemberへ分離する。"""
+    """原本は消さず、現在複合資格で実効contextを完全照合する。"""
 
     __table__ = Table(
         "pitcher_entry_sources",
@@ -38,6 +37,7 @@ class PitcherEntrySource(Base):
         Column("proof_kind", Text, nullable=False),
         Column("source_fingerprint", Text, nullable=False),
         Column("artifact_sha256", Text, nullable=False),
+        Column("context_sha256", Text, nullable=False),
         PrimaryKeyConstraint("tenant_id", "game_id", "proof_sha256"),
         ForeignKeyConstraint(
             ["tenant_id", "game_id"],
@@ -103,101 +103,11 @@ class PitcherEntrySource(Base):
         CheckConstraint(
             "proof_kind IN ('defensive-half-entry','pitcher-defensive-entry') AND "
             "proof_sha256 ~ '^[a-f0-9]{64}$' AND "
+            "context_sha256 ~ '^[a-f0-9]{64}$' AND "
             "artifact_sha256 ~ '^[a-f0-9]{64}$' AND source_fingerprint<>''",
             name="ck_pitcher_entry_hashes",
         ),
         Index("ix_pitcher_entry_source_player", "tenant_id", "game_id", "player_id"),
-        schema="sync_fence",
-        info={"append_only": True, "formal_acceptance": "pending"},
-    )
-
-
-class PitcherEntryVersion(Base):
-    """native版/revision/Sと完全entry集合を同TXで束縛する候補。"""
-
-    __table__ = Table(
-        "pitcher_entry_versions",
-        Base.metadata,
-        Column("tenant_id", Uuid, nullable=False),
-        Column("game_id", Uuid, nullable=False),
-        Column("fact_version_id", Uuid, nullable=False),
-        Column("revision", BigInteger, nullable=False),
-        Column("source_set_sha256", Text, nullable=False),
-        Column("entry_set_sha256", Text, nullable=False),
-        Column("member_count", BigInteger, nullable=False),
-        PrimaryKeyConstraint("tenant_id", "game_id", "fact_version_id", "revision"),
-        UniqueConstraint(
-            "tenant_id", "game_id", "fact_version_id", "revision", "source_set_sha256"
-        ),
-        ForeignKeyConstraint(
-            ["tenant_id", "game_id", "fact_version_id"],
-            [
-                "sync_fence.stats_fact_versions.tenant_id",
-                "sync_fence.stats_fact_versions.game_id",
-                "sync_fence.stats_fact_versions.id",
-            ],
-            name="fk_pitcher_entry_native_version",
-            ondelete="NO ACTION",
-            match="FULL",
-        ),
-        CheckConstraint(
-            "revision>0 AND member_count>=0", name="ck_pitcher_entry_version_count"
-        ),
-        CheckConstraint(
-            "source_set_sha256 ~ '^[a-f0-9]{64}$' AND "
-            "entry_set_sha256 ~ '^[a-f0-9]{64}$'",
-            name="ck_pitcher_entry_version_hashes",
-        ),
-        schema="sync_fence",
-        info={"append_only": True, "formal_acceptance": "pending"},
-    )
-
-
-class PitcherEntryMember(Base):
-    """現在版の有効出場原本だけを束縛し旧版は監査保持する候補。"""
-
-    __table__ = Table(
-        "pitcher_entry_members",
-        Base.metadata,
-        Column("tenant_id", Uuid, nullable=False),
-        Column("game_id", Uuid, nullable=False),
-        Column("fact_version_id", Uuid, nullable=False),
-        Column("revision", BigInteger, nullable=False),
-        Column("source_set_sha256", Text, nullable=False),
-        Column("proof_sha256", Text, nullable=False),
-        PrimaryKeyConstraint(
-            "tenant_id", "game_id", "fact_version_id", "revision", "proof_sha256"
-        ),
-        ForeignKeyConstraint(
-            [
-                "tenant_id",
-                "game_id",
-                "fact_version_id",
-                "revision",
-                "source_set_sha256",
-            ],
-            [
-                "sync_fence.pitcher_entry_versions.tenant_id",
-                "sync_fence.pitcher_entry_versions.game_id",
-                "sync_fence.pitcher_entry_versions.fact_version_id",
-                "sync_fence.pitcher_entry_versions.revision",
-                "sync_fence.pitcher_entry_versions.source_set_sha256",
-            ],
-            name="fk_pitcher_entry_member_version",
-            ondelete="NO ACTION",
-            match="FULL",
-        ),
-        ForeignKeyConstraint(
-            ["tenant_id", "game_id", "proof_sha256"],
-            [
-                "sync_fence.pitcher_entry_sources.tenant_id",
-                "sync_fence.pitcher_entry_sources.game_id",
-                "sync_fence.pitcher_entry_sources.proof_sha256",
-            ],
-            name="fk_pitcher_entry_member_source",
-            ondelete="NO ACTION",
-            match="FULL",
-        ),
         schema="sync_fence",
         info={"append_only": True, "formal_acceptance": "pending"},
     )

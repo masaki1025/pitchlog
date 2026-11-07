@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 import sqlite3
 from pathlib import Path
-from typing import Any
 
 import pytest
 
@@ -443,103 +442,26 @@ def test_projection_codec_refuses_noncanonical_or_inconsistent_values(change):
         decode_projected_entry(_decoded_row(**change))
 
 
-def test_actual_getters_reject_free_scopes_before_using_any_success_method():
-    """自由生成scopeやSession/JSONを成功資格へ昇格しない。"""
-    from pitchlog.stats.pitcher_appearance_source import (
-        PitcherAppearanceSourceUnavailable,
-        capture_play_transition,
-        capture_start_transition,
-        capture_substitution_transition,
-    )
-
-    class Fake:
-        def _check(self):
-            raise AssertionError("自由scopeへ委譲してはいけない")
-
-    with pytest.raises(PitcherAppearanceSourceUnavailable):
-        capture_start_transition(Fake())
-    with pytest.raises(PitcherAppearanceSourceUnavailable):
-        capture_play_transition(Fake(), object(), object())
-    with pytest.raises(PitcherAppearanceSourceUnavailable):
-        capture_substitution_transition(Fake(), object(), object())
-
-
-def test_appearance_read_requires_genuine_same_rr_handle():
-    """正準UUID tokenだけではreadを認可しない。"""
-    from uuid import UUID
-
-    from pitchlog.repositories.stats_appearance import (
-        ReadPitcherEntryPageToken,
-        read_pitcher_entry_page,
-    )
-    from pitchlog.repositories.transaction import TenantBindingError
-
-    token = ReadPitcherEntryPageToken(UUID(int=1), UUID(int=2), 1, "a" * 64)
-    with pytest.raises(TenantBindingError):
-        read_pitcher_entry_page(object(), token)
-
-
-@pytest.mark.parametrize(
-    "change",
-    [
-        {"revision": True},
-        {"page_size": 501},
-        {"page_size": 0},
-        {"source_set_sha256": "wrong"},
-        {"after_proof_sha256": "A" * 64},
-    ],
-)
-def test_appearance_page_values_are_closed_before_root_registration(change):
-    """候補readも500上限/正準cursor/版型を緩めない。"""
-    from uuid import UUID
-
-    from pitchlog.repositories.stats_appearance import ReadPitcherEntryPageToken
-    from pitchlog.stats.pitcher_appearance_source import (
-        PitcherAppearanceSourceUnavailable,
-    )
-
-    values: dict[str, Any] = dict(
-        game_id=UUID(int=1),
-        fact_version_id=UUID(int=2),
-        revision=1,
-        source_set_sha256="a" * 64,
-    )
-    values.update(change)
-    with pytest.raises(PitcherAppearanceSourceUnavailable):
-        ReadPitcherEntryPageToken(**values)
-
-
-def test_candidate_models_keep_raw_proof_and_old_versions_immutable():
-    """全FK/閉union/原本の監査保存を候補DDLへ保持する。実配備証拠ではない。"""
+def test_candidate_models_keep_raw_proof_immutable_without_native_only_header():
+    """0球交代ではnative版不変のため原本1表だけと実効contextを保持する。"""
     from sqlalchemy.dialects.postgresql import dialect
     from sqlalchemy.schema import CreateTable
 
     from pitchlog.db import all_models
-    from pitchlog.db.game_state.pitcher_appearance_models import (
-        PitcherEntryMember,
-        PitcherEntrySource,
-        PitcherEntryVersion,
-    )
-    from pitchlog.db.game_state.stats import StatsFactVersion
+    from pitchlog.db.game_state import pitcher_appearance_models as models
 
-    assert (
-        all_models.IMPORTED_MODEL_MODULE_NAMES
-        and StatsFactVersion.__table__ is not None
-    )
-    for model in (PitcherEntrySource, PitcherEntryVersion, PitcherEntryMember):
-        table = model.__table__
-        ddl = str(CreateTable(table).compile(dialect=dialect()))
-        assert table.info["append_only"] is True
-        assert "ON DELETE NO ACTION" in ddl
-        assert not {"deleted_at", "updated_at", "created_at"}.intersection(
-            table.c.keys()
-        )
-    source = str(CreateTable(PitcherEntrySource.__table__).compile(dialect=dialect()))
-    assert "d1 IS NOT NULL AND slot_version IS NOT NULL" in source
-    assert "d1 IS NULL AND slot_version IS NULL" in source
-    assert "fk_pitcher_entry_generation" in source
-    member = str(CreateTable(PitcherEntryMember.__table__).compile(dialect=dialect()))
-    assert "source_set_sha256" in member and "proof_sha256" in member
+    assert all_models.IMPORTED_MODEL_MODULE_NAMES
+    table = models.PitcherEntrySource.__table__
+    ddl = str(CreateTable(table).compile(dialect=dialect()))
+    assert table.info["append_only"] is True
+    assert "ON DELETE NO ACTION" in ddl
+    assert not {"deleted_at", "updated_at", "created_at"}.intersection(table.c.keys())
+    assert "d1 IS NOT NULL AND slot_version IS NOT NULL" in ddl
+    assert "d1 IS NULL AND slot_version IS NULL" in ddl
+    assert "fk_pitcher_entry_generation" in ddl
+    assert "context_sha256" in ddl
+    assert not hasattr(models, "PitcherEntryVersion")
+    assert not hasattr(models, "PitcherEntryMember")
 
 
 def test_start_entry_save_candidate_rechecks_actual_db_source_and_actor():
@@ -554,8 +476,7 @@ def test_start_entry_save_candidate_rechecks_actual_db_source_and_actor():
     assert "current_user IS DISTINCT FROM 'pitchlog_initial_fn_owner'" in body
     assert "p_tenant_id IS DISTINCT FROM v_tenant" in body
     assert "a.outcome='committed'" in body
-    assert "rg.xmin::text::numeric=pg_catalog.mod(v_own_xid" in body
-    assert "l.xmin::text::numeric=pg_catalog.mod(v_own_xid" in body
+    assert "xmin" not in body  # 私有parentのROW_COUNT確認後だけが呼出点。
     assert "ON CONFLICT (tenant_id,game_id,proof_sha256) DO NOTHING" in body
     assert "pg_catalog.to_jsonb(e)-'proof_sha256'=v_proof" in body
     assert "DO UPDATE" not in body and "DELETE FROM" not in body
@@ -577,3 +498,73 @@ def test_start_entry_save_candidate_rechecks_actual_db_source_and_actor():
 def test_inconsistent_kernel_output_is_unavailable_without_reevaluating_rules(change):
     """既出力の型/一致だけを拒否し、終了条件やスコアを再計算しない。"""
     assert _play_transition(**change)[0] == "source_unavailable"
+
+
+def test_entry_helper_is_owner_only_without_new_public_token_or_capability():
+    """既保存関数の内部callだけへ閉じ、外部の自由tokenを増やさない。"""
+    import pitchlog.repositories.stats_appearance as module
+
+    declarations, bodies = module.candidate_private_entry_declarations()
+    assert len(declarations["functions"]) == 3 and len(bodies) == 3
+    entry = declarations["functions"][0]
+    assert entry["owner_role_id"] == "pitchlog_initial_fn_owner"
+    assert entry["acl_expectations"] == []
+    assert {x["grantee"] for x in entry["revoked_acl_expectations"]} == {
+        "PUBLIC",
+        "pitchlog_app",
+        "pitchlog_initial_actor",
+        "pitchlog_sync_binding_actor",
+        "pitchlog_sync_right_fn_owner",
+    }
+    assert not hasattr(module, "PersistStartPitcherEntryToken")
+    assert not hasattr(module, "ReadPitcherEntryPageToken")
+    install = module.candidate_private_entry_install_sql()
+    assert "GRANT EXECUTE" not in install and "REVOKE ALL ON FUNCTION" in install
+
+
+def test_start_helper_reads_only_previously_granted_columns():
+    """system列/INSERT専用水位のために広いSELECT権限を要求しない。"""
+    import re
+
+    from pitchlog.repositories.stats_appearance import candidate_start_entry_function
+
+    root = Path(__file__).resolve().parents[2]
+    catalog = json.loads(
+        (root / "contracts/authz/product/ddl-elements.json").read_text()
+    )
+    tables = {
+        "a": "game_start_attempts",
+        "r": "game_start_requests",
+        "g": "games",
+        "rg": "recording_generations",
+        "l": "game_lineups",
+    }
+    body = candidate_start_entry_function()
+    for alias, table in tables.items():
+        allowed = {
+            row["column_id"]
+            for row in catalog["column_acl_expectations"]
+            if row["object_id"] == table
+            and row["grantee_role_id"] == "pitchlog_initial_fn_owner"
+            and "SELECT" in row["privilege_ids"]
+        }
+        actual = set(re.findall(r"\b" + alias + r"\.([a-z_]+)", body))
+        assert actual <= allowed, (table, actual - allowed)
+
+
+def test_immutable_entry_guards_are_actual_db_triggers_not_model_labels():
+    """新原表にも強制RLSと両immutable triggerを候補SQLとして供給する。"""
+    from pitchlog.repositories.stats_appearance import (
+        candidate_entry_table_install_sql,
+        candidate_private_entry_install_sql,
+    )
+
+    table = candidate_entry_table_install_sql()
+    assert "FORCE ROW LEVEL SECURITY" in table
+    assert "TO pitchlog_initial_fn_owner,pitchlog_sync_right_fn_owner" in table
+    assert "GRANT SELECT,INSERT" in table
+    body = candidate_private_entry_install_sql()
+    assert "BEFORE UPDATE OR DELETE" in body
+    assert "BEFORE TRUNCATE" in body
+    assert "immutable boundary rejected" in body
+    assert "GRANT EXECUTE" not in body
