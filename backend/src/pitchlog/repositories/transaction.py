@@ -456,6 +456,16 @@ class _TenantTransaction:
             )
 
             _consume_ordinary_preparation(self, operation)
+        from pitchlog.repositories.past_correction_right import (
+            _PersistP3ProjectionToken,
+        )
+
+        if type(operation) is _PersistP3ProjectionToken:
+            from pitchlog.sync.past_correction_execution import (
+                consume_p3_persistence,
+            )
+
+            consume_p3_persistence(self, operation)
         session, _ = runtime
         execution_result = session.execute(spec.statement, parameters)
         rows = tuple(tuple(row) for row in islice(execution_result, spec.max_rows + 1))
@@ -516,6 +526,26 @@ class _TenantTransaction:
             loan.assert_held()
         except RG1ControlUnavailable as error:
             raise RG1Unavailable("復元ゲートの実保持を確認できない") from error
+
+    def _current_rg1_recovery_generation(self) -> int:
+        """同一業務scopeの保持中loanから現復旧世代だけを読む。"""
+        from pitchlog.recording_rights.rg1_lifecycle import _Activation, _GateLoan
+        from pitchlog.repositories.rg1 import RG1Unavailable
+
+        self._assert_rg1_lease()
+        key = self._state_key
+        loan = None if key is None else _RG1_LOANS.get(key)
+        if (
+            type(loan) is not _GateLoan
+            or type(loan._activation) is not _Activation
+            or type(loan._activation.epoch) is not int
+            or not 0 < loan._activation.epoch < 2**63
+        ):
+            raise RG1Unavailable("復旧世代の実借用が不正")
+        loan.assert_held()
+        if _RG1_LOANS.get(key) is not loan:
+            raise RG1Unavailable("復旧世代の実借用が失効")
+        return loan._activation.epoch
 
     def _writer_lifetime(self) -> tuple[object, object]:
         """所有するtop-level TXの不透明な寿命だけを返す。"""
@@ -1375,10 +1405,12 @@ def _require_port_function(phase, operation, function_id):
         ("device"): {
             ("sync_right_api.bind_device"),
             ("sync_right_api.bind_ordinary_device"),
+            ("sync_right_api.bind_p3_device"),
         },
         "rights": {
             "sync_right_api.check_current_right",
             "sync_right_api.check_ordinary_right",
+            "sync_right_api.check_p3_right",
         },
         "content": set(),
     }[phase.kind] | {
@@ -1391,7 +1423,9 @@ def _require_port_function(phase, operation, function_id):
         "sync_right_api.bind_device",
         "sync_right_api.check_current_right",
         "sync_right_api.bind_ordinary_device",
+        "sync_right_api.bind_p3_device",
         "sync_right_api.check_ordinary_right",
+        "sync_right_api.check_p3_right",
         "sync_fence_api.assert_writer_binding",
     }:
         lease = phase.bound._lease
@@ -1415,6 +1449,10 @@ def _is_port_command(operation):
         ProjectOrdinaryPitchToken,
         ValidateOrdinaryPitchToken,
     )
+    from pitchlog.sync.past_correction_ports import (
+        ProjectP3CorrectionToken,
+        ValidateP3CorrectionToken,
+    )
     from pitchlog.sync.substitution_ports import (
         ProjectSubstitutionToken,
         ValidateSubstitutionToken,
@@ -1429,6 +1467,8 @@ def _is_port_command(operation):
         PortBindCurrentDeviceToken,
         PortCheckCurrentRightToken,
         PortCheckPresentedRightToken,
+        PortP3PresentedRightToken,
+        PortP3RecoveryCurrentToken,
         PortProjectFirstBallToken,
         PortRG1CommitCheckToken,
         PortRG1PrecheckToken,
@@ -1443,6 +1483,8 @@ def _is_port_command(operation):
         ValidateUndoToken,
         ProjectSubstitutionToken,
         ValidateSubstitutionToken,
+        ValidateP3CorrectionToken,
+        ProjectP3CorrectionToken,
     }:
         return True
     return isinstance(
@@ -1457,6 +1499,8 @@ def _is_port_command(operation):
             PortBindCurrentDeviceToken,
             PortCheckCurrentRightToken,
             PortCheckPresentedRightToken,
+            PortP3PresentedRightToken,
+            PortP3RecoveryCurrentToken,
             PortProjectFirstBallToken,
             PortRG1PrecheckToken,
             PortRG1CommitCheckToken,
@@ -1523,6 +1567,11 @@ def _execute_port_command(handle, operation):
         ProjectOrdinaryPitchToken,
         ValidateOrdinaryPitchToken,
     )
+    from pitchlog.sync.past_correction_ports import (
+        _CONTENT_REJECTION_REASON,
+        ProjectP3CorrectionToken,
+        ValidateP3CorrectionToken,
+    )
     from pitchlog.sync.substitution_ports import (
         ProjectSubstitutionToken,
         ValidateSubstitutionToken,
@@ -1537,6 +1586,8 @@ def _execute_port_command(handle, operation):
         PortBindCurrentDeviceToken,
         PortCheckCurrentRightToken,
         PortCheckPresentedRightToken,
+        PortP3PresentedRightToken,
+        PortP3RecoveryCurrentToken,
         PortProjectFirstBallToken,
         PortRG1CommitCheckToken,
         PortRG1PrecheckToken,
@@ -1554,6 +1605,45 @@ def _execute_port_command(handle, operation):
         ProjectLifecycleToken,
         ValidateLifecycleToken,
     )
+
+    if type(operation) is ValidateP3CorrectionToken:
+        from pitchlog.sync.model import SyncEvent
+        from pitchlog.sync.past_correction_execution import p3_content_result
+        from pitchlog.sync.ports import PortWriter
+
+        if (
+            phase is None
+            or phase.kind != "content"
+            or type(operation.event) is not SyncEvent
+            or type(operation.writer) is not PortWriter
+            or type(operation.game_id) is not UUID
+            or type(operation.d5) is not UUID
+            or operation.game_id != UUID(operation.event.game_id)
+            or operation.d5 != UUID(operation.event.d5)
+        ):
+            raise TenantBindingError("P3内容Portが実phaseと不一致")
+        accepted = p3_content_result(handle, operation.event, operation.writer)
+        return TenantOperationResult(
+            ((accepted, None if accepted else _CONTENT_REJECTION_REASON),)
+        )
+
+    if type(operation) is ProjectP3CorrectionToken:
+        from pitchlog.sync.model import SyncEvent
+        from pitchlog.sync.past_correction_projection import project_p3_correction
+        from pitchlog.sync.ports import PortWriter
+
+        if (
+            phase is not None
+            or type(operation.event) is not SyncEvent
+            or type(operation.writer) is not PortWriter
+            or type(operation.game_id) is not UUID
+            or type(operation.d5) is not UUID
+            or operation.game_id != UUID(operation.event.game_id)
+            or operation.d5 != UUID(operation.event.d5)
+        ):
+            raise TenantBindingError("P3投影Portが実scopeと不一致")
+        project_p3_correction(handle, operation.event, operation.writer)
+        return TenantOperationResult(((True,),))
 
     if type(operation) in {ProjectLifecycleToken, ValidateLifecycleToken}:
         from pitchlog.sync.lifecycle_execution import (
@@ -1721,6 +1811,72 @@ def _execute_port_command(handle, operation):
 
         return _validate_first_ball_command(handle, operation)
     lease = phase.bound._lease
+    if type(operation) is PortP3RecoveryCurrentToken and phase.kind == "rights":
+        raw = json.loads(phase.snapshot)["phase"]
+        if (
+            raw.get("phase_kind") != "d1less"
+            or type(operation.game_id) is not UUID
+            or operation.game_id != lease.game_id
+            or type(operation.supplied) is not str
+        ):
+            raise TenantBindingError("P3復旧世代命令がactual bindingと不一致")
+        epoch = _verified_recovery_epoch(handle, phase)
+        return TenantOperationResult(((operation.supplied == str(epoch),),))
+    if type(operation) is PortP3PresentedRightToken and phase.kind == "rights":
+        from pitchlog.repositories.past_correction_right import _CheckP3RightToken
+        from pitchlog.sync.first_ball_proof import FirstBallProofError, proof_digest
+        from pitchlog.sync.tokens import (
+            RECORDING_GENERATION_READ_COLUMNS,
+            RecordingGenerationReadToken,
+        )
+
+        raw = json.loads(phase.snapshot)["phase"]
+        if (
+            raw.get("phase_kind") != "d1less"
+            or type(operation.game_id) is not UUID
+            or operation.game_id != lease.game_id
+            or type(operation.current_generation) is not str
+            or not operation.current_generation.isdecimal()
+            or operation.current_generation == "0"
+            or str(int(operation.current_generation)) != operation.current_generation
+        ):
+            raise TenantBindingError("P3提示権利命令がactual bindingと不一致")
+        rows = handle.run(RecordingGenerationReadToken(operation.game_id)).rows
+        if len(rows) != 1 or len(rows[0]) != len(RECORDING_GENERATION_READ_COLUMNS):
+            raise TenantBindingError("P3現記録権世代の読取が不正")
+        current = rows[0][RECORDING_GENERATION_READ_COLUMNS.index("generation")]
+        if type(current) is not int or current != int(operation.current_generation):
+            raise TenantBindingError("P3提示権利が現D4と不一致")
+        try:
+            digest = proof_digest(operation.raw_v12)
+        except FirstBallProofError:
+            return TenantOperationResult(((False,),))
+        epoch = _verified_recovery_epoch(handle, phase)
+        result = handle.run_function(
+            _CheckP3RightToken(
+                lease.attempt_id,
+                lease.phase_id,
+                lease.nonce,
+                lease.device_id,
+                lease.game_id,
+                current,
+                epoch,
+                digest,
+            )
+        )
+        if (
+            type(result) is not TenantOperationResult
+            or type(result.rows) is not tuple
+            or len(result.rows) != 1
+            or type(result.rows[0]) is not tuple
+            or len(result.rows[0]) != 2
+            or any(type(value) is not bool for value in result.rows[0])
+        ):
+            raise TenantBindingError("P3実権利命令の結果が不正")
+        recovery, right = result.rows[0]
+        if recovery is not True:
+            raise TenantBindingError("P3業務復旧世代とRG1実借用が不一致")
+        return TenantOperationResult(((right,),))
     if type(operation) is PortCheckPresentedRightToken and phase.kind == "rights":
         from pitchlog.sync.first_ball_proof import FirstBallProofError, proof_digest
 
@@ -1775,6 +1931,20 @@ def _execute_port_command(handle, operation):
         ):
             raise TenantBindingError("端末資格digestの型が不正")
         _PORT_DEVICE_BIND_USED.add(handle._state_key)
+        if json.loads(phase.snapshot)["phase"].get("phase_kind") == "d1less":
+            from pitchlog.repositories.past_correction_right import (
+                _BindP3DeviceToken,
+            )
+
+            token = _BindP3DeviceToken(
+                lease.attempt_id,
+                lease.phase_id,
+                lease.nonce,
+                lease.device_id,
+                lease.game_id,
+                operation.credential_digest,
+            )
+            return handle.run_function(token)
         from pitchlog.repositories.ordinary_pitch_qualification import (
             BindOrdinaryDeviceToken,
         )

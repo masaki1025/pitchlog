@@ -32,6 +32,7 @@ from pitchlog.sync.idempotency import (
 )
 from pitchlog.sync.model import (
     A5Result,
+    AcceptedChangeResult,
     AckResult,
     ChangeResult,
     SyncEvent,
@@ -350,6 +351,41 @@ def _replay_existing(
 def _is_replay(result: D1Result) -> bool:
     """保存済み結果の再掲かを返す。"""
     return result.replayed
+
+
+def _replay_p3_without_binding(
+    context: TenantContext,
+    request: SyncRequest,
+    reference_device: UUID,
+    credential_digest: bytes,
+) -> ChangeResult | Literal["B10", "B11", "B12"] | None:
+    """P3の②端末→③認可/RG1/復旧世代→④D5を実DBで先行分類する。"""
+    from pitchlog.repositories.rg1 import RG1Unavailable, read_rg1_open
+    from pitchlog.sync.change_path import _prebound_p3_replay
+    from pitchlog.sync.source_binding import SourceBindingError
+
+    if (
+        type(context) is not TenantContext
+        or not context._has_valid_integrity_proof()
+        or type(request) is not SyncRequest
+        or request.path != "P3"
+        or len(request.events) != 1
+        or type(reference_device) is not UUID
+        or type(credential_digest) is not bytes
+        or len(credential_digest) != 32
+    ):
+        raise SourceBindingError("P3再掲の入力が不正")
+    game_id = UUID(request.game_id)
+    with tenant_transaction_scope(context) as scope:
+        if not _verify_replay_device(scope, reference_device, credential_digest):
+            return "B11"
+        if not game_accessible(context, game_id, lambda _: nullcontext(scope)):
+            return "B12"
+        try:
+            read_rg1_open(scope)
+        except RG1Unavailable:
+            return "B10"
+        return _prebound_p3_replay(scope, request)
 
 
 def _replay_e1_without_binding(
@@ -1018,3 +1054,114 @@ def _apply_e1_f1(
             escrow_runner=replay_saved,
             replay_runner=replay_saved,
         )
+
+
+def _apply_e1_p3(
+    receipt,
+    context: TenantContext,
+    request: SyncRequest,
+    *,
+    entry_token: object,
+    phase: object,
+    cookie: str,
+    reference_device: UUID,
+    control: object,
+    rights: RecordingRightsPort,
+    projection: ProjectionPort,
+    validator: ContentValidationPort,
+) -> ChangeResult | Literal["B10", "B11", "B12"]:
+    """D1なしP3を実E1/同writer/同TXへ結ぶ私有入口。公開応答は発行しない。"""
+    from pitchlog.repositories.rg1 import RG1Unavailable, read_rg1_open
+    from pitchlog.sync.change_path import _apply_locked, _D5Race, _NoWriteResult
+    from pitchlog.sync.control_provider.binding_control import BindingControl
+    from pitchlog.sync.control_provider.evidence import D1lessPhaseBinding
+    from pitchlog.sync.control_provider.writer_binding import _verify_bound_device
+    from pitchlog.sync.source_binding import (
+        SourceBindingError,
+        _E1CoreSource,
+        _receipt_for_entry,
+        e1_event_source,
+    )
+
+    state = _receipt_for_entry(receipt, entry_token)
+    if (
+        state.context is not context
+        or state.request is not request
+        or type(context) is not TenantContext
+        or not context._has_valid_integrity_proof()
+        or type(request) is not SyncRequest
+        or request.path != "P3"
+        or len(request.events) != 1
+        or type(phase) is not D1lessPhaseBinding
+        or type(cookie) is not str
+        or not cookie
+        or type(reference_device) is not UUID
+        or type(control) is not BindingControl
+    ):
+        raise SourceBindingError("P3 E1入口が不正")
+    event = request.events[0]
+    if (
+        phase.d5 != UUID(event.d5)
+        or phase.attempt.game_id != UUID(request.game_id)
+        or phase.attempt.tenant_id != context.tenant_id
+        or phase.attempt.device_id != reference_device
+    ):
+        raise SourceBindingError("P3 E1 phaseが対象原本と不一致")
+    if not _read_reference_device_state(context, reference_device):
+        return "B11"
+    if not game_accessible(context, UUID(request.game_id), tenant_transaction_scope):
+        return "B12"
+    binding = e1_event_source(receipt, 1)
+    rollback_marker = SourceBindingError("P3端末照合を拒否")
+    rejected_boundary: Literal["B11", "B12"] | None = None
+    try:
+        with tenant_transaction_scope(context) as scope:
+            with _sync_apply_active():
+                try:
+                    read_rg1_open(scope)
+                except RG1Unavailable:
+                    return "B10"
+                bound = control.bind_writer(scope, context, phase, cookie=cookie)
+                with gated_e1_writer(scope, rights) as gated:
+                    source = _E1CoreSource(
+                        binding,
+                        scope=scope,
+                        context=context,
+                        request=request,
+                        event=event,
+                        phase=phase,
+                        bound=bound,
+                    )
+                    device = _verify_bound_device(
+                        bound,
+                        reference_device,
+                        request.game_id,
+                        presentation=state.device_presentation,
+                    )
+                    if device != "match":
+                        rejected_boundary = (
+                            "B12" if device == "different_game" else "B11"
+                        )
+                        raise rollback_marker
+                    result = _apply_locked(
+                        scope,
+                        request,
+                        rights,
+                        projection,
+                        validator,
+                        gated.writer,
+                        bound_source=source,
+                    )
+                    if isinstance(result, AcceptedChangeResult):
+                        if source.write_started is not True:
+                            raise SourceBindingError("P3受理のsource書込開始が未成立")
+                        gated.mark_written()
+                    return result
+    except SourceBindingError as error:
+        if error is rollback_marker and rejected_boundary is not None:
+            return rejected_boundary
+        raise
+    except RG1Blocked:
+        return "B10"
+    except (_D5Race, _NoWriteResult) as stopped:
+        return stopped.result

@@ -187,6 +187,153 @@ def test_xid8_roundtrip_and_private_issuer():
         _LiveWriterBinding(None, None, _writer(), cast(Any, None), object())
 
 
+def test_d1less_phase_wire_is_distinct_and_broker_validates_closed_shape() -> None:
+    """P3はD1を偽装せずphase kindをcontrolへ明示する。"""
+    from pitchlog.sync.control_provider.binding_control import (
+        _phase_snapshot_value,
+        _phase_wire,
+    )
+    from pitchlog.sync.control_provider.evidence import (
+        AttemptBinding,
+        AuthorityBinding,
+        D1lessPhaseBinding,
+    )
+
+    authority = AuthorityBinding(UUID(int=1), UUID(int=2), UUID(int=3))
+    attempt = AttemptBinding(
+        authority,
+        UUID(int=4),
+        UUID(int=5),
+        UUID(int=6),
+        "3",
+        3,
+        UUID(int=7),
+        1,
+        "wire-request-v1:" + "a" * 64,
+        1,
+    )
+    phase = D1lessPhaseBinding(
+        attempt, UUID(int=8), 1, UUID(int=9), "wire-v1:" + "b" * 64
+    )
+    wire = _phase_wire(phase, UUID(int=10), 1)
+    assert wire["phase_kind"] == "d1less"
+    assert "d1" not in wire
+    snapshot = _phase_snapshot_value(phase, attempt.tenant_id, wire)
+    assert "source_d1" not in snapshot
+    config = {
+        "binding_authority": {
+            "control_instance": str(authority.control_instance),
+            "business_instance": str(authority.business_instance),
+            "restore_epoch": str(authority.restore_epoch),
+            "control_version": 1,
+        }
+    }
+    peer = _BindingAuthority(config, UUID(int=10))
+    request = {
+        "operation": "binding_open",
+        "tenant_id": str(attempt.tenant_id),
+        "phase": wire,
+        "writer": _writer().wire(),
+    }
+    peer.validate_request(request)
+    for changed in ({**wire, "phase_kind": "unknown"}, {**wire, "d1": 2}):
+        with pytest.raises(WriterBindingUnavailable):
+            peer.validate_request({**request, "phase": changed})
+
+
+def test_d1less_bound_source_requires_same_live_phase_and_target(monkeypatch) -> None:
+    """P3の元changeをD1付きphaseへ読み替えず同writerへ束縛する。"""
+    import json
+    from types import SimpleNamespace
+
+    from pitchlog.repositories.context import _ISSUANCE_CAPABILITY, TenantContext
+    from pitchlog.sync import source_binding as source_api
+    from pitchlog.sync.control_provider import writer_binding as writer_api
+    from pitchlog.sync.control_provider.binding_control import _phase_wire
+    from pitchlog.sync.control_provider.evidence import (
+        AttemptBinding,
+        AuthorityBinding,
+        D1lessPhaseBinding,
+    )
+    from pitchlog.sync.model import SyncRequest
+    from pitchlog.sync.wire_source import freeze_wire_source
+
+    tenant, game = UUID(int=4), UUID(int=6)
+    raw = {
+        "d5": str(UUID(int=9)),
+        "game_id": str(game),
+        "event_kind": "play_change",
+        "payload": {"formatVersion": "p3-lineup-pitch-change-v1"},
+        "target_reference": {"game": str(game), "d4": "3", "d1": 2},
+        "expected_version": 1,
+    }
+    request = SyncRequest.from_payload(
+        "P3", str(game), {"recovery_generation": "1", "change": raw}
+    )
+    frozen = freeze_wire_source(
+        game_id=str(game), d4="3", raw_events=(raw,), d1less=True
+    )
+    context = TenantContext(tenant, _ISSUANCE_CAPABILITY)
+    phase = D1lessPhaseBinding(
+        AttemptBinding(
+            AuthorityBinding(UUID(int=1), UUID(int=2), UUID(int=3)),
+            tenant,
+            UUID(int=5),
+            game,
+            "3",
+            3,
+            UUID(int=7),
+            1,
+            frozen.request_fingerprint,
+            1,
+        ),
+        UUID(int=8),
+        1,
+        UUID(int=9),
+        frozen.event_fingerprints[0],
+    )
+    snapshot = json.dumps(
+        {"tenant_id": str(tenant), "phase": _phase_wire(phase, UUID(int=10), 1)},
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    token = object()
+    with source_api._e1_receipt_scope(
+        context=context, request=request, source=frozen, entry_token=token
+    ) as receipt:
+        selected = source_api.e1_event_source(receipt, 1)
+        bound = object.__new__(writer_api._LiveWriterBinding)
+        bound._used = False
+        bound._owner = (object(),)
+        bound._handle = SimpleNamespace(_context=context)
+        bound._lease = cast(Any, SimpleNamespace(_phase_snapshot=snapshot))
+        bound._phase_snapshot = snapshot
+        writer_api._LIVE_BINDINGS[bound._owner[0]] = bound
+        monkeypatch.setattr(
+            writer_api._LiveWriterBinding, "assert_current", lambda self: None
+        )
+        try:
+            actual = bound.assert_event_source(
+                selected,
+                context=context,
+                request=request,
+                event=request.events[0],
+                phase=phase,
+            )
+            assert actual.event_fingerprint == frozen.event_fingerprints[0]
+            object.__setattr__(phase.attempt, "wire_d4", "4")
+            with pytest.raises(WriterBindingUnavailable):
+                bound.assert_event_source(
+                    selected,
+                    context=context,
+                    request=request,
+                    event=request.events[0],
+                    phase=phase,
+                )
+        finally:
+            writer_api._LIVE_BINDINGS.pop(bound._owner[0], None)
+
+
 @pytest.mark.parametrize(
     "change",
     [

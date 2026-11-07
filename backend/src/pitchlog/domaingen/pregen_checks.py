@@ -1066,7 +1066,7 @@ def validate_derived_program(program: Mapping[str, Any]) -> None:
 
 
 def validate_undo_selection_profile(profile: object) -> None:
-    """数学式を持たない取消S選択の唯一閉宣言だけを許可する。"""
+    """数学式を持たない取消/P3の閉じたS選択宣言だけを許可する。"""
     expected = {
         "version": 1,
         "kind": "accepted-play-slot-consumed-undo-v1",
@@ -1102,9 +1102,19 @@ def validate_undo_selection_profile(profile: object) -> None:
             "expires_at",
         ],
     }
+    p3 = {
+        **expected,
+        "version": 2,
+        "kind": "accepted-play-slot-consumed-undo-p3-v2",
+        "p3": {
+            "heads": "sync_fence.p3_projection_heads",
+            "capsules": "sync_fence.p3_projection_capsules",
+            "items": "sync_fence.p3_projection_capsule_items",
+        },
+    }
     if (
         type(profile) is not dict
-        or profile != expected
+        or profile not in (expected, p3)
         or type(profile.get("version")) is not int
     ):
         raise ValueError("未登録の取消canonical S選択profileです")

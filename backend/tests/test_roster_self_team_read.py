@@ -54,6 +54,10 @@ def test_tenant_match_operations_keep_old_routes_and_add_self() -> None:
             "initial_device_enroll",
             "initial_game_start",
             "initial_game_start_resolve",
+            "sync_events",
+            "read_sync_change_target",
+            "read_sync_change_confirmation",
+            "sync_change",
         }
     )
 

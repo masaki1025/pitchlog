@@ -375,10 +375,17 @@ def read_confirmed_nonplay_prefix(handle, event, source, *, artifact_sha256):
     content: dict[str, Any]
     cp = envelope["checkpoint"]
     legacy = cp.get("version") == "3"
+    verified_p3 = None
     if legacy:
+        from pitchlog.repositories.past_correction_nonplay import (
+            read_p3_nonplay_current,
+        )
         from pitchlog.repositories.play_prefix import read_lineup_prefix_document
 
         legacy_doc = read_lineup_prefix_document(_canonical_json(cp))
+        verified_p3 = read_p3_nonplay_current(
+            handle, UUID(event.game_id), int(legacy_doc.internal_generation)
+        )
         _require_nonplay_legacy_compatibility(
             legacy_doc.artifact_sha256, artifact_sha256
         )
@@ -442,13 +449,44 @@ def read_confirmed_nonplay_prefix(handle, event, source, *, artifact_sha256):
                     runtime,
                 )
                 try:
+                    slot = item.get("slot") if type(item) is dict else None
+                    if (
+                        not legacy
+                        and verified_p3 is None
+                        and type(slot) is dict
+                        and slot.get("confirmed_version") == 2
+                    ):
+                        from pitchlog.repositories.past_correction_nonplay import (
+                            read_p3_nonplay_current,
+                        )
+
+                        saved_row = envelope["storage"].get("row")
+                        if (
+                            type(saved_row) is not dict
+                            or type(saved_row.get("internal_generation")) is not int
+                        ):
+                            raise NonplaySourceUnavailable("非play P3保存CP形が不正")
+                        verified_p3 = read_p3_nonplay_current(
+                            handle,
+                            UUID(event.game_id),
+                            saved_row["internal_generation"],
+                            nonplay_checkpoint_row=saved_row,
+                        )
+                        if verified_p3 is None or not verified_p3.historical_anchor:
+                            raise NonplaySourceUnavailable("非play P3旧版資格が欠落")
                     if item["kind"] == "legacy-first-ball-v1":
                         item = _legacy_first_ball_item(
                             handle, event, source, item, lifetime, runtime
                         )
                     else:
                         item = _stored_ordinary_item(
-                            handle, event, source, item, lifetime, runtime
+                            handle,
+                            event,
+                            source,
+                            item,
+                            lifetime,
+                            runtime,
+                            verified_p3=verified_p3,
                         )
                     if (
                         type(saved_event) is not dict
@@ -556,6 +594,36 @@ def read_confirmed_nonplay_prefix(handle, event, source, *, artifact_sha256):
             stack.append(frame)
             cursor = item["cursor"]
         _live(handle, source, event, lifetime, runtime)
+    if verified_p3 is not None:
+        from pitchlog.repositories.past_correction_nonplay import (
+            p3_effective_nonplay_stack,
+        )
+
+        if verified_p3.historical_anchor:
+            bridges = cp["content"].get("controlBridges")
+            if type(bridges) is not list or not bridges or type(bridges[0]) is not dict:
+                raise NonplaySourceUnavailable("非play P3制御原本が不正")
+            first_bridge = bridges[0]
+            first_source = first_bridge.get("source")
+            first_before = first_bridge.get("beforeContext")
+            if (
+                type(first_source) is not dict
+                or type(first_source.get("d1")) is not str
+                or not first_source["d1"].isascii()
+                or not first_source["d1"].isdecimal()
+                or type(first_before) is not dict
+            ):
+                raise NonplaySourceUnavailable("非play P3初回制御が不正")
+            stack = p3_effective_nonplay_stack(
+                stack,
+                verified_p3,
+                first_control_before=first_before,
+                first_control_d1=int(first_source["d1"]),
+            )
+        else:
+            if verified_p3.checkpoint != legacy_doc:
+                raise NonplaySourceUnavailable("非play P3現CPが不一致")
+            stack = p3_effective_nonplay_stack(stack, verified_p3)
     if legacy:
         cp = _checkpoint_from_legacy(
             legacy_doc, stack, envelope["storage"], artifact_sha256
@@ -856,7 +924,9 @@ def _semantic_event(operation, admission):
     }
 
 
-def _check_saved_evidence(handle, event, source, item, lifetime, runtime, *, first):
+def _check_saved_evidence(
+    handle, event, source, item, lifetime, runtime, *, first, verified_p3=None
+):
     """固定CTEの同scope貸与と、全保存列・消費印・同原取引を検査する。"""
     from datetime import datetime
 
@@ -980,6 +1050,26 @@ def _check_saved_evidence(handle, event, source, item, lifetime, runtime, *, fir
         for k, value in expected.items()
     ):
         raise NonplaySourceUnavailable("保存証拠のtenant/gameが不一致です")
+    p3_target = False
+    if verified_p3 is not None:
+        from pitchlog.repositories.past_correction_current import VerifiedP3Current
+
+        if type(verified_p3) is not VerifiedP3Current:
+            raise NonplaySourceUnavailable("P3有効版の検証済み資格が不正です")
+        p3_target = not first and ev["d1"] == verified_p3.target_d1
+        if p3_target:
+            effective = verified_p3.items[verified_p3.target_d1 - 1]
+            if (
+                effective["state"] != "corrected"
+                or effective["original_event_id"] != ev["id"]
+                or effective["original_play_row_id"]
+                != item["physical"]["play_row"]["id"]
+                or effective["original_payload"] != ev["payload"]
+                or effective["original_play_row"] != item["physical"]["play_row"]
+                or effective["original_play_runners"]
+                != item["physical"]["play_runners"]
+            ):
+                raise NonplaySourceUnavailable("P3対象と元保存行が不一致です")
     if (
         item.get("qualified") is not True
         or ev["ledger_kind"] != "accepted"
@@ -1008,7 +1098,7 @@ def _check_saved_evidence(handle, event, source, item, lifetime, runtime, *, fir
         or admission["event_fingerprint"] != ledger["source_fingerprint"]
         or slot["generation"] != ev["generation"]
         or slot["d1"] != ev["d1"]
-        or slot["confirmed_version"] != 1
+        or slot["confirmed_version"] != (2 if p3_target else 1)
     ):
         raise NonplaySourceUnavailable("保存証拠のaccepted/consumed対応が不一致です")
     xmins = item.get("xmins")
@@ -1023,7 +1113,18 @@ def _check_saved_evidence(handle, event, source, item, lifetime, runtime, *, fir
         or set(xmins) != {"event", "ledger", "admission", "play", "slot"}
         or any(
             type(v) is not str or v != str(int(txid) % 4294967296)
-            for v in xmins.values()
+            for key, v in xmins.items()
+            if not (p3_target and key == "slot")
+        )
+        or (
+            p3_target
+            and (
+                type(xmins["slot"]) is not str
+                or not xmins["slot"].isascii()
+                or not xmins["slot"].isdecimal()
+                or str(int(xmins["slot"])) != xmins["slot"]
+                or int(xmins["slot"]) <= 0
+            )
         )
     ):
         raise NonplaySourceUnavailable("保存証拠の原top-level取引が不一致です")
@@ -1157,7 +1258,9 @@ def _stored_contexts(payload):
         ) from exc
 
 
-def _stored_ordinary_item(handle, event, source, item, lifetime, runtime):
+def _stored_ordinary_item(
+    handle, event, source, item, lifetime, runtime, *, verified_p3=None
+):
     """原wire再hashをせず、真正消費済保存証拠profileを閉射影する。"""
     if set(item) != {
         "kind",
@@ -1176,7 +1279,14 @@ def _stored_ordinary_item(handle, event, source, item, lifetime, runtime):
     }:
         raise NonplaySourceUnavailable("保存証拠profileの閉形が不一致です")
     ev, ledger, admission = _check_saved_evidence(
-        handle, event, source, item, lifetime, runtime, first=False
+        handle,
+        event,
+        source,
+        item,
+        lifetime,
+        runtime,
+        first=False,
+        verified_p3=verified_p3,
     )
     semantic = _semantic_event(ev, admission)
     if (

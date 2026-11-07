@@ -200,9 +200,40 @@ def _credit_integrity_guard(scope: str) -> str:
     )
 
 
-def candidate_function_bodies() -> dict[str, str]:
+def candidate_function_bodies(
+    *, p3_selector_profile: dict[str, object] | None = None
+) -> dict[str, str]:
     """採用済みS/COUNT/window/totalsと同TX条件をSQL本文へ束縛する。"""
     raw, sections, MODEL, ART = _verified_inputs(_ROOT)
+    if p3_selector_profile is not None:
+        from pitchlog.domaingen.core import generate_native_primitive_sql_bundle
+        from pitchlog.domaingen.pregen_checks import validate_undo_selection_profile
+
+        validate_undo_selection_profile(p3_selector_profile)
+        if p3_selector_profile["version"] != 2:
+            raise ValueError("P3成績selector版が不正")
+        generated = generate_native_primitive_sql_bundle(
+            json.loads((_ROOT / _MODEL_PATH).read_text()),
+            json.loads((_ROOT / _CONSUMER_PATH).read_text()),
+            p3_selector_profile,
+        )
+        raw = generated[
+            "backend/src/pitchlog/exports/generated/play_primitives_native.sql"
+        ]
+        parts = raw.split("-- pitchlog-query: ")[1:]
+        sections = {
+            part.split("\n", 1)[0]: part.split("\n", 1)[1].strip()
+            for part in parts
+        }
+        if len(parts) != 6 or set(sections) != {
+            "window",
+            "count",
+            "current_totals",
+            "canonical_members",
+            "canonical_health",
+            "canonical_source_members",
+        }:
+            raise ValueError("P3成績selector生成集合が不正")
     common, tail = sections["canonical_health"].rsplit("\nSELECT ", 1)
     anchor = "FROM canonical_scope g LEFT JOIN canonical_s c"
     if not common.startswith("WITH canonical_scope") or common.count(anchor) != 1:

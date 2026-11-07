@@ -452,3 +452,22 @@ class PortCheckPresentedRightToken(_SyncToken):
     wire_d4: str
     raw_v12: object = field(repr=False)
     _capability_id = "CAP:sync_first_ball:check_current_right"
+
+
+@dataclass(frozen=True, slots=True)
+class PortP3RecoveryCurrentToken(_SyncToken):
+    """同RG1実借用の現epochだけをP3要求の提示値と比較する。"""
+
+    game_id: UUID
+    supplied: str
+    _capability_id = "CAP:sync_p3:check_recovery"
+
+
+@dataclass(frozen=True, slots=True)
+class PortP3PresentedRightToken(_SyncToken):
+    """P3の現権利を既stampなしの私有関数に照合させる。"""
+
+    game_id: UUID
+    current_generation: str
+    raw_v12: object = field(repr=False)
+    _capability_id = "CAP:sync_p3:check_p3_right"

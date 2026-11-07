@@ -6,13 +6,14 @@ import './entry'
 import { domainOperations } from './publicApi'
 
 describe('ドメイン公開口の疎通操作', () => {
-  it('操作表を凍結し、公開操作を現行18口に限定する', () => {
+  it('操作表を凍結し、公開操作を閉じた集合に限定する', () => {
     expect(Object.isFrozen(domainOperations)).toBe(true)
     expect(Object.keys(domainOperations)).toEqual([
       'ping',
       'applyGameLifecycle',
       'deriveState',
       'deriveOrdinaryPitch',
+      'replayPastCorrectionPage',
       'deriveTerminalPitch',
       'deriveStrikeoutPitch',
       'deriveBattedHit',

@@ -21,6 +21,16 @@ from pitchlog.repositories.tokens import TenantOperationResult
 from pitchlog.sync.idempotency import source_fingerprint
 
 
+@pytest.fixture(autouse=True)
+def _legacy_without_p3(monkeypatch):
+    """旧bootstrap fixtureにはP3 headを供給しない。"""
+    from pitchlog.repositories import past_correction_nonplay
+
+    monkeypatch.setattr(
+        past_correction_nonplay, "read_p3_nonplay_current", lambda *_, **__: None
+    )
+
+
 @pytest.fixture
 def read_rig(monkeypatch):
     """製品型handleと実TX identity検査を残し、SQL応答だけを合成する。"""
@@ -78,6 +88,217 @@ def test_empty_active_preserves_true_d3_and_finite_read(read_rig):
     }
     assert len(r.calls) == 1 and r.calls[0].d3 == int(r.cp.content.d3)
     assert r.calls[0].epoch == int(r.cp.content.storage_history_epoch)
+
+
+@pytest.mark.parametrize("post_write", [False, True])
+def test_page_uses_verified_p3_frame_and_exact_nonplay_row(
+    read_rig, monkeypatch, post_write
+):
+    """公開pageもwriterと同じP3有効版を選び、現在CP行を検証へ渡す。"""
+    from pitchlog.db.writer_binding.ordinary_models import OrdinaryPitchCheckpoint
+    from pitchlog.repositories import past_correction_nonplay
+
+    r = read_rig
+    cp = r.cp.model_copy(
+        update={"content": r.cp.content.model_copy(update={"active_depth": "1"})}
+    )
+    r.packet["checkpoint"] = cp.model_dump(
+        mode="json", by_alias=True, exclude_unset=True
+    )
+    r.packet["total"] = 1
+    r.packet["items"] = [{"cursor": [1, 1, str(UUID(int=1))]}]
+    old, current, verified = object(), object(), object()
+    physical = {k: None for k in OrdinaryPitchCheckpoint.__table__.c.keys()}
+    play = {"id": str(UUID(int=2))}
+    runners = []
+    r.packet["items"][0]["physical"] = {
+        "play_row": play,
+        "play_runners": runners,
+    }
+    evidence = {
+        key: 0
+        for key in (
+            "all_play_count",
+            "ordinary_play_count",
+            "invalid_count",
+            "non_play_count",
+            "history_count",
+            "pa_change_count",
+        )
+    }
+    row = (
+        {
+            **physical,
+            "last_play_row": None,
+            "last_play_runners": [],
+            "source_evidence": evidence,
+        }
+        if post_write
+        else {**physical, "last_play_row": None}
+    )
+    calls = []
+
+    def read_current(handle, game, generation, *, nonplay_checkpoint_row):
+        assert handle is r.handle
+        assert game == UUID(cp.content.scope.game_id)
+        assert generation == 1
+        assert nonplay_checkpoint_row == physical
+        assert nonplay_checkpoint_row is not row
+        return verified
+
+    def effective(frame, current_p3):
+        assert frame is old and current_p3 is verified
+        calls.append("projected")
+        return current
+
+    monkeypatch.setattr(
+        past_correction_nonplay, "read_p3_nonplay_current", read_current
+    )
+    monkeypatch.setattr(
+        past_correction_nonplay, "p3_effective_nonplay_frame", effective
+    )
+    monkeypatch.setattr(api, "_frame", lambda *_: old)
+    page = api.read_active_page(
+        r.handle,
+        cp,
+        generation=1,
+        checkpoint_row=row,
+        post_write=(play, runners) if post_write else None,
+        limit=1,
+    )
+    assert page == {"items": [current], "next_cursor": None}
+    assert calls == ["projected"]
+
+
+@pytest.mark.parametrize("damage", ["missing", "extra", "last-play"])
+def test_p3_page_rejects_incomplete_checkpoint_profile(read_rig, damage):
+    """P3比較前に追加read列と実物理列の閉集合を維持する。"""
+    from pitchlog.db.writer_binding.ordinary_models import OrdinaryPitchCheckpoint
+
+    row = {k: None for k in OrdinaryPitchCheckpoint.__table__.c.keys()}
+    row["last_play_row"] = None
+    if damage == "missing":
+        row.pop(next(iter(OrdinaryPitchCheckpoint.__table__.c.keys())))
+    elif damage == "extra":
+        row["unverified"] = None
+    else:
+        row["last_play_row"] = {}
+    with pytest.raises(api.NonplaySourceUnavailable):
+        api.read_active_page(
+            read_rig.handle,
+            read_rig.cp,
+            generation=1,
+            checkpoint_row=row,
+        )
+
+
+@pytest.mark.parametrize(
+    "damage", ["play", "runners", "evidence", "bool-count", "extra"]
+)
+def test_post_write_p3_checkpoint_keeps_all_read_evidence(damage):
+    """保存後の追加行を隠さず、期待物理行と読取証拠を閉じる。"""
+    from pitchlog.db.writer_binding.ordinary_models import OrdinaryPitchCheckpoint
+
+    physical = {k: None for k in OrdinaryPitchCheckpoint.__table__.c.keys()}
+    play = {"id": str(UUID(int=2))}
+    runners = []
+    evidence = {
+        key: 0
+        for key in (
+            "all_play_count",
+            "ordinary_play_count",
+            "invalid_count",
+            "non_play_count",
+            "history_count",
+            "pa_change_count",
+        )
+    }
+    row = {
+        **physical,
+        "last_play_row": None,
+        "last_play_runners": [],
+        "source_evidence": evidence,
+    }
+    assert api._checkpoint_physical_row(row, post_write=(play, runners)) == physical
+    row = copy.deepcopy(row)
+    modified_evidence = copy.deepcopy(evidence)
+    if damage == "play":
+        row["last_play_row"] = {}
+    elif damage == "runners":
+        row["last_play_runners"] = [{}]
+    elif damage == "evidence":
+        modified_evidence.pop("history_count")
+        row["source_evidence"] = modified_evidence
+    elif damage == "bool-count":
+        modified_evidence["history_count"] = False
+        row["source_evidence"] = modified_evidence
+    else:
+        row["last_history"] = None
+    with pytest.raises(api.NonplaySourceUnavailable):
+        api._checkpoint_physical_row(row, post_write=(play, runners))
+
+
+@pytest.mark.parametrize("damage", ["play", "runners", "missing", "cursor"])
+def test_post_write_page_rejects_different_latest_physical(
+    read_rig, monkeypatch, damage
+):
+    """CP tokenが行を供給しない非playでも、同TX最新pageの全物理行を照合する。"""
+    from pitchlog.db.writer_binding.ordinary_models import OrdinaryPitchCheckpoint
+    from pitchlog.repositories import past_correction_nonplay
+
+    r = read_rig
+    cp = r.cp.model_copy(
+        update={"content": r.cp.content.model_copy(update={"active_depth": "1"})}
+    )
+    r.packet["checkpoint"] = cp.model_dump(
+        mode="json", by_alias=True, exclude_unset=True
+    )
+    r.packet["total"] = 1
+    play = {"id": str(UUID(int=2))}
+    runners = []
+    r.packet["items"] = [
+        {
+            "cursor": [1, 1, str(UUID(int=1))],
+            "physical": {"play_row": play, "play_runners": runners},
+        }
+    ]
+    if damage == "play":
+        r.packet["items"][0]["physical"]["play_row"] = {}
+    elif damage == "runners":
+        r.packet["items"][0]["physical"]["play_runners"] = [{}]
+    elif damage == "missing":
+        r.packet["items"] = []
+    evidence = {
+        key: 0
+        for key in (
+            "all_play_count",
+            "ordinary_play_count",
+            "invalid_count",
+            "non_play_count",
+            "history_count",
+            "pa_change_count",
+        )
+    }
+    row = {
+        **{k: None for k in OrdinaryPitchCheckpoint.__table__.c.keys()},
+        "last_play_row": None,
+        "last_play_runners": [],
+        "source_evidence": evidence,
+    }
+    monkeypatch.setattr(
+        past_correction_nonplay, "read_p3_nonplay_current", lambda *_, **__: None
+    )
+    monkeypatch.setattr(api, "_frame", lambda *_: {})
+    with pytest.raises(api.NonplaySourceUnavailable):
+        api.read_active_page(
+            r.handle,
+            cp,
+            generation=1,
+            limit=1,
+            cursor="invalid-cursor" if damage == "cursor" else None,
+            checkpoint_row=row,
+            post_write=(play, runners),
+        )
 
 
 def test_saved_history_difference_omission_survives_source_roundtrip():

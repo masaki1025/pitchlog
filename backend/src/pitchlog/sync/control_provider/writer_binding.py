@@ -114,20 +114,25 @@ class _LiveWriterBinding:
     def assert_event_source(self, binding, *, context, request, event, phase):
         """実RPC snapshotと当該sourceを同writerで再照合し、純値だけを返す。"""
         import json
+        from collections.abc import Mapping
         from uuid import UUID
 
         from pitchlog.sync.control_provider.binding_control import _phase_wire
-        from pitchlog.sync.control_provider.evidence import EventPhaseBinding
+        from pitchlog.sync.control_provider.evidence import (
+            D1lessPhaseBinding,
+            EventPhaseBinding,
+        )
         from pitchlog.sync.source_binding import read_selected_event_source
 
+        d1less = type(phase) is D1lessPhaseBinding
         if (
             self._used
             or _LIVE_BINDINGS.get(self._owner[0]) is not self
             or self._handle._context is not context
             or self._lease._phase_snapshot != self._phase_snapshot
-            or type(phase) is not EventPhaseBinding
+            or type(phase) not in (EventPhaseBinding, D1lessPhaseBinding)
             or type(phase.position) is not int
-            or type(phase.d1) is not int
+            or (not d1less and type(phase.d1) is not int)
             or type(phase.attempt.event_count) is not int
         ):
             raise WriterBindingUnavailable("実phaseと入力sourceが不一致")
@@ -141,19 +146,39 @@ class _LiveWriterBinding:
             phase_wire = _phase_wire(
                 phase, UUID(actual["authority_id"]), actual["control_version"]
             )
+            target = event.v10 if d1less else None
             if (
                 snapshot["tenant_id"] != str(context.tenant_id)
-                or (phase.d1 != 1 and snapshot.get("source_d1") != phase.d1)
-                or (phase.d1 == 1 and "source_d1" in snapshot)
+                or (
+                    type(phase) is EventPhaseBinding
+                    and phase.d1 != 1
+                    and snapshot.get("source_d1") != phase.d1
+                )
+                or (
+                    (d1less or phase.d1 == 1)
+                    and "source_d1" in snapshot
+                )
                 or actual != phase_wire
                 or value.origin != "e1"
                 or value.request_fingerprint != actual["request_fingerprint"]
                 or value.event_fingerprint != actual["event_fingerprint"]
                 or value.position != phase.position
-                or event.d1 != phase.d1
+                or (
+                    event.d1 is not None
+                    if d1less
+                    else event.d1 != phase.d1
+                )
+                or (d1less and event.d4 is not None)
+                or (d1less and event.v5 != "play_change")
                 or event.d5 != actual["d5"]
                 or request.game_id != actual["game_id"]
-                or request.d4 != actual["wire_d4"]
+                or (
+                    not isinstance(target, Mapping)
+                    or str(target.get("d4")) != actual["wire_d4"]
+                    if d1less
+                    else request.d4 != actual["wire_d4"]
+                )
+                or (request.path == "P3") is not d1less
                 or actual["codec_version"] != 1
             ):
                 raise ValueError

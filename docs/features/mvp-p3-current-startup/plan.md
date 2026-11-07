@@ -21,3 +21,7 @@ branch: feature/mvp-p3-current-startup
 rootのみが本WT/共有接合を編集する。編集は既P3/recoveryの実source集合・専用fixture/tests・FE耐久/画面接合、既cache原本からの0048 migrationと専用型元、current_product_startup/閉検査、authz候補catalog/公式派生と本計画。元P3作者は別WTで25超/複数/終了後の純sourceを担当し、同じ物理pathを並行編集しない。既capsuleのwatermark<=25などを上限だけ外して全試合成立にせず、ページ完全性の追補を受けて整合する。新しい野球意味を裁定せず既採用意味と保存保証を維持する。
 
 正式共有DB/運用公開/新秘密/本人署名は行わない。試験はowned PG全寿命共通lock、共有DSNをunsetし実source前後と所有cleanupを固定。独立reviewは対象版/差分SHA/作者別に維持、既13path等の部分reviewを全依存へ拡張しない。最終認可/tenant/7.7/必須CI/通常merge/実機の未了を保持する。8分割CIの保留を本製品接続の条件にしない。
+
+初回source結合の6競合はimports/C2 operationの和集合、本文指紋＋D1less kind双方の保持/除去対象分離、sync transportのevents/change/recover閉3入口、同一内容の試験表記で解消する。旧P3側の選択で復旧body_fingerprint/CSV資格を失わせない。後発型検査4件は通常投球fixtureをFirstBallObservationsへ実isinstanceで狭化し、非投球unionや製品の未対応拒否は変えない。対象271成功/10失敗を保全し、Port宣言18口と実cold bootstrap13口の供給漏れを検出。必要最小修復として既port_guard._load_first_ball_port_classesへ既宣言済P3/交代5型の明示import/返却だけを追加し、実クラス同一性・SQL-free静的閉包/未登録/未import拒否を維持、既2試験の期待集合も同5型を正確に追随。自由importやfallbackは作らない。旧関数registry pin期待漏れ1件は別残件として扱い、比較を削除しない。
+
+ステップ1第一接合の検証: backend全Ty0/Ruff0、cold bootstrapと元要求/port境界147passed5.66秒。frontend型0/lint0、client/sync transport/P3 controller/UI92passed3.26秒。旧registry全関数pin期待は新增22件を未収録の1failであり未解消として保持（型を無視したり比較を削除しない）。元271/10失敗もcache保持。これはP3機能sourceの接合だけで、0048通常配備/新source実PG/最終受理の完了ではない。

@@ -36,6 +36,17 @@ def test_port_real_guard_and_original_event_command():
             ("pitchlog.sync.lifecycle_ports", "LifecycleContentValidationPort"),
             ("pitchlog.sync.lifecycle_ports", "LifecycleProjectionPort"),
             (
+                "pitchlog.sync.past_correction_rights",
+                "PastCorrectionRecordingRightsPort",
+            ),
+            (
+                "pitchlog.sync.past_correction_ports",
+                "PastCorrectionContentValidationPort",
+            ),
+            ("pitchlog.sync.past_correction_ports", "PastCorrectionProjectionPort"),
+            ("pitchlog.sync.substitution_ports", "SubstitutionContentValidationPort"),
+            ("pitchlog.sync.substitution_ports", "SubstitutionProjectionPort"),
+            (
                 "pitchlog.sync.first_ball_recording_rights",
                 "FirstBallRecordingRightsPort",
             ),

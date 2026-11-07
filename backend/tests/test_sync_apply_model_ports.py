@@ -340,6 +340,17 @@ def test_unregistered_port_is_rejected_before_call() -> None:
             ("pitchlog.sync.undo_ports", "UndoProjectionPort"),
             ("pitchlog.sync.lifecycle_ports", "LifecycleContentValidationPort"),
             ("pitchlog.sync.lifecycle_ports", "LifecycleProjectionPort"),
+            (
+                "pitchlog.sync.past_correction_rights",
+                "PastCorrectionRecordingRightsPort",
+            ),
+            (
+                "pitchlog.sync.past_correction_ports",
+                "PastCorrectionContentValidationPort",
+            ),
+            ("pitchlog.sync.past_correction_ports", "PastCorrectionProjectionPort"),
+            ("pitchlog.sync.substitution_ports", "SubstitutionContentValidationPort"),
+            ("pitchlog.sync.substitution_ports", "SubstitutionProjectionPort"),
         }
     )
     import pitchlog.sync.first_ball_projection  # noqa: F401  # 登録集合の固定bootstrap

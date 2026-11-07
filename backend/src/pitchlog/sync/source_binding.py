@@ -6,6 +6,7 @@ registry登録APIは提供せず、pure登録doubleを実受付の証拠とは�
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Literal
@@ -172,9 +173,17 @@ def _receipt(owner: E1Receipt) -> _ReceiptState:
     ):
         raise ValueError(_ERROR)
     source = checked_wire_source(state.source)
+    p3 = state.request.path == "P3"
+    target = state.request.events[0].v10 if p3 else None
+    target_d4 = target.get("d4") if isinstance(target, Mapping) else None
     if (
         source.game_id != state.request.game_id
-        or source.d4 != state.request.d4
+        or source.d1less is not p3
+        or (
+            source.d4 != str(target_d4)
+            if p3
+            else source.d4 != state.request.d4
+        )
         or len(source.events) != len(state.request.events)
     ):
         raise ValueError(_ERROR)
@@ -187,7 +196,10 @@ def _receipt(owner: E1Receipt) -> _ReceiptState:
         }
         if _canonical({k: v for k, v in raw.items() if k in known}) != _canonical(dto):
             raise ValueError(_ERROR)
-        if any(
+        if p3:
+            if "d1" in raw or "d4" in raw or raw.get("d5") != event.d5:
+                raise ValueError(_ERROR)
+        elif any(
             type(raw.get(key)) is not type(expected) or raw[key] != expected
             for key, expected in (
                 ("game_id", event.game_id),
@@ -541,13 +553,21 @@ def _e1_receipt_scope(
     ここで生成・推定しない。寿命終了で選択参照と受付を同時に失効させる。
     """
     try:
+        p3 = type(request) is SyncRequest and request.path == "P3"
+        target = request.events[0].v10 if p3 else None
+        target_d4 = target.get("d4") if isinstance(target, Mapping) else None
         if (
             type(context) is not TenantContext
             or not context._has_valid_integrity_proof()
             or type(request) is not SyncRequest
             or type(source) is not WireSourceValue
             or source.game_id != request.game_id
-            or source.d4 != request.d4
+            or source.d1less is not p3
+            or (
+                source.d4 != str(target_d4)
+                if p3
+                else source.d4 != request.d4
+            )
             or entry_token is None
         ):
             raise ValueError(_ERROR)

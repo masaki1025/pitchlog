@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Mapping
+from contextlib import ExitStack, nullcontext
 from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
@@ -92,6 +93,49 @@ def _target(event: SyncEvent) -> tuple[UUID, int, int]:
     return UUID(event.game_id), generation, d1
 
 
+def _bound_target(
+    scope: _TenantTransaction, event: SyncEvent, source: object
+) -> tuple[UUID, int, int, str]:
+    """P3実E1の原wire D4と内部世代を混同せず対象slotへ束縛する。"""
+    from pitchlog.sync.control_provider.evidence import D1lessPhaseBinding
+    from pitchlog.sync.d4_reference import D4ReferenceInvalid, encode_d4_reference
+    from pitchlog.sync.source_binding import _E1CoreSource
+
+    if (
+        type(scope) is not _TenantTransaction
+        or type(event) is not SyncEvent
+        or type(source) is not _E1CoreSource
+        or source.scope is not scope
+        or source.event is not event
+        or type(source.phase) is not D1lessPhaseBinding
+    ):
+        raise ValueError("P3実対象の受付が不一致")
+    source.read(scope, event)
+    target = event.v10
+    attempt = source.phase.attempt
+    if (
+        not isinstance(target, Mapping)
+        or set(target) != {"game", "d4", "d1"}
+        or target["game"] != event.game_id
+        or type(target["d4"]) is not str
+        or type(target["d1"]) is not int
+        or not 0 < target["d1"] <= _MAX_BIGINT
+        or attempt.tenant_id != scope._bound_tenant_id
+        or attempt.game_id != UUID(event.game_id)
+        or target["d4"] != attempt.wire_d4
+    ):
+        raise ValueError("P3実対象とE1原文が不一致")
+    try:
+        canonical_wire = encode_d4_reference(
+            scope._bound_tenant_id, attempt.game_id, attempt.internal_generation
+        )
+    except D4ReferenceInvalid:
+        raise ValueError("P3実対象の内部世代が不正") from None
+    if target["d4"] != canonical_wire:
+        raise ValueError("P3実対象のD4原本が不一致")
+    return attempt.game_id, attempt.internal_generation, target["d1"], canonical_wire
+
+
 def _accepted_from_candidate(candidate: D5Candidate, d5: str) -> ChangeResult | None:
     """I2/I3 の再掲または D5 衝突を新たな書き込みなしで返す。"""
     if candidate.kind == "unused":
@@ -116,6 +160,30 @@ def _accepted_from_candidate(candidate: D5Candidate, d5: str) -> ChangeResult | 
     return AcceptedChangeResult(reference, version, d5, content, accepted_at)
 
 
+def _prebound_p3_replay(
+    scope: _TenantTransaction, request: SyncRequest
+) -> ChangeResult | None:
+    """実RG1借用の現世代を先に照合し、V10/V11/V12前にD5だけ分類する。"""
+    if (
+        type(scope) is not _TenantTransaction
+        or type(request) is not SyncRequest
+        or request.path != "P3"
+        or len(request.events) != 1
+    ):
+        raise ValueError("P3再掲の入力が不正")
+    event = request.events[0]
+    supplied = request.recovery_generation
+    if (
+        type(supplied) is not str
+        or supplied != str(scope._current_rg1_recovery_generation())
+    ):
+        return RejectedChangeResult("B9", event.d5, "要求作成時の復旧世代が旧世代")
+    candidate = classify_d5(
+        scope, UUID(event.d5), operation_fingerprint(event, "P3", None), "P3"
+    )
+    return _accepted_from_candidate(candidate, event.d5)
+
+
 def _apply_locked(
     scope: _TenantTransaction,
     request: SyncRequest,
@@ -123,9 +191,37 @@ def _apply_locked(
     projection: ProjectionPort,
     validator: ContentValidationPort,
     writer: PortWriter | None = None,
+    *,
+    bound_source: object | None = None,
 ) -> ChangeResult:
     """③〜⑨を順に判定し、未使用 D5 だけを一取引で確定する。"""
+    from pitchlog.repositories.transaction import _port_predecision_phase
+    from pitchlog.sync.past_correction_ports import (
+        PastCorrectionContentValidationPort,
+        PastCorrectionProjectionPort,
+    )
+    from pitchlog.sync.source_binding import _E1CoreSource
+
+    if bound_source is not None and (
+        type(bound_source) is not _E1CoreSource
+        or bound_source.scope is not scope
+        or bound_source.request is not request
+        or bound_source.event is not request.events[0]
+    ):
+        raise ValueError("P3の実bound sourceが不一致")
+    if (
+        bound_source is not None
+        and type(validator) is not PastCorrectionContentValidationPort
+    ):
+        raise ValueError("P3実内容Portが不一致")
+    if (
+        bound_source is not None
+        and type(projection) is not PastCorrectionProjectionPort
+    ):
+        raise ValueError("P3実投影Portが不一致")
     event = request.events[0]
+    if bound_source is not None:
+        bound_source.read(scope, event)
     game_id = UUID(request.game_id)
     locked = _lock_game_generation(scope, game_id)
     if locked is None:
@@ -139,11 +235,18 @@ def _apply_locked(
     own_writer = writer is None
     if writer is None:
         writer = _issue_port_writer(scope.run)
+    p3_stack = ExitStack()
     try:
         supplied = request.recovery_generation
-        if type(supplied) is not str or not rights.is_recovery_generation_current(
-            event.game_id, supplied, writer
+        with (
+            _port_predecision_phase(scope, "rights")
+            if bound_source is not None
+            else nullcontext()
         ):
+            recovery_current = type(supplied) is str and (
+                rights.is_recovery_generation_current(event.game_id, supplied, writer)
+            )
+        if not recovery_current:
             raise _NoWriteResult(
                 RejectedChangeResult("B9", event.d5, "要求作成時の復旧世代が旧世代")
             )
@@ -161,12 +264,18 @@ def _apply_locked(
                 )
             )
 
-        if status == "in_progress" and (
-            request.v12 is ABSENT
-            or not rights.holds_recording_right(
-                event.game_id, str(generation), request.v12, writer
-            )
+        with (
+            _port_predecision_phase(scope, "rights")
+            if bound_source is not None and status == "in_progress"
+            else nullcontext()
         ):
+            has_right = status != "in_progress" or (
+                request.v12 is not ABSENT
+                and rights.holds_recording_right(
+                    event.game_id, str(generation), request.v12, writer
+                )
+            )
+        if not has_right:
             raise _NoWriteResult(
                 RejectedChangeResult("B9", event.d5, "現在の記録権証明がない")
             )
@@ -179,16 +288,34 @@ def _apply_locked(
                 RejectedChangeResult("B14", event.d5, "P3 の内容は JSON object が必要")
             )
         try:
-            target = _target(event)
+            bound_target = (
+                _bound_target(scope, event, bound_source)
+                if bound_source is not None
+                else None
+            )
+            target = bound_target[:3] if bound_target is not None else _target(event)
         except ValueError:
             raise _NoWriteResult(
                 RejectedChangeResult("B14", event.d5, "V10 の対象参照が不正")
             ) from None
+        if bound_target is not None and bound_target[1] != generation:
+            raise RuntimeError("P3実対象の内部世代が現世代と不一致")
         if type(event.v11) is not int or not 0 < event.v11 < _MAX_BIGINT:
             raise _NoWriteResult(
                 RejectedChangeResult("B14", event.d5, "V11 の期待版が不正")
             )
-        valid, reason = validator.validate(event, writer)
+        if bound_source is not None:
+            from pitchlog.sync.past_correction_execution import bind_p3_execution
+
+            p3_stack.enter_context(
+                bind_p3_execution(scope, writer, event, bound_source)
+            )
+        with (
+            _port_predecision_phase(scope, "content")
+            if bound_source is not None
+            else nullcontext()
+        ):
+            valid, reason = validator.validate(event, writer)
         if not valid:
             raise _NoWriteResult(
                 RejectedChangeResult(
@@ -212,10 +339,17 @@ def _apply_locked(
                 RejectedChangeResult("B8", event.d5, f"現在版: {current_version}")
             )
 
+        if bound_source is not None:
+            from pitchlog.sync.past_correction_execution import p3_change_event_id
+
+            change_event_id = p3_change_event_id(scope, event, writer)
+        else:
+            change_event_id = uuid4()
+
         accepted_at = datetime.now(UTC).isoformat()
         reference = {
             "試合": event.game_id,
-            "対象の D4": target[1],
+            "対象の D4": bound_target[3] if bound_target is not None else target[1],
             "対象の D1": target[2],
         }
         result = AcceptedChangeResult(
@@ -232,6 +366,8 @@ def _apply_locked(
             ensure_ascii=False,
             sort_keys=True,
         )
+        if bound_source is not None:
+            bound_source.begin_write(scope, event)
         raced = recheck_and_insert_result(
             scope,
             IdempotencyLedgerInsertToken(
@@ -257,7 +393,7 @@ def _apply_locked(
         )
         scope.run(
             OperationEventInsertToken(
-                uuid4(),
+                change_event_id,
                 game_id,
                 UUID(event.d5),
                 event.v5,
@@ -268,12 +404,17 @@ def _apply_locked(
             )
         )
         reach("after_t2_event")
+        if bound_source is not None:
+            bound_source.read(scope, event)
         projection.apply(event, writer)
+        if bound_source is not None:
+            bound_source.read(scope, event)
         reach("after_t4_projection")
         record_p3_intents(scope, game_id, target[1], target[2], event.v11 + 1)
         reach("after_t7_intents")
         return result
     finally:
+        p3_stack.close()
         if own_writer:
             writer._close()
 

@@ -11,6 +11,7 @@ from dataclasses import dataclass, field
 from types import MappingProxyType
 from typing import Self
 
+from pitchlog.sync.idempotency import source_fingerprint
 from pitchlog.sync.model import _canonical_uuid
 from pitchlog.sync.wire_fingerprint import (
     WireEventValue,
@@ -37,6 +38,7 @@ class WireSourceValue:
     events: tuple[WireEventValue, ...] = field(repr=False)
     event_fingerprints: tuple[str, ...] = field(repr=False)
     request_fingerprint: str = field(repr=False)
+    d1less: bool
     positions_by_d1: tuple[int, ...] = field(repr=False)
     positions_by_d5: MappingProxyType[str, tuple[int, ...]] = field(repr=False)
     _seal: object = field(repr=False)
@@ -67,7 +69,11 @@ def _indexes(
 
 
 def freeze_wire_source(
-    *, game_id: str, d4: str, raw_events: tuple[Mapping[str, object], ...]
+    *,
+    game_id: str,
+    d4: str,
+    raw_events: tuple[Mapping[str, object], ...],
+    d1less: bool = False,
 ) -> WireSourceValue:
     """未変換E-1列を既指紋部品へ一度渡し、不変の索引付き値にする。
 
@@ -75,6 +81,7 @@ def freeze_wire_source(
         game_id: URLに対応する正規形UUID。実URL受付の証明ではない。
         d4: 列に共通するD4。現世代との照合は行わない。
         raw_events: 受信時の原順tuple。S-2不正値も変更せず保持する。
+        d1less: P3の変更一件だけをD1なし原本として固定する。
 
     Returns:
         codec1の値。認証/受付/再送保持/同writerの資格にはならない。
@@ -85,9 +92,46 @@ def freeze_wire_source(
     try:
         if type(raw_events) is not tuple or not raw_events:
             raise TypeError(_ERROR)
+        if type(d1less) is not bool:
+            raise TypeError(_ERROR)
         events = tuple(freeze_wire_event(raw) for raw in raw_events)
-        request = wire_request_fingerprint(game_id=game_id, d4=d4, events=events)
-        positions_by_d1, positions_by_d5 = _indexes(events)
+        if d1less:
+            if len(events) != 1:
+                raise ValueError(_ERROR)
+            raw = events[0].wire_event
+            d5 = raw.get("d5")
+            target = raw.get("target_reference")
+            target_d4 = target.get("d4") if isinstance(target, Mapping) else None
+            if (
+                not _canonical_uuid(game_id)
+                or type(d4) is not str
+                or not d4
+                or not _canonical_uuid(d5)
+                or raw.get("game_id") != game_id
+                or "d1" in raw
+                or "d4" in raw
+                or raw.get("event_kind") != "play_change"
+                or not isinstance(target, Mapping)
+                or set(target) != {"game", "d4", "d1"}
+                or target.get("game") != game_id
+                or type(target_d4) not in {int, str}
+                or str(target_d4) != d4
+            ):
+                raise ValueError(_ERROR)
+            request = "wire-request-v1:" + source_fingerprint(
+                {
+                    "codec_version": 1,
+                    "path": "P3",
+                    "game_id": game_id,
+                    "target_d4": d4,
+                    "events": [wire_event_fingerprint(events[0])],
+                }
+            )
+            positions_by_d1 = ()
+            positions_by_d5 = MappingProxyType({d5: (1,)})
+        else:
+            request = wire_request_fingerprint(game_id=game_id, d4=d4, events=events)
+            positions_by_d1, positions_by_d5 = _indexes(events)
         value = object.__new__(WireSourceValue)
         for name, member in (
             ("game_id", game_id),
@@ -96,6 +140,7 @@ def freeze_wire_source(
             ("events", events),
             ("event_fingerprints", tuple(wire_event_fingerprint(e) for e in events)),
             ("request_fingerprint", request),
+            ("d1less", d1less),
             ("positions_by_d1", positions_by_d1),
             ("positions_by_d5", positions_by_d5),
             ("_seal", _VALUE_SEAL),
@@ -128,6 +173,7 @@ def checked_wire_source(value: WireSourceValue) -> WireSourceValue:
             or type(value.event_fingerprints) is not tuple
             or any(type(digest) is not str for digest in value.event_fingerprints)
             or type(value.request_fingerprint) is not str
+            or type(value.d1less) is not bool
             or type(value.positions_by_d1) is not tuple
             or any(type(position) is not int for position in value.positions_by_d1)
             or type(value.positions_by_d5) is not MappingProxyType
@@ -139,11 +185,21 @@ def checked_wire_source(value: WireSourceValue) -> WireSourceValue:
             )
         ):
             raise ValueError(_ERROR)
-        request = wire_request_fingerprint(
-            game_id=value.game_id, d4=value.d4, events=value.events
-        )
+        if value.d1less:
+            rebuilt = freeze_wire_source(
+                game_id=value.game_id,
+                d4=value.d4,
+                raw_events=tuple(event.wire_event for event in value.events),
+                d1less=True,
+            )
+            request = rebuilt.request_fingerprint
+            by_d1, by_d5 = rebuilt.positions_by_d1, rebuilt.positions_by_d5
+        else:
+            request = wire_request_fingerprint(
+                game_id=value.game_id, d4=value.d4, events=value.events
+            )
+            by_d1, by_d5 = _indexes(value.events)
         digests = tuple(wire_event_fingerprint(e) for e in value.events)
-        by_d1, by_d5 = _indexes(value.events)
         if (
             request != value.request_fingerprint
             or digests != value.event_fingerprints
