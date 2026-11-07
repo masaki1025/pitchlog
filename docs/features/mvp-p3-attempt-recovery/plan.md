@@ -70,3 +70,15 @@ step3候補追補: P3/receipt関連とAPI appの回帰で、既P3 3routeがapp�
 追加owned run1@f32454e6結果: 1 failed/2 passed、221.61s。controlのEvent/P3両caseは成功し、旧NULL不可/別body拒否/未登録後着/登録先勝ち・退役先勝ちの実advisory競合/相互reader非混同/未知phase・混在D1拒否を確認した。P3HTTPはold-live未解決・実終結後復旧・未ログイン/端末不一致401・別tenant404まで到達したが、作者が追加した最後の404 JSONをFastAPI既定detailと誤認し、実際の共通error envelopeとの不一致で失敗した（compiled行1028）。成功扱いにしない。製品応答を変えず、同一試合の既GET越境404本文とfull equalityに修正してP3HTTPだけを再実行する。成功済みcontrol2caseは同じsource/inputなので反復しない。
 
 製品sourceはbackend/controlがda7a933c、FE共通helper/barrierが31b95027から変更しない。rootの限定非作者確認は該当差分だけで、旧605レビューを保持する。最終合成/全path/人間逐行確認やP6 blindへ拡張しない。
+
+最終技術対向の結果（2026-11-07、候補・未統合）:
+- P3 control初導入3876ba3d: 標準catalog/実P3縦断1 passed168.07s。
+- P3原本文復旧da7a933c: 未登録/故障/ACK喪失/別V12を1 passed171.41s。
+- Event/P3 control対向f32454e6: 同一run内の該当2case成功。P3HTTPだけ404本文の作者期待誤りで失敗した履歴を保持する。
+- 最終製品source31b95027: 既P1 ACK喪失/T4/未登録の実HTTP回帰3 passed168.04s、verify WT clean。
+- 最終P3 old-live/security50072042: 1 passed160.02s、verify WT clean。実T4旧writer保持中unresolved→実終結後だけretry_allowed、未登録旧後着拒否/T2・T4全取消/同D5再掲/別V12拒否/実401/別tenant404のfull equalityを全て通過した。
+- backend333件＋P3/API28件、FE67件、Ruff/Ty/vue-tsc/ESLint成功（対象範囲）。起点4dのUndo fixture/artifact不一致8件と全件/正式CI未実施は成功へ読み替えない。
+
+証拠入口 ~/.cache/pitchlog/mvp-p3-attempt-recovery-20261107/ に各runログ/checksと固定source patch/manifestを置いた。root限定非作者REPORT SHA26e3e25bedf37cc2329b3b2faf355969e4ae01cef082a619130e289a22259c41（対象31b、13path、独立268backend+16FE、新P0/P1なし）を読取りSHA一致確認。旧605の既確認を保持し、standard control初導入/全57pathやP6 blind/人間確認の全成立へ拡張しない。
+
+残る受渡し: P3 FE本体へcache patch d6a5576c…をroot直列採用、実P3画面cold restart/ACK喪失、root0046正規startup/予約TABLES等の安全分類、正式manifest/authz/tenant/seal/7.7と必須CI/通常統合。これら未実施を本技術対向の成功で代替しない。
