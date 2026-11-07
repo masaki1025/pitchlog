@@ -639,8 +639,8 @@ source_row.payload->'calculation'->'request'->'source'->'responsibility'
      IF rp_target_count<>0 OR (rp_effect->>'modality' IS DISTINCT FROM 'optional'
       AND rp_effect->>'modality' IS DISTINCT FROM 'forced')
       OR rp_effect->>'destination' IS DISTINCT FROM
-       CASE rp_observed->>'destination' WHEN 'second' THEN '2'
-        WHEN 'third' THEN '3' WHEN 'home' THEN '4' ELSE NULL END
+       (CASE rp_observed->>'destination' WHEN 'second' THEN '2'
+        WHEN 'third' THEN '3' WHEN 'home' THEN '4' ELSE NULL END)
       OR (SELECT pg_catalog.array_agg(k ORDER BY k) FROM
        pg_catalog.jsonb_object_keys(rp_observed) k) IS DISTINCT FROM
        ARRAY['destination','kind','runner']::text[]
