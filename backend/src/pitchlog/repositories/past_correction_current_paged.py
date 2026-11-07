@@ -233,7 +233,7 @@ def verify_p3_paged_current(
             or stats["is_current"] is not True
             or stats["invalidated_at"] is not None
             or header["item_count"] != watermark
-            or header["source_count"] != watermark
+            or header["source_count"] != upper
             or set(progress)
             != {
                 "digest_format",
