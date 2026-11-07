@@ -18,6 +18,21 @@ import {
 import { playHash } from './terminalPitchWire'
 beforeEach(() => vi.stubGlobal('crypto', webcrypto))
 afterEach(() => vi.unstubAllGlobals())
+it('走塁の型だけが接合された段階では旧封印処理へ流さない', async () => {
+  const p = vectors.cases[0]!.V7
+  const observations = {
+    ...(p.observations as Observations),
+    runnerObservation: null,
+  }
+  await expect(
+    formatLineupPrefixWire(
+      p.calculation.request as Request,
+      p.calculation.response as unknown as Success,
+      observations,
+      p.participants as Participants,
+    ),
+  ).rejects.toThrow('走塁の保存接続は未供給です')
+})
 it('正式34例の32field/wireSHA/V7/V8全値をそのまま照合する', async () => {
   expect(vectors.cases).toHaveLength(34)
   for (const row of vectors.cases) {

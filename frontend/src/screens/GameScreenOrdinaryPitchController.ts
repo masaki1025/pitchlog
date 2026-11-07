@@ -2,10 +2,7 @@ import {
   formatLineupPrefixWire,
   isLineupDefinition,
 } from '../api/lineupPrefixWire'
-import type {
-  LineupPlayPrefixV7,
-  NonplayNormalV7,
-} from '../../../contracts/state-transition/lineup_play_prefix_payload_v1'
+import type { LineupPlayPrefixV7 } from '../../../contracts/state-transition/lineup_play_prefix_payload_v1'
 import {
   isLineupRecordingContext,
   prepareLineupPrefix,
@@ -87,7 +84,10 @@ import {
 /** 旧画面は旧v3計算だけを扱う。NPを旧Source/物理CPへ変換しない。 */
 function isLegacyLineupPayload(
   value: LineupPlayPrefixV7,
-): value is Exclude<LineupPlayPrefixV7, NonplayNormalV7> {
+): value is Extract<
+  LineupPlayPrefixV7,
+  { calculation: { formatVersion: 'play-prefix-calculation-v3' } }
+> {
   return value.calculation.formatVersion === 'play-prefix-calculation-v3'
 }
 export type OrdinaryOperationResult = 'ready' | 'saved' | 'pending' | 'blocked'

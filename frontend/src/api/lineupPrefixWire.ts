@@ -8,6 +8,7 @@ import type {
   LineupPlayPrefixV8,
   BattedHitObservations,
   IntentionalWalkPlayPrefixV7,
+  RunnerNormalPlayPrefixV7,
 } from '../../../contracts/state-transition/lineup_play_prefix_payload_v1'
 import type {
   Observations,
@@ -125,9 +126,13 @@ export async function formatLineupPrefixWire(
     | Observations
     | BattedHitObservations
     | BattedHitWireObservations
-    | IntentionalWalkObservation,
+    | IntentionalWalkObservation
+    | RunnerNormalPlayPrefixV7['observations'],
   participants: Participants,
 ): Promise<{ payload: LineupPlayPrefixV7; stateDiff: LineupPlayPrefixV8 }> {
+  // 型接合だけで未供給の走塁封印・保存を成功扱いにしない。
+  if ('runnerObservation' in observations)
+    throw new Error('走塁の保存接続は未供給です')
   const digest = await playHash(lineupWireHead(request, response))
   const payload = {
     formatVersion: 'play-prefix-play-v3',
