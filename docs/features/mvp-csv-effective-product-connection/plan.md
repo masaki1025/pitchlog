@@ -46,3 +46,12 @@ screen1-single-sは **1passed131.12秒/source前後SHA一致/owned cleanup**。�
 同じ候補read関数を必要とする既CSV DB/画面fixtureの4path（test_play_export_v3_product_http/test_play_export_screen_e2e/test_nonpitch_play_export_screen_e2e/test_play_export_substitution_http）へ、既writer候補SQL配置直後のsource read候補SQL配置だけを追随する。初回実証wrapperと同じ実体であり、88列の事前fixture投入や成功応答stubを追加しない。これら全DBケースの成功は未実行のまま保持し、実HTTPの越境/無cookie等の対象を追加確認する。
 
 本WT適用後のT5単位境界は実 `api._assert_scope` を記録前にも再確認し、216passed33.77秒、Ty/Ruff成功。CSV source/collector/単一生成器側の成功245件と合わせても、未実施のDB fixture全件や全MVP成功へは広げない。root c181の既起動0045/27キー、共有UIのsource差分は0を保持する。
+
+
+## 接合後のexact回帰期待追随（ステップ3付記）
+
+広域純検査385成功/8失敗を確認。製品sourceを変えず、test_stats_native_function_registration/test_api_app/test_api_conventions/test_authz_repository_contractの4testだけを接合検査へ追加する。旧43登録・29routeの全項目/順序を保存し、既依存stats/substitutionとCSV writer/read/ZIPの実登録差分を固定期待へ追記する。downloadのresponse_model無しはZIP/成績CSVの閉3operationだけに限定し、通常DTOの検査を維持する。DB語彙text(の部分一致誤検出はread_text/nullcontextの完全識別子2つだけを既allowlistへ追加し、禁止語そのもの/類似名/混在は拒否する対向を追加する。正式凍結資産の受理はrootへ別引渡しとし、検査範囲をsubsetへ緩めない。
+
+699同sourceでowned実HTTPは1passed98.57秒、実画面IBB→再送→追加球→ZIPは1passed134.29秒。ともにsource前後一致/owned cleanup。
+
+修復後は同じ広域6fileで400passed73.24秒、backend Ruff/Ty成功、diff --check成功。許可2識別子はword-boundary完全一致だけに限定し、SQLAlchemy import alias・text/selectの空白/改行・似た識別子・混在呼出の拒否も追加固定した。純回帰期待の修復は実DBの新しい保存成功とは数えず、実画面/HTTP証拠のsourceは699のまま別に保持する。
