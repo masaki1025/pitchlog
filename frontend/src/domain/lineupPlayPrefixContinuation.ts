@@ -11,7 +11,13 @@ import {
 
 type Json = Record<string, unknown>
 type Prepared =
-  | { ok: true; request: Json; t1: Json; battedHit: boolean }
+  | {
+      ok: true
+      request: Json
+      t1: Json
+      battedHit: boolean
+      runnerEvent: boolean
+    }
   | { ok: false; response: string }
 /** 閉shapeを再検証し、余剰/欠落を補完しない。 */
 function object(value: unknown, keys: Array<string>): Json | null {
@@ -584,7 +590,15 @@ const nonplayShapes: Json = {
       d1: { ref: 'np.Positive' },
       d5: { ref: 'np.Uuid' },
       fingerprint: { ref: 'np.Fingerprint' },
-      eventKind: { values: ['play_input', 'undo', 'substitution', 'game_end_declaration', 'game_reopen'] },
+      eventKind: {
+        values: [
+          'play_input',
+          'undo',
+          'substitution',
+          'game_end_declaration',
+          'game_reopen',
+        ],
+      },
     },
     required: [
       'eventId',
@@ -1827,7 +1841,14 @@ export function prepareLineupContinuation(raw: string): Prepared {
     'runnerAdvanceOverrides',
     'thirdOutObservation',
   ])
-  const input = ordinaryInput ?? battedInput
+  const runnerInput = object(r.t1, [
+    'eventKind',
+    'resultId',
+    'pitchEventKind',
+    'before',
+    'runnerObservation',
+  ])
+  const input = ordinaryInput ?? battedInput ?? runnerInput
   // 安打結果に観測を補わず、旧4fieldのまま受け入れない。
   if (
     ordinaryInput !== null &&
@@ -2181,7 +2202,22 @@ export function prepareLineupContinuation(raw: string): Prepared {
       runnerAdvanceOverrides: battedInput.runnerAdvanceOverrides,
       thirdOutObservation: battedInput.thirdOutObservation,
     })
-  return { ok: true, request: r, battedHit: battedInput !== null, t1: t1 }
+  if (runnerInput !== null)
+    t1 = Object.assign(t1, {
+      runnerObservation: runnerInput.runnerObservation,
+      liveRunners: (s.runners as Array<Json>).map((runner) => ({
+        base: runner.base,
+        runnerId: runner.runnerId,
+        responsiblePitcherId: runner.responsiblePitcherId,
+      })),
+    })
+  return {
+    ok: true,
+    request: r,
+    battedHit: battedInput !== null,
+    runnerEvent: runnerInput !== null,
+    t1: t1,
+  }
 }
 /** 実一回T1をT2/runner/次sourceへ射影する。入力提案からT1結果をlookupしない。 */
 export function finishLineupContinuation(r: Json, raw: string): string {
@@ -2284,7 +2320,8 @@ export function finishLineupContinuation(r: Json, raw: string): string {
         previousPitcherId: priorResponsibility.previousPitcherId as string,
         reliefPitcherId: responsiblePitcherId,
         strikesAtChange: priorResponsibility.strikesAtChange as '0' | '1' | '2',
-        ballsAtChange: priorResponsibility.ballsAtChange as '0' | '1' | '2' | '3',
+        ballsAtChange: priorResponsibility.ballsAtChange as
+          '0' | '1' | '2' | '3',
       },
       responsiblePitcherId,
     )
@@ -2299,6 +2336,17 @@ export function finishLineupContinuation(r: Json, raw: string): string {
     for (const runner of source.runners as Array<Json>) {
       const slot = slotForBase(runner.base)
       if (slot === null) return failure('PREFIX_SOURCE_MISMATCH')
+      const out = value.outEffect as Json
+      if (
+        (out.targets as Array<unknown>).some(
+          (target) =>
+            typeof target === 'object' &&
+            target !== null &&
+            !Array.isArray(target) &&
+            (target as Json).runner === runner.base,
+        )
+      )
+        continue
       const destination = runnerDestination(read(advances, slot))
       if (destination === 'invalid') return failure('PREFIX_SOURCE_MISMATCH')
       if (destination === null)
@@ -2327,7 +2375,7 @@ export function finishLineupContinuation(r: Json, raw: string): string {
   }
   if (!runners(nextRunners, after)) return failure('PREFIX_SOURCE_MISMATCH')
   let nextResponsibility = source.responsibility
-  if (value.plateAppearanceEnded === true)
+  if (value.plateAppearanceEnded === true || completedHalf !== null)
     nextResponsibility = {
       kind: 'no-change',
       paStartSource: {
@@ -2353,32 +2401,40 @@ export function finishLineupContinuation(r: Json, raw: string): string {
     checkpoint: r.nextCheckpoint,
   })
   if (nonplay) nextRef = r.nextCheckpoint as Json
-  return JSON.stringify({
-    ok: true,
-    value: {
-      t1: {
-        countEffect: value.countEffect,
-        plateAppearanceEnded: value.plateAppearanceEnded,
-        batterDestination: value.batterDestination,
-        runnerDefaultAdvance: value.runnerDefaultAdvance,
-        outEffect: value.outEffect,
-        statFlags: value.statFlags,
-        after: after,
-      },
-      t2: t2,
-      newHistoryEntry: entry,
-      previousPrefixRef: ref,
-      nextPrefixRef: nextRef,
-      runners: nextRunners,
-      beforeParticipants: source.participants,
-      participants: nextPeople,
-      lineup: l,
-      rosterDigest: source.rosterDigest,
-      responsibility: source.responsibility,
-      nextResponsibility: nextResponsibility,
-      playIdentity: r.playIdentity,
-      sourcePosition: source.position,
-      executionArtifactSha256: source.executionArtifactSha256,
+  const finished: Json = {
+    t1: {
+      countEffect: value.countEffect,
+      plateAppearanceEnded: value.plateAppearanceEnded,
+      batterDestination: value.batterDestination,
+      runnerDefaultAdvance: value.runnerDefaultAdvance,
+      outEffect: value.outEffect,
+      statFlags: value.statFlags,
+      after: after,
     },
-  })
+    t2: t2,
+    newHistoryEntry: entry,
+    previousPrefixRef: ref,
+    nextPrefixRef: nextRef,
+    runners: nextRunners,
+    beforeParticipants: source.participants,
+    participants: nextPeople,
+    lineup: l,
+    rosterDigest: source.rosterDigest,
+    responsibility: source.responsibility,
+    nextResponsibility: nextResponsibility,
+    playIdentity: r.playIdentity,
+    sourcePosition: source.position,
+    executionArtifactSha256: source.executionArtifactSha256,
+  }
+  if (Object.prototype.hasOwnProperty.call(input, 'runnerObservation')) {
+    // 複数得点サヨナラの到達順は未接続。総得点を推測して成功させない。
+    const scoring = (value.runnerScoreEffects as Array<Json>).filter(
+      (e) => e.validRun === true,
+    )
+    scoring.shift()
+    if (result.outcome === 'walk-off' && scoring.some(() => true))
+      return failure('UNSUPPORTED_T1_SCOPE')
+    Object.assign(finished, { runnerScoreEffects: value.runnerScoreEffects })
+  }
+  return JSON.stringify({ ok: true, value: finished })
 }

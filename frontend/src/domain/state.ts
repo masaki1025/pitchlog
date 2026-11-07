@@ -1,5 +1,11 @@
 import { hasRunner } from './runnerOccupancy'
 import {
+  prepareRunnerRule,
+  type RunnerRuleRequest,
+  type LiveRunnerIdentity,
+  type BoundRunnerOutcome,
+} from './runnerEvent'
+import {
   battedHitRule,
   type BattedHitObservation,
   type BattedHitDerived,
@@ -7,7 +13,7 @@ import {
 import { ordinaryStateSupported } from './ordinaryState'
 import {
   FIRST_BALL_RULE,
-  ORDINARY_STRIKE_RULE,
+  ordinaryCountRule,
   TERMINAL_REACH_RULE,
   TERMINAL_OUT_RULE,
 } from './stateRules'
@@ -15,7 +21,6 @@ import type {
   Advance,
   BatterKind,
   BattingOrderBySide,
-  CountEffectKind,
   Derived,
   Runners,
   Rule,
@@ -180,31 +185,9 @@ function deriveOrdinaryCore(
     !ordinaryStateSupported(before, board)
   )
     return null
-  if (before.strikes < 0n || before.balls < 0n) return null
-  if (resultId === 'batting-result.ball') {
-    if (before.strikes > 2n || before.balls > 2n) return null
-    return applyCountRule(before, board, FIRST_BALL_RULE, resultId, cursors)
-  }
-  if (
-    resultId !== 'batting-result.called-pitch' &&
-    resultId !== 'batting-result.swinging-strike' &&
-    resultId !== 'batting-result.foul'
-  )
-    return null
-  if (
-    resultId === 'batting-result.foul' &&
-    before.strikes === 2n &&
-    before.balls <= 3n
-  ) {
-    // 通常非バントの明示結果だけ。K3/SO-04の三振結果へ読み替えない。
-    const holdRule: Rule = Object.assign({}, ORDINARY_STRIKE_RULE, {
-      strikeEffect: 'unchanged' as CountEffectKind,
-      strikeDelta: 0n,
-    })
-    return applyCountRule(before, board, holdRule, resultId, cursors)
-  }
-  if (before.strikes > 1n || before.balls > 3n) return null
-  return applyCountRule(before, board, ORDINARY_STRIKE_RULE, resultId, cursors)
+  const rule = ordinaryCountRule(before, resultId, pitchEventKind)
+  if (rule === null) return null
+  return applyCountRule(before, board, rule, resultId, cursors)
 }
 
 /** 旧終端ABIは無走者を保ち、v3だけはADV-02/RBI-07の連鎖を渡す。 */
@@ -299,6 +282,7 @@ function deriveStrikeoutDoublePlay(
   board: Scoreboard,
   pitchEventKind: string,
   cursors: BattingOrderBySide,
+  scoringEvidence: boolean = false,
 ): StrikeoutDerived | null {
   if (
     pitchEventKind !== 'pitch-event' ||
@@ -315,6 +299,10 @@ function deriveStrikeoutDoublePlay(
     outs: 2n,
     targets: ['batter', '1'],
   })
+  if (scoringEvidence) {
+    rule.scoringEvidence = true
+    rule.pitchEventKind = 'pitch-event'
+  }
   return applyCountRule(
     before,
     board,
@@ -322,6 +310,59 @@ function deriveStrikeoutDoublePlay(
     'batting-result.strikeout-double-play',
     cursors,
   )
+}
+
+/** 走者操作だけの内部根拠。旧T1公開ABIを無条件には変えない。 */
+export type RunnerEventDerived = StrikeoutDerived & {
+  runnerBoundOutcomes: Array<BoundRunnerOutcome>
+  runnerOperationId: string
+}
+
+/** 明示された走者結果を既単一核へ渡す。認可/保存成功は返さない。 */
+export function deriveRunnerOperation(
+  before: StateFields,
+  board: Scoreboard,
+  input: RunnerRuleRequest,
+  live: Array<LiveRunnerIdentity>,
+  cursors: BattingOrderBySide,
+): RunnerEventDerived | null {
+  if (
+    typeof cursors.away !== 'bigint' ||
+    typeof cursors.home !== 'bigint' ||
+    cursors.away < 1n ||
+    cursors.away > 9n ||
+    cursors.home < 1n ||
+    cursors.home > 9n
+  )
+    return null
+  let active = cursors.away
+  if (before.half === 'bottom') active = cursors.home
+  if (active !== before.battingOrder) return null
+  const plan = prepareRunnerRule(before, board, live, input)
+  if (plan === null) return null
+  let derived: StrikeoutDerived | null = null
+  if (plan.rule === null) {
+    if (plan.operationId !== 'batting-result.strikeout-double-play') return null
+    derived = deriveStrikeoutDoublePlay(
+      before,
+      board,
+      input.pitchEventKind,
+      cursors,
+      true,
+    )
+  } else
+    derived = applyCountRule(
+      before,
+      board,
+      plan.rule,
+      plan.flagResultId,
+      cursors,
+    )
+  if (derived === null) return null
+  return Object.assign(derived, {
+    runnerBoundOutcomes: plan.bound,
+    runnerOperationId: plan.operationId,
+  })
 }
 
 /** 無走者4安打を、確定観測と両cursorを検証して唯一核へ渡す。 */
@@ -474,6 +515,7 @@ function applyCountRule(
   const homeRun = resultId === 'batting-result.home-run'
   const flags = emptyFlags()
   flags.投球数 = !intentional
+  if (rule.pitchEventKind) flags.投球数 = rule.pitchEventKind === 'pitch-event'
   flags.投球回算入アウト = rule.outs > 0n
   flags.打席 = rule.pa === true
   if (walk) {
@@ -521,7 +563,12 @@ function applyCountRule(
     third: advanceFor(3n, rule, before.runners, rule.batter),
   }
   let runs = 0n
-  let forcedRuns = 0n
+  let rbi = 0n
+  let runnerScoreEffects: Array<{
+    base: bigint
+    validRun: boolean
+    rbiCredited: boolean
+  }> = []
   let first = false
   let second = false
   let third = false
@@ -532,8 +579,20 @@ function applyCountRule(
     if (advance.modality === 'not-applicable') continue
     if (rule.targets.includes(baseKey(base))) continue
     if (advance.destination === 4n) {
-      if (advance.modality === 'forced') forcedRuns = forcedRuns + 1n
-      runs = runs + 1n
+      let validRun = true
+      if (rule.validRunnerScoreBases)
+        validRun = rule.validRunnerScoreBases.includes(baseKey(base))
+      const rbiCredited =
+        validRun &&
+        (homeRun ||
+          hit ||
+          ((walk || hitByPitch) && advance.modality === 'forced'))
+      if (validRun) runs = runs + 1n
+      if (rbiCredited) rbi = rbi + 1n
+      if (rule.scoringEvidence === true)
+        runnerScoreEffects = runnerScoreEffects.concat([
+          { base: base, validRun: validRun, rbiCredited: rbiCredited },
+        ])
       continue
     }
     if (advance.destination === null) {
@@ -551,7 +610,10 @@ function applyCountRule(
     if (rule.batterBase === 2n) second = true
     if (rule.batterBase === 3n) third = true
   }
-  if (rule.batter === 'score') runs = runs + 1n
+  if (rule.batter === 'score') {
+    runs = runs + 1n
+    if (homeRun || hit) rbi = rbi + 1n
+  }
   let runners = runnersName(first, second, third)
   if (outs === 3n) {
     outs = 0n
@@ -576,9 +638,6 @@ function applyCountRule(
   for (const base of BASES)
     if (rule.targets.includes(baseKey(base)))
       targets = targets.concat([{ kind: 'runner', base }])
-  let rbi = 0n
-  if (homeRun || hit) rbi = runs
-  else if (walk || hitByPitch) rbi = forcedRuns
   flags.得点 = runs > 0n
   flags.失点 = runs > 0n
   flags.打点 = rbi > 0n
@@ -622,7 +681,7 @@ function applyCountRule(
   }
   if (orders !== null)
     Object.assign(after, { battingOrderBySide: Object.freeze(orders) })
-  return {
+  const result: Derived = {
     countEffect: {
       strikes: { kind: rule.strikeEffect, value: rule.strikeDelta },
       balls: { kind: rule.ballEffect, value: rule.ballDelta },
@@ -647,4 +706,7 @@ function applyCountRule(
     },
     after: after,
   }
+  if (rule.scoringEvidence === true)
+    Object.assign(result, { runnerScoreEffects: runnerScoreEffects })
+  return result
 }

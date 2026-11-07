@@ -43,3 +43,14 @@ root専有（本担当は直接編集しない）: `contracts/`・正本・共�
 候補sourceの限定非作者確認はrootへ渡す。作者試験と独立/盲検を区別し、P-6曝露資格を自称しない。共通owned lockをfixture作成からcleanupまで保持し、共有DSNをunset、実行source凍結、DB/一時file/portを分離する。実機/運用信頼TLS・正式develop統合・全MVP受入は別。root委任採用後は上記3ステップを順に継続し、外部回答/CI待ちには独立作業を進める。
 
 採用根拠: rootは上記固定計画全文を非作者レビューしP0/P1なし、source列挙pathを本担当一人へ割当、3ステップ継続を承認した。`/home/ymdms/.cache/pitchlog/mvp-runner-operations-root-intake-20261107/PLAN-ADOPTION.md` SHA a5ac58e841ccaec744f1d5dd9d72f6435854d3fe426199e9da4a2892806a6bb5。本人逐行確認/署名の代記ではない。
+
+
+## ステップ1の候補成果（2026-11-07）
+
+- `runnerEvent`が正式T1PerPitchPayloadV2の11欄/PlayerRef/起点走者結果を原値のまま閉検査し、内部Ruleを既唯一`applyCountRule`へ渡す。通常球のcount選択を`ordinaryCountRule`へ抽出して再利用し、得点/RBIは同じ算入ループの判定から有効到達根拠を出す。Pythonの野球計算は追加していない。
+- 新v3候補入力だけに`runnerObservation={perPitch,primaryResultId}`を追加する。`primaryResultId`は実投球を伴う副結果の主結果であり、runner-event自身のcountを変えない（XC-05）。投球＋盗塁はbatting-resultのrunnerEventPayload、非投球盗塁/牽制はrunner-event。live ID/責任はsourceからだけ供給する。旧入力/旧出力ABIへ任意欄を足さない。
+- 既v3のout対象IDを次走者から除き、走者のみの第3outでも次PA責任参照を更新する。OUT3-03/04/05で有効とされた本塁到達のみ同じ核で算入し、その判定を`runnerScoreEffects`へ写す。未観測時機/未解決temporary/force原因/未知因果は閉拒否。
+- 作者検査: eslint・vue-tsc成功、domain全件35file/938passed/52.71秒。追加v3の正常7/拒否7は公式builderの一時artifactと全値一致、正常7は現正式JSONSchemaのT1PerPitchPayloadV2へ適合。独立レビュー/正式受理/追跡artifact更新/実PG/実画面の成功ではない。
+- 正式供給待ち: v3T1への閉観測variantと出力runnerScoreEffects、同unionの型/schema/case、唯一artifact/pin。rootへcache packetを渡す。root以外による正式資産の編集なし。
+- 今回の現成功範囲: 非終端通常球＋盗塁、非投球盗塁/牽制、通常球＋WP/PB、明示全員1塁のbalk、既固定SO-05（一死一塁/S2B0）。終端球との複合、SO-05他配置、複数得点サヨナラの順序反映、エラー/妨害等は未完として保持する。観測や自動既定の拡張は行わない。
+- 次: ステップ2の閉V7/型/物理runner原因/T5/画面接合、root直列の正式型・artifact供給後にステップ3実測。stage1だけをMVP完成に読み替えない。

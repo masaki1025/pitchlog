@@ -18,6 +18,8 @@ import type {
   BoolSpan as UndoBoolSpan,
 } from './undo'
 import type { BattedHitObservation } from './battedHit'
+import { readRunnerObservation } from './runnerEvent'
+import type { LiveRunnerIdentity } from './runnerEvent'
 import {
   prepareLineupContinuation,
   finishLineupContinuation,
@@ -44,6 +46,7 @@ import {
   deriveStrikeout,
   deriveBattedHit as calculateBattedHit,
   deriveLineupPitch,
+  deriveRunnerOperation,
   emptyFlags,
 } from './state'
 import type {
@@ -627,8 +630,9 @@ function evaluatePitch(
   strikeout: boolean = false,
   lineup: boolean = false,
   battedHit: boolean = false,
+  runnerEvent: boolean = false,
 ): string {
-  const cursorMode = strikeout || lineup || battedHit
+  const cursorMode = strikeout || lineup || battedHit || runnerEvent
   if (typeof requestJson !== 'string') return errorResponse('INVALID_REQUEST')
   let parsed: unknown
   try {
@@ -649,6 +653,8 @@ function evaluatePitch(
       'runnerAdvanceOverrides',
       'thirdOutObservation',
     ])
+  if (runnerEvent)
+    requestKeys = requestKeys.concat(['runnerObservation', 'liveRunners'])
   if (request === null || !exactKeys(request, requestKeys)) {
     return errorResponse('INVALID_REQUEST')
   }
@@ -755,7 +761,7 @@ function evaluatePitch(
   const scoreboard = readBoard(board)
   if (state === null || scoreboard === null)
     return errorResponse('INVALID_REQUEST')
-  if (request.eventKind !== 'batting-result')
+  if (!runnerEvent && request.eventKind !== 'batting-result')
     return errorResponse('UNSUPPORTED_T1_SCOPE')
   let calculator = derive
   if (ordinary || terminal) calculator = deriveOrdinary
@@ -781,13 +787,29 @@ function evaluatePitch(
       raw.home.startsWith('-')
     )
       return errorResponse('INVALID_DECIMAL_INTEGER')
-    if (fieldValue(fields, 'state.runners') === 'loaded')
+    if (!runnerEvent && fieldValue(fields, 'state.runners') === 'loaded')
       return errorResponse('UNSUPPORTED_T1_SCOPE')
     cursors = Object.freeze({ away: away, home: home })
     let cursorCalculator = deriveStrikeout
     if (lineup) cursorCalculator = deriveLineupPitch
     let result
-    if (battedHit)
+    if (runnerEvent) {
+      const observation = readRunnerObservation(
+        request.runnerObservation,
+        request.eventKind,
+        request.resultId,
+        request.pitchEventKind,
+      )
+      if (observation === null || !Array.isArray(request.liveRunners))
+        return errorResponse('INVALID_REQUEST')
+      result = deriveRunnerOperation(
+        state,
+        scoreboard,
+        observation,
+        request.liveRunners as Array<LiveRunnerIdentity>,
+        cursors,
+      )
+    } else if (battedHit)
       result = calculateBattedHit(
         state,
         scoreboard,
@@ -820,18 +842,25 @@ function evaluatePitch(
       request.pitchEventKind,
     )
   if (derived === null) return errorResponse('UNSUPPORTED_T1_SCOPE')
-  if (terminal || cursorMode)
-    return JSON.stringify({
-      ok: true,
-      value: derivedJson(
-        derived,
-        stack,
-        state,
-        scoreboard,
-        cursors,
-        afterCursors,
-      ),
-    })
+  if (terminal || cursorMode) {
+    const output = derivedJson(
+      derived,
+      stack,
+      state,
+      scoreboard,
+      cursors,
+      afterCursors,
+    )
+    if (runnerEvent && derived.runnerScoreEffects)
+      Object.assign(output, {
+        runnerScoreEffects: derived.runnerScoreEffects.map((r) => ({
+          base: formatDecimalInteger(r.base),
+          validRun: r.validRun,
+          rbiCredited: r.rbiCredited,
+        })),
+      })
+    return JSON.stringify({ ok: true, value: output })
+  }
   return JSON.stringify({ ok: true, value: derivedJson(derived, stack) })
 }
 
@@ -1064,6 +1093,7 @@ function deriveLineupPlayPrefixWithContinuation(requestJson: string): string {
       false,
       !prepared.battedHit,
       prepared.battedHit,
+      prepared.runnerEvent,
     )
     return finishLineupContinuation(prepared.request, response)
   } catch {
