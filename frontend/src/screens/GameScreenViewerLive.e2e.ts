@@ -1,4 +1,8 @@
 import { expect, test, type Page } from '@playwright/test'
+import {
+  createAndStartRealGame,
+  recordRealPitch,
+} from './RealGameRecording.e2e-support'
 
 const baseURL = process.env.PITCHLOG_E2E_BASE_URL
 const team = process.env.PITCHLOG_E2E_TEAM_NAME
@@ -47,108 +51,22 @@ test('別contextの保存済み閲覧は10秒以内に1球へ更新し、断中�
   page.setDefaultTimeout(30_000)
   if (new URL(baseURL!).protocol !== 'https:')
     throw new Error('HTTPSが必要です')
-  await login(page)
-  await page.getByRole('button', { name: '新規作成', exact: true }).click()
-  const form = page.getByRole('region', {
-    name: '試合の新規作成',
-    exact: true,
-  })
-  await expect(form.getByLabel('日時（日本時間）')).toBeEnabled()
-  await form.getByLabel('日時（日本時間）').fill('2026-10-31T10:00')
-  await form.getByTestId('game-type').selectOption('game_other')
-  await form.getByTestId('away').selectOption(away!)
-  await form.getByTestId('home').selectOption(home!)
-  await form.getByTestId('tournament-kind').selectOption('new')
-  await form.getByLabel('新しい大会名', { exact: true }).fill('画面作成大会')
-  const created = page.waitForResponse(
-    (res) =>
-      res.request().method() === 'POST' && apiPath(res.url()) === '/api/games',
+  const { game: saved, head: initial } = await createAndStartRealGame(
+    page,
+    '画面作成大会',
   )
-  await form
-    .getByRole('button', { name: '準備中の試合を作成', exact: true })
-    .click()
-  const createdResponse = await created
-  expect(createdResponse.status()).toBe(201)
-  const saved = (await createdResponse.json()) as {
-    id: string
-    status: string
-    applied_rules: { dh: boolean }
-  }
-  expect(saved.status).toBe('preparing')
-  // 作成した試合の保存値を確認すると記録画面へ遷移する。
-  await form
-    .getByRole('button', {
-      name: '作成した試合IDの保存値を確認',
-      exact: true,
-    })
-    .click()
-  await expect(page).toHaveURL(`${baseURL}/games/${saved.id}/record`)
-  await expect(
-    page.getByRole('heading', { name: 'スタメンと試合開始' }),
-  ).toBeVisible()
-  await page.getByRole('button', { name: 'この端末を登録' }).click()
-  await expect(page.getByText('開始入力を確認できます')).toBeVisible()
-  const dh = saved.applied_rules.dh === true
-  for (const side of ['away', 'home'] as const) {
-    const rows = dh ? 10 : 9
-    for (let index = 0; index < rows; index += 1) {
-      await page
-        .locator(`#start-${side}-${index}-player`)
-        .selectOption({ index: index + 1 })
-      const position =
-        index === 9
-          ? '1'
-          : dh
-            ? index === 8
-              ? 'DH'
-              : String(index + 2)
-            : String(index + 1)
-      await page
-        .locator(`#start-${side}-${index}-position`)
-        .selectOption(position)
-    }
-  }
-  const started = page.waitForResponse(
-    (res) =>
-      res.request().method() === 'POST' &&
-      apiPath(res.url()) === `/api/games/${saved.id}/start`,
-  )
-  await page.getByRole('button', { name: '試合を開始', exact: true }).click()
-  const startedResponse = await started
-  expect(startedResponse.status()).toBe(200)
-  async function selectAndSave(result: string) {
-    // 履歴表示と入力context再束縛は別の更新。実server由来の入力へ戻ってから操作する。
-    await expect(page.getByTestId('ordinary-state-source')).toHaveText(
-      'サーバー確認済みの状態',
-    )
-    await expect(page.getByTestId('ordinary-pitch-result')).toBeVisible()
-    for (const name of ['profile', 'mode', 'bucket', 'lockdown'])
-      await page.getByTestId(`first-ball-env-${name}`).check()
-    const pitch = page.getByTestId('first-ball-pitch-type')
-    await expect(pitch).toBeEnabled()
-    await expect(pitch.locator('option')).not.toHaveCount(1)
-    await pitch.selectOption({ index: 1 })
-    await page.getByTestId('ordinary-pitch-result').selectOption(result)
-    await page.getByTestId('first-ball-course').locator('svg').click()
-    const posted = page.waitForResponse(
-      (res) =>
-        res.request().method() === 'POST' &&
-        apiPath(res.url()) === `/api/games/${saved.id}/sync/events`,
-    )
-    await expect(page.getByTestId('first-ball-save')).toBeEnabled()
-    await page.getByTestId('first-ball-save').click()
-    const response = await posted
-    expect(response.status()).toBe(200)
-    const ack = (await response.json()) as {
-      eventResults?: readonly { a5Result?: string }[]
-    }
-    expect(ack.eventResults?.[0]?.a5Result).toBe('受理')
-  }
-
+  let head = initial
   // 閲覧開始時点で26球を保存し、最新25球と旧pageの境界を作る。
-  for (let index = 0; index < 26; index += 1)
-    await selectAndSave('batting-result.called-pitch')
-
+  for (let index = 1; index <= 26; index += 1) {
+    const recorded = await recordRealPitch(
+      page,
+      head,
+      'batting-result.called-pitch',
+      index,
+    )
+    head = recorded.head
+  }
+  expect(head.prefix_ref.length).toBe('26')
   const viewerContext = await browser.newContext({ ignoreHTTPSErrors: true })
   const viewer = await viewerContext.newPage()
   viewer.setDefaultTimeout(30_000)
@@ -214,12 +132,15 @@ test('別contextの保存済み閲覧は10秒以内に1球へ更新し、断中�
       '表示ページ: 1',
     )
     await expect(historyItems).toHaveCount(25)
-    // 新規開始の受理後は現入口が自動的にv3記録へ接ぐ。
-    await expect(page.getByTestId('ordinary-state-source')).toHaveText(
-      'サーバー確認済みの状態',
-    )
-    await selectAndSave('batting-result.called-pitch')
     const savedAt = Date.now()
+    const recorded = await recordRealPitch(
+      page,
+      head,
+      'batting-result.called-pitch',
+      27,
+    )
+    head = recorded.head
+    expect(head.prefix_ref.length).toBe('27')
     await expect(viewer.getByText(/第27球:/)).toBeVisible({ timeout: 10_000 })
     const visibleAt = Date.now()
     if (visibleAt - savedAt > 10_000)
