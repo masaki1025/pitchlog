@@ -1,10 +1,10 @@
 ---
 feature: mvp-runner-operations-connection
-status: draft
+status: active
 branch: feature/mvp-runner-operations-connection
-承認: 未
+承認: PO委任Codex/root、2026-11-07、対象294e2b563a51b9870b763f0eff962710f23acca2、計画SHA 43ccc10010ceac0c4688f605974ea32c26f09e2d4112510efe5cc33a0797fc0c
 重さ分類: コア領域
-計画レビュー周回: 0
+計画レビュー周回: 1
 確定ゲート周回: 0
 ---
 
@@ -41,3 +41,5 @@ root専有（本担当は直接編集しない）: `contracts/`・正本・共�
 | 3 | 一つの隔離実画面シーケンスで保存/reload/再送/越境/途中故障を検証 | 画面新規作成/開始/安打で走者を作り、盗塁/死/牽制・WP/PB/balk・SO05を記録。サーバーafter/ID/責任・T5/SB実値・物理row/ledgerを照合し、同本文再送非二重加算・第3out/reload・越境拒否・全保存面原子性を実証。DB事前走者投入/仮Port/固定ACKなし |
 
 候補sourceの限定非作者確認はrootへ渡す。作者試験と独立/盲検を区別し、P-6曝露資格を自称しない。共通owned lockをfixture作成からcleanupまで保持し、共有DSNをunset、実行source凍結、DB/一時file/portを分離する。実機/運用信頼TLS・正式develop統合・全MVP受入は別。root委任採用後は上記3ステップを順に継続し、外部回答/CI待ちには独立作業を進める。
+
+採用根拠: rootは上記固定計画全文を非作者レビューしP0/P1なし、source列挙pathを本担当一人へ割当、3ステップ継続を承認した。`/home/ymdms/.cache/pitchlog/mvp-runner-operations-root-intake-20261107/PLAN-ADOPTION.md` SHA a5ac58e841ccaec744f1d5dd9d72f6435854d3fe426199e9da4a2892806a6bb5。本人逐行確認/署名の代記ではない。
