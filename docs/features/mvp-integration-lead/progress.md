@@ -1,5 +1,13 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 2026-11-07：訂正後の次球保存を実HTTP/DBで確認、閲覧担当へ送付
+
+- **新たに通った操作**: root70c23c1ac855894c1e053fe48de96cae4036b160 の `p3-csv-shared-selector` は **1passed184.77秒**。実HTTP作成/開始/複数球/P3後の追加球保存、元要求の再掲、旧writer生存時unresolved・終結後retryのみ、遅着拒否、ACK喪失、別V12/越境拒否、T2/T4全取消を既assertのまま完走。source前後同一・共有DSNunset・owned container removed。通常47＋手動候補P3配置であり、実browser再確認/標準0048/正式catalog/全CIの成功ではない。cache p3-current48-startup-root-20261107/p3-csv-shared-selector-{result,source-before,source-after}.json と .log/.xml が証拠。
+- **現在固定点**: root **91773ec03333f73a076e36f1a4aaae87e3415b91** clean/通常push済み。f9の3pathを全byte一致で反映し、同候補283passed8.22秒/Ruff/Ty0。元f9限定レビュー/独立283と作者run10失敗を保持。run10は正常6＋fault/HBP部分成功だが、初回HTTP timeoutと依存case未実行・全DB assert未到達のため全成功へ数えない。次は通常0048のschema/model/同profile正式供給。
+- **登板の実証**: D03担当r8はowned **2passed732.32秒（共通lock待ちを含む）**。開始直後0球の後攻投手proof1/未守備先攻0、immutable guard、初期actor直呼出拒否、entry直後故障で開始/名簿/世代/proof/event全取消。作者成果であり、成績read/CSVの登板完成とはしない。rootはsource/証拠の限定レビュー後に共有hook/catalogへ接合する。
+- **外部閲覧担当**: POから「送ったよ」を受領。提示した feature/mvp-viewer-live-connection / base5cb4407d2f4df63428f15d8da8c576ff684e5a16 の依頼は送付済み、担当受諾・実編集所有は未受領。閲覧専用画面/自動更新/最終取得成功時刻/断復帰/越境/10秒実測を担当対象とし、root共有router/authz等は接合patchのみ。送付を受諾/完成へ読み替えない。
+
+
 ## 2026-11-07 13時台：訂正後CSVの参照統一を実装、同版HTTPを再検証
 
 - **製品候補固定点**: feature/mvp-p3-current-startup@70c23c1ac855894c1e053fe48de96cae4036b160、通常push済み。P3後の次球保存がCSV save→NoDataFoundで止まった実原因に対し、成績/CSV score/sole-S readを既native生成器の同じ閉v2 profileへ接合。有効payloadは既Sの完全identityに一致するcapsule itemから読み、別の所属判定や得点計算を追加しない。従来play_input同TX save資格は維持。default生成SQL/4関数のowner/ACL込み全byte一致と不正profile拒否など33passed4.99秒、限定Ruff/Ty0。Ty初回の別venv指定漏れ4診断は環境是正後0として分離。
