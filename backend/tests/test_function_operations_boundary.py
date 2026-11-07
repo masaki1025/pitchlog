@@ -112,7 +112,7 @@ def _registration() -> FunctionOperationRegistration:
 
 
 def test_product_function_registry_keeps_rg1_and_adds_one_rule_operation() -> None:
-    """既16件を保持し、v2 prefixの正規4件を含む全集合を照合する。"""
+    """既操作を保持し、P3の有限9操作を含むID順序/型全集合を照合する。"""
     from pitchlog.repositories.batted_ball_options import BattedBallOptionsToken
     from pitchlog.repositories.first_ball import (
         _BindFirstBallDeviceToken,
@@ -154,6 +154,19 @@ def test_product_function_registry_keeps_rg1_and_adds_one_rule_operation() -> No
         OrdinaryCheckpointLockToken,
         OrdinaryCheckpointReadToken,
         OrdinaryHistoryPageToken,
+    )
+    from pitchlog.repositories.past_correction_paged_tokens import (
+        _AppendP3ProjectionPageToken,
+        _BeginP3ProjectionPageToken,
+        _FinalizeP3ProjectionPageToken,
+        _ReadP3CurrentHeaderToken,
+        _ReadP3CurrentPageToken,
+    )
+    from pitchlog.repositories.past_correction_right import (
+        _BindP3DeviceToken,
+        _CheckP3RightToken,
+        _PersistP3ProjectionToken,
+        _ReadP3CurrentToken,
     )
     from pitchlog.repositories.play_export_primitives import (
         OpenPrimitiveSnapshotToken,
@@ -212,6 +225,15 @@ def test_product_function_registry_keeps_rg1_and_adds_one_rule_operation() -> No
         "SYNC_PLAY_PREFIX:read_play_prefix_history_page",
         "SYNC_PLAY_PREFIX:prepare_play_prefix_projection",
         "SYNC_LINEUP_PREFIX:read_lineup_started_origin",
+        "SYNC_P3:check_p3_right",
+        "SYNC_P3:bind_p3_device",
+        "SYNC_P3:persist_p3_projection",
+        "SYNC_P3:begin_p3_projection_page",
+        "SYNC_P3:append_p3_projection_page",
+        "SYNC_P3:finalize_p3_projection_page",
+        "SYNC_P3:read_p3_current_header",
+        "SYNC_P3:read_p3_current_page",
+        "SYNC_P3:read_p3_current",
         "STATS_PRIMITIVES:save_source",
         "STATS_PRIMITIVES:read_writer_state",
         "STATS_PRIMITIVES:open_snapshot",
@@ -260,6 +282,15 @@ def test_product_function_registry_keeps_rg1_and_adds_one_rule_operation() -> No
         PlayPrefixHistoryPageToken,
         PreparePlayPrefixProjectionToken,
         LineupStartedOriginReadToken,
+        _CheckP3RightToken,
+        _BindP3DeviceToken,
+        _PersistP3ProjectionToken,
+        _BeginP3ProjectionPageToken,
+        _AppendP3ProjectionPageToken,
+        _FinalizeP3ProjectionPageToken,
+        _ReadP3CurrentHeaderToken,
+        _ReadP3CurrentPageToken,
+        _ReadP3CurrentToken,
         _SavePrimitiveSourceCall,
         _ReadPrimitiveWriterStateCall,
         OpenPrimitiveSnapshotToken,

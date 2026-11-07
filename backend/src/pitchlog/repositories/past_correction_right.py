@@ -10,6 +10,13 @@ from pitchlog.repositories.function_operations import (
     FunctionOperationRegistration,
     _build_fixed_function_statement,
 )
+from pitchlog.repositories.past_correction_paged_tokens import (
+    _AppendP3ProjectionPageToken,
+    _BeginP3ProjectionPageToken,
+    _FinalizeP3ProjectionPageToken,
+    _ReadP3CurrentHeaderToken,
+    _ReadP3CurrentPageToken,
+)
 from pitchlog.repositories.tokens import TenantOperationResult, TenantOperationToken
 
 
@@ -112,5 +119,20 @@ P3_DEVICE_BIND_OPERATION = _registration("bind_p3_device", _BindP3DeviceToken)
 P3_RIGHT_CHECK_OPERATION = _registration("check_p3_right", _CheckP3RightToken)
 P3_PROJECTION_OPERATION = _registration(
     "persist_p3_projection", _PersistP3ProjectionToken
+)
+P3_PAGE_BEGIN_OPERATION = _registration(
+    "begin_p3_projection_page", _BeginP3ProjectionPageToken
+)
+P3_PAGE_APPEND_OPERATION = _registration(
+    "append_p3_projection_page", _AppendP3ProjectionPageToken
+)
+P3_PAGE_FINALIZE_OPERATION = _registration(
+    "finalize_p3_projection_page", _FinalizeP3ProjectionPageToken
+)
+P3_PAGED_CURRENT_HEADER_OPERATION = _registration(
+    "read_p3_current_header", _ReadP3CurrentHeaderToken
+)
+P3_PAGED_CURRENT_PAGE_OPERATION = _registration(
+    "read_p3_current_page", _ReadP3CurrentPageToken
 )
 P3_CURRENT_READ_OPERATION = _registration("read_p3_current", _ReadP3CurrentToken)

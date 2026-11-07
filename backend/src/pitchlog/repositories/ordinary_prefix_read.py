@@ -1035,24 +1035,56 @@ def _read_lineup_projection(
     roster = InitialRosterProjection.model_validate_json(_canonical_json(row["roster"]))
     if lineup_from_actual_roster(roster) != doc.lineup:
         raise OrdinaryPrefixError
+    from pitchlog.repositories.past_correction_current import (
+        PastCorrectionCurrentUnavailable,
+        verify_p3_current_packet,
+    )
+    from pitchlog.repositories.past_correction_current_paged import (
+        read_verified_p3_paged_current,
+    )
     from pitchlog.repositories.past_correction_right import _ReadP3CurrentToken
 
-    p3_packet = _function_one(handle, _ReadP3CurrentToken(game_id, generation))
-    if p3_packet is None or p3_packet.get("kind") not in {"none", "p3-current"}:
-        raise OrdinaryPrefixError
-    if p3_packet["kind"] == "p3-current":
-        from pitchlog.repositories.past_correction_current import (
-            PastCorrectionCurrentUnavailable,
-            verify_p3_current_packet,
+    after_d1 = 0
+    if cursor is not None:
+        supplied = _cursor(cursor)
+        if type(supplied) is dict and "after_d1" in supplied:
+            if type(supplied["after_d1"]) is not int:
+                raise OrdinaryPrefixError
+            after_d1 = supplied["after_d1"]
+    try:
+        paged = read_verified_p3_paged_current(
+            handle,
+            game_id,
+            generation,
+            selected_after_d1=after_d1,
+            selected_limit=min(limit, 25),
         )
+    except PastCorrectionCurrentUnavailable:
+        raise OrdinaryPrefixError from None
+    p3_packet = (
+        None
+        if paged is not None
+        else _function_one(handle, _ReadP3CurrentToken(game_id, generation))
+    )
+    if paged is None and (
+        p3_packet is None or p3_packet.get("kind") not in {"none", "p3-current"}
+    ):
+        raise OrdinaryPrefixError
+    if paged is not None or (
+        p3_packet is not None and p3_packet["kind"] == "p3-current"
+    ):
         from pitchlog.repositories.play_prefix import _verify_source_evidence
 
         _verify_source_evidence(row, bridge=False)
         if row["source_evidence"]["non_play_count"] != 0:
             raise OrdinaryPrefixError
         try:
-            verified = verify_p3_current_packet(
-                p3_packet, tenant=tenant, game=game_id, generation=generation
+            verified = (
+                paged
+                if paged is not None
+                else verify_p3_current_packet(
+                    p3_packet, tenant=tenant, game=game_id, generation=generation
+                )
             )
         except PastCorrectionCurrentUnavailable:
             raise OrdinaryPrefixError from None
@@ -1221,6 +1253,10 @@ def _read_lineup_projection(
 
 def _read_p3_lineup_projection(verified, metadata, projection, row, *, limit, cursor):
     """全値検証済みP3有効版から同じv3 page形を有限に切り出す。"""
+    from pitchlog.repositories.past_correction_current_paged import (
+        VerifiedP3PagedCurrent,
+    )
+
     doc = verified.checkpoint
     scope = {
         "version": "p3-current-v1",
@@ -1242,12 +1278,28 @@ def _read_p3_lineup_projection(verified, metadata, projection, row, *, limit, cu
                 for key, value in scope.items()
             )
             or type(supplied["after_d1"]) is not int
-            or not 0 < supplied["after_d1"] < len(verified.items)
+            or not 0
+            < supplied["after_d1"]
+            < (
+                verified.source_count
+                if type(verified) is VerifiedP3PagedCurrent
+                else len(verified.items)
+            )
         ):
             raise OrdinaryPrefixError
         after = supplied["after_d1"]
-    selected = verified.items[after : after + limit]
-    selected_payloads = verified.payloads[after : after + limit]
+    if type(verified) is VerifiedP3PagedCurrent:
+        if after != verified.selected_after_d1:
+            raise OrdinaryPrefixError
+        selected = verified.selected_items
+        selected_payloads = verified.selected_payloads
+        source_count = verified.source_count
+        last_payload = verified.last_payload
+    else:
+        selected = verified.items[after : after + limit]
+        selected_payloads = verified.payloads[after : after + limit]
+        source_count = len(verified.items)
+        last_payload = verified.payloads[-1]
     page_items = [
         {
             "play_row": _public_play(item["play_row"], payload.observations.course),
@@ -1258,7 +1310,7 @@ def _read_p3_lineup_projection(verified, metadata, projection, row, *, limit, cu
     ]
     next_d1 = after + len(page_items)
     next_cursor = None
-    if next_d1 < len(verified.items):
+    if next_d1 < source_count:
         next_cursor = (
             base64.urlsafe_b64encode(
                 _canonical_json({**scope, "after_d1": next_d1}).encode()
@@ -1266,7 +1318,7 @@ def _read_p3_lineup_projection(verified, metadata, projection, row, *, limit, cu
             .decode()
             .rstrip("=")
         )
-    last_value = verified.payloads[-1].calculation.response.value
+    last_value = last_payload.calculation.response.value
     projection.update(
         after=doc.after,
         prefix_ref=doc.prefix_ref,

@@ -887,30 +887,51 @@ def read_confirmed_lineup_prefix(handle, event, source, *, proposal, artifact_sh
     roster = InitialRosterProjection.model_validate_json(_canonical_json(row["roster"]))
     if source_fingerprint(row["roster"]) != doc.roster_source_digest:
         raise OrdinaryPrefixError
+    from pitchlog.repositories.past_correction_current import (
+        PastCorrectionCurrentUnavailable,
+        verify_p3_current_packet,
+    )
+    from pitchlog.repositories.past_correction_current_paged import (
+        read_verified_p3_paged_current,
+    )
     from pitchlog.repositories.past_correction_right import _ReadP3CurrentToken
 
-    p3_packet = _function_one(handle, _ReadP3CurrentToken(game, generation))
-    if p3_packet is None or p3_packet.get("kind") not in {"none", "p3-current"}:
-        raise OrdinaryPrefixError
-    if p3_packet["kind"] == "p3-current":
-        from pitchlog.repositories.past_correction_current import (
-            PastCorrectionCurrentUnavailable,
-            verify_p3_current_packet,
+    try:
+        paged = read_verified_p3_paged_current(
+            handle, game, generation, selected_after_d1=0, selected_limit=25
         )
-
+    except PastCorrectionCurrentUnavailable:
+        raise OrdinaryPrefixError from None
+    p3_packet = (
+        None
+        if paged is not None
+        else _function_one(handle, _ReadP3CurrentToken(game, generation))
+    )
+    if paged is None and (
+        p3_packet is None or p3_packet.get("kind") not in {"none", "p3-current"}
+    ):
+        raise OrdinaryPrefixError
+    if paged is not None or (
+        p3_packet is not None and p3_packet["kind"] == "p3-current"
+    ):
         _verify_source_evidence(row, bridge=False)
         if row["source_evidence"]["non_play_count"] != 0:
             raise OrdinaryPrefixError
         try:
-            verified = verify_p3_current_packet(
-                p3_packet, tenant=tenant, game=game, generation=generation
-            )
+            if paged is None:
+                verified = verify_p3_current_packet(
+                    p3_packet, tenant=tenant, game=game, generation=generation
+                )
+                payload = verified.payloads[-1]
+                last_play = verified.items[-1]["play_row"]
+            else:
+                verified = paged
+                payload = paged.last_payload
+                last_play = paged.last_item["play_row"]
         except PastCorrectionCurrentUnavailable:
             raise OrdinaryPrefixError from None
         if verified.checkpoint != doc:
             raise OrdinaryPrefixError
-        payload = verified.payloads[-1]
-        last_play = verified.items[-1]["play_row"]
         if type(last_play) is not dict:
             raise OrdinaryPrefixError
         play_number = last_play.get("play_number")

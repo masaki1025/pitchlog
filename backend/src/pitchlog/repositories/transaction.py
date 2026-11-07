@@ -456,6 +456,11 @@ class _TenantTransaction:
             )
 
             _consume_ordinary_preparation(self, operation)
+        from pitchlog.repositories.past_correction_paged_tokens import (
+            _AppendP3ProjectionPageToken,
+            _BeginP3ProjectionPageToken,
+            _FinalizeP3ProjectionPageToken,
+        )
         from pitchlog.repositories.past_correction_right import (
             _PersistP3ProjectionToken,
         )
@@ -466,6 +471,16 @@ class _TenantTransaction:
             )
 
             consume_p3_persistence(self, operation)
+        if type(operation) in {
+            _BeginP3ProjectionPageToken,
+            _AppendP3ProjectionPageToken,
+            _FinalizeP3ProjectionPageToken,
+        }:
+            from pitchlog.sync.past_correction_execution import (
+                consume_p3_paged_persistence,
+            )
+
+            consume_p3_paged_persistence(self, operation)
         session, _ = runtime
         execution_result = session.execute(spec.statement, parameters)
         rows = tuple(tuple(row) for row in islice(execution_result, spec.max_rows + 1))

@@ -45,6 +45,11 @@ from pitchlog.repositories.ordinary_prefix_operations import (
 from pitchlog.repositories.past_correction_right import (
     P3_CURRENT_READ_OPERATION,
     P3_DEVICE_BIND_OPERATION,
+    P3_PAGE_APPEND_OPERATION,
+    P3_PAGE_BEGIN_OPERATION,
+    P3_PAGE_FINALIZE_OPERATION,
+    P3_PAGED_CURRENT_HEADER_OPERATION,
+    P3_PAGED_CURRENT_PAGE_OPERATION,
     P3_PROJECTION_OPERATION,
     P3_RIGHT_CHECK_OPERATION,
 )
@@ -126,6 +131,11 @@ _STATIC_PRODUCT_FUNCTION_BINDING_IDS = frozenset(
         "SYNC_P3:check_p3_right",
         "SYNC_P3:bind_p3_device",
         "SYNC_P3:persist_p3_projection",
+        "SYNC_P3:begin_p3_projection_page",
+        "SYNC_P3:append_p3_projection_page",
+        "SYNC_P3:finalize_p3_projection_page",
+        "SYNC_P3:read_p3_current_header",
+        "SYNC_P3:read_p3_current_page",
         "SYNC_P3:read_p3_current",
     }
 )
@@ -279,6 +289,23 @@ PRODUCT_FUNCTION_OPERATIONS: tuple[FunctionOperationRegistration, ...] = (
     ),
     _registered_product_function(
         P3_PROJECTION_OPERATION, operation_id="SYNC_P3:persist_p3_projection"
+    ),
+    _registered_product_function(
+        P3_PAGE_BEGIN_OPERATION, operation_id="SYNC_P3:begin_p3_projection_page"
+    ),
+    _registered_product_function(
+        P3_PAGE_APPEND_OPERATION, operation_id="SYNC_P3:append_p3_projection_page"
+    ),
+    _registered_product_function(
+        P3_PAGE_FINALIZE_OPERATION, operation_id="SYNC_P3:finalize_p3_projection_page"
+    ),
+    _registered_product_function(
+        P3_PAGED_CURRENT_HEADER_OPERATION,
+        operation_id="SYNC_P3:read_p3_current_header",
+    ),
+    _registered_product_function(
+        P3_PAGED_CURRENT_PAGE_OPERATION,
+        operation_id="SYNC_P3:read_p3_current_page",
     ),
     _registered_product_function(
         P3_CURRENT_READ_OPERATION, operation_id="SYNC_P3:read_p3_current"

@@ -281,6 +281,59 @@ _SYNC_P3_FUNCTION_TYPES = MappingProxyType(
             (),
             (),
         ),
+        "sync_right_api.begin_p3_projection_page": (
+            (
+                *_SYNC_FIRST_BALL_COMMON,
+                ("capsule_header", str),
+                ("stats_header", str),
+            ),
+            (("capsule_id", UUID), ("watermark", int)),
+            (),
+            (),
+        ),
+        "sync_right_api.append_p3_projection_page": (
+            (*_SYNC_FIRST_BALL_COMMON, ("capsule_id", UUID), ("page_json", str)),
+            (
+                ("last_d1", int),
+                ("source_chain", str),
+                ("evaluation_chain", str),
+            ),
+            (),
+            (),
+        ),
+        "sync_right_api.finalize_p3_projection_page": (
+            (*_SYNC_FIRST_BALL_COMMON, ("capsule_id", UUID)),
+            (
+                ("capsule_id", UUID),
+                ("checkpoint_digest", str),
+                ("evaluation_set_digest", str),
+                ("stats_version_id", UUID),
+            ),
+            (),
+            (),
+        ),
+        "sync_right_api.read_p3_current_header": (
+            (("game_id", UUID), ("generation", int)),
+            (("record_json", str),),
+            (),
+            (),
+        ),
+        "sync_right_api.read_p3_current_page": (
+            (
+                ("game_id", UUID),
+                ("generation", int),
+                ("capsule_id", UUID),
+                ("stats_version_id", UUID),
+                ("checkpoint_digest", str),
+                ("head_digest", str),
+                ("kind", str),
+                ("after_d1", int),
+                ("page_size", int),
+            ),
+            (("record_json", str),),
+            (),
+            (),
+        ),
         "sync_right_api.read_p3_current": (
             (("game_id", UUID), ("generation", int)),
             (("record_json", str),),
@@ -1162,6 +1215,8 @@ def prepare_function_operation(
                 0 <= value < 2**63
                 if spec.function_id == "sync_right_api.read_play_prefix_history_page"
                 and name in {"upper_watermark", "after_d1", "after_d2"}
+                or spec.function_id == "sync_right_api.read_p3_current_page"
+                and name == "after_d1"
                 else 0 < value < 2**63
             ):
                 raise FunctionOperationError("初球の整数は正bigintが必要")

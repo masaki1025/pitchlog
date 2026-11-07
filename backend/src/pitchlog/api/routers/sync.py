@@ -33,10 +33,15 @@ from pitchlog.repositories.past_correction_current import (
     PastCorrectionCurrentUnavailable,
     verify_p3_current_packet,
 )
+from pitchlog.repositories.past_correction_current_paged import (
+    read_verified_p3_paged_current,
+)
 from pitchlog.repositories.past_correction_right import _ReadP3CurrentToken
 from pitchlog.repositories.past_correction_source import (
     PastCorrectionSourceUnavailable,
     read_past_correction_v3_source_snapshot,
+    read_past_correction_watermark,
+    visit_past_correction_v3_source_pages,
 )
 from pitchlog.repositories.transaction import tenant_transaction_scope
 from pitchlog.sync.apply import (
@@ -207,14 +212,42 @@ def read_sync_change_target(
     """同tenantの真正v3原本と対象slotを同TXで照合し、有限P3版だけを返す。"""
     try:
         with tenant_transaction_scope(context) as scope:
-            snapshot = read_past_correction_v3_source_snapshot(scope, game_id, d1)
-            checkpoint = snapshot.checkpoint
-            if checkpoint is None:
-                raise PastCorrectionSourceUnavailable("P3対象のCPがありません")
-            saved = snapshot.rows[d1 - 1]
-            rows = scope.run(
-                EventSlotReadToken(game_id, snapshot.internal_generation, d1)
-            ).rows
+            generation, watermark = read_past_correction_watermark(scope, game_id)
+            if d1 < 1 or d1 > watermark:
+                raise PastCorrectionSourceUnavailable("P3対象水位が不正")
+            if watermark > 25:
+                target_rows = []
+
+                def capture(page, _checkpoint):
+                    """全頁照合中に要求対象一件だけを保持する。"""
+                    target_rows.extend(row for row in page if row.d1 == d1)
+
+                proof = visit_past_correction_v3_source_pages(
+                    scope, game_id, d1, capture
+                )
+                if (
+                    proof.internal_generation != generation
+                    or proof.watermark != watermark
+                    or len(target_rows) != 1
+                ):
+                    raise PastCorrectionSourceUnavailable("P3対象頁が不一致")
+                checkpoint = proof.checkpoint
+                saved = target_rows[0]
+                current_ref = checkpoint.prefix_ref
+            else:
+                snapshot = read_past_correction_v3_source_snapshot(scope, game_id, d1)
+                if (
+                    snapshot.internal_generation != generation
+                    or len(snapshot.rows) != watermark
+                    or snapshot.checkpoint is None
+                ):
+                    raise PastCorrectionSourceUnavailable("P3対象のCPがありません")
+                checkpoint = snapshot.checkpoint
+                saved = snapshot.rows[d1 - 1]
+                current_ref = (
+                    snapshot.rows[-1].calculation.response.value.next_prefix_ref
+                )
+            rows = scope.run(EventSlotReadToken(game_id, generation, d1)).rows
             columns = tuple(EventSlot.__table__.c.keys())
             if len(rows) != 1 or len(rows[0]) != len(columns):
                 raise PastCorrectionSourceUnavailable("P3対象版がありません")
@@ -222,7 +255,7 @@ def read_sync_change_target(
             if (
                 slot["tenant_id"] != context.tenant_id
                 or slot["game_id"] != game_id
-                or slot["generation"] != snapshot.internal_generation
+                or slot["generation"] != generation
                 or slot["d1"] != d1
                 or type(slot["confirmed_version"]) is not int
                 or slot["confirmed_version"] != 1
@@ -234,7 +267,6 @@ def read_sync_change_target(
                 != saved.calculation.response.value.next_prefix_ref.generation
             ):
                 raise PastCorrectionSourceUnavailable("P3対象版と原本が不一致")
-            current_ref = snapshot.rows[-1].calculation.response.value.next_prefix_ref
             return JSONResponse(
                 {
                     "target_reference": {
@@ -267,7 +299,7 @@ def read_sync_change_confirmation(
     context: Annotated[TenantContext, Depends(require_tenant_access)],
 ) -> JSONResponse:
     """同read TXの現v3、P3受理原本と実slot版を結合する。"""
-    if d1 < 1 or d1 > 25:
+    if d1 < 1 or d1 >= 2**63:
         raise HTTPException(status_code=409)
     try:
         with tenant_transaction_scope(context) as scope:
@@ -277,10 +309,29 @@ def read_sync_change_confirmation(
             generation = _decode_recording_key(
                 current.metadata.current_d4, context.tenant_id, game_id
             )
-            packet = _function_one(scope, _ReadP3CurrentToken(game_id, generation))
-            verified = verify_p3_current_packet(
-                packet, tenant=context.tenant_id, game=game_id, generation=generation
+            paged = read_verified_p3_paged_current(
+                scope,
+                game_id,
+                generation,
+                selected_after_d1=d1 - 1,
+                selected_limit=1,
             )
+            if paged is None:
+                packet = _function_one(
+                    scope, _ReadP3CurrentToken(game_id, generation)
+                )
+                verified = verify_p3_current_packet(
+                    packet,
+                    tenant=context.tenant_id,
+                    game=game_id,
+                    generation=generation,
+                )
+                if d1 > len(verified.items):
+                    raise PastCorrectionCurrentUnavailable("P3対象水位が不一致")
+                target_item = verified.items[d1 - 1]
+            else:
+                verified = paged
+                target_item = paged.target_item
             page = current.projection.get("page")
             if (
                 verified.target_d1 != d1
@@ -288,7 +339,7 @@ def read_sync_change_confirmation(
                 != current.projection.get("prefix_ref")
                 or verified.checkpoint.after != current.projection.get("after")
                 or type(page) is not dict
-                or page.get("next_cursor") is not None
+                or (paged is None and page.get("next_cursor") is not None)
             ):
                 raise PastCorrectionCurrentUnavailable("P3現readとの照合が不一致")
             rows = scope.run(EventSlotReadToken(game_id, generation, d1)).rows
@@ -296,7 +347,7 @@ def read_sync_change_confirmation(
             if len(rows) != 1 or len(rows[0]) != len(columns):
                 raise PastCorrectionCurrentUnavailable("P3対象slotがありません")
             slot = dict(zip(columns, rows[0], strict=True))
-            target = verified.items[d1 - 1]["play_row"]
+            target = target_item["play_row"]
             if (
                 slot["tenant_id"] != context.tenant_id
                 or slot["game_id"] != game_id
@@ -306,7 +357,7 @@ def read_sync_change_confirmation(
                 or slot["confirmed_version"] != 2
                 or type(target) is not dict
                 or target.get("source_event_id") != str(verified.change_event_id)
-                or target.get("id") != verified.items[d1 - 1]["effective_play_row_id"]
+                or target.get("id") != target_item["effective_play_row_id"]
             ):
                 raise PastCorrectionCurrentUnavailable("P3対象版が不一致")
             play = cast(dict[str, object], target)
