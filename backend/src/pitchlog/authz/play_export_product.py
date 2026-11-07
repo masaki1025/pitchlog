@@ -67,6 +67,7 @@ _IDS = {
     "tables": "table_id",
     "functions": "function_id",
     "policies": "policy_id",
+    "acl_expectations": "acl_id",
     "column_acl_expectations": "expectation_id",
 }
 

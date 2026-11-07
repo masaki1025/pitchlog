@@ -35,3 +35,9 @@ rootの計画レビュー後に実装へ移る。対象source以外の編集・D
 root技術補足を採用: 正式assetへindexes節/新kindを追加しない。3indexとCREATE TABLEはsource構造metadataとして比較するだけで、BODIES tableは既producer同型のRLS/REVOKEのみ。関数本文は唯一providerの全byteを保持し、role/schema/0047の配置はrootに委ねる。
 
 ステップ1: 原典SHA0e8b9fd6…b86ca、declarations table1/function4/policy2/columnACL19、BODIES26を生成。全4関数の本文は唯一provider/候補末尾と全byte一致。CREATE TABLE/3indexはsource_structure metadataだけに保持し、認可table bodyはRLS/REVOKEのみ。専用positive/原典byte変更拒否4件、Ruff/Ty成功。正式asset/registry/0047/共有WTの変更0。次にfield/body/余剰/各provider属性の変異対向を追加する。
+
+ステップ2結果: 専用48件/22.80s、対象Ruff/Ty成功。owner/SECURITY/volatility/search_path/引数・戻り型/GRANT OPTION/余剰SQL/全body byteの変異を拒否する。別providerが他関数を混在させてdict合成で上書きする変異も、各源の閉集合で拒否する。対象tableのPUBLIC向け余剰表GRANTをroleだけで見逃さないよう、既正式節acl_expectations=[]を明示してobject_id/IDで全値照合する（table1/function4/policy2/columnACL19/ACL0、BODIES26）。新schema/role/grantやindexes正式節を追加しない。
+
+原典/出力証拠は ~/.cache/pitchlog/play-export-source-publisher-author-20261107/{checks.json,declarations.json,body-sha256.json,source-structure.json,pytest.log}。BODIESは公式ELEMENT header付与前のraw publisher mapとしてvalidateへ渡す。全体asset中の当該profileが無い場合はFalse、部分/余剰/属性変更はValueError。全母集合の受理や正式登録を代行しない。
+
+残件はrootの非作者sourceレビュー、0047/model/current startup、正式catalog/registry/seal/7.7、実gameからのCSV出力/故障・越境・大容量、必須CI/通常統合。本枝はsource供給だけで、実DB/実画面/製品CSV完成とはしない。編集は指定3path、唯一provider/候補SQL/正式資産/他WTは不変更。
