@@ -40,16 +40,19 @@ class SubstitutionWriteReceipt(Base):
                 "sync_fence.nonplay_write_admissions.attempt_id",
                 "sync_fence.nonplay_write_admissions.phase_id",
             ],
+            name="substitution_write_receipts_tenant_id_attempt_id_phase_id_fkey",
             ondelete="NO ACTION",
         ),
         ForeignKeyConstraint(
             ["tenant_id", "game_id"],
             ["games.tenant_id", "games.id"],
+            name="substitution_write_receipts_tenant_id_game_id_fkey",
             ondelete="NO ACTION",
         ),
         ForeignKeyConstraint(
             ["tenant_id", "source_event_id"],
             ["operation_events.tenant_id", "operation_events.id"],
+            name="substitution_write_receipts_tenant_id_source_event_id_fkey",
             ondelete="NO ACTION",
             deferrable=True,
             initially="DEFERRED",
@@ -60,6 +63,7 @@ class SubstitutionWriteReceipt(Base):
                 "sync_fence.ordinary_pitch_checkpoints.tenant_id",
                 "sync_fence.ordinary_pitch_checkpoints.id",
             ],
+            name="substitution_write_receipts_tenant_id_checkpoint_id_fkey",
             ondelete="NO ACTION",
         ),
         CheckConstraint(

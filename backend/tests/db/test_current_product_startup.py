@@ -26,7 +26,7 @@ def test_actual_current_s0_and_current_resume_keep_all_structure_and_catalog(
     disposable_postgres_cluster: Any,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """S0から実0042へ配置し、同版再開のmigration0と全catalogを確認する。"""
+    """S0から実currentへ配置し、同版再開のmigration0と全catalogを確認する。"""
     with _fresh_schema_database(disposable_postgres_cluster, monkeypatch) as (
         owner,
         admin,
@@ -46,7 +46,7 @@ def test_actual_current_s0_and_current_resume_keep_all_structure_and_catalog(
             patch.setattr(
                 current.command,
                 "upgrade",
-                lambda *a, **kw: pytest.fail("0042再開でmigrationを呼出した"),
+                lambda *a, **kw: pytest.fail("current再開でmigrationを呼出した"),
             )
             resumed = current.resume_current_product_after_placement(
                 owner_dsn=owner,
@@ -66,6 +66,11 @@ def test_actual_current_s0_and_current_resume_keep_all_structure_and_catalog(
         "CREATE FUNCTION public.protect_nonplay_admission()",
         "CREATE TRIGGER trg_nonplay_admission_guard",
         "CREATE TRIGGER trg_nonplay_admission_no_truncate",
+        "CREATE TABLE sync_fence.substitution_write_receipts",
+        (
+            "ALTER TABLE sync_fence.stats_primitive_sources "
+            "DROP CONSTRAINT ck_stats_source_metric_keys"
+        ),
     ],
 )
 def test_actual_current_migration_fault_rolls_back_to_real0039(
@@ -73,7 +78,7 @@ def test_actual_current_migration_fault_rolls_back_to_real0039(
     monkeypatch: pytest.MonkeyPatch,
     statement: str,
 ) -> None:
-    """0040/0041/0042内の途中故障はindex/全3表/revisionを同時に0039へ戻す。"""
+    """currentまでの途中故障は追加表/制約/revisionを同時に0039へ戻す。"""
     with _fresh_schema_database(disposable_postgres_cluster, monkeypatch) as (
         owner,
         admin,
@@ -105,8 +110,9 @@ def test_actual_current_migration_fault_rolls_back_to_real0039(
                 "to_regclass('sync_fence.stats_primitive_facts'),"
                 "to_regclass('public.ix_admin_vocabularies_batted_ball_key_c'),"
                 "to_regclass('sync_fence.nonplay_write_admissions'),"
-                "to_regprocedure('public.protect_nonplay_admission()')"
-            ).fetchone() == (None, None, None, None, None, None)
+                "to_regprocedure('public.protect_nonplay_admission()'),"
+                "to_regclass('sync_fence.substitution_write_receipts')"
+            ).fetchone() == (None, None, None, None, None, None, None)
         # 旧0039からの実再開で同じ固定currentを完了する。
         result = current.resume_current_product_after_placement(
             owner_dsn=owner,

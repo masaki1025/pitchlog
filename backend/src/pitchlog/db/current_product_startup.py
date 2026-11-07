@@ -38,7 +38,7 @@ from pitchlog.db.writer_binding.lifecycle_models import (
 from pitchlog.db.writer_binding.nonplay_models import NonplayWriteAdmission
 from pitchlog.db.writer_binding.substitution_models import SubstitutionWriteReceipt
 
-CURRENT_REVISION = "0043_game_lifecycle"
+CURRENT_REVISION = "0045_stats_native27_metric_keys"
 _INDEX_REVISION = "0040_batted_vocabulary_index"
 _STATS_MODELS = (StatsFactVersion, StatsPrimitiveSource, StatsPrimitiveFact)
 
@@ -898,7 +898,7 @@ def _require_pre_or_full_catalog(connection: Any) -> str:
 
 
 def _apply_current_storage(owner_dsn: str) -> None:
-    """固定0040/0041/0042を同owner transactionへ配置し、途中故障を全部戻す。"""
+    """現行0045まで同owner transactionへ配置し、途中故障を全部戻す。"""
     engine = create_engine(legacy._owner_url(owner_dsn))
     try:
         with engine.begin() as connection:
