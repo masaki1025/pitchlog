@@ -28,3 +28,5 @@ worktree: /home/ymdms/projects/pitchlog-worktrees/feature-mvp-viewer-current-con
 ## 計画レビュー
 
 2026-11-07 JST、root が HEAD `80f652d98dbe886b89c948a5920b2475654f4a95` の plan SHA `36d1304b735f82fc73d0ce3aabb23d9a47a5104f53be08e0abaa32c0acaadb76` を全文確認し、P0/P1なしとしてPO委任で限定採用。真正RR scopeの有限登録とC2 gateは共有patchへ残す。終了版の未対応を成功で隠さず、P3のCP/capsule/slotの既結合、版・本文・cursorの同snapshot照合を維持する。実PGはrootとの時刻調整後に限定する。
+
+現行 `read_started_play_prefix_history_page` は昇順であり、元viewer計画の最新25件から旧頁へ遡る契約と同値ではない。2026-11-07 JST、root はこの具体差分を確認し、正常v3に必要な降順keyset/索引点範囲の有限reader 1本だけを共有patchへ追加する技術追補をPO委任で承認。NPは現行降順readerを再利用する。P3 paged currentも同じ最新頁・cursorを、既CP/capsule/slot/全頁seal検証を残したまま有界選択へ接ぐ。所有に新規 `backend/src/pitchlog/authz/{viewer_page_sql,viewer_product}.py` と専用pytestを加え、現行単一readerからの固定byte派生・2関数の宣言を供給する。共有 `ordinary_prefix_read.py`、`started_snapshot_read_operations.py` と関数登録はcache patchでrootへ渡し、このWTで直接編集しない。旧2関数の無条件追加、全履歴RAM取得、履歴欠落の成功化はしない。
