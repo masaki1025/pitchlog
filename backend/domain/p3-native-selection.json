@@ -1,0 +1,40 @@
+{
+  "version": 2,
+  "kind": "accepted-play-slot-consumed-undo-p3-v2",
+  "admissions": "sync_fence.nonplay_write_admissions",
+  "bindings": "sync_fence.writer_bindings",
+  "bindingIdentity": [
+    "tenant_id",
+    "attempt_id",
+    "phase_id",
+    "authority_id",
+    "control_instance",
+    "business_instance",
+    "restore_epoch",
+    "control_version",
+    "issuer",
+    "lease_id",
+    "device_id",
+    "game_id",
+    "wire_d4",
+    "internal_generation",
+    "recovery_generation",
+    "codec_version",
+    "request_fingerprint",
+    "d5",
+    "event_fingerprint",
+    "system_identifier",
+    "database_oid",
+    "postmaster_started_at",
+    "backend_pid",
+    "backend_start",
+    "transaction_id",
+    "nonce_digest",
+    "expires_at"
+  ],
+  "p3": {
+    "heads": "sync_fence.p3_projection_heads",
+    "capsules": "sync_fence.p3_projection_capsules",
+    "items": "sync_fence.p3_projection_capsule_items"
+  }
+}
