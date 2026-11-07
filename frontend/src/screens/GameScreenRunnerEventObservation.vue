@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
+import { isRunnerObservation } from '../api/runnerEventWire'
 import type {
   LiveRunnerIdentity,
   RunnerDestination,
@@ -13,6 +14,7 @@ import type {
 const props = defineProps<{
   runners: readonly LiveRunnerIdentity[]
   primaryResultId: string
+  sourceKey: string
   disabled?: boolean
 }>()
 const emit = defineEmits<{ confirmed: [observation: RunnerObservationWire] }>()
@@ -53,10 +55,13 @@ const causes = [
   ['catcher-pickoff-out', '捕手牽制死'],
   ['running-out', '走塁死'],
 ]
-const contextKey = computed(() =>
-  props.runners
-    .map((r) => r.base + ':' + r.runnerId + ':' + r.responsiblePitcherId)
-    .join('|'),
+const contextKey = computed(
+  () =>
+    props.sourceKey +
+    '|' +
+    props.runners
+      .map((r) => r.base + ':' + r.runnerId + ':' + r.responsiblePitcherId)
+      .join('|'),
 )
 watch(
   contextKey,
@@ -74,7 +79,7 @@ watch(
 function confirm() {
   error.value = ''
   if (
-    !operation.value ||
+    !modes.some(([value]) => value === operation.value) ||
     !noError.value ||
     !third.value ||
     props.runners.length === 0
@@ -162,7 +167,7 @@ function confirm() {
         ? 'secondary-result'
         : 'runner-event'
   const id = steal ? 'strategy-category.steal' : operation.value
-  const payload: RunnerObservationWire = {
+  const payload = {
     primaryResultId: primary ? props.primaryResultId : null,
     perPitch: {
       kind: eventKind,
@@ -189,6 +194,10 @@ function confirm() {
       },
       homeTouchOrder: { kind: 'not-required' },
     },
+  }
+  if (!isRunnerObservation(payload)) {
+    error.value = '実結果の正式入力形式を確認できません'
+    return
   }
   emit('confirmed', payload)
 }

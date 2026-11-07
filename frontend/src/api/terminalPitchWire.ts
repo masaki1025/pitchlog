@@ -1,3 +1,4 @@
+import { canonicalUuid } from './authIntent'
 import schema from '../../../contracts/state-transition/play_prefix_v2_payload_schema.json'
 import type {
   PlayRequest,
@@ -32,6 +33,8 @@ type Schema = {
   minLength?: number
   maxLength?: number
   pattern?: string
+  format?: string
+  uniqueItems?: boolean
 }
 const definitions = schema.$defs as Record<string, Schema>
 export function exactPlayObject(
@@ -66,6 +69,8 @@ const schemaKeywords = new Set([
   'properties',
   'required',
   'type',
+  'format',
+  'uniqueItems',
   '$comment',
   'title',
   'x-pitchlog-axis-id',
@@ -78,8 +83,22 @@ function matches(
   // 未対応の将来制約を無視して通さず、更新時は明示的に追随する。
   if (
     Object.keys(rule).some((k) => !schemaKeywords.has(k)) ||
+    (rule.format !== undefined && rule.format !== 'uuid') ||
     (rule.type !== undefined &&
       !['object', 'array', 'string', 'boolean', 'null'].includes(rule.type))
+  )
+    return false
+  if (
+    (rule.format === 'uuid' &&
+      typeof value === 'string' &&
+      !canonicalUuid.test(value)) ||
+    (rule.uniqueItems === true &&
+      Array.isArray(value) &&
+      value.some((item, index) =>
+        value
+          .slice(0, index)
+          .some((previous) => sameOrdinaryWire(previous, item)),
+      ))
   )
     return false
   if (rule.$ref) {

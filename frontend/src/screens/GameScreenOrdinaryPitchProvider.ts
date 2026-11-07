@@ -1,3 +1,9 @@
+import type { RunnerObservationWire } from '../api/runnerEventWire'
+import {
+  isRunnerRequest,
+  isRunnerSuccess,
+  formatRunnerEventWire,
+} from '../api/runnerEventWire'
 import type {
   BattedHitObservations,
   BattedHitResult,
@@ -277,9 +283,17 @@ export type PlayScreenObservation = Omit<
       | 'batting-result.k3'
       | 'batting-result.strikeout-double-play'
       | BattedHitResult
+    runnerEvent?: RunnerObservationWire | null
     battedHit?: Omit<BattedHitConfirmation, keyof FirstBallObservations> | null
     nextBatter?: NextBatter | null
   }>
+/** 非投球では座標/球種を要求せず、仮の投球観測も構築しない。 */
+export type RunnerNonpitchScreenObservation = Readonly<{
+  kind: 'non-pitch-event'
+  runnerEvent: RunnerObservationWire
+}>
+export type RecordingScreenObservation =
+  PlayScreenObservation | RunnerNonpitchScreenObservation
 /** 同じ保存roster/lineup照合を旧v1とv2で共有する。 */
 export function selectPitchParticipants(
   game: StartedGameMetadata,
@@ -719,12 +733,22 @@ function requestRunnerOverrides(
 
 export async function prepareLineupPrefix(
   context: LineupRecordingContext,
-  observation: PlayScreenObservation,
+  observation: RecordingScreenObservation,
   vocabulary: Readonly<{ tenantId: string; pitchTypeKeys: readonly string[] }>,
   tenantId: string,
   playIdentity: LineupIdentity,
   checkpointId: string,
 ) {
+  if (observation.runnerEvent != null)
+    return prepareRunnerEvent(
+      context,
+      observation,
+      vocabulary,
+      tenantId,
+      playIdentity,
+      checkpointId,
+    )
+  if ('kind' in observation) return invalid()
   if (
     context.prefixRef.tenantId !== tenantId ||
     vocabulary.tenantId !== tenantId ||
@@ -830,6 +854,108 @@ export async function prepareLineupPrefix(
       battingSide: observation.battingSide,
       ...(batted ? observation.battedHit : {}),
     },
+    context.lineupSource.participants,
+  )
+  return {
+    ...wire,
+    gameId: context.game.id,
+    d4: context.game.current_d4,
+    nextPosition: context.nextPosition,
+    source: context.source,
+  }
+}
+/** 同じ実source/唯一artifact/封印/耐久イベント経路で走者操作を準備する。 */
+export async function prepareRunnerEvent(
+  context: LineupRecordingContext,
+  observation: RecordingScreenObservation,
+  vocabulary: Readonly<{ tenantId: string; pitchTypeKeys: readonly string[] }>,
+  tenantId: string,
+  playIdentity: LineupIdentity,
+  checkpointId: string,
+) {
+  const runner = observation.runnerEvent
+  if (
+    !runner ||
+    ('battedHit' in observation && observation.battedHit != null) ||
+    context.prefixRef.tenantId !== tenantId ||
+    vocabulary.tenantId !== tenantId ||
+    !isStartedGameMetadata(context.game) ||
+    !isLineupDefinition(context.lineupSource, 'Source') ||
+    !sameOrdinaryWire(context.lineupSource.after, context.after) ||
+    !sameOrdinaryWire(context.lineupSource.prefixRef, context.prefixRef)
+  )
+    return invalid()
+  const pitched = runner.perPitch.pitchEventKind === 'pitch-event'
+  if ('kind' in observation) {
+    if (pitched || runner.primaryResultId !== null) return invalid()
+  } else {
+    if (
+      !pitched ||
+      !vocabulary.pitchTypeKeys.includes(observation.pitchTypeKey) ||
+      !Number.isFinite(observation.screenX) ||
+      !Number.isFinite(observation.screenY)
+    )
+      return invalid()
+    if (
+      runner.primaryResultId !== null &&
+      runner.primaryResultId !== observation.resultId
+    )
+      return invalid()
+  }
+  const candidate = {
+    version: '3',
+    prefixRef: context.prefixRef,
+    rules: context.rules,
+    t1: {
+      eventKind: runner.perPitch.kind,
+      resultId: runner.perPitch.resultId,
+      pitchEventKind: runner.perPitch.pitchEventKind,
+      before: context.after,
+      runnerObservation: structuredClone(runner),
+    },
+    source: context.lineupSource,
+    playIdentity,
+    nextCheckpoint: {
+      id: checkpointId,
+      revision: String(BigInt(context.prefixRef.checkpoint.revision) + 1n),
+      digest: '0'.repeat(64),
+    },
+  }
+  if (!isRunnerRequest(candidate)) return invalid()
+  const response = {
+    ok: true,
+    value: invokeFirstBallDomain(
+      'deriveLineupPlayPrefixWithContinuation',
+      candidate,
+    ),
+  }
+  if (!isRunnerSuccess(response)) return invalid()
+  let observed
+  if (!('kind' in observation)) {
+    const course = invokeFirstBallDomain('quantizeCourse', {
+      x: String(observation.screenX),
+      y: String(observation.screenY),
+      view: observation.view,
+      size: String(geometry.size),
+    }) as FirstBallObservations['course']
+    observed = {
+      pitchTypeKey: observation.pitchTypeKey,
+      course,
+      pitchSpeed: observation.pitchSpeed,
+      stance: observation.stance,
+      battingSide: observation.battingSide,
+      runnerObservation: structuredClone(runner),
+    }
+  } else
+    observed = {
+      kind: 'non-pitch-event' as const,
+      runnerObservation: structuredClone(runner),
+    }
+  const sealed = await sealLineupMetadata(candidate, response)
+  const wire = await formatRunnerEventWire(
+    sealed.request,
+    sealed.response,
+    observed,
     context.lineupSource.participants,
   )
   return {

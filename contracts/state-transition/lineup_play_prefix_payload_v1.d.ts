@@ -9,7 +9,7 @@ export type PitchPlayPrefixV7 = Readonly<{formatVersion:"play-prefix-play-v3";ob
 export type BattedHitResult = BattedHitT1Input["resultId"];
 export type BattedHitPlayPrefixV7<R extends BattedHitResult> = Readonly<{formatVersion:"play-prefix-play-v3";observations:Readonly<Omit<BattedHitObservations,"resultId"> & {resultId:R}>;participants:Participants;calculation:CalculationFor<Readonly<Omit<BattedHitT1Input,"resultId"> & {resultId:R}>>}>;
 export type IntentionalWalkPlayPrefixV7 = Readonly<{formatVersion:"play-prefix-play-v3";observations:Readonly<{kind:"intentional-walk"}>;participants:Participants;calculation:CalculationFor<IntentionalWalkT1Input>}>;
-export type LineupPlayPrefixV7 = NonplayNormalV7 | PitchPlayPrefixV7 | IntentionalWalkPlayPrefixV7 | {[R in BattedHitResult]:BattedHitPlayPrefixV7<R>}[BattedHitResult];
+export type LineupPlayPrefixV7 = RunnerPlayPrefixV7 | NonplayNormalV7 | PitchPlayPrefixV7 | IntentionalWalkPlayPrefixV7 | {[R in BattedHitResult]:BattedHitPlayPrefixV7<R>}[BattedHitResult];
 export type LineupPlayPrefixV8=HistoryEntry["difference"];
 
 /** 無走者4安打の全明示観測。nullableは未観測の保持であり、値を推測しない。 */
@@ -58,3 +58,16 @@ export type NonplayNormalV7 = Readonly<{
   participants: Participants;
   calculation: NonplayNormalCalculation;
 }>;
+
+import type { RunnerEventT1Input, RunnerObservation, RunnerValue, RunnerNonplayValue } from './lineup_play_prefix_v1';
+export type RunnerPitchObservations = Observations & Readonly<{runnerObservation:RunnerObservation}>;
+export type RunnerNonpitchObservations = Readonly<{kind:'non-pitch-event';runnerObservation:RunnerObservation}>;
+export type RunnerNormalPlayPrefixV7 = Readonly<{
+ formatVersion:'play-prefix-play-v3';observations:RunnerPitchObservations|RunnerNonpitchObservations;participants:Participants;
+ calculation: Readonly<{formatVersion:'play-prefix-calculation-v3';artifactSha256:string;request:Readonly<Omit<Request,'t1'>&{t1:RunnerEventT1Input}>;response:Readonly<{ok:true;value:RunnerValue}>}>
+}>;
+export type RunnerNonplayPrefixV7 = Readonly<{
+ formatVersion:'play-prefix-play-v3';observations:RunnerPitchObservations|RunnerNonpitchObservations;participants:Participants;
+ calculation: Readonly<{formatVersion:'nonplay-prefix-calculation-v1';artifactSha256:string;request:Readonly<Omit<NonplayRequest,'t1'>&{t1:RunnerEventT1Input}>;response:Readonly<{ok:true;value:RunnerNonplayValue}>}>
+}>;
+export type RunnerPlayPrefixV7 = RunnerNormalPlayPrefixV7 | RunnerNonplayPrefixV7;

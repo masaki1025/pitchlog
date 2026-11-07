@@ -10,7 +10,11 @@ const runner = {
 }
 const make = () =>
   mount(Panel, {
-    props: { runners: [runner], primaryResultId: 'batting-result.ball' },
+    props: {
+      runners: [runner],
+      primaryResultId: 'batting-result.ball',
+      sourceKey: 'confirmed-source:1',
+    },
   })
 it('未確認走者/原因/失策判定を既定観測にしない', async () => {
   const w = make()
@@ -100,4 +104,19 @@ describe('表示の既定は観測の確定ではない', () => {
     await w.get('[data-testid="runner-observation-confirm"]').trigger('click')
     expect(w.emitted('confirmed')).toBeUndefined()
   })
+})
+
+it('同じ走者IDでも新sourceでは旧確認を再使用しない', async () => {
+  const w = make()
+  await w.get('[data-testid="runner-no-error"]').setValue(true)
+  await w.get('[data-testid="runner-1-outcome"]').setValue('hold')
+  await w.setProps({ sourceKey: 'confirmed-source:2' })
+  expect(
+    (w.get('[data-testid="runner-no-error"]').element as HTMLInputElement)
+      .checked,
+  ).toBe(false)
+  expect(
+    (w.get('[data-testid="runner-1-outcome"]').element as HTMLSelectElement)
+      .value,
+  ).toBe('')
 })

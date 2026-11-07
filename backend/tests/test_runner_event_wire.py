@@ -183,7 +183,9 @@ def _payload(case):
             }
         )
     )
-    observed = {"runnerObservation": case["request"]["t1"]["runnerObservation"]}
+    observed = {
+        "runnerObservation": copy.deepcopy(case["request"]["t1"]["runnerObservation"])
+    }
     if request.t1.pitch_event_kind == "pitch-event":
         observed.update(
             {
@@ -199,7 +201,7 @@ def _payload(case):
     payload = {
         "formatVersion": "play-prefix-play-v3",
         "observations": observed,
-        "participants": case["expected"]["value"]["beforeParticipants"],
+        "participants": copy.deepcopy(case["expected"]["value"]["beforeParticipants"]),
         "calculation": calculation.model_dump(
             mode="json", by_alias=True, exclude_unset=True
         ),

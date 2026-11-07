@@ -65,3 +65,27 @@ root専有（本担当は直接編集しない）: `contracts/`・正本・共�
 - 広げた実host回帰373件は331passed/42failed/15.19秒。2系統を診断すると数学前のpin不一致（fixture execution9ae9…、追跡artifact4e7d…）で停止した。両関連fileは91773ec0から全byte不変をGit比較した。残る失敗の全個別原因は未分類で、同じ42再実行をしない。正式pinのroot追随後に接合を検査する。全緑/実host成立へ読み替えない。
 - rootへ`formal-union-packet/manifest.json` SHA56c9643a68b1268fd4bf395f04c4b8f6677c9556174ee07dd69f75d160bd0e4dを送付。既正式perPitch定義再利用のschema/d.ts候補、新V7/Head7件、新旧正負、candidate rendererをcacheに固定。正式asset/追跡artifactは非編集。汎用checkerのuuid/uniqueItems厳格対応はcache patchのみで、sourceはroot直列対象。NP-source実ケース/FE型全件は未確認。
 - ステップ2は継続中: root受理した正式union/唯一artifactを同SDKへ接合し、既provider/耐久queue/ACK/GETへ観測panelをmountする。ステップ3の実画面/DB/再送/越境/故障は未実施である。
+
+
+## ステップ2の担当path最小追補（2026-11-07）
+
+rootがPO委任で`frontend/src/screens/GameScreenOrdinaryPitchController.ts`の限定変更を本担当へ追加した。同pathの他writerはなし。変更は引数の閉union（非投球は`{kind:non-pitch-event,runnerEvent:原観測}`）と、非v3 contextで新variantをblockedへ返すguardだけ。既D5/attempt/V12原文耐久・writer/認証/記録権・ACK・再送・キュー順は変更しない。非投球に仮座標/仮球種を補わず、通常投球の必須観測を緩めない。scope/実差分は次固定HEADへ保持する。
+
+
+rootの追加所有（同2026-11-07）: `frontend/src/lib/ordinaryPreparedEnvelopePersistence.ts`の型importとobservation型の2行だけをRecordingScreenObservationへ追随する。runtime検査/DB store/本文/V12/D5/attempt・digest・再送条件は変更しない。起動直後に球種取得が済む前の通信断では、NPにも空vocabularyを既保存器が拒否し得るため未解消として保持する。最小解除案は『新NP閉観測とV7の同原値一致・投球非該当・既本文/slot束縛が成立した場合だけ空球種配列を許す』別対向であり、一般空配列許可/旧本文修復/仮球種の補完はしない。今回このruntime変更は未実施。
+
+
+追加所有（同2026-11-07、root PO委任）: `backend/src/pitchlog/sync/play_export_identity.py`のNP course identity分岐と専用tests。本担当が唯一writer、rootは非編集。既意図的四球/通常投球の拒否・唯一座標生成は維持し、新NPの閉V7・元runnerObservationの全値一致・実row.non_pitch/全投球列NULLを確認して非該当None,Noneを写す。仮座標・現在名簿補完・新計算は追加しない。
+
+
+rootのPO委任による表示追随（同2026-11-07）: `backend/src/pitchlog/exports/record_projection.py`と専用testsも追加所有。既XC-05/XC-07のrunner-event/plateAppearanceEnded:not-applicableを打席結果非該当として列17/61/62の明示NULLへ写す（CSV空欄、元T1はsidecar保持）。bool false/打席継続/新PAを推測しない。列18/19は既saved_half_completed/T2とgameEnded実boolを維持し、旧bool表示は不変。新Runner NPの閉V7/元観測/実rowが整合するときだけNAを扱い、その他のNA/未知は拒否。生成plate_result_display/モデルは変更しない。UD2正本追随の根拠記録はrootが担当する。
+
+
+## ステップ2 SDK/画面・CSVの接合固定（2026-11-07）
+
+- root固定de3bfb27240c3ed2f126abd76b0af9c355d91c21から4 schema/d.ts＋汎用checker＋専用specを全byte同一で受領（patch SHA84ff27122e8c8564b6889d6281516eb985f44f20e3ad92097c3f8eff4d1fada1）。checker/specはroot後発f29097b4へ全byte追随（patch SHA23d4b4b5063274ba2186947e07019d6b25df1e5647d2958eaaf5e35dd0b44766）。この受領は候補接合で、正式受理/実保存済みの宣言ではない。規範依存定義は22、既旧正例53件を維持する。
+- SDKは正式候補型へのaliasを使い、旧型cast/原値書換をしない。共通lineupWireHeadへ新2欄を束縛し、fresh一回計算後の自己echo二欄だけを共通sealerで形成する。formatter/再読込時は既固定echoを検証し、不正echoを再封印で補修しない。同原観測/参加者/現行artifact pinを照合する。rootの型先行一時拒否は実封印SDKへ置換し、元要求/差分/同D5の再構成を比較した。
+- 観測panelを既記録画面へmountした。原観測を確認してから既controller→元本文/同D5/attempt耐久→同期要求/ACK/GETへ渡す。非投球は専用閉観測だけを渡し、球種・座標を仮補完しない。controller変更は閉union/非v3拒否/計算formatVersionの正確な型絞り込みのみ。保存器は型alias2行だけ。sourceKeyが変わると同じrunner IDでも旧確認をresetする。
+- CSV NP course identityは新閉V7/原観測/実41列NP一致を確認して非該当None,Noneへ写す。runner-eventのPA:not-applicableは列17/61/62に明示NULL（CSV空欄）を渡し、元T1はsidecarへ保持。列18/19・旧bool表示・生成表示/座標関数は不変更。単体で旧fixtureへの参照共有が原因となる検査順依存を確認し、作者helperのdeepcopy不足を是正した（製品の期待値/codecを緩めていない）。
+- 現固定前検査: frontend全eslint/vue-tsc成功、8対象file/102passed/10.46秒。backend全Ruff/Ty成功、関連pure330passed/11.52秒（共有DSN unset、DBなし）。domain既固定35/943passed44.44秒を保持する。新SDK検査は作者の構造候補を現在pinの封筒へ載せる純検査であり、実host/実認可の成功ではない。
+- **未成立**: 唯一追跡artifact/現行pin・D11/manifestのroot接合、実PG/実画面/途中故障。既pin停止を根拠なく再走しない。rootは同受領sourceへ公式builder/現行pin/manifestを直列追随してから正規CURRENT48環境へ接合する方針。NPの球種未取得直後の断中受理は既保存器条件の未解消事項として保持する。終端球との複合・複数塁盗塁数量・SO05他配置・複数得点サヨナラ・エラー/妨害等もMVP残件であり、今回の実装範囲を正式な機能削減へ読み替えない。
