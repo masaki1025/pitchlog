@@ -10,6 +10,14 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from fastapi.responses import JSONResponse
 
 from pitchlog.api.request_presentation import require_presented_token
+from pitchlog.api.schemas.past_correction_response import (
+    AcceptedChangeResponse,
+    ChangeConfirmationResponse,
+    ChangeResultResponse,
+    ChangeTargetResponse,
+    RejectedChangeResponse,
+    validate_change_result_response,
+)
 from pitchlog.api.schemas.recording_ack import RecordingAckResponse
 from pitchlog.api.schemas.recovery_response import AttemptRecoveryResponse
 from pitchlog.api.tenant_access import TenantMatchedRoute, require_tenant_access
@@ -175,15 +183,19 @@ def _ack_body(result: AckResult) -> dict[str, object]:
 @router.get(
     "/games/{game_id}/sync/change-target/{d1}",
     operation_id="read_sync_change_target",
+    response_model=ChangeTargetResponse,
+    response_model_exclude_unset=True,
 )
 def read_sync_change_target(
     game_id: UUID,
     d1: int,
     context: Annotated[TenantContext, Depends(require_tenant_access)],
-) -> JSONResponse:
+) -> ChangeTargetResponse:
     """同tenantの真正v3原本と対象slotを同TXで照合し、有限P3版だけを返す。"""
     try:
-        return JSONResponse(read_change_target_snapshot(game_id, d1, context))
+        return ChangeTargetResponse.model_validate(
+            read_change_target_snapshot(game_id, d1, context)
+        )
     except (PastCorrectionSourceUnavailable, OrdinaryPrefixError):
         raise HTTPException(status_code=409) from None
     except DATABASE_ERRORS:
@@ -193,17 +205,21 @@ def read_sync_change_target(
 @router.get(
     "/games/{game_id}/sync/change-confirmation/{d1}",
     operation_id="read_sync_change_confirmation",
+    response_model=ChangeConfirmationResponse,
+    response_model_exclude_unset=True,
 )
 def read_sync_change_confirmation(
     game_id: UUID,
     d1: int,
     context: Annotated[TenantContext, Depends(require_tenant_access)],
-) -> JSONResponse:
+) -> ChangeConfirmationResponse:
     """同read TXの現v3、P3受理原本と実slot版を結合する。"""
     if d1 < 1 or d1 >= 2**63:
         raise HTTPException(status_code=409)
     try:
-        return JSONResponse(read_change_confirmation_snapshot(game_id, d1, context))
+        return ChangeConfirmationResponse.model_validate(
+            read_change_confirmation_snapshot(game_id, d1, context)
+        )
     except (
         PastCorrectionCurrentUnavailable,
         OrdinaryPrefixError,
@@ -215,7 +231,12 @@ def read_sync_change_confirmation(
         raise HTTPException(status_code=503) from None
 
 
-@router.post("/games/{game_id}/sync/change", operation_id="sync_change")
+@router.post(
+    "/games/{game_id}/sync/change",
+    operation_id="sync_change",
+    response_model=ChangeResultResponse,
+    response_model_exclude_unset=True,
+)
 def sync_change(
     game_id: UUID,
     payload: dict[str, object],
@@ -225,7 +246,7 @@ def sync_change(
     device_id: Annotated[UUID, Header(alias="X-Pitchlog-Device-Id")],
     device_credential: Annotated[str, Header(alias="X-Pitchlog-Device-Credential")],
     attempt: Annotated[UUID, Header(alias="X-Pitchlog-Sync-Attempt")],
-) -> JSONResponse:
+) -> AcceptedChangeResponse | RejectedChangeResponse:
     """P3原文1件を先行再掲判定後、同writer/TXの実投影へ渡す。"""
     configuration = _configuration(request)
     try:
@@ -264,7 +285,7 @@ def sync_change(
     if replay == "B10":
         raise HTTPException(status_code=503)
     if replay is not None:
-        return JSONResponse(p3_response_body(replay))
+        return validate_change_result_response(p3_response_body(replay))
     entry_token = object()
     try:
         with _e1_receipt_scope(
@@ -330,7 +351,7 @@ def sync_change(
         raise HTTPException(status_code=404)
     if result == "B10":
         raise HTTPException(status_code=503)
-    return JSONResponse(p3_response_body(result))
+    return validate_change_result_response(p3_response_body(result))
 
 
 @router.post(

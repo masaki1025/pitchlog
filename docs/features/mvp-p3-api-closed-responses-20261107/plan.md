@@ -25,3 +25,6 @@ branch: fix/mvp-p3-api-closed-responses-20261107
 
 
 step1: 既opaque D4からAttemptBindingを形成する部分も同serviceへ機械分離（復号→Authority→Attemptの順・引数/定数不変）、既I6 serializerは全AST同一で移管。内部同期codec/不変JSONの知識をtransportから分離し、識別子を伏せるためのrenameやguard除外は行わない。target/confirmationの同TX本文はJSONResponseの成功封筒だけを外した全ASTが元66d85fa6と一致、cache read-extraction-proof.jsonへ固定。未知contextは業務接続前に拒否、既owner codecの1/2/2^53/最大64bitと別tenant/game/破損拒否、旧409/503写像を検査。影響検査89passed5.70秒、残1赤はstep2対象の3route応答型欠落で、同期語彙guardは除外0で通過。元raw DB例外をAPI対象型と取り違えた試験2件は実際の既SQLAlchemyErrorへ是正し、製品の例外集合は変更しない。実PG/正式受理ではない。
+
+
+step2: 3routeにstrict/extra-forbidな応答型と実model返却を接続。GETの英字対象参照とI6の日本語参照は別型で既aliasを保持、既PrefixRef/StrikeoutSnapshot/LineupPitchChangePayloadを再利用し、計算の再実装なし。受理/再掲の両経路が既boundaryの閉unionを検証し、post-accept検証例外を未受理422へ変換しない。全routeでexclude_unsetを指定し、nestedの元の省略と明示nullを保持。実route fieldのvalidate/serializeで4形全値一致、未知/余剰/欠落/型変換/既7拒否/不正boundaryを対向。API規約のexact-route/語彙/None例外は不変更で全件を含む146passed5.16秒、Ruff/Ty0。旧2赤は検査除外0で閉鎖。実PG・旧P3長履歴の障害解消・正式受理の証拠ではない。
