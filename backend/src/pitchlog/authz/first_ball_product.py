@@ -2664,7 +2664,8 @@ def _function_argument_names(sql: str) -> tuple[tuple[str, ...], bool]:
     import re
 
     match = re.search(
-        r"CREATE FUNCTION [a-z_][a-z0-9_]*\.[a-z_][a-z0-9_]*\(([^)]*)\)\s*RETURNS\s+"
+        r"CREATE[ \t\r\n]+FUNCTION[ \t\r\n]+"
+        r"[a-z_][a-z0-9_]*\.[a-z_][a-z0-9_]*\(([^)]*)\)\s*RETURNS\s+"
         r"(?:(TABLE)\s*\(([^)]*)\)|(?:void|trigger|text|uuid)(?=\s|$))",
         sql,
     )
