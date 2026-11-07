@@ -41,6 +41,7 @@ def test_owned_p3_paging_private_functions_compile(vertical_database) -> None:
     }
     health = sections["canonical_health"]
     bodies = (
+        (_PAGING / "p3-capsule-paging-r6.candidate.sql").read_text(),
         (_PAGING / "p3-paging-progress-r3.candidate.sql").read_text(),
         (_PAGING / "p3-paging-stats-stage-r5.candidate.sql").read_text(),
         candidate_paged_begin_sql(),

@@ -548,7 +548,7 @@ BEGIN
  expected_version,prior_checkpoint_id,prior_checkpoint_revision,
  prior_checkpoint_digest,prior_checkpoint_content,next_checkpoint_id,
  next_checkpoint_revision,next_checkpoint_digest,next_checkpoint_content,
- source_set_digest,stats_evaluation_set_digest,stats_model_sha256,
+ source_set_digest,stats_evaluation_set_digest,stats_model_sha256,digest_format,
  stats_version_id,watermark,created_at)
  VALUES(p_tenant_id,p_game_id,p.internal_generation,p_capsule_id,
  (c->>'change_event_id')::uuid,binding.d5,p.target_d1,1,old_cp.id,
@@ -556,7 +556,8 @@ BEGIN
  (c->'next_checkpoint'->>'id')::uuid,
  (c->'next_checkpoint'->>'revision')::bigint,
  c->'next_checkpoint'->>'content_digest',c->'next_checkpoint',
- source_digest,evaluation_digest,'__MODEL__',new_id,p.watermark,now_at);
+ source_digest,evaluation_digest,'__MODEL__','p3-page-chain-v2',
+ new_id,p.watermark,now_at);
  INSERT INTO sync_fence.p3_projection_capsule_items(
  tenant_id,game_id,internal_generation,capsule_id,d1,d2,state,
  original_event_id,effective_event_id,original_play_row_id,effective_play_row_id,
