@@ -9,3 +9,11 @@
 - 次: root主経路first2を優先し、通知後にsubstitution1caseを共通lockで再実行する。nativeの初回部分証拠と監査を含む完全成功は分ける。故障なしの通常49実HTTP/CSV成功をこの故障対向の成功へ読み替えない。
 - 再開入口: `~/.cache/pitchlog/d03-normal49-faults-child-20261107/{run1.log,run1-manifest.json,run1-source-before.json,run1-source-after.json,current-checks.json,current-source.patch}`。
 - 未実施: 修正後owned再検査、非作者確認、PR/統合。実機/P3/全試合0球/全MVPの成立を含まない。
+
+## 交代1caseの限定再実走
+
+rootの候補採用後、同 `dc2f6230` / code `196bdbe6` でsubstitutionだけを再実行し、**1passed / 98.26秒**。source2867ファイル前後一致、共有DSN unset、fixture全寿命lock、pytest/worker終了・通常teardownを確認。
+
+実新規HTTP試合の2球後、新D5の投手交代が実consume/D03/CP保存を返した直後、同runtime/top/lifetimeで試験例外に到達しACKなしとなった。33業務表の全行全列がbaselineと一致し、部分保存はなかった。旧binding監査の全byte不変、新監査1行の実D5/attempt/game/要求FP/eventFP一致、closedとclose_id、全行closed（開いたbindingなし）を実値で確認した。raw全snapshotはassert前にcacheへ保存した。
+
+証拠: cache同ディレクトリ `sub-run2-{source-before,source-after,result,manifest}.json` と `sub-run2.log`。最終result manifestのSHAは `4b7dcaf943a8533bcd5aba7ac017d6a54a7b1b587368d4150cc6ef904f16b0b8`（実SHAはcache正本と照合）。初回2failedは保全。本caseはASGI例外でありブラウザ500の実測ではない。native9球の修正後再検査は未実行・この回に含めていない。次の実走はroot調整に従う。
