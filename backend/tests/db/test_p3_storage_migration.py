@@ -61,6 +61,8 @@ def test_owned_p3_migration_and_all_structure_tamper_refusals(
                 "EXECUTE FUNCTION sync_fence.p3_reject_unfinished_page_progress()",
                 "GRANT EXECUTE ON FUNCTION "
                 "sync_fence.p3_reject_unfinished_page_progress() TO pitchlog_app",
+                "ALTER FUNCTION sync_fence.p3_reject_unfinished_page_progress() "
+                "SET search_path=pg_catalog,public",
                 "DROP TRIGGER p3_page_progress_must_finalize ON "
                 "sync_fence.p3_projection_page_progress; "
                 "CREATE TRIGGER p3_page_progress_must_finalize AFTER INSERT OR UPDATE "
@@ -72,6 +74,8 @@ def test_owned_p3_migration_and_all_structure_tamper_refusals(
                     connection.execute(cast(LiteralString, statement))
                     with pytest.raises(current.CurrentProductStartupError):
                         check_p3_storage(connection)
+                    if statement.startswith(("GRANT EXECUTE", "ALTER FUNCTION")):
+                        assert not current._catalog(connection).ok
                 check_p3_storage(connection)
             # 同じ通常配置が全catalogを供給したうえで列ACLを全値確認する。
             # 正式7.7/通常merge/製品P3成功とは区別する。
