@@ -103,3 +103,7 @@ rootのPO委任による表示追随（同2026-11-07）: `backend/src/pitchlog/e
 - 作者静的検査は専用FE lint/vue-tsc、BE Ruff/Ty成功。**実画面・実PGは未実行**。rootの正規CURRENT48/唯一artifact/現行pin接合供給後、同固定sourceで実行する。共通owned lockは外側launcherがfixture作成〜cleanupまで保持し、内側重複lockは作らない。
 - root依頼でcurrent fixture5件のcache候補generatorを作成（`/home/ymdms/.cache/pitchlog/runner-current-fixtures-20261107/`）。既seal/hash/wire-headだけを再利用し現行4e→ab8の許可pointer280/272/102/38/24、全value逆変換一致・初球/打球はbyte逆変換一致を確認。root追跡資産は非編集、数学期待やprior/履歴pinを更新していない。
 - 実測前のschema照合で語彙fixtureカテゴリを是正した。`admin_vocabularies.category`の既CHECKはbatting_result/batted_ball/seasonの閉集合であり、WP/PB/balkも既結果語彙のbatting_resultへ配置する。存在しないsecondary_batting_resultカテゴリを新設しない。物理保存先は引き続き既secondary_batting_result_keyで、主結果へ値を書き換えない。実PG未走行の準備差分である。
+
+### stage3初回の試験不具合是正
+
+root固定ba561d91のowned first実走は41.78秒で画面前に停止。tracked source3270は前後同一、launcherの共有DSN除外、正規S0→0048適用とcleanupを確認したが、作者wrapperがfixture後にもDSN不存在を要求していた。既vertical fixtureは外部DSNを除外して自分のprimary_admin/endpoints.primary_dsnを環境へ設定するため、そのowned同値へのexact束縛を検査する形へ直す。比較失敗でDSN原値を出力しないbool条件とし、外部DSNの入口除外はlauncher側に残す。製品source/認可/保存保証/画面期待は不変更。初回をUI/保存成功とは扱わず、修復版固定後に実測を継続する。
