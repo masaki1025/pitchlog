@@ -110,3 +110,17 @@ it('getterで元本文を作り変えず、副作用を実行前に拒否する'
   ).rejects.toThrow()
   expect(getter).not.toHaveBeenCalled()
 })
+
+it('配列内のgetterも読み出さず、P3原本へ補修しない', async () => {
+  const barrier = await open(),
+    original = body(),
+    getter = vi.fn(() => 'changed')
+  const values = ['original']
+  Object.defineProperty(values, '0', { enumerable: true, get: getter })
+  const payload = original.change.payload as unknown as Record<string, unknown>
+  payload.extra = values
+  await expect(
+    barrier.prepare(tenant, game, original, device, attempt),
+  ).rejects.toThrow()
+  expect(getter).not.toHaveBeenCalled()
+})

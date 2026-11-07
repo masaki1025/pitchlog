@@ -49,13 +49,11 @@ function canonical(value: unknown, ancestors = new Set<object>()): string {
       if (Object.keys(value).length !== value.length) return invalid()
       return (
         '[' +
-        value
-          .map((_, index) => {
-            const field = Object.getOwnPropertyDescriptor(value, String(index))
-            if (!field || !('value' in field)) return invalid()
-            return canonical(field.value, ancestors)
-          })
-          .join(',') +
+        Array.from({ length: value.length }, (_, index) => {
+          const field = Object.getOwnPropertyDescriptor(value, String(index))
+          if (!field || !('value' in field)) return invalid()
+          return canonical(field.value, ancestors)
+        }).join(',') +
         ']'
       )
     }

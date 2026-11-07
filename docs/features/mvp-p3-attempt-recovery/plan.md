@@ -64,3 +64,5 @@ FE検査: 対象5file/66件成功、vue-tsc/ESLint成功。HTTP/IDB doubleであ
 step2実証結果: da7a933c detachedのtest_p3_original_body_recovery_uses_standard_controlが1 passed/171.41s。実login/開始/3球/真正P3に、未登録旧attempt退役と後着503、T2/T4故障後の同原本照会、実受理後ACK喪失からの新attempt同D5再掲、各段の別V12拒否を追加して通過した。標準control実catalogを使用し、cache CREATEは無い。元のP3再取得/後続球/越境の期待とDB照合も維持する。verify WT clean。
 
 step3追加対向（次固定で実施）: 同じ実P3のT4旧writerを実thread Eventで保持した間はunresolved、その実終結後だけretry_allowedとする。未ログイン/実端末違い/資格違い401、実別tenantのrecovery404を追加する。control既逆順競合・登録先勝ち/退役先勝ち・旧NULL/別body/後着の同じcaseをP3にもパラメータ化し、P3/旧Eventの互いのreaderが混同しないことと未知phase/混在D1の拒否も固定する。成功は実行後に追記する。
+
+step3候補追補: P3/receipt関連とAPI appの回帰で、既P3 3routeがappへ登録済みなのに起点4dの完全期待集合へ未掲載だった差を確認した。routeの削除/部分一致化はせず、既実装のchange-target/change-confirmation/change 3件とoperation IDを完全期待集合へ追記し28件が成功した。barrierの配列要素getterがArray.mapの値読出しで検査前に実行される問題を、descriptorだけを調べるArray.fromへ修正し、getter未実行の対向を追加。FE対象5file/67件成功（1件追加）、既wire/数学/認可の成功条件は変えない。
