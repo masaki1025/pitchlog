@@ -1,5 +1,6 @@
 """E1受付参照の同一HTTP要求束縛と寿命失効を固定する。"""
 
+from typing import Any, cast
 from uuid import uuid4
 
 import pytest
@@ -213,3 +214,101 @@ def test_control_body_state_is_closed_and_keeps_all_identity(result, monkeypatch
             ),
         )
     ]
+
+
+@pytest.mark.parametrize("field", ["proof", "recovery", "target", "version", "payload"])
+def test_p3_recovery_digest_covers_original_change_without_d1(field):
+    """P3元change/対象/復旧世代/V12を真正受付から一体で束縛する。"""
+    import copy
+
+    from pitchlog.sync.source_binding import receipt_body_fingerprint
+
+    game, d5 = str(uuid4()), str(uuid4())
+    payload: dict[str, Any] = {
+        "recording_right_proof": "original-proof",
+        "recovery_generation": "1",
+        "change": {
+            "d5": d5,
+            "game_id": game,
+            "event_kind": "play_change",
+            "target_reference": {"game": game, "d4": "original-D4", "d1": 1},
+            "expected_version": 1,
+            "payload": {},
+        },
+    }
+
+    def digest(body):
+        request = SyncRequest.from_payload("P3", game, body)
+        source = freeze_wire_source(
+            game_id=game, d4="original-D4", raw_events=(body["change"],), d1less=True
+        )
+        token = object()
+        with _scope(request=request, source=source, entry_token=token) as receipt:
+            return receipt_body_fingerprint(receipt, token), source
+
+    original, source = digest(payload)
+    changed = copy.deepcopy(payload)
+    if field == "proof":
+        changed["recording_right_proof"] = "different-proof"
+    elif field == "recovery":
+        changed["recovery_generation"] = "2"
+    elif field == "target":
+        changed["change"]["target_reference"]["d1"] = 2
+    elif field == "version":
+        changed["change"]["expected_version"] = 2
+    else:
+        changed["change"]["payload"] = {"replacement": "different"}
+    actual, changed_source = digest(changed)
+    assert actual != original
+    if field in ("proof", "recovery"):
+        assert changed_source.request_fingerprint == source.request_fingerprint
+        assert changed_source.event_fingerprints == source.event_fingerprints
+
+
+def test_p3_body_state_uses_only_dedicated_closed_reader(monkeypatch):
+    """P3専用readを使い、旧D1付きreaderをnullable条件へ広げない。"""
+    from pitchlog.sync.control_provider.binding_control import (
+        WriterBindingUnavailable,
+        _BindingAuthority,
+    )
+    from pitchlog.sync.stop_contract import AttemptIdentity
+
+    issuer, tenant, device, game, attempt, d5 = (uuid4() for _ in range(6))
+    authority = object.__new__(_BindingAuthority)
+    authority._issuer = issuer
+    identity = AttemptIdentity(str(attempt), str(game), "D4", 1, "request-original")
+    calls = []
+
+    def call(*args):
+        calls.append(args)
+        return ("matching",)
+
+    monkeypatch.setattr(authority, "_call", call)
+    assert (
+        authority.read_attempt_body_state(
+            tenant,
+            device,
+            identity,
+            d5,
+            "event-original",
+            "a" * 64,
+            phase_kind="d1less",
+        )
+        == "matching"
+    )
+    assert calls[0][1] == (
+        "SELECT sync_control.read_p3_attempt_recovery_state("
+        "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"
+    )
+    assert calls[0][2][-1] == "a" * 64
+    with pytest.raises(WriterBindingUnavailable):
+        authority.read_attempt_body_state(
+            tenant,
+            device,
+            identity,
+            d5,
+            "event-original",
+            "a" * 64,
+            phase_kind=cast(Any, "unknown"),
+        )
+    assert len(calls) == 1

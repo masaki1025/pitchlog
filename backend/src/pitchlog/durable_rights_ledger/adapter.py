@@ -1646,6 +1646,11 @@ class _AuthorityRuntime:
                 "event_fingerprint",
                 "body_fingerprint",
             }
+            | (
+                {"phase_kind", "d5_fingerprint"}
+                if request.get("phase_kind") == "d1less"
+                else set()
+            )
             or request["operation"] != "binding_recover"
             or type(request["tenant_id"]) is not str
             or type(request["device_id"]) is not str
@@ -1655,6 +1660,13 @@ class _AuthorityRuntime:
             or type(request["body_fingerprint"]) is not str
             or len(request["body_fingerprint"]) != 64
             or any(c not in "0123456789abcdef" for c in request["body_fingerprint"])
+            or (
+                request.get("phase_kind") == "d1less"
+                and (
+                    type(request.get("d5_fingerprint")) is not str
+                    or not request["d5_fingerprint"]
+                )
+            )
         ):
             raise LedgerUnavailable("ledger unavailable")
         try:
@@ -1688,6 +1700,11 @@ class _AuthorityRuntime:
                     d5,
                     request["event_fingerprint"],
                     request["body_fingerprint"],
+                    **(
+                        {"phase_kind": "d1less"}
+                        if request.get("phase_kind") == "d1less"
+                        else {}
+                    ),
                 )
                 if body_state == "unresolved":
                     _send(channel, {"status": "ok", "result": outcome})
@@ -1737,6 +1754,7 @@ class _AuthorityRuntime:
                     != identity.wire_fingerprint
                     or record["phase"].get("body_fingerprint")
                     != request["body_fingerprint"]
+                    or record["phase"].get("phase_kind") != request.get("phase_kind")
                     or record["phase"].get("d5") != str(d5)
                     or record["phase"].get("event_fingerprint")
                     != request["event_fingerprint"]
@@ -1761,7 +1779,11 @@ class _AuthorityRuntime:
                     _send(channel, {"status": "ok", "result": outcome})
                     return
                 d5_state = authority.observe_d5(
-                    tenant, d5, request["event_fingerprint"]
+                    tenant,
+                    d5,
+                    request["d5_fingerprint"]
+                    if request.get("phase_kind") == "d1less"
+                    else request["event_fingerprint"],
                 )
                 if d5_state == "conflict" or (
                     terminal == {BindingOutcome.COMMITTED.value}

@@ -129,3 +129,27 @@ ALTER FUNCTION sync_control.register_d1less_phase(uuid,jsonb) OWNER TO pitchlog_
 ALTER FUNCTION sync_control.read_d1less_phase(uuid,uuid,uuid) OWNER TO pitchlog_sync_binding_fn_owner;
 REVOKE ALL ON FUNCTION sync_control.register_d1less_phase(uuid,jsonb),sync_control.read_d1less_phase(uuid,uuid,uuid) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION sync_control.register_d1less_phase(uuid,jsonb),sync_control.read_d1less_phase(uuid,uuid,uuid) TO pitchlog_sync_binding_actor;
+
+-- P3専用の原本照合。旧D1付き関数の条件は変更しない。
+CREATE FUNCTION sync_control.read_p3_attempt_recovery_state(p_tenant_id uuid,p_attempt_id uuid,p_device_id uuid,p_game_id uuid,p_wire_d4 text,p_codec_version bigint,p_request_fingerprint text,p_authority_id uuid,p_d5 uuid,p_event_fingerprint text,p_body_fingerprint text)
+RETURNS text LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path=pg_catalog,pg_temp AS $f$
+DECLARE at sync_control.attempts%ROWTYPE; retired sync_control.attempt_retirements%ROWTYPE;
+BEGIN
+ IF session_user<>'pitchlog_sync_binding_actor' OR p_tenant_id IS NULL OR p_attempt_id IS NULL OR p_device_id IS NULL OR p_game_id IS NULL OR p_wire_d4 IS NULL OR p_wire_d4='' OR p_codec_version IS NULL OR p_codec_version<=0 OR p_request_fingerprint IS NULL OR p_request_fingerprint='' OR p_authority_id IS NULL OR p_d5 IS NULL OR p_event_fingerprint IS NULL OR p_event_fingerprint='' OR p_body_fingerprint IS NULL OR p_body_fingerprint !~ '^[a-f0-9]{64}$' THEN RAISE EXCEPTION 'attempt recovery read rejected' USING ERRCODE='42501'; END IF;
+ PERFORM pg_advisory_xact_lock(hashtext(p_tenant_id::text),hashtext(p_attempt_id::text));
+ IF NOT EXISTS(SELECT FROM sync_control.authorities a WHERE a.authority_id=p_authority_id AND a.state='active') THEN RETURN 'unresolved'; END IF;
+ SELECT r.* INTO retired FROM sync_control.attempt_retirements r WHERE r.tenant_id=p_tenant_id AND r.attempt_id=p_attempt_id;
+ IF FOUND THEN
+  IF retired.device_id IS DISTINCT FROM p_device_id OR retired.game_id IS DISTINCT FROM p_game_id OR retired.authority_id IS DISTINCT FROM p_authority_id OR retired.wire_d4 IS DISTINCT FROM p_wire_d4 OR retired.codec_version IS DISTINCT FROM p_codec_version OR retired.request_fingerprint IS DISTINCT FROM p_request_fingerprint OR retired.body_fingerprint IS DISTINCT FROM p_body_fingerprint THEN RETURN 'unresolved'; END IF;
+  RETURN 'matching';
+ END IF;
+ SELECT a.* INTO at FROM sync_control.attempts a WHERE a.tenant_id=p_tenant_id AND a.attempt_id=p_attempt_id;
+ IF NOT FOUND THEN RETURN 'absent'; END IF;
+ IF at.device_id IS DISTINCT FROM p_device_id OR at.game_id IS DISTINCT FROM p_game_id OR at.authority_id IS DISTINCT FROM p_authority_id OR at.wire_d4 IS DISTINCT FROM p_wire_d4 OR at.codec_version IS DISTINCT FROM p_codec_version OR at.request_fingerprint IS DISTINCT FROM p_request_fingerprint OR at.body_fingerprint IS DISTINCT FROM p_body_fingerprint OR at.event_count IS DISTINCT FROM 1 THEN RETURN 'unresolved'; END IF;
+ IF NOT EXISTS(SELECT FROM sync_control.event_phases ph WHERE ph.tenant_id=p_tenant_id AND ph.attempt_id=p_attempt_id AND ph.event_position=1 AND ph.d1 IS NULL AND ph.d5=p_d5 AND ph.event_fingerprint=p_event_fingerprint) THEN RETURN 'unresolved'; END IF;
+ RETURN 'matching';
+END;$f$;
+ALTER FUNCTION sync_control.read_p3_attempt_recovery_state(uuid,uuid,uuid,uuid,text,bigint,text,uuid,uuid,text,text) OWNER TO pitchlog_sync_binding_fn_owner;
+REVOKE ALL ON FUNCTION sync_control.read_p3_attempt_recovery_state(uuid,uuid,uuid,uuid,text,bigint,text,uuid,uuid,text,text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION sync_control.read_p3_attempt_recovery_state(uuid,uuid,uuid,uuid,text,bigint,text,uuid,uuid,text,text) TO pitchlog_sync_binding_actor;
+

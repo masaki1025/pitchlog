@@ -46,3 +46,11 @@ step1接合記録: 4dへの605全mergeは起点差により無関係な約170pat
 step1検査: backend関連307件・Ruff/Ty成功。FE関連51成功、Undo8件は起点4dのfixture artifact 4e8b3252…に対し実artifact ce622726…の既存不一致（対象資産の差分0）。期待値は変更しない。標準control owned初回は共有DSN未設定のままdefault admin fixtureが先に解決されたsetup errorで、DB確認には未到達。既owned admin/tested-role fixtureを明示importして再検証する。標準関数catalog照合は非作者cache patch 1da9acfd…を元byte照合して採用したが、正式受理・独立source採否は未了。
 
 step1実PG追補: c6a43313 detachedで標準関数catalogまで到達したが、専用control PGには業務app role自体が存在せず、提供catalog検査のhas_function_privilege(text)が42704となった。app roleを作らず、to_regroleがNULLならEXECUTE不可(false)、存在時だけ実oid権限を検査する。欠落関数/他role grant/owner等の拒否は維持する。
+
+step1固定結果: 3876ba3d detachedの標準control+実P3 HTTPは1 passed/168.07s、verify WT clean。cache CREATEは使用しない。run3ログは ~/.cache/pitchlog/mvp-p3-attempt-recovery-20261107/standard-control-run3/pytest.log。
+
+step2接合: recover入口だけが元本文のS-1閉unionからP3を解析し、真正receiptのbody digestをP3登録にも毎回導出する。既events入口と旧d1=1 readerは不変更。P3だけread_p3_attempt_recovery_stateでNULL-D1 phaseを閉照合し、journal phase_kindとの一致を要求する。retirementのbody digestにはrequest.pathが含まれるので、他phase/旧NULLから現在本文への再束縛はしない。
+
+P3のcontrol/event FP（wire原値）とD5台帳FP（既operation_fingerprint(event, P3, None)）は異なる。式を変更せず、真正P3から既式を適用したD5 FPを私有d1less packetへ別値として渡し、observe_d5だけが使用する。control原本/journal/business binding/tombstoneのevent FPは既wire FPを維持する。旧Event recovery packetへこのフィールドを追加しない。
+
+実装追随source pinはadapter.py実byteのSHA-256のみ: 旧d9fcdfde31aeb49ab23d242fd7ef1bd913b5a9f412a4016a29ba38768c4c15c6 → 40d9b070365ffb1f6fdd583c46e3438fdd934ec869d9914537c54c1e418e228a。数学期待/正式authz/tenant/seal/7.7の受理は行わない。P3原本文digestの5対向とevent/P3両phaseの終結/異内容/他phase拒否の純粋試験を追加した。ownedの未登録/後着・T2/T4全取消・実受理後のACK喪失/同D5再掲・別V12拒否を既真正P3縦断へ挿入する検証を用意し、固定sourceで次に実行する。

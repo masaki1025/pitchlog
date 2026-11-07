@@ -1528,10 +1528,12 @@ def _g20_open_intent():
         ("old_body_missing", "unresolved"),
         ("control_body_missing", "unresolved"),
         ("control_body_changed", "unresolved"),
+        ("other_phase_kind", "unresolved"),
     ],
 )
+@pytest.mark.parametrize("p3", [False, True])
 def test_attempt_recovery_requires_real_lease_terminal_and_d5(
-    monkeypatch, change, expected
+    monkeypatch, change, expected, p3
 ):
     """Binding intent行番号とlease番号の違い、live/未知/D5不一致を閉じる。"""
     import socket
@@ -1556,6 +1558,13 @@ def test_attempt_recovery_requires_real_lease_terminal_and_d5(
         record["phase"]["body_fingerprint"] = "b" * 64
     if change == "old_body_missing":
         record["phase"].pop("body_fingerprint")
+    if p3:
+        record["phase"]["phase_kind"] = "d1less"
+    if change == "other_phase_kind":
+        if p3:
+            record["phase"].pop("phase_kind")
+        else:
+            record["phase"]["phase_kind"] = "d1less"
     events = (
         []
         if change == "no_intent"
@@ -1602,12 +1611,14 @@ def test_attempt_recovery_requires_real_lease_terminal_and_d5(
         def __init__(self, *_args):
             pass
 
-        def read_attempt_body_state(self, *_args):
+        def read_attempt_body_state(self, *_args, **kwargs):
+            assert kwargs == ({"phase_kind": "d1less"} if p3 else {})
             if change in ("control_body_missing", "control_body_changed"):
                 return "unresolved"
             return "absent" if change == "no_intent" else "matching"
 
         def observe_d5(self, *_args):
+            assert _args[-1] == ("P3-D5-original" if p3 else "event-original")
             calls.append("d5")
             if change == "d5_conflict":
                 return "conflict"
@@ -1638,6 +1649,9 @@ def test_attempt_recovery_requires_real_lease_terminal_and_d5(
         "event_fingerprint": "event-original",
         "body_fingerprint": "a" * 64,
     }
+    if p3:
+        request["phase_kind"] = "d1less"
+        request["d5_fingerprint"] = "P3-D5-original"
     client, server = socket.socketpair()
     try:
         runtime._handle_binding_recovery(server, request)
