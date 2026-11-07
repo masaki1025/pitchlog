@@ -210,12 +210,10 @@ test('実画面の新規作成→開始→2球→ACK喪失/reload/同要求再�
       })
     }
   })
-  await page
-    .getByRole('button', {
-      name: '三振・攻守交代を含む投球の記録へ',
-      exact: true,
-    })
-    .click()
+  // 開始成功後はHostが現行記録画面へ自動接続する。旧入口の再クリックは不要。
+  await expect
+    .poll(() => new URL(page.url()).searchParams.get('recording'))
+    .toBe('play-prefix-v3')
   for (let n = 1; n <= 2; n++) {
     await expect(page.getByTestId('ordinary-state-source')).toHaveText(
       'サーバー確認済みの状態',
