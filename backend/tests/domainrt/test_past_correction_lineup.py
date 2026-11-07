@@ -32,6 +32,7 @@ from pitchlog.repositories.past_correction_source import PastCorrectionV3SourceS
 from pitchlog.repositories.transaction import _TenantTransaction
 from pitchlog.sync import past_correction_paged, past_correction_preparation
 from pitchlog.sync.first_ball_payload import FirstBallObservations
+from pitchlog.sync.idempotency import source_fingerprint
 from pitchlog.sync.model import SyncEvent
 from pitchlog.sync.ordinary_pitch_physical import pitch_physical_row
 from pitchlog.sync.past_correction_capsule import (
@@ -55,6 +56,7 @@ from pitchlog.sync.past_correction_payload import (
 )
 from pitchlog.sync.past_correction_physical import prepare_corrected_physical_pitches
 from pitchlog.sync.past_correction_stats import (
+    P3StatsSourceCandidate,
     evaluate_p3_capsule_stats,
     evaluate_p3_current_item_stats,
 )
@@ -487,14 +489,15 @@ def test_v3_physical_candidate_uses_existing_mappers_and_new_row_ids(
         _bound_tenant_id = tenant
 
     def read_pages(_scope, _game, _target, consume):
-        consume(original[:1])
-        consume(original[1:])
+        checkpoint = SimpleNamespace(
+            prefix_ref=original[-1].calculation.response.value.next_prefix_ref
+        )
+        consume(original[:1], checkpoint)
+        consume(original[1:], checkpoint)
         return SimpleNamespace(
             internal_generation=1,
             watermark=2,
-            checkpoint=SimpleNamespace(
-                prefix_ref=original[-1].calculation.response.value.next_prefix_ref
-            ),
+            checkpoint=checkpoint,
         )
 
     monkeypatch.setattr(past_correction_paged, "_TenantTransaction", Scope)
@@ -508,6 +511,28 @@ def test_v3_physical_candidate_uses_existing_mappers_and_new_row_ids(
         past_correction_paged,
         "build_corrected_lineup_checkpoint_from_head",
         lambda *_: SimpleNamespace(id="next"),
+    )
+    monkeypatch.setattr(
+        past_correction_paged,
+        "build_p3_current_item",
+        lambda saved, **_kwargs: {
+            "d1": saved.d1,
+            "digest": source_fingerprint({"d1": saved.d1}),
+        },
+    )
+    monkeypatch.setattr(
+        past_correction_paged,
+        "evaluate_p3_current_item_stats",
+        lambda item, d1: P3StatsSourceCandidate(
+            d1,
+            original[d1 - 1].source_event_id,
+            original[d1 - 1].source_event_id,
+            UUID(int=d1),
+            {},
+            "b" * 64,
+            {},
+            "c" * 64,
+        ),
     )
     event = SyncEvent(
         str(_CHANGE), str(game), v5="play_change", v7=_change_body(original, 1)
@@ -801,7 +826,6 @@ def test_v3_corrected_checkpoint_uses_native_chain_and_new_physical_head() -> No
     """実二球再評価の末尾だけを新CPへ写し、元IDと物理PKを区別する。"""
     from pitchlog.domainrt.first_ball_projection import _canonical_json
     from pitchlog.repositories.play_prefix import read_lineup_prefix_document
-    from pitchlog.sync.idempotency import source_fingerprint
     from pitchlog.sync.ordinary_pitch_physical import pitch_physical_row
     from pitchlog.sync.past_correction_preparation import PreparedP3LineupCorrection
     from pitchlog.sync.terminal_pitch_projection import runner_physical_rows

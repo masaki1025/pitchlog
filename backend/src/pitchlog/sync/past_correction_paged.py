@@ -26,6 +26,10 @@ from pitchlog.repositories.transaction import _TenantTransaction
 from pitchlog.sync.change_path import _bound_target
 from pitchlog.sync.idempotency import _json_value, source_fingerprint
 from pitchlog.sync.model import SyncEvent
+from pitchlog.sync.past_correction_capsule import (
+    PastCorrectionCapsuleError,
+    build_p3_current_item,
+)
 from pitchlog.sync.past_correction_checkpoint import (
     PastCorrectionCheckpointError,
     build_corrected_lineup_checkpoint_from_head,
@@ -38,6 +42,11 @@ from pitchlog.sync.past_correction_payload import (
 from pitchlog.sync.past_correction_physical import (
     CorrectedPhysicalPitch,
     prepare_corrected_physical_pitches,
+)
+from pitchlog.sync.past_correction_stats import (
+    P3StatsSourceCandidate,
+    PastCorrectionStatsError,
+    evaluate_p3_current_item_stats,
 )
 from pitchlog.sync.terminal_pitch_payload import LineupPitchPlayPayload
 
@@ -54,6 +63,8 @@ class PreparedP3Page:
     corrected: tuple[CorrectedLineupPitch, ...]
     payloads: tuple[LineupPitchPlayPayload, ...]
     physical: tuple[CorrectedPhysicalPitch, ...]
+    items: tuple[dict[str, object], ...] = ()
+    stats_sources: tuple[P3StatsSourceCandidate, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -143,6 +154,9 @@ def _page_seal(previous: str, page: PreparedP3Page) -> str:
         or not 1 <= len(page.originals) <= 25
         or len(page.corrected) != len(page.payloads)
         or len(page.corrected) != len(page.physical)
+        or bool(page.items) != bool(page.stats_sources)
+        or (page.items and len(page.items) != len(page.originals))
+        or (page.stats_sources and len(page.stats_sources) != len(page.originals))
     ):
         raise PastCorrectionPageUnavailable("P3準備頁の閉形が不正")
     rolling = source_fingerprint(
@@ -200,6 +214,25 @@ def _page_seal(previous: str, page: PreparedP3Page) -> str:
                 "play_runners": _json_value(physical.play_runners),
             }
         )
+    for item, source in zip(page.items, page.stats_sources, strict=True):
+        if (
+            type(item) is not dict
+            or type(source) is not P3StatsSourceCandidate
+            or item.get("d1") != source.d1
+            or item.get("digest") != source_fingerprint(
+                {key: value for key, value in item.items() if key != "digest"}
+            )
+        ):
+            raise PastCorrectionPageUnavailable("P3頁itemとT5候補が不一致")
+        rolling = source_fingerprint(
+            {
+                "previous": rolling,
+                "item_digest": item["digest"],
+                "original_evaluation_digest": source.original_evaluation_digest,
+                "evaluation_digest": source.evaluation_digest,
+                "effective_event_id": str(source.effective_event_id),
+            }
+        )
     return rolling
 
 
@@ -245,7 +278,9 @@ def visit_p3_lineup_correction_pages(
 
         with open_domain_host() as host:
 
-            def visit(rows: tuple[SavedLineupPitch, ...]) -> None:
+            def visit(
+                rows: tuple[SavedLineupPitch, ...], checkpoint: LineupPrefixDocument
+            ) -> None:
                 nonlocal state, page_count, seal, target
                 nonlocal last_original, last_corrected, last_physical
                 for saved in rows:
@@ -286,7 +321,36 @@ def visit_p3_lineup_correction_pages(
                 else:
                     payloads = ()
                     physical = ()
-                page = PreparedP3Page(rows, corrected, payloads, physical)
+                by_d1 = {frame.d1: frame for frame in corrected}
+                payload_by_d1 = {
+                    frame.d1: value
+                    for frame, value in zip(corrected, payloads, strict=True)
+                }
+                physical_by_d1 = {value.d1: value for value in physical}
+                if any(
+                    len(values) != len(corrected)
+                    for values in (by_d1, payload_by_d1, physical_by_d1)
+                ):
+                    raise PastCorrectionPageUnavailable("P3頁有効位置が重複")
+                items = tuple(
+                    build_p3_current_item(
+                        saved,
+                        target_d1=target_d1,
+                        change_event_id=change_event_id,
+                        checkpoint=checkpoint,
+                        frame=by_d1.get(saved.d1),
+                        payload=payload_by_d1.get(saved.d1),
+                        projected=physical_by_d1.get(saved.d1),
+                    )
+                    for saved in rows
+                )
+                stats_sources = tuple(
+                    evaluate_p3_current_item_stats(item, saved.d1)
+                    for saved, item in zip(rows, items, strict=True)
+                )
+                page = PreparedP3Page(
+                    rows, corrected, payloads, physical, items, stats_sources
+                )
                 seal = _page_seal(seal, page)
                 page_count += 1
                 last_original = rows[-1]
@@ -336,6 +400,8 @@ def visit_p3_lineup_correction_pages(
         PastCorrectionSourceUnavailable,
         PastCorrectionPayloadError,
         PastCorrectionCheckpointError,
+        PastCorrectionCapsuleError,
+        PastCorrectionStatsError,
         ValueError,
         TypeError,
         KeyError,

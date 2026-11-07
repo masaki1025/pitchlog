@@ -104,7 +104,7 @@ def visit_past_correction_v3_source_pages(
     scope: _TenantTransaction,
     game_id: UUID,
     target_d1: int,
-    consume: Callable[[tuple[SavedLineupPitch, ...]], None],
+    consume: Callable[[tuple[SavedLineupPitch, ...], LineupPrefixDocument], None],
 ) -> PastCorrectionV3PagedSource:
     """同一scopeの25件keysetを全水位まで訪問し、全件RAM保持を避ける。"""
     if (
@@ -234,7 +234,8 @@ def visit_past_correction_v3_source_pages(
                     raise PastCorrectionSourceUnavailable("P3頁の公開/私有原本が不一致")
                 source.append(saved)
                 last = saved
-            consume(tuple(source))
+            assert checkpoint is not None
+            consume(tuple(source), checkpoint)
             seen += len(source)
             assert last is not None
             after = (last.d1, last.d2, last.source_event_id)

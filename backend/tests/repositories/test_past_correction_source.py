@@ -169,7 +169,7 @@ def test_paged_source_visits_26_in_two_bounded_pages_or_rejects_tamper(
             cast(_TenantTransaction, _Scope()),
             _GAME,
             26,
-            lambda page: sizes.append(len(page)),
+            lambda page, _checkpoint: sizes.append(len(page)),
         )
     if tamper is not None:
         with pytest.raises(source.PastCorrectionSourceUnavailable):
