@@ -415,6 +415,12 @@ const NONPITCH_NULL_KEYS = [
   'fake_run',
   'comment',
 ] as const
+const RUNNER_NONPITCH_NULL_KEYS = NONPITCH_NULL_KEYS.filter(
+  (key) =>
+    key !== 'secondary_batting_result_key' &&
+    key !== 'pickoff_type' &&
+    key !== 'pickoff_detail',
+)
 function finiteNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value)
 }
@@ -463,8 +469,7 @@ function commonPlayRow(value: unknown): value is Record<string, unknown> {
     (value.batting_side === null ||
       value.batting_side === '右' ||
       value.batting_side === '左') &&
-    typeof value.batting_result_key === 'string' &&
-    value.batting_result_key.length > 0 &&
+    nullableString(value.batting_result_key) &&
     nullableString(value.stance) &&
     nullableString(value.strategy_key) &&
     nullableString(value.strategy_detail_key) &&
@@ -492,6 +497,8 @@ function ordinaryPlayRow(value: unknown): value is RecordedPrefixPlayRow {
   return (
     commonPlayRow(value) &&
     value.event_kind === 'pitch' &&
+    typeof value.batting_result_key === 'string' &&
+    value.batting_result_key.length > 0 &&
     course(value.course) &&
     typeof value.pitch_type_key === 'string' &&
     value.pitch_type_key.length > 0
@@ -506,6 +513,32 @@ export function isLineupNonPitchPlayRow(
     value.event_kind === 'non_pitch' &&
     value.batting_result_key === 'batting-result.intentional-walk' &&
     NONPITCH_NULL_KEYS.every((key) => value[key] === null)
+  )
+}
+/** v3の走者非投球だけを保存物理行の有限3形として受ける。 */
+export function isLineupRunnerNonPitchPlayRow(
+  value: unknown,
+): value is LineupRunnerNonPitchPlayRow {
+  if (
+    !commonPlayRow(value) ||
+    value.event_kind !== 'non_pitch' ||
+    value.batting_result_key !== null ||
+    !RUNNER_NONPITCH_NULL_KEYS.every((key) => value[key] === null)
+  )
+    return false
+  const secondary = value.secondary_batting_result_key
+  const pickoffType = value.pickoff_type
+  const pickoffDetail = value.pickoff_detail
+  return (
+    (secondary === null && pickoffType === null && pickoffDetail === null) ||
+    (secondary === 'secondary-result.balk' &&
+      pickoffType === null &&
+      pickoffDetail === null) ||
+    (secondary === null &&
+      (pickoffType === 'pitcher' || pickoffType === 'catcher') &&
+      (pickoffDetail === 'first' ||
+        pickoffDetail === 'second' ||
+        pickoffDetail === 'third'))
   )
 }
 function playRow(value: unknown): value is StartedPlayRow {
@@ -693,6 +726,27 @@ export type LineupNonPitchPlayRow = Readonly<
     event_kind: 'non_pitch'
     batting_result_key: 'batting-result.intentional-walk'
   } & Record<(typeof NONPITCH_NULL_KEYS)[number], null>
+>
+type RunnerNonPitchNullKey = Exclude<
+  (typeof NONPITCH_NULL_KEYS)[number],
+  'secondary_batting_result_key' | 'pickoff_type' | 'pickoff_detail'
+>
+export type LineupRunnerNonPitchPlayRow = Readonly<
+  Omit<
+    RecordedPrefixPlayRow,
+    | 'event_kind'
+    | 'batting_result_key'
+    | 'secondary_batting_result_key'
+    | 'pickoff_type'
+    | 'pickoff_detail'
+    | RunnerNonPitchNullKey
+  > & {
+    event_kind: 'non_pitch'
+    batting_result_key: null
+    secondary_batting_result_key: 'secondary-result.balk' | null
+    pickoff_type: 'pitcher' | 'catcher' | null
+    pickoff_detail: 'first' | 'second' | 'third' | null
+  } & Record<RunnerNonPitchNullKey, null>
 >
 export type StartedGameMetadata = Omit<StartedGame, 'read_kind'>
 /** 新projectionでも共通metadataを再計算せず同じ検証で読む。 */

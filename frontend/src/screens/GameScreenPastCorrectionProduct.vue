@@ -92,12 +92,14 @@ const targets = computed(() =>
       d1: index + 1,
       row: item.play_row,
     }))
-    .filter(({ row }) =>
-      [
-        'batting-result.ball',
-        'batting-result.called-pitch',
-        'batting-result.called-strikeout',
-      ].includes(row.batting_result_key),
+    .filter(
+      ({ row }) =>
+        row.batting_result_key !== null &&
+        [
+          'batting-result.ball',
+          'batting-result.called-pitch',
+          'batting-result.called-strikeout',
+        ].includes(row.batting_result_key),
     ),
 )
 const canInput = computed(
