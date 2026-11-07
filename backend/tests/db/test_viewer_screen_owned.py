@@ -63,3 +63,12 @@ def test_viewer_https_two_context_auto_update_and_offline(vertical_database) -> 
             )
             match = re.search(r"PITCHLOG_VIEWER_VISIBLE_MS=([0-9]+)", result.stdout)
             assert match is not None and int(match.group(1)) <= 10000
+            recovered = re.search(
+                r"PITCHLOG_VIEWER_RECOVERED_MS=([0-9]+)", result.stdout
+            )
+            assert recovered is not None and int(recovered.group(1)) <= 10000
+            print(
+                "PITCHLOG_VIEWER_TIMING="
+                + f"visible_ms={match.group(1)},"
+                + f"recovered_ms={recovered.group(1)}"
+            )

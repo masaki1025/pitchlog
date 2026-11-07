@@ -152,6 +152,12 @@ test('別contextの保存済み閲覧は10秒以内に1球へ更新し、断中�
     await login(viewer)
     console.log('PITCHLOG_VIEWER_STAGE=second-login')
     const observed: string[] = []
+    const viewerApiRequests: string[] = []
+    viewer.on('request', (request) => {
+      const path = apiPath(request.url())
+      if (path.startsWith('/api/'))
+        viewerApiRequests.push(`${request.method()} ${path}`)
+    })
     viewer.on('response', (res) => {
       const path = apiPath(res.url())
       if (
@@ -208,10 +214,43 @@ test('別contextの保存済み閲覧は10秒以内に1球へ更新し、断中�
     await viewer.reload()
     await expect(viewer.getByText(/第1球:/)).toBeVisible()
     await viewerContext.setOffline(true)
+    const disconnectedAt = Date.now()
     await expect(viewer.getByTestId('viewer-status')).toHaveText('未更新', {
       timeout: 13_000,
     })
     await expect(viewer.getByRole('region', { name: 'スコア' })).toHaveCount(0)
+    console.log(
+      `PITCHLOG_VIEWER_DISCONNECTED_MS=${Date.now() - disconnectedAt}`,
+    )
+    await viewerContext.setOffline(false)
+    const recoveredAt = Date.now()
+    await expect(viewer.getByTestId('viewer-status')).toHaveText('更新済み', {
+      timeout: 15_000,
+    })
+    await expect(viewer.getByText(/第1球:/)).toBeVisible()
+    console.log(`PITCHLOG_VIEWER_RECOVERED_MS=${Date.now() - recoveredAt}`)
+    // 記録権・端末登録・同期送信を閲覧contextから一度も行っていない。
+    expect(
+      viewerApiRequests.filter(
+        (value) =>
+          value.includes('/devices/enroll') ||
+          value.includes('/start') ||
+          value.includes('/sync/events'),
+      ),
+    ).toEqual([])
+    console.log(
+      'PITCHLOG_VIEWER_API_REQUESTS=' + JSON.stringify(viewerApiRequests),
+    )
+    // 不存在・越境は404の「閲覧できません」へ閉じ、旧値を残さない。
+    const missing = '00000000-0000-4000-8000-000000000000'
+    await viewer.goto(`${baseURL}/games/${missing}/view`)
+    await expect(viewer.getByTestId('viewer-status')).toHaveText(
+      '閲覧できません',
+    )
+    await expect(viewer.getByRole('region', { name: 'スコア' })).toHaveCount(0)
+    await viewer.goto(`${baseURL}/games/${saved.id}/view`)
+    await expect(viewer.getByTestId('viewer-status')).toHaveText('更新済み')
+    await expect(viewer.getByText(/第1球:/)).toBeVisible()
   } finally {
     await viewerContext.close().catch(() => undefined)
   }
