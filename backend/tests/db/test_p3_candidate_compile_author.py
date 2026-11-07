@@ -728,7 +728,9 @@ def test_owned_candidate_actual_http_p3(vertical_database) -> None:
                 'result', pg_get_function_result(p.oid),
                 'actor', has_function_privilege(
                     'pitchlog_sync_binding_actor', p.oid, 'EXECUTE'),
-                'app', has_function_privilege('pitchlog_app', p.oid, 'EXECUTE'),
+                'app', CASE WHEN to_regrole('pitchlog_app') IS NULL THEN false
+                    ELSE has_function_privilege(
+                        to_regrole('pitchlog_app'), p.oid, 'EXECUTE') END,
                 'unexpectedGrant', EXISTS (
                     SELECT FROM aclexplode(
                         COALESCE(p.proacl, acldefault('f', p.proowner))) AS acl
