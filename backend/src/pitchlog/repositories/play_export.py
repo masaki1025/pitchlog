@@ -71,6 +71,7 @@ class PlayExportBundle:
     snapshots: Sequence[dict[str, Any]]
     runner_snapshots: Sequence[dict[str, Any]]
     snapshot_available: bool
+    audit_plays: Sequence[dict[str, Any]] | None = None
 
 
 def _session(handle: _TenantTransaction) -> tuple[Session, UUID]:
@@ -130,9 +131,11 @@ def _page_plays(session: Session, tenant: UUID, game_id: UUID):
                     and_(
                         event.c.tenant_id == table.c.tenant_id,
                         event.c.id == table.c.source_event_id,
+                        event.c.game_id == table.c.game_id,
                         event.c.replaced_at.is_(None),
                         event.c.retired_at.is_(None),
                         event.c.ledger_kind == "accepted",
+                        event.c.is_tombstone.is_(False),
                     ),
                 )
             )
@@ -352,6 +355,16 @@ def read_play_export(handle: _TenantTransaction, game_id: UUID) -> PlayExportBun
         raise PlayExportMissingSupply(
             ("プレイ行",), "試合のプレイ行数が上限を超えました"
         )
+    # 取消・訂正前の物理行も同じRRから保持し、旧snapshotの原本を検証する。
+    audit_plays = _rows(
+        session,
+        select(*PlayRow.__table__.c)
+        .where(
+            PlayRow.__table__.c.tenant_id == tenant,
+            PlayRow.__table__.c.game_id == game_id,
+        )
+        .order_by(PlayRow.__table__.c.play_number, PlayRow.__table__.c.id),
+    )
     play_ids = (row["id"] for row in plays)
     runners = _read_runners(session, tenant, play_ids)
     events = _read_events(session, tenant, game_id)
@@ -461,4 +474,5 @@ def read_play_export(handle: _TenantTransaction, game_id: UUID) -> PlayExportBun
         snapshots=snapshot_rows,
         runner_snapshots=runner_snapshot_rows,
         snapshot_available=snapshot_name is not None,
+        audit_plays=audit_plays,
     )

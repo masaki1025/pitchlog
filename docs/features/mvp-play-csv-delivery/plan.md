@@ -56,3 +56,26 @@ closed registryの旧6赤は60f同名6caseで同じ失敗を再現（cache csv-m
 ## ステップ3・申告敬遠との結合候補（2026-11-07）
 
 PO委任によるCodex/root判断で、既ステップ3の現行v3実画面縦断を非投球の申告敬遠まで具体化する。別固定 source `a0c192a0` を通常 merge した隔離 WT `feature/mvp-nonpitch-csv-connection` だけで、二単打→申告敬遠→同D5再送→次球→再読取→画面ZIPを検査する。CSVの同TX88列、非投球の未観測NULL、球数0credit、4行/11CSVとmanifestの実bytesを同じゲームで照合する。共有T5・非投球核、正本、正式資産はここで変更しない。候補SQLの局所適用と正式0047/7.7受理は分け、旧単独画面成功を結合成功へ流用しない。
+
+## ステップ3・取消と有効版の読取追補（2026-11-07）
+
+PO委任によるCodex/root判断に基づき、CSV-CURRENT-01 を既MVP内の読取欠陥として修復する。固定非作者報告 `play-csv-nonpitch-independent-20261107/REPORT.md` の全取消・一部残存の反例を受け、同一 RR snapshot にある有効 PlayRow と、その exact source/世代/版に結合した保存 snapshot だけを CSV 本体へ供給する。監査用の旧 event と旧 snapshot は全 byte 保持し、別集合として manifest と照合する。単純な件数検査の削除、旧 snapshot の物理削除、現在名簿や欠測値による補完をしない。
+
+所有は CSV 専用 repository/export、候補 SQL/serializer、専用 spec/E2E と本計画に限定する。共有 sync/P3/domain/contracts と正式 asset は編集しない。実 Undo の全取消・一部残存→再入力→reload/ZIP を owned PG/画面で検査する。P3 の有効版と終了・再開版は固定済み selector の証拠が供給された範囲だけ接合し、未供給を 409 のまま具体的依存として記録する。正式0047/7.7/registry は root の直列受理に残す。
+
+### 取消後CSVの実測と継続境界
+
+候補 reader は同一 RR で有効 PlayRow と全物理 PlayRow を別に取得し、全 snapshot を tenant/game、実 event、世代、D2、物理版へ照合する。監査物理行にも対応 snapshot を必須にし、旧原本は `projections.csv` と manifest の source digest に残す。候補 SQL に全物理 PlayRow と snapshot の試合限定索引を追補した。索引の正式0047採用と実EXPLAINは別の受理証拠とする。
+
+owned r9（source前後SHA一致、所有container cleanup）で実新規開始→通常2球→取消1→同D5原文再送の重複→画面ZIP→全取消→画面ZIP→取消画面から再入力→画面ZIP→reload→画面ZIPを同一ゲームで完走し、backend実DB E2E 1件が129.13秒で成功。順に有効 `plays.csv` は1/0/1/1行、88列、監査 `projections.csv` は2/2/3/3行、`events.csv` は3/4/5/5行、各11 CSV・manifest・BOM・行数・SHA・ZIP整合性を照合した。DBでは元2物理行が hidden、再入力1物理行が現行、旧3 snapshot と event 原本を保持。後発のP3閉拒否対向を含む純85pytest、Ruff/Ty、Vue型/ESLintも成功。初球前のUndo GETは409であり、2球保存後に取消画面の既「再取得」操作を実行してから取消した。自動更新の共有UI修復は別cache候補としてrootへ渡し、本CSV WTでは共有画面を変更しない。
+
+これは取消・再入力版の候補実証であり、P3は旧物理行を hidden/retired にしないため現 `_page_plays` の有効版選択では未成立。受理 `play_change` がある試合は当面409で閉じ、二重計上を許さない。現在のT5版/source pointerとP3 capsule/slotの原本対応を閉じた公開読取能力が不足している。終了→再開→再終了の最新版と、正式0047/7.7/registry、独立最終レビューも未成立のまま継続する。
+
+
+### 取消後CSVと真正T5版/sourceの同時観測（2026-11-07）
+
+専用WT `feature/mvp-play-csv-effective-versions` のr12で、既r9経路を実画面/owned PGで再実行し **1passed141.50秒**。4段階のZIP取得後・次操作前に試験専用barrierを置き、管理者の別read-only接続で真正current T5版と有限source identityを観測した。source_countは1/0/1/1、revision3/4/5/5、completionはcurrent_open、再入力とreloadのversion ID/source_set/source一覧は完全一致。保存済みZIPのplay_linksとT5 sourceのevent/play_row/generation/D2/play版を全件完全一致で照合し、slot versionは1であった。これは実producer/取消の候補実証で、P3 slot2や終了確定版の成立証拠ではない。
+
+r11は旧/tmpのTLS資材パス消失で画面開始前に失敗した。新規秘密を発行せず、既cacheの所有loopback TLS資材へcache runnerだけを差替え、旧runner/logを保存してr12を実行した。r12はsource前後SHA一致/owned cleanup。独立レビュー・正式0047/7.7/統合は別条件として残す。r12保存観測/ZIPへの事後完全比較をE2E内の恒久assertにも追補する。
+
+次のP3/終了再開接合には、唯一生成S/canonical_source_membersを再利用する閉じたsource identity読取を同RRへ供給する。既ReadPrimitivePageTokenはmetric/d2/eventだけで物理play/slotを返さないため代用しない。実装選択は既MVP内のDTO/保存読取具体化としてPO委任rootが許可済みだが、正式token/catalog/関数body/core境界はroot直列受理へ渡す。保存時88列snapshot不足を現在名簿/0/NULLで補完しない。

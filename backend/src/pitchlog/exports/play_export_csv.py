@@ -169,6 +169,9 @@ def _source_digest(bundle: PlayExportBundle) -> str:
     payload = {
         "game": bundle.game,
         "plays": bundle.plays,
+        "audit_plays": (
+            bundle.audit_plays if bundle.audit_plays is not None else bundle.plays
+        ),
         "runners": bundle.runners,
         "events": bundle.events,
         "lineups": bundle.lineups,
@@ -213,19 +216,33 @@ def _source_digest(bundle: PlayExportBundle) -> str:
 
 
 def _missing_snapshot(bundle: PlayExportBundle) -> tuple[str, ...]:
-    """全88列と、その記録元/版の一致を閉検証する。"""
+    """有効行と監査原本を分け、全88列の記録元/版を閉検証する。"""
     unavailable = tuple(str(index) for index in range(88))
+    # P3は旧行が非hiddenのまま残る。現capsule selector未接合なら二重出力せず拒否。
+    if any(event.get("event_kind") == "play_change" for event in bundle.events):
+        return unavailable
     snapshots = _indexed_rows(bundle.snapshots, "play_row_id")
     events = _event_by_id(bundle)
-    if len(snapshots) != len(bundle.snapshots) or len(events) != len(bundle.events):
+    plays = _play_by_id(bundle)
+    audit_rows = bundle.audit_plays if bundle.audit_plays is not None else bundle.plays
+    audit_plays = _indexed_rows(audit_rows, "id")
+    if (
+        len(snapshots) != len(bundle.snapshots)
+        or len(events) != len(bundle.events)
+        or len(plays) != len(bundle.plays)
+        or len(audit_plays) != len(audit_rows)
+        or (
+            bundle.audit_plays is not None
+            and len(audit_plays) != len(snapshots)
+        )
+    ):
         return unavailable
-    if len(snapshots) != len(bundle.plays):
-        return unavailable
-    for play in bundle.plays:
-        snapshot = snapshots.get(play["id"])
-        if snapshot is None:
+    current_count = 0
+    for snapshot in bundle.snapshots:
+        physical = audit_plays.get(snapshot.get("play_row_id"))
+        if physical is None:
             return unavailable
-        event = events.get(play["source_event_id"])
+        event = events.get(physical.get("source_event_id"))
         value = snapshot.get("plays_csv_json")
         if (
             event is None
@@ -236,14 +253,26 @@ def _missing_snapshot(bundle: PlayExportBundle) -> tuple[str, ...]:
         if (
             snapshot.get("tenant_id") != bundle.game["tenant_id"]
             or snapshot.get("game_id") != bundle.game["id"]
+            or (
+                bundle.audit_plays is not None
+                and (
+                    physical.get("tenant_id") != bundle.game["tenant_id"]
+                    or physical.get("game_id") != bundle.game["id"]
+                    or event.get("tenant_id") != bundle.game["tenant_id"]
+                    or event.get("game_id") != bundle.game["id"]
+                    or event.get("is_tombstone") is not False
+                )
+            )
+            or snapshot.get("play_row_id") != physical.get("id")
+            or snapshot.get("source_event_id") != physical.get("source_event_id")
             or snapshot.get("source_event_id") != event["id"]
             or event.get("ledger_kind") != "accepted"
         ):
             return unavailable
         for key, expected in (
-            ("recording_generation", event["generation"]),
-            ("event_sequence", event["d2"]),
-            ("play_version", play["version"]),
+            ("recording_generation", event.get("generation")),
+            ("event_sequence", event.get("d2")),
+            ("play_version", physical.get("version")),
         ):
             actual = snapshot.get(key)
             if (
@@ -252,6 +281,23 @@ def _missing_snapshot(bundle: PlayExportBundle) -> tuple[str, ...]:
                 or actual != expected
             ):
                 return unavailable
+        current = plays.get(physical["id"])
+        if current is None:
+            if bundle.audit_plays is None or (
+                physical.get("hidden_at") is None
+                and event.get("retired_at") is None
+                and event.get("replaced_at") is None
+            ):
+                return unavailable
+        elif current != physical:
+            return unavailable
+        else:
+            current_count += 1
+    if current_count != len(bundle.plays):
+        return unavailable
+    for play in bundle.plays:
+        if audit_plays.get(play["id"]) != play or snapshots.get(play["id"]) is None:
+            return unavailable
     return ()
 
 
@@ -430,11 +476,8 @@ def _reference_rows(
 def _projection_rows(
     bundle: PlayExportBundle, snapshot_id: str
 ) -> Iterator[SavedCsvRow]:
-    plays = _play_by_id(bundle)
+    # 記録時の旧projectionも監査原本として同一RR版のまま出す。
     for snapshot in bundle.snapshots:
-        play = plays.get(snapshot["play_row_id"])
-        if play is None:
-            continue
         yield _row(
             bundle.game["id"],
             snapshot_id,
@@ -442,7 +485,7 @@ def _projection_rows(
                 "game_id": bundle.game["id"],
                 "recording_generation": snapshot.get("recording_generation"),
                 "event_sequence": snapshot.get("event_sequence"),
-                "source_event_id": play["source_event_id"],
+                "source_event_id": snapshot["source_event_id"],
                 "projection_kind": "plays_csv_v1",
                 "source_version": 1,
                 "source_json": _canonical_json(snapshot["plays_csv_json"]),

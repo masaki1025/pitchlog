@@ -48,6 +48,12 @@ CREATE POLICY play_export_snapshots_insert ON public.play_export_snapshots
     AND current_user = 'pitchlog_sync_right_fn_owner'
   );
 
+-- 同一RRの旧projectionを当該試合だけで読み、監査原本を全tenant走査しない。
+CREATE INDEX ix_play_export_snapshots_game_captured
+  ON public.play_export_snapshots (tenant_id,game_id,captured_at,play_row_id);
+CREATE INDEX ix_play_rows_export_audit
+  ON public.play_rows (tenant_id,game_id,play_number,id);
+
 -- active-only replay索引では置換/退役原本を含む監査keysetを支えない。
 -- 正式0047と実PG EXPLAINの受理前は候補であり、既共有DBには適用しない。
 CREATE INDEX ix_operation_events_export_audit
