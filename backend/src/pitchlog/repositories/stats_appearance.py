@@ -178,7 +178,12 @@ def candidate_private_entry_declarations():
             }
         )
         bodies["function|" + identity] = body
-    return {"functions": functions}, bodies
+    from pitchlog.authz.stats_primitive_product import _add_column
+
+    declarations = {"functions": functions, "column_acl_expectations": []}
+    for table in ("stats_primitive_sources", "stats_fact_versions"):
+        _add_column(declarations, bodies, "sync_fence", table, "xmin", ["SELECT"])
+    return declarations, bodies
 
 
 def candidate_private_entry_install_sql() -> str:
@@ -195,6 +200,10 @@ def candidate_private_entry_install_sql() -> str:
                 f"REVOKE ALL ON FUNCTION {identity} FROM {revoked};\n",
             )
         )
+    result.extend(
+        bodies["column_acl_expectation|" + row["expectation_id"]]
+        for row in declarations["column_acl_expectations"]
+    )
     result.append("""CREATE TRIGGER d03_pitcher_entry_immutable
 BEFORE UPDATE OR DELETE ON sync_fence.pitcher_entry_sources
 FOR EACH ROW EXECUTE FUNCTION stats_api.protect_pitcher_entry_sources();
@@ -225,10 +234,11 @@ def candidate_entry_table_install_sql() -> str:
         ddl
         + """
 GRANT USAGE ON SCHEMA sync_fence TO pitchlog_initial_fn_owner;
-ALTER TABLE sync_fence.pitcher_entry_sources OWNER TO pitchlog_sync_right_fn_owner;
+ALTER TABLE sync_fence.pitcher_entry_sources OWNER TO pitchlog_owner;
 ALTER TABLE sync_fence.pitcher_entry_sources ENABLE ROW LEVEL SECURITY;
 ALTER TABLE sync_fence.pitcher_entry_sources FORCE ROW LEVEL SECURITY;
-GRANT SELECT,INSERT ON sync_fence.pitcher_entry_sources TO pitchlog_initial_fn_owner;
+GRANT SELECT,INSERT ON sync_fence.pitcher_entry_sources
+TO pitchlog_initial_fn_owner,pitchlog_sync_right_fn_owner;
 CREATE POLICY pitcher_entry_internal ON sync_fence.pitcher_entry_sources
 TO pitchlog_initial_fn_owner,pitchlog_sync_right_fn_owner
 USING (tenant_id=NULLIF(current_setting('app.tenant_id',true),'')::uuid)
@@ -254,7 +264,7 @@ DECLARE v_tenant uuid; v_xid text; v_binding sync_fence.writer_bindings%ROWTYPE;
  v_source sync_fence.stats_primitive_sources%ROWTYPE;
  v_receipt sync_fence.substitution_write_receipts%ROWTYPE;
  v_cp sync_fence.ordinary_pitch_checkpoints%ROWTYPE; v_frame jsonb;
- v_revision bigint; v_s text; v_payload jsonb; v_value jsonb;
+ v_payload jsonb; v_value jsonb;
  v_before jsonb; v_after jsonb; v_bl jsonb; v_al jsonb;
  v_origin text; v_slot bigint; v_artifact text; v_fingerprint text;
  v_changed text; v_half_completed boolean; v_detected boolean; v_lock boolean;
@@ -297,9 +307,6 @@ BEGIN
  AND e.xmin::text::numeric=pg_catalog.mod(v_xid::numeric,4294967296::numeric);
  v_slot:=1; v_fingerprint:=v_binding.event_fingerprint;
  IF v_event.event_kind='play_input' THEN
-  SELECT r.revision,r.source_set_sha256 INTO STRICT v_revision,v_s
-  FROM stats_api.read_primitive_writer_state(p_attempt_id,p_phase_id,
-   p_source_event_id,'{SOURCE_MODEL_HASH}',p_binding_nonce) r;
   SELECT s.* INTO STRICT v_source FROM sync_fence.stats_primitive_sources s
   JOIN sync_fence.stats_fact_versions v ON (v.tenant_id,v.game_id,v.id)=
    (s.tenant_id,s.game_id,s.fact_version_id)
@@ -307,10 +314,12 @@ BEGIN
   AND s.source_event_id=v_event.id
   AND s.attempt_id=p_attempt_id AND s.phase_id=p_phase_id
   AND s.recording_generation=v_event.generation AND s.d1=v_event.d1
+  AND s.d2=v_event.d2 AND s.wire_d4=v_binding.wire_d4
   AND s.source_fingerprint=v_fingerprint AND s.slot_version=v_slot
   AND v.is_current AND v.invalidated_at IS NULL AND v.completion_state='current_open'
-  AND v.model_sha256='{SOURCE_MODEL_HASH}' AND v.revision=v_revision
-  AND v.source_set_sha256=v_s AND s.xmin=v_event_xmin AND v.xmin=v_event_xmin;
+  AND v.model_sha256='{SOURCE_MODEL_HASH}' AND v.revision>=1 AND v.source_count>=1
+  AND v.source_set_sha256 ~ '^[a-f0-9]{{64}}$'
+  AND s.xmin=v_event_xmin AND v.xmin=v_event_xmin;
   v_payload:=v_event.payload;
   v_before:=v_payload#>'{{calculation,request,t1,before,stateFields}}';
   v_after:=v_payload#>'{{calculation,response,value,t1,after,stateFields}}';
@@ -352,7 +361,7 @@ BEGIN
   AND sr.attempt_id=p_attempt_id AND sr.phase_id=p_phase_id
   AND sr.source_event_id=v_event.id AND sr.source_d1=v_event.d1
   AND sr.xmin=v_event_xmin AND n.xmin=v_event_xmin
-  AND n.state='right_verified' AND n.source_event_id=v_event.id
+  AND n.state='right_verified' AND n.transaction_id=v_xid
   AND n.game_id=v_event.game_id AND n.internal_generation=v_event.generation
   AND n.device_id=v_binding.device_id
   AND n.nonce_digest=pg_catalog.sha256(p_binding_nonce)
@@ -366,6 +375,7 @@ BEGIN
    v_cp.content#>'{{content,substitutionFrames}}') AS frames(value)
   WHERE frames.value#>>'{{source,eventId}}'=v_event.id::text
   AND frames.value#>>'{{source,gameId}}'=v_event.game_id::text
+  AND frames.value#>>'{{source,generation}}'=v_binding.wire_d4
   AND frames.value#>>'{{source,d1}}'=v_event.d1::text
   AND frames.value#>>'{{source,d5}}'=v_event.d5::text
   AND frames.value#>>'{{source,fingerprint}}'=v_fingerprint
@@ -374,9 +384,7 @@ BEGIN
   v_after:=v_frame#>'{{afterContext,current,stateFields}}';
   v_bl:=v_frame#>'{{beforeContext,lineup}}'; v_al:=v_frame#>'{{afterContext,lineup}}';
   v_changed:=v_event.payload#>>'{{operation,side}}';
-  SELECT n.artifact_sha256 INTO STRICT v_artifact
-  FROM sync_fence.nonplay_write_admissions n
-  WHERE n.tenant_id=v_tenant AND n.attempt_id=p_attempt_id AND n.phase_id=p_phase_id;
+  v_artifact:=v_cp.content#>>'{{content,executionArtifactSha256}}';
  END IF;
  WITH appearance_transition AS (SELECT v_tenant AS tenant_id,v_event.game_id AS game_id,
  v_event.id AS source_id,v_origin AS origin_kind,

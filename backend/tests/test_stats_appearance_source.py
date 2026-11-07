@@ -505,7 +505,7 @@ def test_entry_helper_is_owner_only_without_new_public_token_or_capability():
     import pitchlog.repositories.stats_appearance as module
 
     declarations, bodies = module.candidate_private_entry_declarations()
-    assert len(declarations["functions"]) == 3 and len(bodies) == 3
+    assert len(declarations["functions"]) == 3 and len(bodies) == 5
     entry = declarations["functions"][0]
     assert entry["owner_role_id"] == "pitchlog_initial_fn_owner"
     assert entry["acl_expectations"] == []
@@ -580,3 +580,46 @@ def test_writer_entry_uses_physical_xmin_not_composite_row_header():
     assert "s.xmin=v_event_xmin AND v.xmin=v_event_xmin" in body
     assert "sr.xmin=v_event_xmin AND n.xmin=v_event_xmin" in body
     assert "c.state='current' AND c.xmin=v_event_xmin" in body
+
+
+def test_writer_xmin_acl_is_exactly_two_readonly_columns_not_table_select():
+    """既native原表のsystem列2つだけをofficial列ACL builderで供給する。"""
+    from pitchlog.repositories.stats_appearance import (
+        candidate_entry_table_install_sql,
+        candidate_private_entry_declarations,
+        candidate_private_entry_install_sql,
+    )
+
+    declarations, _ = candidate_private_entry_declarations()
+    rows = declarations["column_acl_expectations"]
+    assert len(rows) == 2
+    assert {r["object_id"] for r in rows} == {
+        "stats_primitive_sources",
+        "stats_fact_versions",
+    }
+    for row in rows:
+        assert row["column_id"] == "xmin" and row["privilege_ids"] == ["SELECT"]
+        assert row["grantee_role_id"] == "pitchlog_sync_right_fn_owner"
+        assert row["grant_option"] is False
+    sql = candidate_private_entry_install_sql()
+    assert sql.count("GRANT SELECT (xmin)") == 2
+    assert "GRANT SELECT ON sync_fence.stats_primitive_sources" not in sql
+    assert "GRANT SELECT ON sync_fence.stats_fact_versions" not in sql
+    assert "OWNER TO pitchlog_owner" in candidate_entry_table_install_sql()
+
+
+def test_writer_saved_source_does_not_reenter_prior_state_or_undo_only_columns():
+    """実Save/0044の保存済原本だけを使用し旧profile/未保持列を前提化しない。"""
+    from pitchlog.repositories.stats_appearance import candidate_writer_entry_function
+
+    sql = candidate_writer_entry_function()
+    assert "read_primitive_writer_state" not in sql
+    assert "n.source_event_id=v_event.id" not in sql
+    assert "SELECT n.artifact_sha256" not in sql
+    assert "sr.source_event_id=v_event.id AND sr.source_d1=v_event.d1" in sql
+    assert "v_artifact:=v_cp.content#>>'{content,executionArtifactSha256}'" in sql
+    assert "n.nonce_digest=pg_catalog.sha256(p_binding_nonce)" in sql
+    assert "n.transaction_id=v_xid" in sql
+    assert "s.d2=v_event.d2 AND s.wire_d4=v_binding.wire_d4" in sql
+    assert "v.is_current AND v.invalidated_at IS NULL" in sql
+    assert "s.xmin=v_event_xmin AND v.xmin=v_event_xmin" in sql

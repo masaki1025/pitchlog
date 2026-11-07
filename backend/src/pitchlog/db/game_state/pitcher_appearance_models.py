@@ -109,5 +109,9 @@ class PitcherEntrySource(Base):
         ),
         Index("ix_pitcher_entry_source_player", "tenant_id", "game_id", "player_id"),
         schema="sync_fence",
-        info={"append_only": True, "formal_acceptance": "pending"},
+        info={
+            "append_only": True,
+            "storage_owner": "pitchlog_owner",
+            "formal_acceptance": "pending",
+        },
     )
