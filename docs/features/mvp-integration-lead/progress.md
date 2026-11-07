@@ -2,6 +2,8 @@
 
 ## 2026-11-07 20:28 JST：GETの書込阻害を解消、走者SQLの実拒否へ到達
 
+- **実走10の失敗と修復版**: 18bのrun10は実CURRENT49 applyで新prepareの構文エラー42601、setup1error21.55秒/壁22.46秒。source3349全byte同一・cleanup。UI/単打/NP/SB/faultは未到達。独立source採用を実コンパイル成功へ読み替えず、非作者COMPILE-FINDING SHA4668a0c0101a1f21fa4af65e76032f5e156b987a1a68ced55b79b0fd9d25a84eでP1を追補。root `2f01bb60` はgeneratorのsafe-advance IF内CASEへ2括弧を足し、同一BODIESから正規body f6c227618b469e6484b1490d1df682bb0f91068342d465130413bc13862337aaを再生成（逆に2括弧除去すれば旧8d629全byte）。意味/権限/拒否条件は変更せず9pure4.72秒/bodycheck/Ruff0。実compile再確認は未了。独立なD03 native faultをa0bdでexec26338へ先行し、その後同修復版run11を投入予定。同一失敗の反復はしていない。
+
 - **20時台後発固定**: 作者最終58ebad548149cbdb2e7645b0e0c085bd8bbba545/REPORT SHA2fc95d03e133749ab5071333cdbab1352c960024260deec5c0960341c1406379をroot `18b31a83`へ接合し通常push。走者prepareの旧親cb25厳格pinから8d629b6706fb0bbc6859d2006d0a493ca1d3c2ae996a75ab2442f246a4ded867だけを生成更新。全810中他809本文・全宣言不変を非作者CSVが再計算、root89pure/Ruff/Ty/公式body検査、非作者76pure成功。初回の親fixture2failは活性化前後の混同を是正し旧親厳格pinを保持。先行artifact metadataに伴う旧terminal4failは独立に基線再現を確認し、全件greenとはしない。recovery担当へ同版実first2/再送/reload/T4faultを渡した。個人別SB検査も同runへ追加（合計だけでなく実走者1・別打者への誤加算なし）。実DB結果は未判定。
 - **並行閲覧接続**: game_operations担当を新専用WT `feature-mvp-viewer-current-connection-20261107` へ移し、40b/f248を現18bの真正RR/現P3 selectorへ再利用する最小追補と接続を担当。共有publisher/registry/app/正式assetsはroot直列。元候補WTは変更しない。作業待ちを新規承認待ちへせず、必要な非作者確認を継承する。
 
