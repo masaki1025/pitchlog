@@ -3086,6 +3086,7 @@ def test_all_assets_freeze_mode_wiring_and_declare_single_authority() -> None:
             "backend/tests/stage_a_0039_profile.py",
             "backend/tests/fixtures/product_authz_stage_a_profile_v0039.json",
             "backend/tests/test_stage_a_0039_profile.py",
+            "backend/tests/fixtures/pr197_ci_followup_inputs_v1.json",
         ],
         Path("contracts/tenant_boundary/negative-fixtures.json"): shared_external_files,
         Path("contracts/tenant_boundary/repository-contract.json"): shared_external_files,

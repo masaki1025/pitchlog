@@ -604,3 +604,14 @@ owned r7で旧migration等141件成功、残7件は不変性検査が0039版を�
 ### 2026-11-07 PR197公開前の正本宣言照合（PO委任によるCodex主担当判断）
 
 最終検査で、既レビュー・実反映済みのハーネス7.7追補と索引が3節に未宣言であることを検出し、実差分に合わせて宣言のみ補正した。正本本文・検査条件・正式値は変更しない。sync-protocolの後続接合宣言は全MVP計画に残し、PR197のnative成績基盤提供を全27成績/終了再開の完成へ読み替えない。全体planはactiveのまま、PR197部分だけ最終確認へ進む。ハーネス運用評価台帳への新規追記なし: 今回は既存の宣言漏れを修復する実例であり、新たな制御目的や傾向の確定ではない。旧レビュー・受理・失敗履歴を保持する。
+
+
+### PR197公開CIの外部凍結対象期待追随（2026-11-07、PO委任Codex/root判断）
+
+実CI42308513249のharness-shard0は8236passed/2skip/1fail、`test_all_assets_freeze_mode_wiring_and_declare_single_authority` の明示リストに、既に正式宣言・独立確認済みの `backend/tests/fixtures/pr197_ci_followup_inputs_v1.json` が1件不足した。製品/認可/旧数学・拒否条件を変更せず、その1項目を実凍結対象の末尾と同じ位置へ追加する。source listの部分集合化・順序無視・未知file受入はしない。候補は別fix WTへ固定し、非作者確認後にこの検査sourceを外部凍結する正式値だけ公式再導出・前後値確認を行う。公開d8と旧CIを成功へ読み替えず、他shard結果の追加失敗も同じ最終修復単位へまとめる。
+
+
+PR197同runのbackend-shard1は初期権/開始系10setup error（stats_fact_versions未作成）。`initial_recording_right_scope_support._install_initial_business` がfull現catalogを配備する前に0039だけへmigrationしていたことを実traceで確認。正規startupのCURRENT_REVISIONへ依存を揃え、実alembic版/私有3表の存在をproduct DDL前に照合する。手書き表・fixture関数・app権限を足さず、RG1のS3証明を偽造しない旧installer目的も維持する。owned PGの新規準備と同じ失敗caseを限定実行し、他shard失敗とまとめてsource固定する。
+
+
+初期fixture修復run1はmigration0041まで正常に進んだが、新規追加したDDL前のSELECT断言が読取TXを開始し、正規provisionerのidle接続条件で拒否（2setup error/15.83秒、source同一/owned cleanup）。当該追加断言は撤回し、元からあるDDL後の実alembic版とcatalog全値検査で実配置を確認する。provisionerの拒否条件は変更しない。既不正確な0038のエラー文言だけ現行版へ是正する。
