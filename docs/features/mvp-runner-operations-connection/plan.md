@@ -114,3 +114,7 @@ root863bdd7bのfresh run2-firstは125.87秒で終了失敗。正規48起動・�
 
 rootの指示に従い、testserverだけへ任意有効の閉observerを足す。sys.settrace/threading.settraceでPython main/worker双方を起動時自己probeし、両方観測できなければ診断環境を閉失敗とする。pitchlog moduleの許可例外型・module/function/lineだけを表示し、例外本文・資格・SQL・locals・原本文は表示しない。計算・認可・権利・TX・応答は差し替えない。環境flag非設定なら既bootstrapは不変。作者の実Python3.12 main+worker probeは2thread観測、Ruff/Ty成功。root版固定と既不一致照合後に1診断runを行い、同じ503を無根拠に再試行しない。
 - observer読取追補: SQLのNoDataFound/TooManyRows/UndefinedTable/InvalidSchemaName/InvalidParameterValueとTimeoutErrorを許可型へ追加。SQLSTATE/本文/diag.contextは出力しない。thread mutex下で最大80例外record＋上限到達marker1件だけを出し、main/worker自己probeは維持。100回の例外を投げる実Python probeで80record/切捨てmarker1/資格想定メッセージ非表示を検査した。製品と実画面期待は変更しない。
+
+### rootの連続接合追補：非投球履歴のcourse（2026-11-07 JST）
+
+CSV非作者が実閉RunnerNonpitchPlayObservationsからnormal/P3双方の直接`.course`参照がAttributeErrorとなることを再現した。rootが `backend/src/pitchlog/repositories/ordinary_prefix_read.py` と新 `backend/tests/test_runner_nonpitch_read_course.py` を直列編集する。既閉IntentionalWalk/RunnerNonpitchのみcourse非該当None、既FirstBall/BattedHit/RunnerPitchだけ元course、それ以外を拒否する共通射影を両readerへ接続する。観測や座標の推測/再計算、SQL原本資格/頁sealの変更はない。rootのPO委任判断で本接合追補を採用し、実装後に非作者の限定確認と同版実画面GETを行う。
