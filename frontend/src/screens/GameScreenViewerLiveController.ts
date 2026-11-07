@@ -240,6 +240,7 @@ export class GameScreenViewerLiveController {
       ) {
         this.#cancel()
         this.#reset('unupdated')
+        this.#schedule()
       }
     }, 1000)
     this.resetAndLoad()
