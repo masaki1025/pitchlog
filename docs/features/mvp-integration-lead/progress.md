@@ -1,5 +1,16 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 2026-11-07 09:49 JST：正規current起動・再開・新故障対向4件を実PGで閉鎖
+
+- root後続候補 **a122c7ef00d1bc02e1dcd9886634d9f0f86a1946** clean/通常push済み。0045が漏らしたfact27キーCHECKは、P3 d6a639b3の既修復全byteを再利用。0046復旧/0047CSV/0048P3の担当予約維持、正式197の0041不変。旧0039/0041partialの閉拒否を緩めない。
+- **実PG run4 4passed42.20秒**: 正規S0→0045の全構造/catalog確認・同版再開migration0、0044交代印作成後/0045 source CHECK後/fact CHECK後の各故障全取消→実0039→正規current再開。source前後同一/owned cleanup/共有DSN不使用。cache `nonplay-current45-startup-20261107/` run4-result/log。実fixtureだけの事前migrationで正常起動を代替していない。
+- 最終source純172passed54.26秒、backend Ruff/791format/Ty成功（numeric表記修復のTy unionエラーを明示str guardで解消）。別非作者3REPORT SHA a225942e…/f902771d…/ccde5b67…で新P0/P1/P2なし。root採用は `ROOT-STARTUP-ACCEPTANCE.json`、PO委任によるsource/隔離起動限定で本人署名/P6blind/正式7.7ではない。run1/2/3失敗も保持。診断pluginのrun2固定ファイルはrun3で上書きしたため原byte未保全をdiagnostic-history.jsonへ明記し、以後UUID名で保存。
+- **次の実画面**: 同a122で2球→ACK喪失/reload/同要求再送→2取消→次球/reloadの既E2Eをscreen1/handle24390へ投入（共通lock待機）。共有取消UI自動再取得4pathの実接合もここで検証、未実施を成功とはしない。
+- **並行進展**: CSV固定435cb518の恒久assert込みr13も1passed136.17秒、source/cleanup・4stage T5/CSV identity一致を再確認。P3 R31は訂正後終了まで通り再開POST503、非play CP下のslot2真正P3証明未接合と具体特定して修復中。復旧は未登録冷再起動と旧NULL登録を分離し、後着遮断/同鍵不存在再確認/真正原本文digest付き退役の実PG対向中。新規未登録のrow0だけでretry可とは扱わない。
+- #197は12cc全CI42319349209実行中、本文core-guard成功、harness-staticは旧コード枠証拠を取得した失敗のため全CI終端後にfailed jobsのみ再実行する。重い成功済jobを再実行せず、全必須CI前にDraft解除/mergeしない。
+- 正式後続fixture登録/9値受理/全CI/通常統合、全MVP機能・断中・27成績・両CSV・実機/同時負荷/運用復旧は未完。Goal active。
+
+
 ## 2026-11-07 09:39 JST：197最終版を公開、取消再入力CSVの成績source一致を実証、正規起動0045を是正
 
 - **利用者操作の候補実証**: CSV r12は実画面/実認証/owned PGで取消→全取消→再入力→reload/毎球ZIPを **1passed141.50秒**、source同一/owned cleanup。真正T5のcurrent source_countは1/0/1/1、revision3/4/5/5、current_open。CSV play_linksのsource_event/play_row/generation/D2/versionを各段階全値比較し、再入力とreloadのversionID/digest/sourceも一致。CSV候補435cb5180eb2c04aae28ef3c1d930a2967698209へ固定、恒久assert追加後r13は別途検証中。P3/終了再開CSV・正式提供はまだ。
