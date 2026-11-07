@@ -47,3 +47,5 @@ contracts/正本/根幹SQL/manifest/pin/fixtures/唯一artifact/共有台帳/roo
 ステップ3候補準備: 同じ実appにowned時だけ固定header→既testing_crash_hook(after_t4_projection)を束縛する試験middlewareを追加。正常要求は無変更で、失敗応答も製造しない。走者あり2球目の元本文/Cookie/端末/attemptを保ったままT4へ到達させ、実500・未確認表示・実GETが先行1球と完全一致することを確認する。失敗した実event/play/D5 IDでrunner/ledger/stats/CSVの残存を個別に拒否するDB補助を用意した。BE/FE型・lint・bootstrap構文成功、実測は正規provider固定点供給後で未成立。追加コードはE2E2pathと本planだけ、製品source/唯一artifact/正式契約/根幹SQLは変更なし。
 
 共通依存接合: runner 0f89fa8eへroot固定ae82631b（9c0f101aの標準0047/catalog26宣言＋canonical S0→current startup helper）を通常mergeし、1674459dで衝突0。取り込み40pathはroot原本を採用し、独自正式資産編集・SQL後付注入・artifact再生成は無し。既fixtureが実advance_current_product_from_s0を呼ぶため、本担当の重複fixture修復は不要。BE対象Ruff/Ty成功、既TLSの存在・Node24.16.0/pnpm11.22.0を確認し、同固定候補の正常7＋fault1＋越境1画面caseを実測する。
+
+標準47 run5: 3ce62069で457.20s、3032source前後一致/clean/共有DSNunset/cleanup。実画面の正常7case＋越境404は成功し、複数走者単打/二塁打/三塁打/満塁HRの明示結果・同本文再送・reloadを実証。T4故障caseは実500と未確認表示まで進んだが、その後の実GETをAPIRequestContextで行う際にHTTP/2 pseudo-header :authorityを転記したdriver TypeErrorで失敗。DB全照合は未到達なので全case成功にしない。HTTP header輸送で認められないpseudo-headerだけを除去し、Cookie/端末/その他原値を維持する最小是正を行う。元run5/log/正常7結果はcacheへ保存済み。

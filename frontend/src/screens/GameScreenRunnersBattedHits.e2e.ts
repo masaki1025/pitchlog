@@ -896,7 +896,12 @@ test('走者あり打球のT4途中故障は成功表示せず、先行1球だ�
   ).toBeVisible()
   const originalRead = beforeResponse.request()
   const afterRead = await page.request.get(originalRead.url(), {
-    headers: await originalRead.allHeaders(),
+    // HTTP/2 pseudo headerはHTTP/1 request APIへ送れない。資格原値は維持する。
+    headers: Object.fromEntries(
+      Object.entries(await originalRead.allHeaders()).filter(
+        ([name]) => !name.startsWith(':'),
+      ),
+    ),
     timeout: httpTimeout,
   })
   expect(afterRead.status()).toBe(200)
