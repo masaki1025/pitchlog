@@ -1,5 +1,13 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 2026-11-07：通常49で0球交代から登板成績/CSVまで実接続、API既赤を除外なしで閉鎖
+
+- **利用者操作の新しい実証**: D03子候補実行 `9e3fce868570a3c99cb50130d1c0716ea0114eb3` は正規CURRENT49の実app/実認証/実記録権/owned PGで **1passed216.80秒**。同一の新規作成試合で開始0球proof→3球→0球relief/同D5再掲→終了v1→再開中official対象外→4球目→再終了v2→GET再取得。両投手の登板が試合別/season all・practice/双方成績CSVで各1、game_otherのofficial空、旧v1失効とv2の真正receipt、交代前後でnative版/source集合は不変だがCP変更を確認。候補DDL/権限後差込なし。2864source前後一致/cleanup/lock解放を結果manifest SHA7c6457bf1d0ff5b2ff1d7334c463e944f63ed15ef676fdea52f440c372ea96f6に固定。報告e200489bはdocs-only後発。root非作者確認REPORT SHA8a4650a0f5f40fe23cc47d7772980b6f247ad45824cd29389ba74e97d93af79d＋独立driver3passで候補接合。ブラウザ/実機/P3 D03 source/全試合0球成績/全hook故障・不正receipt/正式受理へは拡張しない。
+- **APIの既停止要因**: `fix/mvp-p3-api-closed-responses-20261107@3d8c6b78` のP3 3routeを既wireの閉DTO＋実model返却へ接続。2query/TX本文とI6 serializerは元全AST一致でserviceへ分離、C2/Cookie既有限集合の漏れを実routeに合わせて追随し、guard除外0で関連8suite **223passed6.25秒**/Ruff/Ty0。独立でtarget GETのresultIDを変更可能3件と取り違えたP1を検出し、元strへ復元して4安打の読取/型拒否/変更POST非昇格を追加。元レビュー履歴を保持し、追補REPORT SHAb1410f7f499e841f535a43a8a6ab75e1a05923df3e2413036b949dfe06aa8275/独立162pureで是正確認。既API2赤と既C2メタデータ2赤を検査を弱めず閉じた。新P3実HTTP/26件超/P-6blind/正式受理ではない。
+- **主候補の接合版**: root `feature/mvp-d03-current-startup-20261107@fc09310484c44c63d9d0590a4451f4ca6b8beaa8` に復旧応答型/P3 API修復/通常49実HTTP試験を接合。関連9suite **226passed**（所要はroot-integrated-nine-suite.log参照）。元の通常49実PGは9f固定、D03 HTTPは9e固定、現統合版の実画面全体成立とは区別。
+- **次の依存**: GETがNP publishを阻害する根因はPIDで成立済み。RR/READ ONLY分離6aaac514と共有3 readonly SQL/登録候補を受領。root読取確認で新readonly tokenが一般RW scopeへ漏れない境界の追加を依頼し、writer lock/全source検証/現在P3 selectorは維持する。最終差分確認→root正式publisher/catalog接合→同版の安打/NP正常保存・reload・T4途中全取消→17操作へ。viewer f248/P3 body current selectorの接合も未了。全MVP・正式統合・負荷・実機/運用復旧は未完成。
+
+
 ## 2026-11-07：通常49の配置/再起動/故障対向を実証、走塁を止める並行GETを特定
 
 - **新たな実証**: `feature/mvp-d03-current-startup-20261107@9f7e4ad882557a0434e31fd4bc086f0d9dc68471` はowned実PGで **4passed97.45秒**。S0→0049/同版resume/全21私有表と全catalog、登板表CREATE直後故障の0039全取消/再開、初期fn ownerとsync-right fn owner各々の余剰SELECT(xmin)を補修せず拒否。source前後同一/共有DSNunset/owned cleanup。cache `d03-current49-startup-root-20261107/full49-normal-r2-{result,source-before,source-after}.json` とlog/xmlが根拠。初回r1の4failed82.36秒（5helperの実OWNER/REVOKE終端欠落）を保持し、生成側へ正規2文を加えて是正。修復は非作者追補REPORT SHA11539f5af7134e0d6c30a94b6a2dd6e26f9de4bbcc447f94958fb0e3287299faで5body完全可逆/元本文・guard不変/81pureを確認。元P1はsourceで解消し今回実catalogも一致。これを通常49の実HTTP登板/成績CSVや正式7.7成立へ拡張しない。
