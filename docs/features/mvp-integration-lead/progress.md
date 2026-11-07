@@ -1,5 +1,13 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 2026-11-07：通常0048の構造・権限・未完了guardを実DBで確認、操作接合を継続
+
+- **root固定点**: `feature/mvp-p3-current-startup@1e01ace3c311f17d51feb06b2e990be4cb4c4cec`。0048の6表/110列/全制約・索引、有限列ACL、未完成ページのcommit拒否を実装。`p3-storage48-guard-r7` は owned PGで **2passed24.56秒**、source前後同一・共有DSNunset・cleanup済み。列限定UPDATE triggerへの置換を含む改変を拒否。これは配置・防御の検証であり、新たな利用者操作の成功や通常CURRENT48/正式受理ではない。CURRENTは47のまま保持する。
+- **限定非作者確認**: tgattr未比較のP1を修復し、別検証者による同改変拒否 **1passed12.41秒**。さらに22関数の候補publisherを作り、旧11の宣言/body/ACLを固定照合、新11の署名/owner/EXECUTE先を限定。非作者REPORT SHA `9b9ca8943fb109614be478965d9841a2271ec75a8a466563c43de413f627bd40`、対象4path差分SHA `9783c8bec7816cd62f5e57b1d74332a14b2e6b7cc74eba0883956b687cf813a0`、独立13passed10.00秒/P0・P1なし。本限定範囲をPO委任のroot判断で採用し、元paged本体・実PG22関数一括・全catalog/7.7/CIへ拡張しない。
+- **利用者操作の現在地**: 既70cの訂正後追加球HTTP成功は維持。26件以上の作者隔離検証では通常26球保存/取得まで成立したが、訂正前段の閉拒否が未解消で、P3の26件成功とは数えない。例外型/関数行の安全診断で原因を限定し、同一失敗の再実行を減らす。別source・手動候補配置と正式統合の証拠を分離する。
+- **並行作業**: 走塁候補は `82d14670b1e0b7a1bab28104638ae70a4864d760` を固定。foulに伴う不正進塁を公式artifactで再現して修復、旧入力のcast/書換を避けて閉unionの接合を進行。登板は開始0球/3球保存/攻守交代/0球投手交代の実DB証拠があり、同じfact版でも変わるCP・出場原本を含む12キーのread資格を実装中。両者とも正式提供・全MVP成立は未了。
+- **外部依頼と次**: POの再度の「送ったよ」は依頼送付として受領し、外部閲覧担当の受諾/編集所有/成果とは区別。rootは走塁のschema・型接合、0048全関数/全catalogと起動の接合を直列で担当。各作者の実DBは共通lockで隔離し、CI8分割は保留を維持。次の利用者到達点は「長い履歴を訂正して次球を記録」と「走塁を記録し再読込」、その後同版の1試合・成績/CSV/断復旧へ拡張する。
+
 ## 2026-11-07：訂正後の次球保存を実HTTP/DBで確認、閲覧担当へ送付
 
 - **新たに通った操作**: root70c23c1ac855894c1e053fe48de96cae4036b160 の `p3-csv-shared-selector` は **1passed184.77秒**。実HTTP作成/開始/複数球/P3後の追加球保存、元要求の再掲、旧writer生存時unresolved・終結後retryのみ、遅着拒否、ACK喪失、別V12/越境拒否、T2/T4全取消を既assertのまま完走。source前後同一・共有DSNunset・owned container removed。通常47＋手動候補P3配置であり、実browser再確認/標準0048/正式catalog/全CIの成功ではない。cache p3-current48-startup-root-20261107/p3-csv-shared-selector-{result,source-before,source-after}.json と .log/.xml が証拠。
