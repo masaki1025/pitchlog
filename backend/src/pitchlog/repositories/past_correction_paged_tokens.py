@@ -61,3 +61,36 @@ class _FinalizeP3ProjectionPageToken(TenantOperationToken):
         return "CAP:sync_p3:finalize_p3_projection_page"
 
 
+@dataclass(frozen=True, slots=True)
+class _ReadP3CurrentHeaderToken(TenantOperationToken):
+    """tenant/game/内部世代の有効P3版headerだけを読む。"""
+
+    game_id: UUID
+    generation: int
+
+    @property
+    def capability_id(self) -> str:
+        """P3の有界header読取だけの固定能力。"""
+        return "CAP:sync_p3:read_p3_current_header"
+
+
+@dataclass(frozen=True, slots=True)
+class _ReadP3CurrentPageToken(TenantOperationToken):
+    """真正header版へ束縛した最大25件のcurrent原本読取。"""
+
+    game_id: UUID
+    generation: int
+    capsule_id: UUID
+    stats_version_id: UUID
+    checkpoint_digest: str
+    head_digest: str
+    kind: str
+    after_d1: int
+    page_size: int
+
+    @property
+    def capability_id(self) -> str:
+        """P3の有界keyset読取だけの固定能力。"""
+        return "CAP:sync_p3:read_p3_current_page"
+
+
