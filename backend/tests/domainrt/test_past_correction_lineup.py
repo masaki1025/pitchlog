@@ -54,7 +54,10 @@ from pitchlog.sync.past_correction_payload import (
     read_lineup_pitch_change_payload,
 )
 from pitchlog.sync.past_correction_physical import prepare_corrected_physical_pitches
-from pitchlog.sync.past_correction_stats import evaluate_p3_capsule_stats
+from pitchlog.sync.past_correction_stats import (
+    evaluate_p3_capsule_stats,
+    evaluate_p3_current_item_stats,
+)
 from pitchlog.sync.terminal_pitch_payload import (
     LineupPitchCalculation,
     LineupPitchPlayPayload,
@@ -966,6 +969,7 @@ def test_v3_corrected_checkpoint_uses_native_chain_and_new_physical_head() -> No
         mode="json", by_alias=True, exclude_unset=True
     )
     stats = evaluate_p3_capsule_stats(capsule)
+    assert stats.sources[0] == evaluate_p3_current_item_stats(capsule.items[0], 1)
     assert stats.evaluation_set_digest != capsule.source_set_digest
     assert [source.effective_event_id for source in stats.sources] == [_CHANGE, _ID2]
     assert all(source.evaluation for source in stats.sources)

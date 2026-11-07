@@ -59,6 +59,106 @@ def _string(value: object) -> str:
     return value
 
 
+def evaluate_p3_current_item_stats(
+    item: dict[str, object], d1: int
+) -> P3StatsSourceCandidate:
+    """単一itemを既唯一生成T5へ通し元/有効評価を返す。"""
+    if type(d1) is not int or d1 < 1:
+        raise PastCorrectionStatsError("P3 T5位置が不正")
+    if (
+        type(item) is not dict
+        or item.get("d1") != d1
+        or type(item.get("payload")) is not dict
+        or type(item.get("digest")) is not str
+        or item["digest"]
+        != source_fingerprint({k: v for k, v in item.items() if k != "digest"})
+    ):
+        raise PastCorrectionStatsError("P3 T5 itemとdigestが不一致")
+    try:
+        original = UUID(_string(item["original_event_id"]))
+        effective = UUID(_string(item["effective_event_id"]))
+        play_row = UUID(_string(item["effective_play_row_id"]))
+        payload_value = _json_value(item["payload"])
+        if (
+            type(payload_value) is not dict
+            or _member(
+                _member(
+                    _member(_member(payload_value, "calculation"), "request"),
+                    "playIdentity",
+                ),
+                "eventId",
+            )
+            != str(original)
+            or _member(item["play_row"], "id") != str(play_row)
+            or _member(item["play_row"], "source_event_id")
+            != str(effective)
+        ):
+            raise ValueError
+        payload = cast(dict[str, object], payload_value)
+        original_payload_value = _json_value(item["original_payload"])
+        if type(original_payload_value) is not dict:
+            raise ValueError
+        original_request = _member(
+            _member(original_payload_value, "calculation"), "request"
+        )
+        effective_request = _member(
+            _member(payload_value, "calculation"), "request"
+        )
+        original_rules = _member(original_request, "rules")
+        effective_rules = _member(effective_request, "rules")
+        if type(original_rules) is not dict or type(effective_rules) is not dict:
+            raise ValueError
+        rule_sha256 = source_fingerprint(cast(dict[str, object], original_rules))
+        if (
+            source_fingerprint(cast(dict[str, object], effective_rules))
+            != rule_sha256
+            or _member(_member(original_request, "source"), "rulesDigest")
+            != rule_sha256
+            or _member(_member(effective_request, "source"), "rulesDigest")
+            != rule_sha256
+        ):
+            raise ValueError
+        original_evaluation = evaluate_native_projection(
+            cast(dict[str, object], original_payload_value),
+            source_event_id=original,
+        )
+        evaluation = evaluate_native_projection(
+            payload, source_event_id=effective
+        )
+        if type(evaluation) is not dict or type(original_evaluation) is not dict:
+            raise ValueError
+        original_value = _json_value(original_evaluation)
+        full_value = _json_value(evaluation)
+        if type(full_value) is not dict or type(original_value) is not dict:
+            raise ValueError
+        original_full = cast(dict[str, object], original_value)
+        full = cast(dict[str, object], full_value)
+        original_full["native_rule_sha256"] = rule_sha256
+        full["native_rule_sha256"] = rule_sha256
+    except (ValueError, TypeError, KeyError, IndexError):
+        raise PastCorrectionStatsError("P3 T5原本を評価できない") from None
+    if (
+        set(original_full) != {
+            "metrics", "pa_row", "source_event_id", "selected", "decisions",
+            "native_rule_sha256",
+        }
+        or set(full) != set(original_full)
+        or original_full["source_event_id"] != str(original)
+        or full["source_event_id"] != str(effective)
+    ):
+        raise PastCorrectionStatsUnsupported("P3 T5評価の閉形が不一致")
+    return P3StatsSourceCandidate(
+        d1,
+        original,
+        effective,
+        play_row,
+        original_full,
+        source_fingerprint(original_full),
+        full,
+        source_fingerprint(full),
+    )
+
+
 def evaluate_p3_capsule_stats(capsule: P3CurrentCapsule) -> P3StatsCandidate:
     """欠測や未対応操作を補わず、全D1を生成T5へ一回ずつ渡す。"""
     if (
@@ -70,100 +170,7 @@ def evaluate_p3_capsule_stats(capsule: P3CurrentCapsule) -> P3StatsCandidate:
         raise PastCorrectionStatsError("P3 T5入力が不正")
     result: list[P3StatsSourceCandidate] = []
     for d1, item in enumerate(capsule.items, start=1):
-        if (
-            type(item) is not dict
-            or item.get("d1") != d1
-            or type(item.get("payload")) is not dict
-            or type(item.get("digest")) is not str
-            or item["digest"]
-            != source_fingerprint({k: v for k, v in item.items() if k != "digest"})
-        ):
-            raise PastCorrectionStatsError("P3 T5 itemとdigestが不一致")
-        try:
-            original = UUID(_string(item["original_event_id"]))
-            effective = UUID(_string(item["effective_event_id"]))
-            play_row = UUID(_string(item["effective_play_row_id"]))
-            payload_value = _json_value(item["payload"])
-            if (
-                type(payload_value) is not dict
-                or _member(
-                    _member(
-                        _member(_member(payload_value, "calculation"), "request"),
-                        "playIdentity",
-                    ),
-                    "eventId",
-                )
-                != str(original)
-                or _member(item["play_row"], "id") != str(play_row)
-                or _member(item["play_row"], "source_event_id")
-                != str(effective)
-            ):
-                raise ValueError
-            payload = cast(dict[str, object], payload_value)
-            original_payload_value = _json_value(item["original_payload"])
-            if type(original_payload_value) is not dict:
-                raise ValueError
-            original_request = _member(
-                _member(original_payload_value, "calculation"), "request"
-            )
-            effective_request = _member(
-                _member(payload_value, "calculation"), "request"
-            )
-            original_rules = _member(original_request, "rules")
-            effective_rules = _member(effective_request, "rules")
-            if type(original_rules) is not dict or type(effective_rules) is not dict:
-                raise ValueError
-            rule_sha256 = source_fingerprint(cast(dict[str, object], original_rules))
-            if (
-                source_fingerprint(cast(dict[str, object], effective_rules))
-                != rule_sha256
-                or _member(_member(original_request, "source"), "rulesDigest")
-                != rule_sha256
-                or _member(_member(effective_request, "source"), "rulesDigest")
-                != rule_sha256
-            ):
-                raise ValueError
-            original_evaluation = evaluate_native_projection(
-                cast(dict[str, object], original_payload_value),
-                source_event_id=original,
-            )
-            evaluation = evaluate_native_projection(
-                payload, source_event_id=effective
-            )
-            if type(evaluation) is not dict or type(original_evaluation) is not dict:
-                raise ValueError
-            original_value = _json_value(original_evaluation)
-            full_value = _json_value(evaluation)
-            if type(full_value) is not dict or type(original_value) is not dict:
-                raise ValueError
-            original_full = cast(dict[str, object], original_value)
-            full = cast(dict[str, object], full_value)
-            original_full["native_rule_sha256"] = rule_sha256
-            full["native_rule_sha256"] = rule_sha256
-        except (ValueError, TypeError, KeyError, IndexError):
-            raise PastCorrectionStatsError("P3 T5原本を評価できない") from None
-        if (
-            set(original_full) != {
-                "metrics", "pa_row", "source_event_id", "selected", "decisions",
-                "native_rule_sha256",
-            }
-            or set(full) != set(original_full)
-            or original_full["source_event_id"] != str(original)
-            or full["source_event_id"] != str(effective)
-        ):
-            raise PastCorrectionStatsUnsupported("P3 T5評価の閉形が不一致")
-        result.append(
-            P3StatsSourceCandidate(
-                d1,
-                original,
-                effective,
-                play_row,
-                original_full,
-                source_fingerprint(original_full),
-                full,
-                source_fingerprint(full),
-            )
-        )
+        result.append(evaluate_p3_current_item_stats(item, d1))
     evaluation_set_digest = source_fingerprint(
         {
             "capsule_id": str(capsule.capsule_id),
