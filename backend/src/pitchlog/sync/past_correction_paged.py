@@ -81,6 +81,8 @@ class P3PagedPreparationProof:
     page_count: int
     page_seal: str
     digest_format: str
+    source_chain: str
+    evaluation_chain: str
     source_set_digest: str
     evaluation_set_digest: str
     target: SavedLineupPitch
@@ -498,6 +500,8 @@ def visit_p3_lineup_correction_pages(
             page_count,
             seal,
             digest_format,
+            source_chain,
+            evaluation_chain,
             source_set_digest,
             evaluation_set_digest,
             target,
