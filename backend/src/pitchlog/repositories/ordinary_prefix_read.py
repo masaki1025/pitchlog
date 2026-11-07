@@ -118,8 +118,14 @@ def _cursor(value):
 
 
 def read_ordinary_prefix(
-    handle, game_id, *, limit=25, cursor=None, _play_prefix=False, _lineup_prefix=False,
-    _viewer=False
+    handle,
+    game_id,
+    *,
+    limit=25,
+    cursor=None,
+    _play_prefix=False,
+    _lineup_prefix=False,
+    _viewer=False,
 ):
     """現在世代の実point原本と有限pageだけを返す。0/旧1も暗黙書込しない。"""
     if (
@@ -700,9 +706,7 @@ def _evaluate_v2_payload(raw):
     return payload
 
 
-def _verify_v2_read_packet(
-    item, tenant, game_id, *, lineup=False, viewer=False
-):
+def _verify_v2_read_packet(item, tenant, game_id, *, lineup=False, viewer=False):
     """独立再評価/取消差分/41列/runner10列を全値比較する。"""
     from pitchlog.sync.ordinary_pitch_physical import pitch_physical_row
     from pitchlog.sync.terminal_pitch_projection import runner_physical_rows
@@ -717,7 +721,8 @@ def _verify_v2_read_packet(
         raw = _canonical_json(e["payload"])
         parsed = LineupPitchPlayPayload.model_validate_json(raw)
         payload = read_lineup_pitch_payload(
-            raw, _canonical_json(e["state_diff"]),
+            raw,
+            _canonical_json(e["state_diff"]),
             expected_calculation=parsed.calculation,
         )
     else:
@@ -1257,8 +1262,20 @@ def _read_lineup_projection(
 
 
 def _read_nonplay_projection(
-    handle, game_id, tenant, game, generation, epoch, n, d4, row, tail, limit, cursor,
-    *, viewer=False,
+    handle,
+    game_id,
+    tenant,
+    game,
+    generation,
+    epoch,
+    n,
+    d4,
+    row,
+    tail,
+    limit,
+    cursor,
+    *,
+    viewer=False,
 ):
     """非play後D3を実head/active/物理採番と分離したreadonly projection。"""
     from pitchlog.domainrt.initial_game_roster import InitialRosterProjection
@@ -1283,7 +1300,11 @@ def _read_nonplay_projection(
     ):
         raise OrdinaryPrefixError
     page = read_active_page(
-        handle, cp, generation=generation, limit=limit, cursor=cursor,
+        handle,
+        cp,
+        generation=generation,
+        limit=limit,
+        cursor=cursor,
         viewer=viewer,
     )
     roster = InitialRosterProjection.model_validate_json(_canonical_json(row["roster"]))
@@ -1321,6 +1342,10 @@ def _read_nonplay_projection(
 def read_viewer_prefix(handle, game_id, *, limit=25, cursor=None):
     """RR READ ONLY同snapshotで既native head・有限履歴を照合する。"""
     return read_ordinary_prefix(
-        handle, game_id, limit=limit, cursor=cursor, _lineup_prefix=True,
+        handle,
+        game_id,
+        limit=limit,
+        cursor=cursor,
+        _lineup_prefix=True,
         _viewer=True,
     )

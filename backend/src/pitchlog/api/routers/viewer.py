@@ -108,9 +108,8 @@ def read_game_viewer_saved(
                             {
                                 k: v
                                 for k, v in runner.items()
-                                if k not in {
-                                    "tenant_id", "import_batch_id", "retired_at"
-                                }
+                                if k
+                                not in {"tenant_id", "import_batch_id", "retired_at"}
                             }
                             for runner in item.get("play_runners", [])
                         ],

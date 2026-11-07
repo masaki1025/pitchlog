@@ -332,7 +332,11 @@ def read_active_page(handle, cp, *, generation, limit=25, cursor=None, viewer=Fa
 
     try:
         return _read_active_page_bound(
-            handle, cp, generation=generation, limit=limit, cursor=cursor,
+            handle,
+            cp,
+            generation=generation,
+            limit=limit,
+            cursor=cursor,
             viewer=viewer,
         )
     except (

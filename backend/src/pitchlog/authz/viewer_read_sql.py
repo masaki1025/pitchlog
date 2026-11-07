@@ -22,7 +22,9 @@ def candidate_viewer_function_bodies() -> dict[str, str]:
         new = "read_viewer_" + old.removeprefix("read_")
         if sql.count("sync_right_api." + old + "(") != 1:
             raise ValueError("閲覧関数の元宣言が変更されました")
-        result[new] = sql.replace(
-            "sync_right_api." + old + "(", "sync_right_api." + new + "(", 1
-        ).replace("FOR SHARE OF c", "").replace("FOR SHARE", "")
+        result[new] = (
+            sql.replace("sync_right_api." + old + "(", "sync_right_api." + new + "(", 1)
+            .replace("FOR SHARE OF c", "")
+            .replace("FOR SHARE", "")
+        )
     return result
