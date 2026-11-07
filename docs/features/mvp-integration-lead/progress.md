@@ -2,6 +2,9 @@
 
 ## 2026-11-07 20:28 JST：GETの書込阻害を解消、走者SQLの実拒否へ到達
 
+- **20時台後発固定**: 作者最終58ebad548149cbdb2e7645b0e0c085bd8bbba545/REPORT SHA2fc95d03e133749ab5071333cdbab1352c960024260deec5c0960341c1406379をroot `18b31a83`へ接合し通常push。走者prepareの旧親cb25厳格pinから8d629b6706fb0bbc6859d2006d0a493ca1d3c2ae996a75ab2442f246a4ded867だけを生成更新。全810中他809本文・全宣言不変を非作者CSVが再計算、root89pure/Ruff/Ty/公式body検査、非作者76pure成功。初回の親fixture2failは活性化前後の混同を是正し旧親厳格pinを保持。先行artifact metadataに伴う旧terminal4failは独立に基線再現を確認し、全件greenとはしない。recovery担当へ同版実first2/再送/reload/T4faultを渡した。個人別SB検査も同runへ追加（合計だけでなく実走者1・別打者への誤加算なし）。実DB結果は未判定。
+- **並行閲覧接続**: game_operations担当を新専用WT `feature-mvp-viewer-current-connection-20261107` へ移し、40b/f248を現18bの真正RR/現P3 selectorへ再利用する最小追補と接続を担当。共有publisher/registry/app/正式assetsはroot直列。元候補WTは変更しない。作業待ちを新規承認待ちへせず、必要な非作者確認を継承する。
+
 - **現固定版**: 主候補 `feature/mvp-d03-current-startup-20261107@ecd47bc6f8bb511876bcce12a7be80b4ccdffb99`。旧GETの行ロックを真正RR READ ONLYの有限3readerへ分離し、既writer/P3 source検査は維持。独立REPORT SHA653fc56d1335e080cdcba991f60b9c30455a25d52006ca58828a64567b61865e、SQLパーサのASCII空白追随も独立追補f9765c9357e3b7bb444d520c74724ac7d73d1eecd75c2a34a7f6e6d244360ecbで確認。通常49の新規画面作成→開始→単打保存まで再実行済み。正式受理/CI/全操作完了ではない。
 - **利用者経路の次の実停止点**: run8（d83）ではGETと重なるNP binding publishが440msで成功し、旧約2秒QueryCanceledを越えた。run9（ecd、154.43秒）は実prepareで `InsufficientPrivilege/42501`、公開固定拒否タグ `lineup_physical` を確認。NP保存/T4故障検証は未到達。manifest SHA936c2757f303c4ec0799a5093a32281bfeda2bfd99a24fe7ed11c189bd0ca868、source前後一致/owned cleanup/lock解放。静的には旧SQLがrunnerAdvanceOverrides.overridesだけを見てautoを要求する一方、実RunnerEventは明示観測からmanualを生成する。OR群内の単独拒否項を実測したとは主張しない。
 - **担当/解除作業**: game_operations担当が専用WT `feature-mvp-runner-physical-evidence-20261107` で旧SQLのv3走者分岐だけを閉修復。全10物理列/元走者ID/観測原因/唯一T1を照合し、単一ラベル宣言をPython投影と共有する。rootが共有publisher/catalogを直列接合し、非作者確認後、同版first2正常保存・再送・reload・実途中故障へ進む。旧84ec packetはsteal-pitchの過度制限を作者が検出したため未適用で保全し、新版待ち。同じ失敗の再走はしない。
