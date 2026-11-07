@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
@@ -29,6 +30,140 @@ from .test_screen_start_e2e import vertical_database as vertical_database
 
 pytestmark = pytest.mark.requires_db
 _CONFIG = "GameScreenRunnerOperations.playwright.config.ts"
+
+
+_RUNNER_FAILURE_OBSERVER_BOOTSTRAP = r"""
+import functools,json,re,threading,time
+from datetime import datetime,timezone
+from sqlalchemy.exc import DBAPIError as _LowDBAPIError
+from starlette.exceptions import HTTPException as _LowHTTPException
+from pitchlog.repositories import rg1 as _low_rg1
+from pitchlog.repositories import transaction as _low_transaction
+from pitchlog.sync.control_provider import binding_control as _low_binding
+from pitchlog.api import errors as _low_errors
+from pitchlog.recording_rights import rg1_lifecycle as _low_gate
+_low_start=time.monotonic()
+_low_lock=threading.Lock()
+_low_count=0
+_low_truncated=False
+_low_stages=frozenset({'rg1-require-open','rg1-ensure-lease',
+ 'rg1-assert-lease','rg1-release','writer-lease-check','http-503'})
+def _low_identifier(value,*,module=False):
+ if type(value) is not str:return None
+ pattern=(r'[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*'
+  if module else r'[A-Za-z_][A-Za-z0-9_]*')
+ if len(value)>160 or re.fullmatch(pattern,value) is None:return None
+ if module and value.split('.')[0] not in {'pitchlog','sqlalchemy','psycopg',
+  'builtins','starlette','fastapi','asyncio'}:return None
+ return value
+
+def _low_metadata(error):
+ chain=[]
+ seen=set()
+ current=error
+ leaf=None
+ cycle=False
+ while isinstance(current,BaseException) and len(chain)<8:
+  if id(current) in seen:
+   cycle=True
+   break
+  seen.add(id(current))
+  kind=type(current)
+  kind_module=_low_identifier(kind.__module__,module=True)
+  kind_name=_low_identifier(kind.__name__) if kind_module is not None else None
+  chain.append({'class':kind_name or 'unknown','module':kind_module or 'unknown'})
+  tb=current.__traceback__
+  while tb is not None:
+   frame=tb.tb_frame
+   module=_low_identifier(frame.f_globals.get('__name__'),module=True)
+   function=_low_identifier(frame.f_code.co_name)
+   line=tb.tb_lineno
+   if (module is not None and module.startswith('pitchlog.') and function is not None
+    and type(line) is int and 0<line<10000000):
+    leaf={'module':module,'function':function,'line':line}
+   tb=tb.tb_next
+  cause=current.__cause__
+  context=current.__context__
+  if isinstance(cause,BaseException):current=cause
+  elif isinstance(context,BaseException):current=context
+  elif isinstance(current,_LowDBAPIError) and isinstance(current.orig,BaseException):
+   current=current.orig
+  else:current=None
+ result={'chain':chain,'chainTruncated':isinstance(current,BaseException) and not cycle,
+  'chainCycle':cycle}
+ if leaf is not None:result['pitchlogLeaf']=leaf
+ return result
+
+def _low_emit(stage,error,extra=None):
+ global _low_count,_low_truncated
+ try:
+  if stage not in _low_stages:return
+  with _low_lock:
+   if _low_count>=80:
+    if not _low_truncated:
+     _low_truncated=True
+     print('PITCHLOG_RUNNER_FAILURE '+
+      json.dumps({'truncated':True,'limit':80}),flush=True)
+    return
+   record={'stage':stage,**_low_metadata(error),
+    'observerMs':min(3600000,max(0,int((time.monotonic()-_low_start)*1000)))}
+   if extra is not None:
+    for key in ('closed','expired'):
+     if type(extra.get(key)) is bool:record[key]=extra[key]
+    elapsed=extra.get('elapsedMs')
+    if type(elapsed) is int and 0<=elapsed<=3600000:record['elapsedMs']=elapsed
+   _low_count+=1
+   print('PITCHLOG_RUNNER_FAILURE '+json.dumps(record),flush=True)
+ except BaseException:
+  pass
+
+def _low_failure_wrapper(original,stage):
+ @functools.wraps(original)
+ def wrapped(*args,**kwargs):
+  try:return original(*args,**kwargs)
+  except BaseException as error:
+   _low_emit(stage,error)
+   raise
+ return wrapped
+
+_low_rg1._require_open=_low_failure_wrapper(_low_rg1._require_open,'rg1-require-open')
+_low_transaction._TenantTransaction._ensure_rg1_lease=_low_failure_wrapper(
+ _low_transaction._TenantTransaction._ensure_rg1_lease,'rg1-ensure-lease')
+_low_transaction._TenantTransaction._assert_rg1_lease=_low_failure_wrapper(
+ _low_transaction._TenantTransaction._assert_rg1_lease,'rg1-assert-lease')
+_low_gate._GateLoan.release=_low_failure_wrapper(
+ _low_gate._GateLoan.release,'rg1-release')
+_low_original_check=_low_binding._BindingLease.check
+@functools.wraps(_low_original_check)
+def _low_check(self,*args,**kwargs):
+ start=None
+ try:start=time.monotonic()
+ except BaseException:pass
+ try:return _low_original_check(self,*args,**kwargs)
+ except BaseException as error:
+  extra={}
+  try:
+   if type(start) is float:
+    extra['elapsedMs']=min(3600000,max(0,int((time.monotonic()-start)*1000)))
+   closed=self._closed
+   if type(closed) is bool:extra['closed']=closed
+   expires=self._expires
+   if type(expires) is datetime:extra['expired']=datetime.now(timezone.utc)>=expires
+  except BaseException:
+   pass
+  _low_emit('writer-lease-check',error,extra)
+  raise
+_low_binding._BindingLease.check=_low_check
+_low_original_http=_low_errors._http_exception_handler
+@functools.wraps(_low_original_http)
+async def _low_http(request,error):
+ try:
+  if isinstance(error,_LowHTTPException) and error.status_code==503:
+   _low_emit('http-503',error)
+ except BaseException:pass
+ return await _low_original_http(request,error)
+_low_errors._http_exception_handler=_low_http
+"""
 
 
 _RUNNER_DIAGNOSTIC_BOOTSTRAP = r"""
@@ -222,7 +357,32 @@ async def owned_runner_fault(request,call_next):
 uvicorn.run(app,host='0.0.0.0',port=int(sys.argv[1]),log_level='warning')
 """
 
-    if os.environ.get("PITCHLOG_E2E_RUNNER_DIAGNOSTIC") == "1":
+    low_mode = os.environ.get("PITCHLOG_E2E_RUNNER_FAILURE_OBSERVER")
+    if low_mode not in (None, "1"):
+        raise RuntimeError("低負荷観測modeが未登録")
+    if low_mode == "1":
+        if any(
+            name in os.environ
+            for name in (
+                "PITCHLOG_E2E_RUNNER_DIAGNOSTIC",
+                "PITCHLOG_E2E_RUNNER_AUTHORITY_DIAGNOSTIC_SITE",
+            )
+        ):
+            raise RuntimeError("低負荷観測と全行traceを混在できない")
+        code_sha = hashlib.sha256(
+            _RUNNER_FAILURE_OBSERVER_BOOTSTRAP.encode()
+        ).hexdigest()
+        marker = (
+            "print('PITCHLOG_RUNNER_FAILURE_OBSERVER ' + "
+            + repr(json.dumps({"mode": "failure-only", "observerSha256": code_sha}))
+            + ", flush=True)"
+        )
+        bootstrap = bootstrap.replace(
+            "app=create_app()",
+            _RUNNER_FAILURE_OBSERVER_BOOTSTRAP + "\n" + marker + "\napp=create_app()",
+            1,
+        )
+    elif os.environ.get("PITCHLOG_E2E_RUNNER_DIAGNOSTIC") == "1":
         bootstrap = bootstrap.replace(
             "app=create_app()", _RUNNER_DIAGNOSTIC_BOOTSTRAP + "\napp=create_app()", 1
         )
