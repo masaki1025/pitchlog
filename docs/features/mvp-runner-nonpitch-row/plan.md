@@ -1,8 +1,8 @@
 ---
 feature: mvp-runner-nonpitch-row
-status: draft
+status: active
 branch: feature/mvp-runner-nonpitch-row-20261107
-計画レビュー周回: 0
+計画レビュー周回: 1
 ---
 # 既RunnerNPの41列分類を保存入口へ接続する最小追補
 
@@ -21,3 +21,5 @@ branch: feature/mvp-runner-nonpitch-row-20261107
 通常Ordinary tokenへnon_pitchを横展開しない。既IWは旧形を維持する。新有限列以外のNULL制約、UUID/型/participants/41列集合は維持。新語彙を打撃結果として保存しない。投球6列への仮値や成功応答を生成しない。
 
 試験は既唯一mapperと既runner固定caseを使い、盗塁/牽制6/ボーク正例、原payloadと行の不一致、未知operation/種別偽装/余剰/欠損/非PlayPrefix/投球6列混入/不正付随列の拒否、既IW/pitch/battedへの不変を確認。候補固定後recovery担当の非作者レビューを受け、実first2+故障はroot順序で別実行する。純検査を実保存成功・全MVP成立としない。
+
+承認: rootが29a39523/plan SHA5bbb773713861cec0d80fbe12c8cf592d34f7eab01d4819464b46bb5a85c1496全文を非作者確認し、新P0/P1なし。2026-11-07 JST、PO委任によるCodex主担当判断で採用・step1着手可。PO本人の実値確認/署名ではない。

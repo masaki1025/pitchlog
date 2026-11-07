@@ -45,6 +45,100 @@ _NONPITCH_NULL_COLUMNS = frozenset(
 )
 
 
+_RUNNER_NONPITCH_COLUMNS = frozenset(
+    ("pickoff_type", "pickoff_detail", "secondary_batting_result_key")
+)
+
+
+def _runner_nonpitch_shape(token, row):
+    """候補物理形だけを絞る。原操作の成立はINSERT前preflightが必須。"""
+    if (
+        type(token) is not PlayPrefixPlayRowInsertToken
+        or row["event_kind"] != "non_pitch"
+        or row["batting_result_key"] is not None
+    ):
+        return False
+    pickoff = (row["pickoff_type"], row["pickoff_detail"])
+    secondary = row["secondary_batting_result_key"]
+    if secondary == "secondary-result.balk":
+        return pickoff == (None, None)
+    return secondary is None and (
+        pickoff == (None, None)
+        or (
+            pickoff[0] in ("pitcher", "catcher")
+            and pickoff[1] in ("first", "second", "third")
+        )
+    )
+
+
+def _validate_runner_nonpitch_source(token, row, event):
+    """受理原payloadの閉型から既唯一mapperへ写し全41列を照合する。"""
+    from pitchlog.domainrt.lineup_play_prefix_continuation import RunnerEventT1Input
+    from pitchlog.sync.idempotency import _json_value
+    from pitchlog.sync.ordinary_pitch_physical import pitch_physical_row
+    from pitchlog.sync.terminal_pitch_payload import (
+        LineupPitchCalculation,
+        LineupPitchPlayPayload,
+        RunnerNonpitchPlayObservations,
+    )
+
+    try:
+        payload = LineupPitchPlayPayload.model_validate_json(
+            json.dumps(_json_value(event["payload"]), allow_nan=False)
+        )
+        if type(payload.calculation) is not LineupPitchCalculation:
+            raise OrdinaryPlayRowError
+        q = payload.calculation.request
+        observed = payload.observations
+        if (
+            type(q.t1) is not RunnerEventT1Input
+            or type(observed) is not RunnerNonpitchPlayObservations
+            or observed.runner_observation != q.t1.runner_observation
+            or observed.runner_observation.primary_result_id is not None
+            or q.prefix_ref.tenant_id != str(row["tenant_id"])
+            or q.prefix_ref.game_id != str(token.game_id)
+            or q.play_identity.event_id != str(event["id"])
+            or q.play_identity.play_id != str(row["id"])
+            or q.play_identity.d5 != str(token.d5)
+        ):
+            raise OrdinaryPlayRowError
+        per = observed.runner_observation.per_pitch
+        if per.pitch_event_kind != "non-pitch-event":
+            raise OrdinaryPlayRowError
+        runner_event = per.runner_event_payload
+        if per.kind == "runner-event":
+            if (
+                runner_event.kind != "runner-event"
+                or per.result_id != runner_event.event_kind
+                or per.runner_advance_overrides.kind != "not-applied"
+            ):
+                raise OrdinaryPlayRowError
+        elif per.kind == "secondary-result":
+            if (
+                per.result_id != "secondary-result.balk"
+                or runner_event.kind != "not-applicable"
+                or per.runner_advance_overrides.kind != "overridden"
+            ):
+                raise OrdinaryPlayRowError
+        else:
+            raise OrdinaryPlayRowError
+        expected = pitch_physical_row(
+            observed,
+            payload.participants,
+            q.t1.result_id,
+            tenant_id=row["tenant_id"],
+            game_id=token.game_id,
+            source_event_id=event["id"],
+            row_id=row["id"],
+            play_number=row["play_number"],
+        )
+        canonical = {k: str(v) if type(v) is UUID else v for k, v in row.items()}
+        if canonical != expected:
+            raise OrdinaryPlayRowError
+    except (ValueError, TypeError, AttributeError, KeyError, RecursionError):
+        raise OrdinaryPlayRowError from None
+
+
 def _ordinary_play_row_insert_statement() -> Insert:
     """全41列INSERTだけを固定表/閉bindから描画するSQL窓口。"""
     return insert(_PLAY).values({name: bindparam(name) for name in _PLAY.c.keys()})
@@ -95,7 +189,8 @@ def _row(token):
             type(token) is PlayPrefixPlayRowInsertToken
             and row["batting_result_key"] in _BATTED_RESULTS
         )
-        nonpitch = (
+        runner_nonpitch = _runner_nonpitch_shape(token, row)
+        nonpitch = runner_nonpitch or (
             type(token) is PlayPrefixPlayRowInsertToken
             and row["event_kind"] == "non_pitch"
             and row["batting_result_key"] == _INTENTIONAL_WALK
@@ -103,6 +198,8 @@ def _row(token):
         required_null = (
             set(_NULL_COLUMNS) - _BATTED_COLUMNS if batted else _NULL_COLUMNS
         )
+        if runner_nonpitch:
+            required_null = set(_NULL_COLUMNS) - _RUNNER_NONPITCH_COLUMNS
         if batted and (
             any(
                 row[name] is not None and not 0 <= row[name] <= 1
@@ -143,8 +240,13 @@ def _row(token):
             or row["batter_id"] is None
             or row["pitcher_id"] is None
             or row["catcher_id"] is None
-            or type(row["batting_result_key"]) is not str
-            or not row["batting_result_key"]
+            or (
+                not runner_nonpitch
+                and (
+                    type(row["batting_result_key"]) is not str
+                    or not row["batting_result_key"]
+                )
+            )
             or (
                 row["batting_side"] is not None
                 and row["batting_side"] not in ("右", "左")
@@ -233,6 +335,8 @@ def _preflight(token, parameters):
                 for k, v in wanted.items()
             ):
                 raise OrdinaryPlayRowError
+        if _runner_nonpitch_shape(token, row):
+            _validate_runner_nonpitch_source(token, row, event)
         if (
             type(results[2]) is not TenantOperationResult
             or type(results[2].rows) is not tuple
