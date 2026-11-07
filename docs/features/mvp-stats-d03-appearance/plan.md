@@ -152,3 +152,6 @@ r17は1failed514.75秒（lock待機込み）。自チームを後攻へ設定す
 
 
 通常再開r18は1failed/584.48秒。実終了v1の登板API確認後、再終了v2で未供給となった。原因は候補readが終了前値gameEnded=trueを要求した過剰条件。既正式gameLifecycleの終了宣言はcurrentを変更せず、再開がgameEnded=falseへ写すため、前値は真正boolean（falseも可）へ整合する。consumed LC全identity、T2 nonlocked、after=false、当該field以外のrestored全値一致は維持する。r18失敗は保全し、新sourceのr19で同じ実経路を再実行する。正常48への移植/正式受理は別のまま。
+
+
+r19は1failed/614.28秒（共通lock待機込み）。終了v1・通常再開・追加3球目・再終了v2の試合/season all/双方CSVの登板1まで成功し、最後の区分対向で失敗した。既fixtureは正規game_otherであり、driverがofficial成功/practice空と逆に期待していた。D02採用済みのpractice成功/official空へ修正し、元game_type_key=game_other自体も明示検査する。製品SQL/区分を変更せず、r19失敗を保全した上でr20を同source固定手順で実行する。

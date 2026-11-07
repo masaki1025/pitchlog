@@ -588,6 +588,13 @@ def test_actual_lifecycle_game_and_season_appearance_has_one_current_version(
     )
     assert script.count(teams) == 1
     script = script.replace(teams, swapped_teams, 1)
+    source_anchor = "        created = await client.post(\n"
+    assert script.count(source_anchor) == 1
+    script = script.replace(
+        source_anchor,
+        '        assert source["game_type_key"] == "game_other"\n' + source_anchor,
+        1,
+    )
     anchor = "        body = _body(10)\n"
     assert script.count(anchor) == 1
     script = script.replace(
@@ -645,7 +652,7 @@ def test_actual_lifecycle_game_and_season_appearance_has_one_current_version(
         "+ str(case['year']) "
         "+ '?category=' + category + '&limit=200', headers=headers())\n"
         + "            assert selected.status_code == 200\n"
-        + "            if category == 'official':\n"
+        + "            if category == 'practice':\n"
         + "                assert_appearances(selected.json())\n"
         + "            else:\n"
         + "                assert selected.json()['players'] == []\n",
