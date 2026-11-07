@@ -1,5 +1,14 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 2026-11-07：走塁の接続候補を固定、全計算回帰を閉じて実画面へ
+
+- **固定版と新たな到達点**: root専有 `feature/mvp-runner-product-integration-20261107@ba561d91f493b7fcce2450837826ed5c863de3f6` clean。9ba1f966で既走塁核/SDK/画面と唯一ab8 artifact、現行5fixture/7manifest/D11/有限v3を同版へ接合。frontend全 **3846passed**、backend domain全 **984passed104.08秒**、後発関連 **114passed26.77秒**、型/lint0。29失敗は入力metadata25＋派生D11 4へ分類して是正、数学期待/規範原本は変更しない。source replayの現行連続試験copyと歴史原本の資格を分離、独立2path確認SHA2b557d13…。旧registry raw固定は独立追補SHAceb437ba…＋実raw改変負例1passで閉じた。新53全値/witness/3有限pairの独立REPORT282fbd1f…を継承、P6 blindや正式受理へ拡張しない。
+- **実画面へ移行**: 作者0df6c1eeの試験4pathを全byte照合採用、backend collect1/Ruff0/frontend lint/型0。recovery担当へ固定HEADを渡し、同HEADの隔離shadow・正規S0→CURRENT48・実認証/記録権/唯一hostで初回安打→NP盗塁＋別試合T4故障全取消を実行する。共通owned lock/共有DSNunset/source前後/cleanupを維持。実走はこれからで、17操作全成立/運用TLS/実機とはしない。root元通常48@59a6は通常push済み。
+- **安全維持を条件とするハーネス緩和**: POの11/7指示を既integration planへ最小追補。作業中は影響検査、最終候補で必要全件/必須CIをまとめ、artifactの現行metadata/派生D11を一括追随、無関係な基線更新で同受理を再取得しない。権限/tenant/記録権/原子性/冪等/結果不明/未知版拒否や未解消負例は削除しない。大きな統制再設計/CI8再開は行わない。
+- **P3/成績の残り**: P3の長履歴は一次fence確認の結果不明が未解消。worker exec後へ観測器が継承されない診断欠落を修正し、短いworker preflightを必須にしてから長runへ。paged本体非作者REPORT66c46a29…のP1は真正26全page/正規frame命令順/二走途中全取消の実行証拠不足で維持。D03 r19は終了→再開→3球目→再終了v2/API/season/CSVまで進んだが最後のgame_other区分の誤期待で1failed、全部成功には数えずdriverを既D02に整合中。正常48への所有15path packetは受領し、通常49/正規Save overlay/全catalogの接合は未了。
+- **次**: 固定走塁版の実画面first2/fault→17操作へ。rootはその待機中にD03正常49の供給不足を実装し、P3の実停止原因と欠落対向も別担当が継続。閲覧外部成果は未受領、全MVP/通常統合/全故障・性能・実機・運用復旧は未完成。
+
+
 ## 2026-11-07：通常0048の実起動を完了、走塁を同じ製品候補へ接続中
 
 - **成立した配置と証拠**: `feature/mvp-p3-current-startup@59a6ff501975a89dcb41dad4d1d341c1cd6ce92f` の `full48-normal-r3` は実owned PostgreSQLで **3passed68.05秒**。S0→0048、同版再起動、全20私有表/全catalog/P3構造、補助2表の余剰xmin拒否、未完成commit拒否、第6表後故障の全取消を実測。source前後同一、共有DSNunset、owned container削除済み。guard詳細取得漏れと正規xmin取得漏れはそれぞれde2/707/59aで修復し、権限や拒否条件は削除していない。限定非作者の後発REPORT SHA `2e7cc1c06b8273a8abc7438cb9fed4d8bef6ece65e40c46442431a216d4737b4` は新P0/P1/P2なし。cache `p3-current48-startup-root-20261107/full48-normal-r3-{result,source-before,source-after}.json` とxmlが原典。正式7.7/seal/全CI/merge/既47から自動更新は別の未了。
