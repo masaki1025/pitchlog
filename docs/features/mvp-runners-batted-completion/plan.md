@@ -45,3 +45,5 @@ contracts/正本/根幹SQL/manifest/pin/fixtures/唯一artifact/共有台帳/roo
 ステップ2候補: 操作で走者を作る4case（複数走者単打/二塁打、走者あり三塁打、満塁HR）を追加。各走者実結果を入力し、全41列/物理runner/status語彙/ID/責任投手・得点/打点flag・同D5原文再送/reloadを照合する。正の得点caseでは実T5のruns/rbi/runs_allowedがavailableで実数一致することも確認し、未供給を0へ補完しない。既唯一計算/観測型/正式資産/artifactは変更せず再利用。型/lint・構文は成功したが、実測はroot依存解消後で未成立。
 
 ステップ3候補準備: 同じ実appにowned時だけ固定header→既testing_crash_hook(after_t4_projection)を束縛する試験middlewareを追加。正常要求は無変更で、失敗応答も製造しない。走者あり2球目の元本文/Cookie/端末/attemptを保ったままT4へ到達させ、実500・未確認表示・実GETが先行1球と完全一致することを確認する。失敗した実event/play/D5 IDでrunner/ledger/stats/CSVの残存を個別に拒否するDB補助を用意した。BE/FE型・lint・bootstrap構文成功、実測は正規provider固定点供給後で未成立。追加コードはE2E2pathと本planだけ、製品source/唯一artifact/正式契約/根幹SQLは変更なし。
+
+共通依存接合: runner 0f89fa8eへroot固定ae82631b（9c0f101aの標準0047/catalog26宣言＋canonical S0→current startup helper）を通常mergeし、1674459dで衝突0。取り込み40pathはroot原本を採用し、独自正式資産編集・SQL後付注入・artifact再生成は無し。既fixtureが実advance_current_product_from_s0を呼ぶため、本担当の重複fixture修復は不要。BE対象Ruff/Ty成功、既TLSの存在・Node24.16.0/pnpm11.22.0を確認し、同固定候補の正常7＋fault1＋越境1画面caseを実測する。
