@@ -1,11 +1,11 @@
 ---
 feature: mvp-p3-screen-current-followup
-status: draft
-承認: 未
+status: active
+承認: PO委任Codex主担当/root、2026-11-08 22:45 JST、対象65a46950・SHA6925856d4d0037ce723b1c3040fbfebccb648e508f12cd9e2501b88c0b8cca86
 重さ分類: コア領域の試験追随
 branch: feature/mvp-p3-screen-current-followup-20261108
 created: 2026-11-08
-計画レビュー周回: 0
+計画レビュー周回: 1
 ---
 
 # 固定6c52の26件訂正画面・後続操作を最後まで検証する
