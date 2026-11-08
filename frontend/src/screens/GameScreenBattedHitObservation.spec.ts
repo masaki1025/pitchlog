@@ -63,6 +63,32 @@ it('凡打死の第3アウトは打者走者の一塁到達前を確認して公
   expect(w.emitted('change')?.at(-1)).toEqual([null])
   w.unmount()
 })
+it('走者の実到達を欠いた凡打・犠飛を閉じ、確認値だけをV7へ出す', async () => {
+  const w = mount(GameScreenBattedHitObservation, {
+    props: {
+      ...props,
+      resultId: 'batting-result.sacrifice-fly',
+      runners: [{ base: '3', label: '三塁走者' }],
+    },
+  })
+  await flushPromises()
+  await explicitNull(w)
+  await confirm(w)
+  expect(w.emitted('change')?.at(-1)).toEqual([null])
+  await w.get('[data-testid="batted-runner-3-destination"]').setValue('4')
+  await w.get('[data-testid="batted-runner-confirmed"]').setValue(true)
+  expect(w.emitted('change')?.at(-1)?.[0]).toMatchObject({
+    resultId: 'batting-result.sacrifice-fly',
+    runnerAdvanceOverridesByRunner: {
+      kind: 'applied',
+      overrides: [{ runnerBase: '3', destination: '4' }],
+    },
+    thirdOutObservation: { kind: 'none' },
+  })
+  await w.setProps({ resultId: 'batting-result.batted-out', beforeOuts: '2' })
+  expect(w.emitted('change')?.at(-1)).toEqual([null])
+  w.unmount()
+})
 it('6未観測と4裁定を一つずつ確認するまで観測を成立させず、結果/文脈変更で破棄する', async () => {
   const w = mount(GameScreenBattedHitObservation, { props })
   await flushPromises()

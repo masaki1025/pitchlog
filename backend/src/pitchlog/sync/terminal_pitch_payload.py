@@ -362,6 +362,10 @@ class BattedHitPlayObservations(FirstBallObservations):
         "batting-result.triple",
         "batting-result.home-run",
         "batting-result.batted-out",
+        "batting-result.batted-reach",
+        "batting-result.fielders-choice",
+        "batting-result.sacrifice-bunt",
+        "batting-result.sacrifice-fly",
     ] = Field(alias="resultId")
     batted_ball: _BattedBall = Field(alias="battedBall")
     official_scoring_payload: _NoErrorScoring = Field(alias="officialScoringPayload")

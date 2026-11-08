@@ -191,6 +191,134 @@ describe('凡打死の正本有限入力', () => {
       calculate(withRunner, observation('batting-result.batted-out')),
     ).toBeNull()
   })
+  it('三塁走者の実生還は通常アウトで有効、打者の一塁前第3アウトでは無効', () => {
+    const move = {
+      ...observation('batting-result.batted-out'),
+      runnerAdvanceOverrides: {
+        kind: 'applied' as const,
+        overrides: [{ runnerBase: '3' as const, destination: '4' as const }],
+      },
+    }
+    const one = fixture('top')
+    one.before.outs = 0n
+    one.before.runners = 'third'
+    const scored = calculate(one, move)!
+    expect(scored.outEffect).toEqual({
+      count: 1n,
+      targets: [{ kind: 'batter' }],
+    })
+    expect(scored.after.stateFields).toMatchObject({
+      outs: 1n,
+      away: 6n,
+      runners: 'empty',
+    })
+    expect(scored.statFlags).toMatchObject({
+      得点: true,
+      失点: true,
+      打点: true,
+    })
+    expect(scored.runnerScoreEffects).toEqual([
+      { base: 3n, validRun: true, rbiCredited: true },
+    ])
+    const last = fixture('top')
+    last.before.runners = 'third'
+    const noRun = calculate(last, {
+      ...move,
+      thirdOutObservation: 'batter-before-first',
+    })!
+    expect(noRun.after.stateFields).toMatchObject({
+      half: 'bottom',
+      away: 5n,
+      runners: 'empty',
+    })
+    expect(noRun.statFlags).toMatchObject({
+      得点: false,
+      失点: false,
+      打点: false,
+    })
+    expect(noRun.runnerScoreEffects).toEqual([
+      { base: 3n, validRun: false, rbiCredited: false },
+    ])
+    expect(calculate(last, move)).toBeNull()
+    expect(
+      calculate(one, { ...move, runnerAdvanceOverrides: 'not-applied' }),
+    ).toBeNull()
+  })
+})
+
+describe('既正本の野選・犠打・犠飛有限行', () => {
+  const matrix = JSON.parse(
+    readFileSync(
+      resolve(
+        '../contracts/state-transition/state_transition_contract_v1.json',
+      ),
+      'utf8',
+    ),
+  ) as {
+    matrixRows: Array<{ resultId: string; statFlags: Record<string, boolean> }>
+  }
+  const forced = {
+    kind: 'applied' as const,
+    overrides: [
+      { runnerBase: '1' as const, destination: '2' as const },
+      { runnerBase: '2' as const, destination: '3' as const },
+    ],
+  }
+  it.each([
+    ['batting-result.batted-reach', 'reach', 0n, 'loaded'],
+    ['batting-result.fielders-choice', 'reach', 0n, 'loaded'],
+    ['batting-result.sacrifice-bunt', 'out', 1n, 'second-third'],
+  ] as const)(
+    '%sの既matrix行と全23flag・到達/アウトが一致',
+    (resultId, batter, outs, runners) => {
+      const f = fixture('top')
+      f.before.outs = 0n
+      f.before.runners = 'first-second'
+      const result = calculate(f, {
+        ...observation(resultId),
+        runnerAdvanceOverrides: forced,
+      })!
+      expect(result.batterDestination.kind).toBe(batter)
+      expect(result.outEffect.count).toBe(outs)
+      expect(result.after.stateFields).toMatchObject({ runners, outs })
+      expect(result.statFlags).toEqual(
+        matrix.matrixRows.find((row) => row.resultId === resultId)!.statFlags,
+      )
+    },
+  )
+  it('一三塁へ拡張せず三塁走者の犠飛1行だけ得点/打点/犠飛を算入', () => {
+    const f = fixture('top')
+    f.before.outs = 0n
+    f.before.runners = 'third'
+    const result = calculate(f, {
+      ...observation('batting-result.sacrifice-fly'),
+      runnerAdvanceOverrides: {
+        kind: 'applied',
+        overrides: [{ runnerBase: '3', destination: '4' }],
+      },
+    })!
+    expect(result.after.stateFields).toMatchObject({
+      outs: 1n,
+      runners: 'empty',
+      away: 6n,
+    })
+    expect(result.statFlags).toEqual(
+      matrix.matrixRows.find(
+        (row) => row.resultId === 'batting-result.sacrifice-fly',
+      )!.statFlags,
+    )
+    const invalid = fixture('top')
+    invalid.before.runners = 'first-third'
+    expect(
+      calculate(invalid, {
+        ...observation('batting-result.sacrifice-fly'),
+        runnerAdvanceOverrides: {
+          kind: 'applied',
+          overrides: [{ runnerBase: '3', destination: '4' }],
+        },
+      }),
+    ).toBeNull()
+  })
 })
 
 describe('無走者4安打の唯一前進核', () => {

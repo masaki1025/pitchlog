@@ -542,15 +542,8 @@ def require_batted_hit_observations(t1, observations) -> None:
         _canonical(_dump(observations))
     )
     if t1.result_id == "batting-result.batted-out":
-        if (
-            t1.before.state_fields.runners != "empty"
-            or t1.runner_advance_overrides != "not-applied"
-            or t1.third_out_observation
-            != (
-                "batter-before-first"
-                if t1.before.state_fields.outs == "2"
-                else "none"
-            )
+        if t1.third_out_observation != (
+            "batter-before-first" if t1.before.state_fields.outs == "2" else "none"
         ):
             raise ValueError("凡打死の走者・第3アウト観測が不足")
     elif t1.third_out_observation != "none":

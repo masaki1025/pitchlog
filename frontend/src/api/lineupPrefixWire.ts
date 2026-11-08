@@ -33,6 +33,15 @@ type BattedHitWireObservations = Omit<
   BattedHitObservations,
   'runnerAdvanceOverridesByRunner'
 > & { runnerAdvanceOverridesByRunner: RunnerAdvanceOverridesByRunner }
+export type BattedOtherResult =
+  | 'batting-result.batted-reach'
+  | 'batting-result.fielders-choice'
+  | 'batting-result.sacrifice-bunt'
+  | 'batting-result.sacrifice-fly'
+export type BattedOtherWireObservations = Omit<
+  BattedHitWireObservations,
+  'resultId'
+> & { resultId: BattedOtherResult }
 export type BattedOutWireObservations = Omit<
   BattedHitWireObservations,
   'resultId' | 'thirdOutObservation'
@@ -158,6 +167,7 @@ export async function formatLineupPrefixWire(
     | Observations
     | BattedHitObservations
     | BattedHitWireObservations
+    | BattedOtherWireObservations
     | BattedOutWireObservations
     | IntentionalWalkObservation
     | RunnerV7['observations'],

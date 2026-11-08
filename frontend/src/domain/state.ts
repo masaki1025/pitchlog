@@ -531,7 +531,14 @@ function applyCountRule(
     flags.三振 = true
     flags.打数 = true
   }
-  if (resultId === 'batting-result.batted-out') flags.打数 = true
+  if (
+    resultId === 'batting-result.batted-out' ||
+    resultId === 'batting-result.batted-reach' ||
+    resultId === 'batting-result.fielders-choice'
+  )
+    flags.打数 = true
+  if (resultId === 'batting-result.sacrifice-bunt') flags.犠打 = true
+  if (resultId === 'batting-result.sacrifice-fly') flags.犠飛 = true
   if (hit) {
     flags.被安打 = true
     flags.安打 = true
@@ -587,6 +594,10 @@ function applyCountRule(
         validRun &&
         (homeRun ||
           hit ||
+          ((resultId === 'batting-result.batted-out' ||
+            resultId === 'batting-result.sacrifice-bunt' ||
+            resultId === 'batting-result.sacrifice-fly') &&
+            rule.outs === 1n) ||
           ((walk || hitByPitch) && advance.modality === 'forced'))
       if (validRun) runs = runs + 1n
       if (rbiCredited) rbi = rbi + 1n

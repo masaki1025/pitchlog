@@ -327,6 +327,10 @@ class BattedHitT1Input(_LineupWire):
         "batting-result.triple",
         "batting-result.home-run",
         "batting-result.batted-out",
+        "batting-result.batted-reach",
+        "batting-result.fielders-choice",
+        "batting-result.sacrifice-bunt",
+        "batting-result.sacrifice-fly",
     ] = Field(alias="resultId")
     pitch_event_kind: Literal["pitch-event"] = Field(alias="pitchEventKind")
     before: StrikeoutSnapshot

@@ -92,6 +92,41 @@ def test_applied_two_runner_observation_matches_t1_exactly():
 
 
 @pytest.mark.parametrize(
+    "result_id",
+    (
+        "batting-result.batted-reach",
+        "batting-result.fielders-choice",
+        "batting-result.sacrifice-bunt",
+    ),
+)
+def test_existing_two_runner_batted_results_preserve_original_observation(
+    result_id,
+):
+    """正本の一二塁3結果も元観測とT1の到達を全値照合する。"""
+    applied = {
+        "kind": "applied",
+        "overrides": [
+            {"runnerBase": "1", "destination": "2"},
+            {"runnerBase": "2", "destination": "3"},
+        ],
+    }
+    t1_raw = copy.deepcopy(CASE["request"]["t1"])
+    t1_raw["resultId"] = result_id
+    t1_raw["before"]["stateFields"]["state.runners"] = "first-second"
+    t1_raw["runnerAdvanceOverrides"] = applied
+    t1 = BattedHitT1Input.model_validate_json(json.dumps(t1_raw))
+    observed_raw = _observations(applied).model_dump(mode="json", by_alias=True)
+    observed_raw["resultId"] = result_id
+    observed = BattedHitPlayObservations.model_validate_json(json.dumps(observed_raw))
+    require_batted_hit_observations(t1, observed)
+    observed_raw["runnerAdvanceOverridesByRunner"]["overrides"][0]["destination"] = "3"
+    with pytest.raises(ValueError):
+        require_batted_hit_observations(
+            t1, BattedHitPlayObservations.model_validate_json(json.dumps(observed_raw))
+        )
+
+
+@pytest.mark.parametrize(
     "override",
     [
         {"kind": "applied", "overrides": []},

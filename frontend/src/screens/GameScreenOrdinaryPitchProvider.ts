@@ -28,7 +28,11 @@ import {
   sealLineupMetadata,
   formatLineupPrefixWire,
 } from '../api/lineupPrefixWire'
-import type { BattedOutWireObservations } from '../api/lineupPrefixWire'
+import type {
+  BattedOtherResult,
+  BattedOtherWireObservations,
+  BattedOutWireObservations,
+} from '../api/lineupPrefixWire'
 import type {
   Source,
   PrefixRef,
@@ -270,6 +274,7 @@ export type BattedHitConfirmation = Omit<
   'runnerAdvanceOverridesByRunner'
 > & { runnerAdvanceOverridesByRunner: RunnerAdvanceOverridesByRunner }
 export type BattedOutConfirmation = BattedOutWireObservations
+export type BattedOtherConfirmation = BattedOtherWireObservations
 
 export type PlayScreenObservation = Omit<
   OrdinaryScreenObservation,
@@ -286,10 +291,12 @@ export type PlayScreenObservation = Omit<
       | 'batting-result.strikeout-double-play'
       | BattedHitResult
       | 'batting-result.batted-out'
+      | BattedOtherResult
     runnerEvent?: RunnerObservationWire | null
     battedHit?:
       | Omit<BattedHitConfirmation, keyof FirstBallObservations>
       | Omit<BattedOutConfirmation, keyof FirstBallObservations>
+      | Omit<BattedOtherConfirmation, keyof FirstBallObservations>
       | null
     nextBatter?: NextBatter | null
   }>
@@ -773,6 +780,10 @@ export async function prepareLineupPrefix(
     'batting-result.triple',
     'batting-result.home-run',
     'batting-result.batted-out',
+    'batting-result.batted-reach',
+    'batting-result.fielders-choice',
+    'batting-result.sacrifice-bunt',
+    'batting-result.sacrifice-fly',
   ]
   const batted = hitResults.includes(observation.resultId)
   if (batted) {
@@ -802,14 +813,13 @@ export async function prepareLineupPrefix(
     if (observation.resultId === 'batting-result.batted-out') {
       const third = hit.thirdOutObservation
       if (
-        context.after.stateFields['state.runners'] !== 'empty' ||
-        (context.after.stateFields['state.outs'] === '2'
+        context.after.stateFields['state.outs'] === '2'
           ? third.kind !== 'batter-before-first' ||
             !('batter' in third) ||
             third.batter.kind !== 'official' ||
             third.batter.player_id !==
               context.lineupSource.participants.batterId
-          : third.kind !== 'none')
+          : third.kind !== 'none'
       )
         return invalid()
     }

@@ -21,7 +21,9 @@ import GameScreenBattedHitObservation from './GameScreenBattedHitObservation.vue
 import GameScreenRunnerEventObservation from './GameScreenRunnerEventObservation.vue'
 import type { RunnerObservationWire } from '../api/runnerEventWire'
 import type { BattedHitResult } from '../../../contracts/state-transition/lineup_play_prefix_payload_v1.d.ts'
-type CandidateBattedResult = BattedHitResult | 'batting-result.batted-out'
+import type { BattedOtherResult } from '../api/lineupPrefixWire'
+type CandidateBattedResult =
+  BattedHitResult | 'batting-result.batted-out' | BattedOtherResult
 import StrikeZone from '../components/zone/StrikeZone.vue'
 import { useAuthStore } from '../stores/authStore'
 import {
@@ -54,12 +56,30 @@ const hitResults: readonly string[] = [
   'batting-result.triple',
   'batting-result.home-run',
   'batting-result.batted-out',
+  'batting-result.batted-reach',
+  'batting-result.fielders-choice',
+  'batting-result.sacrifice-bunt',
+  'batting-result.sacrifice-fly',
 ]
 const batted = computed(() => hitResults.includes(resultId.value))
-const battedOutAvailable = computed(
+const battedOutAvailable = computed(() =>
+  isLineupRecordingContext(displayed.value),
+)
+const firstSecondBattedAvailable = computed(
   () =>
     isLineupRecordingContext(displayed.value) &&
-    displayed.value.after.stateFields['state.runners'] === 'empty',
+    displayed.value.after.stateFields['state.runners'] === 'first-second',
+)
+const sacrificeBuntAvailable = computed(
+  () =>
+    firstSecondBattedAvailable.value &&
+    displayed.value.after.stateFields['state.outs'] !== '2',
+)
+const sacrificeFlyAvailable = computed(
+  () =>
+    isLineupRecordingContext(displayed.value) &&
+    displayed.value.after.stateFields['state.runners'] === 'third' &&
+    displayed.value.after.stateFields['state.outs'] !== '2',
 )
 /** 原典で成立した一三塁0-0だけを画面に提示する。遷移値は唯一核が決める。 */
 const intentionalWalkAvailable = computed(() => {
@@ -767,7 +787,31 @@ onScopeDispose(() => {
             <option value="batting-result.triple">三塁打</option>
             <option value="batting-result.home-run">本塁打</option>
             <option v-if="battedOutAvailable" value="batting-result.batted-out">
-              打球アウト（無走者）
+              打球アウト
+            </option>
+            <option
+              v-if="firstSecondBattedAvailable"
+              value="batting-result.batted-reach"
+            >
+              打球による出塁
+            </option>
+            <option
+              v-if="firstSecondBattedAvailable"
+              value="batting-result.fielders-choice"
+            >
+              野手選択
+            </option>
+            <option
+              v-if="sacrificeBuntAvailable"
+              value="batting-result.sacrifice-bunt"
+            >
+              犠打
+            </option>
+            <option
+              v-if="sacrificeFlyAvailable"
+              value="batting-result.sacrifice-fly"
+            >
+              犠飛
             </option>
           </template>
           <option value="batting-result.foul">

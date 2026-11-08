@@ -9,13 +9,17 @@ import type {
   StateFields,
 } from './stateTypes'
 
-/** 4安打と、明示確認した無走者の凡打死。公開wireの型ではない。 */
+/** 正本の閉打球結果。公開wireの型ではない。 */
 export type BattedHitResultId =
   | 'batting-result.single'
   | 'batting-result.double'
   | 'batting-result.triple'
   | 'batting-result.home-run'
   | 'batting-result.batted-out'
+  | 'batting-result.batted-reach'
+  | 'batting-result.fielders-choice'
+  | 'batting-result.sacrifice-bunt'
+  | 'batting-result.sacrifice-fly'
 
 /** 記録者が確定した1走者の実到達塁。停止は写像へ含めない。 */
 export type RunnerAdvanceOverride = {
@@ -266,6 +270,8 @@ export function battedHitRule(
   let base: bigint
   switch (resultId) {
     case 'batting-result.single':
+    case 'batting-result.batted-reach':
+    case 'batting-result.fielders-choice':
       base = 1n
       break
     case 'batting-result.double':
@@ -278,6 +284,8 @@ export function battedHitRule(
       base = 0n
       break
     case 'batting-result.batted-out':
+    case 'batting-result.sacrifice-bunt':
+    case 'batting-result.sacrifice-fly':
       base = 0n
       break
     default:
@@ -285,15 +293,43 @@ export function battedHitRule(
   }
   let batter: 'score' | 'reach' = 'reach'
   if (base === 0n) batter = 'score'
-  if (resultId === 'batting-result.batted-out') {
+  if (
+    resultId === 'batting-result.batted-out' ||
+    resultId === 'batting-result.sacrifice-bunt' ||
+    resultId === 'batting-result.sacrifice-fly'
+  ) {
+    let outOverrides: AppliedOverrides | null = null
+    if (value.runnerAdvanceOverrides !== 'not-applied') {
+      outOverrides = readAppliedOverrides(value.runnerAdvanceOverrides, before)
+      if (outOverrides === null) return null
+    }
     if (
-      before.runners !== 'empty' ||
-      value.runnerAdvanceOverrides !== 'not-applied' ||
-      (before.outs === 2n &&
-        value.thirdOutObservation !== 'batter-before-first') ||
-      (before.outs !== 2n && value.thirdOutObservation !== 'none')
+      (before.runners === 'empty') !== (outOverrides === null) ||
+      !destinationsDoNotCollide(before, 0n, outOverrides) ||
+      (resultId === 'batting-result.batted-out'
+        ? (before.outs === 2n &&
+            value.thirdOutObservation !== 'batter-before-first') ||
+          (before.outs !== 2n && value.thirdOutObservation !== 'none')
+        : before.outs === 2n || value.thirdOutObservation !== 'none') ||
+      (resultId === 'batting-result.sacrifice-bunt' &&
+        (before.runners !== 'first-second' ||
+          outOverrides?.first !== 2n ||
+          outOverrides?.second !== 3n ||
+          outOverrides?.third !== null)) ||
+      (resultId === 'batting-result.sacrifice-fly' &&
+        (before.runners !== 'third' ||
+          outOverrides?.first !== null ||
+          outOverrides?.second !== null ||
+          outOverrides?.third !== 4n))
     )
       return null
+    let explicit: Record<string, bigint> = {}
+    if (outOverrides?.first !== null && outOverrides?.first !== undefined)
+      explicit = Object.assign(explicit, { '1': outOverrides.first })
+    if (outOverrides?.second !== null && outOverrides?.second !== undefined)
+      explicit = Object.assign(explicit, { '2': outOverrides.second })
+    if (outOverrides?.third !== null && outOverrides?.third !== undefined)
+      explicit = Object.assign(explicit, { '3': outOverrides.third })
     return {
       resultId,
       pa: true,
@@ -301,13 +337,19 @@ export function battedHitRule(
       batterBase: 0n,
       outs: 1n,
       targets: ['batter'],
-      advance: 'hold_all',
+      advance: outOverrides === null ? 'hold_all' : 'explicit',
       step: 0n,
-      explicit: {},
+      explicit,
       strikeEffect: 'reset',
       strikeDelta: 0n,
       ballEffect: 'reset',
       ballDelta: 0n,
+      ...(outOverrides === null
+        ? {}
+        : {
+            validRunnerScoreBases: before.outs === 2n ? [] : ['1', '2', '3'],
+            scoringEvidence: true,
+          }),
     }
   }
   if (value.thirdOutObservation !== 'none') return null
@@ -340,6 +382,15 @@ export function battedHitRule(
     )
       return null
   }
+  if (
+    (resultId === 'batting-result.batted-reach' ||
+      resultId === 'batting-result.fielders-choice') &&
+    (before.runners !== 'first-second' ||
+      overrides?.first !== 2n ||
+      overrides?.second !== 3n ||
+      overrides?.third !== null)
+  )
+    return null
   if (!destinationsDoNotCollide(before, base, overrides)) return null
   let advance: 'hold_all' | 'explicit' = 'hold_all'
   let explicit: Record<string, bigint> = {}

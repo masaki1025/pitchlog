@@ -5,6 +5,7 @@ import type {
   BattedHitResult,
 } from '../../../contracts/state-transition/lineup_play_prefix_payload_v1.d.ts'
 import type { RunnerAdvanceOverridesByRunner } from '../api/runnerAdvanceWire'
+import type { BattedOtherResult } from '../api/lineupPrefixWire'
 import {
   readBattedBallOptions,
   type BattedBallOption,
@@ -33,11 +34,14 @@ type BattedOutConfirmation = Omit<
         batter: { kind: 'official'; player_id: string }
       }
 }
+type BattedOtherConfirmation = Omit<Confirmation, 'resultId'> & {
+  resultId: BattedOtherResult
+}
 type Base = '1' | '2' | '3'
 const props = withDefaults(
   defineProps<{
     contextKey: string
-    resultId: BattedHitResult | 'batting-result.batted-out'
+    resultId: BattedHitResult | 'batting-result.batted-out' | BattedOtherResult
     beforeOuts: string
     batterId: string
     fielders: readonly { id: string; label: string }[]
@@ -47,7 +51,10 @@ const props = withDefaults(
   { runners: () => [] },
 )
 const emit = defineEmits<{
-  change: [value: Confirmation | BattedOutConfirmation | null]
+  change: [
+    value:
+      Confirmation | BattedOutConfirmation | BattedOtherConfirmation | null,
+  ]
 }>()
 const auth = useAuthStore()
 const fields = [
@@ -198,105 +205,104 @@ function changeMode(key: string) {
   values.value[key] = ''
   confirmations.value = {}
 }
-const observation = computed<Confirmation | BattedOutConfirmation | null>(
-  () => {
+const observation = computed<
+  Confirmation | BattedOutConfirmation | BattedOtherConfirmation | null
+>(() => {
+  if (
+    props.disabled ||
+    (props.resultId === 'batting-result.batted-out' &&
+      !['0', '1', '2'].includes(props.beforeOuts)) ||
+    questions.value.some((q) => confirmations.value[q.key] !== 'confirmed')
+  )
+    return null
+  let runnerOverrides: RunnerAdvanceOverridesByRunner
+  if (props.runners.length === 0) {
+    runnerOverrides = { kind: 'not-applied', overrides: [] }
+  } else {
+    if (!runnerConfirmed.value) return null
+    const overrides: Array<{
+      runnerBase: Base
+      destination: '2' | '3' | '4'
+    }> = []
+    for (const runner of props.runners) {
+      const destination = runnerDestinations.value[runner.base]
+      if (destination === undefined || destination === '') return null
+      if (destination === 'hold') continue
+      if (!destinations(runner.base).includes(destination as '2' | '3' | '4'))
+        return null
+      overrides.push({
+        runnerBase: runner.base,
+        destination: destination as '2' | '3' | '4',
+      })
+    }
+    if (overrides.length === 0) return null
+    runnerOverrides = { kind: 'applied', overrides }
+  }
+  const ball: Record<string, string | null> = {}
+  for (const key of fields) {
+    if (modes.value[key] === 'unobserved') {
+      ball[key] = null
+      continue
+    }
+    if (modes.value[key] !== 'observed') return null
+    const value = values.value[key]
+    if (typeof value !== 'string' || !value || value.trim() !== value)
+      return null
     if (
-      props.disabled ||
-      (props.resultId === 'batting-result.batted-out' &&
-        (props.runners.length !== 0 ||
-          !['0', '1', '2'].includes(props.beforeOuts))) ||
-      questions.value.some((q) => confirmations.value[q.key] !== 'confirmed')
+      (key === 'typeKey' || key === 'strengthKey') &&
+      (loading.value ||
+        failed.value ||
+        !choices(key).some((i) => i.key === value))
     )
       return null
-    let runnerOverrides: RunnerAdvanceOverridesByRunner
-    if (props.runners.length === 0) {
-      runnerOverrides = { kind: 'not-applied', overrides: [] }
-    } else {
-      if (!runnerConfirmed.value) return null
-      const overrides: Array<{
-        runnerBase: Base
-        destination: '2' | '3' | '4'
-      }> = []
-      for (const runner of props.runners) {
-        const destination = runnerDestinations.value[runner.base]
-        if (destination === undefined || destination === '') return null
-        if (destination === 'hold') continue
-        if (!destinations(runner.base).includes(destination as '2' | '3' | '4'))
-          return null
-        overrides.push({
-          runnerBase: runner.base,
-          destination: destination as '2' | '3' | '4',
-        })
-      }
-      if (overrides.length === 0) return null
-      runnerOverrides = { kind: 'applied', overrides }
-    }
-    const ball: Record<string, string | null> = {}
-    for (const key of fields) {
-      if (modes.value[key] === 'unobserved') {
-        ball[key] = null
-        continue
-      }
-      if (modes.value[key] !== 'observed') return null
-      const value = values.value[key]
-      if (typeof value !== 'string' || !value || value.trim() !== value)
-        return null
-      if (
-        (key === 'typeKey' || key === 'strengthKey') &&
-        (loading.value ||
-          failed.value ||
-          !choices(key).some((i) => i.key === value))
-      )
-        return null
-      if (
-        (key === 'hitX' || key === 'hitY') &&
-        !/^(?:0(?:\.[0-9]+)?|1(?:\.0+)?|-0(?:\.0+)?)$/.test(value)
-      )
-        return null
-      if (
-        key === 'resolvedFielderId' &&
-        !props.fielders.some((p) => p.id === value)
-      )
-        return null
-      ball[key] = value
-    }
-    const common = {
-      battedBall: {
-        typeKey: ball.typeKey!,
-        strengthKey: ball.strengthKey!,
-        hitX: ball.hitX!,
-        hitY: ball.hitY!,
-        rawFielderPosition: ball.rawFielderPosition!,
-        resolvedFielderId: ball.resolvedFielderId!,
-      },
-      officialScoringPayload: {
-        kind: 'no-error',
-        errorCount: '0',
-        fielders: [] as [],
-      },
-      interferenceRuling: { kind: 'not-required' },
-      runnerAdvanceOverridesByRunner: runnerOverrides,
-      thirdOutTimingByRunner: {},
-    }
-    if (props.resultId === 'batting-result.batted-out')
-      return {
-        ...common,
-        resultId: props.resultId,
-        thirdOutObservation:
-          props.beforeOuts === '2'
-            ? {
-                kind: 'batter-before-first',
-                batter: { kind: 'official', player_id: props.batterId },
-              }
-            : { kind: 'none' },
-      } as BattedOutConfirmation
+    if (
+      (key === 'hitX' || key === 'hitY') &&
+      !/^(?:0(?:\.[0-9]+)?|1(?:\.0+)?|-0(?:\.0+)?)$/.test(value)
+    )
+      return null
+    if (
+      key === 'resolvedFielderId' &&
+      !props.fielders.some((p) => p.id === value)
+    )
+      return null
+    ball[key] = value
+  }
+  const common = {
+    battedBall: {
+      typeKey: ball.typeKey!,
+      strengthKey: ball.strengthKey!,
+      hitX: ball.hitX!,
+      hitY: ball.hitY!,
+      rawFielderPosition: ball.rawFielderPosition!,
+      resolvedFielderId: ball.resolvedFielderId!,
+    },
+    officialScoringPayload: {
+      kind: 'no-error',
+      errorCount: '0',
+      fielders: [] as [],
+    },
+    interferenceRuling: { kind: 'not-required' },
+    runnerAdvanceOverridesByRunner: runnerOverrides,
+    thirdOutTimingByRunner: {},
+  }
+  if (props.resultId === 'batting-result.batted-out')
     return {
       ...common,
       resultId: props.resultId,
-      thirdOutObservation: { kind: 'none' },
-    } as Confirmation
-  },
-)
+      thirdOutObservation:
+        props.beforeOuts === '2'
+          ? {
+              kind: 'batter-before-first',
+              batter: { kind: 'official', player_id: props.batterId },
+            }
+          : { kind: 'none' },
+    } as BattedOutConfirmation
+  return {
+    ...common,
+    resultId: props.resultId,
+    thirdOutObservation: { kind: 'none' },
+  } as Confirmation | BattedOtherConfirmation
+})
 watch(observation, (value) => emit('change', value), {
   deep: true,
   immediate: true,
@@ -319,7 +325,7 @@ async function previous() {
   >
     <legend>安打の実観測・裁定を確認</legend>
     <p>
-      無走者の単打・二塁打・三塁打・本塁打に対応します。未観測は各欄で明示してください。
+      打球と走者の実結果を確認してください。未観測の打球欄は明示してください。
     </p>
     <p v-if="failed" role="alert">
       打球語彙を取得できません。観測値の選択はできません。未観測とは別です。
