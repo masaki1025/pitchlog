@@ -27,3 +27,9 @@ created: 2026-11-08
 | 3 | root許可後の実走 | CSV owned終了後に共通lock/共有DSNunset/既TLS/source全byte固定/cleanupで1回。画面と別HTTP故障の到達/未到達を区別、失敗同条件反復なし |
 
 PGはrootの固定源受領・実行許可まで開始しない。候補完成は製品完成/正式受理と読み替えない。
+
+## 実装追随
+
+同じ終了版のCSVは成績CSV `/stats.csv?mode=official` を200・実API全表示値と全byte比較する。現製品のP3後毎球ZIPは88列producer未供給で409が正しいため、これを明示的な未完として維持し、fixtureで補完しない。26モードの集合全体だけ900秒・外側960秒へ有界化し、旧3球480秒/個々の操作30秒/製品writer30秒・RPC/SQL期限は不変更。旧動的import案はlintで拒否されたため廃止し、実画面GETから保存した同C2ヘッダを同origin/同gameのcursor GETへ再利用する。資格/ヘッダ原値は出力しない。
+
+step1候補: 同版最大2頁の全head/位置/実ID・件数を検査する試験helperを追加（6正負）。26モードも既追記/終了/再開/再追記/再終了を通す。実行待ちの集合時間だけ有界化し、製品期限は不変。型/対象lint成功、Playwright collect1成功。動的import案のlint拒否と、製品DTOのNode直接importのJSON attribute収集失敗は是正前として保持し、最終はC2実GET原本の再利用＋test-only比較にした。実PGは未実施。
