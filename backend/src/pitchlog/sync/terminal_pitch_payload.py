@@ -513,8 +513,8 @@ def read_lineup_pitch_payload(
                 require_current_rbi=require_current_rbi,
                 actual_scoring=getattr(response.value, "runner_score_effects", None),
                 actual_score_changed=(
-                    request.t1.before.state_fields.score
-                    != response.value.t1.after.state_fields.score
+                    request.t1.before.scoreboard.inning_scores
+                    != response.value.t1.after.scoreboard.inning_scores
                 ),
             )
         if (
