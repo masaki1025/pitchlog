@@ -75,8 +75,7 @@ BEGIN
  WHERE (c.tenant_id,c.game_id)=(tenant,p_game_id)
  ), bounded AS (
  SELECT x.*,c.watermark AS capsule_watermark,c.target_d1 AS capsule_target_d1,
- COALESCE(h.capsule_id=x.capsule_id
- AND x.internal_generation=s.recording_generation,false) AS current_head,
+ COALESCE(h.capsule_id=x.capsule_id,false) AS current_head,
  pg_catalog.to_jsonb(i) AS item_json
  FROM sync_fence.play_export_p3_snapshots x
  JOIN sync_fence.p3_projection_capsules c ON

@@ -276,3 +276,40 @@ def test_second_correction_origin_has_constant_depth_and_keeps_first_record():
     assert raw["originalInputOrigin"] == json.loads(normal)
     assert raw["originalInputOrigin"]["formatVersion"] == "play-export-input-origin-v1"
     assert json.loads(first)["capsuleId"] == str(key.capsule_id)
+
+
+def test_follower_newly_completed_plate_uses_saved_result_label_not_old_null():
+    """後続の打席完了が訂正で変わる場合も、旧nullを新表示へ補正する。"""
+    values, item, identity, _ = _inputs(target=False)
+    assert values[CSV_HEADERS["plays.csv"][61]] is None
+    item["payload"]["calculation"]["response"]["value"]["t1"][
+        "plateAppearanceEnded"
+    ] = True
+    item["digest"] = source_fingerprint(
+        {k: v for k, v in item.items() if k != "digest"}
+    )
+    identity = replace(identity, item_digest=item["digest"])
+    result = project_p3_direct(values, item, identity, target_d1=1, reference=None)
+    assert result[CSV_HEADERS["plays.csv"][61]] == values[CSV_HEADERS["plays.csv"][45]]
+    assert result[CSV_HEADERS["plays.csv"][62]] == values[CSV_HEADERS["plays.csv"][45]]
+
+
+def test_follower_fielder_uses_saved_physical_field_not_error_type_label():
+    """打席表示の野手引数は正規formatter同様raw_error_positionから取る。"""
+    values, item, identity, _ = _inputs(target=False)
+    # 値境界fixture: 同一観測/物理のまま新T1のPA完了だけが変わる。
+    for key in ("original_play_row", "play_row"):
+        item[key]["raw_error_position"] = 9
+    item["payload"]["calculation"]["response"]["value"]["t1"][
+        "plateAppearanceEnded"
+    ] = True
+    values[CSV_HEADERS["plays.csv"][45]] = "凡打死"
+    values[CSV_HEADERS["plays.csv"][48]] = "ゴロ"
+    values[CSV_HEADERS["plays.csv"][54]] = "表示用失策種類"
+    item["digest"] = source_fingerprint(
+        {k: v for k, v in item.items() if k != "digest"}
+    )
+    identity = replace(identity, item_digest=item["digest"])
+    result = project_p3_direct(values, item, identity, target_d1=1, reference=None)
+    assert result[CSV_HEADERS["plays.csv"][61]] == "9ゴロ"
+    assert result[CSV_HEADERS["plays.csv"][62]] == "9ゴロ"

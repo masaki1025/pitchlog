@@ -12,7 +12,7 @@ from uuid import UUID
 from pitchlog.exports.generated.coordinate_transform import plate_result_display
 from pitchlog.exports.p3_snapshot import P3SnapshotIdentity
 from pitchlog.exports.play_rows import CSV_HEADERS, PlayExportSupplyError
-from pitchlog.exports.record_projection import _native_before, _native_completion
+from pitchlog.exports.record_projection import _native_before, _native_completion, _text
 from pitchlog.sync.idempotency import source_fingerprint
 
 _HEADERS = CSV_HEADERS["plays.csv"]
@@ -346,17 +346,15 @@ def project_p3_direct(
     if target:
         assert reference is not None
         values[_HEADERS[45]] = reference.display_name
-        ended = payload["calculation"]["response"]["value"]["t1"][
-            "plateAppearanceEnded"
-        ]
-        _need(type(ended) is bool)
-        label = plate_result_display(
-            reference.display_name,
-            ended,
-            original_snapshot[_HEADERS[54]],
-            original_snapshot[_HEADERS[48]],
-        )
-        values[_HEADERS[61]] = label
-        values[_HEADERS[62]] = label
+    ended = payload["calculation"]["response"]["value"]["t1"]["plateAppearanceEnded"]
+    _need(type(ended) is bool)
+    label = plate_result_display(
+        values[_HEADERS[45]],
+        ended,
+        _text(new["raw_error_position"]),
+        original_snapshot[_HEADERS[48]],
+    )
+    values[_HEADERS[61]] = label
+    values[_HEADERS[62]] = label
     _need(set(values) == set(_HEADERS) - _AGGREGATED)
     return values

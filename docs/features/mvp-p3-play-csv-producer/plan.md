@@ -1,7 +1,7 @@
 ---
 feature: mvp-p3-play-csv-producer
 status: active
-branch: feature/mvp-p3-play-csv-producer-20261108
+branch: feature/mvp-p3-csv-qualification-fix-20261109
 承認: PO委任Codex主担当/root判断（2026-11-08 22:55 JST）
 計画レビュー周回: 1
 確定ゲート周回: 0
@@ -69,3 +69,9 @@ step2読取/coverage接合候補:
 root追加委任（2026-11-09、既step2技術scope）: `authz/play_export_p3_product.py:candidate_declarations()` を既factory同型で追加。新table1/5関数（writer3/read1/監査guard1）/3policy/27列ACL/36body。writer3/read1はapp EXECUTE、guardはowner-onlyでapp/actor/PUBLIC EXECUTE無し。全関数owner/search_path/REVOKEは固定し、未知ABI/構造/role/tenant式をmetadata pinで拒否する。監査guardはUPDATE/DELETEの全行とTRUNCATE全命令を無条件42501、`guard_trigger_sql()` 2本は正式関数適用後にrootが配置する。0050に未配置関数依存を混ぜない。
 
 列ACLは新17（INSERT16/SELECT17）と、既通常snapshot9のINSERTを保持してSELECTを足した完全row差分、vocab display_nameのSELECT新1だけ。既vocab key/category/disabled SELECT3は原典を検査して再描画しない。旧app policy/通常INSERT policyを削らずnormal owner SELECTを別policyで追加する。未使用の初期overlay read草案関数を削除し、唯一の新RR readerへ揃えた。factory/既生成源/reader/coverage/private scopeの76pure13.95秒/RuffTy0。実SQLcompile/通常50/実CSV/正式受理は依然root接合後の未達。
+
+## 非作者P1への限定後発（2026-11-09、root委任）
+
+旧25268f69/正式接合8316c665と実0050配置・EXPLAINの証拠は保持する。新枝で次の2点を修復する。唯一Sのgame全世代集合を維持し、writerの当該世代をLIMIT前に限定、game source_countとgeneration source_countを分離する。読取current headは世代ごとに照合し、有効な他世代headを捨てない。次にSAVEの動的列をcaller JSONの自己一致ではなく保存済capsule/T1/実参照へ全値束縛する。既表示原典の生成射影を再利用し野球計算を増やさない。元252の不足は未解消として保存し、両P1の独立再確認と実same-frame改変拒否/全取消は後続で行う。正式source/DDL/認可編集・PGはrootのみ。
+
+後発の具体範囲: 新CSV専有SQL生成器は既record_projectionの固定source範囲/閉AST（任意call/eval/execなし）、既completion model→SQL、既display model/生成formatterのsuffixを再利用する。動的列16を保存capsuleの状態/物理/refと比較し、72は実ART/event/cap/itemと通常originから正準文字列を構築する。既factory ABI pinだけはbeforeのgame/gen件数とafterのgen件数追加へ機械追随、storage/role/既数学pin不変。後続61/62は旧null保持せず既唯一formatterから新PA完了値を投影し、fielderは正規_native_plate_display同様に保存物理raw_error_positionを使う（旧P3の列54引数は誤りとして保持）。二世代とも有効なhead/同一世代二重head拒否、全表示分岐と未知AST拒否、元immutable列保持を検査する。これは候補修復であり、実same-frame JSON改変のDB拒否/全取消と正式受理は未実証。

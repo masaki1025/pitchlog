@@ -92,6 +92,8 @@ class _PriorState:
     prior_checkpoint_id: UUID
     prior_checkpoint_revision: int
     prior_checkpoint_digest: str
+    game_source_count: int
+    generation_source_count: int
     used: bool = False
 
 
@@ -125,6 +127,8 @@ def _prepare_p3_play_export_anchor(scope, event, writer) -> P3CsvPriorReceipt:
         "prior_checkpoint_revision",
         "prior_checkpoint_digest",
         "transaction_id",
+        "game_source_count",
+        "generation_source_count",
     }
     if len(rows) != 1 or set(rows[0]) != required:
         raise PlayExportWriterUnavailable("P3 CSV前版原本が一意でない")
@@ -143,6 +147,10 @@ def _prepare_p3_play_export_anchor(scope, event, writer) -> P3CsvPriorReceipt:
         or row["prior_checkpoint_id"] != context.previous_checkpoint_id
         or row["prior_checkpoint_revision"] != context.previous_checkpoint_revision
         or row["prior_checkpoint_digest"] != context.previous_checkpoint_digest
+        or type(row["game_source_count"]) is not int
+        or type(row["generation_source_count"]) is not int
+        or row["generation_source_count"] != context.watermark
+        or row["game_source_count"] < row["generation_source_count"]
         or row["transaction_id"] != context.transaction_id
     ):
         raise PlayExportWriterUnavailable("P3 CSV前版原本の閉形が不正")
@@ -158,6 +166,8 @@ def _prepare_p3_play_export_anchor(scope, event, writer) -> P3CsvPriorReceipt:
         row["prior_checkpoint_id"],
         row["prior_checkpoint_revision"],
         row["prior_checkpoint_digest"],
+        row["game_source_count"],
+        row["generation_source_count"],
     )
     return receipt
 
@@ -357,7 +367,9 @@ def _persist_p3_play_exports(scope, event, writer, receipt: P3CsvPriorReceipt) -
                 or expected.d1 != after + 1
                 or row["target_d1"] != context.target_d1
                 or row["watermark"] != context.watermark
-                or row["source_count"] != context.watermark
+                or type(row["generation_source_count"]) is not int
+                or row["generation_source_count"] != prior.generation_source_count
+                or row["source_count"] != prior.game_source_count
                 or row["original_snapshot_source_event_id"] != row["original_event_id"]
                 or row["original_snapshot_play_version"]
                 != row["original_play_row"]["version"]
