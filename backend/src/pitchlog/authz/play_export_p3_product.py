@@ -121,10 +121,7 @@ def storage_declaration() -> dict:
             {
                 "role": _OWNER,
                 "command": command,
-                "tenantPredicate": (
-                    "tenant_id = NULLIF(pg_catalog.current_setting("
-                    "'app.tenant_id',true),'')::uuid"
-                ),
+                "tenantPredicate": _PREDICATE,
             }
             for command in ("SELECT", "INSERT")
         ],
@@ -230,28 +227,6 @@ def writer_score_query(root: Path = _ROOT) -> str:
     )
     query, _ = generate_play_export_score_bundle(root, p3_selector_profile=profile)
     return _bound_generated_query(query)
-
-
-def overlay_read_query() -> str:
-    """同RRで既Sが選んだidentityにだけ現在capsule完成値を結ぶ候補。"""
-    return f"""SELECT x.* FROM {_TABLE} x
-JOIN sync_fence.p3_projection_heads h
- ON (h.tenant_id,h.game_id,h.internal_generation,h.capsule_id)
-   =(x.tenant_id,x.game_id,x.internal_generation,x.capsule_id)
-JOIN sync_fence.p3_projection_capsules c
- ON (c.tenant_id,c.game_id,c.internal_generation,c.id,
-     c.source_set_digest,c.stats_version_id)
-   =(x.tenant_id,x.game_id,x.internal_generation,x.capsule_id,
-     x.capsule_source_set_digest,x.capsule_stats_version_id)
-JOIN sync_fence.p3_projection_capsule_items i
- ON (i.tenant_id,i.game_id,i.internal_generation,i.capsule_id,i.d1,
-     i.effective_event_id,i.effective_play_row_id,i.item_digest)
-   =(x.tenant_id,x.game_id,x.internal_generation,x.capsule_id,x.d1,
-     x.effective_event_id,x.effective_play_row_id,x.item_digest)
-WHERE x.tenant_id=:tenant_id AND x.game_id=:game_id
- AND (x.internal_generation,x.d1) IN :qualified_source_positions
-ORDER BY x.internal_generation,x.d1;
-"""
 
 
 _WRITER_OUTPUTS = (
@@ -714,3 +689,282 @@ BEGIN
 END;
 $p3_csv_save$;
 """
+
+
+def candidate_guard_body() -> str:
+    """監査原本のUPDATE/DELETE/TRUNCATEをowner呼出しでも拒否する。"""
+    return """CREATE FUNCTION stats_api.protect_play_export_p3_snapshots()
+RETURNS trigger LANGUAGE plpgsql VOLATILE SECURITY DEFINER
+SET search_path=pg_catalog,pg_temp AS $p3_csv_guard$
+BEGIN
+ RAISE EXCEPTION 'P3 CSV snapshot immutable boundary rejected'
+ USING ERRCODE='42501';
+END;
+$p3_csv_guard$;
+"""
+
+
+def guard_trigger_sql() -> str:
+    """正式function配置後だけ追加する二つの全操作監査guard。"""
+    return """CREATE TRIGGER play_export_p3_immutable
+BEFORE UPDATE OR DELETE ON sync_fence.play_export_p3_snapshots
+FOR EACH ROW EXECUTE FUNCTION stats_api.protect_play_export_p3_snapshots();
+CREATE TRIGGER play_export_p3_no_truncate
+BEFORE TRUNCATE ON sync_fence.play_export_p3_snapshots
+FOR EACH STATEMENT EXECUTE FUNCTION stats_api.protect_play_export_p3_snapshots();
+"""
+
+
+# metadataの一斉書換えを自己期待にしない。更新には明示的な範囲reviewを要する。
+_STORAGE_PIN = "33011ae4c2ddecb8fc07f1edb77351fb270a03307c0d79eed23dd970bdc771f1"
+_ABI_PIN = "087535655575b139edb15ea736a80ea4e26f52c518d20917c7de7c5323ff48e6"
+_ROLE_PIN = "7687bd7df192afb51986210d05d156220112fa38fad079c45d1bfdf82cd4cfb9"
+_FUNCTION_ROLES = (
+    "PUBLIC",
+    "pitchlog_app",
+    "pitchlog_initial_actor",
+    "pitchlog_sync_binding_actor",
+    "pitchlog_rg1_control_actor",
+    "pitchlog_initial_fn_owner",
+    "pitchlog_sync_binding_fn_owner",
+)
+_PREDICATE = (
+    "tenant_id = NULLIF(pg_catalog.current_setting('app.tenant_id',true),'')::uuid"
+)
+
+
+def _fingerprint(value) -> str:
+    """認可metadataだけを固定し、野球計算や旧期待値を生成し直さない。"""
+    import hashlib
+
+    return hashlib.sha256(
+        json.dumps(value, sort_keys=True, separators=(",", ":")).encode()
+    ).hexdigest()
+
+
+def _function_candidates():
+    """既唯一generatorから閉じた5関数の原本だけを採る。"""
+    from pitchlog.authz.play_export_p3_read_product import candidate_read_body
+
+    return (
+        (
+            "read_writer_p3_play_export_prior",
+            candidate_prior_read_body(),
+            "volatile",
+            True,
+        ),
+        (
+            "read_writer_p3_play_export_page",
+            candidate_writer_read_body(),
+            "volatile",
+            True,
+        ),
+        (
+            "save_writer_p3_play_export_snapshot",
+            candidate_save_body(),
+            "volatile",
+            True,
+        ),
+        ("read_play_export_p3_snapshots", candidate_read_body(), "stable", True),
+        ("protect_play_export_p3_snapshots", candidate_guard_body(), "volatile", False),
+    )
+
+
+def _function_header(name, sql, volatility):
+    """署名/属性と関数外SQLを閉検査し、末尾ACLはこのfactoryだけが供給する。"""
+    import re
+
+    from pitchlog.authz.function_result_type import pg_result_type
+
+    pattern = (
+        r"CREATE FUNCTION stats_api\."
+        + re.escape(name)
+        + r"\((?P<args>[^()]*)\)\s+RETURNS (?P<returns>TABLE\([^()]*\)|trigger)"
+        + r"\s+LANGUAGE plpgsql (?P<volatility>VOLATILE|STABLE) SECURITY DEFINER\s+"
+        + r"SET search_path=pg_catalog,pg_temp AS (?P<tag>\$\w+\$)"
+        + r"[\s\S]*?(?P=tag);\n"
+    )
+    match = re.fullmatch(pattern, sql)
+    if match is None or match["volatility"].lower() != volatility:
+        raise ValueError("P3 CSV関数の未知署名/属性/関数外SQL")
+    arguments = []
+    for item in match["args"].split(",") if match["args"].strip() else ():
+        fields = item.split()
+        if len(fields) != 2 or re.fullmatch(r"p_[a-z0-9_]+", fields[0]) is None:
+            raise ValueError("P3 CSV関数の未知引数")
+        arguments.append(fields[1])
+    return ", ".join(arguments), pg_result_type(" ".join(match["returns"].split()))
+
+
+def candidate_declarations() -> tuple[dict, dict[str, str]]:
+    """正式rootへ5関数/17列RLSと既読取依存だけの差分を渡す。"""
+    structure = storage_declaration()
+    if _fingerprint(structure) != _STORAGE_PIN:
+        raise ValueError("P3 CSV原本構造の固定metadataが不一致")
+    if _fingerprint(_FUNCTION_ROLES) != _ROLE_PIN:
+        raise ValueError("P3 CSV関数REVOKE roleの閉集合が不一致")
+    candidates = _function_candidates()
+    headers = [
+        (name, *_function_header(name, sql, volatility), volatility, app)
+        for name, sql, volatility, app in candidates
+    ]
+    if _fingerprint(headers) != _ABI_PIN:
+        raise ValueError("P3 CSV関数の固定5署名が不一致")
+    declarations = {
+        key: []
+        for key in (
+            "tables",
+            "functions",
+            "policies",
+            "acl_expectations",
+            "column_acl_expectations",
+        )
+    }
+    bodies = {}
+    for (name, sql, volatility, app), (_, args, returns, _, _) in zip(
+        candidates, headers, strict=True
+    ):
+        identity = f"FUNCTION:stats_api:{name}({args})"
+        function = f"stats_api.{name}({args})"
+        granted = ["pitchlog_app"] if app else []
+        revoked = [role for role in _FUNCTION_ROLES if role not in granted]
+        declarations["functions"].append(
+            {
+                "function_id": identity,
+                "schema_name": "stats_api",
+                "function_name": name,
+                "identity_args": args,
+                "function_kind": "definer",
+                "owner_role_id": _OWNER,
+                "language": "plpgsql",
+                "returns": returns,
+                "security_mode": "definer",
+                "volatility": volatility,
+                "search_path": ["pg_catalog", "pg_temp"],
+                "acl_expectations": [
+                    {"grantee": role, "privilege": "EXECUTE", "grantable": False}
+                    for role in granted
+                ],
+                "revoked_acl_expectations": [
+                    {"grantee": role, "privilege": "EXECUTE", "grantable": False}
+                    for role in revoked
+                ],
+            }
+        )
+        bodies["function|" + identity] = (
+            sql
+            + f"ALTER FUNCTION {function} OWNER TO {_OWNER};\n"
+            + f"REVOKE ALL ON FUNCTION {function} FROM {','.join(_FUNCTION_ROLES)};\n"
+            + (
+                f"GRANT EXECUTE ON FUNCTION {function} TO pitchlog_app;\n"
+                if app
+                else ""
+            )
+        )
+    table = "play_export_p3_snapshots"
+    declarations["tables"].append(
+        {
+            "table_id": table,
+            "schema_name": "sync_fence",
+            "enable_row_level_security": True,
+            "force_row_level_security": True,
+        }
+    )
+    bodies["table|" + table] = (
+        f"ALTER TABLE sync_fence.{table} ENABLE ROW LEVEL SECURITY;\n"
+        f"ALTER TABLE sync_fence.{table} FORCE ROW LEVEL SECURITY;\n"
+        f"REVOKE ALL ON TABLE sync_fence.{table} FROM "
+        + ",".join((*_FUNCTION_ROLES, _OWNER))
+        + ";\n"
+    )
+
+    def column(schema, relation, name, privileges):
+        identifier = f"COLUMN-ACL:{schema}:{relation}:{name}:{_OWNER}"
+        declarations["column_acl_expectations"].append(
+            {
+                "expectation_id": identifier,
+                "object_kind": "column",
+                "object_schema": schema,
+                "object_id": relation,
+                "column_id": name,
+                "grantee_role_id": _OWNER,
+                "privilege_ids": privileges,
+                "grant_option": False,
+            }
+        )
+        bodies["column_acl_expectation|" + identifier] = (
+            "GRANT "
+            + ",".join(f"{privilege} ({name})" for privilege in privileges)
+            + f" ON {schema}.{relation} TO {_OWNER};\n"
+        )
+
+    for name, _ in _COLUMNS:
+        column(
+            "sync_fence",
+            table,
+            name,
+            ["SELECT"] if name == "captured_at" else ["SELECT", "INSERT"],
+        )
+    # 既INSERT9を保持した完全row差分。新SELECTだけに置換して既writerを壊さない。
+    for name in (
+        "tenant_id",
+        "game_id",
+        "play_row_id",
+        "plays_csv_json",
+        "full_innings_json",
+        "source_event_id",
+        "play_version",
+        "recording_generation",
+        "event_sequence",
+    ):
+        column("public", "play_export_snapshots", name, ["SELECT", "INSERT"])
+    # key/category/disabled SELECTは既正式原典に存在。新依存は表示名1列だけ。
+    column("public", "admin_vocabularies", "display_name", ["SELECT"])
+    for relation, schema, name, command in (
+        (table, "sync_fence", "play_export_p3_snapshots_select", "SELECT"),
+        (table, "sync_fence", "play_export_p3_snapshots_insert", "INSERT"),
+        (
+            "play_export_snapshots",
+            "public",
+            "play_export_snapshots_p3_select",
+            "SELECT",
+        ),
+    ):
+        identity = f"POLICY:{relation}:{name}"
+        using, check = (_PREDICATE, None) if command == "SELECT" else (None, _PREDICATE)
+        declarations["policies"].append(
+            {
+                "policy_id": identity,
+                "table_id": relation,
+                "profile": "function_only",
+                "policy_name": name,
+                "command": command,
+                "policy_mode": "permissive",
+                "role_ids": [_OWNER],
+                "using_predicate_id": None,
+                "using_column": None,
+                "using_expression": using,
+                "with_check_predicate_id": None,
+                "with_check_column": None,
+                "with_check_expression": check,
+            }
+        )
+        bodies["policy|" + identity] = (
+            f"CREATE POLICY {name} ON {schema}.{relation} "
+            f"AS PERMISSIVE FOR {command} TO {_OWNER}"
+            + (f" USING ({using})" if using else "")
+            + (f" WITH CHECK ({check})" if check else "")
+            + ";\n"
+        )
+    if tuple(
+        len(declarations[key])
+        for key in (
+            "tables",
+            "functions",
+            "policies",
+            "acl_expectations",
+            "column_acl_expectations",
+        )
+    ) != (1, 5, 3, 0, 27):
+        raise ValueError("P3 CSV宣言の閉集合が不一致")
+    return declarations, bodies
