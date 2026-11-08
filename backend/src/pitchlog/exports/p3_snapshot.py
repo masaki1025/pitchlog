@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
+from datetime import datetime
 from types import MappingProxyType
 from typing import Any, Mapping, cast
 from uuid import UUID
@@ -28,7 +29,14 @@ _IDENTITY_FIELDS = (
     "capsule_stats_version_id",
 )
 _ROW_FIELDS = frozenset(
-    (*_IDENTITY_FIELDS, "plays_csv_json", "full_innings_json", "runner_rows_json")
+    (
+        *_IDENTITY_FIELDS,
+        "plays_csv_json",
+        "full_innings_json",
+        "runner_rows_json",
+        "reference_json",
+        "captured_at",
+    )
 )
 
 
@@ -100,16 +108,17 @@ def require_p3_snapshot(
     for field in (
         "recording_generation",
         "d1",
-        "d2",
         "slot_version",
         "play_row_version",
     ):
         _need(_positive(getattr(source, field)))
+    _need(type(source.d2) is int and -(2**63) <= source.d2 < 2**63)
     for field in ("source_event_id", "play_row_id", "base_event_id"):
         _need(type(getattr(source, field)) is UUID)
     _need(
         type(source.source_fingerprint) is str
-        and _SHA.fullmatch(source.source_fingerprint) is not None
+        and re.fullmatch(r"(?:wire-v1:)?[a-f0-9]{64}", source.source_fingerprint)
+        is not None
     )
     _need(type(row) is dict and set(row) == _ROW_FIELDS)
     row = cast(dict[str, Any], row)
@@ -132,6 +141,11 @@ def require_p3_snapshot(
             expected.play_row_version,
         )
     )
+    _need(
+        type(row["captured_at"]) is datetime
+        and row["captured_at"].utcoffset() is not None
+    )
+    _need(row["reference_json"] is None or type(row["reference_json"]) is dict)
     values = row["plays_csv_json"]
     _need(type(values) is dict and set(values) == _COLUMNS)
     values = cast(dict[str, str | None], values)
@@ -166,7 +180,10 @@ def require_p3_snapshot_page(
         _need(value.completion_state in {"current_open", "confirmed_ended"})
         _need(
             type(value.transaction_id) is str
-            and re.fullmatch(r"[1-9][0-9]*", value.transaction_id) is not None
+            and re.fullmatch(
+                r"[0-9]+:[0-9]+:(?:[0-9]+(?:,[0-9]+)*)?", value.transaction_id
+            )
+            is not None
         )
     _need(version == expected_version)
     _need(type(rows) is tuple and type(sources) is tuple and type(identities) is tuple)

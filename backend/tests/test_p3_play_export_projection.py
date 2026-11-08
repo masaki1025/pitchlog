@@ -260,3 +260,19 @@ def test_input_origin_unknown_shape_is_not_relabelled(mutation):
     values[CSV_HEADERS["plays.csv"][72]] = json.dumps(origin)
     with pytest.raises(PlayExportSupplyError):
         project_p3_direct(values, item, key, target_d1=1, reference=ref)
+
+
+def test_second_correction_origin_has_constant_depth_and_keeps_first_record():
+    """二度目同値followersでも旧監査を再帰JSONへ複写しない。"""
+    from pitchlog.exports.p3_projection import p3_input_origin
+
+    values, item, key, _ = _inputs()
+    normal = values[CSV_HEADERS["plays.csv"][72]]
+    first = p3_input_origin(normal, item["payload"], key, target=True)
+    second_key = replace(key, capsule_id=UUID(int=7777))
+    second = p3_input_origin(first, item["payload"], second_key, target=True)
+    raw = json.loads(second)
+    assert raw["capsuleId"] == str(second_key.capsule_id)
+    assert raw["originalInputOrigin"] == json.loads(normal)
+    assert raw["originalInputOrigin"]["formatVersion"] == "play-export-input-origin-v1"
+    assert json.loads(first)["capsuleId"] == str(key.capsule_id)

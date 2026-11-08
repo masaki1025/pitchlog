@@ -184,6 +184,9 @@ def p3_input_origin(
             parse_constant=lambda _: (_ for _ in ()).throw(ValueError()),
         )
         _origin_value(previous)
+        # 過去P3版自体はappend-only監査に残し、新行JSONは通常originまでに閉じる。
+        while previous["formatVersion"] == "play-export-input-origin-p3-v1":
+            previous = previous["originalInputOrigin"]
         calculation = payload["calculation"]
         artifact = calculation["artifactSha256"]
         _need(
@@ -252,7 +255,7 @@ def project_p3_direct(
         ("effective_play_row_id", str(expected.effective_play_row_id)),
     ):
         _need(type(item[key]) is type(wanted) and item[key] == wanted)
-    _need(type(item["d2"]) is int and item["d2"] > 0)
+    _need(type(item["d2"]) is int and -(2**63) <= item["d2"] < 2**63)
     old, new = item["original_play_row"], item["play_row"]
     before_payload, payload = item["original_payload"], item["payload"]
     _need(all(type(value) is dict for value in (old, new, before_payload, payload)))

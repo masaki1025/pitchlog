@@ -1,6 +1,7 @@
 """P3 CSVの同版値境界。DB資格/producer成功を模倣しない。"""
 
 from dataclasses import asdict, replace
+from datetime import datetime, timezone
 from operator import setitem
 from typing import cast
 from uuid import UUID
@@ -47,8 +48,10 @@ def _fixture(d1=1):
         "plays_csv_json": {column: None for column in CSV_HEADERS["plays.csv"]},
         "full_innings_json": [],
         "runner_rows_json": [],
+        "reference_json": None,
+        "captured_at": datetime(2026, 11, 8, tzinfo=timezone.utc),
     }
-    version = SourceVersion(UUID(int=5), 2, "d" * 64, 2, "current_open", "123")
+    version = SourceVersion(UUID(int=5), 2, "d" * 64, 2, "current_open", "123:124:")
     return key, source, row, version
 
 
@@ -149,7 +152,7 @@ def test_page_requires_same_rr_source_set_and_one_to_one_supply(mutation):
     if mutation == "old-version":
         expected = replace(version, revision=1)
     elif mutation == "old-transaction":
-        expected = replace(version, transaction_id="124")
+        expected = replace(version, transaction_id="123:125:")
     elif mutation == "partial-page":
         rows = ()
     elif mutation == "extra-row":
@@ -190,3 +193,17 @@ def test_all_page_values_keep_source_order_without_cross_game_collection():
         require_p3_snapshot_page(
             (rb, ra), (sb, sa), (b, a), version=v, expected_version=v
         )
+
+
+def test_shared_source_codec_snapshot_and_wire_prefix_are_preserved():
+    """SourceVersionの値はxidではなく実pg_snapshot形式である。"""
+    key, source, row, version = _fixture()
+    source = replace(source, source_fingerprint="wire-v1:" + "c" * 64, d2=-1000)
+    assert (
+        len(
+            require_p3_snapshot_page(
+                (row,), (source,), (key,), version=version, expected_version=version
+            )
+        )
+        == 1
+    )
