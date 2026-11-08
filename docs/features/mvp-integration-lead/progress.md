@@ -2,6 +2,13 @@
 
 ## 2026-11-08：走者を含む17操作の実画面・保存・再送・全取消検査を完走
 
+### 14:15〜15:00 JSTの方式評価（PO指定）
+
+開始基線は主候補1bfad343、run16の17操作/再送/reload/越境/DB全取消成功、閲覧通常配置成功まで。これら開始前の成果を45分の新成果に加算しない。15:00時点で新たな利用者操作/一次実証/解消した接続障害/残障害を比較し、実装と接続・検査と手続きの経過を区別する。利用制限停止時間や未完了runを成功へ数えない。評価時刻は作業停止ではない。
+
+進行中: 凡打死の唯一T1→v3保存/無走者第3アウト、P3正常49の実26件訂正/再送/次球、閲覧の現行実HTTP/ブラウザ。rootは既P3計画の画面25件境界をページ化する専用候補d711972aを実装し、対象D1=1/25/26・欠落/混在版/認証変更の対向を含む5suite23passed/型/lint0。非作者レビューと実画面26件は未了。個々の部品承認待ちを追加せず、固定後レビューをまとめる。
+
+
 - **利用者が新たに通せる実経路**: 固定 `bae097fcacd9e61ad6e15a2441b23d3e1c267a2e`・同じ隔離環境で、画面新規作成→開始→単打/盗塁/暴投/捕逸/投手牽制/三振併殺/ボーク/捕手牽制を含む17操作→同D5再送200/重複→reload→別tenant404を完走。2回表0out・away1/home0まで。同じ試合の9回終了や全MVP成立とは区別する。
 - **実証**: run16-full-failure-only、pytest1passed384.90秒・外側385.82秒、正常/故障Playwright2case成功。末尾の実DBで全17PlayRow41列/全物理走者・events/slots/ledger各17、本人盗塁credit1・別打者への誤加算なし、current T5 source_count17/current_open・既成績sumを照合。別の画面新規作成試合に対するT4故障500はevent/play/runner/slot/fact/CSV投影残存なし・全T5版before/after一致。normal/faultの独立READ ONLY照合は双方verified。
 - **固定証拠**: `~/.cache/pitchlog/runner-operations-owned-20261107/run16-full-failure-only/manifest.json` SHA `0f5186424569ad92491b854189fcfe3d5be273d7bd1fcef52599ec6bcf0e6ee5`、REPORT SHA `736df0fc8461d8b1a2d1c097457ade14d42e25c9ecd50bc9842784559aa5d8ae`。rootは列挙11artifact実SHA・source3358前後全byte同一・rc0を独立読取で再照合。共有DSN入口unset、owned cleanupとlock解放は担当確認。実機・運用TLS・CSV88列内容の直接全照合・正式統合は未実施。
