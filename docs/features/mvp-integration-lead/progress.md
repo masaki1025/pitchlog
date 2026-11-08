@@ -1,5 +1,39 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 再開入口：他LLM主担当・Codexレビューへの引継ぎ（2026-11-09 02:16 JST）
+
+**最新PO指示**: 利用枠の残量を踏まえ、他LLMを実装/接続/統合主担当、Codexを完成差分のレビュー中心へ移管する。合意済み全MVP・既承認/委任・安全境界は維持。引継ぎ保存後にCodex作業を終了しGoalを一時停止する。MVPを完了扱いにしない。旧計画の全面作り直し/既承認再取得は不要。
+
+### 固定候補と採否（Git現物確認済み）
+
+| 用途 | WT（pitchlog-worktrees配下）/branch | 固定HEAD・状態 |
+|---|---|---|
+| 現行統合候補・正常0049/唯一859 | `feature-mvp-batted-operations-integration-20261108` / `feature/mvp-batted-operations-integration-20261108` | `97a6497398c4e3382fdf99cd7c8cff4f7813548f` clean/push済。妨害reader接合3bb+閉GET診断fb0込み。全MVP/実GET解消未証明 |
+| **最初にレビュー・実接続するP3有限権限** | `feature-mvp-p3-write-connection-20261109` / `feature/mvp-p3-write-connection-20261109` | `c327d7ee` clean/push済。main97へsource587を通常merge＋root activation/公式生成assets。38宣言/40本文差分・DDL1195文・専用8pure/対象Ruff成功。root追加差分は**非作者レビュー/実PG未** |
+| P3権限の作者源 | `feature-mvp-p3-finite-play-insert-20261109` / 同名feature枝 | `587eac5247a0afa4ad4bde38747fedea1c942fa2` clean。非作者Gameのsource範囲P0/P1無し、8pure成功。root追加c327の受理へ拡張しない |
+| 訂正CSV共有0050基盤 | `feature-mvp-p3-csv-shared-20261109` / 同名feature枝 | `d5e638317eee673b0bbc9df74eb0545da4316455` clean/push済。正常0050実配置/再開とfnowner3query EXPLAIN成功。旧P1二点で統合留保、次行の後発を接合する必要 |
+| **CSV P1後発の作者源** | `feature-mvp-p3-csv-qualification-fix-20261109` / 同名feature枝 | `3952d2c084087bb3364ffa92887212de11e9369f` clean/push済。作者113pure、非作者147pass/旧body比較1fail。旧2P1はsource内で是正、新P0/P1未検出、実PG/正式配備未 |
+| 閲覧負荷の閉診断 | WT `test-mvp-viewer-load-failure-probe-20261109` / branch **`feature/mvp-viewer-load-failure-probe-20261109`**（rename済み） | `66ad2f10` clean。HTTP状態/相対時刻を失敗時だけ採取。PG未実施。旧test/*枝名を編集先にしない |
+
+`git -C <絶対WT> rev-parse HEAD` と `status --short` で新たな他担当変更を最初に照合する。main/developへ直接commit/pushしない。root c327と3952はPR未作成、通常統合は未実施。
+
+### 次に実行する順（実装主担当向け）
+
+1. **c327のroot追加差分を非作者レビュー→正常0049で実P3保存**。作者源587の非作者REPORTは `~/.cache/pitchlog/p3-finite-play-insert-independent-20261109/REPORT.md`（SHA bef67fd633914c787a7ead4f8195190d91ac52734c56cbebbc97837a899cf127）。root差分はmerge2244ddf1→c327。fnowner INSERT0/RLS無しが実persist body214で拒否された根因。新37列のみINSERT、hidden_at/legacy_row_identifier/import_batch_id/migration_unverifiedへINSERTを与えず厳密NULL/false＋DBdefault。既二段stampの全41列/同xid/nonce/admission消費を保つ。未admission/別TX/越境/保護4改変拒否を実PG対向する。**HTTP200+prefix長だけを訂正成功にしない**。既AcceptedChangeResponse・元D5/target/version/confirmed_content、実変更GET・ChangeConfirmationResponse・同D5再掲、対象game/d5のcapsule/head/新play/nativeを照合する。準備は `~/.cache/pitchlog/p3-finite-play-insert-author-20261109/step2-preparation.md`。短caseから26pagedへ通し、訂正→追加→終了/再開/追加/再終了を同版で実測する。
+2. **3952の後発をd5eの共有0050へ接合**。非作者REPORT `~/.cache/pitchlog/p3-csv-qualification-independent-20261109/REPORT.md`（SHA cb54cf32c689d5eedebb1ee79c319d18e7bc17bedb6f759ab01c16c0c0570191）。全世代Sを維持し当該世代をLIMIT前に束縛、世代毎head・game/gen件数を分離。動的16列は保存T1/T2/item/cap/ART/旧origin/正式表示原典へSQL全値照合、自由JSON+自由digestの自己証明無し。fielderは保存raw_error_positionの既_textが原典。**ABI差分**: prior戻りgame/gen count2列、writer page戻りgen count1列、writer_source_queryにrecording_generation bigint bind追加。保存表/role不変更。root公式helperから4変更bodyと属性を再導出し、実同frameで動的列を99等へ改変→拒否/全取消を確認。旧body比較1failはbase→headでtest/generator/canonical/source依存byte不変の留保、検査を緩めて隠さず新正式描画と比較する。**上流P3本体のgame-wide source_count=当該watermarkという別制約はまだ残る**。複数世代P3完成をCSV源の是正で代替しない。
+3. c327とCSV共有のfirst_ball_product接合では双方のactivationを保持し、有限37列とCSVの別9列権限追補・5関数を一方で上書きしない。実正式値/7.7・seal/corpus/必須CI/通常PR統合は候補固定後にまとめる。自動チェックや受理文字列だけで人間確認/正式提供を成立させない。
+4. **RG1 Unix接続の不安定性**を同時に切り分ける。固定main97の妨害再取得再走は新規create前にbusiness Unix `/business-socket` peer接続2秒budgetのConnectionTimeoutで停止。TCP admin成功は同Unix資格の証明にならず、43,123msはworker相対時刻。adapter/fixtureconfigはd474→97で差分0。cache-only閉観測packet `~/.cache/pitchlog/rg1-business-connect-probe-20261109/PACKET.md`（SHA b976381591e0dccac0de42065ee3c5b0d7dccdc8ff1d07ab4c4a44db0df63617）、5pure、PG未。元接続/戻値/例外を1回・同identityで維持、失敗時だけduration/既budget/role別state/wait集計/socket属性を記録。DSN/資格/原SQL/原contextは出さず、期限を盲目的に延長しない。修復後にmain同版の妨害5game/10playと閲覧3game×11contextを再実証する。
+
+### 実施済みと未了を混同しない
+
+- 既限定59play/九回/同終了版27項目・成績2CSV/88列ZIPは製品6c52/試験0b699の証拠。main97/P3/全MVPの成功へ合算しない。
+- 妨害はd474でPOST200/実play1まで。読取修復はmain97へ接合済みだが、同版再走がcreate RG1故障で止まったため実GET解消は未確認。
+- CSV0050基盤の実配置/同版再開1pass28.43秒と実fnowner3query EXPLAIN1pass26.03秒はrootcache `p3-csv-current0050-owned-20261109/`。P3後CSV成功ではない。
+- 全操作/TB/終了後訂正/再終了整合、全操作断中・再起動・結果不明・担当交代、保存後10秒閲覧/同時3試合負荷、正式統合、本人実機/信頼HTTPS/運用復旧は残る。TB-P1〜P3は既decision-sheetに選択肢を固定しPOへ提示済み・未回答、推奨を採用しない。
+- 実PG/ブラウザはowned隔離、外部TEST DSNをunsetし共通lockをfixture生成〜cleanupまで保持。閲覧負荷testは内部lockなので外側flockを重ねない。frontend依存はproject内へfrozen/offline導入（外部node_modules symlinkはpnpmが拒否）。共有DB/公開/有料/新秘密/本人署名は委任外。正本・契約生成物は公式helperで導出、stashに触れない。
+
+Codex配下の担当は固定成果の保存・指定レビューを完了後待機。最後のowned runは全てcleanup済み、02:15のlocal Docker psは0件。引受通知と受諾は別に記録する。新主担当の受諾はまだ未確認であり、送付だけを引継ぎ受諾済みとはしない。
+
 ## 2026-11-09 01:58 JST：PO指定で02:00より前に評価
 
 **評価**: 実装・接続をまとめてから直接保証を検査する方針は継続が妥当。正式資産/CI待ちの反復を避けて実保存の欠落を発見できたが、MVP完成・全操作1試合の到達とは評価しない。今回の主要停止はハーネス待ちでなく、実経路の未接続/権限不足/接続不安定。短縮率・完成日を根拠なく算出しない。
