@@ -1,5 +1,6 @@
 /** 妨害 INT01〜07 の実入力を、真正UI作成試合で記録・再掲・再読込する。 */
-import { expect, test } from '@playwright/test'
+import { expect, test, type Page } from '@playwright/test'
+import type { C2ReadBridge } from './BattedBatchC2.e2e-browser'
 import {
   baseURL,
   createAndStartRealGame,
@@ -118,6 +119,20 @@ const scenarios: readonly Scenario[] = [
   },
 ]
 
+/** CSPを変更せず同originの固定試験moduleから実client C2 readを使う。 */
+async function installC2ReadBridge(page: Page) {
+  if (!baseURL) throw new Error('隔離HTTPSのbase URLがない')
+  await page.addScriptTag({
+    type: 'module',
+    url: new URL('/src/screens/BattedBatchC2.e2e-browser.ts', baseURL).href,
+  })
+  await page.waitForFunction(
+    () =>
+      typeof (window as unknown as { __battedC2ReadBridge?: C2ReadBridge })
+        .__battedC2ReadBridge?.repeated === 'function',
+  )
+}
+
 test('妨害7分岐を実画面から保存し原本再掲とreloadを確認する', async ({
   browser,
 }) => {
@@ -175,6 +190,7 @@ test('妨害7分岐を実画面から保存し原本再掲とreloadを確認す�
         page,
         scenario.name,
       )
+      await installC2ReadBridge(page)
       console.log(
         'PITCHLOG_INTERFERENCE_PROGRESS=' +
           JSON.stringify({ gameId: game.id, stage: 'created', plays: 0 }),
@@ -199,14 +215,13 @@ test('妨害7分岐を実画面から保存し原本再掲とreloadを確認す�
           ).__replayInterferenceOriginal(),
         )
         expect(duplicate).toEqual({ status: 200, a5: '重複' })
-        const fresh = await page.request.get(
-          new URL(
-            `/api/games/${game.id}/started?projection=play-prefix-v3`,
-            baseURL,
-          ).href,
+        const restored = await page.evaluate(
+          (id) =>
+            (
+              window as unknown as { __battedC2ReadBridge: C2ReadBridge }
+            ).__battedC2ReadBridge.repeated(id),
+          game.id,
         )
-        expect(fresh.status()).toBe(200)
-        const restored = await fresh.json()
         expect(restored.prefix_ref).toEqual(head.prefix_ref)
         expect(restored.after).toEqual(head.after)
         expect(restored.page.items).toEqual(head.page.items)

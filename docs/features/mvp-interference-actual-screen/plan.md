@@ -34,3 +34,5 @@ created: 2026-11-08
 ## ステップ2 固定候補
 
 真正 UI の五試合で七分岐と三塁走者の本盗企図を入力する単一 E2E を追加した。各入力は実 POST の受理、同元本文の重複、真正 GET、reload を照合する。DB wrapper は UI より先に固定 SELECT を EXPLAIN し、保存 V7 から既 mapper を用いた全41列・走者行、および唯一 T5 評価の現行 source/facts を全値比較する。INT02 本盗企図の盗塁指標 unavailable も閉検査する。既隔離 TLS 資材と root 結合同版の供給まで実 PG/ブラウザは未実行であり、実画面成功・保存成功は未主張。
+
+root の実走前静読で、旧943e の再送後 `page.request.get` は C2 ExpectedTenant/Challenge を供給せず404になると確定。旧候補は未実行・未採用として保全する。main `e7600e05bcfd13d758c99d96e9fed7bef985ec37` をこの専用枝へ通常mergeし、既 `BattedBatchC2.e2e-browser.ts` の同origin実client `repeated(id)` を使用する。新しいヘッダー生成/例外許可は加えず、prefix/after/page全値比較を保持する。共有bridgeは編集しない。
