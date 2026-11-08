@@ -33,3 +33,5 @@ PGはrootの固定源受領・実行許可まで開始しない。候補完成�
 同じ終了版のCSVは成績CSV `/stats.csv?mode=official` を200・実API全表示値と全byte比較する。現製品のP3後毎球ZIPは88列producer未供給で409が正しいため、これを明示的な未完として維持し、fixtureで補完しない。26モードの集合全体だけ900秒・外側960秒へ有界化し、旧3球480秒/個々の操作30秒/製品writer30秒・RPC/SQL期限は不変更。旧動的import案はlintで拒否されたため廃止し、実画面GETから保存した同C2ヘッダを同origin/同gameのcursor GETへ再利用する。資格/ヘッダ原値は出力しない。
 
 step1候補: 同版最大2頁の全head/位置/実ID・件数を検査する試験helperを追加（6正負）。26モードも既追記/終了/再開/再追記/再終了を通す。実行待ちの集合時間だけ有界化し、製品期限は不変。型/対象lint成功、Playwright collect1成功。動的import案のlint拒否と、製品DTOのNode直接importのJSON attribute収集失敗は是正前として保持し、最終はC2実GET原本の再利用＋test-only比較にした。実PGは未実施。
+
+step2候補: 正常49の7固定SQLをUI前EXPLAINへ接合し、旧3球試験の5版/受理slot/旧新版K/終了receiptの期待を26→27→28へ同じ規則で追随した。実成績APIとdownload CSVの全byteを照合し、hashだけ同じ別内容・暫定/途中頁を4対向で拒否。finallyの独立readonly件数監査は失敗時も記録し、元UI失敗を成功へ変えない。BE純4passed5.32秒/collect1、全backendTy/対象Ruff0、FE6passed/型・対象lint0。Ty初回は環境未検出で依存不解決、環境供給後のOptional/LiteralString3診断を是正した。製品src/正式asset/既HTTP26故障caseは基点6c52と全byte同一、実PGはroot最終確認待ち。
