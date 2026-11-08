@@ -21,3 +21,7 @@ branch: fix/mvp-runtime-contract-baseline-20261108
 ## ステップ1検査
 
 PO委任rootの既実装追随: stageAの資産/生成モジュール28件は変更しない。登録内のstageA28をIDで選択し、P3 9件/後尾22件/全59件の順序とfunction対を固定期待で全照合する。旧語彙/RG1/StageA/Statsの入力出力型/capability/DDLとの区別/パラメータ検査を残す。対象pytest 1passed2.55秒、正式7.7受理/全件CIの成功とはしない。
+
+## ステップ2の受理候補（2026-11-08 21:17 JST）
+
+_BindingAuthority._callの既実装はconfirmed_rejectionがregister/register_d1less/publishの有限3値。allowlist署名と正例fixtureだけに欠けていたregister_d1lessを追随し、allowed_api_ids・symbol集合・条件・製品sourceは不変更。backend repository contract全74passed3.74秒。この候補では正式contract_revision/受理record/snapshot/corpusを未導出のままとし、最終MVP固定候補への1回の7.7再導出で確定させる。frozen資産の現行正式受理済みとは主張せず、独立レビュー/正式値導出まで通常統合しない。

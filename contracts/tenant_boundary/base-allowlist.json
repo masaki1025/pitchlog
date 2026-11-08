@@ -39063,7 +39063,7 @@
     },
     {
       "symbol": "pitchlog.sync.control_provider.binding_control._BindingAuthority._call",
-      "signature": "_call(self, which: str, statement: LiteralString, params: tuple[object, ...], *, write: bool=False, confirmed_rejection: Literal['register', 'publish'] | None=None) -> tuple[Any, ...]",
+      "signature": "_call(self, which: str, statement: LiteralString, params: tuple[object, ...], *, write: bool=False, confirmed_rejection: Literal['register', 'register_d1less', 'publish'] | None=None) -> tuple[Any, ...]",
       "allowed_api_ids": [
         "PSYCOPG_ASYNC_CONNECTION_EXECUTE",
         "PSYCOPG_ASYNC_CURSOR_EXECUTE",

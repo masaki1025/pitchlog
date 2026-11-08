@@ -17,7 +17,7 @@ class _BindingAuthority:
         params: tuple[object, ...],
         *,
         write: bool = False,
-        confirmed_rejection: Literal["register", "publish"] | None = None,
+        confirmed_rejection: Literal["register", "register_d1less", "publish"] | None = None,
     ) -> tuple[Any, ...]:
         """固定文の実行だけを表す。"""
         del which, params, write, confirmed_rejection
