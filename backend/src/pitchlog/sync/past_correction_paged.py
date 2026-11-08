@@ -243,7 +243,8 @@ def _page_seal(previous: str, page: PreparedP3Page) -> str:
             type(item) is not dict
             or type(source) is not P3StatsSourceCandidate
             or item.get("d1") != source.d1
-            or item.get("digest") != source_fingerprint(
+            or item.get("digest")
+            != source_fingerprint(
                 {key: value for key, value in item.items() if key != "digest"}
             )
         ):
@@ -258,6 +259,17 @@ def _page_seal(previous: str, page: PreparedP3Page) -> str:
             }
         )
     return rolling
+
+
+def _assert_page_binding(
+    scope: _TenantTransaction,
+    event: SyncEvent,
+    bound_source: object,
+    expected_target: tuple[UUID, int, int, str],
+) -> None:
+    """有界処理の前後で同じ真正受付と対象を再確認し、失効を停止する。"""
+    if _bound_target(scope, event, bound_source) != expected_target:
+        raise PastCorrectionPageUnavailable("P3頁の真正受付が変化した")
 
 
 def visit_p3_lineup_correction_pages(
@@ -284,9 +296,8 @@ def visit_p3_lineup_correction_pages(
     ):
         raise PastCorrectionPageUnavailable("P3頁準備の入力が不正")
     try:
-        game_id, generation, target_d1 = _bound_target(
-            scope, event, bound_source
-        )[:3]
+        expected_target = _bound_target(scope, event, bound_source)
+        game_id, generation, target_d1 = expected_target[:3]
         if game_id != UUID(event.game_id):
             raise PastCorrectionPageUnavailable("P3頁対象試合が不一致")
         payload = read_lineup_pitch_change_payload(
@@ -313,6 +324,7 @@ def visit_p3_lineup_correction_pages(
                 nonlocal source_chain, evaluation_chain
                 nonlocal legacy_items, legacy_stats
                 nonlocal last_original, last_corrected, last_physical
+                _assert_page_binding(scope, event, bound_source, expected_target)
                 for saved in rows:
                     if saved.d1 == target_d1:
                         if target is not None:
@@ -407,6 +419,7 @@ def visit_p3_lineup_correction_pages(
                 if corrected:
                     last_corrected = corrected[-1]
                     last_physical = physical[-1]
+                _assert_page_binding(scope, event, bound_source, expected_target)
                 consume(page)
 
             source = visit_past_correction_v3_source_pages(

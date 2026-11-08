@@ -41,7 +41,10 @@ class ViewerEffectiveVersionReadToken(TenantOperationToken):
 class ViewerPlayPrefixHistoryPageToken(StartedPlayPrefixHistoryPageToken):
     """現行RRで最新D1から旧頁へだけ進むv3有限token。"""
 
-    _capability_id = "CAP:sync_play_prefix:read_viewer_play_prefix_history_page"
+    @property
+    def capability_id(self) -> str:
+        """親のstarted専用propertyを閲覧の有限能力で上書きする。"""
+        return "CAP:sync_play_prefix:read_viewer_play_prefix_history_page"
 
     def __post_init__(self) -> None:
         """元cursor全型と閲覧最大25件の両方を要求する。"""
@@ -63,8 +66,7 @@ VIEWER_READ_OPERATIONS = (
             "read_viewer_play_prefix_history_page",
             STARTED_SNAPSHOT_READ_OPERATIONS[1].input_fields,
             tuple(
-                field
-                for field, _ in STARTED_SNAPSHOT_READ_OPERATIONS[1].result_fields
+                field for field, _ in STARTED_SNAPSHOT_READ_OPERATIONS[1].result_fields
             ),
             True,
         ),
