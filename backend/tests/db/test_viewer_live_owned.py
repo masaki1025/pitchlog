@@ -110,6 +110,12 @@ def _script():
                 "/games/" + game + "/viewer",
                 params={"expected_version":hint["version"],"limit":25},
                 headers=headers())
+            if status == "finished":
+                assert displayed.status_code == 503, (
+                    "known-finished-v3-unavailable", displayed.status_code)
+                viewer_checks.append({"d3": expected, "status": status,
+                    "read": "source_unavailable", "http": 503})
+                return
             assert displayed.status_code == 200, (
                 "viewer-body", displayed.status_code, displayed.text)
             body = displayed.json()
@@ -187,7 +193,7 @@ def _insert_unavailable_game(admin, game_id, tenant_id, source_game_id):
 
 
 def _pagination_script():
-    """26球保存後、最新25球と旧pageを実HTTPで取得する。"""
+    """4球保存後、最新3球と旧pageを実HTTPで取得する。"""
     source = _script()
     source = source.replace(
         '\n        await verify_viewer("0", current["after"], "in_progress")',
