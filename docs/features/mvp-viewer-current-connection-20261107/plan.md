@@ -46,3 +46,5 @@ PO委任rootの本セッション指示により、step3の実検証を996ba453�
 共通lockをfixture作成前から破棄後まで保持し、共有DSN unset/前後source SHA/cleanupを固定する。run16等先行owned検証の終端を待ち、準備と純検査は並行する。新しい共有停止原因は同版で反復せず、根拠と最小patchをrootへ返す。2026-11-08 14:15→15:00の方式評価でも実証を優先し、部品毎の追加承認待ちを設けない指示を継承する。15時を作業停止時刻とは扱わない。
 
 2026-11-08 実HTTP r1の正常0球→1球で、viewer page tokenが親のstarted固定capability propertyを継承したまま登録能力と不一致となる通常不具合を確認。PO委任rootが `repositories/viewer_read.py` と `tests/test_viewer_read_sql.py` の最小修正を本担当へ移管。明示property overrideと実 `prepare_function_operation` の正負対向だけを追加し、SQL/ACL/registry/正式資産を変えない。旧r1失敗を保全し、root非作者確認後の新版で実HTTP/ブラウザへ進む。
+
+2026-11-08 実HTTP r2の通常0/1/2球は到達したが、終了後GETが既lifecycle貸与scope不足で404となった。root委任でviewer router専有修復を追加する。既 `lifecycle_display_scope` をhead.status=finishedの場合だけ同RR/TXへ接続し、同display/head/status照合を保つ。通常readへ余分な終了SQLを追加せず、未知/未供給v3は503で拒否する。SQL/ACL/共有readerは不変更。実走中のd37 WTを凍結し、別専用WTで修正する。
