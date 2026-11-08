@@ -781,29 +781,56 @@ def decode_lineup_prefix_response(raw: str) -> LineupPrefixResponse:
         raise LineupPrefixProtocolError("v3応答が閉ABIに適合しません") from None
 
 
-def evaluate_lineup_prefix_continuation(
+def _validated_lineup_evaluation_request(
     request: LineupPrefixRequest,
-) -> LineupPrefixResponse:
-    """実loaded source照合後、固定製品hostを一回だけ呼ぶ。"""
+) -> LineupPrefixRequest:
+    """元の公開評価と共有host評価で同じ入力検査を使う。"""
     if type(request) is not LineupPrefixRequest:
         raise TypeError("LineupPrefixRequestの実型が必要です")
     _check_frozen_members(request)
-    validated = LineupPrefixRequest.model_validate_json(
+    return LineupPrefixRequest.model_validate_json(
         request.model_dump_json(by_alias=True, exclude_unset=True),
         by_alias=True,
         by_name=False,
     )
-    with open_domain_host() as host:
-        if validated.source.execution_artifact_sha256 != host.artifact_sha256:
-            raise LineupPrefixProtocolError(
-                "実loaded artifactとexecution hashが一致しません"
-            )
-        return decode_lineup_prefix_response(
-            host.call(
-                "deriveLineupPlayPrefixWithContinuation",
-                validated.model_dump_json(by_alias=True, exclude_unset=True),
-            )
+
+
+def _call_lineup_prefix_with_host(
+    validated: LineupPrefixRequest, host
+) -> LineupPrefixResponse:
+    """呼出元が保持する同じ実hostで、毎回artifactと全応答を検査する。"""
+    from pitchlog.domainrt.host import NodeDomainHost
+
+    if type(host) is not NodeDomainHost:
+        raise TypeError("実NodeDomainHostが必要です")
+    if validated.source.execution_artifact_sha256 != host.artifact_sha256:
+        raise LineupPrefixProtocolError(
+            "実loaded artifactとexecution hashが一致しません"
         )
+    return decode_lineup_prefix_response(
+        host.call(
+            "deriveLineupPlayPrefixWithContinuation",
+            validated.model_dump_json(by_alias=True, exclude_unset=True),
+        )
+    )
+
+
+def _evaluate_lineup_prefix_with_host(
+    request: LineupPrefixRequest, host
+) -> LineupPrefixResponse:
+    """有界readの所有者だけが既実hostを借り、計算結果は再利用しない。"""
+    return _call_lineup_prefix_with_host(
+        _validated_lineup_evaluation_request(request), host
+    )
+
+
+def evaluate_lineup_prefix_continuation(
+    request: LineupPrefixRequest,
+) -> LineupPrefixResponse:
+    """実loaded source照合後、固定製品hostを一回だけ呼ぶ。"""
+    validated = _validated_lineup_evaluation_request(request)
+    with open_domain_host() as host:
+        return _call_lineup_prefix_with_host(validated, host)
 
 
 def decode_lineup_prefix_request(raw: str) -> LineupPrefixRequest:
