@@ -241,6 +241,21 @@ def test_p3_short_current_route_diagnostic(vertical_database, tmp_path):
         assert conn.execute(
             "SELECT version_num FROM public.alembic_version"
         ).fetchall() == [(CURRENT_REVISION,)]
+        # 元P3 fixtureと同じ入力語彙だけを用意する。候補SQL/認可は追加しない。
+        conn.execute(
+            "EXPLAIN SELECT category,display_name FROM public.admin_vocabularies "
+            "WHERE key=%s",
+            ("batting-result.called-pitch",),
+        )
+        conn.execute(
+            "INSERT INTO public.admin_vocabularies(key,category,display_name) "
+            "VALUES ('batting-result.called-pitch',"
+            "'batting_result','見逃し') ON CONFLICT(key) DO NOTHING"
+        )
+        assert conn.execute(
+            "SELECT category,display_name FROM public.admin_vocabularies WHERE key=%s",
+            ("batting-result.called-pitch",),
+        ).fetchall() == [("batting_result", "見逃し")]
         for table in (
             "public.play_rows",
             "public.operation_events",
