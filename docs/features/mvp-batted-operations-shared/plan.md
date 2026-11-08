@@ -29,7 +29,7 @@ rootによるPO委任の範囲採用。計画初版9dfd4971は時刻を20:45と�
 
 842eff16をdb25f9e6へ通常merge後、v4旧実host/現v5を含む互換38件は311.61秒で成功、Ty0。旧53計算全値/旧11資産byteを保持し、4自己識別値以外の差分を拒否する。5bf664a1の後続4安打訂正を原観測へ再束縛する候補も通常mergeしたが、実P3成功とはしない。
 
-first_ball_productの固定親overlayを登録し、公式BODIESからprepare1関数を生成（SHA9046f9bbcacb30f476a77c8fcd49a5c2f8721919aa076e45b4bd43c82d8ed665/85,023bytes）。owner/ACL/署名/nonce/他関数は変更せず、旧overlay親の検査も新overlayを経てactivebody全値照合する形で維持。生成正負8passed4.60秒、静的authz-function-bodies product OK、Ruff/Ty0。これは候補内の登録であり、正式受理/seal/CI/実PGは未了。
+first_ball_productの固定親overlayを登録し、公式BODIESからprepare1関数を生成（SHA9046f9bbcacb30f476a77c8fcd49a5c2f8721919aa076e45b4bd43c82d8ed665/85,023文字）。owner/ACL/署名/nonce/他関数は変更せず、旧overlay親の検査も新overlayを経てactivebody全値照合する形で維持。生成正負8passed4.60秒、静的authz-function-bodies product OK、Ruff/Ty0。これは候補内の登録であり、正式受理/seal/CI/実PGは未了。
 
 T5後発は、明示effects付きで射影失敗した入力をRBI観測無しでも旧一括算入へfallbackさせない。手定対向11passed0.45秒、旧fixture/数学期待を緩めない。step1の独立レビュー後にこの後発も対照する。schema/head担当候補と59球driverの接合は次であり、ステップ2全体を完了にしない。
 
@@ -48,3 +48,5 @@ rootは実host71f→閉schema/head→V7/V8/current codec→既生成T5へ10入�
 固定ee8b3e52の59球run1は36.74秒でCURRENT49配置の「初球関数の適用本文が凍結値と不一致」で停止。画面作成/記録は未到達、DB business監査未実施。source不変/owned削除/共通lock解放、manifest263220a1787f915ac076069c119332429f4b0959fe1f6281c08dcaf88e1e3896。長履歴の接続Timeout/旧55の503とは別の停止である。
 
 CSV担当が公式_selected_product_ddlとcanonical全関数を静的照合し、persist_start_pitcher_entryだけ旧0db3→71f artifact pin3箇所が追随漏れと特定。条件/権限/他byte差0。rootが公式BODIESから該当1SQLを再生成、2b82a2ea…→69853efb1ede406bdf8df0174c93e103e51cd5f7d0f433d69938d6bb35132331。PGへ進む前に全first_ball登録関数の適用本文・欠落・重複を照合し、旧3pin再導入を元の凍結ゲートで拒否するテストを追加（2passed6.48秒）。生成値追随の委任判断として採用し、照合条件は変更しない。同版の無根拠再走をせず、この新固定版で次owned実測へ進む。
+
+記録単位の訂正: 4006生成9046f9bbの85,023は文字数（UTF-8 85,347bytes）であり、bytesと記載したのは誤り。NULL-safe修復後c2758d69は85,077文字/85,401bytes。SHAは変更していない。
