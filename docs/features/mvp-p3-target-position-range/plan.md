@@ -26,3 +26,8 @@ PGはINT担当終了後rootの順序許可まで開始しない。純試験成�
 ## step1候補
 
 製品差分はAPI読取2関数の`d1 > 25`除去だけ。正準25/26/Number.MAX_SAFE_INTEGERを両GETで照合し、正準安全整数外15種はHTTP呼出0、不一致対象/game/D5応答拒否を追加。既API・controller・UI・同版頁4suite44passed3.32秒、vue-tsc/対象ESLint0。テストの別game照合はtenant分離自体の実証ではなく、tenantBound指定と既C2経路は不変更。PG未実施、26訂正以降の成功へ読み替えない。
+
+
+## 同family耐久保存の追補
+
+rootがp3AttemptPersistence.ts/同.spec.tsの所有を追加し、同じ25件上限の混同として追補採用。実26再走前の残存走査で、verifyにもNumber(target.d1)>25が残り、対象GET後の送信前耐久保存を拒否することを確認した。編集へ当2pathを追加し、この1上限のみ除去する。正整数/安全整数、tenant/game/D4/D5/attempt、原JSON/hash全値は保持。25/26/MAX_SAFEの再起動復元、MAX_SAFE超/小数/bool/非正準拒否、API26→offer→原要求耐久保存→confirmation26を実codec/実IDBで接続する。ページ25とbackend非paged分岐の<=25は不変更。PGは引続きINT担当後のroot順序待ち。
