@@ -1,12 +1,12 @@
 ---
 feature: mvp-interference-v6-compat
-status: draft
-承認: 未了
+status: active
+承認: 済（PO委任Codex主担当/root限定採用、2026-11-08 22:06 JST、対象計画SHA2a517a859e1f646c1d2173b0458330a115e377752268fad9cf59ecff17a4bcaf）
 重さ分類: コア領域
 branch: feature/mvp-interference-integration-candidate-20261108
 worktree: /home/ymdms/projects/pitchlog-worktrees/feature-mvp-interference-integration-candidate-20261108
 created: 2026-11-08
-計画レビュー周回: 0
+計画レビュー周回: 1
 確定ゲート周回: 0
 実行方式: 通常
 ---
@@ -28,3 +28,7 @@ created: 2026-11-08
 | 1 | 旧71fと新0e26の実hostからv6有限53証拠を導出 | 旧v5原本/旧raw全hash不変、4自己識別値以外の全値一致、有限pair/unknown拒否を対向化 |
 | 2 | 現行pin/D11/runtime10/開始投手生成SQLを接ぐ | 元期待を新actualから採取せず、旧原本保持、公式BODIESと79選択本文全値一致 |
 | 3 | pure検査と候補packetを固定 | 変更path前後SHA、再生成一致、残root条件を明示し、実PG・正式7.7成功と区別 |
+
+## 実装記録
+
+- ステップ1: Git基点の旧71f IIFE/宣言と現公式0e26を各1 hostで旧v5の53入力に実行し、旧期待と新期待の4自己識別欄以外の全値一致を確認。新v6は旧5 priorと現自己だけの6組を閉登録し、旧v1–v5原本と旧validator本体を保持した。
