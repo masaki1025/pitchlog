@@ -421,6 +421,45 @@ const RUNNER_NONPITCH_NULL_KEYS = NONPITCH_NULL_KEYS.filter(
     key !== 'pickoff_type' &&
     key !== 'pickoff_detail',
 )
+const INTERFERENCE_SECONDARY = [
+  'secondary-result.batting-interference',
+  'secondary-result.obstruction',
+  'secondary-result.offensive-interference',
+] as const
+const INTERFERENCE_ADOPTED_BATTED = [
+  'batting-result.single',
+  'batting-result.double',
+  'batting-result.triple',
+  'batting-result.home-run',
+  'batting-result.batted-out',
+  'batting-result.batted-reach',
+  'batting-result.error',
+  'batting-result.fielders-choice',
+  'batting-result.sacrifice-bunt',
+  'batting-result.sacrifice-fly',
+  'batting-result.sacrifice-bunt-error',
+  'batting-result.double-play',
+] as const
+const INTERFERENCE_NULL_KEYS = [
+  'strategy_key',
+  'strategy_detail_key',
+  'strategy_result_key',
+  'batter_status',
+  'raw_fielder_position',
+  'resolved_fielder_id',
+  'batted_ball_type',
+  'batted_ball_strength',
+  'hit_x',
+  'hit_y',
+  'pickoff_type',
+  'pickoff_detail',
+  'error_type',
+  'raw_error_position',
+  'resolved_error_player_id',
+  'press',
+  'fake_run',
+  'comment',
+] as const
 function finiteNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value)
 }
@@ -499,6 +538,14 @@ function ordinaryPlayRow(value: unknown): value is RecordedPrefixPlayRow {
     value.event_kind === 'pitch' &&
     typeof value.batting_result_key === 'string' &&
     value.batting_result_key.length > 0 &&
+    (!(INTERFERENCE_SECONDARY as readonly string[]).includes(
+      String(value.secondary_batting_result_key),
+    ) ||
+      (value.secondary_batting_result_key ===
+        'secondary-result.batting-interference' &&
+        (INTERFERENCE_ADOPTED_BATTED as readonly string[]).includes(
+          value.batting_result_key,
+        ))) &&
     course(value.course) &&
     typeof value.pitch_type_key === 'string' &&
     value.pitch_type_key.length > 0
@@ -539,6 +586,23 @@ export function isLineupRunnerNonPitchPlayRow(
       (pickoffDetail === 'first' ||
         pickoffDetail === 'second' ||
         pickoffDetail === 'third'))
+  )
+}
+/** 妨害の罰則・裁定だけを真正投球の有限副結果行として受ける。 */
+export function isLineupInterferencePlayRow(
+  value: unknown,
+): value is LineupInterferencePlayRow {
+  return (
+    commonPlayRow(value) &&
+    value.event_kind === 'pitch' &&
+    value.batting_result_key === null &&
+    (INTERFERENCE_SECONDARY as readonly string[]).includes(
+      String(value.secondary_batting_result_key),
+    ) &&
+    course(value.course) &&
+    typeof value.pitch_type_key === 'string' &&
+    value.pitch_type_key.length > 0 &&
+    INTERFERENCE_NULL_KEYS.every((key) => value[key] === null)
   )
 }
 function playRow(value: unknown): value is StartedPlayRow {
@@ -747,6 +811,17 @@ export type LineupRunnerNonPitchPlayRow = Readonly<
     pickoff_type: 'pitcher' | 'catcher' | null
     pickoff_detail: 'first' | 'second' | 'third' | null
   } & Record<RunnerNonPitchNullKey, null>
+>
+export type LineupInterferencePlayRow = Readonly<
+  Omit<
+    RecordedPrefixPlayRow,
+    | 'batting_result_key'
+    | 'secondary_batting_result_key'
+    | (typeof INTERFERENCE_NULL_KEYS)[number]
+  > & {
+    batting_result_key: null
+    secondary_batting_result_key: (typeof INTERFERENCE_SECONDARY)[number]
+  } & Record<(typeof INTERFERENCE_NULL_KEYS)[number], null>
 >
 export type StartedGameMetadata = Omit<StartedGame, 'read_kind'>
 /** 新projectionでも共通metadataを再計算せず同じ検証で読む。 */

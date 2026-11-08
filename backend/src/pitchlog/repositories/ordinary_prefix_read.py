@@ -94,7 +94,10 @@ def _play_observation_course(observed):
     from pitchlog.sync.first_ball_payload import FirstBallObservations
     from pitchlog.sync.nonpitch_payload import IntentionalWalkObservations
     from pitchlog.sync.terminal_pitch_payload import (
+        AdjudicatedInterferenceObservations,
         BattedHitPlayObservations,
+        BattingInterferencePenaltyObservations,
+        BattingInterferencePlayObservations,
         RunnerNonpitchPlayObservations,
         RunnerPitchPlayObservations,
     )
@@ -104,6 +107,9 @@ def _play_observation_course(observed):
     if type(observed) in {
         FirstBallObservations,
         BattedHitPlayObservations,
+        BattingInterferencePlayObservations,
+        BattingInterferencePenaltyObservations,
+        AdjudicatedInterferenceObservations,
         RunnerPitchPlayObservations,
     }:
         return observed.course
