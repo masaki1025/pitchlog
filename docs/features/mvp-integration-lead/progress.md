@@ -1,5 +1,14 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 2026-11-09 01:13 JST：妨害初球が実保存、訂正CSVの共有0050候補を固定
+
+- **利用者操作の実増分**: INT修復main `d4746956`（shadow a6e37dc4はtest-only fixture import1行）で新規画面作成・開始→妨害INT02のPOST200/受理、実DB play1/accepted1。SQL外側alias42703とCSV副結果表示不足503を越えた。次GETの30秒待機が失敗し、再取得/reload/全7INTは未達。listenerはclick前設置済みで単純な登録後競合ではない。GET未送出/非200/閉DTO不一致を有限ネットワーク観測で次に分離する。source前後不変/owned cleanup/lockfree。
+- **共有修復と限定確認**: source21deの外側3SQLを原走者/実物理行/裁定全targetへ束縛し、実PG6文脈EXPLAIN1passed。公式prepare2d432ad0へ生成403、root関連71純と既生成層17passed。CSV c1d74は主結果NULLかつ真正副結果3key/ruling/物理/有効な記録時語彙が一致する場合だけ既唯一表示器へ実display_nameを渡す。root非作者15対向passed。旧主結果の採用は優先を維持。別test-only546の明示ART/実PrefixRef型確認でbackend全Tyも回復、mainへ通常merge/push済み。
+- **長履歴訂正の未達を保持**: 0a233の26保存/target200/P3 POST503の後、正常0049短2球経路で共通原因を切分け。初回486の81.45秒は1球後の旧脚本assertで停止しP3未到達、診断行不足を是正。新3ecでは全HTTP16箇所の固定stage/status・固定script行、元await AST不変、F1/P3元alias1回・同例外identityの閉failure-only観測を付け18純成功。run2 handle30979をowned単独実施中。同じ無診断失敗を反復しない。これは実ASGI診断で実ブラウザ26pagedの成功を代替しない。
+- **訂正後CSVの製品接合候補**: 別WT feature/mvp-p3-csv-shared-20261109 `8316c665` clean。作者25268f69の実private scope修復/同版read/全D1原本をnormal mergeし、rootが0050の17列/RLS強制default-deny/22表全構造/2監査guardを接合。writer3/read1/guard1の全5関数、normal9列の既INSERTを保持したSELECT追加、新表17列SELECT/16INSERTをfnownerだけへ、app/actor直接DML・xmin許可0。36宣言/36本文を唯一factoryから正式pathへ導出しDDL1221文を検査。新producer/read/coverage/宣言92純、storage/guard/xmin17、CSV不足の既P3失敗限定写像4、型lint成功。これは候補固定で正式7.7/seal/受理済みではない。0050実配置/実P3後ZIP200/故障原子性は未実施、CSV担当がroot追加deltaの限定非作者確認中（元producer作者関係は開示）。
+- **3試合同時負荷の実失敗**: fixed0ec85467でowned0049を配置。run1はViteが外部node_modules symlinkを拒否して画面前59.72秒失敗。project内へfrozen/offline正規315packagesを配置しsource不変更のrun2は実画面新規3試合/開始・33独立Cookieまで進み、30viewerの初期「確認中」が5秒以内に揃わず107.68秒失敗。記録wave前でplay0×3、10秒自動更新の負荷合格とはしない。保存波の測定待機を延長して緑へはしない。両run source同一/cleanup。次は初期応答のstatus/時刻を切り分ける。rootcache viewer-three-game-load-owned-20261109に保存。
+- **判断と次**: TBの個人配置/配置責任投手/各半回配置の未採用部分は既decision-sheet3387618へ具体例・2択・推奨・影響を固定しPOへ一括照会済み。未回答は承認ではない。短P3原因→INT再取得→0050起動/訂正CSV実測を優先、正式資産/必須CI/通常PR、全操作・断復旧・担当交代・負荷/実機・運用復旧は残る。59play九回/同版27項目・両CSVの前節証拠は保持し、MVP未完。02:00に実増分と未達を評価する。
+
 ## 2026-11-09 00:42 JST：26件保存・訂正対象取得を通過、訂正送信と妨害SQLを切り分け
 
 - **今回の実操作増分**: GC修復後の26件保存・再取得は成功。API/耐久storeが記録番号を25までに誤制限していた3箇所を0a233123へ修復（頁25件は保持、64純/型lint成功）。同HEAD run2は26件保存→target GET200/target-ready→真正耐久要求のP3 POSTまで通過したが、POST503で483.54秒失敗。実DB play26・binding27全closed、authority/controller失敗0。訂正後追加・終了成績CSVは未到達。原ログに公開SQLSTATEが無く、閉503分岐とfailure-only観測を次に確認し、同一条件の26反復は行わない。
