@@ -34,12 +34,29 @@ from pitchlog.sync.play_export_p3_producer import (
     persist_p3_play_exports,
     prepare_p3_play_export_anchor,
 )
+from pitchlog.sync.play_export_producer import PlayExportWriterUnavailable
 from pitchlog.sync.ports import PortWriter
 from pitchlog.sync.source_binding import _E1CoreSource
 
 
 class PastCorrectionProjectionError(RuntimeError):
     """P3保存receiptが実frame/current head/T5と一致しない。"""
+
+
+def _prepare_p3_csv_prior(handle, event, writer):
+    """新しいCSV原本不足だけを既P3の閉503へ写し、全取消の例外を保つ。"""
+    try:
+        return prepare_p3_play_export_anchor(handle, event, writer)
+    except PlayExportWriterUnavailable as error:
+        raise PastCorrectionProjectionError("P3 CSV保存前原本が未供給") from error
+
+
+def _persist_p3_csv(handle, event, writer, prior):
+    """保存後原本の失敗も同TXのP3失敗として伝播させる。"""
+    try:
+        persist_p3_play_exports(handle, event, writer, prior)
+    except PlayExportWriterUnavailable as error:
+        raise PastCorrectionProjectionError("P3 CSV完成原本が未供給") from error
 
 
 def _project_p3_paged_correction(
@@ -200,7 +217,7 @@ def _project_p3_paged_correction(
     ):
         raise PastCorrectionProjectionError("P3頁の二走sealが不一致")
     final = _FinalizeP3ProjectionPageToken(*common, game_id, capsule_id)
-    csv_prior = prepare_p3_play_export_anchor(handle, event, writer)
+    csv_prior = _prepare_p3_csv_prior(handle, event, writer)
     with bind_p3_paged_persistence(handle, event, writer, final):
         receipt = handle.run_function(final)
     if (
@@ -214,7 +231,7 @@ def _project_p3_paged_correction(
         or receipt.rows[0][3].int == 0
     ):
         raise PastCorrectionProjectionError("P3頁確定receiptが不一致")
-    persist_p3_play_exports(handle, event, writer, csv_prior)
+    _persist_p3_csv(handle, event, writer, csv_prior)
     source.read(handle, event)
 
 
@@ -309,7 +326,7 @@ def project_p3_correction(
         capsule_json,
         stats_json,
     )
-    csv_prior = prepare_p3_play_export_anchor(handle, event, writer)
+    csv_prior = _prepare_p3_csv_prior(handle, event, writer)
     with bind_p3_persistence(handle, event, writer, token):
         result = handle.run_function(token)
     if (
@@ -325,5 +342,5 @@ def project_p3_correction(
         or result.rows[0][3] == UUID(int=0)
     ):
         raise PastCorrectionProjectionError("P3保存receiptが全候補と不一致")
-    persist_p3_play_exports(handle, event, writer, csv_prior)
+    _persist_p3_csv(handle, event, writer, csv_prior)
     source.read(handle, event)
