@@ -48,3 +48,5 @@ PO委任rootの本セッション指示により、step3の実検証を996ba453�
 2026-11-08 実HTTP r1の正常0球→1球で、viewer page tokenが親のstarted固定capability propertyを継承したまま登録能力と不一致となる通常不具合を確認。PO委任rootが `repositories/viewer_read.py` と `tests/test_viewer_read_sql.py` の最小修正を本担当へ移管。明示property overrideと実 `prepare_function_operation` の正負対向だけを追加し、SQL/ACL/registry/正式資産を変えない。旧r1失敗を保全し、root非作者確認後の新版で実HTTP/ブラウザへ進む。
 
 2026-11-08 実HTTP r2の通常0/1/2球は到達したが、終了後GETが既lifecycle貸与scope不足で404となった。root委任でviewer router専有修復を追加する。既 `lifecycle_display_scope` をhead.status=finishedの場合だけ同RR/TXへ接続し、同display/head/status照合を保つ。通常readへ余分な終了SQLを追加せず、未知/未供給v3は503で拒否する。SQL/ACL/共有readerは不変更。実走中のd37 WTを凍結し、別専用WTで修正する。
+
+実driverの最終原本はlifecycle end→reopen→追加球→再endのNPであり、真のfinished-v3とは異なる。次実HTTPでは503を期待せず、viewer200/read_kind/nonplay checkpoint全値・D3・lifecycle全値（receiptを含む）を同finalへ照合する。真のfinished-v3は別unitで503を保持。旧r2の404と誤った503前提は成功化せず履歴保全。

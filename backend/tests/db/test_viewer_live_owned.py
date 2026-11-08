@@ -98,7 +98,7 @@ def _script():
         assert unavailable_body.status_code == 503, (
             "unavailable-viewer-body", unavailable_body.status_code)
 
-        async def verify_viewer(expected, after, status):
+        async def verify_viewer(expected, after, status, finished=None):
             started = perf_counter()
             seen = await viewer.get(
                 "/games/" + game + "/viewer-head", headers=headers())
@@ -110,18 +110,18 @@ def _script():
                 "/games/" + game + "/viewer",
                 params={"expected_version":hint["version"],"limit":25},
                 headers=headers())
-            if status == "finished":
-                assert displayed.status_code == 503, (
-                    "known-finished-v3-unavailable", displayed.status_code)
-                viewer_checks.append({"d3": expected, "status": status,
-                    "read": "source_unavailable", "http": 503})
-                return
             assert displayed.status_code == 200, (
                 "viewer-body", displayed.status_code, displayed.text)
             body = displayed.json()
             assert hint["version"].startswith("ve1_") and len(hint["version"]) == 68
             assert body["after"] == after
             assert body["status"] == status
+            if finished is not None:
+                assert body["read_kind"] == "nonplay-prefix"
+                assert body["checkpoint"] == finished["checkpoint"]
+                assert body["checkpoint"]["content"]["d3"] == expected
+                assert body["lifecycle"] == finished["lifecycle"]
+                assert body["lifecycle"]["lastVersion"] == "2"
             assert body["last_saved_at"]
             assert len(body["page"]["items"]) <= 25
             viewer_checks.append({"d3": expected, "status": status,
@@ -151,7 +151,7 @@ def _script():
         '        assert final["status"] == "finished"',
         "\n        await verify_viewer("
         'final["checkpoint"]["content"]["d3"], '
-        'final["after"], "finished")',
+        'final["after"], "finished", final)',
     )
     source = _insert_after(
         source,
