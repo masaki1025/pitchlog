@@ -18,6 +18,7 @@ import type {
   BoolSpan as UndoBoolSpan,
 } from './undo'
 import type { BattedHitObservation } from './battedHit'
+import type { InterferenceObservation } from './interference'
 import { readRunnerObservation } from './runnerEvent'
 import type { LiveRunnerIdentity } from './runnerEvent'
 import {
@@ -45,6 +46,7 @@ import {
   deriveTerminal,
   deriveStrikeout,
   deriveBattedHit as calculateBattedHit,
+  deriveInterference as calculateInterference,
   deriveLineupPitch,
   deriveRunnerOperation,
   emptyFlags,
@@ -631,8 +633,9 @@ function evaluatePitch(
   lineup: boolean = false,
   battedHit: boolean = false,
   runnerEvent: boolean = false,
+  interference: boolean = false,
 ): string {
-  const cursorMode = strikeout || lineup || battedHit || runnerEvent
+  const cursorMode = strikeout || lineup || battedHit || runnerEvent || interference
   if (typeof requestJson !== 'string') return errorResponse('INVALID_REQUEST')
   let parsed: unknown
   try {
@@ -643,17 +646,21 @@ function evaluatePitch(
     return errorResponse('INVALID_JSON')
   }
   const request = asObject(parsed)
+  const battingInterference =
+    interference &&
+    request !== null &&
+    request.resultId === 'secondary-result.batting-interference'
   let requestKeys = ['eventKind', 'resultId', 'pitchEventKind', 'before']
   if (ordinary || terminal || cursorMode)
     requestKeys = requestKeys.concat(['history'])
-  if (battedHit)
+  if (battedHit || battingInterference)
     requestKeys = requestKeys.concat([
       'officialScoringPayload',
       'interferenceRuling',
       'runnerAdvanceOverrides',
       'thirdOutObservation',
     ])
-  if (battedHit && request !== null) {
+  if ((battedHit || battingInterference) && request !== null) {
     if (Object.prototype.hasOwnProperty.call(request, 'outRunner'))
       requestKeys = requestKeys.concat(['outRunner'])
     if (Object.prototype.hasOwnProperty.call(request, 'rbiRulingByRunner'))
@@ -661,6 +668,12 @@ function evaluatePitch(
   }
   if (runnerEvent)
     requestKeys = requestKeys.concat(['runnerObservation', 'liveRunners'])
+  if (interference && !battingInterference)
+    requestKeys = requestKeys.concat([
+      'interferenceRuling',
+      'batterId',
+      'liveRunners',
+    ])
   if (request === null || !exactKeys(request, requestKeys)) {
     return errorResponse('INVALID_REQUEST')
   }
@@ -671,9 +684,12 @@ function evaluatePitch(
   )
     return errorResponse('INVALID_REQUEST')
   if (
-    battedHit &&
+    (battedHit || battingInterference) &&
     (typeof request.officialScoringPayload !== 'string' ||
-      typeof request.interferenceRuling !== 'string' ||
+      (typeof request.interferenceRuling !== 'string' &&
+        (typeof request.interferenceRuling !== 'object' ||
+          request.interferenceRuling === null ||
+          Array.isArray(request.interferenceRuling))) ||
       (typeof request.runnerAdvanceOverrides !== 'string' &&
         (typeof request.runnerAdvanceOverrides !== 'object' ||
           request.runnerAdvanceOverrides === null ||
@@ -767,7 +783,11 @@ function evaluatePitch(
   const scoreboard = readBoard(board)
   if (state === null || scoreboard === null)
     return errorResponse('INVALID_REQUEST')
-  if (!runnerEvent && request.eventKind !== 'batting-result')
+  if (
+    !runnerEvent &&
+    request.eventKind !== 'batting-result' &&
+    !(interference && request.eventKind === 'secondary-result')
+  )
     return errorResponse('UNSUPPORTED_T1_SCOPE')
   let calculator = derive
   if (ordinary || terminal) calculator = deriveOrdinary
@@ -793,13 +813,32 @@ function evaluatePitch(
       raw.home.startsWith('-')
     )
       return errorResponse('INVALID_DECIMAL_INTEGER')
-    if (!runnerEvent && fieldValue(fields, 'state.runners') === 'loaded')
+    if (
+      !runnerEvent &&
+      !battingInterference &&
+      !interference &&
+      fieldValue(fields, 'state.runners') === 'loaded'
+    )
       return errorResponse('UNSUPPORTED_T1_SCOPE')
     cursors = Object.freeze({ away: away, home: home })
     let cursorCalculator = deriveStrikeout
     if (lineup) cursorCalculator = deriveLineupPitch
     let result
-    if (runnerEvent) {
+    if (interference && !battingInterference) {
+      result = calculateInterference(
+        state,
+        scoreboard,
+        {
+          eventKind: request.eventKind,
+          resultId: request.resultId,
+          pitchEventKind: request.pitchEventKind,
+          interferenceRuling: request.interferenceRuling,
+          batterId: request.batterId,
+          liveRunners: request.liveRunners,
+        } as InterferenceObservation,
+        cursors,
+      )
+    } else if (runnerEvent) {
       const observation = readRunnerObservation(
         request.runnerObservation,
         request.eventKind,
@@ -815,7 +854,7 @@ function evaluatePitch(
         request.liveRunners as Array<LiveRunnerIdentity>,
         cursors,
       )
-    } else if (battedHit) {
+    } else if (battedHit || battingInterference) {
       let battedObservation = {
         eventKind: request.eventKind,
         resultId: request.resultId,
@@ -861,7 +900,7 @@ function evaluatePitch(
       cursors,
       afterCursors,
     )
-    if ((runnerEvent || battedHit) && derived.runnerScoreEffects)
+    if ((runnerEvent || battedHit || interference) && derived.runnerScoreEffects)
       Object.assign(output, {
         runnerScoreEffects: derived.runnerScoreEffects.map((r) => ({
           base: formatDecimalInteger(r.base),
@@ -910,6 +949,11 @@ function deriveStrikeoutPitch(requestJson: string): string {
 /** 無走者4安打の独立した閉入口。既投球ABIの成功範囲を広げない。 */
 function deriveBattedHit(requestJson: string): string {
   return evaluatePitch(requestJson, false, false, false, false, true)
+}
+
+/** 審判裁定を実選手参照に束縛するsecondary-result専用入口。 */
+function deriveInterference(requestJson: string): string {
+  return evaluatePitch(requestJson, false, false, false, false, false, false, true)
 }
 
 type T1Evaluation =
@@ -1104,6 +1148,7 @@ function deriveLineupPlayPrefixWithContinuation(requestJson: string): string {
       !prepared.battedHit,
       prepared.battedHit,
       prepared.runnerEvent,
+      prepared.interference,
     )
     return finishLineupContinuation(prepared.request, response)
   } catch {
@@ -1614,6 +1659,7 @@ export const domainOperations = Object.freeze({
   deriveTerminalPitch,
   deriveStrikeoutPitch,
   deriveBattedHit,
+  deriveInterference,
   derivePlayPrefixWithContinuation,
   deriveLineupPlayPrefixWithContinuation,
   deriveFirstPitchWithContinuation,

@@ -6,8 +6,8 @@ from pitchlog.authz import first_ball_product as canonical
 from pitchlog.authz import product_provisioning as provisioning
 
 FID = "FUNCTION:initial_right_api:persist_start_pitcher_entry(uuid, uuid, bigint)"
-OLD = "0db3c87d156e290b71d13a31baa5dc5f240ea38a0a84b660428d7dc687b72fff"
-NEW = "71f2726a288dfcfaff4c2fcdf293651dda0fb610b9ead325b352bd4f23a07aff"
+OLD = "71f2726a288dfcfaff4c2fcdf293651dda0fb610b9ead325b352bd4f23a07aff"
+NEW = "859986408d75994d6f1530ce99c0331da1644da9d5ae6339bb479e3926ee7f2e"
 
 
 def test_every_selected_first_ball_function_matches_canonical_before_owned_pg():

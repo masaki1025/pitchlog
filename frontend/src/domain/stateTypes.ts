@@ -50,6 +50,8 @@ export type Rule = {
   scoringEvidence?: boolean
   /** 記録員が採用した有限の公式失策1件。件数と野手はV7原本に束縛する。 */
   errorRecorded?: boolean
+  /** 審判の採用裁定を既23旗へ写す。状態・進塁は同じ唯一核が扱う。 */
+  interferenceScoring?: 'batting-award' | 'obstruction-award' | 'offensive-out'
 }
 
 /** 遷移前後の状態（契約の `state.*` と同じ意味）。 */

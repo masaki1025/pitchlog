@@ -18,6 +18,7 @@ import {
   type LocalRecordingSession,
 } from '../lib/localRecordingSession'
 import GameScreenBattedHitObservation from './GameScreenBattedHitObservation.vue'
+import GameScreenInterferenceObservation from './GameScreenInterferenceObservation.vue'
 import GameScreenRunnerEventObservation from './GameScreenRunnerEventObservation.vue'
 import type { RunnerObservationWire } from '../api/runnerEventWire'
 import type { BattedHitResult } from '../../../contracts/state-transition/lineup_play_prefix_payload_v1.d.ts'
@@ -68,6 +69,13 @@ const hitResults: readonly string[] = [
   'batting-result.double-play',
 ]
 const batted = computed(() => hitResults.includes(resultId.value))
+const interference = computed(() =>
+  [
+    'secondary-result.batting-interference',
+    'secondary-result.obstruction',
+    'secondary-result.offensive-interference',
+  ].includes(resultId.value),
+)
 const battedOutAvailable = computed(() =>
   isLineupRecordingContext(displayed.value),
 )
@@ -109,6 +117,8 @@ const intentionalWalkAvailable = computed(() => {
   )
 })
 const battedHit = ref<PlayScreenObservation['battedHit']>(null)
+const adoptInterference = ref(false)
+const interferenceObservation = ref<PlayScreenObservation['interference']>(null)
 const hitAvailable = computed(() => {
   if (!isLineupRecordingContext(displayed.value)) return false
   return (
@@ -161,6 +171,15 @@ const battedRunners = computed(() => {
     })
   return result
 })
+const interferenceRunners = computed(() =>
+  battedRunners.value.every((runner) => typeof runner.runnerId === 'string')
+    ? battedRunners.value.map((runner) => ({
+        base: runner.base,
+        label: runner.label,
+        runnerId: runner.runnerId!,
+      }))
+    : null,
+)
 const battedContextKey = computed(() => {
   const c = displayed.value
   return isLineupRecordingContext(c)
@@ -227,9 +246,18 @@ const retryEvidenceUnavailable = ref(false)
 const displayed = ref<RecordingContext>(structuredClone(toRaw(props.context)))
 watch([runnerMode, battedContextKey], () => {
   runnerObservation.value = null
-  if (batted.value) runnerMode.value = false
+  if (batted.value || interference.value) runnerMode.value = false
 })
 watch([resultId, battedContextKey], () => {
+  battedHit.value = null
+  adoptInterference.value = false
+  interferenceObservation.value = null
+  if (batted.value || interference.value) {
+    runnerMode.value = false
+    runnerObservation.value = null
+  }
+})
+watch(adoptInterference, () => {
   battedHit.value = null
 })
 
@@ -406,10 +434,15 @@ async function save() {
     busy.value ||
     !canAppend.value ||
     !confirmed.value ||
-    (localRequested.value && (!activeLocalSession() || batted.value)) ||
+    (localRequested.value &&
+      (!activeLocalSession() || batted.value || interference.value)) ||
     (runnerMode.value && runnerObservation.value === null) ||
     (!runnerNonpitch.value && !point.value) ||
     (batted.value && (!hitAvailable.value || !battedHit.value)) ||
+    (interference.value &&
+      (!hitAvailable.value ||
+        interferenceRunners.value === null ||
+        !interferenceObservation.value)) ||
     (!runnerNonpitch.value &&
       !items.value.some((i) => i.key === selected.value))
   )
@@ -432,6 +465,9 @@ async function save() {
           : null,
         battedHit: batted.value
           ? structuredClone(toRaw(battedHit.value))
+          : null,
+        interference: interference.value
+          ? structuredClone(toRaw(interferenceObservation.value))
           : null,
         nextBatter: terminal.value
           ? (() => {
@@ -859,13 +895,22 @@ onScopeDispose(() => {
             >
               併殺打（一塁走者の封殺）
             </option>
+            <option value="secondary-result.batting-interference">
+              打撃妨害（罰則採用）
+            </option>
+            <option value="secondary-result.obstruction">走塁妨害</option>
+            <option value="secondary-result.offensive-interference">
+              守備妨害
+            </option>
           </template>
           <option value="batting-result.foul">
             ファウル（通常・非バント）
           </option>
         </select></label
       >
-      <label v-if="isLineupRecordingContext(displayed) && !batted" class="block"
+      <label
+        v-if="isLineupRecordingContext(displayed) && !batted && !interference"
+        class="block"
         ><input
           v-model="runnerMode"
           type="checkbox"
@@ -874,7 +919,12 @@ onScopeDispose(() => {
         />走者操作を記録する</label
       >
       <GameScreenRunnerEventObservation
-        v-if="runnerMode && isLineupRecordingContext(displayed) && !batted"
+        v-if="
+          runnerMode &&
+          isLineupRecordingContext(displayed) &&
+          !batted &&
+          !interference
+        "
         :runners="runnerPeople"
         :primary-result-id="resultId"
         :source-key="battedContextKey"
@@ -897,12 +947,41 @@ onScopeDispose(() => {
         "
         :context-key="battedContextKey"
         :result-id="resultId as CandidateBattedResult"
+        :adopt-interference="adoptInterference"
         :before-outs="displayed.after.stateFields['state.outs']"
         :batter-id="displayed.lineupSource.participants.batterId"
         :fielders="fielders"
         :runners="battedRunners"
         :disabled="busy"
         @change="(value) => (battedHit = value)"
+      />
+      <label v-if="batted && hitAvailable && !isLocalMode" class="block">
+        <input
+          v-model="adoptInterference"
+          type="checkbox"
+          data-testid="adopt-batting-interference-play"
+          :disabled="busy"
+        />
+        打撃妨害で実プレイ結果を採用した
+      </label>
+      <GameScreenInterferenceObservation
+        v-if="
+          interference &&
+          hitAvailable &&
+          !isLocalMode &&
+          interferenceRunners !== null &&
+          isLineupRecordingContext(displayed)
+        "
+        :context-key="battedContextKey"
+        :result-id="
+          resultId as NonNullable<
+            PlayScreenObservation['interference']
+          >['resultId']
+        "
+        :batter-id="displayed.lineupSource.participants.batterId"
+        :runners="interferenceRunners"
+        :disabled="busy"
+        @change="(value) => (interferenceObservation = value)"
       />
       <p v-else-if="batted" role="alert">
         この安打入力は試合継続中・タイブレークなしの状態だけに対応しています。
@@ -1003,6 +1082,10 @@ onScopeDispose(() => {
           (!runnerNonpitch && (loading || failed)) ||
           (terminal && nextBatterId === '') ||
           (batted && (!hitAvailable || battedHit == null)) ||
+          (interference &&
+            (!hitAvailable ||
+              interferenceRunners === null ||
+              interferenceObservation == null)) ||
           (runnerMode && runnerObservation === null) ||
           (!runnerNonpitch && (selected === '' || point === null))
         "

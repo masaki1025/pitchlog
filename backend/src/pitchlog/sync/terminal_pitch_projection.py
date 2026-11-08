@@ -22,6 +22,7 @@ from pitchlog.sync.runner_physical_labels import (
     ADVANCE_STATUS_BY_BASE_DESTINATION,
     AUTO_STATUS_SOURCE,
     HOLD_STATUS,
+    INTERFERENCE_OUT_STATUS,
     MANUAL_STATUS_SOURCE,
     OUT_STATUS_BY_OBSERVED_KIND,
 )
@@ -39,15 +40,22 @@ from pitchlog.sync.tokens import OperationEventReadToken
 def runner_physical_rows(before_runners, *, t1, t1_input, tenant_id, play_id):
     """起点塁と実T1進塁先・V7明示観測を物理10列へ写す。"""
     from pitchlog.domainrt.lineup_play_prefix_continuation import (
+        AdjudicatedInterferenceT1Input,
         AppliedRunnerAdvanceOverrides,
         BattedHitT1Input,
+        BattingInterferencePenaltyT1Input,
+        BattingInterferencePlayT1Input,
         RunnerEventT1Input,
+        _InterferenceRunnerRef,
+        _ObstructionRuling,
+        _OffensiveInterferenceRuling,
+        _RunnerOfficialRef,
     )
 
     slots = {"1": "first", "2": "second", "3": "third"}
     labels = ADVANCE_STATUS_BY_BASE_DESTINATION
     overrides: dict[str, str] = {}
-    if type(t1_input) is BattedHitT1Input:
+    if type(t1_input) in {BattedHitT1Input, BattingInterferencePlayT1Input}:
         observed = t1_input.runner_advance_overrides
         if type(observed) is AppliedRunnerAdvanceOverrides:
             overrides = {
@@ -57,6 +65,44 @@ def runner_physical_rows(before_runners, *, t1, t1_input, tenant_id, play_id):
                 raise OrdinaryPitchExecutionError
         elif observed != "not-applied":
             raise OrdinaryPitchExecutionError
+    interference_out_bases: set[str] = set()
+    if type(t1_input) is BattingInterferencePenaltyT1Input:
+        attempt = t1_input.interference_ruling.third_base_scoring_attempt
+        if getattr(attempt, "value", None) in {"squeeze", "steal-home"}:
+            if not any(runner.base == "3" for runner in before_runners):
+                raise OrdinaryPitchExecutionError
+            overrides["3"] = "4"
+    if type(t1_input) is AdjudicatedInterferenceT1Input:
+        ruling = t1_input.interference_ruling
+        if type(ruling) is _ObstructionRuling:
+            placements = ruling.awarded_destinations
+            declared_outs = ruling.out_targets
+        elif type(ruling) is _OffensiveInterferenceRuling:
+            placements = ruling.return_bases
+            declared_outs = ruling.out_targets
+        else:
+            raise OrdinaryPitchExecutionError
+        runner_ids = {runner.runner_id: runner.base for runner in before_runners}
+        destinations = {"first": "1", "second": "2", "third": "3", "home": "4"}
+        for placement in placements:
+            person = placement.person
+            if type(person) is not _InterferenceRunnerRef or type(
+                person.runner_id
+            ) is not _RunnerOfficialRef:
+                continue
+            base = runner_ids.get(person.runner_id.player_id)
+            if base is None or base in overrides:
+                raise OrdinaryPitchExecutionError
+            overrides[base] = destinations[placement.destination]
+        for person in declared_outs:
+            if type(person) is not _InterferenceRunnerRef or type(
+                person.runner_id
+            ) is not _RunnerOfficialRef:
+                continue
+            base = runner_ids.get(person.runner_id.player_id)
+            if base is None or base in interference_out_bases:
+                raise OrdinaryPitchExecutionError
+            interference_out_bases.add(base)
     if set(overrides) - {runner.base for runner in before_runners}:
         raise OrdinaryPitchExecutionError
     runner_observed = {}
@@ -94,7 +140,10 @@ def runner_physical_rows(before_runners, *, t1, t1_input, tenant_id, play_id):
             base for base, observed in runner_observed.items() if observed.kind == "out"
         }:
             raise OrdinaryPitchExecutionError
-    elif type(t1_input) is BattedHitT1Input and t1_input.out_runner is not None:
+    elif type(t1_input) in {
+        BattedHitT1Input,
+        BattingInterferencePlayT1Input,
+    } and t1_input.out_runner is not None:
         observed = t1_input.out_runner
         if out_bases != {observed.base} or not any(
             runner.base == observed.base and runner.runner_id == observed.runner_id
@@ -102,6 +151,9 @@ def runner_physical_rows(before_runners, *, t1, t1_input, tenant_id, play_id):
         ):
             raise OrdinaryPitchExecutionError
         runner_observed[observed.base] = observed
+    elif type(t1_input) is AdjudicatedInterferenceT1Input:
+        if out_bases != interference_out_bases:
+            raise OrdinaryPitchExecutionError
     elif out_bases:
         # 旧SO05のout対象だけでは観測原因を固定できない。
         raise OrdinaryPitchExecutionError
@@ -109,11 +161,17 @@ def runner_physical_rows(before_runners, *, t1, t1_input, tenant_id, play_id):
     for runner in before_runners:
         effect = getattr(t1.runner_default_advance, slots[runner.base])
         if runner.base in out_bases:
-            observed = runner_observed[runner.base]
-            results[runner.base] = (
-                out_statuses[observed.out_kind],
-                MANUAL_STATUS_SOURCE,
-            )
+            if type(t1_input) is AdjudicatedInterferenceT1Input:
+                results[runner.base] = (
+                    INTERFERENCE_OUT_STATUS,
+                    MANUAL_STATUS_SOURCE,
+                )
+            else:
+                observed = runner_observed[runner.base]
+                results[runner.base] = (
+                    out_statuses[observed.out_kind],
+                    MANUAL_STATUS_SOURCE,
+                )
             continue
         if effect.modality == "not-applicable":
             raise OrdinaryPitchExecutionError
@@ -135,7 +193,19 @@ def runner_physical_rows(before_runners, *, t1, t1_input, tenant_id, play_id):
             if destination not in labels[runner.base]:
                 raise OrdinaryPitchExecutionError
             if (
-                type(t1_input) in {BattedHitT1Input, RunnerEventT1Input}
+                (
+                    type(t1_input)
+                    in {
+                        BattedHitT1Input,
+                        BattingInterferencePlayT1Input,
+                        AdjudicatedInterferenceT1Input,
+                        RunnerEventT1Input,
+                    }
+                    or (
+                        type(t1_input) is BattingInterferencePenaltyT1Input
+                        and effect.modality == "optional"
+                    )
+                )
                 and overrides.get(runner.base) != destination
             ):
                 raise OrdinaryPitchExecutionError

@@ -18,7 +18,9 @@ from pitchlog.domainrt.first_pitch import _Frozen
 from pitchlog.domainrt.first_pitch_continuation import _check_frozen_members
 from pitchlog.domainrt.initial_game_roster import InitialRosterProjection
 from pitchlog.domainrt.lineup_play_prefix_continuation import (
+    AdjudicatedInterferenceT1Input,
     BattedForceOut,
+    BattingInterferencePenaltyT1Input,
     CanonicalUuid,
     Digest,
     LineupPrefixRequest,
@@ -28,6 +30,11 @@ from pitchlog.domainrt.lineup_play_prefix_continuation import (
     RbiRulingByRunner,
     RunnerEventT1Input,
     RunnerObservation,
+    RunnerValue,
+    _BattingInterferenceRuling,
+    _InterferencePlayResult,
+    _ObstructionRuling,
+    _OffensiveInterferenceRuling,
     verify_lineup_wire_seal,
 )
 from pitchlog.domainrt.play_prefix_continuation import (
@@ -465,6 +472,59 @@ class BattedHitPlayObservations(FirstBallObservations):
         return self
 
 
+class BattingInterferencePlayObservations(BattedHitPlayObservations):
+    """実プレイ採用時だけ打球全観測と審判裁定を併せて保持する。"""
+
+    interference_ruling: _BattingInterferenceRuling = Field(alias="interferenceRuling")
+
+    @model_validator(mode="after")
+    def _play_result(self):
+        """旧打球のnot-required形と罰則採用を混在させない。"""
+        adopted = self.interference_ruling.adopted
+        if (
+            type(adopted) is not _InterferencePlayResult
+            or adopted.result_id != self.result_id
+        ):
+            raise ValueError("打撃妨害の実プレイ結果が不一致")
+        return self
+
+
+class BattingInterferencePenaltyObservations(FirstBallObservations):
+    """打撃妨害の罰則採用を投球原観測と共に保持する。"""
+
+    result_id: Literal["secondary-result.batting-interference"] = Field(
+        alias="resultId"
+    )
+    interference_ruling: _BattingInterferenceRuling = Field(alias="interferenceRuling")
+
+    @model_validator(mode="after")
+    def _penalty(self):
+        """プレイ採用値の暗黙読み替えを拒否する。"""
+        if getattr(self.interference_ruling.adopted, "kind", None) != "penalty-award":
+            raise ValueError("打撃妨害の罰則選択が不一致")
+        return self
+
+
+class AdjudicatedInterferenceObservations(FirstBallObservations):
+    """走塁/守備妨害の審判裁定を保存する。"""
+
+    result_id: Literal[
+        "secondary-result.obstruction", "secondary-result.offensive-interference"
+    ] = Field(alias="resultId")
+    interference_ruling: _ObstructionRuling | _OffensiveInterferenceRuling = Field(
+        alias="interferenceRuling"
+    )
+
+    @model_validator(mode="after")
+    def _matching_kind(self):
+        """結果IDと裁定種別の相互読み替えを拒否する。"""
+        if (self.result_id == "secondary-result.obstruction") != (
+            type(self.interference_ruling) is _ObstructionRuling
+        ):
+            raise ValueError("妨害の結果と裁定が不一致")
+        return self
+
+
 class RunnerPitchPlayObservations(FirstBallObservations):
     """実投球観測と正式perPitchを持つ明示走者操作。"""
 
@@ -483,7 +543,10 @@ class LineupPitchPlayPayload(_Frozen):
 
     format_version: Literal["play-prefix-play-v3"] = Field(alias="formatVersion")
     observations: (
-        FirstBallObservations
+        BattingInterferencePlayObservations
+        | BattingInterferencePenaltyObservations
+        | AdjudicatedInterferenceObservations
+        | FirstBallObservations
         | BattedHitPlayObservations
         | IntentionalWalkObservations
         | RunnerPitchPlayObservations
@@ -533,9 +596,17 @@ def read_lineup_pitch_payload(
         response = payload.calculation.response
         from pitchlog.domainrt.lineup_prefix_source import (
             require_batted_hit_observations,
+            require_interference_observations,
         )
 
-        if type(request.t1) is RunnerEventT1Input:
+        if type(request.t1) in {
+            BattingInterferencePenaltyT1Input,
+            AdjudicatedInterferenceT1Input,
+        }:
+            if type(response.value) is not RunnerValue:
+                raise ValueError
+            require_interference_observations(request.t1, payload.observations)
+        elif type(request.t1) is RunnerEventT1Input:
             if type(payload.observations) not in {
                 RunnerPitchPlayObservations,
                 RunnerNonpitchPlayObservations,
@@ -573,7 +644,7 @@ def read_lineup_pitch_payload(
                 ),
             )
             if (
-                type(payload.observations) is BattedHitPlayObservations
+                isinstance(payload.observations, BattedHitPlayObservations)
                 and type(payload.observations.official_scoring_payload)
                 is _RecordedErrorScoring
             ):
@@ -631,7 +702,7 @@ def read_lineup_pitch_payload(
             _dump(response.value.before_participants)
         ):
             raise ValueError
-        if type(payload.observations) is BattedHitPlayObservations:
+        if isinstance(payload.observations, BattedHitPlayObservations):
             third = payload.observations.third_out_observation
             if third.kind == "batter-before-first" and (
                 type(third) is not _BatterBeforeFirst
@@ -671,6 +742,44 @@ def format_batted_hit_prefix_payload(
     try:
         observed = _checked(observations, BattedHitPlayObservations)
         calc = _checked(calculation, LineupPitchCalculation)
+        raw_v7 = _canonical_json(
+            {
+                "formatVersion": "play-prefix-play-v3",
+                "observations": _dump(observed),
+                "participants": _dump(calc.response.value.before_participants),
+                "calculation": _dump(calc),
+            }
+        )
+        raw_v8 = _canonical_json(
+            _dump(calc.response.value.new_history_entry.difference)
+        )
+        read_lineup_pitch_payload(raw_v7, raw_v8, expected_calculation=calc)
+        return raw_v7, raw_v8
+    except (AttributeError, TypeError, ValueError):
+        raise TerminalPitchPayloadError from None
+
+
+def format_interference_prefix_payload(
+    observations: (
+        BattingInterferencePlayObservations
+        | BattingInterferencePenaltyObservations
+        | AdjudicatedInterferenceObservations
+    ),
+    calculation: LineupPitchCalculation,
+) -> tuple[str, str]:
+    """妨害の実裁定と唯一計算のV7/V8を閉じて形成する。"""
+    try:
+        observation_type = type(observations)
+        if observation_type not in {
+            BattingInterferencePlayObservations,
+            BattingInterferencePenaltyObservations,
+            AdjudicatedInterferenceObservations,
+        }:
+            raise ValueError
+        observed = _checked(observations, observation_type)
+        calc = _checked(calculation, LineupPitchCalculation)
+        if type(calc.response.value) is not RunnerValue:
+            raise ValueError
         raw_v7 = _canonical_json(
             {
                 "formatVersion": "play-prefix-play-v3",

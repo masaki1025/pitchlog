@@ -17,6 +17,7 @@ type Prepared =
       t1: Json
       battedHit: boolean
       runnerEvent: boolean
+      interference: boolean
     }
   | { ok: false; response: string }
 /** 閉shapeを再検証し、余剰/欠落を補完しない。 */
@@ -1858,7 +1859,14 @@ export function prepareLineupContinuation(raw: string): Prepared {
     'before',
     'runnerObservation',
   ])
-  const input = ordinaryInput ?? battedInput ?? runnerInput
+  const interferenceInput = object(r.t1, [
+    'eventKind',
+    'resultId',
+    'pitchEventKind',
+    'before',
+    'interferenceRuling',
+  ])
+  const input = ordinaryInput ?? battedInput ?? runnerInput ?? interferenceInput
   // 安打結果に観測を補わず、旧4fieldのまま受け入れない。
   if (
     ordinaryInput !== null &&
@@ -2228,11 +2236,26 @@ export function prepareLineupContinuation(raw: string): Prepared {
         responsiblePitcherId: runner.responsiblePitcherId,
       })),
     })
+  const interference =
+    (battedInput !== null && battedInput.eventKind === 'secondary-result') ||
+    interferenceInput !== null
+  if (interferenceInput !== null) {
+    t1 = Object.assign(t1, {
+      interferenceRuling: interferenceInput.interferenceRuling,
+      batterId: (s.participants as Json).batterId,
+      liveRunners: (s.runners as Array<Json>).map((runner) => ({
+        base: runner.base,
+        runnerId: runner.runnerId,
+        responsiblePitcherId: runner.responsiblePitcherId,
+      })),
+    })
+  }
   return {
     ok: true,
     request: r,
-    battedHit: battedInput !== null,
+    battedHit: battedInput !== null && !interference,
     runnerEvent: runnerInput !== null,
+    interference: interference,
     t1: t1,
   }
 }
@@ -2454,7 +2477,8 @@ export function finishLineupContinuation(r: Json, raw: string): string {
     Object.assign(finished, { runnerScoreEffects: value.runnerScoreEffects })
   }
   if (
-    Object.prototype.hasOwnProperty.call(input, 'officialScoringPayload') &&
+    (Object.prototype.hasOwnProperty.call(input, 'officialScoringPayload') ||
+      input.eventKind === 'secondary-result') &&
     Object.prototype.hasOwnProperty.call(value, 'runnerScoreEffects')
   )
     Object.assign(finished, { runnerScoreEffects: value.runnerScoreEffects })
