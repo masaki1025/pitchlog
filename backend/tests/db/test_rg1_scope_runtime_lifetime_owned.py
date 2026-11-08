@@ -100,9 +100,25 @@ def install_gc_probe():
     return snapshot, restore
 """
 
+_GC_FAILURE_CAPTURE_SOURCE = r"""
+def report_gc_failure(snapshot):
+    try:
+        counters = snapshot()
+        allowed = {'scopes','gc','released','failed','untracked',
+                   'session_missing','engine_missing','metadata_failed'}
+        if (type(counters) is dict and set(counters)==allowed and
+            all(type(value) is int and 0 <= value <= 100000
+                for value in counters.values())):
+            print('RG1_SCOPE_GC_FAILURE='+json.dumps(counters))
+    except BaseException:
+        pass
+"""
+
+
 _SCRIPT = (
     _APP_SCRIPT.split("async def run():", 1)[0]
     + _GC_PROBE_SOURCE
+    + _GC_FAILURE_CAPTURE_SOURCE
     + r"""
 _snapshot, _restore = install_gc_probe()
 async def short_run():
@@ -147,6 +163,9 @@ async def short_run():
         return {'game_id':game,'statuses':statuses,'gc':_snapshot()}
 try:
     result=asyncio.run(short_run())
+except BaseException:
+    report_gc_failure(_snapshot)
+    raise
 finally:
     _restore()
 print('RG1_SCOPE_GC_RESULT='+json.dumps(result))
@@ -191,6 +210,15 @@ def test_actual_app_scope_gc_releases_same_live_backend(vertical_database, tmp_p
             timeout=180,
             check=False,
         )
+    # 閉counterだけ先に保全する。診断保存失敗も元API失敗を置換しない。
+    for line in completed.stdout.splitlines():
+        if line.startswith("RG1_SCOPE_GC_FAILURE="):
+            try:
+                (tmp_path / "rg1-scope-gc-failure.json").write_text(
+                    json.dumps(json.loads(line.split("=", 1)[1]))
+                )
+            except Exception:
+                pass
     # 原本文/資格/SQLを含み得るstdout/stderrを失敗表示しない。
     lines = [
         line

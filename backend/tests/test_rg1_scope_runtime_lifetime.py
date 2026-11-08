@@ -170,3 +170,58 @@ def test_owned_gc_observer_preserves_original_identity(
         assert capsys.readouterr().out == ""
     finally:
         restore()
+
+
+@pytest.mark.parametrize("fault", ["none", "snapshot", "output"])
+def test_failure_counter_capture_does_not_replace_original_error(
+    monkeypatch, capsys, fault
+):
+    """終了診断の読取/出力が失敗しても、元API例外をそのまま伝える。"""
+    import builtins
+    import json
+
+    from db.test_rg1_scope_runtime_lifetime_owned import _GC_FAILURE_CAPTURE_SOURCE
+
+    namespace: dict[str, Any] = {"json": json}
+    exec(
+        compile(_GC_FAILURE_CAPTURE_SOURCE, "<fixed-counter-capture>", "exec"),
+        namespace,
+    )
+    original_error = RuntimeError("secret-sentinel-never-logged")
+    calls = []
+
+    def snapshot():
+        calls.append(True)
+        if fault == "snapshot":
+            raise ValueError("secret-sentinel-never-logged")
+        return dict.fromkeys(
+            (
+                "scopes",
+                "gc",
+                "released",
+                "failed",
+                "untracked",
+                "session_missing",
+                "engine_missing",
+                "metadata_failed",
+            ),
+            0,
+        )
+
+    if fault == "output":
+
+        def failed_output(*_args, **_kwargs):
+            raise ValueError("secret-sentinel-never-logged")
+
+        monkeypatch.setattr(builtins, "print", failed_output)
+    with pytest.raises(RuntimeError) as caught:
+        try:
+            raise original_error
+        except BaseException:
+            namespace["report_gc_failure"](snapshot)
+            raise
+    assert caught.value is original_error
+    assert calls == [True]
+    output = capsys.readouterr().out
+    assert "secret-sentinel" not in output
+    assert bool(output) is (fault == "none")

@@ -34,3 +34,5 @@ created: 2026-11-08
 ## step2の実走候補（PG未実施）
 
 PO委任rootが5ab1固定源を全文確認し、2026-11-08 23:31 JSTにstep2を採用。既実UID20003/C2/正常49の初球HTTPbootstrapだけを再利用し、新規作成→端末登録→開始→一球→GETへ絞る。試験だけのweakmapにscope入口の実Session/Engine弱参照を結び、実GateLoan.release直前にGC→元release一回を行う。controllerの元backend生存照合/期限/未知拒否は変更せず、監査は終端後owned readonlyのみ。collectorが失敗しても元return/例外identityを置換しない6純対向と元5条件の11passed2.74秒、型/Ruff0・collect1・脚本2compile。実PGはroot固定差分確認/実行許可待ち。
+
+失敗時counter追補: rootの既scope委任内判断で、短脚本が失敗した場合も閉じた非負counter8欄だけを一回出力しbare raiseする。snapshot/出力失敗は元例外を保持し、ホストも元rc失敗を成功化しない。元GC probeと製品sourceは5338と全byte不変。追加3対向を含め14pure/型/Ruffを確認。実行形態は実UID20003のASGITransport＋実app API/実C2認証・記録権・PGであり、画面や実ネットワークHTTPSの成功証拠ではない。
