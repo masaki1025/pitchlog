@@ -40,3 +40,7 @@ producerは既真正P3 frame/itemsの封印後・同TX最終head公開前へ置�
 採用対象は7949877c9b214bc15f4ce8665729ce270c2007bd / plan SHA cadc7ecb5d1cb3bf051e1c82afe3a60a4486f486008428d4342f19028a3e5dcd。rootが全文確認し旧snapshot保持/append-only overlay/真正capsule・S・同TX・全coverageを技術採用。正式受理/実PG/全MVP成立を含まない。step1→2は本scopeで継続可、root共有核・DDL/認可は候補packetのみ。
 
 step1値境界: `exports/p3_snapshot.py` に単独では資格を持たないtyped identity/完成値/500件以下の同RR頁検査を追加。tenant/game/gen/capsule/D1/旧play/effectiveevent/play/version/itemdigest/capsuledigest/stats版を全値照合し、88列閉集合と型を検査。新SQL/producerの真正性をこのデータclassの生成だけで成立させない。既_missing_snapshot/製品routeは未変更でP3未供給409を維持。28正負pure（別tenant/capsule/旧版/別TX/余剰欠落/NaN/bool/二度目訂正/重複/逆順）0.15秒、限定Ruff/Ty0。step2で同TX producerと真正DBreaderを接合しない限り製品提供ではない。
+
+root技術判断（2026-11-08 23:04 JST）: target列45の新closed置換key1件（ball/called-strike）の表示名を既tenant/active語彙境界・同TX正式lookupで取得し、append-only訂正時参照へ保存することを採用。元記録時参照だったと記録せず、capsule/event/ref/timeを全束縛する。旧name/uniform/不変列を保持し、固定ラベル辞書/現在roster/他game原本の流用はしない。lookup/token不足はroot共有packet、欠落/無権限は閉拒否。
+
+step2直接列候補: `exports/p3_projection.py` は旧88列原本と同digestのcapsule itemを照合し、先行/後続の物理・観測・参加者不変、targetのclosed ball/called-strike置換だけを認める。before/完了/打席表示は既唯一helper、集計3列は除外して既S生成SQLへ委ねる。旧氏名/番号/時刻は保持、新列45は訂正時refへ束縛。列72は通常版を変えず有限P3版（effective event/capsule/item/実artifact/旧origin）へ写し、未知形式/key/UUID/SHAを拒否。新3suiteは60passed2.18秒/限定Ty・Ruff0。既P3 selection default試験は、今正式readbodyがv2なのに旧connection defaultがv1を要求する基線差で1fail（今回両原典/正式asset未編集）。producer/正式reader/同TX共有hook未供給のため、既P3未供給409は変更していない。
