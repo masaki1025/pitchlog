@@ -36,6 +36,8 @@ root接合候補反映（2026-11-06 19:46 JST、PO委任Codex/root判断）: act
 
 凡打死の後続実装（2026-11-08、PO委任root指示、起点 `1bfad343fa365f3902d1a02b38a5f1b1a5cf8139`）: 既承認step1/2の未対応打球を現統合候補へ追加する。最初に `batting-result.batted-out` の無走者・明示失策なし/妨害なし、通常アウト及び打者走者の一塁到達前による第3アウトを、既T1唯一核・v3画面・同期/保存/GETへ接続する。走者あり/併殺/失策/妨害の因果観測が不足する分岐は閉拒否して後続残件に保持し、この有限実装を全試合完成と扱わない。担当所有は本計画の既列挙された frontend domain/API/打球画面/Provider、backend domainrt/sync payload/物理投影と専用試験に限る。共有SQL/registry/認可/catalog/contracts/正式pinは root 唯一writerへ before SHA 付き候補packetで渡す。旧4安打/走者操作/保存資格・同TX・再送の拒否順を維持し、唯一artifactだけ公式builderで再生成する。原典は付録Eの `batting-result.batted-out` 行、OUT3-01、FR-003/005とし、必要な記録者観測を既定値で補わない。
 
+凡打死後継artifactの有限追随（2026-11-08、PO委任root指示、統合起点 `5bc8bb681073051a0499a3098a4157d649a02a9a`）: 公式builder結果 `0db3c87d…b72fff` へ現行D11/manifest/FE fixtureを追随する。旧v1/v2/v3 witnessと全規範期待は不変更。実Git旧`ab8e9de1…a2ff8c` hostと新実hostの53件全値一致を旧期待から導き、実行pinと既許可自己echoだけを再封印したv4 witness/有限4pair registry・検証器を追加する。旧`4e8b`/`4e7d`は既v3鎖の固定hashも検査し、未知pairは拒否する。共有D03開始SQL/正式authz資産はroot唯一writerへ生成本文候補を渡し、本候補の純検査を実PG/正式受理へ読み替えない。
+
 
 非作者のNFR-018指摘反映（2026-11-06、PO委任Codex/root判断）: ef992の敵対レビューでbackend projection検証内のフォース連鎖再計算とTS内の占有真理値表重複を検出、双方採用。backendは唯一hostの真正出力/再実行完全一致とmodalityの型付き投影検証を保持し、野球意味のforce再導出を削除。TSは既hasRunnerをrunnerOccupancy.tsへ移しstate/battedHitから共有、adapterは閉塁番号のBigInt変換だけとする。数学真理値表を変更しない。artifact/pin/manifestは合成source固定後に公式builderで一括追随し、更新未了の固定版は提供済みとしない。最終非作者反映確認が必要。
 

@@ -15,7 +15,7 @@ from pitchlog.repositories.ordinary_prefix import OrdinaryPrefixError
 
 ROOT = Path(__file__).resolve().parents[2]
 BASE = ROOT / "contracts/state-transition"
-CURRENT = "ab8e9de1e9a2b602b998b485cb44133ab7cd703309a1e5d72e2c5b8ceca2ff8c"
+CURRENT = "0db3c87d156e290b71d13a31baa5dc5f240ea38a0a84b660428d7dc687b72fff"
 
 
 def _raw(value):
@@ -24,10 +24,9 @@ def _raw(value):
 
 def _inputs():
     return (
-        json.loads((BASE / "nonplay_v3_compatibility_witness_v3.json").read_bytes()),
-        json.loads((BASE / "play_prefix_v3_source_compatibility_v3.json").read_bytes()),
-        (BASE / "nonplay_v3_compatibility_witness_v2.json").read_bytes(),
-        (BASE / "nonplay_v3_compatibility_witness_v1.json").read_bytes(),
+        json.loads((BASE / "nonplay_v3_compatibility_witness_v4.json").read_bytes()),
+        json.loads((BASE / "play_prefix_v3_source_compatibility_v4.json").read_bytes()),
+        (BASE / "nonplay_v3_compatibility_witness_v3.json").read_bytes(),
     )
 
 
@@ -45,8 +44,8 @@ def _reseal(data, registry):
 
 def test_actual_53_full_responses_match_inherited_expected_values():
     """新hostの実全応答を旧期待由来の全型値へ照合し、期待を生成しない。"""
-    data, registry, previous, old = _inputs()
-    reader._validated_v3_witness_v3(_raw(data), _raw(registry), previous, old, CURRENT)
+    data, registry, previous = _inputs()
+    reader._validated_v3_witness_v4(_raw(data), _raw(registry), previous, CURRENT)
     with open_domain_host() as host:
         assert host.artifact_sha256 == CURRENT
         for sample in data["samples"]:
@@ -80,7 +79,7 @@ def test_actual_53_full_responses_match_inherited_expected_values():
 )
 def test_followed_hashes_do_not_qualify_changed_math_or_scope(fault):
     """witnessとregistryのhashを追随しても旧数学/型/範囲の変更を拒否する。"""
-    data, registry, previous, old = _inputs()
+    data, registry, previous = _inputs()
     sample = data["samples"][0]
     if fault == "prior-math":
         sample["priorExpected"]["value"]["t1"]["after"]["stateFields"]["state.outs"] = (
@@ -108,15 +107,13 @@ def test_followed_hashes_do_not_qualify_changed_math_or_scope(fault):
         data["scope"]["HTTPorDB"] = True
     _reseal(data, registry)
     with pytest.raises(ValueError):
-        reader._validated_v3_witness_v3(
-            _raw(data), _raw(registry), previous, old, CURRENT
-        )
+        reader._validated_v3_witness_v4(_raw(data), _raw(registry), previous, CURRENT)
 
 
-def test_real_gate_accepts_only_three_fixed_pairs():
-    """正規登録を含む実入口で有限3組以外を補修しない。"""
-    _, registry, _, _ = _inputs()
-    assert len(registry["cases"]) == 3
+def test_real_gate_accepts_only_four_fixed_pairs():
+    """正規登録を含む実入口で有限4組以外を補修しない。"""
+    _, registry, _ = _inputs()
+    assert len(registry["cases"]) == 4
     for row in registry["cases"]:
         reader._require_legacy_compatibility(
             row["priorArtifactSha256"], CURRENT, source_format="play-prefix-play-v3"
@@ -147,6 +144,8 @@ def test_legacy_registry_raw_change_is_rejected_before_qualification(tmp_path):
         "batted_current_identity_witness_v1.json",
         "nonplay_v3_compatibility_witness_v3.json",
         "play_prefix_v3_source_compatibility_v3.json",
+        "nonplay_v3_compatibility_witness_v4.json",
+        "play_prefix_v3_source_compatibility_v4.json",
     ):
         destination = tmp_path / "contracts/state-transition" / name
         destination.parent.mkdir(parents=True, exist_ok=True)

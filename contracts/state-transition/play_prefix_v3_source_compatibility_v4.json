@@ -1,0 +1,45 @@
+{
+  "version": "4",
+  "sourceFormat": "play-prefix-play-v3",
+  "historicalWitnessSha256": "7cdc5c0b8e3b2481af8c33c1e437562c727ac9769110138d5aeabb403223d051",
+  "chainWitnessSha256": "cd21ba1138c37820a6b80e8f3c506a462d961a8a745c537012cb72ca876c6df4",
+  "currentWitnessSha256": "ab055224a3279da42606d5dfcf42caefd8fae5a3df814e0a481acf549ad2791b",
+  "cases": [
+    {
+      "priorArtifactSha256": "4e8b32524b52ed1aee79737a62d2bdd0ddc28681079b24cee54512dd7bbbbef1",
+      "executionArtifactSha256": "0db3c87d156e290b71d13a31baa5dc5f240ea38a0a84b660428d7dc687b72fff",
+      "sourceFormat": "play-prefix-play-v3",
+      "compatibleOperations": [
+        "deriveLineupPlayPrefixWithContinuation"
+      ],
+      "witnessSha256": "ab055224a3279da42606d5dfcf42caefd8fae5a3df814e0a481acf549ad2791b"
+    },
+    {
+      "priorArtifactSha256": "4e7d4c8d8d010f1cebb5825272a1f7627fe779e62f0135540c7d79acdce90309",
+      "executionArtifactSha256": "0db3c87d156e290b71d13a31baa5dc5f240ea38a0a84b660428d7dc687b72fff",
+      "sourceFormat": "play-prefix-play-v3",
+      "compatibleOperations": [
+        "deriveLineupPlayPrefixWithContinuation"
+      ],
+      "witnessSha256": "ab055224a3279da42606d5dfcf42caefd8fae5a3df814e0a481acf549ad2791b"
+    },
+    {
+      "priorArtifactSha256": "ab8e9de1e9a2b602b998b485cb44133ab7cd703309a1e5d72e2c5b8ceca2ff8c",
+      "executionArtifactSha256": "0db3c87d156e290b71d13a31baa5dc5f240ea38a0a84b660428d7dc687b72fff",
+      "sourceFormat": "play-prefix-play-v3",
+      "compatibleOperations": [
+        "deriveLineupPlayPrefixWithContinuation"
+      ],
+      "witnessSha256": "ab055224a3279da42606d5dfcf42caefd8fae5a3df814e0a481acf549ad2791b"
+    },
+    {
+      "priorArtifactSha256": "0db3c87d156e290b71d13a31baa5dc5f240ea38a0a84b660428d7dc687b72fff",
+      "executionArtifactSha256": "0db3c87d156e290b71d13a31baa5dc5f240ea38a0a84b660428d7dc687b72fff",
+      "sourceFormat": "play-prefix-play-v3",
+      "compatibleOperations": [
+        "deriveLineupPlayPrefixWithContinuation"
+      ],
+      "witnessSha256": "ab055224a3279da42606d5dfcf42caefd8fae5a3df814e0a481acf549ad2791b"
+    }
+  ]
+}
