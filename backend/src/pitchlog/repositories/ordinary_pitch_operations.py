@@ -37,7 +37,8 @@ _BATTED_COLUMNS = frozenset(
     }
 )
 _BATTED_RESULTS = frozenset(
-    f"batting-result.{result}" for result in ("single", "double", "triple", "home-run")
+    f"batting-result.{result}"
+    for result in ("single", "double", "triple", "home-run", "batted-out")
 )
 _INTENTIONAL_WALK = "batting-result.intentional-walk"
 _NONPITCH_NULL_COLUMNS = frozenset(

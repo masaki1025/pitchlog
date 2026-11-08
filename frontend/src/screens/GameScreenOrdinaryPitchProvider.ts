@@ -28,6 +28,7 @@ import {
   sealLineupMetadata,
   formatLineupPrefixWire,
 } from '../api/lineupPrefixWire'
+import type { BattedOutWireObservations } from '../api/lineupPrefixWire'
 import type {
   Source,
   PrefixRef,
@@ -268,6 +269,7 @@ export type BattedHitConfirmation = Omit<
   BattedHitObservations,
   'runnerAdvanceOverridesByRunner'
 > & { runnerAdvanceOverridesByRunner: RunnerAdvanceOverridesByRunner }
+export type BattedOutConfirmation = BattedOutWireObservations
 
 export type PlayScreenObservation = Omit<
   OrdinaryScreenObservation,
@@ -283,8 +285,12 @@ export type PlayScreenObservation = Omit<
       | 'batting-result.k3'
       | 'batting-result.strikeout-double-play'
       | BattedHitResult
+      | 'batting-result.batted-out'
     runnerEvent?: RunnerObservationWire | null
-    battedHit?: Omit<BattedHitConfirmation, keyof FirstBallObservations> | null
+    battedHit?:
+      | Omit<BattedHitConfirmation, keyof FirstBallObservations>
+      | Omit<BattedOutConfirmation, keyof FirstBallObservations>
+      | null
     nextBatter?: NextBatter | null
   }>
 /** 非投球では座標/球種を要求せず、仮の投球観測も構築しない。 */
@@ -705,7 +711,7 @@ export async function lineupContextFromRead(
 }
 /** 走者ありは記録者の明示確認だけをT1へ渡し、既定進塁を補わない。 */
 function requestRunnerOverrides(
-  hit: Omit<BattedHitConfirmation, keyof FirstBallObservations>,
+  hit: { runnerAdvanceOverridesByRunner: RunnerAdvanceOverridesByRunner },
   before: Snapshot,
   sourceRunners: LineupSource['runners'],
 ): RunnerAdvanceOverrides {
@@ -766,6 +772,7 @@ export async function prepareLineupPrefix(
     'batting-result.double',
     'batting-result.triple',
     'batting-result.home-run',
+    'batting-result.batted-out',
   ]
   const batted = hitResults.includes(observation.resultId)
   if (batted) {
@@ -792,6 +799,20 @@ export async function prepareLineupPrefix(
         ))
     )
       return invalid()
+    if (observation.resultId === 'batting-result.batted-out') {
+      const third = hit.thirdOutObservation
+      if (
+        context.after.stateFields['state.runners'] !== 'empty' ||
+        (context.after.stateFields['state.outs'] === '2'
+          ? third.kind !== 'batter-before-first' ||
+            !('batter' in third) ||
+            third.batter.kind !== 'official' ||
+            third.batter.player_id !==
+              context.lineupSource.participants.batterId
+          : third.kind !== 'none')
+      )
+        return invalid()
+    }
   } else if (observation.battedHit != null) return invalid()
   const runnerAdvanceOverrides = batted
     ? requestRunnerOverrides(
@@ -814,7 +835,8 @@ export async function prepareLineupPrefix(
             officialScoringPayload: 'no-error',
             interferenceRuling: 'not-required',
             runnerAdvanceOverrides: runnerAdvanceOverrides,
-            thirdOutObservation: 'none',
+            thirdOutObservation:
+              observation.battedHit!.thirdOutObservation.kind,
           }
         : {}),
     },

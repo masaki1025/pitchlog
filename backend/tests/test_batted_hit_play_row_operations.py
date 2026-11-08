@@ -12,7 +12,7 @@ from pitchlog.repositories.ordinary_pitch_operations import (
 )
 from pitchlog.sync.terminal_pitch_tokens import PlayPrefixPlayRowInsertToken
 
-_RESULTS = ("single", "double", "triple", "home-run")
+_RESULTS = ("single", "double", "triple", "home-run", "batted-out")
 _BATTED = {
     "raw_fielder_position": "9",
     "resolved_fielder_id": str(UUID(int=9)),
