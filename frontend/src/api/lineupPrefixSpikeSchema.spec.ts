@@ -132,43 +132,23 @@ describe('正式候補schemaは原値を書き換えず厳格に検証する', (
     ).toBe(true)
     expect(value).toEqual(snapshot)
     expect(canonical).toEqual(schemaSnapshot)
-    const restored = structuredClone(lineupPrefixSpikeSchema)
-    for (const name of ['BattedHitT1Input', 'BattedHitObservations'] as const) {
-      restored.$defs[name].properties.resultId = structuredClone(
-        canonical.$defs[name].properties.resultId,
-      ) as never
-      restored.$defs[name].properties.thirdOutObservation = structuredClone(
-        canonical.$defs[name].properties.thirdOutObservation,
-      ) as never
-      delete (restored.$defs[name] as { oneOf?: unknown }).oneOf
-    }
-    restored.oneOf.splice(5, 1)
-    for (const branch of restored.oneOf.slice(1, 5)) {
-      const observations = branch.properties?.observations as
-        { allOf?: Array<{ properties?: Record<string, unknown> }> } | undefined
-      const t1 = (
-        branch.properties?.calculation as {
-          properties?: {
-            request?: {
-              properties?: {
-                t1?: { allOf?: Array<{ properties?: Record<string, unknown> }> }
-              }
-            }
-          }
-        }
-      )?.properties?.request?.properties?.t1
-      delete observations?.allOf?.[1]?.properties?.thirdOutObservation
-      delete t1?.allOf?.[1]?.properties?.thirdOutObservation
-    }
-    expect(restored).toEqual(canonical)
+    expect(lineupPrefixSpikeSchema).toBe(canonical)
   })
   it('凡打死の明示OUT3だけを候補に加え、未知結果と未知第3アウトは拒否する', () => {
     const out = {
       ...t1Request('not-applied'),
       resultId: 'batting-result.batted-out',
+      before: {
+        ...before,
+        stateFields: {
+          ...(before.stateFields as Record<string, unknown>),
+          'state.outs': '2',
+          'state.runners': 'empty',
+        },
+      },
       thirdOutObservation: 'batter-before-first',
     }
-    expect(isClosedPlaySchema(out, canonical, 'BattedHitT1Input')).toBe(false)
+    expect(isClosedPlaySchema(out, canonical, 'BattedHitT1Input')).toBe(true)
     expect(
       isClosedPlaySchema(out, lineupPrefixSpikeSchema, 'BattedHitT1Input'),
     ).toBe(true)

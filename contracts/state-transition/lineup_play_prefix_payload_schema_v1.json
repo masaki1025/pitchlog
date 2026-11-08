@@ -2597,77 +2597,77 @@
         "thirdOutObservation"
       ],
       "additionalProperties": false,
-      "allOf": [
+      "oneOf": [
         {
-          "if": {
-            "properties": {
-              "resultId": {
-                "const": "batting-result.batted-out"
+          "properties": {
+            "resultId": {
+              "enum": [
+                "batting-result.single",
+                "batting-result.double",
+                "batting-result.triple",
+                "batting-result.home-run"
+              ]
+            },
+            "thirdOutObservation": {
+              "const": "none"
+            }
+          }
+        },
+        {
+          "properties": {
+            "resultId": {
+              "const": "batting-result.batted-out"
+            },
+            "runnerAdvanceOverrides": {
+              "const": "not-applied"
+            },
+            "thirdOutObservation": {
+              "const": "none"
+            },
+            "before": {
+              "properties": {
+                "stateFields": {
+                  "properties": {
+                    "state.runners": {
+                      "const": "empty"
+                    },
+                    "state.outs": {
+                      "enum": [
+                        "0",
+                        "1"
+                      ]
+                    }
+                  }
+                }
               }
             }
-          },
-          "then": {
-            "properties": {
-              "runnerAdvanceOverrides": {
-                "const": "not-applied"
-              },
-              "before": {
-                "properties": {
-                  "stateFields": {
-                    "properties": {
-                      "state.runners": {
-                        "const": "empty"
-                      },
-                      "state.outs": {
-                        "enum": [
-                          "0",
-                          "1",
-                          "2"
-                        ]
-                      }
-                    }
-                  }
-                }
-              }
+          }
+        },
+        {
+          "properties": {
+            "resultId": {
+              "const": "batting-result.batted-out"
             },
-            "allOf": [
-              {
-                "if": {
+            "runnerAdvanceOverrides": {
+              "const": "not-applied"
+            },
+            "thirdOutObservation": {
+              "const": "batter-before-first"
+            },
+            "before": {
+              "properties": {
+                "stateFields": {
                   "properties": {
-                    "before": {
-                      "properties": {
-                        "stateFields": {
-                          "properties": {
-                            "state.outs": {
-                              "const": "2"
-                            }
-                          }
-                        }
-                      }
-                    }
-                  }
-                },
-                "then": {
-                  "properties": {
-                    "thirdOutObservation": {
-                      "const": "batter-before-first"
-                    }
-                  }
-                },
-                "else": {
-                  "properties": {
-                    "thirdOutObservation": {
-                      "const": "none"
+                    "state.runners": {
+                      "const": "empty"
+                    },
+                    "state.outs": {
+                      "enum": [
+                        "2"
+                      ]
                     }
                   }
                 }
-              }
-            ]
-          },
-          "else": {
-            "properties": {
-              "thirdOutObservation": {
-                "const": "none"
               }
             }
           }
@@ -3009,38 +3009,40 @@
         "thirdOutTimingByRunner"
       ],
       "additionalProperties": false,
-      "allOf": [
+      "oneOf": [
         {
-          "if": {
-            "properties": {
-              "resultId": {
-                "const": "batting-result.batted-out"
-              }
-            }
-          },
-          "then": {
-            "properties": {
-              "runnerAdvanceOverridesByRunner": {
-                "const": {
-                  "kind": "not-applied",
-                  "overrides": []
+          "properties": {
+            "resultId": {
+              "enum": [
+                "batting-result.single",
+                "batting-result.double",
+                "batting-result.triple",
+                "batting-result.home-run"
+              ]
+            },
+            "thirdOutObservation": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "none"
                 }
-              }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
             }
-          },
-          "else": {
-            "properties": {
-              "thirdOutObservation": {
-                "type": "object",
-                "properties": {
-                  "kind": {
-                    "const": "none"
-                  }
-                },
-                "required": [
-                  "kind"
-                ],
-                "additionalProperties": false
+          }
+        },
+        {
+          "properties": {
+            "resultId": {
+              "const": "batting-result.batted-out"
+            },
+            "runnerAdvanceOverridesByRunner": {
+              "const": {
+                "kind": "not-applied",
+                "overrides": []
               }
             }
           }
@@ -5506,57 +5508,61 @@
           }
         }
       },
-      "allOf": [
+      "oneOf": [
         {
-          "if": {
-            "properties": {
-              "calculation": {
-                "properties": {
-                  "request": {
-                    "properties": {
-                      "t1": {
-                        "properties": {
-                          "thirdOutObservation": {
-                            "const": "batter-before-first"
-                          }
+          "properties": {
+            "calculation": {
+              "properties": {
+                "request": {
+                  "properties": {
+                    "t1": {
+                      "properties": {
+                        "thirdOutObservation": {
+                          "const": "none"
                         }
                       }
                     }
                   }
                 }
               }
-            }
-          },
-          "then": {
-            "properties": {
-              "observations": {
-                "properties": {
-                  "thirdOutObservation": {
-                    "properties": {
-                      "kind": {
-                        "const": "batter-before-first"
-                      }
+            },
+            "observations": {
+              "properties": {
+                "thirdOutObservation": {
+                  "properties": {
+                    "kind": {
+                      "const": "none"
                     }
                   }
                 }
               }
             }
-          },
-          "else": {
-            "properties": {
-              "observations": {
-                "properties": {
-                  "thirdOutObservation": {
-                    "type": "object",
-                    "properties": {
-                      "kind": {
-                        "const": "none"
+          }
+        },
+        {
+          "properties": {
+            "calculation": {
+              "properties": {
+                "request": {
+                  "properties": {
+                    "t1": {
+                      "properties": {
+                        "thirdOutObservation": {
+                          "const": "batter-before-first"
+                        }
                       }
-                    },
-                    "required": [
-                      "kind"
-                    ],
-                    "additionalProperties": false
+                    }
+                  }
+                }
+              }
+            },
+            "observations": {
+              "properties": {
+                "thirdOutObservation": {
+                  "properties": {
+                    "kind": {
+                      "const": "batter-before-first"
+                    }
                   }
                 }
               }
