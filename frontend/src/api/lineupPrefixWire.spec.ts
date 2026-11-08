@@ -136,7 +136,11 @@ it('先置き19手例を全12観測と対応結果へ束縛し、相関違反を
       pitchSpeed: { kmh: null, outsideRangeConfirmed: false },
       stance: null,
       battingSide: null,
-      resultId: q.t1.resultId as BattedHitObservations['resultId'],
+      resultId: q.t1.resultId as
+        | 'batting-result.single'
+        | 'batting-result.double'
+        | 'batting-result.triple'
+        | 'batting-result.home-run',
       battedBall: {
         typeKey: null,
         strengthKey: null,

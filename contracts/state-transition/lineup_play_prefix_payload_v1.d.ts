@@ -12,23 +12,18 @@ export type IntentionalWalkPlayPrefixV7 = Readonly<{formatVersion:"play-prefix-p
 export type LineupPlayPrefixV7 = RunnerPlayPrefixV7 | NonplayNormalV7 | PitchPlayPrefixV7 | IntentionalWalkPlayPrefixV7 | {[R in BattedHitResult]:BattedHitPlayPrefixV7<R>}[BattedHitResult];
 export type LineupPlayPrefixV8=HistoryEntry["difference"];
 
-/** 無走者4安打の全明示観測。nullableは未観測の保持であり、値を推測しない。 */
-type BattedHitObservationBase = Readonly<{
-  pitchTypeKey: Observations["pitchTypeKey"];
-  course: Observations["course"];
-  pitchSpeed: Observations["pitchSpeed"];
-  stance: Observations["stance"];
-  battingSide: Observations["battingSide"];
-  resultId: "batting-result.single" | "batting-result.double" | "batting-result.triple" | "batting-result.home-run";
-  battedBall: Readonly<{typeKey:string|null;strengthKey:string|null;hitX:string|null;hitY:string|null;rawFielderPosition:string|null;resolvedFielderId:string|null}>;
-  officialScoringPayload: Readonly<{kind:"no-error";errorCount:"0";fielders:readonly []}>;
-  interferenceRuling: Readonly<{kind:"not-required"}>;
-  runnerAdvanceOverridesByRunner: (Readonly<{kind:"not-applied";overrides:readonly []}> | Readonly<{kind:"applied";overrides:readonly (Readonly<{runnerBase:"1"|"2"|"3";destination:"2"|"3"|"4"}>)[]}>);
-  thirdOutObservation: Readonly<{kind:"none"}>;
-  thirdOutTimingByRunner: Readonly<Record<string,never>>;
-}>;
-
-export type BattedHitObservations = BattedHitObservationBase | (Omit<BattedHitObservationBase,"resultId"|"thirdOutObservation"|"runnerAdvanceOverridesByRunner"> & Readonly<{resultId:"batting-result.batted-out"; runnerAdvanceOverridesByRunner:Readonly<{kind:"not-applied";overrides:readonly []}>; thirdOutObservation:Readonly<{kind:"none"}>|Readonly<{kind:"batter-before-first";batter:Readonly<{kind:"official";player_id:string}>}>}>);
+/** 明示した観測を保持する。配置・因果・実IDの相関は唯一核/codecで照合する。 */
+import type {Uuid,BattedRbiRulingByRunner,BattedForceOutRunner} from "./lineup_play_prefix_v1";
+export type BattedNoErrorScoring = Readonly<{kind:"no-error";errorCount:"0";fielders:readonly []}>;
+export type BattedRecordedErrorScoring = Readonly<{kind:"error-recorded";errors:readonly [Readonly<{fielder:Readonly<{kind:"official";player_id:Uuid}>;count:1}>]}>;
+type BattedObservationCommon = Readonly<{pitchTypeKey:Observations["pitchTypeKey"];course:Observations["course"];pitchSpeed:Observations["pitchSpeed"];stance:Observations["stance"];battingSide:Observations["battingSide"];battedBall:Readonly<{typeKey:string|null;strengthKey:string|null;hitX:string|null;hitY:string|null;rawFielderPosition:string|null;resolvedFielderId:string|null}>;interferenceRuling:Readonly<{kind:"not-required"}>;runnerAdvanceOverridesByRunner:Readonly<{kind:"not-applied";overrides:readonly []}>|Readonly<{kind:"applied";overrides:readonly Readonly<{runnerBase:"1"|"2"|"3";destination:"1"|"2"|"3"|"4"}>[]}>;thirdOutTimingByRunner:Readonly<Record<string,never>>}>;
+export type BattedHitObservations =
+ (BattedObservationCommon & Readonly<{resultId:"batting-result.single"|"batting-result.double"|"batting-result.triple"|"batting-result.batted-reach"|"batting-result.fielders-choice"|"batting-result.sacrifice-bunt"|"batting-result.sacrifice-fly";officialScoringPayload:BattedNoErrorScoring;thirdOutObservation:Readonly<{kind:"none"}>;rbiRulingByRunner?:BattedRbiRulingByRunner;outRunner?:never}>)
+ | (BattedObservationCommon & Readonly<{resultId:"batting-result.home-run";officialScoringPayload:BattedNoErrorScoring;thirdOutObservation:Readonly<{kind:"none"}>;rbiRulingByRunner?:never;outRunner?:never}>)
+ | (BattedObservationCommon & Readonly<{resultId:"batting-result.batted-out";officialScoringPayload:BattedNoErrorScoring;thirdOutObservation:Readonly<{kind:"none"}>|Readonly<{kind:"batter-before-first";batter:Readonly<{kind:"official";player_id:Uuid}>}>;rbiRulingByRunner?:BattedRbiRulingByRunner;outRunner?:never}>)
+ | (Omit<BattedObservationCommon,"runnerAdvanceOverridesByRunner"> & Readonly<{resultId:"batting-result.double-play";officialScoringPayload:BattedNoErrorScoring;thirdOutObservation:Readonly<{kind:"none"}>;runnerAdvanceOverridesByRunner:Readonly<{kind:"not-applied";overrides:readonly []}>;outRunner:BattedForceOutRunner;rbiRulingByRunner?:never}>)
+ | (BattedObservationCommon & Readonly<{resultId:"batting-result.error"|"batting-result.sacrifice-bunt-error";officialScoringPayload:BattedRecordedErrorScoring;thirdOutObservation:Readonly<{kind:"none"}>;rbiRulingByRunner?:never;outRunner?:never}>);
+export type {WireHead} from "./lineup_play_prefix_v1";
 
 /** 数学nextCPはlogical proposal echo。正式保存refはserver ACK後のGETで得る。 */
 import type { NonplayRequest, NonplaySuccess } from "./lineup_play_prefix_v1";

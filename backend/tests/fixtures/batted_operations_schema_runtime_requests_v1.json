@@ -1,0 +1,2627 @@
+{
+  "qualification": "Author runtime request inputs only; responses are recomputed by actual host, not golden expected values; no DB/authorization proof",
+  "artifactSha256": "71f2726a288dfcfaff4c2fcdf293651dda0fb610b9ead325b352bd4f23a07aff",
+  "samples": [
+    {
+      "operation": "single",
+      "request": {
+        "version": "3",
+        "prefixRef": {
+          "version": "3",
+          "scope": "play-prefix-v3",
+          "tenantId": "10000000-0000-0000-0000-000000000001",
+          "gameId": "10000000-0000-0000-0000-000000000002",
+          "generation": "recording-generation-v1",
+          "length": "0",
+          "checkpoint": {
+            "id": "10000000-0000-0000-0000-000000000600",
+            "revision": "1",
+            "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          "historyVersion": "0",
+          "origin": {
+            "kind": "started-game",
+            "eventId": "10000000-0000-0000-0000-000000000003"
+          }
+        },
+        "rules": {
+          "regulationInnings": "9",
+          "coldConditions": [],
+          "extensionLimit": "9",
+          "tiebreak": null,
+          "dh": true
+        },
+        "t1": {
+          "eventKind": "batting-result",
+          "resultId": "batting-result.single",
+          "pitchEventKind": "pitch-event",
+          "before": {
+            "stateFields": {
+              "state.half": "top",
+              "state.count.strikes": "0",
+              "state.count.balls": "0",
+              "state.outs": "0",
+              "state.runners": "empty",
+              "state.battingOrder": "1",
+              "state.tiebreakActive": false,
+              "state.gameEnded": false,
+              "state.inning": "1",
+              "state.score": {
+                "home": "0",
+                "away": "0"
+              }
+            },
+            "scoreboard": {
+              "inningScores": {
+                "home": "0",
+                "away": "0"
+              },
+              "hits": "0",
+              "errors": "0",
+              "strikeouts": "0",
+              "walks": "0"
+            },
+            "battingOrderBySide": {
+              "away": "1",
+              "home": "1"
+            }
+          },
+          "officialScoringPayload": "no-error",
+          "interferenceRuling": "not-required",
+          "runnerAdvanceOverrides": "not-applied",
+          "thirdOutObservation": "none"
+        },
+        "source": {
+          "kind": "started-initial-v3",
+          "prefixRef": {
+            "version": "3",
+            "scope": "play-prefix-v3",
+            "tenantId": "10000000-0000-0000-0000-000000000001",
+            "gameId": "10000000-0000-0000-0000-000000000002",
+            "generation": "recording-generation-v1",
+            "length": "0",
+            "checkpoint": {
+              "id": "10000000-0000-0000-0000-000000000600",
+              "revision": "1",
+              "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            },
+            "historyVersion": "0",
+            "origin": {
+              "kind": "started-game",
+              "eventId": "10000000-0000-0000-0000-000000000003"
+            }
+          },
+          "rules": {
+            "regulationInnings": "9",
+            "coldConditions": [],
+            "extensionLimit": "9",
+            "tiebreak": null,
+            "dh": true
+          },
+          "after": {
+            "stateFields": {
+              "state.half": "top",
+              "state.count.strikes": "0",
+              "state.count.balls": "0",
+              "state.outs": "0",
+              "state.runners": "empty",
+              "state.battingOrder": "1",
+              "state.tiebreakActive": false,
+              "state.gameEnded": false,
+              "state.inning": "1",
+              "state.score": {
+                "home": "0",
+                "away": "0"
+              }
+            },
+            "scoreboard": {
+              "inningScores": {
+                "home": "0",
+                "away": "0"
+              },
+              "hits": "0",
+              "errors": "0",
+              "strikeouts": "0",
+              "walks": "0"
+            },
+            "battingOrderBySide": {
+              "away": "1",
+              "home": "1"
+            }
+          },
+          "t2": null,
+          "historyDepth": "0",
+          "playCount": "0",
+          "lastSource": null,
+          "position": {
+            "d1": "1",
+            "d2": "1",
+            "appliedWatermark": "0"
+          },
+          "priorArtifactSha256": "bfb492ec7cf287a043287d684457cb0995b3ea572f2d778cace0833ea559535a",
+          "executionArtifactSha256": "71f2726a288dfcfaff4c2fcdf293651dda0fb610b9ead325b352bd4f23a07aff",
+          "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
+          "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
+          "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
+          "lineup": {
+            "away": {
+              "teamId": "10000000-0000-0000-0000-000000000300",
+              "battingOrder": {
+                "1": "10000000-0000-0000-0000-000000000201",
+                "2": "10000000-0000-0000-0000-000000000202",
+                "3": "10000000-0000-0000-0000-000000000203",
+                "4": "10000000-0000-0000-0000-000000000204",
+                "5": "10000000-0000-0000-0000-000000000205",
+                "6": "10000000-0000-0000-0000-000000000206",
+                "7": "10000000-0000-0000-0000-000000000207",
+                "8": "10000000-0000-0000-0000-000000000208",
+                "9": "10000000-0000-0000-0000-000000000209"
+              },
+              "pitcherId": "10000000-0000-0000-0000-000000000210",
+              "catcherId": "10000000-0000-0000-0000-000000000202"
+            },
+            "home": {
+              "teamId": "10000000-0000-0000-0000-000000000400",
+              "battingOrder": {
+                "1": "10000000-0000-0000-0000-000000000301",
+                "2": "10000000-0000-0000-0000-000000000302",
+                "3": "10000000-0000-0000-0000-000000000303",
+                "4": "10000000-0000-0000-0000-000000000304",
+                "5": "10000000-0000-0000-0000-000000000305",
+                "6": "10000000-0000-0000-0000-000000000306",
+                "7": "10000000-0000-0000-0000-000000000307",
+                "8": "10000000-0000-0000-0000-000000000308",
+                "9": "10000000-0000-0000-0000-000000000309"
+              },
+              "pitcherId": "10000000-0000-0000-0000-000000000310",
+              "catcherId": "10000000-0000-0000-0000-000000000302"
+            }
+          },
+          "runners": [],
+          "participants": {
+            "batterId": "10000000-0000-0000-0000-000000000201",
+            "pitcherId": "10000000-0000-0000-0000-000000000310",
+            "catcherId": "10000000-0000-0000-0000-000000000302",
+            "battingOrder": "1"
+          },
+          "responsibility": {
+            "kind": "no-change",
+            "paStartSource": {
+              "kind": "started-game",
+              "id": "10000000-0000-0000-0000-000000000003"
+            },
+            "previousPitcherId": null,
+            "strikesAtChange": null,
+            "ballsAtChange": null
+          },
+          "provenance": {
+            "kind": "started-game",
+            "eventId": "10000000-0000-0000-0000-000000000003"
+          }
+        },
+        "playIdentity": {
+          "eventId": "00000000-0000-0000-0000-000000004e23",
+          "d5": "00000000-0000-0000-0000-000000004e24",
+          "playId": "00000000-0000-0000-0000-000000004e25"
+        },
+        "nextCheckpoint": {
+          "id": "00000000-0000-0000-0000-000000005209",
+          "digest": "0000000000000000000000000000000000000000000000000000000000000000",
+          "revision": "2"
+        }
+      }
+    },
+    {
+      "operation": "batted-out",
+      "request": {
+        "version": "3",
+        "prefixRef": {
+          "version": "3",
+          "scope": "play-prefix-v3",
+          "tenantId": "10000000-0000-0000-0000-000000000001",
+          "gameId": "10000000-0000-0000-0000-000000000002",
+          "generation": "recording-generation-v1",
+          "length": "1",
+          "checkpoint": {
+            "id": "00000000-0000-0000-0000-000000005209",
+            "digest": "0000000000000000000000000000000000000000000000000000000000000000",
+            "revision": "2"
+          },
+          "historyVersion": "1",
+          "origin": {
+            "kind": "started-game",
+            "eventId": "10000000-0000-0000-0000-000000000003"
+          }
+        },
+        "rules": {
+          "regulationInnings": "9",
+          "coldConditions": [],
+          "extensionLimit": "9",
+          "tiebreak": null,
+          "dh": true
+        },
+        "t1": {
+          "eventKind": "batting-result",
+          "resultId": "batting-result.batted-out",
+          "pitchEventKind": "pitch-event",
+          "before": {
+            "stateFields": {
+              "state.half": "top",
+              "state.count.strikes": "0",
+              "state.count.balls": "0",
+              "state.outs": "0",
+              "state.runners": "first",
+              "state.battingOrder": "2",
+              "state.tiebreakActive": false,
+              "state.gameEnded": false,
+              "state.inning": "1",
+              "state.score": {
+                "home": "0",
+                "away": "0"
+              }
+            },
+            "scoreboard": {
+              "inningScores": {
+                "home": "0",
+                "away": "0"
+              },
+              "hits": "1",
+              "errors": "0",
+              "strikeouts": "0",
+              "walks": "0"
+            },
+            "battingOrderBySide": {
+              "away": "2",
+              "home": "1"
+            }
+          },
+          "officialScoringPayload": "no-error",
+          "interferenceRuling": "not-required",
+          "runnerAdvanceOverrides": {
+            "kind": "applied",
+            "overrides": [
+              {
+                "runnerBase": "1",
+                "destination": "1"
+              }
+            ]
+          },
+          "thirdOutObservation": "none"
+        },
+        "source": {
+          "kind": "evaluated-prefix-v3",
+          "prefixRef": {
+            "version": "3",
+            "scope": "play-prefix-v3",
+            "tenantId": "10000000-0000-0000-0000-000000000001",
+            "gameId": "10000000-0000-0000-0000-000000000002",
+            "generation": "recording-generation-v1",
+            "length": "1",
+            "checkpoint": {
+              "id": "00000000-0000-0000-0000-000000005209",
+              "digest": "0000000000000000000000000000000000000000000000000000000000000000",
+              "revision": "2"
+            },
+            "historyVersion": "1",
+            "origin": {
+              "kind": "started-game",
+              "eventId": "10000000-0000-0000-0000-000000000003"
+            }
+          },
+          "rules": {
+            "regulationInnings": "9",
+            "coldConditions": [],
+            "extensionLimit": "9",
+            "tiebreak": null,
+            "dh": true
+          },
+          "after": {
+            "stateFields": {
+              "state.half": "top",
+              "state.count.strikes": "0",
+              "state.count.balls": "0",
+              "state.outs": "0",
+              "state.runners": "first",
+              "state.battingOrder": "2",
+              "state.tiebreakActive": false,
+              "state.gameEnded": false,
+              "state.inning": "1",
+              "state.score": {
+                "home": "0",
+                "away": "0"
+              }
+            },
+            "scoreboard": {
+              "inningScores": {
+                "home": "0",
+                "away": "0"
+              },
+              "hits": "1",
+              "errors": "0",
+              "strikeouts": "0",
+              "walks": "0"
+            },
+            "battingOrderBySide": {
+              "away": "2",
+              "home": "1"
+            }
+          },
+          "t2": {
+            "kind": "evaluated-end-condition",
+            "scope": "play-prefix-v3",
+            "evaluation_point": "post-play",
+            "facts": {
+              "beforeInning": "1",
+              "beforeHalf": "top",
+              "beforeOuts": "0",
+              "afterInning": "1",
+              "afterHalf": "top",
+              "afterOuts": "0",
+              "halfCompleted": false,
+              "outsUnchanged": true,
+              "scoreUnchanged": true,
+              "priorOpen": true
+            },
+            "decision": {
+              "outcome": "no-end",
+              "endConditionDetected": false,
+              "lockFurtherPlayInput": false,
+              "promptEndDeclaration": false,
+              "automaticallyEndsGame": false,
+              "xMark": "recorded-score"
+            },
+            "tiebreakStartRequired": false
+          },
+          "historyDepth": "1",
+          "playCount": "1",
+          "lastSource": {
+            "eventId": "00000000-0000-0000-0000-000000004e23",
+            "d5": "00000000-0000-0000-0000-000000004e24",
+            "playId": "00000000-0000-0000-0000-000000004e25"
+          },
+          "position": {
+            "d1": "2",
+            "d2": "2",
+            "appliedWatermark": "1"
+          },
+          "priorArtifactSha256": "71f2726a288dfcfaff4c2fcdf293651dda0fb610b9ead325b352bd4f23a07aff",
+          "executionArtifactSha256": "71f2726a288dfcfaff4c2fcdf293651dda0fb610b9ead325b352bd4f23a07aff",
+          "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
+          "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
+          "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
+          "lineup": {
+            "away": {
+              "teamId": "10000000-0000-0000-0000-000000000300",
+              "battingOrder": {
+                "1": "10000000-0000-0000-0000-000000000201",
+                "2": "10000000-0000-0000-0000-000000000202",
+                "3": "10000000-0000-0000-0000-000000000203",
+                "4": "10000000-0000-0000-0000-000000000204",
+                "5": "10000000-0000-0000-0000-000000000205",
+                "6": "10000000-0000-0000-0000-000000000206",
+                "7": "10000000-0000-0000-0000-000000000207",
+                "8": "10000000-0000-0000-0000-000000000208",
+                "9": "10000000-0000-0000-0000-000000000209"
+              },
+              "pitcherId": "10000000-0000-0000-0000-000000000210",
+              "catcherId": "10000000-0000-0000-0000-000000000202"
+            },
+            "home": {
+              "teamId": "10000000-0000-0000-0000-000000000400",
+              "battingOrder": {
+                "1": "10000000-0000-0000-0000-000000000301",
+                "2": "10000000-0000-0000-0000-000000000302",
+                "3": "10000000-0000-0000-0000-000000000303",
+                "4": "10000000-0000-0000-0000-000000000304",
+                "5": "10000000-0000-0000-0000-000000000305",
+                "6": "10000000-0000-0000-0000-000000000306",
+                "7": "10000000-0000-0000-0000-000000000307",
+                "8": "10000000-0000-0000-0000-000000000308",
+                "9": "10000000-0000-0000-0000-000000000309"
+              },
+              "pitcherId": "10000000-0000-0000-0000-000000000310",
+              "catcherId": "10000000-0000-0000-0000-000000000302"
+            }
+          },
+          "runners": [
+            {
+              "runnerId": "10000000-0000-0000-0000-000000000201",
+              "responsiblePitcherId": "10000000-0000-0000-0000-000000000310",
+              "base": "1",
+              "status": "\u7d99\u7d9a",
+              "statusSource": "auto"
+            }
+          ],
+          "participants": {
+            "batterId": "10000000-0000-0000-0000-000000000202",
+            "pitcherId": "10000000-0000-0000-0000-000000000310",
+            "catcherId": "10000000-0000-0000-0000-000000000302",
+            "battingOrder": "2"
+          },
+          "responsibility": {
+            "kind": "no-change",
+            "paStartSource": {
+              "kind": "confirmed-play",
+              "id": "00000000-0000-0000-0000-000000004e23"
+            },
+            "previousPitcherId": null,
+            "strikesAtChange": null,
+            "ballsAtChange": null
+          },
+          "provenance": {
+            "kind": "confirmed-prefix",
+            "checkpoint": {
+              "id": "00000000-0000-0000-0000-000000005209",
+              "digest": "0000000000000000000000000000000000000000000000000000000000000000",
+              "revision": "2"
+            },
+            "sourceIdentity": {
+              "eventId": "00000000-0000-0000-0000-000000004e23",
+              "d5": "00000000-0000-0000-0000-000000004e24",
+              "playId": "00000000-0000-0000-0000-000000004e25"
+            },
+            "historyDepth": "1"
+          }
+        },
+        "playIdentity": {
+          "eventId": "00000000-0000-0000-0000-000000004e26",
+          "d5": "00000000-0000-0000-0000-000000004e27",
+          "playId": "00000000-0000-0000-0000-000000004e28"
+        },
+        "nextCheckpoint": {
+          "id": "00000000-0000-0000-0000-00000000520a",
+          "digest": "0000000000000000000000000000000000000000000000000000000000000000",
+          "revision": "3"
+        }
+      }
+    },
+    {
+      "operation": "sacrifice-bunt",
+      "request": {
+        "version": "3",
+        "prefixRef": {
+          "version": "3",
+          "scope": "play-prefix-v3",
+          "tenantId": "10000000-0000-0000-0000-000000000001",
+          "gameId": "10000000-0000-0000-0000-000000000002",
+          "generation": "recording-generation-v1",
+          "length": "2",
+          "checkpoint": {
+            "id": "00000000-0000-0000-0000-00000000520a",
+            "digest": "0000000000000000000000000000000000000000000000000000000000000000",
+            "revision": "3"
+          },
+          "historyVersion": "2",
+          "origin": {
+            "kind": "started-game",
+            "eventId": "10000000-0000-0000-0000-000000000003"
+          }
+        },
+        "rules": {
+          "regulationInnings": "9",
+          "coldConditions": [],
+          "extensionLimit": "9",
+          "tiebreak": null,
+          "dh": true
+        },
+        "t1": {
+          "eventKind": "batting-result",
+          "resultId": "batting-result.sacrifice-bunt",
+          "pitchEventKind": "pitch-event",
+          "before": {
+            "stateFields": {
+              "state.half": "top",
+              "state.count.strikes": "0",
+              "state.count.balls": "0",
+              "state.outs": "1",
+              "state.runners": "first",
+              "state.battingOrder": "3",
+              "state.tiebreakActive": false,
+              "state.gameEnded": false,
+              "state.inning": "1",
+              "state.score": {
+                "home": "0",
+                "away": "0"
+              }
+            },
+            "scoreboard": {
+              "inningScores": {
+                "home": "0",
+                "away": "0"
+              },
+              "hits": "1",
+              "errors": "0",
+              "strikeouts": "0",
+              "walks": "0"
+            },
+            "battingOrderBySide": {
+              "away": "3",
+              "home": "1"
+            }
+          },
+          "officialScoringPayload": "no-error",
+          "interferenceRuling": "not-required",
+          "runnerAdvanceOverrides": {
+            "kind": "applied",
+            "overrides": [
+              {
+                "runnerBase": "1",
+                "destination": "2"
+              }
+            ]
+          },
+          "thirdOutObservation": "none"
+        },
+        "source": {
+          "kind": "evaluated-prefix-v3",
+          "prefixRef": {
+            "version": "3",
+            "scope": "play-prefix-v3",
+            "tenantId": "10000000-0000-0000-0000-000000000001",
+            "gameId": "10000000-0000-0000-0000-000000000002",
+            "generation": "recording-generation-v1",
+            "length": "2",
+            "checkpoint": {
+              "id": "00000000-0000-0000-0000-00000000520a",
+              "digest": "0000000000000000000000000000000000000000000000000000000000000000",
+              "revision": "3"
+            },
+            "historyVersion": "2",
+            "origin": {
+              "kind": "started-game",
+              "eventId": "10000000-0000-0000-0000-000000000003"
+            }
+          },
+          "rules": {
+            "regulationInnings": "9",
+            "coldConditions": [],
+            "extensionLimit": "9",
+            "tiebreak": null,
+            "dh": true
+          },
+          "after": {
+            "stateFields": {
+              "state.half": "top",
+              "state.count.strikes": "0",
+              "state.count.balls": "0",
+              "state.outs": "1",
+              "state.runners": "first",
+              "state.battingOrder": "3",
+              "state.tiebreakActive": false,
+              "state.gameEnded": false,
+              "state.inning": "1",
+              "state.score": {
+                "home": "0",
+                "away": "0"
+              }
+            },
+            "scoreboard": {
+              "inningScores": {
+                "home": "0",
+                "away": "0"
+              },
+              "hits": "1",
+              "errors": "0",
+              "strikeouts": "0",
+              "walks": "0"
+            },
+            "battingOrderBySide": {
+              "away": "3",
+              "home": "1"
+            }
+          },
+          "t2": {
+            "kind": "evaluated-end-condition",
+            "scope": "play-prefix-v3",
+            "evaluation_point": "post-play",
+            "facts": {
+              "beforeInning": "1",
+              "beforeHalf": "top",
+              "beforeOuts": "0",
+              "afterInning": "1",
+              "afterHalf": "top",
+              "afterOuts": "1",
+              "halfCompleted": false,
+              "outsUnchanged": false,
+              "scoreUnchanged": true,
+              "priorOpen": true
+            },
+            "decision": {
+              "outcome": "no-end",
+              "endConditionDetected": false,
+              "lockFurtherPlayInput": false,
+              "promptEndDeclaration": false,
+              "automaticallyEndsGame": false,
+              "xMark": "recorded-score"
+            },
+            "tiebreakStartRequired": false
+          },
+          "historyDepth": "2",
+          "playCount": "2",
+          "lastSource": {
+            "eventId": "00000000-0000-0000-0000-000000004e26",
+            "d5": "00000000-0000-0000-0000-000000004e27",
+            "playId": "00000000-0000-0000-0000-000000004e28"
+          },
+          "position": {
+            "d1": "3",
+            "d2": "3",
+            "appliedWatermark": "2"
+          },
+          "priorArtifactSha256": "71f2726a288dfcfaff4c2fcdf293651dda0fb610b9ead325b352bd4f23a07aff",
+          "executionArtifactSha256": "71f2726a288dfcfaff4c2fcdf293651dda0fb610b9ead325b352bd4f23a07aff",
+          "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
+          "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
+          "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
+          "lineup": {
+            "away": {
+              "teamId": "10000000-0000-0000-0000-000000000300",
+              "battingOrder": {
+                "1": "10000000-0000-0000-0000-000000000201",
+                "2": "10000000-0000-0000-0000-000000000202",
+                "3": "10000000-0000-0000-0000-000000000203",
+                "4": "10000000-0000-0000-0000-000000000204",
+                "5": "10000000-0000-0000-0000-000000000205",
+                "6": "10000000-0000-0000-0000-000000000206",
+                "7": "10000000-0000-0000-0000-000000000207",
+                "8": "10000000-0000-0000-0000-000000000208",
+                "9": "10000000-0000-0000-0000-000000000209"
+              },
+              "pitcherId": "10000000-0000-0000-0000-000000000210",
+              "catcherId": "10000000-0000-0000-0000-000000000202"
+            },
+            "home": {
+              "teamId": "10000000-0000-0000-0000-000000000400",
+              "battingOrder": {
+                "1": "10000000-0000-0000-0000-000000000301",
+                "2": "10000000-0000-0000-0000-000000000302",
+                "3": "10000000-0000-0000-0000-000000000303",
+                "4": "10000000-0000-0000-0000-000000000304",
+                "5": "10000000-0000-0000-0000-000000000305",
+                "6": "10000000-0000-0000-0000-000000000306",
+                "7": "10000000-0000-0000-0000-000000000307",
+                "8": "10000000-0000-0000-0000-000000000308",
+                "9": "10000000-0000-0000-0000-000000000309"
+              },
+              "pitcherId": "10000000-0000-0000-0000-000000000310",
+              "catcherId": "10000000-0000-0000-0000-000000000302"
+            }
+          },
+          "runners": [
+            {
+              "runnerId": "10000000-0000-0000-0000-000000000201",
+              "responsiblePitcherId": "10000000-0000-0000-0000-000000000310",
+              "base": "1",
+              "status": "\u7d99\u7d9a",
+              "statusSource": "auto"
+            }
+          ],
+          "participants": {
+            "batterId": "10000000-0000-0000-0000-000000000203",
+            "pitcherId": "10000000-0000-0000-0000-000000000310",
+            "catcherId": "10000000-0000-0000-0000-000000000302",
+            "battingOrder": "3"
+          },
+          "responsibility": {
+            "kind": "no-change",
+            "paStartSource": {
+              "kind": "confirmed-play",
+              "id": "00000000-0000-0000-0000-000000004e26"
+            },
+            "previousPitcherId": null,
+            "strikesAtChange": null,
+            "ballsAtChange": null
+          },
+          "provenance": {
+            "kind": "confirmed-prefix",
+            "checkpoint": {
+              "id": "00000000-0000-0000-0000-00000000520a",
+              "digest": "0000000000000000000000000000000000000000000000000000000000000000",
+              "revision": "3"
+            },
+            "sourceIdentity": {
+              "eventId": "00000000-0000-0000-0000-000000004e26",
+              "d5": "00000000-0000-0000-0000-000000004e27",
+              "playId": "00000000-0000-0000-0000-000000004e28"
+            },
+            "historyDepth": "2"
+          }
+        },
+        "playIdentity": {
+          "eventId": "00000000-0000-0000-0000-000000004e29",
+          "d5": "00000000-0000-0000-0000-000000004e2a",
+          "playId": "00000000-0000-0000-0000-000000004e2b"
+        },
+        "nextCheckpoint": {
+          "id": "00000000-0000-0000-0000-00000000520b",
+          "digest": "0000000000000000000000000000000000000000000000000000000000000000",
+          "revision": "4"
+        }
+      }
+    },
+    {
+      "operation": "single",
+      "request": {
+        "version": "3",
+        "prefixRef": {
+          "version": "3",
+          "scope": "play-prefix-v3",
+          "tenantId": "10000000-0000-0000-0000-000000000001",
+          "gameId": "10000000-0000-0000-0000-000000000002",
+          "generation": "recording-generation-v1",
+          "length": "3",
+          "checkpoint": {
+            "id": "00000000-0000-0000-0000-00000000520b",
+            "digest": "0000000000000000000000000000000000000000000000000000000000000000",
+            "revision": "4"
+          },
+          "historyVersion": "3",
+          "origin": {
+            "kind": "started-game",
+            "eventId": "10000000-0000-0000-0000-000000000003"
+          }
+        },
+        "rules": {
+          "regulationInnings": "9",
+          "coldConditions": [],
+          "extensionLimit": "9",
+          "tiebreak": null,
+          "dh": true
+        },
+        "t1": {
+          "eventKind": "batting-result",
+          "resultId": "batting-result.single",
+          "pitchEventKind": "pitch-event",
+          "before": {
+            "stateFields": {
+              "state.half": "top",
+              "state.count.strikes": "0",
+              "state.count.balls": "0",
+              "state.outs": "2",
+              "state.runners": "second",
+              "state.battingOrder": "4",
+              "state.tiebreakActive": false,
+              "state.gameEnded": false,
+              "state.inning": "1",
+              "state.score": {
+                "home": "0",
+                "away": "0"
+              }
+            },
+            "scoreboard": {
+              "inningScores": {
+                "home": "0",
+                "away": "0"
+              },
+              "hits": "1",
+              "errors": "0",
+              "strikeouts": "0",
+              "walks": "0"
+            },
+            "battingOrderBySide": {
+              "away": "4",
+              "home": "1"
+            }
+          },
+          "officialScoringPayload": "no-error",
+          "interferenceRuling": "not-required",
+          "runnerAdvanceOverrides": {
+            "kind": "applied",
+            "overrides": [
+              {
+                "runnerBase": "2",
+                "destination": "4"
+              }
+            ]
+          },
+          "thirdOutObservation": "none",
+          "rbiRulingByRunner": {
+            "2": "stopped-and-restarted"
+          }
+        },
+        "source": {
+          "kind": "evaluated-prefix-v3",
+          "prefixRef": {
+            "version": "3",
+            "scope": "play-prefix-v3",
+            "tenantId": "10000000-0000-0000-0000-000000000001",
+            "gameId": "10000000-0000-0000-0000-000000000002",
+            "generation": "recording-generation-v1",
+            "length": "3",
+            "checkpoint": {
+              "id": "00000000-0000-0000-0000-00000000520b",
+              "digest": "0000000000000000000000000000000000000000000000000000000000000000",
+              "revision": "4"
+            },
+            "historyVersion": "3",
+            "origin": {
+              "kind": "started-game",
+              "eventId": "10000000-0000-0000-0000-000000000003"
+            }
+          },
+          "rules": {
+            "regulationInnings": "9",
+            "coldConditions": [],
+            "extensionLimit": "9",
+            "tiebreak": null,
+            "dh": true
+          },
+          "after": {
+            "stateFields": {
+              "state.half": "top",
+              "state.count.strikes": "0",
+              "state.count.balls": "0",
+              "state.outs": "2",
+              "state.runners": "second",
+              "state.battingOrder": "4",
+              "state.tiebreakActive": false,
+              "state.gameEnded": false,
+              "state.inning": "1",
+              "state.score": {
+                "home": "0",
+                "away": "0"
+              }
+            },
+            "scoreboard": {
+              "inningScores": {
+                "home": "0",
+                "away": "0"
+              },
+              "hits": "1",
+              "errors": "0",
+              "strikeouts": "0",
+              "walks": "0"
+            },
+            "battingOrderBySide": {
+              "away": "4",
+              "home": "1"
+            }
+          },
+          "t2": {
+            "kind": "evaluated-end-condition",
+            "scope": "play-prefix-v3",
+            "evaluation_point": "post-play",
+            "facts": {
+              "beforeInning": "1",
+              "beforeHalf": "top",
+              "beforeOuts": "1",
+              "afterInning": "1",
+              "afterHalf": "top",
+              "afterOuts": "2",
+              "halfCompleted": false,
+              "outsUnchanged": false,
+              "scoreUnchanged": true,
+              "priorOpen": true
+            },
+            "decision": {
+              "outcome": "no-end",
+              "endConditionDetected": false,
+              "lockFurtherPlayInput": false,
+              "promptEndDeclaration": false,
+              "automaticallyEndsGame": false,
+              "xMark": "recorded-score"
+            },
+            "tiebreakStartRequired": false
+          },
+          "historyDepth": "3",
+          "playCount": "3",
+          "lastSource": {
+            "eventId": "00000000-0000-0000-0000-000000004e29",
+            "d5": "00000000-0000-0000-0000-000000004e2a",
+            "playId": "00000000-0000-0000-0000-000000004e2b"
+          },
+          "position": {
+            "d1": "4",
+            "d2": "4",
+            "appliedWatermark": "3"
+          },
+          "priorArtifactSha256": "71f2726a288dfcfaff4c2fcdf293651dda0fb610b9ead325b352bd4f23a07aff",
+          "executionArtifactSha256": "71f2726a288dfcfaff4c2fcdf293651dda0fb610b9ead325b352bd4f23a07aff",
+          "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
+          "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
+          "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
+          "lineup": {
+            "away": {
+              "teamId": "10000000-0000-0000-0000-000000000300",
+              "battingOrder": {
+                "1": "10000000-0000-0000-0000-000000000201",
+                "2": "10000000-0000-0000-0000-000000000202",
+                "3": "10000000-0000-0000-0000-000000000203",
+                "4": "10000000-0000-0000-0000-000000000204",
+                "5": "10000000-0000-0000-0000-000000000205",
+                "6": "10000000-0000-0000-0000-000000000206",
+                "7": "10000000-0000-0000-0000-000000000207",
+                "8": "10000000-0000-0000-0000-000000000208",
+                "9": "10000000-0000-0000-0000-000000000209"
+              },
+              "pitcherId": "10000000-0000-0000-0000-000000000210",
+              "catcherId": "10000000-0000-0000-0000-000000000202"
+            },
+            "home": {
+              "teamId": "10000000-0000-0000-0000-000000000400",
+              "battingOrder": {
+                "1": "10000000-0000-0000-0000-000000000301",
+                "2": "10000000-0000-0000-0000-000000000302",
+                "3": "10000000-0000-0000-0000-000000000303",
+                "4": "10000000-0000-0000-0000-000000000304",
+                "5": "10000000-0000-0000-0000-000000000305",
+                "6": "10000000-0000-0000-0000-000000000306",
+                "7": "10000000-0000-0000-0000-000000000307",
+                "8": "10000000-0000-0000-0000-000000000308",
+                "9": "10000000-0000-0000-0000-000000000309"
+              },
+              "pitcherId": "10000000-0000-0000-0000-000000000310",
+              "catcherId": "10000000-0000-0000-0000-000000000302"
+            }
+          },
+          "runners": [
+            {
+              "runnerId": "10000000-0000-0000-0000-000000000201",
+              "responsiblePitcherId": "10000000-0000-0000-0000-000000000310",
+              "base": "2",
+              "status": "\u7d99\u7d9a",
+              "statusSource": "auto"
+            }
+          ],
+          "participants": {
+            "batterId": "10000000-0000-0000-0000-000000000204",
+            "pitcherId": "10000000-0000-0000-0000-000000000310",
+            "catcherId": "10000000-0000-0000-0000-000000000302",
+            "battingOrder": "4"
+          },
+          "responsibility": {
+            "kind": "no-change",
+            "paStartSource": {
+              "kind": "confirmed-play",
+              "id": "00000000-0000-0000-0000-000000004e29"
+            },
+            "previousPitcherId": null,
+            "strikesAtChange": null,
+            "ballsAtChange": null
+          },
+          "provenance": {
+            "kind": "confirmed-prefix",
+            "checkpoint": {
+              "id": "00000000-0000-0000-0000-00000000520b",
+              "digest": "0000000000000000000000000000000000000000000000000000000000000000",
+              "revision": "4"
+            },
+            "sourceIdentity": {
+              "eventId": "00000000-0000-0000-0000-000000004e29",
+              "d5": "00000000-0000-0000-0000-000000004e2a",
+              "playId": "00000000-0000-0000-0000-000000004e2b"
+            },
+            "historyDepth": "3"
+          }
+        },
+        "playIdentity": {
+          "eventId": "00000000-0000-0000-0000-000000004e2c",
+          "d5": "00000000-0000-0000-0000-000000004e2d",
+          "playId": "00000000-0000-0000-0000-000000004e2e"
+        },
+        "nextCheckpoint": {
+          "id": "00000000-0000-0000-0000-00000000520c",
+          "digest": "0000000000000000000000000000000000000000000000000000000000000000",
+          "revision": "5"
+        }
+      }
+    },
+    {
+      "operation": "double-play",
+      "request": {
+        "version": "3",
+        "prefixRef": {
+          "version": "3",
+          "scope": "play-prefix-v3",
+          "tenantId": "10000000-0000-0000-0000-000000000001",
+          "gameId": "10000000-0000-0000-0000-000000000002",
+          "generation": "recording-generation-v1",
+          "length": "6",
+          "checkpoint": {
+            "id": "00000000-0000-0000-0000-00000000520e",
+            "digest": "0000000000000000000000000000000000000000000000000000000000000000",
+            "revision": "7"
+          },
+          "historyVersion": "6",
+          "origin": {
+            "kind": "started-game",
+            "eventId": "10000000-0000-0000-0000-000000000003"
+          }
+        },
+        "rules": {
+          "regulationInnings": "9",
+          "coldConditions": [],
+          "extensionLimit": "9",
+          "tiebreak": null,
+          "dh": true
+        },
+        "t1": {
+          "eventKind": "batting-result",
+          "resultId": "batting-result.double-play",
+          "pitchEventKind": "pitch-event",
+          "before": {
+            "stateFields": {
+              "state.half": "bottom",
+              "state.count.strikes": "0",
+              "state.count.balls": "0",
+              "state.outs": "0",
+              "state.runners": "first",
+              "state.battingOrder": "2",
+              "state.tiebreakActive": false,
+              "state.gameEnded": false,
+              "state.inning": "1",
+              "state.score": {
+                "home": "0",
+                "away": "1"
+              }
+            },
+            "scoreboard": {
+              "inningScores": {
+                "home": "0",
+                "away": "1"
+              },
+              "hits": "3",
+              "errors": "0",
+              "strikeouts": "0",
+              "walks": "0"
+            },
+            "battingOrderBySide": {
+              "away": "6",
+              "home": "2"
+            }
+          },
+          "officialScoringPayload": "no-error",
+          "interferenceRuling": "not-required",
+          "runnerAdvanceOverrides": "not-applied",
+          "thirdOutObservation": "none",
+          "outRunner": {
+            "base": "1",
+            "runnerId": "10000000-0000-0000-0000-000000000301",
+            "outKind": "force-out"
+          }
+        },
+        "source": {
+          "kind": "evaluated-prefix-v3",
+          "prefixRef": {
+            "version": "3",
+            "scope": "play-prefix-v3",
+            "tenantId": "10000000-0000-0000-0000-000000000001",
+            "gameId": "10000000-0000-0000-0000-000000000002",
+            "generation": "recording-generation-v1",
+            "length": "6",
+            "checkpoint": {
+              "id": "00000000-0000-0000-0000-00000000520e",
+              "digest": "0000000000000000000000000000000000000000000000000000000000000000",
+              "revision": "7"
+            },
+            "historyVersion": "6",
+            "origin": {
+              "kind": "started-game",
+              "eventId": "10000000-0000-0000-0000-000000000003"
+            }
+          },
+          "rules": {
+            "regulationInnings": "9",
+            "coldConditions": [],
+            "extensionLimit": "9",
+            "tiebreak": null,
+            "dh": true
+          },
+          "after": {
+            "stateFields": {
+              "state.half": "bottom",
+              "state.count.strikes": "0",
+              "state.count.balls": "0",
+              "state.outs": "0",
+              "state.runners": "first",
+              "state.battingOrder": "2",
+              "state.tiebreakActive": false,
+              "state.gameEnded": false,
+              "state.inning": "1",
+              "state.score": {
+                "home": "0",
+                "away": "1"
+              }
+            },
+            "scoreboard": {
+              "inningScores": {
+                "home": "0",
+                "away": "1"
+              },
+              "hits": "3",
+              "errors": "0",
+              "strikeouts": "0",
+              "walks": "0"
+            },
+            "battingOrderBySide": {
+              "away": "6",
+              "home": "2"
+            }
+          },
+          "t2": {
+            "kind": "evaluated-end-condition",
+            "scope": "play-prefix-v3",
+            "evaluation_point": "post-play",
+            "facts": {
+              "beforeInning": "1",
+              "beforeHalf": "bottom",
+              "beforeOuts": "0",
+              "afterInning": "1",
+              "afterHalf": "bottom",
+              "afterOuts": "0",
+              "halfCompleted": false,
+              "outsUnchanged": true,
+              "scoreUnchanged": true,
+              "priorOpen": true
+            },
+            "decision": {
+              "outcome": "no-end",
+              "endConditionDetected": false,
+              "lockFurtherPlayInput": false,
+              "promptEndDeclaration": false,
+              "automaticallyEndsGame": false,
+              "xMark": "recorded-score"
+            },
+            "tiebreakStartRequired": false
+          },
+          "historyDepth": "6",
+          "playCount": "6",
+          "lastSource": {
+            "eventId": "00000000-0000-0000-0000-000000004e32",
+            "d5": "00000000-0000-0000-0000-000000004e33",
+            "playId": "00000000-0000-0000-0000-000000004e34"
+          },
+          "position": {
+            "d1": "7",
+            "d2": "7",
+            "appliedWatermark": "6"
+          },
+          "priorArtifactSha256": "71f2726a288dfcfaff4c2fcdf293651dda0fb610b9ead325b352bd4f23a07aff",
+          "executionArtifactSha256": "71f2726a288dfcfaff4c2fcdf293651dda0fb610b9ead325b352bd4f23a07aff",
+          "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
+          "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
+          "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
+          "lineup": {
+            "away": {
+              "teamId": "10000000-0000-0000-0000-000000000300",
+              "battingOrder": {
+                "1": "10000000-0000-0000-0000-000000000201",
+                "2": "10000000-0000-0000-0000-000000000202",
+                "3": "10000000-0000-0000-0000-000000000203",
+                "4": "10000000-0000-0000-0000-000000000204",
+                "5": "10000000-0000-0000-0000-000000000205",
+                "6": "10000000-0000-0000-0000-000000000206",
+                "7": "10000000-0000-0000-0000-000000000207",
+                "8": "10000000-0000-0000-0000-000000000208",
+                "9": "10000000-0000-0000-0000-000000000209"
+              },
+              "pitcherId": "10000000-0000-0000-0000-000000000210",
+              "catcherId": "10000000-0000-0000-0000-000000000202"
+            },
+            "home": {
+              "teamId": "10000000-0000-0000-0000-000000000400",
+              "battingOrder": {
+                "1": "10000000-0000-0000-0000-000000000301",
+                "2": "10000000-0000-0000-0000-000000000302",
+                "3": "10000000-0000-0000-0000-000000000303",
+                "4": "10000000-0000-0000-0000-000000000304",
+                "5": "10000000-0000-0000-0000-000000000305",
+                "6": "10000000-0000-0000-0000-000000000306",
+                "7": "10000000-0000-0000-0000-000000000307",
+                "8": "10000000-0000-0000-0000-000000000308",
+                "9": "10000000-0000-0000-0000-000000000309"
+              },
+              "pitcherId": "10000000-0000-0000-0000-000000000310",
+              "catcherId": "10000000-0000-0000-0000-000000000302"
+            }
+          },
+          "runners": [
+            {
+              "runnerId": "10000000-0000-0000-0000-000000000301",
+              "responsiblePitcherId": "10000000-0000-0000-0000-000000000210",
+              "base": "1",
+              "status": "\u7d99\u7d9a",
+              "statusSource": "auto"
+            }
+          ],
+          "participants": {
+            "batterId": "10000000-0000-0000-0000-000000000302",
+            "pitcherId": "10000000-0000-0000-0000-000000000210",
+            "catcherId": "10000000-0000-0000-0000-000000000202",
+            "battingOrder": "2"
+          },
+          "responsibility": {
+            "kind": "no-change",
+            "paStartSource": {
+              "kind": "confirmed-play",
+              "id": "00000000-0000-0000-0000-000000004e32"
+            },
+            "previousPitcherId": null,
+            "strikesAtChange": null,
+            "ballsAtChange": null
+          },
+          "provenance": {
+            "kind": "confirmed-prefix",
+            "checkpoint": {
+              "id": "00000000-0000-0000-0000-00000000520e",
+              "digest": "0000000000000000000000000000000000000000000000000000000000000000",
+              "revision": "7"
+            },
+            "sourceIdentity": {
+              "eventId": "00000000-0000-0000-0000-000000004e32",
+              "d5": "00000000-0000-0000-0000-000000004e33",
+              "playId": "00000000-0000-0000-0000-000000004e34"
+            },
+            "historyDepth": "6"
+          }
+        },
+        "playIdentity": {
+          "eventId": "00000000-0000-0000-0000-000000004e35",
+          "d5": "00000000-0000-0000-0000-000000004e36",
+          "playId": "00000000-0000-0000-0000-000000004e37"
+        },
+        "nextCheckpoint": {
+          "id": "00000000-0000-0000-0000-00000000520f",
+          "digest": "0000000000000000000000000000000000000000000000000000000000000000",
+          "revision": "8"
+        }
+      }
+    },
+    {
+      "operation": "fielders-choice",
+      "request": {
+        "version": "3",
+        "prefixRef": {
+          "version": "3",
+          "scope": "play-prefix-v3",
+          "tenantId": "10000000-0000-0000-0000-000000000001",
+          "gameId": "10000000-0000-0000-0000-000000000002",
+          "generation": "recording-generation-v1",
+          "length": "9",
+          "checkpoint": {
+            "id": "00000000-0000-0000-0000-000000005211",
+            "digest": "0000000000000000000000000000000000000000000000000000000000000000",
+            "revision": "10"
+          },
+          "historyVersion": "9",
+          "origin": {
+            "kind": "started-game",
+            "eventId": "10000000-0000-0000-0000-000000000003"
+          }
+        },
+        "rules": {
+          "regulationInnings": "9",
+          "coldConditions": [],
+          "extensionLimit": "9",
+          "tiebreak": null,
+          "dh": true
+        },
+        "t1": {
+          "eventKind": "batting-result",
+          "resultId": "batting-result.fielders-choice",
+          "pitchEventKind": "pitch-event",
+          "before": {
+            "stateFields": {
+              "state.half": "top",
+              "state.count.strikes": "0",
+              "state.count.balls": "0",
+              "state.outs": "0",
+              "state.runners": "first",
+              "state.battingOrder": "7",
+              "state.tiebreakActive": false,
+              "state.gameEnded": false,
+              "state.inning": "2",
+              "state.score": {
+                "home": "0",
+                "away": "1"
+              }
+            },
+            "scoreboard": {
+              "inningScores": {
+                "home": "0",
+                "away": "1"
+              },
+              "hits": "4",
+              "errors": "0",
+              "strikeouts": "0",
+              "walks": "0"
+            },
+            "battingOrderBySide": {
+              "away": "7",
+              "home": "4"
+            }
+          },
+          "officialScoringPayload": "no-error",
+          "interferenceRuling": "not-required",
+          "runnerAdvanceOverrides": {
+            "kind": "applied",
+            "overrides": [
+              {
+                "runnerBase": "1",
+                "destination": "2"
+              }
+            ]
+          },
+          "thirdOutObservation": "none"
+        },
+        "source": {
+          "kind": "evaluated-prefix-v3",
+          "prefixRef": {
+            "version": "3",
+            "scope": "play-prefix-v3",
+            "tenantId": "10000000-0000-0000-0000-000000000001",
+            "gameId": "10000000-0000-0000-0000-000000000002",
+            "generation": "recording-generation-v1",
+            "length": "9",
+            "checkpoint": {
+              "id": "00000000-0000-0000-0000-000000005211",
+              "digest": "0000000000000000000000000000000000000000000000000000000000000000",
+              "revision": "10"
+            },
+            "historyVersion": "9",
+            "origin": {
+              "kind": "started-game",
+              "eventId": "10000000-0000-0000-0000-000000000003"
+            }
+          },
+          "rules": {
+            "regulationInnings": "9",
+            "coldConditions": [],
+            "extensionLimit": "9",
+            "tiebreak": null,
+            "dh": true
+          },
+          "after": {
+            "stateFields": {
+              "state.half": "top",
+              "state.count.strikes": "0",
+              "state.count.balls": "0",
+              "state.outs": "0",
+              "state.runners": "first",
+              "state.battingOrder": "7",
+              "state.tiebreakActive": false,
+              "state.gameEnded": false,
+              "state.inning": "2",
+              "state.score": {
+                "home": "0",
+                "away": "1"
+              }
+            },
+            "scoreboard": {
+              "inningScores": {
+                "home": "0",
+                "away": "1"
+              },
+              "hits": "4",
+              "errors": "0",
+              "strikeouts": "0",
+              "walks": "0"
+            },
+            "battingOrderBySide": {
+              "away": "7",
+              "home": "4"
+            }
+          },
+          "t2": {
+            "kind": "evaluated-end-condition",
+            "scope": "play-prefix-v3",
+            "evaluation_point": "post-play",
+            "facts": {
+              "beforeInning": "2",
+              "beforeHalf": "top",
+              "beforeOuts": "0",
+              "afterInning": "2",
+              "afterHalf": "top",
+              "afterOuts": "0",
+              "halfCompleted": false,
+              "outsUnchanged": true,
+              "scoreUnchanged": true,
+              "priorOpen": true
+            },
+            "decision": {
+              "outcome": "no-end",
+              "endConditionDetected": false,
+              "lockFurtherPlayInput": false,
+              "promptEndDeclaration": false,
+              "automaticallyEndsGame": false,
+              "xMark": "recorded-score"
+            },
+            "tiebreakStartRequired": false
+          },
+          "historyDepth": "9",
+          "playCount": "9",
+          "lastSource": {
+            "eventId": "00000000-0000-0000-0000-000000004e3b",
+            "d5": "00000000-0000-0000-0000-000000004e3c",
+            "playId": "00000000-0000-0000-0000-000000004e3d"
+          },
+          "position": {
+            "d1": "10",
+            "d2": "10",
+            "appliedWatermark": "9"
+          },
+          "priorArtifactSha256": "71f2726a288dfcfaff4c2fcdf293651dda0fb610b9ead325b352bd4f23a07aff",
+          "executionArtifactSha256": "71f2726a288dfcfaff4c2fcdf293651dda0fb610b9ead325b352bd4f23a07aff",
+          "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
+          "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
+          "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
+          "lineup": {
+            "away": {
+              "teamId": "10000000-0000-0000-0000-000000000300",
+              "battingOrder": {
+                "1": "10000000-0000-0000-0000-000000000201",
+                "2": "10000000-0000-0000-0000-000000000202",
+                "3": "10000000-0000-0000-0000-000000000203",
+                "4": "10000000-0000-0000-0000-000000000204",
+                "5": "10000000-0000-0000-0000-000000000205",
+                "6": "10000000-0000-0000-0000-000000000206",
+                "7": "10000000-0000-0000-0000-000000000207",
+                "8": "10000000-0000-0000-0000-000000000208",
+                "9": "10000000-0000-0000-0000-000000000209"
+              },
+              "pitcherId": "10000000-0000-0000-0000-000000000210",
+              "catcherId": "10000000-0000-0000-0000-000000000202"
+            },
+            "home": {
+              "teamId": "10000000-0000-0000-0000-000000000400",
+              "battingOrder": {
+                "1": "10000000-0000-0000-0000-000000000301",
+                "2": "10000000-0000-0000-0000-000000000302",
+                "3": "10000000-0000-0000-0000-000000000303",
+                "4": "10000000-0000-0000-0000-000000000304",
+                "5": "10000000-0000-0000-0000-000000000305",
+                "6": "10000000-0000-0000-0000-000000000306",
+                "7": "10000000-0000-0000-0000-000000000307",
+                "8": "10000000-0000-0000-0000-000000000308",
+                "9": "10000000-0000-0000-0000-000000000309"
+              },
+              "pitcherId": "10000000-0000-0000-0000-000000000310",
+              "catcherId": "10000000-0000-0000-0000-000000000302"
+            }
+          },
+          "runners": [
+            {
+              "runnerId": "10000000-0000-0000-0000-000000000206",
+              "responsiblePitcherId": "10000000-0000-0000-0000-000000000310",
+              "base": "1",
+              "status": "\u7d99\u7d9a",
+              "statusSource": "auto"
+            }
+          ],
+          "participants": {
+            "batterId": "10000000-0000-0000-0000-000000000207",
+            "pitcherId": "10000000-0000-0000-0000-000000000310",
+            "catcherId": "10000000-0000-0000-0000-000000000302",
+            "battingOrder": "7"
+          },
+          "responsibility": {
+            "kind": "no-change",
+            "paStartSource": {
+              "kind": "confirmed-play",
+              "id": "00000000-0000-0000-0000-000000004e3b"
+            },
+            "previousPitcherId": null,
+            "strikesAtChange": null,
+            "ballsAtChange": null
+          },
+          "provenance": {
+            "kind": "confirmed-prefix",
+            "checkpoint": {
+              "id": "00000000-0000-0000-0000-000000005211",
+              "digest": "0000000000000000000000000000000000000000000000000000000000000000",
+              "revision": "10"
+            },
+            "sourceIdentity": {
+              "eventId": "00000000-0000-0000-0000-000000004e3b",
+              "d5": "00000000-0000-0000-0000-000000004e3c",
+              "playId": "00000000-0000-0000-0000-000000004e3d"
+            },
+            "historyDepth": "9"
+          }
+        },
+        "playIdentity": {
+          "eventId": "00000000-0000-0000-0000-000000004e3e",
+          "d5": "00000000-0000-0000-0000-000000004e3f",
+          "playId": "00000000-0000-0000-0000-000000004e40"
+        },
+        "nextCheckpoint": {
+          "id": "00000000-0000-0000-0000-000000005212",
+          "digest": "0000000000000000000000000000000000000000000000000000000000000000",
+          "revision": "11"
+        }
+      }
+    },
+    {
+      "operation": "error",
+      "request": {
+        "version": "3",
+        "prefixRef": {
+          "version": "3",
+          "scope": "play-prefix-v3",
+          "tenantId": "10000000-0000-0000-0000-000000000001",
+          "gameId": "10000000-0000-0000-0000-000000000002",
+          "generation": "recording-generation-v1",
+          "length": "10",
+          "checkpoint": {
+            "id": "00000000-0000-0000-0000-000000005212",
+            "digest": "0000000000000000000000000000000000000000000000000000000000000000",
+            "revision": "11"
+          },
+          "historyVersion": "10",
+          "origin": {
+            "kind": "started-game",
+            "eventId": "10000000-0000-0000-0000-000000000003"
+          }
+        },
+        "rules": {
+          "regulationInnings": "9",
+          "coldConditions": [],
+          "extensionLimit": "9",
+          "tiebreak": null,
+          "dh": true
+        },
+        "t1": {
+          "eventKind": "batting-result",
+          "resultId": "batting-result.error",
+          "pitchEventKind": "pitch-event",
+          "before": {
+            "stateFields": {
+              "state.half": "top",
+              "state.count.strikes": "0",
+              "state.count.balls": "0",
+              "state.outs": "0",
+              "state.runners": "first-second",
+              "state.battingOrder": "8",
+              "state.tiebreakActive": false,
+              "state.gameEnded": false,
+              "state.inning": "2",
+              "state.score": {
+                "home": "0",
+                "away": "1"
+              }
+            },
+            "scoreboard": {
+              "inningScores": {
+                "home": "0",
+                "away": "1"
+              },
+              "hits": "4",
+              "errors": "0",
+              "strikeouts": "0",
+              "walks": "0"
+            },
+            "battingOrderBySide": {
+              "away": "8",
+              "home": "4"
+            }
+          },
+          "officialScoringPayload": "error-recorded",
+          "interferenceRuling": "not-required",
+          "runnerAdvanceOverrides": {
+            "kind": "applied",
+            "overrides": [
+              {
+                "runnerBase": "1",
+                "destination": "2"
+              },
+              {
+                "runnerBase": "2",
+                "destination": "3"
+              }
+            ]
+          },
+          "thirdOutObservation": "none"
+        },
+        "source": {
+          "kind": "evaluated-prefix-v3",
+          "prefixRef": {
+            "version": "3",
+            "scope": "play-prefix-v3",
+            "tenantId": "10000000-0000-0000-0000-000000000001",
+            "gameId": "10000000-0000-0000-0000-000000000002",
+            "generation": "recording-generation-v1",
+            "length": "10",
+            "checkpoint": {
+              "id": "00000000-0000-0000-0000-000000005212",
+              "digest": "0000000000000000000000000000000000000000000000000000000000000000",
+              "revision": "11"
+            },
+            "historyVersion": "10",
+            "origin": {
+              "kind": "started-game",
+              "eventId": "10000000-0000-0000-0000-000000000003"
+            }
+          },
+          "rules": {
+            "regulationInnings": "9",
+            "coldConditions": [],
+            "extensionLimit": "9",
+            "tiebreak": null,
+            "dh": true
+          },
+          "after": {
+            "stateFields": {
+              "state.half": "top",
+              "state.count.strikes": "0",
+              "state.count.balls": "0",
+              "state.outs": "0",
+              "state.runners": "first-second",
+              "state.battingOrder": "8",
+              "state.tiebreakActive": false,
+              "state.gameEnded": false,
+              "state.inning": "2",
+              "state.score": {
+                "home": "0",
+                "away": "1"
+              }
+            },
+            "scoreboard": {
+              "inningScores": {
+                "home": "0",
+                "away": "1"
+              },
+              "hits": "4",
+              "errors": "0",
+              "strikeouts": "0",
+              "walks": "0"
+            },
+            "battingOrderBySide": {
+              "away": "8",
+              "home": "4"
+            }
+          },
+          "t2": {
+            "kind": "evaluated-end-condition",
+            "scope": "play-prefix-v3",
+            "evaluation_point": "post-play",
+            "facts": {
+              "beforeInning": "2",
+              "beforeHalf": "top",
+              "beforeOuts": "0",
+              "afterInning": "2",
+              "afterHalf": "top",
+              "afterOuts": "0",
+              "halfCompleted": false,
+              "outsUnchanged": true,
+              "scoreUnchanged": true,
+              "priorOpen": true
+            },
+            "decision": {
+              "outcome": "no-end",
+              "endConditionDetected": false,
+              "lockFurtherPlayInput": false,
+              "promptEndDeclaration": false,
+              "automaticallyEndsGame": false,
+              "xMark": "recorded-score"
+            },
+            "tiebreakStartRequired": false
+          },
+          "historyDepth": "10",
+          "playCount": "10",
+          "lastSource": {
+            "eventId": "00000000-0000-0000-0000-000000004e3e",
+            "d5": "00000000-0000-0000-0000-000000004e3f",
+            "playId": "00000000-0000-0000-0000-000000004e40"
+          },
+          "position": {
+            "d1": "11",
+            "d2": "11",
+            "appliedWatermark": "10"
+          },
+          "priorArtifactSha256": "71f2726a288dfcfaff4c2fcdf293651dda0fb610b9ead325b352bd4f23a07aff",
+          "executionArtifactSha256": "71f2726a288dfcfaff4c2fcdf293651dda0fb610b9ead325b352bd4f23a07aff",
+          "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
+          "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
+          "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
+          "lineup": {
+            "away": {
+              "teamId": "10000000-0000-0000-0000-000000000300",
+              "battingOrder": {
+                "1": "10000000-0000-0000-0000-000000000201",
+                "2": "10000000-0000-0000-0000-000000000202",
+                "3": "10000000-0000-0000-0000-000000000203",
+                "4": "10000000-0000-0000-0000-000000000204",
+                "5": "10000000-0000-0000-0000-000000000205",
+                "6": "10000000-0000-0000-0000-000000000206",
+                "7": "10000000-0000-0000-0000-000000000207",
+                "8": "10000000-0000-0000-0000-000000000208",
+                "9": "10000000-0000-0000-0000-000000000209"
+              },
+              "pitcherId": "10000000-0000-0000-0000-000000000210",
+              "catcherId": "10000000-0000-0000-0000-000000000202"
+            },
+            "home": {
+              "teamId": "10000000-0000-0000-0000-000000000400",
+              "battingOrder": {
+                "1": "10000000-0000-0000-0000-000000000301",
+                "2": "10000000-0000-0000-0000-000000000302",
+                "3": "10000000-0000-0000-0000-000000000303",
+                "4": "10000000-0000-0000-0000-000000000304",
+                "5": "10000000-0000-0000-0000-000000000305",
+                "6": "10000000-0000-0000-0000-000000000306",
+                "7": "10000000-0000-0000-0000-000000000307",
+                "8": "10000000-0000-0000-0000-000000000308",
+                "9": "10000000-0000-0000-0000-000000000309"
+              },
+              "pitcherId": "10000000-0000-0000-0000-000000000310",
+              "catcherId": "10000000-0000-0000-0000-000000000302"
+            }
+          },
+          "runners": [
+            {
+              "runnerId": "10000000-0000-0000-0000-000000000206",
+              "responsiblePitcherId": "10000000-0000-0000-0000-000000000310",
+              "base": "2",
+              "status": "\u7d99\u7d9a",
+              "statusSource": "auto"
+            },
+            {
+              "runnerId": "10000000-0000-0000-0000-000000000207",
+              "responsiblePitcherId": "10000000-0000-0000-0000-000000000310",
+              "base": "1",
+              "status": "\u7d99\u7d9a",
+              "statusSource": "auto"
+            }
+          ],
+          "participants": {
+            "batterId": "10000000-0000-0000-0000-000000000208",
+            "pitcherId": "10000000-0000-0000-0000-000000000310",
+            "catcherId": "10000000-0000-0000-0000-000000000302",
+            "battingOrder": "8"
+          },
+          "responsibility": {
+            "kind": "no-change",
+            "paStartSource": {
+              "kind": "confirmed-play",
+              "id": "00000000-0000-0000-0000-000000004e3e"
+            },
+            "previousPitcherId": null,
+            "strikesAtChange": null,
+            "ballsAtChange": null
+          },
+          "provenance": {
+            "kind": "confirmed-prefix",
+            "checkpoint": {
+              "id": "00000000-0000-0000-0000-000000005212",
+              "digest": "0000000000000000000000000000000000000000000000000000000000000000",
+              "revision": "11"
+            },
+            "sourceIdentity": {
+              "eventId": "00000000-0000-0000-0000-000000004e3e",
+              "d5": "00000000-0000-0000-0000-000000004e3f",
+              "playId": "00000000-0000-0000-0000-000000004e40"
+            },
+            "historyDepth": "10"
+          }
+        },
+        "playIdentity": {
+          "eventId": "00000000-0000-0000-0000-000000004e41",
+          "d5": "00000000-0000-0000-0000-000000004e42",
+          "playId": "00000000-0000-0000-0000-000000004e43"
+        },
+        "nextCheckpoint": {
+          "id": "00000000-0000-0000-0000-000000005213",
+          "digest": "0000000000000000000000000000000000000000000000000000000000000000",
+          "revision": "12"
+        }
+      }
+    },
+    {
+      "operation": "sacrifice-fly",
+      "request": {
+        "version": "3",
+        "prefixRef": {
+          "version": "3",
+          "scope": "play-prefix-v3",
+          "tenantId": "10000000-0000-0000-0000-000000000001",
+          "gameId": "10000000-0000-0000-0000-000000000002",
+          "generation": "recording-generation-v1",
+          "length": "11",
+          "checkpoint": {
+            "id": "00000000-0000-0000-0000-000000005213",
+            "digest": "0000000000000000000000000000000000000000000000000000000000000000",
+            "revision": "12"
+          },
+          "historyVersion": "11",
+          "origin": {
+            "kind": "started-game",
+            "eventId": "10000000-0000-0000-0000-000000000003"
+          }
+        },
+        "rules": {
+          "regulationInnings": "9",
+          "coldConditions": [],
+          "extensionLimit": "9",
+          "tiebreak": null,
+          "dh": true
+        },
+        "t1": {
+          "eventKind": "batting-result",
+          "resultId": "batting-result.sacrifice-fly",
+          "pitchEventKind": "pitch-event",
+          "before": {
+            "stateFields": {
+              "state.half": "top",
+              "state.count.strikes": "0",
+              "state.count.balls": "0",
+              "state.outs": "0",
+              "state.runners": "first-second-third",
+              "state.battingOrder": "9",
+              "state.tiebreakActive": false,
+              "state.gameEnded": false,
+              "state.inning": "2",
+              "state.score": {
+                "home": "0",
+                "away": "1"
+              }
+            },
+            "scoreboard": {
+              "inningScores": {
+                "home": "0",
+                "away": "1"
+              },
+              "hits": "4",
+              "errors": "1",
+              "strikeouts": "0",
+              "walks": "0"
+            },
+            "battingOrderBySide": {
+              "away": "9",
+              "home": "4"
+            }
+          },
+          "officialScoringPayload": "no-error",
+          "interferenceRuling": "not-required",
+          "runnerAdvanceOverrides": {
+            "kind": "applied",
+            "overrides": [
+              {
+                "runnerBase": "1",
+                "destination": "1"
+              },
+              {
+                "runnerBase": "2",
+                "destination": "2"
+              },
+              {
+                "runnerBase": "3",
+                "destination": "4"
+              }
+            ]
+          },
+          "thirdOutObservation": "none",
+          "rbiRulingByRunner": {
+            "3": "ordinary-play"
+          }
+        },
+        "source": {
+          "kind": "evaluated-prefix-v3",
+          "prefixRef": {
+            "version": "3",
+            "scope": "play-prefix-v3",
+            "tenantId": "10000000-0000-0000-0000-000000000001",
+            "gameId": "10000000-0000-0000-0000-000000000002",
+            "generation": "recording-generation-v1",
+            "length": "11",
+            "checkpoint": {
+              "id": "00000000-0000-0000-0000-000000005213",
+              "digest": "0000000000000000000000000000000000000000000000000000000000000000",
+              "revision": "12"
+            },
+            "historyVersion": "11",
+            "origin": {
+              "kind": "started-game",
+              "eventId": "10000000-0000-0000-0000-000000000003"
+            }
+          },
+          "rules": {
+            "regulationInnings": "9",
+            "coldConditions": [],
+            "extensionLimit": "9",
+            "tiebreak": null,
+            "dh": true
+          },
+          "after": {
+            "stateFields": {
+              "state.half": "top",
+              "state.count.strikes": "0",
+              "state.count.balls": "0",
+              "state.outs": "0",
+              "state.runners": "first-second-third",
+              "state.battingOrder": "9",
+              "state.tiebreakActive": false,
+              "state.gameEnded": false,
+              "state.inning": "2",
+              "state.score": {
+                "home": "0",
+                "away": "1"
+              }
+            },
+            "scoreboard": {
+              "inningScores": {
+                "home": "0",
+                "away": "1"
+              },
+              "hits": "4",
+              "errors": "1",
+              "strikeouts": "0",
+              "walks": "0"
+            },
+            "battingOrderBySide": {
+              "away": "9",
+              "home": "4"
+            }
+          },
+          "t2": {
+            "kind": "evaluated-end-condition",
+            "scope": "play-prefix-v3",
+            "evaluation_point": "post-play",
+            "facts": {
+              "beforeInning": "2",
+              "beforeHalf": "top",
+              "beforeOuts": "0",
+              "afterInning": "2",
+              "afterHalf": "top",
+              "afterOuts": "0",
+              "halfCompleted": false,
+              "outsUnchanged": true,
+              "scoreUnchanged": true,
+              "priorOpen": true
+            },
+            "decision": {
+              "outcome": "no-end",
+              "endConditionDetected": false,
+              "lockFurtherPlayInput": false,
+              "promptEndDeclaration": false,
+              "automaticallyEndsGame": false,
+              "xMark": "recorded-score"
+            },
+            "tiebreakStartRequired": false
+          },
+          "historyDepth": "11",
+          "playCount": "11",
+          "lastSource": {
+            "eventId": "00000000-0000-0000-0000-000000004e41",
+            "d5": "00000000-0000-0000-0000-000000004e42",
+            "playId": "00000000-0000-0000-0000-000000004e43"
+          },
+          "position": {
+            "d1": "12",
+            "d2": "12",
+            "appliedWatermark": "11"
+          },
+          "priorArtifactSha256": "71f2726a288dfcfaff4c2fcdf293651dda0fb610b9ead325b352bd4f23a07aff",
+          "executionArtifactSha256": "71f2726a288dfcfaff4c2fcdf293651dda0fb610b9ead325b352bd4f23a07aff",
+          "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
+          "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
+          "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
+          "lineup": {
+            "away": {
+              "teamId": "10000000-0000-0000-0000-000000000300",
+              "battingOrder": {
+                "1": "10000000-0000-0000-0000-000000000201",
+                "2": "10000000-0000-0000-0000-000000000202",
+                "3": "10000000-0000-0000-0000-000000000203",
+                "4": "10000000-0000-0000-0000-000000000204",
+                "5": "10000000-0000-0000-0000-000000000205",
+                "6": "10000000-0000-0000-0000-000000000206",
+                "7": "10000000-0000-0000-0000-000000000207",
+                "8": "10000000-0000-0000-0000-000000000208",
+                "9": "10000000-0000-0000-0000-000000000209"
+              },
+              "pitcherId": "10000000-0000-0000-0000-000000000210",
+              "catcherId": "10000000-0000-0000-0000-000000000202"
+            },
+            "home": {
+              "teamId": "10000000-0000-0000-0000-000000000400",
+              "battingOrder": {
+                "1": "10000000-0000-0000-0000-000000000301",
+                "2": "10000000-0000-0000-0000-000000000302",
+                "3": "10000000-0000-0000-0000-000000000303",
+                "4": "10000000-0000-0000-0000-000000000304",
+                "5": "10000000-0000-0000-0000-000000000305",
+                "6": "10000000-0000-0000-0000-000000000306",
+                "7": "10000000-0000-0000-0000-000000000307",
+                "8": "10000000-0000-0000-0000-000000000308",
+                "9": "10000000-0000-0000-0000-000000000309"
+              },
+              "pitcherId": "10000000-0000-0000-0000-000000000310",
+              "catcherId": "10000000-0000-0000-0000-000000000302"
+            }
+          },
+          "runners": [
+            {
+              "runnerId": "10000000-0000-0000-0000-000000000206",
+              "responsiblePitcherId": "10000000-0000-0000-0000-000000000310",
+              "base": "3",
+              "status": "\u7d99\u7d9a",
+              "statusSource": "auto"
+            },
+            {
+              "runnerId": "10000000-0000-0000-0000-000000000207",
+              "responsiblePitcherId": "10000000-0000-0000-0000-000000000310",
+              "base": "2",
+              "status": "\u7d99\u7d9a",
+              "statusSource": "auto"
+            },
+            {
+              "runnerId": "10000000-0000-0000-0000-000000000208",
+              "responsiblePitcherId": "10000000-0000-0000-0000-000000000310",
+              "base": "1",
+              "status": "\u7d99\u7d9a",
+              "statusSource": "auto"
+            }
+          ],
+          "participants": {
+            "batterId": "10000000-0000-0000-0000-000000000209",
+            "pitcherId": "10000000-0000-0000-0000-000000000310",
+            "catcherId": "10000000-0000-0000-0000-000000000302",
+            "battingOrder": "9"
+          },
+          "responsibility": {
+            "kind": "no-change",
+            "paStartSource": {
+              "kind": "confirmed-play",
+              "id": "00000000-0000-0000-0000-000000004e41"
+            },
+            "previousPitcherId": null,
+            "strikesAtChange": null,
+            "ballsAtChange": null
+          },
+          "provenance": {
+            "kind": "confirmed-prefix",
+            "checkpoint": {
+              "id": "00000000-0000-0000-0000-000000005213",
+              "digest": "0000000000000000000000000000000000000000000000000000000000000000",
+              "revision": "12"
+            },
+            "sourceIdentity": {
+              "eventId": "00000000-0000-0000-0000-000000004e41",
+              "d5": "00000000-0000-0000-0000-000000004e42",
+              "playId": "00000000-0000-0000-0000-000000004e43"
+            },
+            "historyDepth": "11"
+          }
+        },
+        "playIdentity": {
+          "eventId": "00000000-0000-0000-0000-000000004e44",
+          "d5": "00000000-0000-0000-0000-000000004e45",
+          "playId": "00000000-0000-0000-0000-000000004e46"
+        },
+        "nextCheckpoint": {
+          "id": "00000000-0000-0000-0000-000000005214",
+          "digest": "0000000000000000000000000000000000000000000000000000000000000000",
+          "revision": "13"
+        }
+      }
+    },
+    {
+      "operation": "batted-reach",
+      "request": {
+        "version": "3",
+        "prefixRef": {
+          "version": "3",
+          "scope": "play-prefix-v3",
+          "tenantId": "10000000-0000-0000-0000-000000000001",
+          "gameId": "10000000-0000-0000-0000-000000000002",
+          "generation": "recording-generation-v1",
+          "length": "9",
+          "checkpoint": {
+            "id": "00000000-0000-0000-0000-000000005211",
+            "digest": "0000000000000000000000000000000000000000000000000000000000000000",
+            "revision": "10"
+          },
+          "historyVersion": "9",
+          "origin": {
+            "kind": "started-game",
+            "eventId": "10000000-0000-0000-0000-000000000003"
+          }
+        },
+        "rules": {
+          "regulationInnings": "9",
+          "coldConditions": [],
+          "extensionLimit": "9",
+          "tiebreak": null,
+          "dh": true
+        },
+        "t1": {
+          "eventKind": "batting-result",
+          "resultId": "batting-result.batted-reach",
+          "pitchEventKind": "pitch-event",
+          "before": {
+            "stateFields": {
+              "state.half": "top",
+              "state.count.strikes": "0",
+              "state.count.balls": "0",
+              "state.outs": "0",
+              "state.runners": "first",
+              "state.battingOrder": "7",
+              "state.tiebreakActive": false,
+              "state.gameEnded": false,
+              "state.inning": "2",
+              "state.score": {
+                "home": "0",
+                "away": "1"
+              }
+            },
+            "scoreboard": {
+              "inningScores": {
+                "home": "0",
+                "away": "1"
+              },
+              "hits": "4",
+              "errors": "0",
+              "strikeouts": "0",
+              "walks": "0"
+            },
+            "battingOrderBySide": {
+              "away": "7",
+              "home": "4"
+            }
+          },
+          "officialScoringPayload": "no-error",
+          "interferenceRuling": "not-required",
+          "runnerAdvanceOverrides": {
+            "kind": "applied",
+            "overrides": [
+              {
+                "runnerBase": "1",
+                "destination": "2"
+              }
+            ]
+          },
+          "thirdOutObservation": "none"
+        },
+        "source": {
+          "kind": "evaluated-prefix-v3",
+          "prefixRef": {
+            "version": "3",
+            "scope": "play-prefix-v3",
+            "tenantId": "10000000-0000-0000-0000-000000000001",
+            "gameId": "10000000-0000-0000-0000-000000000002",
+            "generation": "recording-generation-v1",
+            "length": "9",
+            "checkpoint": {
+              "id": "00000000-0000-0000-0000-000000005211",
+              "digest": "0000000000000000000000000000000000000000000000000000000000000000",
+              "revision": "10"
+            },
+            "historyVersion": "9",
+            "origin": {
+              "kind": "started-game",
+              "eventId": "10000000-0000-0000-0000-000000000003"
+            }
+          },
+          "rules": {
+            "regulationInnings": "9",
+            "coldConditions": [],
+            "extensionLimit": "9",
+            "tiebreak": null,
+            "dh": true
+          },
+          "after": {
+            "stateFields": {
+              "state.half": "top",
+              "state.count.strikes": "0",
+              "state.count.balls": "0",
+              "state.outs": "0",
+              "state.runners": "first",
+              "state.battingOrder": "7",
+              "state.tiebreakActive": false,
+              "state.gameEnded": false,
+              "state.inning": "2",
+              "state.score": {
+                "home": "0",
+                "away": "1"
+              }
+            },
+            "scoreboard": {
+              "inningScores": {
+                "home": "0",
+                "away": "1"
+              },
+              "hits": "4",
+              "errors": "0",
+              "strikeouts": "0",
+              "walks": "0"
+            },
+            "battingOrderBySide": {
+              "away": "7",
+              "home": "4"
+            }
+          },
+          "t2": {
+            "kind": "evaluated-end-condition",
+            "scope": "play-prefix-v3",
+            "evaluation_point": "post-play",
+            "facts": {
+              "beforeInning": "2",
+              "beforeHalf": "top",
+              "beforeOuts": "0",
+              "afterInning": "2",
+              "afterHalf": "top",
+              "afterOuts": "0",
+              "halfCompleted": false,
+              "outsUnchanged": true,
+              "scoreUnchanged": true,
+              "priorOpen": true
+            },
+            "decision": {
+              "outcome": "no-end",
+              "endConditionDetected": false,
+              "lockFurtherPlayInput": false,
+              "promptEndDeclaration": false,
+              "automaticallyEndsGame": false,
+              "xMark": "recorded-score"
+            },
+            "tiebreakStartRequired": false
+          },
+          "historyDepth": "9",
+          "playCount": "9",
+          "lastSource": {
+            "eventId": "00000000-0000-0000-0000-000000004e3b",
+            "d5": "00000000-0000-0000-0000-000000004e3c",
+            "playId": "00000000-0000-0000-0000-000000004e3d"
+          },
+          "position": {
+            "d1": "10",
+            "d2": "10",
+            "appliedWatermark": "9"
+          },
+          "priorArtifactSha256": "71f2726a288dfcfaff4c2fcdf293651dda0fb610b9ead325b352bd4f23a07aff",
+          "executionArtifactSha256": "71f2726a288dfcfaff4c2fcdf293651dda0fb610b9ead325b352bd4f23a07aff",
+          "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
+          "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
+          "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
+          "lineup": {
+            "away": {
+              "teamId": "10000000-0000-0000-0000-000000000300",
+              "battingOrder": {
+                "1": "10000000-0000-0000-0000-000000000201",
+                "2": "10000000-0000-0000-0000-000000000202",
+                "3": "10000000-0000-0000-0000-000000000203",
+                "4": "10000000-0000-0000-0000-000000000204",
+                "5": "10000000-0000-0000-0000-000000000205",
+                "6": "10000000-0000-0000-0000-000000000206",
+                "7": "10000000-0000-0000-0000-000000000207",
+                "8": "10000000-0000-0000-0000-000000000208",
+                "9": "10000000-0000-0000-0000-000000000209"
+              },
+              "pitcherId": "10000000-0000-0000-0000-000000000210",
+              "catcherId": "10000000-0000-0000-0000-000000000202"
+            },
+            "home": {
+              "teamId": "10000000-0000-0000-0000-000000000400",
+              "battingOrder": {
+                "1": "10000000-0000-0000-0000-000000000301",
+                "2": "10000000-0000-0000-0000-000000000302",
+                "3": "10000000-0000-0000-0000-000000000303",
+                "4": "10000000-0000-0000-0000-000000000304",
+                "5": "10000000-0000-0000-0000-000000000305",
+                "6": "10000000-0000-0000-0000-000000000306",
+                "7": "10000000-0000-0000-0000-000000000307",
+                "8": "10000000-0000-0000-0000-000000000308",
+                "9": "10000000-0000-0000-0000-000000000309"
+              },
+              "pitcherId": "10000000-0000-0000-0000-000000000310",
+              "catcherId": "10000000-0000-0000-0000-000000000302"
+            }
+          },
+          "runners": [
+            {
+              "runnerId": "10000000-0000-0000-0000-000000000206",
+              "responsiblePitcherId": "10000000-0000-0000-0000-000000000310",
+              "base": "1",
+              "status": "\u7d99\u7d9a",
+              "statusSource": "auto"
+            }
+          ],
+          "participants": {
+            "batterId": "10000000-0000-0000-0000-000000000207",
+            "pitcherId": "10000000-0000-0000-0000-000000000310",
+            "catcherId": "10000000-0000-0000-0000-000000000302",
+            "battingOrder": "7"
+          },
+          "responsibility": {
+            "kind": "no-change",
+            "paStartSource": {
+              "kind": "confirmed-play",
+              "id": "00000000-0000-0000-0000-000000004e3b"
+            },
+            "previousPitcherId": null,
+            "strikesAtChange": null,
+            "ballsAtChange": null
+          },
+          "provenance": {
+            "kind": "confirmed-prefix",
+            "checkpoint": {
+              "id": "00000000-0000-0000-0000-000000005211",
+              "digest": "0000000000000000000000000000000000000000000000000000000000000000",
+              "revision": "10"
+            },
+            "sourceIdentity": {
+              "eventId": "00000000-0000-0000-0000-000000004e3b",
+              "d5": "00000000-0000-0000-0000-000000004e3c",
+              "playId": "00000000-0000-0000-0000-000000004e3d"
+            },
+            "historyDepth": "9"
+          }
+        },
+        "playIdentity": {
+          "eventId": "00000000-0000-0000-0000-000000004e3e",
+          "d5": "00000000-0000-0000-0000-000000004e3f",
+          "playId": "00000000-0000-0000-0000-000000004e40"
+        },
+        "nextCheckpoint": {
+          "id": "00000000-0000-0000-0000-000000005212",
+          "digest": "0000000000000000000000000000000000000000000000000000000000000000",
+          "revision": "11"
+        }
+      }
+    },
+    {
+      "operation": "sacrifice-bunt-error",
+      "request": {
+        "version": "3",
+        "prefixRef": {
+          "version": "3",
+          "scope": "play-prefix-v3",
+          "tenantId": "10000000-0000-0000-0000-000000000001",
+          "gameId": "10000000-0000-0000-0000-000000000002",
+          "generation": "recording-generation-v1",
+          "length": "2",
+          "checkpoint": {
+            "id": "00000000-0000-0000-0000-00000000520a",
+            "digest": "0000000000000000000000000000000000000000000000000000000000000000",
+            "revision": "3"
+          },
+          "historyVersion": "2",
+          "origin": {
+            "kind": "started-game",
+            "eventId": "10000000-0000-0000-0000-000000000003"
+          }
+        },
+        "rules": {
+          "regulationInnings": "9",
+          "coldConditions": [],
+          "extensionLimit": "9",
+          "tiebreak": null,
+          "dh": true
+        },
+        "t1": {
+          "eventKind": "batting-result",
+          "resultId": "batting-result.sacrifice-bunt-error",
+          "pitchEventKind": "pitch-event",
+          "before": {
+            "stateFields": {
+              "state.half": "top",
+              "state.count.strikes": "0",
+              "state.count.balls": "0",
+              "state.outs": "1",
+              "state.runners": "first",
+              "state.battingOrder": "3",
+              "state.tiebreakActive": false,
+              "state.gameEnded": false,
+              "state.inning": "1",
+              "state.score": {
+                "home": "0",
+                "away": "0"
+              }
+            },
+            "scoreboard": {
+              "inningScores": {
+                "home": "0",
+                "away": "0"
+              },
+              "hits": "1",
+              "errors": "0",
+              "strikeouts": "0",
+              "walks": "0"
+            },
+            "battingOrderBySide": {
+              "away": "3",
+              "home": "1"
+            }
+          },
+          "officialScoringPayload": "error-recorded",
+          "interferenceRuling": "not-required",
+          "runnerAdvanceOverrides": {
+            "kind": "applied",
+            "overrides": [
+              {
+                "runnerBase": "1",
+                "destination": "2"
+              }
+            ]
+          },
+          "thirdOutObservation": "none"
+        },
+        "source": {
+          "kind": "evaluated-prefix-v3",
+          "prefixRef": {
+            "version": "3",
+            "scope": "play-prefix-v3",
+            "tenantId": "10000000-0000-0000-0000-000000000001",
+            "gameId": "10000000-0000-0000-0000-000000000002",
+            "generation": "recording-generation-v1",
+            "length": "2",
+            "checkpoint": {
+              "id": "00000000-0000-0000-0000-00000000520a",
+              "digest": "0000000000000000000000000000000000000000000000000000000000000000",
+              "revision": "3"
+            },
+            "historyVersion": "2",
+            "origin": {
+              "kind": "started-game",
+              "eventId": "10000000-0000-0000-0000-000000000003"
+            }
+          },
+          "rules": {
+            "regulationInnings": "9",
+            "coldConditions": [],
+            "extensionLimit": "9",
+            "tiebreak": null,
+            "dh": true
+          },
+          "after": {
+            "stateFields": {
+              "state.half": "top",
+              "state.count.strikes": "0",
+              "state.count.balls": "0",
+              "state.outs": "1",
+              "state.runners": "first",
+              "state.battingOrder": "3",
+              "state.tiebreakActive": false,
+              "state.gameEnded": false,
+              "state.inning": "1",
+              "state.score": {
+                "home": "0",
+                "away": "0"
+              }
+            },
+            "scoreboard": {
+              "inningScores": {
+                "home": "0",
+                "away": "0"
+              },
+              "hits": "1",
+              "errors": "0",
+              "strikeouts": "0",
+              "walks": "0"
+            },
+            "battingOrderBySide": {
+              "away": "3",
+              "home": "1"
+            }
+          },
+          "t2": {
+            "kind": "evaluated-end-condition",
+            "scope": "play-prefix-v3",
+            "evaluation_point": "post-play",
+            "facts": {
+              "beforeInning": "1",
+              "beforeHalf": "top",
+              "beforeOuts": "0",
+              "afterInning": "1",
+              "afterHalf": "top",
+              "afterOuts": "1",
+              "halfCompleted": false,
+              "outsUnchanged": false,
+              "scoreUnchanged": true,
+              "priorOpen": true
+            },
+            "decision": {
+              "outcome": "no-end",
+              "endConditionDetected": false,
+              "lockFurtherPlayInput": false,
+              "promptEndDeclaration": false,
+              "automaticallyEndsGame": false,
+              "xMark": "recorded-score"
+            },
+            "tiebreakStartRequired": false
+          },
+          "historyDepth": "2",
+          "playCount": "2",
+          "lastSource": {
+            "eventId": "00000000-0000-0000-0000-000000004e26",
+            "d5": "00000000-0000-0000-0000-000000004e27",
+            "playId": "00000000-0000-0000-0000-000000004e28"
+          },
+          "position": {
+            "d1": "3",
+            "d2": "3",
+            "appliedWatermark": "2"
+          },
+          "priorArtifactSha256": "71f2726a288dfcfaff4c2fcdf293651dda0fb610b9ead325b352bd4f23a07aff",
+          "executionArtifactSha256": "71f2726a288dfcfaff4c2fcdf293651dda0fb610b9ead325b352bd4f23a07aff",
+          "rulesDigest": "5bb8c3b7dd3ba9698e9b6e4d54c9f8e155a7dd0ce32e3a76755631b3cdc5264e",
+          "layoutDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
+          "rosterDigest": "d424a878995ae57216c62379f33953679dac8e8db166016428036ba5265ad6dc",
+          "lineup": {
+            "away": {
+              "teamId": "10000000-0000-0000-0000-000000000300",
+              "battingOrder": {
+                "1": "10000000-0000-0000-0000-000000000201",
+                "2": "10000000-0000-0000-0000-000000000202",
+                "3": "10000000-0000-0000-0000-000000000203",
+                "4": "10000000-0000-0000-0000-000000000204",
+                "5": "10000000-0000-0000-0000-000000000205",
+                "6": "10000000-0000-0000-0000-000000000206",
+                "7": "10000000-0000-0000-0000-000000000207",
+                "8": "10000000-0000-0000-0000-000000000208",
+                "9": "10000000-0000-0000-0000-000000000209"
+              },
+              "pitcherId": "10000000-0000-0000-0000-000000000210",
+              "catcherId": "10000000-0000-0000-0000-000000000202"
+            },
+            "home": {
+              "teamId": "10000000-0000-0000-0000-000000000400",
+              "battingOrder": {
+                "1": "10000000-0000-0000-0000-000000000301",
+                "2": "10000000-0000-0000-0000-000000000302",
+                "3": "10000000-0000-0000-0000-000000000303",
+                "4": "10000000-0000-0000-0000-000000000304",
+                "5": "10000000-0000-0000-0000-000000000305",
+                "6": "10000000-0000-0000-0000-000000000306",
+                "7": "10000000-0000-0000-0000-000000000307",
+                "8": "10000000-0000-0000-0000-000000000308",
+                "9": "10000000-0000-0000-0000-000000000309"
+              },
+              "pitcherId": "10000000-0000-0000-0000-000000000310",
+              "catcherId": "10000000-0000-0000-0000-000000000302"
+            }
+          },
+          "runners": [
+            {
+              "runnerId": "10000000-0000-0000-0000-000000000201",
+              "responsiblePitcherId": "10000000-0000-0000-0000-000000000310",
+              "base": "1",
+              "status": "\u7d99\u7d9a",
+              "statusSource": "auto"
+            }
+          ],
+          "participants": {
+            "batterId": "10000000-0000-0000-0000-000000000203",
+            "pitcherId": "10000000-0000-0000-0000-000000000310",
+            "catcherId": "10000000-0000-0000-0000-000000000302",
+            "battingOrder": "3"
+          },
+          "responsibility": {
+            "kind": "no-change",
+            "paStartSource": {
+              "kind": "confirmed-play",
+              "id": "00000000-0000-0000-0000-000000004e26"
+            },
+            "previousPitcherId": null,
+            "strikesAtChange": null,
+            "ballsAtChange": null
+          },
+          "provenance": {
+            "kind": "confirmed-prefix",
+            "checkpoint": {
+              "id": "00000000-0000-0000-0000-00000000520a",
+              "digest": "0000000000000000000000000000000000000000000000000000000000000000",
+              "revision": "3"
+            },
+            "sourceIdentity": {
+              "eventId": "00000000-0000-0000-0000-000000004e26",
+              "d5": "00000000-0000-0000-0000-000000004e27",
+              "playId": "00000000-0000-0000-0000-000000004e28"
+            },
+            "historyDepth": "2"
+          }
+        },
+        "playIdentity": {
+          "eventId": "00000000-0000-0000-0000-000000004e29",
+          "d5": "00000000-0000-0000-0000-000000004e2a",
+          "playId": "00000000-0000-0000-0000-000000004e2b"
+        },
+        "nextCheckpoint": {
+          "id": "00000000-0000-0000-0000-00000000520b",
+          "digest": "0000000000000000000000000000000000000000000000000000000000000000",
+          "revision": "4"
+        }
+      }
+    }
+  ]
+}
