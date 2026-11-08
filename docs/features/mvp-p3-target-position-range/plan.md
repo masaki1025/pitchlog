@@ -31,3 +31,8 @@ PGはINT担当終了後rootの順序許可まで開始しない。純試験成�
 ## 同family耐久保存の追補
 
 rootがp3AttemptPersistence.ts/同.spec.tsの所有を追加し、同じ25件上限の混同として追補採用。実26再走前の残存走査で、verifyにもNumber(target.d1)>25が残り、対象GET後の送信前耐久保存を拒否することを確認した。編集へ当2pathを追加し、この1上限のみ除去する。正整数/安全整数、tenant/game/D4/D5/attempt、原JSON/hash全値は保持。25/26/MAX_SAFEの再起動復元、MAX_SAFE超/小数/bool/非正準拒否、API26→offer→原要求耐久保存→confirmation26を実codec/実IDBで接続する。ページ25とbackend非paged分岐の<=25は不変更。PGは引続きINT担当後のroot順序待ち。
+
+
+## 同family追補の検査結果
+
+両APIと耐久verifyの3箇所だけで位置25上限を除去。25/26/MAX_SAFEの原文/hash/attempt再起動復元、非正準13種の保存拒否、API offer26→実IDB strict保存→再起動同原文/D5/attempt→confirmation26を実codecで通した。既UI/controller/頁と合わせ5suite64passed3.72秒、全vue-tsc/対象ESLint0。初回pure64成功後の型検査で試験側readonly代入3件、2回目は置換漏れ1件を検出し、immutable copyに統一して最終0を確認（失敗log保全）。実DB/実P3訂正は未実施。frontend同familyの位置×25残存は解消し、page_size25とbackend非paged≤25は保持。framegate/#current/queueのtrue化はしていない。

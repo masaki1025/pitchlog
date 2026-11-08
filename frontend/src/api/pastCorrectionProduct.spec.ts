@@ -1,4 +1,6 @@
+import { webcrypto } from 'node:crypto'
 import { IDBFactory } from 'fake-indexeddb'
+import { P3AttemptPersistence } from '../lib/p3AttemptPersistence'
 import { createPinia, disposePinia, setActivePinia, type Pinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import fixture from './fixtures/lineupPrefixGame.recorded.v3.json'
@@ -280,4 +282,43 @@ it('26位置でも別対象/別gameの原応答と別D5を受理しない', asyn
   await expect(readP3ChangeConfirmation(game.id, 26, d5)).rejects.toThrow()
   request.mockResolvedValueOnce({ ...positionConfirmation(26), d5: attempt })
   await expect(readP3ChangeConfirmation(game.id, 26, d5)).rejects.toThrow()
+})
+
+it('26対象offer→耐久原要求→再起動→同D5/attempt確認を実codecで接続する', async () => {
+  vi.stubGlobal('crypto', webcrypto)
+  request.mockResolvedValueOnce(positionOffer(26))
+  const read = await readP3TargetOffer(game.id, 26)
+  const input = p3ChangeBody(
+    read,
+    d5,
+    game.recovery_generation,
+    'presented-proof',
+    'batting-result.called-pitch',
+    observations,
+  )
+  const first = await P3AttemptPersistence.open()
+  let second: P3AttemptPersistence | null = null
+  try {
+    const saved = await first.prepare({
+      tenantId: game.prefix_ref.tenantId,
+      gameId: game.id,
+      deviceId: play.batter_id,
+      attemptId: attempt,
+      body: input,
+    })
+    first.close()
+    second = await P3AttemptPersistence.open()
+    const recovered = await second.read(game.prefix_ref.tenantId, game.id)
+    expect(recovered).toEqual(saved)
+    expect(JSON.parse(recovered!.requestJson)).toEqual(input)
+    expect(recovered!.d5).toBe(d5)
+    expect(recovered!.attemptId).toBe(attempt)
+    request.mockResolvedValueOnce(positionConfirmation(26))
+    const confirmed = await readP3ChangeConfirmation(game.id, 26, recovered!.d5)
+    expect(confirmed.target_reference).toEqual(read.target_reference)
+    expect(confirmed.d5).toBe(saved.d5)
+  } finally {
+    first.close()
+    second?.close()
+  }
 })
