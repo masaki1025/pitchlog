@@ -34,3 +34,8 @@ created: 2026-11-08
 | 1 | 固定親へ妨害の厳格SQL overlayを接続 | 親SHA/宣言/対象箇所を閉検査し、公式BODIESのprepare1本文だけ変化、他本文全byte一致、未知/原本改竄拒否 |
 | 2 | 同TX物理41列とT5を接続 | INT3 secondary/採用プレイの正負、元event/ledger/ID/裁定/物理改竄拒否、既T1 typed効果からの成績だけを生成T5へ写す |
 | 3 | 候補差分を封印 | 対象path前後SHA・純BE検査・残る正式7.7/実PGを区別してroot/非作者へ渡す |
+
+## 実装記録
+
+- ステップ1: 親prepare本文を固定して妨害の原裁定・物理ラベルを有限追加。SQL三値の欠測を `IS NOT TRUE` で拒否する追補を含む。実PG拒否は未確認。
+- ステップ2: 既同TX preflightで実eventのV7/参加者/D5/唯一物理mapper全41列を再照合。T5は妨害のtyped走者別効果を既生成核へ写し、元走者のある妨害で盗塁attemptの真正対応が未証明なら `steals=unavailable` とする。実859 hostの4形と改竄負例、既走者算入回帰を純検査で確認。正式SQL配備・実保存は後段。

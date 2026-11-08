@@ -75,6 +75,13 @@ _RUNNER_PITCH_PRIMARY = frozenset(
         "batting-result.swinging-strike",
     )
 )
+_INTERFERENCE_SECONDARY = frozenset(
+    {
+        "secondary-result.batting-interference",
+        "secondary-result.obstruction",
+        "secondary-result.offensive-interference",
+    }
+)
 
 
 def _runner_nonpitch_shape(token, row):
@@ -148,10 +155,9 @@ def _validate_runner_source(token, row, event):
             raise OrdinaryPlayRowError
         q = payload.calculation.request
         observed = payload.observations
-        if (
-            type(q.t1) is not RunnerEventT1Input
-            or type(observed)
-            not in (RunnerNonpitchPlayObservations, RunnerPitchPlayObservations)
+        if type(q.t1) is not RunnerEventT1Input or type(observed) not in (
+            RunnerNonpitchPlayObservations,
+            RunnerPitchPlayObservations,
         ):
             raise OrdinaryPlayRowError
         observed = cast(
@@ -169,9 +175,7 @@ def _validate_runner_source(token, row, event):
         ):
             raise OrdinaryPlayRowError
         per = observed.runner_observation.per_pitch
-        if per.pitch_event_kind != (
-            "non-pitch-event" if nonpitch else "pitch-event"
-        ):
+        if per.pitch_event_kind != ("non-pitch-event" if nonpitch else "pitch-event"):
             raise OrdinaryPlayRowError
         if nonpitch:
             if observed.runner_observation.primary_result_id is not None:
@@ -213,6 +217,115 @@ def _validate_runner_source(token, row, event):
         )
         canonical = {k: str(v) if type(v) is UUID else v for k, v in row.items()}
         if canonical != expected:
+            raise OrdinaryPlayRowError
+    except (ValueError, TypeError, AttributeError, KeyError, RecursionError):
+        raise OrdinaryPlayRowError from None
+
+
+def _validate_interference_source(token, row, event):
+    """妨害の原V7裁定と同TX物理41列を既唯一mapperへ再束縛する。"""
+    from pitchlog.domainrt.lineup_play_prefix_continuation import (
+        AdjudicatedInterferenceT1Input,
+        BattingInterferencePenaltyT1Input,
+        BattingInterferencePlayT1Input,
+        RunnerValue,
+        Value,
+    )
+    from pitchlog.domainrt.lineup_prefix_source import (
+        require_batted_hit_observations,
+        require_interference_observations,
+    )
+    from pitchlog.sync.idempotency import _json_value
+    from pitchlog.sync.ordinary_pitch_physical import pitch_physical_row
+    from pitchlog.sync.terminal_pitch_payload import (
+        AdjudicatedInterferenceObservations,
+        BattingInterferencePenaltyObservations,
+        BattingInterferencePlayObservations,
+        LineupPitchCalculation,
+        LineupPitchPlayPayload,
+    )
+
+    try:
+        original = _json_value(event["payload"])
+        if type(original) is not dict:
+            if row["secondary_batting_result_key"] in _INTERFERENCE_SECONDARY:
+                raise OrdinaryPlayRowError
+            return
+        observation = original.get("observations")
+        calculation = original.get("calculation")
+        request = calculation.get("request") if type(calculation) is dict else None
+        t1 = request.get("t1") if type(request) is dict else None
+        tagged = (type(t1) is dict and type(t1.get("interferenceRuling")) is dict) or (
+            type(observation) is dict
+            and type(observation.get("interferenceRuling")) is dict
+        )
+        if (
+            not tagged
+            and row["secondary_batting_result_key"] not in _INTERFERENCE_SECONDARY
+        ):
+            return
+        payload = LineupPitchPlayPayload.model_validate_json(
+            json.dumps(original, allow_nan=False)
+        )
+        if type(payload.calculation) is not LineupPitchCalculation:
+            raise OrdinaryPlayRowError
+        q = payload.calculation.request
+        observed = payload.observations
+        types: dict[type, type] = {
+            BattingInterferencePenaltyT1Input: BattingInterferencePenaltyObservations,
+            AdjudicatedInterferenceT1Input: AdjudicatedInterferenceObservations,
+            BattingInterferencePlayT1Input: BattingInterferencePlayObservations,
+        }
+        if type(q.t1) not in types or type(observed) is not types[type(q.t1)]:
+            raise OrdinaryPlayRowError
+        if (
+            q.prefix_ref.tenant_id != str(row["tenant_id"])
+            or q.prefix_ref.game_id != str(token.game_id)
+            or q.play_identity.event_id != str(event["id"])
+            or q.play_identity.play_id != str(row["id"])
+            or q.play_identity.d5 != str(token.d5)
+            or payload.participants.model_dump(mode="json", by_alias=True)
+            != q.source.participants.model_dump(mode="json", by_alias=True)
+            or payload.calculation.response.ok is not True
+            or (
+                type(payload.calculation.response.value) is not RunnerValue
+                if type(q.t1) is not BattingInterferencePlayT1Input
+                else type(payload.calculation.response.value)
+                not in {Value, RunnerValue}
+            )
+            or payload.calculation.response.value.before_participants.model_dump(
+                mode="json", by_alias=True
+            )
+            != payload.participants.model_dump(mode="json", by_alias=True)
+        ):
+            raise OrdinaryPlayRowError
+        if type(q.t1) is BattingInterferencePlayT1Input:
+            require_batted_hit_observations(
+                q.t1,
+                observed,
+                require_current_rbi=True,
+                actual_scoring=getattr(
+                    payload.calculation.response.value, "runner_score_effects", None
+                ),
+                actual_score_changed=(
+                    q.t1.before.state_fields.score
+                    != payload.calculation.response.value.t1.after.state_fields.score
+                ),
+            )
+        else:
+            require_interference_observations(q.t1, observed)
+        expected = pitch_physical_row(
+            observed,
+            payload.participants,
+            q.t1.result_id,
+            tenant_id=row["tenant_id"],
+            game_id=token.game_id,
+            source_event_id=event["id"],
+            row_id=row["id"],
+            play_number=row["play_number"],
+        )
+        actual = {k: str(v) if type(v) is UUID else v for k, v in row.items()}
+        if actual != expected:
             raise OrdinaryPlayRowError
     except (ValueError, TypeError, AttributeError, KeyError, RecursionError):
         raise OrdinaryPlayRowError from None
@@ -270,6 +383,16 @@ def _row(token):
         )
         runner_nonpitch = _runner_nonpitch_shape(token, row)
         runner_pitch_secondary = _runner_pitch_secondary_shape(token, row)
+        interference_secondary = (
+            type(token) is PlayPrefixPlayRowInsertToken
+            and row["secondary_batting_result_key"] in _INTERFERENCE_SECONDARY
+            and row["event_kind"] == "pitch"
+            and (
+                row["secondary_batting_result_key"]
+                == "secondary-result.batting-interference"
+                or row["batting_result_key"] is None
+            )
+        )
         nonpitch = runner_nonpitch or (
             type(token) is PlayPrefixPlayRowInsertToken
             and row["event_kind"] == "non_pitch"
@@ -286,6 +409,8 @@ def _row(token):
             required_null = set(_NULL_COLUMNS) - _RUNNER_NONPITCH_COLUMNS
         elif runner_pitch_secondary:
             required_null = set(_NULL_COLUMNS) - {"secondary_batting_result_key"}
+        elif interference_secondary:
+            required_null = set(required_null) - {"secondary_batting_result_key"}
         if batted and (
             any(
                 row[name] is not None and not 0 <= row[name] <= 1
@@ -328,6 +453,7 @@ def _row(token):
             or row["catcher_id"] is None
             or (
                 not runner_nonpitch
+                and not interference_secondary
                 and (
                     type(row["batting_result_key"]) is not str
                     or not row["batting_result_key"]
@@ -423,6 +549,7 @@ def _preflight(token, parameters):
                 raise OrdinaryPlayRowError
         if type(token) is PlayPrefixPlayRowInsertToken:
             _validate_runner_source(token, row, event)
+            _validate_interference_source(token, row, event)
         if (
             type(results[2]) is not TenantOperationResult
             or type(results[2].rows) is not tuple

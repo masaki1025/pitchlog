@@ -346,6 +346,30 @@ def _native_explicit_runner_projection(payload, value):
         return None
 
 
+def _typed_runner_effect_scores(effects, by_base, batter_id):
+    """唯一核の走者別効果と保存済み原IDを共通T5行へ転記する。"""
+    scores = []
+    for effect in sorted(effects, key=lambda item: item["base"]):
+        if (
+            set(effect) != {"base", "validRun", "rbiCredited"}
+            or type(effect["validRun"]) is not bool
+            or type(effect["rbiCredited"]) is not bool
+            or (effect["rbiCredited"] and not effect["validRun"])
+        ):
+            return None
+        runner = by_base[effect["base"]]
+        scores.append(
+            {
+                "runner_id": runner["runnerId"],
+                "responsible_pitcher_id": runner["responsiblePitcherId"],
+                "valid_run": effect["validRun"],
+                "rbi_credited": effect["rbiCredited"],
+                "rbi_batter_id": batter_id,
+            }
+        )
+    return scores
+
+
 def _native_batted_scores(payload, value):
     """打球の原観測と唯一T1の走者別算入を写し、RBI規則を再計算しない。"""
     try:
@@ -474,27 +498,115 @@ def _native_batted_scores(payload, value):
             return None
         if not valid and causes is not None:
             return None
-        scores = []
-        for base, effect in sorted(by_effect.items()):
+        return _typed_runner_effect_scores(effects, by_base, people["batterId"])
+    except (KeyError, TypeError, ValueError):
+        return None
+
+
+def _native_interference_scores(payload, value):
+    """妨害の閉じた原裁定と唯一核の走者別算入をT5へ写す。"""
+    from pitchlog.domainrt.lineup_play_prefix_continuation import (
+        AdjudicatedInterferenceT1Input,
+        BattingInterferencePenaltyT1Input,
+        BattingInterferencePlayT1Input,
+        Source,
+    )
+    from pitchlog.domainrt.lineup_prefix_source import (
+        require_batted_hit_observations,
+        require_interference_observations,
+    )
+    from pitchlog.sync.terminal_pitch_payload import (
+        AdjudicatedInterferenceObservations,
+        BattingInterferencePenaltyObservations,
+        BattingInterferencePlayObservations,
+        LineupPitchPlayPayload,
+    )
+
+    try:
+        if payload["formatVersion"] != "play-prefix-play-v3" or not _closed_native_wire(
+            payload
+        ):
+            return None
+        parsed = LineupPitchPlayPayload.model_validate_json(
+            json.dumps(payload, allow_nan=False)
+        )
+        request = parsed.calculation.request
+        observed = parsed.observations
+        variants: dict[type, type] = {
+            BattingInterferencePenaltyT1Input: BattingInterferencePenaltyObservations,
+            BattingInterferencePlayT1Input: BattingInterferencePlayObservations,
+            AdjudicatedInterferenceT1Input: AdjudicatedInterferenceObservations,
+        }
+        if (
+            type(request.t1) not in variants
+            or type(observed) is not variants[type(request.t1)]
+        ):
+            return None
+        if type(request.t1) is BattingInterferencePlayT1Input:
+            require_batted_hit_observations(
+                request.t1,
+                observed,
+                require_current_rbi=True,
+                actual_scoring=getattr(
+                    parsed.calculation.response.value, "runner_score_effects", None
+                ),
+                actual_score_changed=(
+                    request.t1.before.state_fields.score
+                    != parsed.calculation.response.value.t1.after.state_fields.score
+                ),
+            )
+        else:
+            require_interference_observations(request.t1, observed)
+        if (
+            type(request.source) is not Source
+            or parsed.participants.model_dump(mode="json", by_alias=True)
+            != request.source.participants.model_dump(mode="json", by_alias=True)
+            or value["beforeParticipants"] != payload["participants"]
+        ):
+            return None
+        runners = payload["calculation"]["request"]["source"]["runners"]
+        by_base = {runner["base"]: runner for runner in runners}
+        if len(by_base) != len(runners) or set(by_base) - {"1", "2", "3"}:
+            return None
+        t1 = value["t1"]
+        home = {
+            base
+            for base, name in (("1", "first"), ("2", "second"), ("3", "third"))
+            if t1["runnerDefaultAdvance"][name]["destination"] == "4"
+        }
+        if not home.issubset(by_base):
+            return None
+        effects = value.get("runnerScoreEffects")
+        if effects is None:
             if (
-                set(effect) != {"base", "validRun", "rbiCredited"}
-                or type(effect["validRun"]) is not bool
-                or type(effect["rbiCredited"]) is not bool
-                or (effect["rbiCredited"] and not effect["validRun"])
+                type(request.t1) is not BattingInterferencePlayT1Input
+                or home
+                or any(
+                    t1["statFlags"][name] is not False
+                    for name in ("得点", "打点", "失点")
+                )
+                or request.t1.before.state_fields.score
+                != parsed.calculation.response.value.t1.after.state_fields.score
             ):
                 return None
-            runner = by_base[base]
-            scores.append(
-                {
-                    "runner_id": runner["runnerId"],
-                    "responsible_pitcher_id": runner["responsiblePitcherId"],
-                    "valid_run": effect["validRun"],
-                    "rbi_credited": effect["rbiCredited"],
-                    "rbi_batter_id": people["batterId"],
-                }
-            )
-        return scores
-    except (KeyError, TypeError, ValueError):
+            return []
+        if type(effects) is not list or len(effects) > 3:
+            return None
+        by_effect = {effect["base"]: effect for effect in effects}
+        if len(by_effect) != len(effects) or set(by_effect) != home:
+            return None
+        if (
+            t1["statFlags"]["得点"] is not any(effect["validRun"] for effect in effects)
+            or t1["statFlags"]["失点"]
+            is not any(effect["validRun"] for effect in effects)
+            or t1["statFlags"]["打点"]
+            is not any(effect["rbiCredited"] for effect in effects)
+        ):
+            return None
+        return _typed_runner_effect_scores(
+            effects, by_base, payload["participants"]["batterId"]
+        )
+    except (KeyError, TypeError, ValueError, AttributeError):
         return None
 
 
@@ -760,8 +872,24 @@ def native_projection(payload, *, source_event_id):
     if "runnerObservation" in calc["request"]["t1"] and explicit_runner is None:
         raise ValueError("明示runner原本/実算入根拠の供給が不成立です")
     batted_scores = _native_batted_scores(payload, value)
+    interference = variant == "play-prefix-play-v3" and (
+        hit_result
+        in {
+            "secondary-result.batting-interference",
+            "secondary-result.obstruction",
+            "secondary-result.offensive-interference",
+        }
+        or type(calc["request"]["t1"].get("interferenceRuling")) is dict
+    )
+    interference_scores = (
+        _native_interference_scores(payload, value) if interference else None
+    )
+    if interference and interference_scores is None:
+        raise ValueError("妨害の原裁定と唯一算入結果が不一致です")
     runner_scores = _native_runner_scores(payload, value)
-    if batted_scores is not None:
+    if interference:
+        runner_scores = interference_scores
+    elif batted_scores is not None:
         runner_scores = batted_scores
         if t1["statFlags"]["失策"] is True:
             fielder = _native_batted_error_fielder(payload)
@@ -777,8 +905,10 @@ def native_projection(payload, *, source_event_id):
         runner_scores = explicit_runner[0]
     if runner_scores is not None:
         completeness["runs_rbi"] = "complete"
-    no_steal = batted_scores is not None or _native_no_steal(
-        payload, value, runner_scores
+    no_steal = (
+        (interference and calc["request"]["source"]["runners"] == [])
+        or (not interference and batted_scores is not None)
+        or (not interference and _native_no_steal(payload, value, runner_scores))
     )
     if no_steal or explicit_runner is not None:
         completeness["steals"] = "complete"
