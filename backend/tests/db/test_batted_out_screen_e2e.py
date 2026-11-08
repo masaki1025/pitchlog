@@ -70,7 +70,8 @@ def test_batted_out_three_pitches_actual_screen(vertical_database):
     observed = json.loads(matched[0])
     game = UUID(observed["gameId"])
     assert game != db.game_id
-    assert observed["accepted"] == observed["prefixLength"] == 3
+    assert observed["accepted"] == 3
+    assert observed["prefixLength"] == "3"
     assert observed["half"] == "bottom" and observed["outs"] == "0"
     with psycopg.connect(
         db.authority.database.business_admin,
