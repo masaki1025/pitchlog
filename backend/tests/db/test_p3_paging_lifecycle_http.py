@@ -3,8 +3,12 @@
 from __future__ import annotations
 
 # 旧作者の26球操作脚本だけを再利用し、後付candidate DDLは呼ばない。
+import hashlib
 import json
+import os
 import subprocess
+from pathlib import Path
+from typing import Any, cast
 from uuid import UUID, uuid4
 
 import psycopg
@@ -12,15 +16,15 @@ import pytest
 
 from pitchlog.db.current_product_startup import CURRENT_REVISION
 
+from . import durable_rights_ledger_support as _ledger_support
+from . import initial_recording_right_scope_support as _initial_support
+from . import test_first_ball_vertical_http as _vertical_fixtures
 from .sync_writer_binding_support import binding_broker
 from .test_first_ball_vertical_http import (
     _PASSWORD,
     _PITCH_TYPE,
     _app_arguments,
     _prepare_app_configuration,
-)
-from .test_first_ball_vertical_http import (
-    initial_scope_database as initial_scope_database,
 )
 from .test_first_ball_vertical_http import (
     vertical_database as vertical_database,
@@ -413,9 +417,439 @@ __NEXT_PITCH__
     return script
 
 
+_CONTROLLER_ENTRY_SHA256 = (
+    "52328acbdf7525f5ca1fb69d62cf5cb8510429ea7eb13634873fe4f999998b94"
+)
+_CONTROLLER_FAILURE_OBSERVER = """import sys as _diag_sys
+import time as _diag_time
+import json as _diag_json
+import threading as _diag_threading
+from pitchlog.recording_rights import rg1_lifecycle as _diag_rg1
+_diag_original_unavailable=_diag_rg1._unavailable
+_diag_original_set=_diag_threading.Event.set
+_diag_started=_diag_time.monotonic()
+_diag_lock=_diag_threading.Lock()
+_diag_count=0
+_diag_truncated=False
+_diag_functions=frozenset({'assert_live','assert_borrower_backend',
+                           'control','session','serve_fresh_controller'})
+def _diag_emit(frame, *, stopped=False, error=None):
+    global _diag_count,_diag_truncated
+    function=frame.f_code.co_name
+    if (frame.f_code.co_filename!=_diag_rg1.__file__
+        or function not in _diag_functions):
+        return
+    record={'function':function,'line':frame.f_lineno,
+            'elapsed_ms':max(0,round(
+                (_diag_time.monotonic()-_diag_started)*1000))}
+    if stopped:
+        record['stop']=True
+        record['exception']=None
+        if error is not None:
+            module=type(error).__module__
+            name=type(error).__name__
+            allowed=(module=='builtins' or module.startswith(
+                ('pitchlog.','psycopg.','sqlalchemy.')))
+            record['exception']={'module':module if allowed else 'unknown',
+                                 'class':name if allowed else 'unknown'}
+    with _diag_lock:
+        if _diag_count<80:
+            _diag_count+=1
+            print('PITCHLOG_P3_CONTROLLER_FAILURE '+
+                  _diag_json.dumps(record),flush=True)
+        elif not _diag_truncated:
+            _diag_truncated=True
+            print('PITCHLOG_P3_CONTROLLER_FAILURE '+_diag_json.dumps(
+                {'truncated':True,'limit':80}),flush=True)
+def _diag_unavailable():
+    result=_diag_original_unavailable()
+    frame=None
+    try:
+        frame=_diag_sys._getframe(1)
+        _diag_emit(frame)
+    except BaseException:
+        pass
+    finally:
+        del frame
+    return result
+def _diag_event_set(self):
+    frame=None
+    try:
+        frame=_diag_sys._getframe(1)
+        if frame.f_code.co_name in ('session','serve_fresh_controller'):
+            _diag_emit(frame,stopped=True,error=_diag_sys.exception())
+    except BaseException:
+        pass
+    finally:
+        del frame
+    return _diag_original_set(self)
+_diag_rg1._unavailable=_diag_unavailable
+_diag_threading.Event.set=_diag_event_set
+print('PITCHLOG_P3_CONTROLLER_OBSERVER '+_diag_json.dumps(
+    {'mode':'factory-and-stop','limit':80}),flush=True)
+"""
+
+
+@pytest.fixture(autouse=True)
+def controller_failure_observer(monkeypatch, tmp_path):
+    """元fixtureを書き換えず、当owned controller脚本だけに一回注入する。"""
+    mode = os.environ.get("PITCHLOG_E2E_P3_CONTROLLER_DIAGNOSTIC")
+    if mode is None:
+        yield
+        return
+    assert mode == "1", "未知のcontroller診断モード"
+    original = _initial_support.docker
+    injected = []
+    controller = []
+
+    def observed_docker(*args, **kwargs):
+        if (
+            len(args) >= 3
+            and args[-2] == "-c"
+            and type(args[-1]) is str
+            and hashlib.sha256(args[-1].encode()).hexdigest()
+            == _CONTROLLER_ENTRY_SHA256
+        ):
+            assert not injected, "controller診断を二重注入しない"
+            injected.append(True)
+            controller.append(args[args.index("--name") + 1])
+            args = (*args[:-1], _CONTROLLER_FAILURE_OBSERVER + args[-1])
+        result = original(*args, **kwargs)
+        if (
+            controller
+            and len(args) == 4
+            and args[:3] == ("inspect", "--format", "{{.State.Running}}")
+            and args[3] == controller[0]
+            and result == "false"
+        ):
+            _capture_controller_startup(
+                controller[0], tmp_path / "controller-startup-failure-safe.json"
+            )
+        return result
+
+    monkeypatch.setattr(_initial_support, "docker", observed_docker)
+    yield
+    assert injected == [True], "元controller脚本への一回注入が未成立"
+
+
+_AUTHORITY_MONITOR_SHA256 = (
+    "e2f855a428b9266b39840ad8a10c6759f8e3fe41773c90178677e21d3ebec1c4"
+)
+_AUTHORITY_OPERATIONS = frozenset(
+    {
+        "unknown",
+        "epoch",
+        "reserve",
+        "claim",
+        "fence_open",
+        "fresh_activation_open",
+        "fence_check",
+        "fence_close",
+        "binding_open",
+        "binding_check",
+        "binding_close",
+        "binding_recover",
+    }
+)
+
+
+@pytest.fixture
+def authority_failure_observer(monkeypatch):
+    """既root起動引数だけへreadonly siteを一回供給し、workerへ継承させる。"""
+    mode = os.environ.get("PITCHLOG_E2E_P3_AUTHORITY_MONITOR")
+    if mode is None:
+        yield
+        return
+    assert mode == "1", "未知のauthority診断モード"
+    assert "PITCHLOG_E2E_RUNNER_AUTHORITY_DIAGNOSTIC_SITE" not in os.environ
+    site = (
+        Path.home()
+        / ".cache/pitchlog/p3-authority-local-monitor-20261108/site/sitecustomize.py"
+    )
+    assert site.is_file() and not site.is_symlink()
+    assert hashlib.sha256(site.read_bytes()).hexdigest() == _AUTHORITY_MONITOR_SHA256
+    original = _ledger_support.docker
+    injected = []
+
+    def observed_docker(*args, **kwargs):
+        if args[-5:] == (
+            "-m",
+            "pitchlog.durable_rights_ledger.authority",
+            "serve",
+            "--config",
+            "/control/settings/config.json",
+        ):
+            assert not injected, "authority観測の二重注入"
+            values = list(args)
+            position = values.index("postgres:17.11-bookworm")
+            values[position:position] = [
+                "--mount",
+                f"type=bind,src={site.parent},dst=/diag,readonly",
+            ]
+            values[values.index("PYTHONPATH=/code:/deps")] = (
+                "PYTHONPATH=/diag:/code:/deps"
+            )
+            args = tuple(values)
+            injected.append(True)
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(_ledger_support, "docker", observed_docker)
+    yield
+    assert injected == [True], "authority実workerへの供給が未成立"
+    assert hashlib.sha256(site.read_bytes()).hexdigest() == _AUTHORITY_MONITOR_SHA256
+
+
+def _capture_authority_failures(db, target) -> None:
+    """実workerの閉probe/例外列だけをcleanup前に保存する。"""
+    process = subprocess.run(
+        ["docker", "logs", db.authority.service],
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=15,
+    )
+    assert process.returncode == 0, "authority診断logを取得できない"
+    ready = 0
+    records = []
+    functions = {
+        "_receive",
+        "assert_held",
+        "_handle_binding",
+        "_handle_binding_recovery",
+        "_start_lease",
+        "_close_lease",
+        "_start_binding_lease",
+        "_live_matches",
+        "handle",
+        "_send_error",
+    }
+    keys = {
+        "function",
+        "role",
+        "last_operation",
+        "receiving",
+        "blocked_before",
+        "blocked_after",
+        "elapsed_ms",
+        "chain",
+    }
+    for line in process.stdout.splitlines():
+        if line.startswith("PITCHLOG_P3_AUTHORITY_OBSERVER "):
+            assert json.loads(line.split(" ", 1)[1]) == {
+                "mode": "failure-only",
+                "probe": True,
+                "limit": 80,
+            }
+            ready += 1
+        if not line.startswith("PITCHLOG_P3_AUTHORITY_FAILURE "):
+            continue
+        row = json.loads(line.split(" ", 1)[1])
+        if row == {"truncated": True, "limit": 80}:
+            records.append(row)
+            continue
+        assert type(row) is dict and set(row) in (keys, keys | {"response"})
+        assert row["function"] in functions
+        assert row["role"] in {
+            "unknown",
+            "generation",
+            "fresh_controller",
+            "sync_binding",
+        }
+        assert row["last_operation"] in _AUTHORITY_OPERATIONS
+        assert type(row["receiving"]) is bool
+        for name in ("blocked_before", "blocked_after"):
+            assert row[name] is None or type(row[name]) is bool
+        assert type(row["elapsed_ms"]) is int and 0 <= row["elapsed_ms"] < 3600000
+        if "response" in row:
+            assert row["response"] in {"unconfirmed", "unavailable"}
+        assert type(row["chain"]) is list and len(row["chain"]) <= 8
+        for error in row["chain"]:
+            assert type(error) is dict and set(error) == {
+                "module",
+                "class",
+                "source_frames",
+            }
+            assert all(
+                type(error[k]) is str
+                and len(error[k]) <= 200
+                and all(part.isidentifier() for part in error[k].split("."))
+                for k in ("module", "class")
+            )
+            assert (
+                type(error["source_frames"]) is list
+                and len(error["source_frames"]) <= 3
+            )
+            for frame in error["source_frames"]:
+                assert type(frame) is dict and set(frame) == {"function", "line"}
+                assert (
+                    type(frame["function"]) is str and frame["function"].isidentifier()
+                )
+                assert type(frame["line"]) is int and 0 < frame["line"] < 10000
+        records.append(row)
+    assert ready == 1 and len(records) <= 81, "authority実worker観測が未成立"
+    target.write_text(json.dumps({"ready": ready, "failures": records}, indent=2))
+
+
+@pytest.fixture
+def initial_scope_database(
+    monkeypatch, controller_failure_observer, authority_failure_observer
+):
+    """identity-autouseより先に診断を束縛し、元owned fixtureをそのまま使う。"""
+    yield from cast(Any, _vertical_fixtures.initial_scope_database).__wrapped__(
+        monkeypatch
+    )
+
+
+def _capture_controller_startup(controller, target) -> None:
+    """起動失敗時だけ既stdoutの閉marker/許可例外classを回収する。"""
+    try:
+        process = subprocess.run(
+            ["docker", "logs", controller],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=15,
+        )
+        classes = []
+        records = []
+        allowed = {
+            "SyntaxError",
+            "NameError",
+            "TypeError",
+            "AttributeError",
+            "RuntimeError",
+            "RG1ControlUnavailable",
+            "LedgerUnavailable",
+            "LedgerOutcomeUnconfirmed",
+            "OperationalError",
+            "ProgrammingError",
+            "PermissionError",
+            "ModuleNotFoundError",
+            "ImportError",
+            "ValueError",
+            "KeyError",
+            "AssertionError",
+            "OSError",
+        }
+        for line in (process.stdout + "\n" + process.stderr).splitlines():
+            name = line.split(":", 1)[0]
+            if name in allowed and name not in classes:
+                classes.append(name)
+            if line.startswith("PITCHLOG_P3_CONTROLLER_FAILURE "):
+                row = json.loads(line.split(" ", 1)[1])
+                if type(row) is dict and set(row) == {"truncated", "limit"}:
+                    if row == {"truncated": True, "limit": 80}:
+                        records.append(row)
+                elif type(row) is dict and set(row) in (
+                    {"function", "line", "elapsed_ms"},
+                    {"function", "line", "elapsed_ms", "stop", "exception"},
+                ):
+                    if row["function"] not in {
+                        "assert_live",
+                        "assert_borrower_backend",
+                        "control",
+                        "session",
+                        "serve_fresh_controller",
+                    }:
+                        continue
+                    if not (
+                        type(row["line"]) is int
+                        and 0 < row["line"] < 10000
+                        and type(row["elapsed_ms"]) is int
+                        and 0 <= row["elapsed_ms"] < 3600000
+                    ):
+                        continue
+                    if "stop" in row:
+                        error = row["exception"]
+                        if row["stop"] is not True:
+                            continue
+                        if error is not None and not (
+                            type(error) is dict
+                            and set(error) == {"module", "class"}
+                            and all(
+                                type(v) is str
+                                and len(v) <= 200
+                                and all(part.isidentifier() for part in v.split("."))
+                                for v in error.values()
+                            )
+                        ):
+                            continue
+                    if len(records) < 81:
+                        records.append(row)
+        target.write_text(
+            json.dumps(
+                {"startup_classes": classes[:8], "records": records[:81]}, indent=2
+            )
+        )
+    except BaseException:
+        # 診断で元fixtureのRunning=falseや起動例外を置換しない。
+        return
+
+
+def _capture_controller_failures(db, target) -> None:
+    """controller自身の閉markerだけを保存し、生logを出力しない。"""
+    process = subprocess.run(
+        ["docker", "logs", db.controller],
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=15,
+    )
+    assert process.returncode == 0, "controller診断logを取得できない"
+    ready = 0
+    records = []
+    allowed = {
+        "assert_live",
+        "assert_borrower_backend",
+        "control",
+        "session",
+        "serve_fresh_controller",
+    }
+    for line in process.stdout.splitlines():
+        if line.startswith("PITCHLOG_P3_CONTROLLER_OBSERVER "):
+            assert json.loads(line.split(" ", 1)[1]) == {
+                "mode": "factory-and-stop",
+                "limit": 80,
+            }
+            ready += 1
+        if line.startswith("PITCHLOG_P3_CONTROLLER_FAILURE "):
+            row = json.loads(line.split(" ", 1)[1])
+            if row == {"truncated": True, "limit": 80}:
+                records.append(row)
+                continue
+            assert type(row) is dict
+            if "stop" in row:
+                assert set(row) == {
+                    "function",
+                    "line",
+                    "elapsed_ms",
+                    "stop",
+                    "exception",
+                }
+                assert row["stop"] is True
+                error = row["exception"]
+                assert error is None or (
+                    type(error) is dict
+                    and set(error) == {"module", "class"}
+                    and all(type(v) is str and len(v) <= 200 for v in error.values())
+                )
+            else:
+                assert set(row) == {"function", "line", "elapsed_ms"}
+            assert row["function"] in allowed
+            assert type(row["line"]) is int and 0 < row["line"] < 10000
+            assert type(row["elapsed_ms"]) is int and 0 <= row["elapsed_ms"] < 3600000
+            records.append(row)
+    assert ready == 1 and len(records) <= 81, "controller実observerが未成立"
+    target.write_text(json.dumps({"ready": ready, "failures": records}, indent=2))
+
+
 def test_actual_p3_26_lifecycle_http(vertical_database, tmp_path) -> None:
     """正常current配置で26球変更・故障全取消・再掲・次球を実HTTPへ通す。"""
     db = vertical_database
+    if os.environ.get("PITCHLOG_E2E_P3_CONTROLLER_DIAGNOSTIC") == "1":
+        _capture_controller_failures(db, tmp_path / "controller-ready-safe.json")
+    if os.environ.get("PITCHLOG_E2E_P3_AUTHORITY_MONITOR") == "1":
+        _capture_authority_failures(db, tmp_path / "authority-ready-safe.json")
     with psycopg.connect(db.authority.database.business_admin) as admin:
         assert admin.execute(
             "SELECT version_num FROM public.alembic_version"
@@ -443,12 +877,18 @@ def test_actual_p3_26_lifecycle_http(vertical_database, tmp_path) -> None:
     script = build_p3_26_script()
     with db.broker_worker(token), binding_broker(db, token):
         _prepare_app_configuration(db)
-        process = subprocess.run(
-            ["docker", *_app_arguments(db, case), "-u", "-c", script],
-            capture_output=True,
-            text=True,
-            timeout=900,
-        )
+        try:
+            process = subprocess.run(
+                ["docker", *_app_arguments(db, case), "-u", "-c", script],
+                capture_output=True,
+                text=True,
+                timeout=900,
+            )
+        finally:
+            if os.environ.get("PITCHLOG_E2E_P3_CONTROLLER_DIAGNOSTIC") == "1":
+                _capture_controller_failures(db, tmp_path / "controller-safe.json")
+            if os.environ.get("PITCHLOG_E2E_P3_AUTHORITY_MONITOR") == "1":
+                _capture_authority_failures(db, tmp_path / "authority-safe.json")
     # stdoutは実HTTP成果JSONだけ。raw stderr/SQL/資格は失敗表示へ載せない。
     assert process.returncode == 0, "owned HTTP脚本が非成功終了"
     result = json.loads(process.stdout)
