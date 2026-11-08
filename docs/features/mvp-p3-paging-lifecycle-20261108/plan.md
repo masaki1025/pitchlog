@@ -1,10 +1,10 @@
 # P3 25件超の真正ページ処理・終結を現候補で完成させる
 
-- 状態: 計画レビュー待ち
+- 状態: active
 - 起点: `1bfad343fa365f3902d1a02b38a5f1b1a5cf8139`
 - 枝: `feature/mvp-p3-paging-lifecycle-20261108`
 - 担当: Codex recovery 子担当。PO委任によるroot採用後に製品実装へ進む。
-- 計画レビュー回数: 0
+- 計画レビュー回数: 1
 
 目的は現候補で実HTTPの26件以上の変更・再取得・次球・再送と途中故障全取消を通すこと。既二段階ページ/私有stage/finalize・同TX/真正source/現在版CAS/全件digest検証を維持し、TTL延長/期限無視/固定成功/独自計算を追加しない。既P3作者sourceとcacheを再利用し全調査をやり直さない。
 
@@ -23,3 +23,9 @@
 | 3 | 最終sourceの独立レビュー/必要再検証・証拠封印とroot接合packet | 未統合候補と正式提供を分離、残るMVP範囲を省略しない |
 
 共通owned lockはfixture作成からcleanupまで保持し共有DSNを入口unset。source前後固定、実行中source変更禁止、同じ停止の無根拠反復なし。viewer実走は先行し、重いPGを競合させない。新意味判断が本当に必要な点だけrootへ提示する。
+
+採用: PO委任によるCodex root判断、2026-11-08 14:15 JST、対象f886a484/plan SHA3ad7114686f5c3cadbe72ab1023de92008bc5973d84619c69beab12808f7ec59を全文確認。本人の個別確認/署名の代記ではない。
+
+### step1固定・現実検証の準備
+
+現sourceのP3 writerは元source.read→有限page二走→_live、TX確定直前再照合→PG終端後lease.finishという既経路を持つ。旧証拠だけから欠落を断定できないため製品sourceは変更しない。旧cache `paging-26-plus-20261107/p3-26-driver-source.py` の26操作/故障/頁/再送/次球assertを専用testへ再利用し、旧候補DDLを一切呼ばず正規CURRENT49 markerを要求する。全行trace/worker-siteとtiming/lease wrapperは追加せず、失敗時の既bounded chain/固定stageだけを残す。生成脚本compile/Ruff/Ty/collect1を確認。実HTTP/実PG成功は未実施、次stepでsource固定・共通lock下に一回実行する。
