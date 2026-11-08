@@ -38,3 +38,5 @@ producerは既真正P3 frame/itemsの封印後・同TX最終head公開前へ置�
 作者編集の提案scopeは `exports/play_export_csv.py` と新CSV専用proof/projector、`repositories/play_export.py` とCSV専用reader/codec、CSV専用authz生成器（既writer/read含む）、`sync/play_export_producer.py` と新P3専用producer、専用tests/docs。共有核・モデル/DDL・正式contracts/catalog/seal/7.7・台帳・他WTはroot専有。新source/実保存契約への最小差分はcache packetにし、scope採用前の製品編集やPG実行はしない。
 
 採用対象は7949877c9b214bc15f4ce8665729ce270c2007bd / plan SHA cadc7ecb5d1cb3bf051e1c82afe3a60a4486f486008428d4342f19028a3e5dcd。rootが全文確認し旧snapshot保持/append-only overlay/真正capsule・S・同TX・全coverageを技術採用。正式受理/実PG/全MVP成立を含まない。step1→2は本scopeで継続可、root共有核・DDL/認可は候補packetのみ。
+
+step1値境界: `exports/p3_snapshot.py` に単独では資格を持たないtyped identity/完成値/500件以下の同RR頁検査を追加。tenant/game/gen/capsule/D1/旧play/effectiveevent/play/version/itemdigest/capsuledigest/stats版を全値照合し、88列閉集合と型を検査。新SQL/producerの真正性をこのデータclassの生成だけで成立させない。既_missing_snapshot/製品routeは未変更でP3未供給409を維持。28正負pure（別tenant/capsule/旧版/別TX/余剰欠落/NaN/bool/二度目訂正/重複/逆順）0.15秒、限定Ruff/Ty0。step2で同TX producerと真正DBreaderを接合しない限り製品提供ではない。
