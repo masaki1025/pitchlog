@@ -1,10 +1,16 @@
 # 初回MVP 主担当引受・進捗台帳
 
 
+## 2026-11-08 18:56 JST：長履歴訂正の最初の停止層を取得
+
+- **訂正run5（担当一次報告）**: `fc64919f` / handle38633はrc1・697.32秒、source3377前後一致。controllerのobserverはready1で実起動し、26play/events保存まで進んだがP3 capsule保存0・T2故障hook0/503。最初のstopは `serve_fresh_controller:768` / `pitchlog.durable_rights_ledger.adapter.LedgerOutcomeUnconfirmed`、後続session stopは二次症状。root静読ではRemoteFenceの非mutation `_request` でこのclassが出るのはauthorityから明示unconfirmed応答を受けた分岐。authority側の最初の例外または他leaseがblockedへ変えた条件までは未確定。現在P3年齢6674msであり、借用PID不在/現在P3の単純10秒idleを原因として変更しない。結果不明を成功にせず次の根因へ絞る。
+- **9回の次実走**: run5のowned削除/lock解放後にCSV担当が55play r2/handle17697を開始。`0887b048` 製品source不変更、診断driver/observerは別immutable名・前後SHA固定、実UIと正常49のまま。初回503後のDB未監査は未監査として保持する。r1封印の作業observer追記ミスは旧byteを実SHAで回収した訂正manifest `f4e83849…` をroot全18file照合、旧manifest不一致の履歴も保持。55play終端未了。
+- **打球batchと接合準備**: 作者checkpoint `98896a94` は明示併殺/走者別RBI-03/04の唯一核・画面・current writer必須/旧再生の分離まで純検査済み。rootは共有schema2件をcacheの下書きでmeta2/shape20確認（本体未適用）。原典のRBI停止後再発進を推測で加算する不足を是正し、有効得点集合のBE独自再計算を避けるよう作者へ反映要求。固定後は公式artifact/共有SQL/T5/型/互換/D11を一括接合し実保存で確認する。sourceだけの成功を製品提供やMVP完成へ広げない。
+
 ## 2026-11-08 18:36 JST：同居候補を保全し、9回検証と訂正の実停止を切り分け
 
 - **同居固定点**: root主候補 `feature/mvp-d03-current-startup-20261107@acd4a24e3499ca78860cbd5c9d83a8cc04c4af2c` はclean。凡打3球の実画面証拠 `0f5acc09` と、9回55play/終了版成績/CSVの検証候補 `0887b048` を同居。既17操作・閲覧・3凡打の成功を、新しい55play成功へ読み替えない。
-- **9回検証の実停止**: `0887b048` のrun89411は1failed715.93秒。事前10 SELECT EXPLAINは成功、UI新規作成503で記録0。Playwright自体4.7秒であり、55play処理速度の不成立とは区別する。source前後一致/owned削除/lock解放。短い診断run78791では同じ製品source・実HTTPSの新規作成201→開始200が成功し、既CREATE診断は全段returned/例外なし。先の503は非再現で原因未確定。続く停止は旧FirstBall試験の広いbutton selectorのstrict違反（test-only）で、初球保存成功には数えない。55play試験はこのselectorを使わないため、診断flagを透過して固定後に次の1回へ進む。
+- **9回検証の実停止**: `0887b048` のrun89411は1failed715.93秒。事前10 SELECT EXPLAINは成功、UI新規作成503でplay操作未到達。503後の作成DB行は未監査であり、未保存・DB残存ゼロとは断定しない。Playwright自体4.7秒であり、55play処理速度の不成立とは区別する。source前後一致/owned削除/lock解放。短い診断run78791では同じ製品source・実HTTPSの新規作成201→開始200が成功し、既CREATE診断は全段returned/例外なし。先の503は非再現で原因未確定。続く停止は旧FirstBall試験の広いbutton selectorのstrict違反（test-only）で、初球保存成功には数えない。55play試験はこのselectorを使わないため、診断flagを透過して固定後に次の1回へ進む。
 - **長履歴訂正**: 前回run4は診断付きcontrollerの起動自体で失敗し、26球/P3の元の切断原因を示していない。`fc64919f` のrun5/handle38633でcleanup前の閉exception classだけを採取する。元保証/期限/資格を変更しない。実26件訂正保存は未成立。
 - **残操作の並行実装**: 専用作者枝 `feature/mvp-batted-operations-product-20261108@166f3004` 以降で、走者あり凡打・FC・犠打/犠飛・併殺等を既唯一核/明示観測/画面/閉入力へまとめて実装中。正式schema/SQL/pinはroot直列接合待ち。純検査の成功を実HTTP保存へ拡張しない。
 - **次/終了条件**: 55play→終了版の成績27項目/両CSV、26件訂正→次球/終了再開、残操作群を同じ通常49候補で接続する。21:30は評価点で停止条件ではなく、完成できればその前に進める。正式受理・独立レビュー・必須CI/通常PR統合・全断復旧/負荷/実機運用の未了を維持する。PO本人の逐行確認や実値署名は記録しない。
