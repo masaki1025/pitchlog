@@ -87,3 +87,5 @@ PO委任rootの指示で、c20dを含む3a3b25b6から専用WT `feature/mvp-full
 ### 59操作試験の正規C2読取接合（2026-11-08、PO委任root採用）
 
 run6は実2play/同要求重複ACK後、test direct GETのC2提示不足で404。製品/認可/共通helperを変えず、59driverの再送後started・最終lifecycle started・毎球ZIPだけを実UIと同じ既client（readLineupPrefixGame/readGameLifecycle/apiDownload、内部tenantBound:true）へ委譲する。非C2のstatsJSON/成績CSVは既経路を保持。closed found/全prefix/after/items/終了版/ZIP全byte長とSHAの期待を維持し、401/404を成功へ置換しない。元59全実測の後続停止は別の初回原因として保存する。
+
+root限定追補（2026-11-08）: browser client bridgeを新test-only `frontend/src/screens/BattedBatchC2.e2e-browser.ts`へ分離し、同origin Vite URLのmodule scriptとして正規ロードする。inline実行やCSP無効化/ポリシー変更は行わない。reload後も新documentへ同moduleをロードし、製品client共有/closed3readの境界を維持する。

@@ -1,7 +1,6 @@
 /** 9回59プレイと終了版の成績/CSV通し。性能未達・他操作未実装をMVP完成へ読み替えない。 */
 import { expect, test, type Page } from '@playwright/test'
-import type { LineupPrefixGame } from '../api/lineupPrefixGame'
-import type { GameLifecycleGame } from '../api/gameLifecycle'
+import type { C2ReadBridge } from './BattedBatchC2.e2e-browser'
 import { lstatSync, writeFileSync } from 'node:fs'
 import { isAbsolute, resolve, basename } from 'node:path'
 import { createHash } from 'node:crypto'
@@ -16,38 +15,11 @@ import {
   type BattedStep,
 } from './BattedOperations.e2e-support'
 
-type C2ReadBridge = {
-  repeated(id: string): Promise<LineupPrefixGame>
-  ended(id: string): Promise<GameLifecycleGame>
-  plays(
-    id: string,
-  ): Promise<{ bytes: number[]; length: number | null; sha256: string | null }>
-}
-/** 実ブラウザの既clientへ固定3読取だけを委譲する。任意path・資格は受けない。 */
+/** CSPを変更せず同originの固定試験moduleだけを読み込む。 */
 async function installC2ReadBridge(page: Page) {
   await page.addScriptTag({
     type: 'module',
-    content: `
-import { readLineupPrefixGame } from '/src/api/lineupPrefixGame.ts';
-import { readGameLifecycle } from '/src/api/gameLifecycle.ts';
-import { apiDownload } from '/src/api/client.ts';
-window.__battedC2ReadBridge = {
-  async repeated(id) {
-    const result = await readLineupPrefixGame(id);
-    if (result.kind !== 'found') throw new Error('再送後の正規C2読取が不成立');
-    return result.game;
-  },
-  async ended(id) {
-    const result = await readGameLifecycle(id, { limit: 25 });
-    if (result.kind !== 'found') throw new Error('終了版の正規C2読取が不成立');
-    return result.game;
-  },
-  async plays(id) {
-    const result = await apiDownload('/games/' + id + '/exports/plays.zip', { tenantBound: true });
-    return { bytes: Array.from(new Uint8Array(await result.blob.arrayBuffer())), length: result.contentLength, sha256: result.sha256 };
-  },
-};
-`,
+    url: new URL('/src/screens/BattedBatchC2.e2e-browser.ts', baseURL).href,
   })
 }
 
