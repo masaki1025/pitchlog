@@ -37,3 +37,4 @@ created: 2026-11-08
 - ステップ1: `180322d5` の25 pathを通常merge。基点のRBI head、無効得点、同一host再利用を衝突箇所で保持した。
 - ステップ2: 既JSON定義は `T1Input` と `WireHead`、payloadの入口だけを拡張し、旧定義本体を保持した。妨害裁定とtyped効果を閉じる2種のheadを追加した。公式builderを2回実行して両出力のbyte一致を確認し、旧v5の53期待は実行SHAとそれに結び付くcheckpoint echo digest以外の全値が一致した。
 - 現行pin固定の旧runtime fixtureは新artifact SHAに未追随の10件が赤。旧53原本、正式compat witness/registry、current fixture、SQL overlay、正式7.7と実PGは後続のroot所有に残す。
+- ステップ3: 差分・全対象pathのbefore/after SHA・純検査を `~/.cache/pitchlog/interference-integration-candidate-20261108/final/` へ封印する。作者自己検査と非作者レビュー、候補sourceと正式採用、純実行と製品保存を区別してrootへ渡す。
