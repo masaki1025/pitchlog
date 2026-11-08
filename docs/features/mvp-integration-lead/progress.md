@@ -10,7 +10,7 @@
   - authorityのread-only接続をbinding中だけ再利用し、書込みは従来どおり呼出ごとの独立接続+commitを維持。
   - binding_checkの `_live_matches` だけを1秒に1回へ抑制。control原本照合・fence生存確認・期限・主体は毎回実施。
   - 初球E2Eはcleanup後の同sourceで **1 passed 236.95秒**、保存区間は約21.6秒（5秒目標には未達）。純14 passed。
-- **P3訂正の現在地**: 有限INSERTは実P3入口まで到達し、前版CSVアンカーが0行になる原因を「P3変更後のcanonical healthと保存済前版T5版の混同」と特定。前版を `v.source_count=p_watermark` + 実checkpoint + 保存済primitive件数へ束縛する方式に修正し、純43 passed。P3 shortは前版取得を通過してCSV頁読取まで前進したが、頁読取の `INTO STRICT` が **P0002** で停止。P3保存自体はreceipt一致まで成功しており、頁読取開始時のwriter binding期限切れ（DB側30秒上限）を最有力として次に切り分ける。DBの30秒上限/immutabilityは未変更。
+- **P3訂正の現在地**: 有限INSERTは実P3入口まで到達し、前版CSVアンカーが0行になる原因を「P3変更後のcanonical healthと保存済前版T5版の混同」と特定。前版を `v.source_count=p_watermark` + 実checkpoint + 保存済primitive件数へ束縛する方式に修正し、純43 passed。P3 shortは前版取得を通過してCSV頁読取まで前進した。頁読取の `INTO STRICT` は **P0002**。診断でxmin条件を `p3_projection_write_admissions.transaction_id=own_xid/state=consumed` の同一TX証明へ置換すると、capsule/headは通過し、**change-event joinが不一致**（P3003→P3005、`event_kind='play_change'` の行が見えない）まで絞れた。診断変更は製品資産へ残さずrevertし、候補はclean。次は非paged経路の `p3_projection_capsules.change_event_id` と `operation_events` の実値を同一TXで照合し、頁読取のchange joinを修正する。DBの30秒上限/immutabilityは未変更。
 - **未了**: P3訂正ACK/confirmation/capsule/CSVの実E2E、26paged、残操作、通信断復旧、閲覧3試合、正式corpus reseal（requirements pinが現行文書と不一致でcatalog checker停止）、7.7/seal/必須CI/通常PR統合、実機・運用復旧。`test_p3_candidate_compile_author` は0048候補DDLを0050 currentへ重ねる旧試験で、有限INSERTの失敗ではない。
 
 更新: 2026-10-23。判断者: Codex主担当。根拠: 同日POの `/goal` 指示と例外委任（撤回または今回MVP終了まで）。山田正輝の個別実値確認・署名とは記録しない。
