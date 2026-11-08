@@ -20,3 +20,15 @@ created: 2026-11-08
 | 3 | meta/実JS matcher/型/旧正負と新host封印の必要範囲をまとめpacket化 | 未対応keywordを使わず、未供給実環境/正式pinと純成功を区別 |
 
 schemaは構造/既採用SourceIntakeを閉じ、走者実ID/後退/塁衝突/因果を数学で再計算しない。SHは各占有者の明示前進、SFは三塁生還、DPは既0死一塁以外を開かない。旧保存のRBI未提示数学は旧証拠として保持し、現writerの欠測検査を緩めない。正式資産採用/実PG/全MVP成立はroot統合後に別記する。
+
+追加移管（2026-11-08、PO委任root明示指示）: 実71f応答により、走者あり全停止凡打/無得点SHはRBI原観測なしで実RunnerValueの空effectsを返すが、582 headはこれを拒否するP1を発見。rootからBE `domainrt/lineup_play_prefix_continuation.py`、FE `api/lineupPrefixWire.ts` のhead修復と既 `lineupPrefixWire.spec.ts` の旧4hit有限castへの限定修正を追加移管（root非編集）。NoRunはbatted-out/SH＋実Applied観測＋本物RunnerValueの空effects＋得点/打点/失点が厳密false＋score全値不変だけを封印する別閉headとし、RBIを作らない。RBIありは非空effectsとのpair必須、旧headは不変更、既Value/Successは2variantのまま。
+
+## 固定候補と成立範囲
+
+SHは占有者全員の明示前進、SFは0/1死かつ三塁生還、DPは0死一塁のみ、公式失策1件はerror/SH-errorだけ、RBI閉map3値/空不可、outRunnerの実Uuid/base1/force-outを閉じた。SH/SFの配列はsupported const/anyOfで構造上の在塁者と明示先だけを照合し、球場結果/塁衝突/得点因果の数学をschemaへ写していない。未知keyword/integer/minProperties/if等は置かず、V7 error countはJSON primitive const1。JS matcherがtype未記載arrayのitemsを評価しない点を正負で検出し、error枝のarray型を明記してBE/JS一致へ是正した。
+
+36共有構造正負入力＋旧Value完全保持/meta検査38成功。実71fの10入力でBE NodeDomainHost→型decode→seal→公式V7/V8/schemaと、FE実IIFE→head/seal→V7/V8を接続。結果型は無得点FC/error/batted-reach/SH-error/DPが既Value、全停止凡打/無得点SHだけが空typed RunnerValue、得点単打/SFは非空effects付きRunnerValueであり、根拠なくNoRunを他結果へ広げていない。空effectsでもflags/score/入力族/overrideが不正ならBE/FEで拒否、旧head34行は全値保持。
+
+検査: 旧codec込みの初期89成功5.29秒、最終追加込みrunは85成功/7失敗296.72秒で7件すべてnode --versionの2秒起動期限に応答できないNODE_UNAVAILABLE（同時にgitstatusも遅延）。製品期限/検査を変えず、node版probeがv24.16.0/0.0057秒へ戻った新根拠の下、失敗層runtime10件だけ限定再走し10成功3.54秒。単一run全92greenとは記録しない。FE最終2suite62成功2.37秒、Vue型/限定ESLint/BE型/Ruff成功。元の型不整合は旧19hit fixtureの広域result castを既4hit unionへ狭めたtest-only修正で、値/期待を変更していない。既lineupPrefixWire.specのruntime2失敗は起点current fixture0db対実artifact71fの未接合であり、root互換842適用後の接合確認が残る（本所有外のpinを補修しない）。
+
+実PG/認可/同TX/画面/正式受理/CI/P6blindは未実施。新入力fixtureは実hostへ渡す要求だけで、応答expectationsは保存/再採取していない。root非作者確認・互換/pin/SQL/T5/rowgate直列接合後に59play ownedを実測する。
