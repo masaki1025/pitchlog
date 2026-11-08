@@ -44,3 +44,5 @@ PO委任rootの本セッション指示により、step3の実検証を996ba453�
 実loginを別Cookieで行い、GETだけの閲覧で0球/保存後の同値/有限paging/不可視404を検査する。HTTPSブラウザでは新規作成→開始→投球保存を記録contextから実操作し、別contextの10秒以内自動更新/reload/断中未更新/復帰/404を確認。ログインPOSTは閲覧準備と分け、閲覧contextから端末登録/書込/同期を送らない。既存loopback TLS fixtureだけを利用し、新鍵を発行せず実機信頼TLSの証拠へ広げない。旧実測と新sourceの証拠を分ける。
 
 共通lockをfixture作成前から破棄後まで保持し、共有DSN unset/前後source SHA/cleanupを固定する。run16等先行owned検証の終端を待ち、準備と純検査は並行する。新しい共有停止原因は同版で反復せず、根拠と最小patchをrootへ返す。2026-11-08 14:15→15:00の方式評価でも実証を優先し、部品毎の追加承認待ちを設けない指示を継承する。15時を作業停止時刻とは扱わない。
+
+2026-11-08 実HTTP r1の正常0球→1球で、viewer page tokenが親のstarted固定capability propertyを継承したまま登録能力と不一致となる通常不具合を確認。PO委任rootが `repositories/viewer_read.py` と `tests/test_viewer_read_sql.py` の最小修正を本担当へ移管。明示property overrideと実 `prepare_function_operation` の正負対向だけを追加し、SQL/ACL/registry/正式資産を変えない。旧r1失敗を保全し、root非作者確認後の新版で実HTTP/ブラウザへ進む。

@@ -10,9 +10,16 @@ from pitchlog.authz.started_snapshot_read_product import candidate_declarations
 from pitchlog.authz.viewer_effective_sql import candidate_viewer_effective_body
 from pitchlog.authz.viewer_page_sql import candidate_viewer_page_body
 from pitchlog.authz.viewer_product import candidate_declarations as viewer_declarations
+from pitchlog.repositories.function_operations import (
+    FunctionOperationError,
+    FunctionOperationRegistration,
+    prepare_function_operation,
+)
 from pitchlog.repositories.started_snapshot_read_operations import (
     STARTED_SNAPSHOT_READ_OPERATIONS,
+    StartedPlayPrefixHistoryPageToken,
 )
+from pitchlog.repositories.tokens import TenantOperationToken
 from pitchlog.repositories.viewer_read import (
     VIEWER_READ_OPERATIONS,
     ViewerEffectiveVersionReadToken,
@@ -50,8 +57,7 @@ def test_one_viewer_point_is_closed_and_sql_requires_rr_ro() -> None:
     assert (point.min_rows, point.max_rows) == (1, 1)
     body = candidate_viewer_effective_body()
     assert (
-        body.count("CREATE FUNCTION sync_right_api.read_viewer_effective_version(")
-        == 1
+        body.count("CREATE FUNCTION sync_right_api.read_viewer_effective_version(") == 1
     )
     assert "transaction_isolation" in body
     assert "transaction_read_only" in body
@@ -116,3 +122,37 @@ def test_two_viewer_declarations_preserve_owner_acl_and_reject_collision() -> No
         ]
     with pytest.raises(ValueError):
         viewer_declarations([*original, deepcopy(rows[0])])
+
+
+def test_viewer_page_actual_token_dispatch_matches_exact_registration(
+    monkeypatch,
+) -> None:
+    """実dispatchで親capabilityの取り違えと未登録型を拒否する。"""
+    registration = VIEWER_READ_OPERATIONS[0]
+    tenant = uuid4()
+    args = (uuid4(), 1, 1, uuid4(), 1, 1, 1, 0, 0, UUID(int=0), 25)
+    token = ViewerPlayPrefixHistoryPageToken(*args)
+    registry: dict[type[TenantOperationToken], FunctionOperationRegistration] = {
+        ViewerPlayPrefixHistoryPageToken: registration
+    }
+    assert type(token) is registration.token_type
+    assert token.capability_id == registration.capability_id
+    actual, parameters = prepare_function_operation(token, tenant, registry)
+    assert actual is registration
+    assert parameters == {
+        "tenant_id": tenant,
+        **{name: getattr(token, name) for name, _ in registration.input_fields},
+    }
+    with pytest.raises(FunctionOperationError, match="未登録または偽造"):
+        prepare_function_operation(
+            StartedPlayPrefixHistoryPageToken(*args), tenant, registry
+        )
+    monkeypatch.setattr(
+        ViewerPlayPrefixHistoryPageToken,
+        "capability_id",
+        property(
+            lambda self: "CAP:started_snapshot:read_started_play_prefix_history_page"
+        ),
+    )
+    with pytest.raises(FunctionOperationError, match="capability IDが不一致"):
+        prepare_function_operation(token, tenant, registry)
