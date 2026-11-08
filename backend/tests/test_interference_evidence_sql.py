@@ -8,7 +8,10 @@ from pathlib import Path
 
 import pytest
 
+from pitchlog.authz import batted_operations_evidence_sql as batted_operations
+from pitchlog.authz import batted_out_evidence_sql as batted_out
 from pitchlog.authz import first_ball_product as product
+from pitchlog.authz import runner_physical_evidence_sql as runner
 from pitchlog.authz.interference_evidence_sql import (
     _BATTED_RULING,
     FUNCTION_ID,
@@ -21,13 +24,20 @@ CANONICAL = ROOT / "contracts/authz/product/function-bodies/functions"
 
 
 def _parent_and_declaration():
-    """現行正式本文を固定親として読み、同じ宣言1件を取得する。"""
-    parent = (CANONICAL / f"{FUNCTION_ID}.sql").read_text()
+    """過去の全生成層からc275固定親を再導出する。"""
     rows = [
-        row for row in product.ADDITIONS["functions"]
+        row
+        for row in product.ADDITIONS["functions"]
         if row["function_id"] == FUNCTION_ID
     ]
     assert len(rows) == 1
+    raw = product._D03_BASELINE_BODIES["function|" + FUNCTION_ID]
+    parent = batted_operations.overlay_prepared_parent(
+        batted_out.overlay_prepared_parent(
+            runner.overlay_prepared_parent(raw, rows[0]), rows[0]
+        ),
+        rows[0],
+    )
     assert hashlib.sha256(parent.encode()).hexdigest() == PARENT_SHA256
     return parent, rows[0]
 

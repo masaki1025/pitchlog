@@ -557,6 +557,7 @@ def _native_interference_scores(payload, value):
             )
         else:
             require_interference_observations(request.t1, observed)
+        adopted_play = type(request.t1) is BattingInterferencePlayT1Input
         if (
             type(request.source) is not Source
             or parsed.participants.model_dump(mode="json", by_alias=True)
@@ -589,7 +590,7 @@ def _native_interference_scores(payload, value):
                 != parsed.calculation.response.value.t1.after.state_fields.score
             ):
                 return None
-            return []
+            return [], adopted_play
         if type(effects) is not list or len(effects) > 3:
             return None
         by_effect = {effect["base"]: effect for effect in effects}
@@ -603,9 +604,10 @@ def _native_interference_scores(payload, value):
             is not any(effect["rbiCredited"] for effect in effects)
         ):
             return None
-        return _typed_runner_effect_scores(
+        scores = _typed_runner_effect_scores(
             effects, by_base, payload["participants"]["batterId"]
         )
+        return (scores, adopted_play) if scores is not None else None
     except (KeyError, TypeError, ValueError, AttributeError):
         return None
 
@@ -881,14 +883,19 @@ def native_projection(payload, *, source_event_id):
         }
         or type(calc["request"]["t1"].get("interferenceRuling")) is dict
     )
-    interference_scores = (
+    interference_result = (
         _native_interference_scores(payload, value) if interference else None
     )
-    if interference and interference_scores is None:
-        raise ValueError("妨害の原裁定と唯一算入結果が不一致です")
     runner_scores = _native_runner_scores(payload, value)
     if interference:
-        runner_scores = interference_scores
+        if interference_result is None:
+            raise ValueError("妨害の原裁定と唯一算入結果が不一致です")
+        runner_scores = interference_result[0]
+        if t1["statFlags"]["失策"] is True:
+            fielder = _native_batted_error_fielder(payload)
+            if fielder is None:
+                raise ValueError("採用プレイの失策原野手が不一致です")
+            participants["error_fielder_id"] = fielder
     elif batted_scores is not None:
         runner_scores = batted_scores
         if t1["statFlags"]["失策"] is True:
@@ -906,7 +913,11 @@ def native_projection(payload, *, source_event_id):
     if runner_scores is not None:
         completeness["runs_rbi"] = "complete"
     no_steal = (
-        (interference and calc["request"]["source"]["runners"] == [])
+        (
+            interference
+            and interference_result is not None
+            and (interference_result[1] or calc["request"]["source"]["runners"] == [])
+        )
         or (not interference and batted_scores is not None)
         or (not interference and _native_no_steal(payload, value, runner_scores))
     )

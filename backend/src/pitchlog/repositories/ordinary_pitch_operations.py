@@ -255,9 +255,15 @@ def _validate_interference_source(token, row, event):
         calculation = original.get("calculation")
         request = calculation.get("request") if type(calculation) is dict else None
         t1 = request.get("t1") if type(request) is dict else None
-        tagged = (type(t1) is dict and type(t1.get("interferenceRuling")) is dict) or (
-            type(observation) is dict
-            and type(observation.get("interferenceRuling")) is dict
+        request_ruling = t1.get("interferenceRuling") if type(t1) is dict else None
+        observed_ruling = (
+            observation.get("interferenceRuling") if type(observation) is dict else None
+        )
+        old_not_required = request_ruling == "not-required" and observed_ruling == {
+            "kind": "not-required"
+        }
+        tagged = type(request_ruling) is dict or (
+            type(observed_ruling) is dict and not old_not_required
         )
         if (
             not tagged

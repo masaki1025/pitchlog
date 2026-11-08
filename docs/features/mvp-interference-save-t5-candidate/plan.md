@@ -20,6 +20,7 @@ created: 2026-11-08
 - `backend/src/pitchlog/authz/interference_evidence_sql.py`（新規）、`backend/src/pitchlog/authz/first_ball_product.py`、新規専用 `backend/tests/test_interference_evidence_sql.py`。現 `prepare_play_prefix_projection` の公式生成親SHAは `c2758d69d452fba961fc63459e84e951a2600129a4cf65c03aedaa44f5afc55f`。同関数の既宣言を固定し、妨害原裁定・T1・全41物理列の有限条件だけを追加する。他のBODIES、owner、ACL、関数署名、nonce、同TX、拒否順は不変更。
 - `backend/src/pitchlog/repositories/ordinary_pitch_operations.py`、新規専用 `backend/tests/test_interference_play_row.py`。`PlayPrefixPlayRowInsertToken`だけで妨害3 secondaryと打撃妨害の採用プレイ形を有限識別し、既同TX event/ledger/D5照合に加え、原V7/審判裁定/実参加者/唯一物理mapperの全41列一致を要求する。旧通常、走者8形、打球12形の受入は不変更。
 - `backend/src/pitchlog/stats/facts.py`、新規専用 `backend/tests/stats/test_interference_native_connection.py`。既T1のtyped効果と固定sideの結果から実得点・責任投手・打者creditを原IDへ写し、既生成T5へ渡す。無効得点、裁定アウト、打席継続の区別は既T1効果からのみ取得する。盗塁/打点の未観測値は補わない。
+- `backend/tests/test_batted_operations_evidence_sql.py` は後発生成層との比較を旧c275固定出力→妨害overlay後の現在本文に限定して追随する。旧親・旧本文・拒否対向は保持する。
 - 本計画。共有契約、正式authz/tenant/seal資産、旧golden、artifact、registry、台帳、他WTは編集しない。候補SQLの正式7.7値と実PGはroot後段。
 
 ## 閉じた入力と留保
@@ -40,3 +41,5 @@ created: 2026-11-08
 - ステップ1: 親prepare本文を固定して妨害の原裁定・物理ラベルを有限追加。SQL三値の欠測を `IS NOT TRUE` で拒否する追補を含む。実PG拒否は未確認。
 - ステップ2: 既同TX preflightで実eventのV7/参加者/D5/唯一物理mapper全41列を再照合。T5は妨害のtyped走者別効果を既生成核へ写し、元走者のある妨害で盗塁attemptの真正対応が未証明なら `steals=unavailable` とする。実859 hostの4形と改竄負例、既走者算入回帰を純検査で確認。正式SQL配備・実保存は後段。
 - ステップ3: 候補の全対象SHA・純検査・未証明境界を `~/.cache/pitchlog/interference-save-t5-author-20261108/final` の作業者packetに固定。候補成功を正式7.7受理や実PG保存成功に読み替えない。非作者最終レビューは別担当へ渡す。
+- root非作者の固定6995指摘（P1×2）への追補: 旧not-required対をINT新候補へ誤分類しない厳密条件へ修復し、旧12打球＋旧通常の実V7同TX対向と未知/片側差替え負例を追加。実859採用error/sacrifice-bunt-errorの野手creditを既T5 helperで維持する。さらに現在正式本文の後発更新でもc275親が過去生成profileから再導出されるよう専用SQL試験を追随する。旧dbaのNULL三値指摘履歴は保持。
+- INT03の真正採用プレイは通常打球の閉観測/T1と同じ盗塁空集合を生成T5へ渡し、旧通常error・犠打失策との27指標全値一致を実859 hostで確認する。INT02の罰則授与・審判裁定は別扱いで、満塁squeeze/steal-homeの実859出力では有効得点/RBIを元走者・責任投手へ写しつつ盗塁を `source_unavailable` とする。授与を盗塁成功へ換算しない。
