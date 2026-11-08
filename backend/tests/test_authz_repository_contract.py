@@ -1143,12 +1143,38 @@ def test_stage_a_function_registration_matches_exact_asset_and_retains_rg1() -> 
         "STATS_PRIMITIVES:read_totals",
     )
     assert len(expected) == 28
+    assert len(PRODUCT_FUNCTION_OPERATIONS) == 59
+    stage_a = tuple(
+        row for row in PRODUCT_FUNCTION_OPERATIONS if row.operation_id in expected
+    )
+    p3 = PRODUCT_FUNCTION_OPERATIONS[23:32]
+    tail = PRODUCT_FUNCTION_OPERATIONS[37:]
+    assert tuple(row.operation_id for row in p3) == (
+        "SYNC_P3:check_p3_right",
+        "SYNC_P3:bind_p3_device",
+        "SYNC_P3:persist_p3_projection",
+        "SYNC_P3:begin_p3_projection_page",
+        "SYNC_P3:append_p3_projection_page",
+        "SYNC_P3:finalize_p3_projection_page",
+        "SYNC_P3:read_p3_current_header",
+        "SYNC_P3:read_p3_current_page",
+        "SYNC_P3:read_p3_current",
+    )
+    assert tuple(row.function_id for row in p3) == (
+        "sync_right_api.check_p3_right",
+        "sync_right_api.bind_p3_device",
+        "sync_right_api.persist_p3_projection",
+        "sync_right_api.begin_p3_projection_page",
+        "sync_right_api.append_p3_projection_page",
+        "sync_right_api.finalize_p3_projection_page",
+        "sync_right_api.read_p3_current_header",
+        "sync_right_api.read_p3_current_page",
+        "sync_right_api.read_p3_current",
+    )
     assert tuple(asset["product_function_operation_ids"]) == expected
     assert repository_contract.PRODUCT_FUNCTION_OPERATION_IDS == expected
-    assert (
-        tuple(row.operation_id for row in PRODUCT_FUNCTION_OPERATIONS[:28]) == expected
-    )
-    assert tuple(row.function_id for row in PRODUCT_FUNCTION_OPERATIONS[:28]) == (
+    assert tuple(row.operation_id for row in stage_a) == expected
+    assert tuple(row.function_id for row in stage_a) == (
         "recording_vocab_api.read_batted_ball_options",
         "rg1_api.rg1_read_open",
         "rg1_api.rg1_assert_open_before_commit",
@@ -1178,7 +1204,7 @@ def test_stage_a_function_registration_matches_exact_asset_and_retains_rg1() -> 
         "stats_api.read_play_export_primitives",
         "stats_api.read_primitive_totals",
     )
-    assert tuple(row.operation_id for row in PRODUCT_FUNCTION_OPERATIONS[28:]) == (
+    assert tuple(row.operation_id for row in tail) == (
         "PLAY_EXPORT_WRITER:save_snapshot",
         "PLAY_EXPORT_SOURCES:read_page",
         "STATS_BASIC:read",
@@ -1196,8 +1222,13 @@ def test_stage_a_function_registration_matches_exact_asset_and_retains_rg1() -> 
         "SYNC_LIFECYCLE:consume_game_lifecycle",
         "GAME_LIFECYCLE:read_display",
         "SYNC_ORDINARY_PITCH:read_nonplay_active_history",
+        "STARTED_SNAPSHOT:read_started_ordinary_history_page",
+        "STARTED_SNAPSHOT:read_started_play_prefix_history_page",
+        "STARTED_SNAPSHOT:read_started_nonplay_active_history",
+        "SYNC_PLAY_PREFIX:read_viewer_play_prefix_history_page",
+        "SYNC_PLAY_PREFIX:read_viewer_effective_version",
     )
-    assert tuple(row.function_id for row in PRODUCT_FUNCTION_OPERATIONS[28:]) == (
+    assert tuple(row.function_id for row in tail) == (
         "stats_api.save_writer_play_export_snapshot",
         "stats_api.read_play_export_source_page",
         "stats_basic_api.read_basic_stats",
@@ -1215,8 +1246,13 @@ def test_stage_a_function_registration_matches_exact_asset_and_retains_rg1() -> 
         "sync_right_api.consume_game_lifecycle",
         "sync_right_api.read_lifecycle_display",
         "sync_right_api.read_nonplay_active_history",
+        "sync_right_api.read_started_ordinary_history_page",
+        "sync_right_api.read_started_play_prefix_history_page",
+        "sync_right_api.read_started_nonplay_active_history",
+        "sync_right_api.read_viewer_play_prefix_history_page",
+        "sync_right_api.read_viewer_effective_version",
     )
-    stats_tail = PRODUCT_FUNCTION_OPERATIONS[23:28]
+    stats_tail = stage_a[23:28]
     assert tuple(
         f"{row.token_type.__module__}.{row.token_type.__qualname__}"
         for row in stats_tail
