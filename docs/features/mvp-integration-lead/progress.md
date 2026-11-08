@@ -1,5 +1,16 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 2026-11-08 21:31 JST：21:30評価・接続優先を継続（停止しない）
+
+**評価**: 接続優先/まとめて固定・限定検査/別担当の並行を継続。ただし1試合完走・MVP完成は未達で、十分に速い/何倍短縮とは評価しない。15:00台帳との差分を製品証拠で比較し、旧方式の同工数実測や稼働/limit停止時間の単独集計が無いため速度倍率・完成日を新たに保証しない。
+
+- **実画面到達**: 既凡打3球の攻守交代成功と、55球r2の22play/4回裏まで（23球目503失敗）を保持。新しい打球群のd074は正常49配置→画面新規作成→開始まで通ったが、single送信後503。59球/終了版の成績CSV完走とはしない。
+- **新単打診断の実結果**: test-only4dca8fae/製品d074、run3/36405は1failed157.00秒。今回は実sync POST503、CDPはApiError/client.ts:255、UIstatus busyを取得。前run2の「POST未観測だから送信前formatter拒否」という仮説は今回不成立で、サーバー側へ絞る。RRでplay/event/slot/ledger0/open binding1、raw資格/要求/例外message/UUID非採取。source同一/cleanup/lockfree、manifest4513c5f14ed7a3e427f217fe65385c22b2282da9036aba16387c5cec04a9ed94。CDPの時機影響を保持する。
+- **接続資産の成果**: 唯一71fの12打球群・NoRun閉封印・SQL/41列・T5原始27・旧53互換が同居。限定非作者83件/旧6応答defs全値/生成本文一致を通過。新得点10件の全27availableは実host/codec/T5の成功であり、DB保存・正式提供の証拠ではない。機械pin漏れは公式生成と全79関数の事前比較で是正。新P3 followers12打球b417はtarget/修正先不変の純候補、非作者確認待ち。
+- **次の実作業**: 同singleへrouter実alias_apply_e1_f1の透明failure-only observerを追加し、503捕捉前のbounded class/cause/site/SQLSTATEとalias到達有無だけを採取。元一回/return・error identity・bare raise・observer失敗非干渉の純対向後、製品不変の一回診断。全59/旧26の無根拠な反復をしない。根因修復後に同版1試合→終了版成績/CSV→全操作/訂正/復旧/最終受入へ拡大する。
+- **並行/統合条件**: 基線修復c19の歴史fixture上書きP1は修復作者def0へ分離、旧byte保持・qualified copyだけ署名補正。正式PR197 facts pin/7.7/受理record/corpus未整合により通常統合不可を維持。妨害180322は純候補/共有接合待ち。既MVP全機能/品質/全故障系/負荷/実機・運用復旧/正式レビュー・必須CI・通常PR統合を削減しない。今回の評価だけでGoalをcomplete/pausedにしない。
+
+
 ## 2026-11-08 21:25 JST：打球群の接合・独立確認と、実画面送信前の残件
 
 - **固定候補**: `feature/mvp-batted-operations-integration-20261108@d074b72ba01cc4d05af29e7b534189c496c5c49c` clean/push済。schema/head82c・互換842・後続4安打5bf・59球driver359を通常mergeし、rootのSQL/12物理結果/T5写像を接合。artifact71f、prepare生成c2758d69。旧主候補83e/0dbは別版として保持する。
