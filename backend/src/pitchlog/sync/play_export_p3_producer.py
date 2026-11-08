@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass
+from itertools import islice
 from typing import Any
 from uuid import UUID
 from weakref import WeakKeyDictionary
@@ -23,6 +24,12 @@ from pitchlog.sync.past_correction_execution import (
     p3_projection_candidate,
 )
 from pitchlog.sync.play_export_producer import PlayExportWriterUnavailable
+from pitchlog.sync.stats_native_flush import (
+    StatsNativeFlushError,
+    _assert_scope,
+    _capture_scope,
+    _WriterScope,
+)
 
 _PRIOR = text(
     "SELECT * FROM stats_api.read_writer_p3_play_export_prior("
@@ -79,6 +86,7 @@ class _PriorState:
     event: Any
     writer: Any
     context: _WriterContext
+    sql_scope: _WriterScope
     prior_capsule_id: UUID | None
     prior_native_version_id: UUID
     prior_checkpoint_id: UUID
@@ -90,9 +98,11 @@ class _PriorState:
 _PRIORS: WeakKeyDictionary[P3CsvPriorReceipt, _PriorState] = WeakKeyDictionary()
 
 
-def prepare_p3_play_export_anchor(scope, event, writer) -> P3CsvPriorReceipt:
+def _prepare_p3_play_export_anchor(scope, event, writer) -> P3CsvPriorReceipt:
     """P3保存前のcurrent pointerを実readerから私有receiptへ固定する。"""
     context = _context(scope, event, writer)
+    sql_scope = _capture_scope(scope, writer)
+    _assert_p3_sql_scope(scope, event, writer, context, sql_scope)
     parameters = {
         **_parameters(context),
         "checkpoint_id": context.previous_checkpoint_id,
@@ -105,8 +115,9 @@ def prepare_p3_play_export_anchor(scope, event, writer) -> P3CsvPriorReceipt:
         for state in tuple(_PRIORS.values())
     ):
         raise PlayExportWriterUnavailable("P3 CSV前版receiptが二重発行")
-    rows = tuple(scope.session.execute(_PRIOR, parameters).mappings())
-    _same_context(scope, event, writer, context)
+    with sql_scope.session.execute(_PRIOR, parameters) as result:
+        rows = tuple(islice(result.mappings(), 2))
+    _assert_p3_sql_scope(scope, event, writer, context, sql_scope)
     required = {
         "prior_capsule_id",
         "prior_native_version_id",
@@ -141,6 +152,7 @@ def prepare_p3_play_export_anchor(scope, event, writer) -> P3CsvPriorReceipt:
         event,
         writer,
         context,
+        sql_scope,
         row["prior_capsule_id"],
         row["prior_native_version_id"],
         row["prior_checkpoint_id"],
@@ -148,6 +160,21 @@ def prepare_p3_play_export_anchor(scope, event, writer) -> P3CsvPriorReceipt:
         row["prior_checkpoint_digest"],
     )
     return receipt
+
+
+def prepare_p3_play_export_anchor(scope, event, writer) -> P3CsvPriorReceipt:
+    """真正私有窓口の不足を同TX非成功へ伝え、公開handleを拡張しない。"""
+    try:
+        return _prepare_p3_play_export_anchor(scope, event, writer)
+    except (
+        PlayExportSupplyError,
+        StatsNativeFlushError,
+        SQLAlchemyError,
+        KeyError,
+        TypeError,
+        ValueError,
+    ) as error:
+        raise PlayExportWriterUnavailable("P3毎球CSVの保存前原本が未供給") from error
 
 
 def _parameters(context: _WriterContext) -> dict:
@@ -227,6 +254,21 @@ def _same_context(scope, event, writer, expected: _WriterContext) -> None:
         raise PlayExportWriterUnavailable("P3 CSVの実frameが変化")
 
 
+def _assert_p3_sql_scope(handle, event, writer, context, sql_scope):
+    """元P3実行と既私有SQL窓口を両方照合し、公開handleへSessionを足さない。"""
+    if (
+        type(sql_scope) is not _WriterScope
+        or sql_scope.handle is not handle
+        or sql_scope.writer is not writer
+        or sql_scope.bound is not context.source.bound
+        or sql_scope.context is not context.source.context
+        or sql_scope.nonce != context.nonce
+    ):
+        raise PlayExportWriterUnavailable("P3 CSVの私有SQL窓口が別frame")
+    _assert_scope(sql_scope)
+    _same_context(handle, event, writer, context)
+
+
 def _persist_p3_play_exports(scope, event, writer, receipt: P3CsvPriorReceipt) -> None:
     """自由JSONを受けず、真正reader→既projector→固定保存関数へ一度写す。
 
@@ -235,11 +277,13 @@ def _persist_p3_play_exports(scope, event, writer, receipt: P3CsvPriorReceipt) -
     """
     context = _context(scope, event, writer)
     prior = _consume_prior(scope, event, writer, receipt, context)
+    sql_scope = prior.sql_scope
+    _assert_p3_sql_scope(scope, event, writer, context, sql_scope)
     after = 0
     saved = 0
     expected_version = None
     while after < context.watermark:
-        _same_context(scope, event, writer, context)
+        _assert_p3_sql_scope(scope, event, writer, context, sql_scope)
         parameters = {
             **_parameters(context),
             "after_d1": after,
@@ -252,12 +296,12 @@ def _persist_p3_play_exports(scope, event, writer, receipt: P3CsvPriorReceipt) -
         }
         if after < context.target_d1 - 1:
             # 不変prefixの88列をPythonへ読まず、同じ25件S頁をDB内でcarryする。
-            result = tuple(
-                scope.session.execute(
-                    _SAVE, {**parameters, "d1": after + 1, "direct_json": None}
-                )
-            )
-            _same_context(scope, event, writer, context)
+            _assert_p3_sql_scope(scope, event, writer, context, sql_scope)
+            with sql_scope.session.execute(
+                _SAVE, {**parameters, "d1": after + 1, "direct_json": None}
+            ) as cursor:
+                result = tuple(islice(cursor, 26))
+            _assert_p3_sql_scope(scope, event, writer, context, sql_scope)
             expected_count = min(25, context.target_d1 - after - 1)
             if len(result) != expected_count:
                 raise PlayExportWriterUnavailable("P3 CSV先行carry頁が不足")
@@ -275,11 +319,14 @@ def _persist_p3_play_exports(scope, event, writer, receipt: P3CsvPriorReceipt) -
             after += expected_count
             saved += expected_count
             continue
-        rows = tuple(scope.session.execute(_READ, parameters).mappings())
+        _assert_p3_sql_scope(scope, event, writer, context, sql_scope)
+        with sql_scope.session.execute(_READ, parameters) as cursor:
+            rows = tuple(islice(cursor.mappings(), 26))
+        _assert_p3_sql_scope(scope, event, writer, context, sql_scope)
         if not 1 <= len(rows) <= 25:
             raise PlayExportWriterUnavailable("P3 CSV原本頁が未供給")
         for row in rows:
-            _same_context(scope, event, writer, context)
+            _assert_p3_sql_scope(scope, event, writer, context, sql_scope)
             # reader返却JSONは私有関数内で実cap/S/同xidへ結ばれる。自由入力ではない。
             expected = P3SnapshotIdentity(
                 context.source.context.tenant_id,
@@ -362,25 +409,25 @@ def _persist_p3_play_exports(scope, event, writer, receipt: P3CsvPriorReceipt) -
                     target_d1=context.target_d1,
                     reference=reference,
                 )
-            result = tuple(
-                scope.session.execute(
-                    _SAVE,
-                    {
-                        **parameters,
-                        "d1": expected.d1,
-                        "direct_json": None
-                        if direct is None
-                        else json.dumps(
-                            direct,
-                            ensure_ascii=False,
-                            sort_keys=True,
-                            separators=(",", ":"),
-                            allow_nan=False,
-                        ),
-                    },
-                )
-            )
-            _same_context(scope, event, writer, context)
+            _assert_p3_sql_scope(scope, event, writer, context, sql_scope)
+            with sql_scope.session.execute(
+                _SAVE,
+                {
+                    **parameters,
+                    "d1": expected.d1,
+                    "direct_json": None
+                    if direct is None
+                    else json.dumps(
+                        direct,
+                        ensure_ascii=False,
+                        sort_keys=True,
+                        separators=(",", ":"),
+                        allow_nan=False,
+                    ),
+                },
+            ) as cursor:
+                result = tuple(islice(cursor, 2))
+            _assert_p3_sql_scope(scope, event, writer, context, sql_scope)
             if len(result) != 1 or tuple(result[0]) != (
                 expected.effective_play_row_id,
                 expected.d1,
@@ -390,7 +437,7 @@ def _persist_p3_play_exports(scope, event, writer, receipt: P3CsvPriorReceipt) -
             saved += 1
     if saved != context.watermark:
         raise PlayExportSupplyError("P3 CSV完成集合が不足")
-    _same_context(scope, event, writer, context)
+    _assert_p3_sql_scope(scope, event, writer, context, sql_scope)
 
 
 def persist_p3_play_exports(scope, event, writer, receipt: P3CsvPriorReceipt) -> None:
@@ -399,6 +446,7 @@ def persist_p3_play_exports(scope, event, writer, receipt: P3CsvPriorReceipt) ->
         _persist_p3_play_exports(scope, event, writer, receipt)
     except (
         PlayExportSupplyError,
+        StatsNativeFlushError,
         SQLAlchemyError,
         KeyError,
         TypeError,

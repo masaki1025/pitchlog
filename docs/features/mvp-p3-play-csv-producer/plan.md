@@ -54,3 +54,12 @@ step2同TX候補追補（rootの保存前後anchor・全D1carry技術採用）:
 - SourceCodec原典へ整合: snapshotのtransaction_idはpg_snapshot文字列、D2はsigned64、fingerprintは既wire-v1接頭辞も許可。writer内部の取引照合はこれと混同せず、実bound identityのown xidを使う。
 
 この段階はSQL生成/私有producerの候補。正式reader/export全audit coverageへの接合、source/token登録、migration/ACL/guard、root共有before/after hook、実PGcompile/原子性は未成立。既 `_missing_snapshot` のP3未供給409は削除せず、自由fixtureで200を作らない。root共有hookはbefore SHA付きcache patchに限定する。計画採用を正式7.7受理・人間確認・実P3成功へ読み替えない。
+
+step2読取/coverage接合候補:
+
+- rootがmigration slot `0050_play_export_p3_snapshots`（down_revision `0049_pitcher_entry_sources`）を予約。17列宣言は9710f6ab版と同一。本担当はmigration/正式資産を編集しない。
+- 新 `authz/play_export_p3_read_product.py` / `repositories/play_export_p3_read.py` は既ReadPlayExportSources ABIを変更せず、同RR/RO・gameと(generation,capsule,D1)・単頁500だけの1関数を追加候補とする。唯一S/header/同pg_snapshot、実capsule watermark合計、全item所属/hash/17列/訂正時ref/current headを照合する。readerはscope保持/全頁件数を検査し、任意executor/汎用decoder/未登録の実行を拒否する。source_fingerprintはledger原本、item digestはcapsule原本として別々に扱う。
+- 新 `exports/p3_coverage.py` はnormal＋歴代P3を全audit physicalへ完全対応させ、旧normal原本も失わない。cap内D1連続/全watermark/全group metadata・current head一意を確認し、現在Sだけから現在88列/full inningsを選ぶ。歴代と現在を同じ全件dictへせず、APIの既ExportRowStore/ディスク索引を使用する。新sidecar種別 `plays_csv_p3_v1` は同88列にcapsule/item/native/ref由来を添える（既9sidecarの列は不変）。
+- `repositories/play_export.py` はP3 eventがある場合のみ専用readerを同RRで完全消費する候補。`exports/play_export_csv.py` は旧normal guardを保持し、P3は全監査coverageと現在完成原本が両方成立した場合だけ閉拒否を解除する。未供給/未登録/原本不一致を空集合の成功へしない。root正式helper/token未配置なのでこの候補のP3 HTTP/ZIP成功は未成立。
+- 二度目同値followersの正例は、旧/新capsuleが同じfollower物理・観測・計算/hashを保持していても実current headとSだけで選べることを確認する。列72の今回capsule由来は変わり、旧版監査は保存される。旧head詐称、mixed head、欠落/余剰/別tenant/別source/現在JSON差替えは未供給。pure fixtureを実DB/実認可/実P3成功へ読み替えない。
+- 共有3path（function_operations/operation_registry/transaction）の新read1型有限family/真正同RR dispatcherはbefore/after SHA付きcache patchのみ。本担当のWTでは共有sourceを一切変更しない。cache import overlayで実登録1＋8改変拒否＋汎用decode拒否の10対向を実行（DB呼出し/認可成功を模擬しない）。この段階で見つかったimport循環はleafの表示helper/hash importを値検査時に遅延して解消。
