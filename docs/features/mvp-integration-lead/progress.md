@@ -1,5 +1,18 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 2026-11-09 03:20 JST：P3有限INSERTと訂正CSV0050を同一統合候補へ接合
+
+- **引継ぎ照合**: `feature/mvp-integration-lead@743f137b` clean、固定候補は台帳どおり。新統合枝 `feature/mvp-integration-20261109` を `c327d7ee` から作成し、`d5e63831`（CSV共有0050）と `3952d2c0`（CSV P1後発）を通常mergeした。main/developへの直接変更なし。
+- **接合内容**: P3有限37列/INSERT policy1/保護4列cleanと、CSV0050の17列append-only/5関数/既9列SELECT追補/世代束縛/動的列原本照合を同一資産へ統合。`first_ball_product` はCSV activation→P3 insert activationの順で両方を保持。公式helperからddl-elements/manifest/4関数body/runtime contract protected objectsを再導出（revision 34→35）。P3/CSVの対象129 passed、0050 current startup実PG 1 passed 61.51秒、P3/CSV storage純219 passed、backend Ruff/Ty 0。
+- **UI是正**: 妨害公開口 `deriveInterference` 追加に伴うartifact spec 3件と、runner enum/artifact identityに追随していないschema spec 2件を現行正準へ修正（5 files）。root `tests/domain/gen/test_undo_selector.py` のbackend importを既規約（importlib）へ修正しroot Ty 0。frontend vue-tsc/ESLint 0。
+- **実E2Eの停止と切分け**: 初球HTTPはowned実DBで `LedgerUnavailable`。broker観測では `binding_check` が0.4〜30.2秒に200回超、authority lease 30秒で失効していた。97a単独は同試験成功、c327単独は再現。P3 insert差分はapp role権限を変えないため、保存処理が30秒境界に達するliveness問題として切分け、次の3点だけを実装した。
+  - 生存確認ごとに同一leaseを30秒延長するsliding renewalをapp/authority双方へ実装。非文字列/後退応答/期限切れは拒否し、DBの `publish_writer_binding` が持つ30秒上限・immutabilityは変更しない。
+  - authorityのread-only接続をbinding中だけ再利用し、書込みは従来どおり呼出ごとの独立接続+commitを維持。
+  - binding_checkの `_live_matches` だけを1秒に1回へ抑制。control原本照合・fence生存確認・期限・主体は毎回実施。
+  - 初球E2Eはcleanup後の同sourceで **1 passed 236.95秒**、保存区間は約21.6秒（5秒目標には未達）。純14 passed。
+- **P3訂正の現在地**: 有限INSERTは実P3入口まで到達し、前版CSVアンカーが0行になる原因を「P3変更後のcanonical healthと保存済前版T5版の混同」と特定。前版を `v.source_count=p_watermark` + 実checkpoint + 保存済primitive件数へ束縛する方式に修正し、純43 passed。P3 shortは前版取得を通過してCSV頁読取まで前進したが、頁読取の `INTO STRICT` が **P0002** で停止。P3保存自体はreceipt一致まで成功しており、頁読取開始時のwriter binding期限切れ（DB側30秒上限）を最有力として次に切り分ける。DBの30秒上限/immutabilityは未変更。
+- **未了**: P3訂正ACK/confirmation/capsule/CSVの実E2E、26paged、残操作、通信断復旧、閲覧3試合、正式corpus reseal（requirements pinが現行文書と不一致でcatalog checker停止）、7.7/seal/必須CI/通常PR統合、実機・運用復旧。`test_p3_candidate_compile_author` は0048候補DDLを0050 currentへ重ねる旧試験で、有限INSERTの失敗ではない。
+
 更新: 2026-10-23。判断者: Codex主担当。根拠: 同日POの `/goal` 指示と例外委任（撤回または今回MVP終了まで）。山田正輝の個別実値確認・署名とは記録しない。
 
 ## 引受と固定点
