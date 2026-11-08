@@ -21,18 +21,23 @@ def test_only_csv_unavailable_is_translated_without_swallowing_original(
         calls.append(args)
         raise error
 
+    handle, event, writer, prior = object(), object(), object(), object()
     if stage == "prepare":
         monkeypatch.setattr(projection, "prepare_p3_play_export_anchor", fail)
-        invoke, args = projection._prepare_p3_csv_prior, (object(), object(), object())
+        args = (handle, event, writer)
+
+        def invoke():
+            projection._prepare_p3_csv_prior(handle, event, writer)
     else:
         monkeypatch.setattr(projection, "persist_p3_play_exports", fail)
-        invoke, args = (
-            projection._persist_p3_csv,
-            (object(), object(), object(), object()),
-        )
+        args = (handle, event, writer, prior)
+
+        def invoke():
+            projection._persist_p3_csv(handle, event, writer, prior)
+
     expected = projection.PastCorrectionProjectionError if known else RuntimeError
     with pytest.raises(expected) as caught:
-        invoke(*args)
+        invoke()
     assert calls == [args]
     if known:
         assert caught.value.__cause__ is error
