@@ -1,5 +1,5 @@
 /** V8は実history差分。v2のbody再送は変更しない。 */
-import type {Request,Success,HistoryEntry,PitchT1Input,BattedHitT1Input,IntentionalWalkT1Input} from "./lineup_play_prefix_v1";
+import type {Request,Success,HistoryEntry,PitchT1Input,BattedHitT1Input,IntentionalWalkT1Input,BattingInterferencePenaltyT1Input,BattingInterferencePlayT1Input,AdjudicatedInterferenceT1Input,InterferencePenaltyRuling,InterferencePlayRuling,InterferenceObstructionRuling,InterferenceOffensiveRuling} from "./lineup_play_prefix_v1";
 import type {Observations,Participants} from "./play_prefix_v2_payload_v1";
 export type Calculation=Readonly<{formatVersion:"play-prefix-calculation-v3";artifactSha256:string;request:Request;response:Success}>;
 type PitchOnlyT1 = PitchT1Input & Readonly<{officialScoringPayload?:never;interferenceRuling?:never;runnerAdvanceOverrides?:never;thirdOutObservation?:never}>;
@@ -9,7 +9,14 @@ export type PitchPlayPrefixV7 = Readonly<{formatVersion:"play-prefix-play-v3";ob
 export type BattedHitResult = BattedHitT1Input["resultId"];
 export type BattedHitPlayPrefixV7<R extends BattedHitResult> = Readonly<{formatVersion:"play-prefix-play-v3";observations:Readonly<BattedHitObservations & {resultId:R}>;participants:Participants;calculation:CalculationFor<Readonly<BattedHitT1Input & {resultId:R}>>}>;
 export type IntentionalWalkPlayPrefixV7 = Readonly<{formatVersion:"play-prefix-play-v3";observations:Readonly<{kind:"intentional-walk"}>;participants:Participants;calculation:CalculationFor<IntentionalWalkT1Input>}>;
-export type LineupPlayPrefixV7 = RunnerPlayPrefixV7 | NonplayNormalV7 | PitchPlayPrefixV7 | IntentionalWalkPlayPrefixV7 | {[R in BattedHitResult]:BattedHitPlayPrefixV7<R>}[BattedHitResult];
+export type BattingInterferencePenaltyObservations = Observations & Readonly<{resultId:"secondary-result.batting-interference";interferenceRuling:InterferencePenaltyRuling}>;
+type InterferencePlayObservationFor<R extends BattedHitResult> = BattedHitObservations extends infer U ? U extends BattedHitObservations ? R extends U["resultId"] ? Omit<U,"resultId"|"interferenceRuling"> & Readonly<{resultId:R;interferenceRuling:InterferencePlayRuling<R>}> : never : never : never;
+export type BattingInterferencePlayObservations = {[R in BattedHitResult]:InterferencePlayObservationFor<R>}[BattedHitResult];
+export type AdjudicatedInterferenceObservations = Observations & (Readonly<{resultId:"secondary-result.obstruction";interferenceRuling:InterferenceObstructionRuling}> | Readonly<{resultId:"secondary-result.offensive-interference";interferenceRuling:InterferenceOffensiveRuling}>);
+export type BattingInterferencePenaltyPlayPrefixV7 = Readonly<{formatVersion:"play-prefix-play-v3";observations:BattingInterferencePenaltyObservations;participants:Participants;calculation:CalculationFor<BattingInterferencePenaltyT1Input>}>;
+export type BattingInterferencePlayPrefixV7 = Readonly<{formatVersion:"play-prefix-play-v3";observations:BattingInterferencePlayObservations;participants:Participants;calculation:CalculationFor<BattingInterferencePlayT1Input>}>;
+export type AdjudicatedInterferencePlayPrefixV7 = Readonly<{formatVersion:"play-prefix-play-v3";observations:AdjudicatedInterferenceObservations;participants:Participants;calculation:CalculationFor<AdjudicatedInterferenceT1Input>}>;
+export type LineupPlayPrefixV7 = RunnerPlayPrefixV7 | NonplayNormalV7 | PitchPlayPrefixV7 | IntentionalWalkPlayPrefixV7 | {[R in BattedHitResult]:BattedHitPlayPrefixV7<R>}[BattedHitResult] | BattingInterferencePenaltyPlayPrefixV7 | BattingInterferencePlayPrefixV7 | AdjudicatedInterferencePlayPrefixV7;
 export type LineupPlayPrefixV8=HistoryEntry["difference"];
 
 /** 明示した観測を保持する。配置・因果・実IDの相関は唯一核/codecで照合する。 */

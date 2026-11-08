@@ -1,6 +1,11 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { isLineupDefinition, lineupWireHead } from '../api/lineupPrefixWire'
+import type {
+  Request,
+  Success,
+} from '../../../contracts/state-transition/lineup_play_prefix_v1'
 import type { BattedHitObservation } from './battedHit'
 import { domainOperations } from './publicApi'
 import { deriveBattedHit } from './state'
@@ -183,6 +188,43 @@ describe('INT-02 の罰則採用を唯一核へ渡す', () => {
     expect(result.after.stateFields.away).toBe(1n)
     expect(result.statFlags.打点).toBe(false)
   })
+})
+
+it('妨害headの原裁定とtyped効果をFE封印でも落とさない', () => {
+  const cases = JSON.parse(
+    readFileSync(
+      resolve('../contracts/state-transition/batted_hit_prefix_cases_v1.json'),
+      'utf8',
+    ),
+  ) as { cases: Array<{ request: Record<string, unknown>; expected: Record<string, unknown> }> }
+  const request = structuredClone(cases.cases[0]!.request) as Record<string, unknown> & {
+    t1: Record<string, unknown>
+  }
+  request.t1 = {
+    ...request.t1,
+    eventKind: 'secondary-result',
+    resultId: 'secondary-result.batting-interference',
+    interferenceRuling: {
+      kind: 'batting-interference',
+      adopted: { kind: 'penalty-award' },
+      third_base_scoring_attempt: { kind: 'not-required' },
+    },
+  }
+  const response = structuredClone(cases.cases[0]!.expected) as {
+    ok: boolean
+    value: Record<string, unknown>
+  }
+  response.value.runnerScoreEffects = []
+  const head = lineupWireHead(request as unknown as Request, response as Success)
+  expect(head).toMatchObject({
+    interferenceRuling: request.t1.interferenceRuling,
+    runnerScoreEffects: [],
+  })
+  expect(isLineupDefinition(head, 'WireHead')).toBe(true)
+  delete response.value.runnerScoreEffects
+  expect(() => lineupWireHead(request as unknown as Request, response as Success)).toThrow(
+    '妨害裁定の算入根拠を確認できません',
+  )
 })
 
 describe('INT-01/03 の実プレイ採用', () => {
