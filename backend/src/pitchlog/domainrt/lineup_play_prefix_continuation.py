@@ -920,6 +920,14 @@ def lineup_wire_head(
             raise LineupPrefixProtocolError("走者観測に実算入根拠がありません")
         head["runnerObservation"] = r["t1"]["runnerObservation"]
         head["runnerScoreEffects"] = v["runnerScoreEffects"]
+    elif (
+        type(request.t1) is BattedHitT1Input
+        and request.t1.rbi_ruling_by_runner is not None
+    ):
+        if type(response.value) is not RunnerValue:
+            raise LineupPrefixProtocolError("打球の実算入根拠がありません")
+        head["rbiRulingByRunner"] = r["t1"]["rbiRulingByRunner"]
+        head["runnerScoreEffects"] = v["runnerScoreEffects"]
     elif type(response.value) is RunnerValue:
         raise LineupPrefixProtocolError("旧入力に走者算入根拠を混在できません")
     return head

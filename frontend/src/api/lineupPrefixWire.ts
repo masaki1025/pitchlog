@@ -166,6 +166,15 @@ export function lineupWireHead(
       runnerScoreEffects: v.runnerScoreEffects,
     }
   }
+  if ('rbiRulingByRunner' in q.t1) {
+    if (!('runnerScoreEffects' in v))
+      throw new Error('打球の算入根拠を確認できません')
+    return {
+      ...head,
+      rbiRulingByRunner: q.t1.rbiRulingByRunner,
+      runnerScoreEffects: v.runnerScoreEffects,
+    }
+  }
   if ('runnerScoreEffects' in v)
     throw new Error('旧入力に走者計算を混在できません')
   return head
