@@ -20,3 +20,10 @@ _apply_e1_p3実aliasを元一回/同return・同例外identityでwrapし、失�
 | 1 | 短診断と透明probeを固定 | 元call/return/error/metadata失敗の純対向、脚本compile/collect/型Ruff、固定hashをrootへ |
 
 PGはINTの終了とroot許可まで実施不可。短経路で不成立なら同class/siteへ修復を絞り、成立なら26paged固有へ分離。旧26試験/別HTTP T2T4の条件は削減せず未成立を維持する。
+
+
+## 候補検査
+
+短caseは実新規作成/開始→v3通常2球→target1→P3 POST→同current再取得に限定し、旧26/fault本体は不変更。旧ordinary/P3診断blockは全文除去してmessage_primary/message_detail/diag.context/format_exc依存0。元alias1回・戻値/例外identity・print/metadata失敗非干渉・80cap/secret0の8pure4.29秒、全Ty/対象Ruff0、collect1、脚本compile成功。初回純6pass/1failはUID確認文字列のgeteuid表記を誤った試験期待であり、実UID条件を変えず是正。型検査のfetchone None/exec namespace callableの対向側2診断も実型/FunctionType確認へ是正し、失敗logを保全。
+
+実PG未実施。probe SHA6b63f6e65b9566d90876066e3d3f7b1e4a8539ca3bb0748c662d0d99d93c63f9、操作脚本SHA6b34c2164df184c904d03a335ec86dd59b03e338bf3177ac4c128047aff5c3bb（25,235byte）。実UID20003のASGI経路であり、実画面/HTTPS/26paged成功を証明しない。
