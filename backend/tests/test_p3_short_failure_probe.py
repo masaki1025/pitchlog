@@ -157,3 +157,72 @@ def test_http_stage_insertion_keeps_original_await_calls_and_errors(
     else:
         assert not failure and actual is response
         assert calls == list(range(10))
+
+
+def test_context_parser_emits_only_declared_function_and_numeric_line():
+    """原context/SQL/引数/未知名は一切返さず既4関数の行だけを得る。"""
+    namespace = {
+        "json": json,
+        "actual_sync_router": SimpleNamespace(
+            _apply_e1_p3=lambda: None, _apply_e1_f1=lambda: None
+        ),
+    }
+    output = io.StringIO()
+    with contextlib.redirect_stdout(output):
+        exec(_P3_FAILURE_PROBE, namespace)
+    parse = namespace["_p3_parse_context"]
+    assert isinstance(parse, FunctionType)
+    context = (
+        "SECRET_SQL parameters SECRET_ARGS\n"
+        "PL/pgSQL function sync_right_api.persist_p3_projection(uuid,text) "
+        "line 196 at RAISE\n"
+        "PL/pgSQL function unknown.secret_fn(SECRET) line 123 at SQL statement\n"
+        "PL/pgSQL function sync_fence_api.assert_writer_binding(uuid) "
+        "line 55 at PERFORM"
+    )
+    result = parse(context)
+    assert result == [
+        {"function": "sync_right_api.persist_p3_projection", "line": 196},
+        {"function": "sync_fence_api.assert_writer_binding", "line": 55},
+    ]
+    assert "SECRET" not in json.dumps(result)
+    for raw in (
+        None,
+        {},
+        123,
+        context.replace("line 196", "line 0").replace("line 55", "line -1"),
+    ):
+        assert parse(raw) == []
+    assert len(parse(context * 12)) == 8
+    locate = namespace["_p3_error_locations"]
+    assert isinstance(locate, FunctionType)
+    assert locate(SimpleNamespace(diag=SimpleNamespace(context=context))) == []
+
+
+def test_driver_context_access_failure_preserves_original_error():
+    """Driver diag読取が失敗しても元例外を置換しない。"""
+    import psycopg
+
+    class DriverError(psycopg.Error):
+        @property
+        def diag(self):
+            raise RuntimeError("SECRET_CONTEXT")
+
+    error = DriverError("SECRET_ORIGINAL")
+
+    def original():
+        raise error
+
+    namespace = {
+        "json": json,
+        "actual_sync_router": SimpleNamespace(
+            _apply_e1_p3=original, _apply_e1_f1=original
+        ),
+    }
+    output = io.StringIO()
+    with contextlib.redirect_stdout(output):
+        exec(_P3_FAILURE_PROBE, namespace)
+        with pytest.raises(DriverError) as caught:
+            namespace["actual_sync_router"]._apply_e1_p3()
+        assert caught.value is error
+    assert "SECRET" not in output.getvalue()

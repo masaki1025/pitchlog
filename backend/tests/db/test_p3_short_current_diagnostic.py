@@ -34,6 +34,31 @@ pytestmark = pytest.mark.requires_db
 
 _P3_FAILURE_PROBE = r"""
 import re, traceback
+import psycopg as _p3_driver
+_probe_plpgsql_names = frozenset({
+    'sync_right_api.persist_p3_projection',
+    'sync_fence_api.assert_writer_binding',
+    'sync_fence_api.read_p3_writer_binding',
+    'stats_api.save_primitive_source',
+})
+def _p3_parse_context(context):
+    if type(context) is not str or len(context)>65536:
+        return []
+    result=[]
+    pattern=(r'^PL/pgSQL function ([a-z_][a-z0-9_]*\.[a-z_][a-z0-9_]*)'
+             r'\([^\n)]{0,512}\) line ([1-9][0-9]{0,5})(?: at [^\n]*)?$')
+    for match in re.finditer(pattern,context,re.MULTILINE):
+        if match.group(1) in _probe_plpgsql_names:
+            result.append({'function':match.group(1),'line':int(match.group(2))})
+        if len(result)>=8:break
+    return result
+
+def _p3_error_locations(error):
+    if not isinstance(error,_p3_driver.Error):
+        return []
+    # 原contextはメモリ内で閉関数名/行だけに変え、出力/保存しない。
+    return _p3_parse_context(getattr(error.diag,'context',None))
+
 _probe_count = 0
 _probe_allowed = frozenset({
     'SourceBindingError','ValueError','TypeError','WriterBindingUnavailable',
@@ -66,7 +91,8 @@ def _p3_safe_chain(error):
             if match:
                 sites.append({'file':'src/pitchlog/'+match.group(1),'line':frame.lineno})
         rows.append({'class':name if name in _probe_allowed else 'other',
-                     'sqlstate':state,'sites':sites[-3:]})
+                     'sqlstate':state,'sites':sites[-3:],
+                     'plpgsql_sites':_p3_error_locations(current)})
         pending.extend((current.__cause__,current.__context__,getattr(current,'orig',None)))
     return rows
 
@@ -103,6 +129,19 @@ print('PITCHLOG_P3_SHORT_READY='+json.dumps({'ready':1,'limit':80}),flush=True)
 
 def build_short_p3_script() -> str:
     """既実HTTPの操作だけを使い、旧診断/候補DDL/故障統合を呼ばない。"""
+    from pitchlog.authz.first_ball_product import BODIES
+
+    declared = {
+        ".".join(key.removeprefix("function|FUNCTION:").split("(", 1)[0].split(":"))
+        for key in BODIES
+        if key.startswith("function|FUNCTION:")
+    }
+    assert {
+        "sync_right_api.persist_p3_projection",
+        "sync_fence_api.assert_writer_binding",
+        "sync_fence_api.read_p3_writer_binding",
+        "stats_api.save_primitive_source",
+    } <= declared
     script = _three_ball_p3_script()
     # 旧ordinary/P3のdiag.context/primary依存traceは起動前に全文除去する。
     start = script.index("_actual_apply = actual_sync_router._apply_e1_f1")
@@ -145,7 +184,7 @@ except BaseException as error:
 print('PITCHLOG_P3_SHORT_RESULT='+json.dumps(out),flush=True)
 """
     )
-    assert "diag.context" not in script and "message_primary" not in script
+    assert "message_primary" not in script
     assert "message_detail" not in script and "format_exc" not in script
     script = _instrument_http_stages(script)
     compile(script, "<p3-short-current>", "exec")

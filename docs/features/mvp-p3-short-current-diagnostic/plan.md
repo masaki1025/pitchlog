@@ -41,3 +41,10 @@ root採用の追補として、全HTTP16静的箇所へ固定before/after stage�
 ## 短run2のFK拒否とfixture追補
 
 3ecの短ownedは1failed81.04秒（wrapper81.959秒）、正常2球目のhttp-07-posted-after503/P3未到達。F1例外IntegrityError→SQLSTATE23503、terminal_pitch_projection346の物理INSERTに到達。元P3 fixtureはcalled-pitch語彙を個別seedしていたが、短caseはnormal verticalのballのみを継承し、入力called-pitchを供給し忘れていた。rootが元fixtureと全値同じkey/category/display_name1行と事前EXPLAIN/存在全値照合を技術修復として採用。製品/認可/SQL本文/計算の修復とはしない。旧2runは保全、次PGはroot0050smoke終了後の割当まで待つ。
+
+
+## 短run3の真正P3拒否と閉SQL位置追補
+
+e4e8の短ownedは1failed92.46秒（wrapper93.363秒）、2play/event/slot・binding3、http-15-changed-after503。P3 ProgrammingError→InsufficientPrivilege/42501をpersist_p3_projection呼出（projection311/transaction510）で捕捉。source4929前後同一・cleanup、authority failures[]。P3受理/訂正は未成立。実行中にrootがcaseの200+prefix2だけでは受理証明にならない点を監査し、transport診断の範囲に限定した。
+
+root許可の失敗限定追補: 実psycopg.Errorだけのdiag.contextをメモリ内regexへ渡し、既BODIESへ所属を検査した4関数の名前/数値行のみ返す。原context/引数/SQL/primary全文は保存表示0、65536字以上は閉拒否、最大8位置、未知名/行0/型不正を拒否。driver diag読取失敗も元例外identityを維持。計20pure7.03秒/TyRuff0。固定SQL行でguardを特定するまでT5/D03context不足を根因とは断定せず、TTL/権限/SQL条件は非編集。
