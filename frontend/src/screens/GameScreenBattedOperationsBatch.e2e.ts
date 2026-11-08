@@ -1,5 +1,7 @@
 /** 9回59プレイと終了版の成績/CSV通し。性能未達・他操作未実装をMVP完成へ読み替えない。 */
-import { expect, test } from '@playwright/test'
+import { expect, test, type Page } from '@playwright/test'
+import type { LineupPrefixGame } from '../api/lineupPrefixGame'
+import type { GameLifecycleGame } from '../api/gameLifecycle'
 import { lstatSync, writeFileSync } from 'node:fs'
 import { isAbsolute, resolve, basename } from 'node:path'
 import { createHash } from 'node:crypto'
@@ -13,6 +15,41 @@ import {
   recordBattedOperation,
   type BattedStep,
 } from './BattedOperations.e2e-support'
+
+type C2ReadBridge = {
+  repeated(id: string): Promise<LineupPrefixGame>
+  ended(id: string): Promise<GameLifecycleGame>
+  plays(
+    id: string,
+  ): Promise<{ bytes: number[]; length: number | null; sha256: string | null }>
+}
+/** 実ブラウザの既clientへ固定3読取だけを委譲する。任意path・資格は受けない。 */
+async function installC2ReadBridge(page: Page) {
+  await page.addScriptTag({
+    type: 'module',
+    content: `
+import { readLineupPrefixGame } from '/src/api/lineupPrefixGame.ts';
+import { readGameLifecycle } from '/src/api/gameLifecycle.ts';
+import { apiDownload } from '/src/api/client.ts';
+window.__battedC2ReadBridge = {
+  async repeated(id) {
+    const result = await readLineupPrefixGame(id);
+    if (result.kind !== 'found') throw new Error('再送後の正規C2読取が不成立');
+    return result.game;
+  },
+  async ended(id) {
+    const result = await readGameLifecycle(id, { limit: 25 });
+    if (result.kind !== 'found') throw new Error('終了版の正規C2読取が不成立');
+    return result.game;
+  },
+  async plays(id) {
+    const result = await apiDownload('/games/' + id + '/exports/plays.zip', { tenantBound: true });
+    return { bytes: Array.from(new Uint8Array(await result.blob.arrayBuffer())), length: result.contentLength, sha256: result.sha256 };
+  },
+};
+`,
+  })
+}
 
 test('実画面で打球群59プレイを保存し終了成績CSVを照合する', async ({
   page,
@@ -231,14 +268,14 @@ test('実画面で打球群59プレイを保存し終了成績CSVを照合する
         return replay()
       })
       expect(duplicate).toEqual({ status: 200, a5: '重複' })
-      const restored = await page.request.get(
-        new URL(
-          `/api/games/${game.id}/started?projection=play-prefix-v3`,
-          baseURL,
-        ).href,
+      await installC2ReadBridge(page)
+      const value = await page.evaluate(
+        (id) =>
+          (
+            window as unknown as { __battedC2ReadBridge: C2ReadBridge }
+          ).__battedC2ReadBridge.repeated(id),
+        game.id,
       )
-      expect(restored.status()).toBe(200)
-      const value = await restored.json()
       expect(value.prefix_ref).toEqual(before.prefix_ref)
       expect(value.after).toEqual(before.after)
       expect(value.page.items).toEqual(before.page.items)
@@ -310,16 +347,14 @@ test('実画面で打球群59プレイを保存し終了成績CSVを照合する
     return value
   }
   async function finalHead() {
-    const response = await page.request.get(
-      new URL(
-        '/api/games/' +
-          game.id +
-          '/started?projection=lifecycle-prefix-v1&limit=25',
-        baseURL,
-      ).href,
+    await installC2ReadBridge(page)
+    const value = await page.evaluate(
+      (id) =>
+        (
+          window as unknown as { __battedC2ReadBridge: C2ReadBridge }
+        ).__battedC2ReadBridge.ended(id),
+      game.id,
     )
-    expect(response.status()).toBe(200)
-    const value = await response.json()
     expect(value.status).toBe('finished')
     expect(value.lifecycle.lastVersion).toBe('1')
     expect(value.checkpoint.content.d3).toBe('60')
@@ -372,16 +407,28 @@ test('実画面で打球群59プレイを保存し終了成績CSVを照合する
     ['/api/stats/seasons/2026/stats.csv?category=practice', 'season-stats.csv'],
     ['/api/games/' + game.id + '/exports/plays.zip', 'plays.zip'],
   ]) {
-    const response = await page.request.get(new URL(path!, baseURL).href)
-    expect(response.status()).toBe(200)
-    const data = await response.body()
-    expect(data.length).toBeGreaterThan(0)
+    let data: Buffer
     if (filename === 'plays.zip') {
-      expect(response.headers()['content-length']).toBe(String(data.length))
-      expect(response.headers()['x-pitchlog-archive-sha256']).toBe(
+      await installC2ReadBridge(page)
+      const downloaded = await page.evaluate(
+        (id) =>
+          (
+            window as unknown as { __battedC2ReadBridge: C2ReadBridge }
+          ).__battedC2ReadBridge.plays(id),
+        game.id,
+      )
+      data = Buffer.from(downloaded.bytes)
+      expect(downloaded.length).toBe(data.length)
+      expect(downloaded.sha256).toBe(
         createHash('sha256').update(data).digest('hex'),
       )
-    } else expect([...data.subarray(0, 3)]).toEqual([239, 187, 191])
+    } else {
+      const response = await page.request.get(new URL(path!, baseURL).href)
+      expect(response.status()).toBe(200)
+      data = await response.body()
+      expect([...data.subarray(0, 3)]).toEqual([239, 187, 191])
+    }
+    expect(data.length).toBeGreaterThan(0)
     writeFileSync(resolve(evidence, filename!), data, {
       flag: 'wx',
       mode: 0o600,

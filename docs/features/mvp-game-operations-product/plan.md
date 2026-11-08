@@ -82,3 +82,8 @@ PO委任rootの指示で、c20dを含む3a3b25b6から専用WT `feature/mvp-full
 正常49/71fの59操作run2は実create/start後にPOST未観測で停止。全59操作を反復せず、専用E2E/config/backend wrapperの新3ファイルだけで最初のsingleへ絞る。既製品/共通helper/認可/要求/slot/期限は不変更。CDPは開始後のcaught例外を一時停止してclassと固定src site/行のみ保存し即resume（message/locals/原文/UUID/資格なし）。この観測がタイミングに影響し得る限定を保持する。UI固定status分類、正規化endpoint/method/status、既finally read-only RRを残す。実head/観測JSON保存は不要。失敗は成功へ置換せず、root固定差分確認前のPG再投入なし。
 
 診断採用: 2026-11-08 21:21 JST、PO委任Codex rootの非作者全文確認（e936bf7e / diff e0ffd13c9703fe7ece884306f4e641e932bd965af16c33a9bc19738017c669ee）。docstring是正とresume observerの未処理rejection抑止だけを追加条件として採用。製品不変、CDP観測の時機影響は実失敗と分離する。
+
+
+### 59操作試験の正規C2読取接合（2026-11-08、PO委任root採用）
+
+run6は実2play/同要求重複ACK後、test direct GETのC2提示不足で404。製品/認可/共通helperを変えず、59driverの再送後started・最終lifecycle started・毎球ZIPだけを実UIと同じ既client（readLineupPrefixGame/readGameLifecycle/apiDownload、内部tenantBound:true）へ委譲する。非C2のstatsJSON/成績CSVは既経路を保持。closed found/全prefix/after/items/終了版/ZIP全byte長とSHAの期待を維持し、401/404を成功へ置換しない。元59全実測の後続停止は別の初回原因として保存する。
