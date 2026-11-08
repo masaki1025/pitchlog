@@ -445,6 +445,7 @@ const fullActions: Array<'single' | 'strike' | RunnerAction> = [
 
 test('新規作成から共通走者結果の実保存・再送・reload・越境まで同じ試合で通す', async ({
   page,
+  browser,
 }) => {
   page.setDefaultTimeout(httpTimeout)
   await page.addInitScript(() => {
@@ -598,11 +599,18 @@ test('新規作成から共通走者結果の実保存・再送・reload・越�
     ),
   )
   if (!otherTeam) throw Error('越境対向の実tenantがない')
-  await login(page, otherTeam)
-  const foreign = await page.request.get(
-    `${baseURL}/api/games/${game.id}/started?projection=play-prefix-v3`,
-  )
-  expect(foreign.status()).toBe(404)
+  // 記録profileを保ち、別contextで実login/Cookieによる越境拒否を確認する。
+  const otherContext = await browser.newContext({ ignoreHTTPSErrors: true })
+  try {
+    const otherPage = await otherContext.newPage()
+    await login(otherPage, otherTeam)
+    const foreign = await otherPage.request.get(
+      `${baseURL}/api/games/${game.id}/started?projection=play-prefix-v3`,
+    )
+    expect(foreign.status()).toBe(404)
+  } finally {
+    await otherContext.close()
+  }
 })
 
 test('非投球盗塁のT4途中故障は成功表示せず、先行1球だけをサーバーに残す', async ({

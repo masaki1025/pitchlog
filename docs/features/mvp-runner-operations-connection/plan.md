@@ -118,3 +118,16 @@ rootの指示に従い、testserverだけへ任意有効の閉observerを足す�
 ### rootの連続接合追補：非投球履歴のcourse（2026-11-07 JST）
 
 CSV非作者が実閉RunnerNonpitchPlayObservationsからnormal/P3双方の直接`.course`参照がAttributeErrorとなることを再現した。rootが `backend/src/pitchlog/repositories/ordinary_prefix_read.py` と新 `backend/tests/test_runner_nonpitch_read_course.py` を直列編集する。既閉IntentionalWalk/RunnerNonpitchのみcourse非該当None、既FirstBall/BattedHit/RunnerPitchだけ元course、それ以外を拒否する共通射影を両readerへ接続する。観測や座標の推測/再計算、SQL原本資格/頁sealの変更はない。rootのPO委任判断で本接合追補を採用し、実装後に非作者の限定確認と同版実画面GETを行う。
+
+
+### 実測step3の認証対向・成果個別照合追補（2026-11-08 JST）
+
+rootのPO委任技術判断により、起点0cfa51a3（製品4a不変）の専用枝 `feature/mvp-runner-cross-tenant-evidence-20261108` で既FE E2Eとbackend同検証testだけを編集する。run15は正常first2/同D5再掲/reloadとT4故障HTTPまで進んだが、末尾の別tenant loginが既認証profileと衝突し、後続DB照合も止めていた。
+
+記録profileを保持したまま別BrowserContextで実login/実Cookie/実GET404を行い、資格の偽消去や認可期待の緩和をしない。backendは当runの新規tmpに実在するnormal/fault artifactを各READ ONLY接続で独立照合し、未生成を未実施と記録する。既全値/本人SB/故障原子性assertは再利用し、個別照合後もPlaywright returncode・元例外・検証欠落を必ず最終失敗へ残す。古いfile転用/生じていない成功/確認省略で緑にしない。
+
+変更はこのplan・`GameScreenRunnerOperations.e2e.ts`・`test_runner_operations_screen_e2e.py` の3pathのみ。製品src/SQL/型/期限/guard/正式assetsは不変更。RuleSnapshotInvalidの3記録は原因未確定のまま別に保持し、RG1本体の修復を本追補へ混ぜない。root最終差分確認後、同製品4aの固定test版でfirst2/越境/全末尾DBを一回実測する。
+
+root追加委任（同日）: failure-only HTTP503には、既API `ROUTERS` に実登録された固定operation_id集合へ一致した場合だけoperationIdを付加する。raw path/query/UUID/header/bodyは読取・出力せず、unknownは省略。80上限/元handler一回/正常DBRPC追加0は維持し、RuleSnapshotInvalidの発生route帰属だけを次runで確認する。
+
+作者純検査: 個別成果helperの9群（UI非zero/欠落/片側失敗を最終失敗に保持し他成果照合を継続）、既low-failure wrapper9群（元呼出/return/例外identity・秘密sentinel非出力・80上限）、固定operationIdの5条件をDB/RPC/待受なしで確認した。FE eslint/vue-tsc、backend Ruff/Tyは0診断、pytest collectは1件。実PG/実画面の新成功は未実施であり、既run15のDB未照合やRuleSnapshotInvalidを閉じたとは記録しない。rootへの固定差分レビュー後、共通lock下で同製品の実検証を行う。
