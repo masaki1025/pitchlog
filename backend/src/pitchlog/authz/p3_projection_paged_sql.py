@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pitchlog.authz.p3_play_row_insert_product import rewrite_p3_play_insert
 from pitchlog.authz.p3_projection_sql import _bind_health
 from pitchlog.authz.stats_primitive_sql import _ROOT, _verified_inputs
 from pitchlog.authz.sync_right_sql import _COMMON
@@ -19,7 +20,7 @@ def candidate_paged_begin_sql() -> str:
 
 def candidate_paged_append_sql() -> str:
     """1..25件の元原本と唯一T5を同TX私有stageへ追記する候補。"""
-    return _APPEND_SQL.replace("__COMMON__", _COMMON)
+    return rewrite_p3_play_insert(_APPEND_SQL.replace("__COMMON__", _COMMON), "page")
 
 
 def candidate_paged_finalize_sql(*, health_sql: str) -> str:

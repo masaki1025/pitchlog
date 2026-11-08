@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 
+from pitchlog.authz.p3_play_row_insert_product import rewrite_p3_play_insert
 from pitchlog.authz.stats_primitive_sql import _ROOT, _verified_inputs
 from pitchlog.authz.sync_right_sql import _COMMON
 
@@ -33,7 +34,7 @@ def candidate_sql(*, health_sql: str | None = None) -> str:
     statement = statement.replace("__HEALTH__", health)
     statement = statement.replace("__MODEL__", model)
     statement = statement.replace("__ARTIFACT__", artifact)
-    return statement
+    return rewrite_p3_play_insert(statement, "single")
 
 
 def candidate_current_read_sql(*, health_sql: str) -> str:
