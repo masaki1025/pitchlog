@@ -390,6 +390,7 @@ class StartedPlayRunner(_FrozenSchema):
         "捕手牽制死",
         "盗塁死",
         "走塁死",
+        "妨害裁定アウト",
     ]
     status_source: Literal["auto", "manual"]
     responsible_pitcher_id: EntityId
@@ -403,6 +404,10 @@ class StartedPlayRunner(_FrozenSchema):
             3: {"本進"},
         }
         outcomes = {"継続", "封殺", "投手牽制死", "捕手牽制死", "盗塁死", "走塁死"}
+        if self.status == "妨害裁定アウト":
+            if self.status_source != "manual":
+                raise ValueError("妨害裁定アウトは手動裁定の保存値に限る")
+            return self
         if self.status not in destinations[self.base] | outcomes:
             raise ValueError("起点塁と走者状況が不一致")
         return self
