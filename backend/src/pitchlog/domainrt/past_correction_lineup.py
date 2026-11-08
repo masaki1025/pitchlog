@@ -1,4 +1,4 @@
-"""保存済みv3通常投球の有限訂正を既唯一artifactで順次再評価する。
+"""保存済みv3通常投球の訂正と後続打球を既唯一artifactで順次再評価する。
 
 本関数はDB原本・P3認可・投影保存資格を発行しない。呼出側は同一取引で
 対象直前の真正checkpointと全原本・末尾を確認し、未対応後続を拒否する。
@@ -17,6 +17,7 @@ from pitchlog.domainrt.first_ball_projection import _canonical_json
 from pitchlog.domainrt.host import NodeDomainHost, open_domain_host
 from pitchlog.domainrt.lineup_play_prefix_continuation import (
     BattedHitT1Input,
+    LineupPrefixProtocolError,
     LineupPrefixRequest,
     LineupPrefixSuccess,
     decode_lineup_prefix_request,
@@ -41,12 +42,20 @@ _ORDINARY_RESULTS = frozenset(
         "batting-result.foul",
     }
 )
-_HIT_RESULTS = frozenset(
+_BATTED_FOLLOWER_RESULTS = frozenset(
     {
         "batting-result.single",
         "batting-result.double",
         "batting-result.triple",
         "batting-result.home-run",
+        "batting-result.batted-out",
+        "batting-result.batted-reach",
+        "batting-result.fielders-choice",
+        "batting-result.sacrifice-bunt",
+        "batting-result.sacrifice-fly",
+        "batting-result.double-play",
+        "batting-result.error",
+        "batting-result.sacrifice-bunt-error",
     }
 )
 
@@ -127,7 +136,7 @@ def _bound_original(
     batted = type(request.t1) is BattedHitT1Input
     if batted and (
         not allow_batted
-        or request.t1.result_id not in _HIT_RESULTS
+        or request.t1.result_id not in _BATTED_FOLLOWER_RESULTS
         or type(saved.payload) is not LineupPitchPlayPayload
     ):
         raise LineupCorrectionUnsupported("訂正対象または後続打球が未対応")
@@ -144,13 +153,17 @@ def _bound_original(
         or request.source.position.d2 != str(saved.d2)
         or original.value.play_identity != request.play_identity
         or original.value.source_position != request.source.position
-        or request.t1.result_id not in (_HIT_RESULTS if batted else _ORDINARY_RESULTS)
+        or request.t1.result_id
+        not in (_BATTED_FOLLOWER_RESULTS if batted else _ORDINARY_RESULTS)
     ):
         raise LineupCorrectionUnsupported("保存済みv3原本と位置が不一致")
     if batted:
         assert saved.payload is not None
         _read_payload(saved.payload, require_current_rbi=False)
-    verify_lineup_wire_seal(request, original)
+    try:
+        verify_lineup_wire_seal(request, original)
+    except LineupPrefixProtocolError as exc:
+        raise LineupCorrectionUnsupported("旧v3原本の封印が不一致") from exc
     if previous is not None:
         prior = previous.value
         source = request.source
@@ -454,7 +467,7 @@ def _read_payload(
             expected_calculation=payload.calculation,
             require_current_rbi=require_current_rbi,
         )
-    except (ValueError, TerminalPitchPayloadError) as exc:
+    except (ValueError, TerminalPitchPayloadError, LineupPrefixProtocolError) as exc:
         raise LineupCorrectionUnsupported("訂正v3の観測と計算の束縛が不成立") from exc
 
 
@@ -481,7 +494,8 @@ def _corrected_payload(
         or (
             batted
             and (
-                saved.calculation.request.t1.result_id not in _HIT_RESULTS
+                saved.calculation.request.t1.result_id
+                not in _BATTED_FOLLOWER_RESULTS
                 or frame.corrected_request.t1.result_id
                 != saved.calculation.request.t1.result_id
                 or frame.corrected_request.source.runners

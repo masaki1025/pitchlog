@@ -1,12 +1,12 @@
 ---
 feature: mvp-p3-batted-family-followers
-status: proposed
-承認: 未
+status: active
+承認: 済（PO委任Codex主担当/root、2026-11-08 21:00 JST）
 重さ分類: コア領域
 branch: feature/mvp-p3-batted-family-followers-20261108
 worktree: /home/ymdms/projects/pitchlog-worktrees/feature-mvp-p3-batted-family-followers-20261108
 created: 2026-11-08
-計画レビュー周回: 0
+計画レビュー周回: 1
 確定ゲート周回: 0
 実行方式: 通常
 ---
@@ -23,3 +23,7 @@ created: 2026-11-08
 | 2 | 投影対向と候補封印 | 既71f host→seal→current codec→既41列/runner/T5で凡打hold、SH/SF/DP/FC、公式error、RBI-04を正負確認し、旧原本を書き換えない。型だけ通るfixture成功を禁止する。差分・検査・残件をroot独立レビューへ渡す |
 
 原V7を書き換えない。訂正後に打席・攻守・走者資格が変わり同じ観測を再採用できない場合はI6候補として閉拒否し、第三アウトや打点因果を新たに推測しない。旧保存再生へ新RBI観測を遡及必須にせず、新訂正のcurrent payloadだけが現行因果条件を満たす。全試合/全P3操作の完了はこの候補単位では主張しない。
+
+## 実装進捗
+
+step1/2候補: 現行T1閉12結果と後続許可集合を全値一致にし、対象打球の閉拒否は維持する。71f実hostで対象後の凡打hold、犠打、犠飛、併殺、野選、公式失策2形、RBI-04を再生/訂正後再評価し、元V7/物理41列/走者/T5の全値一致を確認する。対象前の凡打原本も原形のまま持ち越す。別event・欠V7・改竄lineupは不成立とする。正式統合/実PG/独立確認は未実施。
