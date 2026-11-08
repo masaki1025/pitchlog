@@ -16,6 +16,7 @@ from pydantic import (
 from pitchlog.domainrt.first_ball_projection import _canonical_json, _canonical_sha256
 from pitchlog.domainrt.first_pitch import _Frozen
 from pitchlog.domainrt.first_pitch_continuation import _check_frozen_members
+from pitchlog.domainrt.initial_game_roster import InitialRosterProjection
 from pitchlog.domainrt.lineup_play_prefix_continuation import (
     BattedForceOut,
     CanonicalUuid,
@@ -297,6 +298,23 @@ class _RecordedErrorScoring(_Frozen):
     errors: tuple[_RecordedError] = Field(min_length=1, max_length=1)
 
 
+def _official_error_fielder_in_roster(
+    roster: InitialRosterProjection, team_id: str, fielder_id: str
+) -> bool:
+    """今回の実守備側で野手役を持つ公式選手だけを返す。"""
+    if type(roster) is not InitialRosterProjection:
+        return False
+    return any(
+        team.team_id == team_id
+        and any(
+            entry.player.player_id == fielder_id
+            and any(role.kind == "fielding" for role in entry.roles)
+            for entry in team.participants
+        )
+        for team in roster.teams
+    )
+
+
 class _NoInterference(_Frozen):
     """今回妨害裁定が不要であるという記録者の明示観測。"""
 
@@ -490,7 +508,12 @@ class LineupPitchPlayPayload(_Frozen):
 
 
 def read_lineup_pitch_payload(
-    raw_v7, raw_v8, *, expected_calculation, require_current_rbi: bool = False
+    raw_v7,
+    raw_v8,
+    *,
+    expected_calculation,
+    require_current_rbi: bool = False,
+    current_roster: InitialRosterProjection | None = None,
 ):
     """実独立評価とV7/V8/参加者を全比較し、欠落/alias/型の変化を拒否する。"""
     try:
@@ -567,6 +590,10 @@ def read_lineup_pitch_payload(
                     side.pitcher_id,
                     side.catcher_id,
                 }:
+                    raise ValueError
+                if current_roster is not None and not _official_error_fielder_in_roster(
+                    current_roster, side.team_id, fielder
+                ):
                     raise ValueError
         if (
             payload.calculation.artifact_sha256

@@ -866,36 +866,6 @@ export async function prepareLineupPrefix(
       )
         return invalid()
     } else if (hit.officialScoringPayload.kind !== 'no-error') return invalid()
-    const scoredBases =
-      hit.runnerAdvanceOverridesByRunner.kind === 'applied' &&
-      hit.resultId !== 'batting-result.home-run' &&
-      !(
-        hit.resultId === 'batting-result.batted-out' &&
-        context.after.stateFields['state.outs'] === '2'
-      )
-        ? hit.runnerAdvanceOverridesByRunner.overrides
-            .filter((item) => item.destination === '4')
-            .map((item) => item.runnerBase)
-        : []
-    const causes = hit.rbiRulingByRunner
-    if (
-      (scoredBases.length > 0 && !causes) ||
-      (scoredBases.length === 0 && causes !== undefined) ||
-      (causes &&
-        (Object.keys(causes).length !== scoredBases.length ||
-          !scoredBases.every((base) => {
-            const value = causes[base]
-            return (
-              value === 'ordinary-play' ||
-              value === 'kept-running' ||
-              value === 'stopped-and-restarted'
-            )
-          }) ||
-          !Object.keys(causes).every((base) =>
-            scoredBases.some((item) => item === base),
-          )))
-    )
-      return invalid()
   } else if (observation.battedHit != null) return invalid()
   const runnerAdvanceOverrides = batted
     ? observation.battedHit!.resultId === 'batting-result.double-play'
@@ -952,6 +922,65 @@ export async function prepareLineupPrefix(
       'deriveLineupPlayPrefixWithContinuation',
       request,
     ) as LineupSuccess['value'],
+  }
+  if (batted) {
+    const hit = observation.battedHit!
+    const rawEffects = (response.value as unknown as Record<string, unknown>)[
+      'runnerScoreEffects'
+    ]
+    let scoredBases: Array<'1' | '2' | '3'> = []
+    if (rawEffects !== undefined) {
+      if (!Array.isArray(rawEffects) || rawEffects.length > 3) return invalid()
+      for (const item of rawEffects) {
+        if (
+          typeof item !== 'object' ||
+          item === null ||
+          Array.isArray(item) ||
+          !Object.keys(item).every((key) =>
+            ['base', 'validRun', 'rbiCredited'].includes(key),
+          ) ||
+          Object.keys(item).length !== 3
+        )
+          return invalid()
+        const effect = item as Record<string, unknown>
+        if (
+          (effect.base !== '1' && effect.base !== '2' && effect.base !== '3') ||
+          typeof effect.validRun !== 'boolean' ||
+          typeof effect.rbiCredited !== 'boolean' ||
+          (effect.rbiCredited && !effect.validRun)
+        )
+          return invalid()
+        if (effect.validRun) {
+          if (scoredBases.includes(effect.base)) return invalid()
+          scoredBases = scoredBases.concat([effect.base])
+        }
+      }
+    }
+    const beforeScore = context.after.scoreboard.inningScores
+    const afterScore = response.value.t1.after.scoreboard.inningScores
+    const scoreChanged = !sameOrdinaryWire(beforeScore, afterScore)
+    const causes = hit.rbiRulingByRunner
+    if (
+      (hit.resultId !== 'batting-result.home-run' &&
+        scoreChanged &&
+        scoredBases.length === 0) ||
+      (scoredBases.length > 0 && !causes) ||
+      (scoredBases.length === 0 && causes !== undefined) ||
+      (causes &&
+        (Object.keys(causes).length !== scoredBases.length ||
+          !scoredBases.every((base) => {
+            const value = causes[base]
+            return (
+              value === 'ordinary-play' ||
+              value === 'kept-running' ||
+              value === 'stopped-and-restarted'
+            )
+          }) ||
+          !Object.keys(causes).every((base) =>
+            scoredBases.some((item) => item === base),
+          )))
+    )
+      return invalid()
   }
   const sealed = await sealLineupMetadata(request, response)
   const course = invokeFirstBallDomain('quantizeCourse', {

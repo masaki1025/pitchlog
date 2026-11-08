@@ -15,6 +15,8 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, it, expect } from 'vitest'
 import { domainOperations } from './publicApi'
+import { prepareLineupContinuation } from './lineupPlayPrefixContinuation'
+import { isLineupDefinition } from '../api/lineupPrefixWire'
 const vectors = JSON.parse(
   readFileSync(
     resolve('../contracts/state-transition/lineup_play_prefix_cases_v1.json'),
@@ -42,6 +44,62 @@ const battedCases = JSON.parse(
     'utf8',
   ),
 ) as { cases: Array<{ caseId: string; request: Json }> }
+it('新打球のRBI因果は唯一核の有効走者効果をv3 Valueへそのまま渡す', () => {
+  const original = battedCases.cases.find(
+    (item) => item.caseId === 'BHP-BH-Single-top-O1',
+  )!
+  const request = structuredClone(original.request)
+  const t1 = request.t1 as Json
+  const source = request.source as Json
+  const state = (t1.before as Json).stateFields as Json
+  state['state.outs'] = '0'
+  state['state.runners'] = 'third'
+  const sourceState = (source.after as Json).stateFields as Json
+  sourceState['state.outs'] = '0'
+  sourceState['state.runners'] = 'third'
+  const facts = (source.t2 as Json).facts as Json
+  facts.beforeOuts = '0'
+  facts.afterOuts = '0'
+  const participants = source.participants as Json
+  const lineup = source.lineup as Json
+  const away = lineup.away as Json
+  const order = away.battingOrder as Json
+  source.runners = [
+    {
+      runnerId: order['8'],
+      responsiblePitcherId: participants.pitcherId,
+      base: '3',
+      status: '継続',
+      statusSource: 'auto',
+    },
+  ]
+  t1.runnerAdvanceOverrides = {
+    kind: 'applied',
+    overrides: [{ runnerBase: '3', destination: '4' }],
+  }
+  t1.rbiRulingByRunner = { '3': 'stopped-and-restarted' }
+  const prepared = prepareLineupContinuation(JSON.stringify(request))
+  expect(prepared.ok).toBe(true)
+  const result = invoke(request)
+  expect(result.error?.code).toBe(undefined)
+  expect(result).toMatchObject({ ok: true })
+  expect(result.value.t1.after.stateFields['state.score']).toEqual({
+    home: '3',
+    away: '6',
+  })
+  expect(result.value.runnerScoreEffects).toEqual([
+    { base: '3', validRun: true, rbiCredited: false },
+  ])
+  expect(isLineupDefinition(result, 'Success')).toBe(true)
+  delete t1.rbiRulingByRunner
+  const historical = invoke(request)
+  expect(historical.ok).toBe(true)
+  expect(historical.value.t1.after.stateFields['state.score']).toEqual({
+    home: '3',
+    away: '6',
+  })
+  expect(historical.value.runnerScoreEffects).toBeUndefined()
+})
 it('既v3 continuationは二走者本塁打の実T1進塁を次sourceへ保持する', () => {
   const original = battedCases.cases.find(
     (item) => item.caseId === 'BHP-BH-HomeRun-top-O1',

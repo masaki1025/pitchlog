@@ -7,6 +7,7 @@ from uuid import UUID
 
 import pytest
 
+from pitchlog.domainrt.initial_game_roster import InitialRosterProjection
 from pitchlog.domainrt.lineup_play_prefix_continuation import (
     T1,
     BattedHitT1Input,
@@ -18,7 +19,10 @@ from pitchlog.domainrt.lineup_prefix_source import require_batted_hit_observatio
 from pitchlog.sync.ordinary_pitch_execution import OrdinaryPitchExecutionError
 from pitchlog.sync.ordinary_pitch_payload import OrdinaryPitchParticipants
 from pitchlog.sync.ordinary_pitch_physical import pitch_physical_row
-from pitchlog.sync.terminal_pitch_payload import BattedHitPlayObservations
+from pitchlog.sync.terminal_pitch_payload import (
+    BattedHitPlayObservations,
+    _official_error_fielder_in_roster,
+)
 from pitchlog.sync.terminal_pitch_projection import runner_physical_rows
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -312,6 +316,37 @@ def test_sacrifice_bunt_error_requires_one_primitive_error_and_original_fielder(
             require_batted_hit_observations(
                 t1, BattedHitPlayObservations.model_validate_json(json.dumps(broken))
             )
+
+
+def test_error_fielder_is_current_defender_not_dh_or_attack_side():
+    """同試合のDH・攻撃側を公式守備者へ昇格させない。"""
+    fixture = json.loads(
+        (
+            ROOT / "frontend/src/api/fixtures/lineupPrefixGame.recorded.v3.json"
+        ).read_text()
+    )["value"]["roster"]
+    roster = InitialRosterProjection.model_validate_json(json.dumps(fixture))
+    home = roster.teams[1]
+    away = roster.teams[0]
+    home_field = next(
+        p.player.player_id
+        for p in home.participants
+        if any(role.kind == "fielding" for role in p.roles)
+    )
+    home_dh = next(
+        p.player.player_id
+        for p in home.participants
+        if not any(role.kind == "fielding" for role in p.roles)
+    )
+    away_field = next(
+        p.player.player_id
+        for p in away.participants
+        if any(role.kind == "fielding" for role in p.roles)
+    )
+    assert _official_error_fielder_in_roster(roster, home.team_id, home_field)
+    assert not _official_error_fielder_in_roster(roster, home.team_id, home_dh)
+    assert not _official_error_fielder_in_roster(roster, home.team_id, away_field)
+    assert not _official_error_fielder_in_roster(roster, away.team_id, home_field)
 
 
 @pytest.mark.parametrize(

@@ -1831,7 +1831,7 @@ export function prepareLineupContinuation(raw: string): Prepared {
     'pitchEventKind',
     'before',
   ])
-  const battedInput = object(r.t1, [
+  const battedKeys = [
     'eventKind',
     'resultId',
     'pitchEventKind',
@@ -1840,7 +1840,17 @@ export function prepareLineupContinuation(raw: string): Prepared {
     'interferenceRuling',
     'runnerAdvanceOverrides',
     'thirdOutObservation',
-  ])
+  ]
+  let battedInput = object(r.t1, battedKeys)
+  if (battedInput === null)
+    battedInput = object(r.t1, battedKeys.concat(['outRunner']))
+  if (battedInput === null)
+    battedInput = object(r.t1, battedKeys.concat(['rbiRulingByRunner']))
+  if (battedInput === null)
+    battedInput = object(
+      r.t1,
+      battedKeys.concat(['outRunner', 'rbiRulingByRunner']),
+    )
   const runnerInput = object(r.t1, [
     'eventKind',
     'resultId',
@@ -2195,13 +2205,20 @@ export function prepareLineupContinuation(raw: string): Prepared {
     before: before,
     history: { stack: [] },
   }
-  if (battedInput !== null)
+  if (battedInput !== null) {
     t1 = Object.assign(t1, {
       officialScoringPayload: battedInput.officialScoringPayload,
       interferenceRuling: battedInput.interferenceRuling,
       runnerAdvanceOverrides: battedInput.runnerAdvanceOverrides,
       thirdOutObservation: battedInput.thirdOutObservation,
     })
+    if (Object.prototype.hasOwnProperty.call(battedInput, 'outRunner'))
+      t1 = Object.assign(t1, { outRunner: battedInput.outRunner })
+    if (Object.prototype.hasOwnProperty.call(battedInput, 'rbiRulingByRunner'))
+      t1 = Object.assign(t1, {
+        rbiRulingByRunner: battedInput.rbiRulingByRunner,
+      })
+  }
   if (runnerInput !== null)
     t1 = Object.assign(t1, {
       runnerObservation: runnerInput.runnerObservation,
@@ -2436,5 +2453,10 @@ export function finishLineupContinuation(r: Json, raw: string): string {
       return failure('UNSUPPORTED_T1_SCOPE')
     Object.assign(finished, { runnerScoreEffects: value.runnerScoreEffects })
   }
+  if (
+    Object.prototype.hasOwnProperty.call(input, 'officialScoringPayload') &&
+    Object.prototype.hasOwnProperty.call(value, 'runnerScoreEffects')
+  )
+    Object.assign(finished, { runnerScoreEffects: value.runnerScoreEffects })
   return JSON.stringify({ ok: true, value: finished })
 }

@@ -653,6 +653,12 @@ function evaluatePitch(
       'runnerAdvanceOverrides',
       'thirdOutObservation',
     ])
+  if (battedHit && request !== null) {
+    if (Object.prototype.hasOwnProperty.call(request, 'outRunner'))
+      requestKeys = requestKeys.concat(['outRunner'])
+    if (Object.prototype.hasOwnProperty.call(request, 'rbiRulingByRunner'))
+      requestKeys = requestKeys.concat(['rbiRulingByRunner'])
+  }
   if (runnerEvent)
     requestKeys = requestKeys.concat(['runnerObservation', 'liveRunners'])
   if (request === null || !exactKeys(request, requestKeys)) {
@@ -821,6 +827,12 @@ function evaluatePitch(
           interferenceRuling: request.interferenceRuling,
           runnerAdvanceOverrides: request.runnerAdvanceOverrides,
           thirdOutObservation: request.thirdOutObservation,
+          ...(Object.prototype.hasOwnProperty.call(request, 'outRunner')
+            ? { outRunner: request.outRunner }
+            : {}),
+          ...(Object.prototype.hasOwnProperty.call(request, 'rbiRulingByRunner')
+            ? { rbiRulingByRunner: request.rbiRulingByRunner }
+            : {}),
         } as BattedHitObservation,
         cursors,
       )
@@ -851,7 +863,7 @@ function evaluatePitch(
       cursors,
       afterCursors,
     )
-    if (runnerEvent && derived.runnerScoreEffects)
+    if ((runnerEvent || battedHit) && derived.runnerScoreEffects)
       Object.assign(output, {
         runnerScoreEffects: derived.runnerScoreEffects.map((r) => ({
           base: formatDecimalInteger(r.base),

@@ -795,6 +795,7 @@ def _evaluate_lineup_prefix_bound(state):
                 raw_v8,
                 expected_calculation=calculation,
                 require_current_rbi=True,
+                current_roster=prefix.roster,
             )
         except TerminalPitchPayloadError:
             state.phase = "rejected"
