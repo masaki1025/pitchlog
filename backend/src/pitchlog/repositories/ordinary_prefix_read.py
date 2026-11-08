@@ -139,7 +139,14 @@ def _cursor(value):
 
 
 def read_ordinary_prefix(
-    handle, game_id, *, limit=25, cursor=None, _play_prefix=False, _lineup_prefix=False
+    handle,
+    game_id,
+    *,
+    limit=25,
+    cursor=None,
+    _play_prefix=False,
+    _lineup_prefix=False,
+    _viewer=False,
 ):
     """現在世代の実point原本と有限pageだけを返す。0/旧1も暗黙書込しない。"""
     if (
@@ -153,6 +160,8 @@ def read_ordinary_prefix(
     from pitchlog.repositories.transaction import started_snapshot_read_mode
 
     readonly = started_snapshot_read_mode(handle)
+    if _viewer and (not _lineup_prefix or not readonly or limit > 25):
+        raise OrdinaryPrefixError
 
     def run(token):
         return handle.run(token)
@@ -294,6 +303,7 @@ def read_ordinary_prefix(
             projection,
             limit,
             cursor,
+            _viewer,
         )
     if stored is None or stored.get("kind") == "first-ball-save":
         if cursor is not None or n > 1:
@@ -947,6 +957,18 @@ def read_lineup_prefix(handle, game_id, *, limit=25, cursor=None):
     )
 
 
+def read_viewer_prefix(handle, game_id, *, limit=25, cursor=None):
+    """真正started RRから最新v3/NPの有界pageだけを読む。"""
+    return read_ordinary_prefix(
+        handle,
+        game_id,
+        limit=limit,
+        cursor=cursor,
+        _lineup_prefix=True,
+        _viewer=True,
+    )
+
+
 def _evaluate_lineup_payload(raw):
     """実保存要求を一回評価し、自己seal/V7/V8全値と照合する。"""
     from pitchlog.domainrt.lineup_play_prefix_continuation import (
@@ -992,6 +1014,7 @@ def _read_lineup_projection(
     projection,
     limit,
     cursor,
+    viewer,
 ):
     """Actual zero/native v3に限定し、最後の原本と有界pageを別々に確認する。"""
     from pitchlog.domainrt.host import open_domain_host
@@ -1089,7 +1112,20 @@ def _read_lineup_projection(
     from pitchlog.repositories.past_correction_right import _ReadP3CurrentToken
 
     after_d1 = 0
-    if cursor is not None:
+    selected_limit = min(limit, 25)
+    if viewer:
+        boundary = n + 1
+        if cursor is not None:
+            supplied = _cursor(cursor)
+            if type(supplied) is dict and "before_d1" in supplied:
+                if type(supplied["before_d1"]) is not int:
+                    raise OrdinaryPrefixError
+                boundary = supplied["before_d1"]
+        if not 1 < boundary <= n + 1:
+            raise OrdinaryPrefixError
+        after_d1 = max(0, boundary - 1 - limit)
+        selected_limit = boundary - 1 - after_d1
+    elif cursor is not None:
         supplied = _cursor(cursor)
         if type(supplied) is dict and "after_d1" in supplied:
             if type(supplied["after_d1"]) is not int:
@@ -1101,7 +1137,7 @@ def _read_lineup_projection(
             game_id,
             generation,
             selected_after_d1=after_d1,
-            selected_limit=min(limit, 25),
+            selected_limit=selected_limit,
         )
     except PastCorrectionCurrentUnavailable:
         raise OrdinaryPrefixError from None
@@ -1146,7 +1182,13 @@ def _read_lineup_projection(
         )
         metadata = _prefix_metadata(game, game_id, d4, sides, roster)
         return _read_p3_lineup_projection(
-            verified, metadata, projection, row, limit=limit, cursor=cursor
+            verified,
+            metadata,
+            projection,
+            row,
+            limit=limit,
+            cursor=cursor,
+            viewer=viewer,
         )
     last_payload, _ = _read_native_lineup_head(handle, game_id, tenant, row, doc)
     _evaluate_lineup_payload(
@@ -1169,7 +1211,7 @@ def _read_lineup_projection(
         "history_version": doc.history_version,
     }
     scope = {
-        "version": "3",
+        "version": "viewer-v3-1" if viewer else "3",
         "tenant": str(tenant),
         "game": str(game_id),
         "anchor": anchor,
@@ -1204,11 +1246,16 @@ def _read_lineup_projection(
     )
     from pitchlog.repositories.transaction import started_snapshot_read_mode
 
-    page_token_type = (
-        StartedPlayPrefixHistoryPageToken
-        if started_snapshot_read_mode(handle)
-        else PlayPrefixHistoryPageToken
-    )
+    if viewer:
+        from pitchlog.repositories.viewer_read import ViewerPlayPrefixHistoryPageToken
+
+        page_token_type = ViewerPlayPrefixHistoryPageToken
+    else:
+        page_token_type = (
+            StartedPlayPrefixHistoryPageToken
+            if started_snapshot_read_mode(handle)
+            else PlayPrefixHistoryPageToken
+        )
     token = page_token_type(
         game_id,
         generation,
@@ -1253,7 +1300,14 @@ def _read_lineup_projection(
             raise OrdinaryPrefixError
         payload = _verify_v2_read_packet(item, tenant, game_id, lineup=True)
         current = (h["d1"], h["d2"], UUID(h["source_event_id"]))
-        if current <= point or last_point is not None and current <= last_point:
+        if viewer:
+            wrong = (
+                (point != (0, 0, UUID(int=0)) and current >= point)
+                or (last_point is not None and current >= last_point)
+            )
+        else:
+            wrong = current <= point or last_point is not None and current <= last_point
+        if wrong:
             raise OrdinaryPrefixError
         last_point = current
         items.append(
@@ -1301,7 +1355,9 @@ def _read_lineup_projection(
     return OrdinaryPrefixView(metadata, projection)
 
 
-def _read_p3_lineup_projection(verified, metadata, projection, row, *, limit, cursor):
+def _read_p3_lineup_projection(
+    verified, metadata, projection, row, *, limit, cursor, viewer=False
+):
     """全値検証済みP3有効版から同じv3 page形を有限に切り出す。"""
     from pitchlog.repositories.past_correction_current_paged import (
         VerifiedP3PagedCurrent,
@@ -1309,7 +1365,7 @@ def _read_p3_lineup_projection(verified, metadata, projection, row, *, limit, cu
 
     doc = verified.checkpoint
     scope = {
-        "version": "p3-current-v1",
+        "version": "p3-viewer-current-v1" if viewer else "p3-current-v1",
         "tenant": doc.prefix_ref.tenant_id,
         "game": doc.prefix_ref.game_id,
         "capsule_id": str(verified.capsule_id),
@@ -1318,38 +1374,56 @@ def _read_p3_lineup_projection(verified, metadata, projection, row, *, limit, cu
         "recovery_generation": doc.recovery_generation,
     }
     after = 0
+    count = (
+        verified.source_count
+        if type(verified) is VerifiedP3PagedCurrent
+        else len(verified.items)
+    )
+    boundary = count + 1
     if cursor is not None:
         supplied = _cursor(cursor)
+        position_key = "before_d1" if viewer else "after_d1"
         if (
             type(supplied) is not dict
-            or set(supplied) != {*scope, "after_d1"}
+            or set(supplied) != {*scope, position_key}
             or any(
                 _canonical_json(supplied[key]) != _canonical_json(value)
                 for key, value in scope.items()
             )
-            or type(supplied["after_d1"]) is not int
-            or not 0
-            < supplied["after_d1"]
-            < (
-                verified.source_count
-                if type(verified) is VerifiedP3PagedCurrent
-                else len(verified.items)
-            )
+            or type(supplied[position_key]) is not int
         ):
             raise OrdinaryPrefixError
-        after = supplied["after_d1"]
+        if viewer:
+            boundary = supplied[position_key]
+            if not 1 < boundary <= count:
+                raise OrdinaryPrefixError
+        else:
+            after = supplied[position_key]
+            if not 0 < after < count:
+                raise OrdinaryPrefixError
+    if viewer:
+        after = max(0, boundary - 1 - limit)
+        selected_limit = boundary - 1 - after
+        if selected_limit < 1:
+            raise OrdinaryPrefixError
     if type(verified) is VerifiedP3PagedCurrent:
-        if after != verified.selected_after_d1:
+        if after != verified.selected_after_d1 or (
+            viewer and len(verified.selected_items) != selected_limit
+        ):
             raise OrdinaryPrefixError
         selected = verified.selected_items
         selected_payloads = verified.selected_payloads
         source_count = verified.source_count
         last_payload = verified.last_payload
     else:
-        selected = verified.items[after : after + limit]
-        selected_payloads = verified.payloads[after : after + limit]
+        upper = after + (selected_limit if viewer else limit)
+        selected = verified.items[after:upper]
+        selected_payloads = verified.payloads[after:upper]
         source_count = len(verified.items)
         last_payload = verified.payloads[-1]
+    if viewer:
+        selected = tuple(reversed(selected))
+        selected_payloads = tuple(reversed(selected_payloads))
     page_items = [
         {
             "play_row": _public_play(
@@ -1360,12 +1434,21 @@ def _read_p3_lineup_projection(verified, metadata, projection, row, *, limit, cu
         }
         for item, payload in zip(selected, selected_payloads, strict=True)
     ]
-    next_d1 = after + len(page_items)
     next_cursor = None
-    if next_d1 < source_count:
+    if viewer and after > 0:
         next_cursor = (
             base64.urlsafe_b64encode(
-                _canonical_json({**scope, "after_d1": next_d1}).encode()
+                _canonical_json({**scope, "before_d1": after + 1}).encode()
+            )
+            .decode()
+            .rstrip("=")
+        )
+    elif not viewer and after + len(page_items) < source_count:
+        next_cursor = (
+            base64.urlsafe_b64encode(
+                _canonical_json(
+                    {**scope, "after_d1": after + len(page_items)}
+                ).encode()
             )
             .decode()
             .rstrip("=")

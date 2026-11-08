@@ -90,6 +90,7 @@ from pitchlog.repositories.stats_native_operations import (
 )
 from pitchlog.repositories.sync_apply import SYNC_APPLY_OPERATIONS
 from pitchlog.repositories.tenant_profile import TENANT_PROFILE_OPERATIONS
+from pitchlog.repositories.viewer_read import VIEWER_READ_OPERATIONS
 from pitchlog.repositories.writer_binding import (
     _UNREGISTERED_DECLARATIONS as _WRITER_BINDING_FUNCTION_OPERATIONS,
 )
@@ -116,6 +117,8 @@ _STATIC_PRODUCT_FUNCTION_BINDING_IDS = frozenset(
         "STARTED_SNAPSHOT:read_started_ordinary_history_page",
         "STARTED_SNAPSHOT:read_started_play_prefix_history_page",
         "STARTED_SNAPSHOT:read_started_nonplay_active_history",
+        "SYNC_PLAY_PREFIX:read_viewer_play_prefix_history_page",
+        "SYNC_PLAY_PREFIX:read_viewer_effective_version",
         "SYNC_FIRST_BALL:bind_device",
         "SYNC_FIRST_BALL:check_current_right",
         "SYNC_WRITER_BINDING:read_writer_identity",
@@ -332,6 +335,12 @@ PRODUCT_FUNCTION_OPERATIONS: tuple[FunctionOperationRegistration, ...] = (
             registration, operation_id=registration.operation_id
         )
         for registration in STARTED_SNAPSHOT_READ_OPERATIONS
+    ),
+    *(
+        _registered_product_function(
+            registration, operation_id=registration.operation_id
+        )
+        for registration in VIEWER_READ_OPERATIONS
     ),
 )
 FUNCTION_OPERATION_REGISTRY = build_function_registry(

@@ -101,6 +101,16 @@
       "operationId": "sync_events",
       "method": "POST",
       "path": "/games/{game_id}/sync/events"
+    },
+    {
+      "operationId": "game_viewer_head",
+      "method": "GET",
+      "path": "/games/{game_id}/viewer-head"
+    },
+    {
+      "operationId": "game_viewer_saved",
+      "method": "GET",
+      "path": "/games/{game_id}/viewer"
     }
   ]
 }

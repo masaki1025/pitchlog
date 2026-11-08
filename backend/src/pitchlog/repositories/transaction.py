@@ -266,11 +266,17 @@ class _TenantTransaction:
                 StartedOrdinaryHistoryPageToken,
                 StartedPlayPrefixHistoryPageToken,
             )
+            from pitchlog.repositories.viewer_read import (
+                ViewerEffectiveVersionReadToken,
+                ViewerPlayPrefixHistoryPageToken,
+            )
 
             if type(operation) in {
                 StartedOrdinaryHistoryPageToken,
                 StartedPlayPrefixHistoryPageToken,
                 StartedNonplayActiveHistoryReadToken,
+                ViewerEffectiveVersionReadToken,
+                ViewerPlayPrefixHistoryPageToken,
             }:
                 require_started_snapshot_read_scope(self)
         if _play_export_source_operation(operation):
@@ -1161,6 +1167,10 @@ def _require_started_read_token(
             StartedOrdinaryHistoryPageToken,
             StartedPlayPrefixHistoryPageToken,
         )
+        from pitchlog.repositories.viewer_read import (
+            ViewerEffectiveVersionReadToken,
+            ViewerPlayPrefixHistoryPageToken,
+        )
         from pitchlog.sync.terminal_pitch_tokens import (
             LineupStartedOriginReadToken,
             PlayPrefixCheckpointReadToken,
@@ -1178,6 +1188,8 @@ def _require_started_read_token(
             StartedOrdinaryHistoryPageToken,
             StartedPlayPrefixHistoryPageToken,
             StartedNonplayActiveHistoryReadToken,
+            ViewerEffectiveVersionReadToken,
+            ViewerPlayPrefixHistoryPageToken,
         }
     else:
         from pitchlog.repositories.recorded_snapshot_operations import (

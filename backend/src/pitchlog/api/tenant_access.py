@@ -29,6 +29,8 @@ _MATCH_OPERATIONS = frozenset(
         "pitch_type_options",
         "batted_ball_options",
         "started_game_detail",
+        "game_viewer_head",
+        "game_viewer_saved",
         "sync_events",
         "recover_sync_attempt",
         "game_play_csv_export",

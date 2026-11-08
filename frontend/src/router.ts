@@ -22,6 +22,7 @@ import {
   recordingBackendReachability,
 } from './lib/localRecordingSession'
 import GameExportScreen from './screens/GameExportScreen.vue'
+import GameScreenViewerLive from './screens/GameScreenViewerLive.vue'
 import { resolveGameEntryReturnPath } from './screens/GameScreenEntryNavigation'
 import { useAuthStore } from './stores/authStore'
 
@@ -81,6 +82,12 @@ export function createAppRouter(history: RouterHistory = createWebHistory()) {
         path: '/games/:gameId/export',
         name: 'game-export',
         component: GameExportScreen,
+        meta: { requiresAuth: true },
+      },
+      {
+        path: '/games/:gameId/view',
+        name: 'game-viewer',
+        component: GameScreenViewerLive,
         meta: { requiresAuth: true },
       },
       {

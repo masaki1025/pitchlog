@@ -2346,6 +2346,30 @@ def _activate_started_snapshot_read_profile() -> None:
 _activate_started_snapshot_read_profile()
 
 
+def _activate_viewer_read_profile() -> None:
+    """現行started RRに閉じた閲覧pointとv3降順pageだけを追加する。"""
+    from pitchlog.authz.viewer_product import candidate_declarations
+
+    rows, bodies = candidate_declarations(ADDITIONS["functions"])
+    for row in rows:
+        identifier = row["function_id"]
+        key = "function|" + identifier
+        if key in BODIES or any(
+            old["function_id"] == identifier for old in ADDITIONS["functions"]
+        ):
+            raise ValueError("閲覧関数の既宣言へ衝突")
+        ADDITIONS["functions"].append(copy.deepcopy(row))
+        BODIES[key] = (
+            f"-- ELEMENT-TYPE: function\n-- ELEMENT-ID: {identifier}\n\n"
+            + bodies.pop(key)
+        )
+    if bodies:
+        raise ValueError("閲覧関数の宣言外本文が残存")
+
+
+_activate_viewer_read_profile()
+
+
 def _activate_runner_physical_evidence_profile() -> None:
     """現行post-P3 prepareだけへ厳格pin付き走者物理証拠を接ぐ。"""
     from pitchlog.authz.runner_physical_evidence_sql import (
