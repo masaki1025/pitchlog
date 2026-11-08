@@ -33,7 +33,7 @@ pytestmark = pytest.mark.requires_db
     reason="隔離HTTPS証明書PATH未供給。初回単打診断未実施",
 )
 def test_first_batted_send_diagnostic(vertical_database):
-    """新規UI試合の59原本/終了版と実API/CSVを読取専用で照合する。"""
+    """新規UI試合の初回単打送信前状態を安全な分類で診断する。"""
     for name in ("PITCHLOG_E2E_TLS_CERT_PATH", "PITCHLOG_E2E_TLS_KEY_PATH"):
         path = Path(os.environ[name])
         assert path.is_absolute() and path.is_file()

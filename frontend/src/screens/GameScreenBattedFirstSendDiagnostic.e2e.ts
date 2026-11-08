@@ -41,7 +41,7 @@ test('最初の単打の送信前状態を安全に採取する', async ({ page 
         exceptions.push({ kind, sites })
       }
     }
-    void cdp.send('Debugger.resume')
+    void cdp.send('Debugger.resume').catch(() => {})
   })
   await cdp.send('Debugger.enable')
   page.on('console', (message) => {

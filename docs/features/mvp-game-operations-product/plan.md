@@ -80,3 +80,5 @@ PO委任rootの指示で、c20dを含む3a3b25b6から専用WT `feature/mvp-full
 ### 初回単打送信前診断（2026-11-08、PO委任root指示）
 
 正常49/71fの59操作run2は実create/start後にPOST未観測で停止。全59操作を反復せず、専用E2E/config/backend wrapperの新3ファイルだけで最初のsingleへ絞る。既製品/共通helper/認可/要求/slot/期限は不変更。CDPは開始後のcaught例外を一時停止してclassと固定src site/行のみ保存し即resume（message/locals/原文/UUID/資格なし）。この観測がタイミングに影響し得る限定を保持する。UI固定status分類、正規化endpoint/method/status、既finally read-only RRを残す。実head/観測JSON保存は不要。失敗は成功へ置換せず、root固定差分確認前のPG再投入なし。
+
+診断採用: 2026-11-08 21:21 JST、PO委任Codex rootの非作者全文確認（e936bf7e / diff e0ffd13c9703fe7ece884306f4e641e932bd965af16c33a9bc19738017c669ee）。docstring是正とresume observerの未処理rejection抑止だけを追加条件として採用。製品不変、CDP観測の時機影響は実失敗と分離する。
