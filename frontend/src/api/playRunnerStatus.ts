@@ -20,7 +20,9 @@ export function isPlayRunnerStatus(
   return (
     Object.hasOwn(advances, base) &&
     typeof status === 'string' &&
-    (outcomes.includes(status) || advances[base]!.includes(status)) &&
+    (outcomes.includes(status) ||
+      advances[base]!.includes(status) ||
+      (status === '妨害裁定アウト' && source === 'manual')) &&
     (source === 'auto' || source === 'manual')
   )
 }
