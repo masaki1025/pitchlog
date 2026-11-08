@@ -252,24 +252,74 @@ def _short_stage(stage, response=None):
     return ast.unparse(module)
 
 
-def _counts(db) -> dict[str, int]:
+def _counts(db) -> dict[str, object]:
     """隔離tenantの有限末尾counterだけをREAD ONLYで保持する。"""
     with psycopg.connect(
         db.authority.database.business_admin,
         options="-c default_transaction_read_only=on",
     ) as conn:
-        result = {}
+        result: dict[str, object] = {}
         for name, table in (
             ("plays", "public.play_rows"),
             ("events", "public.operation_events"),
             ("slots", "public.event_slots"),
             ("bindings", "sync_fence.writer_bindings"),
+            ("checkpoints", "sync_fence.ordinary_pitch_checkpoints"),
+            ("p3caps", "sync_fence.p3_projection_capsules"),
+            ("p3heads", "sync_fence.p3_projection_heads"),
+            ("p3snapshots", "sync_fence.play_export_p3_snapshots"),
         ):
             row = conn.execute(
                 f"SELECT count(*) FROM {table} WHERE tenant_id=%s", (db.tenant_id,)
             ).fetchone()
             assert row is not None and type(row[0]) is int and row[0] >= 0
             result[name] = row[0]
+        result["checkpoint_rows"] = [
+            [str(row[0]), row[1], row[2]]
+            for row in conn.execute(
+                "SELECT id,revision,content_digest "
+                "FROM sync_fence.ordinary_pitch_checkpoints "
+                "WHERE tenant_id=%s ORDER BY revision",
+                (db.tenant_id,),
+            ).fetchall()
+        ]
+        result["slot_generations"] = [
+            [row[0], row[1]]
+            for row in conn.execute(
+                "SELECT generation,count(*) FROM public.event_slots "
+                "WHERE tenant_id=%s GROUP BY generation ORDER BY generation",
+                (db.tenant_id,),
+            ).fetchall()
+        ]
+        result["versions"] = [
+            [str(row[0]), row[1], row[2], row[3], row[4], row[5], row[6]]
+            for row in conn.execute(
+                "SELECT id,revision,source_count,is_current,"
+                "invalidated_at,completion_state,source_set_sha256 "
+                "FROM sync_fence.stats_fact_versions WHERE tenant_id=%s "
+                "ORDER BY revision",
+                (db.tenant_id,),
+            ).fetchall()
+        ]
+        result["primitive_counts"] = [
+            [str(row[0]), row[1]]
+            for row in conn.execute(
+                "SELECT fact_version_id,count(*) "
+                "FROM sync_fence.stats_primitive_sources WHERE tenant_id=%s "
+                "GROUP BY fact_version_id ORDER BY 1",
+                (db.tenant_id,),
+            ).fetchall()
+        ]
+        hash_row = conn.execute(
+            "SELECT encode(sha256(convert_to(COALESCE(string_agg("
+            "jsonb_build_array(tenant_id,game_id,recording_generation,d1,d2,"
+            "source_event_id,slot_version,play_row_id,play_row_version,"
+            "source_fingerprint)::text,E'\\n' ORDER BY tenant_id,game_id,d2,"
+            "source_event_id),'accepted-play-slot-v1:empty'),'UTF8')),'hex') "
+            "FROM sync_fence.stats_primitive_sources WHERE tenant_id=%s",
+            (db.tenant_id,),
+        ).fetchone()
+        result["primitive_hash"] = None if hash_row is None else hash_row[0]
         return result
 
 

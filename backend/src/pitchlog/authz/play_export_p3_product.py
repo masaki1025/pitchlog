@@ -417,35 +417,9 @@ $p3_csv_read$;
 
 
 def candidate_prior_read_body(root: Path = _ROOT) -> str:
-    """旧headを保存前だけに固定し、current native版をP3headの版と混同しない。"""
-    import re
-
+    """前版T5版/checkpointだけを保存原本から固定し、P3変更を混ぜない。"""
     from pitchlog.stats.generated.receiver import SOURCE_MODEL_HASH
 
-    query = _generation_source_query(root)
-    names = {
-        "tenant_id": "tenant",
-        "game_id": "p_game_id",
-        "model_sha256": "model_hash",
-        "after_generation": "NULL::bigint",
-        "recording_generation": "generation",
-        "after_d1": "NULL::bigint",
-        "page_size": "1",
-    }
-    seen = set()
-
-    def replace(match):
-        if match[1] is None:
-            return match[0]
-        if match[1] not in names:
-            raise ValueError("P3 CSV前版queryの未知bind")
-        seen.add(match[1])
-        return names[match[1]]
-
-    query = re.sub(r"'(?:''|[^'])*'|(?<!:):([a-z][a-z0-9_]*)", replace, query)
-    if seen != set(names) or not query.endswith(";\n"):
-        raise ValueError("P3 CSV前版queryのbind集合不一致")
-    query = query[:-2]
     return f"""CREATE FUNCTION stats_api.read_writer_p3_play_export_prior(
  p_attempt_id uuid,p_phase_id uuid,p_game_id uuid,p_capsule_id uuid,
  p_change_event_id uuid,p_binding_nonce bytea,p_checkpoint_id uuid,
@@ -484,16 +458,25 @@ BEGIN
  WHERE (c.tenant_id,c.game_id,c.internal_generation,c.id)
  =(tenant,p_game_id,generation,p_capsule_id)) THEN
  RAISE EXCEPTION 'P3 CSV prior source already published' USING ERRCODE='42501'; END IF;
- RETURN QUERY WITH actual_source AS ({query})
- SELECT h.capsule_id,s.fact_version_id,cp.id,cp.revision,cp.content_digest,own_xid,
- s.source_count,s.generation_source_count
- FROM actual_source s
- JOIN sync_fence.ordinary_pitch_checkpoints cp
- ON (cp.tenant_id,cp.game_id,cp.id,cp.revision,cp.content_digest)
- =(tenant,p_game_id,p_checkpoint_id,p_checkpoint_revision,p_checkpoint_digest)
- LEFT JOIN sync_fence.p3_projection_heads h
- ON (h.tenant_id,h.game_id,h.internal_generation)=(tenant,p_game_id,generation)
- WHERE s.generation_source_count=p_watermark;
+ -- 前版は当該変更で増える前のsource_countを持つ保存済T5版だけを選ぶ。
+ -- 変更eventをcanonical sourceへ混ぜず、checkpointと実source件数で束縛する。
+ RETURN QUERY
+ SELECT h.capsule_id,v.id,cp.id,cp.revision,cp.content_digest,own_xid,
+  v.source_count,
+  (SELECT count(*) FROM sync_fence.stats_primitive_sources s
+   WHERE s.tenant_id=tenant AND s.game_id=p_game_id
+   AND s.fact_version_id=v.id
+   AND s.recording_generation=generation)::bigint
+ FROM sync_fence.stats_fact_versions v
+ JOIN sync_fence.ordinary_pitch_checkpoints cp ON
+  (cp.tenant_id,cp.game_id,cp.id,cp.revision,cp.content_digest)
+  =(tenant,p_game_id,p_checkpoint_id,p_checkpoint_revision,p_checkpoint_digest)
+ LEFT JOIN sync_fence.p3_projection_heads h ON
+  (h.tenant_id,h.game_id,h.internal_generation)=(tenant,p_game_id,generation)
+ WHERE v.tenant_id=tenant AND v.game_id=p_game_id
+  AND v.model_sha256=model_hash AND v.source_count=p_watermark
+  AND v.completion_state IN ('current_open','confirmed_ended')
+ ORDER BY v.revision DESC LIMIT 1;
  PERFORM sync_fence_api.assert_writer_binding(tenant,p_attempt_id,p_phase_id,
  p_binding_nonce,binding_device,p_game_id);
 END;

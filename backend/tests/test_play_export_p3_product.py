@@ -76,11 +76,14 @@ def test_before_anchor_reads_real_cp_and_source_not_latest_guess():
     """保存前にのみ現在S/CP/headを固定し、後から旧headを推定しない。"""
     body = product.candidate_prior_read_body()
     assert "P3 CSV prior source already published" in body
-    assert "actual_source AS" in body
-    assert "s.generation_source_count=p_watermark" in body
-    assert "s.source_count=p_watermark" not in body
+    assert "FROM sync_fence.stats_fact_versions v" in body
+    assert "v.source_count=p_watermark" in body
+    assert "JOIN sync_fence.ordinary_pitch_checkpoints cp" in body
+    assert "sync_fence.stats_primitive_sources s" in body
+    assert "is_current" not in body
+    assert "count(*) FROM sync_fence.stats_primitive_sources s" in body
     assert "p_checkpoint_id,p_checkpoint_revision,p_checkpoint_digest" in body
-    assert "h.capsule_id,s.fact_version_id,cp.id,cp.revision,cp.content_digest" in body
+    assert "h.capsule_id,v.id,cp.id,cp.revision,cp.content_digest" in body
     assert "b.transaction_id=own_xid" in body
     assert "LIMIT 500" not in body
     assert "MAX(" not in body and "ORDER BY captured_at" not in body

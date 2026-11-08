@@ -69,7 +69,9 @@ def test_generation_is_bound_before_limit_without_changing_global_source_health(
     )
     assert "v.source_count" in query and "WHERE h.actual_count=h.source_count" in query
     prior = product.candidate_prior_read_body()
-    assert "s.generation_source_count=p_watermark" in prior
+    assert "v.source_count=p_watermark" in prior
+    assert "sync_fence.stats_primitive_sources s" in prior
+    assert "ORDER BY v.revision DESC LIMIT 1" in prior
     assert "s.source_count=p_watermark" not in prior
     assert "game_source_count bigint,generation_source_count bigint" in prior
     # 読取headは先頭S世代に左右されず、既tenant/game/gen JOINへ束縛される。
