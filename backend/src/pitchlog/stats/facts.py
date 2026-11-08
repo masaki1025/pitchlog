@@ -392,6 +392,46 @@ def _native_no_steal(payload, value, runner_scores):
                 and runner_scores is not None
                 and t1["outEffect"] == {"count": "0", "targets": []}
             )
+        if result == "batting-result.batted-out":
+            # 同じ真正V7と唯一T1出力が「走塁操作なし」を明示する場合だけ空集合。
+            # アウト/進塁の野球計算をここで再実装しない。
+            observed = payload["observations"]
+            chosen = request
+            source = payload["calculation"]["request"]["source"]
+            return (
+                payload["formatVersion"] == "play-prefix-play-v3"
+                and source["runners"] == []
+                and chosen["before"]["stateFields"]["state.runners"] == "empty"
+                and chosen["runnerAdvanceOverrides"] == "not-applied"
+                and observed["runnerAdvanceOverridesByRunner"]
+                == {"kind": "not-applied", "overrides": []}
+                and observed["resultId"] == result
+                and observed["officialScoringPayload"]
+                == {"kind": "no-error", "errorCount": "0", "fielders": []}
+                and observed["interferenceRuling"] == {"kind": "not-required"}
+                and chosen["officialScoringPayload"] == "no-error"
+                and chosen["interferenceRuling"] == "not-required"
+                and chosen["thirdOutObservation"]
+                == observed["thirdOutObservation"]["kind"]
+                and observed["thirdOutObservation"]
+                == (
+                    {
+                        "kind": "batter-before-first",
+                        "batter": {
+                            "kind": "official",
+                            "player_id": payload["participants"]["batterId"],
+                        },
+                    }
+                    if chosen["before"]["stateFields"]["state.outs"] == "2"
+                    else {"kind": "none"}
+                )
+                and observed["thirdOutTimingByRunner"] == {}
+                and value["runners"] == []
+                and runner_scores == []
+                and holds
+                and t1["batterDestination"] == {"kind": "out"}
+                and t1["outEffect"] == {"count": "1", "targets": ["batter"]}
+            )
         if result in (
             "batting-result.walk",
             "batting-result.hit-by-pitch",
