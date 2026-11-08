@@ -5,7 +5,7 @@ status: active
 重さ分類: コア領域
 branch: feature/mvp-p3-batted-followers-20261108
 created: 2026-11-08
-計画レビュー周回: 0
+計画レビュー周回: 1
 確定ゲート周回: 0
 ---
 
@@ -22,3 +22,5 @@ created: 2026-11-08
 | 3 | 影響回帰・型・最終固定packetをrootへ渡す | 純成功を実DB/P3認可/I6永続化/全操作完成へ拡張しない |
 
 Pythonへ野球計算を写さない。保存済み旧数学は現hostの全応答再生と一致した場合だけcarry。新出力はV7原観測と閉codec/current因果に一致する必要がある。旧artifactで不足観測を暗黙成功へ流さない。0db3でcurrent RBI入力未供給の得点走者caseは拒否を保ち、後発artifact/ABIの依存をpacketへ分ける。新意味は採用しない。
+
+採用記録: 計画HEAD `1d22c548` をCodex rootが全文確認し、PO委任の既MVP内最小追補として2026-11-08 19:19 JSTに採用。対象4通常球/置換ball-called維持、後続既4安打の唯一host再生・current RBI必須・未知I6閉拒否、既paged/同TX/CAS/二走/保存資格不変更が条件。本人確認/新意味/実PG成功/全P3成立の記録ではない。

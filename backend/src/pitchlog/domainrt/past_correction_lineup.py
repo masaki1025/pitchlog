@@ -16,6 +16,7 @@ from pydantic import BaseModel
 from pitchlog.domainrt.first_ball_projection import _canonical_json
 from pitchlog.domainrt.host import NodeDomainHost, open_domain_host
 from pitchlog.domainrt.lineup_play_prefix_continuation import (
+    BattedHitT1Input,
     LineupPrefixRequest,
     LineupPrefixSuccess,
     decode_lineup_prefix_request,
@@ -25,9 +26,28 @@ from pitchlog.domainrt.lineup_play_prefix_continuation import (
 )
 from pitchlog.sync.first_ball_payload import FirstBallObservations
 from pitchlog.sync.terminal_pitch_payload import (
+    BattedHitPlayObservations,
     LineupPitchCalculation,
     LineupPitchPlayPayload,
+    TerminalPitchPayloadError,
     read_lineup_pitch_payload,
+)
+
+_ORDINARY_RESULTS = frozenset(
+    {
+        "batting-result.ball",
+        "batting-result.called-pitch",
+        "batting-result.called-strikeout",
+        "batting-result.foul",
+    }
+)
+_HIT_RESULTS = frozenset(
+    {
+        "batting-result.single",
+        "batting-result.double",
+        "batting-result.triple",
+        "batting-result.home-run",
+    }
 )
 
 
@@ -88,6 +108,8 @@ def _bound_original(
     saved: SavedLineupPitch,
     previous: LineupPrefixSuccess | None,
     host: NodeDomainHost,
+    *,
+    allow_batted: bool = False,
 ) -> tuple[LineupPrefixRequest, LineupPrefixSuccess]:
     """保存済みresponseを現artifactで独立再生し、順序と参照を照合する。"""
     if (
@@ -102,10 +124,18 @@ def _bound_original(
         raise LineupCorrectionUnsupported("保存済みv3原本参照が不正")
     request = saved.calculation.request
     original = saved.calculation.response
+    batted = type(request.t1) is BattedHitT1Input
+    if batted and (
+        not allow_batted
+        or request.t1.result_id not in _HIT_RESULTS
+        or type(saved.payload) is not LineupPitchPlayPayload
+    ):
+        raise LineupCorrectionUnsupported("訂正対象または後続打球が未対応")
     if saved.payload is not None and (
         type(saved.payload) is not LineupPitchPlayPayload
         or saved.payload.calculation != saved.calculation
-        or type(saved.payload.observations) is not FirstBallObservations
+        or type(saved.payload.observations)
+        is not (BattedHitPlayObservations if batted else FirstBallObservations)
     ):
         raise LineupCorrectionUnsupported("保存済みv3 V7と計算原本が不一致")
     if (
@@ -114,15 +144,12 @@ def _bound_original(
         or request.source.position.d2 != str(saved.d2)
         or original.value.play_identity != request.play_identity
         or original.value.source_position != request.source.position
-        or request.t1.result_id
-        not in {
-            "batting-result.ball",
-            "batting-result.called-pitch",
-            "batting-result.called-strikeout",
-            "batting-result.foul",
-        }
+        or request.t1.result_id not in (_HIT_RESULTS if batted else _ORDINARY_RESULTS)
     ):
         raise LineupCorrectionUnsupported("保存済みv3原本と位置が不一致")
+    if batted:
+        assert saved.payload is not None
+        _read_payload(saved.payload, require_current_rbi=False)
     verify_lineup_wire_seal(request, original)
     if previous is not None:
         prior = previous.value
@@ -261,7 +288,7 @@ def _evaluate_page(
         if saved.d1 != state.last_d1 + offset or saved.d2 <= prior_d2:
             raise LineupCorrectionUnsupported("訂正v3原本のページ順序が不正")
         original_request, original_response = _bound_original(
-            saved, previous_original, host
+            saved, previous_original, host, allow_batted=saved.d1 != target_d1
         )
         previous_original = original_response
         prior_d2 = saved.d2
@@ -285,16 +312,18 @@ def _evaluate_page(
         if type(response) is not LineupPrefixSuccess:
             raise LineupCorrectionUnsupported("訂正後v3結果が未対応")
         request, response = seal_lineup_wire(request, response)
-        corrected.append(
-            CorrectedLineupPitch(
-                saved.source_event_id,
-                saved.d1,
-                saved.d2,
-                original_response,
-                request,
-                response,
-            )
+        frame = CorrectedLineupPitch(
+            saved.source_event_id,
+            saved.d1,
+            saved.d2,
+            original_response,
+            request,
+            response,
         )
+        if type(saved.calculation.request.t1) is BattedHitT1Input:
+            assert saved.payload is not None
+            _corrected_payload(saved, frame, saved.payload.observations)
+        corrected.append(frame)
         previous_corrected = response
     return (
         CorrectionPageState(
@@ -408,33 +437,82 @@ def build_corrected_lineup_payloads(
             if frame.d1 == target
             else saved.payload.observations
         )
-        if type(observations) is not FirstBallObservations:
-            raise LineupCorrectionUnsupported("訂正v3後続観測が未対応")
-        calculation = LineupPitchCalculation.model_validate_json(
+        result.append(_corrected_payload(saved, frame, observations))
+    return tuple(result)
+
+
+def _read_payload(
+    payload: LineupPitchPlayPayload, *, require_current_rbi: bool
+) -> LineupPitchPlayPayload:
+    """旧保存再生と新訂正の因果資格を同じ閉codecで区別する。"""
+    try:
+        return read_lineup_pitch_payload(
+            _canonical_json(_wire(payload)),
+            _canonical_json(
+                _wire(payload.calculation.response.value.new_history_entry.difference)
+            ),
+            expected_calculation=payload.calculation,
+            require_current_rbi=require_current_rbi,
+        )
+    except (ValueError, TerminalPitchPayloadError) as exc:
+        raise LineupCorrectionUnsupported("訂正v3の観測と計算の束縛が不成立") from exc
+
+
+def _corrected_payload(
+    saved: SavedLineupPitch,
+    frame: CorrectedLineupPitch,
+    observations: BaseModel,
+) -> LineupPitchPlayPayload:
+    """実再評価値へ原観測を結び、別走者への観測流用を拒否する。"""
+    batted = type(saved.calculation.request.t1) is BattedHitT1Input
+    if (
+        type(saved.payload) is not LineupPitchPlayPayload
+        or saved.payload.calculation != saved.calculation
+        or frame.source_event_id != saved.source_event_id
+        or frame.d1 != saved.d1
+        or frame.d2 != saved.d2
+        or frame.original != saved.calculation.response
+        or frame.corrected_request.source.participants
+        != saved.calculation.request.source.participants
+        or frame.corrected_request.source.lineup
+        != saved.calculation.request.source.lineup
+        or type(observations)
+        is not (BattedHitPlayObservations if batted else FirstBallObservations)
+        or (
+            batted
+            and (
+                saved.calculation.request.t1.result_id not in _HIT_RESULTS
+                or frame.corrected_request.t1.result_id
+                != saved.calculation.request.t1.result_id
+                or frame.corrected_request.source.runners
+                != saved.calculation.request.source.runners
+            )
+        )
+    ):
+        raise LineupCorrectionUnsupported("訂正v3保存観測の参加者・走者・原本が不一致")
+    calculation = LineupPitchCalculation.model_validate_json(
+        _canonical_json(
+            {
+                "formatVersion": "play-prefix-calculation-v3",
+                "artifactSha256": (
+                    frame.corrected_request.source.execution_artifact_sha256
+                ),
+                "request": _wire(frame.corrected_request),
+                "response": _wire(frame.corrected_response),
+            }
+        )
+    )
+    try:
+        payload = LineupPitchPlayPayload.model_validate_json(
             _canonical_json(
                 {
-                    "formatVersion": "play-prefix-calculation-v3",
-                    "artifactSha256": (
-                        frame.corrected_request.source.execution_artifact_sha256
-                    ),
-                    "request": _wire(frame.corrected_request),
-                    "response": _wire(frame.corrected_response),
+                    "formatVersion": "play-prefix-play-v3",
+                    "observations": _wire(observations),
+                    "participants": _wire(saved.payload.participants),
+                    "calculation": _wire(calculation),
                 }
             )
         )
-        payload = {
-            "formatVersion": "play-prefix-play-v3",
-            "observations": _wire(observations),
-            "participants": _wire(saved.payload.participants),
-            "calculation": _wire(calculation),
-        }
-        result.append(
-            read_lineup_pitch_payload(
-                _canonical_json(payload),
-                _canonical_json(
-                    _wire(frame.corrected_response.value.new_history_entry.difference)
-                ),
-                expected_calculation=calculation,
-            )
-        )
-    return tuple(result)
+    except ValueError as exc:
+        raise LineupCorrectionUnsupported("訂正v3後続観測が未対応") from exc
+    return _read_payload(payload, require_current_rbi=True)
