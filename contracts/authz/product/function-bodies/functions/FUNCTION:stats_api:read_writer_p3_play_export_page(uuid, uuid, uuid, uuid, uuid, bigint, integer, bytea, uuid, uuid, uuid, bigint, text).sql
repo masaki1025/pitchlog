@@ -12,6 +12,7 @@ RETURNS TABLE(fact_version_id uuid,
  source_count bigint,
  completion_state text,
  transaction_id text,
+ generation_source_count bigint,
  recording_generation bigint,
  d1 bigint,
  d2 bigint,
@@ -266,11 +267,12 @@ WHERE s.tenant_id=tenant AND s.game_id=p_game_id AND s.fact_version_id=(SELECT i
        c.slot_version,c.play_row_id,c.play_row_version)
     =(s.tenant_id,s.game_id,s.recording_generation,s.d1,s.source_event_id,
        s.slot_version,s.play_row_id,s.play_row_version)
- WHERE (after_generation IS NULL OR
+ WHERE s.recording_generation=generation AND (after_generation IS NULL OR
        (s.recording_generation,s.d1)>(after_generation,p_after_d1))
  ORDER BY s.recording_generation,s.d1 LIMIT p_page_size
 )
 SELECT v.id AS fact_version_id,v.revision,v.source_set_sha256,v.source_count,
+ (SELECT COUNT(*) FROM source_members g WHERE g.recording_generation=generation) AS generation_source_count,
  v.completion_state,pg_catalog.pg_current_snapshot()::text AS transaction_id,
  s.recording_generation,s.d1,s.d2,s.source_event_id,s.play_row_id,
  s.slot_version,s.play_row_version,s.base_event_id,s.source_fingerprint
@@ -281,6 +283,7 @@ ORDER BY s.recording_generation,s.d1
 )
 SELECT s.fact_version_id,s.revision,s.source_set_sha256,s.source_count,
  s.completion_state,CAST(own_xid AS text) AS transaction_id,
+ s.generation_source_count,
  s.recording_generation,s.d1,s.d2,s.source_event_id,s.play_row_id,
  s.slot_version,s.play_row_version,s.base_event_id,s.source_fingerprint,
  c.id AS capsule_id,c.source_set_digest AS capsule_source_set_digest,

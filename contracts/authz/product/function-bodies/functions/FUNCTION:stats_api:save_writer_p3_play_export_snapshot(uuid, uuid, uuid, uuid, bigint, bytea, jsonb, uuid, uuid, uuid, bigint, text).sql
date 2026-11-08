@@ -13,6 +13,8 @@ SET search_path=pg_catalog,pg_temp AS $p3_csv_save$
 DECLARE ctx record; own_xid text; change_id uuid; binding_device uuid;
  target bigint; expected_count integer; inserted_count integer;
  finished_json jsonb; full_json jsonb; references_json jsonb; field text;
+ display_label text; display_fielder text; display_ball_type text; display_plate text;
+ origin_json jsonb; expected_origin jsonb; expected_origin_text text;
  score_pitch bigint; score_top jsonb; score_bottom jsonb; score_full jsonb;
  tenant uuid; p_source_event_id uuid; p_fact_version_id uuid;
  p_source_set_sha256 text; p_revision bigint;
@@ -152,6 +154,119 @@ BEGIN
  IF ctx.d1<>ctx.target_d1 AND p_direct_json->'打撃結果'
  IS DISTINCT FROM ctx.original_csv_json->'打撃結果' THEN
  RAISE EXCEPTION 'P3 CSV follower reference changed' USING ERRCODE='42501'; END IF;
+  IF pg_catalog.jsonb_typeof(ctx.payload#>'{calculation,response,value,t1,plateAppearanceEnded}') IS DISTINCT FROM 'boolean'
+ OR pg_catalog.jsonb_typeof(ctx.payload#>'{calculation,response,value,t1,after,stateFields,state.gameEnded}') IS DISTINCT FROM 'boolean'
+ OR ctx.payload->>'formatVersion' IS DISTINCT FROM 'play-prefix-play-v3'
+ OR pg_catalog.jsonb_typeof(CASE
+    WHEN ctx.payload->>'formatVersion'='first-ball-play-v1' AND ctx.payload#>>'{calculation,formatVersion}'='first-ball-calculation-v1' AND ctx.payload#>>'{calculation,response,value,t2,kind}'='evaluated-no-end-condition' AND ctx.payload#>>'{calculation,response,value,t2,scope}' IS NULL THEN 'false'::jsonb
+    WHEN ctx.payload->>'formatVersion'='ordinary-pitch-play-v1' AND ctx.payload#>>'{calculation,formatVersion}'='ordinary-pitch-calculation-v1' AND ctx.payload#>>'{calculation,response,value,t2,kind}'='evaluated-no-end-condition' AND ctx.payload#>>'{calculation,response,value,t2,scope}'='ordinary37' THEN ctx.payload#>'{calculation,response,value,t2,basis,halfCompleted}'
+    WHEN ctx.payload->>'formatVersion'='play-prefix-play-v2' AND ctx.payload#>>'{calculation,formatVersion}'='play-prefix-calculation-v2' AND ctx.payload#>>'{calculation,response,value,t2,kind}'='evaluated-no-end-condition' AND ctx.payload#>>'{calculation,response,value,t2,scope}'='play-prefix-v2' THEN ctx.payload#>'{calculation,response,value,t2,basis,halfCompleted}'
+    WHEN ctx.payload->>'formatVersion'='play-prefix-play-v3' AND ctx.payload#>>'{calculation,formatVersion}'='play-prefix-calculation-v3' AND ctx.payload#>>'{calculation,response,value,t2,kind}'='evaluated-end-condition' AND ctx.payload#>>'{calculation,response,value,t2,scope}'='play-prefix-v3' THEN ctx.payload#>'{calculation,response,value,t2,facts,halfCompleted}'
+    WHEN ctx.payload->>'formatVersion'='play-prefix-play-v3' AND ctx.payload#>>'{calculation,formatVersion}'='nonplay-prefix-calculation-v1' AND ctx.payload#>>'{calculation,response,value,t2,kind}'='evaluated-end-condition' AND ctx.payload#>>'{calculation,response,value,t2,scope}'='play-prefix-v3' THEN ctx.payload#>'{calculation,response,value,t2,facts,halfCompleted}'
+    ELSE NULL END) IS DISTINCT FROM 'boolean' THEN
+ RAISE EXCEPTION 'P3 CSV state display source unavailable' USING ERRCODE='42501'; END IF;
+ IF pg_catalog.jsonb_typeof(ctx.payload#>'{calculation,request,t1,before,stateFields}') IS DISTINCT FROM 'object'
+ OR (ctx.payload#>>'{calculation,request,t1,before,stateFields,state.half}') IS NULL OR (ctx.payload#>>'{calculation,request,t1,before,stateFields,state.half}') NOT IN ('top','bottom')
+ OR pg_catalog.jsonb_typeof(ctx.payload#>'{calculation,request,t1,before,stateFields,state.score}') IS DISTINCT FROM 'object'
+ OR pg_catalog.jsonb_typeof(ctx.payload#>'{calculation,request,t1,before,battingOrderBySide}') IS DISTINCT FROM 'object'
+ OR (SELECT pg_catalog.array_agg(k ORDER BY k COLLATE "C") FROM pg_catalog.jsonb_object_keys(ctx.payload#>'{calculation,request,t1,before,stateFields,state.score}') k)
+ IS DISTINCT FROM ARRAY['away','home']::text[]
+ OR (SELECT pg_catalog.array_agg(k ORDER BY k COLLATE "C") FROM pg_catalog.jsonb_object_keys(ctx.payload#>'{calculation,request,t1,before,battingOrderBySide}') k)
+ IS DISTINCT FROM ARRAY['away','home']::text[] THEN
+ RAISE EXCEPTION 'P3 CSV before display source unavailable' USING ERRCODE='42501'; END IF;
+ IF pg_catalog.jsonb_typeof(ctx.payload#>'{calculation,request,t1,before,stateFields,state.inning}') IS DISTINCT FROM 'string' OR (ctx.payload#>>'{calculation,request,t1,before,stateFields,state.inning}') !~ '^(?:0|[1-9][0-9]*)\Z' THEN
+ RAISE EXCEPTION 'P3 CSV state display type unavailable' USING ERRCODE='42501'; END IF;
+ IF p_direct_json->'回' IS DISTINCT FROM pg_catalog.to_jsonb(ctx.payload#>>'{calculation,request,t1,before,stateFields,state.inning}') THEN
+ RAISE EXCEPTION 'P3 CSV saved state display mismatch' USING ERRCODE='42501'; END IF;
+ IF p_direct_json->'表.裏' IS DISTINCT FROM pg_catalog.to_jsonb(CASE WHEN (ctx.payload#>>'{calculation,request,t1,before,stateFields,state.half}'='top') THEN '表' ELSE '裏' END) THEN
+ RAISE EXCEPTION 'P3 CSV saved state display mismatch' USING ERRCODE='42501'; END IF;
+ IF pg_catalog.jsonb_typeof(ctx.payload#>'{calculation,request,t1,before,stateFields,state.score,away}') IS DISTINCT FROM 'string' OR (ctx.payload#>>'{calculation,request,t1,before,stateFields,state.score,away}') !~ '^(?:0|[1-9][0-9]*)\Z' THEN
+ RAISE EXCEPTION 'P3 CSV state display type unavailable' USING ERRCODE='42501'; END IF;
+ IF p_direct_json->'先攻得点' IS DISTINCT FROM pg_catalog.to_jsonb(ctx.payload#>>'{calculation,request,t1,before,stateFields,state.score,away}') THEN
+ RAISE EXCEPTION 'P3 CSV saved state display mismatch' USING ERRCODE='42501'; END IF;
+ IF pg_catalog.jsonb_typeof(ctx.payload#>'{calculation,request,t1,before,stateFields,state.score,home}') IS DISTINCT FROM 'string' OR (ctx.payload#>>'{calculation,request,t1,before,stateFields,state.score,home}') !~ '^(?:0|[1-9][0-9]*)\Z' THEN
+ RAISE EXCEPTION 'P3 CSV state display type unavailable' USING ERRCODE='42501'; END IF;
+ IF p_direct_json->'後攻得点' IS DISTINCT FROM pg_catalog.to_jsonb(ctx.payload#>>'{calculation,request,t1,before,stateFields,state.score,home}') THEN
+ RAISE EXCEPTION 'P3 CSV saved state display mismatch' USING ERRCODE='42501'; END IF;
+ IF pg_catalog.jsonb_typeof(ctx.payload#>'{calculation,request,t1,before,stateFields,state.count.strikes}') IS DISTINCT FROM 'string' OR (ctx.payload#>>'{calculation,request,t1,before,stateFields,state.count.strikes}') !~ '^(?:0|[1-9][0-9]*)\Z' THEN
+ RAISE EXCEPTION 'P3 CSV state display type unavailable' USING ERRCODE='42501'; END IF;
+ IF p_direct_json->'S' IS DISTINCT FROM pg_catalog.to_jsonb(ctx.payload#>>'{calculation,request,t1,before,stateFields,state.count.strikes}') THEN
+ RAISE EXCEPTION 'P3 CSV saved state display mismatch' USING ERRCODE='42501'; END IF;
+ IF pg_catalog.jsonb_typeof(ctx.payload#>'{calculation,request,t1,before,stateFields,state.count.balls}') IS DISTINCT FROM 'string' OR (ctx.payload#>>'{calculation,request,t1,before,stateFields,state.count.balls}') !~ '^(?:0|[1-9][0-9]*)\Z' THEN
+ RAISE EXCEPTION 'P3 CSV state display type unavailable' USING ERRCODE='42501'; END IF;
+ IF p_direct_json->'B' IS DISTINCT FROM pg_catalog.to_jsonb(ctx.payload#>>'{calculation,request,t1,before,stateFields,state.count.balls}') THEN
+ RAISE EXCEPTION 'P3 CSV saved state display mismatch' USING ERRCODE='42501'; END IF;
+ IF pg_catalog.jsonb_typeof(ctx.payload#>'{calculation,request,t1,before,stateFields,state.outs}') IS DISTINCT FROM 'string' OR (ctx.payload#>>'{calculation,request,t1,before,stateFields,state.outs}') !~ '^(?:0|[1-9][0-9]*)\Z' THEN
+ RAISE EXCEPTION 'P3 CSV state display type unavailable' USING ERRCODE='42501'; END IF;
+ IF p_direct_json->'アウト' IS DISTINCT FROM pg_catalog.to_jsonb(ctx.payload#>>'{calculation,request,t1,before,stateFields,state.outs}') THEN
+ RAISE EXCEPTION 'P3 CSV saved state display mismatch' USING ERRCODE='42501'; END IF;
+ IF p_direct_json->'打席の継続' IS DISTINCT FROM pg_catalog.to_jsonb(CASE WHEN (ctx.payload#>'{calculation,response,value,t1,plateAppearanceEnded}'='true'::jsonb) THEN '打席完了' ELSE '打席継続' END) THEN
+ RAISE EXCEPTION 'P3 CSV saved state display mismatch' USING ERRCODE='42501'; END IF;
+ IF p_direct_json->'イニング継続' IS DISTINCT FROM pg_catalog.to_jsonb(CASE WHEN (ctx.payload#>'{calculation,response,value,t1,after,stateFields,state.gameEnded}'='true'::jsonb) THEN '試合終了' ELSE CASE WHEN (CASE
+    WHEN ctx.payload->>'formatVersion'='first-ball-play-v1' AND ctx.payload#>>'{calculation,formatVersion}'='first-ball-calculation-v1' AND ctx.payload#>>'{calculation,response,value,t2,kind}'='evaluated-no-end-condition' AND ctx.payload#>>'{calculation,response,value,t2,scope}' IS NULL THEN 'false'::jsonb
+    WHEN ctx.payload->>'formatVersion'='ordinary-pitch-play-v1' AND ctx.payload#>>'{calculation,formatVersion}'='ordinary-pitch-calculation-v1' AND ctx.payload#>>'{calculation,response,value,t2,kind}'='evaluated-no-end-condition' AND ctx.payload#>>'{calculation,response,value,t2,scope}'='ordinary37' THEN ctx.payload#>'{calculation,response,value,t2,basis,halfCompleted}'
+    WHEN ctx.payload->>'formatVersion'='play-prefix-play-v2' AND ctx.payload#>>'{calculation,formatVersion}'='play-prefix-calculation-v2' AND ctx.payload#>>'{calculation,response,value,t2,kind}'='evaluated-no-end-condition' AND ctx.payload#>>'{calculation,response,value,t2,scope}'='play-prefix-v2' THEN ctx.payload#>'{calculation,response,value,t2,basis,halfCompleted}'
+    WHEN ctx.payload->>'formatVersion'='play-prefix-play-v3' AND ctx.payload#>>'{calculation,formatVersion}'='play-prefix-calculation-v3' AND ctx.payload#>>'{calculation,response,value,t2,kind}'='evaluated-end-condition' AND ctx.payload#>>'{calculation,response,value,t2,scope}'='play-prefix-v3' THEN ctx.payload#>'{calculation,response,value,t2,facts,halfCompleted}'
+    WHEN ctx.payload->>'formatVersion'='play-prefix-play-v3' AND ctx.payload#>>'{calculation,formatVersion}'='nonplay-prefix-calculation-v1' AND ctx.payload#>>'{calculation,response,value,t2,kind}'='evaluated-end-condition' AND ctx.payload#>>'{calculation,response,value,t2,scope}'='play-prefix-v3' THEN ctx.payload#>'{calculation,response,value,t2,facts,halfCompleted}'
+    ELSE NULL END='true'::jsonb) THEN 'イニング開始' ELSE 'イニング継続' END END) THEN
+ RAISE EXCEPTION 'P3 CSV saved state display mismatch' USING ERRCODE='42501'; END IF;
+ IF p_direct_json->'試合継続' IS DISTINCT FROM pg_catalog.to_jsonb(CASE WHEN (ctx.payload#>'{calculation,response,value,t1,after,stateFields,state.gameEnded}'='true'::jsonb) THEN '試合終了' ELSE '試合継続' END) THEN
+ RAISE EXCEPTION 'P3 CSV saved state display mismatch' USING ERRCODE='42501'; END IF;
+ IF pg_catalog.jsonb_typeof(ctx.payload#>'{calculation,request,t1,before,battingOrderBySide,away}') IS DISTINCT FROM 'string' OR (ctx.payload#>>'{calculation,request,t1,before,battingOrderBySide,away}') !~ '^(?:0|[1-9][0-9]*)\Z' THEN
+ RAISE EXCEPTION 'P3 CSV state display type unavailable' USING ERRCODE='42501'; END IF;
+ IF p_direct_json->'先攻打順' IS DISTINCT FROM pg_catalog.to_jsonb(ctx.payload#>>'{calculation,request,t1,before,battingOrderBySide,away}') THEN
+ RAISE EXCEPTION 'P3 CSV saved state display mismatch' USING ERRCODE='42501'; END IF;
+ IF pg_catalog.jsonb_typeof(ctx.payload#>'{calculation,request,t1,before,battingOrderBySide,home}') IS DISTINCT FROM 'string' OR (ctx.payload#>>'{calculation,request,t1,before,battingOrderBySide,home}') !~ '^(?:0|[1-9][0-9]*)\Z' THEN
+ RAISE EXCEPTION 'P3 CSV state display type unavailable' USING ERRCODE='42501'; END IF;
+ IF p_direct_json->'後攻打順' IS DISTINCT FROM pg_catalog.to_jsonb(ctx.payload#>>'{calculation,request,t1,before,battingOrderBySide,home}') THEN
+ RAISE EXCEPTION 'P3 CSV saved state display mismatch' USING ERRCODE='42501'; END IF;
+ display_label:=CASE WHEN ctx.d1=ctx.target_d1 THEN ctx.replacement_label
+ ELSE ctx.original_csv_json->>'打撃結果' END;
+ display_fielder:=ctx.play_row->>'raw_error_position';
+ display_ball_type:=ctx.original_csv_json->>'打球タイプ';
+ IF ctx.payload#>'{calculation,response,value,t1,plateAppearanceEnded}'='true'::jsonb THEN
+ IF display_label IS NULL OR display_label='' OR
+ (display_label IN ('併殺打','ライナー併殺','凡打死','凡打出塁') AND (display_fielder IS NULL
+ OR display_fielder !~ '^[1-9]$' OR (display_label<>'ライナー併殺' AND (display_ball_type IS NULL OR display_ball_type='')))) THEN
+ RAISE EXCEPTION 'P3 CSV plate display source unavailable' USING ERRCODE='42501'; END IF;
+ display_plate:=CASE display_label WHEN '見逃し三振' THEN '見三振' WHEN '空振り三振' THEN '空三振' WHEN '三振ゲッツー' THEN '三振併' WHEN '振り逃げ' THEN '振逃' WHEN 'ファールフライ' THEN '邪飛' WHEN '併殺打' THEN display_fielder || display_ball_type || '併' WHEN 'ライナー併殺' THEN display_fielder || 'ライナー併' WHEN '凡打死' THEN display_fielder || display_ball_type WHEN '凡打出塁' THEN display_fielder || display_ball_type ELSE display_label END;
+ ELSE display_plate:=NULL; END IF;
+ IF p_direct_json->'打席結果' IS DISTINCT FROM COALESCE(pg_catalog.to_jsonb(display_plate),'null'::jsonb)
+ OR p_direct_json->'Result_col' IS DISTINCT FROM COALESCE(pg_catalog.to_jsonb(display_plate),'null'::jsonb) THEN
+ RAISE EXCEPTION 'P3 CSV plate display mismatch' USING ERRCODE='42501'; END IF;
+
+ origin_json:=(ctx.original_csv_json->>'入力項目')::jsonb;
+ WHILE origin_json->>'formatVersion'='play-export-input-origin-p3-v1' LOOP
+ IF pg_catalog.jsonb_typeof(origin_json->'originalInputOrigin') IS DISTINCT FROM 'object' THEN
+ RAISE EXCEPTION 'P3 CSV old input origin unavailable' USING ERRCODE='42501'; END IF;
+ origin_json:=origin_json->'originalInputOrigin';
+ END LOOP;
+ IF origin_json->>'formatVersion' IS DISTINCT FROM 'play-export-input-origin-v1'
+ OR origin_json->>'operationKind' IS DISTINCT FROM 'play_input'
+ OR EXISTS(SELECT 1 FROM pg_catalog.jsonb_each(origin_json) v
+ WHERE pg_catalog.jsonb_typeof(v.value) IS DISTINCT FROM 'string')
+ OR ctx.payload->>'formatVersion' IS DISTINCT FROM 'play-prefix-play-v3'
+ OR ctx.payload#>>'{calculation,formatVersion}' IS DISTINCT FROM 'play-prefix-calculation-v3'
+ OR (ctx.payload#>>'{calculation,artifactSha256}') !~ '^[a-f0-9]{64}$'
+ OR ctx.payload#>>'{calculation,artifactSha256}' IS NULL THEN
+ RAISE EXCEPTION 'P3 CSV input origin source unavailable' USING ERRCODE='42501'; END IF;
+ expected_origin:=pg_catalog.jsonb_build_object(
+ 'formatVersion','play-export-input-origin-p3-v1',
+ 'operationKind',CASE WHEN ctx.d1=ctx.target_d1 THEN 'play_change' ELSE 'play_input' END,
+ 'projectionKind','p3-current','sourceFormat',ctx.payload->>'formatVersion',
+ 'calculationFormat',ctx.payload#>>'{calculation,formatVersion}',
+ 'calculationArtifactSha256',ctx.payload#>>'{calculation,artifactSha256}',
+ 'sourceEventId',ctx.source_event_id::text,'capsuleId',ctx.capsule_id::text,
+ 'itemDigest',ctx.item_digest,'originalInputOrigin',origin_json);
+ SELECT '{'||pg_catalog.string_agg(pg_catalog.to_jsonb(x.key)::text||':'||
+ CASE WHEN x.key='originalInputOrigin' THEN
+ (SELECT '{'||pg_catalog.string_agg(pg_catalog.to_jsonb(y.key)::text||':'||y.value::text,
+ ',' ORDER BY y.key COLLATE "C")||'}' FROM pg_catalog.jsonb_each(origin_json) y)
+ ELSE x.value::text END,',' ORDER BY x.key COLLATE "C")||'}'
+ INTO STRICT expected_origin_text FROM pg_catalog.jsonb_each(expected_origin) x;
+ IF p_direct_json->>'入力項目' IS DISTINCT FROM expected_origin_text THEN
+ RAISE EXCEPTION 'P3 CSV input origin mismatch' USING ERRCODE='42501'; END IF;
+
  p_source_event_id:=ctx.source_event_id; p_fact_version_id:=ctx.fact_version_id;
  p_source_set_sha256:=ctx.source_set_sha256; p_revision:=ctx.revision;
  SELECT s.pitcher_pitch_count,s.top_score,s.bottom_score,s.full_innings

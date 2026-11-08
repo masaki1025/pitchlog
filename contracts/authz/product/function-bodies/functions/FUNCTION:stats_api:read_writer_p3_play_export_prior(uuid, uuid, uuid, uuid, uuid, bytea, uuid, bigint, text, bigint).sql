@@ -7,7 +7,8 @@ CREATE FUNCTION stats_api.read_writer_p3_play_export_prior(
  p_checkpoint_revision bigint,p_checkpoint_digest text,p_watermark bigint)
 RETURNS TABLE(prior_capsule_id uuid,prior_native_version_id uuid,
  prior_checkpoint_id uuid,prior_checkpoint_revision bigint,
- prior_checkpoint_digest text,transaction_id text)
+ prior_checkpoint_digest text,transaction_id text,
+ game_source_count bigint,generation_source_count bigint)
 LANGUAGE plpgsql VOLATILE SECURITY DEFINER
 SET search_path=pg_catalog,pg_temp AS $p3_csv_prior$
 #variable_conflict use_column
@@ -193,11 +194,12 @@ WHERE s.tenant_id=tenant AND s.game_id=p_game_id AND s.fact_version_id=(SELECT i
        c.slot_version,c.play_row_id,c.play_row_version)
     =(s.tenant_id,s.game_id,s.recording_generation,s.d1,s.source_event_id,
        s.slot_version,s.play_row_id,s.play_row_version)
- WHERE (NULL::bigint IS NULL OR
+ WHERE s.recording_generation=generation AND (NULL::bigint IS NULL OR
        (s.recording_generation,s.d1)>(NULL::bigint,NULL::bigint))
  ORDER BY s.recording_generation,s.d1 LIMIT 1
 )
 SELECT v.id AS fact_version_id,v.revision,v.source_set_sha256,v.source_count,
+ (SELECT COUNT(*) FROM source_members g WHERE g.recording_generation=generation) AS generation_source_count,
  v.completion_state,pg_catalog.pg_current_snapshot()::text AS transaction_id,
  s.recording_generation,s.d1,s.d2,s.source_event_id,s.play_row_id,
  s.slot_version,s.play_row_version,s.base_event_id,s.source_fingerprint
@@ -205,14 +207,15 @@ FROM version_scope v JOIN member_health h ON h.id=v.id
 LEFT JOIN bounded_members s ON true
 WHERE h.actual_count=h.source_count
 ORDER BY s.recording_generation,s.d1)
- SELECT h.capsule_id,s.fact_version_id,cp.id,cp.revision,cp.content_digest,own_xid
+ SELECT h.capsule_id,s.fact_version_id,cp.id,cp.revision,cp.content_digest,own_xid,
+ s.source_count,s.generation_source_count
  FROM actual_source s
  JOIN sync_fence.ordinary_pitch_checkpoints cp
  ON (cp.tenant_id,cp.game_id,cp.id,cp.revision,cp.content_digest)
  =(tenant,p_game_id,p_checkpoint_id,p_checkpoint_revision,p_checkpoint_digest)
  LEFT JOIN sync_fence.p3_projection_heads h
  ON (h.tenant_id,h.game_id,h.internal_generation)=(tenant,p_game_id,generation)
- WHERE s.source_count=p_watermark;
+ WHERE s.generation_source_count=p_watermark;
  PERFORM sync_fence_api.assert_writer_binding(tenant,p_attempt_id,p_phase_id,
  p_binding_nonce,binding_device,p_game_id);
 END;

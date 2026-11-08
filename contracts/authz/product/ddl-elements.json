@@ -8632,7 +8632,7 @@
       "function_kind": "definer",
       "owner_role_id": "pitchlog_sync_right_fn_owner",
       "language": "plpgsql",
-      "returns": "TABLE(prior_capsule_id uuid, prior_native_version_id uuid, prior_checkpoint_id uuid, prior_checkpoint_revision bigint, prior_checkpoint_digest text, transaction_id text)",
+      "returns": "TABLE(prior_capsule_id uuid, prior_native_version_id uuid, prior_checkpoint_id uuid, prior_checkpoint_revision bigint, prior_checkpoint_digest text, transaction_id text, game_source_count bigint, generation_source_count bigint)",
       "security_mode": "definer",
       "volatility": "volatile",
       "search_path": [
@@ -8687,7 +8687,7 @@
       "function_kind": "definer",
       "owner_role_id": "pitchlog_sync_right_fn_owner",
       "language": "plpgsql",
-      "returns": "TABLE(fact_version_id uuid, revision bigint, source_set_sha256 text, source_count bigint, completion_state text, transaction_id text, recording_generation bigint, d1 bigint, d2 bigint, source_event_id uuid, play_row_id uuid, slot_version bigint, play_row_version bigint, base_event_id uuid, source_fingerprint text, capsule_id uuid, capsule_source_set_digest text, capsule_stats_version_id uuid, target_d1 bigint, watermark bigint, item_digest text, original_play_row_id uuid, original_event_id uuid, state text, original_payload jsonb, original_history_entry jsonb, original_play_row jsonb, original_play_runners jsonb, payload jsonb, history_entry jsonb, play_row jsonb, play_runners jsonb, original_csv_json jsonb, original_snapshot_play_version bigint, original_snapshot_source_event_id uuid, original_snapshot_generation bigint, original_snapshot_sequence bigint, replacement_key text, replacement_label text, reference_captured_at timestamp with time zone, reference_id uuid)",
+      "returns": "TABLE(fact_version_id uuid, revision bigint, source_set_sha256 text, source_count bigint, completion_state text, transaction_id text, generation_source_count bigint, recording_generation bigint, d1 bigint, d2 bigint, source_event_id uuid, play_row_id uuid, slot_version bigint, play_row_version bigint, base_event_id uuid, source_fingerprint text, capsule_id uuid, capsule_source_set_digest text, capsule_stats_version_id uuid, target_d1 bigint, watermark bigint, item_digest text, original_play_row_id uuid, original_event_id uuid, state text, original_payload jsonb, original_history_entry jsonb, original_play_row jsonb, original_play_runners jsonb, payload jsonb, history_entry jsonb, play_row jsonb, play_runners jsonb, original_csv_json jsonb, original_snapshot_play_version bigint, original_snapshot_source_event_id uuid, original_snapshot_generation bigint, original_snapshot_sequence bigint, replacement_key text, replacement_label text, reference_captured_at timestamp with time zone, reference_id uuid)",
       "security_mode": "definer",
       "volatility": "volatile",
       "search_path": [
@@ -16666,8 +16666,8 @@
       "column_id": "tenant_id",
       "grantee_role_id": "pitchlog_sync_right_fn_owner",
       "privilege_ids": [
-        "INSERT",
-        "SELECT"
+        "SELECT",
+        "INSERT"
       ],
       "grant_option": false
     },
@@ -16679,8 +16679,8 @@
       "column_id": "game_id",
       "grantee_role_id": "pitchlog_sync_right_fn_owner",
       "privilege_ids": [
-        "INSERT",
-        "SELECT"
+        "SELECT",
+        "INSERT"
       ],
       "grant_option": false
     },
@@ -16692,8 +16692,8 @@
       "column_id": "play_row_id",
       "grantee_role_id": "pitchlog_sync_right_fn_owner",
       "privilege_ids": [
-        "INSERT",
-        "SELECT"
+        "SELECT",
+        "INSERT"
       ],
       "grant_option": false
     },
@@ -16705,8 +16705,8 @@
       "column_id": "plays_csv_json",
       "grantee_role_id": "pitchlog_sync_right_fn_owner",
       "privilege_ids": [
-        "INSERT",
-        "SELECT"
+        "SELECT",
+        "INSERT"
       ],
       "grant_option": false
     },
@@ -16718,8 +16718,8 @@
       "column_id": "full_innings_json",
       "grantee_role_id": "pitchlog_sync_right_fn_owner",
       "privilege_ids": [
-        "INSERT",
-        "SELECT"
+        "SELECT",
+        "INSERT"
       ],
       "grant_option": false
     },
@@ -16731,8 +16731,8 @@
       "column_id": "source_event_id",
       "grantee_role_id": "pitchlog_sync_right_fn_owner",
       "privilege_ids": [
-        "INSERT",
-        "SELECT"
+        "SELECT",
+        "INSERT"
       ],
       "grant_option": false
     },
@@ -16744,8 +16744,8 @@
       "column_id": "play_version",
       "grantee_role_id": "pitchlog_sync_right_fn_owner",
       "privilege_ids": [
-        "INSERT",
-        "SELECT"
+        "SELECT",
+        "INSERT"
       ],
       "grant_option": false
     },
@@ -16757,8 +16757,8 @@
       "column_id": "recording_generation",
       "grantee_role_id": "pitchlog_sync_right_fn_owner",
       "privilege_ids": [
-        "INSERT",
-        "SELECT"
+        "SELECT",
+        "INSERT"
       ],
       "grant_option": false
     },
@@ -16770,8 +16770,8 @@
       "column_id": "event_sequence",
       "grantee_role_id": "pitchlog_sync_right_fn_owner",
       "privilege_ids": [
-        "INSERT",
-        "SELECT"
+        "SELECT",
+        "INSERT"
       ],
       "grant_option": false
     },
