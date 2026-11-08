@@ -148,6 +148,7 @@ export function interferenceRule(
   const ruling = input.interferenceRuling
   let placements: Array<unknown> = []
   let outTargets: Array<unknown> = []
+  let immediateAward = false
   if (input.resultId === 'secondary-result.obstruction') {
     const observed = closed(ruling, [
       'kind', 'play_kind', 'obstructed', 'awarded_destinations', 'out_targets', 'batter_before_first',
@@ -166,7 +167,9 @@ export function interferenceRule(
     placements = observed.awarded_destinations
     outTargets = observed.out_targets
     rule.interferenceScoring = 'obstruction-award'
-    if (observed.play_kind === 'play-on-obstructed-runner') {
+    immediateAward =
+      observed.play_kind === 'play-on-obstructed-runner' || observed.batter_before_first === true
+    if (immediateAward) {
       for (const target of outTargets)
         if (boundPerson(target, input.batterId, live) === obstructed) return null
     }
@@ -250,11 +253,10 @@ export function interferenceRule(
     if (
       obstructed === null ||
       (!placed.includes(obstructed) &&
-        !(observed.play_kind === 'no-play-on-obstructed-runner' &&
-          targets.includes(obstructed)))
+        !(!immediateAward && targets.includes(obstructed)))
     ) return null
     if (
-      observed.play_kind === 'play-on-obstructed-runner' &&
+      immediateAward &&
       obstructed !== 'batter' &&
       (explicitBase(rule, obstructed) === null ||
         (explicitBase(rule, obstructed) as bigint) <= BigInt(obstructed))

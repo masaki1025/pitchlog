@@ -70,6 +70,27 @@ it('走塁妨害は対象・授与塁・一塁前を選ぶまで保留する', a
   })
 })
 
+it('一塁前の打者走者はno-play表記でも授与を要しアウトを送らない', async () => {
+  const w = mount(GameScreenInterferenceObservation, {
+    props: { ...props, resultId: 'secondary-result.obstruction' },
+  })
+  await w.get('[data-testid="interference-confirm"]').setValue(true)
+  await w.get('[data-testid="obstruction-play-kind"]').setValue('no-play-on-obstructed-runner')
+  await w.get('[data-testid="obstruction-person"]').setValue('batter')
+  await w.get('[data-testid="obstruction-before-first"]').setValue('yes')
+  await w.get('[data-testid="obstruction-award-batter"]').setValue('first')
+  await w.get('[data-testid="obstruction-award-1"]').setValue('second')
+  expect(w.emitted('change')?.at(-1)?.[0]).toMatchObject({
+    interferenceRuling: { out_targets: [], batter_before_first: true },
+  })
+  await w.get('[data-testid="obstruction-award-1"]').setValue('none')
+  await w.get('[data-testid="obstruction-out-1"]').setValue(true)
+  expect(w.emitted('change')?.at(-1)).toEqual([null])
+  await w.get('[data-testid="obstruction-out-1"]').setValue(false)
+  await w.get('[data-testid="obstruction-award-batter"]').setValue('none')
+  expect(w.emitted('change')?.at(-1)).toEqual([null])
+})
+
 it('守備妨害は非空アウトと他走者の明示帰塁先を要する', async () => {
   const w = mount(GameScreenInterferenceObservation, {
     props: { ...props, resultId: 'secondary-result.offensive-interference' },

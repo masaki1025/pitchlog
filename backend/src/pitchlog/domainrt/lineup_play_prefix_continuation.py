@@ -768,6 +768,15 @@ class LineupPrefixRequest(_LineupWire):
         ruling = self.t1.interference_ruling
         persons: list[InterferencePerson] = []
         if type(ruling) is _ObstructionRuling:
+            if (
+                type(ruling.obstructed) is _InterferenceBatterRef
+                and ruling.batter_before_first is True
+            ):
+                if ruling.obstructed in ruling.out_targets or not any(
+                    row.person == ruling.obstructed
+                    for row in ruling.awarded_destinations
+                ):
+                    raise ValueError("一塁前の走塁妨害裁定に打者授与がありません")
             persons.append(ruling.obstructed)
             persons.extend(row.person for row in ruling.awarded_destinations)
             persons.extend(ruling.out_targets)

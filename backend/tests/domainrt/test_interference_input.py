@@ -76,6 +76,35 @@ def test_obstruction_person_is_bound_to_actual_batter():
             decode_lineup_prefix_request(json.dumps(bad))
 
 
+def test_before_first_obstruction_requires_actual_award_even_if_no_play():
+    """一塁前の打者走者はno-play表記でもINT-04の授与を要する。"""
+    wire = copy.deepcopy(BASE)
+    ref = _batter_ref(wire["source"]["participants"]["batterId"])
+    wire["t1"] = {
+        "eventKind": "secondary-result",
+        "resultId": "secondary-result.obstruction",
+        "pitchEventKind": "pitch-event",
+        "before": wire["t1"]["before"],
+        "interferenceRuling": {
+            "kind": "obstruction",
+            "play_kind": "no-play-on-obstructed-runner",
+            "obstructed": ref,
+            "awarded_destinations": [{"person": ref, "destination": "first"}],
+            "out_targets": [],
+            "batter_before_first": True,
+        },
+    }
+    assert type(decode_lineup_prefix_request(json.dumps(wire)).t1) is (
+        AdjudicatedInterferenceT1Input
+    )
+    for out_targets in ([ref], []):
+        bad = copy.deepcopy(wire)
+        bad["t1"]["interferenceRuling"]["awarded_destinations"] = []
+        bad["t1"]["interferenceRuling"]["out_targets"] = out_targets
+        with pytest.raises(LineupPrefixProtocolError):
+            decode_lineup_prefix_request(json.dumps(bad))
+
+
 def test_offensive_kind_and_out_target_are_closed():
     """守備妨害は非空アウト対象を要求し、走塁妨害へ読み替えない。"""
     wire = copy.deepcopy(BASE)

@@ -23,6 +23,12 @@ created: 2026-11-08
 - 開始投手の現行実行pin: `contracts/authz/product/function-bodies/functions/FUNCTION:initial_right_api:persist_start_pitcher_entry(uuid, uuid, bigint).sql` と対応純対向 `backend/tests/test_batted_operations_product_bodies.py`。既 `stats_appearance.candidate_start_entry_function()` の唯一生成本文を使用し、旧3pin以外の本文、署名、owner、ACLは不変。既79 selected/canonical全値一致をDB前に検査する。正式authz資産の受理値生成はrootへ渡す。
 - 本計画とcache内の導出script・差分/全値証拠。追加pathが不可避なら本計画へ先に追記してrootに伝える。共有main、他WT、台帳、DBは不変更。
 
+## INT-04反例の是正範囲（root委任追補）
+
+旧候補0e26に対し、妨害された実打者走者が一塁到達前であるのに `play_kind=no-play-on-obstructed-runner` とした入力から打者アウトを返す反例が見つかった。正本INT-04の「または打者走者が一塁到達前」を唯一核へ適用し、裁定アウトと実授与欠落を閉拒否する。追加編集は `frontend/src/domain/interference.ts`、同 `interference.spec.ts`、`frontend/src/screens/GameScreenInterferenceObservation.vue` と同spec、`backend/src/pitchlog/domainrt/lineup_play_prefix_continuation.py`、`backend/tests/domainrt/test_interference_input.py`、`backend/tests/test_interference_payload_boundary.py`。二重の得点/野球計算は増やさず、BEは同一裁定の閉形・ID検証、画面は確認前の矛盾排除に限る。
+
+是正後は本計画のartifact2・manifest7・v6資産2・現行metadata10・開始投手SQL1と対応testを新固定SHAへ一括再導出する。未採用0e26を許可priorへ追加しない。旧71fの53数学/10runtime/過去原本は保持する。元1e15/0e26の候補履歴を成功版へ読み替えない。
+
 | # | 作業 | 完了条件 |
 | --- | --- | --- |
 | 1 | 旧71fと新0e26の実hostからv6有限53証拠を導出 | 旧v5原本/旧raw全hash不変、4自己識別値以外の全値一致、有限pair/unknown拒否を対向化 |

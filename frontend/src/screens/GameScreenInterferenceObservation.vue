@@ -104,7 +104,8 @@ const observation = computed<InterferenceConfirmation | null>(() => {
       return actual && outs.value[item.key] ? [actual] : []
     })
     if (
-      (playKind.value === 'play-on-obstructed-runner' && outTargets.length) ||
+      ((playKind.value === 'play-on-obstructed-runner' ||
+        (obstructedKey.value === 'batter' && beforeFirst.value === 'yes')) && outTargets.length) ||
       persons.value.some(
         (item) => outs.value[item.key] && awards.value[item.key] !== 'none',
       ) ||
@@ -232,7 +233,7 @@ watch(
           </select>
         </label>
         <label v-if="playKind === 'no-play-on-obstructed-runner'" class="block"
-          ><input v-model="outs[item.key]" type="checkbox" />
+          ><input v-model="outs[item.key]" type="checkbox" :data-testid="`obstruction-out-${item.key}`" />
           {{ item.label }}を最終裁定でアウト
         </label>
       </div>

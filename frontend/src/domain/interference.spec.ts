@@ -475,6 +475,36 @@ describe('INT-04〜07 の実参照つき裁定', () => {
     })
     expect(result.statFlags.走塁妨害出塁).toBe(false)
   })
+  it('INT-04はno-play表記でも一塁前の打者への実授与を要求しアウトを拒否する', () => {
+    const ruling = {
+      kind: 'obstruction',
+      play_kind: 'no-play-on-obstructed-runner',
+      obstructed: batterRef,
+      awarded_destinations: [
+        { person: batterRef, destination: 'first' },
+        { person: firstRef, destination: 'second' },
+        { person: thirdRef, destination: 'third' },
+      ],
+      out_targets: [],
+      batter_before_first: true,
+    }
+    const input = interference('secondary-result.obstruction', ruling)
+    const accepted = deriveInterference(before('first-third'), board, input, cursors)!
+    expect(accepted.outEffect.count).toBe(0n)
+    expect(accepted.batterDestination).toEqual({ kind: 'reach', base: 1n })
+    expect(accepted.after.stateFields.outs).toBe(0n)
+    const withoutBatterAward = ruling.awarded_destinations.slice(1)
+    for (const outTargets of [[batterRef], []]) {
+      expect(deriveInterference(before('first-third'), board, {
+        ...input,
+        interferenceRuling: {
+          ...ruling,
+          awarded_destinations: withoutBatterAward,
+          out_targets: outTargets,
+        },
+      }, cursors)).toBeNull()
+    }
+  })
 })
 
 it('v3継続は打撃妨害の真正sourceを独立T1入口へ渡す', () => {
@@ -523,4 +553,23 @@ it('v3継続は走塁妨害の打者実IDをsourceから束縛する', () => {
   expect(result.ok).toBe(true)
   expect(result.value?.t1.statFlags.走塁妨害出塁).toBe(true)
   expect(result.value?.runnerScoreEffects).toEqual([])
+  const original = request.t1.interferenceRuling as Record<string, unknown>
+  request.t1.interferenceRuling = {
+    ...original,
+    play_kind: 'no-play-on-obstructed-runner',
+    awarded_destinations: [],
+    out_targets: [original.obstructed],
+  }
+  expect(JSON.parse(
+    domainOperations.deriveLineupPlayPrefixWithContinuation(JSON.stringify(request)),
+  )).toMatchObject({ ok: false })
+  request.t1.interferenceRuling = {
+    ...original,
+    play_kind: 'no-play-on-obstructed-runner',
+    awarded_destinations: [{ person: original.obstructed, destination: 'first' }],
+    out_targets: [],
+  }
+  expect(JSON.parse(
+    domainOperations.deriveLineupPlayPrefixWithContinuation(JSON.stringify(request)),
+  )).toMatchObject({ ok: true })
 })
