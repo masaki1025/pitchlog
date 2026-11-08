@@ -1,5 +1,13 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 2026-11-09 00:42 JST：26件保存・訂正対象取得を通過、訂正送信と妨害SQLを切り分け
+
+- **今回の実操作増分**: GC修復後の26件保存・再取得は成功。API/耐久storeが記録番号を25までに誤制限していた3箇所を0a233123へ修復（頁25件は保持、64純/型lint成功）。同HEAD run2は26件保存→target GET200/target-ready→真正耐久要求のP3 POSTまで通過したが、POST503で483.54秒失敗。実DB play26・binding27全closed、authority/controller失敗0。訂正後追加・終了成績CSVは未到達。原ログに公開SQLSTATEが無く、閉503分岐とfailure-only観測を次に確認し、同一条件の26反復は行わない。
+- **GC寿命の実対向**: e828bdf9の実UID20003/真正loan/owned PGで新規作成→開始→1球保存→GETを1passed74.20秒。release直前3回GC/3実scopeでもSession/Engine喪失0。これは実ASGI経路でありブラウザではない。旧23球EOFの根因を断定しない。REPORT b7d1f9ad6ddce93551f7c709b88f64d8fbd2989f4705ff30064c3abe4ce3a8c2、manifest883e36b3b8a8a5b1ebd92a32e74613e9a7d5f476ef488c1e0b42d10a438d79fe。
+- **妨害の新障害/是正**: main1f08dad1（唯一859/prepare d68）で新規作成・開始成功後、最初の妨害保存がSQLSTATE42703で停止。外側3文脈へ内側m/rを流用した生成不備を限定修復bc08/50bd、内側3は不変更、全targetを原走者・物理行・裁定へ結ぶ新prepare2d432ad0。PGの全6文脈EXPLAIN前置をGame担当が単独実行中。canonicalはまだ旧d68、保存成功ではない。準備失敗2回・実保存失敗も保持。
+- **CSV接合**: writer候補9710のpublic handle.session誤用をrootが指摘、作者は92eeb229で既private WriterScopeの実captureへ限定修復（実型handle・別runtime拒否20純）。root別WT feature/mvp-p3-csv-shared-20261109@e54c8c41で17列append-only型元/0050 default-deny移行を追加、既0049回帰を含む9純/Ruff成功。startup/正式ACL未変更・main未接合。reader全D1原本/正式ACL/同TX hookと実訂正後CSVが残る。
+- **固定点と次**: 統合候補main1f08dad1、P3修復0a233123は別固定点。3試合同時閲覧のdriver81b7は非作者再確認済みだが実負荷未実施。GC→P3/INT→CSVをPG所有一本で進める。正式資産・CI・通常PR統合/全操作/TB/断復旧・担当交代/実機・運用復旧を含むMVPは未完。02:00に実操作増分・未達・残依存を評価する。
+
 ## 2026-11-08 23:43 JST：長履歴の停止を保存資源寿命へ切分け、妨害を同版へ接合
 
 - **実測の増分と未到達**: 59play/九回終了/同終了版27項目・成績2CSV・88列ZIP成功は前節のfixed0b699/製品6c52で保持。次fixed4b1c6479/同製品6c52の26件P3画面は23play保存後、24件目alias前503で452.63秒失敗。実RRはplay/event/slot/accepted台帳/closed binding各23、current_open source23、LC0/P3capsule0。訂正には未到達。REPORT9d591f8551543b830f5528ea04a3ea4c68ac47951fba2199934a874aa351d2be、manifest2cc8caf1574ceda88dd1906cbc0659b573d3ca5cc8cbc60836922b656c690d49。authority fresh_controller EOFは最初のserver側観測であって、対向RG1の先行closeがあり得るため根因と断定しない。同条件の26全再走は保留しcleanup/lockfreeを確認。
