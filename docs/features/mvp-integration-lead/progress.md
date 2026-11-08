@@ -1,5 +1,16 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 2026-11-09 01:58 JST：PO指定で02:00より前に評価
+
+**評価**: 実装・接続をまとめてから直接保証を検査する方針は継続が妥当。正式資産/CI待ちの反復を避けて実保存の欠落を発見できたが、MVP完成・全操作1試合の到達とは評価しない。今回の主要停止はハーネス待ちでなく、実経路の未接続/権限不足/接続不安定。短縮率・完成日を根拠なく算出しない。
+
+- **実証保持/新操作**: 既59play/九回/同終了版27成績・成績2CSV/88列ZIPの成功（6c52製品/0b699試験）は保持。26記録の実保存→target26取得は0aで成功、訂正POSTは503。妨害INT02はd474で実画面POST200/受理、DB play1/accepted1まで新たに到達したが続くGET503。これらを同一最終版のMVP完成へ合算しない。
+- **妨害読取の接合**: 実GET1request→503をfb0閉観測で確認。course extractorの新INT実型3種とBE/FE有限DTOの欠落を3bbで接合、root非作者source静読/BE10・FE11成功。main `97a64973` clean/push済み。完全同HEAD再走はcreate以前のRG1 business接続Timeoutで停止し妨害入力0、読取の実解消は未確認（r5 REPORT9750a7cd272b7a0cb993eb386263528e52c07e94eb65f253f8ca2114b8f3b36c）。開始通知がcompleted担当を再起動していないroot調整漏れで数分遅れた点も保持、followup_taskで実再開した。
+- **P3保存の具体障害**: 正常0049/実API2球の短診断を入力語彙fixture修復後に実施し、P3 POST42501をpersist_p3_projectionのbody214 `INSERT INTO play_rows ... .*`へ特定。直前original_eval全値guardを通過し、今回D03不足説は否定。fnownerは全41列SELECTのみ/INSERT0、INSERTpolicyも無し。有限37列/保護4列無GRANT・入力厳密clean/既stamp・tenant/session RLSを守る計画9ad40e65（SHA1dc5da69）をPO委任root判断で承認し実装中。権限の全面拡張や条件除外はしない。短caseのHTTP200+prefix長だけは受理/変更の証明にならないとrootが指摘し、既ACK/confirmation/capsule/実変更との照合を後発の必須条件にした。実P3保存成功は未成立。
+- **CSV基盤の実証と留保**: shared8316/d5eの正常0050/22表/84関数catalog/同版再開は実PG1passed28.43秒（REPORTa57b3601）。bdbの実fnownerへ降格したreadonly RR/3query EXPLAIN・列ACL・更新権限無しは1passed26.03秒（REPORTafdd2ab2e8c652ffe5c7a351ee68886604bb464ceceadddd136a572ac89e67b2）。これは実app writer/P3後ZIPではない。別非作者が(1)全世代Sと当該世代水位/単一headの混同 (2)自由direct JSONの動的列を保存itemへ全照合しない、のP1を検出。統合は保留し作者が後発修復中。新たなSQL射影は既before/T2/表示モデルの原典を使い、別T1計算や自由digest自己証明を追加しない。
+- **接続可用性と負荷**: 最新create失敗はfresh_controllerのbusiness Unix socket/peer接続（既2秒budget）でConnectionTimeout→unconfirmed。TCP adminの後続監査成功は同Unix接続の健全性を証明しない。reader差分でadapter/configは不変更、43,123msはworker相対時刻で接続43秒ではない。故障時有限メタデータの追加観測を準備、期限は緩めない。3game/33Cookie到達後のviewer初期確認中5秒で止まった負荷はwave未到達で未合格。正式CI/通常PR統合/全操作/TB/通信断・交代/実機・運用復旧も未了。
+- **次の優先**: RG1 Unix接続の原因を絞り可用性を回復、P3有限INSERTを正式helperで接合→実受理/変更/再取得/全取消、妨害readerを同版で再実証、P1修復CSVを同じ終了版へ接続。型/表示/原本は一括接合で進め、未成立の安全条件は維持。TB-P1〜P3はPO回答待ちのまま、独立作業を継続。Goalはactive/MVP未完、評価だけを停止/完成の根拠にしない。
+
 ## 2026-11-09 01:13 JST：妨害初球が実保存、訂正CSVの共有0050候補を固定
 
 - **利用者操作の実増分**: INT修復main `d4746956`（shadow a6e37dc4はtest-only fixture import1行）で新規画面作成・開始→妨害INT02のPOST200/受理、実DB play1/accepted1。SQL外側alias42703とCSV副結果表示不足503を越えた。次GETの30秒待機が失敗し、再取得/reload/全7INTは未達。listenerはclick前設置済みで単純な登録後競合ではない。GET未送出/非200/閉DTO不一致を有限ネットワーク観測で次に分離する。source前後不変/owned cleanup/lockfree。
