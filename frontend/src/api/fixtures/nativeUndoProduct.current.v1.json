@@ -27,13 +27,13 @@
         },
         "calculation": {
           "formatVersion": "nonplay-prefix-calculation-v1",
-          "artifactSha256": "0e260cd916e4cd4da189132a52adb3e065f261d477bc65f5352bb121e8b45f15",
+          "artifactSha256": "859986408d75994d6f1530ce99c0331da1644da9d5ae6339bb479e3926ee7f2e",
           "request": {
             "version": "nonplay-continuation-v1",
             "prefixRef": {
               "id": "00000000-0000-4000-8000-000000000004",
               "revision": "13",
-              "digest": "2554f43122c47480ce49909c0697c492eb560f32135b2e06f2e93223b53f4451"
+              "digest": "b5083145bf6bbda49701087e12938ba4b1f52f7aac9b21d37c54e588bbf52c6d"
             },
             "rules": {
               "regulationInnings": "9",
@@ -85,7 +85,7 @@
                 "ref": {
                   "id": "00000000-0000-4000-8000-000000000004",
                   "revision": "13",
-                  "digest": "2554f43122c47480ce49909c0697c492eb560f32135b2e06f2e93223b53f4451"
+                  "digest": "b5083145bf6bbda49701087e12938ba4b1f52f7aac9b21d37c54e588bbf52c6d"
                 },
                 "content": {
                   "scope": {
@@ -140,7 +140,7 @@
                   "historyVersion": "42",
                   "storageHistoryEpoch": "7",
                   "nextPhysicalPlayNumber": "3",
-                  "executionArtifactSha256": "0e260cd916e4cd4da189132a52adb3e065f261d477bc65f5352bb121e8b45f15",
+                  "executionArtifactSha256": "859986408d75994d6f1530ce99c0331da1644da9d5ae6339bb479e3926ee7f2e",
                   "restored": {
                     "current": {
                       "stateFields": {
@@ -1002,7 +1002,7 @@
               "previousPrefixRef": {
                 "id": "00000000-0000-4000-8000-000000000004",
                 "revision": "13",
-                "digest": "2554f43122c47480ce49909c0697c492eb560f32135b2e06f2e93223b53f4451"
+                "digest": "b5083145bf6bbda49701087e12938ba4b1f52f7aac9b21d37c54e588bbf52c6d"
               },
               "nextPrefixRef": {
                 "id": "00000000-0000-4000-8000-0000000008a4",
@@ -1087,7 +1087,7 @@
                 "d2": "3072",
                 "appliedWatermark": "2"
               },
-              "executionArtifactSha256": "0e260cd916e4cd4da189132a52adb3e065f261d477bc65f5352bb121e8b45f15"
+              "executionArtifactSha256": "859986408d75994d6f1530ce99c0331da1644da9d5ae6339bb479e3926ee7f2e"
             }
           }
         }
@@ -1154,13 +1154,13 @@
         },
         "calculation": {
           "formatVersion": "nonplay-prefix-calculation-v1",
-          "artifactSha256": "0e260cd916e4cd4da189132a52adb3e065f261d477bc65f5352bb121e8b45f15",
+          "artifactSha256": "859986408d75994d6f1530ce99c0331da1644da9d5ae6339bb479e3926ee7f2e",
           "request": {
             "version": "nonplay-continuation-v1",
             "prefixRef": {
               "id": "00000000-0000-4000-8000-000000000004",
               "revision": "14",
-              "digest": "869d985160cebc8d40f3b5f07fe85543f307ce901a1bce1d3e8d5c23c946e691"
+              "digest": "9ff7450d72e52917efca0918e2e5ad9304ceba66788ca3e4a1e393d9458f6dac"
             },
             "rules": {
               "regulationInnings": "9",
@@ -1212,7 +1212,7 @@
                 "ref": {
                   "id": "00000000-0000-4000-8000-000000000004",
                   "revision": "14",
-                  "digest": "869d985160cebc8d40f3b5f07fe85543f307ce901a1bce1d3e8d5c23c946e691"
+                  "digest": "9ff7450d72e52917efca0918e2e5ad9304ceba66788ca3e4a1e393d9458f6dac"
                 },
                 "content": {
                   "scope": {
@@ -1267,7 +1267,7 @@
                   "historyVersion": "43",
                   "storageHistoryEpoch": "7",
                   "nextPhysicalPlayNumber": "3",
-                  "executionArtifactSha256": "0e260cd916e4cd4da189132a52adb3e065f261d477bc65f5352bb121e8b45f15",
+                  "executionArtifactSha256": "859986408d75994d6f1530ce99c0331da1644da9d5ae6339bb479e3926ee7f2e",
                   "restored": {
                     "current": {
                       "stateFields": {
@@ -1836,7 +1836,7 @@
               "previousPrefixRef": {
                 "id": "00000000-0000-4000-8000-000000000004",
                 "revision": "14",
-                "digest": "869d985160cebc8d40f3b5f07fe85543f307ce901a1bce1d3e8d5c23c946e691"
+                "digest": "9ff7450d72e52917efca0918e2e5ad9304ceba66788ca3e4a1e393d9458f6dac"
               },
               "nextPrefixRef": {
                 "id": "00000000-0000-4000-8000-0000000008a4",
@@ -1921,7 +1921,7 @@
                 "d2": "3072",
                 "appliedWatermark": "3"
               },
-              "executionArtifactSha256": "0e260cd916e4cd4da189132a52adb3e065f261d477bc65f5352bb121e8b45f15"
+              "executionArtifactSha256": "859986408d75994d6f1530ce99c0331da1644da9d5ae6339bb479e3926ee7f2e"
             }
           }
         }
@@ -1988,13 +1988,13 @@
         },
         "calculation": {
           "formatVersion": "nonplay-prefix-calculation-v1",
-          "artifactSha256": "0e260cd916e4cd4da189132a52adb3e065f261d477bc65f5352bb121e8b45f15",
+          "artifactSha256": "859986408d75994d6f1530ce99c0331da1644da9d5ae6339bb479e3926ee7f2e",
           "request": {
             "version": "nonplay-continuation-v1",
             "prefixRef": {
               "id": "00000000-0000-4000-8000-000000000004",
               "revision": "15",
-              "digest": "c681d2fb0dfd46e2cbf86e4d5e3b5c47acfe4be31e7179f8c2dabfb299edc0f6"
+              "digest": "e96500bb8d311905f335dcab8fd2fd4d550e5c97f5804c4faa6bb3fd2f6d326a"
             },
             "rules": {
               "regulationInnings": "9",
@@ -2046,7 +2046,7 @@
                 "ref": {
                   "id": "00000000-0000-4000-8000-000000000004",
                   "revision": "15",
-                  "digest": "c681d2fb0dfd46e2cbf86e4d5e3b5c47acfe4be31e7179f8c2dabfb299edc0f6"
+                  "digest": "e96500bb8d311905f335dcab8fd2fd4d550e5c97f5804c4faa6bb3fd2f6d326a"
                 },
                 "content": {
                   "scope": {
@@ -2088,7 +2088,7 @@
                   "historyVersion": "44",
                   "storageHistoryEpoch": "7",
                   "nextPhysicalPlayNumber": "3",
-                  "executionArtifactSha256": "0e260cd916e4cd4da189132a52adb3e065f261d477bc65f5352bb121e8b45f15",
+                  "executionArtifactSha256": "859986408d75994d6f1530ce99c0331da1644da9d5ae6339bb479e3926ee7f2e",
                   "restored": {
                     "current": {
                       "stateFields": {
@@ -2363,7 +2363,7 @@
               "previousPrefixRef": {
                 "id": "00000000-0000-4000-8000-000000000004",
                 "revision": "15",
-                "digest": "c681d2fb0dfd46e2cbf86e4d5e3b5c47acfe4be31e7179f8c2dabfb299edc0f6"
+                "digest": "e96500bb8d311905f335dcab8fd2fd4d550e5c97f5804c4faa6bb3fd2f6d326a"
               },
               "nextPrefixRef": {
                 "id": "00000000-0000-4000-8000-0000000008a4",
@@ -2448,7 +2448,7 @@
                 "d2": "3072",
                 "appliedWatermark": "4"
               },
-              "executionArtifactSha256": "0e260cd916e4cd4da189132a52adb3e065f261d477bc65f5352bb121e8b45f15"
+              "executionArtifactSha256": "859986408d75994d6f1530ce99c0331da1644da9d5ae6339bb479e3926ee7f2e"
             }
           }
         }
@@ -2515,13 +2515,13 @@
         },
         "calculation": {
           "formatVersion": "nonplay-prefix-calculation-v1",
-          "artifactSha256": "0e260cd916e4cd4da189132a52adb3e065f261d477bc65f5352bb121e8b45f15",
+          "artifactSha256": "859986408d75994d6f1530ce99c0331da1644da9d5ae6339bb479e3926ee7f2e",
           "request": {
             "version": "nonplay-continuation-v1",
             "prefixRef": {
               "id": "00000000-0000-4000-8000-000000000004",
               "revision": "16",
-              "digest": "834dd82da12dc1b8b0d48bbfbc8003c61766b6c5bff19ec73cb3632f18533687"
+              "digest": "82f9fc465cc68acacc3fca14e7b63f1c92449021ef73fd1ef42fb673074b1bb6"
             },
             "rules": {
               "regulationInnings": "9",
@@ -2573,7 +2573,7 @@
                 "ref": {
                   "id": "00000000-0000-4000-8000-000000000004",
                   "revision": "16",
-                  "digest": "834dd82da12dc1b8b0d48bbfbc8003c61766b6c5bff19ec73cb3632f18533687"
+                  "digest": "82f9fc465cc68acacc3fca14e7b63f1c92449021ef73fd1ef42fb673074b1bb6"
                 },
                 "content": {
                   "scope": {
@@ -2628,7 +2628,7 @@
                   "historyVersion": "45",
                   "storageHistoryEpoch": "7",
                   "nextPhysicalPlayNumber": "4",
-                  "executionArtifactSha256": "0e260cd916e4cd4da189132a52adb3e065f261d477bc65f5352bb121e8b45f15",
+                  "executionArtifactSha256": "859986408d75994d6f1530ce99c0331da1644da9d5ae6339bb479e3926ee7f2e",
                   "restored": {
                     "current": {
                       "stateFields": {
@@ -3197,7 +3197,7 @@
               "previousPrefixRef": {
                 "id": "00000000-0000-4000-8000-000000000004",
                 "revision": "16",
-                "digest": "834dd82da12dc1b8b0d48bbfbc8003c61766b6c5bff19ec73cb3632f18533687"
+                "digest": "82f9fc465cc68acacc3fca14e7b63f1c92449021ef73fd1ef42fb673074b1bb6"
               },
               "nextPrefixRef": {
                 "id": "00000000-0000-4000-8000-0000000008a4",
@@ -3282,7 +3282,7 @@
                 "d2": "3072",
                 "appliedWatermark": "5"
               },
-              "executionArtifactSha256": "0e260cd916e4cd4da189132a52adb3e065f261d477bc65f5352bb121e8b45f15"
+              "executionArtifactSha256": "859986408d75994d6f1530ce99c0331da1644da9d5ae6339bb479e3926ee7f2e"
             }
           }
         }

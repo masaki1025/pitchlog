@@ -38,7 +38,7 @@
           "targetClass": "alpha",
           "kind": "single",
           "generated": "terminalPitchArtifact",
-          "hash": "sha256:0e260cd916e4cd4da189132a52adb3e065f261d477bc65f5352bb121e8b45f15",
+          "hash": "sha256:859986408d75994d6f1530ce99c0331da1644da9d5ae6339bb479e3926ee7f2e",
           "invocation": {
             "adapter": "backend/src/pitchlog/domainrt/host.py",
             "operation": "deriveTerminalPitch"
