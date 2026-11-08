@@ -182,6 +182,9 @@ def _source_digest(bundle: PlayExportBundle) -> str:
         "snapshots": bundle.snapshots,
         "runner_snapshots": bundle.runner_snapshots,
     }
+    if bundle.p3_snapshots is not None:
+        payload["p3_snapshots"] = bundle.p3_snapshots
+        payload["effective_snapshots"] = bundle.effective_snapshots
     if bundle.source_version is not None:
         if bundle.source_identities is None:
             raise PlayExportSupplyError("同版source原本が不足しています")
@@ -226,7 +229,7 @@ def _source_digest(bundle: PlayExportBundle) -> str:
     return digest.hexdigest()
 
 
-def _missing_snapshot(bundle: PlayExportBundle) -> tuple[str, ...]:
+def _missing_normal_snapshot(bundle: PlayExportBundle) -> tuple[str, ...]:
     """有効行と監査原本を分け、全88列の記録元/版を閉検証する。"""
     unavailable = tuple(str(index) for index in range(88))
     # P3のS原本だけで88列/sidecar供給を推測せず、producer接合までは拒否する。
@@ -329,6 +332,36 @@ def _missing_snapshot(bundle: PlayExportBundle) -> tuple[str, ...]:
     return ()
 
 
+def _missing_snapshot(bundle: PlayExportBundle) -> tuple[str, ...]:
+    """P3は全歴代監査と現在Sを満たした完成原本だけ提供する。"""
+    if bundle.p3_snapshots is None and not any(
+        event.get("event_kind") == "play_change" for event in bundle.events
+    ):
+        return _missing_normal_snapshot(bundle)
+    unavailable = tuple(str(index) for index in range(88))
+    if bundle.p3_snapshots is None or bundle.effective_snapshots is None:
+        return unavailable
+    from pitchlog.exports.p3_coverage import resolve_p3_snapshots
+
+    try:
+        expected = resolve_p3_snapshots(bundle)
+        if len(expected) != len(bundle.effective_snapshots) or any(
+            left != right
+            for left, right in zip(expected, bundle.effective_snapshots, strict=True)
+        ):
+            return unavailable
+    except (PlayExportSupplyError, KeyError, TypeError, ValueError):
+        return unavailable
+    return ()
+
+
+def _current_snapshot_rows(bundle):
+    """現在値と監査原本を混同せず、root接合済みの同版完成値だけを使う。"""
+    return (
+        bundle.snapshots if bundle.p3_snapshots is None else bundle.effective_snapshots
+    )
+
+
 def snapshot_id_for(bundle: PlayExportBundle) -> str:
     """同一snapshotのdigestを返す。"""
     return _source_digest(bundle)
@@ -347,7 +380,7 @@ def export_snapshot(bundle: PlayExportBundle) -> ExportSnapshot:
 
 
 def _plays_rows(bundle: PlayExportBundle, snapshot_id: str) -> Iterator[SavedCsvRow]:
-    snapshots = _indexed_rows(bundle.snapshots, "play_row_id")
+    snapshots = _indexed_rows(_current_snapshot_rows(bundle), "play_row_id")
     for play in bundle.plays:
         values = snapshots[play["id"]]["plays_csv_json"]
         if set(values) != set(_SNAPSHOT_COLUMNS):
@@ -519,6 +552,31 @@ def _projection_rows(
                 "source_json": _canonical_json(snapshot["plays_csv_json"]),
             },
         )
+    if bundle.p3_snapshots is not None:
+        for snapshot in bundle.p3_snapshots:
+            yield _row(
+                bundle.game["id"],
+                snapshot_id,
+                {
+                    "game_id": bundle.game["id"],
+                    "recording_generation": snapshot["internal_generation"],
+                    "event_sequence": snapshot["item_json"]["d2"],
+                    "source_event_id": snapshot["effective_event_id"],
+                    "projection_kind": "plays_csv_p3_v1",
+                    "source_version": 1,
+                    "source_json": _canonical_json(
+                        {
+                            "capsuleId": snapshot["capsule_id"],
+                            "itemDigest": snapshot["item_digest"],
+                            "capsuleStatsVersionId": snapshot[
+                                "capsule_stats_version_id"
+                            ],
+                            "projection": snapshot["plays_csv_json"],
+                            "references": snapshot["reference_json"],
+                        }
+                    ),
+                },
+            )
     return
 
 
@@ -528,26 +586,39 @@ def _inning_score_rows(
     """最後の有効playと同版の生成済み全回値を一行ずつ写す。"""
     if not bundle.plays:
         return
-    events = _event_by_id(bundle)
     last_play = bundle.plays[-1]
-    last_event = events.get(last_play["source_event_id"])
-    if (
-        last_event is None
-        or type(last_event.get("generation")) is not int
-        or type(last_event.get("d2")) is not int
-    ):
-        raise PlayExportSupplyError("全回値のsource版が不正です")
-    play_sources = (events.get(play["source_event_id"]) for play in bundle.plays)
-    if any(
-        event is None
-        or type(event.get("generation")) is not int
-        or type(event.get("d2")) is not int
-        or (event["generation"], event["d2"])
-        > (last_event["generation"], last_event["d2"])
-        for event in play_sources
-    ):
-        raise PlayExportSupplyError("全回値のcurrent play順が未供給です")
-    snapshots = _indexed_rows(bundle.snapshots, "play_row_id")
+    if bundle.p3_snapshots is not None:
+        if bundle.source_identities is None:
+            raise PlayExportSupplyError("P3 CSVの現在Sが未供給です")
+        identities = _indexed_rows(bundle.source_identities, "play_row_id")
+        last_source = identities.get(last_play["id"])
+        if last_source is None or any(
+            (row["recording_generation"], row["d1"])
+            > (last_source["recording_generation"], last_source["d1"])
+            for row in bundle.source_identities
+        ):
+            raise PlayExportSupplyError("全回値の現在S順が不一致です")
+    else:
+        events = _event_by_id(bundle)
+        last_play = bundle.plays[-1]
+        last_event = events.get(last_play["source_event_id"])
+        if (
+            last_event is None
+            or type(last_event.get("generation")) is not int
+            or type(last_event.get("d2")) is not int
+        ):
+            raise PlayExportSupplyError("全回値のsource版が不正です")
+        play_sources = (events.get(play["source_event_id"]) for play in bundle.plays)
+        if any(
+            event is None
+            or type(event.get("generation")) is not int
+            or type(event.get("d2")) is not int
+            or (event["generation"], event["d2"])
+            > (last_event["generation"], last_event["d2"])
+            for event in play_sources
+        ):
+            raise PlayExportSupplyError("全回値のcurrent play順が未供給です")
+    snapshots = _indexed_rows(_current_snapshot_rows(bundle), "play_row_id")
     snapshot = snapshots.get(last_play["id"])
     if snapshot is None:
         raise PlayExportSupplyError("全回値の保存原本がありません")
