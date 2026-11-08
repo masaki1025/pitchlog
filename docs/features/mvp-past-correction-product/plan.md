@@ -91,3 +91,5 @@ T4接合は既content Portに書込関数を増やさない。第1走は読取�
 ### 現画面の25件境界をページ化する（2026-11-08、ステップ4技術追補）
 
 PO委任Codex主担当/root判断。基線1bfad343の既25超計画を画面へ接続する。root専用feature/mvp-p3-screen-pagination-20261108で、GameScreenPastCorrectionProduct(.vue/Controller.ts/各spec)と専用P3ページ読取helper/試験だけを編集する。backend P3 lifecycleは別担当、共有SQL/認可/計算artifactは変更しない。履歴は25件ずつ同prefix_ref/現在D4/復旧世代を照合して対象頁だけ保持し、対象行のevent/play IDを正式offerと照合する。欠落/混在版/非進行cursor/対象外/認証変更は閉拒否。全履歴RAM化や単なる件数guard削除をしない。対象選択・保存後再取得の双方を同じhelperへ接続し、既原要求耐久保存/I6/単一writerと3結果の入力範囲は維持する。固定差分の非作者レビューは接続後にまとめ、実HTTP26超は別担当の証拠と区別する。
+
+同じステップ4の実画面検証は既P3 E2E脚本へ明示26球モードを追加して再利用する。通常3球モードは不変更、26モードは画面作成/開始/26球入力/次頁対象26選択/訂正/同要求再送/reloadと実DBの元・有効版を照合し、後付candidate SQLを使わず正常CURRENT49を要求する。別の専用owned pytest wrapperから実行し、旧3球＋LC証拠と混同しない。
