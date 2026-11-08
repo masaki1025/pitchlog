@@ -175,6 +175,10 @@ test('妨害7分岐を実画面から保存し原本再掲とreloadを確認す�
         page,
         scenario.name,
       )
+      console.log(
+        'PITCHLOG_INTERFERENCE_PROGRESS=' +
+          JSON.stringify({ gameId: game.id, stage: 'created', plays: 0 }),
+      )
       let head = initial
       for (const [index, step] of scenario.steps.entries()) {
         head = await recordInterferenceStep(page, head, step.input, index + 1)
@@ -206,6 +210,14 @@ test('妨害7分岐を実画面から保存し原本再掲とreloadを確認す�
         expect(restored.prefix_ref).toEqual(head.prefix_ref)
         expect(restored.after).toEqual(head.after)
         expect(restored.page.items).toEqual(head.page.items)
+        console.log(
+          'PITCHLOG_INTERFERENCE_PROGRESS=' +
+            JSON.stringify({
+              gameId: game.id,
+              stage: step.branch,
+              plays: index + 1,
+            }),
+        )
       }
       const beforeReload = head
       const read = nextRecordedHead(page, game.id, scenario.steps.length)

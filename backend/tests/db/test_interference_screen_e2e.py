@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
+import subprocess
 import tempfile
 from contextlib import contextmanager
 from decimal import Decimal
@@ -68,6 +70,12 @@ _READ_SQL: dict[str, LiteralString] = {
         "FROM sync_fence.stats_primitive_facts WHERE tenant_id=%s AND "
         "game_id=%s AND fact_version_id=%s"
     ),
+    "partial": (
+        "SELECT (SELECT count(*) FROM public.play_rows p WHERE p.tenant_id=%s "
+        "AND p.game_id=%s AND p.hidden_at IS NULL),(SELECT count(*) FROM "
+        "public.operation_events e WHERE e.tenant_id=%s AND e.game_id=%s "
+        "AND e.ledger_kind='accepted')"
+    ),
 }
 
 
@@ -95,16 +103,42 @@ def _owned_logs(evidence: Path):
 def _explain_all(admin, tenant: UUID, game: UUID) -> None:
     """UI実行前に固定readの列・結合・型を全て実catalogへ照合する。"""
     for statement in _READ_SQL.values():
-        parameters = (
-            (tenant, game, UUID(int=0))
-            if statement.count("%s") == 3
-            else (tenant, game)
-        )
-        if statement.count("%s") == 0:
+        count = statement.count("%s")
+        if count == 0:
             parameters = ()
+        elif count == 2:
+            parameters = (tenant, game)
+        elif count == 3:
+            parameters = (tenant, game, UUID(int=0))
+        elif count == 4:
+            parameters = (tenant, game, tenant, game)
+        else:
+            raise AssertionError("未登録の固定SELECT引数形")
         assert admin.execute(
             "EXPLAIN (FORMAT JSON) " + statement, parameters
         ).fetchone()
+
+
+def _source_proof() -> dict[str, object]:
+    """この実証の実読込moduleと試験source byteを前後で照合する。"""
+    from pitchlog.domainrt import host
+    from pitchlog.sync import terminal_pitch_payload
+
+    root = Path(__file__).resolve().parents[3]
+    source_paths = (
+        Path(__file__).resolve(),
+        Path(host.__file__).resolve(),
+        Path(terminal_pitch_payload.__file__).resolve(),
+    )
+    return {
+        "head": subprocess.check_output(
+            ["git", "rev-parse", "HEAD"], cwd=root, text=True
+        ).strip(),
+        "files": {
+            str(path): hashlib.sha256(path.read_bytes()).hexdigest()
+            for path in source_paths
+        },
+    }
 
 
 def _assert_saved_game(
@@ -237,6 +271,10 @@ def test_interference_screen_actual(tls_paths, vertical_database):
     cache.mkdir(parents=True, exist_ok=True)
     evidence = Path(tempfile.mkdtemp(prefix="interference-", dir=cache))
     evidence.chmod(0o700)
+    before = _source_proof()
+    (evidence / "source-before.json").write_text(
+        json.dumps(before, ensure_ascii=False, indent=2) + "\n"
+    )
     token = uuid4()
     config = "GameScreenInterferenceActual.playwright.config.ts"
     with _owned_logs(evidence), db.broker_worker(token), binding_broker(db, token):
@@ -256,7 +294,42 @@ def test_interference_screen_actual(tls_paths, vertical_database):
                 timeout_seconds=1800,
             )
     (evidence / "playwright.log").write_text(result.stdout + "\n" + result.stderr)
+    after = _source_proof()
+    (evidence / "source-after.json").write_text(
+        json.dumps(after, ensure_ascii=False, indent=2) + "\n"
+    )
+    progress = [
+        json.loads(line)
+        for line in re.findall(
+            r"PITCHLOG_INTERFERENCE_PROGRESS=(\{[^\n]+\})", result.stdout
+        )
+    ]
+    (evidence / "progress.json").write_text(
+        json.dumps(progress, ensure_ascii=False, indent=2) + "\n"
+    )
     matched = re.findall(r"PITCHLOG_INTERFERENCE_SCREEN=(\[[^\n]+\])", result.stdout)
+    if len(matched) != 1:
+        with psycopg.connect(
+            db.authority.database.business_admin,
+            options="-c default_transaction_read_only=on",
+        ) as admin:
+            admin.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY")
+            partial = {
+                item["gameId"]: admin.execute(
+                    _READ_SQL["partial"],
+                    (
+                        db.tenant_id,
+                        UUID(item["gameId"]),
+                        db.tenant_id,
+                        UUID(item["gameId"]),
+                    ),
+                ).fetchone()
+                for item in progress
+            }
+        (evidence / "partial-db.json").write_text(
+            json.dumps(partial, ensure_ascii=False, indent=2) + "\n"
+        )
+    assert after == before
     assert len(matched) == 1, (result.stdout[-12000:], result.stderr[-2000:])
     observed = json.loads(matched[0])
     assert [item["branches"] for item in observed] == [
