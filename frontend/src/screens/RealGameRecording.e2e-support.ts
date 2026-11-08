@@ -150,6 +150,14 @@ export function nextRecordedHead(page: Page, gameId: string, count: number) {
   })
 }
 
+/** 実server headの半回から現在守備sideだけを閉選択する。 */
+export function realDefendingSide(head: LineupPrefixGame): 'home' | 'away' {
+  const half = head.after.stateFields['state.half']
+  if (half === 'top') return 'home'
+  if (half === 'bottom') return 'away'
+  throw new Error('実server headの半回が未定義')
+}
+
 /** 実入力・実POST・実GETの完了をそれぞれ確認する。 */
 export async function recordRealPitch(
   page: Page,
@@ -172,13 +180,13 @@ export async function recordRealPitch(
     result === 'batting-result.batted-out'
   ) {
     const fielder = head.roster.teams
-      .find((t) => t.side === 'home')
+      .find((t) => t.side === realDefendingSide(head))
       ?.participants.find((p) =>
         p.roles.some(
           (role) => role.kind === 'fielding' && role.position === '9',
         ),
       )
-    if (!fielder) throw new Error('実rosterに右翼手がいない')
+    if (!fielder) throw new Error('実守備rosterに右翼手がいない')
     for (const [key, value] of [
       ['typeKey', 'batted.screen.line'],
       ['strengthKey', 'batted.screen.hard'],

@@ -47,3 +47,11 @@ root接合候補反映（2026-11-06 19:46 JST、PO委任Codex/root判断）: act
 非作者P1物理statusの反映（2026-11-06、PO委任Codex/root判断）: packet43cdde37e70a4e91fecc7842fa33ae10012821d1035bf2bace769051d8e4e97dの16pathを接合。起点baseと当該playの到達status/auto-manualを区別し、唯一T1の進塁計画から固定語彙へ写す。V7の明示overrideはmanual、規範による自動はauto。SQL・保存全値read・BE DTO・FE validatorを同時追随。作者owned実画面3試合ではhelperとの自己比較に加え、DBの(1,三進,manual)/(1,本進,manual)/一二塁HRの2行を独立literalで照合し1passed155.18秒。root実木75/FE34成功、全publisher body一致。SO05はアウト原因未供給のため物理保存は閉拒否、T1の純数学ケース成功を製品保存へ拡大しない。最終非作者反映確認/同版全ハーネス/正式受理は未了。
 
 2026-11-08 root接合追補（PO委任Codex主担当判断）: 1bf起点の凡打死作者候補を既step1/2の範囲で、root専用feature/mvp-batted-out-integration-20261108へ接ぐ。rootはlineup v3 schema2件/d.ts2件、terminal_pitch_write_stamp唯一factoryと公式body/manifest、唯一artifactの既公式pin/有限互換宣言を直列所有。旧4安打のnone制限を保持したresult/第三アウトの閉union、無走者凡打0/1アウトnone・2アウトの記録者明示batter-before-first/公式打者ID照合だけを追加する。既数学期待/owner/ACL/nonce/同TX条件を変えない。固定差分の非作者レビュー・実保存が未了の版は候補に留め、正式値の受理/全件CIは最終候補固定後にまとめる。
+
+## 2026-11-08 9回凡打55プレイの実環境検証追補
+
+PO委任rootの指示で、c20dを含む3a3b25b6から専用WT `feature/mvp-full-game-batted-out-20261108` を起こす。旧9回163球の試験は保持。新規画面作成→先頭HR1点→無走者凡打54out（計55play/18半回）→正式終了→reload→同終了版の試合/JST暦年season成績と毎球/成績CSVを実API・保存原本へ照合する。全MVP操作網羅・実機・性能完成とは別。
+
+編集所有は新 `GameScreenFullGameBattedOut.e2e.ts`/config、新 `backend/tests/db/test_full_game_batted_out_screen_e2e.py`、本追補。root追加移管で既共有 `RealGameRecording.e2e-support.ts` のfielder選択だけをtop→home/bottom→awayの実守備側へ閉対応し、未知/不足はthrow。既作成/記録helperを再利用し、原headを偽造して合わせない。製品domain/正式asset/他WTは非編集。helper前後SHAと純正負を固定する。既3a3のbackend wire型期待修復はgame担当専有で非編集。
+
+まず型/限定純検査を行い固定HEAD/patchをrootへ渡す。root接合・非作者確認後に共通ownedPG/network lockの順序下で1回実測。UI/実認証/記録権/唯一artifact/同TXを省略せず、候補SQL/権限注入を使わない。未供給は失敗として記録し、0/現在名簿/固定成功へ補完しない。
