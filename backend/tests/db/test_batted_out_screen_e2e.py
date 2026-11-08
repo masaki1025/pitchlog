@@ -79,7 +79,7 @@ def test_batted_out_three_pitches_actual_screen(vertical_database):
     ) as admin:
         rows = admin.execute(
             "SELECT batting_result_key FROM public.play_rows WHERE tenant_id=%s "
-            "AND game_id=%s AND retired_at IS NULL ORDER BY play_number",
+            "AND game_id=%s AND hidden_at IS NULL ORDER BY play_number",
             (db.tenant_id, game),
         ).fetchall()
         accepted = admin.execute(
