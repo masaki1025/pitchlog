@@ -136,18 +136,18 @@ it('26件目を次頁から選び、対象の実D1を照会する。混在版の
         play_row: {
           ...first.page.items[0]!.play_row,
           id: `${String(index + 1).padStart(8, '0')}-0000-4000-8000-000000000001`,
+          source_event_id: `${String(index + 1).padStart(8, '0')}-0000-4000-8000-000000000002`,
           play_number: index + 1,
         },
       })),
       next_cursor: 'next-25',
     },
   }
+  const lastItem = structuredClone(initial.page.items[0]!)
+  lastItem.play_row.play_number = 26
   const second = {
     ...initial,
-    page: {
-      items: [structuredClone(initial.page.items[0]!)],
-      next_cursor: null,
-    },
+    page: { items: [lastItem], next_cursor: null },
   }
   const read = vi
     .spyOn(historyApi, 'readLineupPrefixGame')

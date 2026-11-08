@@ -30,6 +30,19 @@ export function completeP3HistoryPage(
   const remaining = BigInt(game.prefix_ref.length) - BigInt(firstD1) + 1n
   if (remaining < 0n) return false
   const count = remaining > 25n ? 25 : Number(remaining)
+  const ids = new Set<string>()
+  const events = new Set<string>()
+  for (const [index, item] of game.page.items.entries()) {
+    const row = item.play_row
+    if (
+      row.play_number !== firstD1 + index ||
+      ids.has(row.id) ||
+      events.has(row.source_event_id)
+    )
+      return false
+    ids.add(row.id)
+    events.add(row.source_event_id)
+  }
   return (
     game.page.items.length === count &&
     (game.page.next_cursor !== null) === remaining > 25n

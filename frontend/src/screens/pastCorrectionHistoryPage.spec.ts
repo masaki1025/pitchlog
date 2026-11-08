@@ -21,6 +21,7 @@ function page(
         play_row: {
           ...game.page.items[0]!.play_row,
           id: `${String(first + index).padStart(8, '0')}-0000-4000-8000-000000000001`,
+          source_event_id: `${String(first + index).padStart(8, '0')}-0000-4000-8000-000000000002`,
           play_number: first + index,
         },
       })),
@@ -121,4 +122,39 @@ it('確定水位を越える対象や非整数を取得済みの別行で代用�
       readP3TargetPage(fixture.value.id, d1, () => {}),
     ).rejects.toThrow()
   expect(completeP3HistoryPage(page(1, 25, 'cursor-25'), 0)).toBe(false)
+})
+
+it.each([
+  'shifted',
+  'swapped',
+  'duplicate-position',
+  'duplicate-event',
+  'duplicate-play',
+])('%sの行をD1ラベルへ推定しない', (failure) => {
+  const value = page(1, 25, 'cursor-25')
+  const a = { ...value.page.items[0]!.play_row }
+  const b = { ...value.page.items[1]!.play_row }
+  if (failure === 'shifted') a.play_number = 2
+  if (failure === 'swapped') {
+    a.play_number = 2
+    b.play_number = 1
+  }
+  if (failure === 'duplicate-position') b.play_number = 1
+  if (failure === 'duplicate-event') b.source_event_id = a.source_event_id
+  if (failure === 'duplicate-play') b.id = a.id
+  expect(
+    completeP3HistoryPage(
+      {
+        ...value,
+        page: {
+          ...value.page,
+          items: value.page.items.map((item, index) => ({
+            ...item,
+            play_row: index === 0 ? a : index === 1 ? b : item.play_row,
+          })),
+        },
+      },
+      1,
+    ),
+  ).toBe(false)
 })
