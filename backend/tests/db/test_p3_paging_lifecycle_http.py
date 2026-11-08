@@ -81,7 +81,7 @@ from pitchlog.sync import past_correction_paged as _p3_paged
 from pitchlog.sync.control_provider import binding_control as _p3_control
 _p3_started = monotonic()
 _p3_last_guard = None
-_p3_unfinished = set()
+_p3_unfinished = {}
 _p3_lifecycle = {"opened": 0, "finished": 0, "abandoned": 0}
 _p3_original_init = _p3_control._BindingLease.__init__
 _p3_original_finish = _p3_control._BindingLease.finish
@@ -90,13 +90,13 @@ _p3_original_guard = _p3_paged._assert_page_binding
 
 def _p3_init(self, *args, **kwargs):
     result = _p3_original_init(self, *args, **kwargs)
-    _p3_unfinished.add(self)
+    _p3_unfinished[self] = monotonic()
     _p3_lifecycle["opened"] += 1
     return result
 
 def _p3_finish(self):
     result = _p3_original_finish(self)
-    _p3_unfinished.discard(self)
+    _p3_unfinished.pop(self, None)
     _p3_lifecycle["finished"] += 1
     return result
 
@@ -104,7 +104,7 @@ def _p3_abandon(self):
     try:
         return _p3_original_abandon(self)
     finally:
-        _p3_unfinished.discard(self)
+        _p3_unfinished.pop(self, None)
         _p3_lifecycle["abandoned"] += 1
 
 def _p3_guard(*args, **kwargs):
@@ -115,6 +115,8 @@ def _p3_guard(*args, **kwargs):
               "gap_ms": (round((now - _p3_last_guard) * 1000)
                          if _p3_last_guard is not None else None),
               "unfinished": len(_p3_unfinished),
+              "oldest_open_ms": (round((now - min(_p3_unfinished.values())) * 1000)
+                                 if _p3_unfinished else None),
               "lifecycle": dict(_p3_lifecycle)}
     _p3_last_guard = now
     try:
