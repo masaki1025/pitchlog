@@ -114,3 +114,114 @@ def test_runtime_is_alive_until_loan_termination_and_then_collectible(
     gc.collect()
     assert references["session"]() is None
     assert references["engine"]() is None
+
+
+@pytest.mark.parametrize("boundary", ["scope", "release"])
+@pytest.mark.parametrize("failure", ["none", "original", "gc"])
+def test_owned_gc_observer_preserves_original_identity(
+    monkeypatch, capsys, boundary, failure
+):
+    """試験用GC観測器の故障でも、元呼出一回と戻り/例外を置換しない。"""
+    import json
+
+    from db.test_rg1_scope_runtime_lifetime_owned import _GC_PROBE_SOURCE
+
+    from pitchlog.recording_rights import rg1_lifecycle
+
+    calls = []
+    returned = object()
+    original_error = RuntimeError("secret-sentinel-never-logged")
+
+    def original(self, *args, **kwargs):
+        calls.append(self)
+        if failure == "original":
+            raise original_error
+        return returned
+
+    owner = (
+        transaction._TenantTransactionScope
+        if boundary == "scope"
+        else rg1_lifecycle._GateLoan
+    )
+    symbol = "__exit__" if boundary == "scope" else "release"
+    monkeypatch.setattr(owner, symbol, original)
+    namespace: dict[str, Any] = {"__name__": "_gc_observer_identity_probe"}
+    exec(compile(_GC_PROBE_SOURCE, "<fixed-gc-probe>", "exec"), namespace)
+    snapshot, restore = namespace["install_gc_probe"]()
+    instance = object.__new__(owner)
+    if boundary == "scope":
+        assert isinstance(instance, transaction._TenantTransactionScope)
+        instance._handle = None
+    if failure == "gc":
+
+        def broken_gc():
+            raise RuntimeError("secret-sentinel-never-logged")
+
+        monkeypatch.setattr(gc, "collect", broken_gc)
+    try:
+        if failure == "original":
+            with pytest.raises(RuntimeError) as error:
+                getattr(instance, symbol)()
+            assert error.value is original_error
+        else:
+            assert getattr(instance, symbol)() is returned
+        assert calls == [instance]
+        assert "secret-sentinel" not in json.dumps(snapshot())
+        assert capsys.readouterr().out == ""
+    finally:
+        restore()
+
+
+@pytest.mark.parametrize("fault", ["none", "snapshot", "output"])
+def test_failure_counter_capture_does_not_replace_original_error(
+    monkeypatch, capsys, fault
+):
+    """終了診断の読取/出力が失敗しても、元API例外をそのまま伝える。"""
+    import builtins
+    import json
+
+    from db.test_rg1_scope_runtime_lifetime_owned import _GC_FAILURE_CAPTURE_SOURCE
+
+    namespace: dict[str, Any] = {"json": json}
+    exec(
+        compile(_GC_FAILURE_CAPTURE_SOURCE, "<fixed-counter-capture>", "exec"),
+        namespace,
+    )
+    original_error = RuntimeError("secret-sentinel-never-logged")
+    calls = []
+
+    def snapshot():
+        calls.append(True)
+        if fault == "snapshot":
+            raise ValueError("secret-sentinel-never-logged")
+        return dict.fromkeys(
+            (
+                "scopes",
+                "gc",
+                "released",
+                "failed",
+                "untracked",
+                "session_missing",
+                "engine_missing",
+                "metadata_failed",
+            ),
+            0,
+        )
+
+    if fault == "output":
+
+        def failed_output(*_args, **_kwargs):
+            raise ValueError("secret-sentinel-never-logged")
+
+        monkeypatch.setattr(builtins, "print", failed_output)
+    with pytest.raises(RuntimeError) as caught:
+        try:
+            raise original_error
+        except BaseException:
+            namespace["report_gc_failure"](snapshot)
+            raise
+    assert caught.value is original_error
+    assert calls == [True]
+    output = capsys.readouterr().out
+    assert "secret-sentinel" not in output
+    assert bool(output) is (fault == "none")

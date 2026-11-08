@@ -138,3 +138,71 @@ it('保存原文の破損を旧成功や新要求に読み替えない', async (
     P3AttemptPersistenceError,
   )
 })
+
+function bodyAtPosition(d1: number): P3ChangeBody {
+  const original = body()
+  return {
+    ...original,
+    change: {
+      ...original.change,
+      target_reference: { ...original.change.target_reference, d1 },
+      payload: {
+        ...original.change.payload,
+        expectedPrefixRef: {
+          ...original.change.payload.expectedPrefixRef,
+          length: String(d1),
+        },
+      },
+    },
+  }
+}
+
+it.each([25, 26, Number.MAX_SAFE_INTEGER])(
+  '対象D1 %s の全原要求を再起動しても同本文/同attemptで復元する',
+  async (d1) => {
+    const input = bodyAtPosition(d1)
+    const first = await open()
+    const saved = await first.prepare({
+      tenantId,
+      gameId: game.id,
+      deviceId,
+      attemptId,
+      body: input,
+    })
+    first.close()
+    const recovered = await (await open()).read(tenantId, game.id)
+    expect(recovered).toEqual(saved)
+    expect(JSON.parse(saved.requestJson)).toEqual(input)
+    expect(recovered?.attemptId).toBe(attemptId)
+    expect(recovered?.d5).toBe(d5)
+  },
+)
+
+it.each([
+  0,
+  -1,
+  1.5,
+  Number.NaN,
+  Number.POSITIVE_INFINITY,
+  Number.MAX_SAFE_INTEGER + 1,
+  2 ** 63,
+  true,
+  false,
+  '26',
+  '026',
+  '26.0',
+  null,
+])('対象D1の非正準/安全整数外 %s は原要求として保存しない', async (raw) => {
+  const input = bodyAtPosition(raw as unknown as number)
+  const store = await open()
+  await expect(
+    store.prepare({
+      tenantId,
+      gameId: game.id,
+      deviceId,
+      attemptId,
+      body: input,
+    }),
+  ).rejects.toThrow()
+  expect(await store.read(tenantId, game.id)).toBeNull()
+})

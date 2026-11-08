@@ -122,8 +122,7 @@ export async function readP3TargetOffer(
   d1: number,
   signal?: AbortSignal,
 ): Promise<P3TargetOffer> {
-  if (!uuid(gameId) || !positive(d1) || d1 > 25)
-    throw new Error('P3対象位置が不正です')
+  if (!uuid(gameId) || !positive(d1)) throw new Error('P3対象位置が不正です')
   const raw = await apiRequest<unknown>(
     'GET',
     `/games/${gameId}/sync/change-target/${d1}`,
@@ -139,7 +138,7 @@ export async function readP3ChangeConfirmation(
   d5: string,
   signal?: AbortSignal,
 ): Promise<P3ChangeConfirmation> {
-  if (!uuid(gameId) || !positive(d1) || d1 > 25 || !uuid(d5))
+  if (!uuid(gameId) || !positive(d1) || !uuid(d5))
     throw new Error('P3確認条件が不正です')
   const value = await apiRequest<unknown>(
     'GET',

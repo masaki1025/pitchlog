@@ -1,4 +1,7 @@
 import { createHash } from 'node:crypto'
+import { readFileSync, writeFileSync } from 'node:fs'
+import { isAbsolute } from 'node:path'
+import { readP3ScreenTarget } from './p3PagingScreenEvidence'
 import {
   expect,
   test,
@@ -57,12 +60,37 @@ async function login(page: Page): Promise<void> {
   expect((await posted).status()).toBe(200)
 }
 
+/** 同じ実画面GETのC2を保持し、同じ試合の頁だけを照合する。 */
+async function currentPage(
+  page: Page,
+  gameId: string,
+  cursor: string | null,
+): Promise<LineupPrefixGame> {
+  const value = await page.evaluate(
+    async ({ gameId, cursor }) => {
+      return (
+        window as unknown as {
+          __readP3Current: (
+            gameId: string,
+            cursor: string | null,
+          ) => Promise<LineupPrefixGame>
+        }
+      ).__readP3Current(gameId, cursor)
+    },
+    { gameId, cursor },
+  )
+  if (value.id !== gameId || value.read_kind !== 'lineup-prefix')
+    throw new Error('実記録頁の対象が不一致')
+  return value
+}
+
 test('真正HTTPS画面で三球の末尾過去訂正、同要求再掲、再読込を通す', async ({
   page,
 }) => {
-  test.setTimeout(480_000)
-  page.setDefaultTimeout(30_000)
   const pitchCount = process.env.PITCHLOG_E2E_P3_PAGING === '26' ? 26 : 3
+  // 集合試験の総時間だけ。個々の製品RPC/lease期限と操作待ちは変えない。
+  test.setTimeout(pitchCount === 26 ? 900_000 : 480_000)
+  page.setDefaultTimeout(30_000)
   const targetD1 = String(pitchCount)
   const startedAt = Date.now()
   const stage = (name: string) =>
@@ -75,6 +103,7 @@ test('真正HTTPS画面で三球の末尾過去訂正、同要求再掲、再読
   await page.addInitScript(() => {
     const nativeFetch = window.fetch.bind(window)
     let captured: { url: string; init: RequestInit } | null = null
+    let readCaptured: { url: string; init: RequestInit } | null = null
     window.fetch = async (input, init) => {
       const url =
         typeof input === 'string'
@@ -97,8 +126,46 @@ test('真正HTTPS画面で三球の末尾過去訂正、同要求再掲、再読
           },
         }
       }
+      if (
+        init?.method === 'GET' &&
+        /\/games\/[^/]+\/started$/.test(new URL(url, location.href).pathname)
+      ) {
+        readCaptured = {
+          url,
+          init: { ...init, headers: new Headers(init.headers) },
+        }
+      }
       return nativeFetch(input, init)
     }
+    Object.defineProperty(window, '__readP3Current', {
+      value: async (gameId: string, cursor: string | null) => {
+        if (!readCaptured || readCaptured.init.credentials !== 'include')
+          throw new Error('同じ画面の実GETがありません')
+        const url = new URL(readCaptured.url, location.href)
+        if (
+          url.origin !== location.origin ||
+          url.pathname !== `/api/games/${gameId}/started`
+        )
+          throw new Error('実GETの対象が異なります')
+        const headers = new Headers(readCaptured.init.headers)
+        if (
+          !headers.has('X-Pitchlog-Expected-Tenant') ||
+          !headers.has('X-Pitchlog-Tenant-Challenge')
+        )
+          throw new Error('元GETのC2がありません')
+        url.searchParams.set('projection', 'play-prefix-v3')
+        url.searchParams.set('limit', '25')
+        if (cursor === null) url.searchParams.delete('cursor')
+        else url.searchParams.set('cursor', cursor)
+        const response = await nativeFetch(url.href, {
+          ...readCaptured.init,
+          headers,
+        })
+        if (response.status !== 200)
+          throw new Error('製品GETの頁を取得できません')
+        return response.json()
+      },
+    })
     Object.defineProperty(window, '__repeatP3Original', {
       value: async () => {
         if (!captured) throw new Error('P3原要求がありません')
@@ -134,6 +201,11 @@ test('真正HTTPS画面で三球の末尾過去訂正、同要求再掲、再読
     applied_rules: { dh: boolean }
   }
   expect(saved.status).toBe('preparing')
+  const gameEvidence = process.env.PITCHLOG_E2E_P3_GAME_PATH
+  if (gameEvidence) {
+    if (!isAbsolute(gameEvidence)) throw new Error('当runの試合証拠先が不正')
+    writeFileSync(gameEvidence, JSON.stringify({ gameId: saved.id }))
+  }
   stage('created')
   await form
     .getByRole('button', { name: '作成した試合IDの保存値を確認', exact: true })
@@ -318,12 +390,26 @@ test('真正HTTPS画面で三球の末尾過去訂正、同要求再掲、再読
     /訂正を保存し、再取得と現行成績を確認しました。|受理結果は端末へ保存しました。再取得が未完了です。/,
     { timeout: 30000 },
   )
-  const read = diagnostic.afterRead === null ? null : await diagnostic.afterRead
+  await expect(panel.getByTestId('p3-status')).toHaveText(
+    '訂正を保存し、再取得と現行成績を確認しました。',
+  )
+  const read = await currentPage(page, saved.id, null)
   const submitted = diagnostic.submittedBody
-  const target =
-    read && submitted
-      ? read.page.items[submitted.change.target_reference.d1 - 1]?.play_row
-      : null
+  if (!submitted) throw new Error('P3原要求がありません')
+  const targetItem = await readP3ScreenTarget(
+    read,
+    submitted.change.target_reference.d1,
+    pitchCount,
+    (cursor) => currentPage(page, saved.id, cursor),
+  )
+  const target = targetItem.play_row
+  expect(target.id).not.toBe(submitted.change.payload.targetPlayId)
+  expect(target.source_event_id).not.toBe(
+    submitted.change.payload.targetEventId,
+  )
+  expect(target.batting_result_key).toBe(
+    submitted.change.payload.replacementResultId,
+  )
   console.log(
     'PITCHLOG_P3_READ_PREDICATES=' +
       JSON.stringify({
@@ -394,19 +480,7 @@ test('真正HTTPS画面で三球の末尾過去訂正、同要求再掲、再読
     await expect(page.getByTestId('restore-balls')).toHaveText('1')
     await expect(page.getByTestId('restore-strikes')).toHaveText('2')
     await expect(page.getByTestId('restore-history')).toHaveText('26件')
-    console.log(
-      'PITCHLOG_P3_PAGING_SCREEN=' +
-        JSON.stringify({
-          gameId: saved.id,
-          pitches: 26,
-          targetD1: 26,
-          accepted: 1,
-          replayStatus: 200,
-          reloaded: true,
-          statsVersionId: confirmed.stats_version_id,
-        }),
-    )
-    return
+    stage('p3-26-reloaded')
   }
   await expect(page.getByTestId('ordinary-state-source')).toHaveText(
     'サーバー確認済みの状態',
@@ -427,7 +501,7 @@ test('真正HTTPS画面で三球の末尾過去訂正、同要求再掲、再読
     await page.getByTestId('first-ball-save').click()
     expect((await suffixPosted).status()).toBe(200)
     await expect(page.getByTestId('restore-history')).toHaveText(
-      `${3 + suffix}件`,
+      `${pitchCount + suffix}件`,
     )
     await expect(page.getByTestId('restore-balls')).toHaveText('2')
     stage(`p3-suffix-pitch-${suffix}`)
@@ -439,7 +513,9 @@ test('真正HTTPS画面で三球の末尾過去訂正、同要求再掲、再読
   await page.reload()
   await expect(page.getByTestId('restore-balls')).toHaveText('2')
   await expect(page.getByTestId('restore-strikes')).toHaveText('2')
-  await expect(page.getByTestId('restore-history')).toHaveText('4件')
+  await expect(page.getByTestId('restore-history')).toHaveText(
+    `${pitchCount + 1}件`,
+  )
   stage('p3-reloaded')
   const lifecycle = page.getByTestId('lifecycle-product')
   await expect(lifecycle.getByTestId('lifecycle-status')).toHaveText('進行中')
@@ -476,7 +552,9 @@ test('真正HTTPS画面で三球の末尾過去訂正、同要求再掲、再読
   await expect(undo.getByTestId('undo-product-balls')).toHaveText('2', {
     timeout: 30_000,
   })
-  await expect(undo.getByTestId('undo-product-depth')).toHaveText('4')
+  await expect(undo.getByTestId('undo-product-depth')).toHaveText(
+    String(pitchCount + 1),
+  )
   for (const box of await undo.locator('input[type=checkbox]').all())
     await box.check()
   await undo.getByTestId('undo-product-pitch-type').selectOption({ index: 1 })
@@ -488,7 +566,9 @@ test('真正HTTPS画面で三球の末尾過去訂正、同要求再掲、再読
   )
   await undo.getByTestId('undo-product-ball').click()
   expect((await afterReopen).status()).toBe(200)
-  await expect(undo.getByTestId('undo-product-depth')).toHaveText('5')
+  await expect(undo.getByTestId('undo-product-depth')).toHaveText(
+    String(pitchCount + 2),
+  )
   await expect(undo.getByTestId('undo-product-balls')).toHaveText('3')
   stage('p3-reopened-and-pitch-saved')
   await lifecycle.getByTestId('lifecycle-refresh').click()
@@ -517,6 +597,78 @@ test('真正HTTPS画面で三球の末尾過去訂正、同要求再掲、再読
     '2',
   )
   stage('p3-reended-reloaded')
+  if (pitchCount === 26) {
+    const csvPath = process.env.PITCHLOG_E2E_P3_CSV_PATH
+    if (!csvPath || !isAbsolute(csvPath))
+      throw new Error('当run専用CSV出力先がありません')
+    // 同じ終了確定試合の製品画面から成績CSVを取得する。
+    await page.goto(`${baseURL}/games/${saved.id}/stats`)
+    const statsRead = page.waitForResponse(
+      (res) =>
+        res.request().method() === 'GET' &&
+        apiPath(res.url()) === `/api/games/${saved.id}/stats` &&
+        new URL(res.url()).searchParams.get('mode') === 'official',
+    )
+    await page.getByLabel('表示', { exact: true }).selectOption('official')
+    const statsResponse = await statsRead
+    expect(statsResponse.status()).toBe(200)
+    const stats = await statsResponse.json()
+    expect(stats.game_id).toBe(saved.id)
+    expect(stats.mode).toBe('official')
+    expect(stats.next_cursor).toBeNull()
+    expect(stats.players.length).toBeGreaterThan(0)
+    writeFileSync(csvPath + '.api.json', JSON.stringify(stats))
+    const csvResponse = page.waitForResponse(
+      (res) =>
+        res.request().method() === 'GET' &&
+        apiPath(res.url()) === `/api/games/${saved.id}/stats.csv` &&
+        new URL(res.url()).searchParams.get('mode') === 'official',
+    )
+    const downloaded = page.waitForEvent('download')
+    await page
+      .getByRole('button', { name: 'CSVダウンロード', exact: true })
+      .click()
+    const [response, download] = await Promise.all([csvResponse, downloaded])
+    expect(response.status()).toBe(200)
+    expect(response.headers()['cache-control']).toBe('no-store')
+    await download.saveAs(csvPath)
+    const bytes = readFileSync(csvPath)
+    expect(bytes.subarray(0, 3)).toEqual(Buffer.from([0xef, 0xbb, 0xbf]))
+    const digest = createHash('sha256').update(bytes).digest('hex')
+    // P3後の毎球88列producerは現製品で未供給。成功へ補完しない。
+    await page.goto(`${baseURL}/games/${saved.id}/export`)
+    const zipRead = page.waitForResponse(
+      (res) =>
+        res.request().method() === 'GET' &&
+        apiPath(res.url()) === `/api/games/${saved.id}/exports/plays.zip`,
+    )
+    await page
+      .getByRole('button', { name: '毎球CSVをダウンロード', exact: true })
+      .click()
+    expect((await zipRead).status()).toBe(409)
+    stage('p3-26-final-csv')
+    console.log(
+      'PITCHLOG_P3_PAGING_SCREEN=' +
+        JSON.stringify({
+          gameId: saved.id,
+          pitches: pitchCount,
+          targetD1: Number(targetD1),
+          accepted: 1,
+          replayStatus: 200,
+          reloaded: true,
+          suffixPitch: 1,
+          endedAfterCorrection: true,
+          reopenedAndPitchSaved: true,
+          reendedAfterCorrection: true,
+          statsVersionId: confirmed.stats_version_id,
+          csvBytes: bytes.length,
+          statsRows: stats.players.length,
+          playZipStatus: 409,
+          csvSha256: digest,
+        }),
+    )
+    return
+  }
   console.log(
     'PITCHLOG_P3_SCREEN=' +
       JSON.stringify({

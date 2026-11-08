@@ -23,6 +23,7 @@ from pitchlog.stats.facts import evaluate_native_projection
 
 from . import test_screen_start_e2e as screen_harness
 from .sync_writer_binding_support import binding_broker
+from .test_interference_sql_scope import _explain_interference_outer_scope
 from .test_screen_start_e2e import _browser_environment, _run_playwright
 from .test_screen_start_e2e import initial_scope_database as initial_scope_database
 from .test_screen_start_e2e import product_node_binary as product_node_binary
@@ -117,6 +118,29 @@ def _explain_all(admin, tenant: UUID, game: UUID) -> None:
         assert admin.execute(
             "EXPLAIN (FORMAT JSON) " + statement, parameters
         ).fetchone()
+
+
+def _interference_vocabulary() -> tuple[tuple[str, str, str], ...]:
+    """正式secondary軸の3件を、既製品の管理語彙区分へ写す。"""
+    root = Path(__file__).resolve().parents[3]
+    source = json.loads(
+        (root / "contracts/vocabulary/input_vocabulary_v1.json").read_text()
+    )
+    axes = [axis for axis in source["axes"] if axis["axisId"] == "secondary-result"]
+    assert len(axes) == 1
+    keys = {
+        "secondary-result.batting-interference",
+        "secondary-result.obstruction",
+        "secondary-result.offensive-interference",
+    }
+    rows = [entry for entry in axes[0]["entries"] if entry["id"] in keys]
+    assert len(rows) == len(keys) and {entry["id"] for entry in rows} == keys
+    assert all(entry["classification"] == "secondary" for entry in rows)
+    # 既製品のcategory CHECKはsecondaryを持たず、書込stampはbatting_resultを照合する。
+    return tuple(
+        (entry["id"], "batting_result", entry["initialDisplayName"])
+        for entry in rows
+    )
 
 
 def _source_proof() -> dict[str, object]:
@@ -254,17 +278,23 @@ def test_interference_screen_actual(tls_paths, vertical_database):
     db = vertical_database
     with psycopg.connect(db.authority.database.business_admin) as admin:
         _explain_all(admin, db.tenant_id, db.game_id)
+        _explain_interference_outer_scope(admin)
         assert admin.execute(_READ_SQL["revision"]).fetchone() == (CURRENT_REVISION,)
         teams = admin.execute(_READ_SQL["teams"], (db.tenant_id, db.game_id)).fetchone()
-        for key, category in (
-            ("batting-result.single", "batting_result"),
-            ("batting-result.triple", "batting_result"),
-            ("batting-result.batted-out", "batting_result"),
+        for key, category, display_name in (
+            ("batting-result.single", "batting_result", "batting-result.single"),
+            ("batting-result.triple", "batting_result", "batting-result.triple"),
+            (
+                "batting-result.batted-out",
+                "batting_result",
+                "batting-result.batted-out",
+            ),
+            *_interference_vocabulary(),
         ):
             admin.execute(
                 "INSERT INTO public.admin_vocabularies(key,category,display_name) "
                 "VALUES (%s,%s,%s) ON CONFLICT(key) DO NOTHING",
-                (key, category, key),
+                (key, category, display_name),
             )
     assert teams is not None and all(value is not None for value in teams)
     cache = Path.home() / ".cache/pitchlog/interference-screen-author-20261108"
