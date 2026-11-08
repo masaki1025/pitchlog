@@ -17,7 +17,12 @@ from uuid import UUID, uuid4
 import psycopg
 import pytest
 
-from pitchlog.authz.interference_evidence_sql import _OUT_ADMISSIONS
+from pitchlog.authz.interference_evidence_sql import (
+    _OUT,
+    _OUT_ADMISSIONS,
+    _PENALTY_THIRD,
+    _PLACEMENT,
+)
 from pitchlog.db.current_product_startup import CURRENT_REVISION
 from pitchlog.repositories.first_ball_operations import PLAY_ROW_COLUMNS
 from pitchlog.stats.facts import evaluate_native_projection
@@ -121,7 +126,7 @@ def _explain_all(admin, tenant: UUID, game: UUID) -> None:
 
 
 def _explain_interference_outer_scope(admin) -> None:
-    """元source・物理走者・裁定の外側3式をSQL parserへ通す。"""
+    """元source・物理走者・裁定の内外6文脈をSQL parserへ通す。"""
     scope = (
         " FROM (SELECT '{}'::jsonb AS payload) source_row CROSS JOIN "
         "(SELECT '{}'::jsonb AS before_cp, '{}'::jsonb AS after_cp, "
@@ -130,6 +135,14 @@ def _explain_interference_outer_scope(admin) -> None:
     for expression in _OUT_ADMISSIONS:
         assert admin.execute(
             "EXPLAIN (FORMAT JSON) SELECT " + expression + scope
+        ).fetchone()
+    nested_scope = scope.replace(
+        "NULL::uuid AS p_tenant_id",
+        "NULL::uuid AS p_tenant_id, '{}'::jsonb AS m, '{}'::jsonb AS r",
+    )
+    for expression in (_OUT, _PLACEMENT, _PENALTY_THIRD):
+        assert admin.execute(
+            "EXPLAIN (FORMAT JSON) SELECT " + expression + nested_scope
         ).fetchone()
 
 
