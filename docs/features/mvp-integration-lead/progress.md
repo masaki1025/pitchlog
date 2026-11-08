@@ -1,5 +1,14 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 2026-11-08 22:52 JST：打球59プレイの九回終了・同終了版27成績/両CSVを実通過
+
+- **利用者が今回新たに完了した操作**: fixed test `0b6990bc48173d2e675219ba2fe00c66ae579b46` /製品`6c52fd2b3b665b825d9c4aaf4aabc5d3ab03c732`の同一隔離HTTPS・正常CURRENT49・実認証/実記録権/唯一71f/原子的保存で、画面新規作成→開始→59play/九回54outs・2対0→終了v1→reloadを完走。走者hold、犠打、停止後再発進の得点1打点0、併殺、野選、実野手失策、満塁犠飛を含む。14件reload、26/51件頁境界、同本文/D5/attempt重複不増も通過。全配置/全操作の網羅とはしない。
+- **成績と出力の同版実証**: その終了確定版で試合/シーズン27項目、成績CSV2種、毎球ZIPの88列+9sidecarを既期待・元保存値へ全照合。59物理41列/走者10列は唯一mapper/原payloadと全値比較。finally RRでplay59/event60（59play+end）/slot60/acceptedledger60/writerclosed60、current confirmed_ended source59、終了v1 receipt/native pointer一致。pytest1passed1164.39秒。fixture game/play事前投入やtest-only終了確定で代替していない。
+- **証拠と検証主体**: cache `~/.cache/pitchlog/batted-operations-owned-20261108/run9-batted59-paging/` REPORT SHA `cde8b7daa2def37d9b97491433c6f158f0ed03f0fbadae891caae6656a32a87f`、manifest SHA `ca5b6931d1dde90352d32f5b027a2ea81ef4d198918cbb2e09ba574889f2aadd`。作者側実走の全246artifactをrootが実SHA再照合、246一致/不足0/不一致0。これはrootによる再走やP6blindではない。source前後同一/owned削除/commonlock解放・再取得確認。旧run1〜8の失敗を保持。
+- **固定候補への接合**: main候補feature/mvp-batted-operations-integration-20261108は`60c302d2c38edaf073e395ff98d666626a3518ef` clean/push済。製品6c52に、成功した同じ0b699 test-only最大3頁修復を通常mergeした版。runtime/math/SQLは6c52から不変更。正式develop/正式受理/必須CI/PR統合の成功とは区別する。
+- **未達と次**: 全59件が5秒超、最大20,439msで性能未達。今回authority失敗なしは旧503/PG timeout根治の証拠ではない。次は26件訂正→追加記録→終了/再開/再追加/再終了→同終了版成績CSV、別HTTPのT2/T4全取消原子性。P3後毎球ZIPは現閉拒否409でproducer未接合なのでCSV担当が既正規S/訂正payload生成候補を再利用して修復する。guard削除やfixture補完で200にしない。妨害は唯一859の純計算/有限metadata独立確認後、SQL/41列/T5を別担当が実装中。実機/信頼TLS/運用復旧、全操作/通信断/担当交代/負荷/正式統合を含むMVPは未完。02:00 JSTにこの実証からの増分で再評価する。
+
+
 ## 2026-11-08 22:41 JST：26件ページ境界を通過、02:00まで実接続を継続
 
 - **PO指定の次評価**: 2026-11-09 02:00 JST。実画面の1試合・終了版成績/CSVを優先し、文書/正式凍結履歴/受理・sealの整合は通常統合前にまとめる。認可・実記録権・原子性・冪等性・結果不明の拒否と直接検査は維持する。評価時刻だけでGoalを停止/完了にしない。
