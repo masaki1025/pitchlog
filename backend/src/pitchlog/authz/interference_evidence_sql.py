@@ -59,12 +59,13 @@ _OUT_LABEL = INTERFERENCE_OUT_STATUS
 _BATTED_RULING = """  OR (
    (batted_obs->'interferenceRuling' IS DISTINCT FROM '{"kind":"not-required"}'::jsonb
     OR source_row.payload->'calculation'->'request'->'t1'->>'interferenceRuling'
-       IS DISTINCT FROM 'not-required') AND NOT (
+       IS DISTINCT FROM 'not-required') AND (
     batted_obs->'interferenceRuling' IS NOT DISTINCT FROM
      source_row.payload->'calculation'->'request'->'t1'->'interferenceRuling'
     AND batted_obs->'interferenceRuling'->>'kind'='batting-interference'
     AND batted_obs->'interferenceRuling'->'adopted'=
-     pg_catalog.jsonb_build_object('kind','play-result','resultId',batted_obs->>'resultId')))"""
+     pg_catalog.jsonb_build_object('kind','play-result','resultId',batted_obs->>'resultId'))
+     IS NOT TRUE)"""
 
 _SECONDARY_GUARD = """
  IF source_row.payload->'calculation'->'request'->'t1'->>'resultId'
