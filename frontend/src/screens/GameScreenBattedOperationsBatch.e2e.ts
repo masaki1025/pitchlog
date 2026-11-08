@@ -1,6 +1,7 @@
 /** 9回59プレイと終了版の成績/CSV通し。性能未達・他操作未実装をMVP完成へ読み替えない。 */
 import { expect, test, type Page } from '@playwright/test'
 import type { C2ReadBridge } from './BattedBatchC2.e2e-browser'
+import { recordedBattedRow } from './BattedBatchPaging.e2e-support'
 import { lstatSync, writeFileSync } from 'node:fs'
 import { isAbsolute, resolve, basename } from 'node:path'
 import { createHash } from 'node:crypto'
@@ -224,10 +225,16 @@ test('実画面で打球群59プレイを保存し終了成績CSVを照合する
     )
     head = result.head
     times.push(result.elapsedMs)
-    const item = head.page.items.find(
-      (item) => item.play_row.play_number === count,
+    await installC2ReadBridge(page)
+    const item = await recordedBattedRow(head, count, (cursor) =>
+      page.evaluate(
+        ({ id, cursor }) =>
+          (
+            window as unknown as { __battedC2ReadBridge: C2ReadBridge }
+          ).__battedC2ReadBridge.repeated(id, cursor),
+        { id: game.id, cursor },
+      ),
     )
-    if (!item) throw new Error('保存済み当該playの実DTOがない')
     recordedRows.push(item)
     if (count === 2) {
       const before = head

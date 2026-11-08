@@ -7,7 +7,7 @@ import { readGameLifecycle, type GameLifecycleGame } from '../api/gameLifecycle'
 import { apiDownload } from '../api/client'
 
 export type C2ReadBridge = {
-  repeated(id: string): Promise<LineupPrefixGame>
+  repeated(id: string, cursor?: string | null): Promise<LineupPrefixGame>
   ended(id: string): Promise<GameLifecycleGame>
   plays(
     id: string,
@@ -19,8 +19,8 @@ declare global {
   }
 }
 window.__battedC2ReadBridge = {
-  async repeated(id) {
-    const result = await readLineupPrefixGame(id)
+  async repeated(id, cursor = null) {
+    const result = await readLineupPrefixGame(id, cursor, 25)
     if (result.kind !== 'found') throw new Error('再送後の正規C2読取が不成立')
     return result.game
   },
