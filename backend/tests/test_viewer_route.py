@@ -129,3 +129,37 @@ def test_in_progress_body_does_not_add_lifecycle_display_read(monkeypatch) -> No
     with pytest.raises(HTTPException) as missing:
         viewer.read_game_viewer_saved(_GAME, tenant, expected_version=_VERSION)
     assert missing.value.status_code == 404
+
+
+def test_visible_finished_v3_is_unsupported_503_not_notvisible_404(monkeypatch) -> None:
+    """終了NPと異なるv3本文は、真正scopeの後も未供給503に閉じる。"""
+    from types import SimpleNamespace
+
+    from pitchlog.api.routers import started_games
+    from pitchlog.repositories.ordinary_prefix_read import OrdinaryPrefixView
+    from pitchlog.repositories.started_read import StartedGameView
+
+    tenant = cast(TenantContext, object())
+    monkeypatch.setattr(viewer, "started_snapshot_read_scope", nullcontext)
+    monkeypatch.setattr(
+        viewer, "read_viewer_probe", lambda *_: ViewerProbe("finished", 1, 2, _VERSION)
+    )
+    monkeypatch.setattr(
+        viewer,
+        "lifecycle_display_scope",
+        lambda *_: nullcontext({"status": "finished"}),
+    )
+    # metadata整形は本unitの対象外。成功DTO/権限資格は作らない。
+    monkeypatch.setattr(
+        started_games, "_read", lambda _: SimpleNamespace(model_dump=lambda **_: {})
+    )
+    monkeypatch.setattr(
+        viewer,
+        "read_viewer_prefix",
+        lambda *_, **__: OrdinaryPrefixView(
+            cast(StartedGameView, object()), {"profile": "lineup-prefix-read-v3"}
+        ),
+    )
+    with pytest.raises(HTTPException) as unsupported:
+        viewer.read_game_viewer_saved(_GAME, tenant, expected_version=_VERSION)
+    assert unsupported.value.status_code == 503
