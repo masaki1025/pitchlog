@@ -23,6 +23,28 @@ const invoke = (request: unknown) =>
       JSON.stringify(request),
     ),
   )
+it('凡打死の明示OUT3-01でv3 sourceを攻守交代へ進め、未確認を拒否する', () => {
+  const q = structuredClone(vectors.cases[0]!.request) as {
+    t1: Record<string, unknown>
+  }
+  q.t1.resultId = 'batting-result.batted-out'
+  q.t1.thirdOutObservation = 'batter-before-first'
+  const result = invoke(q) as {
+    ok: boolean
+    value?: { t1: Record<string, unknown>; after: Record<string, unknown> }
+  }
+  expect(result.ok).toBe(true)
+  expect(result.value?.t1).toMatchObject({
+    batterDestination: { kind: 'out' },
+    outEffect: { count: '1', targets: ['batter'] },
+  })
+  const missing = structuredClone(q)
+  missing.t1.thirdOutObservation = 'none'
+  expect(invoke(missing)).toStrictEqual({
+    ok: false,
+    error: { code: 'UNSUPPORTED_T1_SCOPE' },
+  })
+})
 it.each(vectors.cases)('$caseId 既v3の全比較面へ無走者安打を接続する', (c) => {
   expect(invoke(c.request)).toStrictEqual(c.expected)
 })

@@ -628,3 +628,64 @@ it.each(['single', 'double', 'triple', 'home-run'] as const)(
       ).rejects.toThrow()
   },
 )
+it('凡打死の全観測をv3へ渡し無走者の打者アウトを封印する', async () => {
+  const value = lineupFixture.value
+  if (!isLineupPrefixGame(value)) throw new Error('独立DTO不正')
+  const context = await lineupContextFromRead(value, value.prefix_ref.tenantId)
+  expect(context.after.stateFields['state.runners']).toBe('empty')
+  expect(context.after.stateFields['state.outs']).toBe('0')
+  const resultId = 'batting-result.batted-out'
+  const observation: PlayScreenObservation = {
+    resultId,
+    battedHit: {
+      resultId,
+      battedBall: {
+        typeKey: null,
+        strengthKey: null,
+        hitX: null,
+        hitY: null,
+        rawFielderPosition: null,
+        resolvedFielderId: null,
+      },
+      officialScoringPayload: {
+        kind: 'no-error',
+        errorCount: '0',
+        fielders: [],
+      },
+      interferenceRuling: { kind: 'not-required' },
+      runnerAdvanceOverridesByRunner: { kind: 'not-applied', overrides: [] },
+      thirdOutObservation: { kind: 'none' },
+      thirdOutTimingByRunner: {},
+    },
+    pitchTypeKey: 'tenant.pitch.straight',
+    screenX: 131.5,
+    screenY: 124,
+    view: 'catcher',
+    pitchSpeed: { kmh: null, outsideRangeConfirmed: false },
+    stance: null,
+    battingSide: null,
+  }
+  const wire = await prepareLineupPrefix(
+    context,
+    observation,
+    {
+      tenantId: value.prefix_ref.tenantId,
+      pitchTypeKeys: ['tenant.pitch.straight'],
+    },
+    value.prefix_ref.tenantId,
+    {
+      d5: '44444444-4444-4444-8444-444444444444',
+      eventId: '55555555-5555-4555-8555-555555555555',
+      playId: '66666666-6666-4666-8666-666666666666',
+    },
+    '77777777-7777-4777-8777-777777777777',
+  )
+  expect(wire.payload.calculation.request.t1).toMatchObject({
+    resultId,
+    thirdOutObservation: 'none',
+  })
+  expect(wire.payload.calculation.response.value.t1).toMatchObject({
+    batterDestination: { kind: 'out' },
+    outEffect: { count: '1', targets: ['batter'] },
+  })
+})

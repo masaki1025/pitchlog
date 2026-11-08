@@ -11,6 +11,7 @@ from pitchlog.domainrt.first_ball_projection import _canonical_json, _canonical_
 from pitchlog.domainrt.first_pitch import _Frozen
 from pitchlog.domainrt.first_pitch_continuation import _check_frozen_members
 from pitchlog.domainrt.lineup_play_prefix_continuation import (
+    CanonicalUuid,
     Digest,
     LineupPrefixRequest,
     LineupPrefixSuccess,
@@ -299,6 +300,20 @@ class _NoThirdOut(_Frozen):
     kind: Literal["none"]
 
 
+class _OfficialBatter(_Frozen):
+    """当該プレイの真正打者を保存する公式参照。"""
+
+    kind: Literal["official"]
+    player_id: CanonicalUuid
+
+
+class _BatterBeforeFirst(_Frozen):
+    """第3アウトとなる打者走者の一塁到達前を明示する。"""
+
+    kind: Literal["batter-before-first"]
+    batter: _OfficialBatter
+
+
 class _NoThirdOutTiming(_Frozen):
     """第三アウトがない場合の空観測。未知走者/観測値は拒否する。"""
 
@@ -346,6 +361,7 @@ class BattedHitPlayObservations(FirstBallObservations):
         "batting-result.double",
         "batting-result.triple",
         "batting-result.home-run",
+        "batting-result.batted-out",
     ] = Field(alias="resultId")
     batted_ball: _BattedBall = Field(alias="battedBall")
     official_scoring_payload: _NoErrorScoring = Field(alias="officialScoringPayload")
@@ -353,7 +369,9 @@ class BattedHitPlayObservations(FirstBallObservations):
     runner_advance_overrides: _NoRunnerOverride | _AppliedRunnerOverrides = Field(
         alias="runnerAdvanceOverridesByRunner"
     )
-    third_out_observation: _NoThirdOut = Field(alias="thirdOutObservation")
+    third_out_observation: _NoThirdOut | _BatterBeforeFirst = Field(
+        alias="thirdOutObservation"
+    )
     third_out_timing_by_runner: _NoThirdOutTiming = Field(
         alias="thirdOutTimingByRunner"
     )
@@ -485,6 +503,13 @@ def read_lineup_pitch_payload(raw_v7, raw_v8, *, expected_calculation):
             _dump(response.value.before_participants)
         ):
             raise ValueError
+        if type(payload.observations) is BattedHitPlayObservations:
+            third = payload.observations.third_out_observation
+            if third.kind == "batter-before-first" and (
+                type(third) is not _BatterBeforeFirst
+                or third.batter.player_id != payload.participants.batter_id
+            ):
+                raise ValueError
         parsed = _raw_json(raw_v8)
         if _canonical_json(parsed) != _canonical_json(
             response.value.new_history_entry.difference.model_dump(

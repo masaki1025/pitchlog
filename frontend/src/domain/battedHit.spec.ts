@@ -135,6 +135,64 @@ function calculate(f: ReturnType<typeof fixture>, input: unknown) {
   )
 }
 
+describe('凡打死の正本有限入力', () => {
+  it('無走者0アウトは打者1アウト・打数1、2アウトは明示OUT3-01で攻守交代する', () => {
+    const contract = JSON.parse(
+      readFileSync(
+        resolve(
+          '../contracts/state-transition/state_transition_contract_v1.json',
+        ),
+        'utf8',
+      ),
+    ) as {
+      matrixRows: Array<{
+        resultId: string
+        statFlags: Record<string, boolean>
+      }>
+    }
+    const flags = contract.matrixRows.find(
+      (r) => r.resultId === 'batting-result.batted-out',
+    )!.statFlags
+    const first = fixture('top', 1n)
+    first.before.outs = 0n
+    const one = calculate(first, observation('batting-result.batted-out'))!
+    expect(one.outEffect).toEqual({ count: 1n, targets: [{ kind: 'batter' }] })
+    expect(one.batterDestination).toEqual({ kind: 'out' })
+    expect(one.statFlags).toEqual(flags)
+    expect(one.after.stateFields).toMatchObject({
+      outs: 1n,
+      half: 'top',
+      runners: 'empty',
+      battingOrder: 2n,
+    })
+    const last = fixture('top', 1n)
+    const beforeFirst = {
+      ...observation('batting-result.batted-out'),
+      thirdOutObservation: 'batter-before-first' as const,
+    }
+    const three = calculate(last, beforeFirst)!
+    expect(three.outEffect).toEqual({
+      count: 1n,
+      targets: [{ kind: 'batter' }],
+    })
+    expect(three.statFlags).toEqual(flags)
+    expect(three.after.stateFields).toMatchObject({
+      outs: 0n,
+      half: 'bottom',
+      runners: 'empty',
+      battingOrder: 6n,
+    })
+    expect(calculate(last, observation('batting-result.batted-out'))).toBeNull()
+    expect(calculate(first, beforeFirst)).toBeNull()
+    const withRunner = fixture('top', 1n)
+    withRunner.before.outs = 0n
+    withRunner.before.runners = 'first'
+    expect(
+      calculate(withRunner, observation('batting-result.batted-out')),
+    ).toBeNull()
+  })
+})
+
 describe('無走者4安打の唯一前進核', () => {
   it('独立16手例の全値を比較し、二死でも交代せず打順9を1へ戻す', () => {
     for (const half of ['top', 'bottom'] as const)

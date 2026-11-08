@@ -9,12 +9,13 @@ import type {
   StateFields,
 } from './stateTypes'
 
-/** 失策・第3アウトを伴わない4安打。公開wireの型ではない。 */
+/** 4安打と、明示確認した無走者の凡打死。公開wireの型ではない。 */
 export type BattedHitResultId =
   | 'batting-result.single'
   | 'batting-result.double'
   | 'batting-result.triple'
   | 'batting-result.home-run'
+  | 'batting-result.batted-out'
 
 /** 記録者が確定した1走者の実到達塁。停止は写像へ含めない。 */
 export type RunnerAdvanceOverride = {
@@ -40,7 +41,7 @@ export type BattedHitObservation = {
   officialScoringPayload: 'no-error'
   interferenceRuling: 'not-required'
   runnerAdvanceOverrides: RunnerAdvanceOverrides
-  thirdOutObservation: 'none'
+  thirdOutObservation: 'none' | 'batter-before-first'
 }
 
 /** 旧公開Derivedを広げず、新操作で両side cursorを保持する。 */
@@ -198,7 +199,7 @@ function destinationsDoNotCollide(
   return true
 }
 
-/** 4結果と実観測/状態が一致した場合だけ共通核へ渡す規則を作る。 */
+/** 打球の閉結果と実観測/状態が一致した場合だけ共通核へ渡す規則を作る。 */
 export function battedHitRule(
   before: StateFields,
   board: Scoreboard,
@@ -227,7 +228,8 @@ export function battedHitRule(
     value.pitchEventKind !== 'pitch-event' ||
     value.officialScoringPayload !== 'no-error' ||
     value.interferenceRuling !== 'not-required' ||
-    value.thirdOutObservation !== 'none' ||
+    (value.thirdOutObservation !== 'none' &&
+      value.thirdOutObservation !== 'batter-before-first') ||
     ![
       before.inning,
       before.outs,
@@ -275,11 +277,40 @@ export function battedHitRule(
     case 'batting-result.home-run':
       base = 0n
       break
+    case 'batting-result.batted-out':
+      base = 0n
+      break
     default:
       return null
   }
   let batter: 'score' | 'reach' = 'reach'
   if (base === 0n) batter = 'score'
+  if (resultId === 'batting-result.batted-out') {
+    if (
+      before.runners !== 'empty' ||
+      value.runnerAdvanceOverrides !== 'not-applied' ||
+      (before.outs === 2n &&
+        value.thirdOutObservation !== 'batter-before-first') ||
+      (before.outs !== 2n && value.thirdOutObservation !== 'none')
+    )
+      return null
+    return {
+      resultId,
+      pa: true,
+      batter: 'out',
+      batterBase: 0n,
+      outs: 1n,
+      targets: ['batter'],
+      advance: 'hold_all',
+      step: 0n,
+      explicit: {},
+      strikeEffect: 'reset',
+      strikeDelta: 0n,
+      ballEffect: 'reset',
+      ballDelta: 0n,
+    }
+  }
+  if (value.thirdOutObservation !== 'none') return null
   let overrides: AppliedOverrides | null = null
   if (value.runnerAdvanceOverrides !== 'not-applied') {
     overrides = readAppliedOverrides(value.runnerAdvanceOverrides, before)

@@ -21,6 +21,7 @@ import GameScreenBattedHitObservation from './GameScreenBattedHitObservation.vue
 import GameScreenRunnerEventObservation from './GameScreenRunnerEventObservation.vue'
 import type { RunnerObservationWire } from '../api/runnerEventWire'
 import type { BattedHitResult } from '../../../contracts/state-transition/lineup_play_prefix_payload_v1.d.ts'
+type CandidateBattedResult = BattedHitResult | 'batting-result.batted-out'
 import StrikeZone from '../components/zone/StrikeZone.vue'
 import { useAuthStore } from '../stores/authStore'
 import {
@@ -52,8 +53,14 @@ const hitResults: readonly string[] = [
   'batting-result.double',
   'batting-result.triple',
   'batting-result.home-run',
+  'batting-result.batted-out',
 ]
 const batted = computed(() => hitResults.includes(resultId.value))
+const battedOutAvailable = computed(
+  () =>
+    isLineupRecordingContext(displayed.value) &&
+    displayed.value.after.stateFields['state.runners'] === 'empty',
+)
 /** 原典で成立した一三塁0-0だけを画面に提示する。遷移値は唯一核が決める。 */
 const intentionalWalkAvailable = computed(() => {
   const c = displayed.value
@@ -759,6 +766,9 @@ onScopeDispose(() => {
             <option value="batting-result.double">二塁打</option>
             <option value="batting-result.triple">三塁打</option>
             <option value="batting-result.home-run">本塁打</option>
+            <option v-if="battedOutAvailable" value="batting-result.batted-out">
+              打球アウト（無走者）
+            </option>
           </template>
           <option value="batting-result.foul">
             ファウル（通常・非バント）
@@ -789,9 +799,16 @@ onScopeDispose(() => {
         走者の実結果を確認しました。確定・保存はこれからです。
       </p>
       <GameScreenBattedHitObservation
-        v-if="batted && hitAvailable && !isLocalMode"
+        v-if="
+          batted &&
+          hitAvailable &&
+          !isLocalMode &&
+          isLineupRecordingContext(displayed)
+        "
         :context-key="battedContextKey"
-        :result-id="resultId as BattedHitResult"
+        :result-id="resultId as CandidateBattedResult"
+        :before-outs="displayed.after.stateFields['state.outs']"
+        :batter-id="displayed.lineupSource.participants.batterId"
         :fielders="fielders"
         :runners="battedRunners"
         :disabled="busy"

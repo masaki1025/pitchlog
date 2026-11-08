@@ -34,6 +34,8 @@ POの「統合候補までまとめて実装し、その固定版をまとめて
 
 root接合候補反映（2026-11-06 19:46 JST、PO委任Codex/root判断）: actual LC a7ae1d40へsource2bdfを通常mergeした後、最終overlay patch SHA57556d3cf1ecba5aa51775c7c5dfa99ccb07766289839167971e55ed75941b08の25path全before/after SHAを照合して適用。正式schemaと唯一artifact fbcf253bの結合、有限v2旧host互換witness、公式SQL body/manifestの候補を揃える。過去数学期待217件を保持した作者証拠、独立clone再適用25/25、旧profile54・正式FE schema6成功を根拠とするが、root最終独立確認/全ハーネス/正式受理は未了。source単体merge後はroot backend107件/FE型成功。終了再開cache/交代は未合成であり、MVP全体/正式提供と記録しない。
 
+凡打死の後続実装（2026-11-08、PO委任root指示、起点 `1bfad343fa365f3902d1a02b38a5f1b1a5cf8139`）: 既承認step1/2の未対応打球を現統合候補へ追加する。最初に `batting-result.batted-out` の無走者・明示失策なし/妨害なし、通常アウト及び打者走者の一塁到達前による第3アウトを、既T1唯一核・v3画面・同期/保存/GETへ接続する。走者あり/併殺/失策/妨害の因果観測が不足する分岐は閉拒否して後続残件に保持し、この有限実装を全試合完成と扱わない。担当所有は本計画の既列挙された frontend domain/API/打球画面/Provider、backend domainrt/sync payload/物理投影と専用試験に限る。共有SQL/registry/認可/catalog/contracts/正式pinは root 唯一writerへ before SHA 付き候補packetで渡す。旧4安打/走者操作/保存資格・同TX・再送の拒否順を維持し、唯一artifactだけ公式builderで再生成する。原典は付録Eの `batting-result.batted-out` 行、OUT3-01、FR-003/005とし、必要な記録者観測を既定値で補わない。
+
 
 非作者のNFR-018指摘反映（2026-11-06、PO委任Codex/root判断）: ef992の敵対レビューでbackend projection検証内のフォース連鎖再計算とTS内の占有真理値表重複を検出、双方採用。backendは唯一hostの真正出力/再実行完全一致とmodalityの型付き投影検証を保持し、野球意味のforce再導出を削除。TSは既hasRunnerをrunnerOccupancy.tsへ移しstate/battedHitから共有、adapterは閉塁番号のBigInt変換だけとする。数学真理値表を変更しない。artifact/pin/manifestは合成source固定後に公式builderで一括追随し、更新未了の固定版は提供済みとしない。最終非作者反映確認が必要。
 

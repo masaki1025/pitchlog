@@ -19,6 +19,8 @@ afterEach(() => {
 const props = {
   contextKey: 'game:checkpoint:1',
   resultId: 'batting-result.single' as const,
+  beforeOuts: '0' as const,
+  batterId: '22222222-2222-4222-8222-222222222222',
   fielders: [{ id: '11111111-1111-4111-8111-111111111111', label: '右翼手' }],
 }
 const fields = [
@@ -37,6 +39,30 @@ async function confirm(w: ReturnType<typeof mount>) {
   for (const q of w.findAll('[data-question-key] select'))
     await q.setValue('confirmed')
 }
+it('凡打死の第3アウトは打者走者の一塁到達前を確認して公式refで保存する', async () => {
+  const w = mount(GameScreenBattedHitObservation, {
+    props: {
+      ...props,
+      resultId: 'batting-result.batted-out',
+      beforeOuts: '2',
+    },
+  })
+  await flushPromises()
+  expect(w.text()).toContain('第3アウトは打者走者の一塁到達前')
+  await explicitNull(w)
+  expect(w.emitted('change')?.at(-1)).toEqual([null])
+  await confirm(w)
+  expect(w.emitted('change')?.at(-1)?.[0]).toMatchObject({
+    resultId: 'batting-result.batted-out',
+    thirdOutObservation: {
+      kind: 'batter-before-first',
+      batter: { kind: 'official', player_id: props.batterId },
+    },
+  })
+  await w.setProps({ runners: [{ base: '1', label: '一塁走者' }] })
+  expect(w.emitted('change')?.at(-1)).toEqual([null])
+  w.unmount()
+})
 it('6未観測と4裁定を一つずつ確認するまで観測を成立させず、結果/文脈変更で破棄する', async () => {
   const w = mount(GameScreenBattedHitObservation, { props })
   await flushPromises()

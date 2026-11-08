@@ -33,6 +33,18 @@ type BattedHitWireObservations = Omit<
   BattedHitObservations,
   'runnerAdvanceOverridesByRunner'
 > & { runnerAdvanceOverridesByRunner: RunnerAdvanceOverridesByRunner }
+export type BattedOutWireObservations = Omit<
+  BattedHitWireObservations,
+  'resultId' | 'thirdOutObservation'
+> & {
+  resultId: 'batting-result.batted-out'
+  thirdOutObservation:
+    | { kind: 'none' }
+    | {
+        kind: 'batter-before-first'
+        batter: { kind: 'official'; player_id: string }
+      }
+}
 type IntentionalWalkObservation = IntentionalWalkPlayPrefixV7['observations']
 
 export function isLineupDefinition<T>(
@@ -146,6 +158,7 @@ export async function formatLineupPrefixWire(
     | Observations
     | BattedHitObservations
     | BattedHitWireObservations
+    | BattedOutWireObservations
     | IntentionalWalkObservation
     | RunnerV7['observations'],
   participants: Participants,

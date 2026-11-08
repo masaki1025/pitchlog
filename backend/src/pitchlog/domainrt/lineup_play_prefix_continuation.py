@@ -318,7 +318,7 @@ class AppliedRunnerAdvanceOverrides(_LineupWire):
 
 
 class BattedHitT1Input(_LineupWire):
-    """結果から補完しない4つの明示観測を要求する安打入力。"""
+    """安打と凡打死の明示観測を要求する打球入力。"""
 
     event_kind: Literal["batting-result"] = Field(alias="eventKind")
     result_id: Literal[
@@ -326,6 +326,7 @@ class BattedHitT1Input(_LineupWire):
         "batting-result.double",
         "batting-result.triple",
         "batting-result.home-run",
+        "batting-result.batted-out",
     ] = Field(alias="resultId")
     pitch_event_kind: Literal["pitch-event"] = Field(alias="pitchEventKind")
     before: StrikeoutSnapshot
@@ -336,7 +337,9 @@ class BattedHitT1Input(_LineupWire):
     runner_advance_overrides: Literal["not-applied"] | AppliedRunnerAdvanceOverrides = (
         Field(alias="runnerAdvanceOverrides")
     )
-    third_out_observation: Literal["none"] = Field(alias="thirdOutObservation")
+    third_out_observation: Literal["none", "batter-before-first"] = Field(
+        alias="thirdOutObservation"
+    )
 
 
 class _RunnerOfficialRef(_LineupWire):
