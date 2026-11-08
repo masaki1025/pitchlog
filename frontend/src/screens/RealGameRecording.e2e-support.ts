@@ -167,7 +167,10 @@ export async function recordRealPitch(
   await pitch.selectOption({ index: 1 })
   await page.getByTestId('ordinary-pitch-result').selectOption(result)
   await page.getByTestId('first-ball-course').locator('svg').click()
-  if (result === 'batting-result.home-run') {
+  if (
+    result === 'batting-result.home-run' ||
+    result === 'batting-result.batted-out'
+  ) {
     const fielder = head.roster.teams
       .find((t) => t.side === 'home')
       ?.participants.find((p) =>

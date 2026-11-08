@@ -38,6 +38,8 @@ root接合候補反映（2026-11-06 19:46 JST、PO委任Codex/root判断）: act
 
 凡打死後継artifactの有限追随（2026-11-08、PO委任root指示、統合起点 `5bc8bb681073051a0499a3098a4157d649a02a9a`）: 公式builder結果 `0db3c87d…b72fff` へ現行D11/manifest/FE fixtureを追随する。旧v1/v2/v3 witnessと全規範期待は不変更。実Git旧`ab8e9de1…a2ff8c` hostと新実hostの53件全値一致を旧期待から導き、実行pinと既許可自己echoだけを再封印したv4 witness/有限4pair registry・検証器を追加する。旧`4e8b`/`4e7d`は既v3鎖の固定hashも検査し、未知pairは拒否する。共有D03開始SQL/正式authz資産はroot唯一writerへ生成本文候補を渡し、本候補の純検査を実PG/正式受理へ読み替えない。
 
+凡打死隔離実画面確認（2026-11-08、PO委任root指示、起点 `c20d245d46deb1d7231e731e67a750a353314c17`）: step2/3の製品縦断として既`RealGameRecording.e2e-support.ts`の打球観測有限分岐と専用Playwright/config/owned backend testだけを新WTで実装する。真正画面create/start、3凡打で第3アウト、同D5原要求重複、reload、実DBの3原本/current成績版を同じ正常49 profileで確認する。事前に型/lint/collectを通し、共通PG/browser lockを全寿命保持する。共有SQL/正式資産/台帳は編集せず、実試験未通過を成功に数えない。
+
 
 非作者のNFR-018指摘反映（2026-11-06、PO委任Codex/root判断）: ef992の敵対レビューでbackend projection検証内のフォース連鎖再計算とTS内の占有真理値表重複を検出、双方採用。backendは唯一hostの真正出力/再実行完全一致とmodalityの型付き投影検証を保持し、野球意味のforce再導出を削除。TSは既hasRunnerをrunnerOccupancy.tsへ移しstate/battedHitから共有、adapterは閉塁番号のBigInt変換だけとする。数学真理値表を変更しない。artifact/pin/manifestは合成source固定後に公式builderで一括追随し、更新未了の固定版は提供済みとしない。最終非作者反映確認が必要。
 
