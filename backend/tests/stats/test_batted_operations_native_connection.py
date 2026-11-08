@@ -6,7 +6,7 @@ from pathlib import Path
 from uuid import UUID
 
 import pytest
-from test_batted_operations_schema import actual_batted_payload
+from test_batted_operations_schema import CURRENT_ARTIFACT, actual_batted_payload
 
 from pitchlog.domainrt.host import open_domain_host
 from pitchlog.stats.facts import evaluate_native_projection
@@ -46,7 +46,11 @@ def test_real_batted_wire_supplies_all_27_primitive_inputs(host, index):
     """手定応答やframeを使わず、実計算の算入を実IDへ写す。DB成功ではない。"""
     name, runs, rbi, errors = EXPECTED[index]
     assert ROWS[index]["operation"] == name
-    typed = actual_batted_payload(ROWS[index], host)
+    current = copy.deepcopy(ROWS[index])
+    current["request"]["source"]["executionArtifactSha256"] = CURRENT_ARTIFACT
+    typed = actual_batted_payload(
+        current, host, expected_artifact=CURRENT_ARTIFACT
+    )
     raw = typed.model_dump(mode="json", by_alias=True, exclude_unset=True)
     before = copy.deepcopy(raw)
     result = evaluate_native_projection(
