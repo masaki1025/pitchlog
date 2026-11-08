@@ -1,5 +1,14 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 2026-11-08：走者を含む17操作の実画面・保存・再送・全取消検査を完走
+
+- **利用者が新たに通せる実経路**: 固定 `bae097fcacd9e61ad6e15a2441b23d3e1c267a2e`・同じ隔離環境で、画面新規作成→開始→単打/盗塁/暴投/捕逸/投手牽制/三振併殺/ボーク/捕手牽制を含む17操作→同D5再送200/重複→reload→別tenant404を完走。2回表0out・away1/home0まで。同じ試合の9回終了や全MVP成立とは区別する。
+- **実証**: run16-full-failure-only、pytest1passed384.90秒・外側385.82秒、正常/故障Playwright2case成功。末尾の実DBで全17PlayRow41列/全物理走者・events/slots/ledger各17、本人盗塁credit1・別打者への誤加算なし、current T5 source_count17/current_open・既成績sumを照合。別の画面新規作成試合に対するT4故障500はevent/play/runner/slot/fact/CSV投影残存なし・全T5版before/after一致。normal/faultの独立READ ONLY照合は双方verified。
+- **固定証拠**: `~/.cache/pitchlog/runner-operations-owned-20261107/run16-full-failure-only/manifest.json` SHA `0f5186424569ad92491b854189fcfe3d5be273d7bd1fcef52599ec6bcf0e6ee5`、REPORT SHA `736df0fc8461d8b1a2d1c097457ade14d42e25c9ecd50bc9842784559aa5d8ae`。rootは列挙11artifact実SHA・source3358前後全byte同一・rc0を独立読取で再照合。共有DSN入口unset、owned cleanupとlock解放は担当確認。実機・運用TLS・CSV88列内容の直接全照合・正式統合は未実施。
+- **同居候補の検査**: 閲覧996を接合した `1bfad343` はBE関連8suite382passed7.28秒、FE閲覧3suite22passed2.68秒、通常push済み。run16実測版とは後発差分を区別する。閲覧実HTTP/ブラウザはCSV担当が専用WTで実装中。準備一覧の旧seed規則形に伴う503がoperationIdで1件残るため一覧正常の全面成立は主張しない。
+- **次の依存**: 残操作の閉拒否から1試合の不足を接続、閲覧の現行通常startup実画面、訂正26件超/反復/追加球・終了再開・CSV整合。P3旧10秒idle観測はchannel帰属未証明であり現計算が期限を越えた原因と断定せず、現RR/close lifecycleと既packetを照合する。期限/認可/原子性を緩めず、手続きは経路単位・固定候補でまとめる。
+
+
 ## 2026-11-08：操作経路をまとめて接合し、固定候補で検査する方式を継続
 
 - **実行方針**: POの安全なハーネス簡素化指示と既承認 `mvp-game-operations-product/plan.md` に従い、関連変更は操作経路単位にまとめる。部品ごとの新たな計画承認・全件検査を接続の前提へ追加しない。意味・認可・記録権・原子性・冪等性・結果不明・耐久性の保証は実装中から維持し、正式受理・固定差分の非作者確認・必須CIは通常統合前に行う。候補成功と正式完成を区別する。
