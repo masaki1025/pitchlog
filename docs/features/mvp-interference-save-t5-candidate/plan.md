@@ -1,12 +1,12 @@
 ---
 feature: mvp-interference-save-t5-candidate
-status: draft
-承認: 未
+status: active
+承認: 済（PO委任Codex主担当/root限定採用、2026-11-08 22:43 JST、対象 `086dd6aa8ab71ec8f756f127d1ce221494811b63`、計画SHA `bb5ed455b651a07f9540b1eb3210fd1e0075c563f58b5e4149793686a5c62972`、非作者REPORT SHA `82c2bdabbe36e1caf1f602017caaee8906c1c077b959a93b7d1b5ee49d506775`）
 重さ分類: コア領域
 branch: feature/mvp-interference-save-t5-20261108
 worktree: /home/ymdms/projects/pitchlog-worktrees/feature-mvp-interference-save-t5-20261108
 created: 2026-11-08
-計画レビュー周回: 0
+計画レビュー周回: 1
 確定ゲート周回: 0
 実行方式: 通常
 ---
@@ -27,6 +27,7 @@ created: 2026-11-08
 - `secondary-result.batting-interference` は罰則採用と実プレイ採用を区別し、後者は真正主結果とbatted物理列を保持する。`secondary-result.obstruction` と `secondary-result.offensive-interference` は主結果NULL・妨害副結果を保持し、審判の授与/アウト/帰塁を原V7と実T1に束縛する。
 - 物理ラベル「妨害裁定アウト」は既 `runner_physical_rows` が審判の `out_targets` とT1 `outEffect.targets` の全一致を確認したときだけ出す内部保存表現とする。ラベル単独を裁定の根拠にせず、同TX原event・実runner ID・起点塁と照合する。
 - 現 `_row` は副結果列をNULL必須とし、妨害3形を拒否する。現 `_validate_runner_source` はrunner観測だけを全41列へ再束縛する。現T5は妨害のtyped走者別効果と裁定アウトの有限原本を供給対象に含めない。親SQLも新妨害を閉拒否する。これらを本候補で一括修復する。正式SQL配備と実DBはこの候補の純検査では証明できない。
+- INT-02の `steal-home` と `squeeze` は、審判のhome授与だけから盗塁成功へ短絡しない。既生成T5のattemptとの真正対応が立たない形では `completeness.steals=unavailable` とし、空のcomplete/盗塁0を偽装しない。
 
 | # | 作業 | 完了条件 |
 | --- | --- | --- |
