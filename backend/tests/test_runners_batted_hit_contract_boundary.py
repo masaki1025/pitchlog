@@ -91,6 +91,104 @@ def test_applied_two_runner_observation_matches_t1_exactly():
         require_batted_hit_observations(t1, _observations(mismatched))
 
 
+def test_double_play_requires_actual_first_runner_and_preserves_out_origin():
+    """併殺の一塁走者アウトは実IDと封殺原因を要求し、起点塁を保存する。"""
+    raw = copy.deepcopy(CASE["request"]["t1"])
+    raw["resultId"] = "batting-result.double-play"
+    raw["before"]["stateFields"]["state.outs"] = "0"
+    raw["before"]["stateFields"]["state.runners"] = "first"
+    raw["outRunner"] = {
+        "base": "1",
+        "runnerId": RUNNER["runnerId"],
+        "outKind": "force-out",
+    }
+    t1 = BattedHitT1Input.model_validate_json(json.dumps(raw))
+    observed = _observations({"kind": "not-applied", "overrides": []})
+    observed_raw = observed.model_dump(mode="json", by_alias=True)
+    observed_raw["resultId"] = raw["resultId"]
+    observed_raw["outRunner"] = raw["outRunner"]
+    closed = BattedHitPlayObservations.model_validate_json(json.dumps(observed_raw))
+    require_batted_hit_observations(t1, closed)
+    for changed in (
+        {"base": "1", "runnerId": str(UUID(int=100)), "outKind": "force-out"},
+        {"base": "1", "runnerId": RUNNER["runnerId"], "outKind": "running-out"},
+    ):
+        bad = copy.deepcopy(observed_raw)
+        bad["outRunner"] = changed
+        with pytest.raises(ValueError):
+            require_batted_hit_observations(
+                t1, BattedHitPlayObservations.model_validate_json(json.dumps(bad))
+            )
+    for missing in (None, {}):
+        bad = copy.deepcopy(observed_raw)
+        if missing is None:
+            del bad["outRunner"]
+        else:
+            bad["outRunner"] = missing
+        with pytest.raises(ValueError):
+            BattedHitPlayObservations.model_validate_json(json.dumps(bad))
+    output = copy.deepcopy(CASE["expected"]["value"]["t1"])
+    output["outEffect"] = {"count": "2", "targets": ["batter", {"runner": "1"}]}
+    output["runnerDefaultAdvance"]["first"] = {
+        "modality": "not-applicable",
+        "destination": None,
+    }
+    rows = runner_physical_rows(
+        (Runner.model_validate_json(json.dumps(RUNNER)),),
+        t1=T1.model_validate_json(json.dumps(output)),
+        t1_input=t1,
+        tenant_id=UUID(int=1),
+        play_id=UUID(int=2),
+    )
+    assert [
+        (item["base"], item["runner_id"], item["status"], item["status_source"])
+        for item in rows
+    ] == [(1, RUNNER["runnerId"], "封殺", "manual")]
+
+
+def test_current_writer_requires_each_scoring_runner_rbi_cause_but_legacy_read_preserves_old():
+    """旧保存読取と新規保存を分け、停止後再発進の元観測を欠損補完しない。"""
+    applied = {
+        "kind": "applied",
+        "overrides": [
+            {"runnerBase": "1", "destination": "2"},
+            {"runnerBase": "2", "destination": "4"},
+        ],
+    }
+    raw = copy.deepcopy(CASE["request"]["t1"])
+    raw["before"]["stateFields"]["state.runners"] = "first-second"
+    raw["before"]["stateFields"]["state.outs"] = "0"
+    raw["runnerAdvanceOverrides"] = applied
+    old_t1 = BattedHitT1Input.model_validate_json(json.dumps(raw))
+    old_v7 = _observations(applied)
+    require_batted_hit_observations(old_t1, old_v7)
+    with pytest.raises(ValueError):
+        require_batted_hit_observations(old_t1, old_v7, require_current_rbi=True)
+    raw["rbiRulingByRunner"] = {"2": "stopped-and-restarted"}
+    v7 = old_v7.model_dump(mode="json", by_alias=True)
+    v7["rbiRulingByRunner"] = raw["rbiRulingByRunner"]
+    new_t1 = BattedHitT1Input.model_validate_json(json.dumps(raw))
+    new_v7 = BattedHitPlayObservations.model_validate_json(json.dumps(v7))
+    require_batted_hit_observations(new_t1, new_v7, require_current_rbi=True)
+    for broken in (
+        {"1": "ordinary-play"},
+        {"2": "stopped-and-restarted", "3": "ordinary-play"},
+        {"2": "unknown"},
+    ):
+        damaged = copy.deepcopy(v7)
+        damaged["rbiRulingByRunner"] = broken
+        with pytest.raises(ValueError):
+            require_batted_hit_observations(
+                new_t1,
+                BattedHitPlayObservations.model_validate_json(json.dumps(damaged)),
+                require_current_rbi=True,
+            )
+    damaged = copy.deepcopy(raw)
+    damaged["rbiRulingByRunner"] = None
+    with pytest.raises(ValueError):
+        BattedHitT1Input.model_validate_json(json.dumps(damaged))
+
+
 @pytest.mark.parametrize(
     "result_id",
     (

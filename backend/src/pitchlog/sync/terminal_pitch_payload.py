@@ -5,18 +5,20 @@ from __future__ import annotations
 import hashlib
 from typing import Annotated, Literal
 
-from pydantic import AfterValidator, Field, model_validator
+from pydantic import AfterValidator, Field, model_serializer, model_validator
 
 from pitchlog.domainrt.first_ball_projection import _canonical_json, _canonical_sha256
 from pitchlog.domainrt.first_pitch import _Frozen
 from pitchlog.domainrt.first_pitch_continuation import _check_frozen_members
 from pitchlog.domainrt.lineup_play_prefix_continuation import (
+    BattedForceOut,
     CanonicalUuid,
     Digest,
     LineupPrefixRequest,
     LineupPrefixSuccess,
     NonplayLineupPrefixRequest,
     NonplayLineupPrefixSuccess,
+    RbiRulingByRunner,
     RunnerEventT1Input,
     RunnerObservation,
     verify_lineup_wire_seal,
@@ -366,6 +368,7 @@ class BattedHitPlayObservations(FirstBallObservations):
         "batting-result.fielders-choice",
         "batting-result.sacrifice-bunt",
         "batting-result.sacrifice-fly",
+        "batting-result.double-play",
     ] = Field(alias="resultId")
     batted_ball: _BattedBall = Field(alias="battedBall")
     official_scoring_payload: _NoErrorScoring = Field(alias="officialScoringPayload")
@@ -379,6 +382,37 @@ class BattedHitPlayObservations(FirstBallObservations):
     third_out_timing_by_runner: _NoThirdOutTiming = Field(
         alias="thirdOutTimingByRunner"
     )
+    out_runner: BattedForceOut | None = Field(default=None, alias="outRunner")
+    rbi_ruling_by_runner: RbiRulingByRunner | None = Field(
+        default=None, alias="rbiRulingByRunner"
+    )
+
+    @model_serializer(mode="wrap")
+    def _serialize_closed_variant(self, handler):
+        """旧V7には新しい任意memberを出さず、併殺だけ原観測を出す。"""
+        value = handler(self)
+        if self.out_runner is None:
+            value.pop("outRunner", None)
+            value.pop("out_runner", None)
+        if self.rbi_ruling_by_runner is None:
+            value.pop("rbiRulingByRunner", None)
+            value.pop("rbi_ruling_by_runner", None)
+        return value
+
+    @model_validator(mode="after")
+    def _closed_out_runner(self):
+        """既V7へ明示nullを混ぜず、併殺だけ走者アウトを保存する。"""
+        if ("out_runner" in self.model_fields_set and self.out_runner is None) or (
+            (self.result_id == "batting-result.double-play")
+            != (self.out_runner is not None)
+        ):
+            raise ValueError("併殺走者アウトの原観測が不足")
+        if (
+            "rbi_ruling_by_runner" in self.model_fields_set
+            and self.rbi_ruling_by_runner is None
+        ):
+            raise ValueError("RBI因果の明示nullは使えません")
+        return self
 
 
 class RunnerPitchPlayObservations(FirstBallObservations):
@@ -424,7 +458,9 @@ class LineupPitchPlayPayload(_Frozen):
         return self
 
 
-def read_lineup_pitch_payload(raw_v7, raw_v8, *, expected_calculation):
+def read_lineup_pitch_payload(
+    raw_v7, raw_v8, *, expected_calculation, require_current_rbi: bool = False
+):
     """実独立評価とV7/V8/参加者を全比較し、欠落/alias/型の変化を拒否する。"""
     try:
         payload = LineupPitchPlayPayload.model_validate_json(raw_v7)
@@ -471,7 +507,11 @@ def read_lineup_pitch_payload(raw_v7, raw_v8, *, expected_calculation):
                 raise ValueError
             require_intentional_walk_observation(request.t1, payload.observations)
         else:
-            require_batted_hit_observations(request.t1, payload.observations)
+            require_batted_hit_observations(
+                request.t1,
+                payload.observations,
+                require_current_rbi=require_current_rbi,
+            )
         if (
             payload.calculation.artifact_sha256
             != response.value.execution_artifact_sha256
@@ -514,6 +554,19 @@ def read_lineup_pitch_payload(raw_v7, raw_v8, *, expected_calculation):
                 or third.batter.player_id != payload.participants.batter_id
             ):
                 raise ValueError
+            if payload.observations.result_id == "batting-result.double-play":
+                out = payload.observations.out_runner
+                if type(payload.calculation) is not LineupPitchCalculation:
+                    raise ValueError
+                runners = payload.calculation.request.source.runners
+                if (
+                    out is None
+                    or len(runners) != 1
+                    or runners[0].base != "1"
+                    or out.runner_id != runners[0].runner_id
+                    or out.runner_id == payload.participants.batter_id
+                ):
+                    raise ValueError
         parsed = _raw_json(raw_v8)
         if _canonical_json(parsed) != _canonical_json(
             response.value.new_history_entry.difference.model_dump(

@@ -21,7 +21,15 @@ type Confirmation = Omit<
   | 'stance'
   | 'battingSide'
   | 'runnerAdvanceOverridesByRunner'
-> & { runnerAdvanceOverridesByRunner: RunnerAdvanceOverridesByRunner }
+> & {
+  runnerAdvanceOverridesByRunner: RunnerAdvanceOverridesByRunner
+  rbiRulingByRunner?: Partial<
+    Record<
+      '1' | '2' | '3',
+      'ordinary-play' | 'kept-running' | 'stopped-and-restarted'
+    >
+  >
+}
 type BattedOutConfirmation = Omit<
   Confirmation,
   'resultId' | 'thirdOutObservation'
@@ -37,15 +45,23 @@ type BattedOutConfirmation = Omit<
 type BattedOtherConfirmation = Omit<Confirmation, 'resultId'> & {
   resultId: BattedOtherResult
 }
+type BattedDoublePlayConfirmation = Omit<Confirmation, 'resultId'> & {
+  resultId: 'batting-result.double-play'
+  outRunner: { base: '1'; runnerId: string; outKind: 'force-out' }
+}
 type Base = '1' | '2' | '3'
 const props = withDefaults(
   defineProps<{
     contextKey: string
-    resultId: BattedHitResult | 'batting-result.batted-out' | BattedOtherResult
+    resultId:
+      | BattedHitResult
+      | 'batting-result.batted-out'
+      | BattedOtherResult
+      | 'batting-result.double-play'
     beforeOuts: string
     batterId: string
     fielders: readonly { id: string; label: string }[]
-    runners?: readonly { base: Base; label: string }[]
+    runners?: readonly { base: Base; label: string; runnerId?: string }[]
     disabled?: boolean
   }>(),
   { runners: () => [] },
@@ -53,7 +69,11 @@ const props = withDefaults(
 const emit = defineEmits<{
   change: [
     value:
-      Confirmation | BattedOutConfirmation | BattedOtherConfirmation | null,
+      | Confirmation
+      | BattedOutConfirmation
+      | BattedOtherConfirmation
+      | BattedDoublePlayConfirmation
+      | null,
   ]
 }>()
 const auth = useAuthStore()
@@ -77,6 +97,7 @@ const modes = ref<Record<string, string>>({})
 const values = ref<Record<string, string>>({})
 const confirmations = ref<Record<string, string>>({})
 const runnerDestinations = ref<Record<string, string>>({})
+const runnerRbiRulings = ref<Record<string, string>>({})
 const runnerConfirmed = ref(false)
 const questions = computed(() => [
   {
@@ -105,7 +126,9 @@ const questions = computed(() => [
     label:
       props.resultId === 'batting-result.batted-out' && props.beforeOuts === '2'
         ? '第3アウトは打者走者の一塁到達前と確認'
-        : '第3アウトなし（追加タイミング観測なし）を確認',
+        : props.resultId === 'batting-result.double-play'
+          ? '打者アウトと一塁走者の二塁封殺を確認'
+          : '第3アウトなし（追加タイミング観測なし）を確認',
     required: true,
     options: [{ id: 'confirmed', label: '確認した' }],
   },
@@ -146,6 +169,7 @@ function reset() {
   values.value = {}
   confirmations.value = {}
   runnerDestinations.value = {}
+  runnerRbiRulings.value = {}
   runnerConfirmed.value = false
   emit('change', null)
 }
@@ -187,6 +211,13 @@ watch(
 watch(() => props.fielders, reset, { deep: true })
 watch(() => props.runners, reset, { deep: true })
 watch(
+  [runnerDestinations, runnerRbiRulings],
+  () => {
+    runnerConfirmed.value = false
+  },
+  { deep: true, flush: 'sync' },
+)
+watch(
   values,
   () => {
     confirmations.value = {}
@@ -206,7 +237,11 @@ function changeMode(key: string) {
   confirmations.value = {}
 }
 const observation = computed<
-  Confirmation | BattedOutConfirmation | BattedOtherConfirmation | null
+  | Confirmation
+  | BattedOutConfirmation
+  | BattedOtherConfirmation
+  | BattedDoublePlayConfirmation
+  | null
 >(() => {
   if (
     props.disabled ||
@@ -216,7 +251,17 @@ const observation = computed<
   )
     return null
   let runnerOverrides: RunnerAdvanceOverridesByRunner
+  const rbiRulingByRunner: Record<string, string> = {}
   if (props.runners.length === 0) {
+    runnerOverrides = { kind: 'not-applied', overrides: [] }
+  } else if (props.resultId === 'batting-result.double-play') {
+    if (
+      !runnerConfirmed.value ||
+      props.runners.length !== 1 ||
+      props.runners[0]?.base !== '1' ||
+      !props.runners[0].runnerId
+    )
+      return null
     runnerOverrides = { kind: 'not-applied', overrides: [] }
   } else {
     if (!runnerConfirmed.value) return null
@@ -230,6 +275,23 @@ const observation = computed<
       if (destination === 'hold') continue
       if (!destinations(runner.base).includes(destination as '2' | '3' | '4'))
         return null
+      if (
+        destination === '4' &&
+        props.resultId !== 'batting-result.home-run' &&
+        !(
+          props.resultId === 'batting-result.batted-out' &&
+          props.beforeOuts === '2'
+        )
+      ) {
+        const cause = runnerRbiRulings.value[runner.base]
+        if (
+          cause !== 'ordinary-play' &&
+          cause !== 'kept-running' &&
+          cause !== 'stopped-and-restarted'
+        )
+          return null
+        rbiRulingByRunner[runner.base] = cause
+      }
       overrides.push({
         runnerBase: runner.base,
         destination: destination as '2' | '3' | '4',
@@ -284,6 +346,7 @@ const observation = computed<
     interferenceRuling: { kind: 'not-required' },
     runnerAdvanceOverridesByRunner: runnerOverrides,
     thirdOutTimingByRunner: {},
+    ...(Object.keys(rbiRulingByRunner).length ? { rbiRulingByRunner } : {}),
   }
   if (props.resultId === 'batting-result.batted-out')
     return {
@@ -297,6 +360,17 @@ const observation = computed<
             }
           : { kind: 'none' },
     } as BattedOutConfirmation
+  if (props.resultId === 'batting-result.double-play')
+    return {
+      ...common,
+      resultId: props.resultId,
+      thirdOutObservation: { kind: 'none' },
+      outRunner: {
+        base: '1',
+        runnerId: props.runners[0]!.runnerId!,
+        outKind: 'force-out',
+      },
+    } as BattedDoublePlayConfirmation
   return {
     ...common,
     resultId: props.resultId,
@@ -401,38 +475,69 @@ async function previous() {
       data-testid="batted-runner-advances"
     >
       <legend>走者の実結果</legend>
-      <p>既定進塁は適用しません。各走者の実際の到達塁を選択してください。</p>
-      <label v-for="runner in runners" :key="runner.base" class="block">
-        {{ runner.label }}
-        <select
-          v-model="runnerDestinations[runner.base]"
-          :data-testid="`batted-runner-${runner.base}-destination`"
-          class="min-h-11 rounded border p-2"
-        >
-          <option value="">到達塁を選択</option>
-          <option v-if="resultId !== 'batting-result.home-run'" value="hold">
-            その塁に停止
-          </option>
-          <option
-            v-for="dest in destinations(runner.base)"
-            :key="dest"
-            :value="dest"
+      <p v-if="resultId === 'batting-result.double-play'">
+        一塁走者の二塁封殺を実際の記録と照合して確認してください。
+      </p>
+      <p v-else>
+        既定進塁は適用しません。各走者の実際の到達塁を選択してください。
+      </p>
+      <template v-if="resultId !== 'batting-result.double-play'">
+        <label v-for="runner in runners" :key="runner.base" class="block">
+          {{ runner.label }}
+          <select
+            v-model="runnerDestinations[runner.base]"
+            :data-testid="`batted-runner-${runner.base}-destination`"
+            class="min-h-11 rounded border p-2"
           >
-            {{
-              dest === '4'
-                ? '本塁（生還）'
-                : ['', '一', '二', '三'][Number(dest)] + '塁'
-            }}
-          </option>
-        </select>
-      </label>
+            <option value="">到達塁を選択</option>
+            <option v-if="resultId !== 'batting-result.home-run'" value="hold">
+              その塁に停止
+            </option>
+            <option
+              v-for="dest in destinations(runner.base)"
+              :key="dest"
+              :value="dest"
+            >
+              {{
+                dest === '4'
+                  ? '本塁（生還）'
+                  : ['', '一', '二', '三'][Number(dest)] + '塁'
+              }}
+            </option>
+          </select>
+          <select
+            v-if="
+              runnerDestinations[runner.base] === '4' &&
+              resultId !== 'batting-result.home-run' &&
+              !(resultId === 'batting-result.batted-out' && beforeOuts === '2')
+            "
+            v-model="runnerRbiRulings[runner.base]"
+            :data-testid="`batted-runner-${runner.base}-rbi-cause`"
+            class="min-h-11 rounded border p-2"
+            :aria-label="runner.label + 'の打点因果'"
+          >
+            <option value="">打点の因果を確認</option>
+            <option value="ordinary-play">守備の持ち過ぎ・無用送球なし</option>
+            <option value="kept-running">
+              持ち過ぎ・無用送球中も走り続けた
+            </option>
+            <option value="stopped-and-restarted">
+              一旦停止後、持ち過ぎ・無用送球を見て再発進
+            </option>
+          </select>
+        </label>
+      </template>
       <label class="block">
         <input
           v-model="runnerConfirmed"
           type="checkbox"
           data-testid="batted-runner-confirmed"
         />
-        上記の走者結果を確認した
+        {{
+          resultId === 'batting-result.double-play'
+            ? '一塁走者の封殺を確認した'
+            : '上記の走者結果を確認した'
+        }}
       </label>
     </fieldset>
     <GameScreenObservationField

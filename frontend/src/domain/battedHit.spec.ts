@@ -136,6 +136,42 @@ function calculate(f: ReturnType<typeof fixture>, input: unknown) {
 }
 
 describe('凡打死の正本有限入力', () => {
+  it('一塁走者の実封殺と打者を併殺の2アウトへ結び、別IDや推測入力を拒否する', () => {
+    const f = fixture('top', 1n)
+    f.before.outs = 0n
+    f.before.runners = 'first'
+    const input = {
+      ...observation('batting-result.double-play'),
+      outRunner: {
+        base: '1' as const,
+        runnerId: '10000000-0000-0000-0000-000000000065',
+        outKind: 'force-out' as const,
+      },
+    }
+    const row = calculate(f, input)!
+    expect(row.outEffect).toEqual({
+      count: 2n,
+      targets: [{ kind: 'batter' }, { kind: 'runner', base: 1n }],
+    })
+    expect(row.after.stateFields).toMatchObject({
+      outs: 2n,
+      runners: 'empty',
+      half: 'top',
+    })
+    expect(row.statFlags).toMatchObject({ 打席: true, 打数: true, 安打: false })
+    expect(calculate(f, { ...input, outRunner: undefined })).toBeNull()
+    expect(
+      calculate(f, { ...input, outRunner: { ...input.outRunner, base: '2' } }),
+    ).toBeNull()
+    expect(
+      calculate(f, {
+        ...input,
+        outRunner: { ...input.outRunner, outKind: 'tag-out' },
+      }),
+    ).toBeNull()
+    f.before.outs = 1n
+    expect(calculate(f, input)).toBeNull()
+  })
   it('無走者0アウトは打者1アウト・打数1、2アウトは明示OUT3-01で攻守交代する', () => {
     const contract = JSON.parse(
       readFileSync(
@@ -220,6 +256,28 @@ describe('凡打死の正本有限入力', () => {
     expect(scored.runnerScoreEffects).toEqual([
       { base: 3n, validRun: true, rbiCredited: true },
     ])
+    const restarted = calculate(one, {
+      ...move,
+      rbiRulingByRunner: { '3': 'stopped-and-restarted' },
+    })!
+    expect(restarted.after.stateFields.away).toBe(6n)
+    expect(restarted.statFlags.打点).toBe(false)
+    expect(restarted.runnerScoreEffects).toEqual([
+      { base: 3n, validRun: true, rbiCredited: false },
+    ])
+    for (const cause of ['ordinary-play', 'kept-running']) {
+      expect(
+        calculate(one, { ...move, rbiRulingByRunner: { '3': cause } })!
+          .statFlags.打点,
+      ).toBe(true)
+    }
+    expect(
+      calculate(one, { ...move, rbiRulingByRunner: { '1': 'ordinary-play' } }),
+    ).toBeNull()
+    expect(calculate(one, { ...move, rbiRulingByRunner: {} })).toBeNull()
+    expect(
+      calculate(one, { ...move, rbiRulingByRunner: { '3': 'unknown' } }),
+    ).toBeNull()
     const last = fixture('top')
     last.before.runners = 'third'
     const noRun = calculate(last, {

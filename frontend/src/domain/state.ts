@@ -533,6 +533,7 @@ function applyCountRule(
   }
   if (
     resultId === 'batting-result.batted-out' ||
+    resultId === 'batting-result.double-play' ||
     resultId === 'batting-result.batted-reach' ||
     resultId === 'batting-result.fielders-choice'
   )
@@ -592,6 +593,8 @@ function applyCountRule(
         validRun = rule.validRunnerScoreBases.includes(baseKey(base))
       const rbiCredited =
         validRun &&
+        (!rule.validRunnerRbiBases ||
+          rule.validRunnerRbiBases.includes(baseKey(base))) &&
         (homeRun ||
           hit ||
           ((resultId === 'batting-result.batted-out' ||

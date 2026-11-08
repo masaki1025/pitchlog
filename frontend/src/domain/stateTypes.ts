@@ -45,6 +45,8 @@ export type Rule = {
   pitchEventKind?: 'pitch-event' | 'non-pitch-event'
   /** OUT3/T2が同じ唯一核で確定した有効生還だけを算入する内部mask。 */
   validRunnerScoreBases?: Array<string>
+  /** 明示されたRBI因果に基づく算入走者。旧入力では旧結果を保持する。 */
+  validRunnerRbiBases?: Array<string>
   scoringEvidence?: boolean
 }
 

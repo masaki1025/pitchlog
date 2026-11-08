@@ -32,6 +32,7 @@ import type {
   BattedOtherResult,
   BattedOtherWireObservations,
   BattedOutWireObservations,
+  BattedDoublePlayWireObservations,
 } from '../api/lineupPrefixWire'
 import type {
   Source,
@@ -272,9 +273,18 @@ export function isPlayRecordingContext(
 export type BattedHitConfirmation = Omit<
   BattedHitObservations,
   'runnerAdvanceOverridesByRunner'
-> & { runnerAdvanceOverridesByRunner: RunnerAdvanceOverridesByRunner }
+> & {
+  runnerAdvanceOverridesByRunner: RunnerAdvanceOverridesByRunner
+  rbiRulingByRunner?: Partial<
+    Record<
+      '1' | '2' | '3',
+      'ordinary-play' | 'kept-running' | 'stopped-and-restarted'
+    >
+  >
+}
 export type BattedOutConfirmation = BattedOutWireObservations
 export type BattedOtherConfirmation = BattedOtherWireObservations
+export type BattedDoublePlayConfirmation = BattedDoublePlayWireObservations
 
 export type PlayScreenObservation = Omit<
   OrdinaryScreenObservation,
@@ -292,11 +302,13 @@ export type PlayScreenObservation = Omit<
       | BattedHitResult
       | 'batting-result.batted-out'
       | BattedOtherResult
+      | 'batting-result.double-play'
     runnerEvent?: RunnerObservationWire | null
     battedHit?:
       | Omit<BattedHitConfirmation, keyof FirstBallObservations>
       | Omit<BattedOutConfirmation, keyof FirstBallObservations>
       | Omit<BattedOtherConfirmation, keyof FirstBallObservations>
+      | Omit<BattedDoublePlayConfirmation, keyof FirstBallObservations>
       | null
     nextBatter?: NextBatter | null
   }>
@@ -784,6 +796,7 @@ export async function prepareLineupPrefix(
     'batting-result.fielders-choice',
     'batting-result.sacrifice-bunt',
     'batting-result.sacrifice-fly',
+    'batting-result.double-play',
   ]
   const batted = hitResults.includes(observation.resultId)
   if (batted) {
@@ -823,13 +836,63 @@ export async function prepareLineupPrefix(
       )
         return invalid()
     }
+    if (hit.resultId === 'batting-result.double-play') {
+      const out = hit.outRunner
+      if (
+        context.after.stateFields['state.runners'] !== 'first' ||
+        context.after.stateFields['state.outs'] !== '0' ||
+        !out ||
+        out.base !== '1' ||
+        out.outKind !== 'force-out' ||
+        context.lineupSource.runners.length !== 1 ||
+        context.lineupSource.runners[0]?.base !== '1' ||
+        context.lineupSource.runners[0]?.runnerId !== out.runnerId ||
+        out.runnerId === context.lineupSource.participants.batterId
+      )
+        return invalid()
+    }
+    const scoredBases =
+      hit.runnerAdvanceOverridesByRunner.kind === 'applied' &&
+      hit.resultId !== 'batting-result.home-run' &&
+      !(
+        hit.resultId === 'batting-result.batted-out' &&
+        context.after.stateFields['state.outs'] === '2'
+      )
+        ? hit.runnerAdvanceOverridesByRunner.overrides
+            .filter((item) => item.destination === '4')
+            .map((item) => item.runnerBase)
+        : []
+    const causes = hit.rbiRulingByRunner
+    if (
+      (scoredBases.length > 0 && !causes) ||
+      (scoredBases.length === 0 && causes !== undefined) ||
+      (causes &&
+        (Object.keys(causes).length !== scoredBases.length ||
+          !scoredBases.every((base) => {
+            const value = causes[base]
+            return (
+              value === 'ordinary-play' ||
+              value === 'kept-running' ||
+              value === 'stopped-and-restarted'
+            )
+          }) ||
+          !Object.keys(causes).every((base) =>
+            scoredBases.some((item) => item === base),
+          )))
+    )
+      return invalid()
   } else if (observation.battedHit != null) return invalid()
   const runnerAdvanceOverrides = batted
-    ? requestRunnerOverrides(
-        observation.battedHit!,
-        context.after,
-        context.lineupSource.runners,
-      )
+    ? observation.battedHit!.resultId === 'batting-result.double-play'
+      ? observation.battedHit!.runnerAdvanceOverridesByRunner.kind ===
+        'not-applied'
+        ? 'not-applied'
+        : invalid()
+      : requestRunnerOverrides(
+          observation.battedHit!,
+          context.after,
+          context.lineupSource.runners,
+        )
     : null
   const candidate = {
     version: '3',
@@ -847,6 +910,12 @@ export async function prepareLineupPrefix(
             runnerAdvanceOverrides: runnerAdvanceOverrides,
             thirdOutObservation:
               observation.battedHit!.thirdOutObservation.kind,
+            ...(observation.battedHit!.resultId === 'batting-result.double-play'
+              ? { outRunner: observation.battedHit!.outRunner }
+              : {}),
+            ...(observation.battedHit!.rbiRulingByRunner
+              ? { rbiRulingByRunner: observation.battedHit!.rbiRulingByRunner }
+              : {}),
           }
         : {}),
     },

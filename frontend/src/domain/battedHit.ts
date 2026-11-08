@@ -1,4 +1,5 @@
 import { hasRunner } from './runnerOccupancy'
+import { canonicalContinuationUuid } from './ordinaryPitchContinuation'
 import { ordinaryStateSupported } from './ordinaryState'
 import type {
   BattingOrderBySide,
@@ -20,6 +21,7 @@ export type BattedHitResultId =
   | 'batting-result.fielders-choice'
   | 'batting-result.sacrifice-bunt'
   | 'batting-result.sacrifice-fly'
+  | 'batting-result.double-play'
 
 /** 記録者が確定した1走者の実到達塁。停止は写像へ含めない。 */
 export type RunnerAdvanceOverride = {
@@ -46,6 +48,12 @@ export type BattedHitObservation = {
   interferenceRuling: 'not-required'
   runnerAdvanceOverrides: RunnerAdvanceOverrides
   thirdOutObservation: 'none' | 'batter-before-first'
+  outRunner?: { base: '1'; runnerId: string; outKind: 'force-out' }
+  rbiRulingByRunner?: {
+    '1'?: 'ordinary-play' | 'kept-running' | 'stopped-and-restarted'
+    '2'?: 'ordinary-play' | 'kept-running' | 'stopped-and-restarted'
+    '3'?: 'ordinary-play' | 'kept-running' | 'stopped-and-restarted'
+  }
 }
 
 /** 旧公開Derivedを広げず、新操作で両side cursorを保持する。 */
@@ -65,9 +73,51 @@ const OBSERVATION_KEYS: Array<string> = [
   'interferenceRuling',
   'runnerAdvanceOverrides',
   'thirdOutObservation',
+  'outRunner',
+  'rbiRulingByRunner',
 ]
 
 type QualifiedBattedHitRule = Rule & { resultId: BattedHitResultId }
+
+/** 明示された生還走者の因果だけをRBI maskへ写す。未指定は旧計算互換。 */
+function applyRbiRuling(
+  rule: QualifiedBattedHitRule,
+  field: unknown,
+  scoringBases: Array<string>,
+): boolean {
+  if (field === null) return true
+  if (typeof field !== 'object' || !Object.hasOwn(field, 'value')) return false
+  const value = (field as { value: unknown }).value
+  if (
+    typeof value !== 'object' ||
+    value === null ||
+    Array.isArray(value) ||
+    !Object.getOwnPropertySymbols(value).every(() => false) ||
+    !scoringBases.some(() => true)
+  )
+    return false
+  const keys = Object.getOwnPropertyNames(value)
+  if (
+    !keys.every((key) => scoringBases.includes(key)) ||
+    !scoringBases.every((base) => keys.includes(base))
+  )
+    return false
+  let credited: Array<string> = []
+  for (const key of keys) {
+    const entry = Object.getOwnPropertyDescriptor(value, key)
+    if (!entry || !Object.hasOwn(entry, 'value')) return false
+    if (
+      entry.value !== 'ordinary-play' &&
+      entry.value !== 'kept-running' &&
+      entry.value !== 'stopped-and-restarted'
+    )
+      return false
+    if (entry.value !== 'stopped-and-restarted')
+      credited = credited.concat([key])
+  }
+  rule.validRunnerRbiBases = credited
+  return true
+}
 
 /** 閉検証済み塁番号を唯一の占有helperへ渡す。 */
 function occupied(runners: Runners, base: string): boolean {
@@ -218,7 +268,9 @@ export function battedHitRule(
     !Object.getOwnPropertyNames(observation).every((key) =>
       OBSERVATION_KEYS.includes(key),
     ) ||
-    !OBSERVATION_KEYS.every((key) => {
+    !OBSERVATION_KEYS.filter(
+      (key) => key !== 'outRunner' && key !== 'rbiRulingByRunner',
+    ).every((key) => {
       const field = Object.getOwnPropertyDescriptor(observation, key)
       return typeof field === 'object' && Object.hasOwn(field, 'value')
     })
@@ -286,6 +338,7 @@ export function battedHitRule(
     case 'batting-result.batted-out':
     case 'batting-result.sacrifice-bunt':
     case 'batting-result.sacrifice-fly':
+    case 'batting-result.double-play':
       base = 0n
       break
     default:
@@ -293,6 +346,70 @@ export function battedHitRule(
   }
   let batter: 'score' | 'reach' = 'reach'
   if (base === 0n) batter = 'score'
+  const outField = Object.getOwnPropertyDescriptor(value, 'outRunner')
+  const rbiDescriptor = Object.getOwnPropertyDescriptor(
+    value,
+    'rbiRulingByRunner',
+  )
+  let rbiField: unknown = null
+  if (rbiDescriptor) rbiField = rbiDescriptor
+  if (resultId === 'batting-result.double-play') {
+    if (rbiField !== null) return null
+    if (!outField || !Object.hasOwn(outField, 'value')) return null
+    const outRunner = outField.value
+    if (
+      before.runners !== 'first' ||
+      before.outs !== 0n ||
+      value.runnerAdvanceOverrides !== 'not-applied' ||
+      value.thirdOutObservation !== 'none' ||
+      typeof outRunner !== 'object' ||
+      outRunner === null ||
+      Array.isArray(outRunner) ||
+      !Object.getOwnPropertySymbols(outRunner).every(() => false)
+    )
+      return null
+    const outKeys = Object.getOwnPropertyNames(outRunner)
+    if (
+      !outKeys.every(
+        (key) => key === 'base' || key === 'runnerId' || key === 'outKind',
+      ) ||
+      !outKeys.includes('base') ||
+      !outKeys.includes('runnerId') ||
+      !outKeys.includes('outKind')
+    )
+      return null
+    const outBase = Object.getOwnPropertyDescriptor(outRunner, 'base')
+    const outId = Object.getOwnPropertyDescriptor(outRunner, 'runnerId')
+    const outKind = Object.getOwnPropertyDescriptor(outRunner, 'outKind')
+    if (
+      !outBase ||
+      !Object.hasOwn(outBase, 'value') ||
+      outBase.value !== '1' ||
+      !outId ||
+      !Object.hasOwn(outId, 'value') ||
+      !canonicalContinuationUuid(outId.value) ||
+      !outKind ||
+      !Object.hasOwn(outKind, 'value') ||
+      outKind.value !== 'force-out'
+    )
+      return null
+    return {
+      resultId,
+      pa: true,
+      batter: 'out',
+      batterBase: 0n,
+      outs: 2n,
+      targets: ['batter', '1'],
+      advance: 'hold_all',
+      step: 0n,
+      explicit: {},
+      strikeEffect: 'reset',
+      strikeDelta: 0n,
+      ballEffect: 'reset',
+      ballDelta: 0n,
+    }
+  }
+  if (outField) return null
   if (
     resultId === 'batting-result.batted-out' ||
     resultId === 'batting-result.sacrifice-bunt' ||
@@ -303,54 +420,72 @@ export function battedHitRule(
       outOverrides = readAppliedOverrides(value.runnerAdvanceOverrides, before)
       if (outOverrides === null) return null
     }
+    let thirdOutInvalid = false
+    if (resultId === 'batting-result.batted-out') {
+      if (before.outs === 2n)
+        thirdOutInvalid = value.thirdOutObservation !== 'batter-before-first'
+      else thirdOutInvalid = value.thirdOutObservation !== 'none'
+    } else
+      thirdOutInvalid =
+        before.outs === 2n || value.thirdOutObservation !== 'none'
     if (
       (before.runners === 'empty') !== (outOverrides === null) ||
       !destinationsDoNotCollide(before, 0n, outOverrides) ||
-      (resultId === 'batting-result.batted-out'
-        ? (before.outs === 2n &&
-            value.thirdOutObservation !== 'batter-before-first') ||
-          (before.outs !== 2n && value.thirdOutObservation !== 'none')
-        : before.outs === 2n || value.thirdOutObservation !== 'none') ||
+      thirdOutInvalid ||
       (resultId === 'batting-result.sacrifice-bunt' &&
         (before.runners !== 'first-second' ||
-          outOverrides?.first !== 2n ||
-          outOverrides?.second !== 3n ||
-          outOverrides?.third !== null)) ||
+          outOverrides === null ||
+          outOverrides.first !== 2n ||
+          outOverrides.second !== 3n ||
+          outOverrides.third !== null)) ||
       (resultId === 'batting-result.sacrifice-fly' &&
         (before.runners !== 'third' ||
-          outOverrides?.first !== null ||
-          outOverrides?.second !== null ||
-          outOverrides?.third !== 4n))
+          outOverrides === null ||
+          outOverrides.first !== null ||
+          outOverrides.second !== null ||
+          outOverrides.third !== 4n))
     )
       return null
     let explicit: Record<string, bigint> = {}
-    if (outOverrides?.first !== null && outOverrides?.first !== undefined)
-      explicit = Object.assign(explicit, { '1': outOverrides.first })
-    if (outOverrides?.second !== null && outOverrides?.second !== undefined)
-      explicit = Object.assign(explicit, { '2': outOverrides.second })
-    if (outOverrides?.third !== null && outOverrides?.third !== undefined)
-      explicit = Object.assign(explicit, { '3': outOverrides.third })
-    return {
+    if (outOverrides !== null) {
+      if (outOverrides.first !== null)
+        explicit = Object.assign(explicit, { '1': outOverrides.first })
+      if (outOverrides.second !== null)
+        explicit = Object.assign(explicit, { '2': outOverrides.second })
+      if (outOverrides.third !== null)
+        explicit = Object.assign(explicit, { '3': outOverrides.third })
+    }
+    let advance: 'hold_all' | 'explicit' = 'hold_all'
+    if (outOverrides !== null) advance = 'explicit'
+    const rule: QualifiedBattedHitRule = {
       resultId,
       pa: true,
       batter: 'out',
       batterBase: 0n,
       outs: 1n,
       targets: ['batter'],
-      advance: outOverrides === null ? 'hold_all' : 'explicit',
+      advance,
       step: 0n,
       explicit,
       strikeEffect: 'reset',
       strikeDelta: 0n,
       ballEffect: 'reset',
       ballDelta: 0n,
-      ...(outOverrides === null
-        ? {}
-        : {
-            validRunnerScoreBases: before.outs === 2n ? [] : ['1', '2', '3'],
-            scoringEvidence: true,
-          }),
     }
+    if (outOverrides !== null) {
+      let validRunnerScoreBases = ['1', '2', '3']
+      if (before.outs === 2n) validRunnerScoreBases = []
+      rule.validRunnerScoreBases = validRunnerScoreBases
+      rule.scoringEvidence = true
+    }
+    let scoringBases: Array<string> = []
+    if (outOverrides !== null && before.outs !== 2n) {
+      if (outOverrides.first === 4n) scoringBases = scoringBases.concat(['1'])
+      if (outOverrides.second === 4n) scoringBases = scoringBases.concat(['2'])
+      if (outOverrides.third === 4n) scoringBases = scoringBases.concat(['3'])
+    }
+    if (!applyRbiRuling(rule, rbiField, scoringBases)) return null
+    return rule
   }
   if (value.thirdOutObservation !== 'none') return null
   let overrides: AppliedOverrides | null = null
@@ -386,9 +521,10 @@ export function battedHitRule(
     (resultId === 'batting-result.batted-reach' ||
       resultId === 'batting-result.fielders-choice') &&
     (before.runners !== 'first-second' ||
-      overrides?.first !== 2n ||
-      overrides?.second !== 3n ||
-      overrides?.third !== null)
+      overrides === null ||
+      overrides.first !== 2n ||
+      overrides.second !== 3n ||
+      overrides.third !== null)
   )
     return null
   if (!destinationsDoNotCollide(before, base, overrides)) return null
@@ -403,7 +539,7 @@ export function battedHitRule(
     if (overrides.third !== null)
       explicit = Object.assign(explicit, { '3': overrides.third })
   }
-  return {
+  const rule: QualifiedBattedHitRule = {
     resultId,
     pa: true,
     batter,
@@ -418,4 +554,12 @@ export function battedHitRule(
     ballEffect: 'reset',
     ballDelta: 0n,
   }
+  let scoringBases: Array<string> = []
+  if (overrides !== null && resultId !== 'batting-result.home-run') {
+    if (overrides.first === 4n) scoringBases = scoringBases.concat(['1'])
+    if (overrides.second === 4n) scoringBases = scoringBases.concat(['2'])
+    if (overrides.third === 4n) scoringBases = scoringBases.concat(['3'])
+  }
+  if (!applyRbiRuling(rule, rbiField, scoringBases)) return null
+  return rule
 }

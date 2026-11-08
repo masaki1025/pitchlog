@@ -791,7 +791,10 @@ def _evaluate_lineup_prefix_bound(state):
         )
         try:
             state.payload = read_lineup_pitch_payload(
-                raw_v7, raw_v8, expected_calculation=calculation
+                raw_v7,
+                raw_v8,
+                expected_calculation=calculation,
+                require_current_rbi=True,
             )
         except TerminalPitchPayloadError:
             state.phase = "rejected"
@@ -967,7 +970,10 @@ def _evaluate_nonplay_normal_bound(state, supplied, raw_v7, raw_v8):
         )
         try:
             state.payload = read_lineup_pitch_payload(
-                raw_v7, raw_v8, expected_calculation=calculation
+                raw_v7,
+                raw_v8,
+                expected_calculation=calculation,
+                require_current_rbi=True,
             )
         except TerminalPitchPayloadError:
             state.phase = "rejected"

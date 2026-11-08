@@ -521,7 +521,9 @@ def initial_lineup_source(
     return Source.model_validate_json(_canonical(source), by_alias=True, by_name=False)
 
 
-def require_batted_hit_observations(t1, observations) -> None:
+def require_batted_hit_observations(
+    t1, observations, *, require_current_rbi: bool = False
+) -> None:
     """原本V7の全打球観測と数学入力のタグを照合する。DB資格は発行しない。"""
     from pitchlog.domainrt.lineup_play_prefix_continuation import (
         AppliedRunnerAdvanceOverrides,
@@ -541,19 +543,58 @@ def require_batted_hit_observations(t1, observations) -> None:
     checked = BattedHitPlayObservations.model_validate_json(
         _canonical(_dump(observations))
     )
+    observation_override = checked.runner_advance_overrides
+    scored_bases: set[str] = set()
+    if (
+        t1.result_id != "batting-result.home-run"
+        and not (
+            t1.result_id == "batting-result.batted-out"
+            and t1.before.state_fields.outs == "2"
+        )
+        and type(t1.runner_advance_overrides) is AppliedRunnerAdvanceOverrides
+    ):
+        scored_bases = {
+            item.runner_base
+            for item in t1.runner_advance_overrides.overrides
+            if item.destination == "4"
+        }
+    if (
+        (require_current_rbi and bool(scored_bases) and t1.rbi_ruling_by_runner is None)
+        or (t1.rbi_ruling_by_runner is None) != (checked.rbi_ruling_by_runner is None)
+        or (
+            t1.rbi_ruling_by_runner is not None
+            and (
+                set(t1.rbi_ruling_by_runner) != scored_bases
+                or t1.rbi_ruling_by_runner != checked.rbi_ruling_by_runner
+            )
+        )
+    ):
+        raise ValueError("走者別RBI因果が生還原観測と一致しません")
     if t1.result_id == "batting-result.batted-out":
         if t1.third_out_observation != (
             "batter-before-first" if t1.before.state_fields.outs == "2" else "none"
         ):
             raise ValueError("凡打死の走者・第3アウト観測が不足")
+    elif t1.result_id == "batting-result.double-play":
+        if (
+            t1.before.state_fields.runners != "first"
+            or t1.before.state_fields.outs != "0"
+            or t1.runner_advance_overrides != "not-applied"
+            or t1.third_out_observation != "none"
+            or t1.out_runner is None
+            or checked.out_runner != t1.out_runner
+        ):
+            raise ValueError("併殺の実走者アウト観測が不足")
     elif t1.third_out_observation != "none":
         raise ValueError("安打へ凡打死の第3アウト観測を混在できません")
-    if t1.before.state_fields.runners != "empty":
+    if t1.result_id == "batting-result.double-play":
+        if observation_override.kind != "not-applied":
+            raise ValueError("併殺へ進塁を混在できません")
+    elif t1.before.state_fields.runners != "empty":
         if type(t1.runner_advance_overrides) is not AppliedRunnerAdvanceOverrides:
             raise ValueError("走者あり安打には明示進塁が必要です")
     elif t1.runner_advance_overrides != "not-applied":
         raise ValueError("無走者安打に進塁指定を混在できません")
-    observation_override = checked.runner_advance_overrides
     if observation_override.kind == "not-applied":
         override_matches = t1.runner_advance_overrides == "not-applied"
     else:

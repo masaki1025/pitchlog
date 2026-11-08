@@ -32,7 +32,15 @@ import { sameOrdinaryWire } from './ordinaryPitchWire'
 type BattedHitWireObservations = Omit<
   BattedHitObservations,
   'runnerAdvanceOverridesByRunner'
-> & { runnerAdvanceOverridesByRunner: RunnerAdvanceOverridesByRunner }
+> & {
+  runnerAdvanceOverridesByRunner: RunnerAdvanceOverridesByRunner
+  rbiRulingByRunner?: Partial<
+    Record<
+      '1' | '2' | '3',
+      'ordinary-play' | 'kept-running' | 'stopped-and-restarted'
+    >
+  >
+}
 export type BattedOtherResult =
   | 'batting-result.batted-reach'
   | 'batting-result.fielders-choice'
@@ -42,6 +50,13 @@ export type BattedOtherWireObservations = Omit<
   BattedHitWireObservations,
   'resultId'
 > & { resultId: BattedOtherResult }
+export type BattedDoublePlayWireObservations = Omit<
+  BattedHitWireObservations,
+  'resultId'
+> & {
+  resultId: 'batting-result.double-play'
+  outRunner: { base: '1'; runnerId: string; outKind: 'force-out' }
+}
 export type BattedOutWireObservations = Omit<
   BattedHitWireObservations,
   'resultId' | 'thirdOutObservation'
@@ -168,6 +183,7 @@ export async function formatLineupPrefixWire(
     | BattedHitObservations
     | BattedHitWireObservations
     | BattedOtherWireObservations
+    | BattedDoublePlayWireObservations
     | BattedOutWireObservations
     | IntentionalWalkObservation
     | RunnerV7['observations'],

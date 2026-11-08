@@ -94,6 +94,14 @@ def runner_physical_rows(before_runners, *, t1, t1_input, tenant_id, play_id):
             base for base, observed in runner_observed.items() if observed.kind == "out"
         }:
             raise OrdinaryPitchExecutionError
+    elif type(t1_input) is BattedHitT1Input and t1_input.out_runner is not None:
+        observed = t1_input.out_runner
+        if out_bases != {observed.base} or not any(
+            runner.base == observed.base and runner.runner_id == observed.runner_id
+            for runner in before_runners
+        ):
+            raise OrdinaryPitchExecutionError
+        runner_observed[observed.base] = observed
     elif out_bases:
         # 旧SO05のout対象だけでは観測原因を固定できない。
         raise OrdinaryPitchExecutionError

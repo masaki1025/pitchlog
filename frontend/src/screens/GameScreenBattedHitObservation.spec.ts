@@ -77,6 +77,12 @@ it('走者の実到達を欠いた凡打・犠飛を閉じ、確認値だけをV
   expect(w.emitted('change')?.at(-1)).toEqual([null])
   await w.get('[data-testid="batted-runner-3-destination"]').setValue('4')
   await w.get('[data-testid="batted-runner-confirmed"]').setValue(true)
+  expect(w.emitted('change')?.at(-1)).toEqual([null])
+  await w
+    .get('[data-testid="batted-runner-3-rbi-cause"]')
+    .setValue('stopped-and-restarted')
+  expect(w.emitted('change')?.at(-1)).toEqual([null])
+  await w.get('[data-testid="batted-runner-confirmed"]').setValue(true)
   expect(w.emitted('change')?.at(-1)?.[0]).toMatchObject({
     resultId: 'batting-result.sacrifice-fly',
     runnerAdvanceOverridesByRunner: {
@@ -84,8 +90,36 @@ it('走者の実到達を欠いた凡打・犠飛を閉じ、確認値だけをV
       overrides: [{ runnerBase: '3', destination: '4' }],
     },
     thirdOutObservation: { kind: 'none' },
+    rbiRulingByRunner: { '3': 'stopped-and-restarted' },
   })
+  await w
+    .get('[data-testid="batted-runner-3-rbi-cause"]')
+    .setValue('ordinary-play')
+  expect(w.emitted('change')?.at(-1)).toEqual([null])
   await w.setProps({ resultId: 'batting-result.batted-out', beforeOuts: '2' })
+  expect(w.emitted('change')?.at(-1)).toEqual([null])
+  w.unmount()
+})
+it('併殺は実一塁走者IDと封殺観測を確認した時だけV7へ出す', async () => {
+  const runnerId = '10000000-0000-0000-0000-000000000065'
+  const w = mount(GameScreenBattedHitObservation, {
+    props: {
+      ...props,
+      resultId: 'batting-result.double-play',
+      runners: [{ base: '1', label: '一塁走者', runnerId }],
+    },
+  })
+  await flushPromises()
+  await explicitNull(w)
+  await confirm(w)
+  expect(w.emitted('change')?.at(-1)).toEqual([null])
+  await w.get('[data-testid="batted-runner-confirmed"]').setValue(true)
+  expect(w.emitted('change')?.at(-1)?.[0]).toMatchObject({
+    resultId: 'batting-result.double-play',
+    runnerAdvanceOverridesByRunner: { kind: 'not-applied', overrides: [] },
+    outRunner: { base: '1', runnerId, outKind: 'force-out' },
+  })
+  await w.setProps({ runners: [{ base: '1', label: '一塁走者' }] })
   expect(w.emitted('change')?.at(-1)).toEqual([null])
   w.unmount()
 })

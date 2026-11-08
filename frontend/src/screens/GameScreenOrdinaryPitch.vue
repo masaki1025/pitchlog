@@ -23,7 +23,10 @@ import type { RunnerObservationWire } from '../api/runnerEventWire'
 import type { BattedHitResult } from '../../../contracts/state-transition/lineup_play_prefix_payload_v1.d.ts'
 import type { BattedOtherResult } from '../api/lineupPrefixWire'
 type CandidateBattedResult =
-  BattedHitResult | 'batting-result.batted-out' | BattedOtherResult
+  | BattedHitResult
+  | 'batting-result.batted-out'
+  | 'batting-result.double-play'
+  | BattedOtherResult
 import StrikeZone from '../components/zone/StrikeZone.vue'
 import { useAuthStore } from '../stores/authStore'
 import {
@@ -60,6 +63,7 @@ const hitResults: readonly string[] = [
   'batting-result.fielders-choice',
   'batting-result.sacrifice-bunt',
   'batting-result.sacrifice-fly',
+  'batting-result.double-play',
 ]
 const batted = computed(() => hitResults.includes(resultId.value))
 const battedOutAvailable = computed(() =>
@@ -80,6 +84,12 @@ const sacrificeFlyAvailable = computed(
     isLineupRecordingContext(displayed.value) &&
     displayed.value.after.stateFields['state.runners'] === 'third' &&
     displayed.value.after.stateFields['state.outs'] !== '2',
+)
+const doublePlayAvailable = computed(
+  () =>
+    isLineupRecordingContext(displayed.value) &&
+    displayed.value.after.stateFields['state.runners'] === 'first' &&
+    displayed.value.after.stateFields['state.outs'] === '0',
 )
 /** 原典で成立した一三塁0-0だけを画面に提示する。遷移値は唯一核が決める。 */
 const intentionalWalkAvailable = computed(() => {
@@ -104,28 +114,47 @@ const hitAvailable = computed(() => {
 })
 const battedRunners = computed(() => {
   const runners = displayed.value.after.stateFields['state.runners']
-  const result: Array<{ base: '1' | '2' | '3'; label: string }> = []
+  const source = isLineupRecordingContext(displayed.value)
+    ? displayed.value.lineupSource.runners
+    : []
+  const result: Array<{
+    base: '1' | '2' | '3'
+    label: string
+    runnerId?: string
+  }> = []
   if (
     runners === 'first' ||
     runners === 'first-second' ||
     runners === 'first-third' ||
     runners === 'first-second-third'
   )
-    result.push({ base: '1', label: '一塁走者' })
+    result.push({
+      base: '1',
+      label: '一塁走者',
+      runnerId: source.find((r) => r.base === '1')?.runnerId,
+    })
   if (
     runners === 'second' ||
     runners === 'first-second' ||
     runners === 'second-third' ||
     runners === 'first-second-third'
   )
-    result.push({ base: '2', label: '二塁走者' })
+    result.push({
+      base: '2',
+      label: '二塁走者',
+      runnerId: source.find((r) => r.base === '2')?.runnerId,
+    })
   if (
     runners === 'third' ||
     runners === 'first-third' ||
     runners === 'second-third' ||
     runners === 'first-second-third'
   )
-    result.push({ base: '3', label: '三塁走者' })
+    result.push({
+      base: '3',
+      label: '三塁走者',
+      runnerId: source.find((r) => r.base === '3')?.runnerId,
+    })
   return result
 })
 const battedContextKey = computed(() => {
@@ -812,6 +841,12 @@ onScopeDispose(() => {
               value="batting-result.sacrifice-fly"
             >
               犠飛
+            </option>
+            <option
+              v-if="doublePlayAvailable"
+              value="batting-result.double-play"
+            >
+              併殺打（一塁走者の封殺）
             </option>
           </template>
           <option value="batting-result.foul">
