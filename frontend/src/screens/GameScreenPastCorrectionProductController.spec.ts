@@ -203,6 +203,11 @@ it('受理I6後の再生成はHTTP再送せず同D5・slot2・現headを再照�
   expect(await reloaded.inspectPending()).toBe('saved')
   expect(post).toHaveBeenCalledTimes(1)
   server.prefix_ref.length = '2'
+  const appended = structuredClone(server.page.items[0]!)
+  appended.play_row.id = '11111111-1111-4111-8111-111111111111'
+  appended.play_row.source_event_id = '22222222-2222-4222-8222-222222222222'
+  appended.play_row.play_number = 2
+  server.page.items.push(appended)
   server.prefix_ref.checkpoint.revision = '2'
   server.prefix_ref.checkpoint.digest = 'c'.repeat(64)
   acceptedHead = structuredClone(server.prefix_ref)

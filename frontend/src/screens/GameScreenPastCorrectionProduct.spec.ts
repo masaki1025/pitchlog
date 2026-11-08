@@ -6,6 +6,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import fixture from '../api/fixtures/lineupPrefixGame.recorded.v3.json'
 import { setVerifiedAuthForTest } from '../api/auth.test-support'
 import * as options from '../api/pitchTypeOptions'
+import * as historyApi from '../api/lineupPrefixGame'
 import type { LineupPrefixGame } from '../api/lineupPrefixGame'
 import type { P3TargetOffer } from '../api/pastCorrectionProduct'
 import { useAuthStore } from '../stores/authStore'
@@ -119,6 +120,65 @@ it('実版を選び、明示差分を確定できる。一時停止中は送信�
     expect(wrapper.get('[data-testid="p3-status"]').text()).toContain(
       '結果が不明',
     )
+  } finally {
+    wrapper.unmount()
+  }
+})
+
+it('26件目を次頁から選び、対象の実D1を照会する。混在版の頁は入力に使わない', async () => {
+  const first = structuredClone(game)
+  const initial = {
+    ...first,
+    prefix_ref: { ...first.prefix_ref, length: '26' },
+    page: {
+      items: Array.from({ length: 25 }, (_, index) => ({
+        ...structuredClone(first.page.items[0]!),
+        play_row: {
+          ...first.page.items[0]!.play_row,
+          id: `${String(index + 1).padStart(8, '0')}-0000-4000-8000-000000000001`,
+          play_number: index + 1,
+        },
+      })),
+      next_cursor: 'next-25',
+    },
+  }
+  const second = {
+    ...initial,
+    page: {
+      items: [structuredClone(initial.page.items[0]!)],
+      next_cursor: null,
+    },
+  }
+  const read = vi
+    .spyOn(historyApi, 'readLineupPrefixGame')
+    .mockResolvedValue({ kind: 'found', game: second })
+  const inspect = vi.mocked(
+    GameScreenPastCorrectionProductController.prototype.inspect,
+  )
+  const wrapper = mount(GameScreenPastCorrectionProduct, {
+    props: { game: initial },
+    global: { plugins: [pinia] },
+  })
+  try {
+    await flushPromises()
+    for (const box of wrapper.findAll('input[type="checkbox"]').slice(0, 4))
+      await box.setValue(true)
+    await wrapper.get('[data-testid="p3-history-next"]').trigger('click')
+    await flushPromises()
+    expect(read).toHaveBeenCalledWith(game.id, 'next-25', 25)
+    expect(wrapper.get('[data-testid="p3-target"]').text()).toContain('第26球')
+    await wrapper.get('[data-testid="p3-target"]').setValue('26')
+    await wrapper.get('[data-testid="p3-inspect"]').trigger('click')
+    await flushPromises()
+    expect(inspect).toHaveBeenCalledWith(26)
+    read.mockResolvedValue({
+      kind: 'found',
+      game: { ...initial, prefix_ref: { ...initial.prefix_ref, length: '27' } },
+    })
+    await wrapper.get('[data-testid="p3-history-previous"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.find('[data-testid="p3-target"]').exists()).toBe(false)
+    expect(wrapper.text()).toContain('履歴頁の確定版を確認できません')
   } finally {
     wrapper.unmount()
   }
