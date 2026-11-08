@@ -447,6 +447,14 @@ export function battedHitRule(
       !destinationsDoNotCollide(before, 0n, outOverrides) ||
       thirdOutInvalid ||
       (resultId === 'batting-result.sacrifice-bunt' && outOverrides === null) ||
+      (resultId === 'batting-result.sacrifice-bunt' &&
+        outOverrides !== null &&
+        ((occupied(before.runners, '1') &&
+          (outOverrides.first === null || outOverrides.first <= 1n)) ||
+          (occupied(before.runners, '2') &&
+            (outOverrides.second === null || outOverrides.second <= 2n)) ||
+          (occupied(before.runners, '3') &&
+            (outOverrides.third === null || outOverrides.third <= 3n)))) ||
       (resultId === 'batting-result.sacrifice-fly' &&
         (outOverrides === null || outOverrides.third !== 4n))
     )

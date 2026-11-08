@@ -356,6 +356,48 @@ describe('凡打死の正本有限入力', () => {
 })
 
 describe('既正本の野選・犠打・犠飛有限行', () => {
+  it('犠打は全走者の実進塁を要求し、確認済み全hold/部分holdを拒否する', () => {
+    const one = fixture('top')
+    one.before.outs = 0n
+    one.before.runners = 'first'
+    expect(
+      calculate(one, {
+        ...observation('batting-result.sacrifice-bunt'),
+        runnerAdvanceOverrides: {
+          kind: 'applied',
+          overrides: [{ runnerBase: '1', destination: '1' }],
+        },
+      }),
+    ).toBeNull()
+    const two = fixture('top')
+    two.before.outs = 0n
+    two.before.runners = 'first-third'
+    expect(
+      calculate(two, {
+        ...observation('batting-result.sacrifice-bunt'),
+        runnerAdvanceOverrides: {
+          kind: 'applied',
+          overrides: [
+            { runnerBase: '1', destination: '2' },
+            { runnerBase: '3', destination: '3' },
+          ],
+        },
+      }),
+    ).toBeNull()
+    expect(
+      calculate(two, {
+        ...observation('batting-result.sacrifice-bunt'),
+        runnerAdvanceOverrides: {
+          kind: 'applied',
+          overrides: [
+            { runnerBase: '1', destination: '2' },
+            { runnerBase: '3', destination: '4' },
+          ],
+        },
+        rbiRulingByRunner: { '3': 'ordinary-play' },
+      }),
+    ).not.toBeNull()
+  })
   const matrix = JSON.parse(
     readFileSync(
       resolve(
