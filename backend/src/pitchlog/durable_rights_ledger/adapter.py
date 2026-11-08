@@ -887,6 +887,7 @@ class _AuthorityRuntime:
         self._blocked = False
         self._active: set[int] = set()
         self._binding_active: set[int] = set()
+        self._binding_live_checked_at = 0.0
         self._pair = self._pair_from(value)
         metadata = self._verify_enrollment()
         self._verify_history(metadata)
@@ -1547,15 +1548,25 @@ class _AuthorityRuntime:
                         raise LedgerUnavailable("ledger unavailable")
                     fence.assert_held()
                     if current["operation"] == "binding_check":
-                        from datetime import datetime, timezone
+                        from datetime import datetime, timedelta, timezone
 
-                        if datetime.now(timezone.utc) >= datetime.fromisoformat(
+                        now = datetime.now(timezone.utc)
+                        if now >= datetime.fromisoformat(
                             cast(str, record["expires_at"])
                         ):
                             raise LedgerUnavailable("ledger unavailable")
-                        self._live_matches()
+                        from time import monotonic
+
+                        now_monotonic = monotonic()
+                        if now_monotonic - self._binding_live_checked_at >= 1.0:
+                            self._live_matches()
+                            self._binding_live_checked_at = now_monotonic
                         authority.check(record, fence.generation)
-                        _send(channel, {"status": "ok", "result": None})
+                        # 生存確認が続く限り同一leaseを30秒延長する。停止した
+                        # writerは次の確認で失効し、期限の無いleaseは作らない。
+                        renewed = (now + timedelta(seconds=30)).isoformat()
+                        record["expires_at"] = renewed
+                        _send(channel, {"status": "ok", "result": renewed})
                         continue
                     self._journal.append(
                         _encode_event({"event": "binding_quarantined", "lease": lease})

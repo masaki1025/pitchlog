@@ -176,3 +176,63 @@ def test_existing_first_ball_bridge_still_rejects_d1_above_one():
     event = SyncEvent(str(UUID(int=9)), str(UUID(int=6)), 2, "generation-A", "1")
     with pytest.raises(FirstBallFrameError):
         _fingerprint(event, _LEGACY_BRIDGE_SOURCE, cast(_TenantTransaction, None))
+
+
+def test_binding_check_renews_only_the_same_live_lease(monkeypatch):
+    """生存確認が続く間だけ期限を更新し、不正応答は成功化しない。"""
+    from pitchlog.durable_rights_ledger import adapter
+
+    phase = _phase(1)
+    snapshot = json.dumps(
+        _phase_snapshot_value(phase, UUID(int=4), _phase_wire(phase, UUID(int=10), 1)),
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    now = datetime.now(timezone.utc)
+    identity = WriterIdentity("1", "1", now, 1, now, "1")
+    original = now + timedelta(seconds=30)
+    reply = {
+        "nonce": "01" * 32,
+        "lease_id": str(UUID(int=11)),
+        "expires_at": original.isoformat(),
+    }
+    control = object.__new__(BindingControl)
+    lease = _BindingLease(
+        control,
+        None,
+        None,
+        phase,
+        identity,
+        reply,
+        _LEASE_CREATION,
+        phase_snapshot=snapshot,
+    )
+    renewed = now + timedelta(seconds=60)
+    calls: list[dict[str, object]] = []
+
+    def request(channel, value):
+        calls.append(value)
+        return renewed.isoformat()
+
+    monkeypatch.setattr(adapter, "_request", request)
+    lease.check()
+    assert lease._expires == renewed
+    assert calls == [{"operation": "binding_check"}]
+
+    # 更新応答が閉じた文字列でない/後退する場合は失効として拒否する。
+    monkeypatch.setattr(adapter, "_request", lambda *args: None)
+    with pytest.raises(WriterBindingUnavailable):
+        lease.check()
+    assert lease._expires == renewed
+    monkeypatch.setattr(adapter, "_request", lambda *args: original.isoformat())
+    with pytest.raises(WriterBindingUnavailable):
+        lease.check()
+    assert lease._expires == renewed
+
+    # ローカル期限を過ぎたleaseはauthorityへ要求せず閉じる。
+    lease._expires = now - timedelta(seconds=1)
+    monkeypatch.setattr(
+        adapter, "_request", lambda *args: pytest.fail("期限切れでRPCしてはならない")
+    )
+    with pytest.raises(WriterBindingUnavailable):
+        lease.check()

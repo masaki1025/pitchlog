@@ -190,6 +190,7 @@ class _BindingAuthority:
         """root検証済み非秘密設定を受け、公開DSN構築器へしない。"""
         self._config = config
         self._issuer = issuer
+        self._read_connections: dict[str, Any] = {}
 
     def _call(
         self,
@@ -224,6 +225,43 @@ class _BindingAuthority:
             or write is not True
         ):
             raise WriterBindingUnavailable("binding分類対象が不正")
+        if not write:
+            # 生存確認は同一binding中に多数回走るため、read-only接続だけを
+            # 使い回す。書込みは従来どおり呼出ごとに独立接続でcommitする。
+            from pitchlog.durable_rights_ledger.adapter import _connect
+
+            dsn = self._config[f"binding_{which}_dsn"]
+            c = self._read_connections.get(which)
+            if c is None or c.closed:
+                c = _connect(dsn, self._config["timeout"])
+                c.autocommit = True
+                self._read_connections[which] = c
+            try:
+                identity = c.execute(
+                    "SELECT session_user,current_user,"
+                    "pg_catalog.current_setting('transaction_isolation')"
+                ).fetchone()
+                if identity != (
+                    "pitchlog_sync_binding_actor",
+                    "pitchlog_sync_binding_actor",
+                    "read committed",
+                ):
+                    raise WriterBindingUnavailable("binding制御主体が不正")
+                try:
+                    row = c.execute(statement, params).fetchone()
+                except psycopg.Error as error:
+                    if confirmed_rejection is not None and _is_confirmed_rejection(
+                        error, confirmed_rejection
+                    ):
+                        raise _ConfirmedBindingRejection from None
+                    raise
+            except (psycopg.OperationalError, psycopg.InterfaceError):
+                c.close()
+                self._read_connections.pop(which, None)
+                raise
+            if row is None:
+                raise WriterBindingUnavailable("binding原本を取得できない")
+            return row
         with _connection(
             self._config[f"binding_{which}_dsn"], self._config["timeout"]
         ) as c:
@@ -663,12 +701,18 @@ class _BindingLease:
         self._closed = False
 
     def check(self) -> None:
-        """期限内かつ実fenceが保持された場合だけ継続する。"""
+        """期限内かつ実fenceが保持された場合だけ継続し、生存期限を更新する。"""
         from pitchlog.durable_rights_ledger.adapter import _request
 
         if self._closed or datetime.now(timezone.utc) >= self._expires:
             raise WriterBindingUnavailable("writer leaseが失効している")
-        _request(self._channel, {"operation": "binding_check"})
+        renewed = _request(self._channel, {"operation": "binding_check"})
+        if type(renewed) is not str:
+            raise WriterBindingUnavailable("writer leaseの更新応答が不正")
+        expires = datetime.fromisoformat(renewed)
+        if expires.utcoffset() is None or expires <= self._expires:
+            raise WriterBindingUnavailable("writer leaseの更新期限が不正")
+        self._expires = expires
 
     def abandon(self) -> None:
         """切断は権威側に耐久quarantineさせ、解放成功と扱わない。"""
