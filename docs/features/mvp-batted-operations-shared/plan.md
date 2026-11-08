@@ -42,3 +42,9 @@ T5後発は、明示effects付きで射影失敗した入力をRBI観測無し�
 rootは実host71f→閉schema/head→V7/V8/current codec→既生成T5へ10入力を通し、全10件で原始27項目available、RBI-04の得点1/打点0、犠飛1/1、公式失策/犠打失策各1を確認（10passed2.31秒）。公式1失策の実fielder ID供給が欠けていたので、観測countが厳密int1・実official UUIDの時だけ既T5 participantへ写す。bool Trueを1へ補修する入力は欠測のまま拒否。野球式は生成T5から複製せず、手定応答/仮frame/DB投入を使わない。この成功は数学・射影接続であって実DB/画面59球の成功ではない。
 
 接合後BE生成/旧得点/新実接続4suite151passed7.72秒、FE schema/wire2suite68passed2.34秒、Vue/Ty/Ruff成功。59球driver359も候補へ通常merge済み、実PGは共通lockと接続経路の確認後に実施する。root新helper/後発は非作者レビューへ渡す。
+
+## 初回owned配置停止と機械追随（2026-11-08 21:07 JST）
+
+固定ee8b3e52の59球run1は36.74秒でCURRENT49配置の「初球関数の適用本文が凍結値と不一致」で停止。画面作成/記録は未到達、DB business監査未実施。source不変/owned削除/共通lock解放、manifest263220a1787f915ac076069c119332429f4b0959fe1f6281c08dcaf88e1e3896。長履歴の接続Timeout/旧55の503とは別の停止である。
+
+CSV担当が公式_selected_product_ddlとcanonical全関数を静的照合し、persist_start_pitcher_entryだけ旧0db3→71f artifact pin3箇所が追随漏れと特定。条件/権限/他byte差0。rootが公式BODIESから該当1SQLを再生成、2b82a2ea…→69853efb1ede406bdf8df0174c93e103e51cd5f7d0f433d69938d6bb35132331。PGへ進む前に全first_ball登録関数の適用本文・欠落・重複を照合し、旧3pin再導入を元の凍結ゲートで拒否するテストを追加（2passed6.48秒）。生成値追随の委任判断として採用し、照合条件は変更しない。同版の無根拠再走をせず、この新固定版で次owned実測へ進む。
