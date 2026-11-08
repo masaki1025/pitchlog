@@ -5971,6 +5971,11 @@
       "path": "contracts/authz/product/function-bodies/functions/FUNCTION:sync_right_api:read_viewer_effective_version(uuid, uuid, bigint).sql",
       "element_type": "function",
       "element_id": "FUNCTION:sync_right_api:read_viewer_effective_version(uuid, uuid, bigint)"
+    },
+    {
+      "path": "contracts/authz/product/function-bodies/policies/POLICY:play_rows:p3_finite_insert.sql",
+      "element_type": "policy",
+      "element_id": "POLICY:play_rows:p3_finite_insert"
     }
   ]
 }

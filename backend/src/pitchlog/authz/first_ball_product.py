@@ -2436,6 +2436,21 @@ def _activate_interference_evidence_profile() -> None:
 
 
 _activate_interference_evidence_profile()
+
+# 既parent全値を保全し、差分追随検査の入力を新許可から自己生成しない。
+_P3_PLAY_INSERT_BASELINE_ADDITIONS = copy.deepcopy(ADDITIONS)
+_P3_PLAY_INSERT_BASELINE_BODIES = dict(BODIES)
+
+
+def _activate_p3_play_insert_profile() -> None:
+    """原P3保存だけに必要な有限37列と既stamp下のRLSを接合する。"""
+    from pitchlog.authz.p3_play_row_insert_product import extend_p3_play_insert
+
+    global ADDITIONS, BODIES
+    ADDITIONS, BODIES = extend_p3_play_insert(ADDITIONS, BODIES)
+
+
+_activate_p3_play_insert_profile()
 ROLES = frozenset(row["role_id"] for row in ADDITIONS["roles"])
 
 TABLES = frozenset(

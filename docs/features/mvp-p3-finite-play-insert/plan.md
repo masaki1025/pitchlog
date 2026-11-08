@@ -30,3 +30,11 @@ created: 2026-11-09
 源providerは41列の型/nullable/defaultをsha256:6d4e2abc…へ固定し、37列の既SELECT宣言/描画へINSERTを追加する純overlayとINSERT policy1行を返す。保護4列は不変更。両P3 SQLfactoryは同helperで4入力のstrict JSON null/falseを要求し、同じ37列INSERT/SELECTへ置換。その他SQLを逆置換で全byte復元し、既stamp/admission消費部分を変更しない。rootのfirst_ball_product呼出接合と正式helper描画は未適用で、正式assetへの直接変更0。
 
 専用8pure5.33秒、全Ty/対象Ruff0。初回collectionはORM.schema=None（implicit public）をpublic文字列と誤認した源guardで止まり、既ORMのNone/publicだけを正規化してsource構造pinを維持した。型検査のFromClause属性2件は実Table型確認を追加し是正、失敗log保全。root非作者/正式生成/正常受理ACK・実capsule/越境・direct/別TXのowned対向は未成立。PGは引続きGame担当後のroot明示slotまで実行しない。
+
+## root正式接合の追補（2026-11-09）
+
+PO委任によるCodex主担当判断で587eac52の非作者静読を実施。root専有のfirst_ball_productへ有限37列/INSERTpolicy overlayを追加し、公式helperのADDITIONS/BODIESからddl-elements/SQL/manifestを導出する。対象は新feature/mvp-p3-write-connection-20261109（main97a64973起点）。通常0049/唯一859の候補で、未統合0050と区別。既二段stampの全41列/同xid/nonce/ready→consumed・保護4cleanを保持、他role/操作の権限は変更しない。旧source snapshotで差分検査を維持し、新許可から旧期待値を生成しない。root追加差分の別非作者確認とowned正負を経て採否を固定、CI/7.7・人間実機確認の代替にはしない。
+
+## 主担当移管時の固定（2026-11-09 02:13 JST）
+
+PO指示により他LLMを実装・統合主担当、Codexをレビュー中心へ移管する。root接合候補はsource587eの非作者レビューで未解消P0/P1なし（REPORT bef67fd633914c787a7ead4f8195190d91ac52734c56cbebbc97837a899cf127）。root追加activation/親snapshotを使う差分検査/公式生成資産は別対象で、未レビュー。source由来37列ACL追補+INSERTpolicy1=38宣言、37列本文+policy+保存関数2=40本文を生成、DDL1195文を公式helperで検査。専用8pytest5.70秒・対象Ruff成功。実PGでの正常受理・直接/別TX/越境・保護4の拒否、confirmation/capsule原本照合、全件検査・正式受理・通常統合は未実施。引継ぎ保存を完成・受理済みとはしない。

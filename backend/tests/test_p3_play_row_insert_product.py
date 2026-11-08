@@ -6,7 +6,12 @@ import pytest
 from sqlalchemy import Column, MetaData, Table, Text
 
 from pitchlog.authz import p3_play_row_insert_product as product
-from pitchlog.authz.first_ball_product import ADDITIONS, BODIES
+from pitchlog.authz.first_ball_product import (
+    _P3_PLAY_INSERT_BASELINE_ADDITIONS as ADDITIONS,
+)
+from pitchlog.authz.first_ball_product import (
+    _P3_PLAY_INSERT_BASELINE_BODIES as BODIES,
+)
 from pitchlog.authz.p3_projection_paged_sql import _APPEND_SQL
 from pitchlog.authz.p3_projection_sql import _SQL
 

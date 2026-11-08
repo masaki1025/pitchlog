@@ -171,8 +171,14 @@ BEGIN
  VALUES(p_tenant_id,p_attempt_id,p_phase_id,p_game_id,
  progress.internal_generation,p_capsule_id,change_event.id,new_play_id,
  c->>'ledger_fingerprint',item->'play_row',own_xid,'ready');
- INSERT INTO public.play_rows SELECT (pg_catalog.jsonb_populate_record(
- NULL::public.play_rows,item->'play_row')).*;
+ IF item->'play_row'->'hidden_at' IS DISTINCT FROM 'null'::jsonb
+ OR item->'play_row'->'import_batch_id' IS DISTINCT FROM 'null'::jsonb
+ OR item->'play_row'->'legacy_row_identifier' IS DISTINCT FROM 'null'::jsonb
+ OR item->'play_row'->'migration_unverified' IS DISTINCT FROM 'false'::jsonb THEN
+ RAISE EXCEPTION 'P3 page append rejected' USING ERRCODE='42501'; END IF;
+ INSERT INTO public.play_rows (batted_ball_strength,batted_ball_type,batter_id,batter_status,batting_order,batting_result_key,batting_side,catcher_id,comment,course_x,course_y,error_type,event_kind,fake_run,game_id,hit_x,hit_y,id,pickoff_detail,pickoff_type,pitch_speed,pitch_type_key,pitcher_id,play_number,press,raw_error_position,raw_fielder_position,resolved_error_player_id,resolved_fielder_id,secondary_batting_result_key,source_event_id,stance,strategy_detail_key,strategy_key,strategy_result_key,tenant_id,version)
+ SELECT r.batted_ball_strength,r.batted_ball_type,r.batter_id,r.batter_status,r.batting_order,r.batting_result_key,r.batting_side,r.catcher_id,r.comment,r.course_x,r.course_y,r.error_type,r.event_kind,r.fake_run,r.game_id,r.hit_x,r.hit_y,r.id,r.pickoff_detail,r.pickoff_type,r.pitch_speed,r.pitch_type_key,r.pitcher_id,r.play_number,r.press,r.raw_error_position,r.raw_fielder_position,r.resolved_error_player_id,r.resolved_fielder_id,r.secondary_batting_result_key,r.source_event_id,r.stance,r.strategy_detail_key,r.strategy_key,r.strategy_result_key,r.tenant_id,r.version FROM pg_catalog.jsonb_populate_record(
+ NULL::public.play_rows,item->'play_row') r;
  IF NOT EXISTS(SELECT 1 FROM sync_fence.p3_projection_write_admissions a
  WHERE (a.tenant_id,a.attempt_id,a.phase_id)=
  (p_tenant_id,p_attempt_id,p_phase_id) AND a.state='consumed'

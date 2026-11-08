@@ -4005,6 +4005,23 @@
       "with_check_predicate_id": null,
       "with_check_column": null,
       "with_check_expression": "tenant_id = NULLIF(pg_catalog.current_setting('app.tenant_id',true),'')::uuid"
+    },
+    {
+      "policy_id": "POLICY:play_rows:p3_finite_insert",
+      "table_id": "play_rows",
+      "profile": "function_only",
+      "policy_name": "p3_finite_insert",
+      "command": "INSERT",
+      "policy_mode": "permissive",
+      "role_ids": [
+        "pitchlog_sync_right_fn_owner"
+      ],
+      "using_predicate_id": null,
+      "using_column": null,
+      "using_expression": null,
+      "with_check_predicate_id": null,
+      "with_check_column": null,
+      "with_check_expression": "tenant_id = NULLIF(pg_catalog.current_setting('app.tenant_id',true),'')::uuid AND session_user = 'pitchlog_app'"
     }
   ],
   "functions": [
@@ -12856,7 +12873,8 @@
       "column_id": "id",
       "grantee_role_id": "pitchlog_sync_right_fn_owner",
       "privilege_ids": [
-        "SELECT"
+        "SELECT",
+        "INSERT"
       ],
       "grant_option": false
     },
@@ -12868,7 +12886,8 @@
       "column_id": "game_id",
       "grantee_role_id": "pitchlog_sync_right_fn_owner",
       "privilege_ids": [
-        "SELECT"
+        "SELECT",
+        "INSERT"
       ],
       "grant_option": false
     },
@@ -12880,7 +12899,8 @@
       "column_id": "source_event_id",
       "grantee_role_id": "pitchlog_sync_right_fn_owner",
       "privilege_ids": [
-        "SELECT"
+        "SELECT",
+        "INSERT"
       ],
       "grant_option": false
     },
@@ -12892,7 +12912,8 @@
       "column_id": "play_number",
       "grantee_role_id": "pitchlog_sync_right_fn_owner",
       "privilege_ids": [
-        "SELECT"
+        "SELECT",
+        "INSERT"
       ],
       "grant_option": false
     },
@@ -12904,7 +12925,8 @@
       "column_id": "batting_order",
       "grantee_role_id": "pitchlog_sync_right_fn_owner",
       "privilege_ids": [
-        "SELECT"
+        "SELECT",
+        "INSERT"
       ],
       "grant_option": false
     },
@@ -12916,7 +12938,8 @@
       "column_id": "batter_id",
       "grantee_role_id": "pitchlog_sync_right_fn_owner",
       "privilege_ids": [
-        "SELECT"
+        "SELECT",
+        "INSERT"
       ],
       "grant_option": false
     },
@@ -12928,7 +12951,8 @@
       "column_id": "batting_side",
       "grantee_role_id": "pitchlog_sync_right_fn_owner",
       "privilege_ids": [
-        "SELECT"
+        "SELECT",
+        "INSERT"
       ],
       "grant_option": false
     },
@@ -12940,7 +12964,8 @@
       "column_id": "strategy_key",
       "grantee_role_id": "pitchlog_sync_right_fn_owner",
       "privilege_ids": [
-        "SELECT"
+        "SELECT",
+        "INSERT"
       ],
       "grant_option": false
     },
@@ -12952,7 +12977,8 @@
       "column_id": "strategy_detail_key",
       "grantee_role_id": "pitchlog_sync_right_fn_owner",
       "privilege_ids": [
-        "SELECT"
+        "SELECT",
+        "INSERT"
       ],
       "grant_option": false
     },
@@ -12964,7 +12990,8 @@
       "column_id": "strategy_result_key",
       "grantee_role_id": "pitchlog_sync_right_fn_owner",
       "privilege_ids": [
-        "SELECT"
+        "SELECT",
+        "INSERT"
       ],
       "grant_option": false
     },
@@ -12976,7 +13003,8 @@
       "column_id": "pitcher_id",
       "grantee_role_id": "pitchlog_sync_right_fn_owner",
       "privilege_ids": [
-        "SELECT"
+        "SELECT",
+        "INSERT"
       ],
       "grant_option": false
     },
@@ -12988,7 +13016,8 @@
       "column_id": "catcher_id",
       "grantee_role_id": "pitchlog_sync_right_fn_owner",
       "privilege_ids": [
-        "SELECT"
+        "SELECT",
+        "INSERT"
       ],
       "grant_option": false
     },
@@ -13000,7 +13029,8 @@
       "column_id": "batter_status",
       "grantee_role_id": "pitchlog_sync_right_fn_owner",
       "privilege_ids": [
-        "SELECT"
+        "SELECT",
+        "INSERT"
       ],
       "grant_option": false
     },
@@ -13012,7 +13042,8 @@
       "column_id": "event_kind",
       "grantee_role_id": "pitchlog_sync_right_fn_owner",
       "privilege_ids": [
-        "SELECT"
+        "SELECT",
+        "INSERT"
       ],
       "grant_option": false
     },
@@ -13024,7 +13055,8 @@
       "column_id": "stance",
       "grantee_role_id": "pitchlog_sync_right_fn_owner",
       "privilege_ids": [
-        "SELECT"
+        "SELECT",
+        "INSERT"
       ],
       "grant_option": false
     },
@@ -13036,7 +13068,8 @@
       "column_id": "course_x",
       "grantee_role_id": "pitchlog_sync_right_fn_owner",
       "privilege_ids": [
-        "SELECT"
+        "SELECT",
+        "INSERT"
       ],
       "grant_option": false
     },
@@ -13048,7 +13081,8 @@
       "column_id": "course_y",
       "grantee_role_id": "pitchlog_sync_right_fn_owner",
       "privilege_ids": [
-        "SELECT"
+        "SELECT",
+        "INSERT"
       ],
       "grant_option": false
     },
@@ -13060,7 +13094,8 @@
       "column_id": "pitch_type_key",
       "grantee_role_id": "pitchlog_sync_right_fn_owner",
       "privilege_ids": [
-        "SELECT"
+        "SELECT",
+        "INSERT"
       ],
       "grant_option": false
     },
@@ -13072,7 +13107,8 @@
       "column_id": "batting_result_key",
       "grantee_role_id": "pitchlog_sync_right_fn_owner",
       "privilege_ids": [
-        "SELECT"
+        "SELECT",
+        "INSERT"
       ],
       "grant_option": false
     },
@@ -13084,7 +13120,8 @@
       "column_id": "secondary_batting_result_key",
       "grantee_role_id": "pitchlog_sync_right_fn_owner",
       "privilege_ids": [
-        "SELECT"
+        "SELECT",
+        "INSERT"
       ],
       "grant_option": false
     },
@@ -13096,7 +13133,8 @@
       "column_id": "raw_fielder_position",
       "grantee_role_id": "pitchlog_sync_right_fn_owner",
       "privilege_ids": [
-        "SELECT"
+        "SELECT",
+        "INSERT"
       ],
       "grant_option": false
     },
@@ -13108,7 +13146,8 @@
       "column_id": "resolved_fielder_id",
       "grantee_role_id": "pitchlog_sync_right_fn_owner",
       "privilege_ids": [
-        "SELECT"
+        "SELECT",
+        "INSERT"
       ],
       "grant_option": false
     },
@@ -13120,7 +13159,8 @@
       "column_id": "batted_ball_type",
       "grantee_role_id": "pitchlog_sync_right_fn_owner",
       "privilege_ids": [
-        "SELECT"
+        "SELECT",
+        "INSERT"
       ],
       "grant_option": false
     },
@@ -13132,7 +13172,8 @@
       "column_id": "batted_ball_strength",
       "grantee_role_id": "pitchlog_sync_right_fn_owner",
       "privilege_ids": [
-        "SELECT"
+        "SELECT",
+        "INSERT"
       ],
       "grant_option": false
     },
@@ -13144,7 +13185,8 @@
       "column_id": "hit_x",
       "grantee_role_id": "pitchlog_sync_right_fn_owner",
       "privilege_ids": [
-        "SELECT"
+        "SELECT",
+        "INSERT"
       ],
       "grant_option": false
     },
@@ -13156,7 +13198,8 @@
       "column_id": "hit_y",
       "grantee_role_id": "pitchlog_sync_right_fn_owner",
       "privilege_ids": [
-        "SELECT"
+        "SELECT",
+        "INSERT"
       ],
       "grant_option": false
     },
@@ -13168,7 +13211,8 @@
       "column_id": "pickoff_type",
       "grantee_role_id": "pitchlog_sync_right_fn_owner",
       "privilege_ids": [
-        "SELECT"
+        "SELECT",
+        "INSERT"
       ],
       "grant_option": false
     },
@@ -13180,7 +13224,8 @@
       "column_id": "pickoff_detail",
       "grantee_role_id": "pitchlog_sync_right_fn_owner",
       "privilege_ids": [
-        "SELECT"
+        "SELECT",
+        "INSERT"
       ],
       "grant_option": false
     },
@@ -13192,7 +13237,8 @@
       "column_id": "error_type",
       "grantee_role_id": "pitchlog_sync_right_fn_owner",
       "privilege_ids": [
-        "SELECT"
+        "SELECT",
+        "INSERT"
       ],
       "grant_option": false
     },
@@ -13204,7 +13250,8 @@
       "column_id": "raw_error_position",
       "grantee_role_id": "pitchlog_sync_right_fn_owner",
       "privilege_ids": [
-        "SELECT"
+        "SELECT",
+        "INSERT"
       ],
       "grant_option": false
     },
@@ -13216,7 +13263,8 @@
       "column_id": "resolved_error_player_id",
       "grantee_role_id": "pitchlog_sync_right_fn_owner",
       "privilege_ids": [
-        "SELECT"
+        "SELECT",
+        "INSERT"
       ],
       "grant_option": false
     },
@@ -13228,7 +13276,8 @@
       "column_id": "pitch_speed",
       "grantee_role_id": "pitchlog_sync_right_fn_owner",
       "privilege_ids": [
-        "SELECT"
+        "SELECT",
+        "INSERT"
       ],
       "grant_option": false
     },
@@ -13240,7 +13289,8 @@
       "column_id": "press",
       "grantee_role_id": "pitchlog_sync_right_fn_owner",
       "privilege_ids": [
-        "SELECT"
+        "SELECT",
+        "INSERT"
       ],
       "grant_option": false
     },
@@ -13252,7 +13302,8 @@
       "column_id": "fake_run",
       "grantee_role_id": "pitchlog_sync_right_fn_owner",
       "privilege_ids": [
-        "SELECT"
+        "SELECT",
+        "INSERT"
       ],
       "grant_option": false
     },
@@ -13264,7 +13315,8 @@
       "column_id": "comment",
       "grantee_role_id": "pitchlog_sync_right_fn_owner",
       "privilege_ids": [
-        "SELECT"
+        "SELECT",
+        "INSERT"
       ],
       "grant_option": false
     },
@@ -13276,7 +13328,8 @@
       "column_id": "version",
       "grantee_role_id": "pitchlog_sync_right_fn_owner",
       "privilege_ids": [
-        "SELECT"
+        "SELECT",
+        "INSERT"
       ],
       "grant_option": false
     },
@@ -13325,7 +13378,8 @@
       "column_id": "tenant_id",
       "grantee_role_id": "pitchlog_sync_right_fn_owner",
       "privilege_ids": [
-        "SELECT"
+        "SELECT",
+        "INSERT"
       ],
       "grant_option": false
     },
