@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 import json
 import subprocess
 from uuid import uuid4
@@ -36,6 +37,8 @@ import re, traceback
 _probe_count = 0
 _probe_allowed = frozenset({
     'SourceBindingError','ValueError','TypeError','WriterBindingUnavailable',
+    'OrdinaryPrefixError','OrdinaryPitchExecutionError','OrdinaryPlayRowError',
+    'PlayExportWriterUnavailable',
     'LedgerUnavailable','PastCorrectionExecutionError',
     'PastCorrectionPreparationUnavailable','PastCorrectionProjectionError',
     'PastCorrectionPageUnavailable','PastCorrectionSourceUnavailable',
@@ -76,20 +79,24 @@ def _p3_emit(value):
     except BaseException:
         pass
 
-def _p3_wrap(original):
+def _p3_wrap(original,boundary):
+    assert boundary in {'router-e1-p3','router-e1-f1'}
     def observed(*args,**kwargs):
         try:
             result=original(*args,**kwargs)
         except BaseException as error:
-            try:_p3_emit({'boundary':'router-e1-p3','outcome':'raised',
+            try:_p3_emit({'boundary':boundary,'outcome':'raised',
                          'chain':_p3_safe_chain(error)})
             except BaseException:pass
             raise
-        if type(result) is str and result in {'B10','B11','B12'}:
-            _p3_emit({'boundary':'router-e1-p3','outcome':'rejected','result':result})
+        if type(result) is str and result in {'B6','B7','B10','B11','B12'}:
+            _p3_emit({'boundary':boundary,'outcome':'rejected','result':result})
         return result
     return observed
-actual_sync_router._apply_e1_p3 = _p3_wrap(actual_sync_router._apply_e1_p3)
+actual_sync_router._apply_e1_p3 = _p3_wrap(
+    actual_sync_router._apply_e1_p3,'router-e1-p3')
+actual_sync_router._apply_e1_f1 = _p3_wrap(
+    actual_sync_router._apply_e1_f1,'router-e1-f1')
 print('PITCHLOG_P3_SHORT_READY='+json.dumps({'ready':1,'limit':80}),flush=True)
 """
 
@@ -130,15 +137,80 @@ except BaseException as error:
     print('PITCHLOG_P3_SHORT_RESULT='+json.dumps({
         'exception':type(error).__name__,
         'stage':runtime_diagnostics.get('stage'),
-        'status':runtime_diagnostics.get('status')}),flush=True)
+        'status':runtime_diagnostics.get('status'),
+        'script_sites':[{'file':'p3-short-current','line':frame.lineno}
+                        for frame in traceback.extract_tb(error.__traceback__)
+                        if frame.filename=='<string>'][-3:]}),flush=True)
     raise SystemExit(1)
 print('PITCHLOG_P3_SHORT_RESULT='+json.dumps(out),flush=True)
 """
     )
     assert "diag.context" not in script and "message_primary" not in script
     assert "message_detail" not in script and "format_exc" not in script
+    script = _instrument_http_stages(script)
     compile(script, "<p3-short-current>", "exec")
     return script
+
+
+def _instrument_http_stages(script: str) -> str:
+    """既await原式を不変更に保ち、固定stageだけ前後へ付ける。"""
+    module = ast.parse(script)
+    stages = []
+
+    class Instrument(ast.NodeTransformer):
+        def visit_AsyncFunctionDef(self, node):
+            if node.name != "run":
+                return node
+            return self.generic_visit(node)
+
+        def visit_Assign(self, node):
+            value = node.value
+            if not (
+                isinstance(value, ast.Await)
+                and isinstance(value.value, ast.Call)
+                and len(node.targets) == 1
+                and isinstance(node.targets[0], ast.Name)
+            ):
+                return node
+            function = value.value.func
+            if not (
+                isinstance(function, ast.Attribute)
+                and function.attr in {"get", "post", "put", "patch", "delete"}
+                or isinstance(function, ast.Name)
+                and function.id == "login"
+            ):
+                return node
+            name = node.targets[0].id
+            label = f"http-{len(stages) + 1:02d}-{name}"
+            stages.append(label)
+            before = ast.parse(f"_short_stage({label + '-before'!r})").body[0]
+            after = ast.parse(f"_short_stage({label + '-after'!r}, {name})").body[0]
+            return [before, node, after]
+
+    before_calls = [
+        ast.dump(n.value, include_attributes=False)
+        for n in ast.walk(module)
+        if isinstance(n, ast.Await)
+    ]
+    module = Instrument().visit(module)
+    after_calls = [
+        ast.dump(n.value, include_attributes=False)
+        for n in ast.walk(module)
+        if isinstance(n, ast.Await)
+    ]
+    assert before_calls == after_calls
+    assert len(stages) >= 10
+    helper = ast.parse("""
+def _short_stage(stage, response=None):
+    try:
+        runtime_diagnostics.update(stage=stage,
+            status=None if response is None else response.status_code)
+    except BaseException:
+        pass
+""")
+    module.body[0:0] = helper.body
+    ast.fix_missing_locations(module)
+    return ast.unparse(module)
 
 
 def _counts(db) -> dict[str, int]:
