@@ -65,3 +65,7 @@ step2読取/coverage接合候補:
 - 共有3path（function_operations/operation_registry/transaction）の新read1型有限family/真正同RR dispatcherはbefore/after SHA付きcache patchのみ。本担当のWTでは共有sourceを一切変更しない。cache import overlayで実登録1＋8改変拒否＋汎用decode拒否の10対向を実行（DB呼出し/認可成功を模擬しない）。この段階で見つかったimport循環はleafの表示helper/hash importを値検査時に遅延して解消。
 
 非作者rootのP1（9710f6ab対象）と後発92eeb229: 公開 `_TenantTransaction` に `.session` がない点を是正。実registryから既 `_capture_scope(handle,writer)` が発行する `_WriterScope` をbefore receiptへ保持し、全SQL前後で既 `_assert_scope` と元P3 execution/context/source.bound/nonceを両方検証する。公開handleへraw Sessionを追加せず、cursorは上限+1（2/26件）でcloseする。実型handle/Sessionと同registryのcapture・別runtime/別Session/fake窓口拒否20件4.88秒/RuffTy0。これは無DBの私有窓口型/拒否証拠であり、実P3権限/SQL成功ではない。元9710をP1解消済みと書き換えない。
+
+root追加委任（2026-11-09、既step2技術scope）: `authz/play_export_p3_product.py:candidate_declarations()` を既factory同型で追加。新table1/5関数（writer3/read1/監査guard1）/3policy/27列ACL/36body。writer3/read1はapp EXECUTE、guardはowner-onlyでapp/actor/PUBLIC EXECUTE無し。全関数owner/search_path/REVOKEは固定し、未知ABI/構造/role/tenant式をmetadata pinで拒否する。監査guardはUPDATE/DELETEの全行とTRUNCATE全命令を無条件42501、`guard_trigger_sql()` 2本は正式関数適用後にrootが配置する。0050に未配置関数依存を混ぜない。
+
+列ACLは新17（INSERT16/SELECT17）と、既通常snapshot9のINSERTを保持してSELECTを足した完全row差分、vocab display_nameのSELECT新1だけ。既vocab key/category/disabled SELECT3は原典を検査して再描画しない。旧app policy/通常INSERT policyを削らずnormal owner SELECTを別policyで追加する。未使用の初期overlay read草案関数を削除し、唯一の新RR readerへ揃えた。factory/既生成源/reader/coverage/private scopeの76pure13.95秒/RuffTy0。実SQLcompile/通常50/実CSV/正式受理は依然root接合後の未達。
