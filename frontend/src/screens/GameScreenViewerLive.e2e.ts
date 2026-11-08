@@ -230,8 +230,13 @@ test('別contextの保存済み閲覧は10秒以内に1球へ更新し、断中�
     const head = recorded.head
     await expect(viewer.getByText(/第1球:/)).toBeVisible({ timeout: 10_000 })
     const visibleAt = Date.now()
-    if (visibleAt - recorded.savedAt > 10_000)
-      throw new Error(`10秒更新未達: ${visibleAt - recorded.savedAt}ms`)
+    const serverSavedAt = Date.parse(head.last_saved_at)
+    if (!Number.isFinite(serverSavedAt) || visibleAt < serverSavedAt)
+      throw new Error('実server保存時刻の比較が成立しない')
+    if (visibleAt - serverSavedAt > 10_000)
+      throw new Error(
+        `server保存から10秒更新未達: ${visibleAt - serverSavedAt}ms`,
+      )
     const state = head.after.stateFields
     await expect(score).toContainText(
       `先攻 ${state['state.score'].away} – 後攻 ${state['state.score'].home}`,
@@ -241,7 +246,10 @@ test('別contextの保存済み閲覧は10秒以内に1球へ更新し、断中�
       `${state['state.count.balls']}ボール ${state['state.count.strikes']}ストライク`,
     )
     console.log(`PITCHLOG_VIEWER_GAME_ID=${saved.id}`)
-    console.log(`PITCHLOG_VIEWER_VISIBLE_MS=${visibleAt - recorded.savedAt}`)
+    console.log(`PITCHLOG_VIEWER_VISIBLE_MS=${visibleAt - serverSavedAt}`)
+    console.log(
+      `PITCHLOG_VIEWER_ACK_TO_VISIBLE_MS=${visibleAt - recorded.savedAt}`,
+    )
     await viewer.reload()
     await expect(viewer.getByText(/第1球:/)).toBeVisible()
     await viewerContext.setOffline(true)
