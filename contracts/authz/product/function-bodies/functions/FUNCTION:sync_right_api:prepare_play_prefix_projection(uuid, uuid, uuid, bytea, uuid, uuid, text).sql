@@ -212,6 +212,7 @@ PERFORM sync_fence_api.assert_writer_binding(p_tenant_id,p_attempt_id,
  WHERE r->>'base'=m->>'base' AND r->>'runner_id'=m->>'runnerId'
  AND r->>'responsible_pitcher_id'=m->>'responsiblePitcherId'
  AND r->>'status'=(CASE
+ WHEN ((source_row.payload->>'formatVersion'='play-prefix-play-v3' AND source_row.payload->'calculation'->'request'->'t1'->>'eventKind'='secondary-result' AND source_row.payload->'calculation'->'request'->'t1'->>'resultId' IN ('secondary-result.obstruction','secondary-result.offensive-interference') AND source_row.payload->'calculation'->'request'->'t1'->'interferenceRuling' IS NOT DISTINCT FROM source_row.payload->'observations'->'interferenceRuling') AND EXISTS(SELECT 1 FROM pg_catalog.jsonb_array_elements(source_row.payload->'calculation'->'response'->'value'->'t1'->'outEffect'->'targets') target WHERE target=pg_catalog.jsonb_build_object('runner',m->>'base')) AND EXISTS(SELECT 1 FROM pg_catalog.jsonb_array_elements(source_row.payload->'calculation'->'request'->'t1'->'interferenceRuling'->'out_targets') person WHERE person=pg_catalog.jsonb_build_object('kind','runner','runner_id',pg_catalog.jsonb_build_object('kind','official','player_id',m->>'runnerId')))) THEN '妨害裁定アウト'
  WHEN ((source_row.payload->>'formatVersion'='play-prefix-play-v3'
  AND source_row.payload->'observations'->>'resultId'='batting-result.double-play'
  AND before_cp->'after'->'stateFields'->>'state.outs'='0'
@@ -233,7 +234,7 @@ PERFORM sync_fence_api.assert_writer_binding(p_tenant_id,p_attempt_id,
  ->'runnerDefaultAdvance'->(CASE m->>'base' WHEN '1' THEN 'first'
  WHEN '2' THEN 'second' WHEN '3' THEN 'third' END)->>'destination'='4'
  THEN '本進' ELSE NULL END)
- AND r->>'status_source'=(CASE WHEN ((source_row.payload->>'formatVersion'='play-prefix-play-v3'
+ AND r->>'status_source'=(CASE WHEN (((source_row.payload->>'formatVersion'='play-prefix-play-v3' AND source_row.payload->'calculation'->'request'->'t1'->>'eventKind'='secondary-result' AND source_row.payload->'calculation'->'request'->'t1'->>'resultId' IN ('secondary-result.obstruction','secondary-result.offensive-interference') AND source_row.payload->'calculation'->'request'->'t1'->'interferenceRuling' IS NOT DISTINCT FROM source_row.payload->'observations'->'interferenceRuling') AND EXISTS(SELECT 1 FROM pg_catalog.jsonb_array_elements(source_row.payload->'calculation'->'response'->'value'->'t1'->'outEffect'->'targets') target WHERE target=pg_catalog.jsonb_build_object('runner',m->>'base')) AND EXISTS(SELECT 1 FROM pg_catalog.jsonb_array_elements(source_row.payload->'calculation'->'request'->'t1'->'interferenceRuling'->'out_targets') person WHERE person=pg_catalog.jsonb_build_object('kind','runner','runner_id',pg_catalog.jsonb_build_object('kind','official','player_id',m->>'runnerId')))) OR ((source_row.payload->>'formatVersion'='play-prefix-play-v3' AND source_row.payload->'calculation'->'request'->'t1'->>'eventKind'='secondary-result' AND source_row.payload->'calculation'->'request'->'t1'->>'resultId' IN ('secondary-result.obstruction','secondary-result.offensive-interference') AND source_row.payload->'calculation'->'request'->'t1'->'interferenceRuling' IS NOT DISTINCT FROM source_row.payload->'observations'->'interferenceRuling') AND EXISTS(SELECT 1 FROM pg_catalog.jsonb_array_elements(CASE WHEN source_row.payload->'calculation'->'request'->'t1'->'interferenceRuling'->>'kind'='obstruction' THEN source_row.payload->'calculation'->'request'->'t1'->'interferenceRuling'->'awarded_destinations' ELSE source_row.payload->'calculation'->'request'->'t1'->'interferenceRuling'->'return_bases' END) placement WHERE placement->'person'=pg_catalog.jsonb_build_object('kind','runner','runner_id',pg_catalog.jsonb_build_object('kind','official','player_id',m->>'runnerId')) AND (CASE placement->>'destination' WHEN 'first' THEN '1' WHEN 'second' THEN '2' WHEN 'third' THEN '3' WHEN 'home' THEN '4' ELSE NULL END)=COALESCE(source_row.payload->'calculation'->'response'->'value'->'t1'->'runnerDefaultAdvance'->(CASE m->>'base' WHEN '1' THEN 'first' WHEN '2' THEN 'second' WHEN '3' THEN 'third' END)->>'destination', m->>'base'))) OR (source_row.payload->>'formatVersion'='play-prefix-play-v3' AND source_row.payload->'calculation'->'request'->'t1'->>'resultId'='secondary-result.batting-interference' AND source_row.payload->'calculation'->'request'->'t1'->'interferenceRuling' IS NOT DISTINCT FROM source_row.payload->'observations'->'interferenceRuling' AND m->>'base'='3' AND source_row.payload->'calculation'->'request'->'t1'->'interferenceRuling'->'third_base_scoring_attempt'->>'value' IN ('squeeze','steal-home') AND source_row.payload->'calculation'->'response'->'value'->'t1'->'runnerDefaultAdvance'->'third'->>'destination'='4')) OR ((source_row.payload->>'formatVersion'='play-prefix-play-v3'
  AND source_row.payload->'observations'->>'resultId'='batting-result.double-play'
  AND before_cp->'after'->'stateFields'->>'state.outs'='0'
  AND before_cp->'after'->'stateFields'->>'state.runners'='first'
@@ -286,12 +287,12 @@ PERFORM sync_fence_api.assert_writer_binding(p_tenant_id,p_attempt_id,
  OR (EXISTS(SELECT 1 FROM pg_catalog.jsonb_array_elements(
  source_row.payload->'calculation'->'response'->'value'->'t1'
  ->'outEffect'->'targets') target WHERE pg_catalog.jsonb_typeof(target)='object'
- AND target ? 'runner') AND ((source_row.payload->>'formatVersion'='play-prefix-play-v3'
+ AND target ? 'runner') AND (((source_row.payload->>'formatVersion'='play-prefix-play-v3'
  AND source_row.payload->'observations'->>'resultId'='batting-result.double-play'
  AND before_cp->'after'->'stateFields'->>'state.outs'='0'
  AND before_cp->'after'->'stateFields'->>'state.runners'='first'
  AND source_row.payload->'calculation'->'response'->'value'->'t1'->'outEffect'
-  ='{"count":"2","targets":["batter",{"runner":"1"}]}'::jsonb)) IS NOT TRUE)
+  ='{"count":"2","targets":["batter",{"runner":"1"}]}'::jsonb) OR ((source_row.payload->>'formatVersion'='play-prefix-play-v3' AND source_row.payload->'calculation'->'request'->'t1'->>'eventKind'='secondary-result' AND source_row.payload->'calculation'->'request'->'t1'->>'resultId' IN ('secondary-result.obstruction','secondary-result.offensive-interference') AND source_row.payload->'calculation'->'request'->'t1'->'interferenceRuling' IS NOT DISTINCT FROM source_row.payload->'observations'->'interferenceRuling') AND EXISTS(SELECT 1 FROM pg_catalog.jsonb_array_elements(source_row.payload->'calculation'->'response'->'value'->'t1'->'outEffect'->'targets') target WHERE target=pg_catalog.jsonb_build_object('runner',m->>'base')) AND EXISTS(SELECT 1 FROM pg_catalog.jsonb_array_elements(source_row.payload->'calculation'->'request'->'t1'->'interferenceRuling'->'out_targets') person WHERE person=pg_catalog.jsonb_build_object('kind','runner','runner_id',pg_catalog.jsonb_build_object('kind','official','player_id',m->>'runnerId')))))) IS NOT TRUE)
  THEN RAISE EXCEPTION 'play prefix admission rejected' USING ERRCODE='42501'; END IF;
  UPDATE sync_fence.ordinary_pitch_write_admissions a SET state='evaluated',
  checkpoint_id=current_cp.id,checkpoint_revision=current_cp.revision,
@@ -513,6 +514,7 @@ source_row.payload->'calculation'->'request'->'source'->'responsibility'
  WHERE r->>'base'=m->>'base' AND r->>'runner_id'=m->>'runnerId'
  AND r->>'responsible_pitcher_id'=m->>'responsiblePitcherId'
  AND r->>'status'=(CASE
+ WHEN ((source_row.payload->>'formatVersion'='play-prefix-play-v3' AND source_row.payload->'calculation'->'request'->'t1'->>'eventKind'='secondary-result' AND source_row.payload->'calculation'->'request'->'t1'->>'resultId' IN ('secondary-result.obstruction','secondary-result.offensive-interference') AND source_row.payload->'calculation'->'request'->'t1'->'interferenceRuling' IS NOT DISTINCT FROM source_row.payload->'observations'->'interferenceRuling') AND EXISTS(SELECT 1 FROM pg_catalog.jsonb_array_elements(source_row.payload->'calculation'->'response'->'value'->'t1'->'outEffect'->'targets') target WHERE target=pg_catalog.jsonb_build_object('runner',m->>'base')) AND EXISTS(SELECT 1 FROM pg_catalog.jsonb_array_elements(source_row.payload->'calculation'->'request'->'t1'->'interferenceRuling'->'out_targets') person WHERE person=pg_catalog.jsonb_build_object('kind','runner','runner_id',pg_catalog.jsonb_build_object('kind','official','player_id',m->>'runnerId')))) THEN '妨害裁定アウト'
  WHEN ((source_row.payload->>'formatVersion'='play-prefix-play-v3'
  AND source_row.payload->'observations'->>'resultId'='batting-result.double-play'
  AND before_cp->'after'->'stateFields'->>'state.outs'='0'
@@ -534,7 +536,7 @@ source_row.payload->'calculation'->'request'->'source'->'responsibility'
  ->'runnerDefaultAdvance'->(CASE m->>'base' WHEN '1' THEN 'first'
  WHEN '2' THEN 'second' WHEN '3' THEN 'third' END)->>'destination'='4'
  THEN '本進' ELSE NULL END)
- AND r->>'status_source'=(CASE WHEN ((source_row.payload->>'formatVersion'='play-prefix-play-v3'
+ AND r->>'status_source'=(CASE WHEN (((source_row.payload->>'formatVersion'='play-prefix-play-v3' AND source_row.payload->'calculation'->'request'->'t1'->>'eventKind'='secondary-result' AND source_row.payload->'calculation'->'request'->'t1'->>'resultId' IN ('secondary-result.obstruction','secondary-result.offensive-interference') AND source_row.payload->'calculation'->'request'->'t1'->'interferenceRuling' IS NOT DISTINCT FROM source_row.payload->'observations'->'interferenceRuling') AND EXISTS(SELECT 1 FROM pg_catalog.jsonb_array_elements(source_row.payload->'calculation'->'response'->'value'->'t1'->'outEffect'->'targets') target WHERE target=pg_catalog.jsonb_build_object('runner',m->>'base')) AND EXISTS(SELECT 1 FROM pg_catalog.jsonb_array_elements(source_row.payload->'calculation'->'request'->'t1'->'interferenceRuling'->'out_targets') person WHERE person=pg_catalog.jsonb_build_object('kind','runner','runner_id',pg_catalog.jsonb_build_object('kind','official','player_id',m->>'runnerId')))) OR ((source_row.payload->>'formatVersion'='play-prefix-play-v3' AND source_row.payload->'calculation'->'request'->'t1'->>'eventKind'='secondary-result' AND source_row.payload->'calculation'->'request'->'t1'->>'resultId' IN ('secondary-result.obstruction','secondary-result.offensive-interference') AND source_row.payload->'calculation'->'request'->'t1'->'interferenceRuling' IS NOT DISTINCT FROM source_row.payload->'observations'->'interferenceRuling') AND EXISTS(SELECT 1 FROM pg_catalog.jsonb_array_elements(CASE WHEN source_row.payload->'calculation'->'request'->'t1'->'interferenceRuling'->>'kind'='obstruction' THEN source_row.payload->'calculation'->'request'->'t1'->'interferenceRuling'->'awarded_destinations' ELSE source_row.payload->'calculation'->'request'->'t1'->'interferenceRuling'->'return_bases' END) placement WHERE placement->'person'=pg_catalog.jsonb_build_object('kind','runner','runner_id',pg_catalog.jsonb_build_object('kind','official','player_id',m->>'runnerId')) AND (CASE placement->>'destination' WHEN 'first' THEN '1' WHEN 'second' THEN '2' WHEN 'third' THEN '3' WHEN 'home' THEN '4' ELSE NULL END)=COALESCE(source_row.payload->'calculation'->'response'->'value'->'t1'->'runnerDefaultAdvance'->(CASE m->>'base' WHEN '1' THEN 'first' WHEN '2' THEN 'second' WHEN '3' THEN 'third' END)->>'destination', m->>'base'))) OR (source_row.payload->>'formatVersion'='play-prefix-play-v3' AND source_row.payload->'calculation'->'request'->'t1'->>'resultId'='secondary-result.batting-interference' AND source_row.payload->'calculation'->'request'->'t1'->'interferenceRuling' IS NOT DISTINCT FROM source_row.payload->'observations'->'interferenceRuling' AND m->>'base'='3' AND source_row.payload->'calculation'->'request'->'t1'->'interferenceRuling'->'third_base_scoring_attempt'->>'value' IN ('squeeze','steal-home') AND source_row.payload->'calculation'->'response'->'value'->'t1'->'runnerDefaultAdvance'->'third'->>'destination'='4')) OR ((source_row.payload->>'formatVersion'='play-prefix-play-v3'
  AND source_row.payload->'observations'->>'resultId'='batting-result.double-play'
  AND before_cp->'after'->'stateFields'->>'state.outs'='0'
  AND before_cp->'after'->'stateFields'->>'state.runners'='first'
@@ -587,12 +589,12 @@ source_row.payload->'calculation'->'request'->'source'->'responsibility'
  OR (EXISTS(SELECT 1 FROM pg_catalog.jsonb_array_elements(
  source_row.payload->'calculation'->'response'->'value'->'t1'
  ->'outEffect'->'targets') target WHERE pg_catalog.jsonb_typeof(target)='object'
- AND target ? 'runner') AND ((source_row.payload->>'formatVersion'='play-prefix-play-v3'
+ AND target ? 'runner') AND (((source_row.payload->>'formatVersion'='play-prefix-play-v3'
  AND source_row.payload->'observations'->>'resultId'='batting-result.double-play'
  AND before_cp->'after'->'stateFields'->>'state.outs'='0'
  AND before_cp->'after'->'stateFields'->>'state.runners'='first'
  AND source_row.payload->'calculation'->'response'->'value'->'t1'->'outEffect'
-  ='{"count":"2","targets":["batter",{"runner":"1"}]}'::jsonb)) IS NOT TRUE)) END)
+  ='{"count":"2","targets":["batter",{"runner":"1"}]}'::jsonb) OR ((source_row.payload->>'formatVersion'='play-prefix-play-v3' AND source_row.payload->'calculation'->'request'->'t1'->>'eventKind'='secondary-result' AND source_row.payload->'calculation'->'request'->'t1'->>'resultId' IN ('secondary-result.obstruction','secondary-result.offensive-interference') AND source_row.payload->'calculation'->'request'->'t1'->'interferenceRuling' IS NOT DISTINCT FROM source_row.payload->'observations'->'interferenceRuling') AND EXISTS(SELECT 1 FROM pg_catalog.jsonb_array_elements(source_row.payload->'calculation'->'response'->'value'->'t1'->'outEffect'->'targets') target WHERE target=pg_catalog.jsonb_build_object('runner',m->>'base')) AND EXISTS(SELECT 1 FROM pg_catalog.jsonb_array_elements(source_row.payload->'calculation'->'request'->'t1'->'interferenceRuling'->'out_targets') person WHERE person=pg_catalog.jsonb_build_object('kind','runner','runner_id',pg_catalog.jsonb_build_object('kind','official','player_id',m->>'runnerId')))))) IS NOT TRUE)) END)
  THEN RAISE EXCEPTION 'lineup physical source rejected' USING ERRCODE='42501'; END IF;
  IF source_row.payload->'calculation'->'request'->'t1' ? 'runnerObservation' THEN
   DECLARE rp_t1 jsonb; rp_per jsonb; rp_by jsonb; rp_before_set jsonb;
@@ -777,7 +779,16 @@ source_row.payload->'calculation'->'request'->'source'->'responsibility'
       'fielder',pg_catalog.jsonb_build_object('kind','official',
        'player_id',p->'play_row'->>'resolved_error_player_id'),'count',1)))
     ELSE '{"kind":"no-error","errorCount":"0","fielders":[]}'::jsonb END)
-  OR batted_obs->'interferenceRuling' IS DISTINCT FROM '{"kind":"not-required"}'::jsonb
+  OR (
+   (batted_obs->'interferenceRuling' IS DISTINCT FROM '{"kind":"not-required"}'::jsonb
+    OR source_row.payload->'calculation'->'request'->'t1'->>'interferenceRuling'
+       IS DISTINCT FROM 'not-required') AND (
+    batted_obs->'interferenceRuling' IS NOT DISTINCT FROM
+     source_row.payload->'calculation'->'request'->'t1'->'interferenceRuling'
+    AND batted_obs->'interferenceRuling'->>'kind'='batting-interference'
+    AND batted_obs->'interferenceRuling'->'adopted'=
+     pg_catalog.jsonb_build_object('kind','play-result','resultId',batted_obs->>'resultId'))
+     IS NOT TRUE)
   OR (
    batted_obs->'runnerAdvanceOverridesByRunner' IS DISTINCT FROM
    '{"kind":"not-applied","overrides":[]}'::jsonb
@@ -803,8 +814,7 @@ source_row.payload->'calculation'->'request'->'source'->'responsibility'
    WHEN batted_obs->>'resultId' IN
     ('batting-result.sacrifice-bunt-error','batting-result.error')
    THEN 'error-recorded' ELSE 'no-error' END)
-  OR source_row.payload->'calculation'->'request'->'t1'->>'interferenceRuling'
-  IS DISTINCT FROM 'not-required'
+
   OR source_row.payload->'calculation'->'request'->'t1'->>'thirdOutObservation'
   IS DISTINCT FROM batted_obs->'thirdOutObservation'->>'kind'
   OR pg_catalog.jsonb_typeof(batted_obs->'battedBall') IS DISTINCT FROM 'object'
@@ -814,6 +824,7 @@ source_row.payload->'calculation'->'request'->'source'->'responsibility'
   'strengthKey','typeKey']::text[]
   OR p->'play_row'->>'event_kind' IS DISTINCT FROM 'pitch'
   OR p->'play_row'->>'batting_result_key' IS DISTINCT FROM batted_obs->>'resultId'
+  OR p->'play_row'->'secondary_batting_result_key' IS DISTINCT FROM (CASE WHEN batted_obs->'interferenceRuling'->>'kind'='batting-interference' THEN '"secondary-result.batting-interference"'::jsonb ELSE 'null'::jsonb END)
   OR p->'play_row'->>'pitch_type_key' IS DISTINCT FROM batted_obs->>'pitchTypeKey'
   OR p->'play_row'->'raw_fielder_position' IS DISTINCT FROM
   batted_obs->'battedBall'->'rawFielderPosition'
@@ -917,6 +928,50 @@ source_row.payload->'calculation'->'request'->'source'->'responsibility'
    p->'play_row'->'resolved_error_player_id' IS DISTINCT FROM 'null'::jsonb)
   THEN RAISE EXCEPTION 'batted hit physical source rejected'
   USING ERRCODE='42501'; END IF;
+ END IF;
+
+ IF source_row.payload->'calculation'->'request'->'t1'->>'resultId'
+ IN ('secondary-result.batting-interference','secondary-result.obstruction',
+     'secondary-result.offensive-interference')
+ OR batted_obs->>'resultId' IN
+ ('secondary-result.batting-interference','secondary-result.obstruction',
+  'secondary-result.offensive-interference') THEN
+  IF source_row.payload->>'formatVersion' IS DISTINCT FROM 'play-prefix-play-v3'
+  OR source_row.payload->'calculation'->'request'->'t1'->>'eventKind'
+   IS DISTINCT FROM 'secondary-result'
+  OR source_row.payload->'calculation'->'request'->'t1'->>'pitchEventKind'
+   IS DISTINCT FROM 'pitch-event'
+  OR batted_obs->>'resultId' IS DISTINCT FROM
+   source_row.payload->'calculation'->'request'->'t1'->>'resultId'
+  OR batted_obs->'interferenceRuling' IS DISTINCT FROM
+   source_row.payload->'calculation'->'request'->'t1'->'interferenceRuling'
+  OR (SELECT pg_catalog.array_agg(k ORDER BY k) FROM
+   pg_catalog.jsonb_object_keys(batted_obs) k) IS DISTINCT FROM
+   ARRAY['battingSide','course','interferenceRuling','pitchSpeed',
+    'pitchTypeKey','resultId','stance']::text[]
+  OR p->'play_row'->>'event_kind' IS DISTINCT FROM 'pitch'
+  OR p->'play_row'->'batting_result_key' IS DISTINCT FROM 'null'::jsonb
+  OR p->'play_row'->>'secondary_batting_result_key' IS DISTINCT FROM
+   batted_obs->>'resultId'
+  OR p->'play_row'->>'pitch_type_key' IS DISTINCT FROM batted_obs->>'pitchTypeKey'
+  OR p->'play_row'->'raw_fielder_position' IS DISTINCT FROM 'null'::jsonb
+  OR p->'play_row'->'resolved_fielder_id' IS DISTINCT FROM 'null'::jsonb
+  OR p->'play_row'->'resolved_error_player_id' IS DISTINCT FROM 'null'::jsonb
+  OR p->'play_row'->'batted_ball_type' IS DISTINCT FROM 'null'::jsonb
+  OR p->'play_row'->'batted_ball_strength' IS DISTINCT FROM 'null'::jsonb
+  OR p->'play_row'->'hit_x' IS DISTINCT FROM 'null'::jsonb
+  OR p->'play_row'->'hit_y' IS DISTINCT FROM 'null'::jsonb
+  OR (batted_obs->>'resultId'='secondary-result.batting-interference'
+   AND (batted_obs->'interferenceRuling'->>'kind' IS DISTINCT FROM
+    'batting-interference' OR batted_obs->'interferenceRuling'->'adopted'
+    IS DISTINCT FROM '{"kind":"penalty-award"}'::jsonb))
+  OR (batted_obs->>'resultId'='secondary-result.obstruction' AND
+   batted_obs->'interferenceRuling'->>'kind' IS DISTINCT FROM 'obstruction')
+  OR (batted_obs->>'resultId'='secondary-result.offensive-interference' AND
+   batted_obs->'interferenceRuling'->>'kind' IS DISTINCT FROM
+    'offensive-interference')
+  THEN RAISE EXCEPTION 'interference physical source rejected'
+   USING ERRCODE='42501'; END IF;
  END IF;
  SELECT c.* INTO current_cp FROM sync_fence.ordinary_pitch_checkpoints c
  WHERE c.tenant_id=p_tenant_id AND c.game_id=p_game_id
@@ -1159,6 +1214,7 @@ END IF;
  WHERE r->>'base'=m->>'base' AND r->>'runner_id'=m->>'runnerId'
  AND r->>'responsible_pitcher_id'=m->>'responsiblePitcherId'
  AND r->>'status'=(CASE
+ WHEN ((source_row.payload->>'formatVersion'='play-prefix-play-v3' AND source_row.payload->'calculation'->'request'->'t1'->>'eventKind'='secondary-result' AND source_row.payload->'calculation'->'request'->'t1'->>'resultId' IN ('secondary-result.obstruction','secondary-result.offensive-interference') AND source_row.payload->'calculation'->'request'->'t1'->'interferenceRuling' IS NOT DISTINCT FROM source_row.payload->'observations'->'interferenceRuling') AND EXISTS(SELECT 1 FROM pg_catalog.jsonb_array_elements(source_row.payload->'calculation'->'response'->'value'->'t1'->'outEffect'->'targets') target WHERE target=pg_catalog.jsonb_build_object('runner',m->>'base')) AND EXISTS(SELECT 1 FROM pg_catalog.jsonb_array_elements(source_row.payload->'calculation'->'request'->'t1'->'interferenceRuling'->'out_targets') person WHERE person=pg_catalog.jsonb_build_object('kind','runner','runner_id',pg_catalog.jsonb_build_object('kind','official','player_id',m->>'runnerId')))) THEN '妨害裁定アウト'
  WHEN ((source_row.payload->>'formatVersion'='play-prefix-play-v3'
  AND source_row.payload->'observations'->>'resultId'='batting-result.double-play'
  AND before_cp->'after'->'stateFields'->>'state.outs'='0'
@@ -1180,7 +1236,7 @@ END IF;
  ->'runnerDefaultAdvance'->(CASE m->>'base' WHEN '1' THEN 'first'
  WHEN '2' THEN 'second' WHEN '3' THEN 'third' END)->>'destination'='4'
  THEN '本進' ELSE NULL END)
- AND r->>'status_source'=(CASE WHEN ((source_row.payload->>'formatVersion'='play-prefix-play-v3'
+ AND r->>'status_source'=(CASE WHEN (((source_row.payload->>'formatVersion'='play-prefix-play-v3' AND source_row.payload->'calculation'->'request'->'t1'->>'eventKind'='secondary-result' AND source_row.payload->'calculation'->'request'->'t1'->>'resultId' IN ('secondary-result.obstruction','secondary-result.offensive-interference') AND source_row.payload->'calculation'->'request'->'t1'->'interferenceRuling' IS NOT DISTINCT FROM source_row.payload->'observations'->'interferenceRuling') AND EXISTS(SELECT 1 FROM pg_catalog.jsonb_array_elements(source_row.payload->'calculation'->'response'->'value'->'t1'->'outEffect'->'targets') target WHERE target=pg_catalog.jsonb_build_object('runner',m->>'base')) AND EXISTS(SELECT 1 FROM pg_catalog.jsonb_array_elements(source_row.payload->'calculation'->'request'->'t1'->'interferenceRuling'->'out_targets') person WHERE person=pg_catalog.jsonb_build_object('kind','runner','runner_id',pg_catalog.jsonb_build_object('kind','official','player_id',m->>'runnerId')))) OR ((source_row.payload->>'formatVersion'='play-prefix-play-v3' AND source_row.payload->'calculation'->'request'->'t1'->>'eventKind'='secondary-result' AND source_row.payload->'calculation'->'request'->'t1'->>'resultId' IN ('secondary-result.obstruction','secondary-result.offensive-interference') AND source_row.payload->'calculation'->'request'->'t1'->'interferenceRuling' IS NOT DISTINCT FROM source_row.payload->'observations'->'interferenceRuling') AND EXISTS(SELECT 1 FROM pg_catalog.jsonb_array_elements(CASE WHEN source_row.payload->'calculation'->'request'->'t1'->'interferenceRuling'->>'kind'='obstruction' THEN source_row.payload->'calculation'->'request'->'t1'->'interferenceRuling'->'awarded_destinations' ELSE source_row.payload->'calculation'->'request'->'t1'->'interferenceRuling'->'return_bases' END) placement WHERE placement->'person'=pg_catalog.jsonb_build_object('kind','runner','runner_id',pg_catalog.jsonb_build_object('kind','official','player_id',m->>'runnerId')) AND (CASE placement->>'destination' WHEN 'first' THEN '1' WHEN 'second' THEN '2' WHEN 'third' THEN '3' WHEN 'home' THEN '4' ELSE NULL END)=COALESCE(source_row.payload->'calculation'->'response'->'value'->'t1'->'runnerDefaultAdvance'->(CASE m->>'base' WHEN '1' THEN 'first' WHEN '2' THEN 'second' WHEN '3' THEN 'third' END)->>'destination', m->>'base'))) OR (source_row.payload->>'formatVersion'='play-prefix-play-v3' AND source_row.payload->'calculation'->'request'->'t1'->>'resultId'='secondary-result.batting-interference' AND source_row.payload->'calculation'->'request'->'t1'->'interferenceRuling' IS NOT DISTINCT FROM source_row.payload->'observations'->'interferenceRuling' AND m->>'base'='3' AND source_row.payload->'calculation'->'request'->'t1'->'interferenceRuling'->'third_base_scoring_attempt'->>'value' IN ('squeeze','steal-home') AND source_row.payload->'calculation'->'response'->'value'->'t1'->'runnerDefaultAdvance'->'third'->>'destination'='4')) OR ((source_row.payload->>'formatVersion'='play-prefix-play-v3'
  AND source_row.payload->'observations'->>'resultId'='batting-result.double-play'
  AND before_cp->'after'->'stateFields'->>'state.outs'='0'
  AND before_cp->'after'->'stateFields'->>'state.runners'='first'
@@ -1233,12 +1289,12 @@ END IF;
  OR (EXISTS(SELECT 1 FROM pg_catalog.jsonb_array_elements(
  source_row.payload->'calculation'->'response'->'value'->'t1'
  ->'outEffect'->'targets') target WHERE pg_catalog.jsonb_typeof(target)='object'
- AND target ? 'runner') AND ((source_row.payload->>'formatVersion'='play-prefix-play-v3'
+ AND target ? 'runner') AND (((source_row.payload->>'formatVersion'='play-prefix-play-v3'
  AND source_row.payload->'observations'->>'resultId'='batting-result.double-play'
  AND before_cp->'after'->'stateFields'->>'state.outs'='0'
  AND before_cp->'after'->'stateFields'->>'state.runners'='first'
  AND source_row.payload->'calculation'->'response'->'value'->'t1'->'outEffect'
-  ='{"count":"2","targets":["batter",{"runner":"1"}]}'::jsonb)) IS NOT TRUE)
+  ='{"count":"2","targets":["batter",{"runner":"1"}]}'::jsonb) OR ((source_row.payload->>'formatVersion'='play-prefix-play-v3' AND source_row.payload->'calculation'->'request'->'t1'->>'eventKind'='secondary-result' AND source_row.payload->'calculation'->'request'->'t1'->>'resultId' IN ('secondary-result.obstruction','secondary-result.offensive-interference') AND source_row.payload->'calculation'->'request'->'t1'->'interferenceRuling' IS NOT DISTINCT FROM source_row.payload->'observations'->'interferenceRuling') AND EXISTS(SELECT 1 FROM pg_catalog.jsonb_array_elements(source_row.payload->'calculation'->'response'->'value'->'t1'->'outEffect'->'targets') target WHERE target=pg_catalog.jsonb_build_object('runner',m->>'base')) AND EXISTS(SELECT 1 FROM pg_catalog.jsonb_array_elements(source_row.payload->'calculation'->'request'->'t1'->'interferenceRuling'->'out_targets') person WHERE person=pg_catalog.jsonb_build_object('kind','runner','runner_id',pg_catalog.jsonb_build_object('kind','official','player_id',m->>'runnerId')))))) IS NOT TRUE)
  THEN RAISE EXCEPTION 'play prefix source or runners rejected'
  USING ERRCODE='42501'; END IF;
  SELECT c.* INTO current_cp FROM sync_fence.ordinary_pitch_checkpoints c
