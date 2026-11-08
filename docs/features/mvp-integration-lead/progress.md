@@ -1,5 +1,15 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 2026-11-08 20:38 JST：8球の実保存監査と、残打球の接合候補
+
+- **利用者操作の今回の実証**: test-only診断71743549/製品83e84222・artifact0db3で、画面新規作成/開始後の8球が正式受理、同D5再送/GET成功。owned RR監査でplay/event/slot/CSV/currentT5source各8、accepted台帳8、binding closed8。252.63秒/source3402・診断byte前後一致/owned削除/lock解放。manifest `0b372ce960dbd36a2b99ce532aa9619935efcf90722b36db72d37e6a83545196`、REPORT `cb70b1bdede0c37d8aea1ca7c8e3b890a86eb38e15c3867325bf35f604966a59`。26件訂正/9回の証拠ではない。
+- **停止原因と未解決**: 旧26件run6ではauthority binding_check受信のTimeoutError→blocked→controller結果不明を取得。固定600秒TTL/現P3期限切れとは断定しない。唯一hostの再利用・全行再検証/真正頁前後guardを83eへ接合（比較22passed非作者レビュー、root関連40検査/正式CLI成功）。次run7は7球受理後8球目SQL assert_writer_bindingの42501で停止し、旧authority停止は観測なし。ただし今回8球ではSQL拒否が非再現。残寿命/固定3拒否tagを失敗時だけ取る診断を準備済み、原因未確定の留保を維持。期限/資格/検査を緩めない。
+- **9回検証の到達点**: 0887b048の55play r2は新規作成/開始/本塁打+21凡打=22play・4回裏まで、23球目503で失敗620.58秒。9回/終了/成績CSV完走ではない。DB監査22記録、各binding closed。manifest `78d7b0127d4adcbc15f9d06b54c89778c6bc85ccacd6fd48006040c02cc930f6` をroot15artifact再照合。失敗要求の全取消を件数だけから断定しない。
+- **共有打球候補**: root専用feature/mvp-batted-operations-integration-20261108@db25f9e6へ作者58277f81と互換842eff16を通常merge。唯一artifact71f2726aの走者あり凡打/FC/犠打犠飛/限定併殺/公式1失策を明示観測で接合中。root7939b5d1は固定4585親SQL候補・12物理結果・唯一T1の走者別得点/RBIをT5へ写す候補、3suite162passed/RuffTy0。SQL未登録/実PG未実施/独立レビュー依頼中。旧53数学値の互換証明を4自己識別値だけ更新した842はroot静読後候補採用、接合後の実host検査進行中。正式受理済みとはしない。
+- **分担と次の依存**: Recoveryは元26件の未到達区間を診断付き固定候補で進める。CSV担当は4schema/d.tsとBE/FE headを専有し、空typed effectsの正当凡打/犠打をRBI捏造なく閉variantへ是正。妨害担当は別枝の唯一核/入力/V7/物理/UI。rootはSQL/body/manifestの正式接合、P3 following5bf・59球driver359の採否を直列化する。共有DB/秘密発行/実機操作は行わない。
+- **完成判断**: 接続優先を継続し、完成条件が成立すれば通常統合まで進める。21:30は評価点で停止条件ではない。全操作・終了後訂正・全成績CSV・断復旧/担当交代・負荷・実機/TLS/運用復旧・正式受理/CI/PR統合の未了を維持。MVP Goalは未完。
+
+
 
 ## 2026-11-08 18:56 JST：長履歴訂正の最初の停止層を取得
 
