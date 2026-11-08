@@ -1,5 +1,15 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 2026-11-08：操作経路をまとめて接合し、固定候補で検査する方式を継続
+
+- **実行方針**: POの安全なハーネス簡素化指示と既承認 `mvp-game-operations-product/plan.md` に従い、関連変更は操作経路単位にまとめる。部品ごとの新たな計画承認・全件検査を接続の前提へ追加しない。意味・認可・記録権・原子性・冪等性・結果不明・耐久性の保証は実装中から維持し、正式受理・固定差分の非作者確認・必須CIは通常統合前に行う。候補成功と正式完成を区別する。
+- **新しい同居候補**: root主候補 `1bfad343fa365f3902d1a02b38a5f1b1a5cf8139` は、走者WP/PB修復・越境試験修復を含む `bae097fc` と、閲覧統合 `996ba453` を無競合で通常merge。閲覧の共有13path接合・2生成SQLの元証拠を保持し、既ROOT専有の同一候補へ揃えた。正式develop統合ではない。関連BE/FEの接合検査を実行中。
+- **実装済みと実測待ち**: WP/PBは既唯一核の called/swinging-strike/ball と元RunnerObservationの41列完全一致を接続。作者1a2a1b96、独立REPORT SHA db1e70653c5255703b920031e4363ac28d0a3c72932c844dd598cac4c4986c01、root対象122passed。越境helperは別BrowserContextの実loginへ是正し、失敗時も取得済みartifactを実DB照合して最終失敗を保持（3fc21011、root独立9+5対向）。全17操作の実保存成立はまだ主張しない。
+- **現在の実走**: recovery担当が `bae097fc` の隔離コピーで run16/full17 を同handle77874で実行中。failure-only observer、旧全行traceなし、source前後検査・共通lock・owned PGを維持。途中ログの RuleSnapshotInvalid/503 は operationId=preparing_game_list と確認でき、旧seed規則形の独立調査と一致するが、全17の停止原因とは断定しない。旧run15はfirst2/再送/reloadの限定実証のまま保持する。
+- **閲覧の新実証**: `996ba453` の通常CURRENT49 startup/full catalog/同版resumeは owned PGで1passed26.47秒、source前後同一・一時DB削除。manifest SHA f80af0e7b3366782715170a851b39e43e1ef1a91e2a84b88366e227a26a8ae44。後付候補SQL/権限注入なし。実API/別ブラウザ自動更新10秒は未実証で、専用担当が現行経路へ旧試験を移植中。
+- **次**: run16の最初の実停止点または全17終端に基づく修復、閲覧の実HTTP/実画面、残操作の具体的閉拒否から1試合の不足を接続。成績/CSV/訂正/復旧/正式受理/CI/実機運用のMVP全条件を削減しない。8分割CIは引き続き保留。
+
+
 ## 2026-11-08 再開・評価：実画面の盗塁保存／再送／reloadへ到達
 
 - **再開時現物**: 主候補0cfa51a31a2bdb766b86124b47efff872ed6c99e clean、製品sourceは4a0e04b4と不変、低負荷observerだけの後発。run15は中断中に終端しており、同条件再走せず既証拠を回収。manifest SHA1049e80ef9db00a459a8bfe6df5ed453d18e2957014396bfb6ff42d4af596ab1、rc1/133.88秒/source3357一致/cleanup。
