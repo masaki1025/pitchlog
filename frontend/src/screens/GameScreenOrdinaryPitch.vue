@@ -84,7 +84,7 @@ const sacrificeBuntAvailable = computed(
 const sacrificeFlyAvailable = computed(
   () =>
     isLineupRecordingContext(displayed.value) &&
-    ['third', 'first-third', 'second-third', 'loaded'].includes(
+    ['third', 'first-third', 'second-third', 'first-second-third'].includes(
       displayed.value.after.stateFields['state.runners'],
     ) &&
     displayed.value.after.stateFields['state.outs'] !== '2',

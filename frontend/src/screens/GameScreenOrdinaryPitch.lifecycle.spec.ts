@@ -771,3 +771,51 @@ it('同値contextのsuspended往復では球種・結果・course観測を消さ
     wrapper.unmount()
   }
 })
+
+it.each(['0', '1', '2'] as const)(
+  '満塁の正準値で%s死の犠飛選択を表示適格性どおりに提供する',
+  async (outs) => {
+    // 表示適格性だけの状態入力。実source資格/計算/保存の成功とは扱わない。
+    const raw = structuredClone(lineupFixture.value)
+    if (!isLineupPrefixGame(raw)) throw new Error('構造fixture不正')
+    const original = await lineupContextFromRead(raw, tenant)
+    const after = {
+      ...original.after,
+      stateFields: {
+        ...original.after.stateFields,
+        'state.runners': 'first-second-third' as const,
+        'state.outs': outs,
+      },
+    }
+    const wrapper = mount(GameScreenOrdinaryPitch, {
+      props: {
+        context: {
+          ...original,
+          after,
+          lineupSource: { ...original.lineupSource, after },
+        },
+      },
+      global: { plugins: [pinia] },
+    })
+    try {
+      for (const name of ['profile', 'mode', 'bucket', 'lockdown'])
+        await wrapper
+          .get(`[data-testid="first-ball-env-${name}"]`)
+          .setValue(true)
+      await vi.waitFor(() =>
+        expect(
+          wrapper.find('[data-testid="ordinary-pitch-result"]').exists(),
+        ).toBe(true),
+      )
+      const offered = wrapper
+        .get('[data-testid="ordinary-pitch-result"]')
+        .findAll('option')
+        .map((option) => option.attributes('value'))
+      expect(offered.includes('batting-result.sacrifice-fly')).toBe(
+        outs !== '2',
+      )
+    } finally {
+      wrapper.unmount()
+    }
+  },
+)

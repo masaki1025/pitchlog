@@ -50,3 +50,11 @@ rootは実host71f→閉schema/head→V7/V8/current codec→既生成T5へ10入�
 CSV担当が公式_selected_product_ddlとcanonical全関数を静的照合し、persist_start_pitcher_entryだけ旧0db3→71f artifact pin3箇所が追随漏れと特定。条件/権限/他byte差0。rootが公式BODIESから該当1SQLを再生成、2b82a2ea…→69853efb1ede406bdf8df0174c93e103e51cd5f7d0f433d69938d6bb35132331。PGへ進む前に全first_ball登録関数の適用本文・欠落・重複を照合し、旧3pin再導入を元の凍結ゲートで拒否するテストを追加（2passed6.48秒）。生成値追随の委任判断として採用し、照合条件は変更しない。同版の無根拠再走をせず、この新固定版で次owned実測へ進む。
 
 記録単位の訂正: 4006生成9046f9bbの85,023は文字数（UTF-8 85,347bytes）であり、bytesと記載したのは誤り。NULL-safe修復後c2758d69は85,077文字/85,401bytes。SHAは変更していない。
+
+## 満塁の犠飛選択を正準値へ追随（2026-11-08 22:13 JST）
+
+run7/source726d・製品d074は実11play（単打/走者hold凡打/犠打/RBI04の得点1打点0/併殺/野選/公式1失策）と同要求重複、正規C2再取得まで成功。authorityready1/例外なし、finally RRのplay/event/slot/accepted/closed各11・nativecurrent11。12球目の合法満塁0死SFがUI選択肢に無く停止271.36秒、manifestc236cac8827cddf521149539898a74d72b2b168d712a42d04e8b8e8c58e8ca4d。全59/終了/成績CSV成功へは広げない。
+
+rootはGameScreenOrdinaryPitch.vueのSF表示条件だけ、旧loadedを正準first-second-thirdへ置換する既意味不変の通常不具合修復としてPO委任採用。対象追加は同Vueと既lifecycle.specのみ、唯一核/要求/保存/拒否/観測確認を変更しない。満塁0/1死の提示と2死の不提示を単体3正負で検査し、同file全22passed4.13秒、型lint成功。初回3失敗は試験が既必須環境4条件を確認していなかったため、条件を緩めず実UIと同じ確認操作を行って是正した。単体の表示検査は手定状態であり、真正source/数学/保存の成功ではない。修復固定版で元59全期待を維持して次forwardへ進む。
+
+同居させたP3後続12打球d303は、例外分類P1を修復し非作者closure3154c7c5…（独立3passed2.63秒/原例外identity維持）後に通常mergeした。target4/replacement2と原本破損の既分類は不変、PG/D5終結の新成立は未実証。C2 test-only726dも通常mergeし、inline/CSP迂回なしの同origin test moduleから実clientへ3閉GETだけ委譲する。
