@@ -2514,7 +2514,8 @@
             "batting-result.single",
             "batting-result.double",
             "batting-result.triple",
-            "batting-result.home-run"
+            "batting-result.home-run",
+            "batting-result.batted-out"
           ]
         },
         "pitchEventKind": {
@@ -2579,7 +2580,10 @@
           ]
         },
         "thirdOutObservation": {
-          "const": "none"
+          "enum": [
+            "none",
+            "batter-before-first"
+          ]
         }
       },
       "required": [
@@ -2592,7 +2596,83 @@
         "runnerAdvanceOverrides",
         "thirdOutObservation"
       ],
-      "additionalProperties": false
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "resultId": {
+                "const": "batting-result.batted-out"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "runnerAdvanceOverrides": {
+                "const": "not-applied"
+              },
+              "before": {
+                "properties": {
+                  "stateFields": {
+                    "properties": {
+                      "state.runners": {
+                        "const": "empty"
+                      },
+                      "state.outs": {
+                        "enum": [
+                          "0",
+                          "1",
+                          "2"
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "allOf": [
+              {
+                "if": {
+                  "properties": {
+                    "before": {
+                      "properties": {
+                        "stateFields": {
+                          "properties": {
+                            "state.outs": {
+                              "const": "2"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "then": {
+                  "properties": {
+                    "thirdOutObservation": {
+                      "const": "batter-before-first"
+                    }
+                  }
+                },
+                "else": {
+                  "properties": {
+                    "thirdOutObservation": {
+                      "const": "none"
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          "else": {
+            "properties": {
+              "thirdOutObservation": {
+                "const": "none"
+              }
+            }
+          }
+        }
+      ]
     },
     "BattedHitObservations": {
       "type": "object",
@@ -2683,7 +2763,8 @@
             "batting-result.single",
             "batting-result.double",
             "batting-result.triple",
-            "batting-result.home-run"
+            "batting-result.home-run",
+            "batting-result.batted-out"
           ]
         },
         "battedBall": {
@@ -2862,16 +2943,49 @@
           ]
         },
         "thirdOutObservation": {
-          "type": "object",
-          "properties": {
-            "kind": {
-              "const": "none"
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "none"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "batter-before-first"
+                },
+                "batter": {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "const": "official"
+                    },
+                    "player_id": {
+                      "$ref": "#/$defs/Uuid"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "player_id"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "kind",
+                "batter"
+              ],
+              "additionalProperties": false
             }
-          },
-          "required": [
-            "kind"
-          ],
-          "additionalProperties": false
+          ]
         },
         "thirdOutTimingByRunner": {
           "type": "object",
@@ -2894,7 +3008,44 @@
         "thirdOutObservation",
         "thirdOutTimingByRunner"
       ],
-      "additionalProperties": false
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "resultId": {
+                "const": "batting-result.batted-out"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "runnerAdvanceOverridesByRunner": {
+                "const": {
+                  "kind": "not-applied",
+                  "overrides": []
+                }
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "thirdOutObservation": {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "const": "none"
+                  }
+                },
+                "required": [
+                  "kind"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      ]
     },
     "NonplayPayloadCalculation": {
       "type": "object",
@@ -5315,6 +5466,104 @@
           }
         }
       }
+    },
+    {
+      "properties": {
+        "observations": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/BattedHitObservations"
+            },
+            {
+              "properties": {
+                "resultId": {
+                  "const": "batting-result.batted-out"
+                }
+              }
+            }
+          ]
+        },
+        "calculation": {
+          "properties": {
+            "request": {
+              "properties": {
+                "t1": {
+                  "allOf": [
+                    {
+                      "$ref": "#/$defs/BattedHitT1Input"
+                    },
+                    {
+                      "properties": {
+                        "resultId": {
+                          "const": "batting-result.batted-out"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "calculation": {
+                "properties": {
+                  "request": {
+                    "properties": {
+                      "t1": {
+                        "properties": {
+                          "thirdOutObservation": {
+                            "const": "batter-before-first"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "observations": {
+                "properties": {
+                  "thirdOutObservation": {
+                    "properties": {
+                      "kind": {
+                        "const": "batter-before-first"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "observations": {
+                "properties": {
+                  "thirdOutObservation": {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "const": "none"
+                      }
+                    },
+                    "required": [
+                      "kind"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
     },
     {
       "properties": {

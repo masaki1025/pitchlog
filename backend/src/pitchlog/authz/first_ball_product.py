@@ -2385,6 +2385,23 @@ def _activate_runner_physical_evidence_profile() -> None:
 
 
 _activate_runner_physical_evidence_profile()
+
+
+def _activate_batted_out_evidence_profile() -> None:
+    """既走者profileを保持した同prepareへ凡打の有限観測を接ぐ。"""
+    from pitchlog.authz.batted_out_evidence_sql import (
+        FUNCTION_ID,
+        overlay_prepared_parent,
+    )
+
+    rows = [row for row in ADDITIONS["functions"] if row["function_id"] == FUNCTION_ID]
+    if len(rows) != 1:
+        raise ValueError("凡打の登録宣言が不一致")
+    key = "function|" + FUNCTION_ID
+    BODIES[key] = overlay_prepared_parent(BODIES[key], rows[0])
+
+
+_activate_batted_out_evidence_profile()
 ROLES = frozenset(row["role_id"] for row in ADDITIONS["roles"])
 
 TABLES = frozenset(

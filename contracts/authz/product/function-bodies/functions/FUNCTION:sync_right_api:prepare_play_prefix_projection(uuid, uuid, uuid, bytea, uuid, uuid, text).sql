@@ -680,7 +680,7 @@ source_row.payload->'calculation'->'request'->'source'->'responsibility'
  batted_obs:=source_row.payload->'observations';
  IF source_row.payload->'calculation'->'request'->'t1'->>'resultId'
  IN ('batting-result.single','batting-result.double',
- 'batting-result.triple','batting-result.home-run')
+ 'batting-result.triple','batting-result.home-run','batting-result.batted-out')
  OR batted_obs ? 'battedBall' THEN
   IF pg_catalog.jsonb_typeof(batted_obs) IS DISTINCT FROM 'object'
   OR (SELECT pg_catalog.array_agg(k ORDER BY k) FROM
@@ -690,7 +690,7 @@ source_row.payload->'calculation'->'request'->'source'->'responsibility'
   'runnerAdvanceOverridesByRunner','stance','thirdOutObservation','thirdOutTimingByRunner']::text[]
   OR pg_catalog.jsonb_typeof(batted_obs->'resultId') IS DISTINCT FROM 'string'
   OR batted_obs->>'resultId' NOT IN ('batting-result.single','batting-result.double',
-  'batting-result.triple','batting-result.home-run')
+  'batting-result.triple','batting-result.home-run','batting-result.batted-out')
   OR batted_obs->>'resultId' IS DISTINCT FROM
   source_row.payload->'calculation'->'request'->'t1'->>'resultId'
   OR batted_obs->'officialScoringPayload' IS DISTINCT FROM
@@ -706,14 +706,29 @@ source_row.payload->'calculation'->'request'->'source'->'responsibility'
    '{"kind":"not-applied","overrides":[]}'::jsonb
    AND source_row.payload->'calculation'->'request'->'t1'
    ->>'runnerAdvanceOverrides' IS DISTINCT FROM 'not-applied')
-  OR batted_obs->'thirdOutObservation' IS DISTINCT FROM '{"kind":"none"}'::jsonb
+  OR (
+   batted_obs->>'resultId'='batting-result.batted-out' AND (
+    before_cp->'after'->'stateFields'->>'state.runners' IS DISTINCT FROM 'empty'
+    OR before_cp->'after'->'stateFields'->>'state.outs' NOT IN ('0','1','2')
+    OR source_row.payload->'calculation'->'request'->'t1'->>'runnerAdvanceOverrides'
+       IS DISTINCT FROM 'not-applied'
+    OR batted_obs->'runnerAdvanceOverridesByRunner'
+       IS DISTINCT FROM '{"kind":"not-applied","overrides":[]}'::jsonb
+   ))
+  OR batted_obs->'thirdOutObservation' IS DISTINCT FROM
+   (CASE WHEN batted_obs->>'resultId'='batting-result.batted-out'
+    AND before_cp->'after'->'stateFields'->>'state.outs'='2'
+   THEN pg_catalog.jsonb_build_object('kind','batter-before-first',
+    'batter',pg_catalog.jsonb_build_object('kind','official',
+      'player_id',p->'play_row'->>'batter_id'))
+   ELSE '{"kind":"none"}'::jsonb END)
   OR batted_obs->'thirdOutTimingByRunner' IS DISTINCT FROM '{}'::jsonb
   OR source_row.payload->'calculation'->'request'->'t1'->>'officialScoringPayload'
   IS DISTINCT FROM 'no-error'
   OR source_row.payload->'calculation'->'request'->'t1'->>'interferenceRuling'
   IS DISTINCT FROM 'not-required'
   OR source_row.payload->'calculation'->'request'->'t1'->>'thirdOutObservation'
-  IS DISTINCT FROM 'none'
+  IS DISTINCT FROM batted_obs->'thirdOutObservation'->>'kind'
   OR pg_catalog.jsonb_typeof(batted_obs->'battedBall') IS DISTINCT FROM 'object'
   OR (SELECT pg_catalog.array_agg(k ORDER BY k) FROM
   pg_catalog.jsonb_object_keys(batted_obs->'battedBall') k)

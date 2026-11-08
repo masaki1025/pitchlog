@@ -2111,7 +2111,8 @@
             "batting-result.single",
             "batting-result.double",
             "batting-result.triple",
-            "batting-result.home-run"
+            "batting-result.home-run",
+            "batting-result.batted-out"
           ]
         },
         "pitchEventKind": {
@@ -2176,7 +2177,10 @@
           ]
         },
         "thirdOutObservation": {
-          "const": "none"
+          "enum": [
+            "none",
+            "batter-before-first"
+          ]
         }
       },
       "required": [
@@ -2189,7 +2193,83 @@
         "runnerAdvanceOverrides",
         "thirdOutObservation"
       ],
-      "additionalProperties": false
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "resultId": {
+                "const": "batting-result.batted-out"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "runnerAdvanceOverrides": {
+                "const": "not-applied"
+              },
+              "before": {
+                "properties": {
+                  "stateFields": {
+                    "properties": {
+                      "state.runners": {
+                        "const": "empty"
+                      },
+                      "state.outs": {
+                        "enum": [
+                          "0",
+                          "1",
+                          "2"
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "allOf": [
+              {
+                "if": {
+                  "properties": {
+                    "before": {
+                      "properties": {
+                        "stateFields": {
+                          "properties": {
+                            "state.outs": {
+                              "const": "2"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "then": {
+                  "properties": {
+                    "thirdOutObservation": {
+                      "const": "batter-before-first"
+                    }
+                  }
+                },
+                "else": {
+                  "properties": {
+                    "thirdOutObservation": {
+                      "const": "none"
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          "else": {
+            "properties": {
+              "thirdOutObservation": {
+                "const": "none"
+              }
+            }
+          }
+        }
+      ]
     },
     "NonplaySource": {
       "$ref": "https://pitchlog.example/contracts/state-transition/nonplay_prefix_bridge_schema_v1.json#/$defs/Source"
