@@ -1,4 +1,4 @@
-"""保存済みv3通常投球の有限訂正を既唯一artifactで順次再評価する。
+"""保存済みv3通常投球の訂正と後続打球を既唯一artifactで順次再評価する。
 
 本関数はDB原本・P3認可・投影保存資格を発行しない。呼出側は同一取引で
 対象直前の真正checkpointと全原本・末尾を確認し、未対応後続を拒否する。
@@ -41,12 +41,20 @@ _ORDINARY_RESULTS = frozenset(
         "batting-result.foul",
     }
 )
-_HIT_RESULTS = frozenset(
+_BATTED_FOLLOWER_RESULTS = frozenset(
     {
         "batting-result.single",
         "batting-result.double",
         "batting-result.triple",
         "batting-result.home-run",
+        "batting-result.batted-out",
+        "batting-result.batted-reach",
+        "batting-result.fielders-choice",
+        "batting-result.sacrifice-bunt",
+        "batting-result.sacrifice-fly",
+        "batting-result.double-play",
+        "batting-result.error",
+        "batting-result.sacrifice-bunt-error",
     }
 )
 
@@ -127,7 +135,7 @@ def _bound_original(
     batted = type(request.t1) is BattedHitT1Input
     if batted and (
         not allow_batted
-        or request.t1.result_id not in _HIT_RESULTS
+        or request.t1.result_id not in _BATTED_FOLLOWER_RESULTS
         or type(saved.payload) is not LineupPitchPlayPayload
     ):
         raise LineupCorrectionUnsupported("訂正対象または後続打球が未対応")
@@ -144,7 +152,8 @@ def _bound_original(
         or request.source.position.d2 != str(saved.d2)
         or original.value.play_identity != request.play_identity
         or original.value.source_position != request.source.position
-        or request.t1.result_id not in (_HIT_RESULTS if batted else _ORDINARY_RESULTS)
+        or request.t1.result_id
+        not in (_BATTED_FOLLOWER_RESULTS if batted else _ORDINARY_RESULTS)
     ):
         raise LineupCorrectionUnsupported("保存済みv3原本と位置が不一致")
     if batted:
@@ -481,7 +490,7 @@ def _corrected_payload(
         or (
             batted
             and (
-                saved.calculation.request.t1.result_id not in _HIT_RESULTS
+                saved.calculation.request.t1.result_id not in _BATTED_FOLLOWER_RESULTS
                 or frame.corrected_request.t1.result_id
                 != saved.calculation.request.t1.result_id
                 or frame.corrected_request.source.runners

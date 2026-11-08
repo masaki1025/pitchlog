@@ -75,3 +75,22 @@ PO委任rootの指示で、c20dを含む3a3b25b6から専用WT `feature/mvp-full
 実画面では新規作成/開始→全UI入力→実ACK/GET、2件目の同要求再送は重複/同head、14件目reloadを要求し、終了v1/同receiptとgame・JST2026 season27項目/両CSV/88列ZIPを保存版へ全値照合する。DBでは全41列とrunner10列を保存V7から既単一mapperへ通して完全比較し、全停止manual/DP封殺/失策1の原野手/RBI0を独立literalでも比較する。全固定SELECTは実UIの前にEXPLAINする。対象backend型/Ruff/pytest collect、frontend型/ESLint/Playwright list成功。実PG/実HTTP/実ブラウザは未実施、共通lock未取得。
 
 残る供給はroot直列の新schema/SQLguard（同塁holdを旧guardが拒否する点の是正を含む）/rowgate有限結果と失策物理列/T5の新打球群/公式pin・manifest。起点2bのrepository結果は旧5種、native no-stealも旧凡打だけなので、この候補だけでは実保存を開かず、根拠付き接合後に1回実走する。旧55/163球/共有helper・数学/正式assets/台帳に差分なし。
+
+
+### 初回単打送信前診断（2026-11-08、PO委任root指示）
+
+正常49/71fの59操作run2は実create/start後にPOST未観測で停止。全59操作を反復せず、専用E2E/config/backend wrapperの新3ファイルだけで最初のsingleへ絞る。既製品/共通helper/認可/要求/slot/期限は不変更。CDPは開始後のcaught例外を一時停止してclassと固定src site/行のみ保存し即resume（message/locals/原文/UUID/資格なし）。この観測がタイミングに影響し得る限定を保持する。UI固定status分類、正規化endpoint/method/status、既finally read-only RRを残す。実head/観測JSON保存は不要。失敗は成功へ置換せず、root固定差分確認前のPG再投入なし。
+
+診断採用: 2026-11-08 21:21 JST、PO委任Codex rootの非作者全文確認（e936bf7e / diff e0ffd13c9703fe7ece884306f4e641e932bd965af16c33a9bc19738017c669ee）。docstring是正とresume observerの未処理rejection抑止だけを追加条件として採用。製品不変、CDP観測の時機影響は実失敗と分離する。
+
+
+### 59操作試験の正規C2読取接合（2026-11-08、PO委任root採用）
+
+run6は実2play/同要求重複ACK後、test direct GETのC2提示不足で404。製品/認可/共通helperを変えず、59driverの再送後started・最終lifecycle started・毎球ZIPだけを実UIと同じ既client（readLineupPrefixGame/readGameLifecycle/apiDownload、内部tenantBound:true）へ委譲する。非C2のstatsJSON/成績CSVは既経路を保持。closed found/全prefix/after/items/終了版/ZIP全byte長とSHAの期待を維持し、401/404を成功へ置換しない。元59全実測の後続停止は別の初回原因として保存する。
+
+root限定追補（2026-11-08）: browser client bridgeを新test-only `frontend/src/screens/BattedBatchC2.e2e-browser.ts`へ分離し、同origin Vite URLのmodule scriptとして正規ロードする。inline実行やCSP無効化/ポリシー変更は行わない。reload後も新documentへ同moduleをロードし、製品client共有/closed3readの境界を維持する。
+
+
+### 59操作試験の25件同版頁接合（2026-11-08、PO委任root採用）
+
+run8は実26play/満塁SF/14reload成功後、試験がfirstpage25件だけから当該rowを探して停止。製品default25を変えず、新test-only `BattedBatchPaging.e2e-support.ts` と専用specで正規C2clientのnext_cursorを最大3頁まで辿る。頁以外のhead全値（prefix/after/roster/原本ID含む）同値、cursor/rowID/play番号重複拒否、target一意を要求し、物理/CSV期待は保持。新specで26/51/59、版差替え、cursor反復、3頁超過、target欠測/重複を先行検査。browserbridge repeatedの引数は実原本cursorだけを追加しlimit25固定、任意pathや資格は受けない。旧run8封印は変更せず、root固定差分確認後だけ新実走へ進む。

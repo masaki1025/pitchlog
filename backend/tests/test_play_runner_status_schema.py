@@ -32,3 +32,27 @@ def test_impossible_or_unqualified_status_is_rejected(base, status, source):
     """逆行状況と未登録由来を拒否する。"""
     with pytest.raises(ValidationError):
         StartedPlayRunner.model_validate(_row(base, status, source))
+
+
+@pytest.mark.parametrize("base", [1, 2, 3])
+def test_saved_interference_out_requires_observed_source(base):
+    """実保存mapperの手動裁定ラベルだけを公開し、自動裁定を推測しない。"""
+    actual = StartedPlayRunner.model_validate(_row(base, "妨害裁定アウト", "manual"))
+    assert actual.model_dump(mode="json") == _row(base, "妨害裁定アウト", "manual")
+    with pytest.raises(ValidationError):
+        StartedPlayRunner.model_validate(_row(base, "妨害裁定アウト", "auto"))
+
+
+@pytest.mark.parametrize(
+    ("base", "status", "source"),
+    [
+        (0, "妨害裁定アウト", "manual"),
+        (4, "妨害裁定アウト", "manual"),
+        (1, "妨害裁定アウト", "unknown"),
+        (1, "妨害アウト", "manual"),
+    ],
+)
+def test_unregistered_interference_status_is_not_public(base, status, source):
+    """新規文字列や不正起点を一般的なアウトとして扱わない。"""
+    with pytest.raises(ValidationError):
+        StartedPlayRunner.model_validate(_row(base, status, source))

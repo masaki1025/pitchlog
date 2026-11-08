@@ -29,7 +29,7 @@ rootによるPO委任の範囲採用。計画初版9dfd4971は時刻を20:45と�
 
 842eff16をdb25f9e6へ通常merge後、v4旧実host/現v5を含む互換38件は311.61秒で成功、Ty0。旧53計算全値/旧11資産byteを保持し、4自己識別値以外の差分を拒否する。5bf664a1の後続4安打訂正を原観測へ再束縛する候補も通常mergeしたが、実P3成功とはしない。
 
-first_ball_productの固定親overlayを登録し、公式BODIESからprepare1関数を生成（SHA9046f9bbcacb30f476a77c8fcd49a5c2f8721919aa076e45b4bd43c82d8ed665/85,023bytes）。owner/ACL/署名/nonce/他関数は変更せず、旧overlay親の検査も新overlayを経てactivebody全値照合する形で維持。生成正負8passed4.60秒、静的authz-function-bodies product OK、Ruff/Ty0。これは候補内の登録であり、正式受理/seal/CI/実PGは未了。
+first_ball_productの固定親overlayを登録し、公式BODIESからprepare1関数を生成（SHA9046f9bbcacb30f476a77c8fcd49a5c2f8721919aa076e45b4bd43c82d8ed665/85,023文字）。owner/ACL/署名/nonce/他関数は変更せず、旧overlay親の検査も新overlayを経てactivebody全値照合する形で維持。生成正負8passed4.60秒、静的authz-function-bodies product OK、Ruff/Ty0。これは候補内の登録であり、正式受理/seal/CI/実PGは未了。
 
 T5後発は、明示effects付きで射影失敗した入力をRBI観測無しでも旧一括算入へfallbackさせない。手定対向11passed0.45秒、旧fixture/数学期待を緩めない。step1の独立レビュー後にこの後発も対照する。schema/head担当候補と59球driverの接合は次であり、ステップ2全体を完了にしない。
 
@@ -48,3 +48,13 @@ rootは実host71f→閉schema/head→V7/V8/current codec→既生成T5へ10入�
 固定ee8b3e52の59球run1は36.74秒でCURRENT49配置の「初球関数の適用本文が凍結値と不一致」で停止。画面作成/記録は未到達、DB business監査未実施。source不変/owned削除/共通lock解放、manifest263220a1787f915ac076069c119332429f4b0959fe1f6281c08dcaf88e1e3896。長履歴の接続Timeout/旧55の503とは別の停止である。
 
 CSV担当が公式_selected_product_ddlとcanonical全関数を静的照合し、persist_start_pitcher_entryだけ旧0db3→71f artifact pin3箇所が追随漏れと特定。条件/権限/他byte差0。rootが公式BODIESから該当1SQLを再生成、2b82a2ea…→69853efb1ede406bdf8df0174c93e103e51cd5f7d0f433d69938d6bb35132331。PGへ進む前に全first_ball登録関数の適用本文・欠落・重複を照合し、旧3pin再導入を元の凍結ゲートで拒否するテストを追加（2passed6.48秒）。生成値追随の委任判断として採用し、照合条件は変更しない。同版の無根拠再走をせず、この新固定版で次owned実測へ進む。
+
+記録単位の訂正: 4006生成9046f9bbの85,023は文字数（UTF-8 85,347bytes）であり、bytesと記載したのは誤り。NULL-safe修復後c2758d69は85,077文字/85,401bytes。SHAは変更していない。
+
+## 満塁の犠飛選択を正準値へ追随（2026-11-08 22:13 JST）
+
+run7/source726d・製品d074は実11play（単打/走者hold凡打/犠打/RBI04の得点1打点0/併殺/野選/公式1失策）と同要求重複、正規C2再取得まで成功。authorityready1/例外なし、finally RRのplay/event/slot/accepted/closed各11・nativecurrent11。12球目の合法満塁0死SFがUI選択肢に無く停止271.36秒、manifestc236cac8827cddf521149539898a74d72b2b168d712a42d04e8b8e8c58e8ca4d。全59/終了/成績CSV成功へは広げない。
+
+rootはGameScreenOrdinaryPitch.vueのSF表示条件だけ、旧loadedを正準first-second-thirdへ置換する既意味不変の通常不具合修復としてPO委任採用。対象追加は同Vueと既lifecycle.specのみ、唯一核/要求/保存/拒否/観測確認を変更しない。満塁0/1死の提示と2死の不提示を単体3正負で検査し、同file全22passed4.13秒、型lint成功。初回3失敗は試験が既必須環境4条件を確認していなかったため、条件を緩めず実UIと同じ確認操作を行って是正した。単体の表示検査は手定状態であり、真正source/数学/保存の成功ではない。修復固定版で元59全期待を維持して次forwardへ進む。
+
+同居させたP3後続12打球d303は、例外分類P1を修復し非作者closure3154c7c5…（独立3passed2.63秒/原例外identity維持）後に通常mergeした。target4/replacement2と原本破損の既分類は不変、PG/D5終結の新成立は未実証。C2 test-only726dも通常mergeし、inline/CSP迂回なしの同origin test moduleから実clientへ3閉GETだけ委譲する。
