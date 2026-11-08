@@ -17,7 +17,6 @@ from pitchlog.domainrt.first_ball_projection import _canonical_json
 from pitchlog.domainrt.host import NodeDomainHost, open_domain_host
 from pitchlog.domainrt.lineup_play_prefix_continuation import (
     BattedHitT1Input,
-    LineupPrefixProtocolError,
     LineupPrefixRequest,
     LineupPrefixSuccess,
     decode_lineup_prefix_request,
@@ -160,10 +159,7 @@ def _bound_original(
     if batted:
         assert saved.payload is not None
         _read_payload(saved.payload, require_current_rbi=False)
-    try:
-        verify_lineup_wire_seal(request, original)
-    except LineupPrefixProtocolError as exc:
-        raise LineupCorrectionUnsupported("旧v3原本の封印が不一致") from exc
+    verify_lineup_wire_seal(request, original)
     if previous is not None:
         prior = previous.value
         source = request.source
@@ -467,7 +463,7 @@ def _read_payload(
             expected_calculation=payload.calculation,
             require_current_rbi=require_current_rbi,
         )
-    except (ValueError, TerminalPitchPayloadError, LineupPrefixProtocolError) as exc:
+    except (ValueError, TerminalPitchPayloadError) as exc:
         raise LineupCorrectionUnsupported("訂正v3の観測と計算の束縛が不成立") from exc
 
 
@@ -494,8 +490,7 @@ def _corrected_payload(
         or (
             batted
             and (
-                saved.calculation.request.t1.result_id
-                not in _BATTED_FOLLOWER_RESULTS
+                saved.calculation.request.t1.result_id not in _BATTED_FOLLOWER_RESULTS
                 or frame.corrected_request.t1.result_id
                 != saved.calculation.request.t1.result_id
                 or frame.corrected_request.source.runners

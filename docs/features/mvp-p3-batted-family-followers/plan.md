@@ -27,3 +27,9 @@ created: 2026-11-08
 ## 実装進捗
 
 step1/2候補: 現行T1閉12結果と後続許可集合を全値一致にし、対象打球の閉拒否は維持する。71f実hostで対象後の凡打hold、犠打、犠飛、併殺、野選、公式失策2形、RBI-04を再生/訂正後再評価し、元V7/物理41列/走者/T5の全値一致を確認する。対象前の凡打原本も原形のまま持ち越す。別event・欠V7・改竄lineupは不成立とする。正式統合/実PG/独立確認は未実施。
+
+## 非作者P1を受けた限定修復（2026-11-08 21:59 JST）
+
+b417の最初の限定REPORT3452e659…はI6/HTTP/PG分類を範囲外としていたが、rootがcaller2経路との関係を照合し、非作者追補fd449238…がP1を確定した。新しいProtocolError→Unsupported変換は、既保存原本のseal破損をnonpagedのContentRejected/pagedのrejected系へ再分類し得る。実DBでD5結果変化を実証したとは言わず、変更を正当化する契約根拠もないため採用しない。
+
+rootは新catch2箇所と不要importだけを旧分類へ戻し、followers12の許可集合/target4/replacement2/旧再生と新RBI資格/全response・物理・T5比較は維持した。改竄lineup原本は具体的なProtocolErrorを要求する負例へ是正し、saved-seal/saved-payload各故障の例外identity・元呼出一回を2対向で追加。限定3passed2.57秒、Ruff/Ty成功。最初の収集は別WT venvのeditable import先へ解決して失敗したため、新WT src:testsを明示し実import先を確認してから上記を実行した。製品失敗/実PG検査とはしない。修復後sourceの非作者差分再確認後にroot統合へ採否する。

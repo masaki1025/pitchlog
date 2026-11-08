@@ -14,6 +14,7 @@ from test_batted_hit_prefix_payload import observations
 
 from pitchlog.domainrt.lineup_play_prefix_continuation import (
     BattedHitT1Input,
+    LineupPrefixProtocolError,
     LineupPrefixSuccess,
     RunnerValue,
     decode_lineup_prefix_request,
@@ -360,18 +361,14 @@ def test_original_scope_still_rejects_batted_target_and_cross_source():
         other_team = q.source.lineup.away.team_id
         changed_lineup = q.source.lineup.model_copy(
             update={
-                "home": q.source.lineup.home.model_copy(
-                    update={"team_id": other_team}
-                )
+                "home": q.source.lineup.home.model_copy(update={"team_id": other_team})
             }
         )
         changed_source = q.source.model_copy(update={"lineup": changed_lineup})
         changed_q = q.model_copy(update={"source": changed_source})
         changed_calc = saved.calculation.model_copy(update={"request": changed_q})
-        changed_payload = saved.payload.model_copy(
-            update={"calculation": changed_calc}
-        )
-        with pytest.raises(LineupCorrectionUnsupported):
+        changed_payload = saved.payload.model_copy(update={"calculation": changed_calc})
+        with pytest.raises(LineupPrefixProtocolError):
             _bound_original(
                 replace(saved, calculation=changed_calc, payload=changed_payload),
                 previous,
@@ -435,3 +432,35 @@ def test_batted_out_before_target_carries_original_but_target_stays_ordinary():
         assert len(result) == 1
         assert result[0].d1 == 3
         assert result[0].corrected_request.t1.result_id == "batting-result.ball"
+
+
+@pytest.mark.parametrize("boundary", ["saved-seal", "saved-payload"])
+def test_saved_protocol_failure_keeps_original_exception_identity(
+    monkeypatch, boundary
+):
+    """既保存原本の故障を、利用者の変更内容拒否へ再分類しない。"""
+    from pitchlog.domainrt import past_correction_lineup as module
+
+    with _host() as host:
+        saved = _two_saved(host)[0]
+        assert saved.payload is not None
+        failure = LineupPrefixProtocolError("source-integrity-fixture")
+        calls = []
+
+        def rejected(*args, **kwargs):
+            calls.append(True)
+            raise failure
+
+        symbol = (
+            "verify_lineup_wire_seal"
+            if boundary == "saved-seal"
+            else "read_lineup_pitch_payload"
+        )
+        monkeypatch.setattr(module, symbol, rejected)
+        with pytest.raises(LineupPrefixProtocolError) as caught:
+            if boundary == "saved-seal":
+                _bound_original(saved, None, host)
+            else:
+                module._read_payload(saved.payload, require_current_rbi=False)
+        assert caught.value is failure
+        assert calls == [True]
