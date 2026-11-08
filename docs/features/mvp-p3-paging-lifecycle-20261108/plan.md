@@ -29,3 +29,11 @@
 ### step1固定・現実検証の準備
 
 現sourceのP3 writerは元source.read→有限page二走→_live、TX確定直前再照合→PG終端後lease.finishという既経路を持つ。旧証拠だけから欠落を断定できないため製品sourceは変更しない。旧cache `paging-26-plus-20261107/p3-26-driver-source.py` の26操作/故障/頁/再送/次球assertを専用testへ再利用し、旧候補DDLを一切呼ばず正規CURRENT49 markerを要求する。全行trace/worker-siteとtiming/lease wrapperは追加せず、失敗時の既bounded chain/固定stageだけを残す。生成脚本compile/Ruff/Ty/collect1を確認。実HTTP/実PG成功は未実施、次stepでsource固定・共通lock下に一回実行する。
+
+### step2・有界ページの真正再確認
+
+run1正常49実HTTPは26入力/対象26まで通過したが、最初のP3 T2故障要求でhook未到達503。_live→同source.read→RG1 loan BrokenPipeと終端binding finish失敗を捕捉した。source3377前後一致/cleanup、run1 cache manifest `ae6e6c9e446a554220ac0de6315d6856cffbbb51b9d7e2a638450c91b0d682af`。channel帰属/peer終端理由未採取につきidle10秒を実因と断定しない。
+
+rootが既委任内で採用した有界進行境界の強化として、各pageの再計算前・seal/T5形成後かつconsume前に既 `_bound_target` を同scope/event/opaque sourceで再実行し、当初の真正target全値一致を必須にする。期限延長や任意timerのheartbeatではなく、各pageを使う際の実受付/権利/失効の再確認であり、失効例外はそのまま停止する。二走/私有stage/finalize・全digest/数学/SQLは変更しない。実因修復済みとはまだ記録しない。
+
+専用HTTP脚本の新観測は同binding init/finish/abandonの元呼出を一回保持しunfinished件数と固定counterのみを記録。真正page再確認の相対時刻/前回gap/成功または例外型を最大80件に閉じ、ID/本文/SQL/資格/絶対期限を出さない。全行traceは無し。正常DB/RPCを偽成功へ置換しない。pure10件＋既P3境界40件成功、Ruff/Ty0、生成script compile成功。初回の型mock6診断と存在しない追加suite指定のcollection失敗は是正後の成功と区別する。独立source確認後、同固定sourceで次の根拠ある一回の実測へ進む。

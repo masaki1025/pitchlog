@@ -76,6 +76,66 @@ def traced_p3_content_result(*args, **kwargs):
 actual_p3_execution.visit_p3_lineup_correction_pages = traced_p3_visit
 actual_p3_execution.p3_content_result = traced_p3_content_result
 
+from time import monotonic
+from pitchlog.sync import past_correction_paged as _p3_paged
+from pitchlog.sync.control_provider import binding_control as _p3_control
+_p3_started = monotonic()
+_p3_last_guard = None
+_p3_unfinished = set()
+_p3_lifecycle = {"opened": 0, "finished": 0, "abandoned": 0}
+_p3_original_init = _p3_control._BindingLease.__init__
+_p3_original_finish = _p3_control._BindingLease.finish
+_p3_original_abandon = _p3_control._BindingLease.abandon
+_p3_original_guard = _p3_paged._assert_page_binding
+
+def _p3_init(self, *args, **kwargs):
+    result = _p3_original_init(self, *args, **kwargs)
+    _p3_unfinished.add(self)
+    _p3_lifecycle["opened"] += 1
+    return result
+
+def _p3_finish(self):
+    result = _p3_original_finish(self)
+    _p3_unfinished.discard(self)
+    _p3_lifecycle["finished"] += 1
+    return result
+
+def _p3_abandon(self):
+    try:
+        return _p3_original_abandon(self)
+    finally:
+        _p3_unfinished.discard(self)
+        _p3_lifecycle["abandoned"] += 1
+
+def _p3_guard(*args, **kwargs):
+    global _p3_last_guard
+    now = monotonic()
+    marks = runtime_diagnostics.setdefault("page_binding_checks", [])
+    record = {"elapsed_ms": round((now - _p3_started) * 1000),
+              "gap_ms": (round((now - _p3_last_guard) * 1000)
+                         if _p3_last_guard is not None else None),
+              "unfinished": len(_p3_unfinished),
+              "lifecycle": dict(_p3_lifecycle)}
+    _p3_last_guard = now
+    try:
+        result = _p3_original_guard(*args, **kwargs)
+    except Exception as error:
+        record["error_type"] = type(error).__name__
+        raise
+    else:
+        record["success"] = True
+        return result
+    finally:
+        if len(marks) < 80:
+            marks.append(record)
+        else:
+            runtime_diagnostics["page_binding_checks_truncated"] = True
+
+_p3_control._BindingLease.__init__ = _p3_init
+_p3_control._BindingLease.finish = _p3_finish
+_p3_control._BindingLease.abandon = _p3_abandon
+_p3_paged._assert_page_binding = _p3_guard
+
 """
     marker = "async def run():"
     assert script.count(marker) == 1
