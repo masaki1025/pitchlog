@@ -1,5 +1,14 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 2026-11-08 23:43 JST：長履歴の停止を保存資源寿命へ切分け、妨害を同版へ接合
+
+- **実測の増分と未到達**: 59play/九回終了/同終了版27項目・成績2CSV・88列ZIP成功は前節のfixed0b699/製品6c52で保持。次fixed4b1c6479/同製品6c52の26件P3画面は23play保存後、24件目alias前503で452.63秒失敗。実RRはplay/event/slot/accepted台帳/closed binding各23、current_open source23、LC0/P3capsule0。訂正には未到達。REPORT9d591f8551543b830f5528ea04a3ea4c68ac47951fba2199934a874aa351d2be、manifest2cc8caf1574ceda88dd1906cbc0659b573d3ca5cc8cbc60836922b656c690d49。authority fresh_controller EOFは最初のserver側観測であって、対向RG1の先行closeがあり得るため根因と断定しない。同条件の26全再走は保留しcleanup/lockfreeを確認。
+- **新しく再現した欠陥**: transactionがinnerでSession/Engineへの参照を失ってからRG1 loan.releaseするため、その間GCが走ると借用終結のbackend生存確認より先に物理資源が回収され得る。Recovery専用fix5ab1df96ではruntimeを終結までローカル参照保持するだけに限定。実Session/QueuePool Engineのgc/weakref純対向で旧Git版は寿命消失1fail、新版と既RG1回帰55passed。これは資源寿命欠陥の再現で、23球EOF実因との結び付きは未証明。commit/rollback/Session.close/handle expire→release/abandonの順・例外・期限・認可を保持。root静読後、実UID20003/真正loanの直前GCで短いowned経路を準備中（まだPG未実施）、全26反復に戻さない。
+- **妨害の製品接合候補**: main `e7600e05bcfd13d758c99d96e9fed7bef985ec37` push済。99e（唯一859/有限v6）＋6f5（原V7裁定/同TX41列/T5）＋読取8e1bを個別枝の通常mergeで保持。rootは保存deltaのSQL NULL拒否漏れ、旧not-required12打球の誤拒否、採用失策の野手credit欠落を指摘して修復6f5へ。detached全4931source前後同一・67passed8.53秒、限定非作者REPORTb2d1d75b23174aaff92c33a536313d94f9b240c564d511b8f83e79f675cd494e（rootの旧親作者/調整者の関係を開示、P6blind/最終独立PRreviewとは区別）。公式prepare生成c275→d68ba5bcfebdf467ac27bec7fc68db330e47456e04d92deae23b827bc625837c、全79適用本文/旧pin拒否/生成層/DTO29passed7.86秒。妨害の実保存成功は未成立。Game担当のINT01〜07実UI五試合driver943e2f8fはrootreview待ち/PG0。
+- **CSVと負荷の独立作業**: CSV担当はP3後毎球409を正規S/実capsule/item/前版nativeと結ぶappend-only overlayへ実装中。旧snapshot上書き/現在名簿補完/単なる409guard削除はしない。二度目訂正の前版をSave前に真正private receiptで固定し同TX Save後に検証するpacketを準備、500keyset/DB carryを維持。rootの3game×11context負荷driver114eは『履歴だけの時刻採取』P1を非作者が検出したため不採用、新81b7は全DOM状態の同時snapshot＋同actual saved_atの即値比較へ修復、遅延20秒を20秒として検出する8pure/型lint成功。実負荷PGは未実施、独立再確認後に行う。
+- **次の順序/評価**: GC寿命の短owned実証→修復版で長履歴訂正を再確認、同時に妨害実測/P3毎球producer/負荷の固定候補を供給。正式資産7.7/認可・tenant・seal/corpus/全件必須CI/通常PR統合はruntime固定後にまとめる。全操作（タイブレーク等）/全訂正/断復旧・担当交代/実機・信頼TLS・運用復旧も未了。MVP未完、02:00 JSTに実証増分と残る依存を評価して継続する。
+
+
 ## 2026-11-08 22:52 JST：打球59プレイの九回終了・同終了版27成績/両CSVを実通過
 
 - **利用者が今回新たに完了した操作**: fixed test `0b6990bc48173d2e675219ba2fe00c66ae579b46` /製品`6c52fd2b3b665b825d9c4aaf4aabc5d3ab03c732`の同一隔離HTTPS・正常CURRENT49・実認証/実記録権/唯一71f/原子的保存で、画面新規作成→開始→59play/九回54outs・2対0→終了v1→reloadを完走。走者hold、犠打、停止後再発進の得点1打点0、併殺、野選、実野手失策、満塁犠飛を含む。14件reload、26/51件頁境界、同本文/D5/attempt重複不増も通過。全配置/全操作の網羅とはしない。
