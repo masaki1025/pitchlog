@@ -344,6 +344,10 @@
         "reason": "stats_primitive_storage",
         "owner_unit": "U-X1"
       }
+    },
+    {
+      "table": "play_export_p3_snapshots",
+      "profile": "function_only"
     }
   ]
 }

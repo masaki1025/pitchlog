@@ -314,6 +314,7 @@ WHERE namespace.nspname = ANY(%s)
               ('sync_fence', 'stats_primitive_sources'),
               ('sync_fence', 'stats_fact_versions'),
               ('sync_fence', 'pitcher_entry_sources'),
+              ('sync_fence', 'play_export_p3_snapshots'),
               ('sync_fence', 'p3_projection_capsules'),
               ('sync_fence', 'p3_projection_capsule_items'),
               ('sync_fence', 'p3_projection_heads'),

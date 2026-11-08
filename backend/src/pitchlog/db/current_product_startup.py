@@ -1,4 +1,4 @@
-"""旧0039段階を保ち、current0049の実構造と全認可を接合する。"""
+"""旧0039段階を保ち、current0050の実構造と全認可を接合する。"""
 
 from __future__ import annotations
 
@@ -32,6 +32,7 @@ from pitchlog.db.game_state.stats import (
     StatsPrimitiveFact,
     StatsPrimitiveSource,
 )
+from pitchlog.db.play_export_p3.models import PlayExportP3Snapshot
 from pitchlog.db.writer_binding.attempt_recovery_models import SyncAttemptRetirement
 from pitchlog.db.writer_binding.lifecycle_models import (
     GameLifecycleHead,
@@ -40,7 +41,7 @@ from pitchlog.db.writer_binding.lifecycle_models import (
 from pitchlog.db.writer_binding.nonplay_models import NonplayWriteAdmission
 from pitchlog.db.writer_binding.substitution_models import SubstitutionWriteReceipt
 
-CURRENT_REVISION = "0049_pitcher_entry_sources"
+CURRENT_REVISION = "0050_play_export_p3_snapshots"
 _INDEX_REVISION = "0040_batted_vocabulary_index"
 _STATS_MODELS = (StatsFactVersion, StatsPrimitiveSource, StatsPrimitiveFact)
 
@@ -218,7 +219,7 @@ def _expression(value: str | None) -> Any:
 
 
 def _tables() -> tuple[Table, ...]:
-    """旧14表/P3原本6表/出場原本1表を既採用型定義から取得する。"""
+    """旧14表/P3原本6表/出場原本1表/訂正CSV原本1表を既採用型定義から取得する。"""
     from pitchlog.db.all_models import IMPORTED_MODEL_MODULE_NAMES
     from pitchlog.db.game_state import models as game_models
     from pitchlog.db.past_correction.models import P3_STORAGE_MODELS
@@ -253,6 +254,7 @@ def _tables() -> tuple[Table, ...]:
         SyncAttemptRetirement,
         *P3_STORAGE_MODELS,
         PitcherEntrySource,
+        PlayExportP3Snapshot,
     )
     return tuple(
         sorted((cast(Table, m.__table__) for m in models), key=lambda t: t.name)
@@ -383,9 +385,16 @@ FROM pg_constraint k WHERE k.conrelid=%s::regclass ORDER BY k.conname
 
 
 def _check_current_structure(connection: Any) -> None:
-    """sync_fence全21表と承認済構造を不足/余剰とも拒否する。"""
+    """sync_fence全22表と承認済構造を不足/余剰とも拒否する。"""
     from pitchlog.db.past_correction.models import P3_STORAGE_MODELS
     from pitchlog.db.past_correction.startup import check_p3_storage
+    from pitchlog.db.play_export.startup import _default
+
+    def default_expression(value):
+        # builtinの既知deparseだけを揃え、異なる関数/定数/式を同一視しない。
+        if value == "pg_catalog.clock_timestamp()":
+            value = "clock_timestamp()"
+        return _expression(value)
 
     tables = _tables()
     p3_names = {model.__table__.name for model in P3_STORAGE_MODELS}
@@ -419,6 +428,9 @@ def _check_current_structure(connection: Any) -> None:
                 "AND a.attnum>0 AND NOT a.attisdropped ORDER BY a.attnum",
                 (table.fullname,),
             )
+            actual_columns = [
+                (*row[:5], default_expression(row[5])) for row in cursor.fetchall()
+            ]
             expected = [
                 (
                     c.name,
@@ -426,11 +438,11 @@ def _check_current_structure(connection: Any) -> None:
                     not c.nullable,
                     "",
                     "",
-                    None,
+                    default_expression(_default(c.server_default)),
                 )
                 for c in table.c
             ]
-            if cursor.fetchall() != expected:
+            if actual_columns != expected:
                 raise CurrentProductStartupError("current全列の型/属性が不一致です")
             if table.name not in {
                 m.__table__.name
@@ -442,6 +454,7 @@ def _check_current_structure(connection: Any) -> None:
                     SubstitutionWriteReceipt,
                     SyncAttemptRetirement,
                     PitcherEntrySource,
+                    PlayExportP3Snapshot,
                 )
             }:
                 cursor.execute(
@@ -1016,6 +1029,36 @@ def _check_pitcher_entry_guards(connection: Any, phase: str) -> None:
             raise CurrentProductStartupError("出場原本guardの全構造が不一致です")
 
 
+def _check_p3_export_guards(connection: Any, phase: str) -> None:
+    """訂正CSV監査原本の2guardを全属性で照合し、部分配置を補修しない。"""
+    if phase not in {"pre-full", "full"}:
+        raise CurrentProductStartupError("訂正CSV原本guardの配置段階が不一致です")
+    with connection.cursor() as cursor:
+        cursor.execute(
+            "SELECT t.tgname,t.tgtype,"
+            "t.tgfoid=pg_catalog.to_regprocedure("
+            "'stats_api.protect_play_export_p3_snapshots()') "
+            "AND t.tgenabled='O' AND NOT t.tgisinternal AND NOT t.tgdeferrable "
+            "AND NOT t.tginitdeferred AND t.tgconstraint=0 AND t.tgnargs=0 "
+            "AND t.tgattr::text='' AND t.tgqual IS NULL "
+            "AND t.tgargs=''::pg_catalog.bytea "
+            "AND t.tgoldtable IS NULL AND t.tgnewtable IS NULL "
+            "FROM pg_catalog.pg_trigger t WHERE "
+            "t.tgrelid='sync_fence.play_export_p3_snapshots'::pg_catalog.regclass "
+            "AND NOT t.tgisinternal ORDER BY t.tgname"
+        )
+        expected = (
+            []
+            if phase == "pre-full"
+            else [
+                ("play_export_p3_immutable", 27, True),
+                ("play_export_p3_no_truncate", 34, True),
+            ]
+        )
+        if cursor.fetchall() != expected:
+            raise CurrentProductStartupError("訂正CSV原本guardの全構造が不一致です")
+
+
 def _finish_current(owner_dsn: str, applicator_dsn: str) -> CurrentProductStartupResult:
     with psycopg.connect(applicator_dsn) as connection:
         revision = _revision(connection)
@@ -1033,6 +1076,7 @@ def _finish_current(owner_dsn: str, applicator_dsn: str) -> CurrentProductStartu
         phase = _require_pre_or_full_catalog(connection)
         _check_attempt_retirement_guards(connection, phase)
         _check_pitcher_entry_guards(connection, phase)
+        _check_p3_export_guards(connection, phase)
     with psycopg.connect(applicator_dsn) as connection:
         apply_product_authz_ddl(connection)
     with psycopg.connect(applicator_dsn) as connection:
@@ -1045,6 +1089,7 @@ def _finish_current(owner_dsn: str, applicator_dsn: str) -> CurrentProductStartu
         _check_play_export_storage(connection)
         _check_attempt_retirement_guards(connection, "full")
         _check_pitcher_entry_guards(connection, "full")
+        _check_p3_export_guards(connection, "full")
         if not _catalog(connection).ok:
             raise CurrentProductStartupError("current全catalogが不一致です")
     return CurrentProductStartupResult()

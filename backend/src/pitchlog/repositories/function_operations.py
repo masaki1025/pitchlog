@@ -562,6 +562,17 @@ class _WriterAssertVoidResult(TypeDecorator[None]):
         return None
 
 
+def _play_export_p3_family(registration) -> bool:
+    """P3 CSVの新read1型だけを真正RR専用の全値検証へ送る。"""
+    return (
+        registration.function_id == "stats_api.read_play_export_p3_snapshots"
+        or registration.operation_id == "PLAY_EXPORT_P3:read_snapshots"
+        or registration.capability_id == "CAP:play_export_p3:read_snapshots"
+        or getattr(registration.token_type, "__module__", None)
+        == "pitchlog.repositories.play_export_p3_read"
+    )
+
+
 def _play_export_source_family(registration) -> bool:
     """CSVのRR source読取だけを専用の閉検証へ送る。"""
     return (
@@ -586,6 +597,8 @@ def _play_export_writer_family(registration) -> bool:
 
 def _stats_native_family(registration) -> bool:
     """新5の予約namespaceだけを特別検証し、旧全型規約へ波及させない。"""
+    if _play_export_p3_family(registration):
+        return False
     if _play_export_writer_family(registration) or _play_export_source_family(
         registration
     ):
@@ -695,6 +708,11 @@ class FunctionOperationRegistration:
             from pitchlog.repositories.nonplay_function_operations import (
                 validate_registration,
             )
+
+            validate_registration(self)
+            return
+        if _play_export_p3_family(self):
+            from pitchlog.repositories.play_export_p3_read import validate_registration
 
             validate_registration(self)
             return
@@ -1074,8 +1092,7 @@ def _build_fixed_function_statement(
                             in _SYNC_ORDINARY_PREFIX_FUNCTION_TYPES
                             or f"{schema}.{function_name}"
                             in _SYNC_PLAY_PREFIX_FUNCTION_TYPES
-                            or f"{schema}.{function_name}"
-                            in _VIEWER_FUNCTION_TYPES
+                            or f"{schema}.{function_name}" in _VIEWER_FUNCTION_TYPES
                             or function_name == "read_p3_current"
                         )
                         and name
@@ -1148,6 +1165,10 @@ def build_function_registry(
             )
 
             validate_registration(registration)
+        if _play_export_p3_family(registration):
+            from pitchlog.repositories.play_export_p3_read import validate_registration
+
+            validate_registration(registration)
         if _play_export_source_family(registration):
             from pitchlog.repositories.play_export_source_operations import (
                 validate_registration,
@@ -1206,6 +1227,11 @@ def prepare_function_operation(
         raise FunctionOperationError(
             "取消固定6関数は真正私有dispatcherだけで実行できます"
         )
+    if _play_export_p3_family(spec):
+        from pitchlog.repositories.play_export_p3_read import validate_registration
+
+        validate_registration(spec)
+        raise FunctionOperationError("P3 CSV readは真正RR scope専用です")
     if _play_export_source_family(spec):
         from pitchlog.repositories.play_export_source_operations import (
             validate_registration,
@@ -1257,7 +1283,9 @@ def prepare_function_operation(
                     if name == "page_size"
                     and spec.function_id
                     == "sync_right_api.read_viewer_play_prefix_history_page"
-                    else 100 if name == "page_size" else 2**63 - 1
+                    else 100
+                    if name == "page_size"
+                    else 2**63 - 1
                 )
                 if not lower <= value <= upper:
                     raise FunctionOperationError("通常prefixの整数範囲が不一致")
