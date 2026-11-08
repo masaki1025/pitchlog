@@ -17,18 +17,13 @@ from uuid import UUID, uuid4
 import psycopg
 import pytest
 
-from pitchlog.authz.interference_evidence_sql import (
-    _OUT,
-    _OUT_ADMISSIONS,
-    _PENALTY_THIRD,
-    _PLACEMENT,
-)
 from pitchlog.db.current_product_startup import CURRENT_REVISION
 from pitchlog.repositories.first_ball_operations import PLAY_ROW_COLUMNS
 from pitchlog.stats.facts import evaluate_native_projection
 
 from . import test_screen_start_e2e as screen_harness
 from .sync_writer_binding_support import binding_broker
+from .test_interference_sql_scope import _explain_interference_outer_scope
 from .test_screen_start_e2e import _browser_environment, _run_playwright
 from .test_screen_start_e2e import initial_scope_database as initial_scope_database
 from .test_screen_start_e2e import product_node_binary as product_node_binary
@@ -125,27 +120,6 @@ def _explain_all(admin, tenant: UUID, game: UUID) -> None:
         ).fetchone()
 
 
-def _explain_interference_outer_scope(admin) -> None:
-    """元source・物理走者・裁定の内外6文脈をSQL parserへ通す。"""
-    scope = (
-        " FROM (SELECT '{}'::jsonb AS payload) source_row CROSS JOIN "
-        "(SELECT '{}'::jsonb AS before_cp, '{}'::jsonb AS after_cp, "
-        "'{}'::jsonb AS p, NULL::uuid AS p_tenant_id) fixture_scope"
-    )
-    for expression in _OUT_ADMISSIONS:
-        assert admin.execute(
-            "EXPLAIN (FORMAT JSON) SELECT " + expression + scope
-        ).fetchone()
-    nested_scope = scope.replace(
-        "NULL::uuid AS p_tenant_id",
-        "NULL::uuid AS p_tenant_id, '{}'::jsonb AS m, '{}'::jsonb AS r",
-    )
-    for expression in (_OUT, _PLACEMENT, _PENALTY_THIRD):
-        assert admin.execute(
-            "EXPLAIN (FORMAT JSON) SELECT " + expression + nested_scope
-        ).fetchone()
-
-
 def _interference_vocabulary() -> tuple[tuple[str, str, str], ...]:
     """正式secondary軸の3件を、既製品の管理語彙区分へ写す。"""
     root = Path(__file__).resolve().parents[3]
@@ -167,11 +141,6 @@ def _interference_vocabulary() -> tuple[tuple[str, str, str], ...]:
         (entry["id"], "batting_result", entry["initialDisplayName"])
         for entry in rows
     )
-
-
-def test_interference_outer_scope_sql_explain(admin_connection):
-    """Owned PostgreSQLで外側式を構文検査する。実保存成功とは数えない。"""
-    _explain_interference_outer_scope(admin_connection)
 
 
 def _source_proof() -> dict[str, object]:
