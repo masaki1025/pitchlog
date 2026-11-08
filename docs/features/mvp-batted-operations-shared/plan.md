@@ -24,3 +24,11 @@ schema4資産/BE・FE headはcsv_continue担当、妨害の別群はgame_operati
 ## ステップ1候補の固定（2026-11-08 20:37 JST）
 
 rootによるPO委任の範囲採用。計画初版9dfd4971は時刻を20:45と誤記したため20:34へ訂正した。独立計画レビュー未実施を0周のまま保持する。候補のSQLは生成だけで製品未登録、実PG未実施。T5は実T1効果の射影で、射影単位試験の手定入力を実計算/認可/保存の証拠としない。対象3suiteは162 passed/8.34s、Ruff/Ty成功。旧127検査から、SQL保存外不変5・新走者効果10・12物理結果と失策ID対向を含む。初回保存外比較テスト1赤/新射影fixtureのrunner status不足3赤はそれぞれテストを正しい新差分・厳密型へ直して解消した。検査条件や数学期待を弱めていない。
+
+## ステップ2の候補接合途中（2026-11-08 20:47 JST）
+
+842eff16をdb25f9e6へ通常merge後、v4旧実host/現v5を含む互換38件は311.61秒で成功、Ty0。旧53計算全値/旧11資産byteを保持し、4自己識別値以外の差分を拒否する。5bf664a1の後続4安打訂正を原観測へ再束縛する候補も通常mergeしたが、実P3成功とはしない。
+
+first_ball_productの固定親overlayを登録し、公式BODIESからprepare1関数を生成（SHA9046f9bbcacb30f476a77c8fcd49a5c2f8721919aa076e45b4bd43c82d8ed665/85,023bytes）。owner/ACL/署名/nonce/他関数は変更せず、旧overlay親の検査も新overlayを経てactivebody全値照合する形で維持。生成正負8passed4.60秒、静的authz-function-bodies product OK、Ruff/Ty0。これは候補内の登録であり、正式受理/seal/CI/実PGは未了。
+
+T5後発は、明示effects付きで射影失敗した入力をRBI観測無しでも旧一括算入へfallbackさせない。手定対向11passed0.45秒、旧fixture/数学期待を緩めない。step1の独立レビュー後にこの後発も対照する。schema/head担当候補と59球driverの接合は次であり、ステップ2全体を完了にしない。

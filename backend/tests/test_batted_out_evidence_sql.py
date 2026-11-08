@@ -30,7 +30,14 @@ def test_batted_out_overlay_keeps_pinned_runner_and_all_other_functions():
     parent = runner.overlay_prepared_parent(raw, declaration)
     assert hashlib.sha256(parent.encode()).hexdigest() == PARENT_SHA256
     result = overlay_prepared_parent(parent, declaration)
-    assert result == first_ball_product.BODIES["function|" + FUNCTION_ID]
+    from pitchlog.authz.batted_operations_evidence_sql import (
+        overlay_prepared_parent as group_overlay,
+    )
+
+    assert (
+        group_overlay(result, declaration)
+        == first_ball_product.BODIES["function|" + FUNCTION_ID]
+    )
     assert result.count("runner physical evidence rejected") == parent.count(
         "runner physical evidence rejected"
     )

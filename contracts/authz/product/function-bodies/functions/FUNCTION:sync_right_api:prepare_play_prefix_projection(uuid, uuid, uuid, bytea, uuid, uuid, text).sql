@@ -212,6 +212,13 @@ PERFORM sync_fence_api.assert_writer_binding(p_tenant_id,p_attempt_id,
  WHERE r->>'base'=m->>'base' AND r->>'runner_id'=m->>'runnerId'
  AND r->>'responsible_pitcher_id'=m->>'responsiblePitcherId'
  AND r->>'status'=(CASE
+ WHEN ((source_row.payload->>'formatVersion'='play-prefix-play-v3'
+ AND source_row.payload->'observations'->>'resultId'='batting-result.double-play'
+ AND before_cp->'after'->'stateFields'->>'state.outs'='0'
+ AND before_cp->'after'->'stateFields'->>'state.runners'='first'
+ AND source_row.payload->'calculation'->'response'->'value'->'t1'->'outEffect'
+  ='{"count":"2","targets":["batter",{"runner":"1"}]}'::jsonb) AND m->>'base'='1' AND m->>'runnerId'=
+ source_row.payload->'observations'->'outRunner'->>'runnerId') THEN '封殺'
  WHEN source_row.payload->'calculation'->'response'->'value'->'t1'
  ->'runnerDefaultAdvance'->(CASE m->>'base' WHEN '1' THEN 'first'
  WHEN '2' THEN 'second' WHEN '3' THEN 'third' END)->>'modality'='hold'
@@ -226,16 +233,32 @@ PERFORM sync_fence_api.assert_writer_binding(p_tenant_id,p_attempt_id,
  ->'runnerDefaultAdvance'->(CASE m->>'base' WHEN '1' THEN 'first'
  WHEN '2' THEN 'second' WHEN '3' THEN 'third' END)->>'destination'='4'
  THEN '本進' ELSE NULL END)
- AND r->>'status_source'=(CASE WHEN EXISTS(SELECT 1 FROM
+ AND r->>'status_source'=(CASE WHEN ((source_row.payload->>'formatVersion'='play-prefix-play-v3'
+ AND source_row.payload->'observations'->>'resultId'='batting-result.double-play'
+ AND before_cp->'after'->'stateFields'->>'state.outs'='0'
+ AND before_cp->'after'->'stateFields'->>'state.runners'='first'
+ AND source_row.payload->'calculation'->'response'->'value'->'t1'->'outEffect'
+  ='{"count":"2","targets":["batter",{"runner":"1"}]}'::jsonb) AND m->>'base'='1' AND m->>'runnerId'=
+ source_row.payload->'observations'->'outRunner'->>'runnerId') OR EXISTS(SELECT 1 FROM
  pg_catalog.jsonb_array_elements(CASE WHEN pg_catalog.jsonb_typeof(
  source_row.payload->'calculation'->'request'->'t1'
  ->'runnerAdvanceOverrides'->'overrides')='array' THEN
  source_row.payload->'calculation'->'request'->'t1'
  ->'runnerAdvanceOverrides'->'overrides' ELSE '[]'::jsonb END) o
- WHERE o->>'runnerBase'=m->>'base' AND o->>'destination'=
+ WHERE o->>'runnerBase'=m->>'base' AND (o->>'destination'=
  source_row.payload->'calculation'->'response'->'value'->'t1'
  ->'runnerDefaultAdvance'->(CASE m->>'base' WHEN '1' THEN 'first'
- WHEN '2' THEN 'second' WHEN '3' THEN 'third' END)->>'destination')
+ WHEN '2' THEN 'second' WHEN '3' THEN 'third' END)->>'destination' OR (source_row.payload->>'formatVersion'='play-prefix-play-v3'
+ AND source_row.payload->'observations' ? 'battedBall'
+ AND source_row.payload->'calculation'->'request'->'t1'
+  ->'runnerAdvanceOverrides'->>'kind'='applied'
+ AND o->>'runnerBase'=m->>'base' AND o->>'destination'=m->>'base'
+ AND source_row.payload->'calculation'->'response'->'value'->'t1'
+ ->'runnerDefaultAdvance'->(CASE m->>'base' WHEN '1' THEN 'first'
+ WHEN '2' THEN 'second' WHEN '3' THEN 'third' END)->>'modality'='hold'
+ AND source_row.payload->'calculation'->'response'->'value'->'t1'
+ ->'runnerDefaultAdvance'->(CASE m->>'base' WHEN '1' THEN 'first'
+ WHEN '2' THEN 'second' WHEN '3' THEN 'third' END)->'destination'='null'::jsonb)))
  THEN 'manual' ELSE 'auto' END)
  AND NOT EXISTS(SELECT 1 FROM pg_catalog.jsonb_array_elements(CASE WHEN
  pg_catalog.jsonb_typeof(source_row.payload->'calculation'->'request'
@@ -245,15 +268,30 @@ PERFORM sync_fence_api.assert_writer_binding(p_tenant_id,p_attempt_id,
  WHERE o->>'runnerBase'=m->>'base' AND o->>'destination' IS DISTINCT FROM
  source_row.payload->'calculation'->'response'->'value'->'t1'
  ->'runnerDefaultAdvance'->(CASE m->>'base' WHEN '1' THEN 'first'
- WHEN '2' THEN 'second' WHEN '3' THEN 'third' END)->>'destination')
+ WHEN '2' THEN 'second' WHEN '3' THEN 'third' END)->>'destination' AND NOT (source_row.payload->>'formatVersion'='play-prefix-play-v3'
+ AND source_row.payload->'observations' ? 'battedBall'
+ AND source_row.payload->'calculation'->'request'->'t1'
+  ->'runnerAdvanceOverrides'->>'kind'='applied'
+ AND o->>'runnerBase'=m->>'base' AND o->>'destination'=m->>'base'
+ AND source_row.payload->'calculation'->'response'->'value'->'t1'
+ ->'runnerDefaultAdvance'->(CASE m->>'base' WHEN '1' THEN 'first'
+ WHEN '2' THEN 'second' WHEN '3' THEN 'third' END)->>'modality'='hold'
+ AND source_row.payload->'calculation'->'response'->'value'->'t1'
+ ->'runnerDefaultAdvance'->(CASE m->>'base' WHEN '1' THEN 'first'
+ WHEN '2' THEN 'second' WHEN '3' THEN 'third' END)->'destination'='null'::jsonb))
  AND source_row.payload->'calculation'->'response'->'value'->'t1'
  ->'runnerDefaultAdvance'->(CASE m->>'base' WHEN '1' THEN 'first'
  WHEN '2' THEN 'second' WHEN '3' THEN 'third' END)->>'modality'
  IN ('hold','optional','forced')))
- OR EXISTS(SELECT 1 FROM pg_catalog.jsonb_array_elements(
+ OR (EXISTS(SELECT 1 FROM pg_catalog.jsonb_array_elements(
  source_row.payload->'calculation'->'response'->'value'->'t1'
  ->'outEffect'->'targets') target WHERE pg_catalog.jsonb_typeof(target)='object'
- AND target ? 'runner')
+ AND target ? 'runner') AND NOT (source_row.payload->>'formatVersion'='play-prefix-play-v3'
+ AND source_row.payload->'observations'->>'resultId'='batting-result.double-play'
+ AND before_cp->'after'->'stateFields'->>'state.outs'='0'
+ AND before_cp->'after'->'stateFields'->>'state.runners'='first'
+ AND source_row.payload->'calculation'->'response'->'value'->'t1'->'outEffect'
+  ='{"count":"2","targets":["batter",{"runner":"1"}]}'::jsonb))
  THEN RAISE EXCEPTION 'play prefix admission rejected' USING ERRCODE='42501'; END IF;
  UPDATE sync_fence.ordinary_pitch_write_admissions a SET state='evaluated',
  checkpoint_id=current_cp.id,checkpoint_revision=current_cp.revision,
@@ -475,6 +513,13 @@ source_row.payload->'calculation'->'request'->'source'->'responsibility'
  WHERE r->>'base'=m->>'base' AND r->>'runner_id'=m->>'runnerId'
  AND r->>'responsible_pitcher_id'=m->>'responsiblePitcherId'
  AND r->>'status'=(CASE
+ WHEN ((source_row.payload->>'formatVersion'='play-prefix-play-v3'
+ AND source_row.payload->'observations'->>'resultId'='batting-result.double-play'
+ AND before_cp->'after'->'stateFields'->>'state.outs'='0'
+ AND before_cp->'after'->'stateFields'->>'state.runners'='first'
+ AND source_row.payload->'calculation'->'response'->'value'->'t1'->'outEffect'
+  ='{"count":"2","targets":["batter",{"runner":"1"}]}'::jsonb) AND m->>'base'='1' AND m->>'runnerId'=
+ source_row.payload->'observations'->'outRunner'->>'runnerId') THEN '封殺'
  WHEN source_row.payload->'calculation'->'response'->'value'->'t1'
  ->'runnerDefaultAdvance'->(CASE m->>'base' WHEN '1' THEN 'first'
  WHEN '2' THEN 'second' WHEN '3' THEN 'third' END)->>'modality'='hold'
@@ -489,16 +534,32 @@ source_row.payload->'calculation'->'request'->'source'->'responsibility'
  ->'runnerDefaultAdvance'->(CASE m->>'base' WHEN '1' THEN 'first'
  WHEN '2' THEN 'second' WHEN '3' THEN 'third' END)->>'destination'='4'
  THEN '本進' ELSE NULL END)
- AND r->>'status_source'=(CASE WHEN EXISTS(SELECT 1 FROM
+ AND r->>'status_source'=(CASE WHEN ((source_row.payload->>'formatVersion'='play-prefix-play-v3'
+ AND source_row.payload->'observations'->>'resultId'='batting-result.double-play'
+ AND before_cp->'after'->'stateFields'->>'state.outs'='0'
+ AND before_cp->'after'->'stateFields'->>'state.runners'='first'
+ AND source_row.payload->'calculation'->'response'->'value'->'t1'->'outEffect'
+  ='{"count":"2","targets":["batter",{"runner":"1"}]}'::jsonb) AND m->>'base'='1' AND m->>'runnerId'=
+ source_row.payload->'observations'->'outRunner'->>'runnerId') OR EXISTS(SELECT 1 FROM
  pg_catalog.jsonb_array_elements(CASE WHEN pg_catalog.jsonb_typeof(
  source_row.payload->'calculation'->'request'->'t1'
  ->'runnerAdvanceOverrides'->'overrides')='array' THEN
  source_row.payload->'calculation'->'request'->'t1'
  ->'runnerAdvanceOverrides'->'overrides' ELSE '[]'::jsonb END) o
- WHERE o->>'runnerBase'=m->>'base' AND o->>'destination'=
+ WHERE o->>'runnerBase'=m->>'base' AND (o->>'destination'=
  source_row.payload->'calculation'->'response'->'value'->'t1'
  ->'runnerDefaultAdvance'->(CASE m->>'base' WHEN '1' THEN 'first'
- WHEN '2' THEN 'second' WHEN '3' THEN 'third' END)->>'destination')
+ WHEN '2' THEN 'second' WHEN '3' THEN 'third' END)->>'destination' OR (source_row.payload->>'formatVersion'='play-prefix-play-v3'
+ AND source_row.payload->'observations' ? 'battedBall'
+ AND source_row.payload->'calculation'->'request'->'t1'
+  ->'runnerAdvanceOverrides'->>'kind'='applied'
+ AND o->>'runnerBase'=m->>'base' AND o->>'destination'=m->>'base'
+ AND source_row.payload->'calculation'->'response'->'value'->'t1'
+ ->'runnerDefaultAdvance'->(CASE m->>'base' WHEN '1' THEN 'first'
+ WHEN '2' THEN 'second' WHEN '3' THEN 'third' END)->>'modality'='hold'
+ AND source_row.payload->'calculation'->'response'->'value'->'t1'
+ ->'runnerDefaultAdvance'->(CASE m->>'base' WHEN '1' THEN 'first'
+ WHEN '2' THEN 'second' WHEN '3' THEN 'third' END)->'destination'='null'::jsonb)))
  THEN 'manual' ELSE 'auto' END)
  AND NOT EXISTS(SELECT 1 FROM pg_catalog.jsonb_array_elements(CASE WHEN
  pg_catalog.jsonb_typeof(source_row.payload->'calculation'->'request'
@@ -508,15 +569,30 @@ source_row.payload->'calculation'->'request'->'source'->'responsibility'
  WHERE o->>'runnerBase'=m->>'base' AND o->>'destination' IS DISTINCT FROM
  source_row.payload->'calculation'->'response'->'value'->'t1'
  ->'runnerDefaultAdvance'->(CASE m->>'base' WHEN '1' THEN 'first'
- WHEN '2' THEN 'second' WHEN '3' THEN 'third' END)->>'destination')
+ WHEN '2' THEN 'second' WHEN '3' THEN 'third' END)->>'destination' AND NOT (source_row.payload->>'formatVersion'='play-prefix-play-v3'
+ AND source_row.payload->'observations' ? 'battedBall'
+ AND source_row.payload->'calculation'->'request'->'t1'
+  ->'runnerAdvanceOverrides'->>'kind'='applied'
+ AND o->>'runnerBase'=m->>'base' AND o->>'destination'=m->>'base'
+ AND source_row.payload->'calculation'->'response'->'value'->'t1'
+ ->'runnerDefaultAdvance'->(CASE m->>'base' WHEN '1' THEN 'first'
+ WHEN '2' THEN 'second' WHEN '3' THEN 'third' END)->>'modality'='hold'
+ AND source_row.payload->'calculation'->'response'->'value'->'t1'
+ ->'runnerDefaultAdvance'->(CASE m->>'base' WHEN '1' THEN 'first'
+ WHEN '2' THEN 'second' WHEN '3' THEN 'third' END)->'destination'='null'::jsonb))
  AND source_row.payload->'calculation'->'response'->'value'->'t1'
  ->'runnerDefaultAdvance'->(CASE m->>'base' WHEN '1' THEN 'first'
  WHEN '2' THEN 'second' WHEN '3' THEN 'third' END)->>'modality'
  IN ('hold','optional','forced')))
- OR EXISTS(SELECT 1 FROM pg_catalog.jsonb_array_elements(
+ OR (EXISTS(SELECT 1 FROM pg_catalog.jsonb_array_elements(
  source_row.payload->'calculation'->'response'->'value'->'t1'
  ->'outEffect'->'targets') target WHERE pg_catalog.jsonb_typeof(target)='object'
- AND target ? 'runner')) END)
+ AND target ? 'runner') AND NOT (source_row.payload->>'formatVersion'='play-prefix-play-v3'
+ AND source_row.payload->'observations'->>'resultId'='batting-result.double-play'
+ AND before_cp->'after'->'stateFields'->>'state.outs'='0'
+ AND before_cp->'after'->'stateFields'->>'state.runners'='first'
+ AND source_row.payload->'calculation'->'response'->'value'->'t1'->'outEffect'
+  ='{"count":"2","targets":["batter",{"runner":"1"}]}'::jsonb))) END)
  THEN RAISE EXCEPTION 'lineup physical source rejected' USING ERRCODE='42501'; END IF;
  IF source_row.payload->'calculation'->'request'->'t1' ? 'runnerObservation' THEN
   DECLARE rp_t1 jsonb; rp_per jsonb; rp_by jsonb; rp_before_set jsonb;
@@ -680,21 +756,27 @@ source_row.payload->'calculation'->'request'->'source'->'responsibility'
  batted_obs:=source_row.payload->'observations';
  IF source_row.payload->'calculation'->'request'->'t1'->>'resultId'
  IN ('batting-result.single','batting-result.double',
- 'batting-result.triple','batting-result.home-run','batting-result.batted-out')
+ 'batting-result.triple','batting-result.home-run','batting-result.batted-out','batting-result.batted-reach','batting-result.fielders-choice','batting-result.sacrifice-bunt','batting-result.sacrifice-fly','batting-result.double-play','batting-result.sacrifice-bunt-error','batting-result.error')
  OR batted_obs ? 'battedBall' THEN
   IF pg_catalog.jsonb_typeof(batted_obs) IS DISTINCT FROM 'object'
   OR (SELECT pg_catalog.array_agg(k ORDER BY k) FROM
-  pg_catalog.jsonb_object_keys(batted_obs) k)
+  pg_catalog.jsonb_object_keys(batted_obs - 'outRunner' - 'rbiRulingByRunner') k)
   IS DISTINCT FROM ARRAY['battedBall','battingSide','course','interferenceRuling',
   'officialScoringPayload','pitchSpeed','pitchTypeKey','resultId',
   'runnerAdvanceOverridesByRunner','stance','thirdOutObservation','thirdOutTimingByRunner']::text[]
   OR pg_catalog.jsonb_typeof(batted_obs->'resultId') IS DISTINCT FROM 'string'
   OR batted_obs->>'resultId' NOT IN ('batting-result.single','batting-result.double',
-  'batting-result.triple','batting-result.home-run','batting-result.batted-out')
+  'batting-result.triple','batting-result.home-run','batting-result.batted-out','batting-result.batted-reach','batting-result.fielders-choice','batting-result.sacrifice-bunt','batting-result.sacrifice-fly','batting-result.double-play','batting-result.sacrifice-bunt-error','batting-result.error')
   OR batted_obs->>'resultId' IS DISTINCT FROM
   source_row.payload->'calculation'->'request'->'t1'->>'resultId'
   OR batted_obs->'officialScoringPayload' IS DISTINCT FROM
-  '{"kind":"no-error","errorCount":"0","fielders":[]}'::jsonb
+   (CASE WHEN batted_obs->>'resultId' IN
+    ('batting-result.sacrifice-bunt-error','batting-result.error')
+    THEN pg_catalog.jsonb_build_object('kind','error-recorded','errors',
+     pg_catalog.jsonb_build_array(pg_catalog.jsonb_build_object(
+      'fielder',pg_catalog.jsonb_build_object('kind','official',
+       'player_id',p->'play_row'->>'resolved_error_player_id'),'count',1)))
+    ELSE '{"kind":"no-error","errorCount":"0","fielders":[]}'::jsonb END)
   OR batted_obs->'interferenceRuling' IS DISTINCT FROM '{"kind":"not-required"}'::jsonb
   OR (
    batted_obs->'runnerAdvanceOverridesByRunner' IS DISTINCT FROM
@@ -706,15 +788,8 @@ source_row.payload->'calculation'->'request'->'source'->'responsibility'
    '{"kind":"not-applied","overrides":[]}'::jsonb
    AND source_row.payload->'calculation'->'request'->'t1'
    ->>'runnerAdvanceOverrides' IS DISTINCT FROM 'not-applied')
-  OR (
-   batted_obs->>'resultId'='batting-result.batted-out' AND (
-    before_cp->'after'->'stateFields'->>'state.runners' IS DISTINCT FROM 'empty'
-    OR before_cp->'after'->'stateFields'->>'state.outs' NOT IN ('0','1','2')
-    OR source_row.payload->'calculation'->'request'->'t1'->>'runnerAdvanceOverrides'
-       IS DISTINCT FROM 'not-applied'
-    OR batted_obs->'runnerAdvanceOverridesByRunner'
-       IS DISTINCT FROM '{"kind":"not-applied","overrides":[]}'::jsonb
-   ))
+  OR (batted_obs->>'resultId'='batting-result.batted-out' AND
+   before_cp->'after'->'stateFields'->>'state.outs' NOT IN ('0','1','2'))
   OR batted_obs->'thirdOutObservation' IS DISTINCT FROM
    (CASE WHEN batted_obs->>'resultId'='batting-result.batted-out'
     AND before_cp->'after'->'stateFields'->>'state.outs'='2'
@@ -724,7 +799,10 @@ source_row.payload->'calculation'->'request'->'source'->'responsibility'
    ELSE '{"kind":"none"}'::jsonb END)
   OR batted_obs->'thirdOutTimingByRunner' IS DISTINCT FROM '{}'::jsonb
   OR source_row.payload->'calculation'->'request'->'t1'->>'officialScoringPayload'
-  IS DISTINCT FROM 'no-error'
+  IS DISTINCT FROM (CASE
+   WHEN batted_obs->>'resultId' IN
+    ('batting-result.sacrifice-bunt-error','batting-result.error')
+   THEN 'error-recorded' ELSE 'no-error' END)
   OR source_row.payload->'calculation'->'request'->'t1'->>'interferenceRuling'
   IS DISTINCT FROM 'not-required'
   OR source_row.payload->'calculation'->'request'->'t1'->>'thirdOutObservation'
@@ -781,6 +859,62 @@ source_row.payload->'calculation'->'request'->'source'->'responsibility'
    AND player->'player'->>'player_id'=batted_obs->'battedBall'->>'resolvedFielderId'
    AND EXISTS(SELECT 1 FROM pg_catalog.jsonb_array_elements(player->'roles') role
    WHERE role->>'kind'='fielding')))
+
+  OR (batted_obs ? 'outRunner') IS DISTINCT FROM
+     (batted_obs->>'resultId'='batting-result.double-play')
+  OR batted_obs->'outRunner' IS DISTINCT FROM
+     source_row.payload->'calculation'->'request'->'t1'->'outRunner'
+  OR (batted_obs ? 'outRunner' AND batted_obs->'outRunner' IS DISTINCT FROM
+   pg_catalog.jsonb_build_object('base','1','outKind','force-out','runnerId',
+    (SELECT r->>'runnerId' FROM pg_catalog.jsonb_array_elements(
+     before_cp->'runners') r WHERE r->>'base'='1')))
+  OR (batted_obs ? 'outRunner' AND NOT EXISTS(SELECT 1
+   FROM pg_catalog.jsonb_array_elements(before_cp->'runners') r
+   WHERE r->>'base'='1' AND r->>'runnerId' IS NOT NULL))
+  OR batted_obs->'rbiRulingByRunner' IS DISTINCT FROM
+     source_row.payload->'calculation'->'request'->'t1'->'rbiRulingByRunner'
+  OR (batted_obs ? 'rbiRulingByRunner' AND (
+   pg_catalog.jsonb_typeof(batted_obs->'rbiRulingByRunner') IS DISTINCT FROM 'object'
+   OR batted_obs->'rbiRulingByRunner'='{}'::jsonb
+   OR EXISTS(SELECT 1 FROM pg_catalog.jsonb_each_text(CASE
+    WHEN pg_catalog.jsonb_typeof(batted_obs->'rbiRulingByRunner')='object'
+    THEN batted_obs->'rbiRulingByRunner' ELSE '{}'::jsonb END) r
+    WHERE r.key NOT IN ('1','2','3')
+     OR r.value IS NULL
+     OR r.value NOT IN ('ordinary-play','kept-running','stopped-and-restarted'))))
+  OR (batted_obs ? 'rbiRulingByRunner' AND
+   (SELECT pg_catalog.array_agg(k ORDER BY k)
+    FROM pg_catalog.jsonb_object_keys(CASE
+     WHEN pg_catalog.jsonb_typeof(batted_obs->'rbiRulingByRunner')='object'
+     THEN batted_obs->'rbiRulingByRunner' ELSE '{}'::jsonb END) k)
+   IS DISTINCT FROM
+   (SELECT pg_catalog.array_agg(e->>'base' ORDER BY e->>'base')
+    FROM pg_catalog.jsonb_array_elements(CASE
+     WHEN pg_catalog.jsonb_typeof(source_row.payload->'calculation'->'response'
+      ->'value'->'runnerScoreEffects')='array'
+     THEN source_row.payload->'calculation'->'response'->'value'->'runnerScoreEffects'
+     ELSE '[]'::jsonb END) e WHERE e->'validRun'='true'::jsonb))
+  OR (batted_obs->>'resultId'<>'batting-result.home-run'
+   AND before_cp->'after'->'stateFields'->'state.score' IS DISTINCT FROM
+    source_row.payload->'calculation'->'response'->'value'->'t1'
+     ->'after'->'stateFields'->'state.score'
+   AND NOT (batted_obs ? 'rbiRulingByRunner'))
+  OR (batted_obs->>'resultId' IN
+   ('batting-result.sacrifice-bunt-error','batting-result.error') AND (
+   p->'play_row'->>'resolved_error_player_id' IS NULL
+   OR p->'play_row'->'error_type' IS DISTINCT FROM 'null'::jsonb
+   OR p->'play_row'->'raw_error_position' IS DISTINCT FROM 'null'::jsonb
+   OR NOT EXISTS(SELECT 1
+    FROM pg_catalog.jsonb_array_elements(p->'roster'->'teams') team,
+    LATERAL pg_catalog.jsonb_array_elements(team->'participants') player
+    WHERE team->>'side'=(CASE before_cp->'after'->'stateFields'->>'state.half'
+     WHEN 'top' THEN 'home' WHEN 'bottom' THEN 'away' ELSE '' END)
+     AND player->'player'->>'player_id'=p->'play_row'->>'resolved_error_player_id'
+     AND EXISTS(SELECT 1 FROM pg_catalog.jsonb_array_elements(player->'roles') role
+      WHERE role->>'kind'='fielding'))))
+  OR (batted_obs->>'resultId' NOT IN
+   ('batting-result.sacrifice-bunt-error','batting-result.error') AND
+   p->'play_row'->'resolved_error_player_id' IS DISTINCT FROM 'null'::jsonb)
   THEN RAISE EXCEPTION 'batted hit physical source rejected'
   USING ERRCODE='42501'; END IF;
  END IF;
@@ -1025,6 +1159,13 @@ END IF;
  WHERE r->>'base'=m->>'base' AND r->>'runner_id'=m->>'runnerId'
  AND r->>'responsible_pitcher_id'=m->>'responsiblePitcherId'
  AND r->>'status'=(CASE
+ WHEN ((source_row.payload->>'formatVersion'='play-prefix-play-v3'
+ AND source_row.payload->'observations'->>'resultId'='batting-result.double-play'
+ AND before_cp->'after'->'stateFields'->>'state.outs'='0'
+ AND before_cp->'after'->'stateFields'->>'state.runners'='first'
+ AND source_row.payload->'calculation'->'response'->'value'->'t1'->'outEffect'
+  ='{"count":"2","targets":["batter",{"runner":"1"}]}'::jsonb) AND m->>'base'='1' AND m->>'runnerId'=
+ source_row.payload->'observations'->'outRunner'->>'runnerId') THEN '封殺'
  WHEN source_row.payload->'calculation'->'response'->'value'->'t1'
  ->'runnerDefaultAdvance'->(CASE m->>'base' WHEN '1' THEN 'first'
  WHEN '2' THEN 'second' WHEN '3' THEN 'third' END)->>'modality'='hold'
@@ -1039,16 +1180,32 @@ END IF;
  ->'runnerDefaultAdvance'->(CASE m->>'base' WHEN '1' THEN 'first'
  WHEN '2' THEN 'second' WHEN '3' THEN 'third' END)->>'destination'='4'
  THEN '本進' ELSE NULL END)
- AND r->>'status_source'=(CASE WHEN EXISTS(SELECT 1 FROM
+ AND r->>'status_source'=(CASE WHEN ((source_row.payload->>'formatVersion'='play-prefix-play-v3'
+ AND source_row.payload->'observations'->>'resultId'='batting-result.double-play'
+ AND before_cp->'after'->'stateFields'->>'state.outs'='0'
+ AND before_cp->'after'->'stateFields'->>'state.runners'='first'
+ AND source_row.payload->'calculation'->'response'->'value'->'t1'->'outEffect'
+  ='{"count":"2","targets":["batter",{"runner":"1"}]}'::jsonb) AND m->>'base'='1' AND m->>'runnerId'=
+ source_row.payload->'observations'->'outRunner'->>'runnerId') OR EXISTS(SELECT 1 FROM
  pg_catalog.jsonb_array_elements(CASE WHEN pg_catalog.jsonb_typeof(
  source_row.payload->'calculation'->'request'->'t1'
  ->'runnerAdvanceOverrides'->'overrides')='array' THEN
  source_row.payload->'calculation'->'request'->'t1'
  ->'runnerAdvanceOverrides'->'overrides' ELSE '[]'::jsonb END) o
- WHERE o->>'runnerBase'=m->>'base' AND o->>'destination'=
+ WHERE o->>'runnerBase'=m->>'base' AND (o->>'destination'=
  source_row.payload->'calculation'->'response'->'value'->'t1'
  ->'runnerDefaultAdvance'->(CASE m->>'base' WHEN '1' THEN 'first'
- WHEN '2' THEN 'second' WHEN '3' THEN 'third' END)->>'destination')
+ WHEN '2' THEN 'second' WHEN '3' THEN 'third' END)->>'destination' OR (source_row.payload->>'formatVersion'='play-prefix-play-v3'
+ AND source_row.payload->'observations' ? 'battedBall'
+ AND source_row.payload->'calculation'->'request'->'t1'
+  ->'runnerAdvanceOverrides'->>'kind'='applied'
+ AND o->>'runnerBase'=m->>'base' AND o->>'destination'=m->>'base'
+ AND source_row.payload->'calculation'->'response'->'value'->'t1'
+ ->'runnerDefaultAdvance'->(CASE m->>'base' WHEN '1' THEN 'first'
+ WHEN '2' THEN 'second' WHEN '3' THEN 'third' END)->>'modality'='hold'
+ AND source_row.payload->'calculation'->'response'->'value'->'t1'
+ ->'runnerDefaultAdvance'->(CASE m->>'base' WHEN '1' THEN 'first'
+ WHEN '2' THEN 'second' WHEN '3' THEN 'third' END)->'destination'='null'::jsonb)))
  THEN 'manual' ELSE 'auto' END)
  AND NOT EXISTS(SELECT 1 FROM pg_catalog.jsonb_array_elements(CASE WHEN
  pg_catalog.jsonb_typeof(source_row.payload->'calculation'->'request'
@@ -1058,15 +1215,30 @@ END IF;
  WHERE o->>'runnerBase'=m->>'base' AND o->>'destination' IS DISTINCT FROM
  source_row.payload->'calculation'->'response'->'value'->'t1'
  ->'runnerDefaultAdvance'->(CASE m->>'base' WHEN '1' THEN 'first'
- WHEN '2' THEN 'second' WHEN '3' THEN 'third' END)->>'destination')
+ WHEN '2' THEN 'second' WHEN '3' THEN 'third' END)->>'destination' AND NOT (source_row.payload->>'formatVersion'='play-prefix-play-v3'
+ AND source_row.payload->'observations' ? 'battedBall'
+ AND source_row.payload->'calculation'->'request'->'t1'
+  ->'runnerAdvanceOverrides'->>'kind'='applied'
+ AND o->>'runnerBase'=m->>'base' AND o->>'destination'=m->>'base'
+ AND source_row.payload->'calculation'->'response'->'value'->'t1'
+ ->'runnerDefaultAdvance'->(CASE m->>'base' WHEN '1' THEN 'first'
+ WHEN '2' THEN 'second' WHEN '3' THEN 'third' END)->>'modality'='hold'
+ AND source_row.payload->'calculation'->'response'->'value'->'t1'
+ ->'runnerDefaultAdvance'->(CASE m->>'base' WHEN '1' THEN 'first'
+ WHEN '2' THEN 'second' WHEN '3' THEN 'third' END)->'destination'='null'::jsonb))
  AND source_row.payload->'calculation'->'response'->'value'->'t1'
  ->'runnerDefaultAdvance'->(CASE m->>'base' WHEN '1' THEN 'first'
  WHEN '2' THEN 'second' WHEN '3' THEN 'third' END)->>'modality'
  IN ('hold','optional','forced')))
- OR EXISTS(SELECT 1 FROM pg_catalog.jsonb_array_elements(
+ OR (EXISTS(SELECT 1 FROM pg_catalog.jsonb_array_elements(
  source_row.payload->'calculation'->'response'->'value'->'t1'
  ->'outEffect'->'targets') target WHERE pg_catalog.jsonb_typeof(target)='object'
- AND target ? 'runner')
+ AND target ? 'runner') AND NOT (source_row.payload->>'formatVersion'='play-prefix-play-v3'
+ AND source_row.payload->'observations'->>'resultId'='batting-result.double-play'
+ AND before_cp->'after'->'stateFields'->>'state.outs'='0'
+ AND before_cp->'after'->'stateFields'->>'state.runners'='first'
+ AND source_row.payload->'calculation'->'response'->'value'->'t1'->'outEffect'
+  ='{"count":"2","targets":["batter",{"runner":"1"}]}'::jsonb))
  THEN RAISE EXCEPTION 'play prefix source or runners rejected'
  USING ERRCODE='42501'; END IF;
  SELECT c.* INTO current_cp FROM sync_fence.ordinary_pitch_checkpoints c

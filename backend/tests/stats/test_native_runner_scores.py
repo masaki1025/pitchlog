@@ -615,3 +615,14 @@ def test_batted_projection_never_falls_back_when_explicit_causality_is_incomplet
     for metric in ("runs", "runs_allowed", "rbi"):
         assert actual[metric]["state"] == "source_unavailable"
         assert actual[metric]["value"] is None
+
+
+def test_no_rbi_input_cannot_drop_invalid_home_effect_and_fall_back_to_global_zero():
+    """RBI観測の無い無効本塁到達も、typed効果欠落を旧0算入へ捨てない。"""
+    raw, _ = _explicit_batted_projection_fixture(valid=False, credited=False)
+    assert "rbiRulingByRunner" not in raw["calculation"]["request"]["t1"]
+    raw["calculation"]["response"]["value"]["runnerScoreEffects"] = []
+    metrics = evaluate_native_projection(raw, source_event_id=EVENT)["metrics"]
+    for metric in ("runs", "runs_allowed", "rbi"):
+        assert metrics[metric]["state"] == "source_unavailable"
+        assert metrics[metric]["value"] is None

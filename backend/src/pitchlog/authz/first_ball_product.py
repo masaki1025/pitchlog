@@ -2402,6 +2402,23 @@ def _activate_batted_out_evidence_profile() -> None:
 
 
 _activate_batted_out_evidence_profile()
+
+
+def _activate_batted_operations_evidence_profile() -> None:
+    """固定済み凡打prepareへ明示打球観測を接ぎ、他の資格を変更しない。"""
+    from pitchlog.authz.batted_operations_evidence_sql import (
+        FUNCTION_ID,
+        overlay_prepared_parent,
+    )
+
+    rows = [row for row in ADDITIONS["functions"] if row["function_id"] == FUNCTION_ID]
+    if len(rows) != 1:
+        raise ValueError("打球群の登録宣言が不一致")
+    key = "function|" + FUNCTION_ID
+    BODIES[key] = overlay_prepared_parent(BODIES[key], rows[0])
+
+
+_activate_batted_operations_evidence_profile()
 ROLES = frozenset(row["role_id"] for row in ADDITIONS["roles"])
 
 TABLES = frozenset(

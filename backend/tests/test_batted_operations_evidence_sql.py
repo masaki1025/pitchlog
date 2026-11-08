@@ -42,6 +42,7 @@ def test_batted_group_generation_keeps_qualification_and_every_other_function():
     assert restored[restored.index(end) :] == parent[parent.index(end) :]
     assert declaration == before_declaration
     assert first_ball_product.BODIES == before_bodies
+    assert result == first_ball_product.BODIES["function|" + candidate.FUNCTION_ID]
     assert candidate.overlay_prepared_parent(parent, declaration) == result
     # 途中再適用で親を偽装せず、未知版は改めてレビューを要する。
     with pytest.raises(ValueError, match="親本文"):

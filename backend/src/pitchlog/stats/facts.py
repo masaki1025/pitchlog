@@ -733,7 +733,10 @@ def native_projection(payload, *, source_event_id):
     runner_scores = _native_runner_scores(payload, value)
     if batted_scores is not None:
         runner_scores = batted_scores
-    elif "rbiRulingByRunner" in calc["request"]["t1"]:
+    elif "rbiRulingByRunner" in calc["request"]["t1"] or (
+        "runnerScoreEffects" in value
+        and "runnerObservation" not in calc["request"]["t1"]
+    ):
         # 新しい走者別算入を、旧一括RBI判定へfallbackしない。
         runner_scores = None
     if explicit_runner is not None:
