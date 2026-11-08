@@ -21,6 +21,19 @@ from .test_screen_start_e2e import vertical_database as vertical_database
 
 pytestmark = pytest.mark.requires_db
 
+_PLAY_ROWS_SQL = (
+    "SELECT batting_result_key FROM public.play_rows WHERE tenant_id=%s "
+    "AND game_id=%s AND hidden_at IS NULL ORDER BY play_number"
+)
+_EVENTS_SQL = (
+    "SELECT event_kind,ledger_kind FROM public.operation_events "
+    "WHERE tenant_id=%s AND game_id=%s ORDER BY d1"
+)
+_FACT_SQL = (
+    "SELECT source_count,is_current FROM sync_fence.stats_fact_versions "
+    "WHERE tenant_id=%s AND game_id=%s AND is_current"
+)
+
 
 @pytest.mark.skipif(
     not os.environ.get("PITCHLOG_E2E_TLS_CERT_PATH")
@@ -49,6 +62,10 @@ def test_batted_out_three_pitches_actual_screen(vertical_database):
                 "VALUES (%s,%s,%s) ON CONFLICT(key) DO NOTHING",
                 (key, category, key),
             )
+        for query in (_PLAY_ROWS_SQL, _EVENTS_SQL, _FACT_SQL):
+            assert admin.execute(
+                "EXPLAIN " + query, (db.tenant_id, db.game_id)
+            ).fetchall()
     assert teams is not None
     token = uuid4()
     config = "GameScreenBattedOut.playwright.config.ts"
@@ -70,27 +87,16 @@ def test_batted_out_three_pitches_actual_screen(vertical_database):
     observed = json.loads(matched[0])
     game = UUID(observed["gameId"])
     assert game != db.game_id
-    assert observed["accepted"] == observed["prefixLength"] == 3
+    assert observed["accepted"] == 3
+    assert observed["prefixLength"] == "3"
     assert observed["half"] == "bottom" and observed["outs"] == "0"
     with psycopg.connect(
         db.authority.database.business_admin,
         options="-c default_transaction_read_only=on",
     ) as admin:
-        rows = admin.execute(
-            "SELECT batting_result_key FROM public.play_rows WHERE tenant_id=%s "
-            "AND game_id=%s AND retired_at IS NULL ORDER BY play_number",
-            (db.tenant_id, game),
-        ).fetchall()
-        accepted = admin.execute(
-            "SELECT event_kind,ledger_kind FROM public.operation_events "
-            "WHERE tenant_id=%s AND game_id=%s ORDER BY d1",
-            (db.tenant_id, game),
-        ).fetchall()
-        fact = admin.execute(
-            "SELECT source_count,is_current FROM sync_fence.stats_fact_versions "
-            "WHERE tenant_id=%s AND game_id=%s AND is_current",
-            (db.tenant_id, game),
-        ).fetchall()
+        rows = admin.execute(_PLAY_ROWS_SQL, (db.tenant_id, game)).fetchall()
+        accepted = admin.execute(_EVENTS_SQL, (db.tenant_id, game)).fetchall()
+        fact = admin.execute(_FACT_SQL, (db.tenant_id, game)).fetchall()
     assert rows == [("batting-result.batted-out",)] * 3
     assert accepted == [("play_input", "accepted")] * 3
     assert fact == [(3, True)]
