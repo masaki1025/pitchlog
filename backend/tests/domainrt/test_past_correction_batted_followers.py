@@ -102,7 +102,7 @@ def _hit(host, previous, result="single", destination=None):
 def _correct(host, rows):
     return _evaluate(
         rows,
-        "batting-result.called-pitch",
+        "batting-result.ball",
         tuple(UUID(int=5000 + i) for i in range(len(rows))),
         host,
     )
@@ -116,6 +116,11 @@ def test_four_saved_hits_are_followers_not_correction_targets(hit):
         second = _hit(host, first, hit)
         rows = (first, second)
         corrected = _correct(host, rows)
+        assert corrected[0].corrected_response.value.t1.after.state_fields.balls == "1"
+        assert (
+            corrected[0].corrected_response.value.t1.after.state_fields.strikes == "0"
+        )
+        assert first.calculation.response.value.t1.after.state_fields.strikes == "1"
         assert first.payload is not None and second.payload is not None
         assert type(first.payload.observations) is FirstBallObservations
         payloads = build_corrected_lineup_payloads(
@@ -204,7 +209,7 @@ def test_runner_identity_must_survive_correction_and_page_boundary():
         next_hit = _hit(host, single, destination="3")
         state, prefix = _evaluate_page(
             (first, single),
-            "batting-result.called-pitch",
+            "batting-result.ball",
             (UUID(int=9000), UUID(int=9001)),
             host,
             CorrectionPageState(),
@@ -212,7 +217,7 @@ def test_runner_identity_must_survive_correction_and_page_boundary():
         )
         _, tail = _evaluate_page(
             (next_hit,),
-            "batting-result.called-pitch",
+            "batting-result.ball",
             (UUID(int=9002),),
             host,
             state,
@@ -233,3 +238,214 @@ def test_runner_identity_must_survive_correction_and_page_boundary():
         )
         with pytest.raises(LineupCorrectionUnsupported, match="走者"):
             _corrected_payload(next_hit, altered, next_hit.payload.observations)
+
+
+@pytest.mark.parametrize("mutation", ("participant", "lineup", "unknown-hit", "rbi"))
+def test_corrected_observations_cannot_be_rebound_to_other_context(mutation):
+    """別参加者/名簿/未知打球/原観測にないRBIを新資格へ持ち込めない。"""
+    with _host() as host:
+        first = _two_saved(host)[0]
+        hit = _hit(host, first)
+        frames = _correct(host, (first, hit))
+        frame = frames[-1]
+        assert hit.payload is not None
+        if mutation in {"participant", "lineup"}:
+            field = "participants" if mutation == "participant" else "lineup"
+            old_value = getattr(frame.corrected_request.source, field)
+            # 期待する実型そのものを保持し、値が異なる原本を生成する。
+            wire = old_value.model_dump(mode="json", by_alias=True, exclude_unset=True)
+
+            def change_identifier(value):
+                if type(value) is dict:
+                    for key, member in value.items():
+                        if type(member) is str and len(member) == 36:
+                            value[key] = str(UUID(int=8888))
+                            return True
+                        if change_identifier(member):
+                            return True
+                elif type(value) is list:
+                    for member in value:
+                        if change_identifier(member):
+                            return True
+                return False
+
+            assert change_identifier(wire)
+            changed = type(old_value).model_validate_json(json.dumps(wire))
+            source = frame.corrected_request.source.model_copy(update={field: changed})
+            frame = replace(
+                frame,
+                corrected_request=frame.corrected_request.model_copy(
+                    update={"source": source}
+                ),
+            )
+        elif mutation == "unknown-hit":
+            t1 = frame.corrected_request.t1.model_copy(
+                update={"result_id": "batting-result.batted-out"}
+            )
+            frame = replace(
+                frame,
+                corrected_request=frame.corrected_request.model_copy(update={"t1": t1}),
+            )
+        else:
+            observed = hit.payload.observations.model_copy(
+                update={"rbi_ruling_by_runner": {"1": "ordinary-play"}}
+            )
+            with pytest.raises(LineupCorrectionUnsupported):
+                _corrected_payload(hit, frame, observed)
+            return
+        with pytest.raises(LineupCorrectionUnsupported):
+            _corrected_payload(hit, frame, hit.payload.observations)
+
+
+@pytest.mark.parametrize("hit", _HITS + ("runner-third",))
+def test_corrected_hits_use_unchanged_single_physical_and_t5_pipeline(hit):
+    """後続41列/runnerを既mapperで全比較し、既T5だけへ候補を渡す。"""
+    from pitchlog.stats.facts import evaluate_native_projection
+    from pitchlog.sync.ordinary_pitch_physical import pitch_physical_row
+    from pitchlog.sync.past_correction_physical import (
+        prepare_corrected_physical_pitches,
+    )
+    from pitchlog.sync.terminal_pitch_projection import runner_physical_rows
+
+    with _host() as host:
+        first = _two_saved(host)[0]
+        if hit == "runner-third":
+            single = _hit(host, first)
+            original = (first, single, _hit(host, single, destination="3"))
+        else:
+            original = (first, _hit(host, first, hit))
+        tenant = UUID(first.calculation.request.prefix_ref.tenant_id)
+        game = UUID(first.calculation.request.prefix_ref.game_id)
+        rows = []
+        for row in original:
+            assert row.payload is not None
+            q, r = row.calculation.request, row.calculation.response
+            row_id = UUID(q.play_identity.play_id)
+            rows.append(
+                replace(
+                    row,
+                    play_row=pitch_physical_row(
+                        row.payload.observations,
+                        row.payload.participants,
+                        q.t1.result_id,
+                        tenant_id=tenant,
+                        game_id=game,
+                        source_event_id=row.source_event_id,
+                        row_id=row_id,
+                        play_number=row.d1,
+                    ),
+                    play_runners=tuple(
+                        runner_physical_rows(
+                            q.source.runners,
+                            t1=r.value.t1,
+                            t1_input=q.t1,
+                            tenant_id=tenant,
+                            play_id=row_id,
+                        )
+                    ),
+                )
+            )
+        originals = tuple(rows)
+        corrected = _correct(host, originals)
+        assert (
+            first.payload is not None
+            and type(first.payload.observations) is FirstBallObservations
+        )
+        payloads = build_corrected_lineup_payloads(
+            originals, corrected, first.payload.observations
+        )
+        physical = prepare_corrected_physical_pitches(
+            originals,
+            corrected,
+            payloads,
+            tenant_id=tenant,
+            game_id=game,
+            capsule_id=UUID(int=10000),
+            change_event_id=UUID(int=10001),
+        )
+        assert len(physical) == len(originals)
+        for saved, projected, payload in zip(
+            originals[1:], physical[1:], payloads[1:], strict=True
+        ):
+            assert projected.play_row == saved.play_row
+            assert projected.play_runners == saved.play_runners
+            assert projected.effective_event_id == saved.source_event_id
+            native = evaluate_native_projection(
+                payload.model_dump(mode="json", by_alias=True, exclude_unset=True),
+                source_event_id=projected.effective_event_id,
+            )
+            assert native["selected"] is True
+            assert native["source_event_id"] == str(saved.source_event_id)
+            assert saved.payload is not None
+            assert native == evaluate_native_projection(
+                saved.payload.model_dump(
+                    mode="json", by_alias=True, exclude_unset=True
+                ),
+                source_event_id=saved.source_event_id,
+            )
+            assert native["metrics"]["h"]["state"] == "available"
+            assert native["metrics"]["h"]["value"] == "1"
+
+
+def test_saved_hit_before_target_is_carried_without_reclassifying_target():
+    """対象前の既安打も旧原本再生で持ち越し、対象は通常球に限る。"""
+    with _host() as host:
+        first, ordinary = _two_saved(host)
+        hit = _hit(host, first)
+        wire = ordinary.calculation.request.model_dump(
+            mode="json", by_alias=True, exclude_unset=True
+        )
+        wire["source"]["position"] = {"d1": "3", "d2": "3", "appliedWatermark": "2"}
+        wire["playIdentity"] = {
+            "eventId": str(UUID(int=11000)),
+            "d5": str(UUID(int=11001)),
+            "playId": str(UUID(int=11002)),
+        }
+        wire["nextCheckpoint"]["revision"] = "4"
+        q = _next_corrected_request(
+            decode_lineup_prefix_request(json.dumps(wire)),
+            hit.calculation.response,
+            None,
+            UUID(int=11003),
+            host.artifact_sha256,
+        )
+        r = decode_lineup_prefix_response(
+            host.call(
+                "deriveLineupPlayPrefixWithContinuation",
+                q.model_dump_json(by_alias=True, exclude_unset=True),
+            )
+        )
+        assert type(r) is LineupPrefixSuccess
+        q, r = seal_lineup_wire(q, r)
+        calc = LineupPitchCalculation.model_validate_json(
+            json.dumps(
+                {
+                    "formatVersion": "play-prefix-calculation-v3",
+                    "artifactSha256": host.artifact_sha256,
+                    "request": q.model_dump(
+                        mode="json", by_alias=True, exclude_unset=True
+                    ),
+                    "response": r.model_dump(
+                        mode="json", by_alias=True, exclude_unset=True
+                    ),
+                }
+            )
+        )
+        assert ordinary.payload is not None
+        payload = ordinary.payload.model_copy(
+            update={"calculation": calc, "participants": r.value.before_participants}
+        )
+        third = SavedLineupPitch(UUID(int=11000), 3, 3, calc, payload)
+        corrected = _evaluate(
+            (first, hit, third),
+            "batting-result.ball",
+            (UUID(int=11004),),
+            host,
+            target_d1=3,
+        )
+        assert (
+            len(corrected) == 1
+            and corrected[0].source_event_id == third.source_event_id
+        )
+        assert corrected[0].corrected_request.source.runners == q.source.runners
+        assert corrected[0].corrected_response.value.t1.after.state_fields.balls == "1"
