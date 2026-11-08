@@ -531,6 +531,7 @@ function applyCountRule(
     flags.三振 = true
     flags.打数 = true
   }
+  if (resultId === 'batting-result.batted-out') flags.打数 = true
   if (hit) {
     flags.被安打 = true
     flags.安打 = true
