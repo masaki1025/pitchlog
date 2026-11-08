@@ -18,6 +18,7 @@ export type BattedHitResultId =
   | 'batting-result.home-run'
   | 'batting-result.batted-out'
   | 'batting-result.batted-reach'
+  | 'batting-result.error'
   | 'batting-result.fielders-choice'
   | 'batting-result.sacrifice-bunt'
   | 'batting-result.sacrifice-fly'
@@ -27,7 +28,7 @@ export type BattedHitResultId =
 /** 記録者が確定した1走者の実到達塁。停止は写像へ含めない。 */
 export type RunnerAdvanceOverride = {
   runnerBase: '1' | '2' | '3'
-  destination: '2' | '3' | '4'
+  destination: '1' | '2' | '3' | '4'
 }
 
 /** 明示overrideの閉形。空配列は「未確認」として使わない。 */
@@ -205,11 +206,12 @@ function readAppliedOverrides(
     )
       return null
     let destinationBase: bigint
-    if (destination.value === '2') destinationBase = 2n
+    if (destination.value === '1') destinationBase = 1n
+    else if (destination.value === '2') destinationBase = 2n
     else if (destination.value === '3') destinationBase = 3n
     else if (destination.value === '4') destinationBase = 4n
     else return null
-    if (destinationBase <= BigInt(baseKey)) return null
+    if (destinationBase < BigInt(baseKey)) return null
     if (baseKey === '1') {
       if (result.first !== null) return null
       result.first = destinationBase
@@ -323,12 +325,17 @@ export function battedHitRule(
     return null
   const resultId = value.resultId
   const errorRecorded = value.officialScoringPayload === 'error-recorded'
-  if (errorRecorded !== (resultId === 'batting-result.sacrifice-bunt-error'))
+  if (
+    errorRecorded !==
+    (resultId === 'batting-result.error' ||
+      resultId === 'batting-result.sacrifice-bunt-error')
+  )
     return null
   let base: bigint
   switch (resultId) {
     case 'batting-result.single':
     case 'batting-result.batted-reach':
+    case 'batting-result.error':
     case 'batting-result.fielders-choice':
     case 'batting-result.sacrifice-bunt-error':
       base = 1n
@@ -444,13 +451,26 @@ export function battedHitRule(
         (outOverrides === null || outOverrides.third !== 4n))
     )
       return null
+    if (
+      resultId === 'batting-result.batted-out' &&
+      outOverrides !== null &&
+      (outOverrides.first === null || outOverrides.first === 1n) &&
+      (outOverrides.second === null || outOverrides.second === 2n) &&
+      (outOverrides.third === null || outOverrides.third === 3n) &&
+      outOverrides.count !==
+        BigInt(
+          ['1', '2', '3'].filter((base) => occupied(before.runners, base))
+            .length,
+        )
+    )
+      return null
     let explicit: Record<string, bigint> = {}
     if (outOverrides !== null) {
-      if (outOverrides.first !== null)
+      if (outOverrides.first !== null && outOverrides.first !== 1n)
         explicit = Object.assign(explicit, { '1': outOverrides.first })
-      if (outOverrides.second !== null)
+      if (outOverrides.second !== null && outOverrides.second !== 2n)
         explicit = Object.assign(explicit, { '2': outOverrides.second })
-      if (outOverrides.third !== null)
+      if (outOverrides.third !== null && outOverrides.third !== 3n)
         explicit = Object.assign(explicit, { '3': outOverrides.third })
     }
     let advance: 'hold_all' | 'explicit' = 'hold_all'
@@ -519,11 +539,11 @@ export function battedHitRule(
     return null
   if (
     errorRecorded &&
-    (before.outs === 2n ||
-      overrides === null ||
-      overrides.first === 4n ||
-      overrides.second === 4n ||
-      overrides.third === 4n)
+    ((resultId === 'batting-result.sacrifice-bunt-error' &&
+      (before.outs === 2n || overrides === null)) ||
+      overrides?.first === 4n ||
+      overrides?.second === 4n ||
+      overrides?.third === 4n)
   )
     return null
   if (!destinationsDoNotCollide(before, base, overrides)) return null
@@ -531,11 +551,11 @@ export function battedHitRule(
   let explicit: Record<string, bigint> = {}
   if (overrides !== null) {
     advance = 'explicit'
-    if (overrides.first !== null)
+    if (overrides.first !== null && overrides.first !== 1n)
       explicit = Object.assign(explicit, { '1': overrides.first })
-    if (overrides.second !== null)
+    if (overrides.second !== null && overrides.second !== 2n)
       explicit = Object.assign(explicit, { '2': overrides.second })
-    if (overrides.third !== null)
+    if (overrides.third !== null && overrides.third !== 3n)
       explicit = Object.assign(explicit, { '3': overrides.third })
   }
   const rule: QualifiedBattedHitRule = {

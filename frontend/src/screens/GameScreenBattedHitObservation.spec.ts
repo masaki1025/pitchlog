@@ -160,6 +160,61 @@ it('犠打失策は守備側の実野手を選ぶまで数値1の公式原本を
   expect(w.emitted('change')?.at(-1)).toEqual([null])
   w.unmount()
 })
+it('全走者の停止確認は起点塁を各走者に明記し、部分確認では出さない', async () => {
+  const w = mount(GameScreenBattedHitObservation, {
+    props: {
+      ...props,
+      resultId: 'batting-result.batted-out',
+      runners: [
+        { base: '1', label: '一塁走者' },
+        { base: '3', label: '三塁走者' },
+      ],
+    },
+  })
+  await flushPromises()
+  await explicitNull(w)
+  await confirm(w)
+  await w.get('[data-testid="batted-runner-1-destination"]').setValue('hold')
+  await w.get('[data-testid="batted-runner-confirmed"]').setValue(true)
+  expect(w.emitted('change')?.at(-1)).toEqual([null])
+  await w.get('[data-testid="batted-runner-3-destination"]').setValue('hold')
+  await w.get('[data-testid="batted-runner-confirmed"]').setValue(true)
+  expect(w.emitted('change')?.at(-1)?.[0]).toMatchObject({
+    runnerAdvanceOverridesByRunner: {
+      kind: 'applied',
+      overrides: [
+        { runnerBase: '1', destination: '1' },
+        { runnerBase: '3', destination: '3' },
+      ],
+    },
+  })
+  w.unmount()
+})
+it('通常失策による出塁も野手の公式観測と数値1を要求する', async () => {
+  const w = mount(GameScreenBattedHitObservation, {
+    props: { ...props, resultId: 'batting-result.error' },
+  })
+  await flushPromises()
+  await explicitNull(w)
+  await confirm(w)
+  expect(w.emitted('change')?.at(-1)).toEqual([null])
+  await w
+    .get('[data-testid="batted-error-fielder"]')
+    .setValue(props.fielders[0]!.id)
+  expect(w.emitted('change')?.at(-1)?.[0]).toMatchObject({
+    resultId: 'batting-result.error',
+    officialScoringPayload: {
+      kind: 'error-recorded',
+      errors: [
+        {
+          fielder: { kind: 'official', player_id: props.fielders[0]!.id },
+          count: 1,
+        },
+      ],
+    },
+  })
+  w.unmount()
+})
 it('6未観測と4裁定を一つずつ確認するまで観測を成立させず、結果/文脈変更で破棄する', async () => {
   const w = mount(GameScreenBattedHitObservation, { props })
   await flushPromises()

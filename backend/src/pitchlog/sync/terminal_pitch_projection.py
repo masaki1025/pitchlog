@@ -118,9 +118,18 @@ def runner_physical_rows(before_runners, *, t1, t1_input, tenant_id, play_id):
         if effect.modality == "not-applicable":
             raise OrdinaryPitchExecutionError
         if effect.modality == "hold":
-            if effect.destination is not None or runner.base in overrides:
+            if effect.destination is not None or (
+                runner.base in overrides and overrides[runner.base] != runner.base
+            ):
                 raise OrdinaryPitchExecutionError
-            results[runner.base] = (HOLD_STATUS, AUTO_STATUS_SOURCE)
+            results[runner.base] = (
+                HOLD_STATUS,
+                (
+                    MANUAL_STATUS_SOURCE
+                    if runner.base in overrides
+                    else AUTO_STATUS_SOURCE
+                ),
+            )
         elif effect.modality in {"optional", "forced"}:
             destination = effect.destination
             if destination not in labels[runner.base]:

@@ -55,6 +55,7 @@ export type BattedHitWireObservations = Omit<
 }
 export type BattedOtherResult =
   | 'batting-result.batted-reach'
+  | 'batting-result.error'
   | 'batting-result.fielders-choice'
   | 'batting-result.sacrifice-bunt'
   | 'batting-result.sacrifice-fly'

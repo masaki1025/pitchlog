@@ -307,7 +307,7 @@ class RunnerAdvanceOverride(_LineupWire):
     """記録者が確定した1走者の実到達塁。停止は写像へ含めない。"""
 
     runner_base: Literal["1", "2", "3"] = Field(alias="runnerBase")
-    destination: Literal["2", "3", "4"]
+    destination: Literal["1", "2", "3", "4"]
 
 
 class AppliedRunnerAdvanceOverrides(_LineupWire):
@@ -342,6 +342,7 @@ class BattedHitT1Input(_LineupWire):
         "batting-result.home-run",
         "batting-result.batted-out",
         "batting-result.batted-reach",
+        "batting-result.error",
         "batting-result.fielders-choice",
         "batting-result.sacrifice-bunt",
         "batting-result.sacrifice-fly",

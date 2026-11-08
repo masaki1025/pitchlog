@@ -332,7 +332,7 @@ class _RunnerAdvanceOverride(_Frozen):
     """記録者が確定した1走者の実到達塁。"""
 
     runner_base: Literal["1", "2", "3"] = Field(alias="runnerBase")
-    destination: Literal["2", "3", "4"]
+    destination: Literal["1", "2", "3", "4"]
 
 
 class _AppliedRunnerOverrides(_Frozen):
@@ -411,6 +411,7 @@ class BattedHitPlayObservations(FirstBallObservations):
         "batting-result.home-run",
         "batting-result.batted-out",
         "batting-result.batted-reach",
+        "batting-result.error",
         "batting-result.fielders-choice",
         "batting-result.sacrifice-bunt",
         "batting-result.sacrifice-fly",

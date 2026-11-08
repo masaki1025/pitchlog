@@ -536,6 +536,7 @@ function applyCountRule(
     resultId === 'batting-result.batted-out' ||
     resultId === 'batting-result.double-play' ||
     resultId === 'batting-result.batted-reach' ||
+    resultId === 'batting-result.error' ||
     resultId === 'batting-result.fielders-choice'
   )
     flags.打数 = true

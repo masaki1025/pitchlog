@@ -98,6 +98,44 @@ def test_applied_two_runner_observation_matches_t1_exactly():
         require_batted_hit_observations(t1, _observations(mismatched))
 
 
+def test_error_reach_requires_matching_t1_and_observed_official_error():
+    """旧正本の失策出塁を新規現行入力で実失策野手に結び、タグ混在を拒否する。"""
+    forced = {
+        "kind": "applied",
+        "overrides": [
+            {"runnerBase": "1", "destination": "2"},
+            {"runnerBase": "2", "destination": "3"},
+        ],
+    }
+    t1_raw = copy.deepcopy(CASE["request"]["t1"])
+    t1_raw["resultId"] = "batting-result.error"
+    t1_raw["officialScoringPayload"] = "error-recorded"
+    t1_raw["before"]["stateFields"]["state.runners"] = "first-second"
+    t1_raw["runnerAdvanceOverrides"] = forced
+    t1 = BattedHitT1Input.model_validate_json(json.dumps(t1_raw))
+    observed_raw = _observations(forced).model_dump(mode="json", by_alias=True)
+    observed_raw["resultId"] = "batting-result.error"
+    observed_raw["officialScoringPayload"] = {
+        "kind": "error-recorded",
+        "errors": [
+            {
+                "fielder": {"kind": "official", "player_id": RUNNER["runnerId"]},
+                "count": 1,
+            }
+        ],
+    }
+    observed = BattedHitPlayObservations.model_validate_json(json.dumps(observed_raw))
+    require_batted_hit_observations(t1, observed)
+    for changed in (
+        {**t1_raw, "officialScoringPayload": "no-error"},
+        {**t1_raw, "resultId": "batting-result.batted-reach"},
+    ):
+        with pytest.raises(ValueError):
+            require_batted_hit_observations(
+                BattedHitT1Input.model_validate_json(json.dumps(changed)), observed
+            )
+
+
 def test_double_play_requires_actual_first_runner_and_preserves_out_origin():
     """併殺の一塁走者アウトは実IDと封殺原因を要求し、起点塁を保存する。"""
     raw = copy.deepcopy(CASE["request"]["t1"])
@@ -354,7 +392,7 @@ def test_error_fielder_is_current_defender_not_dh_or_attack_side():
     [
         {"kind": "applied", "overrides": []},
         {"kind": "applied", "overrides": [{"runnerBase": "4", "destination": "4"}]},
-        {"kind": "applied", "overrides": [{"runnerBase": "1", "destination": "1"}]},
+        {"kind": "applied", "overrides": [{"runnerBase": "1", "destination": "5"}]},
     ],
 )
 def test_applied_runner_wire_rejects_empty_and_out_of_range(override):
@@ -416,6 +454,43 @@ def test_physical_runner_row_keeps_before_base_when_t1_moves():
             ),
             tenant_id=tenant,
             play_id=play,
+        )
+
+
+def test_confirmed_hold_is_manual_physical_row_and_not_a_forced_reach():
+    """起点塁への明示到達を未観測と区別して物理行へ保存する。"""
+    hold = {"kind": "applied", "overrides": [{"runnerBase": "1", "destination": "1"}]}
+    t1_input = _t1_input(hold)
+    require_batted_hit_observations(t1_input, _observations(hold))
+    raw = copy.deepcopy(CASE["expected"]["value"]["t1"])
+    raw["runnerDefaultAdvance"]["first"] = {
+        "modality": "hold",
+        "destination": None,
+    }
+    row = runner_physical_rows(
+        (Runner.model_validate_json(json.dumps(RUNNER)),),
+        t1=T1.model_validate_json(json.dumps(raw)),
+        t1_input=t1_input,
+        tenant_id=UUID(int=1),
+        play_id=UUID(int=2),
+    )[0]
+    assert (row["base"], row["status"], row["status_source"]) == (
+        1,
+        "継続",
+        "manual",
+    )
+    damaged = copy.deepcopy(raw)
+    damaged["runnerDefaultAdvance"]["first"] = {
+        "modality": "optional",
+        "destination": "2",
+    }
+    with pytest.raises(OrdinaryPitchExecutionError):
+        runner_physical_rows(
+            (Runner.model_validate_json(json.dumps(RUNNER)),),
+            t1=T1.model_validate_json(json.dumps(damaged)),
+            t1_input=t1_input,
+            tenant_id=UUID(int=1),
+            play_id=UUID(int=2),
         )
 
 

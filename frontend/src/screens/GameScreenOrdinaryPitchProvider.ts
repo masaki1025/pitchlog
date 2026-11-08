@@ -791,6 +791,7 @@ export async function prepareLineupPrefix(
     'batting-result.home-run',
     'batting-result.batted-out',
     'batting-result.batted-reach',
+    'batting-result.error',
     'batting-result.fielders-choice',
     'batting-result.sacrifice-bunt',
     'batting-result.sacrifice-bunt-error',
@@ -850,7 +851,10 @@ export async function prepareLineupPrefix(
       )
         return invalid()
     }
-    if (hit.resultId === 'batting-result.sacrifice-bunt-error') {
+    if (
+      hit.resultId === 'batting-result.error' ||
+      hit.resultId === 'batting-result.sacrifice-bunt-error'
+    ) {
       const official = hit.officialScoringPayload
       if (
         official.kind !== 'error-recorded' ||

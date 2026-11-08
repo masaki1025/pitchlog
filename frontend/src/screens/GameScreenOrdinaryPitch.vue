@@ -60,6 +60,7 @@ const hitResults: readonly string[] = [
   'batting-result.home-run',
   'batting-result.batted-out',
   'batting-result.batted-reach',
+  'batting-result.error',
   'batting-result.fielders-choice',
   'batting-result.sacrifice-bunt',
   'batting-result.sacrifice-bunt-error',
@@ -70,20 +71,22 @@ const batted = computed(() => hitResults.includes(resultId.value))
 const battedOutAvailable = computed(() =>
   isLineupRecordingContext(displayed.value),
 )
-const firstSecondBattedAvailable = computed(
+const runnerBattedAvailable = computed(
   () =>
     isLineupRecordingContext(displayed.value) &&
-    displayed.value.after.stateFields['state.runners'] === 'first-second',
+    displayed.value.after.stateFields['state.runners'] !== 'empty',
 )
 const sacrificeBuntAvailable = computed(
   () =>
-    firstSecondBattedAvailable.value &&
+    runnerBattedAvailable.value &&
     displayed.value.after.stateFields['state.outs'] !== '2',
 )
 const sacrificeFlyAvailable = computed(
   () =>
     isLineupRecordingContext(displayed.value) &&
-    displayed.value.after.stateFields['state.runners'] === 'third' &&
+    ['third', 'first-third', 'second-third', 'loaded'].includes(
+      displayed.value.after.stateFields['state.runners'],
+    ) &&
     displayed.value.after.stateFields['state.outs'] !== '2',
 )
 const doublePlayAvailable = computed(
@@ -820,17 +823,18 @@ onScopeDispose(() => {
               打球アウト
             </option>
             <option
-              v-if="firstSecondBattedAvailable"
+              v-if="runnerBattedAvailable"
               value="batting-result.batted-reach"
             >
               打球による出塁
             </option>
             <option
-              v-if="firstSecondBattedAvailable"
+              v-if="runnerBattedAvailable"
               value="batting-result.fielders-choice"
             >
               野手選択
             </option>
+            <option value="batting-result.error">失策による出塁</option>
             <option
               v-if="sacrificeBuntAvailable"
               value="batting-result.sacrifice-bunt"

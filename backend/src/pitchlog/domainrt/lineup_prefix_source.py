@@ -554,7 +554,10 @@ def require_batted_hit_observations(
     )
     if t1.official_scoring_payload != checked.official_scoring_payload.kind or (
         type(checked.official_scoring_payload) is _RecordedErrorScoring
-    ) != (t1.result_id == "batting-result.sacrifice-bunt-error"):
+    ) != (
+        t1.result_id
+        in {"batting-result.error", "batting-result.sacrifice-bunt-error"}
+    ):
         raise ValueError("公式失策原本と結果が不一致")
     observation_override = checked.runner_advance_overrides
     scored_bases: set[str] = set()

@@ -104,8 +104,9 @@ const questions = computed(() => [
   {
     key: 'scoring',
     label:
+      props.resultId === 'batting-result.error' ||
       props.resultId === 'batting-result.sacrifice-bunt-error'
-        ? '公式記録：犠打で失策1件を確認'
+        ? '公式記録：守備側の失策1件を確認'
         : '公式記録：失策なし・失策数0を確認',
     required: true,
     options: [{ id: 'confirmed', label: '確認した' }],
@@ -272,13 +273,15 @@ const observation = computed<
     if (!runnerConfirmed.value) return null
     const overrides: Array<{
       runnerBase: Base
-      destination: '2' | '3' | '4'
+      destination: '1' | '2' | '3' | '4'
     }> = []
     for (const runner of props.runners) {
       const destination = runnerDestinations.value[runner.base]
       if (destination === undefined || destination === '') return null
-      if (destination === 'hold') continue
-      if (!destinations(runner.base).includes(destination as '2' | '3' | '4'))
+      if (
+        destination !== 'hold' &&
+        !destinations(runner.base).includes(destination as '2' | '3' | '4')
+      )
         return null
       if (
         destination === '4' &&
@@ -299,7 +302,8 @@ const observation = computed<
       }
       overrides.push({
         runnerBase: runner.base,
-        destination: destination as '2' | '3' | '4',
+        destination: (destination === 'hold' ? runner.base : destination) as
+          '1' | '2' | '3' | '4',
       })
     }
     if (overrides.length === 0) return null
@@ -335,11 +339,13 @@ const observation = computed<
     ball[key] = value
   }
   if (
-    props.resultId === 'batting-result.sacrifice-bunt-error' &&
+    (props.resultId === 'batting-result.error' ||
+      props.resultId === 'batting-result.sacrifice-bunt-error') &&
     !props.fielders.some((p) => p.id === errorFielderId.value)
   )
     return null
   const officialScoringPayload =
+    props.resultId === 'batting-result.error' ||
     props.resultId === 'batting-result.sacrifice-bunt-error'
       ? {
           kind: 'error-recorded' as const,
@@ -495,7 +501,10 @@ async function previous() {
       />
     </div>
     <label
-      v-if="resultId === 'batting-result.sacrifice-bunt-error'"
+      v-if="
+        resultId === 'batting-result.error' ||
+        resultId === 'batting-result.sacrifice-bunt-error'
+      "
       class="block"
     >
       公式失策の野手
