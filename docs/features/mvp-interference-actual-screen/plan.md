@@ -30,3 +30,7 @@ created: 2026-11-08
 | 3 | 検査と隔離実測 | TypeScript 型・lint・Playwright compile・pytest collect を先行する。root の同版製品接合通知後だけ共通 lock 全寿命で owned PG/ブラウザを実行し、失敗時も source SHA と部分証拠を保存する |
 
 新規 game は UI でのみ作成し、fixture play や raw HTTP の成功応答を記録の代わりにしない。観測されないアウト・授与・得点/盗塁は推測せず、既 T1/T5 の出力を正とする。実 PG は root の許可まで開始しない。
+
+## ステップ2 固定候補
+
+真正 UI の五試合で七分岐と三塁走者の本盗企図を入力する単一 E2E を追加した。各入力は実 POST の受理、同元本文の重複、真正 GET、reload を照合する。DB wrapper は UI より先に固定 SELECT を EXPLAIN し、保存 V7 から既 mapper を用いた全41列・走者行、および唯一 T5 評価の現行 source/facts を全値比較する。INT02 本盗企図の盗塁指標 unavailable も閉検査する。既隔離 TLS 資材と root 結合同版の供給まで実 PG/ブラウザは未実行であり、実画面成功・保存成功は未主張。
