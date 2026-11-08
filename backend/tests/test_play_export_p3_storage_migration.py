@@ -58,8 +58,8 @@ def test_migration_orders_owner_force_rls_and_default_deny_without_publication()
     statements = source["_STATEMENTS"]
     expected_deny = (
         "REVOKE ALL ON TABLE sync_fence.play_export_p3_snapshots FROM "
-        "PUBLIC,pitchlog_app,pitchlog_initial_actor,pitchlog_initial_fn_owner,"
-        "pitchlog_sync_right_fn_owner,pitchlog_sync_binding_actor,"
+        "PUBLIC, pitchlog_app, pitchlog_initial_actor, pitchlog_initial_fn_owner, "
+        "pitchlog_sync_right_fn_owner, pitchlog_sync_binding_actor, "
         "pitchlog_rg1_control_actor"
     )
     assert tuple(_normalized(s) for s in statements[1:5]) == (
