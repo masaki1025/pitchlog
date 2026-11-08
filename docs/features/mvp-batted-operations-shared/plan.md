@@ -32,3 +32,13 @@ rootによるPO委任の範囲採用。計画初版9dfd4971は時刻を20:45と�
 first_ball_productの固定親overlayを登録し、公式BODIESからprepare1関数を生成（SHA9046f9bbcacb30f476a77c8fcd49a5c2f8721919aa076e45b4bd43c82d8ed665/85,023bytes）。owner/ACL/署名/nonce/他関数は変更せず、旧overlay親の検査も新overlayを経てactivebody全値照合する形で維持。生成正負8passed4.60秒、静的authz-function-bodies product OK、Ruff/Ty0。これは候補内の登録であり、正式受理/seal/CI/実PGは未了。
 
 T5後発は、明示effects付きで射影失敗した入力をRBI観測無しでも旧一括算入へfallbackさせない。手定対向11passed0.45秒、旧fixture/数学期待を緩めない。step1の独立レビュー後にこの後発も対照する。schema/head担当候補と59球driverの接合は次であり、ステップ2全体を完了にしない。
+
+## 共有schemaと実計算→T5の接合（2026-11-08 20:56 JST）
+
+82c98b9eの閉4schema/d.ts、BE/FE head・専用10実入力helperを通常mergeした候補。rootは既defs差分がT1と打球観測だけ/Value・Success2variant不変を構造照合し、BE/FE headの全差分を静読した。新NoRun headは実凡打/犠打のApplied override・空typed effects・得点/打点/失点False・score不変だけで、他結果へ自動拡張しない。正式ゲート/全候補の非作者最終採用は別に残る。
+
+独立SQL限定REPORT3150562d…のP2（NULLの許可述語がNOTでUNKNOWNへ落ちる）を採用し、mismatch/targetの2pattern×3箇所をIS NOT TRUEへ是正。CSV担当のread-only追補が全文を旧生成の6箇所だけの置換として照合、owner/署名/role不変。新canonical/公式生成SQL SHA c2758d69d452fba961fc63459e84e951a2600129a4cf65c03aedaa44f5afc55f、PG compileは未実施。
+
+rootは実host71f→閉schema/head→V7/V8/current codec→既生成T5へ10入力を通し、全10件で原始27項目available、RBI-04の得点1/打点0、犠飛1/1、公式失策/犠打失策各1を確認（10passed2.31秒）。公式1失策の実fielder ID供給が欠けていたので、観測countが厳密int1・実official UUIDの時だけ既T5 participantへ写す。bool Trueを1へ補修する入力は欠測のまま拒否。野球式は生成T5から複製せず、手定応答/仮frame/DB投入を使わない。この成功は数学・射影接続であって実DB/画面59球の成功ではない。
+
+接合後BE生成/旧得点/新実接続4suite151passed7.72秒、FE schema/wire2suite68passed2.34秒、Vue/Ty/Ruff成功。59球driver359も候補へ通常merge済み、実PGは共通lockと接続経路の確認後に実施する。root新helper/後発は非作者レビューへ渡す。

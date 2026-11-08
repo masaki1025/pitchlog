@@ -498,6 +498,36 @@ def _native_batted_scores(payload, value):
         return None
 
 
+def _native_batted_error_fielder(payload):
+    """確定済み1失策の実観測だけを写す。守備所属は同TX writerが照合する。"""
+    try:
+        q = payload["calculation"]["request"]["t1"]
+        official = payload["observations"]["officialScoringPayload"]
+        if (
+            not _closed_native_wire(payload)
+            or q["resultId"]
+            not in {"batting-result.error", "batting-result.sacrifice-bunt-error"}
+            or q["officialScoringPayload"] != "error-recorded"
+            or official["kind"] != "error-recorded"
+            or len(official["errors"]) != 1
+        ):
+            return None
+        item = official["errors"][0]
+        fielder = item["fielder"]
+        if (
+            set(item) != {"fielder", "count"}
+            or type(item["count"]) is not int
+            or item["count"] != 1
+            or set(fielder) != {"kind", "player_id"}
+            or fielder["kind"] != "official"
+            or str(UUID(fielder["player_id"])) != fielder["player_id"]
+        ):
+            return None
+        return fielder["player_id"]
+    except (KeyError, TypeError, ValueError):
+        return None
+
+
 def _native_no_steal(payload, value, runner_scores):
     """FR-004/E-1で別の走者操作を含まない、既閉V7結果の空集合。"""
     if not _closed_native_wire(payload):
@@ -733,6 +763,10 @@ def native_projection(payload, *, source_event_id):
     runner_scores = _native_runner_scores(payload, value)
     if batted_scores is not None:
         runner_scores = batted_scores
+        if t1["statFlags"]["失策"] is True:
+            fielder = _native_batted_error_fielder(payload)
+            if fielder is not None:
+                participants["error_fielder_id"] = fielder
     elif "rbiRulingByRunner" in calc["request"]["t1"] or (
         "runnerScoreEffects" in value
         and "runnerObservation" not in calc["request"]["t1"]

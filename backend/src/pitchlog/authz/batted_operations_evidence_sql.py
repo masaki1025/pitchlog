@@ -179,10 +179,13 @@ def _physical_replacements() -> tuple[tuple[str, str], ...]:
             + _HOLD
             + ")))",
         ),
-        (different, different[:-1] + " AND NOT (" + _HOLD + "))"),
+        (different, different[:-1] + " AND (" + _HOLD + ") IS NOT TRUE)"),
         (
             targets,
-            targets.replace(" OR EXISTS(", " OR (EXISTS(", 1) + " AND NOT " + _DP + ")",
+            targets.replace(" OR EXISTS(", " OR (EXISTS(", 1)
+            + " AND ("
+            + _DP
+            + ") IS NOT TRUE)",
         ),
     )
 
