@@ -16,6 +16,7 @@ _T1 = "source_row.payload->'calculation'->'request'->'t1'"
 _RULING = _T1 + "->'interferenceRuling'"
 _OBS = "source_row.payload->'observations'"
 _EFFECT = "source_row.payload->'calculation'->'response'->'value'->'t1'"
+_OUT_LABEL = INTERFERENCE_OUT_STATUS
 _PERSON = "pg_catalog.jsonb_build_object('kind','runner','runner_id'," \
     "pg_catalog.jsonb_build_object('kind','official','player_id',m->>'runnerId'))"
 _ADJUDICATED = (
@@ -31,6 +32,40 @@ _OUT = (
     " WHERE target=pg_catalog.jsonb_build_object('runner',m->>'base'))"
     " AND EXISTS(SELECT 1 FROM pg_catalog.jsonb_array_elements("
     + _RULING + "->'out_targets') person WHERE person=" + _PERSON + "))"
+)
+
+
+def _admission_out(source_runners: str) -> str:
+    """外側admissionで、全アウト走者を元原本・物理行・裁定へ束縛する。"""
+    return (
+        "(" + _ADJUDICATED
+        + " AND NOT EXISTS(SELECT 1 FROM pg_catalog.jsonb_array_elements("
+        + _EFFECT + "->'outEffect'->'targets') out_target"
+        " WHERE pg_catalog.jsonb_typeof(out_target)='object'"
+        " AND out_target ? 'runner' AND NOT EXISTS(SELECT 1 FROM"
+        " pg_catalog.jsonb_array_elements(" + source_runners + ") m,"
+        " pg_catalog.jsonb_array_elements(after_cp->'projection_snapshot'"
+        "->'play_runners') r WHERE out_target="
+        "pg_catalog.jsonb_build_object('runner',m->>'base')"
+        " AND m->>'base' IN ('1','2','3')"
+        " AND r->>'base'=m->>'base'"
+        " AND r->>'runner_id'=m->>'runnerId'"
+        " AND r->>'responsible_pitcher_id'=m->>'responsiblePitcherId'"
+        " AND r->>'tenant_id'=p_tenant_id::text"
+        " AND r->>'play_id'=p->'play_row'->>'id'"
+        " AND r->'retired_at'='null'::jsonb"
+        " AND r->>'status'='" + _OUT_LABEL + "'"
+        " AND r->>'status_source'='manual'"
+        " AND EXISTS(SELECT 1 FROM pg_catalog.jsonb_array_elements("
+        + _RULING + "->'out_targets') person WHERE person="
+        + _PERSON + "))))"
+    )
+
+
+_OUT_ADMISSIONS = (
+    _admission_out("before_cp->'content'->'restored'->'runners'"),
+    _admission_out("source_row.payload->'calculation'->'request'->'source'->'runners'"),
+    _admission_out("source_row.payload->'calculation'->'request'->'source'->'runners'"),
 )
 _PLACEMENT = (
     "(" + _ADJUDICATED + " AND EXISTS(SELECT 1 FROM"
@@ -54,8 +89,6 @@ _PENALTY_THIRD = (
     " AND " + _EFFECT
     + "->'runnerDefaultAdvance'->'third'->>'destination'='4')"
 )
-_OUT_LABEL = INTERFERENCE_OUT_STATUS
-
 _BATTED_RULING = """  OR (
    (batted_obs->'interferenceRuling' IS DISTINCT FROM '{"kind":"not-required"}'::jsonb
     OR source_row.payload->'calculation'->'request'->'t1'->>'interferenceRuling'
@@ -163,10 +196,13 @@ def overlay_prepared_parent(parent: str, declaration: dict[str, object]) -> str:
         + _OUT + " OR " + _PLACEMENT + " OR " + _PENALTY_THIRD
         + ") OR ((",
     )
-    changed = changed.replace(
-        old_dp,
-        " AND ((" + _DP + " OR " + _OUT + ")) IS NOT TRUE",
-    )
+    outer_parts = changed.split(old_dp)
+    if len(outer_parts) != 4:
+        raise ValueError("妨害prepareの外側証拠位置が不一致")
+    changed = outer_parts[0]
+    for expression, remainder in zip(_OUT_ADMISSIONS, outer_parts[1:], strict=True):
+        changed += " AND ((" + _DP + " OR " + expression + ")) IS NOT TRUE"
+        changed += remainder
     changed = changed.replace(old_ruling, _BATTED_RULING)
     changed = changed.replace(old_t1, "")
     changed = changed.replace(

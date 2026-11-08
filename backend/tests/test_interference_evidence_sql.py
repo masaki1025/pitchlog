@@ -14,6 +14,7 @@ from pitchlog.authz import first_ball_product as product
 from pitchlog.authz import runner_physical_evidence_sql as runner
 from pitchlog.authz.interference_evidence_sql import (
     _BATTED_RULING,
+    _OUT_ADMISSIONS,
     FUNCTION_ID,
     PARENT_SHA256,
     overlay_prepared_parent,
@@ -49,7 +50,7 @@ def test_only_prepare_body_changes_and_retains_the_other_selected_bodies():
     assert product.BODIES["function|" + FUNCTION_ID] == body
     assert body != parent
     assert body.count("interference physical source rejected") == 1
-    assert body.count("'妨害裁定アウト'") == 3
+    assert body.count("'妨害裁定アウト'") == 6  # 物理行3・外側admission3
     assert body.count("'secondary-result.offensive-interference'") > 0
     seen = 0
     for key, current in product.BODIES.items():
@@ -60,6 +61,34 @@ def test_only_prepare_body_changes_and_retains_the_other_selected_bodies():
             assert current == official.read_text(), key
             seen += 1
     assert seen == 78
+
+
+def test_outer_admissions_bind_each_target_to_source_and_physical_runner():
+    """外側3文脈のm/rは内側aliasに依存せず、全対象を元走者へ結ぶ。"""
+    parent, declaration = _parent_and_declaration()
+    body = overlay_prepared_parent(parent, declaration)
+    assert len(_OUT_ADMISSIONS) == 3
+    assert _OUT_ADMISSIONS[0] != _OUT_ADMISSIONS[1]
+    assert _OUT_ADMISSIONS[1] == _OUT_ADMISSIONS[2]
+    for index, expression in enumerate(_OUT_ADMISSIONS):
+        expected_count = 1 if index == 0 else 2
+        assert body.count(" OR " + expression + ")) IS NOT TRUE") == expected_count
+        assert "NOT EXISTS(SELECT 1 FROM pg_catalog.jsonb_array_elements(" in expression
+        assert (
+            "out_target=pg_catalog.jsonb_build_object('runner',m->>'base')"
+            in expression
+        )
+        assert "r->>'runner_id'=m->>'runnerId'" in expression
+        assert "r->>'responsible_pitcher_id'=m->>'responsiblePitcherId'" in expression
+        assert "r->>'tenant_id'=p_tenant_id::text" in expression
+        assert "r->>'play_id'=p->'play_row'->>'id'" in expression
+        assert "r->>'status_source'='manual'" in expression
+        assert "person=pg_catalog.jsonb_build_object('kind','runner'" in expression
+    assert "before_cp->'content'->'restored'->'runners'" in _OUT_ADMISSIONS[0]
+    assert all(
+        "source_row.payload->'calculation'->'request'->'source'->'runners'" in item
+        for item in _OUT_ADMISSIONS[1:]
+    )
 
 
 @pytest.mark.parametrize("fault", ["body", "id", "declaration"])
