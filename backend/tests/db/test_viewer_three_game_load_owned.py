@@ -45,7 +45,9 @@ def _exclusive_fixture_lifetime():
         yield
 
 
-def test_three_games_and_thirty_viewers(vertical_database, monkeypatch) -> None:
+def test_three_games_and_thirty_viewers(
+    vertical_database, monkeypatch, tmp_path
+) -> None:
     """実UIの新規3試合を2wave記録し、30閲覧の自然更新と保存値を照合する。"""
     from . import test_screen_start_e2e as harness
 
@@ -75,6 +77,7 @@ def test_three_games_and_thirty_viewers(vertical_database, monkeypatch) -> None:
             (db.tenant_id, db.game_id),
         ).fetchone()
     assert teams is not None
+    game_path = tmp_path / "created-games.json"
     token = uuid4()
     with db.broker_worker(token), binding_broker(db, token):
         with _browser_environment(
@@ -91,8 +94,40 @@ def test_three_games_and_thirty_viewers(vertical_database, monkeypatch) -> None:
                 {
                     "PITCHLOG_E2E_AWAY_TEAM": str(teams[0]),
                     "PITCHLOG_E2E_HOME_TEAM": str(teams[1]),
+                    "PITCHLOG_VIEWER_LOAD_GAME_PATH": str(game_path),
                 },
                 timeout_seconds=960,
+            )
+            partial = {"audit": "not-created"}
+            if game_path.is_file():
+                try:
+                    game_ids = json.loads(game_path.read_text())["gameIds"]
+                    assert type(game_ids) is list and 1 <= len(game_ids) <= 3
+                    assert len(game_ids) == len(set(game_ids))
+                    rows = []
+                    with psycopg.connect(
+                        db.authority.database.business_admin,
+                        options="-c default_transaction_read_only=on",
+                    ) as admin:
+                        for item in game_ids:
+                            game_id = UUID(item)
+                            assert game_id != db.game_id
+                            rows.append(
+                                {
+                                    name: admin.execute(
+                                        query, (db.tenant_id, game_id)
+                                    ).fetchall()
+                                    for name, query in _QUERIES.items()
+                                }
+                            )
+                    partial = {"audit": "actual", "games": rows}
+                except Exception as error:
+                    partial = {
+                        "audit": "unavailable",
+                        "exception": type(error).__name__,
+                    }
+            (evidence / "partial-db.json").write_text(
+                json.dumps(partial, default=str) + "\n"
             )
             assert result.returncode == 0, (
                 result.stdout[-8000:],

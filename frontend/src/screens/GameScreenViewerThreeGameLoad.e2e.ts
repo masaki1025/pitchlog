@@ -1,4 +1,6 @@
 /** 実画面の3記録と30閲覧を同じ隔離サーバーで照合する。 */
+import { writeFileSync } from 'node:fs'
+import { isAbsolute } from 'node:path'
 import { expect, test, type BrowserContext, type Page } from '@playwright/test'
 import type { LineupPrefixGame } from '../api/lineupPrefixGame'
 import {
@@ -23,6 +25,9 @@ test('3試合の実記録と30閲覧が保存から10秒以内で同じ状態へ
 }) => {
   if (!baseURL || new URL(baseURL).protocol !== 'https:')
     throw new Error('所有HTTPS環境が必要')
+  const gameEvidence = process.env.PITCHLOG_VIEWER_LOAD_GAME_PATH
+  if (!gameEvidence || !isAbsolute(gameEvidence))
+    throw new Error('当runの試合証拠先が必要')
   const contexts: BrowserContext[] = []
   const writers: Writer[] = []
   const viewers: Viewer[] = []
@@ -64,6 +69,10 @@ test('3試合の実記録と30閲覧が保存から10秒以内で同じ状態へ
       )
       await distinctCookie(page)
       writers.push({ page, head: created.head })
+      writeFileSync(
+        gameEvidence,
+        JSON.stringify({ gameIds: writers.map((writer) => writer.head.id) }),
+      )
     }
     expect(new Set(writers.map((w) => w.head.id)).size).toBe(3)
     for (let game = 0; game < 3; game++) {
