@@ -606,6 +606,7 @@ function applyCountRule(
             resultId === 'batting-result.sacrifice-bunt' ||
             resultId === 'batting-result.sacrifice-fly') &&
             rule.outs === 1n) ||
+          resultId === 'batting-result.fielders-choice' ||
           ((walk || hitByPitch) && advance.modality === 'forced'))
       if (validRun) runs = runs + 1n
       if (rbiCredited) rbi = rbi + 1n

@@ -439,18 +439,9 @@ export function battedHitRule(
       (before.runners === 'empty') !== (outOverrides === null) ||
       !destinationsDoNotCollide(before, 0n, outOverrides) ||
       thirdOutInvalid ||
-      (resultId === 'batting-result.sacrifice-bunt' &&
-        (before.runners !== 'first-second' ||
-          outOverrides === null ||
-          outOverrides.first !== 2n ||
-          outOverrides.second !== 3n ||
-          outOverrides.third !== null)) ||
+      (resultId === 'batting-result.sacrifice-bunt' && outOverrides === null) ||
       (resultId === 'batting-result.sacrifice-fly' &&
-        (before.runners !== 'third' ||
-          outOverrides === null ||
-          outOverrides.first !== null ||
-          outOverrides.second !== null ||
-          outOverrides.third !== 4n))
+        (outOverrides === null || outOverrides.third !== 4n))
     )
       return null
     let explicit: Record<string, bigint> = {}
@@ -524,20 +515,15 @@ export function battedHitRule(
     )
       return null
   }
-  if (
-    (resultId === 'batting-result.batted-reach' ||
-      resultId === 'batting-result.fielders-choice' ||
-      resultId === 'batting-result.sacrifice-bunt-error') &&
-    (before.runners !== 'first-second' ||
-      overrides === null ||
-      overrides.first !== 2n ||
-      overrides.second !== 3n ||
-      overrides.third !== null)
-  )
+  if (resultId === 'batting-result.fielders-choice' && overrides === null)
     return null
   if (
     errorRecorded &&
-    (before.outs !== 0n || before.runners !== 'first-second')
+    (before.outs === 2n ||
+      overrides === null ||
+      overrides.first === 4n ||
+      overrides.second === 4n ||
+      overrides.third === 4n)
   )
     return null
   if (!destinationsDoNotCollide(before, base, overrides)) return null

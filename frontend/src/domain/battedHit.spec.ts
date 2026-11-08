@@ -342,7 +342,11 @@ describe('既正本の野選・犠打・犠飛有限行', () => {
       calculate(f, { ...observed, resultId: 'batting-result.single' }),
     ).toBeNull()
     expect(
-      calculate({ ...f, before: { ...f.before, outs: 1n } }, observed),
+      calculate({ ...f, before: { ...f.before, outs: 1n } }, observed)
+        ?.statFlags.失策,
+    ).toBe(true)
+    expect(
+      calculate({ ...f, before: { ...f.before, outs: 2n } }, observed),
     ).toBeNull()
     expect(
       calculate(f, { ...observed, runnerAdvanceOverrides: 'not-applied' }),
@@ -370,7 +374,7 @@ describe('既正本の野選・犠打・犠飛有限行', () => {
       )
     },
   )
-  it('一三塁へ拡張せず三塁走者の犠飛1行だけ得点/打点/犠飛を算入', () => {
+  it('三塁走者の明示生還で犠飛の得点/打点/犠飛を算入する', () => {
     const f = fixture('top')
     f.before.outs = 0n
     f.before.runners = 'third'
@@ -391,15 +395,144 @@ describe('既正本の野選・犠打・犠飛有限行', () => {
         (row) => row.resultId === 'batting-result.sacrifice-fly',
       )!.statFlags,
     )
-    const invalid = fixture('top')
-    invalid.before.runners = 'first-third'
+    const firstThird = fixture('top')
+    firstThird.before.outs = 0n
+    firstThird.before.runners = 'first-third'
+    const withOtherRunner = calculate(firstThird, {
+      ...observation('batting-result.sacrifice-fly'),
+      runnerAdvanceOverrides: {
+        kind: 'applied',
+        overrides: [
+          { runnerBase: '1', destination: '2' },
+          { runnerBase: '3', destination: '4' },
+        ],
+      },
+      rbiRulingByRunner: { '3': 'ordinary-play' },
+    })!
+    expect(withOtherRunner.after.stateFields).toMatchObject({
+      outs: 1n,
+      runners: 'second',
+      away: 6n,
+    })
+    expect(withOtherRunner.statFlags).toMatchObject({
+      犠飛: true,
+      打点: true,
+      得点: true,
+      打数: false,
+    })
     expect(
-      calculate(invalid, {
+      calculate(firstThird, {
         ...observation('batting-result.sacrifice-fly'),
         runnerAdvanceOverrides: {
           kind: 'applied',
-          overrides: [{ runnerBase: '3', destination: '4' }],
+          overrides: [{ runnerBase: '1', destination: '2' }],
         },
+      }),
+    ).toBeNull()
+  })
+  it('明示された別配置の犠打・野選・打球出塁・犠打失策を唯一核へ渡す', () => {
+    const first = fixture('top')
+    first.before.outs = 1n
+    first.before.runners = 'first'
+    const advance = {
+      kind: 'applied' as const,
+      overrides: [{ runnerBase: '1' as const, destination: '2' as const }],
+    }
+    const bunt = calculate(first, {
+      ...observation('batting-result.sacrifice-bunt'),
+      runnerAdvanceOverrides: advance,
+    })!
+    expect(bunt.after.stateFields).toMatchObject({
+      outs: 2n,
+      runners: 'second',
+    })
+    expect(bunt.statFlags).toMatchObject({ 犠打: true, 打数: false })
+    for (const resultId of [
+      'batting-result.batted-reach',
+      'batting-result.fielders-choice',
+    ] as const) {
+      const result = calculate(first, {
+        ...observation(resultId),
+        runnerAdvanceOverrides: advance,
+      })!
+      expect(result.after.stateFields).toMatchObject({
+        outs: 1n,
+        runners: 'first-second',
+      })
+      expect(result.statFlags).toMatchObject({ 打数: true, 安打: false })
+    }
+    const error = calculate(first, {
+      ...observation('batting-result.sacrifice-bunt-error'),
+      officialScoringPayload: 'error-recorded',
+      runnerAdvanceOverrides: advance,
+    })!
+    expect(error.after.stateFields).toMatchObject({
+      outs: 1n,
+      runners: 'first-second',
+    })
+    expect(error.after.scoreboard.errors).toBe(first.board.errors + 1n)
+    expect(error.statFlags).toMatchObject({
+      失策: true,
+      犠打: true,
+      打数: false,
+    })
+    expect(
+      calculate(first, {
+        ...observation('batting-result.sacrifice-bunt-error'),
+        officialScoringPayload: 'error-recorded',
+        runnerAdvanceOverrides: {
+          kind: 'applied',
+          overrides: [{ runnerBase: '1', destination: '4' }],
+        },
+        rbiRulingByRunner: { '1': 'ordinary-play' },
+      }),
+    ).toBeNull()
+  })
+  it('満塁野選の有効生還はRBI-08、停止後再発進はRBI-04として唯一核で分ける', () => {
+    const f = fixture('top')
+    f.before.outs = 0n
+    f.before.runners = 'loaded'
+    const event = {
+      ...observation('batting-result.fielders-choice'),
+      runnerAdvanceOverrides: {
+        kind: 'applied' as const,
+        overrides: [
+          { runnerBase: '1' as const, destination: '2' as const },
+          { runnerBase: '2' as const, destination: '3' as const },
+          { runnerBase: '3' as const, destination: '4' as const },
+        ],
+      },
+    }
+    const credited = calculate(f, {
+      ...event,
+      rbiRulingByRunner: { '3': 'ordinary-play' },
+    })!
+    expect(credited.after.stateFields).toMatchObject({
+      outs: 0n,
+      runners: 'loaded',
+      away: 6n,
+    })
+    expect(credited.statFlags).toMatchObject({
+      得点: true,
+      打点: true,
+      打数: true,
+    })
+    expect(credited.runnerScoreEffects).toEqual([
+      { base: 3n, validRun: true, rbiCredited: true },
+    ])
+    const restarted = calculate(f, {
+      ...event,
+      rbiRulingByRunner: { '3': 'stopped-and-restarted' },
+    })!
+    expect(restarted.after.stateFields.away).toBe(6n)
+    expect(restarted.statFlags).toMatchObject({ 得点: true, 打点: false })
+    expect(restarted.runnerScoreEffects).toEqual([
+      { base: 3n, validRun: true, rbiCredited: false },
+    ])
+    expect(
+      calculate(f, {
+        ...event,
+        rbiRulingByRunner: { '1': 'ordinary-play' },
       }),
     ).toBeNull()
   })
