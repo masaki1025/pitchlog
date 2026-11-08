@@ -1,9 +1,9 @@
 ---
 feature: mvp-p3-play-csv-producer
-status: draft
+status: active
 branch: feature/mvp-p3-play-csv-producer-20261108
-承認: 未（PO委任rootによる最小追補確認待ち）
-計画レビュー周回: 0
+承認: PO委任Codex主担当/root判断（2026-11-08 22:55 JST）
+計画レビュー周回: 1
 確定ゲート周回: 0
 ---
 
@@ -36,3 +36,5 @@ producerは既真正P3 frame/itemsの封印後・同TX最終head公開前へ置�
 | 3 | root接合後に既P3実経路からZIP同版/88列/sidecar/成績S照合 | root調整のowned1回・source固定/DSN unset/commonlock/cleanup。fixture完成値投入で200にしない。正式受理/全MVP/実機は別 |
 
 作者編集の提案scopeは `exports/play_export_csv.py` と新CSV専用proof/projector、`repositories/play_export.py` とCSV専用reader/codec、CSV専用authz生成器（既writer/read含む）、`sync/play_export_producer.py` と新P3専用producer、専用tests/docs。共有核・モデル/DDL・正式contracts/catalog/seal/7.7・台帳・他WTはroot専有。新source/実保存契約への最小差分はcache packetにし、scope採用前の製品編集やPG実行はしない。
+
+採用対象は7949877c9b214bc15f4ce8665729ce270c2007bd / plan SHA cadc7ecb5d1cb3bf051e1c82afe3a60a4486f486008428d4342f19028a3e5dcd。rootが全文確認し旧snapshot保持/append-only overlay/真正capsule・S・同TX・全coverageを技術採用。正式受理/実PG/全MVP成立を含まない。step1→2は本scopeで継続可、root共有核・DDL/認可は候補packetのみ。
