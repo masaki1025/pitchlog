@@ -21,3 +21,8 @@ backend既read_change_target_snapshotは水位25超を全頁訪問し真正対�
 | 1 | 読取2入口の位置範囲修復と正負固定 | 25/26/安全整数上限は真正応答一致時だけ読取可、上限超/非正準/小数/bool/未知はHTTP前拒否、不一致応答拒否・既C2保持、型/lint/対象pure成功 |
 
 PGはINT担当終了後rootの順序許可まで開始しない。純試験成功を26訂正/後続終了/CSVの実測成功とは記録しない。前runは封印保持し、次実走は固定修復をroot非作者確認後1回へ。
+
+
+## step1候補
+
+製品差分はAPI読取2関数の`d1 > 25`除去だけ。正準25/26/Number.MAX_SAFE_INTEGERを両GETで照合し、正準安全整数外15種はHTTP呼出0、不一致対象/game/D5応答拒否を追加。既API・controller・UI・同版頁4suite44passed3.32秒、vue-tsc/対象ESLint0。テストの別game照合はtenant分離自体の実証ではなく、tenantBound指定と既C2経路は不変更。PG未実施、26訂正以降の成功へ読み替えない。
