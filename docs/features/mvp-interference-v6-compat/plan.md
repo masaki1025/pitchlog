@@ -13,7 +13,7 @@ created: 2026-11-08
 
 # 妨害artifactの有限v6互換と現行pin候補
 
-基点は隔離候補 `17732cd9224ddb1cb5017cc7e9960b5b505a7243`。旧公式artifact `71f2726a288dfcfaff4c2fcdf293651dda0fb610b9ead325b352bd4f23a07aff` と新公式artifact `0e260cd916e4cd4da189132a52adb3e065f261d477bc65f5352bb121e8b45f15` を実Git/公式hostで照合する。既v1–v5 witness/registry・validator本体・旧53数学期待・runtime10原本を全byte保持し、有限v6だけを追加する。未知prior/execution、余分操作、改変数学は拒否する。正式7.7、SQL妨害overlay、core採否、実PGはrootの後続範囲。
+基点は隔離候補 `17732cd9224ddb1cb5017cc7e9960b5b505a7243`。旧公式artifact `71f2726a288dfcfaff4c2fcdf293651dda0fb610b9ead325b352bd4f23a07aff` とINT-04修復済み公式artifact `859986408d75994d6f1530ce99c0331da1644da9d5ae6339bb479e3926ee7f2e` を実Git/公式hostで照合する。初版計画で対象とした `0e260cd916e4cd4da189132a52adb3e065f261d477bc65f5352bb121e8b45f15` はINT-04反例により未採用とし、許可priorにも含めない。既v1–v5 witness/registry・validator本体・旧53数学期待・runtime10原本を全byte保持し、有限v6だけを追加する。未知prior/execution、余分操作、改変数学は拒否する。正式7.7、SQL妨害overlay、core採否、実PGはrootの後続範囲。
 
 ## 編集範囲
 
@@ -31,12 +31,13 @@ created: 2026-11-08
 
 | # | 作業 | 完了条件 |
 | --- | --- | --- |
-| 1 | 旧71fと新0e26の実hostからv6有限53証拠を導出 | 旧v5原本/旧raw全hash不変、4自己識別値以外の全値一致、有限pair/unknown拒否を対向化 |
+| 1 | 旧71fと修復済み859の実hostからv6有限53証拠を導出 | 旧v5原本/旧raw全hash不変、4自己識別値以外の全値一致、有限pair/unknown拒否を対向化 |
 | 2 | 現行pin/D11/runtime10/開始投手生成SQLを接ぐ | 元期待を新actualから採取せず、旧原本保持、公式BODIESと79選択本文全値一致 |
 | 3 | pure検査と候補packetを固定 | 変更path前後SHA、再生成一致、残root条件を明示し、実PG・正式7.7成功と区別 |
 
 ## 実装記録
 
-- ステップ1: Git基点の旧71f IIFE/宣言と現公式0e26を各1 hostで旧v5の53入力に実行し、旧期待と新期待の4自己識別欄以外の全値一致を確認。新v6は旧5 priorと現自己だけの6組を閉登録し、旧v1–v5原本と旧validator本体を保持した。
+- ステップ1の初版: Git基点の旧71f IIFE/宣言と当時の0e26を各1 hostで旧v5の53入力に実行した。この初版は後発INT-04反例で未採用。修復済み859で同じ53入力・旧期待との全値比較をやり直し、4自己識別欄以外の全値一致を確認した。新v6は旧5 priorと現自己だけの6組を閉登録し、旧v1–v5原本と旧validator本体を保持した。
 - ステップ2: 旧metadata10ファイルの元byteをshadowへ固定し、旧計算期待から実行SHAと依存する正準digestだけ再導出。全変更leafを自己識別欄へ限定した。旧runtime10 fixtureを保持し、実Git旧71f hostと現公式hostの数学全値比較を別試験に追加。開始投手SQLは旧3pinだけ新値へ換えて公式生成本文とbyte一致し、選択79関数も全本文一致した。
 - INT-04追補: 未採用0e26候補の「一塁前打者アウト」を `3632467d` の唯一核・閉API・画面で拒否。公式artifact `cadd2ac8` の85998640へ再生成し、Git旧71f→fixed859の53件/6組だけを再導出。旧0eを先行許可版へ含めない。現行metadata10も真の旧71f byteから固定SHAへ再導出し、開始投手SQLの3pin/選択79本文を再照合した。
+- ステップ3: 固定859版で互換・schema・開始投手SQL・旧v5回帰のbackend128件を通過。現行metadataと妨害入力のfrontend24件、型検査と静的検査を実施し、変更pathの前後byteと候補差分をcacheに封印する。作者検査であり、非作者レビュー、正式値受理、実PG、妨害のSQL保存は後続のまま残す。
