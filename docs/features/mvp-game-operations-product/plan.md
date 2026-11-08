@@ -75,3 +75,8 @@ PO委任rootの指示で、c20dを含む3a3b25b6から専用WT `feature/mvp-full
 実画面では新規作成/開始→全UI入力→実ACK/GET、2件目の同要求再送は重複/同head、14件目reloadを要求し、終了v1/同receiptとgame・JST2026 season27項目/両CSV/88列ZIPを保存版へ全値照合する。DBでは全41列とrunner10列を保存V7から既単一mapperへ通して完全比較し、全停止manual/DP封殺/失策1の原野手/RBI0を独立literalでも比較する。全固定SELECTは実UIの前にEXPLAINする。対象backend型/Ruff/pytest collect、frontend型/ESLint/Playwright list成功。実PG/実HTTP/実ブラウザは未実施、共通lock未取得。
 
 残る供給はroot直列の新schema/SQLguard（同塁holdを旧guardが拒否する点の是正を含む）/rowgate有限結果と失策物理列/T5の新打球群/公式pin・manifest。起点2bのrepository結果は旧5種、native no-stealも旧凡打だけなので、この候補だけでは実保存を開かず、根拠付き接合後に1回実走する。旧55/163球/共有helper・数学/正式assets/台帳に差分なし。
+
+
+### 初回単打送信前診断（2026-11-08、PO委任root指示）
+
+正常49/71fの59操作run2は実create/start後にPOST未観測で停止。全59操作を反復せず、専用E2E/config/backend wrapperの新3ファイルだけで最初のsingleへ絞る。既製品/共通helper/認可/要求/slot/期限は不変更。CDPは開始後のcaught例外を一時停止してclassと固定src site/行のみ保存し即resume（message/locals/原文/UUID/資格なし）。この観測がタイミングに影響し得る限定を保持する。UI固定status分類、正規化endpoint/method/status、既finally read-only RRを残す。実head/観測JSON保存は不要。失敗は成功へ置換せず、root固定差分確認前のPG再投入なし。
