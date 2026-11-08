@@ -1,3 +1,7 @@
+import {
+  observeCompleteViewerSnapshot,
+  type ViewerSnapshotExpectation,
+} from './viewerThreeGameSnapshot.e2e-support'
 /** 実画面の3記録と30閲覧を同じ隔離サーバーで照合する。 */
 import { writeFileSync } from 'node:fs'
 import { isAbsolute } from 'node:path'
@@ -16,6 +20,29 @@ const results = [
   ['batting-result.called-pitch', 'batting-result.called-pitch'],
   ['batting-result.swinging-strike', 'batting-result.ball'],
 ] as const
+
+const countTargets = [
+  [
+    { balls: '1', strikes: '0' },
+    { balls: '2', strikes: '0' },
+  ],
+  [
+    { balls: '0', strikes: '1' },
+    { balls: '0', strikes: '2' },
+  ],
+  [
+    { balls: '0', strikes: '1' },
+    { balls: '1', strikes: '1' },
+  ],
+] as const
+
+/** 同じbrowser callbackをJSdomでも検査し、後段waitで成功を補完しない。 */
+function completeViewerSnapshot(
+  page: Page,
+  expected: ViewerSnapshotExpectation,
+) {
+  return page.evaluate(observeCompleteViewerSnapshot, expected)
+}
 
 type Writer = { page: Page; head: LineupPrefixGame }
 type Viewer = { page: Page; game: number; requests: string[] }
@@ -107,13 +134,13 @@ test('3試合の実記録と30閲覧が保存から10秒以内で同じ状態へ
     for (let wave = 1; wave <= 2; wave++) {
       // 先に全閲覧の自然更新を待ち始め、三つの実保存を並行して操作する。
       const visible = Promise.all(
-        viewers.map(async ({ page }, viewer) => {
-          await expect(
-            page
-              .getByTestId('viewer-history')
-              .getByText(new RegExp(`第${wave}球:`)),
-          ).toBeVisible({ timeout: 120_000 })
-          return { viewer, at: Date.now() }
+        viewers.map(async ({ page, game }, viewer) => {
+          const snapshot = await completeViewerSnapshot(page, {
+            wave,
+            result: results[game]![wave - 1]!,
+            ...countTargets[game]![wave - 1]!,
+          })
+          return { viewer, snapshot }
         }),
       )
       const overlapping = Promise.all(
@@ -163,42 +190,33 @@ test('3試合の実記録と30閲覧が保存から10秒以内で同じ状態へ
       writeTraffic.push(...traffic)
       expect(seen).toHaveLength(30)
       expect(saved).toHaveLength(3)
-      for (const { viewer, at } of seen) {
+      for (const { viewer, snapshot } of seen) {
         const item = viewers[viewer]!
         const head = saved[item.game]!.head
+        expect(snapshot.savedAt).toBe(head.last_saved_at)
         const serverSavedAt = Date.parse(head.last_saved_at)
-        const elapsed = at - serverSavedAt
+        const elapsed = snapshot.at - serverSavedAt
         if (!Number.isFinite(serverSavedAt) || elapsed < 0 || elapsed > 10_000)
           throw new Error(
-            `閲覧更新10秒条件未達 game=${item.game} viewer=${viewer} ms=${elapsed}`,
+            `閲覧全表示10秒条件未達 game=${item.game} viewer=${viewer} ms=${elapsed}`,
           )
         timings.push({ wave, game: item.game, viewer, milliseconds: elapsed })
         const state = head.after.stateFields
-        const score = item.page.getByTestId('viewer-score')
-        await expect(item.page.getByTestId('viewer-status')).toHaveText(
-          '更新済み',
-        )
-        await expect(score).toContainText(
+        expect(snapshot.status).toBe('更新済み')
+        expect(snapshot.score).toContain(
           `先攻 ${state['state.score'].away} – 後攻 ${state['state.score'].home}`,
         )
-        await expect(score).toContainText('1回表')
-        await expect(score).toContainText(`${state['state.outs']}アウト`)
-        await expect(score).toContainText(
+        expect(snapshot.score).toContain(`${state['state.inning']}回表`)
+        expect(snapshot.score).toContain(`${state['state.outs']}アウト`)
+        expect(snapshot.score).toContain(
           `${state['state.count.balls']}ボール ${state['state.count.strikes']}ストライク`,
         )
-        await expect(score).toContainText('走者: なし')
-        await expect(
-          item.page.getByTestId('viewer-history').locator('ol > li'),
-        ).toHaveCount(wave)
-        await expect(
-          item.page
-            .getByTestId('viewer-history')
-            .locator('ol > li')
-            .nth(wave - 1),
-        ).toContainText(results[item.game]![wave - 1]!)
-        await expect(
-          item.page.getByTestId('viewer-lineup').locator('ol > li'),
-        ).toHaveCount(18)
+        expect(snapshot.score).toContain('走者: なし')
+        expect(snapshot.history).toHaveLength(wave)
+        expect(snapshot.history[wave - 1]).toContain(
+          results[item.game]![wave - 1]!,
+        )
+        expect(snapshot.lineup).toHaveLength(18)
       }
     }
     for (const viewer of viewers) {
