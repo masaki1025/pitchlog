@@ -38,7 +38,7 @@
           "targetClass": "alpha",
           "kind": "single",
           "generated": "playPrefixArtifact",
-          "hash": "sha256:0db3c87d156e290b71d13a31baa5dc5f240ea38a0a84b660428d7dc687b72fff",
+          "hash": "sha256:71f2726a288dfcfaff4c2fcdf293651dda0fb610b9ead325b352bd4f23a07aff",
           "invocation": {
             "adapter": "backend/src/pitchlog/domainrt/host.py",
             "operation": "derivePlayPrefixWithContinuation"
