@@ -632,6 +632,58 @@ def _runner_columns(
         raise RecordedExportProjectionUnavailable from None
 
 
+_INTERFERENCE_RESULT_RULINGS = {
+    "secondary-result.batting-interference": "batting-interference",
+    "secondary-result.obstruction": "obstruction",
+    "secondary-result.offensive-interference": "offensive-interference",
+}
+
+
+def _interference_plate_label(identity: RecordedPlayIdentity) -> str:
+    """主結果のない妨害裁定だけ、記録時の副結果語彙を表示へ渡す。"""
+    play = identity.play
+    payload = identity.payload
+    try:
+        request = payload["calculation"]["request"]["t1"]
+        observations = payload["observations"]
+        result_id = request["resultId"]
+        ruling = request["interferenceRuling"]
+        if (
+            type(request) is not dict
+            or type(observations) is not dict
+            or type(ruling) is not dict
+            or request.get("eventKind") != "secondary-result"
+            or play["event_kind"] != "pitch"
+            or play["batting_result_key"] is not None
+            or type(result_id) is not str
+            or result_id not in _INTERFERENCE_RESULT_RULINGS
+            or play["secondary_batting_result_key"] != result_id
+            or observations.get("resultId") != result_id
+            or observations.get("interferenceRuling") != ruling
+            or ruling.get("kind") != _INTERFERENCE_RESULT_RULINGS[result_id]
+            or (
+                result_id == "secondary-result.batting-interference"
+                and ruling.get("adopted") != {"kind": "penalty-award"}
+            )
+        ):
+            raise RecordedExportProjectionUnavailable
+        matches = [
+            row for row in identity.admin_vocabularies if row.get("key") == result_id
+        ]
+        if (
+            len(matches) != 1
+            or matches[0].get("category") != "batting_result"
+            or matches[0].get("disabled") is not False
+        ):
+            raise RecordedExportProjectionUnavailable
+        label = _lookup(identity.admin_vocabularies, result_id)
+        if label is None:
+            raise RecordedExportProjectionUnavailable
+        return label
+    except (KeyError, TypeError):
+        raise RecordedExportProjectionUnavailable from None
+
+
 def _native_plate_display(identity: RecordedPlayIdentity) -> str | None:
     """打席非該当だけは明示NULL、旧boolは同じ唯一表示生成器へ渡す。"""
     play = identity.play
@@ -645,6 +697,8 @@ def _native_plate_display(identity: RecordedPlayIdentity) -> str | None:
             return None
         result_label = _lookup(identity.admin_vocabularies, play["batting_result_key"])
         ball_type_label = _lookup(identity.admin_vocabularies, play["batted_ball_type"])
+        if plate_ended is True and result_label is None:
+            result_label = _interference_plate_label(identity)
         plate_display = plate_result_display(
             result_label,
             plate_ended,

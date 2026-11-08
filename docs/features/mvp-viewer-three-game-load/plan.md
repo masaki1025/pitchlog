@@ -21,3 +21,7 @@ branch: feature/mvp-viewer-three-game-load-20261108
 実装前の単位整理: step1はFE driver/config、step2はBE owned wrapper/検証、step3は非作者確認後の実走と結果を対象とする。3記録POSTの実要求〜応答時間帯が両waveで重なることを観測し、試合ごと異なる通常結果を指定して別試合混同を検出する。総試験期限は900秒だが製品RPC/leaseや10秒閲覧条件を延ばさない。
 
 非作者REPORT2b087deaのP1を採用。履歴だけの時刻採取を廃し、status/score/回/アウト/走者/count/対象履歴結果/18出場枠/保存時刻を一回のDOM snapshotで同時観測する。同saved_atは元実保存GETへ完全一致させる。後段45秒pollで修復して10秒成功にしない。追加所有は試験用viewerThreeGameSnapshot.e2e-support.tsと同.spec.tsのみ、DOM全状態が遅れて20秒ならその20秒を返す対向を同じcallbackで検査する。実画面/実PG成功の代わりにはしない。
+
+## 2026-11-09 実走前のfixture整合
+
+PO委任によるCodex主担当判断。owned launcherが継承DSNを拒否して新規隔離PGのDSNを注入する既経路に合わせ、共通lock fixtureの環境変数「存在」拒否2行を削除。db subject/role identity guard・同一fixture・commonlockを維持し、外部DSNをunsetして共有先へfallbackする処理は追加しない。実3game負荷はこの修復後固定点で実施する。

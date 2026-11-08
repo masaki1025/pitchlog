@@ -39,8 +39,9 @@ _QUERIES: dict[str, LiteralString] = {
 @pytest.fixture(autouse=True)
 def _exclusive_fixture_lifetime():
     """fixture作成前から破棄後まで共通排他を保つ。外側flockとの二重取得は禁止。"""
-    assert not os.environ.get("PITCHLOG_TEST_ADMIN_DSN")
-    assert not os.environ.get("PITCHLOG_TEST_ROLE_DSN")
+    # owned launcherが外部DSNを拒否し、新一時PGのDSNだけをpytestへ注入する。
+    # ここで環境変数の存在を拒むと、その正規owned注入まで必ず拒否してしまう。
+    # 実接続のsubject/identityは既db autouse guardと専用fixtureが照合する。
     with owned_pg_browser_network_lock():
         yield
 

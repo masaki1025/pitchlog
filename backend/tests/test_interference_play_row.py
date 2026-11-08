@@ -12,6 +12,7 @@ from test_runner_nonpitch_row_operations import _results, _token
 from pitchlog.db.game_state.models import PlayRow
 from pitchlog.db.sync_protocol.models import IdempotencyLedger, OperationEvent
 from pitchlog.domainrt.host import open_domain_host
+from pitchlog.domainrt.lineup_play_prefix_continuation import PrefixRef
 from pitchlog.repositories.ordinary_pitch_operations import (
     PLAY_PREFIX_PLAY_OPERATIONS,
     OrdinaryPlayRowError,
@@ -238,6 +239,7 @@ def _actual_adopted_error(operation="error"):
     raw["calculation"]["response"] = response
     payload = LineupPitchPlayPayload.model_validate_json(json.dumps(raw))
     q = payload.calculation.request
+    assert isinstance(q.prefix_ref, PrefixRef)
     row = pitch_physical_row(
         payload.observations,
         payload.participants,
@@ -288,6 +290,7 @@ def _actual_old_batted_runtime(index):
     with open_domain_host() as host:
         payload = actual_batted_payload(sample, host, expected_artifact=ARTIFACT)
     q = payload.calculation.request
+    assert isinstance(q.prefix_ref, PrefixRef)
     raw = payload.model_dump(mode="json", by_alias=True, exclude_unset=True)
     assert q.t1.interference_ruling == "not-required"
     assert raw["observations"]["interferenceRuling"] == {"kind": "not-required"}
@@ -367,6 +370,7 @@ def test_previous_hit_results_complete_all_twelve_batted_kinds(result):
     }
     payload = LineupPitchPlayPayload.model_validate_json(json.dumps(raw))
     q = payload.calculation.request
+    assert isinstance(q.prefix_ref, PrefixRef)
     row = pitch_physical_row(
         payload.observations,
         payload.participants,
@@ -390,6 +394,7 @@ def test_previous_ordinary_v3_source_still_reaches_same_tx_preflight():
     )["cases"][0]["V7"]
     payload = LineupPitchPlayPayload.model_validate_json(json.dumps(raw))
     q = payload.calculation.request
+    assert isinstance(q.prefix_ref, PrefixRef)
     row = pitch_physical_row(
         payload.observations,
         payload.participants,
