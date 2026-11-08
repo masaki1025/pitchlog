@@ -1,5 +1,17 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 2026-11-08 21:25 JST：打球群の接合・独立確認と、実画面送信前の残件
+
+- **固定候補**: `feature/mvp-batted-operations-integration-20261108@d074b72ba01cc4d05af29e7b534189c496c5c49c` clean/push済。schema/head82c・互換842・後続4安打5bf・59球driver359を通常mergeし、rootのSQL/12物理結果/T5写像を接合。artifact71f、prepare生成c2758d69。旧主候補83e/0dbは別版として保持する。
+- **数学/射影の新実証**: 実唯一host71f→閉schema/head→V7/V8→既生成T5へ10打球入力を通し、原始27項目を全10件でavailable（10passed2.31秒）。RBI-04は得点1/打点0、犠飛1/1、公式1失策/犠打失策は原fielder ID各1。T5の式を複製せず、未知effectsから旧一括算入へのfallbackを遮断。これは実DB保存/画面成功ではない。BE生成/旧算入/新接続151passed7.72秒、FE schema/wire68passed2.34秒、型lint成功。
+- **限定非作者確認**: Recovery REPORT95ca8a2eeb8209517fd2149a9a4f374359e5770b963f1773afc0233fdfb55f7e、checks13a63b7b…、diff c3b658cc…がroot7939→4006→ee8とd074後発を対照、独立83passed11.92秒。793のfallback不足を修復済として保持し未解消P0/P1なし。旧response6defs×2schema全値保持。SQL別限定REPORT3150562d…のP2 NULL-safe許可をIS NOT TRUEへ是正・全文の2pattern×3箇所だけと独立対照。P6blind/旧facts全体/互換証明全体/正式受理/59実PG成功には広げない。
+- **59球ownedの実際の到達**: run1 ee8は36.74秒で正常49配置の開始投手SQL旧artifact3pinに停止（画面未到達）。rootが公式BODIESから1SQLを生成し、旧0db→71f3箇所だけ・残り9954byte同一を保持。全登録79適用関数とcanonical/欠落/重複/旧3pin拒否をDB前に2passed6.48秒で確認。run2 d074は正常49/全13固定SELECT EXPLAINを通り、実画面で新規create/startまで成功。しかし初回singleで同期POST未観測のまま停止139.43秒。finally RRで当該新試合in_progress、play/event/slot/accepted台帳0・open binding1・close0・T5/LC無し。失敗前全取消や保存成功と断定しない。source同一/owned削除/lock解放。manifest run1:263220a1…/run2:6766b0b2…。
+- **現在の次実測**: 同じ製品d074の初回singleだけに絞るtest-only4dca8fae/handle36405を実走中。CDPはクリック周辺のcaught classと固定src siteだけ、原message/locals/資格/要求本文/UUIDを保存せず即resume。UI固定status・endpoint/method/status集計・finally RRを採取する。時機への影響を明記、59全体の反復/成功先取りはしない。
+- **長履歴の別停止**: 26P3 run8 c5f7e9e/製品83eは2球後、最初standby接続→ほぼ同時business接続のConnectionTimeoutで停止133.56秒。元writer寿命24.7秒残/lastgoodgap2.5秒で今回のexpiryを除外、SQL拒否tag未到達/unknown。原因は未確定で、プール飽和/OOMと決めつけない。manifest24e281049603a7315d38b86a6507154defe8fd284ac728149c7758d77c61963a、source3402/probe/site一致/cleanup。authorの最初businessとした分類誤りはstandbyへ訂正保持。8球run2成功と26完了を混同しない。
+- **並行候補**: P3後続12打球b417f5de（target4通常/修正先不変、妨害除外）は新12+旧回帰5の実host/物理/runner/T5で候補固定、Recoveryが新delta限定非作者review中。妨害180322d5は唯一核/V7/物理/UIの純候補、artifact/schema/SQL/実PG未接合。基線修復別枝c19c8655はstageA資産28を保持した全59操作対照と既call署名追随によりbackend契約74passed3.74秒だが、歴史正例fixture上書きP1が判明して作者をGame担当へ移管、真正旧byte復帰とqualified-copyのみの署名補正へ修復中。正式7.7/生成facts原典pin/受理record/corpusは未成立、統合不可のまま保持する。
+- **次/完成条件**: singleの実失敗site→最小是正→同版59球/終了版成績CSV、26件訂正、残操作/INT/全取消訂正/断復旧/記録権交代/負荷/正式受理・CI/通常PR統合へ。21:30評価は未実施で停止条件ではない。実機/信頼TLS/運用復旧の人間実施分もMVP条件から外さない。MVP未完。
+
+
 ## 2026-11-08 20:38 JST：8球の実保存監査と、残打球の接合候補
 
 - **利用者操作の今回の実証**: test-only診断71743549/製品83e84222・artifact0db3で、画面新規作成/開始後の8球が正式受理、同D5再送/GET成功。owned RR監査でplay/event/slot/CSV/currentT5source各8、accepted台帳8、binding closed8。252.63秒/source3402・診断byte前後一致/owned削除/lock解放。manifest `0b372ce960dbd36a2b99ce532aa9619935efcf90722b36db72d37e6a83545196`、REPORT `cb70b1bdede0c37d8aea1ca7c8e3b890a86eb38e15c3867325bf35f604966a59`。26件訂正/9回の証拠ではない。
