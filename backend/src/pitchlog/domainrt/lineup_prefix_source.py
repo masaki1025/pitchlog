@@ -522,12 +522,18 @@ def initial_lineup_source(
 
 
 def require_batted_hit_observations(
-    t1, observations, *, require_current_rbi: bool = False
+    t1,
+    observations,
+    *,
+    require_current_rbi: bool = False,
+    actual_scoring=None,
+    actual_score_changed: bool = False,
 ) -> None:
     """原本V7の全打球観測と数学入力のタグを照合する。DB資格は発行しない。"""
     from pitchlog.domainrt.lineup_play_prefix_continuation import (
         AppliedRunnerAdvanceOverrides,
         BattedHitT1Input,
+        RunnerScoreEffect,
     )
     from pitchlog.sync.first_ball_payload import FirstBallObservations
     from pitchlog.sync.terminal_pitch_payload import BattedHitPlayObservations
@@ -545,26 +551,38 @@ def require_batted_hit_observations(
     )
     observation_override = checked.runner_advance_overrides
     scored_bases: set[str] = set()
+    if actual_scoring is not None:
+        if type(actual_scoring) is not tuple or any(
+            type(item) is not RunnerScoreEffect for item in actual_scoring
+        ):
+            raise ValueError("唯一核の走者得点根拠が閉型ではありません")
+        if len({item.base for item in actual_scoring}) != len(actual_scoring):
+            raise ValueError("唯一核の走者得点根拠が重複")
+        scored_bases = {item.base for item in actual_scoring if item.valid_run}
+    if t1.result_id == "batting-result.home-run":
+        scored_bases = set()
     if (
-        t1.result_id != "batting-result.home-run"
-        and not (
-            t1.result_id == "batting-result.batted-out"
-            and t1.before.state_fields.outs == "2"
+        (
+            require_current_rbi
+            and t1.result_id != "batting-result.home-run"
+            and actual_score_changed
+            and not scored_bases
         )
-        and type(t1.runner_advance_overrides) is AppliedRunnerAdvanceOverrides
-    ):
-        scored_bases = {
-            item.runner_base
-            for item in t1.runner_advance_overrides.overrides
-            if item.destination == "4"
-        }
-    if (
-        (require_current_rbi and bool(scored_bases) and t1.rbi_ruling_by_runner is None)
+        or (
+            t1.result_id == "batting-result.home-run"
+            and t1.rbi_ruling_by_runner is not None
+        )
+        or (
+            require_current_rbi
+            and bool(scored_bases)
+            and t1.rbi_ruling_by_runner is None
+        )
         or (t1.rbi_ruling_by_runner is None) != (checked.rbi_ruling_by_runner is None)
         or (
             t1.rbi_ruling_by_runner is not None
             and (
-                set(t1.rbi_ruling_by_runner) != scored_bases
+                actual_scoring is None
+                or set(t1.rbi_ruling_by_runner) != scored_bases
                 or t1.rbi_ruling_by_runner != checked.rbi_ruling_by_runner
             )
         )

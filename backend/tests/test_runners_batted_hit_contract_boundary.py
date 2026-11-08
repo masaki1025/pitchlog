@@ -11,6 +11,7 @@ from pitchlog.domainrt.lineup_play_prefix_continuation import (
     T1,
     BattedHitT1Input,
     Runner,
+    RunnerScoreEffect,
     T1Input,
 )
 from pitchlog.domainrt.lineup_prefix_source import require_batted_hit_observations
@@ -146,7 +147,7 @@ def test_double_play_requires_actual_first_runner_and_preserves_out_origin():
     ] == [(1, RUNNER["runnerId"], "封殺", "manual")]
 
 
-def test_current_writer_requires_each_scoring_runner_rbi_cause_but_legacy_read_preserves_old():
+def test_current_writer_requires_scoring_rbi_cause_and_legacy_read_keeps_old():
     """旧保存読取と新規保存を分け、停止後再発進の元観測を欠損補完しない。"""
     applied = {
         "kind": "applied",
@@ -163,13 +164,26 @@ def test_current_writer_requires_each_scoring_runner_rbi_cause_but_legacy_read_p
     old_v7 = _observations(applied)
     require_batted_hit_observations(old_t1, old_v7)
     with pytest.raises(ValueError):
-        require_batted_hit_observations(old_t1, old_v7, require_current_rbi=True)
+        require_batted_hit_observations(
+            old_t1, old_v7, require_current_rbi=True, actual_score_changed=True
+        )
     raw["rbiRulingByRunner"] = {"2": "stopped-and-restarted"}
     v7 = old_v7.model_dump(mode="json", by_alias=True)
     v7["rbiRulingByRunner"] = raw["rbiRulingByRunner"]
     new_t1 = BattedHitT1Input.model_validate_json(json.dumps(raw))
     new_v7 = BattedHitPlayObservations.model_validate_json(json.dumps(v7))
-    require_batted_hit_observations(new_t1, new_v7, require_current_rbi=True)
+    score_effects = (
+        RunnerScoreEffect.model_validate_json(
+            '{"base":"2","validRun":true,"rbiCredited":false}'
+        ),
+    )
+    require_batted_hit_observations(
+        new_t1,
+        new_v7,
+        require_current_rbi=True,
+        actual_scoring=score_effects,
+        actual_score_changed=True,
+    )
     for broken in (
         {"1": "ordinary-play"},
         {"2": "stopped-and-restarted", "3": "ordinary-play"},
@@ -182,6 +196,8 @@ def test_current_writer_requires_each_scoring_runner_rbi_cause_but_legacy_read_p
                 new_t1,
                 BattedHitPlayObservations.model_validate_json(json.dumps(damaged)),
                 require_current_rbi=True,
+                actual_scoring=score_effects,
+                actual_score_changed=True,
             )
     damaged = copy.deepcopy(raw)
     damaged["rbiRulingByRunner"] = None

@@ -116,6 +116,7 @@ function applyRbiRuling(
       credited = credited.concat([key])
   }
   rule.validRunnerRbiBases = credited
+  rule.scoringEvidence = true
   return true
 }
 
