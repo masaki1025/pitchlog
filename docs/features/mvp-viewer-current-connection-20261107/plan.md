@@ -36,3 +36,13 @@ worktree: /home/ymdms/projects/pitchlog-worktrees/feature-mvp-viewer-current-con
 元計画80f652d9/SHA36d1304b735f82fc73d0ce3aabb23d9a47a5104f53be08e0abaa32c0acaadb76のPO委任採用に基づき、root専用 `feature/mvp-viewer-product-integration-20261107`（730536eb起点）へ作者4b3339bcを接合する。共有13path patch SHA53991f6fcfc8ef279b2c725be8c80f6662ae42aa4af90caaca9ab3644f3d56aaを親18bの実byteと照合して適用し、生成器の2関数宣言/全SQLを正式product DDL・body manifestへ生成、Cookie対象と実有限期待集合を追随する。旧recover応答型除外・guard緩和は行わない。必要なrepository/runtime/7.7の派生受理は正規helperを使用し、実catalog/CI前に成立とはしない。編集をrootへ一本化し、作者と別WTで独立確認を継続する。
 
 ここでの接合は候補環境であり通常mergeや提供完成ではない。実PG/実画面は共通owned lockで走者主経路と分離し、終了v3の未提供を503のまま完成扱いにしない。
+
+## 2026-11-08 実環境検証の最小追補
+
+PO委任rootの本セッション指示により、step3の実検証を996ba453起点の専用branch `feature/mvp-viewer-actual-validation-20261108` で進める。編集所有は `backend/tests/db/test_viewer_live_owned.py`・`test_viewer_screen_owned.py` と必要なviewer専用補助、frontendのviewer E2E/config、本計画配下だけ。旧40bの実HTTP/ブラウザ操作を再利用し、正常CURRENT49 fixture（候補DDL/権限の後差込なし）とexpected_version/current DTOへ追随する。既規定の認証/資格/計算/SQLは変更しない。
+
+実loginを別Cookieで行い、GETだけの閲覧で0球/保存後の同値/有限paging/不可視404を検査する。HTTPSブラウザでは新規作成→開始→投球保存を記録contextから実操作し、別contextの10秒以内自動更新/reload/断中未更新/復帰/404を確認。ログインPOSTは閲覧準備と分け、閲覧contextから端末登録/書込/同期を送らない。既存loopback TLS fixtureだけを利用し、新鍵を発行せず実機信頼TLSの証拠へ広げない。旧実測と新sourceの証拠を分ける。
+
+共通lockをfixture作成前から破棄後まで保持し、共有DSN unset/前後source SHA/cleanupを固定する。run16等先行owned検証の終端を待ち、準備と純検査は並行する。新しい共有停止原因は同版で反復せず、根拠と最小patchをrootへ返す。2026-11-08 14:15→15:00の方式評価でも実証を優先し、部品毎の追加承認待ちを設けない指示を継承する。15時を作業停止時刻とは扱わない。
+
+2026-11-08 実HTTP r1の正常0球→1球で、viewer page tokenが親のstarted固定capability propertyを継承したまま登録能力と不一致となる通常不具合を確認。PO委任rootが `repositories/viewer_read.py` と `tests/test_viewer_read_sql.py` の最小修正を本担当へ移管。明示property overrideと実 `prepare_function_operation` の正負対向だけを追加し、SQL/ACL/registry/正式資産を変えない。旧r1失敗を保全し、root非作者確認後の新版で実HTTP/ブラウザへ進む。
