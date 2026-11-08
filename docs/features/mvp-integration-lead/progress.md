@@ -1,5 +1,15 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 2026-11-08 14時台：45分評価の途中成果と具体的未解消
+
+- **新しい実画面操作**: 閲覧d37afa40のowned実HTTPS/別Cookieで、画面新規作成→開始→1球保存→別context自動閲覧→reload/通信断/復帰/404が1passed89.52秒。server保存時刻→表示9473ms、ACK→497ms、断検知2814ms/復帰3307ms。GET専用・記録権/登録/同期書込なし。1標本/loopback自己署名であり負荷/実機/運用TLSの成立ではない。rootは封印manifest SHA3a25f6798354d75101e628e4fd65b1a4e3d328d74a800cd2e10231058b420da5の28artifact実SHAを再照合した。
+- **閲覧の不具合解消**: 初期0球200から保存1球で503になる原因は、子tokenのclass変数が親propertyを上書きせずcapがstartedへ戻る点。d37の実property/実dispatch正負をroot独立18passed6.12秒。続く終了404は既真正lifecycle_display_scope貸与欠落で、60adeの同TX/同display資格接合をroot独立21passed6.24秒で限定採用。元HTTP2回の失敗は保全し、終了NPを終了v3未供給と混同した早期503期待は28abeで200/CP/lifecycle全値へ是正、実HTTP後続中。
+- **訂正画面**: 15163797は同head25件頁・対象実event/play照合・保存後/I6保持により26件目を選択可能。独立の行位置P1を位置/ID重複対向で是正、追補REPORT SHA2387319a1e47a8e92cc65660b3930f08d543807e20f50d2a91442546c103a476。root5suite28pure/型lint0、実26画面試験2bb6を正常49専用で準備（実行待ち）。実DB保存の成功ではない。
+- **訂正の実停止**: 正常49 run1は26保存/対象取得後、T2故障hook到達前のRG1 BrokenPipe/503で未保存。run2は有界頁前後の真正資格確認9dc＋test診断76dで正しく早期停止。現P3 lease年齢4505ms/最初page前で破断し、現P3の10秒idle説明は支持されない。rc1/491.41秒/source3377一致/cleanup、manifest SHA3b892fca81933741dc71b06ec4c2e1fd444e6a9f0eb803aeb6ff5f640b602a12。controllerの実拒否箇所をfailure-onlyで確認する。期限/資格を緩めず同じrunを反復しない。
+- **凡打の新接合候補**: root専用feature/mvp-batted-out-integration-20261108@205502e7は作者35575e4bの唯一T1/明示OUT3/画面を、旧4安打の閉条件を保った正式候補schema/d.ts・既runner後の固定f6親SQLoverlay・T5の明示盗塁なしへ接合。BE40/FE58/型、T5追加6正負を通し、共有SQL/schema/statsは独立REPORT ca70d0fae99f6fe8e838fbef7fb22cf7f93fa763ad825d58930fc2229c8b889eで限定採用。artifact0db3のD11/fixture/旧53実host比較・有限互換は別担当が後発を実装中、実保存/正式受理は未了。
+- **主候補**: da01ad0cはviewer60ade/訂正画面151と試験2bb/真正頁確認76dを通常接合。凡打205はまだ別枝。17操作の元実測baeと後発同居版を区別する。15時評価後もMVP全範囲を継続し、実機/復旧/負荷/正式統合/CIの未了を維持する。
+
+
 ## 2026-11-08：走者を含む17操作の実画面・保存・再送・全取消検査を完走
 
 ### 14:15〜15:00 JSTの方式評価（PO指定）
