@@ -29,10 +29,48 @@ import {
 } from './terminalPitchWire'
 import { sameOrdinaryWire } from './ordinaryPitchWire'
 
-type BattedHitWireObservations = Omit<
+export type BattedOfficialScoring =
+  | BattedHitObservations['officialScoringPayload']
+  | {
+      kind: 'error-recorded'
+      errors: [
+        {
+          fielder: { kind: 'official'; player_id: string }
+          count: 1
+        },
+      ]
+    }
+export type BattedHitWireObservations = Omit<
   BattedHitObservations,
-  'runnerAdvanceOverridesByRunner'
-> & { runnerAdvanceOverridesByRunner: RunnerAdvanceOverridesByRunner }
+  'runnerAdvanceOverridesByRunner' | 'officialScoringPayload'
+> & {
+  runnerAdvanceOverridesByRunner: RunnerAdvanceOverridesByRunner
+  officialScoringPayload: BattedOfficialScoring
+  rbiRulingByRunner?: Partial<
+    Record<
+      '1' | '2' | '3',
+      'ordinary-play' | 'kept-running' | 'stopped-and-restarted'
+    >
+  >
+}
+export type BattedOtherResult =
+  | 'batting-result.batted-reach'
+  | 'batting-result.error'
+  | 'batting-result.fielders-choice'
+  | 'batting-result.sacrifice-bunt'
+  | 'batting-result.sacrifice-fly'
+  | 'batting-result.sacrifice-bunt-error'
+export type BattedOtherWireObservations = Omit<
+  BattedHitWireObservations,
+  'resultId'
+> & { resultId: BattedOtherResult }
+export type BattedDoublePlayWireObservations = Omit<
+  BattedHitWireObservations,
+  'resultId'
+> & {
+  resultId: 'batting-result.double-play'
+  outRunner: { base: '1'; runnerId: string; outKind: 'force-out' }
+}
 export type BattedOutWireObservations = Omit<
   BattedHitWireObservations,
   'resultId' | 'thirdOutObservation'
@@ -158,6 +196,8 @@ export async function formatLineupPrefixWire(
     | Observations
     | BattedHitObservations
     | BattedHitWireObservations
+    | BattedOtherWireObservations
+    | BattedDoublePlayWireObservations
     | BattedOutWireObservations
     | IntentionalWalkObservation
     | RunnerV7['observations'],

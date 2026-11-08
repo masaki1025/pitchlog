@@ -307,7 +307,7 @@ class RunnerAdvanceOverride(_LineupWire):
     """記録者が確定した1走者の実到達塁。停止は写像へ含めない。"""
 
     runner_base: Literal["1", "2", "3"] = Field(alias="runnerBase")
-    destination: Literal["2", "3", "4"]
+    destination: Literal["1", "2", "3", "4"]
 
 
 class AppliedRunnerAdvanceOverrides(_LineupWire):
@@ -315,6 +315,20 @@ class AppliedRunnerAdvanceOverrides(_LineupWire):
 
     kind: Literal["applied"]
     overrides: tuple[RunnerAdvanceOverride, ...] = Field(min_length=1, max_length=3)
+
+
+class BattedForceOut(_LineupWire):
+    """併殺の走者アウトを起点・実ID・原因で明示する。"""
+
+    base: Literal["1"]
+    runner_id: CanonicalUuid = Field(alias="runnerId")
+    out_kind: Literal["force-out"] = Field(alias="outKind")
+
+
+RbiRulingByRunner: TypeAlias = dict[
+    Literal["1", "2", "3"],
+    Literal["ordinary-play", "kept-running", "stopped-and-restarted"],
+]
 
 
 class BattedHitT1Input(_LineupWire):
@@ -327,10 +341,17 @@ class BattedHitT1Input(_LineupWire):
         "batting-result.triple",
         "batting-result.home-run",
         "batting-result.batted-out",
+        "batting-result.batted-reach",
+        "batting-result.error",
+        "batting-result.fielders-choice",
+        "batting-result.sacrifice-bunt",
+        "batting-result.sacrifice-fly",
+        "batting-result.sacrifice-bunt-error",
+        "batting-result.double-play",
     ] = Field(alias="resultId")
     pitch_event_kind: Literal["pitch-event"] = Field(alias="pitchEventKind")
     before: StrikeoutSnapshot
-    official_scoring_payload: Literal["no-error"] = Field(
+    official_scoring_payload: Literal["no-error", "error-recorded"] = Field(
         alias="officialScoringPayload"
     )
     interference_ruling: Literal["not-required"] = Field(alias="interferenceRuling")
@@ -340,6 +361,25 @@ class BattedHitT1Input(_LineupWire):
     third_out_observation: Literal["none", "batter-before-first"] = Field(
         alias="thirdOutObservation"
     )
+    out_runner: BattedForceOut | None = Field(default=None, alias="outRunner")
+    rbi_ruling_by_runner: RbiRulingByRunner | None = Field(
+        default=None, alias="rbiRulingByRunner"
+    )
+
+    @model_validator(mode="after")
+    def _closed_out_runner(self) -> Self:
+        """旧形にnullを混ぜず、併殺だけ実走者アウトを要求する。"""
+        if ("out_runner" in self.model_fields_set and self.out_runner is None) or (
+            (self.result_id == "batting-result.double-play")
+            != (self.out_runner is not None)
+        ):
+            raise ValueError("併殺走者アウトの原観測が不足")
+        if (
+            "rbi_ruling_by_runner" in self.model_fields_set
+            and self.rbi_ruling_by_runner is None
+        ):
+            raise ValueError("RBI因果の明示nullは使えません")
+        return self
 
 
 class _RunnerOfficialRef(_LineupWire):

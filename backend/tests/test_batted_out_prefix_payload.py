@@ -113,9 +113,18 @@ def test_actual_batted_out_third_out_is_sealed_into_v3_payload():
     assert response.value.t1.stat_flags.model_dump(by_alias=True) == flags
     assert response.value.t1.out_effect.count == "1"
     assert response.value.t1.batter_destination.kind == "out"
+    assert request.t1.before.state_fields.score.away == "5"
+    assert request.t1.before.state_fields.score.home == "3"
+    assert response.value.t1.after.state_fields.half == "bottom"
+    assert (
+        request.t1.before.scoreboard.inning_scores
+        == response.value.t1.after.scoreboard.inning_scores
+    )
     require_batted_hit_observations(request.t1, observed)
     v7, v8 = format_batted_hit_prefix_payload(observed, calc)
-    decoded = read_lineup_pitch_payload(v7, v8, expected_calculation=calc)
+    decoded = read_lineup_pitch_payload(
+        v7, v8, expected_calculation=calc, require_current_rbi=True
+    )
     assert decoded.observations == observed
 
 

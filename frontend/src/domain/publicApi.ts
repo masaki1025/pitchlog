@@ -653,6 +653,12 @@ function evaluatePitch(
       'runnerAdvanceOverrides',
       'thirdOutObservation',
     ])
+  if (battedHit && request !== null) {
+    if (Object.prototype.hasOwnProperty.call(request, 'outRunner'))
+      requestKeys = requestKeys.concat(['outRunner'])
+    if (Object.prototype.hasOwnProperty.call(request, 'rbiRulingByRunner'))
+      requestKeys = requestKeys.concat(['rbiRulingByRunner'])
+  }
   if (runnerEvent)
     requestKeys = requestKeys.concat(['runnerObservation', 'liveRunners'])
   if (request === null || !exactKeys(request, requestKeys)) {
@@ -809,22 +815,26 @@ function evaluatePitch(
         request.liveRunners as Array<LiveRunnerIdentity>,
         cursors,
       )
-    } else if (battedHit)
-      result = calculateBattedHit(
-        state,
-        scoreboard,
-        {
-          eventKind: request.eventKind,
-          resultId: request.resultId,
-          pitchEventKind: request.pitchEventKind,
-          officialScoringPayload: request.officialScoringPayload,
-          interferenceRuling: request.interferenceRuling,
-          runnerAdvanceOverrides: request.runnerAdvanceOverrides,
-          thirdOutObservation: request.thirdOutObservation,
-        } as BattedHitObservation,
-        cursors,
-      )
-    else
+    } else if (battedHit) {
+      let battedObservation = {
+        eventKind: request.eventKind,
+        resultId: request.resultId,
+        pitchEventKind: request.pitchEventKind,
+        officialScoringPayload: request.officialScoringPayload,
+        interferenceRuling: request.interferenceRuling,
+        runnerAdvanceOverrides: request.runnerAdvanceOverrides,
+        thirdOutObservation: request.thirdOutObservation,
+      } as BattedHitObservation
+      if (Object.prototype.hasOwnProperty.call(request, 'outRunner'))
+        battedObservation = Object.assign(battedObservation, {
+          outRunner: request.outRunner,
+        })
+      if (Object.prototype.hasOwnProperty.call(request, 'rbiRulingByRunner'))
+        battedObservation = Object.assign(battedObservation, {
+          rbiRulingByRunner: request.rbiRulingByRunner,
+        })
+      result = calculateBattedHit(state, scoreboard, battedObservation, cursors)
+    } else
       result = cursorCalculator(
         state,
         scoreboard,
@@ -851,7 +861,7 @@ function evaluatePitch(
       cursors,
       afterCursors,
     )
-    if (runnerEvent && derived.runnerScoreEffects)
+    if ((runnerEvent || battedHit) && derived.runnerScoreEffects)
       Object.assign(output, {
         runnerScoreEffects: derived.runnerScoreEffects.map((r) => ({
           base: formatDecimalInteger(r.base),

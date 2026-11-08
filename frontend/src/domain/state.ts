@@ -514,6 +514,7 @@ function applyCountRule(
     resultId === 'batting-result.home-run'
   const homeRun = resultId === 'batting-result.home-run'
   const flags = emptyFlags()
+  if (rule.errorRecorded === true) flags.失策 = true
   flags.投球数 = !intentional
   if (rule.pitchEventKind) flags.投球数 = rule.pitchEventKind === 'pitch-event'
   flags.投球回算入アウト = rule.outs > 0n
@@ -531,7 +532,20 @@ function applyCountRule(
     flags.三振 = true
     flags.打数 = true
   }
-  if (resultId === 'batting-result.batted-out') flags.打数 = true
+  if (
+    resultId === 'batting-result.batted-out' ||
+    resultId === 'batting-result.double-play' ||
+    resultId === 'batting-result.batted-reach' ||
+    resultId === 'batting-result.error' ||
+    resultId === 'batting-result.fielders-choice'
+  )
+    flags.打数 = true
+  if (
+    resultId === 'batting-result.sacrifice-bunt' ||
+    resultId === 'batting-result.sacrifice-bunt-error'
+  )
+    flags.犠打 = true
+  if (resultId === 'batting-result.sacrifice-fly') flags.犠飛 = true
   if (hit) {
     flags.被安打 = true
     flags.安打 = true
@@ -585,8 +599,15 @@ function applyCountRule(
         validRun = rule.validRunnerScoreBases.includes(baseKey(base))
       const rbiCredited =
         validRun &&
+        (!rule.validRunnerRbiBases ||
+          rule.validRunnerRbiBases.includes(baseKey(base))) &&
         (homeRun ||
           hit ||
+          ((resultId === 'batting-result.batted-out' ||
+            resultId === 'batting-result.sacrifice-bunt' ||
+            resultId === 'batting-result.sacrifice-fly') &&
+            rule.outs === 1n) ||
+          resultId === 'batting-result.fielders-choice' ||
           ((walk || hitByPitch) && advance.modality === 'forced'))
       if (validRun) runs = runs + 1n
       if (rbiCredited) rbi = rbi + 1n
@@ -657,6 +678,8 @@ function applyCountRule(
     boardAway = away
   }
   if (hit) hits = hits + 1n
+  let errors = board.errors
+  if (rule.errorRecorded === true) errors = errors + 1n
   const after = {
     stateFields: {
       half: half,
@@ -675,7 +698,7 @@ function applyCountRule(
       home: boardHome,
       away: boardAway,
       hits: hits,
-      errors: board.errors,
+      errors: errors,
       strikeouts: strikeouts,
       walks: walks,
     },

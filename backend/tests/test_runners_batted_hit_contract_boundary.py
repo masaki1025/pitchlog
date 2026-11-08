@@ -7,15 +7,22 @@ from uuid import UUID
 
 import pytest
 
+from pitchlog.domainrt.initial_game_roster import InitialRosterProjection
 from pitchlog.domainrt.lineup_play_prefix_continuation import (
     T1,
     BattedHitT1Input,
     Runner,
+    RunnerScoreEffect,
     T1Input,
 )
 from pitchlog.domainrt.lineup_prefix_source import require_batted_hit_observations
 from pitchlog.sync.ordinary_pitch_execution import OrdinaryPitchExecutionError
-from pitchlog.sync.terminal_pitch_payload import BattedHitPlayObservations
+from pitchlog.sync.ordinary_pitch_payload import OrdinaryPitchParticipants
+from pitchlog.sync.ordinary_pitch_physical import pitch_physical_row
+from pitchlog.sync.terminal_pitch_payload import (
+    BattedHitPlayObservations,
+    _official_error_fielder_in_roster,
+)
 from pitchlog.sync.terminal_pitch_projection import runner_physical_rows
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -91,12 +98,301 @@ def test_applied_two_runner_observation_matches_t1_exactly():
         require_batted_hit_observations(t1, _observations(mismatched))
 
 
+def test_error_reach_requires_matching_t1_and_observed_official_error():
+    """旧正本の失策出塁を新規現行入力で実失策野手に結び、タグ混在を拒否する。"""
+    forced = {
+        "kind": "applied",
+        "overrides": [
+            {"runnerBase": "1", "destination": "2"},
+            {"runnerBase": "2", "destination": "3"},
+        ],
+    }
+    t1_raw = copy.deepcopy(CASE["request"]["t1"])
+    t1_raw["resultId"] = "batting-result.error"
+    t1_raw["officialScoringPayload"] = "error-recorded"
+    t1_raw["before"]["stateFields"]["state.runners"] = "first-second"
+    t1_raw["runnerAdvanceOverrides"] = forced
+    t1 = BattedHitT1Input.model_validate_json(json.dumps(t1_raw))
+    observed_raw = _observations(forced).model_dump(mode="json", by_alias=True)
+    observed_raw["resultId"] = "batting-result.error"
+    observed_raw["officialScoringPayload"] = {
+        "kind": "error-recorded",
+        "errors": [
+            {
+                "fielder": {"kind": "official", "player_id": RUNNER["runnerId"]},
+                "count": 1,
+            }
+        ],
+    }
+    observed = BattedHitPlayObservations.model_validate_json(json.dumps(observed_raw))
+    require_batted_hit_observations(t1, observed)
+    for changed in (
+        {**t1_raw, "officialScoringPayload": "no-error"},
+        {**t1_raw, "resultId": "batting-result.batted-reach"},
+    ):
+        with pytest.raises(ValueError):
+            require_batted_hit_observations(
+                BattedHitT1Input.model_validate_json(json.dumps(changed)), observed
+            )
+
+
+def test_double_play_requires_actual_first_runner_and_preserves_out_origin():
+    """併殺の一塁走者アウトは実IDと封殺原因を要求し、起点塁を保存する。"""
+    raw = copy.deepcopy(CASE["request"]["t1"])
+    raw["resultId"] = "batting-result.double-play"
+    raw["before"]["stateFields"]["state.outs"] = "0"
+    raw["before"]["stateFields"]["state.runners"] = "first"
+    raw["outRunner"] = {
+        "base": "1",
+        "runnerId": RUNNER["runnerId"],
+        "outKind": "force-out",
+    }
+    t1 = BattedHitT1Input.model_validate_json(json.dumps(raw))
+    observed = _observations({"kind": "not-applied", "overrides": []})
+    observed_raw = observed.model_dump(mode="json", by_alias=True)
+    observed_raw["resultId"] = raw["resultId"]
+    observed_raw["outRunner"] = raw["outRunner"]
+    closed = BattedHitPlayObservations.model_validate_json(json.dumps(observed_raw))
+    require_batted_hit_observations(t1, closed)
+    for changed in (
+        {"base": "1", "runnerId": str(UUID(int=100)), "outKind": "force-out"},
+        {"base": "1", "runnerId": RUNNER["runnerId"], "outKind": "running-out"},
+    ):
+        bad = copy.deepcopy(observed_raw)
+        bad["outRunner"] = changed
+        with pytest.raises(ValueError):
+            require_batted_hit_observations(
+                t1, BattedHitPlayObservations.model_validate_json(json.dumps(bad))
+            )
+    for missing in (None, {}):
+        bad = copy.deepcopy(observed_raw)
+        if missing is None:
+            del bad["outRunner"]
+        else:
+            bad["outRunner"] = missing
+        with pytest.raises(ValueError):
+            BattedHitPlayObservations.model_validate_json(json.dumps(bad))
+    output = copy.deepcopy(CASE["expected"]["value"]["t1"])
+    output["outEffect"] = {"count": "2", "targets": ["batter", {"runner": "1"}]}
+    output["runnerDefaultAdvance"]["first"] = {
+        "modality": "not-applicable",
+        "destination": None,
+    }
+    rows = runner_physical_rows(
+        (Runner.model_validate_json(json.dumps(RUNNER)),),
+        t1=T1.model_validate_json(json.dumps(output)),
+        t1_input=t1,
+        tenant_id=UUID(int=1),
+        play_id=UUID(int=2),
+    )
+    assert [
+        (item["base"], item["runner_id"], item["status"], item["status_source"])
+        for item in rows
+    ] == [(1, RUNNER["runnerId"], "封殺", "manual")]
+
+
+def test_current_writer_requires_scoring_rbi_cause_and_legacy_read_keeps_old():
+    """旧保存読取と新規保存を分け、停止後再発進の元観測を欠損補完しない。"""
+    applied = {
+        "kind": "applied",
+        "overrides": [
+            {"runnerBase": "1", "destination": "2"},
+            {"runnerBase": "2", "destination": "4"},
+        ],
+    }
+    raw = copy.deepcopy(CASE["request"]["t1"])
+    raw["before"]["stateFields"]["state.runners"] = "first-second"
+    raw["before"]["stateFields"]["state.outs"] = "0"
+    raw["runnerAdvanceOverrides"] = applied
+    old_t1 = BattedHitT1Input.model_validate_json(json.dumps(raw))
+    old_v7 = _observations(applied)
+    require_batted_hit_observations(old_t1, old_v7)
+    with pytest.raises(ValueError):
+        require_batted_hit_observations(
+            old_t1, old_v7, require_current_rbi=True, actual_score_changed=True
+        )
+    raw["rbiRulingByRunner"] = {"2": "stopped-and-restarted"}
+    v7 = old_v7.model_dump(mode="json", by_alias=True)
+    v7["rbiRulingByRunner"] = raw["rbiRulingByRunner"]
+    new_t1 = BattedHitT1Input.model_validate_json(json.dumps(raw))
+    new_v7 = BattedHitPlayObservations.model_validate_json(json.dumps(v7))
+    score_effects = (
+        RunnerScoreEffect.model_validate_json(
+            '{"base":"2","validRun":true,"rbiCredited":false}'
+        ),
+    )
+    require_batted_hit_observations(
+        new_t1,
+        new_v7,
+        require_current_rbi=True,
+        actual_scoring=score_effects,
+        actual_score_changed=True,
+    )
+    for broken in (
+        {"1": "ordinary-play"},
+        {"2": "stopped-and-restarted", "3": "ordinary-play"},
+        {"2": "unknown"},
+    ):
+        damaged = copy.deepcopy(v7)
+        damaged["rbiRulingByRunner"] = broken
+        with pytest.raises(ValueError):
+            require_batted_hit_observations(
+                new_t1,
+                BattedHitPlayObservations.model_validate_json(json.dumps(damaged)),
+                require_current_rbi=True,
+                actual_scoring=score_effects,
+                actual_score_changed=True,
+            )
+    damaged = copy.deepcopy(raw)
+    damaged["rbiRulingByRunner"] = None
+    with pytest.raises(ValueError):
+        BattedHitT1Input.model_validate_json(json.dumps(damaged))
+
+
+@pytest.mark.parametrize(
+    "result_id",
+    (
+        "batting-result.batted-reach",
+        "batting-result.fielders-choice",
+        "batting-result.sacrifice-bunt",
+    ),
+)
+def test_existing_two_runner_batted_results_preserve_original_observation(
+    result_id,
+):
+    """正本の一二塁3結果も元観測とT1の到達を全値照合する。"""
+    applied = {
+        "kind": "applied",
+        "overrides": [
+            {"runnerBase": "1", "destination": "2"},
+            {"runnerBase": "2", "destination": "3"},
+        ],
+    }
+    t1_raw = copy.deepcopy(CASE["request"]["t1"])
+    t1_raw["resultId"] = result_id
+    t1_raw["before"]["stateFields"]["state.runners"] = "first-second"
+    t1_raw["runnerAdvanceOverrides"] = applied
+    t1 = BattedHitT1Input.model_validate_json(json.dumps(t1_raw))
+    observed_raw = _observations(applied).model_dump(mode="json", by_alias=True)
+    observed_raw["resultId"] = result_id
+    observed = BattedHitPlayObservations.model_validate_json(json.dumps(observed_raw))
+    require_batted_hit_observations(t1, observed)
+    observed_raw["runnerAdvanceOverridesByRunner"]["overrides"][0]["destination"] = "3"
+    with pytest.raises(ValueError):
+        require_batted_hit_observations(
+            t1, BattedHitPlayObservations.model_validate_json(json.dumps(observed_raw))
+        )
+
+
+def test_sacrifice_bunt_error_requires_one_primitive_error_and_original_fielder():
+    """正本の犠打失策1件だけを原野手ID・数値プリミティブへ閉じる。"""
+    advance = {
+        "kind": "applied",
+        "overrides": [
+            {"runnerBase": "1", "destination": "2"},
+            {"runnerBase": "2", "destination": "3"},
+        ],
+    }
+    raw = copy.deepcopy(CASE["request"]["t1"])
+    raw["resultId"] = "batting-result.sacrifice-bunt-error"
+    raw["before"]["stateFields"]["state.outs"] = "0"
+    raw["before"]["stateFields"]["state.runners"] = "first-second"
+    raw["runnerAdvanceOverrides"] = advance
+    raw["officialScoringPayload"] = "error-recorded"
+    t1 = BattedHitT1Input.model_validate_json(json.dumps(raw))
+    observed = _observations(advance).model_dump(mode="json", by_alias=True)
+    observed["resultId"] = raw["resultId"]
+    observed["officialScoringPayload"] = {
+        "kind": "error-recorded",
+        "errors": [
+            {
+                "fielder": {
+                    "kind": "official",
+                    "player_id": "10000000-0000-0000-0000-000000000063",
+                },
+                "count": 1,
+            }
+        ],
+    }
+    parsed = BattedHitPlayObservations.model_validate_json(json.dumps(observed))
+    require_batted_hit_observations(t1, parsed)
+    people = OrdinaryPitchParticipants.model_validate_json(
+        json.dumps(CASE["request"]["source"]["participants"])
+    )
+    physical = pitch_physical_row(
+        parsed,
+        people,
+        raw["resultId"],
+        tenant_id=UUID(int=1),
+        game_id=UUID(int=2),
+        source_event_id=UUID(int=3),
+        row_id=UUID(int=4),
+        play_number=1,
+    )
+    assert (
+        physical["resolved_error_player_id"]
+        == observed["officialScoringPayload"]["errors"][0]["fielder"]["player_id"]
+    )
+    assert physical["error_type"] is None
+    for value in (True, "1", 1.0, None, {"toJSON": 1}, 2):
+        broken = copy.deepcopy(observed)
+        broken["officialScoringPayload"]["errors"][0]["count"] = value
+        with pytest.raises(ValueError):
+            BattedHitPlayObservations.model_validate_json(json.dumps(broken))
+    for broken in (
+        {
+            **observed,
+            "officialScoringPayload": {
+                "kind": "no-error",
+                "errorCount": "0",
+                "fielders": [],
+            },
+        },
+        {**observed, "resultId": "batting-result.batted-reach"},
+    ):
+        with pytest.raises(ValueError):
+            require_batted_hit_observations(
+                t1, BattedHitPlayObservations.model_validate_json(json.dumps(broken))
+            )
+
+
+def test_error_fielder_is_current_defender_not_dh_or_attack_side():
+    """同試合のDH・攻撃側を公式守備者へ昇格させない。"""
+    fixture = json.loads(
+        (
+            ROOT / "frontend/src/api/fixtures/lineupPrefixGame.recorded.v3.json"
+        ).read_text()
+    )["value"]["roster"]
+    roster = InitialRosterProjection.model_validate_json(json.dumps(fixture))
+    home = roster.teams[1]
+    away = roster.teams[0]
+    home_field = next(
+        p.player.player_id
+        for p in home.participants
+        if any(role.kind == "fielding" for role in p.roles)
+    )
+    home_dh = next(
+        p.player.player_id
+        for p in home.participants
+        if not any(role.kind == "fielding" for role in p.roles)
+    )
+    away_field = next(
+        p.player.player_id
+        for p in away.participants
+        if any(role.kind == "fielding" for role in p.roles)
+    )
+    assert _official_error_fielder_in_roster(roster, home.team_id, home_field)
+    assert not _official_error_fielder_in_roster(roster, home.team_id, home_dh)
+    assert not _official_error_fielder_in_roster(roster, home.team_id, away_field)
+    assert not _official_error_fielder_in_roster(roster, away.team_id, home_field)
+
+
 @pytest.mark.parametrize(
     "override",
     [
         {"kind": "applied", "overrides": []},
         {"kind": "applied", "overrides": [{"runnerBase": "4", "destination": "4"}]},
-        {"kind": "applied", "overrides": [{"runnerBase": "1", "destination": "1"}]},
+        {"kind": "applied", "overrides": [{"runnerBase": "1", "destination": "5"}]},
     ],
 )
 def test_applied_runner_wire_rejects_empty_and_out_of_range(override):
@@ -158,6 +454,43 @@ def test_physical_runner_row_keeps_before_base_when_t1_moves():
             ),
             tenant_id=tenant,
             play_id=play,
+        )
+
+
+def test_confirmed_hold_is_manual_physical_row_and_not_a_forced_reach():
+    """起点塁への明示到達を未観測と区別して物理行へ保存する。"""
+    hold = {"kind": "applied", "overrides": [{"runnerBase": "1", "destination": "1"}]}
+    t1_input = _t1_input(hold)
+    require_batted_hit_observations(t1_input, _observations(hold))
+    raw = copy.deepcopy(CASE["expected"]["value"]["t1"])
+    raw["runnerDefaultAdvance"]["first"] = {
+        "modality": "hold",
+        "destination": None,
+    }
+    row = runner_physical_rows(
+        (Runner.model_validate_json(json.dumps(RUNNER)),),
+        t1=T1.model_validate_json(json.dumps(raw)),
+        t1_input=t1_input,
+        tenant_id=UUID(int=1),
+        play_id=UUID(int=2),
+    )[0]
+    assert (row["base"], row["status"], row["status_source"]) == (
+        1,
+        "継続",
+        "manual",
+    )
+    damaged = copy.deepcopy(raw)
+    damaged["runnerDefaultAdvance"]["first"] = {
+        "modality": "optional",
+        "destination": "2",
+    }
+    with pytest.raises(OrdinaryPitchExecutionError):
+        runner_physical_rows(
+            (Runner.model_validate_json(json.dumps(RUNNER)),),
+            t1=T1.model_validate_json(json.dumps(damaged)),
+            t1_input=t1_input,
+            tenant_id=UUID(int=1),
+            play_id=UUID(int=2),
         )
 
 

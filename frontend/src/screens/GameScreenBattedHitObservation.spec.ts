@@ -63,6 +63,158 @@ it('凡打死の第3アウトは打者走者の一塁到達前を確認して公
   expect(w.emitted('change')?.at(-1)).toEqual([null])
   w.unmount()
 })
+it('走者の実到達を欠いた凡打・犠飛を閉じ、確認値だけをV7へ出す', async () => {
+  const w = mount(GameScreenBattedHitObservation, {
+    props: {
+      ...props,
+      resultId: 'batting-result.sacrifice-fly',
+      runners: [{ base: '3', label: '三塁走者' }],
+    },
+  })
+  await flushPromises()
+  await explicitNull(w)
+  await confirm(w)
+  expect(w.emitted('change')?.at(-1)).toEqual([null])
+  await w.get('[data-testid="batted-runner-3-destination"]').setValue('4')
+  await w.get('[data-testid="batted-runner-confirmed"]').setValue(true)
+  expect(w.emitted('change')?.at(-1)).toEqual([null])
+  await w
+    .get('[data-testid="batted-runner-3-rbi-cause"]')
+    .setValue('stopped-and-restarted')
+  expect(w.emitted('change')?.at(-1)).toEqual([null])
+  await w.get('[data-testid="batted-runner-confirmed"]').setValue(true)
+  expect(w.emitted('change')?.at(-1)?.[0]).toMatchObject({
+    resultId: 'batting-result.sacrifice-fly',
+    runnerAdvanceOverridesByRunner: {
+      kind: 'applied',
+      overrides: [{ runnerBase: '3', destination: '4' }],
+    },
+    thirdOutObservation: { kind: 'none' },
+    rbiRulingByRunner: { '3': 'stopped-and-restarted' },
+  })
+  await w
+    .get('[data-testid="batted-runner-3-rbi-cause"]')
+    .setValue('ordinary-play')
+  expect(w.emitted('change')?.at(-1)).toEqual([null])
+  await w.setProps({ resultId: 'batting-result.batted-out', beforeOuts: '2' })
+  expect(w.emitted('change')?.at(-1)).toEqual([null])
+  w.unmount()
+})
+it('併殺は実一塁走者IDと封殺観測を確認した時だけV7へ出す', async () => {
+  const runnerId = '10000000-0000-0000-0000-000000000065'
+  const w = mount(GameScreenBattedHitObservation, {
+    props: {
+      ...props,
+      resultId: 'batting-result.double-play',
+      runners: [{ base: '1', label: '一塁走者', runnerId }],
+    },
+  })
+  await flushPromises()
+  await explicitNull(w)
+  await confirm(w)
+  expect(w.emitted('change')?.at(-1)).toEqual([null])
+  await w.get('[data-testid="batted-runner-confirmed"]').setValue(true)
+  expect(w.emitted('change')?.at(-1)?.[0]).toMatchObject({
+    resultId: 'batting-result.double-play',
+    runnerAdvanceOverridesByRunner: { kind: 'not-applied', overrides: [] },
+    outRunner: { base: '1', runnerId, outKind: 'force-out' },
+  })
+  await w.setProps({ runners: [{ base: '1', label: '一塁走者' }] })
+  expect(w.emitted('change')?.at(-1)).toEqual([null])
+  w.unmount()
+})
+it('犠打失策は守備側の実野手を選ぶまで数値1の公式原本を出さない', async () => {
+  const w = mount(GameScreenBattedHitObservation, {
+    props: {
+      ...props,
+      resultId: 'batting-result.sacrifice-bunt-error',
+      runners: [
+        { base: '1', label: '一塁走者' },
+        { base: '2', label: '二塁走者' },
+      ],
+    },
+  })
+  await flushPromises()
+  await explicitNull(w)
+  await w.get('[data-testid="batted-runner-1-destination"]').setValue('2')
+  await w.get('[data-testid="batted-runner-2-destination"]').setValue('3')
+  await w.get('[data-testid="batted-runner-confirmed"]').setValue(true)
+  await confirm(w)
+  expect(w.emitted('change')?.at(-1)).toEqual([null])
+  await w
+    .get('[data-testid="batted-error-fielder"]')
+    .setValue(props.fielders[0]!.id)
+  expect(w.emitted('change')?.at(-1)?.[0]).toMatchObject({
+    resultId: 'batting-result.sacrifice-bunt-error',
+    officialScoringPayload: {
+      kind: 'error-recorded',
+      errors: [
+        {
+          fielder: { kind: 'official', player_id: props.fielders[0]!.id },
+          count: 1,
+        },
+      ],
+    },
+  })
+  await w.setProps({ fielders: [] })
+  expect(w.emitted('change')?.at(-1)).toEqual([null])
+  w.unmount()
+})
+it('全走者の停止確認は起点塁を各走者に明記し、部分確認では出さない', async () => {
+  const w = mount(GameScreenBattedHitObservation, {
+    props: {
+      ...props,
+      resultId: 'batting-result.batted-out',
+      runners: [
+        { base: '1', label: '一塁走者' },
+        { base: '3', label: '三塁走者' },
+      ],
+    },
+  })
+  await flushPromises()
+  await explicitNull(w)
+  await confirm(w)
+  await w.get('[data-testid="batted-runner-1-destination"]').setValue('hold')
+  await w.get('[data-testid="batted-runner-confirmed"]').setValue(true)
+  expect(w.emitted('change')?.at(-1)).toEqual([null])
+  await w.get('[data-testid="batted-runner-3-destination"]').setValue('hold')
+  await w.get('[data-testid="batted-runner-confirmed"]').setValue(true)
+  expect(w.emitted('change')?.at(-1)?.[0]).toMatchObject({
+    runnerAdvanceOverridesByRunner: {
+      kind: 'applied',
+      overrides: [
+        { runnerBase: '1', destination: '1' },
+        { runnerBase: '3', destination: '3' },
+      ],
+    },
+  })
+  w.unmount()
+})
+it('通常失策による出塁も野手の公式観測と数値1を要求する', async () => {
+  const w = mount(GameScreenBattedHitObservation, {
+    props: { ...props, resultId: 'batting-result.error' },
+  })
+  await flushPromises()
+  await explicitNull(w)
+  await confirm(w)
+  expect(w.emitted('change')?.at(-1)).toEqual([null])
+  await w
+    .get('[data-testid="batted-error-fielder"]')
+    .setValue(props.fielders[0]!.id)
+  expect(w.emitted('change')?.at(-1)?.[0]).toMatchObject({
+    resultId: 'batting-result.error',
+    officialScoringPayload: {
+      kind: 'error-recorded',
+      errors: [
+        {
+          fielder: { kind: 'official', player_id: props.fielders[0]!.id },
+          count: 1,
+        },
+      ],
+    },
+  })
+  w.unmount()
+})
 it('6未観測と4裁定を一つずつ確認するまで観測を成立させず、結果/文脈変更で破棄する', async () => {
   const w = mount(GameScreenBattedHitObservation, { props })
   await flushPromises()

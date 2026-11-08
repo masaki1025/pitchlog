@@ -4,10 +4,7 @@ import {
   isRunnerSuccess,
   formatRunnerEventWire,
 } from '../api/runnerEventWire'
-import type {
-  BattedHitObservations,
-  BattedHitResult,
-} from '../../../contracts/state-transition/lineup_play_prefix_payload_v1'
+import type { BattedHitResult } from '../../../contracts/state-transition/lineup_play_prefix_payload_v1'
 import type { RunnerAdvanceOverrides } from '../domain/battedHit'
 import type { RunnerAdvanceOverridesByRunner } from '../api/runnerAdvanceWire'
 import type {
@@ -28,7 +25,13 @@ import {
   sealLineupMetadata,
   formatLineupPrefixWire,
 } from '../api/lineupPrefixWire'
-import type { BattedOutWireObservations } from '../api/lineupPrefixWire'
+import type {
+  BattedOtherResult,
+  BattedHitWireObservations,
+  BattedOtherWireObservations,
+  BattedOutWireObservations,
+  BattedDoublePlayWireObservations,
+} from '../api/lineupPrefixWire'
 import type {
   Source,
   PrefixRef,
@@ -266,10 +269,20 @@ export function isPlayRecordingContext(
   return 'mode' in c && c.mode === 'play-prefix-v2'
 }
 export type BattedHitConfirmation = Omit<
-  BattedHitObservations,
+  BattedHitWireObservations,
   'runnerAdvanceOverridesByRunner'
-> & { runnerAdvanceOverridesByRunner: RunnerAdvanceOverridesByRunner }
+> & {
+  runnerAdvanceOverridesByRunner: RunnerAdvanceOverridesByRunner
+  rbiRulingByRunner?: Partial<
+    Record<
+      '1' | '2' | '3',
+      'ordinary-play' | 'kept-running' | 'stopped-and-restarted'
+    >
+  >
+}
 export type BattedOutConfirmation = BattedOutWireObservations
+export type BattedOtherConfirmation = BattedOtherWireObservations
+export type BattedDoublePlayConfirmation = BattedDoublePlayWireObservations
 
 export type PlayScreenObservation = Omit<
   OrdinaryScreenObservation,
@@ -286,10 +299,14 @@ export type PlayScreenObservation = Omit<
       | 'batting-result.strikeout-double-play'
       | BattedHitResult
       | 'batting-result.batted-out'
+      | BattedOtherResult
+      | 'batting-result.double-play'
     runnerEvent?: RunnerObservationWire | null
     battedHit?:
       | Omit<BattedHitConfirmation, keyof FirstBallObservations>
       | Omit<BattedOutConfirmation, keyof FirstBallObservations>
+      | Omit<BattedOtherConfirmation, keyof FirstBallObservations>
+      | Omit<BattedDoublePlayConfirmation, keyof FirstBallObservations>
       | null
     nextBatter?: NextBatter | null
   }>
@@ -773,6 +790,13 @@ export async function prepareLineupPrefix(
     'batting-result.triple',
     'batting-result.home-run',
     'batting-result.batted-out',
+    'batting-result.batted-reach',
+    'batting-result.error',
+    'batting-result.fielders-choice',
+    'batting-result.sacrifice-bunt',
+    'batting-result.sacrifice-bunt-error',
+    'batting-result.sacrifice-fly',
+    'batting-result.double-play',
   ]
   const batted = hitResults.includes(observation.resultId)
   if (batted) {
@@ -802,24 +826,62 @@ export async function prepareLineupPrefix(
     if (observation.resultId === 'batting-result.batted-out') {
       const third = hit.thirdOutObservation
       if (
-        context.after.stateFields['state.runners'] !== 'empty' ||
-        (context.after.stateFields['state.outs'] === '2'
+        context.after.stateFields['state.outs'] === '2'
           ? third.kind !== 'batter-before-first' ||
             !('batter' in third) ||
             third.batter.kind !== 'official' ||
             third.batter.player_id !==
               context.lineupSource.participants.batterId
-          : third.kind !== 'none')
+          : third.kind !== 'none'
       )
         return invalid()
     }
+    if (hit.resultId === 'batting-result.double-play') {
+      const out = hit.outRunner
+      if (
+        context.after.stateFields['state.runners'] !== 'first' ||
+        context.after.stateFields['state.outs'] !== '0' ||
+        !out ||
+        out.base !== '1' ||
+        out.outKind !== 'force-out' ||
+        context.lineupSource.runners.length !== 1 ||
+        context.lineupSource.runners[0]?.base !== '1' ||
+        context.lineupSource.runners[0]?.runnerId !== out.runnerId ||
+        out.runnerId === context.lineupSource.participants.batterId
+      )
+        return invalid()
+    }
+    if (
+      hit.resultId === 'batting-result.error' ||
+      hit.resultId === 'batting-result.sacrifice-bunt-error'
+    ) {
+      const official = hit.officialScoringPayload
+      if (
+        official.kind !== 'error-recorded' ||
+        official.errors.length !== 1 ||
+        typeof official.errors[0]?.count !== 'number' ||
+        official.errors[0].count !== 1 ||
+        official.errors[0].fielder.kind !== 'official' ||
+        !defenders?.participants.some(
+          (p) =>
+            p.player.player_id === official.errors[0].fielder.player_id &&
+            p.roles.some((r) => r.kind === 'fielding'),
+        )
+      )
+        return invalid()
+    } else if (hit.officialScoringPayload.kind !== 'no-error') return invalid()
   } else if (observation.battedHit != null) return invalid()
   const runnerAdvanceOverrides = batted
-    ? requestRunnerOverrides(
-        observation.battedHit!,
-        context.after,
-        context.lineupSource.runners,
-      )
+    ? observation.battedHit!.resultId === 'batting-result.double-play'
+      ? observation.battedHit!.runnerAdvanceOverridesByRunner.kind ===
+        'not-applied'
+        ? 'not-applied'
+        : invalid()
+      : requestRunnerOverrides(
+          observation.battedHit!,
+          context.after,
+          context.lineupSource.runners,
+        )
     : null
   const candidate = {
     version: '3',
@@ -832,11 +894,18 @@ export async function prepareLineupPrefix(
       before: context.after,
       ...(batted
         ? {
-            officialScoringPayload: 'no-error',
+            officialScoringPayload:
+              observation.battedHit!.officialScoringPayload.kind,
             interferenceRuling: 'not-required',
             runnerAdvanceOverrides: runnerAdvanceOverrides,
             thirdOutObservation:
               observation.battedHit!.thirdOutObservation.kind,
+            ...(observation.battedHit!.resultId === 'batting-result.double-play'
+              ? { outRunner: observation.battedHit!.outRunner }
+              : {}),
+            ...(observation.battedHit!.rbiRulingByRunner
+              ? { rbiRulingByRunner: observation.battedHit!.rbiRulingByRunner }
+              : {}),
           }
         : {}),
     },
@@ -857,6 +926,65 @@ export async function prepareLineupPrefix(
       'deriveLineupPlayPrefixWithContinuation',
       request,
     ) as LineupSuccess['value'],
+  }
+  if (batted) {
+    const hit = observation.battedHit!
+    const rawEffects = (response.value as unknown as Record<string, unknown>)[
+      'runnerScoreEffects'
+    ]
+    let scoredBases: Array<'1' | '2' | '3'> = []
+    if (rawEffects !== undefined) {
+      if (!Array.isArray(rawEffects) || rawEffects.length > 3) return invalid()
+      for (const item of rawEffects) {
+        if (
+          typeof item !== 'object' ||
+          item === null ||
+          Array.isArray(item) ||
+          !Object.keys(item).every((key) =>
+            ['base', 'validRun', 'rbiCredited'].includes(key),
+          ) ||
+          Object.keys(item).length !== 3
+        )
+          return invalid()
+        const effect = item as Record<string, unknown>
+        if (
+          (effect.base !== '1' && effect.base !== '2' && effect.base !== '3') ||
+          typeof effect.validRun !== 'boolean' ||
+          typeof effect.rbiCredited !== 'boolean' ||
+          (effect.rbiCredited && !effect.validRun)
+        )
+          return invalid()
+        if (effect.validRun) {
+          if (scoredBases.includes(effect.base)) return invalid()
+          scoredBases = scoredBases.concat([effect.base])
+        }
+      }
+    }
+    const beforeScore = context.after.scoreboard.inningScores
+    const afterScore = response.value.t1.after.scoreboard.inningScores
+    const scoreChanged = !sameOrdinaryWire(beforeScore, afterScore)
+    const causes = hit.rbiRulingByRunner
+    if (
+      (hit.resultId !== 'batting-result.home-run' &&
+        scoreChanged &&
+        scoredBases.length === 0) ||
+      (scoredBases.length > 0 && !causes) ||
+      (scoredBases.length === 0 && causes !== undefined) ||
+      (causes &&
+        (Object.keys(causes).length !== scoredBases.length ||
+          !scoredBases.every((base) => {
+            const value = causes[base]
+            return (
+              value === 'ordinary-play' ||
+              value === 'kept-running' ||
+              value === 'stopped-and-restarted'
+            )
+          }) ||
+          !Object.keys(causes).every((base) =>
+            scoredBases.some((item) => item === base),
+          )))
+    )
+      return invalid()
   }
   const sealed = await sealLineupMetadata(request, response)
   const course = invokeFirstBallDomain('quantizeCourse', {
