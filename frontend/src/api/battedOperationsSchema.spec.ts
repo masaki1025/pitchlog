@@ -5,6 +5,7 @@ import { expect, it } from 'vitest'
 import schema from '../../../contracts/state-transition/lineup_play_prefix_schema_v1.json'
 import payload from '../../../contracts/state-transition/lineup_play_prefix_payload_schema_v1.json'
 import { isClosedPlaySchema } from './terminalPitchWire'
+import domainIdentity from '../../public/domain/pitchlog-domain.json'
 const cases = JSON.parse(
   readFileSync(
     new URL(
@@ -94,7 +95,10 @@ afterEach(() => vi.unstubAllGlobals())
 it.each(runtimeInputs.samples)(
   '$operation の実artifact応答をhead/封印/V7/V8へ接続する',
   async (row) => {
-    const request: unknown = row.request
+    const request = structuredClone(row.request) as {
+      source: { executionArtifactSha256: string }
+    }
+    request.source.executionArtifactSha256 = domainIdentity.sha256
     const response: unknown = JSON.parse(
       domain.deriveLineupPlayPrefixWithContinuation(JSON.stringify(request)),
     )

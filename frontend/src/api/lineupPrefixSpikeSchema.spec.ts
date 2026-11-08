@@ -19,12 +19,21 @@ function applied(overrides: Array<Record<string, string>>) {
   return { kind: 'applied', overrides }
 }
 
-function t1Request(runnerAdvanceOverrides: unknown) {
+function t1Request(
+  runnerAdvanceOverrides: unknown,
+  runners: 'empty' | 'first' | 'first-second-third' = 'empty',
+) {
   return {
     eventKind: 'batting-result',
     resultId: 'batting-result.single',
     pitchEventKind: 'pitch-event',
-    before,
+    before: {
+      ...structuredClone(before),
+      stateFields: {
+        ...(before.stateFields as Record<string, unknown>),
+        'state.runners': runners,
+      },
+    },
     officialScoringPayload: 'no-error',
     interferenceRuling: 'not-required',
     runnerAdvanceOverrides,
@@ -74,7 +83,10 @@ describe('正式候補schemaは原値を書き換えず厳格に検証する', (
       ).toBe(false)
   })
   it('正式候補はappliedを受理する', () => {
-    const value = t1Request(applied([{ runnerBase: '1', destination: '3' }]))
+    const value = t1Request(
+      applied([{ runnerBase: '1', destination: '3' }]),
+      'first',
+    )
     expect(isClosedPlaySchema(value, canonical, 'BattedHitT1Input')).toBe(true)
     expect(
       isClosedPlaySchema(value, lineupPrefixSpikeSchema, 'BattedHitT1Input'),
@@ -99,6 +111,7 @@ describe('正式候補schemaは原値を書き換えず厳格に検証する', (
             { runnerBase: '2', destination: '4' },
             { runnerBase: '3', destination: '4' },
           ]),
+          'first-second-third',
         ),
         lineupPrefixSpikeSchema,
         'BattedHitT1Input',
@@ -124,7 +137,10 @@ describe('正式候補schemaは原値を書き換えず厳格に検証する', (
       ).toBe(false)
   })
   it('検証は入力も正式候補schemaも変更しない', () => {
-    const value = t1Request(applied([{ runnerBase: '1', destination: '3' }]))
+    const value = t1Request(
+      applied([{ runnerBase: '1', destination: '3' }]),
+      'first',
+    )
     const snapshot = structuredClone(value)
     const schemaSnapshot = structuredClone(canonical)
     expect(
