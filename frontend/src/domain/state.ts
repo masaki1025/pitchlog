@@ -678,6 +678,8 @@ function applyCountRule(
     boardAway = away
   }
   if (hit) hits = hits + 1n
+  let errors = board.errors
+  if (rule.errorRecorded === true) errors = errors + 1n
   const after = {
     stateFields: {
       half: half,
@@ -696,7 +698,7 @@ function applyCountRule(
       home: boardHome,
       away: boardAway,
       hits: hits,
-      errors: rule.errorRecorded === true ? board.errors + 1n : board.errors,
+      errors: errors,
       strikeouts: strikeouts,
       walks: walks,
     },

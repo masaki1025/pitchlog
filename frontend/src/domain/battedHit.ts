@@ -451,17 +451,17 @@ export function battedHitRule(
         (outOverrides === null || outOverrides.third !== 4n))
     )
       return null
+    let occupiedCount = 0n
+    if (occupied(before.runners, '1')) occupiedCount = occupiedCount + 1n
+    if (occupied(before.runners, '2')) occupiedCount = occupiedCount + 1n
+    if (occupied(before.runners, '3')) occupiedCount = occupiedCount + 1n
     if (
       resultId === 'batting-result.batted-out' &&
       outOverrides !== null &&
       (outOverrides.first === null || outOverrides.first === 1n) &&
       (outOverrides.second === null || outOverrides.second === 2n) &&
       (outOverrides.third === null || outOverrides.third === 3n) &&
-      outOverrides.count !==
-        BigInt(
-          ['1', '2', '3'].filter((base) => occupied(before.runners, base))
-            .length,
-        )
+      outOverrides.count !== occupiedCount
     )
       return null
     let explicit: Record<string, bigint> = {}
@@ -541,9 +541,10 @@ export function battedHitRule(
     errorRecorded &&
     ((resultId === 'batting-result.sacrifice-bunt-error' &&
       (before.outs === 2n || overrides === null)) ||
-      overrides?.first === 4n ||
-      overrides?.second === 4n ||
-      overrides?.third === 4n)
+      (overrides !== null &&
+        (overrides.first === 4n ||
+          overrides.second === 4n ||
+          overrides.third === 4n)))
   )
     return null
   if (!destinationsDoNotCollide(before, base, overrides)) return null
