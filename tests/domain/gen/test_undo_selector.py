@@ -1,17 +1,22 @@
 """旧数学/SQLを不変に保ち、閉取消選択だけを唯一backendで生成する。"""
 
 import copy
+import importlib
 import json
+import sys
 from pathlib import Path
 
 import pytest
-from pitchlog.domaingen.core import (
-    generate_native_primitive_sql_bundle,
-    generate_primitive_sql_bundle,
-)
-from pitchlog.domaingen.pregen_checks import validate_undo_selection_profile
 
 ROOT = Path(__file__).parents[3]
+BACKEND_SRC = ROOT / "backend/src"
+sys.path.insert(0, str(BACKEND_SRC))
+
+CORE = importlib.import_module("pitchlog.domaingen.core")
+PRECHECKS = importlib.import_module("pitchlog.domaingen.pregen_checks")
+generate_native_primitive_sql_bundle = CORE.generate_native_primitive_sql_bundle
+generate_primitive_sql_bundle = CORE.generate_primitive_sql_bundle
+validate_undo_selection_profile = PRECHECKS.validate_undo_selection_profile
 
 
 def inputs():
