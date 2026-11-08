@@ -50,6 +50,8 @@ def _csv_rows(raw: bytes) -> list[dict[str, str]]:
     """BOMと閉ヘッダを保つ実CSVだけを読む。"""
     assert raw.startswith(b"\xef\xbb\xbf")
     rows = csv.DictReader(io.StringIO(raw.decode("utf-8-sig")))
+    assert rows.fieldnames is not None
+    assert len(rows.fieldnames) == len(set(rows.fieldnames))
     result = list(rows)
     assert all(None not in row for row in result)
     return result
