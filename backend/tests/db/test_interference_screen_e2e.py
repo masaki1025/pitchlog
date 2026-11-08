@@ -169,14 +169,9 @@ def _interference_vocabulary() -> tuple[tuple[str, str, str], ...]:
     )
 
 
-def test_interference_outer_scope_sql_explain(vertical_database):
+def test_interference_outer_scope_sql_explain(admin_connection):
     """Owned PostgreSQLで外側式を構文検査する。実保存成功とは数えない。"""
-    db = vertical_database
-    with psycopg.connect(
-        db.authority.database.business_admin,
-        options="-c default_transaction_read_only=on",
-    ) as admin:
-        _explain_interference_outer_scope(admin)
+    _explain_interference_outer_scope(admin_connection)
 
 
 def _source_proof() -> dict[str, object]:
