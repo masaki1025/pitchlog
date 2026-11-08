@@ -411,3 +411,97 @@ def test_two_capsules_with_identical_follower_values_select_only_real_current_he
     )
     with pytest.raises(PlayExportSupplyError):
         resolve_p3_snapshots(wrong)
+
+
+def test_two_eligible_generations_keep_both_current_capsules():
+    """同gameの二世代Sが有効なら、世代毎のheadを両方残す。"""
+    import json
+
+    from pitchlog.exports.p3_projection import p3_input_origin
+    from pitchlog.exports.p3_snapshot import P3SnapshotIdentity
+    from pitchlog.sync.idempotency import source_fingerprint
+
+    first = _bundle()
+    tenant, game = first.game["tenant_id"], first.game["id"]
+
+    def remap(value):
+        if type(value) is UUID:
+            return value if value in (tenant, game) else UUID(int=value.int + 10000)
+        if type(value) is str:
+            try:
+                identifier = UUID(value)
+            except ValueError:
+                try:
+                    obj = json.loads(value)
+                except (ValueError, TypeError):
+                    return value
+                if type(obj) in (dict, list):
+                    return json.dumps(
+                        remap(obj),
+                        ensure_ascii=False,
+                        sort_keys=True,
+                        separators=(",", ":"),
+                    )
+                return value
+            return str(remap(identifier))
+        if type(value) is dict:
+            return {
+                key: 2
+                if key in ("generation", "internal_generation", "recording_generation")
+                else remap(child)
+                for key, child in value.items()
+            }
+        if type(value) in (list, tuple):
+            return type(value)(remap(v) for v in value)
+        return value
+
+    row = remap(first.p3_snapshots[0])
+    item = row["item_json"]
+    row["item_digest"] = item["item_digest"] = source_fingerprint(
+        {
+            k: v
+            for k, v in item.items()
+            if k
+            not in {
+                "tenant_id",
+                "game_id",
+                "internal_generation",
+                "capsule_id",
+                "item_digest",
+            }
+        }
+    )
+    identity = P3SnapshotIdentity(
+        **{name: row[name] for name in P3SnapshotIdentity.__dataclass_fields__}
+    )
+    origin = CSV_HEADERS["plays.csv"][72]
+    row["plays_csv_json"][origin] = p3_input_origin(
+        row["plays_csv_json"][origin], item["payload"], identity, target=True
+    )
+    second_normal = remap(first.snapshots)
+    second_plays = remap(first.plays)
+    bundle = replace(
+        first,
+        plays=(*first.plays, *second_plays),
+        audit_plays=(*first.audit_plays, *remap(first.audit_plays)),
+        events=(*first.events, *remap(first.events)),
+        snapshots=(*first.snapshots, *second_normal),
+        source_version=replace(first.source_version, source_count=2),
+        source_identities=(*first.source_identities, *remap(first.source_identities)),
+        p3_snapshots=(*first.p3_snapshots, row),
+        effective_snapshots=None,
+    )
+    result = resolve_p3_snapshots(bundle)
+    assert [r["recording_generation"] for r in result] == [1, 2]
+    assert [r["play_row_id"] for r in result] == [
+        first.plays[0]["id"],
+        second_plays[0]["id"],
+    ]
+    # 世代だけを偽装して元世代headへ混ぜると、item/source全値比較で拒否する。
+    with pytest.raises(PlayExportSupplyError):
+        resolve_p3_snapshots(
+            replace(
+                bundle,
+                p3_snapshots=(first.p3_snapshots[0], {**row, "internal_generation": 1}),
+            )
+        )

@@ -130,12 +130,34 @@ def storage_declaration() -> dict:
     }
 
 
-def writer_source_query(root: Path = _ROOT) -> str:
-    """唯一Sの既queryを保持し、同TXのcapsule/旧88列/訂正語彙だけを加える。"""
+def _generation_source_query(root: Path) -> str:
+    """唯一Sの健康/全件数を保持し、当該世代だけをLIMIT前に束縛する。"""
     profile = json.loads(
         (root / "backend/tests/fixtures/play_export_p3_selector_v2.json").read_bytes()
     )
-    source_query, _ = candidate_read_bundle(root, p3_selector_profile=profile)
+    query, _ = candidate_read_bundle(root, p3_selector_profile=profile)
+    boundary = " WHERE (:after_generation IS NULL OR\n"
+    header = (
+        "SELECT v.id AS fact_version_id,v.revision,"
+        "v.source_set_sha256,v.source_count,\n"
+    )
+    if query.count(boundary) != 1 or query.count(header) != 1:
+        raise ValueError("P3 CSV唯一Sの世代頁境界が不一致")
+    query = query.replace(
+        boundary,
+        " WHERE s.recording_generation=:recording_generation "
+        "AND (:after_generation IS NULL OR\n",
+    )
+    return query.replace(
+        header,
+        header + " (SELECT COUNT(*) FROM source_members g WHERE "
+        "g.recording_generation=:recording_generation) AS generation_source_count,\n",
+    )
+
+
+def writer_source_query(root: Path = _ROOT) -> str:
+    """唯一Sの既queryを保持し、同TXのcapsule/旧88列/訂正語彙だけを加える。"""
+    source_query = _generation_source_query(root)
     if not source_query.endswith(";\n"):
         raise ValueError("P3 CSVの唯一S queryが不正")
     # readonly既関数をwriterで呼ぶのではなく、同じ生成queryを専用境界内で使う。
@@ -145,6 +167,7 @@ def writer_source_query(root: Path = _ROOT) -> str:
         + "\n)\n"
         + """SELECT s.fact_version_id,s.revision,s.source_set_sha256,s.source_count,
  s.completion_state,CAST(:transaction_id AS text) AS transaction_id,
+ s.generation_source_count,
  s.recording_generation,s.d1,s.d2,s.source_event_id,s.play_row_id,
  s.slot_version,s.play_row_version,s.base_event_id,s.source_fingerprint,
  c.id AS capsule_id,c.source_set_digest AS capsule_source_set_digest,
@@ -236,6 +259,7 @@ _WRITER_OUTPUTS = (
     ("source_count", "bigint"),
     ("completion_state", "text"),
     ("transaction_id", "text"),
+    ("generation_source_count", "bigint"),
     ("recording_generation", "bigint"),
     ("d1", "bigint"),
     ("d2", "bigint"),
@@ -284,6 +308,7 @@ def _writer_bound_query(root: Path) -> str:
         "game_id": "p_game_id",
         "model_sha256": "model_hash",
         "after_generation": "after_generation",
+        "recording_generation": "generation",
         "after_d1": "p_after_d1",
         "page_size": "p_page_size",
         "capsule_id": "p_capsule_id",
@@ -397,15 +422,13 @@ def candidate_prior_read_body(root: Path = _ROOT) -> str:
 
     from pitchlog.stats.generated.receiver import SOURCE_MODEL_HASH
 
-    profile = json.loads(
-        (root / "backend/tests/fixtures/play_export_p3_selector_v2.json").read_bytes()
-    )
-    query, _ = candidate_read_bundle(root, p3_selector_profile=profile)
+    query = _generation_source_query(root)
     names = {
         "tenant_id": "tenant",
         "game_id": "p_game_id",
         "model_sha256": "model_hash",
         "after_generation": "NULL::bigint",
+        "recording_generation": "generation",
         "after_d1": "NULL::bigint",
         "page_size": "1",
     }
@@ -429,7 +452,8 @@ def candidate_prior_read_body(root: Path = _ROOT) -> str:
  p_checkpoint_revision bigint,p_checkpoint_digest text,p_watermark bigint)
 RETURNS TABLE(prior_capsule_id uuid,prior_native_version_id uuid,
  prior_checkpoint_id uuid,prior_checkpoint_revision bigint,
- prior_checkpoint_digest text,transaction_id text)
+ prior_checkpoint_digest text,transaction_id text,
+ game_source_count bigint,generation_source_count bigint)
 LANGUAGE plpgsql VOLATILE SECURITY DEFINER
 SET search_path=pg_catalog,pg_temp AS $p3_csv_prior$
 #variable_conflict use_column
@@ -461,14 +485,15 @@ BEGIN
  =(tenant,p_game_id,generation,p_capsule_id)) THEN
  RAISE EXCEPTION 'P3 CSV prior source already published' USING ERRCODE='42501'; END IF;
  RETURN QUERY WITH actual_source AS ({query})
- SELECT h.capsule_id,s.fact_version_id,cp.id,cp.revision,cp.content_digest,own_xid
+ SELECT h.capsule_id,s.fact_version_id,cp.id,cp.revision,cp.content_digest,own_xid,
+ s.source_count,s.generation_source_count
  FROM actual_source s
  JOIN sync_fence.ordinary_pitch_checkpoints cp
  ON (cp.tenant_id,cp.game_id,cp.id,cp.revision,cp.content_digest)
  =(tenant,p_game_id,p_checkpoint_id,p_checkpoint_revision,p_checkpoint_digest)
  LEFT JOIN sync_fence.p3_projection_heads h
  ON (h.tenant_id,h.game_id,h.internal_generation)=(tenant,p_game_id,generation)
- WHERE s.source_count=p_watermark;
+ WHERE s.generation_source_count=p_watermark;
  PERFORM sync_fence_api.assert_writer_binding(tenant,p_attempt_id,p_phase_id,
  p_binding_nonce,binding_device,p_game_id);
 END;
@@ -495,7 +520,16 @@ def candidate_save_body(root: Path = _ROOT) -> str:
     sql_names = ",".join("'" + name + "'" for name in sorted(direct))
     all_names = ",".join("'" + name + "'" for name in sorted(headers))
     immutable_names = ",".join("'" + name + "'" for name in immutable)
+    from pitchlog.authz.play_export_p3_direct_sql import (
+        direct_validation_sql,
+        input_origin_sql,
+        plate_display_sql,
+    )
+
     score = writer_score_query(root)
+    direct_checks = (
+        direct_validation_sql(root) + plate_display_sql(root) + input_origin_sql()
+    )
     return f"""CREATE FUNCTION stats_api.save_writer_p3_play_export_snapshot(
  p_attempt_id uuid,p_phase_id uuid,p_game_id uuid,p_capsule_id uuid,p_d1 bigint,
  p_binding_nonce bytea,p_direct_json jsonb,p_prior_capsule_id uuid,
@@ -508,6 +542,8 @@ SET search_path=pg_catalog,pg_temp AS $p3_csv_save$
 DECLARE ctx record; own_xid text; change_id uuid; binding_device uuid;
  target bigint; expected_count integer; inserted_count integer;
  finished_json jsonb; full_json jsonb; references_json jsonb; field text;
+ display_label text; display_fielder text; display_ball_type text; display_plate text;
+ origin_json jsonb; expected_origin jsonb; expected_origin_text text;
  score_pitch bigint; score_top jsonb; score_bottom jsonb; score_full jsonb;
  tenant uuid; p_source_event_id uuid; p_fact_version_id uuid;
  p_source_set_sha256 text; p_revision bigint;
@@ -647,6 +683,7 @@ BEGIN
  IF ctx.d1<>ctx.target_d1 AND p_direct_json->'{headers[45]}'
  IS DISTINCT FROM ctx.original_csv_json->'{headers[45]}' THEN
  RAISE EXCEPTION 'P3 CSV follower reference changed' USING ERRCODE='42501'; END IF;
+ {direct_checks}
  p_source_event_id:=ctx.source_event_id; p_fact_version_id:=ctx.fact_version_id;
  p_source_set_sha256:=ctx.source_set_sha256; p_revision:=ctx.revision;
  SELECT s.pitcher_pitch_count,s.top_score,s.bottom_score,s.full_innings
@@ -717,7 +754,7 @@ FOR EACH STATEMENT EXECUTE FUNCTION stats_api.protect_play_export_p3_snapshots()
 
 # metadataの一斉書換えを自己期待にしない。更新には明示的な範囲reviewを要する。
 _STORAGE_PIN = "33011ae4c2ddecb8fc07f1edb77351fb270a03307c0d79eed23dd970bdc771f1"
-_ABI_PIN = "087535655575b139edb15ea736a80ea4e26f52c518d20917c7de7c5323ff48e6"
+_ABI_PIN = "2807fcf838c773ae1c20351fba1eeaa552bca4ca226f2b78a2de9f1701bd64fa"
 _ROLE_PIN = "7687bd7df192afb51986210d05d156220112fa38fad079c45d1bfdf82cd4cfb9"
 _FUNCTION_ROLES = (
     "PUBLIC",

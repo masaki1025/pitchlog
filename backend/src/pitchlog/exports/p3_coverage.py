@@ -88,6 +88,7 @@ def resolve_p3_snapshots(bundle):
     watermark = None
     group_header = None
     current_capsule = None
+    current_generation = None
     for row in bundle.p3_snapshots:
         # 値境界だけを再検査し、架空のheader/read資格を作らない。
         validate_snapshot_row(row, game)
@@ -101,6 +102,8 @@ def resolve_p3_snapshots(bundle):
                 row["capsule_source_set_digest"],
                 row["capsule_stats_version_id"],
             )
+            if current_generation != key[0]:
+                current_generation, current_capsule = key[0], None
             if row["current_head"]:
                 _need(current_capsule is None)
                 current_capsule = key

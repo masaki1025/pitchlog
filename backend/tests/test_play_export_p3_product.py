@@ -54,6 +54,7 @@ def test_generated_abi_is_closed_and_keyset_has_no_game_length_limit():
         "capsule_id",
         "change_event_id",
         "prior_capsule_id",
+        "recording_generation",
     }
     body = product.candidate_writer_read_body()
     assert not text(body)._bindparams
@@ -76,7 +77,8 @@ def test_before_anchor_reads_real_cp_and_source_not_latest_guess():
     body = product.candidate_prior_read_body()
     assert "P3 CSV prior source already published" in body
     assert "actual_source AS" in body
-    assert "s.source_count=p_watermark" in body
+    assert "s.generation_source_count=p_watermark" in body
+    assert "s.source_count=p_watermark" not in body
     assert "p_checkpoint_id,p_checkpoint_revision,p_checkpoint_digest" in body
     assert "h.capsule_id,s.fact_version_id,cp.id,cp.revision,cp.content_digest" in body
     assert "b.transaction_id=own_xid" in body
