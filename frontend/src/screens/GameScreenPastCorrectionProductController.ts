@@ -1,8 +1,6 @@
 /** 真正v3対象とD1なしP3原要求/I6を一つの書き手に束ねる。 */
-import {
-  readLineupPrefixGame,
-  type LineupPrefixGame,
-} from '../api/lineupPrefixGame'
+import type { LineupPrefixGame } from '../api/lineupPrefixGame'
+import { readP3TargetPage } from './pastCorrectionHistoryPage'
 import { fetchGameStats } from '../api/stats'
 import { GameStartPersistence } from '../lib/gameStartPersistence'
 import {
@@ -135,30 +133,31 @@ export class GameScreenPastCorrectionProductController {
     return true
   }
 
-  async #current(): Promise<LineupPrefixGame> {
-    const result = await readLineupPrefixGame(this.#gameId, null, 25)
-    this.#assert()
+  async #current(d1: number) {
+    const result = await readP3TargetPage(this.#gameId, d1, () =>
+      this.#assert(),
+    )
+    const game = result.game
     if (
-      result.kind !== 'found' ||
-      result.game.page.next_cursor !== null ||
-      result.game.status !== 'in_progress' ||
-      result.game.prefix_ref.tenantId !== this.#identity.tenantId ||
-      result.game.prefix_ref.gameId !== this.#gameId ||
-      result.game.current_d4 !== this.#resources!.grant.d4 ||
-      result.game.recovery_generation !==
-        this.#resources!.grant.recovery_generation
+      game.status !== 'in_progress' ||
+      game.prefix_ref.tenantId !== this.#identity.tenantId ||
+      game.prefix_ref.gameId !== this.#gameId ||
+      game.current_d4 !== this.#resources!.grant.d4 ||
+      game.recovery_generation !== this.#resources!.grant.recovery_generation
     )
       throw new Error('P3の現v3原本を確認できません')
-    return result.game
+    return result
   }
 
-  #offerMatches(game: LineupPrefixGame, offer: P3TargetOffer): boolean {
-    const target = game.page.items[offer.target_reference.d1 - 1]?.play_row
+  #offerMatches(
+    game: LineupPrefixGame,
+    target: LineupPrefixGame['page']['items'][number]['play_row'],
+    offer: P3TargetOffer,
+  ): boolean {
     return (
       offer.target_reference.game === this.#gameId &&
       offer.target_reference.d4 === game.current_d4 &&
       sameOrdinaryWire(offer.expected_prefix_ref, game.prefix_ref) &&
-      !!target &&
       offer.target_event_id === target.source_event_id &&
       offer.target_play_id === target.id &&
       offer.original_result_id === target.batting_result_key
@@ -195,10 +194,10 @@ export class GameScreenPastCorrectionProductController {
         ))
       )
         return null
-      const game = await this.#current()
+      const { game, target } = await this.#current(d1)
       const offer = await readP3TargetOffer(this.#gameId, d1)
       this.#assert()
-      return this.#offerMatches(game, offer) ? offer : null
+      return this.#offerMatches(game, target.play_row, offer) ? offer : null
     } catch {
       return null
     } finally {
@@ -232,10 +231,10 @@ export class GameScreenPastCorrectionProductController {
 
   async #readAfter(body: P3ChangeBody): Promise<boolean> {
     try {
-      const game = await this.#current()
+      const current = await this.#current(body.change.target_reference.d1)
+      const game = current.game
       const prior = body.change.payload.expectedPrefixRef
-      const target =
-        game.page.items[body.change.target_reference.d1 - 1]?.play_row
+      const target = current.target.play_row
       if (
         !target ||
         target.id === body.change.payload.targetPlayId ||
@@ -365,7 +364,9 @@ export class GameScreenPastCorrectionProductController {
             ))
           )
             return 'pending'
-          const game = await this.#current()
+          const { game, target } = await this.#current(
+            offer.target_reference.d1,
+          )
           const current = await readP3TargetOffer(
             this.#gameId,
             offer.target_reference.d1,
@@ -373,7 +374,7 @@ export class GameScreenPastCorrectionProductController {
           this.#assert()
           if (
             !sameOrdinaryWire(current, offer) ||
-            !this.#offerMatches(game, current)
+            !this.#offerMatches(game, target.play_row, current)
           )
             return 'blocked'
           const body = p3ChangeBody(

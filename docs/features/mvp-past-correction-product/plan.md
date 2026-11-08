@@ -87,3 +87,7 @@ R46の隔離HTTPS/PGでは、正規D4の三球→過去KをballへP3訂正→同
 T4接合は既content Portに書込関数を増やさない。第1走は読取専用で全ページを既唯一核に通し、固定CP/対象1件/元・有効系列の逐次sealだけ保持する。真正T2後の同TXで第2走を同一核へ通し、専用 `begin/append(最大25件)/finalize` の私有関数で候補を保存する。各関数は同attempt/phase/binding/transaction/game lockを再検査し、buildingのままのcommitをdeferred guardで拒否する。第2走のseal・元末尾・訂正後末尾・各原本/T5と第1走が一致した場合だけ、元CP CAS、現T5版/終了pointer、P3 headを不可分に公開する。`read_p3_current` は全件JSONを返さずheaderとkeyset pageへ分け、次球/LC/Undo/Sub/CSVも同じ選択規則を使う。実SQL/ACL/モデル/0048正式配置はroot直列、P3候補builderと私有ページ関数は本ステップの作者範囲へ追加する。旧凍結SQL候補は上書きせずpaging専用packetに分ける。
 
 実HTTPの26球（見逃し2球、通常ファウル23球、見逃し三振1球）は保存まで成立したが、P3準備の旧原本許容集合がファウルを拒否した。対象の置換結果は既有限ball/called pitchのまま、**元原本carryだけ**に既採用ファウルを追加し、唯一hostで元応答全値を再検証する。未知結果・偽造位置/応答は閉拒否を維持し、26球純対向で元結果全26件と対象K→ballを確かめる。これはSO-04のバント三振や新たな野球分岐の採用ではない。
+
+### 現画面の25件境界をページ化する（2026-11-08、ステップ4技術追補）
+
+PO委任Codex主担当/root判断。基線1bfad343の既25超計画を画面へ接続する。root専用feature/mvp-p3-screen-pagination-20261108で、GameScreenPastCorrectionProduct(.vue/Controller.ts/各spec)と専用P3ページ読取helper/試験だけを編集する。backend P3 lifecycleは別担当、共有SQL/認可/計算artifactは変更しない。履歴は25件ずつ同prefix_ref/現在D4/復旧世代を照合して対象頁だけ保持し、対象行のevent/play IDを正式offerと照合する。欠落/混在版/非進行cursor/対象外/認証変更は閉拒否。全履歴RAM化や単なる件数guard削除をしない。対象選択・保存後再取得の双方を同じhelperへ接続し、既原要求耐久保存/I6/単一writerと3結果の入力範囲は維持する。固定差分の非作者レビューは接続後にまとめ、実HTTP26超は別担当の証拠と区別する。

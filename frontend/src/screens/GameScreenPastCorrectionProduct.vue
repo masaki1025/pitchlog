@@ -4,8 +4,13 @@ import { computed, onScopeDispose, ref, toRaw, watch } from 'vue'
 import StrikeZone from '../components/zone/StrikeZone.vue'
 import {
   isLineupPrefixGame,
+  readLineupPrefixGame,
   type LineupPrefixGame,
 } from '../api/lineupPrefixGame'
+import {
+  completeP3HistoryPage,
+  sameP3HistoryHead,
+} from './pastCorrectionHistoryPage'
 import { sameOrdinaryWire } from '../api/ordinaryPitchWire'
 import {
   readPitchTypeOptions,
@@ -65,6 +70,14 @@ const writer = {
 }
 const game = ref<LineupPrefixGame>(structuredClone(toRaw(props.game)))
 const targetD1 = ref(0)
+const historyPages = ref<Array<{ cursor: string | null; firstD1: number }>>([
+  { cursor: null, firstD1: 1 },
+])
+const historyPageIndex = ref(0)
+const historyFailed = ref(false)
+const historyFirstD1 = computed(
+  () => historyPages.value[historyPageIndex.value]!.firstD1,
+)
 const offer = ref<P3TargetOffer | null>(null)
 const replacement = ref<P3ReplacementResult | ''>('')
 const pitchType = ref('')
@@ -84,12 +97,13 @@ let watchedInput: unknown = null
 
 const finite = computed(
   () =>
-    game.value.page.next_cursor === null && game.value.page.items.length <= 25,
+    !historyFailed.value &&
+    completeP3HistoryPage(game.value, historyFirstD1.value),
 )
 const targets = computed(() =>
   game.value.page.items
     .map((item, index) => ({
-      d1: index + 1,
+      d1: historyFirstD1.value + index,
       row: item.play_row,
     }))
     .filter(
@@ -165,6 +179,50 @@ async function loadVocabulary(cursor: string | null) {
       nextCursor.value = null
       vocabularyFailed.value = true
     }
+  }
+}
+
+async function loadHistoryPage(direction: 'next' | 'previous') {
+  if (!canInput.value) return
+  const own = sequence
+  const ownIdentity = identity()
+  const index = historyPageIndex.value
+  const nextIndex = direction === 'next' ? index + 1 : index - 1
+  const page =
+    direction === 'next'
+      ? {
+          cursor: game.value.page.next_cursor,
+          firstD1: historyFirstD1.value + game.value.page.items.length,
+        }
+      : historyPages.value[nextIndex]
+  if (!page || nextIndex < 0 || (direction === 'next' && page.cursor === null))
+    return
+  busy.value = true
+  resetSelection()
+  targetD1.value = 0
+  try {
+    const result = await readLineupPrefixGame(game.value.id, page.cursor, 25)
+    if (
+      own !== sequence ||
+      props.suspended ||
+      !sameOrdinaryWire(ownIdentity, identity()) ||
+      !identity().verified
+    )
+      return
+    if (
+      result.kind !== 'found' ||
+      !sameP3HistoryHead(game.value, result.game) ||
+      !completeP3HistoryPage(result.game, page.firstD1) ||
+      (direction === 'next' && result.game.page.next_cursor === page.cursor)
+    )
+      throw new Error('履歴頁の確定版が一致しません')
+    if (direction === 'next') historyPages.value[nextIndex] = page
+    game.value = result.game
+    historyPageIndex.value = nextIndex
+  } catch {
+    if (own === sequence) historyFailed.value = true
+  } finally {
+    if (own === sequence) busy.value = false
   }
 }
 
@@ -254,6 +312,9 @@ watch(
     status.value = 'blocked'
     resetSelection()
     targetD1.value = 0
+    historyPages.value = [{ cursor: null, firstD1: 1 }]
+    historyPageIndex.value = 0
+    historyFailed.value = false
     if (!identity().verified || !isLineupPrefixGame(input.game)) return
     watchedInput = structuredClone(input)
     game.value = structuredClone(input.game)
@@ -303,7 +364,7 @@ onScopeDispose(() => {
     <h3 class="font-bold">過去の投球を訂正</h3>
     <p role="status" data-testid="p3-status">{{ message }}</p>
     <p v-if="!finite" role="alert">
-      履歴の全件を確認できないため、この画面からは訂正できません。
+      履歴頁の確定版を確認できません。サーバーの状態を再取得してください。
     </p>
     <div class="grid gap-2 sm:grid-cols-2">
       <label
@@ -318,6 +379,25 @@ onScopeDispose(() => {
       >
     </div>
     <template v-if="status === 'ready' && finite">
+      <div class="flex gap-2" aria-label="訂正対象の履歴ページ">
+        <button
+          type="button"
+          data-testid="p3-history-previous"
+          :disabled="!canInput || historyPageIndex === 0"
+          @click="loadHistoryPage('previous')"
+        >
+          前の25件
+        </button>
+        <span>第{{ historyFirstD1 }}位置から</span>
+        <button
+          type="button"
+          data-testid="p3-history-next"
+          :disabled="!canInput || game.page.next_cursor === null"
+          @click="loadHistoryPage('next')"
+        >
+          次の25件
+        </button>
+      </div>
       <label class="block"
         >対象の投球
         <select
