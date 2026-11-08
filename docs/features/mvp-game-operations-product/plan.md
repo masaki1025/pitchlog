@@ -89,3 +89,8 @@ PO委任rootの指示で、c20dを含む3a3b25b6から専用WT `feature/mvp-full
 run6は実2play/同要求重複ACK後、test direct GETのC2提示不足で404。製品/認可/共通helperを変えず、59driverの再送後started・最終lifecycle started・毎球ZIPだけを実UIと同じ既client（readLineupPrefixGame/readGameLifecycle/apiDownload、内部tenantBound:true）へ委譲する。非C2のstatsJSON/成績CSVは既経路を保持。closed found/全prefix/after/items/終了版/ZIP全byte長とSHAの期待を維持し、401/404を成功へ置換しない。元59全実測の後続停止は別の初回原因として保存する。
 
 root限定追補（2026-11-08）: browser client bridgeを新test-only `frontend/src/screens/BattedBatchC2.e2e-browser.ts`へ分離し、同origin Vite URLのmodule scriptとして正規ロードする。inline実行やCSP無効化/ポリシー変更は行わない。reload後も新documentへ同moduleをロードし、製品client共有/closed3readの境界を維持する。
+
+
+### 59操作試験の25件同版頁接合（2026-11-08、PO委任root採用）
+
+run8は実26play/満塁SF/14reload成功後、試験がfirstpage25件だけから当該rowを探して停止。製品default25を変えず、新test-only `BattedBatchPaging.e2e-support.ts` と専用specで正規C2clientのnext_cursorを最大3頁まで辿る。頁以外のhead全値（prefix/after/roster/原本ID含む）同値、cursor/rowID/play番号重複拒否、target一意を要求し、物理/CSV期待は保持。新specで26/51/59、版差替え、cursor反復、3頁超過、target欠測/重複を先行検査。browserbridge repeatedの引数は実原本cursorだけを追加しlimit25固定、任意pathや資格は受けない。旧run8封印は変更せず、root固定差分確認後だけ新実走へ進む。
