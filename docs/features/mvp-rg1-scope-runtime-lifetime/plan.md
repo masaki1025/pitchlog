@@ -30,3 +30,7 @@ created: 2026-11-08
 ## step1候補と純対向
 
 同じGC正対向をGit6c52の旧__exit__だけへ束縛すると、Sessionがloan終結前に消失し1failed0.16秒。新sourceは実SQLAlchemy Session/QueuePool Engine（SQLite、PGや認可成功ではない）をrelease/abandonまで保持し、終結後には弱参照が回収される。正常/body/precommit/release/closeの5新条件と既RG1を合わせ55passed2.30秒。元例外identity/handle失効/commitrollback/close→releaseabandon順を確認し、旧prefixと既終了tail全ASTが不変であることも機械比較した。全backendTy/対象Ruff0。今回の23球EOFの実因や実PG修復成功とはまだ記録しない。
+
+## step2の実走候補（PG未実施）
+
+PO委任rootが5ab1固定源を全文確認し、2026-11-08 23:31 JSTにstep2を採用。既実UID20003/C2/正常49の初球HTTPbootstrapだけを再利用し、新規作成→端末登録→開始→一球→GETへ絞る。試験だけのweakmapにscope入口の実Session/Engine弱参照を結び、実GateLoan.release直前にGC→元release一回を行う。controllerの元backend生存照合/期限/未知拒否は変更せず、監査は終端後owned readonlyのみ。collectorが失敗しても元return/例外identityを置換しない6純対向と元5条件の11passed2.74秒、型/Ruff0・collect1・脚本2compile。実PGはroot固定差分確認/実行許可待ち。

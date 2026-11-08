@@ -114,3 +114,59 @@ def test_runtime_is_alive_until_loan_termination_and_then_collectible(
     gc.collect()
     assert references["session"]() is None
     assert references["engine"]() is None
+
+
+@pytest.mark.parametrize("boundary", ["scope", "release"])
+@pytest.mark.parametrize("failure", ["none", "original", "gc"])
+def test_owned_gc_observer_preserves_original_identity(
+    monkeypatch, capsys, boundary, failure
+):
+    """試験用GC観測器の故障でも、元呼出一回と戻り/例外を置換しない。"""
+    import json
+
+    from db.test_rg1_scope_runtime_lifetime_owned import _GC_PROBE_SOURCE
+
+    from pitchlog.recording_rights import rg1_lifecycle
+
+    calls = []
+    returned = object()
+    original_error = RuntimeError("secret-sentinel-never-logged")
+
+    def original(self, *args, **kwargs):
+        calls.append(self)
+        if failure == "original":
+            raise original_error
+        return returned
+
+    owner = (
+        transaction._TenantTransactionScope
+        if boundary == "scope"
+        else rg1_lifecycle._GateLoan
+    )
+    symbol = "__exit__" if boundary == "scope" else "release"
+    monkeypatch.setattr(owner, symbol, original)
+    namespace: dict[str, Any] = {"__name__": "_gc_observer_identity_probe"}
+    exec(compile(_GC_PROBE_SOURCE, "<fixed-gc-probe>", "exec"), namespace)
+    snapshot, restore = namespace["install_gc_probe"]()
+    instance = object.__new__(owner)
+    if boundary == "scope":
+        assert isinstance(instance, transaction._TenantTransactionScope)
+        instance._handle = None
+    if failure == "gc":
+
+        def broken_gc():
+            raise RuntimeError("secret-sentinel-never-logged")
+
+        monkeypatch.setattr(gc, "collect", broken_gc)
+    try:
+        if failure == "original":
+            with pytest.raises(RuntimeError) as error:
+                getattr(instance, symbol)()
+            assert error.value is original_error
+        else:
+            assert getattr(instance, symbol)() is returned
+        assert calls == [instance]
+        assert "secret-sentinel" not in json.dumps(snapshot())
+        assert capsys.readouterr().out == ""
+    finally:
+        restore()
