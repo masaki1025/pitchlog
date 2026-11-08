@@ -40,6 +40,8 @@ _probe_plpgsql_names = frozenset({
     'sync_fence_api.assert_writer_binding',
     'sync_fence_api.read_p3_writer_binding',
     'stats_api.save_primitive_source',
+    'stats_api.read_writer_p3_play_export_page',
+    'stats_api.read_writer_p3_play_export_prior',
 })
 def _p3_parse_context(context):
     if type(context) is not str or len(context)>65536:
@@ -143,6 +145,12 @@ def build_short_p3_script() -> str:
         "stats_api.save_primitive_source",
     } <= declared
     script = _three_ball_p3_script()
+    # 正式P3 CSVのclosed置換keyはball/called-strikeだけ。診断元の
+    # called-pitchを製品範囲へ読み替え、保存側/読取側の許可集合と一致させる。
+    script = script.replace(
+        '"replacementResultId": "batting-result.called-pitch"',
+        '"replacementResultId": "batting-result.called-strike"',
+    )
     # 旧ordinary/P3のdiag.context/primary依存traceは起動前に全文除去する。
     start = script.index("_actual_apply = actual_sync_router._apply_e1_f1")
     end = script.index("actual_sync_router._apply_e1_f1 = traced_apply", start)
@@ -341,6 +349,11 @@ def test_p3_short_current_route_diagnostic(vertical_database, tmp_path):
             "VALUES ('batting-result.called-pitch',"
             "'batting_result','見逃し') ON CONFLICT(key) DO NOTHING"
         )
+        conn.execute(
+            "INSERT INTO public.admin_vocabularies(key,category,display_name) "
+            "VALUES ('batting-result.called-strike',"
+            "'batting_result','見逃しストライク') ON CONFLICT(key) DO NOTHING"
+        )
         assert conn.execute(
             "SELECT category,display_name FROM public.admin_vocabularies WHERE key=%s",
             ("batting-result.called-pitch",),
@@ -390,12 +403,13 @@ def test_p3_short_current_route_diagnostic(vertical_database, tmp_path):
             except Exception:
                 pass
     assert result is not None
-    safe = {"ready": [], "failures": [], "result": []}
+    safe = {"ready": [], "failures": [], "result": [], "csv_diag": []}
     for line in result.stdout.splitlines():
         for prefix, key in (
             ("PITCHLOG_P3_SHORT_READY=", "ready"),
             ("PITCHLOG_P3_SHORT_SAFE ", "failures"),
             ("PITCHLOG_P3_SHORT_RESULT=", "result"),
+            ("P3_CSV_DIAG ", "csv_diag"),
         ):
             if line.startswith(prefix):
                 safe[key].append(json.loads(line[len(prefix) :]))

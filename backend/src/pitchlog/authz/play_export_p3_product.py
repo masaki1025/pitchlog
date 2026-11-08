@@ -349,6 +349,7 @@ LANGUAGE plpgsql VOLATILE SECURITY DEFINER
 SET search_path=pg_catalog,pg_temp AS $p3_csv_read$
 #variable_conflict use_column
 DECLARE tenant uuid; own_xid text; generation bigint; target bigint;
+ adm_state text; adm_xid text;
  watermark_bound bigint; after_generation bigint; binding_device uuid;
  binding_d5 uuid; model_hash text := '{SOURCE_MODEL_HASH}';
 BEGIN
@@ -373,20 +374,27 @@ BEGIN
  AND b.expires_at>pg_catalog.clock_timestamp();
  PERFORM sync_fence_api.assert_writer_binding(tenant,p_attempt_id,p_phase_id,
  p_binding_nonce,binding_device,p_game_id);
+ SELECT a.state,a.transaction_id INTO adm_state,adm_xid
+ FROM sync_fence.p3_projection_write_admissions a
+ WHERE (a.tenant_id,a.game_id,a.internal_generation,a.capsule_id,a.change_event_id)
+ =(tenant,p_game_id,generation,p_capsule_id,p_change_event_id);
+ IF adm_state IS NULL THEN RAISE EXCEPTION 'P3 CSV page admission row missing'
+ USING ERRCODE='P3020'; END IF;
+ IF adm_state<>'consumed' THEN RAISE EXCEPTION 'P3 CSV page admission not consumed'
+ USING ERRCODE='P3021'; END IF;
+ IF adm_xid<>own_xid THEN RAISE EXCEPTION 'P3 CSV page admission transaction stale'
+ USING ERRCODE='P3022'; END IF;
  SELECT c.target_d1,c.watermark INTO STRICT target,watermark_bound
- FROM sync_fence.p3_projection_capsules c
+ FROM sync_fence.p3_projection_write_admissions a
+ JOIN sync_fence.p3_projection_capsules c
+ ON (c.tenant_id,c.game_id,c.internal_generation,c.id,c.change_event_id)
+ =(a.tenant_id,a.game_id,a.internal_generation,a.capsule_id,a.change_event_id)
  JOIN sync_fence.p3_projection_heads h
  ON (h.tenant_id,h.game_id,h.internal_generation,h.capsule_id)
  =(c.tenant_id,c.game_id,c.internal_generation,c.id)
- JOIN public.operation_events e ON (e.tenant_id,e.game_id,e.id)
- =(c.tenant_id,c.game_id,c.change_event_id)
- WHERE (c.tenant_id,c.game_id,c.internal_generation,c.id,c.change_event_id)
+ WHERE (a.tenant_id,a.game_id,a.internal_generation,a.capsule_id,a.change_event_id)
  =(tenant,p_game_id,generation,p_capsule_id,p_change_event_id)
- AND c.xmin::text::numeric=pg_catalog.mod(own_xid::numeric,4294967296::numeric)
- AND e.xmin::text::numeric=pg_catalog.mod(own_xid::numeric,4294967296::numeric)
- AND e.event_kind='play_change' AND e.ledger_kind='accepted'
- AND e.d5=binding_d5 AND NOT e.is_tombstone
- AND e.retired_at IS NULL AND e.replaced_at IS NULL;
+ AND a.transaction_id=own_xid AND a.state='consumed';
  IF p_after_d1>=watermark_bound THEN
  RAISE EXCEPTION 'P3 CSV writer page unavailable' USING ERRCODE='42501'; END IF;
  IF p_prior_native_version_id IS NULL OR p_prior_checkpoint_id IS NULL
@@ -394,8 +402,7 @@ BEGIN
  OR NOT EXISTS(SELECT 1 FROM sync_fence.stats_fact_versions old
  WHERE (old.tenant_id,old.game_id,old.id)
  =(tenant,p_game_id,p_prior_native_version_id)
- AND NOT old.is_current AND old.invalidated_at IS NOT NULL
- AND old.xmin::text::numeric=pg_catalog.mod(own_xid::numeric,4294967296::numeric))
+ AND NOT old.is_current AND old.invalidated_at IS NOT NULL)
  OR NOT EXISTS(SELECT 1 FROM sync_fence.p3_projection_capsules actual
  WHERE (actual.tenant_id,actual.game_id,actual.internal_generation,actual.id,
         actual.prior_checkpoint_id,actual.prior_checkpoint_revision,

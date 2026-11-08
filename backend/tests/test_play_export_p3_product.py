@@ -68,7 +68,7 @@ def test_generated_abi_is_closed_and_keyset_has_no_game_length_limit():
     assert "prior_csv.item_digest" in body
     assert "prior_cap.stats_version_id=p_prior_native_version_id" not in body
     assert "NOT old.is_current AND old.invalidated_at IS NOT NULL" in body
-    assert "old.xmin::text::numeric=pg_catalog.mod(own_xid::numeric" in body
+    assert "a.transaction_id=own_xid AND a.state='consumed'" in body
     assert "MAX(" not in body and "ORDER BY captured_at" not in body
 
 

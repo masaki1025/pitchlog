@@ -264,6 +264,10 @@ _p3_paged._assert_page_binding = _p3_guard
         }
         class PlannedPageRollback(Exception):
             pass
+        def fresh_p3(payload):
+            value = json.loads(json.dumps(payload))
+            value["change"]["d5"] = str(uuid4())
+            return value
         for crash in ("after_t2_event", "after_t4_projection"):
             reached = []
             def fail(point):
@@ -276,7 +280,8 @@ _p3_paged._assert_page_binding = _p3_guard
                 with testing_crash_hook(fail):
                     failed = await client.post(
                         "/games/" + game + "/sync/change",
-                        headers=device_headers(pair, str(uuid4())), json=p3_payload)
+                        headers=device_headers(pair, str(uuid4())),
+                        json=fresh_p3(p3_payload))
             except PlannedPageRollback:
                 pass
             runtime_diagnostics["fault_reached_count"] = len(reached)
@@ -453,6 +458,55 @@ def test_actual_p3_26_lifecycle_http(vertical_database, tmp_path) -> None:
     assert process.returncode == 0, "owned HTTP脚本が非成功終了"
     result = json.loads(process.stdout)
     (tmp_path / "p3-26-result.json").write_text(json.dumps(result, indent=2))
+    if "exception" in result:
+        with psycopg.connect(db.authority.database.business_admin) as admin:
+            admin.execute("SET TRANSACTION READ ONLY")
+            diag = {
+                "games": [
+                    [str(row[0]), row[1], row[2]]
+                    for row in admin.execute(
+                        "SELECT id,status,hidden_at FROM public.games "
+                        "WHERE tenant_id=%s ORDER BY id",
+                        (db.tenant_id,),
+                    ).fetchall()
+                ],
+                "generations": [
+                    [row[0], row[1], str(row[2]), str(row[3]), str(row[4]), row[5]]
+                    for row in admin.execute(
+                        "SELECT generation,kind,holder_device,revoked_at,retired_at,"
+                        "recovery_generation FROM public.recording_generations "
+                        "WHERE tenant_id=%s ORDER BY game_id,generation",
+                        (db.tenant_id,),
+                    ).fetchall()
+                ],
+                "versions": [
+                    [str(row[0]), row[1], row[2], row[3], row[4], row[5]]
+                    for row in admin.execute(
+                        "SELECT id,source_count,is_current,completion_state,"
+                        "t5_artifact_set_sha256,rule_sha256 "
+                        "FROM sync_fence.stats_fact_versions WHERE tenant_id=%s "
+                        "ORDER BY revision",
+                        (db.tenant_id,),
+                    ).fetchall()
+                ],
+                "gate": [
+                    [row[0], row[1]]
+                    for row in admin.execute(
+                        "SELECT state,recovery_generation "
+                        "FROM public.rg1_restore_gate WHERE singleton_id=1"
+                    ).fetchall()
+                ],
+                "bindings": [
+                    [str(row[0]), str(row[1]), row[2], str(row[3])]
+                    for row in admin.execute(
+                        "SELECT attempt_id,phase_id,state,device_id "
+                        "FROM sync_fence.writer_bindings WHERE tenant_id=%s "
+                        "ORDER BY attempt_id,phase_id",
+                        (db.tenant_id,),
+                    ).fetchall()
+                ],
+            }
+        (tmp_path / "p3-26-fault-db.json").write_text(json.dumps(diag, indent=2))
     assert "exception" not in result, result.get("runtime_diagnostics", {}).get("stage")
     assert result["prefix"] == "27"
     assert UUID(result["game"]) != db.game_id

@@ -326,7 +326,9 @@ def traced_p3_apply(*args, **kwargs):
             guard = guard if type(guard) is dict and set(guard) == allowed and all(
                 type(value) is bool for value in guard.values()) else None
             line = re.search(
-                r"PL/pgSQL function sync_right_api\\.persist_p3_projection"
+                r"PL/pgSQL function sync_right_api\\."
+                r"(persist_p3_projection|begin_p3_projection_page|"
+                r"append_p3_projection_page|finalize_p3_projection_page)"
                 r"\\([^)]*\\) line (\\d+)",
                 context or "")
             chain.append({
@@ -338,7 +340,8 @@ def traced_p3_apply(*args, **kwargs):
                     else "permission-denied" if type(primary) is str
                         and primary.startswith("permission denied")
                     else "other" if primary is not None else None),
-                "plpgsql_line": int(line.group(1)) if line else None,
+                "plpgsql_function": line.group(1) if line else None,
+                "plpgsql_line": int(line.group(2)) if line else None,
                 "p3_guard_flags": guard,
                 "frames": [(f.name, f.lineno)
                            for f in traceback.extract_tb(current.__traceback__)],
