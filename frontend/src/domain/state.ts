@@ -514,6 +514,7 @@ function applyCountRule(
     resultId === 'batting-result.home-run'
   const homeRun = resultId === 'batting-result.home-run'
   const flags = emptyFlags()
+  if (rule.errorRecorded === true) flags.失策 = true
   flags.投球数 = !intentional
   if (rule.pitchEventKind) flags.投球数 = rule.pitchEventKind === 'pitch-event'
   flags.投球回算入アウト = rule.outs > 0n
@@ -538,7 +539,11 @@ function applyCountRule(
     resultId === 'batting-result.fielders-choice'
   )
     flags.打数 = true
-  if (resultId === 'batting-result.sacrifice-bunt') flags.犠打 = true
+  if (
+    resultId === 'batting-result.sacrifice-bunt' ||
+    resultId === 'batting-result.sacrifice-bunt-error'
+  )
+    flags.犠打 = true
   if (resultId === 'batting-result.sacrifice-fly') flags.犠飛 = true
   if (hit) {
     flags.被安打 = true
@@ -689,7 +694,7 @@ function applyCountRule(
       home: boardHome,
       away: boardAway,
       hits: hits,
-      errors: board.errors,
+      errors: rule.errorRecorded === true ? board.errors + 1n : board.errors,
       strikeouts: strikeouts,
       walks: walks,
     },

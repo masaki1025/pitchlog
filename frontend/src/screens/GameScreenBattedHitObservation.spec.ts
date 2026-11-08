@@ -123,6 +123,43 @@ it('併殺は実一塁走者IDと封殺観測を確認した時だけV7へ出す
   expect(w.emitted('change')?.at(-1)).toEqual([null])
   w.unmount()
 })
+it('犠打失策は守備側の実野手を選ぶまで数値1の公式原本を出さない', async () => {
+  const w = mount(GameScreenBattedHitObservation, {
+    props: {
+      ...props,
+      resultId: 'batting-result.sacrifice-bunt-error',
+      runners: [
+        { base: '1', label: '一塁走者' },
+        { base: '2', label: '二塁走者' },
+      ],
+    },
+  })
+  await flushPromises()
+  await explicitNull(w)
+  await w.get('[data-testid="batted-runner-1-destination"]').setValue('2')
+  await w.get('[data-testid="batted-runner-2-destination"]').setValue('3')
+  await w.get('[data-testid="batted-runner-confirmed"]').setValue(true)
+  await confirm(w)
+  expect(w.emitted('change')?.at(-1)).toEqual([null])
+  await w
+    .get('[data-testid="batted-error-fielder"]')
+    .setValue(props.fielders[0]!.id)
+  expect(w.emitted('change')?.at(-1)?.[0]).toMatchObject({
+    resultId: 'batting-result.sacrifice-bunt-error',
+    officialScoringPayload: {
+      kind: 'error-recorded',
+      errors: [
+        {
+          fielder: { kind: 'official', player_id: props.fielders[0]!.id },
+          count: 1,
+        },
+      ],
+    },
+  })
+  await w.setProps({ fielders: [] })
+  expect(w.emitted('change')?.at(-1)).toEqual([null])
+  w.unmount()
+})
 it('6未観測と4裁定を一つずつ確認するまで観測を成立させず、結果/文脈変更で破棄する', async () => {
   const w = mount(GameScreenBattedHitObservation, { props })
   await flushPromises()

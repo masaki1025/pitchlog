@@ -345,11 +345,12 @@ class BattedHitT1Input(_LineupWire):
         "batting-result.fielders-choice",
         "batting-result.sacrifice-bunt",
         "batting-result.sacrifice-fly",
+        "batting-result.sacrifice-bunt-error",
         "batting-result.double-play",
     ] = Field(alias="resultId")
     pitch_event_kind: Literal["pitch-event"] = Field(alias="pitchEventKind")
     before: StrikeoutSnapshot
-    official_scoring_payload: Literal["no-error"] = Field(
+    official_scoring_payload: Literal["no-error", "error-recorded"] = Field(
         alias="officialScoringPayload"
     )
     interference_ruling: Literal["not-required"] = Field(alias="interferenceRuling")

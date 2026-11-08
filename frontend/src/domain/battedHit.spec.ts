@@ -322,6 +322,32 @@ describe('既正本の野選・犠打・犠飛有限行', () => {
       { runnerBase: '2' as const, destination: '3' as const },
     ],
   }
+  it('一二塁の公式失策1件だけを既唯一核で23flagと得点盤へ反映する', () => {
+    const f = fixture('top')
+    f.before.outs = 0n
+    f.before.runners = 'first-second'
+    const observed = {
+      ...observation('batting-result.sacrifice-bunt-error'),
+      officialScoringPayload: 'error-recorded' as const,
+      runnerAdvanceOverrides: forced,
+    }
+    const result = calculate(f, observed)!
+    const official = matrix.matrixRows.find(
+      (row) => row.resultId === observed.resultId && row.statFlags.失策,
+    )!
+    expect(result.statFlags).toEqual(official.statFlags)
+    expect(result.after.scoreboard.errors).toBe(f.board.errors + 1n)
+    expect(result.after.stateFields.runners).toBe('loaded')
+    expect(
+      calculate(f, { ...observed, resultId: 'batting-result.single' }),
+    ).toBeNull()
+    expect(
+      calculate({ ...f, before: { ...f.before, outs: 1n } }, observed),
+    ).toBeNull()
+    expect(
+      calculate(f, { ...observed, runnerAdvanceOverrides: 'not-applied' }),
+    ).toBeNull()
+  })
   it.each([
     ['batting-result.batted-reach', 'reach', 0n, 'loaded'],
     ['batting-result.fielders-choice', 'reach', 0n, 'loaded'],

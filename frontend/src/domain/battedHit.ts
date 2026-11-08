@@ -21,6 +21,7 @@ export type BattedHitResultId =
   | 'batting-result.fielders-choice'
   | 'batting-result.sacrifice-bunt'
   | 'batting-result.sacrifice-fly'
+  | 'batting-result.sacrifice-bunt-error'
   | 'batting-result.double-play'
 
 /** 記録者が確定した1走者の実到達塁。停止は写像へ含めない。 */
@@ -44,7 +45,7 @@ export type BattedHitObservation = {
   eventKind: 'batting-result'
   resultId: BattedHitResultId
   pitchEventKind: 'pitch-event'
-  officialScoringPayload: 'no-error'
+  officialScoringPayload: 'no-error' | 'error-recorded'
   interferenceRuling: 'not-required'
   runnerAdvanceOverrides: RunnerAdvanceOverrides
   thirdOutObservation: 'none' | 'batter-before-first'
@@ -283,7 +284,8 @@ export function battedHitRule(
   if (
     value.eventKind !== 'batting-result' ||
     value.pitchEventKind !== 'pitch-event' ||
-    value.officialScoringPayload !== 'no-error' ||
+    (value.officialScoringPayload !== 'no-error' &&
+      value.officialScoringPayload !== 'error-recorded') ||
     value.interferenceRuling !== 'not-required' ||
     (value.thirdOutObservation !== 'none' &&
       value.thirdOutObservation !== 'batter-before-first') ||
@@ -320,11 +322,15 @@ export function battedHitRule(
   )
     return null
   const resultId = value.resultId
+  const errorRecorded = value.officialScoringPayload === 'error-recorded'
+  if (errorRecorded !== (resultId === 'batting-result.sacrifice-bunt-error'))
+    return null
   let base: bigint
   switch (resultId) {
     case 'batting-result.single':
     case 'batting-result.batted-reach':
     case 'batting-result.fielders-choice':
+    case 'batting-result.sacrifice-bunt-error':
       base = 1n
       break
     case 'batting-result.double':
@@ -520,12 +526,18 @@ export function battedHitRule(
   }
   if (
     (resultId === 'batting-result.batted-reach' ||
-      resultId === 'batting-result.fielders-choice') &&
+      resultId === 'batting-result.fielders-choice' ||
+      resultId === 'batting-result.sacrifice-bunt-error') &&
     (before.runners !== 'first-second' ||
       overrides === null ||
       overrides.first !== 2n ||
       overrides.second !== 3n ||
       overrides.third !== null)
+  )
+    return null
+  if (
+    errorRecorded &&
+    (before.outs !== 0n || before.runners !== 'first-second')
   )
     return null
   if (!destinationsDoNotCollide(before, base, overrides)) return null
@@ -555,6 +567,7 @@ export function battedHitRule(
     ballEffect: 'reset',
     ballDelta: 0n,
   }
+  if (errorRecorded) rule.errorRecorded = true
   let scoringBases: Array<string> = []
   if (overrides !== null && resultId !== 'batting-result.home-run') {
     if (overrides.first === 4n) scoringBases = scoringBases.concat(['1'])

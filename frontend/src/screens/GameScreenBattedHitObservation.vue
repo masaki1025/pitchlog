@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { computed, onScopeDispose, ref, watch } from 'vue'
-import type {
-  BattedHitObservations,
-  BattedHitResult,
-} from '../../../contracts/state-transition/lineup_play_prefix_payload_v1.d.ts'
+import type { BattedHitResult } from '../../../contracts/state-transition/lineup_play_prefix_payload_v1.d.ts'
 import type { RunnerAdvanceOverridesByRunner } from '../api/runnerAdvanceWire'
-import type { BattedOtherResult } from '../api/lineupPrefixWire'
+import type {
+  BattedHitWireObservations,
+  BattedOtherResult,
+} from '../api/lineupPrefixWire'
 import {
   readBattedBallOptions,
   type BattedBallOption,
@@ -14,7 +14,7 @@ import GameScreenObservationField from './GameScreenObservationField.vue'
 import { useAuthStore } from '../stores/authStore'
 
 type Confirmation = Omit<
-  BattedHitObservations,
+  BattedHitWireObservations,
   | 'pitchTypeKey'
   | 'course'
   | 'pitchSpeed'
@@ -99,10 +99,14 @@ const confirmations = ref<Record<string, string>>({})
 const runnerDestinations = ref<Record<string, string>>({})
 const runnerRbiRulings = ref<Record<string, string>>({})
 const runnerConfirmed = ref(false)
+const errorFielderId = ref('')
 const questions = computed(() => [
   {
     key: 'scoring',
-    label: '公式記録：失策なし・失策数0を確認',
+    label:
+      props.resultId === 'batting-result.sacrifice-bunt-error'
+        ? '公式記録：犠打で失策1件を確認'
+        : '公式記録：失策なし・失策数0を確認',
     required: true,
     options: [{ id: 'confirmed', label: '確認した' }],
   },
@@ -171,6 +175,7 @@ function reset() {
   runnerDestinations.value = {}
   runnerRbiRulings.value = {}
   runnerConfirmed.value = false
+  errorFielderId.value = ''
   emit('change', null)
 }
 async function load(page: string | null) {
@@ -329,6 +334,30 @@ const observation = computed<
       return null
     ball[key] = value
   }
+  if (
+    props.resultId === 'batting-result.sacrifice-bunt-error' &&
+    !props.fielders.some((p) => p.id === errorFielderId.value)
+  )
+    return null
+  const officialScoringPayload =
+    props.resultId === 'batting-result.sacrifice-bunt-error'
+      ? {
+          kind: 'error-recorded' as const,
+          errors: [
+            {
+              fielder: {
+                kind: 'official' as const,
+                player_id: errorFielderId.value,
+              },
+              count: 1 as const,
+            },
+          ] as [{ fielder: { kind: 'official'; player_id: string }; count: 1 }],
+        }
+      : {
+          kind: 'no-error' as const,
+          errorCount: '0' as const,
+          fielders: [] as [],
+        }
   const common = {
     battedBall: {
       typeKey: ball.typeKey!,
@@ -338,11 +367,7 @@ const observation = computed<
       rawFielderPosition: ball.rawFielderPosition!,
       resolvedFielderId: ball.resolvedFielderId!,
     },
-    officialScoringPayload: {
-      kind: 'no-error',
-      errorCount: '0',
-      fielders: [] as [],
-    },
+    officialScoringPayload,
     interferenceRuling: { kind: 'not-required' },
     runnerAdvanceOverridesByRunner: runnerOverrides,
     thirdOutTimingByRunner: {},
@@ -469,6 +494,18 @@ async function previous() {
         :data-testid="'batted-value-' + key"
       />
     </div>
+    <label
+      v-if="resultId === 'batting-result.sacrifice-bunt-error'"
+      class="block"
+    >
+      公式失策の野手
+      <select v-model="errorFielderId" data-testid="batted-error-fielder">
+        <option value="">守備側の実野手を選択</option>
+        <option v-for="p in fielders" :key="p.id" :value="p.id">
+          {{ p.label }}
+        </option>
+      </select>
+    </label>
     <fieldset
       v-if="runners.length"
       class="space-y-2 rounded border p-2"

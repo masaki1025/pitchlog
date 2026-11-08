@@ -29,11 +29,23 @@ import {
 } from './terminalPitchWire'
 import { sameOrdinaryWire } from './ordinaryPitchWire'
 
-type BattedHitWireObservations = Omit<
+export type BattedOfficialScoring =
+  | BattedHitObservations['officialScoringPayload']
+  | {
+      kind: 'error-recorded'
+      errors: [
+        {
+          fielder: { kind: 'official'; player_id: string }
+          count: 1
+        },
+      ]
+    }
+export type BattedHitWireObservations = Omit<
   BattedHitObservations,
-  'runnerAdvanceOverridesByRunner'
+  'runnerAdvanceOverridesByRunner' | 'officialScoringPayload'
 > & {
   runnerAdvanceOverridesByRunner: RunnerAdvanceOverridesByRunner
+  officialScoringPayload: BattedOfficialScoring
   rbiRulingByRunner?: Partial<
     Record<
       '1' | '2' | '3',
@@ -46,6 +58,7 @@ export type BattedOtherResult =
   | 'batting-result.fielders-choice'
   | 'batting-result.sacrifice-bunt'
   | 'batting-result.sacrifice-fly'
+  | 'batting-result.sacrifice-bunt-error'
 export type BattedOtherWireObservations = Omit<
   BattedHitWireObservations,
   'resultId'

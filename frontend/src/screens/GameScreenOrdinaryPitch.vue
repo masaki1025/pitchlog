@@ -62,6 +62,7 @@ const hitResults: readonly string[] = [
   'batting-result.batted-reach',
   'batting-result.fielders-choice',
   'batting-result.sacrifice-bunt',
+  'batting-result.sacrifice-bunt-error',
   'batting-result.sacrifice-fly',
   'batting-result.double-play',
 ]
@@ -835,6 +836,12 @@ onScopeDispose(() => {
               value="batting-result.sacrifice-bunt"
             >
               犠打
+            </option>
+            <option
+              v-if="sacrificeBuntAvailable"
+              value="batting-result.sacrifice-bunt-error"
+            >
+              犠打失策
             </option>
             <option
               v-if="sacrificeFlyAvailable"

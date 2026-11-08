@@ -48,6 +48,8 @@ export type Rule = {
   /** 明示されたRBI因果に基づく算入走者。旧入力では旧結果を保持する。 */
   validRunnerRbiBases?: Array<string>
   scoringEvidence?: boolean
+  /** 記録員が採用した有限の公式失策1件。件数と野手はV7原本に束縛する。 */
+  errorRecorded?: boolean
 }
 
 /** 遷移前後の状態（契約の `state.*` と同じ意味）。 */

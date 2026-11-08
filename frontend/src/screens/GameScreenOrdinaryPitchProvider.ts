@@ -4,10 +4,7 @@ import {
   isRunnerSuccess,
   formatRunnerEventWire,
 } from '../api/runnerEventWire'
-import type {
-  BattedHitObservations,
-  BattedHitResult,
-} from '../../../contracts/state-transition/lineup_play_prefix_payload_v1'
+import type { BattedHitResult } from '../../../contracts/state-transition/lineup_play_prefix_payload_v1'
 import type { RunnerAdvanceOverrides } from '../domain/battedHit'
 import type { RunnerAdvanceOverridesByRunner } from '../api/runnerAdvanceWire'
 import type {
@@ -30,6 +27,7 @@ import {
 } from '../api/lineupPrefixWire'
 import type {
   BattedOtherResult,
+  BattedHitWireObservations,
   BattedOtherWireObservations,
   BattedOutWireObservations,
   BattedDoublePlayWireObservations,
@@ -271,7 +269,7 @@ export function isPlayRecordingContext(
   return 'mode' in c && c.mode === 'play-prefix-v2'
 }
 export type BattedHitConfirmation = Omit<
-  BattedHitObservations,
+  BattedHitWireObservations,
   'runnerAdvanceOverridesByRunner'
 > & {
   runnerAdvanceOverridesByRunner: RunnerAdvanceOverridesByRunner
@@ -795,6 +793,7 @@ export async function prepareLineupPrefix(
     'batting-result.batted-reach',
     'batting-result.fielders-choice',
     'batting-result.sacrifice-bunt',
+    'batting-result.sacrifice-bunt-error',
     'batting-result.sacrifice-fly',
     'batting-result.double-play',
   ]
@@ -851,6 +850,22 @@ export async function prepareLineupPrefix(
       )
         return invalid()
     }
+    if (hit.resultId === 'batting-result.sacrifice-bunt-error') {
+      const official = hit.officialScoringPayload
+      if (
+        official.kind !== 'error-recorded' ||
+        official.errors.length !== 1 ||
+        typeof official.errors[0]?.count !== 'number' ||
+        official.errors[0].count !== 1 ||
+        official.errors[0].fielder.kind !== 'official' ||
+        !defenders?.participants.some(
+          (p) =>
+            p.player.player_id === official.errors[0].fielder.player_id &&
+            p.roles.some((r) => r.kind === 'fielding'),
+        )
+      )
+        return invalid()
+    } else if (hit.officialScoringPayload.kind !== 'no-error') return invalid()
     const scoredBases =
       hit.runnerAdvanceOverridesByRunner.kind === 'applied' &&
       hit.resultId !== 'batting-result.home-run' &&
@@ -905,7 +920,8 @@ export async function prepareLineupPrefix(
       before: context.after,
       ...(batted
         ? {
-            officialScoringPayload: 'no-error',
+            officialScoringPayload:
+              observation.battedHit!.officialScoringPayload.kind,
             interferenceRuling: 'not-required',
             runnerAdvanceOverrides: runnerAdvanceOverrides,
             thirdOutObservation:

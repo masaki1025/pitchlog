@@ -165,6 +165,10 @@ def pitch_physical_row(
                 "hit_y": _observed_storage_unit(ball.hit_y),
             }
         )
+        if observations.official_scoring_payload.kind == "error-recorded":
+            row["resolved_error_player_id"] = (
+                observations.official_scoring_payload.errors[0].fielder.player_id
+            )
     if set(row) != set(PlayRow.__table__.c.keys()):
         raise ValueError("物理列集合が不一致")
     return row

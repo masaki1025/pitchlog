@@ -16,6 +16,8 @@ from pitchlog.domainrt.lineup_play_prefix_continuation import (
 )
 from pitchlog.domainrt.lineup_prefix_source import require_batted_hit_observations
 from pitchlog.sync.ordinary_pitch_execution import OrdinaryPitchExecutionError
+from pitchlog.sync.ordinary_pitch_payload import OrdinaryPitchParticipants
+from pitchlog.sync.ordinary_pitch_physical import pitch_physical_row
 from pitchlog.sync.terminal_pitch_payload import BattedHitPlayObservations
 from pitchlog.sync.terminal_pitch_projection import runner_physical_rows
 
@@ -238,6 +240,78 @@ def test_existing_two_runner_batted_results_preserve_original_observation(
         require_batted_hit_observations(
             t1, BattedHitPlayObservations.model_validate_json(json.dumps(observed_raw))
         )
+
+
+def test_sacrifice_bunt_error_requires_one_primitive_error_and_original_fielder():
+    """正本の犠打失策1件だけを原野手ID・数値プリミティブへ閉じる。"""
+    advance = {
+        "kind": "applied",
+        "overrides": [
+            {"runnerBase": "1", "destination": "2"},
+            {"runnerBase": "2", "destination": "3"},
+        ],
+    }
+    raw = copy.deepcopy(CASE["request"]["t1"])
+    raw["resultId"] = "batting-result.sacrifice-bunt-error"
+    raw["before"]["stateFields"]["state.outs"] = "0"
+    raw["before"]["stateFields"]["state.runners"] = "first-second"
+    raw["runnerAdvanceOverrides"] = advance
+    raw["officialScoringPayload"] = "error-recorded"
+    t1 = BattedHitT1Input.model_validate_json(json.dumps(raw))
+    observed = _observations(advance).model_dump(mode="json", by_alias=True)
+    observed["resultId"] = raw["resultId"]
+    observed["officialScoringPayload"] = {
+        "kind": "error-recorded",
+        "errors": [
+            {
+                "fielder": {
+                    "kind": "official",
+                    "player_id": "10000000-0000-0000-0000-000000000063",
+                },
+                "count": 1,
+            }
+        ],
+    }
+    parsed = BattedHitPlayObservations.model_validate_json(json.dumps(observed))
+    require_batted_hit_observations(t1, parsed)
+    people = OrdinaryPitchParticipants.model_validate_json(
+        json.dumps(CASE["request"]["source"]["participants"])
+    )
+    physical = pitch_physical_row(
+        parsed,
+        people,
+        raw["resultId"],
+        tenant_id=UUID(int=1),
+        game_id=UUID(int=2),
+        source_event_id=UUID(int=3),
+        row_id=UUID(int=4),
+        play_number=1,
+    )
+    assert (
+        physical["resolved_error_player_id"]
+        == observed["officialScoringPayload"]["errors"][0]["fielder"]["player_id"]
+    )
+    assert physical["error_type"] is None
+    for value in (True, "1", 1.0, None, {"toJSON": 1}, 2):
+        broken = copy.deepcopy(observed)
+        broken["officialScoringPayload"]["errors"][0]["count"] = value
+        with pytest.raises(ValueError):
+            BattedHitPlayObservations.model_validate_json(json.dumps(broken))
+    for broken in (
+        {
+            **observed,
+            "officialScoringPayload": {
+                "kind": "no-error",
+                "errorCount": "0",
+                "fielders": [],
+            },
+        },
+        {**observed, "resultId": "batting-result.batted-reach"},
+    ):
+        with pytest.raises(ValueError):
+            require_batted_hit_observations(
+                t1, BattedHitPlayObservations.model_validate_json(json.dumps(broken))
+            )
 
 
 @pytest.mark.parametrize(

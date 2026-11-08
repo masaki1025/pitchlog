@@ -5,7 +5,13 @@ from __future__ import annotations
 import hashlib
 from typing import Annotated, Literal
 
-from pydantic import AfterValidator, Field, model_serializer, model_validator
+from pydantic import (
+    AfterValidator,
+    Field,
+    field_validator,
+    model_serializer,
+    model_validator,
+)
 
 from pitchlog.domainrt.first_ball_projection import _canonical_json, _canonical_sha256
 from pitchlog.domainrt.first_pitch import _Frozen
@@ -269,6 +275,28 @@ class _NoErrorScoring(_Frozen):
     fielders: tuple[()]
 
 
+class _RecordedError(_Frozen):
+    """公式失策1件の原野手と数値プリミティブ件数。"""
+
+    fielder: _OfficialBatter
+    count: Literal[1]
+
+    @field_validator("count", mode="before")
+    @classmethod
+    def _primitive_one(cls, value: object) -> object:
+        """bool・toJSON・数値wrapperを1件へ暗黙変換しない。"""
+        if type(value) is not int or value != 1:
+            raise ValueError("公式失策件数は数値プリミティブ1のみ")
+        return value
+
+
+class _RecordedErrorScoring(_Frozen):
+    """正本の失策1件だけ。複数件は未接続として閉じる。"""
+
+    kind: Literal["error-recorded"]
+    errors: tuple[_RecordedError] = Field(min_length=1, max_length=1)
+
+
 class _NoInterference(_Frozen):
     """今回妨害裁定が不要であるという記録者の明示観測。"""
 
@@ -368,10 +396,13 @@ class BattedHitPlayObservations(FirstBallObservations):
         "batting-result.fielders-choice",
         "batting-result.sacrifice-bunt",
         "batting-result.sacrifice-fly",
+        "batting-result.sacrifice-bunt-error",
         "batting-result.double-play",
     ] = Field(alias="resultId")
     batted_ball: _BattedBall = Field(alias="battedBall")
-    official_scoring_payload: _NoErrorScoring = Field(alias="officialScoringPayload")
+    official_scoring_payload: _NoErrorScoring | _RecordedErrorScoring = Field(
+        alias="officialScoringPayload"
+    )
     interference_ruling: _NoInterference = Field(alias="interferenceRuling")
     runner_advance_overrides: _NoRunnerOverride | _AppliedRunnerOverrides = Field(
         alias="runnerAdvanceOverridesByRunner"
@@ -517,6 +548,26 @@ def read_lineup_pitch_payload(
                     != response.value.t1.after.state_fields.score
                 ),
             )
+            if (
+                type(payload.observations) is BattedHitPlayObservations
+                and type(payload.observations.official_scoring_payload)
+                is _RecordedErrorScoring
+            ):
+                if type(payload.calculation) is not LineupPitchCalculation:
+                    raise ValueError
+                request = payload.calculation.request
+                side = request.source.lineup.home
+                if request.t1.before.state_fields.half == "bottom":
+                    side = request.source.lineup.away
+                fielder = payload.observations.official_scoring_payload.errors[
+                    0
+                ].fielder.player_id
+                if fielder not in {
+                    *side.batting_order.model_dump(mode="json", by_alias=True).values(),
+                    side.pitcher_id,
+                    side.catcher_id,
+                }:
+                    raise ValueError
         if (
             payload.calculation.artifact_sha256
             != response.value.execution_artifact_sha256
