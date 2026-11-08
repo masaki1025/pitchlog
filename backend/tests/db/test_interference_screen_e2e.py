@@ -25,6 +25,7 @@ from . import test_screen_start_e2e as screen_harness
 from .sync_writer_binding_support import binding_broker
 from .test_interference_sql_scope import _explain_interference_outer_scope
 from .test_screen_start_e2e import _browser_environment, _run_playwright
+from .test_screen_start_e2e import admin_connection as admin_connection
 from .test_screen_start_e2e import initial_scope_database as initial_scope_database
 from .test_screen_start_e2e import product_node_binary as product_node_binary
 from .test_screen_start_e2e import tested_role_connection as tested_role_connection

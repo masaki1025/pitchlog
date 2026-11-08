@@ -1,5 +1,10 @@
 /** 妨害裁定の実UI入力。状態・授与・アウトを補完せず試験指定値だけ入れる。 */
-import { expect, type Page } from '@playwright/test'
+import {
+  expect,
+  type Page,
+  type Request,
+  type Response,
+} from '@playwright/test'
 import type { LineupPrefixGame } from '../api/lineupPrefixGame'
 import { apiPath, nextRecordedHead } from './RealGameRecording.e2e-support'
 
@@ -112,19 +117,97 @@ export async function recordInterferenceStep(
     await battedObservation(page, head, step.result, false, false)
   else await interferenceObservation(page, step)
   await expect(page.getByTestId('first-ball-save')).toBeEnabled()
+  const startedReads: {
+    status: number
+    projection: 'v3' | 'other'
+    readKind: 'lineup-prefix' | 'other' | 'unavailable'
+    length: 'target' | 'other' | 'unavailable'
+  }[] = []
+  let startedRequests = 0
+  const observeRequest = (request: Request) => {
+    if (
+      request.method() === 'GET' &&
+      apiPath(request.url()) === `/api/games/${head.id}/started`
+    )
+      startedRequests++
+  }
+  const observeStarted = (response: Response) => {
+    if (
+      response.request().method() !== 'GET' ||
+      apiPath(response.url()) !== `/api/games/${head.id}/started`
+    )
+      return
+    const observed = {
+      status: response.status(),
+      projection:
+        new URL(response.url()).searchParams.get('projection') ===
+        'play-prefix-v3'
+          ? ('v3' as const)
+          : ('other' as const),
+      readKind: 'unavailable' as 'lineup-prefix' | 'other' | 'unavailable',
+      length: 'unavailable' as 'target' | 'other' | 'unavailable',
+    }
+    startedReads.push(observed)
+    if (observed.status !== 200) return
+    void response
+      .json()
+      .then((body: unknown) => {
+        if (typeof body !== 'object' || body === null) return
+        const value = body as Record<string, unknown>
+        observed.readKind =
+          value.read_kind === 'lineup-prefix' ? 'lineup-prefix' : 'other'
+        const prefix = value.prefix_ref
+        observed.length =
+          typeof prefix === 'object' &&
+          prefix !== null &&
+          (prefix as Record<string, unknown>).length === String(count)
+            ? 'target'
+            : 'other'
+      })
+      .catch(() => undefined)
+  }
+  page.on('request', observeRequest)
+  page.on('response', observeStarted)
   const read = nextRecordedHead(page, head.id, count)
   const post = page.waitForResponse(
     (response) =>
       response.request().method() === 'POST' &&
       apiPath(response.url()) === `/api/games/${head.id}/sync/events`,
   )
-  await page.getByTestId('first-ball-save').click()
-  const response = await post
-  expect(response.status()).toBe(200)
-  const ack = await response.json()
-  expect(ack.eventResults?.[0]?.a5Result).toBe('受理')
-  const next = (await (await read).json()) as LineupPrefixGame
-  expect(next.prefix_ref.length).toBe(String(count))
-  await expect(page.getByTestId('restore-history')).toHaveText(`${count}件`)
-  return next
+  let postStatus: number | null = null
+  try {
+    await page.getByTestId('first-ball-save').click()
+    const response = await post
+    postStatus = response.status()
+    expect(postStatus).toBe(200)
+    const ack = await response.json()
+    expect(ack.eventResults?.[0]?.a5Result).toBe('受理')
+    const next = (await (await read).json()) as LineupPrefixGame
+    expect(next.prefix_ref.length).toBe(String(count))
+    await expect(page.getByTestId('restore-history')).toHaveText(`${count}件`)
+    return next
+  } catch (error) {
+    const message = await page
+      .getByTestId('first-ball-status')
+      .textContent({ timeout: 1000 })
+      .catch(() => null)
+    const uiStatus =
+      message === '保存応答を受け取りました。サーバーから再取得しています'
+        ? 'saved-awaiting-read'
+        : message ===
+            'サーバーの最新記録を確認しています。入力と再送を一時停止します'
+          ? 'suspended'
+          : message ===
+              'この入力を確定できません。結果・打者と最新の記録を確認してください'
+            ? 'blocked'
+            : 'other-or-absent'
+    console.log(
+      'PITCHLOG_INTERFERENCE_READ_SAFE=' +
+        JSON.stringify({ postStatus, startedRequests, startedReads, uiStatus }),
+    )
+    throw error
+  } finally {
+    page.off('request', observeRequest)
+    page.off('response', observeStarted)
+  }
 }
