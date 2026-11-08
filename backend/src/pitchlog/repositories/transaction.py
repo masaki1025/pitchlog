@@ -806,25 +806,38 @@ class _TenantTransactionScope(AbstractContextManager[_TenantTransaction]):
                 except BaseException as cleanup_error:
                     raise precommit_error from cleanup_error
                 raise
-        if key is not None:
-            _RG1_LOANS.pop(key, None)
+        # 内側の登録pop/Session.close後も、実backendの借用終結まで同runtimeを保持する。
+        # Engine/Poolが途中でGCされることを防ぐだけで、接続や期限を再構成しない。
+        runtime_guard = (
+            _TRANSACTION_RUNTIMES.get(key)
+            if loan is not None and key is not None
+            else None
+        )
         try:
-            result = self._exit_after_rg1_check(exception_type, exception, traceback)
-        except BaseException as primary_error:
+            if key is not None:
+                _RG1_LOANS.pop(key, None)
+            try:
+                result = self._exit_after_rg1_check(
+                    exception_type, exception, traceback
+                )
+            except BaseException as primary_error:
+                if loan is not None:
+                    try:
+                        loan.abandon()
+                    except BaseException as abandon_error:
+                        raise primary_error from abandon_error
+                raise
             if loan is not None:
                 try:
-                    loan.abandon()
-                except BaseException as abandon_error:
-                    raise primary_error from abandon_error
-            raise
-        if loan is not None:
-            try:
-                loan.release()
-            except BaseException as release_error:
-                if exception is not None and not result:
-                    raise exception.with_traceback(traceback) from release_error
-                raise
-        return result
+                    loan.release()
+                except BaseException as release_error:
+                    if exception is not None and not result:
+                        raise exception.with_traceback(traceback) from release_error
+                    raise
+            return result
+        finally:
+            # 例外tracebackが残っても、終結後のSession/Engineを恒久保持しない。
+            del runtime_guard
 
     def _exit_after_rg1_check(
         self,

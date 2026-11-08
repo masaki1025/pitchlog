@@ -26,3 +26,7 @@ created: 2026-11-08
 | 2 | root確認後のowned短scope終結 | 共通lock/共有DSNunset/固定源で実backend生存と正常終結を確認し、旧23件失敗の実因とは別記する。全26反復は行わない |
 
 新しい観測が必要なら元call/return/error一回を保持する失敗限定metadataのみ別packetへ固定する。PGはrootの固定差分確認と明示許可まで開始しない。
+
+## step1候補と純対向
+
+同じGC正対向をGit6c52の旧__exit__だけへ束縛すると、Sessionがloan終結前に消失し1failed0.16秒。新sourceは実SQLAlchemy Session/QueuePool Engine（SQLite、PGや認可成功ではない）をrelease/abandonまで保持し、終結後には弱参照が回収される。正常/body/precommit/release/closeの5新条件と既RG1を合わせ55passed2.30秒。元例外identity/handle失効/commitrollback/close→releaseabandon順を確認し、旧prefixと既終了tail全ASTが不変であることも機械比較した。全backendTy/対象Ruff0。今回の23球EOFの実因や実PG修復成功とはまだ記録しない。
