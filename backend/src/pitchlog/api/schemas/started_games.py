@@ -223,6 +223,40 @@ class RecordedPrefixPlayRow(StartedPlayRow):
     batting_order: Annotated[int, Field(strict=True, ge=1, le=9)]
     version: Annotated[int, Field(strict=True, ge=1, le=2**63 - 1)]
 
+    @model_validator(mode="after")
+    def _adopted_interference(self):
+        """主結果ありの妨害は既打球の実プレイ採用だけに限定する。"""
+        if (
+            self.batting_result_key is not None
+            and self.secondary_batting_result_key
+            in {
+                "secondary-result.batting-interference",
+                "secondary-result.obstruction",
+                "secondary-result.offensive-interference",
+            }
+            and (
+                self.secondary_batting_result_key
+                != "secondary-result.batting-interference"
+                or self.batting_result_key
+                not in {
+                    "batting-result.single",
+                    "batting-result.double",
+                    "batting-result.triple",
+                    "batting-result.home-run",
+                    "batting-result.batted-out",
+                    "batting-result.batted-reach",
+                    "batting-result.error",
+                    "batting-result.fielders-choice",
+                    "batting-result.sacrifice-bunt",
+                    "batting-result.sacrifice-fly",
+                    "batting-result.sacrifice-bunt-error",
+                    "batting-result.double-play",
+                }
+            )
+        ):
+            raise ValueError("主結果ありの妨害は実プレイ採用だけ")
+        return self
+
 
 class LineupNonPitchPlayRow(RecordedPrefixPlayRow):
     """v3申告敬遠だけの公開行。投球観測を仮補完せず全NULLで閉じる。"""
@@ -272,6 +306,35 @@ class LineupRunnerNonPitchPlayRow(LineupNonPitchPlayRow):
         elif (self.pickoff_type is None) != (self.pickoff_detail is None):
             raise ValueError("牽制種別と対象塁は同時に必要")
         return self
+
+
+class LineupInterferencePlayRow(RecordedPrefixPlayRow):
+    """妨害の罰則・裁定による実投球を副結果だけで公開する。"""
+
+    batting_result_key: None
+    secondary_batting_result_key: Literal[
+        "secondary-result.batting-interference",
+        "secondary-result.obstruction",
+        "secondary-result.offensive-interference",
+    ]
+    strategy_key: None
+    strategy_detail_key: None
+    strategy_result_key: None
+    batter_status: None
+    raw_fielder_position: None
+    resolved_fielder_id: None
+    batted_ball_type: None
+    batted_ball_strength: None
+    hit_x: None
+    hit_y: None
+    pickoff_type: None
+    pickoff_detail: None
+    error_type: None
+    raw_error_position: None
+    resolved_error_player_id: None
+    press: None
+    fake_run: None
+    comment: None
 
 
 class OrdinaryAppendPolicy(_FrozenSchema):
@@ -516,7 +579,10 @@ class LineupPrefixPageItem(_FrozenSchema):
     """実v3行/実差分/物理before走者の閉じたpage item。"""
 
     play_row: (
-        RecordedPrefixPlayRow | LineupNonPitchPlayRow | LineupRunnerNonPitchPlayRow
+        RecordedPrefixPlayRow
+        | LineupNonPitchPlayRow
+        | LineupRunnerNonPitchPlayRow
+        | LineupInterferencePlayRow
     )
     history_entry: StrikeoutHistoryEntry
     play_runners: Annotated[list[StartedPlayRunner], Field(max_length=3)]

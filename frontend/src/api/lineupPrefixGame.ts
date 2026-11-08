@@ -27,9 +27,11 @@ import {
   isRecordedPrefixPlayRow,
   isLineupNonPitchPlayRow,
   isLineupRunnerNonPitchPlayRow,
+  isLineupInterferencePlayRow,
   type RecordedPrefixPlayRow,
   type LineupNonPitchPlayRow,
   type LineupRunnerNonPitchPlayRow,
+  type LineupInterferencePlayRow,
   type StartedGameMetadata,
 } from './startedGame'
 export type LineupPrefixGame = StartedGameMetadata &
@@ -63,6 +65,7 @@ export type LineupPrefixGame = StartedGameMetadata &
           | RecordedPrefixPlayRow
           | LineupNonPitchPlayRow
           | LineupRunnerNonPitchPlayRow
+          | LineupInterferencePlayRow
         history_entry: HistoryEntry
         play_runners: readonly Record<string, unknown>[]
       }>[]
@@ -214,7 +217,8 @@ export function isLineupPrefixGame(v: unknown): v is LineupPrefixGame {
       !exactPlayObject(item, ['play_row', 'history_entry', 'play_runners']) ||
       (!isRecordedPrefixPlayRow(item.play_row) &&
         !isLineupNonPitchPlayRow(item.play_row) &&
-        !isLineupRunnerNonPitchPlayRow(item.play_row)) ||
+        !isLineupRunnerNonPitchPlayRow(item.play_row) &&
+        !isLineupInterferencePlayRow(item.play_row)) ||
       item.play_row.game_id !== v.id ||
       ids.has(item.play_row.id) ||
       !isLineupDefinition(item.history_entry, 'HistoryEntry') ||
