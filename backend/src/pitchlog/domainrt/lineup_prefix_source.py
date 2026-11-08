@@ -533,23 +533,30 @@ def require_batted_hit_observations(
     from pitchlog.domainrt.lineup_play_prefix_continuation import (
         AppliedRunnerAdvanceOverrides,
         BattedHitT1Input,
+        BattingInterferencePlayT1Input,
         RunnerScoreEffect,
     )
     from pitchlog.sync.first_ball_payload import FirstBallObservations
     from pitchlog.sync.terminal_pitch_payload import (
         BattedHitPlayObservations,
+        BattingInterferencePlayObservations,
         _RecordedErrorScoring,
     )
 
-    if type(t1) is not BattedHitT1Input:
+    if type(t1) not in {BattedHitT1Input, BattingInterferencePlayT1Input}:
         if type(observations) is not FirstBallObservations:
             raise ValueError("旧投球へ打球観測を混在できません")
         return
-    if type(observations) is not BattedHitPlayObservations:
+    expected_observation_type = (
+        BattingInterferencePlayObservations
+        if type(t1) is BattingInterferencePlayT1Input
+        else BattedHitPlayObservations
+    )
+    if type(observations) is not expected_observation_type:
         raise ValueError("安打には記録者の全明示観測が必要です")
     _check_frozen_members(t1)
     _check_frozen_members(observations)
-    checked = BattedHitPlayObservations.model_validate_json(
+    checked = expected_observation_type.model_validate_json(
         _canonical(_dump(observations))
     )
     if t1.official_scoring_payload != checked.official_scoring_payload.kind or (
@@ -635,8 +642,40 @@ def require_batted_hit_observations(
         _canonical(_dump(checked)) != _canonical(_dump(observations))
         or t1.result_id != checked.result_id
         or t1.official_scoring_payload != checked.official_scoring_payload.kind
-        or t1.interference_ruling != checked.interference_ruling.kind
+        or (
+            t1.interference_ruling != checked.interference_ruling
+            if type(t1) is BattingInterferencePlayT1Input
+            else t1.interference_ruling != checked.interference_ruling.kind
+        )
         or not override_matches
         or t1.third_out_observation != checked.third_out_observation.kind
     ):
         raise ValueError("記録者の観測と今回安打計算が一致しません")
+
+
+def require_interference_observations(t1, observations) -> None:
+    """妨害のV7裁定原本を実T1へ全値束縛する。野球結果は計算しない。"""
+    from pitchlog.domainrt.lineup_play_prefix_continuation import (
+        AdjudicatedInterferenceT1Input,
+        BattingInterferencePenaltyT1Input,
+    )
+    from pitchlog.sync.terminal_pitch_payload import (
+        AdjudicatedInterferenceObservations,
+        BattingInterferencePenaltyObservations,
+    )
+
+    observation_type = {
+        BattingInterferencePenaltyT1Input: BattingInterferencePenaltyObservations,
+        AdjudicatedInterferenceT1Input: AdjudicatedInterferenceObservations,
+    }.get(type(t1))
+    if observation_type is None or type(observations) is not observation_type:
+        raise ValueError("妨害には裁定の全原観測が必要です")
+    _check_frozen_members(t1)
+    _check_frozen_members(observations)
+    checked = observation_type.model_validate_json(_canonical(_dump(observations)))
+    if (
+        _canonical(_dump(checked)) != _canonical(_dump(observations))
+        or checked.result_id != t1.result_id
+        or checked.interference_ruling != t1.interference_ruling
+    ):
+        raise ValueError("妨害裁定の原観測と計算入力が不一致")

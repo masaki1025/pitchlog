@@ -3,6 +3,7 @@
 HOLD_STATUS = "継続"
 AUTO_STATUS_SOURCE = "auto"
 MANUAL_STATUS_SOURCE = "manual"
+INTERFERENCE_OUT_STATUS = "妨害裁定アウト"
 
 ADVANCE_STATUS_BY_BASE_DESTINATION = {
     "1": {"2": "二進", "3": "三進", "4": "本進"},

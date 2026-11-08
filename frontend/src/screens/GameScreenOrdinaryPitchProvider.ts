@@ -28,6 +28,7 @@ import {
 import type {
   BattedOtherResult,
   BattedHitWireObservations,
+  InterferenceWireObservations,
   BattedOtherWireObservations,
   BattedOutWireObservations,
   BattedDoublePlayWireObservations,
@@ -283,6 +284,10 @@ export type BattedHitConfirmation = Omit<
 export type BattedOutConfirmation = BattedOutWireObservations
 export type BattedOtherConfirmation = BattedOtherWireObservations
 export type BattedDoublePlayConfirmation = BattedDoublePlayWireObservations
+export type InterferenceConfirmation = Pick<
+  InterferenceWireObservations,
+  'resultId' | 'interferenceRuling'
+>
 
 export type PlayScreenObservation = Omit<
   OrdinaryScreenObservation,
@@ -301,6 +306,9 @@ export type PlayScreenObservation = Omit<
       | 'batting-result.batted-out'
       | BattedOtherResult
       | 'batting-result.double-play'
+      | 'secondary-result.batting-interference'
+      | 'secondary-result.obstruction'
+      | 'secondary-result.offensive-interference'
     runnerEvent?: RunnerObservationWire | null
     battedHit?:
       | Omit<BattedHitConfirmation, keyof FirstBallObservations>
@@ -308,6 +316,7 @@ export type PlayScreenObservation = Omit<
       | Omit<BattedOtherConfirmation, keyof FirstBallObservations>
       | Omit<BattedDoublePlayConfirmation, keyof FirstBallObservations>
       | null
+    interference?: InterferenceConfirmation | null
     nextBatter?: NextBatter | null
   }>
 /** 非投球では座標/球種を要求せず、仮の投球観測も構築しない。 */
@@ -772,6 +781,15 @@ export async function prepareLineupPrefix(
       checkpointId,
     )
   if ('kind' in observation) return invalid()
+  if (observation.interference != null)
+    return prepareInterference(
+      context,
+      observation,
+      vocabulary,
+      tenantId,
+      playIdentity,
+      checkpointId,
+    )
   if (
     context.prefixRef.tenantId !== tenantId ||
     vocabulary.tenantId !== tenantId ||
@@ -896,7 +914,10 @@ export async function prepareLineupPrefix(
         ? {
             officialScoringPayload:
               observation.battedHit!.officialScoringPayload.kind,
-            interferenceRuling: 'not-required',
+            interferenceRuling:
+              observation.battedHit!.interferenceRuling.kind === 'not-required'
+                ? 'not-required'
+                : observation.battedHit!.interferenceRuling,
             runnerAdvanceOverrides: runnerAdvanceOverrides,
             thirdOutObservation:
               observation.battedHit!.thirdOutObservation.kind,
@@ -1014,6 +1035,105 @@ export async function prepareLineupPrefix(
     source: context.source,
   }
 }
+
+/** 審判裁定の元入力だけを唯一v3核とV7へ運び、未接合schemaでは閉じる。 */
+async function prepareInterference(
+  context: LineupRecordingContext,
+  observation: PlayScreenObservation,
+  vocabulary: Readonly<{ tenantId: string; pitchTypeKeys: readonly string[] }>,
+  tenantId: string,
+  playIdentity: LineupIdentity,
+  checkpointId: string,
+) {
+  const observed = observation.interference
+  if (
+    observed == null ||
+    observed.resultId !== observation.resultId ||
+    observation.battedHit != null ||
+    observation.runnerEvent != null ||
+    ![
+      'secondary-result.batting-interference',
+      'secondary-result.obstruction',
+      'secondary-result.offensive-interference',
+    ].includes(observation.resultId) ||
+    context.prefixRef.tenantId !== tenantId ||
+    vocabulary.tenantId !== tenantId ||
+    !vocabulary.pitchTypeKeys.includes(observation.pitchTypeKey) ||
+    !Number.isFinite(observation.screenX) ||
+    !Number.isFinite(observation.screenY) ||
+    !isStartedGameMetadata(context.game) ||
+    !isLineupDefinition(context.lineupSource, 'Source') ||
+    !sameOrdinaryWire(context.lineupSource.after, context.after) ||
+    !sameOrdinaryWire(context.lineupSource.prefixRef, context.prefixRef)
+  )
+    return invalid()
+  const t1 = {
+    eventKind: 'secondary-result',
+    resultId: observed.resultId,
+    pitchEventKind: 'pitch-event',
+    before: context.after,
+    interferenceRuling: observed.interferenceRuling,
+    ...(observed.resultId === 'secondary-result.batting-interference'
+      ? {
+          officialScoringPayload: 'no-error',
+          runnerAdvanceOverrides: 'not-applied',
+          thirdOutObservation: 'none',
+        }
+      : {}),
+  }
+  const candidate = {
+    version: '3',
+    prefixRef: context.prefixRef,
+    rules: context.rules,
+    t1,
+    source: context.lineupSource,
+    playIdentity,
+    nextCheckpoint: {
+      id: checkpointId,
+      revision: String(BigInt(context.prefixRef.checkpoint.revision) + 1n),
+      digest: '0'.repeat(64),
+    },
+  }
+  if (!isLineupSpikeDefinition<LineupRequest>(candidate, 'Request'))
+    return invalid()
+  const request = candidate as LineupRequest
+  const response: LineupSuccess = {
+    ok: true,
+    value: invokeFirstBallDomain(
+      'deriveLineupPlayPrefixWithContinuation',
+      request,
+    ) as LineupSuccess['value'],
+  }
+  if (!('runnerScoreEffects' in response.value)) return invalid()
+  const sealed = await sealLineupMetadata(request, response)
+  const course = invokeFirstBallDomain('quantizeCourse', {
+    x: String(observation.screenX),
+    y: String(observation.screenY),
+    view: observation.view,
+    size: String(geometry.size),
+  }) as FirstBallObservations['course']
+  const wire = await formatLineupPrefixWire(
+    sealed.request,
+    sealed.response,
+    {
+      pitchTypeKey: observation.pitchTypeKey,
+      course,
+      pitchSpeed: observation.pitchSpeed,
+      stance: observation.stance,
+      battingSide: observation.battingSide,
+      resultId: observed.resultId,
+      interferenceRuling: observed.interferenceRuling,
+    },
+    context.lineupSource.participants,
+  )
+  return {
+    ...wire,
+    gameId: context.game.id,
+    d4: context.game.current_d4,
+    nextPosition: context.nextPosition,
+    source: context.source,
+  }
+}
 /** 同じ実投球の親結果と子perPitchを照合する。野球結果は再計算しない。 */
 export function runnerObservationMatchesParent(
   observation: RecordingScreenObservation,
@@ -1052,6 +1172,7 @@ export async function prepareRunnerEvent(
   if (
     !runner ||
     ('battedHit' in observation && observation.battedHit != null) ||
+    ('interference' in observation && observation.interference != null) ||
     !runnerObservationMatchesParent(observation, runner) ||
     context.prefixRef.tenantId !== tenantId ||
     vocabulary.tenantId !== tenantId ||

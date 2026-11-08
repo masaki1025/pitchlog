@@ -17,6 +17,7 @@ describe('ドメイン公開口の疎通操作', () => {
       'deriveTerminalPitch',
       'deriveStrikeoutPitch',
       'deriveBattedHit',
+      'deriveInterference',
       'derivePlayPrefixWithContinuation',
       'deriveLineupPlayPrefixWithContinuation',
       'deriveFirstPitchWithContinuation',

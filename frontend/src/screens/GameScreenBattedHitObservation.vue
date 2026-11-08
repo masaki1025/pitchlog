@@ -62,6 +62,7 @@ const props = withDefaults(
     batterId: string
     fielders: readonly { id: string; label: string }[]
     runners?: readonly { base: Base; label: string; runnerId?: string }[]
+    adoptInterference?: boolean
     disabled?: boolean
   }>(),
   { runners: () => [] },
@@ -99,6 +100,7 @@ const confirmations = ref<Record<string, string>>({})
 const runnerDestinations = ref<Record<string, string>>({})
 const runnerRbiRulings = ref<Record<string, string>>({})
 const runnerConfirmed = ref(false)
+const thirdAttempt = ref('')
 const errorFielderId = ref('')
 const questions = computed(() => [
   {
@@ -113,7 +115,9 @@ const questions = computed(() => [
   },
   {
     key: 'interference',
-    label: '妨害裁定を要しないことを確認',
+    label: props.adoptInterference
+      ? '打撃妨害で実プレイ結果を採用したことを確認'
+      : '妨害裁定を要しないことを確認',
     required: true,
     options: [{ id: 'confirmed', label: '確認した' }],
   },
@@ -176,6 +180,7 @@ function reset() {
   runnerDestinations.value = {}
   runnerRbiRulings.value = {}
   runnerConfirmed.value = false
+  thirdAttempt.value = ''
   errorFielderId.value = ''
   emit('change', null)
 }
@@ -206,7 +211,13 @@ async function load(page: string | null) {
   }
 }
 watch(
-  () => [props.contextKey, props.resultId, auth.teamId, auth.authEpoch],
+  () => [
+    props.contextKey,
+    props.resultId,
+    props.adoptInterference,
+    auth.teamId,
+    auth.authEpoch,
+  ],
   () => {
     previousPages.value = []
     reset()
@@ -364,6 +375,25 @@ const observation = computed<
           errorCount: '0' as const,
           fielders: [] as [],
         }
+  const thirdOccupied = props.runners.some((runner) => runner.base === '3')
+  if (
+    props.adoptInterference &&
+    thirdOccupied &&
+    !['none', 'squeeze', 'steal-home'].includes(thirdAttempt.value)
+  )
+    return null
+  const interferenceRuling = props.adoptInterference
+    ? {
+        kind: 'batting-interference' as const,
+        adopted: { kind: 'play-result' as const, resultId: props.resultId },
+        third_base_scoring_attempt: thirdOccupied
+          ? {
+              kind: 'observed' as const,
+              value: thirdAttempt.value as 'none' | 'squeeze' | 'steal-home',
+            }
+          : { kind: 'not-required' as const },
+      }
+    : { kind: 'not-required' as const }
   const common = {
     battedBall: {
       typeKey: ball.typeKey!,
@@ -374,7 +404,7 @@ const observation = computed<
       resolvedFielderId: ball.resolvedFielderId!,
     },
     officialScoringPayload,
-    interferenceRuling: { kind: 'not-required' },
+    interferenceRuling,
     runnerAdvanceOverridesByRunner: runnerOverrides,
     thirdOutTimingByRunner: {},
     ...(Object.keys(rbiRulingByRunner).length ? { rbiRulingByRunner } : {}),
@@ -593,6 +623,21 @@ async function previous() {
       :value="confirmations[q.key] ?? null"
       @change="(v) => (confirmations[q.key] = typeof v === 'string' ? v : '')"
     />
+    <label
+      v-if="adoptInterference && runners.some((runner) => runner.base === '3')"
+      class="block"
+    >
+      三塁走者の打撃妨害時点の得点企図
+      <select
+        v-model="thirdAttempt"
+        data-testid="batted-interference-third-attempt"
+      >
+        <option value="">選択してください</option>
+        <option value="none">企図なし</option>
+        <option value="squeeze">スクイズ</option>
+        <option value="steal-home">本盗</option>
+      </select>
+    </label>
     <p v-if="observation === null">
       観測と裁定の確認が揃うまで確定できません。
     </p>
