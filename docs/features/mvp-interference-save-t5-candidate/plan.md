@@ -39,3 +39,4 @@ created: 2026-11-08
 
 - ステップ1: 親prepare本文を固定して妨害の原裁定・物理ラベルを有限追加。SQL三値の欠測を `IS NOT TRUE` で拒否する追補を含む。実PG拒否は未確認。
 - ステップ2: 既同TX preflightで実eventのV7/参加者/D5/唯一物理mapper全41列を再照合。T5は妨害のtyped走者別効果を既生成核へ写し、元走者のある妨害で盗塁attemptの真正対応が未証明なら `steals=unavailable` とする。実859 hostの4形と改竄負例、既走者算入回帰を純検査で確認。正式SQL配備・実保存は後段。
+- ステップ3: 候補の全対象SHA・純検査・未証明境界を `~/.cache/pitchlog/interference-save-t5-author-20261108/final` の作業者packetに固定。候補成功を正式7.7受理や実PG保存成功に読み替えない。非作者最終レビューは別担当へ渡す。
