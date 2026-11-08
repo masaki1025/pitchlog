@@ -63,3 +63,5 @@ step2読取/coverage接合候補:
 - `repositories/play_export.py` はP3 eventがある場合のみ専用readerを同RRで完全消費する候補。`exports/play_export_csv.py` は旧normal guardを保持し、P3は全監査coverageと現在完成原本が両方成立した場合だけ閉拒否を解除する。未供給/未登録/原本不一致を空集合の成功へしない。root正式helper/token未配置なのでこの候補のP3 HTTP/ZIP成功は未成立。
 - 二度目同値followersの正例は、旧/新capsuleが同じfollower物理・観測・計算/hashを保持していても実current headとSだけで選べることを確認する。列72の今回capsule由来は変わり、旧版監査は保存される。旧head詐称、mixed head、欠落/余剰/別tenant/別source/現在JSON差替えは未供給。pure fixtureを実DB/実認可/実P3成功へ読み替えない。
 - 共有3path（function_operations/operation_registry/transaction）の新read1型有限family/真正同RR dispatcherはbefore/after SHA付きcache patchのみ。本担当のWTでは共有sourceを一切変更しない。cache import overlayで実登録1＋8改変拒否＋汎用decode拒否の10対向を実行（DB呼出し/認可成功を模擬しない）。この段階で見つかったimport循環はleafの表示helper/hash importを値検査時に遅延して解消。
+
+非作者rootのP1（9710f6ab対象）と後発92eeb229: 公開 `_TenantTransaction` に `.session` がない点を是正。実registryから既 `_capture_scope(handle,writer)` が発行する `_WriterScope` をbefore receiptへ保持し、全SQL前後で既 `_assert_scope` と元P3 execution/context/source.bound/nonceを両方検証する。公開handleへraw Sessionを追加せず、cursorは上限+1（2/26件）でcloseする。実型handle/Sessionと同registryのcapture・別runtime/別Session/fake窓口拒否20件4.88秒/RuffTy0。これは無DBの私有窓口型/拒否証拠であり、実P3権限/SQL成功ではない。元9710をP1解消済みと書き換えない。
