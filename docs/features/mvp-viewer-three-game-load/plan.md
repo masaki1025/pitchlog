@@ -19,3 +19,5 @@ branch: feature/mvp-viewer-three-game-load-20261108
 編集範囲はfrontend/src/screens/GameScreenViewerThreeGameLoad.e2e.ts、同.playwright.config.ts、backend/tests/db/test_viewer_three_game_load_owned.py、本計画のみ。既実login/create/start/record helperを再利用し、事前game/play投入や仮APIを作らない。全field一致・各viewer timingの完全集合を検査する。失敗時にも新たな反復は原因と修復を固定してから。最終独立静読をPG前に受け、型/lint/collectを実行する。
 
 実装前の単位整理: step1はFE driver/config、step2はBE owned wrapper/検証、step3は非作者確認後の実走と結果を対象とする。3記録POSTの実要求〜応答時間帯が両waveで重なることを観測し、試合ごと異なる通常結果を指定して別試合混同を検出する。総試験期限は900秒だが製品RPC/leaseや10秒閲覧条件を延ばさない。
+
+非作者REPORT2b087deaのP1を採用。履歴だけの時刻採取を廃し、status/score/回/アウト/走者/count/対象履歴結果/18出場枠/保存時刻を一回のDOM snapshotで同時観測する。同saved_atは元実保存GETへ完全一致させる。後段45秒pollで修復して10秒成功にしない。追加所有は試験用viewerThreeGameSnapshot.e2e-support.tsと同.spec.tsのみ、DOM全状態が遅れて20秒ならその20秒を返す対向を同じcallbackで検査する。実画面/実PG成功の代わりにはしない。
