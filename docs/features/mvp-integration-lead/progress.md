@@ -1,5 +1,13 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 2026-11-08 再開・評価：実画面の盗塁保存／再送／reloadへ到達
+
+- **再開時現物**: 主候補0cfa51a31a2bdb766b86124b47efff872ed6c99e clean、製品sourceは4a0e04b4と不変、低負荷observerだけの後発。run15は中断中に終端しており、同条件再走せず既証拠を回収。manifest SHA1049e80ef9db00a459a8bfe6df5ed453d18e2957014396bfb6ff42d4af596ab1、rc1/133.88秒/source3357一致/cleanup。
+- **利用者の操作の新実証**: 同固定・owned PG/実認証/実記録権/実画面で作成→開始→単打→盗塁→実サーバー再取得（二塁・balls0）→同D5再送200/重複→reload後after/走者/履歴一致までnormal結果JSONを保存。fault別試合はHTTP500/prefix1の画面検査を通過。ただしPW全体は既認証中の別tenant login helperのform待ちで失敗し、wrapper末尾DB照合（本人SB/原本/全取消）は未実行。全試験成功・全17操作・1試合/MVP完成ではない。
+- **診断の評価**: 全行traceをOFFとし製品期限/SQLguard/認可/期待は維持。run14再掲503はrun15では再現しなかった。低負荷失敗3件はRuleSnapshotInvalid/HTTP503、RG1/lease/release系failure0。再発原因は未確定、時間短縮率は算定しない。RG1 Session close/PID消失の静的仮説は独立調査67fbb5e14e249638b929c08cfa739c4e5388661377f5e1b11c301503fea19c9aに保全し、今回の原因として製品変更しない。
+- **次**: recovery担当が越境を別BrowserContextの実login/実Cookie/実GET404へ修正。記録contextは維持し、無関係UI失敗時も存在する証拠のDB照合を集約し最終失敗を保持する。root確認後同製品のfirst2/再送/reload/越境/DBを完走し、WP/PB修復1a2a1b96（独立REPORT db1e70653c5255703b920031e4363ac28d0a3c72932c844dd598cac4c4986c01）を接合して全17操作へ進む。viewer独立枝01f999efは正式2関数を生成接合し、後発52BE/45FE/型0と旧指摘の限定追認中、実PG/正式受理は未了。
+
+
 ## 2026-11-07：非投球保存の供給不足を修復し、走者実測へ
 
 - **主候補**: `feature/mvp-d03-current-startup-20261107@730536ebf676e826e2f7cf29c0e6307435df146c` clean/通常push済み。run11のSQL通過後停止を、既RunnerNPの物理形（主結果NULL/投球列NULL/牽制2列/ボーク副結果）と旧行gateの食い違いへ限定して修復。新語彙を打撃結果へ書き換えず、PlayPrefix tokenだけの有限候補形→既preflightの同event/ledger/未投影→閉原payload/既7literal＋balk→唯一mapper全41列一致を必須にした。通常Ordinary token・IW/pitch・SQLstamp/owner/ACL/計算核は不変更。3path diff SHA dd72d7eb6fd15c813317b7390df4c41bbc5c50670c7b8d7b178092cadd17d6d6。
