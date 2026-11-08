@@ -37,6 +37,8 @@ import functools,json,re,threading,time
 from datetime import datetime,timezone
 from sqlalchemy.exc import DBAPIError as _LowDBAPIError
 from starlette.exceptions import HTTPException as _LowHTTPException
+from fastapi.routing import APIRoute as _LowAPIRoute
+from pitchlog.api.app import ROUTERS as _low_routers
 from pitchlog.repositories import rg1 as _low_rg1
 from pitchlog.repositories import transaction as _low_transaction
 from pitchlog.sync.control_provider import binding_control as _low_binding
@@ -46,6 +48,10 @@ _low_start=time.monotonic()
 _low_lock=threading.Lock()
 _low_count=0
 _low_truncated=False
+_low_operation_ids=frozenset(route.operation_id for router in _low_routers
+ for route in router.routes if isinstance(route,_LowAPIRoute)
+ and type(route.operation_id) is str
+ and re.fullmatch(r'[A-Za-z_][A-Za-z0-9_]{0,159}',route.operation_id))
 _low_stages=frozenset({'rg1-require-open','rg1-ensure-lease',
  'rg1-assert-lease','rg1-release','writer-lease-check','http-503'})
 def _low_identifier(value,*,module=False):
@@ -110,6 +116,9 @@ def _low_emit(stage,error,extra=None):
    if extra is not None:
     for key in ('closed','expired'):
      if type(extra.get(key)) is bool:record[key]=extra[key]
+    operation=extra.get('operationId')
+    if type(operation) is str and operation in _low_operation_ids:
+     record['operationId']=operation
     elapsed=extra.get('elapsedMs')
     if type(elapsed) is int and 0<=elapsed<=3600000:record['elapsedMs']=elapsed
    _low_count+=1
@@ -159,7 +168,13 @@ _low_original_http=_low_errors._http_exception_handler
 async def _low_http(request,error):
  try:
   if isinstance(error,_LowHTTPException) and error.status_code==503:
-   _low_emit('http-503',error)
+   extra={}
+   scope=getattr(request,'scope',None)
+   route=scope.get('route') if type(scope) is dict else None
+   if (isinstance(route,_LowAPIRoute) and type(route.operation_id) is str
+    and route.operation_id in _low_operation_ids):
+    extra['operationId']=route.operation_id
+   _low_emit('http-503',error,extra)
  except BaseException:pass
  return await _low_original_http(request,error)
 _low_errors._http_exception_handler=_low_http
@@ -842,6 +857,53 @@ def _verify_rows(admin, tenant, game: str, result: dict) -> None:
     )
 
 
+def _verify_available_runner_artifacts(
+    db,
+    result_file: Path,
+    baseline,
+    *,
+    playwright_returncode: int | None,
+    execution_errors: tuple[Exception, ...] = (),
+) -> None:
+    """存在する各成果を独立DB接続で照合し、元UI失敗は必ず残す。"""
+    failures = list(execution_errors)
+    evidence = {
+        "playwright_returncode": playwright_returncode,
+        "execution_error_count": len(execution_errors),
+        "normal": "not-generated",
+        "fault": "not-generated",
+    }
+    for label, artifact in (
+        ("normal", result_file),
+        ("fault", Path(str(result_file) + ".fault")),
+    ):
+        if not artifact.is_file():
+            failures.append(AssertionError(f"{label}成果は未生成/検証未実施"))
+            continue
+        try:
+            result = json.loads(artifact.read_text())
+            with psycopg.connect(db.authority.database.business_admin) as admin:
+                admin.execute("SET TRANSACTION READ ONLY")
+                if label == "normal":
+                    assert result["scope"] in ("first", "full")
+                    assert result["gameId"] != str(db.game_id)
+                    _verify_rows(admin, db.tenant_id, result["gameId"], result)
+                else:
+                    _verify_runner_fault_rollback(admin, db.tenant_id, result, baseline)
+        except Exception as error:
+            failures.append(error)
+            evidence[label] = "failed"
+        else:
+            evidence[label] = "verified"
+    Path(str(result_file) + ".db-evidence.json").write_text(
+        json.dumps(evidence, sort_keys=True)
+    )
+    if type(playwright_returncode) is not int or playwright_returncode != 0:
+        failures.append(AssertionError("Playwrightは成功終了していない"))
+    if failures:
+        raise ExceptionGroup("走者画面のUI/DB検証に未完了または失敗がある", failures)
+
+
 @pytest.mark.skipif(
     not os.environ.get("PITCHLOG_E2E_TLS_CERT_PATH")
     or not os.environ.get("PITCHLOG_E2E_TLS_KEY_PATH"),
@@ -889,6 +951,11 @@ def test_runner_operations_screen(
             )
     assert teams is not None
     result_file = tmp_path / "runner-operations.json"
+    assert not result_file.exists()
+    assert not Path(str(result_file) + ".fault").exists()
+    completed = None
+    execution_errors: list[Exception] = []
+    baseline = None
     token = uuid4()
     with db.broker_worker(token), binding_broker(db, token):
         with _browser_environment(
@@ -927,17 +994,18 @@ def test_runner_operations_screen(
                         _capture_authority_diagnostic(
                             db, tmp_path / "authority-safe.json"
                         )
-                    assert completed.returncode == 0, (
-                        completed.stdout[-10000:],
-                        completed.stderr[-3000:],
-                    )
+                except Exception as error:
+                    execution_errors.append(error)
                 finally:
                     stop.set()
-                baseline = captured.result()
-    result = json.loads(result_file.read_text())
-    assert result["scope"] in ("first", "full")
-    assert result["gameId"] != str(db.game_id)
-    with psycopg.connect(db.authority.database.business_admin) as admin:
-        _verify_rows(admin, db.tenant_id, result["gameId"], result)
-        fault = json.loads(Path(str(result_file) + ".fault").read_text())
-        _verify_runner_fault_rollback(admin, db.tenant_id, fault, baseline)
+                try:
+                    baseline = captured.result()
+                except Exception as error:
+                    execution_errors.append(error)
+    _verify_available_runner_artifacts(
+        db,
+        result_file,
+        baseline,
+        playwright_returncode=None if completed is None else completed.returncode,
+        execution_errors=tuple(execution_errors),
+    )
