@@ -13,13 +13,15 @@ import zipfile
 from contextlib import contextmanager
 from decimal import Decimal
 from pathlib import Path
+from typing import LiteralString
 from uuid import UUID, uuid4
 
 import psycopg
 import pytest
 
 from pitchlog.exports.play_rows import CSV_HEADERS
-from pitchlog.stats.basic_stats import BATTING_ITEMS, COUNT_METRIC_IDS, PITCHING_ITEMS
+from pitchlog.stats.basic_stats import BATTING_ITEMS, PITCHING_ITEMS
+from pitchlog.stats.generated.receiver import METRIC_IDS
 
 from . import test_screen_start_e2e as screen_harness
 from .sync_writer_binding_support import binding_broker
@@ -31,6 +33,118 @@ from .test_screen_start_e2e import tested_role_connection as tested_role_connect
 from .test_screen_start_e2e import vertical_database as vertical_database
 
 pytestmark = pytest.mark.requires_db
+
+# 直接表示countと既率の依存原始値だけを要求する。原始27と表示27を混同しない。
+_DISPLAY_PRIMITIVE_KEYS = frozenset(
+    metric
+    for metric, _, kind in (*BATTING_ITEMS, *PITCHING_ITEMS)
+    if kind in {"count", "batters_faced"}
+) | {"pitching_outs", "sf", "total_bases"}
+assert _DISPLAY_PRIMITIVE_KEYS <= set(METRIC_IDS)
+_KNOWN_TOTALS = {
+    "pitch_count": 55,
+    "pa": 55,
+    "ab": 55,
+    "h": 1,
+    "hr": 1,
+    "runs": 1,
+    "rbi": 1,
+    "pitching_outs": 54,
+    "batters_faced": 55,
+    "k": 0,
+    "bb": 0,
+    "hbp": 0,
+    "stolen_bases": 0,
+}
+
+
+_READ_SQL: dict[str, LiteralString] = {
+    "read_0": ("SELECT version_num FROM alembic_version"),
+    "read_1": (
+        "SELECT away_team_record_id,home_team_record_id FROM public.games"
+        " WHERE tenant_id=%s AND id=%s"
+    ),
+    "read_2": (
+        "SELECT "
+        "g.status,h.last_version,h.is_finished,v.id,v.completion_state,v.is_current,v.source_count,h.active_receipt_id,v.completion_receipt_id,v.public_pointer_receipt_id"
+        " FROM public.games g JOIN sync_fence.game_lifecycle_heads h ON "
+        "h.tenant_id=g.tenant_id AND h.game_id=g.id JOIN "
+        "sync_fence.stats_fact_versions v ON v.tenant_id=h.tenant_id AND "
+        "v.game_id=h.game_id AND v.id=h.active_stats_version_id WHERE "
+        "g.tenant_id=%s AND g.id=%s"
+    ),
+    "read_3": (
+        "SELECT event_kind,ledger_kind FROM public.operation_events WHERE"
+        " tenant_id=%s AND game_id=%s ORDER BY d1"
+    ),
+    "read_4": (
+        "SELECT "
+        "p.id,p.source_event_id,p.batting_result_key,s.plays_csv_json "
+        "FROM public.play_rows p JOIN public.play_export_snapshots s ON "
+        "s.tenant_id=p.tenant_id AND s.play_row_id=p.id AND "
+        "s.game_id=p.game_id WHERE p.tenant_id=%s AND p.game_id=%s AND "
+        "p.hidden_at IS NULL AND p.import_batch_id IS NULL ORDER BY "
+        "p.play_number,p.id"
+    ),
+    "read_5": (
+        "SELECT source_event_id,metric_states,computed_metric_keys FROM "
+        "sync_fence.stats_primitive_sources WHERE tenant_id=%s AND "
+        "game_id=%s AND fact_version_id=%s ORDER BY d1"
+    ),
+    "read_6": (
+        "SELECT "
+        "source_event_id,metric_id,player_id,credit_ordinal,state,amount "
+        "FROM sync_fence.stats_primitive_facts WHERE tenant_id=%s AND "
+        "game_id=%s AND fact_version_id=%s"
+    ),
+    "read_7": (
+        "SELECT p.player,m.metric,COALESCE(sum(f.amount),0) FROM "
+        "unnest(%s::uuid[]) p(player) CROSS JOIN unnest(%s::text[]) "
+        "m(metric) LEFT JOIN sync_fence.stats_primitive_facts f ON "
+        "f.player_id=p.player AND f.metric_id=m.metric AND f.tenant_id=%s"
+        " AND f.game_id=%s AND f.fact_version_id=%s GROUP BY "
+        "p.player,m.metric"
+    ),
+    "read_8": (
+        "SELECT m.metric,COALESCE(sum(f.amount),0) FROM "
+        "unnest(%s::text[]) m(metric) LEFT JOIN "
+        "sync_fence.stats_primitive_facts f ON f.metric_id=m.metric AND "
+        "f.tenant_id=%s AND f.game_id=%s AND f.fact_version_id=%s GROUP "
+        "BY m.metric"
+    ),
+    "read_9": (
+        "SELECT DISTINCT pitcher_id FROM public.play_rows WHERE "
+        "tenant_id=%s AND game_id=%s AND hidden_at IS NULL AND "
+        "import_batch_id IS NULL"
+    ),
+}
+
+
+def _explain_read_sql(admin, tenant: UUID, game: UUID) -> None:
+    """UIの長時間記録より前に、全固定SELECTの列/型/結合を実PGで計画する。"""
+    for statement in _READ_SQL.values():
+        count = statement.count("%s")
+        if count == 0:
+            parameters = ()
+        elif count == 2:
+            parameters = (tenant, game)
+        elif count == 3:
+            parameters = (tenant, game, UUID(int=0))
+        elif count == 4:
+            parameters = (list(_KNOWN_TOTALS), tenant, game, UUID(int=0))
+        elif count == 5:
+            parameters = (
+                [UUID(int=0)],
+                sorted(_DISPLAY_PRIMITIVE_KEYS),
+                tenant,
+                game,
+                UUID(int=0),
+            )
+        else:
+            raise AssertionError("未登録の固定read parameter形")
+        assert admin.execute(
+            "EXPLAIN (FORMAT JSON) " + statement, parameters
+        ).fetchone()
 
 
 @contextmanager
@@ -130,12 +244,12 @@ def test_screen_nine_innings_batted_out_stats_and_csv(vertical_database):
         assert path.is_absolute() and path.is_file()
     db = vertical_database
     with psycopg.connect(db.authority.database.business_admin) as admin:
-        assert admin.execute("SELECT version_num FROM alembic_version").fetchone() == (
+        _explain_read_sql(admin, db.tenant_id, db.game_id)
+        assert admin.execute(_READ_SQL["read_0"]).fetchone() == (
             "0049_pitcher_entry_sources",
         )
         teams = admin.execute(
-            "SELECT away_team_record_id,home_team_record_id FROM public.games "
-            "WHERE tenant_id=%s AND id=%s",
+            _READ_SQL["read_1"],
             (db.tenant_id, db.game_id),
         ).fetchone()
         for key, category in (
@@ -189,14 +303,7 @@ def test_screen_nine_innings_batted_out_stats_and_csv(vertical_database):
     ) as admin:
         admin.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY")
         final = admin.execute(
-            "SELECT g.status,h.last_version,h.is_finished,v.id,v.completion_state,"
-            "v.is_current,v.source_count,h.active_receipt_id,v.completion_receipt_id,"
-            "v.public_pointer_receipt_id FROM public.games g "
-            "JOIN sync_fence.game_lifecycle_heads h "
-            "ON h.tenant_id=g.tenant_id AND h.game_id=g.id "
-            "JOIN sync_fence.stats_fact_versions v ON v.tenant_id=h.tenant_id "
-            "AND v.game_id=h.game_id AND v.id=h.active_stats_version_id "
-            "WHERE g.tenant_id=%s AND g.id=%s",
+            _READ_SQL["read_2"],
             (db.tenant_id, game),
         ).fetchall()
         assert len(final) == 1
@@ -227,40 +334,34 @@ def test_screen_nine_innings_batted_out_stats_and_csv(vertical_database):
         assert public_head["lifecycle"]["active"]["version"] == "1"
         assert public_head["checkpoint"]["content"]["d3"] == "56"
         events = admin.execute(
-            "SELECT event_kind,ledger_kind FROM public.operation_events "
-            "WHERE tenant_id=%s AND game_id=%s ORDER BY d1",
+            _READ_SQL["read_3"],
             (db.tenant_id, game),
         ).fetchall()
         assert events == [("play_input", "accepted")] * 55 + [
             ("game_end_declaration", "accepted")
         ]
         saved = admin.execute(
-            "SELECT p.id,p.source_event_id,p.batting_result_key,s.plays_csv_json "
-            "FROM public.play_rows p JOIN public.play_export_snapshots s "
-            "ON s.tenant_id=p.tenant_id AND s.play_row_id=p.id AND s.game_id=p.game_id "
-            "WHERE p.tenant_id=%s AND p.game_id=%s AND p.retired_at IS NULL "
-            "ORDER BY p.play_number,p.id",
+            _READ_SQL["read_4"],
             (db.tenant_id, game),
         ).fetchall()
         assert [r[2] for r in saved] == ["batting-result.home-run"] + [
             "batting-result.batted-out"
         ] * 54
         sources = admin.execute(
-            "SELECT source_event_id,metric_states,computed_metric_keys "
-            "FROM sync_fence.stats_primitive_sources "
-            "WHERE tenant_id=%s AND game_id=%s AND fact_version_id=%s ORDER BY d1",
+            _READ_SQL["read_5"],
             (db.tenant_id, game, fact_id),
         ).fetchall()
         assert [r[0] for r in sources] == [r[1] for r in saved]
         # 明示availableなsourceと全creditが揃った場合だけ、空creditを0と比較する。
         for _, states, computed in sources:
-            assert set(states["metrics"]) == set(COUNT_METRIC_IDS)
-            assert set(computed) == set(COUNT_METRIC_IDS)
-            assert all(v["state"] == "available" for v in states["metrics"].values())
+            assert set(states["metrics"]) == set(METRIC_IDS)
+            assert _DISPLAY_PRIMITIVE_KEYS <= set(computed) <= set(METRIC_IDS)
+            assert all(
+                states["metrics"][key]["state"] == "available"
+                for key in _DISPLAY_PRIMITIVE_KEYS
+            )
         actual_credits = admin.execute(
-            "SELECT source_event_id,metric_id,player_id,credit_ordinal,state,amount "
-            "FROM sync_fence.stats_primitive_facts WHERE tenant_id=%s AND game_id=%s "
-            "AND fact_version_id=%s",
+            _READ_SQL["read_6"],
             (db.tenant_id, game, fact_id),
         ).fetchall()
         expected_credits = {
@@ -278,24 +379,26 @@ def test_screen_nine_innings_batted_out_stats_and_csv(vertical_database):
         }
         assert set(actual_credits) == expected_credits
         facts = admin.execute(
-            "SELECT p.player,m.metric,COALESCE(sum(f.amount),0) "
-            "FROM unnest(%s::uuid[]) p(player) CROSS JOIN unnest(%s::text[]) m(metric) "
-            "LEFT JOIN sync_fence.stats_primitive_facts f ON f.player_id=p.player "
-            "AND f.metric_id=m.metric AND f.tenant_id=%s AND f.game_id=%s "
-            "AND f.fact_version_id=%s GROUP BY p.player,m.metric",
+            _READ_SQL["read_7"],
             (
                 [UUID(p["player_id"]) for p in players],
-                list(COUNT_METRIC_IDS),
+                sorted(_DISPLAY_PRIMITIVE_KEYS),
                 db.tenant_id,
                 game,
                 fact_id,
             ),
         ).fetchall()
+        totals = dict(
+            admin.execute(
+                _READ_SQL["read_8"],
+                (list(_KNOWN_TOTALS), db.tenant_id, game, fact_id),
+            ).fetchall()
+        )
+        assert totals == _KNOWN_TOTALS
         pitchers = {
             r[0]
             for r in admin.execute(
-                "SELECT DISTINCT pitcher_id FROM public.play_rows WHERE tenant_id=%s "
-                "AND game_id=%s AND retired_at IS NULL",
+                _READ_SQL["read_9"],
                 (db.tenant_id, game),
             ).fetchall()
         }
