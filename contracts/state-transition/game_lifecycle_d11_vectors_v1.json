@@ -2,7 +2,7 @@
   "calculation": "native-game-lifecycle-v1",
   "sourcePath": "contracts/state-transition/game_lifecycle_cases_v1.json",
   "sourceSha256": "5551ca069b050696028984e7f05e8ad8f175372e6d95bd798418254f0a01498d",
-  "executionArtifactSha256": "71f2726a288dfcfaff4c2fcdf293651dda0fb610b9ead325b352bd4f23a07aff",
+  "executionArtifactSha256": "0e260cd916e4cd4da189132a52adb3e065f261d477bc65f5352bb121e8b45f15",
   "cases": [
     {
       "caseId": "auto-ended-declaration-preserves-all-current",

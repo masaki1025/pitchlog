@@ -2,7 +2,7 @@
   "calculation": "batted-hit-empty-v1",
   "sourcePath": "contracts/state-transition/batted_hit_cases_v1.json",
   "sourceSha256": "a8be39c6b18e9bec027a530d743881c733cc612ca20046f29d893378c1ddfff8",
-  "executionArtifactSha256": "71f2726a288dfcfaff4c2fcdf293651dda0fb610b9ead325b352bd4f23a07aff",
+  "executionArtifactSha256": "0e260cd916e4cd4da189132a52adb3e065f261d477bc65f5352bb121e8b45f15",
   "cases": [
     {
       "caseId": "BH-Single-top-O1",

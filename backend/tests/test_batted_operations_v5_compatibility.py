@@ -9,13 +9,44 @@ from pathlib import Path
 
 import pytest
 
-from pitchlog.domainrt.host import open_domain_host
+from pitchlog.domainrt.host import NodeDomainHost
 from pitchlog.repositories import play_prefix as reader
 from pitchlog.repositories.ordinary_prefix import OrdinaryPrefixError
 
 ROOT = Path(__file__).resolve().parents[2]
 BASE = ROOT / "contracts/state-transition"
 CURRENT = "71f2726a288dfcfaff4c2fcdf293651dda0fb610b9ead325b352bd4f23a07aff"
+NEW = "0e260cd916e4cd4da189132a52adb3e065f261d477bc65f5352bb121e8b45f15"
+
+
+@pytest.fixture(scope="module")
+def historical_host(tmp_path_factory):
+    """既v5の実旧hostをGit原本から取得する。"""
+    import subprocess
+
+    directory = tmp_path_factory.mktemp("batted-v5-71f")
+    commit = "d074b72ba01cc4d05af29e7b534189c496c5c49c"
+    for name in ("pitchlog-domain.js", "pitchlog-domain.json"):
+        (directory / name).write_bytes(
+            subprocess.check_output(
+                [
+                    "git",
+                    "-C",
+                    str(ROOT),
+                    "show",
+                    f"{commit}:frontend/public/domain/{name}",
+                ]
+            )
+        )
+    assert (
+        hashlib.sha256((directory / "pitchlog-domain.js").read_bytes()).hexdigest()
+        == CURRENT
+    )
+    with NodeDomainHost(
+        directory / "pitchlog-domain.js", directory / "pitchlog-domain.json"
+    ) as host:
+        assert host.artifact_sha256 == CURRENT
+        yield host
 
 
 def _raw(value):
@@ -42,11 +73,13 @@ def _reseal(data, registry):
         row["witnessSha256"] = digest
 
 
-def test_actual_53_full_responses_match_inherited_expected_values():
+def test_actual_53_full_responses_match_inherited_expected_values(historical_host):
     """新hostの実全応答を旧期待由来の全型値へ照合し、期待を生成しない。"""
     data, registry, previous = _inputs()
     reader._validated_v3_witness_v5(_raw(data), _raw(registry), previous, CURRENT)
-    with open_domain_host() as host:
+    from contextlib import nullcontext
+
+    with nullcontext(historical_host) as host:
         assert host.artifact_sha256 == CURRENT
         for sample in data["samples"]:
             actual = json.loads(
@@ -110,16 +143,17 @@ def test_followed_hashes_do_not_qualify_changed_math_or_scope(fault):
         reader._validated_v3_witness_v5(_raw(data), _raw(registry), previous, CURRENT)
 
 
-def test_real_gate_accepts_only_five_fixed_pairs():
-    """正規登録を含む実入口で有限5組以外を補修しない。"""
+def test_real_gate_preserves_five_prior_pairs_in_new_execution():
+    """既5 priorを新実行版へ継承し、未知/旧executionを拒否する。"""
     _, registry, _ = _inputs()
     assert len(registry["cases"]) == 5
+    execution = NEW
     for row in registry["cases"]:
         reader._require_legacy_compatibility(
-            row["priorArtifactSha256"], CURRENT, source_format="play-prefix-play-v3"
+            row["priorArtifactSha256"], execution, source_format="play-prefix-play-v3"
         )
     for prior, execution in [
-        ("0" * 64, CURRENT),
+        ("0" * 64, NEW),
         (CURRENT, "0" * 64),
         (
             registry["cases"][1]["priorArtifactSha256"],
@@ -148,6 +182,8 @@ def test_legacy_registry_raw_change_is_rejected_before_qualification(tmp_path):
         "play_prefix_v3_source_compatibility_v4.json",
         "nonplay_v3_compatibility_witness_v5.json",
         "play_prefix_v3_source_compatibility_v5.json",
+        "nonplay_v3_compatibility_witness_v6.json",
+        "play_prefix_v3_source_compatibility_v6.json",
     ):
         destination = tmp_path / "contracts/state-transition" / name
         destination.parent.mkdir(parents=True, exist_ok=True)
@@ -156,14 +192,14 @@ def test_legacy_registry_raw_change_is_rejected_before_qualification(tmp_path):
         destination = tmp_path / "frontend/public/domain" / name
         destination.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(ROOT / "frontend/public/domain" / name, destination)
-    reader._require_v3_compatibility(tmp_path, CURRENT, CURRENT)
+    reader._require_v3_compatibility(tmp_path, CURRENT, NEW)
     registry = (
         tmp_path
         / "contracts/state-transition/play_prefix_v2_source_compatibility_v1.json"
     )
     registry.write_bytes(registry.read_bytes() + b" ")
     with pytest.raises(ValueError):
-        reader._require_v3_compatibility(tmp_path, CURRENT, CURRENT)
+        reader._require_v3_compatibility(tmp_path, CURRENT, NEW)
 
 
 @pytest.mark.parametrize(
@@ -194,11 +230,11 @@ def test_all_historical_chain_bytes_remain_mandatory(tmp_path, name):
     target.mkdir(parents=True)
     for artifact in ("pitchlog-domain.js", "pitchlog-domain.json"):
         shutil.copyfile(ROOT / "frontend/public/domain" / artifact, target / artifact)
-    reader._require_v3_compatibility(tmp_path, CURRENT, CURRENT)
+    reader._require_v3_compatibility(tmp_path, CURRENT, NEW)
     bad = source / name
     bad.write_bytes(bad.read_bytes() + b" ")
     with pytest.raises(ValueError):
-        reader._require_v3_compatibility(tmp_path, CURRENT, CURRENT)
+        reader._require_v3_compatibility(tmp_path, CURRENT, NEW)
 
 
 @pytest.mark.parametrize(

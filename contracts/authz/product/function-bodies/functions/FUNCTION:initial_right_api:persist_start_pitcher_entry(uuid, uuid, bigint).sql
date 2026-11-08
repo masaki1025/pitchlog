@@ -54,7 +54,7 @@ BEGIN
  NULL::text AS changed_side,NULL::boolean AS half_completed,
  NULL::boolean AS end_condition_detected,NULL::boolean AS lock_further_play,
  NULL::text AS outcome,NULL::text AS x_mark,NULL::boolean AS released_end_condition,
- NULL::boolean AS half_started_before,'71f2726a288dfcfaff4c2fcdf293651dda0fb610b9ead325b352bd4f23a07aff'::text AS artifact_sha256,
+ NULL::boolean AS half_started_before,'0e260cd916e4cd4da189132a52adb3e065f261d477bc65f5352bb121e8b45f15'::text AS artifact_sha256,
  v_fingerprint AS source_fingerprint)
  SELECT pg_catalog.to_jsonb(projected) INTO STRICT v_entry FROM (
 -- 生成元: backend/domain/stats-appearance.model.json。真正TX原本のappearance_transitionだけを供給する。
@@ -135,7 +135,7 @@ FROM checked
  'player_id',(v_entry->>'player_id')::uuid,'defending_side',v_entry->>'defending_side',
  'inning',(v_entry->>'inning')::bigint,'half',v_entry->>'half',
  'proof_kind',v_entry->>'proof_kind','source_fingerprint',v_fingerprint,
- 'artifact_sha256','71f2726a288dfcfaff4c2fcdf293651dda0fb610b9ead325b352bd4f23a07aff','context_sha256',v_context);
+ 'artifact_sha256','0e260cd916e4cd4da189132a52adb3e065f261d477bc65f5352bb121e8b45f15','context_sha256',v_context);
  v_digest:=pg_catalog.encode(pg_catalog.sha256(pg_catalog.convert_to(v_proof::text,'UTF8')),'hex');
  INSERT INTO sync_fence.pitcher_entry_sources(
  tenant_id,game_id,proof_sha256,origin_kind,start_attempt_id,source_event_id,
@@ -143,7 +143,7 @@ FROM checked
  source_fingerprint,artifact_sha256,context_sha256)
  SELECT v_tenant,v_game,v_digest,'start',p_attempt_id,NULL,p_generation,NULL,NULL,
  (v_entry->>'player_id')::uuid,v_entry->>'defending_side',(v_entry->>'inning')::bigint,
- v_entry->>'half',v_entry->>'proof_kind',v_fingerprint,'71f2726a288dfcfaff4c2fcdf293651dda0fb610b9ead325b352bd4f23a07aff',v_context
+ v_entry->>'half',v_entry->>'proof_kind',v_fingerprint,'0e260cd916e4cd4da189132a52adb3e065f261d477bc65f5352bb121e8b45f15',v_context
  ON CONFLICT (tenant_id,game_id,proof_sha256) DO NOTHING;
  IF NOT EXISTS(SELECT 1 FROM sync_fence.pitcher_entry_sources e
  WHERE e.tenant_id=v_tenant AND e.game_id=v_game AND e.proof_sha256=v_digest

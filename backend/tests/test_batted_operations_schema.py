@@ -1,7 +1,10 @@
 """共有schemaのmeta・有限intake・公式観測を同じ明示入力で照合する。"""
 
+import copy
+import hashlib
 import json
 import subprocess
+from contextlib import nullcontext
 from pathlib import Path
 
 import pytest
@@ -15,6 +18,48 @@ NAMES = (
 CASES = json.loads(
     (ROOT / "backend/tests/fixtures/batted_operations_schema_cases_v1.json").read_text()
 )
+OLD_ARTIFACT = "71f2726a288dfcfaff4c2fcdf293651dda0fb610b9ead325b352bd4f23a07aff"
+CURRENT_ARTIFACT = "0e260cd916e4cd4da189132a52adb3e065f261d477bc65f5352bb121e8b45f15"
+HISTORICAL_COMMIT = "d074b72ba01cc4d05af29e7b534189c496c5c49c"
+
+
+@pytest.fixture(scope="module")
+def historical_host(tmp_path_factory):
+    """旧fixtureを実Gitの旧71f hostで検証し続ける。"""
+    from pitchlog.domainrt.host import NodeDomainHost
+
+    directory = tmp_path_factory.mktemp("batted-runtime-71f")
+    for name in ("pitchlog-domain.js", "pitchlog-domain.json"):
+        (directory / name).write_bytes(
+            subprocess.check_output(
+                [
+                    "git",
+                    "-C",
+                    str(ROOT),
+                    "show",
+                    f"{HISTORICAL_COMMIT}:frontend/public/domain/{name}",
+                ]
+            )
+        )
+    assert (
+        hashlib.sha256((directory / "pitchlog-domain.js").read_bytes()).hexdigest()
+        == OLD_ARTIFACT
+    )
+    with NodeDomainHost(
+        directory / "pitchlog-domain.js", directory / "pitchlog-domain.json"
+    ) as host:
+        assert host.artifact_sha256 == OLD_ARTIFACT
+        yield host
+
+
+@pytest.fixture(scope="module")
+def current_host():
+    """現公式artifactの実hostを使う。"""
+    from pitchlog.domainrt.host import open_domain_host
+
+    with open_domain_host() as host:
+        assert host.artifact_sha256 == CURRENT_ARTIFACT
+        yield host
 
 
 def definition(document, name):
@@ -67,7 +112,7 @@ def test_finite_input_and_official_observation_shape(case):
             )
 
 
-def actual_batted_payload(row, host):
+def actual_batted_payload(row, host, *, expected_artifact):
     """新実hostの真応答を封印し、schemaと既codecへ渡す。資格は作らない。"""
     from referencing import Registry, Resource
     from test_batted_hit_prefix_payload import observations
@@ -103,7 +148,9 @@ def actual_batted_payload(row, host):
     full = Draft202012Validator(payload_schema, registry=registry)
     if type(host) is not NodeDomainHost:
         raise TypeError("実NodeDomainHostが必要")
-    assert host.artifact_sha256 == samples["artifactSha256"]
+    assert samples["artifactSha256"] == OLD_ARTIFACT
+    assert host.artifact_sha256 == expected_artifact
+    assert row["request"]["source"]["executionArtifactSha256"] == expected_artifact
     request = decode_lineup_prefix_request(json.dumps(row["request"]))
     response = decode_lineup_prefix_response(
         host.call(
@@ -177,12 +224,58 @@ def actual_batted_payload(row, host):
     )["samples"],
     ids=lambda row: row["operation"],
 )
-def test_actual_host_seal_v7_v8_and_paired_wire_head(row):
-    """再利用helperでも全schema/head/公式codec照合を省かない。"""
-    from pitchlog.domainrt.host import open_domain_host
+def test_actual_host_seal_v7_v8_and_paired_wire_head(row, historical_host):
+    """旧71fの10原本を実Git hostで全schema/head/codec照合する。"""
+    actual_batted_payload(row, historical_host, expected_artifact=OLD_ARTIFACT)
 
-    with open_domain_host() as host:
-        actual_batted_payload(row, host)
+
+@pytest.mark.parametrize(
+    "row",
+    json.loads(
+        (
+            ROOT
+            / "backend/tests/fixtures/batted_operations_schema_runtime_requests_v1.json"
+        ).read_text()
+    )["samples"],
+    ids=lambda row: row["operation"],
+)
+def test_runtime_ten_old_and_current_hosts_have_identical_math(
+    row, historical_host, current_host
+):
+    """旧10実応答を4自己識別値だけ変換し、新host全値と比較する。"""
+    from pitchlog.domainrt.lineup_play_prefix_continuation import (
+        LineupPrefixRequest,
+        LineupPrefixSuccess,
+        lineup_wire_digest,
+    )
+
+    old_request = row["request"]
+    assert old_request["source"]["executionArtifactSha256"] == OLD_ARTIFACT
+    old_response = json.loads(
+        historical_host.call(
+            "deriveLineupPlayPrefixWithContinuation", json.dumps(old_request)
+        )
+    )
+    assert old_response["ok"] is True
+    current_request = copy.deepcopy(old_request)
+    expected = copy.deepcopy(old_response)
+    current_request["source"]["executionArtifactSha256"] = CURRENT_ARTIFACT
+    expected["value"]["executionArtifactSha256"] = CURRENT_ARTIFACT
+    digest = lineup_wire_digest(
+        LineupPrefixRequest.model_validate_json(json.dumps(current_request)),
+        LineupPrefixSuccess.model_validate_json(json.dumps(expected)),
+    )
+    current_request["nextCheckpoint"]["digest"] = digest
+    expected["value"]["nextPrefixRef"]["checkpoint"]["digest"] = digest
+    actual = json.loads(
+        current_host.call(
+            "deriveLineupPlayPrefixWithContinuation", json.dumps(current_request)
+        )
+    )
+    assert actual == expected, row["operation"]
+    actual_batted_payload(
+        {"request": current_request}, current_host, expected_artifact=CURRENT_ARTIFACT
+    )
 
 
 @pytest.mark.parametrize(
@@ -199,9 +292,8 @@ def test_actual_host_seal_v7_v8_and_paired_wire_head(row):
         "forged-rbi",
     ],
 )
-def test_no_run_head_never_promotes_unknown_or_scoring_context(fault):
+def test_no_run_head_never_promotes_unknown_or_scoring_context(fault, historical_host):
     """空effectだけで成功せず、元の有限入力/実flags/scoreも照合する。"""
-    from pitchlog.domainrt.host import open_domain_host
     from pitchlog.domainrt.lineup_play_prefix_continuation import (
         LineupPrefixProtocolError,
         LineupPrefixSuccess,
@@ -217,7 +309,7 @@ def test_no_run_head_never_promotes_unknown_or_scoring_context(fault):
         ).read_text()
     )["samples"]
     row = next(r for r in source if r["operation"] == "batted-out")
-    with open_domain_host() as host:
+    with nullcontext(historical_host) as host:
         q = decode_lineup_prefix_request(json.dumps(row["request"]))
         r = decode_lineup_prefix_response(
             host.call(

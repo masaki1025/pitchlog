@@ -2,7 +2,7 @@
   "calculation": "regular-caught-strikeout-v1",
   "sourcePath": "contracts/state-transition/strikeout_pitch_cases_v1.json",
   "sourceSha256": "8ba49c431e10cf5c7ba5b97679f543d39713b76a5ab50256f78fb09ec42684aa",
-  "executionArtifactSha256": "71f2726a288dfcfaff4c2fcdf293651dda0fb610b9ead325b352bd4f23a07aff",
+  "executionArtifactSha256": "0e260cd916e4cd4da189132a52adb3e065f261d477bc65f5352bb121e8b45f15",
   "cases": [
     {
       "caseId": "STRIKEOUT-1-B0-O0",
