@@ -3,11 +3,11 @@
 from dataclasses import dataclass
 
 SCHEMA_VERSION = 1
-RUNTIME_CONTRACT_REVISION = 34
+RUNTIME_CONTRACT_REVISION = 35
 PROVISIONAL = False
 SUPERSEDED_BY = None
 SOURCE_ASSET = "contracts/tenant_boundary/runtime-authz-contract.json"
-SOURCE_DIGEST = "e99b8e47e9878dd6d4ac8b9fdf737d1588144bfa9c70e65e58fda518cdb531b6"
+SOURCE_DIGEST = "3eb6b5159d8a38a49c2486b4cf29590f761d131f5a299e69fa5ff214aa19d512"
 DERIVED_FROM = "contracts/authz/product/ddl-elements.json"
 
 
@@ -79,6 +79,7 @@ PROTECTED_TABLES = (
     ("public", "operation_events"),
     ("public", "participation_intervals"),
     ("public", "pdf_export_records"),
+    ("public", "play_export_snapshots"),
     ("public", "play_rows"),
     ("public", "play_runners"),
     ("public", "player_merge_events"),
@@ -102,6 +103,7 @@ PROTECTED_TABLES = (
     ("public", "tenants"),
     ("public", "tournament_rule_assignments"),
     ("public", "trusted_devices"),
+    ("sync_fence", "attempt_retirements"),
     ("sync_fence", "first_ball_write_admissions"),
     ("sync_fence", "game_lifecycle_heads"),
     ("sync_fence", "lifecycle_write_admissions"),
@@ -109,6 +111,14 @@ PROTECTED_TABLES = (
     ("sync_fence", "ordinary_pitch_checkpoints"),
     ("sync_fence", "ordinary_pitch_history"),
     ("sync_fence", "ordinary_pitch_write_admissions"),
+    ("sync_fence", "p3_projection_capsule_items"),
+    ("sync_fence", "p3_projection_capsules"),
+    ("sync_fence", "p3_projection_heads"),
+    ("sync_fence", "p3_projection_page_progress"),
+    ("sync_fence", "p3_projection_page_rows"),
+    ("sync_fence", "p3_projection_write_admissions"),
+    ("sync_fence", "pitcher_entry_sources"),
+    ("sync_fence", "play_export_p3_snapshots"),
     ("sync_fence", "stats_fact_versions"),
     ("sync_fence", "stats_primitive_facts"),
     ("sync_fence", "stats_primitive_sources"),
@@ -151,6 +161,7 @@ PROTECTED_FUNCTIONS = (
         "persist_initial_start",
         "uuid, uuid, uuid, uuid, bytea, text",
     ),
+    ("initial_right_api", "persist_start_pitcher_entry", "uuid, uuid, bigint"),
     ("initial_right_api", "read_existing_start", "uuid, uuid, uuid"),
     (
         "initial_right_api",
@@ -217,17 +228,51 @@ PROTECTED_FUNCTIONS = (
     ("rg1_control", "scope_binding", "uuid"),
     ("rg1_control", "try_controller_lease", ""),
     ("stats_api", "open_primitive_snapshot", "uuid, uuid, text"),
+    ("stats_api", "persist_writer_pitcher_entry", "uuid, uuid, uuid, bytea"),
+    ("stats_api", "protect_pitcher_entry_sources", ""),
+    ("stats_api", "protect_play_export_p3_snapshots", ""),
+    ("stats_api", "read_pitcher_appearance_context", "uuid, uuid"),
+    ("stats_api", "read_pitcher_appearance_source", "uuid, uuid, boolean"),
+    (
+        "stats_api",
+        "read_play_export_p3_snapshots",
+        "uuid, bigint, uuid, bigint, integer",
+    ),
     (
         "stats_api",
         "read_play_export_primitives",
         "uuid, uuid, uuid, bigint, text, text, text, bigint, uuid, text, integer",
     ),
+    ("stats_api", "read_play_export_source_page", "uuid, bigint, bigint, integer"),
     (
         "stats_api",
         "read_primitive_totals",
         "uuid, uuid, uuid, bigint, text, text, text",
     ),
     ("stats_api", "read_primitive_writer_state", "uuid, uuid, uuid, text, bytea"),
+    (
+        "stats_api",
+        "read_writer_p3_play_export_page",
+        (
+            "uuid, uuid, uuid, uuid, uuid, bigint, integer, bytea, uuid, uuid, uuid, bi"
+            "gint, text"
+        ),
+    ),
+    (
+        "stats_api",
+        "read_writer_p3_play_export_prior",
+        "uuid, uuid, uuid, uuid, uuid, bytea, uuid, bigint, text, bigint",
+    ),
+    (
+        "stats_api",
+        "read_writer_play_export_aggregate",
+        "uuid, uuid, uuid, uuid, text, bigint, bytea",
+    ),
+    (
+        "stats_api",
+        "read_writer_play_export_substitute",
+        "uuid, uuid, uuid, uuid, bytea",
+    ),
     (
         "stats_api",
         "rebuild_after_nonplay_undo",
@@ -239,18 +284,46 @@ PROTECTED_FUNCTIONS = (
         "uuid, uuid, uuid, text, bigint, text, jsonb, bytea",
     ),
     (
+        "stats_api",
+        "save_writer_p3_play_export_snapshot",
+        "uuid, uuid, uuid, uuid, bigint, bytea, jsonb, uuid, uuid, uuid, bigint, text",
+    ),
+    (
+        "stats_api",
+        "save_writer_play_export_snapshot",
+        "uuid, uuid, uuid, uuid, text, bigint, bytea, jsonb",
+    ),
+    (
         "stats_basic_api",
         "read_basic_stats",
         "uuid, text, text, text, text, text, boolean, text, integer, text",
     ),
+    ("sync_fence", "p3_reject_unfinished_page_progress", ""),
     ("sync_fence_api", "assert_writer_binding", "uuid, uuid, uuid, bytea, uuid, uuid"),
     ("sync_fence_api", "close_writer_binding", "uuid, uuid, uuid, uuid, uuid"),
     ("sync_fence_api", "guard_writer_records", ""),
     ("sync_fence_api", "observe_writer_binding", "uuid, uuid, uuid, uuid, uuid"),
     ("sync_fence_api", "publish_writer_binding", "uuid, uuid, uuid, jsonb, bytea"),
+    ("sync_fence_api", "read_attempt_d5", "uuid, uuid, text"),
+    ("sync_fence_api", "read_p3_writer_binding", "uuid, uuid, uuid, bytea, uuid, uuid"),
     ("sync_fence_api", "read_writer_database_identity", "uuid"),
     ("sync_fence_api", "read_writer_identity", "uuid"),
+    (
+        "sync_fence_api",
+        "retire_sync_attempt",
+        "uuid, uuid, uuid, uuid, uuid, text, bigint, text, text, uuid, bigint",
+    ),
+    (
+        "sync_right_api",
+        "append_p3_projection_page",
+        "uuid, uuid, uuid, bytea, uuid, uuid, uuid, text",
+    ),
     ("sync_right_api", "assert_play_prefix_projection", "jsonb"),
+    (
+        "sync_right_api",
+        "begin_p3_projection_page",
+        "uuid, uuid, uuid, bytea, uuid, uuid, text, text",
+    ),
     ("sync_right_api", "bind_device", "uuid, uuid, uuid, bytea, uuid, uuid, bytea"),
     (
         "sync_right_api",
@@ -262,6 +335,7 @@ PROTECTED_FUNCTIONS = (
         "bind_ordinary_device",
         "uuid, uuid, uuid, bytea, uuid, uuid, bytea",
     ),
+    ("sync_right_api", "bind_p3_device", "uuid, uuid, uuid, bytea, uuid, uuid, bytea"),
     (
         "sync_right_api",
         "check_current_right",
@@ -275,6 +349,11 @@ PROTECTED_FUNCTIONS = (
     (
         "sync_right_api",
         "check_ordinary_right",
+        "uuid, uuid, uuid, bytea, uuid, uuid, bigint, bigint, bytea",
+    ),
+    (
+        "sync_right_api",
+        "check_p3_right",
         "uuid, uuid, uuid, bytea, uuid, uuid, bigint, bigint, bytea",
     ),
     (
@@ -293,6 +372,11 @@ PROTECTED_FUNCTIONS = (
         "uuid, uuid, uuid, bytea, uuid, uuid, text",
     ),
     ("sync_right_api", "consume_ordinary_projection", "jsonb"),
+    (
+        "sync_right_api",
+        "finalize_p3_projection_page",
+        "uuid, uuid, uuid, bytea, uuid, uuid, uuid",
+    ),
     ("sync_right_api", "finish_play_prefix_projection", ""),
     ("sync_right_api", "guard_first_ball_projection_admission", ""),
     ("sync_right_api", "guard_first_ball_projection_lock", ""),
@@ -311,6 +395,11 @@ PROTECTED_FUNCTIONS = (
         "sync_right_api",
         "lock_play_prefix_checkpoint",
         "uuid, uuid, uuid, bytea, uuid, uuid, bigint",
+    ),
+    (
+        "sync_right_api",
+        "persist_p3_projection",
+        "uuid, uuid, uuid, bytea, uuid, uuid, text, text",
     ),
     (
         "sync_right_api",
@@ -363,10 +452,50 @@ PROTECTED_FUNCTIONS = (
         ),
     ),
     ("sync_right_api", "read_ordinary_order_summary", "uuid, uuid"),
+    ("sync_right_api", "read_p3_current", "uuid, uuid, bigint"),
+    ("sync_right_api", "read_p3_current_header", "uuid, uuid, bigint"),
+    (
+        "sync_right_api",
+        "read_p3_current_page",
+        "uuid, uuid, bigint, uuid, uuid, text, text, text, bigint, integer",
+    ),
     ("sync_right_api", "read_play_prefix_checkpoint", "uuid, uuid, bigint"),
     (
         "sync_right_api",
         "read_play_prefix_history_page",
+        (
+            "uuid, uuid, bigint, bigint, uuid, bigint, bigint, bigint, bigint, bigint, "
+            "uuid, integer"
+        ),
+    ),
+    (
+        "sync_right_api",
+        "read_started_nonplay_active_history",
+        (
+            "uuid, uuid, bigint, uuid, bigint, bigint, bigint, bigint, bigint, bigint, "
+            "uuid, integer"
+        ),
+    ),
+    (
+        "sync_right_api",
+        "read_started_ordinary_history_page",
+        (
+            "uuid, uuid, bigint, bigint, uuid, bigint, bigint, bigint, bigint, uuid, in"
+            "teger"
+        ),
+    ),
+    (
+        "sync_right_api",
+        "read_started_play_prefix_history_page",
+        (
+            "uuid, uuid, bigint, bigint, uuid, bigint, bigint, bigint, bigint, bigint, "
+            "uuid, integer"
+        ),
+    ),
+    ("sync_right_api", "read_viewer_effective_version", "uuid, uuid, bigint"),
+    (
+        "sync_right_api",
+        "read_viewer_play_prefix_history_page",
         (
             "uuid, uuid, bigint, bigint, uuid, bigint, bigint, bigint, bigint, bigint, "
             "uuid, integer"
