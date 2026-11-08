@@ -32,3 +32,5 @@ SHは占有者全員の明示前進、SFは0/1死かつ三塁生還、DPは0死�
 検査: 旧codec込みの初期89成功5.29秒、最終追加込みrunは85成功/7失敗296.72秒で7件すべてnode --versionの2秒起動期限に応答できないNODE_UNAVAILABLE（同時にgitstatusも遅延）。製品期限/検査を変えず、node版probeがv24.16.0/0.0057秒へ戻った新根拠の下、失敗層runtime10件だけ限定再走し10成功3.54秒。単一run全92greenとは記録しない。FE最終2suite62成功2.37秒、Vue型/限定ESLint/BE型/Ruff成功。元の型不整合は旧19hit fixtureの広域result castを既4hit unionへ狭めたtest-only修正で、値/期待を変更していない。既lineupPrefixWire.specのruntime2失敗は起点current fixture0db対実artifact71fの未接合であり、root互換842適用後の接合確認が残る（本所有外のpinを補修しない）。
 
 実PG/認可/同TX/画面/正式受理/CI/P6blindは未実施。新入力fixtureは実hostへ渡す要求だけで、応答expectationsは保存/再採取していない。root非作者確認・互換/pin/SQL/T5/rowgate直列接合後に59play ownedを実測する。
+
+root T5再利用入口（テスト内、資格発行なし）: `backend/tests/test_batted_operations_schema.py::actual_batted_payload(row, host)` は実NodeDomainHost exactを要求し、実行pin一致/再計算/BEhead/両schema/pair負例/V7/V8/current codecを省かずdecoded LineupPitchPlayPayloadを返す。fixture `batted_operations_schema_runtime_requests_v1.json` の10要求を同hostで渡せる。root T5は当該payloadと `UUID(payload.calculation.request.play_identity.event_id)` を唯一native入口へ渡して検査し、元のmath expectationを生成しない。helper抽出後のruntime10件は10passed2.98秒。stats製品実装はrootのみ所有。

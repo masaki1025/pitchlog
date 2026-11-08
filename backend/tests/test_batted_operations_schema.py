@@ -67,22 +67,12 @@ def test_finite_input_and_official_observation_shape(case):
             )
 
 
-@pytest.mark.parametrize(
-    "row",
-    json.loads(
-        (
-            ROOT
-            / "backend/tests/fixtures/batted_operations_schema_runtime_requests_v1.json"
-        ).read_text()
-    )["samples"],
-    ids=lambda row: row["operation"],
-)
-def test_actual_host_seal_v7_v8_and_paired_wire_head(row):
+def actual_batted_payload(row, host):
     """新実hostの真応答を封印し、schemaと既codecへ渡す。資格は作らない。"""
     from referencing import Registry, Resource
     from test_batted_hit_prefix_payload import observations
 
-    from pitchlog.domainrt.host import open_domain_host
+    from pitchlog.domainrt.host import NodeDomainHost
     from pitchlog.domainrt.lineup_play_prefix_continuation import (
         LineupPrefixSuccess,
         decode_lineup_prefix_request,
@@ -111,67 +101,88 @@ def test_actual_host_seal_v7_v8_and_paired_wire_head(row):
         document["$id"], Resource.from_contents(document)
     )
     full = Draft202012Validator(payload_schema, registry=registry)
-    with open_domain_host() as host:
-        assert host.artifact_sha256 == samples["artifactSha256"]
-        request = decode_lineup_prefix_request(json.dumps(row["request"]))
-        response = decode_lineup_prefix_response(
-            host.call(
-                "deriveLineupPlayPrefixWithContinuation",
-                request.model_dump_json(by_alias=True, exclude_unset=True),
-            )
+    if type(host) is not NodeDomainHost:
+        raise TypeError("実NodeDomainHostが必要")
+    assert host.artifact_sha256 == samples["artifactSha256"]
+    request = decode_lineup_prefix_request(json.dumps(row["request"]))
+    response = decode_lineup_prefix_response(
+        host.call(
+            "deriveLineupPlayPrefixWithContinuation",
+            request.model_dump_json(by_alias=True, exclude_unset=True),
         )
-        assert type(response) is LineupPrefixSuccess
-        request, response = seal_lineup_wire(request, response)
-        head = lineup_wire_head(request, response)
-        for schema in [document, payload_schema]:
-            definition(schema, "WireHead").validate(head)
-            if "rbiRulingByRunner" in head:
-                for key in ["rbiRulingByRunner", "runnerScoreEffects"]:
-                    bad = {k: v for k, v in head.items() if k != key}
-                    assert not definition(schema, "WireHead").is_valid(bad)
-                assert not definition(schema, "WireHead").is_valid(
-                    {**head, "rbiRulingByRunner": {}}
-                )
-        q = request.model_dump(mode="json", by_alias=True, exclude_unset=True)
-        observed = observations({"request": q})
-        t = q["t1"]
-        if t["runnerAdvanceOverrides"] != "not-applied":
-            observed["runnerAdvanceOverridesByRunner"] = t["runnerAdvanceOverrides"]
-        for key in ["rbiRulingByRunner", "outRunner"]:
-            if key in t:
-                observed[key] = t[key]
-        if t["officialScoringPayload"] == "error-recorded":
-            observed["officialScoringPayload"] = {
-                "kind": "error-recorded",
-                "errors": [
-                    {
-                        "fielder": {
-                            "kind": "official",
-                            "player_id": q["source"]["participants"]["pitcherId"],
-                        },
-                        "count": 1,
-                    }
-                ],
-            }
-        calc = LineupPitchCalculation.model_validate_json(
-            json.dumps(
+    )
+    assert type(response) is LineupPrefixSuccess
+    request, response = seal_lineup_wire(request, response)
+    head = lineup_wire_head(request, response)
+    for schema in [document, payload_schema]:
+        definition(schema, "WireHead").validate(head)
+        if "rbiRulingByRunner" in head:
+            for key in ["rbiRulingByRunner", "runnerScoreEffects"]:
+                bad = {k: v for k, v in head.items() if k != key}
+                assert not definition(schema, "WireHead").is_valid(bad)
+            assert not definition(schema, "WireHead").is_valid(
+                {**head, "rbiRulingByRunner": {}}
+            )
+    q = request.model_dump(mode="json", by_alias=True, exclude_unset=True)
+    observed = observations({"request": q})
+    t = q["t1"]
+    if t["runnerAdvanceOverrides"] != "not-applied":
+        observed["runnerAdvanceOverridesByRunner"] = t["runnerAdvanceOverrides"]
+    for key in ["rbiRulingByRunner", "outRunner"]:
+        if key in t:
+            observed[key] = t[key]
+    if t["officialScoringPayload"] == "error-recorded":
+        observed["officialScoringPayload"] = {
+            "kind": "error-recorded",
+            "errors": [
                 {
-                    "formatVersion": "play-prefix-calculation-v3",
-                    "artifactSha256": host.artifact_sha256,
-                    "request": q,
-                    "response": response.model_dump(
-                        mode="json", by_alias=True, exclude_unset=True
-                    ),
+                    "fielder": {
+                        "kind": "official",
+                        "player_id": q["source"]["participants"]["pitcherId"],
+                    },
+                    "count": 1,
                 }
-            )
+            ],
+        }
+    calc = LineupPitchCalculation.model_validate_json(
+        json.dumps(
+            {
+                "formatVersion": "play-prefix-calculation-v3",
+                "artifactSha256": host.artifact_sha256,
+                "request": q,
+                "response": response.model_dump(
+                    mode="json", by_alias=True, exclude_unset=True
+                ),
+            }
         )
-        typed = BattedHitPlayObservations.model_validate_json(json.dumps(observed))
-        v7, v8 = format_batted_hit_prefix_payload(typed, calc)
-        decoded = read_lineup_pitch_payload(
-            v7, v8, expected_calculation=calc, require_current_rbi=True
-        )
-        assert decoded.observations == typed
-        full.validate(json.loads(v7))
+    )
+    typed = BattedHitPlayObservations.model_validate_json(json.dumps(observed))
+    v7, v8 = format_batted_hit_prefix_payload(typed, calc)
+    decoded = read_lineup_pitch_payload(
+        v7, v8, expected_calculation=calc, require_current_rbi=True
+    )
+    assert decoded.observations == typed
+    full.validate(json.loads(v7))
+
+    return decoded
+
+
+@pytest.mark.parametrize(
+    "row",
+    json.loads(
+        (
+            ROOT
+            / "backend/tests/fixtures/batted_operations_schema_runtime_requests_v1.json"
+        ).read_text()
+    )["samples"],
+    ids=lambda row: row["operation"],
+)
+def test_actual_host_seal_v7_v8_and_paired_wire_head(row):
+    """再利用helperでも全schema/head/公式codec照合を省かない。"""
+    from pitchlog.domainrt.host import open_domain_host
+
+    with open_domain_host() as host:
+        actual_batted_payload(row, host)
 
 
 @pytest.mark.parametrize(
