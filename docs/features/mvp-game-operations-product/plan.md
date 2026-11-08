@@ -57,4 +57,6 @@ PO委任rootの指示で、c20dを含む3a3b25b6から専用WT `feature/mvp-full
 まず型/限定純検査を行い固定HEAD/patchをrootへ渡す。root接合・非作者確認後に共通ownedPG/network lockの順序下で1回実測。UI/実認証/記録権/唯一artifact/同TXを省略せず、候補SQL/権限注入を使わない。未供給は失敗として記録し、0/現在名簿/固定成功へ補完しない。
 
 
-2026-11-08 18:50 JST root共有接合追補（PO委任によるCodex/root判断）: 既step1/2の走者あり凡打・野手選択・犠打/犠飛・併殺等を作者専用枝の唯一核へまとめ、rootは既lineup v3 JSON schema2件/d.ts2件、固定親bodyからの保存SQL overlay/公式body、stats/facts.pyの原観測射影、公式artifact pin/有限互換/D11と関連正負試験を直列で接合する。走者別RBI-03/04の観測と実runner IDをT1/V7で一致させ、現行writerで欠落・余剰を拒否する。旧保存原本の再生と新規記録/訂正の入力条件を分け、旧53host全値・規範期待を変更しない。非作者の固定差分確認/実保存/正式値受理/必須CI前は候補として保持する。新しい意味判断は含めず、未裁定の失策・妨害因果だけ留保しMVP残件へ維持する。部品ごとの新ゲートを追加せず、作者batchの固定版とroot接合差分をまとめて検証する。
+2026-11-08 18:48 JST root共有接合追補（PO委任によるCodex/root判断）: 既step1/2の走者あり凡打・野手選択・犠打/犠飛・併殺等を作者専用枝の唯一核へまとめ、rootは既lineup v3 JSON schema2件/d.ts2件、固定親bodyからの保存SQL overlay/公式body、stats/facts.pyの原観測射影、公式artifact pin/有限互換/D11と関連正負試験を直列で接合する。走者別RBI-03/04の観測と実runner IDをT1/V7で一致させ、現行writerで欠落・余剰を拒否する。旧保存原本の再生と新規記録/訂正の入力条件を分け、旧53host全値・規範期待を変更しない。非作者の固定差分確認/実保存/正式値受理/必須CI前は候補として保持する。新しい意味判断は含めず、未裁定の失策・妨害因果だけ留保しMVP残件へ維持する。部品ごとの新ゲートを追加せず、作者batchの固定版とroot接合差分をまとめて検証する。
+
+共有接合下書きpreflight（2026-11-08 18:52 JST）: 旧canonical schema SHA0523f14a/2fac3fe6を入力に、走者別RBI閉map/実走者force-out/新resultのJSON2件をcacheだけへ描画し、meta2件・shape20正負を確認。製品schema/正式受理/実保存は未変更。RBI-03/04の新観測不足を作者が採用し、新writeは有効得点走者全キー必須・旧53数学/保存読取は固定互換へ分離して同batchへ反映中。作者固定後にrootが実schema/d.ts/SQL/T5/唯一artifactを接合する。
