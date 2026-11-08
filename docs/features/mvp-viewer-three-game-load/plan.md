@@ -12,8 +12,10 @@ branch: feature/mvp-viewer-three-game-load-20261108
 
 | # | 作業 | 成立条件 |
 | --- | --- | --- |
-| 1 | 既実UI helperで3試合を新規作成・開始し、各10閲覧contextを用意する | 実Cookie独立、記録context3/閲覧context30、共通team認証、各gameの初期状態と未送信非表示注記を確認 |
-| 2 | 同時3記録の2waveを保存し、30閲覧の自然更新と実DBを照合する | 既recordRealPitch/正式POST・GET、server保存時刻から各閲覧表示10秒以内、全スコア/回/アウト/走者/履歴一致。閲覧APIはlogin後GETのみ/記録権端末登録等0。DB各2play/2accepted・tenant/game一貫。実測時間を出し未達を隠さない |
+| 1 | 実画面driverを作り、3新規試合/各10閲覧/2waveの自然更新を検査する | 実Cookie独立、記録context3/閲覧context30、共通team認証、各gameの初期状態と未送信非表示注記を確認 |
+| 2 | owned wrapperで正式API/実DBの保存値と60件の閲覧時間を照合する | 既recordRealPitch/正式POST・GET、server保存時刻から各閲覧表示10秒以内、全スコア/回/アウト/走者/履歴一致。閲覧APIはlogin後GETのみ/記録権端末登録等0。DB各2play/2accepted・tenant/game一貫。実測時間を出し未達を隠さない |
 | 3 | 固定源でowned1回を実測し証拠を保全する | source固定/共通lock全fixture寿命/共有DSNunset/実UID20003/既TLS/cleanup。PGは現在P3担当の実走完了後root調整で開始。実機/信頼TLS/大量履歴や長時間負荷は別残件 |
 
 編集範囲はfrontend/src/screens/GameScreenViewerThreeGameLoad.e2e.ts、同.playwright.config.ts、backend/tests/db/test_viewer_three_game_load_owned.py、本計画のみ。既実login/create/start/record helperを再利用し、事前game/play投入や仮APIを作らない。全field一致・各viewer timingの完全集合を検査する。失敗時にも新たな反復は原因と修復を固定してから。最終独立静読をPG前に受け、型/lint/collectを実行する。
+
+実装前の単位整理: step1はFE driver/config、step2はBE owned wrapper/検証、step3は非作者確認後の実走と結果を対象とする。3記録POSTの実要求〜応答時間帯が両waveで重なることを観測し、試合ごと異なる通常結果を指定して別試合混同を検出する。総試験期限は900秒だが製品RPC/leaseや10秒閲覧条件を延ばさない。
