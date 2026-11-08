@@ -186,3 +186,54 @@ def test_free_frame_or_foreign_handle_cannot_issue_projection():
         OrdinaryPitchFrame()
     with pytest.raises(OrdinaryPitchExecutionError):
         _consume_ordinary_pitch_frame(object(), object(), object())
+
+
+@pytest.mark.parametrize(
+    "result",
+    [
+        "single",
+        "double",
+        "triple",
+        "home-run",
+        "batted-out",
+        "batted-reach",
+        "fielders-choice",
+        "sacrifice-bunt",
+        "sacrifice-fly",
+        "double-play",
+        "error",
+        "sacrifice-bunt-error",
+    ],
+)
+def test_batted_family_physical_row_requires_only_real_error_fielder(result):
+    """12結果の物理形だけを照合。真正frameや保存資格をこの試験で発行しない。"""
+    from pitchlog.sync.terminal_pitch_tokens import PlayPrefixPlayRowInsertToken
+
+    row = _row()
+    row["batting_result_key"] = "batting-result." + result
+    row["hit_x"], row["hit_y"] = 0.25, 0.75
+    is_error = result in {"error", "sacrifice-bunt-error"}
+    if is_error:
+        row["resolved_error_player_id"] = str(UUID(int=9))
+
+    def prepare(data):
+        return ORDINARY_PLAY_OPERATIONS[0].prepare(
+            PlayPrefixPlayRowInsertToken(
+                UUID(int=3),
+                2,
+                7,
+                6001,
+                UUID(int=8),
+                "wire-v1:" + "a" * 64,
+                json.dumps(data),
+            )
+        )
+
+    _, params = prepare(row)
+    assert params["hit_x"] == 0.25
+    assert params["resolved_error_player_id"] == (UUID(int=9) if is_error else None)
+    bad = {**row, "resolved_error_player_id": None if is_error else str(UUID(int=9))}
+    with pytest.raises(OrdinaryPlayRowError):
+        prepare(bad)
+    with pytest.raises(OrdinaryPlayRowError):
+        prepare({**row, "error_type": "invented"})

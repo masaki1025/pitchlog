@@ -346,6 +346,158 @@ def _native_explicit_runner_projection(payload, value):
         return None
 
 
+def _native_batted_scores(payload, value):
+    """打球の原観測と唯一T1の走者別算入を写し、RBI規則を再計算しない。"""
+    try:
+        if payload["formatVersion"] != "play-prefix-play-v3" or not _closed_native_wire(
+            payload
+        ):
+            return None
+        request = payload["calculation"]["request"]
+        chosen, observed = request["t1"], payload["observations"]
+        result = chosen["resultId"]
+        if (
+            chosen["eventKind"] != "batting-result"
+            or result
+            not in {
+                "batting-result.single",
+                "batting-result.double",
+                "batting-result.triple",
+                "batting-result.batted-out",
+                "batting-result.batted-reach",
+                "batting-result.fielders-choice",
+                "batting-result.sacrifice-bunt",
+                "batting-result.sacrifice-fly",
+                "batting-result.sacrifice-bunt-error",
+                "batting-result.error",
+                "batting-result.double-play",
+            }
+            or observed["resultId"] != result
+            or observed["interferenceRuling"] != {"kind": "not-required"}
+            or chosen["interferenceRuling"] != "not-required"
+        ):
+            return None
+        official = observed["officialScoringPayload"]
+        if result in {"batting-result.error", "batting-result.sacrifice-bunt-error"}:
+            if (
+                chosen["officialScoringPayload"] != "error-recorded"
+                or official["kind"] != "error-recorded"
+            ):
+                return None
+        elif chosen["officialScoringPayload"] != "no-error" or official != {
+            "kind": "no-error",
+            "errorCount": "0",
+            "fielders": [],
+        }:
+            return None
+        override = observed["runnerAdvanceOverridesByRunner"]
+        if override["kind"] == "applied":
+            if chosen["runnerAdvanceOverrides"] != override:
+                return None
+        elif (
+            override != {"kind": "not-applied", "overrides": []}
+            or chosen["runnerAdvanceOverrides"] != "not-applied"
+        ):
+            return None
+        people = payload["participants"]
+        third = observed["thirdOutObservation"]
+        if third != {"kind": "none"} and third != {
+            "kind": "batter-before-first",
+            "batter": {"kind": "official", "player_id": people["batterId"]},
+        }:
+            return None
+        if chosen["thirdOutObservation"] != third["kind"]:
+            return None
+        runners = request["source"]["runners"]
+        by_base = {runner["base"]: runner for runner in runners}
+        if len(by_base) != len(runners):
+            return None
+        if result == "batting-result.double-play":
+            out = chosen["outRunner"]
+            if observed.get("outRunner") != out or out != {
+                "base": "1",
+                "runnerId": by_base["1"]["runnerId"],
+                "outKind": "force-out",
+            }:
+                return None
+        elif "outRunner" in chosen or "outRunner" in observed:
+            return None
+        t1 = value["t1"]
+        home = {
+            base
+            for base, name in (("1", "first"), ("2", "second"), ("3", "third"))
+            if t1["runnerDefaultAdvance"][name]["destination"] == "4"
+        }
+        if not home.issubset(by_base):
+            return None
+        effects = value.get("runnerScoreEffects")
+        if effects is None:
+            # 全算入flagがfalseかつ得点不変なら有効得点は無い。
+            # 無効の本塁到達も原ID付きfalseとして残し、OUT3をPythonへ写さない。
+            if (
+                any(
+                    t1["statFlags"][key] is not False
+                    for key in ("得点", "打点", "失点")
+                )
+                or chosen["before"]["stateFields"]["state.score"]
+                != t1["after"]["stateFields"]["state.score"]
+            ):
+                return None
+            effects = [
+                {"base": base, "validRun": False, "rbiCredited": False}
+                for base in sorted(home)
+            ]
+        if type(effects) is not list or len(effects) > 3:
+            return None
+        by_effect = {effect["base"]: effect for effect in effects}
+        if len(by_effect) != len(effects) or set(by_effect) != home:
+            return None
+        causes = chosen.get("rbiRulingByRunner")
+        if causes != observed.get("rbiRulingByRunner"):
+            return None
+        if any(
+            set(effect) != {"base", "validRun", "rbiCredited"}
+            or type(effect["validRun"]) is not bool
+            or type(effect["rbiCredited"]) is not bool
+            or (effect["rbiCredited"] and not effect["validRun"])
+            for effect in effects
+        ):
+            return None
+        valid = {base for base, effect in by_effect.items() if effect["validRun"]}
+        if (
+            t1["statFlags"]["得点"] is not bool(valid)
+            or t1["statFlags"]["失点"] is not bool(valid)
+            or t1["statFlags"]["打点"] is not any(e["rbiCredited"] for e in effects)
+        ):
+            return None
+        if valid and (type(causes) is not dict or set(causes) != valid):
+            return None
+        if not valid and causes is not None:
+            return None
+        scores = []
+        for base, effect in sorted(by_effect.items()):
+            if (
+                set(effect) != {"base", "validRun", "rbiCredited"}
+                or type(effect["validRun"]) is not bool
+                or type(effect["rbiCredited"]) is not bool
+                or (effect["rbiCredited"] and not effect["validRun"])
+            ):
+                return None
+            runner = by_base[base]
+            scores.append(
+                {
+                    "runner_id": runner["runnerId"],
+                    "responsible_pitcher_id": runner["responsiblePitcherId"],
+                    "valid_run": effect["validRun"],
+                    "rbi_credited": effect["rbiCredited"],
+                    "rbi_batter_id": people["batterId"],
+                }
+            )
+        return scores
+    except (KeyError, TypeError, ValueError):
+        return None
+
+
 def _native_no_steal(payload, value, runner_scores):
     """FR-004/E-1で別の走者操作を含まない、既閉V7結果の空集合。"""
     if not _closed_native_wire(payload):
@@ -577,12 +729,20 @@ def native_projection(payload, *, source_event_id):
     explicit_runner = _native_explicit_runner_projection(payload, value)
     if "runnerObservation" in calc["request"]["t1"] and explicit_runner is None:
         raise ValueError("明示runner原本/実算入根拠の供給が不成立です")
+    batted_scores = _native_batted_scores(payload, value)
     runner_scores = _native_runner_scores(payload, value)
+    if batted_scores is not None:
+        runner_scores = batted_scores
+    elif "rbiRulingByRunner" in calc["request"]["t1"]:
+        # 新しい走者別算入を、旧一括RBI判定へfallbackしない。
+        runner_scores = None
     if explicit_runner is not None:
         runner_scores = explicit_runner[0]
     if runner_scores is not None:
         completeness["runs_rbi"] = "complete"
-    no_steal = _native_no_steal(payload, value, runner_scores)
+    no_steal = batted_scores is not None or _native_no_steal(
+        payload, value, runner_scores
+    )
     if no_steal or explicit_runner is not None:
         completeness["steals"] = "complete"
     projection = {

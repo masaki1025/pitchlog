@@ -523,3 +523,95 @@ def test_existing_intentional_walk_scope_uses_real_codec_without_phantom_steal()
             "credits": [],
         }
     assert raw == original
+
+
+def _explicit_batted_projection_fixture(*, valid=True, credited=False):
+    """射影専用の型付き入力。実計算/真正保存の証拠としては使用しない。"""
+    raw, runners = _runner_payload(
+        "batting-result.single", {3: "4"}, "1" if valid else "0"
+    )
+    for runner in raw["calculation"]["request"]["source"]["runners"]:
+        runner.update(status="継続", statusSource="auto")
+    chosen = raw["calculation"]["request"]["t1"]
+    value = raw["calculation"]["response"]["value"]
+    value["runnerScoreEffects"] = [
+        {"base": "3", "validRun": valid, "rbiCredited": credited}
+    ]
+    if valid:
+        causes = {"3": "ordinary-play" if credited else "stopped-and-restarted"}
+        chosen["rbiRulingByRunner"] = copy.deepcopy(causes)
+        raw["observations"]["rbiRulingByRunner"] = causes
+    for key, flag in (("得点", valid), ("失点", valid), ("打点", credited)):
+        value["t1"]["statFlags"][key] = flag
+    return raw, runners[0]
+
+
+@pytest.mark.parametrize(
+    "valid,credited", [(True, True), (True, False), (False, False)]
+)
+def test_batted_projection_copies_each_real_effect_without_rederiving_rbi(
+    valid, credited
+):
+    """同じ本塁到達でも実算入別のID/責任を保持し、一括打点で上書きしない。"""
+    raw, runner = _explicit_batted_projection_fixture(valid=valid, credited=credited)
+    before = copy.deepcopy(raw)
+    projected = native_projection(raw, source_event_id=EVENT)
+    assert projected["runner_scores"] == [
+        {
+            "runner_id": runner["runnerId"],
+            "responsible_pitcher_id": runner["responsiblePitcherId"],
+            "valid_run": valid,
+            "rbi_credited": credited,
+            "rbi_batter_id": raw["participants"]["batterId"],
+        }
+    ]
+    actual = evaluate_native_projection(raw, source_event_id=EVENT)["metrics"]
+    for metric, expected in (
+        ("runs", valid),
+        ("runs_allowed", valid),
+        ("rbi", credited),
+    ):
+        assert actual[metric]["state"] == "available"
+        assert actual[metric]["value"] == str(int(expected))
+    assert raw == before
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        "missing",
+        "extra",
+        "string-boolean",
+        "flag",
+        "unobserved",
+        "different-observation",
+        "duplicate",
+    ],
+)
+def test_batted_projection_never_falls_back_when_explicit_causality_is_incomplete(
+    mutation,
+):
+    """型/flag/原観測の欠落を旧一括RBIや0で補わない。"""
+    raw, _ = _explicit_batted_projection_fixture()
+    value = raw["calculation"]["response"]["value"]
+    if mutation == "missing":
+        del value["runnerScoreEffects"]
+    elif mutation == "extra":
+        value["runnerScoreEffects"][0]["invented"] = True
+    elif mutation == "string-boolean":
+        value["runnerScoreEffects"][0]["validRun"] = "true"
+    elif mutation == "flag":
+        value["t1"]["statFlags"]["打点"] = True
+    elif mutation == "unobserved":
+        raw["calculation"]["request"]["t1"]["rbiRulingByRunner"] = {
+            "1": "ordinary-play"
+        }
+        raw["observations"]["rbiRulingByRunner"] = {"1": "ordinary-play"}
+    elif mutation == "different-observation":
+        raw["observations"]["rbiRulingByRunner"] = {"3": "ordinary-play"}
+    else:
+        value["runnerScoreEffects"] *= 2
+    actual = evaluate_native_projection(raw, source_event_id=EVENT)["metrics"]
+    for metric in ("runs", "runs_allowed", "rbi"):
+        assert actual[metric]["state"] == "source_unavailable"
+        assert actual[metric]["value"] is None

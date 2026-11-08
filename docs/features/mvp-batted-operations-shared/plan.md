@@ -1,7 +1,7 @@
 ---
 feature: mvp-batted-operations-shared
 status: active
-承認: PO委任によるCodex主担当/root判断（2026-11-08 20:45 JST、本文対象SHAは次の採用記録を参照）
+承認: PO委任によるCodex主担当/root判断（2026-11-08 20:34 JST、対象版9dfd4971の本文を時刻訂正。旧記載20:45は誤記）
 重さ分類: コア領域
 branch: feature/mvp-batted-operations-integration-20261108
 計画レビュー周回: 0
@@ -20,3 +20,7 @@ branch: feature/mvp-batted-operations-integration-20261108
 schema4資産/BE・FE headはcsv_continue担当、妨害の別群はgame_operations担当、旧83eの26件P3実測はrecovery担当。共有台帳・正式受理はrootのみ。PGの同時変更は禁止。旧ゴールデン期待/ABI/旧互換証明を緩めない。テスト用手定射影は数学・認可・実保存の証拠ではない。実機/信頼TLS/負荷/復旧は別のMVP受入条件として維持する。
 
 この計画は既計画の接合範囲整理であり、正式契約受理・P6 blind・人間逐行確認を成立させない。候補作成に関与しないレビューを最終差分に要求し、P0/P1未解消を統合しない。
+
+## ステップ1候補の固定（2026-11-08 20:37 JST）
+
+rootによるPO委任の範囲採用。計画初版9dfd4971は時刻を20:45と誤記したため20:34へ訂正した。独立計画レビュー未実施を0周のまま保持する。候補のSQLは生成だけで製品未登録、実PG未実施。T5は実T1効果の射影で、射影単位試験の手定入力を実計算/認可/保存の証拠としない。対象3suiteは162 passed/8.34s、Ruff/Ty成功。旧127検査から、SQL保存外不変5・新走者効果10・12物理結果と失策ID対向を含む。初回保存外比較テスト1赤/新射影fixtureのrunner status不足3赤はそれぞれテストを正しい新差分・厳密型へ直して解消した。検査条件や数学期待を弱めていない。

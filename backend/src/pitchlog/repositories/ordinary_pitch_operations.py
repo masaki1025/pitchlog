@@ -38,7 +38,23 @@ _BATTED_COLUMNS = frozenset(
 )
 _BATTED_RESULTS = frozenset(
     f"batting-result.{result}"
-    for result in ("single", "double", "triple", "home-run", "batted-out")
+    for result in (
+        "single",
+        "double",
+        "triple",
+        "home-run",
+        "batted-out",
+        "batted-reach",
+        "fielders-choice",
+        "sacrifice-bunt",
+        "sacrifice-fly",
+        "double-play",
+        "sacrifice-bunt-error",
+        "error",
+    )
+)
+_BATTED_ERRORS = frozenset(
+    {"batting-result.sacrifice-bunt-error", "batting-result.error"}
 )
 _INTENTIONAL_WALK = "batting-result.intentional-walk"
 _NONPITCH_NULL_COLUMNS = frozenset(
@@ -262,6 +278,10 @@ def _row(token):
         required_null = (
             set(_NULL_COLUMNS) - _BATTED_COLUMNS if batted else _NULL_COLUMNS
         )
+        if batted and row["batting_result_key"] in _BATTED_ERRORS:
+            if row["resolved_error_player_id"] is None:
+                raise OrdinaryPlayRowError
+            required_null = set(required_null) - {"resolved_error_player_id"}
         if runner_nonpitch:
             required_null = set(_NULL_COLUMNS) - _RUNNER_NONPITCH_COLUMNS
         elif runner_pitch_secondary:
