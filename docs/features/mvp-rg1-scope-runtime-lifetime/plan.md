@@ -31,8 +31,15 @@ created: 2026-11-08
 
 同じGC正対向をGit6c52の旧__exit__だけへ束縛すると、Sessionがloan終結前に消失し1failed0.16秒。新sourceは実SQLAlchemy Session/QueuePool Engine（SQLite、PGや認可成功ではない）をrelease/abandonまで保持し、終結後には弱参照が回収される。正常/body/precommit/release/closeの5新条件と既RG1を合わせ55passed2.30秒。元例外identity/handle失効/commitrollback/close→releaseabandon順を確認し、旧prefixと既終了tail全ASTが不変であることも機械比較した。全backendTy/対象Ruff0。今回の23球EOFの実因や実PG修復成功とはまだ記録しない。
 
-## step2の実走候補（PG未実施）
+## step2の実走候補（起案時PG未実施）
 
 PO委任rootが5ab1固定源を全文確認し、2026-11-08 23:31 JSTにstep2を採用。既実UID20003/C2/正常49の初球HTTPbootstrapだけを再利用し、新規作成→端末登録→開始→一球→GETへ絞る。試験だけのweakmapにscope入口の実Session/Engine弱参照を結び、実GateLoan.release直前にGC→元release一回を行う。controllerの元backend生存照合/期限/未知拒否は変更せず、監査は終端後owned readonlyのみ。collectorが失敗しても元return/例外identityを置換しない6純対向と元5条件の11passed2.74秒、型/Ruff0・collect1・脚本2compile。実PGはroot固定差分確認/実行許可待ち。
 
 失敗時counter追補: rootの既scope委任内判断で、短脚本が失敗した場合も閉じた非負counter8欄だけを一回出力しbare raiseする。snapshot/出力失敗は元例外を保持し、ホストも元rc失敗を成功化しない。元GC probeと製品sourceは5338と全byte不変。追加3対向を含め14pure/型/Ruffを確認。実行形態は実UID20003のASGITransport＋実app API/実C2認証・記録権・PGであり、画面や実ネットワークHTTPSの成功証拠ではない。
+
+
+## step2の短owned実測結果
+
+root非作者確認とPO委任採用後、e828bdf92d1d78a567b8232a01072c3a89fffb3eの専用detached shadowで1回実施。pytestは1passed74.20秒（wrapper75.059秒/rc0）。実UID20003＋ASGITransportの実app/実C2認証・記録権・ownedPGで、新規試合（fixtureとは別）の作成201→開始200→初球受理200→GET200/1ボールを確認。実release直前GCは3scope/3GC/3release成功、Session/Engine欠落・release失敗・metadata失敗は全て0。物理play/event/slot各1、固定source4921ファイル前後一致、新running containerなし、通常cleanup後commonlock再取得成功。実画面/ネットワークHTTPSや旧23球EOFの実因・根治を証明したとはしない。全26は実行していない。
+
+証拠は `/home/ymdms/.cache/pitchlog/rg1-scope-runtime-lifetime-owned-20261108/run1-short-gc/`。REPORT.md SHA b7d1f9ad6ddce93551f7c709b88f64d8fbd2989f4705ff30064c3abe4ce3a8c2、manifest.json SHA 883e36b3b8a8a5b1ebd92a32e74613e9a7d5f476ef488c1e0b42d10a438d79fe。候補の短scope完了と正式採用/旧障害解消は分離し、rootの統合判断へ渡す。
