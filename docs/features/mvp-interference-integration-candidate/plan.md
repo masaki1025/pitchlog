@@ -1,12 +1,12 @@
 ---
 feature: mvp-interference-integration-candidate
-status: draft
-承認: 待機（PO委任rootによる限定技術採否）
+status: active
+承認: 済（PO委任Codex主担当/root限定採用、2026-11-08 21:39 JST、対象計画SHA4356105b51f1d8854e5c00a0faf37ad822d58d31347b56ee886a2e2368a2c878）
 重さ分類: コア領域
 branch: feature/mvp-interference-integration-candidate-20261108
 worktree: /home/ymdms/projects/pitchlog-worktrees/feature-mvp-interference-integration-candidate-20261108
 created: 2026-11-08
-計画レビュー周回: 0
+計画レビュー周回: 1
 確定ゲート周回: 0
 実行方式: 通常
 ---
