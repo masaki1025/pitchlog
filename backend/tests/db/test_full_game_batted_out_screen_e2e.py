@@ -61,8 +61,10 @@ _KNOWN_TOTALS = {
 _READ_SQL: dict[str, LiteralString] = {
     "read_0": ("SELECT version_num FROM alembic_version"),
     "read_1": (
-        "SELECT away_team_record_id,home_team_record_id FROM public.games"
-        " WHERE tenant_id=%s AND id=%s"
+        "SELECT g.away_team_record_id,g.home_team_record_id,(SELECT tr.id"
+        " FROM public.team_records tr WHERE tr.tenant_id=g.tenant_id AND "
+        "tr.kind='self' AND tr.hidden_at IS NULL) FROM public.games g "
+        "WHERE g.tenant_id=%s AND g.id=%s"
     ),
     "read_2": (
         "SELECT "
@@ -263,7 +265,7 @@ def test_screen_nine_innings_batted_out_stats_and_csv(vertical_database):
                 "VALUES (%s,%s,%s) ON CONFLICT(key) DO NOTHING",
                 (key, category, key),
             )
-    assert teams is not None
+    assert teams is not None and teams[2] is not None
     cache = Path.home() / ".cache/pitchlog/full-game-batted-out-author-20261108"
     cache.mkdir(parents=True, exist_ok=True)
     evidence = Path(tempfile.mkdtemp(prefix="full-game-batted-", dir=cache))
@@ -282,6 +284,7 @@ def test_screen_nine_innings_batted_out_stats_and_csv(vertical_database):
                 {
                     "PITCHLOG_E2E_AWAY_TEAM": str(teams[0]),
                     "PITCHLOG_E2E_HOME_TEAM": str(teams[1]),
+                    "PITCHLOG_E2E_SELF_TEAM": str(teams[2]),
                     "PITCHLOG_FULLGAME_EVIDENCE_DIR": str(evidence),
                 },
                 timeout_seconds=3600,
@@ -294,7 +297,9 @@ def test_screen_nine_innings_batted_out_stats_and_csv(vertical_database):
     assert game != db.game_id and observed["plays"] == 55
     players = json.loads((evidence / "game-stats.json").read_text())["players"]
     season = json.loads((evidence / "season-stats.json").read_text())["players"]
-    assert sorted(players, key=lambda p: p["player_id"]) == sorted(
+    self_players = [p for p in players if p["team_record_id"] == str(teams[2])]
+    assert self_players
+    assert sorted(self_players, key=lambda p: p["player_id"]) == sorted(
         season, key=lambda p: p["player_id"]
     )
     with psycopg.connect(

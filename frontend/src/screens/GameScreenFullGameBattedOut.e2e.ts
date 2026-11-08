@@ -14,6 +14,8 @@ test('実画面で9回・55プレイを保存し終了確定版をreloadする',
   page,
 }) => {
   page.setDefaultTimeout(30_000)
+  const selfTeam = process.env.PITCHLOG_E2E_SELF_TEAM
+  if (!selfTeam) throw new Error('実fixtureの自チームIDが不足')
   const { game, head: initial } = await createAndStartRealGame(
     page,
     '九回凡打成績CSV通し',
@@ -183,8 +185,12 @@ test('実画面で9回・55プレイを保存し終了確定版をreloadする',
   function sorted(players: Array<{ player_id: string }>) {
     return [...players].sort((a, b) => a.player_id.localeCompare(b.player_id))
   }
-  expect(sorted(season.players)).toEqual(sorted(gameStats.players))
-  expect(sorted(all.players)).toEqual(sorted(gameStats.players))
+  const selfPlayers = gameStats.players.filter(
+    (p: { team_record_id: string }) => p.team_record_id === selfTeam,
+  )
+  expect(selfPlayers.length).toBeGreaterThan(0)
+  expect(sorted(season.players)).toEqual(sorted(selfPlayers))
+  expect(sorted(all.players)).toEqual(sorted(selfPlayers))
   for (const [path, filename] of [
     ['/api/games/' + game.id + '/stats.csv?mode=official', 'game-stats.csv'],
     ['/api/stats/seasons/2026/stats.csv?category=practice', 'season-stats.csv'],
