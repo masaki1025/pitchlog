@@ -1,11 +1,11 @@
 ---
 feature: mvp-rg1-scope-runtime-lifetime
-status: draft
-承認: 未
+status: active
+承認: PO委任Codex主担当/root（2026-11-08 23:22 JST、対象bf9ed4fe/56e92d8134c1d4f06d554994dcaf988f694c59cb37b1d41967a47e9c6010e9ac）
 重さ分類: コア領域
 branch: fix/mvp-rg1-scope-runtime-lifetime-20261108
 created: 2026-11-08
-計画レビュー周回: 0
+計画レビュー周回: 1
 ---
 
 # RG1借用終結まで同scopeの実runtime参照を保持する
