@@ -167,7 +167,7 @@ export function lineupWireHead(
     }
   }
   if ('rbiRulingByRunner' in q.t1) {
-    if (!('runnerScoreEffects' in v))
+    if (!('runnerScoreEffects' in v) || v.runnerScoreEffects.length === 0)
       throw new Error('打球の算入根拠を確認できません')
     return {
       ...head,
@@ -175,8 +175,27 @@ export function lineupWireHead(
       runnerScoreEffects: v.runnerScoreEffects,
     }
   }
-  if ('runnerScoreEffects' in v)
-    throw new Error('旧入力に走者計算を混在できません')
+  if ('runnerScoreEffects' in v) {
+    if (
+      !['batting-result.batted-out', 'batting-result.sacrifice-bunt'].includes(
+        q.t1.resultId,
+      ) ||
+      !('runnerAdvanceOverrides' in q.t1) ||
+      typeof q.t1.runnerAdvanceOverrides !== 'object' ||
+      q.t1.runnerAdvanceOverrides.kind !== 'applied' ||
+      q.t1.runnerAdvanceOverrides.overrides.length === 0 ||
+      v.runnerScoreEffects.length !== 0 ||
+      v.t1.statFlags['得点'] !== false ||
+      v.t1.statFlags['打点'] !== false ||
+      v.t1.statFlags['失点'] !== false ||
+      !sameOrdinaryWire(
+        q.t1.before.stateFields['state.score'],
+        v.t1.after.stateFields['state.score'],
+      )
+    )
+      throw new Error('旧入力に走者計算を混在できません')
+    return { ...head, runnerScoreEffects: v.runnerScoreEffects }
+  }
   return head
 }
 export async function sealLineupMetadata<

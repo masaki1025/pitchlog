@@ -951,12 +951,35 @@ def lineup_wire_head(
         type(request.t1) is BattedHitT1Input
         and request.t1.rbi_ruling_by_runner is not None
     ):
-        if type(response.value) is not RunnerValue:
+        if (
+            type(response.value) is not RunnerValue
+            or type(response.value.runner_score_effects) is not tuple
+            or not response.value.runner_score_effects
+        ):
             raise LineupPrefixProtocolError("打球の実算入根拠がありません")
         head["rbiRulingByRunner"] = r["t1"]["rbiRulingByRunner"]
         head["runnerScoreEffects"] = v["runnerScoreEffects"]
     elif type(response.value) is RunnerValue:
-        raise LineupPrefixProtocolError("旧入力に走者算入根拠を混在できません")
+        # 無得点の明示停止/犠打も唯一核がtyped effect集合を返す。空集合を
+        # RBI観測へ補完せず、その実値と無得点flag/score一致だけを封印する。
+        if not (
+            type(request.t1) is BattedHitT1Input
+            and request.t1.result_id
+            in {"batting-result.batted-out", "batting-result.sacrifice-bunt"}
+            and type(request.t1.runner_advance_overrides)
+            is AppliedRunnerAdvanceOverrides
+            and bool(request.t1.runner_advance_overrides.overrides)
+            and request.t1.rbi_ruling_by_runner is None
+            and type(response.value.runner_score_effects) is tuple
+            and not response.value.runner_score_effects
+            and response.value.t1.stat_flags.run is False
+            and response.value.t1.stat_flags.rbi is False
+            and response.value.t1.stat_flags.run_allowed is False
+            and request.t1.before.state_fields.score
+            == response.value.t1.after.state_fields.score
+        ):
+            raise LineupPrefixProtocolError("旧入力に走者算入根拠を混在できません")
+        head["runnerScoreEffects"] = v["runnerScoreEffects"]
     return head
 
 

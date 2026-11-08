@@ -1,0 +1,3402 @@
+[
+  {
+    "id": "single",
+    "t1": {
+      "eventKind": "batting-result",
+      "resultId": "batting-result.single",
+      "pitchEventKind": "pitch-event",
+      "before": {
+        "stateFields": {
+          "state.half": "top",
+          "state.count.strikes": "2",
+          "state.count.balls": "3",
+          "state.outs": "0",
+          "state.runners": "empty",
+          "state.battingOrder": "1",
+          "state.tiebreakActive": false,
+          "state.gameEnded": false,
+          "state.inning": "7",
+          "state.score": {
+            "home": "3",
+            "away": "5"
+          }
+        },
+        "scoreboard": {
+          "inningScores": {
+            "home": "3",
+            "away": "5"
+          },
+          "hits": "12",
+          "errors": "2",
+          "strikeouts": "4",
+          "walks": "3"
+        },
+        "battingOrderBySide": {
+          "away": "1",
+          "home": "6"
+        }
+      },
+      "officialScoringPayload": "no-error",
+      "interferenceRuling": "not-required",
+      "runnerAdvanceOverrides": "not-applied",
+      "thirdOutObservation": "none"
+    },
+    "observations": {
+      "pitchTypeKey": "fixture.fastball",
+      "course": {
+        "unit": "1/263",
+        "x": "132",
+        "y": "131"
+      },
+      "pitchSpeed": {
+        "kmh": null,
+        "outsideRangeConfirmed": false
+      },
+      "stance": null,
+      "battingSide": null,
+      "resultId": "batting-result.single",
+      "battedBall": {
+        "typeKey": null,
+        "strengthKey": null,
+        "hitX": null,
+        "hitY": null,
+        "rawFielderPosition": null,
+        "resolvedFielderId": null
+      },
+      "officialScoringPayload": {
+        "kind": "no-error",
+        "errorCount": "0",
+        "fielders": []
+      },
+      "interferenceRuling": {
+        "kind": "not-required"
+      },
+      "runnerAdvanceOverridesByRunner": {
+        "kind": "not-applied",
+        "overrides": []
+      },
+      "thirdOutObservation": {
+        "kind": "none"
+      },
+      "thirdOutTimingByRunner": {}
+    },
+    "t1Valid": true,
+    "observationsValid": true
+  },
+  {
+    "id": "double",
+    "t1": {
+      "eventKind": "batting-result",
+      "resultId": "batting-result.double",
+      "pitchEventKind": "pitch-event",
+      "before": {
+        "stateFields": {
+          "state.half": "top",
+          "state.count.strikes": "2",
+          "state.count.balls": "3",
+          "state.outs": "0",
+          "state.runners": "empty",
+          "state.battingOrder": "1",
+          "state.tiebreakActive": false,
+          "state.gameEnded": false,
+          "state.inning": "7",
+          "state.score": {
+            "home": "3",
+            "away": "5"
+          }
+        },
+        "scoreboard": {
+          "inningScores": {
+            "home": "3",
+            "away": "5"
+          },
+          "hits": "12",
+          "errors": "2",
+          "strikeouts": "4",
+          "walks": "3"
+        },
+        "battingOrderBySide": {
+          "away": "1",
+          "home": "6"
+        }
+      },
+      "officialScoringPayload": "no-error",
+      "interferenceRuling": "not-required",
+      "runnerAdvanceOverrides": "not-applied",
+      "thirdOutObservation": "none"
+    },
+    "observations": {
+      "pitchTypeKey": "fixture.fastball",
+      "course": {
+        "unit": "1/263",
+        "x": "132",
+        "y": "131"
+      },
+      "pitchSpeed": {
+        "kmh": null,
+        "outsideRangeConfirmed": false
+      },
+      "stance": null,
+      "battingSide": null,
+      "resultId": "batting-result.double",
+      "battedBall": {
+        "typeKey": null,
+        "strengthKey": null,
+        "hitX": null,
+        "hitY": null,
+        "rawFielderPosition": null,
+        "resolvedFielderId": null
+      },
+      "officialScoringPayload": {
+        "kind": "no-error",
+        "errorCount": "0",
+        "fielders": []
+      },
+      "interferenceRuling": {
+        "kind": "not-required"
+      },
+      "runnerAdvanceOverridesByRunner": {
+        "kind": "not-applied",
+        "overrides": []
+      },
+      "thirdOutObservation": {
+        "kind": "none"
+      },
+      "thirdOutTimingByRunner": {}
+    },
+    "t1Valid": true,
+    "observationsValid": true
+  },
+  {
+    "id": "triple",
+    "t1": {
+      "eventKind": "batting-result",
+      "resultId": "batting-result.triple",
+      "pitchEventKind": "pitch-event",
+      "before": {
+        "stateFields": {
+          "state.half": "top",
+          "state.count.strikes": "2",
+          "state.count.balls": "3",
+          "state.outs": "0",
+          "state.runners": "empty",
+          "state.battingOrder": "1",
+          "state.tiebreakActive": false,
+          "state.gameEnded": false,
+          "state.inning": "7",
+          "state.score": {
+            "home": "3",
+            "away": "5"
+          }
+        },
+        "scoreboard": {
+          "inningScores": {
+            "home": "3",
+            "away": "5"
+          },
+          "hits": "12",
+          "errors": "2",
+          "strikeouts": "4",
+          "walks": "3"
+        },
+        "battingOrderBySide": {
+          "away": "1",
+          "home": "6"
+        }
+      },
+      "officialScoringPayload": "no-error",
+      "interferenceRuling": "not-required",
+      "runnerAdvanceOverrides": "not-applied",
+      "thirdOutObservation": "none"
+    },
+    "observations": {
+      "pitchTypeKey": "fixture.fastball",
+      "course": {
+        "unit": "1/263",
+        "x": "132",
+        "y": "131"
+      },
+      "pitchSpeed": {
+        "kmh": null,
+        "outsideRangeConfirmed": false
+      },
+      "stance": null,
+      "battingSide": null,
+      "resultId": "batting-result.triple",
+      "battedBall": {
+        "typeKey": null,
+        "strengthKey": null,
+        "hitX": null,
+        "hitY": null,
+        "rawFielderPosition": null,
+        "resolvedFielderId": null
+      },
+      "officialScoringPayload": {
+        "kind": "no-error",
+        "errorCount": "0",
+        "fielders": []
+      },
+      "interferenceRuling": {
+        "kind": "not-required"
+      },
+      "runnerAdvanceOverridesByRunner": {
+        "kind": "not-applied",
+        "overrides": []
+      },
+      "thirdOutObservation": {
+        "kind": "none"
+      },
+      "thirdOutTimingByRunner": {}
+    },
+    "t1Valid": true,
+    "observationsValid": true
+  },
+  {
+    "id": "home-run",
+    "t1": {
+      "eventKind": "batting-result",
+      "resultId": "batting-result.home-run",
+      "pitchEventKind": "pitch-event",
+      "before": {
+        "stateFields": {
+          "state.half": "top",
+          "state.count.strikes": "2",
+          "state.count.balls": "3",
+          "state.outs": "0",
+          "state.runners": "empty",
+          "state.battingOrder": "1",
+          "state.tiebreakActive": false,
+          "state.gameEnded": false,
+          "state.inning": "7",
+          "state.score": {
+            "home": "3",
+            "away": "5"
+          }
+        },
+        "scoreboard": {
+          "inningScores": {
+            "home": "3",
+            "away": "5"
+          },
+          "hits": "12",
+          "errors": "2",
+          "strikeouts": "4",
+          "walks": "3"
+        },
+        "battingOrderBySide": {
+          "away": "1",
+          "home": "6"
+        }
+      },
+      "officialScoringPayload": "no-error",
+      "interferenceRuling": "not-required",
+      "runnerAdvanceOverrides": "not-applied",
+      "thirdOutObservation": "none"
+    },
+    "observations": {
+      "pitchTypeKey": "fixture.fastball",
+      "course": {
+        "unit": "1/263",
+        "x": "132",
+        "y": "131"
+      },
+      "pitchSpeed": {
+        "kmh": null,
+        "outsideRangeConfirmed": false
+      },
+      "stance": null,
+      "battingSide": null,
+      "resultId": "batting-result.home-run",
+      "battedBall": {
+        "typeKey": null,
+        "strengthKey": null,
+        "hitX": null,
+        "hitY": null,
+        "rawFielderPosition": null,
+        "resolvedFielderId": null
+      },
+      "officialScoringPayload": {
+        "kind": "no-error",
+        "errorCount": "0",
+        "fielders": []
+      },
+      "interferenceRuling": {
+        "kind": "not-required"
+      },
+      "runnerAdvanceOverridesByRunner": {
+        "kind": "not-applied",
+        "overrides": []
+      },
+      "thirdOutObservation": {
+        "kind": "none"
+      },
+      "thirdOutTimingByRunner": {}
+    },
+    "t1Valid": true,
+    "observationsValid": true
+  },
+  {
+    "id": "batted-reach",
+    "t1": {
+      "eventKind": "batting-result",
+      "resultId": "batting-result.batted-reach",
+      "pitchEventKind": "pitch-event",
+      "before": {
+        "stateFields": {
+          "state.half": "top",
+          "state.count.strikes": "2",
+          "state.count.balls": "3",
+          "state.outs": "0",
+          "state.runners": "empty",
+          "state.battingOrder": "1",
+          "state.tiebreakActive": false,
+          "state.gameEnded": false,
+          "state.inning": "7",
+          "state.score": {
+            "home": "3",
+            "away": "5"
+          }
+        },
+        "scoreboard": {
+          "inningScores": {
+            "home": "3",
+            "away": "5"
+          },
+          "hits": "12",
+          "errors": "2",
+          "strikeouts": "4",
+          "walks": "3"
+        },
+        "battingOrderBySide": {
+          "away": "1",
+          "home": "6"
+        }
+      },
+      "officialScoringPayload": "no-error",
+      "interferenceRuling": "not-required",
+      "runnerAdvanceOverrides": "not-applied",
+      "thirdOutObservation": "none"
+    },
+    "observations": {
+      "pitchTypeKey": "fixture.fastball",
+      "course": {
+        "unit": "1/263",
+        "x": "132",
+        "y": "131"
+      },
+      "pitchSpeed": {
+        "kmh": null,
+        "outsideRangeConfirmed": false
+      },
+      "stance": null,
+      "battingSide": null,
+      "resultId": "batting-result.batted-reach",
+      "battedBall": {
+        "typeKey": null,
+        "strengthKey": null,
+        "hitX": null,
+        "hitY": null,
+        "rawFielderPosition": null,
+        "resolvedFielderId": null
+      },
+      "officialScoringPayload": {
+        "kind": "no-error",
+        "errorCount": "0",
+        "fielders": []
+      },
+      "interferenceRuling": {
+        "kind": "not-required"
+      },
+      "runnerAdvanceOverridesByRunner": {
+        "kind": "not-applied",
+        "overrides": []
+      },
+      "thirdOutObservation": {
+        "kind": "none"
+      },
+      "thirdOutTimingByRunner": {}
+    },
+    "t1Valid": true,
+    "observationsValid": true
+  },
+  {
+    "id": "error",
+    "t1": {
+      "eventKind": "batting-result",
+      "resultId": "batting-result.error",
+      "pitchEventKind": "pitch-event",
+      "before": {
+        "stateFields": {
+          "state.half": "top",
+          "state.count.strikes": "2",
+          "state.count.balls": "3",
+          "state.outs": "0",
+          "state.runners": "empty",
+          "state.battingOrder": "1",
+          "state.tiebreakActive": false,
+          "state.gameEnded": false,
+          "state.inning": "7",
+          "state.score": {
+            "home": "3",
+            "away": "5"
+          }
+        },
+        "scoreboard": {
+          "inningScores": {
+            "home": "3",
+            "away": "5"
+          },
+          "hits": "12",
+          "errors": "2",
+          "strikeouts": "4",
+          "walks": "3"
+        },
+        "battingOrderBySide": {
+          "away": "1",
+          "home": "6"
+        }
+      },
+      "officialScoringPayload": "error-recorded",
+      "interferenceRuling": "not-required",
+      "runnerAdvanceOverrides": "not-applied",
+      "thirdOutObservation": "none"
+    },
+    "observations": {
+      "pitchTypeKey": "fixture.fastball",
+      "course": {
+        "unit": "1/263",
+        "x": "132",
+        "y": "131"
+      },
+      "pitchSpeed": {
+        "kmh": null,
+        "outsideRangeConfirmed": false
+      },
+      "stance": null,
+      "battingSide": null,
+      "resultId": "batting-result.error",
+      "battedBall": {
+        "typeKey": null,
+        "strengthKey": null,
+        "hitX": null,
+        "hitY": null,
+        "rawFielderPosition": null,
+        "resolvedFielderId": null
+      },
+      "officialScoringPayload": {
+        "kind": "error-recorded",
+        "errors": [
+          {
+            "fielder": {
+              "kind": "official",
+              "player_id": "abcdef00-0000-0000-0000-000000000003"
+            },
+            "count": 1
+          }
+        ]
+      },
+      "interferenceRuling": {
+        "kind": "not-required"
+      },
+      "runnerAdvanceOverridesByRunner": {
+        "kind": "not-applied",
+        "overrides": []
+      },
+      "thirdOutObservation": {
+        "kind": "none"
+      },
+      "thirdOutTimingByRunner": {}
+    },
+    "t1Valid": true,
+    "observationsValid": true
+  },
+  {
+    "id": "out-none",
+    "t1": {
+      "eventKind": "batting-result",
+      "resultId": "batting-result.batted-out",
+      "pitchEventKind": "pitch-event",
+      "before": {
+        "stateFields": {
+          "state.half": "top",
+          "state.count.strikes": "2",
+          "state.count.balls": "3",
+          "state.outs": "0",
+          "state.runners": "empty",
+          "state.battingOrder": "1",
+          "state.tiebreakActive": false,
+          "state.gameEnded": false,
+          "state.inning": "7",
+          "state.score": {
+            "home": "3",
+            "away": "5"
+          }
+        },
+        "scoreboard": {
+          "inningScores": {
+            "home": "3",
+            "away": "5"
+          },
+          "hits": "12",
+          "errors": "2",
+          "strikeouts": "4",
+          "walks": "3"
+        },
+        "battingOrderBySide": {
+          "away": "1",
+          "home": "6"
+        }
+      },
+      "officialScoringPayload": "no-error",
+      "interferenceRuling": "not-required",
+      "runnerAdvanceOverrides": "not-applied",
+      "thirdOutObservation": "none"
+    },
+    "observations": {
+      "pitchTypeKey": "fixture.fastball",
+      "course": {
+        "unit": "1/263",
+        "x": "132",
+        "y": "131"
+      },
+      "pitchSpeed": {
+        "kmh": null,
+        "outsideRangeConfirmed": false
+      },
+      "stance": null,
+      "battingSide": null,
+      "resultId": "batting-result.batted-out",
+      "battedBall": {
+        "typeKey": null,
+        "strengthKey": null,
+        "hitX": null,
+        "hitY": null,
+        "rawFielderPosition": null,
+        "resolvedFielderId": null
+      },
+      "officialScoringPayload": {
+        "kind": "no-error",
+        "errorCount": "0",
+        "fielders": []
+      },
+      "interferenceRuling": {
+        "kind": "not-required"
+      },
+      "runnerAdvanceOverridesByRunner": {
+        "kind": "not-applied",
+        "overrides": []
+      },
+      "thirdOutObservation": {
+        "kind": "none"
+      },
+      "thirdOutTimingByRunner": {}
+    },
+    "t1Valid": true,
+    "observationsValid": true
+  },
+  {
+    "id": "out-third",
+    "t1": {
+      "eventKind": "batting-result",
+      "resultId": "batting-result.batted-out",
+      "pitchEventKind": "pitch-event",
+      "before": {
+        "stateFields": {
+          "state.half": "top",
+          "state.count.strikes": "2",
+          "state.count.balls": "3",
+          "state.outs": "2",
+          "state.runners": "empty",
+          "state.battingOrder": "1",
+          "state.tiebreakActive": false,
+          "state.gameEnded": false,
+          "state.inning": "7",
+          "state.score": {
+            "home": "3",
+            "away": "5"
+          }
+        },
+        "scoreboard": {
+          "inningScores": {
+            "home": "3",
+            "away": "5"
+          },
+          "hits": "12",
+          "errors": "2",
+          "strikeouts": "4",
+          "walks": "3"
+        },
+        "battingOrderBySide": {
+          "away": "1",
+          "home": "6"
+        }
+      },
+      "officialScoringPayload": "no-error",
+      "interferenceRuling": "not-required",
+      "runnerAdvanceOverrides": "not-applied",
+      "thirdOutObservation": "batter-before-first"
+    },
+    "observations": {
+      "pitchTypeKey": "fixture.fastball",
+      "course": {
+        "unit": "1/263",
+        "x": "132",
+        "y": "131"
+      },
+      "pitchSpeed": {
+        "kmh": null,
+        "outsideRangeConfirmed": false
+      },
+      "stance": null,
+      "battingSide": null,
+      "resultId": "batting-result.batted-out",
+      "battedBall": {
+        "typeKey": null,
+        "strengthKey": null,
+        "hitX": null,
+        "hitY": null,
+        "rawFielderPosition": null,
+        "resolvedFielderId": null
+      },
+      "officialScoringPayload": {
+        "kind": "no-error",
+        "errorCount": "0",
+        "fielders": []
+      },
+      "interferenceRuling": {
+        "kind": "not-required"
+      },
+      "runnerAdvanceOverridesByRunner": {
+        "kind": "not-applied",
+        "overrides": []
+      },
+      "thirdOutObservation": {
+        "kind": "batter-before-first",
+        "batter": {
+          "kind": "official",
+          "player_id": "abcdef00-0000-0000-0000-000000000002"
+        }
+      },
+      "thirdOutTimingByRunner": {}
+    },
+    "t1Valid": true,
+    "observationsValid": true
+  },
+  {
+    "id": "hold-all",
+    "t1": {
+      "eventKind": "batting-result",
+      "resultId": "batting-result.batted-out",
+      "pitchEventKind": "pitch-event",
+      "before": {
+        "stateFields": {
+          "state.half": "top",
+          "state.count.strikes": "2",
+          "state.count.balls": "3",
+          "state.outs": "1",
+          "state.runners": "first-second",
+          "state.battingOrder": "1",
+          "state.tiebreakActive": false,
+          "state.gameEnded": false,
+          "state.inning": "7",
+          "state.score": {
+            "home": "3",
+            "away": "5"
+          }
+        },
+        "scoreboard": {
+          "inningScores": {
+            "home": "3",
+            "away": "5"
+          },
+          "hits": "12",
+          "errors": "2",
+          "strikeouts": "4",
+          "walks": "3"
+        },
+        "battingOrderBySide": {
+          "away": "1",
+          "home": "6"
+        }
+      },
+      "officialScoringPayload": "no-error",
+      "interferenceRuling": "not-required",
+      "runnerAdvanceOverrides": {
+        "kind": "applied",
+        "overrides": [
+          {
+            "runnerBase": "1",
+            "destination": "1"
+          },
+          {
+            "runnerBase": "2",
+            "destination": "2"
+          }
+        ]
+      },
+      "thirdOutObservation": "none"
+    },
+    "observations": {
+      "pitchTypeKey": "fixture.fastball",
+      "course": {
+        "unit": "1/263",
+        "x": "132",
+        "y": "131"
+      },
+      "pitchSpeed": {
+        "kmh": null,
+        "outsideRangeConfirmed": false
+      },
+      "stance": null,
+      "battingSide": null,
+      "resultId": "batting-result.batted-out",
+      "battedBall": {
+        "typeKey": null,
+        "strengthKey": null,
+        "hitX": null,
+        "hitY": null,
+        "rawFielderPosition": null,
+        "resolvedFielderId": null
+      },
+      "officialScoringPayload": {
+        "kind": "no-error",
+        "errorCount": "0",
+        "fielders": []
+      },
+      "interferenceRuling": {
+        "kind": "not-required"
+      },
+      "runnerAdvanceOverridesByRunner": {
+        "kind": "applied",
+        "overrides": [
+          {
+            "runnerBase": "1",
+            "destination": "1"
+          },
+          {
+            "runnerBase": "2",
+            "destination": "2"
+          }
+        ]
+      },
+      "thirdOutObservation": {
+        "kind": "none"
+      },
+      "thirdOutTimingByRunner": {}
+    },
+    "t1Valid": true,
+    "observationsValid": true
+  },
+  {
+    "id": "SH-first",
+    "t1": {
+      "eventKind": "batting-result",
+      "resultId": "batting-result.sacrifice-bunt",
+      "pitchEventKind": "pitch-event",
+      "before": {
+        "stateFields": {
+          "state.half": "top",
+          "state.count.strikes": "2",
+          "state.count.balls": "3",
+          "state.outs": "0",
+          "state.runners": "first",
+          "state.battingOrder": "1",
+          "state.tiebreakActive": false,
+          "state.gameEnded": false,
+          "state.inning": "7",
+          "state.score": {
+            "home": "3",
+            "away": "5"
+          }
+        },
+        "scoreboard": {
+          "inningScores": {
+            "home": "3",
+            "away": "5"
+          },
+          "hits": "12",
+          "errors": "2",
+          "strikeouts": "4",
+          "walks": "3"
+        },
+        "battingOrderBySide": {
+          "away": "1",
+          "home": "6"
+        }
+      },
+      "officialScoringPayload": "no-error",
+      "interferenceRuling": "not-required",
+      "runnerAdvanceOverrides": {
+        "kind": "applied",
+        "overrides": [
+          {
+            "runnerBase": "1",
+            "destination": "2"
+          }
+        ]
+      },
+      "thirdOutObservation": "none"
+    },
+    "observations": {
+      "pitchTypeKey": "fixture.fastball",
+      "course": {
+        "unit": "1/263",
+        "x": "132",
+        "y": "131"
+      },
+      "pitchSpeed": {
+        "kmh": null,
+        "outsideRangeConfirmed": false
+      },
+      "stance": null,
+      "battingSide": null,
+      "resultId": "batting-result.sacrifice-bunt",
+      "battedBall": {
+        "typeKey": null,
+        "strengthKey": null,
+        "hitX": null,
+        "hitY": null,
+        "rawFielderPosition": null,
+        "resolvedFielderId": null
+      },
+      "officialScoringPayload": {
+        "kind": "no-error",
+        "errorCount": "0",
+        "fielders": []
+      },
+      "interferenceRuling": {
+        "kind": "not-required"
+      },
+      "runnerAdvanceOverridesByRunner": {
+        "kind": "applied",
+        "overrides": [
+          {
+            "runnerBase": "1",
+            "destination": "2"
+          }
+        ]
+      },
+      "thirdOutObservation": {
+        "kind": "none"
+      },
+      "thirdOutTimingByRunner": {}
+    },
+    "t1Valid": true,
+    "observationsValid": true
+  },
+  {
+    "id": "SH-all",
+    "t1": {
+      "eventKind": "batting-result",
+      "resultId": "batting-result.sacrifice-bunt",
+      "pitchEventKind": "pitch-event",
+      "before": {
+        "stateFields": {
+          "state.half": "top",
+          "state.count.strikes": "2",
+          "state.count.balls": "3",
+          "state.outs": "1",
+          "state.runners": "first-second-third",
+          "state.battingOrder": "1",
+          "state.tiebreakActive": false,
+          "state.gameEnded": false,
+          "state.inning": "7",
+          "state.score": {
+            "home": "3",
+            "away": "5"
+          }
+        },
+        "scoreboard": {
+          "inningScores": {
+            "home": "3",
+            "away": "5"
+          },
+          "hits": "12",
+          "errors": "2",
+          "strikeouts": "4",
+          "walks": "3"
+        },
+        "battingOrderBySide": {
+          "away": "1",
+          "home": "6"
+        }
+      },
+      "officialScoringPayload": "no-error",
+      "interferenceRuling": "not-required",
+      "runnerAdvanceOverrides": {
+        "kind": "applied",
+        "overrides": [
+          {
+            "runnerBase": "3",
+            "destination": "4"
+          },
+          {
+            "runnerBase": "1",
+            "destination": "2"
+          },
+          {
+            "runnerBase": "2",
+            "destination": "3"
+          }
+        ]
+      },
+      "thirdOutObservation": "none",
+      "rbiRulingByRunner": {
+        "3": "ordinary-play"
+      }
+    },
+    "observations": {
+      "pitchTypeKey": "fixture.fastball",
+      "course": {
+        "unit": "1/263",
+        "x": "132",
+        "y": "131"
+      },
+      "pitchSpeed": {
+        "kmh": null,
+        "outsideRangeConfirmed": false
+      },
+      "stance": null,
+      "battingSide": null,
+      "resultId": "batting-result.sacrifice-bunt",
+      "battedBall": {
+        "typeKey": null,
+        "strengthKey": null,
+        "hitX": null,
+        "hitY": null,
+        "rawFielderPosition": null,
+        "resolvedFielderId": null
+      },
+      "officialScoringPayload": {
+        "kind": "no-error",
+        "errorCount": "0",
+        "fielders": []
+      },
+      "interferenceRuling": {
+        "kind": "not-required"
+      },
+      "runnerAdvanceOverridesByRunner": {
+        "kind": "applied",
+        "overrides": [
+          {
+            "runnerBase": "3",
+            "destination": "4"
+          },
+          {
+            "runnerBase": "1",
+            "destination": "2"
+          },
+          {
+            "runnerBase": "2",
+            "destination": "3"
+          }
+        ]
+      },
+      "thirdOutObservation": {
+        "kind": "none"
+      },
+      "thirdOutTimingByRunner": {},
+      "rbiRulingByRunner": {
+        "3": "ordinary-play"
+      }
+    },
+    "t1Valid": true,
+    "observationsValid": true
+  },
+  {
+    "id": "SF",
+    "t1": {
+      "eventKind": "batting-result",
+      "resultId": "batting-result.sacrifice-fly",
+      "pitchEventKind": "pitch-event",
+      "before": {
+        "stateFields": {
+          "state.half": "top",
+          "state.count.strikes": "2",
+          "state.count.balls": "3",
+          "state.outs": "1",
+          "state.runners": "first-third",
+          "state.battingOrder": "1",
+          "state.tiebreakActive": false,
+          "state.gameEnded": false,
+          "state.inning": "7",
+          "state.score": {
+            "home": "3",
+            "away": "5"
+          }
+        },
+        "scoreboard": {
+          "inningScores": {
+            "home": "3",
+            "away": "5"
+          },
+          "hits": "12",
+          "errors": "2",
+          "strikeouts": "4",
+          "walks": "3"
+        },
+        "battingOrderBySide": {
+          "away": "1",
+          "home": "6"
+        }
+      },
+      "officialScoringPayload": "no-error",
+      "interferenceRuling": "not-required",
+      "runnerAdvanceOverrides": {
+        "kind": "applied",
+        "overrides": [
+          {
+            "runnerBase": "3",
+            "destination": "4"
+          }
+        ]
+      },
+      "thirdOutObservation": "none",
+      "rbiRulingByRunner": {
+        "3": "stopped-and-restarted"
+      }
+    },
+    "observations": {
+      "pitchTypeKey": "fixture.fastball",
+      "course": {
+        "unit": "1/263",
+        "x": "132",
+        "y": "131"
+      },
+      "pitchSpeed": {
+        "kmh": null,
+        "outsideRangeConfirmed": false
+      },
+      "stance": null,
+      "battingSide": null,
+      "resultId": "batting-result.sacrifice-fly",
+      "battedBall": {
+        "typeKey": null,
+        "strengthKey": null,
+        "hitX": null,
+        "hitY": null,
+        "rawFielderPosition": null,
+        "resolvedFielderId": null
+      },
+      "officialScoringPayload": {
+        "kind": "no-error",
+        "errorCount": "0",
+        "fielders": []
+      },
+      "interferenceRuling": {
+        "kind": "not-required"
+      },
+      "runnerAdvanceOverridesByRunner": {
+        "kind": "applied",
+        "overrides": [
+          {
+            "runnerBase": "3",
+            "destination": "4"
+          }
+        ]
+      },
+      "thirdOutObservation": {
+        "kind": "none"
+      },
+      "thirdOutTimingByRunner": {},
+      "rbiRulingByRunner": {
+        "3": "stopped-and-restarted"
+      }
+    },
+    "t1Valid": true,
+    "observationsValid": true
+  },
+  {
+    "id": "FC",
+    "t1": {
+      "eventKind": "batting-result",
+      "resultId": "batting-result.fielders-choice",
+      "pitchEventKind": "pitch-event",
+      "before": {
+        "stateFields": {
+          "state.half": "top",
+          "state.count.strikes": "2",
+          "state.count.balls": "3",
+          "state.outs": "2",
+          "state.runners": "first",
+          "state.battingOrder": "1",
+          "state.tiebreakActive": false,
+          "state.gameEnded": false,
+          "state.inning": "7",
+          "state.score": {
+            "home": "3",
+            "away": "5"
+          }
+        },
+        "scoreboard": {
+          "inningScores": {
+            "home": "3",
+            "away": "5"
+          },
+          "hits": "12",
+          "errors": "2",
+          "strikeouts": "4",
+          "walks": "3"
+        },
+        "battingOrderBySide": {
+          "away": "1",
+          "home": "6"
+        }
+      },
+      "officialScoringPayload": "no-error",
+      "interferenceRuling": "not-required",
+      "runnerAdvanceOverrides": {
+        "kind": "applied",
+        "overrides": [
+          {
+            "runnerBase": "1",
+            "destination": "2"
+          }
+        ]
+      },
+      "thirdOutObservation": "none"
+    },
+    "observations": {
+      "pitchTypeKey": "fixture.fastball",
+      "course": {
+        "unit": "1/263",
+        "x": "132",
+        "y": "131"
+      },
+      "pitchSpeed": {
+        "kmh": null,
+        "outsideRangeConfirmed": false
+      },
+      "stance": null,
+      "battingSide": null,
+      "resultId": "batting-result.fielders-choice",
+      "battedBall": {
+        "typeKey": null,
+        "strengthKey": null,
+        "hitX": null,
+        "hitY": null,
+        "rawFielderPosition": null,
+        "resolvedFielderId": null
+      },
+      "officialScoringPayload": {
+        "kind": "no-error",
+        "errorCount": "0",
+        "fielders": []
+      },
+      "interferenceRuling": {
+        "kind": "not-required"
+      },
+      "runnerAdvanceOverridesByRunner": {
+        "kind": "applied",
+        "overrides": [
+          {
+            "runnerBase": "1",
+            "destination": "2"
+          }
+        ]
+      },
+      "thirdOutObservation": {
+        "kind": "none"
+      },
+      "thirdOutTimingByRunner": {}
+    },
+    "t1Valid": true,
+    "observationsValid": true
+  },
+  {
+    "id": "DP",
+    "t1": {
+      "eventKind": "batting-result",
+      "resultId": "batting-result.double-play",
+      "pitchEventKind": "pitch-event",
+      "before": {
+        "stateFields": {
+          "state.half": "top",
+          "state.count.strikes": "2",
+          "state.count.balls": "3",
+          "state.outs": "0",
+          "state.runners": "first",
+          "state.battingOrder": "1",
+          "state.tiebreakActive": false,
+          "state.gameEnded": false,
+          "state.inning": "7",
+          "state.score": {
+            "home": "3",
+            "away": "5"
+          }
+        },
+        "scoreboard": {
+          "inningScores": {
+            "home": "3",
+            "away": "5"
+          },
+          "hits": "12",
+          "errors": "2",
+          "strikeouts": "4",
+          "walks": "3"
+        },
+        "battingOrderBySide": {
+          "away": "1",
+          "home": "6"
+        }
+      },
+      "officialScoringPayload": "no-error",
+      "interferenceRuling": "not-required",
+      "runnerAdvanceOverrides": "not-applied",
+      "thirdOutObservation": "none",
+      "outRunner": {
+        "base": "1",
+        "runnerId": "abcdef00-0000-0000-0000-000000000001",
+        "outKind": "force-out"
+      }
+    },
+    "observations": {
+      "pitchTypeKey": "fixture.fastball",
+      "course": {
+        "unit": "1/263",
+        "x": "132",
+        "y": "131"
+      },
+      "pitchSpeed": {
+        "kmh": null,
+        "outsideRangeConfirmed": false
+      },
+      "stance": null,
+      "battingSide": null,
+      "resultId": "batting-result.double-play",
+      "battedBall": {
+        "typeKey": null,
+        "strengthKey": null,
+        "hitX": null,
+        "hitY": null,
+        "rawFielderPosition": null,
+        "resolvedFielderId": null
+      },
+      "officialScoringPayload": {
+        "kind": "no-error",
+        "errorCount": "0",
+        "fielders": []
+      },
+      "interferenceRuling": {
+        "kind": "not-required"
+      },
+      "runnerAdvanceOverridesByRunner": {
+        "kind": "not-applied",
+        "overrides": []
+      },
+      "thirdOutObservation": {
+        "kind": "none"
+      },
+      "thirdOutTimingByRunner": {},
+      "outRunner": {
+        "base": "1",
+        "runnerId": "abcdef00-0000-0000-0000-000000000001",
+        "outKind": "force-out"
+      }
+    },
+    "t1Valid": true,
+    "observationsValid": true
+  },
+  {
+    "id": "SH-error",
+    "t1": {
+      "eventKind": "batting-result",
+      "resultId": "batting-result.sacrifice-bunt-error",
+      "pitchEventKind": "pitch-event",
+      "before": {
+        "stateFields": {
+          "state.half": "top",
+          "state.count.strikes": "2",
+          "state.count.balls": "3",
+          "state.outs": "0",
+          "state.runners": "first",
+          "state.battingOrder": "1",
+          "state.tiebreakActive": false,
+          "state.gameEnded": false,
+          "state.inning": "7",
+          "state.score": {
+            "home": "3",
+            "away": "5"
+          }
+        },
+        "scoreboard": {
+          "inningScores": {
+            "home": "3",
+            "away": "5"
+          },
+          "hits": "12",
+          "errors": "2",
+          "strikeouts": "4",
+          "walks": "3"
+        },
+        "battingOrderBySide": {
+          "away": "1",
+          "home": "6"
+        }
+      },
+      "officialScoringPayload": "error-recorded",
+      "interferenceRuling": "not-required",
+      "runnerAdvanceOverrides": {
+        "kind": "applied",
+        "overrides": [
+          {
+            "runnerBase": "1",
+            "destination": "2"
+          }
+        ]
+      },
+      "thirdOutObservation": "none"
+    },
+    "observations": {
+      "pitchTypeKey": "fixture.fastball",
+      "course": {
+        "unit": "1/263",
+        "x": "132",
+        "y": "131"
+      },
+      "pitchSpeed": {
+        "kmh": null,
+        "outsideRangeConfirmed": false
+      },
+      "stance": null,
+      "battingSide": null,
+      "resultId": "batting-result.sacrifice-bunt-error",
+      "battedBall": {
+        "typeKey": null,
+        "strengthKey": null,
+        "hitX": null,
+        "hitY": null,
+        "rawFielderPosition": null,
+        "resolvedFielderId": null
+      },
+      "officialScoringPayload": {
+        "kind": "error-recorded",
+        "errors": [
+          {
+            "fielder": {
+              "kind": "official",
+              "player_id": "abcdef00-0000-0000-0000-000000000003"
+            },
+            "count": 1
+          }
+        ]
+      },
+      "interferenceRuling": {
+        "kind": "not-required"
+      },
+      "runnerAdvanceOverridesByRunner": {
+        "kind": "applied",
+        "overrides": [
+          {
+            "runnerBase": "1",
+            "destination": "2"
+          }
+        ]
+      },
+      "thirdOutObservation": {
+        "kind": "none"
+      },
+      "thirdOutTimingByRunner": {}
+    },
+    "t1Valid": true,
+    "observationsValid": true
+  },
+  {
+    "id": "SH-allhold",
+    "t1": {
+      "eventKind": "batting-result",
+      "resultId": "batting-result.sacrifice-bunt",
+      "pitchEventKind": "pitch-event",
+      "before": {
+        "stateFields": {
+          "state.half": "top",
+          "state.count.strikes": "2",
+          "state.count.balls": "3",
+          "state.outs": "0",
+          "state.runners": "first",
+          "state.battingOrder": "1",
+          "state.tiebreakActive": false,
+          "state.gameEnded": false,
+          "state.inning": "7",
+          "state.score": {
+            "home": "3",
+            "away": "5"
+          }
+        },
+        "scoreboard": {
+          "inningScores": {
+            "home": "3",
+            "away": "5"
+          },
+          "hits": "12",
+          "errors": "2",
+          "strikeouts": "4",
+          "walks": "3"
+        },
+        "battingOrderBySide": {
+          "away": "1",
+          "home": "6"
+        }
+      },
+      "officialScoringPayload": "no-error",
+      "interferenceRuling": "not-required",
+      "runnerAdvanceOverrides": {
+        "kind": "applied",
+        "overrides": [
+          {
+            "runnerBase": "1",
+            "destination": "1"
+          }
+        ]
+      },
+      "thirdOutObservation": "none"
+    },
+    "observations": {
+      "pitchTypeKey": "fixture.fastball",
+      "course": {
+        "unit": "1/263",
+        "x": "132",
+        "y": "131"
+      },
+      "pitchSpeed": {
+        "kmh": null,
+        "outsideRangeConfirmed": false
+      },
+      "stance": null,
+      "battingSide": null,
+      "resultId": "batting-result.sacrifice-bunt",
+      "battedBall": {
+        "typeKey": null,
+        "strengthKey": null,
+        "hitX": null,
+        "hitY": null,
+        "rawFielderPosition": null,
+        "resolvedFielderId": null
+      },
+      "officialScoringPayload": {
+        "kind": "no-error",
+        "errorCount": "0",
+        "fielders": []
+      },
+      "interferenceRuling": {
+        "kind": "not-required"
+      },
+      "runnerAdvanceOverridesByRunner": {
+        "kind": "applied",
+        "overrides": [
+          {
+            "runnerBase": "1",
+            "destination": "1"
+          }
+        ]
+      },
+      "thirdOutObservation": {
+        "kind": "none"
+      },
+      "thirdOutTimingByRunner": {}
+    },
+    "t1Valid": false,
+    "observationsValid": true
+  },
+  {
+    "id": "SH-missing",
+    "t1": {
+      "eventKind": "batting-result",
+      "resultId": "batting-result.sacrifice-bunt",
+      "pitchEventKind": "pitch-event",
+      "before": {
+        "stateFields": {
+          "state.half": "top",
+          "state.count.strikes": "2",
+          "state.count.balls": "3",
+          "state.outs": "1",
+          "state.runners": "first-second",
+          "state.battingOrder": "1",
+          "state.tiebreakActive": false,
+          "state.gameEnded": false,
+          "state.inning": "7",
+          "state.score": {
+            "home": "3",
+            "away": "5"
+          }
+        },
+        "scoreboard": {
+          "inningScores": {
+            "home": "3",
+            "away": "5"
+          },
+          "hits": "12",
+          "errors": "2",
+          "strikeouts": "4",
+          "walks": "3"
+        },
+        "battingOrderBySide": {
+          "away": "1",
+          "home": "6"
+        }
+      },
+      "officialScoringPayload": "no-error",
+      "interferenceRuling": "not-required",
+      "runnerAdvanceOverrides": {
+        "kind": "applied",
+        "overrides": [
+          {
+            "runnerBase": "1",
+            "destination": "2"
+          }
+        ]
+      },
+      "thirdOutObservation": "none"
+    },
+    "observations": {
+      "pitchTypeKey": "fixture.fastball",
+      "course": {
+        "unit": "1/263",
+        "x": "132",
+        "y": "131"
+      },
+      "pitchSpeed": {
+        "kmh": null,
+        "outsideRangeConfirmed": false
+      },
+      "stance": null,
+      "battingSide": null,
+      "resultId": "batting-result.sacrifice-bunt",
+      "battedBall": {
+        "typeKey": null,
+        "strengthKey": null,
+        "hitX": null,
+        "hitY": null,
+        "rawFielderPosition": null,
+        "resolvedFielderId": null
+      },
+      "officialScoringPayload": {
+        "kind": "no-error",
+        "errorCount": "0",
+        "fielders": []
+      },
+      "interferenceRuling": {
+        "kind": "not-required"
+      },
+      "runnerAdvanceOverridesByRunner": {
+        "kind": "applied",
+        "overrides": [
+          {
+            "runnerBase": "1",
+            "destination": "2"
+          }
+        ]
+      },
+      "thirdOutObservation": {
+        "kind": "none"
+      },
+      "thirdOutTimingByRunner": {}
+    },
+    "t1Valid": false,
+    "observationsValid": true
+  },
+  {
+    "id": "SH-duplicate",
+    "t1": {
+      "eventKind": "batting-result",
+      "resultId": "batting-result.sacrifice-bunt",
+      "pitchEventKind": "pitch-event",
+      "before": {
+        "stateFields": {
+          "state.half": "top",
+          "state.count.strikes": "2",
+          "state.count.balls": "3",
+          "state.outs": "1",
+          "state.runners": "first-second",
+          "state.battingOrder": "1",
+          "state.tiebreakActive": false,
+          "state.gameEnded": false,
+          "state.inning": "7",
+          "state.score": {
+            "home": "3",
+            "away": "5"
+          }
+        },
+        "scoreboard": {
+          "inningScores": {
+            "home": "3",
+            "away": "5"
+          },
+          "hits": "12",
+          "errors": "2",
+          "strikeouts": "4",
+          "walks": "3"
+        },
+        "battingOrderBySide": {
+          "away": "1",
+          "home": "6"
+        }
+      },
+      "officialScoringPayload": "no-error",
+      "interferenceRuling": "not-required",
+      "runnerAdvanceOverrides": {
+        "kind": "applied",
+        "overrides": [
+          {
+            "runnerBase": "1",
+            "destination": "2"
+          },
+          {
+            "runnerBase": "1",
+            "destination": "3"
+          }
+        ]
+      },
+      "thirdOutObservation": "none"
+    },
+    "observations": {
+      "pitchTypeKey": "fixture.fastball",
+      "course": {
+        "unit": "1/263",
+        "x": "132",
+        "y": "131"
+      },
+      "pitchSpeed": {
+        "kmh": null,
+        "outsideRangeConfirmed": false
+      },
+      "stance": null,
+      "battingSide": null,
+      "resultId": "batting-result.sacrifice-bunt",
+      "battedBall": {
+        "typeKey": null,
+        "strengthKey": null,
+        "hitX": null,
+        "hitY": null,
+        "rawFielderPosition": null,
+        "resolvedFielderId": null
+      },
+      "officialScoringPayload": {
+        "kind": "no-error",
+        "errorCount": "0",
+        "fielders": []
+      },
+      "interferenceRuling": {
+        "kind": "not-required"
+      },
+      "runnerAdvanceOverridesByRunner": {
+        "kind": "applied",
+        "overrides": [
+          {
+            "runnerBase": "1",
+            "destination": "2"
+          },
+          {
+            "runnerBase": "1",
+            "destination": "3"
+          }
+        ]
+      },
+      "thirdOutObservation": {
+        "kind": "none"
+      },
+      "thirdOutTimingByRunner": {}
+    },
+    "t1Valid": false,
+    "observationsValid": true
+  },
+  {
+    "id": "SF-third-hold",
+    "t1": {
+      "eventKind": "batting-result",
+      "resultId": "batting-result.sacrifice-fly",
+      "pitchEventKind": "pitch-event",
+      "before": {
+        "stateFields": {
+          "state.half": "top",
+          "state.count.strikes": "2",
+          "state.count.balls": "3",
+          "state.outs": "0",
+          "state.runners": "third",
+          "state.battingOrder": "1",
+          "state.tiebreakActive": false,
+          "state.gameEnded": false,
+          "state.inning": "7",
+          "state.score": {
+            "home": "3",
+            "away": "5"
+          }
+        },
+        "scoreboard": {
+          "inningScores": {
+            "home": "3",
+            "away": "5"
+          },
+          "hits": "12",
+          "errors": "2",
+          "strikeouts": "4",
+          "walks": "3"
+        },
+        "battingOrderBySide": {
+          "away": "1",
+          "home": "6"
+        }
+      },
+      "officialScoringPayload": "no-error",
+      "interferenceRuling": "not-required",
+      "runnerAdvanceOverrides": {
+        "kind": "applied",
+        "overrides": [
+          {
+            "runnerBase": "3",
+            "destination": "3"
+          }
+        ]
+      },
+      "thirdOutObservation": "none"
+    },
+    "observations": {
+      "pitchTypeKey": "fixture.fastball",
+      "course": {
+        "unit": "1/263",
+        "x": "132",
+        "y": "131"
+      },
+      "pitchSpeed": {
+        "kmh": null,
+        "outsideRangeConfirmed": false
+      },
+      "stance": null,
+      "battingSide": null,
+      "resultId": "batting-result.sacrifice-fly",
+      "battedBall": {
+        "typeKey": null,
+        "strengthKey": null,
+        "hitX": null,
+        "hitY": null,
+        "rawFielderPosition": null,
+        "resolvedFielderId": null
+      },
+      "officialScoringPayload": {
+        "kind": "no-error",
+        "errorCount": "0",
+        "fielders": []
+      },
+      "interferenceRuling": {
+        "kind": "not-required"
+      },
+      "runnerAdvanceOverridesByRunner": {
+        "kind": "applied",
+        "overrides": [
+          {
+            "runnerBase": "3",
+            "destination": "3"
+          }
+        ]
+      },
+      "thirdOutObservation": {
+        "kind": "none"
+      },
+      "thirdOutTimingByRunner": {}
+    },
+    "t1Valid": false,
+    "observationsValid": true
+  },
+  {
+    "id": "SF-two-outs",
+    "t1": {
+      "eventKind": "batting-result",
+      "resultId": "batting-result.sacrifice-fly",
+      "pitchEventKind": "pitch-event",
+      "before": {
+        "stateFields": {
+          "state.half": "top",
+          "state.count.strikes": "2",
+          "state.count.balls": "3",
+          "state.outs": "2",
+          "state.runners": "third",
+          "state.battingOrder": "1",
+          "state.tiebreakActive": false,
+          "state.gameEnded": false,
+          "state.inning": "7",
+          "state.score": {
+            "home": "3",
+            "away": "5"
+          }
+        },
+        "scoreboard": {
+          "inningScores": {
+            "home": "3",
+            "away": "5"
+          },
+          "hits": "12",
+          "errors": "2",
+          "strikeouts": "4",
+          "walks": "3"
+        },
+        "battingOrderBySide": {
+          "away": "1",
+          "home": "6"
+        }
+      },
+      "officialScoringPayload": "no-error",
+      "interferenceRuling": "not-required",
+      "runnerAdvanceOverrides": {
+        "kind": "applied",
+        "overrides": [
+          {
+            "runnerBase": "3",
+            "destination": "4"
+          }
+        ]
+      },
+      "thirdOutObservation": "none",
+      "rbiRulingByRunner": {
+        "3": "ordinary-play"
+      }
+    },
+    "observations": {
+      "pitchTypeKey": "fixture.fastball",
+      "course": {
+        "unit": "1/263",
+        "x": "132",
+        "y": "131"
+      },
+      "pitchSpeed": {
+        "kmh": null,
+        "outsideRangeConfirmed": false
+      },
+      "stance": null,
+      "battingSide": null,
+      "resultId": "batting-result.sacrifice-fly",
+      "battedBall": {
+        "typeKey": null,
+        "strengthKey": null,
+        "hitX": null,
+        "hitY": null,
+        "rawFielderPosition": null,
+        "resolvedFielderId": null
+      },
+      "officialScoringPayload": {
+        "kind": "no-error",
+        "errorCount": "0",
+        "fielders": []
+      },
+      "interferenceRuling": {
+        "kind": "not-required"
+      },
+      "runnerAdvanceOverridesByRunner": {
+        "kind": "applied",
+        "overrides": [
+          {
+            "runnerBase": "3",
+            "destination": "4"
+          }
+        ]
+      },
+      "thirdOutObservation": {
+        "kind": "none"
+      },
+      "thirdOutTimingByRunner": {},
+      "rbiRulingByRunner": {
+        "3": "ordinary-play"
+      }
+    },
+    "t1Valid": false,
+    "observationsValid": true
+  },
+  {
+    "id": "DP-one-out",
+    "t1": {
+      "eventKind": "batting-result",
+      "resultId": "batting-result.double-play",
+      "pitchEventKind": "pitch-event",
+      "before": {
+        "stateFields": {
+          "state.half": "top",
+          "state.count.strikes": "2",
+          "state.count.balls": "3",
+          "state.outs": "1",
+          "state.runners": "first",
+          "state.battingOrder": "1",
+          "state.tiebreakActive": false,
+          "state.gameEnded": false,
+          "state.inning": "7",
+          "state.score": {
+            "home": "3",
+            "away": "5"
+          }
+        },
+        "scoreboard": {
+          "inningScores": {
+            "home": "3",
+            "away": "5"
+          },
+          "hits": "12",
+          "errors": "2",
+          "strikeouts": "4",
+          "walks": "3"
+        },
+        "battingOrderBySide": {
+          "away": "1",
+          "home": "6"
+        }
+      },
+      "officialScoringPayload": "no-error",
+      "interferenceRuling": "not-required",
+      "runnerAdvanceOverrides": "not-applied",
+      "thirdOutObservation": "none",
+      "outRunner": {
+        "base": "1",
+        "runnerId": "abcdef00-0000-0000-0000-000000000001",
+        "outKind": "force-out"
+      }
+    },
+    "observations": {
+      "pitchTypeKey": "fixture.fastball",
+      "course": {
+        "unit": "1/263",
+        "x": "132",
+        "y": "131"
+      },
+      "pitchSpeed": {
+        "kmh": null,
+        "outsideRangeConfirmed": false
+      },
+      "stance": null,
+      "battingSide": null,
+      "resultId": "batting-result.double-play",
+      "battedBall": {
+        "typeKey": null,
+        "strengthKey": null,
+        "hitX": null,
+        "hitY": null,
+        "rawFielderPosition": null,
+        "resolvedFielderId": null
+      },
+      "officialScoringPayload": {
+        "kind": "no-error",
+        "errorCount": "0",
+        "fielders": []
+      },
+      "interferenceRuling": {
+        "kind": "not-required"
+      },
+      "runnerAdvanceOverridesByRunner": {
+        "kind": "not-applied",
+        "overrides": []
+      },
+      "thirdOutObservation": {
+        "kind": "none"
+      },
+      "thirdOutTimingByRunner": {},
+      "outRunner": {
+        "base": "1",
+        "runnerId": "abcdef00-0000-0000-0000-000000000001",
+        "outKind": "force-out"
+      }
+    },
+    "t1Valid": false,
+    "observationsValid": true
+  },
+  {
+    "id": "DP-two-runners",
+    "t1": {
+      "eventKind": "batting-result",
+      "resultId": "batting-result.double-play",
+      "pitchEventKind": "pitch-event",
+      "before": {
+        "stateFields": {
+          "state.half": "top",
+          "state.count.strikes": "2",
+          "state.count.balls": "3",
+          "state.outs": "0",
+          "state.runners": "first-second",
+          "state.battingOrder": "1",
+          "state.tiebreakActive": false,
+          "state.gameEnded": false,
+          "state.inning": "7",
+          "state.score": {
+            "home": "3",
+            "away": "5"
+          }
+        },
+        "scoreboard": {
+          "inningScores": {
+            "home": "3",
+            "away": "5"
+          },
+          "hits": "12",
+          "errors": "2",
+          "strikeouts": "4",
+          "walks": "3"
+        },
+        "battingOrderBySide": {
+          "away": "1",
+          "home": "6"
+        }
+      },
+      "officialScoringPayload": "no-error",
+      "interferenceRuling": "not-required",
+      "runnerAdvanceOverrides": "not-applied",
+      "thirdOutObservation": "none",
+      "outRunner": {
+        "base": "1",
+        "runnerId": "abcdef00-0000-0000-0000-000000000001",
+        "outKind": "force-out"
+      }
+    },
+    "observations": {
+      "pitchTypeKey": "fixture.fastball",
+      "course": {
+        "unit": "1/263",
+        "x": "132",
+        "y": "131"
+      },
+      "pitchSpeed": {
+        "kmh": null,
+        "outsideRangeConfirmed": false
+      },
+      "stance": null,
+      "battingSide": null,
+      "resultId": "batting-result.double-play",
+      "battedBall": {
+        "typeKey": null,
+        "strengthKey": null,
+        "hitX": null,
+        "hitY": null,
+        "rawFielderPosition": null,
+        "resolvedFielderId": null
+      },
+      "officialScoringPayload": {
+        "kind": "no-error",
+        "errorCount": "0",
+        "fielders": []
+      },
+      "interferenceRuling": {
+        "kind": "not-required"
+      },
+      "runnerAdvanceOverridesByRunner": {
+        "kind": "not-applied",
+        "overrides": []
+      },
+      "thirdOutObservation": {
+        "kind": "none"
+      },
+      "thirdOutTimingByRunner": {},
+      "outRunner": {
+        "base": "1",
+        "runnerId": "abcdef00-0000-0000-0000-000000000001",
+        "outKind": "force-out"
+      }
+    },
+    "t1Valid": false,
+    "observationsValid": true
+  },
+  {
+    "id": "FC-empty",
+    "t1": {
+      "eventKind": "batting-result",
+      "resultId": "batting-result.fielders-choice",
+      "pitchEventKind": "pitch-event",
+      "before": {
+        "stateFields": {
+          "state.half": "top",
+          "state.count.strikes": "2",
+          "state.count.balls": "3",
+          "state.outs": "0",
+          "state.runners": "empty",
+          "state.battingOrder": "1",
+          "state.tiebreakActive": false,
+          "state.gameEnded": false,
+          "state.inning": "7",
+          "state.score": {
+            "home": "3",
+            "away": "5"
+          }
+        },
+        "scoreboard": {
+          "inningScores": {
+            "home": "3",
+            "away": "5"
+          },
+          "hits": "12",
+          "errors": "2",
+          "strikeouts": "4",
+          "walks": "3"
+        },
+        "battingOrderBySide": {
+          "away": "1",
+          "home": "6"
+        }
+      },
+      "officialScoringPayload": "no-error",
+      "interferenceRuling": "not-required",
+      "runnerAdvanceOverrides": "not-applied",
+      "thirdOutObservation": "none"
+    },
+    "observations": {
+      "pitchTypeKey": "fixture.fastball",
+      "course": {
+        "unit": "1/263",
+        "x": "132",
+        "y": "131"
+      },
+      "pitchSpeed": {
+        "kmh": null,
+        "outsideRangeConfirmed": false
+      },
+      "stance": null,
+      "battingSide": null,
+      "resultId": "batting-result.fielders-choice",
+      "battedBall": {
+        "typeKey": null,
+        "strengthKey": null,
+        "hitX": null,
+        "hitY": null,
+        "rawFielderPosition": null,
+        "resolvedFielderId": null
+      },
+      "officialScoringPayload": {
+        "kind": "no-error",
+        "errorCount": "0",
+        "fielders": []
+      },
+      "interferenceRuling": {
+        "kind": "not-required"
+      },
+      "runnerAdvanceOverridesByRunner": {
+        "kind": "not-applied",
+        "overrides": []
+      },
+      "thirdOutObservation": {
+        "kind": "none"
+      },
+      "thirdOutTimingByRunner": {}
+    },
+    "t1Valid": false,
+    "observationsValid": true
+  },
+  {
+    "id": "SH-error-score",
+    "t1": {
+      "eventKind": "batting-result",
+      "resultId": "batting-result.sacrifice-bunt-error",
+      "pitchEventKind": "pitch-event",
+      "before": {
+        "stateFields": {
+          "state.half": "top",
+          "state.count.strikes": "2",
+          "state.count.balls": "3",
+          "state.outs": "0",
+          "state.runners": "first",
+          "state.battingOrder": "1",
+          "state.tiebreakActive": false,
+          "state.gameEnded": false,
+          "state.inning": "7",
+          "state.score": {
+            "home": "3",
+            "away": "5"
+          }
+        },
+        "scoreboard": {
+          "inningScores": {
+            "home": "3",
+            "away": "5"
+          },
+          "hits": "12",
+          "errors": "2",
+          "strikeouts": "4",
+          "walks": "3"
+        },
+        "battingOrderBySide": {
+          "away": "1",
+          "home": "6"
+        }
+      },
+      "officialScoringPayload": "error-recorded",
+      "interferenceRuling": "not-required",
+      "runnerAdvanceOverrides": {
+        "kind": "applied",
+        "overrides": [
+          {
+            "runnerBase": "1",
+            "destination": "4"
+          }
+        ]
+      },
+      "thirdOutObservation": "none"
+    },
+    "observations": {
+      "pitchTypeKey": "fixture.fastball",
+      "course": {
+        "unit": "1/263",
+        "x": "132",
+        "y": "131"
+      },
+      "pitchSpeed": {
+        "kmh": null,
+        "outsideRangeConfirmed": false
+      },
+      "stance": null,
+      "battingSide": null,
+      "resultId": "batting-result.sacrifice-bunt-error",
+      "battedBall": {
+        "typeKey": null,
+        "strengthKey": null,
+        "hitX": null,
+        "hitY": null,
+        "rawFielderPosition": null,
+        "resolvedFielderId": null
+      },
+      "officialScoringPayload": {
+        "kind": "error-recorded",
+        "errors": [
+          {
+            "fielder": {
+              "kind": "official",
+              "player_id": "abcdef00-0000-0000-0000-000000000003"
+            },
+            "count": 1
+          }
+        ]
+      },
+      "interferenceRuling": {
+        "kind": "not-required"
+      },
+      "runnerAdvanceOverridesByRunner": {
+        "kind": "applied",
+        "overrides": [
+          {
+            "runnerBase": "1",
+            "destination": "4"
+          }
+        ]
+      },
+      "thirdOutObservation": {
+        "kind": "none"
+      },
+      "thirdOutTimingByRunner": {}
+    },
+    "t1Valid": false,
+    "observationsValid": true
+  },
+  {
+    "id": "unknown",
+    "t1": {
+      "eventKind": "batting-result",
+      "resultId": "batting-result.unknown",
+      "pitchEventKind": "pitch-event",
+      "before": {
+        "stateFields": {
+          "state.half": "top",
+          "state.count.strikes": "2",
+          "state.count.balls": "3",
+          "state.outs": "0",
+          "state.runners": "empty",
+          "state.battingOrder": "1",
+          "state.tiebreakActive": false,
+          "state.gameEnded": false,
+          "state.inning": "7",
+          "state.score": {
+            "home": "3",
+            "away": "5"
+          }
+        },
+        "scoreboard": {
+          "inningScores": {
+            "home": "3",
+            "away": "5"
+          },
+          "hits": "12",
+          "errors": "2",
+          "strikeouts": "4",
+          "walks": "3"
+        },
+        "battingOrderBySide": {
+          "away": "1",
+          "home": "6"
+        }
+      },
+      "officialScoringPayload": "no-error",
+      "interferenceRuling": "not-required",
+      "runnerAdvanceOverrides": "not-applied",
+      "thirdOutObservation": "none"
+    },
+    "observations": {
+      "pitchTypeKey": "fixture.fastball",
+      "course": {
+        "unit": "1/263",
+        "x": "132",
+        "y": "131"
+      },
+      "pitchSpeed": {
+        "kmh": null,
+        "outsideRangeConfirmed": false
+      },
+      "stance": null,
+      "battingSide": null,
+      "resultId": "batting-result.unknown",
+      "battedBall": {
+        "typeKey": null,
+        "strengthKey": null,
+        "hitX": null,
+        "hitY": null,
+        "rawFielderPosition": null,
+        "resolvedFielderId": null
+      },
+      "officialScoringPayload": {
+        "kind": "no-error",
+        "errorCount": "0",
+        "fielders": []
+      },
+      "interferenceRuling": {
+        "kind": "not-required"
+      },
+      "runnerAdvanceOverridesByRunner": {
+        "kind": "not-applied",
+        "overrides": []
+      },
+      "thirdOutObservation": {
+        "kind": "none"
+      },
+      "thirdOutTimingByRunner": {}
+    },
+    "t1Valid": false,
+    "observationsValid": false
+  },
+  {
+    "id": "RBI-empty",
+    "t1": {
+      "eventKind": "batting-result",
+      "resultId": "batting-result.sacrifice-fly",
+      "pitchEventKind": "pitch-event",
+      "before": {
+        "stateFields": {
+          "state.half": "top",
+          "state.count.strikes": "2",
+          "state.count.balls": "3",
+          "state.outs": "1",
+          "state.runners": "first-third",
+          "state.battingOrder": "1",
+          "state.tiebreakActive": false,
+          "state.gameEnded": false,
+          "state.inning": "7",
+          "state.score": {
+            "home": "3",
+            "away": "5"
+          }
+        },
+        "scoreboard": {
+          "inningScores": {
+            "home": "3",
+            "away": "5"
+          },
+          "hits": "12",
+          "errors": "2",
+          "strikeouts": "4",
+          "walks": "3"
+        },
+        "battingOrderBySide": {
+          "away": "1",
+          "home": "6"
+        }
+      },
+      "officialScoringPayload": "no-error",
+      "interferenceRuling": "not-required",
+      "runnerAdvanceOverrides": {
+        "kind": "applied",
+        "overrides": [
+          {
+            "runnerBase": "3",
+            "destination": "4"
+          }
+        ]
+      },
+      "thirdOutObservation": "none",
+      "rbiRulingByRunner": {}
+    },
+    "observations": {
+      "pitchTypeKey": "fixture.fastball",
+      "course": {
+        "unit": "1/263",
+        "x": "132",
+        "y": "131"
+      },
+      "pitchSpeed": {
+        "kmh": null,
+        "outsideRangeConfirmed": false
+      },
+      "stance": null,
+      "battingSide": null,
+      "resultId": "batting-result.sacrifice-fly",
+      "battedBall": {
+        "typeKey": null,
+        "strengthKey": null,
+        "hitX": null,
+        "hitY": null,
+        "rawFielderPosition": null,
+        "resolvedFielderId": null
+      },
+      "officialScoringPayload": {
+        "kind": "no-error",
+        "errorCount": "0",
+        "fielders": []
+      },
+      "interferenceRuling": {
+        "kind": "not-required"
+      },
+      "runnerAdvanceOverridesByRunner": {
+        "kind": "applied",
+        "overrides": [
+          {
+            "runnerBase": "3",
+            "destination": "4"
+          }
+        ]
+      },
+      "thirdOutObservation": {
+        "kind": "none"
+      },
+      "thirdOutTimingByRunner": {},
+      "rbiRulingByRunner": {}
+    },
+    "t1Valid": false,
+    "observationsValid": false
+  },
+  {
+    "id": "RBI-extra",
+    "t1": {
+      "eventKind": "batting-result",
+      "resultId": "batting-result.sacrifice-fly",
+      "pitchEventKind": "pitch-event",
+      "before": {
+        "stateFields": {
+          "state.half": "top",
+          "state.count.strikes": "2",
+          "state.count.balls": "3",
+          "state.outs": "1",
+          "state.runners": "first-third",
+          "state.battingOrder": "1",
+          "state.tiebreakActive": false,
+          "state.gameEnded": false,
+          "state.inning": "7",
+          "state.score": {
+            "home": "3",
+            "away": "5"
+          }
+        },
+        "scoreboard": {
+          "inningScores": {
+            "home": "3",
+            "away": "5"
+          },
+          "hits": "12",
+          "errors": "2",
+          "strikeouts": "4",
+          "walks": "3"
+        },
+        "battingOrderBySide": {
+          "away": "1",
+          "home": "6"
+        }
+      },
+      "officialScoringPayload": "no-error",
+      "interferenceRuling": "not-required",
+      "runnerAdvanceOverrides": {
+        "kind": "applied",
+        "overrides": [
+          {
+            "runnerBase": "3",
+            "destination": "4"
+          }
+        ]
+      },
+      "thirdOutObservation": "none",
+      "rbiRulingByRunner": {
+        "4": "ordinary-play"
+      }
+    },
+    "observations": {
+      "pitchTypeKey": "fixture.fastball",
+      "course": {
+        "unit": "1/263",
+        "x": "132",
+        "y": "131"
+      },
+      "pitchSpeed": {
+        "kmh": null,
+        "outsideRangeConfirmed": false
+      },
+      "stance": null,
+      "battingSide": null,
+      "resultId": "batting-result.sacrifice-fly",
+      "battedBall": {
+        "typeKey": null,
+        "strengthKey": null,
+        "hitX": null,
+        "hitY": null,
+        "rawFielderPosition": null,
+        "resolvedFielderId": null
+      },
+      "officialScoringPayload": {
+        "kind": "no-error",
+        "errorCount": "0",
+        "fielders": []
+      },
+      "interferenceRuling": {
+        "kind": "not-required"
+      },
+      "runnerAdvanceOverridesByRunner": {
+        "kind": "applied",
+        "overrides": [
+          {
+            "runnerBase": "3",
+            "destination": "4"
+          }
+        ]
+      },
+      "thirdOutObservation": {
+        "kind": "none"
+      },
+      "thirdOutTimingByRunner": {},
+      "rbiRulingByRunner": {
+        "4": "ordinary-play"
+      }
+    },
+    "t1Valid": false,
+    "observationsValid": false
+  },
+  {
+    "id": "RBI-unknown",
+    "t1": {
+      "eventKind": "batting-result",
+      "resultId": "batting-result.sacrifice-fly",
+      "pitchEventKind": "pitch-event",
+      "before": {
+        "stateFields": {
+          "state.half": "top",
+          "state.count.strikes": "2",
+          "state.count.balls": "3",
+          "state.outs": "1",
+          "state.runners": "first-third",
+          "state.battingOrder": "1",
+          "state.tiebreakActive": false,
+          "state.gameEnded": false,
+          "state.inning": "7",
+          "state.score": {
+            "home": "3",
+            "away": "5"
+          }
+        },
+        "scoreboard": {
+          "inningScores": {
+            "home": "3",
+            "away": "5"
+          },
+          "hits": "12",
+          "errors": "2",
+          "strikeouts": "4",
+          "walks": "3"
+        },
+        "battingOrderBySide": {
+          "away": "1",
+          "home": "6"
+        }
+      },
+      "officialScoringPayload": "no-error",
+      "interferenceRuling": "not-required",
+      "runnerAdvanceOverrides": {
+        "kind": "applied",
+        "overrides": [
+          {
+            "runnerBase": "3",
+            "destination": "4"
+          }
+        ]
+      },
+      "thirdOutObservation": "none",
+      "rbiRulingByRunner": {
+        "3": "guess"
+      }
+    },
+    "observations": {
+      "pitchTypeKey": "fixture.fastball",
+      "course": {
+        "unit": "1/263",
+        "x": "132",
+        "y": "131"
+      },
+      "pitchSpeed": {
+        "kmh": null,
+        "outsideRangeConfirmed": false
+      },
+      "stance": null,
+      "battingSide": null,
+      "resultId": "batting-result.sacrifice-fly",
+      "battedBall": {
+        "typeKey": null,
+        "strengthKey": null,
+        "hitX": null,
+        "hitY": null,
+        "rawFielderPosition": null,
+        "resolvedFielderId": null
+      },
+      "officialScoringPayload": {
+        "kind": "no-error",
+        "errorCount": "0",
+        "fielders": []
+      },
+      "interferenceRuling": {
+        "kind": "not-required"
+      },
+      "runnerAdvanceOverridesByRunner": {
+        "kind": "applied",
+        "overrides": [
+          {
+            "runnerBase": "3",
+            "destination": "4"
+          }
+        ]
+      },
+      "thirdOutObservation": {
+        "kind": "none"
+      },
+      "thirdOutTimingByRunner": {},
+      "rbiRulingByRunner": {
+        "3": "guess"
+      }
+    },
+    "t1Valid": false,
+    "observationsValid": false
+  },
+  {
+    "id": "outRunner-nonDP",
+    "t1": {
+      "eventKind": "batting-result",
+      "resultId": "batting-result.single",
+      "pitchEventKind": "pitch-event",
+      "before": {
+        "stateFields": {
+          "state.half": "top",
+          "state.count.strikes": "2",
+          "state.count.balls": "3",
+          "state.outs": "0",
+          "state.runners": "empty",
+          "state.battingOrder": "1",
+          "state.tiebreakActive": false,
+          "state.gameEnded": false,
+          "state.inning": "7",
+          "state.score": {
+            "home": "3",
+            "away": "5"
+          }
+        },
+        "scoreboard": {
+          "inningScores": {
+            "home": "3",
+            "away": "5"
+          },
+          "hits": "12",
+          "errors": "2",
+          "strikeouts": "4",
+          "walks": "3"
+        },
+        "battingOrderBySide": {
+          "away": "1",
+          "home": "6"
+        }
+      },
+      "officialScoringPayload": "no-error",
+      "interferenceRuling": "not-required",
+      "runnerAdvanceOverrides": "not-applied",
+      "thirdOutObservation": "none",
+      "outRunner": {
+        "base": "1",
+        "runnerId": "abcdef00-0000-0000-0000-000000000001",
+        "outKind": "force-out"
+      }
+    },
+    "observations": {
+      "pitchTypeKey": "fixture.fastball",
+      "course": {
+        "unit": "1/263",
+        "x": "132",
+        "y": "131"
+      },
+      "pitchSpeed": {
+        "kmh": null,
+        "outsideRangeConfirmed": false
+      },
+      "stance": null,
+      "battingSide": null,
+      "resultId": "batting-result.single",
+      "battedBall": {
+        "typeKey": null,
+        "strengthKey": null,
+        "hitX": null,
+        "hitY": null,
+        "rawFielderPosition": null,
+        "resolvedFielderId": null
+      },
+      "officialScoringPayload": {
+        "kind": "no-error",
+        "errorCount": "0",
+        "fielders": []
+      },
+      "interferenceRuling": {
+        "kind": "not-required"
+      },
+      "runnerAdvanceOverridesByRunner": {
+        "kind": "not-applied",
+        "overrides": []
+      },
+      "thirdOutObservation": {
+        "kind": "none"
+      },
+      "thirdOutTimingByRunner": {},
+      "outRunner": {
+        "base": "1",
+        "runnerId": "abcdef00-0000-0000-0000-000000000001",
+        "outKind": "force-out"
+      }
+    },
+    "t1Valid": false,
+    "observationsValid": false
+  },
+  {
+    "id": "outRunner-upper",
+    "t1": {
+      "eventKind": "batting-result",
+      "resultId": "batting-result.double-play",
+      "pitchEventKind": "pitch-event",
+      "before": {
+        "stateFields": {
+          "state.half": "top",
+          "state.count.strikes": "2",
+          "state.count.balls": "3",
+          "state.outs": "0",
+          "state.runners": "first",
+          "state.battingOrder": "1",
+          "state.tiebreakActive": false,
+          "state.gameEnded": false,
+          "state.inning": "7",
+          "state.score": {
+            "home": "3",
+            "away": "5"
+          }
+        },
+        "scoreboard": {
+          "inningScores": {
+            "home": "3",
+            "away": "5"
+          },
+          "hits": "12",
+          "errors": "2",
+          "strikeouts": "4",
+          "walks": "3"
+        },
+        "battingOrderBySide": {
+          "away": "1",
+          "home": "6"
+        }
+      },
+      "officialScoringPayload": "no-error",
+      "interferenceRuling": "not-required",
+      "runnerAdvanceOverrides": "not-applied",
+      "thirdOutObservation": "none",
+      "outRunner": {
+        "base": "1",
+        "runnerId": "ABCDEF00-0000-0000-0000-000000000001",
+        "outKind": "force-out"
+      }
+    },
+    "observations": {
+      "pitchTypeKey": "fixture.fastball",
+      "course": {
+        "unit": "1/263",
+        "x": "132",
+        "y": "131"
+      },
+      "pitchSpeed": {
+        "kmh": null,
+        "outsideRangeConfirmed": false
+      },
+      "stance": null,
+      "battingSide": null,
+      "resultId": "batting-result.double-play",
+      "battedBall": {
+        "typeKey": null,
+        "strengthKey": null,
+        "hitX": null,
+        "hitY": null,
+        "rawFielderPosition": null,
+        "resolvedFielderId": null
+      },
+      "officialScoringPayload": {
+        "kind": "no-error",
+        "errorCount": "0",
+        "fielders": []
+      },
+      "interferenceRuling": {
+        "kind": "not-required"
+      },
+      "runnerAdvanceOverridesByRunner": {
+        "kind": "not-applied",
+        "overrides": []
+      },
+      "thirdOutObservation": {
+        "kind": "none"
+      },
+      "thirdOutTimingByRunner": {},
+      "outRunner": {
+        "base": "1",
+        "runnerId": "ABCDEF00-0000-0000-0000-000000000001",
+        "outKind": "force-out"
+      }
+    },
+    "t1Valid": false,
+    "observationsValid": false
+  },
+  {
+    "id": "error-no-record",
+    "t1": {
+      "eventKind": "batting-result",
+      "resultId": "batting-result.error",
+      "pitchEventKind": "pitch-event",
+      "before": {
+        "stateFields": {
+          "state.half": "top",
+          "state.count.strikes": "2",
+          "state.count.balls": "3",
+          "state.outs": "0",
+          "state.runners": "empty",
+          "state.battingOrder": "1",
+          "state.tiebreakActive": false,
+          "state.gameEnded": false,
+          "state.inning": "7",
+          "state.score": {
+            "home": "3",
+            "away": "5"
+          }
+        },
+        "scoreboard": {
+          "inningScores": {
+            "home": "3",
+            "away": "5"
+          },
+          "hits": "12",
+          "errors": "2",
+          "strikeouts": "4",
+          "walks": "3"
+        },
+        "battingOrderBySide": {
+          "away": "1",
+          "home": "6"
+        }
+      },
+      "officialScoringPayload": "no-error",
+      "interferenceRuling": "not-required",
+      "runnerAdvanceOverrides": "not-applied",
+      "thirdOutObservation": "none"
+    },
+    "observations": {
+      "pitchTypeKey": "fixture.fastball",
+      "course": {
+        "unit": "1/263",
+        "x": "132",
+        "y": "131"
+      },
+      "pitchSpeed": {
+        "kmh": null,
+        "outsideRangeConfirmed": false
+      },
+      "stance": null,
+      "battingSide": null,
+      "resultId": "batting-result.error",
+      "battedBall": {
+        "typeKey": null,
+        "strengthKey": null,
+        "hitX": null,
+        "hitY": null,
+        "rawFielderPosition": null,
+        "resolvedFielderId": null
+      },
+      "officialScoringPayload": {
+        "kind": "no-error",
+        "errorCount": "0",
+        "fielders": []
+      },
+      "interferenceRuling": {
+        "kind": "not-required"
+      },
+      "runnerAdvanceOverridesByRunner": {
+        "kind": "not-applied",
+        "overrides": []
+      },
+      "thirdOutObservation": {
+        "kind": "none"
+      },
+      "thirdOutTimingByRunner": {}
+    },
+    "t1Valid": false,
+    "observationsValid": false
+  },
+  {
+    "id": "record-nonerror",
+    "t1": {
+      "eventKind": "batting-result",
+      "resultId": "batting-result.single",
+      "pitchEventKind": "pitch-event",
+      "before": {
+        "stateFields": {
+          "state.half": "top",
+          "state.count.strikes": "2",
+          "state.count.balls": "3",
+          "state.outs": "0",
+          "state.runners": "empty",
+          "state.battingOrder": "1",
+          "state.tiebreakActive": false,
+          "state.gameEnded": false,
+          "state.inning": "7",
+          "state.score": {
+            "home": "3",
+            "away": "5"
+          }
+        },
+        "scoreboard": {
+          "inningScores": {
+            "home": "3",
+            "away": "5"
+          },
+          "hits": "12",
+          "errors": "2",
+          "strikeouts": "4",
+          "walks": "3"
+        },
+        "battingOrderBySide": {
+          "away": "1",
+          "home": "6"
+        }
+      },
+      "officialScoringPayload": "error-recorded",
+      "interferenceRuling": "not-required",
+      "runnerAdvanceOverrides": "not-applied",
+      "thirdOutObservation": "none"
+    },
+    "observations": {
+      "pitchTypeKey": "fixture.fastball",
+      "course": {
+        "unit": "1/263",
+        "x": "132",
+        "y": "131"
+      },
+      "pitchSpeed": {
+        "kmh": null,
+        "outsideRangeConfirmed": false
+      },
+      "stance": null,
+      "battingSide": null,
+      "resultId": "batting-result.single",
+      "battedBall": {
+        "typeKey": null,
+        "strengthKey": null,
+        "hitX": null,
+        "hitY": null,
+        "rawFielderPosition": null,
+        "resolvedFielderId": null
+      },
+      "officialScoringPayload": {
+        "kind": "error-recorded",
+        "errors": [
+          {
+            "fielder": {
+              "kind": "official",
+              "player_id": "abcdef00-0000-0000-0000-000000000003"
+            },
+            "count": 1
+          }
+        ]
+      },
+      "interferenceRuling": {
+        "kind": "not-required"
+      },
+      "runnerAdvanceOverridesByRunner": {
+        "kind": "not-applied",
+        "overrides": []
+      },
+      "thirdOutObservation": {
+        "kind": "none"
+      },
+      "thirdOutTimingByRunner": {}
+    },
+    "t1Valid": false,
+    "observationsValid": false
+  },
+  {
+    "id": "error-count-1",
+    "t1": {
+      "eventKind": "batting-result",
+      "resultId": "batting-result.error",
+      "pitchEventKind": "pitch-event",
+      "before": {
+        "stateFields": {
+          "state.half": "top",
+          "state.count.strikes": "2",
+          "state.count.balls": "3",
+          "state.outs": "0",
+          "state.runners": "empty",
+          "state.battingOrder": "1",
+          "state.tiebreakActive": false,
+          "state.gameEnded": false,
+          "state.inning": "7",
+          "state.score": {
+            "home": "3",
+            "away": "5"
+          }
+        },
+        "scoreboard": {
+          "inningScores": {
+            "home": "3",
+            "away": "5"
+          },
+          "hits": "12",
+          "errors": "2",
+          "strikeouts": "4",
+          "walks": "3"
+        },
+        "battingOrderBySide": {
+          "away": "1",
+          "home": "6"
+        }
+      },
+      "officialScoringPayload": "error-recorded",
+      "interferenceRuling": "not-required",
+      "runnerAdvanceOverrides": "not-applied",
+      "thirdOutObservation": "none"
+    },
+    "observations": {
+      "pitchTypeKey": "fixture.fastball",
+      "course": {
+        "unit": "1/263",
+        "x": "132",
+        "y": "131"
+      },
+      "pitchSpeed": {
+        "kmh": null,
+        "outsideRangeConfirmed": false
+      },
+      "stance": null,
+      "battingSide": null,
+      "resultId": "batting-result.error",
+      "battedBall": {
+        "typeKey": null,
+        "strengthKey": null,
+        "hitX": null,
+        "hitY": null,
+        "rawFielderPosition": null,
+        "resolvedFielderId": null
+      },
+      "officialScoringPayload": {
+        "kind": "error-recorded",
+        "errors": [
+          {
+            "fielder": {
+              "kind": "official",
+              "player_id": "abcdef00-0000-0000-0000-000000000003"
+            },
+            "count": "1"
+          }
+        ]
+      },
+      "interferenceRuling": {
+        "kind": "not-required"
+      },
+      "runnerAdvanceOverridesByRunner": {
+        "kind": "not-applied",
+        "overrides": []
+      },
+      "thirdOutObservation": {
+        "kind": "none"
+      },
+      "thirdOutTimingByRunner": {}
+    },
+    "t1Valid": true,
+    "observationsValid": false
+  },
+  {
+    "id": "error-count-True",
+    "t1": {
+      "eventKind": "batting-result",
+      "resultId": "batting-result.error",
+      "pitchEventKind": "pitch-event",
+      "before": {
+        "stateFields": {
+          "state.half": "top",
+          "state.count.strikes": "2",
+          "state.count.balls": "3",
+          "state.outs": "0",
+          "state.runners": "empty",
+          "state.battingOrder": "1",
+          "state.tiebreakActive": false,
+          "state.gameEnded": false,
+          "state.inning": "7",
+          "state.score": {
+            "home": "3",
+            "away": "5"
+          }
+        },
+        "scoreboard": {
+          "inningScores": {
+            "home": "3",
+            "away": "5"
+          },
+          "hits": "12",
+          "errors": "2",
+          "strikeouts": "4",
+          "walks": "3"
+        },
+        "battingOrderBySide": {
+          "away": "1",
+          "home": "6"
+        }
+      },
+      "officialScoringPayload": "error-recorded",
+      "interferenceRuling": "not-required",
+      "runnerAdvanceOverrides": "not-applied",
+      "thirdOutObservation": "none"
+    },
+    "observations": {
+      "pitchTypeKey": "fixture.fastball",
+      "course": {
+        "unit": "1/263",
+        "x": "132",
+        "y": "131"
+      },
+      "pitchSpeed": {
+        "kmh": null,
+        "outsideRangeConfirmed": false
+      },
+      "stance": null,
+      "battingSide": null,
+      "resultId": "batting-result.error",
+      "battedBall": {
+        "typeKey": null,
+        "strengthKey": null,
+        "hitX": null,
+        "hitY": null,
+        "rawFielderPosition": null,
+        "resolvedFielderId": null
+      },
+      "officialScoringPayload": {
+        "kind": "error-recorded",
+        "errors": [
+          {
+            "fielder": {
+              "kind": "official",
+              "player_id": "abcdef00-0000-0000-0000-000000000003"
+            },
+            "count": true
+          }
+        ]
+      },
+      "interferenceRuling": {
+        "kind": "not-required"
+      },
+      "runnerAdvanceOverridesByRunner": {
+        "kind": "not-applied",
+        "overrides": []
+      },
+      "thirdOutObservation": {
+        "kind": "none"
+      },
+      "thirdOutTimingByRunner": {}
+    },
+    "t1Valid": true,
+    "observationsValid": false
+  },
+  {
+    "id": "error-count-2",
+    "t1": {
+      "eventKind": "batting-result",
+      "resultId": "batting-result.error",
+      "pitchEventKind": "pitch-event",
+      "before": {
+        "stateFields": {
+          "state.half": "top",
+          "state.count.strikes": "2",
+          "state.count.balls": "3",
+          "state.outs": "0",
+          "state.runners": "empty",
+          "state.battingOrder": "1",
+          "state.tiebreakActive": false,
+          "state.gameEnded": false,
+          "state.inning": "7",
+          "state.score": {
+            "home": "3",
+            "away": "5"
+          }
+        },
+        "scoreboard": {
+          "inningScores": {
+            "home": "3",
+            "away": "5"
+          },
+          "hits": "12",
+          "errors": "2",
+          "strikeouts": "4",
+          "walks": "3"
+        },
+        "battingOrderBySide": {
+          "away": "1",
+          "home": "6"
+        }
+      },
+      "officialScoringPayload": "error-recorded",
+      "interferenceRuling": "not-required",
+      "runnerAdvanceOverrides": "not-applied",
+      "thirdOutObservation": "none"
+    },
+    "observations": {
+      "pitchTypeKey": "fixture.fastball",
+      "course": {
+        "unit": "1/263",
+        "x": "132",
+        "y": "131"
+      },
+      "pitchSpeed": {
+        "kmh": null,
+        "outsideRangeConfirmed": false
+      },
+      "stance": null,
+      "battingSide": null,
+      "resultId": "batting-result.error",
+      "battedBall": {
+        "typeKey": null,
+        "strengthKey": null,
+        "hitX": null,
+        "hitY": null,
+        "rawFielderPosition": null,
+        "resolvedFielderId": null
+      },
+      "officialScoringPayload": {
+        "kind": "error-recorded",
+        "errors": [
+          {
+            "fielder": {
+              "kind": "official",
+              "player_id": "abcdef00-0000-0000-0000-000000000003"
+            },
+            "count": 2
+          }
+        ]
+      },
+      "interferenceRuling": {
+        "kind": "not-required"
+      },
+      "runnerAdvanceOverridesByRunner": {
+        "kind": "not-applied",
+        "overrides": []
+      },
+      "thirdOutObservation": {
+        "kind": "none"
+      },
+      "thirdOutTimingByRunner": {}
+    },
+    "t1Valid": true,
+    "observationsValid": false
+  },
+  {
+    "id": "error-two-fielders",
+    "t1": {
+      "eventKind": "batting-result",
+      "resultId": "batting-result.error",
+      "pitchEventKind": "pitch-event",
+      "before": {
+        "stateFields": {
+          "state.half": "top",
+          "state.count.strikes": "2",
+          "state.count.balls": "3",
+          "state.outs": "0",
+          "state.runners": "empty",
+          "state.battingOrder": "1",
+          "state.tiebreakActive": false,
+          "state.gameEnded": false,
+          "state.inning": "7",
+          "state.score": {
+            "home": "3",
+            "away": "5"
+          }
+        },
+        "scoreboard": {
+          "inningScores": {
+            "home": "3",
+            "away": "5"
+          },
+          "hits": "12",
+          "errors": "2",
+          "strikeouts": "4",
+          "walks": "3"
+        },
+        "battingOrderBySide": {
+          "away": "1",
+          "home": "6"
+        }
+      },
+      "officialScoringPayload": "error-recorded",
+      "interferenceRuling": "not-required",
+      "runnerAdvanceOverrides": "not-applied",
+      "thirdOutObservation": "none"
+    },
+    "observations": {
+      "pitchTypeKey": "fixture.fastball",
+      "course": {
+        "unit": "1/263",
+        "x": "132",
+        "y": "131"
+      },
+      "pitchSpeed": {
+        "kmh": null,
+        "outsideRangeConfirmed": false
+      },
+      "stance": null,
+      "battingSide": null,
+      "resultId": "batting-result.error",
+      "battedBall": {
+        "typeKey": null,
+        "strengthKey": null,
+        "hitX": null,
+        "hitY": null,
+        "rawFielderPosition": null,
+        "resolvedFielderId": null
+      },
+      "officialScoringPayload": {
+        "kind": "error-recorded",
+        "errors": [
+          {
+            "fielder": {
+              "kind": "official",
+              "player_id": "abcdef00-0000-0000-0000-000000000003"
+            },
+            "count": 1
+          },
+          {
+            "fielder": {
+              "kind": "official",
+              "player_id": "abcdef00-0000-0000-0000-000000000003"
+            },
+            "count": 1
+          }
+        ]
+      },
+      "interferenceRuling": {
+        "kind": "not-required"
+      },
+      "runnerAdvanceOverridesByRunner": {
+        "kind": "not-applied",
+        "overrides": []
+      },
+      "thirdOutObservation": {
+        "kind": "none"
+      },
+      "thirdOutTimingByRunner": {}
+    },
+    "t1Valid": true,
+    "observationsValid": false
+  }
+]
