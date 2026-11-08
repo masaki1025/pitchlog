@@ -62,6 +62,8 @@ test('真正HTTPS画面で三球の末尾過去訂正、同要求再掲、再読
 }) => {
   test.setTimeout(480_000)
   page.setDefaultTimeout(30_000)
+  const pitchCount = process.env.PITCHLOG_E2E_P3_PAGING === '26' ? 26 : 3
+  const targetD1 = String(pitchCount)
   const startedAt = Date.now()
   const stage = (name: string) =>
     console.log(
@@ -169,16 +171,18 @@ test('真正HTTPS画面で三球の末尾過去訂正、同要求再掲、再読
   await expect(page.getByTestId('ordinary-state-source')).toHaveText(
     'サーバー確認済みの状態',
   )
-  for (let number = 1; number <= 3; number++) {
+  for (let number = 1; number <= pitchCount; number++) {
     for (const name of ['profile', 'mode', 'bucket', 'lockdown'])
       await page.getByTestId(`first-ball-env-${name}`).check()
     await page.getByTestId('first-ball-pitch-type').selectOption({ index: 1 })
     await page
       .getByTestId('ordinary-pitch-result')
       .selectOption(
-        number === 3
+        number === pitchCount
           ? 'batting-result.called-strikeout'
-          : 'batting-result.called-pitch',
+          : number > 2
+            ? 'batting-result.foul'
+            : 'batting-result.called-pitch',
       )
     await page.getByTestId('first-ball-course').locator('svg').click()
     const posted = page.waitForResponse(
@@ -216,11 +220,16 @@ test('真正HTTPS画面で三球の末尾過去訂正、同要求再掲、再読
   await expect(panel).toBeVisible()
   for (const box of await panel.locator('input[type=checkbox]').all())
     await box.check()
-  await panel.getByTestId('p3-target').selectOption('3')
+  if (pitchCount === 26) {
+    await panel.getByTestId('p3-history-next').click()
+    await expect(panel.getByTestId('p3-target')).toContainText('第26球')
+  }
+  await panel.getByTestId('p3-target').selectOption(targetD1)
   const targetRead = page.waitForResponse(
     (res) =>
       res.request().method() === 'GET' &&
-      apiPath(res.url()) === `/api/games/${saved.id}/sync/change-target/3`,
+      apiPath(res.url()) ===
+        `/api/games/${saved.id}/sync/change-target/${targetD1}`,
   )
   await panel.getByTestId('p3-inspect').click()
   const targetResponse = await targetRead
@@ -269,7 +278,7 @@ test('真正HTTPS画面で三球の末尾過去訂正、同要求再掲、再読
     }
     if (path === `/api/games/${saved.id}/stats`)
       stage(`stats-get-${response.status()}`)
-    if (path === `/api/games/${saved.id}/sync/change-confirmation/3`)
+    if (path === `/api/games/${saved.id}/sync/change-confirmation/${targetD1}`)
       stage(`confirmation-get-${response.status()}`)
   })
   page.on('request', (request) => {
@@ -296,7 +305,7 @@ test('真正HTTPS画面で三球の末尾過去訂正、同要求再掲、再読
     (res) =>
       res.request().method() === 'GET' &&
       apiPath(res.url()) ===
-        `/api/games/${saved.id}/sync/change-confirmation/3`,
+        `/api/games/${saved.id}/sync/change-confirmation/${targetD1}`,
   )
   await expect(panel.getByTestId('p3-apply')).toBeEnabled()
   await panel.getByTestId('p3-apply').click()
@@ -380,6 +389,25 @@ test('真正HTTPS画面で三球の末尾過去訂正、同要求再掲、再読
     ),
   ).toBe(200)
   stage('p3-replayed')
+  if (pitchCount === 26) {
+    await page.reload()
+    await expect(page.getByTestId('restore-balls')).toHaveText('1')
+    await expect(page.getByTestId('restore-strikes')).toHaveText('2')
+    await expect(page.getByTestId('restore-history')).toHaveText('26件')
+    console.log(
+      'PITCHLOG_P3_PAGING_SCREEN=' +
+        JSON.stringify({
+          gameId: saved.id,
+          pitches: 26,
+          targetD1: 26,
+          accepted: 1,
+          replayStatus: 200,
+          reloaded: true,
+          statsVersionId: confirmed.stats_version_id,
+        }),
+    )
+    return
+  }
   await expect(page.getByTestId('ordinary-state-source')).toHaveText(
     'サーバー確認済みの状態',
   )
