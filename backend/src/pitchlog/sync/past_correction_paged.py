@@ -423,7 +423,14 @@ def visit_p3_lineup_correction_pages(
                 consume(page)
 
             source = visit_past_correction_v3_source_pages(
-                scope, game_id, target_d1, visit
+                scope,
+                game_id,
+                target_d1,
+                visit,
+                _host=host,
+                _progress=lambda: _assert_page_binding(
+                    scope, event, bound_source, expected_target
+                ),
             )
         if (
             source.internal_generation != generation

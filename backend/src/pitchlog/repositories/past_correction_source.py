@@ -83,6 +83,8 @@ def _saved_from_packet(
     tenant: UUID,
     game_id: UUID,
     generation: int,
+    *,
+    _host=None,
 ) -> SavedLineupPitch:
     """既私有pageの1行を元event・物理・唯一計算の全値へ束縛する。"""
     if len(packet) != 1:
@@ -113,7 +115,7 @@ def _saved_from_packet(
         or event["retired_at"] is not None
     ):
         raise PastCorrectionSourceUnavailable("v3原本の順序又は参照が不正")
-    payload = _verify_v2_read_packet(item, tenant, game_id, lineup=True)
+    payload = _verify_v2_read_packet(item, tenant, game_id, lineup=True, _host=_host)
     return SavedLineupPitch(
         UUID(event["id"]),
         number,
@@ -130,6 +132,44 @@ def visit_past_correction_v3_source_pages(
     game_id: UUID,
     target_d1: int,
     consume: Callable[[tuple[SavedLineupPitch, ...], LineupPrefixDocument], None],
+    *,
+    _host=None,
+    _progress: Callable[[], None] | None = None,
+) -> PastCorrectionV3PagedSource:
+    """有界原本pageの実hostを一つだけ所有し、各行の再検証は省かない。"""
+    from contextlib import nullcontext
+
+    from pitchlog.domainrt.host import NodeDomainHost, open_domain_host
+
+    if (
+        type(scope) is not _TenantTransaction
+        or type(game_id) is not UUID
+        or type(target_d1) is not int
+        or target_d1 < 1
+        or not callable(consume)
+        or (_host is not None and type(_host) is not NodeDomainHost)
+        or (_progress is not None and not callable(_progress))
+    ):
+        raise PastCorrectionSourceUnavailable("P3頁読取の入力が不正")
+    with open_domain_host() if _host is None else nullcontext(_host) as host:
+        return _visit_past_correction_v3_source_pages_with_host(
+            scope,
+            game_id,
+            target_d1,
+            consume,
+            host=host,
+            progress=_progress,
+        )
+
+
+def _visit_past_correction_v3_source_pages_with_host(
+    scope: _TenantTransaction,
+    game_id: UUID,
+    target_d1: int,
+    consume: Callable[[tuple[SavedLineupPitch, ...], LineupPrefixDocument], None],
+    *,
+    host,
+    progress: Callable[[], None] | None = None,
 ) -> PastCorrectionV3PagedSource:
     """同一scopeの25件keysetを全水位まで訪問し、全件RAM保持を避ける。"""
     if (
@@ -162,7 +202,11 @@ def visit_past_correction_v3_source_pages(
         storage_head: object = None
         last: SavedLineupPitch | None = None
         while seen < watermark:
-            view = read_lineup_prefix(scope, game_id, limit=25, cursor=cursor)
+            if progress is not None:
+                progress()
+            view = read_lineup_prefix(
+                scope, game_id, limit=25, cursor=cursor, _host=host, _progress=progress
+            )
             if type(view) is not OrdinaryPrefixView:
                 raise PastCorrectionSourceUnavailable("P3頁のv3 readが欠落")
             projection = view.projection
@@ -239,8 +283,15 @@ def visit_past_correction_v3_source_pages(
                 raise PastCorrectionSourceUnavailable("P3頁の私有原本件数が不一致")
             source: list[SavedLineupPitch] = []
             for offset, packet in enumerate(packets[: len(items)], start=1):
+                if progress is not None:
+                    progress()
                 saved = _saved_from_packet(
-                    packet, seen + offset, scope._bound_tenant_id, game_id, generation
+                    packet,
+                    seen + offset,
+                    scope._bound_tenant_id,
+                    game_id,
+                    generation,
+                    _host=host,
                 )
                 public = items[offset - 1]
                 if (
@@ -257,6 +308,8 @@ def visit_past_correction_v3_source_pages(
                     or (last is not None and saved.d2 <= last.d2)
                 ):
                     raise PastCorrectionSourceUnavailable("P3頁の公開/私有原本が不一致")
+                if progress is not None:
+                    progress()
                 source.append(saved)
                 last = saved
             assert checkpoint is not None
@@ -273,7 +326,8 @@ def visit_past_correction_v3_source_pages(
             or _one(
                 scope.run(RecordingGenerationReadToken(game_id)),
                 _GENERATION_READ_COLUMNS,
-            ) != current
+            )
+            != current
         ):
             raise PastCorrectionSourceUnavailable("P3頁末尾とcurrent headが不一致")
         return PastCorrectionV3PagedSource(generation, watermark, checkpoint)

@@ -74,17 +74,26 @@ def test_paged_source_visits_26_in_two_bounded_pages_or_rejects_tamper(
     tenant = UUID("10000000-0000-0000-0000-000000000001")
     checkpoint_id = UUID("10000000-0000-0000-0000-000000000700")
     head = SimpleNamespace(
-        length="26", tenant_id=str(tenant), game_id=str(_GAME),
-        checkpoint=SimpleNamespace(id=str(checkpoint_id)), history_version="1",
+        length="26",
+        tenant_id=str(tenant),
+        game_id=str(_GAME),
+        checkpoint=SimpleNamespace(id=str(checkpoint_id)),
+        history_version="1",
     )
     changed = SimpleNamespace(
-        length="26", tenant_id=str(tenant), game_id=str(_GAME),
-        checkpoint=SimpleNamespace(id=str(checkpoint_id)), history_version="2",
+        length="26",
+        tenant_id=str(tenant),
+        game_id=str(_GAME),
+        checkpoint=SimpleNamespace(id=str(checkpoint_id)),
+        history_version="2",
     )
     storage = SimpleNamespace(id=str(checkpoint_id), history_epoch="1")
     checkpoint = SimpleNamespace(
-        id=str(checkpoint_id), revision="1", prefix_ref=head,
-        internal_generation="1", confirmed_watermark="26",
+        id=str(checkpoint_id),
+        revision="1",
+        prefix_ref=head,
+        internal_generation="1",
+        confirmed_watermark="26",
         content_digest="a" * 64,
     )
     current = {"generation": 1, "confirmed_watermark": 26}
@@ -93,17 +102,23 @@ def test_paged_source_visits_26_in_two_bounded_pages_or_rejects_tamper(
         event_id = UUID(int=1000 + d1)
         row_id = UUID(int=2000 + d1)
         entry = {"source": d1}
+
+        def dump_entry(*, mode, by_alias, exclude_unset, entry=entry):
+            return entry
+
         saved[d1] = SimpleNamespace(
-            d1=d1, d2=d1, source_event_id=event_id,
+            d1=d1,
+            d2=d1,
+            source_event_id=event_id,
             play_row={"id": str(row_id), "source_event_id": str(event_id)},
-            calculation=SimpleNamespace(response=SimpleNamespace(value=SimpleNamespace(
-                new_history_entry=SimpleNamespace(
-                    model_dump=lambda *, mode, by_alias, exclude_unset, entry=entry: (
-                        entry
+            calculation=SimpleNamespace(
+                response=SimpleNamespace(
+                    value=SimpleNamespace(
+                        new_history_entry=SimpleNamespace(model_dump=dump_entry),
+                        next_prefix_ref=head,
                     )
-                ),
-                next_prefix_ref=head,
-            ))),
+                )
+            ),
         )
 
     class _Scope:
@@ -121,7 +136,13 @@ def test_paged_source_visits_26_in_two_bounded_pages_or_rejects_tamper(
                 )
             )
 
-    def read(_scope, _game, *, limit, cursor):
+    host_ids = []
+
+    def read(_scope, _game, *, limit, cursor, _host=None, _progress=None):
+        from pitchlog.domainrt.host import NodeDomainHost
+
+        assert type(_host) is NodeDomainHost
+        host_ids.append(id(_host))
         assert limit == 25
         start = 1 if cursor is None else 26
         assert cursor == (None if start == 1 else "next")
@@ -136,8 +157,11 @@ def test_paged_source_visits_26_in_two_bounded_pages_or_rejects_tamper(
                 "page": {
                     "items": items,
                     "next_cursor": (
-                        "next" if start == 1 else
-                        "stale" if tamper == "terminal-cursor" else None
+                        "next"
+                        if start == 1
+                        else "stale"
+                        if tamper == "terminal-cursor"
+                        else None
                     ),
                 },
                 "prefix_ref": (
@@ -151,18 +175,25 @@ def test_paged_source_visits_26_in_two_bounded_pages_or_rejects_tamper(
     monkeypatch.setattr(source, "_TenantTransaction", _Scope)
     monkeypatch.setattr(source, "_one", lambda value, _columns: value)
     monkeypatch.setattr(source, "read_lineup_prefix", read)
-    monkeypatch.setattr(source, "_function_one", lambda *_args: {
-        "kind": "checkpoint",
-        "row": {
-            "id": str(checkpoint_id), "state": "current", "content": {},
-            "content_digest": "a" * 64,
+    monkeypatch.setattr(
+        source,
+        "_function_one",
+        lambda *_args: {
+            "kind": "checkpoint",
+            "row": {
+                "id": str(checkpoint_id),
+                "state": "current",
+                "content": {},
+                "content_digest": "a" * 64,
+            },
         },
-    })
+    )
     monkeypatch.setattr(source, "read_lineup_prefix_document", lambda _raw: checkpoint)
     monkeypatch.setattr(
-        source, "_saved_from_packet", lambda packet, *_args: saved[packet[0]]
+        source, "_saved_from_packet", lambda packet, *_args, **_kwargs: saved[packet[0]]
     )
     sizes: list[int] = []
+    progress_checks: list[bool] = []
 
     def run():
         return source.visit_past_correction_v3_source_pages(
@@ -170,12 +201,16 @@ def test_paged_source_visits_26_in_two_bounded_pages_or_rejects_tamper(
             _GAME,
             26,
             lambda page, _checkpoint: sizes.append(len(page)),
+            _progress=lambda: progress_checks.append(True),
         )
+
     if tamper is not None:
         with pytest.raises(source.PastCorrectionSourceUnavailable):
             run()
     else:
         result = run()
+        assert len(host_ids) == 2 and len(set(host_ids)) == 1
+        assert len(progress_checks) == 2 + 26 * 2
         assert result.watermark == 26
         assert result.internal_generation == 1
         assert result.checkpoint is checkpoint

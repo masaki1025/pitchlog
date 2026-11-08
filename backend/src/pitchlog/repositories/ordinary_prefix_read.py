@@ -147,6 +147,8 @@ def read_ordinary_prefix(
     _play_prefix=False,
     _lineup_prefix=False,
     _viewer=False,
+    _lineup_host=None,
+    _lineup_progress=None,
 ):
     """現在世代の実point原本と有限pageだけを返す。0/旧1も暗黙書込しない。"""
     if (
@@ -154,6 +156,13 @@ def read_ordinary_prefix(
         or type(game_id) is not UUID
         or type(limit) is not int
         or not 1 <= limit <= 100
+    ):
+        raise OrdinaryPrefixError
+    if (
+        (_lineup_host is not None or _lineup_progress is not None)
+        and not _lineup_prefix
+        or _lineup_progress is not None
+        and (_viewer or not callable(_lineup_progress))
     ):
         raise OrdinaryPrefixError
     tenant = handle._bound_tenant_id
@@ -304,6 +313,8 @@ def read_ordinary_prefix(
             limit,
             cursor,
             _viewer,
+            _host=_lineup_host,
+            _progress=_lineup_progress,
         )
     if stored is None or stored.get("kind") == "first-ball-save":
         if cursor is not None or n > 1:
@@ -734,14 +745,16 @@ def _evaluate_v2_payload(raw):
     return payload
 
 
-def _verify_v2_read_packet(item, tenant, game_id, *, lineup=False):
+def _verify_v2_read_packet(item, tenant, game_id, *, lineup=False, _host=None):
     """独立再評価/取消差分/41列/runner10列を全値比較する。"""
+    if _host is not None and not lineup:
+        raise OrdinaryPrefixError
     from pitchlog.sync.ordinary_pitch_physical import pitch_physical_row
     from pitchlog.sync.terminal_pitch_projection import runner_physical_rows
 
     h, e, p = item["history"], item["event"], item["play_row"]
     payload = (
-        _evaluate_lineup_payload(e["payload"])
+        _evaluate_lineup_payload(e["payload"], _host=_host)
         if lineup
         else _evaluate_v2_payload(e["payload"])
     )
@@ -950,10 +963,18 @@ def _prefix_metadata(game, game_id, d4, sides, roster):
     )
 
 
-def read_lineup_prefix(handle, game_id, *, limit=25, cursor=None):
+def read_lineup_prefix(
+    handle, game_id, *, limit=25, cursor=None, _host=None, _progress=None
+):
     """旧DTO/旧readerを拡張せず、実v3だけを別projectionで読む。"""
     return read_ordinary_prefix(
-        handle, game_id, limit=limit, cursor=cursor, _lineup_prefix=True
+        handle,
+        game_id,
+        limit=limit,
+        cursor=cursor,
+        _lineup_prefix=True,
+        _lineup_host=_host,
+        _lineup_progress=_progress,
     )
 
 
@@ -969,9 +990,10 @@ def read_viewer_prefix(handle, game_id, *, limit=25, cursor=None):
     )
 
 
-def _evaluate_lineup_payload(raw):
+def _evaluate_lineup_payload(raw, *, _host=None):
     """実保存要求を一回評価し、自己seal/V7/V8全値と照合する。"""
     from pitchlog.domainrt.lineup_play_prefix_continuation import (
+        _evaluate_lineup_prefix_with_host,
         evaluate_lineup_prefix_continuation,
     )
     from pitchlog.sync.terminal_pitch_payload import (
@@ -984,7 +1006,11 @@ def _evaluate_lineup_payload(raw):
 
     if type(payload.calculation) is not LineupPitchCalculation:
         raise OrdinaryPrefixError
-    actual = evaluate_lineup_prefix_continuation(payload.calculation.request)
+    actual = (
+        evaluate_lineup_prefix_continuation(payload.calculation.request)
+        if _host is None
+        else _evaluate_lineup_prefix_with_host(payload.calculation.request, _host)
+    )
     if _canonical_json(
         actual.model_dump(mode="json", by_alias=True, exclude_unset=True)
     ) != _canonical_json(
@@ -1015,9 +1041,56 @@ def _read_lineup_projection(
     limit,
     cursor,
     viewer,
+    *,
+    _host=None,
+    _progress=None,
+):
+    """一回の有界readでは同じ実hostだけを使い、所有者が必ず閉じる。"""
+    from contextlib import nullcontext
+
+    from pitchlog.domainrt.host import NodeDomainHost, open_domain_host
+
+    if _host is not None and type(_host) is not NodeDomainHost:
+        raise OrdinaryPrefixError
+    with open_domain_host() if _host is None else nullcontext(_host) as host:
+        return _read_lineup_projection_with_host(
+            handle,
+            game_id,
+            tenant,
+            game,
+            generation,
+            epoch,
+            n,
+            d4,
+            stored,
+            projection,
+            limit,
+            cursor,
+            viewer,
+            host=host,
+            row_progress=_progress,
+        )
+
+
+def _read_lineup_projection_with_host(
+    handle,
+    game_id,
+    tenant,
+    game,
+    generation,
+    epoch,
+    n,
+    d4,
+    stored,
+    projection,
+    limit,
+    cursor,
+    viewer,
+    *,
+    host,
+    row_progress=None,
 ):
     """Actual zero/native v3に限定し、最後の原本と有界pageを別々に確認する。"""
-    from pitchlog.domainrt.host import open_domain_host
     from pitchlog.domainrt.lineup_play_prefix_continuation import SourcePosition
     from pitchlog.domainrt.lineup_prefix_source import lineup_from_actual_roster
     from pitchlog.repositories.play_prefix import (
@@ -1039,10 +1112,9 @@ def _read_lineup_projection(
         if stored is not None or cursor is not None:
             raise OrdinaryPrefixError
         initial = read_initial_started_snapshot(handle, game_id)
-        with open_domain_host() as host:
-            doc, source = _initial_lineup_document(
-                initial, origin, d4, epoch, host.artifact_sha256, position
-            )
+        doc, source = _initial_lineup_document(
+            initial, origin, d4, epoch, host.artifact_sha256, position
+        )
         metadata = read_started_game(handle, game_id)
         if type(metadata) is not StartedGameView:
             raise OrdinaryPrefixError
@@ -1191,9 +1263,14 @@ def _read_lineup_projection(
             viewer=viewer,
         )
     last_payload, _ = _read_native_lineup_head(handle, game_id, tenant, row, doc)
+    if row_progress is not None:
+        row_progress()
     _evaluate_lineup_payload(
-        last_payload.model_dump(mode="json", by_alias=True, exclude_unset=True)
+        last_payload.model_dump(mode="json", by_alias=True, exclude_unset=True),
+        _host=host,
     )
+    if row_progress is not None:
+        row_progress()
     saved = _rows(handle.run(StartedLineupsReadToken(game_id)), LINEUP_COLUMNS)
     if len(saved) != 2 or any(
         item["tenant_id"] != tenant or item["game_id"] != game_id for item in saved
@@ -1298,12 +1375,15 @@ def _read_lineup_projection(
             or e["payload"].get("formatVersion") != "play-prefix-play-v3"
         ):
             raise OrdinaryPrefixError
-        payload = _verify_v2_read_packet(item, tenant, game_id, lineup=True)
+        if row_progress is not None:
+            row_progress()
+        payload = _verify_v2_read_packet(item, tenant, game_id, lineup=True, _host=host)
+        if row_progress is not None:
+            row_progress()
         current = (h["d1"], h["d2"], UUID(h["source_event_id"]))
         if viewer:
-            wrong = (
-                (point != (0, 0, UUID(int=0)) and current >= point)
-                or (last_point is not None and current >= last_point)
+            wrong = (point != (0, 0, UUID(int=0)) and current >= point) or (
+                last_point is not None and current >= last_point
             )
         else:
             wrong = current <= point or last_point is not None and current <= last_point
@@ -1446,9 +1526,7 @@ def _read_p3_lineup_projection(
     elif not viewer and after + len(page_items) < source_count:
         next_cursor = (
             base64.urlsafe_b64encode(
-                _canonical_json(
-                    {**scope, "after_d1": after + len(page_items)}
-                ).encode()
+                _canonical_json({**scope, "after_d1": after + len(page_items)}).encode()
             )
             .decode()
             .rstrip("=")
