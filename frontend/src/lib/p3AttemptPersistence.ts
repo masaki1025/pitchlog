@@ -102,8 +102,7 @@ async function verify(value: unknown, tenantId: string, gameId: string) {
     (target as Record<string, unknown>).game !== gameId ||
     (target as Record<string, unknown>).d4 !== row.d4 ||
     !Number.isSafeInteger((target as Record<string, unknown>).d1) ||
-    Number((target as Record<string, unknown>).d1) < 1 ||
-    Number((target as Record<string, unknown>).d1) > 25
+    Number((target as Record<string, unknown>).d1) < 1
   )
     invalid()
   try {

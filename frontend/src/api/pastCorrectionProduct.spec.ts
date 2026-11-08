@@ -1,4 +1,6 @@
+import { webcrypto } from 'node:crypto'
 import { IDBFactory } from 'fake-indexeddb'
+import { P3AttemptPersistence } from '../lib/p3AttemptPersistence'
 import { createPinia, disposePinia, setActivePinia, type Pinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import fixture from './fixtures/lineupPrefixGame.recorded.v3.json'
@@ -193,4 +195,130 @@ describe('実P3 wire', () => {
       await expect(readP3ChangeConfirmation(game.id, 1, d5)).rejects.toThrow()
     }
   })
+})
+
+function positionOffer(d1: number) {
+  return {
+    ...structuredClone(offer),
+    target_reference: { ...offer.target_reference, d1 },
+    expected_prefix_ref: {
+      ...structuredClone(game.prefix_ref),
+      length: String(d1),
+    },
+  }
+}
+
+function positionConfirmation(d1: number) {
+  return {
+    target_reference: { ...offer.target_reference, d1 },
+    confirmed_version: 2,
+    d5,
+    source_event_id: play.source_event_id,
+    target_play_id: play.id,
+    stats_version_id: attempt,
+    current_prefix_ref: {
+      ...structuredClone(game.prefix_ref),
+      length: String(d1),
+    },
+    current_after: game.after,
+  }
+}
+
+it.each([25, 26, Number.MAX_SAFE_INTEGER])(
+  '頁件数25を対象位置上限へ流用せず、正準D1 %s の原応答を照合する',
+  async (d1) => {
+    const target = positionOffer(d1)
+    request.mockResolvedValueOnce(target)
+    expect(await readP3TargetOffer(game.id, d1)).toEqual(target)
+    expect(request).toHaveBeenLastCalledWith(
+      'GET',
+      `/games/${game.id}/sync/change-target/${d1}`,
+      { tenantBound: true, signal: undefined },
+    )
+    const confirmed = positionConfirmation(d1)
+    request.mockResolvedValueOnce(confirmed)
+    expect(await readP3ChangeConfirmation(game.id, d1, d5)).toEqual(confirmed)
+    expect(request).toHaveBeenLastCalledWith(
+      'GET',
+      `/games/${game.id}/sync/change-confirmation/${d1}`,
+      { tenantBound: true, signal: undefined },
+    )
+  },
+)
+
+it.each([
+  0,
+  -1,
+  1.5,
+  Number.NaN,
+  Number.POSITIVE_INFINITY,
+  Number.MAX_SAFE_INTEGER + 1,
+  2 ** 63,
+  true,
+  false,
+  '26',
+  '026',
+  '26.0',
+  null,
+  undefined,
+  {},
+])('非正準/安全整数外の対象位置 %s は両GETのHTTP前に拒否する', async (raw) => {
+  // 呼出境界への型不正注入。製品側で補正・文字列化しないことを確認する。
+  const d1 = raw as unknown as number
+  await expect(readP3TargetOffer(game.id, d1)).rejects.toThrow()
+  await expect(readP3ChangeConfirmation(game.id, d1, d5)).rejects.toThrow()
+  expect(request).not.toHaveBeenCalled()
+})
+
+it('26位置でも別対象/別gameの原応答と別D5を受理しない', async () => {
+  request.mockResolvedValueOnce(positionOffer(25))
+  await expect(readP3TargetOffer(game.id, 26)).rejects.toThrow()
+  request.mockResolvedValueOnce({
+    ...positionOffer(26),
+    target_reference: { ...offer.target_reference, game: attempt, d1: 26 },
+  })
+  await expect(readP3TargetOffer(game.id, 26)).rejects.toThrow()
+  request.mockResolvedValueOnce(positionConfirmation(25))
+  await expect(readP3ChangeConfirmation(game.id, 26, d5)).rejects.toThrow()
+  request.mockResolvedValueOnce({ ...positionConfirmation(26), d5: attempt })
+  await expect(readP3ChangeConfirmation(game.id, 26, d5)).rejects.toThrow()
+})
+
+it('26対象offer→耐久原要求→再起動→同D5/attempt確認を実codecで接続する', async () => {
+  vi.stubGlobal('crypto', webcrypto)
+  request.mockResolvedValueOnce(positionOffer(26))
+  const read = await readP3TargetOffer(game.id, 26)
+  const input = p3ChangeBody(
+    read,
+    d5,
+    game.recovery_generation,
+    'presented-proof',
+    'batting-result.called-pitch',
+    observations,
+  )
+  const first = await P3AttemptPersistence.open()
+  let second: P3AttemptPersistence | null = null
+  try {
+    const saved = await first.prepare({
+      tenantId: game.prefix_ref.tenantId,
+      gameId: game.id,
+      deviceId: play.batter_id,
+      attemptId: attempt,
+      body: input,
+    })
+    first.close()
+    second = await P3AttemptPersistence.open()
+    const recovered = await second.read(game.prefix_ref.tenantId, game.id)
+    expect(recovered).toEqual(saved)
+    expect(JSON.parse(recovered!.requestJson)).toEqual(input)
+    expect(recovered!.d5).toBe(d5)
+    expect(recovered!.attemptId).toBe(attempt)
+    request.mockResolvedValueOnce(positionConfirmation(26))
+    const confirmed = await readP3ChangeConfirmation(game.id, 26, recovered!.d5)
+    expect(confirmed.target_reference).toEqual(read.target_reference)
+    expect(confirmed.d5).toBe(saved.d5)
+  } finally {
+    first.close()
+    second?.close()
+  }
 })
