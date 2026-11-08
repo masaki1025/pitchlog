@@ -17,6 +17,7 @@ from uuid import UUID, uuid4
 import psycopg
 import pytest
 
+from pitchlog.authz.interference_evidence_sql import _OUT_ADMISSIONS
 from pitchlog.db.current_product_startup import CURRENT_REVISION
 from pitchlog.repositories.first_ball_operations import PLAY_ROW_COLUMNS
 from pitchlog.stats.facts import evaluate_native_projection
@@ -117,6 +118,52 @@ def _explain_all(admin, tenant: UUID, game: UUID) -> None:
         assert admin.execute(
             "EXPLAIN (FORMAT JSON) " + statement, parameters
         ).fetchone()
+
+
+def _explain_interference_outer_scope(admin) -> None:
+    """元source・物理走者・裁定の外側3式をSQL parserへ通す。"""
+    scope = (
+        " FROM (SELECT '{}'::jsonb AS payload) source_row CROSS JOIN "
+        "(SELECT '{}'::jsonb AS before_cp, '{}'::jsonb AS after_cp, "
+        "'{}'::jsonb AS p, NULL::uuid AS p_tenant_id) fixture_scope"
+    )
+    for expression in _OUT_ADMISSIONS:
+        assert admin.execute(
+            "EXPLAIN (FORMAT JSON) SELECT " + expression + scope
+        ).fetchone()
+
+
+def _interference_vocabulary() -> tuple[tuple[str, str, str], ...]:
+    """正式secondary軸の3件を、既製品の管理語彙区分へ写す。"""
+    root = Path(__file__).resolve().parents[3]
+    source = json.loads(
+        (root / "contracts/vocabulary/input_vocabulary_v1.json").read_text()
+    )
+    axes = [axis for axis in source["axes"] if axis["axisId"] == "secondary-result"]
+    assert len(axes) == 1
+    keys = {
+        "secondary-result.batting-interference",
+        "secondary-result.obstruction",
+        "secondary-result.offensive-interference",
+    }
+    rows = [entry for entry in axes[0]["entries"] if entry["id"] in keys]
+    assert len(rows) == len(keys) and {entry["id"] for entry in rows} == keys
+    assert all(entry["classification"] == "secondary" for entry in rows)
+    # 既製品のcategory CHECKはsecondaryを持たず、書込stampはbatting_resultを照合する。
+    return tuple(
+        (entry["id"], "batting_result", entry["initialDisplayName"])
+        for entry in rows
+    )
+
+
+def test_interference_outer_scope_sql_explain(vertical_database):
+    """Owned PostgreSQLで外側式を構文検査する。実保存成功とは数えない。"""
+    db = vertical_database
+    with psycopg.connect(
+        db.authority.database.business_admin,
+        options="-c default_transaction_read_only=on",
+    ) as admin:
+        _explain_interference_outer_scope(admin)
 
 
 def _source_proof() -> dict[str, object]:
@@ -254,17 +301,23 @@ def test_interference_screen_actual(tls_paths, vertical_database):
     db = vertical_database
     with psycopg.connect(db.authority.database.business_admin) as admin:
         _explain_all(admin, db.tenant_id, db.game_id)
+        _explain_interference_outer_scope(admin)
         assert admin.execute(_READ_SQL["revision"]).fetchone() == (CURRENT_REVISION,)
         teams = admin.execute(_READ_SQL["teams"], (db.tenant_id, db.game_id)).fetchone()
-        for key, category in (
-            ("batting-result.single", "batting_result"),
-            ("batting-result.triple", "batting_result"),
-            ("batting-result.batted-out", "batting_result"),
+        for key, category, display_name in (
+            ("batting-result.single", "batting_result", "batting-result.single"),
+            ("batting-result.triple", "batting_result", "batting-result.triple"),
+            (
+                "batting-result.batted-out",
+                "batting_result",
+                "batting-result.batted-out",
+            ),
+            *_interference_vocabulary(),
         ):
             admin.execute(
                 "INSERT INTO public.admin_vocabularies(key,category,display_name) "
                 "VALUES (%s,%s,%s) ON CONFLICT(key) DO NOTHING",
-                (key, category, key),
+                (key, category, display_name),
             )
     assert teams is not None and all(value is not None for value in teams)
     cache = Path.home() / ".cache/pitchlog/interference-screen-author-20261108"
