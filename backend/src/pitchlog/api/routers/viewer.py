@@ -1,5 +1,6 @@
 """同チーム閲覧端末へ非ロックの確定版と保存済み表示を返す。"""
 
+from contextlib import nullcontext
 from typing import Annotated, Literal
 from uuid import UUID
 
@@ -13,7 +14,10 @@ from pitchlog.api.schemas.started_games import (
 )
 from pitchlog.api.tenant_access import TenantMatchedRoute, require_tenant_access
 from pitchlog.repositories.context import TenantContext
-from pitchlog.repositories.game_lifecycle import _read_lifecycle_display
+from pitchlog.repositories.game_lifecycle import (
+    _read_lifecycle_display,
+    lifecycle_display_scope,
+)
 from pitchlog.repositories.ordinary_prefix_read import (
     OrdinaryPrefixView,
     read_viewer_prefix,
@@ -79,62 +83,86 @@ def read_game_viewer_saved(
             head = read_viewer_probe(scope, game_id)
             if expected_version != head.version:
                 raise RuntimeError("閲覧本文の実効版が不一致")
-            read = read_viewer_prefix(scope, game_id, limit=limit, cursor=cursor)
-            if type(read) is StartedReadNotVisible:
-                raise ViewerProbeNotVisible
-            if type(read) is not OrdinaryPrefixView:
-                raise RuntimeError("閲覧原本が不正")
-            from pitchlog.api.routers.started_games import _read
+            display_scope = (
+                lifecycle_display_scope(scope, game_id)
+                if head.status == "finished"
+                else nullcontext(None)
+            )
+            with display_scope as finished_display:
+                if head.status == "finished" and (
+                    type(finished_display) is not dict
+                    or finished_display.get("status") != head.status
+                ):
+                    raise RuntimeError("閲覧終了版と実効headが不一致")
+                read = read_viewer_prefix(scope, game_id, limit=limit, cursor=cursor)
+                if type(read) is StartedReadNotVisible:
+                    raise ViewerProbeNotVisible
+                if type(read) is not OrdinaryPrefixView:
+                    raise RuntimeError("閲覧原本が不正")
+                from pitchlog.api.routers.started_games import _read
 
-            metadata = _read(read.metadata).model_dump(mode="python", by_alias=True)
-            projected = dict(read.projection)
-            if projected.get("profile") == "nonplay-prefix-read-v1":
-                display = _read_lifecycle_display(scope, game_id)
-                if type(display) is not dict or display.get("status") != head.status:
-                    raise RuntimeError("閲覧終了版が不一致")
-                if projected["checkpoint"].content.d3 != str(head.watermark):
-                    raise RuntimeError("閲覧D3が不一致")
-                packet = {
-                    **metadata,
-                    **projected,
-                    "read_kind": "nonplay-prefix",
-                    "status": head.status,
-                    "lifecycle": display,
-                }
-                model = StartedNonplayPrefixGameRead
-            else:
-                if head.status != "in_progress":
-                    raise RuntimeError("終了状態にv3原本")
-                if projected["prefix_ref"].length != str(head.watermark):
-                    raise RuntimeError("閲覧D3が不一致")
-                page = dict(projected["page"])
-                page["items"] = [
-                    {
-                        **item,
-                        "play_runners": [
-                            {
-                                k: v
-                                for k, v in runner.items()
-                                if k
-                                not in {"tenant_id", "import_batch_id", "retired_at"}
-                            }
-                            for runner in item.get("play_runners", [])
-                        ],
+                metadata = _read(read.metadata).model_dump(mode="python", by_alias=True)
+                projected = dict(read.projection)
+                if projected.get("profile") == "nonplay-prefix-read-v1":
+                    display = (
+                        finished_display
+                        if finished_display is not None
+                        else _read_lifecycle_display(scope, game_id)
+                    )
+                    if (
+                        type(display) is not dict
+                        or display.get("status") != head.status
+                    ):
+                        raise RuntimeError("閲覧終了版が不一致")
+                    if projected["checkpoint"].content.d3 != str(head.watermark):
+                        raise RuntimeError("閲覧D3が不一致")
+                    packet = {
+                        **metadata,
+                        **projected,
+                        "read_kind": "nonplay-prefix",
+                        "status": head.status,
+                        "lifecycle": display,
                     }
-                    for item in page["items"]
-                ]
-                projected["page"] = page
-                packet = {**metadata, **projected, "read_kind": "lineup-prefix"}
-                model = StartedLineupPrefixGameRead
-            validated = model.model_validate_json(
-                TypeAdapter(dict).dump_json(packet, by_alias=True, exclude_unset=True)
-            )
-            if read_viewer_probe(scope, game_id) != head:
-                raise RuntimeError("閲覧本文と実効版が不一致")
-            return Response(
-                validated.model_dump_json(by_alias=True, exclude_unset=True),
-                media_type="application/json",
-            )
+                    model = StartedNonplayPrefixGameRead
+                else:
+                    if head.status != "in_progress":
+                        raise RuntimeError("終了状態にv3原本")
+                    if projected["prefix_ref"].length != str(head.watermark):
+                        raise RuntimeError("閲覧D3が不一致")
+                    page = dict(projected["page"])
+                    page["items"] = [
+                        {
+                            **item,
+                            "play_runners": [
+                                {
+                                    k: v
+                                    for k, v in runner.items()
+                                    if k
+                                    not in {
+                                        "tenant_id",
+                                        "import_batch_id",
+                                        "retired_at",
+                                    }
+                                }
+                                for runner in item.get("play_runners", [])
+                            ],
+                        }
+                        for item in page["items"]
+                    ]
+                    projected["page"] = page
+                    packet = {**metadata, **projected, "read_kind": "lineup-prefix"}
+                    model = StartedLineupPrefixGameRead
+                validated = model.model_validate_json(
+                    TypeAdapter(dict).dump_json(
+                        packet, by_alias=True, exclude_unset=True
+                    )
+                )
+                if read_viewer_probe(scope, game_id) != head:
+                    raise RuntimeError("閲覧本文と実効版が不一致")
+                return Response(
+                    validated.model_dump_json(by_alias=True, exclude_unset=True),
+                    media_type="application/json",
+                )
     except ViewerProbeNotVisible:
         raise HTTPException(status_code=404) from None
     except Exception:
