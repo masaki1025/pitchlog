@@ -1,4 +1,5 @@
 import { hasRunner } from './runnerOccupancy'
+import { interferenceRule, type InterferenceObservation } from './interference'
 import {
   prepareRunnerRule,
   type RunnerRuleRequest,
@@ -377,6 +378,18 @@ export function deriveBattedHit(
   return applyCountRule(before, board, rule, rule.resultId, cursors)
 }
 
+/** 妨害の明示裁定を既唯一核で評価する。保存資格はこの値から発行しない。 */
+export function deriveInterference(
+  before: StateFields,
+  board: Scoreboard,
+  observation: InterferenceObservation,
+  cursors: BattingOrderBySide,
+): StrikeoutDerived | null {
+  const rule = interferenceRule(before, board, observation, cursors)
+  if (rule === null) return null
+  return applyCountRule(before, board, rule, observation.resultId, cursors) as StrikeoutDerived
+}
+
 /** 塁番号の走査順（1塁から3塁）。 */
 const BASES: Array<bigint> = [1n, 2n, 3n]
 
@@ -502,6 +515,9 @@ function applyCountRule(
   const intentional = resultId === 'batting-result.intentional-walk'
   const walk = resultId === 'batting-result.walk' || intentional
   const hitByPitch = resultId === 'batting-result.hit-by-pitch'
+  const battingInterference =
+    resultId === 'secondary-result.batting-interference' &&
+    rule.interferenceScoring === 'batting-award'
   const strikeout =
     resultId === 'batting-result.called-strikeout' ||
     resultId === 'batting-result.swinging-strikeout' ||
@@ -515,6 +531,11 @@ function applyCountRule(
   const homeRun = resultId === 'batting-result.home-run'
   const flags = emptyFlags()
   if (rule.errorRecorded === true) flags.失策 = true
+  if (battingInterference) flags.打撃妨害出塁 = true
+  if (rule.interferenceScoring === 'obstruction-award' && rule.batter === 'reach')
+    flags.走塁妨害出塁 = true
+  if (rule.interferenceScoring === 'offensive-out' && rule.targets.includes('batter'))
+    flags.打数 = true
   flags.投球数 = !intentional
   if (rule.pitchEventKind) flags.投球数 = rule.pitchEventKind === 'pitch-event'
   flags.投球回算入アウト = rule.outs > 0n
@@ -608,7 +629,9 @@ function applyCountRule(
             resultId === 'batting-result.sacrifice-fly') &&
             rule.outs === 1n) ||
           resultId === 'batting-result.fielders-choice' ||
-          ((walk || hitByPitch) && advance.modality === 'forced'))
+          ((walk || hitByPitch || battingInterference ||
+            rule.interferenceScoring === 'obstruction-award') &&
+            advance.modality === 'forced'))
       if (validRun) runs = runs + 1n
       if (rbiCredited) rbi = rbi + 1n
       if (rule.scoringEvidence === true)

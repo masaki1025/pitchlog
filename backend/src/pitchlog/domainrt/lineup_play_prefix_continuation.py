@@ -400,6 +400,148 @@ RunnerPlayerRef: TypeAlias = _RunnerOfficialRef | _RunnerTemporaryRef
 RunnerDestination: TypeAlias = Literal["first", "second", "third", "home"]
 
 
+class _InterferencePenaltyAward(_LineupWire):
+    """打撃妨害の罰則を明示選択する。"""
+
+    kind: Literal["penalty-award"]
+
+
+class _InterferencePlayResult(_LineupWire):
+    """採用した実プレイ結果のIDを保持する。"""
+
+    kind: Literal["play-result"]
+    result_id: str = Field(alias="resultId")
+
+
+class _NoThirdScoringAttempt(_LineupWire):
+    """三塁得点企図が適用されない場合。"""
+
+    kind: Literal["not-required"]
+
+
+class _ObservedThirdScoringAttempt(_LineupWire):
+    """三塁走者の妨害時点の実企図。"""
+
+    kind: Literal["observed"]
+    value: Literal["none", "squeeze", "steal-home"]
+
+
+class _BattingInterferenceRuling(_LineupWire):
+    """INT-01〜03の採用側と企図を閉じる。"""
+
+    kind: Literal["batting-interference"]
+    adopted: _InterferencePenaltyAward | _InterferencePlayResult
+    third_base_scoring_attempt: (
+        _NoThirdScoringAttempt | _ObservedThirdScoringAttempt
+    )
+
+
+class BattingInterferencePenaltyT1Input(BattedHitT1Input):
+    """旧打球T1と独立したINT-02の閉入力。"""
+
+    event_kind: Literal["secondary-result"] = Field(alias="eventKind")
+    result_id: Literal["secondary-result.batting-interference"] = Field(
+        alias="resultId"
+    )
+    interference_ruling: _BattingInterferenceRuling = Field(
+        alias="interferenceRuling"
+    )
+
+    @model_validator(mode="after")
+    def _penalty_only(self) -> Self:
+        """実プレイ選択を罰則側へ混ぜない。"""
+        if type(self.interference_ruling.adopted) is not _InterferencePenaltyAward:
+            raise ValueError("打撃妨害の罰則選択が必要です")
+        return self
+
+
+class BattingInterferencePlayT1Input(BattedHitT1Input):
+    """旧打球T1と独立したINT-01/03の閉入力。"""
+
+    interference_ruling: _BattingInterferenceRuling = Field(
+        alias="interferenceRuling"
+    )
+
+    @model_validator(mode="after")
+    def _same_play_result(self) -> Self:
+        """採用側の結果IDと計算結果IDを一致させる。"""
+        adopted = self.interference_ruling.adopted
+        if (
+            type(adopted) is not _InterferencePlayResult
+            or adopted.result_id != self.result_id
+        ):
+            raise ValueError("採用した実プレイ結果が一致しません")
+        return self
+
+
+class _InterferenceRunnerRef(_LineupWire):
+    """裁定内の走者参照。"""
+
+    kind: Literal["runner"]
+    runner_id: RunnerPlayerRef
+
+
+class _InterferenceBatterRef(_LineupWire):
+    """裁定内の打者参照。"""
+
+    kind: Literal["batter"]
+    batter_id: RunnerPlayerRef
+
+
+InterferencePerson: TypeAlias = _InterferenceRunnerRef | _InterferenceBatterRef
+
+
+class _InterferencePlacement(_LineupWire):
+    """審判が実際に与えた塁/帰塁先。"""
+
+    person: InterferencePerson
+    destination: RunnerDestination
+
+
+class _ObstructionRuling(_LineupWire):
+    """INT-04/05の授与塁とアウト裁定。"""
+
+    kind: Literal["obstruction"]
+    play_kind: Literal[
+        "play-on-obstructed-runner", "no-play-on-obstructed-runner"
+    ]
+    obstructed: InterferencePerson
+    awarded_destinations: tuple[_InterferencePlacement, ...] = Field(max_length=4)
+    out_targets: tuple[InterferencePerson, ...] = Field(max_length=4)
+    batter_before_first: Literal["not-required"] | bool
+
+
+class _OffensiveInterferenceRuling(_LineupWire):
+    """INT-06/07のアウト対象と帰塁先。"""
+
+    kind: Literal["offensive-interference"]
+    out_targets: tuple[InterferencePerson, ...] = Field(min_length=1, max_length=4)
+    return_bases: tuple[_InterferencePlacement, ...] = Field(max_length=4)
+
+
+class AdjudicatedInterferenceT1Input(_LineupWire):
+    """走塁/守備妨害の実選手参照を保持する専用variant。"""
+
+    event_kind: Literal["secondary-result"] = Field(alias="eventKind")
+    result_id: Literal[
+        "secondary-result.obstruction", "secondary-result.offensive-interference"
+    ] = Field(alias="resultId")
+    pitch_event_kind: Literal["pitch-event"] = Field(alias="pitchEventKind")
+    before: StrikeoutSnapshot
+    interference_ruling: _ObstructionRuling | _OffensiveInterferenceRuling = Field(
+        alias="interferenceRuling"
+    )
+
+    @model_validator(mode="after")
+    def _same_ruling_kind(self) -> Self:
+        """外側結果と審判裁定の種別を一致させる。"""
+        if (self.result_id == "secondary-result.obstruction") != (
+            type(self.interference_ruling) is _ObstructionRuling
+        ):
+            raise ValueError("妨害の結果と裁定種別が一致しません")
+        return self
+
+
 class _RunnerHold(_LineupWire):
     """明示された停止。"""
 
@@ -606,10 +748,53 @@ class LineupPrefixRequest(_LineupWire):
     version: Literal["3"]
     prefix_ref: PrefixRef = Field(alias="prefixRef")
     rules: SavedRuleWire
-    t1: T1Input | BattedHitT1Input | RunnerEventT1Input
+    t1: (
+        T1Input
+        | BattedHitT1Input
+        | RunnerEventT1Input
+        | BattingInterferencePenaltyT1Input
+        | BattingInterferencePlayT1Input
+        | AdjudicatedInterferenceT1Input
+    )
     source: Source
     play_identity: PlayIdentity = Field(alias="playIdentity")
     next_checkpoint: Checkpoint = Field(alias="nextCheckpoint")
+
+    @model_validator(mode="after")
+    def _bind_interference_people(self) -> Self:
+        """審判参照を同一sourceの実IDに束縛しtemporaryを補完しない。"""
+        if type(self.t1) is not AdjudicatedInterferenceT1Input:
+            return self
+        ruling = self.t1.interference_ruling
+        persons: list[InterferencePerson] = []
+        if type(ruling) is _ObstructionRuling:
+            persons.append(ruling.obstructed)
+            persons.extend(row.person for row in ruling.awarded_destinations)
+            persons.extend(ruling.out_targets)
+        elif type(ruling) is _OffensiveInterferenceRuling:
+            persons.extend(row.person for row in ruling.return_bases)
+            persons.extend(ruling.out_targets)
+        else:
+            raise ValueError("裁定の実型が不正です")
+        for person in persons:
+            if type(person) is _InterferenceBatterRef:
+                if (
+                    type(person.batter_id) is not _RunnerOfficialRef
+                    or person.batter_id.player_id != self.source.participants.batter_id
+                ):
+                    raise ValueError("裁定の打者IDが実sourceと不一致です")
+            elif type(person) is _InterferenceRunnerRef:
+                if (
+                    type(person.runner_id) is not _RunnerOfficialRef
+                    or not any(
+                        runner.runner_id == person.runner_id.player_id
+                        for runner in self.source.runners
+                    )
+                ):
+                    raise ValueError("裁定の走者IDが実sourceと不一致です")
+            else:
+                raise ValueError("裁定の選手参照が不正です")
+        return self
 
 
 class _BattedReach(_LineupWire):
@@ -946,6 +1131,25 @@ def lineup_wire_head(
         if type(response.value) is not RunnerValue:
             raise LineupPrefixProtocolError("走者観測に実算入根拠がありません")
         head["runnerObservation"] = r["t1"]["runnerObservation"]
+        head["runnerScoreEffects"] = v["runnerScoreEffects"]
+    elif type(request.t1) in {
+        BattingInterferencePenaltyT1Input,
+        BattingInterferencePlayT1Input,
+        AdjudicatedInterferenceT1Input,
+    }:
+        if type(response.value) is not RunnerValue:
+            raise LineupPrefixProtocolError("妨害裁定の実算入根拠がありません")
+        head["interferenceRuling"] = r["t1"]["interferenceRuling"]
+        head["runnerScoreEffects"] = v["runnerScoreEffects"]
+        if "rbiRulingByRunner" in r["t1"]:
+            head["rbiRulingByRunner"] = r["t1"]["rbiRulingByRunner"]
+    elif (
+        type(request.t1) is BattedHitT1Input
+        and request.t1.rbi_ruling_by_runner is not None
+    ):
+        if type(response.value) is not RunnerValue:
+            raise LineupPrefixProtocolError("打球の実算入根拠がありません")
+        head["rbiRulingByRunner"] = r["t1"]["rbiRulingByRunner"]
         head["runnerScoreEffects"] = v["runnerScoreEffects"]
     elif type(response.value) is RunnerValue:
         raise LineupPrefixProtocolError("旧入力に走者算入根拠を混在できません")

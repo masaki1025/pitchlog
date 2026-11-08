@@ -24,6 +24,7 @@ export type BattedHitResultId =
   | 'batting-result.sacrifice-fly'
   | 'batting-result.sacrifice-bunt-error'
   | 'batting-result.double-play'
+  | 'secondary-result.batting-interference'
 
 /** 記録者が確定した1走者の実到達塁。停止は写像へ含めない。 */
 export type RunnerAdvanceOverride = {
@@ -43,11 +44,21 @@ export type RunnerAdvanceOverrides =
 
 /** 結果から推定せず、記録者が確定した無併発の観測。 */
 export type BattedHitObservation = {
-  eventKind: 'batting-result'
+  eventKind: 'batting-result' | 'secondary-result'
   resultId: BattedHitResultId
   pitchEventKind: 'pitch-event'
   officialScoringPayload: 'no-error' | 'error-recorded'
-  interferenceRuling: 'not-required'
+  interferenceRuling:
+    | 'not-required'
+    | {
+        kind: 'batting-interference'
+        adopted:
+          | { kind: 'penalty-award' }
+          | { kind: 'play-result'; resultId: BattedHitResultId }
+        third_base_scoring_attempt:
+          | { kind: 'not-required' }
+          | { kind: 'observed'; value: 'none' | 'squeeze' | 'steal-home' }
+      }
   runnerAdvanceOverrides: RunnerAdvanceOverrides
   thirdOutObservation: 'none' | 'batter-before-first'
   outRunner?: { base: '1'; runnerId: string; outKind: 'force-out' }
@@ -257,6 +268,31 @@ function destinationsDoNotCollide(
   return true
 }
 
+/** 裁定原本を余剰・欠落・getterなしの閉objectとして読む。 */
+function closedRecord(
+  value: unknown,
+  keys: Array<string>,
+): Record<string, unknown> | null {
+  if (
+    typeof value !== 'object' ||
+    value === null ||
+    Array.isArray(value) ||
+    !Object.getOwnPropertySymbols(value).every(() => false)
+  )
+    return null
+  const own = Object.getOwnPropertyNames(value)
+  if (
+    !own.every((key) => keys.includes(key)) ||
+    !keys.every((key) => own.includes(key))
+  )
+    return null
+  for (const key of keys) {
+    const field = Object.getOwnPropertyDescriptor(value, key)
+    if (!field || !Object.hasOwn(field, 'value')) return null
+  }
+  return value as Record<string, unknown>
+}
+
 /** 打球の閉結果と実観測/状態が一致した場合だけ共通核へ渡す規則を作る。 */
 export function battedHitRule(
   before: StateFields,
@@ -284,11 +320,11 @@ export function battedHitRule(
   let activeOrder = cursors.away
   if (before.half === 'bottom') activeOrder = cursors.home
   if (
-    value.eventKind !== 'batting-result' ||
+    (value.eventKind !== 'batting-result' &&
+      value.eventKind !== 'secondary-result') ||
     value.pitchEventKind !== 'pitch-event' ||
     (value.officialScoringPayload !== 'no-error' &&
       value.officialScoringPayload !== 'error-recorded') ||
-    value.interferenceRuling !== 'not-required' ||
     (value.thirdOutObservation !== 'none' &&
       value.thirdOutObservation !== 'batter-before-first') ||
     ![
@@ -324,6 +360,103 @@ export function battedHitRule(
   )
     return null
   const resultId = value.resultId
+  if (value.eventKind === 'secondary-result') {
+    if (
+      resultId !== 'secondary-result.batting-interference' ||
+      value.officialScoringPayload !== 'no-error' ||
+      value.runnerAdvanceOverrides !== 'not-applied' ||
+      value.thirdOutObservation !== 'none' ||
+      Object.getOwnPropertyDescriptor(value, 'outRunner') ||
+      Object.getOwnPropertyDescriptor(value, 'rbiRulingByRunner')
+    )
+      return null
+    const ruling = closedRecord(value.interferenceRuling, [
+      'kind',
+      'adopted',
+      'third_base_scoring_attempt',
+    ])
+    if (ruling === null || ruling.kind !== 'batting-interference') return null
+    const adopted = closedRecord(ruling.adopted, ['kind'])
+    if (adopted === null || adopted.kind !== 'penalty-award') return null
+    let scoringAttempt: Record<string, unknown> | null = null
+    if (occupied(before.runners, '3'))
+      scoringAttempt = closedRecord(ruling.third_base_scoring_attempt, [
+        'kind',
+        'value',
+      ])
+    else
+      scoringAttempt = closedRecord(ruling.third_base_scoring_attempt, ['kind'])
+    if (scoringAttempt === null) return null
+    if (occupied(before.runners, '3')) {
+      if (
+        scoringAttempt.kind !== 'observed' ||
+        (scoringAttempt.value !== 'none' &&
+          scoringAttempt.value !== 'squeeze' &&
+          scoringAttempt.value !== 'steal-home')
+      )
+        return null
+    } else if (scoringAttempt.kind !== 'not-required') return null
+    let advance: 'force' | 'plus1_all' = 'force'
+    if (
+      scoringAttempt.value === 'squeeze' ||
+      scoringAttempt.value === 'steal-home'
+    )
+      advance = 'plus1_all'
+    return {
+      resultId,
+      pa: true,
+      batter: 'reach',
+      batterBase: 1n,
+      outs: 0n,
+      targets: [],
+      advance,
+      step: 0n,
+      explicit: {},
+      strikeEffect: 'reset',
+      strikeDelta: 0n,
+      ballEffect: 'reset',
+      ballDelta: 0n,
+      interferenceScoring: 'batting-award',
+      scoringEvidence: true,
+    }
+  }
+  if (value.interferenceRuling !== 'not-required') {
+    const ruling = closedRecord(value.interferenceRuling, [
+      'kind',
+      'adopted',
+      'third_base_scoring_attempt',
+    ])
+    if (ruling === null || ruling.kind !== 'batting-interference') return null
+    const adopted = closedRecord(ruling.adopted, ['kind', 'resultId'])
+    if (
+      adopted === null ||
+      adopted.kind !== 'play-result' ||
+      adopted.resultId !== resultId
+    )
+      return null
+    let scoringAttempt: Record<string, unknown> | null = null
+    if (occupied(before.runners, '3'))
+      scoringAttempt = closedRecord(ruling.third_base_scoring_attempt, [
+        'kind',
+        'value',
+      ])
+    else
+      scoringAttempt = closedRecord(ruling.third_base_scoring_attempt, ['kind'])
+    if (scoringAttempt === null) return null
+    if (occupied(before.runners, '3')) {
+      if (
+        scoringAttempt.kind !== 'observed' ||
+        (scoringAttempt.value !== 'none' &&
+          scoringAttempt.value !== 'squeeze' &&
+          scoringAttempt.value !== 'steal-home')
+      )
+        return null
+    } else if (scoringAttempt.kind !== 'not-required') return null
+    const ordinary = Object.assign({}, value, {
+      interferenceRuling: 'not-required',
+    })
+    return battedHitRule(before, board, ordinary, cursors)
+  }
   const errorRecorded = value.officialScoringPayload === 'error-recorded'
   if (
     errorRecorded !==
@@ -447,6 +580,14 @@ export function battedHitRule(
       !destinationsDoNotCollide(before, 0n, outOverrides) ||
       thirdOutInvalid ||
       (resultId === 'batting-result.sacrifice-bunt' && outOverrides === null) ||
+      (resultId === 'batting-result.sacrifice-bunt' &&
+        outOverrides !== null &&
+        ((occupied(before.runners, '1') &&
+          (outOverrides.first === null || outOverrides.first <= 1n)) ||
+          (occupied(before.runners, '2') &&
+            (outOverrides.second === null || outOverrides.second <= 2n)) ||
+          (occupied(before.runners, '3') &&
+            (outOverrides.third === null || outOverrides.third <= 3n)))) ||
       (resultId === 'batting-result.sacrifice-fly' &&
         (outOverrides === null || outOverrides.third !== 4n))
     )
