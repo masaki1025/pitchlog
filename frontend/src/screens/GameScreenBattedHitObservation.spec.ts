@@ -63,6 +63,34 @@ it('凡打死の第3アウトは打者走者の一塁到達前を確認して公
   expect(w.emitted('change')?.at(-1)).toEqual([null])
   w.unmount()
 })
+it('打撃妨害で実プレイ採用は同結果IDと三塁企図の明示値だけを出す', async () => {
+  const w = mount(GameScreenBattedHitObservation, {
+    props: {
+      ...props,
+      adoptInterference: true,
+      runners: [{ base: '3', label: '三塁走者' }],
+    },
+  })
+  await flushPromises()
+  await explicitNull(w)
+  await w.get('[data-testid="batted-runner-3-destination"]').setValue('hold')
+  await w.get('[data-testid="batted-runner-confirmed"]').setValue(true)
+  await confirm(w)
+  expect(w.emitted('change')?.at(-1)).toEqual([null])
+  await w
+    .get('[data-testid="batted-interference-third-attempt"]')
+    .setValue('none')
+  expect(w.emitted('change')?.at(-1)?.[0]).toMatchObject({
+    resultId: 'batting-result.single',
+    interferenceRuling: {
+      kind: 'batting-interference',
+      adopted: { kind: 'play-result', resultId: 'batting-result.single' },
+      third_base_scoring_attempt: { kind: 'observed', value: 'none' },
+    },
+  })
+  await w.setProps({ adoptInterference: false })
+  expect(w.emitted('change')?.at(-1)).toEqual([null])
+})
 it('走者の実到達を欠いた凡打・犠飛を閉じ、確認値だけをV7へ出す', async () => {
   const w = mount(GameScreenBattedHitObservation, {
     props: {

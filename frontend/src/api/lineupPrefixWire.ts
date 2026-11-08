@@ -42,10 +42,21 @@ export type BattedOfficialScoring =
     }
 export type BattedHitWireObservations = Omit<
   BattedHitObservations,
-  'runnerAdvanceOverridesByRunner' | 'officialScoringPayload'
+  | 'runnerAdvanceOverridesByRunner'
+  | 'officialScoringPayload'
+  | 'interferenceRuling'
 > & {
   runnerAdvanceOverridesByRunner: RunnerAdvanceOverridesByRunner
   officialScoringPayload: BattedOfficialScoring
+  interferenceRuling:
+    | { kind: 'not-required' }
+    | {
+        kind: 'batting-interference'
+        adopted: { kind: 'play-result'; resultId: string }
+        third_base_scoring_attempt:
+          | { kind: 'not-required' }
+          | { kind: 'observed'; value: 'none' | 'squeeze' | 'steal-home' }
+      }
   rbiRulingByRunner?: Partial<
     Record<
       '1' | '2' | '3',
@@ -84,6 +95,13 @@ export type BattedOutWireObservations = Omit<
       }
 }
 type IntentionalWalkObservation = IntentionalWalkPlayPrefixV7['observations']
+export type InterferenceWireObservations = Observations & {
+  resultId:
+    | 'secondary-result.batting-interference'
+    | 'secondary-result.obstruction'
+    | 'secondary-result.offensive-interference'
+  interferenceRuling: unknown
+}
 
 export function isLineupDefinition<T>(
   value: unknown,
@@ -166,6 +184,34 @@ export function lineupWireHead(
       runnerScoreEffects: v.runnerScoreEffects,
     }
   }
+  if (
+    'interferenceRuling' in q.t1 &&
+    typeof q.t1.interferenceRuling === 'object' &&
+    q.t1.interferenceRuling !== null
+  ) {
+    if (!('runnerScoreEffects' in v))
+      throw new Error('妨害裁定の算入根拠を確認できません')
+    const adjudicated = {
+      ...head,
+      interferenceRuling: q.t1.interferenceRuling,
+      runnerScoreEffects: v.runnerScoreEffects,
+    }
+    if ('rbiRulingByRunner' in q.t1)
+      return {
+        ...adjudicated,
+        rbiRulingByRunner: q.t1.rbiRulingByRunner,
+      }
+    return adjudicated
+  }
+  if ('rbiRulingByRunner' in q.t1) {
+    if (!('runnerScoreEffects' in v))
+      throw new Error('打球の算入根拠を確認できません')
+    return {
+      ...head,
+      rbiRulingByRunner: q.t1.rbiRulingByRunner,
+      runnerScoreEffects: v.runnerScoreEffects,
+    }
+  }
   if ('runnerScoreEffects' in v)
     throw new Error('旧入力に走者計算を混在できません')
   return head
@@ -199,6 +245,7 @@ export async function formatLineupPrefixWire(
     | BattedOtherWireObservations
     | BattedDoublePlayWireObservations
     | BattedOutWireObservations
+    | InterferenceWireObservations
     | IntentionalWalkObservation
     | RunnerV7['observations'],
   participants: Participants,
@@ -223,6 +270,11 @@ export async function formatLineupPrefixWire(
   const nonpitch =
     'kind' in observations && observations.kind === 'intentional-walk'
   const pitchObservations = 'kind' in observations ? null : observations
+  const adjudicated =
+    'resultId' in observations &&
+    typeof observations.resultId === 'string' &&
+    observations.resultId.startsWith('secondary-result.') &&
+    'interferenceRuling' in observations
   if (
     !isClosedPlaySchema<LineupPlayPrefixV7>(payload, lineupPrefixSpikeSchema) ||
     (nonpitch &&
@@ -236,6 +288,13 @@ export async function formatLineupPrefixWire(
         stance: pitchObservations.stance,
         battingSide: pitchObservations.battingSide,
       })) ||
+    (adjudicated &&
+      (!('interferenceRuling' in request.t1) ||
+        request.t1.resultId !== observations.resultId ||
+        !sameOrdinaryWire(
+          request.t1.interferenceRuling,
+          observations.interferenceRuling,
+        ))) ||
     ('battedBall' in observations &&
       [observations.battedBall.hitX, observations.battedBall.hitY].some(
         (value) =>

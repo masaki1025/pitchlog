@@ -50,7 +50,10 @@ def pitch_physical_row(
     from pitchlog.sync.nonpitch_payload import IntentionalWalkObservations
     from pitchlog.sync.ordinary_pitch_payload import OrdinaryPitchParticipants
     from pitchlog.sync.terminal_pitch_payload import (
+        AdjudicatedInterferenceObservations,
         BattedHitPlayObservations,
+        BattingInterferencePenaltyObservations,
+        BattingInterferencePlayObservations,
         RunnerNonpitchPlayObservations,
         RunnerPitchPlayObservations,
     )
@@ -86,6 +89,9 @@ def pitch_physical_row(
         not in {
             FirstBallObservations,
             BattedHitPlayObservations,
+            BattingInterferencePlayObservations,
+            BattingInterferencePenaltyObservations,
+            AdjudicatedInterferenceObservations,
             RunnerPitchPlayObservations,
             RunnerNonpitchPlayObservations,
         }
@@ -151,9 +157,21 @@ def pitch_physical_row(
         }
         if event in pickoffs:
             row["pickoff_type"], row["pickoff_detail"] = pickoffs[event]
-    if type(observations) is BattedHitPlayObservations:
+    if type(observations) in {
+        BattingInterferencePenaltyObservations,
+        AdjudicatedInterferenceObservations,
+    }:
+        if observations.result_id != result_id:
+            raise ValueError("妨害の結果原本が不一致")
+        row["batting_result_key"] = None
+        row["secondary_batting_result_key"] = result_id
+    if isinstance(observations, BattedHitPlayObservations):
         if observations.result_id != result_id:
             raise ValueError("打球の結果原本が不一致")
+        if type(observations) is BattingInterferencePlayObservations:
+            row["secondary_batting_result_key"] = (
+                "secondary-result.batting-interference"
+            )
         ball = observations.batted_ball
         row.update(
             {
