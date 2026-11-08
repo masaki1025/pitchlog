@@ -207,6 +207,10 @@ class _TenantTransaction:
             )
 
             return run_qualified_source_read(self, operation)
+        if _play_export_p3_operation(operation):
+            from pitchlog.repositories.play_export_p3_read import run_qualified_p3_read
+
+            return run_qualified_p3_read(self, operation)
         if _basic_stats_read_operation(operation):
             _require_stats_primitive_read_scope(self)
             return self.run_function(operation)
@@ -285,6 +289,10 @@ class _TenantTransaction:
             )
 
             return run_qualified_source_read(self, operation)
+        if _play_export_p3_operation(operation):
+            from pitchlog.repositories.play_export_p3_read import run_qualified_p3_read
+
+            return run_qualified_p3_read(self, operation)
         if _basic_stats_read_operation(operation):
             _require_stats_primitive_read_scope(self)
         elif _stats_read_operation(operation):
@@ -932,6 +940,13 @@ def _stats_read_operation(operation: TenantOperationToken) -> bool:
         ReadPrimitivePageToken,
         ReadPrimitiveTotalsToken,
     }
+
+
+def _play_export_p3_operation(operation: TenantOperationToken) -> bool:
+    """P3 CSV1型を真正同RR専用経路へ限定する。"""
+    from pitchlog.repositories.play_export_p3_read import ReadP3ExportPage
+
+    return type(operation) is ReadP3ExportPage
 
 
 def _play_export_source_operation(operation: TenantOperationToken) -> bool:

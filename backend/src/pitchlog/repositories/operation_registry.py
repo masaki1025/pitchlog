@@ -54,6 +54,7 @@ from pitchlog.repositories.past_correction_right import (
     P3_RIGHT_CHECK_OPERATION,
 )
 from pitchlog.repositories.pitch_type_options import PITCH_TYPE_OPTIONS_OPERATIONS
+from pitchlog.repositories.play_export_p3_read import p3_read_operation
 from pitchlog.repositories.play_export_source_operations import source_read_operation
 from pitchlog.repositories.play_export_writer_operations import (
     SAVE_EXPORT_SNAPSHOT_OPERATION,
@@ -322,6 +323,7 @@ PRODUCT_FUNCTION_OPERATIONS: tuple[FunctionOperationRegistration, ...] = (
     *STATS_NATIVE_FUNCTION_OPERATIONS,
     SAVE_EXPORT_SNAPSHOT_OPERATION,
     source_read_operation(),
+    p3_read_operation(),
     *STATS_BASIC_FUNCTION_OPERATIONS,
     *NONPLAY_FUNCTION_OPERATIONS,
     *LIFECYCLE_FUNCTION_OPERATIONS,

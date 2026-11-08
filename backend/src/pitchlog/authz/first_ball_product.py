@@ -2437,6 +2437,72 @@ def _activate_interference_evidence_profile() -> None:
 
 _activate_interference_evidence_profile()
 
+def _activate_p3_export_profile() -> None:
+    """訂正CSV原本の閉宣言だけを接合し、既INSERT列へSELECTを明示追補する。"""
+    from pitchlog.authz.play_export_p3_product import (
+        candidate_declarations,
+        guard_trigger_sql,
+    )
+
+    declarations, bodies = candidate_declarations()
+    kinds = {
+        "tables": "table",
+        "functions": "function",
+        "policies": "policy",
+        "acl_expectations": "acl_expectation",
+        "column_acl_expectations": "column_acl_expectation",
+    }
+    changed_existing = set()
+    for section, rows in declarations.items():
+        for row in rows:
+            identifier = row[IDS[section]]
+            kind = kinds[section]
+            key = kind + "|" + identifier
+            previous = [
+                old for old in ADDITIONS[section] if old[IDS[section]] == identifier
+            ]
+            if previous:
+                expected = copy.deepcopy(row)
+                expected["privilege_ids"] = ["INSERT"]
+                if (
+                    section != "column_acl_expectations"
+                    or previous != [expected]
+                    or row["object_schema"] != "public"
+                    or row["object_id"] != "play_export_snapshots"
+                    or row["grantee_role_id"] != "pitchlog_sync_right_fn_owner"
+                    or row["privilege_ids"] != ["SELECT", "INSERT"]
+                ):
+                    raise ValueError("P3 CSV既宣言の未知変更を拒否")
+                ADDITIONS[section][ADDITIONS[section].index(previous[0])] = (
+                    copy.deepcopy(row)
+                )
+                changed_existing.add(row["column_id"])
+            else:
+                if key in BODIES:
+                    raise ValueError("P3 CSV資産の本文が衝突")
+                ADDITIONS[section].append(copy.deepcopy(row))
+            sql = bodies.pop(key)
+            if identifier == "FUNCTION:stats_api:protect_play_export_p3_snapshots()":
+                sql += guard_trigger_sql()
+            BODIES[key] = (
+                f"-- ELEMENT-TYPE: {kind}\n-- ELEMENT-ID: {identifier}\n\n" + sql
+            )
+    if bodies or changed_existing != {
+        "tenant_id",
+        "game_id",
+        "play_row_id",
+        "plays_csv_json",
+        "full_innings_json",
+        "source_event_id",
+        "play_version",
+        "recording_generation",
+        "event_sequence",
+    }:
+        raise ValueError("P3 CSV共有列の追補範囲が不一致")
+
+
+_activate_p3_export_profile()
+
 # 既parent全値を保全し、差分追随検査の入力を新許可から自己生成しない。
 _P3_PLAY_INSERT_BASELINE_ADDITIONS = copy.deepcopy(ADDITIONS)
 _P3_PLAY_INSERT_BASELINE_BODIES = dict(BODIES)
@@ -2477,6 +2543,7 @@ TABLES = frozenset(
         "p3_projection_page_progress",
         "p3_projection_page_rows",
         "pitcher_entry_sources",
+        "play_export_p3_snapshots",
     }
 )
 SCHEMAS = frozenset(row["schema_name"] for row in ADDITIONS["schemas"])

@@ -30,12 +30,33 @@ from pitchlog.sync.past_correction_paged import (
     _chain_step,
     visit_p3_lineup_correction_pages,
 )
+from pitchlog.sync.play_export_p3_producer import (
+    persist_p3_play_exports,
+    prepare_p3_play_export_anchor,
+)
+from pitchlog.sync.play_export_producer import PlayExportWriterUnavailable
 from pitchlog.sync.ports import PortWriter
 from pitchlog.sync.source_binding import _E1CoreSource
 
 
 class PastCorrectionProjectionError(RuntimeError):
     """P3保存receiptが実frame/current head/T5と一致しない。"""
+
+
+def _prepare_p3_csv_prior(handle, event, writer):
+    """新しいCSV原本不足だけを既P3の閉503へ写し、全取消の例外を保つ。"""
+    try:
+        return prepare_p3_play_export_anchor(handle, event, writer)
+    except PlayExportWriterUnavailable as error:
+        raise PastCorrectionProjectionError("P3 CSV保存前原本が未供給") from error
+
+
+def _persist_p3_csv(handle, event, writer, prior):
+    """保存後原本の失敗も同TXのP3失敗として伝播させる。"""
+    try:
+        persist_p3_play_exports(handle, event, writer, prior)
+    except PlayExportWriterUnavailable as error:
+        raise PastCorrectionProjectionError("P3 CSV完成原本が未供給") from error
 
 
 def _project_p3_paged_correction(
@@ -60,8 +81,7 @@ def _project_p3_paged_correction(
     target = _bound_target(handle, event, source)[:3]
     if (
         type(phase) is not D1lessPhaseBinding
-        or target
-        != (UUID(event.game_id), proof.internal_generation, proof.target.d1)
+        or target != (UUID(event.game_id), proof.internal_generation, proof.target.d1)
         or phase.d5 != UUID(event.d5)
         or phase.attempt.tenant_id != handle._bound_tenant_id
         or phase.attempt.game_id != UUID(event.game_id)
@@ -116,14 +136,11 @@ def _project_p3_paged_correction(
     )
     common = (lease.attempt_id, lease.phase_id, lease.nonce, lease.device_id)
     game_id = UUID(event.game_id)
-    begin = _BeginP3ProjectionPageToken(
-        *common, game_id, capsule_header, stats_header
-    )
+    begin = _BeginP3ProjectionPageToken(*common, game_id, capsule_header, stats_header)
     with bind_p3_paged_persistence(handle, event, writer, begin):
         started = handle.run_function(begin)
-    if (
-        type(started) is not TenantOperationResult
-        or started.rows != ((capsule_id, proof.watermark),)
+    if type(started) is not TenantOperationResult or started.rows != (
+        (capsule_id, proof.watermark),
     ):
         raise PastCorrectionProjectionError("P3頁開始receiptが不一致")
     page_count = 0
@@ -177,9 +194,8 @@ def _project_p3_paged_correction(
         )
         with bind_p3_paged_persistence(handle, event, writer, token):
             receipt = handle.run_function(token)
-        if (
-            type(receipt) is not TenantOperationResult
-            or receipt.rows != ((last_d1, source_chain, evaluation_chain),)
+        if type(receipt) is not TenantOperationResult or receipt.rows != (
+            (last_d1, source_chain, evaluation_chain),
         ):
             raise PastCorrectionProjectionError("P3頁追記receiptが不一致")
         page_count += 1
@@ -201,6 +217,7 @@ def _project_p3_paged_correction(
     ):
         raise PastCorrectionProjectionError("P3頁の二走sealが不一致")
     final = _FinalizeP3ProjectionPageToken(*common, game_id, capsule_id)
+    csv_prior = _prepare_p3_csv_prior(handle, event, writer)
     with bind_p3_paged_persistence(handle, event, writer, final):
         receipt = handle.run_function(final)
     if (
@@ -214,6 +231,7 @@ def _project_p3_paged_correction(
         or receipt.rows[0][3].int == 0
     ):
         raise PastCorrectionProjectionError("P3頁確定receiptが不一致")
+    _persist_p3_csv(handle, event, writer, csv_prior)
     source.read(handle, event)
 
 
@@ -234,7 +252,8 @@ def project_p3_correction(
         or type(event) is not SyncEvent
         or type(writer) is not PortWriter
         or type(phase) is not D1lessPhaseBinding
-        or target != (
+        or target
+        != (
             UUID(event.game_id),
             capsule.internal_generation,
             capsule.target_d1,
@@ -307,6 +326,7 @@ def project_p3_correction(
         capsule_json,
         stats_json,
     )
+    csv_prior = _prepare_p3_csv_prior(handle, event, writer)
     with bind_p3_persistence(handle, event, writer, token):
         result = handle.run_function(token)
     if (
@@ -322,4 +342,5 @@ def project_p3_correction(
         or result.rows[0][3] == UUID(int=0)
     ):
         raise PastCorrectionProjectionError("P3保存receiptが全候補と不一致")
+    _persist_p3_csv(handle, event, writer, csv_prior)
     source.read(handle, event)

@@ -7,7 +7,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from itertools import islice
 from typing import Any
 from uuid import UUID
@@ -82,6 +82,8 @@ class PlayExportBundle:
     audit_plays: Sequence[dict[str, Any]] | None = None
     source_version: SourceVersion | None = None
     source_identities: Sequence[dict[str, Any]] | None = None
+    p3_snapshots: Sequence[dict[str, Any]] | None = None
+    effective_snapshots: Sequence[dict[str, Any]] | None = None
 
 
 def _session(handle: _TenantTransaction) -> tuple[Session, UUID]:
@@ -513,7 +515,15 @@ def read_play_export(handle: _TenantTransaction, game_id: UUID) -> PlayExportBun
                 "AND game_id=:game_id ORDER BY play_id,base"
             ).bindparams(tenant_id=tenant, game_id=game_id),
         )
-    return PlayExportBundle(
+    p3_rows = None
+    if any(row.get("event_kind") == "play_change" for row in events):
+        from pitchlog.repositories.play_export_p3_read import ReadP3ExportSnapshots
+
+        p3_rows = _new_rows()
+        for page in ReadP3ExportSnapshots(handle, game_id, source_version).pages():
+            p3_rows.extend(page)
+        p3_rows = _freeze_rows(p3_rows)
+    bundle = PlayExportBundle(
         game=game,
         plays=_freeze_rows(plays),
         runners=runners,
@@ -530,4 +540,10 @@ def read_play_export(handle: _TenantTransaction, game_id: UUID) -> PlayExportBun
         audit_plays=audit_plays,
         source_version=source_version,
         source_identities=source_identities,
+        p3_snapshots=p3_rows,
     )
+    if p3_rows is not None:
+        from pitchlog.exports.p3_coverage import resolve_p3_snapshots
+
+        bundle = replace(bundle, effective_snapshots=resolve_p3_snapshots(bundle))
+    return bundle
