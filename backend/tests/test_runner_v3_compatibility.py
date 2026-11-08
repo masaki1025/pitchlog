@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from pitchlog.domainrt.host import open_domain_host
+from pitchlog.domainrt.host import NodeDomainHost
 from pitchlog.repositories import play_prefix as reader
 from pitchlog.repositories.ordinary_prefix import OrdinaryPrefixError
 
@@ -42,11 +42,28 @@ def _reseal(data, registry):
         row["witnessSha256"] = digest
 
 
-def test_actual_53_full_responses_match_inherited_expected_values():
-    """新hostの実全応答を旧期待由来の全型値へ照合し、期待を生成しない。"""
+def test_actual_53_full_responses_match_inherited_expected_values(tmp_path):
+    """旧0db実hostの全応答を旧v4期待へ照合し、期待を生成しない。"""
     data, registry, previous = _inputs()
     reader._validated_v3_witness_v4(_raw(data), _raw(registry), previous, CURRENT)
-    with open_domain_host() as host:
+    import subprocess
+
+    commit = "bb0b08dc3c04d0f06eb010291600511ac6eb9476"
+    for name in ("pitchlog-domain.js", "pitchlog-domain.json"):
+        (tmp_path / name).write_bytes(
+            subprocess.check_output(
+                [
+                    "git",
+                    "-C",
+                    str(ROOT),
+                    "show",
+                    f"{commit}:frontend/public/domain/{name}",
+                ]
+            )
+        )
+    with NodeDomainHost(
+        tmp_path / "pitchlog-domain.js", tmp_path / "pitchlog-domain.json"
+    ) as host:
         assert host.artifact_sha256 == CURRENT
         for sample in data["samples"]:
             actual = json.loads(
@@ -110,13 +127,17 @@ def test_followed_hashes_do_not_qualify_changed_math_or_scope(fault):
         reader._validated_v3_witness_v4(_raw(data), _raw(registry), previous, CURRENT)
 
 
-def test_real_gate_accepts_only_four_fixed_pairs():
-    """正規登録を含む実入口で有限4組以外を補修しない。"""
+def test_real_gate_preserves_four_historical_priors_and_rejects_unknown_pairs():
+    """旧4priorを正規の現行実入口へ結び、未知版/古いexecutionを拒否する。"""
     _, registry, _ = _inputs()
     assert len(registry["cases"]) == 4
+    active = json.loads(
+        (BASE / "play_prefix_v3_source_compatibility_v5.json").read_bytes()
+    )
+    execution = active["cases"][0]["executionArtifactSha256"]
     for row in registry["cases"]:
         reader._require_legacy_compatibility(
-            row["priorArtifactSha256"], CURRENT, source_format="play-prefix-play-v3"
+            row["priorArtifactSha256"], execution, source_format="play-prefix-play-v3"
         )
     for prior, execution in [
         ("0" * 64, CURRENT),
@@ -146,6 +167,8 @@ def test_legacy_registry_raw_change_is_rejected_before_qualification(tmp_path):
         "play_prefix_v3_source_compatibility_v3.json",
         "nonplay_v3_compatibility_witness_v4.json",
         "play_prefix_v3_source_compatibility_v4.json",
+        "nonplay_v3_compatibility_witness_v5.json",
+        "play_prefix_v3_source_compatibility_v5.json",
     ):
         destination = tmp_path / "contracts/state-transition" / name
         destination.parent.mkdir(parents=True, exist_ok=True)
@@ -154,11 +177,15 @@ def test_legacy_registry_raw_change_is_rejected_before_qualification(tmp_path):
         destination = tmp_path / "frontend/public/domain" / name
         destination.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(ROOT / "frontend/public/domain" / name, destination)
-    reader._require_v3_compatibility(tmp_path, CURRENT, CURRENT)
+    active = json.loads(
+        (BASE / "play_prefix_v3_source_compatibility_v5.json").read_bytes()
+    )
+    execution = active["cases"][0]["executionArtifactSha256"]
+    reader._require_v3_compatibility(tmp_path, CURRENT, execution)
     registry = (
         tmp_path
         / "contracts/state-transition/play_prefix_v2_source_compatibility_v1.json"
     )
     registry.write_bytes(registry.read_bytes() + b" ")
     with pytest.raises(ValueError):
-        reader._require_v3_compatibility(tmp_path, CURRENT, CURRENT)
+        reader._require_v3_compatibility(tmp_path, CURRENT, execution)
