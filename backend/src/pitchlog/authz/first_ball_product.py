@@ -2419,6 +2419,23 @@ def _activate_batted_operations_evidence_profile() -> None:
 
 
 _activate_batted_operations_evidence_profile()
+
+
+def _activate_interference_evidence_profile() -> None:
+    """固定済み打球prepareだけへ妨害の原裁定と物理行証拠を接ぐ。"""
+    from pitchlog.authz.interference_evidence_sql import (
+        FUNCTION_ID,
+        overlay_prepared_parent,
+    )
+
+    rows = [row for row in ADDITIONS["functions"] if row["function_id"] == FUNCTION_ID]
+    if len(rows) != 1:
+        raise ValueError("妨害証拠の登録宣言が不一致")
+    key = "function|" + FUNCTION_ID
+    BODIES[key] = overlay_prepared_parent(BODIES[key], rows[0])
+
+
+_activate_interference_evidence_profile()
 ROLES = frozenset(row["role_id"] for row in ADDITIONS["roles"])
 
 TABLES = frozenset(

@@ -8,6 +8,7 @@ import pytest
 from pitchlog.authz import batted_operations_evidence_sql as candidate
 from pitchlog.authz import batted_out_evidence_sql as batted_out
 from pitchlog.authz import first_ball_product
+from pitchlog.authz import interference_evidence_sql as interference
 from pitchlog.authz import runner_physical_evidence_sql as runner
 
 
@@ -42,7 +43,11 @@ def test_batted_group_generation_keeps_qualification_and_every_other_function():
     assert restored[restored.index(end) :] == parent[parent.index(end) :]
     assert declaration == before_declaration
     assert first_ball_product.BODIES == before_bodies
-    assert result == first_ball_product.BODIES["function|" + candidate.FUNCTION_ID]
+    assert hashlib.sha256(result.encode()).hexdigest() == interference.PARENT_SHA256
+    assert (
+        interference.overlay_prepared_parent(result, declaration)
+        == first_ball_product.BODIES["function|" + candidate.FUNCTION_ID]
+    )
     assert candidate.overlay_prepared_parent(parent, declaration) == result
     # 途中再適用で親を偽装せず、未知版は改めてレビューを要する。
     with pytest.raises(ValueError, match="親本文"):
