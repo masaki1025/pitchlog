@@ -46,6 +46,26 @@ def _need(condition: bool) -> None:
         raise PlayExportSupplyError("P3毎球CSVの直接表示原本が未供給です")
 
 
+def _saved_result_id(payload: dict[str, Any]) -> str | None:
+    """保存済native payloadの打席結果を実T1正本から取る。
+
+    V7 payloadの打席結果は ``calculation.request.t1.resultId`` が正本であり、
+    通常投球の ``observations`` にはresultIdが存在しない。観測側や
+    最上位のt1へ読み替えて比較条件を緩めない。
+    """
+    calculation = payload.get("calculation")
+    if type(calculation) is not dict:
+        return None
+    request = calculation.get("request")
+    if type(request) is not dict:
+        return None
+    t1 = request.get("t1")
+    if type(t1) is not dict:
+        return None
+    result = t1.get("resultId")
+    return result if type(result) is str else None
+
+
 @dataclass(frozen=True, slots=True)
 class CorrectionResultReference:
     """訂正TXの正式lookup値。単独ではlookup成功や書込資格を表さない。"""
@@ -323,8 +343,10 @@ def project_p3_direct(
                 if key != "resultId"
             )
         )
-        _need(old_observed.get("resultId") == old["batting_result_key"])
-        _need(new_observed.get("resultId") == new["batting_result_key"])
+        # 打席結果の正本は保存済native payloadのT1 resultIdであり、
+        # 旧batted variantだけobservations.resultIdへ退避する。
+        _need(_saved_result_id(before_payload) == old["batting_result_key"])
+        _need(_saved_result_id(payload) == new["batting_result_key"])
     else:
         _need(reference is None)
         _need(before_payload.get("observations") == payload.get("observations"))

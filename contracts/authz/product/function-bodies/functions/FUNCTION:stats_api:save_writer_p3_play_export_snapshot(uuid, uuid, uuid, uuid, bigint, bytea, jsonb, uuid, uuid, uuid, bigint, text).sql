@@ -426,10 +426,24 @@ WHERE s.tenant_id=tenant AND s.game_id=p_game_id AND s.fact_version_id=p_fact_ve
  FROM source_members s JOIN public.play_rows p
    ON (p.tenant_id,p.game_id,p.id)=(s.tenant_id,s.game_id,s.play_row_id)
  JOIN public.operation_events e
-   ON (e.tenant_id,e.game_id,e.id)=(s.tenant_id,s.game_id,s.source_event_id)
+   ON (e.tenant_id,e.game_id,e.id)=
+     (s.tenant_id,s.game_id,s.source_event_id)
+ LEFT JOIN sync_fence.p3_projection_heads export_head
+   ON (export_head.tenant_id,export_head.game_id,export_head.internal_generation)
+     =(s.tenant_id,s.game_id,s.recording_generation)
+ LEFT JOIN sync_fence.p3_projection_capsules export_p3
+   ON (export_p3.tenant_id,export_p3.game_id,export_p3.internal_generation,export_p3.id)
+     =(export_head.tenant_id,export_head.game_id,export_head.internal_generation,
+       export_head.capsule_id)
+ LEFT JOIN sync_fence.p3_projection_capsule_items export_item
+   ON (export_item.tenant_id,export_item.game_id,export_item.internal_generation,
+       export_item.capsule_id,export_item.d1,export_item.effective_event_id,
+       export_item.effective_play_row_id)
+     =(s.tenant_id,s.game_id,s.recording_generation,export_p3.id,s.d1,
+       s.source_event_id,s.play_row_id)
  WHERE s.source_event_id=p_source_event_id AND p.event_kind IN ('pitch','non_pitch')
    AND p.source_event_id=s.source_event_id AND p.version=s.play_row_version
-   AND ((p.event_kind='pitch' AND e.payload#>>'{calculation,request,t1,pitchEventKind}'='pitch-event') OR (p.event_kind='non_pitch' AND e.payload#>>'{calculation,request,t1,pitchEventKind}'='non-pitch-event'))
+   AND ((p.event_kind='pitch' AND CASE WHEN export_p3.id IS NOT NULL AND s.d1<=export_p3.watermark THEN export_item.payload ELSE e.payload END#>>'{calculation,request,t1,pitchEventKind}'='pitch-event') OR (p.event_kind='non_pitch' AND CASE WHEN export_p3.id IS NOT NULL AND s.d1<=export_p3.watermark THEN export_item.payload ELSE e.payload END#>>'{calculation,request,t1,pitchEventKind}'='non-pitch-event'))
 ), bounded AS (
  SELECT s.*,CASE WHEN export_p3.id IS NOT NULL AND s.d1<=export_p3.watermark THEN export_item.payload ELSE e.payload END AS payload,p.event_kind,p.pitcher_id
  FROM source_members s JOIN target t

@@ -10,6 +10,30 @@ from pitchlog.stats.generated.receiver import SOURCE_MODEL_HASH
 _ROOT = Path(__file__).resolve().parents[4]
 
 
+def _p3_canonical_parts(sections: dict[str, str]) -> tuple[str, str]:
+    """P3現行canonical（capsule item優先）のCTEと会員JOINを返す。
+
+    通常Sのcanonical_sは訂正change eventの薄いpayloadからartifactを再計算
+    するため、P3対象行を会員から落とす。P3頁確定と同じ生成canonicalを使い、
+    読取と保存で別のSを作らない。
+    """
+    member = sections["canonical_source_members"]
+    marker = "\nSELECT s.* FROM "
+    if member.count(marker) != 1:
+        raise ValueError("P3生成selectorの節境界が不正")
+    prefix, from_source = member.split(marker)
+    if (
+        not prefix.startswith("WITH canonical_scope AS (")
+        or not prefix.endswith("\n)")
+        or "sync_fence.p3_projection_heads p3h" not in prefix
+        or "sync_fence.p3_projection_capsule_items p3i" not in prefix
+        or "c.source_state='included'" not in from_source
+        or "s.fact_version_id=:fact_version_id" not in from_source
+    ):
+        raise ValueError("P3生成selectorの内容が不正")
+    return prefix, "SELECT s.* FROM " + from_source[:-1]
+
+
 def candidate_read_bundle(
     root: Path = _ROOT, *, p3_selector_profile: dict[str, object] | None = None
 ) -> tuple[str, str]:
@@ -17,7 +41,10 @@ def candidate_read_bundle(
     _, sections, _, _ = _verified_candidate_inputs(
         root, p3_selector_profile=p3_selector_profile
     )
-    prefix, members = _canonical_parts(sections)
+    if p3_selector_profile is None:
+        prefix, members = _canonical_parts(sections)
+    else:
+        prefix, members = _p3_canonical_parts(sections)
     if members.count("s.fact_version_id=:fact_version_id") != 1:
         raise ValueError("唯一Sの会員版束縛位置が不正")
     query = (

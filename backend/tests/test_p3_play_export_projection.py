@@ -20,6 +20,8 @@ def _inputs(target=True):
     """表示値入力であり、capsule/保存資格のmintを模擬しない。"""
     original = _identity()
     old_payload = deepcopy(original.payload)
+    # 実V7の打席結果正本はcalculation.request.t1.resultId。
+    old_payload["calculation"]["request"]["t1"]["resultId"] = "batting-result.ball"
     old_payload["observations"]["resultId"] = "batting-result.ball"
     old_payload["calculation"]["response"]["value"]["t1"]["plateAppearanceEnded"] = (
         False
@@ -56,6 +58,9 @@ def _inputs(target=True):
     new_play = {**old_play, "id": str(play_id), "source_event_id": str(event)}
     if target:
         new_play["batting_result_key"] = "batting-result.called-strike"
+        payload["calculation"]["request"]["t1"]["resultId"] = (
+            "batting-result.called-strike"
+        )
         payload["observations"]["resultId"] = "batting-result.called-strike"
     d1 = 1 if target else 2
     item = {

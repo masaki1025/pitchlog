@@ -174,17 +174,17 @@ def test_normal_profile_contains_the_same_full_p3_publishers():
                 )
 
 
-def test_normal48_uses_all_twenty_private_tables_and_p3_provider():
-    """CURRENTだけ先行せず全6原本と保存provider型を同じsourceへ含める。"""
+def test_normal_current_uses_all_private_tables_and_p3_provider():
+    """CURRENTだけ先行せず全原本と保存provider型を同じsourceへ含める。"""
     from sqlalchemy import CheckConstraint
 
     from pitchlog.db.current_product_startup import CURRENT_REVISION, _tables
     from pitchlog.db.game_state.stats import StatsPrimitiveSource
     from pitchlog.db.past_correction.models import P3_STORAGE_MODELS
 
-    assert CURRENT_REVISION == "0048_p3_projection_storage"
+    assert CURRENT_REVISION == "0050_play_export_p3_snapshots"
     names = {table.name for table in _tables()}
-    assert len(names) == 20
+    assert len(names) == 22
     assert {model.__table__.name for model in P3_STORAGE_MODELS} <= names
     provider = next(
         c

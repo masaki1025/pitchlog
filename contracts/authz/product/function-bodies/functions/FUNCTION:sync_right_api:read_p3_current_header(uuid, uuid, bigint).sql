@@ -5,7 +5,7 @@ CREATE FUNCTION sync_right_api.read_p3_current_header(
 p_tenant_id uuid,p_game_id uuid,p_generation bigint)
 RETURNS TABLE(record_json text) LANGUAGE plpgsql STABLE SECURITY DEFINER
 SET search_path=pg_catalog,pg_temp AS $p3_page_header$
-#variable_conflict use_variable
+#variable_conflict use_column
 DECLARE h sync_fence.p3_projection_heads%ROWTYPE;
  c sync_fence.p3_projection_capsules%ROWTYPE;
  cp sync_fence.ordinary_pitch_checkpoints%ROWTYPE;
@@ -45,7 +45,7 @@ BEGIN
  SELECT x.* INTO STRICT cp FROM sync_fence.ordinary_pitch_checkpoints x
  WHERE (x.tenant_id,x.game_id,x.internal_generation)=
  (p_tenant_id,p_game_id,p_generation) AND x.state='current'
- AND x.content->>'formatVersion'='3';
+ AND x.content->>'version'='3';
  SELECT x.* INTO STRICT v FROM sync_fence.stats_fact_versions x
  WHERE (x.tenant_id,x.game_id,x.id)=
  (p_tenant_id,p_game_id,h.stats_version_id)

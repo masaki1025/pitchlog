@@ -150,18 +150,37 @@ def _score_query(
     state_path = ",".join(model["pitchCount"]["metricStatePath"])
     event_kinds = model["pitchCount"]["sourceEventKinds"]
     row_kinds = ",".join(f"'{item['playRow']}'" for item in event_kinds)
-    kind_match = " OR ".join(
-        "(p.event_kind='"
-        + item["playRow"]
-        + "' AND e.payload#>>'{calculation,request,t1,pitchEventKind}'='"
-        + item["t1"]
-        + "')"
-        for item in event_kinds
-    )
     bounded_kind_match = " OR ".join(
         "(b.event_kind='"
         + item["playRow"]
         + "' AND b.payload#>>'{calculation,request,t1,pitchEventKind}'='"
+        + item["t1"]
+        + "')"
+        for item in event_kinds
+    )
+    # P3対象のchange eventは薄いpayloadなので、対象判定もcapsule itemの
+    # 訂正済みpayloadで行う。通常時は従来どおり保存event payloadだけを使う。
+    target_payload = "e.payload"
+    target_event_join = (
+        " JOIN public.operation_events e\n"
+        "   ON (e.tenant_id,e.game_id,e.id)=(s.tenant_id,s.game_id,s.source_event_id)"
+    )
+    if p3_payload:
+        target_payload = (
+            "CASE WHEN export_p3.id IS NOT NULL AND s.d1<=export_p3.watermark "
+            "THEN export_item.payload ELSE e.payload END"
+        )
+        target_event_join = (
+            " JOIN public.operation_events e\n"
+            "   ON (e.tenant_id,e.game_id,e.id)=\n"
+            "     (s.tenant_id,s.game_id,s.source_event_id)" + payload_joins
+        )
+    target_kind_match = " OR ".join(
+        "(p.event_kind='"
+        + item["playRow"]
+        + "' AND "
+        + target_payload
+        + "#>>'{calculation,request,t1,pitchEventKind}'='"
         + item["t1"]
         + "')"
         for item in event_kinds
@@ -196,11 +215,10 @@ def _score_query(
  SELECT s.source_event_id,s.d2,p.pitcher_id
  FROM source_members s JOIN public.play_rows p
    ON (p.tenant_id,p.game_id,p.id)=(s.tenant_id,s.game_id,s.play_row_id)
- JOIN public.operation_events e
-   ON (e.tenant_id,e.game_id,e.id)=(s.tenant_id,s.game_id,s.source_event_id)
+{target_event_join}
  WHERE s.source_event_id=:source_event_id AND p.event_kind IN ({row_kinds})
    AND p.source_event_id=s.source_event_id AND p.version=s.play_row_version
-   AND ({kind_match})
+   AND ({target_kind_match})
 ), bounded AS (
  SELECT s.*,{payload_column},p.event_kind,p.pitcher_id
  FROM source_members s JOIN target t

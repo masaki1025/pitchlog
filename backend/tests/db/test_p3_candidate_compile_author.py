@@ -326,9 +326,12 @@ def traced_p3_apply(*args, **kwargs):
             guard = guard if type(guard) is dict and set(guard) == allowed and all(
                 type(value) is bool for value in guard.values()) else None
             line = re.search(
-                r"PL/pgSQL function sync_right_api\\."
+                r"PL/pgSQL function (sync_right_api|stats_api|sync_fence_api)\\."
                 r"(persist_p3_projection|begin_p3_projection_page|"
-                r"append_p3_projection_page|finalize_p3_projection_page)"
+                r"append_p3_projection_page|finalize_p3_projection_page|"
+                r"save_writer_p3_play_export_snapshot|"
+                r"read_writer_p3_play_export_page|"
+                r"read_writer_p3_play_export_prior|assert_writer_binding)"
                 r"\\([^)]*\\) line (\\d+)",
                 context or "")
             chain.append({
@@ -351,8 +354,9 @@ def traced_p3_apply(*args, **kwargs):
                     else "permission-denied" if type(primary) is str
                         and primary.startswith("permission denied")
                     else "other" if primary is not None else None),
-                "plpgsql_function": line.group(1) if line else None,
-                "plpgsql_line": int(line.group(2)) if line else None,
+                "plpgsql_function": (
+                    line.group(1) + "." + line.group(2) if line else None),
+                "plpgsql_line": int(line.group(3)) if line else None,
                 "p3_guard_flags": guard,
                 "frames": [(f.name, f.lineno)
                            for f in traceback.extract_tb(current.__traceback__)],
@@ -386,15 +390,23 @@ def traced_p3_read(*args, **kwargs):
             name = re.fullmatch(
                 r'column reference "([a-z_][a-z0-9_]*)" is ambiguous',
                 primary or "")
+            missing = re.fullmatch(
+                r'column "?([a-z_][a-z0-9_]*)"? does not exist',
+                primary or "")
             line = re.search(
-                r"PL/pgSQL function sync_right_api\.read_p3_current"
-                r"\([^)]*\) line (\d+)", context or "")
+                r"PL/pgSQL function sync_right_api\."
+                r"(read_p3_current|read_p3_current_header|"
+                r"read_p3_current_page)\([^)]*\) line (\d+)", context or "")
             chain.append({
                 "exception_type": type(current).__name__,
                 "database_exception_type": type(original).__name__,
                 "sqlstate": getattr(original, "sqlstate", None),
-                "sql_identifier": name.group(1) if name else None,
-                "plpgsql_line": int(line.group(1)) if line else None,
+                "sql_primary": primary[:160] if type(primary) is str else None,
+                "sql_identifier": (
+                    name.group(1) if name else
+                    missing.group(1) if missing else None),
+                "plpgsql_function": line.group(1) if line else None,
+                "plpgsql_line": int(line.group(2)) if line else None,
                 "frames": [(f.name, f.lineno)
                            for f in traceback.extract_tb(current.__traceback__)],
             })

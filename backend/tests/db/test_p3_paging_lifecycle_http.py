@@ -83,12 +83,15 @@ def traced_p3_content_result(*args, **kwargs):
 actual_p3_execution.visit_p3_lineup_correction_pages = traced_p3_visit
 actual_p3_execution.p3_content_result = traced_p3_content_result
 
+from datetime import datetime as _p3_datetime, timezone as _p3_timezone
 from time import monotonic
 from pitchlog.sync import past_correction_paged as _p3_paged
 from pitchlog.sync.control_provider import binding_control as _p3_control
+from pitchlog.sync.control_provider import writer_binding as _p3_writer
 _p3_started = monotonic()
 _p3_last_guard = None
 _p3_unfinished = {}
+_p3_binding_meta = {}
 _p3_lifecycle = {"opened": 0, "finished": 0, "abandoned": 0}
 _p3_original_init = _p3_control._BindingLease.__init__
 _p3_original_finish = _p3_control._BindingLease.finish
@@ -97,7 +100,13 @@ _p3_original_guard = _p3_paged._assert_page_binding
 
 def _p3_init(self, *args, **kwargs):
     result = _p3_original_init(self, *args, **kwargs)
-    _p3_unfinished[self] = monotonic()
+    now = monotonic()
+    _p3_unfinished[self] = now
+    _p3_binding_meta[self] = {
+        "opened": now,
+        "opened_at": _p3_datetime.now(_p3_timezone.utc).isoformat(),
+        "authority_expires_at": self._expires.isoformat(),
+    }
     _p3_lifecycle["opened"] += 1
     return result
 
@@ -135,14 +144,70 @@ def _p3_guard(*args, **kwargs):
         record["success"] = True
         return result
     finally:
-        if len(marks) < 80:
+        if len(marks) < 200:
             marks.append(record)
         else:
             runtime_diagnostics["page_binding_checks_truncated"] = True
 
+_p3_original_check = _p3_control._BindingLease.check
+_p3_original_assert_current = _p3_writer._LiveWriterBinding.assert_current
+
+def _p3_check(self):
+    info = _p3_binding_meta.get(self)
+    started = monotonic()
+    try:
+        result = _p3_original_check(self)
+    except BaseException as error:
+        runtime_diagnostics.setdefault("authority_check_failures", []).append({
+            "at": _p3_datetime.now(_p3_timezone.utc).isoformat(),
+            "elapsed_ms": round((monotonic() - started) * 1000),
+            "binding_age_ms": (
+                round((started - info["opened"]) * 1000) if info else None),
+            "authority_expires_at": (
+                info["authority_expires_at"] if info else None),
+            "error_type": type(error).__name__,
+        })
+        raise
+    if info is not None:
+        info["authority_expires_at"] = self._expires.isoformat()
+    return result
+
+def _p3_assert_current(self):
+    info = _p3_binding_meta.get(self._lease)
+    started = monotonic()
+    record = {
+        "at": _p3_datetime.now(_p3_timezone.utc).isoformat(),
+        "binding_age_ms": (
+            round((started - info["opened"]) * 1000) if info else None),
+        "authority_expires_at": (
+            info["authority_expires_at"] if info else None),
+    }
+    try:
+        result = _p3_original_assert_current(self)
+    except BaseException as error:
+        record["elapsed_ms"] = round((monotonic() - started) * 1000)
+        record["error_type"] = type(error).__name__
+        record["failed_at"] = _p3_datetime.now(_p3_timezone.utc).isoformat()
+        marks = runtime_diagnostics.setdefault("precommit_checks", [])
+        if len(marks) < 200:
+            marks.append(record)
+        runtime_diagnostics["precommit_failed_at"] = record["failed_at"]
+        runtime_diagnostics["precommit_failure"] = record
+        raise
+    record["elapsed_ms"] = round((monotonic() - started) * 1000)
+    record["success"] = True
+    marks = runtime_diagnostics.setdefault("precommit_checks", [])
+    if len(marks) < 200:
+        marks.append(record)
+    else:
+        runtime_diagnostics["precommit_checks_truncated"] = True
+    return result
+
 _p3_control._BindingLease.__init__ = _p3_init
+_p3_control._BindingLease.check = _p3_check
 _p3_control._BindingLease.finish = _p3_finish
 _p3_control._BindingLease.abandon = _p3_abandon
+_p3_writer._LiveWriterBinding.assert_current = _p3_assert_current
 _p3_paged._assert_page_binding = _p3_guard
 
 """
@@ -309,6 +374,20 @@ _p3_paged._assert_page_binding = _p3_guard
             headers=device_headers(pair, str(uuid4())), json=p3_payload)
         runtime_diagnostics["status"] = changed.status_code
         assert changed.status_code == 200, ("26-change", changed.status_code)
+        ack = changed.json()
+        assert set(ack) == {
+            "boundary", "target_reference", "expected_version", "d5",
+            "confirmed_content", "accepted_at"}, sorted(ack)
+        assert ack["boundary"] == "変更受理"
+        assert ack["target_reference"] == {
+            "試合": game, "対象の D4": started["d4"],
+            "対象の D1": target_d1}
+        assert ack["expected_version"] == offer["expected_version"]
+        assert ack["d5"] == change["d5"]
+        assert ack["confirmed_content"] == change["payload"]
+        assert type(ack["accepted_at"]) is str and ack["accepted_at"]
+        runtime_diagnostics["ack"] = {
+            "boundary": ack["boundary"], "d5": ack["d5"]}
         runtime_diagnostics.update(stage="26-get-first", status=None)
         first = await client.get(
             "/games/" + game + "/started?projection=play-prefix-v3&limit=100",
@@ -377,8 +456,11 @@ __NEXT_PITCH__
             "game": game,
             "prefix": current["prefix_ref"]["length"],
             "p3_d5": change["d5"],
+            "ack_accepted_at": ack["accepted_at"],
             "old_play_id": target["id"],
             "effective_play_id": effective["id"],
+            "effective_event_id": effective["source_event_id"],
+            "stats_version_id": confirmed["stats_version_id"],
             "last_play_id": latest["page"]["items"][1]["play_row"]["id"],
             "source_origin": {
                 "sync_router": actual_sync_router.__file__,
@@ -513,6 +595,139 @@ def test_actual_p3_26_lifecycle_http(vertical_database, tmp_path) -> None:
                     ).fetchall()
                 ],
             }
+            p3_game = admin.execute(
+                "SELECT game_id FROM sync_fence.p3_projection_capsules "
+                "WHERE tenant_id=%s LIMIT 1",
+                (db.tenant_id,),
+            ).fetchone()
+            if p3_game is not None:
+                p3_key = (db.tenant_id, p3_game[0])
+                diag["p3"] = {
+                    "capsules": [
+                        [str(row[0]), row[1], row[2], str(row[3]), str(row[4])]
+                        for row in admin.execute(
+                            "SELECT id,target_d1,watermark,stats_version_id,"
+                            "change_event_id FROM "
+                            "sync_fence.p3_projection_capsules "
+                            "WHERE tenant_id=%s AND game_id=%s",
+                            p3_key,
+                        ).fetchall()
+                    ],
+                    "heads": [
+                        [str(row[0]), row[1], str(row[2])]
+                        for row in admin.execute(
+                            "SELECT capsule_id,revision,stats_version_id FROM "
+                            "sync_fence.p3_projection_heads "
+                            "WHERE tenant_id=%s AND game_id=%s",
+                            p3_key,
+                        ).fetchall()
+                    ],
+                    "item_count": admin.execute(
+                        "SELECT count(*),count(*) FILTER (WHERE state='corrected') "
+                        "FROM sync_fence.p3_projection_capsule_items "
+                        "WHERE tenant_id=%s AND game_id=%s",
+                        p3_key,
+                    ).fetchone(),
+                    "page_row_count": admin.execute(
+                        "SELECT count(*) FROM sync_fence.p3_projection_page_rows "
+                        "WHERE tenant_id=%s AND game_id=%s",
+                        p3_key,
+                    ).fetchone(),
+                    "snapshot_count": admin.execute(
+                        "SELECT count(*) FROM sync_fence.play_export_p3_snapshots "
+                        "WHERE tenant_id=%s AND game_id=%s",
+                        p3_key,
+                    ).fetchone(),
+                    "target": [
+                        [str(row[0]), row[1], str(row[2]), str(row[3])]
+                        for row in admin.execute(
+                            "SELECT d1,state,effective_event_id,"
+                            "effective_play_row_id FROM "
+                            "sync_fence.p3_projection_capsule_items "
+                            "WHERE tenant_id=%s AND game_id=%s AND d1=26",
+                            p3_key,
+                        ).fetchall()
+                    ],
+                    "slots": [
+                        [row[0], row[1], row[2]]
+                        for row in admin.execute(
+                            "SELECT generation,d1,confirmed_version FROM "
+                            "public.event_slots WHERE tenant_id=%s AND game_id=%s "
+                            "AND d1=26",
+                            p3_key,
+                        ).fetchall()
+                    ],
+                    "admissions": [
+                        [row[0], str(row[1])]
+                        for row in admin.execute(
+                            "SELECT state,transaction_id FROM "
+                            "sync_fence.p3_projection_write_admissions "
+                            "WHERE tenant_id=%s AND game_id=%s",
+                            p3_key,
+                        ).fetchall()
+                    ],
+                    "change_events": [
+                        [str(row[0]), str(row[1]), row[2], row[3]]
+                        for row in admin.execute(
+                            "SELECT id,d5,event_kind,target_d1 FROM "
+                            "public.operation_events WHERE tenant_id=%s "
+                            "AND game_id=%s AND event_kind='play_change'",
+                            p3_key,
+                        ).fetchall()
+                    ],
+                    "capsule_columns": [
+                        row[0]
+                        for row in admin.execute(
+                            "SELECT column_name FROM "
+                            "information_schema.columns "
+                            "WHERE table_schema='sync_fence' "
+                            "AND table_name='p3_projection_capsules' "
+                            "ORDER BY ordinal_position"
+                        ).fetchall()
+                    ],
+                    "capsule": admin.execute(
+                        "SELECT to_jsonb(c) FROM "
+                        "sync_fence.p3_projection_capsules c "
+                        "WHERE c.tenant_id=%s AND c.game_id=%s",
+                        p3_key,
+                    ).fetchone(),
+                    "progress": admin.execute(
+                        "SELECT to_jsonb(p) FROM "
+                        "sync_fence.p3_projection_page_progress p "
+                        "WHERE p.tenant_id=%s AND p.game_id=%s",
+                        p3_key,
+                    ).fetchone(),
+                    "checkpoint": admin.execute(
+                        "SELECT to_jsonb(cp) FROM "
+                        "sync_fence.ordinary_pitch_checkpoints cp "
+                        "WHERE cp.tenant_id=%s AND cp.game_id=%s",
+                        p3_key,
+                    ).fetchone(),
+                }
+                head = admin.execute(
+                    "SELECT h.stats_version_id,c.target_d1 FROM "
+                    "sync_fence.p3_projection_heads h JOIN "
+                    "sync_fence.p3_projection_capsules c ON "
+                    "(c.tenant_id,c.game_id,c.id)=(h.tenant_id,h.game_id,"
+                    "h.capsule_id) WHERE h.tenant_id=%s AND h.game_id=%s",
+                    p3_key,
+                ).fetchone()
+                if head is not None:
+                    diag["p3"]["sources"] = [
+                        [
+                            str(row[0]), str(row[1]), row[2], row[3],
+                            row[4], row[5], row[6],
+                        ]
+                        for row in admin.execute(
+                            "SELECT source_event_id,play_row_id,slot_version,"
+                            "play_row_version,provider_kind,source_fingerprint,"
+                            "artifact_sha256 FROM "
+                            "sync_fence.stats_primitive_sources "
+                            "WHERE tenant_id=%s AND game_id=%s "
+                            "AND fact_version_id=%s AND d1=%s",
+                            (*p3_key, head[0], head[1]),
+                        ).fetchall()
+                    ]
         (tmp_path / "p3-26-fault-db.json").write_text(json.dumps(diag, indent=2))
     assert "exception" not in result, result.get("runtime_diagnostics", {}).get("stage")
     assert result["prefix"] == "27"
@@ -521,11 +736,61 @@ def test_actual_p3_26_lifecycle_http(vertical_database, tmp_path) -> None:
     with psycopg.connect(db.authority.database.business_admin) as admin:
         admin.execute("SET TRANSACTION READ ONLY")
         key = (db.tenant_id, UUID(result["game"]))
-        assert admin.execute(
-            "SELECT count(*) FROM sync_fence.p3_projection_capsules "
+        capsule = admin.execute(
+            "SELECT id,change_event_id FROM sync_fence.p3_projection_capsules "
             "WHERE tenant_id=%s AND game_id=%s",
             key,
-        ).fetchone() == (1,)
+        ).fetchall()
+        assert len(capsule) == 1
+        capsule_id, capsule_change_event_id = capsule[0]
+        assert admin.execute(
+            "SELECT count(*) FROM sync_fence.p3_projection_capsule_items "
+            "WHERE tenant_id=%s AND game_id=%s AND capsule_id=%s",
+            (*key, capsule_id),
+        ).fetchone() == (26,)
+        assert admin.execute(
+            "SELECT state,original_play_row_id,effective_event_id,"
+            "effective_play_row_id FROM "
+            "sync_fence.p3_projection_capsule_items "
+            "WHERE tenant_id=%s AND game_id=%s AND capsule_id=%s AND d1=26",
+            (*key, capsule_id),
+        ).fetchall() == [(
+            "corrected",
+            UUID(result["old_play_id"]),
+            UUID(result["effective_event_id"]),
+            UUID(result["effective_play_id"]),
+        )]
+        assert admin.execute(
+            "SELECT capsule_id,revision FROM sync_fence.p3_projection_heads "
+            "WHERE tenant_id=%s AND game_id=%s",
+            key,
+        ).fetchall() == [(capsule_id, 1)]
+        assert admin.execute(
+            "SELECT count(*) FROM sync_fence.p3_projection_page_rows "
+            "WHERE tenant_id=%s AND game_id=%s AND capsule_id=%s",
+            (*key, capsule_id),
+        ).fetchone() == (26,)
+        assert admin.execute(
+            "SELECT count(*) FROM sync_fence.play_export_p3_snapshots "
+            "WHERE tenant_id=%s AND game_id=%s AND capsule_id=%s",
+            (*key, capsule_id),
+        ).fetchone() == (26,)
+        csv_row = admin.execute(
+            "SELECT effective_event_id,effective_play_row_id,"
+            "plays_csv_json->>'打席結果',plays_csv_json->>'Result_col',"
+            "plays_csv_json->>'入力項目' "
+            "FROM sync_fence.play_export_p3_snapshots "
+            "WHERE tenant_id=%s AND game_id=%s AND capsule_id=%s AND d1=26",
+            (*key, capsule_id),
+        ).fetchone()
+        assert csv_row is not None
+        assert csv_row[0] == UUID(result["effective_event_id"])
+        assert csv_row[1] == UUID(result["effective_play_id"])
+        assert csv_row[2] == csv_row[3] and csv_row[2]
+        csv_origin = json.loads(csv_row[4])
+        assert csv_origin["projectionKind"] == "p3-current"
+        assert csv_origin["sourceEventId"] == result["effective_event_id"]
+        assert csv_origin["capsuleId"] == str(capsule_id)
         assert admin.execute(
             "SELECT source_count FROM sync_fence.stats_fact_versions "
             "WHERE tenant_id=%s AND game_id=%s AND is_current "
