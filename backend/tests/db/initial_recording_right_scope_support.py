@@ -464,8 +464,14 @@ else:
         return args
 
     @contextmanager
-    def broker_worker(self, token_id: object) -> Iterator[str]:
-        """公開vectorのroot起動だけを使い、専用worker容器を自然終了まで所有する。"""
+    def broker_worker(
+        self, token_id: object, *, auto_restart: bool = False
+    ) -> Iterator[str]:
+        """公開vectorのroot起動だけを使い、専用worker容器を所有する。
+
+        ``auto_restart`` は通信断復旧試験だけが使う。fail-closedで停止した
+        brokerを同じsocketへ再起動し、製品側の同一D5再送を検査できるようにする。
+        """
         args = self.authority.command(root=True)
         setup = f"""
 import json,os
@@ -485,7 +491,36 @@ f.chmod(0o644)
         args = self._broker_arguments(root=True)
         args[args.index("--rm")] = "--detach"
         name = args[args.index("--name") + 1]
-        code = """
+        if auto_restart:
+            code = """
+import os,time
+from pathlib import Path
+from pitchlog.authz.token_presentation import TokenPresentation
+from pitchlog.authz.verified_tenant import _activate_presentation
+from pitchlog.recording_rights.initial_grant import V12Box
+from pitchlog.recording_rights.initial_grant_broker import serve_initial_broker
+presentation=TokenPresentation(bytes(range(32)))
+_activate_presentation(presentation)
+while True:
+    pid=os.fork()
+    if pid==0:
+        try:
+            serve_initial_broker(Path('/control/initial/worker.json'),presentation,
+                V12Box('k1',bytes(range(32))))
+        except BaseException:
+            pass
+        os._exit(0)
+    os.waitpid(pid,0)
+    for path in ('/run/pitchlog/initial-broker-endpoint.json',
+                 '/run/pitchlog/broker.sock'):
+        try:
+            os.unlink(path)
+        except FileNotFoundError:
+            pass
+    time.sleep(0.2)
+"""
+        else:
+            code = """
 from pathlib import Path
 from pitchlog.authz.token_presentation import TokenPresentation
 from pitchlog.authz.verified_tenant import _activate_presentation

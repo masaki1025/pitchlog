@@ -57,6 +57,20 @@ actual_p3_execution = past_correction_execution
 _actual_p3_visit = actual_p3_execution.visit_p3_lineup_correction_pages
 _actual_p3_content_result = actual_p3_execution.p3_content_result
 
+from pitchlog.api.routers import sync as _p3_sync_router
+_actual_recover_attempt = _p3_sync_router.recover_sync_attempt
+
+def traced_recover_attempt(*args, **kwargs):
+    try:
+        result = _actual_recover_attempt(*args, **kwargs)
+    except BaseException as error:
+        runtime_diagnostics["recover_exception"] = type(error).__name__
+        raise
+    runtime_diagnostics["recover_result"] = result
+    return result
+
+_p3_sync_router.recover_sync_attempt = traced_recover_attempt
+
 def traced_p3_visit(*args, **kwargs):
     try:
         return _actual_p3_visit(*args, **kwargs)
@@ -468,6 +482,55 @@ __NEXT_PITCH__
             },
         }"""
     assert p3.count("__NEXT_PITCH__") == 1
+    old_post = """            posted = await client.post(
+                "/games/" + game + "/sync/events", headers=h, json=payload
+            )
+            assert posted.status_code == 200, (
+                "v3-save",
+                index,
+                posted.status_code,
+                runtime_diagnostics,
+            )
+"""
+    new_post = """            posted = None
+            for _attempt in range(5):
+                posted = await client.post(
+                    "/games/" + game + "/sync/events", headers=h, json=payload
+                )
+                if posted.status_code == 200:
+                    break
+                if posted.status_code not in (500, 503):
+                    break
+                runtime_diagnostics.setdefault("post_retries", []).append({
+                    "index": index, "status": posted.status_code})
+                await asyncio.sleep(5.0)
+                recovered = await client.post(
+                    "/games/" + game + "/sync/attempts/recover",
+                    headers=h, json=payload)
+                try:
+                    resolution = recovered.json().get("resolution")
+                except BaseException:
+                    resolution = None
+                runtime_diagnostics.setdefault("post_recoveries", []).append({
+                    "index": index, "status": recovered.status_code,
+                    "resolution": resolution})
+                if recovered.status_code != 200 or resolution != "retry_allowed":
+                    break
+                rolled = await client.get(
+                    "/games/" + game
+                    + "/started?projection=play-prefix-v3&limit=100",
+                    headers=headers())
+                assert rolled.status_code == 200 and rolled.json() == current, (
+                    "27-retry-rollback", rolled.status_code)
+            assert posted.status_code == 200, (
+                "v3-save",
+                index,
+                posted.status_code,
+                runtime_diagnostics,
+            )
+"""
+    assert next_pitch.count(old_post) == 1
+    next_pitch = next_pitch.replace(old_post, new_post, 1)
     p3 = p3.replace("__NEXT_PITCH__", next_pitch.rstrip(), 1)
     script = script.replace(old_return, p3, 1)
     # 通常v3 readerはlimit=100の26件を返し、P3完成版だけ25件窓へ入る。
@@ -535,7 +598,10 @@ def test_actual_p3_26_lifecycle_http(vertical_database, tmp_path) -> None:
     }
     token = uuid4()
     script = build_p3_26_script()
-    with db.broker_worker(token), binding_broker(db, token):
+    with (
+        db.broker_worker(token, auto_restart=True) as rg1_broker,
+        binding_broker(db, token),
+    ):
         _prepare_app_configuration(db)
         process = subprocess.run(
             ["docker", *_app_arguments(db, case), "-u", "-c", script],
@@ -543,6 +609,14 @@ def test_actual_p3_26_lifecycle_http(vertical_database, tmp_path) -> None:
             text=True,
             timeout=900,
         )
+        for command, label in (
+            (["docker", "top", rg1_broker, "-eo", "pid,ppid,args"], "rg1-top"),
+            (["docker", "logs", "--tail", "120", rg1_broker], "rg1-log"),
+        ):
+            observed = subprocess.run(
+                command, capture_output=True, text=True, check=False)
+            (tmp_path / f"{label}.txt").write_text(
+                (observed.stdout or "") + (observed.stderr or ""))
     # stdoutは実HTTP成果JSONだけ。raw stderr/SQL/資格は失敗表示へ載せない。
     assert process.returncode == 0, "owned HTTP脚本が非成功終了"
     result = json.loads(process.stdout)

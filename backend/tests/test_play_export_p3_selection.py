@@ -39,10 +39,22 @@ def test_default_generated_sql_and_writer_bodies_remain_byte_identical():
         key: value for key, value in full_bodies.items() if key.startswith("function|")
     }
     assert len(functions) == 4
+    # P3現行の共有読取2関数はcapsule item優先の凍結application bodyを正本とする。
+    from pitchlog.authz.first_ball_product import BODIES as active_bodies
+
+    p3_bodies = {
+        identity: active_bodies["function|" + identity].split("\n\n", 1)[1]
+        for identity in (
+            "FUNCTION:stats_api:read_writer_play_export_aggregate("
+            "uuid, uuid, uuid, uuid, text, bigint, bytea)",
+            "FUNCTION:stats_api:read_play_export_source_page("
+            "uuid, bigint, bigint, integer)",
+        )
+    }
     for key, actual in functions.items():
         identity = key.removeprefix("function|")
         canonical = (bodies / f"{identity}.sql").read_text()
-        assert canonical.split("\n\n", 1)[1] == actual
+        assert canonical.split("\n\n", 1)[1] == p3_bodies.get(identity, actual)
 
 
 def test_p3_consumers_share_the_official_selector_and_effective_payload():
