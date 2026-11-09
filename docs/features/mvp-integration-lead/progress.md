@@ -8,8 +8,9 @@
 - **画面E2Eの実測**（self-signed TLS、実Playwright/Chromium）:
   - **pass**: runner operations **1 passed 250.22秒**、substitution product **1 passed**。
   - **fail（未解決）**: batted hits 3件は零読み後の「三振・攻守交代を含む投球の記録へ」ボタンが30秒以内に現れず、4件目は結果ファイル欠落。interferenceはINT-02（1play）まで保存後に次分岐のPOST/GETが30秒timeout（2試合目は0play）。undoはACK喪失→reload→retryで同一undoの`attemptSha256`が変わり、同要求再送の期待に反した（新attemptで送信）。いずれもobtained rejection/失敗として残し、成功へ読み替えない。
-  - **最重要の未解決**: undoの再送が同一attemptでないことは冪等・結果不明の安全性に直結する。P3縦断とは独立に切り分け、queue slot/attempt persistenceの再送経路を次unitで追う。
-- **次の実行**: 3試合×30閲覧load（実行中）、undo ACK喪失のattempt同一性、P3直後read。TLS資材は`/tmp/opencode/tls`の試験専用で、リポジトリ/シークレットへ保存しない。
+  - **undoの再実行**: 上記のattempt差は、`recoverableSyncPost.spec.ts`が固定する既採用の結果不明解決（`retry_allowed`後に同本文/同D5のまま新attemptへ進める`SyncAttemptBarrier`）と一致していた。E2Eの旧期待「attemptまで同一」を、本文/D5同一・attempt更新の期待へ是正し、`test_undo_product_screen_e2e` は **1 passed 115.05秒**。旧attemptの再利用を成功条件にしない。
+- **3試合×30閲覧load**: **未成立**（16.6秒で停止）。共有`RealGameRecording.e2e-support.ts`が試合作成/開始後に`/games/{id}/record`を待つが、現画面は`/games`のままで、batted hitsの3件と同じE2E導線ドリフト。製品の3試合/30閲覧は未実測であり、load成功へ読み替えない。
+- **次の実行**: 共有E2E導線（create→start→record）の現行UX追随、interference分岐の停止点、P3直後read。TLS資材は`/tmp/opencode/tls`の試験専用で、リポジトリ/シークレットへ保存しない。
 
 ## 2026-11-10 06:55 JST：broker再起動B（同一epoch）も26球→P3→27球目で成立
 

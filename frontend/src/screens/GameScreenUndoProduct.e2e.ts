@@ -354,7 +354,11 @@ test('実画面の新規作成→開始→2球→ACK喪失/reload/同要求再�
   )
   const replay = requests.filter((x) => x.kind === 'undo')
   expect(replay).toHaveLength(2)
-  expect(replay[1]).toEqual(replay[0])
+  // 結果不明の照会がretry_allowedを返した場合、既採用のSyncAttemptBarrierは
+  // 同D5/本文を保持したままattemptだけを新しいUUIDへ進める。旧attemptの
+  // 再利用やD5/本文の置換を成功条件にしない。
+  expect(replay[1].bodySha256).toBe(replay[0].bodySha256)
+  expect(replay[1].attemptSha256).not.toBe(replay[0].attemptSha256)
   // 保存後の親再取得を経た実パネルで環境条件を再確認する。
   for (const box of await panel.locator('input[type=checkbox]').all())
     await box.check()
