@@ -1,5 +1,12 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 2026-11-10 03:20 JST：P3後27球目のlifecycle readは成立、終了書込みは次unit
+
+- **新たに通った**: 26球→P3 26件訂正→27球目保存（`prefix=27`）に続き、27球目後の `lifecycle-prefix-v1` が **200**。P3 capsuleのwatermark 26・item 26・頁chain形式のsource/evaluation digest・非current候補版・T5評価26件・後続27球frameを実DB readerで照合し、P3 next CPを履歴ancestorとして受理した。P3/CSV純201 passed、追加76 passed。
+- **残る503**: P3訂正直後（27球目前）のlifecycle readは503（P3 current CPが物理行と論理next contentで異なるP3 stateの未対応）。27球目後の **終了宣言** は503 `OrdinaryPrefixError: 通常投球の確定prefixを確認できません`。原因は lifecycle write の `read_confirmed_lineup_prefix` が物理/旧履歴のactive sourceを照合し、lifecycle readのP3-effective source（d1=26の訂正後frame）と一致しないこと。終了・再開・追加・再終了へ進むには、同じ `p3_effective_nonplay_stack` をwrite側actual sourceへ適用し、P3 next CPの祖先を限定する専用unitが必要。
+- **次の作業**: (1) `read_confirmed_lineup_prefix`/`_confirmed_lineup_source` のactual sourceへP3-effective stackを同一関数で適用（物理／論理の二重実装をしない）、(2) 27球目後のend→reopen→additional play→re-end→stats/CSVの再実測、(3) P3直後readのcurrent CP論理next対応、(4) broker再起動B・D11実DB・残操作・閲覧・正式統合。
+- **既知赤**: `test_p3_function_product` の `save_primitive_source` 本文不一致と `test_nonplay_prefix_read` の `tenant_transaction_scope` 属性欠落は変更前から。D11実DBは未実行。実機/運用/3試合10閲覧/バックアップは未実施。
+
 ## 2026-11-10 02:10 JST：P3後のlifecycle読取を候補版・履歴CP・頁chainへ接続
 
 - **診断の確定**: `lifecycle-prefix-v1` はP3訂正直後と27球目後の双方で503。traceは `read_p3_current` の `P3 current ... rejected` → 修正後 `P3 current count rejected`（capsule watermark 26が旧1..25上限を超過）→ `P3 current source count rejected`（P3 headが後続版を指す）→ verifierの `P3 current stats row/CP linkage/source集合`。P3候補版はcurrentでなく、後続playがhead/capsuleのstats pointerを進め、頁chain形式の `source_set_digest`/`stats_evaluation_set_digest` を持つ。
