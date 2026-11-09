@@ -2,7 +2,7 @@
 
 import json
 import subprocess
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import psycopg
 import pytest
@@ -74,6 +74,7 @@ def _v3_script():
             raise RuntimeError("planned lifecycle rollback")
 
         lifecycle_prefix_bridge.project_game_lifecycle = fail_after_actual_project
+        fault_d5 = str(uuid4())
         try:
             try:
                 fault = await send(
@@ -120,6 +121,12 @@ def _v3_script():
         assert final["status"] == "finished"
         assert final["lifecycle"]["lastVersion"] == "2"
 """
+    script = script.replace(
+        '            "d5s": previous_d5,\n',
+        '            "d5s": previous_d5,\n'
+        '            "fault_d5": fault_d5,\n',
+        1,
+    )
     return script.replace(marker, functions + flow + marker, 1)
 
 
@@ -158,3 +165,38 @@ def test_actual_v3_two_ball_end_reopen_append_reend(vertical_database):
     result = json.loads(process.stdout)
     assert "exception" not in result, result.get("runtime_diagnostics", {})
     assert result["prefix"] == "2" and result["history"] == 2
+    with psycopg.connect(db.authority.database.business_admin) as admin:
+        params = (db.tenant_id, UUID(result["game"]))
+        assert admin.execute(
+            "SELECT count(*) FROM public.operation_events "
+            "WHERE tenant_id=%s AND game_id=%s",
+            params,
+        ).fetchone() == (6,)
+        assert admin.execute(
+            "SELECT count(*) FROM public.play_rows WHERE tenant_id=%s AND game_id=%s",
+            params,
+        ).fetchone() == (3,)
+        assert admin.execute(
+            "SELECT count(*) FROM sync_fence.lifecycle_write_admissions "
+            "WHERE tenant_id=%s AND game_id=%s AND state='consumed'",
+            params,
+        ).fetchone() == (3,)
+        assert admin.execute(
+            "SELECT last_version,is_finished FROM sync_fence.game_lifecycle_heads "
+            "WHERE tenant_id=%s AND game_id=%s",
+            params,
+        ).fetchone() == (2, True)
+        assert admin.execute(
+            "SELECT count(*) FROM sync_fence.stats_fact_versions "
+            "WHERE tenant_id=%s AND game_id=%s",
+            params,
+        ).fetchone() == (4,)
+        fault = (db.tenant_id, UUID(result["fault_d5"]))
+        for statement in (
+            "SELECT count(*) FROM public.operation_events WHERE tenant_id=%s AND d5=%s",
+            "SELECT count(*) FROM public.idempotency_ledger "
+            "WHERE tenant_id=%s AND d5=%s",
+            "SELECT count(*) FROM sync_fence.lifecycle_write_admissions "
+            "WHERE tenant_id=%s AND d5=%s",
+        ):
+            assert admin.execute(statement, fault).fetchone() == (0,)
