@@ -86,7 +86,7 @@ def _v3_script():
                                 "d4": prior["current_d4"],
                                 "d1": int(prior["next_position"]["d1"]),
                                 "d2": int(prior["next_position"]["d2"]),
-                                "d5": str(uuid4()),
+                                "d5": fault_d5,
                                 "event_kind": "game_end_declaration",
                                 "payload": {
                                     "formatVersion": "native-game-lifecycle-v1",
