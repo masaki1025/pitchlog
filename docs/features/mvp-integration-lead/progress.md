@@ -1,5 +1,16 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 2026-11-10 07:20 JST：D11実DBと走者操作の実ブラウザ縦断が成立
+
+- **D11実DB**: `test_stats_native_d11` **2 passed 159.41秒**。27指標を実SQL/RRRO/receiver/formatterへ通し、`ordinary-pitch-play-v1` は走者の得点/盗塁観測をwireに持たないため `rbi`/`runs`/`steals` を `source_unavailable`（reason `MISSING_OBSERVATION`）として返す。score不変から0を推定しない。
+- **走者操作の実ブラウザ**: `test_runner_operations_screen_e2e` **1 passed 250.22秒**。ローカル生成self-signed TLS（SAN `IP:127.0.0.1`）でPlaywright/Chromium→Vite HTTPS→製品app→owned DBを実走。UI作成/開始、実走塁の保存、重複、reload、越境拒否、DB全値を照合した。**実機・実利用者端末・本番TLSではない**（候補環境の実ブラウザ）。
+- **同時実行の切分け**: 同一invocationのHTTP/DB試験は substitution vertical、lifecycle v3、stats undo helper×2 の **4 passed**。runner/batted hits/interference/substitution/undo の画面E2EはTLS PATH未供給で4 skipped + interference setup errorだったため、self-signed TLSを明示して個別に再実行した（skipを成功へ読み替えない）。
+- **画面E2Eの実測**（self-signed TLS、実Playwright/Chromium）:
+  - **pass**: runner operations **1 passed 250.22秒**、substitution product **1 passed**。
+  - **fail（未解決）**: batted hits 3件は零読み後の「三振・攻守交代を含む投球の記録へ」ボタンが30秒以内に現れず、4件目は結果ファイル欠落。interferenceはINT-02（1play）まで保存後に次分岐のPOST/GETが30秒timeout（2試合目は0play）。undoはACK喪失→reload→retryで同一undoの`attemptSha256`が変わり、同要求再送の期待に反した（新attemptで送信）。いずれもobtained rejection/失敗として残し、成功へ読み替えない。
+  - **最重要の未解決**: undoの再送が同一attemptでないことは冪等・結果不明の安全性に直結する。P3縦断とは独立に切り分け、queue slot/attempt persistenceの再送経路を次unitで追う。
+- **次の実行**: 3試合×30閲覧load（実行中）、undo ACK喪失のattempt同一性、P3直後read。TLS資材は`/tmp/opencode/tls`の試験専用で、リポジトリ/シークレットへ保存しない。
+
 ## 2026-11-10 06:55 JST：broker再起動B（同一epoch）も26球→P3→27球目で成立
 
 - **新たに通った**: `test_p3_26_broker_restart_vertical` **1 passed 359.39秒**。26球記録中にinitial grant brokerの子PIDをkillし、supervisorが**新しい子PID**で同じsocketへ再起動した後、P3 26件訂正→27球目まで受理。DBはgate open/recovery_generation=1、`recording_generations=(1,normal,NULL,NULL,1)`、play_rows=28（26元+P3有効版1+27球目）、現在stats source_count=27、open writer_bindings=0を実測した。endpointファイルの再出現だけでなく新child PIDを確認している。
