@@ -1,5 +1,11 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 2026-11-10 07:40 JST：P3直後readの停止点を`read_undo_prefix`のanchor枝へ限定
+
+- **再測**: `test_actual_p3_26_csv_export_http` **1 passed 336.59秒**（ZIP 26行・対象d1=26「ボール」）。`lifecycle_after_p3` は503のままで、応答bodyは汎用エラー。
+- **停止点**: `read_p3_nonplay_current`/`p3_effective_nonplay_frame`/`p3_effective_nonplay_stack`/`_read_legacy_undo_source` の例外traceは空。停止は `read_undo_prefix` の `nonplay-prefix-checkpoint-v1` 枝が `read_lineup_prefix` へ委譲した先の `OrdinaryPrefixError:通常投球の確定prefixを確認できません`。P3訂正直後は物理CPがanchor形式のまま、27球目保存後にv3 CPへ進み同readが200になる。
+- **次unit**: `read_undo_prefix` のanchor枝で、P3 capsuleの合成checkpoint/effective frameを `read_lineup_prefix` と同じ `_read_p3_lineup_projection` へ渡し、物理anchorと論理nextの差を二重実装せずに扱う。実装時はP3直後read 200を同じ26球試験で再測する。
+
 ## 2026-11-10 07:20 JST：D11実DBと走者操作の実ブラウザ縦断が成立
 
 - **D11実DB**: `test_stats_native_d11` **2 passed 159.41秒**。27指標を実SQL/RRRO/receiver/formatterへ通し、`ordinary-pitch-play-v1` は走者の得点/盗塁観測をwireに持たないため `rbi`/`runs`/`steals` を `source_unavailable`（reason `MISSING_OBSERVATION`）として返す。score不変から0を推定しない。
