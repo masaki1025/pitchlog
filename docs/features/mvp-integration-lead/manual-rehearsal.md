@@ -44,7 +44,7 @@
 ## 既知の制限
 
 - P3訂正直後（27球目前）の`lifecycle-prefix-v1`は503のまま（P3 current CPの物理行と論理next contentの差）。27球目後は200。
-- 非0 gate/right epoch復旧は未実装のため、broker再起動後の旧epoch同一D5再送はB7/503。旧epochのまま書込みを許可しない。
+- 同一epochのbroker再起動（記録中に子PID kill→supervisor再起動）は候補実測で27球目まで成立。非0 gate/right epoch復旧は未実装のため、fail-closed後の旧epoch同一D5再送はB7/503のままで、旧epochの書込みを許可しない。
 - TLS資材・実機・共有DB・運用公開は未提供。候補環境の成功を実機成功へ拡張しない。
 - 3試合×記録1台＋閲覧10台、バックアップ復旧は未実施。
 - D11 `rbi` と旧v2/candidate DDL前提の試験、固定registry期待の`test_void_adapter_preserves_every_other_registered_function`に既知赤が残る。

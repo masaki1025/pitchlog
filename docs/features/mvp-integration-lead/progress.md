@@ -1,5 +1,11 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 2026-11-10 06:55 JST：broker再起動B（同一epoch）も26球→P3→27球目で成立
+
+- **新たに通った**: `test_p3_26_broker_restart_vertical` **1 passed 359.39秒**。26球記録中にinitial grant brokerの子PIDをkillし、supervisorが**新しい子PID**で同じsocketへ再起動した後、P3 26件訂正→27球目まで受理。DBはgate open/recovery_generation=1、`recording_generations=(1,normal,NULL,NULL,1)`、play_rows=28（26元+P3有効版1+27球目）、現在stats source_count=27、open writer_bindings=0を実測した。endpointファイルの再出現だけでなく新child PIDを確認している。
+- **意味の限定**: これは**同一epoch**のbroker再起動であり、非0 gate/right epoch復旧ではない。fail-closed後の旧epoch同一D5再送がB7/503のままであること（再起動だけでは権利を復活させない）は既存試験で確認済み。新generation/D4+V12付与・旧generation失効・旧holder/epoch拒否・結果不明の別解決は未実装。
+- **次の実行**: D11実DB、操作在庫（走者/併殺/失策/妨害/交代/取消/タイブレーク/終了条件）のowned画面E2E、3試合×10閲覧、P3直後read。
+
 ## 2026-11-10 06:50 JST：P3後28球目まで同一候補で成立、30秒はwire指紋の重複再計算が原因
 
 - **新たに通った**: 26球→P3 26件訂正→27球目→`lifecycle-prefix-v1` 200→終了受理→再開受理→**追加play（28球目）受理**→再終了→reload→公式成績/ゲームCSV/シーズンCSV。`test_actual_p3_26_lifecycle_end_reopen_add_reend_stats` は **1 passed 492.58秒**。DBは `play_rows=29`（26元+P3有効版1+27球目+追加）、有効版イベント行1、現在stats `source_count=28`/`confirmed_ended`/current版1、最大source_count 28、gate open、ゲームCSV 20行・シーズンCSV 10行を実測した。
