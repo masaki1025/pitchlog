@@ -1,5 +1,12 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 2026-11-10 01:20 JST：P3後のlifecycle読取を候補版・履歴anchorへ接続
+
+- **診断**: 26球→P3訂正→27球目はアプリ結果 `prefix=27` で保存成立。しかし `lifecycle-prefix-v1` はP3訂正直後・27球目後の双方で503。traceで `read_p3_current` の `P3 current read rejected`（line 159）を確認。原因は非play lifecycle readがP3候補版（`is_current=false`）を拒否し、さらに現在CPのみを選んでいたこと。
+- **是正**: `read_p3_current` はcapsuleの `next_checkpoint_id` を履歴anchorとして選び、P3版がcurrentでない場合はcapsule/checkpoint/source束縛だけを検証してcanonical healthを要求しない。verifierは非anchorの候補/履歴版を受け、`p3_effective_nonplay_frame` は既に実効版のframeを再適用せず検証して保持、stackの現状態照合はP3 watermarkのframeで行う。`read_undo_prefix` はP3 next CPが現在chainの祖先である場合だけ許可。`read_p3_nonplay_current` のanchor行はpacket原本から供給。契約function bodyを再生成。
+- **現在**: 既存P3/CSV純201 passed。`test_p3_function_product` の `save_primitive_source` 本文不一致と `test_nonplay_prefix_read` の `tenant_transaction_scope` 属性欠落は変更前から赤（今回差分外）として分離。
+- **次の実行**: 26球→P3→27→終了→再開→追加→再終了→成績/CSVの再実測。
+
 ## 2026-11-10 00:10 JST：27球目503の原因確定とP3後縦断の再開
 
 - **原因確定**: 訂正後27球目の503は、RG1 controllerが `LedgerOutcomeUnconfirmed` で終了しgateがclosedになったため。authorityのbinding lease channelが一般timeout（隔離fixture 2秒）で、30秒保持中の正当な無通信を切断→authority全体がblocked→controllerのidle確認が失敗、というliveness欠陥。DB bindingの30秒期限切れではない（失敗時も期限余裕24.7秒）。診断実行では27球目保存のbinding_age 5.5秒で同じ経路を再現し、controllerの終了理由とgate closedを実測した。
