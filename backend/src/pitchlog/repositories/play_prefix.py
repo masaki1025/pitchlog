@@ -931,12 +931,28 @@ def read_confirmed_lineup_prefix(handle, event, source, *, proposal, artifact_sh
         except PastCorrectionCurrentUnavailable:
             raise OrdinaryPrefixError from None
         if verified.checkpoint != doc:
-            raise OrdinaryPrefixError
-        if type(last_play) is not dict:
-            raise OrdinaryPrefixError
-        play_number = last_play.get("play_number")
-        if type(play_number) is not int or play_number < 1:
-            raise OrdinaryPrefixError
+            # 後続playがある場合、P3 next CPは現在docの祖先であり得る。
+            # その場合の今回source/lastは現在headから読み、P3最終payloadを
+            # 現在playとして流用しない。
+            try:
+                ancestor = (
+                    int(verified.checkpoint.confirmed_watermark)
+                    < int(doc.confirmed_watermark)
+                    and int(verified.checkpoint.revision) < int(doc.revision)
+                )
+            except (TypeError, ValueError):
+                ancestor = False
+            if not ancestor:
+                raise OrdinaryPrefixError
+            payload, play_number = _read_native_lineup_head(
+                handle, game, tenant, row, doc
+            )
+        else:
+            if type(last_play) is not dict:
+                raise OrdinaryPrefixError
+            play_number = last_play.get("play_number")
+            if type(play_number) is not int or play_number < 1:
+                raise OrdinaryPrefixError
     else:
         payload, play_number = _read_native_lineup_head(handle, game, tenant, row, doc)
     actual_source = _source_from_lineup_document(

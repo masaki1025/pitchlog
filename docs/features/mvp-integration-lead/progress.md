@@ -1,5 +1,11 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 2026-11-10 04:30 JST：P3後27球目の終了・再開は受理、追加playは次unit
+
+- **新たに通った**: 26球→P3訂正→27球目→`lifecycle-prefix-v1` 200→**終了宣言 受理**→**再開 受理**。write側 `read_confirmed_lineup_prefix` と `read_confirmed_nonplay_prefix` に、P3 next CPが現在docの祖先である場合の同一限定（watermark/revisionの祖先+現在headからのlast source）を接続した。P3-effective stackをread/writeで同じ `p3_effective_nonplay_stack` に限定し、物理/論理の二重実装を作っていない。
+- **現在失敗**: 再開後の追加play（28球目）が server-side domain guest で `DomainRuntimeError: ゲストの実行に失敗`（`_evaluate_nonplay_normal_bound` → domain host）。クライアント側の同じ継続評価は成功しているため、serverが再構成するP3-effective中間frame（d1=26の実効play/historyEntry/source）と継続requestのsource束縛の不一致を次に切り分ける。終了・再開のACK、read 200、gate openは実測済み。
+- **次の作業**: (1) 追加playのserver-side source再構成（`_evaluate_nonplay_normal_bound`）でP3-effective frameの`play.source.eventId`/historyEntry/playIdを現在chainへ束縛する、(2) 追加→再終了→reload→成績27/CSV、(3) P3直後（27球目前）のlifecycle read 503、(4) broker再起動B、D11実DB、残操作、閲覧、正式統合。
+
 ## 2026-11-10 03:20 JST：P3後27球目のlifecycle readは成立、終了書込みは次unit
 
 - **新たに通った**: 26球→P3 26件訂正→27球目保存（`prefix=27`）に続き、27球目後の `lifecycle-prefix-v1` が **200**。P3 capsuleのwatermark 26・item 26・頁chain形式のsource/evaluation digest・非current候補版・T5評価26件・後続27球frameを実DB readerで照合し、P3 next CPを履歴ancestorとして受理した。P3/CSV純201 passed、追加76 passed。

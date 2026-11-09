@@ -622,7 +622,18 @@ def read_confirmed_nonplay_prefix(handle, event, source, *, artifact_sha256):
             )
         else:
             if verified_p3.checkpoint != legacy_doc:
-                raise NonplaySourceUnavailable("非play P3現CPが不一致")
+                # 後続playがある場合、P3 next CPは現在chainの祖先である。
+                try:
+                    ancestor = (
+                        int(verified_p3.checkpoint.confirmed_watermark)
+                        < int(legacy_doc.confirmed_watermark)
+                        and int(verified_p3.checkpoint.revision)
+                        < int(legacy_doc.revision)
+                    )
+                except (TypeError, ValueError):
+                    ancestor = False
+                if not ancestor:
+                    raise NonplaySourceUnavailable("非play P3現CPが不一致")
             stack = p3_effective_nonplay_stack(stack, verified_p3)
     if legacy:
         cp = _checkpoint_from_legacy(
