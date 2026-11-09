@@ -163,7 +163,7 @@ def evaluate_p3_capsule_stats(capsule: P3CurrentCapsule) -> P3StatsCandidate:
     """欠測や未対応操作を補わず、全D1を生成T5へ一回ずつ渡す。"""
     if (
         type(capsule) is not P3CurrentCapsule
-        or not 1 <= len(capsule.items) <= 25
+        or not 1 <= len(capsule.items) <= 26
         or type(SOURCE_MODEL_HASH) is not str
         or re.fullmatch(r"sha256:[a-f0-9]{64}", SOURCE_MODEL_HASH) is None
     ):

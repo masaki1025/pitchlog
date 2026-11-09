@@ -65,28 +65,33 @@ def read_p3_nonplay_current(
     ):
         raise PastCorrectionCurrentUnavailable("非play P3独立CP証拠が不正")
     proven = point["row"]
-    if packet["stats"].get("is_current") is False:
-        # 後続playがある場合、独立current CPはP3 next CPの子孫である。
-        # 同一idのままrevision/水位だけが進むことを要求し、全列一致は
-        # current時だけに限定する。
-        try:
-            descendant = (
-                type(proven.get("id")) is str
-                and int(proven["revision"]) > int(row["revision"])
-                and int(proven["confirmed_watermark"])
-                > int(row["confirmed_watermark"])
-            )
-        except (KeyError, TypeError, ValueError):
-            descendant = False
-        if not descendant:
-            raise PastCorrectionCurrentUnavailable("非play P3後続CPが不一致")
-    elif set(proven) - set(row) != {
+    # P3 next contentは原本CPのcontentだけを置換した論理版である。
+    # 独立current CPとはcontent/digest/最終play列以外の同一id/rev/水位を
+    # 照合し、後続playがある場合はrevision/水位の子孫だけを許可する。
+    ignored = {
+        "content",
+        "content_digest",
         "last_history",
         "last_play_row",
         "last_play_runners",
         "source_evidence",
-    } or any(proven.get(key) != value for key, value in row.items()):
-        raise PastCorrectionCurrentUnavailable("非play P3独立CP全列が不一致")
+    }
+    same = all(
+        proven.get(key) == row.get(key)
+        for key in set(proven) | set(row)
+        if key not in ignored
+    )
+    try:
+        descendant = (
+            type(proven.get("id")) is str
+            and int(proven["revision"]) > int(row["revision"])
+            and int(proven["confirmed_watermark"])
+            > int(row["confirmed_watermark"])
+        )
+    except (KeyError, TypeError, ValueError):
+        descendant = False
+    if not (same or descendant):
+        raise PastCorrectionCurrentUnavailable("非play P3独立CPが不一致")
     _verify_source_evidence(proven, bridge=False)
     if proven["source_evidence"]["non_play_count"] != 0:
         raise PastCorrectionCurrentUnavailable("非play P3元操作が混在")
@@ -102,8 +107,11 @@ def p3_effective_nonplay_frame(original: dict, verified: VerifiedP3Current) -> d
     source = original["play"]["source"]
     d1 = int(source["d1"])
     if d1 <= 0 or d1 > len(verified.items):
-        if d1 <= 0 or not verified.historical_anchor:
+        if d1 <= 0:
             raise PastCorrectionCurrentUnavailable("非play P3 active位置が不一致")
+        # P3 watermarkより後の実play frameはP3訂正の対象外。現在chainの
+        # 前後文脈はlegacy CP再構成で別に照合する。
+        _validate_value(original, "ActiveFrame")
         return original
     item = verified.items[d1 - 1]
     if d1 > int(verified.original_checkpoint.confirmed_watermark):

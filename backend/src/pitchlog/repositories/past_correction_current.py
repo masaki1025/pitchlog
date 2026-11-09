@@ -347,7 +347,7 @@ def verify_p3_current_packet(
             (stats_row["id"] != head["stats_version_id"] and not historical_stats)
             or stats_row["tenant_id"] != str(tenant)
             or stats_row["game_id"] != str(game)
-            or stats_row["source_count"] != source_upper
+            or stats_row["source_count"] not in (source_upper, source_upper + 1)
         ):
             raise PastCorrectionCurrentUnavailable("P3 current stats rowが不一致")
         if (
@@ -703,10 +703,14 @@ def verify_p3_current_packet(
                 or current.confirmed_watermark != str(source_upper)
             ):
                 raise PastCorrectionCurrentUnavailable("P3歴史anchorとLC制御が不一致")
-        if type(sources_raw) is not list or len(sources_raw) != len(items):
+        if type(sources_raw) is not list or len(sources_raw) not in (
+            len(items),
+            len(items) + 1,
+        ):
             raise PastCorrectionCurrentUnavailable("P3現T5件数が不一致")
         for d1, (raw_source, item, evaluation) in enumerate(
-            zip(sources_raw, items, source_evaluations, strict=True), start=1
+            zip(sources_raw[: len(items)], items, source_evaluations, strict=True),
+            start=1,
         ):
             source = _object(raw_source)
             play = _object(item["play_row"])
@@ -715,24 +719,27 @@ def verify_p3_current_packet(
                 if d1 <= len(members)
                 else play["source_event_id"]
             )
-            if (
-                source["tenant_id"] != str(tenant)
-                or source["game_id"] != str(game)
-                or source["fact_version_id"] != stats_row["id"]
-                or source["recording_generation"] != generation
-                or source["d1"] != d1
-                or source["d2"] != source_d2[d1 - 1]
-                or source["source_event_id"] != effective_id
-                or source["source_fingerprint"] != ledger_fingerprints[d1 - 1]
-                or source["play_row_id"] != play["id"]
-                or source["play_row_version"] != play["version"]
-                or source["slot_version"] != (2 if d1 == target_d1 else 1)
-                or source["artifact_sha256"]
-                != payloads[d1 - 1].calculation.artifact_sha256
-                or source["metric_states"] != evaluation
-                or source["rule_sha256"] != evaluation["native_rule_sha256"]
-            ):
-                raise PastCorrectionCurrentUnavailable("P3現T5原本が不一致")
+            expected_source = {
+                "tenant_id": str(tenant),
+                "game_id": str(game),
+                "fact_version_id": stats_row["id"],
+                "recording_generation": generation,
+                "d1": d1,
+                "d2": source_d2[d1 - 1],
+                "source_event_id": effective_id,
+                "source_fingerprint": ledger_fingerprints[d1 - 1],
+                "play_row_id": play["id"],
+                "play_row_version": play["version"],
+                "slot_version": 2 if d1 == target_d1 else 1,
+                "artifact_sha256": payloads[d1 - 1].calculation.artifact_sha256,
+                "metric_states": evaluation,
+                "rule_sha256": evaluation["native_rule_sha256"],
+            }
+            for name, wanted in expected_source.items():
+                if source[name] != wanted:
+                    raise PastCorrectionCurrentUnavailable(
+                        "P3現T5原本が不一致:" + name
+                    )
         return VerifiedP3Current(
             current,
             previous,

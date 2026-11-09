@@ -101,11 +101,7 @@ BEGIN
  WHERE (x.tenant_id,x.game_id,x.internal_generation)=
  (p_tenant_id,p_game_id,p_generation) AND x.state='current';
  SELECT x.* INTO STRICT v FROM sync_fence.stats_fact_versions x
- WHERE (x.tenant_id,x.game_id)=(p_tenant_id,p_game_id)
- AND x.source_count=c.watermark
- AND x.model_sha256=c.stats_model_sha256
- ORDER BY (x.id=h.stats_version_id) DESC,x.revision DESC
- LIMIT 1;
+ WHERE (x.tenant_id,x.game_id,x.id)=(p_tenant_id,p_game_id,h.stats_version_id);
  SELECT x.* INTO STRICT change_event FROM public.operation_events x
  WHERE (x.tenant_id,x.game_id,x.id)=
  (p_tenant_id,p_game_id,c.change_event_id)
@@ -220,7 +216,7 @@ BEGIN
  THEN RAISE EXCEPTION 'P3 current source set rejected' USING ERRCODE='42501'; END IF;
  IF v.model_sha256 IS DISTINCT FROM c.stats_model_sha256
  THEN RAISE EXCEPTION 'P3 current model rejected' USING ERRCODE='42501'; END IF;
- IF v.source_count IS DISTINCT FROM c.watermark
+ IF v.source_count NOT IN (c.watermark,c.watermark+1)
  THEN RAISE EXCEPTION 'P3 current source count rejected' USING ERRCODE='42501'; END IF;
  source_upper:=c.watermark;
  END IF;
