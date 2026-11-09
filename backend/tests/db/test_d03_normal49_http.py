@@ -175,7 +175,7 @@ def normal49_script() -> str:
 def _assert_normal49(admin) -> None:
     """正式49/fullcatalogとowner-only helper/親hookを追加DDL無しで確認する。"""
     assert admin.execute("SELECT version_num FROM alembic_version").fetchall() == [
-        ("0049_pitcher_entry_sources",)
+        ("0050_play_export_p3_snapshots",)
     ]
     current._check_current_structure(admin)
     current._check_pitcher_entry_guards(admin, "full")

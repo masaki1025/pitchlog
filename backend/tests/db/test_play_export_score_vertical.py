@@ -66,18 +66,22 @@ def test_new_three_play_saved_t1_score_and_pitch_count(vertical_database):
             "VALUES ('batting-result.called-pitch','batting_result','見逃し') "
             "ON CONFLICT(key) DO NOTHING"
         )
-        admin.execute(
-            sql.SQL(
-                cast(
-                    LiteralString,
-                    (
-                        _ROOT / "docs/features/ud2-csv-export/candidates/"
-                        "play_export_snapshots.sql"
-                    ).read_text(),
+        revision = admin.execute(
+            "SELECT version_num FROM alembic_version"
+        ).fetchone()
+        if revision is None or revision[0] < "0047":
+            admin.execute(
+                sql.SQL(
+                    cast(
+                        LiteralString,
+                        (
+                            _ROOT / "docs/features/ud2-csv-export/candidates/"
+                            "play_export_snapshots.sql"
+                        ).read_text(),
+                    )
                 )
             )
-        )
-        admin.execute(sql.SQL(cast(LiteralString, candidate_install_sql())))
+            admin.execute(sql.SQL(cast(LiteralString, candidate_install_sql())))
     case = {
         "tenant": str(db.tenant_id),
         "game": str(db.game_id),

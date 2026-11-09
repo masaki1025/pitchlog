@@ -198,13 +198,18 @@ def test_actual_v3_two_play_snapshot_and_zip_from_new_game(vertical_database):
                 "VALUES (%s,'batting_result',%s) ON CONFLICT(key) DO NOTHING",
                 (key, name),
             )
-        ddl = (
-            _ROOT / "docs/features/ud2-csv-export/candidates/play_export_snapshots.sql"
-        ).read_text()
-        admin.execute(sql.SQL(cast(LiteralString, ddl)))
-        admin.execute(sql.SQL(cast(LiteralString, candidate_install_sql())))
-        _source_query, source_install = candidate_read_bundle()
-        admin.execute(sql.SQL(cast(LiteralString, source_install)))
+        revision = admin.execute(
+            "SELECT version_num FROM alembic_version"
+        ).fetchone()
+        if revision is None or revision[0] < "0047":
+            ddl = (
+                _ROOT
+                / "docs/features/ud2-csv-export/candidates/play_export_snapshots.sql"
+            ).read_text()
+            admin.execute(sql.SQL(cast(LiteralString, ddl)))
+            admin.execute(sql.SQL(cast(LiteralString, candidate_install_sql())))
+            _source_query, source_install = candidate_read_bundle()
+            admin.execute(sql.SQL(cast(LiteralString, source_install)))
     case = {
         "tenant": str(db.tenant_id),
         "game": str(db.game_id),
