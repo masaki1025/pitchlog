@@ -168,6 +168,39 @@ def build_short_p3_script() -> str:
         changed=await client.post('/games/'+game+'/sync/change',
             headers=device_headers(pair,str(uuid4())),json=p3_payload)
         runtime_diagnostics['status']=changed.status_code
+        try:
+            _p3_change_body=changed.json()
+        except BaseException:
+            _p3_change_body=None
+        print(
+            'PITCHLOG_P3_SHORT_CHANGE='+json.dumps({
+                'status':changed.status_code,
+                'keys':(
+                    sorted(_p3_change_body)
+                    if isinstance(_p3_change_body,dict)
+                    else type(_p3_change_body).__name__),
+                'boundary':(
+                    _p3_change_body.get('boundary')
+                    if isinstance(_p3_change_body,dict) else None),
+                'd5':(
+                    _p3_change_body.get('d5')
+                    if isinstance(_p3_change_body,dict) else None),
+                'reason':(
+                    _p3_change_body.get('reason')
+                    if isinstance(_p3_change_body,dict) else None),
+                'confirmed_version':(
+                    _p3_change_body.get('confirmed_version')
+                    if isinstance(_p3_change_body,dict) else None),
+                'has_confirmed_content':(
+                    isinstance(_p3_change_body,dict)
+                    and 'confirmedContent' in _p3_change_body),
+                'current_prefix_length':(
+                    (_p3_change_body.get('current_prefix_ref') or {}).get(
+                        'length')
+                    if isinstance(_p3_change_body,dict) else None),
+            }),
+            flush=True,
+        )
         assert changed.status_code==200
         runtime_diagnostics.update(stage='short-p3-get',status=None)
         saved=await client.get(
@@ -403,12 +436,13 @@ def test_p3_short_current_route_diagnostic(vertical_database, tmp_path):
             except Exception:
                 pass
     assert result is not None
-    safe = {"ready": [], "failures": [], "result": [], "csv_diag": []}
+    safe = {"ready": [], "failures": [], "result": [], "change": [], "csv_diag": []}
     for line in result.stdout.splitlines():
         for prefix, key in (
             ("PITCHLOG_P3_SHORT_READY=", "ready"),
             ("PITCHLOG_P3_SHORT_SAFE ", "failures"),
             ("PITCHLOG_P3_SHORT_RESULT=", "result"),
+            ("PITCHLOG_P3_SHORT_CHANGE=", "change"),
             ("P3_CSV_DIAG ", "csv_diag"),
         ):
             if line.startswith(prefix):

@@ -63,7 +63,7 @@ BEGIN
  WHERE (v.tenant_id,v.game_id,v.id)=
  (p_tenant_id,p_game_id,progress.old_stats_version_id)
  AND v.is_current AND v.invalidated_at IS NULL
- AND v.source_count=progress.watermark FOR SHARE;
+ AND v.source_count=progress.watermark;
  SELECT e.* INTO STRICT change_event FROM public.operation_events e
  WHERE (e.tenant_id,e.game_id,e.id)=
  (p_tenant_id,p_game_id,(c->>'change_event_id')::uuid)

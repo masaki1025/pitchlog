@@ -11,7 +11,7 @@ DECLARE binding record; c jsonb; t jsonb; own_xid text;
  old_cp sync_fence.ordinary_pitch_checkpoints%ROWTYPE;
  old_stats sync_fence.stats_fact_versions%ROWTYPE;
  change_event public.operation_events%ROWTYPE;
- game_row public.games%ROWTYPE;
+ game_status text;
  lifecycle sync_fence.game_lifecycle_heads%ROWTYPE;
  source_keys text[]; stats_keys text[];
  now_at timestamptz;
@@ -75,7 +75,7 @@ BEGIN
  WHERE (p.tenant_id,p.game_id,p.internal_generation)=
  (p_tenant_id,p_game_id,generation))
  THEN RAISE EXCEPTION 'P3 page begin rejected' USING ERRCODE='42501'; END IF;
- SELECT cp.* INTO STRICT old_cp FROM sync_fence.ordinary_pitch_checkpoints cp
+ SELECT cp.* INTO old_cp FROM sync_fence.ordinary_pitch_checkpoints cp
  WHERE (cp.tenant_id,cp.game_id,cp.internal_generation)=
  (p_tenant_id,p_game_id,generation) AND cp.state='current'
  AND cp.confirmed_watermark=expected_watermark
@@ -83,15 +83,22 @@ BEGIN
  AND cp.id=(c->>'previous_checkpoint_id')::uuid
  AND cp.revision=(c->>'previous_checkpoint_revision')::bigint
  AND cp.content_digest=c->>'previous_checkpoint_digest' FOR UPDATE;
- IF old_cp.content IS DISTINCT FROM c->'previous_checkpoint'
- OR (c->'next_checkpoint'->>'id')::uuid IS DISTINCT FROM old_cp.id
- OR (c->'next_checkpoint'->>'history_version')::bigint IS DISTINCT FROM
- old_cp.history_version
- OR c->'next_checkpoint'->'storage_anchor' IS DISTINCT FROM
- old_cp.content->'storage_anchor'
- OR c->'next_checkpoint'->>'wire_d4' IS DISTINCT FROM
- old_cp.content->>'wire_d4'
- OR c->'next_checkpoint'->>'content_digest' !~ '^[a-f0-9]{64}$'
+ IF NOT FOUND THEN RAISE EXCEPTION 'P3 page begin old checkpoint missing'
+ USING ERRCODE='P3110'; END IF;
+ IF old_cp.content IS DISTINCT FROM c->'previous_checkpoint' THEN
+ RAISE EXCEPTION 'P3 page begin previous checkpoint' USING ERRCODE='P3111'; END IF;
+ IF (c->'next_checkpoint'->>'id')::uuid IS DISTINCT FROM old_cp.id THEN
+ RAISE EXCEPTION 'P3 page begin next id' USING ERRCODE='P3112'; END IF;
+ IF (c->'next_checkpoint'->>'history_version')::bigint IS DISTINCT FROM
+ old_cp.history_version THEN
+ RAISE EXCEPTION 'P3 page begin history version' USING ERRCODE='P3113'; END IF;
+ IF c->'next_checkpoint'->'storage_anchor' IS DISTINCT FROM
+ old_cp.content->'storage_anchor' THEN
+ RAISE EXCEPTION 'P3 page begin storage anchor' USING ERRCODE='P3114'; END IF;
+ IF c->'next_checkpoint'->>'wire_d4' IS DISTINCT FROM
+ old_cp.content->>'wire_d4' THEN
+ RAISE EXCEPTION 'P3 page begin wire d4' USING ERRCODE='P3115'; END IF;
+ IF c->'next_checkpoint'->>'content_digest' !~ '^[a-f0-9]{64}$'
  OR c->'next_checkpoint'->'prefix_ref'->'checkpoint'->>'digest'
  !~ '^[a-f0-9]{64}$'
  OR (c->'next_checkpoint'->>'confirmed_watermark')::bigint IS DISTINCT FROM
@@ -100,8 +107,8 @@ BEGIN
  expected_watermark
  OR (c->'next_checkpoint'->>'internal_generation')::bigint IS DISTINCT FROM
  generation
- THEN RAISE EXCEPTION 'P3 page begin rejected' USING ERRCODE='42501'; END IF;
- SELECT e.* INTO STRICT change_event FROM public.operation_events e
+ THEN RAISE EXCEPTION 'P3 page begin next digest' USING ERRCODE='P3116'; END IF;
+ SELECT e.* INTO change_event FROM public.operation_events e
  WHERE (e.tenant_id,e.game_id,e.id)=
  (p_tenant_id,p_game_id,(c->>'change_event_id')::uuid)
  AND e.event_kind='play_change' AND e.ledger_kind='accepted' AND NOT e.is_tombstone
@@ -110,36 +117,48 @@ BEGIN
  AND e.expected_version=1 AND e.d5=binding.d5
  AND e.replaced_at IS NULL AND e.retired_at IS NULL
  AND e.import_batch_id IS NULL AND NOT e.migration_unverified;
+ IF NOT FOUND THEN RAISE EXCEPTION 'P3 page begin change event missing'
+ USING ERRCODE='P3120'; END IF;
  IF NOT EXISTS(SELECT 1 FROM public.idempotency_ledger l
  WHERE l.tenant_id=p_tenant_id AND l.d5=binding.d5 AND l.kind='accepted'
  AND l.source_fingerprint=c->>'ledger_fingerprint' AND l.retired_at IS NULL)
- OR change_event.payload->>'formatVersion' IS DISTINCT FROM
- 'p3-lineup-pitch-change-v1'
- OR NOT EXISTS(SELECT 1 FROM public.event_slots slot
+ THEN RAISE EXCEPTION 'P3 page begin ledger missing' USING ERRCODE='P3121'; END IF;
+ IF change_event.payload->>'formatVersion' IS DISTINCT FROM
+ 'p3-lineup-pitch-change-v1' THEN
+ RAISE EXCEPTION 'P3 page begin payload format' USING ERRCODE='P3122'; END IF;
+ IF NOT EXISTS(SELECT 1 FROM public.event_slots slot
  WHERE (slot.tenant_id,slot.game_id,slot.generation,slot.d1)=
  (p_tenant_id,p_game_id,generation,target_d1) AND slot.confirmed_version=2)
- THEN RAISE EXCEPTION 'P3 page begin rejected' USING ERRCODE='42501'; END IF;
- SELECT v.* INTO STRICT old_stats FROM sync_fence.stats_fact_versions v
+ THEN RAISE EXCEPTION 'P3 page begin slot not confirmed'
+ USING ERRCODE='P3123'; END IF;
+ SELECT v.* INTO old_stats FROM sync_fence.stats_fact_versions v
  WHERE (v.tenant_id,v.game_id,v.model_sha256)=
  (p_tenant_id,p_game_id,'sha256:882acb95c08d88deb724a77f2fdfb184de48a2252cd03f5ca44df5cd8b48f4c6')
  AND v.is_current AND v.invalidated_at IS NULL
  AND v.source_count=expected_watermark
- AND v.t5_artifact_set_sha256='b551ca128619674a5fc87efe44eba1acae329ed5979353600149dd4226e8dad2' FOR UPDATE;
- SELECT g.* INTO STRICT game_row FROM public.games g
+ AND v.t5_artifact_set_sha256='b551ca128619674a5fc87efe44eba1acae329ed5979353600149dd4226e8dad2';
+ IF NOT FOUND THEN RAISE EXCEPTION 'P3 page begin old stats missing'
+ USING ERRCODE='P3130'; END IF;
+ SELECT g.status INTO game_status FROM public.games g
  WHERE (g.tenant_id,g.id)=(p_tenant_id,p_game_id)
  AND g.status IN ('in_progress','finished') AND g.hidden_at IS NULL
  AND g.trashed_at IS NULL AND g.import_batch_id IS NULL;
+ IF NOT FOUND THEN RAISE EXCEPTION 'P3 page begin game missing'
+ USING ERRCODE='P3131'; END IF;
  IF (SELECT pg_catalog.count(*) FROM public.recording_generations r
  WHERE (r.tenant_id,r.game_id,r.generation)=
  (p_tenant_id,p_game_id,generation) AND r.kind='normal'
  AND r.holder_device=p_device_id::text AND r.revoked_at IS NULL
  AND r.retired_at IS NULL AND r.recovery_generation=(SELECT gate.recovery_generation
  FROM public.rg1_restore_gate gate WHERE gate.singleton_id=1 AND gate.state='open'))<>1
- OR (game_row.status='finished') IS DISTINCT FROM
+ THEN RAISE EXCEPTION 'P3 page begin recording generation'
+ USING ERRCODE='P3132'; END IF;
+ IF (game_status='finished') IS DISTINCT FROM
  (old_stats.completion_state='confirmed_ended')
- OR old_stats.rule_sha256 !~ '^[a-f0-9]{64}$'
- THEN RAISE EXCEPTION 'P3 page begin rejected' USING ERRCODE='42501'; END IF;
- IF game_row.status='finished' THEN
+ THEN RAISE EXCEPTION 'P3 page begin game state' USING ERRCODE='P3133'; END IF;
+ IF old_stats.rule_sha256 !~ '^[a-f0-9]{64}$'
+ THEN RAISE EXCEPTION 'P3 page begin rule hash' USING ERRCODE='P3134'; END IF;
+ IF game_status='finished' THEN
  SELECT h.* INTO STRICT lifecycle FROM sync_fence.game_lifecycle_heads h
  WHERE (h.tenant_id,h.game_id)=(p_tenant_id,p_game_id)
  AND h.is_finished AND h.active_stats_version_id=old_stats.id

@@ -6,7 +6,7 @@ p_tenant_id uuid,p_attempt_id uuid,p_phase_id uuid,p_binding_nonce bytea,p_devic
 RETURNS TABLE(capsule_id uuid,checkpoint_digest text,evaluation_set_digest text,
  stats_version_id uuid) LANGUAGE plpgsql VOLATILE SECURITY DEFINER
 SET search_path=pg_catalog,pg_temp AS $p3_page_finalize$
-#variable_conflict use_variable
+#variable_conflict use_column
 DECLARE binding record; p sync_fence.p3_projection_page_progress%ROWTYPE;
  c jsonb; t jsonb; item jsonb; effective_eval jsonb;
  old_cp sync_fence.ordinary_pitch_checkpoints%ROWTYPE;
@@ -87,8 +87,7 @@ BEGIN
  SELECT v.* INTO STRICT old_stats FROM sync_fence.stats_fact_versions v
  WHERE (v.tenant_id,v.game_id,v.id)=(p_tenant_id,p_game_id,p.old_stats_version_id)
  AND v.is_current AND v.invalidated_at IS NULL AND v.source_count=p.watermark
- AND v.model_sha256='sha256:882acb95c08d88deb724a77f2fdfb184de48a2252cd03f5ca44df5cd8b48f4c6' AND v.t5_artifact_set_sha256='b551ca128619674a5fc87efe44eba1acae329ed5979353600149dd4226e8dad2'
- FOR UPDATE;
+ AND v.model_sha256='sha256:882acb95c08d88deb724a77f2fdfb184de48a2252cd03f5ca44df5cd8b48f4c6' AND v.t5_artifact_set_sha256='b551ca128619674a5fc87efe44eba1acae329ed5979353600149dd4226e8dad2';
  SELECT g.status INTO STRICT game_status FROM public.games g
  WHERE (g.tenant_id,g.id)=(p_tenant_id,p_game_id)
  AND g.status IN ('in_progress','finished') AND g.hidden_at IS NULL

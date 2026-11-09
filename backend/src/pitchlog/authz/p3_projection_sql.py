@@ -419,8 +419,7 @@ BEGIN
  SELECT v.* INTO STRICT old_stats FROM sync_fence.stats_fact_versions v
  WHERE (v.tenant_id,v.game_id,v.model_sha256)=(tenant,p_game_id,'__MODEL__')
  AND v.is_current AND v.invalidated_at IS NULL
- AND v.source_count=watermark AND v.t5_artifact_set_sha256='__ARTIFACT__'
- FOR UPDATE;
+ AND v.source_count=watermark AND v.t5_artifact_set_sha256='__ARTIFACT__';
  SELECT g.status INTO STRICT game_row FROM public.games g
  WHERE (g.tenant_id,g.id)=(tenant,p_game_id) AND g.status IN ('in_progress','finished')
  AND g.hidden_at IS NULL AND g.trashed_at IS NULL

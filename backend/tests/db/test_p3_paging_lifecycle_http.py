@@ -42,6 +42,13 @@ def build_p3_26_script() -> str:
     """既create/start/実host/実POST脚本の有限改変だけを返す。"""
     script = _lineup_script()
     traced = _three_ball_p3_script()
+    traced = traced.replace(
+        "except BaseException as error:\n",
+        "except BaseException as error:\n"
+        "    runtime_diagnostics['failed_at']=__import__('datetime').datetime.now("
+        "__import__('datetime').timezone.utc).isoformat()\n",
+        1,
+    )
     trace_start = traced.index("_actual_p3_apply = actual_sync_router._apply_e1_p3")
     trace_end = traced.index("async def run():", trace_start)
     trace = traced[trace_start:trace_end]
@@ -497,11 +504,11 @@ def test_actual_p3_26_lifecycle_http(vertical_database, tmp_path) -> None:
                     ).fetchall()
                 ],
                 "bindings": [
-                    [str(row[0]), str(row[1]), row[2], str(row[3])]
+                    [str(row[0]), str(row[1]), row[2], str(row[3]), str(row[4])]
                     for row in admin.execute(
-                        "SELECT attempt_id,phase_id,state,device_id "
+                        "SELECT attempt_id,phase_id,state,device_id,expires_at "
                         "FROM sync_fence.writer_bindings WHERE tenant_id=%s "
-                        "ORDER BY attempt_id,phase_id",
+                        "ORDER BY expires_at,attempt_id,phase_id",
                         (db.tenant_id,),
                     ).fetchall()
                 ],

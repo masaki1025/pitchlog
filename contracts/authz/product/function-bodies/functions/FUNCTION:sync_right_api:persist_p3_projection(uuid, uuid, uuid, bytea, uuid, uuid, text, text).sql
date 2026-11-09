@@ -112,8 +112,7 @@ BEGIN
  SELECT v.* INTO STRICT old_stats FROM sync_fence.stats_fact_versions v
  WHERE (v.tenant_id,v.game_id,v.model_sha256)=(tenant,p_game_id,'sha256:882acb95c08d88deb724a77f2fdfb184de48a2252cd03f5ca44df5cd8b48f4c6')
  AND v.is_current AND v.invalidated_at IS NULL
- AND v.source_count=watermark AND v.t5_artifact_set_sha256='b551ca128619674a5fc87efe44eba1acae329ed5979353600149dd4226e8dad2'
- FOR UPDATE;
+ AND v.source_count=watermark AND v.t5_artifact_set_sha256='b551ca128619674a5fc87efe44eba1acae329ed5979353600149dd4226e8dad2';
  SELECT g.status INTO STRICT game_row FROM public.games g
  WHERE (g.tenant_id,g.id)=(tenant,p_game_id) AND g.status IN ('in_progress','finished')
  AND g.hidden_at IS NULL AND g.trashed_at IS NULL

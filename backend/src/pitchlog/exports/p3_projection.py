@@ -303,10 +303,9 @@ def project_p3_direct(
                 expected.effective_event_id,
             )
         )
-        _need(
-            old.get("batting_result_key") in _RESULTS
-            and new.get("batting_result_key") in _RESULTS
-        )
+        # 置換後keyだけがclosed set。訂正対象の旧keyは元の打席結果であり、
+        # 置換先の有限集合(_RESULTS)に含まれることを要求しない。
+        _need(new.get("batting_result_key") in _RESULTS)
         _need(reference.key == new["batting_result_key"])
         old_observed, new_observed = (
             before_payload.get("observations"),

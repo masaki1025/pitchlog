@@ -335,6 +335,17 @@ def traced_p3_apply(*args, **kwargs):
                 "exception_type": type(current).__name__,
                 "database_exception_type": type(original).__name__,
                 "sqlstate": getattr(original, "sqlstate", None),
+                "sql_primary": (
+                    primary[:160] if type(primary) is str else None),
+                "product_message": (
+                    str(current)[:160]
+                    if type(current).__name__ in {
+                        "PlayExportSupplyError",
+                        "PlayExportWriterUnavailable",
+                        "PastCorrectionProjectionError",
+                        "PastCorrectionPageUnavailable",
+                    }
+                    else None),
                 "sql_primary_class": (
                     "p3-closed-rejection" if primary == "P3 projection rejected"
                     else "permission-denied" if type(primary) is str
