@@ -216,7 +216,7 @@ BEGIN
  THEN RAISE EXCEPTION 'P3 current source set rejected' USING ERRCODE='42501'; END IF;
  IF v.model_sha256 IS DISTINCT FROM c.stats_model_sha256
  THEN RAISE EXCEPTION 'P3 current model rejected' USING ERRCODE='42501'; END IF;
- IF v.source_count NOT IN (c.watermark,c.watermark+1)
+ IF v.source_count<c.watermark
  THEN RAISE EXCEPTION 'P3 current source count rejected' USING ERRCODE='42501'; END IF;
  source_upper:=c.watermark;
  END IF;

@@ -1,5 +1,11 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 2026-11-10 05:30 JST：追加playはdomain TIME_LIMITを解消、30秒bindingの重複P3検証が次unit
+
+- **新たに通った**: 26球→P3訂正→27球目→lifecycle read 200→終了受理→再開受理→**追加playのdomain評価**。27frame級の非play継続が`vmTimeoutMs=100`の`TIME_LIMIT`になったため、5秒応答目標・2秒reply期限の内側で`_VM_TIMEOUT_MS=500`へ有限上限を広げた（30秒DB bindingは不変）。
+- **現在失敗**: 追加playの`persist_accepted_play_export`で`writer binding rejected`（`precommit_failure.binding_age_ms=30145`、`expires_at<=now`）。DB writer bindingの30秒総保持を**延長せず**、server側`read_confirmed_nonplay_normal`がP3 capsuleの26-item T5/監査検証を再実行する重複で30秒を超えた。クライアント直後のlifecycle readと同一P3不変原本を二重検証している。
+- **次の作業**: P3 capsule/head/current CPをkeyにした同一プロセス内の検証済みP3 packet cache（またはsource専用の軽量検証）で、write bindingの30秒区間から重複T5/監査再計算を除く。30秒は延長しない。その後、追加play→再終了→reload→成績27/CSV、P3直後read、broker再起動B、D11実DB、残操作、閲覧、正式統合へ進む。
+
 ## 2026-11-10 04:30 JST：P3後27球目の終了・再開は受理、追加playは次unit
 
 - **新たに通った**: 26球→P3訂正→27球目→`lifecycle-prefix-v1` 200→**終了宣言 受理**→**再開 受理**。write側 `read_confirmed_lineup_prefix` と `read_confirmed_nonplay_prefix` に、P3 next CPが現在docの祖先である場合の同一限定（watermark/revisionの祖先+現在headからのlast source）を接続した。P3-effective stackをread/writeで同じ `p3_effective_nonplay_stack` に限定し、物理/論理の二重実装を作っていない。

@@ -111,7 +111,9 @@ for await (const line of input) {
 """
 _NODE_VERSION = "v24.16.0"
 _HEAP_MIB = 16
-_VM_TIMEOUT_MS = 100
+# 27frame級の有限activeStack継続を100msで打ち切らない。5秒応答目標と
+# 2秒reply期限の内側に収まる有限上限として500msを維持する。
+_VM_TIMEOUT_MS = 500
 _REPLY_TIMEOUT_SECONDS = 2.0
 _SHA256_PATTERN = re.compile(r"[0-9a-f]{64}\Z")
 _OPERATION_PATTERN = re.compile(r"[A-Za-z][A-Za-z0-9_]*\Z")

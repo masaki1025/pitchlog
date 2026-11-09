@@ -729,6 +729,19 @@ def build_p3_26_lifecycle_script() -> str:
         '["lastVersion"],\n',
         1,
     )
+    # DomainRuntimeErrorの安定codeだけを診断へ加え、secret/原値は出さない。
+    old_cause = '"exception_type": type(current).__name__,\n'
+    assert script.count(old_cause) >= 1
+    script = script.replace(
+        old_cause,
+        old_cause
+        + '                "domain_error_code": getattr(current, "code", None),\n'
+        + '                "sql_primary": '
+        'getattr(getattr(current, "diag", None), "message_primary", None) '
+        'or getattr(getattr(getattr(current, "orig", None), "diag", None), '
+        '"message_primary", None),\n',
+        1,
+    )
     compile(script, "<p3-26-lifecycle>", "exec")
     return script
 

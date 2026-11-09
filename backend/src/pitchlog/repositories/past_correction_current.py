@@ -347,7 +347,7 @@ def verify_p3_current_packet(
             (stats_row["id"] != head["stats_version_id"] and not historical_stats)
             or stats_row["tenant_id"] != str(tenant)
             or stats_row["game_id"] != str(game)
-            or stats_row["source_count"] not in (source_upper, source_upper + 1)
+            or stats_row["source_count"] < source_upper
         ):
             raise PastCorrectionCurrentUnavailable("P3 current stats rowが不一致")
         if (
@@ -703,10 +703,7 @@ def verify_p3_current_packet(
                 or current.confirmed_watermark != str(source_upper)
             ):
                 raise PastCorrectionCurrentUnavailable("P3歴史anchorとLC制御が不一致")
-        if type(sources_raw) is not list or len(sources_raw) not in (
-            len(items),
-            len(items) + 1,
-        ):
+        if type(sources_raw) is not list or len(sources_raw) < len(items):
             raise PastCorrectionCurrentUnavailable("P3現T5件数が不一致")
         for d1, (raw_source, item, evaluation) in enumerate(
             zip(sources_raw[: len(items)], items, source_evaluations, strict=True),
