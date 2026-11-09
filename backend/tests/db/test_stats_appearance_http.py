@@ -46,6 +46,9 @@ def _whole_owned_lifetime_lock():
 
 def _install_candidate(admin, *, fault=False):
     """正式catalogを更新せず、明示候補としてownedだけへ接合する。"""
+    revision = admin.execute("SELECT version_num FROM alembic_version").fetchone()
+    if revision is not None and revision[0] >= "0049":
+        return
     admin.execute(sql.SQL(cast(LiteralString, candidate_entry_table_install_sql())))
     admin.execute(sql.SQL(cast(LiteralString, candidate_private_entry_install_sql())))
     admin.execute(sql.SQL(cast(LiteralString, candidate_appearance_read_install_sql())))
