@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from uuid import UUID
-
 from pitchlog.exports.play_rows import CSV_HEADERS, PlayExportSupplyError
 from pitchlog.repositories.play_export import _freeze_rows, _new_rows
 from pitchlog.repositories.play_export_p3_read import validate_snapshot_row
@@ -55,7 +53,7 @@ def resolve_p3_snapshots(bundle):
     )
     covered = _new_rows()
     current_overlays = _new_rows()
-    p3_original_ids: set[UUID] = set()
+    superseded_originals = _new_rows()
     for snapshot in bundle.snapshots:
         play = audit.get(snapshot.get("play_row_id"))
         _need(play is not None)
@@ -147,11 +145,16 @@ def resolve_p3_snapshots(bundle):
                     event.get("event_kind") == "play_change"
                     and type(event.get("target_generation")) is int
                     and event["target_generation"] == row["internal_generation"]
+                    and type(event.get("target_d1")) is int
+                    and event["target_d1"] == row["d1"]
                 )
             )
         )
         covered.extend([{"id": physical["id"]}])
-        p3_original_ids.add(row["original_play_row_id"])
+        if row["d1"] == row["capsule_target_d1"]:
+            superseded_originals.extend(
+                [{"id": row["original_play_row_id"]}]
+            )
         if row["current_head"]:
             current_overlays.extend(
                 [{**row, "play_row_id": row["effective_play_row_id"]}]
@@ -159,6 +162,7 @@ def resolve_p3_snapshots(bundle):
     _need(group is not None and previous_d1 == watermark)
     covered = _freeze_rows(covered)
     covered_index = _index(covered, "id")
+    superseded_original_index = _index(superseded_originals, "id")
     _need(len(covered_index) == len(audit))
     for play in bundle.audit_plays:
         _need(covered_index.get(play["id"]) is not None)
@@ -168,7 +172,7 @@ def resolve_p3_snapshots(bundle):
                 play.get("hidden_at") is not None
                 or event.get("retired_at") is not None
                 or event.get("replaced_at") is not None
-                or play["id"] in p3_original_ids
+                or play["id"] in superseded_original_index
             )
         else:
             _need(current.get(play["id"]) == play)

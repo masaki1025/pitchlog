@@ -80,7 +80,10 @@ def _bundle():
                 **common,
                 "id": row["effective_event_id"],
                 "d2": None,
+                "generation": None,
                 "event_kind": "play_change",
+                "target_generation": 1,
+                "target_d1": 1,
             },
         ),
         snapshots=(
@@ -505,6 +508,19 @@ def test_two_eligible_generations_keep_both_current_capsules():
                 p3_snapshots=(first.p3_snapshots[0], {**row, "internal_generation": 1}),
             )
         )
+
+
+def test_p3_change_target_d1_mismatch_is_not_supply():
+    """Change eventのtarget_generation一致だけでは対象D1の別行を許可しない。"""
+    bundle = _bundle()
+    events = tuple(
+        {**event, "target_d1": 2}
+        if event.get("event_kind") == "play_change"
+        else event
+        for event in bundle.events
+    )
+    with pytest.raises(PlayExportSupplyError):
+        resolve_p3_snapshots(replace(bundle, events=events))
 
 
 def test_disk_spool_coverage_uses_disk_rows_api():
