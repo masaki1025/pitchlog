@@ -496,7 +496,13 @@ def _worker(mode: str, config_path: Path, status_fd: int, release_fd: int) -> No
 
             def handle(accepted: socket.socket, peer: dict[str, Any]) -> None:
                 try:
-                    accepted.settimeout(value["timeout"])
+                    # binding leaseは30秒の同一writer保持中に制御frameが来ない。
+                    # 一般timeoutで正当な保持を切断し、権威全体をblockedにしない。
+                    accepted.settimeout(
+                        35.0
+                        if peer["role"] == "sync_binding"
+                        else value["timeout"]
+                    )
                     _, uid, gid = struct.unpack(
                         "3i",
                         accepted.getsockopt(socket.SOL_SOCKET, socket.SO_PEERCRED, 12),

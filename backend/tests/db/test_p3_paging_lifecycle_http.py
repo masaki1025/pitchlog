@@ -5,6 +5,7 @@ from __future__ import annotations
 # 旧作者の26球操作脚本だけを再利用し、後付candidate DDLは呼ばない。
 import json
 import subprocess
+from datetime import datetime, timedelta, timezone
 from uuid import UUID, uuid4
 
 import psycopg
@@ -25,6 +26,7 @@ from .test_first_ball_vertical_http import (
 from .test_first_ball_vertical_http import (
     vertical_database as vertical_database,
 )
+from .test_game_lifecycle_http import _SCRIPT as _LIFECYCLE_SCRIPT
 from .test_initial_game_start import product_node_binary as product_node_binary
 from .test_initial_recording_right_scope import (
     admin_connection as admin_connection,
@@ -526,36 +528,9 @@ __NEXT_PITCH__
                 runtime_diagnostics,
             )
 """
-    new_post = """            posted = None
-            for _attempt in range(5):
-                posted = await client.post(
-                    "/games/" + game + "/sync/events", headers=h, json=payload
-                )
-                if posted.status_code == 200:
-                    break
-                if posted.status_code not in (500, 503):
-                    break
-                runtime_diagnostics.setdefault("post_retries", []).append({
-                    "index": index, "status": posted.status_code})
-                await asyncio.sleep(5.0)
-                recovered = await client.post(
-                    "/games/" + game + "/sync/attempts/recover",
-                    headers=h, json=payload)
-                try:
-                    resolution = recovered.json().get("resolution")
-                except BaseException:
-                    resolution = None
-                runtime_diagnostics.setdefault("post_recoveries", []).append({
-                    "index": index, "status": recovered.status_code,
-                    "resolution": resolution})
-                if recovered.status_code != 200 or resolution != "retry_allowed":
-                    break
-                rolled = await client.get(
-                    "/games/" + game
-                    + "/started?projection=play-prefix-v3&limit=100",
-                    headers=headers())
-                assert rolled.status_code == 200 and rolled.json() == current, (
-                    "27-retry-rollback", rolled.status_code)
+    new_post = """            posted = await client.post(
+                "/games/" + game + "/sync/events", headers=h, json=payload
+            )
             assert posted.status_code == 200, (
                 "v3-save",
                 index,
@@ -647,6 +622,86 @@ __NEXT_PITCH__
     return script
 
 
+def build_p3_26_lifecycle_script() -> str:
+    """26球訂正・27球目の後に終了再開追加再終了と成績/CSVを同workerで通す。"""
+    script = build_p3_26_script()
+    start = _LIFECYCLE_SCRIPT.index("        import copy")
+    end = _LIFECYCLE_SCRIPT.index("        current, _ = await read_full()", start)
+    functions = _LIFECYCLE_SCRIPT[start:end]
+    # 既存26球scriptのrun()本体は4-space。lifecycle関数群は8-spaceなので詰める。
+    functions = "\n".join(
+        line[4:] if line.startswith("    ") else line
+        for line in functions.splitlines()
+    ) + "\n"
+    run_marker = "async def run():\n"
+    assert script.count(run_marker) == 1
+    script = script.replace(run_marker, run_marker + functions + "\n", 1)
+    final = '''        runtime_diagnostics.update(stage="complete", status=200)
+        return {
+            "game": game,
+            "prefix": current["prefix_ref"]["length"],
+            "p3_d5": change["d5"],
+'''
+    assert script.count(final) == 1
+    flow = '''        lifecycle_current, _ = await read_full()
+        assert lifecycle_current["lifecycle"]["lastVersion"] == "0"
+        ended, _ = await lifecycle("end", lifecycle_current)
+        assert ended["status"] == "finished"
+        reopened, _ = await lifecycle("reopen", ended)
+        assert reopened["status"] == "in_progress"
+        added = await additional_play()
+        assert added["status"] == "in_progress"
+        final_lifecycle, _ = await lifecycle("end", added)
+        assert final_lifecycle["status"] == "finished"
+        assert final_lifecycle["lifecycle"]["lastVersion"] == "2"
+        reloaded, _ = await read_full()
+        assert reloaded["checkpoint"] == final_lifecycle["checkpoint"]
+        assert reloaded["lifecycle"] == final_lifecycle["lifecycle"]
+        stats = await client.get(
+            "/games/" + game + "/stats?mode=official&limit=200",
+            headers=headers())
+        assert stats.status_code == 200, ("stats-read", stats.status_code)
+        stats_packet = stats.json()
+        assert stats_packet["mode"] == "official"
+        for player in stats_packet["players"]:
+            assert len(player["batting"]) == 16
+            assert len(player["pitching"]) == 11
+        game_csv = await client.get(
+            "/games/" + game + "/stats.csv?mode=official", headers=headers())
+        assert game_csv.status_code == 200, ("game-csv", game_csv.status_code)
+        assert game_csv.content.startswith(b"\\xef\\xbb\\xbf")
+        import csv as _stats_csv
+        import io as _stats_io
+        stats_rows = list(_stats_csv.DictReader(_stats_io.StringIO(
+            game_csv.content.decode("utf-8-sig"))))
+        assert len(stats_rows) == len(stats_packet["players"])
+        season_csv = await client.get(
+            "/stats/seasons/" + str(case["year"]) + "/stats.csv?category=all",
+            headers=headers())
+        assert season_csv.status_code == 200, (
+            "season-csv", season_csv.status_code)
+        season_rows = list(_stats_csv.DictReader(_stats_io.StringIO(
+            season_csv.content.decode("utf-8-sig"))))
+        assert season_rows
+        runtime_diagnostics["lifecycle_final"] = final_lifecycle["lifecycle"]
+        runtime_diagnostics["stats_players"] = len(stats_packet["players"])
+        runtime_diagnostics["stats_csv_rows"] = len(stats_rows)
+        runtime_diagnostics["season_csv_rows"] = len(season_rows)
+'''
+    script = script.replace(final, flow + final, 1)
+    script = script.replace(
+        '            "last_play_id": latest["page"]["items"][1]["play_row"]["id"],\n',
+        '            "last_play_id": latest["page"]["items"][1]["play_row"]["id"],\n'
+        '            "stats_csv_rows": runtime_diagnostics["stats_csv_rows"],\n'
+        '            "season_csv_rows": runtime_diagnostics["season_csv_rows"],\n'
+        '            "lifecycle_last_version": final_lifecycle["lifecycle"]'
+        '["lastVersion"],\n',
+        1,
+    )
+    compile(script, "<p3-26-lifecycle>", "exec")
+    return script
+
+
 def test_actual_p3_26_lifecycle_http(vertical_database, tmp_path) -> None:
     """正常current配置で26球変更・故障全取消・再掲・次球を実HTTPへ通す。"""
     db = vertical_database
@@ -676,7 +731,7 @@ def test_actual_p3_26_lifecycle_http(vertical_database, tmp_path) -> None:
     token = uuid4()
     script = build_p3_26_script()
     with (
-        db.broker_worker(token, auto_restart=True) as rg1_broker,
+        db.broker_worker(token) as rg1_broker,
         binding_broker(db, token),
     ):
         _prepare_app_configuration(db)
@@ -689,6 +744,21 @@ def test_actual_p3_26_lifecycle_http(vertical_database, tmp_path) -> None:
         for command, label in (
             (["docker", "top", rg1_broker, "-eo", "pid,ppid,args"], "rg1-top"),
             (["docker", "logs", "--tail", "120", rg1_broker], "rg1-log"),
+            (
+                ["docker", "inspect", "--format",
+                 "{{.State.Running}} {{.State.ExitCode}}", db.controller],
+                "controller-state",
+            ),
+            (["docker", "logs", "--tail", "120", db.controller], "controller-log"),
+            (
+                ["docker", "inspect", "--format",
+                 "{{.State.Running}} {{.State.ExitCode}}", db.authority.service],
+                "authority-state",
+            ),
+            (
+                ["docker", "logs", "--tail", "120", db.authority.service],
+                "authority-log",
+            ),
         ):
             observed = subprocess.run(
                 command, capture_output=True, text=True, check=False)
@@ -928,7 +998,7 @@ def test_actual_p3_26_lifecycle_http(vertical_database, tmp_path) -> None:
         ).fetchone() == (26,)
         csv_row = admin.execute(
             "SELECT effective_event_id,effective_play_row_id,"
-            "plays_csv_json->>'打席結果',plays_csv_json->>'Result_col',"
+            "plays_csv_json->>'打撃結果',"
             "plays_csv_json->>'入力項目' "
             "FROM sync_fence.play_export_p3_snapshots "
             "WHERE tenant_id=%s AND game_id=%s AND capsule_id=%s AND d1=26",
@@ -937,7 +1007,7 @@ def test_actual_p3_26_lifecycle_http(vertical_database, tmp_path) -> None:
         assert csv_row is not None
         assert csv_row[0] == UUID(result["effective_event_id"])
         assert csv_row[1] == UUID(result["effective_play_id"])
-        assert csv_row[2] == csv_row[3] and csv_row[2]
+        assert csv_row[2] == "ボール"
         csv_origin = json.loads(csv_row[4])
         assert csv_origin["projectionKind"] == "p3-current"
         assert csv_origin["sourceEventId"] == result["effective_event_id"]
@@ -1023,3 +1093,110 @@ def test_actual_p3_26_csv_export_http(vertical_database, tmp_path) -> None:
             "WHERE tenant_id=%s AND game_id=%s AND d1=26",
             key,
         ).fetchone() == (result["p3_zip_label"],)
+
+
+def test_actual_p3_26_lifecycle_end_reopen_add_reend_stats(
+    vertical_database, tmp_path
+) -> None:
+    """訂正後の27球から終了/再開/追加/再終了と成績/CSVを同一候補で通す。"""
+    db = vertical_database
+    with psycopg.connect(db.authority.database.business_admin) as admin:
+        for key, label in (
+            ("batting-result.called-pitch", "見逃し"),
+            ("batting-result.called-strikeout", "見逃し三振"),
+            ("batting-result.foul", "ファウル"),
+        ):
+            admin.execute(
+                "INSERT INTO public.admin_vocabularies(key,category,display_name) "
+                "VALUES (%s,'batting_result',%s) ON CONFLICT(key) DO NOTHING",
+                (key, label),
+            )
+    case = {
+        "tenant": str(db.tenant_id),
+        "game": str(db.game_id),
+        "team_name": db.team_name,
+        "other_team_name": db.other_team_name,
+        "other_tenant_id": str(db.other_tenant_id),
+        "password": _PASSWORD,
+        "pitch_type": _PITCH_TYPE,
+        "year": datetime.now(timezone(timedelta(hours=9))).year,
+    }
+    token = uuid4()
+    with db.broker_worker(token), binding_broker(db, token):
+        _prepare_app_configuration(db)
+        process = subprocess.run(
+            [
+                "docker",
+                *_app_arguments(db, case),
+                "-u",
+                "-c",
+                build_p3_26_lifecycle_script(),
+            ],
+            capture_output=True,
+            text=True,
+            timeout=1200,
+        )
+    assert process.returncode == 0, "owned HTTP脚本が非成功終了"
+    result = json.loads(process.stdout)
+    (tmp_path / "p3-26-lifecycle.json").write_text(json.dumps(result, indent=2))
+    if "exception" in result:
+        with psycopg.connect(db.authority.database.business_admin) as admin:
+            admin.execute("SET TRANSACTION READ ONLY")
+            diag = {
+                "gate": admin.execute(
+                    "SELECT state,recovery_generation FROM public.rg1_restore_gate"
+                ).fetchall(),
+                "versions": [
+                    [row[0], row[1], row[2], row[3]]
+                    for row in admin.execute(
+                        "SELECT source_count,is_current,completion_state,revision "
+                        "FROM sync_fence.stats_fact_versions WHERE tenant_id=%s "
+                        "ORDER BY revision",
+                        (db.tenant_id,),
+                    ).fetchall()
+                ],
+            }
+        (tmp_path / "p3-26-lifecycle-db.json").write_text(json.dumps(diag))
+    assert "exception" not in result, (
+        result.get("runtime_diagnostics", {}).get("stage"),
+        result.get("runtime_diagnostics", {}).get("cause_frames"),
+    )
+    assert result["prefix"] == "27"
+    assert result["lifecycle_last_version"] == "2"
+    assert result["stats_csv_rows"] > 0
+    assert result["season_csv_rows"] > 0
+    game = UUID(result["game"])
+    with psycopg.connect(db.authority.database.business_admin) as admin:
+        params = (db.tenant_id, game)
+        assert admin.execute(
+            "SELECT count(*) FROM public.play_rows "
+            "WHERE tenant_id=%s AND game_id=%s AND hidden_at IS NULL",
+            params,
+        ).fetchone() == (28,)
+        current = admin.execute(
+            "SELECT v.source_count,v.completion_state,"
+            "v.completion_receipt_id=h.active_receipt_id,"
+            "v.public_pointer_receipt_id=h.active_receipt_id "
+            "FROM sync_fence.stats_fact_versions v "
+            "JOIN sync_fence.game_lifecycle_heads h ON "
+            "h.tenant_id=v.tenant_id AND h.game_id=v.game_id "
+            "AND h.active_stats_version_id=v.id "
+            "WHERE v.tenant_id=%s AND v.game_id=%s AND v.is_current "
+            "AND v.invalidated_at IS NULL",
+            params,
+        ).fetchall()
+        assert current == [(28, "confirmed_ended", True, True)]
+        assert admin.execute(
+            "SELECT count(*) FROM sync_fence.stats_fact_versions "
+            "WHERE tenant_id=%s AND game_id=%s AND is_current",
+            params,
+        ).fetchone() == (1,)
+        assert admin.execute(
+            "SELECT max(source_count) FROM sync_fence.stats_fact_versions "
+            "WHERE tenant_id=%s AND game_id=%s",
+            params,
+        ).fetchone() == (28,)
+        assert admin.execute(
+            "SELECT state,recovery_generation FROM public.rg1_restore_gate "
+            "WHERE singleton_id=1"
+        ).fetchall() == [("open", 1)]

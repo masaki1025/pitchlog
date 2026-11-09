@@ -122,8 +122,12 @@ def _native_runner_scores(payload, value):
             ):
                 return None
         # 確定した非生還・非得点結果の空集合であり、欠測の0補完ではない。
+        # 通常投球v1は走者の得点/盗塁観測をwireに含まないため、score不変だけを
+        # 算出完了へ読み替えない（D11 current_openはsource_unavailable）。
         if (
-            batter["kind"] in ("continue", "reach", "out")
+            payload["formatVersion"] != "ordinary-pitch-play-v1"
+            and _closed_native_wire(payload)
+            and batter["kind"] in ("continue", "reach", "out")
             and all(a["destination"] != "4" for a in advances.values())
             and all(flags[key] is False for key in ("得点", "打点", "失点"))
             and score_before == score_after
@@ -644,7 +648,10 @@ def _native_batted_error_fielder(payload):
 
 def _native_no_steal(payload, value, runner_scores):
     """FR-004/E-1で別の走者操作を含まない、既閉V7結果の空集合。"""
-    if not _closed_native_wire(payload):
+    if (
+        not _closed_native_wire(payload)
+        or payload["formatVersion"] == "ordinary-pitch-play-v1"
+    ):
         return False
     try:
         request = payload["calculation"]["request"]["t1"]

@@ -472,7 +472,7 @@ if pid==0:
  listener.bind('/control/binding-run/broker.sock');listener.listen(16)
  os.write(writefd,b'B');os.close(writefd)
  while True:
-  channel,_=listener.accept();channel.settimeout(10)
+  channel,_=listener.accept();channel.settimeout(35)
   def handle(channel=channel):
    try: broker.handle(channel)
    finally: channel.close()

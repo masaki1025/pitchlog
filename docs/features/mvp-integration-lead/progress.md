@@ -1,5 +1,15 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 2026-11-10 00:10 JST：27球目503の原因確定とP3後縦断の再開
+
+- **原因確定**: 訂正後27球目の503は、RG1 controllerが `LedgerOutcomeUnconfirmed` で終了しgateがclosedになったため。authorityのbinding lease channelが一般timeout（隔離fixture 2秒）で、30秒保持中の正当な無通信を切断→authority全体がblocked→controllerのidle確認が失敗、というliveness欠陥。DB bindingの30秒期限切れではない（失敗時も期限余裕24.7秒）。診断実行では27球目保存のbinding_age 5.5秒で同じ経路を再現し、controllerの終了理由とgate closedを実測した。
+- **是正**: `authority.py` の受付channelを `sync_binding` だけ35秒（30秒総保持+余裕）にした。DBの30秒・immutability・sliding renewalの意味は変更しない。test-only binding brokerのapp channelも35秒へ揃えた。manifestのadapter/source SHAを実ファイルへ追随（adapterはHEAD時点で既に不整合だった）。
+- **D11 rbi/runs/steals**: `ordinary-pitch-play-v1` は走者の得点/盗塁観測をwireに含まないため、score不変だけからcompleteを推定しない。D11 current_openの `source_unavailable` 期待へ整合。stats純 **395 passed**。
+- **A（broker障害なし・訂正→27球目）**: 26球→P3 26件訂正→27球目の実HTTPが **成功**（app結果 `prefix=27`, controller running, gate open, 504旧assertのみ）。旧testのP3 snapshot DB照合が `打席結果` を見ていたため `打撃結果` へ修正した。製品経路は27球目まで書込み成立。
+- **新規回帰**: `test_p3_fault_controller_liveness.py` を追加。P3故障取消直後とP3受理直後に `/sync/attempts/recover` でgate生存を照合する。第1故障後は200を実測。
+- **次の実行**: 26球→P3→27→終了→再開→追加→再終了→reload→成績27項目/毎球ZIP/成績CSVの同一候補試験、broker再起動を挟む同縦断、D11実DB。
+
+
 ## 2026-11-09 03:20 JST：P3有限INSERTと訂正CSV0050を同一統合候補へ接合
 
 - **引継ぎ照合**: `feature/mvp-integration-lead@743f137b` clean、固定候補は台帳どおり。新統合枝 `feature/mvp-integration-20261109` を `c327d7ee` から作成し、`d5e63831`（CSV共有0050）と `3952d2c0`（CSV P1後発）を通常mergeした。main/developへの直接変更なし。
