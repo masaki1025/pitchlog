@@ -1,10 +1,10 @@
-# 実機リハーサル手順（候補 `feature/mvp-integration-20261109@2371afee`）
+# 実機リハーサル手順（候補 `feature/mvp-integration-20261109@c2fd8b5a`）
 
 実機・実ブラウザ・運用の成功を代記しないための準備票。候補環境の成功は、正式統合版・実機・運用公開の成功ではない。
 
 ## 接続先・環境
 
-- 候補: `feature/mvp-integration-20261109@2371afee`（worktree）
+- 候補: `feature/mvp-integration-20261109@c2fd8b5a`（worktree）
 - DB/権利worker: 隔離owned PostgreSQL + owned RG1/binding worker。共有DB・利用者データへ適用しない。
 - HTTPS: 既存のループバック証明書/鍵PATHを
   `PITCHLOG_E2E_TLS_CERT_PATH` / `PITCHLOG_E2E_TLS_KEY_PATH` に絶対PATHで渡す。
@@ -29,20 +29,22 @@
 | 2 | 26球記録 | 各球ACK、GET/reloadで状態・履歴が一致 |
 | 3 | d1=26の過去訂正 | ACK `変更受理`、confirmation、capsule/head、P3 snapshot 26件 |
 | 4 | ZIP取得 | `GET /games/{id}/exports/plays.zip` 200、26行、d1=26「ボール」 |
-| 5 | 27球目 | 現候補ではbroker再起動後 **B7/503**。書込みが0で、source_count=26のままであることを確認する（未回復を成功扱いしない） |
-| 6 | 終了→再開→追加→再終了 | 正常v3経路で`lastVersion=2`、再送/再終了で二重加算しない |
-| 7 | reload・成績27項目・成績CSV | 最新版のみ、旧版/訂正前を二重加算しない |
+| 5 | 27球目 | 候補実測 **受理**。P3訂正後の27球目はprefix=27、play_rows=28（26元+P3有効版1+27球目） |
+| 6 | 終了→再開→追加→再終了 | 候補実測 **受理**（追加play=28球目、`lastVersion=2`）。追加playのbinding ageは7.558秒で30秒内、**5秒目標は未達**。broker再起動を挟む場合は別試験の非0 epoch復旧条件に従う |
+| 7 | reload・成績27項目・成績CSV | 候補実測 200。play_rows=29、stats current `source_count=28`/`confirmed_ended`/current版1、ゲームCSV 20行・シーズンCSV 10行。旧版/訂正前を二重加算しない |
 
 ## 記録する証拠
 
 - 固定HEAD、画面操作の時刻、HTTP status、ACK boundary。
 - 対象試合の `operation_events` / `play_rows` / `stats_fact_versions` / P3 capsule items / CSV snapshots の件数。
-- 27球目失敗時の `binding_age_ms`、DB `expires_at`、失敗時刻（30秒期限と5秒目標を別記録）。
+- 追加play又は失敗時の `binding_age_ms`、DB `expires_at`、失敗時刻（30秒期限と5秒目標を別記録）。
 - ZIPの行数と対象行の表示値。秘密値は保存しない。
+- 追加playの`binding_age_ms`と5秒目標の実測（候補: 7.558秒、30秒内）。lifecycle readの所要（候補: P3 packet cache hit時 約1.6〜2.0秒）。
 
 ## 既知の制限
 
-- 27球目は非0 gate/right epoch復旧が未実装のため、broker再起動後の同一D5再送はB7/503。旧epochのまま書込みを許可しない。
+- P3訂正直後（27球目前）の`lifecycle-prefix-v1`は503のまま（P3 current CPの物理行と論理next contentの差）。27球目後は200。
+- 非0 gate/right epoch復旧は未実装のため、broker再起動後の旧epoch同一D5再送はB7/503。旧epochのまま書込みを許可しない。
 - TLS資材・実機・共有DB・運用公開は未提供。候補環境の成功を実機成功へ拡張しない。
 - 3試合×記録1台＋閲覧10台、バックアップ復旧は未実施。
-- D11 `rbi` と旧v2/candidate DDL前提の試験に既知赤が残る。
+- D11 `rbi` と旧v2/candidate DDL前提の試験、固定registry期待の`test_void_adapter_preserves_every_other_registered_function`に既知赤が残る。
