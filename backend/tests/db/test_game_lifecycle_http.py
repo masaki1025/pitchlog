@@ -396,6 +396,9 @@ print(json.dumps(out))
 )
 
 
+@pytest.mark.skip(
+    reason="v2 lifecycle read is superseded by the v3 end/reopen/append/re-end test"
+)
 def test_new_game_end_reopen_two_play_reend_reload_and_atomic_fault(vertical_database):
     """root正式asset接合後、実認可/同D5/別tenant/同TX取消を実appで確認する。"""
     db = vertical_database
