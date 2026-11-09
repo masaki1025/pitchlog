@@ -76,7 +76,10 @@ export async function createAndStartRealGame(page: Page, label: string) {
       exact: true,
     })
     .click()
-  await expect(page).toHaveURL(`${baseURL}/games/${saved.id}/record`)
+  // 候補環境のcold start/初回route解決を含め、製品の同期5秒目標とは別に待つ。
+  await expect(page).toHaveURL(`${baseURL}/games/${saved.id}/record`, {
+    timeout: 30_000,
+  })
   await expect(
     page.getByRole('heading', { name: 'スタメンと試合開始' }),
   ).toBeVisible()

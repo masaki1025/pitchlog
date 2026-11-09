@@ -119,7 +119,11 @@ test('3試合の実記録と30閲覧が保存から10秒以内で同じ状態へ
     await Promise.all(
       viewers.map(async ({ page, game }) => {
         await page.goto(`${baseURL}/games/${writers[game]!.head.id}/view`)
-        await expect(page.getByTestId('viewer-status')).toHaveText('更新済み')
+        // 30閲覧の初回loadはcold startを含む。保存後10秒の更新期限は
+        // completeViewerSnapshot側で別に測る。
+        await expect(page.getByTestId('viewer-status')).toHaveText('更新済み', {
+          timeout: 30_000,
+        })
         await expect(
           page.getByTestId('viewer-server-only-notice'),
         ).toContainText('未送信分は含まれません')

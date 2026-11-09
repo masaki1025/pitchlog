@@ -9,8 +9,8 @@
   - **pass**: runner operations **1 passed 250.22秒**、substitution product **1 passed**。
   - **fail（未解決）**: batted hits 3件は零読み後の「三振・攻守交代を含む投球の記録へ」ボタンが30秒以内に現れず、4件目は結果ファイル欠落。interferenceはINT-02（1play）まで保存後に次分岐のPOST/GETが30秒timeout（2試合目は0play）。undoはACK喪失→reload→retryで同一undoの`attemptSha256`が変わり、同要求再送の期待に反した（新attemptで送信）。いずれもobtained rejection/失敗として残し、成功へ読み替えない。
   - **undoの再実行**: 上記のattempt差は、`recoverableSyncPost.spec.ts`が固定する既採用の結果不明解決（`retry_allowed`後に同本文/同D5のまま新attemptへ進める`SyncAttemptBarrier`）と一致していた。E2Eの旧期待「attemptまで同一」を、本文/D5同一・attempt更新の期待へ是正し、`test_undo_product_screen_e2e` は **1 passed 115.05秒**。旧attemptの再利用を成功条件にしない。
-- **3試合×30閲覧load**: **未成立**（16.6秒で停止）。共有`RealGameRecording.e2e-support.ts`が試合作成/開始後に`/games/{id}/record`を待つが、現画面は`/games`のままで、batted hitsの3件と同じE2E導線ドリフト。製品の3試合/30閲覧は未実測であり、load成功へ読み替えない。
-- **次の実行**: 共有E2E導線（create→start→record）の現行UX追随、interference分岐の停止点、P3直後read。TLS資材は`/tmp/opencode/tls`の試験専用で、リポジトリ/シークレットへ保存しない。
+- **3試合×30閲覧load**: **未成立**。E2E導線のcold start待ちを分離した後、30閲覧の初回`更新済み`・server-only注記・18名 lineupは通過したが、wave 1の実保存で`recordRealPitch`のPOST/GETが45秒timeout。30閲覧同時poll下でwriter保存が45秒以内に成立せず、保存後10秒更新の測定へ到達しない。**NFR-004の3試合×10閲覧（本試験は30閲覧）は未達**として残す。タイムアウトを延ばして成功へ読み替えない。
+- **次の実行**: 30閲覧下のwriter starvation（app/DB/uvicorn worker/ブラウザ資源の切り分け）、共有E2E導線（create→start→record）の現行UX追随、interference分岐の停止点、P3直後read。TLS資材は`/tmp/opencode/tls`の試験専用で、リポジトリ/シークレットへ保存しない。
 
 ## 2026-11-10 06:55 JST：broker再起動B（同一epoch）も26球→P3→27球目で成立
 
