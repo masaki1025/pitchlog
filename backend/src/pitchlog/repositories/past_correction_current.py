@@ -281,14 +281,24 @@ def verify_p3_current_packet(
         raise PastCorrectionCurrentUnavailable("P3 current packetが不正")
     head = _object(raw["head"])
     capsule = _object(raw["capsule"])
+    # 後続playがP3 headのstats pointerを進めた場合、headはP3版のまま、
+    # capsuleのstats_version_idだけが現在版を指し得る。
+    historical = not anchor and head["stats_version_id"] != capsule["stats_version_id"]
     checkpoint_row = _object(raw["checkpoint"])
     stats_row = _object(raw["stats"])
+    # 後続版がhead/capsuleの現pointerでも、P3訂正版はwatermark一致の
+    # invalidated版としてだけ選ばれる。同一源集合の別版へ読み替えない。
+    historical_stats = (
+        stats_row["id"] != head["stats_version_id"]
+        and stats_row["invalidated_at"] is not None
+        and head["stats_version_id"] == capsule["stats_version_id"]
+    )
     change_event = _object(raw["change_event"])
     change_ledger = _object(raw["change_ledger"])
     members = raw["members"]
     suffix_raw = raw["suffix"]
     sources_raw = raw["stats_sources"]
-    if type(members) is not list or not 1 <= len(members) <= 25:
+    if type(members) is not list or not 1 <= len(members) <= 26:
         raise PastCorrectionCurrentUnavailable("P3 current件数が不正")
     try:
         first_prep = None
@@ -321,21 +331,27 @@ def verify_p3_current_packet(
             or head["internal_generation"] != generation
             or head["capsule_id"] != str(capsule_id)
             or head["source_set_digest"] != capsule["source_set_digest"]
-            or head["stats_version_id"] != capsule["stats_version_id"]
-            or stats_row["id"] != head["stats_version_id"]
-            or stats_row["tenant_id"] != str(tenant)
-            or stats_row["game_id"] != str(game)
-            or stats_row["is_current"] is not (not anchor)
-            or (anchor and stats_row["invalidated_at"] is None)
-            or (not anchor and stats_row["invalidated_at"] is not None)
-            or stats_row["source_count"] != source_upper
+            or (
+                head["stats_version_id"] != capsule["stats_version_id"]
+                and not historical
+            )
             or capsule["tenant_id"] != str(tenant)
             or capsule["game_id"] != str(game)
             or capsule["internal_generation"] != generation
             or capsule["change_event_id"] != str(change_id)
             or capsule["watermark"] != len(members)
             or capsule["expected_version"] != 1
-            or previous.id != capsule["prior_checkpoint_id"]
+        ):
+            raise PastCorrectionCurrentUnavailable("P3 current head/capsuleが不一致")
+        if (
+            (stats_row["id"] != head["stats_version_id"] and not historical_stats)
+            or stats_row["tenant_id"] != str(tenant)
+            or stats_row["game_id"] != str(game)
+            or stats_row["source_count"] != source_upper
+        ):
+            raise PastCorrectionCurrentUnavailable("P3 current stats rowが不一致")
+        if (
+            previous.id != capsule["prior_checkpoint_id"]
             or previous.revision != str(capsule["prior_checkpoint_revision"])
             or previous.content_digest != capsule["prior_checkpoint_digest"]
             or current.id != previous.id
@@ -354,7 +370,10 @@ def verify_p3_current_packet(
             or not len(members) <= source_upper <= len(members) + 100
             or int(current.revision)
             != int(at_change.revision) + int(current.confirmed_watermark) - len(members)
-            or change_event["tenant_id"] != str(tenant)
+        ):
+            raise PastCorrectionCurrentUnavailable("P3 current CP linkageが不一致")
+        if (
+            change_event["tenant_id"] != str(tenant)
             or change_event["game_id"] != str(game)
             or change_event["d5"] != capsule["d5"]
             or change_event["event_kind"] != "play_change"
@@ -370,7 +389,7 @@ def verify_p3_current_packet(
             or change_ledger["kind"] != "accepted"
             or change_ledger["retired_at"] is not None
         ):
-            raise PastCorrectionCurrentUnavailable("P3 current headが不一致")
+            raise PastCorrectionCurrentUnavailable("P3 current change eventが不一致")
         items: list[dict[str, object]] = []
         payloads: list[LineupPitchPlayPayload] = []
         ledger_fingerprints: list[object] = []
@@ -418,8 +437,32 @@ def verify_p3_current_packet(
                 "item_digests": [item["digest"] for item in items],
             }
         )
+        matched_paged_source = None
         if source_digest != capsule["source_set_digest"]:
-            raise PastCorrectionCurrentUnavailable("P3 source集合が不一致")
+            # P3頁chain形式はitem digestの逐次chainを正本にする。
+            import hashlib
+
+            from pitchlog.sync.past_correction_paged import _chain_step
+
+            chain = "0" * 64
+            for index, item in enumerate(items, start=1):
+                chain = _chain_step(chain, index, item["digest"])
+            paged_source = hashlib.sha256(
+                ":".join(
+                    (
+                        "p3-page-chain-v2",
+                        str(capsule_id),
+                        str(change_id),
+                        previous.content_digest,
+                        at_change.content_digest,
+                        str(len(members)),
+                        chain,
+                    )
+                ).encode("ascii")
+            ).hexdigest()
+            if paged_source != capsule["source_set_digest"]:
+                raise PastCorrectionCurrentUnavailable("P3 source集合が不一致")
+            matched_paged_source = paged_source
         candidate = P3CurrentCapsule(
             capsule_id,
             change_id,
@@ -434,8 +477,39 @@ def verify_p3_current_packet(
             source_digest,
         )
         evaluated = evaluate_p3_capsule_stats(candidate)
+        evaluation_matches = (
+            evaluated.evaluation_set_digest == capsule["stats_evaluation_set_digest"]
+        )
+        if not evaluation_matches and matched_paged_source is not None:
+            import hashlib
+
+            from pitchlog.stats.generated.receiver import SOURCE_MODEL_HASH
+            from pitchlog.sync.past_correction_paged import _chain_step
+
+            chain = "0" * 64
+            for source in evaluated.sources:
+                chain = _chain_step(
+                    chain,
+                    source.d1,
+                    source.original_evaluation_digest,
+                    source.evaluation_digest,
+                )
+            paged_evaluation = hashlib.sha256(
+                ":".join(
+                    (
+                        "p3-stats-chain-v2",
+                        str(capsule_id),
+                        SOURCE_MODEL_HASH,
+                        matched_paged_source,
+                        chain,
+                    )
+                ).encode("ascii")
+            ).hexdigest()
+            evaluation_matches = (
+                paged_evaluation == capsule["stats_evaluation_set_digest"]
+            )
         if (
-            evaluated.evaluation_set_digest != capsule["stats_evaluation_set_digest"]
+            not evaluation_matches
             or evaluated.model_sha256 != stats_row["model_sha256"]
         ):
             raise PastCorrectionCurrentUnavailable("P3 T5評価集合が不一致")

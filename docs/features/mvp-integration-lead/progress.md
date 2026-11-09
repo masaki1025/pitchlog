@@ -1,5 +1,11 @@
 # 初回MVP 主担当引受・進捗台帳
 
+## 2026-11-10 02:10 JST：P3後のlifecycle読取を候補版・履歴CP・頁chainへ接続
+
+- **診断の確定**: `lifecycle-prefix-v1` はP3訂正直後と27球目後の双方で503。traceは `read_p3_current` の `P3 current ... rejected` → 修正後 `P3 current count rejected`（capsule watermark 26が旧1..25上限を超過）→ `P3 current source count rejected`（P3 headが後続版を指す）→ verifierの `P3 current stats row/CP linkage/source集合`。P3候補版はcurrentでなく、後続playがhead/capsuleのstats pointerを進め、頁chain形式の `source_set_digest`/`stats_evaluation_set_digest` を持つ。
+- **是正**: `read_p3_current` はP3 capsuleのwatermark一致・model一致の版を選び、非current候補/履歴版のhealthを要求しない。応答checkpointはcapsuleのnext content/id/revision/digest/水位を合成し、現在CPとは分離。verifierはP3版のwatermark/item/原本/有効/CP連結/change eventを個別に照合し、頁chain digest（source/evaluation）も再計算して受理。非play frameは既に実効版なら再適用せず検証、stackの現状態はP3 watermark frameで照合。P3 next CPは現在chainの祖先として許可。item上限を26（25頁+対象）へ。契約function bodyを再生成。
+- **現在**: P3/CSV純 **201 passed**、追加76 passed。26球→P3→27球目の保存は成立済み。lifecycle readの実DB縦断は反復中で、次の未達は verifierの後続段（`P3現head`/T5評価/履歴再構成）または end/reopen 接続。台帳の既知赤（`save_primitive_source` 本文不一致、`tenant_transaction_scope` 属性欠落）は変更前から赤。
+
 ## 2026-11-10 01:20 JST：P3後のlifecycle読取を候補版・履歴anchorへ接続
 
 - **診断**: 26球→P3訂正→27球目はアプリ結果 `prefix=27` で保存成立。しかし `lifecycle-prefix-v1` はP3訂正直後・27球目後の双方で503。traceで `read_p3_current` の `P3 current read rejected`（line 159）を確認。原因は非play lifecycle readがP3候補版（`is_current=false`）を拒否し、さらに現在CPのみを選んでいたこと。

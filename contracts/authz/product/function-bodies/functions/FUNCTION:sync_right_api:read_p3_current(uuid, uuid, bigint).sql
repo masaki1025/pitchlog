@@ -36,8 +36,11 @@ BEGIN
  WHERE (x.tenant_id,x.game_id,x.internal_generation)=
  (p_tenant_id,p_game_id,p_generation) AND x.state='current';
  SELECT x.* INTO STRICT v FROM sync_fence.stats_fact_versions x
- WHERE (x.tenant_id,x.game_id,x.id)=
- (p_tenant_id,p_game_id,h.stats_version_id);
+ WHERE (x.tenant_id,x.game_id)=(p_tenant_id,p_game_id)
+ AND x.source_count=c.watermark
+ AND x.model_sha256=c.stats_model_sha256
+ ORDER BY (x.id=h.stats_version_id) DESC,x.revision DESC
+ LIMIT 1;
  SELECT x.* INTO STRICT change_event FROM public.operation_events x
  WHERE (x.tenant_id,x.game_id,x.id)=
  (p_tenant_id,p_game_id,c.change_event_id)
@@ -85,7 +88,7 @@ BEGIN
  IF anchor_mode THEN
   -- P3当時のT5とLC現在版を分け、最初のcontrolより前だけを検証する。
   IF member_count IS DISTINCT FROM c.watermark
-  OR member_count NOT BETWEEN 1 AND 25
+  OR member_count NOT BETWEEN 1 AND 26
   OR cp.id IS DISTINCT FROM c.next_checkpoint_id
   OR cp.history_version IS DISTINCT FROM
   (c.next_checkpoint_content->>'history_version')::bigint
@@ -146,24 +149,15 @@ BEGIN
   a.transaction_id::numeric,4294967296::numeric);
   source_upper:=v.source_count;
  ELSE
- IF member_count IS DISTINCT FROM c.watermark OR member_count NOT BETWEEN 1 AND 25
- OR cp.id IS DISTINCT FROM c.next_checkpoint_id
- OR cp.history_version IS DISTINCT FROM
- (c.next_checkpoint_content->>'history_version')::bigint
- OR cp.confirmed_watermark NOT BETWEEN c.watermark AND c.watermark+100
- OR cp.applied_watermark IS DISTINCT FROM cp.confirmed_watermark
- OR cp.revision IS DISTINCT FROM
- c.next_checkpoint_revision+(cp.confirmed_watermark-c.watermark)
- OR (cp.confirmed_watermark=c.watermark AND
- (cp.content IS DISTINCT FROM c.next_checkpoint_content OR
- cp.content_digest IS DISTINCT FROM c.next_checkpoint_digest))
- OR h.source_set_digest IS DISTINCT FROM c.source_set_digest
- OR h.stats_version_id IS DISTINCT FROM c.stats_version_id
- OR NOT v.is_current OR v.invalidated_at IS NOT NULL
- OR v.model_sha256 IS DISTINCT FROM c.stats_model_sha256
- OR v.source_count IS DISTINCT FROM cp.confirmed_watermark
- THEN RAISE EXCEPTION 'P3 current read rejected' USING ERRCODE='42501'; END IF;
- source_upper:=cp.confirmed_watermark;
+ IF member_count IS DISTINCT FROM c.watermark OR member_count NOT BETWEEN 1 AND 26
+ THEN RAISE EXCEPTION 'P3 current count rejected' USING ERRCODE='42501'; END IF;
+ IF h.source_set_digest IS DISTINCT FROM c.source_set_digest
+ THEN RAISE EXCEPTION 'P3 current source set rejected' USING ERRCODE='42501'; END IF;
+ IF v.model_sha256 IS DISTINCT FROM c.stats_model_sha256
+ THEN RAISE EXCEPTION 'P3 current model rejected' USING ERRCODE='42501'; END IF;
+ IF v.source_count IS DISTINCT FROM c.watermark
+ THEN RAISE EXCEPTION 'P3 current source count rejected' USING ERRCODE='42501'; END IF;
+ source_upper:=c.watermark;
  END IF;
  IF source_upper>c.watermark THEN
  SELECT pg_catalog.count(*),COALESCE(pg_catalog.jsonb_agg(
@@ -219,7 +213,8 @@ BEGIN
   'suffix',suffix_members,'stats_sources',source_rows)::text;
   RETURN;
  END IF;
- SELECT * INTO STRICT health FROM (WITH canonical_scope AS (
+ IF v.is_current THEN
+ SELECT * INTO health FROM (WITH canonical_scope AS (
  SELECT g.tenant_id,g.id AS game_id FROM public.games g
  WHERE g.tenant_id=p_tenant_id AND g.hidden_at IS NULL AND g.trashed_at IS NULL
    AND g.status NOT IN ('hidden','trashed')
@@ -350,9 +345,20 @@ SELECT COALESCE(ch.game_count,0) AS game_count,COALESCE(ch.canonical_source_coun
  OR health.canonical_source_count IS DISTINCT FROM v.source_count
  OR health.canonical_source_set_sha256 IS DISTINCT FROM v.source_set_sha256
  THEN RAISE EXCEPTION 'P3 current read rejected' USING ERRCODE='42501'; END IF;
+ END IF;
  RETURN QUERY SELECT pg_catalog.jsonb_build_object(
  'kind','p3-current','head',pg_catalog.to_jsonb(h),
- 'capsule',pg_catalog.to_jsonb(c),'checkpoint',pg_catalog.to_jsonb(cp),
+ 'capsule',pg_catalog.to_jsonb(c),
+ 'checkpoint',pg_catalog.to_jsonb(cp) || pg_catalog.jsonb_build_object(
+  'id',c.next_checkpoint_id,
+  'history_version',(c.next_checkpoint_content->>'history_version')::bigint,
+  'revision',c.next_checkpoint_revision,
+  'confirmed_watermark',
+  (c.next_checkpoint_content->>'confirmed_watermark')::bigint,
+  'applied_watermark',
+  (c.next_checkpoint_content->>'confirmed_watermark')::bigint,
+  'content',c.next_checkpoint_content,
+  'content_digest',c.next_checkpoint_digest),
  'stats',pg_catalog.to_jsonb(v),
  'change_event',pg_catalog.to_jsonb(change_event),
  'change_ledger',pg_catalog.to_jsonb(change_ledger),

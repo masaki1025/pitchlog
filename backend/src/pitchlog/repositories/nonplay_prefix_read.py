@@ -823,7 +823,13 @@ def _read_legacy_undo_source(handle, doc, stored, artifact_sha256, verified_p3=N
         )
 
         if verified_p3.checkpoint != doc:
-            raise NonplaySourceUnavailable("取消P3現CPが不一致")
+            # 後続playがある場合、P3 next CPは現在chainの祖先であり得る。
+            if not (
+                int(verified_p3.checkpoint.confirmed_watermark)
+                < int(doc.confirmed_watermark)
+                and int(verified_p3.checkpoint.revision) < int(doc.revision)
+            ):
+                raise NonplaySourceUnavailable("取消P3現CPが不一致")
         stack = p3_effective_nonplay_stack(stack, verified_p3)
         all_values = [
             (point, frame) for (point, _), frame in zip(all_values, stack, strict=True)

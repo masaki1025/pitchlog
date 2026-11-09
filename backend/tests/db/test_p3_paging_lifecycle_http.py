@@ -54,6 +54,23 @@ def build_p3_26_script(*, stop_after_p3: bool = False) -> str:
     trace_start = traced.index("_actual_p3_apply = actual_sync_router._apply_e1_p3")
     trace_end = traced.index("async def run():", trace_start)
     trace = traced[trace_start:trace_end]
+    trace = (
+        "from pitchlog.repositories import nonplay_prefix_read as _lc_read\n"
+        "_lc_actual = _lc_read.read_undo_prefix\n"
+        "def _lc_traced(*args, **kwargs):\n"
+        "    try:\n"
+        "        return _lc_actual(*args, **kwargs)\n"
+        "    except BaseException as error:\n"
+        "        chain=[]; seen=set(); cur=error\n"
+        "        while cur is not None and len(chain)<8 and id(cur) not in seen:\n"
+        "            seen.add(id(cur))\n"
+        "            chain.append(type(cur).__name__ + ':' + str(cur)[:120])\n"
+        "            cur=cur.__cause__ or cur.__context__\n"
+        "        runtime_diagnostics['lifecycle_read_error']=chain\n"
+        "        raise\n"
+        "_lc_read.read_undo_prefix=_lc_traced\n"
+        + trace
+    )
     paged_trace = """from pitchlog.sync import past_correction_execution
 actual_p3_execution = past_correction_execution
 _actual_p3_visit = actual_p3_execution.visit_p3_lineup_correction_pages
@@ -463,6 +480,12 @@ _p3_paged._assert_page_binding = _p3_guard
         assert effective["batting_result_key"] == "batting-result.ball"
         assert second_page["prefix_ref"] == corrected_current["prefix_ref"]
         assert second_page["after"] == corrected_current["after"]
+        lifecycle_p3 = await client.get(
+            "/games/" + game + "/started?projection=lifecycle-prefix-v1&limit=25",
+            headers=headers())
+        runtime_diagnostics["lifecycle_after_p3"] = lifecycle_p3.status_code
+        if lifecycle_p3.status_code != 200:
+            runtime_diagnostics["lifecycle_after_p3_body"] = lifecycle_p3.text[:400]
         runtime_diagnostics.update(stage="26-confirmation", status=None)
         confirmation = await client.get(
             "/games/" + game + "/sync/change-confirmation/26",
@@ -501,6 +524,12 @@ __NEXT_PITCH__
         assert latest["page"]["next_cursor"] is None
         assert latest["page"]["items"][0]["play_row"] == effective
         assert latest["prefix_ref"] == current["prefix_ref"]
+        lifecycle_27 = await client.get(
+            "/games/" + game + "/started?projection=lifecycle-prefix-v1&limit=25",
+            headers=headers())
+        runtime_diagnostics["lifecycle_after_27"] = lifecycle_27.status_code
+        if lifecycle_27.status_code != 200:
+            runtime_diagnostics["lifecycle_after_27_body"] = lifecycle_27.text[:400]
         runtime_diagnostics.update(stage="complete", status=200)
         return {
             "game": game,
@@ -512,6 +541,7 @@ __NEXT_PITCH__
             "effective_event_id": effective["source_event_id"],
             "stats_version_id": confirmed["stats_version_id"],
             "last_play_id": latest["page"]["items"][1]["play_row"]["id"],
+            "runtime_diagnostics": runtime_diagnostics,
             "source_origin": {
                 "sync_router": actual_sync_router.__file__,
                 "read_router": actual_started_router.__file__,
@@ -573,6 +603,7 @@ __NEXT_PITCH__
             "stats_version_id": confirmed["stats_version_id"],
             "p3_zip_rows": len(csv_rows),
             "p3_zip_label": target_csv["打撃結果"],
+            "runtime_diagnostics": runtime_diagnostics,
             "source_origin": {
                 "sync_router": actual_sync_router.__file__,
                 "read_router": actual_started_router.__file__,
@@ -949,7 +980,45 @@ def test_actual_p3_26_lifecycle_http(vertical_database, tmp_path) -> None:
                             (*p3_key, head[0], head[1]),
                         ).fetchall()
                     ]
-        (tmp_path / "p3-26-fault-db.json").write_text(json.dumps(diag, indent=2))
+        diag["p3_checkpoints"] = [
+            [
+                str(row[0]), row[1], row[2], row[3], row[4], row[5],
+                row[6], row[7], row[8],
+            ]
+            for row in admin.execute(
+                "SELECT id,revision,history_version,confirmed_watermark,"
+                "applied_watermark,state,content_digest,"
+                "content->>'formatVersion',content->>'version' "
+                "FROM sync_fence.ordinary_pitch_checkpoints "
+                "WHERE tenant_id=%s AND game_id=%s ORDER BY revision",
+                p3_key,
+            ).fetchall()
+        ]
+        diag["p3_capsule_row"] = admin.execute(
+            "SELECT to_jsonb(c) FROM sync_fence.p3_projection_capsules c "
+            "WHERE c.tenant_id=%s AND c.game_id=%s",
+            p3_key,
+        ).fetchone()
+        diag["p3_head_row"] = admin.execute(
+            "SELECT to_jsonb(h) FROM sync_fence.p3_projection_heads h "
+            "WHERE h.tenant_id=%s AND h.game_id=%s",
+            p3_key,
+        ).fetchone()
+        diag["p3_stats_rows"] = [
+            [
+                str(row[0]), row[1], row[2], row[3], row[4], row[5], row[6],
+            ]
+            for row in admin.execute(
+                "SELECT id,source_count,is_current,invalidated_at,"
+                "model_sha256,source_set_sha256,completion_state "
+                "FROM sync_fence.stats_fact_versions "
+                "WHERE tenant_id=%s AND game_id=%s ORDER BY revision",
+                p3_key,
+            ).fetchall()
+        ]
+        (tmp_path / "p3-26-fault-db.json").write_text(
+            json.dumps(diag, indent=2, default=str)
+        )
     assert "exception" not in result, result.get("runtime_diagnostics", {}).get("stage")
     assert result["prefix"] == "27"
     assert UUID(result["game"]) != db.game_id
@@ -1008,7 +1077,7 @@ def test_actual_p3_26_lifecycle_http(vertical_database, tmp_path) -> None:
         assert csv_row[0] == UUID(result["effective_event_id"])
         assert csv_row[1] == UUID(result["effective_play_id"])
         assert csv_row[2] == "ボール"
-        csv_origin = json.loads(csv_row[4])
+        csv_origin = json.loads(csv_row[3])
         assert csv_origin["projectionKind"] == "p3-current"
         assert csv_origin["sourceEventId"] == result["effective_event_id"]
         assert csv_origin["capsuleId"] == str(capsule_id)
@@ -1155,8 +1224,54 @@ def test_actual_p3_26_lifecycle_end_reopen_add_reend_stats(
                         (db.tenant_id,),
                     ).fetchall()
                 ],
+                "p3": [
+                    [
+                        str(row[0]), row[1], row[2], str(row[3]), str(row[4]),
+                        row[5], str(row[6]),
+                    ]
+                    for row in admin.execute(
+                        "SELECT id,target_d1,watermark,next_checkpoint_id,"
+                        "stats_version_id,expected_version,change_event_id "
+                        "FROM sync_fence.p3_projection_capsules "
+                        "WHERE tenant_id=%s",
+                        (db.tenant_id,),
+                    ).fetchall()
+                ],
+                "checkpoints": [
+                    [
+                        str(row[0]), row[1], row[2], str(row[3]), row[4], row[5],
+                        row[6], row[7], row[8],
+                    ]
+                    for row in admin.execute(
+                        "SELECT id,revision,history_version,confirmed_watermark,"
+                        "applied_watermark,state,content_digest,"
+                        "content->>'formatVersion',content->>'version' "
+                        "FROM sync_fence.ordinary_pitch_checkpoints "
+                        "WHERE tenant_id=%s ORDER BY revision",
+                        (db.tenant_id,),
+                    ).fetchall()
+                ],
+                "capsule_json": admin.execute(
+                    "SELECT to_jsonb(c) FROM sync_fence.p3_projection_capsules c "
+                    "WHERE c.tenant_id=%s",
+                    (db.tenant_id,),
+                ).fetchone(),
+                "stats_json": [
+                    [
+                        str(row[0]), row[1], row[2], row[3], row[4], row[5],
+                    ]
+                    for row in admin.execute(
+                        "SELECT id,source_count,is_current,invalidated_at,"
+                        "model_sha256,source_set_sha256 "
+                        "FROM sync_fence.stats_fact_versions "
+                        "WHERE tenant_id=%s ORDER BY revision",
+                        (db.tenant_id,),
+                    ).fetchall()
+                ],
             }
-        (tmp_path / "p3-26-lifecycle-db.json").write_text(json.dumps(diag))
+        (tmp_path / "p3-26-lifecycle-db.json").write_text(
+            json.dumps(diag, default=str)
+        )
     assert "exception" not in result, (
         result.get("runtime_diagnostics", {}).get("stage"),
         result.get("runtime_diagnostics", {}).get("cause_frames"),

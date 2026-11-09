@@ -38,12 +38,18 @@ def read_p3_nonplay_current(
     if packet["kind"] == "none":
         return None
     if packet["kind"] == "p3-anchor":
+        anchor_row = nonplay_checkpoint_row
+        if anchor_row is None:
+            candidate = packet.get("nonplay_checkpoint")
+            if type(candidate) is not dict:
+                raise PastCorrectionCurrentUnavailable("非play P3 anchor行が不正")
+            anchor_row = candidate
         return verify_p3_current_packet(
             packet,
             tenant=handle._bound_tenant_id,
             game=game_id,
             generation=generation,
-            nonplay_checkpoint_row=nonplay_checkpoint_row,
+            nonplay_checkpoint_row=anchor_row,
         )
     if nonplay_checkpoint_row is not None:
         raise PastCorrectionCurrentUnavailable("非play P3現CP種別が不一致")
@@ -59,7 +65,22 @@ def read_p3_nonplay_current(
     ):
         raise PastCorrectionCurrentUnavailable("非play P3独立CP証拠が不正")
     proven = point["row"]
-    if set(proven) - set(row) != {
+    if packet["stats"].get("is_current") is False:
+        # 後続playがある場合、独立current CPはP3 next CPの子孫である。
+        # 同一idのままrevision/水位だけが進むことを要求し、全列一致は
+        # current時だけに限定する。
+        try:
+            descendant = (
+                type(proven.get("id")) is str
+                and int(proven["revision"]) > int(row["revision"])
+                and int(proven["confirmed_watermark"])
+                > int(row["confirmed_watermark"])
+            )
+        except (KeyError, TypeError, ValueError):
+            descendant = False
+        if not descendant:
+            raise PastCorrectionCurrentUnavailable("非play P3後続CPが不一致")
+    elif set(proven) - set(row) != {
         "last_history",
         "last_play_row",
         "last_play_runners",
@@ -99,6 +120,18 @@ def p3_effective_nonplay_frame(original: dict, verified: VerifiedP3Current) -> d
             or original["afterContext"] != after
         ):
             raise PastCorrectionCurrentUnavailable("非play P3後続frameが不一致")
+        return original
+    # 後続playの現chainは訂正後の実効frameを含み得る。同じ実効版なら
+    # 原本へ戻さず、そのまま検証して保持する（二重適用しない）。
+    effective_before, effective_after = _stored_contexts(item["payload"])
+    if (
+        source["eventId"] == item["effective_event_id"]
+        and original["play"]["playId"] == item["effective_play_row_id"]
+        and original["historyEntry"] == item["history_entry"]
+        and original["beforeContext"] == effective_before
+        and original["afterContext"] == effective_after
+    ):
+        _validate_value(original, "ActiveFrame")
         return original
     old_before, old_after = _stored_contexts(item["original_payload"])
     if (
@@ -217,8 +250,19 @@ def p3_effective_nonplay_stack(
         )
         if logical != before_checkpoint:
             raise PastCorrectionCurrentUnavailable("非play P3旧CP論理版が不一致")
-    elif _canonical_json(result[0]["afterContext"]["current"]) != _canonical_json(
-        verified.checkpoint.after.model_dump(mode="json", by_alias=True)
-    ):
-        raise PastCorrectionCurrentUnavailable("非play P3現状態が不一致")
+    else:
+        marker = next(
+            (
+                frame
+                for frame in result
+                if int(frame["play"]["source"]["d1"]) == len(verified.items)
+            ),
+            None,
+        )
+        if marker is None or _canonical_json(
+            marker["afterContext"]["current"]
+        ) != _canonical_json(
+            verified.checkpoint.after.model_dump(mode="json", by_alias=True)
+        ):
+            raise PastCorrectionCurrentUnavailable("非play P3現状態が不一致")
     return result
